@@ -1,0 +1,189 @@
+<Panel caption=" Demos ">
+	<Properties>	<FillColor>0</FillColor> </Properties>
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>	
+			<Bounds> <Width>120</Width>	</Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption>Bones</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties> 
+					<ID>X</ID>
+					<CommandString>WMBunny.Insert bones.gif 25 10;StartMenu.ClosePopup</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		
+		<Button>
+			<Properties>
+				<Caption>Bunny</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMBunny.Insert XmasBunnyLinear.gif 8 16;StartMenu.ClosePopup</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>
+	
+<!-- Second column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds> <Width>120</Width> </Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption>Tetris</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMTT.Open</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+
+		<Button>
+			<Properties>
+				<Caption>3d.Menu</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>W3dMenu.Open W3dMenu.XML</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>	
+	
+<!-- 3rd column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds> <Width>120</Width> </Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption>Turing</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>TuringCoatWnd.Open</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		
+		<Button>
+			<Properties>
+				<Caption>Fractal</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>FractalDemo.Register;ComponentViewer.Open FractalDemo.XML</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>	
+
+<!-- 4th column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>	
+				<Width>120</Width>
+			</Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption>FlagMovie</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMPlayer.Open flags.avi</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		
+		<Button>
+			<Properties>
+				<Caption>SlideShow</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMSlideshow.Open RetoWMSlideshow.XML</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>	
+	
+<!--
+
+		<Button>
+			<Properties>
+				<Caption>3d.Clown</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>W3dExplorer.Open</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+
+		<Button>
+			<Properties>
+				<Caption>Logo</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMBunny.Insert aos1.gif 25 -15;WMBunny.Insert aos2.gif 25 10;WMBunny.Insert aos3.gif 25 15</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+-->	
+	
+</Panel>

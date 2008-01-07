@@ -1,0 +1,189 @@
+<Panel caption=" Edit ">
+	<Properties>	<FillColor>0</FillColor> </Properties>
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>	
+			<Bounds> <Width>120</Width>	</Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption>Text</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties> 
+					<ID>X</ID>
+					<CommandString>Notepad.OpenEmpty</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		
+		<Button>
+			<Properties>
+				<Caption>DTP</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>DTPImage.Register;DTPRect.Register;DTPText.Register;DTPEditor.Open Demo</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>
+	
+<!-- Second column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds> <Width>120</Width> </Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption>Styles</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMTextStyleTool.Open;StartMenu.ClosePopup</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+
+		<Button>
+			<Properties>
+				<Caption>Chinese</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMPinyinIME.Install</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>	
+	
+<!-- 3rd column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds> <Width>120</Width> </Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption>Cyrillic</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMCyrillicIME.Install</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		
+		<Button>
+			<Properties>
+				<Caption>Unicode</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMUnicodeIME.Install</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>	
+
+<!-- 4th column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>	
+				<Width>120</Width>
+			</Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption>UnicodeMap</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMCharMap.Open</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>	
+	
+<!--
+
+		<Button>
+			<Properties>
+				<Caption>3d.Clown</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>W3dExplorer.Open</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+
+		<Button>
+			<Properties>
+				<Caption>Logo</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMBunny.Insert aos1.gif 25 -15;WMBunny.Insert aos2.gif 25 10;WMBunny.Insert aos3.gif 25 15</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+-->	
+	
+</Panel>

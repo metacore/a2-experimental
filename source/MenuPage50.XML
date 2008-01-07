@@ -1,0 +1,189 @@
+<Panel caption=" Develop ">
+	<Properties>	<FillColor>0</FillColor> </Properties>
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>	
+			<Bounds> <Width>120</Width>	</Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption>IDE</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties> 
+					<ID>X</ID>
+					<CommandString>PET.Open</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		
+		<Button>
+			<Properties>
+				<Caption>Oberon FullScreen</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>AosDisplayWM.Install Oberon 0x0;System.Init Oberon</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>
+	
+<!-- Second column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds> <Width>120</Width> </Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption>GUIPatterns</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>Notepad.OpenAuto GUIPat.txt</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>	
+	
+<!-- 3rd column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds> <Width>120</Width> </Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>	
+
+<!-- 4th column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>	
+				<Width>120</Width>
+			</Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>	
+	
+<!--
+
+		<Button>
+			<Properties>
+				<Caption>3d.Clown</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>W3dExplorer.Open</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+
+		<Button>
+			<Properties>
+				<Caption>Logo</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMBunny.Insert aos1.gif 25 -15;WMBunny.Insert aos2.gif 25 10;WMBunny.Insert aos3.gif 25 15</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+-->	
+	
+</Panel>

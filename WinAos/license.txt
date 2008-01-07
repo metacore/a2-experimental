@@ -1,0 +1,236 @@
+This is a compilation of the 
+- ETH Plugin Oberon System 
+running on an 
+- Active Objects System (also referred as "Aos" or "Bluebottle") Kernel
+and 
+- the software packages Voyager and AntsInFields. 
+
+
+Nearly all parts of this compilation belong to the ETH Oberon Plugin System, exceptions are the files with 
+prefix "Aos" and the files of "AntsInFields" and "Voyager", stored in the directories "Work/ants" 
+and "Work/vy" respectively.
+
+----
+
+Oberon is the name of a modern integrated software environment. It is a single-user, 
+multi-tasking system that runs on bare hardware or on top of a host operating system. 
+Oberon is also the name of a programming language in the Pascal/Modula tradition. 
+The Oberon project was launched in 1985 by Niklaus Wirth and Jürg Gutknecht. 
+See also http://www.oberon.ethz.ch
+
+Voyager is a project to explore the feasibility of a portable and extensible system 
+for simulation and data analysis systems. It is mainly written in and for Oberon. 
+The Voyager project is carried out by StatLab Heidelberg and was launched 
+in 1993 by Günther Sawitzki. 
+See also http://www.statlab.uni-heidelberg.de/projects/voyager/
+
+AntsInFields is a Software Package for Simulation and Statistical Inference on Gibbs Fields.
+AntsInFields is written in Oberon and uses Voyager. It has been developed since 1997
+by Felix Friedrich. 
+
+----
+
+Voyager is - in this distribution - located in the directory "Work/vy"
+Source code of Voyager is marked by preceding "vy" for all Module-Names
+
+AntsInFields is - in this distribution - located in the directory "Work/ants"
+Source code of AntsInFields is marked by preceding letters "ants" for all Module Names.
+
+Any files NOT located in the directory "Work" except the files
+"Copyright.readme.txt","Ants.reg", "Ants.lnk"  and "Oberon.reg"
+are original files from ETH Oberon or the Aos Kernel. 
+----
+
+The Operating System Oberon - called "ETH Oberon" in this distribution - is
+protected by the following copyright, start and end marked by ">>" and "<<" respectively:
+
+>>
+General ETH Oberon System Source License
+
+
+License Terms
+
+of the Swiss Federal Institute of Technology Zuerich (Eidgenoessische 
+Technische Hochschule Zuerich [ETHZ]), represented by Prof. Dr. Juerg 
+Gutknecht, Institute for Computer Systems, (hereafter Institute), 
+concerning the Source Code to the software ETH Oberon.
+
+
+Article 1  Subject
+
+Subject of these license terms is the source code of the software system
+ETH Oberon, hereafter referred to as source code.
+
+
+Article 2  Rights of the Licensee
+
+The Licensee shall be granted the right to use the source code in whole or in
+part for private use, for conversion to another platform or for production of
+an application software, to grant sub-licenses of the source code as well as,
+under the condition of Article 3, to adapt or to modify it. The Licensee 
+shall not be allowed to use the source code or derivatives thereof 
+commercially, unless this right has been granted explicitly.
+
+
+Article 3  Prohibition
+
+(1) The Licensee may not do either of the following
+    (a) modify the interfaces of the source code in any way that disagrees
+        with style and content of the system.
+    (b) produce conversions to another platform that disagree with style and
+        content of the system.
+
+(2) In case of doubt the Institute shall be asked for written consent.
+
+
+Article 4  Obligations of the Licensee
+
+(1) Sub-licenses must confer the identical legal position which is granted by
+the present license terms. The Sub-Licensee must therefore be entitled to
+the same rights and must be bound by the same obligations as well as by the
+same prohibition as the Licensee.
+
+(2) The source code of each module, also in each copy, must at the beginning
+refer to the present license terms as follows:
+
+  (* ETH Oberon, Copyright 2000 ETH Zuerich Institut fuer Computersysteme, 
+  ETH Zentrum, CH-8092 Zuerich. Refer to the "General ETH Oberon System 
+  Source License" contract available at: http://www.oberon.ethz.ch/ *)
+
+(3) The source code and each conversion resulting from its utilization must 
+be provided with the name Oberon and designate as author the "Team of the 
+Institute for Computer Systems of ETH Zuerich" at the beginning. Any further
+developments, updates and applications must be marked "based on Oberon".
+
+(4) Modifications by the Licensee are to be clearly identified.
+
+
+Article 5  Consequences of Infringements
+
+Each infringement of these license terms shall directly result in the loss of
+the rights granted in Article 2. There shall be no right to distribute those
+products which have been produced in violation of this contract.
+
+
+Article 6  Information
+
+(1) Upon request the Institute (e-mail: oberon@inf.ethz.ch) shall provide the
+Licensee with information on modifications, updates and further developments
+of the source code by the Institute.
+
+(2) Upon request the Licensee and each Sub-Licensee shall disclose to the
+Institute their applications, modifications, updates and further developments
+of the source code as well as the thereby gained experiences and knowledge.
+
+
+Article 7  Liability
+
+(1) The Institute does not assume any liability for damage directly or 
+indirectly caused by the application of the source code.
+
+(2) If a third party takes legal action based on infringement of its 
+protective rights by the Licensee's use of the source code, the contract
+party sued must immediately notify the other contract party. The Licensee is
+not entitled to conclude a settlement without the expressive and written 
+consent of the Institute.
+
+
+Article 8  Modifications
+
+The Institute may modify these license terms. The valid version may be
+downloaded or requested as mentioned in Article 4 sub-paragraph 2.
+
+
+Article 9  Validity and Duration of License
+
+(1) Upon receipt of the source code these license terms are deemed to be
+accepted.
+
+(2) By notification with registered mail, the Institute may withdraw the
+license or the sub-license with immediate effect.
+
+(3) The obligations of the licensee according to Articles 3 and 4 
+sub-paragraphs 2 - 4 shall remain effective even after the termination
+of the license.
+
+
+Article 10  Applicable Law and Place of Jurisdiction
+
+This Agreement is governed by Swiss law. Place of jurisdiction is Zuerich.
+
+
+For the Institute:
+
+Zuerich, May 10, 2000
+Juerg Gutknecht
+
+<<
+
+----
+
+
+Files with prefix "Aos" are protected by the following copyright, start and end marked by ">>" and "<<" respectively:
+(from: http://bluebottle.ethz.ch/license/index.html)
+
+>>
+
+ETH Bluebottle
+Copyright (c) 2002, Computer Systems Institute, ETH Zurich
+All rights reserved. 
+
+Redistribution and use in source and binary forms, with or without modification, 
+are permitted provided that the following conditions are met: 
+
+- Redistributions of source code must retain the above copyright notice, this 
+  list of conditions and the following disclaimer. 
+- Redistributions in binary form must reproduce the above copyright notice, this 
+  list of conditions and the following disclaimer in the documentation and/or 
+  other materials provided with the distribution. 
+- Neither the name of the ETH Zurich nor the names of its contributors may be used 
+  to endorse or promote products derived from this software without specific prior written permission. 
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; 
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, 
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+<< 
+
+----
+
+
+The following copyright note (start and end marked by ">>" and "<<" respectively) 
+concerns either of the software packages   
+
+Voyager 
+(C) 1993-2002 Project Voyager, StatLab Heidelberg ; (C) 1993-2002 G. Sawitzki et al.
+
+
+and 
+
+AntsInFields 
+(C) 1997-2002 Felix Friedrich, Munich:
+
+>>
+  
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License as published by the Free Software Foundation; either
+    version 2.1 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+<<
+
+the copy of the LGPL can be found in this directory as file "LGPL.TXT"
+

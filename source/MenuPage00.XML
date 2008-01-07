@@ -1,0 +1,168 @@
+<Panel caption=" Docu  ">
+	<Properties>
+		<FillColor>0</FillColor>
+	</Properties>
+
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>	
+				<Width>120</Width>
+			</Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption>Tutorial</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>Notepad.OpenAuto Tutorial.Text</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		
+		<Button>
+			<Properties>
+				<Caption>ChineseTutorial</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>Notepad.OpenUTF8 cn.PrgInOberon.txt</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>	
+	
+<!-- 2. column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>	
+				<Width>120</Width>
+			</Bounds>	
+		</Properties>
+
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>
+
+<!-- 3. column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>	
+				<Width>120</Width>
+			</Bounds>	
+		</Properties>
+	
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+
+		
+	</Panel>
+
+<!-- 4. column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>	
+				<Width>120</Width>
+			</Bounds>	
+		</Properties>
+	
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+
+		<Button>
+			<Properties>
+				<Caption></Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString></CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		
+	</Panel>
+	
+</Panel>

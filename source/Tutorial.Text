@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?bluebottle format version="0.1" ?>
+<?xml-stylesheet type="text/xsl" href="http://bluebottle.ethz.ch/bluebottle.xsl" ?>
+<Text>
+<Span style="Assertion"><![CDATA[Tutorial
+]]></Span><Span style="Normal"><![CDATA[
+]]></Span><Span style="Bold"><![CDATA[User Guide
+
+]]></Span><Span style="Normal"><![CDATA[The Graphical User Interface (GUI) of the Bluebottle System is at the same time similar and different from other windowing systems. Nowadays most computer users are well trained to use a mouse for clicking buttons, selecting text and performing drag and drop operations to move items such as windows and texts around the virtual desktop. Since the Bluebottle GUI is similar in this respect, not much needs to be introduced to basic manipulations and working with the system.
+
+There are mainly two reasons why the Bluebottle GUI implements many features common to most other recent GUI systems. First, these features are well known to most of todays computer users and hence ease the problems inherent to learning a new system. Second, many of these features have been selected and evolved for up to twenty years and have shown to be useful.
+
+While sticking to known metaphors and interfaces can reduce the user's fear of learning a new system, it can also lead to a drop in innovation and hence prevent the emergence of novel interface methods. Therefore, the Bluebottle GUI combines a selection of features from many "worlds" and adds some new ones, too. It is for instance possible to start commands from any place in a text. Also any text is compatible to any other text in the system like in the classic Oberon GUI that has earned some fame for its unique features in the Human Computer Interaction (HCI) community (see Raskin, The Human Computer Interface). 
+Some elements of the classical Oberon GUI have been discarded or adapted to increase the acceptance with the users e.g. no "Interclicks" are ]]></Span><Span style="Highlight"><![CDATA[needed]]></Span><Span style="Normal"><![CDATA[ in the new GUI elements. The tiled display was abandoned in favor of a windowing system. The introduced windows support free shapes and translucency (semi-transparency). In this respect, the Bluebottle GUI surpasses many existing windowing implementations. Windows can moved, rescaled etc. while the programs "behind" the windows keep running. 
+]]></Span><Span style="Bold"><![CDATA[
+]]></Span><Span style="Normal"><![CDATA[	]]></Span><Span style="Bold"><![CDATA[Desktop Navigation using the keyboard and the mouse]]></Span><Span style="Normal"><![CDATA[
+		Meta-Mouse-Wheel : zoom in/out
+		Meta-Mouse-Move : pan the viewport if the mouse hits the border of the screen
+		Meta-PgUp : zoom in 2x
+		Meta-PgDn : zoom out 2x
+		Meta-Home : All desktop elements visible
+		Meta-End : zoom to 1:1
+		Meta-Left : Move viewport left by one screen in the current zoom factor
+		Meta-Right : Move viewport right by one screen in the current zoom factor
+		Meta-Up : Move viewport up by one screen in the current zoom factor
+		Meta-Down : Move viewport down by one screen in the current zoom factor
+		
+		Alt-Shift is a substitute for the Meta key. ]]></Span><Span style="Comment"><![CDATA[(The meta key is often marked with symbol that is associated with big software vendor)]]></Span><Span style="Normal"><![CDATA[
+		
+	]]></Span><Span style="Bold"><![CDATA[The Main Menu
+]]></Span><Span style="Normal"><![CDATA[		Ctrl-Esc : Move the main menu to the current screen
+		The menu is created using a number of MenuPage??.XML files, where ?? is a two digit decimal number corresponding to the page position in the menu.
+		 00, 10, 20, ... 90 are reserved for the release
+		Use any other number for a custom design page. 
+		It is easiest to open an existing menu page and to edit it according to one's need.
+		Example: ]]></Span><Span style="Debug"><![CDATA[Notepad.OpenUTF8 ]]></Span><Span style="Normal"><![CDATA[MenuPage10.XML ~    ]]></Span><Span style="Comment"><![CDATA[<-- the blue marked text is a command. You can click it with the middle mouse button to execute !]]></Span><Span style="Normal"><![CDATA[
+		
+]]></Span><Span style="Bold"><![CDATA[	Text Editors
+]]></Span><Span style="Normal"><![CDATA[		]]></Span><Span style="Bold"><![CDATA[Mouse Commands:]]></Span><Span style="Normal"><![CDATA[ 
+]]></Span><Span style="Bold"><![CDATA[			Navigation]]></Span><Span style="Normal"><![CDATA[
+				Positioning the text cursor : Place the mouse cursor in the text and click the left mouse button
+				Mouse-Wheel : Scroll up/down
+]]></Span><Span style="Comment"><![CDATA[				]]></Span><Span style="Normal"><![CDATA[Alternatively, the scrollbar can be used for scrolling.
+			]]></Span><Span style="Bold"><![CDATA[Selection]]></Span><Span style="Normal"><![CDATA[
+				Place the mouse cursor at the beginning of the intended selection, press (and keep pressed) the left mouse button, move the mouse cursor 
+				to the end of the intended selection, release the left mouse button
+]]></Span><Span style="Bold"><![CDATA[			Drag and Drop
+]]></Span><Span style="Normal"><![CDATA[				Select some text (see above), klick into the selected text with the left mouse button. Keep the button pressed and move the mouse to
+				the position where to drag the text. If you want a copy to be dragged, keep the keyboard CTRL key pressed.
+]]></Span><Span style="Bold"><![CDATA[			Starting Commands
+]]></Span><Span style="Normal"><![CDATA[				Position the mouse cursor to a command, then click with the middle mouse button. Make sure command's parameters are delimited with the ~ character.
+				OK : ]]></Span><Span style="Debug"><![CDATA[WMTT.]]></Span><Span style="Normal"><![CDATA[Open ~ ]]></Span><Span style="Stupid"><![CDATA[ WMTT.Open]]></Span><Span style="Normal"><![CDATA[ alone is not encouraged.
+]]></Span><Span style="Comment"><![CDATA[				Since many commands can run in parallel, the parameters need to be copied before execution. 
+				Although a command  works even without delimiter, it is a waste of memory.]]></Span><Span style="Normal"><![CDATA[
+]]></Span><Span style="Bold"><![CDATA[			Opening Documents
+]]></Span><Span style="Normal"><![CDATA[				Position the mouse cursor to a document name, then click with the middle mouse button, keep the button pressed, additionally press the right button,
+				release both. (Middle-Right-Interclick)
+]]></Span><Span style="Comment"><![CDATA[				]]></Span><Span style="Normal"><![CDATA[
+]]></Span><Span style="Comment"><![CDATA[			]]></Span><Span style="Bold"><![CDATA[Copying a text style]]></Span><Span style="Normal"><![CDATA[
+]]></Span><Span style="Comment"><![CDATA[			]]></Span><Span style="Normal"><![CDATA[	Select the text you want to apply the new style to. Hold down the Alt-key and click into a piece of text that contains the desired style.
+]]></Span><Span style="Comment"><![CDATA[				The text where the format is copied from needs to have the keyboard focus, so that it can detect the Alt-key being pressed.]]></Span><Span style="Normal"><![CDATA[
+			
+]]></Span><Span style="Bold"><![CDATA[		Key Commands ]]></Span><Span style="Normal"><![CDATA[:
+			]]></Span><Span style="Bold"><![CDATA[Navigation]]></Span><Span style="Normal"><![CDATA[
+				Left, Right : move the text cursor left and right by one char. 
+							Press the CTRL modifier key to move word by word
+				Up, Down : Move the cursor one line up or down 
+				PgUp, PgDn : Move cursor one visible page up/down
+				Home, End : Begin or end of line.
+							Press the CTRL-key to jump to the begin or end of the text
+				SHIFT : The SHIFT modifier key can be combined with all the navigation keys above to navigate and select at the same time 
+				CTRL-C	(or CTRL-INS) : Copy selection to clipboard	
+				CTRL-V	(or SHIFT-INS) : Paste clipboard
+				CTRL-X	(or SHIFT-DELETE) : Cut (= copy to clipboard and delete text)
+			
+]]></Span><Span style="Bold"><![CDATA[			Starting Commands
+]]></Span><Span style="Normal"><![CDATA[				Position the text cursor on a command. Press CTRL-Enter. ]]></Span><Span style="Comment"><![CDATA[See Starting Commands in the mouse commands for details.]]></Span><Span style="Normal"><![CDATA[  
+			
+			]]></Span><Span style="Bold"><![CDATA[Opening Document]]></Span><Span style="Normal"><![CDATA[s
+				Position the text cursor on a document name. Press CTRL-Shift-Enter. ]]></Span><Span style="Comment"><![CDATA[See Opening Documents in the mouse commands for details.]]></Span><Span style="Normal"><![CDATA[  
+
+]]></Span><Span style="Bold"><![CDATA[			Indentation 
+]]></Span><Span style="Normal"><![CDATA[				Select the text to indent and then press Alt-Left or Alt-Right to indent the selection
+				
+]]></Span><Span style="Bold"><![CDATA[			Macros
+]]></Span><Span style="Normal"><![CDATA[				Macros are invoked by pressing the Ins key while the cursor is placed behind a macro name.
+				Macro parameters are separated by ":"
+]]></Span><Span style="Debug"><![CDATA[				Some helpful macros :
+					]]></Span><Span style="Normal"><![CDATA[name:M			]]></Span><Span style="Comment"><![CDATA[			MODULE ...]]></Span><Span style="Normal"><![CDATA[
+					name:P			]]></Span><Span style="Comment"><![CDATA[			PROCEDURE ...]]></Span><Span style="Normal"><![CDATA[
+					classname:O 	]]></Span><Span style="Comment"><![CDATA[			TYPE classname = OBJECT ...]]></Span><Span style="Normal"><![CDATA[
+					classname:superclassname:o ]]></Span><Span style="Comment"><![CDATA[TYPE classname = OBJECT(superclassname) ...]]></Span><Span style="Normal"><![CDATA[
+				]]></Span><Span style="Debug"><![CDATA[output macros:]]></Span><Span style="Normal"><![CDATA[ oi, os, oc take one identifier parameter
+					e.g. identifier:oi	]]></Span><Span style="Comment"><![CDATA[AosOut.Int(identifier);]]></Span><Span style="Normal"><![CDATA[
+					ol	output line takes no parameters
+	]]></Span><Span style="Debug"><![CDATA[			debug macros]]></Span><Span style="Normal"><![CDATA[: di, ds, dc, dr take one identifier parameter
+					e.g. identifier:ds	AosOut.String("identifier = "); AosOut.String(identifier);
+]]></Span><Span style="Debug"><![CDATA[				XML macros:
+]]></Span><Span style="Normal"><![CDATA[					name:t	<name></name>
+					similar:T]]></Span><Span style="Bold"><![CDATA[
+]]></Span><Span style="Normal"><![CDATA[
+]]></Span><Span style="AdHoc Oberon 10 0 0 AA0000FF 00000000"><![CDATA[				]]></Span><Span style="Normal"><![CDATA[The macros are defined in]]></Span><Span style="AdHoc Oberon 10 0 0 AA0000FF 00000000"><![CDATA[:
+]]></Span><Span style="Debug"><![CDATA[					Notepad.OpenUTF8 ]]></Span><Span style="Normal"><![CDATA[Macros.XML ]]></Span><Span style="Debug"><![CDATA[~]]></Span><Span style="Bold"><![CDATA[
+]]></Span><Span style="Debug"><![CDATA[					]]></Span><Span style="Bold"><![CDATA[
+]]></Span><Span style="Normal"><![CDATA[		]]></Span><Span style="Bold"><![CDATA[Input Method Editors]]></Span><Span style="Normal"><![CDATA[
+			Currently there are thre input mode editors, a rudimentary Pinyin Input Method Editor a Cyrillic input mode editor and a UnicodeIME.
+			 They can be installed with ]]></Span><Span style="Debug"><![CDATA[WMPinyinIME.Install]]></Span><Span style="Normal"><![CDATA[~ ]]></Span><Span style="Debug"><![CDATA[, WMCyrillicIME.Install ]]></Span><Span style="Normal"><![CDATA[~ or ]]></Span><Span style="Debug"><![CDATA[WMUnicodeIME.Install ]]></Span><Span style="Normal"><![CDATA[~
+			After an input mode editor is installed, press CTRL-Space in any editor to enable/disable it.
+			To automatically load an IME, edit the AosConfig.XML file. (]]></Span><Span style="Debug"><![CDATA[ Notepad.OpenUTF8 ]]></Span><Span style="Normal"><![CDATA[AosConfig.XML ~ )
+	
+]]></Span><Span style="Bold"><![CDATA[	Other Functions
+		Storing the desktop
+]]></Span><Span style="Normal"><![CDATA[			In the ]]></Span><Span style="Highlight"><![CDATA[System ]]></Span><Span style="Normal"><![CDATA[menu, press the ]]></Span><Span style="Highlight"><![CDATA[Mark ]]></Span><Span style="Comment"><![CDATA[(mark a waypoint) ]]></Span><Span style="Normal"><![CDATA[button to store the state of the programs on the desktop ]]></Span><Span style="Comment"><![CDATA[(not all programs support
+			saving their state)]]></Span><Span style="Normal"><![CDATA[
+			
+		]]></Span><Span style="Bold"><![CDATA[Reboot the system ]]></Span><Span style="Stupid"><![CDATA[
+]]></Span><Span style="Normal"><![CDATA[			]]></Span><Span style="Stupid"><![CDATA[Ctrl-Alt-Del (terminates the system and reboots without warning !!!)]]></Span><Span style="Normal"><![CDATA[
+			
+		]]></Span><Span style="Bold"><![CDATA[Backdrop images]]></Span><Span style="Normal"><![CDATA[
+			Backdrop images can be added at any place and in any size on the virtual desktop. Clicking on a backdrop will zoom the backdrop to fullscreen.
+			Backdrops can be removed by clicking them with the right mouse button and selecting ]]></Span><Span style="Highlight"><![CDATA[Remove]]></Span><Span style="Normal"><![CDATA[.
+]]></Span><Span style="Comment"><![CDATA[			Hint: Try not to put too many backdrops at the same position on the virtual desktop
+]]></Span><Span style="Normal"><![CDATA[			To make the backdrop permanent, you can just save store the desktop by pressing the ]]></Span><Span style="Highlight"><![CDATA[Mark ]]></Span><Span style="Normal"><![CDATA[button in the ]]></Span><Span style="Highlight"><![CDATA[System ]]></Span><Span style="Normal"><![CDATA[menu
+		
+		]]></Span><Span style="Bold"><![CDATA[Window Styles]]></Span><Span style="Normal"><![CDATA[
+			The window style can be changed in the ]]></Span><Span style="Highlight"><![CDATA[Style ]]></Span><Span style="Normal"><![CDATA[menu. To make a style permanent, enter the corresponding command in the AosConfig.XML ]]></Span><Span style="Highlight"><![CDATA[Autostart ]]></Span><Span style="Normal"><![CDATA[section.
+
+
+]]></Span><Span style="Bold"><![CDATA[	Fonts
+]]></Span><Span style="Normal"><![CDATA[		Unicode TTF fonts are supported. You can install ttf files by simply copying the file to your Bluebottle partition. The file name must be the same as the
+		font name. You can download a free font by Cyberbit using this tool: ]]></Span><Span style="Debug"><![CDATA[CyberbitNetInstall.Start]]></Span><Span style="Normal"><![CDATA[ ~ (6MB download. Requires 13MB on the disk)]]></Span><Span style="Bold"><![CDATA[
+
+
+Mounting Additional Drives and Partitions
+]]></Span><Span style="Normal"><![CDATA[Mounting of new filesystems is done with the AosFSTools module. The following commands are important :
+	AosFSTools.Mount prefix filesystem partition ~ 
+	AosFSTools.SetDefault prefix~
+	AosFSTools.Unmount prefix~
+	]]></Span><Span style="Debug"><![CDATA[AosFSTools.Watch ]]></Span><Span style="Normal"><![CDATA[~
+Examples:
+]]></Span><Span style="Comment"><![CDATA[	]]></Span><Span style="Normal"><![CDATA[To mount a FAT formatted USB-Stick ]]></Span><Span style="Comment"><![CDATA[(assuming a single standard partitioned and configured USB stick)
+		]]></Span><Span style="Debug"><![CDATA[AosUsbStorage.Install]]></Span><Span style="Comment"><![CDATA[ ~ (make sure the storage driver is loaded)
+]]></Span><Span style="Normal"><![CDATA[		]]></Span><Span style="Debug"><![CDATA[AosFSTools.Mount ]]></Span><Span style="Normal"><![CDATA[USB FatFS USB0#1~
+	To unmount the USB stick
+		]]></Span><Span style="Debug"><![CDATA[AosFSTools.Unmount]]></Span><Span style="Normal"><![CDATA[ USB~]]></Span><Span style="Bold"><![CDATA[
+]]></Span><Span style="Normal"><![CDATA[
+]]></Span><Span style="Bold"><![CDATA[Programming]]></Span><Span style="Normal"><![CDATA[
+		The programming environment is called PET the "Programmer's Editing Tool"
+		]]></Span><Span style="Debug"><![CDATA[PET.OpenUTF8]]></Span><Span style="Normal"><![CDATA[ HelloWorld.Mod ~
+		
+		Press the Compile button to compile the current module file. 
+		Errors appear at the bottom of the window. Click on an error to position the cursor at the corresponding position in the source text..
+		
+		To find a position of a Trap, select the the number ???? behind PC=???? in the kernel log. Then press the find PC.
+		If no PC position is selected, PET will ask
+		
+		The left part of the window gives a structural overview over your program. 
+		Click into the tree to position the cursor at the position of the clicked structure in the program text.
+		
+		To free a module, call ]]></Span><Span style="Debug"><![CDATA[S.Free]]></Span><Span style="Normal"><![CDATA[ HelloWorld ~
+		
+]]></Span><Span style="Bold"><![CDATA[Installation]]></Span><Span style="Normal"><![CDATA[
+		To install the system, start Oberon and open AosInst.Tool. Follow the instructions.
+
+]]></Span><Span style="Bold"><![CDATA[Miscellaneous]]></Span><Span style="Normal"><![CDATA[
+		Bluebottle contains lots of tools, some did not find into the system menu.
+		e.g:
+			AosTV	:		A TV Application for BT848 compatible TV cards. (]]></Span><Span style="Debug"><![CDATA[ Notepad.OpenOberon ]]></Span><Span style="Normal"><![CDATA[AosTV.Tool ~ )
+							(an improved release will follow about end of April 2004, check the crazy release)
+			Sound :			Currently supported sound cards: 
+								]]></Span><Span style="Debug"><![CDATA[Aosi810Sound.Install]]></Span><Span style="Normal"><![CDATA[ ~  (Intel/Realtek compatibles)
+]]></Span><Span style="Debug"><![CDATA[								EnsoniqSound.Install ]]></Span><Span style="Normal"><![CDATA[~ 
+]]></Span><Span style="Debug"><![CDATA[								AosYMF754.Install ~ ]]></Span><Span style="Normal"><![CDATA[(Yamaha)]]></Span><Span style="Debug"><![CDATA[
+]]></Span><Span style="Normal"><![CDATA[
+			MP3Player : 	See ]]></Span><Span style="Debug"><![CDATA[PET.OpenOberon ]]></Span><Span style="Normal"><![CDATA[MP3Player.Mod ~
+			OGGPlayer :		]]></Span><Span style="Debug"><![CDATA[OGGVorbisPlayer.Play]]></Span><Span style="Normal"><![CDATA[ somfile.ogg ~
+			
+			Network : 		Currently supported network cards:
+]]></Span><Span style="Debug"><![CDATA[								AosRTL8139.Install ~
+								AosRTL8169.Install ~ ]]></Span><Span style="Normal"><![CDATA[(Gigabit Reltek card)]]></Span><Span style="Debug"><![CDATA[
+								Aos3Com90x.Install ~
+								AosIntel8255x.Install ~
+]]></Span><Span style="Normal"><![CDATA[							Check: AosNet.Mod, AosIP.Mod, AosUDP.Mod, AosDNS.Mod, AosTCP.Mod
+								
+			Webserver: 		HTTP/1.1 plugin enabled multi host webserver.  See ]]></Span><Span style="Debug"><![CDATA[PET.OpenOberon ]]></Span><Span style="Normal"><![CDATA[WebHTTPServer.Mod ~
+			FTP-Server:		See ]]></Span><Span style="Debug"><![CDATA[PET.OpenOberon ]]></Span><Span style="Normal"><![CDATA[WebFTPServer.Mod ~ 
+			
+			USB	: 		Support for Mouse and many storage devices. 
+							The system is bootable from some usb sticks.
+							See AosUsb.Mod, AosUsbUhci.Mod, AosUsbStorage.Mod, AosUsbMouse.Mod
+			
+			Firewire : 		Still in development
+
+			ARM/XSCALE : If you are interested in the ARM/XSCALE ports write an email to ask@bluebottle.ethz.ch (check the website before ! ;-) )
+			
+]]></Span><Span style="Assertion"><![CDATA[		and many more... you have the source... have fun!]]></Span>
+
+</Text>

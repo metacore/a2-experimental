@@ -1,0 +1,14 @@
+<Cluster>
+	<Layer>
+		<Line>
+			<SymbolBox title="Home" cmd="W3dMenu.Open W3dMenu.XML" img="W3dMenuIcons.tar://iconhome.bmp" />
+			<ImgBox cmd="WMTT.Run" img="W3dMenuIcons.tar://tetris.bmp" />
+		</Line>
+		<Line>
+			<SymbolBox title="Bones" cmd="Bunny.Insert bones.gif 25 10" img="W3dMenuIcons.tar://iconbones.bmp" />
+			<SymbolBox title="Bunny" cmd="Bunny.Insert BunnyLinear.gif 8 16" img="W3dMenuIcons.tar://iconbunny.bmp" />
+			<SymbolBox title="Frog" cmd="Bunny.Insert frog.gif 17 -4" img="W3dMenuIcons.tar://iconfrog.bmp" />
+			<SymbolBox title="Burn All" cmd="Bunny.Free" img="W3dMenuIcons.tar://iconfire.bmp" />
+		</Line>
+	</Layer>
+</Cluster>

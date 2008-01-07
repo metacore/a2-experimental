@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<!-- 
+Aos configuration 
+
+To edit: Notepad.OpenAscii AosConfig.XML
+To update: AosConfig.Init ~
+-->
+
+<!DOCTYPE Config [
+	<!ATTLIST Section 
+		name NMTOKEN #REQUIRED
+	>
+	<!ATTLIST Setting 
+		name NMTOKEN #IMPLIED
+		value CDATA #REQUIRED
+	>
+]>
+
+<Config>
+	<!-- Localization -->
+	<Section name="Local">
+		<Section name="Formats">
+			<Section name="Date">
+				<Setting name="Short" value="dd.mm.yy"/>
+				<Setting name="Long" value="www, dd.mm.yyyy"/>
+			</Section>
+			<Section name="Time">
+				<Setting name="Short" value="hh:nn"/>
+				<Setting name="Long" value="hh:nn:ss"/>
+			</Section>
+			<Section name="Timezone">
+				<Setting name="Name" value="GMT-1"/>
+				<Setting name="GMTDiff" value="+1"/>
+			</Section>
+		</Section>
+	</Section>
+
+	<!-- File systems -->	
+	<Section name="AosFS">
+		<Section name="Alias">
+			<Setting name="AosFS" value="AosDiskVolumes.New;AosDiskFS.NewFS"/>
+			<Setting name="NatFS" value="AosDiskVolumes.New;AosDiskFS.NewFS"/>
+			<Setting name="RamFS" value="AosRAMVolumes.New;AosDiskFS.NewFS"/>
+			<Setting name="FatFS" value="AosFATVolumes.New;AosFATFiles.NewFS"/>
+			<Setting name="IsoFS" value="AosISO9660Volumes.New;AosISO9660Files.NewFS"/>
+			<Setting name="ZipFS" value="NIL;AosZipFS.NewFS"/>
+		</Section>
+	</Section>
+	
+	<!-- Autostart -->
+	<Section name="Autostart">
+		<Setting name="Start the main menu" value="StartMenu.Open" />	
+		<Setting name="Restore the desktop" value="WMRestorable.Load Auto.dsk"/>
+		<!-- Pinyin Input Method Editor (remove comment to activate)
+			<Setting value="WMPinyinIME.Test"/>
+		-->	
+		<!-- Quote Server (remove comment to activate)
+			<Setting value="AosQuoteServer.Open"/>
+		-->
+	</Section>
+
+	<!-- WindowManager -->
+	<Section name="WindowManager">
+		<Section name="FontManager">
+			<Section name="OberonFonts">
+				<Setting name="Exact" value="WMOberonFonts.LoadExactFont" />
+				<Setting name="Approximate" value="WMOberonFonts.LoadApproximateFont" />
+			</Section>
+			<Section name="BitmapFonts">
+				<Setting name="Exact" value="WMBitmapFont.LoadExactFont" />
+				<Setting name="Approximate" value="WMBitmapFont.LoadApproximateFont" />
+			</Section>
+			<Section name="CCGFonts">
+				<Setting name="Exact" value="WMCCGFonts.LoadExactFont" />
+				<Setting name="Approximate" value="WMCCGFonts.LoadApproximateFont" />
+			</Section>
+			<Section name="OTFonts">
+				<Setting name="Exact" value="WMOTFonts.LoadExactFont" />
+				<Setting name="Approximate" value="WMOTFonts.LoadApproximateFont" />
+			</Section>
+		</Section>
+	</Section>
+	
+	<!-- Font formats for AosGfxFonts.Open -->
+	<Section name="FontFormats">
+		<Setting name="TTF" value="AosGfxOType.Install"/>
+		<Setting name="pk" value="AosGfxPKFonts.Install"/>
+	</Section>
+	
+	<!-- TLS Settings -->
+	<Section name="TLS">
+		<Setting name="Certificate" value="bluebottleselfsigned.der"/>
+		<Setting name="pHex" value="00fbe3108714d0f161c79b2fd03eaf8be07b477fbd534a1059d7244513b075700ec6d00cd6c61445932f6439ed31050e6ad43a51f1692e51e3e4691cab3d230ba7"/>
+		<Setting name="qHex" value="00e7e7a06664c5a91c0502a010e2efffdbddf2fb6cbac07116e63c4b2090d1bd1ef1db15619a73cd34a490df9c1c86259bfa2bf71aab5e4f5414d4b9cc2f777d0d"/>
+		<Setting name="eHex" value="10001"/>
+		<Setting name="pLen" value="130"/>
+		<Setting name="qLen" value="130"/>
+		<Setting name="eLen" value="5"/>
+	</Section>	
+
+	<Section name="Archives">
+		<Setting name="tar" value="AosTar" />
+		<Setting name="skin" value="AosTar" />
+	</Section>
+	
+	<!-- Codecs -->
+	<Section name="Codecs">
+		<!-- Multiplexer -->
+		<Section name="Multiplexer">
+		</Section>
+
+		<!-- Demultiplexer -->
+		<Section name="Demultiplexer">
+			<Setting name="AVI" value="AVI.Factory" />
+		</Section>
+
+		<!-- Encoders -->
+		<Section name="Encoder">
+			<Section name="Text">
+				<Setting name="Oberon" value="AosTextUtilities.OberonEncoderFactory" />
+				<Setting name="BBT" value="AosTextUtilities.BluebottleEncoderFactory" />
+				<Setting name="UTF-8" value="AosTextUtilities.UTF8EncoderFactory" />
+				<Setting name="ISO8859-1" value="AosTextUtilities.ISO88591EncoderFactory" />
+				<Setting name="HEX" value="AosTextUtilities.HEXEncoderFactory" />
+			</Section>
+			<Section name="Image">
+				<Setting name="BMP" value="AosBMPCodec.EncoderFactory" />
+				<Setting name="GIF" value="AosGIFCodec.EncoderFactory" />
+			</Section>
+			<Section name="Video">
+			</Section>
+			<Section name="Audio">
+			</Section>
+		</Section>
+		
+		<!-- Decoders -->
+		<Section name="Decoder">
+			<Section name="Text">
+				<Setting name="Oberon" value="AosTextUtilities.OberonDecoderFactory" />
+				<Setting name="BBT" value="AosTextUtilities.BluebottleDecoderFactory" />
+				<Setting name="UTF-8" value="AosTextUtilities.UTF8DecoderFactory" />
+				<Setting name="ISO8859-1" value="AosTextUtilities.ISO88591DecoderFactory" />
+				<Setting name="HEX" value="AosTextUtilities.HEXDecoderFactory" />
+			</Section>		
+			<Section name="Image">
+				<Setting name="JP2" value="JPEG2000Decoder.Factory"/>
+				<Setting name="PNG" value="AosPNGDecoder.Factory" />
+				<Setting name="BMP" value="AosBMPCodec.DecoderFactory" />
+				<Setting name="GIF" value="AosGIFCodec.DecoderFactory" />
+			</Section>
+			<Section name="Video">
+				<Setting name="DivX" value="AosDivXDecoder.Factory" />
+				<Setting name="DIVX" value="AosDivXDecoder.Factory" />
+				<Setting name="divx" value="AosDivXDecoder.Factory" />
+			</Section>
+			<Section name="Audio">
+				<Setting name="MP3" value="AosMP3Decoder.Factory" />
+			</Section>
+		</Section>
+	</Section>
+	
+	<!-- Filehandlers-->
+	<Section name="Filehandlers">
+		<!-- use lower case for extensions -->
+		<Setting name="mp3" value="MP3Player.Play" />
+		<Setting name="ogg" value="OGGVorbisPlayer.Play" />
+		<Setting name="avi" value="DivXPlayer.Play" />
+		<Setting name="pls" value="MP3Player.PlayPlaylist" />
+		<Setting name="png" value="WMPicView.Open" />
+		<Setting name="jp2" value="WMPicView.Open" />
+		<Setting name="pict" value="WMPicView.Open" />
+		<Setting name="gif" value="WMPicView.Open" />
+		<Setting name="bmp" value="WMPicView.Open" />
+		<Setting name="mod" value="PET.Open" />
+		<Setting name="text" value="Notepad.OpenAuto" />
+		<Setting name="bak" value="PET.Open" />
+		<Setting name="txt" value="Notepad.OpenAuto" />
+		<Setting name="xml" value="PET.Open" />
+		<Setting name="obx" value="AosDecoder.Open" />
+		<Setting name="oba" value="AosARMDecoder.Init;AosDecoder.Open" />
+		<Setting name="skin" value="SkinEditor.OpenSkin"/>
+		<Setting name="tar" value="WMArchives.Open"/>
+		<Setting name="html" value="WebBrowser.OpenFile"/>
+		<Setting name="htm" value="WebBrowser.OpenFile"/>
+	</Section>
+	
+	<!-- Paco Compiler -->
+	<Section name="Paco">
+		<Setting name="ErrorMessages" value="Errors.XML" />
+	</Section>
+	
+	<!-- Example of nested sections -->
+	<Section name="A">
+		<Section name="B">
+			<Section name="C">
+				<Setting name="D" value="Hello world"/>
+			</Section>
+		</Section>
+	</Section>
+	
+</Config>

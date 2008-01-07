@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?bluebottle format version="0.1" ?>
+<?xml-stylesheet type="text/xsl" href="http://bluebottle.ethz.ch/bluebottle.xsl" ?>
+<Text>
+<Span style="AdHoc Oberon 20 1 0 000000FF 00000000"><![CDATA[Performance Monitor ]]></Span><Span style="Normal"><![CDATA[
+
+]]></Span><Span style="Bold"><![CDATA[Table of Contents]]></Span><Span style="Normal"><![CDATA[
+
+	1. Developement
+	2. History
+]]></Span><Span style="Bold"><![CDATA[
+1. Development]]></Span><Span style="Normal"><![CDATA[
+
+WMPerfMon.Open ~ 	S.Free WMPerfMon ~
+
+# AOS
+PC0.Compile \s
+WMPerfMonPlugins.Mod
+WMPerfMonPluginMemory.Mod WMPerfMonPluginCpu.Mod WMPerfMonPluginNetwork.Mod
+WMPerfMonPluginHeap.Mod
+WMPerfMonPluginUsb.Mod WMPerfMonPluginDisks.Mod
+WMPerfMonPluginMessages.Mod
+WMPerfMonPluginNetStats.Mod
+WMPerfMonPluginActive.Mod
+WMPerfMonPluginInterrupts.Mod
+WMPerfMonPluginSerials.Mod
+WMPerfMonPluginHTTPServer.Mod WMPerfMonPluginFTPServer.Mod WMPerfMonPluginQuoteServer.Mod WMPerfMonPluginVNCServer.Mod
+WMPerfMonPluginExample.Mod
+WMPerfMonPluginPerfMon.Mod
+WMPerfMonPluginEvents.Mod
+WMPerfMonPluginModVars.Mod
+WMPerfMonAlerts.Mod
+WMPerfMonTabAlerts.Mod
+WMPerfMonTabSystem.Mod
+WMPerfMonComponents.Mod
+WMPerfMon.Mod
+~
+
+#WINAOS
+PC0.Compile \s
+Win32.WMPerfMonPlugins.Mod
+Win32.WMPerfMonPluginMemory.Mod Win32.WMPerfMonPluginCpu.Mod WMPerfMonPluginNetwork.Mod
+WMPerfMonPluginUsb.Mod WMPerfMonPluginDisks.Mod
+WMPerfMonPluginMessages.Mod
+WMPerfMonPluginSerials.Mod
+WMPerfMonPluginHTTPServer.Mod WMPerfMonPluginFTPServer.Mod WMPerfMonPluginQuoteServer.Mod WMPerfMonPluginVNCServer.Mod
+WMPerfMonPluginExample.Mod
+WMPerfMonPluginPerfMon.Mod
+WMPerfMonPluginEvents.Mod
+WMPerfMonPluginModVars.Mod
+WMPerfMonAlerts.Mod
+WMPerfMonTabAlerts.Mod
+Win32.WMPerfMonTabSystem.Mod
+WMPerfMonComponents.Mod
+WMPerfMon.Mod
+~
+
+S.Free
+	WMPerfMon WMPerfMonTabSystem WMPerfMonTabAlerts
+	WMPerfMonAlerts
+	WMPerfMonComponents
+	WMPerfMonPluginMessages WMPerfMonPluginExample WMPerfMonPluginHeap WMPerfMonPluginModVars
+	WMPerfMonPluginUsb WMPerfMonPluginDisks
+	WMPerfMonPluginPerfMon WMPerfMonPluginEvents
+	WMPerfMonPluginCpu WMPerfMonPluginMemory WMPerfMonPluginNetwork WMPerfMonPluginNetStats
+	WMPerfMonPluginSerials WMPerfMonPluginActive WMPerfMonPluginInterrupts.Mod
+	WMPerfMonPluginHTTPServer WMPerfMonPluginFTPServer
+	WMPerfMonPluginPerfMon
+	WMPerfMonPlugins
+	WMDiagramComponents
+~
+
+PET.Open 
+	WMPerfMonPlugins.Mod WMPerfMonComponents.Mod WMPerfMon.Mod WMPerfMonAlerts.Mod WMPerfMonTabAlerts.Mod WMPerfMonTabSystem.Mod
+~
+PET.Open
+	WMPerfMonPluginCpu.Mod WMPerfMonPluginMemory.Mod WMPerfMonPluginNetwork.Mod WMPerfMonPluginNetStats.Mod
+	WMPerfMonPluginUsb.Mod WMPerfMonPluginDisks.Mod WMPerfMonPluginSerials.Mod WMPerfMonPluginActive.Mod WMPerfMonPluginInterrupts.Mod
+	WMPerfMonPluginHTTPServer.Mod WMPerfMonPluginFTPServer.Mod WMPerfMonPluginHeap.Mod
+	WMPerfMonPluginMessages.Mod WMPerfMonPluginExample.Mod WMPerfMonPluginPerfMon.Mod WMPerfMonPluginEvets.Mod WMPerfMonPluginModVars.Mod
+~
+PET.Open
+	Win32.WMPerfMonPlugins.Mod Win32.WMPerfMonPluginMemory.Mod Win32.WMPerfMonPluginCpu.Mod
+	Win32.WMPerfMonTabSystem.Mod
+~
+
+AosTar.Create WMPerfMon.Tar
+WMPerfMonPlugins.Mod WMPerfMonComponents.Mod
+WMPerfMonPluginMessages.Mod
+WMPerfMonPluginUsb.Mod WMPerfMonPluginDisks.Mod WMPerfMonPluginSerials.Mod
+WMPerfMonPluginCpu.Mod WMPerfMonPluginMemory.Mod WMPerfMonPluginNetwork.Mod WMPerfMonPluginNetStats.Mod
+WMPerfMonPluginActive.Mod WMPerfMonPluginInterrupts.Mod WMPerfMonPluginHeap.Mod
+WMPerfMonPluginHTTPServer.Mod WMPerfMonPluginFTPServer.Mod
+WMPerfMonPluginExample.Mod WMPerfMonPluginPerfMon.Mod WMPerfMonPluginEvents.Mod WMPerfMonPluginModVars.Mod
+WMPerfMonAlerts.Mod WMPerfMonTabAlerts.Mod 
+WMPerfMonTabSystem.Mod
+WMPerfMon.Mod
+Win32.WMPerfMonPlugins.Mod Win32.WMPerfMonPluginMemory.Mod Win32.WMPerfMonPluginCpu.Mod Win32.WMPerfMonTabSystem.Mod
+~
+
+]]></Span><Span style="Bold"><![CDATA[2. History]]></Span><Span style="Normal"><![CDATA[
+
+	05.04.2007	First release (staubesv)
+	13.12.2007	Removed WMPerfMonPluginLocks.Mod, added WinAos files
+
+]]></Span>
+
+</Text>
