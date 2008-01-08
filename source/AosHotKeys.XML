@@ -67,6 +67,10 @@
 	<HotKey name="MoveUp" keys="ALT+UP" command="AosHotKeysCommands.MoveWindow 0 -1024"/>
 	<HotKey name="MoveDown" keys="ALT+DOWN" command="AosHotKeysCommands.MoveWindow 0 1024"/>
 	
+	<!-- Example: Switch keyboard focus to previous/next window -->
+	<HotKey name="FocusToNext" keys="CTRL+ALT+RIGHT" command="WMNavigate.FocusToNext"/>
+	<HotKey name="FocusToPrevious" keys="CTRL+ALT+LEFT" command="WMNavigate.FocusToPrevious"/>
+	
 	<!-- Example: Open window to enter and execute a command -->
 	<HotKey name="Run" keys="CTRL+R" command="AosHotKeysCommands.EnterCommand"/>
 
