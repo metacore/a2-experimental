@@ -19,6 +19,7 @@ open=AosOpen.Open
 reboot=S.Reboot
 rn=AosFSTools.RenameFiles
 setcb=AosTextUtilities.SetClipboard
+show=S.ShowFile
 time=S.Time
 unmount=AosFSTools.Unmount
 uptime=UpTime.Show
