@@ -363,4 +363,5 @@
 	<Error code="915">exported but not visible outside module</Error>
 	<Error code="916">empty formal parameter list</Error>
 	<Error code="917">parameter not modified: prefer CONST parameter</Error>
+	<Error code="918">unnecessary parentheses in procedure call</Error>
 </Errors>
