@@ -4,8 +4,9 @@ Paths.Search="Work;ObjE;Src;Src/vyants;Aos;../source;Doc.vy.ants"
 Paths.Work="Work"
 Defaults.Extension=".Obw"
 oberon="OberonExternal.Text"
-cmd="SEQ Win32AosDisplay.Install Fullscreen;WindowManager.Install;Autostart.Run;AosFSTools.Mount WORK WinRelFS ./"
-~; external, starting with Oberon
+cmd="SEQ Win32AosDisplay.Install Fullscreen;WindowManager.Install;AosClipboard.Install;Autostart.Run;AosFSTools.Mount WORK WinRelFS ./"
+~
+; external, starting with Oberon
 AlternateConfig = "myAos.config"
 Paths.Search="Work;ObjE;Src;Src/vyants;Aos;../source;Doc.vy.ants"
 Paths.Work="Work"
@@ -19,13 +20,8 @@ Paths.Search="Work;ObjI;Src;Src/vyants;Aos;../source;Doc.vy.ants"
 Paths.Work="Work"
 Defaults.Extension=".Obw"
 oberon="Oberon.Text"
-cmd="SEQ Win32AosDisplay.Install Fullscreen;WindowManager.Install;Autostart.Run;AosFSTools.Mount WORK WinRelFS ./"
+cmd="SEQ Win32AosDisplay.Install Fullscreen;WindowManager.Install;AosClipboard.Install;Autostart.Run;AosFSTools.Mount WORK WinRelFS ./"
 ~
-
-
-
-
-
 
 note: spaces in cmd indicate parameters, do not use spaces between commands
 "SEQ Oberon.Start; WinConsole.Open" does not work.
