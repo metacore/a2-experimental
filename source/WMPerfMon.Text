@@ -38,7 +38,7 @@ WMPerfMon.Mod
 
 #WINAOS
 PC0.Compile \s
-Win32.WMPerfMonPlugins.Mod
+WMPerfMonPlugins.Mod
 Win32.WMPerfMonPluginMemory.Mod Win32.WMPerfMonPluginCpu.Mod WMPerfMonPluginNetwork.Mod
 WMPerfMonPluginUsb.Mod WMPerfMonPluginDisks.Mod
 WMPerfMonPluginMessages.Mod
@@ -50,7 +50,7 @@ WMPerfMonPluginEvents.Mod
 WMPerfMonPluginModVars.Mod
 WMPerfMonAlerts.Mod
 WMPerfMonTabAlerts.Mod
-Win32.WMPerfMonTabSystem.Mod
+WMPerfMonTabSystem.Mod
 WMPerfMonComponents.Mod
 WMPerfMon.Mod
 ~
