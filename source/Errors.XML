@@ -242,7 +242,7 @@
     <Error code="234">export of recursive type not allowed</Error>
     <Error code="235">too many accesses to global variables or constants</Error>
     <Error code="236">too many exported variables</Error>
-    <Error code="237"></Error>
+    <Error code="237">procedure flag no longer supported</Error>
     <Error code="238"></Error>
     <Error code="239"></Error>
     <Error code="240">identifier too long</Error>
