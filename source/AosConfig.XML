@@ -204,6 +204,7 @@ To update: AosConfig.Init ~
 			<Setting name="jp2" value="WMPicView.Open"/>
 			<Setting name="jpeg" value="WMPicView.Open"/>
 			<Setting name="jpg" value="WMPicView.Open"/>
+			<Setting name="log" value="PET.Open"/>
 			<Setting name="mod" value="PET.Open"/>
 			<Setting name="mp3" value="WMPlayer.Open"/>
 			<Setting name="abx" value="AosDecoder.Open"/>
