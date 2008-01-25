@@ -194,7 +194,7 @@ To update: AosConfig.Init ~
 		
 		<Section name="Filehandlers">
 		<!-- use lower case for extensions, sort lexographically -->
-			
+			<Setting name="asm" value="PET.Open"/>
 			<Setting name="avi" value="WMPlayer.Open"/>
 			<Setting name="bak" value="PET.Open"/>
 			<Setting name="bmp" value="WMPicView.Open"/>
@@ -288,6 +288,7 @@ To update: AosConfig.Init ~
 				<Section name="Compilers">
 					<Setting name="PACO" options="\Ws" fileExtension="MOD" loadmodule="PC0" tree="TRUE"/>
 					<Setting name="ReleaseTool" options="\check" fileExtension="Tool" loadmodule="AosRelease" tree="FALSE"/>
+					<Setting name="AAMD64" options="" fileExtension="ASM" loadmodule="PCAAMD64" tree="FALSE"/>
 				</Section>
 				<Section name="Diff">
 					<Setting name="Command" value="WMDiff.Open"/>
