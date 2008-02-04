@@ -138,7 +138,7 @@
 		
 		<Button>
 			<Properties>
-				<Caption></Caption>
+				<Caption>Console</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
@@ -146,7 +146,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString></CommandString>
+					<CommandString>WMShell.Open</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
