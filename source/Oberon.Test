@@ -1,0 +1,126 @@
+# Oberon language test and validation suite
+
+# Syntax tests
+
+negative: comment only
+
+	(* MODULE *)
+
+negative: missing module name
+
+	MODULE END.
+
+negative: unmatched module name
+
+	MODULE Test; END tseT.
+
+positive: empty module
+
+	MODULE Test; END Test.
+
+positive: nested comment
+
+	(* (* nested comment *) *)
+	MODULE Test; END Test.
+
+negative: invalid nested comment
+
+	(* nested comment *) *)
+	MODULE Test; END Test.
+
+positive: empty const section
+
+	MODULE Test;
+	CONST
+	END Test.
+
+positive: const section without definitions
+
+	MODULE Test;
+	CONST;;;;
+	END Test.
+
+positive: boolean constant definition
+
+	MODULE Test;
+	CONST Boolean = TRUE;
+	END Test.
+
+positive: character constant definition
+
+	MODULE Test;
+	CONST Character = 'C';
+	END Test.
+
+positive: character constant definition using hex digits
+
+	MODULE Test;
+	CONST Character = 64X;
+	END Test.
+
+positive: string constant definition
+
+	MODULE Test;
+	CONST String = "This string";
+	END Test.
+
+positive: integer constant definition
+
+	MODULE Test;
+	CONST Integer = 5;
+	END Test.
+
+positive: integer constant definition using hex digits
+
+	MODULE Test;
+	CONST Integer = 5aBH;
+	END Test.
+
+positive: real constant definition
+
+	MODULE Test;
+	CONST Real = 12.0;
+	END Test.
+
+positive: pointer constant definition using NIL
+
+	MODULE Test;
+	CONST Nil = NIL;
+	END Test.
+
+
+# Semantic tests
+
+positive: dummy module
+
+	MODULE A; END A.
+
+positive: single import
+
+	MODULE Test;
+	IMPORT A;
+	END Test.
+
+positive: single import with different alias
+
+	MODULE Test;
+	IMPORT B := A;
+	END Test.
+
+positive: single import with same alias
+
+	MODULE Test;
+	IMPORT A := A;
+	END Test.
+
+negative: duplicated import
+
+	MODULE Test;
+	IMPORT A, A;
+	END Test.
+
+positive: duplicated import with alias
+
+	MODULE Test;
+	IMPORT B := A, C := A;
+	END Test.
