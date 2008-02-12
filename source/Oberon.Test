@@ -1389,25 +1389,25 @@ positive: unequal relation on constant strings
 	CONST Result = "qwerty" # "ytrewq"
 	END Test.
 
-negative: less relation on constant strings
+positive: less relation on constant strings
 
 	MODULE Test;
 	CONST Result = "av" < "bv"
 	END Test.
 
-negative: less or equal relation on constant strings
+positive: less or equal relation on constant strings
 
 	MODULE Test;
 	CONST Result = "word1" <= "word2"
 	END Test.
 
-negative: greater relation on constant strings
+positive: greater relation on constant strings
 
 	MODULE Test;
 	CONST Result = "lower" > "UPPER"
 	END Test.
 
-negative: greater or equal relation on constant strings
+positive: greater or equal relation on constant strings
 
 	MODULE Test;
 	CONST Result = "number" >= "text"
