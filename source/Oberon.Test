@@ -1,10 +1,11 @@
 # Oberon language test and validation suite
 
+
 # Syntax tests
+# =====================================
 
-negative: comment only
 
-	(* MODULE *)
+# plain modules
 
 negative: missing module name
 
@@ -14,6 +15,14 @@ negative: unmatched module name
 
 	MODULE Test; END tseT.
 
+negative: missing semicolon in module definition
+
+	MODULE Test END Test.
+
+negative: missing END in module definition
+
+	MODULE Test; Test.
+
 negative: missing concluding dot
 
 	MODULE Test; END Test
@@ -21,6 +30,94 @@ negative: missing concluding dot
 positive: empty module
 
 	MODULE Test; END Test.
+
+
+# identifiers
+
+negative: number as identifier
+
+	MODULE 007;
+	END 007.
+
+negative: keyword as identifier
+
+	MODULE THEN;
+	END THEN.
+
+negative: string as identifier
+
+	MODULE "Test";
+	END "Test".
+
+positive: single character identifier
+
+	MODULE T;
+	END T.
+
+positive: long identifiers
+
+	MODULE IncrediblyLongModuleNameLikeSupercalifragilisticexpialidocious;
+	END IncrediblyLongModuleNameLikeSupercalifragilisticexpialidocious.
+
+positive: underscore in identifier
+
+	MODULE Test_Module;
+	END Test_Module.
+
+
+# comments
+
+negative: comment only
+
+	(* MODULE *)
+
+positive: comment in front of module definition
+
+	(* comment *)
+	MODULE Test; END Test.
+
+positive: comment within module definition
+
+	MODULE Test;
+	(* comment *)
+	END Test.
+
+positive: comment after module definition
+
+	MODULE Test;
+	END Test.
+	(* comment *)
+
+positive: plain text after module definition
+
+	MODULE Test;
+	END Test.
+
+	plain text
+
+negative: invalid closing of comment
+
+	MODULE Test; *) END Test.
+
+negative: missing closing of comment
+
+	MODULE Test; (* END Test.
+
+positive: comment spanning several lines
+
+	MODULE Test;
+	(*
+	   this comment spans
+	   several text lines
+	*)
+	END Test.
+
+positive: comment as whitespace
+
+	MODULE(*whitespace*)Test;END(*whitespace*)Test.
+
+
+# nested comments
 
 positive: nested comment
 
@@ -37,16 +134,110 @@ negative: missing closing of nested comment
 	(* (* nested comment *)
 	MODULE Test; END Test.
 
+positive: double nested comments
+
+	(* (* extremely (* nested comment *) *) *)
+	MODULE Test; END Test.
+
+positive: multiple nested comments
+
+	MODULE Test;
+	(* (* multiple *) nested (* comments (* over (* four *) levels *) *) *)
+	END Test.
+
+negative: invalid multiple nested comments
+
+	MODULE Test;
+	(* invalid (* multiple *) nested (* comments (* over *) (* four *) levels *) *) *)
+	END Test.
+
+
+# import section
+
+positive: dummy module for import section tests
+
+	MODULE A; END A.
+
+negative: empty import list
+
+	MODULE Test;
+	IMPORT;
+	END Test.
+
+negative: single module import without concluding semicolon
+
+	MODULE Test;
+	IMPORT A
+	END Test.
+
+positive: single module import
+
+	MODULE Test;
+	IMPORT A;
+	END Test.
+
+positive: single module import with alias
+
+	MODULE Test;
+	IMPORT B := A;
+	END Test.
+
+negative: double module import missing second module name
+
+	MODULE Test;
+	IMPORT A, ;
+	END Test.
+
+negative: double module import without separating comma
+
+	MODULE Test;
+	IMPORT B := A C := A;
+	END Test.
+
+negative: double module import with separating semicolon
+
+	MODULE Test;
+	IMPORT B := A; C := A;
+	END Test.
+
+negative: double module import without concluding semicolon
+
+	MODULE Test;
+	IMPORT B := A, C := A
+	END Test.
+
+positive: double module import
+
+	MODULE Test;
+	IMPORT B := A, C := A;
+	END Test.
+
+positive: multiple module import
+
+	MODULE Test;
+	IMPORT B := A, C := A, D := A, E := A;
+	END Test.
+
+negative: multiple import lists
+
+	MODULE Test;
+	IMPORT B := A;
+	IMPORT C := A;
+	END Test.
+
+
+# const sections
+
 positive: empty const section
 
 	MODULE Test;
 	CONST
 	END Test.
 
-positive: const section without definitions
+positive: const section without declarations
 
 	MODULE Test;
-	CONST;;;;
+	CONST ;;;;
 	END Test.
 
 positive: repeated empty const sections
@@ -56,86 +247,289 @@ positive: repeated empty const sections
 	CONST ; CONST ; CONST
 	END Test.
 
-negative: constant definition missing equal sign
+negative: single constant declaration missing equal sign
 
 	MODULE Test;
-	CONST Constant
+	CONST Constant 5;
 	END Test.
 
-negative: constant definition missing value
+negative: single constant declaration missing value
 
 	MODULE Test;
 	CONST Constant =
 	END Test.
 
-positive: boolean constant definition
+positive: single constant declaration
+
+	MODULE Test;
+	CONST Constant = 5
+	END Test.
+
+negative: double constant declaration without separating semicolon
+
+	MODULE Test;
+	CONST A = 5 B = 10
+	END Test.
+
+positive: double constant declaration
+
+	MODULE Test;
+	CONST A = 5; B = 10
+	END Test.
+
+
+# literals
+
+positive: boolean literal FALSE
 
 	MODULE Test;
 	CONST Boolean = TRUE
 	END Test.
 
-positive: character constant definition
+positive: boolean literal TRUE
 
 	MODULE Test;
-	CONST Character = 'C'
+	CONST Boolean = FALSE
 	END Test.
 
-positive: character constant definition using hex digits
+# legacy behaviour
+positive: character literal using '
 
 	MODULE Test;
-	CONST Character = 64X
+	CONST Character = 'a'
 	END Test.
 
-positive: string constant definition
+# legacy behaviour
+positive: character literal using "
 
 	MODULE Test;
-	CONST String = "This string"
+	CONST Character = "b"
 	END Test.
 
-positive: integer constant definition
+negative: unclosed character literal
 
 	MODULE Test;
-	CONST Integer = 5
+	CONST Character = 't
 	END Test.
 
-positive: integer constant definition using hex digits
+positive: uppercase hexadecimal character literal
 
 	MODULE Test;
-	CONST Integer = 5aBH
+	CONST Character = 0ABX
 	END Test.
 
-negative: invalid real constant definition
+negative: lowercase hexadecimal character literal
 
 	MODULE Test;
-	CONST Real = 12.E
+	CONST Character = 0efX
 	END Test.
 
-positive: real constant definition
+negative: hexadecimal character literal beginning with letter
 
 	MODULE Test;
-	CONST Real = 12.
+	CONST Character = CDX
 	END Test.
 
-positive: real constant definition with scale factor
+negative: hexadecimal character literal missing concluding X
 
 	MODULE Test;
-	CONST Real = 12.0E5
+	CONST Character = 9A
 	END Test.
 
-positive: long real constant definition with scale factor
+negative: hexadecimal character literal with concluding x
 
 	MODULE Test;
-	CONST Real = 12.9D-5
+	CONST Character = CAx
 	END Test.
 
-positive: pointer constant definition using NIL
+positive: integer literal
 
 	MODULE Test;
-	CONST Nil = NIL
+	CONST Integer = 25
+	END Test.
+
+positive: uppercase hexadecimal integer literal
+
+	MODULE Test;
+	CONST Integer = 1EDH
+	END Test.
+
+negative: lowercase hexadecimal integer literal
+
+	MODULE Test;
+	CONST Integer = 4faH
+	END Test.
+
+negative: hexadecimal integer literal beginning with letter
+
+	MODULE Test;
+	CONST Integer = EFH
+	END Test.
+
+negative: hexadecimal integer literal missing concluding H
+
+	MODULE Test;
+	CONST Integer = 42F
+	END Test.
+
+negative: hexadecimal integer literal with concluding h
+
+	MODULE Test;
+	CONST Integer = 89h
+	END Test.
+
+positive: real literal
+
+	MODULE Test;
+	CONST Real = 25.3
+	END Test.
+
+positive: real literal with concluding dot
+
+	MODULE Test;
+	CONST Real = 7.
+	END Test.
+
+negative: real literal beginning with dot
+
+	MODULE Test;
+	CONST Real = .4
+	END Test.
+
+negative: real literal with comma instead of dot
+
+	MODULE Test;
+	CONST Real = 12,1
+	END Test.
+
+positive: real literal with scale factor
+
+	MODULE Test;
+	CONST Real = 1.2E5
+	END Test.
+
+positive: real literal with positive scale factor
+
+	MODULE Test;
+	CONST Real = 0.3E+8
+	END Test.
+
+positive: real literal with negative scale factor
+
+	MODULE Test;
+	CONST Real = 0.E-54
+	END Test.
+
+negative: real literal with scale factor without number
+
+	MODULE Test;
+	CONST Real = 6354.9E+
+	END Test.
+
+negative: real literal with scale factor without number and sign
+
+	MODULE Test;
+	CONST Real = 9.1E
+	END Test.
+
+negative: real literal with lowercase scale factor
+
+	MODULE Test;
+	CONST Real = 24.e97
+	END Test.
+
+negative: real literal with hexadecimal scale factor
+
+	MODULE Test;
+	CONST Real = 1.97E1AB
+	END Test.
+
+negative: real literal with whitespace sepatared scale factor
+
+	MODULE Test;
+	CONST Real = 12.3 E-4
+	END Test.
+
+negative: real literal with scale factor with whitespace sepatared number
+
+	MODULE Test;
+	CONST Real = 0.1E 2
+	END Test.
+
+negative: real literal with scale factor without decimal point
+
+	MODULE Test;
+	CONST Real = 5E+2
+	END Test.
+
+positive: long real literal with scale factor
+
+	MODULE Test;
+	CONST Real = 0.77D24
+	END Test.
+
+positive: long real literal with positive scale factor
+
+	MODULE Test;
+	CONST Real = 0.1D+9
+	END Test.
+
+positive: long real literal with negative scale factor
+
+	MODULE Test;
+	CONST Real = 1.D-14
+	END Test.
+
+negative: long real literal with lowercase scale factor
+
+	MODULE Test;
+	CONST Real = 24.d97
+	END Test.
+
+positive: set literal
+
+	MODULE Test;
+	CONST Set = {}
+	END Test.
+
+negative: unclosed set literal
+
+	MODULE Test;
+	CONST Set = {
+	END Test.
+
+negative: unopened set literal
+
+	MODULE Test;
+	CONST Set = }
+	END Test.
+
+# legacy behaviour
+positive: string literal using '
+
+	MODULE Test;
+	CONST String = 'abc'
+	END Test.
+
+# legacy behaviour
+positive: string literal using "
+
+	MODULE Test;
+	CONST String = "ABC"
+	END Test.
+
+negative: unclosed string literal
+
+	MODULE Test;
+	CONST Character = "string
 	END Test.
 
 
 # Semantic tests
+# =====================================
+
+
+# imports
 
 positive: dummy module
 
@@ -165,190 +559,99 @@ negative: duplicated import
 	IMPORT A, A;
 	END Test.
 
-positive: duplicated import with alias
+positive: duplicated import with different alias
 
 	MODULE Test;
 	IMPORT B := A, C := A;
 	END Test.
 
+negative: duplicated import with same alias
+
+	MODULE Test;
+	IMPORT B := A, B := A;
+	END Test.
+
+# constants
+
+positive: constant marked as exported
+
+	MODULE Test;
+	CONST Constant* = 54;
+	END Test.
+
 negative: constant marked as read-only
 
 	MODULE Test;
-	CONST Boolean- = TRUE;
+	CONST Constant- = TRUE;
 	END Test.
 
-negative: integer constant definition exceeding valid range
+positive: backwards referencing constant
 
 	MODULE Test;
-	CONST Result = 123456789012345678901234567890;
+	CONST A = 0; B = A;
 	END Test.
 
-positive: arithmetic negation on constant integers
+positive: forwards referencing constant
 
 	MODULE Test;
-	CONST Result = -5;
+	CONST A = B; B = 0;
 	END Test.
 
-positive: arithmetic negation on constant reals
+negative: cyclic referencing constants
 
 	MODULE Test;
-	CONST Result = -5.0;
+	CONST A = B; B = A;
 	END Test.
 
-negative: repeated arithmetic negations
+negative: self referencing constant
 
 	MODULE Test;
-	CONST Result = ----5.0;
+	CONST A = A;
 	END Test.
 
-positive: repeated but paranthesized arithmetic negations
 
-	MODULE Test;
-	CONST Result = -(-(-(-5.0)));
-	END Test.
+# constant booleans
 
-negative: real constant definition exceeding valid range
-
-	MODULE Test;
-	CONST Result = 1.0E683547;
-	END Test.
-
-negative: arithmetic negation on constant booleans
+negative: arithmetic negation on constant boolean
 
 	MODULE Test;
 	CONST Result = -TRUE;
 	END Test.
 
-positive: logical negation on constant booleans
+positive: logical negation on constant boolean
 
 	MODULE Test;
-	CONST Result = ~TRUE;
+	CONST Result = ~FALSE;
 	END Test.
 
-positive: repeated logical negations
+positive: multiple logical negations on constant boolean
 
 	MODULE Test;
-	CONST Result = ~~~~TRUE;
-	END Test.
-
-negative: logical negation on constant integers
-
-	MODULE Test;
-	CONST Result = ~5;
-	END Test.
-
-negative: logical negation on constant reals
-
-	MODULE Test;
-	CONST Result = ~54.0D-7;
-	END Test.
-
-positive: addition on constant integers
-
-	MODULE Test;
-	CONST Result = 4 + 9
-	END Test.
-
-positive: addition on constant reals
-
-	MODULE Test;
-	CONST Result = 4.0 + 9.0
+	CONST Result = ~~~~FALSE;
 	END Test.
 
 negative: addition on constant booleans
 
 	MODULE Test;
-	CONST Result = TRUE + FALSE
-	END Test.
-
-positive: union on constant sets
-
-	MODULE Test;
-	CONST Result = {4} + {7};
-	END Test.
-
-positive: subtraction on constant integers
-
-	MODULE Test;
-	CONST Result = 4 - 9
-	END Test.
-
-positive: subtraction on constant reals
-
-	MODULE Test;
-	CONST Result = 4.0 - 9.0
+	CONST Result = TRUE + FALSE;
 	END Test.
 
 negative: subtraction on constant booleans
 
 	MODULE Test;
-	CONST Result = TRUE - FALSE
-	END Test.
-
-positive: difference on constant sets
-
-	MODULE Test;
-	CONST Result = {11, 8} - {0 .. 8};
-	END Test.
-
-positive: multiplication on constant integers
-
-	MODULE Test;
-	CONST Result = 4 * 9
-	END Test.
-
-positive: multiplication on constant reals
-
-	MODULE Test;
-	CONST Result = 4.0 * 9.0
+	CONST Result = FALSE - TRUE
 	END Test.
 
 negative: multiplication on constant booleans
 
 	MODULE Test;
-	CONST Result = TRUE * FALSE
-	END Test.
-
-positive: intersection on constant sets
-
-	MODULE Test;
-	CONST Result = {4, 0} * {3};
-	END Test.
-
-positive: integer division on constant integers
-
-	MODULE Test;
-	CONST Result = 4 DIV 9
-	END Test.
-
-negative: integer division on constant reals
-
-	MODULE Test;
-	CONST Result = 4.0 DIV 9.0
+	CONST Result = FALSE * TRUE
 	END Test.
 
 negative: integer division on constant booleans
 
 	MODULE Test;
-	CONST Result = TRUE DIV FALSE
-	END Test.
-
-negative: integer division on constant sets
-
-	MODULE Test;
-	CONST Result = {13, 0, 4, 0} DIV {0};
-	END Test.
-
-negative: symmetric difference on constant integers
-
-	MODULE Test;
-	CONST Result = 4 / 9
-	END Test.
-
-positive: real division on constant reals
-
-	MODULE Test;
-	CONST Result = 4.0 / 9.0
+	CONST Result = TRUE DIV TRUE
 	END Test.
 
 negative: real division on constant booleans
@@ -357,40 +660,58 @@ negative: real division on constant booleans
 	CONST Result = TRUE / FALSE
 	END Test.
 
-positive: modulo on constant integers
-
-	MODULE Test;
-	CONST Result = 4 MOD 9
-	END Test.
-
-negative: modulo on constant reals
-
-	MODULE Test;
-	CONST Result = 4.0 MOD 9.0
-	END Test.
-
 negative: modulo on constant booleans
 
 	MODULE Test;
-	CONST Result = TRUE MOD FALSE
+	CONST Result = FALSE MOD TRUE
 	END Test.
 
-negative: modulo on constant sets
+positive: equal relation on constant booleans
 
 	MODULE Test;
-	CONST Result = {1} MOD {0};
+	CONST Result = TRUE = FALSE
 	END Test.
 
-negative: logical and on constant integers
+positive: unequal relation on constant booleans
 
 	MODULE Test;
-	CONST Result = 4 & 9
+	CONST Result = TRUE # TRUE
 	END Test.
 
-negative: logical and on constant reals
+negative: less relation on constant booleans
 
 	MODULE Test;
-	CONST Result = 4.0 & 9.0
+	CONST Result = TRUE < FALSE
+	END Test.
+
+negative: less or equal relation on constant booleans
+
+	MODULE Test;
+	CONST Result = FALSE <= FALSE
+	END Test.
+
+negative: greater relation on constant booleans
+
+	MODULE Test;
+	CONST Result = FALSE > TRUE
+	END Test.
+
+negative: greater or equal relation on constant booleans
+
+	MODULE Test;
+	CONST Result = FALSE >= TRUE
+	END Test.
+
+negative: set membership on constant booleans
+
+	MODULE Test;
+	CONST Result = TRUE IN FALSE
+	END Test.
+
+negative: type test on constant booleans
+
+	MODULE Test;
+	CONST Result = TRUE IS FALSE
 	END Test.
 
 positive: logical and on constant booleans
@@ -399,338 +720,866 @@ positive: logical and on constant booleans
 	CONST Result = TRUE & FALSE
 	END Test.
 
+positive: logical or on constant booleans
+
+	MODULE Test;
+	CONST Result = TRUE OR TRUE
+	END Test.
+
+
+# constant characters
+
+negative: constant character exceeding valid range
+
+	MODULE Test;
+	CONST Result = 1234X;
+	END Test.
+
+negative: arithmetic negation on constant character
+
+	MODULE Test;
+	CONST Result = -'a';
+	END Test.
+
+negative: logical negation on constant character
+
+	MODULE Test;
+	CONST Result = ~5X;
+	END Test.
+
+negative: addition on constant characters
+
+	MODULE Test;
+	CONST Result = 45X + 'r';
+	END Test.
+
+negative: subtraction on constant characters
+
+	MODULE Test;
+	CONST Result = '3' - 'a'
+	END Test.
+
+negative: multiplication on constant characters
+
+	MODULE Test;
+	CONST Result = '9' * 4FX
+	END Test.
+
+negative: integer division on constant characters
+
+	MODULE Test;
+	CONST Result = '@' DIV 'g'
+	END Test.
+
+negative: real division on constant characters
+
+	MODULE Test;
+	CONST Result = 'a' / 'b'
+	END Test.
+
+negative: modulo on constant characters
+
+	MODULE Test;
+	CONST Result = 8X MOD 2X
+	END Test.
+
+positive: equal relation on constant characters
+
+	MODULE Test;
+	CONST Result = 'r' = 'l'
+	END Test.
+
+positive: unequal relation on constant characters
+
+	MODULE Test;
+	CONST Result = 4AX # 'z'
+	END Test.
+
+negative: less relation on constant characters
+
+	MODULE Test;
+	CONST Result = 's' < 64X
+	END Test.
+
+negative: less or equal relation on constant characters
+
+	MODULE Test;
+	CONST Result = 'e' <= 9X
+	END Test.
+
+negative: greater relation on constant characters
+
+	MODULE Test;
+	CONST Result = 'r' > 'a'
+	END Test.
+
+negative: greater or equal relation on constant characters
+
+	MODULE Test;
+	CONST Result = 'h' >= 9DX
+	END Test.
+
+negative: set membership on constant characters
+
+	MODULE Test;
+	CONST Result = 1DX IN 'z'
+	END Test.
+
+negative: type test on constant characters
+
+	MODULE Test;
+	CONST Result = '0' IS 0X
+	END Test.
+
+negative: logical and on constant characters
+
+	MODULE Test;
+	CONST Result = 'A' & 't'
+	END Test.
+
+negative: logical or on constant characters
+
+	MODULE Test;
+	CONST Result = 0X OR 1X
+	END Test.
+
+
+# constant integers
+
+negative: constant integer exceeding valid range
+
+	MODULE Test;
+	CONST Result = 123456789012345678901234567890;
+	END Test.
+
+positive: arithmetic negation on constant integer
+
+	MODULE Test;
+	CONST Result = -5;
+	END Test.
+
+positive: multiple arithmetic negations on constant integer
+
+	MODULE Test;
+	CONST Result = -(-(-9));
+	END Test.
+
+negative: logical negation on constant integer
+
+	MODULE Test;
+	CONST Result = ~788;
+	END Test.
+
+positive: addition on constant integers
+
+	MODULE Test;
+	CONST Result = 1 + 057H;
+	END Test.
+
+positive: subtraction on constant integers
+
+	MODULE Test;
+	CONST Result = 0 - 1
+	END Test.
+
+positive: multiplication on constant integers
+
+	MODULE Test;
+	CONST Result = 1AH * 10
+	END Test.
+
+positive: integer division on constant integers
+
+	MODULE Test;
+	CONST Result = 9 DIV 6
+	END Test.
+
+negative: integer division on constant integers by zero
+
+	MODULE Test;
+	CONST Result = 10 DIV 0
+	END Test.
+
+negative: real division on constant integers
+
+	MODULE Test;
+	CONST Result = 688 / 87
+	END Test.
+
+positive: modulo on constant integers
+
+	MODULE Test;
+	CONST Result = 20 MOD 4
+	END Test.
+
+negative: modulo on constant integers by zero
+
+	MODULE Test;
+	CONST Result = 15H MOD 0
+	END Test.
+
+positive: equal relation on constant integers
+
+	MODULE Test;
+	CONST Result = 54 = 8
+	END Test.
+
+positive: unequal relation on constant integers
+
+	MODULE Test;
+	CONST Result = 0 # 9
+	END Test.
+
+positive: less relation on constant integers
+
+	MODULE Test;
+	CONST Result = 5 < 687H
+	END Test.
+
+positive: less or equal relation on constant integers
+
+	MODULE Test;
+	CONST Result = 0 <= 1321
+	END Test.
+
+positive: greater relation on constant integers
+
+	MODULE Test;
+	CONST Result = 0EFH > 54
+	END Test.
+
+positive: greater or equal relation on constant integers
+
+	MODULE Test;
+	CONST Result = 131 >= 9
+	END Test.
+
+negative: set membership on constant integers
+
+	MODULE Test;
+	CONST Result = 5 IN 9
+	END Test.
+
+negative: type test on constant integers
+
+	MODULE Test;
+	CONST Result = 4 IS 0
+	END Test.
+
+negative: logical and on constant integers
+
+	MODULE Test;
+	CONST Result = 123 & 3AH
+	END Test.
+
 negative: logical or on constant integers
 
 	MODULE Test;
-	CONST Result = 4 OR 9
+	CONST Result = 0 OR 685
 	END Test.
 
-negative: logical and on constant sets
+
+# constant reals
+
+negative: constant real exceeding valid range
 
 	MODULE Test;
-	CONST Result = {1} & {0};
+	CONST Result = 1.E500;
+	END Test.
+
+positive: arithmetic negation on constant real
+
+	MODULE Test;
+	CONST Result = -1.0;
+	END Test.
+
+positive: multiple arithmetic negations on constant real
+
+	MODULE Test;
+	CONST Result = -(-(-1.0));
+	END Test.
+
+negative: logical negation on constant real
+
+	MODULE Test;
+	CONST Result = ~1.D4;
+	END Test.
+
+positive: addition on constant reals
+
+	MODULE Test;
+	CONST Result = 1.9 + 87.1;
+	END Test.
+
+positive: subtraction on constant reals
+
+	MODULE Test;
+	CONST Result = 4.E-8 - 0.44
+	END Test.
+
+positive: multiplication on constant reals
+
+	MODULE Test;
+	CONST Result = 15.1 * 3.14
+	END Test.
+
+negative: integer division on constant reals
+
+	MODULE Test;
+	CONST Result = 3.E9 DIV 1.
+	END Test.
+
+positive: real division on constant reals
+
+	MODULE Test;
+	CONST Result = 54.5 / 4.1
+	END Test.
+
+negative: modulo on constant reals
+
+	MODULE Test;
+	CONST Result = 8.9 MOD 7.1
+	END Test.
+
+positive: equal relation on constant reals
+
+	MODULE Test;
+	CONST Result = 1.0 = 5.E89
+	END Test.
+
+positive: unequal relation on constant reals
+
+	MODULE Test;
+	CONST Result = 0.001 # 9.
+	END Test.
+
+positive: less relation on constant reals
+
+	MODULE Test;
+	CONST Result = 1.0 < 97.4
+	END Test.
+
+positive: less or equal relation on constant reals
+
+	MODULE Test;
+	CONST Result = 464.1 <= 9.E+7
+	END Test.
+
+positive: greater relation on constant reals
+
+	MODULE Test;
+	CONST Result = 0.1 > 1.54
+	END Test.
+
+positive: greater or equal relation on constant reals
+
+	MODULE Test;
+	CONST Result = 9.E9 >= 0.0
+	END Test.
+
+negative: set membership on constant reals
+
+	MODULE Test;
+	CONST Result = 9.1 IN 1.0
+	END Test.
+
+negative: type test on constant reals
+
+	MODULE Test;
+	CONST Result = 4.E9 IS 1.
+	END Test.
+
+negative: logical and on constant reals
+
+	MODULE Test;
+	CONST Result = 9.D54 & 1.974D+9
 	END Test.
 
 negative: logical or on constant reals
 
 	MODULE Test;
-	CONST Result = 4.0 OR 9.0
+	CONST Result = 0.4 OR 0.
 	END Test.
 
-positive: logical or on constant booleans
+
+# constant set
+
+positive: empty constant set
 
 	MODULE Test;
-	CONST Result = TRUE OR FALSE
+	CONST Result = {};
+	END Test.
+
+negative: constant boolean as set element
+
+	MODULE Test;
+	CONST Result = {FALSE};
+	END Test.
+
+negative: constant character as set element
+
+	MODULE Test;
+	CONST Result = {'a'};
+	END Test.
+
+positive: constant integer constant as set element
+
+	MODULE Test;
+	CONST Result = {10};
+	END Test.
+
+negative: constant real as set element
+
+	MODULE Test;
+	CONST Result = {45.4};
+	END Test.
+
+negative: constant set as set element
+
+	MODULE Test;
+	CONST Result = {{}};
+	END Test.
+
+negative: constant string as set element
+
+	MODULE Test;
+	CONST Result = {"string"};
+	END Test.
+
+negative: constant set element exceeding valid range
+
+	MODULE Test;
+	CONST Result = {100};
+	END Test.
+
+negative: negative constant set element
+
+	MODULE Test;
+	CONST Result = {-1};
+	END Test.
+
+positive: several equal constant set elements
+
+	MODULE Test;
+	CONST Result = {0, 0, 0};
+	END Test.
+
+positive: several different constant set elements
+
+	MODULE Test;
+	CONST Result = {0, 1, 2};
+	END Test.
+
+positive: constant set element range
+
+	MODULE Test;
+	CONST Result = {5..6};
+	END Test.
+
+positive: constant set element range with single element
+
+	MODULE Test;
+	CONST Result = {6..6};
+	END Test.
+
+positive: empty constant set element range
+
+	MODULE Test;
+	CONST Result = {3..2};
+	END Test.
+
+negative: empty constant set element range with negative start element
+
+	MODULE Test;
+	CONST Result = {-1..2};
+	END Test.
+
+negative: empty constant set element range with negative end element
+
+	MODULE Test;
+	CONST Result = {3..-4};
+	END Test.
+
+positive: complement on constant set
+
+	MODULE Test;
+	CONST Result = -{4, 9};
+	END Test.
+
+positive: multiple complements on constant set
+
+	MODULE Test;
+	CONST Result = -(-(-{5}));
+	END Test.
+
+negative: logical negation on constant set
+
+	MODULE Test;
+	CONST Result = ~{};
+	END Test.
+
+positive: union on constant sets
+
+	MODULE Test;
+	CONST Result = {4, 6} + {9};
+	END Test.
+
+positive: difference on constant sets
+
+	MODULE Test;
+	CONST Result = {7, 2} - {2..1}
+	END Test.
+
+positive: intersection on constant sets
+
+	MODULE Test;
+	CONST Result = {9} * {6..7}
+	END Test.
+
+negative: integer division on constant sets
+
+	MODULE Test;
+	CONST Result = {8} DIV {}
+	END Test.
+
+positive: symmetric difference on constant sets
+
+	MODULE Test;
+	CONST Result = {4..9} / {5,4,3,2,1}
+	END Test.
+
+negative: modulo on constant sets
+
+	MODULE Test;
+	CONST Result = {7} MOD {0}
+	END Test.
+
+positive: equal relation on constant sets
+
+	MODULE Test;
+	CONST Result = {4} = {}
+	END Test.
+
+positive: unequal relation on constant sets
+
+	MODULE Test;
+	CONST Result = {9, 5} # {0..5}
+	END Test.
+
+negative: less relation on constant sets
+
+	MODULE Test;
+	CONST Result = {9} < {7}
+	END Test.
+
+negative: less or equal relation on constant sets
+
+	MODULE Test;
+	CONST Result = {} <= {8}
+	END Test.
+
+negative: greater relation on constant sets
+
+	MODULE Test;
+	CONST Result = {9} > {0..2}
+	END Test.
+
+negative: greater or equal relation on constant sets
+
+	MODULE Test;
+	CONST Result = {4} >= {}
+	END Test.
+
+negative: set membership on constant sets
+
+	MODULE Test;
+	CONST Result = {9} IN {1}
+	END Test.
+
+positive: set membership on integer and constant set
+
+	MODULE Test;
+	CONST Result = 3 IN {2}
+	END Test.
+
+negative: type test on constant sets
+
+	MODULE Test;
+	CONST Result = {7} IS {}
+	END Test.
+
+negative: logical and on constant sets
+
+	MODULE Test;
+	CONST Result = {0..7} & {7}
 	END Test.
 
 negative: logical or on constant sets
 
 	MODULE Test;
-	CONST Result = {1} OR {0};
+	CONST Result = {8} OR {}
 	END Test.
 
-positive: equal comparison on constant integers
+
+# constant strings
+
+positive: empty constant string
 
 	MODULE Test;
-	CONST Result = 4 = 7;
+	CONST Result = "";
 	END Test.
 
-positive: equal comparison on constant reals
+negative: arithmetic negation on constant string
 
 	MODULE Test;
-	CONST Result = 7.8 = 9.4E+9;
+	CONST Result = -"123";
 	END Test.
 
-positive: equal comparison on constant booleans
+negative: logical negation on constant string
 
 	MODULE Test;
-	CONST Result = TRUE = FALSE;
+	CONST Result = ~"invalid";
 	END Test.
 
-positive: equal comparison on constant sets
+negative: addition on constant strings
 
 	MODULE Test;
-	CONST Result = {3} = {};
+	CONST Result = "hello" + "world";
 	END Test.
 
-positive: equal comparison on constant characters
+negative: subtraction on constant strings
 
 	MODULE Test;
-	CONST Result = '5' = '3';
+	CONST Result = "nice" - "try"
 	END Test.
 
-positive: equal comparison on constant strings
+negative: multiplication on constant strings
 
 	MODULE Test;
-	CONST Result = "test" = "string";
+	CONST Result = "multiplication" * "disallowed"
 	END Test.
 
-positive: unequal comparison on constant integers
+negative: integer division on constant strings
 
 	MODULE Test;
-	CONST Result = 1 # 9;
+	CONST Result = "abc" DIV "ABC"
 	END Test.
 
-positive: unequal comparison on constant reals
+negative: real division on constant strings
 
 	MODULE Test;
-	CONST Result = 1.9D9 # 2.4D9;
+	CONST Result = "007" / "008"
 	END Test.
 
-positive: unequal comparison on constant booleans
+negative: modulo on constant strings
 
 	MODULE Test;
-	CONST Result = TRUE # TRUE;
+	CONST Result = "one" MOD "two"
 	END Test.
 
-positive: unequal comparison on constant sets
+positive: equal relation on constant strings
 
 	MODULE Test;
-	CONST Result = {1..5} # {4, 2};
+	CONST Result = "string" = "gnirts"
 	END Test.
 
-positive: unequal comparison on constant characters
+positive: unequal relation on constant strings
 
 	MODULE Test;
-	CONST Result = 'a' # 'v';
+	CONST Result = "qwerty" # "ytrewq"
 	END Test.
 
-positive: unequal comparison on constant strings
+negative: less relation on constant strings
 
 	MODULE Test;
-	CONST Result = "23476987" # "   ";
+	CONST Result = "av" < "bv"
 	END Test.
 
-positive: less than comparison on constant integers
+negative: less or equal relation on constant strings
 
 	MODULE Test;
-	CONST Result = 546 < 135;
+	CONST Result = "word1" <= "word2"
 	END Test.
 
-positive: less than comparison on constant reals
+negative: greater relation on constant strings
 
 	MODULE Test;
-	CONST Result = 97.4 < 4.1;
+	CONST Result = "lower" > "UPPER"
 	END Test.
 
-negative: less than comparison on constant booleans
+negative: greater or equal relation on constant strings
 
 	MODULE Test;
-	CONST Result = TRUE < FALSE;
+	CONST Result = "number" >= "text"
 	END Test.
 
-negative: less than comparison on constant characters
+negative: set membership on constant strings
 
 	MODULE Test;
-	CONST Result = 'v' < 'x';
+	CONST Result = "name" IN "ninety"
 	END Test.
 
-negative: less than comparison on constant strings
+negative: type test on constant strings
 
 	MODULE Test;
-	CONST Result = "897" < "987";
+	CONST Result = "not" IS "supported"
 	END Test.
 
-positive: less than or equal comparison on constant integers
+negative: logical and on constant strings
 
 	MODULE Test;
-	CONST Result = 546 <= 135;
+	CONST Result = "oh" & "dear"
 	END Test.
 
-positive: less than or equal comparison on constant reals
+negative: logical or on constant strings
 
 	MODULE Test;
-	CONST Result = 97.4 <= 4.1;
+	CONST Result = "last" OR "one"
 	END Test.
 
-negative: less than or equal comparison on constant booleans
 
-	MODULE Test;
-	CONST Result = TRUE <= FALSE;
-	END Test.
+# implicit const conversions
 
-negative: less than or equal comparison on constant characters
-
-	MODULE Test;
-	CONST Result = 'v' <= 'x';
-	END Test.
-
-negative: less than or equal comparison on constant strings
-
-	MODULE Test;
-	CONST Result = "897" <= "987";
-	END Test.
-
-positive: greater than comparison on constant integers
-
-	MODULE Test;
-	CONST Result = 546 > 135;
-	END Test.
-
-positive: greater than comparison on constant reals
-
-	MODULE Test;
-	CONST Result = 97.4 > 4.1;
-	END Test.
-
-negative: greater than comparison on constant booleans
-
-	MODULE Test;
-	CONST Result = TRUE > FALSE;
-	END Test.
-
-negative: greater than comparison on constant characters
-
-	MODULE Test;
-	CONST Result = 'v' > 'x';
-	END Test.
-
-negative: greater than comparison on constant strings
-
-	MODULE Test;
-	CONST Result = "897" > "987";
-	END Test.
-
-positive: greater than or equal comparison on constant integers
-
-	MODULE Test;
-	CONST Result = 546 >= 135;
-	END Test.
-
-positive: greater than or equal comparison on constant reals
-
-	MODULE Test;
-	CONST Result = 97.4 >= 4.1;
-	END Test.
-
-negative: greater than or equal comparison on constant booleans
-
-	MODULE Test;
-	CONST Result = TRUE >= FALSE;
-	END Test.
-
-negative: greater than or equal comparison on constant characters
-
-	MODULE Test;
-	CONST Result = 'v' >= 'x';
-	END Test.
-
-negative: greater than or equal comparison on constant strings
-
-	MODULE Test;
-	CONST Result = "897" >= "987";
-	END Test.
-
-positive: backwards referenced constant
-
-	MODULE Test;
-	CONST A = 0; B = A;
-	END Test.
-
-positive: forwards referenced constant
-
-	MODULE Test;
-	CONST A = B; B = 0;
-	END Test.
-
-negative: cyclic referenced constants
-
-	MODULE Test;
-	CONST A = B; B = A;
-	END Test.
-
-negative: self referenced constant
-
-	MODULE Test;
-	CONST A = A;
-	END Test.
-
-positive: implicit short to integer conversion
+positive: implicit const short to integer conversion
 
 	MODULE Test;
 	CONST Result = 10H + 1000H
 	END Test.
 
-positive: implicit short to long integer conversion
+positive: implicit const short to long integer conversion
 
 	MODULE Test;
-	CONST Result = 10H + 100000H
+	CONST Result = 10H * 100000H
 	END Test.
 
-positive: implicit short to huge integer conversion
+positive: implicit const short to huge integer conversion
 
 	MODULE Test;
-	CONST Result = 10H + 100000000H
+	CONST Result = 10H DIV 100000000H
 	END Test.
 
-positive: implicit default to long integer conversion
+positive: implicit const default to long integer conversion
 
 	MODULE Test;
-	CONST Result = 1000H + 100000H
+	CONST Result = 1000H - 100000H
 	END Test.
 
-positive: implicit default to huge integer conversion
+positive: implicit const default to huge integer conversion
 
 	MODULE Test;
-	CONST Result = 1000H + 100000000H
+	CONST Result = 1000H * 100000000H
 	END Test.
 
-positive: implicit long to huge integer conversion
+positive: implicit const long to huge integer conversion
 
 	MODULE Test;
 	CONST Result = 100000H + 100000000H
 	END Test.
 
-positive: implicit integer to real conversion
+positive: implicit const integer to real conversion
 
 	MODULE Test;
 	CONST Result = 4 + 5.0
 	END Test.
 
-positive: implicit integer to long real conversion
+positive: implicit const integer to long real conversion
 
 	MODULE Test;
 	CONST Result = 4.5D127 / 54
 	END Test.
 
-positive: implicit real to long real conversion
+positive: implicit const real to long real conversion
 
 	MODULE Test;
 	CONST Result = 1.2 * 1.7D247
 	END Test.
 
-positive: empty constant set definition
+negative: implicit conversion between const boolean and character
 
 	MODULE Test;
-	CONST Set = {}
+	CONST Result = TRUE = 's'
 	END Test.
 
-positive: constant set definition with one integer element
+negative: implicit conversion between const boolean and integer
 
 	MODULE Test;
-	CONST Set = {5}
+	CONST Result = TRUE # 5
 	END Test.
 
-negative: constant set definition with one boolean element
+negative: implicit conversion between const boolean and real
 
 	MODULE Test;
-	CONST Set = {TRUE}
+	CONST Result = FALSE = 1.0E4
 	END Test.
 
-negative: constant set definition with one real element
+negative: implicit conversion between const boolean and set
 
 	MODULE Test;
-	CONST Set = {4.5}
+	CONST Result = TRUE = {3}
 	END Test.
 
-positive: constant set definition with two integer elements
+negative: implicit conversion between const boolean and string
 
 	MODULE Test;
-	CONST Set = {5, 6}
+	CONST Result = TRUE = "adsf"
 	END Test.
 
-positive: constant set definition with the same integer elements
+negative: implicit conversion between const character and integer
 
 	MODULE Test;
-	CONST Set = {5, 6, 5}
+	CONST Result = 's' # 2
+	END Test.
+
+negative: implicit conversion between const character and real
+
+	MODULE Test;
+	CONST Result = 't' # 1.0
+	END Test.
+
+negative: implicit conversion between const character and set
+
+	MODULE Test;
+	CONST Result = 0X = {}
+	END Test.
+
+negative: implicit conversion between const character and string
+
+	MODULE Test;
+	CONST Result = 'A' # "string"
+	END Test.
+
+positive: implicit conversion between const integer and real
+
+	MODULE Test;
+	CONST Result = 54 # 2.0
+	END Test.
+
+negative: implicit conversion between const integer and set
+
+	MODULE Test;
+	CONST Result = 0 = {5}
+	END Test.
+
+negative: implicit conversion between const integer and string
+
+	MODULE Test;
+	CONST Result = 9 # "text"
+	END Test.
+
+negative: implicit conversion between const real and set
+
+	MODULE Test;
+	CONST Result = 54.1 = {0..4}
+	END Test.
+
+negative: implicit conversion between const real and string
+
+	MODULE Test;
+	CONST Result = 0.0 = "zero"
+	END Test.
+
+negative: implicit conversion between const set and string
+
+	MODULE Test;
+	CONST Result = {9} # "value"
 	END Test.
