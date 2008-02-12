@@ -151,13 +151,20 @@
 				</Properties>
 			</SystemCommand>
 		</Button>
-	</Panel>	
-	
-<!--
+	</Panel>
+
+<!-- 5th column -->	
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>	
+				<Width>120</Width>
+			</Bounds>	
+		</Properties>
 
 		<Button>
 			<Properties>
-				<Caption>3d.Clown</Caption>
+				<Caption>Raytracer</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
@@ -165,25 +172,25 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>W3dExplorer.Open</CommandString>
+					<CommandString>srRender.Demo</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
-
+		
 		<Button>
 			<Properties>
-				<Caption>Logo</Caption>
+				<Caption></Caption>
 				<Alignment>2</Alignment>
-				<OnClickHandler>X Run</OnClickHandler>
+				<OnClickHandler></OnClickHandler>
 			</Properties>
 			
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>WMBunny.Insert aos1.gif 25 -15;WMBunny.Insert aos2.gif 25 10;WMBunny.Insert aos3.gif 25 15</CommandString>
+					<CommandString></CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
--->	
+	</Panel>		
 	
 </Panel>
