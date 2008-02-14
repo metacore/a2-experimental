@@ -80,8 +80,6 @@
 			</SystemCommand>
 		</Button>
 
-
-
 	</Panel>
 
 <!-- Third column -->	
@@ -94,7 +92,7 @@
 		</Properties>
 		<Button>
 			<Properties>
-				<Caption></Caption>
+				<Caption>Installer</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
@@ -102,7 +100,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString></CommandString>
+					<CommandString>WMInstaller.Open</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
