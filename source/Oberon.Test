@@ -225,6 +225,112 @@ negative: multiple import lists
 	IMPORT C := A;
 	END Test.
 
+# type declarations
+
+positive: record declaration
+
+	MODULE Test; 
+	TYPE A= RECORD b,c: INTEGER END;
+	END Test.
+
+positive: forward declaration
+	
+	MODULE Test; 
+	TYPE A= B; B=RECORD END; 
+	END Test. 
+
+positive: foward record declaration
+	
+	MODULE Test; 
+	TYPE 
+		A=RECORD b: B END; 
+		B=RECORD END; 
+	END Test.
+		
+negative: immediate cycle
+
+	MODULE Test; 
+	TYPE A=A; 
+	END Test.
+	
+negative: indirect simple cycle
+
+	MODULE Test; 
+	TYPE A=B; B=A; 
+	END Test.
+
+negative: indirect cycle 
+	MODULE Test; 
+	TYPE 
+		A= RECORD b: B END; 
+		B= RECORD a: A END; 
+	END Test.
+
+positive: indirect cycle with pointers
+	MODULE Test; 
+	TYPE 
+		A= RECORD b: POINTER TO B END; 
+		B= RECORD a: A END; 
+	END Test. 
+	
+positive: indirect cycle with pointers in declaration
+	MODULE Test; 
+	TYPE 
+		A= POINTER TO RECORD b: B END; 
+		B= RECORD a: A END; 
+	END Test. 
+
+negative: indirect cycle in a larger graph
+	MODULE Test; 
+	TYPE 
+		A= RECORD b: B END; 
+		F= RECORD a: A END; 
+		B= RECORD c: C END; 
+		E= RECORD f: F END; 
+		D= RECORD e:E END; 
+		C= RECORD d: D END; 
+	END Test. 
+	
+negative: indirect cycle in a subgraph
+	MODULE Test; 
+	TYPE 
+		A= RECORD b: B END; 
+		B= RECORD c: C END; 
+		C= RECORD d: D END; 
+		D= RECORD b: B END; 
+	END Test. 
+
+positive: pointer records in records
+	MODULE Test; 
+	TYPE 
+		A= RECORD b: POINTER TO RECORD
+				x: LONGINT; 
+			END; 
+		END; 
+	END Test. 
+
+positive: indirect cycle with indirect pointers
+	MODULE Test; 
+	TYPE 
+		A= RECORD b: B END; 
+		B= RECORD 
+			c: POINTER TO RECORD
+				a: A; 
+			END;
+		END; 
+	END Test; 
+
+positive: indirect cycle with declared pointers
+	MODULE Test; 
+	TYPE 
+		A= POINTER TO RECORD b: B END; 
+		B= RECORD 
+			c: RECORD
+				a: A; 
+			END;
+		END; 
+	END Test; 
+
 
 # const sections
 
