@@ -225,114 +225,8 @@ negative: multiple import lists
 	IMPORT C := A;
 	END Test.
 
-# type declarations
 
-positive: record declaration
-
-	MODULE Test; 
-	TYPE A= RECORD b,c: INTEGER END;
-	END Test.
-
-positive: forward declaration
-	
-	MODULE Test; 
-	TYPE A= B; B=RECORD END; 
-	END Test. 
-
-positive: foward record declaration
-	
-	MODULE Test; 
-	TYPE 
-		A=RECORD b: B END; 
-		B=RECORD END; 
-	END Test.
-		
-negative: immediate cycle
-
-	MODULE Test; 
-	TYPE A=A; 
-	END Test.
-	
-negative: indirect simple cycle
-
-	MODULE Test; 
-	TYPE A=B; B=A; 
-	END Test.
-
-negative: indirect cycle 
-	MODULE Test; 
-	TYPE 
-		A= RECORD b: B END; 
-		B= RECORD a: A END; 
-	END Test.
-
-positive: indirect cycle with pointers
-	MODULE Test; 
-	TYPE 
-		A= RECORD b: POINTER TO B END; 
-		B= RECORD a: A END; 
-	END Test. 
-	
-positive: indirect cycle with pointers in declaration
-	MODULE Test; 
-	TYPE 
-		A= POINTER TO RECORD b: B END; 
-		B= RECORD a: A END; 
-	END Test. 
-
-negative: indirect cycle in a larger graph
-	MODULE Test; 
-	TYPE 
-		A= RECORD b: B END; 
-		F= RECORD a: A END; 
-		B= RECORD c: C END; 
-		E= RECORD f: F END; 
-		D= RECORD e:E END; 
-		C= RECORD d: D END; 
-	END Test. 
-	
-negative: indirect cycle in a subgraph
-	MODULE Test; 
-	TYPE 
-		A= RECORD b: B END; 
-		B= RECORD c: C END; 
-		C= RECORD d: D END; 
-		D= RECORD b: B END; 
-	END Test. 
-
-positive: pointer records in records
-	MODULE Test; 
-	TYPE 
-		A= RECORD b: POINTER TO RECORD
-				x: LONGINT; 
-			END; 
-		END; 
-	END Test. 
-
-positive: indirect cycle with indirect pointers
-	MODULE Test; 
-	TYPE 
-		A= RECORD b: B END; 
-		B= RECORD 
-			c: POINTER TO RECORD
-				a: A; 
-			END;
-		END; 
-	END Test; 
-
-positive: indirect cycle with declared pointers
-	MODULE Test; 
-	TYPE 
-		A= POINTER TO RECORD b: B END; 
-		B= RECORD 
-			c: RECORD
-				a: A; 
-			END;
-		END; 
-	END Test; 
-
-
-# const sections
+# const section
 
 positive: empty const section
 
@@ -628,6 +522,179 @@ negative: unclosed string literal
 
 	MODULE Test;
 	CONST Character = "string
+	END Test.
+
+
+# type section
+
+positive: empty type section
+
+	MODULE Test;
+	TYPE
+	END Test.
+
+positive: type section without declarations
+
+	MODULE Test;
+	TYPE ;;;;
+	END Test.
+
+positive: repeated empty type sections
+
+	MODULE Test;
+	TYPE TYPE TYPE
+	TYPE ; TYPE ; TYPE
+	END Test.
+
+negative: single type declaration missing equal sign
+
+	MODULE Test;
+	TYPE Type RECORD END;
+	END Test.
+
+negative: single type declaration missing type
+
+	MODULE Test;
+	TYPE Type =
+	END Test.
+
+positive: single type declaration
+
+	MODULE Test;
+	TYPE Type = OBJECT;
+	END Test.
+
+negative: double type declaration without separating semicolon
+
+	MODULE Test;
+	TYPE A = RECORD END B = OBJECT;
+	END Test.
+
+positive: double type declaration
+
+	MODULE Test;
+	TYPE A = OBJECT; B = RECORD END
+	END Test.
+
+
+# types
+
+negative: array without of
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OBJECT;
+	END Test.
+
+negative: array without base type
+
+	MODULE Test;
+	TYPE Array = ARRAY 15 OF;
+	END Test.
+
+positive: basic array of objects
+
+	MODULE Test;
+	TYPE Array = ARRAY 5 OF OBJECT;
+	END Test.
+
+negative: record without end
+
+	MODULE Test;
+	TYPE Record = RECORD;
+	END Test.
+
+positive: simple record
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	END Test.
+
+negative: record with empty parent record
+
+	MODULE Test;
+	TYPE Record = RECORD () END;
+	END Test.
+
+negative: record with explicitly defined parent record
+
+	MODULE Test;
+	TYPE Record = RECORD (RECORD END) END;
+	END Test.
+
+negative: record with variable declaration
+
+	MODULE Test;
+	TYPE Record = RECORD VAR f: OBJECT; END;
+	END Test.
+
+negative: pointer missing pointer keyword
+
+	MODULE Test;
+	TYPE Pointer = TO RECORD END;
+	END Test.
+
+negative: pointer missing to
+
+	MODULE Test;
+	TYPE Pointer = POINTER RECORD END;
+	END Test.
+
+negative: pointer missing base type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO;
+	END Test.
+
+
+# var section
+
+positive: empty var section
+
+	MODULE Test;
+	VAR
+	END Test.
+
+positive: var section without declarations
+
+	MODULE Test;
+	VAR ;;;;
+	END Test.
+
+positive: repeated empty var sections
+
+	MODULE Test;
+	VAR VAR VAR
+	VAR ; VAR ; VAR
+	END Test.
+
+negative: single variable declaration missing colon
+
+	MODULE Test;
+	VAR variable RECORD END;
+	END Test.
+
+negative: single variable declaration missing type
+
+	MODULE Test;
+	VAR variable: ;
+	END Test.
+
+positive: single variable declaration
+
+	MODULE Test;
+	VAR variable: RECORD END;
+	END Test.
+
+negative: double variable declaration without separating semicolon
+
+	MODULE Test;
+	VAR a: RECORD END b: OBJECT;
+	END Test.
+
+positive: double variable declaration
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF CHAR; b: RECORD END;
 	END Test.
 
 
@@ -1006,10 +1073,16 @@ negative: integer division on constant integers by zero
 	CONST Result = 10 DIV 0
 	END Test.
 
-negative: real division on constant integers
+positive: real division on constant integers
 
 	MODULE Test;
 	CONST Result = 688 / 87
+	END Test.
+
+negative: real division on constant integers by zero
+
+	MODULE Test;
+	CONST Result = 1ACH / 0
 	END Test.
 
 positive: modulo on constant integers
@@ -1688,4 +1761,772 @@ negative: implicit conversion between const set and string
 
 	MODULE Test;
 	CONST Result = {9} # "value"
+	END Test.
+
+
+# types
+
+positive: type marked as exported
+
+	MODULE Test;
+	TYPE Type* = RECORD END;
+	END Test.
+
+negative: type marked as read-only
+
+	MODULE Test;
+	TYPE type- = OBJECT;
+	END Test.
+
+positive: backwards referencing type
+
+	MODULE Test;
+	TYPE A = RECORD END; B = A;
+	END Test.
+
+positive: forwards referencing type
+
+	MODULE Test;
+	TYPE A = B; B = RECORD END;
+	END Test.
+
+negative: cyclic referencing types
+
+	MODULE Test;
+	TYPE A = B; B = A;
+	END Test.
+
+negative: self referencing type
+
+	MODULE Test;
+	TYPE A = A;
+	END Test.
+
+
+# basic types
+
+positive: predefined basic character type
+
+	MODULE Test;
+	TYPE BasicType = CHAR;
+	END Test.
+
+positive: predefined basic boolean type
+
+	MODULE Test;
+	TYPE BasicType = BOOLEAN;
+	END Test.
+
+positive: predefined basic short integer type
+
+	MODULE Test;
+	TYPE BasicType = SHORTINT;
+	END Test.
+
+positive: predefined basic integer type
+
+	MODULE Test;
+	TYPE BasicType = INTEGER;
+	END Test.
+
+positive: predefined basic long integer type
+
+	MODULE Test;
+	TYPE BasicType = LONGINT;
+	END Test.
+
+positive: predefined basic huge integer type
+
+	MODULE Test;
+	TYPE BasicType = HUGEINT;
+	END Test.
+
+positive: predefined basic real type
+
+	MODULE Test;
+	TYPE BasicType = REAL;
+	END Test.
+
+positive: predefined basic long real type
+
+	MODULE Test;
+	TYPE BasicType = LONGREAL;
+	END Test.
+
+positive: predefined basic set type
+
+	MODULE Test;
+	TYPE BasicType = SET;
+	END Test.
+
+
+# arrays
+
+positive: open array type definition
+
+	MODULE Test;
+	TYPE Array = ARRAY OF RECORD END;
+	END Test.
+
+negative: array with negative size
+
+	MODULE Test;
+	TYPE Array = ARRAY -1 OF RECORD END;
+	END Test.
+
+negative: multidimensional array with negative size
+
+	MODULE Test;
+	TYPE Array = ARRAY 5, 3, -1 OF RECORD END;
+	END Test.
+
+negative: array with size zero
+
+	MODULE Test;
+	TYPE Array = ARRAY 0 OF RECORD END;
+	END Test.
+
+negative: multidimensional array with size zero
+
+	MODULE Test;
+	TYPE Array = ARRAY 2, 7, 0 OF RECORD END;
+	END Test.
+
+positive: array with positive size
+
+	MODULE Test;
+	TYPE Array = ARRAY 5 OF RECORD END;
+	END Test.
+
+positive: multidimensional array with positive size
+
+	MODULE Test;
+	TYPE Array = ARRAY 2, 4, 6 OF RECORD END;
+	END Test.
+
+negative: array with size of type real
+
+	MODULE Test;
+	TYPE Array = ARRAY 5.4 OF RECORD END;
+	END Test.
+
+negative: array with constant base type
+
+	MODULE Test;
+	CONST Base = 5;
+	TYPE Array = ARRAY 5 OF Base;
+	END Test.
+
+positive: fixed size array of open array
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF ARRAY OF RECORD END;
+	END Test.
+
+positive: open array of fixed size array
+
+	MODULE Test;
+	TYPE Array = ARRAY OF ARRAY 10 OF RECORD END;
+	END Test.
+
+negative: self referencing array type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF Array;
+	END Test.
+
+negative: indirectly self referencing array type
+
+	MODULE Test;
+	TYPE A = ARRAY 10 OF B;
+	TYPE B = ARRAY 10 OF A;
+	END Test.
+
+positive: self referencing array type with pointer
+
+	MODULE Test;
+	TYPE A = ARRAY 10 OF POINTER TO A;
+	END Test.
+
+positive: indirectly self referencing array type with pointer
+
+	MODULE Test;
+	TYPE A = ARRAY 10 OF B;
+	TYPE B = ARRAY 10 OF POINTER TO A;
+	END Test.
+
+positive: array of basic character type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF CHAR;
+	END Test.
+
+positive: array of basic boolean type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF BOOLEAN;
+	END Test.
+
+positive: array of basic short integer type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF SHORTINT;
+	END Test.
+
+positive: array of basic integer type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF INTEGER;
+	END Test.
+
+positive: array of basic long integer type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF LONGINT;
+	END Test.
+
+positive: array of basic huge integer type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF HUGEINT;
+	END Test.
+
+positive: array of basic real type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF REAL;
+	END Test.
+
+positive: array of basic long real type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF LONGREAL;
+	END Test.
+
+positive: array of basic set type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF SET;
+	END Test.
+
+positive: array of records
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF RECORD END;
+	END Test.
+
+positive: array of objects
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF OBJECT;
+	END Test.
+
+positive: array of pointers
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF POINTER TO RECORD END;
+	END Test.
+
+positive: array of procedures
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF PROCEDURE;
+	END Test.
+
+
+# records
+
+negative: record extending itself
+
+	MODULE Test;
+	TYPE Record = RECORD (Record) END;
+	END Test.
+
+negative: record extending itself indirectly
+
+	MODULE Test;
+	TYPE A = RECORD (B) END; B = RECORD (A) END;
+	END Test.
+
+negative: record extending a constant
+
+	MODULE Test;
+	CONST Constant = 5;
+	TYPE Record = RECORD (Constant) END;
+	END Test.
+
+negative: record extending a variable
+
+	MODULE Test;
+	TYPE Record = RECORD (Variable) END;
+	VAR variable: Record;
+	END Test.
+
+negative: record extending a basic type
+
+	MODULE Test;
+	TYPE Record = RECORD (LONGINT) END;
+	END Test.
+
+negative: record extending an array
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF OBJECT; Record = RECORD (Array) END;
+	END Test.
+
+positive: record extending a record
+
+	MODULE Test;
+	TYPE A = RECORD END; B = RECORD (A) END;
+	END Test.
+
+negative: record extending an object
+
+	MODULE Test;
+	TYPE Object = OBJECT; Record = RECORD (Object) END;
+	END Test.
+
+negative: record extending a pointer
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END; Record = RECORD (Pointer) END;
+	END Test.
+
+negative: record extending a procedure
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE; Record = RECORD (Procedure) END;
+	END Test.
+
+negative: record containing itself
+
+	MODULE Test;
+	TYPE Record = RECORD r: Record END;
+	END Test.
+
+positive: record containing pointer to itself
+
+	MODULE Test;
+	TYPE Record = RECORD r: POINTER TO Record END;
+	END Test.
+
+negative: record containing itself indirectly
+
+	MODULE Test;
+	TYPE A = RECORD b: B END;
+	TYPE B = RECORD a: A END;
+	END Test.
+
+positive: record containing pointer to itself indirectly
+
+	MODULE Test;
+	TYPE A = RECORD b: POINTER TO B END;
+	TYPE B = RECORD a: A END;
+	END Test.
+
+positive: record containing pointer in declaration to itself indirectly
+
+	MODULE Test;
+	TYPE A = RECORD b: B END;
+	TYPE B = POINTER TO RECORD a: A END;
+	END Test.
+
+positive: record containing backward referenced type
+
+	MODULE Test;
+	TYPE A = RECORD END;
+	TYPE B = RECORD a: A END;
+	END Test.
+
+positive: record containing forward referenced type
+
+	MODULE Test;
+	TYPE A = RECORD b: B END;
+	TYPE B = OBJECT;
+	END Test.
+
+positive: record containing anonymous records
+
+	MODULE Test;
+	TYPE Record = RECORD r: RECORD r: RECORD r: RECORD END END END END;
+	END Test.
+
+positive: deeply nested records
+
+	MODULE Test;
+	TYPE A = RECORD b: B END;
+	TYPE F = RECORD END;
+	TYPE B = RECORD c: C END;
+	TYPE E = RECORD f: F END;
+	TYPE D = RECORD e: E END;
+	TYPE C = RECORD d: D END;
+	END Test.
+
+negative: record containing itself deeply indirectly
+
+	MODULE Test;
+	TYPE A = RECORD b: B END;
+	TYPE F = RECORD a: A END;
+	TYPE B = RECORD c: C END;
+	TYPE E = RECORD f: F END;
+	TYPE D = RECORD e: E END;
+	TYPE C = RECORD d: D END;
+	END Test.
+
+negative: nested record containing itself indirectly
+
+	MODULE Test;
+	TYPE A = RECORD b: B END;
+	TYPE B = RECORD c: C END;
+	TYPE C = RECORD d: D END;
+	TYPE D = RECORD b: B END;
+	END Test.
+
+positive: record containing pointer to record
+
+	MODULE Test;
+	TYPE Record = RECORD p: POINTER TO RECORD END END;
+	END Test.
+
+positive: record containing pointer to record containing the first record
+
+	MODULE Test;
+	TYPE Record = RECORD p: POINTER TO RECORD r: Record END END;
+	END Test.
+
+positive: record containing record containing pointer to record containing the first record
+
+	MODULE Test;
+	TYPE A = RECORD b: B END;
+	TYPE B = RECORD p: POINTER TO RECORD a: A END END;
+	END Test.
+
+positive: pointer to record containing record containing record containing the pointer
+
+	MODULE Test;
+	TYPE A = POINTER TO RECORD b: B END;
+	TYPE B = RECORD r: RECORD a: A END END;
+	END Test.
+
+positive: record containing basic types
+
+	MODULE Test;
+	TYPE Record = RECORD i: INTEGER; s: SET; b: BOOLEAN END;
+	END Test.
+
+positive: record containing array
+
+	MODULE Test;
+	TYPE Record = RECORD a: ARRAY 10 OF OBJECT; END;
+	END Test.
+
+negative: record containing open array
+
+	MODULE Test;
+	TYPE Record = RECORD a: ARRAY OF RECORD END END;
+	END Test.
+
+positive: record containing object
+
+	MODULE Test;
+	TYPE Record = RECORD o: OBJECT; END;
+	END Test.
+
+positive: record containing procedure
+
+	MODULE Test;
+	TYPE Record = RECORD p: PROCEDURE END;
+	END Test.
+
+
+# pointers
+
+negative: pointer to basic character type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO CHAR;
+	END Test.
+
+negative: pointer to basic boolean type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO BOOLEAN;
+	END Test.
+
+negative: pointer to basic short integer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO SHORTINT;
+	END Test.
+
+negative: pointer to basic integer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO INTEGER;
+	END Test.
+
+negative: pointer to basic long integer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO LONGINT;
+	END Test.
+
+negative: pointer to basic huge integer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO HUGEINT;
+	END Test.
+
+negative: pointer to basic real type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO REAL;
+	END Test.
+
+negative: pointer to basic long real type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO LONGREAL;
+	END Test.
+
+negative: pointer to basic set type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO SET;
+	END Test.
+
+positive: pointer to record
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	END Test.
+
+positive: pointer to array
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO ARRAY 10 OF RECORD END;
+	END Test.
+
+positive: pointer to open array
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO ARRAY OF RECORD END;
+	END Test.
+
+negative: pointer to pointer
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO POINTER TO RECORD END;
+	END Test.
+
+negative: pointer to object
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO OBJECT;
+	END Test.
+
+negative: pointer to procedure
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO PROCEDURE;
+	END Test.
+
+
+# variables
+
+positive: variable of basic character type
+
+	MODULE Test;
+	VAR variable: CHAR;
+	END Test.
+
+positive: variable of basic boolean type
+
+	MODULE Test;
+	VAR variable: BOOLEAN;
+	END Test.
+
+positive: variable of basic short integer type
+
+	MODULE Test;
+	VAR variable: SHORTINT;
+	END Test.
+
+positive: variable of basic integer type
+
+	MODULE Test;
+	VAR variable: INTEGER;
+	END Test.
+
+positive: variable of basic long integer type
+
+	MODULE Test;
+	VAR variable: LONGINT;
+	END Test.
+
+positive: variable of basic huge integer type
+
+	MODULE Test;
+	VAR variable: HUGEINT;
+	END Test.
+
+positive: variable of basic real type
+
+	MODULE Test;
+	VAR variable: REAL;
+	END Test.
+
+positive: variable of basic long real type
+
+	MODULE Test;
+	VAR variable: LONGREAL;
+	END Test.
+
+positive: variable of basic set type
+
+	MODULE Test;
+	VAR variable: SET;
+	END Test.
+
+positive: variable of record type
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR variable: Record;
+	END Test.
+
+positive: variables of record type
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR a, b, c: Record;
+	END Test.
+
+positive: variable of anonymous record type
+
+	MODULE Test;
+	VAR variable: RECORD END;
+	END Test.
+
+positive: variables of anonymous record type
+
+	MODULE Test;
+	VAR a, b, c: RECORD END;
+	END Test.
+
+positive: variable of array type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF RECORD END;
+	VAR variable: Array;
+	END Test.
+
+positive: variables of array type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF RECORD END;
+	VAR a, b, c: Array;
+	END Test.
+
+positive: variable of anonymous array type
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF RECORD END;
+	END Test.
+
+positive: variables of anonymous array type
+
+	MODULE Test;
+	VAR a, b, c: ARRAY 10 OF RECORD END;
+	END Test.
+
+negative: variable of open array type
+
+	MODULE Test;
+	TYPE Array = ARRAY OF RECORD END;
+	VAR variable: Array;
+	END Test.
+
+negative: variables of anonymous oepn array type
+
+	MODULE Test;
+	VAR variable: ARRAY OF RECORD END;
+	END Test.
+
+positive: variable of object type
+
+	MODULE Test;
+	TYPE Object = OBJECT;
+	VAR variable: Object;
+	END Test.
+
+positive: variables of object type
+
+	MODULE Test;
+	TYPE Object = OBJECT;
+	VAR a, b, c: Object;
+	END Test.
+
+positive: variable of anonymous object type
+
+	MODULE Test;
+	VAR variable: OBJECT;
+	END Test.
+
+positive: variables of anonymous object type
+
+	MODULE Test;
+	VAR a, b, c: OBJECT;
+	END Test.
+
+positive: variable of pointer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	VAR variable: Pointer;
+	END Test.
+
+positive: variables of pointer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	VAR a, b, c: Pointer;
+	END Test.
+
+positive: variable of anonymous pointer type
+
+	MODULE Test;
+	VAR variable: POINTER TO RECORD END;
+	END Test.
+
+positive: variables of anonymous pointer type
+
+	MODULE Test;
+	VAR a, b, c: POINTER TO RECORD END;
+	END Test.
+
+positive: variable of procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE;
+	VAR variable: Procedure;
+	END Test.
+
+positive: variables of procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE;
+	VAR a, b, c: Procedure;
+	END Test.
+
+positive: variable of anonymous procedure type
+
+	MODULE Test;
+	VAR variable: PROCEDURE;
+	END Test.
+
+positive: variables of anonymous procedure type
+
+	MODULE Test;
+	VAR a, b, c: PROCEDURE;
 	END Test.
