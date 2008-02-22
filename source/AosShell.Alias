@@ -1,3 +1,4 @@
+build=AosRelease.Build
 cp=AosFSTools.CopyFiles
 create=AosTar.Create
 decode=AosDecoder.Open
