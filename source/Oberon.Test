@@ -1160,10 +1160,40 @@ negative: logical or on constant integers
 
 # constant reals
 
-negative: constant real exceeding valid range
+positive: constant real in valid real range
+
+	MODULE Test;
+	CONST Result = 1.E10;
+	END Test.
+
+positive: constant long real in valid long real range
+
+	MODULE Test;
+	CONST Result = 1.D10;
+	END Test.
+
+negative: constant real exceeding valid real range
+
+	MODULE Test;
+	CONST Result = 1.E100;
+	END Test.
+
+positive: constant long real exceeding valid real range
+
+	MODULE Test;
+	CONST Result = 1.D100;
+	END Test.
+
+negative: constant real exceeding valid long range
 
 	MODULE Test;
 	CONST Result = 1.E500;
+	END Test.
+
+negative: constant long real exceeding valid long real range
+
+	MODULE Test;
+	CONST Result = 1.D500;
 	END Test.
 
 positive: arithmetic negation on constant real
@@ -1223,7 +1253,7 @@ negative: modulo on constant reals
 positive: equal relation on constant reals
 
 	MODULE Test;
-	CONST Result = 1.0 = 5.E89
+	CONST Result = 1.0 = 5.E32
 	END Test.
 
 positive: unequal relation on constant reals
@@ -2214,28 +2244,187 @@ positive: record containing basic types
 	TYPE Record = RECORD i: INTEGER; s: SET; b: BOOLEAN END;
 	END Test.
 
-positive: record containing array
+positive: record containing an array
 
 	MODULE Test;
 	TYPE Record = RECORD a: ARRAY 10 OF OBJECT; END;
 	END Test.
 
-negative: record containing open array
+negative: record containing an open array
 
 	MODULE Test;
 	TYPE Record = RECORD a: ARRAY OF RECORD END END;
 	END Test.
 
-positive: record containing object
+positive: record containing an object
 
 	MODULE Test;
 	TYPE Record = RECORD o: OBJECT; END;
 	END Test.
 
-positive: record containing procedure
+positive: record containing a procedure
 
 	MODULE Test;
 	TYPE Record = RECORD p: PROCEDURE END;
+	END Test.
+
+
+# objects
+
+negative: object extending itself
+
+	MODULE Test;
+	TYPE Object = OBJECT (Object) END Object;
+	END Test.
+
+negative: object extending itself indirectly
+
+	MODULE Test;
+	TYPE A = OBJECT (B) END A; B = OBJECT (A) END B;
+	END Test.
+
+negative: object extending a constant
+
+	MODULE Test;
+	CONST Constant = 5;
+	TYPE Object = OBJECT (Constant) END Object;
+	END Test.
+
+negative: object extending a variable
+
+	MODULE Test;
+	TYPE Object = OBJECT (variable) END Object;
+	VAR variable: Object;
+	END Test.
+
+negative: object extending a basic type
+
+	MODULE Test;
+	TYPE Object = OBJECT (LONGINT) END Object;
+	END Test.
+
+negative: object extending an array
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF OBJECT; Object = OBJECT (Array) END Object;
+	END Test.
+
+negative: object extending a record
+
+	MODULE Test;
+	TYPE Record = RECORD END; Object = OBJECT (Record) END Object;
+	END Test.
+
+positive: object extending an object
+
+	MODULE Test;
+	TYPE A = OBJECT; B = OBJECT (A) END B;
+	END Test.
+
+negative: object extending a pointer
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END; Object = OBJECT (Pointer) END Object;
+	END Test.
+
+negative: object extending a procedure
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE; Object = OBJECT (Procedure) END Object;
+	END Test.
+
+positive: object containing itself
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR o: Object END Object;
+	END Test.
+
+positive: object containing itself indirectly
+
+	MODULE Test;
+	TYPE A = OBJECT VAR b: B END A;
+	TYPE B = OBJECT VAR a: A END B;
+	END Test.
+
+positive: object containing backward referenced type
+
+	MODULE Test;
+	TYPE A = OBJECT;
+	TYPE B = OBJECT VAR a: A END B;
+	END Test.
+
+positive: object containing forward referenced type
+
+	MODULE Test;
+	TYPE A = OBJECT VAR b: B END A;
+	TYPE B = OBJECT;
+	END Test.
+
+positive: object containing anonymous records
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR r: RECORD r: RECORD r: RECORD END END END END Object;
+	END Test.
+
+positive: deeply nested objects
+
+	MODULE Test;
+	TYPE A = OBJECT VAR b: B END A;
+	TYPE F = OBJECT;
+	TYPE B = OBJECT VAR c: C END B;
+	TYPE E = OBJECT VAR f: F END E;
+	TYPE D = OBJECT VAR e: E END D;
+	TYPE C = OBJECT VAR d: D END C;
+	END Test.
+
+positive: object containing itself deeply indirectly
+
+	MODULE Test;
+	TYPE A = OBJECT VAR b: B END A;
+	TYPE F = OBJECT VAR a: A END F;
+	TYPE B = OBJECT VAR c: C END B;
+	TYPE E = OBJECT VAR f: F END E;
+	TYPE D = OBJECT VAR e: E END D;
+	TYPE C = OBJECT VAR d: D END C;
+	END Test.
+
+positive: nested object containing itself indirectly
+
+	MODULE Test;
+	TYPE A = OBJECT VAR b: B END A;
+	TYPE B = OBJECT VAR c: C END B;
+	TYPE C = OBJECT VAR d: D END C;
+	TYPE D = OBJECT VAR b: B END D;
+	END Test.
+
+positive: object containing basic types
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR i: INTEGER; s: SET; b: BOOLEAN END Object;
+	END Test.
+
+positive: object containing an array
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR a: ARRAY 10 OF OBJECT; END Object;
+	END Test.
+
+negative: object containing an open array
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR a: ARRAY OF OBJECT; END Object;
+	END Test.
+
+positive: object containing an object
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR o: OBJECT; END Object;
+	END Test.
+
+positive: object containing a procedure
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR p: PROCEDURE END Object;
 	END Test.
 
 
