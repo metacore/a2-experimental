@@ -413,8 +413,20 @@ positive: real literal with positive scale factor
 	MODULE Test;
 	CONST Real = 0.3E+8
 	END Test.
+	
+negative: real literal with positive too large scale factor
+
+	MODULE Test; 
+	CONST Real= 0.3E+80;
+	END Test.
 
 positive: real literal with negative scale factor
+
+	MODULE Test;
+	CONST Real = 0.E-30
+	END Test.
+
+negative: real literal with too small negative scale factor
 
 	MODULE Test;
 	CONST Real = 0.E-54
@@ -505,13 +517,12 @@ negative: unopened set literal
 	END Test.
 
 # legacy behaviour
-positive: string literal using '
+negative: string literal using '
 
 	MODULE Test;
 	CONST String = 'abc'
 	END Test.
 
-# legacy behaviour
 positive: string literal using "
 
 	MODULE Test;
@@ -523,7 +534,6 @@ negative: unclosed string literal
 	MODULE Test;
 	CONST Character = "string
 	END Test.
-
 
 # type section
 
@@ -968,25 +978,25 @@ positive: unequal relation on constant characters
 	CONST Result = 4AX # 'z'
 	END Test.
 
-negative: less relation on constant characters
+positive: less relation on constant characters
 
 	MODULE Test;
 	CONST Result = 's' < 64X
 	END Test.
 
-negative: less or equal relation on constant characters
+positive: less or equal relation on constant characters
 
 	MODULE Test;
 	CONST Result = 'e' <= 9X
 	END Test.
 
-negative: greater relation on constant characters
+positive: greater relation on constant characters
 
 	MODULE Test;
 	CONST Result = 'r' > 'a'
 	END Test.
 
-negative: greater or equal relation on constant characters
+positive: greater or equal relation on constant characters
 
 	MODULE Test;
 	CONST Result = 'h' >= 9DX
