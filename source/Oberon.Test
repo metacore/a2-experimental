@@ -535,6 +535,7 @@ negative: unclosed string literal
 	CONST Character = "string
 	END Test.
 
+
 # type section
 
 positive: empty type section
@@ -653,6 +654,66 @@ negative: pointer missing base type
 
 	MODULE Test;
 	TYPE Pointer = POINTER TO;
+	END Test.
+
+positive: plain procedure type without parantheses
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE;
+	END Test.
+
+positive: plain procedure type with parantheses
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE ();
+	END Test.
+
+negative: procedure  typemissing return type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE ():;
+	END Test.
+
+negative: procedure  typewith return type missing parantheses
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE : BOOLEAN;
+	END Test.
+
+negative: procedure type with return type missing colon
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE () BOOLEAN;
+	END Test.
+
+positive: procedure with empty parameter list
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE ();
+	END Test.
+
+negative: procedure with parameter list missing parameter section
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (;);
+	END Test.
+
+negative: procedure with parameter missing name
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (: SET);
+	END Test.
+
+negative: procedure with parameter missing colon
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter SET);
+	END Test.
+
+negative: procedure with parameter missing type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter:);
 	END Test.
 
 
@@ -2531,7 +2592,1120 @@ negative: pointer to procedure
 	END Test.
 
 
+# procedure types
+
+positive: plain procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE;
+	END Test.
+
+positive: procedure type returning basic character type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): CHAR;
+	END Test.
+
+positive: procedure type returning basic boolean type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): BOOLEAN;
+	END Test.
+
+positive: procedure type returning basic short integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): SHORTINT;
+	END Test.
+
+positive: procedure type returning basic integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): INTEGER;
+	END Test.
+
+positive: procedure type returning basic long integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): LONGINT;
+	END Test.
+
+positive: procedure type returning basic huge integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): HUGEINT;
+	END Test.
+
+positive: procedure type returning basic real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): REAL;
+	END Test.
+
+positive: procedure type returning basic long real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): LONGREAL;
+	END Test.
+
+positive: procedure type returning basic set type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): SET;
+	END Test.
+
+positive: procedure type returning record type
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	TYPE Procedure = PROCEDURE (): Record;
+	END Test.
+
+positive: procedure type returning anonymous record type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): RECORD END;
+	END Test.
+
+positive: procedure type returning array type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF RECORD END;
+	TYPE Procedure = PROCEDURE (): Array;
+	END Test.
+
+positive: procedure type returning anonymous array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): ARRAY 10 OF RECORD END;
+	END Test.
+
+negative: procedure type returning open array type
+
+	MODULE Test;
+	TYPE Array = ARRAY OF RECORD END;
+	TYPE Procedure = PROCEDURE (): Array;
+	END Test.
+
+negative: procedure type returning anonymous open array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): ARRAY OF RECORD END;
+	END Test.
+
+positive: procedure type returning object type
+
+	MODULE Test;
+	TYPE Object = OBJECT;
+	TYPE Procedure = PROCEDURE (): Object;
+	END Test.
+
+positive: procedure type returning anonymous object type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): OBJECT;
+	END Test.
+
+positive: procedure type returning pointer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	TYPE Procedure = PROCEDURE (): Pointer;
+	END Test.
+
+positive: procedure type returning anonymous pointer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): POINTER TO RECORD END;
+	END Test.
+
+positive: procedure type returning procedure type
+
+	MODULE Test;
+	TYPE Proc = PROCEDURE;
+	TYPE Procedure = PROCEDURE (): Proc;
+	END Test.
+
+positive: procedure type returning anonymous procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): PROCEDURE;
+	END Test.
+
+positive: procedure type return anonymous procedure returning anonymous procedure
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): PROCEDURE () : PROCEDURE;
+	END Test.
+
+positive: procedure type returning itself
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (): Procedure;
+	END Test.
+
+positive: procedure type with parameter of same type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (procedure: Procedure);
+	END Test.
+
+negative: procedure with multiple variable parameter
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR VAR parameter: SET);
+	END Test.
+
+negative: procedure with multiple constant parameter
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST CONST parameter: SET);
+	END Test.
+
+negative: procedure with variable and constant parameter
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR CONST parameter: SET);
+	END Test.
+
+negative: procedure with constant and variable parameter
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR CONST parameter: SET);
+	END Test.
+
+positive: procedure type with a parameter of basic character type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: CHAR);
+	END Test.
+
+positive: procedure type with parameters of basic character type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: CHAR);
+	END Test.
+
+positive: procedure type with a parameter of variable character type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: CHAR);
+	END Test.
+
+positive: procedure type with parameters of variable character type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: CHAR);
+	END Test.
+
+positive: procedure type with a parameter of constant character type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: CHAR);
+	END Test.
+
+positive: procedure type with parameters of constant character type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: CHAR);
+	END Test.
+
+positive: procedure type with intermixed parameters of character type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: CHAR; VAR b: CHAR; CONST c: CHAR);
+	END Test.
+
+positive: procedure type with a parameter of basic boolean type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: BOOLEAN);
+	END Test.
+
+positive: procedure type with parameters of basic boolean type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: BOOLEAN);
+	END Test.
+
+positive: procedure type with a parameter of variable boolean type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: BOOLEAN);
+	END Test.
+
+positive: procedure type with parameters of variable boolean type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: BOOLEAN);
+	END Test.
+
+positive: procedure type with a parameter of constant boolean type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: BOOLEAN);
+	END Test.
+
+positive: procedure type with parameters of constant boolean type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: BOOLEAN);
+	END Test.
+
+positive: procedure type with intermixed parameters of boolean type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: BOOLEAN; VAR b: BOOLEAN; CONST c: BOOLEAN);
+	END Test.
+
+positive: procedure type with a parameter of basic short integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: SHORTINT);
+	END Test.
+
+positive: procedure type with parameters of basic short integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: SHORTINT);
+	END Test.
+
+positive: procedure type with a parameter of variable short integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: SHORTINT);
+	END Test.
+
+positive: procedure type with parameters of variable short integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: SHORTINT);
+	END Test.
+
+positive: procedure type with a parameter of constant short integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: SHORTINT);
+	END Test.
+
+positive: procedure type with parameters of constant short integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: SHORTINT);
+	END Test.
+
+positive: procedure type with intermixed parameters of short integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: SHORTINT; VAR b: SHORTINT; CONST c: SHORTINT);
+	END Test.
+
+positive: procedure type with a parameter of basic integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: INTEGER);
+	END Test.
+
+positive: procedure type with parameters of basic integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: INTEGER);
+	END Test.
+
+positive: procedure type with a parameter of variable integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: INTEGER);
+	END Test.
+
+positive: procedure type with parameters of variable integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: INTEGER);
+	END Test.
+
+positive: procedure type with a parameter of constant integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: INTEGER);
+	END Test.
+
+positive: procedure type with parameters of constant integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: INTEGER);
+	END Test.
+
+positive: procedure type with intermixed parameters of integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: INTEGER; VAR b: INTEGER; CONST c: INTEGER);
+	END Test.
+
+positive: procedure type with a parameter of basic long integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: LONGINT);
+	END Test.
+
+positive: procedure type with parameters of basic long integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: LONGINT);
+	END Test.
+
+positive: procedure type with a parameter of variable long integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: LONGINT);
+	END Test.
+
+positive: procedure type with parameters of variable long integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: LONGINT);
+	END Test.
+
+positive: procedure type with a parameter of constant long integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: LONGINT);
+	END Test.
+
+positive: procedure type with parameters of constant long integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: LONGINT);
+	END Test.
+
+positive: procedure type with intermixed parameters of long integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: LONGINT; VAR b: LONGINT; CONST c: LONGINT);
+	END Test.
+
+positive: procedure type with a parameter of basic huge integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: HUGEINT);
+	END Test.
+
+positive: procedure type with parameters of basic huge integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: HUGEINT);
+	END Test.
+
+positive: procedure type with a parameter of variable huge integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: HUGEINT);
+	END Test.
+
+positive: procedure type with parameters of variable huge integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: HUGEINT);
+	END Test.
+
+positive: procedure type with a parameter of constant huge integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: HUGEINT);
+	END Test.
+
+positive: procedure type with parameters of constant huge integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: HUGEINT);
+	END Test.
+
+positive: procedure type with intermixed parameters of huge integer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: HUGEINT; VAR b: HUGEINT; CONST c: HUGEINT);
+	END Test.
+
+positive: procedure type with a parameter of basic real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: REAL);
+	END Test.
+
+positive: procedure type with parameters of basic real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: REAL);
+	END Test.
+
+positive: procedure type with a parameter of variable real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: REAL);
+	END Test.
+
+positive: procedure type with parameters of variable real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: REAL);
+	END Test.
+
+positive: procedure type with a parameter of constant real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: REAL);
+	END Test.
+
+positive: procedure type with parameters of constant real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: REAL);
+	END Test.
+
+positive: procedure type with intermixed parameters of real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: REAL; VAR b: REAL; CONST c: REAL);
+	END Test.
+
+positive: procedure type with a parameter of basic long real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: LONGREAL);
+	END Test.
+
+positive: procedure type with parameters of basic long real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: LONGREAL);
+	END Test.
+
+positive: procedure type with a parameter of variable long real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: LONGREAL);
+	END Test.
+
+positive: procedure type with parameters of variable long real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: LONGREAL);
+	END Test.
+
+positive: procedure type with a parameter of constant long real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: LONGREAL);
+	END Test.
+
+positive: procedure type with parameters of constant long real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: LONGREAL);
+	END Test.
+
+positive: procedure type with intermixed parameters of long real type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: LONGREAL; VAR b: LONGREAL; CONST c: LONGREAL);
+	END Test.
+
+positive: procedure type with a parameter of basic set type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: SET);
+	END Test.
+
+positive: procedure type with parameters of basic set type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: SET);
+	END Test.
+
+positive: procedure type with a parameter of variable set type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: SET);
+	END Test.
+
+positive: procedure type with parameters of variable set type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: SET);
+	END Test.
+
+positive: procedure type with a parameter of constant set type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: SET);
+	END Test.
+
+positive: procedure type with parameters of constant set type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: SET);
+	END Test.
+
+positive: procedure type with intermixed parameters of set type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: SET; VAR b: SET; CONST c: SET);
+	END Test.
+
+positive: procedure type with a parameter of record type
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	TYPE Procedure = PROCEDURE (parameter: Record);
+	END Test.
+
+positive: procedure type with parameters of record type
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	TYPE Procedure = PROCEDURE (a, b, c: Record);
+	END Test.
+
+positive: procedure type with a parameter of variable record type
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	TYPE Procedure = PROCEDURE (VAR parameter: Record);
+	END Test.
+
+positive: procedure type with parameters of variable record type
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: Record);
+	END Test.
+
+positive: procedure type with a parameter of constant record type
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	TYPE Procedure = PROCEDURE (CONST parameter: Record);
+	END Test.
+
+positive: procedure type with parameters of constant record type
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: Record);
+	END Test.
+
+positive: procedure type with intermixed parameters of record type
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	TYPE Procedure = PROCEDURE (a: Record; VAR b: Record; CONST c: Record);
+	END Test.
+
+positive: procedure type with a parameter of anonymous record type
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	TYPE Procedure = PROCEDURE (parameter: RECORD END);
+	END Test.
+
+positive: procedure type with parameters of anonymous record type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of variable anonymous record type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: RECORD END);
+	END Test.
+
+positive: procedure type with parameters of variable anonymous record type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of constant anonymous record type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: RECORD END);
+	END Test.
+
+positive: procedure type with parameters of constant anonymous record type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: RECORD END);
+	END Test.
+
+positive: procedure type with intermixed parameters of anonymous record type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: RECORD END; VAR b: RECORD END; CONST c: RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of array type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF RECORD END;
+	TYPE Procedure = PROCEDURE (parameter: Array);
+	END Test.
+
+positive: procedure type with parameters of array type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF RECORD END;
+	TYPE Procedure = PROCEDURE (a, b, c: Array);
+	END Test.
+
+positive: procedure type with a parameter of variable array type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF RECORD END;
+	TYPE Procedure = PROCEDURE (VAR parameter: Array);
+	END Test.
+
+positive: procedure type with parameters of variable array type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF RECORD END;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: Array);
+	END Test.
+
+positive: procedure type with a parameter of constant array type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF RECORD END;
+	TYPE Procedure = PROCEDURE (CONST parameter: Array);
+	END Test.
+
+positive: procedure type with parameters of constant array type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF RECORD END;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: Array);
+	END Test.
+
+positive: procedure type with intermixed parameters of array type
+
+	MODULE Test;
+	TYPE Array = ARRAY 10 OF RECORD END;
+	TYPE Procedure = PROCEDURE (a: Array; VAR b: Array; CONST c: Array);
+	END Test.
+
+positive: procedure type with a parameter of anonymous array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: ARRAY 10 OF RECORD END);
+	END Test.
+
+positive: procedure type with parameters of anonymous array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: ARRAY 10 OF RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of variable anonymous array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: ARRAY 10 OF RECORD END);
+	END Test.
+
+positive: procedure type with parameters of variable anonymous array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: ARRAY 10 OF RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of constant anonymous array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: ARRAY 10 OF RECORD END);
+	END Test.
+
+positive: procedure type with parameters of constant anonymous array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: ARRAY 10 OF RECORD END);
+	END Test.
+
+positive: procedure type with intermixed parameters of anonymous array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: ARRAY 10 OF RECORD END; VAR b: ARRAY 10 OF RECORD END; CONST c: ARRAY 10 OF RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of open array type
+
+	MODULE Test;
+	TYPE Array = ARRAY OF RECORD END;
+	TYPE Procedure = PROCEDURE (parameter: Array);
+	END Test.
+
+positive: procedure type with parameters of open array type
+
+	MODULE Test;
+	TYPE Array = ARRAY OF RECORD END;
+	TYPE Procedure = PROCEDURE (a, b, c: Array);
+	END Test.
+
+positive: procedure type with a parameter of variable open array type
+
+	MODULE Test;
+	TYPE Array = ARRAY OF RECORD END;
+	TYPE Procedure = PROCEDURE (VAR parameter: Array);
+	END Test.
+
+positive: procedure type with parameters of variable open array type
+
+	MODULE Test;
+	TYPE Array = ARRAY OF RECORD END;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: Array);
+	END Test.
+
+positive: procedure type with a parameter of constant open array type
+
+	MODULE Test;
+	TYPE Array = ARRAY OF RECORD END;
+	TYPE Procedure = PROCEDURE (CONST parameter: Array);
+	END Test.
+
+positive: procedure type with parameters of constant open array type
+
+	MODULE Test;
+	TYPE Array = ARRAY OF RECORD END;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: Array);
+	END Test.
+
+positive: procedure type with intermixed parameters of open array type
+
+	MODULE Test;
+	TYPE Array = ARRAY OF RECORD END;
+	TYPE Procedure = PROCEDURE (a: Array; VAR b: Array; CONST c: Array);
+	END Test.
+
+positive: procedure type with a parameter of anonymous open array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: ARRAY OF RECORD END);
+	END Test.
+
+positive: procedure type with parameters of anonymous open array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: ARRAY OF RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of variable anonymous open array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: ARRAY OF RECORD END);
+	END Test.
+
+positive: procedure type with parameters of variable anonymous open array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: ARRAY OF RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of constant anonymous open array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: ARRAY OF RECORD END);
+	END Test.
+
+positive: procedure type with parameters of constant anonymous open array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: ARRAY OF RECORD END);
+	END Test.
+
+positive: procedure type with intermixed parameters of anonymous open array type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: ARRAY OF RECORD END; VAR b: ARRAY OF RECORD END; CONST c: ARRAY OF RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of object type
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	TYPE Procedure = PROCEDURE (parameter: Object);
+	END Test.
+
+positive: procedure type with parameters of object type
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	TYPE Procedure = PROCEDURE (a, b, c: Object);
+	END Test.
+
+positive: procedure type with a parameter of variable object type
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	TYPE Procedure = PROCEDURE (VAR parameter: Object);
+	END Test.
+
+positive: procedure type with parameters of variable object type
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: Object);
+	END Test.
+
+positive: procedure type with a parameter of constant object type
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	TYPE Procedure = PROCEDURE (CONST parameter: Object);
+	END Test.
+
+positive: procedure type with parameters of constant object type
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: Object);
+	END Test.
+
+positive: procedure type with intermixed parameters of object type
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	TYPE Procedure = PROCEDURE (a: Object; VAR b: Object; CONST c: Object);
+	END Test.
+
+positive: procedure type with a parameter of anonymous object type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: OBJECT END);
+	END Test.
+
+positive: procedure type with parameters of anonymous object type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: OBJECT END);
+	END Test.
+
+positive: procedure type with a parameter of variable anonymous object type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: OBJECT END);
+	END Test.
+
+positive: procedure type with parameters of variable anonymous object type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: OBJECT END);
+	END Test.
+
+positive: procedure type with a parameter of constant anonymous object type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: OBJECT END);
+	END Test.
+
+positive: procedure type with parameters of constant anonymous object type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: OBJECT END);
+	END Test.
+
+positive: procedure type with intermixed parameters of anonymous object type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: OBJECT END; VAR b: OBJECT END; CONST c: OBJECT END);
+	END Test.
+
+positive: procedure type with a parameter of pointer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	TYPE Procedure = PROCEDURE (parameter: Pointer);
+	END Test.
+
+positive: procedure type with parameters of pointer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	TYPE Procedure = PROCEDURE (a, b, c: Pointer);
+	END Test.
+
+positive: procedure type with a parameter of variable pointer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	TYPE Procedure = PROCEDURE (VAR parameter: Pointer);
+	END Test.
+
+positive: procedure type with parameters of variable pointer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: Pointer);
+	END Test.
+
+positive: procedure type with a parameter of constant pointer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	TYPE Procedure = PROCEDURE (CONST parameter: Pointer);
+	END Test.
+
+positive: procedure type with parameters of constant pointer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: Pointer);
+	END Test.
+
+positive: procedure type with intermixed parameters of pointer type
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	TYPE Procedure = PROCEDURE (a: Pointer; VAR b: Pointer; CONST c: Pointer);
+	END Test.
+
+positive: procedure type with a parameter of anonymous pointer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: POINTER TO RECORD END);
+	END Test.
+
+positive: procedure type with parameters of anonymous pointer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: POINTER TO RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of variable anonymous pointer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: POINTER TO RECORD END);
+	END Test.
+
+positive: procedure type with parameters of variable anonymous pointer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: POINTER TO RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of constant anonymous pointer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: OBJECT END);
+	END Test.
+
+positive: procedure type with parameters of constant anonymous pointer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: POINTER TO RECORD END);
+	END Test.
+
+positive: procedure type with intermixed parameters of anonymous pointer type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: POINTER TO RECORD END; VAR b: POINTER TO RECORD END; CONST c: POINTER TO RECORD END);
+	END Test.
+
+positive: procedure type with a parameter of procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: Procedure);
+	END Test.
+
+positive: procedure type with parameters of procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: Procedure);
+	END Test.
+
+positive: procedure type with a parameter of variable procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: Procedure);
+	END Test.
+
+positive: procedure type with parameters of variable procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: Procedure);
+	END Test.
+
+positive: procedure type with a parameter of constant procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: Procedure);
+	END Test.
+
+positive: procedure type with parameters of constant procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: Procedure);
+	END Test.
+
+positive: procedure type with intermixed parameters of procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: Pointer; VAR b: Pointer; CONST c: Pointer);
+	END Test.
+
+positive: procedure type with a parameter of anonymous procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (parameter: PROCEDURE);
+	END Test.
+
+positive: procedure type with parameters of anonymous procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a, b, c: PROCEDURE);
+	END Test.
+
+positive: procedure type with a parameter of variable anonymous procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR parameter: PROCEDURE);
+	END Test.
+
+positive: procedure type with parameters of variable anonymous procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (VAR a, b, c: PROCEDURE);
+	END Test.
+
+positive: procedure type with a parameter of constant anonymous procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST parameter: PROCEDURE);
+	END Test.
+
+positive: procedure type with parameters of constant anonymous procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (CONST a, b, c: PROCEDURE);
+	END Test.
+
+positive: procedure type with intermixed parameters of anonymous procedure type
+
+	MODULE Test;
+	TYPE Procedure = PROCEDURE (a: PROCEDURE; VAR b: PROCEDURE; CONST c: PROCEDURE);
+	END Test.
+
+
 # variables
+
+positive: variable marked as exported
+
+	MODULE Test;
+	VAR variable*: RECORD END;
+	END Test.
+
+positive: variable marked as read-only
+
+	MODULE Test;
+	VAR variable-: RECORD END;
+	END Test.
 
 positive: variable of basic character type
 
@@ -2646,10 +3820,23 @@ negative: variable of open array type
 	VAR variable: Array;
 	END Test.
 
-negative: variables of anonymous oepn array type
+negative: variables of open array type
+
+	MODULE Test;
+	TYPE Array = ARRAY OF RECORD END;
+	VAR a, v, c: Array;
+	END Test.
+
+negative: variable of anonymous open array type
 
 	MODULE Test;
 	VAR variable: ARRAY OF RECORD END;
+	END Test.
+
+negative: variables of anonymous open array type
+
+	MODULE Test;
+	VAR a, b, c: ARRAY OF RECORD END;
 	END Test.
 
 positive: variable of object type
