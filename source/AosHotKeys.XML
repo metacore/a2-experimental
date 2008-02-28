@@ -75,7 +75,6 @@
 	<HotKey name="Run" keys="CTRL+R" command="AosHotKeysCommands.EnterCommand"/>
 
 	<!-- Example: Apply text style to currently selected text -->
-	<HotKey name="Comments" keys="SHIFT+END" command="WMTextStyleTool.SetStyleByName Comment"/>
 	<HotKey name="Bold" keys="SHIFT+DELETE" command="WMTextStyleTool.SetStyleByName Bold"/>
 	
 	<!-- Example: Misc -->
