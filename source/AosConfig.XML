@@ -286,9 +286,9 @@ To update: AosConfig.Init ~
 					<Setting name="ScratchPanelHeight" value="250"/>
 				</Section>
 				<Section name="Compilers">
-					<Setting name="PACO" options="\Ws" fileExtension="MOD" loadmodule="PC0" tree="TRUE"/>
-					<Setting name="ReleaseTool" options="\check" fileExtension="Tool" loadmodule="AosRelease" tree="FALSE"/>
-					<Setting name="AAMD64" options="" fileExtension="ASM" loadmodule="PCAAMD64" tree="FALSE"/>
+					<Setting name="PACO" caption="Compile" options="\Ws" fileExtension="MOD" loadmodule="PC0" tree="TRUE" findPC="TRUE"/>
+					<Setting name="ReleaseTool" caption="Parse" options="\check" fileExtension="Tool" loadmodule="AosRelease" tree="FALSE" findPC="FALSE"/>
+					<Setting name="AAMD64" caption="Assemble" options="" fileExtension="ASM" loadmodule="PCAAMD64" tree="FALSE" findPC="FALSE"/>
 				</Section>
 				<Section name="Diff">
 					<Setting name="Command" value="WMDiff.Open"/>
