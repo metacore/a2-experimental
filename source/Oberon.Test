@@ -926,6 +926,184 @@ negative: procedure with parameter missing type
 	END Test.
 
 
+# intermixed section types
+
+negative: import section before import section
+
+	MODULE Test;
+	IMPORT A := A;
+	IMPORT B := A;
+	END Test.
+
+positive: import section before const section
+
+	MODULE Test;
+	IMPORT Import := A;
+	CONST Constant = 0;
+	END Test.
+
+positive: import section before type section
+
+	MODULE Test;
+	IMPORT Import := A;
+	TYPE Type = RECORD END;
+	END Test.
+
+positive: import section before var section
+
+	MODULE Test;
+	IMPORT Import := A;
+	VAR variable: RECORD END;
+	END Test.
+
+positive: import section before procedure section
+
+	MODULE Test;
+	IMPORT Import := A;
+	PROCEDURE Procedure; END Procedure;
+	END Test.
+
+negative: const section before import section
+
+	MODULE Test;
+	CONST Constant = 0;
+	IMPORT Import := A;
+	END Test.
+
+positive: const section before const section
+
+	MODULE Test;
+	CONST A = 0;
+	CONST B = 0;
+	END Test.
+
+positive: const section before type section
+
+	MODULE Test;
+	CONST Constant = 0;
+	TYPE Type = RECORD END;
+	END Test.
+
+positive: const section before var section
+
+	MODULE Test;
+	CONST Constant = 0;
+	VAR variable: RECORD END;
+	END Test.
+
+positive: const section before procedure section
+
+	MODULE Test;
+	CONST Constant = 0;
+	PROCEDURE Procedure; END Procedure;
+	END Test.
+
+negative: type section before import section
+
+	MODULE Test;
+	TYPE Type = RECORD END;
+	IMPORT Import := A;
+	END Test.
+
+positive: type section before const section
+
+	MODULE Test;
+	TYPE Type = RECORD END;
+	CONST Constant = 0;
+	END Test.
+
+positive: type section before type section
+
+	MODULE Test;
+	TYPE A = RECORD END;
+	TYPE B = RECORD END;
+	END Test.
+
+positive: type section before var section
+
+	MODULE Test;
+	TYPE Type = RECORD END;
+	VAR variable: RECORD END;
+	END Test.
+
+positive: type section before procedure section
+
+	MODULE Test;
+	TYPE Type = RECORD END;
+	PROCEDURE Procedure; END Procedure;
+	END Test.
+
+negative: var section before import section
+
+	MODULE Test;
+	VAR variable: RECORD END;
+	IMPORT Import := A;
+	END Test.
+
+positive: var section before const section
+
+	MODULE Test;
+	VAR variable: RECORD END;
+	CONST Constant = 0;
+	END Test.
+
+positive: var section before type section
+
+	MODULE Test;
+	VAR variable: RECORD END;
+	TYPE Type = RECORD END;
+	END Test.
+
+positive: var section before var section
+
+	MODULE Test;
+	VAR a: RECORD END;
+	VAR b: RECORD END;
+	END Test.
+
+positive: var section before procedure section
+
+	MODULE Test;
+	VAR variable: RECORD END;
+	PROCEDURE Procedure; END Procedure;
+	END Test.
+
+negative: procedure section before import section
+
+	MODULE Test;
+	PROCEDURE Procedure; END Procedure;
+	IMPORT Import := A;
+	END Test.
+
+negative: procedure section before const section
+
+	MODULE Test;
+	PROCEDURE Procedure; END Procedure;
+	CONST Constant = 0;
+	END Test.
+
+negative: procedure section before type section
+
+	MODULE Test;
+	PROCEDURE Procedure; END Procedure;
+	TYPE Type = RECORD END;
+	END Test.
+
+negative: procedure section before var section
+
+	MODULE Test;
+	PROCEDURE Procedure; END Procedure;
+	VAR variable: RECORD END;
+	END Test.
+
+positive: procedure section before procedure section
+
+	MODULE Test;
+	PROCEDURE A; END A;
+	PROCEDURE B; END B;
+	END Test.
+
+
 # Semantic tests
 # =====================================
 
@@ -940,6 +1118,18 @@ positive: single import
 
 	MODULE Test;
 	IMPORT A;
+	END Test.
+
+negative: import marked as exported
+
+	MODULE Test;
+	IMPORT A*;
+	END Test.
+
+negative: import marked as read-only
+
+	MODULE Test;
+	IMPORT A-;
 	END Test.
 
 positive: single import with different alias
@@ -972,6 +1162,53 @@ negative: duplicated import with same alias
 	IMPORT B := A, B := A;
 	END Test.
 
+negative: import within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		IMPORT Import := A;
+	END Procedure;
+	END Test.
+
+negative: import within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			IMPORT Import := A;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: import within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		IMPORT Import := A;
+	END Object;
+	END Test.
+
+negative: import within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			IMPORT Import := A;
+		END Object;
+	END Object;
+	END Test.
+
+negative: import within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			IMPORT Import := A;
+		END Procedure;
+	END Object;
+	END Test.
+
+
 # constants
 
 positive: constant marked as exported
@@ -980,10 +1217,160 @@ positive: constant marked as exported
 	CONST Constant* = 54;
 	END Test.
 
+negative: constant marked as exported within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		CONST Constant* = 54;
+	END Procedure;
+	END Test.
+
+negative: constant marked as exported within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			CONST Constant* = 54;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+positive: constant marked as exported within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		CONST Constant* = 54;
+	END Object;
+	END Test.
+
+negative: constant marked as exported within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			CONST Constant* = 54;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: constant marked as exported within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			CONST Constant* = 54;
+		END Procedure;
+	END Object;
+	END Test.
+
 negative: constant marked as read-only
 
 	MODULE Test;
 	CONST Constant- = TRUE;
+	END Test.
+
+negative: constant marked as read-only within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		CONST Constant- = TRUE;
+	END Procedure;
+	END Test.
+
+negative: constant marked as read-only within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			CONST Constant- = TRUE;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: constant marked as read-only within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		CONST Constant- = TRUE;
+	END Object;
+	END Test.
+
+negative: constant marked as read-only within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			CONST Constant- = TRUE;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: constant marked as read-only within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			CONST Constant- = TRUE;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: duplicated constant
+
+	MODULE Test;
+	CONST Constant = TRUE;
+	CONST Constant = FALSE;
+	END Test.
+
+negative: duplicated constant within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		CONST Constant = TRUE;
+		CONST Constant = FALSE;
+	END Procedure;
+	END Test.
+
+negative: duplicated constant within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			CONST Constant = TRUE;
+			CONST Constant = FALSE;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: duplicated constant within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		CONST Constant = TRUE;
+		CONST Constant = FALSE;
+	END Object;
+	END Test.
+
+negative: duplicated constant within object in procedure
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			CONST Constant = TRUE;
+			CONST Constant = FALSE;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: duplicated constant within procedure in object
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			CONST Constant = TRUE;
+			CONST Constant = FALSE;
+		END Object;
+	END Procedure;
 	END Test.
 
 positive: backwards referencing constant
@@ -992,10 +1379,102 @@ positive: backwards referencing constant
 	CONST A = 0; B = A;
 	END Test.
 
+positive: backwards referencing constant within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		CONST A = 0; B = A;
+	END Procedure;
+	END Test.
+
+positive: backwards referencing constant within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			CONST A = 0; B = A;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+positive: backwards referencing constant within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		CONST A = 0; B = A;
+	END Object;
+	END Test.
+
+positive: backwards referencing constant within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			CONST A = 0; B = A;
+		END Object;
+	END Procedure;
+	END Test.
+
+positive: backwards referencing constant within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			CONST A = 0; B = A;
+		END Procedure;
+	END Object;
+	END Test.
+
 positive: forwards referencing constant
 
 	MODULE Test;
 	CONST A = B; B = 0;
+	END Test.
+
+positive: forwards referencing constant within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		CONST A = B; B = 0;
+	END Procedure;
+	END Test.
+
+positive: forwards referencing constant within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			CONST A = B; B = 0;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+positive: forwards referencing constant within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		CONST A = B; B = 0;
+	END Object;
+	END Test.
+
+positive: forwards referencing constant within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			CONST A = B; B = 0;
+		END Object;
+	END Procedure;
+	END Test.
+
+positive: forwards referencing constant within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			CONST A = B; B = 0;
+		END Procedure;
+	END Object;
 	END Test.
 
 negative: cyclic referencing constants
@@ -1004,10 +1483,102 @@ negative: cyclic referencing constants
 	CONST A = B; B = A;
 	END Test.
 
+negative: cyclic referencing constants within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		CONST A = B; B = A;
+	END Procedure;
+	END Test.
+
+negative: cyclic referencing constants within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			CONST A = B; B = A;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: cyclic referencing constants within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		CONST A = B; B = A;
+	END Object;
+	END Test.
+
+negative: cyclic referencing constants within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			CONST A = B; B = A;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: cyclic referencing constants within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			CONST A = B; B = A;
+		END Procedure;
+	END Object;
+	END Test.
+
 negative: self referencing constant
 
 	MODULE Test;
-	CONST A = A;
+	CONST Constant = Constant;
+	END Test.
+
+negative: self referencing constant within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		CONST Constant = Constant;
+	END Procedure;
+	END Test.
+
+negative: self referencing constant within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			CONST Constant = Constant;
+		PROCEDURE Procedure;
+	END Procedure;
+	END Test.
+
+negative: self referencing constant within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		CONST Constant = Constant;
+	END Object;
+	END Test.
+
+negative: self referencing constant within object in procedure
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			CONST Constant = Constant;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: self referencing constant within procedure in object
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			CONST Constant = Constant;
+		END Object;
+	END Procedure;
 	END Test.
 
 
@@ -2030,10 +2601,160 @@ positive: type marked as exported
 	TYPE Type* = RECORD END;
 	END Test.
 
+negative: type marked as exported within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Type* = RECORD END;
+	END Procedure;
+	END Test.
+
+negative: type marked as exported within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			TYPE Type* = RECORD END;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+positive: type marked as exported within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		TYPE Type* = RECORD END;
+	END Object;
+	END Test.
+
+negative: type marked as exported within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			TYPE Type* = RECORD END;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: type marked as exported within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			TYPE Type* = RECORD END;
+		END Procedure;
+	END Object;
+	END Test.
+
 negative: type marked as read-only
 
 	MODULE Test;
-	TYPE type- = OBJECT;
+	TYPE Type- = OBJECT;
+	END Test.
+
+negative: type marked as read-only within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Type- = OBJECT;
+	END Procedure;
+	END Test.
+
+negative: type marked as read-only within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			TYPE Type- = OBJECT;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: type marked as read-only within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		TYPE Type- = OBJECT;
+	END Object;
+	END Test.
+
+negative: type marked as read-only within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			TYPE Type- = OBJECT;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: type marked as read-only within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			TYPE Type- = OBJECT;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: duplicated type
+
+	MODULE Test;
+	TYPE Type = RECORD END;
+	TYPE Type = OBJECT END Type;
+	END Test.
+
+negative: duplicated type within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Type = RECORD END;
+		TYPE Type = OBJECT END Type;
+	END Procedure;
+	END Test.
+
+negative: duplicated type within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			TYPE Type = RECORD END;
+			TYPE Type = OBJECT END Type;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: duplicated type within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		TYPE Type = RECORD END;
+		TYPE Type = OBJECT END Type;
+	END Object;
+	END Test.
+
+negative: duplicated type within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			TYPE Type = RECORD END;
+			TYPE Type = OBJECT END Type;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: duplicated type within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			TYPE Type = RECORD END;
+			TYPE Type = OBJECT END Type;
+		END Procedure;
+	END Object;
 	END Test.
 
 positive: backwards referencing type
@@ -2042,10 +2763,102 @@ positive: backwards referencing type
 	TYPE A = RECORD END; B = A;
 	END Test.
 
+positive: backwards referencing type within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE A = RECORD END; B = A;
+	END Procedure;
+	END Test.
+
+positive: backwards referencing type within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			TYPE A = RECORD END; B = A;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+positive: backwards referencing type within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		TYPE A = RECORD END; B = A;
+	END Object;
+	END Test.
+
+positive: backwards referencing type within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			TYPE A = RECORD END; B = A;
+		END Object;
+	END Procedure;
+	END Test.
+
+positive: backwards referencing type within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			TYPE A = RECORD END; B = A;
+		END Procedure;
+	END Object;
+	END Test.
+
 positive: forwards referencing type
 
 	MODULE Test;
 	TYPE A = B; B = RECORD END;
+	END Test.
+
+positive: forwards referencing type within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE A = B; B = RECORD END;
+	END Procedure;
+	END Test.
+
+positive: forwards referencing type within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			TYPE A = B; B = RECORD END;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+positive: forwards referencing type within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		TYPE A = B; B = RECORD END;
+	END Object;
+	END Test.
+
+positive: forwards referencing type within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			TYPE A = B; B = RECORD END;
+		END Object;
+	END Procedure;
+	END Test.
+
+positive: forwards referencing type within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			TYPE A = B; B = RECORD END;
+		END Procedure;
+	END Object;
 	END Test.
 
 negative: cyclic referencing types
@@ -2054,10 +2867,102 @@ negative: cyclic referencing types
 	TYPE A = B; B = A;
 	END Test.
 
+negative: cyclic referencing types within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE A = B; B = A;
+	END Procedure;
+	END Test.
+
+negative: cyclic referencing types within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			TYPE A = B; B = A;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: cyclic referencing types within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		TYPE A = B; B = A;
+	END Object;
+	END Test.
+
+negative: cyclic referencing types within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			TYPE A = B; B = A;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: cyclic referencing types within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			TYPE A = B; B = A;
+		END Procedure;
+	END Object;
+	END Test.
+
 negative: self referencing type
 
 	MODULE Test;
-	TYPE A = A;
+	TYPE Type = Type;
+	END Test.
+
+negative: self referencing type within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Type = Type;
+	END Procedure;
+	END Test.
+
+negative: self referencing type within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			TYPE Type = Type;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: self referencing type within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		TYPE Type = Type;
+	END Object;
+	END Test.
+
+negative: self referencing type within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			TYPE Type = Type;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: self referencing type within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			TYPE Type = Type;
+		END Procedure;
+	END Object;
 	END Test.
 
 
@@ -3870,10 +4775,286 @@ positive: variable marked as exported
 	VAR variable*: RECORD END;
 	END Test.
 
+negative: variable marked as exported within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		VAR variable*: RECORD END;
+	END Procedure;
+	END Test.
+
+negative: variable marked as exported within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			VAR variable*: RECORD END;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+positive: variable marked as exported within record
+
+	MODULE Test;
+	TYPE Record = RECORD
+		variable*: RECORD END;
+	END;
+	END Test.
+
+positive: variable marked as exported within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		VAR variable*: RECORD END;
+	END Object;
+	END Test.
+
+negative: variable marked as exported within record in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Record = RECORD
+			variable*: RECORD END;
+		END;
+	END Procedure;
+	END Test.
+
+negative: variable marked as exported within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			VAR variable*: RECORD END;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: variable marked as exported within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			VAR variable*: RECORD END;
+		END Procedure;
+	END Object;
+	END Test.
+
 positive: variable marked as read-only
 
 	MODULE Test;
 	VAR variable-: RECORD END;
+	END Test.
+
+negative: variable marked as read-only within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		VAR variable-: RECORD END;
+	END Procedure;
+	END Test.
+
+negative: variable marked as read-only within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			VAR variable-: RECORD END;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+positive: variable marked as read-only within record
+
+	MODULE Test;
+	TYPE Record = RECORD
+		variable-: RECORD END;
+	END;
+	END Test.
+
+positive: variable marked as read-only within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		VAR variable-: RECORD END;
+	END Object;
+	END Test.
+
+negative: variable marked as read-only within record in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Record = RECORD
+			variable-: RECORD END;
+		END;
+	END Procedure;
+	END Test.
+
+negative: variable marked as read-only within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			VAR variable-: RECORD END;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: variable marked as read-only within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			VAR variable-: RECORD END;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: duplicated variable
+
+	MODULE Test;
+	VAR variable: LONGINT;
+	VAR variable: RECORD END;
+	END Test.
+
+negative: duplicated variable within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		VAR variable: LONGINT;
+		VAR variable: RECORD END;
+	END Procedure;
+	END Test.
+
+negative: duplicated variable within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			VAR variable: LONGINT;
+			VAR variable: RECORD END;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: duplicated variable within record
+
+	MODULE Test;
+	TYPE Record = RECORD
+		variable: LONGINT;
+		variable: RECORD END;
+	END;
+	END Test.
+
+negative: duplicated variable within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		VAR variable: LONGINT;
+		VAR variable: RECORD END;
+	END Object;
+	END Test.
+
+negative: duplicated variable within record in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Record = RECORD
+			variable: LONGINT;
+			variable: RECORD END;
+		END;
+	END Procedure;
+	END Test.
+
+negative: duplicated variable within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			VAR variable: LONGINT;
+			VAR variable: RECORD END;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: duplicated variable within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			VAR variable: LONGINT;
+			VAR variable: RECORD END;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: duplicated variable in same declaration
+
+	MODULE Test;
+	VAR variable, variable: LONGINT;
+	END Test.
+
+negative: duplicated variable in same declaration within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		VAR variable, variable: LONGINT;
+	END Procedure;
+	END Test.
+
+negative: duplicated variable in same declaration within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			VAR variable, variable: LONGINT;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: duplicated variable in same declaration within record
+
+	MODULE Test;
+	TYPE Record = RECORD
+		variable, variable: LONGINT;
+	END;
+	END Test.
+
+negative: duplicated variable in same declaration within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		VAR variable, variable: LONGINT;
+	END Object;
+	END Test.
+
+negative: duplicated variable in same declaration within record in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Record = RECORD
+			variable, variable: LONGINT;
+		END;
+	END Procedure;
+	END Test.
+
+negative: duplicated variable in same declaration within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			VAR variable, variable: LONGINT;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: duplicated variable in same declaration within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			VAR variable, variable: LONGINT;
+		END Procedure;
+	END Object;
 	END Test.
 
 positive: variable of basic character type
@@ -4094,6 +5275,180 @@ positive: plain procedure
 	MODULE Test;
 	PROCEDURE Procedure;
 	END Procedure;
+	END Test.
+
+positive: procedure marked as exported
+
+	MODULE Test;
+	PROCEDURE Procedure*;
+	END Procedure;
+	END Test.
+
+negative: procedure marked as exported within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure*;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: procedure marked as exported within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			PROCEDURE Procedure*;
+			END Procedure;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+positive: procedure marked as exported within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure*;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: procedure marked as exported within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			PROCEDURE Procedure*;
+			END Procedure;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: procedure marked as exported within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			PROCEDURE Procedure*;
+			END Procedure;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: procedure marked as read-only
+
+	MODULE Test;
+	PROCEDURE Procedure-;
+	END Procedure;
+	END Test.
+
+negative: procedure marked as read-only within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure-;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: procedure marked as read-only within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			PROCEDURE Procedure-;
+			END Procedure;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: procedure marked as read-only within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure-;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: procedure marked as read-only within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			PROCEDURE Procedure-;
+			END Procedure;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: procedure marked as read-only within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			PROCEDURE Procedure-;
+			END Procedure;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: duplicated procedure
+
+	MODULE Test;
+	PROCEDURE Procedure; END Procedure;
+	PROCEDURE Procedure; END Procedure;
+	END Test.
+
+negative: duplicated procedure within procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure; END Procedure;
+		PROCEDURE Procedure; END Procedure;
+	END Procedure;
+	END Test.
+
+negative: duplicated procedure within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		PROCEDURE Procedure;
+			PROCEDURE Procedure; END Procedure;
+			PROCEDURE Procedure; END Procedure;
+		END Procedure;
+	END Procedure;
+	END Test.
+
+negative: duplicated procedure within object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure; END Procedure;
+		PROCEDURE Procedure; END Procedure;
+	END Object;
+	END Test.
+
+negative: duplicated procedure within object in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+		TYPE Object = OBJECT
+			PROCEDURE Procedure; END Procedure;
+			PROCEDURE Procedure; END Procedure;
+		END Object;
+	END Procedure;
+	END Test.
+
+negative: duplicated procedure within procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			PROCEDURE Procedure; END Procedure;
+			PROCEDURE Procedure; END Procedure;
+		END Procedure;
+	END Object;
 	END Test.
 
 positive: procedure returning basic character type
