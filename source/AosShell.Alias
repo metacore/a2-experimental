@@ -1,5 +1,5 @@
 build=AosRelease.Build
-cp=AosFSTools.CopyFiles
+cp=AosFSTools.CopyFiles --nolist
 create=AosTar.Create
 decode=AosDecoder.Open
 diff=DiffLib.Compare
@@ -18,7 +18,8 @@ ls=AosFSTools.Directory
 mount=AosFSTools.Mount
 open=AosOpen.Open
 reboot=S.Reboot
-rn=AosFSTools.RenameFiles
+rm=AosFSTools.DeleteFiles
+rn=AosFSTools.RenameFiles --nolist
 setcb=AosTextUtilities.SetClipboard
 show=S.ShowFile
 time=S.Time
