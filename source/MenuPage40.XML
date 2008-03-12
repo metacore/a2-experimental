@@ -54,7 +54,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>WMTextStyleTool.Open;StartMenu.ClosePopup</CommandString>
+					<CommandString>WMTextTool.Open;StartMenu.ClosePopup</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
