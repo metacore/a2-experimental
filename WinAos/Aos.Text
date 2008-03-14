@@ -1,6 +1,6 @@
 ; external, starting with Bluebottle
 AlternateConfig = "myAos.config"
-Paths.Search="Work;ObjE;../source;vy.ants/source;Aos;vy.ants/documents"
+Paths.Search="Work;ObjE;../source;../UnixAos;vy.ants/source;Aos;vy.ants/documents"
 Paths.Work="Work"
 Defaults.Extension=".Obw"
 oberon="OberonExternal.Text"
