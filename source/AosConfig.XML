@@ -55,6 +55,7 @@ To update: AosConfig.Init ~
 		
 		<Section name="Autostart">
 			<Setting name="Uptime Monitor" value="UpTime.Install"/>
+
 			<Setting name="Start the main menu" value="StartMenu.Open"/>
 			<Setting name="Restore the desktop" value="WMRestorable.Load Auto.dsk"/>
 			
@@ -66,22 +67,44 @@ To update: AosConfig.Init ~
 		<!-- Quote Server (remove comment to activate)
 			<Setting value="AosQuoteServer.Open"/>
 		-->
-			
-			<Setting name="DefaultSkin" value="SkinEngine.Load stijn.skin"/>
-			
+		
+		<Setting name="DefaultSkin" value="SkinEngine.Load stijn.skin"/>
+						
 		<!--Setting name="Hotkey support" value="AosHotKeys.Open"/-->
 			
-			
 		<!--Setting name="Hardware Detection" value="AosPCITools.DetectHardware"/-->
-
+			
 			<Setting name="TrapWriter" value="WMTrapWriter.Install"/>
-
 		</Section>
 		
 	<!-- WindowManager -->
 		
 		<Section name="WindowManager">
 			<Section name="FontManager">
+				<Section name="DefaultFont">
+					<Setting name="Name" value="Oberon"/>
+					<Setting name="Size" value="12"/>
+				</Section>
+				<Section name="FontLoaders">
+					<Section name="OberonFonts">
+						<Setting name="Exact" value="WMOberonFonts.LoadExactFont"/>
+						<Setting name="Approximate" value="WMOberonFonts.LoadApproximateFont"/>
+					</Section>
+					<Section name="BitmapFonts">
+						<Setting name="Exact" value="WMBitmapFont.LoadExactFont"/>
+						<Setting name="Approximate" value="WMBitmapFont.LoadApproximateFont"/>
+					</Section>
+					<Section name="CCGFonts">
+						<Setting name="Exact" value="WMCCGFonts.LoadExactFont"/>
+						<Setting name="Approximate" value="WMCCGFonts.LoadApproximateFont"/>
+					</Section>
+					<Section name="OTFonts">
+						<Setting name="Exact" value="WMOTFonts.LoadExactFont"/>
+						<Setting name="Approximate" value="WMOTFonts.LoadApproximateFont"/>
+					</Section>
+				</Section>
+				
+				<!-- FOR COMPATIBILTY. TO BE REMOVED (staubesv) -->
 				<Section name="OberonFonts">
 					<Setting name="Exact" value="WMOberonFonts.LoadExactFont"/>
 					<Setting name="Approximate" value="WMOberonFonts.LoadApproximateFont"/>
@@ -98,6 +121,7 @@ To update: AosConfig.Init ~
 					<Setting name="Exact" value="WMOTFonts.LoadExactFont"/>
 					<Setting name="Approximate" value="WMOTFonts.LoadApproximateFont"/>
 				</Section>
+				
 			</Section>
 		</Section>
 		
@@ -194,6 +218,7 @@ To update: AosConfig.Init ~
 		
 		<Section name="Filehandlers">
 		<!-- use lower case for extensions, sort lexographically -->
+			
 			<Setting name="asm" value="PET.Open"/>
 			<Setting name="avi" value="WMPlayer.Open"/>
 			<Setting name="bak" value="PET.Open"/>
@@ -278,7 +303,6 @@ To update: AosConfig.Init ~
 	<!-- Applications -->
 		
 		<Section name="Applications">
-		
 			<Section name="PET">
 				<Section name="General">
 					<Setting name="BackupOnStore" value="TRUE"/>
@@ -301,7 +325,6 @@ To update: AosConfig.Init ~
 					<Setting name="CaseSensitive" value="TRUE"/>
 				</Section>
 			</Section>
-			
 			<Section name="WMV24Component">
 				<Setting name="WindowStartupSize" value="800x400"/>
 				<Setting name="IndicateKeyboardFocus" value="TRUE"/>
