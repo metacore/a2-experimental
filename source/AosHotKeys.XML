@@ -68,6 +68,8 @@
 	<HotKey name="MoveDown" keys="ALT+DOWN" command="AosHotKeysCommands.MoveWindow 0 1024"/>
 	
 	<!-- Example: Switch keyboard focus to previous/next window -->
+	<HotKey name="Open Windows Navigation" keys="CTRL+ALT+UP" command="WMNavigate.Open"/>
+	<HotKey name="Close Windows Navigation" keys="CTRL+ALT+DOWN" command="WMNavigate.Close"/>
 	<HotKey name="FocusToNext" keys="CTRL+ALT+RIGHT" command="WMNavigate.FocusToNext"/>
 	<HotKey name="FocusToPrevious" keys="CTRL+ALT+LEFT" command="WMNavigate.FocusToPrevious"/>
 	
