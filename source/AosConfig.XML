@@ -305,7 +305,8 @@ To update: AosConfig.Init ~
 		<Section name="Applications">
 			<Section name="PET">
 				<Section name="General">
-					<Setting name="BackupOnStore" value="TRUE"/>
+					<Setting name="ParanoidBackups" value="TRUE"/>
+					<Setting name="BackupOnCompile" value="FALSE"/>
 					<Setting name="ShowPathInTabs" value="FALSE"/>
 					<Setting name="ScratchPanelHeight" value="250"/>
 				</Section>
