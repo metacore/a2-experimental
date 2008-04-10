@@ -695,7 +695,6 @@ VAR
       Printer3.ReplConst(Q,Display3.black, M.x, M.y, P(F.W),
          P(F.H), Display.replace)
    * till here. *)
-   BEGIN
    END DoPrint;
    
    (* Routines for Mouse-Handling: *)
