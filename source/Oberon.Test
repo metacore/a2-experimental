@@ -31,38 +31,48 @@ positive: empty module
 
 	MODULE Test; END Test.
 
+negative: module named system
+
+	MODULE SYSTEM; END SYSTEM.
+
 
 # identifiers
 
 negative: number as identifier
 
-	MODULE 007;
-	END 007.
+	MODULE Test;
+	CONST 007 = 0;
+	END Test.
 
 negative: keyword as identifier
 
-	MODULE THEN;
-	END THEN.
+	MODULE Test;
+	CONST THEN = 0;
+	END Test.
 
 negative: string as identifier
 
-	MODULE "Test";
-	END "Test".
+	MODULE Test;
+	CONST "Test" = 0;
+	END Test.
 
 positive: single character identifier
 
-	MODULE T;
-	END T.
+	MODULE Test;
+	CONST T = 0;
+	END Test.
 
 positive: long identifiers
 
-	MODULE IncrediblyLongModuleNameLikeSupercalifragilisticexpialidocious;
-	END IncrediblyLongModuleNameLikeSupercalifragilisticexpialidocious.
+	MODULE Test;
+	CONST IncrediblyLongModuleNameLikeSupercalifragilisticexpialidocious = 0;
+	END Test.
 
 positive: underscore in identifier
 
-	MODULE Test_Module;
-	END Test_Module.
+	MODULE Test;
+	CONST Test_Module = 0;
+	END Test.
 
 
 # comments
@@ -533,6 +543,12 @@ negative: unclosed string literal
 
 	MODULE Test;
 	CONST Character = "string
+	END Test.
+
+positive: string literal holding printable ASCII character set
+
+	MODULE Test;
+	CONST String = " !#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 	END Test.
 
 
@@ -1364,6 +1380,75 @@ negative: cascaded assignment
 	BEGIN variable := variable := 5;
 	END Test;
 
+negative: for statement missing counter
+
+	MODULE Test;
+	BEGIN FOR := 0 TO 10 DO END
+	END Test.
+
+negative: for statement missing assignment
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i 0 TO 10 DO END
+	END Test.
+
+negative: for statement missing start counter
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := TO 10 DO END
+	END Test.
+
+negative: for statement missing to
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 10 DO END
+	END Test.
+
+negative: for statement missing end counter
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 TO DO END
+	END Test.
+
+negative: for statement missing do
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 TO 10 END
+	END Test.
+
+negative: for statement missing end
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 TO 10 DO
+	END Test.
+
+positive: for statement without increment missing by
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 TO 10 DO END
+	END Test.
+
+negative: for statement with increment missing by
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 TO 10 1 DO END
+	END Test.
+
+negative: for statement with increment missing increment
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 TO 10 BY DO END
+	END Test.
+
 
 # Semantic tests
 # =====================================
@@ -1373,7 +1458,8 @@ negative: cascaded assignment
 
 positive: dummy module
 
-	MODULE A; END A.
+	MODULE A;
+	END A.
 
 positive: single import
 
@@ -1467,6 +1553,41 @@ negative: import within procedure in object
 			IMPORT Import := A;
 		END Procedure;
 	END Object;
+	END Test.
+
+positive: dummy empty module
+
+	MODULE Test;
+	END Test.
+
+positive: dummy module with import
+
+	MODULE A;
+	IMPORT Test;
+	END A.
+
+negative: module importing itself directly
+
+	MODULE Test;
+	IMPORT Test;
+	END Test.
+
+negative: module importing itself directly with alias
+
+	MODULE Test;
+	IMPORT Import := Test;
+	END Test.
+
+negative: module importing itself indirectly
+
+	MODULE Test;
+	IMPORT A;
+	END Test.
+
+negative: module importing itself indirectly with alias
+
+	MODULE Test;
+	IMPORT Import := A;
 	END Test.
 
 
@@ -2713,6 +2834,123 @@ negative: logical or on constant strings
 	END Test.
 
 
+# constant nil pointers
+
+negative: arithmetic negation on nil
+
+	MODULE Test;
+	CONST Result = -NIL;
+	END Test.
+
+negative: logical negation on nil
+
+	MODULE Test;
+	CONST Result = ~NIL;
+	END Test.
+
+negative: multiple logical negations on nil
+
+	MODULE Test;
+	CONST Result = ~~~~NIL;
+	END Test.
+
+negative: addition on nil
+
+	MODULE Test;
+	CONST Result = NIL + NIL;
+	END Test.
+
+negative: subtraction on nil
+
+	MODULE Test;
+	CONST Result = NIL - NIL
+	END Test.
+
+negative: multiplication on nil
+
+	MODULE Test;
+	CONST Result = NIL * NIL
+	END Test.
+
+negative: integer division on nil
+
+	MODULE Test;
+	CONST Result = NIL DIV NIL
+	END Test.
+
+negative: real division on nil
+
+	MODULE Test;
+	CONST Result = NIL / NIL
+	END Test.
+
+negative: modulo on nil
+
+	MODULE Test;
+	CONST Result = NIL MOD NIL
+	END Test.
+
+positive: equal relation on nil
+
+	MODULE Test;
+	CONST Result = NIL = NIL
+	END Test.
+
+positive: unequal relation on nil
+
+	MODULE Test;
+	CONST Result = NIL # NIL
+	END Test.
+
+negative: less relation on nil
+
+	MODULE Test;
+	CONST Result = NIL < NIL
+	END Test.
+
+negative: less or equal relation on nil
+
+	MODULE Test;
+	CONST Result = NIL <= NIL
+	END Test.
+
+negative: greater relation on nil
+
+	MODULE Test;
+	CONST Result = NIL > NIL
+	END Test.
+
+negative: greater or equal relation on nil
+
+	MODULE Test;
+	CONST Result = NIL >= NIL
+	END Test.
+
+negative: set membership on nil
+
+	MODULE Test;
+	CONST Result = NIL IN NIL
+	END Test.
+
+negative: type test on nil
+
+	MODULE Test;
+	CONST Result = NIL IS NIL
+	END Test.
+
+negative: logical and on nil
+
+	MODULE Test;
+	CONST Result = NIL & NIL
+	END Test.
+
+negative: logical or on nil
+
+	MODULE Test;
+	CONST Result = NIL OR NIL
+	END Test.
+
+
 # implicit constant conversions
 
 positive: implicit constant short to integer conversion
@@ -3932,7 +4170,16 @@ positive: pointer to record from with variable of nested type
 	END Procedure;
 	END Test.
 
-negative: pointer to record from inner scope
+negative: pointer to record inside object
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO Record;
+	TYPE Oject = OBJECT
+		TYPE Record = RECORD END;
+	END Object;
+	END Test.
+
+negative: pointer to record inside procedure
 
 	MODULE Test;
 	TYPE Pointer = POINTER TO Record;
@@ -5585,6 +5832,84 @@ positive: variables of anonymous procedure type
 	VAR a, b, c: PROCEDURE;
 	END Test.
 
+negative: definition of self in module
+
+	MODULE Test;
+	VAR SELF: OBJECT;
+	END Test.
+
+negative: definition of self in procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR SELF: OBJECT;
+	END Procedure;
+	END Test.
+
+negative: definition of self in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+		VAR SELF: OBJECT;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: definition of self in procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+		VAR SELF: OBJECT;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: definition of self in nested procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			PROCEDURE Procedure;
+			VAR SELF: OBJECT;
+			END Procedure;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: modification of self in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+		BEGIN SELF := NIL;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: modification of self in procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+		BEGIN SELF := NIL;
+		END Procedure;
+	END Object;
+	END Test.
+
+negative: modification of self in nested procedure in object
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		PROCEDURE Procedure;
+			PROCEDURE Procedure;
+			BEGIN SELF := NIL;
+			END Procedure;
+		END Procedure;
+	END Object;
+	END Test.
+
 
 # procedures
 
@@ -6793,6 +7118,14 @@ positive: procedure with a parameter of object type
 	END Procedure;
 	END Test.
 
+positive: procedure with a parameter of plain object type
+
+	MODULE Test;
+	TYPE Object = OBJECT;
+	PROCEDURE Procedure (parameter: Object);
+	END Procedure;
+	END Test.
+
 positive: procedure with parameters of object type
 
 	MODULE Test;
@@ -6841,10 +7174,25 @@ positive: procedure with intermixed parameters of object type
 	END Procedure;
 	END Test.
 
+positive: procedure with intermixed parameters of plain object type
+
+	MODULE Test;
+	TYPE Object = OBJECT;
+	PROCEDURE Procedure (a: Object; VAR b: Object; CONST c: Object);
+	END Procedure;
+	END Test.
+
 positive: procedure with a parameter of anonymous object type
 
 	MODULE Test;
 	PROCEDURE Procedure (parameter: OBJECT END);
+	END Procedure;
+	END Test.
+
+positive: procedure with a parameter of anonymous plain object type
+
+	MODULE Test;
+	PROCEDURE Procedure (parameter: OBJECT);
 	END Procedure;
 	END Test.
 
@@ -6887,6 +7235,13 @@ positive: procedure with intermixed parameters of anonymous object type
 
 	MODULE Test;
 	PROCEDURE Procedure (a: OBJECT END; VAR b: OBJECT END; CONST c: OBJECT END);
+	END Procedure;
+	END Test.
+
+positive: procedure with intermixed parameters of anonymous plain object type
+
+	MODULE Test;
+	PROCEDURE Procedure (a: OBJECT; VAR b: OBJECT; CONST c: OBJECT);
 	END Procedure;
 	END Test.
 
@@ -8187,6 +8542,14 @@ negative: nil to variable boolean assignment
 	BEGIN result := NIL;
 	END Test.
 
+negative: procedure to variable boolean assignment
+
+	MODULE Test;
+	VAR result: BOOLEAN;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
 negative: constant boolean to variable character assignment
 
 	MODULE Test;
@@ -8262,6 +8625,14 @@ negative: nil to variable character assignment
 	MODULE Test;
 	VAR result: CHAR;
 	BEGIN result := NIL;
+	END Test.
+
+negative: procedure to variable character assignment
+
+	MODULE Test;
+	VAR result: CHAR;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
 	END Test.
 
 negative: constant boolean to variable short integer assignment
@@ -8341,6 +8712,14 @@ negative: nil to variable short integer assignment
 	BEGIN result := NIL;
 	END Test.
 
+negative: procedure to variable short integer assignment
+
+	MODULE Test;
+	VAR result: SHORTINT;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
 negative: constant boolean to variable integer assignment
 
 	MODULE Test;
@@ -8416,6 +8795,14 @@ negative: nil to variable integer assignment
 	MODULE Test;
 	VAR result: INTEGER;
 	BEGIN result := NIL;
+	END Test.
+
+negative: procedure to variable integer assignment
+
+	MODULE Test;
+	VAR result: INTEGER;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
 	END Test.
 
 negative: constant boolean to variable long integer assignment
@@ -8495,6 +8882,14 @@ negative: nil to variable long integer assignment
 	BEGIN result := NIL;
 	END Test.
 
+negative: procedure to variable long integer assignment
+
+	MODULE Test;
+	VAR result: LONGINT;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
 negative: constant boolean to variable huge integer assignment
 
 	MODULE Test;
@@ -8570,6 +8965,14 @@ negative: nil to variable huge integer assignment
 	MODULE Test;
 	VAR result: HUGEINT;
 	BEGIN result := NIL;
+	END Test.
+
+negative: procedure to variable huge integer assignment
+
+	MODULE Test;
+	VAR result: HUGEINT;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
 	END Test.
 
 negative: constant boolean to variable real assignment
@@ -8649,6 +9052,14 @@ negative: nil to variable real assignment
 	BEGIN result := NIL;
 	END Test.
 
+negative: procedure to variable real assignment
+
+	MODULE Test;
+	VAR result: REAL;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
 negative: constant boolean to variable long real assignment
 
 	MODULE Test;
@@ -8726,6 +9137,14 @@ negative: nil to variable long real assignment
 	BEGIN result := NIL;
 	END Test.
 
+negative: procedure to variable long real assignment
+
+	MODULE Test;
+	VAR result: LONGREAL;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
 negative: constant boolean to variable set assignment
 
 	MODULE Test;
@@ -8801,6 +9220,14 @@ negative: nil to variable set assignment
 	MODULE Test;
 	VAR result: SET;
 	BEGIN result := NIL;
+	END Test.
+
+negative: procedure to variable set assignment
+
+	MODULE Test;
+	VAR result: SET;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
 	END Test.
 
 negative: constant boolean to variable array assignment
@@ -8985,6 +9412,14 @@ negative: nil to variable array assignment
 	BEGIN result := NIL;
 	END Test.
 
+negative: procedure to variable array assignment
+
+	MODULE Test;
+	VAR result: ARRAY 10 OF PROCEDURE;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
 negative: constant boolean to record assignment
 
 	MODULE Test;
@@ -9060,6 +9495,14 @@ negative: nil to record assignment
 	MODULE Test;
 	VAR result: RECORD END;
 	BEGIN result := NIL;
+	END Test.
+
+negative: procedure to record assignment
+
+	MODULE Test;
+	VAR result: RECORD END;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
 	END Test.
 
 negative: constant boolean to object assignment
@@ -9139,6 +9582,14 @@ positive: nil to object assignment
 	BEGIN result := NIL;
 	END Test.
 
+negative: procedure to object assignment
+
+	MODULE Test;
+	VAR result: OBJECT END;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
 negative: constant boolean to pointer assignment
 
 	MODULE Test;
@@ -9216,6 +9667,14 @@ positive: nil to pointer assignment
 	BEGIN result := NIL;
 	END Test.
 
+negative: procedure to pointer assignment
+
+	MODULE Test;
+	VAR result: POINTER TO RECORD;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
 negative: constant boolean to procedure assignment
 
 	MODULE Test;
@@ -9291,6 +9750,225 @@ positive: nil to procedure assignment
 	MODULE Test;
 	VAR result: PROCEDURE;
 	BEGIN result := NIL;
+	END Test.
+
+positive: procedure to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+positive: procedure with one equal parameter to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (a: INTEGER);
+	PROCEDURE Procedure (b: INTEGER); END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+negative: procedure with one compatible parameter to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (a: INTEGER);
+	PROCEDURE Procedure (b: LONGINT); END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+negative: procedure with one incompatible parameter to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (a: SET);
+	PROCEDURE Procedure (b: LONGINT); END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+negative: procedure with one equal variable parameter to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (VAR a: INTEGER);
+	PROCEDURE Procedure (b: INTEGER); END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+negative: procedure with one equal constant parameter to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (CONST a: INTEGER);
+	PROCEDURE Procedure (b: INTEGER); END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+positive: procedure with two equal parameters to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (a, b: INTEGER);
+	PROCEDURE Procedure (c, d: INTEGER); END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+negative: procedure with two compatible parameters to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (a, b: INTEGER);
+	PROCEDURE Procedure (c, d: LONGINT); END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+negative: procedure with two incompatible parameters to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (a, b: SET);
+	PROCEDURE Procedure (c, d: LONGINT); END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+negative: procedure with two equal variable parameters to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (VAR a, b: INTEGER);
+	PROCEDURE Procedure (c, d: INTEGER); END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+negative: procedure with two equal constant parameters to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (CONST a, b: INTEGER);
+	PROCEDURE Procedure (c, d: INTEGER); END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+positive: procedure with several equal parameters to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (CONST a: SET; VAR i: INTEGER; o: OBJECT);
+	PROCEDURE Procedure (CONST a: SET; VAR i: INTEGER; o: OBJECT); END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+positive: procedure with equal return type to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): INTEGER;
+	PROCEDURE Procedure (): INTEGER; BEGIN RETURN 0 END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+negative: procedure with compatible return type to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): LONGINT;
+	PROCEDURE Procedure (): INTEGER; BEGIN RETURN 0 END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+negative: procedure with incompatible return type to procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): SET;
+	PROCEDURE Procedure (): INTEGER; BEGIN RETURN 0 END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+positive: procedure with several equal parameters and equal return type to procedure assignment
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR result: PROCEDURE (CONST a: SET; VAR i: INTEGER; o: OBJECT): POINTER TO Record;
+	PROCEDURE Procedure (CONST a: SET; VAR i: INTEGER; o: OBJECT): POINTER TO Record; END Procedure;
+	BEGIN result := Procedure;
+	END Test.
+
+positive: dummy module for import assignments
+
+	MODULE A;
+	END A.
+
+negative: constant boolean to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	BEGIN result := TRUE;
+	END Test.
+
+negative: constant character to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	BEGIN result := 'f';
+	END Test.
+
+negative: constant short integer to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	BEGIN result := 10H;
+	END Test.
+
+negative: constant integer to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	BEGIN result := 1000H;
+	END Test.
+
+negative: constant long integer to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	BEGIN result := 100000H;
+	END Test.
+
+negative: constant huge integer to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	BEGIN result := 10000000000H;
+	END Test.
+
+negative: constant real to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	BEGIN result := 5.4;
+	END Test.
+
+negative: constant long real to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	BEGIN result := 5.4D10;
+	END Test.
+
+negative: constant set to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	BEGIN result := {5};
+	END Test.
+
+negative: string to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	BEGIN result := "string";
+	END Test.
+
+negative: nil to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	BEGIN result := NIL;
+	END Test.
+
+negative: procedure to import assignment
+
+	MODULE Test;
+	IMPORT result := A;
+	PROCEDURE Procedure; END Procedure;
+	BEGIN result := Procedure;
 	END Test.
 
 positive: variable boolean to variable boolean assignment
@@ -9384,7 +10062,7 @@ negative: pointer to variable boolean assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to variable boolean assignment
+negative: variable procedure to variable boolean assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: BOOLEAN;
@@ -9489,7 +10167,7 @@ negative: pointer to variable character assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to variable character assignment
+negative: variable procedure to variable character assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: CHAR;
@@ -9594,7 +10272,7 @@ negative: pointer to variable short integer assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to variable short integer assignment
+negative: variable procedure to variable short integer assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: SHORTINT;
@@ -9699,7 +10377,7 @@ negative: pointer to variable integer assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to variable integer assignment
+negative: variable procedure to variable integer assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: INTEGER;
@@ -9804,7 +10482,7 @@ negative: pointer to variable long integer assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to variable long integer assignment
+negative: variable procedure to variable long integer assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: LONGINT;
@@ -9909,7 +10587,7 @@ negative: pointer to variable huge integer assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to variable huge integer assignment
+negative: variable procedure to variable huge integer assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: HUGEINT;
@@ -10014,7 +10692,7 @@ negative: pointer to variable real assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to variable real assignment
+negative: variable procedure to variable real assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: REAL;
@@ -10119,7 +10797,7 @@ negative: pointer to variable long real assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to variable long real assignment
+negative: variable procedure to variable long real assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: LONGREAL;
@@ -10224,7 +10902,7 @@ negative: pointer to variable set assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to variable set assignment
+negative: variable procedure to variable set assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: SET;
@@ -12025,7 +12703,7 @@ negative: pointer to array assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to array assignment
+negative: variable procedure to array assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: ARRAY 10 OF CHAR;
@@ -12154,7 +12832,7 @@ negative: pointer to record assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to record assignment
+negative: variable procedure to record assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: RECORD END;
@@ -12296,7 +12974,7 @@ negative: pointer to object assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to object assignment
+negative: variable procedure to object assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: OBJECT END;
@@ -12460,7 +13138,7 @@ negative: pointer to array to pointer to shorter array assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to pointer assignment
+negative: variable procedure to pointer assignment
 
 	MODULE Test;
 	VAR variable: PROCEDURE; result: POINTER TO RECORD END;
@@ -12565,19 +13243,11 @@ negative: pointer to procedure assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: procedure to procedure assignment
+positive: variable procedure to procedure assignment
 
 	MODULE Test;
 	VAR variable, result: PROCEDURE;
 	BEGIN result := variable;
-	END Test.
-
-positive: declared procedure to procedure assignment
-
-	MODULE Test;
-	VAR result: PROCEDURE;
-	PROCEDURE Procedure; END Procedure;
-	BEGIN result := Procedure;
 	END Test.
 
 negative: import to procedure assignment
@@ -12691,7 +13361,7 @@ negative: pointer to import assignment
 	BEGIN result := variable;
 	END Test.
 
-negative: procedure to import assignment
+negative: variable procedure to import assignment
 
 	MODULE Test;
 	IMPORT result := A;
@@ -13457,6 +14127,226 @@ negative: logical or on variable sets
 	END Test.
 
 
+# variable arrays
+
+negative: arithmetic negation on variable array
+
+	MODULE Test;
+	VAR array, result: ARRAY 10 OF SET;
+	BEGIN result := -array;
+	END Test.
+
+negative: logical negation on variable array
+
+	MODULE Test;
+	VAR array, result: ARRAY 10 OF SET;
+	BEGIN result := ~array;
+	END Test.
+
+negative: multiple logical negations on variable array
+
+	MODULE Test;
+	VAR array, result: ARRAY 10 OF SET;
+	BEGIN result := ~~~~array;
+	END Test.
+
+negative: addition on variable arrays
+
+	MODULE Test;
+	VAR array, result: ARRAY 10 OF SET;
+	BEGIN result := array + array;
+	END Test.
+
+negative: subtraction on variable arrays
+
+	MODULE Test;
+	VAR array, result: ARRAY 10 OF SET;
+	BEGIN result := array - array
+	END Test.
+
+negative: multiplication on variable arrays
+
+	MODULE Test;
+	VAR array, result: ARRAY 10 OF SET;
+	BEGIN result := array * array
+	END Test.
+
+negative: integer division on variable arrays
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array DIV array
+	END Test.
+
+negative: real division on variable arrays
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: REAL;
+	BEGIN result := array / array
+	END Test.
+
+negative: modulo on variable arrays
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array MOD array
+	END Test.
+
+positive: equal relation on variable arrays
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array = array
+	END Test.
+
+positive: equal relation on variable arrays of character
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	BEGIN result := array = array
+	END Test.
+
+positive: equal relation on variable array of character and string
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	BEGIN result := array = "string"
+	END Test.
+
+positive: unequal relation on variable arrays
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array # array
+	END Test.
+
+positive: unequal relation on variable arrays of character
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	BEGIN result := array # array
+	END Test.
+
+positive: unequal relation on variable array of character and string
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	BEGIN result := array # "string"
+	END Test.
+
+negative: less relation on variable arrays
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array < array
+	END Test.
+
+positive: less relation on variable arrays of character
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array < array
+	END Test.
+
+positive: less relation on variable array of character and string
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array < "string"
+	END Test.
+
+negative: less or equal relation on variable arrays
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array <= array
+	END Test.
+
+positive: less or equal relation on variable arrays of character
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	BEGIN result := array <= array
+	END Test.
+
+positive: less or equal relation on variable array of character and string
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	BEGIN result := array <= "string"
+	END Test.
+
+negative: greater relation on variable arrays
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array > array
+	END Test.
+
+positive: greater relation on variable arrays of character
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	BEGIN result := array > array
+	END Test.
+
+positive: greater relation on variable array of character and string
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	BEGIN result := array > "string"
+	END Test.
+
+negative: greater or equal relation on variable arrays
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array >= array
+	END Test.
+
+positive: greater or equal relation on variable arrays of character
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	BEGIN result := array >= array
+	END Test.
+
+positive: greater or equal relation on variable array of character and string
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	BEGIN result := array >= "string"
+	END Test.
+
+negative: set membership on variable arrays
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array IN array
+	END Test.
+
+negative: type test on variable arrays
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	BEGIN result := array IS array
+	END Test.
+
+negative: logical and on variable arrays
+
+	MODULE Test;
+	VAR array, result: ARRAY 10 OF SET;
+	BEGIN result := array & array
+	END Test.
+
+negative: logical or on variable arrays
+
+	MODULE Test;
+	VAR array, result: ARRAY 10 OF SET;
+	BEGIN result := array OR array
+	END Test.
+
+
 # implicit variable conversions
 
 positive: implicit variable short to integer conversion
@@ -13590,4 +14480,504 @@ negative: implicit conversion between variable real and set
 	MODULE Test;
 	VAR real: REAL; set: SET; result: BOOLEAN;
 	BEGIN result := real = set
+	END Test.
+
+
+# for statement
+
+negative: for statement with unknown counter
+
+	MODULE Test;
+	BEGIN FOR i := 0 TO 10 DO END
+	END Test.
+
+negative: for statement with constant as counter
+
+	MODULE Test;
+	CONST i = 0;
+	BEGIN FOR i := 0 TO 10 DO END
+	END Test.
+
+negative: for statement with type as counter
+
+	MODULE Test;
+	TYPE i = LONGINT;
+	BEGIN FOR i := 0 TO 10 DO END
+	END Test.
+
+positive: for statement with variable as counter
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 TO 10 DO END
+	END Test.
+
+positive: for statement with parameter as counter
+
+	MODULE Test;
+	PROCEDURE Procedure (i: INTEGER);
+	BEGIN FOR i := 0 TO 10 DO END
+	END Procedure;
+	END Test.
+
+negative: for statement with procedure as counter
+
+	MODULE Test;
+	PROCEDURE i; END i;
+	BEGIN FOR i := 0 TO 10 DO END
+	END Test.
+
+negative: for statement with constant counter
+
+	MODULE Test;
+	VAR s, e: INTEGER;
+	BEGIN FOR 0 := s TO e DO END
+	END Test.
+
+positive: for statement with constant start counter
+
+	MODULE Test;
+	VAR i, e: INTEGER;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+positive: for statement with constant end counter
+
+	MODULE Test;
+	VAR i, s: INTEGER;
+	BEGIN FOR i := s TO 0 DO END
+	END Test.
+
+positive: for statement with variable counter
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 TO 10 DO END
+	END Test.
+
+positive: for statement with variable start counter
+
+	MODULE Test;
+	VAR i, s: INTEGER;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+positive: for statement with variable end counter
+
+	MODULE Test;
+	VAR i, e: INTEGER;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+negative: for statement with variable increment
+
+	MODULE Test;
+	VAR i, s: INTEGER;
+	BEGIN FOR i := 0 TO 10 BY s DO END
+	END Test.
+
+positive: for statement with positive constant increment
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 TO 10 BY 1 DO END
+	END Test.
+
+positive: for statement with negative constant increment
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 TO 10 BY -1 DO END
+	END Test.
+
+negative: for statement with zero increment
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN FOR i := 0 TO 10 BY 0 DO END
+	END Test.
+
+negative: for statement with counter of type boolean
+
+	MODULE Test;
+	VAR i, s, e: BOOLEAN;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+negative: for statement with counter of type character
+
+	MODULE Test;
+	VAR i, s, e: CHAR;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+positive: for statement with counter of type short integer
+
+	MODULE Test;
+	VAR i, s, e: SHORTINT;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+positive: for statement with counter of type integer
+
+	MODULE Test;
+	VAR i, s, e: INTEGER;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+positive: for statement with counter of type long integer
+
+	MODULE Test;
+	VAR i, s, e: LONGINT;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+positive: for statement with counter of type huge integer
+
+	MODULE Test;
+	VAR i, s, e: HUGEINT;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+negative: for statement with counter of type real
+
+	MODULE Test;
+	VAR i, s, e: REAL;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+negative: for statement with counter of type long real
+
+	MODULE Test;
+	VAR i, s, e: REAL;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+negative: for statement with counter of type set
+
+	MODULE Test;
+	VAR i, s, e: SET;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+negative: for statement with counter of type array
+
+	MODULE Test;
+	VAR i, s, e: ARRAY 10 OF CHAR;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+negative: for statement with counter of type record
+
+	MODULE Test;
+	VAR i, s, e: RECORD END;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+negative: for statement with counter of type object
+
+	MODULE Test;
+	VAR i, s, e: OBJECT END;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+negative: for statement with counter of type pointer
+
+	MODULE Test;
+	VAR i, s, e: POINTER TO RECORD;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+negative: for statement with counter of type procedure
+
+	MODULE Test;
+	VAR i, s, e: PROCEDURE;
+	BEGIN FOR i := s TO e DO END
+	END Test.
+
+positive: for statement with short integer counter and short integer start counter
+
+	MODULE Test;
+	VAR i, s: SHORTINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+negative: for statement with short integer counter and integer start counter
+
+	MODULE Test;
+	VAR i: SHORTINT; s: INTEGER;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+negative: for statement with short integer counter and long integer start counter
+
+	MODULE Test;
+	VAR i: SHORTINT; s: LONGINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+negative: for statement with short integer counter and huge integer start counter
+
+	MODULE Test;
+	VAR i: SHORTINT; s: HUGEINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+positive: for statement with integer counter and short integer start counter
+
+	MODULE Test;
+	VAR i: INTEGER; s: SHORTINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+positive: for statement with integer counter and integer start counter
+
+	MODULE Test;
+	VAR i, s: INTEGER;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+negative: for statement with integer counter and long integer start counter
+
+	MODULE Test;
+	VAR i: INTEGER; s: LONGINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+negative: for statement with integer counter and huge integer start counter
+
+	MODULE Test;
+	VAR i: INTEGER; s: HUGEINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+positive: for statement with long integer counter and short integer start counter
+
+	MODULE Test;
+	VAR i: LONGINT; s: SHORTINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+positive: for statement with long integer counter and integer start counter
+
+	MODULE Test;
+	VAR i: LONGINT; s: INTEGER;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+positive: for statement with long integer counter and long integer start counter
+
+	MODULE Test;
+	VAR i, s: LONGINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+negative: for statement with long integer counter and huge integer start counter
+
+	MODULE Test;
+	VAR i: LONGINT; s: HUGEINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+positive: for statement with huge integer counter and short integer start counter
+
+	MODULE Test;
+	VAR i: HUGEINT; s: SHORTINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+positive: for statement with huge integer counter and integer start counter
+
+	MODULE Test;
+	VAR i: HUGEINT; s: INTEGER;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+positive: for statement with huge integer counter and long integer start counter
+
+	MODULE Test;
+	VAR i: HUGEINT; s: LONGINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+positive: for statement with huge integer counter and huge integer start counter
+
+	MODULE Test;
+	VAR i, s: HUGEINT;
+	BEGIN FOR i := s TO 10 DO END
+	END Test.
+
+positive: for statement with short integer counter and short integer end counter
+
+	MODULE Test;
+	VAR i, e: SHORTINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+negative: for statement with short integer counter and integer end counter
+
+	MODULE Test;
+	VAR i: SHORTINT; e: INTEGER;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+negative: for statement with short integer counter and long integer end counter
+
+	MODULE Test;
+	VAR i: SHORTINT; e: LONGINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+negative: for statement with short integer counter and huge integer end counter
+
+	MODULE Test;
+	VAR i: SHORTINT; e: HUGEINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+positive: for statement with integer counter and short integer end counter
+
+	MODULE Test;
+	VAR i: INTEGER; e: SHORTINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+positive: for statement with integer counter and integer end counter
+
+	MODULE Test;
+	VAR i, e: INTEGER;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+negative: for statement with integer counter and long integer end counter
+
+	MODULE Test;
+	VAR i: INTEGER; e: LONGINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+negative: for statement with integer counter and huge integer end counter
+
+	MODULE Test;
+	VAR i: INTEGER; e: HUGEINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+positive: for statement with long integer counter and short integer end counter
+
+	MODULE Test;
+	VAR i: LONGINT; e: SHORTINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+positive: for statement with long integer counter and integer end counter
+
+	MODULE Test;
+	VAR i: LONGINT; e: INTEGER;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+positive: for statement with long integer counter and long integer end counter
+
+	MODULE Test;
+	VAR i, e: LONGINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+negative: for statement with long integer counter and huge integer end counter
+
+	MODULE Test;
+	VAR i: LONGINT; e: HUGEINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+positive: for statement with huge integer counter and short integer end counter
+
+	MODULE Test;
+	VAR i: HUGEINT; e: SHORTINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+positive: for statement with huge integer counter and integer end counter
+
+	MODULE Test;
+	VAR i: HUGEINT; e: INTEGER;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+positive: for statement with huge integer counter and long integer end counter
+
+	MODULE Test;
+	VAR i: HUGEINT; e: LONGINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+positive: for statement with huge integer counter and huge integer end counter
+
+	MODULE Test;
+	VAR i, e: HUGEINT;
+	BEGIN FOR i := 0 TO e DO END
+	END Test.
+
+
+# return statement
+
+negative: return statement with value in module body
+
+	MODULE Test;
+	BEGIN RETURN 0
+	END Test.
+
+positive: return statement without value in module body
+
+	MODULE Test;
+	BEGIN RETURN
+	END Test.
+
+negative: return statement with value in object body
+
+	MODULE Test;
+	TYPE Object = OBJECT
+	BEGIN RETURN 0
+	END Object;
+	END Test.
+
+positive: return statement without value in object body
+
+	MODULE Test;
+	TYPE Object = OBJECT
+	BEGIN RETURN
+	END Object;
+	END Test.
+
+positive: return statement with value in procedure with return type
+
+	MODULE Test;
+	PROCEDURE Procedure (): INTEGER;
+	BEGIN RETURN 0
+	END Procedure;
+	END Test.
+
+negative: return statement without value in procedure with return type
+
+	MODULE Test;
+	PROCEDURE Procedure (): INTEGER;;
+	BEGIN RETURN
+	END Procedure;
+	END Test.
+
+negative: return statement with value in procedure without return type
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	BEGIN RETURN 0
+	END Procedure;
+	END Test.
+
+positive: return statement without value in procedure without return type
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	BEGIN RETURN
+	END Procedure;
 	END Test.
