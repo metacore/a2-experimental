@@ -80,32 +80,15 @@ typedef	void(*traphandler_t)(long, void*, void*, int);
 static traphandler_t	OberonTrapHandler;
 
 	
-#ifdef MAC
-static traphandler(int sig, siginfo_t *scp, ucontext_t *ucp) {
-        mcontext_t mc;
-
-	if (debug)
-		printf("\nhandler for signal %d got called\n", sig);
-	mc = ucp->uc_mcontext;
-
-	OberonTrapHandler(0, mc, scp, sig); /* rev. order: Oberon <--> C */
-	// printf("returned fron Oberon Trap Handler\n");
-	return;
-}
-#else
 static void traphandler(int sig, void *scp, void *ucp) {
-	int x;
 	
 	if (debug)
-		printf("\nhandler for signal %d got called, ucp = %x, handler sp = %x\n", 
-			sig, ucp, &x);
+	    printf("\nhandler for signal %d got called, ucp = %x\n", 
+			sig, ucp);
 	OberonTrapHandler(0, ucp, scp, sig); /* rev. order: Oberon <--> C */
 	// printf("returned fron Oberon Trap Handler\n");
 	return;
 }
-
-#endif
-
 
 
 static void installHandler(int sig) {

@@ -7,7 +7,7 @@ LDFLAGS = -lpthread -L/usr/X11R6/lib -lX11 -lXext -lm
 
 
 aos.darwin:	clean oberon.o Threads.darwin.o 
-	$(CC) -s -o aos.darwin oberon.o Threads.darwin.o  $(LDFLAGS) \
+	$(CC) -o aos.darwin oberon.o Threads.darwin.o  $(LDFLAGS) \
 		-arch i386 -framework CoreServices
 
 oberon.o:	oberon.c
