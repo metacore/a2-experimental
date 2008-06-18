@@ -55,7 +55,6 @@ To update: AosConfig.Init ~
 		
 		<Section name="Autostart">
 			<Setting name="Uptime Monitor" value="UpTime.Install"/>
-
 			<Setting name="Start the main menu" value="StartMenu.Open"/>
 			<Setting name="Restore the desktop" value="WMRestorable.Load Auto.dsk"/>
 			
@@ -67,10 +66,11 @@ To update: AosConfig.Init ~
 		<!-- Quote Server (remove comment to activate)
 			<Setting value="AosQuoteServer.Open"/>
 		-->
-		
-		<Setting name="DefaultSkin" value="SkinEngine.Load stijn.skin"/>
-						
+			
+			<Setting name="DefaultSkin" value="SkinEngine.Load stijn.skin"/>
+			
 		<!--Setting name="Hotkey support" value="AosHotKeys.Open"/-->
+			
 			
 		<!--Setting name="Hardware Detection" value="AosPCITools.DetectHardware"/-->
 			
@@ -104,7 +104,8 @@ To update: AosConfig.Init ~
 					</Section>
 				</Section>
 				
-				<!-- FOR COMPATIBILTY. TO BE REMOVED (staubesv) -->
+			<!-- FOR COMPATIBILTY. TO BE REMOVED (staubesv) -->
+				
 				<Section name="OberonFonts">
 					<Setting name="Exact" value="WMOberonFonts.LoadExactFont"/>
 					<Setting name="Approximate" value="WMOberonFonts.LoadApproximateFont"/>
@@ -121,7 +122,6 @@ To update: AosConfig.Init ~
 					<Setting name="Exact" value="WMOTFonts.LoadExactFont"/>
 					<Setting name="Approximate" value="WMOTFonts.LoadApproximateFont"/>
 				</Section>
-				
 			</Section>
 		</Section>
 		
@@ -303,12 +303,14 @@ To update: AosConfig.Init ~
 	<!-- Applications -->
 		
 		<Section name="Applications">
+
 			<Section name="PET">
 				<Section name="General">
 					<Setting name="ParanoidBackups" value="TRUE"/>
 					<Setting name="BackupOnCompile" value="FALSE"/>
 					<Setting name="ShowPathInTabs" value="FALSE"/>
 					<Setting name="ScratchPanelHeight" value="250"/>
+					<Setting name="EnableWhitespaceWarnings" value="FALSE"/>
 				</Section>
 				<Section name="Compilers">
 					<Setting name="PACO" caption="Compile" options="\Ws" fileExtension="MOD" loadmodule="PC0" tree="TRUE" findPC="TRUE"/>
@@ -326,6 +328,7 @@ To update: AosConfig.Init ~
 					<Setting name="CaseSensitive" value="TRUE"/>
 				</Section>
 			</Section>
+
 			<Section name="WMV24Component">
 				<Setting name="WindowStartupSize" value="800x400"/>
 				<Setting name="IndicateKeyboardFocus" value="TRUE"/>
