@@ -31,7 +31,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>AosDisplayWM.Install Oberon 0x0;System.Init Oberon</CommandString>
+					<CommandString>AosDisplayWM.Install Oberon 0x0;Oberon.Call System.Init Oberon</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>

@@ -138,7 +138,7 @@
     <Error code="130">WITH clause does not specify a variable</Error>
     <Error code="131">LEN not applied to array</Error>
     <Error code="132">dimension in LEN too large or negative</Error>
-    <Error code="133"></Error>
+    <Error code="133">invalid context</Error>
     <Error code="134">initialiser can not return a value</Error>
     <Error code="135">SYSTEM not imported</Error>
     <Error code="136">recursive call of operator</Error>

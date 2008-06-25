@@ -30,7 +30,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>AosDisplayWM.Install Oberon 900x700 10 20;System.Init Oberon</CommandString>
+					<CommandString>AosDisplayWM.Install Oberon 900x700 10 20;Oberon.Call System.Init Oberon</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>

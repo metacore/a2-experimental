@@ -2,7 +2,7 @@
 	<Layer>
 		<Line>
 			<SymbolBox title="Reload" cmd="W3dMenu.Open W3dMenu.XML" img="W3dMenuIcons.tar://iconreload.bmp" />
-			<ImgBox cmd="AosDisplayWM.Install Oberon 1000x700;System.Init Oberon" img="W3dMenuIcons.tar://oberon.bmp"/>
+			<ImgBox cmd="AosDisplayWM.Install Oberon 1000x700;Oberon.Call System.Init Oberon" img="W3dMenuIcons.tar://oberon.bmp"/>
 			<ImgBox cmd="WMObjectTracker.Open 100 10" img="W3dMenuIcons.tar://objecttracker.bmp" />
 			<ImgBox cmd="Shell.Open" img="W3dMenuIcons.tar://launcher.bmp" />
 		</Line>
