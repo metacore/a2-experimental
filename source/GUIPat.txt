@@ -294,7 +294,7 @@ HW1.Mod
 HW2.Mod
 HW3.Mod
 
-WMTT.Mod ???
+WMTetris.Mod ???
 WMTransitions.Mod ??
 WebForum.Mod
 

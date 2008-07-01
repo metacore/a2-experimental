@@ -54,7 +54,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>WMTT.Open</CommandString>
+					<CommandString>WMTetris.Open</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>

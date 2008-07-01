@@ -2,7 +2,7 @@
 	<Layer>
 		<Line>
 			<SymbolBox title="Home" cmd="W3dMenu.Open W3dMenu.XML" img="W3dMenuIcons.tar://iconhome.bmp" />
-			<ImgBox cmd="WMTT.Run" img="W3dMenuIcons.tar://tetris.bmp" />
+			<ImgBox cmd="WMTetris.Run" img="W3dMenuIcons.tar://tetris.bmp" />
 		</Line>
 		<Line>
 			<SymbolBox title="Bones" cmd="Bunny.Insert bones.gif 25 10" img="W3dMenuIcons.tar://iconbones.bmp" />
