@@ -13,7 +13,7 @@ CAPO is comprised of a set of modules that itself is divided into various subset
 	Nbr, Data, Array1d, Array2d, ArrayXd, Math, Calc, Vec, Mtx, Cube, HCube, LinEq.
 This document provides an overview of the modules that make up what is collectively known as CAPO. To view the definition module of any module use either: Watson.ShowDef <moduleName> ~ or open <moduleName> in the Aos editor, PET, and view the tree structure of the module.
 
-CAPO requires the following core modules in order to be able to compile: SYSTEM, AosBeep, AosBoot, AosFS, AosHeap, AosIO, AosKernel, AosModules, Utilities, Math and MathL.  The Oberon system is not required, although it was used in its development.
+CAPO requires the following core modules in order to be able to compile: SYSTEM, Beep, AosBoot, Files, AosHeap, AosIO, AosKernel, AosModules, Utilities, Math and MathL.  The Oberon system is not required, although it was used in its development.
 
 The PACO compiler incorporates the Intel MMX (Pentium II and later), SSE (Pentium III and later) and SSE2 (Pentium IV and later) extensions.  Currently, CAPO only needs the MMX extensions, so it should run on all Pentium II compatible processors.
 

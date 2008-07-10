@@ -1,4 +1,4 @@
-# Quotes for Quote of the Day service (AosQuoteServer.Mod)
+# Quotes for Quote of the Day service (QuoteServer.Mod)
 # A quote may be up to 511 characters long and may contain line breaks
 # Quotes in this file are seperated by at least one line beginning with a hash ("#")
 # !!! Be sure to store this file with EditTools.StoreAscii * !!!

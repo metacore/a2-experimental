@@ -2,7 +2,7 @@
 	<Layer>
 		<Line>
 			<SymbolBox title="Reload" cmd="W3dMenu.Open W3dMenu.XML" img="W3dMenuIcons.tar://iconreload.bmp" />
-			<ImgBox cmd="AosDisplayWM.Install Oberon 1000x700;Oberon.Call System.Init Oberon" img="W3dMenuIcons.tar://oberon.bmp"/>
+			<ImgBox cmd="OberonDisplay.Install Oberon 1000x700;Oberon.Call System.Init Oberon" img="W3dMenuIcons.tar://oberon.bmp"/>
 			<ImgBox cmd="WMObjectTracker.Open 100 10" img="W3dMenuIcons.tar://objecttracker.bmp" />
 			<ImgBox cmd="Shell.Open" img="W3dMenuIcons.tar://launcher.bmp" />
 		</Line>
@@ -15,8 +15,8 @@
 		<Line>
 			<SymbolBox title="Log" cmd="LogWindow.Open" img="" />
 			<SymbolBox title="Key Code" cmd="WMKeyCode.Open" img="W3dMenuIcons.tar://iconkeycode.bmp" />
-			<SymbolBox title="Memory Info" cmd="AosInfo.Memory" img="W3dMenuIcons.tar://iconmemory.bmp" />
-			<SymbolBox title="Plugin Info" cmd="AosInfo.Plugins" img="" />
+			<SymbolBox title="Memory Info" cmd="Info.Memory" img="W3dMenuIcons.tar://iconmemory.bmp" />
+			<SymbolBox title="Plugin Info" cmd="Info.Plugins" img="" />
 		</Line>
 	</Layer>
 </Cluster>

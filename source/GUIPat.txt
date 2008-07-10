@@ -8,7 +8,7 @@ This is about programming graphical user interfaces GUI for fictitious applicati
 so as to serve as model for real-life constructions.
 A number of programming examples	are stored in archive ]]></Span><Span style="Bold"><![CDATA[GUIPat.tar]]></Span><Span style="Normal"><![CDATA[. They can be extracted by executing the following command:
 
-AosTar.Extract GUIPat.tar ~
+Tar.Extract GUIPat.tar ~
 
 The programming examples are aimed at introducing a Bluebottle neophyte without going to a detailed theoretical presentation
 of the subject matter Active Oberon (Aos). Some of the principles of operation of the Bluebottle GUI should become clear after
@@ -78,7 +78,7 @@ At this time (January 2006), the following examples are offered (not yet fully d
 ]]></Span><Span style="Bold"><![CDATA[GUIPat3.Mod]]></Span><Span style="Normal"><![CDATA[ - window with embedded list
 				GUIPat3.Open ~		S.Free GUIPat3 ~
 
-]]></Span><Span style="Bold"><![CDATA[GUIPat4.Mod]]></Span><Span style="Normal"><![CDATA[ - window with embedded list using data extracted from an XML file AosTVChannels.XML
+]]></Span><Span style="Bold"><![CDATA[GUIPat4.Mod]]></Span><Span style="Normal"><![CDATA[ - window with embedded list using data extracted from an XML file TVChannels.XML
 				GUIPat4.Open A ~		S.Free GUIPat4 ~
 				GUIPat4.Open B ~
 				GUIPat4.Open C ~
@@ -172,18 +172,18 @@ can help to decide wich one to favour:
 
 ]]></Span><Span style="AdHoc Oberon 14 1 0 000000FF 00000000"><![CDATA[Installation procedure using an archive file GUIPat.tar]]></Span><Span style="Normal"><![CDATA[
 
-AosUsbStorage.Install ~	Use these to transfer the file to and fro an external USB drive
+UsbStorage.Install ~	Use these to transfer the file to and fro an external USB drive
 
-AosFSTools.Mount USB AosFS USB0#1 ~		AosFSTools.Unmount USB ~
+FSTools.Mount USB AosFS USB0#1 ~		FSTools.Unmount USB ~
 
-AosTar.Create GUIPat.tar GUIPat.txt GUIPat1.Mod GUIPat2.Mod GUIPat3.Mod GUIPat4.Mod GUIPat5.Mod
+Tar.Create GUIPat.tar GUIPat.txt GUIPat1.Mod GUIPat2.Mod GUIPat3.Mod GUIPat4.Mod GUIPat5.Mod
 GUIPat6.Mod GUIPat7.Mod GUIPat8.Mod GUIPat9.Mod GUIPat10.Mod
 GUIPat11.Mod GUIPat11a.Mod GUIPat12.Mod GUIPat12a.Mod GUIPat13.Mod GUIPat14.Mod GUIPat15.Mod
 GUIPat16.Mod
 GUIPatW1.Mod GUIPatW1R.Mod GUIPatWn.Mod GUIPatWnR.Mod GUIPatWc.Mod GUIPatWcR.Mod ~
 
 
-AosTar.Extract GUIPat.tar ~	or to explore and extract selectively 	WMArchives.Open GUIPat.tar ~
+Tar.Extract GUIPat.tar ~	or to explore and extract selectively 	WMArchives.Open GUIPat.tar ~
 
 PC0.Compile GUIPat1.Mod GUIPat2.Mod GUIPat3.Mod GUIPat4.Mod GUIPat5.Mod
 GUIPat6.Mod GUIPat7.Mod GUIPat8.Mod GUIPat9.Mod GUIPat10.Mod
@@ -212,7 +212,7 @@ FileList					WMSystemComponents.Mod
 GenericGrid				WMGrids.Mod					GUIPat3.Mod
 TextView				WMTextView.Mod
 
-TreeView				WMTrees.Mod					AosDecoder ModuleTrees SkinEditor WMArchives
+TreeView				WMTrees.Mod					Decoder ModuleTrees SkinEditor WMArchives
 														WMSystemComponents WMUsbInfo WMXMLTree
 DirectoryTree			WMSystemComponents.Mod
 
@@ -279,12 +279,12 @@ ExampleTextWriter.Mod
 
 PDFExample.Mod
 
-AosExample6.Mod
+Example6.Mod
 
-AosExample7.Mod
+Example7.Mod
 
-AosExample8.Mod
-AosExampleOberon.Mod
+Example8.Mod
+ExampleOberon.Mod
 
 WMScribble.Mod
 WMPicView.Mod

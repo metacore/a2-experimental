@@ -4,7 +4,7 @@
 Aos configuration 
 
 To edit: Notepad.OpenAscii AosConfig.XML
-To update: AosConfig.Init ~
+To update: Configuration.Init ~
 -->
 	<!DOCTYPE Config [
 		<!ELEMENT Section ANY>
@@ -39,14 +39,14 @@ To update: AosConfig.Init ~
 		
 	<!-- File systems -->
 		
-		<Section name="AosFS">
+		<Section name="Files">
 			<Section name="Alias">
-				<Setting name="AosFS" value="AosDiskVolumes.New;AosDiskFS.NewFS"/>
-				<Setting name="NatFS" value="AosDiskVolumes.New;AosDiskFS.NewFS"/>
-				<Setting name="RamFS" value="AosRAMVolumes.New;AosDiskFS.NewFS"/>
-				<Setting name="FatFS" value="AosFATVolumes.New;AosFATFiles.NewFS"/>
-				<Setting name="IsoFS" value="AosISO9660Volumes.New;AosISO9660Files.NewFS"/>
-				<Setting name="ZipFS" value="NIL;AosZipFS.NewFS"/>
+				<Setting name="AosFS" value="DiskVolumes.New;DiskFS.NewFS"/>
+				<Setting name="NatFS" value="DiskVolumes.New;DiskFS.NewFS"/>
+				<Setting name="RamFS" value="RAMVolumes.New;DiskFS.NewFS"/>
+				<Setting name="FatFS" value="FATVolumes.New;FATFiles.NewFS"/>
+				<Setting name="IsoFS" value="ISO9660Volumes.New;ISO9660Files.NewFS"/>
+				<Setting name="ZipFS" value="NIL;ZipFS.NewFS"/>
 				<Setting name="WinRelFS" value="NIL;Win32RelFS.NewFS"/>
 			</Section>
 		</Section>
@@ -64,15 +64,15 @@ To update: AosConfig.Init ~
 			
 			
 		<!-- Quote Server (remove comment to activate)
-			<Setting value="AosQuoteServer.Open"/>
+			<Setting value="QuoteServer.Open"/>
 		-->
 			
 			<Setting name="DefaultSkin" value="SkinEngine.Load stijn.skin"/>
 			
-		<!--Setting name="Hotkey support" value="AosHotKeys.Open"/-->
+		<!--Setting name="Hotkey support" value="HotKeys.Open"/-->
 			
 			
-		<!--Setting name="Hardware Detection" value="AosPCITools.DetectHardware"/-->
+		<!--Setting name="Hardware Detection" value="PCITools.DetectHardware"/-->
 			
 			<Setting name="TrapWriter" value="WMTrapWriter.Install"/>
 		</Section>
@@ -125,11 +125,11 @@ To update: AosConfig.Init ~
 			</Section>
 		</Section>
 		
-	<!-- Font formats for AosGfxFonts.Open -->
+	<!-- Font formats for GfxFonts.Open -->
 		
 		<Section name="FontFormats">
-			<Setting name="TTF" value="AosGfxOType.Install"/>
-			<Setting name="pk" value="AosGfxPKFonts.Install"/>
+			<Setting name="TTF" value="GfxOType.Install"/>
+			<Setting name="pk" value="GfxPKFonts.Install"/>
 		</Section>
 		
 	<!-- TLS Settings -->
@@ -144,8 +144,8 @@ To update: AosConfig.Init ~
 			<Setting name="eLen" value="5"/>
 		</Section>
 		<Section name="Archives">
-			<Setting name="tar" value="AosTar"/>
-			<Setting name="skin" value="AosTar"/>
+			<Setting name="tar" value="Tar"/>
+			<Setting name="skin" value="Tar"/>
 		</Section>
 		
 	<!-- Codecs -->
@@ -166,19 +166,19 @@ To update: AosConfig.Init ~
 			
 			<Section name="Encoder">
 				<Section name="Text">
-					<Setting name="Oberon" value="AosTextUtilities.OberonEncoderFactory"/>
-					<Setting name="BBT" value="AosTextUtilities.BluebottleEncoderFactory"/>
-					<Setting name="UTF-8" value="AosTextUtilities.UTF8EncoderFactory"/>
-					<Setting name="ISO8859-1" value="AosTextUtilities.ISO88591EncoderFactory"/>
-					<Setting name="HEX" value="AosTextUtilities.HEXEncoderFactory"/>
+					<Setting name="Oberon" value="TextUtilities.OberonEncoderFactory"/>
+					<Setting name="BBT" value="TextUtilities.BluebottleEncoderFactory"/>
+					<Setting name="UTF-8" value="TextUtilities.UTF8EncoderFactory"/>
+					<Setting name="ISO8859-1" value="TextUtilities.ISO88591EncoderFactory"/>
+					<Setting name="HEX" value="TextUtilities.HEXEncoderFactory"/>
 				</Section>
 				<Section name="Image">
-					<Setting name="BMP" value="AosBMPCodec.EncoderFactory"/>
-					<Setting name="GIF" value="AosGIFCodec.EncoderFactory"/>
+					<Setting name="BMP" value="BMPCodec.EncoderFactory"/>
+					<Setting name="GIF" value="GIFCodec.EncoderFactory"/>
 				</Section>
 				<Section name="Video"/>
 				<Section name="Audio">
-					<Setting name="WAV" value="AosWAVCodec.EncoderFactory"/>
+					<Setting name="WAV" value="WAVCodec.EncoderFactory"/>
 				</Section>
 			</Section>
 			
@@ -186,30 +186,30 @@ To update: AosConfig.Init ~
 			
 			<Section name="Decoder">
 				<Section name="Text">
-					<Setting name="Oberon" value="AosTextUtilities.OberonDecoderFactory"/>
-					<Setting name="BBT" value="AosTextUtilities.BluebottleDecoderFactory"/>
-					<Setting name="UTF-8" value="AosTextUtilities.UTF8DecoderFactory"/>
-					<Setting name="ISO8859-1" value="AosTextUtilities.ISO88591DecoderFactory"/>
-					<Setting name="HEX" value="AosTextUtilities.HEXDecoderFactory"/>
+					<Setting name="Oberon" value="TextUtilities.OberonDecoderFactory"/>
+					<Setting name="BBT" value="TextUtilities.BluebottleDecoderFactory"/>
+					<Setting name="UTF-8" value="TextUtilities.UTF8DecoderFactory"/>
+					<Setting name="ISO8859-1" value="TextUtilities.ISO88591DecoderFactory"/>
+					<Setting name="HEX" value="TextUtilities.HEXDecoderFactory"/>
 				</Section>
 				<Section name="Image">
 					<Setting name="JP2" value="JPEG2000Decoder.Factory"/>
-					<Setting name="PNG" value="AosPNGDecoder.Factory"/>
-					<Setting name="BMP" value="AosBMPCodec.DecoderFactory"/>
-					<Setting name="GIF" value="AosGIFCodec.DecoderFactory"/>
-					<Setting name="JPEG" value="AosJPEGDecoder.Factory"/>
-					<Setting name="JPG" value="AosJPEGDecoder.Factory"/>
+					<Setting name="PNG" value="PNGDecoder.Factory"/>
+					<Setting name="BMP" value="BMPCodec.DecoderFactory"/>
+					<Setting name="GIF" value="GIFCodec.DecoderFactory"/>
+					<Setting name="JPEG" value="JPEGDecoder.Factory"/>
+					<Setting name="JPG" value="JPEGDecoder.Factory"/>
 					<Setting name="SVG" value="SVGDecoder.Factory"/>
 				</Section>
 				<Section name="Video">
-					<Setting name="DivX" value="AosDivXDecoder.Factory"/>
-					<Setting name="DIVX" value="AosDivXDecoder.Factory"/>
-					<Setting name="divx" value="AosDivXDecoder.Factory"/>
+					<Setting name="DivX" value="DivXDecoder.Factory"/>
+					<Setting name="DIVX" value="DivXDecoder.Factory"/>
+					<Setting name="divx" value="DivXDecoder.Factory"/>
 					<Setting name="MPG" value="MPEGVideoDecoder.DecoderFactory"/>
 				</Section>
 				<Section name="Audio">
-					<Setting name="MP3" value="AosMP3Decoder.Factory"/>
-					<Setting name="WAV" value="AosWAVCodec.DecoderFactory"/>
+					<Setting name="MP3" value="MP3Decoder.Factory"/>
+					<Setting name="WAV" value="WAVCodec.DecoderFactory"/>
 				</Section>
 			</Section>
 		</Section>
@@ -232,10 +232,10 @@ To update: AosConfig.Init ~
 			<Setting name="log" value="PET.Open"/>
 			<Setting name="mod" value="PET.Open"/>
 			<Setting name="mp3" value="WMPlayer.Open"/>
-			<Setting name="abx" value="AosDecoder.Open"/>
-			<Setting name="oba" value="AosDecoder.Open"/>
-			<Setting name="obx" value="AosDecoder.Open"/>
-			<Setting name="obw" value="AosDecoder.Open"/>
+			<Setting name="abx" value="Decoder.Open"/>
+			<Setting name="oba" value="Decoder.Open"/>
+			<Setting name="obx" value="Decoder.Open"/>
+			<Setting name="obw" value="Decoder.Open"/>
 			<Setting name="ogg" value="OGGVorbisPlayer.Play"/>
 			<Setting name="pet" value="PET.OpenState"/>
 			<Setting name="pict" value="WMPicView.Open"/>
@@ -314,7 +314,7 @@ To update: AosConfig.Init ~
 				</Section>
 				<Section name="Compilers">
 					<Setting name="PACO" caption="Compile" options="\Ws" fileExtension="MOD" loadmodule="PC0" tree="TRUE" findPC="TRUE"/>
-					<Setting name="ReleaseTool" caption="Parse" options="\check" fileExtension="Tool" loadmodule="AosRelease" tree="FALSE" findPC="FALSE"/>
+					<Setting name="ReleaseTool" caption="Parse" options="\check" fileExtension="Tool" loadmodule="Release" tree="FALSE" findPC="FALSE"/>
 					<Setting name="AAMD64" caption="Assemble" options="" fileExtension="ASM" loadmodule="PCAAMD64" tree="FALSE" findPC="FALSE"/>
 				</Section>
 				<Section name="Diff">

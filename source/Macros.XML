@@ -96,40 +96,40 @@
 		<Indent/><String>END </String><Arg nr="0"/><String>;</String><CR/>
 	</Macro>	
 	<Macro key="di">
-		<String>AosOut.String(</String><Quote/><Arg nr="0"/><String> = </String>
-		<Quote/><String>); AosOut.Int(</String><Arg nr="0"/><String>, 0); </String>
+		<String>KernelLog.String(</String><Quote/><Arg nr="0"/><String> = </String>
+		<Quote/><String>); KernelLog.Int(</String><Arg nr="0"/><String>, 0); </String>
 	</Macro>
 	<Macro key="dr">
-		<String>AosOut.String(</String><Quote/><Arg nr="0"/><String> = (</String><Quote/><String>); </String>
-		<String>AosOut.Int(</String><Arg nr="0"/><String>.l, 0); </String> 
-		<String>AosOut.String(</String><Quote/><String>, </String><Quote/><String>); </String>
-		<String>AosOut.Int(</String><Arg nr="0"/><String>.t, 0); </String> 
-		<String>AosOut.String(</String><Quote/><String>, </String><Quote/><String>); </String>
+		<String>KernelLog.String(</String><Quote/><Arg nr="0"/><String> = (</String><Quote/><String>); </String>
+		<String>KernelLog.Int(</String><Arg nr="0"/><String>.l, 0); </String> 
+		<String>KernelLog.String(</String><Quote/><String>, </String><Quote/><String>); </String>
+		<String>KernelLog.Int(</String><Arg nr="0"/><String>.t, 0); </String> 
+		<String>KernelLog.String(</String><Quote/><String>, </String><Quote/><String>); </String>
 		<CR/>
-		<String>AosOut.Int(</String><Arg nr="0"/><String>.r, 0); </String> 
-		<String>AosOut.String(</String><Quote/><String>, </String><Quote/><String>); </String>
-		<String>AosOut.Int(</String><Arg nr="0"/><String>.b, 0); </String> 
-		<String>AosOut.String(</String><Quote/><String>) </String><Quote/><String>); </String>
+		<String>KernelLog.Int(</String><Arg nr="0"/><String>.r, 0); </String> 
+		<String>KernelLog.String(</String><Quote/><String>, </String><Quote/><String>); </String>
+		<String>KernelLog.Int(</String><Arg nr="0"/><String>.b, 0); </String> 
+		<String>KernelLog.String(</String><Quote/><String>) </String><Quote/><String>); </String>
 	</Macro>
 	<Macro key="ds">
-		<String>AosOut.String(</String><Quote/><Arg nr="0"/><String> = </String>
-		<Quote/><String>); AosOut.String(</String><Arg nr="0"/><String>); </String>
+		<String>KernelLog.String(</String><Quote/><Arg nr="0"/><String> = </String>
+		<Quote/><String>); KernelLog.String(</String><Arg nr="0"/><String>); </String>
 	</Macro>	
 	<Macro key="dc">
-		<String>AosOut.String(</String><Quote/><Arg nr="0"/><String> = </String>
-		<Quote/><String>); AosOut.Char(</String><Arg nr="0"/><String>); </String>
+		<String>KernelLog.String(</String><Quote/><Arg nr="0"/><String> = </String>
+		<Quote/><String>); KernelLog.Char(</String><Arg nr="0"/><String>); </String>
 	</Macro>	
 	<Macro key="oi">
-		<String>AosOut.Int(</String><Arg nr="0"/><String>, 0); </String>
+		<String>KernelLog.Int(</String><Arg nr="0"/><String>, 0); </String>
 	</Macro>
 	<Macro key="os">
-		<String>AosOut.String(</String><Arg nr="0"/><String>); </String>
+		<String>KernelLog.String(</String><Arg nr="0"/><String>); </String>
 	</Macro>	
 	<Macro key="oc">
-		<String>AosOut.Char(</String><Arg nr="0"/><String>); </String>
+		<String>KernelLog.Char(</String><Arg nr="0"/><String>); </String>
 	</Macro>	
 	<Macro key="ol">
-		<String>AosOut.Ln; </String>
+		<String>KernelLog.Ln; </String>
 	</Macro>	
 	<!-- Greek -->
 	<Macro key="alpha"><String>α</String></Macro>	

@@ -84,7 +84,7 @@ PET.Open
 	Win32.WMPerfMonTabSystem.Mod
 ~
 
-AosTar.Create WMPerfMon.Tar
+Tar.Create WMPerfMon.Tar
 WMPerfMonPlugins.Mod WMPerfMonComponents.Mod
 WMPerfMonPluginMessages.Mod
 WMPerfMonPluginUsb.Mod WMPerfMonPluginDisks.Mod WMPerfMonPluginSerials.Mod

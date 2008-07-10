@@ -3,11 +3,11 @@
 		<Line>
 			<SymbolBox title="Home" cmd="W3dMenu.Open W3dMenu.XML" img="W3dMenuIcons.tar://iconhome.bmp" />
 			<ImgBox cmd="NetTracker.Open 100" img="W3dMenuIcons.tar://networktracker.bmp" />
-			<SymbolBox title="VNC" cmd="AosVNC.Open" img="W3dMenuIcons.tar://iconvnc.bmp" />
+			<SymbolBox title="VNC" cmd="VNC.Open" img="W3dMenuIcons.tar://iconvnc.bmp" />
 		</Line>
 		<Line>
-			<SymbolBox title="Start Testserver" cmd="AosTestServer.Open" img="" />
-			<SymbolBox title="Stop TestServer" cmd="AosTestServer.Close" img="" />
+			<SymbolBox title="Start Testserver" cmd="TestServer.Open" img="" />
+			<SymbolBox title="Stop TestServer" cmd="TestServer.Close" img="" />
 			<SymbolBox title="Cluster" cmd="W3dClusterWatch.Watch Cluster.XML 60000" img="" />
 		</Line>
 	</Layer>

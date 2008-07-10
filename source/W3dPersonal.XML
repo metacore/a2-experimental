@@ -2,7 +2,7 @@
 	<Layer>
 		<Line>
 			<SymbolBox title="Home" cmd="W3dMenu.Open W3dMenu.XML" img="W3dMenuIcons.tar://iconhome.bmp" />
-			<SymbolBox title="VNC Holmes" cmd="AosVNC.Open holmes.ethz.ch:5912" img="W3dMenuIcons.tar://iconvnc.bmp" />
+			<SymbolBox title="VNC Holmes" cmd="VNC.Open holmes.ethz.ch:5912" img="W3dMenuIcons.tar://iconvnc.bmp" />
 		</Line>
 		<Line>
 		</Line>
