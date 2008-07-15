@@ -14,7 +14,7 @@
 WMPerfMon.Open ~ 	S.Free WMPerfMon ~
 
 # AOS
-PC0.Compile \s
+PC.Compile \s
 WMPerfMonPlugins.Mod
 WMPerfMonPluginMemory.Mod WMPerfMonPluginCpu.Mod WMPerfMonPluginNetwork.Mod
 WMPerfMonPluginHeap.Mod
@@ -37,7 +37,7 @@ WMPerfMon.Mod
 ~
 
 #WINAOS
-PC0.Compile \s
+PC.Compile \s
 WMPerfMonPlugins.Mod
 Win32.WMPerfMonPluginMemory.Mod Win32.WMPerfMonPluginCpu.Mod WMPerfMonPluginNetwork.Mod
 WMPerfMonPluginUsb.Mod WMPerfMonPluginDisks.Mod

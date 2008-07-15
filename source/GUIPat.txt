@@ -185,7 +185,7 @@ GUIPatW1.Mod GUIPatW1R.Mod GUIPatWn.Mod GUIPatWnR.Mod GUIPatWc.Mod GUIPatWcR.Mod
 
 Tar.Extract GUIPat.tar ~	or to explore and extract selectively 	WMArchives.Open GUIPat.tar ~
 
-PC0.Compile GUIPat1.Mod GUIPat2.Mod GUIPat3.Mod GUIPat4.Mod GUIPat5.Mod
+PC.Compile GUIPat1.Mod GUIPat2.Mod GUIPat3.Mod GUIPat4.Mod GUIPat5.Mod
 GUIPat6.Mod GUIPat7.Mod GUIPat8.Mod GUIPat9.Mod GUIPat10.Mod
 GUIPat11a.Mod GUIPat11.Mod GUIPat12.Mod GUIPat12a.Mod GUIPat13.Mod GUIPat14.Mod GUIPat15.Mod
 GUIPat16.Mod
