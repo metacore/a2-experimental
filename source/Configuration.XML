@@ -102,27 +102,8 @@ To update: Configuration.Init ~
 						<Setting name="Exact" value="WMOTFonts.LoadExactFont"/>
 						<Setting name="Approximate" value="WMOTFonts.LoadApproximateFont"/>
 					</Section>
-				</Section>
-				
-			<!-- FOR COMPATIBILTY. TO BE REMOVED (staubesv) -->
-				
-				<Section name="OberonFonts">
-					<Setting name="Exact" value="WMOberonFonts.LoadExactFont"/>
-					<Setting name="Approximate" value="WMOberonFonts.LoadApproximateFont"/>
-				</Section>
-				<Section name="BitmapFonts">
-					<Setting name="Exact" value="WMBitmapFont.LoadExactFont"/>
-					<Setting name="Approximate" value="WMBitmapFont.LoadApproximateFont"/>
-				</Section>
-				<Section name="CCGFonts">
-					<Setting name="Exact" value="WMCCGFonts.LoadExactFont"/>
-					<Setting name="Approximate" value="WMCCGFonts.LoadApproximateFont"/>
-				</Section>
-				<Section name="OTFonts">
-					<Setting name="Exact" value="WMOTFonts.LoadExactFont"/>
-					<Setting name="Approximate" value="WMOTFonts.LoadApproximateFont"/>
-				</Section>
-			</Section>
+				</Section>	
+			</Section>	
 		</Section>
 		
 	<!-- Font formats for GfxFonts.Open -->
@@ -251,8 +232,7 @@ To update: Configuration.Init ~
 		</Section>
 		
 	<!-- Net Configuration Example -->
-		
-		
+
 	<!--Section name="NetConfig">
 		<Setting name="IPForwarding" value="FALSE" />
 		<Setting name="EchoReply" value="TRUE" />
@@ -298,8 +278,7 @@ To update: Configuration.Init ~
 			</Section>
 		</Section>
 	</Section -->
-		
-		
+
 	<!-- Applications -->
 		
 		<Section name="Applications">
