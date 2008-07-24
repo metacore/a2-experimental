@@ -1166,6 +1166,78 @@ positive: empty object body
 
 # statements
 
+positive: statement with semicolon
+
+	MODULE Test;
+	BEGIN BEGIN END;
+	END Test.
+
+positive: statement without semicolon
+
+	MODULE Test;
+	BEGIN BEGIN END
+	END Test.
+
+positive: empty statements at the beginning
+
+	MODULE Test;
+	BEGIN ;;;; BEGIN END
+	END Test.
+
+positive: empty statements between statements
+
+	MODULE Test;
+	BEGIN BEGIN END ;;;; BEGIN END
+	END Test.
+
+positive: empty statements at the end
+
+	MODULE Test;
+	BEGIN BEGIN END ;;;;
+	END Test.
+
+positive: nested empty statements at the beginning
+
+	MODULE Test;
+	BEGIN BEGIN ;;;; BEGIN END END
+	END Test.
+
+positive: nested empty statements between statements
+
+	MODULE Test;
+	BEGIN BEGIN BEGIN END ;;;; BEGIN END END
+	END Test.
+
+positive: nested empty statements at the end
+
+	MODULE Test;
+	BEGIN BEGIN BEGIN END ;;;; END
+	END Test.
+
+negative: two consecutive statements without semicolon
+
+	MODULE Test;
+	BEGIN BEGIN END BEGIN END
+	END Test.
+
+negative: two nested consecutive statements without semicolon
+
+	MODULE Test;
+	BEGIN BEGIN BEGIN END BEGIN END END
+	END Test.
+
+negative: three consecutive statements without semicolon
+
+	MODULE Test;
+	BEGIN BEGIN END BEGIN END BEGIN END
+	END Test.
+
+negative: three nested consecutive statements without semicolon
+
+	MODULE Test;
+	BEGIN BEGIN BEGIN END BEGIN END BEGIN END END
+	END Test.
+
 negative: unclosed block
 
 	MODULE Test;
@@ -4198,6 +4270,32 @@ positive: pointer to open array
 
 	MODULE Test;
 	TYPE Pointer = POINTER TO ARRAY OF RECORD END;
+	END Test.
+
+positive: pointer to array of same pointer
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO ARRAY 10 OF Pointer;
+	END Test.
+
+positive: pointers to array of same pointer
+
+	MODULE Test;
+	TYPE A = POINTER TO ARRAY 10 OF B;
+	TYPE B = POINTER TO ARRAY 10 OF A;
+	END Test.
+
+positive: pointer to open array of same pointer
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO ARRAY OF Pointer;
+	END Test.
+
+positive: pointers to open array of same pointer
+
+	MODULE Test;
+	TYPE A = POINTER TO ARRAY OF B;
+	TYPE B = POINTER TO ARRAY OF A;
 	END Test.
 
 negative: pointer to pointer
@@ -12817,6 +12915,40 @@ negative: base record to extended record assignment
 	BEGIN result := variable;
 	END Test.
 
+positive: record parameter to same record assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (parameter, result: RECORD END);
+	BEGIN result := parameter;
+	END Procedure;
+	END Test.
+
+negative: record parameter to different record assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (parameter: RECORD END; result: RECORD END);
+	BEGIN result := parameter;
+	END Procedure;
+	END Test.
+
+positive: extended record parameter to base record assignment
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	PROCEDURE Procedure (parameter: RECORD (Record) END; result: Record);
+	BEGIN result := parameter;
+	END Procedure;
+	END Test.
+
+negative: base record parameter to extended record assignment
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	PROCEDURE Procedure (parameter: Record; result: RECORD (Record) END);
+	BEGIN result := parameter;
+	END Procedure;
+	END Test.
+
 negative: object to record assignment
 
 	MODULE Test;
@@ -13076,6 +13208,40 @@ positive: pointer to same pointer assignment
 
 	MODULE Test;
 	VAR variable, result: POINTER TO RECORD END;
+	BEGIN result := variable;
+	END Test.
+
+positive: pointer to array of same pointer to same pointer assignment
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO ARRAY 10 OF Pointer;
+	VAR variable, result: Pointer;
+	BEGIN result := variable;
+	END Test.
+
+positive: pointers to array of same pointer to same pointer assignment
+
+	MODULE Test;
+	TYPE A = POINTER TO ARRAY 10 OF B;
+	TYPE B = POINTER TO ARRAY 10 OF A;
+	VAR variable: A; result: B;
+	BEGIN result := variable;
+	END Test.
+
+positive: pointer to open array of same pointer to same pointer assignment
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO ARRAY OF Pointer;
+	VAR variable, result: Pointer;
+	BEGIN result := variable;
+	END Test.
+
+positive: pointers to open array of same pointer to same pointer assignment
+
+	MODULE Test;
+	TYPE A = POINTER TO ARRAY OF B;
+	TYPE B = POINTER TO ARRAY OF A;
+	VAR variable: A; result: B;
 	BEGIN result := variable;
 	END Test.
 
@@ -14195,140 +14361,140 @@ negative: modulo on variable arrays
 positive: equal relation on variable arrays
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	VAR array: ARRAY 10 OF SET; result: BOOLEAN;
 	BEGIN result := array = array
 	END Test.
 
 positive: equal relation on variable arrays of character
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array = array
 	END Test.
 
 positive: equal relation on variable array of character and string
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array = "string"
 	END Test.
 
 positive: unequal relation on variable arrays
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	VAR array: ARRAY 10 OF SET; result: BOOLEAN;
 	BEGIN result := array # array
 	END Test.
 
 positive: unequal relation on variable arrays of character
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array # array
 	END Test.
 
 positive: unequal relation on variable array of character and string
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array # "string"
 	END Test.
 
 negative: less relation on variable arrays
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	VAR array: ARRAY 10 OF SET; result: BOOLEAN;
 	BEGIN result := array < array
 	END Test.
 
 positive: less relation on variable arrays of character
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array < array
 	END Test.
 
 positive: less relation on variable array of character and string
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array < "string"
 	END Test.
 
 negative: less or equal relation on variable arrays
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	VAR array: ARRAY 10 OF SET; result: BOOLEAN;
 	BEGIN result := array <= array
 	END Test.
 
 positive: less or equal relation on variable arrays of character
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array <= array
 	END Test.
 
 positive: less or equal relation on variable array of character and string
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array <= "string"
 	END Test.
 
 negative: greater relation on variable arrays
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	VAR array: ARRAY 10 OF SET; result: BOOLEAN;
 	BEGIN result := array > array
 	END Test.
 
 positive: greater relation on variable arrays of character
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array > array
 	END Test.
 
 positive: greater relation on variable array of character and string
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array > "string"
 	END Test.
 
 negative: greater or equal relation on variable arrays
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	VAR array: ARRAY 10 OF SET; result: BOOLEAN;
 	BEGIN result := array >= array
 	END Test.
 
 positive: greater or equal relation on variable arrays of character
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array >= array
 	END Test.
 
 positive: greater or equal relation on variable array of character and string
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF CHAR; result: INTEGER;
+	VAR array: ARRAY 10 OF CHAR; result: BOOLEAN;
 	BEGIN result := array >= "string"
 	END Test.
 
 negative: set membership on variable arrays
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	VAR array: ARRAY 10 OF SET; result: BOOLEAN;
 	BEGIN result := array IN array
 	END Test.
 
 negative: type test on variable arrays
 
 	MODULE Test;
-	VAR array: ARRAY 10 OF SET; result: INTEGER;
+	VAR array: ARRAY 10 OF SET; result: BOOLEAN;
 	BEGIN result := array IS array
 	END Test.
 
@@ -14980,4 +15146,49 @@ positive: return statement without value in procedure without return type
 	PROCEDURE Procedure;
 	BEGIN RETURN
 	END Procedure;
+	END Test.
+
+
+# exit statement
+
+negative: unbounded exit statement
+
+	MODULE Test;
+	BEGIN EXIT
+	END Test.
+
+positive: exit statement within loop
+
+	MODULE Test;
+	BEGIN LOOP EXIT END
+	END Test.
+
+negative: exit statement before loop
+
+	MODULE Test;
+	BEGIN EXIT ; LOOP END
+	END Test.
+
+negative: exit statement after loop
+
+	MODULE Test;
+	BEGIN LOOP END ; EXIT
+	END Test.
+
+positive: exit statement within nested loop
+
+	MODULE Test;
+	BEGIN LOOP LOOP EXIT END END
+	END Test.
+
+positive: exit statement before nested loop
+
+	MODULE Test;
+	BEGIN LOOP EXIT ; LOOP END END
+	END Test.
+
+positive: exit statement after nested loop
+
+	MODULE Test;
+	BEGIN LOOP LOOP END ; EXIT END
 	END Test.
