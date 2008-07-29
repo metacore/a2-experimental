@@ -42,6 +42,7 @@ To update: Configuration.Init ~
 		<Section name="Files">
 			<Section name="Alias">
 				<Setting name="AosFS" value="DiskVolumes.New;DiskFS.NewFS"/>
+				<Setting name="OldAosFS" value="OldDiskVolumes.New;OldDiskFS.NewFS"/>
 				<Setting name="NatFS" value="DiskVolumes.New;DiskFS.NewFS"/>
 				<Setting name="RamFS" value="RAMVolumes.New;DiskFS.NewFS"/>
 				<Setting name="FatFS" value="FATVolumes.New;FATFiles.NewFS"/>
