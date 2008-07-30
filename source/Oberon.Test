@@ -1500,7 +1500,7 @@ negative: for statement missing end
 	BEGIN FOR i := 0 TO 10 DO
 	END Test.
 
-positive: for statement without increment missing by
+positive: for statement without increment 
 
 	MODULE Test;
 	VAR i: INTEGER;
@@ -1520,6 +1520,7 @@ negative: for statement with increment missing increment
 	VAR i: INTEGER;
 	BEGIN FOR i := 0 TO 10 BY DO END
 	END Test.
+
 
 
 # Semantic tests
@@ -15191,4 +15192,158 @@ positive: exit statement after nested loop
 
 	MODULE Test;
 	BEGIN LOOP LOOP END ; EXIT END
+	END Test.
+	
+	
+# case statement
+
+positive: case statement with integer type
+
+	MODULE Test; 
+	VAR i: INTEGER; 
+	BEGIN 
+		CASE i OF 
+			1: 
+			|3..5: 
+			|7,9: 
+			|10,11,18..19:
+		END;
+	END Test.
+
+positive: case statement with character type
+
+	MODULE Test; 
+	VAR i: CHAR; 
+	BEGIN 
+		CASE i OF 
+			'a': 
+			|'b'..'g': 
+			|'h',0X: 
+			|10X,11X,15X..18X,'p'..'q':
+		END;
+	END Test.
+	
+positive: case statement beginning with "|"
+
+	MODULE Test; 
+	VAR i: INTEGER; 
+	BEGIN 
+		CASE i OF 
+			|1: 
+			|3..5: 
+			|7,9: 
+			|10,11,18..19:
+		END;
+	END Test.
+	
+negative: forbidden case statement type
+
+	MODULE Test; 
+	VAR i: REAL; 
+	BEGIN 
+		CASE i OF 
+			1.0:
+			|2.0: 
+		END;
+	END Test.
+	
+negative: incompatible case label type (range exceeded)
+	
+	MODULE Test; 
+	VAR i: SHORTINT; 
+	BEGIN 
+		CASE i OF 
+			100: 
+			|300: 
+		END; 
+	END Test; 
+	
+negative: incompatible case label type (incompatible type)
+	
+	MODULE Test; 
+	VAR i: SHORTINT; 
+	BEGIN 
+		CASE i OF 
+			100: 
+			|'a': 
+		END; 
+	END Test.
+
+negative: duplicate case label
+	
+	MODULE Test; 
+	VAR i: SHORTINT; 
+	BEGIN 
+		CASE i OF 
+			|10..25: 
+			|25..35:
+		END; 
+	END Test.
+	
+	
+# with statement
+
+positive: with statement
+
+	MODULE Test; 
+	TYPE A=OBJECT END A; 
+	TYPE B=OBJECT(A) END B; 
+	VAR a: A; b:B; 
+	BEGIN 
+		WITH a:B DO 
+			b := a
+		END
+	END Test.
+
+positive: nested with statement
+
+	MODULE Test; 
+	TYPE A=OBJECT END A; 
+	TYPE B=OBJECT(A) END B; 
+	TYPE C=OBJECT (B) END C; 
+	VAR a: A; b:B; c:C; 
+	BEGIN 
+		WITH a:B DO 
+			WITH a:C DO
+				c := a
+			END
+		END
+	END Test.
+	
+negative: with statement no type extension
+
+	MODULE Test; 
+	TYPE A=OBJECT END A; 
+	TYPE B=OBJECT(A) END B; 
+	VAR a: A; b:B; 
+	BEGIN 
+		WITH b:A DO 
+			b := b
+		END
+	END Test.
+	
+negative: nested with statement with no type extension
+
+	MODULE Test; 
+	TYPE A=OBJECT END A; 
+	TYPE B=OBJECT(A) END B; 
+	TYPE C=OBJECT(A) END C;
+	VAR a: A; b:B; c: C; 
+	BEGIN 
+		WITH a:B DO 
+			WITH a:C DO 
+			END
+		END
+	END Test.
+
+negative: with statement assignment (lhs) rule violated
+
+	MODULE Test; 
+	TYPE A=OBJECT END A; 
+	TYPE B=OBJECT(A) END B; 
+	VAR a1,a2: A; 
+	BEGIN
+		WITH a1:B DO 
+			a1 := a2
+		END; 
 	END Test.
