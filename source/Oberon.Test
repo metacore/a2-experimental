@@ -15256,7 +15256,7 @@ negative: incompatible case label type (range exceeded)
 			100: 
 			|300: 
 		END; 
-	END Test; 
+	END Test.
 	
 negative: incompatible case label type (incompatible type)
 	
@@ -15346,4 +15346,91 @@ negative: with statement assignment (lhs) rule violated
 		WITH a1:B DO 
 			a1 := a2
 		END; 
+	END Test.
+	
+	
+# array element access
+
+positive: static array element access in bounds
+
+	MODULE Test; 
+	VAR a,b: ARRAY 10 OF LONGINT; 
+	BEGIN
+		a[3] := b[5];  
+	END Test.
+	
+positive: two-dimensional static array element access in bounds
+
+	MODULE Test; 
+	VAR a,b: ARRAY 10 OF ARRAY 20 OF LONGINT; 
+	BEGIN
+		a[3,12] := b[5,15];  
+	END Test.
+
+negative: static element access out of bounds (too large)
+
+	MODULE Test; 
+	VAR a,b: ARRAY 10 OF LONGINT; 
+	BEGIN
+		a[3] := b[10];  
+	END Test.
+	
+negative: two-dimensional static element access out of bounds (too large)
+
+	MODULE Test; 
+	VAR a,b: ARRAY 10 OF ARRAY 10 OF LONGINT; 
+	BEGIN
+		a[3,10] := b[8,8];  
+	END Test.
+
+negative: static element access out of bounds (far too large)
+
+	MODULE Test; 
+	VAR a,b: ARRAY 10 OF LONGINT; 
+	BEGIN
+		a[3] := b[MAX(LONGINT)];  
+	END Test.
+
+negative: static element access out of bounds (too small)
+
+	MODULE Test; 
+	VAR a,b: ARRAY 10 OF LONGINT; 
+	BEGIN
+		a[3] := b[-1];  
+	END Test.
+
+negative: static element access out of bounds (far too small)
+
+	MODULE Test; 
+	VAR a,b: ARRAY 10 OF LONGINT; 
+	BEGIN
+		a[3] := b[MIN(LONGINT)];  
+	END Test.
+
+positive: variable static array element access
+
+	MODULE Test; 
+	VAR a,b: ARRAY 10 OF LONGINT; i,j: LONGINT; 
+	BEGIN
+		a[i] := b[j];  
+	END Test.
+	
+positive: pointer to array element access
+	
+	MODULE Test; 
+	VAR a,b: POINTER TO ARRAY OF LONGINT;
+	BEGIN 
+		NEW(a,20); NEW(b,20); 
+		a[10] := b[20]; 
+	END Test.
+	
+positive: open array element access
+	
+	MODULE Test; 
+	
+	PROCEDURE P(VAR a,b: ARRAY OF LONGINT);
+	BEGIN 
+		a[10] := b[20]; 
+	END P; 
+	
 	END Test.
