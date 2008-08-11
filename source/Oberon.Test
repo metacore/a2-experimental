@@ -3510,7 +3510,7 @@ positive: greater relation on constant characters
 positive: greater or equal relation on constant characters
 
 	MODULE Test;
-	CONST Result = 'h' >= 9DX
+	CONST Result = 'h' >= 0DX
 	BEGIN ASSERT (Result = TRUE);
 	END Test.
 
@@ -4290,10 +4290,10 @@ positive: subtraction on constant reals
 positive: multiplication on constant reals
 
 	MODULE Test;
-	CONST Result = 15.25 * 3.5
-	BEGIN ASSERT (Result = 53.375);
+	CONST Result = 16.0*4.0
+	BEGIN ASSERT (Result = 64);
 	END Test.
-
+	
 negative: integer division on constant reals
 
 	MODULE Test;
