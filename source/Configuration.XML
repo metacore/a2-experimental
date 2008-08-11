@@ -48,7 +48,7 @@ To update: Configuration.Init ~
 		<!-- Quote Server (remove comment to activate)
 			<Setting value="QuoteServer.Open"/>
 		-->
-		<Setting name="DefaultSkin" value="SkinEngine.Load pklook.skin"/>
+		<Setting name="DefaultSkin" value="SkinEngine.Load stijn.skin"/>
 		<!--Setting name="Hotkey support" value="HotKeys.Open"/-->
 		<!--Setting name="Hardware Detection" value="PCITools.DetectHardware"/-->
 		<Setting name="TrapWriter" value="WMTrapWriter.Install"/>
