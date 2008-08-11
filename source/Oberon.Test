@@ -1683,13 +1683,13 @@ positive: multiple else if statements with else
 	BEGIN IF TRUE THEN ELSIF condition THEN ELSIF condition THEN ELSIF condition THEN ELSIF condition THEN ELSE END
 	END Test.
 
-positive: plain halt statement
+negative: plain halt statement
 
 	MODULE Test;
 	BEGIN HALT
 	END Test.
 
-positive: halt statement missing number
+negative: halt statement missing number
 
 	MODULE Test;
 	BEGIN HALT ()
@@ -1747,6 +1747,30 @@ positive: case statement with simple case
 
 	MODULE Test;
 	BEGIN CASE 0 OF 0: END
+	END Test.
+
+positive: case statement with simple case with leading bar
+
+	MODULE Test;
+	BEGIN CASE 0 OF | 0: END
+	END Test.
+
+negative: case statement with simple case with leading bars
+
+	MODULE Test;
+	BEGIN CASE 0 OF || 0: END
+	END Test.
+
+negative: case statement with simple case with trailing bar
+
+	MODULE Test;
+	BEGIN CASE 0 OF 0: | END
+	END Test.
+
+negative: case statement with simple case with trailing bars
+
+	MODULE Test;
+	BEGIN CASE 0 OF 0: || END
 	END Test.
 
 positive: case statement with simple case with else
@@ -1899,10 +1923,10 @@ positive: case statement with two cases with else
 	BEGIN CASE 0 OF 0: | 1: END
 	END Test.
 
-negative: case statement with two cases missing first case
+positive: case statement with two cases missing first case
 
 	MODULE Test;
-	BEGIN CASE 0 OF | 1: END
+	BEGIN CASE 0 OF | 0: END
 	END Test.
 
 negative: case statement with two cases missing bar
