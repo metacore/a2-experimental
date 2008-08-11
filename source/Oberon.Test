@@ -4290,10 +4290,10 @@ positive: subtraction on constant reals
 positive: multiplication on constant reals
 
 	MODULE Test;
-	CONST Result = 16.0*4.0
-	BEGIN ASSERT (Result = 64);
+	CONST Result = 0.5 * 1.5
+	BEGIN ASSERT (Result = 0.75);
 	END Test.
-	
+
 negative: integer division on constant reals
 
 	MODULE Test;
@@ -4303,8 +4303,8 @@ negative: integer division on constant reals
 positive: real division on constant reals
 
 	MODULE Test;
-	CONST Result = 57.375 / 4.25
-	BEGIN ASSERT (Result = 13.5);
+	CONST Result = 0.75 / 0.5
+	BEGIN ASSERT (Result = 1.5);
 	END Test.
 
 negative: real division on constant reals by zero
@@ -11542,7 +11542,7 @@ positive: array parameter element assignment
 	PROCEDURE Procedure (value: ARRAY 10 OF CHAR); BEGIN value[0] := value[0]; END Procedure;
 	END Test.
 
-positive: open array parameter assignment
+negative: open array parameter assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (value: ARRAY OF CHAR); BEGIN value := value; END Procedure;
@@ -11692,7 +11692,7 @@ positive: variable array parameter element assignment
 	PROCEDURE Procedure (VAR value: ARRAY 10 OF CHAR); BEGIN value[0] := value[0]; END Procedure;
 	END Test.
 
-positive: variable open array parameter assignment
+negative: variable open array parameter assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR value: ARRAY OF CHAR); BEGIN value := value; END Procedure;
@@ -20104,13 +20104,20 @@ negative: array of boolean to shorter array of boolean assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of boolean to open array of boolean assignment
+negative: array of boolean to open array of boolean assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF BOOLEAN);
 	VAR variable: ARRAY 10 OF BOOLEAN;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of boolean to dereferenced open array of boolean assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF BOOLEAN; result: POINTER TO ARRAY OF BOOLEAN;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of character to array of boolean assignment
@@ -20232,13 +20239,20 @@ negative: array of character to shorter array of character assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of character to open array of character assignment
+negative: array of character to open array of character assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF CHAR);
 	VAR variable: ARRAY 10 OF CHAR;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of character to dereferenced open array of character assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF CHAR; result: POINTER TO ARRAY OF CHAR;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of short integer to array of character assignment
@@ -20360,13 +20374,20 @@ negative: array of short integer to shorter array of short integer assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of short integer to open array of short integer assignment
+negative: array of short integer to open array of short integer assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF SHORTINT);
 	VAR variable: ARRAY 10 OF SHORTINT;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of short integer to dereferenced open array of short integer assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF SHORTINT; result: POINTER TO ARRAY OF SHORTINT;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of integer to array of short integer assignment
@@ -20488,13 +20509,20 @@ negative: array of integer to shorter array of integer assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of integer to open array of integer assignment
+negative: array of integer to open array of integer assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF INTEGER);
 	VAR variable: ARRAY 10 OF INTEGER;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of integer to dereferenced open array of integer assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF INTEGER; result: POINTER TO ARRAY OF INTEGER;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of long integer to array of integer assignment
@@ -20616,13 +20644,20 @@ negative: array of long integer to shorter array of long integer assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of long integer to open array of long integer assignment
+negative: array of long integer to open array of long integer assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF LONGINT);
 	VAR variable: ARRAY 10 OF LONGINT;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of long integer to dereferenced open array of long integer assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF LONGINT; result: POINTER TO ARRAY OF LONGINT;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of huge integer to array of long integer assignment
@@ -20744,13 +20779,20 @@ negative: array of huge integer to shorter array of huge integer assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of huge integer to open array of huge integer assignment
+negative: array of huge integer to open array of huge integer assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF HUGEINT);
 	VAR variable: ARRAY 10 OF HUGEINT;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of huge integer to dereferenced open array of huge integer assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF HUGEINT; result: POINTER TO ARRAY OF HUGEINT;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of real to array of huge integer assignment
@@ -20872,13 +20914,20 @@ negative: array of real to shorter array of real assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of real to open array of real assignment
+negative: array of real to open array of real assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF REAL);
 	VAR variable: ARRAY 10 OF REAL;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of real to dereferenced open array of real assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF REAL; result: POINTER TO ARRAY OF REAL;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of long real to array of real assignment
@@ -21000,13 +21049,20 @@ negative: array of long real to shorter array of long real assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of long real to open array of long real assignment
+negative: array of long real to open array of long real assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF LONGREAL);
 	VAR variable: ARRAY 10 OF LONGREAL;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of long real to dereferenced open array of long real assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF LONGREAL; result: POINTER TO ARRAY OF LONGREAL;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of set to array of long real assignment
@@ -21128,13 +21184,20 @@ negative: array of set to shorter array of set assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of set to open array of set assignment
+negative: array of set to open array of set assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF SET);
 	VAR variable: ARRAY 10 OF SET;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of set to dereferenced open array of set assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF SET; result: POINTER TO ARRAY OF SET;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of array to array of set assignment
@@ -21256,13 +21319,20 @@ negative: array of array to shorter array of array assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of array to open array of array assignment
+negative: array of array to open array of array assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF ARRAY 10 OF SET);
 	VAR variable: ARRAY 10 OF ARRAY 10 OF SET;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of array to dereferenced open array of array assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF ARRAY 10 OF SET; result: POINTER TO ARRAY OF ARRAY 10 OF SET;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of record to array of array assignment
@@ -21386,7 +21456,7 @@ negative: array of record to shorter array of record assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of record to open array of record assignment
+negative: array of record to open array of record assignment
 
 	MODULE Test;
 	TYPE Record = RECORD END;
@@ -21394,6 +21464,14 @@ positive: array of record to open array of record assignment
 	VAR variable: ARRAY 10 OF Record;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of record to dereferenced open array of record assignment
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR variable: ARRAY 10 OF Record; result: POINTER TO ARRAY OF Record;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of object to array of record assignment
@@ -21517,7 +21595,7 @@ negative: array of object to shorter array of object assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of object to open array of object assignment
+negative: array of object to open array of object assignment
 
 	MODULE Test;
 	TYPE Object = OBJECT END Object;
@@ -21525,6 +21603,14 @@ positive: array of object to open array of object assignment
 	VAR variable: ARRAY 10 OF Object;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of object to dereferenced open array of object assignment
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	VAR variable: ARRAY 10 OF Object; result: POINTER TO ARRAY OF Object;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of pointer to array of object assignment
@@ -21648,7 +21734,7 @@ negative: array of pointer to shorter array of pointer assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of pointer to open array of pointer assignment
+negative: array of pointer to open array of pointer assignment
 
 	MODULE Test;
 	TYPE Pointer = POINTER TO RECORD END;
@@ -21656,6 +21742,14 @@ positive: array of pointer to open array of pointer assignment
 	VAR variable: ARRAY 10 OF Pointer;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of pointer to dereferenced open array of pointer assignment
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	VAR variable: ARRAY 10 OF Pointer; result: POINTER TO ARRAY OF Pointer;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: array of procedure to array of pointer assignment
@@ -21777,13 +21871,20 @@ negative: array of procedure to shorter array of procedure assignment
 	BEGIN result := variable;
 	END Test.
 
-positive: array of procedure to open array of procedure assignment
+negative: array of procedure to open array of procedure assignment
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF PROCEDURE);
 	VAR variable: ARRAY 10 OF PROCEDURE;
 	BEGIN result := variable;
 	END Procedure;
+	END Test.
+
+negative: array of procedure to dereferenced open array of procedure assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF PROCEDURE; result: POINTER TO ARRAY OF PROCEDURE;
+	BEGIN result^ := variable;
 	END Test.
 
 negative: record to array assignment
