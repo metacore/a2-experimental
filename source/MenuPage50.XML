@@ -1,33 +1,33 @@
 <Panel caption=" Develop ">
-	<Properties>	<FillColor>0</FillColor> </Properties>
+	<Properties>
+		<FillColor>0</FillColor>
+	</Properties>
 	<Panel>
 		<Properties>
-			<Alignment>1</Alignment>	
-			<Bounds> <Width>120</Width>	</Bounds>	
+			<Alignment>1</Alignment>
+			<Bounds>
+				<Width>120</Width>
+			</Bounds>
 		</Properties>
-
 		<Button>
 			<Properties>
 				<Caption>IDE</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
-				<Properties> 
+				<Properties>
 					<ID>X</ID>
 					<CommandString>PET.Open</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
-		
 		<Button>
 			<Properties>
 				<Caption>Oberon FullScreen</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -36,21 +36,20 @@
 			</SystemCommand>
 		</Button>
 	</Panel>
-	
-<!-- Second column -->	
+	<!-- Second column -->
 	<Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds> <Width>120</Width> </Bounds>	
+			<Bounds>
+				<Width>120</Width>
+			</Bounds>
 		</Properties>
-
 		<Button>
 			<Properties>
 				<Caption>GUIPatterns</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -58,102 +57,91 @@
 				</Properties>
 			</SystemCommand>
 		</Button>
-
 		<Button>
 			<Properties>
-				<Caption></Caption>
+				<Caption>Text Positions</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString></CommandString>
+					<CommandString>PositionDebugging.Open</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
-	</Panel>	
-	
-<!-- 3rd column -->	
+	</Panel>
+	<!-- 3rd column -->
 	<Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds> <Width>120</Width> </Bounds>	
-		</Properties>
-
-		<Button>
-			<Properties>
-				<Caption></Caption>
-				<Alignment>2</Alignment>
-				<OnClickHandler>X Run</OnClickHandler>
-			</Properties>
-			
-			<SystemCommand>
-				<Properties>
-					<ID>X</ID>
-					<CommandString></CommandString>
-				</Properties>
-			</SystemCommand>
-		</Button>
-		
-		<Button>
-			<Properties>
-				<Caption></Caption>
-				<Alignment>2</Alignment>
-				<OnClickHandler>X Run</OnClickHandler>
-			</Properties>
-			
-			<SystemCommand>
-				<Properties>
-					<ID>X</ID>
-					<CommandString></CommandString>
-				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>	
-
-<!-- 4th column -->	
-	<Panel>
-		<Properties>
-			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
-
 		<Button>
 			<Properties>
-				<Caption></Caption>
+				<Caption/>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString></CommandString>
+					<CommandString/>
 				</Properties>
 			</SystemCommand>
 		</Button>
-		
 		<Button>
 			<Properties>
-				<Caption></Caption>
+				<Caption/>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString></CommandString>
+					<CommandString/>
 				</Properties>
 			</SystemCommand>
 		</Button>
-	</Panel>	
-	
-<!--
+	</Panel>
+	<!-- 4th column -->
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>
+				<Width>120</Width>
+			</Bounds>
+		</Properties>
+		<Button>
+			<Properties>
+				<Caption/>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString/>
+				</Properties>
+			</SystemCommand>
+		</Button>
+		<Button>
+			<Properties>
+				<Caption/>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString/>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>
+	<!--
 
 		<Button>
 			<Properties>
@@ -184,6 +172,5 @@
 				</Properties>
 			</SystemCommand>
 		</Button>
--->	
-	
+-->
 </Panel>

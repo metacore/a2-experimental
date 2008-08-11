@@ -1,33 +1,33 @@
 <Panel caption=" Edit ">
-	<Properties>	<FillColor>0</FillColor> </Properties>
+	<Properties>
+		<FillColor>0</FillColor>
+	</Properties>
 	<Panel>
 		<Properties>
-			<Alignment>1</Alignment>	
-			<Bounds> <Width>120</Width>	</Bounds>	
+			<Alignment>1</Alignment>
+			<Bounds>
+				<Width>120</Width>
+			</Bounds>
 		</Properties>
-
 		<Button>
 			<Properties>
 				<Caption>Text</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
-				<Properties> 
+				<Properties>
 					<ID>X</ID>
 					<CommandString>Notepad.OpenEmpty</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
-		
 		<Button>
 			<Properties>
 				<Caption>DTP</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -36,21 +36,20 @@
 			</SystemCommand>
 		</Button>
 	</Panel>
-	
-<!-- Second column -->	
+	<!-- Second column -->
 	<Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds> <Width>120</Width> </Bounds>	
+			<Bounds>
+				<Width>120</Width>
+			</Bounds>
 		</Properties>
-
 		<Button>
 			<Properties>
 				<Caption>Styles</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -58,77 +57,47 @@
 				</Properties>
 			</SystemCommand>
 		</Button>
-
 		<Button>
 			<Properties>
-				<Caption>Chinese</Caption>
+				<Caption>Input Methods</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>WMPinyinIME.Install</CommandString>
+					<CommandString>WMInputMethodTool.Open;StartMenu.ClosePopup</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
-	</Panel>	
-	
-<!-- 3rd column -->	
+	</Panel>
+	<!-- 3rd column -->
 	<Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds> <Width>120</Width> </Bounds>	
-		</Properties>
-
-		<Button>
-			<Properties>
-				<Caption>Cyrillic</Caption>
-				<Alignment>2</Alignment>
-				<OnClickHandler>X Run</OnClickHandler>
-			</Properties>
-			
-			<SystemCommand>
-				<Properties>
-					<ID>X</ID>
-					<CommandString>WMCyrillicIME.Install</CommandString>
-				</Properties>
-			</SystemCommand>
-		</Button>
-		
-		<Button>
-			<Properties>
-				<Caption>Unicode</Caption>
-				<Alignment>2</Alignment>
-				<OnClickHandler>X Run</OnClickHandler>
-			</Properties>
-			
-			<SystemCommand>
-				<Properties>
-					<ID>X</ID>
-					<CommandString>WMUnicodeIME.Install</CommandString>
-				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>	
-
-<!-- 4th column -->	
-	<Panel>
-		<Properties>
-			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
-
+		<Button>
+			<Properties>
+				<Caption>Unicode Markers</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMUnicodeMarkerTool.Open;StartMenu.ClosePopup</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
 		<Button>
 			<Properties>
 				<Caption>UnicodeMap</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -136,24 +105,43 @@
 				</Properties>
 			</SystemCommand>
 		</Button>
-		
+	</Panel>
+	<!-- 4th column -->
+	<Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>
+				<Width>120</Width>
+			</Bounds>
+		</Properties>
 		<Button>
 			<Properties>
-				<Caption></Caption>
+				<Caption/>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString></CommandString>
+					<CommandString/>
 				</Properties>
 			</SystemCommand>
 		</Button>
-	</Panel>	
-	
-<!--
+		<Button>
+			<Properties>
+				<Caption/>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString/>
+				</Properties>
+			</SystemCommand>
+		</Button>
+	</Panel>
+	<!--
 
 		<Button>
 			<Properties>
@@ -184,6 +172,5 @@
 				</Properties>
 			</SystemCommand>
 		</Button>
--->	
-	
+-->
 </Panel>
