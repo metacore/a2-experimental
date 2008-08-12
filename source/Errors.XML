@@ -96,7 +96,7 @@
     <Error code="88">open array not allowed as variable, record field or array element</Error>
     <Error code="89">open lower bound not bound to procedure parameter</Error>
     <Error code="90">semi-dynamic array not allowed in a record</Error>
-    <Error code="91">open array containing pointers not allowed as return value</Error>
+    <Error code="91">open array not allowed as return type</Error>
     <Error code="92">operand of IN not an integer, or not a set</Error>
     <Error code="93">set element type is not an integer</Error>
     <Error code="94">operand of &#x3C; is not of type BOOLEAN</Error>
