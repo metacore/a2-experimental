@@ -161,6 +161,14 @@
 4402	OSCNet: parse error in packet
 4403	OSCNet: received packet too big
 4404	OSCNet: bad return data
+
+5100	HierarchichalProfiler
+5101	Profiler is already running
+5102	Profiler is not running
+5103	No profile data available
+5104	Sample buffer is full
+5105	Sample buffer is not initialized
+
 9000	Partitions
 
 10000	Configuration
