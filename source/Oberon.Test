@@ -1994,6 +1994,275 @@ negative: with statement missing end
 	BEGIN WITH value : OBJECT DO
 	END Test.
 
+negative: plain new statement
+
+	MODULE Test;
+	VAR object: OBJECT END;
+	BEGIN (object);
+	END Test.
+
+negative: new statement missing new
+
+	MODULE Test;
+	VAR object: OBJECT END;
+	BEGIN (object);
+	END Test.
+
+negative: new statement missing opening parenthesis
+
+	MODULE Test;
+	VAR object: OBJECT END;
+	BEGIN NEW object);
+	END Test.
+
+negative: new statement missing reference
+
+	MODULE Test;
+	BEGIN NEW ();
+	END Test.
+
+negative: new statement missing closing parenthesis
+
+	MODULE Test;
+	VAR object: OBJECT END;
+	BEGIN NEW (object;
+	END Test.
+
+negative: plain increment statement
+
+	MODULE Test;
+	BEGIN INC
+	END Test.
+
+negative: increment statement missing integer
+
+	MODULE Test;
+	BEGIN INC ()
+	END Test.
+
+negative: increment statement missing opening parenthesis
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN INC integer)
+	END Test.
+
+negative: increment statement missing closing parenthesis
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN INC (integer
+	END Test.
+
+negative: increment statement missing comma
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN INC (integer 5)
+	END Test.
+
+negative: increment statement missing increment
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN INC (integer,)
+	END Test.
+
+positive: increment statement missing increment and comma
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN INC (integer)
+	END Test.
+
+negative: plain decrement statement
+
+	MODULE Test;
+	BEGIN DEC
+	END Test.
+
+negative: decrement statement missing integer
+
+	MODULE Test;
+	BEGIN DEC ()
+	END Test.
+
+negative: decrement statement missing opening parenthesis
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN DEC integer)
+	END Test.
+
+negative: decrement statement missing closing parenthesis
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer
+	END Test.
+
+negative: decrement statement missing comma
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer 5)
+	END Test.
+
+negative: decrement statement missing increment
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer,)
+	END Test.
+
+positive: decrement statement missing increment and comma
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer)
+	END Test.
+
+negative: plain include statement
+
+	MODULE Test;
+	BEGIN INCL
+	END Test.
+
+negative: include statement missing set
+
+	MODULE Test;
+	BEGIN INCL ()
+	END Test.
+
+negative: include statement missing opening parenthesis
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL set)
+	END Test.
+
+negative: include statement missing closing parenthesis
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set
+	END Test.
+
+negative: include statement missing comma
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set 5)
+	END Test.
+
+negative: include statement missing element
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set,)
+	END Test.
+
+negative: include statement missing element and comma
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set)
+	END Test.
+
+negative: plain exclude statement
+
+	MODULE Test;
+	BEGIN EXCL
+	END Test.
+
+negative: exclude statement missing set
+
+	MODULE Test;
+	BEGIN EXCL ()
+	END Test.
+
+negative: exclude statement missing opening parenthesis
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL set)
+	END Test.
+
+negative: exclude statement missing closing parenthesis
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set
+	END Test.
+
+negative: exclude statement missing comma
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set 5)
+	END Test.
+
+negative: exclude statement missing element
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set,)
+	END Test.
+
+negative: exclude statement missing element and comma
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set)
+	END Test.
+
+negative: plain copy statement
+
+	MODULE Test;
+	BEGIN COPY
+	END Test.
+
+negative: copy statement missing source
+
+	MODULE Test;
+	BEGIN COPY ()
+	END Test.
+
+negative: copy statement missing opening parenthesis
+
+	MODULE Test;
+	VAR source: ARRAY 10 OF CHAR;
+	BEGIN COPY source)
+	END Test.
+
+negative: copy statement missing closing parenthesis
+
+	MODULE Test;
+	VAR source: ARRAY 10 OF CHAR;
+	BEGIN COPY (source
+	END Test.
+
+negative: copy statement missing comma
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF CHAR;
+	BEGIN COPY (source dest)
+	END Test.
+
+negative: copy statement missing destination
+
+	MODULE Test;
+	VAR source: ARRAY 10 OF CHAR;
+	BEGIN COPY (source,)
+	END Test.
+
+negative: copy statement missing destination and comma
+
+	MODULE Test;
+	VAR source: ARRAY 10 OF CHAR;
+	BEGIN COPY (source)
+	END Test.
+
 
 # predefined identifiers
 
@@ -2075,6 +2344,18 @@ negative: redefining const
 	VAR CONST: SET;
 	END Test.
 
+negative: redefining copy
+
+	MODULE Test;
+	CONST COPY = 0;
+	END Test.
+
+negative: redefining dec
+
+	MODULE Test;
+	CONST DEC = 0;
+	END Test.
+
 negative: redefining definition
 
 	MODULE Test;
@@ -2115,6 +2396,12 @@ negative: redefining entier
 
 	MODULE Test;
 	CONST ENTIER = 0;
+	END Test.
+
+negative: redefining excl
+
+	MODULE Test;
+	CONST EXCL = 0;
 	END Test.
 
 negative: redefining exit
@@ -2169,6 +2456,18 @@ negative: redefining in
 
 	MODULE Test;
 	CONST IN = 0;
+	END Test.
+
+negative: redefining inc
+
+	MODULE Test;
+	CONST INC = 0;
+	END Test.
+
+negative: redefining incl
+
+	MODULE Test;
+	CONST INCL = 0;
 	END Test.
 
 negative: redefining integer
@@ -3409,6 +3708,12 @@ negative: constant character exceeding valid range
 
 	MODULE Test;
 	CONST Result = 1234X;
+	END Test.
+
+positive: ordering of constant character ordinals
+
+	MODULE Test;
+	BEGIN ASSERT (0X < 0FFX)
 	END Test.
 
 negative: arithmetic negation on constant character
@@ -4715,6 +5020,22 @@ negative: empty constant set element range with negative end element
 	CONST Result = {3..-4};
 	END Test.
 
+positive: relations on constant sets
+
+	MODULE Test;
+	BEGIN
+		ASSERT ({1..3,5} <= {1..3,5});
+		ASSERT (~({1..3,5,6} < {1..3,5,8}));
+		ASSERT (~({1..3,5,6} <= {1..3,5,8}));
+		ASSERT (~({1..3,5,6} > {1..3,5,8}));
+		ASSERT (~({1..3,5,6} >= {1..3,5,8}));
+		ASSERT ({1..3,5} < {1..3,5,7});
+		ASSERT ({1..3,5} > {1..3});
+		ASSERT ({1..3,5,7} >= {1..3,5,7});
+		ASSERT ({1..3,5} = {1..3,5});
+		ASSERT ({1..3,5,8} # {1..3,5,7});
+	END Test.
+
 positive: complement on constant set
 
 	MODULE Test;
@@ -4802,28 +5123,32 @@ positive: unequal relation on constant sets
 	BEGIN ASSERT (Result = TRUE);
 	END Test.
 
-negative: less relation on constant sets
+positive: less relation on constant sets
 
 	MODULE Test;
 	CONST Result = {9} < {7}
+	BEGIN ASSERT (Result = FALSE);
 	END Test.
 
-negative: less or equal relation on constant sets
+positive: less or equal relation on constant sets
 
 	MODULE Test;
-	CONST Result = {} <= {8}
+	CONST Result = {8} <= {8}
+	BEGIN ASSERT (Result = TRUE);
 	END Test.
 
-negative: greater relation on constant sets
+positive: greater relation on constant sets
 
 	MODULE Test;
-	CONST Result = {9} > {0..2}
+	CONST Result = {0..5} > {0..2}
+	BEGIN ASSERT (Result = TRUE);
 	END Test.
 
-negative: greater or equal relation on constant sets
+positive: greater or equal relation on constant sets
 
 	MODULE Test;
-	CONST Result = {4} >= {}
+	CONST Result = {4} >= {4..4}
+	BEGIN ASSERT (Result = TRUE);
 	END Test.
 
 negative: set membership on constant sets
@@ -13166,6 +13491,21 @@ negative: calling procedure with array parameter with longer array argument
 	BEGIN Procedure (argument);
 	END Test.
 
+negative: calling procedure with array parameter with shorter array argument
+
+	MODULE Test;
+	VAR argument: ARRAY 10 OF CHAR;
+	PROCEDURE Procedure (value: ARRAY 20 OF CHAR); END Procedure;
+	BEGIN Procedure (argument);
+	END Test.
+
+negative: calling procedure with array parameter with open array argument
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR); END Procedure;
+	PROCEDURE Test (argument: ARRAY OF CHAR); BEGIN Procedure (argument); END Test;
+	END Test.
+
 negative: calling procedure with array parameter with record argument
 
 	MODULE Test;
@@ -13292,6 +13632,13 @@ positive: calling procedure with open array parameter with array argument
 	VAR argument: ARRAY 10 OF CHAR;
 	PROCEDURE Procedure (value: ARRAY OF CHAR); END Procedure;
 	BEGIN Procedure (argument);
+	END Test.
+
+positive: calling procedure with open array parameter with open array argument
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY OF CHAR); END Procedure;
+	PROCEDURE Test (argument: ARRAY OF CHAR); BEGIN Procedure (argument); END Test;
 	END Test.
 
 negative: calling procedure with open array parameter with record argument
@@ -20113,6 +20460,15 @@ negative: array of boolean to open array of boolean assignment
 	END Procedure;
 	END Test.
 
+negative: open array of boolean to array of boolean assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR variable: ARRAY OF BOOLEAN);
+	VAR result: ARRAY 10 OF BOOLEAN;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
 negative: array of boolean to dereferenced open array of boolean assignment
 
 	MODULE Test;
@@ -20244,6 +20600,15 @@ negative: array of character to open array of character assignment
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF CHAR);
 	VAR variable: ARRAY 10 OF CHAR;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
+negative: open array of character to array of character assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR variable: ARRAY OF CHAR);
+	VAR result: ARRAY 10 OF CHAR;
 	BEGIN result := variable;
 	END Procedure;
 	END Test.
@@ -20383,6 +20748,15 @@ negative: array of short integer to open array of short integer assignment
 	END Procedure;
 	END Test.
 
+negative: open array of short integer to array of short integer assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR variable: ARRAY OF SHORTINT);
+	VAR result: ARRAY 10 OF SHORTINT;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
 negative: array of short integer to dereferenced open array of short integer assignment
 
 	MODULE Test;
@@ -20514,6 +20888,15 @@ negative: array of integer to open array of integer assignment
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF INTEGER);
 	VAR variable: ARRAY 10 OF INTEGER;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
+negative: open array of integer to array of integer assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR variable: ARRAY OF INTEGER);
+	VAR result: ARRAY 10 OF INTEGER;
 	BEGIN result := variable;
 	END Procedure;
 	END Test.
@@ -20653,6 +21036,15 @@ negative: array of long integer to open array of long integer assignment
 	END Procedure;
 	END Test.
 
+negative: open array of long integer to array of long integer assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR variable: ARRAY OF LONGINT);
+	VAR result: ARRAY 10 OF LONGINT;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
 negative: array of long integer to dereferenced open array of long integer assignment
 
 	MODULE Test;
@@ -20784,6 +21176,15 @@ negative: array of huge integer to open array of huge integer assignment
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF HUGEINT);
 	VAR variable: ARRAY 10 OF HUGEINT;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
+negative: open array of huge integer to array of huge integer assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR variable: ARRAY OF HUGEINT);
+	VAR result: ARRAY 10 OF HUGEINT;
 	BEGIN result := variable;
 	END Procedure;
 	END Test.
@@ -20923,6 +21324,15 @@ negative: array of real to open array of real assignment
 	END Procedure;
 	END Test.
 
+negative: open array of real to array of real assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR variable: ARRAY OF REAL);
+	VAR result: ARRAY 10 OF REAL;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
 negative: array of real to dereferenced open array of real assignment
 
 	MODULE Test;
@@ -21054,6 +21464,15 @@ negative: array of long real to open array of long real assignment
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF LONGREAL);
 	VAR variable: ARRAY 10 OF LONGREAL;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
+negative: open array of long real to array of long real assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR variable: ARRAY OF LONGREAL);
+	VAR result: ARRAY 10 OF LONGREAL;
 	BEGIN result := variable;
 	END Procedure;
 	END Test.
@@ -21193,6 +21612,15 @@ negative: array of set to open array of set assignment
 	END Procedure;
 	END Test.
 
+negative: open array of set to array of set assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR variable: ARRAY OF SET);
+	VAR result: ARRAY 10 OF SET;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
 negative: array of set to dereferenced open array of set assignment
 
 	MODULE Test;
@@ -21324,6 +21752,15 @@ negative: array of array to open array of array assignment
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF ARRAY 10 OF SET);
 	VAR variable: ARRAY 10 OF ARRAY 10 OF SET;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
+negative: open array of array to array of array assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR variable: ARRAY OF ARRAY 10 OF SET);
+	VAR result: ARRAY 10 OF ARRAY 10 OF SET;
 	BEGIN result := variable;
 	END Procedure;
 	END Test.
@@ -21462,6 +21899,16 @@ negative: array of record to open array of record assignment
 	TYPE Record = RECORD END;
 	PROCEDURE Procedure (VAR result: ARRAY OF Record);
 	VAR variable: ARRAY 10 OF Record;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
+negative: open array of record to array of record assignment
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	PROCEDURE Procedure (VAR variable: ARRAY OF Record);
+	VAR result: ARRAY 10 OF Record;
 	BEGIN result := variable;
 	END Procedure;
 	END Test.
@@ -21605,6 +22052,16 @@ negative: array of object to open array of object assignment
 	END Procedure;
 	END Test.
 
+negative: open array of object to array of object assignment
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	PROCEDURE Procedure (VAR variable: ARRAY OF Object);
+	VAR result: ARRAY 10 OF Object;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
 negative: array of object to dereferenced open array of object assignment
 
 	MODULE Test;
@@ -21744,6 +22201,16 @@ negative: array of pointer to open array of pointer assignment
 	END Procedure;
 	END Test.
 
+negative: open array of pointer to array of pointer assignment
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	PROCEDURE Procedure (VAR variable: ARRAY OF Pointer);
+	VAR result: ARRAY 10 OF Pointer;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
 negative: array of pointer to dereferenced open array of pointer assignment
 
 	MODULE Test;
@@ -21876,6 +22343,15 @@ negative: array of procedure to open array of procedure assignment
 	MODULE Test;
 	PROCEDURE Procedure (VAR result: ARRAY OF PROCEDURE);
 	VAR variable: ARRAY 10 OF PROCEDURE;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
+negative: open array of procedure to array of procedure assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR variable: ARRAY OF PROCEDURE);
+	VAR result: ARRAY 10 OF PROCEDURE;
 	BEGIN result := variable;
 	END Procedure;
 	END Test.
@@ -24356,28 +24832,28 @@ positive: unequal relation on variable sets
 	BEGIN result := set # set
 	END Test.
 
-negative: less relation on variable sets
+positive: less relation on variable sets
 
 	MODULE Test;
 	VAR set: SET; result: BOOLEAN;
 	BEGIN result := set < set
 	END Test.
 
-negative: less or equal relation on variable sets
+positive: less or equal relation on variable sets
 
 	MODULE Test;
 	VAR set: SET; result: BOOLEAN;
 	BEGIN result := set <= set
 	END Test.
 
-negative: greater relation on variable sets
+positive: greater relation on variable sets
 
 	MODULE Test;
 	VAR set: SET; result: BOOLEAN;
 	BEGIN result := set > set
 	END Test.
 
-negative: greater or equal relation on variable sets
+positive: greater or equal relation on variable sets
 
 	MODULE Test;
 	VAR set: SET; result: BOOLEAN;
@@ -28550,6 +29026,1384 @@ positive: return statement without value in procedure without return type
 	END Procedure;
 	END Test.
 
+positive: procedure with boolean as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with boolean as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with boolean as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with boolean as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with boolean as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with boolean as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with boolean as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with boolean as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with boolean as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with boolean as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with boolean as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with boolean as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): BOOLEAN; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with character as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with character as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with character as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with character as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with character as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with character as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with character as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with character as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with character as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with character as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with character as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with character as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with short integer as return type returning short integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SHORTINT): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning long integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: LONGINT): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning huge integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: HUGEINT): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with short integer as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): SHORTINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with integer as return type returning short integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SHORTINT): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with integer as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning long integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: LONGINT): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning huge integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: HUGEINT): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with integer as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): INTEGER; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with long integer as return type returning short integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SHORTINT): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with long integer as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with long integer as return type returning long integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: LONGINT): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning huge integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: HUGEINT): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long integer as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): LONGINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with huge integer as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with huge integer as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with huge integer as return type returning short integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SHORTINT): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with huge integer as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with huge integer as return type returning long integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: LONGINT): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with huge integer as return type returning huge integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: HUGEINT): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with huge integer as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with huge integer as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with huge integer as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with huge integer as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with huge integer as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with huge integer as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with huge integer as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with huge integer as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with huge integer as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): HUGEINT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with real as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with real as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with real as return type returning short integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SHORTINT): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with real as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with real as return type returning long integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: LONGINT): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with real as return type returning huge integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: HUGEINT): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with real as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with real as return type returning long real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: LONGREAL): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with real as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with real as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with real as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with real as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with real as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with real as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with real as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with real as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): REAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long real as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long real as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with long real as return type returning short integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SHORTINT): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with long real as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with long real as return type returning long integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: LONGINT): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with long real as return type returning huge integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: HUGEINT): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with long real as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with long real as return type returning long real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: LONGREAL): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long real as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long real as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long real as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long real as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long real as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long real as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long real as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with long real as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): LONGREAL; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with set as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with set as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with set as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with set as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with set as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with set as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with set as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with set as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with set as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with set as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with set as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with set as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): SET; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with array as return type returning compatible array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning incompatible array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF SET): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning open array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY OF CHAR): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with array as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with record as return type returning record
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	PROCEDURE Procedure (value: Record): Record; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with record as return type returning compatible record
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	PROCEDURE Procedure (value: RECORD (Record) END): Record; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning incompatible record
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	PROCEDURE Procedure (value: Record): RECORD (Record) END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with record as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): OBJECT END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): OBJECT END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): OBJECT END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): OBJECT END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): OBJECT END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): OBJECT END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): OBJECT END; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with object as return type returning object
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	PROCEDURE Procedure (value: Object): Object; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with object as return type returning compatible object
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	PROCEDURE Procedure (value: OBJECT (Object) END): Object; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning incompatible object
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	PROCEDURE Procedure (value: Object): OBJECT (Object) END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): OBJECT END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): OBJECT END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): OBJECT END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with object as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): OBJECT END; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with object as return type returning nil pointer
+
+	MODULE Test;
+	PROCEDURE Procedure (): OBJECT END; BEGIN RETURN NIL END Procedure;
+	END Test.
+
+negative: procedure with base object as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with base object as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with base object as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with base object as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with base object as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with base object as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with base object as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with base object as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with base object as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with base object as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with base object as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with base object as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with base object as return type returning nil pointer
+
+	MODULE Test;
+	PROCEDURE Procedure (): OBJECT; BEGIN RETURN NIL END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with pointer to array as return type returning compatible pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning incompatible pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF SET): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to array as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with pointer to array as return type returning nil pointer
+
+	MODULE Test;
+	PROCEDURE Procedure (): POINTER TO ARRAY 10 OF CHAR; BEGIN RETURN NIL END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): POINTER TO RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): POINTER TO RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): POINTER TO RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): POINTER TO RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): POINTER TO RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): POINTER TO RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): POINTER TO RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): POINTER TO RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): POINTER TO RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): POINTER TO RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with pointer to record as return type returning pointer to record
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	PROCEDURE Procedure (value: POINTER TO Record): POINTER TO Record; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with pointer to record as return type returning compatible pointer to record
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	PROCEDURE Procedure (value: POINTER TO RECORD (Record) END): POINTER TO Record; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning incompatible pointer to record
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	PROCEDURE Procedure (value: POINTER TO Record): POINTER TO RECORD (Record) END; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with pointer to record as return type returning procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): POINTER TO RECORD END; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with pointer to record as return type returning nil pointer
+
+	MODULE Test;
+	PROCEDURE Procedure (): POINTER TO RECORD END; BEGIN RETURN NIL END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning boolean
+
+	MODULE Test;
+	PROCEDURE Procedure (value: BOOLEAN): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning character
+
+	MODULE Test;
+	PROCEDURE Procedure (value: CHAR): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning integer
+
+	MODULE Test;
+	PROCEDURE Procedure (value: INTEGER): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning real
+
+	MODULE Test;
+	PROCEDURE Procedure (value: REAL): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning set
+
+	MODULE Test;
+	PROCEDURE Procedure (value: SET): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: ARRAY 10 OF CHAR): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: RECORD END): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT END): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning base object
+
+	MODULE Test;
+	PROCEDURE Procedure (value: OBJECT): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning pointer to array
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with procedure as return type returning compatible procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+negative: procedure with procedure as return type returning incompatible procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (value: PROCEDURE (value: INTEGER)): PROCEDURE; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with procedure as return type returning itself
+
+	MODULE Test;
+	TYPE Type = PROCEDURE (): Type;
+	PROCEDURE Procedure (): Type; BEGIN RETURN Procedure END Procedure;
+	END Test.
+
+positive: procedure with procedure as return type returning nil pointer
+
+	MODULE Test;
+	PROCEDURE Procedure (): PROCEDURE; BEGIN RETURN NIL END Procedure;
+	END Test.
+
 
 # exit statement
 
@@ -31919,6 +33773,1820 @@ negative: new statement on pointer to record with arguments
 	MODULE Test;
 	VAR record: POINTER TO RECORD END;
 	BEGIN NEW (record, 1, 2);
+	END Test.
+
+negative: new statement on procedure
+
+	MODULE Test;
+	VAR procedure: PROCEDURE;
+	BEGIN NEW (procedure);
+	END Test.
+
+
+# increment statement
+
+negative: increment statement on constant boolean
+
+	MODULE Test;
+	CONST Constant = TRUE;
+	BEGIN INC (Constant);
+	END Test.
+
+negative: increment statement on constant character
+
+	MODULE Test;
+	CONST Constant = 'a';
+	BEGIN INC (Constant);
+	END Test.
+
+negative: increment statement on constant integer
+
+	MODULE Test;
+	CONST Constant = 42;
+	BEGIN INC (Constant);
+	END Test.
+
+negative: increment statement on constant real
+
+	MODULE Test;
+	CONST Constant = 0.1;
+	BEGIN INC (Constant);
+	END Test.
+
+negative: increment statement on constant set
+
+	MODULE Test;
+	CONST Constant = {};
+	BEGIN INC (Constant);
+	END Test.
+
+negative: increment statement on constant string
+
+	MODULE Test;
+	CONST Constant = "string";
+	BEGIN INC (Constant);
+	END Test.
+
+negative: increment statement on nil pointer
+
+	MODULE Test;
+	CONST Constant = NIL;
+	BEGIN INC (Constant);
+	END Test.
+
+negative: increment statement on boolean
+
+	MODULE Test;
+	VAR boolean: BOOLEAN;
+	BEGIN INC (boolean);
+	END Test.
+
+negative: increment statement on character
+
+	MODULE Test;
+	VAR character: CHAR;
+	BEGIN INC (character);
+	END Test.
+
+positive: increment statement on short integer
+
+	MODULE Test;
+	VAR integer: SHORTINT;
+	BEGIN INC (integer);
+	END Test.
+
+positive: increment statement on integer
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN INC (integer);
+	END Test.
+
+positive: increment statement on long integer
+
+	MODULE Test;
+	VAR integer: LONGINT;
+	BEGIN INC (integer);
+	END Test.
+
+positive: increment statement on huge integer
+
+	MODULE Test;
+	VAR integer: HUGEINT;
+	BEGIN INC (integer);
+	END Test.
+
+positive: increment statement on integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (integer: INTEGER);
+	BEGIN INC (integer);
+	END Procedure;
+	END Test.
+
+positive: increment statement on variable integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR integer: INTEGER);
+	BEGIN INC (integer);
+	END Procedure;
+	END Test.
+
+negative: increment statement on constant integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST integer: INTEGER);
+	BEGIN INC (integer);
+	END Procedure;
+	END Test.
+
+negative: increment statement on real
+
+	MODULE Test;
+	VAR real: REAL;
+	BEGIN INC (real);
+	END Test.
+
+negative: increment statement on set
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INC (set);
+	END Test.
+
+negative: increment statement on array
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR;
+	BEGIN INC (array);
+	END Test.
+
+negative: increment statement on record
+
+	MODULE Test;
+	VAR record: RECORD END;
+	BEGIN INC (record);
+	END Test.
+
+negative: increment statement on object
+
+	MODULE Test;
+	VAR object: OBJECT END;
+	BEGIN INC (object);
+	END Test.
+
+negative: increment statement on pointer to array
+
+	MODULE Test;
+	VAR pointer: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN INC (pointer);
+	END Test.
+
+negative: increment statement on pointer to record
+
+	MODULE Test;
+	VAR pointer: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN INC (pointer);
+	END Test.
+
+negative: increment statement on procedure
+
+	MODULE Test;
+	VAR procedure: PROCEDURE;
+	BEGIN INC (procedure);
+	END Test.
+
+negative: increment statement with constant boolean as increment
+
+	MODULE Test;
+	CONST Constant = TRUE;
+	VAR integer: INTEGER;
+	BEGIN INC (integer, Constant);
+	END Test.
+
+negative: increment statement with constant character as increment
+
+	MODULE Test;
+	CONST Constant = 'a';
+	VAR integer: INTEGER;
+	BEGIN INC (integer, Constant);
+	END Test.
+
+positive: increment statement with constant integer as increment
+
+	MODULE Test;
+	CONST Constant = 42;
+	VAR integer: INTEGER;
+	BEGIN INC (integer, Constant);
+	END Test.
+
+positive: increment statement with constant negative integer as increment
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN INC (integer, -5);
+	END Test.
+
+positive: increment statement with zero as increment
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN INC (integer, 0);
+	END Test.
+
+positive: increment statement with constant positive integer as increment
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN INC (integer, 5);
+	END Test.
+
+negative: increment statement with constant real as increment
+
+	MODULE Test;
+	CONST Constant = 0.1;
+	VAR integer: INTEGER;
+	BEGIN INC (integer, Constant);
+	END Test.
+
+negative: increment statement with constant set as increment
+
+	MODULE Test;
+	CONST Constant = {};
+	VAR integer: INTEGER;
+	BEGIN INC (integer, Constant);
+	END Test.
+
+negative: increment statement with constant string as increment
+
+	MODULE Test;
+	CONST Constant = "string";
+	VAR integer: INTEGER;
+	BEGIN INC (integer, Constant);
+	END Test.
+
+negative: increment statement with nil pointer as increment
+
+	MODULE Test;
+	CONST Constant = NIL;
+	VAR integer: INTEGER;
+	BEGIN INC (integer, Constant);
+	END Test.
+
+negative: increment statement with boolean as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: BOOLEAN;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement with character as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: CHAR;
+	BEGIN INC (integer, increment);
+	END Test.
+
+positive: increment statement on short integer with short integer as increment
+
+	MODULE Test;
+	VAR integer, increment: SHORTINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement on short integer with integer as increment
+
+	MODULE Test;
+	VAR integer: SHORTINT; increment: INTEGER;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement on short integer with long integer as increment
+
+	MODULE Test;
+	VAR integer: SHORTINT; increment: LONGINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement on short integer with huge integer as increment
+
+	MODULE Test;
+	VAR integer: SHORTINT; increment: HUGEINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+positive: increment statement on integer with short integer as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: SHORTINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+positive: increment statement on integer with integer as increment
+
+	MODULE Test;
+	VAR integer, increment: INTEGER;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement on integer with long integer as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: LONGINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement on integer with huge integer as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: HUGEINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+positive: increment statement on long integer with short integer as increment
+
+	MODULE Test;
+	VAR integer: LONGINT; increment: SHORTINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+positive: increment statement on long integer with integer as increment
+
+	MODULE Test;
+	VAR integer: LONGINT; increment: INTEGER;
+	BEGIN INC (integer, increment);
+	END Test.
+
+positive: increment statement on long integer with long integer as increment
+
+	MODULE Test;
+	VAR integer, increment: LONGINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement on long integer with huge integer as increment
+
+	MODULE Test;
+	VAR integer: LONGINT; increment: HUGEINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+positive: increment statement on huge integer with short integer as increment
+
+	MODULE Test;
+	VAR integer: HUGEINT; increment: SHORTINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+positive: increment statement on huge integer with integer as increment
+
+	MODULE Test;
+	VAR integer: HUGEINT; increment: INTEGER;
+	BEGIN INC (integer, increment);
+	END Test.
+
+positive: increment statement on huge integer with long integer as increment
+
+	MODULE Test;
+	VAR integer: HUGEINT; increment: LONGINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+positive: increment statement on huge integer with huge integer as increment
+
+	MODULE Test;
+	VAR integer, increment: HUGEINT;
+	BEGIN INC (integer, increment);
+	END Test.
+
+positive: increment statement with integer parameter as increment
+
+	MODULE Test;
+	PROCEDURE Procedure (increment: INTEGER);
+	VAR integer: INTEGER;
+	BEGIN INC (integer, increment);
+	END Procedure;
+	END Test.
+
+positive: increment statement with variable integer parameter as increment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR increment: INTEGER);
+	VAR integer: INTEGER;
+	BEGIN INC (integer, increment);
+	END Procedure;
+	END Test.
+
+positive: increment statement with constant integer parameter as increment
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST increment: INTEGER);
+	VAR integer: INTEGER;
+	BEGIN INC (integer, increment);
+	END Procedure;
+	END Test.
+
+negative: increment statement with real as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: REAL;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement with set as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: SET;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement with array as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: ARRAY 10 OF CHAR;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement with record as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: RECORD END;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement with object as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: OBJECT END;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement with pointer to array as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement with pointer to record as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN INC (integer, increment);
+	END Test.
+
+negative: increment statement with procedure as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: PROCEDURE;
+	BEGIN INC (integer, increment);
+	END Test.
+
+
+# decrement statement
+
+negative: decrement statement on constant boolean
+
+	MODULE Test;
+	CONST Constant = TRUE;
+	BEGIN DEC (Constant);
+	END Test.
+
+negative: decrement statement on constant character
+
+	MODULE Test;
+	CONST Constant = 'a';
+	BEGIN DEC (Constant);
+	END Test.
+
+negative: decrement statement on constant integer
+
+	MODULE Test;
+	CONST Constant = 42;
+	BEGIN DEC (Constant);
+	END Test.
+
+negative: decrement statement on constant real
+
+	MODULE Test;
+	CONST Constant = 0.1;
+	BEGIN DEC (Constant);
+	END Test.
+
+negative: decrement statement on constant set
+
+	MODULE Test;
+	CONST Constant = {};
+	BEGIN DEC (Constant);
+	END Test.
+
+negative: decrement statement on constant string
+
+	MODULE Test;
+	CONST Constant = "string";
+	BEGIN DEC (Constant);
+	END Test.
+
+negative: decrement statement on nil pointer
+
+	MODULE Test;
+	CONST Constant = NIL;
+	BEGIN DEC (Constant);
+	END Test.
+
+negative: decrement statement on boolean
+
+	MODULE Test;
+	VAR boolean: BOOLEAN;
+	BEGIN DEC (boolean);
+	END Test.
+
+negative: decrement statement on character
+
+	MODULE Test;
+	VAR character: CHAR;
+	BEGIN DEC (character);
+	END Test.
+
+positive: decrement statement on short integer
+
+	MODULE Test;
+	VAR integer: SHORTINT;
+	BEGIN DEC (integer);
+	END Test.
+
+positive: decrement statement on integer
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer);
+	END Test.
+
+positive: decrement statement on long integer
+
+	MODULE Test;
+	VAR integer: LONGINT;
+	BEGIN DEC (integer);
+	END Test.
+
+positive: decrement statement on huge integer
+
+	MODULE Test;
+	VAR integer: HUGEINT;
+	BEGIN DEC (integer);
+	END Test.
+
+positive: decrement statement on integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (integer: INTEGER);
+	BEGIN DEC (integer);
+	END Procedure;
+	END Test.
+
+positive: decrement statement on variable integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR integer: INTEGER);
+	BEGIN DEC (integer);
+	END Procedure;
+	END Test.
+
+negative: decrement statement on constant integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST integer: INTEGER);
+	BEGIN DEC (integer);
+	END Procedure;
+	END Test.
+
+negative: decrement statement on real
+
+	MODULE Test;
+	VAR real: REAL;
+	BEGIN DEC (real);
+	END Test.
+
+negative: decrement statement on set
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN DEC (set);
+	END Test.
+
+negative: decrement statement on array
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR;
+	BEGIN DEC (array);
+	END Test.
+
+negative: decrement statement on record
+
+	MODULE Test;
+	VAR record: RECORD END;
+	BEGIN DEC (record);
+	END Test.
+
+negative: decrement statement on object
+
+	MODULE Test;
+	VAR object: OBJECT END;
+	BEGIN DEC (object);
+	END Test.
+
+negative: decrement statement on pointer to array
+
+	MODULE Test;
+	VAR pointer: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN DEC (pointer);
+	END Test.
+
+negative: decrement statement on pointer to record
+
+	MODULE Test;
+	VAR pointer: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN DEC (pointer);
+	END Test.
+
+negative: decrement statement on procedure
+
+	MODULE Test;
+	VAR procedure: PROCEDURE;
+	BEGIN DEC (procedure);
+	END Test.
+
+negative: decrement statement with constant boolean as increment
+
+	MODULE Test;
+	CONST Constant = TRUE;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, Constant);
+	END Test.
+
+negative: decrement statement with constant character as increment
+
+	MODULE Test;
+	CONST Constant = 'a';
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, Constant);
+	END Test.
+
+positive: decrement statement with constant integer as increment
+
+	MODULE Test;
+	CONST Constant = 42;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, Constant);
+	END Test.
+
+positive: decrement statement with constant negative integer as increment
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, -5);
+	END Test.
+
+positive: decrement statement with zero as increment
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, 0);
+	END Test.
+
+positive: decrement statement with constant positive integer as increment
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, 5);
+	END Test.
+
+negative: decrement statement with constant real as increment
+
+	MODULE Test;
+	CONST Constant = 0.1;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, Constant);
+	END Test.
+
+negative: decrement statement with constant set as increment
+
+	MODULE Test;
+	CONST Constant = {};
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, Constant);
+	END Test.
+
+negative: decrement statement with constant string as increment
+
+	MODULE Test;
+	CONST Constant = "string";
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, Constant);
+	END Test.
+
+negative: decrement statement with nil pointer as increment
+
+	MODULE Test;
+	CONST Constant = NIL;
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, Constant);
+	END Test.
+
+negative: decrement statement with boolean as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: BOOLEAN;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement with character as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: CHAR;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+positive: decrement statement on short integer with short integer as increment
+
+	MODULE Test;
+	VAR integer, increment: SHORTINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement on short integer with integer as increment
+
+	MODULE Test;
+	VAR integer: SHORTINT; increment: INTEGER;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement on short integer with long integer as increment
+
+	MODULE Test;
+	VAR integer: SHORTINT; increment: LONGINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement on short integer with huge integer as increment
+
+	MODULE Test;
+	VAR integer: SHORTINT; increment: HUGEINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+positive: decrement statement on integer with short integer as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: SHORTINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+positive: decrement statement on integer with integer as increment
+
+	MODULE Test;
+	VAR integer, increment: INTEGER;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement on integer with long integer as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: LONGINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement on integer with huge integer as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: HUGEINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+positive: decrement statement on long integer with short integer as increment
+
+	MODULE Test;
+	VAR integer: LONGINT; increment: SHORTINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+positive: decrement statement on long integer with integer as increment
+
+	MODULE Test;
+	VAR integer: LONGINT; increment: INTEGER;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+positive: decrement statement on long integer with long integer as increment
+
+	MODULE Test;
+	VAR integer, increment: LONGINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement on long integer with huge integer as increment
+
+	MODULE Test;
+	VAR integer: LONGINT; increment: HUGEINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+positive: decrement statement on huge integer with short integer as increment
+
+	MODULE Test;
+	VAR integer: HUGEINT; increment: SHORTINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+positive: decrement statement on huge integer with integer as increment
+
+	MODULE Test;
+	VAR integer: HUGEINT; increment: INTEGER;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+positive: decrement statement on huge integer with long integer as increment
+
+	MODULE Test;
+	VAR integer: HUGEINT; increment: LONGINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+positive: decrement statement on huge integer with huge integer as increment
+
+	MODULE Test;
+	VAR integer, increment: HUGEINT;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+positive: decrement statement with integer parameter as increment
+
+	MODULE Test;
+	PROCEDURE Procedure (increment: INTEGER);
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, increment);
+	END Procedure;
+	END Test.
+
+positive: decrement statement with variable integer parameter as increment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR increment: INTEGER);
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, increment);
+	END Procedure;
+	END Test.
+
+positive: decrement statement with constant integer parameter as increment
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST increment: INTEGER);
+	VAR integer: INTEGER;
+	BEGIN DEC (integer, increment);
+	END Procedure;
+	END Test.
+
+negative: decrement statement with real as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: REAL;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement with set as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: SET;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement with array as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: ARRAY 10 OF CHAR;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement with record as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: RECORD END;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement with object as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: OBJECT END;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement with pointer to array as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement with pointer to record as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+negative: decrement statement with procedure as increment
+
+	MODULE Test;
+	VAR integer: INTEGER; increment: PROCEDURE;
+	BEGIN DEC (integer, increment);
+	END Test.
+
+
+# include statement
+
+negative: include statement on constant boolean
+
+	MODULE Test;
+	CONST Constant = TRUE;
+	BEGIN INCL (Constant, 0);
+	END Test.
+
+negative: include statement on constant character
+
+	MODULE Test;
+	CONST Constant = 'a';
+	BEGIN INCL (Constant, 0);
+	END Test.
+
+negative: include statement on constant integer
+
+	MODULE Test;
+	CONST Constant = 42;
+	BEGIN INCL (Constant, 0);
+	END Test.
+
+negative: include statement on constant real
+
+	MODULE Test;
+	CONST Constant = 0.1;
+	BEGIN INCL (Constant, 0);
+	END Test.
+
+negative: include statement on constant set
+
+	MODULE Test;
+	CONST Constant = {};
+	BEGIN INCL (Constant, 0);
+	END Test.
+
+negative: include statement on constant string
+
+	MODULE Test;
+	CONST Constant = "string";
+	BEGIN INCL (Constant, 0);
+	END Test.
+
+negative: include statement on nil pointer
+
+	MODULE Test;
+	CONST Constant = NIL;
+	BEGIN INCL (Constant, 0);
+	END Test.
+
+negative: include statement on boolean
+
+	MODULE Test;
+	VAR boolean: BOOLEAN;
+	BEGIN INCL (boolean, 0);
+	END Test.
+
+negative: include statement on character
+
+	MODULE Test;
+	VAR character: CHAR;
+	BEGIN INCL (character, 0);
+	END Test.
+
+negative: include statement on integer
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN INCL (integer, 0);
+	END Test.
+
+negative: include statement on real
+
+	MODULE Test;
+	VAR real: REAL;
+	BEGIN INCL (real, 0);
+	END Test.
+
+negative: include statement on set with constant boolean
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set, TRUE);
+	END Test.
+
+negative: include statement on set with constant character
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set, 'f');
+	END Test.
+
+positive: include statement on set with positive constant integer
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set, 5);
+	END Test.
+
+negative: include statement on set with constant integer exceeding valid range
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set, 5654);
+	END Test.
+
+positive: include statement on set with zero
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set, 0);
+	END Test.
+
+negative: include statement on set with negative constant integer
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set, -5);
+	END Test.
+
+positive: include statement on set parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (set: SET);
+	BEGIN INCL (set, 0);
+	END Procedure;
+	END Test.
+
+positive: include statement on variable set parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR set: SET);
+	BEGIN INCL (set, 0);
+	END Procedure;
+	END Test.
+
+negative: include statement on constant set parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST set: SET);
+	BEGIN INCL (set, 0);
+	END Procedure;
+	END Test.
+
+positive: include statement on set with integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (integer: INTEGER);
+	VAR set: SET;
+	BEGIN INCL (set, integer);
+	END Procedure;
+	END Test.
+
+positive: include statement on set with variable integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR integer: INTEGER);
+	VAR set: SET;
+	BEGIN INCL (set, integer);
+	END Procedure;
+	END Test.
+
+positive: include statement on set with constant integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST integer: INTEGER);
+	VAR set: SET;
+	BEGIN INCL (set, integer);
+	END Procedure;
+	END Test.
+
+negative: include statement on set with constant real
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set, 0.0);
+	END Test.
+
+negative: include statement on set with constant set
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set, {});
+	END Test.
+
+negative: include statement on set with constant string
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set, "element");
+	END Test.
+
+negative: include statement on set with nil pointer
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN INCL (set, NIL);
+	END Test.
+
+negative: include statement on set with boolean
+
+	MODULE Test;
+	VAR set: SET; boolean: BOOLEAN;
+	BEGIN INCL (set, boolean);
+	END Test.
+
+negative: include statement on set with character
+
+	MODULE Test;
+	VAR set: SET; character: CHAR;
+	BEGIN INCL (set, character);
+	END Test.
+
+positive: include statement on set with short integer
+
+	MODULE Test;
+	VAR set: SET; integer: SHORTINT;
+	BEGIN INCL (set, integer);
+	END Test.
+
+positive: include statement on set with integer
+
+	MODULE Test;
+	VAR set: SET; integer: INTEGER;
+	BEGIN INCL (set, integer);
+	END Test.
+
+positive: include statement on set with long integer
+
+	MODULE Test;
+	VAR set: SET; integer: LONGINT;
+	BEGIN INCL (set, integer);
+	END Test.
+
+positive: include statement on set with huge integer
+
+	MODULE Test;
+	VAR set: SET; integer: HUGEINT;
+	BEGIN INCL (set, integer);
+	END Test.
+
+negative: include statement on set with real
+
+	MODULE Test;
+	VAR set: SET; real: REAL;
+	BEGIN INCL (set, real);
+	END Test.
+
+negative: include statement on array
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR;
+	BEGIN INCL (array, 0);
+	END Test.
+
+negative: include statement on record
+
+	MODULE Test;
+	VAR record: RECORD END;
+	BEGIN INCL (record, 0);
+	END Test.
+
+negative: include statement on object
+
+	MODULE Test;
+	VAR object: OBJECT END;
+	BEGIN INCL (object, 0);
+	END Test.
+
+negative: include statement on pointer to array
+
+	MODULE Test;
+	VAR pointer: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN INCL (pointer, 0);
+	END Test.
+
+negative: include statement on pointer to record
+
+	MODULE Test;
+	VAR pointer: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN INCL (pointer, 0);
+	END Test.
+
+negative: include statement on procedure
+
+	MODULE Test;
+	VAR procedure: PROCEDURE;
+	BEGIN INCL (procedure, 0);
+	END Test.
+
+
+# exclude statement
+
+negative: exclude statement on constant boolean
+
+	MODULE Test;
+	CONST Constant = TRUE;
+	BEGIN EXCL (Constant, 0);
+	END Test.
+
+negative: exclude statement on constant character
+
+	MODULE Test;
+	CONST Constant = 'a';
+	BEGIN EXCL (Constant, 0);
+	END Test.
+
+negative: exclude statement on constant integer
+
+	MODULE Test;
+	CONST Constant = 42;
+	BEGIN EXCL (Constant, 0);
+	END Test.
+
+negative: exclude statement on constant real
+
+	MODULE Test;
+	CONST Constant = 0.1;
+	BEGIN EXCL (Constant, 0);
+	END Test.
+
+negative: exclude statement on constant set
+
+	MODULE Test;
+	CONST Constant = {};
+	BEGIN EXCL (Constant, 0);
+	END Test.
+
+negative: exclude statement on constant string
+
+	MODULE Test;
+	CONST Constant = "string";
+	BEGIN EXCL (Constant, 0);
+	END Test.
+
+negative: exclude statement on nil pointer
+
+	MODULE Test;
+	CONST Constant = NIL;
+	BEGIN EXCL (Constant, 0);
+	END Test.
+
+negative: exclude statement on boolean
+
+	MODULE Test;
+	VAR boolean: BOOLEAN;
+	BEGIN EXCL (boolean, 0);
+	END Test.
+
+negative: exclude statement on character
+
+	MODULE Test;
+	VAR character: CHAR;
+	BEGIN EXCL (character, 0);
+	END Test.
+
+negative: exclude statement on integer
+
+	MODULE Test;
+	VAR integer: INTEGER;
+	BEGIN EXCL (integer, 0);
+	END Test.
+
+negative: exclude statement on real
+
+	MODULE Test;
+	VAR real: REAL;
+	BEGIN EXCL (real, 0);
+	END Test.
+
+negative: exclude statement on set with constant boolean
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set, TRUE);
+	END Test.
+
+negative: exclude statement on set with constant character
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set, 'f');
+	END Test.
+
+positive: exclude statement on set with positive constant integer
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set, 5);
+	END Test.
+
+negative: exclude statement on set with constant integer exceeding valid range
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set, 5654);
+	END Test.
+
+positive: exclude statement on set with zero
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set, 0);
+	END Test.
+
+negative: exclude statement on set with negative constant integer
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set, -5);
+	END Test.
+
+positive: exclude statement on set parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (set: SET);
+	BEGIN EXCL (set, 0);
+	END Procedure;
+	END Test.
+
+positive: exclude statement on variable set parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR set: SET);
+	BEGIN EXCL (set, 0);
+	END Procedure;
+	END Test.
+
+negative: exclude statement on constant set parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST set: SET);
+	BEGIN EXCL (set, 0);
+	END Procedure;
+	END Test.
+
+positive: exclude statement on set with integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (integer: INTEGER);
+	VAR set: SET;
+	BEGIN EXCL (set, integer);
+	END Procedure;
+	END Test.
+
+positive: exclude statement on set with variable integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR integer: INTEGER);
+	VAR set: SET;
+	BEGIN EXCL (set, integer);
+	END Procedure;
+	END Test.
+
+positive: exclude statement on set with constant integer parameter
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST integer: INTEGER);
+	VAR set: SET;
+	BEGIN EXCL (set, integer);
+	END Procedure;
+	END Test.
+
+negative: exclude statement on set with constant real
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set, 0.0);
+	END Test.
+
+negative: exclude statement on set with constant set
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set, {});
+	END Test.
+
+negative: exclude statement on set with constant string
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set, "element");
+	END Test.
+
+negative: exclude statement on set with nil pointer
+
+	MODULE Test;
+	VAR set: SET;
+	BEGIN EXCL (set, NIL);
+	END Test.
+
+negative: exclude statement on set with boolean
+
+	MODULE Test;
+	VAR set: SET; boolean: BOOLEAN;
+	BEGIN EXCL (set, boolean);
+	END Test.
+
+negative: exclude statement on set with character
+
+	MODULE Test;
+	VAR set: SET; character: CHAR;
+	BEGIN EXCL (set, character);
+	END Test.
+
+positive: exclude statement on set with short integer
+
+	MODULE Test;
+	VAR set: SET; integer: SHORTINT;
+	BEGIN EXCL (set, integer);
+	END Test.
+
+positive: exclude statement on set with integer
+
+	MODULE Test;
+	VAR set: SET; integer: INTEGER;
+	BEGIN EXCL (set, integer);
+	END Test.
+
+positive: exclude statement on set with long integer
+
+	MODULE Test;
+	VAR set: SET; integer: LONGINT;
+	BEGIN EXCL (set, integer);
+	END Test.
+
+positive: exclude statement on set with huge integer
+
+	MODULE Test;
+	VAR set: SET; integer: HUGEINT;
+	BEGIN EXCL (set, integer);
+	END Test.
+
+negative: exclude statement on set with real
+
+	MODULE Test;
+	VAR set: SET; real: REAL;
+	BEGIN EXCL (set, real);
+	END Test.
+
+negative: exclude statement on array
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF CHAR;
+	BEGIN EXCL (array, 0);
+	END Test.
+
+negative: exclude statement on record
+
+	MODULE Test;
+	VAR record: RECORD END;
+	BEGIN EXCL (record, 0);
+	END Test.
+
+negative: exclude statement on object
+
+	MODULE Test;
+	VAR object: OBJECT END;
+	BEGIN EXCL (object, 0);
+	END Test.
+
+negative: exclude statement on pointer to array
+
+	MODULE Test;
+	VAR pointer: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN EXCL (pointer, 0);
+	END Test.
+
+negative: exclude statement on pointer to record
+
+	MODULE Test;
+	VAR pointer: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN EXCL (pointer, 0);
+	END Test.
+
+negative: exclude statement on procedure
+
+	MODULE Test;
+	VAR procedure: PROCEDURE;
+	BEGIN EXCL (procedure, 0);
+	END Test.
+
+
+# copy statement
+
+negative: copy statement on boolean
+
+	MODULE Test;
+	VAR source, dest: BOOLEAN;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on character
+
+	MODULE Test;
+	VAR source, dest: CHAR;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on integer
+
+	MODULE Test;
+	VAR source, dest: INTEGER;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on real
+
+	MODULE Test;
+	VAR source, dest: REAL;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on set
+
+	MODULE Test;
+	VAR source, dest: SET;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on array of boolean
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF BOOLEAN;
+	BEGIN COPY (source, dest);
+	END Test.
+
+positive: copy statement on array of character
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on array of character and longer array of character
+
+	MODULE Test;
+	VAR source: ARRAY 10 OF CHAR; dest: ARRAY 20 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on array of character and shorter array of character
+
+	MODULE Test;
+	VAR source: ARRAY 20 OF CHAR; dest: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Test.
+
+positive: copy statement on string and longer array of character
+
+	MODULE Test;
+	CONST Source = "source";
+	VAR dest: ARRAY 10 OF CHAR;
+	BEGIN COPY (Source, dest);
+	END Test.
+
+negative: copy statement on string and shorter array of character
+
+	MODULE Test;
+	CONST Source = "longer source";
+	VAR dest: ARRAY 10 OF CHAR;
+	BEGIN COPY (Source, dest);
+	END Test.
+
+negative: copy statement on array of character and string
+
+	MODULE Test;
+	CONST Dest = "dest";
+	VAR source: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, Dest);
+	END Test.
+
+positive: copy statement with array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (source: ARRAY 10 OF CHAR);
+	VAR dest: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+positive: copy statement with variable array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR source: ARRAY 10 OF CHAR);
+	VAR dest: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+positive: copy statement with constant array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST source: ARRAY 10 OF CHAR);
+	VAR dest: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+positive: copy statement with open array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (source: ARRAY OF CHAR);
+	VAR dest: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+positive: copy statement with open variable array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR source: ARRAY OF CHAR);
+	VAR dest: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+positive: copy statement with open constant array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST source: ARRAY OF CHAR);
+	VAR dest: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+positive: copy statement with array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (dest: ARRAY 10 OF CHAR);
+	VAR source: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+positive: copy statement with variable array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR dest: ARRAY 10 OF CHAR);
+	VAR source: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+negative: copy statement with constant array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST dest: ARRAY 10 OF CHAR);
+	VAR source: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+negative: copy statement with open array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (dest: ARRAY OF CHAR);
+	VAR source: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+negative: copy statement with open variable array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR dest: ARRAY OF CHAR);
+	VAR source: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+negative: copy statement with open constant array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST dest: ARRAY OF CHAR);
+	VAR source: ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+negative: copy statement on array of integer
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF INTEGER;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on array of real
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF REAL;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on array of set
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF SET;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on array of record
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF RECORD END;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on array of object
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF OBJECT END;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on array of base object
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF OBJECT;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on array of pointer to array
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF POINTER TO ARRAY OF CHAR;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on array of pointer to record
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF POINTER TO RECORD END;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on array of procedure
+
+	MODULE Test;
+	VAR source, dest: ARRAY 10 OF PROCEDURE;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on record
+
+	MODULE Test;
+	VAR source, dest: RECORD END;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on object
+
+	MODULE Test;
+	VAR source, dest: OBJECT END;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on base object
+
+	MODULE Test;
+	VAR source, dest: OBJECT;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on pointer to array
+
+	MODULE Test;
+	VAR source, dest: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on pointer to record
+
+	MODULE Test;
+	VAR source, dest: POINTER TO RECORD END;
+	BEGIN COPY (source, dest);
+	END Test.
+
+negative: copy statement on procedure
+
+	MODULE Test;
+	VAR source, dest: PROCEDURE;
+	BEGIN COPY (source, dest);
 	END Test.
 
 
