@@ -46,6 +46,21 @@
 
 		<Button>
 			<Properties>
+				<Caption>Profiler</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			
+			<SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMProfiler.Open</CommandString>
+				</Properties>
+			</SystemCommand>
+		</Button>
+
+		<Button>
+			<Properties>
 				<Caption>TCPTraffic</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
@@ -55,21 +70,6 @@
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMTCPTracker.Open</CommandString>
-				</Properties>
-			</SystemCommand>
-		</Button>
-
-		<Button>
-			<Properties>
-				<Caption>USBViewer</Caption>
-				<Alignment>2</Alignment>
-				<OnClickHandler>X Run</OnClickHandler>
-			</Properties>
-			
-			<SystemCommand>
-				<Properties>
-					<ID>X</ID>
-					<CommandString>WMUsbInfo.Open</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
@@ -97,9 +97,9 @@
 			</SystemCommand>
 		</Button>
 		
-		<Button>
+		<Button>		
 			<Properties>
-				<Caption></Caption>
+				<Caption>USBViewer</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
@@ -107,7 +107,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString></CommandString>
+					<CommandString>WMUsbInfo.Open</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>

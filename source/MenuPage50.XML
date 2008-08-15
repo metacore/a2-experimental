@@ -59,14 +59,14 @@
 		</Button>
 		<Button>
 			<Properties>
-				<Caption>Text Positions</Caption>
+				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>PositionDebugging.Open</CommandString>
+					<CommandString></CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
