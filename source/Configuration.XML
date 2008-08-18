@@ -161,7 +161,8 @@ To update: Configuration.Init ~
 	<!-- IME -->
 	<Section name="IME">
 		<Setting name="Arabic" value="WMArabicIME.Install"/>
-		<Setting name="Cyrillic" value="WMCyrillicIME.Install"/>
+		<Setting name="Russian" value="WMRussianIME.Install"/>
+		<Setting name="Ukrainian" value="WMUkrainianIME.Install"/>
 		<Setting name="Armenian" value="WMArmenianIME.Install"/>
 		<Setting name="Hebrew" value="WMHebrewIME.Install"/>
 		<Setting name="Pinyin" value="WMPinyinIME.Install"/>
