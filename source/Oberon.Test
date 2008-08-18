@@ -17871,6 +17871,13 @@ positive: constant boolean to variable boolean assignment
 	BEGIN result := TRUE;
 	END Test.
 
+negative: constant boolean to temporary boolean assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): BOOLEAN;
+	BEGIN result () := TRUE;
+	END Test.
+
 negative: constant character to variable boolean assignment
 
 	MODULE Test;
@@ -17961,6 +17968,13 @@ positive: constant character to variable character assignment
 	MODULE Test;
 	VAR result: CHAR;
 	BEGIN result := 'f';
+	END Test.
+
+negative: constant character to temporary character assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): CHAR;
+	BEGIN result () := 'u';
 	END Test.
 
 negative: constant short integer to variable character assignment
@@ -18055,6 +18069,13 @@ positive: constant short integer to variable short integer assignment
 	BEGIN result := 10H;
 	END Test.
 
+negative: constant short integer to temporary short integer assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): SHORTINT;
+	BEGIN result () := 10H;
+	END Test.
+
 negative: constant integer to variable short integer assignment
 
 	MODULE Test;
@@ -18140,11 +18161,25 @@ positive: constant short integer to variable integer assignment
 	BEGIN result := 10H;
 	END Test.
 
+negative: constant short integer to temporary integer assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): INTEGER;
+	BEGIN result () := 10H;
+	END Test.
+
 positive: constant integer to variable integer assignment
 
 	MODULE Test;
 	VAR result: INTEGER;
 	BEGIN result := 1000H;
+	END Test.
+
+negative: constant integer to temporary integer assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): INTEGER;
+	BEGIN result () := 1000H;
 	END Test.
 
 negative: constant long integer to variable integer assignment
@@ -18225,6 +18260,13 @@ positive: constant short integer to variable long integer assignment
 	BEGIN result := 10H;
 	END Test.
 
+negative: constant short integer to temporary long integer assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): LONGINT;
+	BEGIN result () := 10H;
+	END Test.
+
 positive: constant integer to variable long integer assignment
 
 	MODULE Test;
@@ -18232,11 +18274,25 @@ positive: constant integer to variable long integer assignment
 	BEGIN result := 1000H;
 	END Test.
 
+negative: constant integer to temporary long integer assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): LONGINT;
+	BEGIN result () := 1000H;
+	END Test.
+
 positive: constant long integer to variable long integer assignment
 
 	MODULE Test;
 	VAR result: LONGINT;
 	BEGIN result := 100000H;
+	END Test.
+
+negative: constant long integer to temporary long integer assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): LONGINT;
+	BEGIN result () := 100000H;
 	END Test.
 
 negative: constant huge integer to variable long integer assignment
@@ -18310,11 +18366,25 @@ positive: constant short integer to variable huge integer assignment
 	BEGIN result := 10H;
 	END Test.
 
+negative: constant short integer to temporary huge integer assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): HUGEINT;
+	BEGIN result () := 10H;
+	END Test.
+
 positive: constant integer to variable huge integer assignment
 
 	MODULE Test;
 	VAR result: HUGEINT;
 	BEGIN result := 1000H;
+	END Test.
+
+negative: constant integer to temporary huge integer assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): HUGEINT;
+	BEGIN result () := 1000H;
 	END Test.
 
 positive: constant long integer to variable huge integer assignment
@@ -18324,11 +18394,25 @@ positive: constant long integer to variable huge integer assignment
 	BEGIN result := 100000H;
 	END Test.
 
+negative: constant long integer to temporary huge integer assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): HUGEINT;
+	BEGIN result () := 100000H;
+	END Test.
+
 positive: constant huge integer to variable huge integer assignment
 
 	MODULE Test;
 	VAR result: HUGEINT;
 	BEGIN result := 10000000000H;
+	END Test.
+
+negative: constant huge integer to temporary huge integer assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): HUGEINT;
+	BEGIN result () := 10000000000H;
 	END Test.
 
 negative: constant real to variable huge integer assignment
@@ -18395,11 +18479,25 @@ positive: constant short integer to variable real assignment
 	BEGIN result := 10H;
 	END Test.
 
+negative: constant short integer to temporary real assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): REAL;
+	BEGIN result () := 10H;
+	END Test.
+
 positive: constant integer to variable real assignment
 
 	MODULE Test;
 	VAR result: REAL;
 	BEGIN result := 1000H;
+	END Test.
+
+negative: constant integer to temporary real assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): REAL;
+	BEGIN result () := 1000H;
 	END Test.
 
 positive: constant long integer to variable real assignment
@@ -18409,6 +18507,13 @@ positive: constant long integer to variable real assignment
 	BEGIN result := 100000H;
 	END Test.
 
+negative: constant long integer to temporary real assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): REAL;
+	BEGIN result () := 100000H;
+	END Test.
+
 positive: constant huge integer to variable real assignment
 
 	MODULE Test;
@@ -18416,11 +18521,25 @@ positive: constant huge integer to variable real assignment
 	BEGIN result := 10000000000H;
 	END Test.
 
+negative: constant huge integer to temporary real assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): REAL;
+	BEGIN result () := 10000000000H;
+	END Test.
+
 positive: constant real to variable real assignment
 
 	MODULE Test;
 	VAR result: REAL;
 	BEGIN result := 5.4;
+	END Test.
+
+negative: constant real to temporary real assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): REAL;
+	BEGIN result () := 5.4;
 	END Test.
 
 negative: constant long real to variable real assignment
@@ -18480,11 +18599,25 @@ positive: constant short integer to variable long real assignment
 	BEGIN result := 10H;
 	END Test.
 
+negative: constant short integer to temporary long real assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): LONGREAL;
+	BEGIN result () := 10H;
+	END Test.
+
 positive: constant integer to variable long real assignment
 
 	MODULE Test;
 	VAR result: LONGREAL;
 	BEGIN result := 1000H;
+	END Test.
+
+negative: constant integer to temporary long real assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): LONGREAL;
+	BEGIN result () := 1000H;
 	END Test.
 
 positive: constant long integer to variable long real assignment
@@ -18494,11 +18627,25 @@ positive: constant long integer to variable long real assignment
 	BEGIN result := 100000H;
 	END Test.
 
+negative: constant long integer to temporary long real assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): LONGREAL;
+	BEGIN result () := 100000H;
+	END Test.
+
 positive: constant huge integer to variable long real assignment
 
 	MODULE Test;
 	VAR result: LONGREAL;
 	BEGIN result := 10000000000H;
+	END Test.
+
+negative: constant huge integer to temporary long real assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): LONGREAL;
+	BEGIN result () := 10000000000H;
 	END Test.
 
 positive: constant real to variable long real assignment
@@ -18508,11 +18655,25 @@ positive: constant real to variable long real assignment
 	BEGIN result := 5.4;
 	END Test.
 
+negative: constant real to temporary long real assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): LONGREAL;
+	BEGIN result () := 5.4;
+	END Test.
+
 positive: constant long real to variable long real assignment
 
 	MODULE Test;
 	VAR result: LONGREAL;
 	BEGIN result := 5.4D100;
+	END Test.
+
+negative: constant long real to temporary long real assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): LONGREAL;
+	BEGIN result () := 5.4D100;
 	END Test.
 
 negative: constant set to variable long real assignment
@@ -18605,6 +18766,13 @@ positive: constant set to variable set assignment
 	MODULE Test;
 	VAR result: SET;
 	BEGIN result := {5};
+	END Test.
+
+negative: constant set to temporary set assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): SET;
+	BEGIN result () := {5};
 	END Test.
 
 negative: string to variable set assignment
@@ -18707,11 +18875,25 @@ positive: string to longer variable array of character assignment
 	BEGIN result := "string";
 	END Test.
 
+negative: string to longer temporary array of character assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): ARRAY 10 OF CHAR;
+	BEGIN result () := "string";
+	END Test.
+
 positive: string to variable array of character of equal size assignment
 
 	MODULE Test;
 	VAR result: ARRAY 7 OF CHAR;
 	BEGIN result := "string";
+	END Test.
+
+negative: string to temporary array of equal size assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): ARRAY 7 OF CHAR;
+	BEGIN result () := "string";
 	END Test.
 
 negative: string to shorter variable array of character assignment
@@ -18982,6 +19164,13 @@ positive: nil pointer to object assignment
 	BEGIN result := NIL;
 	END Test.
 
+negative: nil pointer to temporary object assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): OBJECT END;
+	BEGIN result () := NIL;
+	END Test.
+
 negative: procedure to object assignment
 
 	MODULE Test;
@@ -19067,6 +19256,13 @@ positive: nil pointer to pointer assignment
 	BEGIN result := NIL;
 	END Test.
 
+negative: nil pointer to temporary pointer assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): POINTER TO RECORD END;
+	BEGIN result () := NIL;
+	END Test.
+
 negative: procedure to pointer assignment
 
 	MODULE Test;
@@ -19150,6 +19346,13 @@ positive: nil pointer to procedure assignment
 	MODULE Test;
 	VAR result: PROCEDURE;
 	BEGIN result := NIL;
+	END Test.
+
+negative: nil pointer to temporary procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE (): PROCEDURE;
+	BEGIN result () := NIL;
 	END Test.
 
 positive: procedure with one equal parameter to procedure assignment
@@ -19369,6 +19572,13 @@ positive: variable boolean to variable boolean assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable boolean to temporary boolean assignment
+
+	MODULE Test;
+	VAR variable: BOOLEAN; result: PROCEDURE (): BOOLEAN;
+	BEGIN result () := variable;
+	END Test.
+
 negative: variable character to variable boolean assignment
 
 	MODULE Test;
@@ -19486,6 +19696,13 @@ positive: variable character to variable character assignment
 	MODULE Test;
 	VAR variable, result: CHAR;
 	BEGIN result := variable;
+	END Test.
+
+negative: variable character to temporary character assignment
+
+	MODULE Test;
+	VAR variable: CHAR; result: PROCEDURE (): CHAR;
+	BEGIN result () := variable;
 	END Test.
 
 negative: variable short integer to variable character assignment
@@ -19607,6 +19824,13 @@ positive: variable short integer to variable short integer assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable short integer to temporary short integer assignment
+
+	MODULE Test;
+	VAR variable: SHORTINT; result: PROCEDURE (): SHORTINT;
+	BEGIN result () := variable;
+	END Test.
+
 negative: variable integer to variable short integer assignment
 
 	MODULE Test;
@@ -19719,11 +19943,25 @@ positive: variable short integer to variable integer assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable short integer to temporary integer assignment
+
+	MODULE Test;
+	VAR variable: SHORTINT; result: PROCEDURE (): INTEGER;
+	BEGIN result () := variable;
+	END Test.
+
 positive: variable integer to variable integer assignment
 
 	MODULE Test;
 	VAR variable, result: INTEGER;
 	BEGIN result := variable;
+	END Test.
+
+negative: variable integer to temporary integer assignment
+
+	MODULE Test;
+	VAR variable: INTEGER; result: PROCEDURE (): INTEGER;
+	BEGIN result () := variable;
 	END Test.
 
 negative: variable long integer to variable integer assignment
@@ -19831,6 +20069,13 @@ positive: variable short integer to variable long integer assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable short integer to temporary long integer assignment
+
+	MODULE Test;
+	VAR variable: SHORTINT; result: PROCEDURE (): LONGINT;
+	BEGIN result () := variable;
+	END Test.
+
 positive: variable integer to variable long integer assignment
 
 	MODULE Test;
@@ -19838,11 +20083,25 @@ positive: variable integer to variable long integer assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable integer to temporary long integer assignment
+
+	MODULE Test;
+	VAR variable: INTEGER; result: PROCEDURE (): LONGINT;
+	BEGIN result () := variable;
+	END Test.
+
 positive: variable long integer to variable long integer assignment
 
 	MODULE Test;
 	VAR variable, result: LONGINT;
 	BEGIN result := variable;
+	END Test.
+
+negative: variable long integer to temporary long integer assignment
+
+	MODULE Test;
+	VAR variable: LONGINT; result: PROCEDURE (): LONGINT;
+	BEGIN result () := variable;
 	END Test.
 
 negative: variable huge integer to variable long integer assignment
@@ -19943,11 +20202,25 @@ positive: variable short integer to variable huge integer assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable short integer to temporary huge integer assignment
+
+	MODULE Test;
+	VAR variable: SHORTINT; result: PROCEDURE (): HUGEINT;
+	BEGIN result () := variable;
+	END Test.
+
 positive: variable integer to variable huge integer assignment
 
 	MODULE Test;
 	VAR variable: INTEGER; result: HUGEINT;
 	BEGIN result := variable;
+	END Test.
+
+negative: variable integer to temporary huge integer assignment
+
+	MODULE Test;
+	VAR variable: INTEGER; result: PROCEDURE (): HUGEINT;
+	BEGIN result () := variable;
 	END Test.
 
 positive: variable long integer to variable huge integer assignment
@@ -19957,11 +20230,25 @@ positive: variable long integer to variable huge integer assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable long integer to temporary huge integer assignment
+
+	MODULE Test;
+	VAR variable: LONGINT; result: PROCEDURE (): HUGEINT;
+	BEGIN result () := variable;
+	END Test.
+
 positive: variable huge integer to variable huge integer assignment
 
 	MODULE Test;
 	VAR variable, result: HUGEINT;
 	BEGIN result := variable;
+	END Test.
+
+negative: variable huge integer to temporary huge integer assignment
+
+	MODULE Test;
+	VAR variable: HUGEINT; result: PROCEDURE (): HUGEINT;
+	BEGIN result () := variable;
 	END Test.
 
 negative: variable real to variable huge integer assignment
@@ -20055,11 +20342,25 @@ positive: variable short integer to variable real assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable short integer to temporary real assignment
+
+	MODULE Test;
+	VAR variable: SHORTINT; result: PROCEDURE (): REAL;
+	BEGIN result () := variable;
+	END Test.
+
 positive: variable integer to variable real assignment
 
 	MODULE Test;
 	VAR variable: INTEGER; result: REAL;
 	BEGIN result := variable;
+	END Test.
+
+negative: variable integer to temporary real assignment
+
+	MODULE Test;
+	VAR variable: INTEGER; result: PROCEDURE (): REAL;
+	BEGIN result () := variable;
 	END Test.
 
 positive: variable long integer to variable real assignment
@@ -20069,6 +20370,13 @@ positive: variable long integer to variable real assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable long integer to temporary real assignment
+
+	MODULE Test;
+	VAR variable: LONGINT; result: PROCEDURE (): REAL;
+	BEGIN result () := variable;
+	END Test.
+
 positive: variable huge integer to variable real assignment
 
 	MODULE Test;
@@ -20076,11 +20384,25 @@ positive: variable huge integer to variable real assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable huge integer to temporary real assignment
+
+	MODULE Test;
+	VAR variable: HUGEINT; result: PROCEDURE (): REAL;
+	BEGIN result () := variable;
+	END Test.
+
 positive: variable real to variable real assignment
 
 	MODULE Test;
 	VAR variable, result: REAL;
 	BEGIN result := variable;
+	END Test.
+
+negative: variable real to temporary real assignment
+
+	MODULE Test;
+	VAR variable: REAL; result: PROCEDURE (): REAL;
+	BEGIN result () := variable;
 	END Test.
 
 negative: variable long real to variable real assignment
@@ -20167,11 +20489,25 @@ positive: variable short integer to variable long real assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable short integer to temporary long real assignment
+
+	MODULE Test;
+	VAR variable: SHORTINT; result: PROCEDURE (): LONGREAL;
+	BEGIN result () := variable;
+	END Test.
+
 positive: variable integer to variable long real assignment
 
 	MODULE Test;
 	VAR variable: INTEGER; result: LONGREAL;
 	BEGIN result := variable;
+	END Test.
+
+negative: variable integer to temporary long real assignment
+
+	MODULE Test;
+	VAR variable: INTEGER; result: PROCEDURE (): LONGREAL;
+	BEGIN result () := variable;
 	END Test.
 
 positive: variable long integer to variable long real assignment
@@ -20181,11 +20517,25 @@ positive: variable long integer to variable long real assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable long integer to temporary long real assignment
+
+	MODULE Test;
+	VAR variable: LONGINT; result: PROCEDURE (): LONGREAL;
+	BEGIN result () := variable;
+	END Test.
+
 positive: variable huge integer to variable long real assignment
 
 	MODULE Test;
 	VAR variable: HUGEINT; result: LONGREAL;
 	BEGIN result := variable;
+	END Test.
+
+negative: variable huge integer to temporary long real assignment
+
+	MODULE Test;
+	VAR variable: HUGEINT; result: PROCEDURE (): LONGREAL;
+	BEGIN result () := variable;
 	END Test.
 
 positive: variable real to variable long real assignment
@@ -20195,11 +20545,25 @@ positive: variable real to variable long real assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable real to temporary long real assignment
+
+	MODULE Test;
+	VAR variable: REAL; result: PROCEDURE (): LONGREAL;
+	BEGIN result () := variable;
+	END Test.
+
 positive: variable long real to variable long real assignment
 
 	MODULE Test;
 	VAR variable, result: LONGREAL;
 	BEGIN result := variable;
+	END Test.
+
+negative: variable long real to temporary long real assignment
+
+	MODULE Test;
+	VAR variable: REAL; result: PROCEDURE (): LONGREAL;
+	BEGIN result () := variable;
 	END Test.
 
 negative: variable set to variable long real assignment
@@ -20321,6 +20685,13 @@ positive: variable set to variable set assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: variable set to temporary set assignment
+
+	MODULE Test;
+	VAR variable: SET; result: PROCEDURE (): SET;
+	BEGIN result () := variable;
+	END Test.
+
 negative: array to variable set assignment
 
 	MODULE Test;
@@ -20438,6 +20809,13 @@ positive: array of boolean to array of boolean assignment
 	MODULE Test;
 	VAR variable, result: ARRAY 10 OF BOOLEAN;
 	BEGIN result := variable;
+	END Test.
+
+negative: array of boolean to temporary array of boolean assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF BOOLEAN; result: PROCEDURE (): ARRAY 10 OF BOOLEAN;
+	BEGIN result () := variable;
 	END Test.
 
 negative: array of boolean to longer array of boolean assignment
@@ -20584,6 +20962,13 @@ positive: array of character to array of character assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: array of character to temporary array of character assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF CHAR; result: PROCEDURE (): ARRAY 10 OF CHAR;
+	BEGIN result () := variable;
+	END Test.
+
 negative: array of character to longer array of character assignment
 
 	MODULE Test;
@@ -20726,6 +21111,13 @@ positive: array of short integer to array of short integer assignment
 	MODULE Test;
 	VAR variable, result: ARRAY 10 OF SHORTINT;
 	BEGIN result := variable;
+	END Test.
+
+negative: array of short integer to temporary array of short integer assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF SHORTINT; result: PROCEDURE (): ARRAY 10 OF SHORTINT;
+	BEGIN result () := variable;
 	END Test.
 
 negative: array of short integer to longer array of short integer assignment
@@ -20872,6 +21264,13 @@ positive: array of integer to array of integer assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: array of integer to temporary array of integer assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF INTEGER; result: PROCEDURE (): ARRAY 10 OF INTEGER;
+	BEGIN result () := variable;
+	END Test.
+
 negative: array of integer to longer array of integer assignment
 
 	MODULE Test;
@@ -21014,6 +21413,13 @@ positive: array of long integer to array of long integer assignment
 	MODULE Test;
 	VAR variable, result: ARRAY 10 OF LONGINT;
 	BEGIN result := variable;
+	END Test.
+
+negative: array of long integer to temporary array of long integer assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF LONGINT; result: PROCEDURE (): ARRAY 10 OF LONGINT;
+	BEGIN result () := variable;
 	END Test.
 
 negative: array of long integer to longer array of long integer assignment
@@ -21160,6 +21566,13 @@ positive: array of huge integer to array of huge integer assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: array of huge integer to temporary array of huge integer assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF HUGEINT; result: PROCEDURE (): ARRAY 10 OF HUGEINT;
+	BEGIN result () := variable;
+	END Test.
+
 negative: array of huge integer to longer array of huge integer assignment
 
 	MODULE Test;
@@ -21304,6 +21717,13 @@ positive: array of real to array of real assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: array of real to temporary array of real assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF SHORTINT; result: PROCEDURE (): ARRAY 10 OF SHORTINT;
+	BEGIN result () := variable;
+	END Test.
+
 negative: array of real to longer array of real assignment
 
 	MODULE Test;
@@ -21446,6 +21866,13 @@ positive: array of long real to array of long real assignment
 	MODULE Test;
 	VAR variable, result: ARRAY 10 OF LONGREAL;
 	BEGIN result := variable;
+	END Test.
+
+negative: array of long real to temporary array of long real assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF LONGREAL; result: PROCEDURE (): ARRAY 10 OF LONGREAL;
+	BEGIN result () := variable;
 	END Test.
 
 negative: array of long real to longer array of long real assignment
@@ -21736,6 +22163,13 @@ positive: array of array to array of array assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: array of array to temporary array of array assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF ARRAY 10 OF SET; result: PROCEDURE (): ARRAY 10 OF ARRAY 10 OF SET;
+	BEGIN result () := variable;
+	END Test.
+
 negative: array of array to longer array of array assignment
 
 	MODULE Test;
@@ -21878,6 +22312,14 @@ positive: array of record to array of record assignment
 	MODULE Test;
 	VAR variable, result: ARRAY 10 OF RECORD END;
 	BEGIN result := variable;
+	END Test.
+
+negative: array of record to temporary array of record assignment
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR variable: ARRAY 10 OF Record; result: PROCEDURE (): ARRAY 10 OF Record;
+	BEGIN result () := variable;
 	END Test.
 
 negative: array of record to longer array of record assignment
@@ -22029,6 +22471,14 @@ positive: array of object to array of object assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: array of object to temporary array of object assignment
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	VAR variable: ARRAY 10 OF Object; result: PROCEDURE (): ARRAY 10 OF Object;
+	BEGIN result () := variable;
+	END Test.
+
 negative: array of object to longer array of object assignment
 
 	MODULE Test;
@@ -22178,6 +22628,14 @@ positive: array of pointer to array of pointer assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: array of pointer to temporary array of pointer assignment
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR variable: ARRAY 10 OF POINTER TO Record; result: PROCEDURE (): ARRAY 10 OF POINTER TO Record;
+	BEGIN result () := variable;
+	END Test.
+
 negative: array of pointer to longer array of pointer assignment
 
 	MODULE Test;
@@ -22325,6 +22783,13 @@ positive: array of procedure to array of procedure assignment
 	MODULE Test;
 	VAR variable, result: ARRAY 10 OF PROCEDURE;
 	BEGIN result := variable;
+	END Test.
+
+negative: array of procedure to temporary array of procedure assignment
+
+	MODULE Test;
+	VAR variable: ARRAY 10 OF PROCEDURE; result: PROCEDURE (): ARRAY 10 OF PROCEDURE;
+	BEGIN result () := variable;
 	END Test.
 
 negative: array of procedure to longer array of procedure assignment
@@ -22483,6 +22948,14 @@ positive: record to same record assignment
 	MODULE Test;
 	VAR variable, result: RECORD END;
 	BEGIN result := variable;
+	END Test.
+
+negative: record to same temporary record assignment
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR variable: Record; result: PROCEDURE (): Record;
+	BEGIN result () := variable;
 	END Test.
 
 negative: record to different record assignment
@@ -22662,6 +23135,14 @@ positive: object to same object assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: obbject to same temporary object assignment
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	VAR variable: Object; result: PROCEDURE (): Object;
+	BEGIN result () := variable;
+	END Test.
+
 negative: object to different object assignment
 
 	MODULE Test;
@@ -22811,6 +23292,14 @@ positive: pointer to same pointer assignment
 	BEGIN result := variable;
 	END Test.
 
+negative: pointer to same temporary pointer assignment
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO RECORD END;
+	VAR variable: Pointer; result: PROCEDURE (): Pointer;
+	BEGIN result () := variable;
+	END Test.
+
 positive: pointer to array of same pointer to same pointer assignment
 
 	MODULE Test;
@@ -22892,6 +23381,14 @@ positive: pointer to array to pointer to array assignment
 	MODULE Test;
 	VAR variable, result: POINTER TO ARRAY 10 OF CHAR;
 	BEGIN result := variable;
+	END Test.
+
+negative: pointer to array to temporary pointer to array assignment
+
+	MODULE Test;
+	TYPE Pointer = POINTER TO ARRAY 10 OF CHAR;
+	VAR variable: Pointer; result: PROCEDURE (): Pointer;
+	BEGIN result () := variable;
 	END Test.
 
 negative: pointer to array to pointer to longer array assignment
@@ -23025,6 +23522,13 @@ positive: variable procedure to variable procedure assignment
 	MODULE Test;
 	VAR variable, result: PROCEDURE;
 	BEGIN result := variable;
+	END Test.
+
+negative: variable procedure to temporary procedure assignment
+
+	MODULE Test;
+	VAR variable: PROCEDURE; result: PROCEDURE (): PROCEDURE;
+	BEGIN result () := variable;
 	END Test.
 
 positive: procedure to variable procedure assignment
@@ -25687,11 +26191,39 @@ positive: indexing variable boolean array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary boolean array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF BOOLEAN; result: BOOLEAN;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary boolean array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF BOOLEAN;
+	BEGIN array()[0] := TRUE;
+	END Test.
+
 positive: indexing variable character array
 
 	MODULE Test;
 	VAR array: ARRAY 10 OF CHAR; result: CHAR;
 	BEGIN result := array[0]
+	END Test.
+
+positive: indexing temporary character array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF CHAR; result: CHAR;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary character array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF CHAR;
+	BEGIN array()[0] := '0';
 	END Test.
 
 positive: indexing variable integer array
@@ -25701,11 +26233,39 @@ positive: indexing variable integer array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary integer array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF INTEGER; result: INTEGER;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary integer array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF INTEGER;
+	BEGIN array()[0] := 5;
+	END Test.
+
 positive: indexing variable real array
 
 	MODULE Test;
 	VAR array: ARRAY 10 OF REAL; result: REAL;
 	BEGIN result := array[0]
+	END Test.
+
+positive: indexing temporary real array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF REAL; result: REAL;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary real array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF REAL;
+	BEGIN array()[0] := 5.0;
 	END Test.
 
 positive: indexing variable set array
@@ -25715,11 +26275,39 @@ positive: indexing variable set array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary set array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF SET; result: SET;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary set array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF SET;
+	BEGIN array()[0] := {5};
+	END Test.
+
 positive: indexing variable array of array
 
 	MODULE Test;
 	VAR array: ARRAY 10 OF ARRAY 10 OF CHAR; result: ARRAY 10 OF CHAR;
 	BEGIN result := array[0]
+	END Test.
+
+positive: indexing temporary array of array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF ARRAY 10 OF CHAR; result: ARRAY 10 OF CHAR;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary array of array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF ARRAY 10 OF CHAR; value: ARRAY 10 OF CHAR;
+	BEGIN array()[0] := value;
 	END Test.
 
 positive: indexing variable record array
@@ -25730,12 +26318,60 @@ positive: indexing variable record array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary record array
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): ARRAY 10 OF Record; result: Record;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary record array
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): ARRAY 10 OF Record; value: Record;
+	BEGIN array()[0] := value;
+	END Test.
+
+negative: changing member of indexed temporary record array
+
+	MODULE Test;
+	TYPE Record = RECORD i: INTEGER END;
+	VAR array: PROCEDURE (): ARRAY 10 OF Record;
+	BEGIN array()[0].i := 5;
+	END Test.
+
 positive: indexing variable object array
 
 	MODULE Test;
 	TYPE Object = OBJECT END Object;
 	VAR array: ARRAY 10 OF Object; result: Object;
 	BEGIN result := array[0]
+	END Test.
+
+positive: indexing temporary object array
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	VAR array: PROCEDURE (): ARRAY 10 OF Object; result: Object;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary object array
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	VAR array: PROCEDURE (): ARRAY 10 OF Object; value: Object;
+	BEGIN array()[0] := value;
+	END Test.
+
+positive: changing member of indexed temporary object array
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR i: INTEGER END Object;
+	VAR array: PROCEDURE (): ARRAY 10 OF Object;
+	BEGIN array()[0].i := 5;
 	END Test.
 
 positive: indexing variable base object array
@@ -25745,7 +26381,49 @@ positive: indexing variable base object array
 	BEGIN result := array[0]
 	END Test.
 
-positive: indexing variable pointer array
+positive: indexing temporary base object array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF OBJECT; result: OBJECT;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary base object array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF OBJECT; value: OBJECT;
+	BEGIN array()[0] := value;
+	END Test.
+
+positive: indexing variable pointer to array array
+
+	MODULE Test;
+	VAR array: ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR; result: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN result := array[0]
+	END Test.
+
+positive: indexing temporary pointer to array array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR; result: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary pointer to array array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR; value: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN array()[0] := value;
+	END Test.
+
+positive: changing element of indexed temporary pointer to array array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR;
+	BEGIN array()[0][0] := 'f';
+	END Test.
+
+positive: indexing variable array of pointer to record
 
 	MODULE Test;
 	TYPE Record = RECORD END;
@@ -25753,11 +26431,48 @@ positive: indexing variable pointer array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary array of pointer to record
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): ARRAY 10 OF POINTER TO Record; result: POINTER TO Record;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary array of pointer to record
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): ARRAY 10 OF POINTER TO Record; value: POINTER TO Record;
+	BEGIN array()[0] := value;
+	END Test.
+
+positive: changing element of indexed temporary array of pointer to record
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF POINTER TO RECORD i: INTEGER END;
+	BEGIN array()[0].i := 5;
+	END Test.
+
 positive: indexing variable procedure array
 
 	MODULE Test;
 	VAR array: ARRAY 10 OF PROCEDURE; result: PROCEDURE;
 	BEGIN result := array[0]
+	END Test.
+
+positive: indexing temporary procedure array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF PROCEDURE; result: PROCEDURE;
+	BEGIN result := array()[0]
+	END Test.
+
+negative: changing indexed temporary procedure array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): ARRAY 10 OF PROCEDURE; value: PROCEDURE;
+	BEGIN array()[0] := value;
 	END Test.
 
 negative: variable array as index
@@ -26098,6 +26813,27 @@ positive: member selection on variable record
 	MODULE Test;
 	VAR record: RECORD member: SET END; result: SET;
 	BEGIN result := record.member
+	END Test.
+
+positive: member modification on variable record
+
+	MODULE Test;
+	VAR record: RECORD member: SET END; value: SET;
+	BEGIN record.member := value
+	END Test.
+
+positive: member selection on temporary record
+
+	MODULE Test;
+	VAR record: PROCEDURE (): RECORD member: SET END; result: SET;
+	BEGIN result := record ().member
+	END Test.
+
+negative: member modification on temporary record
+
+	MODULE Test;
+	VAR record: PROCEDURE (): RECORD member: SET END; value: SET;
+	BEGIN record ().member := value
 	END Test.
 
 negative: calling variable record
@@ -26514,6 +27250,27 @@ positive: member selection on variable object
 	MODULE Test;
 	VAR object: OBJECT VAR member: SET END; result: SET;
 	BEGIN result := object.member
+	END Test.
+
+positive: member modification on variable object
+
+	MODULE Test;
+	VAR object: OBJECT VAR member: SET END; value: SET;
+	BEGIN object.member := value
+	END Test.
+
+positive: member selection on temporary object
+
+	MODULE Test;
+	VAR object: PROCEDURE (): OBJECT VAR member: SET END; result: SET;
+	BEGIN result := object ().member
+	END Test.
+
+positive: member modification on temporary object
+
+	MODULE Test;
+	VAR record: PROCEDURE (): OBJECT VAR member: SET END; value: SET;
+	BEGIN record ().member := value
 	END Test.
 
 negative: calling variable object
@@ -27211,11 +27968,53 @@ positive: member selection on variable pointer to record
 	BEGIN result := pointer.member
 	END Test.
 
+positive: member modification on variable pointer to record
+
+	MODULE Test;
+	VAR pointer: POINTER TO RECORD member: SET END; value: SET;
+	BEGIN pointer.member := value
+	END Test.
+
+positive: member selection on temporary pointer to record
+
+	MODULE Test;
+	VAR pointer: PROCEDURE (): POINTER TO RECORD member: SET END; result: SET;
+	BEGIN result := pointer ().member
+	END Test.
+
+positive: member modification on temporary pointer to record
+
+	MODULE Test;
+	VAR pointer: PROCEDURE (): POINTER TO RECORD member: SET END; value: SET;
+	BEGIN pointer ().member := value
+	END Test.
+
 positive: member selection on dereferenced variable pointer to record
 
 	MODULE Test;
 	VAR pointer: POINTER TO RECORD member: SET END; result: SET;
 	BEGIN result := pointer^.member
+	END Test.
+
+positive: member modification on dereferenced variable pointer to record
+
+	MODULE Test;
+	VAR pointer: POINTER TO RECORD member: SET END; value: SET;
+	BEGIN pointer^.member := value
+	END Test.
+
+positive: member selection on dereferenced temporary pointer to record
+
+	MODULE Test;
+	VAR pointer: PROCEDURE (): POINTER TO RECORD member: SET END; result: SET;
+	BEGIN result := pointer ()^.member
+	END Test.
+
+positive: member modification on dereferenced temporary pointer to record
+
+	MODULE Test;
+	VAR pointer: PROCEDURE (): POINTER TO RECORD member: SET END; value: SET;
+	BEGIN pointer ()^.member := value
 	END Test.
 
 negative: calling variable pointer to record
@@ -27525,11 +28324,39 @@ positive: indexing variable pointer to boolean array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary pointer to boolean array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF BOOLEAN; result: BOOLEAN;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to boolean array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF BOOLEAN;
+	BEGIN array()[0] := TRUE;
+	END Test.
+
 positive: indexing dereferenced variable pointer to boolean array
 
 	MODULE Test;
 	VAR array: POINTER TO ARRAY 10 OF BOOLEAN; result: BOOLEAN;
 	BEGIN result := array^[0]
+	END Test.
+
+positive: indexing dereferenced temporary pointer to boolean array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF BOOLEAN; result: BOOLEAN;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to boolean array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF BOOLEAN;
+	BEGIN array()^[0] := TRUE;
 	END Test.
 
 positive: indexing variable pointer to character array
@@ -27539,11 +28366,39 @@ positive: indexing variable pointer to character array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary pointer to character array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF CHAR; result: CHAR;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to character array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF CHAR;
+	BEGIN array()[0] := '0';
+	END Test.
+
 positive: indexing dereferenced variable pointer to character array
 
 	MODULE Test;
 	VAR array: POINTER TO ARRAY 10 OF CHAR; result: CHAR;
 	BEGIN result := array^[0]
+	END Test.
+
+positive: indexing dereferenced temporary pointer to character array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF CHAR; result: CHAR;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to character array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF CHAR;
+	BEGIN array()^[0] := '0';
 	END Test.
 
 positive: indexing variable pointer to integer array
@@ -27553,11 +28408,39 @@ positive: indexing variable pointer to integer array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary pointer to integer array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF INTEGER; result: INTEGER;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to integer array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF INTEGER;
+	BEGIN array()[0] := 5;
+	END Test.
+
 positive: indexing dereferenced variable pointer to integer array
 
 	MODULE Test;
 	VAR array: POINTER TO ARRAY 10 OF INTEGER; result: INTEGER;
 	BEGIN result := array^[0]
+	END Test.
+
+positive: indexing dereferenced temporary pointer to integer array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF INTEGER; result: INTEGER;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to integer array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF INTEGER;
+	BEGIN array()^[0] := 5;
 	END Test.
 
 positive: indexing variable pointer to real array
@@ -27567,11 +28450,39 @@ positive: indexing variable pointer to real array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary pointer to real array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF REAL; result: REAL;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to real array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF REAL;
+	BEGIN array()[0] := 5.0;
+	END Test.
+
 positive: indexing dereferenced variable pointer to real array
 
 	MODULE Test;
 	VAR array: POINTER TO ARRAY 10 OF REAL; result: REAL;
 	BEGIN result := array^[0]
+	END Test.
+
+positive: indexing dereferenced temporary pointer to real array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF REAL; result: REAL;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to real array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF REAL;
+	BEGIN array()^[0] := 5.0;
 	END Test.
 
 positive: indexing variable pointer to set array
@@ -27581,11 +28492,39 @@ positive: indexing variable pointer to set array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary pointer to set array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF SET; result: SET;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to set array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF SET;
+	BEGIN array()[0] := {5};
+	END Test.
+
 positive: indexing dereferenced variable pointer to set array
 
 	MODULE Test;
 	VAR array: POINTER TO ARRAY 10 OF SET; result: SET;
 	BEGIN result := array^[0]
+	END Test.
+
+positive: indexing dereferenced temporary pointer to set array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF SET; result: SET;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to set array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF SET;
+	BEGIN array()^[0] := {5};
 	END Test.
 
 positive: indexing variable pointer to array of array
@@ -27595,11 +28534,39 @@ positive: indexing variable pointer to array of array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary pointer to array of array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF ARRAY 10 OF CHAR; result: ARRAY 10 OF CHAR;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to array of array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF ARRAY 10 OF CHAR; value: ARRAY 10 OF CHAR;
+	BEGIN array()[0] := value;
+	END Test.
+
 positive: indexing dereferenced variable pointer to array of array
 
 	MODULE Test;
 	VAR array: POINTER TO ARRAY 10 OF ARRAY 10 OF CHAR; result: ARRAY 10 OF CHAR;
 	BEGIN result := array^[0]
+	END Test.
+
+positive: indexing dereferenced temporary pointer to array of array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF ARRAY 10 OF CHAR; result: ARRAY 10 OF CHAR;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to array of array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF ARRAY 10 OF CHAR; value: ARRAY 10 OF CHAR;
+	BEGIN array()^[0] := value;
 	END Test.
 
 positive: indexing variable pointer to record array
@@ -27610,12 +28577,60 @@ positive: indexing variable pointer to record array
 	BEGIN result := array[0]
 	END Test.
 
-positive: indexing dereferenced variable pointer to record array
+positive: indexing temporary pointer to record array
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Record; result: Record;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to record array
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Record; value: Record;
+	BEGIN array()[0] := value;
+	END Test.
+
+positive: changing member of indexed temporary pointer to record array
+
+	MODULE Test;
+	TYPE Record = RECORD i: INTEGER END;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Record;
+	BEGIN array()[0].i := 5;
+	END Test.
+
+positive: indexing dereferenced variable pointer to array of record
 
 	MODULE Test;
 	TYPE Record = RECORD END;
 	VAR array: POINTER TO ARRAY 10 OF Record; result: Record;
 	BEGIN result := array^[0]
+	END Test.
+
+positive: indexing dereferenced temporary pointer to array of record
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Record; result: Record;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to array of record
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Record; value: Record;
+	BEGIN array()^[0] := value;
+	END Test.
+
+positive: changing member of dereferenced indexed temporary pointer to array of record
+
+	MODULE Test;
+	TYPE Record = RECORD i: INTEGER END;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Record;
+	BEGIN array()^[0].i := 5;
 	END Test.
 
 positive: indexing variable pointer to object array
@@ -27626,12 +28641,60 @@ positive: indexing variable pointer to object array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary pointer to object array
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Object; result: Object;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to object array
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Object; value: Object;
+	BEGIN array()[0] := value;
+	END Test.
+
+positive: changing member of indexed temporary pointer to object array
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR i: INTEGER END Object;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Object;
+	BEGIN array()[0].i := 5;
+	END Test.
+
 positive: indexing dereferenced variable pointer to object array
 
 	MODULE Test;
 	TYPE Object = OBJECT END Object;
 	VAR array: POINTER TO ARRAY 10 OF Object; result: Object;
 	BEGIN result := array^[0]
+	END Test.
+
+positive: indexing dereferenced temporary pointer to object array
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Object; result: Object;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to object array
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Object; value: Object;
+	BEGIN array()^[0] := value;
+	END Test.
+
+positive: changing member of dereferenced indexed temporary pointer to object array
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR i: INTEGER END Object;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF Object;
+	BEGIN array()^[0].i := 5;
 	END Test.
 
 positive: indexing variable pointer to base object array
@@ -27641,6 +28704,20 @@ positive: indexing variable pointer to base object array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary pointer to base object array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF OBJECT; result: OBJECT;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to base object array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF OBJECT; value: OBJECT;
+	BEGIN array()[0] := value;
+	END Test.
+
 positive: indexing dereferenced variable pointer to base object array
 
 	MODULE Test;
@@ -27648,7 +28725,77 @@ positive: indexing dereferenced variable pointer to base object array
 	BEGIN result := array^[0]
 	END Test.
 
-positive: indexing variable pointer to pointer array
+positive: indexing dereferenced temporary pointer to base object array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF OBJECT; result: OBJECT;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to base object array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF OBJECT; value: OBJECT;
+	BEGIN array()^[0] := value;
+	END Test.
+
+positive: indexing variable pointer to pointer to array array
+
+	MODULE Test;
+	VAR array: POINTER TO ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR; result: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN result := array[0]
+	END Test.
+
+positive: indexing temporary pointer to pointer to array array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR; result: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to pointer to array array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR; value: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN array()[0] := value;
+	END Test.
+
+positive: changing element of indexed temporary pointer to pointer to array array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR;
+	BEGIN array()[0][0] := 'f';
+	END Test.
+
+positive: indexing dereferenced variable pointer to pointer to array array
+
+	MODULE Test;
+	VAR array: POINTER TO ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR; result: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN result := array^[0]
+	END Test.
+
+positive: indexing dereferenced temporary pointer to pointer to array array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR; result: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to pointer to array array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR; value: POINTER TO ARRAY 10 OF CHAR;
+	BEGIN array()^[0] := value;
+	END Test.
+
+positive: changing element of dereferenced indexed temporary pointer to pointer to array array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO ARRAY 10 OF CHAR;
+	BEGIN array()^[0][0] := 'f';
+	END Test.
+
+positive: indexing variable pointer to pointer to record array
 
 	MODULE Test;
 	TYPE Record = RECORD END;
@@ -27656,12 +28803,58 @@ positive: indexing variable pointer to pointer array
 	BEGIN result := array[0]
 	END Test.
 
-positive: indexing dereferenced variable pointer to pointer array
+positive: indexing temporary pointer to pointer to record array
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO Record; result: POINTER TO Record;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to pointer to record array
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO Record; value: POINTER TO Record;
+	BEGIN array()[0] := value;
+	END Test.
+
+positive: changing element of indexed temporary pointer to pointer to record array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO RECORD i: INTEGER END;
+	BEGIN array()[0].i := 5;
+	END Test.
+
+positive: indexing dereferenced variable pointer to record array
 
 	MODULE Test;
 	TYPE Record = RECORD END;
 	VAR array: POINTER TO ARRAY 10 OF POINTER TO Record; result: POINTER TO Record;
 	BEGIN result := array^[0]
+	END Test.
+
+positive: indexing dereferenced temporary pointer to pointer to record array
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO Record; result: POINTER TO Record;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to pointer to record array
+
+	MODULE Test;
+	TYPE Record = RECORD END;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO Record; value: POINTER TO Record;
+	BEGIN array()^[0] := value;
+	END Test.
+
+positive: changing element of dereferenced indexed temporary pointer to pointer to record array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF POINTER TO RECORD i: INTEGER END;
+	BEGIN array()^[0].i := 5;
 	END Test.
 
 positive: indexing variable pointer to procedure array
@@ -27671,11 +28864,39 @@ positive: indexing variable pointer to procedure array
 	BEGIN result := array[0]
 	END Test.
 
+positive: indexing temporary pointer to procedure array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF PROCEDURE; result: PROCEDURE;
+	BEGIN result := array()[0]
+	END Test.
+
+positive: changing indexed temporary pointer to procedure array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF PROCEDURE; value: PROCEDURE;
+	BEGIN array()[0] := value;
+	END Test.
+
 positive: indexing dereferenced variable pointer to procedure array
 
 	MODULE Test;
 	VAR array: POINTER TO ARRAY 10 OF PROCEDURE; result: PROCEDURE;
 	BEGIN result := array^[0]
+	END Test.
+
+positive: indexing dereferenced temporary pointer to procedure array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF PROCEDURE; result: PROCEDURE;
+	BEGIN result := array()^[0]
+	END Test.
+
+positive: changing dereferenced indexed temporary pointer to procedure array
+
+	MODULE Test;
+	VAR array: PROCEDURE (): POINTER TO ARRAY 10 OF PROCEDURE; value: PROCEDURE;
+	BEGIN array()^[0] := value;
 	END Test.
 
 negative: variable pointer to array as index
@@ -35484,6 +36705,54 @@ negative: copy statement with open constant array of character parameter as dest
 	PROCEDURE Procedure (CONST dest: ARRAY OF CHAR);
 	VAR source: ARRAY 10 OF CHAR;
 	BEGIN COPY (source, dest);
+	END Procedure;
+	END Test.
+
+positive: copy statement with string as source and array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (dest: ARRAY 10 OF CHAR);
+	BEGIN COPY ("source", dest);
+	END Procedure;
+	END Test.
+
+positive: copy statement with string as source and variable array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR dest: ARRAY 10 OF CHAR);
+	BEGIN COPY ("source", dest);
+	END Procedure;
+	END Test.
+
+negative: copy statement with string as source and constant array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST dest: ARRAY 10 OF CHAR);
+	BEGIN COPY ("source", dest);
+	END Procedure;
+	END Test.
+
+positive: copy statement with string as source and open array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (dest: ARRAY OF CHAR);
+	BEGIN COPY ("source", dest);
+	END Procedure;
+	END Test.
+
+positive: copy statement with string as source and open variable array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR dest: ARRAY OF CHAR);
+	BEGIN COPY ("source", dest);
+	END Procedure;
+	END Test.
+
+negative: copy statement with string as source and open constant array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST dest: ARRAY OF CHAR);
+	BEGIN COPY ("source", dest);
 	END Procedure;
 	END Test.
 
