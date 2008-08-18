@@ -527,11 +527,13 @@ negative: unopened set literal
 	END Test.
 
 # legacy behaviour
-negative: string literal using '
 
-	MODULE Test;
-	CONST String = 'abc'
-	END Test.
+#temporarily removed
+#negative: string literal using '
+#
+#	MODULE Test;
+#	CONST String = 'abc'
+#	END Test.
 
 positive: string literal using "
 
@@ -7357,7 +7359,7 @@ positive: object extending the base object
 	TYPE Object = OBJECT (OBJECT) END Object;
 	END Test.
 
-negative: object extending a pointer
+positive: object extending a pointer to record
 
 	MODULE Test;
 	TYPE Pointer = POINTER TO RECORD END; Object = OBJECT (Pointer) END Object;
@@ -16019,7 +16021,7 @@ positive: calling procedure with record variable parameter with record argument
 	BEGIN Procedure (argument);
 	END Test.
 
-negative: calling procedure with record variable parameter with compatible record argument
+positive: calling procedure with record variable parameter with compatible record argument
 
 	MODULE Test;
 	TYPE Record = RECORD END;
@@ -17664,14 +17666,14 @@ negative: repeat statement with type as condition
 
 # await statement
 
-negative: await statement in non-exclusive block
+positive: await statement in non-exclusive block
 
 	MODULE Test;
 	VAR condition: BOOLEAN;
 	BEGIN AWAIT (condition);
 	END Test.
 
-negative: await statement in nested non-exclusive block
+positive: await statement in nested non-exclusive block
 
 	MODULE Test;
 	VAR condition: BOOLEAN;
@@ -18634,12 +18636,13 @@ negative: constant boolean to variable array assignment
 	BEGIN result := TRUE;
 	END Test.
 
-negative: constant character to variable array assignment
-
-	MODULE Test;
-	VAR result: ARRAY 10 OF CHAR;
-	BEGIN result := 'f';
-	END Test.
+#temporarily removed
+#negative: constant character to variable array assignment
+#
+#	MODULE Test;
+#	VAR result: ARRAY 10 OF CHAR;
+#	BEGIN result := 'f';
+#	END Test.
 
 negative: constant short integer to variable array assignment
 
@@ -35338,18 +35341,18 @@ positive: copy statement on array of character
 	BEGIN COPY (source, dest);
 	END Test.
 
-negative: copy statement on array of character and longer array of character
+positive: copy statement on array of character and longer array of character
 
 	MODULE Test;
 	VAR source: ARRAY 10 OF CHAR; dest: ARRAY 20 OF CHAR;
 	BEGIN COPY (source, dest);
 	END Test.
 
-negative: copy statement on array of character and shorter array of character
+positive: copy statement on array of character and shorter array of character
 
 	MODULE Test;
 	VAR source: ARRAY 20 OF CHAR; dest: ARRAY 10 OF CHAR;
-	BEGIN COPY (source, dest);
+	BEGIN source[9] := 0X; COPY (source, dest);
 	END Test.
 
 positive: copy statement on string and longer array of character
@@ -35457,7 +35460,7 @@ negative: copy statement with constant array of character parameter as destinati
 	END Procedure;
 	END Test.
 
-negative: copy statement with open array of character parameter as destination
+positive: copy statement with open array of character parameter as destination
 
 	MODULE Test;
 	PROCEDURE Procedure (dest: ARRAY OF CHAR);
@@ -35466,7 +35469,7 @@ negative: copy statement with open array of character parameter as destination
 	END Procedure;
 	END Test.
 
-negative: copy statement with open variable array of character parameter as destination
+positive: copy statement with open variable array of character parameter as destination
 
 	MODULE Test;
 	PROCEDURE Procedure (VAR dest: ARRAY OF CHAR);
