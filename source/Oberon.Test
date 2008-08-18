@@ -24751,7 +24751,7 @@ negative: capital letter of variable integer
 positive: arithmetic shift of variable integers
 
 	MODULE Test;
-	VAR integer, result: INTEGER;
+	VAR integer: INTEGER;  result: LONGINT;
 	BEGIN result := ASH (integer, integer)
 	END Test.
 
@@ -28303,14 +28303,14 @@ negative: entier on variable pointer to array
 	BEGIN result := ENTIER (pointer)
 	END Test.
 
-negative: unary length of variable pointer to array
+positive: unary length of variable pointer to array
 
 	MODULE Test;
 	VAR pointer: POINTER TO ARRAY 10 OF CHAR; result: LONGINT;
 	BEGIN result := LEN (pointer)
 	END Test.
 
-negative: binary length of variable pointer to array
+positive: binary length of variable pointer to array
 
 	MODULE Test;
 	VAR pointer: POINTER TO ARRAY 10 OF CHAR; result: LONGINT;
@@ -34926,7 +34926,7 @@ negative: new statement on pointer to open array with negative dimension
 	BEGIN NEW (array, -5);
 	END Test.
 
-negative: new statement on pointer to open array with zero dimension
+positive: new statement on pointer to open array with zero dimension
 
 	MODULE Test;
 	VAR array: POINTER TO ARRAY OF CHAR;
