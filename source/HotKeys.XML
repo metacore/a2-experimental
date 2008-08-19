@@ -5,7 +5,7 @@
 	HotKeys.Open HotKeys.XML ~ to load this file
 	HotKeys.Show ~ to see a list of currently bound hotkeys
 	
-	WMKeyCode.Open ~	S.Free WMKeyCode ~
+	WMKeyCode.Open ~	SystemTools.Free WMKeyCode ~
 	
 	Valid modifier keys:
 	
@@ -34,7 +34,7 @@
 
 	<!-- Standard hot keys (don't change) -->
 	<HotKey name="Show Hotkeys" keys="F11" command="HotKeys.Show"/>
-	<HotKey name="Disable Hotkeys" keys="F12" command="S.Free HotKeys"/>
+	<HotKey name="Disable Hotkeys" keys="F12" command="SystemTools.Free HotKeys"/>
 	
 	<!-- Example hot keys -->
 	

@@ -30,7 +30,7 @@ END HelloRu;
 
 END HelloWorld.
 
-S.Free HelloWorld ~
+SystemTools.Free HelloWorld ~
 HelloWorld.Hello ~
 HelloWorld.HelloCn ~
 HelloWorld.HelloKr ~

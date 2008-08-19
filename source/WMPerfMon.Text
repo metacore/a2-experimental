@@ -11,7 +11,7 @@
 ]]></Span><Span style="Bold"><![CDATA[
 1. Development]]></Span><Span style="Normal"><![CDATA[
 
-WMPerfMon.Open ~ 	S.Free WMPerfMon ~
+WMPerfMon.Open ~ 	SystemTools.Free WMPerfMon ~
 
 # AOS
 PC.Compile \s
@@ -55,7 +55,7 @@ WMPerfMonComponents.Mod
 WMPerfMon.Mod
 ~
 
-S.Free
+SystemTools.Free
 	WMPerfMon WMPerfMonTabSystem WMPerfMonTabAlerts
 	WMPerfMonAlerts
 	WMPerfMonComponents

@@ -141,7 +141,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>S.Reboot</CommandString>
+					<CommandString>SystemTools.Reboot</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
@@ -157,7 +157,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>S.PowerDown</CommandString>
+					<CommandString>SystemTools.PowerDown</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
