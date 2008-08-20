@@ -37139,3 +37139,129 @@ negative: qualified super call on reference to overridden procedure in module
 	VAR object: Derived;
 	BEGIN object.Procedure^
 	END Test.
+	
+	
+#flags
+
+negative: procedure illegaly marked delegate
+
+	MODULE Test;	
+	PROCEDURE {DELEGATE} P; END P;
+	END Test.
+	
+negative: procedure illegaly marked untraced
+
+	MODULE Test;	
+	PROCEDURE {UNTRACED} P; END P;
+	END Test.
+
+positive: pointer to array variable marked untraced
+
+	MODULE Test; 
+	VAR a {UNTRACED}: POINTER TO ARRAY OF CHAR; 
+	END Test. 
+
+positive: pointer to record variable marked untraced
+
+	MODULE Test; 
+	VAR a {UNTRACED}: POINTER TO RECORD END; 
+	END Test.
+	
+negative: non-pointer variable marked untraced
+
+	MODULE Test; 
+	VAR a {UNTRACED}: LONGINT;
+	END Test.
+	
+negative: variable marked delegate
+	MODULE Test; 
+	VAR a{DELEGATE}: PROCEDURE; 
+	END Test.
+
+positive: delegate procedure type
+	
+	MODULE Test; 
+	TYPE TP=PROCEDURE{DELEGATE}; 
+	END Test.
+	
+positive: delegate procedure type with arguments
+
+	MODULE Test; 
+	TYPE TP=PROCEDURE{DELEGATE}(a: LONGINT): LONGINT; 
+	END Test.
+
+positive: delegate procedure variable assignment
+
+	MODULE Test; 
+	VAR p:PROCEDURE{DELEGATE}; 
+	PROCEDURE P;	END P;
+	BEGIN p := P
+	END Test.
+
+positive: delegate procedure variable assigned to method
+
+	MODULE Test; 
+	TYPE O=OBJECT PROCEDURE P; END P; END O; 
+	VAR o:O; p:PROCEDURE{DELEGATE}; 
+	BEGIN p := o.P
+	END Test.
+
+negative: non-delegate procedure variable assigned to method
+
+	MODULE Test; 
+	TYPE O=OBJECT PROCEDURE P; END P; END O; 
+	VAR o:O; p:PROCEDURE; 
+	BEGIN p := o.P
+	END Test.
+	
+#signatures
+	
+positive: signature matching extension of object
+
+	MODULE Test; 
+	TYPE O=OBJECT; 
+			PROCEDURE P; END P; 
+			PROCEDURE Q(i: INTEGER); END Q; 
+			PROCEDURE R(i: LONGINT): LONGINT; END R; 
+		END O; 
+	TYPE OO=OBJECT(O); 
+			PROCEDURE P; END P; 
+			PROCEDURE Q(i: INTEGER); END Q; 
+			PROCEDURE R(i: LONGINT): LONGINT; END R; 
+		END O; 
+		
+	END Test.
+	
+	
+negative: extension of objects with nonmatching signature: parameter incompatible
+
+	MODULE Test; 
+	TYPE O=OBJECT;
+			PROCEDURE P(i: INTEGER); END P; 
+	END O; 
+	TYPE OO=OBJECT(O)
+			PROCEDURE P(i: LONGINT); END P; 
+	END OO; 
+	END Test. 
+
+positive: extension of object matching signature: constructor extends non-constructor
+
+	MODULE Test; 
+	TYPE O=OBJECT; 
+			PROCEDURE P; END P; 
+		END O; 
+	TYPE OO=OBJECT(O); 
+			PROCEDURE &P; END P; 
+		END O; 
+	END Test.	
+	
+negative: extension of object with nonmatching signature: non-constructor extends constructor
+
+	MODULE Test; 
+	TYPE O=OBJECT; 
+			PROCEDURE &P; END P; 
+		END O; 
+	TYPE OO=OBJECT(O); 
+			PROCEDURE P; END P; 
+		END O; 
+	END Test.			
