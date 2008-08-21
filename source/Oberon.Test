@@ -37215,11 +37215,11 @@ negative: non-delegate procedure variable assigned to method
 	END Test.
 	
 #signatures
-	
+
 positive: signature matching extension of object
 
 	MODULE Test; 
-	TYPE O=OBJECT; 
+	TYPE O=OBJECT
 			PROCEDURE P; END P; 
 			PROCEDURE Q(i: INTEGER); END Q; 
 			PROCEDURE R(i: LONGINT): LONGINT; END R; 
@@ -37228,15 +37228,13 @@ positive: signature matching extension of object
 			PROCEDURE P; END P; 
 			PROCEDURE Q(i: INTEGER); END Q; 
 			PROCEDURE R(i: LONGINT): LONGINT; END R; 
-		END O; 
-		
+		END OO; 	
 	END Test.
-	
 	
 negative: extension of objects with nonmatching signature: parameter incompatible
 
 	MODULE Test; 
-	TYPE O=OBJECT;
+	TYPE O=OBJECT
 			PROCEDURE P(i: INTEGER); END P; 
 	END O; 
 	TYPE OO=OBJECT(O)
@@ -37247,21 +37245,139 @@ negative: extension of objects with nonmatching signature: parameter incompatibl
 positive: extension of object matching signature: constructor extends non-constructor
 
 	MODULE Test; 
-	TYPE O=OBJECT; 
+	TYPE O=OBJECT
 			PROCEDURE P; END P; 
 		END O; 
 	TYPE OO=OBJECT(O); 
 			PROCEDURE &P; END P; 
-		END O; 
+		END OO; 
 	END Test.	
 	
 negative: extension of object with nonmatching signature: non-constructor extends constructor
 
 	MODULE Test; 
-	TYPE O=OBJECT; 
+	TYPE O=OBJECT
 			PROCEDURE &P; END P; 
 		END O; 
 	TYPE OO=OBJECT(O); 
 			PROCEDURE P; END P; 
-		END O; 
+		END OO; 
 	END Test.			
+
+positive: non-exported constructor used in same module
+
+	MODULE Dummy; 
+	TYPE O*=OBJECT
+		PROCEDURE & Init (x: LONGINT; CONST y: ARRAY OF CHAR); 
+		END Init;
+	END O; 
+	VAR o:O; 
+	BEGIN 
+		NEW(o,10,"test")
+	END Dummy.
+
+negative: non-exported constructor used as method in different module
+
+	MODULE Test; 
+	IMPORT Dummy; 
+	VAR a: Dummy.O; 
+	BEGIN 
+		a.Init(10,"test")
+	END Test.
+
+negative: non-exported constructor used as constructor in different module
+
+	MODULE Test; 
+	IMPORT Dummy; 
+	VAR a: Dummy.O; 
+	BEGIN 
+		NEW(a,10,"test"); 
+	END Test.
+
+positive: non-exported constructor overwritten by new constructor with different name in different module
+
+	MODULE Test; 
+	IMPORT Dummy; 
+	TYPE O=OBJECT (Dummy.O)
+		PROCEDURE & InitX(a,b: LONGINT); END InitX;
+	END O; 
+	VAR a: O; 
+	BEGIN 
+		NEW(a,10,20); 
+	END Test.
+	
+positive: non-exported constructor overwritten by new constructor with same name in different module
+
+	MODULE Test; 
+	IMPORT Dummy; 
+	TYPE O=OBJECT (Dummy.O)
+		PROCEDURE & Init(a,b: LONGINT); END Init;
+	END O; 
+	VAR a: O; 
+	BEGIN 
+		NEW(a,10,20); 
+	END Test.
+	
+positive: exported constructor used in same module
+
+	MODULE Dummy; 
+	TYPE O*=OBJECT
+		PROCEDURE & Init* (x: LONGINT; CONST y: ARRAY OF CHAR); 
+		END Init;
+	END O; 
+	VAR o:O; 
+	BEGIN 
+		NEW(o,10,"test")
+	END Dummy.
+
+positive: exported constructor used as method in different module
+
+	MODULE Test; 
+	IMPORT Dummy; 
+	VAR a: Dummy.O; 
+	BEGIN 
+		a.Init(10,"test")
+	END Test.
+
+positive: exported constructor used as constructor in different module
+
+	MODULE Test; 
+	IMPORT Dummy; 
+	VAR a: Dummy.O; 
+	BEGIN 
+		NEW(a,10,"test"); 
+	END Test.
+
+positive: exported constructor overwritten by new constructor with different name and non-matching signature in different module
+
+	MODULE Test; 
+	IMPORT Dummy; 
+	TYPE O=OBJECT (Dummy.O)
+		PROCEDURE & InitX(a,b: LONGINT); END InitX;
+	END O; 
+	VAR a: O; 
+	BEGIN 
+		NEW(a,10,20); 
+	END Test.
+	
+negative: non-exported constructor overwritten by new constructor with same name and non-matching signature in different module
+
+	MODULE Test; 
+	IMPORT Dummy; 
+	TYPE O=OBJECT (Dummy.O)
+		PROCEDURE & Init(a,b: LONGINT); END Init;
+	END O; 
+	END Test.
+
+positive: non-exported constructor overwritten by new constructor with same name and matching signature in different module
+
+	MODULE Test; 
+	IMPORT Dummy; 
+	TYPE O=OBJECT (Dummy.O)
+		PROCEDURE & Init(a: LONGINT; CONST name: ARRAY OF CHAR); END Init;
+	END O; 
+	VAR a: O; 
+	BEGIN 
+		NEW(a,10,"test"); 
+	END Test.
+	
