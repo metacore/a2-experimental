@@ -1,0 +1,18 @@
+# Disk DescriptorFile
+version=1
+CID=1372fc51
+parentCID=ffffffff
+createType="monolithicFlat"
+
+# Extent description
+RW 100000 FLAT "AosVMDisk3-flat.vmdk" 0
+
+# The Disk Data Base 
+#DDB
+
+ddb.toolsVersion = "0"
+ddb.adapterType = "ide"
+ddb.geometry.sectors = "63"
+ddb.geometry.heads = "16"
+ddb.geometry.cylinders = "18"
+ddb.virtualHWVersion = "6"
