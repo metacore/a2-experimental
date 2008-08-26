@@ -13,7 +13,7 @@
 
 WMPerfMon.Open ~ 	SystemTools.Free WMPerfMon ~
 
-# AOS
+# Native
 PC.Compile \s
 WMPerfMonPlugins.Mod
 WMPerfMonPluginMemory.Mod WMPerfMonPluginCpu.Mod WMPerfMonPluginNetwork.Mod

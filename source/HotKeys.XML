@@ -39,7 +39,7 @@
 	<!-- Example hot keys -->
 	
 	<!-- Example: Switch keyboard layout -->
-	<!-- Only works with Native AOS
+	<!--
 	<HotKey name="Keyboard US" keys="F5" command="WMOSD.Open 'US Keyboard Layout';Keyboard.SetLayout KeyUS.Bin"/>
 	<HotKey name="Keyboard CH" keys="F6" command="WMOSD.Open 'CH Keyboard Layout';Keyboard.SetLayout KeyCH.Bin"/>
 	-->
