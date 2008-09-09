@@ -20992,6 +20992,14 @@ negative: array of character to open array of character assignment
 	END Procedure;
 	END Test.
 
+positive: string to open array of character assignment
+
+	MODULE Test;
+	PROCEDURE Procedure (VAR result: ARRAY OF CHAR);
+	BEGIN result := "string";
+	END Procedure;
+	END Test.
+
 negative: open array of character to array of character assignment
 
 	MODULE Test;
@@ -21006,6 +21014,13 @@ negative: array of character to dereferenced open array of character assignment
 	MODULE Test;
 	VAR variable: ARRAY 10 OF CHAR; result: POINTER TO ARRAY OF CHAR;
 	BEGIN result^ := variable;
+	END Test.
+
+positive: string to dereferenced open array of character assignment
+
+	MODULE Test;
+	VAR result: POINTER TO ARRAY OF CHAR;
+	BEGIN result^ := "string";
 	END Test.
 
 negative: array of short integer to array of character assignment
@@ -23723,6 +23738,72 @@ positive: procedure to variable procedure with return of same procedure types as
 	VAR result: A;
 	PROCEDURE variable (): A; END variable;
 	BEGIN result := variable;
+	END Test.
+
+positive: global procedure to global variable procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE;
+	PROCEDURE variable; END variable;
+	BEGIN result := variable;
+	END Test.
+
+negative: nested procedure to global variable procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE;
+	PROCEDURE Procedure;
+		PROCEDURE variable; END variable;
+		BEGIN result := variable;
+	END Procedure;
+	END Test.
+
+positive: global procedure to nested variable procedure assignment
+
+	MODULE Test;
+	PROCEDURE variable; END variable;
+	PROCEDURE Procedure;
+	VAR result: PROCEDURE;
+	BEGIN result := variable;
+	END Procedure;
+	END Test.
+
+negative: nested procedure to nested variable procedure assignment
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR result: PROCEDURE;
+		PROCEDURE variable; END variable;
+		BEGIN result := variable;
+	END Procedure;
+	END Test.
+
+negative: procedure in object to global variable procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE;
+	VAR object: OBJECT PROCEDURE variable; END variable; END;
+	BEGIN result := object.variable;
+	END Test.
+
+negative: nested procedure in object to global variable procedure assignment
+
+	MODULE Test;
+	VAR object: OBJECT VAR result: PROCEDURE; PROCEDURE Procedure; PROCEDURE variable; END variable; BEGIN result := variable; END Procedure; END;
+	END Test.
+
+negative: procedure in object to nested variable procedure assignment
+
+	MODULE Test;
+	VAR result: PROCEDURE;
+	VAR object: OBJECT PROCEDURE variable; END variable; END;
+	BEGIN result := object.variable;
+	END Test.
+
+negative: nested procedure in object to nested variable procedure assignment
+
+	MODULE Test;
+	VAR object: OBJECT VAR result: PROCEDURE; PROCEDURE Procedure; PROCEDURE variable; END variable; BEGIN result := variable; END Procedure; END;
 	END Test.
 
 negative: import to procedure assignment
