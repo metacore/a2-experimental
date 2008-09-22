@@ -7465,6 +7465,85 @@ positive: object containing a procedure
 	TYPE Object = OBJECT VAR p: PROCEDURE END Object;
 	END Test.
 
+positive: local object accessing local constant
+
+	MODULE Test;
+	PROCEDURE P;
+	CONST Constant = TRUE;
+	VAR o: OBJECT VAR v: BOOLEAN BEGIN v := Constant END;
+	END P;
+	END Test.
+
+positive: local object accessing local type
+
+	MODULE Test;
+	PROCEDURE P;
+	TYPE Type = BOOLEAN;
+	VAR o: OBJECT VAR v: Type END;
+	END P;
+	END Test.
+
+negative: local object accessing local variable
+
+	MODULE Test;
+	PROCEDURE P;
+	VAR o: OBJECT BEGIN v := TRUE END; v: BOOLEAN;
+	END P;
+	END Test.
+
+negative: local object accessing local procedure
+
+	MODULE Test;
+	PROCEDURE P;
+	VAR o: OBJECT BEGIN Procedure END;
+	PROCEDURE Procedure; END Procedure;
+	END P;
+	END Test.
+
+negative: local object accessing local parameter
+
+	MODULE Test;
+	PROCEDURE P (p: BOOLEAN);
+	VAR o: OBJECT BEGIN p := TRUE END;
+	END P;
+	END Test.
+
+positive: local object accessing global constant
+
+	MODULE Test;
+	CONST Constant = TRUE;
+	PROCEDURE P;
+	VAR o: OBJECT VAR v: BOOLEAN BEGIN v := Constant END;
+	END P;
+	END Test.
+
+positive: local object accessing global type
+
+	MODULE Test;
+	TYPE Type = BOOLEAN;
+	PROCEDURE P;
+	VAR o: OBJECT VAR v: Type END;
+	END P;
+	END Test.
+
+positive: local object accessing global variable
+
+	MODULE Test;
+	VAR v: BOOLEAN;
+	PROCEDURE P;
+	VAR o: OBJECT BEGIN v := TRUE END;
+	END P;
+	END Test.
+
+positive: local object accessing global procedure
+
+	MODULE Test;
+	PROCEDURE P;
+	VAR o: OBJECT BEGIN Procedure END;
+	END P;
+	PROCEDURE Procedure; END Procedure;
+	END Test.
+
 
 # pointers
 
@@ -19563,6 +19642,21 @@ negative: procedure to import assignment
 	IMPORT result := Dummy;
 	PROCEDURE Procedure; END Procedure;
 	BEGIN result := Procedure;
+	END Test.
+
+positive: nil pointer to references assignment
+
+	MODULE Test;
+	VAR o: OBJECT END; ob: OBJECT; ptr: POINTER TO RECORD END; p: PROCEDURE;
+	BEGIN o := NIL; ob := NIL; ptr := NIL; p := NIL;
+	END Test.
+
+positive: indirect nil pointer to references assignment
+
+	MODULE Test;
+	CONST Nil = NIL;
+	VAR o: OBJECT END; ob: OBJECT; ptr: POINTER TO RECORD END; p: PROCEDURE;
+	BEGIN o := Nil; ob := Nil; ptr := Nil; p := Nil;
 	END Test.
 
 positive: variable boolean to variable boolean assignment
@@ -36950,6 +37044,42 @@ positive: overriding same object procedure
 	MODULE Test;
 	TYPE A = OBJECT PROCEDURE P; END P; END A;
 	TYPE B = OBJECT (A) PROCEDURE P; END P; END B;
+	END Test.
+
+positive: deep overriding same object procedure
+
+	MODULE Test;
+	TYPE A = OBJECT PROCEDURE P; END P; END A;
+	TYPE B = OBJECT (A) END B;
+	TYPE C = OBJECT (D) PROCEDURE P; END P; END C;
+	TYPE D = OBJECT (B) END D;
+	END Test.
+
+negative: deep overriding same object procedure with different return type
+
+	MODULE Test;
+	TYPE A = OBJECT PROCEDURE P; END P; END A;
+	TYPE B = OBJECT (A) END B;
+	TYPE C = OBJECT (D) PROCEDURE P (): A; END P; END C;
+	TYPE D = OBJECT (B) END D;
+	END Test.
+
+positive: deep overriding same object procedure with same symbol in-between
+
+	MODULE Test;
+	TYPE A = OBJECT PROCEDURE P; END P; END A;
+	TYPE B = OBJECT (A) VAR P: A END B;
+	TYPE C = OBJECT (D) PROCEDURE P; END P; END C;
+	TYPE D = OBJECT (B) END D;
+	END Test.
+
+negative: deep overriding same object procedure with different return type and same symbol in-between
+
+	MODULE Test;
+	TYPE A = OBJECT PROCEDURE P; END P; END A;
+	TYPE B = OBJECT (A) VAR P: A END B;
+	TYPE C = OBJECT (D) PROCEDURE P (): A; END P; END C;
+	TYPE D = OBJECT (B) END D;
 	END Test.
 
 negative: overriding same object procedure with one parameter
