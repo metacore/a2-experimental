@@ -286,6 +286,7 @@
     <Error code="278"></Error>
     <Error code="279"></Error>
     <Error code="280">duplicate fingerprint</Error>
+    <Error code="290">interface not implemented</Error>
     
 <!-- Debug Positions -->
     <Error code="400">pc position</Error>
