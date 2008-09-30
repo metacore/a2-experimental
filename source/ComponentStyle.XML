@@ -19,7 +19,7 @@
 		<IsToggle>false</IsToggle>
 		<IsFlat>false</IsFlat>
 		<Style>3</Style>
-		<GlassEffect>3</GlassEffect>
+		<Effect3D>3</Effect3D>
 		<Alignment>left</Alignment>
 	</Button>
 	<Panel>
