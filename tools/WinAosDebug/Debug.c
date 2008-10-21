@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "Debug.h"
 
-#define Title "Debug for WinAos Oberon (ejz,[fof])"
+#define Title "Debugger for WinAos"
 
 #define ModNext 4 // 0 + 4
 #define ModName 8 // 4 +4
@@ -11,7 +11,7 @@
 #define ModSB 48 // 44 +4
 #define ModData 108 //68 +20 +20
 #define ModCode 112 // 72 +20 +20
-#define ModRefs 116 // 76 +20 +20
+#define ModRefs 120 // 80 +20 +20
 #define TypeTagName 20 // was 16
 #define TypeTagMod 16 // was 48
 
@@ -368,7 +368,9 @@ void GetTypeName(LPVOID ptr, char* name) {
 				i = TypeTagMod; mod = (LPVOID)GetLInt(type, &i); // 48 -> TypeTagMod
 				ReadProcessMemory(proc.hProcess, (LPVOID)((DWORD)mod+ModName), mname, 32, &read);
 				ReadProcessMemory(proc.hProcess, (LPVOID)((DWORD)type+TypeTagName), tname, 32, &read); // 16 -> TypeTagName
-				wsprintf(name, "%s.%s", mname, tname);
+				if (strcmp(tname,"") == 0) {strcpy(tname,"ANONYMOUS");}
+				if (strcmp(mname,"") == 0) {strcpy(mname,"ANONYMOUS");}
+				sprintf(name, "%s.%s", mname, tname);
 				return;
 			}
 		}
@@ -376,20 +378,22 @@ void GetTypeName(LPVOID ptr, char* name) {
 	strcpy(name, "");
 }
 
-void WriteType(HWND hWnd, LPVOID dtdadr, LPVOID stdadr) {
+void WriteType(HWND hWnd, LPVOID dynamictdadr, LPVOID statictdadr) {
 	char dname[64], sname[64];
 	char msg[128];
 
-	GetTypeName(dtdadr, dname);
+	GetTypeName(dynamictdadr, dname);
 	if (strcmp(dname, "") != 0) {
 		wsprintf(msg, " %s", dname);
 		String(hWnd, msg);
 	}
-	GetTypeName(stdadr, sname);
-	if ((strcmp(sname, "") != 0) && (strcmp(sname, dname) != 0)) {
-		wsprintf(msg, " (%s)", sname);
+	/* not supported any more since records do not have a type descriptor in the module heap
+	GetTypeName(statictdadr, sname);
+	if ((strcmp(sname, "") != 0)&& (strcmp(sname, dname) != 0)) {
+		wsprintf(msg, " (%s)", dname);
 		String(hWnd, msg);
 	}
+	*/
 }
 
 void Variables(HWND hWnd, LPVOID mod, LPVOID refs, LONGINT reflen, LONGINT i, LONGINT base, LONGINT sb) {
@@ -398,6 +402,7 @@ void Variables(HWND hWnd, LPVOID mod, LPVOID refs, LONGINT reflen, LONGINT i, LO
 	LONGINT n, adr, size, j, k, t, t2, t3, vars;
 	DWORD read;
 	OCHAR mode, type, ch;
+	BOOLEAN writeType; 
 	short int si;
 	BOOLEAN etc;
 	float x;
@@ -475,6 +480,7 @@ void Variables(HWND hWnd, LPVOID mod, LPVOID refs, LONGINT reflen, LONGINT i, LO
 				}
 				while (n > 0) {
 					k = 0;
+					writeType = 0;
 					switch (type) {
 						case 1: case 3: // byte, char
 							ch = Get((LPVOID)adr, &k);
@@ -508,11 +514,11 @@ void Variables(HWND hWnd, LPVOID mod, LPVOID refs, LONGINT reflen, LONGINT i, LO
 							break;
 						case 7: // REAL
 							ReadProcessMemory(proc.hProcess, (LPVOID)adr, &x, 4, &read);
-							wsprintf(msg, "%f", x);
+							sprintf(msg, "%E", x);
 							break;
 						case 8: // LONGREAL
 							ReadProcessMemory(proc.hProcess, (LPVOID)adr, &y, 8, &read);
-							wsprintf(msg, "%f", y);
+							sprintf(msg, "%E", y);
 							break;
 						case 9: // SET
 							j = GetLInt((LPVOID)adr, &k);
@@ -521,9 +527,11 @@ void Variables(HWND hWnd, LPVOID mod, LPVOID refs, LONGINT reflen, LONGINT i, LO
 						case 13: case 29: // pointer
 							tdadr1 = (LPVOID)GetLInt((LPVOID)adr, &k);
 							wsprintf(msg, "0%lXH", tdadr1);
+							writeType = 1; 
 							break;
 						case 22: // RECORD
-							tdadr1 = tdadr0; wsprintf(msg, "0%lXH", tdadr1);
+							tdadr1 = tdadr0; 
+							wsprintf(msg, "RECORD 0%lXH", tdadr1);
 							break;
 						case 14: // PROC
 							j = GetLInt((LPVOID)adr, &k);
@@ -537,9 +545,11 @@ void Variables(HWND hWnd, LPVOID mod, LPVOID refs, LONGINT reflen, LONGINT i, LO
 							break;
 					}
 					String(hWnd, msg);
-					if ((type == 13) || (type == 22) || (type = 29)) {
+					
+					if (writeType==1) {
 						WriteType(hWnd, tdadr1, tdadr0);
 					}
+					 
 					n--; adr += size;
 					if (n > 0) { String(hWnd, ","); }
 				}
@@ -696,7 +706,7 @@ void ShowStack(EXCEPTION_POINTERS *exp, BOOL trap) {
 	String(hwndSys, msg);
 	wsprintf(msg, "\n"); String(hwndSys, msg);
 	mod = GetMod(pc); frames = 0;
-	while (frames < MAX_FRAMES) {
+	while (frames < MAX_FRAMES){
 		refs = NULL; refpos = 0; base = 0;
 		WriteProc(hwndSys, mod, pc, bp, &refs, &reflen, &refpos, &base);
 		wsprintf(msg, "\n");
@@ -1376,7 +1386,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 					clearAlways = TRUE;
 				}
 				GetPrivateProfileString("Debug", "TrapByDefault", workPath, exePath, MAX_PATH, iniFile);
-				if (strcmp(exePath, "On") == 0) {
+				if (strcmp(exePath, "Off") == 0) 
+				{
+					CheckMenuItem(GetMenu(hWnd), IDM_A_TRAPDEFAULT, MF_BYCOMMAND);
+					trapByDefault = FALSE;
+				} 
+				else
+				{
 					CheckMenuItem(GetMenu(hWnd), IDM_A_TRAPDEFAULT, MF_BYCOMMAND | MF_CHECKED);
 					trapByDefault = TRUE;
 				}
