@@ -14,4 +14,5 @@ Available Skins: Displayed name and file name per skin
 	<Look name="Blue" file="BluePlastic.skin"/>
 	<Look name="Red" file="redlook.skin"/>
 	<Look name="Stijn" file="stijn.skin"/>
+	<Look name="StijnBW" file="stijnbw.skin"/>
 </LookList>
