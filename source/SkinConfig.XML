@@ -216,12 +216,14 @@
 		<property name="clTextHover" type="color" mandatory="false" />
 		<property name="clTextSelected" type="color" mandatory="false" />
 		<property name="clTextAttention" type="color" mandatory="false" />
+		<property name="clTextSelectedAttention" type="color" mandatory="false"/>
 		<property name="borderWidth" type="int32" mandatory="false" />
 		<property name="useBgBitmaps" type="boolean" mandatory="true" />
 		<property name="clDefault" type="color" mandatory="false" />
 		<property name="clHover" type="color" mandatory="false" />
 		<property name="clSelected" type="color" mandatory="false" />
 		<property name="clAttention" type="color" mandatory="false" />
+		<property name="clSelectedAttention" type="color" mandatory="false"/>
 		<property name="bgLeftDefault" type="resource" mandatory="false" />
 		<property name="bgMiddleDefault" type="resource" mandatory="false" />
 		<property name="bgRightDefault" type="resource" mandatory="false" />
