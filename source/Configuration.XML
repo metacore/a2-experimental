@@ -45,6 +45,8 @@ To update: Configuration.Init ~
 		
 		<Section name="Autostart">
 			<Setting name="Uptime Monitor" value="UpTime.Install"/>
+			<Setting name="DefaultSkin" value="SkinEngine.Unload"/>
+
 			<Setting name="Start the main menu" value="StartMenu.Open"/>
 			<Setting name="Restore the desktop" value="WMRestorable.Load Auto.dsk"/>
 			
@@ -56,8 +58,6 @@ To update: Configuration.Init ~
 		<!-- Quote Server (remove comment to activate)
 			<Setting value="QuoteServer.Open"/>
 		-->
-			
-			<Setting name="DefaultSkin" value="SkinEngine.Unload"/>
 			
 		<!--Setting name="Hotkey support" value="HotKeys.Open"/-->
 			
