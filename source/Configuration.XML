@@ -37,7 +37,7 @@ To update: Configuration.Init ~
 				<Setting name="FatFS" value="FATVolumes.New;FATFiles.NewFS"/>
 				<Setting name="IsoFS" value="ISO9660Volumes.New;ISO9660Files.NewFS"/>
 				<Setting name="ZipFS" value="NIL;ZipFS.NewFS"/>
-				<Setting name="WinRelFS" value="NIL;Win32RelFS.NewFS"/>
+				<Setting name="RelativeFileSystem" value="NIL;RelativeFileSystem.NewFS"/>
 			</Section>
 		</Section>
 		
