@@ -217,6 +217,7 @@ To update: Configuration.Init ~
 			<Setting name="gif" value="WMPicView.Open"/>
 			<Setting name="htm" value="WebBrowser.OpenFile"/>
 			<Setting name="html" value="WebBrowser.OpenFile"/>
+			<Setting name="ini" value="PET.Open"/>
 			<Setting name="jp2" value="WMPicView.Open"/>
 			<Setting name="jpeg" value="WMPicView.Open"/>
 			<Setting name="jpg" value="WMPicView.Open"/>
