@@ -1,0 +1,14 @@
+<Panel caption="Navigation">
+	<Properties>
+		<Bounds><Width>1000</Width><Height>200</Height></Bounds>
+	</Properties>
+
+	<Overview>
+		<Properties>
+			<Alignment>5</Alignment>
+			<BorderWidth>5</BorderWidth>
+			<ItemWidth>128</ItemWidth>
+			<ItemHeight>200</ItemHeight>
+		</Properties>
+	</Overview>
+</Panel>
