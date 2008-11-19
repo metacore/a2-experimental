@@ -25,6 +25,7 @@
 		<property name="inactiveTopMargin" type="int32" mandatory="false" />
 		<property name="inactiveColor" type="color" mandatory="false" />
 		<property name="inactiveCloseBitmap" type="resource" mandatory="false" />
+		<property name="hoverCloseBitmap" type="resource" mandatory ="false"/>
 	</component>
 	<component name="top">
 		<property name="activeLeft" type="resource" mandatory="false"/>
