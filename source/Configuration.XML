@@ -44,6 +44,7 @@ To update: Configuration.Init ~
 	<!-- Autostart -->
 		
 		<Section name="Autostart">
+			<Setting name="TrapWriter" value="WMTrapWriter.Install"/>
 			<Setting name="Uptime Monitor" value="UpTime.Install"/>
 			<Setting name="DefaultSkin" value="SkinEngine.Unload"/>
 
@@ -64,7 +65,6 @@ To update: Configuration.Init ~
 			
 		<!--Setting name="Hardware Detection" value="PCITools.DetectHardware"/-->
 			
-			<Setting name="TrapWriter" value="WMTrapWriter.Install"/>
 			<Setting name="Load error message" value="Errors.Open"/>
 		</Section>
 		
