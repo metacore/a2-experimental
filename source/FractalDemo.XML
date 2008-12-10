@@ -1,4 +1,4 @@
-<Panel caption="Fractal Demo">
+<Panel caption="Fractal Demo" icon="WMIcons.tar://FractalDemo.png">
 	<Properties>
 		<FillColor>0</FillColor>
 		<Bounds><Height>400</Height><Width>400</Width></Bounds>	
