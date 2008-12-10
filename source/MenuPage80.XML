@@ -16,7 +16,7 @@
 			<SystemCommand>
 				<Properties> 
 					<ID>X</ID>
-					<CommandString>WMBunny.Insert bones.gif 25 10;StartMenu.ClosePopup</CommandString>
+					<CommandString>WMBunny.Insert WMBunnyImages.tar://bones.gif 25 10;StartMenu.ClosePopup</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
@@ -31,7 +31,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>WMBunny.Insert XmasBunnyLinear.gif 8 16;StartMenu.ClosePopup</CommandString>
+					<CommandString>WMBunny.Insert WMBunnyImages.tar://XmasBunnyLinear.gif 8 16;StartMenu.ClosePopup</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
