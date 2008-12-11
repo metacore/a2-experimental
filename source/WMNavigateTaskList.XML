@@ -1,16 +1,17 @@
 <Panel caption="Navigation">
 	<Properties>
-		<Bounds><Width>1000</Width><Height>50</Height></Bounds>
+		<Bounds><Width>1000</Width><Height>64</Height></Bounds>
 	</Properties>
 
 	<TaskList>
 		<Properties>
 			<Alignment>5</Alignment>
-			<Bounds><Width>1000</Width><Height>20</Height></Bounds>			
 			<Style>1</Style>
+			<MenuLocation>3</MenuLocation>
+			<ShowThumbnails>true</ShowThumbnails>
 			<BorderWidth>2</BorderWidth>
-			<ItemWidth>50</ItemWidth>
-			<ItemHeight>50</ItemHeight>
+			<ItemWidth>64</ItemWidth>
+			<ItemHeight>64</ItemHeight>
 		</Properties>
 	</TaskList>
 </Panel>
