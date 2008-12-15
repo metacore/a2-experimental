@@ -61,7 +61,6 @@ To update: Configuration.Init ~
 			
 		<!--Setting name="Hotkey support" value="HotKeys.Open"/-->
 			
-			
 		<!--Setting name="Hardware Detection" value="PCITools.DetectHardware"/-->
 			
 			<Setting name="Load error message" value="Errors.Open"/>
@@ -203,43 +202,112 @@ To update: Configuration.Init ~
 			<Setting name="Arabic" value="ArabicContext.xml"/>
 			<Setting name="Test" value="TestContext.xml"/>
 		</Section>
-		
-	<!-- Filehandlers-->
-		
-		<Section name="Filehandlers">
+
+	<Section name="Filehandlers">
+
+		<!-- Filehandler
+			For each file extension, multiple handlers that perform different actions on a file can be 
+			registered. The action "Open" is considered to open the file with an application. 
+			Occurences of the string @filename in the attribute value of settings will be replaced by
+			the filename parameter -->
+	
 		<!-- use lower case for extensions, sort lexographically -->
-			
-			<Setting name="asm" value="PET.Open"/>
-			<Setting name="avi" value="WMPlayer.Open"/>
-			<Setting name="bak" value="PET.Open"/>
-			<Setting name="bmp" value="WMPicView.Open"/>
-			<Setting name="gif" value="WMPicView.Open"/>
-			<Setting name="htm" value="WebBrowser.OpenFile"/>
-			<Setting name="html" value="WebBrowser.OpenFile"/>
-			<Setting name="ini" value="PET.Open"/>
-			<Setting name="jp2" value="WMPicView.Open"/>
-			<Setting name="jpeg" value="WMPicView.Open"/>
-			<Setting name="jpg" value="WMPicView.Open"/>
-			<Setting name="log" value="PET.Open"/>
-			<Setting name="mod" value="PET.Open"/>
-			<Setting name="mp3" value="WMPlayer.Open"/>
-			<Setting name="abx" value="Decoder.Open"/>
-			<Setting name="oba" value="Decoder.Open"/>
-			<Setting name="obx" value="Decoder.Open"/>
-			<Setting name="obw" value="Decoder.Open"/>
-			<Setting name="ogg" value="OGGVorbisPlayer.Play"/>
-			<Setting name="pet" value="PET.OpenState"/>
-			<Setting name="pict" value="WMPicView.Open"/>
-			<Setting name="png" value="WMPicView.Open"/>
-			<Setting name="skin" value="SkinEditor.OpenSkin"/>
-			<Setting name="svg" value="WebBrowser.OpenFile"/>
-			<Setting name="tar" value="WMArchives.Open"/>
-			<Setting name="text" value="Notepad.OpenAuto"/>
-			<Setting name="txt" value="Notepad.OpenAuto"/>
-			<Setting name="tool" value="PET.Open"/>
-			<Setting name="wav" value="WMPlayer.Open"/>
-			<Setting name="xml" value="PET.Open"/>
+	
+		<Section name="asm">
+			<Setting name="Open" value="PET.Open"/>
 		</Section>
+		<Section name="avi">
+			<Setting name="Open" value="WMPlayer.Open"/>
+		</Section>
+		<Section name="bak">
+			<Setting name="Open" value="PET.Open"/>
+		</Section>
+		<Section name="bmp">
+			<Setting name="Open" value="WMPicView.Open"/>
+			<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+		</Section>
+		<Section name="gif">
+			<Setting name="Open" value="WMPicView.Open"/>
+			<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+		</Section>
+		<Section name="htm">
+			<Setting name="Open" value="WebBrowser.Open"/>
+		</Section>
+		<Section name="html">
+			<Setting name="Open" value="WebBrowser.Open"/>
+		</Section>
+		<Section name="ini">
+			<Setting name="Open" value="PET.Open"/>
+		</Section>
+		<Section name="jp2">
+			<Setting name="Open" value="WMPicView.Open"/>
+			<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+		</Section>
+		<Section name="jpeg">
+			<Setting name="Open" value="WMPicView.Open"/>
+			<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+		</Section>
+		<Section name="jpg">
+			<Setting name="Open" value="WMPicView.Open"/>
+			<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+		</Section>
+		<Section name="log">
+			<Setting name="Open" value="PET.Open"/>
+		</Section>
+		<Section name="mod">
+			<Setting name="Open" value="PET.Open"/>
+		</Section>
+		<Section name="abx">
+			<Setting name="Open" value="Decoder.Open"/>
+		</Section>
+		<Section name="oba">
+			<Setting name="Open" value="Decoder.Open"/>
+		</Section>
+		<Section name="obw">
+			<Setting name="Open" value="Decoder.Open"/>
+		</Section>
+		<Section name="obx">
+			<Setting name="Open" value="Decoder.Open"/>
+		</Section>
+		<Section name="ogg">
+			<Setting name="Open" value="OGGVorbisPlayer.Play"/>
+		</Section>
+		<Section name="pet">
+			<Setting name="Open" value="PET.OpenState"/>
+		</Section>
+		<Section name="pict">
+			<Setting name="Open" value="WMPicView.Open"/>
+		</Section>
+		<Section name="png">
+			<Setting name="Open" value="WMPicView.Open"/>
+			<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+		</Section>
+		<Section name="skin">
+			<Setting name="Open" value="SkinEditor.OpenSkin"/>
+			<Setting name="Set as skin" value="SkinEngine.Load"/>
+		</Section>
+		<Section name="svg">
+			<Setting name="Open" value="WebBrowser.Open"/>
+		</Section>
+		<Section name="tar">
+			<Setting name="Open" value="WMArchives.Open"/>
+		</Section>
+		<Section name="text">
+			<Setting name="Open" value="Notepad.OpenAuto"/>
+		</Section>
+		<Section name="txt">
+			<Setting name="Open" value="Notepad.OpenAuto"/>
+		</Section>
+		<Section name="tool">
+			<Setting name="Open" value="PET.Open"/>
+		</Section>
+		<Section name="wav">
+			<Setting name="Open" value="WMPlayer.Open"/>
+		</Section>
+		<Section name="xml">
+			<Setting name="Open" value="PET.Open"/>
+		</Section>
+	</Section>
 		
 	<!-- Net Configuration Example -->
 		
