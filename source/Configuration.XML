@@ -256,6 +256,13 @@ To update: Configuration.Init ~
 		</Section>
 		<Section name="mod">
 			<Setting name="Open" value="PET.Open"/>
+			<Setting name="Compile" value="PC.Compile \s @filename"/>
+		</Section>
+		<Section name="mpeg">
+			<Setting name="Open" value="WMPlayer.Open"/>
+		</Section>
+		<Section name="mpg">
+			<Setting name="Open" value="WMPlayer.Open"/>
 		</Section>
 		<Section name="abx">
 			<Setting name="Open" value="Decoder.Open"/>
@@ -306,6 +313,9 @@ To update: Configuration.Init ~
 		</Section>
 		<Section name="xml">
 			<Setting name="Open" value="PET.Open"/>
+		</Section>
+		<Section name="zip">
+			<Setting name="Extract" value="ZipTool.ExtractAll"/>
 		</Section>
 	</Section>
 		
