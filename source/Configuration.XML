@@ -381,6 +381,32 @@ To update: Configuration.Init ~
 					<Setting name="EnableWhitespaceWarnings" value="FALSE"/>
 				</Section>
 				<Section name="Compilers">
+					<Section name="PACO">
+						<Setting name="caption" value="Compile"/>
+						<Setting name="options" value="\Ws"/>
+						<Setting name="fileExtension" value="MOD"/>
+						<Setting name="loadmodule" value="PC"/>
+						<Setting name="tree" value="TRUE"/>
+						<Setting name="findPC" value="TRUE"/>
+					</Section>
+					<Section name="ReleaseTool">
+						<Setting name="caption" value="Parse"/>
+						<Setting name="options" value="\check"/>
+						<Setting name="fileExtension" value="TOOL"/>
+						<Setting name="loadmodule" value="Release"/>
+						<Setting name="tree" value="FALSE"/>
+						<Setting name="findPC" value="FALSE"/>
+					</Section>
+					<Section name="AAMD64">
+						<Setting name="caption" value="Assemble"/>
+						<Setting name="options" value=""/>
+						<Setting name="fileExtension" value="ASM"/>
+						<Setting name="loadmodule" value="PCAAMD64"/>
+						<Setting name="tree" value="FALSE"/>
+						<Setting name="findPC" value="FALSE"/>
+					</Section>
+					
+					<!-- Old notation... to be deleted -->
 					<Setting name="PACO" caption="Compile" options="\Ws" fileExtension="MOD" loadmodule="PC" tree="TRUE" findPC="TRUE"/>
 					<Setting name="ReleaseTool" caption="Parse" options="\check" fileExtension="Tool" loadmodule="Release" tree="FALSE" findPC="FALSE"/>
 					<Setting name="AAMD64" caption="Assemble" options="" fileExtension="ASM" loadmodule="PCAAMD64" tree="FALSE" findPC="FALSE"/>
