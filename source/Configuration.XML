@@ -298,6 +298,7 @@ To update: Configuration.Init ~
 		</Section>
 		<Section name="tar">
 			<Setting name="Open" value="WMArchives.Open"/>
+			<Setting name="Untar" value="Tar.Extract"/>
 		</Section>
 		<Section name="text">
 			<Setting name="Open" value="Notepad.OpenAuto"/>
