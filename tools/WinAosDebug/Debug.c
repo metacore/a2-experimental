@@ -9,9 +9,9 @@
 #define ModName 8 // 4 +4
 #define ModRefCnt 44 // 40 +4
 #define ModSB 48 // 44 +4
-#define ModData 108 //68 +20 +20
-#define ModCode 112 // 72 +20 +20
-#define ModRefs 120 // 80 +20 +20
+#define ModData 116 //
+#define ModCode 120 // 
+#define ModRefs 128 // 
 #define TypeTagName 20 // was 16
 #define TypeTagMod 16 // was 48
 
