@@ -405,12 +405,7 @@ To update: Configuration.Init ~
 						<Setting name="loadmodule" value="PCAAMD64"/>
 						<Setting name="tree" value="FALSE"/>
 						<Setting name="findPC" value="FALSE"/>
-					</Section>
-					
-					<!-- Old notation... to be deleted -->
-					<Setting name="PACO" caption="Compile" options="\Ws" fileExtension="MOD" loadmodule="PC" tree="TRUE" findPC="TRUE"/>
-					<Setting name="ReleaseTool" caption="Parse" options="\check" fileExtension="Tool" loadmodule="Release" tree="FALSE" findPC="FALSE"/>
-					<Setting name="AAMD64" caption="Assemble" options="" fileExtension="ASM" loadmodule="PCAAMD64" tree="FALSE" findPC="FALSE"/>
+					</Section>					
 				</Section>
 				<Section name="Diff">
 					<Setting name="Command" value="WMDiff.Open"/>
