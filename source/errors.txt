@@ -85,7 +85,12 @@
 2905	can not modify read-only volume
 2906	file system not found
 2907	write error
-3000	AosMessages
+3000	Locks
+3005	Re-entered non-recursive lock
+3010	Released lock that was not held
+3015	Locklevel counter overflow in recursive lock
+3020	Reader must not acquire write lock
+3099	Deadlock detected
 3100	Inputs
 3200	Keyboard
 3300	MousePS2
