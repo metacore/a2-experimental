@@ -20,7 +20,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>PET.OpenUTF8 Configuration.XML</CommandString>
+					<CommandString>PET.Open Configuration.XML</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>

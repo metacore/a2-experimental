@@ -21,7 +21,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>Notepad.OpenAuto Tutorial.Text</CommandString>
+					<CommandString>Notepad.Open Tutorial.Text</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
@@ -36,7 +36,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>Notepad.OpenUTF8 cn.PrgInOberon.txt</CommandString>
+					<CommandString>Notepad.Open cn.PrgInOberon.txt</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>

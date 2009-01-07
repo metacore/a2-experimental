@@ -18,7 +18,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>Notepad.OpenEmpty</CommandString>
+					<CommandString>Notepad.Open</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>

@@ -53,7 +53,7 @@
 			<SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>Notepad.OpenAuto GUIPat.txt</CommandString>
+					<CommandString>Notepad.Open GUIPat.txt</CommandString>
 				</Properties>
 			</SystemCommand>
 		</Button>
@@ -141,36 +141,4 @@
 			</SystemCommand>
 		</Button>
 	</Panel>
-	<!--
-
-		<Button>
-			<Properties>
-				<Caption>3d.Clown</Caption>
-				<Alignment>2</Alignment>
-				<OnClickHandler>X Run</OnClickHandler>
-			</Properties>
-			
-			<SystemCommand>
-				<Properties>
-					<ID>X</ID>
-					<CommandString>W3dExplorer.Open</CommandString>
-				</Properties>
-			</SystemCommand>
-		</Button>
-
-		<Button>
-			<Properties>
-				<Caption>Logo</Caption>
-				<Alignment>2</Alignment>
-				<OnClickHandler>X Run</OnClickHandler>
-			</Properties>
-			
-			<SystemCommand>
-				<Properties>
-					<ID>X</ID>
-					<CommandString>WMBunny.Insert aos1.gif 25 -15;WMBunny.Insert aos2.gif 25 10;WMBunny.Insert aos3.gif 25 15</CommandString>
-				</Properties>
-			</SystemCommand>
-		</Button>
--->
 </Panel>
