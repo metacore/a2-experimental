@@ -39,7 +39,7 @@
 	<!-- Example hot keys -->
 	
 	<!-- Example: Switch keyboard layout -->
-	<!--
+	<!-- Native A2 only
 	<HotKey name="Keyboard US" keys="F5" command="WMOSD.Open 'US Keyboard Layout';Keyboard.SetLayout KeyUS.Bin"/>
 	<HotKey name="Keyboard CH" keys="F6" command="WMOSD.Open 'CH Keyboard Layout';Keyboard.SetLayout KeyCH.Bin"/>
 	-->
@@ -59,21 +59,25 @@
 	<HotKey name="Desktop 2" keys="F2" command="WMOSD.Close;WMNavigate.SetViewportRange -d 0 -1 1 1;WMOSD.Open 'Desktop 2'"/>
 	<HotKey name="Desktop 3" keys="F3" command="WMOSD.Close;WMNavigate.SetViewportRange -d -1 0 1 1;WMOSD.Open 'Desktop 3'"/>
 	<HotKey name="Desktop 4" keys="F4" command="WMOSD.Close;WMNavigate.SetViewportRange -d 0 0 1 1;WMOSD.Open 'Desktop 4'"/>
-	<HotKey name="Desktops Overview" keys="F5" command="WMOSD.Close;WMNavigate.SetViewportRange -d -1 -1 2 2"/>
+	<HotKey name="Desktops Overview" keys="F5" command="WMOSD.Close;WMNavigate.SetViewportRange -d -1 -1 2 2;WMOSD.Open 'Desktops Overview'"/>
 
-	<HotKey name="Desktops Overview" keys="F6" command="WMNavigate.HideAll"/>
-	<HotKey name="Desktops Overview" keys="F7" command="WMNavigate.RestoreAll"/>
-	<HotKey name="Desktops Overview" keys="F8" command="WMNavigate.ToggleAll"/>
+	<!-- Example: Toggle visibility of windows -->
+	<HotKey name="Toggle visibility of user windows" keys="F6" command="WMNavigate.ToggleAll"/>
+	<HotKey name="Toggle visibility of navigation windows" keys="F7" command="WMNavigate.ToggleNavigation"/>
 	
 	<!-- Example: Move the window that has the keyboard focus relative to its current position -->
-	<HotKey name="MoveRight" keys="ALT+RIGHT" command="WMNavigate.MoveWindow 1280 0"/>
-	<HotKey name="MoveLeft" keys="ALT+LEFT" command="WMNavigate.MoveWindow -1280 0"/>
-	<HotKey name="MoveUp" keys="ALT+UP" command="WMNavigate.MoveWindow 0 -1024"/>
-	<HotKey name="MoveDown" keys="ALT+DOWN" command="WMNavigate.MoveWindow 0 1024"/>
+	<HotKey name="MoveRight" keys="ALT+RIGHT" command="WMNavigate.MoveWindow -d 1 0"/>
+	<HotKey name="MoveLeft" keys="ALT+LEFT" command="WMNavigate.MoveWindow -d -1 0"/>
+	<HotKey name="MoveUp" keys="ALT+UP" command="WMNavigate.MoveWindow -d 0 -1"/>
+	<HotKey name="MoveDown" keys="ALT+DOWN" command="WMNavigate.MoveWindow -d 0 1"/>
 	
+	<!-- Example: Control window that has keyboard focus -->
+	<HotKey name="Toggle Fullscreen" keys="ALT+RETURN" command="WMNavigate.ToggleFullscreen"/>
+	<HotKey name="Close Window" keys="ALT+F4" command="WMNavigate.CloseWindow"/>
+
 	<!-- Example: Switch keyboard focus to previous/next window -->
-	<HotKey name="Open Windows Navigation" keys="CTRL+ALT+UP" command="WMNavigate.Open"/>
-	<HotKey name="Close Windows Navigation" keys="CTRL+ALT+DOWN" command="WMNavigate.Close"/>
+	<HotKey name="Open Windows Navigation" keys="CTRL+ALT+UP" command="WMNavigate.Open -vs 6 0 0 WMNavigateOverview.XML "/>
+	<HotKey name="Close Windows Navigation" keys="CTRL+ALT+DOWN" command="WMNavigate.Close 6"/>
 	<HotKey name="FocusToNext" keys="CTRL+ALT+RIGHT" command="WMNavigate.FocusToNext"/>
 	<HotKey name="FocusToPrevious" keys="CTRL+ALT+LEFT" command="WMNavigate.FocusToPrevious"/>
 	
@@ -84,11 +88,7 @@
 	<HotKey name="Bold" keys="SHIFT+DELETE" command="WMTextStyleTool.SetStyleByName Bold"/>
 	
 	<!-- Example: Misc -->
-	<HotKey name="Clear LogWindow" keys="META+CTRL+O" command="HotKeysCommands.ClearLog"/>
-	
-	<!-- Example: Control window that has keyboard focus -->
-	<HotKey name="Toggle Fullscreen" keys="ALT+RETURN" command="WMNavigate.ToggleFullscreen"/>
-	<HotKey name="Close Window" keys="ALT+F4" command="WMNavigate.CloseWindow"/>
+	<HotKey name="Clear LogWindow" keys="META+CTRL+O" command="HotKeysCommands.ClearLog"/>	
 	
 	<!-- Example: Simulate mouse wheel by keys -->
 	<HotKey name="WHEEL UP" keys="CTRL+UP" command="HotKeysCommands.SimulateMouse MouseWheel -3"/>
