@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone='yes'?>
 	
 <!-- 
-Aos configuration 
+Configuration 
 
-To edit: Notepad.OpenAscii Configuration.XML
+To edit: Notepad.Open Configuration.XML
 To update: Configuration.Init ~
 -->
 	<Config>
@@ -301,10 +301,10 @@ To update: Configuration.Init ~
 			<Setting name="Untar" value="Tar.Extract"/>
 		</Section>
 		<Section name="text">
-			<Setting name="Open" value="Notepad.OpenAuto"/>
+			<Setting name="Open" value="Notepad.Open"/>
 		</Section>
 		<Section name="txt">
-			<Setting name="Open" value="Notepad.OpenAuto"/>
+			<Setting name="Open" value="Notepad.Open"/>
 		</Section>
 		<Section name="tool">
 			<Setting name="Open" value="PET.Open"/>
