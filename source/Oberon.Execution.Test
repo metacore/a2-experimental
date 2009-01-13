@@ -1,5 +1,75 @@
 # Oberon language test and validation suite
 
+# test halt and assert statements and simple procedure call (basics for the test suite) 
+
+positive: empty module
+
+	MODULE Test;
+	END Test.
+
+negative: simple halt
+
+	MODULE Test;
+	BEGIN HALT (1234);
+	END Test.
+	
+positive: constant positive assert
+
+	MODULE Test; 
+	BEGIN ASSERT(TRUE) 
+	END Test. 
+
+positive: positive assert (boolean)
+	
+	MODULE Test; 
+	VAR b: BOOLEAN; 
+	BEGIN 
+		b := TRUE; 
+		ASSERT(b); 
+	END Test.
+
+negative: negative assert (boolean)
+
+	MODULE Test; 
+	VAR b: BOOLEAN; 
+	BEGIN 
+		b := FALSE; 
+		ASSERT(b)
+	END Test.
+
+positive: positive assert (longint)
+
+	MODULE Test; 
+	VAR a: LONGINT; 
+	BEGIN 
+		a := 1234; 
+		ASSERT(a=1234); 
+	END Test.
+
+negative: negative assert (longint)
+
+	MODULE Test; 
+	VAR a: LONGINT; 
+	BEGIN 
+		a := 0;
+		ASSERT(a=1234); 
+	END Test.
+
+positive: parameterless procedure call
+
+	MODULE Test; 
+	VAR called: BOOLEAN; 
+	
+		PROCEDURE P;
+		BEGIN
+			called := TRUE; 
+		END P;
+	BEGIN 
+		called := FALSE; 
+		P; 
+		ASSERT(called); 
+	END Test.
+
 
 # constant declarations
 
