@@ -1,0 +1,416 @@
+# Oberon language test and validation suite
+
+
+# constant declarations
+
+positive: expression containing a constant
+
+	MODULE Test;
+	CONST N = 10000;
+	VAR i: INTEGER;
+	BEGIN i := N - 1; ASSERT (i = 9999);
+	END Test.
+
+positive: lengths of string constants
+
+	MODULE Test;
+	CONST String = "This string is not empty";
+	CONST Copy = String;
+
+	PROCEDURE Assert (CONST str: ARRAY OF CHAR);
+	BEGIN ASSERT (LEN (str) # 0);
+	END Assert;
+
+	BEGIN Assert (String); Assert (Copy);
+	END Test.
+
+
+# basic type declarations
+
+positive: constant boolean assignment
+
+	MODULE Test;
+	VAR b: BOOLEAN;
+	BEGIN b := TRUE; ASSERT (b = TRUE);
+	END Test.
+
+positive: variable boolean assignment
+
+	MODULE Test;
+	VAR b1, b2: BOOLEAN;
+	BEGIN b1 := TRUE; b2 := FALSE; b2 := b1; ASSERT (b2 = TRUE);
+	END Test.
+
+positive: boolean equality
+
+	MODULE Test;
+	VAR b1, b2: BOOLEAN;
+	BEGIN b1 := TRUE; b2 := b1; ASSERT (b1 = b2); b1 := FALSE; b2 := b1; ASSERT (b1 = b2);
+	END Test.
+
+positive: array of boolean values
+
+	MODULE Test;
+	VAR b: ARRAY 2 OF BOOLEAN;
+	BEGIN b[1] := TRUE; ASSERT (b[1]);
+	END Test.
+
+positive: constant character assignment
+
+	MODULE Test;
+	VAR c: CHAR;
+	BEGIN c := 'c'; ASSERT (c = 'c');
+	END Test.
+
+positive: variable character assignment
+
+	MODULE Test;
+	VAR c1, c2: CHAR;
+	BEGIN c1 := 'A'; c2 := 'B'; c2 := c1; ASSERT (c2 = 'A');
+	END Test.
+
+positive: char array variable assignment
+
+	MODULE Test;
+	VAR v: ARRAY 2 OF CHAR;
+	BEGIN v[0] := CHR(92); ASSERT (ORD(v[0]) = 92);
+	END Test.
+
+positive: heximal character value assignment
+
+	MODULE Test;
+	VAR c: CHAR;
+	BEGIN c := 020X; ASSERT (c = ' ');
+	END Test.
+
+positive: constant integer assignment
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN i := 2; ASSERT (i = 2);
+	END Test.
+
+positive: variable integer assignment
+
+	MODULE Test;
+	VAR i1, i2: INTEGER;
+	BEGIN i1 := 45; i2 := 64; i2 := i1; ASSERT (i1 = 45);
+	END Test.
+
+positive: constant real assignment
+
+	MODULE Test;
+	VAR r: REAL;
+	BEGIN r := 2; ASSERT (r = 2);
+	END Test.
+
+positive: variable real assignment
+
+	MODULE Test;
+	VAR r1, r2: REAL;
+	BEGIN r1 := 2.25; r2 := 3.75; r2 := r1; ASSERT (r1 = 2.25);
+	END Test.
+
+positive: real value assignment to real variable
+
+	MODULE Test;
+	VAR r: REAL;
+	BEGIN r := 1.25; ASSERT (r = 1.25);
+	END Test.
+
+positive: constant set assignment
+
+	MODULE Test;
+	VAR s: SET;
+	BEGIN s := {1}; ASSERT (1 IN s);
+	END Test.
+
+positive: variable set assignment
+
+	MODULE Test;
+	VAR s1, s2: SET; i: INTEGER;
+	BEGIN i := 5; s1 := {i}; s2 := {}; s2 := s1; ASSERT (i IN s2);
+	END Test.
+
+positive: set inclusions
+
+	MODULE Test;
+	VAR s: SET; i, j, k: INTEGER;
+	BEGIN i := 1; j := 3; k := 7; s := {1, 3, 5..8}; ASSERT ((i IN s) & (j IN s) & (k IN s));
+	END Test.
+
+negative: set value out of bounds at maximum
+
+	MODULE Test;
+	VAR n: INTEGER; s: SET;
+	BEGIN n := MAX(SET) + 1; s := {n};
+	END Test.
+
+negative: set value out of bounds at minimum
+
+	MODULE Test;
+	VAR n: INTEGER; s: SET;
+	BEGIN n := MIN(SET) - 1; s := {n};
+	END Test.
+
+
+# array type declarations
+
+negative: array out of bounds while reading
+
+	MODULE Test;
+	VAR a: ARRAY 1 OF INTEGER; r, i: INTEGER;
+	BEGIN a[0] := 0; i := 1; r := a[i];
+	END Test.
+
+negative: array out of bounds while writing
+
+	MODULE Test;
+	VAR a: ARRAY 1 OF INTEGER; i: INTEGER;
+	BEGIN i := 1; a[i] := 0;
+	END Test.
+
+positive: index of array element is record variable
+
+	MODULE Test;
+	TYPE R = RECORD i: INTEGER END;
+	VAR ai: ARRAY 2 OF INTEGER; ar: ARRAY 2 OF R;
+	BEGIN ai[0] := 0; ai[1] := 5; ar[0].i := 1; ASSERT (ai[ar[ai[0]].i] = 5);
+	END Test.
+
+positive: one-dimensional array element assignment
+
+	MODULE Test;
+	VAR a: ARRAY 2 OF CHAR;
+	BEGIN a[1] := 'c'; ASSERT (a[1] = 'c');
+	END Test.
+
+positive: two-dimensional array element assignment
+
+	MODULE Test;
+	VAR a: ARRAY 2, 2 OF BOOLEAN;
+	BEGIN a[1, 1] := TRUE; ASSERT (a[1, 1] = TRUE);
+	END Test.
+
+
+# record type declarations
+
+positive: record initialization
+
+	MODULE Test;
+	VAR r: RECORD i: INTEGER END;
+	BEGIN r.i := 5; ASSERT (r.i = 5);
+	END Test.
+
+positive: record copies
+
+	MODULE Test;
+	VAR a, b: RECORD i, j: INTEGER END;
+	BEGIN a.i := 1; a.j := 2; b := a; ASSERT (b.i = 1); ASSERT (b.j = 2);
+	END Test.
+
+
+# pointer type declarations
+
+positive: dynamic record allocation with new
+
+	MODULE Test;
+	VAR p: POINTER TO RECORD x: INTEGER END;
+	BEGIN NEW (p); ASSERT (p # NIL); p.x := 3; ASSERT (p.x = 3);
+	END Test.
+
+positive: valid type guard test
+
+	MODULE Test;
+	TYPE R1 = RECORD END; R2 = RECORD (R1) END; P1 = POINTER TO R1; P2 = POINTER TO R2;
+	VAR p1: P1; p2: P2;
+	BEGIN NEW (p2); p1 := p2; p2 := p1(P2);
+	END Test.
+
+
+# procedure type declarations
+
+positive: procedure type with value parameter
+
+	MODULE Test;
+	VAR a: ARRAY 5 OF REAL; i: INTEGER; r: REAL;
+
+	PROCEDURE Iterate (VAR a: ARRAY OF REAL; p : PROCEDURE (r: REAL));
+	VAR i: LONGINT;
+	BEGIN FOR i := 0 TO LEN (a) - 1 DO p (a[i]) END;
+	END Iterate;
+
+	PROCEDURE Accummulate (v: REAL);
+	BEGIN r := r + v;
+	END Accummulate;
+
+	BEGIN FOR i := 0 TO 4 DO a[i] := i END; r := 0; Iterate (a, Accummulate); ASSERT (r = 10);
+	END Test.
+
+positive: procedure type with var parameter
+
+	MODULE Test;
+	VAR i: INTEGER; k: REAL; p: PROCEDURE (VAR r: REAL; b: REAL);
+
+	PROCEDURE Accummulate (VAR r: REAL; v: REAL);
+	BEGIN r := r + v;
+	END Accummulate;
+
+	BEGIN k := 0; p := Accummulate; FOR i := 0 TO 4 DO p (k, i) END; ASSERT (k = 10);
+	END Test.
+
+positive: procedure type with result type
+
+	MODULE Test;
+	VAR r: REAL; p: PROCEDURE (a, b: REAL): REAL;
+
+	PROCEDURE Add (a, b: REAL): REAL;
+	BEGIN RETURN a + b;
+	END Add;
+
+	BEGIN p := Add; r := p (3, 4); ASSERT (r = 7);
+	END Test.
+
+positive: procedure type with result type in record
+
+	MODULE Test;
+	VAR r: REAL; p: RECORD p: PROCEDURE (a, b: REAL): REAL END;
+
+	PROCEDURE Add (a, b: REAL): REAL;
+	BEGIN RETURN a + b;
+	END Add;
+
+	BEGIN p.p := Add; r := p.p (3, 4); ASSERT (r = 7);
+	END Test.
+
+positive: procedure array
+
+	MODULE Test;
+	VAR i: INTEGER; a: ARRAY 10 OF PROCEDURE (VAR a: INTEGER);
+
+	PROCEDURE Add3 (VAR v: INTEGER);
+	BEGIN INC (v, 3);
+	END Add3;
+
+	BEGIN i := 3; a[6] := Add3; a[6] (i); ASSERT (i = 6); a[i](i); ASSERT (i = 9);
+	END Test.
+
+positive: procedure array with return type
+
+	MODULE Test;
+	VAR i: INTEGER; a: ARRAY 10 OF PROCEDURE (i: INTEGER): INTEGER;
+
+	PROCEDURE Add2 (v: INTEGER): INTEGER;
+	BEGIN RETURN v + 2;
+	END Add2;
+
+	BEGIN a[3] := Add2; i := a[3](1); ASSERT (i = 3); INC (i, a[i](i)); ASSERT (i = 8);
+	END Test.
+
+
+# conversions
+
+positive: constant positive real to integer conversion
+
+	MODULE Test;
+	VAR i: LONGINT;
+	BEGIN i := ENTIER (3.5); ASSERT (i = 3);
+	END Test.
+
+positive: constant negative real to integer conversion
+
+	MODULE Test;
+	VAR i: LONGINT;
+	BEGIN i := ENTIER (-3.5); ASSERT (i = -4);
+	END Test.
+
+positive: positive real to integer conversion
+
+	MODULE Test;
+	VAR r: REAL; i: LONGINT;
+	BEGIN r := 3.5; i := ENTIER (r); ASSERT (i = 3);
+	END Test.
+
+
+positive: negative real to integer conversion
+
+	MODULE Test;
+	VAR r: REAL; i: LONGINT;
+	BEGIN r := -3.5; i := ENTIER (r); ASSERT (i = -4);
+	END Test.
+
+
+# variable declarations
+
+positive: two-dimensional array assignment
+
+	MODULE Test;
+	VAR a: ARRAY 8, 12 OF INTEGER;
+	BEGIN a[1, 2] := 3; ASSERT (a[1][2] = 3);
+	END Test.
+
+positive: two-dimensional open array assignment
+
+	MODULE Test;
+	VAR a: ARRAY 8, 12 OF INTEGER;
+
+	PROCEDURE P (VAR b: ARRAY OF ARRAY OF INTEGER);
+	BEGIN b[1][2] := 3;
+	END P;
+
+	BEGIN P (a); ASSERT (a[1][2] = 3);
+	END Test.
+
+
+# expressions
+
+positive: logical operations
+
+	MODULE Test;
+	VAR a, b: BOOLEAN;
+	BEGIN
+		a := FALSE; ASSERT (~a);
+		b := FALSE; ASSERT (~a & ~b); ASSERT (~a OR ~b);
+		b := TRUE; ASSERT (~a & b); ASSERT (~a OR b);
+		a := TRUE; ASSERT (a);
+		b := FALSE; ASSERT (a & ~b); ASSERT (a OR ~b);
+		b := TRUE; ASSERT (a & b); ASSERT (a OR b);
+	END Test.
+
+positive: arithmetic operations
+
+	MODULE Test;
+	VAR a, b: INTEGER;
+	BEGIN
+		a := 9; b := 7;
+		ASSERT (+a = 9); ASSERT (+b = 7);
+		ASSERT (-a = -9); ASSERT (-b = -7);
+		ASSERT (a + b = 16); ASSERT (b + a = 16);
+		ASSERT (a - b = 2); ASSERT (b - a = -2);
+		ASSERT (a * b = 63); ASSERT (b * a = 63);
+		ASSERT (a DIV b = 1); ASSERT (b DIV a = 0);
+		ASSERT (a MOD b = 2); ASSERT (b MOD a = 7);
+	END Test.
+
+positive: set operations
+
+	MODULE Test;
+	VAR a, b, c: SET;
+	BEGIN
+		a := {0, 1, 2}; ASSERT (a = {0..2}); ASSERT ((0 IN a) & (1 IN a) & (2 IN a) & ~(3 IN a) & ~(4 IN a));
+		b := {2, 3, 4}; ASSERT (b = {2..4}); ASSERT (~(0 IN b) & ~(1 IN b) & (2 IN b) & (3 IN b) & (4 IN b));
+		c := a + b; ASSERT (c = {0..4}); ASSERT ((0 IN c) & (1 IN c) & (2 IN c) & (3 IN c) & (4 IN c));
+		c := a - b; ASSERT (c = {0..1}); ASSERT ((0 IN c) & (1 IN c) & ~(2 IN c) & ~(3 IN c) & ~(4 IN c));
+		c := a * b; ASSERT (c = {2..2}); ASSERT (~(0 IN c) & ~(1 IN c) & (2 IN c) & ~(3 IN c) & ~(4 IN c));
+		c := a / b; ASSERT (c = {0..1, 3..4}); ASSERT ((0 IN c) & (1 IN c) & ~(2 IN c) & (3 IN c) & (4 IN c));
+	END Test.
+
+positive: relations
+
+	MODULE Test;
+	VAR ai, bi: INTEGER; as, bs: SET; ar, br: REAL;
+	BEGIN
+		ai := 0; bi := 1; ASSERT (~(ai = bi)); ASSERT (ai # bi); ASSERT (ai < bi); ASSERT (ai <= bi); ASSERT (~(ai > bi)); ASSERT (~(ai >= bi));
+		as := {1}; bs := {1, 2}; ASSERT (~(as = bs)); ASSERT (as # bs); ASSERT (as < bs); ASSERT (as <= bs); ASSERT (~(as > bs)); ASSERT (~(as >= bs));
+		ar := 0; br := 1; ASSERT (~(ar = br)); ASSERT (ar # br); ASSERT (ar < br); ASSERT (ar <= br); ASSERT (~(ar > br)); ASSERT (~(ar >= br));
+	END Test.
