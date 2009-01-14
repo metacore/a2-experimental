@@ -6,7 +6,7 @@
 	<Overview>
 		<Properties>
 			<Alignment>5</Alignment>
-			<BorderWidth>5</BorderWidth>
+			<BorderWidth>1</BorderWidth>
 			<ItemWidth>256</ItemWidth>
 			<ItemHeight>192</ItemHeight>
 		</Properties>

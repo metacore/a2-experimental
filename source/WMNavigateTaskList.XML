@@ -9,7 +9,7 @@
 			<Style>1</Style>
 			<MenuLocation>3</MenuLocation>
 			<ShowThumbnails>true</ShowThumbnails>
-			<BorderWidth>2</BorderWidth>
+			<BorderWidth>1</BorderWidth>
 			<ItemWidth>64</ItemWidth>
 			<ItemHeight>64</ItemHeight>
 		</Properties>
