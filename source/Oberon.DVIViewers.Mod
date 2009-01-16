@@ -575,7 +575,7 @@ VAR
          IF M.name = "Gen" THEN
             M.class := Objects.String; COPY("DVIViewers.New", M.s); M.res:= 0
          ELSIF M.name = "PageNo" THEN
-            M.class:= Objects.Int; M.i:= F.pageNo;; M.res:= 0
+            M.class:= Objects.Int; M.i:= F.pageNo; M.res:= 0
          ELSIF M.name = "HOffset" THEN
             M.class:= Objects.LongReal; M.y:= F.hOffset; M.res:= 0
          ELSIF M.name = "VOffset" THEN
