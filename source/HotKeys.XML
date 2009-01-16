@@ -50,7 +50,7 @@
 	<!-- Example: Open applications -->
 	<HotKey name="PET" keys="META+P" command="PET.Open"/>
 	<HotKey name="Notepad" keys="META+N" command="Notepad.Open"/>
-	<HotKey name="LogWindow" keys="META+O" command="LogWindow.Open"/>
+	<HotKey name="LogWindow" keys="META+O" command="WMKernelLog.Open"/>
 	<HotKey name="Shell" keys="META+S" command="WMShell.Open"/>
 
 	<!-- Example: Virtual desktop -->
