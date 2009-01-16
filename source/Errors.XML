@@ -308,6 +308,7 @@
 	<Error code="312">implicit reference to heap object via VAR</Error>
 	<Error code="313">no RETURN in function</Error>
 	<Error code="314">AWAIT statement not in EXCLUSIVE block</Error>
+	<Error code="315">Empty statement or multiple termination</Error>
 
 <!-- incorrect use of i80386 Assembly Language -->	
 	<Error code="500">undeclared identifier</Error>
