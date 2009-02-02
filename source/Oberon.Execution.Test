@@ -70,6 +70,153 @@ positive: parameterless procedure call
 		ASSERT(called); 
 	END Test.
 
+# basic types storage test
+
+positive: Char stored in PAF
+
+	MODULE Test;
+	
+	PROCEDURE Char; 
+	VAR a,b: CHAR; 
+	BEGIN 
+		a := 'a';
+		b := a; 
+		ASSERT(b = 'a'); 
+	END Char;
+	
+	BEGIN 
+		Char; 
+	END Test. 
+
+positive: Shortint stored in PAF
+	
+	MODULE Test; 
+	
+	PROCEDURE Shortint;
+	VAR a,b: SHORTINT; 
+	BEGIN
+		a := 13; 
+		b := a; 
+		ASSERT(b = 13); 
+	END Shortint;
+	
+	BEGIN 
+		Shortint; 
+	END Test.
+
+positive: Integer stored in PAF
+
+	MODULE Test; 
+	
+	PROCEDURE Integer;
+	VAR a,b: INTEGER; 
+	BEGIN
+		a := 2233; 
+		b := a; 
+		ASSERT(b = 2233); 
+	END Integer;
+	
+	BEGIN 
+		Integer; 
+	END Test. 
+
+positive: Longint stored in PAF
+	
+	MODULE Test; 
+	
+	PROCEDURE Longint;
+	VAR a,b: LONGINT; 
+	BEGIN
+		a := 70800; 
+		b := a; 
+		ASSERT(b = 70800); 
+	END Longint;
+	
+	BEGIN 
+		Longint; 
+	END Test. 
+
+positive: Hugeint stored in PAF
+
+	MODULE Test; 
+	
+	PROCEDURE Hugeint;
+	VAR a,b: HUGEINT; 
+	BEGIN
+		a := 70800; 
+		b := a; 
+		ASSERT(b = 70800); 
+	END Hugeint;
+	
+	BEGIN 
+		Hugeint; 
+	END Test.
+
+positive: Real stored in PAF
+
+	MODULE Test; 
+	
+	PROCEDURE Real;
+	VAR a,b: REAL; 
+	BEGIN
+		a := 888; 
+		b := a; 
+		ASSERT(b = 888); 
+	END Real;
+	
+	BEGIN 
+		Real; 
+	END Test.
+
+positive: Longreal stored in PAF
+
+	MODULE Test; 
+	
+	PROCEDURE Longreal;
+	VAR a,b: LONGREAL; 
+	BEGIN
+		a := 888; 
+		b := a; 
+		ASSERT(b = 888); 
+	END Longreal;
+	
+	BEGIN 
+		Longreal; 
+	END Test.
+
+positive: Set stored in PAF
+
+	MODULE Test; 
+	
+	PROCEDURE Set;
+	VAR a,b: SET; 
+	BEGIN
+		a := {1,2,8,9,31}; 
+		b := a; 
+		ASSERT(b = {1,2,8,9,31}); 
+	END Set;
+	
+	BEGIN 
+		Set; 
+	END Test.
+
+positive: Boolean stored in PAF
+
+	MODULE Test; 
+	
+	PROCEDURE Boolean;
+	VAR a,b,c: BOOLEAN; 
+	BEGIN
+		a := FALSE; 
+		b := TRUE; 
+		c := FALSE; 
+		ASSERT(b = TRUE); 
+	END Boolean;
+	
+	BEGIN 
+		Boolean; 
+	END Test.
+
 
 # constant declarations
 
