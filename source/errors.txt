@@ -81,10 +81,24 @@
 2901	can not write to read-only volume
 2902	volume full
 2903	bad sector number
-2904	unknown message
+2904	I/O error
 2905	can not modify read-only volume
 2906	file system not found
 2907	write error
+2920	FATFiles
+2921	File is read-only
+2922	Parent directory not found
+2923	Invalid filename
+2924	Too many similar files
+2925	Rootdirectory is full
+2926	File not found
+2927	File already exists
+2928	Volume has open files
+2929	No relative paths
+2930	Operation cannot be performed on directories
+2931	Directory is not empty
+2932	File is not a directory
+2933	Directory is open
 3000	Locks
 3005	Re-entered non-recursive lock
 3010	Released lock that was not held
