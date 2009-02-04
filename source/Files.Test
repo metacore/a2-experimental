@@ -11,13 +11,17 @@
 #	File.Write
 #	File.WriteBytes <offset> <length>
 #	File.Set <position>
-#	File.Pos
 #
 #	Reader.SetPos <position>
-#	Reader.Pos <position>
 #	Reader.Get
 #	Reader.Bytes <offset> <size> <len>
-#	ReaderAvailable <expectedValue>
+#
+#	Functions, that are treated like variables and can be used in the ASSERT statement:
+#	
+#	File.Length()
+#	File.Pos()
+#	Reader.Available()
+#	Reader.Pos()
 #
 #	DELETE <filename> deletes file if it exists. Does not cause errors!
 #
@@ -133,27 +137,27 @@ negative: open non-existing file
 positive: check length of zero-length file
 
 	Files.Old TestFile0.Bin
-	File.Length 0
+	ASSERT File.Length() =  0
 	
 positive: check length of file
 
 	Files.Old TestFile4096.Bin
-	File.Length 4096
+	ASSERT File.Length() = 4096
 
 positive: create non-existing file
 
 	DELETE NonExistingFile.Bin
 	Files.New NonExistingFile.Bin
-	File.Length 0
+	ASSERT File.Length() = 0
 	DELETE NonExistingFile.Bin
 
 positive: create existing file
 
 	Files.New ExistingFile.Bin
-	File.Length 0
+	ASSERT File.Length() = 0
 	REGISTER
 	Files.New ExistingFile.Bin
-	File.Length 0
+	ASSERT File.Length() =  0
 	REGISTER
 
 negative: open a created but not yet registered file
@@ -182,24 +186,24 @@ positive: set negative position
 	Files.Old TestFile0.Bin
 	File.Set -1
 	ASSERT rider.res = 0
-	File.Pos 0
-	File.Length 0
+	ASSERT File.Pos() = 0
+	ASSERT File.Length() = 0
 
 positive: set position after end of file
 
 	Files.Old TestFile0.Bin
 	File.Set 1000
 	ASSERT rider.res = 0
-	File.Pos 0
-	File.Length 0
+	ASSERT File.Pos() = 0
+	ASSERT File.Length() = 0
 
 ### Basic read/write tests ###
 
 positive: read byte from empty file
 
 	Files.Old TestFile0.Bin
-	File.Length 0
-	File.Pos 0
+	ASSERT File.Pos() = 0
+	ASSERT File.Length() = 0
 	File.Read
 	# HMM... rider.res = 0 seems wrong here, but DiskFS does it that way
 	ASSERT rider.res = 1
@@ -208,7 +212,7 @@ positive: read byte from empty file
 positive: read byte at eof
 
 	Files.Old TestFile4096.Bin
-	File.Length 4096
+	ASSERT File.Length() = 4096
 	File.Set 4096
 	File.Read
 	ASSERT rider.res = 1
@@ -217,31 +221,31 @@ positive: read byte at eof
 positive: write 2 bytes into an empty file and read the bytes back byte-wise
 
 	Files.New NewFile.Bin
-	File.Length 0
+	ASSERT File.Length() = 0
 	File.Set 0
 	SET byte TO X
 	File.Write
-	File.Pos 1
-	File.Length 1
+	ASSERT File.Pos() = 1
+	ASSERT File.Length() = 1
 	SET byte TO Y
 	File.Write
-	File.Pos 2
-	File.Length 2
+	ASSERT File.Pos() = 2
+	ASSERT File.Length() = 2
 	File.Set 0
-	File.Pos 0
+	ASSERT File.Pos() = 0
 	File.Read
 	ASSERT byte = X
 	ASSERT rider.res = 0
 	ASSERT rider.eof = FALSE
-	File.Pos 1
+	ASSERT File.Pos() = 1
 	File.Read
 	ASSERT byte = Y
 	ASSERT rider.res = 0
 	ASSERT rider.eof = FALSE
-	File.Pos 2
+	ASSERT File.Pos() = 2
 	File.Read
-	File.Pos 2
-	File.Length 2
+	ASSERT File.Pos() = 2
+	ASSERT File.Length() = 2
 	ASSERT rider.res = 0
 	ASSERT rider.eof = TRUE
 	
@@ -251,14 +255,14 @@ positive: write 11 bytes into an empty file
 
 	DELETE NewFile.Bin
 	Files.New NewFile.Bin
-	File.Length 0
+	ASSERT File.Length() = 0
 	File.Set 0
 	INITBUFFER 11
 	SET buffer TO "Hello world"
 	File.WriteBytes 0 11
 	ASSERT rider.res = 0
-	File.Length 11
-	File.Pos 11
+	ASSERT File.Length() = 11
+	ASSERT File.Pos() = 11
 	File.Set 0
 	INITBUFFER 11
 	File.ReadBytes 0 11
@@ -269,13 +273,13 @@ positive: check rider.res left-over counting
 
 	DELETE NewFile.Bin
 	Files.New NewFile.Bin
-	File.Length 0
+	ASSERT File.Length() = 0
 	File.Set 0
 	INITBUFFER 10
 	File.WriteBytes 0 4
 	ASSERT rider.res = 0
-	File.Length 4
-	File.Pos 4
+	ASSERT File.Length() = 4
+	ASSERT File.Pos() = 4
 	# Now, try to read 10 bytes from the file. The left-over count should indicate 6 bytes not read
 	File.Set 0
 	File.ReadBytes 0 10
@@ -285,7 +289,7 @@ positive: check rider.res left-over counting
 positive: check rider.res left-over counting at cluster boundary
 
 	Files.Old TestFile4096.Bin
-	File.Length 4096
+	ASSERT File.Length() = 4096
 	File.Set 4092
 	INITBUFFER 10
 	File.ReadBytes 0 10
@@ -295,7 +299,7 @@ positive: check rider.res left-over counting at cluster boundary
 positive: check rider.res left-over counting when reading at eof
 
 	Files.Old TestFile4096.Bin
-	File.Length 4096
+	ASSERT File.Length() = 4096
 	File.Set 4096
 	INITBUFFER 10
 	File.ReadBytes 0 10
@@ -305,15 +309,15 @@ positive: check rider.res left-over counting when reading at eof
 positive: check rider.res leftover counting when reading one cluster at eof
 
 	Files.Old TestFile4096.Bin
-	File.Length 4096
+	ASSERT File.Length() = 4096
 	File.Set 0
 	INITBUFFER 4096
 	File.ReadBytes 0 4096
-	File.Pos 4096
+	ASSERT File.Pos() = 4096
 	ASSERT rider.res = 0
 	ASSERT rider.eof = FALSE
 	File.ReadBytes 0 4096
-	File.Pos 4096
+	ASSERT File.Pos() = 4096
 	ASSERT rider.res = 4096
 	ASSERT rider.eof = TRUE
 
@@ -322,22 +326,23 @@ positive: check rider.res leftover counting when reading one cluster at eof
 positive: reader reports no data available on empty file
 
 	Files.Old TestFile0.Bin
-	File.Length 0
-	Reader.Available 0
+	ASSERT File.Length() = 0
+	ASSERT Reader.Available() = 0
 
 positive: reader reports one byte available when file size is 1 byte
 
 	DELETE NewFile.Bin
 	Files.New NewFile.Bin
-	File.Length 0
-	Reader.Available 0
+	ASSERT File.Length() = 0
+	ASSERT Reader.Available() = 0
+	File.Set 0
 	SET byte TO X
 	File.Write
-	File.Length 1
-	File.Pos 1
+	ASSERT File.Length() = 1
+	ASSERT File.Pos() = 1
 	ASSERT rider.res = 0
-	Reader.Available 1
-	Reader.Pos 0
+	ASSERT Reader.Available() = 1
+	ASSERT Reader.Pos() = 0
 	Reader.Get
 	ASSERT byte = X
 
