@@ -17,6 +17,7 @@
 #	Reader.Pos <position>
 #	Reader.Get
 #	Reader.Bytes <offset> <size> <len>
+#	ReaderAvailable <expectedValue>
 #
 #	DELETE <filename> deletes file if it exists. Does not cause errors!
 #
@@ -201,7 +202,16 @@ positive: read byte from empty file
 	File.Pos 0
 	File.Read
 	# HMM... rider.res = 0 seems wrong here, but DiskFS does it that way
-	ASSERT rider.res = 0
+	ASSERT rider.res = 1
+	ASSERT rider.eof = TRUE
+
+positive: read byte at eof
+
+	Files.Old TestFile4096.Bin
+	File.Length 4096
+	File.Set 4096
+	File.Read
+	ASSERT rider.res = 1
 	ASSERT rider.eof = TRUE
 
 positive: write 2 bytes into an empty file and read the bytes back byte-wise
@@ -306,6 +316,31 @@ positive: check rider.res leftover counting when reading one cluster at eof
 	File.Pos 4096
 	ASSERT rider.res = 4096
 	ASSERT rider.eof = TRUE
+
+### Basic Files.Reader test ###
+
+positive: reader reports no data available on empty file
+
+	Files.Old TestFile0.Bin
+	File.Length 0
+	Reader.Available 0
+
+positive: reader reports one byte available when file size is 1 byte
+
+	DELETE NewFile.Bin
+	Files.New NewFile.Bin
+	File.Length 0
+	Reader.Available 0
+	SET byte TO X
+	File.Write
+	File.Length 1
+	File.Pos 1
+	ASSERT rider.res = 0
+	Reader.Available 1
+	Reader.Pos 0
+	Reader.Get
+	ASSERT byte = X
+
 
 
 
