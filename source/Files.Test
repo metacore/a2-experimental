@@ -39,7 +39,7 @@
 #	INITBUFFER n creates a buffer of length n and fills it with 0X
 #
 
-### Tester self-test
+### Tester self-test ###
 
 negative: Self-test assert fails
 
@@ -119,7 +119,7 @@ negative: Self_test: Out-of-bounds access
 	INITBUFFER 5
 	SET buffer[5] TO X
 
-### Basic file tests
+### Basic file tests ###
 
 positive: open existing file
 
@@ -129,25 +129,46 @@ negative: open non-existing file
 
 	Files.Old ThisFileShouldNotExists.Bin
 
-positive: check length of file
+positive: check length of zero-length file
 
 	Files.Old TestFile0.Bin
 	File.Length 0
+	
+positive: check length of file
+
+	Files.Old TestFile4096.Bin
+	File.Length 4096
 
 positive: create non-existing file
 
 	DELETE NonExistingFile.Bin
 	Files.New NonExistingFile.Bin
+	File.Length 0
 	DELETE NonExistingFile.Bin
 
 positive: create existing file
 
 	Files.New ExistingFile.Bin
+	File.Length 0
 	REGISTER
 	Files.New ExistingFile.Bin
+	File.Length 0
 	REGISTER
 
-### File position tests
+negative: open a created but not yet registered file
+
+	DELETE NewFile.Bin
+	Files.New NewFile.Bin
+	Files.Old NewFile.Bin
+
+positive: open a just created an registered file
+	
+	DELETE NewFile.Bin
+	Files.New NewFile.Bin
+	REGISTER
+	Files.Old NewFile.Bin
+
+### File position tests ###
 
 positive: set position to zero
 
@@ -170,5 +191,113 @@ positive: set position after end of file
 	ASSERT rider.res = 0
 	File.Pos 0
 	File.Length 0
+
+### Basic read/write tests ###
+
+positive: read byte from empty file
+
+	Files.Old TestFile0.Bin
+	File.Length 0
+	File.Pos 0
+	File.Read
+	# HMM... rider.res = 0 seems wrong here, but DiskFS does it that way
+	ASSERT rider.res = 0
+	ASSERT rider.eof = TRUE
+
+positive: write 2 bytes into an empty file and read the bytes back byte-wise
+
+	Files.New NewFile.Bin
+	File.Length 0
+	File.Set 0
+	SET byte TO X
+	File.Write
+	File.Pos 1
+	File.Length 1
+	SET byte TO Y
+	File.Write
+	File.Pos 2
+	File.Length 2
+	File.Set 0
+	File.Pos 0
+	File.Read
+	ASSERT byte = X
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	File.Pos 1
+	File.Read
+	ASSERT byte = Y
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	File.Pos 2
+	File.Read
+	File.Pos 2
+	File.Length 2
+	ASSERT rider.res = 0
+	ASSERT rider.eof = TRUE
+	
+### File.ReadBytes/WriteBytes tests ###
+
+positive: write 11 bytes into an empty file
+
+	DELETE NewFile.Bin
+	Files.New NewFile.Bin
+	File.Length 0
+	File.Set 0
+	INITBUFFER 11
+	SET buffer TO "Hello world"
+	File.WriteBytes 0 11
+	ASSERT rider.res = 0
+	File.Length 11
+	File.Pos 11
+	File.Set 0
+	INITBUFFER 11
+	File.ReadBytes 0 11
+	ASSERT rider.res = 0
+	ASSERT buffer = "Hello world"
+
+positive: check rider.res left-over counting
+
+	DELETE NewFile.Bin
+	Files.New NewFile.Bin
+	File.Length 0
+	File.Set 0
+	INITBUFFER 10
+	File.WriteBytes 0 4
+	ASSERT rider.res = 0
+	File.Length 4
+	File.Pos 4
+	# Now, try to read 10 bytes from the file. The left-over count should indicate 6 bytes not read
+	File.Set 0
+	File.ReadBytes 0 10
+	ASSERT rider.res = 6
+	ASSERT rider.eof = TRUE
+
+positive: check rider.res left-over counting at cluster boundary
+
+	Files.Old TestFile4096.Bin
+	File.Length 4096
+	File.Set 4092
+	INITBUFFER 10
+	File.ReadBytes 0 10
+	ASSERT rider.res = 6
+	ASSERT rider.eof = TRUE
+
+positive: check rider.res left-over counting when reading at eof
+
+	Files.Old TestFile4096.Bin
+	File.Length 4096
+	File.Set 4096
+	INITBUFFER 10
+	File.ReadBytes 0 10
+	ASSERT rider.res = 10
+	ASSERT rider.eof = TRUE
+
+	
+
+
+
+
+
+
 
 
