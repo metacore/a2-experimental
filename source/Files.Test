@@ -292,6 +292,23 @@ positive: check rider.res left-over counting when reading at eof
 	ASSERT rider.res = 10
 	ASSERT rider.eof = TRUE
 
+positive: check rider.res leftover counting when reading one cluster at eof
+
+	Files.Old TestFile4096.Bin
+	File.Length 4096
+	File.Set 0
+	INITBUFFER 4096
+	File.ReadBytes 0 4096
+	File.Pos 4096
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	File.ReadBytes 0 4096
+	File.Pos 4096
+	ASSERT rider.res = 4096
+	ASSERT rider.eof = TRUE
+
+
+
 	
 
 
