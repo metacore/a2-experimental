@@ -25,11 +25,14 @@
 #	Boolean variables: rider.eof
 #	Boolean operators: =, #
 #
-#	Character variables: byte
+#	Character variables: byte, buffer[index]
 #	Character operators: =, #
 #
 #	String variables: buffer
 #	String operators: =, #
+#
+#	INITBUFFER 0 sets buffer to NIL
+#	INITBUFFER n creates a buffer of length n and fills it with 0X
 #
 
 ### Tester self-test
@@ -71,28 +74,64 @@ positive: Self-test: Set character variables
 	SET byte TO 0
 	ASSERT byte = 0
 
-positive: Self-test: Set string variables
+negative: Self-test: Write to non-existing buffer
 
 	SET buffer TO "Hello World"
-	ASSERT buffer = "Hello World"
+
+negative: Self-test: Write into too small buffer
+
+	INITBUFFER 5
+	SET buffer TO "HELLOX"
+
+positive: Self-test: Write into exactly fitting buffer
+
+	INITBUFFER 5
+	SET buffer TO "HELLO"
+
+negative: Self-test: Buffer has been set to NIL after last test
+
+	SET buffer TO "X"
+	
+negative: Self-test: Set buffer to NIL by setting it's length to zero
+
+	INITBUFFER 4
+	INITBUFFER 0
+	SET buffer TO "X"
+	
+positive: Self_test: Set bytes by using buffer index
+
+	INITBUFFER 5
+	SET buffer[0] TO H
+	SET buffer[1] TO E
+	SET buffer[2] TO L
+	SET buffer[3] TO L
+	SET buffer[4] TO O
+	ASSERT buffer[0] = H
+	ASSERT buffer[4] = O
+	ASSERT buffer = HELLO
+
+negative: Self_test: Out-of-bounds access
+
+	INITBUFFER 5
+	SET buffer[5] TO X
 
 ### Basic file tests
 
 positive: open existing file
 
-	Files.Open TestFile0.Bin
+	Files.Old TestFile0.Bin
 
 negative: open non-existing file
 
-	Files.Open ThisFileShouldNotExists.Bin
+	Files.Old ThisFileShouldNotExists.Bin
 
 positive: check length of file
 
-	Files.Open TestFile0.Bin
+	Files.Old TestFile0.Bin
 	File.Length 0
 
 positive: set position to zero
 
-	Files.Open TestFile0.Bin
+	Files.Old TestFile0.Bin
 	File.Set 0
-	ASSERT rider.res # 0
+	ASSERT rider.res = 0
