@@ -2,7 +2,9 @@
 #
 # Available operations:
 #
-#	Files.Open <filename>
+#	Files.Old <filename>
+#	Files.New <filename>
+#
 #	File.Length <expectedLength>
 #	File.Read
 #	File.ReadBytes <offset> <length>
@@ -15,6 +17,8 @@
 #	Reader.Pos <position>
 #	Reader.Get
 #	Reader.Bytes <offset> <size> <len>
+#
+#	DELETE <filename> deletes file if it exists. Does not cause errors!
 #
 #	ASSERT <variable> <operator> <value>
 #	SET <variable> TO <value>
@@ -130,8 +134,41 @@ positive: check length of file
 	Files.Old TestFile0.Bin
 	File.Length 0
 
+positive: create non-existing file
+
+	DELETE NonExistingFile.Bin
+	Files.New NonExistingFile.Bin
+	DELETE NonExistingFile.Bin
+
+positive: create existing file
+
+	Files.New ExistingFile.Bin
+	REGISTER
+	Files.New ExistingFile.Bin
+	REGISTER
+
+### File position tests
+
 positive: set position to zero
 
 	Files.Old TestFile0.Bin
 	File.Set 0
 	ASSERT rider.res = 0
+
+positive: set negative position
+
+	Files.Old TestFile0.Bin
+	File.Set -1
+	ASSERT rider.res = 0
+	File.Pos 0
+	File.Length 0
+
+positive: set position after end of file
+
+	Files.Old TestFile0.Bin
+	File.Set 1000
+	ASSERT rider.res = 0
+	File.Pos 0
+	File.Length 0
+
+
