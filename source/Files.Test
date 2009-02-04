@@ -1,0 +1,98 @@
+# Files.Mod tests
+#
+# Available operations:
+#
+#	Files.Open <filename>
+#	File.Length <expectedLength>
+#	File.Read
+#	File.ReadBytes <offset> <length>
+#	File.Write
+#	File.WriteBytes <offset> <length>
+#	File.Set <position>
+#	File.Pos
+#
+#	Reader.SetPos <position>
+#	Reader.Pos <position>
+#	Reader.Get
+#	Reader.Bytes <offset> <size> <len>
+#
+#	ASSERT <variable> <operator> <value>
+#	SET <variable> TO <value>
+#
+#	Integer variables: rider.res, reader.res, readerBytesLength
+#	Integer operators: =, #, >, >=, <, <=
+#
+#	Boolean variables: rider.eof
+#	Boolean operators: =, #
+#
+#	Character variables: byte
+#	Character operators: =, #
+#
+#	String variables: buffer
+#	String operators: =, #
+#
+
+### Tester self-test
+
+negative: Self-test assert fails
+
+	SET rider.res TO 0
+	ASSERT rider.res # 0
+
+negative: Self-test comments
+
+	# This is a comment
+	SET rider.res TO 0
+	# This assert should fail
+	ASSERT rider.res # 0
+
+positive: Self-test: Set integer variables
+
+	SET rider.res TO -1
+	ASSERT rider.res = -1
+	SET rider.res TO 99
+	ASSERT rider.res = 99
+	SET readerBytesLength TO -1
+	ASSERT readerBytesLength = -1
+	SET readerBytesLength TO 0
+	ASSERT readerBytesLength = 0
+
+positive: Self-test: Set boolean variables
+
+	SET rider.eof TO TRUE
+	ASSERT rider.eof = TRUE
+	SET rider.eof TO FALSE
+	ASSERT rider.eof = FALSE
+
+positive: Self-test: Set character variables
+
+	SET byte TO 1
+	ASSERT byte = 1
+	SET byte TO 0
+	ASSERT byte = 0
+
+positive: Self-test: Set string variables
+
+	SET buffer TO "Hello World"
+	ASSERT buffer = "Hello World"
+
+### Basic file tests
+
+positive: open existing file
+
+	Files.Open TestFile0.Bin
+
+negative: open non-existing file
+
+	Files.Open ThisFileShouldNotExists.Bin
+
+positive: check length of file
+
+	Files.Open TestFile0.Bin
+	File.Length 0
+
+positive: set position to zero
+
+	Files.Open TestFile0.Bin
+	File.Set 0
+	ASSERT rider.res # 0
