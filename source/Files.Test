@@ -17,13 +17,14 @@
 #	Reader.Bytes <offset> <size> <len>
 #
 #	Functions, that are treated like variables and can be used in the ASSERT statement:
-#	
+#
 #	File.Length()
 #	File.Pos()
 #	Reader.Available()
 #	Reader.Pos()
 #
 #	DELETE <filename> deletes file if it exists. Does not cause errors!
+#	CALL <commandString>
 #
 #	ASSERT <variable> <operator> <value>
 #	SET <variable> TO <value>
@@ -100,13 +101,13 @@ positive: Self-test: Write into exactly fitting buffer
 negative: Self-test: Buffer has been set to NIL after last test
 
 	SET buffer TO "X"
-	
+
 negative: Self-test: Set buffer to NIL by setting it's length to zero
 
 	INITBUFFER 4
 	INITBUFFER 0
 	SET buffer TO "X"
-	
+
 positive: Self_test: Set bytes by using buffer index
 
 	INITBUFFER 5
@@ -123,7 +124,7 @@ negative: Self_test: Out-of-bounds access
 
 	INITBUFFER 5
 	SET buffer[5] TO X
-	
+
 ### Prepare tests ###
 
 positive: create test files
@@ -147,7 +148,7 @@ positive: check length of zero-length file
 
 	Files.Old TestFile0.Bin
 	ASSERT File.Length() =  0
-	
+
 positive: check length of file
 
 	Files.Old TestFile4096.Bin
@@ -176,7 +177,7 @@ negative: open a created but not yet registered file
 	Files.Old NewFile.Bin
 
 positive: open a just created an registered file
-	
+
 	DELETE NewFile.Bin
 	Files.New NewFile.Bin
 	REGISTER
@@ -205,6 +206,128 @@ positive: set position after end of file
 	ASSERT rider.res = 0
 	ASSERT File.Pos() = 0
 	ASSERT File.Length() = 0
+
+positive: positioning test withhin one cluster
+
+	DELETE TempFile.Bin
+	Files.New TempFile.Bin
+	INITBUFFER 500
+	File.Set 0
+	File.WriteBytes 0 500
+	ASSERT rider.res = 0
+	ASSERT File.Length() = 500
+	File.Set 10
+	ASSERT File.Pos() = 10
+	SET byte TO X
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT File.Length() = 500
+	File.Set 99
+	ASSERT File.Pos() = 99
+	SET byte TO Y
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT File.Length() = 500
+	File.Set 311
+	ASSERT File.Pos() = 311
+	SET byte TO Z
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT File.Length() = 500
+	SET byte TO 0
+	File.Set 10
+	ASSERT File.Pos() = 10
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = X
+	SET byte TO 0
+	File.Set 99
+	ASSERT File.Pos() = 99
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = Y
+	SET byte TO 0
+	File.Set 311
+	ASSERT File.Pos() = 311
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = Z
+	ASSERT File.Length() = 500
+
+positive: positioning in 64K file
+
+	DELETE TempFile.Bin
+	Files.New TempFile.Bin
+	INITBUFFER 65536
+	File.WriteBytes 0 65536
+	ASSERT rider.res = 0
+	ASSERT File.Length() = 65536
+	SET byte TO A
+	File.Set 65000
+	ASSERT File.Pos() = 65000
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	SET byte TO B
+	File.Set 311
+	ASSERT File.Pos() = 311
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	SET byte TO C
+	File.Set 11111
+	ASSERT File.Pos() = 11111
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	SET byte TO D
+	File.Set 44444
+	ASSERT File.Pos() = 44444
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	SET byte TO E
+	File.Set 0
+	ASSERT File.Pos() = 0
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT File.Length() = 65536
+	# now, read back the bytes
+	File.Set 65000
+	ASSERT File.Pos() = 65000
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = A
+	File.Set 311
+	ASSERT File.Pos() = 311
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = B
+	File.Set 11111
+	ASSERT File.Pos() = 11111
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = C
+	File.Set 44444
+	ASSERT File.Pos() = 44444
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = D
+	File.Set 0
+	ASSERT File.Pos() = 0
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = E
+	ASSERT File.Length() = 65536
 
 ### Basic read/write tests ###
 
@@ -257,7 +380,7 @@ positive: write 2 bytes into an empty file and read the bytes back byte-wise
 	ASSERT File.Length() = 2
 	ASSERT rider.res = 0
 	ASSERT rider.eof = TRUE
-	
+
 ### File.ReadBytes/WriteBytes tests ###
 
 positive: write 11 bytes into an empty file
@@ -344,7 +467,7 @@ positive: reader indicates EOF when loading data from an empty file
 	ASSERT File.Length() = 0
 	Reader.Get
 	ASSERT reader.res = 4201
-	
+
 positive: setting negative position will set the position to zero
 
 	Files.Old TestFile4096.Bin
@@ -380,7 +503,7 @@ positive: reader reports one byte available when file size is 1 byte
 	ASSERT Reader.Pos() = 0
 	Reader.Get
 	ASSERT byte = X
-	
+
 positive: reader indicates eof when trying to read at the eof
 
 	Files.Old TestFile4096.Bin
@@ -395,7 +518,7 @@ positive: reader indicates eof when trying to read at the eof
 
 
 
-	
+
 
 
 
