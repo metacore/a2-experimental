@@ -123,6 +123,15 @@ negative: Self_test: Out-of-bounds access
 
 	INITBUFFER 5
 	SET buffer[5] TO X
+	
+### Prepare tests ###
+
+positive: create test files
+
+	CALL TestFiles.CreateTestFiles
+	Files.Old TestFile0.Bin
+	Files.Old TestFile4096.Bin
+	Files.Old TestFile8192.Bin
 
 ### Basic file tests ###
 
@@ -329,6 +338,32 @@ positive: reader reports no data available on empty file
 	ASSERT File.Length() = 0
 	ASSERT Reader.Available() = 0
 
+positive: reader indicates EOF when loading data from an empty file
+
+	Files.Old TestFile0.Bin
+	ASSERT File.Length() = 0
+	Reader.Get
+	ASSERT reader.res = 4201
+	
+positive: setting negative position will set the position to zero
+
+	Files.Old TestFile4096.Bin
+	ASSERT File.Length() = 4096
+	Reader.SetPos -1
+	ASSERT reader.res = 0
+	ASSERT Reader.Pos() = 0
+	# Assuming the reader buffer is 4096 bytes in size
+	ASSERT Reader.Available() = 4096
+
+positive: setting the position after EOF will set the position to EOF
+
+	Files.Old TestFile4096.Bin
+	ASSERT File.Length() = 4096
+	Reader.SetPos 10000
+	ASSERT reader.res = 0
+	ASSERT Reader.Pos() = 4096
+	ASSERT Reader.Available() = 0
+
 positive: reader reports one byte available when file size is 1 byte
 
 	DELETE NewFile.Bin
@@ -345,6 +380,17 @@ positive: reader reports one byte available when file size is 1 byte
 	ASSERT Reader.Pos() = 0
 	Reader.Get
 	ASSERT byte = X
+	
+positive: reader indicates eof when trying to read at the eof
+
+	Files.Old TestFile4096.Bin
+	ASSERT File.Length() = 4096
+	Reader.SetPos 4096
+	ASSERT Reader.Available() = 0
+	Reader.Get
+	ASSERT reader.res = 4201
+	ASSERT readerBytesLength = 0
+
 
 
 
