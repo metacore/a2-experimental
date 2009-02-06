@@ -328,6 +328,86 @@ positive: positioning in 64K file
 	ASSERT rider.eof = FALSE
 	ASSERT byte = E
 	ASSERT File.Length() = 65536
+	
+positive: Check correct cluster handling when setting position to the 2nd cluster of the file for clustersizes 512, 1024, 2048 & 4096
+
+	DELETE NewFile.Bin
+	Files.New NewFile.Bin
+	INITBUFFER 8192
+	File.WriteBytes 0 8192
+	ASSERT rider.res = 0
+	ASSERT File.Length() = 8192
+	# Write into last cluster
+	File.Set 8100
+	ASSERT File.Pos() = 8100
+	SET byte TO X
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	# Set position into cluster number 1 (second cluster) assuming 512 byte cluster size
+	File.Set 600
+	ASSERT File.Pos() = 600
+	SET byte TO A
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT File.Length() = 8192
+	# Read back byte in last cluster
+	File.Set 8100
+	ASSERT File.Pos() = 8100
+	SET byte TO 0
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = X
+	# Set position into cluster number 1 (second cluster) assuming 1024 byte cluster size
+	File.Set 1026
+	ASSERT File.Pos() = 1026
+	SET byte TO A
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT File.Length() = 8192
+	# Read back byte in last cluster
+	File.Set 8100
+	ASSERT File.Pos() = 8100
+	SET byte TO 0
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = X
+	# Set position into cluster number 1 (second cluster) assuming 2048 byte cluster size
+	File.Set 2050
+	ASSERT File.Pos() = 2050
+	SET byte TO A
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT File.Length() = 8192
+	# Read back byte in last cluster
+	File.Set 8100
+	ASSERT File.Pos() = 8100
+	SET byte TO 0
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = X
+	# Set position into cluster number 1 (second cluster) assuming 4096 byte cluster size
+	File.Set 4100
+	ASSERT File.Pos() = 4100
+	SET byte TO A
+	File.Write
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT File.Length() = 8192
+	# Read back byte in last cluster
+	File.Set 8100
+	ASSERT File.Pos() = 8100
+	SET byte TO 0
+	File.Read
+	ASSERT rider.res = 0
+	ASSERT rider.eof = FALSE
+	ASSERT byte = X
 
 ### Basic read/write tests ###
 
