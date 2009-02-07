@@ -4,6 +4,7 @@
 #
 #	Files.Old <filename>
 #	Files.New <filename>
+#	Note: The tester path will be prepended to the filename
 #
 #	File.Length <expectedLength>
 #	File.Read
@@ -25,6 +26,8 @@
 #
 #	DELETE <filename> deletes file if it exists. Does not cause errors!
 #	CALL <commandString>
+#
+#	In CALL command parameters, all occurences of the string "<path>  will be replaced by the path used by the tester
 #
 #	ASSERT <variable> <operator> <value>
 #	SET <variable> TO <value>
@@ -129,7 +132,7 @@ negative: Self_test: Out-of-bounds access
 
 positive: create test files
 
-	CALL TestFiles.CreateTestFiles
+	CALL TestFiles.CreateTestFiles <path>
 	Files.Old TestFile0.Bin
 	Files.Old TestFile4096.Bin
 	Files.Old TestFile8192.Bin
@@ -262,6 +265,7 @@ positive: positioning in 64K file
 	DELETE TempFile.Bin
 	Files.New TempFile.Bin
 	INITBUFFER 65536
+	File.Set 0
 	File.WriteBytes 0 65536
 	ASSERT rider.res = 0
 	ASSERT File.Length() = 65536
@@ -334,6 +338,7 @@ positive: Check correct cluster handling when setting position to the 2nd cluste
 	DELETE NewFile.Bin
 	Files.New NewFile.Bin
 	INITBUFFER 8192
+	File.Set 0
 	File.WriteBytes 0 8192
 	ASSERT rider.res = 0
 	ASSERT File.Length() = 8192
@@ -593,6 +598,22 @@ positive: reader indicates eof when trying to read at the eof
 	Reader.Get
 	ASSERT reader.res = 4201
 	ASSERT readerBytesLength = 0
+	
+### Random tests
+
+positive: random test for File.Read and File.Write
+
+	DELETE NewFile.Bin
+	Files.New NewFile.Bin
+	INITBUFFER 16777216
+	File.Set 0
+	File.WriteBytes 0 16777216
+	REGISTER
+	ASSERT rider.res = 0
+	ASSERT File.Length() = 16777216
+	CALL TestFiles.RandomReadWrite <path> NewFile.Bin 1234 1000
+
+
 
 
 
