@@ -1367,7 +1367,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 					}
 					i++;
 				}
-				iniFile[j+1] = 'I'; iniFile[j+2] = 'n';
+				iniFile[j+1] = 'i'; iniFile[j+2] = 'n';
 				iniFile[j+3] = 'i'; iniFile[j+4] = (OCHAR)0;
 				strcpy(exePath, ""); strcpy(workPath, "");
 				GetPrivateProfileString("Debug", "OnTop", workPath, exePath, MAX_PATH, iniFile);
