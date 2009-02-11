@@ -49,7 +49,6 @@
 			</Bounds>	
 		</Properties>
 
-
 		<Button>
 			<Properties>
 				<Caption>Clock</Caption>
@@ -134,7 +133,8 @@
 			<Properties>
 				<Caption>Reboot</Caption>
 				<Alignment>2</Alignment>
-					<ClDefault>0FF000080</ClDefault>
+				<ClDefault>0FF000080</ClDefault>
+				<ClHover>0FF0000FF</ClHover>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
@@ -151,6 +151,7 @@
 				<Caption>Shutdown</Caption>
 				<Alignment>2</Alignment>
 				<ClDefault>0FF000080</ClDefault>
+				<ClHover>0FF0000FF</ClHover>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
