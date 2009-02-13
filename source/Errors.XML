@@ -165,10 +165,10 @@
     <Error code="157"></Error>
     <Error code="158"></Error>
     <Error code="159"></Error>
-    <Error code="160"></Error>
-    <Error code="161"></Error>
-    <Error code="162"></Error>
-    <Error code="163"></Error>
+    <Error code="160">non-realtime procedure call or NEW not allowed in scope of realtime procedure</Error>
+    <Error code="161">incompatible types - realtime properties do not match</Error>
+    <Error code="162">EXCLUSIVE or AWAIT not allowed in scope of realtime procedure</Error>
+    <Error code="163">Overridden method is not a realtime method</Error>
     <Error code="164"></Error>
     <Error code="165"></Error>
     <Error code="166"></Error>
