@@ -426,7 +426,7 @@ positive: real literal with positive scale factor
 
 negative: real literal with positive too large scale factor
 
-	MODULE Test; 
+	MODULE Test;
 	CONST Real= 0.3E+80;
 	END Test.
 
@@ -37350,245 +37350,420 @@ negative: qualified super call on reference to overridden procedure in module
 	VAR object: Derived;
 	BEGIN object.Procedure^
 	END Test.
-	
-	
-#flags
+
+
+# flags
 
 negative: procedure illegaly marked delegate
 
-	MODULE Test;	
+	MODULE Test;
 	PROCEDURE {DELEGATE} P; END P;
 	END Test.
-	
+
 negative: procedure illegaly marked untraced
 
-	MODULE Test;	
+	MODULE Test;
 	PROCEDURE {UNTRACED} P; END P;
 	END Test.
 
 positive: pointer to array variable marked untraced
 
-	MODULE Test; 
-	VAR a {UNTRACED}: POINTER TO ARRAY OF CHAR; 
-	END Test. 
+	MODULE Test;
+	VAR a {UNTRACED}: POINTER TO ARRAY OF CHAR;
+	END Test.
 
 positive: pointer to record variable marked untraced
 
-	MODULE Test; 
-	VAR a {UNTRACED}: POINTER TO RECORD END; 
+	MODULE Test;
+	VAR a {UNTRACED}: POINTER TO RECORD END;
 	END Test.
-	
+
 negative: non-pointer variable marked untraced
 
-	MODULE Test; 
+	MODULE Test;
 	VAR a {UNTRACED}: LONGINT;
 	END Test.
-	
+
 negative: variable marked delegate
-	MODULE Test; 
-	VAR a{DELEGATE}: PROCEDURE; 
+	MODULE Test;
+	VAR a{DELEGATE}: PROCEDURE;
 	END Test.
 
 positive: delegate procedure type
-	
-	MODULE Test; 
-	TYPE TP=PROCEDURE{DELEGATE}; 
+
+	MODULE Test;
+	TYPE TP=PROCEDURE{DELEGATE};
 	END Test.
-	
+
 positive: delegate procedure type with arguments
 
-	MODULE Test; 
-	TYPE TP=PROCEDURE{DELEGATE}(a: LONGINT): LONGINT; 
+	MODULE Test;
+	TYPE TP=PROCEDURE{DELEGATE}(a: LONGINT): LONGINT;
 	END Test.
 
 positive: delegate procedure variable assignment
 
-	MODULE Test; 
-	VAR p:PROCEDURE{DELEGATE}; 
-	PROCEDURE P;	END P;
+	MODULE Test;
+	VAR p:PROCEDURE{DELEGATE};
+	PROCEDURE P; END P;
 	BEGIN p := P
 	END Test.
 
 positive: delegate procedure variable assigned to method
 
-	MODULE Test; 
-	TYPE O=OBJECT PROCEDURE P; END P; END O; 
-	VAR o:O; p:PROCEDURE{DELEGATE}; 
+	MODULE Test;
+	TYPE O=OBJECT PROCEDURE P; END P; END O;
+	VAR o:O; p:PROCEDURE{DELEGATE};
 	BEGIN p := o.P
 	END Test.
 
 negative: non-delegate procedure variable assigned to method
 
-	MODULE Test; 
-	TYPE O=OBJECT PROCEDURE P; END P; END O; 
-	VAR o:O; p:PROCEDURE; 
+	MODULE Test;
+	TYPE O=OBJECT PROCEDURE P; END P; END O;
+	VAR o:O; p:PROCEDURE;
 	BEGIN p := o.P
 	END Test.
-	
-#signatures
+
+
+# signatures
 
 positive: signature matching extension of object
 
-	MODULE Test; 
+	MODULE Test;
 	TYPE O=OBJECT
-			PROCEDURE P; END P; 
-			PROCEDURE Q(i: INTEGER); END Q; 
-			PROCEDURE R(i: LONGINT): LONGINT; END R; 
-		END O; 
-	TYPE OO=OBJECT(O); 
-			PROCEDURE P; END P; 
-			PROCEDURE Q(i: INTEGER); END Q; 
-			PROCEDURE R(i: LONGINT): LONGINT; END R; 
-		END OO; 	
+			PROCEDURE P; END P;
+			PROCEDURE Q(i: INTEGER); END Q;
+			PROCEDURE R(i: LONGINT): LONGINT; END R;
+		END O;
+	TYPE OO=OBJECT(O);
+			PROCEDURE P; END P;
+			PROCEDURE Q(i: INTEGER); END Q;
+			PROCEDURE R(i: LONGINT): LONGINT; END R;
+		END OO;
 	END Test.
-	
+
 negative: extension of objects with nonmatching signature: parameter incompatible
 
-	MODULE Test; 
+	MODULE Test;
 	TYPE O=OBJECT
-			PROCEDURE P(i: INTEGER); END P; 
-	END O; 
+			PROCEDURE P(i: INTEGER); END P;
+	END O;
 	TYPE OO=OBJECT(O)
-			PROCEDURE P(i: LONGINT); END P; 
-	END OO; 
-	END Test. 
+			PROCEDURE P(i: LONGINT); END P;
+	END OO;
+	END Test.
 
 positive: extension of object matching signature: constructor extends non-constructor
 
-	MODULE Test; 
+	MODULE Test;
 	TYPE O=OBJECT
-			PROCEDURE P; END P; 
-		END O; 
-	TYPE OO=OBJECT(O); 
-			PROCEDURE &P; END P; 
-		END OO; 
-	END Test.	
-	
+			PROCEDURE P; END P;
+		END O;
+	TYPE OO=OBJECT(O);
+			PROCEDURE &P; END P;
+		END OO;
+	END Test.
+
 negative: extension of object with nonmatching signature: non-constructor extends constructor
 
-	MODULE Test; 
+	MODULE Test;
 	TYPE O=OBJECT
-			PROCEDURE &P; END P; 
-		END O; 
-	TYPE OO=OBJECT(O); 
-			PROCEDURE P; END P; 
-		END OO; 
-	END Test.			
+			PROCEDURE &P; END P;
+		END O;
+	TYPE OO=OBJECT(O);
+			PROCEDURE P; END P;
+		END OO;
+	END Test.
 
 positive: non-exported constructor used in same module
 
-	MODULE Dummy; 
+	MODULE Dummy;
 	TYPE O*=OBJECT
-		PROCEDURE & Init (x: LONGINT; CONST y: ARRAY OF CHAR); 
+		PROCEDURE & Init (x: LONGINT; CONST y: ARRAY OF CHAR);
 		END Init;
-	END O; 
-	VAR o:O; 
-	BEGIN 
+	END O;
+	VAR o:O;
+	BEGIN
 		NEW(o,10,"test")
 	END Dummy.
 
 negative: non-exported constructor used as method in different module
 
-	MODULE Test; 
-	IMPORT Dummy; 
-	VAR a: Dummy.O; 
-	BEGIN 
+	MODULE Test;
+	IMPORT Dummy;
+	VAR a: Dummy.O;
+	BEGIN
 		a.Init(10,"test")
 	END Test.
 
 negative: non-exported constructor used as constructor in different module
 
-	MODULE Test; 
-	IMPORT Dummy; 
-	VAR a: Dummy.O; 
-	BEGIN 
-		NEW(a,10,"test"); 
+	MODULE Test;
+	IMPORT Dummy;
+	VAR a: Dummy.O;
+	BEGIN
+		NEW(a,10,"test");
 	END Test.
 
 positive: non-exported constructor overwritten by new constructor with different name in different module
 
-	MODULE Test; 
-	IMPORT Dummy; 
+	MODULE Test;
+	IMPORT Dummy;
 	TYPE O=OBJECT (Dummy.O)
 		PROCEDURE & InitX(a,b: LONGINT); END InitX;
-	END O; 
-	VAR a: O; 
-	BEGIN 
-		NEW(a,10,20); 
+	END O;
+	VAR a: O;
+	BEGIN
+		NEW(a,10,20);
 	END Test.
-	
+
 positive: non-exported constructor overwritten by new constructor with same name in different module
 
-	MODULE Test; 
-	IMPORT Dummy; 
+	MODULE Test;
+	IMPORT Dummy;
 	TYPE O=OBJECT (Dummy.O)
 		PROCEDURE & Init(a,b: LONGINT); END Init;
-	END O; 
-	VAR a: O; 
-	BEGIN 
-		NEW(a,10,20); 
+	END O;
+	VAR a: O;
+	BEGIN
+		NEW(a,10,20);
 	END Test.
-	
+
 positive: exported constructor used in same module
 
-	MODULE Dummy; 
+	MODULE Dummy;
 	TYPE O*=OBJECT
-		PROCEDURE & Init* (x: LONGINT; CONST y: ARRAY OF CHAR); 
+		PROCEDURE & Init* (x: LONGINT; CONST y: ARRAY OF CHAR);
 		END Init;
-	END O; 
-	VAR o:O; 
-	BEGIN 
+	END O;
+	VAR o:O;
+	BEGIN
 		NEW(o,10,"test")
 	END Dummy.
 
 positive: exported constructor used as method in different module
 
-	MODULE Test; 
-	IMPORT Dummy; 
-	VAR a: Dummy.O; 
-	BEGIN 
+	MODULE Test;
+	IMPORT Dummy;
+	VAR a: Dummy.O;
+	BEGIN
 		a.Init(10,"test")
 	END Test.
 
 positive: exported constructor used as constructor in different module
 
-	MODULE Test; 
-	IMPORT Dummy; 
-	VAR a: Dummy.O; 
-	BEGIN 
-		NEW(a,10,"test"); 
+	MODULE Test;
+	IMPORT Dummy;
+	VAR a: Dummy.O;
+	BEGIN
+		NEW(a,10,"test");
 	END Test.
 
 positive: exported constructor overwritten by new constructor with different name and non-matching signature in different module
 
-	MODULE Test; 
-	IMPORT Dummy; 
+	MODULE Test;
+	IMPORT Dummy;
 	TYPE O=OBJECT (Dummy.O)
 		PROCEDURE & InitX(a,b: LONGINT); END InitX;
-	END O; 
-	VAR a: O; 
-	BEGIN 
-		NEW(a,10,20); 
+	END O;
+	VAR a: O;
+	BEGIN
+		NEW(a,10,20);
 	END Test.
-	
+
 negative: non-exported constructor overwritten by new constructor with same name and non-matching signature in different module
 
-	MODULE Test; 
-	IMPORT Dummy; 
+	MODULE Test;
+	IMPORT Dummy;
 	TYPE O=OBJECT (Dummy.O)
 		PROCEDURE & Init(a,b: LONGINT); END Init;
-	END O; 
+	END O;
 	END Test.
 
 positive: non-exported constructor overwritten by new constructor with same name and matching signature in different module
 
-	MODULE Test; 
-	IMPORT Dummy; 
+	MODULE Test;
+	IMPORT Dummy;
 	TYPE O=OBJECT (Dummy.O)
 		PROCEDURE & Init(a: LONGINT; CONST name: ARRAY OF CHAR); END Init;
-	END O; 
-	VAR a: O; 
-	BEGIN 
-		NEW(a,10,"test"); 
+	END O;
+	VAR a: O;
+	BEGIN
+		NEW(a,10,"test");
 	END Test.
-	
+
+
+# realtime procedures
+
+positive: procedure marked as realtime
+
+	MODULE Test;
+	PROCEDURE {REALTIME} P; END P;
+	END Test.
+
+positive: calling realtime procedure in non-realtime procedure
+
+	MODULE Test;
+	PROCEDURE {REALTIME} RTP; END RTP;
+	PROCEDURE NRTP; BEGIN RTP; END NRTP;
+	END Test.
+
+positive: recursive call of realtime procedure
+
+	MODULE Test;
+	PROCEDURE {REALTIME} RTP; BEGIN RTP; END RTP;
+	END Test.
+
+negative: calling non-realtime procedure in realtime procedure
+
+	MODULE Test;
+	PROCEDURE NRTP; END NRTP;
+	PROCEDURE {REALTIME} RTP; BEGIN NRTP; END RTP;
+	END Test.
+
+negative: new statement in non-realtime procedure
+
+	MODULE Test;
+	PROCEDURE {REALTIME} P;
+	VAR p: POINTER TO RECORD END;
+	BEGIN NEW (p);
+	END P;
+	END Test.
+
+negative: exclusive block in non-realtime procedure
+
+	MODULE Test;
+	PROCEDURE {REALTIME} P;
+	BEGIN {EXCLUSIVE}
+	END P;
+	END Test.
+
+negative: await statement in non-realtime procedure
+
+	MODULE Test;
+	VAR condition: BOOLEAN;
+	PROCEDURE {REALTIME} P;
+	BEGIN AWAIT (condition);
+	END P;
+	END Test.
+
+positive: realtime procedure variable to non-realtime procedure variable assignment
+
+	MODULE Test;
+	VAR rtp: PROCEDURE {REALTIME}; nrtp: PROCEDURE;
+	BEGIN nrtp := rtp;
+	END Test.
+
+positive: realtime procedure variable to realtime procedure variable assignment
+
+	MODULE Test;
+	VAR rtp: PROCEDURE {REALTIME};
+	BEGIN rtp := rtp;
+	END Test.
+
+negative: non-realtime procedure variable to realtime procedure variable assignment
+
+	MODULE Test;
+	VAR rtp: PROCEDURE {REALTIME}; nrtp: PROCEDURE;
+	BEGIN rtp := nrtp;
+	END Test.
+
+negative: module body marked as realtime
+
+	MODULE Test;
+	BEGIN {REALTIME}
+	END Test.
+
+negative: procedure body marked as realtime
+
+	MODULE Test;
+	PROCEDURE P;
+	BEGIN {REALTIME}
+	END P;
+	END Test.
+
+positive: passive object body marked as realtime
+
+	MODULE Test;
+	TYPE Object = OBJECT
+	BEGIN {REALTIME}
+	END Object;
+	END Test.
+
+positive: calling realtime procedure in passive object body marked as realtime
+
+	MODULE Test;
+	TYPE Object = OBJECT
+	PROCEDURE {REALTIME} P; END P;
+	BEGIN {REALTIME} P;
+	END Object;
+	END Test.
+
+negative: calling non-realtime procedure in passive object body marked as realtime
+
+	MODULE Test;
+	TYPE Object = OBJECT
+	PROCEDURE P; END P;
+	BEGIN {REALTIME} P;
+	END Object;
+	END Test.
+
+positive: active object body marked as realtime
+
+	MODULE Test;
+	TYPE Object = OBJECT
+	BEGIN {ACTIVE, REALTIME}
+	END Object;
+	END Test.
+
+positive: calling realtime procedure in active object body marked as realtime
+
+	MODULE Test;
+	TYPE Object = OBJECT
+	PROCEDURE {REALTIME} P; END P;
+	BEGIN {ACTIVE, REALTIME} P;
+	END Object;
+	END Test.
+
+negative: calling non-realtime procedure in active object body marked as realtime
+
+	MODULE Test;
+	TYPE Object = OBJECT
+	PROCEDURE P; END P;
+	BEGIN {ACTIVE, REALTIME} P;
+	END Object;
+	END Test.
+
+positive: overwriting realtime procedure with realtime procedure
+
+	MODULE Test;
+	TYPE Base = OBJECT
+	PROCEDURE {REALTIME} P; END P;
+	END Base;
+	TYPE Object = OBJECT (Base)
+	PROCEDURE {REALTIME} P; END P;
+	END Object;
+	END Test.
+
+positive: overwriting non-realtime procedure with realtime procedure
+
+	MODULE Test;
+	TYPE Base = OBJECT
+	PROCEDURE P; END P;
+	END Base;
+	TYPE Object = OBJECT (Base)
+	PROCEDURE {REALTIME} P; END P;
+	END Object;
+	END Test.
+
+positive: overwriting realtime procedure with implicit realtime procedure
+
+	MODULE Test;
+	TYPE Base = OBJECT
+	PROCEDURE {REALTIME} P; END P;
+	END Base;
+	TYPE Object = OBJECT (Base)
+	PROCEDURE P; END P;
+	END Object;
+	END Test.
