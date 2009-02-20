@@ -537,6 +537,47 @@ positive: check rider.res leftover counting when reading one cluster at eof
 	ASSERT File.Pos() = 4096
 	ASSERT rider.res = 4096
 	ASSERT rider.eof = TRUE
+	
+positive: Write 512 bytes 32 times
+	DELETE TestFile.Bin
+	INITBUFFER 512
+	Files.New TestFile.Bin
+	ASSERT File.Length() = 0
+	File.Set 0
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	File.WriteBytes 0 512
+	ASSERT rider.res = 0
+	ASSERT File.Length() = 16384
 
 ### Basic Files.Reader test ###
 
