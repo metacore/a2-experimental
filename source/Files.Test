@@ -419,6 +419,7 @@ positive: Check correct cluster handling when setting position to the 2nd cluste
 positive: read byte from empty file
 
 	Files.Old TestFile0.Bin
+	File.Set 0
 	ASSERT File.Pos() = 0
 	ASSERT File.Length() = 0
 	File.Read
