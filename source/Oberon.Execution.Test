@@ -631,3 +631,20 @@ positive: relations
 		as := {1}; bs := {1, 2}; ASSERT (~(as = bs)); ASSERT (as # bs); ASSERT (as < bs); ASSERT (as <= bs); ASSERT (~(as > bs)); ASSERT (~(as >= bs));
 		ar := 0; br := 1; ASSERT (~(ar = br)); ASSERT (ar # br); ASSERT (ar < br); ASSERT (ar <= br); ASSERT (~(ar > br)); ASSERT (~(ar >= br));
 	END Test.
+
+positive: Gaussian natural sum using arrays
+
+	MODULE Test;
+	CONST Count = 10000;
+	VAR i, sum: LONGINT; a: ARRAY Count OF LONGINT;
+	BEGIN
+		i := 0;
+		WHILE i < Count DO
+			a[i] := i; INC (i);
+		END;
+		i := 0; sum := 0;
+		WHILE i < Count DO
+			INC (sum, a[i]); INC (i);
+		END;
+		ASSERT (sum = Count * (Count-1) DIV 2);
+	END Test.
