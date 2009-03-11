@@ -225,6 +225,10 @@ To update: Configuration.Init ~
 				<Setting name="Open" value="WMPicView.Open"/>
 				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
 			</Section>
+			<Section name="dsk">
+				<Setting name="Open" value="PET.Open"/>
+				<Setting name="Load desktop" value="WMDesktops.Load"/>
+			</Section>
 			<Section name="gif">
 				<Setting name="Open" value="WMPicView.Open"/>
 				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
