@@ -1,6 +1,6 @@
 # Oberon language test and validation suite
 
-# test halt and assert statements and simple procedure call (basics for the test suite) 
+# test halt and assert statements and simple procedure call (basics for the test suite)
 
 positive: empty module
 
@@ -12,209 +12,211 @@ negative: simple halt
 	MODULE Test;
 	BEGIN HALT (1234);
 	END Test.
-	
-positive: constant positive assert
 
-	MODULE Test; 
-	BEGIN ASSERT(TRUE) 
-	END Test. 
+positive: satisified assertion
 
-positive: positive assert (boolean)
-	
-	MODULE Test; 
-	VAR b: BOOLEAN; 
-	BEGIN 
-		b := TRUE; 
-		ASSERT(b); 
+	MODULE Test;
+	VAR b: BOOLEAN;
+	BEGIN b := TRUE; ASSERT (b);
 	END Test.
 
-negative: negative assert (boolean)
+negative: unsatisified assertion
 
-	MODULE Test; 
-	VAR b: BOOLEAN; 
-	BEGIN 
-		b := FALSE; 
-		ASSERT(b)
+	MODULE Test;
+	VAR b: BOOLEAN;
+	BEGIN b := FALSE; ASSERT (b);
 	END Test.
 
-positive: positive assert (longint)
+negative: simple halt in global procedure
 
-	MODULE Test; 
-	VAR a: LONGINT; 
-	BEGIN 
-		a := 1234; 
-		ASSERT(a=1234); 
+	MODULE Test;
+	PROCEDURE Procedure;
+	BEGIN HALT (1234);
+	END Procedure;
+	BEGIN Procedure;
 	END Test.
 
-negative: negative assert (longint)
+positive: satisified assertion in global procedure
 
-	MODULE Test; 
-	VAR a: LONGINT; 
-	BEGIN 
-		a := 0;
-		ASSERT(a=1234); 
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR b: BOOLEAN;
+	BEGIN b := TRUE; ASSERT (b);
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+negative: unsatisified assertion in global procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR b: BOOLEAN;
+	BEGIN b := FALSE; ASSERT (b);
+	END Procedure;
+	BEGIN Procedure;
 	END Test.
 
 positive: parameterless procedure call
 
-	MODULE Test; 
-	VAR called: BOOLEAN; 
-	
+	MODULE Test;
+	VAR called: BOOLEAN;
+
 		PROCEDURE P;
 		BEGIN
-			called := TRUE; 
+			called := TRUE;
 		END P;
-	BEGIN 
-		called := FALSE; 
-		P; 
-		ASSERT(called); 
+	BEGIN
+		called := FALSE;
+		P;
+		ASSERT(called);
 	END Test.
+
 
 # basic types storage test
 
 positive: Char stored in PAF
 
 	MODULE Test;
-	
-	PROCEDURE Char; 
-	VAR a,b: CHAR; 
-	BEGIN 
+
+	PROCEDURE Char;
+	VAR a,b: CHAR;
+	BEGIN
 		a := 'a';
-		b := a; 
-		ASSERT(b = 'a'); 
+		b := a;
+		ASSERT(b = 'a');
 	END Char;
-	
-	BEGIN 
-		Char; 
-	END Test. 
+
+	BEGIN
+		Char;
+	END Test.
 
 positive: Shortint stored in PAF
-	
-	MODULE Test; 
-	
+
+	MODULE Test;
+
 	PROCEDURE Shortint;
-	VAR a,b: SHORTINT; 
+	VAR a,b: SHORTINT;
 	BEGIN
-		a := 13; 
-		b := a; 
-		ASSERT(b = 13); 
+		a := 13;
+		b := a;
+		ASSERT(b = 13);
 	END Shortint;
-	
-	BEGIN 
-		Shortint; 
+
+	BEGIN
+		Shortint;
 	END Test.
 
 positive: Integer stored in PAF
 
-	MODULE Test; 
-	
+	MODULE Test;
+
 	PROCEDURE Integer;
-	VAR a,b: INTEGER; 
+	VAR a,b: INTEGER;
 	BEGIN
-		a := 2233; 
-		b := a; 
-		ASSERT(b = 2233); 
+		a := 2233;
+		b := a;
+		ASSERT(b = 2233);
 	END Integer;
-	
-	BEGIN 
-		Integer; 
-	END Test. 
+
+	BEGIN
+		Integer;
+	END Test.
 
 positive: Longint stored in PAF
-	
-	MODULE Test; 
-	
+
+	MODULE Test;
+
 	PROCEDURE Longint;
-	VAR a,b: LONGINT; 
+	VAR a,b: LONGINT;
 	BEGIN
-		a := 70800; 
-		b := a; 
-		ASSERT(b = 70800); 
+		a := 70800;
+		b := a;
+		ASSERT(b = 70800);
 	END Longint;
-	
-	BEGIN 
-		Longint; 
-	END Test. 
+
+	BEGIN
+		Longint;
+	END Test.
 
 positive: Hugeint stored in PAF
 
-	MODULE Test; 
-	
+	MODULE Test;
+
 	PROCEDURE Hugeint;
-	VAR a,b: HUGEINT; 
+	VAR a,b: HUGEINT;
 	BEGIN
-		a := 70800; 
-		b := a; 
-		ASSERT(b = 70800); 
+		a := 70800;
+		b := a;
+		ASSERT(b = 70800);
 	END Hugeint;
-	
-	BEGIN 
-		Hugeint; 
+
+	BEGIN
+		Hugeint;
 	END Test.
 
 positive: Real stored in PAF
 
-	MODULE Test; 
-	
+	MODULE Test;
+
 	PROCEDURE Real;
-	VAR a,b: REAL; 
+	VAR a,b: REAL;
 	BEGIN
-		a := 888; 
-		b := a; 
-		ASSERT(b = 888); 
+		a := 888;
+		b := a;
+		ASSERT(b = 888);
 	END Real;
-	
-	BEGIN 
-		Real; 
+
+	BEGIN
+		Real;
 	END Test.
 
 positive: Longreal stored in PAF
 
-	MODULE Test; 
-	
+	MODULE Test;
+
 	PROCEDURE Longreal;
-	VAR a,b: LONGREAL; 
+	VAR a,b: LONGREAL;
 	BEGIN
-		a := 888; 
-		b := a; 
-		ASSERT(b = 888); 
+		a := 888;
+		b := a;
+		ASSERT(b = 888);
 	END Longreal;
-	
-	BEGIN 
-		Longreal; 
+
+	BEGIN
+		Longreal;
 	END Test.
 
 positive: Set stored in PAF
 
-	MODULE Test; 
-	
+	MODULE Test;
+
 	PROCEDURE Set;
-	VAR a,b: SET; 
+	VAR a,b: SET;
 	BEGIN
-		a := {1,2,8,9,31}; 
-		b := a; 
-		ASSERT(b = {1,2,8,9,31}); 
+		a := {1,2,8,9,31};
+		b := a;
+		ASSERT(b = {1,2,8,9,31});
 	END Set;
-	
-	BEGIN 
-		Set; 
+
+	BEGIN
+		Set;
 	END Test.
 
 positive: Boolean stored in PAF
 
-	MODULE Test; 
-	
+	MODULE Test;
+
 	PROCEDURE Boolean;
-	VAR a,b,c: BOOLEAN; 
+	VAR a,b,c: BOOLEAN;
 	BEGIN
-		a := FALSE; 
-		b := TRUE; 
-		c := FALSE; 
-		ASSERT(b = TRUE); 
+		a := FALSE;
+		b := TRUE;
+		c := FALSE;
+		ASSERT(b = TRUE);
 	END Boolean;
-	
-	BEGIN 
-		Boolean; 
+
+	BEGIN
+		Boolean;
 	END Test.
 
 
@@ -579,7 +581,7 @@ positive: two-dimensional open array assignment
 	END Test.
 
 
-# expressions
+# operations
 
 positive: logical operations
 
@@ -631,6 +633,572 @@ positive: relations
 		as := {1}; bs := {1, 2}; ASSERT (~(as = bs)); ASSERT (as # bs); ASSERT (as < bs); ASSERT (as <= bs); ASSERT (~(as > bs)); ASSERT (~(as >= bs));
 		ar := 0; br := 1; ASSERT (~(ar = br)); ASSERT (ar # br); ASSERT (ar < br); ASSERT (ar <= br); ASSERT (~(ar > br)); ASSERT (~(ar >= br));
 	END Test.
+
+# operators
+
+positive: relational operations on booleans
+
+	MODULE Test;
+	VAR value: BOOLEAN;
+	BEGIN
+		value := TRUE;
+		ASSERT (value = TRUE); ASSERT (~(value = FALSE)); ASSERT (value = value);
+		ASSERT (value # FALSE); ASSERT (~(value # TRUE)); ASSERT (~(value # value));
+		value := FALSE;
+		ASSERT (value = FALSE); ASSERT (~(value = TRUE)); ASSERT (value = value);
+		ASSERT (value # TRUE); ASSERT (~(value # FALSE)); ASSERT (~(value # value));
+	END Test.
+
+positive: complement on booleans
+
+	MODULE Test;
+	VAR value: BOOLEAN;
+	BEGIN
+		value := TRUE; ASSERT (value); ASSERT (~~value);
+		value := FALSE; ASSERT (~value); ASSERT (~~~value);
+	END Test.
+
+positive: logical and on booleans
+
+	MODULE Test;
+	VAR a, b: BOOLEAN;
+	BEGIN
+		a := FALSE; b := FALSE; ASSERT (a & b = FALSE);
+		a := FALSE; b := TRUE; ASSERT (a & b = FALSE);
+		a := TRUE; b := FALSE; ASSERT (a & b = FALSE);
+		a := TRUE; b := TRUE; ASSERT (a & b = TRUE);
+	END Test.
+
+positive: logical and on boolean return values
+
+	MODULE Test;
+	PROCEDURE True (): BOOLEAN; BEGIN RETURN TRUE; END True;
+	PROCEDURE False (): BOOLEAN; BEGIN RETURN FALSE; END False;
+	BEGIN
+		ASSERT (False () & False () = FALSE);
+		ASSERT (False () & True () = FALSE);
+		ASSERT (True () & False () = FALSE);
+		ASSERT (True () & True () = TRUE);
+	END Test.
+
+positive: logical or on booleans
+
+	MODULE Test;
+	VAR a, b: BOOLEAN;
+	BEGIN
+		a := FALSE; b := FALSE; ASSERT (a OR b = FALSE);
+		a := FALSE; b := TRUE; ASSERT (a OR b = TRUE);
+		a := TRUE; b := FALSE; ASSERT (a OR b = TRUE);
+		a := TRUE; b := TRUE; ASSERT (a OR b = TRUE);
+	END Test.
+
+positive: logical or on boolean return values
+
+	MODULE Test;
+	PROCEDURE True (): BOOLEAN; BEGIN RETURN TRUE; END True;
+	PROCEDURE False (): BOOLEAN; BEGIN RETURN FALSE; END False;
+	BEGIN
+		ASSERT (False () OR False () = FALSE);
+		ASSERT (False () OR True () = TRUE);
+		ASSERT (True () OR False () = TRUE);
+		ASSERT (True () OR True () = TRUE);
+	END Test.
+
+positive: short-circuit evaluation
+
+	MODULE Test;
+	PROCEDURE True (): BOOLEAN; BEGIN RETURN TRUE; END True;
+	PROCEDURE False (): BOOLEAN; BEGIN RETURN FALSE; END False;
+	PROCEDURE Halt (): BOOLEAN; BEGIN HALT (1234); END Halt;
+	BEGIN
+		ASSERT (False () & Halt () = FALSE);
+		ASSERT (True () OR Halt () = TRUE);
+	END Test.
+
+positive: relational operations on characters
+
+	MODULE Test;
+	VAR value: CHAR;
+	BEGIN
+		value := 'a';
+		ASSERT (value = 'a'); ASSERT (~(value = 'b')); ASSERT (value = value);
+		ASSERT (value # 'b'); ASSERT (~(value # 'a')); ASSERT (~(value # value));
+		ASSERT (value < 'z'); ASSERT (~(value < 0X)); ASSERT (~(value < value));
+		ASSERT (value <= 'z'); ASSERT (~(value <= 0X)); ASSERT (value <= value);
+		ASSERT (value > 0X); ASSERT (~(value > 'z')); ASSERT (~(value > value));
+		ASSERT (value >= 0X); ASSERT (~(value >= 'z')); ASSERT (value >= value);
+	END Test.
+
+positive: capital letter of character
+
+	MODULE Test;
+	VAR value: CHAR;
+	BEGIN
+		value := '0'; ASSERT (CAP (value) = '0'); ASSERT (CAP (value) = CAP ('0'));
+		value := '9'; ASSERT (CAP (value) = '9'); ASSERT (CAP (value) = CAP ('9'));
+		value := 'a'; ASSERT (CAP (value) = 'A'); ASSERT (CAP (value) = CAP ('a'));
+		value := 'z'; ASSERT (CAP (value) = 'Z'); ASSERT (CAP (value) = CAP ('z'));
+		value := 'A'; ASSERT (CAP (value) = 'A'); ASSERT (CAP (value) = CAP ('A'));
+		value := 'Z'; ASSERT (CAP (value) = 'Z'); ASSERT (CAP (value) = CAP ('Z'));
+	END Test.
+
+positive: ordinal value of character
+
+	MODULE Test;
+	VAR value: CHAR; i: INTEGER;
+	BEGIN
+		value := '0'; ASSERT (ORD (value) = ORD ('0'));
+		value := '9'; ASSERT (ORD (value) = ORD ('9'));
+		value := 'a'; ASSERT (ORD (value) = ORD ('a'));
+		value := 'z'; ASSERT (ORD (value) = ORD ('z'));
+		value := 'A'; ASSERT (ORD (value) = ORD ('A'));
+		value := 'Z'; ASSERT (ORD (value) = ORD ('Z'));
+		FOR i := ORD (0X) TO ORD (0FFX) DO value := CHR (i); ASSERT (ORD (value) = i); END;
+	END Test.
+
+positive: relational operations on short integers
+
+	MODULE Test;
+	VAR value: SHORTINT;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: negation on short integers
+
+	MODULE Test;
+	VAR value: SHORTINT;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: short integer as set element
+
+	MODULE Test;
+	VAR element: SHORTINT; set: SET;
+	BEGIN
+		element := MIN (SET); set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
+		element := MAX (SET); set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
+	END Test.
+
+negative: short integer as too small set element
+
+	MODULE Test;
+	VAR element: SHORTINT; set: SET;
+	BEGIN element := MIN (SET) - 1; set := {element};
+	END Test.
+
+negative: short integer as too large set element
+
+	MODULE Test;
+	VAR element: SHORTINT; set: SET;
+	BEGIN element := MAX (SET) + 1; set := {element};
+	END Test.
+
+positive: absolute value of short integer
+
+	MODULE Test;
+	VAR value: SHORTINT;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+positive: odd test on short integer
+
+	MODULE Test;
+	VAR value: SHORTINT;
+	BEGIN
+		value := 0; ASSERT (~ODD (value)); ASSERT (ODD (value + 1));
+		value := 5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+		value := -5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+	END Test.
+
+positive: long on short integer
+
+	MODULE Test;
+	VAR value: SHORTINT;
+	BEGIN value := 11H; ASSERT (LONG (value) = 11H); ASSERT (LONG (value) = LONG (11H));
+	END Test.
+
+positive: character value of short integer
+
+	MODULE Test;
+	VAR value: SHORTINT; c: CHAR;
+	BEGIN
+		value := ORD ('0'); ASSERT (CHR (value) = '0');
+		value := ORD ('9'); ASSERT (CHR (value) = '9');
+		value := ORD ('a'); ASSERT (CHR (value) = 'a');
+		value := ORD ('z'); ASSERT (CHR (value) = 'z');
+		value := ORD ('A'); ASSERT (CHR (value) = 'A');
+		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
+	END Test.
+
+positive: relational operations on integers
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: negation on integers
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: integer as set element
+
+	MODULE Test;
+	VAR element: INTEGER; set: SET;
+	BEGIN
+		element := MIN (SET); set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
+		element := MAX (SET); set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
+	END Test.
+
+negative: integer as too small set element
+
+	MODULE Test;
+	VAR element: INTEGER; set: SET;
+	BEGIN element := MIN (SET) - 1; set := {element};
+	END Test.
+
+negative: integer as too large set element
+
+	MODULE Test;
+	VAR element: INTEGER; set: SET;
+	BEGIN element := MAX (SET) + 1; set := {element};
+	END Test.
+
+positive: absolute value of integer
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+positive: odd test on integer
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN
+		value := 0; ASSERT (~ODD (value)); ASSERT (ODD (value + 1));
+		value := 5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+		value := -5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+	END Test.
+
+positive: short on integer
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN value := 1122H; ASSERT (SHORT (value) = 22H); ASSERT (SHORT (value) = SHORT (1122H));
+	END Test.
+
+positive: long on integer
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN value := 1122H; ASSERT (LONG (value) = 1122H); ASSERT (LONG (value) = LONG (1122H));
+	END Test.
+
+positive: character value of integer
+
+	MODULE Test;
+	VAR value: INTEGER; c: CHAR;
+	BEGIN
+		value := ORD ('0'); ASSERT (CHR (value) = '0');
+		value := ORD ('9'); ASSERT (CHR (value) = '9');
+		value := ORD ('a'); ASSERT (CHR (value) = 'a');
+		value := ORD ('z'); ASSERT (CHR (value) = 'z');
+		value := ORD ('A'); ASSERT (CHR (value) = 'A');
+		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
+	END Test.
+
+positive: relational operations on long integers
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: negation on long integers
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: long integer as set element
+
+	MODULE Test;
+	VAR element: LONGINT; set: SET;
+	BEGIN
+		element := MIN (SET); set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
+		element := MAX (SET); set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
+	END Test.
+
+negative: long integer as too small set element
+
+	MODULE Test;
+	VAR element: LONGINT; set: SET;
+	BEGIN element := MIN (SET) - 1; set := {element};
+	END Test.
+
+negative: long integer as too large set element
+
+	MODULE Test;
+	VAR element: LONGINT; set: SET;
+	BEGIN element := MAX (SET) + 1; set := {element};
+	END Test.
+
+positive: absolute value of long integer
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+positive: odd test on long integer
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN
+		value := 0; ASSERT (~ODD (value)); ASSERT (ODD (value + 1));
+		value := 5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+		value := -5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+	END Test.
+
+positive: short on long integer
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN value := 11223344H; ASSERT (SHORT (value) = 3344H); ASSERT (SHORT (value) = SHORT (11223344H));
+	END Test.
+
+positive: long on long integer
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN value := 11223344H; ASSERT (LONG (value) = 11223344H); ASSERT (LONG (value) = LONG (11223344H));
+	END Test.
+
+positive: character value of long integer
+
+	MODULE Test;
+	VAR value: LONGINT; c: CHAR;
+	BEGIN
+		value := ORD ('0'); ASSERT (CHR (value) = '0');
+		value := ORD ('9'); ASSERT (CHR (value) = '9');
+		value := ORD ('a'); ASSERT (CHR (value) = 'a');
+		value := ORD ('z'); ASSERT (CHR (value) = 'z');
+		value := ORD ('A'); ASSERT (CHR (value) = 'A');
+		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
+	END Test.
+
+positive: relational operations on huge integers
+
+	MODULE Test;
+	VAR value: HUGEINT;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: negation on huge integers
+
+	MODULE Test;
+	VAR value: HUGEINT;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: huge integer as set element
+
+	MODULE Test;
+	VAR element: HUGEINT; set: SET;
+	BEGIN
+		element := MIN (SET); set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
+		element := MAX (SET); set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
+	END Test.
+
+negative: huge integer as too small set element
+
+	MODULE Test;
+	VAR element: HUGEINT; set: SET;
+	BEGIN element := MIN (SET) - 1; set := {element};
+	END Test.
+
+negative: huge integer as too large set element
+
+	MODULE Test;
+	VAR element: HUGEINT; set: SET;
+	BEGIN element := MAX (SET) + 1; set := {element};
+	END Test.
+
+positive: absolute value of huge integer
+
+	MODULE Test;
+	VAR value: HUGEINT;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+positive: odd test on huge integer
+
+	MODULE Test;
+	VAR value: HUGEINT;
+	BEGIN
+		value := 0; ASSERT (~ODD (value)); ASSERT (ODD (value + 1));
+		value := 5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+		value := -5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+	END Test.
+
+positive: short on huge integer
+
+	MODULE Test;
+	VAR value: HUGEINT;
+	BEGIN value := 1122334455667788H; ASSERT (SHORT (value) = 55667788H); ASSERT (SHORT (value) = SHORT (1122334455667788H));
+	END Test.
+
+positive: character value of huge integer
+
+	MODULE Test;
+	VAR value: HUGEINT; c: CHAR;
+	BEGIN
+		value := ORD ('0'); ASSERT (CHR (value) = '0');
+		value := ORD ('9'); ASSERT (CHR (value) = '9');
+		value := ORD ('a'); ASSERT (CHR (value) = 'a');
+		value := ORD ('z'); ASSERT (CHR (value) = 'z');
+		value := ORD ('A'); ASSERT (CHR (value) = 'A');
+		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
+	END Test.
+
+positive: relational operations on reals
+
+	MODULE Test;
+	VAR value: REAL;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: negation on reals
+
+	MODULE Test;
+	VAR value: REAL;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: absolute value of real
+
+	MODULE Test;
+	VAR value: REAL;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+positive: relational operations on long reals
+
+	MODULE Test;
+	VAR value: LONGREAL;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: negation on long reals
+
+	MODULE Test;
+	VAR value: LONGREAL;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: absolute value of long real
+
+	MODULE Test;
+	VAR value: LONGREAL;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+positive: relational operations on sets
+
+	MODULE Test;
+	VAR value: SET;
+	BEGIN
+		value := {1, 2};
+		ASSERT (value = {1, 2}); ASSERT (~(value = {2})); ASSERT (value = value);
+		ASSERT (value # {2}); ASSERT (~(value # {1, 2})); ASSERT (~(value # value));
+		ASSERT (value < {1, 2, 3}); ASSERT (~(value < {2})); ASSERT (~(value < value));
+		ASSERT (value <= {1, 2, 3}); ASSERT (~(value <= {2})); ASSERT (value <= value);
+		ASSERT (value > {2}); ASSERT (~(value > {1, 2, 3})); ASSERT (~(value > value));
+		ASSERT (value >= {2}); ASSERT (~(value >= {1, 2, 3})); ASSERT (value >= value);
+	END Test.
+
+positive: negation on sets
+
+	MODULE Test;
+	VAR value: SET;
+	BEGIN value := {1, 2}; ASSERT (-value = {0, 3 .. MAX (SET)}); ASSERT (-(-value) = {1, 2}); ASSERT (-(-value) = value)
+	END Test.
+
+positive: relational operations on character arrays
+
+	MODULE Test;
+	VAR value: ARRAY 10 OF CHAR;
+	BEGIN
+		value := "text";
+		ASSERT (value = "text"); ASSERT (~(value = "abc")); ASSERT (value = value);
+		ASSERT (value # "abc"); ASSERT (~(value # "text")); ASSERT (~(value # value));
+		ASSERT (value < "xyz"); ASSERT (~(value < "abc")); ASSERT (~(value < value));
+		ASSERT (value <= "xyz"); ASSERT (~(value <= "abc")); ASSERT (value <= value);
+		ASSERT (value > "abc"); ASSERT (~(value > "xyz")); ASSERT (~(value > value));
+		ASSERT (value >= "abc"); ASSERT (~(value >= "xyz")); ASSERT (value >= value);
+	END Test.
+
+
+# programs
 
 positive: Gaussian natural sum using arrays
 
