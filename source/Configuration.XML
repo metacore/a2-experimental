@@ -59,8 +59,10 @@ To update: Configuration.Init ~
 			<Setting value="QuoteServer.Open"/>
 		-->
 			
+
 		<!--Setting name="Hotkey support" value="HotKeys.Open"/-->
 			
+
 		<!--Setting name="Hardware Detection" value="PCITools.DetectHardware"/-->
 			
 			<Setting name="Load error message" value="Errors.Open"/>
@@ -223,7 +225,7 @@ To update: Configuration.Init ~
 			</Section>
 			<Section name="bmp">
 				<Setting name="Open" value="WMPicView.Open"/>
-				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage '@filename' ? ? ? ?"/>
 			</Section>
 			<Section name="dsk">
 				<Setting name="Open" value="PET.Open"/>
@@ -231,7 +233,7 @@ To update: Configuration.Init ~
 			</Section>
 			<Section name="gif">
 				<Setting name="Open" value="WMPicView.Open"/>
-				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage '@filename' ? ? ? ?"/>
 			</Section>
 			<Section name="htm">
 				<Setting name="Open" value="WebBrowser.Open"/>
@@ -244,15 +246,15 @@ To update: Configuration.Init ~
 			</Section>
 			<Section name="jp2">
 				<Setting name="Open" value="WMPicView.Open"/>
-				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage '@filename' ? ? ? ?"/>
 			</Section>
 			<Section name="jpeg">
 				<Setting name="Open" value="WMPicView.Open"/>
-				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage '@filename' ? ? ? ?"/>
 			</Section>
 			<Section name="jpg">
 				<Setting name="Open" value="WMPicView.Open"/>
-				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage '@filename' ? ? ? ?"/>
 			</Section>
 			<Section name="log">
 				<Setting name="Open" value="PET.Open"/>
@@ -294,7 +296,7 @@ To update: Configuration.Init ~
 			</Section>
 			<Section name="png">
 				<Setting name="Open" value="WMPicView.Open"/>
-				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage @filename ? ? ? ?"/>
+				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage '@filename' ? ? ? ?"/>
 			</Section>
 			<Section name="skin">
 				<Setting name="Open" value="SkinEditor.OpenSkin"/>
