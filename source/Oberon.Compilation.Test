@@ -4,7 +4,6 @@
 # Syntax tests
 # =====================================
 
-
 # plain modules
 
 negative: missing module name
@@ -2691,7 +2690,6 @@ negative: redefining with
 
 # Semantic tests
 # =====================================
-
 
 # imports
 
@@ -6318,18 +6316,32 @@ positive: explicit constant huge to long integer conversion
 	BEGIN ASSERT (Result = 23456789H)
 	END Test.
 
-positive: explicit constant real to integer conversion
+positive: explicit positive constant real to integer conversion
 
 	MODULE Test;
-	CONST Result = ENTIER (5.9E0)
+	CONST Result = ENTIER (5.9)
 	BEGIN ASSERT (Result = 5)
 	END Test.
 
-positive: explicit constant long real to integer conversion
+positive: explicit negative constant real to integer conversion
+
+	MODULE Test;
+	CONST Result = ENTIER (-5.1E0)
+	BEGIN ASSERT (Result = -6)
+	END Test.
+
+positive: explicit positive constant long real to integer conversion
 
 	MODULE Test;
 	CONST Result = ENTIER (5.9D0)
 	BEGIN ASSERT (Result = 5)
+	END Test.
+
+positive: explicit negative constant long real to integer conversion
+
+	MODULE Test;
+	CONST Result = ENTIER (-5.1D0)
+	BEGIN ASSERT (Result = -6)
 	END Test.
 
 
@@ -7463,6 +7475,13 @@ positive: object containing a procedure
 
 	MODULE Test;
 	TYPE Object = OBJECT VAR p: PROCEDURE END Object;
+	END Test.
+
+positive: object referenced in procedure variable
+
+	MODULE Test;
+	TYPE Object = OBJECT PROCEDURE Object; END Object; END Object;
+	VAR procedure : PROCEDURE (object: Object);
 	END Test.
 
 positive: local object accessing local constant
@@ -9426,27 +9445,27 @@ positive: variable of basic set type
 positive: variable of record type
 
 	MODULE Test;
-	TYPE Record = RECORD END;
+	TYPE Record = RECORD c: CHAR END;
 	VAR variable: Record;
 	END Test.
 
 positive: variables of record type
 
 	MODULE Test;
-	TYPE Record = RECORD END;
+	TYPE Record = RECORD c: CHAR END;
 	VAR a, b, c: Record;
 	END Test.
 
 positive: variable of anonymous record type
 
 	MODULE Test;
-	VAR variable: RECORD END;
+	VAR variable: RECORD c: CHAR END;
 	END Test.
 
 positive: variables of anonymous record type
 
 	MODULE Test;
-	VAR a, b, c: RECORD END;
+	VAR a, b, c: RECORD c: CHAR END;
 	END Test.
 
 positive: variable of array type
@@ -9504,53 +9523,53 @@ negative: variables of anonymous open array type
 positive: variable of object type
 
 	MODULE Test;
-	TYPE Object = OBJECT;
+	TYPE Object = OBJECT VAR c: CHAR END Object;
 	VAR variable: Object;
 	END Test.
 
 positive: variables of object type
 
 	MODULE Test;
-	TYPE Object = OBJECT;
+	TYPE Object = OBJECT VAR c: CHAR END Object;
 	VAR a, b, c: Object;
 	END Test.
 
 positive: variable of anonymous object type
 
 	MODULE Test;
-	VAR variable: OBJECT;
+	VAR variable: OBJECT VAR c: CHAR END;
 	END Test.
 
 positive: variables of anonymous object type
 
 	MODULE Test;
-	VAR a, b, c: OBJECT;
+	VAR a, b, c: OBJECT VAR c: CHAR END;
 	END Test.
 
 positive: variable of pointer type
 
 	MODULE Test;
-	TYPE Pointer = POINTER TO RECORD END;
+	TYPE Pointer = POINTER TO RECORD c: CHAR END;
 	VAR variable: Pointer;
 	END Test.
 
 positive: variables of pointer type
 
 	MODULE Test;
-	TYPE Pointer = POINTER TO RECORD END;
+	TYPE Pointer = POINTER TO RECORD c: CHAR END;
 	VAR a, b, c: Pointer;
 	END Test.
 
 positive: variable of anonymous pointer type
 
 	MODULE Test;
-	VAR variable: POINTER TO RECORD END;
+	VAR variable: POINTER TO RECORD c: CHAR END;
 	END Test.
 
 positive: variables of anonymous pointer type
 
 	MODULE Test;
-	VAR a, b, c: POINTER TO RECORD END;
+	VAR a, b, c: POINTER TO RECORD c: CHAR END;
 	END Test.
 
 positive: variable of procedure type
@@ -24926,7 +24945,7 @@ negative: capital letter of variable integer
 positive: arithmetic shift of variable integers
 
 	MODULE Test;
-	VAR integer: INTEGER;  result: LONGINT;
+	VAR integer, result: INTEGER;
 	BEGIN result := ASH (integer, integer)
 	END Test.
 
@@ -26835,26 +26854,38 @@ negative: type test on incompatible record type
 negative: type guard on variable records
 
 	MODULE Test;
-	VAR record, result: RECORD END;
+	PROCEDURE Procedure (VAR record, result: RECORD END);
 	BEGIN result := record(record)
+	END Procedure;
 	END Test.
 
 negative: type guard on variable record
 
 	MODULE Test;
-	VAR record, result: RECORD END;
+	PROCEDURE Procedure (VAR record, result: RECORD END);
 	BEGIN result := record(RECORD END)
+	END Procedure;
 	END Test.
 
 positive: type guard on same record type
 
 	MODULE Test;
 	TYPE Type = RECORD END;
-	VAR record, result: Type;
+	PROCEDURE Procedure (VAR record, result: Type);
 	BEGIN result := record(Type)
+	END Procedure;
 	END Test.
 
 positive: type guard on extending record type
+
+	MODULE Test;
+	TYPE Record = RECORD END; Type = RECORD (Record) END;
+	PROCEDURE Procedure (VAR record: Record; result: Type);
+	BEGIN result := record(Type)
+	END Procedure;
+	END Test.
+
+negative: type guard on static extending record type
 
 	MODULE Test;
 	TYPE Record = RECORD END; Type = RECORD (Record) END;
@@ -26866,16 +26897,18 @@ negative: type guard on extended record type
 
 	MODULE Test;
 	TYPE Record = RECORD END; Type = Record;
-	VAR record: RECORD (Record) END; result: Type;
+	PROCEDURE Procedure (VAR record: RECORD (Record) END; result: Type);
 	BEGIN result := record(Type)
+	END Procedure;
 	END Test.
 
 negative: type guard on incompatible record type
 
 	MODULE Test;
 	TYPE Type = RECORD END;
-	VAR record: RECORD END; result: Type;
+	PROCEDURE Procedure (VAR record: RECORD END; result: Type);
 	BEGIN result := record(Type)
+	END Procedure;
 	END Test.
 
 negative: logical and on variable records
@@ -31863,6 +31896,12 @@ negative: assert statement with constant false condition
 	BEGIN ASSERT (FALSE);
 	END Test.
 
+positive: unreachable assert statement with constant false condition
+
+	MODULE Test;
+	BEGIN IF FALSE THEN ASSERT (FALSE) END;
+	END Test.
+
 positive: assert statement with positive number
 
 	MODULE Test;
@@ -34406,16 +34445,18 @@ negative: with statement with variable array value type
 negative: with statement with variable record value
 
 	MODULE Test;
-	VAR value: RECORD END;
+	PROCEDURE Procedure (VAR value: RECORD END);
 	BEGIN WITH value : RECORD END DO END;
+	END Procedure;
 	END Test.
 
 positive: with statement with same record type
 
 	MODULE Test;
 	TYPE Type = RECORD check: BOOLEAN END;
-	VAR value, check: Type;
+	PROCEDURE Procedure (VAR value, check: Type);
 	BEGIN WITH value : Type DO check := value; value := check; ASSERT (value.check) END;
+	END Procedure;
 	END Test.
 
 positive: with statement with nested record types
@@ -34424,8 +34465,9 @@ positive: with statement with nested record types
 	TYPE A = RECORD a: BOOLEAN END;
 	TYPE B = RECORD (A) b: BOOLEAN END;
 	TYPE C = RECORD (B) c: BOOLEAN END;
-	VAR value: A;
+	PROCEDURE Procedure (VAR value: A);
 	BEGIN WITH value : B DO WITH value : C DO ASSERT (value.c) END; ASSERT (value.b) END; ASSERT (value.a);
+	END Procedure;
 	END Test.
 
 negative: with statement with invalid nested record types
@@ -34434,11 +34476,21 @@ negative: with statement with invalid nested record types
 	TYPE A = RECORD END;
 	TYPE B = RECORD (A) END;
 	TYPE C = RECORD (A) END;
-	VAR value: A;
+	PROCEDURE Procedure (VAR value: A);
 	BEGIN WITH value : B DO WITH value : C DO END END;
+	END Procedure;
 	END Test.
 
 positive: with statement with extending record type
+
+	MODULE Test;
+	TYPE Record = RECORD END; Type = RECORD (Record) check: BOOLEAN END;
+	PROCEDURE Procedure (VAR value: Record; check: Type);
+	BEGIN WITH value : Type DO check := value; value := check; ASSERT (value.check) END;
+	END Procedure;
+	END Test.
+
+negative: with statement with static extending record type
 
 	MODULE Test;
 	TYPE Record = RECORD END; Type = RECORD (Record) check: BOOLEAN END;
@@ -34450,24 +34502,27 @@ negative: with statement with extending record type and invalid assignment
 
 	MODULE Test;
 	TYPE Record = RECORD END; Type = RECORD (Record) END;
-	VAR value, check: Record;
+	PROCEDURE Procedure (VAR value, check: Record);
 	BEGIN WITH value : Type DO value := check END;
+	END Procedure;
 	END Test.
 
 negative: with statement with extended record type
 
 	MODULE Test;
 	TYPE Record = RECORD END; Type = Record;
-	VAR value: RECORD (Record) END;
+	PROCEDURE Procedure (VAR value: RECORD (Record) END);
 	BEGIN WITH value : Type DO END;
+	END Procedure;
 	END Test.
 
 negative: with statement with incompatible record type
 
 	MODULE Test;
 	TYPE Type = RECORD END;
-	VAR value: RECORD END;
+	PROCEDURE Procedure (VAR value: RECORD END);
 	BEGIN WITH value : Type DO END;
+	END Procedure;
 	END Test.
 
 negative: with statement with variable object value

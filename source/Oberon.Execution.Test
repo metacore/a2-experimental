@@ -634,7 +634,20 @@ positive: relations
 		ar := 0; br := 1; ASSERT (~(ar = br)); ASSERT (ar # br); ASSERT (ar < br); ASSERT (ar <= br); ASSERT (~(ar > br)); ASSERT (~(ar >= br));
 	END Test.
 
-# operators
+
+# complement
+
+positive: complement on booleans
+
+	MODULE Test;
+	VAR value: BOOLEAN;
+	BEGIN
+		value := TRUE; ASSERT (value); ASSERT (~~value);
+		value := FALSE; ASSERT (~value); ASSERT (~~~value);
+	END Test.
+
+
+# relational operations
 
 positive: relational operations on booleans
 
@@ -649,14 +662,244 @@ positive: relational operations on booleans
 		ASSERT (value # TRUE); ASSERT (~(value # FALSE)); ASSERT (~(value # value));
 	END Test.
 
-positive: complement on booleans
+positive: relational operations on characters
 
 	MODULE Test;
-	VAR value: BOOLEAN;
+	VAR value: CHAR;
 	BEGIN
-		value := TRUE; ASSERT (value); ASSERT (~~value);
-		value := FALSE; ASSERT (~value); ASSERT (~~~value);
+		value := 'a';
+		ASSERT (value = 'a'); ASSERT (~(value = 'b')); ASSERT (value = value);
+		ASSERT (value # 'b'); ASSERT (~(value # 'a')); ASSERT (~(value # value));
+		ASSERT (value < 'z'); ASSERT (~(value < 0X)); ASSERT (~(value < value));
+		ASSERT (value <= 'z'); ASSERT (~(value <= 0X)); ASSERT (value <= value);
+		ASSERT (value > 0X); ASSERT (~(value > 'z')); ASSERT (~(value > value));
+		ASSERT (value >= 0X); ASSERT (~(value >= 'z')); ASSERT (value >= value);
 	END Test.
+
+positive: relational operations on short integers
+
+	MODULE Test;
+	VAR value: SHORTINT;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: relational operations on integers
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: relational operations on long integers
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: relational operations on huge integers
+
+	MODULE Test;
+	VAR value: HUGEINT;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: relational operations on reals
+
+	MODULE Test;
+	VAR value: REAL;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: relational operations on long reals
+
+	MODULE Test;
+	VAR value: LONGREAL;
+	BEGIN
+		value := 5;
+		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
+		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
+		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
+		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
+		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
+		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+	END Test.
+
+positive: relational operations on sets
+
+	MODULE Test;
+	VAR value: SET;
+	BEGIN
+		value := {1, 2};
+		ASSERT (value = {1, 2}); ASSERT (~(value = {2})); ASSERT (value = value);
+		ASSERT (value # {2}); ASSERT (~(value # {1, 2})); ASSERT (~(value # value));
+		ASSERT (value < {1, 2, 3}); ASSERT (~(value < {2})); ASSERT (~(value < value));
+		ASSERT (value <= {1, 2, 3}); ASSERT (~(value <= {2})); ASSERT (value <= value);
+		ASSERT (value > {2}); ASSERT (~(value > {1, 2, 3})); ASSERT (~(value > value));
+		ASSERT (value >= {2}); ASSERT (~(value >= {1, 2, 3})); ASSERT (value >= value);
+	END Test.
+
+positive: relational operations on character arrays
+
+	MODULE Test;
+	VAR value: ARRAY 10 OF CHAR;
+	BEGIN
+		value := "text";
+		ASSERT (value = "text"); ASSERT (~(value = "abc")); ASSERT (value = value);
+		ASSERT (value # "abc"); ASSERT (~(value # "text")); ASSERT (~(value # value));
+		ASSERT (value < "xyz"); ASSERT (~(value < "abc")); ASSERT (~(value < value));
+		ASSERT (value <= "xyz"); ASSERT (~(value <= "abc")); ASSERT (value <= value);
+		ASSERT (value > "abc"); ASSERT (~(value > "xyz")); ASSERT (~(value > value));
+		ASSERT (value >= "abc"); ASSERT (~(value >= "xyz")); ASSERT (value >= value);
+		ASSERT (value[0] = 't'); ASSERT (value[1] = 'e'); ASSERT (value[2] = 'x'); ASSERT (value[3] = 't'); ASSERT (value[4] = 0X);
+	END Test.
+
+
+# negation
+
+positive: negation on short integers
+
+	MODULE Test;
+	VAR value: SHORTINT;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: negation on integers
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: negation on long integers
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: negation on huge integers
+
+	MODULE Test;
+	VAR value: HUGEINT;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: negation on reals
+
+	MODULE Test;
+	VAR value: REAL;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: negation on long reals
+
+	MODULE Test;
+	VAR value: LONGREAL;
+	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	END Test.
+
+positive: negation on sets
+
+	MODULE Test;
+	VAR value: SET;
+	BEGIN value := {1, 2}; ASSERT (-value = {0, 3 .. MAX (SET)}); ASSERT (-(-value) = {1, 2}); ASSERT (-(-value) = value)
+	END Test.
+
+
+# absolute value
+
+positive: absolute value of short integer
+
+	MODULE Test;
+	VAR value: SHORTINT;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+positive: absolute value of integer
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+positive: absolute value of long integer
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+positive: absolute value of huge integer
+
+	MODULE Test;
+	VAR value: HUGEINT;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+positive: absolute value of real
+
+	MODULE Test;
+	VAR value: REAL;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+positive: absolute value of long real
+
+	MODULE Test;
+	VAR value: LONGREAL;
+	BEGIN
+		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
+		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+	END Test.
+
+
+# logical operations
 
 positive: logical and on booleans
 
@@ -715,19 +958,8 @@ positive: short-circuit evaluation
 		ASSERT (True () OR Halt () = TRUE);
 	END Test.
 
-positive: relational operations on characters
 
-	MODULE Test;
-	VAR value: CHAR;
-	BEGIN
-		value := 'a';
-		ASSERT (value = 'a'); ASSERT (~(value = 'b')); ASSERT (value = value);
-		ASSERT (value # 'b'); ASSERT (~(value # 'a')); ASSERT (~(value # value));
-		ASSERT (value < 'z'); ASSERT (~(value < 0X)); ASSERT (~(value < value));
-		ASSERT (value <= 'z'); ASSERT (~(value <= 0X)); ASSERT (value <= value);
-		ASSERT (value > 0X); ASSERT (~(value > 'z')); ASSERT (~(value > value));
-		ASSERT (value >= 0X); ASSERT (~(value >= 'z')); ASSERT (value >= value);
-	END Test.
+# capital letter operation
 
 positive: capital letter of character
 
@@ -741,6 +973,9 @@ positive: capital letter of character
 		value := 'A'; ASSERT (CAP (value) = 'A'); ASSERT (CAP (value) = CAP ('A'));
 		value := 'Z'; ASSERT (CAP (value) = 'Z'); ASSERT (CAP (value) = CAP ('Z'));
 	END Test.
+
+
+# character annd ordinal value operations
 
 positive: ordinal value of character
 
@@ -756,26 +991,60 @@ positive: ordinal value of character
 		FOR i := ORD (0X) TO ORD (0FFX) DO value := CHR (i); ASSERT (ORD (value) = i); END;
 	END Test.
 
-positive: relational operations on short integers
+positive: character value of short integer
 
 	MODULE Test;
 	VAR value: SHORTINT;
 	BEGIN
-		value := 5;
-		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
-		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
-		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
-		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
-		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
-		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+		value := ORD ('0'); ASSERT (CHR (value) = '0');
+		value := ORD ('9'); ASSERT (CHR (value) = '9');
+		value := ORD ('a'); ASSERT (CHR (value) = 'a');
+		value := ORD ('z'); ASSERT (CHR (value) = 'z');
+		value := ORD ('A'); ASSERT (CHR (value) = 'A');
+		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
 	END Test.
 
-positive: negation on short integers
+positive: character value of integer
 
 	MODULE Test;
-	VAR value: SHORTINT;
-	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+	VAR value: INTEGER;
+	BEGIN
+		value := ORD ('0'); ASSERT (CHR (value) = '0');
+		value := ORD ('9'); ASSERT (CHR (value) = '9');
+		value := ORD ('a'); ASSERT (CHR (value) = 'a');
+		value := ORD ('z'); ASSERT (CHR (value) = 'z');
+		value := ORD ('A'); ASSERT (CHR (value) = 'A');
+		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
 	END Test.
+
+positive: character value of long integer
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN
+		value := ORD ('0'); ASSERT (CHR (value) = '0');
+		value := ORD ('9'); ASSERT (CHR (value) = '9');
+		value := ORD ('a'); ASSERT (CHR (value) = 'a');
+		value := ORD ('z'); ASSERT (CHR (value) = 'z');
+		value := ORD ('A'); ASSERT (CHR (value) = 'A');
+		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
+	END Test.
+
+positive: character value of huge integer
+
+	MODULE Test;
+	VAR value: HUGEINT;
+	BEGIN
+		value := ORD ('0'); ASSERT (CHR (value) = '0');
+		value := ORD ('9'); ASSERT (CHR (value) = '9');
+		value := ORD ('a'); ASSERT (CHR (value) = 'a');
+		value := ORD ('z'); ASSERT (CHR (value) = 'z');
+		value := ORD ('A'); ASSERT (CHR (value) = 'A');
+		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
+	END Test.
+
+
+# set element operations
 
 positive: short integer as set element
 
@@ -783,7 +1052,9 @@ positive: short integer as set element
 	VAR element: SHORTINT; set: SET;
 	BEGIN
 		element := MIN (SET); set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
+		element := MIN (SET) + 2; set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
 		element := MAX (SET); set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
+		element := MAX (SET) - 2; set := {element}; ASSERT (element IN set); ASSERT (set - {element} = {});
 	END Test.
 
 negative: short integer as too small set element
@@ -800,64 +1071,68 @@ negative: short integer as too large set element
 	BEGIN element := MAX (SET) + 1; set := {element};
 	END Test.
 
-positive: absolute value of short integer
+positive: short integer as first set element
 
 	MODULE Test;
-	VAR value: SHORTINT;
+	VAR element: SHORTINT; set: SET;
 	BEGIN
-		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
-		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+		element := MIN (SET); set := {element .. MAX (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET)}); ASSERT (-set = {});
+		element := MIN (SET); set := {element .. MIN (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MIN (SET)}); ASSERT (set = {element}); ASSERT (set = {MIN (SET)});
+		element := MIN (SET) + 2; set := {element .. MAX (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) + 2 .. MAX (SET)}); ASSERT (-set = {MIN (SET), MIN (SET) + 1});
+		element := MIN (SET) + 2; set := {element .. MIN (SET)}; ASSERT (~(element IN set)); ASSERT (set = {element .. MIN (SET)}); ASSERT (set = {});
 	END Test.
 
-positive: odd test on short integer
+negative: short integer as too small first set element
 
 	MODULE Test;
-	VAR value: SHORTINT;
+	VAR element: SHORTINT; set: SET;
+	BEGIN element := MIN (SET) - 1;set := {element .. MAX (SET)};
+	END Test.
+
+negative: short integer as too large first set element
+
+	MODULE Test;
+	VAR element: SHORTINT; set: SET;
+	BEGIN element := MAX (SET) + 1;set := {element .. MAX (SET)};
+	END Test.
+
+positive: short integer as last set element
+
+	MODULE Test;
+	VAR element: SHORTINT; set: SET;
 	BEGIN
-		value := 0; ASSERT (~ODD (value)); ASSERT (ODD (value + 1));
-		value := 5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
-		value := -5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+		element := MAX (SET); set := {MIN (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET)}); ASSERT (-set = {});
+		element := MAX (SET); set := {MAX (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MAX (SET) .. MAX (SET)}); ASSERT (set = {MAX (SET)});
+		element := MAX (SET) - 2; set := {MIN (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET) - 2}); ASSERT (-set = {MAX (SET) - 1, MAX (SET)});
+		element := MAX (SET) - 2; set := {MAX (SET).. element}; ASSERT (~(element IN set)); ASSERT (set = {MAX (SET) .. element}); ASSERT (set = {});
 	END Test.
 
-positive: long on short integer
+negative: short integer as too small last set element
 
 	MODULE Test;
-	VAR value: SHORTINT;
-	BEGIN value := 11H; ASSERT (LONG (value) = 11H); ASSERT (LONG (value) = LONG (11H));
+	VAR element: SHORTINT; set: SET;
+	BEGIN element := MIN (SET) - 1;set := {MIN (SET) .. element};
 	END Test.
 
-positive: character value of short integer
+negative: short integer as too large last set element
 
 	MODULE Test;
-	VAR value: SHORTINT; c: CHAR;
+	VAR element: SHORTINT; set: SET;
+	BEGIN element := MAX (SET) + 1;set := {MIN (SET) .. element};
+	END Test.
+
+positive: short integers as set elements
+
+	MODULE Test;
+	VAR first, last: SHORTINT; set: SET;
 	BEGIN
-		value := ORD ('0'); ASSERT (CHR (value) = '0');
-		value := ORD ('9'); ASSERT (CHR (value) = '9');
-		value := ORD ('a'); ASSERT (CHR (value) = 'a');
-		value := ORD ('z'); ASSERT (CHR (value) = 'z');
-		value := ORD ('A'); ASSERT (CHR (value) = 'A');
-		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
-	END Test.
-
-positive: relational operations on integers
-
-	MODULE Test;
-	VAR value: INTEGER;
-	BEGIN
-		value := 5;
-		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
-		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
-		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
-		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
-		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
-		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
-	END Test.
-
-positive: negation on integers
-
-	MODULE Test;
-	VAR value: INTEGER;
-	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+		first := MIN (SET); last := MAX (SET); set := {first .. last}; ASSERT (set = {MIN (SET) .. MAX (SET)});
+		ASSERT (first IN set); ASSERT (last IN set); ASSERT (-set = {});
+		first := MIN (SET) + 2; last := MAX (SET) - 2; set := {first .. last}; ASSERT (set = {MIN (SET) + 2 .. MAX (SET) - 2});
+		ASSERT (first IN set); ASSERT (last IN set); ASSERT (-set = {MIN (SET), MIN (SET) + 1, MAX (SET) - 1, MAX (SET)});
+		first := MIN (SET) + 2; last := first; set := {first .. last}; ASSERT (set = {first});
+		first := MIN (SET) + 2; last := first + 1; set := {first .. last}; ASSERT (set = {first, last});
+		first := MIN (SET) + 2; last := first - 1; set := {first .. last}; ASSERT (set = {});
 	END Test.
 
 positive: integer as set element
@@ -883,71 +1158,68 @@ negative: integer as too large set element
 	BEGIN element := MAX (SET) + 1; set := {element};
 	END Test.
 
-positive: absolute value of integer
+positive: integer as first set element
 
 	MODULE Test;
-	VAR value: INTEGER;
+	VAR element: INTEGER; set: SET;
 	BEGIN
-		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
-		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+		element := MIN (SET); set := {element .. MAX (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET)}); ASSERT (-set = {});
+		element := MIN (SET); set := {element .. MIN (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MIN (SET)}); ASSERT (set = {element}); ASSERT (set = {MIN (SET)});
+		element := MIN (SET) + 2; set := {element .. MAX (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) + 2 .. MAX (SET)}); ASSERT (-set = {MIN (SET), MIN (SET) + 1});
+		element := MIN (SET) + 2; set := {element .. MIN (SET)}; ASSERT (~(element IN set)); ASSERT (set = {element .. MIN (SET)}); ASSERT (set = {});
 	END Test.
 
-positive: odd test on integer
+negative: integer as too small first set element
 
 	MODULE Test;
-	VAR value: INTEGER;
+	VAR element: INTEGER; set: SET;
+	BEGIN element := MIN (SET) - 1;set := {element .. MAX (SET)};
+	END Test.
+
+negative: integer as too large first set element
+
+	MODULE Test;
+	VAR element: INTEGER; set: SET;
+	BEGIN element := MAX (SET) + 1;set := {element .. MAX (SET)};
+	END Test.
+
+positive: integer as last set element
+
+	MODULE Test;
+	VAR element: INTEGER; set: SET;
 	BEGIN
-		value := 0; ASSERT (~ODD (value)); ASSERT (ODD (value + 1));
-		value := 5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
-		value := -5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+		element := MAX (SET); set := {MIN (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET)}); ASSERT (-set = {});
+		element := MAX (SET); set := {MAX (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MAX (SET) .. MAX (SET)}); ASSERT (set = {MAX (SET)});
+		element := MAX (SET) - 2; set := {MIN (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET) - 2}); ASSERT (-set = {MAX (SET) - 1, MAX (SET)});
+		element := MAX (SET) - 2; set := {MAX (SET).. element}; ASSERT (~(element IN set)); ASSERT (set = {MAX (SET) .. element}); ASSERT (set = {});
 	END Test.
 
-positive: short on integer
+negative: integer as too small last set element
 
 	MODULE Test;
-	VAR value: INTEGER;
-	BEGIN value := 1122H; ASSERT (SHORT (value) = 22H); ASSERT (SHORT (value) = SHORT (1122H));
+	VAR element: INTEGER; set: SET;
+	BEGIN element := MIN (SET) - 1;set := {MIN (SET) .. element};
 	END Test.
 
-positive: long on integer
+negative: integer as too large last set element
 
 	MODULE Test;
-	VAR value: INTEGER;
-	BEGIN value := 1122H; ASSERT (LONG (value) = 1122H); ASSERT (LONG (value) = LONG (1122H));
+	VAR element: INTEGER; set: SET;
+	BEGIN element := MAX (SET) + 1;set := {MIN (SET) .. element};
 	END Test.
 
-positive: character value of integer
+positive: integers as set elements
 
 	MODULE Test;
-	VAR value: INTEGER; c: CHAR;
+	VAR first, last: INTEGER; set: SET;
 	BEGIN
-		value := ORD ('0'); ASSERT (CHR (value) = '0');
-		value := ORD ('9'); ASSERT (CHR (value) = '9');
-		value := ORD ('a'); ASSERT (CHR (value) = 'a');
-		value := ORD ('z'); ASSERT (CHR (value) = 'z');
-		value := ORD ('A'); ASSERT (CHR (value) = 'A');
-		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
-	END Test.
-
-positive: relational operations on long integers
-
-	MODULE Test;
-	VAR value: LONGINT;
-	BEGIN
-		value := 5;
-		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
-		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
-		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
-		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
-		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
-		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
-	END Test.
-
-positive: negation on long integers
-
-	MODULE Test;
-	VAR value: LONGINT;
-	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+		first := MIN (SET); last := MAX (SET); set := {first .. last}; ASSERT (set = {MIN (SET) .. MAX (SET)});
+		ASSERT (first IN set); ASSERT (last IN set); ASSERT (-set = {});
+		first := MIN (SET) + 2; last := MAX (SET) - 2; set := {first .. last}; ASSERT (set = {MIN (SET) + 2 .. MAX (SET) - 2});
+		ASSERT (first IN set); ASSERT (last IN set); ASSERT (-set = {MIN (SET), MIN (SET) + 1, MAX (SET) - 1, MAX (SET)});
+		first := MIN (SET) + 2; last := first; set := {first .. last}; ASSERT (set = {first});
+		first := MIN (SET) + 2; last := first + 1; set := {first .. last}; ASSERT (set = {first, last});
+		first := MIN (SET) + 2; last := first - 1; set := {first .. last}; ASSERT (set = {});
 	END Test.
 
 positive: long integer as set element
@@ -973,71 +1245,68 @@ negative: long integer as too large set element
 	BEGIN element := MAX (SET) + 1; set := {element};
 	END Test.
 
-positive: absolute value of long integer
+positive: long integer as first set element
 
 	MODULE Test;
-	VAR value: LONGINT;
+	VAR element: LONGINT; set: SET;
 	BEGIN
-		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
-		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+		element := MIN (SET); set := {element .. MAX (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET)}); ASSERT (-set = {});
+		element := MIN (SET); set := {element .. MIN (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MIN (SET)}); ASSERT (set = {element}); ASSERT (set = {MIN (SET)});
+		element := MIN (SET) + 2; set := {element .. MAX (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) + 2 .. MAX (SET)}); ASSERT (-set = {MIN (SET), MIN (SET) + 1});
+		element := MIN (SET) + 2; set := {element .. MIN (SET)}; ASSERT (~(element IN set)); ASSERT (set = {element .. MIN (SET)}); ASSERT (set = {});
 	END Test.
 
-positive: odd test on long integer
+negative: long integer as too small first set element
 
 	MODULE Test;
-	VAR value: LONGINT;
+	VAR element: LONGINT; set: SET;
+	BEGIN element := MIN (SET) - 1;set := {element .. MAX (SET)};
+	END Test.
+
+negative: long integer as too large first set element
+
+	MODULE Test;
+	VAR element: LONGINT; set: SET;
+	BEGIN element := MAX (SET) + 1;set := {element .. MAX (SET)};
+	END Test.
+
+positive: long integer as last set element
+
+	MODULE Test;
+	VAR element: LONGINT; set: SET;
 	BEGIN
-		value := 0; ASSERT (~ODD (value)); ASSERT (ODD (value + 1));
-		value := 5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
-		value := -5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+		element := MAX (SET); set := {MIN (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET)}); ASSERT (-set = {});
+		element := MAX (SET); set := {MAX (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MAX (SET) .. MAX (SET)}); ASSERT (set = {MAX (SET)});
+		element := MAX (SET) - 2; set := {MIN (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET) - 2}); ASSERT (-set = {MAX (SET) - 1, MAX (SET)});
+		element := MAX (SET) - 2; set := {MAX (SET).. element}; ASSERT (~(element IN set)); ASSERT (set = {MAX (SET) .. element}); ASSERT (set = {});
 	END Test.
 
-positive: short on long integer
+negative: long integer as too small last set element
 
 	MODULE Test;
-	VAR value: LONGINT;
-	BEGIN value := 11223344H; ASSERT (SHORT (value) = 3344H); ASSERT (SHORT (value) = SHORT (11223344H));
+	VAR element: LONGINT; set: SET;
+	BEGIN element := MIN (SET) - 1;set := {MIN (SET) .. element};
 	END Test.
 
-positive: long on long integer
+negative: long integer as too large last set element
 
 	MODULE Test;
-	VAR value: LONGINT;
-	BEGIN value := 11223344H; ASSERT (LONG (value) = 11223344H); ASSERT (LONG (value) = LONG (11223344H));
+	VAR element: LONGINT; set: SET;
+	BEGIN element := MAX (SET) + 1;set := {MIN (SET) .. element};
 	END Test.
 
-positive: character value of long integer
+positive: long integers as set elements
 
 	MODULE Test;
-	VAR value: LONGINT; c: CHAR;
+	VAR first, last: LONGINT; set: SET;
 	BEGIN
-		value := ORD ('0'); ASSERT (CHR (value) = '0');
-		value := ORD ('9'); ASSERT (CHR (value) = '9');
-		value := ORD ('a'); ASSERT (CHR (value) = 'a');
-		value := ORD ('z'); ASSERT (CHR (value) = 'z');
-		value := ORD ('A'); ASSERT (CHR (value) = 'A');
-		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
-	END Test.
-
-positive: relational operations on huge integers
-
-	MODULE Test;
-	VAR value: HUGEINT;
-	BEGIN
-		value := 5;
-		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
-		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
-		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
-		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
-		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
-		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
-	END Test.
-
-positive: negation on huge integers
-
-	MODULE Test;
-	VAR value: HUGEINT;
-	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
+		first := MIN (SET); last := MAX (SET); set := {first .. last}; ASSERT (set = {MIN (SET) .. MAX (SET)});
+		ASSERT (first IN set); ASSERT (last IN set); ASSERT (-set = {});
+		first := MIN (SET) + 2; last := MAX (SET) - 2; set := {first .. last}; ASSERT (set = {MIN (SET) + 2 .. MAX (SET) - 2});
+		ASSERT (first IN set); ASSERT (last IN set); ASSERT (-set = {MIN (SET), MIN (SET) + 1, MAX (SET) - 1, MAX (SET)});
+		first := MIN (SET) + 2; last := first; set := {first .. last}; ASSERT (set = {first});
+		first := MIN (SET) + 2; last := first + 1; set := {first .. last}; ASSERT (set = {first, last});
+		first := MIN (SET) + 2; last := first - 1; set := {first .. last}; ASSERT (set = {});
 	END Test.
 
 positive: huge integer as set element
@@ -1063,13 +1332,101 @@ negative: huge integer as too large set element
 	BEGIN element := MAX (SET) + 1; set := {element};
 	END Test.
 
-positive: absolute value of huge integer
+positive: huge integer as first set element
 
 	MODULE Test;
-	VAR value: HUGEINT;
+	VAR element: HUGEINT; set: SET;
 	BEGIN
-		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
-		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+		element := MIN (SET); set := {element .. MAX (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET)}); ASSERT (-set = {});
+		element := MIN (SET); set := {element .. MIN (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MIN (SET)}); ASSERT (set = {element}); ASSERT (set = {MIN (SET)});
+		element := MIN (SET) + 2; set := {element .. MAX (SET)}; ASSERT (element IN set); ASSERT (set = {MIN (SET) + 2 .. MAX (SET)}); ASSERT (-set = {MIN (SET), MIN (SET) + 1});
+		element := MIN (SET) + 2; set := {element .. MIN (SET)}; ASSERT (~(element IN set)); ASSERT (set = {element .. MIN (SET)}); ASSERT (set = {});
+	END Test.
+
+negative: huge integer as too small first set element
+
+	MODULE Test;
+	VAR element: HUGEINT; set: SET;
+	BEGIN element := MIN (SET) - 1;set := {element .. MAX (SET)};
+	END Test.
+
+negative: huge integer as too large first set element
+
+	MODULE Test;
+	VAR element: HUGEINT; set: SET;
+	BEGIN element := MAX (SET) + 1;set := {element .. MAX (SET)};
+	END Test.
+
+positive: huge integer as last set element
+
+	MODULE Test;
+	VAR element: HUGEINT; set: SET;
+	BEGIN
+		element := MAX (SET); set := {MIN (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET)}); ASSERT (-set = {});
+		element := MAX (SET); set := {MAX (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MAX (SET) .. MAX (SET)}); ASSERT (set = {MAX (SET)});
+		element := MAX (SET) - 2; set := {MIN (SET) .. element}; ASSERT (element IN set); ASSERT (set = {MIN (SET) .. MAX (SET) - 2}); ASSERT (-set = {MAX (SET) - 1, MAX (SET)});
+		element := MAX (SET) - 2; set := {MAX (SET).. element}; ASSERT (~(element IN set)); ASSERT (set = {MAX (SET) .. element}); ASSERT (set = {});
+	END Test.
+
+negative: huge integer as too small last set element
+
+	MODULE Test;
+	VAR element: HUGEINT; set: SET;
+	BEGIN element := MIN (SET) - 1;set := {MIN (SET) .. element};
+	END Test.
+
+negative: huge integer as too large last set element
+
+	MODULE Test;
+	VAR element: HUGEINT; set: SET;
+	BEGIN element := MAX (SET) + 1;set := {MIN (SET) .. element};
+	END Test.
+
+positive: huge integers as set elements
+
+	MODULE Test;
+	VAR first, last: HUGEINT; set: SET;
+	BEGIN
+		first := MIN (SET); last := MAX (SET); set := {first .. last}; ASSERT (set = {MIN (SET) .. MAX (SET)});
+		ASSERT (first IN set); ASSERT (last IN set); ASSERT (-set = {});
+		first := MIN (SET) + 2; last := MAX (SET) - 2; set := {first .. last}; ASSERT (set = {MIN (SET) + 2 .. MAX (SET) - 2});
+		ASSERT (first IN set); ASSERT (last IN set); ASSERT (-set = {MIN (SET), MIN (SET) + 1, MAX (SET) - 1, MAX (SET)});
+		first := MIN (SET) + 2; last := first; set := {first .. last}; ASSERT (set = {first});
+		first := MIN (SET) + 2; last := first + 1; set := {first .. last}; ASSERT (set = {first, last});
+		first := MIN (SET) + 2; last := first - 1; set := {first .. last}; ASSERT (set = {});
+	END Test.
+
+
+# odd test
+
+positive: odd test on short integer
+
+	MODULE Test;
+	VAR value: SHORTINT;
+	BEGIN
+		value := 0; ASSERT (~ODD (value)); ASSERT (ODD (value + 1));
+		value := 5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+		value := -5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+	END Test.
+
+positive: odd test on integer
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN
+		value := 0; ASSERT (~ODD (value)); ASSERT (ODD (value + 1));
+		value := 5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+		value := -5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+	END Test.
+
+positive: odd test on long integer
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN
+		value := 0; ASSERT (~ODD (value)); ASSERT (ODD (value + 1));
+		value := 5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
+		value := -5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
 	END Test.
 
 positive: odd test on huge integer
@@ -1082,6 +1439,44 @@ positive: odd test on huge integer
 		value := -5; ASSERT (ODD (value)); ASSERT (~ODD (value + 1));
 	END Test.
 
+
+# explicit basic type conversions
+
+positive: long on short integer
+
+	MODULE Test;
+	VAR value: SHORTINT;
+	BEGIN value := 11H; ASSERT (LONG (value) = 11H); ASSERT (LONG (value) = LONG (11H));
+	END Test.
+
+positive: long on integer
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN value := 1122H; ASSERT (LONG (value) = 1122H); ASSERT (LONG (value) = LONG (1122H));
+	END Test.
+
+positive: long on long integer
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN value := 11223344H; ASSERT (LONG (value) = 11223344H); ASSERT (LONG (value) = LONG (11223344H));
+	END Test.
+
+positive: short on integer
+
+	MODULE Test;
+	VAR value: INTEGER;
+	BEGIN value := 1122H; ASSERT (SHORT (value) = 22H); ASSERT (SHORT (value) = SHORT (1122H));
+	END Test.
+
+positive: short on long integer
+
+	MODULE Test;
+	VAR value: LONGINT;
+	BEGIN value := 11223344H; ASSERT (SHORT (value) = 3344H); ASSERT (SHORT (value) = SHORT (11223344H));
+	END Test.
+
 positive: short on huge integer
 
 	MODULE Test;
@@ -1089,112 +1484,1747 @@ positive: short on huge integer
 	BEGIN value := 1122334455667788H; ASSERT (SHORT (value) = 55667788H); ASSERT (SHORT (value) = SHORT (1122334455667788H));
 	END Test.
 
-positive: character value of huge integer
-
-	MODULE Test;
-	VAR value: HUGEINT; c: CHAR;
-	BEGIN
-		value := ORD ('0'); ASSERT (CHR (value) = '0');
-		value := ORD ('9'); ASSERT (CHR (value) = '9');
-		value := ORD ('a'); ASSERT (CHR (value) = 'a');
-		value := ORD ('z'); ASSERT (CHR (value) = 'z');
-		value := ORD ('A'); ASSERT (CHR (value) = 'A');
-		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
-	END Test.
-
-positive: relational operations on reals
+positive: entier on reals
 
 	MODULE Test;
 	VAR value: REAL;
 	BEGIN
-		value := 5;
-		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
-		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
-		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
-		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
-		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
-		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+		value := 0; ASSERT (ENTIER (value) = 0);
+		value := 1; ASSERT (ENTIER (value) = 1);
+		value := 1.75; ASSERT (ENTIER (value) = 1);
+		value := -1; ASSERT (ENTIER (value) = -1);
+		value := -1.75; ASSERT (ENTIER (value) = -2);
 	END Test.
 
-positive: negation on reals
-
-	MODULE Test;
-	VAR value: REAL;
-	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
-	END Test.
-
-positive: absolute value of real
-
-	MODULE Test;
-	VAR value: REAL;
-	BEGIN
-		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
-		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
-	END Test.
-
-positive: relational operations on long reals
+positive: entier on long reals
 
 	MODULE Test;
 	VAR value: LONGREAL;
 	BEGIN
-		value := 5;
-		ASSERT (value = 5); ASSERT (~(value = 6)); ASSERT (value = value);
-		ASSERT (value # 6); ASSERT (~(value # 5)); ASSERT (~(value # value));
-		ASSERT (value < 6); ASSERT (~(value < 4)); ASSERT (~(value < value));
-		ASSERT (value <= 6); ASSERT (~(value <= 4)); ASSERT (value <= value);
-		ASSERT (value > 4); ASSERT (~(value > 6)); ASSERT (~(value > value));
-		ASSERT (value >= 4); ASSERT (~(value >= 6)); ASSERT (value >= value);
+		value := 0; ASSERT (ENTIER (value) = 0);
+		value := 1; ASSERT (ENTIER (value) = 1);
+		value := 1.75; ASSERT (ENTIER (value) = 1);
+		value := -1; ASSERT (ENTIER (value) = -1);
+		value := -1.75; ASSERT (ENTIER (value) = -2);
 	END Test.
 
-positive: negation on long reals
+
+# arithmetic operations
+
+positive: addition on short integers
 
 	MODULE Test;
-	VAR value: LONGREAL;
-	BEGIN value := 5; ASSERT (-value = -5); ASSERT (-(-value) = 5); ASSERT (-(-value) = value)
-	END Test.
-
-positive: absolute value of long real
-
-	MODULE Test;
-	VAR value: LONGREAL;
+	VAR a, b: SHORTINT;
 	BEGIN
-		value := 5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = value); ASSERT (ABS (-value) = value);
-		value := -5; ASSERT (ABS (value) = 5); ASSERT (ABS (-value) = 5); ASSERT (ABS (value) = -value); ASSERT (ABS (-value) = -value);
+		a := 3; b := 2; ASSERT (a + b = +5); ASSERT (a + b = 3 + 2);
+		a := -3; b := 2; ASSERT (a + b = -1); ASSERT (a + b = (-3) + 2);
+		a := 3; b := -2; ASSERT (a + b = +1); ASSERT (a + b = 3 + (-2));
+		a := -3; b := -2; ASSERT (a + b = -5); ASSERT (a + b = (-3) + (-2));
+		a := MAX (SHORTINT); b := MIN (SHORTINT) + 1; ASSERT (a + b = 0); ASSERT (a + b = MAX (SHORTINT) + MIN (SHORTINT) + 1);
 	END Test.
 
-positive: relational operations on sets
+positive: addition on integers
 
 	MODULE Test;
-	VAR value: SET;
+	VAR a, b: INTEGER;
 	BEGIN
-		value := {1, 2};
-		ASSERT (value = {1, 2}); ASSERT (~(value = {2})); ASSERT (value = value);
-		ASSERT (value # {2}); ASSERT (~(value # {1, 2})); ASSERT (~(value # value));
-		ASSERT (value < {1, 2, 3}); ASSERT (~(value < {2})); ASSERT (~(value < value));
-		ASSERT (value <= {1, 2, 3}); ASSERT (~(value <= {2})); ASSERT (value <= value);
-		ASSERT (value > {2}); ASSERT (~(value > {1, 2, 3})); ASSERT (~(value > value));
-		ASSERT (value >= {2}); ASSERT (~(value >= {1, 2, 3})); ASSERT (value >= value);
+		a := 3; b := 2; ASSERT (a + b = +5); ASSERT (a + b = 3 + 2);
+		a := -3; b := 2; ASSERT (a + b = -1); ASSERT (a + b = (-3) + 2);
+		a := 3; b := -2; ASSERT (a + b = +1); ASSERT (a + b = 3 + (-2));
+		a := -3; b := -2; ASSERT (a + b = -5); ASSERT (a + b = (-3) + (-2));
+		a := MAX (INTEGER); b := MIN (INTEGER) + 1; ASSERT (a + b = 0); ASSERT (a + b = MAX (INTEGER) + MIN (INTEGER) + 1);
 	END Test.
 
-positive: negation on sets
+positive: addition on long integers
 
 	MODULE Test;
-	VAR value: SET;
-	BEGIN value := {1, 2}; ASSERT (-value = {0, 3 .. MAX (SET)}); ASSERT (-(-value) = {1, 2}); ASSERT (-(-value) = value)
-	END Test.
-
-positive: relational operations on character arrays
-
-	MODULE Test;
-	VAR value: ARRAY 10 OF CHAR;
+	VAR a, b: LONGINT;
 	BEGIN
-		value := "text";
-		ASSERT (value = "text"); ASSERT (~(value = "abc")); ASSERT (value = value);
-		ASSERT (value # "abc"); ASSERT (~(value # "text")); ASSERT (~(value # value));
-		ASSERT (value < "xyz"); ASSERT (~(value < "abc")); ASSERT (~(value < value));
-		ASSERT (value <= "xyz"); ASSERT (~(value <= "abc")); ASSERT (value <= value);
-		ASSERT (value > "abc"); ASSERT (~(value > "xyz")); ASSERT (~(value > value));
-		ASSERT (value >= "abc"); ASSERT (~(value >= "xyz")); ASSERT (value >= value);
+		a := 3; b := 2; ASSERT (a + b = +5); ASSERT (a + b = 3 + 2);
+		a := -3; b := 2; ASSERT (a + b = -1); ASSERT (a + b = (-3) + 2);
+		a := 3; b := -2; ASSERT (a + b = +1); ASSERT (a + b = 3 + (-2));
+		a := -3; b := -2; ASSERT (a + b = -5); ASSERT (a + b = (-3) + (-2));
+		a := MAX (LONGINT); b := MIN (LONGINT) + 1; ASSERT (a + b = 0); ASSERT (a + b = MAX (LONGINT) + MIN (LONGINT) + 1);
+	END Test.
+
+positive: addition on huge integers
+
+	MODULE Test;
+	VAR a, b: HUGEINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a + b = +5); ASSERT (a + b = 3 + 2);
+		a := -3; b := 2; ASSERT (a + b = -1); ASSERT (a + b = (-3) + 2);
+		a := 3; b := -2; ASSERT (a + b = +1); ASSERT (a + b = 3 + (-2));
+		a := -3; b := -2; ASSERT (a + b = -5); ASSERT (a + b = (-3) + (-2));
+		a := MAX (HUGEINT); b := MIN (HUGEINT) + 1; ASSERT (a + b = 0); ASSERT (a + b = MAX (HUGEINT) + MIN (HUGEINT) + 1);
+	END Test.
+
+positive: addition on reals
+
+	MODULE Test;
+	VAR a, b: REAL;
+	BEGIN
+		a := 3.5; b := 2.5; ASSERT (a + b = +6); ASSERT (a + b = 3.5 + 2.5);
+		a := -3.5; b := 2.5; ASSERT (a + b = -1); ASSERT (a + b = (-3.5) + 2.5);
+		a := 3.5; b := -2.5; ASSERT (a + b = +1); ASSERT (a + b = 3.5 + (-2.5));
+		a := -3.5; b := -2.5; ASSERT (a + b = -6); ASSERT (a + b = (-3.5) + (-2.5));
+	END Test.
+
+positive: addition on long reals
+
+	MODULE Test;
+	VAR a, b: LONGREAL;
+	BEGIN
+		a := 3; b := 2; ASSERT (a + b = +5); ASSERT (a + b = 3 + 2);
+		a := -3; b := 2; ASSERT (a + b = -1); ASSERT (a + b = (-3) + 2);
+		a := 3; b := -2; ASSERT (a + b = +1); ASSERT (a + b = 3 + (-2));
+		a := -3; b := -2; ASSERT (a + b = -5); ASSERT (a + b = (-3) + (-2));
+	END Test.
+
+positive: subtraction on short integers
+
+	MODULE Test;
+	VAR a, b: SHORTINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a - b = +1); ASSERT (a - b = 3 - 2);
+		a := -3; b := 2; ASSERT (a - b = -5); ASSERT (a - b = (-3) - 2);
+		a := 3; b := -2; ASSERT (a - b = +5); ASSERT (a - b = 3 - (-2));
+		a := -3; b := -2; ASSERT (a - b = -1); ASSERT (a - b = (-3) - (-2));
+		a := MIN (SHORTINT) + 1; b := MAX (SHORTINT); ASSERT (a - b = 2); ASSERT (a - b = SHORT (MIN (SHORTINT) + 1 - MAX (SHORTINT)));
+	END Test.
+
+positive: subtraction on integers
+
+	MODULE Test;
+	VAR a, b: INTEGER;
+	BEGIN
+		a := 3; b := 2; ASSERT (a - b = +1); ASSERT (a - b = 3 - 2);
+		a := -3; b := 2; ASSERT (a - b = -5); ASSERT (a - b = (-3) - 2);
+		a := 3; b := -2; ASSERT (a - b = +5); ASSERT (a - b = 3 - (-2));
+		a := -3; b := -2; ASSERT (a - b = -1); ASSERT (a - b = (-3) - (-2));
+		a := MIN (INTEGER) + 1; b := MAX (INTEGER); ASSERT (a - b = 2); ASSERT (a - b = SHORT (MIN (INTEGER) + 1 - MAX (INTEGER)));
+	END Test.
+
+positive: subtraction on long integers
+
+	MODULE Test;
+	VAR a, b: LONGINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a - b = +1); ASSERT (a - b = 3 - 2);
+		a := -3; b := 2; ASSERT (a - b = -5); ASSERT (a - b = (-3) - 2);
+		a := 3; b := -2; ASSERT (a - b = +5); ASSERT (a - b = 3 - (-2));
+		a := -3; b := -2; ASSERT (a - b = -1); ASSERT (a - b = (-3) - (-2));
+		a := MIN (LONGINT) + 1; b := MAX (LONGINT); ASSERT (a - b = 2); ASSERT (a - b = SHORT (MIN (LONGINT) + 1 - MAX (LONGINT)));
+	END Test.
+
+positive: subtraction on huge integers
+
+	MODULE Test;
+	VAR a, b: HUGEINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a - b = +1); ASSERT (a - b = 3 - 2);
+		a := -3; b := 2; ASSERT (a - b = -5); ASSERT (a - b = (-3) - 2);
+		a := 3; b := -2; ASSERT (a - b = +5); ASSERT (a - b = 3 - (-2));
+		a := -3; b := -2; ASSERT (a - b = -1); ASSERT (a - b = (-3) - (-2));
+		a := MIN (HUGEINT) + 1; b := MAX (HUGEINT); ASSERT (a - b = 2); ASSERT (a - b = MIN (HUGEINT) + 1 - MAX (HUGEINT));
+	END Test.
+
+positive: subtraction on reals
+
+	MODULE Test;
+	VAR a, b: REAL;
+	BEGIN
+		a := 3.5; b := 2.5; ASSERT (a - b = +1); ASSERT (a - b = 3.5 - 2.5);
+		a := -3.5; b := 2.5; ASSERT (a - b = -6); ASSERT (a - b = (-3.5) - 2.5);
+		a := 3.5; b := -2.5; ASSERT (a - b = +6); ASSERT (a - b = 3.5 - (-2.5));
+		a := -3.5; b := -2.5; ASSERT (a - b = -1); ASSERT (a - b = (-3.5) - (-2.5));
+	END Test.
+
+positive: subtraction on long reals
+
+	MODULE Test;
+	VAR a, b: LONGREAL;
+	BEGIN
+		a := 3.5; b := 2.5; ASSERT (a - b = +1); ASSERT (a - b = 3.5 - 2.5);
+		a := -3.5; b := 2.5; ASSERT (a - b = -6); ASSERT (a - b = (-3.5) - 2.5);
+		a := 3.5; b := -2.5; ASSERT (a - b = +6); ASSERT (a - b = 3.5 - (-2.5));
+		a := -3.5; b := -2.5; ASSERT (a - b = -1); ASSERT (a - b = (-3.5) - (-2.5));
+	END Test.
+
+positive: multiplication on short integers
+
+	MODULE Test;
+	VAR a, b: SHORTINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a * b = +6); ASSERT (a * b = 3 * 2);
+		a := -3; b := 2; ASSERT (a * b = -6); ASSERT (a * b = (-3) * 2);
+		a := 3; b := -2; ASSERT (a * b = -6); ASSERT (a * b = 3 * (-2));
+		a := -3; b := -2; ASSERT (a * b = +6); ASSERT (a * b = (-3) * (-2));
+		a := MAX (SHORTINT); b := MAX (SHORTINT); ASSERT (a * b = 1); ASSERT (a * b = SHORT (MAX (SHORTINT) * MAX (SHORTINT)));
+	END Test.
+
+positive: multiplication on integers
+
+	MODULE Test;
+	VAR a, b: INTEGER;
+	BEGIN
+		a := 3; b := 2; ASSERT (a * b = +6); ASSERT (a * b = 3 * 2);
+		a := -3; b := 2; ASSERT (a * b = -6); ASSERT (a * b = (-3) * 2);
+		a := 3; b := -2; ASSERT (a * b = -6); ASSERT (a * b = 3 * (-2));
+		a := -3; b := -2; ASSERT (a * b = +6); ASSERT (a * b = (-3) * (-2));
+		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a * b = 1); ASSERT (a * b = SHORT (MAX (INTEGER) * MAX (INTEGER)));
+	END Test.
+
+positive: multiplication on long integers
+
+	MODULE Test;
+	VAR a, b: LONGINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a * b = +6); ASSERT (a * b = 3 * 2);
+		a := -3; b := 2; ASSERT (a * b = -6); ASSERT (a * b = (-3) * 2);
+		a := 3; b := -2; ASSERT (a * b = -6); ASSERT (a * b = 3 * (-2));
+		a := -3; b := -2; ASSERT (a * b = +6); ASSERT (a * b = (-3) * (-2));
+		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a * b = 1); ASSERT (a * b = SHORT (MAX (LONGINT) * MAX (LONGINT)));
+	END Test.
+
+positive: multiplication on huge integers
+
+	MODULE Test;
+	VAR a, b: HUGEINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a * b = +6); ASSERT (a * b = 3 * 2);
+		a := -3; b := 2; ASSERT (a * b = -6); ASSERT (a * b = (-3) * 2);
+		a := 3; b := -2; ASSERT (a * b = -6); ASSERT (a * b = 3 * (-2));
+		a := -3; b := -2; ASSERT (a * b = +6); ASSERT (a * b = (-3) * (-2));
+		a := MAX (HUGEINT); b := MAX (HUGEINT); ASSERT (a * b = 1); ASSERT (a * b = MAX (HUGEINT) * MAX (HUGEINT));
+	END Test.
+
+positive: multiplication on reals
+
+	MODULE Test;
+	VAR a, b: REAL;
+	BEGIN
+		a := 3.5; b := 2.5; ASSERT (a * b = +8.75); ASSERT (a * b = 3.5 * 2.5);
+		a := -3.5; b := 2.5; ASSERT (a * b = -8.75); ASSERT (a * b = (-3.5) * 2.5);
+		a := 3.5; b := -2.5; ASSERT (a * b = -8.75); ASSERT (a * b = 3.5 * (-2.5));
+		a := -3.5; b := -2.5; ASSERT (a * b = +8.75); ASSERT (a * b = (-3.5) * (-2.5));
+	END Test.
+
+positive: multiplication on long reals
+
+	MODULE Test;
+	VAR a, b: LONGREAL;
+	BEGIN
+		a := 3.5; b := 2.5; ASSERT (a * b = +8.75); ASSERT (a * b = 3.5 * 2.5);
+		a := -3.5; b := 2.5; ASSERT (a * b = -8.75); ASSERT (a * b = (-3.5) * 2.5);
+		a := 3.5; b := -2.5; ASSERT (a * b = -8.75); ASSERT (a * b = 3.5 * (-2.5));
+		a := -3.5; b := -2.5; ASSERT (a * b = +8.75); ASSERT (a * b = (-3.5) * (-2.5));
+	END Test.
+
+positive: integer division on short integers
+
+	MODULE Test;
+	VAR a, b: SHORTINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
+		a := -3; b := 2; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-3) DIV 2);
+		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
+		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
+		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
+		a := -2; b := 3; ASSERT (a DIV b = -0); ASSERT (a DIV b = (-2) DIV 3);
+		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
+		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
+		a := MAX (SHORTINT); b := MAX (SHORTINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (SHORTINT) DIV MAX (SHORTINT));
+	END Test.
+
+negative: integer division by zero on short integer
+
+	MODULE Test;
+	VAR a, b, r: SHORTINT;
+	BEGIN a := 3; b := 0; r := a DIV b;
+	END Test.
+
+positive: integer division on integers
+
+	MODULE Test;
+	VAR a, b: INTEGER;
+	BEGIN
+		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
+		a := -3; b := 2; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-3) DIV 2);
+		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
+		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
+		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
+		a := -2; b := 3; ASSERT (a DIV b = -0); ASSERT (a DIV b = (-2) DIV 3);
+		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
+		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
+		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (INTEGER) DIV MAX (INTEGER));
+	END Test.
+
+negative: integer division by zero on integer
+
+	MODULE Test;
+	VAR a, b, r: INTEGER;
+	BEGIN a := 3; b := 0; r := a DIV b;
+	END Test.
+
+positive: integer division on long integers
+
+	MODULE Test;
+	VAR a, b: LONGINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
+		a := -3; b := 2; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-3) DIV 2);
+		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
+		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
+		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
+		a := -2; b := 3; ASSERT (a DIV b = -0); ASSERT (a DIV b = (-2) DIV 3);
+		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
+		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
+		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (LONGINT) DIV MAX (LONGINT));
+	END Test.
+
+negative: integer division by zero on long integer
+
+	MODULE Test;
+	VAR a, b, r: LONGINT;
+	BEGIN a := 3; b := 0; r := a DIV b;
+	END Test.
+
+positive: integer division on huge integers
+
+	MODULE Test;
+	VAR a, b: HUGEINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
+		a := -3; b := 2; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-3) DIV 2);
+		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
+		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
+		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
+		a := -2; b := 3; ASSERT (a DIV b = -0); ASSERT (a DIV b = (-2) DIV 3);
+		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
+		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
+		a := MAX (HUGEINT); b := MAX (HUGEINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (HUGEINT) DIV MAX (HUGEINT));
+	END Test.
+
+negative: integer division by zero on huge integer
+
+	MODULE Test;
+	VAR a, b, r: HUGEINT;
+	BEGIN a := 3; b := 0; r := a DIV b;
+	END Test.
+
+positive: real division on short integers
+
+	MODULE Test;
+	VAR a, b: SHORTINT;
+	BEGIN a := 3; b := 2; ASSERT (a / b = 1.5); ASSERT (a / b = 3 / 2);
+	END Test.
+
+positive: real division on integers
+
+	MODULE Test;
+	VAR a, b: INTEGER;
+	BEGIN a := 3; b := 2; ASSERT (a / b = 1.5); ASSERT (a / b = 3 / 2);
+	END Test.
+
+positive: real division on long integers
+
+	MODULE Test;
+	VAR a, b: LONGINT;
+	BEGIN a := 3; b := 2; ASSERT (a / b = 1.5); ASSERT (a / b = 3 / 2);
+	END Test.
+
+positive: real division on huge integers
+
+	MODULE Test;
+	VAR a, b: HUGEINT;
+	BEGIN a := 3; b := 2; ASSERT (a / b = 1.5); ASSERT (a / b = 3 / 2);
+	END Test.
+
+positive: real division on reals
+
+	MODULE Test;
+	VAR a, b: REAL;
+	BEGIN a := 3; b := 2; ASSERT (a / b = 1.5); ASSERT (a / b = 3 / 2);
+	END Test.
+
+positive: real division on long reals
+
+	MODULE Test;
+	VAR a, b: LONGREAL;
+	BEGIN a := 3; b := 2; ASSERT (a / b = 1.5); ASSERT (a / b = 3 / 2);
+	END Test.
+
+positive: modulo on short integers
+
+	MODULE Test;
+	VAR a, b: SHORTINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = -1); ASSERT (a MOD b = (-3) MOD 2);
+		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = -2); ASSERT (a MOD b = (-2) MOD 3);
+		a := MAX (SHORTINT); b := MAX (SHORTINT); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (SHORTINT) MOD MAX (SHORTINT));
+	END Test.
+
+negative: modulo by zero on short integer
+
+	MODULE Test;
+	VAR a, b, r: SHORTINT;
+	BEGIN a := 3; b := 0; r := a MOD b;
+	END Test.
+
+positive: modulo on integers
+
+	MODULE Test;
+	VAR a, b: INTEGER;
+	BEGIN
+		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = -1); ASSERT (a MOD b = (-3) MOD 2);
+		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = -2); ASSERT (a MOD b = (-2) MOD 3);
+		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (INTEGER) MOD MAX (INTEGER));
+	END Test.
+
+negative: modulo by zero on integer
+
+	MODULE Test;
+	VAR a, b, r: INTEGER;
+	BEGIN a := 3; b := 0; r := a MOD b;
+	END Test.
+
+
+positive: modulo on long integers
+
+	MODULE Test;
+	VAR a, b: LONGINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = -1); ASSERT (a MOD b = (-3) MOD 2);
+		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = -2); ASSERT (a MOD b = (-2) MOD 3);
+		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (LONGINT) MOD MAX (LONGINT));
+	END Test.
+
+negative: modulo by zero on long integer
+
+	MODULE Test;
+	VAR a, b, r: LONGINT;
+	BEGIN a := 3; b := 0; r := a MOD b;
+	END Test.
+
+positive: modulo on huge integers
+
+	MODULE Test;
+	VAR a, b: HUGEINT;
+	BEGIN
+		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = -1); ASSERT (a MOD b = (-3) MOD 2);
+		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = -2); ASSERT (a MOD b = (-2) MOD 3);
+		a := MAX (HUGEINT); b := MAX (HUGEINT); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (HUGEINT) MOD MAX (HUGEINT));
+	END Test.
+
+negative: modulo by zero on huge integer
+
+	MODULE Test;
+	VAR a, b, r: HUGEINT;
+	BEGIN a := 3; b := 0; r := a MOD b;
+	END Test.
+
+positive: arithmetic shift on short integer
+
+	MODULE Test;
+	VAR a, b: SHORTINT;
+	BEGIN
+		a := 6; b := 2; ASSERT (ASH (a, b) = 24); ASSERT (ASH (a, b) = ASH (a, 2)); ASSERT (ASH (a, b) = ASH (6, 2));
+		a := 6; b := 0; ASSERT (ASH (a, b) = 6); ASSERT (ASH (a, b) = ASH (a, 0)); ASSERT (ASH (a, b) = ASH (6, 0));
+		a := 6; b := -2; ASSERT (ASH (a, b) = 1); ASSERT (ASH (a, b) = ASH (a, -2)); ASSERT (ASH (a, b) = ASH (6, -2));
+	END Test.
+
+positive: arithmetic shift on integer
+
+	MODULE Test;
+	VAR a, b: INTEGER;
+	BEGIN
+		a := 6; b := 2; ASSERT (ASH (a, b) = 24); ASSERT (ASH (a, b) = ASH (a, 2)); ASSERT (ASH (a, b) = ASH (6, 2));
+		a := 6; b := 0; ASSERT (ASH (a, b) = 6); ASSERT (ASH (a, b) = ASH (a, 0)); ASSERT (ASH (a, b) = ASH (6, 0));
+		a := 6; b := -2; ASSERT (ASH (a, b) = 1); ASSERT (ASH (a, b) = ASH (a, -2)); ASSERT (ASH (a, b) = ASH (6, -2));
+	END Test.
+
+positive: arithmetic shift on long integer
+
+	MODULE Test;
+	VAR a, b: LONGINT;
+	BEGIN
+		a := 6; b := 2; ASSERT (ASH (a, b) = 24); ASSERT (ASH (a, b) = ASH (a, 2)); ASSERT (ASH (a, b) = ASH (6, 2));
+		a := 6; b := 0; ASSERT (ASH (a, b) = 6); ASSERT (ASH (a, b) = ASH (a, 0)); ASSERT (ASH (a, b) = ASH (6, 0));
+		a := 6; b := -2; ASSERT (ASH (a, b) = 1); ASSERT (ASH (a, b) = ASH (a, -2)); ASSERT (ASH (a, b) = ASH (6, -2));
+	END Test.
+
+positive: arithmetic shift on huge integer
+
+	MODULE Test;
+	VAR a, b: HUGEINT;
+	BEGIN
+		a := 6; b := 2; ASSERT (ASH (a, b) = 24); ASSERT (ASH (a, b) = ASH (a, 2)); ASSERT (ASH (a, b) = ASH (6, 2));
+		a := 6; b := 0; ASSERT (ASH (a, b) = 6); ASSERT (ASH (a, b) = ASH (a, 0)); ASSERT (ASH (a, b) = ASH (6, 0));
+		a := 6; b := -2; ASSERT (ASH (a, b) = 1); ASSERT (ASH (a, b) = ASH (a, -2)); ASSERT (ASH (a, b) = ASH (6, -2));
+	END Test.
+
+
+# type guards
+
+positive: type guard on same global record
+
+	MODULE Test;
+	TYPE R = RECORD b: BOOLEAN END;
+	VAR r: R;
+	BEGIN r.b := TRUE; ASSERT (r(R).b);
+	END Test.
+
+positive: type guard on same local record
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	TYPE R = RECORD b: BOOLEAN END;
+	VAR r: R;
+	BEGIN r.b := TRUE; ASSERT (r(R).b);
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+positive: type gard on same parameter record
+
+	MODULE Test;
+	TYPE R = RECORD b: BOOLEAN END;
+	VAR r: R;
+	PROCEDURE Procedure (r: R); BEGIN ASSERT (r(R).b); END Procedure;
+	BEGIN r.b := TRUE; Procedure (r);
+	END Test.
+
+positive: type gard on same variable parameter record
+
+	MODULE Test;
+	TYPE R = RECORD b: BOOLEAN END;
+	VAR r: R;
+	PROCEDURE Procedure (VAR r: R); BEGIN ASSERT (r(R).b); END Procedure;
+	BEGIN r.b := TRUE; Procedure (r);
+	END Test.
+
+positive: type gard on same constant parameter record
+
+	MODULE Test;
+	TYPE R = RECORD b: BOOLEAN END;
+	VAR r: R;
+	PROCEDURE Procedure (CONST r: R); BEGIN ASSERT (r(R).b); END Procedure;
+	BEGIN r.b := TRUE; Procedure (r);
+	END Test.
+
+positive: type gard on variable parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) b: BOOLEAN END;
+	VAR r: R1;
+	PROCEDURE Procedure (VAR r: R0); BEGIN ASSERT (r(R1).b); END Procedure;
+	BEGIN r.b := TRUE; Procedure (r);
+	END Test.
+
+positive: type gard on constant parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) b: BOOLEAN END;
+	VAR r: R1;
+	PROCEDURE Procedure (VAR r: R0); BEGIN ASSERT (r(R1).b); END Procedure;
+	BEGIN r.b := TRUE; Procedure (r);
+	END Test.
+
+
+# dereferencing
+
+positive: explicit dereference on pointer to record
+
+	MODULE Test;
+	VAR p: POINTER TO RECORD a: INTEGER END;
+	BEGIN NEW (p); p^.a := 45; ASSERT (p.a = 45);
+	END Test.
+
+negative: explicit dereference of nil pointer to record
+
+	MODULE Test;
+	VAR p: POINTER TO RECORD a: INTEGER END;
+	BEGIN p := NIL; p^.a := 45;
+	END Test.
+
+positive: implicit dereference on pointer to record
+
+	MODULE Test;
+	VAR p: POINTER TO RECORD a: INTEGER END;
+	BEGIN NEW (p); p.a := 45; ASSERT (p^.a = 45);
+	END Test.
+
+negative: implicit dereference of nil pointer to record
+
+	MODULE Test;
+	VAR p: POINTER TO RECORD a: INTEGER END;
+	BEGIN p := NIL; p.a := 45;
+	END Test.
+
+positive: explicit dereference on pointer to array
+
+	MODULE Test;
+	VAR p: POINTER TO ARRAY 10 OF INTEGER;
+	BEGIN NEW (p); p^[4] := 45; ASSERT (p[4] = 45);
+	END Test.
+
+positive: implicit dereference on pointer to array
+
+	MODULE Test;
+	VAR p: POINTER TO ARRAY 10 OF INTEGER;
+	BEGIN NEW (p); p[4] := 45; ASSERT (p^[4] = 45);
+	END Test.
+
+negative: explicit dereference of nil pointer to array
+
+	MODULE Test;
+	VAR p: POINTER TO ARRAY 10 OF INTEGER;
+	BEGIN p := NIL; p^[4] := 45;
+	END Test.
+
+negative: implicit dereference of nil pointer to array
+
+	MODULE Test;
+	VAR p: POINTER TO ARRAY 10 OF INTEGER;
+	BEGIN p := NIL; p[4] := 45;
+	END Test.
+
+
+# array length
+
+positive: length of one-dimensional open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a));
+	END Test.
+
+positive: first dimension of one-dimensional open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p, 0) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a, 0));
+	END Test.
+
+positive: dynamic dimension of one-dimensional open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER; dim, len: INTEGER);
+	BEGIN ASSERT (LEN (p, dim) = len);
+	END Procedure;
+	BEGIN Procedure (a, 0, 10); Procedure (a, 0, LEN (a, 0));
+	END Test.
+
+negative: negative dynamic dimension of one-dimensional open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, -1);
+	END Test.
+
+negative: invalid dynamic dimension of one-dimensional open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, 1);
+	END Test.
+
+positive: length of two-dimensional open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a));
+	END Test.
+
+positive: first dimension of two-dimensional open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p, 0) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a, 0));
+	END Test.
+
+positive: second dimension of two-dimensional open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p, 1) = len);
+	END Procedure;
+	BEGIN Procedure (a, 20); Procedure (a, LEN (a, 1));
+	END Test.
+
+positive: dynamic dimension of two-dimensional open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF ARRAY OF INTEGER; dim, len: INTEGER);
+	BEGIN ASSERT (LEN (p, dim) = len);
+	END Procedure;
+	BEGIN Procedure (a, 0, 10); Procedure (a, 0, LEN (a, 0)); Procedure (a, 1, 20); Procedure (a, 1, LEN (a, 1));
+	END Test.
+
+negative: negative dynamic dimension of two-dimensional open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, -1);
+	END Test.
+
+negative: invalid dynamic dimension of two-dimensional open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, 2);
+	END Test.
+
+positive: length of one-dimensional variable open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a));
+	END Test.
+
+positive: first dimension of one-dimensional variable open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p, 0) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a, 0));
+	END Test.
+
+positive: dynamic dimension of one-dimensional variable open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER; dim, len: INTEGER);
+	BEGIN ASSERT (LEN (p, dim) = len);
+	END Procedure;
+	BEGIN Procedure (a, 0, 10); Procedure (a, 0, LEN (a, 0));
+	END Test.
+
+negative: negative dynamic dimension of one-dimensional variable open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, -1);
+	END Test.
+
+negative: invalid dynamic dimension of one-dimensional variable open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, 1);
+	END Test.
+
+positive: length of two-dimensional variable open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a));
+	END Test.
+
+positive: first dimension of two-dimensional variable open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p, 0) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a, 0));
+	END Test.
+
+positive: second dimension of two-dimensional variable open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p, 1) = len);
+	END Procedure;
+	BEGIN Procedure (a, 20); Procedure (a, LEN (a, 1));
+	END Test.
+
+positive: dynamic dimension of two-dimensional variable open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF ARRAY OF INTEGER; dim, len: INTEGER);
+	BEGIN ASSERT (LEN (p, dim) = len);
+	END Procedure;
+	BEGIN Procedure (a, 0, 10); Procedure (a, 0, LEN (a, 0)); Procedure (a, 1, 20); Procedure (a, 1, LEN (a, 1));
+	END Test.
+
+negative: negative dynamic dimension of two-dimensional variable open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, -1);
+	END Test.
+
+negative: invalid dynamic dimension of two-dimensional variable open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, 2);
+	END Test.
+
+positive: length of one-dimensional constant open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a));
+	END Test.
+
+positive: first dimension of one-dimensional constant open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p, 0) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a, 0));
+	END Test.
+
+positive: dynamic dimension of one-dimensional constant open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF INTEGER; dim, len: INTEGER);
+	BEGIN ASSERT (LEN (p, dim) = len);
+	END Procedure;
+	BEGIN Procedure (a, 0, 10); Procedure (a, 0, LEN (a, 0));
+	END Test.
+
+negative: negative dynamic dimension of one-dimensional constant open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, -1);
+	END Test.
+
+negative: invalid dynamic dimension of one-dimensional constant open array
+
+	MODULE Test;
+	VAR a: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, 1);
+	END Test.
+
+positive: length of two-dimensional constant open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a));
+	END Test.
+
+positive: first dimension of two-dimensional constant open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p, 0) = len);
+	END Procedure;
+	BEGIN Procedure (a, 10); Procedure (a, LEN (a, 0));
+	END Test.
+
+positive: second dimension of two-dimensional constant open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; len: INTEGER);
+	BEGIN ASSERT (LEN (p, 1) = len);
+	END Procedure;
+	BEGIN Procedure (a, 20); Procedure (a, LEN (a, 1));
+	END Test.
+
+positive: dynamic dimension of two-dimensional constant open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; dim, len: INTEGER);
+	BEGIN ASSERT (LEN (p, dim) = len);
+	END Procedure;
+	BEGIN Procedure (a, 0, 10); Procedure (a, 0, LEN (a, 0)); Procedure (a, 1, 20); Procedure (a, 1, LEN (a, 1));
+	END Test.
+
+negative: negative dynamic dimension of two-dimensional constant open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, -1);
+	END Test.
+
+negative: invalid dynamic dimension of two-dimensional constant open array
+
+	MODULE Test;
+	VAR a: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN Procedure (a, 2);
+	END Test.
+
+
+# indexing
+
+positive: indexing global array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	BEGIN g[0] := 1; g[1] := 2; g[2] := LEN (g); ASSERT (g[0] = 1); ASSERT (g[1] = 2); ASSERT (g[g[0]] = 2); ASSERT (g[g[g[0]]] = 10);
+	END Test.
+
+negative: negative index into global array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	BEGIN index := -1; g[index] := 0;
+	END Test.
+
+negative: too large index into global array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	BEGIN index := LEN (g); g[index] := 0;
+	END Test.
+
+positive: indexing local array
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR l: ARRAY 10 OF INTEGER;
+	BEGIN l[0] := 1; l[1] := 2; l[2] := LEN (l); ASSERT (l[0] = 1); ASSERT (l[1] = 2); ASSERT (l[l[0]] = 2); ASSERT (l[l[l[0]]] = 10);
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+negative: negative index into local array
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR l: ARRAY 10 OF INTEGER; index: LONGINT;
+	BEGIN index := -1; l[index] := 0;
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+negative: too large index into local array
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR l: ARRAY 10 OF INTEGER; index: LONGINT;
+	BEGIN index := LEN (l); l[index] := 0;
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+positive: indexing parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY 10 OF INTEGER);
+	BEGIN p[1] := 2; p[2] := LEN (p); ASSERT (p[0] = 1); ASSERT (p[1] = 2); ASSERT (p[p[0]] = 2); ASSERT (p[p[p[0]]] = 10);
+	END Procedure;
+	BEGIN g[0] := 1; Procedure (g);
+	END Test.
+
+negative: negative index into parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (p: ARRAY 10 OF INTEGER);
+	BEGIN index := -1; p[index] := 0;
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+negative: too large index into parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (p: ARRAY 10 OF INTEGER);
+	BEGIN index := LEN (p); p[index] := 0;
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: indexing variable parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY 10 OF INTEGER);
+	BEGIN p[1] := 2; p[2] := LEN (p); ASSERT (p[0] = 1); ASSERT (p[1] = 2); ASSERT (p[p[0]] = 2); ASSERT (p[p[p[0]]] = 10);
+	END Procedure;
+	BEGIN g[0] := 1; Procedure (g);
+	END Test.
+
+negative: negative index into variable parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (VAR p: ARRAY 10 OF INTEGER);
+	BEGIN index := -1; p[index] := 0;
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+negative: too large index into variable parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (VAR p: ARRAY 10 OF INTEGER);
+	BEGIN index := LEN (p); p[index] := 0;
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: indexing constant parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY 10 OF INTEGER);
+	BEGIN ASSERT (p[0] = 1); ASSERT (p[1] = 2); ASSERT (p[p[0]] = 2); ASSERT (p[p[p[0]]] = 10);
+	END Procedure;
+	BEGIN g[0] := 1; g[1] := 2; g[2] := LEN (g); Procedure (g);
+	END Test.
+
+negative: negative index into constant parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (CONST p: ARRAY 10 OF INTEGER);
+	BEGIN index := -1; index := p[index];
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+negative: too large index into constant parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (CONST p: ARRAY 10 OF INTEGER);
+	BEGIN index := LEN (p); index := p[index];
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: indexing open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER);
+	BEGIN p[1] := 2; p[2] := SHORT (LEN (p)); ASSERT (p[0] = 1); ASSERT (p[1] = 2); ASSERT (p[p[0]] = 2); ASSERT (p[p[p[0]]] = 10);
+	END Procedure;
+	BEGIN g[0] := 1; Procedure (g);
+	END Test.
+
+negative: negative index into open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER);
+	BEGIN index := -1; p[index] := 0;
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+negative: too large index into open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER);
+	BEGIN index := LEN (p); p[index] := 0;
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: indexing variable open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER);
+	BEGIN p[1] := 2; p[2] := SHORT (LEN (p)); ASSERT (p[0] = 1); ASSERT (p[1] = 2); ASSERT (p[p[0]] = 2); ASSERT (p[p[p[0]]] = 10);
+	END Procedure;
+	BEGIN g[0] := 1; Procedure (g);
+	END Test.
+
+negative: negative index into variable open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER);
+	BEGIN index := -1; p[index] := 0;
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+negative: too large index into variable open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER);
+	BEGIN index := LEN (p); p[index] := 0;
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: indexing constant open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF INTEGER);
+	BEGIN ASSERT (p[0] = 1); ASSERT (p[1] = 2); ASSERT (p[p[0]] = 2); ASSERT (p[p[p[0]]] = 10);
+	END Procedure;
+	BEGIN g[0] := 1; g[1] := 2; g[2] := LEN (g); Procedure (g);
+	END Test.
+
+negative: negative index into constant open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER);
+	BEGIN index := -1; p[index] := 0;
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+negative: too large index into constant open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER);
+	BEGIN index := LEN (p); p[index] := 0;
+	END Procedure;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: indexing pointer to array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10 OF INTEGER;
+	BEGIN NEW (g); g[0] := 1; g[1] := 2; g[2] := LEN (g^); ASSERT (g[0] = 1); ASSERT (g[1] = 2); ASSERT (g[g[0]] = 2); ASSERT (g[g[g[0]]] = 10);
+	END Test.
+
+negative: negative index into pointer to array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10 OF INTEGER; index: LONGINT;
+	BEGIN NEW (g); index := -1; g[index] := 0;
+	END Test.
+
+negative: too large index into pointer to array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10 OF INTEGER; index: LONGINT;
+	BEGIN NEW (g); index := LEN (g^); g[index] := 0;
+	END Test.
+
+positive: indexing pointer to open array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY OF INTEGER;
+	BEGIN NEW (g, 10); g[0] := 1; g[1] := 2; g[2] := SHORT (LEN (g^)); ASSERT (g[0] = 1); ASSERT (g[1] = 2); ASSERT (g[g[0]] = 2); ASSERT (g[g[g[0]]] = 10);
+	END Test.
+
+negative: negative index into pointer to open array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY OF INTEGER; index: LONGINT;
+	BEGIN NEW (g, 10); index := -1; g[index] := 0;
+	END Test.
+
+negative: too large index into pointer to open array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY OF INTEGER; index: LONGINT;
+	BEGIN NEW (g, 10); index := LEN (g^); g[index] := 0;
+	END Test.
+
+
+# modifying parameters
+
+positive: modifying boolean parameter
+
+	MODULE Test;
+	VAR g: BOOLEAN;
+	PROCEDURE Procedure (p: BOOLEAN);
+	BEGIN ASSERT (p); p := FALSE; ASSERT (~p); ASSERT (g);
+	END Procedure;
+	BEGIN g := TRUE; Procedure (g); ASSERT (g);
+	END Test.
+
+positive: modifying character parameter
+
+	MODULE Test;
+	VAR g: CHAR;
+	PROCEDURE Procedure (p: CHAR);
+	BEGIN ASSERT (p = 'c'); p := 'Z'; ASSERT (p = 'Z'); ASSERT (g = 'c');
+	END Procedure;
+	BEGIN g := 'c'; Procedure (g); ASSERT (g = 'c');
+	END Test.
+
+positive: modifying integer parameter
+
+	MODULE Test;
+	VAR g: INTEGER;
+	PROCEDURE Procedure (p: INTEGER);
+	BEGIN ASSERT (p = 2); INC (p); ASSERT (p = 3); ASSERT (g = 2);
+	END Procedure;
+	BEGIN g := 2; Procedure (g); ASSERT (g = 2);
+	END Test.
+
+positive: modifying real parameter
+
+	MODULE Test;
+	VAR g: REAL;
+	PROCEDURE Procedure (p: REAL);
+	BEGIN ASSERT (p = 2.5); p := p * 2; ASSERT (p = 5); ASSERT (g = 2.5);
+	END Procedure;
+	BEGIN g := 2.5; Procedure (g); ASSERT (g = 2.5);
+	END Test.
+
+positive: modifying set parameter
+
+	MODULE Test;
+	VAR g: SET;
+	PROCEDURE Procedure (p: SET);
+	BEGIN ASSERT (p = {3}); INCL (p, 2); INCL (p, 4); ASSERT (p = {2 .. 4}); ASSERT (g = {3});
+	END Procedure;
+	BEGIN g := {3}; Procedure (g); ASSERT (g = {3});
+	END Test.
+
+positive: modifying array parameter
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY 10 OF INTEGER);
+	BEGIN ASSERT (p[1] = 23); ASSERT (p[8] = 91); p[8] := 19; p[1] := 32; ASSERT (p[1] = 32); ASSERT (p[8] = 19); ASSERT (g[1] = 23); ASSERT (g[8] = 91);
+	END Procedure;
+	BEGIN g[1] := 23; g[8] := 91; Procedure (g); ASSERT (g[1] = 23); ASSERT (g[8] = 91);
+	END Test.
+
+positive: modifying open array parameter
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER);
+	BEGIN ASSERT (p[1] = 23); ASSERT (p[8] = 91); p[8] := 19; p[1] := 32; ASSERT (p[1] = 32); ASSERT (p[8] = 19); ASSERT (g[1] = 23); ASSERT (g[8] = 91);
+	END Procedure;
+	BEGIN g[1] := 23; g[8] := 91; Procedure (g); ASSERT (g[1] = 23); ASSERT (g[8] = 91);
+	END Test.
+
+positive: modifying character array parameter
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF CHAR;
+	PROCEDURE Procedure (p: ARRAY 10 OF CHAR);
+	BEGIN ASSERT (p = "value"); p := "modified"; ASSERT (p = "modified"); ASSERT (g = "value");
+	END Procedure;
+	BEGIN g := "value"; Procedure (g); ASSERT (g = "value");
+	END Test.
+
+positive: modifying open character array parameter
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF CHAR;
+	PROCEDURE Procedure (p: ARRAY OF CHAR);
+	BEGIN ASSERT (p = "value"); p := "modified"; ASSERT (p = "modified"); ASSERT (g = "value");
+	END Procedure;
+	BEGIN g := "value"; Procedure (g); ASSERT (g = "value");
+	END Test.
+
+positive: modifying record parameter
+
+	MODULE Test;
+	TYPE Record = RECORD x: INTEGER END;
+	VAR g: Record;
+	PROCEDURE Procedure (p: Record);
+	BEGIN ASSERT (p.x = 45); p.x := p.x DIV 3; ASSERT (p.x = 15); ASSERT (g.x = 45);
+	END Procedure;
+	BEGIN g.x := 45; Procedure (g); ASSERT (g.x = 45);
+	END Test.
+
+positive: modifying object parameter
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR x: INTEGER END Object;
+	VAR g: Object;
+	PROCEDURE Procedure (p: Object);
+	BEGIN ASSERT (p.x = 20); p.x := 10; ASSERT (p.x = 10); ASSERT (g.x = 10);
+	END Procedure;
+	BEGIN NEW (g); g.x := 20; Procedure (g); ASSERT (g.x = 10);
+	END Test.
+
+positive: modifying object reference parameter
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	VAR g: Object;
+	PROCEDURE Procedure (p: Object);
+	BEGIN ASSERT (p # NIL); p := NIL; ASSERT (p = NIL); ASSERT (g # NIL);
+	END Procedure;
+	BEGIN NEW (g); Procedure (g); ASSERT (g # NIL);
+	END Test.
+
+positive: modifying pointer to array parameter
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: POINTER TO ARRAY 10 OF INTEGER);
+	BEGIN ASSERT (p[1] = 23); ASSERT (p[8] = 91); p[8] := 19; p[1] := 32; ASSERT (p[1] = 32); ASSERT (p[8] = 19); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Procedure;
+	BEGIN NEW (g); g[1] := 23; g[8] := 91; Procedure (g); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Test.
+
+positive: modifying pointer to open array parameter
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY OF INTEGER;
+	PROCEDURE Procedure (p: POINTER TO ARRAY OF INTEGER);
+	BEGIN ASSERT (p[1] = 23); ASSERT (p[8] = 91); p[8] := 19; p[1] := 32; ASSERT (p[1] = 32); ASSERT (p[8] = 19); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Procedure;
+	BEGIN NEW (g, 10); g[1] := 23; g[8] := 91; Procedure (g); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Test.
+
+positive: modifying pointer to character array parameter
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10 OF CHAR;
+	PROCEDURE Procedure (p: POINTER TO ARRAY 10 OF CHAR);
+	BEGIN ASSERT (p^ = "value"); p^ := "modified"; ASSERT (p^ = "modified"); ASSERT (g^ = "modified");
+	END Procedure;
+	BEGIN NEW (g); g^ := "value"; Procedure (g); ASSERT (g^ = "modified");
+	END Test.
+
+positive: modifying pointer to open character array parameter
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY OF CHAR;
+	PROCEDURE Procedure (p: POINTER TO ARRAY OF CHAR);
+	BEGIN ASSERT (p^ = "value"); p^ := "modified"; ASSERT (p^ = "modified"); ASSERT (g^ = "modified");
+	END Procedure;
+	BEGIN NEW (g, 10); g^ := "value"; Procedure (g); ASSERT (g^ = "modified");
+	END Test.
+
+positive: modifying pointer to array reference parameter
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: POINTER TO ARRAY 10 OF INTEGER);
+	BEGIN ASSERT (p # NIL); p := NIL; ASSERT (p = NIL); ASSERT (g # NIL);
+	END Procedure;
+	BEGIN NEW (g); Procedure (g); ASSERT (g # NIL);
+	END Test.
+
+positive: modifying pointer to record parameter
+
+	MODULE Test;
+	TYPE Record = RECORD x: INTEGER END;
+	VAR g: POINTER TO Record;
+	PROCEDURE Procedure (p: POINTER TO Record);
+	BEGIN ASSERT (p.x = 45); p.x := p.x DIV 3; ASSERT (p.x = 15); ASSERT (g.x = 15);
+	END Procedure;
+	BEGIN NEW (g); g.x := 45; Procedure (g); ASSERT (g.x = 15);
+	END Test.
+
+positive: modifying pointer to record reference parameter
+
+	MODULE Test;
+	TYPE Record = RECORD x: INTEGER END;
+	VAR g: POINTER TO Record;
+	PROCEDURE Procedure (p: POINTER TO Record);
+	BEGIN ASSERT (p # NIL); p := NIL; ASSERT (p = NIL); ASSERT (g # NIL);
+	END Procedure;
+	BEGIN NEW (g); Procedure (g); ASSERT (g # NIL);
+	END Test.
+
+positive: modifying procedure parameter
+
+	MODULE Test;
+	TYPE P = PROCEDURE (p: P);
+	VAR g: P;
+	PROCEDURE Procedure (p: P);
+	BEGIN ASSERT (p # NIL); p := NIL; ASSERT (p = NIL); ASSERT (g # NIL);
+	END Procedure;
+	BEGIN g := Procedure; Procedure (g); ASSERT (g # NIL);
+	END Test.
+
+positive: modifying variable boolean parameter
+
+	MODULE Test;
+	VAR g: BOOLEAN;
+	PROCEDURE Procedure (VAR p: BOOLEAN);
+	BEGIN ASSERT (p); p := FALSE; ASSERT (~p); ASSERT (~g);
+	END Procedure;
+	BEGIN g := TRUE; Procedure (g); ASSERT (~g);
+	END Test.
+
+positive: modifying variable character parameter
+
+	MODULE Test;
+	VAR g: CHAR;
+	PROCEDURE Procedure (VAR p: CHAR);
+	BEGIN ASSERT (p = 'c'); p := 'Z'; ASSERT (p = 'Z'); ASSERT (g = 'Z');
+	END Procedure;
+	BEGIN g := 'c'; Procedure (g); ASSERT (g = 'Z');
+	END Test.
+
+positive: modifying variable integer parameter
+
+	MODULE Test;
+	VAR g: INTEGER;
+	PROCEDURE Procedure (VAR p: INTEGER);
+	BEGIN ASSERT (p = 2); INC (p); ASSERT (p = 3); ASSERT (g = 3);
+	END Procedure;
+	BEGIN g := 2; Procedure (g); ASSERT (g = 3);
+	END Test.
+
+positive: modifying variable real parameter
+
+	MODULE Test;
+	VAR g: REAL;
+	PROCEDURE Procedure (VAR p: REAL);
+	BEGIN ASSERT (p = 2.5); p := p * 2; ASSERT (p = 5); ASSERT (g = 5);
+	END Procedure;
+	BEGIN g := 2.5; Procedure (g); ASSERT (g = 5);
+	END Test.
+
+positive: modifying variable set parameter
+
+	MODULE Test;
+	VAR g: SET;
+	PROCEDURE Procedure (VAR p: SET);
+	BEGIN ASSERT (p = {3}); INCL (p, 2); INCL (p, 4); ASSERT (p = {2 .. 4}); ASSERT (g = {2 .. 4});
+	END Procedure;
+	BEGIN g := {3}; Procedure (g); ASSERT (g = {2 .. 4});
+	END Test.
+
+positive: modifying variable array parameter
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY 10 OF INTEGER);
+	BEGIN ASSERT (p[1] = 23); ASSERT (p[8] = 91); p[8] := 19; p[1] := 32; ASSERT (p[1] = 32); ASSERT (p[8] = 19); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Procedure;
+	BEGIN g[1] := 23; g[8] := 91; Procedure (g); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Test.
+
+positive: modifying variable open array parameter
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER);
+	BEGIN ASSERT (p[1] = 23); ASSERT (p[8] = 91); p[8] := 19; p[1] := 32; ASSERT (p[1] = 32); ASSERT (p[8] = 19); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Procedure;
+	BEGIN g[1] := 23; g[8] := 91; Procedure (g); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Test.
+
+positive: modifying variable character array parameter
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF CHAR;
+	PROCEDURE Procedure (VAR p: ARRAY 10 OF CHAR);
+	BEGIN ASSERT (p = "value"); p := "modified"; ASSERT (p = "modified"); ASSERT (g = "modified");
+	END Procedure;
+	BEGIN g := "value"; Procedure (g); ASSERT (g = "modified");
+	END Test.
+
+positive: modifying variable open character array parameter
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF CHAR;
+	PROCEDURE Procedure (VAR p: ARRAY OF CHAR);
+	BEGIN ASSERT (p = "value"); p := "modified"; ASSERT (p = "modified"); ASSERT (g = "modified");
+	END Procedure;
+	BEGIN g := "value"; Procedure (g); ASSERT (g = "modified");
+	END Test.
+
+positive: modifying variable record parameter
+
+	MODULE Test;
+	TYPE Record = RECORD x: INTEGER END;
+	VAR g: Record;
+	PROCEDURE Procedure (VAR p: Record);
+	BEGIN ASSERT (p.x = 45); p.x := p.x DIV 3; ASSERT (p.x = 15); ASSERT (g.x = 15);
+	END Procedure;
+	BEGIN g.x := 45; Procedure (g); ASSERT (g.x = 15);
+	END Test.
+
+positive: modifying variable object parameter
+
+	MODULE Test;
+	TYPE Object = OBJECT VAR x: INTEGER END Object;
+	VAR g: Object;
+	PROCEDURE Procedure (VAR p: Object);
+	BEGIN ASSERT (p.x = 20); p.x := 10; ASSERT (p.x = 10); ASSERT (g.x = 10);
+	END Procedure;
+	BEGIN NEW (g); g.x := 20; Procedure (g); ASSERT (g.x = 10);
+	END Test.
+
+positive: modifying variable object reference parameter
+
+	MODULE Test;
+	TYPE Object = OBJECT END Object;
+	VAR g: Object;
+	PROCEDURE Procedure (VAR p: Object);
+	BEGIN ASSERT (p # NIL); p := NIL; ASSERT (p = NIL); ASSERT (g = NIL);
+	END Procedure;
+	BEGIN NEW (g); Procedure (g); ASSERT (g = NIL);
+	END Test.
+
+positive: modifying variable pointer to array parameter
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: POINTER TO ARRAY 10 OF INTEGER);
+	BEGIN ASSERT (p[1] = 23); ASSERT (p[8] = 91); p[8] := 19; p[1] := 32; ASSERT (p[1] = 32); ASSERT (p[8] = 19); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Procedure;
+	BEGIN NEW (g); g[1] := 23; g[8] := 91; Procedure (g); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Test.
+
+positive: modifying variable pointer to open array parameter
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY OF INTEGER;
+	PROCEDURE Procedure (VAR p: POINTER TO ARRAY OF INTEGER);
+	BEGIN ASSERT (p[1] = 23); ASSERT (p[8] = 91); p[8] := 19; p[1] := 32; ASSERT (p[1] = 32); ASSERT (p[8] = 19); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Procedure;
+	BEGIN NEW (g, 10); g[1] := 23; g[8] := 91; Procedure (g); ASSERT (g[1] = 32); ASSERT (g[8] = 19);
+	END Test.
+
+positive: modifying variable pointer to character array parameter
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10 OF CHAR;
+	PROCEDURE Procedure (VAR p: POINTER TO ARRAY 10 OF CHAR);
+	BEGIN ASSERT (p^ = "value"); p^ := "modified"; ASSERT (p^ = "modified"); ASSERT (g^ = "modified");
+	END Procedure;
+	BEGIN NEW (g); g^ := "value"; Procedure (g); ASSERT (g^ = "modified");
+	END Test.
+
+positive: modifying variable pointer to open character array parameter
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY OF CHAR;
+	PROCEDURE Procedure (VAR p: POINTER TO ARRAY OF CHAR);
+	BEGIN ASSERT (p^ = "value"); p^ := "modified"; ASSERT (p^ = "modified"); ASSERT (g^ = "modified");
+	END Procedure;
+	BEGIN NEW (g, 10); g^ := "value"; Procedure (g); ASSERT (g^ = "modified");
+	END Test.
+
+positive: modifying variable pointer to array reference parameter
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: POINTER TO ARRAY 10 OF INTEGER);
+	BEGIN ASSERT (p # NIL); p := NIL; ASSERT (p = NIL); ASSERT (g = NIL);
+	END Procedure;
+	BEGIN NEW (g); Procedure (g); ASSERT (g = NIL);
+	END Test.
+
+positive: modifying variable pointer to record parameter
+
+	MODULE Test;
+	TYPE Record = RECORD x: INTEGER END;
+	VAR g: POINTER TO Record;
+	PROCEDURE Procedure (VAR p: POINTER TO Record);
+	BEGIN ASSERT (p.x = 45); p.x := p.x DIV 3; ASSERT (p.x = 15); ASSERT (g.x = 15);
+	END Procedure;
+	BEGIN NEW (g); g.x := 45; Procedure (g); ASSERT (g.x = 15);
+	END Test.
+
+positive: modifying variable pointer to record reference parameter
+
+	MODULE Test;
+	TYPE Record = RECORD x: INTEGER END;
+	VAR g: POINTER TO Record;
+	PROCEDURE Procedure (VAR p: POINTER TO Record);
+	BEGIN ASSERT (p # NIL); p := NIL; ASSERT (p = NIL); ASSERT (g = NIL);
+	END Procedure;
+	BEGIN NEW (g); Procedure (g); ASSERT (g = NIL);
+	END Test.
+
+positive: modifying variable procedure parameter
+
+	MODULE Test;
+	TYPE P = PROCEDURE (VAR p: P);
+	VAR g: P;
+	PROCEDURE Procedure (VAR p: P);
+	BEGIN ASSERT (p # NIL); p := NIL; ASSERT (p = NIL); ASSERT (g = NIL);
+	END Procedure;
+	BEGIN g := Procedure; Procedure (g); ASSERT (g = NIL);
+	END Test.
+
+
+# if statement
+
+positive: if statement with satisfied condition
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN i := 0; IF i = 0 THEN ELSIF i = 1 THEN HALT (1234) ELSIF i = 2 THEN HALT (1234) ELSE HALT (1234) END;
+		IF i = 0 THEN RETURN ELSIF i = 1 THEN ELSIF i = 2 THEN ELSE END; HALT (1234);
+	END Test.
+
+positive: if statement with unsatisfied condition
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN i := 2; IF i = 0 THEN HALT (1234) ELSIF i = 1 THEN HALT (1234) ELSIF i = 2 THEN ELSE HALT (1234) END;
+		IF i = 0 THEN ELSIF i = 1 THEN ELSIF i = 2 THEN RETURN ELSE END; HALT (1234);
+	END Test.
+
+positive: else if statement with unsatisfied condition
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN i := 4; IF i = 0 THEN HALT (1234) ELSIF i = 1 THEN HALT (1234) ELSIF i = 2 THEN HALT (1234) ELSE END;
+		IF i = 0 THEN ELSIF i = 1 THEN ELSIF i = 2 THEN ELSE RETURN END; HALT (1234);
+	END Test.
+
+
+# exit statement
+
+positive: unconditional exit statement
+
+	MODULE Test;
+	BEGIN LOOP EXIT; HALT (1234) END;
+	END Test.
+
+positive: nested unconditional exit statement
+
+	MODULE Test;
+	BEGIN LOOP LOOP EXIT; HALT (1234) END; EXIT; HALT (1234) END;
+	END Test.
+
+positive: conditional exit statement
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN i := 0; LOOP IF i = 0 THEN EXIT END; HALT (1234) END;
+	END Test.
+
+positive: nested conditional exit statement
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN i := 0; LOOP LOOP IF i = 0 THEN EXIT END; HALT (1234) END; EXIT; HALT (1234) END;
+	END Test.
+
+
+# case statement
+
+positive: case statement with character value
+
+	MODULE Test;
+	PROCEDURE Case (c: CHAR): INTEGER;
+	BEGIN CASE c OF | 'a', 't', 'j': RETURN 0 | 'l'..'o': RETURN 1 | 'r', 'b', 10X: RETURN 2 ELSE RETURN 3; END; HALT (1234);
+	END Case;
+	BEGIN ASSERT (Case ('a') = 0); ASSERT (Case ('b') = 2); ASSERT (Case ('c') = 3); ASSERT (Case ('j') = 0); ASSERT (Case ('n') = 1);
+		ASSERT (Case ('o') = 1); ASSERT (Case ('r') = 2); ASSERT (Case ('t') = 0); ASSERT (Case ('z') = 3); ASSERT (Case (10X) = 2);
+	END Test.
+
+negative: case statement with unmatched character value
+
+	MODULE Test;
+	VAR c: CHAR;
+	BEGIN i := 't'; CASE c OF | 'a'..'g': | 's', 'r': | 'u', 'v': END;
+	END Test.
+
+positive: case statement with integer value
+
+	MODULE Test;
+	PROCEDURE Case (i: INTEGER): INTEGER;
+	BEGIN CASE i OF | 1, 3, 9: RETURN 0 | 4..6: RETURN 1 | 8, 2: RETURN 2 ELSE RETURN 3; END; HALT (1234);
+	END Case;
+	BEGIN ASSERT (Case (0) = 3); ASSERT (Case (1) = 0); ASSERT (Case (2) = 2); ASSERT (Case (3) = 0); ASSERT (Case (4) = 1);
+		ASSERT (Case (5) = 1); ASSERT (Case (6) = 1); ASSERT (Case (7) = 3); ASSERT (Case (8) = 2); ASSERT (Case (9) = 0);
+	END Test.
+
+negative: case statement with unmatched integer value
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN i := 7; CASE i OF | 1, 3, 9: | 4..6: | 8, 2: END;
 	END Test.
 
 
