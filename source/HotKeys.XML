@@ -96,9 +96,9 @@
 
 	<!-- Example: Key remappings -->
 	
-	<HotKey name="UP" keys="CTRL+I" command="REMAP UP"/>
-	<HotKey name="LEFT" keys="CTRL+J" command="REMAP LEFT"/>
-	<HotKey name="DOWN" keys="CTRL+K" command="REMAP DOWN"/>
-	<HotKey name="RIGHT" keys="CTRL+L" command="REMAP RIGHT"/>
+	
+	<HotKey name="inc size" keys="CTRL+I" command="WMTextTool.SetFontSize incrementby 2 "/>
+	<HotKey name="dec size" keys="CTRL+D" command="WMTextTool.SetFontSize decrementby 2"/>
+	
 	
 </HotKeys>
