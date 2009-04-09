@@ -40,6 +40,7 @@ WMPerfMon.Mod
 PC.Compile \s
 WMPerfMonPlugins.Mod
 Win32.WMPerfMonPluginMemory.Mod Win32.WMPerfMonPluginCpu.Mod WMPerfMonPluginNetwork.Mod
+WMPerfMonPluginHeap.Mod
 WMPerfMonPluginDisks.Mod
 WMPerfMonPluginMessages.Mod
 WMPerfMonPluginSerials.Mod
