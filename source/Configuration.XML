@@ -396,7 +396,6 @@ To update: Configuration.Init ~
 						<Setting name="options" value="\Ws"/>
 						<Setting name="fileExtension" value="MOD"/>
 						<Setting name="loadmodule" value="PC"/>
-						<Setting name="tree" value="TRUE"/>
 						<Setting name="genTree" value="PETModuleTree.GenModuleTree"/>
 						<Setting name="findPC" value="TRUE"/>
 					</Section>
@@ -405,7 +404,6 @@ To update: Configuration.Init ~
 						<Setting name="options" value="\check"/>
 						<Setting name="fileExtension" value="TOOL"/>
 						<Setting name="loadmodule" value="Release"/>
-						<Setting name="tree" value="FALSE"/>
 						<Setting name="genTree" value="PETReleaseTree.GenBuildTree"/>
 						<Setting name="findPC" value="FALSE"/>
 					</Section>
@@ -414,7 +412,6 @@ To update: Configuration.Init ~
 						<Setting name="options" value=""/>
 						<Setting name="fileExtension" value="ASM"/>
 						<Setting name="loadmodule" value="PCAAMD64"/>
-						<Setting name="tree" value="FALSE"/>
 						<Setting name="genTree" value=""/>
 						<Setting name="findPC" value="FALSE"/>
 					</Section>
@@ -423,7 +420,6 @@ To update: Configuration.Init ~
 						<Setting name="options" value=""/>
 						<Setting name="fileExtension" value="XML"/>
 						<Setting name="loadmodule" value="PETXMLTree"/>
-						<Setting name="tree" value="FALSE"/>
 						<Setting name="genTree" value="PETXMLTree.GenXMLTree"/>
 						<Setting name="findPC" value="FALSE"/>
 					</Section>
@@ -432,7 +428,7 @@ To update: Configuration.Init ~
 						<Setting name="options" value="\s"/>
 						<Setting name="fileExtension" value="MOS"/>
 						<Setting name="loadmodule" value="OSACompiler0"/>
-						<Setting name="tree" value="TRUE"/>
+						<Setting name="genTree" value="PETModuleTree.GenModuleTree"/>
 						<Setting name="findPC" value="TRUE"/>
 					</Section>
 				</Section>
