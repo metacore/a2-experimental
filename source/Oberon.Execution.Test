@@ -1994,7 +1994,7 @@ positive: type guard on same local record
 	BEGIN Procedure;
 	END Test.
 
-positive: type gard on same parameter record
+positive: type guard on same parameter record
 
 	MODULE Test;
 	TYPE R = RECORD b: BOOLEAN END;
@@ -2003,7 +2003,7 @@ positive: type gard on same parameter record
 	BEGIN r.b := TRUE; Procedure (r);
 	END Test.
 
-positive: type gard on same variable parameter record
+positive: type guard on same variable parameter record
 
 	MODULE Test;
 	TYPE R = RECORD b: BOOLEAN END;
@@ -2012,7 +2012,7 @@ positive: type gard on same variable parameter record
 	BEGIN r.b := TRUE; Procedure (r);
 	END Test.
 
-positive: type gard on same constant parameter record
+positive: type guard on same constant parameter record
 
 	MODULE Test;
 	TYPE R = RECORD b: BOOLEAN END;
@@ -2021,7 +2021,7 @@ positive: type gard on same constant parameter record
 	BEGIN r.b := TRUE; Procedure (r);
 	END Test.
 
-positive: type gard on variable parameter record
+positive: type guard on variable parameter record
 
 	MODULE Test;
 	TYPE R0 = RECORD END; R1 = RECORD (R0) b: BOOLEAN END;
@@ -2030,13 +2030,292 @@ positive: type gard on variable parameter record
 	BEGIN r.b := TRUE; Procedure (r);
 	END Test.
 
-positive: type gard on constant parameter record
+negative: unsatisfied type guard on variable parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) b: BOOLEAN END;
+	VAR r: R0;
+	PROCEDURE Procedure (VAR r: R0); BEGIN ASSERT (r(R1).b); END Procedure;
+	BEGIN Procedure (r);
+	END Test.
+
+positive: type guard on constant parameter record
 
 	MODULE Test;
 	TYPE R0 = RECORD END; R1 = RECORD (R0) b: BOOLEAN END;
 	VAR r: R1;
-	PROCEDURE Procedure (VAR r: R0); BEGIN ASSERT (r(R1).b); END Procedure;
+	PROCEDURE Procedure (CONST r: R0); BEGIN ASSERT (r(R1).b); END Procedure;
 	BEGIN r.b := TRUE; Procedure (r);
+	END Test.
+
+negative: unsatisfied type guard on constant parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) b: BOOLEAN END;
+	VAR r: R0;
+	PROCEDURE Procedure (CONST r: R0); BEGIN ASSERT (r(R1).b); END Procedure;
+	BEGIN Procedure (r);
+	END Test.
+
+positive: type guard on same pointer to record
+
+	MODULE Test;
+	TYPE R = RECORD b: BOOLEAN END; P = POINTER TO R;
+	VAR p: P;
+	BEGIN NEW (p); p.b := TRUE; ASSERT (p(P).b); ASSERT (p^(R).b);
+	END Test.
+
+positive: type guard on pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0
+	TYPE R1 = RECORD (R0) b: BOOLEAN END; P1 = POINTER TO R1;
+	VAR p0: P0; p1: P1;
+	BEGIN NEW (p1); p1.b := TRUE; p0 := p1; ASSERT (p0(P1).b); ASSERT (p0^(R1).b);
+	END Test.
+
+negative: unsatisfied type guard on pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0;
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR p0: P0; p1: P1;
+	BEGIN NEW (p0); p1 := p0(P1);
+	END Test.
+
+negative: type guard on nil pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0;
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR p0: P0; p1: P1;
+	BEGIN p0 := NIL; p1 := p0(P1);
+	END Test.
+
+positive: type guard on same object
+
+	MODULE Test;
+	TYPE O = OBJECT VAR b: BOOLEAN END O;
+	VAR o: O;
+	BEGIN NEW (o); o.b := TRUE; ASSERT (o(O).b);
+	END Test.
+
+positive: type guard on object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) VAR b: BOOLEAN END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN NEW (o1); o1.b := TRUE; o0 := o1; ASSERT (o0(O1).b);
+	END Test.
+
+negative: unsatisfied type guard on object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN NEW (o0); o1 := o0(O1);
+	END Test.
+
+negative: type guard on nil object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN o0 := NIL; o1 := o0(O1);
+	END Test.
+
+positive: type guard on base object
+
+	MODULE Test;
+	TYPE O0 = OBJECT;
+	TYPE O1 = OBJECT (O0) VAR b: BOOLEAN END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN NEW (o1); o1.b := TRUE; o0 := o1; ASSERT (o0(O1).b);
+	END Test.
+
+negative: type guard on nil base object
+
+	MODULE Test;
+	TYPE O0 = OBJECT;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN o0 := NIL; o1 := o0(O1);
+	END Test.
+
+
+# type tests
+
+positive: type test on same global record
+
+	MODULE Test;
+	TYPE R = RECORD END;
+	VAR r: R;
+	BEGIN ASSERT (r IS R);
+	END Test.
+
+positive: type test on same local record
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	TYPE R = RECORD END;
+	VAR r: R;
+	BEGIN ASSERT (r IS R);
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+positive: type test on same parameter record
+
+	MODULE Test;
+	TYPE R = RECORD END;
+	VAR r: R;
+	PROCEDURE Procedure (r: R); BEGIN ASSERT (r IS R); END Procedure;
+	BEGIN Procedure (r);
+	END Test.
+
+positive: type test on same variable parameter record
+
+	MODULE Test;
+	TYPE R = RECORD END;
+	VAR r: R;
+	PROCEDURE Procedure (VAR r: R); BEGIN ASSERT (r IS R); END Procedure;
+	BEGIN Procedure (r);
+	END Test.
+
+positive: type test on same constant parameter record
+
+	MODULE Test;
+	TYPE R = RECORD END;
+	VAR r: R;
+	PROCEDURE Procedure (CONST r: R); BEGIN ASSERT (r IS R); END Procedure;
+	BEGIN Procedure (r);
+	END Test.
+
+positive: type test on variable parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) END;
+	VAR r: R1;
+	PROCEDURE Procedure (VAR r: R0); BEGIN ASSERT (r IS R1); END Procedure;
+	BEGIN Procedure (r);
+	END Test.
+
+positive: unsatisfied type test on variable parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) END;
+	VAR r: R0;
+	PROCEDURE Procedure (VAR r: R0); BEGIN ASSERT (~(r IS R1)); END Procedure;
+	BEGIN Procedure (r);
+	END Test.
+
+positive: type test on constant parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) END;
+	VAR r: R1;
+	PROCEDURE Procedure (CONST r: R0); BEGIN ASSERT (r IS R1); END Procedure;
+	BEGIN Procedure (r);
+	END Test.
+
+positive: unsatisfied type test on constant parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) END;
+	VAR r: R0;
+	PROCEDURE Procedure (CONST r: R0); BEGIN ASSERT (~(r IS R1)); END Procedure;
+	BEGIN Procedure (r);
+	END Test.
+
+positive: type test on same pointer to record
+
+	MODULE Test;
+	TYPE R = RECORD END; P = POINTER TO R;
+	VAR p: P;
+	BEGIN NEW (p); ASSERT (p IS P); ASSERT (p^ IS R);
+	END Test.
+
+positive: type test on pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR p0: P0; p1: P1;
+	BEGIN NEW (p1); p0 := p1; ASSERT (p0 IS P1); ASSERT (p0^ IS R1);
+	END Test.
+
+positive: unsatisfied type test on pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR p0: P0; p1: P1;
+	BEGIN NEW (p0); ASSERT (~(p0 IS P1)); ASSERT (~(p0^ IS R1));
+	END Test.
+
+negative: type test on nil pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0;
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR p0: P0; p1: P1;
+	BEGIN p0 := NIL; ASSERT (~(p0 IS P1));
+	END Test.
+
+positive: type test on same object
+
+	MODULE Test;
+	TYPE O = OBJECT END O;
+	VAR o: O;
+	BEGIN NEW (o); ASSERT (o IS O);
+	END Test.
+
+positive: type test on object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN NEW (o1); o0 := o1; ASSERT (o0 IS O1);
+	END Test.
+
+positive: unsatisfied type test on object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN NEW (o0); ASSERT (~(o0 IS O1));
+	END Test.
+
+negative: type test on nil object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN o0 := NIL; ASSERT (~(o0 IS O1));
+	END Test.
+
+positive: type test on base object
+
+	MODULE Test;
+	TYPE O0 = OBJECT;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN NEW (o1); o0 := o1; ASSERT (o0 IS O1);
+	END Test.
+
+negative: type test on nil base object
+
+	MODULE Test;
+	TYPE O0 = OBJECT;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN o0 := NIL; ASSERT (~(o0 IS O1));
 	END Test.
 
 
@@ -3207,7 +3486,7 @@ negative: case statement with unmatched character value
 
 	MODULE Test;
 	VAR c: CHAR;
-	BEGIN i := 't'; CASE c OF | 'a'..'g': | 's', 'r': | 'u', 'v': END;
+	BEGIN c := 't'; CASE c OF | 'a'..'g': | 's', 'r': | 'u', 'v': END;
 	END Test.
 
 positive: case statement with integer value
@@ -3228,6 +3507,1231 @@ negative: case statement with unmatched integer value
 	END Test.
 
 
+# for statement
+
+positive: for statement with positive step sizes
+
+	MODULE Test;
+	VAR i, steps: INTEGER;
+	BEGIN
+		steps := 0; FOR i := 0 TO 10 DO INC (steps) END; ASSERT (steps = 11);
+		steps := 0; FOR i := 0 TO 10 BY 1 DO INC (steps) END; ASSERT (steps = 11);
+		steps := 0; FOR i := 0 TO 10 BY 2 DO INC (steps) END; ASSERT (steps = 6);
+		steps := 0; FOR i := 0 TO 10 BY 3 DO INC (steps) END; ASSERT (steps = 4);
+		steps := 0; FOR i := 0 TO 10 BY 4 DO INC (steps) END; ASSERT (steps = 3);
+	END Test.
+
+positive: for statement with negative step sizes
+
+	MODULE Test;
+	VAR i, steps: INTEGER;
+	BEGIN
+		steps := 0; FOR i := 10 TO 0 DO INC (steps) END; ASSERT (steps = 0);
+		steps := 0; FOR i := 10 TO 0 BY -1 DO INC (steps) END; ASSERT (steps = 11);
+		steps := 0; FOR i := 10 TO 0 BY -2 DO INC (steps) END; ASSERT (steps = 6);
+		steps := 0; FOR i := 10 TO 0 BY -3 DO INC (steps) END; ASSERT (steps = 4);
+		steps := 0; FOR i := 10 TO 0 BY -4 DO INC (steps) END; ASSERT (steps = 3);
+	END Test.
+
+positive: modifying start counter in for statement
+
+	MODULE Test;
+	VAR i, steps, start: INTEGER;
+	BEGIN steps := 0; start := 0; FOR i := start TO 10 DO start := i; INC (steps) END; ASSERT (steps = 11);
+	END Test.
+
+positive: modifying end counter in for statement
+
+	MODULE Test;
+	VAR i, steps, end: INTEGER;
+	BEGIN steps := 0; end := 10; FOR i := 0 TO end DO end := i; INC (steps) END; ASSERT (steps = 11);
+	END Test.
+
+
+# new statement
+
+positive: new statement on pointer to record
+
+	MODULE Test;
+	VAR p: POINTER TO RECORD a, b: INTEGER END;
+	BEGIN NEW (p); p.a := 3; p.b := p.a; ASSERT (p.b = 3);
+	END Test.
+
+positive: new statement on pointer to too large record
+
+	MODULE Test;
+	VAR p: POINTER TO RECORD data: ARRAY MAX (LONGINT) DIV 2 OF INTEGER END;
+	BEGIN NEW (p); ASSERT (p = NIL);
+	END Test.
+
+positive: new statement on pointer to array
+
+	MODULE Test;
+	VAR p: POINTER TO ARRAY 10 OF INTEGER;
+	BEGIN NEW (p); p[2] := 3; p[1] := p[2]; ASSERT (p[2] = 3);
+	END Test.
+
+positive: new statement on pointer to too large array
+
+	MODULE Test;
+	VAR r: POINTER TO ARRAY MAX (LONGINT) DIV 2 OF INTEGER;
+	BEGIN NEW (r); ASSERT (r = NIL);
+	END Test.
+
+positive: new statement on pointer to open array
+
+	MODULE Test;
+	VAR p: POINTER TO ARRAY OF INTEGER;
+	BEGIN NEW (p, 10); p[2] := 3; p[1] := p[2]; ASSERT (p[2] = 3);
+	END Test.
+
+negative: new statement on pointer to open array with negative size
+
+	MODULE Test;
+	VAR p: POINTER TO ARRAY OF INTEGER; size: INTEGER;
+	BEGIN size := -10; NEW (p, size);
+	END Test.
+
+positive: new statement on pointer to too large open array
+
+	MODULE Test;
+	VAR r: POINTER TO ARRAY OF INTEGER;
+	BEGIN NEW (r, MAX (LONGINT) DIV 2); ASSERT (r = NIL);
+	END Test.
+
+positive: new statement on object
+
+	MODULE Test;
+	VAR o: OBJECT VAR a, b: INTEGER END;
+	BEGIN NEW (o); o.a := 3; o.b := o.a; ASSERT (o.b = 3);
+	END Test.
+
+positive: new statement on too large object
+
+	MODULE Test;
+	VAR o: OBJECT VAR data: ARRAY MAX (LONGINT) DIV 2 OF INTEGER END;
+	BEGIN NEW (o); ASSERT (o = NIL);
+	END Test.
+
+positive: new statement modifying designator after object body
+
+	MODULE Test;
+	VAR o: OBJECT PROCEDURE &Init; BEGIN ASSERT (o = NIL); END Init; BEGIN ASSERT (o = NIL); END;
+	BEGIN o := NIL; NEW (o); ASSERT (o # NIL);
+	END Test.
+
+
+# with statement
+
+positive: with statement with same global record
+
+	MODULE Test;
+	TYPE R = RECORD b: BOOLEAN END;
+	VAR r: R;
+	BEGIN r.b := TRUE; WITH r : R DO ASSERT (r.b) END;
+	END Test.
+
+positive: with statement with same local record
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	TYPE R = RECORD b: BOOLEAN END;
+	VAR r: R;
+	BEGIN r.b := TRUE; WITH r : R DO ASSERT (r.b) END;
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+positive: with statement with same parameter record
+
+	MODULE Test;
+	TYPE R = RECORD b: BOOLEAN END;
+	VAR r: R;
+	PROCEDURE Procedure (r: R); BEGIN WITH r : R DO ASSERT (r.b); END; END Procedure;
+	BEGIN r.b := TRUE; Procedure (r);
+	END Test.
+
+positive: with statement with same variable parameter record
+
+	MODULE Test;
+	TYPE R = RECORD b: BOOLEAN END;
+	VAR r: R;
+	PROCEDURE Procedure (VAR r: R); BEGIN WITH r : R DO ASSERT (r.b); END; END Procedure;
+	BEGIN r.b := TRUE; Procedure (r);
+	END Test.
+
+positive: with statement with same constant parameter record
+
+	MODULE Test;
+	TYPE R = RECORD b: BOOLEAN END;
+	VAR r: R;
+	PROCEDURE Procedure (CONST r: R); BEGIN WITH r : R DO ASSERT (r.b); END; END Procedure;
+	BEGIN r.b := TRUE; Procedure (r);
+	END Test.
+
+positive: with statement with variable parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) b: BOOLEAN END;
+	VAR r: R1;
+	PROCEDURE Procedure (VAR r: R0); BEGIN WITH r : R1 DO ASSERT (r.b); END; END Procedure;
+	BEGIN r.b := TRUE; Procedure (r);
+	END Test.
+
+negative: unsatisfied with statement with variable parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) END;
+	VAR r: R0;
+	PROCEDURE Procedure (VAR r: R0); BEGIN WITH r : R1 DO END; END Procedure;
+	BEGIN Procedure (r);
+	END Test.
+
+positive: with statement with constant parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) b: BOOLEAN END;
+	VAR r: R1;
+	PROCEDURE Procedure (CONST r: R0); BEGIN WITH r : R1 DO ASSERT (r.b); END; END Procedure;
+	BEGIN r.b := TRUE; Procedure (r);
+	END Test.
+
+negative: unsatisfied with statement with constant parameter record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; R1 = RECORD (R0) END;
+	VAR r: R0;
+	PROCEDURE Procedure (CONST r: R0); BEGIN WITH r : R1 DO END; END Procedure;
+	BEGIN Procedure (r);
+	END Test.
+
+positive: with statement with same pointer to record
+
+	MODULE Test;
+	TYPE R = RECORD b: BOOLEAN END; P = POINTER TO R;
+	VAR p: P;
+	BEGIN NEW (p); p.b := TRUE; WITH p : P DO ASSERT (p.b); END;
+	END Test.
+
+positive: with statement with pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0
+	TYPE R1 = RECORD (R0) b: BOOLEAN END; P1 = POINTER TO R1;
+	VAR p0: P0; p1: P1;
+	BEGIN NEW (p1); p1.b := TRUE; p0 := p1; WITH p0 : P1 DO ASSERT (p0.b); END;
+	END Test.
+
+negative: unsatisfied with statement with pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0;
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR p0: P0;
+	BEGIN NEW (p0); WITH p0 : P1 DO END;
+	END Test.
+
+negative: with statement with nil pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0;
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR p0: P0;
+	BEGIN p0 := NIL; WITH p0 : P1 DO END;
+	END Test.
+
+positive: with statement with same object
+
+	MODULE Test;
+	TYPE O = OBJECT VAR b: BOOLEAN END O;
+	VAR o: O;
+	BEGIN NEW (o); o.b := TRUE; WITH o : O DO ASSERT (o.b); END;
+	END Test.
+
+positive: with statement with object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) VAR b: BOOLEAN END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN NEW (o1); o1.b := TRUE; o0 := o1; WITH o0 : O1 DO ASSERT (o0.b); END;
+	END Test.
+
+negative: unsatisfied with statement with object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0;
+	BEGIN NEW (o0); WITH o0 : O1 DO END;
+	END Test.
+
+negative: with statement with nil object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0;
+	BEGIN o0 := NIL; WITH o0 : O1 DO END;
+	END Test.
+
+positive: with statement with base object
+
+	MODULE Test;
+	TYPE O0 = OBJECT;
+	TYPE O1 = OBJECT (O0) VAR b: BOOLEAN END O1;
+	VAR o0: O0; o1: O1;
+	BEGIN NEW (o1); o1.b := TRUE; o0 := o1; WITH o0 : O1 DO ASSERT (o0.b); END;
+	END Test.
+
+negative: with statement with nil base object
+
+	MODULE Test;
+	TYPE O0 = OBJECT;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0;
+	BEGIN o0 := NIL; WITH o0 : O1 DO END;
+	END Test.
+
+
+# nested procedures
+
+positive: access to global variable within nested procedure
+
+	MODULE Test;
+	VAR g: INTEGER;
+	PROCEDURE Procedure;
+		PROCEDURE Nested; BEGIN g := 45; END Nested;
+	BEGIN Nested;
+	END Procedure;
+	BEGIN g := 0; Procedure; ASSERT (g = 45);
+	END Test.
+
+positive: access to global variable within nested procedure called from nested procedure
+
+	MODULE Test;
+	VAR g: INTEGER;
+	PROCEDURE Procedure;
+		PROCEDURE Nested0; BEGIN Nested1; END Nested0;
+		PROCEDURE Nested1; BEGIN g := 45; END Nested1;
+	BEGIN Nested0;
+	END Procedure;
+	BEGIN g := 0; Procedure; ASSERT (g = 45);
+	END Test.
+
+positive: access to object variable within nested procedure
+
+	MODULE Test;
+	VAR o: OBJECT
+	VAR f: INTEGER;
+	PROCEDURE Procedure;
+		PROCEDURE Nested; BEGIN f := 45; END Nested;
+	BEGIN Nested;
+	END Procedure;
+	BEGIN f := 0; Procedure; ASSERT (f = 45); END;
+	BEGIN NEW (o);
+	END Test.
+
+positive: access to object variable within nested procedure called from nested procedure
+
+	MODULE Test;
+	VAR o: OBJECT
+	VAR f: INTEGER;
+	PROCEDURE Procedure;
+		PROCEDURE Nested0; BEGIN Nested1; END Nested0;
+		PROCEDURE Nested1; BEGIN f := 45; END Nested1;
+	BEGIN Nested0;
+	END Procedure;
+	BEGIN f := 0; Procedure; ASSERT (f = 45); END;
+	BEGIN NEW (o);
+	END Test.
+
+positive: access to local variable within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR l: INTEGER;
+		PROCEDURE Nested; BEGIN l := 45; END Nested;
+	BEGIN l := 0; Nested; ASSERT (l = 45);
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+positive: access to local variable within nested procedure called from nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR l: INTEGER;
+		PROCEDURE Nested0; BEGIN Nested1; END Nested0;
+		PROCEDURE Nested1; BEGIN l := 45; END Nested1;
+	BEGIN l := 0; Nested0; ASSERT (l = 45);
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+positive: access to parameter within nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (p: INTEGER);
+		PROCEDURE Nested; BEGIN p := 45; END Nested;
+	BEGIN Nested; ASSERT (p = 45);
+	END Procedure;
+	BEGIN Procedure (0);
+	END Test.
+
+positive: access to parameter within nested procedure called from nested procedure
+
+	MODULE Test;
+	PROCEDURE Procedure (p: INTEGER);
+		PROCEDURE Nested0; BEGIN Nested1; END Nested0;
+		PROCEDURE Nested1; BEGIN p := 45; END Nested1;
+	BEGIN Nested0; ASSERT (p = 45);
+	END Procedure;
+	BEGIN Procedure (0);
+	END Test.
+
+
+# methods
+
+positive: single method call
+
+	MODULE Test;
+	VAR object: OBJECT
+		PROCEDURE Method; BEGIN ASSERT (i = 0); i := 1; END Method;
+	END; i: INTEGER;
+	BEGIN i := 0; NEW (object); object.Method; ASSERT (i = 1);
+	END Test.
+
+positive: single super call
+
+	MODULE Test;
+	TYPE Object0 = OBJECT
+		PROCEDURE Method; BEGIN ASSERT (i = 1); i := 2; END Method;
+	END Object0;
+	TYPE Object1 = OBJECT (Object0)
+		PROCEDURE Method; BEGIN ASSERT (i = 0); i := 1; Method^; END Method;
+	END Object1;
+	VAR object: Object1; i: INTEGER;
+	BEGIN i := 0; NEW (object); object.Method; ASSERT (i = 2);
+	END Test.
+
+positive: double method call
+
+	MODULE Test;
+	VAR object: OBJECT
+		PROCEDURE Method0; BEGIN ASSERT (i = 0); i := 1; Method1; END Method0;
+		PROCEDURE Method1; BEGIN ASSERT (i = 1); i := 2; END Method1;
+	END; i: INTEGER;
+	BEGIN i := 0; NEW (object); object.Method0; ASSERT (i = 2);
+	END Test.
+
+positive: double super call
+
+	MODULE Test;
+	TYPE Object0 = OBJECT
+		PROCEDURE Method0; BEGIN ASSERT (i = 1); i := 2; Method1; END Method0;
+		PROCEDURE Method1; BEGIN ASSERT (i = 3); i := 4; END Method1;
+	END Object0;
+	TYPE Object1 = OBJECT (Object0)
+		PROCEDURE Method0; BEGIN ASSERT (i = 0); i := 1; Method0^; END Method0;
+		PROCEDURE Method1; BEGIN ASSERT (i = 2); i := 3; Method1^; END Method1;
+	END Object1;
+	VAR object: Object1; i: INTEGER;
+	BEGIN i := 0; NEW (object); object.Method0; ASSERT (i = 4);
+	END Test.
+
+positive: single method call with initializer
+
+	MODULE Test;
+	VAR object: OBJECT VAR i: INTEGER;
+		PROCEDURE &Init (i: INTEGER); BEGIN SELF.i := i; END Init;
+		PROCEDURE Method; BEGIN ASSERT (i = 0); i := 1; END Method;
+	END;
+	BEGIN NEW (object, 0); object.Method; ASSERT (object.i = 1);
+	END Test.
+
+positive: single super call with initializer
+
+	MODULE Test;
+	TYPE Object0 = OBJECT VAR i: INTEGER;
+		PROCEDURE &Init (i: INTEGER); BEGIN SELF.i := i; END Init;
+		PROCEDURE Method; BEGIN ASSERT (i = 1); i := 2; END Method;
+	END Object0;
+	TYPE Object1 = OBJECT (Object0)
+		PROCEDURE &Init (i: INTEGER); BEGIN Init^ (i); END Init;
+		PROCEDURE Method; BEGIN ASSERT (i = 0); i := 1; Method^; END Method;
+	END Object1;
+	VAR object: Object1;
+	BEGIN NEW (object, 0); object.Method; ASSERT (object.i = 2);
+	END Test.
+
+positive: double method call with initializer
+
+	MODULE Test;
+	VAR object: OBJECT VAR i: INTEGER;
+		PROCEDURE &Init (i: INTEGER); BEGIN SELF.i := i; END Init;
+		PROCEDURE Method0; BEGIN ASSERT (i = 0); i := 1; Method1; END Method0;
+		PROCEDURE Method1; BEGIN ASSERT (i = 1); i := 2; END Method1;
+	END;
+	BEGIN NEW (object, 0); object.Method0; ASSERT (object.i = 2);
+	END Test.
+
+positive: double super call with initializer
+
+	MODULE Test;
+	TYPE Object0 = OBJECT VAR i: INTEGER;
+		PROCEDURE &Init (i: INTEGER); BEGIN SELF.i := i; END Init;
+		PROCEDURE Method0; BEGIN ASSERT (i = 1); i := 2; Method1; END Method0;
+		PROCEDURE Method1; BEGIN ASSERT (i = 3); i := 4; END Method1;
+	END Object0;
+	TYPE Object1 = OBJECT (Object0)
+		PROCEDURE &Init (i: INTEGER); BEGIN Init^ (i); END Init;
+		PROCEDURE Method0; BEGIN ASSERT (i = 0); i := 1; Method0^; END Method0;
+		PROCEDURE Method1; BEGIN ASSERT (i = 2); i := 3; Method1^; END Method1;
+	END Object1;
+	VAR object: Object1;
+	BEGIN NEW (object, 0); object.Method0; ASSERT (object.i = 4);
+	END Test.
+
+
+# copy statement
+
+positive: copy statement on array of character
+
+	MODULE Test;
+	VAR source, dest: ARRAY 20 OF CHAR;
+	BEGIN source := "source"; COPY (source, dest); ASSERT (dest = "source");
+	END Test.
+
+positive: copy statement on array of character and longer array of character
+
+	MODULE Test;
+	VAR source: ARRAY 20 OF CHAR; dest: ARRAY 30 OF CHAR;
+	BEGIN source := "source"; COPY (source, dest); ASSERT (dest = "source");
+	END Test.
+
+positive: copy statement on array of character and shorter array of character
+
+	MODULE Test;
+	VAR source: ARRAY 30 OF CHAR; dest: ARRAY 20 OF CHAR;
+	BEGIN source := "source"; COPY (source, dest); ASSERT (dest = "source");
+	END Test.
+
+positive: copy statement on string and longer array of character
+
+	MODULE Test;
+	CONST Source = "source";
+	VAR dest: ARRAY 20 OF CHAR;
+	BEGIN COPY (Source, dest); ASSERT (dest = Source);
+	END Test.
+
+positive: copy statement with array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (source: ARRAY 20 OF CHAR);
+	VAR dest: ARRAY 20 OF CHAR;
+	BEGIN COPY (source, dest); ASSERT (dest = "source");
+	END Procedure;
+	BEGIN Procedure ("source");
+	END Test.
+
+positive: copy statement with variable array of character parameter as source
+
+	MODULE Test;
+	VAR source: ARRAY 20 OF CHAR;
+	PROCEDURE Procedure (VAR source: ARRAY 20 OF CHAR);
+	VAR dest: ARRAY 20 OF CHAR;
+	BEGIN COPY (source, dest); ASSERT (dest = "source");
+	END Procedure;
+	BEGIN source := "source"; Procedure (source);
+	END Test.
+
+positive: copy statement with constant array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST source: ARRAY 20 OF CHAR);
+	VAR dest: ARRAY 20 OF CHAR;
+	BEGIN COPY (source, dest); ASSERT (dest = "source");
+	END Procedure;
+	BEGIN Procedure ("source");
+	END Test.
+
+positive: copy statement with open array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (source: ARRAY OF CHAR);
+	VAR dest: ARRAY 20 OF CHAR;
+	BEGIN COPY (source, dest); ASSERT (dest = "source");
+	END Procedure;
+	BEGIN Procedure ("source");
+	END Test.
+
+negative: copy statement with too long open array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (source: ARRAY OF CHAR);
+	VAR dest: ARRAY 2 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	BEGIN Procedure ("source");
+	END Test.
+
+positive: copy statement with open variable array of character parameter as source
+
+	MODULE Test;
+	VAR source: ARRAY 20 OF CHAR;
+	PROCEDURE Procedure (VAR source: ARRAY OF CHAR);
+	VAR dest: ARRAY 20 OF CHAR;
+	BEGIN COPY (source, dest); ASSERT (dest = "source");
+	END Procedure;
+	BEGIN source := "source"; Procedure (source);
+	END Test.
+
+negative: copy statement with too long open variable array of character parameter as source
+
+	MODULE Test;
+	VAR source: ARRAY 20 OF CHAR;
+	PROCEDURE Procedure (VAR source: ARRAY OF CHAR);
+	VAR dest: ARRAY 2 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	BEGIN source := "source"; Procedure (source);
+	END Test.
+
+positive: copy statement with open constant array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST source: ARRAY OF CHAR);
+	VAR dest: ARRAY 20 OF CHAR;
+	BEGIN COPY (source, dest); ASSERT (dest = "source");
+	END Procedure;
+	BEGIN Procedure ("source");
+	END Test.
+
+negative: copy statement with too long open constant array of character parameter as source
+
+	MODULE Test;
+	PROCEDURE Procedure (CONST source: ARRAY OF CHAR);
+	VAR dest: ARRAY 2 OF CHAR;
+	BEGIN COPY (source, dest);
+	END Procedure;
+	BEGIN Procedure ("source");
+	END Test.
+
+positive: copy statement with array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (dest: ARRAY 20 OF CHAR);
+	VAR source: ARRAY 20 OF CHAR;
+	BEGIN source := "source"; COPY (source, dest); ASSERT (dest = "source");
+	END Procedure;
+	BEGIN Procedure ("destination");
+	END Test.
+
+positive: copy statement with variable array of character parameter as destination
+
+	MODULE Test;
+	VAR dest: ARRAY 20 OF CHAR;
+	PROCEDURE Procedure (VAR dest: ARRAY 20 OF CHAR);
+	VAR source: ARRAY 20 OF CHAR;
+	BEGIN source := "source"; COPY (source, dest);
+	END Procedure;
+	BEGIN Procedure (dest); ASSERT (dest = "source");
+	END Test.
+
+positive: copy statement with open array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (dest: ARRAY OF CHAR);
+	VAR source: ARRAY 20 OF CHAR;
+	BEGIN source := "source"; COPY (source, dest); ASSERT (dest = "source");
+	END Procedure;
+	BEGIN Procedure ("destination");
+	END Test.
+
+negative: copy statement with too short open array of character parameter as destination
+
+	MODULE Test;
+	PROCEDURE Procedure (dest: ARRAY OF CHAR);
+	VAR source: ARRAY 20 OF CHAR;
+	BEGIN source := "source"; COPY (source, dest);
+	END Procedure;
+	BEGIN Procedure ("");
+	END Test.
+
+positive: copy statement with open variable array of character parameter as destination
+
+	MODULE Test;
+	VAR dest: ARRAY 20 OF CHAR;
+	PROCEDURE Procedure (VAR dest: ARRAY OF CHAR);
+	VAR source: ARRAY 20 OF CHAR;
+	BEGIN source := "source"; COPY (source, dest);
+	END Procedure;
+	BEGIN Procedure (dest); ASSERT (dest = "source");
+	END Test.
+
+negative: copy statement with too short open variable array of character parameter as destination
+
+	MODULE Test;
+	VAR dest: ARRAY 2 OF CHAR;
+	PROCEDURE Procedure (VAR dest: ARRAY OF CHAR);
+	VAR source: ARRAY 20 OF CHAR;
+	BEGIN source := "source"; COPY (source, dest);
+	END Procedure;
+	BEGIN Procedure (dest);
+	END Test.
+
+positive: copy statement with string as source and array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	PROCEDURE Procedure (dest: ARRAY 20 OF CHAR);
+	BEGIN COPY (Source, dest); ASSERT (dest = Source);
+	END Procedure;
+	BEGIN Procedure ("destination");
+	END Test.
+
+positive: copy statement with string as source and variable array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	VAR dest: ARRAY 20 OF CHAR;
+	PROCEDURE Procedure (VAR dest: ARRAY 20 OF CHAR);
+	BEGIN COPY (Source, dest);
+	END Procedure;
+	BEGIN Procedure (dest); ASSERT (dest = Source);
+	END Test.
+
+positive: copy statement with string as source and open array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	PROCEDURE Procedure (dest: ARRAY OF CHAR);
+	BEGIN COPY (Source, dest); ASSERT (dest = Source);
+	END Procedure;
+	BEGIN Procedure ("destination");
+	END Test.
+
+negative: copy statement with string as source and too short open array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	PROCEDURE Procedure (dest: ARRAY OF CHAR);
+	BEGIN COPY (Source, dest); ASSERT (dest = Source);
+	END Procedure;
+	BEGIN Procedure ("");
+	END Test.
+
+positive: copy statement with string as source and open variable array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	VAR dest: ARRAY 20 OF CHAR;
+	PROCEDURE Procedure (VAR dest: ARRAY OF CHAR);
+	BEGIN COPY (Source, dest);
+	END Procedure;
+	BEGIN Procedure (dest); ASSERT (dest = Source);
+	END Test.
+
+negative: copy statement with string as source and too short open variable array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	VAR dest: ARRAY 2 OF CHAR;
+	PROCEDURE Procedure (VAR dest: ARRAY OF CHAR);
+	BEGIN COPY (Source, dest);
+	END Procedure;
+	BEGIN Procedure (dest);
+	END Test.
+
+
+# increment statement
+
+positive: increment statement with short integers
+
+	MODULE Test;
+	VAR a, b, c: SHORTINT;
+	BEGIN a := 0; b := 3; c := -4;
+		INC (a); ASSERT (a = 1); DEC (a); ASSERT (a = 0);
+		INC (a, 2); ASSERT (a = 2); INC (a, -2); ASSERT (a = 0);
+		INC (a, b); ASSERT (a = b); INC (a, -b); ASSERT (a = 0);
+		INC (a, c); ASSERT (a = c); INC (a, -c); ASSERT (a = 0);
+	END Test.
+
+positive: increment statement with integers
+
+	MODULE Test;
+	VAR a, b: INTEGER; c: SHORTINT;
+	BEGIN a := 0; b := 3; c := -4;
+		INC (a); ASSERT (a = 1); DEC (a); ASSERT (a = 0);
+		INC (a, 2); ASSERT (a = 2); INC (a, -2); ASSERT (a = 0);
+		INC (a, b); ASSERT (a = b); INC (a, -b); ASSERT (a = 0);
+		INC (a, c); ASSERT (a = c); INC (a, -c); ASSERT (a = 0);
+	END Test.
+
+positive: increment statement with long integers
+
+	MODULE Test;
+	VAR a, b: LONGINT; c: INTEGER; d: SHORTINT;
+	BEGIN a := 0; b := 3; c := -4; d := 5;
+		INC (a); ASSERT (a = 1); DEC (a); ASSERT (a = 0);
+		INC (a, 2); ASSERT (a = 2); INC (a, -2); ASSERT (a = 0);
+		INC (a, b); ASSERT (a = b); INC (a, -b); ASSERT (a = 0);
+		INC (a, c); ASSERT (a = c); INC (a, -c); ASSERT (a = 0);
+		INC (a, d); ASSERT (a = d); INC (a, -d); ASSERT (a = 0);
+	END Test.
+
+positive: increment statement with huge integers
+
+	MODULE Test;
+	VAR a, b: HUGEINT; c: LONGINT; d: INTEGER; e: SHORTINT;
+	BEGIN a := 0; b := 3; c := -4; d := 5; e := -6;
+		INC (a); ASSERT (a = 1); DEC (a); ASSERT (a = 0);
+		INC (a, 2); ASSERT (a = 2); INC (a, -2); ASSERT (a = 0);
+		INC (a, b); ASSERT (a = b); INC (a, -b); ASSERT (a = 0);
+		INC (a, c); ASSERT (a = c); INC (a, -c); ASSERT (a = 0);
+		INC (a, d); ASSERT (a = d); INC (a, -d); ASSERT (a = 0);
+		INC (a, e); ASSERT (a = e); INC (a, -e); ASSERT (a = 0);
+	END Test.
+
+
+# decrement statement
+
+positive: decrement statement with short integers
+
+	MODULE Test;
+	VAR a, b, c: SHORTINT;
+	BEGIN a := 0; b := 3; c := -4;
+		DEC (a); ASSERT (a = -1); INC (a); ASSERT (a = 0);
+		DEC (a, 2); ASSERT (a = -2); DEC (a, -2); ASSERT (a = 0);
+		DEC (a, b); ASSERT (a = -b); DEC (a, -b); ASSERT (a = 0);
+		DEC (a, c); ASSERT (a = -c); DEC (a, -c); ASSERT (a = 0);
+	END Test.
+
+positive: decrement statement with integers
+
+	MODULE Test;
+	VAR a, b: INTEGER; c: SHORTINT;
+	BEGIN a := 0; b := 3; c := -4;
+		DEC (a); ASSERT (a = -1); INC (a); ASSERT (a = 0);
+		DEC (a, 2); ASSERT (a = -2); DEC (a, -2); ASSERT (a = 0);
+		DEC (a, b); ASSERT (a = -b); DEC (a, -b); ASSERT (a = 0);
+		DEC (a, c); ASSERT (a = -c); DEC (a, -c); ASSERT (a = 0);
+	END Test.
+
+positive: decrement statement with long integers
+
+	MODULE Test;
+	VAR a, b: LONGINT; c: INTEGER; d: SHORTINT;
+	BEGIN a := 0; b := 3; c := -4; d := 5;
+		DEC (a); ASSERT (a = -1); INC (a); ASSERT (a = 0);
+		DEC (a, 2); ASSERT (a = -2); DEC (a, -2); ASSERT (a = 0);
+		DEC (a, b); ASSERT (a = -b); DEC (a, -b); ASSERT (a = 0);
+		DEC (a, c); ASSERT (a = -c); DEC (a, -c); ASSERT (a = 0);
+		DEC (a, d); ASSERT (a = -d); DEC (a, -d); ASSERT (a = 0);
+	END Test.
+
+positive: decrement statement with huge integers
+
+	MODULE Test;
+	VAR a, b: HUGEINT; c: LONGINT; d: INTEGER; e: SHORTINT;
+	BEGIN a := 0; b := 3; c := -4; d := 5; e := -6;
+		DEC (a); ASSERT (a = -1); INC (a); ASSERT (a = 0);
+		DEC (a, 2); ASSERT (a = -2); DEC (a, -2); ASSERT (a = 0);
+		DEC (a, b); ASSERT (a = -b); DEC (a, -b); ASSERT (a = 0);
+		DEC (a, c); ASSERT (a = -c); DEC (a, -c); ASSERT (a = 0);
+		DEC (a, d); ASSERT (a = -d); DEC (a, -d); ASSERT (a = 0);
+		DEC (a, e); ASSERT (a = -e); DEC (a, -e); ASSERT (a = 0);
+	END Test.
+
+
+# include statement
+
+positive: include statement with short integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: SHORTINT;
+	BEGIN
+		set := {}; element := MIN (SET); INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MIN (SET)}); ASSERT (element IN set);
+		set := {}; element := MAX (SET); INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MAX (SET)}); ASSERT (element IN set);
+		element := MIN (SET); set := {element}; INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MIN (SET)}); ASSERT (element IN set);
+		element := MAX (SET); set := {element}; INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MAX (SET)}); ASSERT (element IN set);
+	END Test.
+
+negative: include statement with too short short integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: SHORTINT;
+	BEGIN set := {}; element := MIN (SET) - 1; INCL (set, element);
+	END Test.
+
+negative: include statement with too large short integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: SHORTINT;
+	BEGIN set := {}; element := MAX (SET) + 1; INCL (set, element);
+	END Test.
+
+positive: include statement with integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: INTEGER;
+	BEGIN
+		set := {}; element := MIN (SET); INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MIN (SET)}); ASSERT (element IN set);
+		set := {}; element := MAX (SET); INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MAX (SET)}); ASSERT (element IN set);
+		element := MIN (SET); set := {element}; INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MIN (SET)}); ASSERT (element IN set);
+		element := MAX (SET); set := {element}; INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MAX (SET)}); ASSERT (element IN set);
+	END Test.
+
+negative: include statement with too short integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: INTEGER;
+	BEGIN set := {}; element := MIN (SET) - 1; INCL (set, element);
+	END Test.
+
+negative: include statement with too large integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: INTEGER;
+	BEGIN set := {}; element := MAX (SET) + 1; INCL (set, element);
+	END Test.
+
+positive: include statement with long integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: LONGINT;
+	BEGIN
+		set := {}; element := MIN (SET); INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MIN (SET)}); ASSERT (element IN set);
+		set := {}; element := MAX (SET); INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MAX (SET)}); ASSERT (element IN set);
+		element := MIN (SET); set := {element}; INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MIN (SET)}); ASSERT (element IN set);
+		element := MAX (SET); set := {element}; INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MAX (SET)}); ASSERT (element IN set);
+	END Test.
+
+negative: include statement with too short long integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: LONGINT;
+	BEGIN set := {}; element := MIN (SET) - 1; INCL (set, element);
+	END Test.
+
+negative: include statement with too large long integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: LONGINT;
+	BEGIN set := {}; element := MAX (SET) + 1; INCL (set, element);
+	END Test.
+
+positive: include statement with huge integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: HUGEINT;
+	BEGIN
+		set := {}; element := MIN (SET); INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MIN (SET)}); ASSERT (element IN set);
+		set := {}; element := MAX (SET); INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MAX (SET)}); ASSERT (element IN set);
+		element := MIN (SET); set := {element}; INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MIN (SET)}); ASSERT (element IN set);
+		element := MAX (SET); set := {element}; INCL (set, element); ASSERT (set = {element}); ASSERT (set = {MAX (SET)}); ASSERT (element IN set);
+	END Test.
+
+negative: include statement with too short huge integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: HUGEINT;
+	BEGIN set := {}; element := MIN (SET) - 1; INCL (set, element);
+	END Test.
+
+negative: include statement with too large huge integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: HUGEINT;
+	BEGIN set := {}; element := MAX (SET) + 1; INCL (set, element);
+	END Test.
+
+
+# exclude statement
+
+positive: exclude statement with short integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: SHORTINT;
+	BEGIN
+		set := {}; element := MIN (SET); EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		set := {}; element := MAX (SET); EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		element := MIN (SET); set := {element}; EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		element := MAX (SET); set := {element}; EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+	END Test.
+
+negative: exclude statement with too short short integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: SHORTINT;
+	BEGIN set := {}; element := MIN (SET) - 1; EXCL (set, element);
+	END Test.
+
+negative: exclude statement with too large short integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: SHORTINT;
+	BEGIN set := {}; element := MAX (SET) + 1; EXCL (set, element);
+	END Test.
+
+positive: exclude statement with integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: INTEGER;
+	BEGIN
+		set := {}; element := MIN (SET); EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		set := {}; element := MAX (SET); EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		element := MIN (SET); set := {element}; EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		element := MAX (SET); set := {element}; EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+	END Test.
+
+negative: exclude statement with too short integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: INTEGER;
+	BEGIN set := {}; element := MIN (SET) - 1; EXCL (set, element);
+	END Test.
+
+negative: exclude statement with too large integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: INTEGER;
+	BEGIN set := {}; element := MAX (SET) + 1; EXCL (set, element);
+	END Test.
+
+positive: exclude statement with long integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: LONGINT;
+	BEGIN
+		set := {}; element := MIN (SET); EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		set := {}; element := MAX (SET); EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		element := MIN (SET); set := {element}; EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		element := MAX (SET); set := {element}; EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+	END Test.
+
+negative: exclude statement with too short long integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: LONGINT;
+	BEGIN set := {}; element := MIN (SET) - 1; EXCL (set, element);
+	END Test.
+
+negative: exclude statement with too large long integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: LONGINT;
+	BEGIN set := {}; element := MAX (SET) + 1; EXCL (set, element);
+	END Test.
+
+positive: exclude statement with huge integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: HUGEINT;
+	BEGIN
+		set := {}; element := MIN (SET); EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		set := {}; element := MAX (SET); EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		element := MIN (SET); set := {element}; EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+		element := MAX (SET); set := {element}; EXCL (set, element); ASSERT (set = {}); ASSERT (~(element IN set));
+	END Test.
+
+negative: exclude statement with too short huge integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: HUGEINT;
+	BEGIN set := {}; element := MIN (SET) - 1; EXCL (set, element);
+	END Test.
+
+negative: exclude statement with too large huge integer as set element
+
+	MODULE Test;
+	VAR set: SET; element: HUGEINT;
+	BEGIN set := {}; element := MAX (SET) + 1; EXCL (set, element);
+	END Test.
+
+
+# await statement
+
+positive: await statement in exclusive block
+
+	MODULE Test;
+	VAR condition: BOOLEAN;
+	PROCEDURE Await; BEGIN AWAIT (condition) END Await;
+	BEGIN {EXCLUSIVE} condition := TRUE; Await;
+	END Test.
+
+negative: await statement in non-exclusive block
+
+	MODULE Test;
+	VAR condition: BOOLEAN;
+	PROCEDURE Await; BEGIN AWAIT (condition) END Await;
+	BEGIN condition := TRUE; Await;
+	END Test.
+
+
+# procedure variables
+
+positive: calling global procedure variable
+
+	MODULE Test;
+	VAR p: PROCEDURE (VAR x: INTEGER); i: INTEGER;
+	PROCEDURE P (VAR x: INTEGER); BEGIN x := 4; END P;
+	BEGIN i := 2; p := P; p (i); ASSERT (i = 4);
+	END Test.
+
+negative: calling global nil procedure variable
+
+	MODULE Test;
+	VAR p: PROCEDURE;
+	BEGIN p := NIL; p;
+	END Test.
+
+positive: calling global procedure variable in array
+
+	MODULE Test;
+	VAR p: ARRAY 10 OF PROCEDURE (VAR x: INTEGER); i: INTEGER;
+	PROCEDURE P (VAR x: INTEGER); BEGIN x := 4; END P;
+	BEGIN i := 2; p[i] := P; p[i](i); ASSERT (i = 4);
+	END Test.
+
+negative: calling global nil procedure variable in array
+
+	MODULE Test;
+	VAR p: ARRAY 10 OF PROCEDURE; i: INTEGER;
+	BEGIN i := 2; p[i] := NIL; p[i];
+	END Test.
+
+positive: calling local procedure variable
+
+	MODULE Test;
+	PROCEDURE P (VAR x: INTEGER); BEGIN x := 4; END P;
+	PROCEDURE Procedure;
+	VAR p: PROCEDURE (VAR x: INTEGER); i: INTEGER;
+	BEGIN i := 2; p := P; p (i); ASSERT (i = 4);
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+negative: calling local nil procedure variable
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR p: PROCEDURE;
+	BEGIN p := NIL; p;
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+positive: calling local procedure variable in array
+
+	MODULE Test;
+	PROCEDURE P (VAR x: INTEGER); BEGIN x := 4; END P;
+	PROCEDURE Procedure;
+	VAR p: ARRAY 10 OF PROCEDURE (VAR x: INTEGER); i: INTEGER;
+	BEGIN i := 2; p[i] := P; p[i](i); ASSERT (i = 4);
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+negative: calling local nil procedure variable in array
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR p: ARRAY 10 OF PROCEDURE; i: INTEGER;
+	BEGIN i := 2; p[i] := NIL; p[i];
+	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+positive: calling parameter procedure variable
+
+	MODULE Test;
+	PROCEDURE P (VAR x: INTEGER); BEGIN x := 4; END P;
+	PROCEDURE Procedure (p: PROCEDURE (VAR x: INTEGER));
+	VAR i: INTEGER;
+	BEGIN i := 2; p := P; p (i); ASSERT (i = 4);
+	END Procedure;
+	BEGIN Procedure (P);
+	END Test.
+
+negative: calling parameter nil procedure variable
+
+	MODULE Test;
+	PROCEDURE Procedure (p: PROCEDURE);
+	BEGIN p;
+	END Procedure;
+	BEGIN Procedure (NIL);
+	END Test.
+
+positive: calling variable parameter procedure variable
+
+	MODULE Test;
+	VAR p: PROCEDURE (VAR x: INTEGER);
+	PROCEDURE P (VAR x: INTEGER); BEGIN x := 4; END P;
+	PROCEDURE Procedure (VAR p: PROCEDURE (VAR x: INTEGER));
+	VAR i: INTEGER;
+	BEGIN i := 2; p := P; p (i); ASSERT (i = 4);
+	END Procedure;
+	BEGIN p := P; Procedure (p);
+	END Test.
+
+negative: calling variable parameter nil procedure variable
+
+	MODULE Test;
+	VAR p: PROCEDURE;
+	PROCEDURE Procedure (VAR p: PROCEDURE);
+	BEGIN p;
+	END Procedure;
+	BEGIN p := NIL; Procedure (p);
+	END Test.
+
+positive: calling parameter procedure variable of object
+
+	MODULE Test;
+	VAR i: INTEGER; o: OBJECT
+		VAR p: PROCEDURE (VAR x: INTEGER);
+	END;
+	PROCEDURE P (VAR x: INTEGER); BEGIN x := 4; END P;
+	BEGIN i := 2; NEW (o); o.p := P; o.p (i); ASSERT (i = 4);
+	END Test.
+
+negative: calling parameter nil procedure variable of object
+
+	MODULE Test;
+	VAR o: OBJECT
+		VAR p: PROCEDURE;
+	END;
+	BEGIN NEW (o); o.p := NIL; o.p;
+	END Test.
+
+positive: calling parameter procedure variable within object
+
+	MODULE Test;
+	VAR o: OBJECT
+		VAR p: PROCEDURE (VAR x: INTEGER);
+		PROCEDURE &Procedure;
+		VAR i: INTEGER;
+		BEGIN i := 2; p := P; p (i); ASSERT (i = 4);
+		END Procedure;
+	END;
+	PROCEDURE P (VAR x: INTEGER); BEGIN x := 4; END P;
+	BEGIN NEW (o);
+	END Test.
+
+negative: calling parameter nil procedure variable within object
+
+	MODULE Test;
+	VAR o: OBJECT
+		VAR p: PROCEDURE;
+		PROCEDURE &Procedure;
+		BEGIN p := NIL; p;
+		END Procedure;
+	END;
+	BEGIN NEW (o);
+	END Test.
+
+
 # programs
 
 positive: Gaussian natural sum using arrays
@@ -3236,13 +4740,99 @@ positive: Gaussian natural sum using arrays
 	CONST Count = 10000;
 	VAR i, sum: LONGINT; a: ARRAY Count OF LONGINT;
 	BEGIN
-		i := 0;
-		WHILE i < Count DO
-			a[i] := i; INC (i);
+		FOR i := 0 TO Count - 1 DO
+			a[i] := i;
 		END;
 		i := 0; sum := 0;
 		WHILE i < Count DO
 			INC (sum, a[i]); INC (i);
 		END;
 		ASSERT (sum = Count * (Count-1) DIV 2);
+	END Test.
+
+positive: natural sum with several synchronous concurrent accumulators
+
+	MODULE Test;
+	TYPE Accumulator = OBJECT
+		VAR i: INTEGER; done: BOOLEAN;
+		PROCEDURE &Init; BEGIN done := FALSE; END Init;
+		PROCEDURE Await; BEGIN {EXCLUSIVE} AWAIT (done); END Await;
+		BEGIN {ACTIVE, EXCLUSIVE} FOR i := 1 TO 100 DO Add END; done := TRUE;
+	END Accumulator;
+	VAR acc0, acc1, acc2: Accumulator; sum: INTEGER;
+	PROCEDURE Busy; VAR i: INTEGER; BEGIN FOR i := 1 TO 100 DO END; END Busy;
+	PROCEDURE Add; VAR temp: INTEGER; BEGIN {EXCLUSIVE} temp := sum; Busy; sum := temp + 1 END Add;
+	BEGIN sum := 0; NEW (acc0); NEW (acc1); NEW (acc2); acc0.Await; acc1.Await; acc2.Await; ASSERT (sum = 300);
+	END Test.
+
+negative: natural sum with several asynchronous concurrent accumulators
+
+	MODULE Test;
+	TYPE Accumulator = OBJECT
+		VAR i: INTEGER; done: BOOLEAN;
+		PROCEDURE &Init; BEGIN done := FALSE; END Init;
+		PROCEDURE Await; BEGIN {EXCLUSIVE} AWAIT (done); END Await;
+	BEGIN {ACTIVE, EXCLUSIVE} FOR i := 1 TO 100 DO Add END; done := TRUE;
+	END Accumulator;
+	VAR acc0, acc1, acc2: Accumulator; sum: INTEGER;
+	PROCEDURE Busy; VAR i: INTEGER; BEGIN FOR i := 1 TO 100 DO END; END Busy;
+	PROCEDURE Add; VAR temp: INTEGER; BEGIN temp := sum; Busy; sum := temp + 1 END Add;
+	BEGIN sum := 0; NEW (acc0); NEW (acc1); NEW (acc2); acc0.Await; acc1.Await; acc2.Await; ASSERT (sum = 300);
+	END Test.
+
+positive: dining philosophers
+
+	MODULE Test;
+	CONST Forks = 5;
+	TYPE Fork = OBJECT
+		VAR taken: BOOLEAN;
+		PROCEDURE &Init; BEGIN taken := FALSE; END Init;
+		PROCEDURE PickUp; BEGIN {EXCLUSIVE} AWAIT (~taken); taken := TRUE; END PickUp;
+		PROCEDURE PutDown; BEGIN {EXCLUSIVE} taken := FALSE; END PutDown;
+	END Fork;
+	TYPE Philosopher = OBJECT
+		VAR first, second, i: INTEGER; done: BOOLEAN
+		PROCEDURE &Init (id: INTEGER); BEGIN IF id # Forks - 1 THEN first := id; second := id + 1; ELSE first := 0; second := Forks - 1 END; done := FALSE; END Init;
+		PROCEDURE Await; BEGIN {EXCLUSIVE} AWAIT (done); END Await;
+		BEGIN {EXCLUSIVE, ACTIVE} FOR i := 1 TO 10 DO Think;
+			fork[first].PickUp; fork[second].PickUp; Eat; fork[second].PutDown; fork[first].PutDown;
+		END; done := TRUE;
+	END Philosopher;
+	VAR fork: ARRAY Forks OF Fork; philosopher: ARRAY Forks OF Philosopher; id: INTEGER;
+	PROCEDURE Think; VAR i: INTEGER; BEGIN FOR i := 1 TO 100 DO END; END Think;
+	PROCEDURE Eat; VAR i: INTEGER; BEGIN FOR i := 1 TO 1000 DO END; END Eat;
+	BEGIN
+		FOR id := 0 TO Forks - 1 DO NEW (fork[id]) END;
+		FOR id := 0 TO Forks - 1 DO NEW (philosopher[id], id) END;
+		FOR id := 0 TO Forks - 1 DO philosopher[id].Await END;
+	END Test.
+
+positive: bounded buffer
+
+	MODULE Test;
+	TYPE Buffer = OBJECT
+		VAR in, out, size: LONGINT;
+		VAR data: POINTER TO ARRAY OF INTEGER;
+		PROCEDURE &Init (len: LONGINT); BEGIN in := 0; out := 0; size := 0; NEW (data, len); END Init;
+		PROCEDURE Put (item: INTEGER); BEGIN {EXCLUSIVE} AWAIT (size # LEN (data)); data[in] := item; in := (in + 1) MOD LEN (data); INC (size) END Put;
+		PROCEDURE Get (VAR item: INTEGER); BEGIN {EXCLUSIVE} AWAIT (size # 0); item := data[out]; out := (out + 1) MOD LEN (data); DEC (size) END Get;
+	END Buffer;
+	TYPE Process = OBJECT
+		VAR count: INTEGER; buffer: Buffer; done: BOOLEAN;
+		PROCEDURE &Init (count: INTEGER; buffer: Buffer); BEGIN SELF.count := count; SELF.buffer := buffer; done := FALSE; END Init;
+		PROCEDURE Await; BEGIN {EXCLUSIVE} AWAIT (done); END Await;
+		PROCEDURE Handle; END Handle;
+		BEGIN {EXCLUSIVE, ACTIVE} Handle; done := TRUE;
+	END Process;
+	TYPE Producer = OBJECT (Process)
+		PROCEDURE Handle; VAR i: INTEGER; BEGIN FOR i := 1 TO count DO buffer.Put (i); END; END Handle;
+	END Producer;
+	TYPE Consumer = OBJECT (Process)
+		PROCEDURE Handle; VAR i, item: INTEGER; BEGIN FOR i := 1 TO count DO buffer.Get (item); ASSERT (item = i); END; END Handle;
+	END Consumer;
+	PROCEDURE Test (len, count: INTEGER);
+	VAR buffer: Buffer; consumer: Consumer; producer: Producer;
+	BEGIN NEW (buffer, len); NEW (consumer, count, buffer); NEW (producer, count, buffer); consumer.Await; producer.Await;
+	END Test;
+	BEGIN Test (1, 1000); Test (10, 1000); Test (1000, 1000); Test (1000, 100);
 	END Test.
