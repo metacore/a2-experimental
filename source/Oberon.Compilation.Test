@@ -6923,13 +6923,13 @@ negative: multidimensional array with negative size
 	TYPE Array = ARRAY 5, 3, -1 OF RECORD END;
 	END Test.
 
-negative: array with size zero
+positive: array with size zero
 
 	MODULE Test;
 	TYPE Array = ARRAY 0 OF RECORD END;
 	END Test.
 
-negative: multidimensional array with size zero
+positive: multidimensional array with size zero
 
 	MODULE Test;
 	TYPE Array = ARRAY 2, 7, 0 OF RECORD END;
@@ -17080,7 +17080,9 @@ negative: repeated exclusive block modifier
 negative: repeated active block modifier
 
 	MODULE Test;
-	BEGIN {ACTIVE, ACTIVE};
+	TYPE Object = OBJECT
+	BEGIN {ACTIVE,ACTIVE}
+	END Object;
 	END Test.
 
 positive: exclusive module body
@@ -37677,7 +37679,7 @@ negative: calling non-realtime procedure in realtime procedure
 	PROCEDURE {REALTIME} RTP; BEGIN NRTP; END RTP;
 	END Test.
 
-negative: new statement in non-realtime procedure
+negative: new statement in realtime procedure
 
 	MODULE Test;
 	PROCEDURE {REALTIME} P;
@@ -37686,7 +37688,7 @@ negative: new statement in non-realtime procedure
 	END P;
 	END Test.
 
-negative: exclusive block in non-realtime procedure
+negative: exclusive block in realtime procedure
 
 	MODULE Test;
 	PROCEDURE {REALTIME} P;
@@ -37694,7 +37696,7 @@ negative: exclusive block in non-realtime procedure
 	END P;
 	END Test.
 
-negative: await statement in non-realtime procedure
+negative: await statement in realtime procedure
 
 	MODULE Test;
 	VAR condition: BOOLEAN;
@@ -37812,7 +37814,7 @@ positive: overwriting non-realtime procedure with realtime procedure
 	END Object;
 	END Test.
 
-positive: overwriting realtime procedure with implicit realtime procedure
+negative: overwriting realtime procedure with non-realtime procedure
 
 	MODULE Test;
 	TYPE Base = OBJECT
