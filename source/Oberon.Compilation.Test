@@ -37824,3 +37824,55 @@ negative: overwriting realtime procedure with non-realtime procedure
 	PROCEDURE P; END P;
 	END Object;
 	END Test.
+	
+# handling of untraced flag
+
+positive: untraced flag on pointer to record
+
+	MODULE Test; 
+	TYPE P= POINTER TO RECORD END; 
+	VAR x {UNTRACED}: P; 
+	END Test.
+	
+positive: untraced flag on object
+	
+	MODULE Test; 
+	TYPE P= OBJECT END P; 
+	VAR x {UNTRACED}: P; 
+	END Test.
+	
+positive: untraced flag on pointer to array
+
+	MODULE Test; 
+	TYPE P=POINTER TO ARRAY OF CHAR; 
+	VAR x {UNTRACED}: P; 
+	END Test.
+	
+positive: untraced flag on delegate procedure
+
+	MODULE Test; 
+	TYPE P=PROCEDURE {DELEGATE};
+	VAR x {UNTRACED}: P; 
+	END Test.
+	
+negative: untraced flag on basic type
+
+	MODULE Test;
+	TYPE P=LONGINT; 
+	VAR x{UNTRACED}: P; 
+	END Test. 
+	
+negative: untraced flag on procedure type
+
+	MODULE Test; 
+	TYPE P= PROCEDURE; 
+	VAR x{UNTRACED}: P; 
+	END Test.
+	
+negative: untraced flag on record type; 
+
+	MODULE Test;
+	TYPE P=RECORD END; 
+	VAR x{UNTRACED}: P; 
+	END Test.
+	
