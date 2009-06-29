@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" standalone='yes'?>
+<!-- 
+Used in Highlighter.Mod
+-->
+<hightlight>
+	<languages>
+		<language name = "oberon">
+			<style name = "highlight">
+				<keyword name = "MODULE" />
+				<keyword name = "IMPORT" />
+				<keyword name = "CONST" />
+				<keyword name = "VAR" />
+				<keyword name = "TYPE" />
+				<keyword name = "PROCEDURE" />
+				<keyword name = "BEGIN" />
+				<keyword name = "END" />
+				<keyword name = "IF" />
+				<keyword name = "THEN" />
+				<keyword name = "ELSE" />
+				<keyword name = "FOR" />
+				<keyword name = "WHILE" />
+				<keyword name = "CHAR" />
+				<keyword name = "LONGINT" />
+				<keyword name = "BOOLEAN" />
+				<keyword name = "SET" />
+				<keyword name = "ANY" />
+				<keyword name = "RETURN" />
+				<keyword name = "NEW" />
+				<keyword name = "NIL" />
+				<keyword name = "OF" />
+				<keyword name = "REPEAT" />
+				<keyword name = "UNTIL" />
+			</style>
+			<style name = "assert">
+				<keyword name = "ASSERT" />
+				<keyword name = "EXCLUSIVE" />
+			</style>
+			<style name = "hime">
+				<keyword name = "INC" />
+				<keyword name = "DEC" />
+				<keyword name = "TRUE" />
+				<keyword name = "FALSE" />
+			</style>
+			<style name = "kernellog">
+				<keyword name = "KernelLog" />
+			</style>
+			<style name = "foobar">  
+				<keyword name = "hello" />
+				<keyword name = "OMGWTF" />
+				<keyword name = "bar" />
+				<keyword name = "foo" />
+				<keyword name = "foobar" />
+				<keyword name = "eth0" />
+				<keyword name = "this" />
+				<keyword name = "that" />
+			</style>
+			<style name = "acquire">  
+				<keyword name = "Acquire" />
+				<keyword name = "Release" />
+				<keyword name = "AcquireRead" />
+				<keyword name = "ReleaseRead" />
+				<keyword name = "AcquireWrite" />
+				<keyword name = "ReleaseWrite" />
+			</style>
+		</language>
+		<language name = "foobar">
+			<style name = "assert">
+				<keyword name = "assert2" />
+			</style>
+			<style name = "hime">
+				<keyword name = "this" />
+				<keyword name = "kill" />
+			</style>
+		</language>
+	</languages>
+
+	<styles>
+		<style name= "highlight" fontname="Oberon" fontsize="12" fontstyle ="{0}" voff = "0" color="000000FF" bgcolor="00000000" />
+		<style name= "hime" fontname="Oberon" fontsize="12" fontstyle ="{0}" voff = "0" color="00FF00FF" bgcolor="00000000" />
+		<style name= "kernellog" fontname="Oberon" fontsize="12" fontstyle ="{1}" voff = "0" color="5500FFFF" bgcolor="00000000" />
+		<style name= "foobar" fontname="Oberon" fontsize="20" fontstyle ="{1}" voff = "0" color="FF0000FF" bgcolor="00000000" />
+		<style name= "assert" fontname="Vera" fontsize="40" fontstyle ="{1,0}" voff = "0" color="FF00FFFF" bgcolor="00000000" />
+		<style name= "acquire" fontname="Oberon" fontsize="12" fontstyle ="{}" voff = "0" color="FF00FFFF" bgcolor="00000000" />
+		<style name= "comment" fontname="Oberon" fontsize="10" fontstyle ="{}" voff = "0" color="808080FF" bgcolor="00000000" />
+		<style name= "inquotes" fontname="Oberon" fontsize="14" fontstyle ="{}" voff = "0" color="40C0FFFF" bgcolor="00000000" />
+	</styles>
+</hightlight>
