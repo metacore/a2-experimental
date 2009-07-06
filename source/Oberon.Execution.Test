@@ -1973,6 +1973,53 @@ positive: arithmetic shift on huge integer
 	END Test.
 
 
+# set operators
+
+positive: set union
+
+	MODULE Test;
+	VAR a, b: SET;
+	BEGIN
+		a := {}; b := {}; ASSERT (a + b = {}); ASSERT (a + b = {} + {});
+		a := {1, 2}; b := {}; ASSERT (a + b = {1, 2}); ASSERT (a + b = {1, 2} + {});
+		a := {}; b := {2, 3}; ASSERT (a + b = {2, 3}); ASSERT (a + b = {} + {2, 3});
+		a := {1, 2}; b := {2, 3}; ASSERT (a + b = {1..3}); ASSERT (a + b = {1, 2} + {2, 3});
+	END Test.
+
+positive: set difference
+
+	MODULE Test;
+	VAR a, b: SET;
+	BEGIN
+		a := {}; b := {}; ASSERT (a - b = {}); ASSERT (a - b = {} - {});
+		a := {1, 2}; b := {}; ASSERT (a - b = {1, 2}); ASSERT (a - b = {1, 2} - {});
+		a := {}; b := {2, 3}; ASSERT (a - b = {}); ASSERT (a - b = {} - {2, 3});
+		a := {1, 2}; b := {2, 3}; ASSERT (a - b = {1}); ASSERT (a - b = {1, 2} - {2, 3});
+	END Test.
+
+positive: set intersection
+
+	MODULE Test;
+	VAR a, b: SET;
+	BEGIN
+		a := {}; b := {}; ASSERT (a * b = {}); ASSERT (a * b = {} * {});
+		a := {1, 2}; b := {}; ASSERT (a * b = {}); ASSERT (a * b = {1, 2} * {});
+		a := {}; b := {2, 3}; ASSERT (a * b = {}); ASSERT (a * b = {} * {2, 3});
+		a := {1, 2}; b := {2, 3}; ASSERT (a * b = {2}); ASSERT (a * b = {1, 2} * {2, 3});
+	END Test.
+
+positive: symmetric set difference
+
+	MODULE Test;
+	VAR a, b: SET;
+	BEGIN
+		a := {}; b := {}; ASSERT (a / b = {}); ASSERT (a / b = {} / {});
+		a := {1, 2}; b := {}; ASSERT (a / b = {1, 2}); ASSERT (a / b = {1, 2} / {});
+		a := {}; b := {2, 3}; ASSERT (a / b = {2, 3}); ASSERT (a / b = {} / {2, 3});
+		a := {1, 2}; b := {2, 3}; ASSERT (a / b = {1, 3}); ASSERT (a / b = {1, 2} / {2, 3});
+	END Test.
+
+
 # type guards
 
 positive: type guard on same global record
@@ -3097,9 +3144,9 @@ positive: modifying record parameter
 	TYPE Record = RECORD x: INTEGER END;
 	VAR g: Record;
 	PROCEDURE Procedure (p: Record);
-	BEGIN ASSERT (p.x = 45); p.x := p.x DIV 3; ASSERT (p.x = 15); ASSERT (g.x = 45);
+	BEGIN ASSERT (p.x = 15); p.x := p.x * 3; ASSERT (p.x = 45); ASSERT (g.x = 15);
 	END Procedure;
-	BEGIN g.x := 45; Procedure (g); ASSERT (g.x = 45);
+	BEGIN g.x := 15; Procedure (g); ASSERT (g.x = 15);
 	END Test.
 
 positive: modifying object parameter
@@ -3180,9 +3227,9 @@ positive: modifying pointer to record parameter
 	TYPE Record = RECORD x: INTEGER END;
 	VAR g: POINTER TO Record;
 	PROCEDURE Procedure (p: POINTER TO Record);
-	BEGIN ASSERT (p.x = 45); p.x := p.x DIV 3; ASSERT (p.x = 15); ASSERT (g.x = 15);
+	BEGIN ASSERT (p.x = 15); p.x := p.x * 3; ASSERT (p.x = 45); ASSERT (g.x = 45);
 	END Procedure;
-	BEGIN NEW (g); g.x := 45; Procedure (g); ASSERT (g.x = 15);
+	BEGIN NEW (g); g.x := 15; Procedure (g); ASSERT (g.x = 45);
 	END Test.
 
 positive: modifying pointer to record reference parameter
@@ -3303,9 +3350,9 @@ positive: modifying variable record parameter
 	TYPE Record = RECORD x: INTEGER END;
 	VAR g: Record;
 	PROCEDURE Procedure (VAR p: Record);
-	BEGIN ASSERT (p.x = 45); p.x := p.x DIV 3; ASSERT (p.x = 15); ASSERT (g.x = 15);
+	BEGIN ASSERT (p.x = 15); p.x := p.x * 3; ASSERT (p.x = 45); ASSERT (g.x = 45);
 	END Procedure;
-	BEGIN g.x := 45; Procedure (g); ASSERT (g.x = 15);
+	BEGIN g.x := 15; Procedure (g); ASSERT (g.x = 45);
 	END Test.
 
 positive: modifying variable object parameter
@@ -3386,9 +3433,9 @@ positive: modifying variable pointer to record parameter
 	TYPE Record = RECORD x: INTEGER END;
 	VAR g: POINTER TO Record;
 	PROCEDURE Procedure (VAR p: POINTER TO Record);
-	BEGIN ASSERT (p.x = 45); p.x := p.x DIV 3; ASSERT (p.x = 15); ASSERT (g.x = 15);
+	BEGIN ASSERT (p.x = 15); p.x := p.x * 3; ASSERT (p.x = 45); ASSERT (g.x = 45);
 	END Procedure;
-	BEGIN NEW (g); g.x := 45; Procedure (g); ASSERT (g.x = 15);
+	BEGIN NEW (g); g.x := 15; Procedure (g); ASSERT (g.x = 45);
 	END Test.
 
 positive: modifying variable pointer to record reference parameter
@@ -3560,7 +3607,7 @@ positive: new statement on pointer to record
 positive: new statement on pointer to too large record
 
 	MODULE Test;
-	VAR p: POINTER TO RECORD data: ARRAY MAX (LONGINT) DIV 2 OF INTEGER END;
+	VAR p: POINTER TO RECORD data: ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER END;
 	BEGIN NEW (p); ASSERT (p = NIL);
 	END Test.
 
@@ -3574,7 +3621,7 @@ positive: new statement on pointer to array
 positive: new statement on pointer to too large array
 
 	MODULE Test;
-	VAR r: POINTER TO ARRAY MAX (LONGINT) DIV 2 OF INTEGER;
+	VAR r: POINTER TO ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER;
 	BEGIN NEW (r); ASSERT (r = NIL);
 	END Test.
 
@@ -3596,7 +3643,7 @@ positive: new statement on pointer to too large open array
 
 	MODULE Test;
 	VAR r: POINTER TO ARRAY OF INTEGER;
-	BEGIN NEW (r, MAX (LONGINT) DIV 2); ASSERT (r = NIL);
+	BEGIN NEW (r, MAX (LONGINT) DIV 2 - 1000); ASSERT (r = NIL);
 	END Test.
 
 positive: new statement on object
@@ -3609,7 +3656,7 @@ positive: new statement on object
 positive: new statement on too large object
 
 	MODULE Test;
-	VAR o: OBJECT VAR data: ARRAY MAX (LONGINT) DIV 2 OF INTEGER END;
+	VAR o: OBJECT VAR data: ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER END;
 	BEGIN NEW (o); ASSERT (o = NIL);
 	END Test.
 
@@ -4737,7 +4784,7 @@ negative: calling parameter nil procedure variable within object
 positive: Gaussian natural sum using arrays
 
 	MODULE Test;
-	CONST Count = 10000;
+	CONST Count = 100;
 	VAR i, sum: LONGINT; a: ARRAY Count OF LONGINT;
 	BEGIN
 		FOR i := 0 TO Count - 1 DO
