@@ -1,120 +1,120 @@
-<Panel caption=" Inspect ">
+<Standard:Panel caption=" Inspect ">
 	<Properties>	<FillColor>0</FillColor> </Properties>
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>	
 			<Bounds> <Width>120</Width>	</Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Performance</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties> 
 					<ID>X</ID>
 					<CommandString>WMPerfMon.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Objects</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMObjectTracker.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>
 	
 <!-- Second column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds> <Width>120</Width> </Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Profiler</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMProfiler.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>TCPTraffic</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMTCPTracker.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>	
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>	
 	
 <!-- 3rd column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds> <Width>120</Width> </Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Events</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMEventLog.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>		
+		<Standard:Button>		
 			<Properties>
 				<Caption>USBViewer</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMUsbInfo.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>	
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>	
 
 <!-- 4th column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds>	
@@ -122,68 +122,68 @@
 			</Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>	
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>	
 	
 <!--
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>3d.Clown</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>W3dExplorer.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Logo</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMBunny.Insert aos1.gif 25 -15;WMBunny.Insert aos2.gif 25 10;WMBunny.Insert aos3.gif 25 15</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 -->	
 	
-</Panel>
+</Standard:Panel>

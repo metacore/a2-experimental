@@ -1,9 +1,9 @@
-<Panel caption=" Docu  ">
+<Standard:Panel caption=" Docu  ">
 	<Properties>
 		<FillColor>0</FillColor>
 	</Properties>
 
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds>	
@@ -11,39 +11,39 @@
 			</Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Tutorial</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>Notepad.Open Tutorial.Text</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>ChineseTutorial</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>Notepad.Open cn.PrgInOberon.txt</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>	
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>	
 	
 <!-- 2. column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds>	
@@ -51,39 +51,39 @@
 			</Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>
 
 <!-- 3. column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds>	
@@ -91,41 +91,41 @@
 			</Bounds>	
 		</Properties>
 	
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 
 		
-	</Panel>
+	</Standard:Panel>
 
 <!-- 4. column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds>	
@@ -133,36 +133,36 @@
 			</Bounds>	
 		</Properties>
 	
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-	</Panel>
+	</Standard:Panel>
 	
-</Panel>
+</Standard:Panel>

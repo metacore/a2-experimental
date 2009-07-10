@@ -1,120 +1,120 @@
-<Panel caption=" Demos ">
+<Standard:Panel caption=" Demos ">
 	<Properties>	<FillColor>0</FillColor> </Properties>
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>	
 			<Bounds> <Width>120</Width>	</Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Bones</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties> 
 					<ID>X</ID>
 					<CommandString>WMBunny.Insert WMBunnyImages.tar://bones.gif 25 10;StartMenu.ClosePopup</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Bunny</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMBunny.Insert WMBunnyImages.tar://XmasBunnyLinear.gif 8 16;StartMenu.ClosePopup</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>
 	
 <!-- Second column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds> <Width>120</Width> </Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Tetris</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMTetris.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>3d.Menu</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>W3dMenu.Open W3dMenu.XML</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>	
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>	
 	
 <!-- 3rd column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds> <Width>120</Width> </Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Turing</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>TuringCoatWnd.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Fractal</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>FractalDemo.Register;ComponentViewer.Open FractalDemo.XML</CommandString>
+					<CommandString>ComponentViewer.Open Demos:FractalDemo</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>	
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>	
 
 <!-- 4th column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds>	
@@ -122,39 +122,39 @@
 			</Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>FlagMovie</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMPlayer.Open flags.avi</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>SlideShow</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMSlideshow.Open RetoWMSlideshow.XML</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>
 
 <!-- 5th column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds>	
@@ -162,35 +162,35 @@
 			</Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Raytracer</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>srRender.Demo</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler></OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>		
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>		
 	
-</Panel>
+</Standard:Panel>

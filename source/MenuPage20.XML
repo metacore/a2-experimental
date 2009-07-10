@@ -1,151 +1,151 @@
-<Panel caption=" Files  ">
+<Standard:Panel caption=" Files  ">
 	<Properties>	<FillColor>0</FillColor> </Properties>
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>	<Bounds>
 			 <Width>120</Width>	</Bounds>	
 		</Properties>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Partitions</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties> <ID>X</ID>
 					<CommandString>WMPartitionsPlugins.Install;WMPartitions.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Files</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMFileManager.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>
 	
 <!-- Second column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds> <Width>120</Width> </Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>CDRecorder</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMCDRecorder.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 	
-	</Panel>
+	</Standard:Panel>
 <!-- Third column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds> <Width>120</Width> </Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties> <ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>
 
 <!-- 4. column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds> <Width>120</Width> </Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties> <ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>	
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>	
 
-</Panel>
+</Standard:Panel>

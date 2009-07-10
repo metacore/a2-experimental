@@ -1,8 +1,8 @@
-<Panel caption=" System  ">
+<Standard:Panel caption=" System  ">
 	<Properties>
 		<FillColor>0</FillColor>
 	</Properties>
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds>	
@@ -10,38 +10,38 @@
 			</Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Configuration</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>PET.Open Configuration.XML</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Log</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMKernelLog.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>
 <!-- Second column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds>	
@@ -49,79 +49,79 @@
 			</Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Clock</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMClock.Open;StartMenu.ClosePopup</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>SaveDesktop</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMRestorable.Store Auto.dsk;SkinEngine.SetCurrentAsDefault;StartMenu.ClosePopup</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 
-	</Panel>
+	</Standard:Panel>
 
 <!-- Third column -->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds>	
 				<Width>120</Width>
 			</Bounds>	
 		</Properties>
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Installer</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>WMInstaller.Open</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString></CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>	
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>	
 	
 <!-- Reboot Shutdown-->	
-	<Panel>
+	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
 			<Bounds>	
@@ -129,7 +129,7 @@
 			</Bounds>	
 		</Properties>
 
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Reboot</Caption>
 				<Alignment>2</Alignment>
@@ -138,15 +138,15 @@
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>SystemTools.Reboot</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
+			</Standard:SystemCommand>
+		</Standard:Button>
 		
-		<Button>
+		<Standard:Button>
 			<Properties>
 				<Caption>Shutdown</Caption>
 				<Alignment>2</Alignment>
@@ -155,13 +155,13 @@
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
-			<SystemCommand>
+			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
 					<CommandString>SystemTools.PowerDown</CommandString>
 				</Properties>
-			</SystemCommand>
-		</Button>
-	</Panel>	
+			</Standard:SystemCommand>
+		</Standard:Button>
+	</Standard:Panel>	
 
-</Panel>
+</Standard:Panel>
