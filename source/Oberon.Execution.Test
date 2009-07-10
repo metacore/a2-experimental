@@ -996,12 +996,12 @@ positive: character value of short integer
 	MODULE Test;
 	VAR value: SHORTINT;
 	BEGIN
-		value := ORD ('0'); ASSERT (CHR (value) = '0');
-		value := ORD ('9'); ASSERT (CHR (value) = '9');
-		value := ORD ('a'); ASSERT (CHR (value) = 'a');
-		value := ORD ('z'); ASSERT (CHR (value) = 'z');
-		value := ORD ('A'); ASSERT (CHR (value) = 'A');
-		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
+		value := SHORT(ORD ('0')); ASSERT (CHR (value) = '0');
+		value := SHORT(ORD ('9')); ASSERT (CHR (value) = '9');
+		value := SHORT(ORD ('a')); ASSERT (CHR (value) = 'a');
+		value := SHORT(ORD ('z')); ASSERT (CHR (value) = 'z');
+		value := SHORT(ORD ('A')); ASSERT (CHR (value) = 'A');
+		value := SHORT(ORD ('Z')); ASSERT (CHR (value) = 'Z');
 	END Test.
 
 positive: character value of integer
@@ -1614,7 +1614,8 @@ positive: subtraction on long integers
 		a := -3; b := 2; ASSERT (a - b = -5); ASSERT (a - b = (-3) - 2);
 		a := 3; b := -2; ASSERT (a - b = +5); ASSERT (a - b = 3 - (-2));
 		a := -3; b := -2; ASSERT (a - b = -1); ASSERT (a - b = (-3) - (-2));
-		a := MIN (LONGINT) + 1; b := MAX (LONGINT); ASSERT (a - b = 2); ASSERT (a - b = SHORT (MIN (LONGINT) + 1 - MAX (LONGINT)));
+		a := MIN (LONGINT) + 1; b := MAX (LONGINT); ASSERT (a - b = 2); 
+		(* ASSERT (a - b = SHORT (MIN (LONGINT) + 1 - MAX (LONGINT))); *)
 	END Test.
 
 positive: subtraction on huge integers
@@ -1684,7 +1685,8 @@ positive: multiplication on long integers
 		a := -3; b := 2; ASSERT (a * b = -6); ASSERT (a * b = (-3) * 2);
 		a := 3; b := -2; ASSERT (a * b = -6); ASSERT (a * b = 3 * (-2));
 		a := -3; b := -2; ASSERT (a * b = +6); ASSERT (a * b = (-3) * (-2));
-		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a * b = 1); ASSERT (a * b = SHORT (MAX (LONGINT) * MAX (LONGINT)));
+		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a * b = 1); 
+		(*ASSERT (a * b = SHORT (MAX (LONGINT) * MAX (LONGINT)));*)
 	END Test.
 
 positive: multiplication on huge integers
@@ -1727,11 +1729,11 @@ positive: integer division on short integers
 	VAR a, b: SHORTINT;
 	BEGIN
 		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
-		a := -3; b := 2; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-3) DIV 2);
+		a := -3; b := 2; ASSERT (a DIV b = -2); ASSERT (a DIV b = (-3) DIV 2);
 		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
 		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
-		a := -2; b := 3; ASSERT (a DIV b = -0); ASSERT (a DIV b = (-2) DIV 3);
+		a := -2; b := 3; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-2) DIV 3);
 		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
 		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
 		a := MAX (SHORTINT); b := MAX (SHORTINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (SHORTINT) DIV MAX (SHORTINT));
@@ -1750,11 +1752,11 @@ positive: integer division on integers
 	VAR a, b: INTEGER;
 	BEGIN
 		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
-		a := -3; b := 2; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-3) DIV 2);
+		a := -3; b := 2; ASSERT (a DIV b = -2); ASSERT (a DIV b = (-3) DIV 2);
 		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
 		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
-		a := -2; b := 3; ASSERT (a DIV b = -0); ASSERT (a DIV b = (-2) DIV 3);
+		a := -2; b := 3; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-2) DIV 3);
 		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
 		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
 		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (INTEGER) DIV MAX (INTEGER));
@@ -1773,11 +1775,11 @@ positive: integer division on long integers
 	VAR a, b: LONGINT;
 	BEGIN
 		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
-		a := -3; b := 2; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-3) DIV 2);
+		a := -3; b := 2; ASSERT (a DIV b = -2); ASSERT (a DIV b = (-3) DIV 2);
 		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
 		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
-		a := -2; b := 3; ASSERT (a DIV b = -0); ASSERT (a DIV b = (-2) DIV 3);
+		a := -2; b := 3; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-2) DIV 3);
 		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
 		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
 		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (LONGINT) DIV MAX (LONGINT));
@@ -1796,11 +1798,11 @@ positive: integer division on huge integers
 	VAR a, b: HUGEINT;
 	BEGIN
 		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
-		a := -3; b := 2; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-3) DIV 2);
+		a := -3; b := 2; ASSERT (a DIV b = -2); ASSERT (a DIV b = (-3) DIV 2);
 		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
 		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
-		a := -2; b := 3; ASSERT (a DIV b = -0); ASSERT (a DIV b = (-2) DIV 3);
+		a := -2; b := 3; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-2) DIV 3);
 		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
 		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
 		a := MAX (HUGEINT); b := MAX (HUGEINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (HUGEINT) DIV MAX (HUGEINT));
@@ -1861,9 +1863,9 @@ positive: modulo on short integers
 	VAR a, b: SHORTINT;
 	BEGIN
 		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
-		a := -3; b := 2; ASSERT (a MOD b = -1); ASSERT (a MOD b = (-3) MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = (-3) MOD 2);
 		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
-		a := -2; b := 3; ASSERT (a MOD b = -2); ASSERT (a MOD b = (-2) MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT (a MOD b = (-2) MOD 3);
 		a := MAX (SHORTINT); b := MAX (SHORTINT); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (SHORTINT) MOD MAX (SHORTINT));
 	END Test.
 
@@ -1880,9 +1882,9 @@ positive: modulo on integers
 	VAR a, b: INTEGER;
 	BEGIN
 		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
-		a := -3; b := 2; ASSERT (a MOD b = -1); ASSERT (a MOD b = (-3) MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = (-3) MOD 2);
 		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
-		a := -2; b := 3; ASSERT (a MOD b = -2); ASSERT (a MOD b = (-2) MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT (a MOD b = (-2) MOD 3);
 		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (INTEGER) MOD MAX (INTEGER));
 	END Test.
 
@@ -1900,9 +1902,9 @@ positive: modulo on long integers
 	VAR a, b: LONGINT;
 	BEGIN
 		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
-		a := -3; b := 2; ASSERT (a MOD b = -1); ASSERT (a MOD b = (-3) MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = (-3) MOD 2);
 		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
-		a := -2; b := 3; ASSERT (a MOD b = -2); ASSERT (a MOD b = (-2) MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT (a MOD b = (-2) MOD 3);
 		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (LONGINT) MOD MAX (LONGINT));
 	END Test.
 
@@ -1919,9 +1921,9 @@ positive: modulo on huge integers
 	VAR a, b: HUGEINT;
 	BEGIN
 		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
-		a := -3; b := 2; ASSERT (a MOD b = -1); ASSERT (a MOD b = (-3) MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = (-3) MOD 2);
 		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
-		a := -2; b := 3; ASSERT (a MOD b = -2); ASSERT (a MOD b = (-2) MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT (a MOD b = (-2) MOD 3);
 		a := MAX (HUGEINT); b := MAX (HUGEINT); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (HUGEINT) MOD MAX (HUGEINT));
 	END Test.
 
