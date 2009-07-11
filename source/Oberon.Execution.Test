@@ -1961,7 +1961,7 @@ negative: modulo by zero on huge integer
 	VAR a, b, r: HUGEINT;
 	BEGIN a := 3; b := 0; r := a MOD b;
 	END Test.
-~~~~~
+
 positive: arithmetic shift on short integer
 
 	MODULE Test;
