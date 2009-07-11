@@ -1723,20 +1723,27 @@ positive: multiplication on long reals
 		a := -3.5; b := -2.5; ASSERT (a * b = +8.75); ASSERT (a * b = (-3.5) * (-2.5));
 	END Test.
 
-positive: integer division on short integers
+positive: integer division on short integers with positive divisor
 
 	MODULE Test;
 	VAR a, b: SHORTINT;
 	BEGIN
 		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
 		a := -3; b := 2; ASSERT (a DIV b = -2); ASSERT (a DIV b = (-3) DIV 2);
-		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
-		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
 		a := -2; b := 3; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-2) DIV 3);
+		a := MAX (SHORTINT); b := MAX (SHORTINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (SHORTINT) DIV MAX (SHORTINT));
+	END Test.
+
+positive: integer division on short integers with negative divisor
+
+	MODULE Test;
+	VAR a, b: SHORTINT;
+	BEGIN
+		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
+		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
 		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
-		a := MAX (SHORTINT); b := MAX (SHORTINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (SHORTINT) DIV MAX (SHORTINT));
 	END Test.
 
 negative: integer division by zero on short integer
@@ -1746,20 +1753,27 @@ negative: integer division by zero on short integer
 	BEGIN a := 3; b := 0; r := a DIV b;
 	END Test.
 
-positive: integer division on integers
+positive: integer division on integers with positive divisor
 
 	MODULE Test;
 	VAR a, b: INTEGER;
 	BEGIN
 		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
 		a := -3; b := 2; ASSERT (a DIV b = -2); ASSERT (a DIV b = (-3) DIV 2);
-		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
-		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
 		a := -2; b := 3; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-2) DIV 3);
+		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (INTEGER) DIV MAX (INTEGER));
+	END Test.
+
+positive: integer division on integers with negative divisor
+
+	MODULE Test;
+	VAR a, b: INTEGER;
+	BEGIN
+		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
+		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
 		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
-		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (INTEGER) DIV MAX (INTEGER));
 	END Test.
 
 negative: integer division by zero on integer
@@ -1769,20 +1783,27 @@ negative: integer division by zero on integer
 	BEGIN a := 3; b := 0; r := a DIV b;
 	END Test.
 
-positive: integer division on long integers
+positive: integer division on long integers with positive divisor
 
 	MODULE Test;
 	VAR a, b: LONGINT;
 	BEGIN
 		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
 		a := -3; b := 2; ASSERT (a DIV b = -2); ASSERT (a DIV b = (-3) DIV 2);
-		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
-		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
 		a := -2; b := 3; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-2) DIV 3);
+		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (LONGINT) DIV MAX (LONGINT));
+	END Test.
+
+positive: integer division on long integers with negative divisor
+
+	MODULE Test;
+	VAR a, b: LONGINT;
+	BEGIN
+		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
+		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
 		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
-		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (LONGINT) DIV MAX (LONGINT));
 	END Test.
 
 negative: integer division by zero on long integer
@@ -1792,20 +1813,27 @@ negative: integer division by zero on long integer
 	BEGIN a := 3; b := 0; r := a DIV b;
 	END Test.
 
-positive: integer division on huge integers
+positive: integer division on huge integers with positive divisor
 
 	MODULE Test;
 	VAR a, b: HUGEINT;
 	BEGIN
 		a := 3; b := 2; ASSERT (a DIV b = +1); ASSERT (a DIV b = 3 DIV 2);
 		a := -3; b := 2; ASSERT (a DIV b = -2); ASSERT (a DIV b = (-3) DIV 2);
-		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
-		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := 3; ASSERT (a DIV b = +0); ASSERT (a DIV b = 2 DIV 3);
 		a := -2; b := 3; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-2) DIV 3);
+		a := MAX (HUGEINT); b := MAX (HUGEINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (HUGEINT) DIV MAX (HUGEINT));
+	END Test.
+
+positive: integer division on huge integers with negative divisor
+
+	MODULE Test;
+	VAR a, b: HUGEINT;
+	BEGIN
+		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
+		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
 		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
 		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
-		a := MAX (HUGEINT); b := MAX (HUGEINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (HUGEINT) DIV MAX (HUGEINT));
 	END Test.
 
 negative: integer division by zero on huge integer
@@ -1933,7 +1961,7 @@ negative: modulo by zero on huge integer
 	VAR a, b, r: HUGEINT;
 	BEGIN a := 3; b := 0; r := a MOD b;
 	END Test.
-
+~~~~~
 positive: arithmetic shift on short integer
 
 	MODULE Test;
