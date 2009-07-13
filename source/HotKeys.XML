@@ -76,7 +76,7 @@
 	<HotKey name="Close Window" keys="ALT+F4" command="WMNavigate.CloseWindow"/>
 
 	<!-- Example: Switch keyboard focus to previous/next window -->
-	<HotKey name="Open Windows Navigation" keys="CTRL+ALT+UP" command="WMNavigate.Open -vs 6 0 0 WMNavigateTaskList.XML "/>
+	<HotKey name="Open Windows Navigation" keys="CTRL+ALT+UP" command="WMNavigate.Open -vs 6 0 0 Navigation:TaskList "/>
 	<HotKey name="Close Windows Navigation" keys="CTRL+ALT+DOWN" command="WMNavigate.Close 6"/>
 	<HotKey name="FocusToNext" keys="CTRL+ALT+RIGHT" command="WMNavigate.FocusToNext"/>
 	<HotKey name="FocusToPrevious" keys="CTRL+ALT+LEFT" command="WMNavigate.FocusToPrevious"/>
