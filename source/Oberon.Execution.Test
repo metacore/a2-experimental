@@ -996,12 +996,12 @@ positive: character value of short integer
 	MODULE Test;
 	VAR value: SHORTINT;
 	BEGIN
-		value := SHORT(ORD ('0')); ASSERT (CHR (value) = '0');
-		value := SHORT(ORD ('9')); ASSERT (CHR (value) = '9');
-		value := SHORT(ORD ('a')); ASSERT (CHR (value) = 'a');
-		value := SHORT(ORD ('z')); ASSERT (CHR (value) = 'z');
-		value := SHORT(ORD ('A')); ASSERT (CHR (value) = 'A');
-		value := SHORT(ORD ('Z')); ASSERT (CHR (value) = 'Z');
+		value := ORD ('0'); ASSERT (CHR (value) = '0');
+		value := ORD ('9'); ASSERT (CHR (value) = '9');
+		value := ORD ('a'); ASSERT (CHR (value) = 'a');
+		value := ORD ('z'); ASSERT (CHR (value) = 'z');
+		value := ORD ('A'); ASSERT (CHR (value) = 'A');
+		value := ORD ('Z'); ASSERT (CHR (value) = 'Z');
 	END Test.
 
 positive: character value of integer
@@ -1735,15 +1735,12 @@ positive: integer division on short integers with positive divisor
 		a := MAX (SHORTINT); b := MAX (SHORTINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (SHORTINT) DIV MAX (SHORTINT));
 	END Test.
 
-positive: integer division on short integers with negative divisor
+negative: integer division on short integers with negative divisor
 
 	MODULE Test;
-	VAR a, b: SHORTINT;
+	VAR a, b, c: SHORTINT;
 	BEGIN
-		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
-		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
-		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
-		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
+		a := 3; b := -2; c := a DIV b; 
 	END Test.
 
 negative: integer division by zero on short integer
@@ -1764,17 +1761,15 @@ positive: integer division on integers with positive divisor
 		a := -2; b := 3; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-2) DIV 3);
 		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (INTEGER) DIV MAX (INTEGER));
 	END Test.
-
-positive: integer division on integers with negative divisor
+	
+negative: integer division on integers with negative divisor
 
 	MODULE Test;
-	VAR a, b: INTEGER;
+	VAR a, b, c: INTEGER;
 	BEGIN
-		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
-		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
-		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
-		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
+		a := 3; b := -2; c := a DIV b; 
 	END Test.
+
 
 negative: integer division by zero on integer
 
@@ -1795,15 +1790,12 @@ positive: integer division on long integers with positive divisor
 		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (LONGINT) DIV MAX (LONGINT));
 	END Test.
 
-positive: integer division on long integers with negative divisor
+negative: integer division on long integers with negative divisor
 
 	MODULE Test;
-	VAR a, b: LONGINT;
+	VAR a, b, c: LONGINT;
 	BEGIN
-		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
-		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
-		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
-		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
+		a := 3; b := -2; c := a DIV b; 
 	END Test.
 
 negative: integer division by zero on long integer
@@ -1825,15 +1817,12 @@ positive: integer division on huge integers with positive divisor
 		a := MAX (HUGEINT); b := MAX (HUGEINT); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (HUGEINT) DIV MAX (HUGEINT));
 	END Test.
 
-positive: integer division on huge integers with negative divisor
+negative: integer division on huge integers with negative divisor
 
 	MODULE Test;
-	VAR a, b: HUGEINT;
+	VAR a, b, c: HUGEINT;
 	BEGIN
-		a := 3; b := -2; ASSERT (a DIV b = -1); ASSERT (a DIV b = 3 DIV (-2));
-		a := -3; b := -2; ASSERT (a DIV b = +1); ASSERT (a DIV b = (-3) DIV (-2));
-		a := 2; b := -3; ASSERT (a DIV b = -0); ASSERT (a DIV b = 2 DIV (-3));
-		a := -2; b := -3; ASSERT (a DIV b = +0); ASSERT (a DIV b = (-2) DIV (-3));
+		a := 3; b := -2; c := a DIV b; 
 	END Test.
 
 negative: integer division by zero on huge integer
@@ -2221,7 +2210,6 @@ negative: type guard on nil base object
 	VAR o0: O0; o1: O1;
 	BEGIN o0 := NIL; o1 := o0(O1);
 	END Test.
-
 
 # type tests
 
@@ -2612,6 +2600,8 @@ negative: negative dynamic dimension of one-dimensional variable open array
 	BEGIN Procedure (a, -1);
 	END Test.
 
+
+
 negative: invalid dynamic dimension of one-dimensional variable open array
 
 	MODULE Test;
@@ -2932,6 +2922,7 @@ negative: negative index into constant parameter array
 	END Procedure;
 	BEGIN Procedure (g);
 	END Test.
+	
 
 negative: too large index into constant parameter array
 
@@ -2942,6 +2933,8 @@ negative: too large index into constant parameter array
 	END Procedure;
 	BEGIN Procedure (g);
 	END Test.
+
+
 
 positive: indexing open array
 
@@ -3446,6 +3439,7 @@ positive: modifying variable pointer to open character array parameter
 	END Procedure;
 	BEGIN NEW (g, 10); g^ := "value"; Procedure (g); ASSERT (g^ = "modified");
 	END Test.
+
 
 positive: modifying variable pointer to array reference parameter
 
