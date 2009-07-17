@@ -790,6 +790,7 @@ positive: relational operations on character arrays
 	END Test.
 
 
+
 # negation
 
 positive: negation on short integers
@@ -4315,6 +4316,70 @@ negative: copy statement with string as source and too short open variable array
 	BEGIN Procedure (dest);
 	END Test.
 
+# string assignment
+
+positive: string assignment with array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	PROCEDURE Procedure (dest: ARRAY 20 OF CHAR);
+	BEGIN dest := Source; ASSERT (dest = Source);
+	END Procedure;
+	BEGIN Procedure ("destination");
+	END Test.
+
+positive: string assignment with variable array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	VAR dest: ARRAY 20 OF CHAR;
+	PROCEDURE Procedure (VAR dest: ARRAY 20 OF CHAR);
+	BEGIN dest := Source; 
+	END Procedure;
+	BEGIN Procedure (dest); ASSERT (dest = Source);
+	END Test.
+
+positive: string assignment with open array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	PROCEDURE Procedure (dest: ARRAY OF CHAR);
+	BEGIN dest := Source; ASSERT (dest = Source);
+	END Procedure;
+	BEGIN Procedure ("destination");
+	END Test.
+
+negative: string assignment with  too short open array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	PROCEDURE Procedure (dest: ARRAY OF CHAR);
+	BEGIN dest := Source; ASSERT (dest = Source);
+	END Procedure;
+	BEGIN Procedure ("");
+	END Test.
+
+positive: string assignment with open variable array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	VAR dest: ARRAY 20 OF CHAR;
+	PROCEDURE Procedure (VAR dest: ARRAY OF CHAR);
+	BEGIN dest := Source;
+	END Procedure;
+	BEGIN Procedure (dest); ASSERT (dest = Source);
+	END Test.
+
+negative: string assignment with too short open variable array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "source";
+	VAR dest: ARRAY 2 OF CHAR;
+	PROCEDURE Procedure (VAR dest: ARRAY OF CHAR);
+	BEGIN dest := Source;
+	END Procedure;
+	BEGIN Procedure (dest);
+	END Test.
 
 # increment statement
 
