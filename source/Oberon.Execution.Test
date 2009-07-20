@@ -4065,6 +4065,43 @@ positive: double super call with initializer
 	BEGIN NEW (object, 0); object.Method0; ASSERT (object.i = 4);
 	END Test.
 
+positive: call of object body
+
+	MODULE Test;
+	VAR o: OBJECT BEGIN b := TRUE END; 
+	VAR b: BOOLEAN; 
+	BEGIN b := FALSE; NEW(o); ASSERT(b);
+	END Test.
+
+positive: call of object body chains
+
+	MODULE Test; 
+	TYPE 
+		O = OBJECT	BEGIN b1 := TRUE END O;
+		O2=OBJECT(O) BEGIN b2 := b1 END O2; 
+		O3=OBJECT(O2) BEGIN b3 := b2 END O3; 
+
+	VAR b1,b2,b3: BOOLEAN; o: O3;
+	BEGIN 
+		b1 := FALSE; b2 := FALSE; b3 := FALSE;
+		NEW(o); 
+		ASSERT(b1); ASSERT(b2);  ASSERT(b3); 
+	END Test.
+
+positive: call of object body chains with initializer
+
+	MODULE Test; 
+	TYPE 
+		O = OBJECT	BEGIN b1 := b0 END O;
+		O2=OBJECT(O) BEGIN b2 := b1 END O2; 
+		O3=OBJECT(O2) PROCEDURE &Init; BEGIN b0 := TRUE END Init; BEGIN b3 := b2 END O3; 
+
+	VAR b0,b1,b2,b3: BOOLEAN; o: O3;
+	BEGIN 
+		b0 := FALSE; b1 := FALSE; b2 := FALSE; b3 := FALSE;
+		NEW(o); 
+		ASSERT(b0); ASSERT(b1); ASSERT(b2);  ASSERT(b3); 
+	END Test.
 
 # copy statement
 
