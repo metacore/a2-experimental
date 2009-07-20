@@ -3688,7 +3688,7 @@ positive: new statement on too large object
 positive: new statement modifying designator after object body
 
 	MODULE Test;
-	VAR o: OBJECT PROCEDURE &Init; BEGIN ASSERT (o = NIL); END Init; BEGIN ASSERT (o = NIL); END;
+	VAR o: OBJECT PROCEDURE &Init; BEGIN ASSERT (o = NIL); END Init; BEGIN ASSERT (o # NIL); END;
 	BEGIN o := NIL; NEW (o); ASSERT (o # NIL);
 	END Test.
 
