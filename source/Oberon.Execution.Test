@@ -4739,7 +4739,7 @@ negative: await statement in non-exclusive block
 	MODULE Test;
 	VAR condition: BOOLEAN;
 	PROCEDURE Await; BEGIN AWAIT (condition) END Await;
-	BEGIN condition := TRUE; Await;
+	BEGIN condition := FALSE; Await;
 	END Test.
 
 
