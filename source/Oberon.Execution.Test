@@ -790,7 +790,6 @@ positive: relational operations on character arrays
 	END Test.
 
 
-
 # negation
 
 positive: negation on short integers
@@ -2212,6 +2211,7 @@ negative: type guard on nil base object
 	BEGIN o0 := NIL; o1 := o0(O1);
 	END Test.
 
+
 # type tests
 
 positive: type test on same global record
@@ -2601,8 +2601,6 @@ negative: negative dynamic dimension of one-dimensional variable open array
 	BEGIN Procedure (a, -1);
 	END Test.
 
-
-
 negative: invalid dynamic dimension of one-dimensional variable open array
 
 	MODULE Test;
@@ -2923,7 +2921,6 @@ negative: negative index into constant parameter array
 	END Procedure;
 	BEGIN Procedure (g);
 	END Test.
-	
 
 negative: too large index into constant parameter array
 
@@ -2934,8 +2931,6 @@ negative: too large index into constant parameter array
 	END Procedure;
 	BEGIN Procedure (g);
 	END Test.
-
-
 
 positive: indexing open array
 
@@ -3441,7 +3436,6 @@ positive: modifying variable pointer to open character array parameter
 	BEGIN NEW (g, 10); g^ := "value"; Procedure (g); ASSERT (g^ = "modified");
 	END Test.
 
-
 positive: modifying variable pointer to array reference parameter
 
 	MODULE Test;
@@ -3632,7 +3626,7 @@ positive: new statement on pointer to record
 positive: new statement on pointer to too large record
 
 	MODULE Test;
-	VAR p: POINTER TO RECORD data: ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER END;
+	VAR p: POINTER TO RECORD data*: ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER END;
 	BEGIN NEW (p); ASSERT (p = NIL);
 	END Test.
 
@@ -3681,7 +3675,7 @@ positive: new statement on object
 positive: new statement on too large object
 
 	MODULE Test;
-	VAR o: OBJECT VAR data: ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER END;
+	VAR o: OBJECT VAR data*: ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER END;
 	BEGIN NEW (o); ASSERT (o = NIL);
 	END Test.
 
@@ -4065,6 +4059,65 @@ positive: double super call with initializer
 	BEGIN NEW (object, 0); object.Method0; ASSERT (object.i = 4);
 	END Test.
 
+positive: single method call with initializer and body
+
+	MODULE Test;
+	VAR object: OBJECT VAR i: INTEGER;
+		PROCEDURE &Init (i: INTEGER); BEGIN SELF.i := i; END Init;
+		PROCEDURE Method; BEGIN ASSERT (i = 1); i := 2; END Method;
+		BEGIN ASSERT (i = 0); i := 1;
+	END;
+	BEGIN NEW (object, 0); object.Method; ASSERT (object.i = 2);
+	END Test.
+
+positive: single super call with initializer and body
+
+	MODULE Test;
+	TYPE Object0 = OBJECT VAR i: INTEGER;
+		PROCEDURE &Init (i: INTEGER); BEGIN SELF.i := i; END Init;
+		PROCEDURE Method; BEGIN ASSERT (i = 3); i := 4; END Method;
+		BEGIN ASSERT (i = 0); i := 1;
+	END Object0;
+	TYPE Object1 = OBJECT (Object0)
+		PROCEDURE &Init (i: INTEGER); BEGIN Init^ (i); END Init;
+		PROCEDURE Method; BEGIN ASSERT (i = 2); i := 3; Method^; END Method;
+		BEGIN ASSERT (i = 1); i := 2;
+	END Object1;
+	VAR object: Object1;
+	BEGIN NEW (object, 0); object.Method; ASSERT (object.i = 4);
+	END Test.
+
+positive: double method call with initializer and body
+
+	MODULE Test;
+	VAR object: OBJECT VAR i: INTEGER;
+		PROCEDURE &Init (i: INTEGER); BEGIN SELF.i := i; END Init;
+		PROCEDURE Method0; BEGIN ASSERT (i = 1); i := 2; Method1; END Method0;
+		PROCEDURE Method1; BEGIN ASSERT (i = 2); i := 3; END Method1;
+		BEGIN ASSERT (i = 0); i := 1;
+	END;
+	BEGIN NEW (object, 0); object.Method0; ASSERT (object.i = 3);
+	END Test.
+
+positive: double super call with initializer and body
+
+	MODULE Test;
+	TYPE Object0 = OBJECT VAR i: INTEGER;
+		PROCEDURE &Init (i: INTEGER); BEGIN SELF.i := i; END Init;
+		PROCEDURE Method0; BEGIN ASSERT (i = 3); i := 4; Method1; END Method0;
+		PROCEDURE Method1; BEGIN ASSERT (i = 5); i := 6; END Method1;
+		BEGIN ASSERT (i = 0); i := 1;
+	END Object0;
+	TYPE Object1 = OBJECT (Object0)
+		PROCEDURE &Init (i: INTEGER); BEGIN Init^ (i); END Init;
+		PROCEDURE Method0; BEGIN ASSERT (i = 2); i := 3; Method0^; END Method0;
+		PROCEDURE Method1; BEGIN ASSERT (i = 4); i := 5; Method1^; END Method1;
+		BEGIN ASSERT (i = 1); i := 2;
+	END Object1;
+	VAR object: Object1;
+	BEGIN NEW (object, 0); object.Method0; ASSERT (object.i = 6);
+	END Test.
+
 positive: call of object body
 
 	MODULE Test;
@@ -4102,6 +4155,7 @@ positive: call of object body chains with initializer
 		NEW(o); 
 		ASSERT(b0); ASSERT(b1); ASSERT(b2);  ASSERT(b3); 
 	END Test.
+
 
 # copy statement
 
@@ -4353,9 +4407,18 @@ negative: copy statement with string as source and too short open variable array
 	BEGIN Procedure (dest);
 	END Test.
 
+
 # string assignment
 
-positive: string assignment with array of character parameter as destination
+positive: string assignment on array of character
+
+	MODULE Test;
+	CONST Source = "source";
+	VAR dest: ARRAY 20 OF CHAR;
+	BEGIN dest := Source; ASSERT (dest = Source);
+	END Test.
+
+positive: string assignment on array of character parameter
 
 	MODULE Test;
 	CONST Source = "source";
@@ -4365,18 +4428,18 @@ positive: string assignment with array of character parameter as destination
 	BEGIN Procedure ("destination");
 	END Test.
 
-positive: string assignment with variable array of character parameter as destination
+positive: string assignment on variable array of character parameter
 
 	MODULE Test;
 	CONST Source = "source";
 	VAR dest: ARRAY 20 OF CHAR;
 	PROCEDURE Procedure (VAR dest: ARRAY 20 OF CHAR);
-	BEGIN dest := Source; 
+	BEGIN dest := Source;
 	END Procedure;
 	BEGIN Procedure (dest); ASSERT (dest = Source);
 	END Test.
 
-positive: string assignment with open array of character parameter as destination
+positive: string assignment on open array of character parameter
 
 	MODULE Test;
 	CONST Source = "source";
@@ -4386,7 +4449,7 @@ positive: string assignment with open array of character parameter as destinatio
 	BEGIN Procedure ("destination");
 	END Test.
 
-negative: string assignment with  too short open array of character parameter as destination
+negative: string assignment on too short open array of character parameter
 
 	MODULE Test;
 	CONST Source = "source";
@@ -4396,7 +4459,7 @@ negative: string assignment with  too short open array of character parameter as
 	BEGIN Procedure ("");
 	END Test.
 
-positive: string assignment with open variable array of character parameter as destination
+positive: string assignment on open variable array of character parameter
 
 	MODULE Test;
 	CONST Source = "source";
@@ -4407,7 +4470,7 @@ positive: string assignment with open variable array of character parameter as d
 	BEGIN Procedure (dest); ASSERT (dest = Source);
 	END Test.
 
-negative: string assignment with too short open variable array of character parameter as destination
+negative: string assignment on too short open variable array of character parameter
 
 	MODULE Test;
 	CONST Source = "source";
@@ -4417,6 +4480,7 @@ negative: string assignment with too short open variable array of character para
 	END Procedure;
 	BEGIN Procedure (dest);
 	END Test.
+
 
 # increment statement
 
