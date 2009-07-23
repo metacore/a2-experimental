@@ -167,6 +167,10 @@
 		<property name="clDefault" type="color" mandatory="false" />
 		<property name="clHover" type="color" mandatory="false" />
 		<property name="clPressed" type="color" mandatory="false" />
+		<property name="clBtnDefault" type="color" mandatory="false" />
+		<property name="clBtnHover" type="color" mandatory="false" />
+		<property name="clBtnPressed" type="color" mandatory="false" />
+		<property name="effect3d" type="int32" mandatory="false" />
 		<property name="horizontalBgDefault" type="resource" mandatory="false" />
 		<property name="horizontalBgHover" type="resource" mandatory="false" />
 		<property name="horizontalBgPressed" type="resource" mandatory="false" />
