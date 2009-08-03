@@ -2318,7 +2318,7 @@ positive: unsatisfied type test on pointer to record
 	MODULE Test;
 	TYPE R0 = RECORD END; P0 = POINTER TO R0
 	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
-	VAR p0: P0; p1: P1;
+	VAR p0: P0;
 	BEGIN NEW (p0); ASSERT (~(p0 IS P1)); ASSERT (~(p0^ IS R1));
 	END Test.
 
@@ -2327,7 +2327,7 @@ negative: type test on nil pointer to record
 	MODULE Test;
 	TYPE R0 = RECORD END; P0 = POINTER TO R0;
 	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
-	VAR p0: P0; p1: P1;
+	VAR p0: P0;
 	BEGIN p0 := NIL; ASSERT (~(p0 IS P1));
 	END Test.
 
@@ -2353,7 +2353,7 @@ positive: unsatisfied type test on object
 	MODULE Test;
 	TYPE O0 = OBJECT END O0;
 	TYPE O1 = OBJECT (O0) END O1;
-	VAR o0: O0; o1: O1;
+	VAR o0: O0;
 	BEGIN NEW (o0); ASSERT (~(o0 IS O1));
 	END Test.
 
@@ -2362,7 +2362,7 @@ negative: type test on nil object
 	MODULE Test;
 	TYPE O0 = OBJECT END O0;
 	TYPE O1 = OBJECT (O0) END O1;
-	VAR o0: O0; o1: O1;
+	VAR o0: O0;
 	BEGIN o0 := NIL; ASSERT (~(o0 IS O1));
 	END Test.
 
@@ -2380,7 +2380,7 @@ negative: type test on nil base object
 	MODULE Test;
 	TYPE O0 = OBJECT;
 	TYPE O1 = OBJECT (O0) END O1;
-	VAR o0: O0; o1: O1;
+	VAR o0: O0;
 	BEGIN o0 := NIL; ASSERT (~(o0 IS O1));
 	END Test.
 
@@ -2788,6 +2788,120 @@ negative: invalid dynamic dimension of two-dimensional constant open array
 	BEGIN Procedure (a, 2);
 	END Test.
 
+positive: length of pointer to one-dimensional open array
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF INTEGER; len: LONGINT);
+	BEGIN ASSERT (LEN (p) = len);
+	END Procedure;
+	BEGIN NEW (a, 10); ASSERT (LEN (a) = 10); Procedure (a^, 10); Procedure (a^, LEN (a));
+	END Test.
+
+positive: first dimension of pointer to one-dimensional open array
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF INTEGER; len: LONGINT);
+	BEGIN ASSERT (LEN (p, 0) = len);
+	END Procedure;
+	BEGIN NEW (a, 10); ASSERT (LEN (a, 0) = 10); Procedure (a^, 10); Procedure (a^, LEN (a, 0));
+	END Test.
+
+positive: dynamic dimension of pointer to one-dimensional open array
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF INTEGER; dim, len: LONGINT);
+	BEGIN ASSERT (LEN (p, dim) = len);
+	END Procedure;
+	BEGIN NEW (a, 10); Procedure (a^, 0, 10); Procedure (a^, 0, LEN (a, 0));
+	END Test.
+
+negative: negative dynamic dimension of pointer to one-dimensional open array
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN NEW (a, 10); Procedure (a^, -1);
+	END Test.
+
+negative: invalid dynamic dimension of pointer to one-dimensional open array
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN NEW (a, 10); Procedure (a^, 1);
+	END Test.
+
+positive: length of pointer to two-dimensional open array
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF ARRAY OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; len: LONGINT);
+	BEGIN ASSERT (LEN (p) = len);
+	END Procedure;
+	BEGIN NEW (a, 10, 20); Procedure (a^, 10); Procedure (a^, LEN (a));
+	END Test.
+
+positive: first dimension of pointer to two-dimensional open array
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF ARRAY OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; len: LONGINT);
+	BEGIN ASSERT (LEN (p, 0) = len);
+	END Procedure;
+	BEGIN NEW (a, 10, 20); Procedure (a^, 10); Procedure (a^, LEN (a, 0));
+	END Test.
+
+positive: second dimension of pointer to two-dimensional open array
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF ARRAY OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; len: LONGINT);
+	BEGIN ASSERT (LEN (p, 1) = len);
+	END Procedure;
+	BEGIN NEW (a, 10, 20); Procedure (a^, 20); Procedure (a^, LEN (a, 1));
+	END Test.
+
+positive: dynamic dimension of pointer to two-dimensional open array
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF ARRAY OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; dim, len: LONGINT);
+	BEGIN ASSERT (LEN (p, dim) = len);
+	END Procedure;
+	BEGIN NEW (a, 10, 20); Procedure (a^, 0, 10); Procedure (a^, 0, LEN (a, 0)); Procedure (a^, 1, 20); Procedure (a^, 1, LEN (a, 1));
+	END Test.
+
+negative: negative dynamic dimension of pointer to two-dimensional open array
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF ARRAY OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN NEW (a, 10, 20); Procedure (a^, -1);
+	END Test.
+
+negative: invalid dynamic dimension of pointer to two-dimensional open array
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF ARRAY OF INTEGER;
+	PROCEDURE Procedure (CONST p: ARRAY OF ARRAY OF INTEGER; dim: INTEGER);
+	VAR len: LONGINT;
+	BEGIN len := LEN (p, dim);
+	END Procedure;
+	BEGIN NEW (a, 10, 20); Procedure (a^, 2);
+	END Test.
+
 
 # indexing
 
@@ -2810,6 +2924,46 @@ negative: too large index into global array
 	MODULE Test;
 	VAR g: ARRAY 10 OF INTEGER; index: LONGINT;
 	BEGIN index := LEN (g); g[index] := 0;
+	END Test.
+
+positive: reading global array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Set (VAR p: ARRAY OF INTEGER; index, value: INTEGER);
+	BEGIN p[index] := value;
+	END Set;
+	BEGIN Set (g, 5, 15); ASSERT (g[5] = 15);
+	END Test.
+
+positive: writing global array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Get (CONST p: ARRAY OF INTEGER; index: INTEGER): INTEGER;
+	BEGIN RETURN p[index];
+	END Get;
+	BEGIN g[5] := 15; ASSERT (Get (g, 5) = 15);
+	END Test.
+
+positive: reading two-dimensional global array
+
+	MODULE Test;
+	VAR g: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Set (VAR p: ARRAY OF ARRAY OF INTEGER; index1, index2, value: INTEGER);
+	BEGIN p[index1, index2] := value;
+	END Set;
+	BEGIN Set (g, 5, 6, 15); ASSERT (g[5, 6] = 15);
+	END Test.
+
+positive: writing two-dimensional global array
+
+	MODULE Test;
+	VAR g: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Get (CONST p: ARRAY OF ARRAY OF INTEGER; index1, index2: INTEGER): INTEGER;
+	BEGIN RETURN p[index1, index2];
+	END Get;
+	BEGIN g[5, 6] := 15; ASSERT (Get (g, 5, 6) = 15);
 	END Test.
 
 positive: indexing local array
@@ -2839,6 +2993,58 @@ negative: too large index into local array
 	VAR l: ARRAY 10 OF INTEGER; index: LONGINT;
 	BEGIN index := LEN (l); l[index] := 0;
 	END Procedure;
+	BEGIN Procedure;
+	END Test.
+
+positive: reading local array
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR l: ARRAY 10 OF INTEGER;
+	BEGIN Set (l, 5, 15); ASSERT (l[5] = 15);
+	END Procedure;
+	PROCEDURE Set (VAR p: ARRAY OF INTEGER; index, value: INTEGER);
+	BEGIN p[index] := value;
+	END Set;
+	BEGIN Procedure;
+	END Test.
+
+positive: writing local array
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR l: ARRAY 10 OF INTEGER;
+	BEGIN l[5] := 15; ASSERT (Get (l, 5) = 15);
+	END Procedure;
+	PROCEDURE Get (CONST p: ARRAY OF INTEGER; index: INTEGER): INTEGER;
+	BEGIN RETURN p[index];
+	END Get;
+	BEGIN Procedure;
+	END Test.
+
+positive: reading two-dimensional local array
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR l: ARRAY 10, 20 OF INTEGER;
+	BEGIN Set (l, 5, 6, 15); ASSERT (l[5, 6] = 15);
+	END Procedure;
+	PROCEDURE Set (VAR p: ARRAY OF ARRAY OF INTEGER; index1, index2, value: INTEGER);
+	BEGIN p[index1, index2] := value;
+	END Set;
+	BEGIN Procedure;
+	END Test.
+
+positive: writing two-dimensional local array
+
+	MODULE Test;
+	PROCEDURE Procedure;
+	VAR l: ARRAY 10, 20 OF INTEGER;
+	BEGIN l[5, 6] := 15; ASSERT (Get (l, 5, 6) = 15);
+	END Procedure;
+	PROCEDURE Get (CONST p: ARRAY OF ARRAY OF INTEGER; index1, index2: INTEGER): INTEGER;
+	BEGIN RETURN p[index1, index2];
+	END Get;
 	BEGIN Procedure;
 	END Test.
 
@@ -2872,6 +3078,58 @@ negative: too large index into parameter array
 	BEGIN Procedure (g);
 	END Test.
 
+positive: reading parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY 10 OF INTEGER);
+	BEGIN Set (p, 5, 15); ASSERT (p[5] = 15);
+	END Procedure;
+	PROCEDURE Set (VAR p: ARRAY OF INTEGER; index, value: INTEGER);
+	BEGIN p[index] := value;
+	END Set;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: writing parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY 10 OF INTEGER);
+	BEGIN p[5] := 15; ASSERT (Get (p, 5) = 15);
+	END Procedure;
+	PROCEDURE Get (CONST p: ARRAY OF INTEGER; index: INTEGER): INTEGER;
+	BEGIN RETURN p[index];
+	END Get;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: reading two-dimensional parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY 10, 20 OF INTEGER);
+	BEGIN Set (p, 5, 6, 15); ASSERT (p[5, 6] = 15);
+	END Procedure;
+	PROCEDURE Set (VAR p: ARRAY OF ARRAY OF INTEGER; index1, index2, value: INTEGER);
+	BEGIN p[index1, index2] := value;
+	END Set;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: writing two-dimensional parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY 10, 20 OF INTEGER);
+	BEGIN p[5, 6] := 15; ASSERT (Get (p, 5, 6) = 15);
+	END Procedure;
+	PROCEDURE Get (CONST p: ARRAY OF ARRAY OF INTEGER; index1, index2: INTEGER): INTEGER;
+	BEGIN RETURN p[index1, index2];
+	END Get;
+	BEGIN Procedure (g);
+	END Test.
+
 positive: indexing variable parameter array
 
 	MODULE Test;
@@ -2879,7 +3137,7 @@ positive: indexing variable parameter array
 	PROCEDURE Procedure (VAR p: ARRAY 10 OF INTEGER);
 	BEGIN p[1] := 2; p[2] := LEN (p); ASSERT (p[0] = 1); ASSERT (p[1] = 2); ASSERT (p[p[0]] = 2); ASSERT (p[p[p[0]]] = 10);
 	END Procedure;
-	BEGIN g[0] := 1; Procedure (g);
+	BEGIN g[0] := 1; Procedure (g); ASSERT (g[0] = 1); ASSERT (g[1] = 2); ASSERT (g[g[0]] = 2); ASSERT (g[g[g[0]]] = 10);
 	END Test.
 
 negative: negative index into variable parameter array
@@ -2900,6 +3158,58 @@ negative: too large index into variable parameter array
 	BEGIN index := LEN (p); p[index] := 0;
 	END Procedure;
 	BEGIN Procedure (g);
+	END Test.
+
+positive: reading variable parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY 10 OF INTEGER);
+	BEGIN Set (p, 5, 15); ASSERT (p[5] = 15);
+	END Procedure;
+	PROCEDURE Set (VAR p: ARRAY OF INTEGER; index, value: INTEGER);
+	BEGIN p[index] := value;
+	END Set;
+	BEGIN Procedure (g); ASSERT (g[5] = 15);
+	END Test.
+
+positive: writing variable parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY 10 OF INTEGER);
+	BEGIN p[5] := 15; ASSERT (Get (p, 5) = 15);
+	END Procedure;
+	PROCEDURE Get (CONST p: ARRAY OF INTEGER; index: INTEGER): INTEGER;
+	BEGIN RETURN p[index];
+	END Get;
+	BEGIN Procedure (g); ASSERT (Get (g, 5) = 15); ASSERT (g[5] = 15);
+	END Test.
+
+positive: reading two-dimensional variable parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY 10, 20 OF INTEGER);
+	BEGIN Set (p, 5, 6, 15); ASSERT (p[5, 6] = 15);
+	END Procedure;
+	PROCEDURE Set (VAR p: ARRAY OF ARRAY OF INTEGER; index1, index2, value: INTEGER);
+	BEGIN p[index1, index2] := value;
+	END Set;
+	BEGIN Procedure (g);  ASSERT (g[5, 6] = 15);
+	END Test.
+
+positive: writing two-dimensional variable parameter array
+
+	MODULE Test;
+	VAR g: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY 10, 20 OF INTEGER);
+	BEGIN p[5, 6] := 15; ASSERT (Get (p, 5, 6) = 15);
+	END Procedure;
+	PROCEDURE Get (CONST p: ARRAY OF ARRAY OF INTEGER; index1, index2: INTEGER): INTEGER;
+	BEGIN RETURN p[index1, index2];
+	END Get;
+	BEGIN Procedure (g); ASSERT (Get (g, 5, 6) = 15); ASSERT (g[5, 6] = 15);
 	END Test.
 
 positive: indexing constant parameter array
@@ -2962,6 +3272,58 @@ negative: too large index into open array
 	BEGIN Procedure (g);
 	END Test.
 
+positive: reading open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER);
+	BEGIN Set (p, 5, 15); ASSERT (p[5] = 15);
+	END Procedure;
+	PROCEDURE Set (VAR p: ARRAY OF INTEGER; index, value: INTEGER);
+	BEGIN p[index] := value;
+	END Set;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: writing open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF INTEGER);
+	BEGIN p[5] := 15; ASSERT (Get (p, 5) = 15);
+	END Procedure;
+	PROCEDURE Get (CONST p: ARRAY OF INTEGER; index: INTEGER): INTEGER;
+	BEGIN RETURN p[index];
+	END Get;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: reading two-dimensional open array
+
+	MODULE Test;
+	VAR g: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF ARRAY OF INTEGER);
+	BEGIN Set (p, 5, 6, 15); ASSERT (p[5, 6] = 15);
+	END Procedure;
+	PROCEDURE Set (VAR p: ARRAY OF ARRAY OF INTEGER; index1, index2, value: INTEGER);
+	BEGIN p[index1, index2] := value;
+	END Set;
+	BEGIN Procedure (g);
+	END Test.
+
+positive: writing two-dimensional open array
+
+	MODULE Test;
+	VAR g: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (p: ARRAY OF ARRAY OF INTEGER);
+	BEGIN p[5, 6] := 15; ASSERT (Get (p, 5, 6) = 15);
+	END Procedure;
+	PROCEDURE Get (CONST p: ARRAY OF ARRAY OF INTEGER; index1, index2: INTEGER): INTEGER;
+	BEGIN RETURN p[index1, index2];
+	END Get;
+	BEGIN Procedure (g);
+	END Test.
+
 positive: indexing variable open array
 
 	MODULE Test;
@@ -2969,7 +3331,7 @@ positive: indexing variable open array
 	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER);
 	BEGIN p[1] := 2; p[2] := SHORT (LEN (p)); ASSERT (p[0] = 1); ASSERT (p[1] = 2); ASSERT (p[p[0]] = 2); ASSERT (p[p[p[0]]] = 10);
 	END Procedure;
-	BEGIN g[0] := 1; Procedure (g);
+	BEGIN g[0] := 1; Procedure (g); ASSERT (g[0] = 1); ASSERT (g[1] = 2); ASSERT (g[g[0]] = 2); ASSERT (g[g[g[0]]] = 10);
 	END Test.
 
 negative: negative index into variable open array
@@ -2990,6 +3352,58 @@ negative: too large index into variable open array
 	BEGIN index := LEN (p); p[index] := 0;
 	END Procedure;
 	BEGIN Procedure (g);
+	END Test.
+
+positive: reading variable open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER);
+	BEGIN Set (p, 5, 15); ASSERT (p[5] = 15);
+	END Procedure;
+	PROCEDURE Set (VAR p: ARRAY OF INTEGER; index, value: INTEGER);
+	BEGIN p[index] := value;
+	END Set;
+	BEGIN Procedure (g); ASSERT (g[5] = 15);
+	END Test.
+
+positive: writing variable open array
+
+	MODULE Test;
+	VAR g: ARRAY 10 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF INTEGER);
+	BEGIN p[5] := 15; ASSERT (Get (p, 5) = 15);
+	END Procedure;
+	PROCEDURE Get (CONST p: ARRAY OF INTEGER; index: INTEGER): INTEGER;
+	BEGIN RETURN p[index];
+	END Get;
+	BEGIN Procedure (g); ASSERT (Get (g, 5) = 15); ASSERT (g[5] = 15);
+	END Test.
+
+positive: reading two-dimensional variable open array
+
+	MODULE Test;
+	VAR g: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF ARRAY OF INTEGER);
+	BEGIN Set (p, 5, 6, 15); ASSERT (p[5, 6] = 15);
+	END Procedure;
+	PROCEDURE Set (VAR p: ARRAY OF ARRAY OF INTEGER; index1, index2, value: INTEGER);
+	BEGIN p[index1, index2] := value;
+	END Set;
+	BEGIN Procedure (g); ASSERT (g[5, 6] = 15);
+	END Test.
+
+positive: writing two-dimensional variable open array
+
+	MODULE Test;
+	VAR g: ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Procedure (VAR p: ARRAY OF ARRAY OF INTEGER);
+	BEGIN p[5, 6] := 15; ASSERT (Get (p, 5, 6) = 15);
+	END Procedure;
+	PROCEDURE Get (CONST p: ARRAY OF ARRAY OF INTEGER; index1, index2: INTEGER): INTEGER;
+	BEGIN RETURN p[index1, index2];
+	END Get;
+	BEGIN Procedure (g); ASSERT (Get (g, 5, 6) = 15); ASSERT (g[5, 6] = 15);
 	END Test.
 
 positive: indexing constant open array
@@ -3043,6 +3457,46 @@ negative: too large index into pointer to array
 	BEGIN NEW (g); index := LEN (g^); g[index] := 0;
 	END Test.
 
+positive: reading pointer to array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10 OF INTEGER;
+	PROCEDURE Set (VAR p: ARRAY OF INTEGER; index, value: INTEGER);
+	BEGIN p[index] := value;
+	END Set;
+	BEGIN NEW (g); Set (g^, 5, 15); ASSERT (g[5] = 15);
+	END Test.
+
+positive: writing pointer to array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10 OF INTEGER;
+	PROCEDURE Get (CONST p: ARRAY OF INTEGER; index: INTEGER): INTEGER;
+	BEGIN RETURN p[index];
+	END Get;
+	BEGIN NEW (g); g[5] := 15; ASSERT (Get (g^, 5) = 15);
+	END Test.
+
+positive: reading two-dimensional pointer to array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Set (VAR p: ARRAY OF ARRAY OF INTEGER; index1, index2, value: INTEGER);
+	BEGIN p[index1, index2] := value;
+	END Set;
+	BEGIN NEW (g); Set (g^, 5, 6, 15); ASSERT (g[5, 6] = 15);
+	END Test.
+
+positive: writing two-dimensional pointer to array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY 10, 20 OF INTEGER;
+	PROCEDURE Get (CONST p: ARRAY OF ARRAY OF INTEGER; index1, index2: INTEGER): INTEGER;
+	BEGIN RETURN p[index1, index2];
+	END Get;
+	BEGIN NEW (g); g[5, 6] := 15; ASSERT (Get (g^, 5, 6) = 15);
+	END Test.
+
 positive: indexing pointer to open array
 
 	MODULE Test;
@@ -3062,6 +3516,46 @@ negative: too large index into pointer to open array
 	MODULE Test;
 	VAR g: POINTER TO ARRAY OF INTEGER; index: LONGINT;
 	BEGIN NEW (g, 10); index := LEN (g^); g[index] := 0;
+	END Test.
+
+positive: reading pointer to open array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY OF INTEGER;
+	PROCEDURE Set (VAR p: ARRAY OF INTEGER; index, value: INTEGER);
+	BEGIN p[index] := value;
+	END Set;
+	BEGIN NEW (g, 10); Set (g^, 5, 15); ASSERT (g[5] = 15);
+	END Test.
+
+positive: writing pointer to open array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY OF INTEGER;
+	PROCEDURE Get (CONST p: ARRAY OF INTEGER; index: INTEGER): INTEGER;
+	BEGIN RETURN p[index];
+	END Get;
+	BEGIN NEW (g, 10); g[5] := 15; ASSERT (Get (g^, 5) = 15);
+	END Test.
+
+positive: reading two-dimensional pointer to open array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY OF ARRAY OF INTEGER;
+	PROCEDURE Set (VAR p: ARRAY OF ARRAY OF INTEGER; index1, index2, value: INTEGER);
+	BEGIN p[index1, index2] := value;
+	END Set;
+	BEGIN NEW (g, 10, 20); Set (g^, 5, 6, 15); ASSERT (g[5, 6] = 15);
+	END Test.
+
+positive: writing two-dimensional pointer to open array
+
+	MODULE Test;
+	VAR g: POINTER TO ARRAY OF ARRAY OF INTEGER;
+	PROCEDURE Get (CONST p: ARRAY OF ARRAY OF INTEGER; index1, index2: INTEGER): INTEGER;
+	BEGIN RETURN p[index1, index2];
+	END Get;
+	BEGIN NEW (g, 10, 20); g[5, 6] := 15; ASSERT (Get (g^, 5, 6) = 15);
 	END Test.
 
 
@@ -3254,7 +3748,7 @@ positive: modifying pointer to record parameter
 positive: modifying pointer to record reference parameter
 
 	MODULE Test;
-	TYPE Record = RECORD x: INTEGER END;
+	TYPE Record = RECORD END;
 	VAR g: POINTER TO Record;
 	PROCEDURE Procedure (p: POINTER TO Record);
 	BEGIN ASSERT (p # NIL); p := NIL; ASSERT (p = NIL); ASSERT (g # NIL);
@@ -3460,7 +3954,7 @@ positive: modifying variable pointer to record parameter
 positive: modifying variable pointer to record reference parameter
 
 	MODULE Test;
-	TYPE Record = RECORD x: INTEGER END;
+	TYPE Record = RECORD END;
 	VAR g: POINTER TO Record;
 	PROCEDURE Procedure (VAR p: POINTER TO Record);
 	BEGIN ASSERT (p # NIL); p := NIL; ASSERT (p = NIL); ASSERT (g = NIL);
