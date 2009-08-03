@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone='yes'?>
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 	
 <!-- 
 Configuration 
@@ -311,6 +311,9 @@ To update: Configuration.Init ~
 				<Setting name="Open" value="WMArchives.Open"/>
 				<Setting name="Untar" value="Tar.Extract"/>
 			</Section>
+			<Section name="test">
+				<Setting name="Open" value="PET.Open"/>
+			</Section>
 			<Section name="text">
 				<Setting name="Open" value="Notepad.Open"/>
 			</Section>
@@ -432,6 +435,14 @@ To update: Configuration.Init ~
 						<Setting name="loadmodule" value="OSACompiler0"/>
 						<Setting name="genTree" value="PETModuleTree.GenModuleTree"/>
 						<Setting name="findPC" value="TRUE"/>
+					</Section>
+					<Section name="TestTool">
+						<Setting name="caption" value="Test"/>
+						<Setting name="options" value="\e \r"/>
+						<Setting name="fileExtension" value="TEST"/>
+						<Setting name="loadmodule" value="PCTest"/>
+						<Setting name="genTree" value=""/>
+						<Setting name="findPC" value="FALSE"/>
 					</Section>
 				</Section>
 				<Section name="Diff">
