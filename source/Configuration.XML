@@ -300,6 +300,9 @@ To update: Configuration.Init ~
 				<Setting name="Open" value="WMPicView.Open"/>
 				<Setting name="Set as background" value="WMBackdrop.AddBackdropImage '@filename' ? ? ? ?"/>
 			</Section>
+			<Section name="rep">
+				<Setting name="Open" value="WMArchives.Open"/>
+			</Section>
 			<Section name="skin">
 				<Setting name="Open" value="SkinEditor.OpenSkin"/>
 				<Setting name="Set as skin" value="SkinEngine.Load"/>
