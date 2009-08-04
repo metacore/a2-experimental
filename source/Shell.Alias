@@ -21,6 +21,7 @@ md=FSTools.CreateDirectory
 mount=FSTools.Mount
 open=FileHandlers.Open
 reboot=SystemTools.Reboot
+rebuild=Release.Rebuild
 rm=FSTools.DeleteFiles
 rd=FSTools.DeleteDirectory
 rn=FSTools.RenameFiles --nolist
