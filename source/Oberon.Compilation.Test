@@ -14187,18 +14187,18 @@ positive: calling procedure with base object parameter with base object argument
 	BEGIN Procedure (argument);
 	END Test.
 
-negative: calling procedure with base object parameter with pointer to array argument
+positive: calling procedure with base object parameter with pointer to record argument
 
 	MODULE Test;
-	VAR argument: POINTER TO ARRAY 10 OF CHAR;
+	VAR argument: POINTER TO RECORD END;
 	PROCEDURE Procedure (value: OBJECT); END Procedure;
 	BEGIN Procedure (argument);
 	END Test.
 
-negative: calling procedure with base object parameter with pointer to record argument
+negative: calling procedure with base object parameter with pointer to array argument
 
 	MODULE Test;
-	VAR argument: POINTER TO RECORD END;
+	VAR argument: POINTER TO ARRAY 10 OF CHAR;
 	PROCEDURE Procedure (value: OBJECT); END Procedure;
 	BEGIN Procedure (argument);
 	END Test.
@@ -31552,16 +31552,16 @@ negative: procedure with base object as return type returning pointer to array
 	PROCEDURE Procedure (value: POINTER TO ARRAY 10 OF CHAR): OBJECT; BEGIN RETURN value END Procedure;
 	END Test.
 
-negative: procedure with base object as return type returning pointer to record
-
-	MODULE Test;
-	PROCEDURE Procedure (value: POINTER TO RECORD END): OBJECT; BEGIN RETURN value END Procedure;
-	END Test.
-
 negative: procedure with base object as return type returning procedure
 
 	MODULE Test;
 	PROCEDURE Procedure (value: PROCEDURE): OBJECT; BEGIN RETURN value END Procedure;
+	END Test.
+
+positive: procedure with base object as return type returning pointer to record
+
+	MODULE Test;
+	PROCEDURE Procedure (value: POINTER TO RECORD END): OBJECT; BEGIN RETURN value END Procedure;
 	END Test.
 
 positive: procedure with base object as return type returning nil pointer
