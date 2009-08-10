@@ -37466,6 +37466,28 @@ positive: delegate procedure variable assignment
 	BEGIN p := P
 	END Test.
 
+positive: delegate procedure variable nil assignment
+
+	MODULE Test;
+	VAR p: PROCEDURE{DELEGATE};
+	BEGIN p := NIL
+	END Test.
+
+positive: delegate procedure variable assignment in exclusive block
+
+	MODULE Test;
+	VAR p:PROCEDURE{DELEGATE};
+	PROCEDURE P; END P;
+	BEGIN {EXCLUSIVE} p := P
+	END Test.
+
+positive: delegate procedure variable nil assignment
+
+	MODULE Test;
+	VAR p: PROCEDURE{DELEGATE};
+	BEGIN {EXCLUSIVE} p := NIL
+	END Test.
+
 positive: delegate procedure variable assigned to method
 
 	MODULE Test;
@@ -37824,55 +37846,55 @@ negative: overwriting realtime procedure with non-realtime procedure
 	PROCEDURE P; END P;
 	END Object;
 	END Test.
-	
+
 # handling of untraced flag
 
 positive: untraced flag on pointer to record
 
-	MODULE Test; 
-	TYPE P= POINTER TO RECORD END; 
-	VAR x {UNTRACED}: P; 
+	MODULE Test;
+	TYPE P= POINTER TO RECORD END;
+	VAR x {UNTRACED}: P;
 	END Test.
-	
+
 positive: untraced flag on object
-	
-	MODULE Test; 
-	TYPE P= OBJECT END P; 
-	VAR x {UNTRACED}: P; 
+
+	MODULE Test;
+	TYPE P= OBJECT END P;
+	VAR x {UNTRACED}: P;
 	END Test.
-	
+
 positive: untraced flag on pointer to array
 
-	MODULE Test; 
-	TYPE P=POINTER TO ARRAY OF CHAR; 
-	VAR x {UNTRACED}: P; 
+	MODULE Test;
+	TYPE P=POINTER TO ARRAY OF CHAR;
+	VAR x {UNTRACED}: P;
 	END Test.
-	
+
 positive: untraced flag on delegate procedure
 
-	MODULE Test; 
+	MODULE Test;
 	TYPE P=PROCEDURE {DELEGATE};
-	VAR x {UNTRACED}: P; 
+	VAR x {UNTRACED}: P;
 	END Test.
-	
+
 negative: untraced flag on basic type
 
 	MODULE Test;
-	TYPE P=LONGINT; 
-	VAR x{UNTRACED}: P; 
-	END Test. 
-	
+	TYPE P=LONGINT;
+	VAR x{UNTRACED}: P;
+	END Test.
+
 negative: untraced flag on procedure type
 
-	MODULE Test; 
-	TYPE P= PROCEDURE; 
-	VAR x{UNTRACED}: P; 
+	MODULE Test;
+	TYPE P= PROCEDURE;
+	VAR x{UNTRACED}: P;
 	END Test.
-	
-negative: untraced flag on record type; 
+
+negative: untraced flag on record type;
 
 	MODULE Test;
-	TYPE P=RECORD END; 
-	VAR x{UNTRACED}: P; 
+	TYPE P=RECORD END;
+	VAR x{UNTRACED}: P;
 	END Test.
 	
