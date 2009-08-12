@@ -395,7 +395,7 @@ To update: Configuration.Init ~
 					<Setting name="BackupOnStore" value="No"/> <!-- No | Yes | Paranoid -->
 					<Setting name="BackupOnCompile" value="FALSE"/>
 					<Setting name="ShowPathInTabs" value="FALSE"/>
-					<Setting name="ScratchPanelHeight" value="250"/>
+					<Setting name="ScratchPanelHeight" value="0"/>
 					<Setting name="EnableWhitespaceWarnings" value="FALSE"/>
 				</Section>
 				<Section name="Compilers">
