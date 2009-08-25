@@ -686,6 +686,12 @@ negative: object with empty base object
 	TYPE Object = OBJECT () END;
 	END Test.
 
+negative: record with explicit base object
+
+	MODULE Test;
+	TYPE Record = RECORD (OBJECT) END;
+	END Test.
+
 negative: record with explicitly defined base object
 
 	MODULE Test;
@@ -1957,21 +1963,24 @@ positive: case statement with three cases with else
 negative: with statement missing with
 
 	MODULE Test;
-	VAR value: OBJECT;
-	BEGIN value : OBJECT DO END
+	TYPE Type = OBJECT;
+	VAR value: Type;
+	BEGIN value : Type DO END
 	END Test.
 
 negative: with statement missing value
 
 	MODULE Test;
-	BEGIN WITH : OBJECT DO END
+	TYPE Type = OBJECT;
+	BEGIN WITH : Type DO END
 	END Test.
 
 negative: with statement missing colon
 
 	MODULE Test;
-	VAR value: OBJECT;
-	BEGIN WITH value OBJECT DO END
+	TYPE Type = OBJECT;
+	VAR value: Type;
+	BEGIN WITH value Type DO END
 	END Test.
 
 negative: with statement missing type
@@ -1984,15 +1993,17 @@ negative: with statement missing type
 negative: with statement missing do
 
 	MODULE Test;
-	VAR value: OBJECT;
-	BEGIN WITH value : OBJECT END
+	TYPE Type = OBJECT;
+	VAR value: Type;
+	BEGIN WITH value : Type END
 	END Test.
 
 negative: with statement missing end
 
 	MODULE Test;
-	VAR value: OBJECT;
-	BEGIN WITH value : OBJECT DO
+	TYPE Type = OBJECT;
+	VAR value: Type;
+	BEGIN WITH value : Type DO
 	END Test.
 
 negative: plain new statement
@@ -7365,7 +7376,7 @@ positive: object extending an object
 	TYPE A = OBJECT; B = OBJECT (A) END B;
 	END Test.
 
-positive: object extending the base object
+negative: object extending the base object
 
 	MODULE Test;
 	TYPE Object = OBJECT (OBJECT) END Object;
@@ -27209,7 +27220,7 @@ negative: type test on variable object
 
 	MODULE Test;
 	VAR object: OBJECT END; result: BOOLEAN;
-	BEGIN result := object IS OBJECT END;
+	BEGIN result := object IS OBJECT;
 	END Test.
 
 positive: type test on same object type
@@ -27284,8 +27295,9 @@ negative: type guard on variable objects
 negative: type guard on variable object
 
 	MODULE Test;
+	TYPE Type = OBJECT;
 	VAR object, result: OBJECT END;
-	BEGIN result := object(OBJECT END)
+	BEGIN result := object(Type)
 	END Test.
 
 positive: type guard on same object type
@@ -27566,7 +27578,7 @@ positive: equal relation on variable base objects
 positive: equal relation on compatible variable base objects
 
 	MODULE Test;
-	VAR object1: OBJECT; object2: OBJECT (OBJECT) END; result: BOOLEAN;
+	VAR object1: OBJECT; object2: OBJECT END; result: BOOLEAN;
 	BEGIN result := (object1 = object1) OR (object2 = object1)
 	END Test.
 
@@ -27580,7 +27592,7 @@ positive: unequal relation on variable base objects
 positive: unequal relation on compatible variable base objects
 
 	MODULE Test;
-	VAR object1: OBJECT; object2: OBJECT (OBJECT) END; result: BOOLEAN;
+	VAR object1: OBJECT; object2: OBJECT END; result: BOOLEAN;
 	BEGIN result := (object1 # object1) OR (object2 # object1)
 	END Test.
 
@@ -27626,7 +27638,7 @@ negative: type test on variable base objects
 	BEGIN result := object IS object
 	END Test.
 
-positive: type test on variable base object
+negative: type test on variable base object
 
 	MODULE Test;
 	VAR object: OBJECT; result: BOOLEAN;
@@ -27644,7 +27656,7 @@ positive: type test on base object type
 positive: type test on extending base object type
 
 	MODULE Test;
-	TYPE Type = OBJECT (OBJECT) END Type;
+	TYPE Type = OBJECT END Type;
 	VAR object: OBJECT; result: BOOLEAN;
 	BEGIN result := object IS Type
 	END Test.
@@ -27653,7 +27665,7 @@ negative: type test on extended base object type
 
 	MODULE Test;
 	TYPE Type = OBJECT;
-	VAR object: OBJECT (OBJECT) END; result: BOOLEAN;
+	VAR object: OBJECT END; result: BOOLEAN;
 	BEGIN result := object IS Type
 	END Test.
 
@@ -27664,7 +27676,7 @@ negative: type guard on variable base objects
 	BEGIN result := object(object)
 	END Test.
 
-positive: type guard on variable base object
+negative: type guard on variable base object
 
 	MODULE Test;
 	VAR object, result: OBJECT;
@@ -27682,7 +27694,7 @@ positive: type guard on base object type
 positive: type guard on extending base object type
 
 	MODULE Test;
-	TYPE Type = OBJECT (OBJECT) END Type;
+	TYPE Type = OBJECT END Type;
 	VAR object: OBJECT; result: Type;
 	BEGIN result := object(Type)
 	END Test.
@@ -27691,7 +27703,7 @@ negative: type guard on extended base object type
 
 	MODULE Test;
 	TYPE Type = OBJECT;
-	VAR object: OBJECT (OBJECT) END; result: Type;
+	VAR object: OBJECT END; result: Type;
 	BEGIN result := object(Type)
 	END Test.
 
@@ -34283,7 +34295,8 @@ negative: with statement with indirect nil pointer value
 
 	MODULE Test;
 	CONST Constant = NIL;
-	BEGIN WITH Constant : OBJECT DO END;
+	TYPE Type = OBJECT;
+	BEGIN WITH Constant : Type DO END;
 	END Test.
 
 negative: with statement with indirect nil pointer value type
@@ -34594,7 +34607,7 @@ negative: with statement with incompatible object type
 	BEGIN WITH value : Type DO END;
 	END Test.
 
-positive: with statement with variable base object value
+negative: with statement with variable base object value
 
 	MODULE Test;
 	VAR value: OBJECT;
