@@ -27664,7 +27664,7 @@ negative: type guard on variable base objects
 	BEGIN result := object(object)
 	END Test.
 
-negative: type guard on variable base object
+positive: type guard on variable base object
 
 	MODULE Test;
 	VAR object, result: OBJECT;
