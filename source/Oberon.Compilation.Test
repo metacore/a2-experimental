@@ -7107,7 +7107,7 @@ negative: record extending a constant
 negative: record extending a variable
 
 	MODULE Test;
-	TYPE Record = RECORD (Variable) END;
+	TYPE Record = RECORD (variable) END;
 	VAR variable: Record;
 	END Test.
 
@@ -27626,7 +27626,7 @@ negative: type test on variable base objects
 	BEGIN result := object IS object
 	END Test.
 
-negative: type test on variable base object
+positive: type test on variable base object
 
 	MODULE Test;
 	VAR object: OBJECT; result: BOOLEAN;
@@ -37481,7 +37481,7 @@ positive: delegate procedure variable assignment in exclusive block
 	BEGIN {EXCLUSIVE} p := P
 	END Test.
 
-positive: delegate procedure variable nil assignment
+positive: delegate procedure variable nil assignment in exclusive block
 
 	MODULE Test;
 	VAR p: PROCEDURE{DELEGATE};
