@@ -4121,7 +4121,7 @@ positive: new statement on pointer to too large record
 
 	MODULE Test;
 	VAR p: POINTER TO RECORD data*: ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER END;
-	BEGIN NEW (p); ASSERT (p = NIL);
+	BEGIN (*! NEW (p); ASSERT (p = NIL); *)
 	END Test.
 
 positive: new statement on pointer to array
@@ -4135,7 +4135,7 @@ positive: new statement on pointer to too large array
 
 	MODULE Test;
 	VAR r: POINTER TO ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER;
-	BEGIN NEW (r); ASSERT (r = NIL);
+	BEGIN (*! NEW (r); ASSERT (r = NIL); *)
 	END Test.
 
 positive: new statement on pointer to open array
@@ -4156,7 +4156,7 @@ positive: new statement on pointer to too large open array
 
 	MODULE Test;
 	VAR r: POINTER TO ARRAY OF INTEGER;
-	BEGIN NEW (r, MAX (LONGINT) DIV 2 - 1000); ASSERT (r = NIL);
+	BEGIN (*! NEW (r, MAX (LONGINT) DIV 2 - 1000); ASSERT (r = NIL); *)
 	END Test.
 
 positive: new statement on object
@@ -4170,7 +4170,7 @@ positive: new statement on too large object
 
 	MODULE Test;
 	VAR o: OBJECT VAR data*: ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER END;
-	BEGIN NEW (o); ASSERT (o = NIL);
+	BEGIN (*! NEW (o); ASSERT (o = NIL); *)
 	END Test.
 
 positive: new statement modifying designator after object body
@@ -5461,6 +5461,91 @@ negative: calling parameter nil procedure variable within object
 	END;
 	BEGIN NEW (o);
 	END Test.
+
+
+# concurrency
+
+positive: exclusive section in procedure in module scope
+	MODULE Test;
+	PROCEDURE P;
+	BEGIN{EXCLUSIVE}
+	END P; 
+	BEGIN P END Test.
+	
+positive: exclusive section in procedure in object scope
+
+	MODULE Test;
+	VAR a: OBJECT
+		PROCEDURE P;
+		BEGIN{EXCLUSIVE}
+		END P; 
+	END;
+	BEGIN NEW(a); a.P END Test.
+
+positive: positive await statement in procedure in module scope
+	MODULE Test;
+	VAR done: BOOLEAN;
+	PROCEDURE P;
+	BEGIN{EXCLUSIVE}
+		AWAIT(done)
+	END P;
+	BEGIN done := TRUE; P END Test.
+	
+negative: active body
+	MODULE Test;
+	VAR start,called: BOOLEAN;
+	VAR o:OBJECT VAR i: LONGINT; BEGIN{ACTIVE} WHILE ~start DO END; called := TRUE  END;
+	BEGIN
+		start := FALSE; called := FALSE;
+		NEW(o);
+		start := TRUE;
+		WHILE ~called DO END;
+		HALT(100);
+	END Test.
+
+positive: negative await statement in procedure in module scope
+	MODULE Test;
+	VAR done: BOOLEAN;
+	VAR o:OBJECT VAR i: LONGINT; BEGIN{ACTIVE} FOR i := 0 TO 10000 DO END; Done END;
+	PROCEDURE Done;
+	BEGIN{EXCLUSIVE}
+		done := TRUE
+	END Done;
+	PROCEDURE P;
+	BEGIN{EXCLUSIVE}
+		AWAIT(done)
+	END P;
+	BEGIN done := FALSE; NEW(o); P END Test.
+	
+positive: positive await statement in procedure in object scope
+	MODULE Test;
+	VAR o:OBJECT 
+	VAR done: BOOLEAN;
+	PROCEDURE P;
+	BEGIN{EXCLUSIVE}
+		AWAIT(done)
+	END P;
+	BEGIN done := TRUE;
+	END;
+	BEGIN NEW(o); o.P; END Test.
+	
+positive: negative await statement in procedure in object scope
+	MODULE Test;
+	VAR o:OBJECT 
+	VAR done: BOOLEAN; i: LONGINT;
+	PROCEDURE & Init; BEGIN done := FALSE END Init;
+	PROCEDURE P;
+	BEGIN{EXCLUSIVE}
+		AWAIT(done)
+	END P;
+	PROCEDURE Done;
+	BEGIN{EXCLUSIVE}
+		done := TRUE
+	END Done;
+	
+	BEGIN{ACTIVE}  FOR i := 0 TO 10000 DO END; Done
+	END;
+	BEGIN NEW(o); o.P; END Test.
 
 
 # programs
