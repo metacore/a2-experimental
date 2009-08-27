@@ -37929,3 +37929,11 @@ positive: signed system address function
 	VAR a: LONGINT; 
 	BEGIN a := SYSTEM.ADR(a)
 	END Test.
+	
+positive: mixture of 32 and 8 bit types implying high register pressure by using an array
+	
+	MODULE Test;
+	VAR b: ARRAY 2 OF CHAR; a: LONGINT; ch: CHAR; 
+	BEGIN
+		b[a] := CHR(((a MOD 0AH) + 30H))
+	END Test.

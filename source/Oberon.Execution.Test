@@ -1879,10 +1879,10 @@ positive: modulo on short integers
 	MODULE Test;
 	VAR a, b: SHORTINT;
 	BEGIN
-		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
-		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = (-3) MOD 2);
-		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
-		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT (a MOD b = (-2) MOD 3);
+		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (3 MOD b = +1); ASSERT (a MOD 2 = +1); ASSERT (a MOD b = 3 MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT ((-3) MOD b = +1); ASSERT (a MOD 2 = +1); ASSERT (a MOD b = (-3) MOD 2);
+		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (2 MOD b = +2); ASSERT (a MOD 3 = +2); ASSERT (a MOD b = 2 MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT ((-2) MOD b = 1); ASSERT (a MOD 3 = 1); ASSERT (a MOD b = (-2) MOD 3);
 		a := MAX (SHORTINT); b := MAX (SHORTINT); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (SHORTINT) MOD MAX (SHORTINT));
 	END Test.
 
@@ -1898,10 +1898,10 @@ positive: modulo on integers
 	MODULE Test;
 	VAR a, b: INTEGER;
 	BEGIN
-		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
-		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = (-3) MOD 2);
-		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
-		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT (a MOD b = (-2) MOD 3);
+		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (3 MOD b = +1); ASSERT (a MOD 2 = +1); ASSERT (a MOD b = 3 MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT ((-3) MOD b = +1); ASSERT (a MOD 2 = +1); ASSERT (a MOD b = (-3) MOD 2);
+		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (2 MOD b = +2); ASSERT (a MOD 3 = +2); ASSERT (a MOD b = 2 MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT ((-2) MOD b = 1); ASSERT (a MOD 3 = 1); ASSERT (a MOD b = (-2) MOD 3);
 		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (INTEGER) MOD MAX (INTEGER));
 	END Test.
 
@@ -1918,10 +1918,10 @@ positive: modulo on long integers
 	MODULE Test;
 	VAR a, b: LONGINT;
 	BEGIN
-		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
-		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = (-3) MOD 2);
-		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
-		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT (a MOD b = (-2) MOD 3);
+		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (3 MOD b = +1); ASSERT (a MOD 2 = +1); ASSERT (a MOD b = 3 MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT ((-3) MOD b = +1); ASSERT (a MOD 2 = +1); ASSERT (a MOD b = (-3) MOD 2);
+		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (2 MOD b = +2); ASSERT (a MOD 3 = +2); ASSERT (a MOD b = 2 MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT ((-2) MOD b = 1); ASSERT (a MOD 3 = 1); ASSERT (a MOD b = (-2) MOD 3);
 		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (LONGINT) MOD MAX (LONGINT));
 	END Test.
 
@@ -1937,10 +1937,10 @@ positive: modulo on huge integers
 	MODULE Test;
 	VAR a, b: HUGEINT;
 	BEGIN
-		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = 3 MOD 2);
-		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT (a MOD b = (-3) MOD 2);
-		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (a MOD b = 2 MOD 3);
-		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT (a MOD b = (-2) MOD 3);
+		a := 3; b := 2; ASSERT (a MOD b = +1); ASSERT (3 MOD b = +1); ASSERT (a MOD 2 = +1); ASSERT (a MOD b = 3 MOD 2);
+		a := -3; b := 2; ASSERT (a MOD b = +1); ASSERT ((-3) MOD b = +1); ASSERT (a MOD 2 = +1); ASSERT (a MOD b = (-3) MOD 2);
+		a := 2; b := 3; ASSERT (a MOD b = +2); ASSERT (2 MOD b = +2); ASSERT (a MOD 3 = +2); ASSERT (a MOD b = 2 MOD 3);
+		a := -2; b := 3; ASSERT (a MOD b = 1); ASSERT ((-2) MOD b = 1); ASSERT (a MOD 3 = 1); ASSERT (a MOD b = (-2) MOD 3);
 		a := MAX (HUGEINT); b := MAX (HUGEINT); ASSERT (a MOD b = 0); ASSERT (a MOD b = MAX (HUGEINT) MOD MAX (HUGEINT));
 	END Test.
 
