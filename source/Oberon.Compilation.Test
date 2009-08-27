@@ -37911,3 +37911,21 @@ negative: untraced flag on record type;
 	VAR x{UNTRACED}: P;
 	END Test.
 	
+	
+#miscellaneous
+
+positive: signed system address type
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a: LONGINT; 
+	BEGIN a := SYSTEM.SIZEOF(SYSTEM.ADDRESS)
+	END Test.
+	
+positive: signed system address function
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a: LONGINT; 
+	BEGIN a := SYSTEM.ADR(a)
+	END Test.
