@@ -37860,6 +37860,39 @@ negative: overwriting realtime procedure with non-realtime procedure
 	END Object;
 	END Test.
 
+positive: exporting realtime procedure
+
+	MODULE Dummy;
+	PROCEDURE {REALTIME} P*;
+	BEGIN END P;
+	PROCEDURE {REALTIME} Pp*(i: LONGINT);
+	BEGIN END Pp;
+	PROCEDURE Q*;
+	BEGIN END Q;
+	END Dummy.
+	
+positive: using imported realtime procedure in realtime and non-realtime procedure
+
+	MODULE Test;
+	IMPORT Dummy;
+	PROCEDURE {REALTIME} P; 
+	BEGIN Dummy.P; Dummy.Pp(10)
+	END P;
+	PROCEDURE Q;
+	BEGIN Dummy.P
+	END Q;
+	END Test. 
+
+negative: using imported non-realtime procedure in realtime procedure
+
+	MODULE Test;
+	IMPORT Dummy;
+	PROCEDURE {REALTIME} P; 
+	BEGIN Dummy.Q; Dummy.Pp(10)
+	END P;
+	END Test. 
+
+
 # handling of untraced flag
 
 positive: untraced flag on pointer to record
