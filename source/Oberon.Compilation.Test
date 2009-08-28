@@ -37970,3 +37970,16 @@ positive: mixture of 32 and 8 bit types implying high register pressure by using
 	BEGIN
 		b[a] := CHR(((a MOD 0AH) + 30H))
 	END Test.
+	
+positive: system.val 
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a: LONGINT; b: REAL; c: POINTER TO ARRAY OF CHAR; i: INTEGER; ch: CHAR; 
+	BEGIN
+		a := SYSTEM.VAL(LONGINT,a);
+		a := SYSTEM.VAL(LONGINT,c); 
+		a := SYSTEM.VAL(LONGINT,b); 
+		a := SYSTEM.VAL(LONGINT,i);
+		a := SYSTEM.VAL(LONGINT,ch);
+	END Test.
