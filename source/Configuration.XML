@@ -188,6 +188,7 @@ To update: Configuration.Init ~
 				</Section>
 				<Section name="Animation">
 					<Setting name="GIF" value="GIFCodec.AnimationDecoderFactory"/>
+					<Setting name="ANI" value="AnimationCodec.GenDecoder"/>
 				</Section>
 			</Section>
 		</Section>
