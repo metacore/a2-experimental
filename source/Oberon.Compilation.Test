@@ -37983,3 +37983,29 @@ positive: system.val
 		a := SYSTEM.VAL(LONGINT,i);
 		a := SYSTEM.VAL(LONGINT,ch);
 	END Test.
+	
+positive: shift of unsigned type by signed value
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR ebx: SET;
+	BEGIN
+		ebx := SYSTEM.LSH(ebx, -16)
+
+positive: shift of unsigned type by signed variable
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR ebx: SET; a: LONGINT;
+	BEGIN
+		ebx := SYSTEM.LSH(ebx, a)
+	END Test.
+	
+positive: assignment of converted unsigned type to signed type
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR ebx: SET; a,i: LONGINT;
+	BEGIN
+		i := SYSTEM.VAL(LONGINT, SYSTEM.LSH(ebx * {16..23}, -16));
+	END Test.
