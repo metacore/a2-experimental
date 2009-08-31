@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-	
-<!-- 
-Configuration 
+
+<!--
+Configuration
 
 To edit: Notepad.Open Configuration.XML
 To update: Configuration.Init ~
 -->
 	<Config>
 	<!-- Localization -->
-		
+
 		<Section name="Local">
 			<Section name="Formats">
 				<Section name="Date">
@@ -25,9 +25,9 @@ To update: Configuration.Init ~
 				</Section>
 			</Section>
 		</Section>
-		
+
 	<!-- File systems -->
-		
+
 		<Section name="Files">
 			<Section name="Alias">
 				<Setting name="AosFS" value="DiskVolumes.New;DiskFS.NewFS"/>
@@ -41,36 +41,36 @@ To update: Configuration.Init ~
 				<Setting name="SmbFS" value="NIL;SambaClient.NewFS"/>
 			</Section>
 		</Section>
-		
+
 	<!-- Autostart -->
-		
+
 		<Section name="Autostart">
 			<Setting name="TrapWriter" value="WMTrapWriter.Install"/>
 			<Setting name="Uptime Monitor" value="UpTime.Install"/>
 			<Setting name="Start the main menu" value="StartMenu.Open"/>
 			<Setting name="DefaultSkin" value="SkinEngine.Unload"/>
 			<Setting name="Restore the desktop" value="WMRestorable.Load Auto.dsk"/>
-			
+
 		<!-- Pinyin Input Method Editor (remove comment to activate)
 			<Setting value="WMPinyinIME.Test"/>
 		-->
-			
-			
+
+
 		<!-- Quote Server (remove comment to activate)
 			<Setting value="QuoteServer.Open"/>
 		-->
-			
+
 
 		<!--Setting name="Hotkey support" value="HotKeys.Open"/-->
-			
+
 
 		<!--Setting name="Hardware Detection" value="PCITools.DetectHardware"/-->
-			
+
 			<Setting name="Load error message" value="Errors.Open"/>
 		</Section>
-		
+
 	<!-- WindowManager -->
-		
+
 		<Section name="WindowManager">
 			<Section name="FontManager">
 				<Section name="DefaultFont">
@@ -97,16 +97,16 @@ To update: Configuration.Init ~
 				</Section>
 			</Section>
 		</Section>
-		
+
 	<!-- Font formats for GfxFonts.Open -->
-		
+
 		<Section name="FontFormats">
 			<Setting name="TTF" value="GfxOType.Install"/>
 			<Setting name="pk" value="GfxPKFonts.Install"/>
 		</Section>
-		
+
 	<!-- TLS Settings -->
-		
+
 		<Section name="TLS">
 			<Setting name="Certificate" value="bluebottleselfsigned.der"/>
 			<Setting name="pHex" value="00fbe3108714d0f161c79b2fd03eaf8be07b477fbd534a1059d7244513b075700ec6d00cd6c61445932f6439ed31050e6ad43a51f1692e51e3e4691cab3d230ba7"/>
@@ -121,23 +121,23 @@ To update: Configuration.Init ~
 			<Setting name="skin" value="Tar"/>
 			<Setting name="rep" value="Tar"/>
 		</Section>
-		
+
 	<!-- Codecs -->
-		
+
 		<Section name="Codecs">
 		<!-- Multiplexer -->
-			
+
 			<Section name="Multiplexer"/>
-			
+
 		<!-- Demultiplexer -->
-			
+
 			<Section name="Demultiplexer">
 				<Setting name="AVI" value="AVI.Factory"/>
 				<Setting name="MPG" value="MPEGVideoDecoder.DemuxFactory"/>
 			</Section>
-			
+
 		<!-- Encoders -->
-			
+
 			<Section name="Encoder">
 				<Section name="Text">
 					<Setting name="Oberon" value="TextUtilities.OberonEncoderFactory"/>
@@ -148,16 +148,17 @@ To update: Configuration.Init ~
 				</Section>
 				<Section name="Image">
 					<Setting name="BMP" value="BMPCodec.EncoderFactory"/>
-					<Setting name="GIF" value="GIFCodec.EncoderFactory"/>
+					<Setting name="GIF" value="GIFCodec.ImageEncoderFactory"/>
 				</Section>
 				<Section name="Video"/>
 				<Section name="Audio">
 					<Setting name="WAV" value="WAVCodec.EncoderFactory"/>
 				</Section>
+				<Section name="Animation"/>
 			</Section>
-			
+
 		<!-- Decoders -->
-			
+
 			<Section name="Decoder">
 				<Section name="Text">
 					<Setting name="Oberon" value="TextUtilities.OberonDecoderFactory"/>
@@ -170,7 +171,7 @@ To update: Configuration.Init ~
 					<Setting name="JP2" value="JPEG2000Decoder.Factory"/>
 					<Setting name="PNG" value="PNGDecoder.Factory"/>
 					<Setting name="BMP" value="BMPCodec.DecoderFactory"/>
-					<Setting name="GIF" value="GIFCodec.DecoderFactory"/>
+					<Setting name="GIF" value="GIFCodec.ImageDecoderFactory"/>
 					<Setting name="JPEG" value="JPEGDecoder.Factory"/>
 					<Setting name="JPG" value="JPEGDecoder.Factory"/>
 					<Setting name="SVG" value="SVGDecoder.Factory"/>
@@ -185,11 +186,14 @@ To update: Configuration.Init ~
 					<Setting name="MP3" value="MP3Decoder.Factory"/>
 					<Setting name="WAV" value="WAVCodec.DecoderFactory"/>
 				</Section>
+				<Section name="Animation">
+					<Setting name="GIF" value="GIFCodec.AnimationDecoderFactory"/>
+				</Section>
 			</Section>
 		</Section>
-		
+
 	<!-- IME -->
-		
+
 		<Section name="IME">
 			<Setting name="Arabic" value="WMArabicIME.Install"/>
 			<Setting name="Russian" value="WMRussianIME.Install"/>
@@ -199,23 +203,23 @@ To update: Configuration.Init ~
 			<Setting name="Pinyin" value="WMPinyinIME.Install"/>
 			<Setting name="Unicode" value="WMUnicodeIME.Install"/>
 		</Section>
-		
+
 	<!-- Contextual Dependency -->
-		
+
 		<Section name="Context">
 			<Setting name="Arabic" value="ArabicContext.xml"/>
 			<Setting name="Test" value="TestContext.xml"/>
 		</Section>
 		<Section name="Filehandlers">
 		<!-- Filehandler
-			For each file extension, multiple handlers that perform different actions on a file can be 
-			registered. The action "Open" is considered to open the file with an application. 
+			For each file extension, multiple handlers that perform different actions on a file can be
+			registered. The action "Open" is considered to open the file with an application.
 			Occurences of the string @filename in the attribute value of settings will be replaced by
 			the filename parameter -->
-			
-			
+
+
 		<!-- use lower case for extensions, sort lexographically -->
-			
+
 			<Section name="asm">
 				<Setting name="Open" value="PET.Open"/>
 			</Section>
@@ -336,20 +340,20 @@ To update: Configuration.Init ~
 				<Setting name="Extract" value="ZipTool.ExtractAll"/>
 			</Section>
 		</Section>
-		
+
 	<!-- Net Configuration Example -->
-		
-		
+
+
 	<!--Section name="NetConfig">
 		<Setting name="IPForwarding" value="FALSE" />
 		<Setting name="EchoReply" value="TRUE" />
 		<Setting name="PreferredProtocol" value="4" />
-	
+
 		<Section name="IPv4">
 			<Section name="AutoNetConfig">
 				<Setting name="Enabled" value="TRUE" />
 			</Section>
-	
+
 			<Section name="Interface">
 				<Setting name="Device" value="RTL8139#0" />
 				<Setting name="Name" value="localv4" />
@@ -360,7 +364,7 @@ To update: Configuration.Init ~
 				<Setting name="Netmask" value="255.255.255.0" />
 				<Setting name="DNS" value="192.168.1.1" />
 			</Section>
-			
+
 			<Section name="Interface">
 				<Setting name="Device" value="RTL8139#0" />
 				<Setting name="Name" value="dhcp" />
@@ -368,13 +372,13 @@ To update: Configuration.Init ~
 				<Setting name="DHCP" value="TRUE" />
 			</Section>
 		</Section>
-	
+
 		<Section name="IPv6">
 			<Section name="AutoNetConfig">
 				<Setting name="Enabled" value="TRUE" />
 				<Setting name="DNS" value="2001::1" />
 			</Section>
-			
+
 			<Section name="Interface">
 				<Setting name="Device" value="RTL8139#0" />
 				<Setting name="Name" value="v6Static" />
@@ -385,10 +389,10 @@ To update: Configuration.Init ~
 			</Section>
 		</Section>
 	</Section -->
-		
-		
+
+
 	<!-- Applications -->
-		
+
 		<Section name="Applications">
 			<Section name="PET">
 				<Section name="General">
@@ -466,31 +470,31 @@ To update: Configuration.Init ~
 				<Setting name="UseBackspace" value="TRUE"/>
 				<Setting name="ShowStatusBar" value="TRUE"/>
 				<Setting name="Echo" value="FALSE"/>
-				
+
 			<!-- PortNumber Bps Databits Stopbits Parity -->
-				
+
 				<Setting name="PortSettings" value="1 115200 8 1 none"/>
-				
+
 			<!-- When pressing X/Y-Send buttons, the optional command string is sent to the target device (incl. CR) before sending -->
-				
+
 				<Setting name="XReceiveCommand" value=""/>
 				<Setting name="YReceiveCommand" value=""/>
-				
+
 			<!-- When pressing X/Y-Receive buttons, the optional command string and the filename is sent to the target device -->
-				
+
 				<Setting name="XSendCommand" value=""/>
 				<Setting name="YSendCommand" value=""/>
-				
+
 			<!-- User-defined commands for the command menu -->
-				
+
 				<Section name="CommandMenu">
 					<Setting name="Command1" value=""/>
 					<Setting name="Command2" value=""/>
 				</Section>
 			</Section>
-			
+
 		<!-- Standard Settings for the IMAP/SMTP Client -->
-			
+
 			<Section name="MailClient">
 				<Setting name="IMAPServer" value=""/>
 				<Setting name="UserName" value=""/>
@@ -509,48 +513,48 @@ To update: Configuration.Init ~
 			<Section name="Performance Monitor">
 				<Section name="Plugins">
 				<!-- Specify which plugins should be loaded at startup -->
-					
+
 					<Setting name="WMPerfMonPluginCpu" value="TRUE"/>
 					<Setting name="WMPerfMonPluginMemory" value="TRUE"/>
 					<Setting name="WMPerfMonPluginPerfMon" value="TRUE"/>
 					<Setting name="WMPerfMonPluginMessages" value="TRUE"/>
 					<Setting name="WMPerfMonPluginNetStats" value="FALSE"/>
 					<Setting name="WMPerfMonPluginEvents" value="TRUE"/>
-					
+
 				<!-- kernel statistics plugins -->
-					
+
 					<Setting name="WMPerfMonPluginActive" value="FALSE"/>
 					<Setting name="WMPerfMonPluginHeap" value="FALSE"/>
-					
+
 				<!-- device performance plugins -->
-					
+
 					<Setting name="WMPerfMonPluginNetwork" value="TRUE"/>
 					<Setting name="WMPerfMonPluginSerials" value="FALSE"/>
 					<Setting name="WMPerfMonPluginDisks" value="TRUE"/>
 					<Setting name="WMPerfMonPluginUsb" value="TRUE"/>
-					
+
 				<!-- server statistics plugins -->
-					
+
 					<Setting name="WMPerfMonPluginHTTPServer" value="FALSE"/>
 					<Setting name="WMPerfMonPluginFTPServer" value="FALSE"/>
 					<Setting name="WMPerfMonPluginVNCServer" value="FALSE"/>
 					<Setting name="WMPerfMonPluginQuoteServer" value="FALSE"/>
-					
+
 				<!-- other plugins -->
-					
+
 					<Setting name="WMPerfMonPluginExample" value="FALSE"/>
 				</Section>
 			</Section>
 		</Section>
-		
+
 	<!-- Paco Compiler -->
-		
+
 		<Section name="Paco">
 			<Setting name="ErrorMessages" value="Errors.XML"/>
 		</Section>
-		
+
 	<!-- Example of nested sections -->
-		
+
 		<Section name="A">
 			<Section name="B">
 				<Section name="C">
