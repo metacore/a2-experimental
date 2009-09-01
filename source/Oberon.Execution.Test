@@ -5652,3 +5652,25 @@ positive: bounded buffer
 	END Test;
 	BEGIN Test (1, 1000); Test (10, 1000); Test (1000, 1000); Test (1000, 100);
 	END Test.
+	
+# miscellaneous
+
+positive: SYSTEM.VAL on designator and non-designator expression
+
+	MODULE Test;
+
+	IMPORT SYSTEM;
+
+	PROCEDURE P;
+	VAR c1,c2,c3,c4: CHAR;
+	BEGIN
+		c1 := 0FFX;
+		c2 := 0FFX;
+		c3 := 0FFX;
+		c4 := 0FFX;
+		ASSERT(SYSTEM.VAL(LONGINT,c4) = -1);
+		ASSERT(SYSTEM.VAL(LONGINT,ORD(c4)) = 255);
+	END P;
+
+	BEGIN P;
+	END Test.
