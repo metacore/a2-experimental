@@ -38009,3 +38009,29 @@ positive: assignment of converted unsigned type to signed type
 	BEGIN
 		i := SYSTEM.VAL(LONGINT, SYSTEM.LSH(ebx * {16..23}, -16));
 	END Test.
+	
+positive: getprocedure builtin call
+	
+	MODULE Test;
+	TYPE 
+		R= RECORD END; 
+		MyO= OBJECT END MyO;
+	VAR
+		p: PROCEDURE;
+		q: PROCEDURE(r: R); 
+		r: PROCEDURE():MyO;
+		s: PROCEDURE(p: MyO): MyO;
+		t: PROCEDURE(p:MyO);
+		u: PROCEDURE(r: R): MyO; 
+			
+	BEGIN
+		GETPROCEDURE("TestModule","TestProcedure",p);
+		GETPROCEDURE("X","Y",p);
+		GETPROCEDURE("TestModule","TestProcedure",p);
+		GETPROCEDURE("TestModule","TestProcedure",q);
+		GETPROCEDURE("TestModule","TestProcedure",r);
+		GETPROCEDURE("TestModule","TestProcedure",t);
+		GETPROCEDURE("TestModule","TestProcedure",s);
+		GETPROCEDURE("TestModule","TestProcedure",u);	
+	
+	END Test.
