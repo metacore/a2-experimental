@@ -6171,7 +6171,7 @@ negative: implicit conversion between constant character and set
 negative: implicit conversion between constant character and string
 
 	MODULE Test;
-	CONST Result = 'A' # "string"
+	CONST Result = 0X # "string"
 	END Test.
 
 negative: implicit conversion between constant character and nil pointer
@@ -37991,6 +37991,7 @@ positive: shift of unsigned type by signed value
 	VAR ebx: SET;
 	BEGIN
 		ebx := SYSTEM.LSH(ebx, -16)
+	END Test.
 
 positive: shift of unsigned type by signed variable
 
@@ -38011,7 +38012,7 @@ positive: assignment of converted unsigned type to signed type
 	END Test.
 	
 positive: getprocedure builtin call
-	
+
 	MODULE Test;
 	TYPE 
 		R= RECORD END; 
@@ -38022,8 +38023,7 @@ positive: getprocedure builtin call
 		r: PROCEDURE():MyO;
 		s: PROCEDURE(p: MyO): MyO;
 		t: PROCEDURE(p:MyO);
-		u: PROCEDURE(r: R): MyO; 
-			
+		u: PROCEDURE(r: R): MyO; 		
 	BEGIN
 		GETPROCEDURE("TestModule","TestProcedure",p);
 		GETPROCEDURE("X","Y",p);
@@ -38033,5 +38033,5 @@ positive: getprocedure builtin call
 		GETPROCEDURE("TestModule","TestProcedure",t);
 		GETPROCEDURE("TestModule","TestProcedure",s);
 		GETPROCEDURE("TestModule","TestProcedure",u);	
-	
 	END Test.
+	
