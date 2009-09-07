@@ -38034,4 +38034,55 @@ positive: getprocedure builtin call
 		GETPROCEDURE("TestModule","TestProcedure",s);
 		GETPROCEDURE("TestModule","TestProcedure",u);	
 	END Test.
+
+negative: procedure call designator returning nil as index
+
+	MODULE Test;	
+	VAR a: ARRAY 32 OF CHAR; c: CHAR;
+
+	PROCEDURE P;
+	BEGIN
+	END P;
+			
+	BEGIN
+		c := a[P()];	
+	END Test.
+
+negative: procedure call designator returning nil in binary expression
+
+	MODULE Test;	
+	VAR a,b: LONGINT;
+
+	PROCEDURE P;
+	BEGIN
+	END P;
+			
+	BEGIN
+		a := b + P();
+	END Test.
+
+positive: module exporting procedure variable with return type
+
+	MODULE Dummy;
+	VAR 
+		p-: PROCEDURE(a,b: LONGINT): LONGINT;
+	END Dummy.
+
+positive: module importing procedure variable with return type
+
+	MODULE Test;
+	IMPORT Dummy;
+	VAR a: LONGINT; 
+	BEGIN 
+		a := a + Dummy.p(0,0);
+	END Test.
 	
+positive: passing NIL parameter on WINAPI string parameter
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR
+	p: PROCEDURE{WINAPI}(CONST a: ARRAY OF CHAR);
+	BEGIN
+		p(NIL);
+	END Test.
