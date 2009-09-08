@@ -38086,3 +38086,106 @@ positive: passing NIL parameter on WINAPI string parameter
 	BEGIN
 		p(NIL);
 	END Test.
+	
+positive: SYSTEM.TYPECODE on records, pointer to record and object
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	TYPE
+		R1=RECORD END; R2=RECORD (R1) END;
+		P1= POINTER TO RECORD END; P2=POINTER TO RECORD (P1) END;
+		O1 = OBJECT END O1; O2=OBJECT(O1) END O2;
+
+	PROCEDURE P(VAR r: R1; p: P1; o: O1);
+	VAR a: LONGINT;
+	BEGIN
+		IF r IS R2 THEN END;
+		a := SYSTEM.TYPECODE(R2);
+		IF p IS P2 THEN END;
+		a := SYSTEM.TYPECODE(P2);
+		IF o IS O2 THEN END;
+		a := SYSTEM.TYPECODE(O2);
+	END P;
+
+	END Test.
+
+negative: SYSTEM.TYPECODE with basic type
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	TYPE
+		T = INTEGER;
+	VAR 
+		a: LONGINT;
+
+	BEGIN 
+		a:= SYSTEM.TYPECODE(T);
+	END Test.
+
+negative: SYSTEM.TYPECODE with ANY type
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	TYPE
+		T = ANY;
+	VAR 
+		a: LONGINT;
+
+	BEGIN 
+		a:= SYSTEM.TYPECODE(T);
+	END Test.
+	
+
+negative: SYSTEM.TYPECODE with OBJECT type
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	TYPE
+		T = OBJECT;
+	VAR 
+		a: LONGINT;
+
+	BEGIN 
+		a:= SYSTEM.TYPECODE(T);
+	END Test.
+	
+
+negative: SYSTEM.TYPECODE with static array
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	TYPE
+		T = ARRAY 32 OF CHAR;
+	VAR 
+		a: LONGINT;
+
+	BEGIN 
+		a:= SYSTEM.TYPECODE(T);
+	END Test.
+	
+negative: SYSTEM.TYPECODE with pointer to static array
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	TYPE
+		T = POINTER TO ARRAY 32 OF LONGINT;
+	VAR 
+		a: LONGINT;
+
+	BEGIN 
+		a:= SYSTEM.TYPECODE(T);
+	END Test.
+
+negative: SYSTEM.TYPECODE with pointer to dynamic array without pointers
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	TYPE
+		T = POINTER TO ARRAY OF LONGINT;
+	VAR 
+		a: LONGINT;
+
+	BEGIN 
+		a:= SYSTEM.TYPECODE(T);
+	END Test.
+
