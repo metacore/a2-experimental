@@ -32565,7 +32565,7 @@ negative: halt statement with constant number of type character
 positive: halt statement with constant number of type integer
 
 	MODULE Test;
-	BEGIN HALT (5);
+	BEGIN HALT (105);
 	END Test.
 
 negative: halt statement with constant number of type real
@@ -38189,3 +38189,53 @@ negative: SYSTEM.TYPECODE with pointer to dynamic array without pointers
 		a:= SYSTEM.TYPECODE(T);
 	END Test.
 
+positive: SYSTEM.HALT statement
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	BEGIN
+		SYSTEM.HALT(100);
+		SYSTEM.HALT(10);
+	END Test.
+	
+negative: HALT statement with too small parameter
+
+	MODULE Test;
+	BEGIN HALT(14)
+	END Test.
+	
+positive: pass a one and two character array as string and pass one array character as character
+
+	MODULE Test;
+
+	PROCEDURE P(CONST s: ARRAY OF CHAR);
+	BEGIN END P;
+
+	PROCEDURE Q(CONST c: CHAR);
+	BEGIN END Q;
+
+
+	BEGIN P("a"); P("ab"); Q("a"); P('a'); P('ab'); Q('a');
+	END Test.
+
+positive: assign one character array to character
+
+	MODULE Test;
+	VAR a: CHAR;
+	BEGIN a := "a"
+	END Test.
+	
+negative: assign a character to a string
+
+	MODULE Test;
+	VAR a: ARRAY 2 OF CHAR;
+	BEGIN a := 0X;
+	END Test.
+		
+negative: pass a character value as a string
+
+	MODULE Test;
+	PROCEDURE P(CONST a: ARRAY OF CHAR);
+	BEGIN	END P;	
+	BEGIN P(0X);
+	END Test.
