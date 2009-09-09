@@ -38239,3 +38239,17 @@ negative: pass a character value as a string
 	BEGIN	END P;	
 	BEGIN P(0X);
 	END Test.
+	
+
+positive: index array of record and pass as parameter
+
+	MODULE Test;
+
+	TYPE R=RECORD END; 
+	VAR a: ARRAY 32 OF R;
+
+	PROCEDURE P(CONST r: R);
+	BEGIN END P;
+
+	BEGIN P(a[10]);
+	END Test.
