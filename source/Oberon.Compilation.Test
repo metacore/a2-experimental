@@ -38253,3 +38253,44 @@ positive: index array of record and pass as parameter
 
 	BEGIN P(a[10]);
 	END Test.
+	
+positive: export of a type
+	MODULE Dummy;
+	TYPE R*=RECORD END;
+	END Dummy.
+
+positive: reexport a type
+
+	MODULE Test;
+	IMPORT Dummy;
+		PROCEDURE P*(VAR r: Dummy.R);
+		BEGIN	END P;
+	END Test.
+
+positive: new on pointer to array containing pointers (any)
+
+	MODULE Test;
+	VAR a: POINTER TO ARRAY OF ANY;		
+	BEGIN NEW(a,10)	END Test.
+	
+positive: new on pointer to array containing pointers (delegates)
+
+	MODULE Test;
+	TYPE delegate = PROCEDURE{DELEGATE}(x: LONGINT);
+	VAR a: POINTER TO ARRAY OF delegate;
+	BEGIN NEW(a,10) END Test.
+	
+positive: new on pointer to array containing pointers (objects)
+	MODULE Test;
+	TYPE object = OBJECT END object;
+	VAR a: POINTER TO ARRAY OF object;
+	BEGIN NEW(a,10) END Test.
+	
+positive: new on pointer to array containing pointers (record with pointer)
+	MODULE Test;
+	TYPE 
+		r1 = RECORD a: LONGINT; b: ANY END;
+		r2 = RECORD r: r1 END;
+		record = RECORD (r2) b: LONGINT END;
+	VAR a: POINTER TO ARRAY OF record;
+	BEGIN NEW(a,10) END Test.
