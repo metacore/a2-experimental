@@ -38350,3 +38350,34 @@ positive: boolean in record designator in pointer to array
 	VAR p:P; b:B;
 	BEGIN ASSERT(p[10].b); ASSERT(b[10]);
 	END Test.
+	
+positive: formal array of system.byte parameter used with basic actual parameter
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	
+	VAR a: ARRAY 32 OF CHAR; b: LONGINT;
+
+	PROCEDURE P(CONST a: ARRAY OF SYSTEM.BYTE);
+	BEGIN
+	END P;
+		
+	BEGIN P(a); P(b); P(a[0]);
+	END Test.
+	
+positive: module exporting OBJECT
+
+	MODULE Dummy;
+	VAR a*: OBJECT; 
+	END Dummy.	
+
+positive: module importing OBJECT
+
+	MODULE Test;
+	IMPORT Dummy; 
+	PROCEDURE P(a: OBJECT);
+	BEGIN
+	END P;
+	
+	BEGIN P(Dummy.a);
+	END Test.
