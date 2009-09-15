@@ -38294,3 +38294,59 @@ positive: new on pointer to array containing pointers (record with pointer)
 		record = RECORD (r2) b: LONGINT END;
 	VAR a: POINTER TO ARRAY OF record;
 	BEGIN NEW(a,10) END Test.
+	
+positive: export object with field
+
+	MODULE Dummy;
+	TYPE
+		Volume* = OBJECT 
+		VAR size-: LONGINT 
+		END Volume; 
+	END Dummy. 	
+
+positive: import object with field
+
+	MODULE Test;
+	IMPORT Dummy;
+	TYPE
+		File = OBJECT 
+		VAR
+		vol: Dummy.Volume; 
+		PROCEDURE P;
+		VAR size: LONGINT;
+		BEGIN
+		size := vol.size;			
+		END P;
+		END File;
+
+	END Test.
+	
+	
+positive: export string value
+
+	MODULE Dummy;
+	CONST str*="myString";
+	END Dummy. 	
+	
+positive: import and use string value
+
+	MODULE Test;
+	IMPORT Dummy;
+
+	PROCEDURE P(str: ARRAY OF CHAR);
+	BEGIN
+	END P;
+		
+	BEGIN P(Dummy.str);
+	END Test.
+	
+positive: boolean in record designator in pointer to array
+
+	MODULE Test;
+	TYPE 
+		R= RECORD a,b: BOOLEAN END;
+		P= POINTER TO ARRAY OF R; 
+		B= ARRAY 20 OF BOOLEAN;
+	VAR p:P; b:B;
+	BEGIN ASSERT(p[10].b); ASSERT(b[10]);
+	END Test.
