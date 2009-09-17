@@ -402,6 +402,8 @@ To update: Configuration.Init ~
 					<Setting name="ShowPathInTabs" value="FALSE"/>
 					<Setting name="ScratchPanelHeight" value="5"/>
 					<Setting name="EnableWhitespaceWarnings" value="FALSE"/>
+					<Setting name="IndicateTabs" value="FALSE"/>
+					<Setting name="CurrentLineColor" value="0"/>
 				</Section>
 				<Section name="Compilers">
 					<Section name="PACO">
