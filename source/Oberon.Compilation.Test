@@ -38381,3 +38381,99 @@ positive: module importing OBJECT
 	
 	BEGIN P(Dummy.a);
 	END Test.
+	
+positive: binary MIN function
+
+	MODULE Test;
+	CONST min = MIN(10,20);
+	VAR a,b: LONGINT; r1,r2: REAL;
+	BEGIN 
+		a := MIN(a,b); 
+		r1 := MIN(r1,r2);
+		a := MIN(a,256); 
+		r1 := MIN(r1,20);
+		r1 := MIN(2.0,200);
+		ASSERT(MIN(1,10)=1);
+		ASSERT(MIN(-10,10)=-10);
+	END Test.
+	
+	
+positive: binary MAX function
+
+	MODULE Test;
+	CONST min = MAX(10,20);
+	VAR a,b: LONGINT; r1,r2: REAL;
+	BEGIN 
+		a := MAX(a,b); 
+		r1 := MAX(r1,r2);
+		a := MAX(a,256); 
+		r1 := MAX(r1,20);
+		r1 := MAX(2.0,200);
+		ASSERT(MAX(1,10)=10);
+		ASSERT(MAX(-10,10)=10);
+	END Test.
+	
+positive: method returning a delegate type
+
+	MODULE Test;
+	IMPORT SYSTEM;
+
+	TYPE Proc = PROCEDURE{DELEGATE};
+	TYPE O= OBJECT
+		VAR
+
+		PROCEDURE P;
+		BEGIN END P;
+
+		PROCEDURE Q(): Proc;
+		BEGIN
+			RETURN P;
+		END Q;
+
+		END O;
+
+	VAR x: Proc; o:O;
+
+	BEGIN x := o.Q(); x:= x;
+	END Test.
+	
+positive: type test on pointer returned by procedure
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	
+	TYPE O = OBJECT END O;
+
+	PROCEDURE P(): ANY;
+	BEGIN
+	END P;
+	
+	BEGIN ASSERT(P() IS O);
+	END Test.
+	
+positive: delegate array element assignment
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	TYPE Handler= PROCEDURE{DELEGATE};	
+	VAR
+	handlers: ARRAY 6 OF Handler; h: Handler;
+	BEGIN handlers[3] := h;
+	END Test.
+	
+positive: large stack size
+
+	MODULE Test;
+	CONST stackSize = 10000H; 
+	
+	PROCEDURE P;
+	VAR a: ARRAY stackSize OF CHAR;
+	BEGIN		
+	END P;
+	
+	PROCEDURE Q;
+	VAR a: ARRAY 100 OF CHAR;
+	BEGIN
+	END Q;
+		
+	END Test.
