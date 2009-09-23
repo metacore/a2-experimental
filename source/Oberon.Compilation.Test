@@ -38517,3 +38517,43 @@ negative: access to different instance of a with-guarded variable
 	BEGIN WITH a: B DO a.a.a := NIL END;
 	END B;
 	END Test. 
+	
+positive: use of SYSTEM.NEW
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR any: ANY; 
+	BEGIN SYSTEM.NEW(any,100); 
+	END Test. 
+
+positive: expression involving a reordering of floating point stack
+
+	MODULE Test;
+	VAR x,y: LONGREAL;
+
+	PROCEDURE Sqrt(x: REAL): REAL;
+	BEGIN END Sqrt;
+	BEGIN 
+		x := x*y + Sqrt(SHORT(x)) + x*y;
+	END Test.
+
+positive: use string length with different lengths (to check side-effects on length field in string value)
+ 
+	MODULE Test;
+
+	TYPE
+		String = ARRAY 128 OF CHAR;
+
+		PROCEDURE PutBareName ( VAR name : String);
+		VAR ix : LONGINT;
+		BEGIN
+			WHILE (ix<LEN(name)) DO END;
+		END PutBareName;
+		
+		PROCEDURE AddUserToName (VAR thisName : String);
+		VAR pos : INTEGER;
+		BEGIN
+			IF pos < LEN (thisName)  THEN END;
+		END AddUserToName;
+
+	END Test.
