@@ -37870,27 +37870,27 @@ positive: exporting realtime procedure
 	PROCEDURE Q*;
 	BEGIN END Q;
 	END Dummy.
-	
+
 positive: using imported realtime procedure in realtime and non-realtime procedure
 
 	MODULE Test;
 	IMPORT Dummy;
-	PROCEDURE {REALTIME} P; 
+	PROCEDURE {REALTIME} P;
 	BEGIN Dummy.P; Dummy.Pp(10)
 	END P;
 	PROCEDURE Q;
 	BEGIN Dummy.P
 	END Q;
-	END Test. 
+	END Test.
 
 negative: using imported non-realtime procedure in realtime procedure
 
 	MODULE Test;
 	IMPORT Dummy;
-	PROCEDURE {REALTIME} P; 
+	PROCEDURE {REALTIME} P;
 	BEGIN Dummy.Q; Dummy.Pp(10)
 	END P;
-	END Test. 
+	END Test.
 
 
 # handling of untraced flag
@@ -37943,47 +37943,47 @@ negative: untraced flag on record type;
 	TYPE P=RECORD END;
 	VAR x{UNTRACED}: P;
 	END Test.
-	
-	
+
+
 #miscellaneous
 
 positive: signed system address type
 
 	MODULE Test;
 	IMPORT SYSTEM;
-	VAR a: LONGINT; 
+	VAR a: LONGINT;
 	BEGIN a := SYSTEM.SIZEOF(SYSTEM.ADDRESS)
 	END Test.
-	
+
 positive: signed system address function
 
 	MODULE Test;
 	IMPORT SYSTEM;
-	VAR a: LONGINT; 
+	VAR a: LONGINT;
 	BEGIN a := SYSTEM.ADR(a)
 	END Test.
-	
+
 positive: mixture of 32 and 8 bit types implying high register pressure by using an array
-	
+
 	MODULE Test;
-	VAR b: ARRAY 2 OF CHAR; a: LONGINT; ch: CHAR; 
+	VAR b: ARRAY 2 OF CHAR; a: LONGINT; ch: CHAR;
 	BEGIN
 		b[a] := CHR(((a MOD 0AH) + 30H))
 	END Test.
-	
-positive: system.val 
+
+positive: system.val
 
 	MODULE Test;
 	IMPORT SYSTEM;
-	VAR a: LONGINT; b: REAL; c: POINTER TO ARRAY OF CHAR; i: INTEGER; ch: CHAR; 
+	VAR a: LONGINT; b: REAL; c: POINTER TO ARRAY OF CHAR; i: INTEGER; ch: CHAR;
 	BEGIN
 		a := SYSTEM.VAL(LONGINT,a);
-		a := SYSTEM.VAL(LONGINT,c); 
-		a := SYSTEM.VAL(LONGINT,b); 
+		a := SYSTEM.VAL(LONGINT,c);
+		a := SYSTEM.VAL(LONGINT,b);
 		a := SYSTEM.VAL(LONGINT,i);
 		a := SYSTEM.VAL(LONGINT,ch);
 	END Test.
-	
+
 positive: shift of unsigned type by signed value
 
 	MODULE Test;
@@ -38001,7 +38001,7 @@ positive: shift of unsigned type by signed variable
 	BEGIN
 		ebx := SYSTEM.LSH(ebx, a)
 	END Test.
-	
+
 positive: assignment of converted unsigned type to signed type
 
 	MODULE Test;
@@ -38010,20 +38010,20 @@ positive: assignment of converted unsigned type to signed type
 	BEGIN
 		i := SYSTEM.VAL(LONGINT, SYSTEM.LSH(ebx * {16..23}, -16));
 	END Test.
-	
+
 positive: getprocedure builtin call
 
 	MODULE Test;
-	TYPE 
-		R= RECORD END; 
+	TYPE
+		R= RECORD END;
 		MyO= OBJECT END MyO;
 	VAR
 		p: PROCEDURE;
-		q: PROCEDURE(r: R); 
+		q: PROCEDURE(r: R);
 		r: PROCEDURE():MyO;
 		s: PROCEDURE(p: MyO): MyO;
 		t: PROCEDURE(p:MyO);
-		u: PROCEDURE(r: R): MyO; 		
+		u: PROCEDURE(r: R): MyO;
 	BEGIN
 		GETPROCEDURE("TestModule","TestProcedure",p);
 		GETPROCEDURE("X","Y",p);
@@ -38032,31 +38032,31 @@ positive: getprocedure builtin call
 		GETPROCEDURE("TestModule","TestProcedure",r);
 		GETPROCEDURE("TestModule","TestProcedure",t);
 		GETPROCEDURE("TestModule","TestProcedure",s);
-		GETPROCEDURE("TestModule","TestProcedure",u);	
+		GETPROCEDURE("TestModule","TestProcedure",u);
 	END Test.
 
 negative: procedure call designator returning nil as index
 
-	MODULE Test;	
+	MODULE Test;
 	VAR a: ARRAY 32 OF CHAR; c: CHAR;
 
 	PROCEDURE P;
 	BEGIN
 	END P;
-			
+
 	BEGIN
-		c := a[P()];	
+		c := a[P()];
 	END Test.
 
 negative: procedure call designator returning nil in binary expression
 
-	MODULE Test;	
+	MODULE Test;
 	VAR a,b: LONGINT;
 
 	PROCEDURE P;
 	BEGIN
 	END P;
-			
+
 	BEGIN
 		a := b + P();
 	END Test.
@@ -38064,7 +38064,7 @@ negative: procedure call designator returning nil in binary expression
 positive: module exporting procedure variable with return type
 
 	MODULE Dummy;
-	VAR 
+	VAR
 		p-: PROCEDURE(a,b: LONGINT): LONGINT;
 	END Dummy.
 
@@ -38072,11 +38072,11 @@ positive: module importing procedure variable with return type
 
 	MODULE Test;
 	IMPORT Dummy;
-	VAR a: LONGINT; 
-	BEGIN 
+	VAR a: LONGINT;
+	BEGIN
 		a := a + Dummy.p(0,0);
 	END Test.
-	
+
 positive: passing NIL parameter on WINAPI string parameter
 
 	MODULE Test;
@@ -38086,7 +38086,7 @@ positive: passing NIL parameter on WINAPI string parameter
 	BEGIN
 		p(NIL);
 	END Test.
-	
+
 positive: SYSTEM.TYPECODE on records, pointer to record and object
 
 	MODULE Test;
@@ -38115,10 +38115,10 @@ negative: SYSTEM.TYPECODE with basic type
 	IMPORT SYSTEM;
 	TYPE
 		T = INTEGER;
-	VAR 
+	VAR
 		a: LONGINT;
 
-	BEGIN 
+	BEGIN
 		a:= SYSTEM.TYPECODE(T);
 	END Test.
 
@@ -38128,13 +38128,13 @@ negative: SYSTEM.TYPECODE with ANY type
 	IMPORT SYSTEM;
 	TYPE
 		T = ANY;
-	VAR 
+	VAR
 		a: LONGINT;
 
-	BEGIN 
+	BEGIN
 		a:= SYSTEM.TYPECODE(T);
 	END Test.
-	
+
 
 negative: SYSTEM.TYPECODE with OBJECT type
 
@@ -38142,13 +38142,13 @@ negative: SYSTEM.TYPECODE with OBJECT type
 	IMPORT SYSTEM;
 	TYPE
 		T = OBJECT;
-	VAR 
+	VAR
 		a: LONGINT;
 
-	BEGIN 
+	BEGIN
 		a:= SYSTEM.TYPECODE(T);
 	END Test.
-	
+
 
 negative: SYSTEM.TYPECODE with static array
 
@@ -38156,23 +38156,23 @@ negative: SYSTEM.TYPECODE with static array
 	IMPORT SYSTEM;
 	TYPE
 		T = ARRAY 32 OF CHAR;
-	VAR 
+	VAR
 		a: LONGINT;
 
-	BEGIN 
+	BEGIN
 		a:= SYSTEM.TYPECODE(T);
 	END Test.
-	
+
 negative: SYSTEM.TYPECODE with pointer to static array
 
 	MODULE Test;
 	IMPORT SYSTEM;
 	TYPE
 		T = POINTER TO ARRAY 32 OF LONGINT;
-	VAR 
+	VAR
 		a: LONGINT;
 
-	BEGIN 
+	BEGIN
 		a:= SYSTEM.TYPECODE(T);
 	END Test.
 
@@ -38182,10 +38182,10 @@ negative: SYSTEM.TYPECODE with pointer to dynamic array without pointers
 	IMPORT SYSTEM;
 	TYPE
 		T = POINTER TO ARRAY OF LONGINT;
-	VAR 
+	VAR
 		a: LONGINT;
 
-	BEGIN 
+	BEGIN
 		a:= SYSTEM.TYPECODE(T);
 	END Test.
 
@@ -38197,13 +38197,13 @@ positive: SYSTEM.HALT statement
 		SYSTEM.HALT(100);
 		SYSTEM.HALT(10);
 	END Test.
-	
+
 negative: HALT statement with too small parameter
 
 	MODULE Test;
 	BEGIN HALT(14)
 	END Test.
-	
+
 positive: pass a one and two character array as string and pass one array character as character
 
 	MODULE Test;
@@ -38224,28 +38224,28 @@ positive: assign one character array to character
 	VAR a: CHAR;
 	BEGIN a := "a"
 	END Test.
-	
+
 negative: assign a character to a string
 
 	MODULE Test;
 	VAR a: ARRAY 2 OF CHAR;
 	BEGIN a := 0X;
 	END Test.
-		
+
 negative: pass a character value as a string
 
 	MODULE Test;
 	PROCEDURE P(CONST a: ARRAY OF CHAR);
-	BEGIN	END P;	
+	BEGIN	END P;
 	BEGIN P(0X);
 	END Test.
-	
+
 
 positive: index array of record and pass as parameter
 
 	MODULE Test;
 
-	TYPE R=RECORD END; 
+	TYPE R=RECORD END;
 	VAR a: ARRAY 32 OF R;
 
 	PROCEDURE P(CONST r: R);
@@ -38253,7 +38253,7 @@ positive: index array of record and pass as parameter
 
 	BEGIN P(a[10]);
 	END Test.
-	
+
 positive: export of a type
 	MODULE Dummy;
 	TYPE R*=RECORD END;
@@ -38270,64 +38270,64 @@ positive: reexport a type
 positive: new on pointer to array containing pointers (any)
 
 	MODULE Test;
-	VAR a: POINTER TO ARRAY OF ANY;		
+	VAR a: POINTER TO ARRAY OF ANY;
 	BEGIN NEW(a,10)	END Test.
-	
+
 positive: new on pointer to array containing pointers (delegates)
 
 	MODULE Test;
 	TYPE delegate = PROCEDURE{DELEGATE}(x: LONGINT);
 	VAR a: POINTER TO ARRAY OF delegate;
 	BEGIN NEW(a,10) END Test.
-	
+
 positive: new on pointer to array containing pointers (objects)
 	MODULE Test;
 	TYPE object = OBJECT END object;
 	VAR a: POINTER TO ARRAY OF object;
 	BEGIN NEW(a,10) END Test.
-	
+
 positive: new on pointer to array containing pointers (record with pointer)
 	MODULE Test;
-	TYPE 
+	TYPE
 		r1 = RECORD a: LONGINT; b: ANY END;
 		r2 = RECORD r: r1 END;
 		record = RECORD (r2) b: LONGINT END;
 	VAR a: POINTER TO ARRAY OF record;
 	BEGIN NEW(a,10) END Test.
-	
+
 positive: export object with field
 
 	MODULE Dummy;
 	TYPE
-		Volume* = OBJECT 
-		VAR size-: LONGINT 
-		END Volume; 
-	END Dummy. 	
+		Volume* = OBJECT
+		VAR size-: LONGINT
+		END Volume;
+	END Dummy.
 
 positive: import object with field
 
 	MODULE Test;
 	IMPORT Dummy;
 	TYPE
-		File = OBJECT 
+		File = OBJECT
 		VAR
-		vol: Dummy.Volume; 
+		vol: Dummy.Volume;
 		PROCEDURE P;
 		VAR size: LONGINT;
 		BEGIN
-		size := vol.size;			
+		size := vol.size;
 		END P;
 		END File;
 
 	END Test.
-	
-	
+
+
 positive: export string value
 
 	MODULE Dummy;
 	CONST str*="myString";
-	END Dummy. 	
-	
+	END Dummy.
+
 positive: import and use string value
 
 	MODULE Test;
@@ -38336,83 +38336,83 @@ positive: import and use string value
 	PROCEDURE P(str: ARRAY OF CHAR);
 	BEGIN
 	END P;
-		
+
 	BEGIN P(Dummy.str);
 	END Test.
-	
+
 positive: boolean in record designator in pointer to array
 
 	MODULE Test;
-	TYPE 
+	TYPE
 		R= RECORD a,b: BOOLEAN END;
-		P= POINTER TO ARRAY OF R; 
+		P= POINTER TO ARRAY OF R;
 		B= ARRAY 20 OF BOOLEAN;
 	VAR p:P; b:B;
 	BEGIN ASSERT(p[10].b); ASSERT(b[10]);
 	END Test.
-	
+
 positive: formal array of system.byte parameter used with basic actual parameter
 
 	MODULE Test;
 	IMPORT SYSTEM;
-	
+
 	VAR a: ARRAY 32 OF CHAR; b: LONGINT;
 
 	PROCEDURE P(CONST a: ARRAY OF SYSTEM.BYTE);
 	BEGIN
 	END P;
-		
+
 	BEGIN P(a); P(b); P(a[0]);
 	END Test.
-	
+
 positive: module exporting OBJECT
 
 	MODULE Dummy;
-	VAR a*: OBJECT; 
-	END Dummy.	
+	VAR a*: OBJECT;
+	END Dummy.
 
 positive: module importing OBJECT
 
 	MODULE Test;
-	IMPORT Dummy; 
+	IMPORT Dummy;
 	PROCEDURE P(a: OBJECT);
 	BEGIN
 	END P;
-	
+
 	BEGIN P(Dummy.a);
 	END Test.
-	
+
 positive: binary MIN function
 
 	MODULE Test;
 	CONST min = MIN(10,20);
 	VAR a,b: LONGINT; r1,r2: REAL;
-	BEGIN 
-		a := MIN(a,b); 
+	BEGIN
+		a := MIN(a,b);
 		r1 := MIN(r1,r2);
-		a := MIN(a,256); 
+		a := MIN(a,256);
 		r1 := MIN(r1,20);
 		r1 := MIN(2.0,200);
 		ASSERT(MIN(1,10)=1);
 		ASSERT(MIN(-10,10)=-10);
 	END Test.
-	
-	
+
+
 positive: binary MAX function
 
 	MODULE Test;
 	CONST min = MAX(10,20);
 	VAR a,b: LONGINT; r1,r2: REAL;
-	BEGIN 
-		a := MAX(a,b); 
+	BEGIN
+		a := MAX(a,b);
 		r1 := MAX(r1,r2);
-		a := MAX(a,256); 
+		a := MAX(a,256);
 		r1 := MAX(r1,20);
 		r1 := MAX(2.0,200);
 		ASSERT(MAX(1,10)=10);
 		ASSERT(MAX(-10,10)=10);
 	END Test.
-	
+
 positive: method returning a delegate type
 
 	MODULE Test;
@@ -38436,95 +38436,95 @@ positive: method returning a delegate type
 
 	BEGIN x := o.Q(); x:= x;
 	END Test.
-	
+
 positive: type test on pointer returned by procedure
 
 	MODULE Test;
 	IMPORT SYSTEM;
-	
+
 	TYPE O = OBJECT END O;
 
 	PROCEDURE P(): ANY;
 	BEGIN
 	END P;
-	
+
 	BEGIN ASSERT(P() IS O);
 	END Test.
-	
+
 positive: delegate array element assignment
 
 	MODULE Test;
 	IMPORT SYSTEM;
-	TYPE Handler= PROCEDURE{DELEGATE};	
+	TYPE Handler= PROCEDURE{DELEGATE};
 	VAR
 	handlers: ARRAY 6 OF Handler; h: Handler;
 	BEGIN handlers[3] := h;
 	END Test.
-	
+
 positive: large stack size
 
 	MODULE Test;
-	CONST stackSize = 10000H; 
-	
+	CONST stackSize = 10000H;
+
 	PROCEDURE P;
 	VAR a: ARRAY stackSize OF CHAR;
-	BEGIN		
+	BEGIN
 	END P;
-	
+
 	PROCEDURE Q;
 	VAR a: ARRAY 100 OF CHAR;
 	BEGIN
 	END Q;
-		
+
 	END Test.
-	
+
 positive: shortint variable multiplied by shortint value (8bit multiply)
 
 	MODULE Test;
-	
+
 	PROCEDURE P;
-	VAR a: SHORTINT; 
+	VAR a: SHORTINT;
 	BEGIN
 		IF a = a*3 THEN END;
 	END P;
-	
+
 	END Test.
 
 positive: with statement on object field
 
 	MODULE Test; (** AUTHOR ""; PURPOSE ""; *)
-	
-	TYPE Object = POINTER TO RECORD a: LONGINT; END; 
-			Object2 = POINTER TO RECORD(Object); a: Object;END; 
-	
-	TYPE Object3 = OBJECT 
-	VAR a: Object;		
-	BEGIN 
-		WITH a: Object2 DO 
+
+	TYPE Object = POINTER TO RECORD a: LONGINT; END;
+			Object2 = POINTER TO RECORD(Object); a: Object;END;
+
+	TYPE Object3 = OBJECT
+	VAR a: Object;
+	BEGIN
+		WITH a: Object2 DO
 			a.a.a := a.a.a;
-		END; 
-	END Object3; 
-	
+		END;
+	END Object3;
+
 	END Test.
-	
+
 negative: access to different instance of a with-guarded variable
 
 	MODULE Test;
-	
+
 	TYPE A = OBJECT END A;
 	TYPE B = OBJECT (A)
 	VAR a: A;
 	BEGIN WITH a: B DO a.a.a := NIL END;
 	END B;
-	END Test. 
-	
+	END Test.
+
 positive: use of SYSTEM.NEW
 
 	MODULE Test;
 	IMPORT SYSTEM;
-	VAR any: ANY; 
-	BEGIN SYSTEM.NEW(any,100); 
-	END Test. 
+	VAR any: ANY;
+	BEGIN SYSTEM.NEW(any,100);
+	END Test.
 
 positive: expression involving a reordering of floating point stack
 
@@ -38533,14 +38533,13 @@ positive: expression involving a reordering of floating point stack
 
 	PROCEDURE Sqrt(x: REAL): REAL;
 	BEGIN END Sqrt;
-	BEGIN 
+	BEGIN
 		x := x*y + Sqrt(SHORT(x)) + x*y;
 	END Test.
 
 positive: use string length with different lengths (to check side-effects on length field in string value)
- 
-	MODULE Test;
 
+	MODULE Test;
 	TYPE
 		String = ARRAY 128 OF CHAR;
 
@@ -38549,11 +38548,22 @@ positive: use string length with different lengths (to check side-effects on len
 		BEGIN
 			WHILE (ix<LEN(name)) DO END;
 		END PutBareName;
-		
+
 		PROCEDURE AddUserToName (VAR thisName : String);
 		VAR pos : INTEGER;
 		BEGIN
 			IF pos < LEN (thisName)  THEN END;
 		END AddUserToName;
+	END Test.
+	
+positive: SYSTEM.BYTE varpar
 
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR c: CHAR;
+	PROCEDURE P(VAR x: SYSTEM.BYTE);
+	BEGIN
+	END P;
+	BEGIN
+		P(c);
 	END Test.
