@@ -38477,3 +38477,43 @@ positive: large stack size
 	END Q;
 		
 	END Test.
+	
+positive: shortint variable multiplied by shortint value (8bit multiply)
+
+	MODULE Test;
+	
+	PROCEDURE P;
+	VAR a: SHORTINT; 
+	BEGIN
+		IF a = a*3 THEN END;
+	END P;
+	
+	END Test.
+
+positive: with statement on object field
+
+	MODULE Test; (** AUTHOR ""; PURPOSE ""; *)
+	
+	TYPE Object = POINTER TO RECORD a: LONGINT; END; 
+			Object2 = POINTER TO RECORD(Object); a: Object;END; 
+	
+	TYPE Object3 = OBJECT 
+	VAR a: Object;		
+	BEGIN 
+		WITH a: Object2 DO 
+			a.a.a := a.a.a;
+		END; 
+	END Object3; 
+	
+	END Test.
+	
+negative: access to different instance of a with-guarded variable
+
+	MODULE Test;
+	
+	TYPE A = OBJECT END A;
+	TYPE B = OBJECT (A)
+	VAR a: A;
+	BEGIN WITH a: B DO a.a.a := NIL END;
+	END B;
+	END Test. 
