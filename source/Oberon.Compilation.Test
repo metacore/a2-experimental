@@ -34693,6 +34693,36 @@ negative: with statement with self and extended object type
 	TYPE Type = OBJECT END Type;
 	END Test.
 
+positive: with statement with object variable and self assignment
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		VAR value: Object;
+		BEGIN WITH value : Type DO ASSERT (value.check); value := value END;
+	END Object;
+	TYPE Type = OBJECT (Object) VAR check: BOOLEAN; END Type;
+	END Test.
+
+positive: with statement with object variable and self assignment using self
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		VAR value: Object;
+		BEGIN WITH value : Type DO ASSERT (value.check); value := SELF.value END;
+	END Object;
+	TYPE Type = OBJECT (Object) VAR check: BOOLEAN; END Type;
+	END Test.
+
+negative: with statement with object variable and assignment using another object instance
+
+	MODULE Test;
+	TYPE Object = OBJECT
+		VAR value: Object;
+		BEGIN WITH value : Type DO ASSERT (value.check); value := value.value END;
+	END Object;
+	TYPE Type = OBJECT (Object) VAR check: BOOLEAN; END Type;
+	END Test.
+
 negative: with statement with variable pointer to array value
 
 	MODULE Test;
