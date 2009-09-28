@@ -38597,3 +38597,54 @@ positive: SYSTEM.BYTE varpar
 	BEGIN
 		P(c);
 	END Test.
+	
+positive: write a SYSTEM.BYTE varpar without conversion
+
+	MODULE Test;
+	
+	IMPORT SYSTEM;
+	
+	PROCEDURE P(VAR buf: SYSTEM.BYTE);
+	VAR s1,s2: SHORTINT;
+	BEGIN
+		buf := s2*16 + (s1 MOD 16)		
+	END P;
+	
+	END Test.
+	
+positive: use a value for a the address in SYSTEM.GET
+
+	MODULE Test;
+	
+	IMPORT SYSTEM;
+	
+	PROCEDURE P(VAR buf: SYSTEM.BYTE);
+	VAR adr: SYSTEM.ADDRESS;
+	BEGIN
+	adr := 0;
+	SYSTEM.GET (040EH, SYSTEM.VAL (INTEGER, adr));	(* EBDA address *)
+	END P;
+	
+	END Test.
+
+positive: ugly system.val with records
+
+	MODULE Test;
+	
+	IMPORT SYSTEM;
+
+	TYPE Record= RECORD a,b: LONGINT END;
+	
+	PROCEDURE P(VAR r: Record);
+	VAR a: LONGINT;
+	BEGIN
+		P(SYSTEM.VAL(Record,a));
+	END P;
+
+	PROCEDURE Q(r: Record);
+	VAR a: LONGINT;
+	BEGIN
+		Q(SYSTEM.VAL(Record,a));
+	END Q;
+	
+	END Test.
