@@ -5674,3 +5674,57 @@ positive: SYSTEM.VAL on designator and non-designator expression
 
 	BEGIN P;
 	END Test.
+	
+positive: reimporting an object type with initializer 
+
+	MODULE Z;
+	TYPE D1*= OBJECT END D1;
+	END Z.	
+
+	MODULE Y;
+	IMPORT Z;
+	TYPE 
+		D1*= OBJECT (Z.D1)
+			PROCEDURE &Init*;
+			BEGIN
+			END Init;
+		END D1;	
+	END Y.
+	
+	MODULE Test; 
+	IMPORT Y;
+	PROCEDURE P*;
+	VAR o: Y.D1; 
+	BEGIN NEW(o);
+	END P;
+	BEGIN P;
+	END Test.
+	
+postive: reimporting objects and execute bodies
+	MODULE Z;
+	TYPE O*= OBJECT
+		VAR initZ-: LONGINT; 
+		BEGIN initZ := 999;	
+		END O;
+	END Z.
+
+	MODULE Y;
+	IMPORT Z;
+	TYPE O*= OBJECT (Z.O)
+		VAR initY-: LONGINT; 
+		BEGIN initY := 998;	
+		END O;
+	END Y.
+
+	MODULE Test;
+	IMPORT Y;
+	TYPE O*=OBJECT (Y.O)
+		VAR initO: LONGINT;
+		BEGIN initO := 997
+		END O;
+	VAR o: O;
+	BEGIN 
+		NEW(o); ASSERT(o.initO=997); ASSERT(o.initY =998); ASSERT(o.initZ=999);
+	END Test.
+	
+
