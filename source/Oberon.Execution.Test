@@ -5701,6 +5701,7 @@ positive: reimporting an object type with initializer
 	END Test.
 	
 postive: reimporting objects and execute bodies
+
 	MODULE Z;
 	TYPE O*= OBJECT
 		VAR initZ-: LONGINT; 
@@ -5727,4 +5728,58 @@ postive: reimporting objects and execute bodies
 		NEW(o); ASSERT(o.initO=997); ASSERT(o.initY =998); ASSERT(o.initZ=999);
 	END Test.
 	
+positive: importing protected object
+
+	MODULE X;
+	TYPE O*= OBJECT
+			PROCEDURE P*;
+			BEGIN{EXCLUSIVE}
+			END P;
+		END O;
+	END X.
+
+	MODULE Test;
+	IMPORT X;
+	VAR o: X.O;
+	BEGIN 
+		NEW(o); o.P;
+	END Test.
+
+positive: importing and extending protected object
+
+	MODULE Test; 
+	IMPORT X;
+		TYPE O*= OBJECT (X.O)
+			VAR 
+				PROCEDURE Q*;
+				BEGIN
+					P;
+				END Q;				
+		END O;	
+	VAR o: O;
+	BEGIN 
+		NEW(o); o.Q;
+	END Test.
+	
+positive: passing string parameter to procedure returning pointer
+	
+	MODULE Test;
+
+	TYPE String= POINTER TO ARRAY OF CHAR;
+
+	PROCEDURE TestString*(CONST str: ARRAY OF CHAR): String;
+	VAR ch: CHAR;
+	BEGIN
+		ch := str[0];
+		RETURN NIL
+	END TestString;
+
+	PROCEDURE Test*;
+	VAR str: String;
+	BEGIN
+		str := TestString("TestStr"); 
+	END Test;
+
+	BEGIN Test
+	END Test.
 
