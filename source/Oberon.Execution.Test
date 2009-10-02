@@ -5783,3 +5783,42 @@ positive: passing string parameter to procedure returning pointer
 	BEGIN Test
 	END Test.
 
+positive: passing array parameter to nested procedure
+	MODULE Test;
+
+		PROCEDURE Enum();
+		VAR name: ARRAY 256 OF CHAR; 
+		
+			PROCEDURE GetNextSymbol(VAR s: ARRAY OF CHAR );
+			BEGIN
+				s[0] := 0X;
+			END GetNextSymbol;
+
+		BEGIN
+			GetNextSymbol(name);
+		END Enum;
+
+	BEGIN Enum();
+	END Test.
+	
+positive: nested procedure calls itself with parameter
+
+	MODULE Test;
+
+		PROCEDURE Test;
+		VAR k: LONGINT;
+
+			PROCEDURE Test0(l: LONGINT);
+			BEGIN
+				ASSERT(l = 999);
+				INC(k);
+				IF k < 10 THEN Test0(l) END;
+			END Test0;
+
+		BEGIN
+			k := 0;
+			Test0(999);
+		END Test;
+
+	BEGIN Test;
+	END Test.
