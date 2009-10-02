@@ -5822,3 +5822,55 @@ positive: nested procedure calls itself with parameter
 
 	BEGIN Test;
 	END Test.
+	
+positive: object type declared in procedure scope
+	MODULE Test;
+			
+		PROCEDURE Test;
+		TYPE
+			O=OBJECT
+			VAR i:LONGINT;
+
+				PROCEDURE &Init;
+				BEGIN
+					i := 999;
+				END Init;
+
+				PROCEDURE P;
+				BEGIN
+					ASSERT(i=999);
+				END P;
+			END O;
+		VAR o:O;
+		BEGIN
+			NEW(o); o.P;
+		END Test;
+
+	BEGIN Test;
+	END Test.
+	
+positive: expression involving multiple register savings on stack
+
+	MODULE Test;
+
+	PROCEDURE Test;
+	VAR a: POINTER TO ARRAY OF LONGINT; i : LONGINT;
+
+		PROCEDURE Add(i: LONGINT): LONGINT;
+		BEGIN
+			RETURN i+10
+		END Add;
+
+	BEGIN
+		NEW(a,10);
+		i := 5;
+		a[i] := 10;
+		a[i] := a[i]+Add(a[i]+Add(a[i] + Add(a[i])));
+		ASSERT(a[i] = 70);
+	END Test;
+
+	BEGIN Test;
+	END Test.
+	
+	
+
