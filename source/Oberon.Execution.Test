@@ -5896,4 +5896,29 @@ positive:  GETPROCEDURE with procedure returning an object
 	END Test;
 	BEGIN Test;
 	END Test.
+	
+positive: import object and use initializer on alias
+
+	MODULE X;
+	TYPE 
+	O*= OBJECT
+	VAR a*: LONGINT; 
+
+	PROCEDURE &Init*;
+	BEGIN
+	END Init;
+	END O;
+		
+	O2*=O;
+
+	END X.
+
+	MODULE Test;
+
+	IMPORT X;
+	VAR o: X.O2;
+	BEGIN
+		NEW(o); o.a :=10;
+	END Test.
+
 
