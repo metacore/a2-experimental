@@ -5482,6 +5482,7 @@ positive: exclusive section in procedure in object scope
 	END;
 	BEGIN NEW(a); a.P END Test.
 
+
 positive: positive await statement in procedure in module scope
 	MODULE Test;
 	VAR done: BOOLEAN;
@@ -5622,6 +5623,7 @@ positive: dining philosophers
 		FOR id := 0 TO Forks - 1 DO NEW (philosopher[id], id) END;
 		FOR id := 0 TO Forks - 1 DO philosopher[id].Await END;
 	END Test.
+~~~~~~~~~
 
 positive: bounded buffer
 
@@ -5872,5 +5874,26 @@ positive: expression involving multiple register savings on stack
 	BEGIN Test;
 	END Test.
 	
-	
+positive:  GETPROCEDURE with procedure returning an object
+
+	MODULE X; 
+	TYPE Object*=OBJECT VAR a-: LONGINT; END Object; 
+		PROCEDURE TheProcedure*(): Object;
+		VAR o: Object;
+		BEGIN
+			NEW(o); o.a := 100;  RETURN o;
+		END TheProcedure;
+	END X.
+
+	MODULE Test;  (** AUTHOR ""; PURPOSE ""; *)
+	IMPORT X;
+	PROCEDURE Test;
+	VAR p: PROCEDURE(): X.Object; o: X.Object;
+	BEGIN
+		GETPROCEDURE("X","TheProcedure",p); 
+		o := p(); 
+		ASSERT(o.a = 100); 
+	END Test;
+	BEGIN Test;
+	END Test.
 
