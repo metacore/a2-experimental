@@ -1614,7 +1614,7 @@ positive: subtraction on long integers
 		a := -3; b := 2; ASSERT (a - b = -5); ASSERT (a - b = (-3) - 2);
 		a := 3; b := -2; ASSERT (a - b = +5); ASSERT (a - b = 3 - (-2));
 		a := -3; b := -2; ASSERT (a - b = -1); ASSERT (a - b = (-3) - (-2));
-		a := MIN (LONGINT) + 1; b := MAX (LONGINT); ASSERT (a - b = 2); 
+		a := MIN (LONGINT) + 1; b := MAX (LONGINT); ASSERT (a - b = 2);
 		(* ASSERT (a - b = SHORT (MIN (LONGINT) + 1 - MAX (LONGINT))); *)
 	END Test.
 
@@ -1685,7 +1685,7 @@ positive: multiplication on long integers
 		a := -3; b := 2; ASSERT (a * b = -6); ASSERT (a * b = (-3) * 2);
 		a := 3; b := -2; ASSERT (a * b = -6); ASSERT (a * b = 3 * (-2));
 		a := -3; b := -2; ASSERT (a * b = +6); ASSERT (a * b = (-3) * (-2));
-		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a * b = 1); 
+		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a * b = 1);
 		(*ASSERT (a * b = SHORT (MAX (LONGINT) * MAX (LONGINT)));*)
 	END Test.
 
@@ -1740,7 +1740,7 @@ negative: integer division on short integers with negative divisor
 	MODULE Test;
 	VAR a, b, c: SHORTINT;
 	BEGIN
-		a := 3; b := -2; c := a DIV b; 
+		a := 3; b := -2; c := a DIV b;
 	END Test.
 
 negative: integer division by zero on short integer
@@ -1761,13 +1761,13 @@ positive: integer division on integers with positive divisor
 		a := -2; b := 3; ASSERT (a DIV b = -1); ASSERT (a DIV b = (-2) DIV 3);
 		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a DIV b = 1); ASSERT (a DIV b = MAX (INTEGER) DIV MAX (INTEGER));
 	END Test.
-	
+
 negative: integer division on integers with negative divisor
 
 	MODULE Test;
 	VAR a, b, c: INTEGER;
 	BEGIN
-		a := 3; b := -2; c := a DIV b; 
+		a := 3; b := -2; c := a DIV b;
 	END Test.
 
 
@@ -1795,7 +1795,7 @@ negative: integer division on long integers with negative divisor
 	MODULE Test;
 	VAR a, b, c: LONGINT;
 	BEGIN
-		a := 3; b := -2; c := a DIV b; 
+		a := 3; b := -2; c := a DIV b;
 	END Test.
 
 negative: integer division by zero on long integer
@@ -1822,7 +1822,7 @@ negative: integer division on huge integers with negative divisor
 	MODULE Test;
 	VAR a, b, c: HUGEINT;
 	BEGIN
-		a := 3; b := -2; c := a DIV b; 
+		a := 3; b := -2; c := a DIV b;
 	END Test.
 
 negative: integer division by zero on huge integer
@@ -4615,39 +4615,39 @@ positive: double super call with initializer and body
 positive: call of object body
 
 	MODULE Test;
-	VAR o: OBJECT BEGIN b := TRUE END; 
-	VAR b: BOOLEAN; 
+	VAR o: OBJECT BEGIN b := TRUE END;
+	VAR b: BOOLEAN;
 	BEGIN b := FALSE; NEW(o); ASSERT(b);
 	END Test.
 
 positive: call of object body chains
 
-	MODULE Test; 
-	TYPE 
+	MODULE Test;
+	TYPE
 		O = OBJECT	BEGIN b1 := TRUE END O;
-		O2=OBJECT(O) BEGIN b2 := b1 END O2; 
-		O3=OBJECT(O2) BEGIN b3 := b2 END O3; 
+		O2=OBJECT(O) BEGIN b2 := b1 END O2;
+		O3=OBJECT(O2) BEGIN b3 := b2 END O3;
 
 	VAR b1,b2,b3: BOOLEAN; o: O3;
-	BEGIN 
+	BEGIN
 		b1 := FALSE; b2 := FALSE; b3 := FALSE;
-		NEW(o); 
-		ASSERT(b1); ASSERT(b2);  ASSERT(b3); 
+		NEW(o);
+		ASSERT(b1); ASSERT(b2);  ASSERT(b3);
 	END Test.
 
 positive: call of object body chains with initializer
 
-	MODULE Test; 
-	TYPE 
+	MODULE Test;
+	TYPE
 		O = OBJECT	BEGIN b1 := b0 END O;
-		O2=OBJECT(O) BEGIN b2 := b1 END O2; 
-		O3=OBJECT(O2) PROCEDURE &Init; BEGIN b0 := TRUE END Init; BEGIN b3 := b2 END O3; 
+		O2=OBJECT(O) BEGIN b2 := b1 END O2;
+		O3=OBJECT(O2) PROCEDURE &Init; BEGIN b0 := TRUE END Init; BEGIN b3 := b2 END O3;
 
 	VAR b0,b1,b2,b3: BOOLEAN; o: O3;
-	BEGIN 
+	BEGIN
 		b0 := FALSE; b1 := FALSE; b2 := FALSE; b3 := FALSE;
-		NEW(o); 
-		ASSERT(b0); ASSERT(b1); ASSERT(b2);  ASSERT(b3); 
+		NEW(o);
+		ASSERT(b0); ASSERT(b1); ASSERT(b2);  ASSERT(b3);
 	END Test.
 
 
@@ -5469,16 +5469,16 @@ positive: exclusive section in procedure in module scope
 	MODULE Test;
 	PROCEDURE P;
 	BEGIN{EXCLUSIVE}
-	END P; 
+	END P;
 	BEGIN P END Test.
-	
+
 positive: exclusive section in procedure in object scope
 
 	MODULE Test;
 	VAR a: OBJECT
 		PROCEDURE P;
 		BEGIN{EXCLUSIVE}
-		END P; 
+		END P;
 	END;
 	BEGIN NEW(a); a.P END Test.
 
@@ -5491,7 +5491,7 @@ positive: positive await statement in procedure in module scope
 		AWAIT(done)
 	END P;
 	BEGIN done := TRUE; P END Test.
-	
+
 negative: active body
 	MODULE Test;
 	VAR start,called: BOOLEAN;
@@ -5517,10 +5517,10 @@ positive: negative await statement in procedure in module scope
 		AWAIT(done)
 	END P;
 	BEGIN done := FALSE; NEW(o); P END Test.
-	
+
 positive: positive await statement in procedure in object scope
 	MODULE Test;
-	VAR o:OBJECT 
+	VAR o:OBJECT
 	VAR done: BOOLEAN;
 	PROCEDURE P;
 	BEGIN{EXCLUSIVE}
@@ -5529,10 +5529,10 @@ positive: positive await statement in procedure in object scope
 	BEGIN done := TRUE;
 	END;
 	BEGIN NEW(o); o.P; END Test.
-	
+
 positive: negative await statement in procedure in object scope
 	MODULE Test;
-	VAR o:OBJECT 
+	VAR o:OBJECT
 	VAR done: BOOLEAN; i: LONGINT;
 	PROCEDURE & Init; BEGIN done := FALSE END Init;
 	PROCEDURE P;
@@ -5543,7 +5543,7 @@ positive: negative await statement in procedure in object scope
 	BEGIN{EXCLUSIVE}
 		done := TRUE
 	END Done;
-	
+
 	BEGIN{ACTIVE}  FOR i := 0 TO 10000 DO END; Done
 	END;
 	BEGIN NEW(o); o.P; END Test.
@@ -5623,7 +5623,6 @@ positive: dining philosophers
 		FOR id := 0 TO Forks - 1 DO NEW (philosopher[id], id) END;
 		FOR id := 0 TO Forks - 1 DO philosopher[id].Await END;
 	END Test.
-~~~~~~~~~
 
 positive: bounded buffer
 
@@ -5654,7 +5653,7 @@ positive: bounded buffer
 	END Test;
 	BEGIN Test (1, 1000); Test (10, 1000); Test (1000, 1000); Test (1000, 100);
 	END Test.
-	
+
 # miscellaneous
 
 positive: SYSTEM.VAL on designator and non-designator expression
@@ -5676,48 +5675,54 @@ positive: SYSTEM.VAL on designator and non-designator expression
 
 	BEGIN P;
 	END Test.
-	
-positive: reimporting an object type with initializer 
+
+positive: reimporting an object type with initializer (1)
 
 	MODULE Z;
 	TYPE D1*= OBJECT END D1;
-	END Z.	
+	END Z.
 
+positive: reimporting an object type with initializer (2)
 	MODULE Y;
 	IMPORT Z;
-	TYPE 
+	TYPE
 		D1*= OBJECT (Z.D1)
 			PROCEDURE &Init*;
 			BEGIN
 			END Init;
-		END D1;	
+		END D1;
 	END Y.
-	
-	MODULE Test; 
+
+positive: reimporting an object type with initializer (3)
+	MODULE Test;
 	IMPORT Y;
 	PROCEDURE P*;
-	VAR o: Y.D1; 
+	VAR o: Y.D1;
 	BEGIN NEW(o);
 	END P;
 	BEGIN P;
 	END Test.
 	
-postive: reimporting objects and execute bodies
+positive: reimporting objects and execute bodies (1)
 
 	MODULE Z;
 	TYPE O*= OBJECT
-		VAR initZ-: LONGINT; 
-		BEGIN initZ := 999;	
+		VAR initZ-: LONGINT;
+		BEGIN initZ := 999;
 		END O;
 	END Z.
+
+positive: reimporting objects and execute bodies (2)
 
 	MODULE Y;
 	IMPORT Z;
 	TYPE O*= OBJECT (Z.O)
-		VAR initY-: LONGINT; 
-		BEGIN initY := 998;	
+		VAR initY-: LONGINT;
+		BEGIN initY := 998;
 		END O;
 	END Y.
+
+positive: reimporting objects and execute bodies (3)
 
 	MODULE Test;
 	IMPORT Y;
@@ -5726,11 +5731,11 @@ postive: reimporting objects and execute bodies
 		BEGIN initO := 997
 		END O;
 	VAR o: O;
-	BEGIN 
+	BEGIN
 		NEW(o); ASSERT(o.initO=997); ASSERT(o.initY =998); ASSERT(o.initZ=999);
 	END Test.
-	
-positive: importing protected object
+
+positive: importing protected object (1)
 
 	MODULE X;
 	TYPE O*= OBJECT
@@ -5740,31 +5745,33 @@ positive: importing protected object
 		END O;
 	END X.
 
+positive: importing protected object (2)
+
 	MODULE Test;
 	IMPORT X;
 	VAR o: X.O;
-	BEGIN 
+	BEGIN
 		NEW(o); o.P;
 	END Test.
 
 positive: importing and extending protected object
 
-	MODULE Test; 
+	MODULE Test;
 	IMPORT X;
 		TYPE O*= OBJECT (X.O)
-			VAR 
+			VAR
 				PROCEDURE Q*;
 				BEGIN
 					P;
-				END Q;				
-		END O;	
+				END Q;
+		END O;
 	VAR o: O;
-	BEGIN 
+	BEGIN
 		NEW(o); o.Q;
 	END Test.
-	
+
 positive: passing string parameter to procedure returning pointer
-	
+
 	MODULE Test;
 
 	TYPE String= POINTER TO ARRAY OF CHAR;
@@ -5779,7 +5786,7 @@ positive: passing string parameter to procedure returning pointer
 	PROCEDURE Test*;
 	VAR str: String;
 	BEGIN
-		str := TestString("TestStr"); 
+		str := TestString("TestStr");
 	END Test;
 
 	BEGIN Test
@@ -5789,8 +5796,8 @@ positive: passing array parameter to nested procedure
 	MODULE Test;
 
 		PROCEDURE Enum();
-		VAR name: ARRAY 256 OF CHAR; 
-		
+		VAR name: ARRAY 256 OF CHAR;
+
 			PROCEDURE GetNextSymbol(VAR s: ARRAY OF CHAR );
 			BEGIN
 				s[0] := 0X;
@@ -5802,7 +5809,7 @@ positive: passing array parameter to nested procedure
 
 	BEGIN Enum();
 	END Test.
-	
+
 positive: nested procedure calls itself with parameter
 
 	MODULE Test;
@@ -5824,10 +5831,10 @@ positive: nested procedure calls itself with parameter
 
 	BEGIN Test;
 	END Test.
-	
+
 positive: object type declared in procedure scope
 	MODULE Test;
-			
+
 		PROCEDURE Test;
 		TYPE
 			O=OBJECT
@@ -5850,7 +5857,7 @@ positive: object type declared in procedure scope
 
 	BEGIN Test;
 	END Test.
-	
+
 positive: expression involving multiple register savings on stack
 
 	MODULE Test;
@@ -5873,11 +5880,11 @@ positive: expression involving multiple register savings on stack
 
 	BEGIN Test;
 	END Test.
-	
-positive:  GETPROCEDURE with procedure returning an object
 
-	MODULE X; 
-	TYPE Object*=OBJECT VAR a-: LONGINT; END Object; 
+positive:  GETPROCEDURE with procedure returning an object (1)
+
+	MODULE X;
+	TYPE Object*=OBJECT VAR a-: LONGINT; END Object;
 		PROCEDURE TheProcedure*(): Object;
 		VAR o: Object;
 		BEGIN
@@ -5885,33 +5892,36 @@ positive:  GETPROCEDURE with procedure returning an object
 		END TheProcedure;
 	END X.
 
+positive:  GETPROCEDURE with procedure returning an object (2)
+
 	MODULE Test;  (** AUTHOR ""; PURPOSE ""; *)
 	IMPORT X;
 	PROCEDURE Test;
 	VAR p: PROCEDURE(): X.Object; o: X.Object;
 	BEGIN
-		GETPROCEDURE("X","TheProcedure",p); 
-		o := p(); 
-		ASSERT(o.a = 100); 
+		GETPROCEDURE("X","TheProcedure",p);
+		o := p();
+		ASSERT(o.a = 100);
 	END Test;
 	BEGIN Test;
 	END Test.
-	
+
 positive: import object and use initializer on alias
 
 	MODULE X;
-	TYPE 
+	TYPE
 	O*= OBJECT
-	VAR a*: LONGINT; 
+	VAR a*: LONGINT;
 
 	PROCEDURE &Init*;
 	BEGIN
 	END Init;
 	END O;
-		
-	O2*=O;
 
+	O2*=O;
 	END X.
+
+positive: import object and use initializer on alias (2)
 
 	MODULE Test;
 
@@ -5920,12 +5930,12 @@ positive: import object and use initializer on alias
 	BEGIN
 		NEW(o); o.a :=10;
 	END Test.
-	
+
 positive: procedure returning record
 
 	MODULE Test;
-	TYPE R= RECORD a,b: LONGINT END; 
-	VAR r: R; 
+	TYPE R= RECORD a,b: LONGINT END;
+	VAR r: R;
 	PROCEDURE P(b,a: LONGINT): R;
 	VAR r: R;
 	BEGIN
@@ -5934,7 +5944,44 @@ positive: procedure returning record
 	END P;
 	BEGIN
 		r := P(10,20);
-		ASSERT(r.a =20); ASSERT(r.b = 10); 
+		ASSERT(r.a =20); ASSERT(r.b = 10);
+	END Test.
+
+positive: procedure returning static array
+	MODULE Test;
+	TYPE S= ARRAY 128 OF CHAR;
+	VAR s:S;
+
+	PROCEDURE Q(CONST name: ARRAY OF CHAR): S;
+	VAR s:S;
+	BEGIN
+		COPY(name,s);
+		RETURN s;
+	END Q;
+
+	BEGIN
+		s := Q("TestText");
+		ASSERT(s= "TestText");
+	END Test.
+
+positive: assign static array of char to static VAR parameter arrray of char
+	MODULE Test;
+
+	TYPE String = ARRAY 1024 OF CHAR;
+	VAR o:OBJECT
+		VAR
+			x,y,z: LONGINT;
+			string:String;
+		END;
+		name: String;
+
+	PROCEDURE P(VAR name: String);
+	BEGIN
+		name := o.string;
+	END P;
+
+	BEGIN
+		NEW(o); o.string := "test";  P(name);  ASSERT(name = "test");
 	END Test.
 
 
