@@ -5984,5 +5984,19 @@ positive: assign static array of char to static VAR parameter arrray of char
 		NEW(o); o.string := "test";  P(name);  ASSERT(name = "test");
 	END Test.
 
+positive: procedure returning record containing pointer
+	MODULE Test;
+	TYPE R= RECORD any: ANY; a,b: LONGINT END;
+	VAR r: R;
+	PROCEDURE P(b,a: LONGINT): R;
+	VAR r: R;
+	BEGIN
+		r.a := a; r.b := b;
+		RETURN r
+	END P;
+	BEGIN
+		r := P(10,20);
+		ASSERT(r.a =20); ASSERT(r.b = 10);
+	END Test.
 
 
