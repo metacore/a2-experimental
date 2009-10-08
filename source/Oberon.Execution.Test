@@ -5986,7 +5986,7 @@ positive: assign static array of char to static VAR parameter arrray of char
 
 positive: procedure returning record containing pointer
 	MODULE Test;
-	TYPE R= RECORD any: ANY; a,b: LONGINT END;
+	TYPE R= RECORD any: POINTER TO R; a,b: LONGINT END;
 	VAR r: R;
 	PROCEDURE P(b,a: LONGINT): R;
 	VAR r: R;

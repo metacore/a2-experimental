@@ -38319,7 +38319,7 @@ positive: new on pointer to array containing pointers (objects)
 positive: new on pointer to array containing pointers (record with pointer)
 	MODULE Test;
 	TYPE
-		r1 = RECORD a: LONGINT; b: ANY END;
+		r1 = RECORD a: LONGINT; b: POINTER TO r1 END;
 		r2 = RECORD r: r1 END;
 		record = RECORD (r2) b: LONGINT END;
 	VAR a: POINTER TO ARRAY OF record;
@@ -38470,14 +38470,8 @@ positive: method returning a delegate type
 positive: type test on pointer returned by procedure
 
 	MODULE Test;
-	IMPORT SYSTEM;
-
 	TYPE O = OBJECT END O;
-
-	PROCEDURE P(): ANY;
-	BEGIN
-	END P;
-
+	PROCEDURE P(): OBJECT; BEGIN RETURN NIL; END P;
 	BEGIN ASSERT(P() IS O);
 	END Test.
 
@@ -38522,19 +38516,10 @@ positive: shortint variable multiplied by shortint value (8bit multiply)
 
 positive: with statement on object field
 
-	MODULE Test; (** AUTHOR ""; PURPOSE ""; *)
-
-	TYPE Object = POINTER TO RECORD a: LONGINT; END;
-			Object2 = POINTER TO RECORD(Object); a: Object;END;
-
-	TYPE Object3 = OBJECT
-	VAR a: Object;
-	BEGIN
-		WITH a: Object2 DO
-			a.a.a := a.a.a;
-		END;
-	END Object3;
-
+	MODULE Test;
+	TYPE Object = OBJECT VAR a: LONGINT; END Object;
+	TYPE Object2 = OBJECT (Object) VAR a: Object; END Object2;
+	TYPE Object3 = OBJECT VAR a: Object; BEGIN WITH a: Object2 DO a.a.a := a.a.a; END; END Object3;
 	END Test.
 
 negative: access to different instance of a with-guarded variable
@@ -38585,7 +38570,7 @@ positive: use string length with different lengths (to check side-effects on len
 			IF pos < LEN (thisName)  THEN END;
 		END AddUserToName;
 	END Test.
-	
+
 positive: SYSTEM.BYTE varpar
 
 	MODULE Test;
@@ -38597,44 +38582,44 @@ positive: SYSTEM.BYTE varpar
 	BEGIN
 		P(c);
 	END Test.
-	
+
 positive: write a SYSTEM.BYTE varpar without conversion
 
 	MODULE Test;
-	
+
 	IMPORT SYSTEM;
-	
+
 	PROCEDURE P(VAR buf: SYSTEM.BYTE);
 	VAR s1,s2: SHORTINT;
 	BEGIN
-		buf := s2*16 + (s1 MOD 16)		
+		buf := s2*16 + (s1 MOD 16)
 	END P;
-	
+
 	END Test.
-	
+
 positive: use a value for a the address in SYSTEM.GET
 
 	MODULE Test;
-	
+
 	IMPORT SYSTEM;
-	
+
 	PROCEDURE P(VAR buf: SYSTEM.BYTE);
 	VAR adr: SYSTEM.ADDRESS;
 	BEGIN
 	adr := 0;
 	SYSTEM.GET (040EH, SYSTEM.VAL (INTEGER, adr));	(* EBDA address *)
 	END P;
-	
+
 	END Test.
 
 positive: ugly system.val with records
 
 	MODULE Test;
-	
+
 	IMPORT SYSTEM;
 
 	TYPE Record= RECORD a,b: LONGINT END;
-	
+
 	PROCEDURE P(VAR r: Record);
 	VAR a: LONGINT;
 	BEGIN
@@ -38646,6 +38631,6 @@ positive: ugly system.val with records
 	BEGIN
 		Q(SYSTEM.VAL(Record,a));
 	END Q;
-	
+
 	END Test.
 	
