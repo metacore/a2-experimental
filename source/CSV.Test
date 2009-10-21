@@ -60,19 +60,100 @@ positive: setup test base module with shared functions
 			NEW(scan, csv, r);
 			RETURN scan;
 		END GetScanner;
-		
+
 		PROCEDURE Cleanup;
 		VAR fnstr: Strings.String; res: LONGINT;
 		BEGIN
 			IF canTest THEN
 				fnstr := Strings.NewString(fn);
 				Files.Delete(fnstr^, res);
-			END;	
+			END;
 		END Cleanup;
 	BEGIN
 		canTest := Files.Old(fn) = NIL;
 		Modules.InstallTermHandler(Cleanup);
 	END TestShared.
+
+positive: parse empty file gives empty CSV
+
+	MODULE Test;
+	IMPORT CSV, Streams, Strings, TestShared;
+	VAR w: Streams.Writer; csv, csvref: CSV.CSV; s: CSV.Scanner;
+	BEGIN
+		w := TestShared.GetWriter();
+		csvref := CSV.GetDefaultCSV();
+		csvref.NewLine();
+
+		TestShared.CloseWriter();
+		csv := CSV.GetDefaultCSV();
+		s := TestShared.GetScanner(csv);
+		s.Scan();
+		ASSERT(CSV.CompareCSVs(csv, csvref));
+	END Test.
+	
+positive: completely empty line doesn't produce a field
+
+	MODULE Test;
+	IMPORT CSV, Streams, Strings, TestShared;
+	VAR w: Streams.Writer; csv, csvref: CSV.CSV; s: CSV.Scanner;
+	BEGIN
+		w := TestShared.GetWriter();
+		csvref := CSV.GetDefaultCSV();
+		csvref.NewLine();
+		
+		csvref.AddField("Test line"); csvref.AddField("32");
+		w.String('"Test line",32');
+		csvref.NewLine();
+		w.Ln();
+
+		TestShared.CloseWriter();
+		csv := CSV.GetDefaultCSV();
+		s := TestShared.GetScanner(csv);
+		s.Scan();
+		ASSERT(CSV.CompareCSVs(csv, csvref));
+	END Test.
+
+positive: empty field at the beginning of a line is recognised
+
+	MODULE Test;
+	IMPORT CSV, Streams, Strings, TestShared;
+	VAR w: Streams.Writer; csv, csvref: CSV.CSV; s: CSV.Scanner;
+	BEGIN
+		w := TestShared.GetWriter();
+		csvref := CSV.GetDefaultCSV();
+		csvref.NewLine();
+		
+		csvref.AddField(""); csvref.AddField("First field empty"); csvref.AddField("134");
+		w.String('"","First field empty",134');
+		csvref.NewLine();
+		w.Ln();
+
+		TestShared.CloseWriter();
+		csv := CSV.GetDefaultCSV();
+		s := TestShared.GetScanner(csv);
+		s.Scan();
+		ASSERT(CSV.CompareCSVs(csv, csvref));
+	END Test.
+
+positive: empty field at end of line is recognised as such
+
+	MODULE Test;
+	IMPORT CSV, Streams, Strings, TestShared;
+	VAR w: Streams.Writer; csv, csvref: CSV.CSV; s: CSV.Scanner;
+	BEGIN
+		w := TestShared.GetWriter();
+		csvref := CSV.GetDefaultCSV();
+		csvref.NewLine();
+		
+		csvref.AddField("Test empty EOL field"); csvref.AddField("31"); csvref.AddField("");
+		w.String('"Test empty EOL field",31,""');
+
+		TestShared.CloseWriter();
+		csv := CSV.GetDefaultCSV();
+		s := TestShared.GetScanner(csv);
+		s.Scan();
+		ASSERT(CSV.CompareCSVs(csv, csvref));
+	END Test.
 
 positive: parse simple line 1
 
@@ -218,7 +299,7 @@ positive: parse simple file
 		CSV.DumpFile(csv);
 		ASSERT(CSV.CompareCSVs(csv, csvref));
 	END Test.
-	
+
 positive: parse field not quoted and containing still whitespace skip after whitespace
 
 	(* Text in a field after whitespace should be skipped until a separator appears *)
