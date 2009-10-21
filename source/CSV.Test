@@ -90,7 +90,7 @@ positive: parse empty file gives empty CSV
 		s.Scan();
 		ASSERT(CSV.CompareCSVs(csv, csvref));
 	END Test.
-	
+
 positive: completely empty line doesn't produce a field
 
 	MODULE Test;
@@ -100,7 +100,7 @@ positive: completely empty line doesn't produce a field
 		w := TestShared.GetWriter();
 		csvref := CSV.GetDefaultCSV();
 		csvref.NewLine();
-		
+
 		csvref.AddField("Test line"); csvref.AddField("32");
 		w.String('"Test line",32');
 		csvref.NewLine();
@@ -122,7 +122,7 @@ positive: empty field at the beginning of a line is recognised
 		w := TestShared.GetWriter();
 		csvref := CSV.GetDefaultCSV();
 		csvref.NewLine();
-		
+
 		csvref.AddField(""); csvref.AddField("First field empty"); csvref.AddField("134");
 		w.String('"","First field empty",134');
 		csvref.NewLine();
@@ -144,7 +144,7 @@ positive: empty field at end of line is recognised as such
 		w := TestShared.GetWriter();
 		csvref := CSV.GetDefaultCSV();
 		csvref.NewLine();
-		
+
 		csvref.AddField("Test empty EOL field"); csvref.AddField("31"); csvref.AddField("");
 		w.String('"Test empty EOL field",31,""');
 
@@ -296,7 +296,6 @@ positive: parse simple file
 		csv := CSV.GetDefaultCSV();
 		s := TestShared.GetScanner(csv);
 		s.Scan();
-		CSV.DumpFile(csv);
 		ASSERT(CSV.CompareCSVs(csv, csvref));
 	END Test.
 
