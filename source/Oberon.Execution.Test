@@ -5999,4 +5999,33 @@ positive: procedure returning record containing pointer
 		ASSERT(r.a =20); ASSERT(r.b = 10);
 	END Test.
 
+positive: pass record by value, variable and as a constant
+	MODULE Test;
+	TYPE Record= RECORD min,max: LONGINT END;
+
+	PROCEDURE P(x: Record);
+	BEGIN
+		ASSERT(x.min = -123); ASSERT(x.max = 123);
+	END P;
+
+	PROCEDURE Q(VAR x: Record);
+	BEGIN
+		ASSERT(x.min = -123); ASSERT(x.max = 123);
+	END Q;
+
+	PROCEDURE R(CONST x: Record);
+	BEGIN
+		ASSERT(x.min = -123); ASSERT(x.max = 123);
+	END R;
+
+	PROCEDURE T;
+	VAR r: Record;
+	BEGIN
+		r.min := -123; r.max := 123;
+		P(r); Q(r); R(r);
+	END T;
+
+	BEGIN
+		T
+	END Test.
 
