@@ -5678,26 +5678,26 @@ positive: SYSTEM.VAL on designator and non-designator expression
 
 positive: reimporting an object type with initializer (1)
 
-	MODULE Z;
+	MODULE A;
 	TYPE D1*= OBJECT END D1;
-	END Z.
+	END A.
 
 positive: reimporting an object type with initializer (2)
-	MODULE Y;
-	IMPORT Z;
+	MODULE B;
+	IMPORT A;
 	TYPE
-		D1*= OBJECT (Z.D1)
+		D1*= OBJECT (A.D1)
 			PROCEDURE &Init*;
 			BEGIN
 			END Init;
 		END D1;
-	END Y.
+	END B.
 
 positive: reimporting an object type with initializer (3)
 	MODULE Test;
-	IMPORT Y;
+	IMPORT B;
 	PROCEDURE P*;
-	VAR o: Y.D1;
+	VAR o: B.D1;
 	BEGIN NEW(o);
 	END P;
 	BEGIN P;
@@ -5705,28 +5705,28 @@ positive: reimporting an object type with initializer (3)
 	
 positive: reimporting objects and execute bodies (1)
 
-	MODULE Z;
+	MODULE A;
 	TYPE O*= OBJECT
 		VAR initZ-: LONGINT;
 		BEGIN initZ := 999;
 		END O;
-	END Z.
+	END A.
 
 positive: reimporting objects and execute bodies (2)
 
-	MODULE Y;
-	IMPORT Z;
-	TYPE O*= OBJECT (Z.O)
+	MODULE B;
+	IMPORT A;
+	TYPE O*= OBJECT (A.O)
 		VAR initY-: LONGINT;
 		BEGIN initY := 998;
 		END O;
-	END Y.
+	END B.
 
 positive: reimporting objects and execute bodies (3)
 
 	MODULE Test;
-	IMPORT Y;
-	TYPE O*=OBJECT (Y.O)
+	IMPORT B;
+	TYPE O*=OBJECT (B.O)
 		VAR initO: LONGINT;
 		BEGIN initO := 997
 		END O;
@@ -5737,19 +5737,19 @@ positive: reimporting objects and execute bodies (3)
 
 positive: importing protected object (1)
 
-	MODULE X;
+	MODULE A;
 	TYPE O*= OBJECT
 			PROCEDURE P*;
 			BEGIN{EXCLUSIVE}
 			END P;
 		END O;
-	END X.
+	END A.
 
 positive: importing protected object (2)
 
 	MODULE Test;
-	IMPORT X;
-	VAR o: X.O;
+	IMPORT A;
+	VAR o: A.O;
 	BEGIN
 		NEW(o); o.P;
 	END Test.
@@ -5757,8 +5757,8 @@ positive: importing protected object (2)
 positive: importing and extending protected object
 
 	MODULE Test;
-	IMPORT X;
-		TYPE O*= OBJECT (X.O)
+	IMPORT A;
+		TYPE O*= OBJECT (A.O)
 			VAR
 				PROCEDURE Q*;
 				BEGIN
@@ -5883,19 +5883,19 @@ positive: expression involving multiple register savings on stack
 
 positive:  GETPROCEDURE with procedure returning an object (1)
 
-	MODULE X;
+	MODULE A;
 	TYPE Object*=OBJECT VAR a-: LONGINT; END Object;
 		PROCEDURE TheProcedure*(): Object;
 		VAR o: Object;
 		BEGIN
 			NEW(o); o.a := 100;  RETURN o;
 		END TheProcedure;
-	END X.
+	END A.
 
 positive:  GETPROCEDURE with procedure returning an object (2)
 
 	MODULE Test;  (** AUTHOR ""; PURPOSE ""; *)
-	IMPORT X;
+	IMPORT X := A;
 	PROCEDURE Test;
 	VAR p: PROCEDURE(): X.Object; o: X.Object;
 	BEGIN
@@ -5908,7 +5908,7 @@ positive:  GETPROCEDURE with procedure returning an object (2)
 
 positive: import object and use initializer on alias
 
-	MODULE X;
+	MODULE A;
 	TYPE
 	O*= OBJECT
 	VAR a*: LONGINT;
@@ -5919,13 +5919,13 @@ positive: import object and use initializer on alias
 	END O;
 
 	O2*=O;
-	END X.
+	END A.
 
 positive: import object and use initializer on alias (2)
 
 	MODULE Test;
 
-	IMPORT X;
+	IMPORT X :=A;
 	VAR o: X.O2;
 	BEGIN
 		NEW(o); o.a :=10;
@@ -6029,3 +6029,135 @@ positive: pass record by value, variable and as a constant
 		T
 	END Test.
 
+positive: procedure returning record called as parameter
+	MODULE Test;
+
+	TYPE
+	Rectangle=RECORD l,t,r,b: LONGINT END;
+	Object = OBJECT VAR w: LONGINT END Object;
+
+	PROCEDURE Check(y: Object; r1: Rectangle; x: Object; CONST  r2: Rectangle);
+	BEGIN
+		ASSERT(r1.l = r2.l); ASSERT(r1.t = r2.t);
+		ASSERT(r1.r = 10); ASSERT(r1.b = 20);
+		ASSERT(r2.r = 101); ASSERT(r2.b = 102);
+		ASSERT(x.w = 10); 
+	END Check;
+
+
+
+	PROCEDURE Q(l,t,r,b: LONGINT): Rectangle;
+	VAR R: Rectangle;
+	BEGIN
+		R.l := l; R.t := t; R.r := r; R.b := b; 
+		RETURN R
+	END Q;
+
+	PROCEDURE P;
+	VAR r1,r2: Rectangle; o: Object;
+	BEGIN
+		NEW(o); o.w := 10; 
+		r1.l := 0; r2.l := 0; r1.t := -100; r2.t := -100;
+		r1.r := 10; r1.b := 20;
+		r2.r := 101; r2.b := 102;
+		Check(o,r1,o,r2);
+		Check(o,Q(0,-100,10,20),o,Q(0,-100,101,102));
+	END P;
+
+	BEGIN P
+	END Test.
+	
+positive: pass delegate as parameter
+	MODULE Test;
+
+	TYPE
+	Procedure = PROCEDURE {DELEGATE}(): LONGINT;
+
+	TYPE
+	O= OBJECT
+	VAR g: LONGINT;
+
+		PROCEDURE Test;
+		BEGIN
+			CallProc(OProc);
+			CallProc(GProc);
+		END Test;
+
+		PROCEDURE OProc(): LONGINT;
+		BEGIN
+			RETURN g
+		END OProc;
+
+	BEGIN g := 10;
+	END O;
+
+	PROCEDURE CallProc(p: Procedure);
+	BEGIN
+		ASSERT(p() = 10);
+	END CallProc;
+
+	PROCEDURE GProc(): LONGINT;
+	BEGIN
+		RETURN 10
+	END GProc;
+
+
+	PROCEDURE P;
+	VAR o: O;
+	BEGIN
+		NEW(o); o.Test;
+	END P;
+
+
+	BEGIN P
+	END Test.
+
+positive: export published procedure indirectly
+	MODULE A;
+	TYPE AO*= OBJECT
+			VAR called*: BOOLEAN;
+			PROCEDURE P*;
+			BEGIN called := TRUE;
+			END P;
+		BEGIN
+			called := FALSE;
+		END AO;
+
+		 AO2*= OBJECT(AO);
+
+			PROCEDURE P;
+			BEGIN P^
+			END P;
+		END AO2;
+	END A.
+
+positive: import indirectly published procedure
+	MODULE B;
+	IMPORT A;
+	TYPE BO*= OBJECT(A.AO2);
+
+			PROCEDURE P;
+			BEGIN P^
+			END P;
+		END BO;
+	END B.
+
+positive: reimport indirectly published procedure 
+	MODULE Test;
+	IMPORT B;
+	TYPE O*= OBJECT(B.BO);
+			PROCEDURE P;
+			BEGIN
+				P^;
+			END P;
+		END O;
+
+		PROCEDURE P;
+		VAR o:O;
+		BEGIN
+			NEW(o);
+			o.P; ASSERT(o.called);
+		END P;
+	BEGIN P;
+	END Test.
+	
