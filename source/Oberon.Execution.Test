@@ -6160,4 +6160,115 @@ positive: reimport indirectly published procedure
 		END P;
 	BEGIN P;
 	END Test.
+
+positive: pass static array by value, reference and as constant 
+	MODULE Test;
+	TYPE Array= ARRAY 10 OF LONGINT;
+
+	PROCEDURE P(x: Array);
+	BEGIN
+		ASSERT(x[5] = -123); ASSERT(x[8] = 123);
+	END P;
+
+	PROCEDURE Q(VAR x: Array);
+	BEGIN
+		ASSERT(x[5] = -123); ASSERT(x[8] = 123);
+	END Q;
+
+	PROCEDURE R(CONST x: Array);
+	BEGIN
+		ASSERT(x[5] = -123); ASSERT(x[8] = 123);
+	END R;
+
+	PROCEDURE T;
+	VAR r: Array;
+	BEGIN
+		r[5] := -123; r[8] := 123;
+		P(r); Q(r); R(r);
+	END T;
+
+	BEGIN
+		T
+	END Test.
 	
+positive: procedure returning static array called as parameter
+	MODULE Test;
+
+	TYPE
+	Rectangle=ARRAY 10 OF LONGINT;
+	Object = OBJECT VAR w: LONGINT END Object;
+
+	PROCEDURE Check(y: Object; r1: Rectangle; x: Object; CONST  r2: Rectangle);
+	BEGIN
+		ASSERT(r1[3] = r2[3]); ASSERT(r1[5] = r2[5]);
+		ASSERT(r1[6] = 10); ASSERT(r1[7] = 20);
+		ASSERT(r2[6] = 101); ASSERT(r2[7] = 102);
+		ASSERT(x.w = 10); 
+	END Check;
+
+	PROCEDURE Q(l,t,r,b: LONGINT): Rectangle;
+	VAR R: Rectangle;
+	BEGIN
+		R[3] := l; R[5] := t; R[6] := r; R[7] := b; 
+		RETURN R
+	END Q;
+
+	PROCEDURE P;
+	VAR r1,r2: Rectangle; o: Object;
+	BEGIN
+		NEW(o); o.w := 10; 
+		r1[3] := 0; r2[3] := 0; r1[5] := -100; r2[5] := -100;
+		r1[6] := 10; r1[7] := 20;
+		r2[6] := 101; r2[7] := 102;
+		Check(o,r1,o,r2);
+		Check(o,Q(0,-100,10,20),o,Q(0,-100,101,102));
+	END P;
+
+	BEGIN P
+	END Test.
+
+positive: new on var parameter object
+
+	MODULE Test;
+
+	TYPE O = OBJECT
+		VAR x: LONGINT;
+		PROCEDURE &init;
+		BEGIN x := 10;
+		END init;
+	END O;
+
+	PROCEDURE Q(VAR o: O);
+	BEGIN
+		NEW(o); ASSERT(o # NIL,101); ASSERT(o.x = 10,102);
+	END Q;
+
+	PROCEDURE P;
+	VAR o: O;
+	BEGIN
+		Q(o); ASSERT(o.x = 10,103);
+	END P;
+
+	BEGIN P
+	END Test.
+
+positive: new on var parameter array
+
+	MODULE Test;
+
+	TYPE O=POINTER TO ARRAY OF INTEGER;
+
+	PROCEDURE Q(VAR o: O);
+	BEGIN
+		NEW(o,10); o[5] := 10;
+	END Q;
+	
+
+	PROCEDURE P;
+	VAR o: O;
+	BEGIN
+		Q(o); ASSERT(o[5] = 10); ASSERT(LEN(o)=10);
+	END P; 
+	
+	BEGIN P
+	END Test.
