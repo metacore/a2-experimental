@@ -6272,3 +6272,131 @@ positive: new on var parameter array
 	
 	BEGIN P
 	END Test.
+	
+positive: call procedure returning a basic type within an exclusive section
+	MODULE Test;
+
+	TYPE
+		O= OBJECT
+			PROCEDURE P(): LONGINT;
+			VAR a: LONGINT;
+			BEGIN{EXCLUSIVE}
+				a := 4;
+				RETURN a*a
+			END P;
+		END O;
+
+		PROCEDURE P;
+		VAR o: O;
+		BEGIN
+			NEW(o);
+			ASSERT(o.P() = 16);
+		END P;
+
+
+	BEGIN P
+	END Test.
+	
+positive: pass Delegate nil value
+
+	MODULE Test;
+	TYPE
+		Delegate= PROCEDURE{DELEGATE};
+
+		PROCEDURE P(p: Delegate);
+		BEGIN
+			ASSERT(p=NIL);
+		END P;
+
+	BEGIN 
+		P(NIL); (* if incorrect then stack will be invalid => hard brakedown *)
+	END Test.
+	
+positive: type tests and guards on records and pointers on direct and indirect parameters
+
+	MODULE Test;
+
+	TYPE
+		R0=RECORD END;
+		R1=RECORD(R0) v: LONGINT END;
+		R2=RECORD(R0) END;
+
+		P0=POINTER TO RECORD END;
+		P1=POINTER TO RECORD(P0) v: LONGINT; END;
+		P2=POINTER TO RECORD(P1) END;
+
+	PROCEDURE R(VAR r: R0);
+	BEGIN
+		ASSERT(r IS R1);
+		ASSERT(~(r IS R2));
+		WITH r: R1 DO
+			r.v := 10;
+		END;
+		r(R1).v := 10;
+	END R;
+
+	PROCEDURE S(VAR r: R0);
+	BEGIN
+		R(r);
+	END S;
+
+	PROCEDURE RC(CONST r: R0);
+	VAR i: LONGINT;
+	BEGIN
+		ASSERT(r IS R1);
+		ASSERT(~(r IS R2));
+		WITH r: R1 DO
+			i := r.v
+		END;
+		i := r(R1).v;
+	END RC;
+
+	PROCEDURE SC(CONST r: R0);
+	BEGIN
+		RC(r);
+	END SC;
+
+	PROCEDURE P(p: P0);
+	BEGIN
+		ASSERT(p IS P1);
+		ASSERT(~(p IS P2));
+		WITH p: P1 DO
+			p.v := 10;
+		END;
+		p(P1).v := 10;
+	END P;
+
+	PROCEDURE PV(VAR p: P0);
+	BEGIN
+		ASSERT(p IS P1);
+		ASSERT(~(p IS P2));
+		WITH p: P1 DO
+			p.v := 10;
+		END;
+		p(P1).v := 10;
+	END PV;
+
+	PROCEDURE PC(CONST p: P0);
+	BEGIN
+		ASSERT(p IS P1);
+		ASSERT(~(p IS P2));
+		WITH p: P1 DO
+			p.v := 10;
+		END;
+		p(P1).v := 10;
+	END PC;
+
+
+
+	PROCEDURE Test;
+	VAR r: R1; p: P1; p0: P0;
+	BEGIN
+		R(r); S(r); RC(r); SC(r);
+		NEW(p);
+		p0 := p;
+		P(p); PC(p); PV(p0);
+	END Test;
+
+	BEGIN
+		Test;
+	END Test.
