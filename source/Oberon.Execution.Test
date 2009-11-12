@@ -6457,3 +6457,46 @@ positive: import inline assembler procedure
 	BEGIN 
 		ASSERT(A.P(10)=20)
 	END Test.
+	
+positive: call a winapi procedure with an array of system byte
+	
+	MODULE Test;
+
+	IMPORT SYSTEM;
+		
+	PROCEDURE{WINAPI}  ReadFile (VAR lpBuffer: ARRAY   OF SYSTEM.BYTE); 
+	BEGIN 
+		ASSERT(SYSTEM.VAL(CHAR,lpBuffer[0]) = 'A'); 
+	END ReadFile; 
+
+	PROCEDURE P;
+	VAR a: ARRAY 2 OF CHAR; 
+	BEGIN
+		a[0] := 'A';
+		ReadFile(a);
+	END P;
+
+	BEGIN P
+	END Test.
+	
+positive: unlock with or without return statements
+	MODULE Test;
+
+	VAR q: LONGINT;
+
+	PROCEDURE P;
+	BEGIN{EXCLUSIVE}
+	END P;
+
+	PROCEDURE P2;
+	BEGIN{EXCLUSIVE}
+		RETURN
+	END P2;
+
+	PROCEDURE Q(): LONGINT;
+	BEGIN{EXCLUSIVE}
+		RETURN 0
+	END Q;
+
+	BEGIN P; P2; P; q := Q(); P;
+	END Test.
