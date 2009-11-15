@@ -108,7 +108,7 @@ void _thr_sleep(int ms) {
 
 
 void _thr_pass( ) {
-    _thr_yield( 1 );
+    thr_yield( );
 }
 
 void _thr_exit() {

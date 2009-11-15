@@ -17,6 +17,7 @@
 #include <signal.h>
 #include <semaphore.h>
 #include <errno.h>
+#include <bits/local_lim.h>
 #include "Threads.h"
 
 
@@ -121,12 +122,12 @@ static void suspend_handler(int sig) {
 
     sigfillset( &block );
     sigdelset( &block, T_SIGRESUME );
-    if (debug&2) printf( "thread %8x suspended\n", pthread_self() );
+    //if (debug&2) printf( "thread %8x suspended\n", pthread_self() );
     suspend_done = 1;
 
     sigsuspend( &block ); /* await T_SIGRESUME */
 
-    if (debug&2) printf( "thread %8x resuming\n", pthread_self() );
+    //if (debug&2) printf( "thread %8x resuming\n", pthread_self() );
     resume_done = 1;
 }
 

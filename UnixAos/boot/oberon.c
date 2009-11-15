@@ -219,6 +219,10 @@ int o_lseek( int fd, long pos, int whence ) {
 	return lseek( fd, pos, whence );
 }
 
+int o_cout( char c ) {
+	printf( "%c", c );
+}
+
 
 static void (*oberonXErrorHandler) (long p4, long p3, long err, long displ );
 static void (*oberonXIOErrorHandler) (long p4, long p3, long p2, long displ );
@@ -251,7 +255,7 @@ void dl_sym(int handle, char *symbol, int *adr)
 {
   void * a;
 
-  if (debug&1) printf("dl_sym: %x %s\n", handle, symbol);
+  if (debug==(-1)) printf("dl_sym: %x %s\n", handle, symbol);
   
   if      (strcmp("dlopen",	symbol) == 0) *adr = (int)dl_open;
   else if (strcmp("dlclose",	symbol) == 0) *adr = (int)dl_close;
@@ -267,6 +271,7 @@ void dl_sym(int handle, char *symbol, int *adr)
   else if (strcmp("lstat",	symbol) == 0) *adr = (int)o_lstat;
   else if (strcmp("fstat",	symbol) == 0) *adr = (int)o_fstat;
   else if (strcmp("lseek",	symbol) == 0) *adr = (int)o_lseek;
+  else if (strcmp("cout",	symbol) == 0) *adr = (int)o_cout;
   else if (strcmp("InstallTrapHandler",
   				symbol) == 0) *adr = (int)InstallTrapHandler;
   else if (strcmp("InitXErrH",  symbol) == 0) *adr = (int)SetupXErrHandlers;
@@ -314,7 +319,6 @@ void dl_sym(int handle, char *symbol, int *adr)
       printf("dl_sym: symbol %s not found\n", symbol); 
     }
   }
-  //if (debug) printf("dl_sym: %s = %x @ %x\n", symbol, *adr, adr);
 }
 
 
@@ -408,7 +412,7 @@ void Boot()
   body = (Proc)(adr + shift);
   Relocate(heapAdr, shift);
   dlsymAdr = Rint();
-  if (debug&1) showProc((addr)body);
+  if (debug==(-1)) showProc((addr)body);
   *((int *)(heapAdr + dlsymAdr)) = (int)dl_sym;
   fclose(fd);
   codeSize = (codeSize+4095)/4096*4096;
@@ -462,7 +466,7 @@ int main(int argc, char *argv[])
   if (p != NULL)  debug = atoi(p);
 
   if (debug) {
-     printf("UnixAos Boot Loader 11.12.2007\n");
+     printf("UnixAos Boot Loader 11.11.2009\n");
      printf( "debug = %d\n", debug );
   }
 
