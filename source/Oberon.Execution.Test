@@ -6500,3 +6500,18 @@ positive: unlock with or without return statements
 
 	BEGIN P; P2; P; q := Q(); P;
 	END Test.
+	
+positive: conversion to 32 bit in ash
+
+	MODULE Test;
+
+	PROCEDURE P;
+	VAR l: LONGINT; ch: CHAR;
+	BEGIN
+		ch := CHR(237); l := 8;
+		l := ASH(ORD(ch),l); ASSERT(l=60672);
+	END P;
+
+	BEGIN
+	P
+	END Test.
