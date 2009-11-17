@@ -6515,3 +6515,68 @@ positive: conversion to 32 bit in ash
 	BEGIN
 	P
 	END Test.
+	
+positive: pass delegate as variable or value parameter
+
+	MODULE Test;
+
+	TYPE
+		Array = POINTER TO ARRAY OF CHAR;
+		Delegate = PROCEDURE{DELEGATE}(): LONGINT;
+		O= OBJECT
+		VAR a: Array;
+
+			PROCEDURE P(): LONGINT;
+			BEGIN
+				ASSERT(a # NIL);
+				RETURN LEN(a);
+			END P;
+
+			PROCEDURE &Init(a: Array);
+			BEGIN
+				SELF.a := a;
+			END Init;
+
+		END O;
+
+	VAR dd: Delegate; o: O; a: Array;
+
+		PROCEDURE SetDelegate(d: Delegate);
+		BEGIN
+			dd := d;
+		END SetDelegate;
+
+		PROCEDURE GetDelegate(VAR d: Delegate);
+		BEGIN
+			d := o.P;
+		END GetDelegate;
+
+		PROCEDURE P;
+		VAR d: Delegate;
+		BEGIN
+			GetDelegate(d);
+			SetDelegate(d);
+			ASSERT(dd() = 123);
+		END P;
+
+	BEGIN NEW(a,123); NEW(o,a); P;
+	END Test.
+	
+positive: import same module with different aliases (exporting module)
+
+	MODULE A;
+	PROCEDURE P* BEGIN END P;
+	END A.
+
+positive: import same module with different aliases
+	
+	MODULE Test;
+	IMPORT A,B := A;
+
+	PROCEDURE P;
+	BEGIN
+		A.P;
+		B.P;
+	END P;
+
+	END Test.
