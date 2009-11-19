@@ -6580,3 +6580,71 @@ positive: import same module with different aliases
 	END P;
 
 	END Test.
+	
+	
+positive: procedures returning a record (checks correct return parameter size)
+
+	MODULE Test;
+
+	TYPE 
+		Rectangle=RECORD t,l,r,b: LONGINT END;
+		Container= POINTER TO RECORD r: Rectangle END;
+
+	PROCEDURE GetWMCoordinates(VAR r : Rectangle) : Rectangle;
+	VAR rect : Rectangle;
+	BEGIN
+		rect.l := r.l+1;
+		rect.r := r.r+2;
+		rect.t := r.t+3;
+		rect.b := r.b+4;
+		RETURN rect;
+	END GetWMCoordinates;
+
+	PROCEDURE GetWMCoordinates2() : Rectangle;
+	VAR rect : Rectangle;
+	BEGIN
+		rect.l := 1;
+		rect.r := 2;
+		rect.t := 3;
+		rect.b := 4;
+		RETURN rect;
+	END GetWMCoordinates2;
+
+
+	PROCEDURE P1;
+	VAR r2: Rectangle;
+	BEGIN
+		r2 := GetWMCoordinates2();
+		ASSERT(r2.l = 1,101);
+		ASSERT(r2.r = 2,102);
+		ASSERT(r2.t = 3,103);
+		ASSERT(r2.b = 4,104);
+	END P1;
+
+
+	PROCEDURE P2;
+	VAR r1,r2: Rectangle;
+	BEGIN
+		r1.l := 1; r1.r := 2; r1.t := 3; r1.b := 4;
+		r2 := GetWMCoordinates(r1);
+		ASSERT(r2.l = 2,201);
+		ASSERT(r2.r = 4,202);
+		ASSERT(r2.t = 6,203);
+		ASSERT(r2.b = 8,204);
+	END P2;
+
+
+	PROCEDURE P3;
+	VAR c1,c2: Container;
+	BEGIN
+		NEW(c1); NEW(c2);
+		c1.r.l := 1; c1.r.r := 2; c1.r.t := 3; c1.r.b := 4;
+		c2.r := GetWMCoordinates(c1.r);
+		ASSERT(c2.r.l = 2);
+		ASSERT(c2.r.r = 4);
+		ASSERT(c2.r.t = 6);
+		ASSERT(c2.r.b = 8);
+	END P3;
+
+	BEGIN P1;P2;P3;
+	END Test.
