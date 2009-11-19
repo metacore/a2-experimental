@@ -6648,3 +6648,34 @@ positive: procedures returning a record (checks correct return parameter size)
 
 	BEGIN P1;P2;P3;
 	END Test.
+	
+positive: conversion on return types
+
+	MODULE Test;
+
+		PROCEDURE GetInt () : LONGINT;
+		VAR integer: INTEGER;
+		BEGIN
+			integer := -56;
+			RETURN integer
+		END GetInt;
+
+		PROCEDURE GetShortint () : LONGINT;
+		VAR integer: INTEGER;
+		BEGIN
+			integer := -56;
+			RETURN integer
+		END GetShortint;
+
+		PROCEDURE P;
+		VAR i: LONGINT;
+		BEGIN
+			i := GetInt();
+			ASSERT(i=-56);
+			i := GetShortint();
+			ASSERT(i=-56);
+		END P;
+
+	BEGIN P;
+	END Test.
+	
