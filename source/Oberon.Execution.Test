@@ -6679,3 +6679,25 @@ positive: conversion on return types
 	BEGIN P;
 	END Test.
 	
+positive: allocate imported variable (exporting part)
+	
+	MODULE A;
+
+	TYPE Record*= RECORD a*: LONGINT; p*: POINTER TO ARRAY OF CHAR; c*: LONGINT; END;
+	VAR a*: Record;
+	END A.
+
+positive: allocate imported variable (importing part)
+
+	MODULE Test;
+
+	IMPORT A;
+		
+		PROCEDURE P;
+		BEGIN
+			NEW(A.a.p,10); 
+			ASSERT(A.a.p # NIL,101);
+		END P;
+
+	BEGIN P;
+	END Test.
