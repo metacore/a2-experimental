@@ -6730,3 +6730,17 @@ positive: bitwise rotate
 
 	BEGIN P;
 	END Test.
+	
+positive: huge stack frames to check for ensured stack allocation
+
+	MODULE Test;
+
+	PROCEDURE P(count: LONGINT);
+	VAR x: ARRAY 16000 OF CHAR;
+	BEGIN
+		IF count > 5 THEN RETURN END;
+		P(count+1);
+	END P;
+
+	BEGIN P(0);
+	END Test.
