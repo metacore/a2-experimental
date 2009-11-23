@@ -6744,3 +6744,46 @@ positive: huge stack frames to check for ensured stack allocation
 
 	BEGIN P(0);
 	END Test.
+	
+positive: finally statement, direct and indirect
+
+	MODULE Test;
+
+	VAR b: BOOLEAN;
+
+	PROCEDURE P;
+	BEGIN
+		HALT(100);
+		RETURN
+	FINALLY
+		b := TRUE
+	END P;
+
+	PROCEDURE R;
+	BEGIN
+		HALT(100);
+	END R;
+
+	PROCEDURE Q;
+	BEGIN
+		R; RETURN
+	FINALLY
+		b := TRUE
+	END Q;
+
+	PROCEDURE S;
+		PROCEDURE R;
+		BEGIN
+			HALT(100);
+		END R;
+	BEGIN
+		R; RETURN
+	FINALLY
+		b := TRUE
+	END S;
+
+	BEGIN
+		b := FALSE; P(); ASSERT(b=TRUE);
+		b := FALSE; Q(); ASSERT(b=TRUE);
+		b := FALSE; S(); ASSERT(b=TRUE);
+	END Test.
