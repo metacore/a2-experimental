@@ -5676,13 +5676,12 @@ positive: SYSTEM.VAL on designator and non-designator expression
 	BEGIN P;
 	END Test.
 
-positive: reimporting an object type with initializer (1)
+positive: reimporting an object type with initializer
 
 	MODULE A;
 	TYPE D1*= OBJECT END D1;
 	END A.
 
-positive: reimporting an object type with initializer (2)
 	MODULE B;
 	IMPORT A;
 	TYPE
@@ -5693,7 +5692,6 @@ positive: reimporting an object type with initializer (2)
 		END D1;
 	END B.
 
-positive: reimporting an object type with initializer (3)
 	MODULE Test;
 	IMPORT B;
 	PROCEDURE P*;
@@ -5703,7 +5701,7 @@ positive: reimporting an object type with initializer (3)
 	BEGIN P;
 	END Test.
 	
-positive: reimporting objects and execute bodies (1)
+positive: reimporting objects and execute bodies
 
 	MODULE A;
 	TYPE O*= OBJECT
@@ -5712,8 +5710,6 @@ positive: reimporting objects and execute bodies (1)
 		END O;
 	END A.
 
-positive: reimporting objects and execute bodies (2)
-
 	MODULE B;
 	IMPORT A;
 	TYPE O*= OBJECT (A.O)
@@ -5721,8 +5717,6 @@ positive: reimporting objects and execute bodies (2)
 		BEGIN initY := 998;
 		END O;
 	END B.
-
-positive: reimporting objects and execute bodies (3)
 
 	MODULE Test;
 	IMPORT B;
@@ -5735,7 +5729,7 @@ positive: reimporting objects and execute bodies (3)
 		NEW(o); ASSERT(o.initO=997); ASSERT(o.initY =998); ASSERT(o.initZ=999);
 	END Test.
 
-positive: importing protected object (1)
+positive: importing protected object
 
 	MODULE A;
 	TYPE O*= OBJECT
@@ -5744,8 +5738,6 @@ positive: importing protected object (1)
 			END P;
 		END O;
 	END A.
-
-positive: importing protected object (2)
 
 	MODULE Test;
 	IMPORT A;
@@ -5881,7 +5873,7 @@ positive: expression involving multiple register savings on stack
 	BEGIN Test;
 	END Test.
 
-positive:  GETPROCEDURE with procedure returning an object (1)
+positive:  GETPROCEDURE with procedure returning an object
 
 	MODULE A;
 	TYPE Object*=OBJECT VAR a-: LONGINT; END Object;
@@ -5892,14 +5884,12 @@ positive:  GETPROCEDURE with procedure returning an object (1)
 		END TheProcedure;
 	END A.
 
-positive:  GETPROCEDURE with procedure returning an object (2)
-
-	MODULE Test;  (** AUTHOR ""; PURPOSE ""; *)
-	IMPORT X := A;
+	MODULE Test;
+	IMPORT A;
 	PROCEDURE Test;
-	VAR p: PROCEDURE(): X.Object; o: X.Object;
+	VAR p: PROCEDURE(): A.Object; o: A.Object;
 	BEGIN
-		GETPROCEDURE("X","TheProcedure",p);
+		GETPROCEDURE("A","TheProcedure",p);
 		o := p();
 		ASSERT(o.a = 100);
 	END Test;
@@ -5920,8 +5910,6 @@ positive: import object and use initializer on alias
 
 	O2*=O;
 	END A.
-
-positive: import object and use initializer on alias (2)
 
 	MODULE Test;
 
@@ -6112,7 +6100,7 @@ positive: pass delegate as parameter
 	BEGIN P
 	END Test.
 
-positive: export published procedure indirectly
+positive: reimport indirectly published procedure 
 	MODULE A;
 	TYPE AO*= OBJECT
 			VAR called*: BOOLEAN;
@@ -6131,7 +6119,6 @@ positive: export published procedure indirectly
 		END AO2;
 	END A.
 
-positive: import indirectly published procedure
 	MODULE B;
 	IMPORT A;
 	TYPE BO*= OBJECT(A.AO2);
@@ -6142,7 +6129,6 @@ positive: import indirectly published procedure
 		END BO;
 	END B.
 
-positive: reimport indirectly published procedure 
 	MODULE Test;
 	IMPORT B;
 	TYPE O*= OBJECT(B.BO);
@@ -6386,8 +6372,6 @@ positive: type tests and guards on records and pointers on direct and indirect p
 		p(P1).v := 10;
 	END PC;
 
-
-
 	PROCEDURE Test;
 	VAR r: R1; p: P1; p0: P0;
 	BEGIN
@@ -6434,7 +6418,7 @@ positive: inline procedure with fixups
 		ASSERT(a=1234);
 	END Test.
 
-positive: export inline assembler procedure
+positive: import inline assembler procedure
 
 	MODULE A;
 
@@ -6449,8 +6433,6 @@ positive: export inline assembler procedure
 	BEGIN 
 		ASSERT(P(10) = 20);
 	END A.
-	
-positive: import inline assembler procedure
 
 	MODULE Test;
 	IMPORT A; 
@@ -6562,14 +6544,12 @@ positive: pass delegate as variable or value parameter
 	BEGIN NEW(a,123); NEW(o,a); P;
 	END Test.
 	
-positive: import same module with different aliases (exporting module)
+positive: import same module with different aliases
 
 	MODULE A;
-	PROCEDURE P* BEGIN END P;
+	PROCEDURE P*; BEGIN END P;
 	END A.
 
-positive: import same module with different aliases
-	
 	MODULE Test;
 	IMPORT A,B := A;
 
@@ -6579,6 +6559,7 @@ positive: import same module with different aliases
 		B.P;
 	END P;
 
+	BEGIN P
 	END Test.
 	
 	
@@ -6620,7 +6601,6 @@ positive: procedures returning a record (checks correct return parameter size)
 		ASSERT(r2.t = 3,103);
 		ASSERT(r2.b = 4,104);
 	END P1;
-
 
 	PROCEDURE P2;
 	VAR r1,r2: Rectangle;
@@ -6679,15 +6659,13 @@ positive: conversion on return types
 	BEGIN P;
 	END Test.
 	
-positive: allocate imported variable (exporting part)
+positive: allocate imported variable
 	
 	MODULE A;
 
 	TYPE Record*= RECORD a*: LONGINT; p*: POINTER TO ARRAY OF CHAR; c*: LONGINT; END;
 	VAR a*: Record;
 	END A.
-
-positive: allocate imported variable (importing part)
 
 	MODULE Test;
 
@@ -6787,3 +6765,5 @@ positive: finally statement, direct and indirect
 		b := FALSE; Q(); ASSERT(b=TRUE);
 		b := FALSE; S(); ASSERT(b=TRUE);
 	END Test.
+
+
