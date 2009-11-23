@@ -6701,3 +6701,32 @@ positive: allocate imported variable (importing part)
 
 	BEGIN P;
 	END Test.
+	
+positive: bitwise rotate
+
+	MODULE Test;
+
+	IMPORT SYSTEM;
+
+
+	PROCEDURE P;
+	VAR val,rot: SET; by: LONGINT;
+	BEGIN
+		val := {1,2,3,30,31};
+		rot := SYSTEM.VAL(SET,SYSTEM.ROT(SYSTEM.VAL(LONGINT,val),7));
+		ASSERT(rot ={5..6,8..10});
+		rot :=  SYSTEM.VAL(SET,SYSTEM.ROT(SYSTEM.VAL(LONGINT,val),-7));
+		ASSERT(rot={23..24,26..28}); 
+		val := {1,2,3,30,31};
+		by := 7; 
+		rot := SYSTEM.VAL(SET,SYSTEM.ROT(SYSTEM.VAL(LONGINT,val),by));
+		ASSERT(rot ={5..6,8..10});
+		by := -7; 
+		rot := SYSTEM.VAL(SET,SYSTEM.ROT(SYSTEM.VAL(LONGINT,val),by));
+		ASSERT(rot={23..24,26..28}); 
+			
+	END P;
+
+
+	BEGIN P;
+	END Test.
