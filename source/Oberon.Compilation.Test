@@ -8870,6 +8870,120 @@ positive: procedure type with intermixed parameters of anonymous procedure type
 	TYPE Procedure = PROCEDURE (a: PROCEDURE; VAR b: PROCEDURE; CONST c: PROCEDURE);
 	END Test.
 
+# enumerations
+
+positive: simple enumeration
+	
+	MODULE Test;
+	TYPE Color=ENUM red, green, blue END;
+	VAR color: Color;
+	BEGIN color := Color.red END Test.
+	
+positive: enumeration type extension
+
+	MODULE Test;
+	TYPE Color=ENUM red, green, blue END;
+		FineColor=ENUM (Color) black, white END;
+	VAR color: FineColor;
+	BEGIN color := Color.red; color := Color.white END Test.
+	
+positive: enumeration assignment compatibility
+
+	MODULE Test;
+	TYPE Color=ENUM red, green, blue END;
+		FineColor=ENUM(Color) black, white END;
+	VAR color,color2: Color; fineColor,fineColor2: FineColor;
+	BEGIN color := Color.blue; fineColor := Color.red; fineColor := FineColor.black; 
+		color2 := color; fineColor2 := fineColor;
+		fineColor := color;
+	END Test.
+
+negative: wrong enumeration assignment
+
+	MODULE Test;
+	TYPE Color=ENUM red, green, blue END;
+		FineColor=ENUM(Color) black, white END;
+	VAR color,color2: Color; fineColor,fineColor2: FineColor;
+	BEGIN color := fineColor
+	END Test.
+
+positive: enumeration comparison compatibility
+
+	MODULE Test;
+	TYPE Color=ENUM red, green, blue END;
+		FineColor=ENUM(Color) black, white END;
+	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
+	BEGIN 
+		b := color = color2;
+		b := color # color2;
+		b := fineColor = fineColor2;
+		b := fineColor # fineColor2;
+		b := color = fineColor;
+		b := fineColor = color;
+	END Test.
+
+negative: enumeration comparison with impossible value
+
+	MODULE Test;
+	TYPE Color=ENUM red, green, blue END;
+		FineColor=ENUM(Color) black, white END;
+	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
+	BEGIN 
+		b := color = FineColor.white;
+	END Test.
+
+positive: passing enumeration as parameter
+
+	MODULE Test;
+	TYPE Color=ENUM red, green, blue END;
+		FineColor=ENUM(Color) black, white END;
+	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
+		
+		PROCEDURE P1(color: Color); 
+		BEGIN END P1();
+		PROCEDURE P2(color: FineColor); 
+		BEGIN END P2();
+		PROCEDURE P1V(VAR color: Color); 
+		BEGIN END P1V();
+		PROCEDURE P2V(VAR color: FineColor); 
+		BEGIN END P2V();
+	
+	BEGIN 
+		P1(color);
+		P1(fineColor);
+		P2(fineColor);
+		P1V(color);
+		P2V(fineColor);
+	END Test.
+	
+negative: passing enumeration extension on base type
+
+	MODULE Test;
+	TYPE Color=ENUM red, green, blue END;
+		FineColor=ENUM(Color) black, white END;
+	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
+		
+		PROCEDURE P1(color: Color); 
+		BEGIN END P1();
+	
+	BEGIN 
+		P1(fineColor);
+	END Test.
+
+negative: passing enumeration extension on extended type as var parameter
+
+	MODULE Test;
+	TYPE Color=ENUM red, green, blue END;
+		FineColor=ENUM(Color) black, white END;
+	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
+		
+		PROCEDURE P1(VAR color: FineColor); 
+		BEGIN END P1();
+	
+	BEGIN 
+		P1(fineColor);
+	END Test.
+
 
 # variables
 
