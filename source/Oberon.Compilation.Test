@@ -8885,7 +8885,7 @@ positive: enumeration type extension
 	TYPE Color=ENUM red, green, blue END;
 		FineColor=ENUM (Color) black, white END;
 	VAR color: FineColor;
-	BEGIN color := Color.red; color := Color.white END Test.
+	BEGIN color := Color.red; color := FineColor.white END Test.
 	
 positive: enumeration assignment compatibility
 
@@ -8922,7 +8922,7 @@ positive: enumeration comparison compatibility
 		b := fineColor = color;
 	END Test.
 
-negative: enumeration comparison with impossible value
+positive: enumeration comparison with impossible value (extension)
 
 	MODULE Test;
 	TYPE Color=ENUM red, green, blue END;
@@ -8940,18 +8940,18 @@ positive: passing enumeration as parameter
 	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
 		
 		PROCEDURE P1(color: Color); 
-		BEGIN END P1();
+		BEGIN END P1;
 		PROCEDURE P2(color: FineColor); 
-		BEGIN END P2();
+		BEGIN END P2;
 		PROCEDURE P1V(VAR color: Color); 
-		BEGIN END P1V();
+		BEGIN END P1V;
 		PROCEDURE P2V(VAR color: FineColor); 
-		BEGIN END P2V();
+		BEGIN END P2V;
 	
 	BEGIN 
 		P1(color);
-		P1(fineColor);
 		P2(fineColor);
+		P2(color);
 		P1V(color);
 		P2V(fineColor);
 	END Test.
@@ -8964,7 +8964,7 @@ negative: passing enumeration extension on base type
 	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
 		
 		PROCEDURE P1(color: Color); 
-		BEGIN END P1();
+		BEGIN END P1;
 	
 	BEGIN 
 		P1(fineColor);
@@ -8977,8 +8977,8 @@ negative: passing enumeration extension on extended type as var parameter
 		FineColor=ENUM(Color) black, white END;
 	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
 		
-		PROCEDURE P1(VAR color: FineColor); 
-		BEGIN END P1();
+		PROCEDURE P1(VAR color: Color); 
+		BEGIN END P1;
 	
 	BEGIN 
 		P1(fineColor);
