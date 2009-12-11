@@ -4120,7 +4120,7 @@ positive: new statement on pointer to record
 positive: new statement on pointer to too large record
 
 	MODULE Test;
-	VAR p: POINTER TO RECORD data*: ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER END;
+	VAR p: POINTER TO RECORD data*: ARRAY MAX (LONGINT) DIV 16 - 1000 OF INTEGER END;
 	BEGIN (*! NEW (p); ASSERT (p = NIL); *)
 	END Test.
 
@@ -4134,7 +4134,7 @@ positive: new statement on pointer to array
 positive: new statement on pointer to too large array
 
 	MODULE Test;
-	VAR r: POINTER TO ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER;
+	VAR r: POINTER TO ARRAY MAX (LONGINT) DIV 16 - 1000 OF INTEGER;
 	BEGIN (*! NEW (r); ASSERT (r = NIL); *)
 	END Test.
 
@@ -4169,7 +4169,7 @@ positive: new statement on object
 positive: new statement on too large object
 
 	MODULE Test;
-	VAR o: OBJECT VAR data*: ARRAY MAX (LONGINT) DIV 2 - 1000 OF INTEGER END;
+	VAR o: OBJECT VAR data*: ARRAY MAX (LONGINT) DIV 16 - 1000 OF INTEGER END;
 	BEGIN (*! NEW (o); ASSERT (o = NIL); *)
 	END Test.
 
