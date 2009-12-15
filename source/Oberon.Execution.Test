@@ -6780,3 +6780,81 @@ positive: negate hugeint zero
 	BEGIN Test
 	END Test.
 
+positive: allocation of a partially exported record type
+
+	MODULE A;
+
+	TYPE 
+	P*=POINTER TO Desc;
+	Desc=RECORD a*,b: LONGINT END;
+
+	END A.
+
+	MODULE Test;
+
+	IMPORT A;
+
+	PROCEDURE Test;
+	VAR a: A.P; 
+	BEGIN
+		NEW(a); a.a := 10; ASSERT(a.a = 10);
+	END Test;
+
+	
+	BEGIN Test
+	END Test.
+	
+positive: allocation of a partially exported record type in a multiply imported module	
+
+	MODULE A;
+
+	TYPE 
+	P*=POINTER TO Desc;
+	Desc=RECORD a*,b: LONGINT END;
+
+	END A.
+
+	MODULE B;
+	END B.
+
+	MODULE Test;
+
+	IMPORT BB := B, BBB := B, AA := A, BBBB := B, AAA := A, B, A;
+
+	PROCEDURE Test;
+	VAR a: AAA.P; 
+	BEGIN
+		NEW(a); a.a := 10; ASSERT(a.a = 10);
+	END Test;
+
+	
+	BEGIN Test
+	END Test.
+
+
+positive: pass sub-array (computation of address needs multiplication with base size)
+	MODULE Test;
+	VAR a: ARRAY 10 OF ARRAY 10 OF INTEGER;
+	PROCEDURE Q(VAR a: ARRAY OF INTEGER; i: INTEGER);
+	VAR j: INTEGER;
+	BEGIN
+		FOR j := 0 TO SHORT(LEN(a)-1 ) DO
+			ASSERT(a[j] = i*10+j);
+		END;
+	END Q;
+	PROCEDURE P(VAR a: ARRAY OF ARRAY OF INTEGER);
+	VAR i,j: INTEGER;
+	BEGIN
+		FOR i := 0 TO SHORT(LEN(a,0)-1) DO
+		FOR j := 0 TO SHORT(LEN(a,1)-1) DO
+			a[i,j] := i*10+j;
+		END;
+		END;
+		FOR i := 0 TO SHORT(LEN(a,0)-1) DO
+			Q(a[i],i);
+		END;
+	END P;
+	BEGIN P(a);
+	END Test.
+
+
