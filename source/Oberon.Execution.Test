@@ -974,7 +974,6 @@ positive: capital letter of character
 		value := 'Z'; ASSERT (CAP (value) = 'Z'); ASSERT (CAP (value) = CAP ('Z'));
 	END Test.
 
-
 # character annd ordinal value operations
 
 positive: ordinal value of character
@@ -4651,6 +4650,7 @@ positive: call of object body chains with initializer
 	END Test.
 
 
+
 # copy statement
 
 positive: copy statement on array of character
@@ -5919,6 +5919,7 @@ positive: import object and use initializer on alias
 		NEW(o); o.a :=10;
 	END Test.
 
+
 positive: procedure returning record
 
 	MODULE Test;
@@ -6766,4 +6767,16 @@ positive: finally statement, direct and indirect
 		b := FALSE; S(); ASSERT(b=TRUE);
 	END Test.
 
+positive: negate hugeint zero
+
+	MODULE Test;
+	PROCEDURE Test;
+	VAR x: INTEGER; h,j: HUGEINT; 
+	BEGIN
+		h := 0; 
+		j := -h; 
+		ASSERT(j=0);
+	END Test;
+	BEGIN Test
+	END Test.
 
