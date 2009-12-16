@@ -2002,6 +2002,11 @@ positive: set union
 		a := {1, 2}; b := {}; ASSERT (a + b = {1, 2}); ASSERT (a + b = {1, 2} + {});
 		a := {}; b := {2, 3}; ASSERT (a + b = {2, 3}); ASSERT (a + b = {} + {2, 3});
 		a := {1, 2}; b := {2, 3}; ASSERT (a + b = {1..3}); ASSERT (a + b = {1, 2} + {2, 3});
+		a := {}; b := {}; ASSERT (a + {} = {}); ASSERT ({} + b = {} + {});
+		a := {1, 2}; b := {}; ASSERT (a + {} = {1, 2}); ASSERT ({1,2} + b = {1, 2} + {});
+		a := {}; b := {2, 3}; ASSERT (a + {2,3} = {2, 3}); ASSERT ({} + b = {} + {2, 3});
+		a := {1, 2}; b := {2, 3}; ASSERT (a + {2,3} = {1..3}); ASSERT ({1,2} + b = {1, 2} + {2, 3});
+
 	END Test.
 
 positive: set difference
@@ -2013,6 +2018,10 @@ positive: set difference
 		a := {1, 2}; b := {}; ASSERT (a - b = {1, 2}); ASSERT (a - b = {1, 2} - {});
 		a := {}; b := {2, 3}; ASSERT (a - b = {}); ASSERT (a - b = {} - {2, 3});
 		a := {1, 2}; b := {2, 3}; ASSERT (a - b = {1}); ASSERT (a - b = {1, 2} - {2, 3});
+		a := {}; b := {}; ASSERT (a - {} = {}); ASSERT ({} - b = {} - {});
+		a := {1, 2}; b := {}; ASSERT (a - {} = {1, 2}); ASSERT ({1,2} - b = {1, 2} - {});
+		a := {}; b := {2, 3}; ASSERT (a - {2,3} = {}); ASSERT ({} - b = {} - {2, 3});
+		a := {1, 2}; b := {2, 3}; ASSERT (a - {2,3} = {1}); ASSERT ({1,2} - b = {1, 2} - {2, 3});
 	END Test.
 
 positive: set intersection
@@ -2024,6 +2033,10 @@ positive: set intersection
 		a := {1, 2}; b := {}; ASSERT (a * b = {}); ASSERT (a * b = {1, 2} * {});
 		a := {}; b := {2, 3}; ASSERT (a * b = {}); ASSERT (a * b = {} * {2, 3});
 		a := {1, 2}; b := {2, 3}; ASSERT (a * b = {2}); ASSERT (a * b = {1, 2} * {2, 3});
+		a := {}; b := {}; ASSERT ({} * b = {}); ASSERT (a * {} = {} * {});
+		a := {1, 2}; b := {}; ASSERT ({1,2} * b = {}); ASSERT (a * {} = {1, 2} * {});
+		a := {}; b := {2, 3}; ASSERT (a * {2,3} = {}); ASSERT ({} * b = {} * {2, 3});
+		a := {1, 2}; b := {2, 3}; ASSERT ({1,2} * b = {2}); ASSERT (a * {2,3} = {1, 2} * {2, 3});
 	END Test.
 
 positive: symmetric set difference
@@ -2035,6 +2048,10 @@ positive: symmetric set difference
 		a := {1, 2}; b := {}; ASSERT (a / b = {1, 2}); ASSERT (a / b = {1, 2} / {});
 		a := {}; b := {2, 3}; ASSERT (a / b = {2, 3}); ASSERT (a / b = {} / {2, 3});
 		a := {1, 2}; b := {2, 3}; ASSERT (a / b = {1, 3}); ASSERT (a / b = {1, 2} / {2, 3});
+		a := {}; b := {}; ASSERT (a / {} = {}); ASSERT (a / {} = {} / {});
+		a := {1, 2}; b := {}; ASSERT ({1,2} / b = {1, 2}); ASSERT (a / {} = {1, 2} / {});
+		a := {}; b := {2, 3}; ASSERT ({} / b = {2, 3}); ASSERT (a / {2,3} = {} / {2, 3});
+		a := {1, 2}; b := {2, 3}; ASSERT ({1,2} / b = {1, 3}); ASSERT (a / {2,3} = {1, 2} / {2, 3});
 	END Test.
 
 
