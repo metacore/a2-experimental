@@ -38748,3 +38748,22 @@ positive: ugly system.val with records
 
 	END Test.
 	
+positive: call an empty inline code
+	MODULE Test;
+	IMPORT SYSTEM;
+	PROCEDURE -P;
+	CODE{SYSTEM.i386}
+	END P;
+	BEGIN P;
+	END Test.
+
+positive: export inline code with reference to (local) constant
+	MODULE Test;
+	IMPORT SYSTEM;
+	PROCEDURE -P*;
+	CONST const=16;
+	CODE{SYSTEM.i386}
+		MOV EAX,[EAX+const]
+	END P;
+	END Test.
+	
