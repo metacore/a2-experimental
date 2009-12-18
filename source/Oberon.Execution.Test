@@ -6874,4 +6874,60 @@ positive: pass sub-array (computation of address needs multiplication with base 
 	BEGIN P(a);
 	END Test.
 
+positive: array length operator for static and dynamic arrays with static and dynamic dimension parameter
+	MODULE Test;
+
+	PROCEDURE Test;
+	VAR a: ARRAY 1,2,3,4 OF LONGINT; 
+		b: POINTER TO ARRAY OF ARRAY OF ARRAY 3,4 OF LONGINT;
+		c: POINTER TO ARRAY OF ARRAY OF ARRAY OF ARRAY OF LONGINT;
+		l0,l1,l2,l3,lv,v: LONGINT;
+	BEGIN
+		v := 2; 
+		NEW(b,1,2); 
+		NEW(c,1,2,3,4);
+
+		l0 := LEN(a,0); 
+		ASSERT(l0=1,1000); 
+		l1 := LEN(a,1); 
+		ASSERT(l1=2,1001); 
+		l2 := LEN(a,2); 
+		ASSERT(l2=3,1002); 
+		l3 := LEN(a,3); 	
+		ASSERT(l3=4,1003); 
+		FOR v := 0 TO 3 DO 
+			lv := LEN(a,v); 
+			ASSERT(lv=v+1,1004); 
+		END; 
+
+		l0 := LEN(b,0); 
+		ASSERT(l0=1,2000); 
+		l1 := LEN(b,1); 
+		ASSERT(l1=2,2001); 
+		l2 := LEN(b,2); 
+		ASSERT(l2=3,2002); 
+		l3 := LEN(b,3); 	
+		ASSERT(l3=4,2003); 
+		FOR v := 0 TO 3 DO 
+			lv := LEN(b,v); 
+			ASSERT(lv=v+1,2004); 
+		END; 
+		
+		l0 := LEN(c,0); 
+		ASSERT(l0=1,3000); 
+		l1 := LEN(c,1); 
+		ASSERT(l1=2,3001); 
+		l2 := LEN(c,2); 
+		ASSERT(l2=3,3002); 
+		l3 := LEN(c,3); 	
+		ASSERT(l3=4,3003); 
+		FOR v := 0 TO 3 DO 
+			lv := LEN(c,v); 
+			ASSERT(lv=v+1,3004); 
+		END; 
+
+	END Test;
+
+	BEGIN Test
+	END Test.
 
