@@ -14,10 +14,10 @@ CONST
 	Const* = 3;
 
 TYPE
-	SectionName = ARRAY 32 OF CHAR;
+	SectionName = ARRAY 128 OF CHAR;
 
 	FixupPattern* = RECORD
-		offsets*, bits*: LONGINT;
+		offset*, bits*: LONGINT;
 	END;
 
 	Fixup* = RECORD
@@ -28,12 +28,15 @@ TYPE
 		pattern*: POINTER TO ARRAY OF FixupPattern;
 	END;
 
+	DataArray*=POINTER TO ARRAY OF CHAR;
+	Fixups*=POINTER TO ARRAY OF Fixup;
+
 	Section* = RECORD
 		type*: INTEGER;
 		name*: SectionName;
 		unit*, alignment*, size*, fixups*: LONGINT;
-		fixup*: POINTER TO ARRAY OF Fixup;
-		data*: POINTER TO ARRAY OF CHAR;
+		fixup*: Fixups;
+		data*: DataArray;
 	END;
 
 VAR
@@ -54,7 +57,7 @@ VAR
 
 	PROCEDURE WritePattern (CONST pattern: FixupPattern);
 	BEGIN
-		writer.Int (pattern.offsets, 0);
+		writer.Int (pattern.offset, 0);
 		writer.Char (Separator);
 		writer.Int (pattern.bits, 0);
 		writer.Char (Separator);
@@ -130,7 +133,7 @@ VAR
 
 	PROCEDURE ReadPattern (VAR pattern: FixupPattern);
 	BEGIN
-		reader.GetInteger (pattern.offsets, FALSE);
+		reader.GetInteger (pattern.offset, FALSE);
 		reader.GetInteger (pattern.bits, FALSE);
 	END ReadPattern;
 
