@@ -46,7 +46,7 @@ VAR
 
 PROCEDURE WriteSection* (writer: Streams.Writer; CONST section: Section);
 CONST
-	Separator = ' ';
+	Separator = ' '; Tab = 09X;
 
 VAR
 	i: LONGINT;
@@ -81,10 +81,9 @@ VAR
 		writer.Char (Separator);
 		writer.Int (fixup.patterns, 0);
 		writer.Char (Separator);
-		FOR i := 0 TO fixup.patterns DO
+		FOR i := 0 TO fixup.patterns - 1 DO
 			WritePattern (fixup.pattern[i]);
 		END;
-		writer.Ln;
 	END WriteFixup;
 
 	PROCEDURE WriteData (data: CHAR);
@@ -105,11 +104,11 @@ BEGIN
 	writer.Int (section.size, 0);
 	writer.Char (Separator);
 	writer.Int (section.fixups, 0);
-	writer.Char (Separator);
-	FOR i := 0 TO section.fixups DO
-		WriteFixup (section.fixup[i]);
+	FOR i := 0 TO section.fixups - 1 DO
+		writer.Ln; writer.Char (Tab); WriteFixup (section.fixup[i]);
 	END;
-	FOR i := 0 TO section.size DO
+	FOR i := 0 TO section.size - 1 DO
+		IF i MOD 32 = 0 THEN writer.Ln; writer.Char (Tab); END;
 		WriteData (section.data[i]);
 	END;
 	writer.Ln;
