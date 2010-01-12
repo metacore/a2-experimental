@@ -16,6 +16,19 @@ CONST
 TYPE
 	SectionName = ARRAY 128 OF CHAR;
 
+	(* FixupPattern = size (+|-) bits {size (+|-) bits}
+
+		Example:
+		fixupPattern = 0+8 -128+4 8-8 means
+			store first 8 bits to offset 0
+			leave out next 4 bits
+			store next 8 bits to offset 8 in reverse order
+
+		most frequently used are
+			fixupPattern=0+8 : 8 bit fixup
+			fixupPattern=0+16: 16 bit fixup
+			fixupPattern=0+32: 32 bit fixup
+	*)
 	FixupPattern* = RECORD
 		offset*, bits*: LONGINT;
 	END;
