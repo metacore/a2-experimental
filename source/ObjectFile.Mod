@@ -19,13 +19,14 @@ TYPE
 	FixupPattern* = RECORD
 		offset*, bits*: LONGINT;
 	END;
+	FixupPatterns*= POINTER TO ARRAY OF FixupPattern;
 
 	Fixup* = RECORD
 		mode*: INTEGER;
 		offset*: LONGINT;
 		section*: SectionName;
 		displacement*, scale*, patterns*: LONGINT;
-		pattern*: POINTER TO ARRAY OF FixupPattern;
+		pattern*: FixupPatterns;
 	END;
 
 	DataArray*=POINTER TO ARRAY OF CHAR;
