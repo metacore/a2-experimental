@@ -88,7 +88,7 @@ VAR
 		writer.Char (Separator);
 		writer.String (fixup.section);
 		writer.Char (Separator);
-		writer.Hex (fixup.fingerprint, 0);
+		writer.Int (fixup.fingerprint, 0);
 		writer.Char (Separator);
 		writer.Int (fixup.displacement, 0);
 		writer.Char (Separator);
@@ -122,7 +122,7 @@ BEGIN
 	writer.Char (Separator);
 	writer.String (section.name);
 	writer.Char (Separator);
-	writer.Hex (section.fingerprint, 0);
+	writer.Int (section.fingerprint, 0);
 	writer.Char (Separator);
 	writer.Int (section.unit, 0);
 	writer.Char (Separator);
@@ -152,10 +152,7 @@ VAR
 	BEGIN
 		value := 0;
 		reader.GetString (identifier);
-		WHILE (value # LEN (identifiers)) & (identifier # identifiers[value]) DO
-			INC (value);
-			reader.GetString (identifier);
-		END;
+		WHILE (value # LEN (identifiers)) & (identifier # identifiers[value]) DO INC (value); END;
 	END ReadIdentifier;
 
 	PROCEDURE ReadPattern (VAR pattern: FixupPattern);
@@ -172,14 +169,14 @@ VAR
 		ReadIdentifier (fixup.mode, modes);
 		reader.GetInteger (fixup.offset, FALSE);
 		reader.GetString (fixup.section);
-		reader.GetInteger (fixup.fingerprint, TRUE);
+		reader.GetInteger (fixup.fingerprint, FALSE);
 		reader.GetInteger (fixup.displacement, FALSE);
 		reader.GetInteger (fixup.scale, FALSE);
 		reader.GetInteger (fixup.patterns, FALSE);
 		IF (fixup.pattern = NIL) OR (LEN (fixup.pattern) < fixup.patterns) THEN
 			NEW (fixup.pattern, fixup.patterns);
 		END;
-		FOR i := 0 TO fixup.patterns DO
+		FOR i := 0 TO fixup.patterns - 1 DO
 			ReadPattern (fixup.pattern[i]);
 		END;
 	END ReadFixup;
@@ -191,9 +188,9 @@ VAR
 		PROCEDURE GetNibble (char: CHAR): INTEGER;
 		BEGIN
 			IF ORD (char) >= ORD ('A') THEN
-				RETURN ORD (char) - (ORD ('A') + 10);
+				RETURN ORD (char) - (ORD ('A') - 10);
 			ELSE
-				RETURN ORD (char);
+				RETURN ORD (char) - ORD ('0');
 			END;
 		END GetNibble;
 
@@ -206,7 +203,7 @@ VAR
 BEGIN
 	ReadIdentifier (section.type, types);
 	reader.GetString (section.name);
-	reader.GetInteger (section.fingerprint, TRUE);
+	reader.GetInteger (section.fingerprint, FALSE);
 	reader.GetInteger (section.unit, FALSE);
 	reader.GetInteger (section.alignment, FALSE);
 	reader.GetInteger (section.fixups, FALSE);
@@ -214,13 +211,13 @@ BEGIN
 	IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
 		NEW (section.fixup, section.fixups);
 	END;
-	FOR i := 0 TO section.fixups DO
+	FOR i := 0 TO section.fixups - 1 DO
 		ReadFixup (section.fixup[i]);
 	END;
-	IF (section.data = NIL) OR (LEN (section.data) < section.size DIV section.unit) THEN
-		NEW (section.data, section.size DIV section.unit);
+	IF (section.data = NIL) OR (LEN (section.data) < section.size) THEN
+		NEW (section.data, section.size);
 	END;
-	FOR i := 0 TO section.size DO
+	FOR i := 0 TO section.size - 1 DO
 		ReadData (section.data[i]);
 	END;
 END ReadSection;
