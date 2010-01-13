@@ -38,7 +38,7 @@ TYPE
 		mode*: INTEGER;
 		offset*: LONGINT;
 		section*: SectionName;
-		displacement*, scale*, patterns*: LONGINT;
+		fingerprint*, displacement*, scale*, patterns*: LONGINT;
 		pattern*: FixupPatterns;
 	END;
 
@@ -48,7 +48,7 @@ TYPE
 	Section* = RECORD
 		type*: INTEGER;
 		name*: SectionName;
-		unit*, alignment*, size*, fixups*: LONGINT;
+		fingerprint*, unit*, alignment*, size*, fixups*: LONGINT;
 		fixup*: Fixups;
 		data*: DataArray;
 	END;
@@ -88,6 +88,8 @@ VAR
 		writer.Char (Separator);
 		writer.String (fixup.section);
 		writer.Char (Separator);
+		writer.Hex (fixup.fingerprint, 0);
+		writer.Char (Separator);
 		writer.Int (fixup.displacement, 0);
 		writer.Char (Separator);
 		writer.Int (fixup.scale, 0);
@@ -119,6 +121,8 @@ BEGIN
 	WriteIdentifier (section.type, types);
 	writer.Char (Separator);
 	writer.String (section.name);
+	writer.Char (Separator);
+	writer.Hex (section.fingerprint, 0);
 	writer.Char (Separator);
 	writer.Int (section.unit, 0);
 	writer.Char (Separator);
@@ -168,6 +172,7 @@ VAR
 		ReadIdentifier (fixup.mode, modes);
 		reader.GetInteger (fixup.offset, FALSE);
 		reader.GetString (fixup.section);
+		reader.GetInteger (fixup.fingerprint, TRUE);
 		reader.GetInteger (fixup.displacement, FALSE);
 		reader.GetInteger (fixup.scale, FALSE);
 		reader.GetInteger (fixup.patterns, FALSE);
@@ -201,6 +206,7 @@ VAR
 BEGIN
 	ReadIdentifier (section.type, types);
 	reader.GetString (section.name);
+	reader.GetInteger (section.fingerprint, TRUE);
 	reader.GetInteger (section.unit, FALSE);
 	reader.GetInteger (section.alignment, FALSE);
 	reader.GetInteger (section.fixups, FALSE);
