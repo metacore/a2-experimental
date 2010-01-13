@@ -100,9 +100,19 @@ VAR
 	END WriteFixup;
 
 	PROCEDURE WriteData (data: CHAR);
+
+		PROCEDURE GetNibble (value: INTEGER): CHAR;
+		BEGIN
+			IF value >= 10 THEN
+				RETURN CHR ((ORD ('A') - 10) + value);
+			ELSE
+				RETURN CHR (ORD ('0') + value);
+			END;
+		END GetNibble;
+
 	BEGIN
-		writer.Hex ((ORD (data) DIV 16) MOD 16, 0);
-		writer.Hex (ORD (data) MOD 16, 0);
+		writer.Char (GetNibble (ORD (data) DIV 16));
+		writer.Char (GetNibble (ORD (data) MOD 16));
 	END WriteData;
 
 BEGIN
@@ -114,9 +124,9 @@ BEGIN
 	writer.Char (Separator);
 	writer.Int (section.alignment, 0);
 	writer.Char (Separator);
-	writer.Int (section.size, 0);
-	writer.Char (Separator);
 	writer.Int (section.fixups, 0);
+	writer.Char (Separator);
+	writer.Int (section.size, 0);
 	FOR i := 0 TO section.fixups - 1 DO
 		writer.Ln; writer.Char (Tab); WriteFixup (section.fixup[i]);
 	END;
@@ -175,7 +185,6 @@ VAR
 
 		PROCEDURE GetNibble (char: CHAR): INTEGER;
 		BEGIN
-			reader.GetChar (char);
 			IF ORD (char) >= ORD ('A') THEN
 				RETURN ORD (char) - (ORD ('A') + 10);
 			ELSE
@@ -194,8 +203,8 @@ BEGIN
 	reader.GetString (section.name);
 	reader.GetInteger (section.unit, FALSE);
 	reader.GetInteger (section.alignment, FALSE);
-	reader.GetInteger (section.size, FALSE);
 	reader.GetInteger (section.fixups, FALSE);
+	reader.GetInteger (section.size, FALSE);
 	IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
 		NEW (section.fixup, section.fixups);
 	END;
