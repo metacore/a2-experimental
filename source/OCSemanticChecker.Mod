@@ -897,7 +897,10 @@ TYPE
 				ELSIF (formalType IS SyntaxTree.ArrayType) & (formalType(SyntaxTree.ArrayType).form = SyntaxTree.Open) THEN
 					result := OpenArrayCompatible(formalType(SyntaxTree.ArrayType),actualType);
 				ELSIF (formalType IS SyntaxTree.MathArrayType) THEN
-					result := MathArrayCompatible(formalType(SyntaxTree.MathArrayType),actualType)
+					result := MathArrayCompatible(formalType(SyntaxTree.MathArrayType),actualType);
+					IF result & (actualType(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (formalType(SyntaxTree.MathArrayType).form # SyntaxTree.Tensor) THEN
+						Error(actual.position,Diagnostics.Invalid,"incompatible tensor (use a range expression)");
+					END;
 				ELSE
 					result := SameType(actualType,formalType,NIL)
 				END
@@ -1599,7 +1602,7 @@ TYPE
 								IF procedureType.returnType = NIL THEN
 									distance := Infinity
 								ELSE
-									i := TypeDistance(returnType,procedureType.returnType);
+									i := TypeDistance(returnType,procedureType.returnType,TRUE);
 									IF i = Infinity THEN distance := Infinity ELSE INC(distance,i) END;
 								END;
 							ELSIF procedureType.returnType # NIL THEN
@@ -2982,7 +2985,7 @@ TYPE
 
 			id := builtin.id;
 			IF system.operatorDefined[id] THEN (* try to find overloaded operator *)
-				result := NewOperatorCall(position,builtin.id,parameter0,parameter1,NIL);
+				result := NewOperatorCall(position,builtin.id,parameter0,parameter1,Global.All);
 			END;
 
 			IF result = Global.invalidExpression THEN (* error already handled *)
@@ -5460,7 +5463,7 @@ TYPE
 		IF from = to THEN
 			i := 0
 		ELSE
-			i := TypeDistance(from.arrayBase.resolved, to.arrayBase.resolved);
+			i := TypeDistance(from.arrayBase.resolved, to.arrayBase.resolved,FALSE);
 		(*
 		ELSIF (from.mode = static) & (to.mode IN {open}) THEN
 			i := TypeDistance(from.base, to.base);
@@ -5489,7 +5492,7 @@ TYPE
 			(*! taken from paco, seems to not be 100% correct, check (in particular array part -> length of arrays??) *)
 			WHILE (formalParameter # NIL) & (formalParameter.access # SyntaxTree.Hidden) & (result # Infinity) DO
 				actualParameter := actualParameters.GetExpression(i);
-				distance := TypeDistance(actualParameter.type.resolved,formalParameter.type.resolved);
+				distance := TypeDistance(actualParameter.type.resolved,formalParameter.type.resolved,formalParameter.kind = SyntaxTree.VarParameter);
 				IF distance = Infinity THEN
 					result := Infinity;
 				ELSE
@@ -5503,7 +5506,7 @@ TYPE
 								baseActual := baseActual(SyntaxTree.ArrayType).arrayBase.resolved;
 								baseFormal := baseFormal(SyntaxTree.ArrayType).arrayBase.resolved;
 							END;
-							IF TypeDistance(baseActual,baseFormal) # 0 THEN
+							IF TypeDistance(baseActual,baseFormal,FALSE) # 0 THEN
 								result := Infinity
 							END;
 						END;
@@ -5521,7 +5524,7 @@ TYPE
 	(** compute and return the distance between two types, used for computation of signature distance
 		from -> to
 	**)
-	PROCEDURE TypeDistance(from, to: SyntaxTree.Type): LONGINT;
+	PROCEDURE TypeDistance(from, to: SyntaxTree.Type; varpar: BOOLEAN): LONGINT;
 	VAR i: LONGINT; ptr: SyntaxTree.PointerType;
 	BEGIN
 		i := Infinity;
@@ -5553,7 +5556,13 @@ TYPE
 		ELSIF (from IS SyntaxTree.RecordType) THEN
 			IF to IS SyntaxTree.RecordType THEN i := RecordTypeDistance(from(SyntaxTree.RecordType), to (SyntaxTree.RecordType)) END
 		ELSIF (from IS SyntaxTree.MathArrayType) THEN
-			IF to IS SyntaxTree.MathArrayType THEN i := MathArrayTypeDistance(from(SyntaxTree.MathArrayType), to(SyntaxTree.MathArrayType)) END
+			IF to IS SyntaxTree.MathArrayType THEN 
+				IF varpar & (from(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (to(SyntaxTree.MathArrayType).form # SyntaxTree.Tensor) THEN
+					i := Infinity;
+				ELSE
+					i := MathArrayTypeDistance(from(SyntaxTree.MathArrayType), to(SyntaxTree.MathArrayType)) 
+				END;
+			END
 		ELSIF (from IS SyntaxTree.PointerType) THEN
 			ptr := from(SyntaxTree.PointerType);
 			IF (to = Global.Any) THEN i := 1
