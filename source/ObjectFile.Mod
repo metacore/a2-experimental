@@ -1,4 +1,4 @@
-MODULE ObjectFile;	(* AUTHOR "negelef"; PURPOSE "Generic Object File Format"; *)
+MODULE ObjectFile;	(* AUTHOR "negelef"; PURPOSE "Generic Object File Representation"; *)
 
 IMPORT Streams;
 
@@ -13,8 +13,12 @@ CONST
 	Data* = 2;
 	Const* = 3;
 
+	DefaultExtension* = "Gof";
+
 TYPE
-	SectionName = ARRAY 128 OF CHAR;
+	SectionType = INTEGER;
+
+	SectionName* = ARRAY 128 OF CHAR;
 
 	(* FixupPattern = size (+|-) bits {size (+|-) bits}
 
@@ -46,7 +50,7 @@ TYPE
 	Fixups*=POINTER TO ARRAY OF Fixup;
 
 	Section* = RECORD
-		type*: INTEGER;
+		type*: SectionType;
 		name*: SectionName;
 		fingerprint*, unit*, alignment*, size*, fixups*: LONGINT;
 		fixup*: Fixups;
@@ -56,6 +60,44 @@ TYPE
 VAR
 	types: ARRAY 4 OF ARRAY 10 OF CHAR;
 	modes: ARRAY 2 OF ARRAY 4 OF CHAR;
+
+PROCEDURE IsCode* (type: SectionType): BOOLEAN;
+BEGIN RETURN (type = Code) OR (type = InitCode);
+END IsCode;
+
+PROCEDURE CopySection* (CONST source: Section; VAR dest: Section);
+VAR i: LONGINT;
+BEGIN
+	dest.type := source.type;
+	dest.name := source.name;
+	dest.fingerprint := source.fingerprint;
+	dest.unit := source.unit;
+	dest.alignment := source.alignment;
+	dest.size := source.size;
+	dest.fixups:= source.fixups;
+	NEW (dest.fixup, dest.fixups);
+	NEW (dest.data, dest.size);
+	FOR i := 0 TO dest.fixups - 1 DO dest.fixup[i] := source.fixup[i]; END;
+	FOR i := 0 TO dest.size - 1 DO dest.data[i] := source.data[i]; END;
+END CopySection;
+
+PROCEDURE NibbleToCharacter* (value: INTEGER): CHAR;
+BEGIN
+	IF value >= 10 THEN
+		RETURN CHR ((ORD ('A') - 10) + value);
+	ELSE
+		RETURN CHR (ORD ('0') + value);
+	END;
+END NibbleToCharacter;
+
+PROCEDURE CharacterToNibble* (char: CHAR): INTEGER;
+BEGIN
+	IF ORD (char) >= ORD ('A') THEN
+		RETURN ORD (char) - (ORD ('A') - 10);
+	ELSE
+		RETURN ORD (char) - ORD ('0');
+	END;
+END CharacterToNibble;
 
 PROCEDURE WriteSection* (writer: Streams.Writer; CONST section: Section);
 CONST
@@ -102,19 +144,9 @@ VAR
 	END WriteFixup;
 
 	PROCEDURE WriteData (data: CHAR);
-
-		PROCEDURE GetNibble (value: INTEGER): CHAR;
-		BEGIN
-			IF value >= 10 THEN
-				RETURN CHR ((ORD ('A') - 10) + value);
-			ELSE
-				RETURN CHR (ORD ('0') + value);
-			END;
-		END GetNibble;
-
 	BEGIN
-		writer.Char (GetNibble (ORD (data) DIV 16));
-		writer.Char (GetNibble (ORD (data) MOD 16));
+		writer.Char (NibbleToCharacter (ORD (data) DIV 16));
+		writer.Char (NibbleToCharacter (ORD (data) MOD 16));
 	END WriteData;
 
 BEGIN
@@ -153,6 +185,7 @@ VAR
 		value := 0;
 		reader.GetString (identifier);
 		WHILE (value # LEN (identifiers)) & (identifier # identifiers[value]) DO INC (value); END;
+		IF value = LEN (identifiers) THEN reader.res := Streams.FormatError; END;
 	END ReadIdentifier;
 
 	PROCEDURE ReadPattern (VAR pattern: FixupPattern);
@@ -182,22 +215,11 @@ VAR
 	END ReadFixup;
 
 	PROCEDURE ReadData (VAR data: CHAR);
-	VAR
-		low, high: CHAR;
-
-		PROCEDURE GetNibble (char: CHAR): INTEGER;
-		BEGIN
-			IF ORD (char) >= ORD ('A') THEN
-				RETURN ORD (char) - (ORD ('A') - 10);
-			ELSE
-				RETURN ORD (char) - ORD ('0');
-			END;
-		END GetNibble;
-
+	VAR low, high: CHAR;
 	BEGIN
 		reader.GetChar (high);
 		reader.Char (low);
-		data := CHR (GetNibble (high) * 16 + GetNibble (low));
+		data := CHR (CharacterToNibble (high) * 16 + CharacterToNibble (low));
 	END ReadData;
 
 BEGIN
