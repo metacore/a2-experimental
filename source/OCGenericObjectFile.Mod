@@ -2,11 +2,11 @@ MODULE OCGenericObjectFile; (** AUTHOR "negelef"; PURPOSE "Generic Object File W
 
 IMPORT
 	Formats := OCFormats, Sections := OCSections, IntermediateCode := OCIntermediateCode,
-	Global := OCGlobal, Basic := OCBasic, SyntaxTree := OCSyntaxTree, BinaryCode := OCBinaryCode,
+	Global := OCGlobal, SyntaxTree := OCSyntaxTree, BinaryCode := OCBinaryCode,
 	FingerPrint := OCFingerPrint, Files, Options, ObjectFile, Diagnostics;
 
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
-	VAR extension: ARRAY 10 OF CHAR;
+	VAR path, extension: Files.FileName;
 
 		PROCEDURE Export* (module: Formats.GeneratedModule; symbolFileFormat: Formats.SymbolFileFormat): BOOLEAN;
 		VAR moduleName: SyntaxTree.String; fileName: Files.FileName; file: Files.File; writer: Files.Writer; lookup: FingerPrint.FingerPrinterLookup;
@@ -39,7 +39,8 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			END;
 
 			Global.ModuleFileName (module.module.name, module.module.context, moduleName);
-			Basic.Concat (fileName, "", moduleName, extension);
+			IF path # "" THEN Files.JoinPath (path, moduleName, fileName); ELSE COPY (moduleName, fileName); END;
+			Files.JoinExtension (fileName, extension, fileName);
 			file := Files.New (fileName);
 			IF file = NIL THEN
 				diagnostics.Error(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid,"failed to open object file");
@@ -56,12 +57,14 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 
 		PROCEDURE DefineOptions* (options: Options.Options);
 		BEGIN
-			options.Add(0X,"objectFileExtension",Options.String);
+			options.Add(0X,"path",Options.String);
+			options.Add(0X,"extension",Options.String);
 		END DefineOptions;
 
 		PROCEDURE GetOptions* (options: Options.Options);
 		BEGIN
-			IF ~options.GetString("objectFileExtension",extension) THEN extension := ".Obg" END;
+			IF ~options.GetString("path",extension) THEN path := ""; END;
+			IF ~options.GetString("extension",extension) THEN extension := ObjectFile.DefaultExtension; END;
 		END GetOptions;
 
 END ObjectFileFormat;
