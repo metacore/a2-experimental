@@ -6931,3 +6931,38 @@ positive: array length operator for static and dynamic arrays with static and dy
 	BEGIN Test
 	END Test.
 
+positive: assignment of extended record type to base type (check destination size)
+
+	MODULE Test; 
+
+	TYPE 
+		R= RECORD a,b,c: LONGINT END; 
+		S= RECORD (R) d,e: LONGINT END; 
+		
+	PROCEDURE Test;
+	VAR a0,a1,a2: LONGINT; b: R; c: LONGINT; d: S; 
+	BEGIN
+		a0 := 0; 
+		a1 := 0; 
+		a2 := 0; 
+		c := 0; 
+		d.a := MAX(LONGINT);
+		d.b := MAX(LONGINT);
+		d.c := MAX(LONGINT);
+		d.d := MAX(LONGINT);
+		d.e := MAX(LONGINT);
+		b := d;
+		ASSERT(c=0); 
+		ASSERT(a0=0); 
+		ASSERT(a1=0); 
+		ASSERT(a2=0); 
+		ASSERT(b.a = MAX(LONGINT)); 
+		ASSERT(b.b = MAX(LONGINT)); 
+		ASSERT(b.c = MAX(LONGINT)); 
+		
+	END Test;
+
+
+	BEGIN Test
+	END Test.
+
