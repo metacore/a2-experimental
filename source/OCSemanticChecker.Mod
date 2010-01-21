@@ -2743,14 +2743,9 @@ TYPE
 		BEGIN
 			result := FALSE;
 			IF x = Global.invalidExpression THEN
-			ELSIF (x.type.resolved IS SyntaxTree.PointerType) THEN
-				result := TRUE
-			ELSIF (x.type.resolved IS SyntaxTree.RecordType) & (x.type.resolved(SyntaxTree.RecordType).pointerType # NIL) (* object *) THEN
-				result := TRUE
-			ELSIF (x.type.resolved IS SyntaxTree.ProcedureType) THEN
-				result := TRUE
-			ELSIF ~(x.type.resolved IS SyntaxTree.BasicType) THEN
+			ELSIF ~IsBasicType(x.type) THEN 
 				Error(x.position,Diagnostics.Invalid,"is no basic type");
+				result := FALSE
 			ELSE result := TRUE
 			END;
 			RETURN result
@@ -3425,7 +3420,10 @@ TYPE
 						Error(parameter0.position,Diagnostics.Invalid,"is not a type symbol");
 					END
 				(* ---- SYSTEM.TRACE -----*)
-				ELSIF (id = Global.systemTrace) & Parameters(1,1) & CheckBasicType(parameter0) THEN
+				ELSIF (id = Global.systemTrace) & Parameters(1,1) THEN
+					IF ~IsBasicType(parameter0.type) & ~IsStringType(parameter0.type) THEN
+						Error(parameter0.position,Diagnostics.Invalid,"incompatible parameter");
+					END;
 					(* remaining issues can only be tested in backend *)
 				(* ---- SYSTEM.ADR----- *)
 				ELSIF (id = Global.systemAdr) & Parameters(1,1) THEN
@@ -5843,14 +5841,14 @@ TYPE
 	END ContainsPointer;
 
 
-	PROCEDURE IsStringType(type: SyntaxTree.Type): BOOLEAN;
+	PROCEDURE IsStringType*(type: SyntaxTree.Type): BOOLEAN;
 	BEGIN
 		IF type = NIL THEN RETURN FALSE END;
 		type := type.resolved;
 		RETURN (type IS SyntaxTree.StringType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char8);
 	END IsStringType;
 
-	PROCEDURE IsCharacterType(type: SyntaxTree.Type):BOOLEAN;
+	PROCEDURE IsCharacterType*(type: SyntaxTree.Type):BOOLEAN;
 	BEGIN
 		IF type = NIL THEN RETURN FALSE END;
 		type := type.resolved;
@@ -6002,7 +6000,21 @@ TYPE
 		ELSE RETURN IsExtensibleType(d.type.resolved)
 		END;
 	END IsExtensibleDesignator;
-
+	
+	PROCEDURE IsBasicType(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN	
+		type := type.resolved;
+		IF (type IS SyntaxTree.PointerType) THEN
+			RETURN TRUE
+		ELSIF (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).pointerType # NIL) (* object *) THEN
+			RETURN TRUE
+		ELSIF (type IS SyntaxTree.ProcedureType) THEN
+			RETURN TRUE
+		ELSIF (type IS SyntaxTree.BasicType) THEN
+			RETURN TRUE
+		END; 
+		RETURN FALSE
+	END IsBasicType;	
 
 	PROCEDURE RecordBase(record: SyntaxTree.RecordType): SyntaxTree.RecordType;
 	VAR baseType: SyntaxTree.Type; recordType: SyntaxTree.RecordType;
