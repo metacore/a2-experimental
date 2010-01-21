@@ -3004,7 +3004,7 @@ TYPE
 							Error(position,Diagnostics.Invalid,"assert failed");
 						END;
 						IF (numberActualParameters > 1) & CheckIntegerValue(parameter1,i1) THEN
-							IF (i0<20) THEN
+							IF (i1<20) THEN
 								Error(position,Diagnostics.Invalid,"too small parameter")
 							END;
 						END;
