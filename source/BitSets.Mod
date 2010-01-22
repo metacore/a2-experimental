@@ -1,8 +1,6 @@
 MODULE BitSets;	(** AUTHOR "negelef"; PURPOSE "generic bit container"; *)
 
-IMPORT SYSTEM;
-
-CONST Elements = SYSTEM.SIZEOF (SET);
+CONST Elements = MAX (SET) - MIN (SET) + 1;
 
 TYPE Data = POINTER TO ARRAY OF SET;
 
