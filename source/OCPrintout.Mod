@@ -1275,7 +1275,7 @@ TYPE
 		END VisitStatementBlock;
 
 		PROCEDURE Code(x: SyntaxTree.Code);
-		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN;
+		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN; size,value: LONGINT;
 		CONST CR=0DX;
 		BEGIN
 			IF x.sourceCode # NIL THEN
@@ -1293,8 +1293,10 @@ TYPE
 			END;
 			IF x.inlineCode # NIL THEN
 				w.String("(*");
-				FOR i := 0 TO x.inlineCodeLength -1 DO
-					w.Hex(ORD(x.inlineCode[i]),-2); w.String(" ");
+				size := x.inlineCode.GetSize() DIV 8;
+				FOR i := 0 TO size-1 DO
+					value := x.inlineCode.GetBits(i*8,8);
+					w.Hex(value,-2); w.String(" ");
 				END;
 				w.String("*)");
 			END;

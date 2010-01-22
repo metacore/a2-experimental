@@ -9,7 +9,7 @@ MODULE OCSyntaxTree;   (**  AUTHOR "fof & fn"; PURPOSE "Oberon Compiler: Abstrac
 **)
 
 IMPORT
-	Basic := OCBasic, Scanner := OCScanner, ObjectFile, Commands,StringPool, D := Debugging (* only for debuggging / counting *) ;
+	Basic := OCBasic, Scanner := OCScanner, BitSets, Commands,StringPool, D := Debugging (* only for debuggging / counting *) ;
 
 CONST
 	(** general flags: used in statements, procedure types and symbols
@@ -84,7 +84,7 @@ VAR
 
 TYPE
 	SourceCode*= Scanner.SourceString;
-	BinaryCode*= ObjectFile.DataArray;
+	BinaryCode*= BitSets.BitSet;
 	String*= Scanner.StringType;
 
 	(** visitor pattern implementation *)
@@ -2487,12 +2487,12 @@ TYPE
 	Code*= OBJECT(Statement)
 	VAR
 		sourceCode-: SourceCode; sourceCodeLength-: LONGINT;
-		inlineCode-: BinaryCode; inlineCodeLength-: LONGINT;
+		inlineCode-: BinaryCode;
 
 		PROCEDURE & InitCode(position: LONGINT; outer: Statement);
 		BEGIN
 			InitStatement(position,outer);
-			inlineCode := NIL; inlineCodeLength := 0;
+			inlineCode := NIL;
 			sourceCode := NIL; sourceCodeLength := 0;
 		END InitCode;
 
@@ -2501,10 +2501,9 @@ TYPE
 			ASSERT(sourceCodeLength <= LEN(source));
 		END SetSourceCode;
 
-		PROCEDURE SetBinaryCode*(code: BinaryCode; length: LONGINT);
+		PROCEDURE SetBinaryCode*(code: BinaryCode);
 		BEGIN
-			inlineCode := code; inlineCodeLength := length;
-			ASSERT(inlineCodeLength <= LEN(code));
+			inlineCode := code;
 		END SetBinaryCode;
 
 		PROCEDURE Accept*(v: Visitor);
