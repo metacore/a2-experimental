@@ -1,32 +1,30 @@
 MODULE StaticLinker;	(* AUTHOR "negelef"; PURPOSE "Static Object File Linker"; *)
 
-IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile;
-
-TYPE Data = POINTER TO ARRAY OF CHAR;
+IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile, BitSets;
 
 TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 	VAR
-		size, displacement: LONGINT;
-		data: Data;
+		displacement: GenericLinker.Address;
+		bits: BitSets.BitSet;
 
-	PROCEDURE & InitArrangement (displacement: LONGINT);
-	BEGIN size := 0; SELF.displacement := displacement; NEW (data, 1024);
+	PROCEDURE & InitArrangement (displacement: GenericLinker.Address);
+	BEGIN SELF.displacement := displacement; NEW (bits, 0);
 	END InitArrangement;
 
 	PROCEDURE Allocate* (CONST section: ObjectFile.Section): GenericLinker.Address;
-	VAR address: GenericLinker.Address; new: Data; i: LONGINT;
+	VAR address, alignment: ObjectFile.Bits;
 	BEGIN
-		address := size;
-		IF section.alignment # 0 THEN INC (address, (section.alignment - address MOD section.alignment) MOD section.alignment); END;
-		size := address + section.size;
-		IF size > LEN (data) THEN
-			NEW (new, size * 2);
-			FOR i := 0 TO LEN (data) - 1 DO new[i] := data[i]; END;
-			data := new;
-		END;
-		FOR i := 0 TO section.size - 1 DO data[address + i] := section.data[i]; END;
-		RETURN address;
+		address := bits.GetSize (); alignment := section.alignment * section.unit;
+		IF alignment = 0 THEN alignment := section.unit; END;
+		INC (address, (alignment - address MOD alignment) MOD alignment);
+		bits.Resize (address + section.bits.GetSize ());
+		BitSets.CopyBits (section.bits, 0, bits, address, section.bits.GetSize ());
+		RETURN address DIV section.unit + displacement;
 	END Allocate;
+
+	PROCEDURE Patch* (pos, value: GenericLinker.Address; offset, bits, unit: ObjectFile.Bits);
+	BEGIN SELF.bits.SetBits ((pos - displacement) * unit, bits, value);
+	END Patch;
 
 END Arrangement;
 
@@ -56,16 +54,18 @@ END WriteOutputFile;
 
 PROCEDURE WriteBinaryFile (arrangement: Arrangement; writer: Files.Writer);
 VAR i: LONGINT;
-BEGIN FOR i := 0 TO arrangement.size - 1 DO writer.Char (arrangement.data[i]); END;
+BEGIN
+	FOR i := 0 TO arrangement.bits.GetSize () - 1 BY 8 DO
+		writer.Char (CHR (arrangement.bits.GetBits (i, 8)));
+	END;
 END WriteBinaryFile;
 
 PROCEDURE WriteTRMFile (arrangement: Arrangement; writer: Files.Writer; nibbles: LONGINT);
-VAR i: LONGINT; nibble: INTEGER;
+VAR i: LONGINT;
 BEGIN
-	FOR i := 0 TO arrangement.size * 2 - 1 DO
+	FOR i := 0 TO arrangement.bits.GetSize () - 1 BY 4 DO
 		IF (i # 0) & (i MOD nibbles = 0) THEN writer.Ln; END;
-		IF ODD (i) THEN nibble := ORD (arrangement.data[i DIV 2]) MOD 16; ELSE nibble := ORD (arrangement.data[i DIV 2]) DIV 16; END;
-		writer.Char (ObjectFile.NibbleToCharacter (nibble));
+		writer.Char (ObjectFile.NibbleToCharacter (arrangement.bits.GetBits (i, 4)));
 	END;
 	writer.Ln;
 END WriteTRMFile;
@@ -91,7 +91,7 @@ PROCEDURE Link* (context: Commands.Context);
 VAR options: Options.Options;
 	verbose: BOOLEAN;
 	codeFileFormat, dataFileFormat: FileFormat;
-	codeDisplacement, dataDisplacement: LONGINT;
+	codeDisplacement, dataDisplacement: GenericLinker.Address;
 	path, extension, codeFileName, dataFileName, moduleName: Files.FileName;
 	diagnostics: Diagnostics.StreamDiagnostics; code, data: Arrangement; linker: GenericLinker.Linker;
 BEGIN
@@ -130,9 +130,4 @@ BEGIN
 END Link;
 
 END StaticLinker.;
-
-Compiler.Compile --objectFile=Generic Test.Mod ~
-
-SystemTools.Free StaticLinker GenericLinker ObjectFile ~
-StaticLinker.Link --verbose --fileName=test.bin --fileFormat=TRMCode Test ~
 

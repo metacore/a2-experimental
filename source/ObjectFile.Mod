@@ -1,6 +1,6 @@
 MODULE ObjectFile;	(* AUTHOR "negelef"; PURPOSE "Generic Object File Representation"; *)
 
-IMPORT Streams;
+IMPORT Streams, BitSets;
 
 CONST
 	(* Fixup modes *)
@@ -16,6 +16,9 @@ CONST
 	DefaultExtension* = "Gof";
 
 TYPE
+	Unit* = LONGINT;
+	Bits* = LONGINT;
+
 	SectionType = INTEGER;
 
 	SectionName* = ARRAY 128 OF CHAR;
@@ -34,27 +37,32 @@ TYPE
 			fixupPattern=0+32: 32 bit fixup
 	*)
 	FixupPattern* = RECORD
-		offset*, bits*: LONGINT;
+		offset*, bits*: Bits;
 	END;
 	FixupPatterns*= POINTER TO ARRAY OF FixupPattern;
 
 	Fixup* = RECORD
 		mode*: INTEGER;
-		offset*: LONGINT;
+		offset*: Unit;
 		section*: SectionName;
-		fingerprint*, displacement*, scale*, patterns*: LONGINT;
+		fingerprint*: LONGINT;
+		displacement*: Unit;
+		scale*: Bits;
+		patterns*: LONGINT;
 		pattern*: FixupPatterns;
 	END;
 
-	DataArray*=POINTER TO ARRAY OF CHAR;
 	Fixups*=POINTER TO ARRAY OF Fixup;
 
 	Section* = RECORD
 		type*: SectionType;
 		name*: SectionName;
-		fingerprint*, unit*, alignment*, size*, fixups*: LONGINT;
+		fingerprint*: LONGINT;
+		unit*: Bits;
+		alignment*: Unit;
+		fixups*: LONGINT;
 		fixup*: Fixups;
-		data*: DataArray;
+		bits*: BitSets.BitSet;
 	END;
 
 VAR
@@ -73,15 +81,14 @@ BEGIN
 	dest.fingerprint := source.fingerprint;
 	dest.unit := source.unit;
 	dest.alignment := source.alignment;
-	dest.size := source.size;
 	dest.fixups:= source.fixups;
 	NEW (dest.fixup, dest.fixups);
-	NEW (dest.data, dest.size);
+	NEW (dest.bits, source.bits.GetSize ());
 	FOR i := 0 TO dest.fixups - 1 DO dest.fixup[i] := source.fixup[i]; END;
-	FOR i := 0 TO dest.size - 1 DO dest.data[i] := source.data[i]; END;
+	BitSets.CopyBits (source.bits, 0, dest.bits, 0, source.bits.GetSize ());
 END CopySection;
 
-PROCEDURE NibbleToCharacter* (value: INTEGER): CHAR;
+PROCEDURE NibbleToCharacter* (value: LONGINT): CHAR;
 BEGIN
 	IF value >= 10 THEN
 		RETURN CHR ((ORD ('A') - 10) + value);
@@ -90,7 +97,7 @@ BEGIN
 	END;
 END NibbleToCharacter;
 
-PROCEDURE CharacterToNibble* (char: CHAR): INTEGER;
+PROCEDURE CharacterToNibble* (char: CHAR): LONGINT;
 BEGIN
 	IF ORD (char) >= ORD ('A') THEN
 		RETURN ORD (char) - (ORD ('A') - 10);
@@ -100,11 +107,8 @@ BEGIN
 END CharacterToNibble;
 
 PROCEDURE WriteSection* (writer: Streams.Writer; CONST section: Section);
-CONST
-	Separator = ' '; Tab = 09X;
-
-VAR
-	i: LONGINT;
+CONST Separator = ' '; Tab = 09X;
+VAR i: LONGINT; size: Bits;
 
 	PROCEDURE WriteIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
 	BEGIN
@@ -120,9 +124,7 @@ VAR
 	END WritePattern;
 
 	PROCEDURE WriteFixup (CONST fixup: Fixup);
-	VAR
-		i: LONGINT;
-
+	VAR i: LONGINT;
 	BEGIN
 		WriteIdentifier (fixup.mode, modes);
 		writer.Char (Separator);
@@ -143,12 +145,6 @@ VAR
 		END;
 	END WriteFixup;
 
-	PROCEDURE WriteData (data: CHAR);
-	BEGIN
-		writer.Char (NibbleToCharacter (ORD (data) DIV 16));
-		writer.Char (NibbleToCharacter (ORD (data) MOD 16));
-	END WriteData;
-
 BEGIN
 	WriteIdentifier (section.type, types);
 	writer.Char (Separator);
@@ -162,25 +158,23 @@ BEGIN
 	writer.Char (Separator);
 	writer.Int (section.fixups, 0);
 	writer.Char (Separator);
-	writer.Int (section.size, 0);
+	size := section.bits.GetSize ();
+	writer.Int (size DIV section.unit, 0);
 	FOR i := 0 TO section.fixups - 1 DO
 		writer.Ln; writer.Char (Tab); WriteFixup (section.fixup[i]);
 	END;
-	FOR i := 0 TO section.size - 1 DO
-		IF i MOD 32 = 0 THEN writer.Ln; writer.Char (Tab); END;
-		WriteData (section.data[i]);
+	FOR i := 0 TO size - 1 BY 4 DO
+		IF i MOD (32 * 8) = 0 THEN writer.Ln; writer.Char (Tab); END;
+		writer.Char (NibbleToCharacter (section.bits.GetBits (i, MIN (4, size - i))));
 	END;
 	writer.Ln;
 END WriteSection;
 
 PROCEDURE ReadSection* (reader: Streams.Reader; VAR section: Section);
-VAR
-	i: LONGINT;
+VAR i, size: LONGINT; char: CHAR;
 
 	PROCEDURE ReadIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
-	VAR
-		identifier: ARRAY 10 OF CHAR;
-
+	VAR identifier: ARRAY 10 OF CHAR;
 	BEGIN
 		value := 0;
 		reader.GetString (identifier);
@@ -195,9 +189,7 @@ VAR
 	END ReadPattern;
 
 	PROCEDURE ReadFixup (VAR fixup: Fixup);
-	VAR
-		i: LONGINT;
-
+	VAR i: LONGINT;
 	BEGIN
 		ReadIdentifier (fixup.mode, modes);
 		reader.GetInteger (fixup.offset, FALSE);
@@ -214,14 +206,6 @@ VAR
 		END;
 	END ReadFixup;
 
-	PROCEDURE ReadData (VAR data: CHAR);
-	VAR low, high: CHAR;
-	BEGIN
-		reader.GetChar (high);
-		reader.Char (low);
-		data := CHR (CharacterToNibble (high) * 16 + CharacterToNibble (low));
-	END ReadData;
-
 BEGIN
 	ReadIdentifier (section.type, types);
 	reader.GetString (section.name);
@@ -229,18 +213,20 @@ BEGIN
 	reader.GetInteger (section.unit, FALSE);
 	reader.GetInteger (section.alignment, FALSE);
 	reader.GetInteger (section.fixups, FALSE);
-	reader.GetInteger (section.size, FALSE);
+	reader.GetInteger (size, FALSE); size := size * section.unit;
 	IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
 		NEW (section.fixup, section.fixups);
 	END;
 	FOR i := 0 TO section.fixups - 1 DO
 		ReadFixup (section.fixup[i]);
 	END;
-	IF (section.data = NIL) OR (LEN (section.data) < section.size) THEN
-		NEW (section.data, section.size);
+	IF section.bits # NIL THEN
+		section.bits.Resize (size);
+	ELSE
+		NEW (section.bits, size);
 	END;
-	FOR i := 0 TO section.size - 1 DO
-		ReadData (section.data[i]);
+	FOR i := 0 TO size - 1 BY 4 DO
+		reader.GetChar (char); section.bits.SetBits (i, MIN (4, size - i), CharacterToNibble (char));
 	END;
 END ReadSection;
 

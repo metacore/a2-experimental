@@ -2,20 +2,20 @@ MODULE GenericLinker;	(* AUTHOR "negelef"; PURPOSE "Generic Object File Linker";
 
 IMPORT ObjectFile, Streams, Diagnostics;
 
-TYPE Address* = LONGINT;
+TYPE Address* = ObjectFile.Unit;
 
 CONST InvalidAddress* = MAX (Address);
 
 TYPE Priority = LONGINT;
 
-CONST InitCode = 0; Default = 1;
+CONST InitCode = 0; Code = 1; Default = 2;
 
 TYPE Arrangement* = OBJECT
 
 	PROCEDURE Allocate* (CONST section: ObjectFile.Section): Address;
 	END Allocate;
 
-	PROCEDURE Patch* (at, offset, address: Address; bits: LONGINT );
+	PROCEDURE Patch* (pos, value: Address; offset, bits, unit: ObjectFile.Bits);
 	END Patch;
 
 END Arrangement;
@@ -70,7 +70,7 @@ VAR
 	PROCEDURE Link* (): BOOLEAN;
 	VAR block: Block;
 	BEGIN
-		IF ~error THEN block := firstBlock; WHILE block # NIL DO Reference (block, GetPriority (block) # Default); block := block.next; END; END;
+		IF ~error THEN block := firstBlock; WHILE block # NIL DO Reference (block, GetPriority (block) = InitCode); block := block.next; END; END;
 		IF ~error THEN block := firstBlock; WHILE block # NIL DO IF block.used THEN Arrange (block); END; block := block.next; END; END;
 		IF ~error THEN block := firstBlock; WHILE block # NIL DO IF block.used THEN Patch (block); END; block := block.next; END; END;
 		IF ~error & verbose THEN block := firstBlock; WHILE block # NIL DO Diagnose (block); block := block.next; END; END;
@@ -102,15 +102,18 @@ VAR
 	VAR arrangement: Arrangement; i: LONGINT;
 
 		PROCEDURE PatchFixup (CONST fixup: ObjectFile.Fixup);
-		VAR reference: Block; i: LONGINT;
+		VAR reference: Block; target, address: Address; i: LONGINT;
 
 			PROCEDURE PatchPattern (CONST pattern: ObjectFile.FixupPattern);
-			BEGIN
-				arrangement.Patch (block.address, pattern.offset, reference.address, pattern.bits);
+			BEGIN arrangement.Patch (target, address, pattern.offset, pattern.bits, block.unit); address := ASH (address, -pattern.bits);
 			END PatchPattern;
 
 		BEGIN
+			target := block.address + fixup.offset;
 			reference := FindBlock (fixup.section); ASSERT (reference # NIL);
+			address := reference.address + fixup.displacement;
+			IF fixup.mode = ObjectFile.Relative THEN DEC (address, target); END;
+			address := ASH (address, -fixup.scale);
 			FOR i := 0 TO fixup.patterns - 1 DO PatchPattern (fixup.pattern[i]); END;
 		END PatchFixup;
 
@@ -131,6 +134,7 @@ END Linker;
 PROCEDURE GetPriority (block: Block): Priority;
 BEGIN
 	IF block.type = ObjectFile.InitCode THEN RETURN InitCode END;
+	IF block.type = ObjectFile.Code THEN RETURN Code END;
 	RETURN Default;
 END GetPriority;
 

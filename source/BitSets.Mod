@@ -15,9 +15,9 @@ TYPE BitSet* = OBJECT
 	PROCEDURE Resize* (size: LONGINT);
 	VAR newData: Data; i: LONGINT;
 	BEGIN
-		ASSERT (size > 0);
+		ASSERT (size >= 0);
 		SELF.size := size;
-		size := (size - 1) DIV Elements + 1;
+		size := MAX (size - 1, 0) DIV Elements + 1;
 		IF data # NIL THEN
 			IF size <= LEN (data) THEN RETURN; END;
 			size := MAX (size, LEN (data) * 2);
@@ -65,17 +65,15 @@ TYPE BitSet* = OBJECT
 	PROCEDURE GetBits* (startPos, bits: LONGINT): LONGINT;
 	VAR value: LONGINT;
 	BEGIN
-		value := 0;
 		ASSERT (startPos >= 0); ASSERT (startPos+bits <= size);
+		INC (startPos, bits); value := 0;
 		WHILE bits > 0 DO
-			value := value*2;
+			value := value*2; DEC (startPos); DEC (bits);
 			IF GetBit (startPos) THEN INC (value) END;
-			INC (startPos); DEC (bits)
 		END;
 		WHILE bits < 0 DO
-			value := value*2;
+			value := value*2; INC (startPos); INC (bits);
 			IF GetBit (startPos) THEN INC (value) END;
-			DEC (startPos); INC (bits)
 		END;
 		RETURN value;
 	END GetBits;
@@ -83,11 +81,11 @@ TYPE BitSet* = OBJECT
 END BitSet;
 
 PROCEDURE CopyBits* (source: BitSet; sourcePos: LONGINT; dest: BitSet; destPos, count: LONGINT);
-VAR i: LONGINT;
 BEGIN
-	ASSERT (count > 0);
-	FOR i := 0 TO count - 1 DO
-		dest.SetBit (destPos + i, source.GetBit (sourcePos + i));
+	ASSERT (count >= 0);
+	WHILE count # 0 DO
+		dest.SetBit (destPos, source.GetBit (sourcePos));
+		INC (sourcePos); INC (destPos); DEC (count);
 	END;
 END CopyBits;
 
