@@ -7,7 +7,6 @@ CONST Elements = SYSTEM.SIZEOF (SET);
 TYPE Data = POINTER TO ARRAY OF SET;
 
 TYPE BitSet* = OBJECT
-
 	VAR size: LONGINT;
 	VAR data: Data;
 
@@ -54,10 +53,14 @@ TYPE BitSet* = OBJECT
 
 	PROCEDURE SetBits* (startPos, bits, value: LONGINT);
 	BEGIN
-		WHILE bits # 0 DO
-			ASSERT (startPos >= 0); ASSERT (startPos < size);
+		ASSERT (startPos >= 0); ASSERT (startPos+bits <= size);
+		WHILE bits > 0 DO
 			SetBit (startPos, ODD (value)); value := value DIV 2;
-			IF bits > 0 THEN INC (startPos); DEC (bits); ELSE DEC (startPos); INC (bits); END;
+			INC(startPos); DEC(bits)
+		END;
+		WHILE bits < 0 DO
+			SetBit (startPos, ODD (value)); value := value DIV 2;
+			DEC(startPos); INC(bits)
 		END;
 	END SetBits;
 
@@ -65,10 +68,16 @@ TYPE BitSet* = OBJECT
 	VAR value: LONGINT;
 	BEGIN
 		value := 0;
-		WHILE bits # 0 DO
-			ASSERT (startPos >= 0); ASSERT (startPos < size);
-			IF GetBit (startPos) THEN INC (value); END; value := value * 2;
-			IF bits > 0 THEN INC (startPos); DEC (bits); ELSE DEC (startPos); INC (bits); END;
+		ASSERT (startPos >= 0); ASSERT (startPos+bits <= size);
+		WHILE bits > 0 DO
+			value := value*2;
+			IF GetBit (startPos) THEN INC (value) END;
+			INC (startPos); DEC (bits)
+		END;
+		WHILE bits < 0 DO
+			value := value*2;
+			IF GetBit (startPos) THEN INC (value) END;
+			DEC (startPos); INC (bits)
 		END;
 		RETURN value;
 	END GetBits;
