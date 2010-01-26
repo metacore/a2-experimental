@@ -309,8 +309,9 @@ To update: Configuration.Init ~
 				<Setting name="Open" value="WMArchives.Open"/>
 			</Section>
 			<Section name="skin">
-				<Setting name="Open" value="SkinEditor.OpenSkin"/>
+				<Setting name="Open" value="SkinEditor.Open"/>
 				<Setting name="Set as skin" value="SkinEngine.Load"/>
+				<Setting name="Open archive" value="WMArchives.Open"/>
 			</Section>
 			<Section name="svg">
 				<Setting name="Open" value="WebBrowser.Open"/>
