@@ -31,10 +31,10 @@ VAR
 	diagnostics: Diagnostics.Diagnostics;
 	verbose, error-: BOOLEAN;
 	code, data: Arrangement;
-	firstBlock: Block;
+	firstBlock, firstLinkedBlock: Block;
 
 	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; verbose: BOOLEAN; code, data: Arrangement);
-	BEGIN SELF.diagnostics := diagnostics; SELF.verbose := verbose; error := FALSE; SELF.code := code; SELF.data := data; firstBlock := NIL;
+	BEGIN SELF.diagnostics := diagnostics; SELF.verbose := verbose; error := FALSE; SELF.code := code; SELF.data := data; firstBlock := NIL; firstLinkedBlock := NIL;
 	END InitLinker;
 
 	PROCEDURE Error* (CONST source, message: ARRAY OF CHAR);
@@ -67,21 +67,21 @@ VAR
 		IF previous # NIL THEN previous.next := block; ELSE firstBlock := block; END; block.next := current;
 	END AddSection;
 
-	PROCEDURE Link* (): BOOLEAN;
+	PROCEDURE Link*;
 	VAR block: Block;
 	BEGIN
-		IF ~error THEN block := firstBlock; WHILE block # NIL DO Reference (block, GetPriority (block) = InitCode); block := block.next; END; END;
-		IF ~error THEN block := firstBlock; WHILE block # NIL DO IF block.used THEN Arrange (block); END; block := block.next; END; END;
-		IF ~error THEN block := firstBlock; WHILE block # NIL DO IF block.used THEN Patch (block); END; block := block.next; END; END;
+		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO Reference (block, GetPriority (block) = InitCode); block := block.next; END; END;
+		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO IF block.used THEN Arrange (block); END; block := block.next; END; END;
+		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO IF block.used THEN Patch (block); END; block := block.next; END; END;
+		IF ~error THEN firstLinkedBlock := firstBlock; END;
 		IF ~error & verbose THEN block := firstBlock; WHILE block # NIL DO Diagnose (block); block := block.next; END; END;
-		RETURN ~error;
 	END Link;
 
 	PROCEDURE Reference (block: Block; used: BOOLEAN);
 	VAR i: LONGINT; reference: Block;
 	BEGIN
-		IF used THEN block.used := TRUE END;
-		IF block.referenced THEN RETURN; ELSE block.referenced := TRUE; END;
+		IF used & ~block.used THEN block.used := TRUE;
+		ELSIF block.referenced THEN RETURN; END; block.referenced := TRUE;
 		FOR i := 0 TO block.fixups - 1 DO
 			reference := FindBlock (block.fixup[i].section);
 			IF reference # NIL THEN Reference (reference, block.used); ELSE Error (block.fixup[i].section, "unresolved"); END;

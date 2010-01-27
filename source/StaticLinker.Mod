@@ -33,13 +33,14 @@ TYPE FileFormat = PROCEDURE (arrangement: Arrangement; writer: Files.Writer);
 PROCEDURE ReadObjectFile (CONST moduleName, path, extension: Files.FileName; linker: GenericLinker.Linker);
 VAR fileName: Files.FileName; file: Files.File; reader: Files.Reader;
 BEGIN
+	linker.Information (moduleName, "processing");
 	IF path # "" THEN Files.JoinPath (path, moduleName, fileName); ELSE fileName := moduleName; END;
 	Files.JoinExtension (fileName, extension, fileName);
 	file := Files.Old (fileName);
 	IF file = NIL THEN linker.Error (fileName, "failed to open file"); RETURN; END;
 	Files.OpenReader (reader, file, 0);
 	GenericLinker.Process (reader, linker);
-	IF reader.res # Files.Ok THEN linker.Error (fileName, "failed to parse"); ELSIF ~linker.error THEN linker.Information (fileName, "processed"); END;
+	IF reader.res # Files.Ok THEN linker.Error (fileName, "failed to parse"); END;
 END ReadObjectFile;
 
 PROCEDURE WriteOutputFile (arrangement: Arrangement; CONST fileName: Files.FileName; linker: GenericLinker.Linker; fileFormat: FileFormat);
@@ -118,10 +119,12 @@ BEGIN
 
 	context.arg.GetString (moduleName);
 	WHILE ~linker.error & (context.arg.res = Files.Ok) DO
-		ReadObjectFile (moduleName, path, extension, linker); context.arg.GetString (moduleName);
+		ReadObjectFile (moduleName, path, extension, linker);
+		IF ~linker.error THEN linker.Link; END;
+		context.arg.GetString (moduleName);
 	END;
 
-	IF linker.Link () THEN
+	IF ~linker.error THEN
 		WriteOutputFile (code, codeFileName, linker, codeFileFormat);
 		IF data # code THEN WriteOutputFile (data, dataFileName, linker, dataFileFormat); END;
 	END;
