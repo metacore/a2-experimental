@@ -78,14 +78,21 @@ VAR
 	END Link;
 
 	PROCEDURE Reference (block: Block; used: BOOLEAN);
-	VAR i: LONGINT; reference: Block;
+	VAR i: LONGINT;
+
+		PROCEDURE ReferenceFixup (CONST fixup: ObjectFile.Fixup);
+		VAR reference: Block;
+		BEGIN
+			reference := FindBlock (fixup.section);
+			IF reference = NIL THEN Error (fixup.section, "unresolved");
+			ELSIF reference.fingerprint # block.fixup[i].fingerprint THEN Error (fixup.section, "incompatible");
+			ELSE Reference (reference, block.used); END;
+		END ReferenceFixup;
+
 	BEGIN
 		IF used & ~block.used THEN block.used := TRUE;
 		ELSIF block.referenced THEN RETURN; END; block.referenced := TRUE;
-		FOR i := 0 TO block.fixups - 1 DO
-			reference := FindBlock (block.fixup[i].section);
-			IF reference # NIL THEN Reference (reference, block.used); ELSE Error (block.fixup[i].section, "unresolved"); END;
-		END;
+		FOR i := 0 TO block.fixups - 1 DO ReferenceFixup (block.fixup[i]); END;
 	END Reference;
 
 	PROCEDURE Arrange (block: Block);
