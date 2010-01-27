@@ -72,9 +72,13 @@ END ObjectFileFormat;
 PROCEDURE GetFingerprint (section: Sections.Section; lookup: FingerPrint.FingerPrinterLookup): LONGINT;
 VAR fingerPrinter: FingerPrint.FingerPrinter; fingerPrint: FingerPrint.FingerPrint;
 BEGIN
-	fingerPrinter := lookup.GetFingerPrinter (section.symbol.scope.ownerModule);
-	fingerPrint := fingerPrinter.SymbolFP (section.symbol);
-	RETURN fingerPrint.FP;
+	IF section.symbol = NIL THEN
+		RETURN 0
+	ELSE
+		fingerPrinter := lookup.GetFingerPrinter (section.symbol.scope.ownerModule);
+		fingerPrint := fingerPrinter.SymbolFP (section.symbol);
+		RETURN fingerPrint.FP;
+	END
 END GetFingerprint;
 
 PROCEDURE UpdateFixups (section: BinaryCode.Section; lookup: FingerPrint.FingerPrinterLookup);
