@@ -179,15 +179,15 @@
 		
 		<Standard:Button>
 			<Properties>
-				<Caption></Caption>
+				<Caption>Overlay</Caption>
 				<Alignment>2</Alignment>
-				<OnClickHandler></OnClickHandler>
+				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
 			
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString></CommandString>
+					<CommandString>WMOverlay.Open</CommandString>
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>

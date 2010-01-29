@@ -40,6 +40,7 @@
 			</Standard:SystemCommand>
 		</Standard:Button>
 	</Standard:Panel>
+	
 <!-- Second column -->	
 	<Standard:Panel>
 		<Properties>
@@ -59,14 +60,14 @@
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>WMClock.Open;StartMenu.ClosePopup</CommandString>
+					<CommandString>WMClock.Open</CommandString>
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
 		
 		<Standard:Button>
 			<Properties>
-				<Caption>SaveDesktop</Caption>
+				<Caption>Calendar</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
@@ -74,7 +75,7 @@
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString>WMRestorable.Store Auto.dsk;SkinEngine.SetCurrentAsDefault;StartMenu.ClosePopup</CommandString>
+					<CommandString>WMCalendar.Open</CommandString>
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
@@ -104,9 +105,9 @@
 			</Standard:SystemCommand>
 		</Standard:Button>
 		
-		<Standard:Button>
+				<Standard:Button>
 			<Properties>
-				<Caption></Caption>
+				<Caption>SaveDesktop</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
@@ -114,10 +115,11 @@
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString></CommandString>
+					<CommandString>WMRestorable.Store Auto.dsk;SkinEngine.SetCurrentAsDefault;StartMenu.ClosePopup</CommandString>
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
+		
 	</Standard:Panel>	
 	
 <!-- Reboot Shutdown-->	

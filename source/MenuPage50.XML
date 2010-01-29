@@ -46,7 +46,20 @@
 		</Properties>
 		<Standard:Button>
 			<Properties>
-				<Caption>GUIPatterns</Caption>
+				<Caption>GUIBuilder</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+			<Standard:SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMBuilder.Open</CommandString>
+				</Properties>
+			</Standard:SystemCommand>
+		</Standard:Button>
+		<Standard:Button>
+			<Properties>
+				<Caption>GUI Patterns</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
@@ -54,19 +67,6 @@
 				<Properties>
 					<ID>X</ID>
 					<CommandString>Notepad.Open GUIPat.txt</CommandString>
-				</Properties>
-			</Standard:SystemCommand>
-		</Standard:Button>
-		<Standard:Button>
-			<Properties>
-				<Caption></Caption>
-				<Alignment>2</Alignment>
-				<OnClickHandler>X Run</OnClickHandler>
-			</Properties>
-			<Standard:SystemCommand>
-				<Properties>
-					<ID>X</ID>
-					<CommandString></CommandString>
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
