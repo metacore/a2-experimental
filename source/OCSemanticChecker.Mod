@@ -450,7 +450,7 @@ TYPE
 					END;
 				END;
 				IF x.form = SyntaxTree.Static THEN
-					x.SetIncrement(Global.SizeOf(system,arrayBase));
+					x.SetIncrement(system.SizeOf(arrayBase));
 				END;
 				x.SetState(SyntaxTree.Resolved);
 			END;
@@ -3411,7 +3411,7 @@ TYPE
 				ELSIF (id = Global.systemSizeOf) & Parameters(1,1) THEN
 					IF (parameter0.type = SyntaxTree.typeDeclarationType) THEN
 						type := parameter0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
-						result.SetResolved(SyntaxTree.NewIntegerValue(position,Global.SizeOf(system,type.resolved) DIV 8 (* in bytes *) ));
+						result.SetResolved(SyntaxTree.NewIntegerValue(position,system.SizeOf(type.resolved) DIV 8 (* in bytes *) ));
 						type := Global.Integer16;
 						(* was Int16  in paco but should be systemSize (conflict with current release) *)
 					ELSE
@@ -4721,8 +4721,8 @@ TYPE
 				ELSE
 					offset := 0;
 				END;
-				DEC(offset,Global.SizeOf(system,variable.type));
-				Basic.Align(offset,-Global.AlignmentOf(system,system.variableAlignment,variable.type));
+				DEC(offset,system.SizeOf(variable.type));
+				Basic.Align(offset,-system.AlignmentOf(system.variableAlignment,variable.type));
 				variable(SyntaxTree.Variable).SetOffset(offset);
 
 				scope.AddVariable(variable(SyntaxTree.Variable));
