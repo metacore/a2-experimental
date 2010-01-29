@@ -1,4 +1,4 @@
-<Panel>
+<Standard:Panel>
 	<Properties>
 		<Bounds>
 			<Left>0</Left>
@@ -9,7 +9,7 @@
 		<FillColor>00000000</FillColor>
 		<TakesFocus>true</TakesFocus>
 		<Alignment>2</Alignment>
-	</Properties><Button>
+	</Properties><Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>204</Left>
@@ -24,16 +24,16 @@
 			<BgDefault>present.tar://present3-2.png</BgDefault>
 			<BgHover>present.tar://present3-2h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>WMFTPClient.Open</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
+	</Standard:Button>
 	
-	<Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>147</Left>
@@ -48,15 +48,15 @@
 			<BgDefault>present.tar://present2-3.png</BgDefault>
 			<BgHover>present.tar://present2-3h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>WMSystemComponents.Open</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>202</Left>
@@ -71,15 +71,15 @@
 			<BgDefault>present.tar://present1-2.png</BgDefault>
 			<BgHover>present.tar://present1-2h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>WMCharMap.Open</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>268</Left>
@@ -94,15 +94,15 @@
 			<BgDefault>present.tar://present5-3.png</BgDefault>
 			<BgHover>present.tar://present5-3h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>PET.Open TestTrees.Mod TestMenu.Mod TestComponentDragDrop.Mod ExampleTextWriter.Mod PieTest.Mod</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>268</Left>
@@ -117,15 +117,15 @@
 			<BgDefault>present.tar://present2-2.png</BgDefault>
 			<BgHover>present.tar://present2-2h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>SkinEngine.Load glass.skin</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>162</Left>
@@ -140,15 +140,15 @@
 			<BgDefault>present.tar://present4-3.png</BgDefault>
 			<BgHover>present.tar://present4-3h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>WMBunny.Insert XmasBunnyLinear.gif 8 16</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>328</Left>
@@ -163,15 +163,15 @@
 			<BgDefault>present.tar://present1-3.png</BgDefault>
 			<BgHover>present.tar://present1-3h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>WMBunny.Insert SantaLinear.gif 10 25</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>100</Left>
@@ -186,15 +186,15 @@
 			<BgDefault>present.tar://present5-2.png</BgDefault>
 			<BgHover>present.tar://present5-2h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>SkinEngine.Load redlook.skin</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>350</Left>
@@ -209,15 +209,15 @@
 			<BgDefault>present.tar://present4-1.png</BgDefault>
 			<BgHover>present.tar://present4-1h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>SkinEditor.Open</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>126</Left>
@@ -232,15 +232,15 @@
 			<BgDefault>present.tar://present1-3.png</BgDefault>
 			<BgHover>present.tar://present1-3h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>Snow.Snow</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>60</Left>
@@ -255,15 +255,15 @@
 			<BgDefault>present.tar://present2-1.png</BgDefault>
 			<BgHover>present.tar://present2-1h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>SkinEngine.Load BluePlastic.skin</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>222</Left>
@@ -278,15 +278,15 @@
 			<BgDefault>present.tar://present3-1.png</BgDefault>
 			<BgHover>present.tar://present3-1h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>DTPRect.Register;DTPImage.Register;DTPText.Register;DTPEditor.Open Demo</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>376</Left>
@@ -301,15 +301,15 @@
 			<BgDefault>present.tar://present2-2.png</BgDefault>
 			<BgHover>present.tar://present2-2h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>SkinEngine.Load xmas.skin</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>183</Left>
@@ -324,15 +324,15 @@
 			<BgDefault>present.tar://present5-2.png</BgDefault>
 			<BgHover>present.tar://present5-2h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>WMTextStyleTool.Open</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>144</Left>
@@ -347,15 +347,15 @@
 			<BgDefault>present.tar://present4-3.png</BgDefault>
 			<BgHover>present.tar://present4-3h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>SkinEngine.Load aqua.skin</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>288</Left>
@@ -370,15 +370,15 @@
 			<BgDefault>present.tar://present5-3.png</BgDefault>
 			<BgHover>present.tar://present5-3h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>SkinEngine.Load winxp.skin</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>314</Left>
@@ -393,15 +393,15 @@
 			<BgDefault>present.tar://present1-1.png</BgDefault>
 			<BgHover>present.tar://present1-1h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>PET.Open</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>246</Left>
@@ -416,15 +416,15 @@
 			<BgDefault>present.tar://present4-2.png</BgDefault>
 			<BgHover>present.tar://present4-2h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>WMPartitions.Open</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>203</Left>
@@ -439,15 +439,15 @@
 			<BgDefault>present.tar://present2-1.png</BgDefault>
 			<BgHover>present.tar://present2-1h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>WMArchives.Open</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-	<Button>
+	</Standard:Button>
+	<Standard:Button>
 		<Properties>
 			<Bounds>
 				<Left>80</Left>
@@ -462,12 +462,12 @@
 			<BgDefault>present.tar://present3-1.png</BgDefault>
 			<BgHover>present.tar://present3-1h.png</BgHover>
 			<UseBgBitmaps>true</UseBgBitmaps>
-		</Properties><SystemCommand>
+		</Properties><Standard:SystemCommand>
 			<Properties>
 				<ID>X</ID>
 				<CommandString>Decoder.Open Machine.Obx</CommandString>
 			</Properties>
-		</SystemCommand>
+		</Standard:SystemCommand>
 		
-	</Button>
-</Panel>
+	</Standard:Button>
+</Standard:Panel>
