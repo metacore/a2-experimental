@@ -906,7 +906,7 @@ TYPE
 				END
 			ELSE
 				IF (formalType IS SyntaxTree.CharacterType) & (actualType IS SyntaxTree.StringType) & (actualType(SyntaxTree.StringType).length = 2) THEN
-					actualType := Global.Char8;
+					actualType := system.charType;
 				END;
 				IF (SyntaxTree.WinAPIFlag IN formal.procedureType.flags) &  (actualType = Global.NilType) THEN
 					result := TRUE; (* special rule for WINAPI parameters *)
@@ -939,7 +939,7 @@ TYPE
 			rightType := RegularType(right.position,right.type);
 
 			IF (leftType IS SyntaxTree.CharacterType) & (rightType IS SyntaxTree.StringType) & (rightType(SyntaxTree.StringType).length = 2) THEN
-				rightType := Global.Char8; (* conversion character "x" -> string "x" *)
+				rightType := system.charType; (* conversion character "x" -> string "x" *)
 			END;
 
 			IF (leftType = Global.invalidType) OR (rightType = Global.invalidType) THEN
@@ -1024,7 +1024,7 @@ TYPE
 		(** check and resolve character value **)
 		PROCEDURE VisitCharacterValue(value: SyntaxTree.CharacterValue);
 		BEGIN
-			value.SetType(Global.Char8);
+			value.SetType(system.charType);
 			resolvedExpression := value
 		END VisitCharacterValue;
 
@@ -1411,7 +1411,7 @@ TYPE
 				ELSIF (type = Global.Set) THEN
 					result := SyntaxTree.NewSetValue(expression.position,SYSTEM.VAL(SET,int));
 					result.SetType(type);
-				ELSIF (type = Global.Char8) OR (type = Global.Byte) THEN
+				ELSIF (type = system.charType) OR (type = Global.Byte) THEN
 					result := SyntaxTree.NewCharacterValue(expression.position,SYSTEM.VAL(CHAR,int));
 					result.SetType(type);
 				ELSE
@@ -1446,7 +1446,7 @@ TYPE
 				IF (type = Global.Integer8) OR (type = Global.Integer16) OR (type = Global.Integer32) OR (type= Global.Integer64) THEN
 					result := SyntaxTree.NewIntegerValue(expression.position,SYSTEM.VAL(LONGINT,set));
 					result.SetType(type);
-				ELSIF (type = Global.Char8) OR (type = Global.Byte) THEN (* for example: possible via ch = CHR(SYSTEM.VAL(LONGINT,set)) *)
+				ELSIF (type = system.charType) OR (type = Global.Byte) THEN (* for example: possible via ch = CHR(SYSTEM.VAL(LONGINT,set)) *)
 					result := SyntaxTree.NewCharacterValue(expression.position,SYSTEM.VAL(CHAR,set));
 					result.SetType(type);
 				ELSE
@@ -1454,16 +1454,16 @@ TYPE
 					result := Global.invalidExpression;
 				END;
 			ELSIF IsStringValue(expression,string) THEN
-				IF ((type = Global.Char8) OR (type = Global.Byte)) & (string[1]=0X) THEN
+				IF ((type = system.charType) OR (type = Global.Byte)) & (string[1]=0X) THEN
 					result := SyntaxTree.NewCharacterValue(expression.position,string[0]);
 					result.SetType(type);
-				ELSIF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char8) THEN (* nothing to be done *)
+				ELSIF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = system.charType) THEN (* nothing to be done *)
 				ELSE
 					Error(position,Diagnostics.Invalid,"string value cannot be converted");
 					result := Global.invalidExpression;
 				END;
 			ELSIF IsCharacterValue(expression,char) THEN
-				IF (type IS SyntaxTree.StringType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char8) THEN
+				IF (type IS SyntaxTree.StringType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = system.charType) THEN
 					string[0] := char; string[1] := 0X;
 					type := SyntaxTree.NewStringType(InvalidPosition,2);
 					result := SyntaxTree.NewStringValue(expression.position,string);
@@ -1478,7 +1478,7 @@ TYPE
 				ELSIF (type = Global.Set) THEN
 					result := SyntaxTree.NewSetValue(expression.position,SYSTEM.VAL(SET,char));
 					result.SetType(type);
-				ELSIF (type = Global.Char8) THEN
+				ELSIF (type = system.charType) THEN
 					result := SyntaxTree.NewCharacterValue(expression.position,char);
 					result.SetType(type);
 				ELSE
@@ -1551,7 +1551,7 @@ TYPE
 				END;
 			ELSIF (expression.type.resolved IS SyntaxTree.MathArrayType) THEN
 					Error(expression.position,Diagnostics.Invalid,"cannot convert array type to non-array type")
-			ELSIF ~(type IS SyntaxTree.BasicType) & (expression.type.resolved # Global.Char8) THEN
+			ELSIF ~(type IS SyntaxTree.BasicType) & (expression.type.resolved # system.charType) THEN
 				(*skip, no conversion*)
 			ELSIF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Byte) THEN
 				(* skip, no conversion *)
@@ -2132,14 +2132,14 @@ TYPE
 				Error(x.position,Diagnostics.Invalid,"forbidden lower range type");
 				result := Global.invalidExpression;
 			ELSIF (from IS SyntaxTree.StringValue) THEN
-				from := ConvertValue(from.position,from(SyntaxTree.Value),Global.Char8);
+				from := ConvertValue(from.position,from(SyntaxTree.Value),system.charType);
 			END;
 			IF to = NIL THEN
 			ELSIF ~(to.type.resolved IS SyntaxTree.IntegerType) & ~IsCharacterType(to.type) THEN
 				Error(to.position,Diagnostics.Invalid,"forbidden upper range type");
 				result := Global.invalidExpression;
 			ELSIF (to IS SyntaxTree.StringValue) THEN
-				to := ConvertValue(to.position,to(SyntaxTree.Value),Global.Char8);
+				to := ConvertValue(to.position,to(SyntaxTree.Value),system.charType);
 			END;
 			IF result # Global.invalidExpression THEN
 				IF (from # NIL) & (to # NIL) THEN
@@ -2790,7 +2790,7 @@ TYPE
 		BEGIN
 			result := FALSE;
 			IF x = Global.invalidExpression THEN
-			ELSIF ~(x.type.resolved = Global.Char8) & (x.type.resolved # Global.Byte) & ~IsCharacterType(x.type.resolved) THEN
+			ELSIF ~(x.type.resolved = system.charType) & (x.type.resolved # Global.Byte) & ~IsCharacterType(x.type.resolved) THEN
 				Error(x.position,Diagnostics.Invalid,"is no character type");
 			ELSE result := TRUE
 			END;
@@ -3184,7 +3184,7 @@ TYPE
 					END;
 				(* ---- CAP ----- *)
 				ELSIF (id = Global.Cap) & Parameters(1,1) THEN
-					type := Global.Char8;
+					type := system.charType;
 					IF CheckCharacterType (parameter0) THEN
 						IF IsCharacterValue(parameter0,c) THEN
 							IF (c <= "z") & (c >= "a") THEN
@@ -3196,7 +3196,7 @@ TYPE
 					END;
 				(* ---- CHR ----- *)
 				ELSIF (id = Global.Chr) & Parameters(1,1) THEN
-					type := Global.Char8;
+					type := system.charType;
 					IF CheckIntegerType(parameter0) THEN
 						IF IsIntegerValue(parameter0,i0)  THEN
 							result.SetResolved(SyntaxTree.NewCharacterValue(position,CHR(i0)));
@@ -3282,7 +3282,7 @@ TYPE
 					IF numberActualParameters = 1 THEN
 						IF parameter0.type = SyntaxTree.typeDeclarationType THEN
 							type := parameter0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved;
-							IF type = Global.Char8 THEN result.SetResolved(SyntaxTree.NewCharacterValue(position,MAX(CHAR)));
+							IF type = system.charType THEN result.SetResolved(SyntaxTree.NewCharacterValue(position,MAX(CHAR)));
 							ELSIF type = Global.Char16 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0FFFFH));
 							ELSIF type = Global.Char32 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0FFFFFFFFH));
 							ELSIF type = Global.Integer8 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,MAX(SHORTINT)));
@@ -3291,7 +3291,7 @@ TYPE
 							ELSIF type = Global.Integer64 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,MAX(HUGEINT)));
 							ELSIF type = Global.Float32 THEN result.SetResolved(SyntaxTree.NewRealValue(position,MAX(REAL)));
 							ELSIF type = Global.Float64 THEN result.SetResolved(SyntaxTree.NewRealValue(position,MAX(LONGREAL)));
-							ELSIF type = Global.Set THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,system.setSize-1)); type := Global.Integer8;
+							ELSIF type = Global.Set THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,system.SizeOf(system.setType)-1)); type := Global.Integer8;
 							ELSE Error(Diagnostics.Invalid,parameter0.position,"builtin function not applicable to this type");
 							END;
 						ELSE
@@ -3317,7 +3317,7 @@ TYPE
 					IF numberActualParameters = 1 THEN
 						IF parameter0.type = SyntaxTree.typeDeclarationType THEN
 							type := parameter0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved;
-							IF type = Global.Char8 THEN result.SetResolved(SyntaxTree.NewCharacterValue(position,MIN(CHAR)));
+							IF type = system.charType THEN result.SetResolved(SyntaxTree.NewCharacterValue(position,MIN(CHAR)));
 							ELSIF type = Global.Char16 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0H));
 							ELSIF type = Global.Char32 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0H));
 							ELSIF type = Global.Integer8 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,MIN(SHORTINT)));
@@ -3387,7 +3387,7 @@ TYPE
 				(* ---- LONG ----- *)
 				ELSIF (id = Global.Long) & Parameters(1,1) THEN
 					type := type0;
-					IF type = Global.Char8 THEN
+					IF type = system.charType THEN
 						type := Global.Integer32;
 					ELSE
 						i := 0;
@@ -5198,8 +5198,8 @@ TYPE
 
 	PROCEDURE ToMemoryUnits(system: Global.System; size: LONGINT): LONGINT;
 	BEGIN
-		ASSERT(size MOD system.memoryUnit = 0);
-		RETURN size DIV system.memoryUnit
+		ASSERT(size MOD system.dataUnit = 0);
+		RETURN size DIV system.dataUnit
 	END ToMemoryUnits;
 
 	(* Returns TRUE if the built-in function GETPROCEDURE can be used with this procedure type *)
