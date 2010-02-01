@@ -38734,6 +38734,24 @@ positive: use a value for a the address in SYSTEM.GET
 
 	END Test.
 
+negative: negative values in address
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a: SYSTEM.ADDRESS;
+	BEGIN 
+		a := -1;
+	END Test.
+
+negative: negative values in address in SYSTEM.GET
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a: LONGINT;
+	BEGIN 
+		SYSTEM.GET(-1,a)
+	END Test.
+
 positive: ugly system.val with records
 
 	MODULE Test;

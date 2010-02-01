@@ -1388,16 +1388,15 @@ TYPE
 			IF expression IS SyntaxTree.IntegerValue THEN
 				int := expression(SyntaxTree.IntegerValue).hvalue;
 				IF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) OR (type= Global.Hugeint) 
-					OR (type = Global.Size) OR (type = Global.Address) THEN
+					OR (type = system.sizeType) THEN
 					int := Global.Trim(int,system.SizeOf(type)); 
-					(*
-					IF type = Global.Shortint THEN int := SHORT(SHORT(SHORT(int)))
-					ELSIF type = Global.Integer THEN int := SHORT(SHORT(int))
-					ELSIF type = Global.Longint THEN int := SHORT(int)
-					END;
-					*)
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);
+				ELSIF (type = Global.Address) THEN
+					IF int < 0 THEN Error(position,Diagnostics.Invalid,"negative value cannot be converted to address") END;
+					int := Global.Trim(int,system.SizeOf(type)); 
+					result := SyntaxTree.NewIntegerValue(position,int);
+					result.SetType(type);					
 				ELSIF (type= Global.Real) OR (type= Global.Longreal) THEN
 					result := SyntaxTree.NewRealValue(expression.position,int);
 					result.SetType(type);
@@ -2444,7 +2443,7 @@ TYPE
 				index.HasRange;
 			ELSIF (expression.type.resolved IS SyntaxTree.IntegerType) THEN
 				IndexCheck(expression,over.length);
-				expression := NewConversion(InvalidPosition,expression,Global.Size);
+				expression := NewConversion(InvalidPosition,expression,system.sizeType);
 				parameters.AddExpression(expression);
 			ELSIF (expression IS SyntaxTree.RangeExpression) THEN
 				range := expression(SyntaxTree.RangeExpression);
@@ -2475,8 +2474,8 @@ TYPE
 				ELSE IndexCheck(to,over.length)
 				END;
 
-				range.SetFrom(NewConversion(InvalidPosition,range.from,Global.Size));
-				range.SetTo(NewConversion(InvalidPosition,range.to,Global.Size));
+				range.SetFrom(NewConversion(InvalidPosition,range.from,system.sizeType));
+				range.SetTo(NewConversion(InvalidPosition,range.to,system.sizeType));
 
 				IF (to # NIL) & IsIntegerValue(from,fromvalue) & IsIntegerValue(to,tovalue) & ((by = NIL) OR IsIntegerValue(by,byvalue)) THEN
 					length := tovalue - fromvalue;
@@ -2502,7 +2501,7 @@ TYPE
 				Error(position,Diagnostics.Invalid,"invalid index");
 			ELSIF (expression.type.resolved IS SyntaxTree.IntegerType) THEN
 				IndexCheck(expression,over.length);
-				expression := NewConversion(InvalidPosition,expression,Global.Size);
+				expression := NewConversion(InvalidPosition,expression,system.sizeType);
 				parameters.AddExpression(expression);
 			ELSE
 				Error(position,Diagnostics.Invalid,"invalid index");
@@ -3124,7 +3123,7 @@ TYPE
 									REPEAT
 										actualParameter := actualParameters.GetExpression(i);
 										IF CheckIntegerType(actualParameter) THEN
-											actualParameter := NewConversion(0,actualParameter,Global.Size);
+											actualParameter := NewConversion(0,actualParameter,system.sizeType);
 											actualParameters.SetExpression(i,actualParameter);
 										END;
 										INC(i);
@@ -3414,14 +3413,14 @@ TYPE
 					(* remaining issues can only be tested in backend *)
 				(* ---- SYSTEM.ADR----- *)
 				ELSIF (id = Global.systemAdr) & Parameters(1,1) THEN
-						type := Global.Address;
+						type := system.addressType;
 				(* ---- SYSTEM.BIT ----- *)
 				ELSIF (id = Global.systemBit) & Parameters(2,2) THEN
 					(*! implement *)
 				(* ---- SYSTEM.GET64 ----- *)
 				ELSIF (id = Global.systemGet64) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address);
+						parameter0 := NewConversion(0,parameter0,system.addressType);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 					type := Global.Hugeint;
@@ -3429,7 +3428,7 @@ TYPE
 				(* ---- SYSTEM.GET32 ----- *)
 				ELSIF (id = Global.systemGet32) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address);
+						parameter0 := NewConversion(0,parameter0,system.addressType);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 					type := Global.Longint;
@@ -3437,7 +3436,7 @@ TYPE
 				(* ---- SYSTEM.GET16 ----- *)
 				ELSIF (id = Global.systemGet16) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address);
+						parameter0 := NewConversion(0,parameter0,system.addressType);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 					type := Global.Integer;
@@ -3445,7 +3444,7 @@ TYPE
 				(* ---- SYSTEM.GET8 ----- *)
 				ELSIF (id = Global.systemGet8) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address);
+						parameter0 := NewConversion(0,parameter0,system.addressType);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 					type := Global.Shortint;
@@ -3481,19 +3480,19 @@ TYPE
 				(* ---- SYSTEM.GET ----- *)
 				ELSIF (id = Global.systemGet) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address);
+						parameter0 := NewConversion(0,parameter0,system.addressType);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 				(* ---- SYSTEM.PUT ----- *)
 				ELSIF (id = Global.systemPut) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address);
+						parameter0 := NewConversion(0,parameter0,system.addressType);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 				(* ---- SYSTEM.PUT64 ----- *)
 				ELSIF (id = Global.systemPut64) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address);
+						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType);
 						parameter1 := NewConversion(parameter1.position,parameter1,Global.Hugeint);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
@@ -3501,7 +3500,7 @@ TYPE
 				(* ---- SYSTEM.PUT32 ----- *)
 				ELSIF (id = Global.systemPut32) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address);
+						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType);
 						parameter1 := NewConversion(parameter1.position,parameter1,Global.Longint);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
@@ -3509,7 +3508,7 @@ TYPE
 				(* ---- SYSTEM.PUT16 ----- *)
 				ELSIF (id = Global.systemPut16) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address);
+						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType);
 						parameter1 := NewConversion(parameter1.position,parameter1,Global.Integer);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
@@ -3517,7 +3516,7 @@ TYPE
 				(* ---- SYSTEM.PUT8 ----- *)
 				ELSIF (id = Global.systemPut8) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address);
+						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType);
 						parameter1 := NewConversion(parameter1.position,parameter1,Global.Shortint);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
@@ -3525,9 +3524,9 @@ TYPE
 				(* ---- SYSTEM.MOVE ----- *)
 				ELSIF (id = Global.systemMove) & Parameters(3,3) THEN
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) & CheckIntegerType(parameter2) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address);
-						parameter1 := NewConversion(0,parameter1,Global.Address);
-						parameter2 := NewConversion(0,parameter2,Global.Address);
+						parameter0 := NewConversion(0,parameter0,system.addressType);
+						parameter1 := NewConversion(0,parameter1,system.addressType);
+						parameter2 := NewConversion(0,parameter2,system.addressType);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
 						actualParameters.SetExpression(2,parameter2);
@@ -3541,7 +3540,7 @@ TYPE
 
 
 
-					type := Global.Size;
+					type := system.sizeType;
 					base := type0;
 
 
@@ -3582,7 +3581,7 @@ TYPE
 					END;
 				(* ---- DIM ----- *)
 				ELSIF (id = Global.Dim) & Parameters(1,1) THEN
-					type := Global.Size;
+					type := system.sizeType;
 					IF type0 IS SyntaxTree.MathArrayType THEN
 						IF type0(SyntaxTree.MathArrayType).form # SyntaxTree.Tensor THEN
 							i := Dimension(type0,{SyntaxTree.Open,SyntaxTree.Static});
@@ -3611,7 +3610,7 @@ TYPE
 					ELSE
 						Error(parameter0.position,Diagnostics.Invalid,"is not a type symbol");
 					END;
-					type := Global.Address;
+					type := system.addressType;
 				(* -------- ERA --------- *)
 				(* ---- SYSTEM.NULL ----- *)
 				ELSIF (id = Global.systemNull) & Parameters(1,1) THEN
@@ -5241,8 +5240,6 @@ TYPE
 			ELSIF to IS SyntaxTree.BasicType THEN
 				IF (to IS SyntaxTree.NumberType) & (this IS SyntaxTree.NumberType) THEN
 					result := Global.BasicTypeDistance(this(SyntaxTree.BasicType),to(SyntaxTree.BasicType)) < Infinity;
-				ELSIF (to = Global.Size) OR (to=Global.Address) & (this IS SyntaxTree.IntegerType) THEN
-					result := (this # Global.Hugeint); (*! this is only a hack *)
 				ELSIF to = Global.Any THEN
 					result :=  (this IS SyntaxTree.RecordType) & this(SyntaxTree.RecordType).isObject OR (this IS SyntaxTree.PointerType) OR (this IS SyntaxTree.ProcedureType) OR (this =Global.Nil) OR (this = Global.Any) OR (this=Global.Object);
 				ELSIF to = Global.Object THEN
@@ -6004,7 +6001,7 @@ TYPE
 		END;
 		RETURN FALSE
 	END IsBasicType;
-
+	
 	PROCEDURE RecordBase(record: SyntaxTree.RecordType): SyntaxTree.RecordType;
 	VAR baseType: SyntaxTree.Type; recordType: SyntaxTree.RecordType;
 	BEGIN
