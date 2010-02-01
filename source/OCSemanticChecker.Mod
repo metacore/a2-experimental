@@ -3524,9 +3524,9 @@ TYPE
 				(* ---- SYSTEM.MOVE ----- *)
 				ELSIF (id = Global.systemMove) & Parameters(3,3) THEN
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) & CheckIntegerType(parameter2) THEN
-						parameter0 := NewConversion(0,parameter0,system.addressType);
-						parameter1 := NewConversion(0,parameter1,system.addressType);
-						parameter2 := NewConversion(0,parameter2,system.addressType);
+						parameter0 := NewConversion(0,parameter0,Global.Address);
+						parameter1 := NewConversion(0,parameter1,Global.Address);
+						parameter2 := NewConversion(0,parameter2,Global.Address);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
 						actualParameters.SetExpression(2,parameter2);
