@@ -38091,7 +38091,7 @@ negative: untraced flag on record type;
 
 #miscellaneous
 
-positive: signed system address type
+positive: system address type size
 
 	MODULE Test;
 	IMPORT SYSTEM;
@@ -38099,11 +38099,19 @@ positive: signed system address type
 	BEGIN a := SYSTEM.SIZEOF(SYSTEM.ADDRESS)
 	END Test.
 
-positive: signed system address function
+negative: signed system address function
 
 	MODULE Test;
 	IMPORT SYSTEM;
 	VAR a: LONGINT;
+	BEGIN a := SYSTEM.ADR(a)
+	END Test.
+
+positive: unsigned system address function
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a: SYSTEM.ADDRESS;
 	BEGIN a := SYSTEM.ADR(a)
 	END Test.
 
@@ -38241,7 +38249,7 @@ positive: SYSTEM.TYPECODE on records, pointer to record and object
 		O1 = OBJECT END O1; O2=OBJECT(O1) END O2;
 
 	PROCEDURE P(VAR r: R1; p: P1; o: O1);
-	VAR a: LONGINT;
+	VAR a: SYSTEM.ADDRESS;
 	BEGIN
 		IF r IS R2 THEN END;
 		a := SYSTEM.TYPECODE(R2);
