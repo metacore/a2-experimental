@@ -1389,12 +1389,12 @@ TYPE
 				int := expression(SyntaxTree.IntegerValue).hvalue;
 				IF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) OR (type= Global.Hugeint) 
 					OR (type = system.sizeType) THEN
-					int := Global.Trim(int,system.SizeOf(type)); 
+					int := Global.ConvertSigned(int,system.SizeOf(type)); 
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);
 				ELSIF (type = Global.Address) THEN
 					IF int < 0 THEN Error(position,Diagnostics.Invalid,"negative value cannot be converted to address") END;
-					int := Global.Trim(int,system.SizeOf(type)); 
+					int := Global.ConvertUnsigned(int,system.SizeOf(type)); 
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);					
 				ELSIF (type= Global.Real) OR (type= Global.Longreal) THEN
