@@ -3420,7 +3420,7 @@ TYPE
 				(* ---- SYSTEM.GET64 ----- *)
 				ELSIF (id = Global.systemGet64) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,system.addressType);
+						parameter0 := NewConversion(0,parameter0,Global.Address);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 					type := Global.Hugeint;
@@ -3428,7 +3428,7 @@ TYPE
 				(* ---- SYSTEM.GET32 ----- *)
 				ELSIF (id = Global.systemGet32) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,system.addressType);
+						parameter0 := NewConversion(0,parameter0,Global.Address);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 					type := Global.Longint;
@@ -3436,7 +3436,7 @@ TYPE
 				(* ---- SYSTEM.GET16 ----- *)
 				ELSIF (id = Global.systemGet16) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,system.addressType);
+						parameter0 := NewConversion(0,parameter0,Global.Address);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 					type := Global.Integer;
@@ -3444,7 +3444,7 @@ TYPE
 				(* ---- SYSTEM.GET8 ----- *)
 				ELSIF (id = Global.systemGet8) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,system.addressType);
+						parameter0 := NewConversion(0,parameter0,Global.Address);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 					type := Global.Shortint;
@@ -3480,19 +3480,19 @@ TYPE
 				(* ---- SYSTEM.GET ----- *)
 				ELSIF (id = Global.systemGet) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(0,parameter0,system.addressType);
+						parameter0 := NewConversion(0,parameter0,Global.Address);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 				(* ---- SYSTEM.PUT ----- *)
 				ELSIF (id = Global.systemPut) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(0,parameter0,system.addressType);
+						parameter0 := NewConversion(0,parameter0,Global.Address);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 				(* ---- SYSTEM.PUT64 ----- *)
 				ELSIF (id = Global.systemPut64) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType);
+						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address);
 						parameter1 := NewConversion(parameter1.position,parameter1,Global.Hugeint);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
@@ -3500,7 +3500,7 @@ TYPE
 				(* ---- SYSTEM.PUT32 ----- *)
 				ELSIF (id = Global.systemPut32) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType);
+						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address);
 						parameter1 := NewConversion(parameter1.position,parameter1,Global.Longint);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
@@ -3508,7 +3508,7 @@ TYPE
 				(* ---- SYSTEM.PUT16 ----- *)
 				ELSIF (id = Global.systemPut16) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType);
+						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address);
 						parameter1 := NewConversion(parameter1.position,parameter1,Global.Integer);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
@@ -3516,7 +3516,7 @@ TYPE
 				(* ---- SYSTEM.PUT8 ----- *)
 				ELSIF (id = Global.systemPut8) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType);
+						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address);
 						parameter1 := NewConversion(parameter1.position,parameter1,Global.Shortint);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
