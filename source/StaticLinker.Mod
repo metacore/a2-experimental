@@ -28,7 +28,7 @@ TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 
 END Arrangement;
 
-TYPE FileFormat = PROCEDURE (arrangement: Arrangement; writer: Files.Writer);
+TYPE FileFormat = PROCEDURE (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
 
 PROCEDURE ReadObjectFile (CONST moduleName, path, extension: Files.FileName; linker: GenericLinker.Linker);
 VAR fileName: Files.FileName; file: Files.File; reader: Files.Reader;
@@ -48,12 +48,12 @@ VAR file: Files.File; writer: Files.Writer;
 BEGIN
 	file := Files.New (fileName);
 	Files.OpenWriter (writer, file, 0);
-	fileFormat (arrangement, writer);
+	fileFormat (linker, arrangement, writer);
 	writer.Update; Files.Register (file);
 	linker.Information (fileName, "written");
 END WriteOutputFile;
 
-PROCEDURE WriteBinaryFile (arrangement: Arrangement; writer: Files.Writer);
+PROCEDURE WriteBinaryFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
 VAR i: LONGINT;
 BEGIN
 	FOR i := 0 TO arrangement.bits.GetSize () - 1 BY 8 DO
@@ -71,13 +71,168 @@ BEGIN
 	writer.Ln;
 END WriteTRMFile;
 
-PROCEDURE WriteTRMCodeFile (arrangement: Arrangement; writer: Files.Writer);
+PROCEDURE WriteTRMCodeFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
 BEGIN WriteTRMFile (arrangement, writer, 9);
 END WriteTRMCodeFile;
 
-PROCEDURE WriteTRMDataFile (arrangement: Arrangement; writer: Files.Writer);
+PROCEDURE WriteTRMDataFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
 BEGIN WriteTRMFile (arrangement, writer, 8);
 END WriteTRMDataFile;
+
+PROCEDURE WritePEFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer; bitmode: INTEGER);
+CONST DOSText = "This program cannot be run in DOS mode.$";
+CONST DOSHeaderSize = 64; DOSCodeSize = 14; DOSTextSize = 40; DOSStubSize = ((DOSHeaderSize + DOSCodeSize + DOSTextSize + 15) DIV 16) * 16;
+CONST FileAlignment = 200H; SectionAlignment = 1000H; HeaderSize = 24; SectionHeaderSize = 40; DirectoryEntries = 16;
+VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress: LONGINT;
+
+	PROCEDURE Reserve (size: LONGINT);
+	BEGIN WHILE size # 0 DO writer.Char (0X); DEC (size); END;
+	END Reserve;
+
+	PROCEDURE WriteBYTE (value: LONGINT);
+	BEGIN writer.Char (CHR (value));
+	END WriteBYTE;
+
+	PROCEDURE WriteWORD (value: LONGINT);
+	BEGIN WriteBYTE (value MOD 100H); WriteBYTE (value DIV 100H);
+	END WriteWORD;
+
+	PROCEDURE WriteDWORD (value: LONGINT);
+	BEGIN WriteWORD (value MOD 10000H); WriteWORD (value DIV 10000H);
+	END WriteDWORD;
+
+	PROCEDURE WritePTR (value: LONGINT);
+	BEGIN WriteDWORD (value); IF bitmode = 64 THEN WriteDWORD (0) END;
+	END WritePTR;
+
+	PROCEDURE WriteDOSStub;
+	BEGIN
+		WriteWORD (5A4DH);	(* e_magic *)
+		WriteWORD (DOSStubSize);	(* e_cblp *)
+		WriteWORD (1);	(* e_cp *)
+		WriteWORD (0);	(* e_crlc *)
+		WriteWORD (DOSHeaderSize DIV 16);	(* e_cparhdr *)
+		WriteWORD (0);	(* e_minalloc *)
+		WriteWORD (0);	(* e_maxalloc *)
+		WriteWORD (0);	(* e_ss *)
+		WriteWORD (0);	(* e_sp *)
+		WriteWORD (0);	(* e_csum *)
+		WriteWORD (0);	(* e_ip *)
+		WriteWORD (0);	(* e_cs *)
+		WriteWORD (DOSHeaderSize);	(* e_lfarlc *)
+		WriteWORD (0);	(* e_ovno *)
+		Reserve (32);	(* e_res *)
+		WriteDWORD (DOSStubSize);	(* e_lfanew *)
+
+		WriteBYTE (00EH); WriteBYTE (01FH); WriteBYTE (0BAH); WriteWORD (DOSCodeSize);
+		WriteBYTE (0B4H); WriteBYTE (009H); WriteBYTE (0CDH); WriteBYTE (021H); WriteBYTE (0B8H);
+		WriteBYTE (001H); WriteBYTE (04CH); WriteBYTE (0CDH); WriteBYTE (021H); writer.String (DOSText);
+
+		Reserve (DOSStubSize - DOSHeaderSize - DOSCodeSize - DOSTextSize);
+	END WriteDOSStub;
+
+	PROCEDURE WriteHeader;
+	BEGIN
+		WriteDWORD (000004550H);	(* Signature *)
+		IF bitmode = 64 THEN
+			WriteWORD (08664H);	(* Machine *)
+		ELSE
+			WriteWORD (0014CH);	(* Machine *)
+		END;
+		WriteWORD (1);	(* NumberOfSections *)
+		WriteDWORD (0);	(* TimeDateStamp *)
+		WriteDWORD (0);	(* PointerToSymbolTable *)
+		WriteDWORD (0);	(* NumberOfSymbols *)
+		WriteWORD (OptionalHeaderSize);	(* SizeOfOptionalHeader *)
+		IF bitmode = 64 THEN
+			WriteWORD (0022FH);	(* Characteristics *)
+		ELSE
+			WriteWORD (0032FH);	(* Characteristics *)
+		END;
+	END WriteHeader;
+
+	PROCEDURE WriteOptionalHeader;
+	VAR ImageSize: LONGINT;
+	BEGIN
+		ImageSize := ((BaseCodeAddress + AlignedCodeSize + (SectionAlignment - 1)) DIV SectionAlignment) * SectionAlignment;
+
+		IF bitmode = 64 THEN
+			WriteWORD (0020BH);	(* Magic *)
+		ELSE
+			WriteWORD (0010BH);	(* Magic *)
+		END;
+		WriteBYTE (0);	(* MajorLinkerVersion *)
+		WriteBYTE (0);	(* MinorLinkerVersion *)
+		WriteDWORD (AlignedCodeSize);	(* SizeOfCode *)
+		WriteDWORD (0);	(* SizeOfInitializedData *)
+		WriteDWORD (0);	(* SizeOfUninitializedData *)
+		WriteDWORD (BaseCodeAddress);	(* AddressOfEntryPoint *)
+		WriteDWORD (BaseCodeAddress);	(* BaseOfCode *)
+		IF bitmode # 64 THEN
+			WriteDWORD (ImageSize);	(* BaseOfData *)
+		END;
+		WritePTR (arrangement.displacement - BaseCodeAddress);	(* ImageBase *)
+		WriteDWORD (SectionAlignment);	(* SectionAlignment *)
+		WriteDWORD (FileAlignment);	(* FileAlignment *)
+		WriteWORD (4);	(* MajorOperatingSystemVersion *)
+		WriteWORD (0);	(* MinorOperatingSystemVersion *)
+		WriteWORD (0);	(* MajorImageVersion *)
+		WriteWORD (0);	(* MinorImageVersion *)
+		WriteWORD (4);	(* MajorSubsystemVersion *)
+		WriteWORD (0);	(* MinorSubsystemVersion *)
+		WriteDWORD (0);	(* Win32VersionValue *)
+		WriteDWORD (ImageSize);	(* SizeOfImage *)
+		WriteDWORD (HeadersSize);	(* SizeOfHeaders *)
+		WriteDWORD (0);	(* CheckSum *)
+		WriteWORD (3);	(* Subsystem *)
+		WriteWORD (0400H);	(* DllCharacteristics *)
+		WritePTR (0100000H);	(* SizeOfStackReserve *)
+		WritePTR (01000H);	(* SizeOfStackCommit *)
+		WritePTR (0100000H);	(* SizeOfHeapReserve *)
+		WritePTR (01000H);	(* SizeOfHeapCommit *)
+		WriteDWORD (0);			(* LoaderFlags *)
+		WriteDWORD (DirectoryEntries);	(* NumberOfRvaAndSizes *)
+
+		Reserve (8);
+		WriteDWORD (0); WriteDWORD (0);
+		Reserve ((DirectoryEntries - 2) * 8);
+	END WriteOptionalHeader;
+
+	PROCEDURE WriteCodeSection;
+	BEGIN
+		writer.String (".text"); Reserve (3);	(* Name *)
+		WriteDWORD (CodeSize);	(* VirtualSize *)
+		WriteDWORD (BaseCodeAddress);	(* VirtualAddress *)
+		WriteDWORD (AlignedCodeSize);	(* SizeOfRawData *)
+		WriteDWORD (HeadersSize);	(* PointerToRawData *)
+		WriteDWORD (0);	(* PointerToRelocations *)
+		WriteDWORD (0);	(* PointerToLinenumbers *)
+		WriteWORD (0);	(* NumberOfRelocations *)
+		WriteWORD (0);	(* NumberOfLinenumbers *)
+		WriteDWORD (SHORT (0E0000020H));	(* Characteristics *)
+	 	Reserve (HeadersSize - DOSStubSize - HeaderSize - OptionalHeaderSize - SectionHeaderSize);
+	 	WriteBinaryFile (linker, arrangement, writer);
+		Reserve (AlignedCodeSize - CodeSize);
+	END WriteCodeSection;
+
+BEGIN
+	OptionalHeaderSize := 96 + DirectoryEntries * 8;
+	IF bitmode = 64 THEN INC (OptionalHeaderSize, 16); END;
+	CodeSize := arrangement.bits.GetSize () DIV 8;
+	AlignedCodeSize := ((CodeSize + (FileAlignment - 1)) DIV FileAlignment) * FileAlignment;
+	HeadersSize := ((DOSStubSize + HeaderSize + OptionalHeaderSize + SectionHeaderSize + (FileAlignment - 1)) DIV FileAlignment) * FileAlignment;
+	BaseCodeAddress := ((HeadersSize + (SectionAlignment - 1)) DIV SectionAlignment) * SectionAlignment;
+
+	WriteDOSStub; WriteHeader; WriteOptionalHeader; WriteCodeSection;
+END WritePEFile;
+
+PROCEDURE WritePE32File (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
+BEGIN WritePEFile (linker, arrangement, writer, 32);
+END WritePE32File;
+
+PROCEDURE WritePE64File (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
+BEGIN WritePEFile (linker, arrangement, writer, 64);
+END WritePE64File;
 
 PROCEDURE GetFileFormat (options: Options.Options; CONST name: Options.Name; default: FileFormat): FileFormat;
 VAR format: ARRAY 10 OF CHAR;
@@ -85,6 +240,8 @@ BEGIN
 	IF ~options.GetString (name, format) THEN RETURN default;
 	ELSIF format = "TRMCode" THEN RETURN WriteTRMCodeFile;
 	ELSIF format = "TRMData" THEN RETURN WriteTRMDataFile;
+	ELSIF format = "PE32" THEN RETURN WritePE32File;
+	ELSIF format = "PE64" THEN RETURN WritePE64File;
 	ELSE RETURN default; END;
 END GetFileFormat;
 
