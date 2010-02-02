@@ -1416,11 +1416,7 @@ TYPE
 				END;
 			ELSIF IsRealValue(expression,real) THEN
 				IF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) THEN
-					int := ENTIER(real);
-					IF type = Global.Shortint THEN int := SHORT(SHORT(SHORT(int)))
-					ELSIF type= Global.Integer THEN int := SHORT(SHORT(int))
-					ELSIF type = Global.Longint THEN int := SHORT(int)
-					END;
+					int := Global.ConvertSigned(ENTIER(real),system.SizeOf(type));
 					result := SyntaxTree.NewIntegerValue(expression.position,int);
 					result.SetType(type);
 				ELSIF (type = Global.Hugeint) THEN
@@ -5323,7 +5319,7 @@ TYPE
 		ELSE
 			arrayBase := formalType.arrayBase.resolved;
 			IF (actualType IS SyntaxTree.StringType) THEN
-				result := arrayBase = Global.Char8
+				result := arrayBase = Global.Char
 			ELSIF actualType IS SyntaxTree.ArrayType THEN
 				result := (arrayBase = Global.Byte) OR TC(formalType,actualType)
 			ELSE
@@ -5524,9 +5520,9 @@ TYPE
 		ELSIF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved = Global.Byte) THEN
 			i := 1
 		ELSIF (from IS SyntaxTree.StringType) THEN
-			IF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char8) THEN  i := 1  END
-		ELSIF (from = Global.Char8) THEN
-			IF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char8) THEN  i := 1
+			IF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char) THEN  i := 1  END
+		ELSIF (from = Global.Char) THEN
+			IF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char) THEN  i := 1
 			ELSIF to = Global.Byte THEN i := 1 END
 		ELSIF (from = Global.Shortint) & (to = Global.Byte) THEN
 			i := 1
@@ -5831,7 +5827,7 @@ TYPE
 	BEGIN
 		IF type = NIL THEN RETURN FALSE END;
 		type := type.resolved;
-		RETURN (type IS SyntaxTree.StringType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char8);
+		RETURN (type IS SyntaxTree.StringType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char);
 	END IsStringType;
 
 	PROCEDURE IsCharacterType*(type: SyntaxTree.Type):BOOLEAN;
