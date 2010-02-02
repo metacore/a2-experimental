@@ -906,7 +906,7 @@ TYPE
 					EndComment;
 				END;
 				w.String( ";" );
-				IF mode > SymbolFile THEN
+				IF mode >= SymbolFile THEN
 					ProcedureScope(x.procedureScope);
 				END;
 				Indent;  Keyword("END " );  Identifier(x.name);
@@ -927,7 +927,7 @@ TYPE
 					Type(type.returnType);
 				END;
 				w.String( ";" );
-				IF mode > SymbolFile THEN
+				IF mode >= SymbolFile THEN
 				ProcedureScope(x.procedureScope);
 				END;
 				Indent;  Keyword("END " );  	w.String( '"' );  Identifier(x.name);  w.String( '"' );
@@ -1042,8 +1042,8 @@ TYPE
 		BEGIN
 			prevScope := currentScope;
 			currentScope := x;
-			Scope(x);
-			IF (mode >= SourceCode) & (x.body # NIL) THEN Body(x.body)
+			IF (mode  >= SourceCode) THEN Scope(x) END;
+			IF (mode >= SymbolFile) & (x.body # NIL) THEN Body(x.body)
 			END;
 			currentScope := prevScope;
 		END ProcedureScope;
@@ -1278,7 +1278,7 @@ TYPE
 		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN; size,value: LONGINT;
 		CONST CR=0DX;
 		BEGIN
-			IF x.sourceCode # NIL THEN
+			IF (x.sourceCode # NIL) THEN
 				i := 0;
 				ch := x.sourceCode[0];
 				WHILE (ch # 0X) DO
@@ -1292,13 +1292,12 @@ TYPE
 				END;
 			END;
 			IF x.inlineCode # NIL THEN
-				w.String("(*");
+				w.String("; ");
 				size := x.inlineCode.GetSize() DIV 8;
 				FOR i := 0 TO size-1 DO
 					value := x.inlineCode.GetBits(i*8,8);
 					w.Hex(value,-2); w.String(" ");
 				END;
-				w.String("*)");
 			END;
 		END Code;
 
