@@ -893,7 +893,7 @@ TYPE
 						Printout.Info("formal",formal);
 					END;
 				ELSIF (formalType = Global.Byte) OR (formalType IS SyntaxTree.RecordType) & (~formalType(SyntaxTree.RecordType).isObject) THEN
-					result := CompatibleTo(actualType,formalType);
+					result := CompatibleTo(system,actualType,formalType);
 				ELSIF (formalType IS SyntaxTree.ArrayType) & (formalType(SyntaxTree.ArrayType).form = SyntaxTree.Open) THEN
 					result := OpenArrayCompatible(formalType(SyntaxTree.ArrayType),actualType);
 				ELSIF (formalType IS SyntaxTree.MathArrayType) THEN
@@ -913,7 +913,7 @@ TYPE
 				ELSIF (formalType IS SyntaxTree.ArrayType) & (formalType(SyntaxTree.ArrayType).form = SyntaxTree.Open) THEN
 					result := OpenArrayCompatible(formalType(SyntaxTree.ArrayType),actualType);
 				ELSE
-					result := CompatibleTo(actualType,formalType)
+					result := CompatibleTo(system,actualType,formalType)
 				END;
 			END;
 			IF ~result & ~error THEN
@@ -951,7 +951,7 @@ TYPE
 					Printout.Info("left",left);
 					Printout.Info("right",right);
 				END;
-			ELSIF ~CompatibleTo(rightType,leftType) THEN
+			ELSIF ~CompatibleTo(system,rightType,leftType) THEN
 				Error(left.position,Diagnostics.Invalid,"incompatible assignment");
 				IF VerboseErrorMessage THEN
 					Printout.Info("left",left);
@@ -1143,9 +1143,9 @@ TYPE
 				x.elements.SetExpression(i,expression);
 				IF type = NIL THEN
 					type := expression.type;
-				ELSIF CompatibleTo(expression.type,type) THEN
+				ELSIF CompatibleTo(system,expression.type,type) THEN
 					(* ok *)
-				ELSIF CompatibleTo(type,expression.type) THEN
+				ELSIF CompatibleTo(system,type,expression.type) THEN
 					type := expression.type
 				ELSE
 					Error(expression.position,Diagnostics.Invalid, "incompatible element types");
@@ -1189,9 +1189,9 @@ TYPE
 						x.elements.SetExpression(i,expression);
 						IF type = NIL THEN
 							type := expression.type;
-						ELSIF CompatibleTo(expression.type,type) THEN
+						ELSIF CompatibleTo(system,expression.type,type) THEN
 							(* ok *)
-						ELSIF CompatibleTo(type,expression.type) THEN
+						ELSIF CompatibleTo(system,type,expression.type) THEN
 							type := expression.type
 						ELSE
 							Error(expression.position,Diagnostics.Invalid, "incompatible element types");
@@ -1387,16 +1387,16 @@ TYPE
 			result := expression; type := type.resolved;
 			IF expression IS SyntaxTree.IntegerValue THEN
 				int := expression(SyntaxTree.IntegerValue).hvalue;
-				IF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) OR (type= Global.Hugeint) 
+				IF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) OR (type= Global.Hugeint)
 					OR (type = system.sizeType) THEN
-					int := Global.ConvertSigned(int,system.SizeOf(type)); 
+					int := Global.ConvertSigned(int,system.SizeOf(type));
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);
 				ELSIF (type = Global.Address) THEN
 					IF int < 0 THEN Error(position,Diagnostics.Invalid,"negative value cannot be converted to address") END;
-					int := Global.ConvertUnsigned(int,system.SizeOf(type)); 
+					int := Global.ConvertUnsigned(int,system.SizeOf(type));
 					result := SyntaxTree.NewIntegerValue(position,int);
-					result.SetType(type);					
+					result.SetType(type);
 				ELSIF (type= Global.Real) OR (type= Global.Longreal) THEN
 					result := SyntaxTree.NewRealValue(expression.position,int);
 					result.SetType(type);
@@ -1559,9 +1559,9 @@ TYPE
 			ELSIF right.type= NIL THEN Error(right.position,Diagnostics.Invalid,"no type")
 			ELSE
 				leftType := left.type.resolved; rightType := right.type.resolved;
-				IF CompatibleTo(leftType,rightType) THEN
+				IF CompatibleTo(system,leftType,rightType) THEN
 					left := NewConversion(left.position,left,right.type.resolved);
-				ELSIF CompatibleTo(rightType,leftType) THEN
+				ELSIF CompatibleTo(system,rightType,leftType) THEN
 					right := NewConversion(right.position,right,left.type.resolved);
 				ELSE
 					Error(left.position,Diagnostics.Invalid,"incompatible operands");
@@ -1573,7 +1573,7 @@ TYPE
 			- search current module scope and all (directly or indirectly) imported modules for matching operator
 			- take operator with smalles distance, where signature distance is computed in procedure Distance
 		**)
-		PROCEDURE FindOperator*(operator: LONGINT; actualParameters: SyntaxTree.ExpressionList; returnType: SyntaxTree.Type): SyntaxTree.Operator;
+		PROCEDURE FindOperator*(system: Global.System; operator: LONGINT; actualParameters: SyntaxTree.ExpressionList; returnType: SyntaxTree.Type): SyntaxTree.Operator;
 		VAR bestOperator: SyntaxTree.Operator; bestDistance: LONGINT; import: SyntaxTree.Import; numberParameters: LONGINT; procedureType: SyntaxTree.ProcedureType;
 			identifier: SyntaxTree.Identifier;
 
@@ -1584,13 +1584,13 @@ TYPE
 				WHILE(operator # NIL) DO
 					IF (operator.name.Equals(identifier)) & (operator.access * access # {}) THEN
 						procedureType := operator.type(SyntaxTree.ProcedureType);
-						distance := Distance(procedureType,actualParameters);
+						distance := Distance(system, procedureType,actualParameters);
 						IF (distance < Infinity) THEN
 							IF returnType # NIL THEN
 								IF procedureType.returnType = NIL THEN
 									distance := Infinity
 								ELSE
-									i := TypeDistance(returnType,procedureType.returnType,TRUE);
+									i := TypeDistance(system,returnType,procedureType.returnType,TRUE);
 									IF i = Infinity THEN distance := Infinity ELSE INC(distance,i) END;
 								END;
 							ELSIF procedureType.returnType # NIL THEN
@@ -1669,7 +1669,7 @@ TYPE
 				IF rightExpression # NIL THEN
 					actualParameters.AddExpression(rightExpression)
 				END;
-				operator := FindOperator(op,actualParameters,resultType);
+				operator := FindOperator(system,op,actualParameters,resultType);
 
 				IF operator # NIL THEN
 					designator := NIL;
@@ -1840,7 +1840,7 @@ TYPE
 					Error(binaryExpression.position,Diagnostics.Invalid, "incompatible operands");
 				END
 			ELSIF (left.type.resolved IS SyntaxTree.ProcedureType) OR (right.type.resolved IS SyntaxTree.ProcedureType) THEN
-				IF ~CompatibleTo(left.type.resolved,right.type.resolved) & ~CompatibleTo(right.type.resolved,left.type.resolved) THEN
+				IF ~CompatibleTo(system,left.type.resolved,right.type.resolved) & ~CompatibleTo(system,right.type.resolved,left.type.resolved) THEN
 					Error(binaryExpression.position,Diagnostics.Invalid,"incompatible operands");
 				END;
 
@@ -1848,7 +1848,7 @@ TYPE
 				ELSE  Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 1")
 				END
 			ELSIF IsPointerType(left.type.resolved) OR IsPointerType(right.type.resolved) THEN
-				IF ~CompatibleTo(left.type.resolved,right.type.resolved) & ~CompatibleTo(right.type.resolved,left.type.resolved) THEN
+				IF ~CompatibleTo(system,left.type.resolved,right.type.resolved) & ~CompatibleTo(system,right.type.resolved,left.type.resolved) THEN
 				(* IsPointerType(left.type.resolved) OR ~IsPointerType(right.type.resolved) THEN *)
 					Error(binaryExpression.position,Diagnostics.Invalid,"incompatible operands");
 					IF VerboseErrorMessage THEN Printout.Info("left.type.resolved",left.type.resolved); Printout.Info("right",right.type.resolved) END
@@ -2140,7 +2140,7 @@ TYPE
 				ELSE
 					commonType := Global.Longint
 				END;
-				IF (by = NIL) OR CompatibleTo(by.type.resolved,commonType.resolved) THEN
+				IF (by = NIL) OR CompatibleTo(system,by.type.resolved,commonType.resolved) THEN
 					x.SetFrom(from); x.SetTo(to); x.SetBy(by);
 					x.SetType(SyntaxTree.NewRangeType(x.position,NIL,commonType))
 				ELSE
@@ -3016,7 +3016,7 @@ TYPE
 						actualParameters.AddExpression(parameter1);
 					END;
 					IF CheckVariable(parameter0) & CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
-						IF ~CompatibleTo(parameter1.type,parameter0.type) THEN
+						IF ~CompatibleTo(system,parameter1.type,parameter0.type) THEN
 							Error(position,Diagnostics.Invalid,"incompatible increment");
 						ELSE
 							parameter1 := NewConversion(0,parameter1,parameter0.type);
@@ -4570,7 +4570,7 @@ TYPE
 				END;
 
 				IF (expressionType = Global.invalidType) THEN
-				ELSIF ~CompatibleTo(expressionType,type) THEN
+				ELSIF ~CompatibleTo(system,expressionType,type) THEN
 					Error(position,Diagnostics.Invalid,"inadmissible case label");
 					expression := Global.invalidExpression;
 				ELSE
@@ -4742,7 +4742,7 @@ TYPE
 
 			expression := ResolveExpression(forStatement.from);
 			IF expression = Global.invalidExpression THEN
-			ELSIF ~CompatibleTo(expression.type.resolved,designator.type.resolved) THEN
+			ELSIF ~CompatibleTo(system,expression.type.resolved,designator.type.resolved) THEN
 				Error(expression.position,Diagnostics.Invalid,"start value of incompatible type");
 				expression := Global.invalidExpression;
 			ELSIF type # Global.invalidType THEN
@@ -4752,7 +4752,7 @@ TYPE
 
 			expression := ResolveExpression(forStatement.to);
 			IF expression = Global.invalidExpression THEN
-			ELSIF ~CompatibleTo(expression.type.resolved,designator.type.resolved) THEN
+			ELSIF ~CompatibleTo(system,expression.type.resolved,designator.type.resolved) THEN
 				Error(expression.position,Diagnostics.Invalid,"end value of incompatible type");
 				expression := Global.invalidExpression;
 			ELSIF type # Global.invalidType THEN
@@ -4768,7 +4768,7 @@ TYPE
 
 
 			IF expression = Global.invalidExpression THEN
-			ELSIF  ~CompatibleTo(expression.type.resolved,designator.type.resolved) THEN
+			ELSIF  ~CompatibleTo(system,expression.type.resolved,designator.type.resolved) THEN
 				Error(expression.position,Diagnostics.Invalid,"step value of incompatible type");
 			ELSIF (expression.resolved(SyntaxTree.IntegerValue).hvalue = 0) THEN
 				Error(expression.position,Diagnostics.Invalid,"invalid step value");
@@ -4836,7 +4836,7 @@ TYPE
 						returnType := returnType.resolved;
 						IF expression = NIL THEN
 							Error(position,Diagnostics.Invalid,"empty return type in procedure providing a return type")
-						ELSIF ~CompatibleTo(expression.type.resolved,returnType) THEN
+						ELSIF ~CompatibleTo(system,expression.type.resolved,returnType) THEN
 							Error(position,Diagnostics.Invalid,"return type not compatible");
 							IF VerboseErrorMessage THEN
 								Printout.Info("returnType",returnType);
@@ -5222,7 +5222,7 @@ TYPE
 		END;
 	END RemoveModuleFromCache;
 
-	PROCEDURE CompatibleTo(this,to: SyntaxTree.Type): BOOLEAN;
+	PROCEDURE CompatibleTo(system: Global.System; this,to: SyntaxTree.Type): BOOLEAN;
 	(* to <- this assignment compatibility *)
 	VAR result: BOOLEAN;
 	BEGIN
@@ -5235,7 +5235,7 @@ TYPE
 				result := ~(to IS SyntaxTree.ArrayType) OR (to(SyntaxTree.ArrayType).form # SyntaxTree.Open);
 			ELSIF to IS SyntaxTree.BasicType THEN
 				IF (to IS SyntaxTree.NumberType) & (this IS SyntaxTree.NumberType) THEN
-					result := Global.BasicTypeDistance(this(SyntaxTree.BasicType),to(SyntaxTree.BasicType)) < Infinity;
+					result := Global.BasicTypeDistance(system,this(SyntaxTree.BasicType),to(SyntaxTree.BasicType)) < Infinity;
 				ELSIF to = Global.Any THEN
 					result :=  (this IS SyntaxTree.RecordType) & this(SyntaxTree.RecordType).isObject OR (this IS SyntaxTree.PointerType) OR (this IS SyntaxTree.ProcedureType) OR (this =Global.Nil) OR (this = Global.Any) OR (this=Global.Object);
 				ELSIF to = Global.Object THEN
@@ -5274,11 +5274,11 @@ TYPE
 						(* special case: ARRAY [...] OF SYSTEM.ALL *)
 					ELSIF (to(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) OR (this(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) THEN
 						(* ARRAY [?] OF <- ARRAY [x,...,x] OF *)
-						result := CompatibleTo(ArrayBase(this,Infinity),ArrayBase(to,Infinity));
+						result := CompatibleTo(system,ArrayBase(this,Infinity),ArrayBase(to,Infinity));
 					ELSIF (to(SyntaxTree.MathArrayType).form = SyntaxTree.Open) OR (this(SyntaxTree.MathArrayType).form = SyntaxTree.Open)
 						OR (to(SyntaxTree.MathArrayType).staticLength = this(SyntaxTree.MathArrayType).staticLength) THEN
 						(* ARRAY [x] OF <- ARRAY [x] OF  *)
-						result := CompatibleTo(this(SyntaxTree.MathArrayType).arrayBase,to(SyntaxTree.MathArrayType).arrayBase);
+						result := CompatibleTo(system,this(SyntaxTree.MathArrayType).arrayBase,to(SyntaxTree.MathArrayType).arrayBase);
 					ELSE
 						result := FALSE
 					END;
@@ -5439,14 +5439,14 @@ TYPE
 	(** compute and return the distance of two array types
 	- return the distance of the base types
 	**)
-	PROCEDURE ArrayTypeDistance(from, to: SyntaxTree.ArrayType): LONGINT;
+	PROCEDURE ArrayTypeDistance(system: Global.System; from, to: SyntaxTree.ArrayType): LONGINT;
 	VAR i: LONGINT;
 	BEGIN
 		i := Infinity;
 		IF from = to THEN
 			i := 0
 		ELSE
-			i := TypeDistance(from.arrayBase.resolved, to.arrayBase.resolved,FALSE);
+			i := TypeDistance(system,from.arrayBase.resolved, to.arrayBase.resolved,FALSE);
 		(*
 		ELSIF (from.mode = static) & (to.mode IN {open}) THEN
 			i := TypeDistance(from.base, to.base);
@@ -5462,7 +5462,7 @@ TYPE
 		- if any of the parameters are not compatible, the result is infinite
 		- add up and return the distance over all parameters
 	**)
-	PROCEDURE Distance(procedureType: SyntaxTree.ProcedureType; actualParameters: SyntaxTree.ExpressionList): LONGINT;
+	PROCEDURE Distance(system: Global.System; procedureType: SyntaxTree.ProcedureType; actualParameters: SyntaxTree.ExpressionList): LONGINT;
 	VAR result: LONGINT; formalParameter: SyntaxTree.Parameter; actualParameter: SyntaxTree.Expression;
 	distance: LONGINT; baseFormal,baseActual: SyntaxTree.Type; i: LONGINT;
 	BEGIN
@@ -5475,7 +5475,7 @@ TYPE
 			(*! taken from paco, seems to not be 100% correct, check (in particular array part -> length of arrays??) *)
 			WHILE (formalParameter # NIL) & (formalParameter.access # SyntaxTree.Hidden) & (result # Infinity) DO
 				actualParameter := actualParameters.GetExpression(i);
-				distance := TypeDistance(actualParameter.type.resolved,formalParameter.type.resolved,formalParameter.kind = SyntaxTree.VarParameter);
+				distance := TypeDistance(system,actualParameter.type.resolved,formalParameter.type.resolved,formalParameter.kind = SyntaxTree.VarParameter);
 				IF distance = Infinity THEN
 					result := Infinity;
 				ELSE
@@ -5489,7 +5489,7 @@ TYPE
 								baseActual := baseActual(SyntaxTree.ArrayType).arrayBase.resolved;
 								baseFormal := baseFormal(SyntaxTree.ArrayType).arrayBase.resolved;
 							END;
-							IF TypeDistance(baseActual,baseFormal,FALSE) # 0 THEN
+							IF TypeDistance(system,baseActual,baseFormal,FALSE) # 0 THEN
 								result := Infinity
 							END;
 						END;
@@ -5507,7 +5507,7 @@ TYPE
 	(** compute and return the distance between two types, used for computation of signature distance
 		from -> to
 	**)
-	PROCEDURE TypeDistance(from, to: SyntaxTree.Type; varpar: BOOLEAN): LONGINT;
+	PROCEDURE TypeDistance(system: Global.System; from, to: SyntaxTree.Type; varpar: BOOLEAN): LONGINT;
 	VAR i: LONGINT; ptr: SyntaxTree.PointerType;
 	BEGIN
 		i := Infinity;
@@ -5533,9 +5533,9 @@ TYPE
 			IF (to IS Delegate) THEN i := 1 END	(*special case: procedure -> proctype, not resolved yet*)
 		*)
 		ELSIF (from IS SyntaxTree.BasicType) THEN
-			IF to IS SyntaxTree.BasicType THEN  i := Global.BasicTypeDistance(from(SyntaxTree.BasicType), to(SyntaxTree.BasicType)) END
+			IF to IS SyntaxTree.BasicType THEN  i := Global.BasicTypeDistance(system,from(SyntaxTree.BasicType), to(SyntaxTree.BasicType)) END
 		ELSIF (from IS SyntaxTree.ArrayType) THEN
-			IF to IS SyntaxTree.ArrayType THEN i := ArrayTypeDistance(from(SyntaxTree.ArrayType), to(SyntaxTree.ArrayType)) END
+			IF to IS SyntaxTree.ArrayType THEN i := ArrayTypeDistance(system,from(SyntaxTree.ArrayType), to(SyntaxTree.ArrayType)) END
 		ELSIF (from IS SyntaxTree.RecordType) THEN
 			IF to IS SyntaxTree.RecordType THEN i := RecordTypeDistance(from(SyntaxTree.RecordType), to (SyntaxTree.RecordType)) END
 		ELSIF (from IS SyntaxTree.MathArrayType) THEN
@@ -5997,7 +5997,7 @@ TYPE
 		END;
 		RETURN FALSE
 	END IsBasicType;
-	
+
 	PROCEDURE RecordBase(record: SyntaxTree.RecordType): SyntaxTree.RecordType;
 	VAR baseType: SyntaxTree.Type; recordType: SyntaxTree.RecordType;
 	BEGIN
