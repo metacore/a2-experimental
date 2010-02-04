@@ -1219,7 +1219,7 @@ TYPE
 			END RecursivelySetExpression;
 
 			PROCEDURE RecursivelySetType(x: SyntaxTree.MathArrayExpression): SyntaxTree.Type;
-			VAR position,numberElements,i,size,gsize: LONGINT; baseType: SyntaxTree.Type;expression: SyntaxTree.Expression;
+			VAR numberElements,i,size,gsize: LONGINT; baseType: SyntaxTree.Type;expression: SyntaxTree.Expression;
 				arrayType: SyntaxTree.MathArrayType;
 			BEGIN
 				numberElements := x.elements.Length();
@@ -1816,7 +1816,7 @@ TYPE
 						Printout.Info("left",left);
 						Printout.Info("right",right);
 					END;
-				ELSIF left.type.resolved = right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved THEN
+				ELSIF (left.type.resolved = right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved) & ~(left.type.resolved IS SyntaxTree.PointerType) THEN
 					NewBool(TRUE)
 				ELSIF right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved = Global.Object THEN
 					NewBool(TRUE);
@@ -3708,7 +3708,7 @@ TYPE
 		VAR
 			parameters: SyntaxTree.ExpressionList;
 			left: SyntaxTree.Designator;
-			result: SyntaxTree.Expression;
+			result,expression: SyntaxTree.Expression;
 			typeDeclaration: SyntaxTree.TypeDeclaration;
 		BEGIN
 			IF Trace THEN D.Str("VisitParameterDesignator"); D.Ln; END;
@@ -3727,6 +3727,13 @@ TYPE
 						ELSE
 							result := NewProcedureCallDesignator(designator.position,left,parameters)
 						END
+					ELSIF IsTypeDesignator(left,typeDeclaration)  & (parameters.Length()=1) THEN
+						expression := parameters.GetExpression(0);
+						IF (typeDeclaration.declaredType.resolved IS SyntaxTree.NumberType) & (expression.type.resolved IS SyntaxTree.NumberType) THEN
+							result := NewConversion(designator.position,expression,typeDeclaration.declaredType)
+						ELSE
+							Error(left.position,Diagnostics.Invalid,"invalid type in explicit conversion");
+						END;
 					ELSE
 						Error(left.position,Diagnostics.Invalid,"called object is not a procedure or cannot be extended");
 						IF VerboseErrorMessage THEN Printout.Info("designator",designator); Printout.Info("left",left) END;
@@ -4090,7 +4097,6 @@ TYPE
 			recordBase: SyntaxTree.RecordType; procedureType: SyntaxTree.ProcedureType;
 			selfParameter: SyntaxTree.Parameter; qualifiedIdentifier: SyntaxTree.QualifiedIdentifier;
 			qualifiedType: SyntaxTree.QualifiedType; recentFlags: SET; flags: SET;
-			returnType: SyntaxTree.Type;
 
 		BEGIN
 			IF Trace THEN D.Str("VisitProcedure "); D.Str0(procedure.name.name);  D.Ln;  END;
