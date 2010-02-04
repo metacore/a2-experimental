@@ -1070,10 +1070,11 @@ TYPE
 	Conversion* = OBJECT (Expression)
 		VAR
 			expression-: Expression;
+			typeExpression-: Expression; (* for printout *)
 
-		PROCEDURE & InitConversion( position: LONGINT;  expression: Expression; type: Type);
+		PROCEDURE & InitConversion( position: LONGINT;  expression: Expression; type: Type; typeExpression: Expression);
 		BEGIN
-			InitExpression( position );  SELF.expression := expression;  SELF.type := type;
+			InitExpression( position );  SELF.expression := expression;  SELF.typeExpression := typeExpression; SELF.type := type;
 		END InitConversion;
 
 		PROCEDURE SetExpression*(expression: Expression);
@@ -3409,10 +3410,10 @@ VAR
 		INC( unaryExpressionCount );  NEW( unaryExpression, position, operand, operator );  RETURN unaryExpression;
 	END NewUnaryExpression;
 
-	PROCEDURE NewConversion*( position: LONGINT;  expression: Expression; type: Type): Conversion;
+	PROCEDURE NewConversion*( position: LONGINT;  expression: Expression; type: Type; typeExpression: Expression): Conversion;
 	VAR conversion: Conversion;
 	BEGIN
-		NEW( conversion, position, expression,type );  RETURN conversion;
+		NEW( conversion, position, expression,type, typeExpression );  RETURN conversion;
 	END NewConversion;
 
 	PROCEDURE NewValue*(): Value;(* for error handling: invalid Value *)

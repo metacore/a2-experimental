@@ -387,9 +387,11 @@ TYPE
 
 		PROCEDURE VisitConversion(x: SyntaxTree.Conversion);
 		BEGIN
-			Type(x.type); w.String("(");
-			Expression(x.expression);
-			w.String(")");
+			IF x.typeExpression # NIL THEN Expression(x.typeExpression); w.String("("); 
+			ELSIF info THEN BeginComment; Type(x.type); w.String("<-"); EndComment;
+			END;
+			Expression(x.expression); 
+			IF x.typeExpression # NIL THEN w.String(")") END;
 		END VisitConversion;
 
 		PROCEDURE VisitDesignator(x: SyntaxTree.Designator);
@@ -755,7 +757,7 @@ TYPE
 			IF Visible(x) THEN
 				IF (mode > SourceCode) OR (x.access # SyntaxTree.Hidden) THEN
 					PrintSymbol(x); w.String( " = " );  Expression(x.value);
-					IF info THEN w.String(" (*"); Type(x.type); w.String("*)"); END;
+					IF info THEN BeginComment; Type(x.type); EndComment; END;
 					IF info & (x.value.resolved = NIL) THEN AlertString("(*NOT A CONSTANT*)") END;
 				END;
 			END;
