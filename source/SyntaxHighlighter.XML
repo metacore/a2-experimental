@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 
-<Highlighter>
+<SyntaxHighlighter>
 	<Styles>
 		<Style name="Comment" fontname="Courier" fontsize="10" fontstyle="{}" color="FF0000FF" bgcolor="0" voff="0"/>
 		<Style name="Control" fontname="Courier" fontsize="10" fontstyle="{0}" color="FF0000FF" bgcolor="0" voff="0"/>
 		<Style name="Modifiers" fontname="Courier" fontsize="12" fontstyle="{}" color="FFFF00FF" bgcolor="FFFFFFFF" voff="0"/>
-		<Style name="Locking" fontname="Courier" fontsize="10" fontstyle="{}" color="FF00FFFF" bgcolor="0" voff="0"/>		
-		<Style name="Checks" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="0" voff="0"/>		
+		<Style name="Locking" fontname="Courier" fontsize="10" fontstyle="{}" color="FF00FFFF" bgcolor="0" voff="0"/>
+		<Style name="Checks" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="0" voff="0"/>
 		<Style name="Threads" fontname="Courier" fontsize="10" fontstyle="{}" color="FFFF" bgcolor="0" voff="0"/>
 		<Style name="Structure" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
 		<Style name="Operators" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
@@ -16,10 +16,10 @@
 		<Style name="Lowlevel" fontname="Courier" fontsize="10" fontstyle="{}" color="FF0000FF" bgcolor="FFFFFFFF" voff="0"/>
 		<Style name="Dangerous" fontname="Courier" fontsize="10" fontstyle="{0}" color="FF0000FF" bgcolor="FFFFFFFF" voff="0"/>
 	</Styles>
-	
-	<Languages>
-		<Language name="Oberon">
-			<Keywords>
+
+	<Highlighters>
+		<Highlighter name="Oberon">
+			<Words>
 				<Group style="Control">
 					FOR TO WHILE DO REPEAT UNTIL IF THEN ELSE ELSIF
 					LOOP EXIT CASE BY RETURN
@@ -42,7 +42,7 @@
 					VAR CONST
 				</Group>
 				<Group style="Operators">
-					DIV MOD IN IS OR 
+					DIV MOD IN IS OR
 				</Group>
 				<Group style="Values">
 					NIL TRUE FALSE
@@ -69,17 +69,17 @@
 					SYSTEM.ADR
 					HALT
 				</Group>
-			</Keywords>
-			
+			</Words>
+
 			<Regions>
 				<Region
 					style="Comment"
 					open="(*" close="*)" nesting="TRUE" multiline="TRUE"
 				/>
 			</Regions>
-		
-		</Language>
-	
-	</Languages>
 
-</Highlighter>
+		</Highlighter>
+
+	</Highlighters>
+
+</SyntaxHighlighter>
