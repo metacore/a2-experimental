@@ -2,19 +2,19 @@
 
 <SyntaxHighlighter>
 	<Styles>
-		<Style name="Comment" fontname="Courier" fontsize="10" fontstyle="{}" color="FF0000FF" bgcolor="0" voff="0"/>
-		<Style name="Control" fontname="Courier" fontsize="10" fontstyle="{0}" color="FF0000FF" bgcolor="0" voff="0"/>
-		<Style name="Modifiers" fontname="Courier" fontsize="12" fontstyle="{}" color="FFFF00FF" bgcolor="FFFFFFFF" voff="0"/>
-		<Style name="Locking" fontname="Courier" fontsize="10" fontstyle="{}" color="FF00FFFF" bgcolor="0" voff="0"/>
-		<Style name="Checks" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="0" voff="0"/>
-		<Style name="Threads" fontname="Courier" fontsize="10" fontstyle="{}" color="FFFF" bgcolor="0" voff="0"/>
-		<Style name="Structure" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
-		<Style name="Operators" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
-		<Style name="Values" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
-		<Style name="BasicTypes" fontname="Courier" fontsize="10" fontstyle="{}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
-		<Style name="ComplexTypes" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
-		<Style name="Lowlevel" fontname="Courier" fontsize="10" fontstyle="{}" color="FF0000FF" bgcolor="FFFFFFFF" voff="0"/>
-		<Style name="Dangerous" fontname="Courier" fontsize="10" fontstyle="{0}" color="FF0000FF" bgcolor="FFFFFFFF" voff="0"/>
+		<Style name="Comment" fontname="Syntax" fontsize="10" fontstyle="{}" color="808080FF" bgcolor="0" voff="0"/>
+		<Style name="Control" fontname="Syntax" fontsize="10" fontstyle="{0}" color="80FF" bgcolor="0" voff="0"/>
+		<Style name="Modifiers" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF00FF" bgcolor="FFFFFFFF" voff="0"/>
+		<Style name="Locking" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF" bgcolor="0" voff="0"/>
+		<Style name="Checks" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="0" voff="0"/>
+		<Style name="Threads" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF" bgcolor="0" voff="0"/>
+		<Style name="Structure" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF" bgcolor="0" voff="0"/>
+		<Style name="Operators" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="0" voff="0"/>
+		<Style name="Values" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="0" voff="0"/>
+		<Style name="BasicTypes" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF" bgcolor="0" voff="0"/>
+		<Style name="ComplexTypes" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="0" voff="0"/>
+		<Style name="Lowlevel" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF0000FF" bgcolor="0" voff="0"/>
+		<Style name="Dangerous" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF0000FF" bgcolor="0" voff="0"/>
 	</Styles>
 
 	<Highlighters>
@@ -23,9 +23,10 @@
 				<Group style="Control">
 					FOR TO WHILE DO REPEAT UNTIL IF THEN ELSE ELSIF
 					LOOP EXIT CASE BY RETURN
+					BEGIN END
 				</Group>
 				<Group style="Modifiers">
-					DELEGATE  UNTRACED
+					DELEGATE
 				</Group>
 				<Group style="Locking">
 					EXCLUSIVE
@@ -38,7 +39,6 @@
 				</Group>
 				<Group style="Structure">
 					MODULE IMPORT TYPE DEFINITION REFINES CONST VAR PROCEDURE
-					BEGIN END
 					VAR CONST
 				</Group>
 				<Group style="Operators">
@@ -60,6 +60,7 @@
 				<Group style="Lowlevel">
 					SYSTEM
 					SYSTEM.GET SYSTEM.GET8 SYSTEM.GET16 SYSTEM.GET32
+					SYSTEM.ADDRESS SYSTEM.SIZE
 					SYSTEM.SIZEOF SYSTEM.TYPEOF
 				</Group>
 				<Group style="Dangerous">
