@@ -456,6 +456,10 @@ To update: Configuration.Init ~
 						<Setting name="findPC" value="FALSE"/>
 					</Section>
 				</Section>
+				<Section name="SyntaxHighlighter">
+					<!-- Map file extension to SyntaxHighlighter name -->
+					<Setting name="MOD" value=""/>
+				</Section>
 				<Section name="Diff">
 					<Setting name="Command" value="WMDiff.Open"/>
 					<Setting name="Prefix" value=""/>
