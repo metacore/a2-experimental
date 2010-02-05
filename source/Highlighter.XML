@@ -11,7 +11,7 @@
 		<Style name="Structure" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
 		<Style name="Operators" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
 		<Style name="Values" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
-		<Style name="Types" fontname="Courier" fontsize="10" fontstyle="{}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
+		<Style name="BasicTypes" fontname="Courier" fontsize="10" fontstyle="{}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
 		<Style name="ComplexTypes" fontname="Courier" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="FFFFFFFF" voff="0"/>
 		<Style name="Lowlevel" fontname="Courier" fontsize="10" fontstyle="{}" color="FF0000FF" bgcolor="FFFFFFFF" voff="0"/>
 		<Style name="Dangerous" fontname="Courier" fontsize="10" fontstyle="{0}" color="FF0000FF" bgcolor="FFFFFFFF" voff="0"/>
