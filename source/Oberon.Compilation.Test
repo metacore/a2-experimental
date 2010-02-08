@@ -38392,6 +38392,16 @@ negative: pass a character value as a string
 	BEGIN P(0X);
 	END Test.
 
+positive: assign a string of length zero to variable parameter
+
+	MODULE Test;
+
+	PROCEDURE P(VAR a: ARRAY OF CHAR);
+	BEGIN
+		a := ""; 
+	END P;
+
+	END Test.
 
 positive: index array of record and pass as parameter
 
@@ -38792,4 +38802,16 @@ positive: export inline code with reference to (local) constant
 		MOV EAX,[EAX+const]
 	END P;
 	END Test.
-	
+
+positive: export and import real number
+	MODULE A;
+	CONST 
+	e*=1.2345D0;
+	END A.
+
+	MODULE Test;
+	IMPORT A;
+	CONST e=1.2345D0;
+	BEGIN 
+		ASSERT(A.e = e);
+	END Test.
