@@ -26460,6 +26460,38 @@ positive: indirect binary array as size of another array
 	BEGIN a := b;
 	END Test.
 
+positive: array length constants
+
+	MODULE Test; 
+
+	CONST 
+		ls1=LEN(s1,0);
+		ls20=LEN(s2,0);
+		ls21=LEN(s2,1);
+		lp1=LEN(p1);
+		lp20=LEN(p2,0);
+		lp21=LEN(p2,1);
+		lp31=LEN(p3,1);
+		lp32=LEN(p3,2);
+		
+	VAR 
+		s1: ARRAY 2 OF CHAR;
+		s2:  ARRAY 2 OF ARRAY 12 OF CHAR;
+		p1: POINTER TO ARRAY 2 OF CHAR;
+		p2: POINTER TO ARRAY 2 OF ARRAY 12 OF CHAR;
+		p3: POINTER TO ARRAY OF ARRAY 2 OF ARRAY 12 OF CHAR;
+
+	BEGIN
+		ASSERT(ls1=2); 
+		ASSERT(ls20=2); 
+		ASSERT(ls21=12); 
+		ASSERT(lp1=2);
+		ASSERT(lp20=2); 
+		ASSERT(lp21=12); 
+		ASSERT(lp31=2); 
+		ASSERT(lp32=12); 
+	END Test.
+
 positive: binary length of variable open array
 
 	MODULE Test;

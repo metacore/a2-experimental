@@ -3245,19 +3245,24 @@ TYPE
 						ELSIF base IS SyntaxTree.MathArrayType THEN
 							Error(position,Diagnostics.Invalid,"missing dimension specification");
 						END;
-						IF (numberActualParameters=1) OR (numberActualParameters =2) & (parameter1 IS SyntaxTree.IntegerValue) THEN
+						IF (numberActualParameters=1) OR (numberActualParameters =2) & IsIntegerValue(parameter1,i1) THEN
 							IF base IS SyntaxTree.ArrayType THEN
 								arrayType := base(SyntaxTree.ArrayType);
 								IF (arrayType.length # NIL) & (arrayType.length.resolved # NIL) & IsIntegerValue(arrayType.length,i) THEN
 									(* do not use length directly such as in result := length as this mide have side-effects when result types get converted *)
-									result := SyntaxTree.NewIntegerValue(position,i);
-									type := arrayType.length.type;
+									result := Global.NewIntegerValue(system,position,i);
+									type := result.type;(* arrayType.length.type;*)
+									ASSERT(type # NIL);
 								END;
 							ELSIF base IS SyntaxTree.MathArrayType THEN
 								mathArrayType := base(SyntaxTree.MathArrayType);
 								IF (mathArrayType.length # NIL) & (mathArrayType.length.resolved # NIL) & IsIntegerValue(mathArrayType.length,i) THEN
-									result := SyntaxTree.NewIntegerValue(position,i);
+									result := Global.NewIntegerValue(system,position,i);
+									type := result.type; 
+									(*
 									type := mathArrayType.length.type;
+									*) 
+									ASSERT(type # NIL);
 								END;
 							END;
 						END;
@@ -4014,6 +4019,7 @@ TYPE
 			IF SymbolNeedsResolution(constant) THEN
 				constant.SetType(Global.invalidType);
 				expression := ConstantExpression(constant.value);
+				ASSERT(expression.type # NIL);
 				type := expression.type.resolved;
 				constant.SetType(type);
 				constant.SetValue(expression);
