@@ -1518,7 +1518,8 @@ TYPE
 				result := SyntaxTree.NewConversion(expression.position,expression,type,typeExpression);
 				IF value IS SyntaxTree.Value THEN
 					result.SetResolved(value(SyntaxTree.Value));
-				END;				
+					result.SetType(value.type);
+				END;
 			ELSIF (type = Global.Byte) THEN (* do not convert *)
 				expressionList := SyntaxTree.NewExpressionList();
 				typeDeclaration := SyntaxTree.NewTypeDeclaration(expression.position,SyntaxTree.NewIdentifier(InvalidPosition,"@byte"));
