@@ -61,22 +61,32 @@ BEGIN
 	END;
 END WriteBinaryFile;
 
-PROCEDURE WriteTRMFile (arrangement: Arrangement; writer: Files.Writer; nibbles: LONGINT);
-VAR i: LONGINT;
+PROCEDURE WriteTRMFile (arrangement: Arrangement; writer: Files.Writer; bitsPerLine, lines: LONGINT);
+VAR i,j,size: LONGINT;
+	PROCEDURE GetBits(pos: LONGINT): LONGINT;
+	BEGIN
+		IF pos >= size THEN RETURN 0
+		ELSIF pos+4 > size THEN RETURN arrangement.bits.GetBits(pos,size-pos)
+		ELSE RETURN arrangement.bits.GetBits(pos,4)
+		END;
+	END GetBits;
 BEGIN
-	FOR i := 0 TO arrangement.bits.GetSize () - 1 BY 4 DO
-		IF (i # 0) & (i MOD nibbles = 0) THEN writer.Ln; END;
-		writer.Char (ObjectFile.NibbleToCharacter (arrangement.bits.GetBits (i, 4)));
+	ASSERT (bitsPerLine MOD 4 = 0);
+	size := arrangement.bits.GetSize();
+	FOR i := 0 TO lines-1 DO
+		FOR j := bitsPerLine DIV 4 TO 0 BY -1 DO
+			writer.Char(ObjectFile.NibbleToCharacter(GetBits(i*bitsPerLine+j*4)));
+		END;
+		writer.Ln;
 	END;
-	writer.Ln;
 END WriteTRMFile;
 
 PROCEDURE WriteTRMCodeFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
-BEGIN WriteTRMFile (arrangement, writer, 9);
+BEGIN WriteTRMFile (arrangement, writer, 36,2048);
 END WriteTRMCodeFile;
 
 PROCEDURE WriteTRMDataFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
-BEGIN WriteTRMFile (arrangement, writer, 8);
+BEGIN WriteTRMFile (arrangement, writer, 32,2048);
 END WriteTRMDataFile;
 
 PROCEDURE WritePEFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer; bitmode: INTEGER);
