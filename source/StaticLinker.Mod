@@ -92,7 +92,7 @@ END WriteTRMDataFile;
 PROCEDURE WritePEFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer; bitmode: INTEGER);
 CONST DOSText = "This program cannot be run in DOS mode.$";
 CONST DOSHeaderSize = 64; DOSCodeSize = 14; DOSTextSize = 40; DOSStubSize = ((DOSHeaderSize + DOSCodeSize + DOSTextSize + 15) DIV 16) * 16;
-CONST FileAlignment = 200H; SectionAlignment = 1000H; HeaderSize = 24; SectionHeaderSize = 40; DirectoryEntries = 16;
+CONST BaseAddress = 401000H; FileAlignment = 200H; SectionAlignment = 1000H; HeaderSize = 24; SectionHeaderSize = 40; DirectoryEntries = 16;
 VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress: LONGINT;
 
 	PROCEDURE Reserve (size: LONGINT);
@@ -226,6 +226,7 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress:
 	END WriteCodeSection;
 
 BEGIN
+	ASSERT (arrangement.displacement = BaseAddress);
 	OptionalHeaderSize := 96 + DirectoryEntries * 8;
 	IF bitmode = 64 THEN INC (OptionalHeaderSize, 16); END;
 	CodeSize := arrangement.bits.GetSize () DIV 8;
@@ -244,6 +245,74 @@ PROCEDURE WritePE64File (linker: GenericLinker.Linker; arrangement: Arrangement;
 BEGIN WritePEFile (linker, arrangement, writer, 64);
 END WritePE64File;
 
+PROCEDURE WriteELFFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
+CONST ELFHeaderSize = 52; ProgramHeaderSize = 32; HeadersSize = ELFHeaderSize + ProgramHeaderSize;
+CONST BaseAddress = 08048000H; EntryAddress = BaseAddress + HeadersSize;
+
+	PROCEDURE Reserve (size: LONGINT);
+	BEGIN WHILE size # 0 DO writer.Char (0X); DEC (size); END;
+	END Reserve;
+
+	PROCEDURE WriteByte (value: LONGINT);
+	BEGIN writer.Char (CHR (value));
+	END WriteByte;
+
+	PROCEDURE WriteHalf (value: LONGINT);
+	BEGIN WriteByte (value MOD 100H); WriteByte (value DIV 100H);
+	END WriteHalf;
+
+	PROCEDURE WriteWord (value: LONGINT);
+	BEGIN WriteHalf (value MOD 10000H); WriteHalf (value DIV 10000H);
+	END WriteWord;
+
+	PROCEDURE WriteELFHeader;
+	BEGIN
+		WriteByte (7FH);	(* e_ident[EI_MAG0] *)
+		WriteByte (ORD('E'));	(* e_ident[EI_MAG1] *)
+		WriteByte (ORD('L'));	(* e_ident[EI_MAG2] *)
+		WriteByte (ORD('F'));	(* e_ident[EI_MAG3] *)
+		WriteByte (1);		(* e_ident[EI_CLASS] *)
+		WriteByte (1);		(* e_ident[EI_DATA] *)
+		WriteByte (1);		(* e_ident[EI_VERSION] *)
+		WriteByte (0);		(* e_ident[EI_PAD] *)
+		Reserve (8);		(* e_ident[EI_NIDENT] *)
+		WriteHalf (2);		(* e_type *)
+		WriteHalf (3);		(* e_machine *)
+		WriteWord (1);	(* e_version *)
+		WriteWord (EntryAddress);	(* e_entry *)
+		WriteWord (ELFHeaderSize);	(* e_phoff *)
+		WriteWord (0);	(* e_phoff *)
+		WriteWord (0);	(* e_flags *)
+		WriteHalf (ELFHeaderSize);	(* e_ehsize *)
+		WriteHalf (ProgramHeaderSize);	(* e_phentsize *)
+		WriteHalf (1);		(* e_phnum *)
+		WriteHalf (0);		(* e_shentsize *)
+		WriteHalf (0);		(* e_shnum *)
+		WriteHalf (0);		(* e_shstrndx *)
+	END WriteELFHeader;
+
+	PROCEDURE WriteProgramHeader;
+	VAR FileSize: LONGINT;
+	BEGIN
+		FileSize := HeadersSize + arrangement.bits.GetSize () DIV 8;
+
+		WriteWord (1);		(* p_type *)
+		WriteWord (0);		(* p_offset *)
+		WriteWord (BaseAddress);	(* p_vaddr *)
+		WriteWord (0);		(* p_paddr *)
+		WriteWord (FileSize);	(* p_filesz *)
+		WriteWord (FileSize);	(* p_memsz *)
+		WriteWord (7);		(* p_flags *)
+		WriteWord (1000H);	(* p_align *)
+	END WriteProgramHeader;
+
+BEGIN
+	ASSERT (arrangement.displacement = BaseAddress);
+	WriteELFHeader;
+	WriteProgramHeader;
+ 	WriteBinaryFile (linker, arrangement, writer);
+END WriteELFFile;
+
 PROCEDURE GetFileFormat (options: Options.Options; CONST name: Options.Name; default: FileFormat): FileFormat;
 VAR format: ARRAY 10 OF CHAR;
 BEGIN
@@ -252,6 +321,7 @@ BEGIN
 	ELSIF format = "TRMData" THEN RETURN WriteTRMDataFile;
 	ELSIF format = "PE32" THEN RETURN WritePE32File;
 	ELSIF format = "PE64" THEN RETURN WritePE64File;
+	ELSIF format = "ELF" THEN RETURN WriteELFFile;
 	ELSE RETURN default; END;
 END GetFileFormat;
 
@@ -299,5 +369,11 @@ BEGIN
 	IF linker.error THEN context.result := Commands.CommandError; END;
 END Link;
 
-END StaticLinker.;
+END StaticLinker.
+
+StaticLinker.Link --fileName=test.exe --fileFormat=PE32 --displacement=401000H Test ~
+StaticLinker.Link --fileName=a.out --fileFormat=ELF --displacement=08048000H Test ~
+
+
+
 
