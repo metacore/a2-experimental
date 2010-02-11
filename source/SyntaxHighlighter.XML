@@ -2,20 +2,21 @@
 
 <SyntaxHighlighter>
 	<Styles>
-		<Style name="Comment" fontname="Syntax" fontsize="10" fontstyle="{}" color="808080FF" bgcolor="0" voff="0"/>
-		<Style name="Bold" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF" bgcolor="0" voff="0"/>
-		<Style name="Control" fontname="Syntax" fontsize="10" fontstyle="{0}" color="80FF" bgcolor="0" voff="0"/>
-		<Style name="Modifiers" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF00FF" bgcolor="FFFFFFFF" voff="0"/>
-		<Style name="Locking" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF" bgcolor="0" voff="0"/>
-		<Style name="Checks" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="0" voff="0"/>
-		<Style name="Threads" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF" bgcolor="0" voff="0"/>
-		<Style name="Structure" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF" bgcolor="0" voff="0"/>
-		<Style name="Operators" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="0" voff="0"/>
-		<Style name="Values" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="0" voff="0"/>
-		<Style name="BasicTypes" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF" bgcolor="0" voff="0"/>
-		<Style name="ComplexTypes" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF" bgcolor="0" voff="0"/>
-		<Style name="Lowlevel" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF0000FF" bgcolor="0" voff="0"/>
-		<Style name="Dangerous" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF0000FF" bgcolor="0" voff="0"/>
+		<Style name="Comment" fontname="Syntax" fontsize="10" fontstyle="{}" color="808080FF"/>
+		<Style name="Bold" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF"/>
+		<Style name="Italic" fontname="Syntax" fontsize="10" fontstyle="{1}" color="FF"/>
+		<Style name="Control" fontname="Syntax" fontsize="10" fontstyle="{0}" color="80FF"/>
+		<Style name="Modifiers" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF00FF"/>
+		<Style name="Locking" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF"/>
+		<Style name="Checks" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
+		<Style name="Threads" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF"/>
+		<Style name="Structure" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF"/>
+		<Style name="Operators" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
+		<Style name="Values" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
+		<Style name="BasicTypes" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
+		<Style name="ComplexTypes" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
+		<Style name="Lowlevel" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF0000FF"/>
+		<Style name="Dangerous" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF0000FF"/>
 	</Styles>
 
 	<Highlighters>
@@ -89,7 +90,7 @@
 			</Regions>
 
 		</Highlighter>
-		
+
 		<Highlighter name="XML">
 			<Words>
 				<Group style="Bold">
@@ -110,25 +111,42 @@
 				/>
 			</Regions>
 		</Highlighter>
-		
+
 		<Highlighter name="C">
-			<Region
-				style="Comment" styleOpen="Comment" styleClose="Comment"
-				open="/*" close="*/" nesting="FALSE" multiline="TRUE"
-			/>
-			<Region
-				style="Comment" styleOpen="Comment" styleClose="Comment"
-				open="//" close="" nesting="FALSE" multiline="FALSE"
-			/>
+			<Regions>
+				<Region
+					style="Comment" styleOpen="Comment" styleClose="Comment"
+					open="/*" close="*/" nesting="FALSE" multiline="TRUE"
+				/>
+				<Region
+					style="Comment" styleOpen="Comment" styleClose="Comment"
+					open="//" close="" nesting="FALSE" multiline="FALSE"
+				/>
+			</Regions>
 		</Highlighter>
-		
+
 		<Highlighter name="ReleaseTool">
-			<Region
-				style="Comment" styleOpen="Comment" styleClose="Comment"
-				open="#" close="" nesting="FALSE" multiline="FLASE"
-			/>
+			<Words>
+				<Group style="Bold">
+					HEADER VERSION END
+					PACKAGE ARCHIVE SOURCE DESCRIPTION
+					BUILDS
+				</Group>
+				<Group style="Italic">
+					INCLUDE COMPILER COMPILEOPTIONS TARGET EXTENSION PATH EXCLUDEPACKAGES
+				</Group>
+			</Words>
+			<Regions>
+				<Region
+					style="Comment" styleOpen="Comment" styleClose="Comment"
+					open="#" close="" nesting="FALSE" multiline="FALSE"
+				/>
+				<Region
+					style="Values" styleOpen="Bold" styleClose="Bold"
+					open='"' close='"' nesting="FALSE" multiline="FALSE"
+				/>
+			</Regions>
 		</Highlighter>
-		
 
 	</Highlighters>
 
