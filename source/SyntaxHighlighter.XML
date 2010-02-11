@@ -3,6 +3,7 @@
 <SyntaxHighlighter>
 	<Styles>
 		<Style name="Comment" fontname="Syntax" fontsize="10" fontstyle="{}" color="808080FF" bgcolor="0" voff="0"/>
+		<Style name="Bold" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF" bgcolor="0" voff="0"/>
 		<Style name="Control" fontname="Syntax" fontsize="10" fontstyle="{0}" color="80FF" bgcolor="0" voff="0"/>
 		<Style name="Modifiers" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF00FF" bgcolor="FFFFFFFF" voff="0"/>
 		<Style name="Locking" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF" bgcolor="0" voff="0"/>
@@ -74,12 +75,60 @@
 
 			<Regions>
 				<Region
-					style="Comment"
+					style="Comment" styleOpen="Lowlevel" styleClose="Values"
 					open="(*" close="*)" nesting="TRUE" multiline="TRUE"
+				/>
+				<Region
+					style="Values" styleOpen="Bold" styleClose="Bold"
+					open='"' close='"' nesting="FALSE" multiline="FALSE"
+				/>
+				<Region
+					style="Values" styleOpen="Bold" styleClose="Bold"
+					open="'" close="'" nesting="FALSE" multiline="FALSE"
 				/>
 			</Regions>
 
 		</Highlighter>
+		
+		<Highlighter name="XML">
+			<Words>
+				<Group style="Bold">
+				</Group>
+			</Words>
+			<Regions>
+				<Region
+					style="Comment" styleOpen="Comment" styleClose="Comment"
+					open="&lt;!--" close="-->" nesting="FALSE" multiline="TRUE"
+				/>
+				<Region
+					style="Values" styleOpen="Bold" styleClose="Bold"
+					open='"' close='"' nesting="FALSE" multiline="TRUE"
+				/>
+				<Region
+					style="Values" styleOpen="Bold" styleClose="Bold"
+					open="'" close="'" nesting="FALSE" multiline="TRUE"
+				/>
+			</Regions>
+		</Highlighter>
+		
+		<Highlighter name="C">
+			<Region
+				style="Comment" styleOpen="Comment" styleClose="Comment"
+				open="/*" close="*/" nesting="FALSE" multiline="TRUE"
+			/>
+			<Region
+				style="Comment" styleOpen="Comment" styleClose="Comment"
+				open="//" close="" nesting="FALSE" multiline="FALSE"
+			/>
+		</Highlighter>
+		
+		<Highlighter name="ReleaseTool">
+			<Region
+				style="Comment" styleOpen="Comment" styleClose="Comment"
+				open="#" close="" nesting="FALSE" multiline="FLASE"
+			/>
+		</Highlighter>
+		
 
 	</Highlighters>
 
