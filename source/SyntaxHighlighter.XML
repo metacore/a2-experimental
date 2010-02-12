@@ -3,8 +3,6 @@
 <SyntaxHighlighter>
 	<Styles>
 		<Style name="Comment" fontname="Syntax" fontsize="10" fontstyle="{}" color="808080FF"/>
-		<Style name="Bold" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF"/>
-		<Style name="Italic" fontname="Syntax" fontsize="10" fontstyle="{1}" color="FF"/>
 		<Style name="Control" fontname="Syntax" fontsize="10" fontstyle="{0}" color="80FF"/>
 		<Style name="Modifiers" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF00FF"/>
 		<Style name="Locking" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF"/>
@@ -17,6 +15,13 @@
 		<Style name="ComplexTypes" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
 		<Style name="Lowlevel" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF0000FF"/>
 		<Style name="Dangerous" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF0000FF"/>
+
+		<Style name="Bold" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF"/>
+		<Style name="Italic" fontname="Syntax" fontsize="10" fontstyle="{1}" color="FF"/>
+		<Style name="Red" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF0000FF"/>
+		<Style name="Blue" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
+		<Style name="Green" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF00FF"/>
+
 	</Styles>
 
 	<Highlighters>
@@ -27,31 +32,49 @@
 					LOOP EXIT CASE BY RETURN
 					BEGIN END
 				</Group>
+				<Group style="Bold">
+					NEW SELF
+					SHORT LONG ENTIER ENTIERH
+				</Group>
+				<Group style="Bold">
+					ABS ASH CAP CHR ORD
+					COPY GETPROCEDURE LEN
+					MAX MIN ODD SIZEO
+				</Group>
 				<Group style="Modifiers">
 					DELEGATE
 				</Group>
 				<Group style="Locking">
 					EXCLUSIVE
+					*.AcquireRead
+					*.ReleaseRead
+					*.AcquireWrite
+					*.ReleaseWrite
+					*.Acquire
+					*.Release
 				</Group>
 				<Group style="Checks">
 					ASSERT
 				</Group>
 				<Group style="Threads">
 					ACTIVE SHARED PRIORITY
+					AWAIT
 				</Group>
 				<Group style="Structure">
-					MODULE IMPORT TYPE DEFINITION REFINES CONST VAR PROCEDURE
+					MODULE IMPORT TYPE DEFINITION REFINES IMPLEMENTS CONST VAR PROCEDURE
 					VAR CONST
 				</Group>
 				<Group style="Operators">
 					DIV MOD IN IS OR
+					INCL EXCL
+					INC DEC
 				</Group>
 				<Group style="Values">
 					NIL TRUE FALSE
 				</Group>
 				<Group style="BasicTypes">
 					BOOLEAN
-					SHORTINT INTEGER LONGINT
+					SHORTINT INTEGER LONGINT HUGEINT
 					REAL LONGREAL
 					SET
 					CHAR
@@ -61,22 +84,26 @@
 				</Group>
 				<Group style="Lowlevel">
 					SYSTEM
-					SYSTEM.GET SYSTEM.GET8 SYSTEM.GET16 SYSTEM.GET32
+					SYSTEM.GET SYSTEM.GET8 SYSTEM.GET16 SYSTEM.GET32 SYSTEM.GET64
 					SYSTEM.ADDRESS SYSTEM.SIZE
 					SYSTEM.SIZEOF SYSTEM.TYPEOF
 				</Group>
 				<Group style="Dangerous">
 					UNTRACED
-					SYSTEM.PUT SYSTEM.PUT8 SYSTEM.PUT16 SYSTEM.PUT32
+					SYSTEM.PUT SYSTEM.PUT8 SYSTEM.PUT16 SYSTEM.PUT32 SYSTEM.PUT64
 					SYSTEM.VAL
 					SYSTEM.ADR
+					SYSTEM.MOVE
 					HALT
+					SYSTEM.PORTIN SYSTEM.PORTOUT
+					SYSTEM.ROT SYSTEM.LSH
+					SYSTEM.CLI SYSTEM.STI
 				</Group>
 			</Words>
 
 			<Regions>
 				<Region
-					style="Comment" styleOpen="Lowlevel" styleClose="Values"
+					style="Comment" styleOpen="Comment" styleClose="Comment"
 					open="(*" close="*)" nesting="TRUE" multiline="TRUE"
 				/>
 				<Region
@@ -134,6 +161,15 @@
 				</Group>
 				<Group style="Italic">
 					INCLUDE COMPILER COMPILEOPTIONS TARGET EXTENSION PATH EXCLUDEPACKAGES
+				</Group>
+				<Group style="Red">
+					WIN iWIN eWIN
+				</Group>
+				<Group style="Blue">
+					NATIVE AMD64 I386
+				</Group>
+				<Group style="Green">
+					UNIX DARWIN LINUX SOLARIS
 				</Group>
 			</Words>
 			<Regions>
