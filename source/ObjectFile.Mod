@@ -13,6 +13,9 @@ CONST
 	Data* = 2;
 	Const* = 3;
 
+	Aligned=0;
+	Fixed=1;
+
 	DefaultExtension* = "Gof";
 
 TYPE
@@ -59,6 +62,7 @@ TYPE
 		name*: SectionName;
 		fingerprint*: LONGINT;
 		unit*: Bits;
+		fixed*: BOOLEAN;
 		alignment*: Unit;
 		fixups*: LONGINT;
 		fixup*: Fixups;
@@ -68,6 +72,7 @@ TYPE
 VAR
 	types: ARRAY 4 OF ARRAY 10 OF CHAR;
 	modes: ARRAY 2 OF ARRAY 4 OF CHAR;
+	relocatabilities: ARRAY 2 OF ARRAY 8 OF CHAR;
 
 PROCEDURE IsCode* (type: SectionType): BOOLEAN;
 BEGIN RETURN (type = Code) OR (type = InitCode);
@@ -154,6 +159,8 @@ BEGIN
 	writer.Char (Separator);
 	writer.Int (section.unit, 0);
 	writer.Char (Separator);
+	IF section.fixed THEN WriteIdentifier(Fixed,relocatabilities) ELSE WriteIdentifier(Aligned,relocatabilities) END;
+	writer.Char (Separator);
 	writer.Int (section.alignment, 0);
 	writer.Char (Separator);
 	writer.Int (section.fixups, 0);
@@ -171,7 +178,7 @@ BEGIN
 END WriteSection;
 
 PROCEDURE ReadSection* (reader: Streams.Reader; VAR section: Section);
-VAR i, size: LONGINT; char: CHAR;
+VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
 
 	PROCEDURE ReadIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
 	VAR identifier: ARRAY 10 OF CHAR;
@@ -211,6 +218,8 @@ BEGIN
 	reader.GetString (section.name);
 	reader.GetInteger (section.fingerprint, FALSE);
 	reader.GetInteger (section.unit, FALSE);
+	ReadIdentifier(relocatibility, relocatabilities);
+	section.fixed := relocatibility = Fixed;
 	reader.GetInteger (section.alignment, FALSE);
 	reader.GetInteger (section.fixups, FALSE);
 	reader.GetInteger (size, FALSE); size := size * section.unit;
@@ -231,11 +240,13 @@ BEGIN
 END ReadSection;
 
 BEGIN
-	types[0] := "code";
-	types[1] := "initcode";
-	types[2] := "data";
-	types[3] := "const";
-	modes[0] := "abs";
-	modes[1] := "rel";
+	types[Code] := "code";
+	types[InitCode] := "initcode";
+	types[Data] := "data";
+	types[Const] := "const";
+	modes[Absolute] := "abs";
+	modes[Relative] := "rel";
+	relocatabilities[Fixed] := "fixed";
+	relocatabilities[Aligned] := "aligned";
 END ObjectFile.
 
