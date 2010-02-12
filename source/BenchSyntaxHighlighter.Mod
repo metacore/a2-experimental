@@ -1,19 +1,39 @@
 MODULE BenchSyntaxHighlighter; (** AUTHOR "staubesv"; PURPOSE "Benchmarks for SyntaxHighlighter"; *)
 
 IMPORT
-	Commands, Options, Dates, Strings, Files, Texts, TextUtilities, SyntaxHighlighter;
+	Streams, Commands, Options, Dates, Strings, Files, Texts, TextUtilities, SyntaxHighlighter;
 
 CONST
 	DefaultHighlighterName = "Oberon";
 	DefaultNofIterations = 1000;
 
-PROCEDURE Words(reader : Texts.TextReader; highlighter : SyntaxHighlighter.Highlighter; nofIterations : LONGINT);
+PROCEDURE Reader(reader : Texts.TextReader; nofIterations : LONGINT; out : Streams.Writer);
+VAR char32 : Texts.Char32; startTime, endTime : Dates.DateTime; i : LONGINT;
+BEGIN
+	ASSERT((reader # NIL) & (nofIterations > 0) & (out # NIL));
+	out.String("Reading text "); out.Int(nofIterations, 0); out.String(" times ... "); out.Update;
+	startTime := Dates.Now();
+	FOR i := 1 TO nofIterations DO
+		reader.SetPosition(0);
+		REPEAT
+			reader.ReadCh(char32);
+		UNTIL reader.eot;
+	END;
+	endTime := Dates.Now();
+	Strings.ShowTimeDifference(startTime, endTime, out);
+	out.Ln;
+END Reader;
+
+PROCEDURE Words(reader : Texts.TextReader; highlighter : SyntaxHighlighter.Highlighter; nofIterations : LONGINT; out : Streams.Writer);
 VAR
 	char32 : Texts.Char32; attributes : Texts.Attributes;
 	wordStart, wordEnd, readerPosition, savedPosition, i : LONGINT;
 	word : ARRAY 128 OF CHAR;
+	startTime, endTime : Dates.DateTime;
 BEGIN
-	ASSERT((reader # NIL) & (highlighter # NIL) & (nofIterations > 0));
+	ASSERT((reader # NIL) & (highlighter # NIL) & (nofIterations > 0) & (out # NIL));
+	out.String("Match words "); out.Int(nofIterations, 0); out.String(" times ... "); out.Update;
+	startTime := Dates.Now();
 	FOR i := 1 TO nofIterations DO
 		wordEnd := -1;
 		reader.SetPosition(0);
@@ -30,22 +50,102 @@ BEGIN
 			END;
 		UNTIL reader.eot;
 	END;
+	endTime := Dates.Now();
+	Strings.ShowTimeDifference(startTime, endTime, out);
+	out.Ln;
 END Words;
 
-PROCEDURE Bench*(context : Commands.Context); (** [Options] filename ~ *)
+PROCEDURE RebuildRegions(reader : Texts.TextReader; highlighter : SyntaxHighlighter.Highlighter; nofIterations : LONGINT; out : Streams.Writer);
 VAR
-	filename : Files.FileName; highlighterName : ARRAY 64 OF CHAR; nofIterations : LONGINT;
+	state : SyntaxHighlighter.State;
+	startTime, endTime : Dates.DateTime;
+	i : LONGINT;
+BEGIN
+	ASSERT((reader # NIL) & (highlighter # NIL) & (nofIterations > 0) & (out # NIL));
+	NEW(state);
+	out.String("Rebuild regions "); out.Int(nofIterations, 0); out.String(" times ... "); out.Update;
+	startTime := Dates.Now();
+	FOR i := 1 TO nofIterations DO
+		highlighter.RebuildRegions(reader, state);
+	END;
+		endTime := Dates.Now();
+	Strings.ShowTimeDifference(startTime, endTime, out);
+	out.Ln;
+END RebuildRegions;
+
+PROCEDURE Full(reader : Texts.TextReader; highlighter : SyntaxHighlighter.Highlighter; nofIterations : LONGINT; out : Streams.Writer);
+VAR
+	char32 : Texts.Char32; attributes : Texts.Attributes;
+	state : SyntaxHighlighter.State;
+	startTime, endTime : Dates.DateTime;
+	readerPosition, savedPosition, wordStart, wordEnd, regionStart, regionEnd, lastWordEnd, i : LONGINT;
+	word : ARRAY 256 OF CHAR;
+BEGIN
+	ASSERT((reader # NIL) & (highlighter # NIL) & (nofIterations > 0) & (out # NIL));
+	NEW(state);
+	out.String("Full highlighting "); out.Int(nofIterations, 0); out.String(" times ... "); out.Update;
+	startTime := Dates.Now();
+	FOR i := 1 TO nofIterations DO
+		reader.SetPosition(0);
+		lastWordEnd := -1;
+		REPEAT
+			readerPosition := reader.GetPosition();
+			reader.ReadCh(char32);
+			savedPosition := reader.GetPosition();
+			IF (lastWordEnd = -1) THEN
+				attributes := highlighter.GetRegionAttributes(readerPosition, state, regionStart, regionEnd);
+				IF (attributes # NIL) THEN
+					lastWordEnd := regionEnd;
+				ELSE
+					IF SyntaxHighlighter.IsValid(char32) THEN
+						wordStart := SyntaxHighlighter.FindWordStart(reader, readerPosition);
+						wordEnd := SyntaxHighlighter.FindWordEnd(reader, readerPosition);
+						lastWordEnd := wordEnd;
+						SyntaxHighlighter.GetWord(reader, wordStart, wordEnd, word);
+						attributes := highlighter.GetAttributes(word);
+						reader.SetPosition(savedPosition);
+						reader.SetDirection(1);
+					END;
+				END;
+			ELSIF (lastWordEnd < readerPosition) THEN
+				attributes := NIL;
+				attributes := highlighter.GetRegionAttributes(readerPosition, state, regionStart, regionEnd);
+				IF (attributes # NIL) THEN
+					lastWordEnd := regionEnd;
+				ELSE
+					IF SyntaxHighlighter.IsValid(char32) THEN
+						wordStart := readerPosition;
+						wordEnd := SyntaxHighlighter.FindWordEnd(reader, readerPosition);
+						lastWordEnd := wordEnd;
+						SyntaxHighlighter.GetWord(reader, wordStart, wordEnd, word);
+						attributes := highlighter.GetAttributes(word);
+						reader.SetPosition(savedPosition);
+						reader.SetDirection(1);
+					END;
+				END;
+			END;
+		UNTIL reader.eot;
+	END;
+	endTime := Dates.Now();
+	Strings.ShowTimeDifference(startTime, endTime, out);
+	out.Ln;
+END Full;
+
+PROCEDURE Bench*(context : Commands.Context); (** [Options] filename [benchmark] ~ *)
+VAR
+	filename : Files.FileName; highlighterName, benchmark : ARRAY 64 OF CHAR; nofIterations : LONGINT;
 	options : Options.Options;
 	text : Texts.Text; reader : Texts.TextReader;
 	format, res : LONGINT;
 	highlighter : SyntaxHighlighter.Highlighter;
-	startTime, endTime : Dates.DateTime;
 BEGIN
 	NEW(options);
 	options.Add("h", "highlighter"	, Options.String);
 	options.Add("n", "nofIterations", Options.Integer);
 	IF options.Parse(context.arg, context.error) THEN
+		benchmark := "";
 		context.arg.GetString(filename);
+		context.arg.GetString(benchmark);
 		IF ~options.GetString("highlighter", highlighterName) THEN highlighterName := DefaultHighlighterName; END;
 		IF ~options.GetInteger("nofIterations", nofIterations) THEN nofIterations := DefaultNofIterations; END;
 		IF (nofIterations > 0) THEN
@@ -56,13 +156,22 @@ BEGIN
 				IF (res = 0) THEN
 					NEW(reader, text);
 					text.AcquireRead;
-					context.out.String("Match words in file "); context.out.String(filename); context.out.String(" ");
-					context.out.Int(nofIterations, 0); context.out.String(" times ... "); context.out.Update;
-					startTime := Dates.Now();
-					Words(reader, highlighter, nofIterations);
-					endTime := Dates.Now();
-					Strings.ShowTimeDifference(startTime, endTime, context.out);
-					context.out.Ln;
+					IF (benchmark = "") THEN
+						Reader(reader, nofIterations, context.out);
+						Words(reader, highlighter, nofIterations, context.out);
+						RebuildRegions(reader, highlighter, nofIterations, context.out);
+						Full(reader, highlighter, nofIterations, context.out);
+					ELSIF (benchmark = "reader") THEN
+						Reader(reader, nofIterations, context.out);
+					ELSIF (benchmark = "words") THEN
+						Words(reader, highlighter, nofIterations, context.out);
+					ELSIF (benchmark = "rebuildregions") THEN
+						RebuildRegions(reader, highlighter, nofIterations, context.out);
+					ELSIF (benchmark = "full") THEN
+						Full(reader, highlighter, nofIterations, context.out);
+					ELSE
+						context.error.String("Unknown benchmark: "); context.error.String(benchmark); context.error.Ln;
+					END;
 					text.ReleaseRead;
 				ELSE
 					context.error.String("Could not open file "); context.error.String(filename);
@@ -82,4 +191,18 @@ END BenchSyntaxHighlighter.
 
 SystemTools.Free BenchSyntaxHighlighter ~
 
-BenchSyntaxHighlighter.Bench Usb.Mod ~
+BenchSyntaxHighlighter.Bench Usb.Mod reader ~
+BenchSyntaxHighlighter.Bench I386.Machine.Mod reader ~
+
+BenchSyntaxHighlighter.Bench Usb.Mod words ~
+BenchSyntaxHighlighter.Bench I386.Machine.Mod words ~
+
+BenchSyntaxHighlighter.Bench Usb.Mod rebuildregions~
+BenchSyntaxHighlighter.Bench I386.Machine.Mod rebuildregions ~
+
+BenchSyntaxHighlighter.Bench Usb.Mod full ~
+BenchSyntaxHighlighter.Bench I386.Machine.Mod full ~
+
+BenchSyntaxHighlighter.Bench Usb.Mod  ~
+BenchSyntaxHighlighter.Bench I386.Machine.Mod  ~
+
