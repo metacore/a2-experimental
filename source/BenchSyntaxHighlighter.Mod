@@ -131,6 +131,12 @@ BEGIN
 	out.Ln;
 END Full;
 
+PROCEDURE Indent(writer : Streams.Writer; width : LONGINT);
+VAR i : LONGINT;
+BEGIN
+	FOR i := 1 TO width DO writer.Char(" "); END;
+END Indent;
+
 PROCEDURE Bench*(context : Commands.Context); (** [Options] filename [benchmark] ~ *)
 VAR
 	filename : Files.FileName; highlighterName, benchmark : ARRAY 64 OF CHAR; nofIterations : LONGINT;
@@ -154,13 +160,15 @@ BEGIN
 				NEW(text);
 				TextUtilities.LoadAuto(text, filename, format, res);
 				IF (res = 0) THEN
+					context.out.String(filename); context.out.String(": ");
 					NEW(reader, text);
 					text.AcquireRead;
 					IF (benchmark = "") THEN
-						Reader(reader, nofIterations, context.out);
-						Words(reader, highlighter, nofIterations, context.out);
-						RebuildRegions(reader, highlighter, nofIterations, context.out);
-						Full(reader, highlighter, nofIterations, context.out);
+						context.out.Ln;
+						Indent(context.out, 4); Reader(reader, nofIterations, context.out); context.out.Update;
+						Indent(context.out, 4); Words(reader, highlighter, nofIterations, context.out); context.out.Update;
+						Indent(context.out, 4); RebuildRegions(reader, highlighter, nofIterations, context.out); context.out.Update;
+						Indent(context.out, 4); Full(reader, highlighter, nofIterations, context.out); context.out.Update;
 					ELSIF (benchmark = "reader") THEN
 						Reader(reader, nofIterations, context.out);
 					ELSIF (benchmark = "words") THEN
@@ -205,4 +213,13 @@ BenchSyntaxHighlighter.Bench I386.Machine.Mod full ~
 
 BenchSyntaxHighlighter.Bench Usb.Mod  ~
 BenchSyntaxHighlighter.Bench I386.Machine.Mod  ~
+
+Test:
+
+SystemTools.DoCommands
+	FSTools.Enumerate *.Mod BenchSyntaxHighlighter.Bench -n=1 <#filename#> ~
+	FSTools.Enumerate *.XML BenchSyntaxHighlighter.Bench -n=1 <#filename#> ~
+	FSTools.Enumerate *.TOOL BenchSyntaxHighlighter.Bench -n=1 <#filename#> ~
+	FSTools.Enumerate *.C BenchSyntaxHighlighter.Bench -n=1 <#filename#> ~
+~
 
