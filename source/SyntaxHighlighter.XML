@@ -26,7 +26,7 @@
 
 	<Highlighters>
 		<Highlighter name="Oberon">
-			<Words>
+			<Words allowCharacters="._">
 				<Group style="Control">
 					FOR TO WHILE DO REPEAT UNTIL IF THEN ELSE ELSIF
 					LOOP EXIT CASE BY RETURN
@@ -153,7 +153,7 @@
 		</Highlighter>
 
 		<Highlighter name="ReleaseTool">
-			<Words>
+			<Words allowCharacters=".">
 				<Group style="Bold">
 					HEADER VERSION END
 					PACKAGE ARCHIVE SOURCE DESCRIPTION
@@ -180,6 +180,21 @@
 				<Region
 					style="Values" styleOpen="Bold" styleClose="Bold"
 					open='"' close='"' nesting="FALSE" multiline="FALSE"
+				/>
+			</Regions>
+		</Highlighter>
+
+		<Highlighter name="Assembler">
+			<Words allowCharacters=":">
+				<Group style="Bold">
+					*:
+					equ
+				</Group>
+			</Words>
+			<Regions>
+				<Region
+					style="Comment" styleOpen="Comment" styleClose="Comment"
+					open =";" close="" nesting="FALSE" multiline="FALSE"
 				/>
 			</Regions>
 		</Highlighter>
