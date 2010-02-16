@@ -403,6 +403,7 @@ To update: Configuration.Init ~
 					<Setting name="ShowPathInTabs" value="FALSE"/>
 					<Setting name="ScratchPanelHeight" value="5"/>
 					<Setting name="EnableWhitespaceWarnings" value="FALSE"/>
+					<Setting name="ShowLineNumbers" value="FALSE"/>
 					<Setting name="IndicateTabs" value="FALSE"/>
 					<Setting name="CurrentLineColor" value="0"/>
 				</Section>
@@ -459,6 +460,10 @@ To update: Configuration.Init ~
 				<Section name="SyntaxHighlighter">
 					<!-- Map file extension to SyntaxHighlighter name -->
 					<Setting name="MOD" value=""/>
+					<Setting name="XML" value=""/>
+					<Setting name="ASM" value=""/>
+					<Setting name="TOOL" value=""/>
+					<Setting name="C" value=""/>
 				</Section>
 				<Section name="Diff">
 					<Setting name="Command" value="WMDiff.Open"/>
