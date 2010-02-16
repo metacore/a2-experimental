@@ -1281,6 +1281,7 @@ TYPE
 		CONST CR=0DX;
 		BEGIN
 			IF (x.sourceCode # NIL) THEN
+				Indent;
 				i := 0;
 				ch := x.sourceCode[0];
 				WHILE (ch # 0X) DO

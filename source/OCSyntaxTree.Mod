@@ -32,11 +32,15 @@ CONST
 	UntracedFlag*=9;
 	ConstructorFlag*=10;
 	BodyProcedureFlag*=11;
+	
+	InterruptFlag*=12;
+	NoPAFFlag*=13;
+	
 	(* statement flags *)
-	UnreachableFlag*=12;
+	UnreachableFlag*=14;
 	(* modification flags *)
-	WrittenFlag*=13;
-	AccessedFlag*=14;
+	WrittenFlag*=15;
+	AccessedFlag*=16;
 
 
 	(** Access Flags *)

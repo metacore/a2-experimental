@@ -595,6 +595,8 @@ TYPE
 				ELSIF (name = Global.StringUntraced) THEN RETURN SyntaxTree.UntracedFlag
 				ELSIF (name = Global.StringDelegate) THEN RETURN  SyntaxTree.DelegateFlag
 				ELSIF (name = Global.StringRealtime) THEN RETURN SyntaxTree.RealtimeFlag
+				ELSIF (name = Global.StringInterrupt) THEN RETURN SyntaxTree.InterruptFlag
+				ELSIF (name = Global.StringNoPAF) THEN RETURN SyntaxTree.NoPAFFlag;
 				ELSE Error(identifier.position,Diagnostics.Invalid,"Unknown Flag"); RETURN MIN(LONGINT);
 				END;
 			END;
@@ -4109,7 +4111,7 @@ TYPE
 				recentFlags := currentFlags;
 				IF Trace THEN D.Str("undefined"); D.Ln; END;
 				procedureType := procedure.type(SyntaxTree.ProcedureType);
-				flags := Flags(procedureType.flagList,{SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag,SyntaxTree.RealtimeFlag});
+				flags := Flags(procedureType.flagList,{SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag,SyntaxTree.RealtimeFlag,SyntaxTree.InterruptFlag,SyntaxTree.NoPAFFlag});
 				procedureType.AddFlags(flags);
 				FixProcedureType(procedureType);
 				IF SyntaxTree.DelegateFlag IN procedureType.flags THEN
