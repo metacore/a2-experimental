@@ -1,7 +1,7 @@
 MODULE BenchSyntaxHighlighter; (** AUTHOR "staubesv"; PURPOSE "Benchmarks for SyntaxHighlighter"; *)
 
 IMPORT
-	Streams, Commands, Options, Dates, Strings, Files, Texts, TextUtilities, SyntaxHighlighter;
+	Streams, Commands, Options, Dates, Strings, Files, Random, Texts, TextUtilities, SyntaxHighlighter;
 
 CONST
 	DefaultHighlighterName = "Oberon";
@@ -20,8 +20,7 @@ BEGIN
 		UNTIL reader.eot;
 	END;
 	endTime := Dates.Now();
-	Strings.ShowTimeDifference(startTime, endTime, out);
-	out.Ln;
+	Strings.ShowTimeDifference(startTime, endTime, out); out.Ln;
 END Reader;
 
 PROCEDURE Words(reader : Texts.TextReader; highlighter : SyntaxHighlighter.Highlighter; nofIterations : LONGINT; out : Streams.Writer);
@@ -47,8 +46,7 @@ BEGIN
 		UNTIL reader.eot;
 	END;
 	endTime := Dates.Now();
-	Strings.ShowTimeDifference(startTime, endTime, out);
-	out.Ln;
+	Strings.ShowTimeDifference(startTime, endTime, out); out.Ln;
 END Words;
 
 PROCEDURE RebuildRegions(reader : Texts.TextReader; highlighter : SyntaxHighlighter.Highlighter; nofIterations : LONGINT; out : Streams.Writer);
@@ -64,10 +62,32 @@ BEGIN
 	FOR i := 1 TO nofIterations DO
 		highlighter.RebuildRegions(reader, state);
 	END;
-		endTime := Dates.Now();
-	Strings.ShowTimeDifference(startTime, endTime, out);
-	out.Ln;
+	endTime := Dates.Now();
+	Strings.ShowTimeDifference(startTime, endTime, out); out.Ln;
 END RebuildRegions;
+
+PROCEDURE RegionLookup(reader : Texts.TextReader; highlighter : SyntaxHighlighter.Highlighter; nofIterations : LONGINT; out : Streams.Writer);
+VAR
+	attributes : Texts.Attributes;
+	state : SyntaxHighlighter.State;
+	random : Random.Generator;
+	length, position, start, end, i : LONGINT;
+	startTime, endTime : Dates.DateTime;
+BEGIN
+	ASSERT((reader # NIL) & (highlighter # NIL) & (nofIterations > 0) & (out # NIL));
+	NEW(state);
+	NEW(random);
+	length := reader.text.GetLength();
+	highlighter.RebuildRegions(reader, state);
+	out.String("Region lookup"); out.Int(nofIterations, 0); out.String(" times ... "); out.Update;
+	startTime := Dates.Now();
+	FOR i := 1 TO nofIterations DO
+		position := random.Dice(length);
+		attributes := highlighter.GetRegionAttributes(position, state, start, end);
+	END;
+	endTime := Dates.Now();
+	Strings.ShowTimeDifference(startTime, endTime, out); out.Ln;
+END RegionLookup;
 
 PROCEDURE Full(reader : Texts.TextReader; highlighter : SyntaxHighlighter.Highlighter; nofIterations : LONGINT; out : Streams.Writer);
 VAR
@@ -102,8 +122,7 @@ BEGIN
 		UNTIL reader.eot;
 	END;
 	endTime := Dates.Now();
-	Strings.ShowTimeDifference(startTime, endTime, out);
-	out.Ln;
+	Strings.ShowTimeDifference(startTime, endTime, out); out.Ln;
 END Full;
 
 PROCEDURE Indent(writer : Streams.Writer; width : LONGINT);
@@ -143,6 +162,7 @@ BEGIN
 						Indent(context.out, 4); Reader(reader, nofIterations, context.out); context.out.Update;
 						Indent(context.out, 4); Words(reader, highlighter, nofIterations, context.out); context.out.Update;
 						Indent(context.out, 4); RebuildRegions(reader, highlighter, nofIterations, context.out); context.out.Update;
+						Indent(context.out, 4); RegionLookup(reader, highlighter, nofIterations, context.out); context.out.Update;
 						Indent(context.out, 4); Full(reader, highlighter, nofIterations, context.out); context.out.Update;
 					ELSIF (benchmark = "reader") THEN
 						Reader(reader, nofIterations, context.out);
@@ -150,6 +170,8 @@ BEGIN
 						Words(reader, highlighter, nofIterations, context.out);
 					ELSIF (benchmark = "rebuildregions") THEN
 						RebuildRegions(reader, highlighter, nofIterations, context.out);
+					ELSIF (benchmark = "regionlookup") THEN
+						RegionLookup(reader, highlighter, nofIterations, context.out);
 					ELSIF (benchmark = "full") THEN
 						Full(reader, highlighter, nofIterations, context.out);
 					ELSE
@@ -182,6 +204,9 @@ BenchSyntaxHighlighter.Bench I386.Machine.Mod words ~
 
 BenchSyntaxHighlighter.Bench Usb.Mod rebuildregions~
 BenchSyntaxHighlighter.Bench I386.Machine.Mod rebuildregions ~
+
+BenchSyntaxHighlighter.Bench -n=1000000 Usb.Mod regionlookup~
+BenchSyntaxHighlighter.Bench I386.Machine.Mod regionlookup ~
 
 BenchSyntaxHighlighter.Bench Usb.Mod full ~
 BenchSyntaxHighlighter.Bench I386.Machine.Mod full ~
