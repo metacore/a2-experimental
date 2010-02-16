@@ -1,78 +1,108 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 
+	<!DOCTYPE SyntaxHighlighter [
+		<!ELEMENT SyntaxHighlighter (Styles, Highlighters)>
+		<!ELEMENT Styles (Style*)>
+		<!ELEMENT Style EMPTY>
+		<!ELEMENT Highlighters (Highlighter*)>
+		<!ELEMENT Highlighter (Words?, Regions?)>
+		<!ELEMENT Words (#PCDATA)>
+		<!ELEMENT Regions (Region*)>
+		<!ELEMENT Region EMPTY>
+		<!ATTLIST Style
+			name CDATA #REQUIRED
+			fontname CDATA #REQUIRED
+			fontsize CDATA #REQUIRED
+			fontstyle CDATA #REQUIRED
+			color CDATA #REQUIRED
+			bgcolor CDATA #IMPLIED
+			voff CDATA #IMPLIED
+		>
+		<!ATTLIST Highlighter 	name CDATA #REQUIRED	>
+		<!ATTLIST Words allowCharacters CDATA #IMPLIED>
+		<!ATTLIST Group name CDATA #REQUIRED>
+		<!ATTLIST Region
+			style CDATA #REQUIRED
+			styleOpen CDATA #REQUIRED
+			styleClose CDATA #REQUIRED
+			open CDATA #REQUIRED
+			close CDATA #REQUIRED
+			nesting CDATA #REQUIRED
+			multiline CDATA #REQUIRED
+		>
+	]>
+
 <SyntaxHighlighter>
 	<Styles>
 		<Style name="Comment" fontname="Syntax" fontsize="10" fontstyle="{}" color="808080FF"/>
-		<Style name="Control" fontname="Syntax" fontsize="10" fontstyle="{0}" color="80FF"/>
-		<Style name="Modifiers" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF00FF"/>
+		<Style name="Control" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
+		<Style name="Modifiers" fontname="Syntax" fontsize="10" fontstyle="{}" color="A000FF"/>
 		<Style name="Locking" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF"/>
 		<Style name="Checks" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
 		<Style name="Threads" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF"/>
 		<Style name="Structure" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF"/>
 		<Style name="Operators" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
-		<Style name="Values" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
+		<Style name="Values" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
 		<Style name="BasicTypes" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
 		<Style name="ComplexTypes" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
 		<Style name="Lowlevel" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF0000FF"/>
 		<Style name="Dangerous" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF0000FF"/>
+		<Style name="String" fontname="Syntax" fontsize="10" fontstyle="{}" color="BF003FFF"/>
 
 		<Style name="Bold" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF"/>
 		<Style name="Italic" fontname="Syntax" fontsize="10" fontstyle="{1}" color="FF"/>
-		<Style name="Red" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF0000FF"/>
-		<Style name="Blue" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
-		<Style name="Green" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF00FF"/>
-
+		<Style name="Red" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF0000FF"/>
+		<Style name="Blue" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
+		<Style name="Green" fontname="Syntax" fontsize="10" fontstyle="{}" color="A000FF"/>
 	</Styles>
 
 	<Highlighters>
 		<Highlighter name="Oberon">
 			<Words allowCharacters="._">
-				<Group style="Control">
+				<Group style="Bold">
 					FOR TO WHILE DO REPEAT UNTIL IF THEN ELSE ELSIF
 					LOOP EXIT CASE BY RETURN
-					BEGIN END
+					BEGIN END CODE
+				</Group>
+				<Group style="Bold">
+					VAR CONST
 				</Group>
 				<Group style="Bold">
 					NEW SELF
-					SHORT LONG ENTIER ENTIERH
 				</Group>
-				<Group style="Bold">
+				<Group style="Italic">
 					ABS ASH CAP CHR ORD
 					COPY GETPROCEDURE LEN
-					MAX MIN ODD SIZEO
+					MAX MIN ODD SIZEOF SHORT LONG ENTIER ENTIERH
 				</Group>
 				<Group style="Modifiers">
 					DELEGATE
 				</Group>
 				<Group style="Locking">
 					EXCLUSIVE
-					*.AcquireRead
-					*.ReleaseRead
-					*.AcquireWrite
-					*.ReleaseWrite
-					*.Acquire
-					*.Release
+					Acquire Release
+					*.AcquireRead 	*.ReleaseRead
+					*.AcquireWrite *.ReleaseWrite
+					*.Acquire *.Release
 				</Group>
 				<Group style="Checks">
 					ASSERT
 				</Group>
 				<Group style="Threads">
-					ACTIVE SHARED PRIORITY
-					AWAIT
+					ACTIVE SHARED PRIORITY AWAIT
 				</Group>
 				<Group style="Structure">
-					MODULE IMPORT TYPE DEFINITION REFINES IMPLEMENTS CONST VAR PROCEDURE
-					VAR CONST
+					MODULE IMPORT TYPE DEFINITION REFINES IMPLEMENTS PROCEDURE
+					OBJECT RECORD
 				</Group>
 				<Group style="Operators">
 					DIV MOD IN IS OR
-					INCL EXCL
-					INC DEC
+					INCL EXCL INC DEC
 				</Group>
 				<Group style="Values">
 					NIL TRUE FALSE
 				</Group>
-				<Group style="BasicTypes">
+				<Group style="Bold">
 					BOOLEAN
 					SHORTINT INTEGER LONGINT HUGEINT
 					REAL LONGREAL
@@ -80,7 +110,7 @@
 					CHAR
 				</Group>
 				<Group style="ComplexTypes">
-					RECORD ARRAY POINTER OBJECT
+					 ARRAY POINTER
 				</Group>
 				<Group style="Lowlevel">
 					SYSTEM
@@ -107,11 +137,11 @@
 					open="(*" close="*)" nesting="TRUE" multiline="TRUE"
 				/>
 				<Region
-					style="Values" styleOpen="Bold" styleClose="Bold"
+					style="String" styleOpen="Bold" styleClose="Bold"
 					open='"' close='"' nesting="FALSE" multiline="FALSE"
 				/>
 				<Region
-					style="Values" styleOpen="Bold" styleClose="Bold"
+					style="String" styleOpen="Bold" styleClose="Bold"
 					open="'" close="'" nesting="FALSE" multiline="FALSE"
 				/>
 			</Regions>
@@ -119,8 +149,20 @@
 		</Highlighter>
 
 		<Highlighter name="XML">
-			<Words>
+			<Words allowCharacters="?&amp;!#;:">
 				<Group style="Bold">
+					?xml
+					!DOCTYPE !ELEMENT !ATTLIST
+				</Group>
+				<Group style="Italic">
+					#DEFAULT #FIXED
+					#REQUIRED #IMPLIED
+					#PCDATA #CDATA
+				</Group>
+				<Group style="Bold">
+					EMPTY ANY CDATA PCDATA
+					ID IDREF IDREFS NMTOKEN NMTOKENS ENTITY ENTITIES NOTATION
+					xml:*
 				</Group>
 			</Words>
 			<Regions>
@@ -188,7 +230,6 @@
 			<Words allowCharacters=":">
 				<Group style="Bold">
 					*:
-					equ
 				</Group>
 			</Words>
 			<Regions>
