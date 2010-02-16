@@ -8,7 +8,7 @@ CONST InvalidAddress* = MAX (Address);
 
 TYPE Priority = LONGINT;
 
-CONST InitCode = 0; Code = 1; Default = 2;
+CONST InitCode = MAX(LONGINT)-2; Code = MAX(LONGINT)-1; Default = MAX(LONGINT);
 
 TYPE Arrangement* = OBJECT
 
@@ -140,6 +140,7 @@ END Linker;
 
 PROCEDURE GetPriority (block: Block): Priority;
 BEGIN
+	IF block.fixed THEN RETURN block.alignment END;
 	IF block.type = ObjectFile.InitCode THEN RETURN InitCode END;
 	IF block.type = ObjectFile.Code THEN RETURN Code END;
 	RETURN Default;

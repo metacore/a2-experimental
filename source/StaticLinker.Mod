@@ -357,9 +357,10 @@ BEGIN
 	context.arg.GetString (moduleName);
 	WHILE ~linker.error & (context.arg.res = Files.Ok) DO
 		ReadObjectFile (moduleName, path, extension, linker);
-		IF ~linker.error THEN linker.Link; END;
 		context.arg.GetString (moduleName);
 	END;
+	(* do linking after having read in all blocks to account for potential constraints *)
+	IF ~linker.error THEN linker.Link; END;
 
 	IF ~linker.error THEN
 		WriteOutputFile (code, codeFileName, linker, codeFileFormat);
