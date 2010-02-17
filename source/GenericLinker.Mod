@@ -70,7 +70,7 @@ VAR
 	PROCEDURE Link*;
 	VAR block: Block;
 	BEGIN
-		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO Reference (block, GetPriority (block) = InitCode); block := block.next; END; END;
+		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO Reference (block, GetPriority (block) <= InitCode); block := block.next; END; END;
 		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO IF block.used THEN Arrange (block); END; block := block.next; END; END;
 		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO IF block.used THEN Patch (block); END; block := block.next; END; END;
 		IF ~error THEN firstLinkedBlock := firstBlock; END;
@@ -140,8 +140,8 @@ END Linker;
 
 PROCEDURE GetPriority (block: Block): Priority;
 BEGIN
-	IF block.fixed THEN RETURN block.alignment END;
-	IF block.type = ObjectFile.InitCode THEN RETURN InitCode END;
+	IF block.fixed THEN RETURN block.alignment END; (*! quick and dirty sorting by address - needs cleanup *)
+	IF block.type = ObjectFile.InitCode THEN	RETURN InitCode END;
 	IF block.type = ObjectFile.Code THEN RETURN Code END;
 	RETURN Default;
 END GetPriority;

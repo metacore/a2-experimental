@@ -74,7 +74,7 @@ BEGIN
 	ASSERT (bitsPerLine MOD 4 = 0);
 	size := arrangement.bits.GetSize();
 	FOR i := 0 TO lines-1 DO
-		FOR j := bitsPerLine DIV 4 TO 0 BY -1 DO
+		FOR j := bitsPerLine DIV 4 -1 TO 0 BY -1 DO
 			writer.Char(ObjectFile.NibbleToCharacter(GetBits(i*bitsPerLine+j*4)));
 		END;
 		writer.Ln;

@@ -85,6 +85,7 @@ BEGIN
 	dest.name := source.name;
 	dest.fingerprint := source.fingerprint;
 	dest.unit := source.unit;
+	dest.fixed := source.fixed;
 	dest.alignment := source.alignment;
 	dest.fixups:= source.fixups;
 	NEW (dest.fixup, dest.fixups);
@@ -167,6 +168,7 @@ BEGIN
 	writer.Char (Separator);
 	size := section.bits.GetSize ();
 	writer.Int (size DIV section.unit, 0);
+	ASSERT(size MOD section.unit = 0);
 	FOR i := 0 TO section.fixups - 1 DO
 		writer.Ln; writer.Char (Tab); WriteFixup (section.fixup[i]);
 	END;
