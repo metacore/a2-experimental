@@ -25,7 +25,7 @@ END Reader;
 
 PROCEDURE Words(reader : Texts.TextReader; highlighter : SyntaxHighlighter.Highlighter; nofIterations : LONGINT; out : Streams.Writer);
 VAR
-	char32 : Texts.Char32; attributes : Texts.Attributes;
+	char32 : Texts.Char32; style : SyntaxHighlighter.Style;
 	wordEnd, readerPosition, i : LONGINT;
 	startTime, endTime : Dates.DateTime;
 BEGIN
@@ -39,7 +39,7 @@ BEGIN
 			readerPosition := reader.GetPosition();
 			reader.ReadCh(char32);
 			IF (readerPosition > wordEnd) & highlighter.IsAllowedCharacter(char32) THEN
-				attributes := highlighter.GetWordAttributes(reader, readerPosition, wordEnd);
+				style := highlighter.GetWordStyle(reader, readerPosition, wordEnd);
 				reader.SetPosition(readerPosition);
 				reader.ReadCh(char32);
 			END;
@@ -68,7 +68,7 @@ END RebuildRegions;
 
 PROCEDURE RegionLookup(reader : Texts.TextReader; highlighter : SyntaxHighlighter.Highlighter; nofIterations : LONGINT; out : Streams.Writer);
 VAR
-	attributes : Texts.Attributes;
+	style : SyntaxHighlighter.Style;
 	state : SyntaxHighlighter.State;
 	random : Random.Generator;
 	length, position, start, end, i : LONGINT;
@@ -83,7 +83,7 @@ BEGIN
 	startTime := Dates.Now();
 	FOR i := 1 TO nofIterations DO
 		position := random.Dice(length);
-		attributes := highlighter.GetRegionAttributes(position, state, start, end);
+		style := highlighter.GetRegionStyle(position, state, start, end);
 	END;
 	endTime := Dates.Now();
 	Strings.ShowTimeDifference(startTime, endTime, out); out.Ln;
@@ -91,7 +91,7 @@ END RegionLookup;
 
 PROCEDURE Full(reader : Texts.TextReader; highlighter : SyntaxHighlighter.Highlighter; nofIterations : LONGINT; out : Streams.Writer);
 VAR
-	char32 : Texts.Char32; attributes : Texts.Attributes;
+	char32 : Texts.Char32; style : SyntaxHighlighter.Style;
 	state : SyntaxHighlighter.State;
 	startTime, endTime : Dates.DateTime;
 	readerPosition, regionStart, regionEnd, lastEnd, i : LONGINT;
@@ -107,13 +107,13 @@ BEGIN
 			readerPosition := reader.GetPosition();
 			reader.ReadCh(char32);
 			IF (lastEnd < readerPosition) THEN
-				attributes := NIL;
-				attributes := highlighter.GetRegionAttributes(readerPosition, state, regionStart, regionEnd);
-				IF (attributes # NIL) THEN
+				style := NIL;
+				style := highlighter.GetRegionStyle(readerPosition, state, regionStart, regionEnd);
+				IF (style # NIL) THEN
 					lastEnd := regionEnd;
 				ELSE
 					IF highlighter.IsAllowedCharacter(char32) THEN
-						attributes := highlighter.GetWordAttributes(reader, readerPosition, lastEnd);
+						style := highlighter.GetWordStyle(reader, readerPosition, lastEnd);
 						reader.SetPosition(readerPosition);
 						reader.ReadCh(char32);
 					END;
