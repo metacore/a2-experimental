@@ -45,14 +45,14 @@ TYPE
 	FixupPatterns*= POINTER TO ARRAY OF FixupPattern;
 
 	Fixup* = RECORD
-		mode*: INTEGER;
-		offset*: Unit;
-		section*: SectionName;
-		fingerprint*: LONGINT;
-		displacement*: Unit;
-		scale*: Bits;
+		mode*: INTEGER; (* fixup mode: relative or absolute *)
+		offset*: Unit; (* offset of address that has to be patched ('destination') *)
+		section*: SectionName; (* section of the address value ('source') *)
+		fingerprint*: LONGINT; (* fingerprint of destination to check for consistency *)
+		displacement*: Unit; (* displacement of the fixup ('destination') *)
+		scale*: Bits; (* exponent of scale factor (factor=2^scale) *)
 		patterns*: LONGINT;
-		pattern*: FixupPatterns;
+		pattern*: FixupPatterns; (* patterns describing the fixup format, cf. above *)
 	END;
 
 	Fixups*=POINTER TO ARRAY OF Fixup;
@@ -79,7 +79,7 @@ BEGIN RETURN (type = Code) OR (type = InitCode);
 END IsCode;
 
 PROCEDURE CopySection* (CONST source: Section; VAR dest: Section);
-VAR i: LONGINT;
+VAR i,j: LONGINT;
 BEGIN
 	dest.type := source.type;
 	dest.name := source.name;
@@ -90,7 +90,13 @@ BEGIN
 	dest.fixups:= source.fixups;
 	NEW (dest.fixup, dest.fixups);
 	NEW (dest.bits, source.bits.GetSize ());
-	FOR i := 0 TO dest.fixups - 1 DO dest.fixup[i] := source.fixup[i]; END;
+	FOR i := 0 TO dest.fixups - 1 DO
+		dest.fixup[i] := source.fixup[i];
+		NEW(dest.fixup[i].pattern,source.fixup[i].patterns);
+		FOR j := 0 TO source.fixup[i].patterns-1 DO
+			dest.fixup[i].pattern[j] := source.fixup[i].pattern[j];
+		END;
+	END;
 	BitSets.CopyBits (source.bits, 0, dest.bits, 0, source.bits.GetSize ());
 END CopySection;
 
