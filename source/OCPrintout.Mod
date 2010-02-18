@@ -1277,29 +1277,31 @@ TYPE
 		END VisitStatementBlock;
 
 		PROCEDURE Code(x: SyntaxTree.Code);
-		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN; size,value: LONGINT;
+		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN; size,value: LONGINT; procedure: SyntaxTree.Procedure;
 		CONST CR=0DX;
 		BEGIN
-			IF (x.sourceCode # NIL) THEN
-				Indent;
-				i := 0;
-				ch := x.sourceCode[0];
-				WHILE (ch # 0X) DO
-					IF ch = CR THEN
-						cr := TRUE;
-					ELSE
-						IF cr THEN Indent; cr := FALSE END;
-						w.Char(ch);
+			procedure := currentScope(SyntaxTree.ProcedureScope).ownerProcedure;
+			IF (mode >= SourceCode) OR (procedure.access * SyntaxTree.Public # {}) & procedure.HasFlag(SyntaxTree.InlineFlag) THEN
+				IF (x.sourceCode # NIL) THEN
+					i := 0;
+					ch := x.sourceCode[0];
+					WHILE (ch # 0X) DO
+						IF ch = CR THEN
+							cr := TRUE;
+						ELSE
+							IF cr THEN Indent; cr := FALSE END;
+							w.Char(ch);
+						END;
+						INC(i); ch := x.sourceCode[i];
 					END;
-					INC(i); ch := x.sourceCode[i];
 				END;
-			END;
-			IF x.inlineCode # NIL THEN
-				w.String("; ");
-				size := x.inlineCode.GetSize() DIV 8;
-				FOR i := 0 TO size-1 DO
-					value := x.inlineCode.GetBits(i*8,8);
-					w.Hex(value,-2); w.String(" ");
+				IF x.inlineCode # NIL THEN
+					w.String("; ");
+					size := x.inlineCode.GetSize() DIV 8;
+					FOR i := 0 TO size-1 DO
+						value := x.inlineCode.GetBits(i*8,8);
+						w.Hex(value,-2); w.String(" ");
+					END;
 				END;
 			END;
 		END Code;
@@ -1365,7 +1367,7 @@ TYPE
 				END;
 				Indent; Keyword("END "); Identifier(x.name); w.String( "." ); w.Ln;  w.Update;
 
-				IF x.moduleScope.firstComment # NIL THEN w.Ln; CommentList(x.moduleScope.firstComment) END;
+				IF (mode > SourceCode) & (x.moduleScope.firstComment # NIL) THEN w.Ln; CommentList(x.moduleScope.firstComment) END;
 
 			END
 		END Module;

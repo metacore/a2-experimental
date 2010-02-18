@@ -158,6 +158,7 @@ VAR i: LONGINT; size: Bits;
 	END WriteFixup;
 
 BEGIN
+	IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
 	WriteIdentifier (section.type, types);
 	writer.Char (Separator);
 	writer.String (section.name);

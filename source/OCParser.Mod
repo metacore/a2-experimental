@@ -220,7 +220,7 @@ TYPE
 		BEGIN
 			error := ~scanner.GetNextSymbol(symbol) OR error;
 			WHILE ~error & (symbol.token = Scanner.Comment) DO
-				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.comment^,symbol.stringLength);
+				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.source^,symbol.stringLength);
 				moduleScope.AddComment(comment);
 				recentComment := comment; comment.SetPreviousSymbol(recentSymbol);
 				error := ~scanner.GetNextSymbol(symbol);
@@ -232,7 +232,7 @@ TYPE
 		VAR comment: SyntaxTree.Comment;
 		BEGIN
 			WHILE ~error & (symbol.token = Scanner.Comment) DO
-				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.comment^,symbol.stringLength);
+				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.source^,symbol.stringLength);
 				moduleScope.AddComment(comment);
 				recentComment := comment; comment.SetPreviousSymbol(recentSymbol);
 				error := ~scanner.GetNextSymbol(symbol);
@@ -873,7 +873,6 @@ TYPE
 					statements.AddStatement( awaitStatement );
 			| Scanner.Code:
 				(* assemble *)
-				NextSymbol;
 				code := Code(outer);
 				Check(Scanner.End);
 				statements.AddStatement( code );
@@ -945,22 +944,13 @@ TYPE
 
 		(** Code = {  Any \ 'end' } . **)
 		PROCEDURE Code(outer: SyntaxTree.Statement): SyntaxTree.Code;
-		VAR startPos, endPos, i ,len: LONGINT; codeString: Scanner.SourceString; code: SyntaxTree.Code;
-		CONST CR = 0DX;
+		VAR startPos, i ,len: LONGINT; codeString: Scanner.SourceString; code: SyntaxTree.Code;
 		BEGIN
 			startPos := symbol.start;
-			IF scanner.SkipToNextEnd(symbol) THEN
-				endPos := symbol.end;
-				codeString := scanner.GetSourceCode(startPos,endPos);
+			IF scanner.SkipToNextEnd(symbol,startPos) THEN
+				codeString := symbol.source;
 				code := SyntaxTree.NewCode(startPos,outer);
-				i := 0; len := endPos-startPos;
-				WHILE(i < endPos-startPos) DO
-					IF codeString[i] = CR THEN
-						len := i;
-					END;
-					INC(i);
-				END;
-				(* len now points to end of last line *)
+				i := 0; len := LEN(codeString);
 				code.SetSourceCode(codeString,len);
 			END;
 			RETURN code;
@@ -974,7 +964,7 @@ TYPE
 			previousScope := currentScope;
 			currentScope := scope;
 			IF Trace THEN S( "Body" ) END;
-			IF Optional( Scanner.Code ) THEN
+			IF Peek( Scanner.Code ) THEN
 				body := SyntaxTree.NewBody(symbol.start,scope); (* empty body for the time being *)
 				(* assemble *)
 				code := Code(body);
