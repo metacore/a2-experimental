@@ -944,10 +944,10 @@ TYPE
 
 		(** Code = {  Any \ 'end' } . **)
 		PROCEDURE Code(outer: SyntaxTree.Statement): SyntaxTree.Code;
-		VAR startPos, i ,len: LONGINT; codeString: Scanner.SourceString; code: SyntaxTree.Code;
+		VAR startPos, endPos, i ,len: LONGINT; codeString: Scanner.SourceString; code: SyntaxTree.Code;
 		BEGIN
 			startPos := symbol.start;
-			IF scanner.SkipToNextEnd(symbol,startPos) THEN
+			IF scanner.SkipToNextEnd(startPos, endPos, symbol) THEN
 				codeString := symbol.source;
 				code := SyntaxTree.NewCode(startPos,outer);
 				i := 0; len := LEN(codeString);
