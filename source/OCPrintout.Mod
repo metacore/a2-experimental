@@ -1295,6 +1295,7 @@ TYPE
 						INC(i); ch := x.sourceCode[i];
 					END;
 				END;
+				(*
 				IF x.inlineCode # NIL THEN
 					w.String("; ");
 					size := x.inlineCode.GetSize() DIV 8;
@@ -1303,6 +1304,7 @@ TYPE
 						w.Hex(value,-2); w.String(" ");
 					END;
 				END;
+				*)
 			END;
 		END Code;
 
