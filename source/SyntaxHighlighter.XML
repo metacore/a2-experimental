@@ -18,7 +18,9 @@
 			bgcolor CDATA #IMPLIED
 			voff CDATA #IMPLIED
 		>
-		<!ATTLIST Highlighter 	name CDATA #REQUIRED	>
+		<!ATTLIST Highlighter
+			name CDATA #REQUIRED
+			defaultstyle CDATA #IMPLIED>
 		<!ATTLIST Words allowCharacters CDATA #IMPLIED>
 		<!ATTLIST Group name CDATA #REQUIRED>
 		<!ATTLIST Region
