@@ -56,7 +56,7 @@ VAR
 	i : LONGINT;
 BEGIN
 	ASSERT((reader # NIL) & (highlighter # NIL) & (nofIterations > 0) & (out # NIL));
-	NEW(state);
+	state := highlighter.GetState();
 	out.String("Rebuild regions "); out.Int(nofIterations, 0); out.String(" times ... "); out.Update;
 	startTime := Dates.Now();
 	FOR i := 1 TO nofIterations DO
@@ -75,7 +75,7 @@ VAR
 	startTime, endTime : Dates.DateTime;
 BEGIN
 	ASSERT((reader # NIL) & (highlighter # NIL) & (nofIterations > 0) & (out # NIL));
-	NEW(state);
+	state := highlighter.GetState();
 	NEW(random);
 	length := reader.text.GetLength();
 	highlighter.RebuildRegions(reader, state);
@@ -97,7 +97,7 @@ VAR
 	readerPosition, regionStart, regionEnd, lastEnd, i : LONGINT;
 BEGIN
 	ASSERT((reader # NIL) & (highlighter # NIL) & (nofIterations > 0) & (out # NIL));
-	NEW(state);
+	state := highlighter.GetState();
 	out.String("Full highlighting "); out.Int(nofIterations, 0); out.String(" times ... "); out.Update;
 	startTime := Dates.Now();
 	FOR i := 1 TO nofIterations DO
