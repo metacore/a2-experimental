@@ -3,7 +3,7 @@ MODULE OCPrintout; (** AUTHOR "fof & fn"; PURPOSE "Oberon Compiler Module Output
 
 IMPORT
 	Scanner := OCScanner, SyntaxTree := OCSyntaxTree, Global := OCGlobal, Basic := OCBasic,
-	Streams,  D:=Debugging, WMGraphics, SYSTEM;
+	Streams,  D:=Debugging, WMGraphics, Runtime, SYSTEM;
 
 CONST
 	(* print modes *)
@@ -145,7 +145,7 @@ TYPE
 			e := x.enumerationScope.firstEnumerator; first := TRUE;
 			WHILE (e # NIL) DO
 				IF ~first THEN w.String(",") ELSE first := FALSE END;
-				PrintSymbol(e); 
+				PrintSymbol(e);
 				e := e.nextEnumerator
 			END;
 
@@ -303,7 +303,7 @@ TYPE
 				VisitParameter(x.returnParameter);
 				EndComment;
 			END;
-				
+
 		END VisitProcedureType;
 
 		(*** expressions ****)
@@ -383,14 +383,14 @@ TYPE
 		BEGIN
 			w.String(" ? ");
 		END VisitTensorRangeExpression;
-		
+
 
 		PROCEDURE VisitConversion(x: SyntaxTree.Conversion);
 		BEGIN
-			IF x.typeExpression # NIL THEN Expression(x.typeExpression); w.String("("); 
+			IF x.typeExpression # NIL THEN Expression(x.typeExpression); w.String("(");
 			ELSIF info THEN BeginComment; Type(x.type); w.String("<-"); EndComment;
 			END;
-			Expression(x.expression); 
+			Expression(x.expression);
 			IF x.typeExpression # NIL THEN w.String(")") END;
 		END VisitConversion;
 
@@ -576,22 +576,47 @@ TYPE
 			END
 		END VisitBooleanValue;
 
+		PROCEDURE Hex(x: HUGEINT);
+		VAR i,j: LONGINT; a: ARRAY 20 OF CHAR; y: HUGEINT;
+		BEGIN
+			i := 0;
+			REPEAT
+				y := x MOD 10H;
+				IF y < 10 THEN a[i] := CHR(y+ORD('0'))
+				ELSE a[i] := CHR(y-10+ORD('A'))
+				END;
+				x := x DIV 10H;
+				INC(i);
+			UNTIL (x=0) OR (i=16);
+			IF y >=10 THEN w.Char("0") END;
+			REPEAT DEC( i ); w.Char( a[i] ) UNTIL i = 0
+		END Hex;
+
 		PROCEDURE VisitIntegerValue(x: SyntaxTree.IntegerValue);
+
+			PROCEDURE InBounds(val: HUGEINT; bits: LONGINT): BOOLEAN;
+			VAR m: HUGEINT;
+			BEGIN
+				m := Runtime.AslH(1,bits-1);
+				RETURN (val < m) & (-val <= m)
+			END InBounds;
 		BEGIN
 			(*! use subtype for representation form ?  *)
 			IF x.hvalue = MIN(HUGEINT) THEN
 				(* special case: display 8000000000000000H without leading minus sign
 					to avoid double minus sign for unary expression -8000000000000000H
 				*)
-				w.Hex(x.hvalue,-16); w.Char("H");
+				w.Char("0"); w.Hex(x.hvalue,-16); w.Char("H");
+			ELSIF InBounds(x.hvalue,32) THEN
+				w.Int(SHORT(x.hvalue),1);
 			ELSE
-				w.Hex(x.hvalue,1); w.Char("H");
+				Hex(x.hvalue); w.Char("H");
 			END;
 		END VisitIntegerValue;
 
 		PROCEDURE VisitCharacterValue(x: SyntaxTree.CharacterValue);
 		BEGIN
-			w.Hex( ORD(x.value),1 );  w.String( "X" );
+			Hex( ORD(x.value));  w.String( "X" );
 		END VisitCharacterValue;
 
 		PROCEDURE VisitSetValue(x: SyntaxTree.SetValue);
