@@ -72,7 +72,7 @@ END ObjectFileFormat;
 PROCEDURE GetFingerprint (section: Sections.Section; lookup: FingerPrint.FingerPrinterLookup): LONGINT;
 VAR fingerPrinter: FingerPrint.FingerPrinter; fingerPrint: FingerPrint.FingerPrint;
 BEGIN
-	IF section.symbol = NIL THEN
+	IF (section.symbol = NIL) OR (section.symbol.scope = NIL) THEN
 		RETURN 0
 	ELSE
 		fingerPrinter := lookup.GetFingerPrinter (section.symbol.scope.ownerModule);
