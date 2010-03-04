@@ -1,6 +1,6 @@
 MODULE GenericLinker;	(* AUTHOR "negelef"; PURPOSE "Generic Object File Linker"; *)
 
-IMPORT ObjectFile, Streams, Diagnostics,Strings;
+IMPORT ObjectFile, Streams, Diagnostics, Strings;
 
 TYPE Address* = ObjectFile.Unit;
 
@@ -116,18 +116,19 @@ VAR
 			END PatchPattern;
 
 			PROCEDURE CheckBits;
-			VAR i,nobits,minval, maxval: LONGINT; name: ObjectFile.SectionName; number: ARRAY 32 OF CHAR;
+			VAR i, nobits: LONGINT; minval, maxval: ObjectFile.Unit; name: ObjectFile.SectionName; number: ARRAY 32 OF CHAR;
 			BEGIN
 				nobits := 0;
 				FOR i := 0 TO fixup.patterns-1 DO
 					INC(nobits,fixup.pattern[i].bits);
 				END;
+				IF nobits >= 32 THEN RETURN END;
 				IF fixup.mode = ObjectFile.Relative THEN (* negative values allowed *)
 					maxval := ASH(1,nobits-1)-1; minval := -maxval-1
 				ELSE
 					minval := 0; maxval := ASH(1,nobits);
 				END;
-				IF (minval > address) OR (maxval < address) THEN
+				IF (address < minval) OR (address > maxval) THEN
 					COPY(block.name,name);
 					Strings.Append(name,":");
 					Strings.IntToStr(fixup.offset,number);
