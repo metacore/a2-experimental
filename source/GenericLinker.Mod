@@ -31,12 +31,12 @@ VAR
 	diagnostics: Diagnostics.Diagnostics;
 	verbose, error-: BOOLEAN;
 	code, data: Arrangement;
-	firstBlock, firstReferencedBlock, firstLinkedBlock: Block;
+	firstBlock, firstLinkedBlock: Block;
 
 	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; verbose: BOOLEAN; code, data: Arrangement);
 	BEGIN
 		SELF.diagnostics := diagnostics; SELF.verbose := verbose; error := FALSE; SELF.code := code; SELF.data := data;
-		firstBlock := NIL; firstLinkedBlock := NIL; firstReferencedBlock := NIL;
+		firstBlock := NIL; firstLinkedBlock := NIL;
 	END InitLinker;
 
 	PROCEDURE Error* (CONST source, message: ARRAY OF CHAR);
@@ -72,8 +72,7 @@ VAR
 	PROCEDURE Resolve*;
 	VAR block: Block;
 	BEGIN
-		IF ~error THEN block := firstBlock; WHILE block # firstReferencedBlock DO Reference (block, GetPriority (block) <= InitCode); block := block.next; END; END;
-		IF ~error THEN firstReferencedBlock := firstBlock; END;
+		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO Reference (block, GetPriority (block) <= InitCode); block := block.next; END; END;
 	END Resolve;
 
 	PROCEDURE Link*;
