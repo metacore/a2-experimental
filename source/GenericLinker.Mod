@@ -8,7 +8,7 @@ CONST InvalidAddress* = MAX (Address);
 
 TYPE Priority = LONGINT;
 
-CONST InitCode = MAX(LONGINT)-2; Code = MAX(LONGINT)-1; Default = MAX(LONGINT);
+CONST Fixed = 0; InitCode = 1; Code = 2; Default = 3;
 
 TYPE Arrangement* = OBJECT
 
@@ -31,10 +31,12 @@ VAR
 	diagnostics: Diagnostics.Diagnostics;
 	verbose, error-: BOOLEAN;
 	code, data: Arrangement;
-	firstBlock, firstLinkedBlock: Block;
+	firstBlock, firstReferencedBlock, firstLinkedBlock: Block;
 
 	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; verbose: BOOLEAN; code, data: Arrangement);
-	BEGIN SELF.diagnostics := diagnostics; SELF.verbose := verbose; error := FALSE; SELF.code := code; SELF.data := data; firstBlock := NIL; firstLinkedBlock := NIL;
+	BEGIN
+		SELF.diagnostics := diagnostics; SELF.verbose := verbose; error := FALSE; SELF.code := code; SELF.data := data;
+		firstBlock := NIL; firstLinkedBlock := NIL; firstReferencedBlock := NIL;
 	END InitLinker;
 
 	PROCEDURE Error* (CONST source, message: ARRAY OF CHAR);
@@ -63,14 +65,21 @@ VAR
 		IF FindBlock (section.name) # NIL THEN Error (section.name, "duplicated section"); RETURN; END;
 		NEW (block); ObjectFile.CopySection (section, block^); block.address := InvalidAddress; block.referenced := FALSE; block.used := FALSE;
 		priority := GetPriority (block); current := firstBlock; previous := NIL;
-		WHILE (current # NIL) & (GetPriority (current) < priority) DO previous := current; current := current.next; END;
+		WHILE (current # NIL) & (GetPriority (current) <= priority) DO previous := current; current := current.next; END;
 		IF previous # NIL THEN previous.next := block; ELSE firstBlock := block; END; block.next := current;
 	END AddSection;
+
+	PROCEDURE Resolve*;
+	VAR block: Block;
+	BEGIN
+		IF ~error THEN block := firstBlock; WHILE block # firstReferencedBlock DO Reference (block, GetPriority (block) <= InitCode); block := block.next; END; END;
+		IF ~error THEN firstReferencedBlock := firstBlock; END;
+	END Resolve;
 
 	PROCEDURE Link*;
 	VAR block: Block;
 	BEGIN
-		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO Reference (block, GetPriority (block) <= InitCode); block := block.next; END; END;
+		Resolve;
 		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO IF block.used THEN Arrange (block); END; block := block.next; END; END;
 		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO IF block.used THEN Patch (block); END; block := block.next; END; END;
 		IF ~error THEN firstLinkedBlock := firstBlock; END;
@@ -163,7 +172,7 @@ END Linker;
 
 PROCEDURE GetPriority (block: Block): Priority;
 BEGIN
-	IF block.fixed THEN RETURN block.alignment END; (*! quick and dirty sorting by address - needs cleanup *)
+	IF block.fixed THEN RETURN Fixed END;
 	IF block.type = ObjectFile.InitCode THEN	RETURN InitCode END;
 	IF block.type = ObjectFile.Code THEN RETURN Code END;
 	RETURN Default;

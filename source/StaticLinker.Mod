@@ -368,6 +368,7 @@ BEGIN
 	WHILE ~linker.error & (context.arg.res = Files.Ok) DO
 		ReadObjectFile (moduleName, path, extension, linker);
 		context.arg.GetString (moduleName);
+		IF ~linker.error THEN linker.Resolve; END;
 	END;
 	(* do linking after having read in all blocks to account for potential constraints *)
 	IF ~linker.error THEN linker.Link; END;
