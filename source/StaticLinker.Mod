@@ -89,7 +89,7 @@ PROCEDURE WriteTRMDataFile (linker: GenericLinker.Linker; arrangement: Arrangeme
 BEGIN WriteTRMFile (arrangement, writer, 32,2048);
 END WriteTRMDataFile;
 
-PROCEDURE WritePEFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer; bitmode: INTEGER);
+PROCEDURE WritePEFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer; bitmode, subSystem: INTEGER);
 CONST DOSText = "This program cannot be run in DOS mode.$";
 CONST DOSHeaderSize = 64; DOSCodeSize = 14; DOSTextSize = 40; DOSStubSize = ((DOSHeaderSize + DOSCodeSize + DOSTextSize + 15) DIV 16) * 16;
 CONST BaseAddress = 401000H; FileAlignment = 200H; SectionAlignment = 1000H; HeaderSize = 24; SectionHeaderSize = 40; DirectoryEntries = 16;
@@ -194,7 +194,7 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress:
 		WriteDWORD (ImageSize);	(* SizeOfImage *)
 		WriteDWORD (HeadersSize);	(* SizeOfHeaders *)
 		WriteDWORD (0);	(* CheckSum *)
-		WriteWORD (3);	(* Subsystem *)
+		WriteWORD (subSystem);	(* Subsystem *)
 		WriteWORD (0400H);	(* DllCharacteristics *)
 		WritePTR (0100000H);	(* SizeOfStackReserve *)
 		WritePTR (01000H);	(* SizeOfStackCommit *)
@@ -238,12 +238,20 @@ BEGIN
 END WritePEFile;
 
 PROCEDURE WritePE32File (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
-BEGIN WritePEFile (linker, arrangement, writer, 32);
+BEGIN WritePEFile (linker, arrangement, writer, 32, 3);
 END WritePE32File;
 
 PROCEDURE WritePE64File (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
-BEGIN WritePEFile (linker, arrangement, writer, 64);
+BEGIN WritePEFile (linker, arrangement, writer, 64, 3);
 END WritePE64File;
+
+PROCEDURE WriteEFI32File (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
+BEGIN WritePEFile (linker, arrangement, writer, 32, 10);
+END WriteEFI32File;
+
+PROCEDURE WriteEFI64File (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
+BEGIN WritePEFile (linker, arrangement, writer, 64, 10);
+END WriteEFI64File;
 
 PROCEDURE WriteELFFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
 CONST ELFHeaderSize = 52; ProgramHeaderSize = 32; HeadersSize = ELFHeaderSize + ProgramHeaderSize;
@@ -321,6 +329,8 @@ BEGIN
 	ELSIF format = "TRMData" THEN RETURN WriteTRMDataFile;
 	ELSIF format = "PE32" THEN RETURN WritePE32File;
 	ELSIF format = "PE64" THEN RETURN WritePE64File;
+	ELSIF format = "EFI32" THEN RETURN WriteEFI32File;
+	ELSIF format = "EFI64" THEN RETURN WriteEFI64File;
 	ELSIF format = "ELF" THEN RETURN WriteELFFile;
 	ELSE RETURN default; END;
 END GetFileFormat;
