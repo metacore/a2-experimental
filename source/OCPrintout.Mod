@@ -116,7 +116,7 @@ TYPE
 
 		PROCEDURE VisitQualifiedType(x: SyntaxTree.QualifiedType);
 		BEGIN
-			IF x.resolved = Global.invalidType THEN
+			IF x.resolved = SyntaxTree.invalidType THEN
 				AlertString("(*unresolved*)");
 			END;
 			IF x.qualifiedIdentifier # NIL THEN

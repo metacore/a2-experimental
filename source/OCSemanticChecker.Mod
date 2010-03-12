@@ -178,7 +178,7 @@ TYPE
 				IF (symbol # NIL) & (symbol IS SyntaxTree.Import) THEN
 					IF symbol(SyntaxTree.Import).module = NIL THEN
 						Error(qualifiedIdentifier.suffix.position,Diagnostics.Invalid,"module not loaded");
-						result := Global.invalidType;
+						result := SyntaxTree.invalidType;
 						symbol := NIL;
 					ELSE
 						currentScope := symbol(SyntaxTree.Import).module.moduleScope;
@@ -202,11 +202,11 @@ TYPE
 
 			IF symbol = NIL THEN (* error already handled *)
 				typeDeclaration := NIL;
-				result := Global.invalidType;
+				result := SyntaxTree.invalidType;
 			ELSIF ~(symbol IS SyntaxTree.TypeDeclaration) THEN
 				Error(qualifiedIdentifier.suffix.position,Diagnostics.Invalid,"symbol does not denote a type");
 				typeDeclaration := NIL;
-				result := Global.invalidType;
+				result := SyntaxTree.invalidType;
 			ELSE
 				currentScope := symbol.scope;
 				typeDeclaration := symbol(SyntaxTree.TypeDeclaration);
@@ -244,13 +244,13 @@ TYPE
 			IF SyntaxTree.Resolved IN x.state THEN
 				RETURN x
 			ELSE
-				RETURN Global.invalidType
+				RETURN SyntaxTree.invalidType
 			END;
 		END ResolvedType;
 
 		PROCEDURE VisitType(x: SyntaxTree.Type);
 		BEGIN
-			ASSERT(x = Global.invalidType);
+			ASSERT(x = SyntaxTree.invalidType);
 		END VisitType;
 
 		(** resolve basic type **)
@@ -328,7 +328,7 @@ TYPE
 					baseType := ResolveType(x.enumerationBase);
 					resolved := baseType.resolved;
 					baseScope := NIL;
-					IF resolved = Global.invalidType THEN (* error already handled *)
+					IF resolved = SyntaxTree.invalidType THEN (* error already handled *)
 					ELSIF ~(resolved IS SyntaxTree.EnumerationType) THEN
 						Error(position,Diagnostics.Invalid,"base type is no enumeration type");
 					ELSE
@@ -369,7 +369,7 @@ TYPE
 				x.SetState(SyntaxTree.Resolved);
 				x.SetTypeDeclaration (typeDeclaration);
 			ELSIF ~(SyntaxTree.Resolved IN x.state) THEN
-				x.SetResolved(Global.invalidType);
+				x.SetResolved(SyntaxTree.invalidType);
 			END;
 			resolvedType := x;
 		END VisitQualifiedType;
@@ -438,7 +438,7 @@ TYPE
 					x.SetLength(ConstantIntegerGeq0(x.length));
 				END;
 				arrayBase := x.arrayBase.resolved;
-				IF arrayBase = Global.invalidType THEN
+				IF arrayBase = SyntaxTree.invalidType THEN
 					(* error already handled *)
 				ELSIF arrayBase IS SyntaxTree.ArrayType THEN
 					Error(x.position,Diagnostics.Invalid,"forbidden array mixed form");
@@ -512,7 +512,7 @@ TYPE
 				type.SetPointerBase(resolved);
 			ELSE
 				Error(position,Diagnostics.Invalid,"forbidden pointer base type");
-				type.SetPointerBase(Global.invalidType)
+				type.SetPointerBase(SyntaxTree.invalidType)
 			END
 		END FixPointerType;
 
@@ -672,7 +672,7 @@ TYPE
 					position := x.baseType.position;
 					baseType := ResolveType(x.baseType);
 					resolved := baseType.resolved;
-					IF resolved = Global.invalidType THEN
+					IF resolved = SyntaxTree.invalidType THEN
 						(* error already handled *)
 					ELSIF (resolved = Global.Object) & (x.pointerType # NIL) THEN
 						baseType := NIL;
@@ -815,7 +815,7 @@ TYPE
 		VAR prev,resolved: SyntaxTree.Type;
 		BEGIN
 			prev := resolvedType;
-			resolvedType := Global.invalidType;
+			resolvedType := SyntaxTree.invalidType;
 			IF x = NIL THEN resolvedType := NIL
 			ELSE x.Accept(SELF); ASSERT(resolvedType # NIL); (* in error cases it must be invalidType *)
 			END;
@@ -835,9 +835,9 @@ TYPE
 		PROCEDURE RegularType(position: LONGINT; type: SyntaxTree.Type): SyntaxTree.Type;
 		VAR result: SyntaxTree.Type;
 		BEGIN
-			result := Global.invalidType;
+			result := SyntaxTree.invalidType;
 			IF type = NIL THEN Error(position,Diagnostics.Invalid,"expression of type NIL");
-			ELSIF type = Global.invalidType THEN (* error already handled *)
+			ELSIF type = SyntaxTree.invalidType THEN (* error already handled *)
 			ELSIF type.resolved = SyntaxTree.importType THEN Error(position,Diagnostics.Invalid,"expression is an import");
 			ELSIF type.resolved = SyntaxTree.typeDeclarationType THEN Error(position,Diagnostics.Invalid,"expression is a type");
 			ELSE result := type.resolved
@@ -882,7 +882,7 @@ TYPE
 			actualType := RegularType(actual.position,actual.type);
 			error := FALSE;
 
-			IF actualType = Global.invalidType THEN (* error already handled *)
+			IF actualType = SyntaxTree.invalidType THEN (* error already handled *)
 			ELSIF formal.kind = SyntaxTree.VarParameter THEN
 
 				IF (SyntaxTree.WinAPIFlag IN formal.procedureType.flags) & (actualType = Global.Nil) THEN
@@ -944,7 +944,7 @@ TYPE
 				rightType := Global.Char; (* conversion character "x" -> string "x" *)
 			END;
 
-			IF (leftType = Global.invalidType) OR (rightType = Global.invalidType) THEN
+			IF (leftType = SyntaxTree.invalidType) OR (rightType = SyntaxTree.invalidType) THEN
 				(* error already handled *)
 				result := TRUE;
 			ELSIF ~IsVariable(left) THEN
@@ -1005,7 +1005,7 @@ TYPE
 		(** check and resolve set value **)
 		PROCEDURE VisitMathArrayValue(value: SyntaxTree.MathArrayValue);
 		BEGIN
-			value.SetType(Global.invalidType);
+			value.SetType(SyntaxTree.invalidType);
 			resolvedExpression := value
 		END VisitMathArrayValue;
 
@@ -1077,7 +1077,7 @@ TYPE
 
 				IF ~(type IS SyntaxTree.IntegerType) THEN
 					Error(left.position,Diagnostics.Invalid,"wrong type in set");
-					elementResult := Global.invalidExpression;
+					elementResult := SyntaxTree.invalidExpression;
 					constant := FALSE;
 				ELSE
 					IF IsIntegerValue(left,leftInteger) & IsIntegerValue(right,rightInteger) THEN
@@ -1110,8 +1110,8 @@ TYPE
 				FOR i := 0 TO elements.Length()-1 DO
 					element := elements.GetExpression(i);
 					element := CheckElement(element);
-					IF element = Global.invalidExpression THEN
-						result := Global.invalidExpression
+					IF element = SyntaxTree.invalidExpression THEN
+						result := SyntaxTree.invalidExpression
 					END;
 					elements.SetExpression(i,element);
 				END;
@@ -1151,7 +1151,7 @@ TYPE
 					type := expression.type
 				ELSE
 					Error(expression.position,Diagnostics.Invalid, "incompatible element types");
-					type := Global.invalidType;
+					type := SyntaxTree.invalidType;
 				END;
 			END;
 			isValue := TRUE;
@@ -1197,7 +1197,7 @@ TYPE
 							type := expression.type
 						ELSE
 							Error(expression.position,Diagnostics.Invalid, "incompatible element types");
-							type := Global.invalidType;
+							type := SyntaxTree.invalidType;
 						END;
 					END;
 				END;
@@ -1274,7 +1274,7 @@ TYPE
 			result: SyntaxTree.Expression; type: SyntaxTree.Type; operatorCall: SyntaxTree.Expression;
 			value: SyntaxTree.Value;
 		BEGIN
-			type := Global.invalidType;
+			type := SyntaxTree.invalidType;
 			left := ResolveExpression(unaryExpression.left);
 			unaryExpression.SetLeft(left);
 			operator := unaryExpression.operator;
@@ -1365,13 +1365,13 @@ TYPE
 			END BaseType;
 
 		BEGIN
-			result := Global.invalidExpression;
+			result := SyntaxTree.invalidExpression;
 			IF (BaseType(expression.type.resolved) = BaseType(type)) OR (BaseType(type)=Global.All) THEN
 				result := expression (* do not convert *)
 			ELSE (* should the search for operators be restricted to the ArrayBase module here ? *)
 				result := NewOperatorCall(expression.position,Global.Conversion,expression,NIL,type);
 				IF result = NIL THEN
-					result := Global.invalidExpression;
+					result := SyntaxTree.invalidExpression;
 					Error(expression.position,Diagnostics.Invalid,"incompatible conversion");
 					IF VerboseErrorMessage THEN
 						Printout.Info("expression",expression);
@@ -1410,7 +1410,7 @@ TYPE
 					result.SetType(type);
 				ELSE
 					Error(position,Diagnostics.Invalid,"integer value cannot be converted");
-					result := Global.invalidExpression;
+					result := SyntaxTree.invalidExpression;
 					IF VerboseErrorMessage THEN
 						Printout.Info("expression",expression);
 						Printout.Info("type",type);
@@ -1430,7 +1430,7 @@ TYPE
 					result.SetType(type);
 				ELSE
 					Error(position,Diagnostics.Invalid,"real value cannot be converted");
-					result := Global.invalidExpression;
+					result := SyntaxTree.invalidExpression;
 				END;
 			ELSIF IsSetValue(expression,set) THEN
 				IF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) OR (type= Global.Hugeint) THEN
@@ -1441,7 +1441,7 @@ TYPE
 					result.SetType(type);
 				ELSE
 					Error(position,Diagnostics.Invalid,"set value cannot be converted");
-					result := Global.invalidExpression;
+					result := SyntaxTree.invalidExpression;
 				END;
 			ELSIF IsStringValue(expression,string) THEN
 				IF ((type = Global.Char) OR (type = Global.Byte)) & (string[1]=0X) THEN
@@ -1450,7 +1450,7 @@ TYPE
 				ELSIF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char) THEN (* nothing to be done *)
 				ELSE
 					Error(position,Diagnostics.Invalid,"string value cannot be converted");
-					result := Global.invalidExpression;
+					result := SyntaxTree.invalidExpression;
 				END;
 			ELSIF IsCharacterValue(expression,char) THEN
 				IF (type IS SyntaxTree.StringType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char) THEN
@@ -1473,7 +1473,7 @@ TYPE
 					result.SetType(type);
 				ELSE
 					Error(position,Diagnostics.Invalid,"character value cannot be converted");
-					result := Global.invalidExpression;
+					result := SyntaxTree.invalidExpression;
 				END;
 			ELSIF expression IS SyntaxTree.NilValue THEN
 				result := expression;
@@ -1489,7 +1489,7 @@ TYPE
 					Printout.Info("expression",expression);
 					Printout.Info("type",type);
 				END;
-				result := Global.invalidExpression;
+				result := SyntaxTree.invalidExpression;
 			END;
 			RETURN result
 		END ConvertValue;
@@ -1508,7 +1508,7 @@ TYPE
 			ASSERT(type # NIL); ASSERT(~(type IS SyntaxTree.QualifiedType));
 			result := expression;
 
-			IF expression = Global.invalidExpression THEN (* error already handled *)
+			IF expression = SyntaxTree.invalidExpression THEN (* error already handled *)
 			ELSIF expression = NIL THEN (* NIL expression *)
 			ELSIF expression.type = NIL THEN
 				Error(position,Diagnostics.Invalid,"expression of type NIL cannot be converted");
@@ -1651,8 +1651,8 @@ TYPE
 		VAR operator: SyntaxTree.Operator; import: SyntaxTree.Import; expression: SyntaxTree.Expression; designator: SyntaxTree.Designator;  result: SyntaxTree.Expression;
 			actualParameters: SyntaxTree.ExpressionList;
 		BEGIN
-			IF (leftExpression = Global.invalidExpression) OR (rightExpression = Global.invalidExpression)  THEN
-				result := Global.invalidExpression
+			IF (leftExpression = SyntaxTree.invalidExpression) OR (rightExpression = SyntaxTree.invalidExpression)  THEN
+				result := SyntaxTree.invalidExpression
 			ELSIF (leftExpression = NIL) THEN
 				result := NIL
 			ELSE
@@ -1738,7 +1738,7 @@ TYPE
 
 
 		BEGIN
-			type := Global.invalidType;
+			type := SyntaxTree.invalidType;
 			left := ResolveExpression(binaryExpression.left);
 			right := ResolveExpression(binaryExpression.right);
 			binaryExpression.SetLeft(left);
@@ -1748,17 +1748,17 @@ TYPE
 			operator := binaryExpression.operator;
 			IF ~system.operatorDefined[operator] THEN
 				Error(left.position,Diagnostics.Invalid,"Operator Not Defined");
-				result := Global.invalidExpression;
+				result := SyntaxTree.invalidExpression;
 				RETURN
 			END;
 			IF left.type = NIL THEN
 				Error(left.position,Diagnostics.Invalid,"Expression has no result type");
-				result := Global.invalidExpression;
+				result := SyntaxTree.invalidExpression;
 				RETURN;
 			END;
 			IF right.type = NIL THEN
 				Error(right.position,Diagnostics.Invalid,"Expression has no result type");
-				result := Global.invalidExpression;
+				result := SyntaxTree.invalidExpression;
 				RETURN;
 			END;
 			IF (~(left.type.resolved IS SyntaxTree.BasicType) OR ~(right.type.resolved IS SyntaxTree.BasicType)) THEN
@@ -1799,12 +1799,12 @@ TYPE
 			ELSIF (left.type = NIL) THEN
 				Error(left.position,Diagnostics.Invalid,"type (left operand) = NIL in binary expression");
 				D.Str("nil type in "); D.Type(left); D.Ln;
-				result := Global.invalidExpression;
+				result := SyntaxTree.invalidExpression;
 			ELSIF (right.type = NIL) THEN
 				Error(right.position,Diagnostics.Invalid,"type (right operand) = NIL in binary expression");
-				result := Global.invalidExpression;
-			ELSIF (left.type.resolved = Global.invalidType) OR (right.type.resolved = Global.invalidType) THEN (* error already handled *)
-				result := Global.invalidExpression;
+				result := SyntaxTree.invalidExpression;
+			ELSIF (left.type.resolved = SyntaxTree.invalidType) OR (right.type.resolved = SyntaxTree.invalidType) THEN (* error already handled *)
+				result := SyntaxTree.invalidExpression;
 			ELSIF operator = Scanner.Upto THEN (* left .. right: now solved as RangeExpression*)
 				HALT(100);
 			ELSIF operator = Scanner.Is THEN (* left IS right: now solved as IsExpression *)
@@ -2094,8 +2094,8 @@ TYPE
 			ELSE
 				Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 19");
 			END;
-			IF type = Global.invalidType THEN
-				result := Global.invalidExpression
+			IF type = SyntaxTree.invalidType THEN
+				result := SyntaxTree.invalidExpression
 			ELSE
 				result.SetType(type)
 			END;
@@ -2119,23 +2119,23 @@ TYPE
 			IF from = NIL THEN
 			ELSIF ~(from.type.resolved IS SyntaxTree.IntegerType) & ~IsCharacterType(from.type) THEN
 				Error(x.position,Diagnostics.Invalid,"forbidden lower range type");
-				result := Global.invalidExpression;
+				result := SyntaxTree.invalidExpression;
 			ELSIF (from IS SyntaxTree.StringValue) THEN
 				from := ConvertValue(from.position,from(SyntaxTree.Value),Global.Char);
 			END;
 			IF to = NIL THEN
 			ELSIF ~(to.type.resolved IS SyntaxTree.IntegerType) & ~IsCharacterType(to.type) THEN
 				Error(to.position,Diagnostics.Invalid,"forbidden upper range type");
-				result := Global.invalidExpression;
+				result := SyntaxTree.invalidExpression;
 			ELSIF (to IS SyntaxTree.StringValue) THEN
 				to := ConvertValue(to.position,to(SyntaxTree.Value),Global.Char);
 			END;
-			IF result # Global.invalidExpression THEN
+			IF result # SyntaxTree.invalidExpression THEN
 				IF (from # NIL) & (to # NIL) THEN
 					ConvertOperands(from,to);
 					IF from.type.resolved # to.type.resolved THEN
 						Error(x.position,Diagnostics.Invalid,"incompatible range operands");
-						result := Global.invalidExpression;
+						result := SyntaxTree.invalidExpression;
 					END;
 					commonType := from.type;
 				ELSE
@@ -2146,7 +2146,7 @@ TYPE
 					x.SetType(SyntaxTree.NewRangeType(x.position,NIL,commonType))
 				ELSE
 					Error(by.position,Diagnostics.Invalid,"incompatible increment in range");
-					result := Global.invalidExpression;
+					result := SyntaxTree.invalidExpression;
 				END;
 			END;
 			resolvedExpression := result
@@ -2168,14 +2168,14 @@ TYPE
 		BEGIN
 			IF Trace THEN D.Str("ResolveDesignator"); D.Ln; END;
 			resolved := ResolveExpression(d);
-			IF resolved = Global.invalidExpression THEN
+			IF resolved = SyntaxTree.invalidExpression THEN
 				(* error should already have been reported *)
-				result := Global.invalidDesignator;
+				result := SyntaxTree.invalidDesignator;
 			ELSIF resolved IS SyntaxTree.Designator THEN
 				result := resolved(SyntaxTree.Designator)
 			ELSE
 				 Error(d.position,Diagnostics.Invalid,"is no designator ! ");
-				 result := Global.invalidDesignator;
+				 result := SyntaxTree.invalidDesignator;
 			END;
 
 			(* result.type might be nil.  *)
@@ -2229,7 +2229,7 @@ TYPE
 		VAR result,variableSymbol: SyntaxTree.Expression; guard: SyntaxTree.GuardedVariable; assignable: BOOLEAN; scope: SyntaxTree.Scope;
 		BEGIN
 			IF Trace THEN D.Str("NewSymbolDesignator "); D.Ln; END;
-			result := Global.invalidExpression;
+			result := SyntaxTree.invalidExpression;
 			ASSERT(symbol # NIL);
 			(*
 			not necessary any more since a type declaration is of type SyntaxTree.typeDeclarationType now
@@ -2309,7 +2309,7 @@ TYPE
 				IF VerboseErrorMessage THEN
 					Printout.Info("undeclared identifier designator",identifierDesignator);
 				END;
-				resolvedExpression := Global.invalidDesignator;
+				resolvedExpression := SyntaxTree.invalidDesignator;
 			END;
 		END VisitIdentifierDesignator;
 
@@ -2331,7 +2331,7 @@ TYPE
 			IF Trace THEN D.Str("VisitSelectorDesignator"); D.Ln; END;
 			left := ResolveDesignator(selectorDesignator.left);
 
-			result := Global.invalidDesignator;
+			result := SyntaxTree.invalidDesignator;
 			IF left # NIL THEN
 				IF (left.type # NIL) & IsPointerType(left.type.resolved) THEN
 					left := NewDereferenceDesignator(selectorDesignator.position,left);
@@ -2341,7 +2341,7 @@ TYPE
 				IF left.type = NIL THEN
 					Error(selectorDesignator.position,Diagnostics.Invalid,"field on nil typed designator");
 					IF VerboseErrorMessage THEN Printout.Info("nil typed designator",left) END;
-				ELSIF left.type.resolved = Global.invalidType THEN (* error already handled *)
+				ELSIF left.type.resolved = SyntaxTree.invalidType THEN (* error already handled *)
 				ELSIF left.type.resolved = SyntaxTree.importType THEN
 					symbol := left(SyntaxTree.SymbolDesignator).symbol;
 					module := symbol(SyntaxTree.Import).module;
@@ -2431,7 +2431,7 @@ TYPE
 		fromvalue,tovalue,byvalue,length: LONGINT;
 		BEGIN
 			parameters := index.parameters;
-			IF (expression.type = Global.invalidType) THEN (* error already handled *)
+			IF (expression.type = SyntaxTree.invalidType) THEN (* error already handled *)
 				parameters.AddExpression(expression);
 			ELSIF expression IS SyntaxTree.TensorRangeExpression THEN
 				parameters.AddExpression(expression);
@@ -2562,8 +2562,8 @@ TYPE
 					IF (index.hasRange) THEN
 						(* forbidden expression of the form A[*,...] over ARRAY [...] OF POINTER TO ARRAY OF ... *)
 						Error(position,Diagnostics.Invalid,"forbidden range valued indexer over pointer to array");
-						type := Global.invalidType;
-						left := Global.invalidDesignator;
+						type := SyntaxTree.invalidType;
+						left := SyntaxTree.invalidDesignator;
 					ELSE
 						(* expression of the form A[x,...] over ARRAY [...] OF POINTER TO ARRAY OF ... *)
 						SetIndexBaseType(index,type);
@@ -2575,7 +2575,7 @@ TYPE
 					END;
 				END;
 
-				IF type = Global.invalidType THEN (* error already handled *)
+				IF type = SyntaxTree.invalidType THEN (* error already handled *)
 				ELSIF (type IS SyntaxTree.ArrayType) THEN
 					(* index over array, can only be of the form [... x ...] *)
 					AppendIndex(position,index,expression,type(SyntaxTree.ArrayType));
@@ -2588,14 +2588,14 @@ TYPE
 					END;
 				ELSE
 					Error(position,Diagnostics.Invalid,"indexed element is no array");
-					type := Global.invalidType;
+					type := SyntaxTree.invalidType;
 				END;
 			END;
 			IF (type IS SyntaxTree.MathArrayType) & (type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) THEN
 				type := type(SyntaxTree.MathArrayType).arrayBase.resolved;
 			END;
-			IF type = Global.invalidType THEN (* error *)
-				left := Global.invalidDesignator;
+			IF type = SyntaxTree.invalidType THEN (* error *)
+				left := SyntaxTree.invalidDesignator;
 			ELSE
 				SetIndexBaseType(index,type);
 			END;
@@ -2612,7 +2612,7 @@ TYPE
 			result := TRUE;
 			FOR i := 0 TO expressionList.Length()-1 DO
 				expression := ResolveExpression(expressionList.GetExpression(i));
-				IF expression = Global.invalidExpression THEN result := FALSE END;
+				IF expression = SyntaxTree.invalidExpression THEN result := FALSE END;
 				expressionList.SetExpression(i,expression);
 			END;
 			RETURN result
@@ -2634,7 +2634,7 @@ TYPE
 			hiddenPointerDesignator: SyntaxTree.Designator;
 		BEGIN
 			IF Trace THEN D.Str("ProcedureCallDesignator"); D.Ln; END;
-			result := Global.invalidDesignator;
+			result := SyntaxTree.invalidDesignator;
 			formalType := left.type.resolved(SyntaxTree.ProcedureType); (* type checked in VisitParameterDesignator *)
 			numberFormalParameters := formalType.numberParameters-formalType.numberHiddenParameters;
 			numberActualParameters := actualParameters.Length();
@@ -2644,7 +2644,7 @@ TYPE
 			END;
 
 			IF ~ExpressionList(actualParameters) THEN
-				result := Global.invalidDesignator
+				result := SyntaxTree.invalidDesignator
 			ELSE
 				result := SyntaxTree.NewProcedureCallDesignator(position,left,actualParameters);
 				result.SetAssignable(FALSE);
@@ -2654,7 +2654,7 @@ TYPE
 					formalParameter := formalType.firstParameter;
 					FOR i := 0 TO numberActualParameters-1 DO
 						actualParameter := actualParameters.GetExpression(i);
-						IF (actualParameter = Global.invalidExpression) THEN
+						IF (actualParameter = SyntaxTree.invalidExpression) THEN
 						ELSIF ~ParameterCompatible(formalParameter,actualParameter) THEN
 						ELSE
 							IF formalParameter.type.resolved # actualParameter.type.resolved THEN
@@ -2713,7 +2713,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := TRUE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 				result := FALSE;
 			ELSIF ~IsVariable(x) THEN
 				Error(x.position,Diagnostics.Invalid,"non variable expression");
@@ -2731,7 +2731,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF ~IsBasicType(x.type) THEN
 				Error(x.position,Diagnostics.Invalid,"is no basic type");
 				result := FALSE
@@ -2748,7 +2748,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF ~(x.type.resolved IS SyntaxTree.NumberType) THEN
 				Error(x.position,Diagnostics.Invalid,"is non number type");
 			ELSE result := TRUE
@@ -2763,7 +2763,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF ~(x.type.resolved IS SyntaxTree.IntegerType) & (x.type.resolved # Global.Byte) THEN
 				Error(x.position,Diagnostics.Invalid,"is no integer type");
 			ELSE result := TRUE
@@ -2778,7 +2778,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF ~(x.type.resolved = Global.Char) & (x.type.resolved # Global.Byte) & ~IsCharacterType(x.type.resolved) THEN
 				Error(x.position,Diagnostics.Invalid,"is no character type");
 			ELSE result := TRUE
@@ -2793,7 +2793,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF ~(x.type.resolved IS SyntaxTree.FloatType) THEN
 				Error(x.position,Diagnostics.Invalid,"is no float type");
 			ELSE result := TRUE
@@ -2808,7 +2808,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF (x.type.resolved # Global.Boolean) THEN
 				Error(x.position,Diagnostics.Invalid,"is no boolean type");
 			ELSE result := TRUE
@@ -2823,7 +2823,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF (x.type.resolved # Global.Set) THEN
 				Error(x.position,Diagnostics.Invalid,"is no set type");
 			ELSE result := TRUE
@@ -2838,7 +2838,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF ~IsStringType(x.type.resolved) THEN
 				Error(x.position,Diagnostics.Invalid,"is no string type");
 			ELSE result := TRUE
@@ -2853,7 +2853,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF (x.type.resolved # SyntaxTree.typeDeclarationType) THEN
 				Error(x.position,Diagnostics.Invalid,"is not a type declaration");
 			ELSE result := TRUE
@@ -2865,7 +2865,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF (x.resolved # NIL) & (x.resolved IS SyntaxTree.IntegerValue) THEN
 				result := TRUE;
 				value := x.resolved(SyntaxTree.IntegerValue).value;
@@ -2879,7 +2879,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF (x.resolved # NIL) & (x.resolved IS SyntaxTree.CharacterValue) THEN
 				result := TRUE;
 				value := x.resolved(SyntaxTree.CharacterValue).value;
@@ -2896,7 +2896,7 @@ TYPE
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
-			IF x = Global.invalidExpression THEN
+			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF (x.resolved # NIL) & (x.resolved IS SyntaxTree.IntegerValue) THEN
 				value := x.resolved(SyntaxTree.IntegerValue).value;
 				IF (value > 0) OR includeZero & (value = 0)  THEN
@@ -2938,11 +2938,11 @@ TYPE
 			BEGIN
 				IF numberActualParameters < from THEN
 					Error(position,Diagnostics.Invalid,"less actual than formal parameters");
-					result := Global.invalidExpression;
+					result := SyntaxTree.invalidExpression;
 					resultB := FALSE;
 				ELSIF numberActualParameters > to THEN
 					Error(position,Diagnostics.Invalid,"more actual than formal parameters");
-					result := Global.invalidExpression;
+					result := SyntaxTree.invalidExpression;
 					resultB := FALSE;
 				ELSE
 					resultB := TRUE;
@@ -2972,7 +2972,7 @@ TYPE
 				result := NewOperatorCall(position,builtin.id,parameter0,parameter1,Global.All);
 			END;
 
-			IF result = Global.invalidExpression THEN (* error already handled *)
+			IF result = SyntaxTree.invalidExpression THEN (* error already handled *)
 			ELSIF result # NIL THEN type := result.type (* operator *)
 			ELSE
 				result := SyntaxTree.NewBuiltinCallDesignator(position,id,actualParameters);
@@ -3085,7 +3085,7 @@ TYPE
 										formalParameter := procedureType.firstParameter;
 										FOR i := 1 TO numberActualParameters DO
 											actualParameter := actualParameters.GetExpression(i);
-											IF (actualParameter = Global.invalidExpression) THEN
+											IF (actualParameter = SyntaxTree.invalidExpression) THEN
 											ELSIF ~ParameterCompatible(formalParameter,actualParameter) THEN
 											ELSE
 												IF formalParameter.type.resolved # actualParameter.type.resolved THEN
@@ -3229,7 +3229,7 @@ TYPE
 						IF ~(numberActualParameters=2) OR ~IsIntegerValue(parameter1,i1) THEN i1 := 0 END;
 						IF i1 < 0 THEN
 							Error(position,Diagnostics.Invalid,"invalid dimension");
-							base := Global.invalidType;
+							base := SyntaxTree.invalidType;
 						ELSE
 							base := ArrayBase(base,i1);
 							IF (base # NIL) & Indexable(base) THEN
@@ -3238,7 +3238,7 @@ TYPE
 								IF VerboseErrorMessage THEN
 									Printout.Info("base",base);
 								END;
-								base := Global.invalidType;
+								base := SyntaxTree.invalidType;
 							END;
 						END;
 						IF numberActualParameters=2 THEN
@@ -3362,7 +3362,7 @@ TYPE
 					END;
 					IF (i<0) OR (Global.NumericType[i]=Global.Shortint) OR (Global.NumericType[i]=Global.Real)  THEN
 						Error(parameter0.position,Diagnostics.Invalid,"short not applicable");
-						result := Global.invalidExpression;
+						result := SyntaxTree.invalidExpression;
 					ELSE
 						type := Global.NumericType[i-1];
 						IF (parameter0.resolved # NIL) THEN
@@ -3384,7 +3384,7 @@ TYPE
 						END;
 						IF (i = LEN(Global.NumericType)) OR (Global.NumericType[i] = Global.Longreal) OR (Global.NumericType[i]= Global.Hugeint) THEN
 							Error(parameter0.position,Diagnostics.Invalid,"long not applicable");
-							result := Global.invalidExpression;
+							result := SyntaxTree.invalidExpression;
 						ELSE
 							type := Global.NumericType[i+1];
 							IF (parameter0.resolved # NIL) THEN
@@ -3467,7 +3467,7 @@ TYPE
 					IF CheckTypeDeclarationType(parameter0) THEN
 						type := parameter0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
 						IF (type.resolved IS SyntaxTree.ArrayType) & (type.resolved(SyntaxTree.ArrayType).form # SyntaxTree.Static) THEN
-							result := Global.invalidExpression;
+							result := SyntaxTree.invalidExpression;
 							Error(parameter0.position,Diagnostics.Invalid,"is no basic type");
 						ELSE
 							 IF (parameter1.resolved # NIL) THEN
@@ -3550,7 +3550,7 @@ TYPE
 						IF ~IsIntegerValue(parameter1,i1) THEN i1 := 0 END;
 						IF i1 < 0 THEN
 							Error(position,Diagnostics.Invalid,"invalid dimension");
-							base := Global.invalidType;
+							base := SyntaxTree.invalidType;
 						ELSE
 							base := ArrayBase(base,i1);
 							IF (base # NIL) & Indexable(base) THEN
@@ -3559,7 +3559,7 @@ TYPE
 								IF VerboseErrorMessage THEN
 									Printout.Info("base",base);
 								END;
-								base := Global.invalidType;
+								base := SyntaxTree.invalidType;
 							END;
 						END;
 						parameter1 := NewConversion(parameter1.position,parameter1,Global.Longint,NIL);
@@ -3661,11 +3661,11 @@ TYPE
 					type := type0;
 				ELSE
 					Error(position,Diagnostics.Invalid,"unknown builtin");
-					result := Global.invalidExpression;
+					result := SyntaxTree.invalidExpression;
 				END;
 			END;
 
-			IF result # Global.invalidExpression THEN
+			IF result # SyntaxTree.invalidExpression THEN
 				type := ResolveType(type);
 				IF result.resolved # NIL THEN result.resolved.SetType(type) END;
 				result.SetType(type);
@@ -3683,7 +3683,7 @@ TYPE
 		PROCEDURE NewTypeGuardDesignator(position: LONGINT; left: SyntaxTree.Designator; type: SyntaxTree.Type; typeExpression: SyntaxTree.Expression): SyntaxTree.Designator;
 		VAR result: SyntaxTree.Designator;
 		BEGIN
-			result := Global.invalidDesignator;
+			result := SyntaxTree.invalidDesignator;
 
 			IF ~IsTypeExtension(left.type.resolved,type.resolved) THEN
 				Error(position,Diagnostics.Invalid,"no type extension of type");
@@ -3718,9 +3718,9 @@ TYPE
 			typeDeclaration: SyntaxTree.TypeDeclaration;
 		BEGIN
 			IF Trace THEN D.Str("VisitParameterDesignator"); D.Ln; END;
-			result := Global.invalidDesignator;
+			result := SyntaxTree.invalidDesignator;
 			left := ResolveDesignator(designator.left);
-			IF left # Global.invalidDesignator THEN
+			IF left # SyntaxTree.invalidDesignator THEN
 				parameters := designator.parameters;
 				IF ExpressionList(parameters) THEN
 					IF IsExtensibleDesignator(left) & (parameters.Length()=1) & IsTypeDesignator(parameters.GetExpression(0),typeDeclaration) THEN
@@ -3743,10 +3743,10 @@ TYPE
 					ELSE
 						Error(left.position,Diagnostics.Invalid,"called object is not a procedure or cannot be extended");
 						IF VerboseErrorMessage THEN Printout.Info("designator",designator); Printout.Info("left",left) END;
-						result := Global.invalidDesignator;
+						result := SyntaxTree.invalidDesignator;
 					END;
 				ELSE
-					result := Global.invalidDesignator
+					result := SyntaxTree.invalidDesignator
 				END;
 			END;
 			resolvedExpression := result;
@@ -3761,7 +3761,7 @@ TYPE
 		PROCEDURE NewDereferenceDesignator(position: LONGINT; left: SyntaxTree.Designator): SyntaxTree.Designator;
 		VAR type: SyntaxTree.Type; result: SyntaxTree.Designator;
 		BEGIN
-			result := Global.invalidDesignator;
+			result := SyntaxTree.invalidDesignator;
 			type := left.type;
 			IF (type # NIL) & ((type.resolved IS SyntaxTree.PointerType)) THEN
 				type := type.resolved(SyntaxTree.PointerType).pointerBase;
@@ -3783,12 +3783,12 @@ TYPE
 		VAR result: SyntaxTree.Designator; symbol: SyntaxTree.Symbol; procedure: SyntaxTree.Procedure;
 			objectScope: SyntaxTree.Scope;
 		BEGIN
-			result := Global.invalidDesignator;
-			IF left = Global.invalidDesignator THEN
+			result := SyntaxTree.invalidDesignator;
+			IF left = SyntaxTree.invalidDesignator THEN
 				(* error already handled *)
 			ELSIF left IS SyntaxTree.SymbolDesignator THEN
 				symbol := left(SyntaxTree.SymbolDesignator).symbol;
-				ASSERT(symbol # Global.invalidSymbol);
+				ASSERT(symbol # SyntaxTree.invalidSymbol);
 				IF symbol IS SyntaxTree.Procedure THEN
 					procedure := symbol(SyntaxTree.Procedure);
 					objectScope := currentScope;
@@ -3851,8 +3851,8 @@ TYPE
 		BEGIN
 			IF (expression.type = NIL) THEN
 				prev := resolvedExpression;
-				resolvedExpression := Global.invalidExpression;
-				expression.SetType(Global.invalidType);
+				resolvedExpression := SyntaxTree.invalidExpression;
+				expression.SetType(SyntaxTree.invalidType);
 				expression.Accept(SELF);
 				result := resolvedExpression;
 				resolvedExpression := prev
@@ -3873,11 +3873,11 @@ TYPE
 		BEGIN
 			position := expression.position;
 			expression := ResolveExpression(expression);
-			IF expression = Global.invalidExpression THEN (* error already reported *)
+			IF expression = SyntaxTree.invalidExpression THEN (* error already reported *)
 			ELSIF (expression.resolved = NIL) THEN
 				Error(position,Diagnostics.Invalid,"expression is not constant");
 				IF VerboseErrorMessage THEN Printout.Info("expression",expression); END;
-				expression := Global.invalidExpression;
+				expression := SyntaxTree.invalidExpression;
 			END;
 			RETURN expression
 		END ConstantExpression;
@@ -3892,9 +3892,9 @@ TYPE
 		BEGIN
 			position := expression.position;
 			expression := ResolveExpression(expression);
-			IF expression = Global.invalidExpression THEN (* error already reported *)
+			IF expression = SyntaxTree.invalidExpression THEN (* error already reported *)
 			ELSIF (expression.resolved = NIL) OR ~(expression.resolved IS SyntaxTree.IntegerValue) THEN
-				expression := Global.invalidExpression;
+				expression := SyntaxTree.invalidExpression;
 				Error(position,Diagnostics.Invalid,"expression is not a constant integer");
 			END;
 			RETURN expression
@@ -3911,11 +3911,11 @@ TYPE
 		BEGIN
 			position := expression.position;
 			expression := ConstantExpression(expression);
-			IF expression = Global.invalidExpression THEN
+			IF expression = SyntaxTree.invalidExpression THEN
 				(* error already reported *)
 			ELSIF  (expression.resolved = NIL) OR ~(expression.resolved IS SyntaxTree.IntegerValue) THEN
 				Error(position,Diagnostics.Invalid,"expression is not integer valued");
-				expression := Global.invalidExpression
+				expression := SyntaxTree.invalidExpression
 			ELSIF (expression.resolved(SyntaxTree.IntegerValue).hvalue <0) THEN
 				Error(position,Diagnostics.Invalid,"integer is not greater or equal zero");
 			END;
@@ -3932,9 +3932,9 @@ TYPE
 		BEGIN
 			position := expression.position;
 			expression := ResolveExpression(expression);
-			IF expression = Global.invalidExpression THEN (* error already reported *)
+			IF expression = SyntaxTree.invalidExpression THEN (* error already reported *)
 			ELSIF (expression.type = NIL) OR ~(expression.type.resolved = Global.Boolean) THEN
-				expression := Global.invalidExpression;
+				expression := SyntaxTree.invalidExpression;
 				Error(position,Diagnostics.Invalid,"expression is not boolean");
 			END;
 			RETURN expression
@@ -4019,7 +4019,7 @@ TYPE
 		BEGIN
 			IF Trace THEN D.Str("VisitConstant "); D.Str0(constant.name.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(constant) THEN
-				constant.SetType(Global.invalidType);
+				constant.SetType(SyntaxTree.invalidType);
 				expression := ConstantExpression(constant.value);
 				ASSERT(expression.type # NIL);
 				type := expression.type.resolved;
@@ -4376,7 +4376,7 @@ TYPE
 			END;
 			call := ResolveDesignator(call);
 
-			IF call = Global.invalidDesignator THEN
+			IF call = SyntaxTree.invalidDesignator THEN
 				(* error already handled *)
 			ELSIF ~IsCallable(call) THEN
 				Error(procedureCall.position,Diagnostics.Invalid,"called object is not a procedure");
@@ -4403,7 +4403,7 @@ TYPE
 			right := ResolveExpression(assignment.right);
 			assignment.SetRight(right);
 
-			IF (left = Global.invalidDesignator) OR (right = Global.invalidExpression) THEN
+			IF (left = SyntaxTree.invalidDesignator) OR (right = SyntaxTree.invalidExpression) THEN
 				(* error already handled *)
 			ELSIF CheckVariable(left) THEN
 				operator := NewOperatorCall(assignment.position,Scanner.Becomes,assignment.left,assignment.right,NIL);
@@ -4491,7 +4491,7 @@ TYPE
 			withStatement.SetType(typeDesignator);
 			IF ~(typeDesignator IS SyntaxTree.SymbolDesignator) OR ~(typeDesignator.type.resolved = SyntaxTree.typeDeclarationType) THEN
 				Error(typeDesignator.position,Diagnostics.Invalid,"is not a type");
-				type := Global.invalidType;
+				type := SyntaxTree.invalidType;
 			ELSE
 				type := typeDesignator(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
 			END;
@@ -4502,7 +4502,7 @@ TYPE
 				variable := variable(SyntaxTree.TypeGuardDesignator).left(SyntaxTree.Designator);
 			END;
 
-			IF (type.resolved = Global.invalidType) OR (variableType = Global.invalidType) THEN (* error already reported *)
+			IF (type.resolved = SyntaxTree.invalidType) OR (variableType = SyntaxTree.invalidType) THEN (* error already reported *)
 			ELSIF ~(type.resolved = variableType) & ~IsExtensibleDesignator(variable) THEN
 				Error(variable.position,Diagnostics.Invalid,"is not extensible designator");
 			ELSIF ~(variable IS SyntaxTree.SymbolDesignator) (* OR (variable(SyntaxTree.SymbolDesignator).left # NIL) needed ?? *)  THEN
@@ -4553,9 +4553,9 @@ TYPE
 				expression := casePart.elements.GetExpression(i);
 				position := expression.position;
 				expression := ResolveExpression(expression);
-				IF expression = Global.invalidExpression THEN
+				IF expression = SyntaxTree.invalidExpression THEN
 					(* error already reported *)
-					expressionType := Global.invalidType;
+					expressionType := SyntaxTree.invalidType;
 				ELSIF (expression IS SyntaxTree.RangeExpression) THEN
 					left := ConstantExpression(expression(SyntaxTree.RangeExpression).from);
 					right := ConstantExpression(expression(SyntaxTree.RangeExpression).to);
@@ -4582,20 +4582,20 @@ TYPE
 					expressionType := RegularType(position,expression.type);
 				END;
 
-				IF (expressionType = Global.invalidType) THEN
+				IF (expressionType = SyntaxTree.invalidType) THEN
 				ELSIF ~CompatibleTo(system,expressionType,type) THEN
 					Error(position,Diagnostics.Invalid,"inadmissible case label");
-					expression := Global.invalidExpression;
+					expression := SyntaxTree.invalidExpression;
 				ELSE
 					l := 0; r := 0;
 					IF IsIntegerValue(left,l) & CheckIntegerValue(right,r) THEN
 					ELSIF IsCharacterValue(left,cl) & CheckCharacterValue(right,cr) THEN
 						l := ORD(cl); r := ORD(cr);
 					ELSE
-						expression := Global.invalidExpression
+						expression := SyntaxTree.invalidExpression
 					END;
 
-					IF expression # Global.invalidExpression THEN
+					IF expression # SyntaxTree.invalidExpression THEN
 						IF l>r THEN
 							Error(position,Diagnostics.Invalid,"empty case label")
 						ELSIF ~EnterCase(thiscases,l,r) OR ~EnterCase(allcases,l,r) THEN
@@ -4624,8 +4624,8 @@ TYPE
 		BEGIN
 			expression := ResolveExpression(caseStatement.variable);
 			type := RegularType(expression.position,expression.type);
-			IF type = Global.invalidType THEN
-				expression := Global.invalidExpression;
+			IF type = SyntaxTree.invalidType THEN
+				expression := SyntaxTree.invalidExpression;
 			ELSIF (type IS SyntaxTree.IntegerType) THEN
 			ELSIF IsStringType(expression.type) & IsCharacterValue(expression,ch) THEN
 				expression := Global.NewCharacterValue(expression.position,ch);
@@ -4633,7 +4633,7 @@ TYPE
 			ELSIF IsCharacterType(type) THEN
 			ELSE
 				Error(caseStatement.variable.position,Diagnostics.Invalid,"variable must be integer or character type");
-				expression := Global.invalidExpression;
+				expression := SyntaxTree.invalidExpression;
 			END;
 			caseStatement.SetVariable(expression);
 			caseList := NIL;
@@ -4741,12 +4741,12 @@ TYPE
 		VAR expression: SyntaxTree.Expression; designator: SyntaxTree.Designator; type: SyntaxTree.Type;
 		BEGIN
 			designator := ResolveDesignator(forStatement.variable);
-			type := Global.invalidType;
-			IF designator.type = Global.invalidType THEN (* error already handled *)
-				designator := Global.invalidDesignator;
+			type := SyntaxTree.invalidType;
+			IF designator.type = SyntaxTree.invalidType THEN (* error already handled *)
+				designator := SyntaxTree.invalidDesignator;
 			ELSIF ~(designator.type.resolved IS SyntaxTree.IntegerType) THEN
 				Error(designator.position,Diagnostics.Invalid,"control variable of non-integer type");
-				designator := Global.invalidDesignator;
+				designator := SyntaxTree.invalidDesignator;
 			ELSIF CheckVariable(designator) THEN
 				type := designator.type;
 				forStatement.SetTemporary(GetTemporaryVariable(type,forStatement.position));
@@ -4754,21 +4754,21 @@ TYPE
 			forStatement.SetVariable(designator);
 
 			expression := ResolveExpression(forStatement.from);
-			IF expression = Global.invalidExpression THEN
+			IF expression = SyntaxTree.invalidExpression THEN
 			ELSIF ~CompatibleTo(system,expression.type.resolved,designator.type.resolved) THEN
 				Error(expression.position,Diagnostics.Invalid,"start value of incompatible type");
-				expression := Global.invalidExpression;
-			ELSIF type # Global.invalidType THEN
+				expression := SyntaxTree.invalidExpression;
+			ELSIF type # SyntaxTree.invalidType THEN
 				expression := NewConversion(expression.position,expression,type,NIL)
 			END;
 			forStatement.SetFrom(expression);
 
 			expression := ResolveExpression(forStatement.to);
-			IF expression = Global.invalidExpression THEN
+			IF expression = SyntaxTree.invalidExpression THEN
 			ELSIF ~CompatibleTo(system,expression.type.resolved,designator.type.resolved) THEN
 				Error(expression.position,Diagnostics.Invalid,"end value of incompatible type");
-				expression := Global.invalidExpression;
-			ELSIF type # Global.invalidType THEN
+				expression := SyntaxTree.invalidExpression;
+			ELSIF type # SyntaxTree.invalidType THEN
 				expression := NewConversion(expression.position,expression,type,NIL)
 			END;
 			forStatement.SetTo(expression);
@@ -4780,12 +4780,12 @@ TYPE
 			END;
 
 
-			IF expression = Global.invalidExpression THEN
+			IF expression = SyntaxTree.invalidExpression THEN
 			ELSIF  ~CompatibleTo(system,expression.type.resolved,designator.type.resolved) THEN
 				Error(expression.position,Diagnostics.Invalid,"step value of incompatible type");
 			ELSIF (expression.resolved(SyntaxTree.IntegerValue).hvalue = 0) THEN
 				Error(expression.position,Diagnostics.Invalid,"invalid step value");
-			ELSIF type # Global.invalidType THEN
+			ELSIF type # SyntaxTree.invalidType THEN
 				expression := NewConversion(expression.position,expression,type,NIL)
 			END;
 			forStatement.SetBy(expression);
@@ -5241,7 +5241,7 @@ TYPE
 	BEGIN
 		IF this= NIL THEN result := (to=NIL)
 		ELSIF to=NIL THEN result := FALSE
-		ELSIF to=Global.invalidType THEN result := FALSE
+		ELSIF to=SyntaxTree.invalidType THEN result := FALSE
 		ELSE
 			this := this.resolved; to := to.resolved;
 			IF to = this THEN
@@ -5717,7 +5717,7 @@ TYPE
 		ELSIF t2=NIL THEN result := FALSE
 		ELSE
 			t1 := t1.resolved; t2 := t2.resolved;
-			IF (t1 = Global.invalidType) OR (t2=Global.invalidType) THEN (* error already handled elsewhere *)
+			IF (t1 = SyntaxTree.invalidType) OR (t2=SyntaxTree.invalidType) THEN (* error already handled elsewhere *)
 				result := TRUE
 			ELSIF t1=t2 THEN
 				result := TRUE

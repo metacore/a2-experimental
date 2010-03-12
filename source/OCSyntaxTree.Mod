@@ -32,10 +32,10 @@ CONST
 	UntracedFlag*=9;
 	ConstructorFlag*=10;
 	BodyProcedureFlag*=11;
-	
+
 	InterruptFlag*=12;
 	NoPAFFlag*=13;
-	
+
 	(* statement flags *)
 	UnreachableFlag*=14;
 	(* modification flags *)
@@ -70,7 +70,6 @@ CONST
 	Undefined*={}; BeingResolved*=1; Resolved*=2; FingerPrinted*=3;
 
 VAR
-
 	(** debugging / counters *)
 
 	nodeCount, listCount, identifierCount, qualifiedIdentifierCount, typeCount, basicTypeCount, typeDeclarationCount, arrayTypeCount, pointerTypeCount, recordTypeCount,
@@ -3099,6 +3098,15 @@ TYPE
 	END Module;
 
 VAR
+	(* invalid items used, for example, by parser and checker *)
+	invalidString-: Basic.String;
+	invalidIdentifier-: Identifier;
+	invalidQualifiedIdentifier-: QualifiedIdentifier;
+	invalidType-: Type;
+	invalidExpression-: Expression; (* mapped to invalidDesignator for better error handling in checker *)
+	invalidDesignator-: Designator;
+	invalidValue-: Value;
+	invalidSymbol-: Symbol;
 
 	anonymous-: Basic.String;
 	anonymousIdentifier-: Identifier;
@@ -3720,12 +3728,24 @@ VAR
 	PROCEDURE Init;
 	BEGIN
 
+		invalidString := Basic.MakeString("@invalidString");
+		invalidIdentifier := NewIdentifier(-1,"@invalidString");
+		invalidQualifiedIdentifier := NewQualifiedIdentifier(-1,NIL,invalidIdentifier);
+		invalidType := NewType();
+		invalidDesignator := NewDesignator();
+		invalidDesignator.SetType(invalidType);
+		invalidExpression := invalidDesignator;
+		invalidValue := NewValue();
+		invalidSymbol := NewSymbol(NewIdentifier(-1,""));
+		invalidSymbol.SetType(invalidType);
+
 		importType := NewType();
 		importType.SetState(Resolved);
 		typeDeclarationType := NewType();
 		typeDeclarationType.SetState(Resolved);
 		anonymous := Basic.MakeString("");
 		anonymousIdentifier := NewIdentifier(-1,"");
+
 
 
 		(* debugging *)

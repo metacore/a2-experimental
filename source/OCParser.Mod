@@ -283,7 +283,7 @@ TYPE
 			IF MandatoryIdentifier(name) THEN
 				identifier := SyntaxTree.NewIdentifier(position,name);
 			ELSE
-				identifier := Global.invalidIdentifier;
+				identifier := SyntaxTree.invalidIdentifier;
 			END;
 			RETURN identifier
 		END Identifier;
@@ -356,7 +356,7 @@ TYPE
 			IF Trace THEN S( "QualifiedIdentifier" ) END;
 			position:= symbol.start;
 			prefix := Identifier();
-			IF prefix # Global.invalidIdentifier THEN
+			IF prefix # SyntaxTree.invalidIdentifier THEN
 				IF ~Optional( Scanner.Period )THEN
 					suffix := prefix;  prefix := NIL;   (* empty *)
 				ELSE
@@ -364,7 +364,7 @@ TYPE
 				END;
 				qualifiedIdentifier := SyntaxTree.NewQualifiedIdentifier( position, prefix,suffix);
 			ELSE
-				qualifiedIdentifier := Global.invalidQualifiedIdentifier;
+				qualifiedIdentifier := SyntaxTree.invalidQualifiedIdentifier;
 			END;
 			IF Trace THEN E( "QualifiedIdentifier" ) END;
 			RETURN qualifiedIdentifier
@@ -598,7 +598,7 @@ TYPE
 					factor.End(symbol.end);
 			ELSE
 				Error( position, Basic.ValueStartIncorrectSymbol, "" );
-				NextSymbol;  factor := Global.invalidExpression;
+				NextSymbol;  factor := SyntaxTree.invalidExpression;
 			END;
 			(* suffix *)
 			IF Optional(Scanner.Transpose) THEN
@@ -1562,14 +1562,14 @@ TYPE
 			REPEAT
 				position := symbol.start;
 				alias := Identifier();
-				IF alias # Global.invalidIdentifier THEN
+				IF alias # SyntaxTree.invalidIdentifier THEN
 					IF Optional( Scanner.Becomes ) THEN name := Identifier() ELSE name := alias;  END;
 					import := SyntaxTree.NewImport( position, alias, name, TRUE );
 					CommentSymbol(import);
 					IF Optional(Scanner.In) THEN
 						position := symbol.start;
 						context := Identifier();
-						IF context # Global.invalidIdentifier THEN  import.SetContext(context) END;
+						IF context # SyntaxTree.invalidIdentifier THEN  import.SetContext(context) END;
 					END;
 					moduleScope.AddImport( import );
 				END;
