@@ -3,7 +3,7 @@ MODULE OCGenericObjectFile; (** AUTHOR "negelef"; PURPOSE "Generic Object File W
 IMPORT
 	Formats := OCFormats, Sections := OCSections, IntermediateCode := OCIntermediateCode,
 	Global := OCGlobal, SyntaxTree := OCSyntaxTree, BinaryCode := OCBinaryCode,
-	FingerPrint := OCFingerPrint, Files, Options, ObjectFile, Diagnostics;
+	FingerPrint := OCFingerPrint, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := OCTextualSymbolFile;
 
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	VAR path, extension: Files.FileName;
@@ -13,6 +13,9 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 
 			PROCEDURE ExportSection (section: IntermediateCode.Section);
 			BEGIN
+				IF (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
+					RETURN
+				END;
 				section.resolved.fingerprint := GetFingerprint (section, lookup);
 				UpdateFixups (section.resolved, lookup);
 				ObjectFile.WriteSection (writer, section.resolved^);
@@ -66,6 +69,10 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			IF ~options.GetString("path",extension) THEN path := ""; END;
 			IF ~options.GetString("extension",extension) THEN extension := ObjectFile.DefaultExtension; END;
 		END GetOptions;
+
+		PROCEDURE DefaultSymbolFileFormat(): Formats.SymbolFileFormat;
+		BEGIN RETURN SymbolFileFormat.Get();
+		END DefaultSymbolFileFormat;
 
 END ObjectFileFormat;
 
