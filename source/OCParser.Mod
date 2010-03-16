@@ -1193,6 +1193,7 @@ TYPE
 		PROCEDURE EnumerationType(position: LONGINT; parentScope: SyntaxTree.Scope): SyntaxTree.Type;
 		VAR type: SyntaxTree.EnumerationType; scope: SyntaxTree.EnumerationScope; identifier: SyntaxTree.Identifier;
 			qualifiedIdentifier: SyntaxTree.QualifiedIdentifier; qualifiedType: SyntaxTree.QualifiedType; access: SET;
+			constant: SyntaxTree.Constant; expression: SyntaxTree.Expression;
 		BEGIN
 			scope := SyntaxTree.NewEnumerationScope(parentScope);
 			type := SyntaxTree.NewEnumerationType(position,parentScope, scope);
@@ -1202,13 +1203,18 @@ TYPE
 				type.SetEnumerationBase( qualifiedType );
 				Check( Scanner.RightParenthesis )
 			END;
-			IdentifierDefinition(identifier,access,FALSE);
-			scope.AddEnumerator(identifier); scope.lastEnumerator.SetAccess(access);
-			WHILE Optional(Scanner.Comma) DO
+			REPEAT
 				IdentifierDefinition(identifier,access,FALSE);
-				scope.AddEnumerator(identifier);
-				scope.lastEnumerator.SetAccess(access);
-			END;
+				position := symbol.start;
+				constant := SyntaxTree.NewConstant( position, identifier );
+				CommentSymbol(constant);
+				constant.SetAccess(access * SyntaxTree.ReadOnly);
+				IF Optional(Scanner.Equal) THEN
+					expression := Expression();
+					constant.SetValue( expression );
+				END;
+				scope.AddConstant( constant );
+			UNTIL ~Optional(Scanner.Comma);
 			IF Mandatory(Scanner.End) THEN END;
 			RETURN type
 		END EnumerationType;

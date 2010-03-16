@@ -299,28 +299,33 @@ TYPE
 			resolvedType := ResolvedType(x)
 		END VisitStringType;
 
-		PROCEDURE VisitEnumerator(enumerator: SyntaxTree.Enumerator);
-		VAR scope: SyntaxTree.EnumerationScope;
-		BEGIN
-			IF SymbolNeedsResolution(enumerator) THEN
-				scope := enumerator.scope(SyntaxTree.EnumerationScope);
-				enumerator.SetType(scope.ownerEnumeration);
-				enumerator.value.SetValue(enumerator.value.value+scope.ownerEnumeration.baseValue);
-				enumerator.SetState(SyntaxTree.Resolved);
-			END;
-		END VisitEnumerator;
-
 		(**
 			check enumeration scope: enter symbols and check for duplicate names
 		**)
-		PROCEDURE CheckEnumerationScope(x: SyntaxTree.EnumerationScope);
-		VAR e: SyntaxTree.Enumerator;
+		PROCEDURE CheckEnumerationScope(x: SyntaxTree.EnumerationScope; VAR highest: LONGINT);
+		VAR e: SyntaxTree.Constant; value: SyntaxTree.Expression; nextHighest: LONGINT;
 		BEGIN
-			e := x.firstEnumerator;
+			e := x.firstConstant;
 			WHILE (e # NIL) DO
 				Register(e,x,FALSE);
-				VisitEnumerator(e);
-				e := e.nextEnumerator;
+				IF SymbolNeedsResolution(e) THEN
+					IF e.value # NIL THEN
+						value := ConstantExpression(e.value);
+						value := NewConversion(e.position,value,x.ownerEnumeration,NIL);
+					ELSE
+						value := SyntaxTree.NewEnumerationValue(e.position,highest+1);
+						value.SetType(x.ownerEnumeration);
+					END;
+					IF (value.resolved # NIL) & (value.resolved IS SyntaxTree.EnumerationValue) THEN
+						nextHighest := value.resolved(SyntaxTree.EnumerationValue).value;
+						IF nextHighest > highest THEN highest := nextHighest END;
+					END;
+					e.SetValue(value);
+					CheckSymbol(e);
+					e.SetType(x.ownerEnumeration);
+					e.SetState(SyntaxTree.Resolved);
+				END;
+				e := e.nextConstant;
 			END;
 		END CheckEnumerationScope;
 
@@ -329,6 +334,7 @@ TYPE
 		**)
 		PROCEDURE VisitEnumerationType(x: SyntaxTree.EnumerationType);
 		VAR position: LONGINT; baseScope: SyntaxTree.EnumerationScope; baseType,resolved: SyntaxTree.Type; enumerationBase: SyntaxTree.EnumerationType;
+			lowest, highest: LONGINT;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 				IF x.enumerationBase # NIL THEN
@@ -341,13 +347,14 @@ TYPE
 						Error(position,Diagnostics.Invalid,"base type is no enumeration type");
 					ELSE
 						enumerationBase := resolved(SyntaxTree.EnumerationType);
-						baseScope := enumerationBase.enumerationScope;
-						x.SetBaseValue(enumerationBase.baseValue + baseScope.numberEnumerators);
+						lowest := enumerationBase.rangeHighest + 1;
 					END;
 					x.SetEnumerationBase(baseType);
-
+				ELSE lowest := 0;
 				END;
-				CheckEnumerationScope(x.enumerationScope);
+				highest := lowest;
+				CheckEnumerationScope(x.enumerationScope, highest);
+				x.SetRange(lowest, highest);
 				x.SetState(SyntaxTree.Resolved);
 			END;
 			resolvedType := ResolvedType(x);
@@ -1046,11 +1053,12 @@ TYPE
 		END VisitNilValue;
 
 		(** check and resolve enumerator value **)
-		PROCEDURE VisitEnumeratorValue(value: SyntaxTree.EnumeratorValue);
+		PROCEDURE VisitEnumerationValue(value: SyntaxTree.EnumerationValue);
 		BEGIN
-			value.SetType(value.enumerator.type);
+			value.SetType(currentScope(SyntaxTree.EnumerationScope).ownerEnumeration);
+			ASSERT(value.type # NIL);
 			resolvedExpression := value
-		END VisitEnumeratorValue;
+		END VisitEnumerationValue;
 
 		(*** expressions ***)
 
@@ -1390,7 +1398,6 @@ TYPE
 			RETURN result
 		END MathArrayConversion;
 
-
 		PROCEDURE ConvertValue(position: LONGINT; expression: SyntaxTree.Value; type: SyntaxTree.Type): SyntaxTree.Expression;
 		VAR result: SyntaxTree.Expression; int: HUGEINT; real: LONGREAL; set: SET; char: CHAR; string: Scanner.StringType;
 		BEGIN
@@ -1415,6 +1422,12 @@ TYPE
 					result.SetType(type);
 				ELSIF (type = Global.Char) OR (type = Global.Byte) THEN
 					result := SyntaxTree.NewCharacterValue(expression.position,SYSTEM.VAL(CHAR,int));
+					result.SetType(type);
+				ELSIF (type IS SyntaxTree.EnumerationType) THEN
+					IF (int > MAX(LONGINT)) OR (int < MIN(LONGINT)) THEN
+						Error(position,Diagnostics.Invalid,"huge integer value incompatible to enumeration");
+					END;
+					result := SyntaxTree.NewEnumerationValue(expression.position,SHORT(int));
 					result.SetType(type);
 				ELSE
 					Error(position,Diagnostics.Invalid,"integer value cannot be converted");
@@ -1488,7 +1501,7 @@ TYPE
 				(* nothing to be done *)
 			ELSIF expression IS SyntaxTree.MathArrayValue THEN
 				result := MathArrayConversion(expression,type);
-			ELSIF expression IS SyntaxTree.EnumeratorValue THEN
+			ELSIF expression IS SyntaxTree.EnumerationValue THEN
 				result := expression;
 				(* nothing to be done *)
 			ELSE
@@ -1521,8 +1534,8 @@ TYPE
 			ELSIF expression.type = NIL THEN
 				Error(position,Diagnostics.Invalid,"expression of type NIL cannot be converted");
 			ELSIF expression.type.resolved = type THEN (* nothing to be done ! *)
-			ELSIF (expression.type.resolved = Global.Any) & (type = Global.Object) THEN (*! symbol file problem: ANY and OBJECT cannot be distinguished  *)
-			ELSIF (expression.type.resolved = Global.Object) & (type =Global.Any) THEN (*! symbol file problem *)
+			ELSIF (expression.type.resolved = Global.Any) & (type = Global.Object) THEN (*! binary symbol file problem: ANY and OBJECT cannot be distinguished  *)
+			ELSIF (expression.type.resolved = Global.Object) & (type =Global.Any) THEN (*! binary symbol file problem *)
 			ELSIF expression.resolved # NIL THEN (* value *)
 				value := ConvertValue(position,expression.resolved(SyntaxTree.Value),type);
 				result := SyntaxTree.NewConversion(expression.position,expression,type,typeExpression);
@@ -1554,6 +1567,7 @@ TYPE
 				(* skip, no conversion *)
 			ELSE
 				result := SyntaxTree.NewConversion(expression.position,expression,type,typeExpression);
+				ASSERT(type # NIL);
 			END;
 			RETURN result
 		END NewConversion;
@@ -2285,8 +2299,6 @@ TYPE
 			result.SetAssignable(assignable);
 			IF symbol IS SyntaxTree.Constant THEN
 				result.SetResolved(symbol(SyntaxTree.Constant).value.resolved);
-			ELSIF symbol IS SyntaxTree.Enumerator THEN
-				result.SetResolved(symbol(SyntaxTree.Enumerator).value);
 			END;
 
 			IF (left = NIL) OR (left IS SyntaxTree.SelfDesignator) OR (left IS SyntaxTree.DereferenceDesignator) & (left(SyntaxTree.DereferenceDesignator).left IS SyntaxTree.SelfDesignator) THEN
@@ -2379,8 +2391,7 @@ TYPE
 				END;
 
 				symbol := NIL;
-				IF scope = NIL THEN
-				ELSE
+				IF scope # NIL THEN
 					symbol := Find(scope,selectorDesignator.identifier,FALSE (* do not visit nested scopes *));
 					IF symbol # NIL THEN
 						ResolveSymbol(symbol);

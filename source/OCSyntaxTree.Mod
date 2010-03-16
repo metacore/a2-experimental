@@ -233,8 +233,8 @@ TYPE
 		PROCEDURE VisitNilValue*(x: NilValue);
 		BEGIN HALT(100) (* abstract *) END VisitNilValue;
 
-		PROCEDURE VisitEnumeratorValue*(x: EnumeratorValue);
-		BEGIN HALT(100) (* abstract *) END VisitEnumeratorValue;
+		PROCEDURE VisitEnumerationValue*(x: EnumerationValue);
+		BEGIN HALT(100) (* abstract *) END VisitEnumerationValue;
 
 		(** symbols *)
 		PROCEDURE VisitSymbol*(x: Symbol);
@@ -248,9 +248,6 @@ TYPE
 
 		PROCEDURE VisitVariable*(x: Variable);
 		BEGIN HALT(100) (* abstract *) END VisitVariable;
-
-		PROCEDURE VisitEnumerator*(x:Enumerator);
-		BEGIN HALT(100) (* abstract *) END VisitEnumerator;
 
 		PROCEDURE VisitParameter*(x: Parameter);
 		BEGIN HALT(100) (* abstract *) END VisitParameter;
@@ -529,14 +526,14 @@ TYPE
 	VAR
 		enumerationScope-: EnumerationScope;
 		enumerationBase-: Type;
-		baseValue-: LONGINT;
+		rangeLowest-,rangeHighest-: LONGINT;
 
 		PROCEDURE &InitEnumerationType(position: LONGINT; scope: Scope; enumerationScope: EnumerationScope);
 		BEGIN
 			InitType(position);
 			SELF.scope := scope;
 			enumerationBase := NIL;
-			baseValue := 0;
+			rangeLowest := 0; rangeHighest := 0;
 			SELF.enumerationScope := enumerationScope;
 			enumerationScope.ownerEnumeration := SELF;
 		END InitEnumerationType;
@@ -545,9 +542,9 @@ TYPE
 		BEGIN enumerationBase := base
 		END SetEnumerationBase;
 
-		PROCEDURE SetBaseValue*(number: LONGINT);
-		BEGIN baseValue := number;
-		END SetBaseValue;
+		PROCEDURE SetRange*(lowest,highest: LONGINT);
+		BEGIN rangeLowest := lowest; rangeHighest := highest;
+		END SetRange;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -1564,15 +1561,14 @@ TYPE
 	END NilValue;
 
 	(** <<value = enum.x >> **)
-	EnumeratorValue* = OBJECT (Value)
+	EnumerationValue* = OBJECT (Value)
 	VAR
 		value-: LONGINT;
-		enumerator-: Enumerator;
 
-		PROCEDURE & InitEnumeratorValue(position: LONGINT; value: LONGINT);
+		PROCEDURE & InitEnumerationValue(position: LONGINT; value: LONGINT);
 		BEGIN
 			InitValue(position);  SELF.value := value;
-		END InitEnumeratorValue;
+		END InitEnumerationValue;
 
 		PROCEDURE SetValue*(value: LONGINT);
 		BEGIN SELF.value := value
@@ -1580,13 +1576,13 @@ TYPE
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitEnumeratorValue(SELF)
+		BEGIN position := SELF.position; v.VisitEnumerationValue(SELF)
 		END Accept;
 
 		PROCEDURE Equals*(v: Value):BOOLEAN;
-		BEGIN RETURN (v IS EnumeratorValue) & (v(EnumeratorValue).value = value); END Equals;
+		BEGIN RETURN (v IS EnumerationValue) & (v(EnumerationValue).value = value); END Equals;
 
-	END EnumeratorValue;
+	END EnumerationValue;
 
 	(**** symbols ****)
 
@@ -1728,26 +1724,6 @@ TYPE
 		END Accept;
 
 	END Constant;
-
-	Enumerator*= OBJECT(Symbol)
-	VAR
-		nextEnumerator-: Enumerator;
-		value-: EnumeratorValue;
-
-		PROCEDURE & InitEnumerator( position: LONGINT;  name: Identifier ; value: LONGINT);
-		BEGIN
-			InitSymbol(position,name);
-			SELF.value := NewEnumeratorValue(position,value);
-			SELF.value.enumerator := SELF;
-			nextEnumerator := NIL;
-		END InitEnumerator;
-
-		PROCEDURE Accept*(v: Visitor);
-		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitEnumerator(SELF)
-		END Accept;
-
-	END Enumerator;
 
 	(** <<VAR name: type >>
 		Variable declaration symbol. Represents a variable defined in the form VAR name: Type.
@@ -2738,17 +2714,7 @@ TYPE
 
 	EnumerationScope*= OBJECT(Scope)
 	VAR
-		firstEnumerator-,lastEnumerator-: Enumerator; numberEnumerators-: LONGINT;
 		ownerEnumeration-: EnumerationType;
-
-		PROCEDURE AddEnumerator*(name: Identifier);
-		VAR e: Enumerator;
-		BEGIN
-			NEW(e,name.position,name,numberEnumerators);
-			IF lastEnumerator = NIL THEN firstEnumerator := e ELSE lastEnumerator.nextEnumerator:= e END;
-			lastEnumerator := e;
-			INC(numberEnumerators);
-		END AddEnumerator;
 
 		(** Find symbol by name *)
 		PROCEDURE FindSymbol*(identifier: Identifier): Symbol;
@@ -2767,7 +2733,6 @@ TYPE
 		PROCEDURE &InitEnumerationScope(outer: Scope);
 		BEGIN
 			InitScope(outer);
-			firstEnumerator := NIL; lastEnumerator := NIL; numberEnumerators := 0;
 			ownerEnumeration := NIL; (* must be set by EnumerationType *)
 		END InitEnumerationScope;
 
@@ -3376,6 +3341,7 @@ VAR
 	PROCEDURE NewConversion*( position: LONGINT;  expression: Expression; type: Type; typeExpression: Expression): Conversion;
 	VAR conversion: Conversion;
 	BEGIN
+		ASSERT(type # NIL);
 		NEW( conversion, position, expression,type, typeExpression );  RETURN conversion;
 	END NewConversion;
 
@@ -3432,11 +3398,11 @@ VAR
 		INC( nilValueCount );  NEW( nilValue, position );  RETURN nilValue
 	END NewNilValue;
 
-	PROCEDURE NewEnumeratorValue*( position: LONGINT; value: LONGINT ): EnumeratorValue;
-	VAR enumeratorValue: EnumeratorValue;
+	PROCEDURE NewEnumerationValue*( position: LONGINT; value: LONGINT ): EnumerationValue;
+	VAR enumeratorValue: EnumerationValue;
 	BEGIN
 		INC( enumeratorValueCount );  NEW( enumeratorValue, position, value );  RETURN enumeratorValue
-	END NewEnumeratorValue;
+	END NewEnumerationValue;
 
 	PROCEDURE NewStatement*(outer: Statement): Statement; (* for error handling: invalid Statement *)
 	VAR statement: Statement;
