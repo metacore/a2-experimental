@@ -3155,17 +3155,16 @@ TYPE
 				ELSIF (id = Global.Ash) & Parameters(2,2) THEN
 					type := type0;
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
+						ConvertOperands(parameter0,parameter1); (* same type *)
+						type := parameter0.type;
 						IF IsIntegerValue(parameter0,i0) THEN
 							IF IsIntegerValue(parameter1,i1) THEN
 								i0 := ASH(i0,i1);
 								result.SetResolved(SyntaxTree.NewIntegerValue(position,i0));
 								result := ResolveExpression(result);
 								type := Global.GetIntegerType(system,i0);
-							ELSE
-								type := Global.Longint
 							END;
 						END;
-						type := Global.Longint;
 						parameter1 := NewConversion(parameter1.position,parameter1,type,NIL);
 						parameter0 := NewConversion(parameter0.position,parameter0,type,NIL);
 						actualParameters.SetExpression(0,parameter0);
