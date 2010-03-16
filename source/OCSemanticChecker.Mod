@@ -65,6 +65,7 @@ TYPE
 	**)
 	Checker*= OBJECT (SyntaxTree.Visitor)
 	VAR
+		module: SyntaxTree.Module;
 		diagnostics: Diagnostics.Diagnostics;
 		error-: BOOLEAN;
 		VerboseErrorMessage: BOOLEAN;
@@ -111,11 +112,12 @@ TYPE
 
 		(** report error **)
 		PROCEDURE Error(position: LONGINT; code: LONGINT; CONST message: ARRAY OF CHAR);
-		VAR errorMessage: ARRAY 256 OF CHAR;
+		VAR errorMessage: ARRAY 256 OF CHAR; errModule: SyntaxTree.Module;
 		BEGIN
 			IF diagnostics # NIL THEN
 				Basic.GetErrorMessage(code,message,errorMessage);
-				diagnostics.Error(currentScope.ownerModule.sourceName, position, code, errorMessage);
+				IF module # NIL THEN errModule := module ELSE errModule := currentScope.ownerModule END;
+				diagnostics.Error(errModule.sourceName, position, code, errorMessage);
 			END;
 			error := TRUE;
 		END Error;
@@ -347,12 +349,12 @@ TYPE
 						Error(position,Diagnostics.Invalid,"base type is no enumeration type");
 					ELSE
 						enumerationBase := resolved(SyntaxTree.EnumerationType);
-						lowest := enumerationBase.rangeHighest;
+						lowest := enumerationBase.rangeHighest+1;
 					END;
 					x.SetEnumerationBase(baseType);
 				ELSE lowest := 0;
 				END;
-				highest := lowest;
+				highest := lowest-1;
 				CheckEnumerationScope(x.enumerationScope, highest);
 				x.SetRange(lowest, highest);
 				x.SetState(SyntaxTree.Resolved);
@@ -5185,6 +5187,7 @@ TYPE
 		**)
 		PROCEDURE Module*(x: SyntaxTree.Module);
 		BEGIN
+			module := x;
 			ASSERT(x # NIL);
 			global := system.globalScope[x.case];
 			x.moduleScope.SetGlobalScope(global);
@@ -5194,6 +5197,7 @@ TYPE
 			Declarations(x.moduleScope);
 			FixTypes();
 			Implementations(x);
+			module := NIL;
 		END Module;
 
 
