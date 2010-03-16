@@ -49,11 +49,11 @@ TYPE
 	END LateFixList;
 
 	WithEntry = POINTER TO RECORD
-		next: WithEntry;
-		guardedVariable: SyntaxTree.GuardedVariable;
+		previous: WithEntry;
+		symbol: SyntaxTree.Symbol;
+		type: SyntaxTree.Type;
+		typeExpression: SyntaxTree.Expression;
 	END;
-
-
 
 	(** checker object: used to check and resolve a module
 		- resolves types
@@ -163,7 +163,7 @@ TYPE
 			END;
 			IF (symbol # NIL) THEN
 				IF ~(SyntaxTree.Resolved IN symbol.state) THEN
-					ASSERT((phase = DeclarationPhase) OR (symbol IS SyntaxTree.GuardedVariable));
+					ASSERT(phase = DeclarationPhase);
 					ResolveSymbol(symbol)
 				END;
 			END;
@@ -2234,7 +2234,8 @@ TYPE
 				- else return a symbol designator
 		**)
 		PROCEDURE NewSymbolDesignator*(position: LONGINT; left: SyntaxTree.Designator; symbol: SyntaxTree.Symbol): SyntaxTree.Expression;
-		VAR result,variableSymbol: SyntaxTree.Expression; guard: SyntaxTree.GuardedVariable; assignable: BOOLEAN; scope: SyntaxTree.Scope;
+		VAR result,variableSymbol: SyntaxTree.Expression; assignable: BOOLEAN; scope: SyntaxTree.Scope;
+		guardType: SyntaxTree.Type; typeExpression: SyntaxTree.Expression;
 		BEGIN
 			IF Trace THEN D.Str("NewSymbolDesignator "); D.Ln; END;
 			result := SyntaxTree.invalidExpression;
@@ -2289,9 +2290,9 @@ TYPE
 			END;
 
 			IF (left = NIL) OR (left IS SyntaxTree.SelfDesignator) OR (left IS SyntaxTree.DereferenceDesignator) & (left(SyntaxTree.DereferenceDesignator).left IS SyntaxTree.SelfDesignator) THEN
-				guard := GetGuard(symbol);
-				IF guard # NIL THEN
-					result := NewTypeGuardDesignator(position,result(SyntaxTree.SymbolDesignator),guard.type,guard.typeExpression);
+				IF GetGuard(symbol,guardType,typeExpression) THEN
+					ASSERT(typeExpression # NIL);
+					result := NewTypeGuardDesignator(position,result(SyntaxTree.SymbolDesignator),guardType,typeExpression);
 				END;
 			END;
 
@@ -4067,20 +4068,6 @@ TYPE
 			END;
 		END VisitVariable;
 
-		(** check and resolve a with guarded variable
-			- check and set type
-			- check referenced variable
-		**)
-		PROCEDURE VisitGuardedVariable(variable: SyntaxTree.GuardedVariable);
-		BEGIN
-			IF Trace THEN D.Str("VisitGuardedVariable "); D.Str0(variable.name.name);  D.Ln;  END;
-			IF SymbolNeedsResolution(variable) THEN
-				variable.SetType(ResolveType(variable.type));
-				ResolveSymbol(variable.variable);
-				variable.SetState(SyntaxTree.Resolved);
-			END;
-		END VisitGuardedVariable;
-
 		(** check and resolve a (procedure) parameter
 			- check and set type
 			- check symbol
@@ -4153,8 +4140,9 @@ TYPE
 
 					(*! constructor information is redundant, we can remove "isConstructor" and repplace by constructor procedure reference *)
 					IF SyntaxTree.ConstructorFlag IN procedure.flags THEN
-						(*! constructor is always visible, compatibility to paco *)
+						(*! constructor is always visible, compatibility to paco
 						procedure.SetAccess(SyntaxTree.Public+SyntaxTree.Protected+SyntaxTree.Internal);
+						*)
 
 						IF procedureType.returnType # NIL THEN
 							Error(procedure.position,Diagnostics.Invalid,"constructor with forbidden return type");
@@ -4488,7 +4476,6 @@ TYPE
 			type,variableType: SyntaxTree.Type;
 			position: LONGINT;
 			prevScope : SyntaxTree.Scope;
-			guardedVariable: SyntaxTree.GuardedVariable;
 			b: BOOLEAN;
 			withEntry: WithEntry;
 		BEGIN
@@ -4533,18 +4520,14 @@ TYPE
 					Printout.Info("type",type);
 				END;
 			ELSE
-				guardedVariable := SyntaxTree.NewGuardedVariable(variable.position,variable(SyntaxTree.SymbolDesignator).symbol.name,variable(SyntaxTree.SymbolDesignator).symbol);
-				guardedVariable.SetType(type);
 				NEW(withEntry);
-				withEntry.next := withEntries;
-				withEntry.guardedVariable := guardedVariable;
+				withEntry.previous := withEntries;
+				withEntry.symbol := variable(SyntaxTree.SymbolDesignator).symbol;
+				withEntry.typeExpression := withStatement.type;
+				withEntry.type := type; 
 				withEntries := withEntry;
-				(*
-				currentScope := SyntaxTree.NewWithScope(currentScope,guardedVariable);
-				currentScope.EnterSymbol(guardedVariable,b);
-				*)
 				StatementSequence(withStatement.statements);
-				withEntries := withEntries.next;
+				withEntries := withEntries.previous;
 			END;
 
 			currentScope := prevScope;
@@ -4698,15 +4681,18 @@ TYPE
 		 END VisitRepeatStatement;
 
 
-		PROCEDURE GetGuard(symbol: SyntaxTree.Symbol): SyntaxTree.GuardedVariable;
+		PROCEDURE GetGuard(symbol: SyntaxTree.Symbol; VAR type: SyntaxTree.Type; VAR typeExpression: SyntaxTree.Expression): BOOLEAN;
 		VAR withEntry: WithEntry;
 		BEGIN
 			withEntry := withEntries;
-			WHILE (withEntry # NIL) & (withEntry.guardedVariable.variable # symbol) DO
-				withEntry := withEntry.next
+			WHILE (withEntry # NIL) & (withEntry.symbol # symbol) DO
+				withEntry := withEntry.previous
 			END;
-			IF withEntry = NIL THEN RETURN NIL
-			ELSE RETURN withEntry.guardedVariable
+			IF withEntry = NIL THEN RETURN FALSE
+			ELSE 
+				type := withEntry.type;
+				typeExpression := withEntry.typeExpression;
+				RETURN TRUE
 			END;
 		END GetGuard;
 

@@ -249,9 +249,6 @@ TYPE
 		PROCEDURE VisitVariable*(x: Variable);
 		BEGIN HALT(100) (* abstract *) END VisitVariable;
 
-		PROCEDURE VisitGuardedVariable*(x: GuardedVariable);
-		BEGIN HALT(100) (* abstract *) END VisitGuardedVariable;
-
 		PROCEDURE VisitEnumerator*(x:Enumerator);
 		BEGIN HALT(100) (* abstract *) END VisitEnumerator;
 
@@ -1779,34 +1776,6 @@ TYPE
 
 	END Variable;
 
-	(** <<variable : type>>
-		guarded variable symbol. Represents a variable in a with-guarded block in the form
-		WITH variable: type DO
-			...
-		END
-	**)
-	GuardedVariable*=OBJECT (Symbol)
-	VAR
-		variable-: Symbol;
-		typeExpression-: Expression; (* for printing only *)
-
-		PROCEDURE & InitGuardedVariable*(position: LONGINT; name: Identifier; variable: Symbol);
-		BEGIN
-			InitSymbol(position,name);
-			SELF.variable := variable; typeExpression := NIL;
-		END InitGuardedVariable;
-
-		PROCEDURE SetTypeExpression*(typeExpression: Expression);
-		BEGIN SELF.typeExpression := typeExpression
-		END SetTypeExpression;
-
-		PROCEDURE Accept*(v: Visitor);
-		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitGuardedVariable(SELF)
-		END Accept;
-
-	END GuardedVariable;
-
 	(** << [VAR | CONST] name: type >>
 		Parameter declaration symbol. Represents a parameter in the form [VAR | CONST] name: Type.
 		The parameter's type is stored in the symbol's type field and is resolved by the semantic checker.
@@ -3245,12 +3214,6 @@ VAR
 	BEGIN
 		INC( variableCount );  NEW( variable, position, name );  RETURN variable
 	END NewVariable;
-
-	PROCEDURE NewGuardedVariable*( position: LONGINT;  name: Identifier; variable: Symbol): GuardedVariable;
-	VAR guardedVariable: GuardedVariable;
-	BEGIN
-		INC( variableCount );  NEW(guardedVariable, position, name, variable );  RETURN guardedVariable
-	END NewGuardedVariable;
 
 	PROCEDURE NewQualifiedIdentifier*( position: LONGINT;  prefix, suffix: Identifier ): QualifiedIdentifier;
 	VAR qualifiedIdentifier: QualifiedIdentifier;

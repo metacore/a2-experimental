@@ -815,14 +815,6 @@ TYPE
 			END;
 		END VisitVariable;
 
-		PROCEDURE VisitGuardedVariable(x: SyntaxTree.GuardedVariable);
-		BEGIN
-			w.BeginAlert;
-			w.String("(* Guard(->"); Type(x.type); w.String("*)");
-			Symbol(x.variable);
-			w.EndAlert;
-		END VisitGuardedVariable;
-
 		PROCEDURE VariableList(x: SyntaxTree.Variable);
 		VAR next: SyntaxTree.Variable;
 		BEGIN
