@@ -347,7 +347,7 @@ TYPE
 						Error(position,Diagnostics.Invalid,"base type is no enumeration type");
 					ELSE
 						enumerationBase := resolved(SyntaxTree.EnumerationType);
-						lowest := enumerationBase.rangeHighest + 1;
+						lowest := enumerationBase.rangeHighest;
 					END;
 					x.SetEnumerationBase(baseType);
 				ELSE lowest := 0;
