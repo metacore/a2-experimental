@@ -2988,9 +2988,9 @@ TYPE
 							Error(position,Diagnostics.Invalid,"assert failed");
 						END;
 						IF (numberActualParameters > 1) & CheckIntegerValue(parameter1,i1) THEN
-							IF (i1<20) THEN
-								Error(position,Diagnostics.Invalid,"too small parameter")
-							END;
+							(* modified: any integer parameter value is allowed, it is in the responsibility of the programmer to adhere to
+								rules imposed by the architecture / current runtime
+							 *)
 						END;
 					END;
 				(* ---- COPY ----- *)
@@ -3038,9 +3038,9 @@ TYPE
 				(* ---- HALT, SYSTEM.HALT ----- *)
 				ELSIF ((id = Global.Halt) OR (id = Global.systemHalt)) & Parameters(1,1) THEN
 					IF CheckPositiveIntegerValue(parameter0,i0,FALSE) THEN
-						IF (i0<20) & (id=Global.Halt) THEN
-							Error(position,Diagnostics.Invalid,"too small parameter")
-						END;
+						(* modified: any integer parameter value is allowed, it is in the responsibility of the programmer to adhere to
+							rules imposed by the architecture / current runtime
+						 *)
 					END;
 				(* ---- NEW ----- *)
 				ELSIF (id = Global.New) & Parameters(1,Infinity) THEN

@@ -38382,7 +38382,7 @@ positive: SYSTEM.HALT statement
 		SYSTEM.HALT(10);
 	END Test.
 
-negative: HALT statement with too small parameter
+positive: HALT statement with small parameter
 
 	MODULE Test;
 	BEGIN HALT(14)
