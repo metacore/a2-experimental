@@ -48,6 +48,13 @@ TYPE
 
 	END LateFixList;
 
+	WithEntry = POINTER TO RECORD
+		next: WithEntry;
+		guardedVariable: SyntaxTree.GuardedVariable;
+	END;
+
+
+
 	(** checker object: used to check and resolve a module
 		- resolves types
 		- resolves expressions
@@ -79,7 +86,7 @@ TYPE
 		currentScope: SyntaxTree.Scope;
 		currentFlags: SET; (** used for check on recursive exclusive sections etc. *)
 		global: SyntaxTree.ModuleScope;
-
+		withEntries: WithEntry;
 
 		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; VAR importCache: SyntaxTree.ModuleScope);
 		BEGIN
@@ -99,6 +106,7 @@ TYPE
 			global := NIL;
 			phase := UndefinedPhase;
 			currentFlags := {};
+			withEntries := NIL;
 		END InitChecker;
 
 		(** report error **)
@@ -2271,18 +2279,19 @@ TYPE
 				assignable := assignable & (SyntaxTree.InternalWrite IN symbol.access);
 			END;
 
-			IF symbol IS SyntaxTree.GuardedVariable THEN
-				guard := symbol(SyntaxTree.GuardedVariable);
-				variableSymbol := NewSymbolDesignator(position,left,guard.variable);
-				result := NewTypeGuardDesignator(position,variableSymbol(SyntaxTree.Designator),guard.type,guard.typeExpression);
-			ELSE
-				result := SyntaxTree.NewSymbolDesignator(position,left,symbol);
-				result.SetType(symbol.type);
-				result.SetAssignable(assignable);
-				IF symbol IS SyntaxTree.Constant THEN
-					result.SetResolved(symbol(SyntaxTree.Constant).value.resolved);
-				ELSIF symbol IS SyntaxTree.Enumerator THEN
-					result.SetResolved(symbol(SyntaxTree.Enumerator).value);
+			result := SyntaxTree.NewSymbolDesignator(position,left,symbol);
+			result.SetType(symbol.type);
+			result.SetAssignable(assignable);
+			IF symbol IS SyntaxTree.Constant THEN
+				result.SetResolved(symbol(SyntaxTree.Constant).value.resolved);
+			ELSIF symbol IS SyntaxTree.Enumerator THEN
+				result.SetResolved(symbol(SyntaxTree.Enumerator).value);
+			END;
+
+			IF (left = NIL) OR (left IS SyntaxTree.SelfDesignator) OR (left IS SyntaxTree.DereferenceDesignator) & (left(SyntaxTree.DereferenceDesignator).left IS SyntaxTree.SelfDesignator) THEN
+				guard := GetGuard(symbol);
+				IF guard # NIL THEN
+					result := NewTypeGuardDesignator(position,result(SyntaxTree.SymbolDesignator),guard.type,guard.typeExpression);
 				END;
 			END;
 
@@ -3259,10 +3268,10 @@ TYPE
 								mathArrayType := base(SyntaxTree.MathArrayType);
 								IF (mathArrayType.length # NIL) & (mathArrayType.length.resolved # NIL) & IsIntegerValue(mathArrayType.length,i) THEN
 									result := Global.NewIntegerValue(system,position,i);
-									type := result.type; 
+									type := result.type;
 									(*
 									type := mathArrayType.length.type;
-									*) 
+									*)
 									ASSERT(type # NIL);
 								END;
 							END;
@@ -4481,6 +4490,7 @@ TYPE
 			prevScope : SyntaxTree.Scope;
 			guardedVariable: SyntaxTree.GuardedVariable;
 			b: BOOLEAN;
+			withEntry: WithEntry;
 		BEGIN
 			prevScope := currentScope;
 			position := withStatement.position;
@@ -4525,9 +4535,16 @@ TYPE
 			ELSE
 				guardedVariable := SyntaxTree.NewGuardedVariable(variable.position,variable(SyntaxTree.SymbolDesignator).symbol.name,variable(SyntaxTree.SymbolDesignator).symbol);
 				guardedVariable.SetType(type);
+				NEW(withEntry);
+				withEntry.next := withEntries;
+				withEntry.guardedVariable := guardedVariable;
+				withEntries := withEntry;
+				(*
 				currentScope := SyntaxTree.NewWithScope(currentScope,guardedVariable);
 				currentScope.EnterSymbol(guardedVariable,b);
+				*)
 				StatementSequence(withStatement.statements);
+				withEntries := withEntries.next;
 			END;
 
 			currentScope := prevScope;
@@ -4681,15 +4698,17 @@ TYPE
 		 END VisitRepeatStatement;
 
 
-		PROCEDURE GetVariableScope(): SyntaxTree.Scope;
-		VAR scope: SyntaxTree.Scope;
+		PROCEDURE GetGuard(symbol: SyntaxTree.Symbol): SyntaxTree.GuardedVariable;
+		VAR withEntry: WithEntry;
 		BEGIN
-			scope := currentScope;
-			WHILE scope IS SyntaxTree.WithScope DO
-				scope := scope.outerScope
+			withEntry := withEntries;
+			WHILE (withEntry # NIL) & (withEntry.guardedVariable.variable # symbol) DO
+				withEntry := withEntry.next
 			END;
-			RETURN scope
-		END GetVariableScope;
+			IF withEntry = NIL THEN RETURN NIL
+			ELSE RETURN withEntry.guardedVariable
+			END;
+		END GetGuard;
 
 		(**
 			create a temporary variable in current scope
@@ -4703,7 +4722,7 @@ TYPE
 				Basic.AppendNumber(string,index);
 			END;
 			name := SyntaxTree.NewIdentifier(index,string);
-			scope := GetVariableScope();
+			scope := currentScope;
 			variable := Find(scope, name,FALSE);
 			IF variable = NIL THEN
 				variable := SyntaxTree.NewVariable(index,name);

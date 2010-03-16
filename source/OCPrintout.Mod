@@ -1456,7 +1456,6 @@ VAR
 				IF scope IS SyntaxTree.ModuleScope THEN D.Str("ModuleScope: ")
 				ELSIF scope IS SyntaxTree.ProcedureScope THEN D.Str("ProcedureScope: ");
 				ELSIF scope IS SyntaxTree.RecordScope THEN D.Str("RecordScope: ");
-				ELSIF scope IS SyntaxTree.WithScope THEN D.Str("WithScope: ");
 				ELSE D.Str("Scope: ");
 				END;
 				symbol := scope.firstSymbol;

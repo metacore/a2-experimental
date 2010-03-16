@@ -2767,18 +2767,6 @@ TYPE
 
 	END ProcedureScope;
 
-	WithScope*=OBJECT (Scope)
-	VAR
-		guardedVariable-: GuardedVariable;
-
-		PROCEDURE & InitWithScope(outer: Scope; guardedVariable: GuardedVariable);
-		BEGIN
-			InitScope(outer);
-			SELF.guardedVariable := guardedVariable;
-		END InitWithScope;
-
-	END WithScope;
-
 	EnumerationScope*= OBJECT(Scope)
 	VAR
 		firstEnumerator-,lastEnumerator-: Enumerator; numberEnumerators-: LONGINT;
@@ -3620,11 +3608,6 @@ VAR
 	VAR scope: RecordScope;
 	BEGIN	NEW(scope,outer); RETURN scope
 	END NewRecordScope;
-
-	PROCEDURE NewWithScope*(outer: Scope; guardedVariable: GuardedVariable): WithScope;
-	VAR scope: WithScope;
-	BEGIN NEW(scope,outer,guardedVariable); RETURN scope
-	END NewWithScope;
 
 	PROCEDURE NewEnumerationScope*(outer: Scope): EnumerationScope;
 	VAR scope: EnumerationScope;
