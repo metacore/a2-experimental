@@ -38131,11 +38131,19 @@ positive: system address type size
 	BEGIN a := SYSTEM.SIZEOF(SYSTEM.ADDRESS)
 	END Test.
 
-negative: signed system address function
+negative:  system address function on size-incompatible type
 
 	MODULE Test;
 	IMPORT SYSTEM;
-	VAR a: LONGINT;
+	VAR a: SHORTINT;
+	BEGIN a := SYSTEM.ADR(a)
+	END Test.
+
+positive:  system address function on size-compatible type
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a: HUGEINT;
 	BEGIN a := SYSTEM.ADR(a)
 	END Test.
 
@@ -38776,7 +38784,7 @@ positive: use a value for a the address in SYSTEM.GET
 
 	END Test.
 
-negative: negative values in address
+positive: negative values in address
 
 	MODULE Test;
 	IMPORT SYSTEM;
