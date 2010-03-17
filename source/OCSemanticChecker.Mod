@@ -305,8 +305,10 @@ TYPE
 			check enumeration scope: enter symbols and check for duplicate names
 		**)
 		PROCEDURE CheckEnumerationScope(x: SyntaxTree.EnumerationScope; VAR highest: LONGINT);
-		VAR e: SyntaxTree.Constant; value: SyntaxTree.Expression; nextHighest: LONGINT;
+		VAR e: SyntaxTree.Constant; value: SyntaxTree.Expression; nextHighest: LONGINT; prevScope: SyntaxTree.Scope;
 		BEGIN
+			prevScope := currentScope;
+			currentScope := x;
 			e := x.firstConstant;
 			WHILE (e # NIL) DO
 				Register(e,x,FALSE);
@@ -329,6 +331,7 @@ TYPE
 				END;
 				e := e.nextConstant;
 			END;
+			currentScope := prevScope;
 		END CheckEnumerationScope;
 
 		(**
