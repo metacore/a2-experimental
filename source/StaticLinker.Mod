@@ -62,10 +62,11 @@ BEGIN
 END WriteBinaryFile;
 
 PROCEDURE WriteTRMFile (arrangement: Arrangement; writer: Files.Writer; bitsPerLine, lines: LONGINT);
-VAR i,j,size: LONGINT;
+VAR i,j,size,end: LONGINT;
 	PROCEDURE GetBits(pos: LONGINT): LONGINT;
 	BEGIN
 		IF pos >= size THEN RETURN 0
+
 		ELSIF pos+4 > size THEN RETURN arrangement.bits.GetBits(pos,size-pos)
 		ELSE RETURN arrangement.bits.GetBits(pos,4)
 		END;
@@ -73,9 +74,16 @@ VAR i,j,size: LONGINT;
 BEGIN
 	ASSERT (bitsPerLine MOD 4 = 0);
 	size := arrangement.bits.GetSize();
-	FOR i := 0 TO lines-1 DO
+	end := size DIV bitsPerLine + 1;
+	FOR i := 0 TO end DO
 		FOR j := bitsPerLine DIV 4 -1 TO 0 BY -1 DO
 			writer.Char(ObjectFile.NibbleToCharacter(GetBits(i*bitsPerLine+j*4)));
+		END;
+		writer.Ln;
+	END;
+	FOR i := end+1 TO lines -1 DO
+		FOR j := bitsPerLine DIV 4 -1 TO 0 BY -1 DO
+			writer.Char('f');
 		END;
 		writer.Ln;
 	END;
