@@ -47,15 +47,15 @@
 		<Style name="Values" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
 		<Style name="BasicTypes" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
 		<Style name="ComplexTypes" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
-		<Style name="Lowlevel" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF0000FF"/>
 		<Style name="Dangerous" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF0000FF"/>
+		<Style name="Debug" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
 		<Style name="String" fontname="Syntax" fontsize="10" fontstyle="{}" color="BF003FFF"/>
 
 		<Style name="Bold" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF"/>
 		<Style name="Italic" fontname="Syntax" fontsize="10" fontstyle="{1}" color="FF"/>
 		<Style name="Red" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF0000FF"/>
 		<Style name="Blue" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
-		<Style name="Green" fontname="Syntax" fontsize="10" fontstyle="{}" color="A000FF"/>
+		<Style name="Green" fontname="Syntax" fontsize="10" fontstyle="{0}" color="9000FF"/>
 	</Styles>
 
 	<Highlighters>
@@ -63,11 +63,15 @@
 			<Words allowCharacters="._">
 				<Group style="Bold">
 					FOR TO WHILE DO REPEAT UNTIL IF THEN ELSE ELSIF
-					LOOP EXIT CASE BY RETURN
+					LOOP CASE BY
 					BEGIN END CODE
+				</Group>
+				<Group style="Green">
+					RETURN EXIT
 				</Group>
 				<Group style="Bold">
 					VAR CONST
+					ARRAY POINTER
 				</Group>
 				<Group style="Bold">
 					NEW SELF
@@ -76,6 +80,8 @@
 					ABS ASH CAP CHR ORD
 					COPY GETPROCEDURE LEN
 					MAX MIN ODD SIZEOF SHORT LONG ENTIER ENTIERH
+					DIV MOD IN IS OR
+					INCL EXCL INC DEC
 				</Group>
 				<Group style="Modifiers">
 					DELEGATE
@@ -97,10 +103,6 @@
 					MODULE IMPORT TYPE DEFINITION REFINES IMPLEMENTS PROCEDURE
 					OBJECT RECORD
 				</Group>
-				<Group style="Operators">
-					DIV MOD IN IS OR
-					INCL EXCL INC DEC
-				</Group>
 				<Group style="Values">
 					NIL TRUE FALSE
 				</Group>
@@ -110,26 +112,26 @@
 					REAL LONGREAL
 					SET
 					CHAR
+					ANY
 				</Group>
-				<Group style="ComplexTypes">
-					 ARRAY POINTER
-				</Group>
-				<Group style="Lowlevel">
-					SYSTEM
+				<Group style="Dangerous">
 					SYSTEM.GET SYSTEM.GET8 SYSTEM.GET16 SYSTEM.GET32 SYSTEM.GET64
 					SYSTEM.ADDRESS SYSTEM.SIZE
 					SYSTEM.SIZEOF SYSTEM.TYPEOF
-				</Group>
-				<Group style="Dangerous">
-					UNTRACED
 					SYSTEM.PUT SYSTEM.PUT8 SYSTEM.PUT16 SYSTEM.PUT32 SYSTEM.PUT64
 					SYSTEM.VAL
 					SYSTEM.ADR
 					SYSTEM.MOVE
-					HALT
 					SYSTEM.PORTIN SYSTEM.PORTOUT
 					SYSTEM.ROT SYSTEM.LSH
 					SYSTEM.CLI SYSTEM.STI
+					SYSTEM
+					HALT
+					UNTRACED
+				</Group>
+				<Group style="Debug">
+					KernelLog
+					KernelLog.*
 				</Group>
 			</Words>
 
@@ -173,11 +175,11 @@
 					open="&lt;!--" close="-->" nesting="FALSE" multiline="TRUE"
 				/>
 				<Region
-					style="Values" styleOpen="Bold" styleClose="Bold"
+					style="String" styleOpen="Bold" styleClose="Bold"
 					open='"' close='"' nesting="FALSE" multiline="TRUE"
 				/>
 				<Region
-					style="Values" styleOpen="Bold" styleClose="Bold"
+					style="String" styleOpen="Bold" styleClose="Bold"
 					open="'" close="'" nesting="FALSE" multiline="TRUE"
 				/>
 			</Regions>
@@ -222,7 +224,7 @@
 					open="#" close="" nesting="FALSE" multiline="FALSE"
 				/>
 				<Region
-					style="Values" styleOpen="Bold" styleClose="Bold"
+					style="String" styleOpen="Bold" styleClose="Bold"
 					open='"' close='"' nesting="FALSE" multiline="FALSE"
 				/>
 			</Regions>
