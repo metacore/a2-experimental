@@ -64,7 +64,8 @@
 				<Group style="Bold">
 					FOR TO WHILE DO REPEAT UNTIL IF THEN ELSE ELSIF
 					LOOP CASE BY
-					BEGIN END CODE
+					BEGIN END CODE FINALLY
+					OF
 				</Group>
 				<Group style="Green">
 					RETURN EXIT
