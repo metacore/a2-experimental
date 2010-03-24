@@ -2467,10 +2467,10 @@ TYPE
 	VAR
 		finally-: StatementSequence;
 		priority-: Expression; (* set by checker *)
-		inScope-: Scope;
+		inScope-: ProcedureScope;
 		code-: Code;
 
-		PROCEDURE & InitBody(position: LONGINT; scope: Scope);
+		PROCEDURE & InitBody(position: LONGINT; scope: ProcedureScope);
 		BEGIN
 			InitStatementBlock(position,NIL); finally := NIL; priority := NIL; inScope := scope; code := NIL;
 		END InitBody;
@@ -3427,7 +3427,7 @@ VAR
 		INC( statementBlockCount );  NEW( statementBlock, position, outer );  RETURN statementBlock
 	END NewStatementBlock;
 
-	PROCEDURE NewBody*( position: LONGINT ; scope: Scope): Body;
+	PROCEDURE NewBody*( position: LONGINT ; scope: ProcedureScope): Body;
 	VAR body: Body;
 	BEGIN
 		INC( bodyCount );  NEW( body, position,scope );  RETURN body

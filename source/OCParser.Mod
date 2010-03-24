@@ -958,7 +958,7 @@ TYPE
 
 		(** Body = 'begin' ['{' BlockModifier '}'] StatementSequence ['finally' StatementSequence]
 		         | 'code' Code. **)
-		PROCEDURE Body( scope: SyntaxTree.Scope ): SyntaxTree.Body;
+		PROCEDURE Body( scope: SyntaxTree.ProcedureScope ): SyntaxTree.Body;
 		VAR body: SyntaxTree.Body; code: SyntaxTree.Code; position: LONGINT;  previousScope: SyntaxTree.Scope;
 		BEGIN
 			previousScope := currentScope;
