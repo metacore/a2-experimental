@@ -37,6 +37,7 @@
 <SyntaxHighlighter>
 	<Styles>
 		<Style name="Comment" fontname="Syntax" fontsize="10" fontstyle="{}" color="808080FF"/>
+		<Style name="CommentItalic" fontname="Syntax" fontsize="10" fontstyle="{1}" color="808080FF"/>
 		<Style name="Control" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
 		<Style name="Modifiers" fontname="Syntax" fontsize="10" fontstyle="{}" color="A000FF"/>
 		<Style name="Locking" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF"/>
@@ -140,6 +141,18 @@
 				<Region
 					style="Comment" styleOpen="Comment" styleClose="Comment"
 					open="(*" close="*)" nesting="TRUE" multiline="TRUE"
+				/>
+				<Region
+					style="Blue" styleOpen="Comment" styleClose="Comment"
+					open="(*!" close="*)" nesting="TRUE" multiline="TRUE"
+				/>
+				<Region
+					style="Red" styleOpen="Comment" styleClose="Comment"
+					open="(*?" close="*)" nesting="TRUE" multiline="TRUE"
+				/>
+				<Region
+					style="CommentItalic" styleOpen="CommentItalic" styleClose="CommentItalic"
+					open="(**" close="*)" nesting="TRUE" multiline="TRUE"
 				/>
 				<Region
 					style="String" styleOpen="Bold" styleClose="Bold"
