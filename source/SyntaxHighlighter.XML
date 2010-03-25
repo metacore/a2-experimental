@@ -61,7 +61,7 @@
 
 	<Highlighters>
 		<Highlighter name="Oberon">
-			<Words allowCharacters="._">
+			<Words allowCharacters="._" numberStyle="Red">
 				<Group style="Bold">
 					FOR TO WHILE DO REPEAT UNTIL IF THEN ELSE ELSIF
 					LOOP CASE BY
