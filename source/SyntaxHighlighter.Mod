@@ -1285,6 +1285,39 @@ BEGIN
 	END;
 END GetTokenType;
 
+(*? Actually, the XML framework should take care of unescaping characters *)
+PROCEDURE Unescape(string : Strings.String);
+VAR insertAt, i : LONGINT; ch : CHAR;
+BEGIN
+	ASSERT(string # NIL);
+	i := 0; insertAt := 0;
+	WHILE (i < LEN(string)) DO
+		IF (string[i] = "&") THEN
+			IF (i + 3 < LEN(string)) & (string[i+2] = "t") & (string[i+3] = ";") THEN
+				IF (string[i+1] = "l") THEN
+					ch := "<"; i := i + 4;
+				ELSIF (string[i+1] = "g") THEN
+					ch := ">"; i := i + 4;
+				ELSE
+					ch := string[i]; INC(i);
+				END;
+			ELSIF (i + 4 < LEN(string)) & (string[i+1] = "a") & (string[i+2] = "m") & (string[i+3] = "p") & (string[i+4] = ";") THEN
+				ch := "&"; i := i + 5;
+			ELSIF (i + 5 < LEN(string)) & (string[i+1] = "q") & (string[i+2] = "u") & (string[i+3] = "o") & (string[i+4] = "t") & (string[i+5] = ";") THEN
+				ch := '"'; i := i + 6;
+			ELSIF (i + 5 < LEN(string)) & (string[i+1] = "a") & (string[i+2] = "p") & (string[i+3] = "o") & (string[i+4] = "s") & (string[i+5] = ";") THEN
+				ch := "'"; i := i + 6;
+			ELSE
+				ch := string[i]; INC(i);
+			END;
+		ELSE
+			ch := string[i]; INC(i);
+		END;
+		string[insertAt] := ch; INC(insertAt);
+	END;
+	IF (insertAt < LEN(string)) THEN string[insertAt] := 0X; END;
+END Unescape;
+
 PROCEDURE NofWildcards(CONST string : ARRAY OF CHAR) : LONGINT;
 VAR nofWildcards, i : LONGINT;
 BEGIN
@@ -1480,6 +1513,7 @@ BEGIN
 			IF (ptr # NIL) & (ptr IS XML.Chars) THEN
 				string := ptr(XML.Chars).GetStr();
 				IF (string # NIL) THEN
+					Unescape(string);
 					NEW(reader, LEN(string^));
 					reader.Set(string^);
 					reader.SkipWhitespace;
