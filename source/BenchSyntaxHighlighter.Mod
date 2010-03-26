@@ -38,7 +38,7 @@ BEGIN
 		REPEAT
 			readerPosition := reader.GetPosition();
 			reader.ReadCh(char32);
-			IF (readerPosition > wordEnd) & highlighter.IsAllowedCharacter(char32) THEN
+			IF (readerPosition > wordEnd) & (char32 > 32) THEN
 				style := highlighter.GetWordStyle(reader, readerPosition, wordEnd);
 				reader.SetPosition(readerPosition);
 				reader.ReadCh(char32);
@@ -112,7 +112,7 @@ BEGIN
 				IF (style # NIL) THEN
 					lastEnd := regionEnd;
 				ELSE
-					IF highlighter.IsAllowedCharacter(char32) THEN
+					IF (char32 > 32) THEN
 						style := highlighter.GetWordStyle(reader, readerPosition, lastEnd);
 						reader.SetPosition(readerPosition);
 						reader.ReadCh(char32);
@@ -192,6 +192,80 @@ BEGIN
 	END;
 END Bench;
 
+PROCEDURE TestScanner*(context : Commands.Context); (** [options] filename highlighterName ~ *)
+VAR
+	options : Options.Options;
+	filename : Files.FileName; highlighterName : ARRAY 64 OF CHAR;
+	highlighter : SyntaxHighlighter.Highlighter;
+	text : Texts.Text; reader : Texts.TextReader; char32 : Texts.Char32;
+	token : SyntaxHighlighter.Token;
+	position, format, res : LONGINT;
+BEGIN
+	NEW(options);
+	options.Add("d", "details", Options.Flag);
+
+	IF options.Parse(context.arg, context.error) THEN
+		filename := "";
+		context.arg.GetString(filename);
+
+		highlighterName := "";
+		context.arg.GetString(highlighterName);
+
+		highlighter := SyntaxHighlighter.GetHighlighter(highlighterName);
+		IF (highlighter # NIL) THEN
+			NEW(text);
+			TextUtilities.LoadAuto(text, filename, format, res);
+			IF (res = 0) THEN
+				context.out.String("Token chain for file "); context.out.String(filename); context.out.String(":"); context.out.Ln;
+				text.AcquireRead;
+				NEW(reader, text);
+				reader.SetPosition(0); position := 0;
+				reader.ReadCh(char32);
+				REPEAT
+					(* skip whitespace *)
+					WHILE (char32 <= 32) & ~reader.eot DO reader.ReadCh(char32); INC(position); END;
+					IF ~reader.eot THEN
+						ASSERT(char32 > 32);
+						context.out.Ln; context.out.String("Scan "); context.out.Int(position, 0); context.out.Ln;
+						reader.SetPosition(position);
+						highlighter.GetToken(reader, position, token);
+						context.out.String(" -> ");
+						CASE token.type OF
+							|SyntaxHighlighter.Type_Invalid: context.out.String("INV");
+							|SyntaxHighlighter.Type_Identifier: context.out.String("ID("); context.out.String(token.value);
+							|SyntaxHighlighter.Type_Number: context.out.String("NUM("); context.out.String(token.value);
+							|SyntaxHighlighter.Type_Token: context.out.String("T("); context.out.String(token.value);
+						ELSE
+							context.out.String("UNKNOWN");
+						END;
+						IF (token.type = SyntaxHighlighter.Type_Identifier) OR (token.type = SyntaxHighlighter.Type_Number) OR (token.type = SyntaxHighlighter.Type_Token) THEN
+							IF options.GetFlag("details") THEN
+								context.out.String(", ");
+								context.out.Int(token.startPosition, 0); context.out.String("..");
+								context.out.Int(token.endPosition, 0);
+							END;
+							context.out.String(")");
+						END;
+						IF (token.type # SyntaxHighlighter.Type_Invalid) THEN
+							reader.SetPosition(token.endPosition + 1); position := token.endPosition + 1;
+						ELSE
+							INC(position);
+						END;
+						reader.ReadCh(char32);
+					END;
+				UNTIL reader.eot;
+				text.ReleaseRead;
+			ELSE
+				context.error.String("Could not open file "); context.error.String(filename); context.error.String(", res = ");
+				context.error.Int(res, 0); context.error.Ln;
+			END;
+		ELSE
+			context.error.String("Highlighter "); context.error.String(highlighterName); context.error.String(" not found.");
+			context.error.Ln;
+		END;
+	END;
+END TestScanner;
+
 END BenchSyntaxHighlighter.
 
 SystemTools.Free BenchSyntaxHighlighter ~
@@ -214,7 +288,11 @@ BenchSyntaxHighlighter.Bench I386.Machine.Mod full ~
 BenchSyntaxHighlighter.Bench Usb.Mod  ~
 BenchSyntaxHighlighter.Bench I386.Machine.Mod  ~
 
-Test:
+Tests:
+
+BenchSyntaxHighlighter.TestScanner Test.Mod Oberon ~
+
+BenchSyntaxHighlighter.TestScanner --details Test.Mod Oberon ~
 
 SystemTools.DoCommands
 	FSTools.Enumerate *.Mod BenchSyntaxHighlighter.Bench -n=1 <#filename#> ~
