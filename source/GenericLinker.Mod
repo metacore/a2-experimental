@@ -162,8 +162,18 @@ VAR
 	END Patch;
 
 	PROCEDURE Diagnose (block: Block);
+	VAR msg,num: ARRAY 32 OF CHAR;
 	BEGIN
-		IF block.used THEN Information (block.name, "arranged at");
+		IF block.used THEN
+			Strings.IntToStr(block.address,num);
+			msg := "arranged at ";
+			Strings.Append(msg, num);
+			IF block.bits # NIL THEN
+				Strings.Append(msg, " to ");
+				Strings.IntToStr(block.address+block.bits.GetSize() DIV block.unit -1,num);
+				Strings.Append(msg,num);
+			END;
+			Information (block.name, msg);
 		ELSE Information (block.name, "unused"); END;
 	END Diagnose;
 
