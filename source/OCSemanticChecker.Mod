@@ -600,7 +600,9 @@ TYPE
 					procedureType.AddParameter(returnParameter);
 				END;
 
-				system.GenerateParameterOffsets(procedureType,FALSE);
+				IF ~system.GenerateParameterOffsets(procedureType,FALSE) THEN
+					Error(procedureType.position, Diagnostics.Invalid, "problems during parameter offset generation");
+				END
 		END FixProcedureType;
 
 		PROCEDURE FlagByIdentifier(identifier: SyntaxTree.Identifier): LONGINT;
@@ -4134,7 +4136,9 @@ TYPE
 
 				IF procedure.scope IS SyntaxTree.ProcedureScope THEN
 					procedure.SetLevel(procedure.scope(SyntaxTree.ProcedureScope).ownerProcedure.level+1);
-					system.GenerateParameterOffsets(procedureType,TRUE);
+					IF ~system.GenerateParameterOffsets(procedureType,TRUE) THEN
+						Error(procedure.position,Diagnostics.Invalid,"problem during parameter offset generation");
+					END;
 				END;
 				IF procedure.scope IS SyntaxTree.RecordScope THEN
 					record := procedure.scope(SyntaxTree.RecordScope).ownerRecord;
@@ -4196,7 +4200,10 @@ TYPE
 							procedure.SetAccess(procedure.access+super.access);
 						END;
 					END;
-					system.GenerateParameterOffsets(procedureType,FALSE); (* assume that this is no nested procedure, is fixed later otherwise *)
+					IF  ~system.GenerateParameterOffsets(procedureType,FALSE) (* assume that this is no nested procedure, is fixed later otherwise *)
+					THEN
+						Error(procedure.position,Diagnostics.Invalid,"problems during parameter offset computation");						
+					END;
 				ELSIF SyntaxTree.ConstructorFlag IN procedure.flags THEN
 					Error(procedure.position,Diagnostics.Invalid,"nested procedure illegaly marked as initializer");
 				END;
@@ -5169,7 +5176,9 @@ TYPE
 				symbol := symbol.nextSymbol;
 			END;
 
-			IF ~error THEN system.GenerateVariableOffsets(scope) END;
+			IF ~error & ~system.GenerateVariableOffsets(scope) THEN
+				Error(Diagnostics.Invalid,Diagnostics.Invalid,"problems during offset computation in module");
+			END;
 
 			IF scope.ownerModule # NIL THEN
 				(* add scope to global list of all scopes, very handy for code generation and for checking implementations *)
