@@ -1466,21 +1466,21 @@ positive: short on integer
 
 	MODULE Test;
 	VAR value: INTEGER;
-	BEGIN value := 1122H; ASSERT (SHORT (value) = 22H); ASSERT (SHORT (value) = SHORT (1122H));
+	BEGIN value := 1122H; ASSERT (SHORT (value) = SHORT (INTEGER(1122H)));
 	END Test.
 
 positive: short on long integer
 
 	MODULE Test;
 	VAR value: LONGINT;
-	BEGIN value := 11223344H; ASSERT (SHORT (value) = 3344H); ASSERT (SHORT (value) = SHORT (11223344H));
+	BEGIN value := 11223344H;ASSERT (SHORT (value) = SHORT (LONGINT(11223344H)));
 	END Test.
 
 positive: short on huge integer
 
 	MODULE Test;
 	VAR value: HUGEINT;
-	BEGIN value := 1122334455667788H; ASSERT (SHORT (value) = 55667788H); ASSERT (SHORT (value) = SHORT (1122334455667788H));
+	BEGIN value := 1122334455667788H; ASSERT (SHORT (value) = SHORT (HUGEINT(1122334455667788H)));
 	END Test.
 
 positive: entier on reals
@@ -1589,7 +1589,7 @@ positive: subtraction on short integers
 		a := -3; b := 2; ASSERT (a - b = -5); ASSERT (a - b = (-3) - 2);
 		a := 3; b := -2; ASSERT (a - b = +5); ASSERT (a - b = 3 - (-2));
 		a := -3; b := -2; ASSERT (a - b = -1); ASSERT (a - b = (-3) - (-2));
-		a := MIN (SHORTINT) + 1; b := MAX (SHORTINT); ASSERT (a - b = 2); ASSERT (a - b = SHORT (MIN (SHORTINT) + 1 - MAX (SHORTINT)));
+		a := MIN (SHORTINT) + 1; b := MAX (SHORTINT); ASSERT (a - b = 2); ASSERT (a - b = SHORT (INTEGER(MIN (SHORTINT) + 1 - MAX (SHORTINT))));
 	END Test.
 
 positive: subtraction on integers
@@ -1601,7 +1601,7 @@ positive: subtraction on integers
 		a := -3; b := 2; ASSERT (a - b = -5); ASSERT (a - b = (-3) - 2);
 		a := 3; b := -2; ASSERT (a - b = +5); ASSERT (a - b = 3 - (-2));
 		a := -3; b := -2; ASSERT (a - b = -1); ASSERT (a - b = (-3) - (-2));
-		a := MIN (INTEGER) + 1; b := MAX (INTEGER); ASSERT (a - b = 2); ASSERT (a - b = SHORT (MIN (INTEGER) + 1 - MAX (INTEGER)));
+		a := MIN (INTEGER) + 1; b := MAX (INTEGER); ASSERT (a - b = 2); ASSERT (a - b = SHORT (LONGINT(MIN (INTEGER) + 1 - MAX (INTEGER))));
 	END Test.
 
 positive: subtraction on long integers
@@ -1660,7 +1660,7 @@ positive: multiplication on short integers
 		a := -3; b := 2; ASSERT (a * b = -6); ASSERT (a * b = (-3) * 2);
 		a := 3; b := -2; ASSERT (a * b = -6); ASSERT (a * b = 3 * (-2));
 		a := -3; b := -2; ASSERT (a * b = +6); ASSERT (a * b = (-3) * (-2));
-		a := MAX (SHORTINT); b := MAX (SHORTINT); ASSERT (a * b = 1); ASSERT (a * b = SHORT (MAX (SHORTINT) * MAX (SHORTINT)));
+		a := MAX (SHORTINT); b := MAX (SHORTINT); ASSERT (a * b = 1); ASSERT (a * b = SHORT (INTEGER(MAX (SHORTINT) * MAX (SHORTINT))));
 	END Test.
 
 positive: multiplication on integers
@@ -1672,7 +1672,7 @@ positive: multiplication on integers
 		a := -3; b := 2; ASSERT (a * b = -6); ASSERT (a * b = (-3) * 2);
 		a := 3; b := -2; ASSERT (a * b = -6); ASSERT (a * b = 3 * (-2));
 		a := -3; b := -2; ASSERT (a * b = +6); ASSERT (a * b = (-3) * (-2));
-		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a * b = 1); ASSERT (a * b = SHORT (MAX (INTEGER) * MAX (INTEGER)));
+		a := MAX (INTEGER); b := MAX (INTEGER); ASSERT (a * b = 1); ASSERT (a * b = SHORT (LONGINT(MAX (INTEGER) * MAX (INTEGER))));
 	END Test.
 
 positive: multiplication on long integers
@@ -1685,7 +1685,7 @@ positive: multiplication on long integers
 		a := 3; b := -2; ASSERT (a * b = -6); ASSERT (a * b = 3 * (-2));
 		a := -3; b := -2; ASSERT (a * b = +6); ASSERT (a * b = (-3) * (-2));
 		a := MAX (LONGINT); b := MAX (LONGINT); ASSERT (a * b = 1);
-		(*ASSERT (a * b = SHORT (MAX (LONGINT) * MAX (LONGINT)));*)
+		(*ASSERT (a * b = SHORT (HUGEINT(MAX (LONGINT) * MAX (LONGINT))));*)
 	END Test.
 
 positive: multiplication on huge integers
