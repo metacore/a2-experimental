@@ -1291,7 +1291,7 @@ TYPE
 		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN; size,value: LONGINT; procedure: SyntaxTree.Procedure;
 		CONST CR=0DX;
 		BEGIN
-			IF currentScope # NIL THEN
+			IF (currentScope # NIL) & (currentScope IS SyntaxTree.ProcedureScope) THEN
 				procedure := currentScope(SyntaxTree.ProcedureScope).ownerProcedure;
 			END;
 			IF (mode >= SourceCode) OR (procedure = NIL) OR (procedure.access * SyntaxTree.Public # {}) & procedure.HasFlag(SyntaxTree.InlineFlag) THEN
