@@ -174,7 +174,7 @@ VAR
 	END Patch;
 
 	PROCEDURE Diagnose (block: Block);
-	VAR msg,num: ARRAY 32 OF CHAR;
+	VAR msg,num: ARRAY 128 OF CHAR;
 	BEGIN
 		IF block.used THEN
 			Strings.IntToStr(block.address,num);
