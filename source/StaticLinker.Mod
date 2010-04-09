@@ -345,7 +345,7 @@ END GetFileFormat;
 
 PROCEDURE Link* (context: Commands.Context);
 VAR options: Options.Options;
-	verbose: BOOLEAN;
+	verbose, useAll: BOOLEAN;
 	codeFileFormat, dataFileFormat: FileFormat;
 	codeDisplacement, dataDisplacement: GenericLinker.Address;
 	path, extension, codeFileName, dataFileName, moduleName: Files.FileName;
@@ -353,12 +353,14 @@ VAR options: Options.Options;
 BEGIN
 	NEW (options);
 	options.Add ('v', "verbose", Options.Flag);
+	options.Add ('a', "useAll", Options.Flag);
 	options.Add (0X, "path", Options.String); options.Add (0X, "extension", Options.String);
 	options.Add (0X, "fileName", Options.String); options.Add (0X, "dataFileName", Options.String);
 	options.Add (0X, "displacement", Options.Integer); options.Add (0X, "dataDisplacement", Options.Integer);
 	options.Add (0X, "fileFormat", Options.String); options.Add (0X, "dataFileFormat", Options.String);
 	IF ~options.Parse (context.arg, context.error) THEN context.result := Commands.CommandParseError; RETURN; END;
 	verbose := options.GetFlag ("verbose");
+	useAll := options.GetFlag ("useAll");
 	IF ~options.GetString ("path", path) THEN path := ""; END;
 	IF ~options.GetString ("extension", extension) THEN extension := ObjectFile.DefaultExtension; END;
 	IF ~options.GetString ("fileName", codeFileName) THEN codeFileName := "linker.bin"; END;
@@ -370,7 +372,7 @@ BEGIN
 
 	NEW (code, codeDisplacement);
 	IF codeFileName # dataFileName THEN NEW (data, dataDisplacement); ELSE data := code; END;
-	NEW (diagnostics, context.error); NEW (linker, diagnostics, verbose, code, data);
+	NEW (diagnostics, context.error); NEW (linker, diagnostics, verbose, useAll, code, data);
 
 	context.arg.GetString (moduleName);
 	WHILE ~linker.error & (context.arg.res = Files.Ok) DO

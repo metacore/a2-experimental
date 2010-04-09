@@ -12,6 +12,9 @@ CONST Fixed = 0; InitCode = 1; Code = 2; Default = 3;
 
 TYPE Arrangement* = OBJECT
 
+	PROCEDURE Preallocate* (CONST section: ObjectFile.Section);
+	END Preallocate;
+
 	PROCEDURE Allocate* (CONST section: ObjectFile.Section): Address;
 	END Allocate;
 
@@ -29,14 +32,14 @@ END;
 TYPE Linker* = OBJECT
 VAR
 	diagnostics: Diagnostics.Diagnostics;
-	verbose, error-: BOOLEAN;
+	verbose, useAll, error-: BOOLEAN;
 	code, data: Arrangement;
 	firstBlock, firstLinkedBlock: Block;
 
-	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; verbose: BOOLEAN; code, data: Arrangement);
+	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; verbose, useAll: BOOLEAN; code, data: Arrangement);
 	BEGIN
-		SELF.diagnostics := diagnostics; SELF.verbose := verbose; error := FALSE; SELF.code := code; SELF.data := data;
-		firstBlock := NIL; firstLinkedBlock := NIL;
+		SELF.diagnostics := diagnostics; SELF.verbose := verbose; SELF.useAll := useAll; error := FALSE;
+		SELF.code := code; SELF.data := data; firstBlock := NIL; firstLinkedBlock := NIL;
 	END InitLinker;
 
 	PROCEDURE Error* (CONST source, message: ARRAY OF CHAR);
@@ -72,13 +75,14 @@ VAR
 	PROCEDURE Resolve*;
 	VAR block: Block;
 	BEGIN
-		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO Reference (block, GetPriority (block) <= InitCode); block := block.next; END; END;
+		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO Reference (block, useAll OR (GetPriority (block) <= InitCode)); block := block.next; END; END;
 	END Resolve;
 
 	PROCEDURE Link*;
 	VAR block: Block;
 	BEGIN
 		Resolve;
+		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO IF block.used THEN Prearrange (block); END; block := block.next; END; END;
 		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO IF block.used THEN Arrange (block); END; block := block.next; END; END;
 		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO IF block.used THEN Patch (block); END; block := block.next; END; END;
 		IF ~error THEN firstLinkedBlock := firstBlock; END;
@@ -102,6 +106,14 @@ VAR
 		ELSIF block.referenced THEN RETURN; END; block.referenced := TRUE;
 		FOR i := 0 TO block.fixups - 1 DO ReferenceFixup (block.fixup[i]); END;
 	END Reference;
+
+	PROCEDURE Prearrange (block: Block);
+	VAR arrangement: Arrangement;
+	BEGIN
+		ASSERT (block.used);
+		arrangement := GetArrangement (block);
+		arrangement.Preallocate (block^);
+	END Prearrange;
 
 	PROCEDURE Arrange (block: Block);
 	VAR arrangement: Arrangement;
