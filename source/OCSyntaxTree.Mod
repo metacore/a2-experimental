@@ -1808,7 +1808,7 @@ TYPE
 			scope.ownerProcedure := SELF;
 			super := NIL;
 			level := 0;
-			methodNumber := 0;
+			methodNumber := -1;
 		END InitProcedure;
 
 		PROCEDURE SetSuper*(super: Procedure);
@@ -2662,6 +2662,16 @@ TYPE
 			RETURN p;
 		END FindProcedure;
 
+		PROCEDURE FindMethod*(number: LONGINT): Procedure;
+		VAR p: Procedure;
+		BEGIN
+			p := firstProcedure;
+			WHILE (p# NIL) & (p.methodNumber # number) DO
+				p := p.nextProcedure
+			END;
+			RETURN p;
+		END FindMethod;
+
 
 		PROCEDURE Level*(): LONGINT;
 		VAR scope: Scope; level: LONGINT;
@@ -2837,6 +2847,21 @@ TYPE
 			END;
 			RETURN p;
 		END FindProcedure;
+
+		PROCEDURE FindMethod*(number: LONGINT): Procedure;
+		VAR p: Procedure; base: Type;
+		BEGIN
+			p := FindMethod^(number);
+			IF p = NIL THEN
+				base := ownerRecord.baseType;
+				IF (base # NIL) & (base.resolved IS PointerType) THEN base := base.resolved(PointerType).pointerBase.resolved END;
+				IF (base # NIL) & (base.resolved IS RecordType) THEN
+					p := base.resolved(RecordType).recordScope.FindMethod(number)
+				END;
+			END;
+			RETURN p;
+		END FindMethod;
+
 
 	END RecordScope;
 
