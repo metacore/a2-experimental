@@ -50,15 +50,15 @@ VAR
 	BEGIN IF verbose THEN diagnostics.Information (source, Diagnostics.Invalid, Diagnostics.Invalid, message); END;
 	END Information;
 
-	PROCEDURE FindBlock* (CONST name: ObjectFile.SectionName): Block;
+	PROCEDURE FindBlock* (CONST identifier: ObjectFile.Identifier): Block;
 	VAR block: Block;
 	BEGIN
 		block := firstBlock;
-		WHILE (block # NIL) & (block.name # name) DO block := block.next END;
+		WHILE (block # NIL) & (block.identifier.name # identifier.name) DO block := block.next END;
 		RETURN block;
 	END FindBlock;
 
-	PROCEDURE ImportBlock*(CONST name: ObjectFile.SectionName; fingerprint: LONGINT): Block;
+	PROCEDURE ImportBlock*(CONST identifier: ObjectFile.Identifier): Block;
 	BEGIN
 		RETURN NIL
 	END ImportBlock;
@@ -70,7 +70,7 @@ VAR
 	PROCEDURE AddSection* (CONST section: ObjectFile.Section);
 	VAR priority: Priority; block, current, previous: Block;
 	BEGIN
-		IF FindBlock (section.name) # NIL THEN Error (section.name, "duplicated section"); RETURN; END;
+		IF FindBlock (section.identifier) # NIL THEN Error (section.identifier.name, "duplicated section"); RETURN; END;
 		NEW (block); ObjectFile.CopySection (section, block^); block.address := InvalidAddress; block.referenced := FALSE; block.used := FALSE;
 		priority := GetPriority (block); current := firstBlock; previous := NIL;
 		WHILE (current # NIL) & (GetPriority (current) <= priority) DO previous := current; current := current.next; END;
@@ -100,11 +100,11 @@ VAR
 		PROCEDURE ReferenceFixup (CONST fixup: ObjectFile.Fixup);
 		VAR reference: Block;
 		BEGIN
-			reference := FindBlock (fixup.section);
-			IF reference = NIL THEN reference := ImportBlock(fixup.section, fixup.fingerprint) END;
+			reference := FindBlock (fixup.identifier);
+			IF reference = NIL THEN reference := ImportBlock(fixup.identifier) END;
 
-			IF reference = NIL THEN Error (fixup.section, "unresolved");
-			ELSIF reference.fingerprint # block.fixup[i].fingerprint THEN Error (fixup.section, "incompatible");
+			IF reference = NIL THEN Error (fixup.identifier.name, "unresolved");
+			ELSIF reference.identifier.fingerprint # block.fixup[i].identifier.fingerprint THEN Error (fixup.identifier.name, "incompatible");
 			ELSE Reference (reference, block.used); END;
 		END ReferenceFixup;
 
@@ -128,7 +128,7 @@ VAR
 		ASSERT (block.used);
 		arrangement := GetArrangement (block);
 		block.address := arrangement.Allocate (block^);
-		IF block.address = InvalidAddress THEN Error (block.name, "failed to allocate"); RETURN; END;
+		IF block.address = InvalidAddress THEN Error (block.identifier.name, "failed to allocate"); RETURN; END;
 		ASSERT ((block.alignment = 0) OR (block.address MOD block.alignment = 0));
 	END Arrange;
 
@@ -156,7 +156,7 @@ VAR
 					minval := 0; maxval := ASH(1,nobits);
 				END;
 				IF (address < minval) OR (address > maxval) THEN
-					COPY(block.name,name);
+					COPY(block.identifier.name,name);
 					Strings.Append(name,":");
 					Strings.IntToStr(fixup.offset,number);
 					Strings.Append(name,number);
@@ -166,8 +166,8 @@ VAR
 
 		BEGIN
 			target := block.address + fixup.offset;
-			reference := FindBlock (fixup.section);
-			IF reference = NIL THEN reference := ImportBlock(fixup.section, fixup.fingerprint) END;
+			reference := FindBlock (fixup.identifier);
+			IF reference = NIL THEN reference := ImportBlock(fixup.identifier) END;
 
 			ASSERT (reference # NIL);
 			address := reference.address + fixup.displacement;
@@ -195,8 +195,8 @@ VAR
 				Strings.IntToStr(block.address+block.bits.GetSize() DIV block.unit -1,num);
 				Strings.Append(msg,num);
 			END;
-			Information (block.name, msg);
-		ELSE Information (block.name, "unused"); END;
+			Information (block.identifier.name, msg);
+		ELSE Information (block.identifier.name, "unused"); END;
 	END Diagnose;
 
 END Linker;

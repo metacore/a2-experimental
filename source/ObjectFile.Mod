@@ -44,11 +44,15 @@ TYPE
 	END;
 	FixupPatterns*= POINTER TO ARRAY OF FixupPattern;
 
+	Identifier*= RECORD
+		name*: SectionName;
+		fingerprint*: LONGINT;
+	END;
+
 	Fixup* = RECORD
 		mode*: INTEGER; (* fixup mode: relative or absolute *)
 		offset*: Unit; (* offset of address that has to be patched ('destination') *)
-		section*: SectionName; (* section of the address value ('source') *)
-		fingerprint*: LONGINT; (* fingerprint of destination to check for consistency *)
+		identifier*: Identifier;
 		displacement*: Unit; (* displacement of the fixup ('destination') *)
 		scale*: Bits; (* exponent of scale factor (factor=2^scale) *)
 		patterns*: LONGINT;
@@ -59,8 +63,7 @@ TYPE
 
 	Section* = RECORD
 		type*: SectionType;
-		name*: SectionName;
-		fingerprint*: LONGINT;
+		identifier*: Identifier;
 		unit*: Bits;
 		fixed*: BOOLEAN;
 		alignment*: Unit;
@@ -82,8 +85,7 @@ PROCEDURE CopySection* (CONST source: Section; VAR dest: Section);
 VAR i,j: LONGINT;
 BEGIN
 	dest.type := source.type;
-	dest.name := source.name;
-	dest.fingerprint := source.fingerprint;
+	dest.identifier := source.identifier;
 	dest.unit := source.unit;
 	dest.fixed := source.fixed;
 	dest.alignment := source.alignment;
@@ -122,10 +124,10 @@ PROCEDURE WriteSection* (writer: Streams.Writer; CONST section: Section);
 CONST Separator = ' '; Tab = 09X;
 VAR i: LONGINT; size: Bits;
 
-	PROCEDURE WriteIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
+	PROCEDURE WriteValueIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
 	BEGIN
 		writer.String (identifiers[value]);
-	END WriteIdentifier;
+	END WriteValueIdentifier;
 
 	PROCEDURE WritePattern (CONST pattern: FixupPattern);
 	BEGIN
@@ -135,16 +137,21 @@ VAR i: LONGINT; size: Bits;
 		writer.Char (Separator);
 	END WritePattern;
 
+	PROCEDURE WriteIdentifier(CONST identifier: Identifier);
+	BEGIN
+		writer.String (identifier.name);
+		writer.Char (Separator);
+		writer.Int (identifier.fingerprint, 0);
+	END WriteIdentifier;
+
 	PROCEDURE WriteFixup (CONST fixup: Fixup);
 	VAR i: LONGINT;
 	BEGIN
-		WriteIdentifier (fixup.mode, modes);
+		WriteValueIdentifier (fixup.mode, modes);
 		writer.Char (Separator);
 		writer.Int (fixup.offset, 0);
 		writer.Char (Separator);
-		writer.String (fixup.section);
-		writer.Char (Separator);
-		writer.Int (fixup.fingerprint, 0);
+		WriteIdentifier(fixup.identifier);
 		writer.Char (Separator);
 		writer.Int (fixup.displacement, 0);
 		writer.Char (Separator);
@@ -159,15 +166,13 @@ VAR i: LONGINT; size: Bits;
 
 BEGIN
 	IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
-	WriteIdentifier (section.type, types);
+	WriteValueIdentifier (section.type, types);
 	writer.Char (Separator);
-	writer.String (section.name);
-	writer.Char (Separator);
-	writer.Int (section.fingerprint, 0);
+	WriteIdentifier(section.identifier);
 	writer.Char (Separator);
 	writer.Int (section.unit, 0);
 	writer.Char (Separator);
-	IF section.fixed THEN WriteIdentifier(Fixed,relocatabilities) ELSE WriteIdentifier(Aligned,relocatabilities) END;
+	IF section.fixed THEN WriteValueIdentifier(Fixed,relocatabilities) ELSE WriteValueIdentifier(Aligned,relocatabilities) END;
 	writer.Char (Separator);
 	writer.Int (section.alignment, 0);
 	writer.Char (Separator);
@@ -189,14 +194,14 @@ END WriteSection;
 PROCEDURE ReadSection* (reader: Streams.Reader; VAR section: Section);
 VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
 
-	PROCEDURE ReadIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
+	PROCEDURE ReadValueIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
 	VAR identifier: ARRAY 10 OF CHAR;
 	BEGIN
 		value := 0;
 		reader.GetString (identifier);
 		WHILE (value # LEN (identifiers)) & (identifier # identifiers[value]) DO INC (value); END;
 		IF value = LEN (identifiers) THEN reader.res := Streams.FormatError; END;
-	END ReadIdentifier;
+	END ReadValueIdentifier;
 
 	PROCEDURE ReadPattern (VAR pattern: FixupPattern);
 	BEGIN
@@ -204,13 +209,19 @@ VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
 		reader.GetInteger (pattern.bits, FALSE);
 	END ReadPattern;
 
+	PROCEDURE ReadIdentifier(VAR identifier: Identifier);
+	BEGIN
+		reader.GetString(identifier.name);
+		reader.GetInteger(identifier.fingerprint,FALSE);
+	END ReadIdentifier;
+
+
 	PROCEDURE ReadFixup (VAR fixup: Fixup);
 	VAR i: LONGINT;
 	BEGIN
-		ReadIdentifier (fixup.mode, modes);
+		ReadValueIdentifier (fixup.mode, modes);
 		reader.GetInteger (fixup.offset, FALSE);
-		reader.GetString (fixup.section);
-		reader.GetInteger (fixup.fingerprint, FALSE);
+		ReadIdentifier(fixup.identifier);
 		reader.GetInteger (fixup.displacement, FALSE);
 		reader.GetInteger (fixup.scale, FALSE);
 		reader.GetInteger (fixup.patterns, FALSE);
@@ -223,11 +234,10 @@ VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
 	END ReadFixup;
 
 BEGIN
-	ReadIdentifier (section.type, types);
-	reader.GetString (section.name);
-	reader.GetInteger (section.fingerprint, FALSE);
+	ReadValueIdentifier (section.type, types);
+	ReadIdentifier (section.identifier);
 	reader.GetInteger (section.unit, FALSE);
-	ReadIdentifier(relocatibility, relocatabilities);
+	ReadValueIdentifier(relocatibility, relocatabilities);
 	section.fixed := relocatibility = Fixed;
 	reader.GetInteger (section.alignment, FALSE);
 	reader.GetInteger (section.fixups, FALSE);

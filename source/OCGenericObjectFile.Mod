@@ -16,7 +16,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				IF (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
 					RETURN
 				END;
-				section.resolved.fingerprint := GetFingerprint (section, lookup);
+				section.resolved.identifier.fingerprint := GetFingerprint (section, lookup);
 				UpdateFixups (section.resolved, lookup);
 				ObjectFile.WriteSection (writer, section.resolved^);
 			END ExportSection;
@@ -96,8 +96,8 @@ BEGIN
 	fixup := section.fixupList.firstFixup; i := 0;
 	WHILE fixup # NIL DO
 		section.fixup[i] := fixup^;
-		COPY (fixup.symbol.name, section.fixup[i].section);
-		section.fixup[i].fingerprint := GetFingerprint (fixup.symbol, lookup);
+		COPY (fixup.symbol.name, section.fixup[i].identifier.name);
+		section.fixup[i].identifier.fingerprint := GetFingerprint (fixup.symbol, lookup);
 		fixup := fixup.nextFixup; INC (i);
 	END;
 END UpdateFixups;
