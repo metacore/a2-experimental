@@ -23,9 +23,9 @@ TYPE Arrangement* = OBJECT
 
 END Arrangement;
 
-TYPE Block = POINTER TO RECORD (ObjectFile.Section);
+TYPE Block* = POINTER TO RECORD (ObjectFile.Section);
 	next: Block;
-	address: Address;
+	address*: Address;
 	referenced, used: BOOLEAN;
 END;
 
@@ -50,13 +50,18 @@ VAR
 	BEGIN IF verbose THEN diagnostics.Information (source, Diagnostics.Invalid, Diagnostics.Invalid, message); END;
 	END Information;
 
-	PROCEDURE FindBlock (CONST name: ObjectFile.SectionName): Block;
+	PROCEDURE FindBlock* (CONST name: ObjectFile.SectionName): Block;
 	VAR block: Block;
 	BEGIN
 		block := firstBlock;
 		WHILE (block # NIL) & (block.name # name) DO block := block.next END;
 		RETURN block;
 	END FindBlock;
+
+	PROCEDURE ImportBlock*(CONST name: ObjectFile.SectionName; fingerprint: LONGINT): Block;
+	BEGIN
+		RETURN NIL
+	END ImportBlock;
 
 	PROCEDURE GetArrangement (block: Block): Arrangement;
 	BEGIN  IF ObjectFile.IsCode (block.type) THEN RETURN code; ELSE RETURN data; END;
@@ -96,6 +101,8 @@ VAR
 		VAR reference: Block;
 		BEGIN
 			reference := FindBlock (fixup.section);
+			IF reference = NIL THEN reference := ImportBlock(fixup.section, fixup.fingerprint) END;
+
 			IF reference = NIL THEN Error (fixup.section, "unresolved");
 			ELSIF reference.fingerprint # block.fixup[i].fingerprint THEN Error (fixup.section, "incompatible");
 			ELSE Reference (reference, block.used); END;
@@ -159,7 +166,10 @@ VAR
 
 		BEGIN
 			target := block.address + fixup.offset;
-			reference := FindBlock (fixup.section); ASSERT (reference # NIL);
+			reference := FindBlock (fixup.section);
+			IF reference = NIL THEN reference := ImportBlock(fixup.section, fixup.fingerprint) END;
+
+			ASSERT (reference # NIL);
 			address := reference.address + fixup.displacement;
 			IF fixup.mode = ObjectFile.Relative THEN DEC (address, target) END;
 			address := ASH (address, fixup.scale);
