@@ -570,7 +570,7 @@ PACKAGE Applications ARCHIVE "Applications.zip" SOURCE "ApplicationsSrc.zip" DES
 
 	RAWPrinter.Mod LPR.Mod	# Sending ps files to Printers
 
-	CryptoBigNumbers.Mod CryptoUtils.Mod CryptoCiphers.Mod CryptoARC4.Mod
+	CryptoBigNumbers.Mod CryptoBase64.Mod CryptoUtils.Mod CryptoCiphers.Mod CryptoARC4.Mod
 	CryptoDES.Mod CryptoDES3.Mod CryptoDES.Data
 	CryptoHashes.Mod
 	CryptoSHA1.Mod CryptoPrimes.Mod CryptoDSA.Mod CryptoDiffieHellman.Mod
