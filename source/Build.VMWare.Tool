@@ -123,10 +123,14 @@ SystemTools.DoCommands
 		ddb.adapterType = "ide"
 	~
 
+	FSTools.CreateFile -c -r ../Test/A2qemu.bat
+		qemu -hda A2HDD.img -serial file:a2serialport.txt
+	~
+
 	FSTools.DeleteFiles ../Test/A2VM.zip ~
 
 	ZipTool.Add --nopath ../Test/A2VM.zip
-		../Test/A2.vmx ../Test/A2.vmdk ../Test/A2HDD.img
+		../Test/A2.vmx ../Test/A2.vmdk ../Test/A2HDD.img ../Test/A2qemu.bat
 	~
 
 	SystemTools.Ln ~
