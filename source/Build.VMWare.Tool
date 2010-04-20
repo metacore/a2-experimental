@@ -1,0 +1,138 @@
+# This script can be used to generate a VMWare Virtual Machine Image
+
+# Path: In this example, the destination path for the object files and all files generated (ZIP, IMG) is ../Test/.
+# This folder must exist. You can change it by search all occurences of "../Test/" and replace them by your preferred path..
+
+# Step 1: Compile modules and generate ZIP packages
+
+Release.Build --path="../Test/" --build --zip A2 ~
+
+# Step 2: Generate disk image & A2VM.zip file
+
+SystemTools.DoCommands
+
+	SystemTools.Show Generating A2 disk image... ~ SystemTools.Ln ~
+	SystemTools.Timer start ~
+
+	VirtualDisks.Create ../Test/A2HDD.img 200000 512~
+	VirtualDisks.Install VDISK0 ../Test/A2HDD.img ~
+
+	Linker.Link \P../Test/ \.Obx ../Test/IDE.Bin 0100000H 1000H Kernel Traps
+		ATADisks DiskVolumes DiskFS BootConsole ~
+
+	Partitions.WriteMBR VDISK0#0 OBEMBR.Bin ~
+	Partitions.InstallBootManager VDISK0#0 ~
+	Partitions.Create VDISK0#1 76 9999 ~
+	Partitions.Format VDISK0#1 AosFS 1024 ../Test/IDE.Bin ~
+
+	FSTools.Mount VDISK AosFS VDISK0#1 ~
+
+	ZipTool.ExtractAll --prefix=VDISK: --sourcePath=../Test/ --overwrite --silent
+		Kernel.zip System.zip Drivers.zip ApplicationsMini.zip Applications.zip
+		Compiler.zip GuiApplicationsMini.zip GuiApplications.zip Fun.zip Contributions.zip Build.zip
+
+		KernelSrc.zip SystemSrc.zip DriversSrc.zip ApplicationsMiniSrc.zip ApplicationsSrc.zip
+		CompilerSrc.zip GuiApplicationsMiniSrc.zip GuiApplicationsSrc.zip FunSrc.zip ContributionsSrc.zip BuildSrc.zip
+
+		ScreenFonts.zip CjkFonts.zip TrueTypeFonts.zip
+	~
+
+	FSTools.Watch VDISK ~
+	FSTools.Unmount VDISK ~
+
+	Partitions.SetConfig VDISK0#1
+		BootVol1="AOS AosFS IDE0#1"
+		AosFS="DiskVolumes.New DiskFS.NewFS"
+		Boot="DisplayLinear.Install"
+		Boot1="Keyboard.Install;MousePS2.Install"
+		Boot2="WindowManager.Install"
+		Boot3="AM79C970.Install;InitNetwork.Init"
+		Boot4="Autostart.Run"
+		Boot5="VMWareTools.Install"
+		TraceMode="4"
+		TracePort="1"
+		TraceBPS="115200"
+		Init="117"
+		CacheSize="1000"
+	~
+
+	VirtualDisks.Uninstall VDISK0 ~
+
+	FSTools.CreateFile -c -r ../Test/a2.vmx
+		config.version = "8"
+		virtualHW.version = "6"
+		scsi0.present = "TRUE"
+		memsize = "256"
+		ide0:0.present = "TRUE"
+		ide0:0.fileName = "a2.vmdk"
+		ide1:0.present = "TRUE"
+		ide1:0.fileName = "auto detect"
+		ide1:0.deviceType = "cdrom-raw"
+		ide1:0.autodetect = "TRUE"
+		ethernet0.present = "TRUE"
+		ethernet0.wakeOnPcktRcv = "FALSE"
+		svga.autodetect = "TRUE"
+		pciBridge0.present = "TRUE"
+		mks.keyboardFilter = "allow"
+		displayName = "A2"
+		guestOS = "win95"
+		nvram = "Windows 95.nvram"
+		deploymentPlatform = "windows"
+		virtualHW.productCompatibility = "hosted"
+		tools.upgrade.policy = "useGlobal"
+
+		extendedConfigFile = "Windows 95.vmxf"
+
+		ethernet0.addressType = "generated"
+		uuid.location = "56 4d 08 e1 a6 3b 8b a6-a7 94 60 15 67 22 e5 cb"
+		uuid.bios = "56 4d 08 e1 a6 3b 8b a6-a7 94 60 15 67 22 e5 cb"
+		ide0:0.redo = ""
+		pciBridge0.pciSlotNumber = "17"
+		scsi0.pciSlotNumber = "16"
+		ethernet0.pciSlotNumber = "32"
+		sound.pciSlotNumber = "-1"
+		ethernet0.generatedAddress = "00:0c:29:22:e5:cb"
+		ethernet0.generatedAddressOffset = "0"
+
+		sound.present = "FALSE"
+		
+		floppy0.present = "FALSE"
+		floppy0.autodetect = "FALSE"
+
+		serial0.present = "TRUE"
+		serial0.fileType = "file"
+		serial0.fileName = "a2serialport.txt"
+	~
+
+	FSTools.CreateFile -c -r ../Test/A2.vmdk
+		# Disk DescriptorFile
+		version=1
+		CID=c201f407
+		parentCID=ffffffff
+		createType="monolithicFlat"
+
+		# Extent description
+		RW 200000 FLAT "A2HDD.img" 0
+
+		# The Disk Data Base
+		#DDB
+		ddb.virtualHWVersion = "6"
+		ddb.geometry.cylinders = "208"
+		ddb.geometry.heads = "16"
+		ddb.geometry.sectors = "63"
+		ddb.adapterType = "ide"
+	~
+
+	FSTools.DeleteFiles ../Test/A2VM.zip ~
+
+	ZipTool.Add --nopath ../Test/A2VM.zip
+		../Test/A2.vmx ../Test/A2.vmdk ../Test/A2HDD.img
+	~
+
+	SystemTools.Ln ~
+	SystemTools.Show Generated A2 HDD image ../Test/A2VM.zip ~ SystemTools.Ln ~
+
+	SystemTools.Show HDD image build time:  ~ SystemTools.Timer elapsed ~
+	SystemTools.Ln ~
+~
+

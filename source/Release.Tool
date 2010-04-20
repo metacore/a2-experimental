@@ -1068,7 +1068,7 @@ PACKAGE Education ARCHIVE "Education.zip" SOURCE "EducationSrc.zip" DESCRIPTION 
 END
 
 PACKAGE Build ARCHIVE "Build.zip" SOURCE "BuildSrc.zip"  DESCRIPTION "Build Tools"
-	Build.Tool
+	Build.Tool Build.VMWare.Tool
 	WIN { Win32.Build.Tool Win32.BuildMini.Tool }
 	AosInst.Tool Aos.Par			# Install tool
 	IsoImages.Mod
@@ -1077,7 +1077,7 @@ PACKAGE Build ARCHIVE "Build.zip" SOURCE "BuildSrc.zip"  DESCRIPTION "Build Tool
 	Linker0.Mod Linker1.Mod Linker.Mod
 	WIN { Win32.Aos.Link }
 	UNIX { Unix.BootLinker.Mod UnixAos.Tool }
-	OBEMBR4.ASM  BootManager.Asm OBL.Asm  # Asm
+	OBEMBR4.ASM BootManager.Asm OBL.Asm  # Asm
 	BootManager.Mod BootManager.Tool # Splits up BootManager.Bin into BootManagerMBR.Bin and BootManagerTail.Bin
 END
 
