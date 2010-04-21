@@ -32,14 +32,14 @@ END;
 TYPE Linker* = OBJECT
 VAR
 	diagnostics: Diagnostics.Diagnostics;
-	verbose, useAll, error-: BOOLEAN;
+	verbose, useAll, stripInitCodes, error-: BOOLEAN;
 	code, data: Arrangement;
 	firstBlock, firstLinkedBlock: Block;
 
-	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; verbose, useAll: BOOLEAN; code, data: Arrangement);
+	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; verbose, useAll, stripInitCodes: BOOLEAN; code, data: Arrangement);
 	BEGIN
-		SELF.diagnostics := diagnostics; SELF.verbose := verbose; SELF.useAll := useAll; error := FALSE;
-		SELF.code := code; SELF.data := data; firstBlock := NIL; firstLinkedBlock := NIL;
+		SELF.diagnostics := diagnostics; SELF.verbose := verbose; SELF.useAll := useAll; SELF.stripInitCodes := stripInitCodes;
+		error := FALSE; SELF.code := code; SELF.data := data; firstBlock := NIL; firstLinkedBlock := NIL;
 	END InitLinker;
 
 	PROCEDURE Error* (CONST source, message: ARRAY OF CHAR);
@@ -78,9 +78,15 @@ VAR
 	END AddSection;
 
 	PROCEDURE Resolve*;
-	VAR block: Block;
+	VAR block: Block; used: BOOLEAN;
 	BEGIN
-		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO Reference (block, useAll OR (GetPriority (block) <= InitCode)); block := block.next; END; END;
+		IF ~error THEN block := firstBlock;
+			WHILE block # firstLinkedBlock DO
+				used := useAll OR (GetPriority (block) <= InitCode);
+				IF stripInitCodes & (block.type = ObjectFile.InitCode) THEN used := FALSE END;
+				Reference (block, used); block := block.next;
+			END;
+		END;
 	END Resolve;
 
 	PROCEDURE Link*;
@@ -204,7 +210,8 @@ END Linker;
 PROCEDURE GetPriority (block: Block): Priority;
 BEGIN
 	IF block.fixed THEN RETURN Fixed END;
-	IF block.type = ObjectFile.InitCode THEN	RETURN InitCode END;
+	IF block.type = ObjectFile.InitCode THEN RETURN InitCode END;
+	IF block.type = ObjectFile.BodyCode THEN RETURN InitCode END;
 	IF block.type = ObjectFile.Code THEN RETURN Code END;
 	RETURN Default;
 END GetPriority;

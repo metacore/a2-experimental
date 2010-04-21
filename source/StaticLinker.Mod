@@ -372,7 +372,7 @@ BEGIN
 
 	NEW (code, codeDisplacement);
 	IF codeFileName # dataFileName THEN NEW (data, dataDisplacement); ELSE data := code; END;
-	NEW (diagnostics, context.error); NEW (linker, diagnostics, verbose, useAll, code, data);
+	NEW (diagnostics, context.error); NEW (linker, diagnostics, verbose, useAll, FALSE, code, data);
 
 	context.arg.GetString (moduleName);
 	WHILE ~linker.error & (context.arg.res = Files.Ok) DO

@@ -10,8 +10,9 @@ CONST
 	(* Section types *)
 	Code* = 0;
 	InitCode* = 1;
-	Data* = 2;
-	Const* = 3;
+	BodyCode* = 2;
+	Data* = 3;
+	Const* = 4;
 
 	Aligned=0;
 	Fixed=1;
@@ -73,7 +74,7 @@ TYPE
 	END;
 
 VAR
-	types: ARRAY 4 OF ARRAY 10 OF CHAR;
+	types: ARRAY 5 OF ARRAY 10 OF CHAR;
 	modes: ARRAY 2 OF ARRAY 4 OF CHAR;
 	relocatabilities: ARRAY 2 OF ARRAY 8 OF CHAR;
 
@@ -261,6 +262,7 @@ END ReadSection;
 BEGIN
 	types[Code] := "code";
 	types[InitCode] := "initcode";
+	types[BodyCode] := "bodycode";
 	types[Data] := "data";
 	types[Const] := "const";
 	modes[Absolute] := "abs";
