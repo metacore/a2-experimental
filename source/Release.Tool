@@ -829,6 +829,12 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 
 	# GUI for hierarchical profiler (HierarchicalProfiler.Mod)
 	NATIVE { WMProfiler.Mod }
+	
+	# ssh
+	SSH.Tool
+	SSH.Configuration.Text	
+	SSHGlobals.Mod   SSHKeys.Mod  SSHTransport.Mod   SSHAuthorize.Mod  SSH.Mod	
+	SSHClient.Mod
 END
 
 PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Active Oberon Compiler"
