@@ -52,6 +52,7 @@
 		<Style name="Debug" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
 		<Style name="String" fontname="Syntax" fontsize="10" fontstyle="{}" color="BF003FFF"/>
 
+		<Style name="Normal" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF"/>
 		<Style name="Bold" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF"/>
 		<Style name="Italic" fontname="Syntax" fontsize="10" fontstyle="{1}" color="FF"/>
 		<Style name="Red" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF0000FF"/>
@@ -60,7 +61,7 @@
 	</Styles>
 
 	<Highlighters>
-		<Highlighter name="Oberon">
+		<Highlighter name="Oberon" defaultstyle="">
 			<Tokens>
 				<Group style="Green">
 					( (* *) )
