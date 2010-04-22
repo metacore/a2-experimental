@@ -219,17 +219,22 @@ TYPE
 		END GetStyle;
 
 		PROCEDURE Find(CONST position : LONGINT; VAR entry : DataEntry) : BOOLEAN;
-		VAR i : LONGINT;
+		VAR l, r, m : LONGINT;
 		BEGIN
-			IF (nofData > 0) THEN
-				i := 0;
-				WHILE (i < nofData) & (data[i].close < position) DO INC(i); END;
-				IF (i < nofData) & (data[i].open <= position) & (position <= data[i].close) THEN
-					entry := data[i];
-					RETURN TRUE;
+			(* binary search *)
+			l := 0; r := nofData;
+			WHILE l < r DO
+				m := (l + r) DIV 2;
+				IF (position <= data[m].close) THEN r := m;
+				ELSE l := m + 1;
 				END;
 			END;
-			RETURN FALSE;
+			IF (r < nofData) & (data[r].open <= position) & (position <= data[r].close) THEN
+				entry := data[r];
+				RETURN TRUE;
+			ELSE
+				RETURN FALSE;
+			END;
 		END Find;
 
 		PROCEDURE FindTriple(position : LONGINT; VAR hasLeft, hasMiddle, hasRight : BOOLEAN; VAR left, middle, right : DataEntry);
