@@ -549,6 +549,17 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 	ShellSerial.Mod	# Shell over serial port
 
 	Installer.Mod InstallerPackages.XML
+
+	CryptoBigNumbers.Mod CryptoBase64.Mod CryptoUtils.Mod CryptoCiphers.Mod CryptoARC4.Mod
+	CryptoDES.Mod CryptoDES3.Mod CryptoDES.Data
+	CryptoHashes.Mod
+	CryptoSHA1.Mod CryptoPrimes.Mod CryptoDSA.Mod CryptoDiffieHellman.Mod
+	CryptoAES.Mod
+	CryptoBlowfish.Mod CryptoBlowfish.Data
+	CryptoTwofish.Mod CryptoTwofish.Data
+	CryptoCAST.Mod CryptoCAST.Data
+	CryptoHMAC.Mod CryptoIDEA.Mod CryptoMD5.Mod
+	CryptoRSA.Mod
 END
 
 
@@ -569,17 +580,6 @@ PACKAGE Applications ARCHIVE "Applications.zip" SOURCE "ApplicationsSrc.zip" DES
 	XMLGeneratorSchema.Mod CSS2.Mod CSS2Scanner.Mod CSS2Parser.Mod 	# XML & CSS (swalther)
 
 	RAWPrinter.Mod LPR.Mod	# Sending ps files to Printers
-
-	CryptoBigNumbers.Mod CryptoBase64.Mod CryptoUtils.Mod CryptoCiphers.Mod CryptoARC4.Mod
-	CryptoDES.Mod CryptoDES3.Mod CryptoDES.Data
-	CryptoHashes.Mod
-	CryptoSHA1.Mod CryptoPrimes.Mod CryptoDSA.Mod CryptoDiffieHellman.Mod
-	CryptoAES.Mod
-	CryptoBlowfish.Mod CryptoBlowfish.Data
-	CryptoTwofish.Mod CryptoTwofish.Data
-	CryptoCAST.Mod CryptoCAST.Data
-	CryptoHMAC.Mod CryptoIDEA.Mod CryptoMD5.Mod
-	CryptoRSA.Mod
 
 	TLS.Mod
 	bluebottleselfsigned.der
@@ -829,12 +829,12 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 
 	# GUI for hierarchical profiler (HierarchicalProfiler.Mod)
 	NATIVE { WMProfiler.Mod }
-	
+
 	# ssh
 	SSH.Tool
-	SSH.Configuration.Text	
-	SSHGlobals.Mod   SSHKeys.Mod  SSHTransport.Mod   SSHAuthorize.Mod  SSH.Mod	
-	SSHClient.Mod
+	SSH.Configuration.Text
+	SSHGlobals.Mod SSHKeys.Mod SSHTransport.Mod SSHAuthorize.Mod
+	UNIX { SSH.Mod SSHClient.Mod }
 END
 
 PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Active Oberon Compiler"
