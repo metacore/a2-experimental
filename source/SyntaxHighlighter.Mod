@@ -578,6 +578,7 @@ TYPE
 		type-, subtype- : SHORTINT;
 		startPosition-, endPosition- : LONGINT;
 		value- : ARRAY MaxTokenLength OF CHAR;
+		length : LONGINT; (* if type = Type_Identifier: of string value *)
 		style- : Style;
 	END;
 
@@ -898,7 +899,6 @@ TYPE
 		VAR tokensIdx, maxLength, i : LONGINT; t : Word;
 		BEGIN
 			ASSERT(reader # NIL);
-			token.type := Type_Invalid;
 			tokensIdx := char32 MOD Dim1Length;
 			maxLength := tokens[tokensIdx].maxLength;
 			IF (maxLength > 0) THEN
@@ -959,6 +959,7 @@ TYPE
 						token.endPosition := token.startPosition + i - 1;
 						IF (i < LEN(token.value)) THEN
 							token.value[i] := 0X;
+							token.length := i;
 							GetTokenType(token);
 						ELSE
 							(* token too long .. .skip! *)
@@ -971,6 +972,7 @@ TYPE
 					ELSE
 						token.value[i] := 0X;
 						IF (i > 0) THEN
+							token.length := i;
 							GetTokenType(token);
 						ELSE
 							token.type := Type_Invalid;
@@ -991,7 +993,7 @@ TYPE
 			end := token.endPosition;
 			IF (token.type # Type_Invalid) THEN
 				IF (token.type # Type_Token) THEN
-					style := GetStyle(token.value); (* keywords have higher priority than numbers *)
+					style := GetStyle(token.value, token.length); (* keywords have higher priority than numbers *)
 					IF (style = NIL) & (token.type = Type_Number) THEN
 						style := numberStyle;
 					END;
@@ -1011,12 +1013,12 @@ TYPE
 			RETURN state.GetStyle(position, start, end);
 		END GetRegionStyle;
 
-		PROCEDURE GetStyle*(CONST keyword : ARRAY OF CHAR) : Style;
-		VAR style : Style; word : Word; length, i : LONGINT;
+		PROCEDURE GetStyle*(CONST keyword : ARRAY OF CHAR; length : LONGINT) : Style;
+		VAR style : Style; word : Word; i : LONGINT;
 		BEGIN
-			style := NIL; length := 0;
+			ASSERT(length > 0);
+			style := NIL;
 			IF wordChars[ORD(keyword[0])] THEN
-				length := Length(keyword);
 				IF (length <= MaxWordLength) THEN
 					word := words[ORD(keyword[0]) MOD Dim1Length][length - 1];
 					WHILE (word # NIL) & (word.name < keyword) DO word := word.next; END;
@@ -1026,19 +1028,14 @@ TYPE
 				END;
 			END;
 			IF (style = NIL) & wildcardsEnabled THEN
-				IF (length = 0) THEN length := Length(keyword); END;
-				IF (length < LEN(keyword)) THEN
-					i := 0;
-					WHILE (i < length) & (i < MaxWordLength) & (style = NIL) DO
-						word := wildcardWords[i];
-						WHILE (word # NIL) & ~Strings.Match(word.name, keyword) DO word := word.next; END;
-						IF (word # NIL) THEN
-							style := word.style;
-						END;
-						INC(i);
+				i := 0;
+				WHILE (i < length) & (i < MaxWordLength) & (style = NIL) DO
+					word := wildcardWords[i];
+					WHILE (word # NIL) & ~Strings.Match(word.name, keyword) DO word := word.next; END;
+					IF (word # NIL) THEN
+						style := word.style;
 					END;
-				ELSE
-					KernelLog.String("SyntaxHighlighter: Invalid string / string too long"); KernelLog.Ln;
+					INC(i);
 				END;
 			END;
 			RETURN style;
@@ -1902,15 +1899,6 @@ PROCEDURE Copy(CONST source : ARRAY OF CHAR; VAR target : ARRAY OF CHAR);
 BEGIN
 	Strings.ConcatX(source, "", target);
 END Copy;
-
-PROCEDURE Length(CONST string : ARRAY OF CHAR) : LONGINT;
-VAR result, length : LONGINT;
-BEGIN
-	result := 0;
-	length := LEN(string);
-	WHILE (result < length) & (string[result] # 0X) DO INC(result); END;
-	RETURN result;
-END Length;
 
 PROCEDURE HighlightText*(text : Texts.Text; highlighter : Highlighter);
 VAR
