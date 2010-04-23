@@ -686,7 +686,7 @@ TYPE
 			recordScope-:RecordScope;
 			baseType-: Type;
 			pointerType-: PointerType; (* for support of A = POINTER TO RECORD ... END and B = POINTER TO RECORD (A) END; *)
-			isObject-,isProtected-: BOOLEAN;
+			isObject-,isProtected: BOOLEAN;
 
 			sizeInBits-: LONGINT; (* allocation size of this type in bits *)
 
@@ -722,9 +722,19 @@ TYPE
 		BEGIN SELF.isObject := isObject
 		END IsObject;
 
-		PROCEDURE IsProtected*(isProtected: BOOLEAN);
-		BEGIN SELF.isProtected := isProtected
+		PROCEDURE IsProtected*(): BOOLEAN;
+		VAR base: RecordType;
+		BEGIN
+			IF isProtected THEN RETURN TRUE END;
+			base := GetBaseRecord();
+			IF base # NIL THEN RETURN base.IsProtected() END;
+			RETURN FALSE
 		END IsProtected;
+
+		PROCEDURE SetProtected*(protected: BOOLEAN);
+		BEGIN SELF.isProtected := protected
+		END SetProtected;
+
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;

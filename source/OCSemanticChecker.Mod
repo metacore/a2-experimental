@@ -722,9 +722,6 @@ TYPE
 				(* computation of sizes and offsets skipped -> done in backend / system *)
 
 				recordBase := x.GetBaseRecord();
-				IF recordBase # NIL THEN
-					x.IsProtected(x.isProtected OR recordBase.isProtected);
-				END;
 
 				IF recordBase = NIL THEN numberMethods := 0
 				ELSE numberMethods := recordBase.recordScope.numberMethods
@@ -4933,7 +4930,7 @@ TYPE
 					scope := scope.outerScope
 				END;
 				IF scope # NIL THEN
-					scope(SyntaxTree.RecordScope).ownerRecord.IsProtected(TRUE);
+					scope(SyntaxTree.RecordScope).ownerRecord.SetProtected(TRUE);
 				END;
 			END SetProtectedRecord;
 

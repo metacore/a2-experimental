@@ -82,6 +82,13 @@ PROCEDURE IsCode* (type: SectionType): BOOLEAN;
 BEGIN RETURN (type = Code) OR (type = InitCode);
 END IsCode;
 
+PROCEDURE Matches*(CONST this, that: Identifier): BOOLEAN;
+BEGIN
+	IF (this.fingerprint # 0) & (this.fingerprint = that.fingerprint) THEN RETURN TRUE
+	ELSE RETURN this.name = that.name
+	END;
+END Matches;
+
 PROCEDURE CopySection* (CONST source: Section; VAR dest: Section);
 VAR i,j: LONGINT;
 BEGIN
