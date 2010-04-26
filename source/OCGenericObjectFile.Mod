@@ -12,7 +12,9 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		VAR moduleName: SyntaxTree.String; fileName: Files.FileName; file: Files.File; writer: Files.Writer; lookup: FingerPrint.FingerPrinterLookup;
 
 			PROCEDURE ExportSection (section: IntermediateCode.Section);
+			VAR name: ARRAY 128 OF CHAR; (* debugging *)
 			BEGIN
+				COPY(section.name,name);
 				IF (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
 					RETURN
 				END;
@@ -61,13 +63,13 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		PROCEDURE DefineOptions* (options: Options.Options);
 		BEGIN
 			options.Add(0X,"path",Options.String);
-			options.Add(0X,"extension",Options.String);
+			options.Add(0X,"objectFileExtension",Options.String);
 		END DefineOptions;
 
 		PROCEDURE GetOptions* (options: Options.Options);
 		BEGIN
 			IF ~options.GetString("path",extension) THEN path := ""; END;
-			IF ~options.GetString("extension",extension) THEN extension := ObjectFile.DefaultExtension; END;
+			IF ~options.GetString("objectFileExtension",extension) THEN extension := ObjectFile.DefaultExtension; END;
 		END GetOptions;
 
 		PROCEDURE DefaultSymbolFileFormat(): Formats.SymbolFileFormat;

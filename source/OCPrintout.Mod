@@ -772,7 +772,7 @@ TYPE
 		BEGIN
 			IF Visible(x) THEN
 				IF (mode > SourceCode) OR (x.access # SyntaxTree.Hidden) THEN
-					PrintSymbol(x); 
+					PrintSymbol(x);
 					IF x.value # NIL THEN
 						w.String( " = " );  Expression(x.value);
 					END;
@@ -1288,13 +1288,24 @@ TYPE
 		END VisitStatementBlock;
 
 		PROCEDURE Code(x: SyntaxTree.Code);
-		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN; size,value: LONGINT; procedure: SyntaxTree.Procedure;
+		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN; size,value,unit: LONGINT; procedure: SyntaxTree.Procedure;
 		CONST CR=0DX;
 		BEGIN
 			IF (currentScope # NIL) & (currentScope IS SyntaxTree.ProcedureScope) THEN
 				procedure := currentScope(SyntaxTree.ProcedureScope).ownerProcedure;
 			END;
 			IF (mode >= SourceCode) OR (procedure = NIL) OR (procedure.access * SyntaxTree.Public # {}) & procedure.HasFlag(SyntaxTree.InlineFlag) THEN
+				(*
+				IF x.inlineCode # NIL THEN
+					unit := 8;
+					w.String(" D"); w.Int(unit,1);
+					i := 0; size := x.inlineCode.GetSize();
+					WHILE i < size DO
+						value := x.inlineCode.GetBits(i,unit);
+						w.String(" "); w.Int(value,1);
+						INC(i,unit);
+					END;
+				ELS*)
 				IF (x.sourceCode # NIL) THEN
 					i := 0;
 					ch := x.sourceCode[0];
