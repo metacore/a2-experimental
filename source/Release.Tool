@@ -89,6 +89,7 @@ BUILDS
 		EXTENSION "Obx"
 		PATH "AOS:"
 		EXCLUDEPACKAGES ""
+		DISABLED "FALSE"
 	}
 	AMD64 {
 		INCLUDE "NATIVE AMD64"
@@ -98,6 +99,7 @@ BUILDS
 		EXTENSION "Abx"
 		PATH "AOS:"
 		EXCLUDEPACKAGES "Contributions Oberon OberonGadgets OberonApplications OberonDocumentation OberonVoyager OberonAnts"
+		DISABLED "TRUE"
 	}
 	A2mini {
 		INCLUDE "NATIVE I386"
@@ -107,6 +109,7 @@ BUILDS
 		EXTENSION "Obx"
 		PATH "AOS:"
 		EXCLUDEPACKAGES "Applications GuiApplications Fun Testing Education Contributions Oberon OberonGadgets OberonApplications OberonDocumentation OberonVoyager OberonAnts"
+		DISABLED "FALSE"
 	}
 	WinAos {
 		INCLUDE "WIN iWIN"
@@ -116,6 +119,7 @@ BUILDS
 		EXTENSION "Obw"
 		PATH "../ObjI/"
 		EXCLUDEPACKAGES ""
+		DISABLED "FALSE"
 	}
 	eWinAos {
 		INCLUDE "WIN eWIN"
@@ -125,6 +129,7 @@ BUILDS
 		EXTENSION "Obw"
 		PATH "../ObjE/"
 		EXCLUDEPACKAGES ""
+		DISABLED "FALSE"
 	}
 
 	LinuxAos {
@@ -135,6 +140,7 @@ BUILDS
 		EXTENSION "Obj"
 		PATH "./"
 		EXCLUDEPACKAGES "OberonVoyager OberonAnts"
+		DISABLED "FALSE"
 	}
 	DarwinAos {
 		INCLUDE "UNIX DARWIN"
@@ -144,6 +150,7 @@ BUILDS
 		EXTENSION "Obj"
 		PATH "./"
 		EXCLUDEPACKAGES "OberonVoyager OberonAnts"
+		DISABLED "FALSE"
 	}
 	SolarisAos {
 		INCLUDE "UNIX SOLARIS"
@@ -153,6 +160,7 @@ BUILDS
 		EXTENSION "Obj"
 		PATH "./"
 		EXCLUDEPACKAGES "OberonVoyager OberonAnts"
+		DISABLED "FALSE"
 	}
 END
 
