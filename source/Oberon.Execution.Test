@@ -5671,6 +5671,36 @@ positive: bounded buffer
 	BEGIN Test (1, 1000); Test (10, 1000); Test (1000, 1000); Test (1000, 100);
 	END Test.
 
+positive: sudoku solver
+
+	MODULE Test;
+	CONST Empty = '0'; Blocks = 3; Columns = Blocks * Blocks; Cells = Columns * Columns;
+	TYPE Cell = INTEGER; Value = CHAR; Game = ARRAY Cells + 1 OF Value;
+	PROCEDURE IsValidCell (CONST game: Game; cell: Cell): BOOLEAN;
+	VAR value: Value; VAR row, column: Cell;
+		PROCEDURE Check (start, stride: Cell): BOOLEAN;
+		VAR cells, count: Cell;
+		BEGIN count := stride; FOR cells := 0 TO Columns - 1 DO IF (start # cell) & (game[start] = value) THEN RETURN FALSE END;
+			DEC (count); IF count = 0 THEN count := stride; INC (start, Columns + 1 - stride) ELSE INC (start) END; END; RETURN TRUE;
+		END Check;
+	BEGIN value := game[cell]; IF value = Empty THEN RETURN TRUE END; row := cell DIV Columns; column := cell MOD Columns;
+		RETURN Check (cell - column, Columns) & Check (column, 1) & Check (cell - row MOD Blocks * Columns - column MOD Blocks, Blocks);
+	END IsValidCell;
+	PROCEDURE IsValid (CONST game: Game): BOOLEAN;
+	VAR cell: Cell; BEGIN FOR cell := 0 TO Cells - 1 DO IF ~IsValidCell (game, cell) THEN RETURN FALSE END END; RETURN TRUE;
+	END IsValid;
+	PROCEDURE Solve (VAR game: Game): BOOLEAN;
+	VAR cell: Cell; value: SHORTINT;
+	BEGIN FOR cell := 0 TO Cells - 1 DO IF game[cell] = Empty THEN FOR value := ORD (Empty) + 1 TO ORD (Empty) + Columns DO game[cell] := CHR (value);
+		IF IsValidCell (game, cell) & Solve (game) THEN RETURN TRUE END; END; game[cell] := Empty; RETURN FALSE; END END; RETURN IsValid (game);
+	END Solve;
+	PROCEDURE Check (CONST problem, solution: Game);
+	VAR game: Game; BEGIN ASSERT (IsValid (problem)); ASSERT (IsValid (solution)); game := problem; ASSERT (Solve (game)); ASSERT (game = solution);
+	END Check;
+	BEGIN Check ("003020080090500000018609074600047390080205040059160007930402760000006010040070900", "563724189794581236218639574621847395387295641459163827935412768872956413146378952");
+	END Test.
+
+
 # miscellaneous
 
 positive: SYSTEM.VAL on designator and non-designator expression
@@ -5717,7 +5747,7 @@ positive: reimporting an object type with initializer
 	END P;
 	BEGIN P;
 	END Test.
-	
+
 positive: reimporting objects and execute bodies
 
 	MODULE A;
@@ -6047,7 +6077,7 @@ positive: procedure returning record called as parameter
 		ASSERT(r1.l = r2.l); ASSERT(r1.t = r2.t);
 		ASSERT(r1.r = 10); ASSERT(r1.b = 20);
 		ASSERT(r2.r = 101); ASSERT(r2.b = 102);
-		ASSERT(x.w = 10); 
+		ASSERT(x.w = 10);
 	END Check;
 
 
@@ -6055,14 +6085,14 @@ positive: procedure returning record called as parameter
 	PROCEDURE Q(l,t,r,b: LONGINT): Rectangle;
 	VAR R: Rectangle;
 	BEGIN
-		R.l := l; R.t := t; R.r := r; R.b := b; 
+		R.l := l; R.t := t; R.r := r; R.b := b;
 		RETURN R
 	END Q;
 
 	PROCEDURE P;
 	VAR r1,r2: Rectangle; o: Object;
 	BEGIN
-		NEW(o); o.w := 10; 
+		NEW(o); o.w := 10;
 		r1.l := 0; r2.l := 0; r1.t := -100; r2.t := -100;
 		r1.r := 10; r1.b := 20;
 		r2.r := 101; r2.b := 102;
@@ -6072,7 +6102,7 @@ positive: procedure returning record called as parameter
 
 	BEGIN P
 	END Test.
-	
+
 positive: pass delegate as parameter
 	MODULE Test;
 
@@ -6118,7 +6148,7 @@ positive: pass delegate as parameter
 	BEGIN P
 	END Test.
 
-positive: reimport indirectly published procedure 
+positive: reimport indirectly published procedure
 	MODULE A;
 	TYPE AO*= OBJECT
 			VAR called*: BOOLEAN;
@@ -6165,7 +6195,7 @@ positive: reimport indirectly published procedure
 	BEGIN P;
 	END Test.
 
-positive: pass static array by value, reference and as constant 
+positive: pass static array by value, reference and as constant
 	MODULE Test;
 	TYPE Array= ARRAY 10 OF LONGINT;
 
@@ -6194,7 +6224,7 @@ positive: pass static array by value, reference and as constant
 	BEGIN
 		T
 	END Test.
-	
+
 positive: procedure returning static array called as parameter
 	MODULE Test;
 
@@ -6207,20 +6237,20 @@ positive: procedure returning static array called as parameter
 		ASSERT(r1[3] = r2[3]); ASSERT(r1[5] = r2[5]);
 		ASSERT(r1[6] = 10); ASSERT(r1[7] = 20);
 		ASSERT(r2[6] = 101); ASSERT(r2[7] = 102);
-		ASSERT(x.w = 10); 
+		ASSERT(x.w = 10);
 	END Check;
 
 	PROCEDURE Q(l,t,r,b: LONGINT): Rectangle;
 	VAR R: Rectangle;
 	BEGIN
-		R[3] := l; R[5] := t; R[6] := r; R[7] := b; 
+		R[3] := l; R[5] := t; R[6] := r; R[7] := b;
 		RETURN R
 	END Q;
 
 	PROCEDURE P;
 	VAR r1,r2: Rectangle; o: Object;
 	BEGIN
-		NEW(o); o.w := 10; 
+		NEW(o); o.w := 10;
 		r1[3] := 0; r2[3] := 0; r1[5] := -100; r2[5] := -100;
 		r1[6] := 10; r1[7] := 20;
 		r2[6] := 101; r2[7] := 102;
@@ -6266,17 +6296,17 @@ positive: new on var parameter array
 	BEGIN
 		NEW(o,10); o[5] := 10;
 	END Q;
-	
+
 
 	PROCEDURE P;
 	VAR o: O;
 	BEGIN
 		Q(o); ASSERT(o[5] = 10); ASSERT(LEN(o)=10);
-	END P; 
-	
+	END P;
+
 	BEGIN P
 	END Test.
-	
+
 positive: call procedure returning a basic type within an exclusive section
 	MODULE Test;
 
@@ -6300,7 +6330,7 @@ positive: call procedure returning a basic type within an exclusive section
 
 	BEGIN P
 	END Test.
-	
+
 positive: pass Delegate nil value
 
 	MODULE Test;
@@ -6312,10 +6342,10 @@ positive: pass Delegate nil value
 			ASSERT(p=NIL);
 		END P;
 
-	BEGIN 
+	BEGIN
 		P(NIL); (* if incorrect then stack will be invalid => hard brakedown *)
 	END Test.
-	
+
 positive: type tests and guards on records and pointers on direct and indirect parameters
 
 	MODULE Test;
@@ -6402,14 +6432,14 @@ positive: type tests and guards on records and pointers on direct and indirect p
 	BEGIN
 		Test;
 	END Test.
-	
+
 positive: inline procedure with fixups
 
 	MODULE Test;
 
 	IMPORT SYSTEM;
 
-	CONST const = 123; 
+	CONST const = 123;
 	VAR a, b: LONGINT;
 
 	PROCEDURE -P(): LONGINT;
@@ -6422,15 +6452,15 @@ positive: inline procedure with fixups
 	END P;
 
 	PROCEDURE Q;
-	VAR b: LONGINT; 
+	VAR b: LONGINT;
 	BEGIN
 		b := P();
-		ASSERT(a=123); 
+		ASSERT(a=123);
 		ASSERT(b=1234);
 	END Q;
 
 	BEGIN
-		b := 1234; 
+		b := 1234;
 		Q;
 		a := P();
 		ASSERT(a=1234);
@@ -6448,29 +6478,29 @@ positive: import inline assembler procedure
 		ADD EAX,10
 	END P;
 
-	BEGIN 
+	BEGIN
 		ASSERT(P(10) = 20);
 	END A.
 
 	MODULE Test;
-	IMPORT A; 
-	BEGIN 
+	IMPORT A;
+	BEGIN
 		ASSERT(A.P(10)=20)
 	END Test.
-	
+
 positive: call a winapi procedure with an array of system byte
-	
+
 	MODULE Test;
 
 	IMPORT SYSTEM;
-		
-	PROCEDURE{WINAPI}  ReadFile (VAR lpBuffer: ARRAY   OF SYSTEM.BYTE); 
-	BEGIN 
-		ASSERT(SYSTEM.VAL(CHAR,lpBuffer[0]) = 'A'); 
-	END ReadFile; 
+
+	PROCEDURE{WINAPI}  ReadFile (VAR lpBuffer: ARRAY   OF SYSTEM.BYTE);
+	BEGIN
+		ASSERT(SYSTEM.VAL(CHAR,lpBuffer[0]) = 'A');
+	END ReadFile;
 
 	PROCEDURE P;
-	VAR a: ARRAY 2 OF CHAR; 
+	VAR a: ARRAY 2 OF CHAR;
 	BEGIN
 		a[0] := 'A';
 		ReadFile(a);
@@ -6478,7 +6508,7 @@ positive: call a winapi procedure with an array of system byte
 
 	BEGIN P
 	END Test.
-	
+
 positive: unlock with or without return statements
 	MODULE Test;
 
@@ -6500,7 +6530,7 @@ positive: unlock with or without return statements
 
 	BEGIN P; P2; P; q := Q(); P;
 	END Test.
-	
+
 positive: conversion to 32 bit in ash
 
 	MODULE Test;
@@ -6515,7 +6545,7 @@ positive: conversion to 32 bit in ash
 	BEGIN
 	P
 	END Test.
-	
+
 positive: pass delegate as variable or value parameter
 
 	MODULE Test;
@@ -6561,7 +6591,7 @@ positive: pass delegate as variable or value parameter
 
 	BEGIN NEW(a,123); NEW(o,a); P;
 	END Test.
-	
+
 positive: import same module with different aliases
 
 	MODULE A;
@@ -6579,13 +6609,13 @@ positive: import same module with different aliases
 
 	BEGIN P
 	END Test.
-	
-	
+
+
 positive: procedures returning a record (checks correct return parameter size)
 
 	MODULE Test;
 
-	TYPE 
+	TYPE
 		Rectangle=RECORD t,l,r,b: LONGINT END;
 		Container= POINTER TO RECORD r: Rectangle END;
 
@@ -6646,7 +6676,7 @@ positive: procedures returning a record (checks correct return parameter size)
 
 	BEGIN P1;P2;P3;
 	END Test.
-	
+
 positive: conversion on return types
 
 	MODULE Test;
@@ -6676,9 +6706,9 @@ positive: conversion on return types
 
 	BEGIN P;
 	END Test.
-	
+
 positive: allocate imported variable
-	
+
 	MODULE A;
 
 	TYPE Record*= RECORD a*: LONGINT; p*: POINTER TO ARRAY OF CHAR; c*: LONGINT; END;
@@ -6688,16 +6718,16 @@ positive: allocate imported variable
 	MODULE Test;
 
 	IMPORT A;
-		
+
 		PROCEDURE P;
 		BEGIN
-			NEW(A.a.p,10); 
+			NEW(A.a.p,10);
 			ASSERT(A.a.p # NIL,101);
 		END P;
 
 	BEGIN P;
 	END Test.
-	
+
 positive: bitwise rotate
 
 	MODULE Test;
@@ -6712,21 +6742,21 @@ positive: bitwise rotate
 		rot := SYSTEM.VAL(SET,SYSTEM.ROT(SYSTEM.VAL(LONGINT,val),7));
 		ASSERT(rot ={5..6,8..10});
 		rot :=  SYSTEM.VAL(SET,SYSTEM.ROT(SYSTEM.VAL(LONGINT,val),-7));
-		ASSERT(rot={23..24,26..28}); 
+		ASSERT(rot={23..24,26..28});
 		val := {1,2,3,30,31};
-		by := 7; 
+		by := 7;
 		rot := SYSTEM.VAL(SET,SYSTEM.ROT(SYSTEM.VAL(LONGINT,val),by));
 		ASSERT(rot ={5..6,8..10});
-		by := -7; 
+		by := -7;
 		rot := SYSTEM.VAL(SET,SYSTEM.ROT(SYSTEM.VAL(LONGINT,val),by));
-		ASSERT(rot={23..24,26..28}); 
-			
+		ASSERT(rot={23..24,26..28});
+
 	END P;
 
 
 	BEGIN P;
 	END Test.
-	
+
 positive: huge stack frames to check for ensured stack allocation
 
 	MODULE Test;
@@ -6740,7 +6770,7 @@ positive: huge stack frames to check for ensured stack allocation
 
 	BEGIN P(0);
 	END Test.
-	
+
 positive: finally statement, direct and indirect
 
 	MODULE Test;
@@ -6788,10 +6818,10 @@ positive: negate hugeint zero
 
 	MODULE Test;
 	PROCEDURE Test;
-	VAR x: INTEGER; h,j: HUGEINT; 
+	VAR x: INTEGER; h,j: HUGEINT;
 	BEGIN
-		h := 0; 
-		j := -h; 
+		h := 0;
+		j := -h;
 		ASSERT(j=0);
 	END Test;
 	BEGIN Test
@@ -6801,7 +6831,7 @@ positive: allocation of a partially exported record type
 
 	MODULE A;
 
-	TYPE 
+	TYPE
 	P*=POINTER TO Desc;
 	Desc=RECORD a*,b: LONGINT END;
 
@@ -6812,20 +6842,20 @@ positive: allocation of a partially exported record type
 	IMPORT A;
 
 	PROCEDURE Test;
-	VAR a: A.P; 
+	VAR a: A.P;
 	BEGIN
 		NEW(a); a.a := 10; ASSERT(a.a = 10);
 	END Test;
 
-	
+
 	BEGIN Test
 	END Test.
-	
-positive: allocation of a partially exported record type in a multiply imported module	
+
+positive: allocation of a partially exported record type in a multiply imported module
 
 	MODULE A;
 
-	TYPE 
+	TYPE
 	P*=POINTER TO Desc;
 	Desc=RECORD a*,b: LONGINT END;
 
@@ -6839,12 +6869,12 @@ positive: allocation of a partially exported record type in a multiply imported 
 	IMPORT BB := B, BBB := B, AA := A, BBBB := B, AAA := A, B, A;
 
 	PROCEDURE Test;
-	VAR a: AAA.P; 
+	VAR a: AAA.P;
 	BEGIN
 		NEW(a); a.a := 10; ASSERT(a.a = 10);
 	END Test;
 
-	
+
 	BEGIN Test
 	END Test.
 
@@ -6878,53 +6908,53 @@ positive: array length operator for static and dynamic arrays with static and dy
 	MODULE Test;
 
 	PROCEDURE Test;
-	VAR a: ARRAY 1,2,3,4 OF LONGINT; 
+	VAR a: ARRAY 1,2,3,4 OF LONGINT;
 		b: POINTER TO ARRAY OF ARRAY OF ARRAY 3,4 OF LONGINT;
 		c: POINTER TO ARRAY OF ARRAY OF ARRAY OF ARRAY OF LONGINT;
 		l0,l1,l2,l3,lv,v: LONGINT;
 	BEGIN
-		v := 2; 
-		NEW(b,1,2); 
+		v := 2;
+		NEW(b,1,2);
 		NEW(c,1,2,3,4);
 
-		l0 := LEN(a,0); 
-		ASSERT(l0=1,1000); 
-		l1 := LEN(a,1); 
-		ASSERT(l1=2,1001); 
-		l2 := LEN(a,2); 
-		ASSERT(l2=3,1002); 
-		l3 := LEN(a,3); 	
-		ASSERT(l3=4,1003); 
-		FOR v := 0 TO 3 DO 
-			lv := LEN(a,v); 
-			ASSERT(lv=v+1,1004); 
-		END; 
+		l0 := LEN(a,0);
+		ASSERT(l0=1,1000);
+		l1 := LEN(a,1);
+		ASSERT(l1=2,1001);
+		l2 := LEN(a,2);
+		ASSERT(l2=3,1002);
+		l3 := LEN(a,3);
+		ASSERT(l3=4,1003);
+		FOR v := 0 TO 3 DO
+			lv := LEN(a,v);
+			ASSERT(lv=v+1,1004);
+		END;
 
-		l0 := LEN(b,0); 
-		ASSERT(l0=1,2000); 
-		l1 := LEN(b,1); 
-		ASSERT(l1=2,2001); 
-		l2 := LEN(b,2); 
-		ASSERT(l2=3,2002); 
-		l3 := LEN(b,3); 	
-		ASSERT(l3=4,2003); 
-		FOR v := 0 TO 3 DO 
-			lv := LEN(b,v); 
-			ASSERT(lv=v+1,2004); 
-		END; 
-		
-		l0 := LEN(c,0); 
-		ASSERT(l0=1,3000); 
-		l1 := LEN(c,1); 
-		ASSERT(l1=2,3001); 
-		l2 := LEN(c,2); 
-		ASSERT(l2=3,3002); 
-		l3 := LEN(c,3); 	
-		ASSERT(l3=4,3003); 
-		FOR v := 0 TO 3 DO 
-			lv := LEN(c,v); 
-			ASSERT(lv=v+1,3004); 
-		END; 
+		l0 := LEN(b,0);
+		ASSERT(l0=1,2000);
+		l1 := LEN(b,1);
+		ASSERT(l1=2,2001);
+		l2 := LEN(b,2);
+		ASSERT(l2=3,2002);
+		l3 := LEN(b,3);
+		ASSERT(l3=4,2003);
+		FOR v := 0 TO 3 DO
+			lv := LEN(b,v);
+			ASSERT(lv=v+1,2004);
+		END;
+
+		l0 := LEN(c,0);
+		ASSERT(l0=1,3000);
+		l1 := LEN(c,1);
+		ASSERT(l1=2,3001);
+		l2 := LEN(c,2);
+		ASSERT(l2=3,3002);
+		l3 := LEN(c,3);
+		ASSERT(l3=4,3003);
+		FOR v := 0 TO 3 DO
+			lv := LEN(c,v);
+			ASSERT(lv=v+1,3004);
+		END;
 
 	END Test;
 
@@ -6933,33 +6963,33 @@ positive: array length operator for static and dynamic arrays with static and dy
 
 positive: assignment of extended record type to base type (check destination size)
 
-	MODULE Test; 
+	MODULE Test;
 
-	TYPE 
-		R= RECORD a,b,c: LONGINT END; 
-		S= RECORD (R) d,e: LONGINT END; 
-		
+	TYPE
+		R= RECORD a,b,c: LONGINT END;
+		S= RECORD (R) d,e: LONGINT END;
+
 	PROCEDURE Test;
-	VAR a0,a1,a2: LONGINT; b: R; c: LONGINT; d: S; 
+	VAR a0,a1,a2: LONGINT; b: R; c: LONGINT; d: S;
 	BEGIN
-		a0 := 0; 
-		a1 := 0; 
-		a2 := 0; 
-		c := 0; 
+		a0 := 0;
+		a1 := 0;
+		a2 := 0;
+		c := 0;
 		d.a := MAX(LONGINT);
 		d.b := MAX(LONGINT);
 		d.c := MAX(LONGINT);
 		d.d := MAX(LONGINT);
 		d.e := MAX(LONGINT);
 		b := d;
-		ASSERT(c=0); 
-		ASSERT(a0=0); 
-		ASSERT(a1=0); 
-		ASSERT(a2=0); 
-		ASSERT(b.a = MAX(LONGINT)); 
-		ASSERT(b.b = MAX(LONGINT)); 
-		ASSERT(b.c = MAX(LONGINT)); 
-		
+		ASSERT(c=0);
+		ASSERT(a0=0);
+		ASSERT(a1=0);
+		ASSERT(a2=0);
+		ASSERT(b.a = MAX(LONGINT));
+		ASSERT(b.b = MAX(LONGINT));
+		ASSERT(b.c = MAX(LONGINT));
+
 	END Test;
 
 
