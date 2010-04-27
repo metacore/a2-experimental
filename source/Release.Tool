@@ -68,6 +68,11 @@
 #	The list of packages must be specified as enquoted string of space separated package names.
 #	This option can be overriden by the --exclude option of the Release.Build command.
 #
+#	DISABLED
+#	Set to TRUE to indicate that a build is broken. The Release.Check command will not attempt to compile
+#	disabled builds. The commands Release.Build and Release.Rebuild will prompt a warning message but do their jobs. All other
+#	commands simply ignore this setting.
+#
 # To actually build such a build, call Release.Build buildname ~
 #
 # Note:
