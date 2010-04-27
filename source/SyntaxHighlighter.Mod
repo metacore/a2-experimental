@@ -224,7 +224,7 @@ TYPE
 			(* binary search *)
 			l := 0; r := nofData;
 			WHILE l < r DO
-				m := (l + r) DIV 2;
+				m := (r - l) DIV 2 + l;
 				IF (position <= data[m].close) THEN r := m;
 				ELSE l := m + 1;
 				END;
