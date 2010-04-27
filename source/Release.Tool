@@ -834,7 +834,7 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	SSH.Tool
 	SSH.Configuration.Text
 	SSHGlobals.Mod SSHKeys.Mod SSHTransport.Mod SSHAuthorize.Mod
-	UNIX { SSH.Mod SSHClient.Mod }
+	SSH.Mod SSHClient.Mod
 END
 
 PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Active Oberon Compiler"
