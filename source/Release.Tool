@@ -684,6 +684,8 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 
 # Window Manager (tf)
 
+	ColorModels.Mod
+	
 	WMDefaultWindows.Mod
 
 	WMDefaultFont.Mod WMFontManager.Mod WMOberonFonts.Mod WMCCGFonts.Mod WMBitmapFont.Mod	# Font support
