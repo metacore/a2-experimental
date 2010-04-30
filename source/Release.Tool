@@ -685,7 +685,7 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 # Window Manager (tf)
 
 	ColorModels.Mod
-	
+
 	WMDefaultWindows.Mod
 
 	WMDefaultFont.Mod WMFontManager.Mod WMOberonFonts.Mod WMCCGFonts.Mod WMBitmapFont.Mod	# Font support
@@ -811,7 +811,6 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	# perfmon kernel plugins
 	NATIVE {
 		WMPerfMonPluginCpu.Mod WMPerfMonPluginMemory.Mod
-		WMPerfMonPluginActive.Mod
 		WMPerfMonPluginInterrupts.Mod
 		WMPerfMonPluginUsb.Mod WMPerfMonPluginNetStats.Mod
 	}
