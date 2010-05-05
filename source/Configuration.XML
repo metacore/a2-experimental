@@ -55,14 +55,11 @@ To update: Configuration.Init ~
 			<Setting value="WMPinyinIME.Test"/>
 		-->
 
-
 		<!-- Quote Server (remove comment to activate)
 			<Setting value="QuoteServer.Open"/>
 		-->
 
-
 		<!--Setting name="Hotkey support" value="HotKeys.Open"/-->
-
 
 		<!--Setting name="Hardware Detection" value="PCITools.DetectHardware"/-->
 
@@ -217,7 +214,6 @@ To update: Configuration.Init ~
 			registered. The action "Open" is considered to open the file with an application.
 			Occurences of the string @filename in the attribute value of settings will be replaced by
 			the filename parameter -->
-
 
 		<!-- use lower case for extensions, sort lexographically -->
 
@@ -459,11 +455,11 @@ To update: Configuration.Init ~
 				</Section>
 				<Section name="SyntaxHighlighter">
 					<!-- Map file extension to SyntaxHighlighter name -->
-					<Setting name="MOD" value=""/>
-					<Setting name="XML" value=""/>
-					<Setting name="ASM" value=""/>
-					<Setting name="TOOL" value=""/>
-					<Setting name="C" value=""/>
+					<Setting name="MOD" value="Oberon"/>
+					<Setting name="XML" value="XML"/>
+					<Setting name="ASM" value="ASM"/>
+					<Setting name="TOOL" value="ReleaseTool"/>
+					<Setting name="C" value="C"/>
 				</Section>
 				<Section name="Diff">
 					<Setting name="Command" value="WMDiff.Open"/>
@@ -536,7 +532,6 @@ To update: Configuration.Init ~
 
 				<!-- kernel statistics plugins -->
 
-					<Setting name="WMPerfMonPluginActive" value="FALSE"/>
 					<Setting name="WMPerfMonPluginHeap" value="FALSE"/>
 
 				<!-- device performance plugins -->
@@ -566,13 +561,4 @@ To update: Configuration.Init ~
 			<Setting name="ErrorMessages" value="Errors.XML"/>
 		</Section>
 
-	<!-- Example of nested sections -->
-
-		<Section name="A">
-			<Section name="B">
-				<Section name="C">
-					<Setting name="D" value="Hello world"/>
-				</Section>
-			</Section>
-		</Section>
 	</Config>
