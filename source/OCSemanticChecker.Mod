@@ -4199,7 +4199,7 @@ TYPE
 					END;
 					IF  ~system.GenerateParameterOffsets(procedureType,FALSE) (* assume that this is no nested procedure, is fixed later otherwise *)
 					THEN
-						Error(procedure.position,Diagnostics.Invalid,"problems during parameter offset computation");						
+						Error(procedure.position,Diagnostics.Invalid,"problems during parameter offset computation");
 					END;
 				ELSIF SyntaxTree.ConstructorFlag IN procedure.flags THEN
 					Error(procedure.position,Diagnostics.Invalid,"nested procedure illegaly marked as initializer");
@@ -4229,14 +4229,21 @@ TYPE
 			(*! check operator (number of parameters etc.) *)
 		END VisitOperator;
 
-		PROCEDURE AddImport*(module: SyntaxTree.Module; x: SyntaxTree.Import);
-		VAR prevScope: SyntaxTree.Scope;
+		PROCEDURE AddImport*(module: SyntaxTree.Module; x: SyntaxTree.Import): BOOLEAN;
+		VAR prevScope: SyntaxTree.Scope; prevDiagnostics: Diagnostics.Diagnostics;
 		BEGIN
+			IF error THEN RETURN FALSE END;
 			prevScope := currentScope;
+			prevDiagnostics := diagnostics;
+			diagnostics := NIL; (* suppress error output *)
 			currentScope := module.moduleScope;
-			module.moduleScope.AddImport(x);
 			VisitImport(x);
+			IF ~error THEN
+				module.moduleScope.AddImport(x);
+			END;
 			currentScope := prevScope;
+			diagnostics := prevDiagnostics;
+			IF error THEN error := FALSE; RETURN FALSE ELSE RETURN TRUE END;
 		END AddImport;
 
 
@@ -4544,7 +4551,7 @@ TYPE
 				withEntry.previous := withEntries;
 				withEntry.symbol := variable(SyntaxTree.SymbolDesignator).symbol;
 				withEntry.typeExpression := withStatement.type;
-				withEntry.type := type; 
+				withEntry.type := type;
 				withEntries := withEntry;
 				StatementSequence(withStatement.statements);
 				withEntries := withEntries.previous;
@@ -4709,7 +4716,7 @@ TYPE
 				withEntry := withEntry.previous
 			END;
 			IF withEntry = NIL THEN RETURN FALSE
-			ELSE 
+			ELSE
 				type := withEntry.type;
 				typeExpression := withEntry.typeExpression;
 				RETURN TRUE
