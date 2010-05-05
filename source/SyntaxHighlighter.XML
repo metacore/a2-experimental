@@ -165,7 +165,7 @@
 					open="(*?" close="*)" nesting="TRUE" multiline="TRUE"
 				/>
 				<Region
-					style="CommentItalic" styleOpen="CommentItalic" styleClose="CommentItalic"
+					style="Comment" styleOpen="CommentItalic" styleClose="CommentItalic"
 					open="(**" close="*)" nesting="TRUE" multiline="TRUE"
 				/>
 				<Region
