@@ -63,6 +63,7 @@ END WriteBinaryFile;
 
 PROCEDURE WriteTRMFile (arrangement: Arrangement; writer: Files.Writer; bitsPerLine, lines: LONGINT);
 VAR i,j,size,end: LONGINT;
+
 	PROCEDURE GetBits(pos: LONGINT): LONGINT;
 	BEGIN
 		IF pos >= size THEN RETURN 0
@@ -99,16 +100,21 @@ END WriteTRMDataFile;
 
 PROCEDURE WritePEFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer; bitmode, subSystem: INTEGER);
 CONST DOSText = "This program cannot be run in DOS mode.$";
-CONST DOSHeaderSize = 64; DOSCodeSize = 14; DOSTextSize = 40; DOSStubSize = ((DOSHeaderSize + DOSCodeSize + DOSTextSize + 15) DIV 16) * 16;
-CONST BaseAddress = 401000H; FileAlignment = 200H; SectionAlignment = 1000H; HeaderSize = 24; SectionHeaderSize = 40; DirectoryEntries = 16;
-VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress: LONGINT;
+CONST DOSHeaderSize = 64; DOSCodeSize = 14; DOSTextSize = 40;
+	DOSStubSize = ((DOSHeaderSize + DOSCodeSize + DOSTextSize + 15) DIV 16) * 16;
+CONST BaseAddress = 401000H; FileAlignment = 200H;
+	SectionAlignment = 1000H; HeaderSize = 24;
+	SectionHeaderSize = 40; DirectoryEntries = 16;
+VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress: LONGINT;filePos: LONGINT;
 
 	PROCEDURE Reserve (size: LONGINT);
-	BEGIN WHILE size # 0 DO writer.Char (0X); DEC (size); END;
+	BEGIN
+		ASSERT(size >= 0);
+		WHILE size # 0 DO writer.Char (0X); DEC (size); INC(filePos); END;
 	END Reserve;
 
 	PROCEDURE WriteBYTE (value: LONGINT);
-	BEGIN writer.Char (CHR (value));
+	BEGIN writer.Char (CHR (value)); INC(filePos);
 	END WriteBYTE;
 
 	PROCEDURE WriteWORD (value: LONGINT);
@@ -122,6 +128,22 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress:
 	PROCEDURE WritePTR (value: LONGINT);
 	BEGIN WriteDWORD (value); IF bitmode = 64 THEN WriteDWORD (0) END;
 	END WritePTR;
+
+	PROCEDURE WriteSTRING(CONST str: ARRAY OF CHAR);
+	VAR i: LONGINT;
+	BEGIN
+		i := 0;
+		WHILE(str[i] # 0X) DO
+			WriteBYTE(ORD(str[i])); INC(i);
+		END;
+	END WriteSTRING;
+
+	PROCEDURE Align(size: LONGINT; alignment: LONGINT): LONGINT;
+	BEGIN
+		INC(size, (-size) MOD alignment);
+		RETURN size
+	END Align;
+
 
 	PROCEDURE WriteDOSStub;
 	BEGIN
@@ -144,7 +166,7 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress:
 
 		WriteBYTE (00EH); WriteBYTE (01FH); WriteBYTE (0BAH); WriteWORD (DOSCodeSize);
 		WriteBYTE (0B4H); WriteBYTE (009H); WriteBYTE (0CDH); WriteBYTE (021H); WriteBYTE (0B8H);
-		WriteBYTE (001H); WriteBYTE (04CH); WriteBYTE (0CDH); WriteBYTE (021H); writer.String (DOSText);
+		WriteBYTE (001H); WriteBYTE (04CH); WriteBYTE (0CDH); WriteBYTE (021H); WriteSTRING(DOSText);
 
 		Reserve (DOSStubSize - DOSHeaderSize - DOSCodeSize - DOSTextSize);
 	END WriteDOSStub;
@@ -172,7 +194,7 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress:
 	PROCEDURE WriteOptionalHeader;
 	VAR ImageSize: LONGINT;
 	BEGIN
-		ImageSize := ((BaseCodeAddress + AlignedCodeSize + (SectionAlignment - 1)) DIV SectionAlignment) * SectionAlignment;
+		ImageSize := Align(BaseCodeAddress + AlignedCodeSize, SectionAlignment);
 
 		IF bitmode = 64 THEN
 			WriteWORD (0020BH);	(* Magic *)
@@ -184,12 +206,12 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress:
 		WriteDWORD (AlignedCodeSize);	(* SizeOfCode *)
 		WriteDWORD (0);	(* SizeOfInitializedData *)
 		WriteDWORD (0);	(* SizeOfUninitializedData *)
-		WriteDWORD (BaseCodeAddress);	(* AddressOfEntryPoint *)
+		WriteDWORD (BaseCodeAddress+128);	(* AddressOfEntryPoint *)
 		WriteDWORD (BaseCodeAddress);	(* BaseOfCode *)
 		IF bitmode # 64 THEN
 			WriteDWORD (ImageSize);	(* BaseOfData *)
 		END;
-		WritePTR (arrangement.displacement - BaseCodeAddress);	(* ImageBase *)
+		WritePTR (arrangement.displacement - BaseCodeAddress-128);	(* ImageBase *)
 		WriteDWORD (SectionAlignment);	(* SectionAlignment *)
 		WriteDWORD (FileAlignment);	(* FileAlignment *)
 		WriteWORD (4);	(* MajorOperatingSystemVersion *)
@@ -211,36 +233,79 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress:
 		WriteDWORD (0);			(* LoaderFlags *)
 		WriteDWORD (DirectoryEntries);	(* NumberOfRvaAndSizes *)
 
-		Reserve (8);
-		WriteDWORD (0); WriteDWORD (0);
+		Reserve (8); (* export table *)
+		WriteDWORD (BaseCodeAddress); (* import table address *)
+		WriteDWORD (128); (* import table size *)
 		Reserve ((DirectoryEntries - 2) * 8);
 	END WriteOptionalHeader;
 
 	PROCEDURE WriteCodeSection;
+	VAR importTable: LONGINT;
 	BEGIN
-		writer.String (".text"); Reserve (3);	(* Name *)
-		WriteDWORD (CodeSize);	(* VirtualSize *)
+		WriteSTRING (".text"); Reserve (3);	(* Name *)
+		WriteDWORD (CodeSize+128);	(* VirtualSize *)
 		WriteDWORD (BaseCodeAddress);	(* VirtualAddress *)
-		WriteDWORD (AlignedCodeSize);	(* SizeOfRawData *)
+		WriteDWORD (AlignedCodeSize+128);	(* SizeOfRawData *)
 		WriteDWORD (HeadersSize);	(* PointerToRawData *)
 		WriteDWORD (0);	(* PointerToRelocations *)
 		WriteDWORD (0);	(* PointerToLinenumbers *)
 		WriteWORD (0);	(* NumberOfRelocations *)
 		WriteWORD (0);	(* NumberOfLinenumbers *)
 		WriteDWORD (SHORT (0E0000020H));	(* Characteristics *)
-	 	Reserve (HeadersSize - DOSStubSize - HeaderSize - OptionalHeaderSize - SectionHeaderSize);
+
+	 	Reserve (HeadersSize - (DOSStubSize + HeaderSize + OptionalHeaderSize + SectionHeaderSize));
+
+		importTable := HeadersSize;
+		ASSERT(filePos = importTable);
+
+(* import table *)
+
+(* 0 *)		WriteDWORD(56 + BaseCodeAddress); (* import lookup table *)
+(* 4*)	 	WriteDWORD(0); (* time / date stamp *)
+(* 8 *)	 	WriteDWORD(-1); (* forwarder chain *)
+(* 12 *)	 	WriteDWORD(40+ BaseCodeAddress); (* DLL name *)
+(* 16 *)	 	WriteDWORD(104+BaseCodeAddress); (* import address table *)
+			Reserve(20);
+
+			ASSERT(filePos = importTable + 40);
+(* 40 *)	 	WriteSTRING("KERNEL32.DLL"); WriteBYTE(0); (* DLL Name *)
+(* 53 *)		Reserve(3);
+			ASSERT(filePos = importTable + 56);
+
+		(* import lookup table *)
+(* 56 *)		WriteDWORD(68 + BaseCodeAddress); (* name1 *)
+(* 60 *)		WriteDWORD(84 + BaseCodeAddress); (* name2 *)
+(* 64 *)		WriteDWORD(0); (* end of table *)
+
+		(* name table *)
+			ASSERT(filePos = importTable + 68);
+(*68*)		WriteWORD(0); (* hint *)
+(*70*)		WriteSTRING("LoadLibraryA"); WriteBYTE(0); (* function name 1*)
+			Reserve(1);
+			ASSERT(filePos = importTable + 84);
+(* 84*)		WriteWORD(0); (* hint *)
+(* 88*)		WriteSTRING("GetProcAddress"); WriteBYTE(0);  (* function name 2*)
+(* 101 *)	Reserve(3);
+
+		(* import address table *)
+(*104 *)		WriteDWORD(68 + BaseCodeAddress); (* name1 *)
+(* 108 *)		WriteDWORD(84 + BaseCodeAddress); (* name2 *)
+(* 112 *)		WriteDWORD(0); (* end of table *)
+(* 116 *)		Reserve(128-116); (* padding *)
+		(* code *)
 	 	WriteBinaryFile (linker, arrangement, writer);
 		Reserve (AlignedCodeSize - CodeSize);
 	END WriteCodeSection;
 
 BEGIN
-	ASSERT (arrangement.displacement = BaseAddress);
+	filePos := 0;
+	ASSERT (arrangement.displacement = BaseAddress + 128);
 	OptionalHeaderSize := 96 + DirectoryEntries * 8;
 	IF bitmode = 64 THEN INC (OptionalHeaderSize, 16); END;
 	CodeSize := arrangement.bits.GetSize () DIV 8;
-	AlignedCodeSize := ((CodeSize + (FileAlignment - 1)) DIV FileAlignment) * FileAlignment;
-	HeadersSize := ((DOSStubSize + HeaderSize + OptionalHeaderSize + SectionHeaderSize + (FileAlignment - 1)) DIV FileAlignment) * FileAlignment;
-	BaseCodeAddress := ((HeadersSize + (SectionAlignment - 1)) DIV SectionAlignment) * SectionAlignment;
+	AlignedCodeSize := Align(CodeSize,FileAlignment);
+	HeadersSize := Align(DOSStubSize + HeaderSize + OptionalHeaderSize + SectionHeaderSize , FileAlignment);
+	BaseCodeAddress := Align(HeadersSize, SectionAlignment);
 
 	WriteDOSStub; WriteHeader; WriteOptionalHeader; WriteCodeSection;
 END WritePEFile;
@@ -310,7 +375,7 @@ CONST BaseAddress = 08048000H; EntryAddress = BaseAddress + HeadersSize;
 	PROCEDURE WriteProgramHeader;
 	VAR FileSize: LONGINT;
 	BEGIN
-		FileSize := HeadersSize + arrangement.bits.GetSize () DIV 8;
+		FileSize := HeadersSize + 128 + arrangement.bits.GetSize () DIV 8;
 
 		WriteWord (1);		(* p_type *)
 		WriteWord (0);		(* p_offset *)
