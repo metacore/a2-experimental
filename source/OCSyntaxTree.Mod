@@ -35,12 +35,13 @@ CONST
 
 	InterruptFlag*=12;
 	NoPAFFlag*=13;
+	FixedFlag*=14;
 
 	(* statement flags *)
-	UnreachableFlag*=14;
+	UnreachableFlag*=15;
 	(* modification flags *)
-	WrittenFlag*=15;
-	AccessedFlag*=16;
+	WrittenFlag*=16;
+	AccessedFlag*=17;
 
 
 	(** Access Flags *)
@@ -56,7 +57,6 @@ CONST
 	Protected* = {ProtectedRead, ProtectedWrite} ;
 	Public* = {PublicRead, PublicWrite} ;
 	ReadOnly* = {InternalRead, ProtectedRead,PublicRead};
-
 
 	(** parameter forms *)
 	ValueParameter* = 0;  VarParameter* = 1;  ConstParameter* = 2;
@@ -2477,12 +2477,15 @@ TYPE
 	VAR
 		finally-: StatementSequence;
 		priority-: Expression; (* set by checker *)
+		fixed-: BOOLEAN;
+		alignment-: LONGINT; (* set by checker *)
 		inScope-: ProcedureScope;
 		code-: Code;
 
 		PROCEDURE & InitBody(position: LONGINT; scope: ProcedureScope);
 		BEGIN
 			InitStatementBlock(position,NIL); finally := NIL; priority := NIL; inScope := scope; code := NIL;
+			alignment := 0; fixed :=FALSE;
 		END InitBody;
 
 		PROCEDURE SetFinally*( finally: StatementSequence );
@@ -2492,6 +2495,11 @@ TYPE
 		PROCEDURE SetPriority*(expression: Expression);
 		BEGIN priority := expression
 		END SetPriority;
+
+		PROCEDURE SetAlignment*(fix: BOOLEAN; alignAt: LONGINT);
+		BEGIN
+			SELF.fixed := fix; alignment := alignAt;
+		END SetAlignment;
 
 		PROCEDURE SetCode*(code: Code);
 		BEGIN SELF.code := code;

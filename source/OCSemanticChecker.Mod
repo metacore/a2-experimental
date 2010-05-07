@@ -88,6 +88,7 @@ TYPE
 		currentFlags: SET; (** used for check on recursive exclusive sections etc. *)
 		global: SyntaxTree.ModuleScope;
 		withEntries: WithEntry;
+		flagExpressions: ARRAY 32 OF SyntaxTree.Expression;
 
 		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; VAR importCache: SyntaxTree.ModuleScope);
 		BEGIN
@@ -605,24 +606,34 @@ TYPE
 				END
 		END FixProcedureType;
 
-		PROCEDURE FlagByIdentifier(identifier: SyntaxTree.Identifier): LONGINT;
-		VAR name: Scanner.StringType;
+		PROCEDURE GetFlag(modifier: SyntaxTree.Modifier): LONGINT;
+		VAR name: Scanner.StringType; expressionExpected: BOOLEAN; flag: LONGINT;
 		BEGIN
-			IF identifier = NIL THEN RETURN MIN(LONGINT)
-			ELSE
-				identifier.GetString(name);
+			expressionExpected := FALSE; flag := MIN(LONGINT);
+			IF modifier.identifier # NIL THEN
+				modifier.identifier.GetString(name);
 				Basic.Uppercase(name,name);
-				IF (name = Global.StringWinAPI) THEN RETURN  SyntaxTree.WinAPIFlag
-				ELSIF (name = Global.StringC)  THEN RETURN  SyntaxTree.CFlag
-				ELSIF (name = Global.StringUntraced) THEN RETURN SyntaxTree.UntracedFlag
-				ELSIF (name = Global.StringDelegate) THEN RETURN  SyntaxTree.DelegateFlag
-				ELSIF (name = Global.StringRealtime) THEN RETURN SyntaxTree.RealtimeFlag
-				ELSIF (name = Global.StringInterrupt) THEN RETURN SyntaxTree.InterruptFlag
-				ELSIF (name = Global.StringNoPAF) THEN RETURN SyntaxTree.NoPAFFlag;
-				ELSE Error(identifier.position,Diagnostics.Invalid,"Unknown Flag"); RETURN MIN(LONGINT);
+				IF (name = Global.StringWinAPI) THEN flag := SyntaxTree.WinAPIFlag
+				ELSIF (name = Global.StringC)  THEN flag :=   SyntaxTree.CFlag
+				ELSIF (name = Global.StringUntraced) THEN flag :=  SyntaxTree.UntracedFlag
+				ELSIF (name = Global.StringDelegate) THEN flag :=   SyntaxTree.DelegateFlag
+				ELSIF (name = Global.StringRealtime) THEN flag :=  SyntaxTree.RealtimeFlag
+				ELSIF (name = Global.StringInterrupt) THEN flag :=  SyntaxTree.InterruptFlag
+				ELSIF (name = Global.StringNoPAF) THEN flag :=  SyntaxTree.NoPAFFlag;
+				ELSIF (name = Global.StringFixed) THEN flag :=  SyntaxTree.FixedFlag; expressionExpected := TRUE;
+				ELSE Error(modifier.identifier.position,Diagnostics.Invalid,"Unknown Flag"); flag :=  MIN(LONGINT);
 				END;
 			END;
-		END FlagByIdentifier;
+			IF ~expressionExpected & (modifier.expression # NIL) THEN
+				Error(modifier.expression.position,Diagnostics.Invalid,"Unexpected expression");
+			ELSIF (expressionExpected) & (modifier.expression = NIL) THEN
+				Error(modifier.identifier.position, Diagnostics.Invalid, "Missing expression");
+			END;
+			IF (flag # MIN(LONGINT)) & (modifier.expression # NIL) THEN
+				flagExpressions[flag] := ResolveExpression(modifier.expression)
+			END;
+			RETURN flag
+		END GetFlag;
 
 		(**
 			convert a flag identifier to a (checker module local) flag
@@ -635,7 +646,7 @@ TYPE
 			ELSIF flagList.nextModifier # NIL THEN (* too many flags *)
 				Error(flagList.nextModifier.identifier.position,Diagnostics.Invalid,"too many flags: only one flag allowed");
 			ELSE
-				thisFlag := FlagByIdentifier(flagList.identifier);
+				thisFlag := GetFlag(flagList);
 				IF ~(thisFlag IN allowedFlags) THEN  Error(flagList.identifier.position, Basic.IllegalyMarkedIdentifier,"") END;
 			END;
 			RETURN thisFlag
@@ -646,7 +657,7 @@ TYPE
 		BEGIN
 			flags := {};
 			WHILE flagList # NIL DO
-				flag := FlagByIdentifier(flagList.identifier);
+				flag := GetFlag(flagList);
 				IF flag > 0 THEN
 					IF  ~(flag IN allowedFlags) THEN Error(flagList.identifier.position,Basic.IllegalyMarkedIdentifier,"")
 					ELSE
@@ -4114,6 +4125,7 @@ TYPE
 			recordBase: SyntaxTree.RecordType; procedureType: SyntaxTree.ProcedureType;
 			selfParameter: SyntaxTree.Parameter; qualifiedIdentifier: SyntaxTree.QualifiedIdentifier;
 			qualifiedType: SyntaxTree.QualifiedType; recentFlags: SET; flags: SET;
+			alignmentExpression: SyntaxTree.Expression;value: LONGINT;
 
 		BEGIN
 			IF Trace THEN D.Str("VisitProcedure "); D.Str0(procedure.name.name);  D.Ln;  END;
@@ -4121,7 +4133,8 @@ TYPE
 				recentFlags := currentFlags;
 				IF Trace THEN D.Str("undefined"); D.Ln; END;
 				procedureType := procedure.type(SyntaxTree.ProcedureType);
-				flags := Flags(procedureType.flagList,{SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag,SyntaxTree.RealtimeFlag,SyntaxTree.InterruptFlag,SyntaxTree.NoPAFFlag});
+				flags := Flags(procedureType.flagList,{SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag,SyntaxTree.RealtimeFlag,SyntaxTree.InterruptFlag,SyntaxTree.NoPAFFlag,SyntaxTree.FixedFlag});
+				alignmentExpression := flagExpressions[SyntaxTree.FixedFlag];
 				procedureType.AddFlags(flags);
 				FixProcedureType(procedureType);
 				IF SyntaxTree.DelegateFlag IN procedureType.flags THEN
@@ -4129,6 +4142,11 @@ TYPE
 				END;
 				procedure.AddFlags(procedureType.flags);
 				currentFlags := currentFlags + procedure.flags;
+				IF (SyntaxTree.FixedFlag IN flags) & CheckIntegerValue(alignmentExpression,value) THEN
+					IF procedure.procedureScope.body # NIL THEN
+						procedure.procedureScope.body.SetAlignment(TRUE,value);
+					END;
+				END;
 
 
 				IF procedure.scope IS SyntaxTree.ProcedureScope THEN

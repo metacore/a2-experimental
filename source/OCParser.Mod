@@ -34,7 +34,7 @@ CONST
 		OperatorDeclaration  = 'operator' String ['*'|'-'] FormalParameters ';'
 		                       DeclarationSequence [Body] 'end' String.
 
-		Flags           		 = '{' Identifier {',' Identifier} '}'.
+		Flags           		=  '{' [Identifier ['(' Expression ')'] {',' Identifier ['(' Expression ')'] }] '}'
 
 		IdentifierDefinition = Identifier ['*'|'-'].
 
@@ -62,10 +62,8 @@ CONST
 
 		EnumerationType		 = 'enum' Identifier {',' Identifier} 'end'.
 
-		Body                 = 'begin' ['{' BlockModifiers '}'] StatementSequence ['finally' StatementSequence]
+		Body                 = 'begin' [Flags] StatementSequence ['finally' StatementSequence]
 		                     | 'code' {any}.
-
-		BlockModifiers       = [Identifier ['(' Expression ')'] {',' Identifier ['(' Expression ')'] }]
 
 		StatementSequence    = Statement {';' Statement}.
 
@@ -89,7 +87,7 @@ CONST
 		                     | 'code' {any} 'end'
 		                     ].
 
-		StatementBlock       = ['{' BlockModifier '}'] StatementSequence.
+		StatementBlock       = [Flags] StatementSequence.
 
 		Case                 = Element {',' Element} ':' StatementSequence.
 
@@ -902,31 +900,6 @@ TYPE
 			RETURN statements
 		END StatementSequence;
 
-		(** BlockModifiers = [Identifier ['(' Expression ')'] {',' Identifier ['(' Expression ')'] }] **)
-		PROCEDURE BlockModifiers(block: SyntaxTree.StatementBlock);
-		VAR identifier: SyntaxTree.Identifier; expression: SyntaxTree.Expression;  position: LONGINT; blockModifier,list : SyntaxTree.Modifier;
-		BEGIN
-			IF Trace THEN S( "BlockModifier" ) END;
-			IF Peek(Scanner.RightBrace) THEN (* empty block modifier *)
-			ELSE
-				list := NIL;
-				REPEAT
-					position := symbol.start;
-					identifier := Identifier();
-					IF Optional(Scanner.LeftParenthesis) THEN
-						expression := Expression();
-						Check(Scanner.RightParenthesis)
-					ELSE
-						expression := NIL
-					END;
-					blockModifier := SyntaxTree.NewModifier(identifier,expression);
-					AppendModifier(list,blockModifier);
-				UNTIL ~Optional( Scanner.Comma );
-				block.SetModifier(list);
-			END;
-			IF Trace THEN E( "BlockModifier" ) END;
-		END BlockModifiers;
-
 		(** StatementBlock = ['{' BlockModifier '}'] StatementSequence. **)
 		PROCEDURE StatementBlock(outer: SyntaxTree.Statement): SyntaxTree.StatementBlock;
 		VAR block: SyntaxTree.StatementBlock;
@@ -934,8 +907,7 @@ TYPE
 			IF Trace THEN S( "StatementBlock" ) END;
 			block := SyntaxTree.NewStatementBlock( symbol.end, outer );
 			IF Optional( Scanner.LeftBrace ) THEN
-				BlockModifiers(block);
-				Check( Scanner.RightBrace );
+				block.SetModifier(Flags());
 			END;
 			block.SetStatementSequence( StatementSequence(block) );
 			IF Trace THEN E( "StatementBlock" ) END;
@@ -972,8 +944,7 @@ TYPE
 			ELSIF Mandatory( Scanner.Begin ) THEN
 				body := SyntaxTree.NewBody(symbol.start,scope);
 				IF Optional( Scanner.LeftBrace ) THEN
-					BlockModifiers(body);
-					Check( Scanner.RightBrace );
+					body.SetModifier(Flags());
 				END;
 				position := symbol.start;
 				body.SetStatementSequence(StatementSequence(body));
@@ -1293,19 +1264,29 @@ TYPE
 			IF Trace THEN E( "FormalParameters" ) END;
 		END FormalParameters;
 
-		(** Flags = '{' Identifier, {',' Identifier} '}'. **)
+		(** Flags = '{' [Identifier ['(' Expression ')'] {',' Identifier ['(' Expression ')'] }]  '}'. **)
 		PROCEDURE Flags(): SyntaxTree.Modifier;
-		VAR identifier: SyntaxTree.Identifier; modifier,list: SyntaxTree.Modifier;
+		VAR identifier: SyntaxTree.Identifier; modifier,list: SyntaxTree.Modifier; position: LONGINT; expression: SyntaxTree.Expression;
 		BEGIN
 			IF Trace THEN S( "Flags" ) END;
 			(* left brace already consumed *)
 			list := NIL;
-			REPEAT
-				identifier := Identifier();
-				modifier := SyntaxTree.NewModifier(identifier,NIL);
-				AppendModifier(list,modifier);
-			UNTIL ~Optional(Scanner.Comma);
-			Check( Scanner.RightBrace );
+			IF Peek(Scanner.RightBrace) THEN (* empty flags *)
+			ELSE
+				REPEAT
+					position := symbol.start;
+					identifier := Identifier();
+					IF Optional(Scanner.LeftParenthesis) THEN
+						expression := Expression();
+						Check(Scanner.RightParenthesis)
+					ELSE
+						expression := NIL
+					END;
+					modifier := SyntaxTree.NewModifier(identifier,expression);
+					AppendModifier(list,modifier);
+				UNTIL ~Optional( Scanner.Comma );
+				Check(Scanner.RightBrace);
+			END;
 			IF Trace THEN E( "Flags" ) END;
 			RETURN list;
 		END Flags;
