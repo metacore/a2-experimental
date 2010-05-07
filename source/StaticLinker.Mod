@@ -212,7 +212,7 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress:
 		WriteDWORD (DirectoryEntries);	(* NumberOfRvaAndSizes *)
 
 		Reserve (8);
-		WriteDWORD (BaseCodeAddress + 4) ; WriteDWORD (0);
+		WriteDWORD (BaseCodeAddress + 4) ; WriteDWORD (40);
 		Reserve ((DirectoryEntries - 2) * 8);
 	END WriteOptionalHeader;
 
@@ -246,11 +246,11 @@ BEGIN
 END WritePEFile;
 
 PROCEDURE WritePE32File (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
-BEGIN WritePEFile (linker, arrangement, writer, 32, 3);
+BEGIN WritePEFile (linker, arrangement, writer, 32, 2);
 END WritePE32File;
 
 PROCEDURE WritePE64File (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
-BEGIN WritePEFile (linker, arrangement, writer, 64, 3);
+BEGIN WritePEFile (linker, arrangement, writer, 64, 2);
 END WritePE64File;
 
 PROCEDURE WriteEFI32File (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
