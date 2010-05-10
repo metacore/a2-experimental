@@ -8,7 +8,7 @@ CONST InvalidAddress* = MAX (Address);
 
 TYPE Priority = LONGINT;
 
-CONST Fixed = 0; InitCode = 1; Code = 2; Default = 3;
+CONST Fixed = 0; InitCode = 1; BodyCode = 2; Code = 3; Default = 4;
 
 TYPE Arrangement* = OBJECT
 
@@ -211,7 +211,7 @@ PROCEDURE GetPriority (block: Block): Priority;
 BEGIN
 	IF block.fixed THEN RETURN Fixed END;
 	IF block.type = ObjectFile.InitCode THEN RETURN InitCode END;
-	IF block.type = ObjectFile.BodyCode THEN RETURN InitCode END;
+	IF block.type = ObjectFile.BodyCode THEN RETURN BodyCode END;
 	IF block.type = ObjectFile.Code THEN RETURN Code END;
 	RETURN Default;
 END GetPriority;
