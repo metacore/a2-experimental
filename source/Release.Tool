@@ -605,6 +605,8 @@ PACKAGE Applications ARCHIVE "Applications.zip" SOURCE "ApplicationsSrc.zip" DES
 
 	Bin2Hex.Mod BinToCode.Mod
 
+	Base64.Mod
+
 	DisplayGTF.Mod	# Create VESA 3.0 Init Strings
 
 	GZip.Mod
@@ -863,6 +865,9 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 	OCIntermediateCode.Mod  OCIntermediateBackend.Mod
 	OCBinaryObjectFile.Mod OCGenericObjectFile.Mod
 	OCAMD64InstructionSet.Mod OCAMD64Assembler.Mod OCAMD64Backend.Mod
+	OCInstructionSetAMD64TabSeperated.txt
+
+	GenericLinker.Mod StaticLinker.Mod
 END
 
 PACKAGE GuiApplications ARCHIVE "GuiApplications.zip" SOURCE "GuiApplicationsSrc.zip" DESCRIPTION "Window Manager and Graphical Applications"
@@ -1164,7 +1169,6 @@ PACKAGE Contributions ARCHIVE "Contributions.zip" SOURCE "ContributionsSrc.zip" 
 	# Testsuite
 	CapoTest1.2.zip	# requires Oberon
 
-	Visualizer.Mod # generate class diagrams
 	WPM.Mod # Web page maker
 
 	# Aubrey McIntosh (aubrey.macintosh@alumni.utexas.net)
@@ -1178,6 +1182,9 @@ PACKAGE Contributions ARCHIVE "Contributions.zip" SOURCE "ContributionsSrc.zip" 
 	WMFontCCGConverter.Mod
 	WebCGI.Mod RegisterRFW.Mod WebBimbodot.Mod TFWebForum.Mod	# CGI support and examples
 	PDF.Mod AFM.Mod PDFExample.Mod	# PDF Writer
+
+	Visualizer.Mod # generate class diagrams
+	ReleaseVisualizerScanner.Mod ReleaseVisualizer.Mod # generate PDF poster of all modules
 
 	# ObeDAV - WebDAV and DeltaV for Oberon, Edgar Schwarz, edited by Robin Stoll. OdSVN.Mod also required
 	# Subversion Client by Robin Stoll (rstoll@student.ethz.ch)
