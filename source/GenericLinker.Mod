@@ -110,7 +110,7 @@ VAR
 			IF reference = NIL THEN reference := ImportBlock(fixup.identifier) END;
 
 			IF reference = NIL THEN Error (fixup.identifier.name, "unresolved");
-			ELSIF reference.identifier.fingerprint # block.fixup[i].identifier.fingerprint THEN Error (fixup.identifier.name, "incompatible");
+			ELSIF (reference.identifier.fingerprint # 0) & (block.fixup[i].identifier.fingerprint # 0) & (reference.identifier.fingerprint # block.fixup[i].identifier.fingerprint) THEN Error (fixup.identifier.name, "incompatible");
 			ELSE Reference (reference, block.used); END;
 		END ReferenceFixup;
 
