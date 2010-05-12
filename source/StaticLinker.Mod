@@ -203,7 +203,7 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress:
 		WriteDWORD (HeadersSize);	(* SizeOfHeaders *)
 		WriteDWORD (0);	(* CheckSum *)
 		WriteWORD (subSystem);	(* Subsystem *)
-		WriteWORD (0400H);	(* DllCharacteristics *)
+		WriteWORD (0H);	(* DllCharacteristics *)
 		WritePTR (0100000H);	(* SizeOfStackReserve *)
 		WritePTR (01000H);	(* SizeOfStackCommit *)
 		WritePTR (0100000H);	(* SizeOfHeapReserve *)
