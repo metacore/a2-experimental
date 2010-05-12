@@ -198,7 +198,7 @@ VAR
 			Strings.Append(msg, num);
 			IF block.bits # NIL THEN
 				Strings.Append(msg, " to ");
-				Strings.IntToStr(block.address+block.bits.GetSize() DIV block.unit -1,num);
+				Strings.IntToStr(block.address+block.bits.GetSize() DIV block.unit,num);
 				Strings.Append(msg,num);
 			END;
 			Information (block.identifier.name, msg);

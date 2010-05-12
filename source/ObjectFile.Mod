@@ -79,7 +79,7 @@ VAR
 	relocatabilities: ARRAY 2 OF ARRAY 8 OF CHAR;
 
 PROCEDURE IsCode* (type: SectionType): BOOLEAN;
-BEGIN RETURN (type = Code) OR (type = InitCode);
+BEGIN RETURN (type = Code) OR (type = InitCode) OR (type = BodyCode);
 END IsCode;
 
 PROCEDURE Matches*(CONST this, that: Identifier): BOOLEAN;
