@@ -193,12 +193,12 @@ VAR
 	VAR msg,num: ARRAY 128 OF CHAR;
 	BEGIN
 		IF block.used THEN
-			Strings.IntToStr(block.address,num);
+			Strings.IntToHexStr(block.address, 8,num);
 			msg := "arranged at ";
 			Strings.Append(msg, num);
 			IF block.bits # NIL THEN
 				Strings.Append(msg, " to ");
-				Strings.IntToStr(block.address+block.bits.GetSize() DIV block.unit,num);
+				Strings.IntToHexStr(block.address+block.bits.GetSize() DIV block.unit, 8,num);
 				Strings.Append(msg,num);
 			END;
 			Information (block.identifier.name, msg);
