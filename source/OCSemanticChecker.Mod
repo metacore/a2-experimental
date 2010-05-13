@@ -3201,6 +3201,10 @@ TYPE
 								type := Global.GetIntegerType(system,i0);
 							END;
 						END;
+						type := Global.Longint; 
+						(*!compatibility with release, remove when resolved 
+						    critical in release : SHORT(ASH(..))), ASH(ORD(..))
+						*)
 						parameter1 := NewConversion(parameter1.position,parameter1,type,NIL);
 						parameter0 := NewConversion(parameter0.position,parameter0,type,NIL);
 						actualParameters.SetExpression(0,parameter0);

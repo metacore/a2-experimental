@@ -3,7 +3,7 @@ MODULE OCGenericObjectFile; (** AUTHOR "negelef"; PURPOSE "Generic Object File W
 IMPORT
 	Formats := OCFormats, Sections := OCSections, IntermediateCode := OCIntermediateCode,
 	Global := OCGlobal, SyntaxTree := OCSyntaxTree, BinaryCode := OCBinaryCode,
-	FingerPrint := OCFingerPrint, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := OCTextualSymbolFile;
+	FingerPrint := OCFingerPrint, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := OCTextualSymbolFile, KernelLog;
 
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	VAR path, extension: Files.FileName;
@@ -23,17 +23,33 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				ObjectFile.WriteSection (writer, section.resolved^);
 			END ExportSection;
 
-			PROCEDURE ExportSections (sections: Sections.SectionList);
-			VAR section: Sections.Section;
+			PROCEDURE ExportSections (sections: Sections.SectionList): BOOLEAN;
+			VAR section,test: Sections.Section;
 			BEGIN
 				section := sections.first;
-				WHILE section # NIL DO ExportSection (section(IntermediateCode.Section)); section := section.nextSection; END;
+				WHILE section # NIL DO
+					ExportSection (section(IntermediateCode.Section));
+					IF section(IntermediateCode.Section).resolved.identifier.fingerprint # 0 THEN
+						test := sections.first;
+						WHILE test # section DO
+							IF test(IntermediateCode.Section).resolved.identifier.fingerprint = section(IntermediateCode.Section).resolved.identifier.fingerprint THEN
+								diagnostics.Error(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid,"duplicate fingerprints");
+								KernelLog.String(section(IntermediateCode.Section).resolved.identifier.name); KernelLog.String(",");
+								KernelLog.String(test(IntermediateCode.Section).resolved.identifier.name); KernelLog.Ln;
+								RETURN FALSE
+							END;
+							test := test.nextSection;
+						END;
+					END;
+					section := section.nextSection;
+					END;
+					RETURN TRUE
 			END ExportSections;
 
-			PROCEDURE ExportModule (module: Sections.Module);
+			PROCEDURE ExportModule (module: Sections.Module): BOOLEAN;
 			BEGIN
-				ExportSections (module.sections);
-				ExportSections (module.caseTables);
+				RETURN ExportSections (module.sections) &
+				ExportSections (module.caseTables) &
 				ExportSections (module.systemCalls);
 			END ExportModule;
 
@@ -54,10 +70,13 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 
 			NEW (lookup, module.system);
 			Files.OpenWriter (writer, file, 0);
-			ExportModule (module(Sections.Module));
-			writer.Update;
-			Files.Register (file);
-			RETURN TRUE;
+			IF ExportModule (module(Sections.Module)) THEN
+				writer.Update;
+				Files.Register (file);
+				RETURN TRUE;
+			ELSE
+				RETURN FALSE
+			END
 		END Export;
 
 		PROCEDURE DefineOptions* (options: Options.Options);
