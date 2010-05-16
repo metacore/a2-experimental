@@ -823,14 +823,23 @@ BEGIN
 	Kernel32.ExitThread(0);
 	Kernel32.Sleep(999999);   (* wait until dependent threads terminated *)
 END TerminateProc;
-
 (* Allocate a new process associated with "obj". Must be outside lock region, because of potential GC. *)
-PROCEDURE NewProcess(body: Body;  flags: SET; obj: ProtectedObject; VAR new: Process);
-VAR t: Process;  fn: Heaps.FinalizerNode;
+PROCEDURE NewProcess(body: Body; priority: LONGINT;  flags: SET; obj: ProtectedObject; VAR new: Process);
+VAR t,r: Process;  fn: Heaps.FinalizerNode;
 BEGIN
 	NEW(t);
 	t.handle := 0;
+	IF priority = 0 THEN  (* no priority specified *)
+		r := CurrentProcess();
+		t.priority := r.priority (* inherit priority of creator *)
+	ELSIF priority > 0 THEN  (* positive priority specified *)
+		t.priority := priority
+	ELSE  (* negative priority specified (only for Idle process) *)
+		t.priority := MinPriority
+	END;
+
 	NEW(fn);   (* implicit call Heaps.NewRec -> might invoke GC *)
+
 	Machine.Acquire(Machine.Objects);
 	t.next := NIL; t.prev := NIL; t.rootedNext := NIL;
 	t.waitingOn := NIL; t.flags := flags; t.obj := obj; t.mode := Unknown;
@@ -858,22 +867,15 @@ END NewProcess;
 PROCEDURE CreateProcess*(body: Body; priority: LONGINT; flags: SET; obj: ProtectedObject);
 VAR t, r: Process; heapBlock {UNTRACED}: Heaps.HeapBlock;
 BEGIN
+	ASSERT(priority >= 0, 1000); ASSERT(priority <=Realtime, 1001); 
 	SYSTEM.GET(SYSTEM.VAL(SYSTEM.ADDRESS, obj) + Heaps.HeapBlockOffset, heapBlock);
 	ASSERT(heapBlock IS Heaps.ProtRecBlock); (* protected object *)
-
 	IF Restart IN flags THEN INCL(flags, Resistant) END;   (* SAFE => Restart & Resistant *)
-	NewProcess(body, flags, obj, t);  INC(nProcs);  (* acquires Machine.Objects lock *)
-	IF priority = 0 THEN  (* no priority specified *)
-		r := CurrentProcess();
-		t.priority := r.priority (* inherit priority of creator *)
-	ELSIF priority > 0 THEN  (* positive priority specified *)
-		t.priority := priority
-	ELSE  (* negative priority specified (only for Idle process) *)
-		t.priority := MinPriority
-	END;
+	NewProcess(body, priority, flags, obj, t);  INC(nProcs);  (* acquires Machine.Objects lock *)
 	t.mode := Ready; Put(ready, t);
 	Machine.Release(Machine.Objects)
 END CreateProcess;
+
 
 (* The procedure Lock, Unlock and Await do not use header locks since it turned out that the header locks sometimes were finalized
      too early. *)
