@@ -3498,7 +3498,7 @@ TYPE
 						type := parameter0.type;
 						IF IsIntegerValue(parameter0,i0) THEN
 							IF IsIntegerValue(parameter1,i1) THEN
-								IF id = Global.Lsh THEN
+								IF id = Global.systemLsh THEN
 								i0 := SYSTEM.LSH(i0,i1);
 								ELSE
 								i0 := SYSTEM.ROT(i0,i1)
