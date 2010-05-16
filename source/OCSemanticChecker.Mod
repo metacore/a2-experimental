@@ -3201,8 +3201,8 @@ TYPE
 								type := Global.GetIntegerType(system,i0);
 							END;
 						END;
-						type := Global.Longint; 
-						(*!compatibility with release, remove when resolved 
+						type := Global.Longint;
+						(*!compatibility with release, remove when resolved
 						    critical in release : SHORT(ASH(..))), ASH(ORD(..))
 						*)
 						parameter1 := NewConversion(parameter1.position,parameter1,type,NIL);
@@ -3490,17 +3490,39 @@ TYPE
 					END;
 					type := Global.Shortint;
 					(*! implement *)
-				(* ---- SYSTEM.LSH ----- *)
-				ELSIF (id = Global.systemLsh) & Parameters(2,2) THEN
+				(* ---- SYSTEM.LSH, SYSTEM.ROT ----- *)
+				ELSIF ((id = Global.systemLsh) OR (id = Global.systemRot)) & Parameters(2,2) THEN
+					type := type0;
+					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
+						ConvertOperands(parameter0,parameter1); (* same type *)
+						type := parameter0.type;
+						IF IsIntegerValue(parameter0,i0) THEN
+							IF IsIntegerValue(parameter1,i1) THEN
+								IF id = Global.Lsh THEN
+								i0 := SYSTEM.LSH(i0,i1);
+								ELSE
+								i0 := SYSTEM.ROT(i0,i1)
+								END;
+								result.SetResolved(SyntaxTree.NewIntegerValue(position,i0));
+								result := ResolveExpression(result);
+								type := Global.GetIntegerType(system,i0);
+							END;
+						END;
+						type := Global.Longint;
+						(*!compatibility with release, remove when resolved
+						    critical in release : SHORT(ASH(..))), ASH(ORD(..))
+						*)
+						parameter1 := NewConversion(parameter1.position,parameter1,type,NIL);
+						parameter0 := NewConversion(parameter0.position,parameter0,type,NIL);
+						actualParameters.SetExpression(0,parameter0);
+						actualParameters.SetExpression(1,parameter1);
+					END;
+					(*
 				 	type := type0;
 					IF IsIntegerValue(parameter0,i0) & IsIntegerValue(parameter1,i1) THEN
 						result.SetResolved(SyntaxTree.NewIntegerValue(position,SYSTEM.LSH(i0,i1)));
 					END;
-					(*! check  *)
-				(* ---- SYSTEM.ROT ----- *)
-				ELSIF (id = Global.systemRot) & Parameters(2,2) THEN
-					type := type0;
-					(*! implement *)
+					*)
 				(* ---- SYSTEM.VAL ----- *)
 				ELSIF (id = Global.systemVal) & Parameters(2,2) THEN
 					IF CheckTypeDeclarationType(parameter0) THEN

@@ -3,13 +3,13 @@ MODULE OCGenericObjectFile; (** AUTHOR "negelef"; PURPOSE "Generic Object File W
 IMPORT
 	Formats := OCFormats, Sections := OCSections, IntermediateCode := OCIntermediateCode,
 	Global := OCGlobal, SyntaxTree := OCSyntaxTree, BinaryCode := OCBinaryCode,
-	FingerPrint := OCFingerPrint, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := OCTextualSymbolFile, KernelLog;
+	Fingerprinter := OCFingerprinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := OCTextualSymbolFile, KernelLog;
 
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	VAR path, extension: Files.FileName;
 
 		PROCEDURE Export* (module: Formats.GeneratedModule; symbolFileFormat: Formats.SymbolFileFormat): BOOLEAN;
-		VAR moduleName: SyntaxTree.String; fileName: Files.FileName; file: Files.File; writer: Files.Writer; lookup: FingerPrint.FingerPrinterLookup;
+		VAR moduleName: SyntaxTree.String; fileName: Files.FileName; file: Files.File; writer: Files.Writer; fingerprinter: Fingerprinter.Fingerprinter;
 
 			PROCEDURE ExportSection (section: IntermediateCode.Section);
 			VAR name: ARRAY 128 OF CHAR; (* debugging *)
@@ -18,8 +18,8 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				IF (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
 					RETURN
 				END;
-				section.resolved.identifier.fingerprint := GetFingerprint (section, lookup);
-				UpdateFixups (section.resolved, lookup);
+				section.resolved.identifier.fingerprint := GetFingerprint (section, fingerprinter);
+				UpdateFixups (section.resolved, fingerprinter);
 				ObjectFile.WriteSection (writer, section.resolved^);
 			END ExportSection;
 
@@ -68,7 +68,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				RETURN FALSE;
 			END;
 
-			NEW (lookup, module.system);
+			NEW (fingerprinter, module.system);
 			Files.OpenWriter (writer, file, 0);
 			IF ExportModule (module(Sections.Module)) THEN
 				writer.Update;
@@ -97,19 +97,18 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 
 END ObjectFileFormat;
 
-PROCEDURE GetFingerprint (section: Sections.Section; lookup: FingerPrint.FingerPrinterLookup): LONGINT;
-VAR fingerPrinter: FingerPrint.FingerPrinter; fingerPrint: FingerPrint.FingerPrint;
+PROCEDURE GetFingerprint (section: Sections.Section; fingerprinter: Fingerprinter.Fingerprinter): LONGINT;
+VAR fingerprint: SyntaxTree.Fingerprint;
 BEGIN
 	IF (section.symbol = NIL) OR (section.symbol.scope = NIL) THEN
 		RETURN 0
 	ELSE
-		fingerPrinter := lookup.GetFingerPrinter (section.symbol.scope.ownerModule);
-		fingerPrint := fingerPrinter.SymbolFP (section.symbol);
-		RETURN fingerPrint.FP;
+		fingerprint := fingerprinter.SymbolFP (section.symbol);
+		RETURN fingerprint.shallow;
 	END
 END GetFingerprint;
 
-PROCEDURE UpdateFixups (section: BinaryCode.Section; lookup: FingerPrint.FingerPrinterLookup);
+PROCEDURE UpdateFixups (section: BinaryCode.Section;  fingerprinter: Fingerprinter.Fingerprinter);
 VAR fixup: BinaryCode.Fixup; i: INTEGER;
 BEGIN
 	section.fixups := section.fixupList.fixups;
@@ -118,7 +117,7 @@ BEGIN
 	WHILE fixup # NIL DO
 		section.fixup[i] := fixup^;
 		COPY (fixup.symbol.name, section.fixup[i].identifier.name);
-		section.fixup[i].identifier.fingerprint := GetFingerprint (fixup.symbol, lookup);
+		section.fixup[i].identifier.fingerprint := GetFingerprint (fixup.symbol, fingerprinter);
 		fixup := fixup.nextFixup; INC (i);
 	END;
 END UpdateFixups;

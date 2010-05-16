@@ -312,6 +312,11 @@ TYPE
 
 	END Visitor;
 
+	Fingerprint*= RECORD
+		shallow*,public*, private*: LONGINT;
+		shallowAvailable*, deepAvailable*: BOOLEAN;
+	END;
+
 	(** identifiers in a program text **)
 	Identifier* = OBJECT
 		VAR
@@ -357,6 +362,7 @@ TYPE
 			resolved-: Type; (* indirection to resolved type to preserve qualified types *)
 			position-,endposition-: LONGINT;
 			state-: SET;
+			fingerprint-: Fingerprint;
 
 
 		PROCEDURE & InitType*( position: LONGINT);
@@ -365,11 +371,17 @@ TYPE
 			typeDeclaration := NIL;
 			scope := NIL;
 			resolved := SELF;
+			InitFingerprint(fingerprint)
 		END InitType;
 
 		PROCEDURE End*( position: LONGINT );
 		BEGIN SELF.endposition := position;
 		END End;
+
+		PROCEDURE SetFingerprint*(CONST fp: Fingerprint);
+		BEGIN
+			SELF.fingerprint := fp
+		END SetFingerprint;
 
 		PROCEDURE SetState*(state: LONGINT);
 		BEGIN	INCL(SELF.state,state);
@@ -1368,10 +1380,16 @@ TYPE
 	(**** values ****)
 
 	Value* = OBJECT (Expression)
+	VAR fingerprint-: Fingerprint;
 
 		PROCEDURE &InitValue(position: LONGINT);
-		BEGIN SELF.position := position; resolved := SELF
+		BEGIN SELF.position := position; resolved := SELF; InitFingerprint(fingerprint);
 		END InitValue;
+
+		PROCEDURE SetFingerprint*(CONST fp: Fingerprint);
+		BEGIN
+			SELF.fingerprint := fp
+		END SetFingerprint;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -1607,6 +1625,7 @@ TYPE
 		offsetInBits-: LONGINT; (* offset in stack or heap, in bits *)
 
 		position-: LONGINT; state-: SET;
+		fingerprint-: Fingerprint;
 
 		PROCEDURE & InitSymbol(position: LONGINT; name:Identifier);
 		BEGIN
@@ -1619,7 +1638,13 @@ TYPE
 			state := Undefined;
 			flags := {};
 			offsetInBits := MIN(LONGINT);
+			InitFingerprint(fingerprint);
 		END InitSymbol;
+
+		PROCEDURE SetFingerprint*(CONST fp: Fingerprint);
+		BEGIN
+			SELF.fingerprint := fp
+		END SetFingerprint;
 
 		PROCEDURE SetState*(state: LONGINT);
 		BEGIN	INCL(SELF.state,state);
@@ -3077,6 +3102,15 @@ VAR
 	anonymousIdentifier-: Identifier;
 	importType-: Type;
 	typeDeclarationType-: Type;
+
+	PROCEDURE InitFingerprint*(VAR fingerprint: Fingerprint);
+	BEGIN
+		fingerprint.shallowAvailable := FALSE;
+		fingerprint.deepAvailable := FALSE;
+		fingerprint.shallow := 0;
+		fingerprint.private := 0;
+		fingerprint.public := 0;
+	END InitFingerprint;
 
 	PROCEDURE NewModule*( CONST sourceName: ARRAY OF CHAR; position: LONGINT;  name: Identifier;scope: ModuleScope; case: LONGINT ): Module;
 	VAR module: Module;
