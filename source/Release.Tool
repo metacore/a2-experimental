@@ -862,6 +862,7 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 
 	OCFingerPrint.Mod  OCInterfaceComparison.Mod OCTextualSymbolFile.Mod OCBinarySymbolFile.Mod
 	OCSections.Mod OCBinaryCode.Mod
+	OCFingerPrinter.Mod
 	OCIntermediateCode.Mod  OCIntermediateBackend.Mod
 	OCBinaryObjectFile.Mod  OCFingerprinter.Mod OCGenericObjectFile.Mod
 	OCAMD64InstructionSet.Mod OCAMD64Assembler.Mod OCAMD64Backend.Mod
