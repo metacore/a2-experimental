@@ -225,6 +225,8 @@ LONGINT GetLInt(LPVOID adr, LONGINT* i) {
 
 LONGINT GetNum(LPVOID adr, LONGINT* i) {
 	LONGINT n, s; OCHAR x;
+		
+	return GetLInt(adr,i);
 
 	s = 0; n = 0;
 	x = Get(adr, i);
@@ -236,19 +238,18 @@ LONGINT GetNum(LPVOID adr, LONGINT* i) {
 }
 
 LONGINT FindProc(LPVOID refs, LONGINT reflen, LONGINT ofs) {
-	LONGINT proc, i, t;
+	LONGINT proc, i, t, start, end;
 	OCHAR ch;
 
-	proc = -1; i = 0;
+	proc = -1; i = 1;
 	ch = Get(refs, &i);
 	while ((i < reflen) && ((ch == (OCHAR)0xf8) || (ch == (OCHAR)0xf9))) {
-		t = GetNum(refs, &i);
-		if (t > ofs) {
-			ch = 0;
-		} else {
+		start = GetNum(refs, &i);
+		end = GetNum(refs, &i);
+		
 			if (ch == (OCHAR)0xf9) {
 				t = GetNum(refs, &i);
-				i += 3;
+				i += 9;
 			}
 			proc = i;
 			do { ch = Get(refs, &i); } while (ch != 0);
@@ -263,8 +264,9 @@ LONGINT FindProc(LPVOID refs, LONGINT reflen, LONGINT ofs) {
 					do { ch = Get(refs, &i); } while (ch != 0);
 					if (i < reflen) { ch = Get(refs, &i); } 
 				}
-			}
-		}
+			};
+			if ((start <= ofs) && (ofs <= end)) {ch = 0;}
+		
 	}
 	if ((proc == -1) && (i != 0)) { proc = i; }
 	return proc;
@@ -322,7 +324,7 @@ void WriteProc(HWND hWnd, LPVOID mod, LONGINT pc, LONGINT bp, LPVOID* refs, LONG
 		//wsprintf(msg,"module code 0%lXH \n",i);
 		//String(hwndSys,msg);
 
-		i = i+16; pc = pc-i;
+		i = i+16; 
 		j = 0; i = GetLInt((LPVOID)((DWORD)mod+ModRefs), &j);
 
 		//wsprintf(msg,"module refs 0%lXH \n",i);

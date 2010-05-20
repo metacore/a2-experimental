@@ -151,7 +151,7 @@ TYPE
 		BEGIN (* no further traversal to x.resolved necessary since type descriptor and code will be inserted at "original" position ? *)
 			type := x.resolved;
 			IF (type.typeDeclaration # NIL) & (type.typeDeclaration.scope.ownerModule # module.module) THEN
-				CheckTypeDeclaration(module,type,dump,implementationVisitor.newObjectFile);
+				CheckTypeDeclaration(implementationVisitor, module,type,dump,implementationVisitor.newObjectFile);
 			END;
 		END VisitQualifiedType;
 
@@ -166,19 +166,19 @@ TYPE
 
 		PROCEDURE VisitMathArrayType(x: SyntaxTree.MathArrayType);
 		BEGIN
-			CheckTypeDeclaration(module,x,dump,implementationVisitor.newObjectFile);
+			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
 		END VisitMathArrayType;
 
 		PROCEDURE VisitPointerType(x: SyntaxTree.PointerType);
 		BEGIN
-			CheckTypeDeclaration(module,x,dump,implementationVisitor.newObjectFile);
+			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
 			(* base type must not be visited => will be done via record type declaration, otherwise is done twice ! *)
 		END VisitPointerType;
 
 		PROCEDURE VisitRecordType(x: SyntaxTree.RecordType);
 		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration;
 		BEGIN (* no code emission *)
-			CheckTypeDeclaration(module,x,dump,implementationVisitor.newObjectFile);
+			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
 			IF (x.recordScope.ownerModule = module.module) & (x.isObject) THEN
 				IF x.pointerType.typeDeclaration # NIL THEN
 					td := x.pointerType.typeDeclaration
@@ -220,7 +220,7 @@ TYPE
 				irv := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,dump);
 				irv.SetOffset(ToMemoryUnits(system,x.offsetInBits));
 				irv.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(x.type))));
-				CheckTypeDeclaration(module,x.type,dump,implementationVisitor.newObjectFile);
+				CheckTypeDeclaration(implementationVisitor, module,x.type,dump,implementationVisitor.newObjectFile);
 			ELSIF currentScope IS SyntaxTree.RecordScope THEN
 			END;
 			(* do not call Type(x.type) here as this must already performed in the type declaration section ! *)
@@ -300,7 +300,7 @@ TYPE
 				(* IF x.access * SyntaxTree.Public # {} THEN *) (*! why all types? ref section ? *)
 					parameter := procedureType.firstParameter;
 					WHILE parameter # NIL DO
-						CheckTypeDeclaration(module,parameter.type,dump,implementationVisitor.newObjectFile); (* we have to re-export a type, i.e. it has to be present in the list of symbols *)
+						CheckTypeDeclaration(implementationVisitor, module,parameter.type,dump,implementationVisitor.newObjectFile); (* we have to re-export a type, i.e. it has to be present in the list of symbols *)
 						parameter := parameter.nextParameter;
 					END;
 				(* END; *)
@@ -1344,6 +1344,26 @@ TYPE
 			ELSE RETURN FALSE
 			END;
 		END GetRuntimeProcedure;
+
+		PROCEDURE GetModulesModule(): IntermediateCode.Section;
+		VAR importedModule: SyntaxTree.Module; source: IntermediateCode.Section; symbol: SyntaxTree.Symbol; name: ARRAY 32 OF CHAR;
+		BEGIN
+			name := "Modules.Module";
+			IF AddImport("Modules",importedModule, FALSE) THEN
+				symbol := importedModule.moduleScope.FindTypeDeclaration(SyntaxTree.NewIdentifier(-1,"Module"));
+				IF symbol = NIL THEN
+					Error(" not present in module Modules");
+				END;
+			ELSE symbol := NIL;
+			END;
+			IF importedModule = moduleScope.ownerModule THEN
+				source := IntermediateCode.NewSection(module.sections, Sections.ConstSection, name, symbol, commentPrintout # NIL);
+			ELSE
+				source := IntermediateCode.NewSection(module.importedSymbols, Sections.ConstSection, name, symbol, commentPrintout # NIL);
+			END;
+			RETURN source
+		END GetModulesModule;
+
 
 		PROCEDURE CallThis(CONST moduleName, procedureName: ARRAY OF CHAR);
 		VAR procedure: SyntaxTree.Procedure; result: Operand; reg: IntermediateCode.Operand; source: IntermediateCode.Section;
@@ -2867,7 +2887,7 @@ TYPE
 				IF newObjectFile THEN
 					Global.GetSymbolName(td,name);
 					IF (td.scope = NIL) OR (td.scope.ownerModule = module.module) THEN
-						CheckTypeDeclaration(module,x,commentPrintout # NIL, newObjectFile);
+						CheckTypeDeclaration(SELF, module,x,commentPrintout # NIL, newObjectFile);
 						source := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,td,commentPrintout # NIL);
 					ELSE
 						source := IntermediateCode.NewSection(module.importedSymbols,Sections.ConstSection,name,td,commentPrintout # NIL);
@@ -4384,7 +4404,7 @@ TYPE
 			END;
 			IF scope.outerScope IS SyntaxTree.ModuleScope THEN
 				IF newObjectFile THEN
-					moduleSection := MetaModuleSection(module);
+					moduleSection := MetaModuleSection(SELF,module);
 					moduleOffset := moduleSection.pc;
 					result.mode := ModeValue;
 					result.op := IntermediateCode.Address(addressType, moduleSection, moduleOffset);
@@ -5303,7 +5323,7 @@ TYPE
 					Symbol(moduleSelf,op);
 					IntermediateCode.MakeMemory(op.op,addressType);
 				ELSE
-					moduleSection := MetaModuleSection(module);
+					moduleSection := MetaModuleSection(SELF,module);
 					moduleOffset := moduleSection.pc;
 					op.op := IntermediateCode.Address(addressType, moduleSection, moduleOffset);
 				END;
@@ -5504,7 +5524,7 @@ TYPE
 			declarator.Module(x,module);
 
 			IF newObjectFile THEN
-				MetaModule(module);
+				MetaModule(implementationVisitor,module);
 			END;
 
 			IF implementationVisitor.error THEN Error("","") END;
@@ -5608,7 +5628,7 @@ TYPE
 
 	PROCEDURE MetaHeapBlock(module: Sections.Module; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
 	BEGIN
-		INC(dataAdrOffset,5);
+		INC(dataAdrOffset,6);
 		MetaInfo(section,"headerAdr");
 		MetaAddress(module,section,0);
 		MetaInfo(section,"typeDesc");
@@ -5618,6 +5638,8 @@ TYPE
 		MetaInfo(section,"dataAdr-: SYSTEM.ADDRESS");
 		MetaSymbol(module,section,section,dataAdrOffset,0);
 		MetaInfo(section,"size-: SYSTEM.SIZE");
+		MetaAddress(module,section,0);
+		MetaInfo(section,"nextRealtime: HeapBlock;"); 
 		MetaAddress(module,section,0);
 	END MetaHeapBlock;
 
@@ -6353,7 +6375,6 @@ TYPE
 		PatchLongint(module,pointerArray,pointerArraySizePC,pointerArraySize);
 	END MetaPointersInProcTables;
 
-
 	(*
 		Module* = OBJECT (Heaps.RootObject)	(* cf. Linker0 & Heaps.WriteType *)
 		VAR
@@ -6379,8 +6400,8 @@ TYPE
 			maxPtrs*: LONGINT;
 	*)
 
-	PROCEDURE MetaModuleSection(module: Sections.Module): IntermediateCode.Section;
-	VAR name: ARRAY 128 OF CHAR; moduleSection: IntermediateCode.Section;
+	PROCEDURE MetaModuleSection(implementationVisitor: ImplementationVisitor; module: Sections.Module): IntermediateCode.Section;
+	VAR name: ARRAY 128 OF CHAR; moduleSection,moduleTD: IntermediateCode.Section; offset: LONGINT; 
 	BEGIN
 		module.module.name.GetString(name);
 		Strings.Append(name,".@Module");
@@ -6390,13 +6411,17 @@ TYPE
 			MetaInfo(moduleSection, "HeapBlock");
 			MetaSymbol(module,moduleSection,moduleSection,2,0);
 			MetaInfo(moduleSection, "TypeDescriptor");
-			MetaAddress(module,moduleSection,0);
+			moduleTD := implementationVisitor.GetModulesModule();
+
+			
+			offset := ToMemoryUnits(module.system,(1 + 1 (*= numberMethods*) +16+1)*module.system.addressSize);
+			MetaSymbol(module,moduleSection, moduleTD, 0, offset);
 		END;
 		RETURN moduleSection;
 	END MetaModuleSection;
 
 
-	PROCEDURE MetaModule(module: Sections.Module);
+	PROCEDURE MetaModule(implementationVisitor: ImplementationVisitor; module: Sections.Module);
 	VAR moduleName: ARRAY 128 OF CHAR;
 	moduleSection, pointerSection, emptyArraySection, exportDescArray, exceptionSection, commandsSection,
 		typeInfoSection, procTableSection, ptrTableSection, referenceSection : IntermediateCode.Section;
@@ -6442,10 +6467,7 @@ TYPE
 		MetaPointersInProcTables(module,procTableSection,ptrTableSection,numberProcs,maxPointers);
 		emptyArraySection := HeapBlock(".@EmptyArray",emptyArraySectionOffset);
 		MetaArray(module,emptyArraySection,temp);
-		(*
-		referenceSection := emptyArraySection; referenceSectionOffset := emptyArraySectionOffset;
-		*)
-		moduleSection := MetaModuleSection(module);
+		moduleSection := MetaModuleSection(implementationVisitor, module);
 		MetaInfo(moduleSection, "nextRoot*: RootObject");
 		MetaAddress(module,moduleSection,0);
 		MetaInfo(moduleSection, "next*: Module");
@@ -6518,7 +6540,7 @@ TYPE
 	END MetaPointerArray;
 
 
-	PROCEDURE CheckTypeDeclaration(module: Sections.Module; x: SyntaxTree.Type; dump,newObjectFile: BOOLEAN);
+	PROCEDURE CheckTypeDeclaration(implementationVisitor: ImplementationVisitor; module: Sections.Module; x: SyntaxTree.Type; dump,newObjectFile: BOOLEAN);
 	VAR recordType: SyntaxTree.RecordType;
 		tir: IntermediateCode.Section; op: IntermediateCode.Operand; name: SyntaxTree.String; td: SyntaxTree.TypeDeclaration;
 		section: Sections.Section;
@@ -6551,7 +6573,7 @@ TYPE
 				IF isProtected THEN INCL(flags,31) END;
 				MetaSet(module, source, flags);
 				MetaInfo(source, "pointer to module");
-				moduleSection := MetaModuleSection(module);
+				moduleSection := MetaModuleSection(implementationVisitor,module);
 				MetaSymbol(module, source, moduleSection,moduleSection.pc,0);
 				MetaInfo(source, "type name");
 				i := 0;
