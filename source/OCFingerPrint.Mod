@@ -752,8 +752,10 @@ TYPE
 				FPSet(fingerPrint.publicFP, flags);
 				IF Trace THEN TraceIndent; D.Str("RecordType Exit Deep "); TraceFP(fingerPrint); D.Ln;  END;
 
+(*
 				ASSERT(fingerPrint.privateFP # 0,100);
 				ASSERT(fingerPrint.publicFP # 0,101);
+*)
 				fingerPrint.doneAll := TRUE;
 			END;
 

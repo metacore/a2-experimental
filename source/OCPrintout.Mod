@@ -203,7 +203,7 @@ TYPE
 				IF (pointerBase IS SyntaxTree.RecordType) & (pointerBase(SyntaxTree.RecordType).isObject) THEN
 					VisitRecordType(pointerBase(SyntaxTree.RecordType))
 				ELSE
-					Keyword("POINTER TO " );  Type(x.pointerBase)
+					Keyword("POINTER "); Flags(x.flags); Keyword("TO " );  Type(x.pointerBase)
 				END;
 			END;
 		END VisitPointerType;
@@ -212,7 +212,8 @@ TYPE
 		VAR prevScope: SyntaxTree.Scope;
 		BEGIN
 			IF x.isObject THEN
-				Keyword("OBJECT ");
+				Keyword("OBJECT "); 
+				IF x.pointerType # NIL THEN Flags(x.pointerType.flags) END;
 				IF info THEN BeginComment; w.String("ObjectType"); EndComment;  END;
 				IF (x.baseType # NIL)  THEN
 					w.String( "(" );

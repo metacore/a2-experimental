@@ -37862,6 +37862,274 @@ positive: non-exported constructor overwritten by new constructor with same name
 	END Test.
 
 
+# realtime objects
+
+positive: plain realtime object
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} END A;
+	END Test.
+	
+positive: realtime pointer to record
+
+	MODULE Test;
+	TYPE A = POINTER {REALTIME} TO RECORD END;
+	END Test.
+	
+positive: realtime pointer to array
+
+	MODULE Test;
+	TYPE A = POINTER {REALTIME} TO ARRAY OF CHAR;
+	END Test.
+	
+positive: realtime object containing basic type fields
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	TYPE A = OBJECT {REALTIME} 
+		VAR a0: CHAR8; a1: CHAR16; a2: CHAR32; a3: SHORTINT; a4: INTEGER; a5: LONGINT; a6: HUGEINT; a7: REAL; 
+		a8: LONGREAL; a9: BOOLEAN; a10: SET; a11: SYSTEM.ADDRESS; a12:SYSTEM.SIZE; a13: SYSTEM.BYTE; 
+		END A;
+	END Test.
+
+positive: realtime pointer to record that contains basic type fields
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	TYPE A = POINTER {REALTIME} TO RECORD 
+			a0: CHAR8; a1: CHAR16; a2: CHAR32; a3: SHORTINT; a4: INTEGER; a5: LONGINT; a6: HUGEINT; a7: REAL; 
+			a8: LONGREAL; a9: BOOLEAN; a10: SET; a11: SYSTEM.ADDRESS; a12:SYSTEM.SIZE; a13: SYSTEM.BYTE; 
+			END;
+	END Test.
+	
+positive: realtime pointer to array where the elements contain basic type fields
+
+	MODULE Test;
+	IMPORT SYSTEM;
+	TYPE A0 = POINTER {REALTIME} TO ARRAY OF RECORD
+			a0: CHAR8; a1: CHAR16; a2: CHAR32; a3: SHORTINT; a4: INTEGER; a5: LONGINT; a6: HUGEINT; a7: REAL; 
+			a8: LONGREAL; a9: BOOLEAN; a10: SET; a11: SYSTEM.ADDRESS; a12:SYSTEM.SIZE; a13: SYSTEM.BYTE; 
+			END;
+	END Test.
+	
+positive: realtime object containing enumeration type field
+	
+	MODULE Test;
+	TYPE Color = ENUM red, green, blue END;
+		RTObject = OBJECT {REALTIME} VAR color: Color; END RTObject;
+	END Test.
+
+positive: realtime object containing non-basic type realtime fields
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} END A;
+	B = OBJECT {REALTIME} VAR a: A; b: B; END B;
+	END Test.
+	
+positive: realtime pointer to record that contains non-basic type fields
+
+	MODULE Test;
+	TYPE A = POINTER {REALTIME} TO RECORD END;
+	B = POINTER {REALTIME} TO RECORD a: A; b: B END;
+	END Test.
+	
+positive: realtime pointer to array where the elements contain non-basic realtime fields
+
+	MODULE Test;
+	TYPE A = POINTER {REALTIME} TO RECORD END;
+	B = POINTER {REALTIME} TO ARRAY OF RECORD a: A; b: B END;
+	END Test.
+	
+negative: realtime object containing non-realtime any pointer
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR a0: ANY END A;
+	END Test;
+	
+negative: realtime object containing non-realtime pointer to record
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR a0: POINTER TO RECORD END END A;
+	END Test;
+	
+negative: realtime object containing non-realtime pointer to array
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR a0: POINTER TO ARRAY OF CHAR END A;
+	END Test;
+	
+negative: realtime object containing non-realtime object reference
+
+	MODULE Test;
+	TYPE A = OBJECT END A;
+		B = OBJECT {REALTIME} b: A END B;
+	END Test;
+	
+positive: realtime object containing record variable with realtime fields
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR a: RECORD k: SHORTINT; l: INTEGER; m: A END END A;
+	END Test.
+	
+positive: realtime object containing record variable with realtime pointers
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR a: RECORD p0: POINTER {REALTIME} TO RECORD END; 
+	p1: POINTER {REALTIME} TO ARRAY OF CHAR; END; END A;
+	END Test.
+	
+negative: realtime object containing record variable with a non-realtime any pointer
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR a: RECORD p: ANY END; END A;
+	END Test.
+	
+negative: realtime object containing record variable with a non-realtime record pointer
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR a: RECORD p: POINTER TO RECORD END; END; END A;
+	END Test.
+
+negative: realtime object containing record variable with a non-realtime array pointer
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR a: RECORD p: POINTER TO ARRAY OF CHAR END; END A;
+	END Test.
+	
+positive: non-realtime object containing reference to realtime object
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR a0: LONGINT; a1: CHAR; END A;
+	B = OBJECT VAR a: A; END B;
+	END Test.
+	
+positive: extension of realtime object declared as realtime object
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR a0: CHAR; a1: SET; END A;
+	B = OBJECT {REALTIME} (A) VAR b0: INTEGER; b1: LONGINT; END B;
+	END Test.
+	
+positive: variable of realtime pointer to record type
+
+	MODULE Test;
+	VAR p: POINTER {REALTIME} TO RECORD k, l: LONGINT END;
+	END Test.
+
+positive: variable of realtime pointer to array type
+
+	MODULE Test;
+	VAR p: POINTER {REALTIME} TO ARRAY OF BOOLEAN;
+	END Test. 	
+	
+negative: realtime extension of non-realtime object
+
+	MODULE Test;
+	TYPE A = OBJECT VAR a0: CHAR; a1: SET; END A;
+	B = OBJECT {REALTIME} (A) VAR b0: INTEGER; b1: LONGINT; END B;
+	END Test.
+
+negative: non-realtime extension of realtime object
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR a0: CHAR; a1: SET; END A;
+	B = OBJECT (A) VAR b0: INTEGER; b1: LONGINT; END B;
+	END Test.
+	
+positive: record extensions - both record types are implicit realtime objects
+
+	MODULE Test;
+	TYPE A = RECORD a0: CHAR; a1: SET; END;
+	B = RECORD (A) b0: INTEGER; b1: LONGINT; END;
+	AP = POINTER {REALTIME} TO A;
+	BP = POINTER {REALTIME} TO B;
+	END Test.
+	
+negative: record extensions - only base type is realtime object
+
+	MODULE Test;
+	TYPE A = RECORD a0: CHAR; a1: SET; END;
+	B = RECORD (A) b0: INTEGER; b1: ANY; END;
+	AP = POINTER {REALTIME} TO A;
+	BP = POINTER {REALTIME} TO B;
+	END Test.
+
+positive: extension of realtime pointer
+
+	MODULE Test;
+	TYPE R = RECORD r0, r1: LONGINT; END;
+	P = POINTER {REALTIME} TO Q;
+	Q = RECORD (R) q0, q1: LONGINT; END;	
+	S = OBJECT {REALTIME} (P) VAR s0, s1: LONGINT; END S;
+	END Test.
+
+positive: module Dummy for realtime and non-realtime types
+
+	MODULE Dummy;
+	TYPE RTRec* = RECORD r0: LONGINT; r1: CHAR; END;
+	NRTRec* = RECORD n0: LONGINT; n1: ANY; END;
+	RTO* = OBJECT {REALTIME} VAR m0: SET; END RTO;
+	NRTO0* = OBJECT VAR p: ANY; END NRTO0;
+	NRTO1* = OBJECT VAR k: LONGINT; END NRTO1;
+	END Dummy.
+
+positive: realtime pointer to (realtime) record from imported module
+
+	MODULE Test;
+	IMPORT Dummy;
+	TYPE RTPtr = POINTER {REALTIME} TO Dummy.RTRec;
+	END Test.
+	
+positive: non-realtime pointer to (non-realtime) record from imported module
+
+	MODULE Test;
+	IMPORT Dummy;
+	TYPE NRTPtr = POINTER TO Dummy.NRTRec;
+	END Test.
+	
+positive: non-realtime pointer to (realtime) record from imported module
+
+	MODULE Test;
+	IMPORT Dummy;
+	TYPE NRTPtr = POINTER TO Dummy.RTRec;
+	END Test.
+	
+negative: realtime pointer to (non-realtime) record from imported module
+
+	MODULE Test;
+	IMPORT Dummy;
+	TYPE RTPtr = POINTER {REALTIME} TO Dummy.NRTRec;
+	END Test.
+	
+positive: realtime extension of imported realtime object
+
+	MODULE Test;
+	IMPORT Dummy;
+	TYPE RTE = OBJECT {REALTIME} (Dummy.RTO) VAR t0: POINTER {REALTIME} TO ARRAY OF CHAR; END RTE;
+	END Test.
+	
+negative: non-realtime extension of imported realtime object
+
+	MODULE Test;
+	IMPORT Dummy;
+	TYPE NRTE = OBJECT (Dummy.RTO) VAR k: LONGINT; END NRTE;
+	END Test.
+	
+positive: non-realtime extension of imported non-realtime object that contains non-realtime fields
+
+	MODULE Test;
+	IMPORT Dummy;
+	TYPE NRTE = OBJECT (Dummy.NRTO0) VAR c: CHAR; END NRTE;
+	END Test.
+	
+positive: non-realtime extension of imported non-realtime object that contains only realtime fields
+
+	MODULE Test;
+	IMPORT Dummy;
+	TYPE NRTE = OBJECT (Dummy.NRTO1) VAR c: CHAR; END NRTE;
+	END Test.
+	
+
 # realtime procedures
 
 positive: procedure marked as realtime
@@ -37962,7 +38230,7 @@ positive: passive object body marked as realtime
 positive: calling realtime procedure in passive object body marked as realtime
 
 	MODULE Test;
-	TYPE Object = OBJECT
+	TYPE Object = OBJECT {REALTIME}
 	PROCEDURE {REALTIME} P; END P;
 	BEGIN {REALTIME} P;
 	END Object;
@@ -37988,10 +38256,19 @@ positive: active object body marked as realtime
 positive: calling realtime procedure in active object body marked as realtime
 
 	MODULE Test;
-	TYPE Object = OBJECT
+	TYPE Object = OBJECT {REALTIME}
 	PROCEDURE {REALTIME} P; END P;
 	BEGIN {ACTIVE, REALTIME} P;
 	END Object;
+	END Test.
+
+negative: declaring realtime procedure/method in non-realtime object
+
+	MODULE Test;
+	TYPE A = OBJECT
+	PROCEDURE {REALTIME} P;
+	END P;
+	END A;
 	END Test.
 
 negative: calling non-realtime procedure in active object body marked as realtime
@@ -38006,10 +38283,10 @@ negative: calling non-realtime procedure in active object body marked as realtim
 positive: overwriting realtime procedure with realtime procedure
 
 	MODULE Test;
-	TYPE Base = OBJECT
+	TYPE Base = OBJECT {REALTIME}
 	PROCEDURE {REALTIME} P; END P;
 	END Base;
-	TYPE Object = OBJECT (Base)
+	TYPE Object = OBJECT {REALTIME} (Base)
 	PROCEDURE {REALTIME} P; END P;
 	END Object;
 	END Test.
@@ -38017,10 +38294,10 @@ positive: overwriting realtime procedure with realtime procedure
 positive: overwriting non-realtime procedure with realtime procedure
 
 	MODULE Test;
-	TYPE Base = OBJECT
+	TYPE Base = OBJECT {REALTIME}
 	PROCEDURE P; END P;
 	END Base;
-	TYPE Object = OBJECT (Base)
+	TYPE Object = OBJECT {REALTIME} (Base)
 	PROCEDURE {REALTIME} P; END P;
 	END Object;
 	END Test.
@@ -38028,10 +38305,10 @@ positive: overwriting non-realtime procedure with realtime procedure
 negative: overwriting realtime procedure with non-realtime procedure
 
 	MODULE Test;
-	TYPE Base = OBJECT
+	TYPE Base = OBJECT {REALTIME}
 	PROCEDURE {REALTIME} P; END P;
 	END Base;
-	TYPE Object = OBJECT (Base)
+	TYPE Object = OBJECT {REALTIME} (Base)
 	PROCEDURE P; END P;
 	END Object;
 	END Test.
@@ -38067,7 +38344,147 @@ negative: using imported non-realtime procedure in realtime procedure
 	BEGIN Dummy.Q; Dummy.Pp(10)
 	END P;
 	END Test.
+	
+positive: use of basic type realtime variables and parameters in realtime procedure
 
+	MODULE Test;
+	PROCEDURE {REALTIME} P(VAR k: LONGINT);
+	VAR l: SET;
+	BEGIN l:= {}; k:= 5;
+	END P;
+	END Test.
+	
+positive: use of structured realtime variables in realtime procedure
+
+	MODULE Test;
+	TYPE A = OBJECT {REALTIME} VAR k, l: LONGINT END A;
+	PROCEDURE {REALTIME} P(VAR a: A);
+	BEGIN a.k := 0; a.l := 0;
+	END P;
+	END Test.
+	
+negative: use of non-realtime variables in realtime procedure
+
+	MODULE Test;
+	PROCEDURE {REALTIME} P(VAR a: POINTER TO ARRAY OF CHAR);
+	VAR i: LONGINT
+	BEGIN FOR i := 0 TO LEN(a) DO a[i] := '' END;
+	END P;
+	END Test.
+	
+positive: use of string constant (of implicit realtime type) in realtime procedure
+
+	MODULE Test;
+	PROCEDURE {REALTIME} P;
+	VAR a: ARRAY 10 OF CHAR;
+	BEGIN a := "AA";
+	END P;
+	END Test.
+	
+positive: module Dummy for realtime and non-realtime types and variables
+
+	MODULE Dummy;
+	TYPE RTRec* = RECORD i*: LONGINT; END;
+	NRTRec* = RECORD p*: ANY; END;
+	RTO* = OBJECT {REALTIME} VAR s: SET; END RTO;
+	NRTO* = OBJECT VAR p: ANY; END NRTO;
+	VAR rtrec*: RTRec; 
+	nrtrec*: NRTRec;
+	PROCEDURE {REALTIME} P*;
+	END P;
+	PROCEDURE Q*;
+	END Q;
+	END Dummy.
+
+positive: use of imported realtime type in realtime procedure
+
+	MODULE Test;
+	IMPORT Dummy;
+	PROCEDURE {REALTIME} P(VAR r: Dummy.RTO);
+	END P;
+	END Test.
+	
+negative: use of imported non-realtime type in realtime procedure
+
+	MODULE Test;
+	IMPORT Dummy;
+	PROCEDURE {REALTIME} P(VAR n: Dummy.NRTO);
+	END P;
+	END Test.
+	
+positive: use of imported realtime variable in realtime procedure
+
+	MODULE Test;
+	IMPORT Dummy;
+	PROCEDURE {REALTIME} P;
+	BEGIN Dummy.rtrec.i := 0;
+	END P;
+	END Test.
+	
+negative: use of imported non-realtime variable in realtime procedure
+
+	MODULE Test;
+	IMPORT Dummy;
+	PROCEDURE {REALTIME} P;
+	BEGIN Dummy.nrtrec.p := NIL;
+	END P;
+	END Test.
+	
+positive: use of imported realtime variable in non-realtime procedure
+
+	MODULE Test;
+	IMPORT Dummy;
+	PROCEDURE P;
+	BEGIN Dummy.rtrec.i := 0;
+	END P;
+	END Test.
+	
+positive: use of imported non-realtime variable in non-realtime procedure
+
+	MODULE Test;
+	IMPORT Dummy;
+	PROCEDURE P;
+	BEGIN Dummy.nrtrec.p := NIL;
+	END P;	
+	END Test.
+	
+positive: realtime procedure used as parameter in realtime procedure
+
+	MODULE Test;
+	TYPE RTPT = PROCEDURE {REALTIME};
+	VAR rtp: PROCEDURE {REALTIME};
+	PROCEDURE {REALTIME} P(rtp: RTPT);
+	END P;
+	BEGIN P(rtp);
+	END Test.
+
+negative: non-realtime procedure as parameter in realtime procedure
+
+	MODULE Test;
+	TYPE RTPT = PROCEDURE {REALTIME};
+	VAR rtp: PROCEDURE;
+	PROCEDURE {REALTIME} P(rtp: RTPT);
+	END P;
+	BEGIN P(rtp);
+	END Test.
+
+positive: realtime procedure used as var-parameter in realtime procedure
+
+	MODULE Test;
+	TYPE RTPT = PROCEDURE {REALTIME};
+	VAR rtp: PROCEDURE {REALTIME};
+	PROCEDURE {REALTIME} P(VAR rtp: RTPT);
+	END P;
+	BEGIN P(rtp);
+	END Test.
+
+negative: use of exclusive section in realtime module procedure
+
+	MODULE Test;
+	PROCEDURE {REALTIME} P;
+	BEGIN {EXCLUSIVE}
+	END P;
+	END Test.
 
 # handling of untraced flag
 

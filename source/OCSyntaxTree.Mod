@@ -361,13 +361,14 @@ TYPE
 			scope-: Scope; (* scope where the type has been declared *)
 			resolved-: Type; (* indirection to resolved type to preserve qualified types *)
 			position-,endposition-: LONGINT;
-			state-: SET;
+			flags-, state-: SET;
 			fingerprint-: Fingerprint;
 
 
-		PROCEDURE & InitType*( position: LONGINT);
+		PROCEDURE & InitType*( position: LONGINT; flags: SET);
 		BEGIN
-			SELF.position := position; state := Undefined;
+			SELF.position := position; state := Undefined; 
+			SELF.flags := flags;
 			typeDeclaration := NIL;
 			scope := NIL;
 			resolved := SELF;
@@ -387,6 +388,10 @@ TYPE
 		BEGIN	INCL(SELF.state,state);
 		END SetState;
 
+		PROCEDURE AddFlags*(flags: SET);
+		BEGIN SELF.flags := SELF.flags + flags;
+		END AddFlags;
+
 		PROCEDURE SetTypeDeclaration*(typeDeclaration: TypeDeclaration);
 		BEGIN SELF.typeDeclaration := typeDeclaration
 		END SetTypeDeclaration;
@@ -400,15 +405,19 @@ TYPE
 		BEGIN position := SELF.position; v.VisitType(SELF)
 		END Accept;
 
+		PROCEDURE IsRealtime*(): BOOLEAN;
+		BEGIN RETURN (RealtimeFlag IN flags);
+		END IsRealtime;
+
 	END Type;
 
 	(* basic types, defined in global name space *)
 	BasicType*= OBJECT(Type)
 	VAR name-: Identifier;
 
-		PROCEDURE & InitBasicType( position: LONGINT; name: Identifier);
+		PROCEDURE & InitBasicType( position: LONGINT; name: Identifier; flags: SET);
 		BEGIN
-			InitType(position);
+			InitType(position, flags);
 			SELF.name := name;
 		END InitBasicType;
 
@@ -430,7 +439,7 @@ TYPE
 
 		PROCEDURE & InitCharacterType( position: LONGINT; name: Identifier);
 		BEGIN
-			InitBasicType(position,name);
+			InitBasicType(position,name,{RealtimeFlag});
 		END InitCharacterType;
 
 		PROCEDURE Accept*(v: Visitor);
@@ -445,7 +454,7 @@ TYPE
 
 		PROCEDURE & InitNumberType( position: LONGINT; name: Identifier);
 		BEGIN
-			InitBasicType(position,name);
+			InitBasicType(position,name,{RealtimeFlag});
 		END InitNumberType;
 
 	END NumberType;
@@ -494,7 +503,7 @@ TYPE
 		PROCEDURE & InitQualifiedType( position: LONGINT; scope: Scope;  qualifiedIdentifier: QualifiedIdentifier);
 		BEGIN
 			ASSERT(qualifiedIdentifier # NIL);
-			InitType( position(*, name*));
+			InitType( position, {});
 			SELF.scope := scope;
 			SELF.qualifiedIdentifier := qualifiedIdentifier;
 			resolved := NIL;
@@ -518,7 +527,7 @@ TYPE
 
 		PROCEDURE & InitStringType(position: LONGINT;  length: LONGINT);
 		BEGIN
-			InitType(position);
+			InitType(position, {RealtimeFlag});
 			SELF.length := length;
 		END InitStringType;
 
@@ -542,7 +551,7 @@ TYPE
 
 		PROCEDURE &InitEnumerationType(position: LONGINT; scope: Scope; enumerationScope: EnumerationScope);
 		BEGIN
-			InitType(position);
+			InitType(position, {RealtimeFlag});
 			SELF.scope := scope;
 			enumerationBase := NIL;
 			rangeLowest := 0; rangeHighest := 0;
@@ -572,7 +581,7 @@ TYPE
 
 		PROCEDURE & InitRangeType(position: LONGINT; scope: Scope; commonType: Type);
 		BEGIN
-			InitType(position);
+			InitType(position, {RealtimeFlag});
 			SetScope(scope);
 			SELF.commonType := commonType;
 		END InitRangeType;
@@ -594,7 +603,7 @@ TYPE
 
 		PROCEDURE & InitArrayType(position: LONGINT; scope: Scope;  form: LONGINT);
 		BEGIN
-			length := NIL; arrayBase := NIL; InitType(position); staticLength := 0; SELF.form := form; SELF.scope := scope;
+			length := NIL; arrayBase := NIL; InitType(position, {}); staticLength := 0; SELF.form := form; SELF.scope := scope;
 		END InitArrayType;
 
 		PROCEDURE SetArrayBase*( type: Type );
@@ -636,7 +645,7 @@ TYPE
 
 		PROCEDURE & InitMathArrayType(position: LONGINT;scope: Scope; form: LONGINT);
 		BEGIN
-			length := NIL; arrayBase := NIL; InitType(position); staticLength := 0; staticIncrementInBits := 0; SELF.form := form; SELF.scope := scope;
+			length := NIL; arrayBase := NIL; InitType(position, {}); staticLength := 0; staticIncrementInBits := 0; SELF.form := form; SELF.scope := scope;
 		END InitMathArrayType;
 
 		PROCEDURE SetArrayBase*( type: Type );
@@ -669,14 +678,20 @@ TYPE
 	(** <<POINTER TO pointerBase>> **)
 	PointerType* = OBJECT (Type)
 		VAR
+			flagList-: Modifier; (* set by the parser *)
 			pointerBase-: Type;
 
 		PROCEDURE & InitPointerType(position: LONGINT; scope: Scope);
 		BEGIN
+			flagList := NIL;
 			pointerBase := NIL;
-			InitType(position);
+			InitType(position, {});
 			SELF.scope := scope;
 		END InitPointerType;
+
+		PROCEDURE SetFlagList*(flags: Modifier);
+		BEGIN flagList := flags
+		END SetFlagList;
 
 		PROCEDURE SetPointerBase*( type: Type );
 		BEGIN
@@ -705,7 +720,7 @@ TYPE
 
 		PROCEDURE & InitRecordType( position: LONGINT; scope: Scope; recordScope: RecordScope);
 		BEGIN
-			InitType( position(*, name*));
+			InitType( position, {});
 			SELF.scope := scope;
 			baseType := NIL;
 			pointerType := NIL;
@@ -786,24 +801,19 @@ TYPE
 	ProcedureType* = OBJECT (Type)
 		VAR
 			flagList-: Modifier; (* set by the parser *)
-			flags-: SET; (* calling convention, realtime, inline, delegate *)
 			returnType-: Type;
 			returnParameter-: Parameter;
 			firstParameter-,lastParameter-: Parameter; numberParameters-, numberHiddenParameters-: LONGINT;  (* parameters *)
 
 		PROCEDURE & InitProcedureType( position: LONGINT; scope: Scope);
 		BEGIN
-			InitType( position);
+			InitType( position, {} );
 			SELF.scope := scope;
 			flagList := NIL;
 			firstParameter := NIL; lastParameter := NIL; numberParameters := 0; numberHiddenParameters := 0;
 			returnType := NIL; returnParameter := NIL;
 			flags := {};
 		END InitProcedureType;
-
-		PROCEDURE AddFlags*(flags: SET);
-		BEGIN SELF.flags := SELF.flags + flags
-		END AddFlags;
 
 		PROCEDURE HasFlag*(flag: LONGINT): BOOLEAN;
 		BEGIN RETURN flag IN flags
@@ -3154,16 +3164,16 @@ VAR
 		INC( operatorCount );  NEW( operator, position, name, scope);  RETURN operator
 	END NewOperator;
 
-	PROCEDURE NewType*(): Type;  (* for error handling: invalid Type *)
+	PROCEDURE NewType*(): Type;  (* for error handling: invalid Type, is realtime type *)
 	VAR type: Type;
 	BEGIN
-		INC( typeCount );  NEW( type, -1);  RETURN type
+		INC( typeCount );  NEW( type, -1, {RealtimeFlag});  RETURN type
 	END NewType;
 
-	PROCEDURE NewBasicType*(position: LONGINT; name: Identifier): BasicType;
+	PROCEDURE NewBasicType*(position: LONGINT; name: Identifier; flags: SET): BasicType;
 	VAR basicType: BasicType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, position,name); RETURN basicType;
+		INC(basicTypeCount); NEW(basicType, position, name, flags); RETURN basicType;
 	END NewBasicType;
 
 	PROCEDURE NewCharacterType*(position: LONGINT;name: Identifier): CharacterType;
@@ -3175,13 +3185,13 @@ VAR
 	PROCEDURE NewIntegerType*(position: LONGINT; name: Identifier): IntegerType;
 	VAR basicType: IntegerType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, position,name); RETURN basicType;
+		INC(basicTypeCount); NEW(basicType, position, name); RETURN basicType;
 	END NewIntegerType;
 
 	PROCEDURE NewFloatType*(position: LONGINT; name: Identifier): FloatType;
 	VAR basicType: FloatType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, position,name); RETURN basicType;
+		INC(basicTypeCount); NEW(basicType, position, name); RETURN basicType;
 	END NewFloatType;
 
 	PROCEDURE NewTypeDeclaration*(position: LONGINT; name: Identifier): TypeDeclaration;

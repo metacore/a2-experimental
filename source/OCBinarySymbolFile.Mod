@@ -157,7 +157,7 @@ TYPE
 
 		PROCEDURE & InitTypeReference(nr: LONGINT);
 		BEGIN
-			InitType(-1); SELF.nr := nr;
+			InitType(-1, {}); SELF.nr := nr;
 		END InitTypeReference;
 
 	END TypeReference;
@@ -882,11 +882,15 @@ TYPE
 
 				UserType = [sfInvisible] [sfSysFlag sysFlag:RawNum] UserType2
 				UserType2=
-					sfTypeOpenArray baseType:Type name:RawString
-					| sfTypeStaticArray  baseType:Type name:RawString length:RawNum
-					| sfTypePointer baseType:Type name:RawString
-					| sfTypeRecord baseType:Type name:RawString Record
-					| sfTypeProcedure baseType:Type name:RawString flags:RawNum ParameterList
+					sfTypeOpenArray baseType:Type name:RawString flags:RawNum 
+					|sfTypeStaticArray baseType:Type name:RawString flags:RawNum length:RawNum
+					|sfOpenMathArray baseType:Type name:RawString
+					|sfStaticMathArray baseType:Type name:RawString length:RawNum
+					|sfTypeTensor baseType:Type name:RawString
+					|sfTypePointer baseType:Type name:RawString flags:RawNum 
+					|sfTypeRecord baseType:Type name:RawString flags:RawNum Record
+					|sfTypeProcedure baseType:Type name:RawString flags:RawNum ParameterList
+					|sfTypeEnumeration enumerationBase:Type name:RawString
 			*)
 			PROCEDURE Type(): SyntaxTree.Type;
 				VAR
@@ -1013,6 +1017,8 @@ TYPE
 							arrayType := SyntaxTree.NewArrayType(-1,moduleScope,SyntaxTree.Open);
 							type := arrayType;
 							arrayType.SetArrayBase(baseType);
+							R.RawNum(SYSTEM.VAL(LONGINT,flags));
+							IF sfRealtime IN flags THEN type.AddFlags(type.flags+{SyntaxTree.RealtimeFlag}) END;
 					| sfTypeStaticArray:
 							IF TraceImport IN Trace THEN
 								D.Str("Type / User / Array ");
@@ -1021,8 +1027,10 @@ TYPE
 							ASSERT(baseType # NIL);
 							arrayType :=SyntaxTree.NewArrayType(-1,moduleScope,SyntaxTree.Static);
 							type := arrayType;
-							R.RawNum(len);
 							arrayType.SetArrayBase(baseType);
+							R.RawNum(SYSTEM.VAL(LONGINT,flags));
+							IF sfRealtime IN flags THEN type.AddFlags(type.flags+{SyntaxTree.RealtimeFlag}) END;
+							R.RawNum(len);
 							size := SyntaxTree.NewIntegerValue(-1,len);
 							size.SetType(Global.Longint);
 							(*
@@ -1068,6 +1076,8 @@ TYPE
 							pointerType := SyntaxTree.NewPointerType(-1,moduleScope);
 							type := pointerType;
 							pointerType.SetPointerBase(baseType);
+							R.RawNum(SYSTEM.VAL(LONGINT,flags));
+							IF sfRealtime IN flags THEN type.AddFlags(type.flags+{SyntaxTree.RealtimeFlag}) END;
 					| sfTypeRecord:
 							IF TraceImport IN Trace THEN
 								D.Str("Type / User / Record "); D.Str(name); D.Ln
@@ -1075,6 +1085,8 @@ TYPE
 							recordScope := SyntaxTree.NewRecordScope(moduleScope);
 							recordType := SyntaxTree.NewRecordType(-1,moduleScope,recordScope);
 							type := recordType;
+							R.RawNum(SYSTEM.VAL(LONGINT,flags));
+							IF sfRealtime IN flags THEN type.AddFlags(type.flags+{SyntaxTree.RealtimeFlag}) END;
 							Record(recordType,baseType);
 					| sfTypeProcedure:
 							IF TraceImport IN Trace THEN
@@ -1521,11 +1533,15 @@ TYPE
 
 				UserType = [sfInvisible] [sfSysFlag sysFlag:RawNum] UserType2
 				UserType2=
-					sfTypeOpenArray baseType:Type name:RawString
-					|sfTypeStaticArray  baseType:Type name:RawString length:RawNum
-					|sfTypePointer baseType:Type name:RawString
-					|sfTypeRecord baseType:Type name:RawString Record
+					sfTypeOpenArray baseType:Type name:RawString flags:RawNum 
+					|sfTypeStaticArray baseType:Type name:RawString flags:RawNum length:RawNum
+					|sfOpenMathArray baseType:Type name:RawString
+					|sfStaticMathArray baseType:Type name:RawString length:RawNum
+					|sfTypeTensor baseType:Type name:RawString
+					|sfTypePointer baseType:Type name:RawString flags:RawNum 
+					|sfTypeRecord baseType:Type name:RawString flags:RawNum Record
 					|sfTypeProcedure baseType:Type name:RawString flags:RawNum ParameterList
+					|sfTypeEnumeration enumerationBase:Type name:RawString
 			*)
 			PROCEDURE Type(type: SyntaxTree.Type);
 			VAR typeIndex,moduleIndex: LONGINT; name:Scanner.StringType; importedModule: SyntaxTree.Module; attribute: Attribute;
@@ -1670,6 +1686,7 @@ TYPE
 							END;
 						END;
 
+						flags := {};
 						IF  type IS SyntaxTree.RecordType THEN
 							IF TraceExport IN Trace THEN D.Str("Type / UserType / RecordType "); D.Str(name); D.Ln END;
 							WITH type: SyntaxTree.RecordType DO
@@ -1677,6 +1694,8 @@ TYPE
 								baseType := type.baseType;
 								Type(baseType);
 								w.RawString(name);
+								IF SyntaxTree.RealtimeFlag IN type.flags THEN INCL(flags,sfRealtime) END;
+								w.RawNum(SYSTEM.VAL(LONGINT,flags));
 								Record(type)
 							END
 						ELSIF type IS SyntaxTree.PointerType THEN
@@ -1684,6 +1703,8 @@ TYPE
 							w.RawNum(sfTypePointer);
 							Type(type(SyntaxTree.PointerType).pointerBase);
 							w.RawString(name);
+							IF SyntaxTree.RealtimeFlag IN type.flags THEN INCL(flags,sfRealtime) END;
+							w.RawNum(SYSTEM.VAL(LONGINT,flags));
 						ELSIF type IS SyntaxTree.ArrayType THEN
 							IF TraceExport IN Trace THEN D.Str("Type / UserType / ArrayType"); D.Str(name); D.Ln END;
 							WITH type: SyntaxTree.ArrayType DO
@@ -1695,6 +1716,8 @@ TYPE
 								END;
 								Type(type.arrayBase);
 								w.RawString(name);
+								IF SyntaxTree.RealtimeFlag IN type.flags THEN INCL(flags,sfRealtime) END;
+								w.RawNum(SYSTEM.VAL(LONGINT,flags));
 								IF type.form = SyntaxTree.Static THEN
 									w.RawNum(type.staticLength);
 								END;
@@ -1726,8 +1749,7 @@ TYPE
 								Type(type.returnType);
 								w.RawString(name);
 
-								flags := {};
-								IF SyntaxTree.WinAPIFlag IN type.flags THEN
+								IF SyntaxTree.WinAPIFlag IN type.flags THEN 
 									INCL(flags,sfWinAPIParam);
 								ELSIF SyntaxTree.CFlag IN type.flags  THEN
 									INCL(flags,sfCParam);

@@ -980,8 +980,10 @@ TYPE
 						w.RawLInt(2);
 						ExportType(type(SyntaxTree.RecordType).baseType);
 						fingerPrint := fingerprinter.TypeFP(type);
+						(*
 						ASSERT(fingerPrint.privateFP # 0); (* may not be zero by object file format: would be interpreted as end of section *)
 						ASSERT(fingerPrint.publicFP # 0); (* ^ ^ *)
+						*)
 						IF Trace THEN D.Str("export type fp "); D.Int(fingerPrint.privateFP,1); D.Str(","); D.Int(fingerPrint.publicFP,1); D.Ln END;
 						w.RawNum(fingerPrint.privateFP); w.RawNum(fingerPrint.publicFP);
 						variable := type(SyntaxTree.RecordType).recordScope.firstVariable;

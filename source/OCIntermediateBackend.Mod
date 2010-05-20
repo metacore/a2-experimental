@@ -3459,6 +3459,8 @@ TYPE
 			END;
 			Emit(Push(reg));
 			ReleaseIntermediateOperand(reg);
+			(* push realtime flag: false by default *)
+			Emit(Push(false));
 			IF newObjectFile THEN CallThis("Heaps","NewRec") ELSE
 			SysCall(SysNewRec);
 			END;
@@ -3823,6 +3825,11 @@ TYPE
 					Emit(Push(reg));
 					ReleaseIntermediateOperand(reg);
 
+					(* push realtime flag *)
+					IF (SyntaxTree.RealtimeFlag IN type.flags) THEN Emit(Push(true));
+					ELSE Emit(Push(false));
+					END;
+
 					IF newObjectFile THEN
 						CallThis("Heaps","NewRec");
 					ELSE
@@ -3948,6 +3955,10 @@ TYPE
 						ReleaseIntermediateOperand(reg);
 						tmp := IntermediateCode.Immediate(addressType,dim);
 						Emit(Push(tmp)); (* dimensions *)
+						(* push realtime flag *)
+						IF (SyntaxTree.RealtimeFlag IN type.flags) THEN Emit(Push(true));
+						ELSE Emit(Push(false));
+						END;
 						IF newObjectFile THEN CallThis("Heaps","NewArr") ELSE
 						SysCall(SysNewArr);
 						END;
@@ -3968,6 +3979,10 @@ TYPE
 
 						Emit(Push(reg)); (* size *)
 						ReleaseIntermediateOperand(reg);
+						(* push realtime flag *)
+						IF (SyntaxTree.RealtimeFlag IN type.flags) THEN Emit(Push(true));
+						ELSE Emit(Push(false));
+						END;
 						IF newObjectFile THEN CallThis("Heaps","NewSys") ELSE
 						SysCall(SysNewSys);
 						END;
@@ -4071,6 +4086,8 @@ TYPE
 						ReleaseIntermediateOperand(reg);
 						tmp := IntermediateCode.Immediate(addressType,0);
 						Emit(Push(tmp)); (* dimensions = 0, we control dimensions in the geometry descriptor *)
+						(* push realtime flag: false by default *)
+						Emit(Push(false));
 						IF newObjectFile THEN CallThis("Heaps","NewArr") ELSE SysCall(SysNewArr) END;
 						IntermediateCode.InitRegister(adr,addressType,AcquireRegister(addressType));
 						Emit(Pop(adr));
@@ -4099,6 +4116,8 @@ TYPE
 
 						Emit(Push(reg)); (* size *)
 						ReleaseIntermediateOperand(reg);
+						(* push realtime flag: false by default *)
+						Emit(Push(false));
 						IF newObjectFile THEN CallThis("Heaps","NewSys");
 						ELSE SysCall(SysNewSys)
 						END;
@@ -4221,6 +4240,8 @@ TYPE
 				Evaluate(p1,s1);
 				Emit(Push(s1.op));
 				ReleaseOperand(s1);
+				(* push realtime flag: false by default *)
+				Emit(Push(false));
 				IF newObjectFile THEN CallThis("Heaps","NewSys") ELSE
 				SysCall(SysNewSys);
 				END;

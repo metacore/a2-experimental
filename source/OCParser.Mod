@@ -52,9 +52,9 @@ CONST
 		RecordType           = 'record' ['(' QualifiedIdentifier ')']
 		                       [VariableDeclaration {';' VariableDeclaration}] 'end'.
 
-		PointerType          = 'pointer' 'to' Type.
+		PointerType          = 'pointer' [Flags] 'to' Type.
 
-		ObjectType           = 'object' ['(' QualifiedIdentifier ')'] DeclarationSequence [Body]
+		ObjectType           = 'object' [Flags] ['(' QualifiedIdentifier ')'] DeclarationSequence [Body]
 		                       'end' [Identifier]
 		                     | 'object'.
 
@@ -1004,6 +1004,7 @@ TYPE
 			identifier: SyntaxTree.Identifier;
 			str: Scanner.StringType;
 			type: SyntaxTree.Type;
+			flagList: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "" ) END;
 			(* symbol object already consumed *)
@@ -1023,6 +1024,11 @@ TYPE
 			objectType.SetPointerType(pointerType);
 
 			pointerType.SetPointerBase(objectType);
+
+			IF Optional(Scanner.LeftBrace) THEN
+				flagList := Flags();
+				pointerType.SetFlagList(flagList);
+			END;
 
 			IF Optional( Scanner.LeftParenthesis ) THEN
 				qualifiedIdentifier := QualifiedIdentifier();
@@ -1057,12 +1063,16 @@ TYPE
 
 		(** PointerType = 'pointer' 'to' Type. **)
 		PROCEDURE PointerType( position: LONGINT; parentScope: SyntaxTree.Scope ): SyntaxTree.PointerType;
-		VAR pointerType: SyntaxTree.PointerType;  base: SyntaxTree.Type;
+		VAR pointerType: SyntaxTree.PointerType;  base: SyntaxTree.Type; 	flagList: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "PointerType" ) END;
 			(* pointer symbol already consumed *)
-			Check( Scanner.To );
 			pointerType := SyntaxTree.NewPointerType( position ,parentScope);
+			IF Optional(Scanner.LeftBrace) THEN
+				flagList := Flags();
+				pointerType.SetFlagList(flagList)
+			END;
+			Check( Scanner.To );
 			base := Type(NIL, parentScope);
 			pointerType.SetPointerBase( base );
 			IF base IS SyntaxTree.RecordType THEN
@@ -1285,8 +1295,8 @@ TYPE
 					modifier := SyntaxTree.NewModifier(identifier,expression);
 					AppendModifier(list,modifier);
 				UNTIL ~Optional( Scanner.Comma );
-				Check(Scanner.RightBrace);
 			END;
+			Check(Scanner.RightBrace);
 			IF Trace THEN E( "Flags" ) END;
 			RETURN list;
 		END Flags;

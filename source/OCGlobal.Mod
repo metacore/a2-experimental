@@ -419,29 +419,29 @@ TYPE
 		DeclareType(Same,"SAME",system.systemScope);
 
 		(* system builtin procedures *)
-		NewBuiltin(systemGet,"GET",system.systemScope);
-		NewBuiltin(systemPut,"PUT",system.systemScope);
-		NewBuiltin(systemMove,"MOVE",system.systemScope);
-		NewBuiltin(systemNew,"NEW",system.systemScope);
-		NewBuiltin(systemReshape,"RESHAPE",system.systemScope);
-		NewBuiltin(systemZeroCopy,"ZEROCOPY",system.systemScope);
-		NewBuiltin(systemHalt,"HALT",system.systemScope);
-		NewBuiltin(systemPut64,"PUT64",system.systemScope);
-		NewBuiltin(systemPut32,"PUT32",system.systemScope);
-		NewBuiltin(systemPut16,"PUT16",system.systemScope);
-		NewBuiltin(systemPut8,"PUT8",system.systemScope);
-		NewBuiltin(systemAdr,"ADR",system.systemScope);
-		NewBuiltin(systemBit,"BIT",system.systemScope);
-		NewBuiltin(systemGet64,"GET64",system.systemScope);
-		NewBuiltin(systemGet32,"GET32",system.systemScope);
-		NewBuiltin(systemGet16,"GET16",system.systemScope);
-		NewBuiltin(systemGet8,"GET8",system.systemScope);
-		NewBuiltin(systemLsh,"LSH",system.systemScope);
-		NewBuiltin(systemRot,"ROT",system.systemScope);
-		NewBuiltin(systemVal,"VAL",system.systemScope);
-		NewBuiltin(systemIncr,"INCR",system.systemScope);
-		NewBuiltin(systemTypeCode,"TYPECODE",system.systemScope);
-		NewBuiltin(systemSizeOf,"SIZEOF",system.systemScope);
+		NewBuiltin(systemGet,"GET",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemPut,"PUT",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemMove,"MOVE",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemNew,"NEW",system.systemScope,{});
+		NewBuiltin(systemReshape,"RESHAPE",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemZeroCopy,"ZEROCOPY",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemHalt,"HALT",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemPut64,"PUT64",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemPut32,"PUT32",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemPut16,"PUT16",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemPut8,"PUT8",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemAdr,"ADR",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemBit,"BIT",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemGet64,"GET64",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemGet32,"GET32",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemGet16,"GET16",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemGet8,"GET8",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemLsh,"LSH",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemRot,"ROT",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemVal,"VAL",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemIncr,"INCR",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemTypeCode,"TYPECODE",system.systemScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemSizeOf,"SIZEOF",system.systemScope,{SyntaxTree.RealtimeFlag});
 
 		(* Set up system types *)
 		DeclareType(Char,"CHAR",system.globalScope);
@@ -460,33 +460,33 @@ TYPE
 		DeclareType(Object,"OBJECT",system.globalScope);
 
 		(* global functions *)
-		NewBuiltin(Abs,"ABS",system.globalScope);
-		NewBuiltin(Ash,"ASH",system.globalScope);
-		NewBuiltin(Cap,"CAP",system.globalScope);
-		NewBuiltin(Chr,"CHR",system.globalScope);
-		NewBuiltin(Entier,"ENTIER",system.globalScope);
-		NewBuiltin(EntierH,"ENTIERH",system.globalScope);
-		NewBuiltin(Len,"LEN",system.globalScope);
-		NewBuiltin(Long,"LONG",system.globalScope);
-		NewBuiltin(Max,"MAX",system.globalScope);
-		NewBuiltin(Min,"MIN",system.globalScope);
-		NewBuiltin(Odd,"ODD",system.globalScope);
-		NewBuiltin(Ord,"ORD",system.globalScope);
-		NewBuiltin(Short,"SHORT",system.globalScope);
-		NewBuiltin(Sum,"SUM",system.globalScope);
-		NewBuiltin(Dim,"DIM",system.globalScope);
+		NewBuiltin(Abs,"ABS",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Ash,"ASH",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Cap,"CAP",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Chr,"CHR",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Entier,"ENTIER",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(EntierH,"ENTIERH",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Len,"LEN",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Long,"LONG",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Max,"MAX",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Min,"MIN",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Odd,"ODD",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Ord,"ORD",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Short,"SHORT",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Sum,"SUM",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Dim,"DIM",system.globalScope,{SyntaxTree.RealtimeFlag});
 
 		(* global proper procedures *)
-		NewBuiltin(Assert,"ASSERT",system.globalScope);
-		NewBuiltin(Copy,"COPY",system.globalScope);
-		NewBuiltin(Dec,"DEC",system.globalScope);
-		NewBuiltin(Excl,"EXCL",system.globalScope);
-		NewBuiltin(Halt,"HALT",system.globalScope);
-		NewBuiltin(Inc,"INC",system.globalScope);
-		NewBuiltin(Incl,"INCL",system.globalScope);
-		NewBuiltin(New,"NEW",system.globalScope);
-		NewBuiltin(GetProcedure,"GETPROCEDURE",system.globalScope);
-		NewBuiltin(systemTrace,"TRACE",system.globalScope);
+		NewBuiltin(Assert,"ASSERT",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Copy,"COPY",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Dec,"DEC",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Excl,"EXCL",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Halt,"HALT",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Inc,"INC",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(Incl,"INCL",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(New,"NEW",system.globalScope,{});
+		NewBuiltin(GetProcedure,"GETPROCEDURE",system.globalScope,{SyntaxTree.RealtimeFlag});
+		NewBuiltin(systemTrace,"TRACE",system.globalScope,{SyntaxTree.RealtimeFlag});
 	END SetDefaultDeclarations;
 
 	PROCEDURE OperatorDefined*(system: System; op: LONGINT; defined: BOOLEAN);
@@ -571,10 +571,10 @@ TYPE
 		DeclareType0(type,nameL,scope[Scanner.Lowercase]);
 	END DeclareType;
 
-	PROCEDURE NewBasicType(CONST name: Scanner.StringType): SyntaxTree.BasicType;
+	PROCEDURE NewBasicType(CONST name: Scanner.StringType; flags: SET): SyntaxTree.BasicType;
 	VAR basicType: SyntaxTree.BasicType;
 	BEGIN
-		basicType := SyntaxTree.NewBasicType(-1,SyntaxTree.NewIdentifier(-1,name));
+		basicType := SyntaxTree.NewBasicType(-1,SyntaxTree.NewIdentifier(-1,name),flags);
 		basicType.SetState(SyntaxTree.Resolved);
 		RETURN basicType;
 	END NewBasicType;
@@ -627,12 +627,13 @@ TYPE
 		NewConstant0(nameL,int,type,scope[Scanner.Lowercase]);
 	END NewConstant;
 
-	PROCEDURE NewBuiltin0( id: LONGINT; CONST name: Scanner.StringType; in:  SyntaxTree.ModuleScope);
+	PROCEDURE NewBuiltin0( id: LONGINT; CONST name: Scanner.StringType; in:  SyntaxTree.ModuleScope; flags: SET);
 	VAR basic: SyntaxTree.Builtin; duplicate: BOOLEAN; type: SyntaxTree.ProcedureType;
 	BEGIN
 		basic := SyntaxTree.NewBuiltin(-1,SyntaxTree.NewIdentifier(-1,name),id);
 		basic.SetAccess(SyntaxTree.ReadOnly);
 		type := SyntaxTree.NewProcedureType(-1,in);
+		type.AddFlags(flags);
 		type.SetReturnType(SyntaxTree.invalidType); (* make incompatible to any procedure *)
 		basic.SetType(type);
 		basic.SetState(SyntaxTree.Resolved);
@@ -641,13 +642,13 @@ TYPE
 		ASSERT(~duplicate);
 	END NewBuiltin0;
 
-	PROCEDURE NewBuiltin*(id: LONGINT; CONST name: Scanner.StringType; CONST scope: ARRAY OF SyntaxTree.ModuleScope);
+	PROCEDURE NewBuiltin*(id: LONGINT; CONST name: Scanner.StringType; CONST scope: ARRAY OF SyntaxTree.ModuleScope; flags: SET);
 	VAR nameL,nameU: Scanner.StringType;
 	BEGIN
 		Basic.Lowercase(name,nameL);
 		Basic.Uppercase(name,nameU);
-		NewBuiltin0(id,nameU,scope[Scanner.Uppercase]);
-		NewBuiltin0(id,nameL,scope[Scanner.Lowercase]);
+		NewBuiltin0(id,nameU,scope[Scanner.Uppercase],flags);
+		NewBuiltin0(id,nameL,scope[Scanner.Lowercase],flags);
 	END NewBuiltin;
 
 	PROCEDURE ModuleFileName*(moduleName,context: SyntaxTree.Identifier; VAR fileName: ARRAY OF CHAR);
@@ -948,21 +949,21 @@ TYPE
 		NumericType[4] := Real;
 		NumericType[5] := Longreal;
 
-		Boolean := NewBasicType("Boolean");
-		Set := NewBasicType("Set");
+		Boolean := NewBasicType("Boolean",{SyntaxTree.RealtimeFlag});
+		Set := NewBasicType("Set",{SyntaxTree.RealtimeFlag});
 
-		Any := NewBasicType("Any");
-		RangeType := NewBasicType("RangeType");
+		Any := NewBasicType("Any",{});
+		RangeType := NewBasicType("RangeType",{SyntaxTree.RealtimeFlag});		
 
-		Object := NewBasicType("ObjectType");
-		Nil := NewBasicType("NilType");
+		Object := NewBasicType("ObjectType",{});
+		Nil := NewBasicType("NilType",{SyntaxTree.RealtimeFlag});
 
 
-		Address := NewBasicType("systemAddress");
-		Size := NewBasicType("systemSize");
-		Byte := NewBasicType("systemByte");
-		All := NewBasicType("systemAll");
-		Same := NewBasicType("systemSame");
+		Address := NewBasicType("systemAddress",{SyntaxTree.RealtimeFlag});
+		Size := NewBasicType("systemSize",{SyntaxTree.RealtimeFlag});
+		Byte := NewBasicType("systemByte",{SyntaxTree.RealtimeFlag});
+		All := NewBasicType("systemAll",{});
+		Same := NewBasicType("systemSame",{});
 	END Init;
 
 BEGIN

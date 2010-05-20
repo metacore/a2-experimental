@@ -69,7 +69,7 @@ TYPE
 		diagnostics: Diagnostics.Diagnostics;
 		error-: BOOLEAN;
 		VerboseErrorMessage: BOOLEAN;
-		typeFixes: LateFixList;
+		typeFixes, pointerFixes: LateFixList;
 		importCache-: SyntaxTree.ModuleScope; (* contains global imports, did not take ImportList as it was much slower, for whatever reasons *)
 		arrayBaseImported: BOOLEAN;
 		phase: LONGINT;
@@ -97,6 +97,7 @@ TYPE
 			SELF.symbolFileFormat := symbolFileFormat;
 			error := FALSE;
 			NEW(typeFixes);
+			NEW(pointerFixes);
 			resolvedType := NIL;
 			resolvedExpression := NIL;
 			resolvedStatement := NIL;
@@ -406,6 +407,7 @@ TYPE
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 				x.SetArrayBase(ResolveType(x.arrayBase));
+				IF x.arrayBase.resolved.IsRealtime() THEN x.AddFlags({SyntaxTree.RealtimeFlag}) END;
 				arrayBase := x.arrayBase.resolved;
 				IF x.length # NIL THEN
 					x.SetLength(ConstantIntegerGeq0(x.length));
@@ -516,7 +518,7 @@ TYPE
 			- if error then set base type to invalid type
 		**)
 		PROCEDURE FixPointerType(type: SyntaxTree.PointerType);
-		VAR resolved: SyntaxTree.Type; position: LONGINT;
+		VAR resolved: SyntaxTree.Type; position: LONGINT; recordType: SyntaxTree.RecordType;
 		BEGIN
 			ASSERT(type.pointerBase # NIL);
 			position := type.pointerBase.position;
@@ -531,6 +533,19 @@ TYPE
 			resolved := ResolveType(type.pointerBase);
 			IF (resolved.resolved IS SyntaxTree.RecordType) OR (resolved.resolved IS SyntaxTree.ArrayType) THEN
 				type.SetPointerBase(resolved);
+				IF (resolved.resolved IS SyntaxTree.RecordType) THEN
+					recordType := resolved.resolved(SyntaxTree.RecordType);
+					IF recordType.isObject & (recordType.baseType # NIL) THEN
+						IF type.IsRealtime() & ~recordType.baseType.resolved.IsRealtime() THEN
+							Error(position,Diagnostics.Invalid,"base type of object must be a realtime object");
+						ELSIF ~type.IsRealtime() & recordType.baseType.resolved.IsRealtime() THEN
+							Error(position,Diagnostics.Invalid,"extensions of realtime objects must be explicitly declared as realtime objects");
+						END;
+					END;
+				END;
+				IF type.IsRealtime() & ~resolved.resolved.IsRealtime() THEN
+					Error(position,Diagnostics.Invalid,"realtime object contains references to non-realtime objects");
+				END
 			ELSE
 				Error(position,Diagnostics.Invalid,"forbidden pointer base type");
 				type.SetPointerBase(SyntaxTree.invalidType)
@@ -545,6 +560,7 @@ TYPE
 		VAR recordType: SyntaxTree.RecordType; recordBaseType: SyntaxTree.Type;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
+				x.AddFlags(Flags(x.flagList,{SyntaxTree.RealtimeFlag}));
 				(* inheritance cycle check
 					example:
 					A=POINTER TO RECORD(B) END;
@@ -698,7 +714,7 @@ TYPE
 		PROCEDURE VisitRecordType(x: SyntaxTree.RecordType);
 		VAR resolved, baseType: SyntaxTree.Type; position: LONGINT;
 			numberMethods: LONGINT; recordBase: SyntaxTree.RecordType; procedure: SyntaxTree.Procedure;
-			symbol: SyntaxTree.Symbol;
+			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 				IF x.baseType # NIL THEN
@@ -738,8 +754,12 @@ TYPE
 				ELSE numberMethods := recordBase.recordScope.numberMethods
 				END;
 
+				isRealtime := TRUE;
 				symbol := x.recordScope.firstSymbol; (* sorted symbols, important to go through procedures in a sorted way here !*)
 				WHILE symbol # NIL DO
+					IF symbol IS SyntaxTree.Variable THEN
+						isRealtime := isRealtime & symbol.type.resolved.IsRealtime();
+					END;
 					IF symbol IS SyntaxTree.Procedure THEN
 						procedure := symbol(SyntaxTree.Procedure);
 						IF procedure.super # NIL THEN
@@ -751,6 +771,7 @@ TYPE
 					END;
 					symbol := symbol.nextSymbol;
 				END;
+				IF isRealtime THEN x.AddFlags({SyntaxTree.RealtimeFlag}) END;
 				(*
 				procedure := x.recordScope.firstProcedure;
 				WHILE (procedure # NIL) DO
@@ -835,6 +856,26 @@ TYPE
 			currentScope :=prevScope;
 		END FixTypes;
 
+		(** resolve all pending pointer parameters and variables of realtime procedures (late resolving).
+			- pointer fixes are resolved at the end of the declaration phase, after fixing the types
+		**)
+		PROCEDURE FixPointers;
+		VAR p: ANY; prevScope: SyntaxTree.Scope; symbol: SyntaxTree.Symbol;
+		BEGIN
+			prevScope := currentScope;
+			p := pointerFixes.Get(currentScope);
+			WHILE p # NIL DO
+				ASSERT(currentScope # NIL);
+				ASSERT(p IS SyntaxTree.Symbol);
+				symbol := p(SyntaxTree.Symbol);
+				IF ~symbol.type.resolved.IsRealtime() THEN
+					Error(symbol.position,Diagnostics.Invalid,"symbol has no realtime type");
+				END;
+				p := pointerFixes.Get(currentScope);
+			END;	
+			currentScope := prevScope;				
+		END FixPointers;
+		
 		(**
 			resolve type x
 			- if x is nil then return nil
@@ -2692,6 +2733,8 @@ TYPE
 						actualParameter := actualParameters.GetExpression(i);
 						IF (actualParameter = SyntaxTree.invalidExpression) THEN
 						ELSIF ~ParameterCompatible(formalParameter,actualParameter) THEN
+						ELSIF (SyntaxTree.RealtimeFlag IN currentFlags) & ~actualParameter.type.resolved.IsRealtime() THEN
+							Error(position,Diagnostics.Invalid,"non-realtime actual parameter in context of realtime procedure");
 						ELSE
 							IF formalParameter.type.resolved # actualParameter.type.resolved THEN
 								actualParameter := NewConversion(actualParameter.position,actualParameter,formalParameter.type,NIL);
@@ -3492,7 +3535,7 @@ TYPE
 					(*! implement *)
 				(* ---- SYSTEM.LSH, SYSTEM.ROT ----- *)
 				ELSIF ((id = Global.systemLsh) OR (id = Global.systemRot)) & Parameters(2,2) THEN
-					type := type0;
+(*					type := type0;
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
 						ConvertOperands(parameter0,parameter1); (* same type *)
 						type := parameter0.type;
@@ -3517,12 +3560,11 @@ TYPE
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
 					END;
-					(*
+					*)
 				 	type := type0;
 					IF IsIntegerValue(parameter0,i0) & IsIntegerValue(parameter1,i1) THEN
 						result.SetResolved(SyntaxTree.NewIntegerValue(position,SYSTEM.LSH(i0,i1)));
 					END;
-					*)
 				(* ---- SYSTEM.VAL ----- *)
 				ELSIF (id = Global.systemVal) & Parameters(2,2) THEN
 					IF CheckTypeDeclarationType(parameter0) THEN
@@ -3916,6 +3958,11 @@ TYPE
 				expression.SetType(SyntaxTree.invalidType);
 				expression.Accept(SELF);
 				result := resolvedExpression;
+				IF SyntaxTree.RealtimeFlag IN currentFlags THEN
+					IF (result.type # NIL) & ~result.type.resolved.IsRealtime() THEN
+						Error(expression.position,Diagnostics.Invalid,"forbidden non-realtime expression in realtime procedure");
+					END;
+				END;
 				resolvedExpression := prev
 			ELSE
 				result := expression
@@ -5219,9 +5266,24 @@ TYPE
 			symbol := scope.firstSymbol;
 			WHILE(symbol # NIL) DO
 				IF ~(symbol IS SyntaxTree.Parameter) THEN
-					ResolveSymbol(symbol)
+					ResolveSymbol(symbol);
 				END;
 				symbol := symbol.nextSymbol;
+			END;
+			
+			IF (scope IS SyntaxTree.ProcedureScope) & scope(SyntaxTree.ProcedureScope).ownerProcedure.type.IsRealtime() THEN
+				symbol := scope.firstSymbol;
+				WHILE symbol # NIL DO
+					IF (symbol IS SyntaxTree.Variable) OR (symbol IS SyntaxTree.Parameter) THEN
+						IF (symbol.type IS SyntaxTree.PointerType) OR (symbol.type IS SyntaxTree.QualifiedType) THEN
+							pointerFixes.Add(symbol, currentScope);
+						END;
+						IF ~symbol.type.resolved.IsRealtime() THEN
+							Error(symbol.position,Diagnostics.Invalid,"symbol has no realtime type");
+						END;						
+					END;
+					symbol := symbol.nextSymbol
+				END;
 			END;
 
 			IF ~error & ~system.GenerateVariableOffsets(scope) THEN
@@ -5340,11 +5402,12 @@ TYPE
 					result := FALSE
 				END;
 			ELSIF to IS SyntaxTree.PointerType THEN
-				result := IsPointerType(this) & (IsTypeExtension(to,this) OR ((to(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType) & SameType(to,this,NIL))) OR (this = Global.Nil)
+				result := IsPointerType(this) & (IsTypeExtension(to,this) OR ((to(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType) & SameType(to,this,NIL))) 
+				     & (~to.IsRealtime() OR this.IsRealtime()) OR (this = Global.Nil)
 			ELSIF to IS SyntaxTree.ProcedureType THEN
 				result := (this = Global.Nil) OR (this IS SyntaxTree.ProcedureType) & SameType(to(SyntaxTree.ProcedureType),this(SyntaxTree.ProcedureType),NIL)
 					& (~(SyntaxTree.DelegateFlag IN this(SyntaxTree.ProcedureType).flags) OR (SyntaxTree.DelegateFlag IN to(SyntaxTree.ProcedureType).flags))
-					& (~(SyntaxTree.RealtimeFlag IN to(SyntaxTree.ProcedureType).flags) OR (SyntaxTree.RealtimeFlag IN this(SyntaxTree.ProcedureType).flags))
+					& (~to.IsRealtime() OR this.IsRealtime());
 			ELSIF (to IS SyntaxTree.RecordType) & to(SyntaxTree.RecordType).isObject THEN
 				result := (this = Global.Nil) OR IsTypeExtension(to,this);
 			ELSIF to IS SyntaxTree.RecordType THEN
