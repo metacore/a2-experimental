@@ -4384,7 +4384,7 @@ TYPE
 			END;
 			IF scope.outerScope IS SyntaxTree.ModuleScope THEN
 				IF newObjectFile THEN
-					moduleSection := ModuleSection(module);
+					moduleSection := MetaModuleSection(module);
 					moduleOffset := moduleSection.pc;
 					result.mode := ModeValue;
 					result.op := IntermediateCode.Address(addressType, moduleSection, moduleOffset);
@@ -5303,7 +5303,7 @@ TYPE
 					Symbol(moduleSelf,op);
 					IntermediateCode.MakeMemory(op.op,addressType);
 				ELSE
-					moduleSection := ModuleSection(module);
+					moduleSection := MetaModuleSection(module);
 					moduleOffset := moduleSection.pc;
 					op.op := IntermediateCode.Address(addressType, moduleSection, moduleOffset);
 				END;
@@ -5504,7 +5504,7 @@ TYPE
 			declarator.Module(x,module);
 
 			IF newObjectFile THEN
-				MakeModule(module);
+				MetaModule(module);
 			END;
 
 			IF implementationVisitor.error THEN Error("","") END;
@@ -5606,73 +5606,72 @@ TYPE
 		RETURN (op.mode = IntermediateCode.ModeRegister) & (op.register > 0) & (op.offset = 0);
 	END ReusableRegister;
 
-	PROCEDURE MakeHeapBlock(module: Sections.Module; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
+	PROCEDURE MetaHeapBlock(module: Sections.Module; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
 	BEGIN
 		INC(dataAdrOffset,5);
-		Info(section,"headerAdr");
-		Address(module,section,0);
-		Info(section,"typeDesc");
-		Address(module,section,0);
-		Info(section,"mark: LONGINT;");
-		Longint(module,section,-1);
-		Info(section,"dataAdr-: SYSTEM.ADDRESS");
-		Symbol(module,section,section,dataAdrOffset,0);
-		Info(section,"size-: SYSTEM.SIZE");
-		Address(module,section,0);
-	END MakeHeapBlock;
+		MetaInfo(section,"headerAdr");
+		MetaAddress(module,section,0);
+		MetaInfo(section,"typeDesc");
+		MetaAddress(module,section,0);
+		MetaInfo(section,"mark: LONGINT;");
+		MetaLongint(module,section,-1);
+		MetaInfo(section,"dataAdr-: SYSTEM.ADDRESS");
+		MetaSymbol(module,section,section,dataAdrOffset,0);
+		MetaInfo(section,"size-: SYSTEM.SIZE");
+		MetaAddress(module,section,0);
+	END MetaHeapBlock;
 
-	PROCEDURE MakeProtectedHeapBlock(module: Sections.Module; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
+	PROCEDURE MetaProtectedHeapBlock(module: Sections.Module; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
 	VAR i: LONGINT;
 	BEGIN
 		INC(dataAdrOffset,14);
-		MakeHeapBlock(module,section,dataAdrOffset);
-		Info(section,"count*: LONGINT");
-		Longint(module,section,0);
-		Info(section,"locked*: BOOLEAN");
-		Longint(module,section,0);
-		Info(section,"awaitingLock*: ProcessQueue");
-		Address(module,section,0);
-		Address(module,section,0);
-		Info(section,"awaitingCond*: ProcessQueue");
-		Address(module,section,0);
-		Address(module,section,0);
-		Info(section,"lockedBy*: ANY");
-		Address(module,section,0);
-		Info(section,"lock*: ANY");
-		Address(module,section,0);
-		Info(section,"waitingPriorities*: ARRAY NumPriorities OF LONGINT");
-		Longint(module,section,1);
+		MetaHeapBlock(module,section,dataAdrOffset);
+		MetaInfo(section,"count*: LONGINT");
+		MetaLongint(module,section,0);
+		MetaInfo(section,"locked*: BOOLEAN");
+		MetaLongint(module,section,0);
+		MetaInfo(section,"awaitingLock*: ProcessQueue");
+		MetaAddress(module,section,0);
+		MetaAddress(module,section,0);
+		MetaInfo(section,"awaitingCond*: ProcessQueue");
+		MetaAddress(module,section,0);
+		MetaAddress(module,section,0);
+		MetaInfo(section,"lockedBy*: ANY");
+		MetaAddress(module,section,0);
+		MetaInfo(section,"lock*: ANY");
+		MetaAddress(module,section,0);
+		MetaInfo(section,"waitingPriorities*: ARRAY NumPriorities OF LONGINT");
+		MetaLongint(module,section,1);
 		FOR i := 2 TO 6 DO
-		Longint(module,section,0);
+		MetaLongint(module,section,0);
 		END;
-	END MakeProtectedHeapBlock;
+	END MetaProtectedHeapBlock;
 
-	PROCEDURE Info(section: IntermediateCode.Section; CONST s: ARRAY OF CHAR);
+	PROCEDURE MetaInfo(section: IntermediateCode.Section; CONST s: ARRAY OF CHAR);
 	BEGIN
 		IF section.comments # NIL THEN section.comments.String(s); section.comments.Ln END;
-	END Info;
+	END MetaInfo;
 
-	PROCEDURE Address(module: Sections.Module; section: IntermediateCode.Section; value: LONGINT);
+	PROCEDURE MetaAddress(module: Sections.Module; section: IntermediateCode.Section; value: LONGINT);
 	VAR op: IntermediateCode.Operand;
 	BEGIN
 		IntermediateCode.InitImmediate(op,GetType(module.system, Global.Address),value);
 		section.Emit(Data(op));
-	END Address;
+	END MetaAddress;
 
-
-	PROCEDURE Set(module: Sections.Module; section: IntermediateCode.Section; value: SET);
+	PROCEDURE MetaSet(module: Sections.Module; section: IntermediateCode.Section; value: SET);
 	VAR op: IntermediateCode.Operand;
 	BEGIN
 		IntermediateCode.InitImmediate(op,GetType(module.system, Global.Longint),SYSTEM.VAL(LONGINT,value));
 		section.Emit(Data(op));
-	END Set;
+	END MetaSet;
 
-	PROCEDURE Longint(module: Sections.Module; section: IntermediateCode.Section; value: LONGINT);
+	PROCEDURE MetaLongint(module: Sections.Module; section: IntermediateCode.Section; value: LONGINT);
 	VAR op: IntermediateCode.Operand;
 	BEGIN
 		IntermediateCode.InitImmediate(op,GetType(module.system, Global.Longint),value);
 		section.Emit(Data(op));
-	END Longint;
+	END MetaLongint;
 
 	PROCEDURE PatchLongint(module: Sections.Module; section: IntermediateCode.Section; pc: LONGINT; value: LONGINT);
 	VAR op,noOperand: IntermediateCode.Operand;
@@ -5682,75 +5681,75 @@ TYPE
 		section.PatchOperands(pc,op,noOperand,noOperand);
 	END PatchLongint;
 
-	PROCEDURE Boolean(module: Sections.Module; section: IntermediateCode.Section; value: BOOLEAN);
+	PROCEDURE MetaBoolean(module: Sections.Module; section: IntermediateCode.Section; value: BOOLEAN);
 	VAR op: IntermediateCode.Operand; intValue: LONGINT;
 	BEGIN
 		IF value = FALSE THEN intValue := 0 ELSE intValue :=1 END;
 		IntermediateCode.InitImmediate(op,GetType(module.system, Global.Boolean),intValue);
 		section.Emit(Data(op));
-	END Boolean;
+	END MetaBoolean;
 
-	PROCEDURE Char(module: Sections.Module; section: IntermediateCode.Section; char: CHAR);
+	PROCEDURE MetaChar(module: Sections.Module; section: IntermediateCode.Section; char: CHAR);
 	VAR op: IntermediateCode.Operand;
 	BEGIN
 		IntermediateCode.InitImmediate(op,GetType(module.system, Global.Char),ORD(char));
 		section.Emit(Data(op));
-	END Char;
+	END MetaChar;
 
-	PROCEDURE String(module: Sections.Module; section: IntermediateCode.Section; CONST str: ARRAY OF CHAR);
+	PROCEDURE MetaString(module: Sections.Module; section: IntermediateCode.Section; CONST str: ARRAY OF CHAR);
 	VAR i: LONGINT;
 	BEGIN
 		i := 0;
 		WHILE(str[i] # 0X) DO
-			Char(module,section,str[i]);
+			MetaChar(module,section,str[i]);
 			INC(i);
 		END;
-		Char(module,section,0X);
-	END String;
+		MetaChar(module,section,0X);
+	END MetaString;
 
 
-	PROCEDURE Symbol(module: Sections.Module; section: IntermediateCode.Section; symbol: Sections.Section; virtualOffset, realOffset: LONGINT);
+	PROCEDURE MetaSymbol(module: Sections.Module; section: IntermediateCode.Section; symbol: Sections.Section; virtualOffset, realOffset: LONGINT);
 	VAR op: IntermediateCode.Operand;
 	BEGIN
 		IF symbol = NIL THEN
-			Address(module, section, realOffset);
+			MetaAddress(module, section, realOffset);
 			ASSERT(virtualOffset = 0);
 		ELSE
 			IntermediateCode.InitAddress(op, GetType(module.system, Global.Address), symbol, virtualOffset);
 			IntermediateCode.SetOffset(op,realOffset);
 			section.Emit(Data(op));
 		END;
-	END Symbol;
+	END MetaSymbol;
 
 	(* OutPointers delivers
 		{pointerOffset}
 	*)
-	PROCEDURE OutPointers(offset: LONGINT; symbol: Sections.Section; module: Sections.Module; section: IntermediateCode.Section; type: SyntaxTree.Type; VAR numberPointers: LONGINT);
+	PROCEDURE MetaPointers(offset: LONGINT; symbol: Sections.Section; module: Sections.Module; section: IntermediateCode.Section; type: SyntaxTree.Type; VAR numberPointers: LONGINT);
 	VAR variable: SyntaxTree.Variable; i,n,size: LONGINT; base: SyntaxTree.Type;
 	BEGIN
 		type := type.resolved;
 		IF type = Global.Any THEN
-			Symbol(module,section, symbol, 0, (offset ));
+			MetaSymbol(module,section, symbol, 0, (offset ));
 			INC(numberPointers);
 
 			IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 		ELSIF type IS SyntaxTree.PointerType THEN
-			Symbol(module,section, symbol, 0, (offset )); INC(numberPointers);
+			MetaSymbol(module,section, symbol, 0, (offset )); INC(numberPointers);
 			IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1);D.Ln;  END;
 		ELSIF (type IS SyntaxTree.ProcedureType) & (SyntaxTree.DelegateFlag IN type(SyntaxTree.ProcedureType).flags) THEN
-			Symbol(module,section, symbol, 0, (offset )+module.system.addressSize DIV 8 ); INC(numberPointers);
+			MetaSymbol(module,section, symbol, 0, (offset )+module.system.addressSize DIV 8 ); INC(numberPointers);
 			IF Trace THEN D.Str("ptr at offset="); D.Int(offset+module.system.addressSize DIV 8,1); END;
 		ELSIF (type IS SyntaxTree.RecordType) THEN
 			(* never treat a record like a pointer, even if the pointer field is set! *)
 			WITH type: SyntaxTree.RecordType DO
 				base := type.GetBaseRecord();
 				IF base  # NIL THEN
-					OutPointers(offset,symbol,module,section, base,numberPointers);
+					MetaPointers(offset,symbol,module,section, base,numberPointers);
 				END;
 				variable := type.recordScope.firstVariable;
 				WHILE(variable # NIL) DO
 					IF ~(SyntaxTree.UntracedFlag IN variable.flags) THEN
-						OutPointers(offset+variable.offsetInBits DIV 8, symbol,  module,section, variable.type,numberPointers);
+						MetaPointers(offset+variable.offsetInBits DIV 8, symbol,  module,section, variable.type,numberPointers);
 					END;
 					variable := variable.nextVariable;
 				END;
@@ -5769,11 +5768,11 @@ TYPE
 					IF SemanticChecker.ContainsPointer(base) THEN
 						ASSERT(n<1000000); (* not more than one million pointers on the stack ... *)
 						FOR i := 0 TO n-1 DO
-							OutPointers(offset+i*size, symbol, module,section, base,numberPointers);
+							MetaPointers(offset+i*size, symbol, module,section, base,numberPointers);
 						END;
 					END;
 				ELSE
-					Symbol(module, section, symbol, 0, (offset )); INC(numberPointers);
+					MetaSymbol(module, section, symbol, 0, (offset )); INC(numberPointers);
 					IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 				END;
 			END;
@@ -5791,19 +5790,19 @@ TYPE
 					IF SemanticChecker.ContainsPointer(base) THEN
 						ASSERT(n<1000000); (* not more than one million pointers on the stack ... *)
 						FOR i := 0 TO n-1 DO
-							OutPointers(offset+i*size, symbol,  module, section, base,numberPointers);
+							MetaPointers(offset+i*size, symbol,  module, section, base,numberPointers);
 						END;
 					END;
 				ELSE
-					Symbol(module,section, symbol, 0, (offset )); INC(numberPointers); (* GC relevant pointer is at offset 0 *)
+					MetaSymbol(module,section, symbol, 0, (offset )); INC(numberPointers); (* GC relevant pointer is at offset 0 *)
 					IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 				END
 			END;
 		(* ELSE no pointers in type *)
 		END;
-	END OutPointers;
+	END MetaPointers;
 
-	PROCEDURE MakeExportDesc(module: Sections.Module; source: IntermediateCode.Section;
+	PROCEDURE MetaExportDesc(module: Sections.Module; source: IntermediateCode.Section;
 		fingerprinter: Fingerprinter.Fingerprinter; symbol: Sections.Section): BOOLEAN;
 	VAR fingerprint: SyntaxTree.Fingerprint;
 	BEGIN
@@ -5811,79 +5810,77 @@ TYPE
 			& (symbol.type # Sections.InlineCodeSection)
 		THEN
 			fingerprint := fingerprinter.SymbolFP(symbol.symbol);
-			Longint(module,source,fingerprint.shallow);
-			Symbol(module,source,symbol,0,0);
-			Address(module,source,0);
-			Address(module,source,0);
+			MetaLongint(module,source,fingerprint.shallow);
+			MetaSymbol(module,source,symbol,0,0);
+			MetaAddress(module,source,0);
+			MetaAddress(module,source,0);
 			RETURN TRUE
 		END;
 		RETURN FALSE
-	END MakeExportDesc;
+	END MetaExportDesc;
 
-	PROCEDURE MakeArray(module: Sections.Module; source: IntermediateCode.Section; VAR sizePC: LONGINT);
+	PROCEDURE MetaArray(module: Sections.Module; source: IntermediateCode.Section; VAR sizePC: LONGINT);
 	BEGIN
-		Info(source,"ArrayHeader");
-		Address(module,source,0);
-		Address(module,source,0);
-		Address(module,source,0);
+		MetaInfo(source,"ArrayHeader");
+		MetaAddress(module,source,0);
+		MetaAddress(module,source,0);
+		MetaAddress(module,source,0);
 		sizePC := source.pc;
-		Address(module,source,0);
-		Info(source,"array data");
-	END MakeArray;
+		MetaAddress(module,source,0);
+		MetaInfo(source,"array data");
+	END MetaArray;
 
-
-	PROCEDURE MakeExportDescArray(module: Sections.Module; source: IntermediateCode.Section; VAR size: LONGINT);
+	PROCEDURE MetaExportDescArray(module: Sections.Module; source: IntermediateCode.Section; VAR size: LONGINT);
 	VAR sizePC: LONGINT; section: Sections.Section;		fingerprinter : Fingerprinter.Fingerprinter;
 	BEGIN
 		NEW(fingerprinter, module.system);
 		size := 0;
-		MakeArray(module,source,sizePC);
+		MetaArray(module,source,sizePC);
 
 		section := module.sections.first;
 		WHILE section # NIL DO
-			IF MakeExportDesc(module,source,fingerprinter,section) THEN INC(size) END;
+			IF MetaExportDesc(module,source,fingerprinter,section) THEN INC(size) END;
 			section := section.nextSection;
 		END;
 		PatchLongint(module,source,sizePC,size);
-	END MakeExportDescArray;
+	END MetaExportDescArray;
 
-	PROCEDURE MakeExceptionArray(module: Sections.Module; source: IntermediateCode.Section);
+	PROCEDURE MetaExceptionArray(module: Sections.Module; source: IntermediateCode.Section);
 	VAR p: Sections.Section; finallyPC, sizePC, size: LONGINT;
 	BEGIN
-		Info(source, "exception table offsets array descriptor");
+		MetaInfo(source, "exception table offsets array descriptor");
 		size := 0;
-		MakeArray(module,source,sizePC);
-		Info(source, "exception table content");
+		MetaArray(module,source,sizePC);
+		MetaInfo(source, "exception table content");
 		p := module.sections.first;
 		WHILE p # NIL DO
 			IF p.type = Sections.CodeSection THEN
 				finallyPC := p(IntermediateCode.Section).finally;
 				IF finallyPC>=0 THEN
-					Symbol(module, source, p, 0,0);
-					Symbol(module, source, p, finallyPC, 0);
-					Symbol(module, source,p, finallyPC,0);
+					MetaSymbol(module, source, p, 0,0);
+					MetaSymbol(module, source, p, finallyPC, 0);
+					MetaSymbol(module, source,p, finallyPC,0);
 					INC(size);
 				END;
 			END;
 			p := p.nextSection
 		END;
 		PatchLongint(module,source,sizePC,size);
-		END MakeExceptionArray;
+		END MetaExceptionArray;
 
-		PROCEDURE MakeName(module: Sections.Module; section: IntermediateCode.Section; CONST name: ARRAY OF CHAR);
+		PROCEDURE MetaName(module: Sections.Module; section: IntermediateCode.Section; CONST name: ARRAY OF CHAR);
 		VAR i: LONGINT; ch: CHAR;
 		BEGIN
 			REPEAT
 				ch := name[i]; INC(i);
-				Char(module, section, ch);
+				MetaChar(module, section, ch);
 			UNTIL ch = 0X;
 			WHILE i < 32 DO
-				Char(module, section, 0X); INC(i);
+				MetaChar(module, section, 0X); INC(i);
 			END;
-		END MakeName;
+		END MetaName;
 
-
-		PROCEDURE References(module: Sections.Module; section: IntermediateCode.Section);
+		PROCEDURE MetaReferences(module: Sections.Module; section: IntermediateCode.Section);
 		CONST
 			rfDirect = 1X; rfIndirect = 3X;
 			rfStaticArray= 12X; rfDynamicArray=14X; rfOpenArray=15X;
@@ -5918,9 +5915,9 @@ TYPE
 				ELSE ASSERT(arrayOf); char := rfPointer; (*RETURN (* ARRAY OF unknown (record): do not write anything *)*)
 				END;
 				IF arrayOf THEN
-					Char(module,section,CHR(ORD(char)+ORD(rfArrayFlag)));
+					MetaChar(module,section,CHR(ORD(char)+ORD(rfArrayFlag)));
 				ELSE
-					Char(module,section,char)
+					MetaChar(module,section,char)
 				END;
 				INC(size);
 			END BaseType;
@@ -5934,7 +5931,7 @@ TYPE
 				END;
 				IF destination = NIL THEN
 					(* imported unused record type *)
-					Char(module,section,0X); (* nil type *)
+					MetaChar(module,section,0X); (* nil type *)
 					INC(size);
 					type.typeDeclaration.name.GetString(name);
 					(*
@@ -5943,12 +5940,12 @@ TYPE
 					*)
 				ELSE
 					IF type.pointerType # NIL THEN
-						Char(module,section,rfRecordPointer)
+						MetaChar(module,section,rfRecordPointer)
 					ELSE
-						Char(module,section,rfRecord);
+						MetaChar(module,section,rfRecord);
 					END;
 					INC(size);
-					Longint(module,section,(destination.offset ));
+					MetaLongint(module,section,(destination.offset ));
 					INC(size,4);
 				END;
 			END RecordType;
@@ -5956,14 +5953,14 @@ TYPE
 			PROCEDURE ArrayType(type: SyntaxTree.ArrayType);
 			BEGIN
 				IF type.arrayBase.resolved IS SyntaxTree.ArrayType THEN
-					Char(module,section,CHR(ORD(rfPointer)+ORD(rfArrayFlag)));
+					MetaChar(module,section,CHR(ORD(rfPointer)+ORD(rfArrayFlag)));
 					INC(size);
 				ELSE BaseType(TRUE,type.arrayBase.resolved)
 				END;
 				IF type.form = SyntaxTree.Static THEN
-					Longint(module,section,type.staticLength)
+					MetaLongint(module,section,type.staticLength)
 				ELSE
-					Longint(module,section,0)
+					MetaLongint(module,section,0)
 				END;
 				INC(size,4);
 			END ArrayType;
@@ -5971,21 +5968,21 @@ TYPE
 			PROCEDURE MathArrayType(type: SyntaxTree.MathArrayType);
 			BEGIN
 				IF type.arrayBase.resolved IS SyntaxTree.MathArrayType THEN
-					Char(module,section,CHR(ORD(rfPointer)+ORD(rfArrayFlag)));
+					MetaChar(module,section,CHR(ORD(rfPointer)+ORD(rfArrayFlag)));
 					INC(size);
 				ELSE BaseType(TRUE,type.arrayBase.resolved)
 				END;
 				IF type.form = SyntaxTree.Static THEN
-					Longint(module,section,type.staticLength)
+					MetaLongint(module,section,type.staticLength)
 				ELSE
-					Longint(module,section,0)
+					MetaLongint(module,section,0)
 				END;
 				INC(size,4);
 			END MathArrayType;
 
 			PROCEDURE Type(type: SyntaxTree.Type);
 			BEGIN
-				IF type = NIL THEN Char(module,section,0X); INC(size); RETURN ELSE type := type.resolved END;
+				IF type = NIL THEN MetaChar(module,section,0X); INC(size); RETURN ELSE type := type.resolved END;
 
 				IF type IS SyntaxTree.BasicType THEN
 					BaseType(FALSE,type)
@@ -6012,50 +6009,50 @@ TYPE
 			PROCEDURE WriteVariable(variable: SyntaxTree.Variable; indirect: BOOLEAN);
 				VAR name: ARRAY 256 OF CHAR;
 			BEGIN
-				IF indirect THEN Char(module,section,rfIndirect) ELSE Char(module,section,rfDirect) END;
+				IF indirect THEN MetaChar(module,section,rfIndirect) ELSE MetaChar(module,section,rfDirect) END;
 				INC(size);
 				variable.name.GetString(name);
 				Type(variable.type);
-				Longint(module,section,(variable.offsetInBits DIV 8));
+				MetaLongint(module,section,(variable.offsetInBits DIV 8));
 				INC(size,4);
-				String(module,section,name);
+				MetaString(module,section,name);
 				INC(size,Strings.Length(name)+1);
 			END WriteVariable;
 
 			PROCEDURE WriteParameter(variable: SyntaxTree.Parameter; indirect: BOOLEAN);
 			VAR name: ARRAY 256 OF CHAR;
 			BEGIN
-				IF indirect THEN Char(module,section,rfIndirect) ELSE Char(module,section,rfDirect) END;
+				IF indirect THEN MetaChar(module,section,rfIndirect) ELSE MetaChar(module,section,rfDirect) END;
 				INC(size);
 				variable.name.GetString(name);
 				Type(variable.type);
-				Longint(module,section,(variable.offsetInBits DIV 8));
+				MetaLongint(module,section,(variable.offsetInBits DIV 8));
 				INC(size,4);
 				variable.name.GetString(name);
-				String(module,section,name);
+				MetaString(module,section,name);
 				INC(size,Strings.Length(name)+1);
 			END WriteParameter;
 
 			PROCEDURE ReturnType(type: SyntaxTree.Type);
 			BEGIN
-				IF type = NIL THEN Char(module,section,0X); INC(size); RETURN ELSE type := type.resolved END;
+				IF type = NIL THEN MetaChar(module,section,0X); INC(size); RETURN ELSE type := type.resolved END;
 
 				IF type IS SyntaxTree.ArrayType THEN
 					WITH type: SyntaxTree.ArrayType DO
-						IF type.form = SyntaxTree.Static THEN Char(module,section,rfStaticArray)
-						ELSE Char(module,section,rfOpenArray)
+						IF type.form = SyntaxTree.Static THEN MetaChar(module,section,rfStaticArray)
+						ELSE MetaChar(module,section,rfOpenArray)
 						END;
 						INC(size);
 					END
 				ELSIF type IS SyntaxTree.MathArrayType THEN
 					WITH type: SyntaxTree.MathArrayType DO
-						IF type.form = SyntaxTree.Static THEN Char(module,section,rfStaticArray)
-						ELSE Char(module,section,rfOpenArray)
+						IF type.form = SyntaxTree.Static THEN MetaChar(module,section,rfStaticArray)
+						ELSE MetaChar(module,section,rfOpenArray)
 						END;
 						INC(size);
 					END
 				ELSIF type IS SyntaxTree.RecordType THEN
-					Char(module,section,rfRecord);
+					MetaChar(module,section,rfRecord);
 					INC(size);
 				ELSE
 					BaseType(FALSE,type);
@@ -6080,18 +6077,18 @@ TYPE
 				procedure.name.GetString(name);
 				procedureType := procedure.type(SyntaxTree.ProcedureType);
 
-				Char(module,section,0F9X);
+				MetaChar(module,section,0F9X);
 				INC(size);
-				Symbol(module,section,s,0,0);
+				MetaSymbol(module,section,s,0,0);
 				INC(size,4);
-				Symbol(module,section,s,s(IntermediateCode.Section).pc,0);
+				MetaSymbol(module,section,s,s(IntermediateCode.Section).pc,0);
 				INC(size,4);
-				Longint(module,section,procedureType.numberParameters);
+				MetaLongint(module,section,procedureType.numberParameters);
 				INC(size,4);
 				ReturnType(procedureType.returnType);
-				Longint(module,section,0); (*! level *)
+				MetaLongint(module,section,0); (*! level *)
 				INC(size,4);
-				Longint(module,section,0);
+				MetaLongint(module,section,0);
 				INC(size,4);
 				IF procedure.scope IS SyntaxTree.RecordScope THEN (* add object name *)
 					record := procedure.scope(SyntaxTree.RecordScope).ownerRecord;
@@ -6103,13 +6100,13 @@ TYPE
 					END;
 					i := 0;
 					WHILE recordName[i] # 0X DO
-						Char(module,section,recordName[i]); INC(i);
+						MetaChar(module,section,recordName[i]); INC(i);
 						INC(size);
 					END;
-					Char(module,section,".");
+					MetaChar(module,section,".");
 					INC(size);
 				END;
-				String(module,section,name);
+				MetaString(module,section,name);
 				INC(size,Strings.Length(name)+1);
 				parameter := procedureType.firstParameter;
 				WHILE(parameter # NIL) DO
@@ -6126,13 +6123,13 @@ TYPE
 			PROCEDURE Scope(s: Sections.Section);
 			VAR variable: SyntaxTree.Variable;
 			BEGIN
-				Char(module,section,0F8X);
+				MetaChar(module,section,0F8X);
 				INC(size);
-				Symbol(module,section,s,0,0); (* start *)
+				MetaSymbol(module,section,s,0,0); (* start *)
 				INC(size,4);
-				Symbol(module,section,s,s(IntermediateCode.Section).pc,0); (* end *)
+				MetaSymbol(module,section,s,s(IntermediateCode.Section).pc,0); (* end *)
 				INC(size,4);
-				String(module,section,"$$");
+				MetaString(module,section,"$$");
 				INC(size,3);
 				variable := module.module.moduleScope.firstVariable;
 				WHILE(variable # NIL) DO
@@ -6143,10 +6140,10 @@ TYPE
 
 
 		BEGIN
-			MakeArray(module,section,sizePC);
+			MetaArray(module,section,sizePC);
 
 			size := 0;
-			Char(module,section,0FFX); (* sign for trap writer *)
+			MetaChar(module,section,0FFX); (* sign for trap writer *)
 			INC(size);
 
 			s := module.sections.first;
@@ -6168,8 +6165,7 @@ TYPE
 
 			PatchLongint(module,section,sizePC,size);
 
-		END References;
-
+		END MetaReferences;
 
 	(*
 	Command* = RECORD
@@ -6179,7 +6175,7 @@ TYPE
 		entryAdr* : SYSTEM.ADDRESS; (* entry address of procedure *)
 	END;
 	*)
-	PROCEDURE MakeCommandArray(module: Sections.Module; source: IntermediateCode.Section);
+	PROCEDURE MetaCommandArray(module: Sections.Module; source: IntermediateCode.Section);
 	VAR p: Sections.Section;  sizePC, numberCommands: LONGINT;
 		procedure : SyntaxTree.Procedure; procedureType: SyntaxTree.ProcedureType;
 		name: ARRAY 32 OF CHAR; numberParameters: LONGINT;
@@ -6208,9 +6204,9 @@ TYPE
 				name: SyntaxTree.String;
 			BEGIN
 				IF type = NIL THEN
-					Address(module,source,0);
+					MetaAddress(module,source,0);
 				ELSIF (type.resolved = Global.Any) OR (type.resolved = Global.Object) THEN
-					Address(module,source,1);
+					MetaAddress(module,source,1);
 				ELSE
 					type := type.resolved;
 					IF type IS SyntaxTree.PointerType THEN
@@ -6224,66 +6220,62 @@ TYPE
 						Global.GetSymbolName(typeDeclaration,name);
 						section := IntermediateCode.NewSection(module.importedSymbols,Sections.ConstSection,name,typeDeclaration, source.comments # NIL);
 					END;
-					Symbol(module,source,section, 0, ToMemoryUnits(module.system,(1 + type(SyntaxTree.RecordType).recordScope.numberMethods+16+1)*module.system.addressSize));
+					MetaSymbol(module,source,section, 0, ToMemoryUnits(module.system,(1 + type(SyntaxTree.RecordType).recordScope.numberMethods+16+1)*module.system.addressSize));
 				END;
 			END WriteType;
 
 	BEGIN
-		Info(source, "command array descriptor");
-		MakeArray(module,source,sizePC);
+		MetaInfo(source, "command array descriptor");
+		MetaArray(module,source,sizePC);
 		numberCommands := 0;
-		Info(source, "command array content");
-
-
-			p := module.sections.first;
-			WHILE(p # NIL) DO
-				IF (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure)  THEN
-					procedure := p.symbol(SyntaxTree.Procedure);
-					procedureType := procedure.type(SyntaxTree.ProcedureType);
-					IF (SyntaxTree.PublicRead IN procedure.access) & ~(SyntaxTree.InlineFlag IN procedureType.flags) & ~(SyntaxTree.DelegateFlag IN procedureType.flags) & GetProcedureAllowed() THEN
-						procedure.name.GetString(name);
-						MakeName(module,source,name);
-
-						numberParameters := procedureType.numberParameters-procedureType.numberHiddenParameters;
-						(* offset of type of first parameter *)
-						IF (numberParameters = 0 ) THEN WriteType(NIL)
-						ELSE WriteType(procedureType.firstParameter.type)
-						END;
-						(* offset of type of return parameter *)
-						WriteType(procedureType.returnType);
-						(* command name *)
-						(* command code offset *)
-						Symbol(module,source,p,0,0);
-						INC(numberCommands);
-						IF Trace THEN
-							D.Ln;
-						END;
+		MetaInfo(source, "command array content");
+		p := module.sections.first;
+		WHILE(p # NIL) DO
+			IF (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure)  THEN
+				procedure := p.symbol(SyntaxTree.Procedure);
+				procedureType := procedure.type(SyntaxTree.ProcedureType);
+				IF (SyntaxTree.PublicRead IN procedure.access) & ~(SyntaxTree.InlineFlag IN procedureType.flags) & ~(SyntaxTree.DelegateFlag IN procedureType.flags) & GetProcedureAllowed() THEN
+					procedure.name.GetString(name);
+					MetaName(module,source,name);
+					numberParameters := procedureType.numberParameters-procedureType.numberHiddenParameters;
+					(* offset of type of first parameter *)
+					IF (numberParameters = 0 ) THEN WriteType(NIL)
+					ELSE WriteType(procedureType.firstParameter.type)
+					END;
+					(* offset of type of return parameter *)
+					WriteType(procedureType.returnType);
+					(* command name *)
+					(* command code offset *)
+					MetaSymbol(module,source,p,0,0);
+					INC(numberCommands);
+					IF Trace THEN
+						D.Ln;
 					END;
 				END;
-				p := p.nextSection;
 			END;
-
+			p := p.nextSection;
+		END;
 		PatchLongint(module,source,sizePC,numberCommands);
-		END MakeCommandArray;
+	END MetaCommandArray;
 
-		PROCEDURE MakeTypeInfoSection*(module: Sections.Module; source: IntermediateCode.Section);
-		VAR p: Sections.Section; sizePC, size: LONGINT;
-		BEGIN
-			Info(source, "command array descriptor");
-			size := 0;
-			MakeArray(module,source,sizePC);
-			p := module.sections.first;
-			WHILE p # NIL DO
-				WITH p: IntermediateCode.Section DO
-					IF Strings.EndsWith("@Info",p.name) THEN
-						Symbol(module,source,p,0,0);
-						INC(size);
-					END;
+	PROCEDURE MetaTypeInfoSection(module: Sections.Module; source: IntermediateCode.Section);
+	VAR p: Sections.Section; sizePC, size: LONGINT;
+	BEGIN
+		MetaInfo(source, "command array descriptor");
+		size := 0;
+		MetaArray(module,source,sizePC);
+		p := module.sections.first;
+		WHILE p # NIL DO
+			WITH p: IntermediateCode.Section DO
+				IF Strings.EndsWith("@Info",p.name) THEN
+					MetaSymbol(module,source,p,0,0);
+					INC(size);
 				END;
-				p := p.nextSection;
 			END;
-			PatchLongint(module,source,sizePC,size);
-		END MakeTypeInfoSection;
+			p := p.nextSection;
+		END;
+		PatchLongint(module,source,sizePC,size);
+	END MetaTypeInfoSection;
 
 	(*
 		ProcTableEntry* = RECORD
@@ -6296,72 +6288,70 @@ TYPE
 		PtrTable* = POINTER TO ARRAY OF SYSTEM.ADDRESS;
 	*)
 
-		PROCEDURE MakePointersInProcTables(module: Sections.Module; procArray, pointerArray: IntermediateCode.Section; VAR procArraySize, maxPointers: LONGINT);
-		VAR destination: Sections.Section;
-			pointerArraySizePC, procArraySizePC, pointerArraySize: LONGINT;
+	PROCEDURE MetaPointersInProcTables(module: Sections.Module; procArray, pointerArray: IntermediateCode.Section; VAR procArraySize, maxPointers: LONGINT);
+	VAR destination: Sections.Section;
+		pointerArraySizePC, procArraySizePC, pointerArraySize: LONGINT;
 
-			PROCEDURE PointerOffsets(destination : IntermediateCode.Section);
-			VAR numberPointers: LONGINT; procedure: SyntaxTree.Procedure; procedureType: SyntaxTree.ProcedureType;
-				variable: SyntaxTree.Variable; parameter: SyntaxTree.Parameter;
-			BEGIN
-				Info(procArray,"pcFrom");
-				Symbol(module,procArray,destination,0,0);
-				Info(procArray,"pcTo");
-				Symbol(module,procArray,destination,destination.pc,0);
-				Info(procArray,"pcStatementBegin");
-				Symbol(module,procArray,destination,destination.validPAFEnter,0);
-				Info(procArray,"pcStatementEnd");
-				Symbol(module,procArray,destination,destination.validPAFExit,0);
-
-				Info(pointerArray,destination.name);
-				procedure := destination.symbol(SyntaxTree.Procedure);
-				procedureType := procedure.type(SyntaxTree.ProcedureType);
-				variable := procedure.procedureScope.firstVariable;
-				WHILE(variable # NIL) DO
-					OutPointers(variable.offsetInBits DIV 8, NIL, module, pointerArray, variable.type, numberPointers);
-					variable := variable.nextVariable
-				END;
-				parameter := procedureType.firstParameter;
-				WHILE(parameter # NIL) DO
-					OutPointers(parameter.offsetInBits DIV 8, NIL, module, pointerArray, parameter.type, numberPointers);
-					parameter := parameter.nextParameter;
-				END;
-				Info(procArray,"numberPointers");
-				Longint(module,procArray,numberPointers);
-				IF numberPointers > maxPointers THEN maxPointers := numberPointers END;
-				INC(pointerArraySize, numberPointers);
-			END PointerOffsets;
-
+		PROCEDURE PointerOffsets(destination : IntermediateCode.Section);
+		VAR numberPointers: LONGINT; procedure: SyntaxTree.Procedure; procedureType: SyntaxTree.ProcedureType;
+			variable: SyntaxTree.Variable; parameter: SyntaxTree.Parameter;
 		BEGIN
-			maxPointers := 0;
-			Info(procArray, "proc array descriptor");
-			Address(module,procArray,0);
-			Address(module,procArray,0);
-			Address(module,procArray,0);
-			procArraySizePC := procArray.pc;
-			Address(module,procArray,0);
-			procArraySize := 0;
-
-			Info(pointerArray, "pointer array descriptor");
-			Address(module,pointerArray,0);
-			Address(module,pointerArray,0);
-			Address(module,pointerArray,0);
-			pointerArraySizePC := pointerArray.pc;
-			Address(module,pointerArray,0);
-			pointerArraySize := 0;
-
-			destination := module.sections.first; procArraySize := 0;
-			WHILE(destination # NIL) DO
-				IF (destination.type IN {Sections.CodeSection, Sections.BodyCodeSection}) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).HasFlag(SyntaxTree.InlineFlag) THEN
-					PointerOffsets(destination(IntermediateCode.Section));
-					INC(procArraySize);
-				END;
-				destination := destination.nextSection;
+			MetaInfo(procArray,"pcFrom");
+			MetaSymbol(module,procArray,destination,0,0);
+			MetaInfo(procArray,"pcTo");
+			MetaSymbol(module,procArray,destination,destination.pc,0);
+			MetaInfo(procArray,"pcStatementBegin");
+			MetaSymbol(module,procArray,destination,destination.validPAFEnter,0);
+			MetaInfo(procArray,"pcStatementEnd");
+			MetaSymbol(module,procArray,destination,destination.validPAFExit,0);
+			MetaInfo(pointerArray,destination.name);
+			procedure := destination.symbol(SyntaxTree.Procedure);
+			procedureType := procedure.type(SyntaxTree.ProcedureType);
+			variable := procedure.procedureScope.firstVariable;
+			WHILE(variable # NIL) DO
+				MetaPointers(variable.offsetInBits DIV 8, NIL, module, pointerArray, variable.type, numberPointers);
+				variable := variable.nextVariable
 			END;
+			parameter := procedureType.firstParameter;
+			WHILE(parameter # NIL) DO
+				MetaPointers(parameter.offsetInBits DIV 8, NIL, module, pointerArray, parameter.type, numberPointers);
+				parameter := parameter.nextParameter;
+			END;
+			MetaInfo(procArray,"numberPointers");
+			MetaLongint(module,procArray,numberPointers);
+			IF numberPointers > maxPointers THEN maxPointers := numberPointers END;
+			INC(pointerArraySize, numberPointers);
+		END PointerOffsets;
 
-			PatchLongint(module,procArray,procArraySizePC,procArraySize);
-			PatchLongint(module,pointerArray,pointerArraySizePC,pointerArraySize);
-		END MakePointersInProcTables;
+	BEGIN
+		maxPointers := 0;
+		MetaInfo(procArray, "proc array descriptor");
+		MetaAddress(module,procArray,0);
+		MetaAddress(module,procArray,0);
+		MetaAddress(module,procArray,0);
+		procArraySizePC := procArray.pc;
+		MetaAddress(module,procArray,0);
+		procArraySize := 0;
+		MetaInfo(pointerArray, "pointer array descriptor");
+		MetaAddress(module,pointerArray,0);
+		MetaAddress(module,pointerArray,0);
+		MetaAddress(module,pointerArray,0);
+		pointerArraySizePC := pointerArray.pc;
+		MetaAddress(module,pointerArray,0);
+		pointerArraySize := 0;
+
+		destination := module.sections.first; procArraySize := 0;
+		WHILE(destination # NIL) DO
+			IF (destination.type IN {Sections.CodeSection, Sections.BodyCodeSection}) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).HasFlag(SyntaxTree.InlineFlag) THEN
+				PointerOffsets(destination(IntermediateCode.Section));
+				INC(procArraySize);
+			END;
+			destination := destination.nextSection;
+		END;
+
+		PatchLongint(module,procArray,procArraySizePC,procArraySize);
+		PatchLongint(module,pointerArray,pointerArraySizePC,pointerArraySize);
+	END MetaPointersInProcTables;
 
 
 	(*
@@ -6389,24 +6379,24 @@ TYPE
 			maxPtrs*: LONGINT;
 	*)
 
-	PROCEDURE ModuleSection(module: Sections.Module): IntermediateCode.Section;
+	PROCEDURE MetaModuleSection(module: Sections.Module): IntermediateCode.Section;
 	VAR name: ARRAY 128 OF CHAR; moduleSection: IntermediateCode.Section;
 	BEGIN
 		module.module.name.GetString(name);
 		Strings.Append(name,".@Module");
 		moduleSection := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
 		IF moduleSection.pc = 0 THEN
-			MakeProtectedHeapBlock(module,moduleSection,2);
-			Info(moduleSection, "HeapBlock");
-			Symbol(module,moduleSection,moduleSection,2,0);
-			Info(moduleSection, "TypeDescriptor");
-			Address(module,moduleSection,0);
+			MetaProtectedHeapBlock(module,moduleSection,2);
+			MetaInfo(moduleSection, "HeapBlock");
+			MetaSymbol(module,moduleSection,moduleSection,2,0);
+			MetaInfo(moduleSection, "TypeDescriptor");
+			MetaAddress(module,moduleSection,0);
 		END;
 		RETURN moduleSection;
-	END ModuleSection;
+	END MetaModuleSection;
 
 
-	PROCEDURE MakeModule(module: Sections.Module);
+	PROCEDURE MetaModule(module: Sections.Module);
 	VAR moduleName: ARRAY 128 OF CHAR;
 	moduleSection, pointerSection, emptyArraySection, exportDescArray, exceptionSection, commandsSection,
 		typeInfoSection, procTableSection, ptrTableSection, referenceSection : IntermediateCode.Section;
@@ -6420,14 +6410,14 @@ TYPE
 			COPY(moduleName,name);
 			Strings.Append(name,suffix);
 			section := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
-			MakeHeapBlock(module,section,2);
-			Info(section, "HeapBlock");
+			MetaHeapBlock(module,section,2);
+			MetaInfo(section, "HeapBlock");
 			(*
 			Symbol(module,section,section,2,0);
 			*)
-			Address(module,section,0); (* empty such that GC does not go on traversing *)
-			Info(section, "TypeDescriptor");
-			Address(module,section,0);
+			MetaAddress(module,section,0); (* empty such that GC does not go on traversing *)
+			MetaInfo(section, "TypeDescriptor");
+			MetaAddress(module,section,0);
 			offset := section.pc;
 			RETURN section
 		END HeapBlock;
@@ -6435,108 +6425,97 @@ TYPE
 
 	BEGIN
 		module.module.name.GetString(moduleName);
-
 		exportDescArray := HeapBlock(".@ExportDescArray",exportDescArrayOffset);
-		MakeExportDescArray(module,exportDescArray, exportDescSize);
-
+		MetaExportDescArray(module,exportDescArray, exportDescSize);
 		pointerSection := HeapBlock(".@PointerArray",pointerSectionOffset);
-		MakePointerArray(module,pointerSection,module.module.moduleScope, numberPointers);
-
+		MetaPointerArray(module,pointerSection,module.module.moduleScope, numberPointers);
 		commandsSection := HeapBlock(".@CommandArray",commandsSectionOffset);
-		MakeCommandArray(module,commandsSection);
-
+		MetaCommandArray(module,commandsSection);
 		exceptionSection := HeapBlock(".@ExceptionArray",exceptionSectionOffset);
-		MakeExceptionArray(module,exceptionSection);
-
+		MetaExceptionArray(module,exceptionSection);
 		typeInfoSection := HeapBlock(".@TypeInfoArray",typeInfoSectionOffset);
-		MakeTypeInfoSection(module,typeInfoSection);
-
+		MetaTypeInfoSection(module,typeInfoSection);
 		referenceSection := HeapBlock(".@References",referenceSectionOffset);
-		References(module,referenceSection);
-
+		MetaReferences(module,referenceSection);
 		procTableSection := HeapBlock(".@ProcTable",procTableSectionOffset);
 		ptrTableSection := HeapBlock(".@PtrTable",ptrTableSectionOffset);
-		MakePointersInProcTables(module,procTableSection,ptrTableSection,numberProcs,maxPointers);
-
-
+		MetaPointersInProcTables(module,procTableSection,ptrTableSection,numberProcs,maxPointers);
 		emptyArraySection := HeapBlock(".@EmptyArray",emptyArraySectionOffset);
-		MakeArray(module,emptyArraySection,temp);
-
+		MetaArray(module,emptyArraySection,temp);
 		(*
 		referenceSection := emptyArraySection; referenceSectionOffset := emptyArraySectionOffset;
 		*)
+		moduleSection := MetaModuleSection(module);
+		MetaInfo(moduleSection, "nextRoot*: RootObject");
+		MetaAddress(module,moduleSection,0);
+		MetaInfo(moduleSection, "next*: Module");
+		MetaAddress(module,moduleSection,0);
+		MetaInfo(moduleSection, "name*: Name");
+		MetaName(module,moduleSection,moduleName);
+		MetaInfo(moduleSection, "init, published: BOOLEAN");
+		MetaBoolean(module,moduleSection,FALSE);
+		MetaBoolean(module,moduleSection,FALSE);
+		MetaInfo(moduleSection,"filler"); (*! introduce alignment! *)
+		MetaBoolean(module,moduleSection,FALSE);
+		MetaBoolean(module,moduleSection,FALSE);
+		MetaInfo(moduleSection, "refcnt*: LONGINT");
+		MetaLongint(module,moduleSection,0);
+		MetaInfo(moduleSection, "sb*: SYSTEM.ADDRESS");
+		MetaAddress(module,moduleSection,0);
+		MetaInfo(moduleSection, "entry*: POINTER TO ARRAY OF SYSTEM.ADDRESS");
+		MetaSymbol(module,moduleSection,emptyArraySection,emptyArraySectionOffset,0);
+		MetaInfo(moduleSection, "command*: POINTER TO ARRAY OF Command");
+		MetaSymbol(module,moduleSection,commandsSection,commandsSectionOffset,0);
+		MetaInfo(moduleSection, "ptrAdr*: POINTER TO ARRAY OF SYSTEM.ADDRESS");
+		MetaSymbol(module,moduleSection,pointerSection,pointerSectionOffset,0);
+		MetaInfo(moduleSection, "typeInfo*: POINTER TO ARRAY OF TypeDesc");
+		MetaSymbol(module,moduleSection,typeInfoSection,typeInfoSectionOffset,0);
+		MetaInfo(moduleSection, "module*: POINTER TO ARRAY OF Module");
+		MetaSymbol(module,moduleSection,emptyArraySection,emptyArraySectionOffset,0);
+		MetaInfo(moduleSection, "procTable*: ProcTable");
+		MetaSymbol(module,moduleSection,procTableSection,procTableSectionOffset,0);
+		MetaInfo(moduleSection, "ptrTable*: PtrTable");
+		MetaSymbol(module,moduleSection,ptrTableSection,ptrTableSectionOffset,0);
+		MetaInfo(moduleSection, "data*, code*, staticTypeDescs*, refs*: Bytes");
+		MetaSymbol(module,moduleSection,emptyArraySection,emptyArraySectionOffset,0);
+		MetaSymbol(module,moduleSection,emptyArraySection,emptyArraySectionOffset,0);
+		MetaSymbol(module,moduleSection,emptyArraySection,emptyArraySectionOffset,0);
+		MetaSymbol(module,moduleSection,referenceSection,referenceSectionOffset,0);
+		MetaInfo(moduleSection, "export*: ExportDesc");
+		MetaAddress(module,moduleSection,0);
+		MetaAddress(module,moduleSection,0);
+		MetaLongint(module,moduleSection,exportDescSize);
+		MetaSymbol(module,moduleSection,exportDescArray, exportDescArrayOffset,0);
+		MetaInfo(moduleSection, "term*: TerminationHandler");
+		MetaAddress(module,moduleSection,0);
+		MetaInfo(moduleSection, "exTable*: ExceptionTable");
+		MetaSymbol(module,moduleSection,exceptionSection,exceptionSectionOffset,0);
+		MetaInfo(moduleSection, "noProcs*: LONGINT");
+		MetaLongint(module,moduleSection,numberProcs);
+		MetaInfo(moduleSection, "firstProc*: SYSTEM.ADDRESS");
+		MetaAddress(module,moduleSection,0);
+		MetaInfo(moduleSection, "maxPtrs*: LONGINT");
+		MetaLongint(module,moduleSection,maxPointers);
+	END MetaModule;
 
-		moduleSection := ModuleSection(module);
-		Info(moduleSection, "nextRoot*: RootObject");
-		Address(module,moduleSection,0);
-		Info(moduleSection, "next*: Module");
-		Address(module,moduleSection,0);
-		Info(moduleSection, "name*: Name");
-		MakeName(module,moduleSection,moduleName);
-		Info(moduleSection, "init, published: BOOLEAN");
-		Boolean(module,moduleSection,FALSE);
-		Boolean(module,moduleSection,FALSE);
-		Info(moduleSection,"filler"); (*! introduce alignment! *)
-		Boolean(module,moduleSection,FALSE);
-		Boolean(module,moduleSection,FALSE);
-		Info(moduleSection, "refcnt*: LONGINT");
-		Longint(module,moduleSection,0);
-		Info(moduleSection, "sb*: SYSTEM.ADDRESS");
-		Address(module,moduleSection,0);
-		Info(moduleSection, "entry*: POINTER TO ARRAY OF SYSTEM.ADDRESS");
-		Symbol(module,moduleSection,emptyArraySection,emptyArraySectionOffset,0);
-		Info(moduleSection, "command*: POINTER TO ARRAY OF Command");
-		Symbol(module,moduleSection,commandsSection,commandsSectionOffset,0);
-		Info(moduleSection, "ptrAdr*: POINTER TO ARRAY OF SYSTEM.ADDRESS");
-		Symbol(module,moduleSection,pointerSection,pointerSectionOffset,0);
-		Info(moduleSection, "typeInfo*: POINTER TO ARRAY OF TypeDesc");
-		Symbol(module,moduleSection,typeInfoSection,typeInfoSectionOffset,0);
-		Info(moduleSection, "module*: POINTER TO ARRAY OF Module");
-		Symbol(module,moduleSection,emptyArraySection,emptyArraySectionOffset,0);
-		Info(moduleSection, "procTable*: ProcTable");
-		Symbol(module,moduleSection,procTableSection,procTableSectionOffset,0);
-		Info(moduleSection, "ptrTable*: PtrTable");
-		Symbol(module,moduleSection,ptrTableSection,ptrTableSectionOffset,0);
-		Info(moduleSection, "data*, code*, staticTypeDescs*, refs*: Bytes");
-		Symbol(module,moduleSection,emptyArraySection,emptyArraySectionOffset,0);
-		Symbol(module,moduleSection,emptyArraySection,emptyArraySectionOffset,0);
-		Symbol(module,moduleSection,emptyArraySection,emptyArraySectionOffset,0);
-		Symbol(module,moduleSection,referenceSection,referenceSectionOffset,0);
-		Info(moduleSection, "export*: ExportDesc");
-		Address(module,moduleSection,0);
-		Address(module,moduleSection,0);
-		Longint(module,moduleSection,exportDescSize);
-		Symbol(module,moduleSection,exportDescArray, exportDescArrayOffset,0);
-		Info(moduleSection, "term*: TerminationHandler");
-		Address(module,moduleSection,0);
-		Info(moduleSection, "exTable*: ExceptionTable");
-		Symbol(module,moduleSection,exceptionSection,exceptionSectionOffset,0);
-		Info(moduleSection, "noProcs*: LONGINT");
-		Longint(module,moduleSection,numberProcs);
-		Info(moduleSection, "firstProc*: SYSTEM.ADDRESS");
-		Address(module,moduleSection,0);
-		Info(moduleSection, "maxPtrs*: LONGINT");
-		Longint(module,moduleSection,maxPointers);
-	END MakeModule;
-
-	PROCEDURE MakePointerArray(module: Sections.Module; source: IntermediateCode.Section; scope: SyntaxTree.Scope; VAR numberPointers: LONGINT);
+	PROCEDURE MetaPointerArray(module: Sections.Module; source: IntermediateCode.Section; scope: SyntaxTree.Scope; VAR numberPointers: LONGINT);
 	VAR variable: SyntaxTree.Variable; pc: LONGINT; symbol: Sections.Section;
 	BEGIN
-		MakeArray(module,source,pc);
+		MetaArray(module,source,pc);
 
-		Info(source, "pointer offsets array data");
+		MetaInfo(source, "pointer offsets array data");
 		IF scope IS SyntaxTree.RecordScope THEN
-			OutPointers(0,symbol, module,source,scope(SyntaxTree.RecordScope).ownerRecord,numberPointers);
+			MetaPointers(0,symbol, module,source,scope(SyntaxTree.RecordScope).ownerRecord,numberPointers);
 		ELSIF scope IS SyntaxTree.ModuleScope THEN
 			variable := scope(SyntaxTree.ModuleScope).firstVariable;
 			WHILE variable # NIL DO
 				symbol := module.sections.FindBySymbol(variable);
-				OutPointers(0,symbol, module,source,variable.type,numberPointers);
+				MetaPointers(0,symbol, module,source,variable.type,numberPointers);
 				variable := variable.nextVariable;
 			END;
 		END;
 		PatchLongint(module,source,pc,numberPointers);
-	END MakePointerArray;
+	END MetaPointerArray;
 
 
 	PROCEDURE CheckTypeDeclaration(module: Sections.Module; x: SyntaxTree.Type; dump,newObjectFile: BOOLEAN);
@@ -6544,180 +6523,145 @@ TYPE
 		tir: IntermediateCode.Section; op: IntermediateCode.Operand; name: SyntaxTree.String; td: SyntaxTree.TypeDeclaration;
 		section: Sections.Section;
 
-			PROCEDURE NewTypeDescriptorInfo(tag: Sections.Section; offset: LONGINT; isProtected: BOOLEAN): Sections.Section;
-			VAR name: SyntaxTree.String;source: IntermediateCode.Section;
-				moduleSection: IntermediateCode.Section; i: LONGINT; flags: SET;
-			CONST MPO=-40000000H;
-			BEGIN
-					(*
-						TypeDesc* = POINTER TO RECORD
-							descSize: LONGINT;
-							sentinel: LONGINT;	(* = MPO-4 *)
-							tag*: SYSTEM.ADDRESS; (* pointer to static type descriptor, only used by linker and loader *)
-							flags*: SET;
-							mod*: Module;	(* hint only, because module may have been freed (at Heaps.ModOfs) *)
-							name*: Name;
-						END;
-					*)
+		PROCEDURE NewTypeDescriptorInfo(tag: Sections.Section; offset: LONGINT; isProtected: BOOLEAN): Sections.Section;
+		VAR name: SyntaxTree.String;source: IntermediateCode.Section;
+			moduleSection: IntermediateCode.Section; i: LONGINT; flags: SET;
+		CONST MPO=-40000000H;
+		BEGIN
+				(*
+					TypeDesc* = POINTER TO RECORD
+						descSize: LONGINT;
+						sentinel: LONGINT;	(* = MPO-4 *)
+						tag*: SYSTEM.ADDRESS; (* pointer to static type descriptor, only used by linker and loader *)
+						flags*: SET;
+						mod*: Module;	(* hint only, because module may have been freed (at Heaps.ModOfs) *)
+						name*: Name;
+					END;
+				*)
+				(* source := module.sections.FindByName(...) *)
+				Global.GetSymbolName(td,name);
+				Strings.Append(name,"@Info");
+				source := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,dump);
+				MetaInfo(source, "type info size");	MetaAddress(module,source, 3*module.system.addressSize DIV 8+32);
+				MetaAddress(module,source,MPO-4);
+				MetaInfo(source, "type tag pointer");
+				MetaSymbol(module, source, tag, offset, 0);
+				MetaInfo(source, "type flags");
+				flags := {};
+				IF isProtected THEN INCL(flags,31) END;
+				MetaSet(module, source, flags);
+				MetaInfo(source, "pointer to module");
+				moduleSection := MetaModuleSection(module);
+				MetaSymbol(module, source, moduleSection,moduleSection.pc,0);
+				MetaInfo(source, "type name");
+				i := 0;
+				Global.GetSymbolName(td,name);
+				MetaName(module,source,name);
+				source.SetReferenced(FALSE);
+				RETURN source;
+		END NewTypeDescriptorInfo;
 
-					(* source := module.sections.FindByName(...) *)
-					Global.GetSymbolName(td,name);
-					Strings.Append(name,"@Info");
+		PROCEDURE GetSection(x: SyntaxTree.Procedure): Sections.Section;
+		VAR source: IntermediateCode.Section; sectionType: SHORTINT;
+		BEGIN
+			Global.GetSymbolName(x,name);
+			IF x.HasFlag(SyntaxTree.InlineFlag) THEN
+				sectionType := Sections.InlineCodeSection;
+			ELSE
+				sectionType := Sections.CodeSection;
+			END;
+			IF (x.scope.ownerModule = module.module) THEN
+				source := IntermediateCode.NewSection(module.sections,sectionType,name,x,dump);
+			ELSIF (sectionType = Sections.InlineCodeSection) & (x.procedureScope.body.code.sourceCode # NIL) THEN
+				HALT(200);
+			ELSE
+				source := IntermediateCode.NewSection(module.importedSymbols,sectionType,name,x,dump);
+			END;
+			RETURN source
+		END GetSection;
 
-					source := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,dump);
+		PROCEDURE NewTypeDescriptor;
+		VAR name: SyntaxTree.String; op: IntermediateCode.Operand; source: IntermediateCode.Section;
+			i,methods: LONGINT;
+			procedure: SyntaxTree.Procedure;
+			baseRecord: SyntaxTree.RecordType; baseTD: SyntaxTree.TypeDeclaration;
+			numberPointers: LONGINT;  padding,offset: LONGINT;
+		CONST MPO=-40000000H;
+		BEGIN
+				Global.GetSymbolName(td,name);
+				source := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,td,dump);
 
-					Info(source, "type info size");	Address(module,source, 3*module.system.addressSize DIV 8+32);
+				(*
+								MethodEnd = MPO
+								---
+								methods (# methods)
+								---
+								tags (16)
+								---
+								TypeDesc = TypeInfoAdr
+								---
+				td adr ---> 	rec size
+								----
+								pointer offsets
+								----
+								(padding)
+								-----
+								empty [2 addresses aligned]
+								empty
+								empty
+								numPtrs
+								---
+								pointer offsets
+								---
+				*)
 
-					Address(module,source,MPO-4);
+				MetaInfo(source, "MethodEnd = MPO");
+				IntermediateCode.InitImmediate(op,GetType(module.system, Global.Address),MPO-4);
+				source(IntermediateCode.Section).Emit(Data(op));
 
-					Info(source, "type tag pointer");
-					Symbol(module, source, tag, offset, 0);
-
-
-
-					Info(source, "type flags");
-					flags := {};
-					IF isProtected THEN INCL(flags,31) END;
-					Set(module, source, flags);
-
-					Info(source, "pointer to module");
-					moduleSection := ModuleSection(module);
-					Symbol(module, source, moduleSection,moduleSection.pc,0);
-
-					Info(source, "type name");
-					i := 0;
-					Global.GetSymbolName(td,name);
-					MakeName(module,source,name);
-
-					source.SetReferenced(FALSE);
-					RETURN source;
-			END NewTypeDescriptorInfo;
-
-			PROCEDURE GetSection(x: SyntaxTree.Procedure): Sections.Section;
-			VAR source: IntermediateCode.Section; sectionType: SHORTINT;
-			BEGIN
-				Global.GetSymbolName(x,name);
-				IF x.HasFlag(SyntaxTree.InlineFlag) THEN
-					sectionType := Sections.InlineCodeSection;
-				ELSE
-					sectionType := Sections.CodeSection;
+				MetaInfo(source, "method table");
+				methods := recordType.recordScope.numberMethods;
+				FOR i := methods-1 TO 0 BY -1 DO
+					procedure := recordType.recordScope.FindMethod(i);
+					MetaSymbol(module,source, GetSection(procedure),0,0);
 				END;
-				IF (x.scope.ownerModule = module.module) THEN
-					source := IntermediateCode.NewSection(module.sections,sectionType,name,x,dump);
-				ELSIF (sectionType = Sections.InlineCodeSection) & (x.procedureScope.body.code.sourceCode # NIL) THEN
-					HALT(200);
-				ELSE
-					source := IntermediateCode.NewSection(module.importedSymbols,sectionType,name,x,dump);
+
+				MetaInfo(source, "tag table");
+				baseRecord := recordType;
+				i := 0;
+				WHILE baseRecord # NIL DO
+					INC(i);
+					baseRecord := baseRecord.GetBaseRecord();
 				END;
-				RETURN source
-			END GetSection;
-
-
-			PROCEDURE NewTypeDescriptor;
-			VAR name: SyntaxTree.String; op: IntermediateCode.Operand; source: IntermediateCode.Section;
-				i,methods: LONGINT;
-				procedure: SyntaxTree.Procedure;
-				baseRecord: SyntaxTree.RecordType; baseTD: SyntaxTree.TypeDeclaration;
-				numberPointers: LONGINT;  padding,offset: LONGINT;
-			CONST MPO=-40000000H;
-			BEGIN
-					Global.GetSymbolName(td,name);
-					source := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,td,dump);
-
-					(*
-									MethodEnd = MPO
-									---
-									methods (# methods)
-									---
-									tags (16)
-									---
-									TypeDesc = TypeInfoAdr
-									---
-					td adr ---> 	rec size
-									----
-									pointer offsets
-									----
-									(padding)
-									-----
-									empty [2 addresses aligned]
-									empty
-									empty
-									numPtrs
-									---
-									pointer offsets
-									---
-					*)
-
-
-					Info(source, "MethodEnd = MPO");
-					IntermediateCode.InitImmediate(op,GetType(module.system, Global.Address),MPO-4);
-					source(IntermediateCode.Section).Emit(Data(op));
-
-					Info(source, "method table");
-					methods := recordType.recordScope.numberMethods;
-					FOR i := methods-1 TO 0 BY -1 DO
-						procedure := recordType.recordScope.FindMethod(i);
-						Symbol(module,source, GetSection(procedure),0,0);
+				WHILE i < 16 DO
+					MetaAddress(module,source,0);
+					INC(i);
+				END;
+				baseRecord := recordType;
+				WHILE baseRecord # NIL DO
+					baseTD := baseRecord.typeDeclaration;
+					Global.GetSymbolName(baseTD,name);
+					IF (baseTD.scope = NIL) OR (baseTD.scope.ownerModule = module.module) THEN
+						tir := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,baseTD,dump);
+					ELSE
+						tir := IntermediateCode.NewSection(module.importedSymbols, Sections.ConstSection,name,baseTD,dump);
 					END;
-
-					Info(source, "tag table");
-					baseRecord := recordType;
-					i := 0;
-					WHILE baseRecord # NIL DO
-						INC(i);
-						baseRecord := baseRecord.GetBaseRecord();
-					END;
-					WHILE i < 16 DO
-						Address(module,source,0);
-						INC(i);
-					END;
-					baseRecord := recordType;
-					WHILE baseRecord # NIL DO
-						baseTD := baseRecord.typeDeclaration;
-						Global.GetSymbolName(baseTD,name);
-						IF (baseTD.scope = NIL) OR (baseTD.scope.ownerModule = module.module) THEN
-							tir := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,baseTD,dump);
-						ELSE
-							tir := IntermediateCode.NewSection(module.importedSymbols, Sections.ConstSection,name,baseTD,dump);
-						END;
-						offset := ToMemoryUnits(module.system,(1 + baseRecord.recordScope.numberMethods+16+1)*module.system.addressSize);
-						Symbol(module,source, tir, 0, offset);
-						baseRecord := baseRecord.GetBaseRecord();
-					END;
-
-					Info(source, "type descriptor info pointer");
-					Symbol(module,source, NewTypeDescriptorInfo(source,source.pc+1,recordType.IsProtected()),0,0);
-
-					Info(source, "record size");
-					Address(module,source, module.system.SizeOf(recordType) DIV 8 (* in bytes *));
-
-					Info(source, "pointer offsets pointer");
-					padding := 1- source.pc MOD 2;
-					Symbol(module,source, source, source.pc+1+padding,0);
-
-					Info(source, "padding");
-					FOR i := 1 TO padding DO Address(module,source,0) END;
-
-					MakePointerArray(module,source, recordType.recordScope, numberPointers);
-					(*
-					Info(source, "pointer offsets array descriptor");
-					FOR i := 1 TO 3 DO (* 3 empty fields *)
-						Address(source,0);
-					END;
-
-					pc := source.pc;
-					Address(source,0);
-
-					Info(source, "pointer offsets array data");
-					OutPointers(0,source,recordType,numberPointers);
-
-					IntermediateCode.InitOperand(noOperand);
-					IntermediateCode.InitImmediate(op,GetType(module.system, Global.Address),numberPointers);
-					source.PatchOperands(pc,op,noOperand,noOperand);
-					*)
-
-					source.SetReferenced(FALSE);
-			END NewTypeDescriptor;
+					offset := ToMemoryUnits(module.system,(1 + baseRecord.recordScope.numberMethods+16+1)*module.system.addressSize);
+					MetaSymbol(module,source, tir, 0, offset);
+					baseRecord := baseRecord.GetBaseRecord();
+				END;
+				MetaInfo(source, "type descriptor info pointer");
+				MetaSymbol(module,source, NewTypeDescriptorInfo(source,source.pc+1,recordType.IsProtected()),0,0);
+				MetaInfo(source, "record size");
+				MetaAddress(module,source, module.system.SizeOf(recordType) DIV 8 (* in bytes *));
+				MetaInfo(source, "pointer offsets pointer");
+				padding := 1- source.pc MOD 2;
+				MetaSymbol(module,source, source, source.pc+1+padding,0);
+				MetaInfo(source, "padding");
+				FOR i := 1 TO padding DO MetaAddress(module,source,0) END;
+				MetaPointerArray(module,source, recordType.recordScope, numberPointers);
+				source.SetReferenced(FALSE);
+		END NewTypeDescriptor;
 
 	BEGIN
 		x := x.resolved;
@@ -6730,7 +6674,7 @@ TYPE
 			td := x.typeDeclaration;
 			IF td = NIL THEN td := recordType.pointerType.resolved.typeDeclaration END; (* for compatibility with paco *)
 			ASSERT(td # NIL);
-			
+
 			section :=module.sections.FindBySymbol(td);
 			IF (section = NIL) OR (section(IntermediateCode.Section).pc = 0) THEN
 				IF newObjectFile THEN
