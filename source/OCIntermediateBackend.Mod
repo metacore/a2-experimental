@@ -1345,14 +1345,22 @@ TYPE
 			END;
 		END GetRuntimeProcedure;
 
-		PROCEDURE GetModulesModule(): IntermediateCode.Section;
-		VAR importedModule: SyntaxTree.Module; source: IntermediateCode.Section; symbol: SyntaxTree.Symbol; name: ARRAY 32 OF CHAR;
+		PROCEDURE GetTypeDescriptor(CONST moduleName, typeName: ARRAY OF CHAR): IntermediateCode.Section;
+		VAR importedModule: SyntaxTree.Module; source: IntermediateCode.Section; symbol: SyntaxTree.Symbol; name: ARRAY 64 OF CHAR;
+			s: Scanner.StringType;
 		BEGIN
-			name := "Modules.Module";
-			IF AddImport("Modules",importedModule, FALSE) THEN
-				symbol := importedModule.moduleScope.FindTypeDeclaration(SyntaxTree.NewIdentifier(-1,"Module"));
+			COPY(moduleName,name);
+			Strings.Append(name,".");
+			Strings.Append(name,typeName);
+			IF AddImport(moduleName,importedModule, FALSE) THEN
+				symbol := importedModule.moduleScope.FindTypeDeclaration(SyntaxTree.NewIdentifier(-1,typeName));
 				IF symbol = NIL THEN
-					Error(" not present in module Modules");
+					s := "type  ";
+					Strings.Append(s,moduleName);
+					Strings.Append(s,".");
+					Strings.Append(s,typeName);
+					Strings.Append(s," not present");
+					Error(s);
 				END;
 			ELSE symbol := NIL;
 			END;
@@ -1362,7 +1370,7 @@ TYPE
 				source := IntermediateCode.NewSection(module.importedSymbols, Sections.ConstSection, name, symbol, commentPrintout # NIL);
 			END;
 			RETURN source
-		END GetModulesModule;
+		END GetTypeDescriptor;
 
 
 		PROCEDURE CallThis(CONST moduleName, procedureName: ARRAY OF CHAR);
@@ -5626,28 +5634,33 @@ TYPE
 		RETURN (op.mode = IntermediateCode.ModeRegister) & (op.register > 0) & (op.offset = 0);
 	END ReusableRegister;
 
-	PROCEDURE MetaHeapBlock(module: Sections.Module; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
+	PROCEDURE MetaHeapBlock(implementationVisitor: ImplementationVisitor; CONST moduleName, typeName: ARRAY OF CHAR; module: Sections.Module; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
+	VAR moduleTD: IntermediateCode.Section; offset: LONGINT;
 	BEGIN
 		INC(dataAdrOffset,6);
 		MetaInfo(section,"headerAdr");
 		MetaAddress(module,section,0);
 		MetaInfo(section,"typeDesc");
-		MetaAddress(module,section,0);
+
+		moduleTD := implementationVisitor.GetTypeDescriptor(moduleName,typeName);
+		offset := ToMemoryUnits(module.system,(1 + 0 (*= numberMethods*) +16+1)*module.system.addressSize);
+		MetaSymbol(module,section, moduleTD, 0, offset);
+
 		MetaInfo(section,"mark: LONGINT;");
 		MetaLongint(module,section,-1);
 		MetaInfo(section,"dataAdr-: SYSTEM.ADDRESS");
 		MetaSymbol(module,section,section,dataAdrOffset,0);
 		MetaInfo(section,"size-: SYSTEM.SIZE");
 		MetaAddress(module,section,0);
-		MetaInfo(section,"nextRealtime: HeapBlock;"); 
+		MetaInfo(section,"nextRealtime: HeapBlock;");
 		MetaAddress(module,section,0);
 	END MetaHeapBlock;
 
-	PROCEDURE MetaProtectedHeapBlock(module: Sections.Module; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
+	PROCEDURE MetaProtectedHeapBlock(implementationVisitor: ImplementationVisitor; CONST moduleName, typeName: ARRAY OF CHAR; module: Sections.Module; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
 	VAR i: LONGINT;
 	BEGIN
 		INC(dataAdrOffset,14);
-		MetaHeapBlock(module,section,dataAdrOffset);
+		MetaHeapBlock(implementationVisitor,moduleName,typeName,module,section,dataAdrOffset);
 		MetaInfo(section,"count*: LONGINT");
 		MetaLongint(module,section,0);
 		MetaInfo(section,"locked*: BOOLEAN");
@@ -6401,19 +6414,17 @@ TYPE
 	*)
 
 	PROCEDURE MetaModuleSection(implementationVisitor: ImplementationVisitor; module: Sections.Module): IntermediateCode.Section;
-	VAR name: ARRAY 128 OF CHAR; moduleSection,moduleTD: IntermediateCode.Section; offset: LONGINT; 
+	VAR name: ARRAY 128 OF CHAR; moduleSection,moduleTD: IntermediateCode.Section; offset: LONGINT;
 	BEGIN
 		module.module.name.GetString(name);
 		Strings.Append(name,".@Module");
 		moduleSection := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
 		IF moduleSection.pc = 0 THEN
-			MetaProtectedHeapBlock(module,moduleSection,2);
+			MetaProtectedHeapBlock(implementationVisitor,"Heaps","RecordBlockDesc",module,moduleSection,2);
 			MetaInfo(moduleSection, "HeapBlock");
 			MetaSymbol(module,moduleSection,moduleSection,2,0);
 			MetaInfo(moduleSection, "TypeDescriptor");
-			moduleTD := implementationVisitor.GetModulesModule();
-
-			
+			moduleTD := implementationVisitor.GetTypeDescriptor("Modules","Module");
 			offset := ToMemoryUnits(module.system,(1 + 1 (*= numberMethods*) +16+1)*module.system.addressSize);
 			MetaSymbol(module,moduleSection, moduleTD, 0, offset);
 		END;
@@ -6429,13 +6440,13 @@ TYPE
 		exceptionSectionOffset, commandsSectionOffset, typeInfoSectionOffset, procTableSectionOffset, ptrTableSectionOffset, maxPointers, numberProcs,temp,
 		referenceSectionOffset	: LONGINT;
 
-		PROCEDURE HeapBlock(CONST suffix: ARRAY OF CHAR; VAR offset: LONGINT): IntermediateCode.Section;
+		PROCEDURE HeapBlock(CONST mName, typeName, suffix: ARRAY OF CHAR; VAR offset: LONGINT): IntermediateCode.Section;
 		VAR name: ARRAY 128 OF CHAR; section: IntermediateCode.Section;
 		BEGIN
 			COPY(moduleName,name);
 			Strings.Append(name,suffix);
 			section := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
-			MetaHeapBlock(module,section,2);
+			MetaHeapBlock(implementationVisitor,mName,typeName,module,section,2);
 			MetaInfo(section, "HeapBlock");
 			(*
 			Symbol(module,section,section,2,0);
@@ -6450,22 +6461,22 @@ TYPE
 
 	BEGIN
 		module.module.name.GetString(moduleName);
-		exportDescArray := HeapBlock(".@ExportDescArray",exportDescArrayOffset);
+		exportDescArray := HeapBlock("Heaps","SystemBlockDesc",".@ExportDescArray",exportDescArrayOffset);
 		MetaExportDescArray(module,exportDescArray, exportDescSize);
-		pointerSection := HeapBlock(".@PointerArray",pointerSectionOffset);
+		pointerSection := HeapBlock("Heaps","SystemBlockDesc",".@PointerArray",pointerSectionOffset);
 		MetaPointerArray(module,pointerSection,module.module.moduleScope, numberPointers);
-		commandsSection := HeapBlock(".@CommandArray",commandsSectionOffset);
+		commandsSection := HeapBlock("Heaps","SystemBlockDesc",".@CommandArray",commandsSectionOffset);
 		MetaCommandArray(module,commandsSection);
-		exceptionSection := HeapBlock(".@ExceptionArray",exceptionSectionOffset);
+		exceptionSection := HeapBlock("Heaps","SystemBlockDesc",".@ExceptionArray",exceptionSectionOffset);
 		MetaExceptionArray(module,exceptionSection);
-		typeInfoSection := HeapBlock(".@TypeInfoArray",typeInfoSectionOffset);
+		typeInfoSection := HeapBlock("Heaps","SystemBlockDesc",".@TypeInfoArray",typeInfoSectionOffset);
 		MetaTypeInfoSection(module,typeInfoSection);
-		referenceSection := HeapBlock(".@References",referenceSectionOffset);
+		referenceSection := HeapBlock("Heaps","SystemBlockDesc",".@References",referenceSectionOffset);
 		MetaReferences(module,referenceSection);
-		procTableSection := HeapBlock(".@ProcTable",procTableSectionOffset);
-		ptrTableSection := HeapBlock(".@PtrTable",ptrTableSectionOffset);
+		procTableSection := HeapBlock("Heaps","SystemBlockDesc",".@ProcTable",procTableSectionOffset);
+		ptrTableSection := HeapBlock("Heaps","SystemBlockDesc",".@PtrTable",ptrTableSectionOffset);
 		MetaPointersInProcTables(module,procTableSection,ptrTableSection,numberProcs,maxPointers);
-		emptyArraySection := HeapBlock(".@EmptyArray",emptyArraySectionOffset);
+		emptyArraySection := HeapBlock("Heaps","SystemBlockDesc",".@EmptyArray",emptyArraySectionOffset);
 		MetaArray(module,emptyArraySection,temp);
 		moduleSection := MetaModuleSection(implementationVisitor, module);
 		MetaInfo(moduleSection, "nextRoot*: RootObject");
