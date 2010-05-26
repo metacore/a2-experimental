@@ -1,6 +1,6 @@
 MODULE StaticLinker;	(* AUTHOR "negelef"; PURPOSE "Static Object File Linker"; *)
 
-IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile, BitSets;
+IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile, BitSets, Streams;
 
 TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 	VAR
@@ -377,7 +377,7 @@ BEGIN
 	NEW (diagnostics, context.error); NEW (linker, diagnostics, verbose, useAll, FALSE, code, data);
 
 	context.arg.GetString (moduleName);
-	WHILE ~linker.error & (context.arg.res = Files.Ok) DO
+	WHILE ~linker.error & ((context.arg.res = Streams.Ok) OR ((context.arg.res = Streams.EOF) & (moduleName # ""))) DO
 		ReadObjectFile (moduleName, path, extension, linker);
 		context.arg.GetString (moduleName);
 		IF strict & ~linker.error THEN linker.Resolve END;
