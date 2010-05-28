@@ -1,7 +1,7 @@
 MODULE ProcessInfo; (** AUTHOR "staubesv"; PURPOSE "Information about processes"; *)
 
 IMPORT
-	SYSTEM, Streams, Reflection, Modules, Objects, ProcessInfo0, Commands, Options;
+	SYSTEM, Streams, Reflection, Modules, Objects, ProcessInfo0;
 
 CONST
 	MaxNofProcesses* = 1000;
@@ -176,44 +176,6 @@ BEGIN
 		out.Ln; out.Update;
 	END;
 END ShowProcess;
-
-PROCEDURE ShowProcesses*(context : Commands.Context); (** [options] ~ *)
-VAR
-	options : Options.Options;
-	processes : ARRAY MaxNofProcesses OF Objects.Process;
-	nofProcesses : LONGINT;
-	string : ARRAY 16 OF CHAR;
-	i : LONGINT;
-BEGIN
-	NEW(options);
-	options.Add("s", "sort", Options.String);
-	IF options.Parse(context.arg, context.error) THEN
-		GetProcesses(processes, nofProcesses);
-		IF options.GetString("sort", string) THEN
-			IF (string = "id") THEN
-				Sort(processes, nofProcesses, SortByID);
-			ELSIF (string = "priority") THEN
-				Sort(processes, nofProcesses, SortByPriority);
-			ELSIF (string = "mode") THEN
-				Sort(processes, nofProcesses, SortByMode);
-			ELSE
-				context.error.String("Sort option "); context.error.String(string);
-				context.error.String(" unknown... ignore."); context.error.Ln;
-			END;
-		END;
-		FOR i := 0 TO nofProcesses - 1 DO ShowProcess(processes[i], context.out); END;
-		context.out.Int(nofProcesses, 0); context.out.String(" processes"); context.out.Ln;
-		Clear(processes);
-	END;
-END ShowProcesses;
-
-PROCEDURE ShowStacks*(context : Commands.Context);
-VAR processes : ARRAY MaxNofProcesses OF Objects.Process; nofProcesses, i : LONGINT;
-BEGIN
-	GetProcesses(processes, nofProcesses);
-	FOR i := 0 TO nofProcesses - 1 DO ShowStack(processes[i], context.out); END;
-	Clear(processes);
-END ShowStacks;
 
 END ProcessInfo.
 
