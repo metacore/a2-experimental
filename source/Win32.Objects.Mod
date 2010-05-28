@@ -120,7 +120,7 @@ TYPE
 
 	Process* = OBJECT(Heaps.ProcessLink)
 	VAR
-		rootedNext, link*: Process; (* for snapshot list and to prevent process to be GCed in WinAos *)
+		rootedNext : Process; (*  to prevent process to be GCed in WinAos *)
 		obj-: ProtectedObject;   (* associated active object *)
 		state-: Kernel32.Context;
 		(*
@@ -164,9 +164,6 @@ TYPE
 				RETURN
 			END;
 			ASSERT( SYSTEM.VAL( Process, Kernel32.TlsGetValue( tlsIndex ) ) # SELF); (* should not trace gc process *)
-
-			IF snapshotEnabled THEN link := snapshot;  snapshot := SELF
-			END;
 
 			state.ContextFlags := Kernel32.ContextControl + Kernel32.ContextInteger;
 			res := Kernel32.GetThreadContext( handle, state );
@@ -349,9 +346,7 @@ TYPE
 		ASSERT(res = Kernel32.WaitObject0);
 		LOOP
 			(* process is scheduled -> perform garbage collection now *)
-			IF snapshotEnabled THEN snapshot := NIL END;
 			Heaps.CollectGarbage(Modules.root);
-			snapshotEnabled := FALSE;
 			IF finalizerCaller # NIL THEN finalizerCaller.Activate() END;
 			Heaps.gcStatus.SetgcOngoing(FALSE); (* resumes waiting processes and suspends itself *)
 		END
@@ -413,9 +408,6 @@ VAR
 	clock: Clock;
 	tlsIndex: LONGINT;
 	nProcs: LONGINT;
-
-	snapshotEnabled*: BOOLEAN;   (** for System.ShowTasks *)
-	snapshot*: Process;   (** for System.ShowTasks *)
 
 	excplock: Kernel32.CriticalSection;  exceptionhandler: ExceptionHandler;
 
@@ -865,7 +857,7 @@ END NewProcess;
 
 (* Create the process associated with an active object (kernel call). *)
 PROCEDURE CreateProcess*(body: Body; priority: LONGINT; flags: SET; obj: ProtectedObject);
-VAR t, r: Process; heapBlock {UNTRACED}: Heaps.HeapBlock;
+VAR t : Process; heapBlock {UNTRACED}: Heaps.HeapBlock;
 BEGIN
 	ASSERT(priority >= 0, 1000); ASSERT(priority <=Realtime, 1001); 
 	SYSTEM.GET(SYSTEM.VAL(SYSTEM.ADDRESS, obj) + Heaps.HeapBlockOffset, heapBlock);
@@ -1148,7 +1140,7 @@ BEGIN
 	res := Kernel32.TlsSetValue(tlsIndex, SYSTEM.VAL(LONGINT, t));
 	ASSERT(res # 0);
 	t.stackBottom := StackBottom(); t.mode := Running;
-	Put( ready, t );  (*  snapshot := t;   *) snapshotEnabled := FALSE;
+	Put( ready, t );
 	ASSERT(t.handle # 0);
 	Machine.Release(Machine.Objects);
 	InitEventHandling; (* implicit call of NewProcess! *)
