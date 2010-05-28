@@ -68,6 +68,11 @@ BEGIN
 	ProcessInfo0.GetProcesses(processes, nofProcesses);
 END GetProcesses;
 
+PROCEDURE GetProcess*(pid : LONGINT) : Objects.Process;
+BEGIN
+	RETURN ProcessInfo0.GetProcess(pid);
+END GetProcess;
+
 PROCEDURE WriteMode*(mode : LONGINT; out : Streams.Writer);
 BEGIN
 	CASE mode OF
