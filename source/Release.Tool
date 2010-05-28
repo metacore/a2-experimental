@@ -440,6 +440,10 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 	Errors.Mod errors.txt
 
 	# Access to system functions
+	UNIX { Unix.ProcessInfo0.Mod }
+	NATIVE, WIN { ProcessInfo0.Mod }
+	ProcessInfo.Mod
+
 	SystemTools.Mod
 
 	WIN { Win32.WinApplications.Mod }
@@ -778,6 +782,7 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	Notepad.Mod
 
 	# Trackers
+	WMProcessInfo.Mod
 	WMObjectTracker.Mod
 	NATIVE { WMTCPTracker.Mod }
 	WIN { Win32.WMTCPTracker.Mod }
@@ -864,7 +869,7 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 	OCSections.Mod OCBinaryCode.Mod
 	OCFingerPrinter.Mod
 	OCIntermediateCode.Mod  OCIntermediateBackend.Mod
-	OCBinaryObjectFile.Mod  OCFingerprinter.Mod OCGenericObjectFile.Mod
+	OCBinaryObjectFile.Mod OCGenericObjectFile.Mod
 	OCAMD64InstructionSet.Mod OCAMD64Assembler.Mod OCAMD64Backend.Mod
 	OCInstructionSetAMD64TabSeperated.txt
 

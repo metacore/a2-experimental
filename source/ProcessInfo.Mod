@@ -1,0 +1,219 @@
+MODULE ProcessInfo; (** AUTHOR "staubesv"; PURPOSE "Information about processes"; *)
+
+IMPORT
+	SYSTEM, Streams, Reflection, Modules, Objects, ProcessInfo0, Commands, Options;
+
+CONST
+	MaxNofProcesses* = 1000;
+
+TYPE
+
+	IsGreaterThanProc* = PROCEDURE {DELEGATE} (p1, p2 : Objects.Process) : BOOLEAN; (* { p1, p2 # NIL } *)
+
+PROCEDURE Clear*(VAR array : ProcessInfo0.ProcessArray);
+VAR i : LONGINT;
+BEGIN
+	FOR i := 0 TO LEN(array)-1 DO array[i] := NIL; END;
+END Clear;
+
+PROCEDURE Sort*(VAR processes : ProcessInfo0.ProcessArray; nofProcesses : LONGINT; isGreaterThan : IsGreaterThanProc);
+VAR i, j : LONGINT; temp : Objects.Process;
+BEGIN
+	ASSERT(isGreaterThan # NIL);
+	(* bubble sort, descending *)
+	FOR i := 0 TO nofProcesses - 1 DO
+		FOR j := 0 TO nofProcesses - 2 DO
+			IF isGreaterThan(processes[j + 1], processes[j]) THEN
+				temp := processes[j];
+				processes[j] := processes[j + 1];
+				processes[j + 1] := temp;
+			END;
+		END;
+	END;
+END Sort;
+
+PROCEDURE Find*(CONST processes : ProcessInfo0.ProcessArray; id : LONGINT) : Objects.Process;
+VAR process : Objects.Process; i : LONGINT;
+BEGIN
+	i := 0;
+	WHILE (i < LEN(processes)-1) & (processes[i] # NIL) & (processes[i].id # id) DO INC(i); END;
+	IF (i < LEN(processes)) THEN
+		process := processes[i];
+	ELSE
+		process := NIL;
+	END;
+	RETURN process;
+END Find;
+
+PROCEDURE SortByID*(p1, p2 : Objects.Process) : BOOLEAN;
+BEGIN
+	ASSERT((p1 # NIL) & (p2 # NIL));
+	RETURN p1.id > p2.id;
+END SortByID;
+
+PROCEDURE SortByPriority*(p1, p2 : Objects.Process) : BOOLEAN;
+BEGIN
+	ASSERT((p1 # NIL) & (p2 # NIL));
+	RETURN p1.priority > p2.priority;
+END SortByPriority;
+
+PROCEDURE SortByMode*(p1, p2 : Objects.Process) : BOOLEAN;
+BEGIN
+	ASSERT((p1 # NIL) & (p2 # NIL));
+	RETURN p1.mode > p2.mode;
+END SortByMode;
+
+PROCEDURE GetProcesses*(VAR processes : ProcessInfo0.ProcessArray; VAR nofProcesses : LONGINT);
+BEGIN
+	ProcessInfo0.GetProcesses(processes, nofProcesses);
+END GetProcesses;
+
+PROCEDURE WriteMode*(mode : LONGINT; out : Streams.Writer);
+BEGIN
+	CASE mode OF
+		|Objects.Ready : out.String("rdy");
+		|Objects.Running : out.String("run");
+		|Objects.AwaitingLock : out.String("awl");
+		|Objects.AwaitingCond : out.String("awc");
+		|Objects.AwaitingEvent : out.String("awe");
+		|Objects.Terminated : out.String("rip");
+	ELSE
+		out.String("???");
+	END;
+	out.Update;
+END WriteMode;
+
+PROCEDURE WriteActiveObject*(t : Objects.Process; out : Streams.Writer);
+VAR adr : LONGINT;
+BEGIN
+	IF t.obj # NIL THEN
+		SYSTEM.GET(SYSTEM.VAL(LONGINT, t.obj)-4, adr);
+		Reflection.WriteType(out, adr);
+	END;
+END WriteActiveObject;
+
+PROCEDURE WriteWaitingOn*(t : Objects.Process; out : Streams.Writer);
+VAR adr : LONGINT; mod : Modules.Module;
+BEGIN
+	IF t.mode = Objects.AwaitingLock THEN
+		adr := SYSTEM.VAL(LONGINT, t.waitingOn);
+		IF adr # 0 THEN	(* can be 0 when snapshot is taken *)
+			SYSTEM.GET(adr-4, adr); DEC(adr, adr MOD 8);
+			IF adr = SYSTEM.TYPECODE(Modules.Module) THEN
+				mod := SYSTEM.VAL(Modules.Module, adr);
+				out.String(mod.name);
+			ELSE
+				Reflection.WriteType(out, adr);
+			END;
+		END
+	ELSIF t.mode = Objects.AwaitingCond THEN
+		Reflection.WriteProc(out, SYSTEM.VAL(LONGINT, t.condition));
+	END;
+	out.Update;
+END WriteWaitingOn;
+
+PROCEDURE WriteFlags*(flags : SET; out : Streams.Writer);
+VAR comma : BOOLEAN;
+BEGIN
+	comma := FALSE;
+	IF Objects.Restart IN flags THEN
+		out.String("restart"); comma := TRUE;
+	END;
+	IF Objects.Resistant IN flags THEN
+		IF comma THEN out.String(", "); END;
+		out.String("resistant"); comma := TRUE;
+	END;
+	IF Objects.Preempted IN flags THEN
+		IF comma THEN out.String(", "); END;
+		out.String("preempted"); comma := TRUE;
+	END;
+	IF Objects.PleaseHalt IN flags THEN
+		IF comma THEN out.String(", "); END;
+		out.String("pleaseHalt"); comma := TRUE;
+	END;
+	IF Objects.Unbreakable IN flags THEN
+		IF comma THEN out.String(", "); END;
+		out.String("unbreakable"); comma := TRUE;
+	END;
+	IF Objects.SelfTermination IN flags THEN
+		IF comma THEN out.String(", "); END;
+		out.String("selftermination");
+	END;
+	out.Update;
+END WriteFlags;
+
+PROCEDURE ShowStack*(p : Objects.Process; out : Streams.Writer);
+BEGIN
+	ASSERT((p # NIL) & (out # NIL));
+	out.String("Active Object: "); WriteActiveObject(p, out); out.Ln;
+	out.String("Current Procedure: ");
+	Reflection.WriteProc(out, p.state.PC); out.Ln;
+
+	(* mode *)
+	out.String("Mode: "); WriteMode(p.mode, out); out.Ln;
+	out.String("Waiting On: "); WriteWaitingOn(p, out); out.Ln;
+
+	(* Flags *)
+	out.String("Flags: "); WriteFlags(p.flags, out); out.Ln;
+
+	out.String("Stack Trace Back:"); out.Ln; out.Update;
+	Reflection.StackTraceBack(out, p.state.PC, p.state.BP, TRUE, FALSE);
+	out.Ln; out.Update;
+END ShowStack;
+
+PROCEDURE ShowProcess*(p : Objects.Process; out : Streams.Writer);
+BEGIN
+	ASSERT((p # NIL) & (out # NIL));
+	IF (p.mode # Objects.Terminated) THEN
+		out.Int(p.id, 5); out.String("   ");
+		WriteMode(p.mode, out); out.String("   ");
+		WriteActiveObject(p, out);
+		out.Ln; out.Update;
+	END;
+END ShowProcess;
+
+PROCEDURE ShowProcesses*(context : Commands.Context); (** [options] ~ *)
+VAR
+	options : Options.Options;
+	processes : ARRAY MaxNofProcesses OF Objects.Process;
+	nofProcesses : LONGINT;
+	string : ARRAY 16 OF CHAR;
+	i : LONGINT;
+BEGIN
+	NEW(options);
+	options.Add("s", "sort", Options.String);
+	IF options.Parse(context.arg, context.error) THEN
+		GetProcesses(processes, nofProcesses);
+		IF options.GetString("sort", string) THEN
+			IF (string = "id") THEN
+				Sort(processes, nofProcesses, SortByID);
+			ELSIF (string = "priority") THEN
+				Sort(processes, nofProcesses, SortByPriority);
+			ELSIF (string = "mode") THEN
+				Sort(processes, nofProcesses, SortByMode);
+			ELSE
+				context.error.String("Sort option "); context.error.String(string);
+				context.error.String(" unknown... ignore."); context.error.Ln;
+			END;
+		END;
+		FOR i := 0 TO nofProcesses - 1 DO ShowProcess(processes[i], context.out); END;
+		context.out.Int(nofProcesses, 0); context.out.String(" processes"); context.out.Ln;
+		Clear(processes);
+	END;
+END ShowProcesses;
+
+PROCEDURE ShowStacks*(context : Commands.Context);
+VAR processes : ARRAY MaxNofProcesses OF Objects.Process; nofProcesses, i : LONGINT;
+BEGIN
+	GetProcesses(processes, nofProcesses);
+	FOR i := 0 TO nofProcesses - 1 DO ShowStack(processes[i], context.out); END;
+	Clear(processes);
+END ShowStacks;
+
+END ProcessInfo.
+
+ProcessInfo.ShowProcesses ~
+
+ProcessInfo.ShowStacks ~
+
+SystemTools.Free ProcessInfo ProcessInfo0 ~
