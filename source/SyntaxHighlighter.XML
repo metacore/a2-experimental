@@ -103,7 +103,8 @@
 					DELEGATE
 				</Group>
 				<Group style="Locking">
-					EXCLUSIVE
+					KernelLog.Enter
+					KernelLog.Exit
 					Acquire Release
 					*.AcquireRead 	*.ReleaseRead
 					*.AcquireWrite *.ReleaseWrite
@@ -113,7 +114,7 @@
 					ASSERT
 				</Group>
 				<Group style="Threads">
-					ACTIVE SHARED PRIORITY AWAIT
+					ACTIVE SHARED PRIORITY AWAIT EXCLUSIVE
 				</Group>
 				<Group style="Structure">
 					MODULE IMPORT TYPE DEFINITION REFINES IMPLEMENTS PROCEDURE
@@ -147,7 +148,23 @@
 				</Group>
 				<Group style="Debug">
 					KernelLog
-					KernelLog.*
+					KernelLog.Send
+					KernelLog.String KernelLog.Ln
+					KernelLog.Char KernelLog.Int KernelLog.Boolean
+					KernelLog.IntSuffix KernelLog.Hex
+					KernelLog.Address KernelLog.HIntHex
+					KernelLog.Memory KernelLog.Buffer
+					KernelLog.Bits
+					KernelLog.OpenBuffer
+					KernelLog.CloseBuffer
+					Trace
+					Trace.Send
+					Trace.Ln Trace.String Trace.StringLn
+					Trace.Int Trace.Boolean Trace.IntSuffix
+					Trace.Hex Trace.Address
+					Trace.HIntHex
+					Trace.Memory Trace.Buffer Trace.Bits
+					Trace.Blue Trace.Green Trace.Red Trace.Yellow Trace.Default
 				</Group>
 			</Words>
 

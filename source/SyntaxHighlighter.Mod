@@ -59,7 +59,7 @@ CONST
 	MaxOpenLength = 32;
 	MaxCloseLength = 32;
 
-	MaxWordLength = 16;
+	MaxWordLength = 32;
 	Dim1Length = 128;
 	MaxTokenLength = 64;
 
