@@ -826,9 +826,8 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 
 	NATIVE,WIN {
 		WMPerfMonPluginModVars.Mod WMPerfMonPluginHeap.Mod
-		WMPerfMonPluginProcesses.Mod
 	}
-
+	WMPerfMonPluginProcesses.Mod
 	WMPerfMonPluginSerials.Mod	# perfmon device plugins
 	WMPerfMonPluginNetwork.Mod WMPerfMonPluginDisks.Mod
 	WMPerfMonPluginPerfMon.Mod 	# perfmon misc plugins
