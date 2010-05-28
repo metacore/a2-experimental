@@ -2,7 +2,7 @@ MODULE WMProcessInfo; (** AUTHOR "tf/staubesv"; PURPOSE "Components for process 
 
 IMPORT
 	SYSTEM, KernelLog,
-	Streams, Machine, Modules, Objects, Kernel, Reflection, Strings, ProcessInfo, XML,
+	Streams, Machine, Modules, Objects, Kernel, Reflection, Strings, ProcessInfo, XML, Commands,
 	WMRectangles, WMGraphics, WMProperties, WMComponents, WMStandardComponents, WMGrids, WMStringGrids,
 	WMPopups, WMDialogs;
 
@@ -82,7 +82,7 @@ TYPE
 			grid.Acquire;
 			grid.model.Acquire;
 			grid.GetSelection(scol, srow, ecol, erow);
-			IF (srow <= erow) THEN
+			IF (srow >= 0) & (srow <= erow) THEN
 				ProcessInfo.GetProcesses(processes, nofProcesses);
 				NEW(selection, erow - srow + 1);
 				FOR i := srow TO erow DO
@@ -367,7 +367,7 @@ TYPE
 	VAR
 		processSelector : ProcessSelector;
 
-		haltBtn, unbreakHaltBtn, sortBtn, showBtn : WMStandardComponents.Button;
+		haltBtn, unbreakHaltBtn, sortBtn, showBtn, cpuLoadBtn : WMStandardComponents.Button;
 		sortPopup : WMPopups.Popup;
 
 		nbrOfProcessesLabel : WMStandardComponents.Label;
@@ -425,6 +425,11 @@ TYPE
 			font := showBtn.GetFont();
 			font.GetStringSize(" Show Stack ", dx, dy);
 			showBtn.bounds.SetWidth(dx);
+			
+			NEW(cpuLoadBtn); cpuLoadBtn.alignment.Set(WMComponents.AlignLeft);
+			cpuLoadBtn.SetCaption("CPU Load");
+			cpuLoadBtn.onClick.Add(HandleCpuLoad);
+			toolbar.AddContent(cpuLoadBtn);
 
 			NEW(nbrOfProcessesLabel);
 			nbrOfProcessesLabel.alignment.Set(WMComponents.AlignClient);
@@ -503,6 +508,19 @@ TYPE
 				END;
 			END;
 		END HandleShowStack;
+		
+		PROCEDURE HandleCpuLoad(sender, data : ANY);
+		VAR selection : Selection; i : LONGINT;
+		BEGIN
+			selection := processSelector.GetSelection();
+			IF (selection # NIL) THEN
+				FOR i := 0 TO LEN(selection) - 1 DO
+					IF (selection[i] # NIL) THEN
+						OpenCpuLoadWindow(selection[i].id);
+					END;
+				END;		
+			END;
+		END HandleCpuLoad;				
 
 	END ProcessManager;
 
@@ -537,6 +555,15 @@ BEGIN
 	ELSE RETURN WMGraphics.AlignRight
 	END
 END GetAlign;
+
+PROCEDURE OpenCpuLoadWindow(pid : LONGINT);
+VAR commandString : ARRAY 128 OF CHAR; nbr : ARRAY 16 OF CHAR;
+BEGIN
+	commandString := "WMPerfMonPluginProcesses.Install ";
+	Strings.IntToStr(pid, nbr);
+	Strings.Append(commandString, nbr);	
+	Commands.Call(commandString);
+END OpenCpuLoadWindow;
 
 PROCEDURE InitStrings;
 BEGIN
