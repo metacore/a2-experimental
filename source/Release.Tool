@@ -504,6 +504,7 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 
 	WMMessages.Mod
 	WMWindowManager.Mod
+
 	WMGraphicUtilities.Mod
 
 	WMComponents.Mod # Components
@@ -728,6 +729,8 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	WMDropDownLists.Mod
 
 	WMRestorable.Mod Release.Auto.dsk
+	WMApplications.Mod
+
 	WMDialogs.Mod
 	WMDocumentEditor.Mod
 
