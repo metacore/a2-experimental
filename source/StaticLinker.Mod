@@ -14,9 +14,13 @@ TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 	PROCEDURE Allocate* (CONST section: ObjectFile.Section): GenericLinker.Address;
 	VAR address, alignment: ObjectFile.Bits;
 	BEGIN
-		address := bits.GetSize (); alignment := section.alignment * section.unit;
-		IF alignment = 0 THEN alignment := section.unit; END;
-		INC (address, (alignment - address MOD alignment) MOD alignment);
+		IF section.fixed THEN
+			address := (section.alignment - displacement) * section.unit;
+		ELSE
+			address := bits.GetSize (); alignment := section.alignment * section.unit;
+			IF alignment = 0 THEN alignment := section.unit; END;
+			INC (address, (alignment - address MOD alignment) MOD alignment);
+		END;
 		bits.Resize (address + section.bits.GetSize ());
 		BitSets.CopyBits (section.bits, 0, bits, address, section.bits.GetSize ());
 		RETURN address DIV section.unit + displacement;
