@@ -47,6 +47,7 @@ TYPE
 			END;
 
 			IF (info.content # NIL) THEN
+				info.content.alignment.Set(WMComponents.AlignClient);
 				SetContent(info.content);
 			END;
 
@@ -206,7 +207,6 @@ BEGIN
 					KernelLog.String("He2_??"); KernelLog.Ln;
 				END;
 			ELSIF (ptr IS XML.Chars) THEN
-				KernelLog.String("Chars"); KernelLog.Ln;
 				string := ptr(XML.Chars).GetStr();
 				IF (string # NIL) THEN
 					Repositories.GetComponentByString(string^, component, res);

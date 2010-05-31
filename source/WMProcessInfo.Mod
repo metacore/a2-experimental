@@ -588,9 +588,9 @@ BEGIN
 END GenProcessSelector;
 
 PROCEDURE GenProcessManager*() : XML.Element;
-VAR ps : ProcessSelector;
+VAR pm : ProcessManager;
 BEGIN
-	NEW(ps); RETURN ps;
+	NEW(pm); RETURN pm;
 END GenProcessManager;
 
 BEGIN
