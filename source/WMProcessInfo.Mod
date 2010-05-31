@@ -425,7 +425,7 @@ TYPE
 			font := showBtn.GetFont();
 			font.GetStringSize(" Show Stack ", dx, dy);
 			showBtn.bounds.SetWidth(dx);
-			
+
 			NEW(cpuLoadBtn); cpuLoadBtn.alignment.Set(WMComponents.AlignLeft);
 			cpuLoadBtn.SetCaption("CPU Load");
 			cpuLoadBtn.onClick.Add(HandleCpuLoad);
@@ -508,7 +508,7 @@ TYPE
 				END;
 			END;
 		END HandleShowStack;
-		
+
 		PROCEDURE HandleCpuLoad(sender, data : ANY);
 		VAR selection : Selection; i : LONGINT;
 		BEGIN
@@ -518,9 +518,9 @@ TYPE
 					IF (selection[i] # NIL) THEN
 						OpenCpuLoadWindow(selection[i].id);
 					END;
-				END;		
+				END;
 			END;
-		END HandleCpuLoad;				
+		END HandleCpuLoad;
 
 	END ProcessManager;
 
@@ -557,12 +557,16 @@ BEGIN
 END GetAlign;
 
 PROCEDURE OpenCpuLoadWindow(pid : LONGINT);
-VAR commandString : ARRAY 128 OF CHAR; nbr : ARRAY 16 OF CHAR;
+VAR commandString, msg : ARRAY 128 OF CHAR; nbr : ARRAY 16 OF CHAR; res : LONGINT;
 BEGIN
 	commandString := "WMPerfMonPluginProcesses.Install ";
 	Strings.IntToStr(pid, nbr);
-	Strings.Append(commandString, nbr);	
-	Commands.Call(commandString);
+	Strings.Append(commandString, nbr);
+	Commands.Call(commandString, {}, res, msg);
+	IF (res # Commands.Ok) THEN
+		KernelLog.String("WMProcessInfo.OpenCpuLoad: Command call failed, res = "); KernelLog.Int(res, 0);
+		KernelLog.String(" ("); KernelLog.String(msg); KernelLog.String(")"); KernelLog.Ln;
+	END;
 END OpenCpuLoadWindow;
 
 PROCEDURE InitStrings;
