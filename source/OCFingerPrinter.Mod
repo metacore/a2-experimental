@@ -673,6 +673,7 @@ TYPE
 				FPNumber(fp,fpTypeProcedure);
 				FPNumber(fp,fpTypeBasic);
 				IF SyntaxTree.DelegateFlag IN x.flags THEN FPNumber(fp,fpDelegate) END;
+				x.SetFingerprint(fingerprint);
 				TypeName(fp,x);
 
 				fingerprint.public := fp; fingerprint.private := fp;
