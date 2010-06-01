@@ -21,7 +21,9 @@ TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 			IF alignment = 0 THEN alignment := section.unit; END;
 			INC (address, (alignment - address MOD alignment) MOD alignment);
 		END;
-		bits.Resize (address + section.bits.GetSize ());
+		IF bits.GetSize () < section.bits.GetSize () + address THEN
+			bits.Resize (address + section.bits.GetSize ());
+		END;
 		BitSets.CopyBits (section.bits, 0, bits, address, section.bits.GetSize ());
 		RETURN address DIV section.unit + displacement;
 	END Allocate;
