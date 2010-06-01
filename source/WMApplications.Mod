@@ -50,7 +50,7 @@ TYPE
 		name : Repositories.Name;
 		repository : Repositories.Repository;
 
-		PROCEDURE &New*(CONST info : ApplicationInfo; context : WMRestorable.Context);
+		PROCEDURE &New(CONST info : ApplicationInfo; context : WMRestorable.Context);
 		BEGIN
 			ASSERT(info.repository # NIL);
 			repository := info.repository;
@@ -256,7 +256,7 @@ BEGIN
 	RETURN res;
 END GetApplicationInfo;
 
-PROCEDURE ParseApplication(CONST applicationName : ARRAY OF CHAR; CONST application : XML.Element; VAR applicationInfo : ApplicationInfo) : BOOLEAN;
+PROCEDURE ParseApplication(CONST applicationName : ARRAY OF CHAR; CONST application : XML.Element; VAR info : ApplicationInfo) : BOOLEAN;
 VAR enumerator : XMLObjects.Enumerator; ptr : ANY; string : Strings.String; component : Repositories.Component; res : LONGINT;
 
 	PROCEDURE GetFlags(element : XML.Element) : SET;
@@ -297,7 +297,7 @@ VAR enumerator : XMLObjects.Enumerator; ptr : ANY; string : Strings.String; comp
 
 BEGIN
 	ASSERT(application # NIL);
-	COPY(applicationName, applicationInfo.name);
+	COPY(applicationName, info.name);
 	enumerator := application.GetContents();
 	WHILE enumerator.HasMoreElements() DO
 		ptr := enumerator.GetNext();
@@ -305,11 +305,12 @@ BEGIN
 			IF (ptr IS XML.Element) THEN
 				string := ptr(XML.Element).GetName();
 				IF (string # NIL) & (string^ = "Window") THEN
-					applicationInfo.window.title := ptr(XML.Element).GetAttributeValue("title");
-					applicationInfo.window.icon := ptr(XML.Element).GetAttributeValue("icon");
-					IF GetInteger(ptr(XML.Element), "width", applicationInfo.window.width) THEN applicationInfo.window.width := DefaultWidth; END;
-					IF GetInteger(ptr(XML.Element), "height", applicationInfo.window.height) THEN applicationInfo.window.height := DefaultHeight; END;
-					IF GetBoolean(ptr(XML.Element), "alpha", applicationInfo.window.alpha) THEN applicationInfo.window.alpha := DefaultAlpha; END;
+					info.window.title := ptr(XML.Element).GetAttributeValue("title");
+					info.window.icon := ptr(XML.Element).GetAttributeValue("icon");
+					IF ~GetInteger(ptr(XML.Element), "width", info.window.width) THEN info.window.width := DefaultWidth; END;
+					IF ~GetInteger(ptr(XML.Element), "height", info.window.height) THEN info.window.height := DefaultHeight; END;
+					IF ~GetBoolean(ptr(XML.Element), "alpha", info.window.alpha) THEN info.window.alpha := DefaultAlpha; END;
+					info.window.flags := GetFlags(ptr(XML.Element));
 				ELSE
 					KernelLog.String("He2_??"); KernelLog.Ln;
 				END;
@@ -319,7 +320,7 @@ BEGIN
 					Repositories.GetComponentByString(string^, component, res);
 					IF (res = Repositories.Ok) THEN
 						IF (component IS WMComponents.VisualComponent) THEN
-							applicationInfo.content := component(WMComponents.VisualComponent);
+							info.content := component(WMComponents.VisualComponent);
 						ELSE
 							KernelLog.String("Component is not a visual components."); KernelLog.Ln;
 						END;
@@ -332,7 +333,7 @@ BEGIN
 			END;
 		END;
 	END;
-	RETURN applicationInfo.content # NIL;
+	RETURN info.content # NIL;
 END ParseApplication;
 
 PROCEDURE GetApplication(repository : Repositories.Repository; CONST applicationName : ARRAY OF CHAR) : XML.Element;
@@ -385,5 +386,7 @@ END WMApplications.
 WMApplications.Open RepositoryName::ApplicationName ~
 
 WMApplications.Open Test:Test:0 ~
+
+WMApplications.Open System:ObjectTracker ~
 
 SystemTools.Free WMApplications ~
