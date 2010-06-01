@@ -11,6 +11,21 @@ CONST
 	ApplicationNotFound = 2;
 	ParseError = 3;
 
+	DefaultWidth = 640;
+	DefaultHeight = 480;
+	DefaultAlpha = FALSE;
+
+	(* Default window flags *)
+	FlagFrame = TRUE;
+	FlagClose = TRUE;
+	FlagMinimize = TRUE;
+	FlagStayOnTop = FALSE;
+	FlagStayOnBottom = FALSE;
+	FlagNoFocus = FALSE;
+	FlagNavigation = FALSE;
+	FlagHidden = FALSE;
+	FlagNoResizing = FALSE;
+
 TYPE
 
 	WindowInfo = RECORD
@@ -18,6 +33,7 @@ TYPE
 		icon : Strings.String;
 		width, height : LONGINT;
 		alpha : BOOLEAN;
+		flags : SET;
 	END;
 
 	ApplicationInfo = RECORD
@@ -29,7 +45,7 @@ TYPE
 
 TYPE
 
-	Window* = OBJECT (WMComponents.FormWindow)
+	Window = OBJECT (WMComponents.FormWindow)
 	VAR
 		name : Repositories.Name;
 		repository : Repositories.Repository;
@@ -62,7 +78,7 @@ TYPE
 			IF (context # NIL) THEN
 				WMRestorable.AddByContext(SELF, context);
 			ELSE
-				WMWindowManager.DefaultAddWindow(SELF)
+				WMWindowManager.ExtAddWindow(SELF, 100, 100, info.window.flags)
 			END;
 		END New;
 
@@ -89,6 +105,60 @@ TYPE
 		END Handle;
 
 	END Window;
+
+TYPE
+
+	GadgetWindow = OBJECT(WMComponents.FormWindow);
+	VAR
+		dragging, resizing : BOOLEAN;
+		lastX, lastY : LONGINT;
+
+		PROCEDURE PointerDown(x, y:LONGINT; keys:SET);
+		BEGIN
+			PointerDown^(x, y, keys);
+			lastX := bounds.l + x; lastY:=bounds.t + y;
+			IF keys = {0} THEN
+				dragging := TRUE
+			ELSIF keys = {1,2} THEN
+				dragging := FALSE;
+				resizing := TRUE;
+			END
+		END PointerDown;
+
+		PROCEDURE PointerMove(x,y:LONGINT; keys:SET);
+		VAR dx, dy, width, height : LONGINT;
+		BEGIN
+			PointerMove^(x, y, keys);
+			IF dragging OR resizing THEN
+				x := bounds.l + x; y := bounds.t + y; dx := x - lastX; dy := y - lastY;
+				lastX := lastX + dx; lastY := lastY + dy;
+				IF (dx # 0) OR (dy # 0) THEN
+					IF dragging THEN
+						manager.SetWindowPos(SELF, bounds.l + dx, bounds.t + dy);
+					ELSE
+						width := GetWidth();
+						height := GetHeight();
+						width := Strings.Max(10, width + dx);
+						height := Strings.Max(10, height + dy);
+						manager.SetWindowSize(SELF, width, height);
+					END;
+				END;
+			END;
+		END PointerMove;
+
+		PROCEDURE PointerUp(x, y:LONGINT; keys:SET);
+		BEGIN
+			PointerUp^(x, y, keys);
+			dragging := FALSE;
+			IF (keys # {1,2}) THEN
+				IF resizing THEN
+					resizing := FALSE;
+					Resized(GetWidth(), GetHeight());
+				END;
+			END;
+		END PointerUp;
+
+	END GadgetWindow;
 
 PROCEDURE Open*(context : Commands.Context);
 VAR
@@ -188,6 +258,43 @@ END GetApplicationInfo;
 
 PROCEDURE ParseApplication(CONST applicationName : ARRAY OF CHAR; CONST application : XML.Element; VAR applicationInfo : ApplicationInfo) : BOOLEAN;
 VAR enumerator : XMLObjects.Enumerator; ptr : ANY; string : Strings.String; component : Repositories.Component; res : LONGINT;
+
+	PROCEDURE GetFlags(element : XML.Element) : SET;
+	VAR flags : SET; value : BOOLEAN;
+	BEGIN
+		ASSERT(element # NIL);
+		flags := {};
+
+		IF ~GetBoolean(element, "frame", value) THEN value := FlagFrame; END;
+		IF value THEN INCL(flags, WMWindowManager.FlagFrame); END;
+
+		IF ~GetBoolean(element, "closeBtn", value) THEN value := FlagClose; END;
+		IF value THEN INCL(flags, WMWindowManager.FlagClose); END;
+
+		IF ~GetBoolean(element, "minimizeBtn", value) THEN value := FlagMinimize; END;
+		IF value THEN INCL(flags, WMWindowManager.FlagMinimize); END;
+
+		IF ~GetBoolean(element, "stayOnTop", value) THEN value := FlagStayOnTop; END;
+		IF value THEN INCL(flags, WMWindowManager.FlagStayOnTop); END;
+
+		IF ~GetBoolean(element, "nofocus", value) THEN value := FlagNoFocus; END;
+		IF value THEN INCL(flags, WMWindowManager.FlagNoFocus); END;
+
+		IF ~GetBoolean(element, "stayOnBottom", value) THEN value := FlagStayOnBottom; END;
+		IF value THEN INCL(flags, WMWindowManager.FlagStayOnBottom); END;
+
+		IF ~GetBoolean(element, "navigation", value) THEN value := FlagNavigation; END;
+		IF value THEN INCL(flags, WMWindowManager.FlagNavigation); END;
+
+		IF ~GetBoolean(element, "hidden", value) THEN value := FlagHidden; END;
+		IF value THEN INCL(flags, WMWindowManager.FlagHidden); END;
+
+		IF ~GetBoolean(element, "noResizing", value) THEN value := FlagNoResizing; END;
+		IF value THEN INCL(flags, WMWindowManager.FlagNoResizing); END;
+
+		RETURN flags;
+	END GetFlags;
+
 BEGIN
 	ASSERT(application # NIL);
 	COPY(applicationName, applicationInfo.name);
@@ -200,9 +307,9 @@ BEGIN
 				IF (string # NIL) & (string^ = "Window") THEN
 					applicationInfo.window.title := ptr(XML.Element).GetAttributeValue("title");
 					applicationInfo.window.icon := ptr(XML.Element).GetAttributeValue("icon");
-					IF GetInteger(ptr(XML.Element), "width", applicationInfo.window.width) THEN END;
-					IF GetInteger(ptr(XML.Element), "height", applicationInfo.window.height) THEN END;
-					IF GetBoolean(ptr(XML.Element), "alpha", applicationInfo.window.alpha) THEN END;
+					IF GetInteger(ptr(XML.Element), "width", applicationInfo.window.width) THEN applicationInfo.window.width := DefaultWidth; END;
+					IF GetInteger(ptr(XML.Element), "height", applicationInfo.window.height) THEN applicationInfo.window.height := DefaultHeight; END;
+					IF GetBoolean(ptr(XML.Element), "alpha", applicationInfo.window.alpha) THEN applicationInfo.window.alpha := DefaultAlpha; END;
 				ELSE
 					KernelLog.String("He2_??"); KernelLog.Ln;
 				END;
