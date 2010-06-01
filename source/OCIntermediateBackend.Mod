@@ -367,7 +367,7 @@ TYPE
 				END;
 
 				IF ~inline  & (cc#SyntaxTree.NoPAFFlag) THEN
-					IF stackSize > 4*1024-256 THEN (* stack frame potentially larger than page size *) (*! get page size from backend *)
+					IF ToMemoryUnits(system,stackSize) > 4*1024-256 THEN (* stack frame potentially larger than page size *) (*! get page size from backend *)
 						IF implementationVisitor.GetRuntimeProcedure(implementationVisitor.runtimeModuleName,"EnsureAllocatedStack",procedure,TRUE) THEN
 							size := IntermediateCode.Immediate(GetType(system,Global.Address),ToMemoryUnits(system,stackSize+256));
 							ir.EmitAt(pc,Push(size));
