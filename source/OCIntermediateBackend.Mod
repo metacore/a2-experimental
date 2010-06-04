@@ -6420,7 +6420,7 @@ TYPE
 		Strings.Append(name,".@Module");
 		moduleSection := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
 		IF moduleSection.pc = 0 THEN
-			MetaProtectedHeapBlock(implementationVisitor,"Heaps","RecordBlockDesc",module,moduleSection,2);
+			MetaProtectedHeapBlock(implementationVisitor,"Heaps","ProtRecBlockDesc",module,moduleSection,2);
 			MetaInfo(moduleSection, "HeapBlock");
 			MetaSymbol(module,moduleSection,moduleSection,2,0);
 			MetaInfo(moduleSection, "TypeDescriptor");
