@@ -2,7 +2,7 @@ MODULE WMApplications; (** AUTHOR "staubesv"; PURPOSE "Application Launcher"; *)
 
 IMPORT
 	KernelLog,
-	Streams, Commands, Strings, XML, XMLObjects, Repositories,
+	Streams, Modules, Commands, Inputs, Strings, XML, XMLObjects, Repositories,
 	WMGraphics, WMComponents, WMMessages, WMRestorable, WMWindowManager;
 
 CONST
@@ -26,6 +26,22 @@ CONST
 	FlagHidden = FALSE;
 	FlagNoResizing = FALSE;
 
+	Mode_Standard = 0;
+	Mode_Move = 1;
+	Mode_ResizeLeft = 2;
+	Mode_ResizeTopLeft = 3;
+	Mode_ResizeTop = 4;
+	Mode_ResizeTopRight = 5;
+	Mode_ResizeRight = 6;
+	Mode_ResizeBottomRight = 7;
+	Mode_ResizeBottom = 8;
+	Mode_ResizeBottomLeft = 9;
+
+	ResizeAreaSize = 10;
+
+	MinimumWidth = 20;
+	MinimumHeight = 20;
+
 TYPE
 
 	WindowInfo = RECORD
@@ -34,6 +50,7 @@ TYPE
 		width, height : LONGINT;
 		alpha : BOOLEAN;
 		flags : SET;
+		alternativeMoveResize : BOOLEAN;
 	END;
 
 	ApplicationInfo = RECORD
@@ -44,6 +61,9 @@ TYPE
 	END;
 
 TYPE
+
+	KillerMsg = OBJECT
+	END KillerMsg;
 
 	Window = OBJECT (WMComponents.FormWindow)
 	VAR
@@ -80,11 +100,13 @@ TYPE
 			ELSE
 				WMWindowManager.ExtAddWindow(SELF, 100, 100, info.window.flags)
 			END;
+			IncCount;
 		END New;
 
 		PROCEDURE Close;
 		BEGIN
 			Close^;
+			DecCount;
 		END Close;
 
 		PROCEDURE Handle(VAR x : WMMessages.Message);
@@ -96,6 +118,8 @@ TYPE
 					data.SetAttributeValue("repository", repository.name);
 					data.SetAttributeValue("name", repository.name);
 					x.ext(WMRestorable.Storage).Add(name, "WMApplications.Restore", SELF, data);
+				ELSIF (x.ext IS KillerMsg) THEN
+					Close;
 				ELSE
 					Handle^(x)
 				END
@@ -108,57 +132,182 @@ TYPE
 
 TYPE
 
-	GadgetWindow = OBJECT(WMComponents.FormWindow);
+	GadgetWindow = OBJECT(Window);
 	VAR
-		dragging, resizing : BOOLEAN;
 		lastX, lastY : LONGINT;
+		mode : LONGINT;
+		resized : BOOLEAN;
+		viewport : WMWindowManager.ViewPort;
 
-		PROCEDURE PointerDown(x, y:LONGINT; keys:SET);
+		PROCEDURE &New(CONST info : ApplicationInfo; context : WMRestorable.Context);
+		BEGIN
+			New^(info, context);
+			mode := Mode_Standard;
+			resized := FALSE;
+			viewport := WMWindowManager.GetDefaultView();
+			ASSERT(viewport # NIL);
+		END New;
+
+		PROCEDURE GetMode(x, y : LONGINT) : LONGINT;
+		VAR mode, width, height : LONGINT;
+		BEGIN
+			width := bounds.r - bounds.l; height := bounds.b - bounds.t;
+			IF (x <= ResizeAreaSize) THEN
+				IF (y <= ResizeAreaSize) THEN
+					mode := Mode_ResizeTopLeft;
+				ELSIF (y >= height - ResizeAreaSize) THEN
+					mode := Mode_ResizeBottomLeft;
+				ELSE
+					mode := Mode_ResizeLeft;
+				END;
+			ELSIF (x >= width - ResizeAreaSize) THEN
+				IF (y <= ResizeAreaSize) THEN
+					mode := Mode_ResizeTopRight;
+				ELSIF (y >= height - ResizeAreaSize) THEN
+					mode := Mode_ResizeBottomRight;
+				ELSE
+					mode := Mode_ResizeRight;
+				END;
+			ELSIF (y <= ResizeAreaSize) THEN
+				mode := Mode_ResizeTop;
+			ELSIF (y >= height - ResizeAreaSize) THEN
+				mode := Mode_ResizeBottom;
+			ELSE
+				mode := Mode_Move;
+			END;
+			IF (WMWindowManager.FlagNoResizing IN flags) & (mode # Mode_Standard) THEN
+				mode := Mode_Move;
+			END;
+			RETURN mode;
+		END GetMode;
+
+		PROCEDURE UpdatePointerInfo(mode : LONGINT);
+		VAR info : WMWindowManager.PointerInfo;
+		BEGIN
+			CASE mode OF
+				| Mode_ResizeLeft: info := manager.pointerLeftRight;
+				| Mode_ResizeRight: info := manager.pointerLeftRight;
+				| Mode_ResizeTop: info := manager.pointerUpDown;
+				| Mode_ResizeBottom: info := manager.pointerUpDown;
+				| Mode_ResizeTopLeft: info := manager.pointerULDR;
+				| Mode_ResizeTopRight: info := manager.pointerURDL;
+				| Mode_ResizeBottomLeft: info := manager.pointerURDL;
+				| Mode_ResizeBottomRight: info := manager.pointerULDR;
+				| Mode_Move: info := manager.pointerMove;
+			ELSE
+				info := manager.pointerStandard;
+			END;
+			SetPointerInfo(info);
+		END UpdatePointerInfo;
+
+		PROCEDURE MoveOrResize() : BOOLEAN;
+		VAR state : SET;
+		BEGIN
+			viewport.GetKeyState(state);
+			RETURN (Inputs.LeftCtrl IN state);
+		END MoveOrResize;
+
+		PROCEDURE PointerDown(x, y : LONGINT; keys : SET);
 		BEGIN
 			PointerDown^(x, y, keys);
 			lastX := bounds.l + x; lastY:=bounds.t + y;
-			IF keys = {0} THEN
-				dragging := TRUE
-			ELSIF keys = {1,2} THEN
-				dragging := FALSE;
-				resizing := TRUE;
-			END
+			IF (0 IN keys) & MoveOrResize() & (mode = Mode_Standard) THEN
+				mode := GetMode(x, y);
+				UpdatePointerInfo(mode);
+			END;
 		END PointerDown;
 
-		PROCEDURE PointerMove(x,y:LONGINT; keys:SET);
-		VAR dx, dy, width, height : LONGINT;
+		PROCEDURE PointerMove(x, y : LONGINT; keys : SET);
+		VAR dx, dy, width, height, newWidth, newHeight, moveX, moveY, tempMode : LONGINT;
 		BEGIN
 			PointerMove^(x, y, keys);
-			IF dragging OR resizing THEN
-				x := bounds.l + x; y := bounds.t + y; dx := x - lastX; dy := y - lastY;
+			IF MoveOrResize() & (mode = Mode_Standard) THEN
+				tempMode := GetMode(x, y);
+				IF (tempMode # mode) THEN UpdatePointerInfo(tempMode); END;
+			END;
+
+			IF (mode # Mode_Standard) THEN
+				width := GetWidth(); height := GetHeight();
+				newWidth := width; newHeight := height;
+				x := bounds.l + x; y := bounds.t + y;
+				dx := x - lastX; dy := y - lastY;
 				lastX := lastX + dx; lastY := lastY + dy;
-				IF (dx # 0) OR (dy # 0) THEN
-					IF dragging THEN
-						manager.SetWindowPos(SELF, bounds.l + dx, bounds.t + dy);
+				moveX := 0; moveY := 0;
+				IF (mode = Mode_Move) THEN
+					moveX := dx; moveY := dy;
+				ELSE
+					CASE mode OF
+						| Mode_ResizeLeft: newWidth := width - dx; moveX := dx;
+						| Mode_ResizeRight: newWidth := width + dx;
+						| Mode_ResizeTop: newHeight := height - dy; moveY := dy;
+						| Mode_ResizeBottom: newHeight := height + dy;
+						| Mode_ResizeTopLeft:
+							newWidth := width - dx; moveX := dx;
+							newHeight := height - dy; moveY := dy;
+						| Mode_ResizeTopRight:
+							newWidth := width + dx;
+							newHeight := height - dy; moveY := dy;
+						| Mode_ResizeBottomLeft:
+							newWidth := width - dx; moveX := dx;
+							newHeight := height + dy;
+						| Mode_ResizeBottomRight:
+							newWidth := width + dx;
+							newHeight := height + dy;
 					ELSE
-						width := GetWidth();
-						height := GetHeight();
-						width := Strings.Max(10, width + dx);
-						height := Strings.Max(10, height + dy);
-						manager.SetWindowSize(SELF, width, height);
+						newWidth := width; newHeight := height;
 					END;
+				END;
+				IF (newWidth < MinimumWidth) THEN
+					IF (moveX # 0) THEN moveX := moveX - (newWidth - MinimumWidth); END;
+					newWidth := MinimumWidth;
+				END;
+				IF (newHeight < MinimumHeight) THEN
+					IF (moveY # 0) THEN moveY := moveY - (newHeight - MinimumHeight); END;
+					newHeight := MinimumHeight;
+				END;
+				IF (newWidth # width) OR (newHeight # height) THEN
+					manager.SetWindowSize(SELF, newWidth, newHeight); resized := TRUE;
+				END;
+				IF (moveX # 0) OR (moveY # 0) THEN
+					manager.SetWindowPos(SELF, bounds.l + moveX, bounds.t + moveY);
 				END;
 			END;
 		END PointerMove;
 
+		PROCEDURE Handle*(VAR m : WMMessages.Message);
+		BEGIN
+			IF MoveOrResize() & (m.msgType = WMMessages.MsgPointer) THEN
+				IF m.msgSubType = WMMessages.MsgSubPointerMove THEN PointerMove(m.x, m.y, m.flags)
+				ELSIF m.msgSubType = WMMessages.MsgSubPointerDown THEN PointerDown(m.x, m.y, m.flags)
+				ELSIF m.msgSubType = WMMessages.MsgSubPointerUp THEN PointerUp(m.x, m.y, m.flags)
+				ELSIF m.msgSubType = WMMessages.MsgSubPointerLeave THEN PointerLeave
+				END
+			ELSE
+				Handle^(m);
+			END;
+		END Handle;
+
 		PROCEDURE PointerUp(x, y:LONGINT; keys:SET);
 		BEGIN
 			PointerUp^(x, y, keys);
-			dragging := FALSE;
-			IF (keys # {1,2}) THEN
-				IF resizing THEN
-					resizing := FALSE;
+			IF (mode # Mode_Standard) & ~(0 IN keys) THEN
+				mode := Mode_Standard;
+				UpdatePointerInfo(mode);
+				IF resized THEN
 					Resized(GetWidth(), GetHeight());
 				END;
 			END;
 		END PointerUp;
 
+		PROCEDURE PointerLeave;
+		BEGIN
+			PointerLeave^;
+		END PointerLeave;
+
 	END GadgetWindow;
+
+VAR
+	nofWindows : LONGINT;
 
 PROCEDURE Open*(context : Commands.Context);
 VAR
@@ -166,13 +315,18 @@ VAR
 	refNum, res : LONGINT;
 	info : ApplicationInfo;
 	window : Window;
+	gadgetWindow : GadgetWindow;
 BEGIN
 	fullName := "";
 	context.arg.GetString(fullName);
 	IF Repositories.SplitName(fullName, repositoryName, applicationName, refNum) THEN
 		res := GetApplicationInfo(repositoryName, applicationName, info);
 		IF (res = Ok) THEN
-			NEW(window, info, NIL);
+			IF ~info.window.alternativeMoveResize THEN
+				NEW(window, info, NIL);
+			ELSE
+				NEW(gadgetWindow, info, NIL);
+			END;
 		ELSIF (res = RepositoryNotFound) THEN
 			context.error.String("Repository "); context.error.String(repositoryName);
 			context.error.String(" not found."); context.error.Ln;
@@ -311,6 +465,9 @@ BEGIN
 					IF ~GetInteger(ptr(XML.Element), "height", info.window.height) THEN info.window.height := DefaultHeight; END;
 					IF ~GetBoolean(ptr(XML.Element), "alpha", info.window.alpha) THEN info.window.alpha := DefaultAlpha; END;
 					info.window.flags := GetFlags(ptr(XML.Element));
+					IF ~GetBoolean(ptr(XML.Element), "alternativeMoveResize", info.window.alternativeMoveResize) THEN
+						info.window.alternativeMoveResize := FALSE;
+					END;
 				ELSE
 					KernelLog.String("He2_??"); KernelLog.Ln;
 				END;
@@ -381,11 +538,37 @@ BEGIN
 	RETURN (string # NIL);
 END GetBoolean;
 
+PROCEDURE IncCount;
+BEGIN {EXCLUSIVE}
+	INC(nofWindows)
+END IncCount;
+
+PROCEDURE DecCount;
+BEGIN {EXCLUSIVE}
+	DEC(nofWindows)
+END DecCount;
+
+PROCEDURE Cleanup;
+VAR die : KillerMsg;
+	 msg : WMMessages.Message;
+	 m : WMWindowManager.WindowManager;
+BEGIN {EXCLUSIVE}
+	NEW(die);
+	msg.ext := die;
+	msg.msgType := WMMessages.MsgExt;
+	m := WMWindowManager.GetDefaultManager();
+	m.Broadcast(msg);
+	AWAIT(nofWindows = 0)
+END Cleanup;
+
+BEGIN
+	nofWindows := 0;
+	Modules.InstallTermHandler(Cleanup);
 END WMApplications.
 
 WMApplications.Open RepositoryName::ApplicationName ~
 
-WMApplications.Open Test:Test:0 ~
+WMApplications.Open test:test:0 ~
 
 WMApplications.Open System:ObjectTracker ~
 
