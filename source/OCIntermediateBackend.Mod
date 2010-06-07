@@ -3854,7 +3854,7 @@ TYPE
 					ReleaseIntermediateOperand(reg);
 
 					(* push realtime flag *)
-					IF (SyntaxTree.RealtimeFlag IN type.flags) THEN Emit(Push(true));
+					IF (SyntaxTree.RealtimeFlag IN p0.type.resolved.flags) THEN Emit(Push(true));
 					ELSE Emit(Push(false));
 					END;
 
@@ -3984,7 +3984,7 @@ TYPE
 						tmp := IntermediateCode.Immediate(addressType,dim);
 						Emit(Push(tmp)); (* dimensions *)
 						(* push realtime flag *)
-						IF (SyntaxTree.RealtimeFlag IN type.flags) THEN Emit(Push(true));
+						IF (SyntaxTree.RealtimeFlag IN p0.type.resolved.flags) THEN Emit(Push(true));
 						ELSE Emit(Push(false));
 						END;
 						IF newObjectFile THEN CallThis("Heaps","NewArr") ELSE
@@ -4008,7 +4008,7 @@ TYPE
 						Emit(Push(reg)); (* size *)
 						ReleaseIntermediateOperand(reg);
 						(* push realtime flag *)
-						IF (SyntaxTree.RealtimeFlag IN type.flags) THEN Emit(Push(true));
+						IF (SyntaxTree.RealtimeFlag IN p0.type.resolved.flags) THEN Emit(Push(true));
 						ELSE Emit(Push(false));
 						END;
 						IF newObjectFile THEN CallThis("Heaps","NewSys") ELSE
@@ -6649,7 +6649,7 @@ TYPE
 				*)
 
 				MetaInfo(source, "MethodEnd = MPO");
-				IntermediateCode.InitImmediate(op,GetType(module.system, Global.Address),MPO-4);
+				IntermediateCode.InitImmediate(op,GetType(module.system, Global.Address),MPO);
 				source(IntermediateCode.Section).Emit(Data(op));
 
 				MetaInfo(source, "method table");
