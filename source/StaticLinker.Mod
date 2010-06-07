@@ -29,7 +29,7 @@ TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 	END Allocate;
 
 	PROCEDURE Patch* (pos, value: GenericLinker.Address; offset, bits, unit: ObjectFile.Bits);
-	BEGIN SELF.bits.SetBits ((pos - displacement) * unit, bits, value);
+	BEGIN SELF.bits.SetBits ((pos - displacement) * unit + offset, bits, value);
 	END Patch;
 
 END Arrangement;
