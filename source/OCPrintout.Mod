@@ -819,8 +819,9 @@ TYPE
 				IF (x.access # SyntaxTree.Hidden) OR (mode > SourceCode) THEN
 					Indent;
 					PrintSymbol(x);
+					Flags(x.flags);
 					WHILE(next # NIL) & (next.type = x.type) & ((next.access # SyntaxTree.Hidden) OR (mode > SourceCode)) DO
-						w.String(", "); PrintSymbol(next);
+						w.String(", "); PrintSymbol(next); Flags(next.flags);
 						next := next.nextVariable;
 					END;
 					IF x.access # SyntaxTree.Hidden THEN

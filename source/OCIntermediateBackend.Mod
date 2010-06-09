@@ -5906,6 +5906,7 @@ TYPE
 		PROCEDURE MetaName(module: Sections.Module; section: IntermediateCode.Section; CONST name: ARRAY OF CHAR);
 		VAR i: LONGINT; ch: CHAR;
 		BEGIN
+			i := 0;
 			REPEAT
 				ch := name[i]; INC(i);
 				MetaChar(module, section, ch);
@@ -6344,12 +6345,16 @@ TYPE
 			procedureType := procedure.type(SyntaxTree.ProcedureType);
 			variable := procedure.procedureScope.firstVariable;
 			WHILE(variable # NIL) DO
-				MetaPointers(variable.offsetInBits DIV 8, NIL, module, pointerArray, variable.type, numberPointers);
+				IF ~(SyntaxTree.UntracedFlag IN variable.flags) THEN
+					MetaPointers(variable.offsetInBits DIV 8, NIL, module, pointerArray, variable.type, numberPointers);
+				END;
 				variable := variable.nextVariable
 			END;
 			parameter := procedureType.firstParameter;
 			WHILE(parameter # NIL) DO
-				MetaPointers(parameter.offsetInBits DIV 8, NIL, module, pointerArray, parameter.type, numberPointers);
+				IF ~(SyntaxTree.UntracedFlag IN parameter.flags) THEN
+					MetaPointers(parameter.offsetInBits DIV 8, NIL, module, pointerArray, parameter.type, numberPointers);
+				END;
 				parameter := parameter.nextParameter;
 			END;
 			MetaInfo(procArray,"numberPointers");
@@ -6542,8 +6547,10 @@ TYPE
 		ELSIF scope IS SyntaxTree.ModuleScope THEN
 			variable := scope(SyntaxTree.ModuleScope).firstVariable;
 			WHILE variable # NIL DO
-				symbol := module.sections.FindBySymbol(variable);
-				MetaPointers(0,symbol, module,source,variable.type,numberPointers);
+				IF ~(SyntaxTree.UntracedFlag IN variable.flags) THEN
+					symbol := module.sections.FindBySymbol(variable);
+					MetaPointers(0,symbol, module,source,variable.type,numberPointers);
+				END;
 				variable := variable.nextVariable;
 			END;
 		END;
