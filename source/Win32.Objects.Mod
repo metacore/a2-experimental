@@ -140,7 +140,7 @@ TYPE
 		stack*: Machine.Stack; (** user-level stack of process *)
 		*)
 		stackBottom: LONGINT;
-		handle: Kernel32.HANDLE;
+		handle-: Kernel32.HANDLE; (* handle to corresponding Windows thread *)
 		body: Body;
 		event: Win32Event;
 		restartPC-: LONGINT;   (** entry point of body, for SAFE exception recovery *)
@@ -859,7 +859,7 @@ END NewProcess;
 PROCEDURE CreateProcess*(body: Body; priority: LONGINT; flags: SET; obj: ProtectedObject);
 VAR t : Process; heapBlock {UNTRACED}: Heaps.HeapBlock;
 BEGIN
-	ASSERT(priority >= 0, 1000); ASSERT(priority <=Realtime, 1001); 
+	ASSERT(priority >= 0, 1000); ASSERT(priority <=Realtime, 1001);
 	SYSTEM.GET(SYSTEM.VAL(SYSTEM.ADDRESS, obj) + Heaps.HeapBlockOffset, heapBlock);
 	ASSERT(heapBlock IS Heaps.ProtRecBlock); (* protected object *)
 	IF Restart IN flags THEN INCL(flags, Resistant) END;   (* SAFE => Restart & Resistant *)

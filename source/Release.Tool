@@ -558,7 +558,9 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 	config.txt # default config string settings
 	PartitionEditorTable.Mod
 
-	NATIVE { Profiler.Mod HierarchicalProfiler.Mod } # Hierarchical profiler has GUI: WMProfiler.Mod
+	NATIVE{ Profiler.Mod HierarchicalProfiler0.Mod } # Hierarchical profiler has GUI: WMProfiler.Mod
+	WIN { Win32.HierarchicalProfiler0.Mod }
+	NATIVE, WIN { HierarchicalProfiler.Mod}
 
 	FTPClient.Mod
 
