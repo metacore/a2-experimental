@@ -68,7 +68,7 @@ TYPE
 			temp := oldTimes;
 			oldTimes := times;
 			times := temp;
-			ProcessInfo.Copy(processes, oldProcesses);
+			ProcessInfo.Copy(processes, oldProcesses); oldNofProcesses := nofProcesses;
 			ProcessInfo.Clear(processes);
 		END Process;
 
