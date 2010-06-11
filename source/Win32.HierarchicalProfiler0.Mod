@@ -13,18 +13,25 @@ CONST
 
 TYPE
 
+	ProcessTimeArray = POINTER TO ARRAY ProcessInfo.MaxNofProcesses OF HUGEINT;
+
 	Callback = PROCEDURE (id : LONGINT; process : Objects.Process; pc, bp : SYSTEM.ADDRESS);
 
 	Poller = OBJECT
 	VAR
-		processes : ARRAY ProcessInfo.MaxNofProcesses OF Objects.Process;
-		nofProcesses : LONGINT;
+		processes, oldProcesses : ARRAY ProcessInfo.MaxNofProcesses OF Objects.Process;
+		nofProcesses, oldNofProcesses : LONGINT;
+		times, oldTimes : ProcessTimeArray;
 		me : Objects.Process;
 		state : LONGINT;
 
 		PROCEDURE &Init;
 		BEGIN
 			state := Running;
+			ProcessInfo.Clear(processes); nofProcesses := 0;
+			ProcessInfo.Clear(oldProcesses); oldNofProcesses := 0;
+			NEW(times); Clear(times);
+			NEW(oldTimes); Clear(oldTimes);
 		END Init;
 
 		PROCEDURE Terminate;
@@ -33,15 +40,35 @@ TYPE
 			AWAIT(state = Terminated);
 		END Terminate;
 
-		PROCEDURE Process;
+		PROCEDURE Clear(array : ProcessTimeArray);
 		VAR i : LONGINT;
+		BEGIN
+			FOR i := 0 TO LEN(array)-1 DO array[i] := 0; END;
+		END Clear;
+
+		PROCEDURE RanMeanwhile(process : Objects.Process; currentCycles : HUGEINT) : BOOLEAN;
+		VAR i : LONGINT;
+		BEGIN
+			i := 0; WHILE (i < oldNofProcesses) &	(oldProcesses[i] # process) DO INC(i); END;
+			RETURN (i >= oldNofProcesses) OR (oldTimes[i] < currentCycles);
+		END RanMeanwhile;
+
+		PROCEDURE Process;
+		VAR process : Objects.Process; cycles : Objects.CpuCyclesArray; temp : ProcessTimeArray; i : LONGINT;
 		BEGIN
 			ProcessInfo.GetProcesses(processes, nofProcesses);
 			FOR i := 0 TO nofProcesses - 1 DO
-				IF (processes[i] # me) THEN
-					HandleProcess(processes[i]);
+				process := processes[i];
+				Objects.GetCpuCycles(process, cycles, TRUE);
+				times[i] := cycles[0];
+				IF (process # me) & RanMeanwhile(process, times[i]) THEN
+					HandleProcess(process);
 				END;
 			END;
+			temp := oldTimes;
+			oldTimes := times;
+			times := temp;
+			ProcessInfo.Copy(processes, oldProcesses);
 			ProcessInfo.Clear(processes);
 		END Process;
 
@@ -54,6 +81,8 @@ TYPE
 			END;
 			IF (state = Terminating) THEN EXIT; END;
 		END;
+		ProcessInfo.Clear(processes);
+		ProcessInfo.Clear(oldProcesses);
 		BEGIN {EXCLUSIVE} state := Terminated; END;
 	END Poller;
 

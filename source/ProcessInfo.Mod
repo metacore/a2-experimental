@@ -7,16 +7,33 @@ CONST
 	MaxNofProcesses* = 1000;
 
 TYPE
+	ProcessArray* = ProcessInfo0.ProcessArray;
 
 	IsGreaterThanProc* = PROCEDURE {DELEGATE} (p1, p2 : Objects.Process) : BOOLEAN; (* { p1, p2 # NIL } *)
 
-PROCEDURE Clear*(VAR array : ProcessInfo0.ProcessArray);
+PROCEDURE Clear*(VAR array : ProcessArray);
 VAR i : LONGINT;
 BEGIN
 	FOR i := 0 TO LEN(array)-1 DO array[i] := NIL; END;
 END Clear;
 
-PROCEDURE Sort*(VAR processes : ProcessInfo0.ProcessArray; nofProcesses : LONGINT; isGreaterThan : IsGreaterThanProc);
+PROCEDURE Copy*(CONST from : ProcessArray; VAR to : ProcessArray);
+VAR length, fromLength, toLength, i : LONGINT;
+BEGIN
+	fromLength := LEN(from);
+	toLength := LEN(to);
+	IF (fromLength <= toLength) THEN length := fromLength; ELSE length := toLength; END;
+	FOR i := 0 TO length - 1 DO
+		to[i] := from[i];
+	END;
+	IF (toLength > fromLength) THEN
+		FOR i := fromLength TO toLength DO
+			to[i] := from[i];
+		END;
+	END;
+END Copy;
+
+PROCEDURE Sort*(VAR processes : ProcessArray; nofProcesses : LONGINT; isGreaterThan : IsGreaterThanProc);
 VAR i, j : LONGINT; temp : Objects.Process;
 BEGIN
 	ASSERT(isGreaterThan # NIL);
@@ -32,7 +49,7 @@ BEGIN
 	END;
 END Sort;
 
-PROCEDURE Find*(CONST processes : ProcessInfo0.ProcessArray; id : LONGINT) : Objects.Process;
+PROCEDURE Find*(CONST processes : ProcessArray; id : LONGINT) : Objects.Process;
 VAR process : Objects.Process; i : LONGINT;
 BEGIN
 	i := 0;
@@ -63,7 +80,7 @@ BEGIN
 	RETURN p1.mode > p2.mode;
 END SortByMode;
 
-PROCEDURE GetProcesses*(VAR processes : ProcessInfo0.ProcessArray; VAR nofProcesses : LONGINT);
+PROCEDURE GetProcesses*(VAR processes : ProcessArray; VAR nofProcesses : LONGINT);
 BEGIN
 	ProcessInfo0.GetProcesses(processes, nofProcesses);
 END GetProcesses;
