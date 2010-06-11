@@ -192,6 +192,18 @@ TYPE
 			Scope(x.recordScope);
 		END VisitRecordType;
 
+		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
+		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration;
+		BEGIN (* no code emission *)
+			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
+			IF (x.actorScope.ownerModule = module.module)  THEN
+				td := x.typeDeclaration;
+				Global.GetSymbolName(td,name);
+				(* code section for object *)
+			END;
+			Scope(x.actorScope);
+		END VisitActorType;
+
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
 		BEGIN (* no code emission *)   END VisitProcedureType;
 
@@ -4608,6 +4620,11 @@ TYPE
 				(*! check for new object file, correct? *)
 				symbol := IntermediateCode.NewSection(module.importedSymbols,Sections.VarSection,name,x,commentPrintout # NIL);
 				IntermediateCode.InitAddress(result.op, addressType, symbol, 0)
+			ELSIF x.scope IS SyntaxTree.ActorScope THEN
+				InitOperand(result,ModeReference);
+				Global.GetSymbolName(x,name);
+				symbol := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,commentPrintout # NIL);
+				IntermediateCode.InitAddress(result.op, addressType, symbol, 0);
 			ELSE (* field, left designator must have been emitted *)
 				ASSERT(result.mode = ModeReference);
 				IF result.op.mode = IntermediateCode.ModeMemory THEN
@@ -4661,11 +4678,15 @@ TYPE
 			InitOperand(result,ModeReference);
 			result.op := basereg;
 
-			IF IsOpenArray(type) THEN
+			IF x.kind = SyntaxTree.InPort THEN
+				HALT(200);
+			ELSIF x.kind = SyntaxTree.OutPort THEN
+				HALT(200);
+			ELSIF IsOpenArray(type) THEN
 				result.tag := basereg;
 				IntermediateCode.AddOffset(result.op,ToMemoryUnits(system,x.offsetInBits));
 				IntermediateCode.MakeMemory(result.op,addressType);
-				IF IsOberonProcedure(x.procedureType) THEN
+				IF IsOberonProcedure(x.ownerType(SyntaxTree.ProcedureType)) THEN
 					IntermediateCode.AddOffset(result.tag,ToMemoryUnits(system,x.offsetInBits+addressType.sizeInBits));
 					UseIntermediateOperand(result.tag);
 				ELSE

@@ -830,6 +830,42 @@ TYPE
 		END VisitRecordType;
 
 
+		(** check and resolve actor type
+			- check base type: must be actor
+			- check declarations
+			- every actor type is guaranteed to have a type declaration in the module scope (anonymous or not)
+		**)
+		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
+		VAR
+			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter;
+		BEGIN
+			IF TypeNeedsResolution(x) THEN
+
+				(* process parameters *)
+				parameter :=x.firstParameter;
+				WHILE (parameter # NIL) DO
+					VisitParameter(parameter);
+					parameter := parameter.nextParameter;
+				END;
+
+				Declarations(x.actorScope);
+
+				symbol := x.actorScope.firstSymbol; (* sorted symbols, important to go through procedures in a sorted way here !*)
+				WHILE symbol # NIL DO
+					IF symbol IS SyntaxTree.Variable THEN
+						isRealtime := isRealtime & symbol.type.resolved.IsRealtime();
+					END;
+					symbol := symbol.nextSymbol;
+				END;
+				IF isRealtime THEN x.AddFlags({SyntaxTree.RealtimeFlag}) END;
+
+				IF (x.typeDeclaration = NIL) THEN
+					AnonymousTypeDeclaration(x,"Anonymous");
+				END;
+				x.SetState(SyntaxTree.Resolved);
+			END;
+			resolvedType := ResolvedType(x);
+		END VisitActorType;
 
 		(** resolve all pending types (late resolving).
 			- type fixes are resolved at the end of the declaration phase
@@ -856,26 +892,6 @@ TYPE
 			currentScope :=prevScope;
 		END FixTypes;
 
-		(** resolve all pending pointer parameters and variables of realtime procedures (late resolving).
-			- pointer fixes are resolved at the end of the declaration phase, after fixing the types
-		**)
-		PROCEDURE FixPointers;
-		VAR p: ANY; prevScope: SyntaxTree.Scope; symbol: SyntaxTree.Symbol;
-		BEGIN
-			prevScope := currentScope;
-			p := pointerFixes.Get(currentScope);
-			WHILE p # NIL DO
-				ASSERT(currentScope # NIL);
-				ASSERT(p IS SyntaxTree.Symbol);
-				symbol := p(SyntaxTree.Symbol);
-				IF ~symbol.type.resolved.IsRealtime() THEN
-					Error(symbol.position,Diagnostics.Invalid,"symbol has no realtime type");
-				END;
-				p := pointerFixes.Get(currentScope);
-			END;	
-			currentScope := prevScope;				
-		END FixPointers;
-		
 		(**
 			resolve type x
 			- if x is nil then return nil
@@ -956,7 +972,7 @@ TYPE
 			IF actualType = SyntaxTree.invalidType THEN (* error already handled *)
 			ELSIF formal.kind = SyntaxTree.VarParameter THEN
 
-				IF (SyntaxTree.WinAPIFlag IN formal.procedureType.flags) & (actualType = Global.Nil) THEN
+				IF (SyntaxTree.WinAPIFlag IN formal.ownerType.flags) & (actualType = Global.Nil) THEN
 					result := TRUE; (* special rule for WINAPI parameters, needed to be able to pass NIL address to var parameters *)
 				ELSIF ~IsVariable(actual) THEN
 					result := FALSE; error := TRUE;
@@ -981,7 +997,7 @@ TYPE
 				IF (formalType IS SyntaxTree.CharacterType) & (actualType IS SyntaxTree.StringType) & (actualType(SyntaxTree.StringType).length = 2) THEN
 					actualType := Global.Char;
 				END;
-				IF (SyntaxTree.WinAPIFlag IN formal.procedureType.flags) &  (actualType = Global.Nil) THEN
+				IF (SyntaxTree.WinAPIFlag IN formal.ownerType.flags) &  (actualType = Global.Nil) THEN
 					result := TRUE; (* special rule for WINAPI parameters *)
 				ELSIF (formalType IS SyntaxTree.ArrayType) & (formalType(SyntaxTree.ArrayType).form = SyntaxTree.Open) THEN
 					result := OpenArrayCompatible(formalType(SyntaxTree.ArrayType),actualType);
@@ -2304,7 +2320,7 @@ TYPE
 				- else return a symbol designator
 		**)
 		PROCEDURE NewSymbolDesignator*(position: LONGINT; left: SyntaxTree.Designator; symbol: SyntaxTree.Symbol): SyntaxTree.Expression;
-		VAR result,variableSymbol: SyntaxTree.Expression; assignable: BOOLEAN; scope: SyntaxTree.Scope;
+		VAR result: SyntaxTree.Expression; assignable: BOOLEAN; scope: SyntaxTree.Scope;
 		guardType: SyntaxTree.Type; typeExpression: SyntaxTree.Expression;
 		BEGIN
 			IF Trace THEN D.Str("NewSymbolDesignator "); D.Ln; END;
@@ -4594,7 +4610,6 @@ TYPE
 			type,variableType: SyntaxTree.Type;
 			position: LONGINT;
 			prevScope : SyntaxTree.Scope;
-			b: BOOLEAN;
 			withEntry: WithEntry;
 		BEGIN
 			prevScope := currentScope;
@@ -5239,6 +5254,11 @@ TYPE
 				IF parameter # NIL THEN
 					Register(parameter,currentScope, FALSE);
 				END;
+			ELSIF scope IS SyntaxTree.ActorScope THEN
+				parameter := scope(SyntaxTree.ActorScope).ownerActor.firstParameter;
+				WHILE(parameter # NIL) DO
+					Register(parameter,currentScope, FALSE); parameter := parameter.nextParameter;
+				END;
 			END;
 			(* constants *)
 			constant := scope.firstConstant;
@@ -5270,7 +5290,7 @@ TYPE
 				END;
 				symbol := symbol.nextSymbol;
 			END;
-			
+
 			IF (scope IS SyntaxTree.ProcedureScope) & scope(SyntaxTree.ProcedureScope).ownerProcedure.type.IsRealtime() THEN
 				symbol := scope.firstSymbol;
 				WHILE symbol # NIL DO
@@ -5280,7 +5300,7 @@ TYPE
 						END;
 						IF ~symbol.type.resolved.IsRealtime() THEN
 							Error(symbol.position,Diagnostics.Invalid,"symbol has no realtime type");
-						END;						
+						END;
 					END;
 					symbol := symbol.nextSymbol
 				END;
@@ -5362,7 +5382,7 @@ TYPE
 			RETURN
 				(numberParameters = 0) & TypeAllowed(procedureType.returnType) OR
 				(numberParameters = 1) & TypeAllowed(procedureType.firstParameter.type) & TypeAllowed(procedureType.returnType) OR
-				(numberParameters = 1) & (procedureType.firstParameter.procedureType.resolved = Global.Any) & (procedureType.returnType.resolved = Global.Any)
+				(numberParameters = 1) & (procedureType.firstParameter.ownerType.resolved = Global.Any) & (procedureType.returnType.resolved = Global.Any)
 		END;
 	END GetProcedureAllowed;
 
@@ -5402,7 +5422,7 @@ TYPE
 					result := FALSE
 				END;
 			ELSIF to IS SyntaxTree.PointerType THEN
-				result := IsPointerType(this) & (IsTypeExtension(to,this) OR ((to(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType) & SameType(to,this,NIL))) 
+				result := IsPointerType(this) & (IsTypeExtension(to,this) OR ((to(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType) & SameType(to,this,NIL)))
 				     & (~to.IsRealtime() OR this.IsRealtime()) OR (this = Global.Nil)
 			ELSIF to IS SyntaxTree.ProcedureType THEN
 				result := (this = Global.Nil) OR (this IS SyntaxTree.ProcedureType) & SameType(to(SyntaxTree.ProcedureType),this(SyntaxTree.ProcedureType),NIL)

@@ -48,9 +48,9 @@ CONST
 	Semicolon Transpose RightBrace RightBracket RightParenthesis Questionmark Upto
     	Arrow Period Comma Colon Of Then Do To By Becomes Bar End Else Elsif Until Finally
 	(* declaration elements *)
-	Code Const Type Var Procedure Operator Import Definition Module
+	Code Const Type Var Out Procedure Operator Import Definition Module
 	(* composite type symbols *)
-	Array Object Record Pointer Enum
+	Array Object Record Actor Pointer Enum
 	(* assembler constants *)
 	Ln PC PCOffset
 	(* number types *)
@@ -82,15 +82,15 @@ CONST
 	Then*= 63; Do*= 64; To*= 65; By*= 66; Becomes*= 67; Bar*= 68;
 	End*= 69; Else*= 70; Elsif*= 71; Until*= 72; Finally*= 73;
 	(* declaration elements *)
-	Code*= 74; Const*= 75; Type*= 76; Var*= 77; Procedure*= 78; Operator*= 79;
-	Import*= 80; Definition*= 81; Module*= 82;
+	Code*= 74; Const*= 75; Type*= 76; Var*= 77; Out*= 78; Procedure*= 79;
+	Operator*= 80; Import*= 81; Definition*= 82; Module*= 83;
 	(* composite type symbols *)
-	Array*= 83; Object*= 84; Record*= 85; Pointer*= 86; Enum*= 87;
+	Array*= 84; Object*= 85; Record*= 86; Actor*= 87; Pointer*= 88; Enum*= 89;
 	(* assembler constants *)
-	Ln*= 88; PC*= 89; PCOffset*= 90;
+	Ln*= 90; PC*= 91; PCOffset*= 92;
 	(* number types *)
-	Shortint*= 91; Integer*= 92; Longint*= 93; Hugeint*= 94; Real*= 95; Longreal*= 96;
-	Comment*= 97; EndOfText*= 98;
+	Shortint*= 93; Integer*= 94; Longint*= 95; Hugeint*= 96; Real*= 97; Longreal*= 98;
+	Comment*= 99; EndOfText*= 100;
 
 	SingleQuote = 27X;  DoubleQuote = 22X;
 	Ellipsis = 7FX;   (* used in Scanner.GetNumber to return with ".." when reading an interval like 3..5 *)
@@ -256,14 +256,16 @@ TYPE
 		case-: LONGINT;
 		sourceWriter: Streams.Writer;
 		sourceString: StringMaker;
+		supported: ARRAY EndOfText OF BOOLEAN;
 
-		(* 
-			source: name of the source code for reference in error outputs 
+		(*
+			source: name of the source code for reference in error outputs
 			reader: input stream
 			position: reference position (offset) of the input stream , for error output
 			diagnostics: error output object
 		*)
 		PROCEDURE & InitializeScanner*( CONST source: ARRAY OF CHAR; reader: Streams.Reader; position: LONGINT; diagnostics: Diagnostics.Diagnostics );
+		VAR i: LONGINT;
 		BEGIN
 			NEW(sourceString,1024);
 			sourceWriter := sourceString.GetWriter();
@@ -277,7 +279,21 @@ TYPE
 			IF reader = NIL THEN ch := EOT ELSE 	GetNextCharacter END;
 			IF Trace THEN D.Str( "New scanner  " );   D.Ln;  END;
 			SELF.position := position;
+			FOR i := 0 TO LEN(supported)-1 DO
+				supported[i] := TRUE;
+			END;
+			supported[Out] := FALSE; supported[Actor] := FALSE; (* special dataflow keyword, not supported by default *)
 		END InitializeScanner;
+
+		PROCEDURE DataflowSupport*;
+		BEGIN
+			supported[Out] := TRUE; supported[Actor] := TRUE;
+		END DataflowSupport;
+
+		PROCEDURE AddSupport*(keyword: LONGINT);
+		BEGIN
+			supported[keyword] := TRUE;
+		END AddSupport;
 
 		PROCEDURE ResetCase*; (*! needs a better naming ! *)
 		BEGIN
@@ -643,13 +659,13 @@ TYPE
 				| "A".."Z": s := Identifier; GetIdentifier( symbol );
 						IF (case=Uppercase) OR (case=Unknown) THEN
 							token := keywordsUpper.IndexByString(symbol.string);
-							IF  token >= 0 THEN s := token END;
+							IF  (token >= 0) & (supported[token]) THEN s := token END;
 							IF s = Module THEN case := Uppercase END;
 						END;
 				| "a".."z": s := Identifier; GetIdentifier( symbol);
 						IF (case = Lowercase) OR (case=Unknown) THEN
 							token := keywordsLower.IndexByString(symbol.string);
-							IF  token >= 0 THEN s := token END;
+							IF  (token >= 0) & (supported[token]) THEN s := token END;
 							IF s = Module THEN case := Lowercase END;
 						END;
 						IF firstIdentifier & (s # Module) THEN case := Uppercase; s := Identifier END;
@@ -903,6 +919,7 @@ TYPE
 		tokens[Const] := "Const";
 		tokens[Type] := "Type";
 		tokens[Var] := "Var";
+		tokens[Out] := "Out";
 		tokens[Procedure] := "Procedure";
 		tokens[Operator] := "Operator";
 		tokens[Import] := "Import";
@@ -911,6 +928,7 @@ TYPE
 		tokens[Array] := "Array";
 		tokens[Object] := "Object";
 		tokens[Record] := "Record";
+		tokens[Actor] := "Actor";
 		tokens[Pointer] := "Pointer";
 		tokens[Enum] := "Enum";
 		tokens[Ln] := "Ln";
@@ -991,8 +1009,9 @@ TYPE
 		Enter( "mod" , Mod);
 		Enter( "module", Module);
 		Enter( "nil" , Nil );
-		Enter( "or" , Or);
 		Enter( "of" , Of);
+		Enter( "or" , Or);
+		Enter( "out", Out);
 		Enter( "operator" , Operator);
 		Enter( "procedure" , Procedure);
 		Enter( "repeat" , Repeat);
@@ -1008,6 +1027,7 @@ TYPE
 		Enter( "with" , With);
 
 		(* types *)
+		Enter( "actor", Actor );
 		Enter( "array" , Array );
 		Enter( "object" , Object);
 		Enter( "pointer" , Pointer);
@@ -1085,6 +1105,7 @@ TYPE
 		context.arg.GetString(filename);
 		reader := TextUtilities.GetTextReader(filename);
 		scanner := NewScanner(filename,reader,0,NIL);
+		scanner.DataflowSupport;
 		REPEAT
 			IF scanner.GetNextSymbol(sym) THEN
 				OutSymbol(context.out,sym);context.out.Ln;

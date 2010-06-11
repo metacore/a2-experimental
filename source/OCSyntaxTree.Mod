@@ -60,6 +60,7 @@ CONST
 
 	(** parameter forms *)
 	ValueParameter* = 0;  VarParameter* = 1;  ConstParameter* = 2;
+	InPort*=3; 	OutPort*=4;
 
 	(** array forms *)
 	Static*=1; (* ARRAY x OF .. / ARRAY [x] OF ... *)
@@ -72,7 +73,7 @@ CONST
 VAR
 	(** debugging / counters *)
 
-	nodeCount, listCount, identifierCount, qualifiedIdentifierCount, typeCount, basicTypeCount, typeDeclarationCount, arrayTypeCount, pointerTypeCount, recordTypeCount,
+	nodeCount, listCount, identifierCount, qualifiedIdentifierCount, typeCount, basicTypeCount, typeDeclarationCount, arrayTypeCount, pointerTypeCount, recordTypeCount, actorTypeCount,
 	defintionTypeCount, procedureTypeCount, qualifiedTypeCount, typeDeclarationListCount, definitionCount, definitionTypeCount, expressionCount,
 	expressionListCount, selectorCount,
 	identifierDesignatorCount, indexDesignatorCount, parameterDesignatorCount, dereferenceDesignatorCount,
@@ -133,6 +134,9 @@ TYPE
 
 		PROCEDURE VisitRecordType*(x: RecordType);
 		BEGIN HALT(100) (* abstract *) END VisitRecordType;
+
+		PROCEDURE VisitActorType*(x: ActorType);
+		BEGIN HALT(100) (* abstract *) END VisitActorType;
 
 		PROCEDURE VisitProcedureType*(x: ProcedureType);
 		BEGIN HALT(100) (* abstract *) END VisitProcedureType;
@@ -367,7 +371,7 @@ TYPE
 
 		PROCEDURE & InitType*( position: LONGINT; flags: SET);
 		BEGIN
-			SELF.position := position; state := Undefined; 
+			SELF.position := position; state := Undefined;
 			SELF.flags := flags;
 			typeDeclaration := NIL;
 			scope := NIL;
@@ -714,9 +718,7 @@ TYPE
 			baseType-: Type;
 			pointerType-: PointerType; (* for support of A = POINTER TO RECORD ... END and B = POINTER TO RECORD (A) END; *)
 			isObject-,isProtected: BOOLEAN;
-
 			sizeInBits-: LONGINT; (* allocation size of this type in bits *)
-
 
 		PROCEDURE & InitRecordType( position: LONGINT; scope: Scope; recordScope: RecordScope);
 		BEGIN
@@ -731,6 +733,7 @@ TYPE
 			isObject := FALSE; isProtected := FALSE;
 			sizeInBits := MIN(LONGINT);
 		END InitRecordType;
+
 
 		PROCEDURE SetBaseType*( type: Type );
 		BEGIN
@@ -762,12 +765,6 @@ TYPE
 		BEGIN SELF.isProtected := protected
 		END SetProtected;
 
-
-		PROCEDURE Accept*(v: Visitor);
-		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitRecordType(SELF)
-		END Accept;
-
 		PROCEDURE Level*():LONGINT;
 		VAR type: RecordType; res: LONGINT;
 		BEGIN
@@ -793,7 +790,54 @@ TYPE
 			RETURN NIL;
 		END GetBaseRecord;
 
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitRecordType(SELF)
+		END Accept;
+
 	END RecordType;
+
+	(** <<[pointerType = POINTER TO] RECORD (baseType) .. END>>
+		| <<[OBJECT (baseType) .. END>>
+	**)
+	ActorType* = OBJECT (Type)
+		VAR
+			actorScope-:ActorScope;
+
+			sizeInBits-: LONGINT; (* allocation size of this type in bits *)
+			firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters *)
+
+
+		PROCEDURE & InitActorType( position: LONGINT; scope: Scope; actorScope: ActorScope);
+		BEGIN
+			InitType( position, {});
+			SELF.scope := scope;
+			SELF.actorScope := actorScope;
+			ASSERT(actorScope # NIL);
+			ASSERT(actorScope.ownerActor = NIL); (* cannot register twice ! *)
+			actorScope.ownerActor := SELF;
+			sizeInBits := MIN(LONGINT);
+			numberParameters := 0; firstParameter := NIL; lastParameter := NIL;
+		END InitActorType;
+
+		PROCEDURE AddParameter*(p: Parameter);
+		BEGIN
+			ASSERT(p # NIL);
+			IF lastParameter= NIL THEN firstParameter := p ELSE lastParameter.nextParameter := p; p.prevParameter := lastParameter; END;
+			lastParameter := p;
+			INC(numberParameters);
+		END AddParameter;
+
+		PROCEDURE SetSize*(sizeInBits: LONGINT);
+		BEGIN SELF.sizeInBits := sizeInBits
+		END SetSize;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitActorType(SELF)
+		END Accept;
+
+	END ActorType;
 
 	(** <<procedureType = PROCEDURE [{DELEGATE}] (firstParameter .. lastParameter): returnType>>
 		also used as type for procedures
@@ -1807,15 +1851,15 @@ TYPE
 		flagList-: Modifier;
 
 		kind-: LONGINT;   (* ValueParameter, ConstParameter, VarParameter *)
-		procedureType-: ProcedureType;
+		ownerType-: Type;
 
-		PROCEDURE & InitParameter( position: LONGINT;  procedureType: ProcedureType ; name: Identifier; kind: LONGINT);
+		PROCEDURE & InitParameter( position: LONGINT;  ownerType: Type ; name: Identifier; kind: LONGINT);
 		BEGIN
 			InitSymbol( position, name );
 			SELF.kind := kind;
 			IF kind = ConstParameter THEN access := access * ReadOnly  END;
 			nextParameter := NIL;
-			SELF.procedureType := procedureType;
+			SELF.ownerType := ownerType;
 			flagList := NIL;
 		END InitParameter;
 
@@ -1832,6 +1876,7 @@ TYPE
 		BEGIN SELF.kind := kind; END SetKind;
 
 	END Parameter;
+
 
 	(** Procedure declaration symbol. Represents a procedure being defined in the form PROCEDURE name(parameters): returnType;
 		Note that the type of a procedure is a ProcedureType (and not the return type of the procedure).
@@ -2775,6 +2820,33 @@ TYPE
 
 	END ProcedureScope;
 
+	ActorScope*=OBJECT (Scope)
+		VAR
+		ownerActor-: ActorType;
+		bodyProcedure-: Procedure;
+
+		PROCEDURE & InitActorScope(outer: Scope);
+		BEGIN
+			InitScope(outer);
+			ownerActor := NIL;
+			bodyProcedure := NIL;
+		END InitActorScope;
+
+		PROCEDURE SetBodyProcedure*(bodyProcedure: Procedure);
+		BEGIN
+			SELF.bodyProcedure := bodyProcedure;
+		END SetBodyProcedure;
+
+		PROCEDURE FindParameter*(identifier: Identifier): Parameter;
+		VAR p: Parameter;
+		BEGIN
+			p := ownerActor.firstParameter;
+			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextParameter END;
+			RETURN p;
+		END FindParameter
+
+	END ActorScope;
+
 	EnumerationScope*= OBJECT(Scope)
 	VAR
 		ownerEnumeration-: EnumerationType;
@@ -2801,13 +2873,13 @@ TYPE
 
 	END EnumerationScope;
 
-
 	RecordScope*= OBJECT(Scope)
 		VAR
 			ownerRecord-: RecordType;
 			bodyProcedure-: Procedure;
 			constructor-: Procedure;
 			numberMethods-: LONGINT;
+			firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters for dataflow programming*)
 
 		PROCEDURE & InitRecordScope(outer: Scope);
 		BEGIN
@@ -2832,89 +2904,82 @@ TYPE
 
 		(** Find symbol by name *)
 		PROCEDURE FindSymbol*(identifier: Identifier): Symbol;
-		VAR p: Symbol; base: Type;
+		VAR p: Symbol; base: RecordType;
 		BEGIN
 			p := FindSymbol^(identifier);
 			IF p = NIL THEN
-				base := ownerRecord.baseType;
-				IF (base # NIL) & (base.resolved IS PointerType) THEN base := base.resolved(PointerType).pointerBase.resolved END;
-				IF (base # NIL) & (base.resolved IS RecordType) THEN
-					p := base.resolved(RecordType).recordScope.FindSymbol(identifier)
+				base := ownerRecord.GetBaseRecord();
+				IF (base # NIL) THEN
+					p := base.recordScope.FindSymbol(identifier)
 				END;
 			END;
 			RETURN p;
 		END FindSymbol;
 
 		PROCEDURE FindConstant*(identifier: Identifier): Constant;
-		VAR p: Constant; base: Type;
+		VAR p: Constant; base: RecordType;
 		BEGIN
 			p := FindConstant^(identifier);
 			IF p = NIL THEN
-				base := ownerRecord.baseType;
-				IF (base # NIL) & (base.resolved IS PointerType) THEN base := base.resolved(PointerType).pointerBase.resolved END;
-				IF (base # NIL) & (base.resolved IS RecordType) THEN
-					p := base.resolved(RecordType).recordScope.FindConstant(identifier)
+				base := ownerRecord.GetBaseRecord();
+				IF (base # NIL) THEN
+					p := base.recordScope.FindConstant(identifier)
 				END;
 			END;
 			RETURN p;
 		END FindConstant;
 
 		PROCEDURE FindTypeDeclaration*(identifier: Identifier): TypeDeclaration;
-		VAR p: TypeDeclaration; base: Type;
+		VAR p: TypeDeclaration; base: RecordType;
 		BEGIN
 			p := FindTypeDeclaration^(identifier);
 			IF p = NIL THEN
-				base := ownerRecord.baseType;
-				IF (base # NIL) & (base.resolved IS PointerType) THEN base := base.resolved(PointerType).pointerBase.resolved END;
-				IF (base # NIL) & (base.resolved IS RecordType) THEN
-					p := base.resolved(RecordType).recordScope.FindTypeDeclaration(identifier)
+				base := ownerRecord.GetBaseRecord();
+				IF (base # NIL) THEN
+					p := base.recordScope.FindTypeDeclaration(identifier)
 				END;
 			END;
 			RETURN p;
 		END FindTypeDeclaration;
 
 		PROCEDURE FindVariable*(identifier: Identifier): Variable;
-		VAR p: Variable; base: Type;
+		VAR p: Variable; base: RecordType;
 		BEGIN
 			p := FindVariable^(identifier);
 			IF p = NIL THEN
-				base := ownerRecord.baseType;
-				IF (base # NIL) & (base.resolved IS PointerType) THEN base := base.resolved(PointerType).pointerBase.resolved END;
-				IF (base # NIL) & (base.resolved IS RecordType) THEN
-					p := base.resolved(RecordType).recordScope.FindVariable(identifier)
+				base := ownerRecord.GetBaseRecord();
+				IF (base # NIL) THEN
+					p := base.recordScope.FindVariable(identifier)
 				END;
 			END;
 			RETURN p;
 		END FindVariable;
 
 		PROCEDURE FindProcedure*(identifier: Identifier): Procedure;
-		VAR p: Procedure; base: Type;
+		VAR p: Procedure; base: RecordType;
 		BEGIN
 			p := FindProcedure^(identifier);
 			IF p = NIL THEN
-				base := ownerRecord.baseType;
-				IF (base # NIL) & (base.resolved IS PointerType) THEN base := base.resolved(PointerType).pointerBase.resolved END;
-				IF (base # NIL) & (base.resolved IS RecordType) THEN
-					p := base.resolved(RecordType).recordScope.FindProcedure(identifier)
+				base := ownerRecord.GetBaseRecord();
+				IF (base # NIL) THEN
+					p := base.recordScope.FindProcedure(identifier)
 				END;
 			END;
 			RETURN p;
 		END FindProcedure;
 
 		PROCEDURE FindMethod*(number: LONGINT): Procedure;
-		VAR p: Procedure; base: Type;
+		VAR p: Procedure; base: RecordType;
 		BEGIN
 			p := FindMethod^(number);
 			IF p = NIL THEN
-				base := ownerRecord.baseType;
-				IF (base # NIL) & (base.resolved IS PointerType) THEN base := base.resolved(PointerType).pointerBase.resolved END;
-				IF (base # NIL) & (base.resolved IS RecordType) THEN
-					p := base.resolved(RecordType).recordScope.FindMethod(number)
+				base := ownerRecord.GetBaseRecord();
+				IF (base # NIL) THEN
+					p := base.recordScope.FindMethod(number)
 				END;
 			END;
 			RETURN p;
 		END FindMethod;
-
 
 	END RecordScope;
 
@@ -3243,6 +3308,12 @@ VAR
 		INC( recordTypeCount );  NEW( recordType, position, scope, recordScope);  RETURN recordType
 	END NewRecordType;
 
+	PROCEDURE NewActorType*( position: LONGINT; scope: Scope; actorScope: ActorScope): ActorType;
+	VAR actorType: ActorType;
+	BEGIN
+		INC( actorTypeCount );  NEW( actorType, position, scope, actorScope);  RETURN actorType
+	END NewActorType;
+
 	PROCEDURE NewProcedureType*( position: LONGINT; scope: Scope): ProcedureType;
 	VAR procedureType: ProcedureType;
 	BEGIN
@@ -3281,10 +3352,10 @@ VAR
 		RETURN identifier
 	END NewIdentifier;
 
-	PROCEDURE NewParameter*( position: LONGINT; procedureType:ProcedureType ;  name: Identifier; passAs: LONGINT): Parameter;
+	PROCEDURE NewParameter*( position: LONGINT; ownerType:Type ;  name: Identifier; passAs: LONGINT): Parameter;
 	VAR parameter: Parameter;
 	BEGIN
-		INC( parameterCount );  NEW( parameter, position, procedureType, name, passAs);  RETURN parameter;
+		INC( parameterCount );  NEW( parameter, position, ownerType, name, passAs);  RETURN parameter;
 	END NewParameter;
 
 	PROCEDURE NewExpressionList*(): ExpressionList;
@@ -3625,6 +3696,11 @@ VAR
 	BEGIN	NEW(scope,outer); RETURN scope
 	END NewRecordScope;
 
+	PROCEDURE NewActorScope*(outer: Scope): ActorScope;
+	VAR scope: ActorScope;
+	BEGIN	NEW(scope,outer); RETURN scope
+	END NewActorScope;
+
 	PROCEDURE NewEnumerationScope*(outer: Scope): EnumerationScope;
 	VAR scope: EnumerationScope;
 	BEGIN NEW(scope,outer); RETURN scope
@@ -3658,6 +3734,7 @@ VAR
 		FixedStringInt("arrayTypeCount ", arrayTypeCount );
 		FixedStringInt("pointerTypeCount ", pointerTypeCount );
 		FixedStringInt("recordTypeCount ",recordTypeCount  );
+		FixedStringInt("actorTypeCount ",actorTypeCount  );
 		FixedStringInt("defintionTypeCount ",defintionTypeCount  );
 		FixedStringInt("procedureTypeCount ", procedureTypeCount );
 		FixedStringInt("qualifiedTypeCount ",qualifiedTypeCount  );
@@ -3749,7 +3826,8 @@ VAR
 
 		(* debugging *)
 		nodeCount := 0;  listCount := 0;  identifierCount := 0;  qualifiedIdentifierCount := 0;
-		typeCount := 0; basicTypeCount := 0;  typeDeclarationCount := 0;  arrayTypeCount := 0;  pointerTypeCount := 0;  recordTypeCount := 0;
+		typeCount := 0; basicTypeCount := 0;  typeDeclarationCount := 0;  arrayTypeCount := 0;  pointerTypeCount := 0;
+		recordTypeCount := 0; actorTypeCount := 0;
 		defintionTypeCount := 0;  procedureTypeCount := 0;
 		qualifiedTypeCount := 0;  typeDeclarationListCount := 0;  definitionCount := 0;  definitionTypeCount := 0;  expressionCount := 0;
 		expressionListCount := 0;  selectorCount := 0;  indexDesignatorCount := 0;  parameterDesignatorCount := 0;

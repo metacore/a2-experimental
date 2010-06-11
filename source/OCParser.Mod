@@ -161,6 +161,7 @@ TYPE
 		recentComment: SyntaxTree.Comment;
 		moduleScope: SyntaxTree.ModuleScope;
 		error-: BOOLEAN;
+		dataflowSupport: BOOLEAN;
 
 		indent: LONGINT;   (* for debugging purposes only *)
 
@@ -197,7 +198,12 @@ TYPE
 			recentSymbol := NIL; recentComment := NIL;
 			(* debugging *)
 			indent := 0;
+			dataflowSupport := FALSE;
 		END Init;
+
+		PROCEDURE DataflowSupport*;
+		BEGIN dataflowSupport := TRUE
+		END DataflowSupport;
 
 		(** output error message and / or given code *)
 		PROCEDURE Error(position: LONGINT; code: LONGINT; CONST message: ARRAY OF CHAR);
@@ -1006,7 +1012,7 @@ TYPE
 			type: SyntaxTree.Type;
 			flagList: SyntaxTree.Modifier;
 		BEGIN
-			IF Trace THEN S( "" ) END;
+			IF Trace THEN S( "ObjectType" ) END;
 			(* symbol object already consumed *)
 
 			(* generic empty OBJECT type *)
@@ -1060,6 +1066,44 @@ TYPE
 			IF Trace THEN E( "ObjectType" ) END;
 			RETURN pointerType
 		END ObjectType;
+
+		(** ActorType = 'actor' [ParameterList] DeclarationSequence [Body] 'end' [Identifier]
+              | 'object'. **)
+		PROCEDURE ActorType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope ): SyntaxTree.Type;
+		VAR
+			actorType: SyntaxTree.ActorType;
+			actorScope: SyntaxTree.ActorScope;
+		BEGIN
+			IF Trace THEN S( "ActorType" ) END;
+			(* symbol actor already consumed *)
+
+			actorScope := SyntaxTree.NewActorScope(parentScope);
+			actorType := SyntaxTree.NewActorType( position,parentScope,actorScope);
+
+			(*
+			IF Optional(Scanner.LeftBrace) THEN
+				flagList := Flags();
+				actorType.SetFlagList(flagList);
+			END;
+			*)
+
+			IF Optional( Scanner.LeftParenthesis ) THEN
+				PortList(actorType,actorScope);
+			END;
+
+			DeclarationSequence( actorScope);
+			IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
+				actorScope.SetBodyProcedure(BodyProcedure(actorScope));
+			END;
+			Check(Scanner.End);
+
+			IF ExpectThisIdentifier( name ) THEN
+				(* check name not always, reflect in EBNF? *)
+			END;
+			IF Trace THEN E( "ActorType" ) END;
+			RETURN actorType
+		END ActorType;
+
 
 		(** PointerType = 'pointer' 'to' Type. **)
 		PROCEDURE PointerType( position: LONGINT; parentScope: SyntaxTree.Scope ): SyntaxTree.PointerType;
@@ -1212,6 +1256,7 @@ TYPE
 			ELSIF Optional( Scanner.Record ) THEN type := RecordType( position,parentScope );
 			ELSIF Optional( Scanner.Pointer ) THEN type := PointerType( position,parentScope );
 			ELSIF Optional( Scanner.Object ) THEN type := ObjectType( position,name,parentScope );
+			ELSIF Optional( Scanner.Actor) THEN type := ActorType( position, name, parentScope); (* only possible if dataflow enabled in scanner *)
 			ELSIF Optional( Scanner.Procedure ) THEN type := ProcedureType( position,parentScope);
 			ELSIF Optional( Scanner.Enum ) THEN type := EnumerationType( position,parentScope);
 			ELSE qualifiedIdentifier := QualifiedIdentifier();
@@ -1220,6 +1265,50 @@ TYPE
 			IF Trace THEN E( "Type" ) END;
 			RETURN type
 		END Type;
+
+		(** PortDeclaration = ('out' | 'in') Identifier {',' Identifier}':' Type. **)
+		PROCEDURE PortDeclaration(actorType: SyntaxTree.ActorType; parentScope: SyntaxTree.Scope);
+		VAR
+			type: SyntaxTree.Type; name: SyntaxTree.Identifier;
+			firstParameter, parameter: SyntaxTree.Parameter;   kind: LONGINT;
+		BEGIN
+			IF Trace THEN S( "PortDeclaration" ) END;
+			IF Optional( Scanner.In ) THEN
+				kind := SyntaxTree.InPort
+			ELSIF Optional(Scanner.Out) THEN
+				kind := SyntaxTree.OutPort
+			ELSE
+				Error(symbol.start,Diagnostics.Invalid,"invalid port declaration, must start with IN or OUT");
+			END;
+			firstParameter := actorType.lastParameter;
+			REPEAT
+				name := Identifier();
+				parameter := SyntaxTree.NewParameter(name.position,actorType,name,kind);
+				actorType.AddParameter(parameter);
+			UNTIL ~Optional( Scanner.Comma );
+			Check( Scanner.Colon );
+			type := Type( NIL, parentScope);
+			ASSERT(type # NIL);
+			IF firstParameter # NIL THEN parameter := firstParameter.nextParameter ELSE parameter := actorType.firstParameter END;
+			WHILE parameter # NIL DO
+				parameter.SetType( type );
+				parameter := parameter.nextParameter;
+			END;
+			IF Trace THEN E( "PortDeclaration" )
+			END;
+		END PortDeclaration;
+
+		(** PortList = '('[ParameterDeclaration {';' ParameterDeclaration}]')' [':' Type]. **)
+		PROCEDURE PortList( actorType: SyntaxTree.ActorType ; parentScope: SyntaxTree.Scope);
+		BEGIN
+			IF Trace THEN S( "PortList" ) END;
+			(* left parenthesis already consumed *)
+			IF ~Optional( Scanner.RightParenthesis ) THEN
+				REPEAT PortDeclaration( actorType, parentScope );  UNTIL ~Optional( Scanner.Semicolon );
+				Check( Scanner.RightParenthesis );
+			END;
+			IF Trace THEN E( "PortList" ) END;
+		END PortList;
 
 		(** ParameterDeclaration = ['var'|'const'] Identifier {',' Identifier}':' Type.**)
 		PROCEDURE ParameterDeclaration( procedureType: SyntaxTree.ProcedureType ; parentScope: SyntaxTree.Scope);
@@ -1273,6 +1362,7 @@ TYPE
 			END;
 			IF Trace THEN E( "FormalParameters" ) END;
 		END FormalParameters;
+
 
 		(** Flags = '{' [Identifier ['(' Expression ')'] {',' Identifier ['(' Expression ')'] }]  '}'. **)
 		PROCEDURE Flags(): SyntaxTree.Modifier;

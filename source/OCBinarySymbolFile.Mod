@@ -224,7 +224,7 @@ TYPE
 		PROCEDURE CheckEnumerationScope(x: SyntaxTree.EnumerationScope);
 		VAR e: SyntaxTree.Constant; lowest, highest,value: LONGINT;
 		BEGIN
-			lowest := 0; highest := 0; 
+			lowest := 0; highest := 0;
 			e := x.firstConstant;
 			WHILE (e # NIL) DO
 				e.SetType(x.ownerEnumeration);
@@ -768,7 +768,7 @@ TYPE
 			PROCEDURE Record(recordType: SyntaxTree.RecordType; baseType: SyntaxTree.Type);
 			VAR
 				mode,flags: SET;
-				bodyFlags: SET; 
+				bodyFlags: SET;
 				priority: LONGINT;
 				visibility: SET;
 
@@ -861,9 +861,9 @@ TYPE
 					END
 				ELSE ASSERT(tag = sfEnd);
 				END;
-				
+
 				ASSERT((bodyFlags = {}) OR (recordScope.bodyProcedure # NIL));
-				
+
 				recordType.SetBaseType(baseType);
 
 			END Record;
@@ -882,12 +882,12 @@ TYPE
 
 				UserType = [sfInvisible] [sfSysFlag sysFlag:RawNum] UserType2
 				UserType2=
-					sfTypeOpenArray baseType:Type name:RawString flags:RawNum 
+					sfTypeOpenArray baseType:Type name:RawString flags:RawNum
 					|sfTypeStaticArray baseType:Type name:RawString flags:RawNum length:RawNum
 					|sfOpenMathArray baseType:Type name:RawString
 					|sfStaticMathArray baseType:Type name:RawString length:RawNum
 					|sfTypeTensor baseType:Type name:RawString
-					|sfTypePointer baseType:Type name:RawString flags:RawNum 
+					|sfTypePointer baseType:Type name:RawString flags:RawNum
 					|sfTypeRecord baseType:Type name:RawString flags:RawNum Record
 					|sfTypeProcedure baseType:Type name:RawString flags:RawNum ParameterList
 					|sfTypeEnumeration enumerationBase:Type name:RawString
@@ -1533,12 +1533,12 @@ TYPE
 
 				UserType = [sfInvisible] [sfSysFlag sysFlag:RawNum] UserType2
 				UserType2=
-					sfTypeOpenArray baseType:Type name:RawString flags:RawNum 
+					sfTypeOpenArray baseType:Type name:RawString flags:RawNum
 					|sfTypeStaticArray baseType:Type name:RawString flags:RawNum length:RawNum
 					|sfOpenMathArray baseType:Type name:RawString
 					|sfStaticMathArray baseType:Type name:RawString length:RawNum
 					|sfTypeTensor baseType:Type name:RawString
-					|sfTypePointer baseType:Type name:RawString flags:RawNum 
+					|sfTypePointer baseType:Type name:RawString flags:RawNum
 					|sfTypeRecord baseType:Type name:RawString flags:RawNum Record
 					|sfTypeProcedure baseType:Type name:RawString flags:RawNum ParameterList
 					|sfTypeEnumeration enumerationBase:Type name:RawString
@@ -1749,7 +1749,7 @@ TYPE
 								Type(type.returnType);
 								w.RawString(name);
 
-								IF SyntaxTree.WinAPIFlag IN type.flags THEN 
+								IF SyntaxTree.WinAPIFlag IN type.flags THEN
 									INCL(flags,sfWinAPIParam);
 								ELSIF SyntaxTree.CFlag IN type.flags  THEN
 									INCL(flags,sfCParam);
@@ -1804,7 +1804,7 @@ TYPE
 				BEGIN
 					WHILE parameter # NIL DO
 						(*! the calling convention should not be expressed via the parameters (compatiblity with old compiler) *)
-						flags := parameter.procedureType.flags;
+						flags := parameter.ownerType.flags;
 						IF  SyntaxTree.WinAPIFlag IN flags THEN
 							w.RawNum(sfObjFlag); w.RawNum(sfWinAPIParam);
 						ELSIF SyntaxTree.CFlag IN flags THEN
@@ -1847,7 +1847,7 @@ TYPE
 			BEGIN
 				procedureScope.ownerProcedure.name.GetString(name);
 				code := procedureScope.body.code;
-				IF code.inlineCode # NIL THEN 
+				IF code.inlineCode # NIL THEN
 					len := code.inlineCode.GetSize() DIV 8;
 				ELSE
 					len := 0

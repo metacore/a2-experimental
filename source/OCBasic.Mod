@@ -1291,7 +1291,7 @@ TYPE
 		BEGIN
 			IF doindent THEN
 				FOR i := 0 TO indent-1 DO
-					w.String("    ")
+					w.Char(9X);
 				END;
 				doindent := FALSE
 			END;

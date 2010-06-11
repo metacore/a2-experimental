@@ -208,11 +208,28 @@ TYPE
 			END;
 		END VisitPointerType;
 
+		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
+		BEGIN
+			Keyword("ACTOR ");
+			IF info THEN BeginComment; w.String("ActorType"); EndComment;  END;
+			Flags(x.flags);
+			IF (x.firstParameter # NIL) THEN
+				ParameterList(x.firstParameter)
+			END;
+			Scope(x.actorScope);
+
+			IF (x.actorScope.bodyProcedure # NIL) THEN
+				Body(x.actorScope.bodyProcedure.procedureScope.body)
+			END;
+			Indent; Keyword("END "); Identifier(x.typeDeclaration.name);
+		END VisitActorType;
+
+
 		PROCEDURE VisitRecordType(x: SyntaxTree.RecordType);
 		VAR prevScope: SyntaxTree.Scope;
 		BEGIN
 			IF x.isObject THEN
-				Keyword("OBJECT "); 
+				Keyword("OBJECT ");
 				IF x.pointerType # NIL THEN Flags(x.pointerType.flags) END;
 				IF info THEN BeginComment; w.String("ObjectType"); EndComment;  END;
 				IF (x.baseType # NIL)  THEN
@@ -578,7 +595,7 @@ TYPE
 		END VisitBooleanValue;
 
 		PROCEDURE Hex(x: HUGEINT);
-		VAR i,j: LONGINT; a: ARRAY 20 OF CHAR; y: HUGEINT;
+		VAR i: LONGINT; a: ARRAY 20 OF CHAR; y: HUGEINT;
 		BEGIN
 			i := 0;
 			REPEAT
@@ -864,6 +881,8 @@ TYPE
 					first := FALSE;
 					IF x.kind = SyntaxTree.VarParameter THEN Keyword("VAR " );
 					ELSIF x.kind = SyntaxTree.ConstParameter THEN Keyword("CONST " );
+					ELSIF x.kind = SyntaxTree.InPort THEN Keyword("IN ");
+					ELSIF x.kind = SyntaxTree.OutPort THEN Keyword("OUT ");
 					END;
 					PrintSymbol(x);
 					WHILE (next # NIL) & (next.type = x.type) & (next.kind = x.kind) & ((next.access # SyntaxTree.Hidden) OR (mode > SourceCode)) DO
@@ -1290,7 +1309,7 @@ TYPE
 		END VisitStatementBlock;
 
 		PROCEDURE Code(x: SyntaxTree.Code);
-		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN; size,value,unit: LONGINT; procedure: SyntaxTree.Procedure;
+		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN; procedure: SyntaxTree.Procedure;
 		CONST CR=0DX;
 		BEGIN
 			IF (currentScope # NIL) & (currentScope IS SyntaxTree.ProcedureScope) THEN

@@ -15,6 +15,7 @@ CONST
 	TraceError* = 3;
 	Info* = 4;
 	FindPC* = 5;
+	DataFlow*=6;
 
 	Name = "OC";
 	Description = "Oberon Compiler";
@@ -163,7 +164,13 @@ TYPE
 		END;
 
 		scanner := Scanner.NewScanner(source,reader,position,diagnostics);
+		IF DataFlow IN flags THEN
+			scanner.DataflowSupport;
+		END;
 		parser := Parser.NewParser( scanner, diagnostics );
+		IF DataFlow IN flags THEN
+			parser.DataflowSupport
+		END;
 		REPEAT
 			(** first phase: scan and parse **)
 			module := parser.Module();
@@ -267,6 +274,7 @@ TYPE
 		options.Add("f","findPC",Options.Integer);
 		options.Add(0X, "symbolFile", Options.String);
 		options.Add(0X, "objectFile", Options.String);
+		options.Add("d","dataFlow", Options.Flag);
 
 		position := input.Pos();
 		parsed := options.Parse(input,NIL);
@@ -325,6 +333,7 @@ TYPE
 			IF options.GetFlag("traceError") THEN INCL(flags, TraceError) END;
 			IF options.GetFlag("info") THEN INCL(flags,Info) END;
 			IF options.GetInteger("findPC",findPC) THEN INCL(flags,FindPC) END;
+			IF options.GetFlag("dataFlow") THEN INCL(flags, DataFlow) END;
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
 			IF objectFile # NIL THEN objectFile.GetOptions(options) END;
