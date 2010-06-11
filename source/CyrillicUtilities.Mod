@@ -7,43 +7,6 @@ MODULE CyrillicUtilities; (** AUTHOR "SAGE"; PURPOSE "Cyrillic charsets text uti
 	07/01/2007 - SAGE: Formed as one AosCyrillicUtilities module
 	07/12/2006 - SAGE: Added iso-8859-5 table
 	24/09/2006 - SAGE: Unicode to char conversion speed improved by using hash tables
-
-	Usage:
-
-	Add following to Configuration.XML:
-
-		***
-		<Section name="Codecs">
-			***
-			<Section name="Encoder">
-				<Section name="Text">
-					***
-					<Setting name="KOI8-R"
-						value="CyrillicUtilities.KOI8REncoderFactory"/>
-					<Setting name="KOI8-U"
-						value="CyrillicUtilities.KOI8UEncoderFactory"/>
-					<Setting name="CP1251"
-						value="CyrillicUtilities.CP1251EncoderFactory"/>
-					<Setting name="CP866"
-						value="CyrillicUtilities.CP866EncoderFactory"/>
-					<Setting name="ISO-8859-5"
-						value="CyrillicUtilities.ISO88595EncoderFactory"/>
-			***
-			<Section name="Decoder">
-				<Section name="Text">
-					***
-					<Setting name="KOI8-R"
-						value="CyrillicUtilities.KOI8RDecoderFactory"/>
-					<Setting name="KOI8-U"
-						value="CyrillicUtilities.KOI8UDecoderFactory"/>
-					<Setting name="CP1251"
-						value="CyrillicUtilities.CP1251DecoderFactory"/>
-					<Setting name="CP866"
-						value="CyrillicUtilities.CP866DecoderFactory"/>
-					<Setting name="ISO-8859-5"
-						value="CyrillicUtilities.ISO88595DecoderFactory"/>
-					***
-
 *)
 
 IMPORT

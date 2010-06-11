@@ -134,8 +134,13 @@ To update: Configuration.Init ~
 				<Setting name="Oberon" value="TextUtilities.OberonEncoderFactory"/>
 				<Setting name="BBT" value="TextUtilities.BluebottleEncoderFactory"/>
 				<Setting name="UTF-8" value="TextUtilities.UTF8EncoderFactory"/>
-				<Setting name="ISO8859-1" value="TextUtilities.ISO88591EncoderFactory"/>
 				<Setting name="HEX" value="TextUtilities.HEXEncoderFactory"/>
+				<Setting name="ISO8859-1" value="TextUtilities.ISO88591EncoderFactory"/>
+				<Setting name="ISO-8859-5" value="CyrillicUtilities.ISO88595EncoderFactory"/>
+				<Setting name="KOI8-R" value="CyrillicUtilities.KOI8REncoderFactory"/>
+				<Setting name="KOI8-U" value="CyrillicUtilities.KOI8UEncoderFactory"/>
+				<Setting name="CP1251" value="CyrillicUtilities.CP1251EncoderFactory"/>
+ 				<Setting name="CP866" value="CyrillicUtilities.CP866EncoderFactory"/>
 			</Section>
 			<Section name="Image">
 				<Setting name="BMP" value="BMPCodec.EncoderFactory"/>
@@ -153,8 +158,13 @@ To update: Configuration.Init ~
 				<Setting name="Oberon" value="TextUtilities.OberonDecoderFactory"/>
 				<Setting name="BBT" value="TextUtilities.BluebottleDecoderFactory"/>
 				<Setting name="UTF-8" value="TextUtilities.UTF8DecoderFactory"/>
-				<Setting name="ISO8859-1" value="TextUtilities.ISO88591DecoderFactory"/>
 				<Setting name="HEX" value="TextUtilities.HEXDecoderFactory"/>
+				<Setting name="ISO8859-1" value="TextUtilities.ISO88591DecoderFactory"/>
+				<Setting name="ISO-8859-5" value="CyrillicUtilities.ISO88595DecoderFactory"/>
+				<Setting name="KOI8-R" value="CyrillicUtilities.KOI8RDecoderFactory"/>
+				<Setting name="KOI8-U" value="CyrillicUtilities.KOI8UDecoderFactory"/>
+				<Setting name="CP1251" value="CyrillicUtilities.CP1251DecoderFactory"/>
+				<Setting name="CP866" value="CyrillicUtilities.CP866DecoderFactory"/>
 			</Section>
 			<Section name="Image">
 				<Setting name="JP2" value="JPEG2000Decoder.Factory"/>
