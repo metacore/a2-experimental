@@ -1124,6 +1124,8 @@ PACKAGE Contributions ARCHIVE "Contributions.zip" SOURCE "ContributionsSrc.zip" 
 
 	Sage.UDPChat.Text Sage.UDPChatBase.Mod Sage.UDPChatServer.Mod 	# UDP chat tool (Yaroslav Romanchenko)
 	Sage.UDPChatClient.Mod
+	
+	CyrillicUtilities.Mod # by sage
 
 	YMF754Util.Mod	# Utilitiy for creating YMF754.Bin for YMF754.Mod sound card driver
 
