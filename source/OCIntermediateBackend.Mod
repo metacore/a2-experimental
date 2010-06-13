@@ -291,6 +291,11 @@ TYPE
 			currentScope := prevScope;
 		END Scope;
 
+		PROCEDURE DataflowBody(x: SyntaxTree.Body);
+		BEGIN
+			HALT(200);
+		END DataflowBody;
+
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
 		VAR scope: SyntaxTree.ProcedureScope;
 			prevScope: SyntaxTree.Scope;
@@ -333,8 +338,12 @@ TYPE
 				ir := IntermediateCode.NewSection(module.sections,Sections.InlineCodeSection,name,x,dump);
 			ELSIF x = module.module.moduleScope.bodyProcedure THEN
 				inline := FALSE;
-				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
-				ASSERT(Sections.CodeSection # Sections.BodyCodeSection,100);
+				IF (scope.body # NIL) & (scope.body.HasFlag(SyntaxTree.DataflowFlag)) THEN
+					DataflowBody(scope.body);
+					RETURN
+				ELSE
+					ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
+				END;
 			ELSE
 				inline := FALSE;
 				ir := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,x,dump);
@@ -1400,7 +1409,7 @@ TYPE
 				Emit(Call(reg, 0));
 			END;
 		END CallThis;
-
+		(* call moduleName.procedureName if it can be imported, otherwise use altModuleName.altProcedureName  *)
 		PROCEDURE CallThis2(CONST moduleName, procedureName,altModuleName, altProcedureName: ARRAY OF CHAR);
 		VAR procedure: SyntaxTree.Procedure; result: Operand; reg: IntermediateCode.Operand; source: IntermediateCode.Section;
 			name: SyntaxTree.String;
@@ -1416,11 +1425,6 @@ TYPE
 				Emit(Call(reg, 0));
 			END;
 		END CallThis2;
-
-
-
-
-
 
 		PROCEDURE CompareString(br: ConditionalBranch; leftExpression,rightExpression: SyntaxTree.Expression);
 		VAR
@@ -5461,8 +5465,6 @@ TYPE
 			END;
 		END InitVariables;
 
-
-
 		PROCEDURE Body(x: SyntaxTree.Body; scope: SyntaxTree.Scope; ir: IntermediateCode.Section; moduleBody: BOOLEAN);
 		VAR prevScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType;
 			end: Label;
@@ -5477,7 +5479,6 @@ TYPE
 				commentPrintout := NIL;
 				dump := NIL;
 			END;
-
 
 			prevScope := currentScope;
 			currentScope := scope;

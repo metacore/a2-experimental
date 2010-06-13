@@ -89,6 +89,7 @@ TYPE
 		global: SyntaxTree.ModuleScope;
 		withEntries: WithEntry;
 		flagExpressions: ARRAY 32 OF SyntaxTree.Expression;
+		dataflowStatement: BOOLEAN;
 
 		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; VAR importCache: SyntaxTree.ModuleScope);
 		BEGIN
@@ -2448,6 +2449,9 @@ TYPE
 				ELSIF left.type.resolved IS SyntaxTree.RecordType THEN
 					scope := left.type.resolved(SyntaxTree.RecordType).recordScope;
 					ASSERT(scope # NIL)
+				ELSIF left.type.resolved IS SyntaxTree.ActorType THEN
+					scope := left.type.resolved(SyntaxTree.ActorType).actorScope;
+					ASSERT(scope # NIL);
 				ELSIF left.type.resolved = SyntaxTree.typeDeclarationType THEN
 					symbol := left(SyntaxTree.SymbolDesignator).symbol;
 					type := symbol(SyntaxTree.TypeDeclaration).declaredType.resolved;
@@ -2817,6 +2821,36 @@ TYPE
 			END;
 			RETURN result
 		END CheckVariable;
+
+		PROCEDURE CheckInPort(x: SyntaxTree.Expression): BOOLEAN;
+		VAR result: BOOLEAN;
+		BEGIN
+			result := TRUE;
+			IF x = SyntaxTree.invalidExpression THEN
+				result := FALSE;
+			ELSIF ~(x IS SyntaxTree.SymbolDesignator) OR ~(x(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Parameter) OR
+			(x(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Parameter).kind # SyntaxTree.InPort) THEN
+				Error(x.position,Diagnostics.Invalid,"not an in-port");
+				IF VerboseErrorMessage THEN Printout.Info("non port",x) END;
+				result := FALSE;
+			END;
+			RETURN result
+		END CheckInPort;
+
+		PROCEDURE CheckOutPort(x: SyntaxTree.Expression): BOOLEAN;
+		VAR result: BOOLEAN;
+		BEGIN
+			result := TRUE;
+			IF x = SyntaxTree.invalidExpression THEN
+				result := FALSE;
+			ELSIF ~(x IS SyntaxTree.SymbolDesignator) OR ~(x(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Parameter) OR
+			(x(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Parameter).kind # SyntaxTree.OutPort) THEN
+				Error(x.position,Diagnostics.Invalid,"not an in-port");
+				IF VerboseErrorMessage THEN Printout.Info("non port",x) END;
+				result := FALSE;
+			END;
+			RETURN result
+		END CheckOutPort;
 
 
 		(**
@@ -3222,8 +3256,13 @@ TYPE
 									UNTIL ~CheckIntegerType(actualParameter) OR (actualParameter.resolved # NIL) & ~CheckPositiveIntegerValue(actualParameter,i0,TRUE) OR (i=numberActualParameters);
 								END;
 							END;
+						ELSIF type0 IS SyntaxTree.ActorType THEN
+							IF Parameters(1,1) & ~(SyntaxTree.DataflowFlag IN currentFlags) THEN
+								Error(position,Diagnostics.Invalid,"actor allocation outside dataflow body block");
+							END;
+							dataflowStatement := TRUE;
 						ELSE
-							Error(position,Diagnostics.Invalid,"new on non-pointer");
+							Error(position,Diagnostics.Invalid,"cannot be allocated");
 						END;
 					END;
 				(* ---- GETPROCEDURE ----- *)
@@ -3778,6 +3817,13 @@ TYPE
 					IF CheckIntegerType(parameter0) & (type0=type1) THEN
 					END;
 					type := type0;
+				ELSIF (id = Global.Connect) & (Parameters(2,2)) THEN
+					IF CheckOutPort(parameter0) & CheckInPort(parameter1) THEN
+						IF ~(SyntaxTree.DataflowFlag IN currentFlags) THEN
+							Error(position,Diagnostics.Invalid,"actor allocation outside dataflow body block");
+						END;
+						dataflowStatement := TRUE;
+					END;
 				ELSE
 					Error(position,Diagnostics.Invalid,"unknown builtin");
 					result := SyntaxTree.invalidExpression;
@@ -4309,7 +4355,7 @@ TYPE
 						Error(procedure.position,Diagnostics.Invalid,"problems during parameter offset computation");
 					END;
 				ELSIF SyntaxTree.ConstructorFlag IN procedure.flags THEN
-					Error(procedure.position,Diagnostics.Invalid,"nested procedure illegaly marked as initializer");
+					Error(procedure.position,Diagnostics.Invalid,"procedure illegaly marked as initializer - not in object scope");
 				END;
 				Declarations(procedure.procedureScope);
 				(* body resolution part done as late fix of the procedure type *)
@@ -4468,7 +4514,11 @@ TYPE
 			prev := resolvedStatement;
 			resolvedStatement := x;
 			IF SyntaxTree.UnreachableFlag IN currentFlags THEN x.AddFlags({SyntaxTree.UnreachableFlag}) END;
+			dataflowStatement := FALSE;
 			x.Accept(SELF);
+			IF (SyntaxTree.DataflowFlag IN currentFlags) & (dataflowStatement = FALSE) THEN
+				Error(x.position, Diagnostics.Invalid, "non-dataflow statement in dataflow block - not yet implemented");
+			END;
 			resolved := resolvedStatement;
 			resolvedStatement := prev;
 			RETURN resolved
@@ -5075,6 +5125,8 @@ TYPE
 					flag := SyntaxTree.ExclusiveFlag; SetProtectedRecord;
 				ELSIF name = Global.StringActive THEN
 					flag := SyntaxTree.ActiveFlag; SetProtectedRecord;
+				ELSIF name = Global.StringDataflow THEN
+					flag := SyntaxTree.DataflowFlag;
 				ELSIF name = Global.StringSafe THEN
 					flag := SyntaxTree.SafeFlag;
 				ELSIF name = Global.StringRealtime THEN

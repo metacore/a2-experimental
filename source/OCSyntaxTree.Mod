@@ -23,6 +23,7 @@ CONST
 	SafeFlag*=2; 					(** block is safe (restartable) **)
 	PriorityFlag*=3; 				(** block has priority **)
 	RealtimeFlag*=4; 				(** block has realtime flag **)
+	DataflowFlag*=5;				(** block has data flow flag indicating that body defines dataflow graph **)
 	(* non-Oberon calling conventions *)
 	WinAPIFlag*=5;
 	CFlag*=6;
