@@ -12,6 +12,7 @@ TYPE
 		system-: Global.System;
 		error-: BOOLEAN;
 		checker-: SemanticChecker.Checker;
+		source-: SyntaxTree.String;
 
 		(* constructor *)
 		PROCEDURE & InitBackend *;
@@ -42,10 +43,10 @@ TYPE
 			RETURN Global.DefaultSystem();
 		END GetSystem;
 
-		PROCEDURE Error*(CONST source,err: ARRAY OF CHAR);
+		PROCEDURE Error*(CONST source: ARRAY OF CHAR; errorNumber, errorPosition: LONGINT; CONST err: ARRAY OF CHAR);
 		BEGIN
 			IF (err # "") & (diagnostics # NIL) THEN
-				diagnostics.Error(source,Diagnostics.Invalid,Diagnostics.Invalid,err);
+				diagnostics.Error(source,errorNumber, errorPosition,err);
 			END;
 			error := TRUE;
 		END Error;

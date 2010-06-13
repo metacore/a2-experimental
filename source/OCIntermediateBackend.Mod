@@ -113,6 +113,7 @@ TYPE
 
 	DeclarationVisitor =OBJECT(SyntaxTree.Visitor)
 	VAR
+		backend: IntermediateBackend;
 		implementationVisitor: ImplementationVisitor;
 		system: Global.System;
 		currentScope: SyntaxTree.Scope;
@@ -120,12 +121,18 @@ TYPE
 		moduleSelf: SyntaxTree.Variable;
 		dump: BOOLEAN;
 
-		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; diagnostics: Diagnostics.Diagnostics; dump: BOOLEAN);
+		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; backend: IntermediateBackend; dump: BOOLEAN);
 		BEGIN
 			currentScope := NIL; module := NIL; moduleSelf := NIL;
 			SELF.system := system; SELF.implementationVisitor := implementationVisitor;
-			SELF.dump := dump
+			SELF.dump := dump;
+			SELF.backend := backend;
 		END Init;
+
+		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
+		BEGIN
+			backend.Error(module.module.sourceName, position, Diagnostics.Invalid, s);
+		END Error;
 
 		PROCEDURE Type(x: SyntaxTree.Type);
 		BEGIN
@@ -293,7 +300,7 @@ TYPE
 
 		PROCEDURE DataflowBody(x: SyntaxTree.Body);
 		BEGIN
-			HALT(200);
+			Error(x.position, "dataflow body not yet implemented");
 		END DataflowBody;
 
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
@@ -517,8 +524,7 @@ TYPE
 
 
 		checker: SemanticChecker.Checker;
-		diagnostics : Diagnostics.Diagnostics;
-		error: BOOLEAN;
+		backend: IntermediateBackend;
 		position: LONGINT;
 		moduleSelf: SyntaxTree.Variable;
 
@@ -550,7 +556,7 @@ TYPE
 		newObjectFile: BOOLEAN;
 
 
-		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; diagnostics: Diagnostics.Diagnostics;
+		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
 		VAR i: LONGINT;
 		BEGIN
@@ -564,8 +570,7 @@ TYPE
 			awaitProcCounter := 0;
 			labelId := 0; constId := 0; labelId := 0;
 			SELF.checker := checker;
-			SELF.diagnostics := diagnostics;
-			error := FALSE;
+			SELF.backend := backend;
 			position := Diagnostics.Invalid;
 			conditional := FALSE;
 			locked := FALSE;
@@ -1183,13 +1188,10 @@ TYPE
 
 		PROCEDURE Error(CONST s: ARRAY OF CHAR);
 		BEGIN
-			IF diagnostics # NIL THEN
-				diagnostics.Error(module.module.sourceName,position,Diagnostics.Invalid,s);
-			END;
+			backend.Error(module.module.sourceName,position,Diagnostics.Invalid,s);
 			IF dump # NIL THEN
 				dump.String(s); dump.Ln;
 			END;
-			error := TRUE;
 		END Error;
 
 		PROCEDURE ErrorI(CONST s: ARRAY OF CHAR; i: LONGINT);
@@ -5542,22 +5544,21 @@ TYPE
 
 		PROCEDURE GenerateIntermediate*(x: SyntaxTree.Module): Sections.Module;
 		VAR
-			declarator: DeclarationVisitor;
+			declarationVisitor: DeclarationVisitor;
 			implementationVisitor: ImplementationVisitor;
 			module: Sections.Module;
 
 		BEGIN
 			ResetError;
 			NEW(module,x,system); (* backend structures *)
-			NEW(implementationVisitor,system,checker,Supported, Compiler.FindPC IN flags, runtimeModuleName, diagnostics, newObjectFile);
-			NEW(declarator,system,implementationVisitor,diagnostics,trace);
-			declarator.Module(x,module);
+			NEW(implementationVisitor,system,checker,Supported, Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
+			NEW(declarationVisitor,system,implementationVisitor,SELF,trace);
+			declarationVisitor.Module(x,module);
 
 			IF newObjectFile THEN
 				MetaModule(implementationVisitor,module);
 			END;
 
-			IF implementationVisitor.error THEN Error("","") END;
 			RETURN module
 		END GenerateIntermediate;
 

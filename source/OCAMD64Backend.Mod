@@ -2699,7 +2699,7 @@ TYPE
 		 		in := in.nextSection;
 		 	END;
 
-			IF cg.error THEN Error("","") END;
+			IF cg.error THEN Error("",Diagnostics.Invalid, Diagnostics.Invalid,"") END;
 		END GenerateBinary;
 
 		PROCEDURE Module(x: SyntaxTree.Module): Formats.GeneratedModule;

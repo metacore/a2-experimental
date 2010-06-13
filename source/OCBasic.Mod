@@ -1450,8 +1450,6 @@ TYPE
 
 	END Writer;
 
-
-
 VAR
 	lists-: LONGINT;  enlarged-: LONGINT;  strings-: LONGINT; integerObjects: HashTableInt;
 	errMsg: ErrorMsgs;	(*error messages*)
