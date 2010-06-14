@@ -3815,10 +3815,6 @@ TYPE
 							Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
 						ELSIF outParameter.kind # SyntaxTree.OutPort THEN
 							Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
-						ELSIF inParameter.HasFlag(SyntaxTree.MappedFlag) THEN
-							Error(parameter1.position,Diagnostics.Invalid,"port already mapped");
-						ELSIF outParameter.HasFlag(SyntaxTree.MappedFlag) THEN
-							Error(parameter1.position,Diagnostics.Invalid,"port already mapped");
 						ELSIF parameter0.type.resolved # parameter1.type.resolved THEN
 							Error(position,Diagnostics.Invalid,"incompatible port types");
 						END;
