@@ -16,6 +16,7 @@ CONST
 	Info* = 4;
 	FindPC* = 5;
 	DataFlow*=6;
+	Warnings*=7;
 
 	Name = "OC";
 	Description = "Oberon Compiler";
@@ -132,9 +133,11 @@ TYPE
 		scanner: Scanner.Scanner;
 		parser: Parser.Parser;
 		checker: SemanticChecker.Checker;
+		warnings: SemanticChecker.Warnings;
 		printer: Printout.Printer;
 		system: Global.System;
 		generatedModule: Formats.GeneratedModule;
+
 
 		PROCEDURE FinalMessage(CONST msg: ARRAY OF CHAR);
 		VAR message,name: ARRAY 256 OF CHAR;
@@ -167,6 +170,8 @@ TYPE
 		IF DataFlow IN flags THEN
 			scanner.DataflowSupport;
 			Global.NewBuiltin(Global.Connect,"CONNECT",system.globalScope,{});
+			Global.NewBuiltin(Global.Receive,"RECEIVE",system.globalScope,{});
+			Global.NewBuiltin(Global.Send,"SEND",system.globalScope,{});
 		END;
 		parser := Parser.NewParser( scanner, diagnostics );
 		IF DataFlow IN flags THEN
@@ -191,6 +196,9 @@ TYPE
 				IF checker.error THEN
 					FinalMessage(" could not be compiled (checker errors).");
 					RETURN FALSE
+				ELSIF Warnings IN flags THEN
+					warnings := SemanticChecker.NewWarnings(diagnostics);
+					warnings.Module(module);
 				END;
 
 				(** third phase: generate code, can consist of sub-phases (such as intermediate backend / hardware backend) **)
@@ -276,6 +284,7 @@ TYPE
 		options.Add(0X, "symbolFile", Options.String);
 		options.Add(0X, "objectFile", Options.String);
 		options.Add("d","dataFlow", Options.Flag);
+		options.Add("w","warnings", Options.Flag);
 
 		position := input.Pos();
 		parsed := options.Parse(input,NIL);
@@ -335,6 +344,7 @@ TYPE
 			IF options.GetFlag("info") THEN INCL(flags,Info) END;
 			IF options.GetInteger("findPC",findPC) THEN INCL(flags,FindPC) END;
 			IF options.GetFlag("dataFlow") THEN INCL(flags, DataFlow) END;
+			IF options.GetFlag("warnings") THEN INCL(flags, Warnings) END;
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
 			IF objectFile # NIL THEN objectFile.GetOptions(options) END;

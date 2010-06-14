@@ -970,6 +970,7 @@ TYPE
 
 		PROCEDURE ProcedureList(x: SyntaxTree.Procedure);
 		BEGIN
+			w.IncIndent;
 			WHILE(x # NIL) DO
 				IF (x.access # SyntaxTree.Hidden) & ~(SyntaxTree.BodyProcedureFlag IN x.flags) OR (mode > SourceCode)  THEN
 					Symbol(x);
@@ -980,6 +981,7 @@ TYPE
 				IF (x# NIL) & (mode > SymbolFile) & ((x.access # SyntaxTree.Hidden) OR (mode > SourceCode)) THEN w.Ln END;
 
 			END;
+			w.DecIndent;
 		END ProcedureList;
 
 		PROCEDURE VisitImport(x: SyntaxTree.Import);
@@ -1061,13 +1063,11 @@ TYPE
 		BEGIN
 			prevScope := currentScope;
 			currentScope := x;
-			w.IncIndent;
 			(* ASSERT(currentScope.outerScope = prevScope); (* sanity check *) *)
 			IF x.firstConstant # NIL THEN ConstantList(x.firstConstant); END;
 			IF x.firstTypeDeclaration # NIL THEN TypeDeclarationList(x.firstTypeDeclaration); END;
 			IF x.firstVariable # NIL THEN Indent;  Keyword("VAR " );  VariableList(x.firstVariable);  END;
 			IF x.firstProcedure # NIL THEN w.Ln; ProcedureList(x.firstProcedure) END;
-			w.DecIndent;
 			currentScope := prevScope;
 		END Scope;
 

@@ -43,6 +43,7 @@ CONST
 	(* modification flags *)
 	WrittenFlag*=16;
 	AccessedFlag*=17;
+	MappedFlag*=18; (* for dataflow ports *)
 
 
 	(** Access Flags *)
@@ -1739,6 +1740,15 @@ TYPE
 		BEGIN offsetInBits := ofs
 		END SetOffset;
 
+		PROCEDURE MarkUsed*;
+		BEGIN
+			INCL(flags, AccessedFlag);
+		END MarkUsed;
+
+		PROCEDURE MarkWritten*;
+		BEGIN
+			INCL(flags, WrittenFlag);
+		END MarkWritten;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;

@@ -224,6 +224,7 @@ TYPE
 				currentScope := symbol.scope;
 				typeDeclaration := symbol(SyntaxTree.TypeDeclaration);
 				result := ResolveType(typeDeclaration.declaredType);
+				symbol.MarkUsed;
 				ASSERT(result # NIL);
 			END;
 			currentScope := prevScope;
@@ -971,7 +972,7 @@ TYPE
 			error := FALSE;
 
 			IF actualType = SyntaxTree.invalidType THEN (* error already handled *)
-			ELSIF formal.kind = SyntaxTree.VarParameter THEN
+			ELSIF (formal.kind = SyntaxTree.VarParameter) OR (formal.kind = SyntaxTree.InPort) THEN
 
 				IF (SyntaxTree.WinAPIFlag IN formal.ownerType.flags) & (actualType = Global.Nil) THEN
 					result := TRUE; (* special rule for WINAPI parameters, needed to be able to pass NIL address to var parameters *)
@@ -2370,6 +2371,7 @@ TYPE
 			result := SyntaxTree.NewSymbolDesignator(position,left,symbol);
 			result.SetType(symbol.type);
 			result.SetAssignable(assignable);
+			symbol.MarkUsed;
 			IF symbol IS SyntaxTree.Constant THEN
 				result.SetResolved(symbol(SyntaxTree.Constant).value.resolved);
 			END;
@@ -2472,6 +2474,7 @@ TYPE
 					IF symbol # NIL THEN
 						ResolveSymbol(symbol);
 						result := NewSymbolDesignator(selectorDesignator.position,left,symbol);
+						symbol.MarkUsed
 					ELSE
 						Error(selectorDesignator.position,Diagnostics.Invalid,"undeclared identifier (selector)");
 						IF VerboseErrorMessage THEN
@@ -2822,36 +2825,21 @@ TYPE
 			RETURN result
 		END CheckVariable;
 
-		PROCEDURE CheckInPort(x: SyntaxTree.Expression): BOOLEAN;
+		PROCEDURE CheckParameter(x: SyntaxTree.Expression; VAR par: SyntaxTree.Parameter): BOOLEAN;
 		VAR result: BOOLEAN;
 		BEGIN
 			result := TRUE;
 			IF x = SyntaxTree.invalidExpression THEN
 				result := FALSE;
-			ELSIF ~(x IS SyntaxTree.SymbolDesignator) OR ~(x(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Parameter) OR
-			(x(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Parameter).kind # SyntaxTree.InPort) THEN
-				Error(x.position,Diagnostics.Invalid,"not an in-port");
-				IF VerboseErrorMessage THEN Printout.Info("non port",x) END;
+			ELSIF ~(x IS SyntaxTree.SymbolDesignator) OR ~(x(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Parameter) THEN
+				Error(x.position,Diagnostics.Invalid,"not a parameter");
+				IF VerboseErrorMessage THEN Printout.Info("parameter",x) END;
 				result := FALSE;
+			ELSE
+				par := x(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Parameter);
 			END;
 			RETURN result
-		END CheckInPort;
-
-		PROCEDURE CheckOutPort(x: SyntaxTree.Expression): BOOLEAN;
-		VAR result: BOOLEAN;
-		BEGIN
-			result := TRUE;
-			IF x = SyntaxTree.invalidExpression THEN
-				result := FALSE;
-			ELSIF ~(x IS SyntaxTree.SymbolDesignator) OR ~(x(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Parameter) OR
-			(x(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Parameter).kind # SyntaxTree.OutPort) THEN
-				Error(x.position,Diagnostics.Invalid,"not an in-port");
-				IF VerboseErrorMessage THEN Printout.Info("non port",x) END;
-				result := FALSE;
-			END;
-			RETURN result
-		END CheckOutPort;
-
+		END CheckParameter;
 
 		(**
 			if expression x is of basic type then return true else report error and return false
@@ -3046,7 +3034,7 @@ TYPE
 		PROCEDURE NewBuiltinCallDesignator(position: LONGINT; builtin: SyntaxTree.Builtin; actualParameters:SyntaxTree.ExpressionList; left: SyntaxTree.Designator): SyntaxTree.Expression;
 		VAR
 			numberActualParameters,numberFormalParameters: LONGINT;
-			formalParameter: SyntaxTree.Parameter;
+			formalParameter,inParameter, outParameter: SyntaxTree.Parameter;
 			actualParameter: SyntaxTree.Expression;
 			procedureType: SyntaxTree.ProcedureType;
 			parameter0, parameter1, parameter2, result: SyntaxTree.Expression;
@@ -3817,15 +3805,48 @@ TYPE
 					IF CheckIntegerType(parameter0) & (type0=type1) THEN
 					END;
 					type := type0;
+				(* ------- CONNECT -------*)
 				ELSIF (id = Global.Connect) & (Parameters(2,2)) THEN
-					IF CheckOutPort(parameter0) & CheckInPort(parameter1) THEN
-						IF ~(SyntaxTree.DataflowFlag IN currentFlags) THEN
-							Error(position,Diagnostics.Invalid,"actor allocation outside dataflow body block");
+					IF 	~(SyntaxTree.DataflowFlag IN currentFlags) THEN
+						Error(position,Diagnostics.Invalid,"actor allocation outside dataflow body block");
+					END;
+					IF CheckParameter(parameter0,outParameter) & CheckParameter(parameter1,inParameter) THEN
+						IF inParameter.kind # SyntaxTree.InPort THEN
+							Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
+						ELSIF outParameter.kind # SyntaxTree.OutPort THEN
+							Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
+						ELSIF inParameter.HasFlag(SyntaxTree.MappedFlag) THEN
+							Error(parameter1.position,Diagnostics.Invalid,"port already mapped");
+						ELSIF outParameter.HasFlag(SyntaxTree.MappedFlag) THEN
+							Error(parameter1.position,Diagnostics.Invalid,"port already mapped");
+						ELSIF parameter0.type.resolved # parameter1.type.resolved THEN
+							Error(position,Diagnostics.Invalid,"incompatible port types");
 						END;
+						inParameter.AddFlags({SyntaxTree.MappedFlag});
+						outParameter.AddFlags({SyntaxTree.MappedFlag});
 						dataflowStatement := TRUE;
 					END;
+				(* --------- RECEIVE ---------*)
+				ELSIF (id = Global.Receive) & Parameters(2,2) THEN
+					IF CheckParameter(parameter0,inParameter) & CheckVariable(parameter1) THEN
+						IF inParameter.kind # SyntaxTree.InPort THEN
+							Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
+						ELSIF ~ParameterCompatible(inParameter,parameter1) THEN
+						END;
+					END;
+				(* --------- SEND ---------*)
+				ELSIF (id = Global.Send) & Parameters(2,2) THEN
+					IF CheckParameter(parameter0,outParameter)  THEN
+						IF outParameter.kind # SyntaxTree.OutPort THEN
+							Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
+						ELSIF ~ParameterCompatible(outParameter,parameter1) THEN
+						ELSE
+							parameter1 := NewConversion(position,parameter1,parameter0.type.resolved,NIL);
+							actualParameters.SetExpression(1,parameter1);
+						END;
+					END;
 				ELSE
-					Error(position,Diagnostics.Invalid,"unknown builtin");
+					Error(position,Diagnostics.Invalid,"builtin not implemented");
 					result := SyntaxTree.invalidExpression;
 				END;
 			END;
@@ -5397,12 +5418,135 @@ TYPE
 
 	END Checker;
 
+	Warnings*=OBJECT (SyntaxTree.Visitor)
+	VAR diagnostics: Diagnostics.Diagnostics; module: SyntaxTree.Module;
 
+		PROCEDURE &InitWarnings*(diagnostics: Diagnostics.Diagnostics);
+		BEGIN
+			SELF.diagnostics := diagnostics
+		END InitWarnings;
+
+		(** types *)
+		PROCEDURE Type(x: SyntaxTree.Type);
+		BEGIN x.Accept(SELF)
+		END Type;
+
+		PROCEDURE VisitType*(x: SyntaxTree.Type);
+		BEGIN  END VisitType;
+
+		PROCEDURE VisitBasicType*(x: SyntaxTree.BasicType);
+		BEGIN  END VisitBasicType;
+
+		PROCEDURE VisitCharacterType*(x: SyntaxTree.CharacterType);
+		BEGIN END VisitCharacterType;
+
+		PROCEDURE VisitIntegerType*(x: SyntaxTree.IntegerType);
+		BEGIN END VisitIntegerType;
+
+		PROCEDURE VisitFloatType*(x: SyntaxTree.FloatType);
+		BEGIN END VisitFloatType;
+
+		PROCEDURE VisitQualifiedType*(x: SyntaxTree.QualifiedType);
+		BEGIN END VisitQualifiedType;
+
+		PROCEDURE VisitStringType*(x: SyntaxTree.StringType);
+		BEGIN END VisitStringType;
+
+		PROCEDURE VisitEnumerationType*(x: SyntaxTree.EnumerationType);
+		BEGIN END VisitEnumerationType;
+
+		PROCEDURE VisitRangeType*(x: SyntaxTree.RangeType);
+		BEGIN  END VisitRangeType;
+
+		PROCEDURE VisitArrayType*(x: SyntaxTree.ArrayType);
+		BEGIN END VisitArrayType;
+
+		PROCEDURE VisitMathArrayType*(x: SyntaxTree.MathArrayType);
+		BEGIN END VisitMathArrayType;
+
+		PROCEDURE VisitPointerType*(x: SyntaxTree.PointerType);
+		BEGIN  END VisitPointerType;
+
+		PROCEDURE VisitRecordType*(x: SyntaxTree.RecordType);
+		BEGIN Scope(x.recordScope) END VisitRecordType;
+
+		PROCEDURE VisitActorType*(x: SyntaxTree.ActorType);
+		BEGIN Scope(x.actorScope) END VisitActorType;
+
+		PROCEDURE VisitProcedureType*(x: SyntaxTree.ProcedureType);
+		BEGIN  END VisitProcedureType;
+
+		PROCEDURE Warning(x: SyntaxTree.Symbol; CONST text: ARRAY OF CHAR);
+		VAR msg: SyntaxTree.String;
+		BEGIN
+			Global.GetSymbolName(x,msg);
+			Strings.Append(msg," ");
+			Strings.Append(msg,text);
+			diagnostics.Warning(module.sourceName,x.position,Diagnostics.Invalid,msg);
+		END Warning;
+
+		(** symbols *)
+		PROCEDURE Symbol(x: SyntaxTree.Symbol);
+		BEGIN
+			IF ~x.HasFlag(SyntaxTree.AccessedFlag) & (x.access * SyntaxTree.Public = {}) & (x.access # SyntaxTree.Hidden) THEN
+				Warning(x,"never used");
+			END;
+			x.Accept(SELF);
+		END Symbol;
+
+		PROCEDURE VisitSymbol*(x: SyntaxTree.Symbol);
+		BEGIN END VisitSymbol;
+
+		PROCEDURE VisitTypeDeclaration*(x: SyntaxTree.TypeDeclaration);
+		BEGIN Type(x.declaredType) END VisitTypeDeclaration;
+
+		PROCEDURE VisitConstant*(x: SyntaxTree.Constant);
+		BEGIN  END VisitConstant;
+
+		PROCEDURE VisitVariable*(x: SyntaxTree.Variable);
+		BEGIN  END VisitVariable;
+
+		PROCEDURE VisitParameter*(x: SyntaxTree.Parameter);
+		BEGIN
+			IF (x.kind = SyntaxTree.InPort) OR (x.kind = SyntaxTree.OutPort) & ~x.HasFlag(SyntaxTree.MappedFlag) THEN
+				Warning(x,"unmapped port");
+			END;
+		END VisitParameter;
+
+		PROCEDURE VisitProcedure*(x: SyntaxTree.Procedure);
+		BEGIN Scope(x.procedureScope) END VisitProcedure;
+
+		PROCEDURE VisitOperator*(x: SyntaxTree.Operator);
+		BEGIN END VisitOperator;
+
+		PROCEDURE VisitImport*(x: SyntaxTree.Import);
+		BEGIN END VisitImport;
+
+		PROCEDURE Scope(scope: SyntaxTree.Scope);
+		VAR
+			symbol: SyntaxTree.Symbol;
+		BEGIN
+			symbol := scope.firstSymbol;
+			WHILE(symbol # NIL) DO
+				Symbol(symbol);
+				symbol := symbol.nextSymbol;
+			END;
+		END Scope;
+
+		PROCEDURE Module*(x: SyntaxTree.Module);
+		BEGIN
+			SELF.module := x;
+			Scope(x.moduleScope);
+		END Module;
+
+	END Warnings;
 
 	Same= POINTER TO RECORD
 		t1,t2: SyntaxTree.Type;
 		next: Same;
 	END;
+
+
 
 	PROCEDURE ToMemoryUnits(system: Global.System; size: LONGINT): LONGINT;
 	BEGIN
@@ -6290,6 +6434,13 @@ TYPE
 		NEW(checker, diagnostics,verboseErrorMessage,system,symbolFileFormat,importCache);
 		RETURN checker
 	END NewChecker;
+
+	PROCEDURE NewWarnings*(diagnostics: Diagnostics.Diagnostics): Warnings;
+	VAR warnings: Warnings;
+	BEGIN
+		NEW(warnings, diagnostics); RETURN warnings;
+	END NewWarnings;
+
 
 END OCSemanticChecker.
 
