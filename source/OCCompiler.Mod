@@ -283,7 +283,7 @@ TYPE
 		options.Add("f","findPC",Options.Integer);
 		options.Add(0X, "symbolFile", Options.String);
 		options.Add(0X, "objectFile", Options.String);
-		options.Add("d","dataFlow", Options.Flag);
+		options.Add("d","dataflow", Options.Flag);
 		options.Add("w","warnings", Options.Flag);
 
 		position := input.Pos();
@@ -343,7 +343,7 @@ TYPE
 			IF options.GetFlag("traceError") THEN INCL(flags, TraceError) END;
 			IF options.GetFlag("info") THEN INCL(flags,Info) END;
 			IF options.GetInteger("findPC",findPC) THEN INCL(flags,FindPC) END;
-			IF options.GetFlag("dataFlow") THEN INCL(flags, DataFlow) END;
+			IF options.GetFlag("dataflow") THEN INCL(flags, DataFlow) END;
 			IF options.GetFlag("warnings") THEN INCL(flags, Warnings) END;
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;

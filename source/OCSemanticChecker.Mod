@@ -5504,9 +5504,6 @@ TYPE
 
 		PROCEDURE VisitParameter*(x: SyntaxTree.Parameter);
 		BEGIN
-			IF (x.kind = SyntaxTree.InPort) OR (x.kind = SyntaxTree.OutPort) & ~x.HasFlag(SyntaxTree.MappedFlag) THEN
-				Warning(x,"unmapped port");
-			END;
 		END VisitParameter;
 
 		PROCEDURE VisitProcedure*(x: SyntaxTree.Procedure);
