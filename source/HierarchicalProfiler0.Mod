@@ -12,7 +12,7 @@ CONST
 	WaitTime = 100;	(* ms *)
 
 TYPE
-	Callback = PROCEDURE (id : LONGINT; process : Objects.Process; pc, bp : SYSTEM.ADDRESS);
+	Callback = PROCEDURE (id : LONGINT; process : Objects.Process; pc, bp, lowAdr, highAdr : SYSTEM.ADDRESS);
 
 VAR
 	callback : Callback;
@@ -23,7 +23,7 @@ PROCEDURE HandleTimer(id: LONGINT; CONST state: Machine.State);
 VAR process : Objects.Process;
 BEGIN
 	process := Objects.running[id];
-	callback(id, process, state.PC, state.BP);
+	callback(id, process, state.PC, state.BP, state.SP, SHORT(0FFFFFFFFH));
 END HandleTimer;
 
 (** Start profiling. If the profiler is already running, it is stopped and the sample data is discarded before re-starting it *)

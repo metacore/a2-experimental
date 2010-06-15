@@ -15,7 +15,7 @@ TYPE
 
 	ProcessTimeArray = POINTER TO ARRAY ProcessInfo.MaxNofProcesses OF HUGEINT;
 
-	Callback = PROCEDURE (id : LONGINT; process : Objects.Process; pc, bp : SYSTEM.ADDRESS);
+	Callback = PROCEDURE (id : LONGINT; process : Objects.Process; pc, bp, lowAdr, highAdr : SYSTEM.ADDRESS);
 
 	Poller = OBJECT
 	VAR
@@ -92,21 +92,22 @@ VAR
 	state : LONGINT;
 
 PROCEDURE HandleProcess(process : Objects.Process);
-VAR context : Kernel32.Context; id : LONGINT; res : Kernel32.BOOL;
+VAR context : Kernel32.Context; handle : Kernel32.HANDLE; res : Kernel32.BOOL;
 BEGIN
 	ASSERT(process # NIL);
-	ASSERT(process.handle # Kernel32.InvalidHandleValue);
-	res := Kernel32.SuspendThread(process.handle);
-	IF (res # -1) THEN
-		context.ContextFlags := Kernel32.ContextControl;
-		res := Kernel32.GetThreadContext(process.handle, context);
-		IF (res = Kernel32.True) THEN
-			id := 1;
-			IF (context.PC # 0) THEN
-				callback(id, process, context.PC, context.BP);
+	handle := process.handle;
+	IF (handle # Kernel32.NULL) & (handle # Kernel32.InvalidHandleValue) THEN
+		res := Kernel32.SuspendThread(handle);
+		IF (res # -1) THEN
+			context.ContextFlags := Kernel32.ContextControl;
+			res := Kernel32.GetThreadContext(handle, context);
+			IF (res = Kernel32.True) THEN
+				IF (context.PC # 0) THEN
+					callback(1, process, context.PC, context.BP, context.SP, SHORT(0FFFFFFFFH));
+				END;
 			END;
+			res := Kernel32.ResumeThread(handle);
 		END;
-		res := Kernel32.ResumeThread(process.handle);
 	END;
 END HandleProcess;
 
