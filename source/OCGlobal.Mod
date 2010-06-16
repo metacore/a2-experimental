@@ -59,7 +59,7 @@ CONST
 	(* global proper procedures *)
 	Assert*= Scanner.EndOfText+1; Copy*= Assert+1; Dec*= Copy+1; Excl*= Dec+1; Halt*= Excl+1;
 	Inc*= Halt+1; Incl*= Inc+1; New*= Incl+1; GetProcedure*= New+1; Connect*=GetProcedure+1;
-	Receive*= Connect+1; Send* = Receive+1; 
+	Receive*= Connect+1; Send* = Receive+1;
 	(* global functions *)
 	Abs*= Send+1; Ash*= Abs+1; Cap*= Ash+1; Chr*= Cap+1; Entier*= Chr+1;
 	EntierH*= Entier+1; Len*= EntierH+1; Long*= Len+1; Max*= Long+1; Min*= Max+1;
@@ -192,8 +192,7 @@ TYPE
 			IF scope IS SyntaxTree.RecordScope THEN (* increasing indices *)
 				RETURN GenerateRecordOffsets(scope(SyntaxTree.RecordScope).ownerRecord)
 			ELSE (* module scope or procedure scope: decreasing indices *)
-				ASSERT((scope IS SyntaxTree.ModuleScope) OR (scope IS SyntaxTree.ProcedureScope)
-				OR (scope IS SyntaxTree.ActorScope));
+				ASSERT((scope IS SyntaxTree.ModuleScope) OR (scope IS SyntaxTree.ProcedureScope));
 				offset := 0;
 				variable := scope.firstVariable;
 				WHILE (variable # NIL) DO
@@ -298,6 +297,7 @@ TYPE
 						size := -1
 					END;
 				END;
+				(*
 			ELSIF type IS SyntaxTree.ActorType THEN
 				(* do not treat a record type like a pointer even if the Pointer field is set, this leads to problems in object files
 					rather make sure that each reference type is a POINTER TO at least behind the secenes!
@@ -315,6 +315,7 @@ TYPE
 						size := -1
 					END;
 				END;
+				*)
 			ELSIF type IS SyntaxTree.ArrayType THEN
 				ASSERT(SyntaxTree.Resolved IN type.state);
 				IF type(SyntaxTree.ArrayType).form = SyntaxTree.Static THEN
@@ -363,13 +364,13 @@ TYPE
 					OR (par.type.resolved IS SyntaxTree.MathArrayType) & (par.kind = SyntaxTree.VarParameter)
 				THEN
 					RETURN addressSize
-				ELSIF (par.ownerType IS SyntaxTree.ProcedureType) & IsOberonProcedure(par.ownerType(SyntaxTree.ProcedureType)) THEN
+				ELSIF IsOberonProcedure(par.ownerProcedureType) THEN
 					RETURN SizeOf(par.type);
 				ELSE RETURN addressSize
 				END
 			ELSIF (par.kind IN {SyntaxTree.ConstParameter,SyntaxTree.VarParameter}) THEN
 				IF (par.type.resolved IS SyntaxTree.RecordType) THEN
-					IF IsOberonProcedure(par.ownerType(SyntaxTree.ProcedureType)) THEN
+					IF IsOberonProcedure(par.ownerProcedureType) THEN
 						RETURN 2*addressSize
 					ELSE
 						RETURN addressSize
@@ -730,11 +731,13 @@ TYPE
 				Scope(scope.outerScope);
 				scope(SyntaxTree.ProcedureScope).ownerProcedure.name.GetString(n);
 				Strings.Append(name,n); Strings.Append(name,".")
+				(*
 			ELSIF scope IS SyntaxTree.ActorScope THEN
 				Scope(scope.outerScope);
 				td := scope(SyntaxTree.ActorScope).ownerActor.typeDeclaration;
 				td.name.GetString(n);
 				Strings.Append(name,n); Strings.Append(name,".")
+				*)
 			END;
 		END Scope;
 

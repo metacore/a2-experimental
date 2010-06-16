@@ -1804,7 +1804,7 @@ TYPE
 				BEGIN
 					WHILE parameter # NIL DO
 						(*! the calling convention should not be expressed via the parameters (compatiblity with old compiler) *)
-						flags := parameter.ownerType.flags;
+						flags := parameter.ownerProcedureType.flags;
 						IF  SyntaxTree.WinAPIFlag IN flags THEN
 							w.RawNum(sfObjFlag); w.RawNum(sfWinAPIParam);
 						ELSIF SyntaxTree.CFlag IN flags THEN

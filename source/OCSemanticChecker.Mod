@@ -831,7 +831,7 @@ TYPE
 			resolvedType := ResolvedType(x);
 		END VisitRecordType;
 
-
+		(*
 		(** check and resolve actor type
 			- check base type: must be actor
 			- check declarations
@@ -868,6 +868,7 @@ TYPE
 			END;
 			resolvedType := ResolvedType(x);
 		END VisitActorType;
+		*)
 
 		(** resolve all pending types (late resolving).
 			- type fixes are resolved at the end of the declaration phase
@@ -974,7 +975,7 @@ TYPE
 			IF actualType = SyntaxTree.invalidType THEN (* error already handled *)
 			ELSIF (formal.kind = SyntaxTree.VarParameter) OR (formal.kind = SyntaxTree.InPort) THEN
 
-				IF (SyntaxTree.WinAPIFlag IN formal.ownerType.flags) & (actualType = Global.Nil) THEN
+				IF (SyntaxTree.WinAPIFlag IN formal.ownerProcedureType.flags) & (actualType = Global.Nil) THEN
 					result := TRUE; (* special rule for WINAPI parameters, needed to be able to pass NIL address to var parameters *)
 				ELSIF ~IsVariable(actual) THEN
 					result := FALSE; error := TRUE;
@@ -999,7 +1000,7 @@ TYPE
 				IF (formalType IS SyntaxTree.CharacterType) & (actualType IS SyntaxTree.StringType) & (actualType(SyntaxTree.StringType).length = 2) THEN
 					actualType := Global.Char;
 				END;
-				IF (SyntaxTree.WinAPIFlag IN formal.ownerType.flags) &  (actualType = Global.Nil) THEN
+				IF (SyntaxTree.WinAPIFlag IN formal.ownerProcedureType.flags) &  (actualType = Global.Nil) THEN
 					result := TRUE; (* special rule for WINAPI parameters *)
 				ELSIF (formalType IS SyntaxTree.ArrayType) & (formalType(SyntaxTree.ArrayType).form = SyntaxTree.Open) THEN
 					result := OpenArrayCompatible(formalType(SyntaxTree.ArrayType),actualType);
@@ -2451,9 +2452,11 @@ TYPE
 				ELSIF left.type.resolved IS SyntaxTree.RecordType THEN
 					scope := left.type.resolved(SyntaxTree.RecordType).recordScope;
 					ASSERT(scope # NIL)
+				(*
 				ELSIF left.type.resolved IS SyntaxTree.ActorType THEN
 					scope := left.type.resolved(SyntaxTree.ActorType).actorScope;
 					ASSERT(scope # NIL);
+				*)
 				ELSIF left.type.resolved = SyntaxTree.typeDeclarationType THEN
 					symbol := left(SyntaxTree.SymbolDesignator).symbol;
 					type := symbol(SyntaxTree.TypeDeclaration).declaredType.resolved;
@@ -3244,7 +3247,7 @@ TYPE
 									UNTIL ~CheckIntegerType(actualParameter) OR (actualParameter.resolved # NIL) & ~CheckPositiveIntegerValue(actualParameter,i0,TRUE) OR (i=numberActualParameters);
 								END;
 							END;
-						ELSIF type0 IS SyntaxTree.ActorType THEN
+						ELSIF type0 = SyntaxTree.actorType THEN
 							IF Parameters(1,1) & ~(SyntaxTree.DataflowFlag IN currentFlags) THEN
 								Error(position,Diagnostics.Invalid,"actor allocation outside dataflow body block");
 							END;
@@ -5295,6 +5298,7 @@ TYPE
 			procedure: SyntaxTree.Procedure;
 			prevScope: SyntaxTree.Scope;
 			parameter: SyntaxTree.Parameter;
+			port: SyntaxTree.Port;
 			import: SyntaxTree.Import;
 			symbol: SyntaxTree.Symbol;
 			prevPhase: LONGINT;
@@ -5313,6 +5317,10 @@ TYPE
 					IF import.context = NIL THEN import.SetContext(scope.ownerModule.context) END;
 					Register(import, currentScope, FALSE); import := import.nextImport;
 				END;
+				port := scope(SyntaxTree.ModuleScope).ownerModule.firstPort;
+				WHILE(port # NIL) DO
+					Register(port,currentScope, FALSE); port := port.nextPort;
+				END;
 			ELSIF scope IS SyntaxTree.ProcedureScope THEN
 				(* enter parameters for a procedure scope *)
 				parameter := scope(SyntaxTree.ProcedureScope).ownerProcedure.type.resolved(SyntaxTree.ProcedureType).firstParameter;
@@ -5322,11 +5330,6 @@ TYPE
 				parameter := scope(SyntaxTree.ProcedureScope).ownerProcedure.type.resolved(SyntaxTree.ProcedureType).returnParameter;
 				IF parameter # NIL THEN
 					Register(parameter,currentScope, FALSE);
-				END;
-			ELSIF scope IS SyntaxTree.ActorScope THEN
-				parameter := scope(SyntaxTree.ActorScope).ownerActor.firstParameter;
-				WHILE(parameter # NIL) DO
-					Register(parameter,currentScope, FALSE); parameter := parameter.nextParameter;
 				END;
 			END;
 			(* constants *)
@@ -5466,8 +5469,10 @@ TYPE
 		PROCEDURE VisitRecordType*(x: SyntaxTree.RecordType);
 		BEGIN Scope(x.recordScope) END VisitRecordType;
 
+		(*
 		PROCEDURE VisitActorType*(x: SyntaxTree.ActorType);
 		BEGIN Scope(x.actorScope) END VisitActorType;
+		*)
 
 		PROCEDURE VisitProcedureType*(x: SyntaxTree.ProcedureType);
 		BEGIN  END VisitProcedureType;
@@ -5571,7 +5576,7 @@ TYPE
 			RETURN
 				(numberParameters = 0) & TypeAllowed(procedureType.returnType) OR
 				(numberParameters = 1) & TypeAllowed(procedureType.firstParameter.type) & TypeAllowed(procedureType.returnType) OR
-				(numberParameters = 1) & (procedureType.firstParameter.ownerType.resolved = Global.Any) & (procedureType.returnType.resolved = Global.Any)
+				(numberParameters = 1) & (procedureType.firstParameter.ownerProcedureType.resolved = Global.Any) & (procedureType.returnType.resolved = Global.Any)
 		END;
 	END GetProcedureAllowed;
 

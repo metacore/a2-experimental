@@ -1067,6 +1067,7 @@ TYPE
 			RETURN pointerType
 		END ObjectType;
 
+		(*
 		(** ActorType = 'actor' [ParameterList] DeclarationSequence [Body] 'end' [Identifier]
               | 'object'. **)
 		PROCEDURE ActorType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope ): SyntaxTree.Type;
@@ -1103,6 +1104,7 @@ TYPE
 			IF Trace THEN E( "ActorType" ) END;
 			RETURN actorType
 		END ActorType;
+		*)
 
 
 		(** PointerType = 'pointer' 'to' Type. **)
@@ -1256,7 +1258,9 @@ TYPE
 			ELSIF Optional( Scanner.Record ) THEN type := RecordType( position,parentScope );
 			ELSIF Optional( Scanner.Pointer ) THEN type := PointerType( position,parentScope );
 			ELSIF Optional( Scanner.Object ) THEN type := ObjectType( position,name,parentScope );
+			(*
 			ELSIF Optional( Scanner.Actor) THEN type := ActorType( position, name, parentScope); (* only possible if dataflow enabled in scanner *)
+			*)
 			ELSIF Optional( Scanner.Procedure ) THEN type := ProcedureType( position,parentScope);
 			ELSIF Optional( Scanner.Enum ) THEN type := EnumerationType( position,parentScope);
 			ELSE qualifiedIdentifier := QualifiedIdentifier();
@@ -1267,10 +1271,10 @@ TYPE
 		END Type;
 
 		(** PortDeclaration = ('out' | 'in') Identifier {',' Identifier}':' Type. **)
-		PROCEDURE PortDeclaration(actorType: SyntaxTree.ActorType; parentScope: SyntaxTree.Scope);
+		PROCEDURE PortDeclaration(actor: SyntaxTree.Module; parentScope: SyntaxTree.Scope);
 		VAR
 			type: SyntaxTree.Type; name: SyntaxTree.Identifier;
-			firstParameter, parameter: SyntaxTree.Parameter;   kind: LONGINT;
+			firstPort, port: SyntaxTree.Port;   kind: LONGINT;
 		BEGIN
 			IF Trace THEN S( "PortDeclaration" ) END;
 			IF Optional( Scanner.In ) THEN
@@ -1280,31 +1284,31 @@ TYPE
 			ELSE
 				Error(symbol.start,Diagnostics.Invalid,"invalid port declaration, must start with IN or OUT");
 			END;
-			firstParameter := actorType.lastParameter;
+			firstPort := actor.lastPort;
 			REPEAT
 				name := Identifier();
-				parameter := SyntaxTree.NewParameter(name.position,actorType,name,kind);
-				actorType.AddParameter(parameter);
+				port := SyntaxTree.NewPort(name.position,actor,name,kind);
+				actor.AddPort(port);
 			UNTIL ~Optional( Scanner.Comma );
 			Check( Scanner.Colon );
 			type := Type( NIL, parentScope);
 			ASSERT(type # NIL);
-			IF firstParameter # NIL THEN parameter := firstParameter.nextParameter ELSE parameter := actorType.firstParameter END;
-			WHILE parameter # NIL DO
-				parameter.SetType( type );
-				parameter := parameter.nextParameter;
+			IF firstPort # NIL THEN port := firstPort.nextPort ELSE port := actor.firstPort END;
+			WHILE port # NIL DO
+				port.SetType( type );
+				port := port.nextPort;
 			END;
 			IF Trace THEN E( "PortDeclaration" )
 			END;
 		END PortDeclaration;
 
 		(** PortList = '('[ParameterDeclaration {';' ParameterDeclaration}]')' [':' Type]. **)
-		PROCEDURE PortList( actorType: SyntaxTree.ActorType ; parentScope: SyntaxTree.Scope);
+		PROCEDURE PortList( actor: SyntaxTree.Module ; parentScope: SyntaxTree.Scope);
 		BEGIN
 			IF Trace THEN S( "PortList" ) END;
 			(* left parenthesis already consumed *)
 			IF ~Optional( Scanner.RightParenthesis ) THEN
-				REPEAT PortDeclaration( actorType, parentScope );  UNTIL ~Optional( Scanner.Semicolon );
+				REPEAT PortDeclaration( actor, parentScope );  UNTIL ~Optional( Scanner.Semicolon );
 				Check( Scanner.RightParenthesis );
 			END;
 			IF Trace THEN E( "PortList" ) END;
@@ -1669,21 +1673,28 @@ TYPE
 			         'end' Identifier '.'. **)
 		PROCEDURE Module*(): SyntaxTree.Module;
 		VAR moduleName, context: SyntaxTree.Identifier;  module: SyntaxTree.Module;  position: LONGINT;
-
+			type: SyntaxTree.Type;
 		BEGIN
 			IF Trace THEN S( "Module" ) END;
 			position := symbol.start;
 			moduleScope := SyntaxTree.NewModuleScope(); (* needed to feed in comment already before module starts *)
 			currentScope := moduleScope;
-			IF Mandatory( Scanner.Module ) THEN
+			type := NIL;
+			IF dataflowSupport & Optional(Scanner.Actor ) THEN type := SyntaxTree.actorType
+			ELSIF dataflowSupport & Optional(Scanner.Dataflow) THEN type := SyntaxTree.dataflowType
+			ELSIF Mandatory( Scanner.Module ) THEN type := SyntaxTree.moduleType;
+			END;
+			IF type # NIL THEN
 				moduleName :=  Identifier();
 				module := SyntaxTree.NewModule( scanner.source, moduleName.position, moduleName, moduleScope, scanner.case );
+				module.SetType(type);
 				CommentSymbol(module);
 				IF Optional(Scanner.In) THEN
 					position := symbol.start;
 					context := Identifier();
 					module.SetContext(context);
 				END;
+				IF (type = SyntaxTree.actorType) & Optional(Scanner.LeftParenthesis) THEN PortList(module,moduleScope) END;
 				Check(Scanner.Semicolon);
 				IF Optional(Scanner.Import) THEN ImportList(moduleScope) END;
 				DeclarationSequence( moduleScope);
@@ -1705,7 +1716,7 @@ TYPE
 		PROCEDURE NextModule*(): BOOLEAN;
 		BEGIN
 			scanner.ResetCase;
-			NextSymbol; RETURN Peek(Scanner.Module);
+			NextSymbol; RETURN Peek(Scanner.Module) OR dataflowSupport & Peek(Scanner.Actor) OR dataflowSupport & Peek(Scanner.Dataflow);
 		END NextModule;
 
 	END Parser;

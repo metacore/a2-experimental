@@ -48,9 +48,9 @@ CONST
 	Semicolon Transpose RightBrace RightBracket RightParenthesis Questionmark Upto
     	Arrow Period Comma Colon Of Then Do To By Becomes Bar End Else Elsif Until Finally
 	(* declaration elements *)
-	Code Const Type Var Out Procedure Operator Import Definition Module
+	Code Const Type Var Out Procedure Operator Import Definition Module Actor Dataflow
 	(* composite type symbols *)
-	Array Object Record Actor Pointer Enum
+	Array Object Record Pointer Enum
 	(* assembler constants *)
 	Ln PC PCOffset
 	(* number types *)
@@ -58,6 +58,7 @@ CONST
 	Comment EndOfText
 	~
 	*)
+
 	None*= 0;
 	(* RelationOps: Equal ... Is *)
 	Equal*= 1; DotEqual*= 2; Unequal*= 3; DotUnequal*= 4; Less*= 5; DotLess*= 6;
@@ -83,14 +84,14 @@ CONST
 	End*= 69; Else*= 70; Elsif*= 71; Until*= 72; Finally*= 73;
 	(* declaration elements *)
 	Code*= 74; Const*= 75; Type*= 76; Var*= 77; Out*= 78; Procedure*= 79;
-	Operator*= 80; Import*= 81; Definition*= 82; Module*= 83;
+	Operator*= 80; Import*= 81; Definition*= 82; Module*= 83; Actor*= 84; Dataflow*= 85;
 	(* composite type symbols *)
-	Array*= 84; Object*= 85; Record*= 86; Actor*= 87; Pointer*= 88; Enum*= 89;
+	Array*= 86; Object*= 87; Record*= 88; Pointer*= 89; Enum*= 90;
 	(* assembler constants *)
-	Ln*= 90; PC*= 91; PCOffset*= 92;
+	Ln*= 91; PC*= 92; PCOffset*= 93;
 	(* number types *)
-	Shortint*= 93; Integer*= 94; Longint*= 95; Hugeint*= 96; Real*= 97; Longreal*= 98;
-	Comment*= 99; EndOfText*= 100;
+	Shortint*= 94; Integer*= 95; Longint*= 96; Hugeint*= 97; Real*= 98; Longreal*= 99;
+	Comment*= 100; EndOfText*= 101;
 
 	SingleQuote = 27X;  DoubleQuote = 22X;
 	Ellipsis = 7FX;   (* used in Scanner.GetNumber to return with ".." when reading an interval like 3..5 *)
@@ -282,12 +283,12 @@ TYPE
 			FOR i := 0 TO LEN(supported)-1 DO
 				supported[i] := TRUE;
 			END;
-			supported[Out] := FALSE; supported[Actor] := FALSE; (* special dataflow keyword, not supported by default *)
+			supported[Out] := FALSE; supported[Actor] := FALSE; supported[Dataflow] := FALSE; (* special dataflow keyword, not supported by default *)
 		END InitializeScanner;
 
 		PROCEDURE DataflowSupport*;
 		BEGIN
-			supported[Out] := TRUE; supported[Actor] := TRUE;
+			supported[Out] := TRUE; supported[Actor] := TRUE; supported[Dataflow] := TRUE;
 		END DataflowSupport;
 
 		PROCEDURE AddSupport*(keyword: LONGINT);
@@ -660,13 +661,13 @@ TYPE
 						IF (case=Uppercase) OR (case=Unknown) THEN
 							token := keywordsUpper.IndexByString(symbol.string);
 							IF  (token >= 0) & (supported[token]) THEN s := token END;
-							IF s = Module THEN case := Uppercase END;
+							IF (s = Module) OR (s=Actor) OR (s=Dataflow) THEN case := Uppercase END;
 						END;
 				| "a".."z": s := Identifier; GetIdentifier( symbol);
 						IF (case = Lowercase) OR (case=Unknown) THEN
 							token := keywordsLower.IndexByString(symbol.string);
 							IF  (token >= 0) & (supported[token]) THEN s := token END;
-							IF s = Module THEN case := Lowercase END;
+							IF (s = Module) OR (s=Actor) OR (s=Dataflow) THEN case := Lowercase END;
 						END;
 						IF firstIdentifier & (s # Module) THEN case := Uppercase; s := Identifier END;
 				ELSE s := Identifier;  GetIdentifier( symbol );
@@ -925,10 +926,11 @@ TYPE
 		tokens[Import] := "Import";
 		tokens[Definition] := "Definition";
 		tokens[Module] := "Module";
+		tokens[Actor] := "Actor";
+		tokens[Dataflow] := "Dataflow";
 		tokens[Array] := "Array";
 		tokens[Object] := "Object";
 		tokens[Record] := "Record";
-		tokens[Actor] := "Actor";
 		tokens[Pointer] := "Pointer";
 		tokens[Enum] := "Enum";
 		tokens[Ln] := "Ln";
@@ -984,12 +986,14 @@ TYPE
 		NEW(keywordsLower,EndOfText+1);
 
 		(* constructs and statements *)
+		Enter( "actor", Actor );
 		Enter( "await" , Await);
 		Enter( "begin" , Begin);
 		Enter( "by" , By);
 		Enter( "const" , Const);
 		Enter( "case" , Case);
-		Enter( "code" , Code );
+		Enter( "code" , Code);
+		Enter( "dataflow", Dataflow);
 		Enter( "definition", Definition);
 		Enter( "do" , Do);
 		Enter( "div" , Div);
@@ -1006,8 +1010,8 @@ TYPE
 		Enter( "is" , Is);
 		Enter( "import" , Import);
 		Enter( "loop" , Loop);
-		Enter( "mod" , Mod);
 		Enter( "module", Module);
+		Enter( "mod" , Mod);
 		Enter( "nil" , Nil );
 		Enter( "of" , Of);
 		Enter( "or" , Or);
@@ -1027,7 +1031,6 @@ TYPE
 		Enter( "with" , With);
 
 		(* types *)
-		Enter( "actor", Actor );
 		Enter( "array" , Array );
 		Enter( "object" , Object);
 		Enter( "pointer" , Pointer);

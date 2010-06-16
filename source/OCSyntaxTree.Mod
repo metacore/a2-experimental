@@ -137,9 +137,6 @@ TYPE
 		PROCEDURE VisitRecordType*(x: RecordType);
 		BEGIN HALT(100) (* abstract *) END VisitRecordType;
 
-		PROCEDURE VisitActorType*(x: ActorType);
-		BEGIN HALT(100) (* abstract *) END VisitActorType;
-
 		PROCEDURE VisitProcedureType*(x: ProcedureType);
 		BEGIN HALT(100) (* abstract *) END VisitProcedureType;
 
@@ -257,6 +254,9 @@ TYPE
 
 		PROCEDURE VisitParameter*(x: Parameter);
 		BEGIN HALT(100) (* abstract *) END VisitParameter;
+
+		PROCEDURE VisitPort*(x: Port);
+		BEGIN HALT(100) (* abstract *) END VisitPort;
 
 		PROCEDURE VisitProcedure*(x: Procedure);
 		BEGIN HALT(100) (* abstract *) END VisitProcedure;
@@ -799,6 +799,7 @@ TYPE
 
 	END RecordType;
 
+	(*
 	(** <<[pointerType = POINTER TO] RECORD (baseType) .. END>>
 		| <<[OBJECT (baseType) .. END>>
 	**)
@@ -840,6 +841,36 @@ TYPE
 		END Accept;
 
 	END ActorType;
+
+
+	ActorScope*=OBJECT (Scope)
+		VAR
+		ownerActor-: ActorType;
+		bodyProcedure-: Procedure;
+
+		PROCEDURE & InitActorScope(outer: Scope);
+		BEGIN
+			InitScope(outer);
+			ownerActor := NIL;
+			bodyProcedure := NIL;
+		END InitActorScope;
+
+		PROCEDURE SetBodyProcedure*(bodyProcedure: Procedure);
+		BEGIN
+			SELF.bodyProcedure := bodyProcedure;
+		END SetBodyProcedure;
+
+		PROCEDURE FindParameter*(identifier: Identifier): Parameter;
+		VAR p: Parameter;
+		BEGIN
+			p := ownerActor.firstParameter;
+			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextParameter END;
+			RETURN p;
+		END FindParameter
+
+	END ActorScope;
+
+	*)
 
 	(** <<procedureType = PROCEDURE [{DELEGATE}] (firstParameter .. lastParameter): returnType>>
 		also used as type for procedures
@@ -1852,6 +1883,36 @@ TYPE
 
 	END Variable;
 
+	(** << (IN | OUT) name: type >>
+		Port declaration symbol. Represents a parameter in the form (IN | OUT) name: Type.
+		The port's type is stored in the symbol's type field and is resolved by the semantic checker.
+	**)
+
+	Port* = OBJECT (Symbol)
+	VAR
+		nextPort-, prevPort-: Port;
+
+		kind-: LONGINT;   (* ValuePort, ConstPort, VarPort *)
+		ownerModule-: Module;
+
+		PROCEDURE & InitPort( position: LONGINT;  ownerModule: Module ; name: Identifier; kind: LONGINT);
+		BEGIN
+			InitSymbol( position, name );
+			SELF.kind := kind; access := access*ReadOnly;
+			nextPort := NIL;
+			SELF.ownerModule := ownerModule;
+		END InitPort;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitPort(SELF)
+		END Accept;
+
+		PROCEDURE SetKind*(kind: LONGINT);
+		BEGIN SELF.kind := kind; END SetKind;
+
+	END Port;
+
 	(** << [VAR | CONST] name: type >>
 		Parameter declaration symbol. Represents a parameter in the form [VAR | CONST] name: Type.
 		The parameter's type is stored in the symbol's type field and is resolved by the semantic checker.
@@ -1862,15 +1923,15 @@ TYPE
 		flagList-: Modifier;
 
 		kind-: LONGINT;   (* ValueParameter, ConstParameter, VarParameter *)
-		ownerType-: Type;
+		ownerProcedureType-: ProcedureType;
 
-		PROCEDURE & InitParameter( position: LONGINT;  ownerType: Type ; name: Identifier; kind: LONGINT);
+		PROCEDURE & InitParameter( position: LONGINT;  ownerType: ProcedureType ; name: Identifier; kind: LONGINT);
 		BEGIN
 			InitSymbol( position, name );
 			SELF.kind := kind;
 			IF kind = ConstParameter THEN access := access * ReadOnly  END;
 			nextParameter := NIL;
-			SELF.ownerType := ownerType;
+			SELF.ownerProcedureType := ownerType;
 			flagList := NIL;
 		END InitParameter;
 
@@ -2831,32 +2892,6 @@ TYPE
 
 	END ProcedureScope;
 
-	ActorScope*=OBJECT (Scope)
-		VAR
-		ownerActor-: ActorType;
-		bodyProcedure-: Procedure;
-
-		PROCEDURE & InitActorScope(outer: Scope);
-		BEGIN
-			InitScope(outer);
-			ownerActor := NIL;
-			bodyProcedure := NIL;
-		END InitActorScope;
-
-		PROCEDURE SetBodyProcedure*(bodyProcedure: Procedure);
-		BEGIN
-			SELF.bodyProcedure := bodyProcedure;
-		END SetBodyProcedure;
-
-		PROCEDURE FindParameter*(identifier: Identifier): Parameter;
-		VAR p: Parameter;
-		BEGIN
-			p := ownerActor.firstParameter;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextParameter END;
-			RETURN p;
-		END FindParameter
-
-	END ActorScope;
 
 	EnumerationScope*= OBJECT(Scope)
 	VAR
@@ -3132,6 +3167,13 @@ TYPE
 			END;
 		END RemoveImporters;
 
+		PROCEDURE FindPort*(identifier: Identifier): Port;
+		VAR p: Port;
+		BEGIN
+			p := ownerModule.firstPort;
+			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextPort END;
+			RETURN p;
+		END FindPort
 
 	END ModuleScope;
 
@@ -3143,6 +3185,7 @@ TYPE
 			context-:Identifier; (* modules context *)
 			case-: LONGINT; (* module notation in lower or upper case, important for printout and operators *)
 			firstScope-,lastScope-: Scope; numberScopes-: LONGINT; (* list of all scopes for checker / backend traversal etc. *)
+			firstPort-,lastPort-: Port; numberPorts-: LONGINT;  (* parameters *)
 
 		PROCEDURE & InitModule( CONST sourceName: ARRAY OF CHAR; position: LONGINT; name: Identifier; scope: ModuleScope; case: LONGINT);
 		BEGIN
@@ -3154,7 +3197,17 @@ TYPE
 			context := NIL;
 			SELF.case := case;
 			firstScope := NIL; lastScope := NIL; numberScopes := 0;
+			SetType(moduleType);
+			numberPorts := 0; firstPort := NIL; lastPort := NIL;
 		END InitModule;
+
+		PROCEDURE AddPort*(p: Port);
+		BEGIN
+			ASSERT(p # NIL);
+			IF lastPort= NIL THEN firstPort := p ELSE lastPort.nextPort := p; p.prevPort := lastPort; END;
+			lastPort := p;
+			INC(numberPorts);
+		END AddPort;
 
 		PROCEDURE SetContext*(context: Identifier);
 		BEGIN	SELF.context := context;
@@ -3188,6 +3241,9 @@ VAR
 	anonymousIdentifier-: Identifier;
 	importType-: Type;
 	typeDeclarationType-: Type;
+	moduleType-: Type;
+	actorType-: Type;
+	dataflowType-: Type;
 
 	PROCEDURE InitFingerprint*(VAR fingerprint: Fingerprint);
 	BEGIN
@@ -3319,12 +3375,6 @@ VAR
 		INC( recordTypeCount );  NEW( recordType, position, scope, recordScope);  RETURN recordType
 	END NewRecordType;
 
-	PROCEDURE NewActorType*( position: LONGINT; scope: Scope; actorScope: ActorScope): ActorType;
-	VAR actorType: ActorType;
-	BEGIN
-		INC( actorTypeCount );  NEW( actorType, position, scope, actorScope);  RETURN actorType
-	END NewActorType;
-
 	PROCEDURE NewProcedureType*( position: LONGINT; scope: Scope): ProcedureType;
 	VAR procedureType: ProcedureType;
 	BEGIN
@@ -3363,10 +3413,16 @@ VAR
 		RETURN identifier
 	END NewIdentifier;
 
-	PROCEDURE NewParameter*( position: LONGINT; ownerType:Type ;  name: Identifier; passAs: LONGINT): Parameter;
+	PROCEDURE NewPort*( position: LONGINT; owner: Module ;  name: Identifier; passAs: LONGINT): Port;
+	VAR port: Port;
+	BEGIN
+		NEW( port, position, owner, name, passAs);  RETURN port
+	END NewPort;
+
+	PROCEDURE NewParameter*( position: LONGINT; procedureType:ProcedureType ;  name: Identifier; passAs: LONGINT): Parameter;
 	VAR parameter: Parameter;
 	BEGIN
-		INC( parameterCount );  NEW( parameter, position, ownerType, name, passAs);  RETURN parameter;
+		INC( parameterCount );  NEW( parameter, position, procedureType, name, passAs);  RETURN parameter;
 	END NewParameter;
 
 	PROCEDURE NewExpressionList*(): ExpressionList;
@@ -3707,11 +3763,6 @@ VAR
 	BEGIN	NEW(scope,outer); RETURN scope
 	END NewRecordScope;
 
-	PROCEDURE NewActorScope*(outer: Scope): ActorScope;
-	VAR scope: ActorScope;
-	BEGIN	NEW(scope,outer); RETURN scope
-	END NewActorScope;
-
 	PROCEDURE NewEnumerationScope*(outer: Scope): EnumerationScope;
 	VAR scope: EnumerationScope;
 	BEGIN NEW(scope,outer); RETURN scope
@@ -3830,6 +3881,12 @@ VAR
 		importType.SetState(Resolved);
 		typeDeclarationType := NewType();
 		typeDeclarationType.SetState(Resolved);
+		moduleType := NewType();
+		moduleType.SetState(Resolved);
+		dataflowType := NewType();
+		dataflowType.SetState(Resolved);
+		actorType := NewType();
+		actorType.SetState(Resolved);
 		anonymous := Basic.MakeString("");
 		anonymousIdentifier := NewIdentifier(-1,"");
 
