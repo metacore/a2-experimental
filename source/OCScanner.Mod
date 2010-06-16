@@ -257,7 +257,6 @@ TYPE
 		case-: LONGINT;
 		sourceWriter: Streams.Writer;
 		sourceString: StringMaker;
-		supported: ARRAY EndOfText OF BOOLEAN;
 
 		(*
 			source: name of the source code for reference in error outputs
@@ -266,7 +265,6 @@ TYPE
 			diagnostics: error output object
 		*)
 		PROCEDURE & InitializeScanner*( CONST source: ARRAY OF CHAR; reader: Streams.Reader; position: LONGINT; diagnostics: Diagnostics.Diagnostics );
-		VAR i: LONGINT;
 		BEGIN
 			NEW(sourceString,1024);
 			sourceWriter := sourceString.GetWriter();
@@ -280,21 +278,7 @@ TYPE
 			IF reader = NIL THEN ch := EOT ELSE 	GetNextCharacter END;
 			IF Trace THEN D.Str( "New scanner  " );   D.Ln;  END;
 			SELF.position := position;
-			FOR i := 0 TO LEN(supported)-1 DO
-				supported[i] := TRUE;
-			END;
-			supported[Out] := FALSE; supported[Actor] := FALSE; supported[Dataflow] := FALSE; (* special dataflow keyword, not supported by default *)
 		END InitializeScanner;
-
-		PROCEDURE DataflowSupport*;
-		BEGIN
-			supported[Out] := TRUE; supported[Actor] := TRUE; supported[Dataflow] := TRUE;
-		END DataflowSupport;
-
-		PROCEDURE AddSupport*(keyword: LONGINT);
-		BEGIN
-			supported[keyword] := TRUE;
-		END AddSupport;
 
 		PROCEDURE ResetCase*; (*! needs a better naming ! *)
 		BEGIN
@@ -660,13 +644,13 @@ TYPE
 				| "A".."Z": s := Identifier; GetIdentifier( symbol );
 						IF (case=Uppercase) OR (case=Unknown) THEN
 							token := keywordsUpper.IndexByString(symbol.string);
-							IF  (token >= 0) & (supported[token]) THEN s := token END;
+							IF  (token >= 0) THEN s := token END;
 							IF (s = Module) OR (s=Actor) OR (s=Dataflow) THEN case := Uppercase END;
 						END;
 				| "a".."z": s := Identifier; GetIdentifier( symbol);
 						IF (case = Lowercase) OR (case=Unknown) THEN
 							token := keywordsLower.IndexByString(symbol.string);
-							IF  (token >= 0) & (supported[token]) THEN s := token END;
+							IF  (token >= 0) THEN s := token END;
 							IF (s = Module) OR (s=Actor) OR (s=Dataflow) THEN case := Lowercase END;
 						END;
 						IF firstIdentifier & (s # Module) THEN case := Uppercase; s := Identifier END;
@@ -1108,7 +1092,6 @@ TYPE
 		context.arg.GetString(filename);
 		reader := TextUtilities.GetTextReader(filename);
 		scanner := NewScanner(filename,reader,0,NIL);
-		scanner.DataflowSupport;
 		REPEAT
 			IF scanner.GetNextSymbol(sym) THEN
 				OutSymbol(context.out,sym);context.out.Ln;

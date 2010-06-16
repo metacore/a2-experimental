@@ -216,6 +216,8 @@ TYPE
 			IF symbol = NIL THEN (* error already handled *)
 				typeDeclaration := NIL;
 				result := SyntaxTree.invalidType;
+			ELSIF (symbol IS SyntaxTree.Import) & (symbol(SyntaxTree.Import).module # NIL) & (symbol(SyntaxTree.Import).module.type IS SyntaxTree.ActorType) THEN
+				result := symbol(SyntaxTree.Import).module.type;
 			ELSIF ~(symbol IS SyntaxTree.TypeDeclaration) THEN
 				Error(qualifiedIdentifier.suffix.position,Diagnostics.Invalid,"symbol does not denote a type");
 				typeDeclaration := NIL;
@@ -973,7 +975,7 @@ TYPE
 			error := FALSE;
 
 			IF actualType = SyntaxTree.invalidType THEN (* error already handled *)
-			ELSIF (formal.kind = SyntaxTree.VarParameter) OR (formal.kind = SyntaxTree.InPort) THEN
+			ELSIF (formal.kind = SyntaxTree.VarParameter) THEN
 
 				IF (SyntaxTree.WinAPIFlag IN formal.ownerProcedureType.flags) & (actualType = Global.Nil) THEN
 					result := TRUE; (* special rule for WINAPI parameters, needed to be able to pass NIL address to var parameters *)
@@ -2466,6 +2468,8 @@ TYPE
 						Error(selectorDesignator.position,Diagnostics.Invalid,"field on non-enumeration type declaration");
 						IF VerboseErrorMessage THEN Printout.Info("non-record type designator",left) END;
 					END;
+				ELSIF left.type.resolved IS SyntaxTree.ActorType THEN
+					scope := left.type.resolved(SyntaxTree.ActorType).actor.moduleScope;
 				ELSE
 					Error(selectorDesignator.position,Diagnostics.Invalid,"field on non-record type designator");
 					IF VerboseErrorMessage THEN Printout.Info("non-record type designator",left) END;
@@ -2828,21 +2832,21 @@ TYPE
 			RETURN result
 		END CheckVariable;
 
-		PROCEDURE CheckParameter(x: SyntaxTree.Expression; VAR par: SyntaxTree.Parameter): BOOLEAN;
+		PROCEDURE CheckPort(x: SyntaxTree.Expression; VAR par: SyntaxTree.Port): BOOLEAN;
 		VAR result: BOOLEAN;
 		BEGIN
 			result := TRUE;
 			IF x = SyntaxTree.invalidExpression THEN
 				result := FALSE;
-			ELSIF ~(x IS SyntaxTree.SymbolDesignator) OR ~(x(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Parameter) THEN
-				Error(x.position,Diagnostics.Invalid,"not a parameter");
-				IF VerboseErrorMessage THEN Printout.Info("parameter",x) END;
+			ELSIF ~(x IS SyntaxTree.SymbolDesignator) OR ~(x(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Port) THEN
+				Error(x.position,Diagnostics.Invalid,"not a port");
+				IF VerboseErrorMessage THEN Printout.Info("port",x) END;
 				result := FALSE;
 			ELSE
-				par := x(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Parameter);
+				par := x(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Port);
 			END;
 			RETURN result
-		END CheckParameter;
+		END CheckPort;
 
 		(**
 			if expression x is of basic type then return true else report error and return false
@@ -3037,7 +3041,8 @@ TYPE
 		PROCEDURE NewBuiltinCallDesignator(position: LONGINT; builtin: SyntaxTree.Builtin; actualParameters:SyntaxTree.ExpressionList; left: SyntaxTree.Designator): SyntaxTree.Expression;
 		VAR
 			numberActualParameters,numberFormalParameters: LONGINT;
-			formalParameter,inParameter, outParameter: SyntaxTree.Parameter;
+			formalParameter: SyntaxTree.Parameter;
+			inPort, outPort: SyntaxTree.Port;
 			actualParameter: SyntaxTree.Expression;
 			procedureType: SyntaxTree.ProcedureType;
 			parameter0, parameter1, parameter2, result: SyntaxTree.Expression;
@@ -3247,9 +3252,9 @@ TYPE
 									UNTIL ~CheckIntegerType(actualParameter) OR (actualParameter.resolved # NIL) & ~CheckPositiveIntegerValue(actualParameter,i0,TRUE) OR (i=numberActualParameters);
 								END;
 							END;
-						ELSIF type0 = SyntaxTree.actorType THEN
-							IF Parameters(1,1) & ~(SyntaxTree.DataflowFlag IN currentFlags) THEN
-								Error(position,Diagnostics.Invalid,"actor allocation outside dataflow body block");
+						ELSIF type0 IS SyntaxTree.ActorType THEN
+							IF Parameters(1,1) & ~(module.type = SyntaxTree.dataflowType) THEN
+								Error(position,Diagnostics.Invalid,"actor allocation outside dataflow ");
 							END;
 							dataflowStatement := TRUE;
 						ELSE
@@ -3810,35 +3815,37 @@ TYPE
 					type := type0;
 				(* ------- CONNECT -------*)
 				ELSIF (id = Global.Connect) & (Parameters(2,2)) THEN
-					IF 	~(SyntaxTree.DataflowFlag IN currentFlags) THEN
+					IF 	~(module.type = SyntaxTree.dataflowType) THEN
 						Error(position,Diagnostics.Invalid,"actor allocation outside dataflow body block");
 					END;
-					IF CheckParameter(parameter0,outParameter) & CheckParameter(parameter1,inParameter) THEN
-						IF inParameter.kind # SyntaxTree.InPort THEN
+					IF CheckPort(parameter0,outPort) & CheckPort(parameter1,inPort) THEN
+						IF inPort.kind # SyntaxTree.InPort THEN
 							Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
-						ELSIF outParameter.kind # SyntaxTree.OutPort THEN
+						ELSIF outPort.kind # SyntaxTree.OutPort THEN
 							Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
 						ELSIF parameter0.type.resolved # parameter1.type.resolved THEN
 							Error(position,Diagnostics.Invalid,"incompatible port types");
 						END;
-						inParameter.AddFlags({SyntaxTree.MappedFlag});
-						outParameter.AddFlags({SyntaxTree.MappedFlag});
+						inPort.AddFlags({SyntaxTree.MappedFlag});
+						outPort.AddFlags({SyntaxTree.MappedFlag});
 						dataflowStatement := TRUE;
 					END;
 				(* --------- RECEIVE ---------*)
 				ELSIF (id = Global.Receive) & Parameters(2,2) THEN
-					IF CheckParameter(parameter0,inParameter) & CheckVariable(parameter1) THEN
-						IF inParameter.kind # SyntaxTree.InPort THEN
+					IF CheckPort(parameter0,inPort) & CheckVariable(parameter1) THEN
+						IF inPort.kind # SyntaxTree.InPort THEN
 							Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
-						ELSIF ~ParameterCompatible(inParameter,parameter1) THEN
+						ELSIF ~SameType(inPort.type,parameter1.type,NIL) THEN
+							Error(parameter1.position,Diagnostics.Invalid,"incompatible to port type");
 						END;
 					END;
 				(* --------- SEND ---------*)
 				ELSIF (id = Global.Send) & Parameters(2,2) THEN
-					IF CheckParameter(parameter0,outParameter)  THEN
-						IF outParameter.kind # SyntaxTree.OutPort THEN
+					IF CheckPort(parameter0,outPort)  THEN
+						IF outPort.kind # SyntaxTree.OutPort THEN
 							Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
-						ELSIF ~ParameterCompatible(outParameter,parameter1) THEN
+						ELSIF ~CompatibleTo(system,outPort.type,parameter1.type) THEN
+							Error(parameter1.position,Diagnostics.Invalid,"incompatible to port type");
 						ELSE
 							parameter1 := NewConversion(position,parameter1,parameter0.type.resolved,NIL);
 							actualParameters.SetExpression(1,parameter1);
@@ -4266,6 +4273,23 @@ TYPE
 			END;
 		END VisitParameter;
 
+		(** check and resolve a (procedure) parameter
+			- check and set type
+			- check symbol
+			- check parameter kind and set read-only flags if appropriate
+		**)
+		PROCEDURE VisitPort(port: SyntaxTree.Port);
+		BEGIN
+			IF Trace THEN D.Str("VisitPort "); D.Str0(port.name.name);  D.Ln;  END;
+			IF SymbolNeedsResolution(port) THEN
+				port.SetType(ResolveType(port.type));
+				ASSERT(port.type.resolved # NIL);
+				CheckSymbol(port);
+				port.SetAccess(SyntaxTree.ReadOnly); (* globally visible *)
+				port.SetState(SyntaxTree.Resolved);
+			END;
+		END VisitPort;
+
 		(** check and resolve a procedure (with declaration and implementation scope)
 			- check the procedure type
 			- check if method (i.e. in record scope), if so then
@@ -4495,6 +4519,13 @@ TYPE
 						END;
 					END;
 					IF module # NIL THEN (* enter reimports into list of imported modules *)
+						IF (SELF.module.type # SyntaxTree.dataflowType) & (module.type IS SyntaxTree.ActorType) THEN
+							Error(x.position, Diagnostics.Invalid,"forbidden actor type import");
+						ELSIF (SELF.module.type = SyntaxTree.dataflowType) & ~(module.type IS SyntaxTree.ActorType) THEN
+							Error(x.position, Diagnostics.Invalid, "forbidden import of non-actor type");
+						ELSIF module.type = SyntaxTree.dataflowType THEN
+							Error(x.position, Diagnostics.Invalid,"forbidden import of dataflow module");
+						END;
 						import := module.moduleScope.firstImport;
 						WHILE(import # NIL) DO
 							ASSERT(import.moduleName # NIL);
@@ -4536,7 +4567,7 @@ TYPE
 			IF SyntaxTree.UnreachableFlag IN currentFlags THEN x.AddFlags({SyntaxTree.UnreachableFlag}) END;
 			dataflowStatement := FALSE;
 			x.Accept(SELF);
-			IF (SyntaxTree.DataflowFlag IN currentFlags) & (dataflowStatement = FALSE) THEN
+			IF (module.type=SyntaxTree.dataflowType) & (dataflowStatement = FALSE) THEN
 				Error(x.position, Diagnostics.Invalid, "non-dataflow statement in dataflow block - not yet implemented");
 			END;
 			resolved := resolvedStatement;
@@ -5145,8 +5176,6 @@ TYPE
 					flag := SyntaxTree.ExclusiveFlag; SetProtectedRecord;
 				ELSIF name = Global.StringActive THEN
 					flag := SyntaxTree.ActiveFlag; SetProtectedRecord;
-				ELSIF name = Global.StringDataflow THEN
-					flag := SyntaxTree.DataflowFlag;
 				ELSIF name = Global.StringSafe THEN
 					flag := SyntaxTree.SafeFlag;
 				ELSIF name = Global.StringRealtime THEN
@@ -5469,10 +5498,8 @@ TYPE
 		PROCEDURE VisitRecordType*(x: SyntaxTree.RecordType);
 		BEGIN Scope(x.recordScope) END VisitRecordType;
 
-		(*
 		PROCEDURE VisitActorType*(x: SyntaxTree.ActorType);
-		BEGIN Scope(x.actorScope) END VisitActorType;
-		*)
+		BEGIN  END VisitActorType;
 
 		PROCEDURE VisitProcedureType*(x: SyntaxTree.ProcedureType);
 		BEGIN  END VisitProcedureType;
@@ -5508,8 +5535,10 @@ TYPE
 		BEGIN  END VisitVariable;
 
 		PROCEDURE VisitParameter*(x: SyntaxTree.Parameter);
-		BEGIN
-		END VisitParameter;
+		BEGIN	END VisitParameter;
+
+		PROCEDURE VisitPort*(x: SyntaxTree.Port);
+		BEGIN	END VisitPort;
 
 		PROCEDURE VisitProcedure*(x: SyntaxTree.Procedure);
 		BEGIN Scope(x.procedureScope) END VisitProcedure;

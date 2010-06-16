@@ -23,7 +23,6 @@ CONST
 	SafeFlag*=2; 					(** block is safe (restartable) **)
 	PriorityFlag*=3; 				(** block has priority **)
 	RealtimeFlag*=4; 				(** block has realtime flag **)
-	DataflowFlag*=5;				(** block has data flow flag indicating that body defines dataflow graph **)
 	(* non-Oberon calling conventions *)
 	WinAPIFlag*=5;
 	CFlag*=6;
@@ -136,6 +135,9 @@ TYPE
 
 		PROCEDURE VisitRecordType*(x: RecordType);
 		BEGIN HALT(100) (* abstract *) END VisitRecordType;
+
+		PROCEDURE VisitActorType*(x: ActorType);
+		BEGIN HALT(100) (* abstract *) END VisitActorType;
 
 		PROCEDURE VisitProcedureType*(x: ProcedureType);
 		BEGIN HALT(100) (* abstract *) END VisitProcedureType;
@@ -798,6 +800,22 @@ TYPE
 		END Accept;
 
 	END RecordType;
+
+	ActorType*=OBJECT (Type)
+	VAR actor-: Module;
+
+		PROCEDURE &InitActorType(actor: Module);
+		BEGIN
+			InitType(actor.position,{});
+			SELF.actor := actor;
+		END InitActorType;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitActorType(SELF)
+		END Accept;
+
+	END ActorType;
 
 	(*
 	(** <<[pointerType = POINTER TO] RECORD (baseType) .. END>>
@@ -3242,7 +3260,6 @@ VAR
 	importType-: Type;
 	typeDeclarationType-: Type;
 	moduleType-: Type;
-	actorType-: Type;
 	dataflowType-: Type;
 
 	PROCEDURE InitFingerprint*(VAR fingerprint: Fingerprint);
@@ -3374,6 +3391,12 @@ VAR
 	BEGIN
 		INC( recordTypeCount );  NEW( recordType, position, scope, recordScope);  RETURN recordType
 	END NewRecordType;
+
+	PROCEDURE NewActorType*( actor: Module): ActorType;
+	VAR actorType: ActorType;
+	BEGIN
+		NEW(actorType,actor); RETURN actorType;
+	END NewActorType;
 
 	PROCEDURE NewProcedureType*( position: LONGINT; scope: Scope): ProcedureType;
 	VAR procedureType: ProcedureType;
@@ -3885,8 +3908,6 @@ VAR
 		moduleType.SetState(Resolved);
 		dataflowType := NewType();
 		dataflowType.SetState(Resolved);
-		actorType := NewType();
-		actorType.SetState(Resolved);
 		anonymous := Basic.MakeString("");
 		anonymousIdentifier := NewIdentifier(-1,"");
 

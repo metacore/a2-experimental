@@ -722,7 +722,7 @@ TYPE
 			ELSIF SyntaxTree.PublicRead IN x.access THEN
 				IF x IS SyntaxTree.Variable THEN
 					w.String( "-" )
-				ELSE
+				ELSIF ~(x IS SyntaxTree.Port) THEN
 					w.String("*")
 				END
 			ELSIF x.access = {} THEN ASSERT(mode > SourceCode);
@@ -1420,7 +1420,7 @@ TYPE
 				currentScope := x.moduleScope.outerScope;
 				IF x.type = SyntaxTree.moduleType THEN
 					Keyword("MODULE ");
-				ELSIF x.type = SyntaxTree.actorType THEN
+				ELSIF x.type IS SyntaxTree.ActorType THEN
 					Keyword("ACTOR ");
 				ELSIF x.type = SyntaxTree.dataflowType THEN
 					Keyword("DATAFLOW ");

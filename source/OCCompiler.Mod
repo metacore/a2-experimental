@@ -168,7 +168,6 @@ TYPE
 
 		scanner := Scanner.NewScanner(source,reader,position,diagnostics);
 		IF DataFlow IN flags THEN
-			scanner.DataflowSupport;
 			Global.NewBuiltin(Global.Connect,"CONNECT",system.globalScope,{});
 			Global.NewBuiltin(Global.Receive,"RECEIVE",system.globalScope,{});
 			Global.NewBuiltin(Global.Send,"SEND",system.globalScope,{});

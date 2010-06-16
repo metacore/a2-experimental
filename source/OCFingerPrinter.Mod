@@ -526,7 +526,6 @@ TYPE
 			TraceExit("Method",fingerprint) END;
 		END FPrintMethod;
 
-		(*
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		VAR fingerprint: Fingerprint; fp:LONGINT; name: SyntaxTree.String;
 		BEGIN
@@ -534,7 +533,7 @@ TYPE
 			deep := SELF.deep;
 			IF ~fingerprint.shallowAvailable THEN
 				fp := 0;
-				Global.GetSymbolName(x.typeDeclaration,name);
+				Global.GetSymbolName(x.actor,name);
 				FPString(fp,name);
 				fingerprint.shallow := fp;
 				fingerprint.public := fp;
@@ -544,8 +543,6 @@ TYPE
 				x.SetFingerprint(fingerprint);
 			END;
 		END VisitActorType;
-		*)
-
 
 		(*
 		FP(RecordType)             = fpTypeComposite <*> fptypeRecord

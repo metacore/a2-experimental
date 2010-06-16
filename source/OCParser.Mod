@@ -1673,20 +1673,21 @@ TYPE
 			         'end' Identifier '.'. **)
 		PROCEDURE Module*(): SyntaxTree.Module;
 		VAR moduleName, context: SyntaxTree.Identifier;  module: SyntaxTree.Module;  position: LONGINT;
-			type: SyntaxTree.Type;
+			type: SyntaxTree.Type; isActor: BOOLEAN;
 		BEGIN
 			IF Trace THEN S( "Module" ) END;
 			position := symbol.start;
 			moduleScope := SyntaxTree.NewModuleScope(); (* needed to feed in comment already before module starts *)
 			currentScope := moduleScope;
-			type := NIL;
-			IF dataflowSupport & Optional(Scanner.Actor ) THEN type := SyntaxTree.actorType
-			ELSIF dataflowSupport & Optional(Scanner.Dataflow) THEN type := SyntaxTree.dataflowType
+			type := NIL; isActor := FALSE;
+			IF Optional(Scanner.Actor ) THEN isActor := TRUE
+			ELSIF Optional(Scanner.Dataflow) THEN type := SyntaxTree.dataflowType
 			ELSIF Mandatory( Scanner.Module ) THEN type := SyntaxTree.moduleType;
 			END;
-			IF type # NIL THEN
+			IF isActor OR (type # NIL) THEN
 				moduleName :=  Identifier();
 				module := SyntaxTree.NewModule( scanner.source, moduleName.position, moduleName, moduleScope, scanner.case );
+				IF isActor THEN type := SyntaxTree.NewActorType(module) END;
 				module.SetType(type);
 				CommentSymbol(module);
 				IF Optional(Scanner.In) THEN
@@ -1694,7 +1695,7 @@ TYPE
 					context := Identifier();
 					module.SetContext(context);
 				END;
-				IF (type = SyntaxTree.actorType) & Optional(Scanner.LeftParenthesis) THEN PortList(module,moduleScope) END;
+				IF (type IS SyntaxTree.ActorType) & Optional(Scanner.LeftParenthesis) THEN PortList(module,moduleScope) END;
 				Check(Scanner.Semicolon);
 				IF Optional(Scanner.Import) THEN ImportList(moduleScope) END;
 				DeclarationSequence( moduleScope);
