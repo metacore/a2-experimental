@@ -335,6 +335,96 @@ BEGIN
  	WriteBinaryFile (linker, arrangement, writer);
 END WriteELFFile;
 
+PROCEDURE WriteMachOFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
+CONST SegmentName = "__TEXT"; SectionName = "__text";
+CONST MachHeaderSize = 28; LoadCommandSize = 124; ThreadCommandSize = 80;
+CONST CommandsSize = LoadCommandSize + ThreadCommandSize; Start = MachHeaderSize + CommandsSize;
+CONST BaseAddress = 000010E8H;
+
+	PROCEDURE Write (value: LONGINT);
+	BEGIN writer.Char (CHR (value)); writer.Char (CHR (value DIV 100H)); writer.Char (CHR (value DIV 10000H)); writer.Char (CHR (value DIV 1000000H));
+	END Write;
+
+	PROCEDURE WriteName (CONST name: ARRAY OF CHAR);
+	VAR i: INTEGER;
+	BEGIN i := 0; WHILE name[i] # 0X DO writer.Char (name[i]); INC (i); END;
+		WHILE i # 16 DO writer.Char (0X); INC (i); END;
+	END WriteName;
+
+	PROCEDURE WriteMachHeader;
+	BEGIN
+		Write (SHORT (0FEEDFACEH));	(* magic *)
+		Write (7);	(* cputype *)
+		Write (3);	(* cpusubtype *)
+		Write (2);	(* filetype *)
+		Write (2);	(* ncmds *)
+		Write (CommandsSize);	(* sizeofcmds *)
+		Write (0);	(* flags *)
+	END WriteMachHeader;
+
+	 PROCEDURE WriteLoadCommand;
+	 VAR FileSize: LONGINT;
+	 BEGIN
+		FileSize := MachHeaderSize + CommandsSize + arrangement.bits.GetSize () DIV 8;
+
+		Write (1);	(* cmd *)
+		Write (LoadCommandSize);	(* cmdsize *)
+		WriteName (SegmentName);	(* segname *)
+		Write (BaseAddress - Start);	(* vmaddr *)
+		Write (FileSize);	(* vmsize *)
+		Write (0);	(* fileoff *)
+		Write (FileSize);	(* filesize *)
+		Write (7);	(* maxprot *)
+		Write (7);	(* initprot *)
+		Write (1);	(* nsects *)
+		Write (0);	(* flags *)
+
+		WriteName (SectionName);	(* sectname *)
+		WriteName (SegmentName);	(* segname *)
+		Write (BaseAddress);	(* addr *)
+		Write (arrangement.bits.GetSize () DIV 8);	(* size *)
+		Write (Start);	(* offset *)
+		Write (2);	(* align *)
+		Write (0);	(* reloff *)
+		Write (0);	(* nreloc *)
+		Write (0);	(* flags *)
+		Write (0);	(* reserved1 *)
+		Write (0);	(* reserved2 *)
+	END WriteLoadCommand;
+
+	PROCEDURE WriteThreadCommand;
+	BEGIN
+		Write (5);	(* cmd *)
+		Write (ThreadCommandSize);	(* cmdsize *)
+		Write (1);	(* flavor *)
+		Write (16);	(* count *)
+
+		Write (0);	(* eax *)
+		Write (0);	(* ebx *)
+		Write (0);	(* ecx *)
+		Write (0);	(* edx *)
+		Write (0);	(* edi *)
+		Write (0);	(* esi *)
+		Write (0);	(* ebp *)
+		Write (0);	(* esp *)
+		Write (0);	(* ss *)
+		Write (0);	(* eflags *)
+		Write (BaseAddress);	(* eip *)
+		Write (0);	(* cs *)
+		Write (0);	(* ds *)
+		Write (0);	(* es *)
+		Write (0);	(* fs *)
+		Write (0);	(* gs *)
+	END WriteThreadCommand;
+
+BEGIN
+	ASSERT (arrangement.displacement = BaseAddress);
+	WriteMachHeader;
+	WriteLoadCommand;
+	WriteThreadCommand;
+ 	WriteBinaryFile (linker, arrangement, writer);
+END WriteMachOFile;
+
 PROCEDURE GetFileFormat (options: Options.Options; CONST name: Options.Name; default: FileFormat): FileFormat;
 VAR format: ARRAY 10 OF CHAR;
 BEGIN
@@ -346,6 +436,7 @@ BEGIN
 	ELSIF format = "EFI32" THEN RETURN WriteEFI32File;
 	ELSIF format = "EFI64" THEN RETURN WriteEFI64File;
 	ELSIF format = "ELF" THEN RETURN WriteELFFile;
+	ELSIF format = "MACHO" THEN RETURN WriteMachOFile;
 	ELSE RETURN default; END;
 END GetFileFormat;
 
@@ -403,6 +494,7 @@ END StaticLinker.
 
 StaticLinker.Link --fileName=test.exe --fileFormat=PE32 --displacement=401000H Test ~
 StaticLinker.Link --fileName=a.out --fileFormat=ELF --displacement=08048000H Test ~
+StaticLinker.Link --fileName=a.out --fileFormat=MACHO --displacement=000010E8H Test ~
 
 
 
