@@ -36,11 +36,11 @@ END Arrangement;
 
 TYPE FileFormat = PROCEDURE (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
 
-PROCEDURE ReadObjectFile (CONST moduleName, path, extension: Files.FileName; linker: GenericLinker.Linker);
+PROCEDURE ReadObjectFile*(CONST moduleName, path, extension: ARRAY OF CHAR; linker: GenericLinker.Linker);
 VAR fileName: Files.FileName; file: Files.File; reader: Files.Reader;
 BEGIN
 	linker.Information (moduleName, "processing");
-	IF path # "" THEN Files.JoinPath (path, moduleName, fileName); ELSE fileName := moduleName; END;
+	IF path # "" THEN Files.JoinPath (path, moduleName, fileName); ELSE COPY(moduleName,fileName); END;
 	Files.JoinExtension (fileName, extension, fileName);
 	file := Files.Old (fileName);
 	IF file = NIL THEN linker.Error (fileName, "failed to open file"); RETURN; END;
@@ -49,7 +49,7 @@ BEGIN
 	IF reader.res # Files.Ok THEN linker.Error (fileName, "failed to parse"); END;
 END ReadObjectFile;
 
-PROCEDURE WriteOutputFile (arrangement: Arrangement; CONST fileName: Files.FileName; linker: GenericLinker.Linker; fileFormat: FileFormat);
+PROCEDURE WriteOutputFile* (arrangement: Arrangement; CONST fileName: Files.FileName; linker: GenericLinker.Linker; fileFormat: FileFormat);
 VAR file: Files.File; writer: Files.Writer;
 BEGIN
 	file := Files.New (fileName);
@@ -95,11 +95,11 @@ BEGIN
 	END;
 END WriteTRMFile;
 
-PROCEDURE WriteTRMCodeFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
+PROCEDURE WriteTRMCodeFile* (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
 BEGIN WriteTRMFile (arrangement, writer, 36,2048);
 END WriteTRMCodeFile;
 
-PROCEDURE WriteTRMDataFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
+PROCEDURE WriteTRMDataFile* (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
 BEGIN WriteTRMFile (arrangement, writer, 32,2048);
 END WriteTRMDataFile;
 
