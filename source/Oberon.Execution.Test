@@ -449,7 +449,24 @@ positive: valid type guard test
 
 # procedure type declarations
 
-positive: procedure type with value parameter
+positive: procedure type with value parameter INTEGER
+
+	MODULE Test;
+	VAR a: ARRAY 5 OF INTEGER; i: INTEGER; r: INTEGER;
+
+	PROCEDURE Iterate (VAR a: ARRAY OF INTEGER; p : PROCEDURE (r: INTEGER));
+	VAR i: LONGINT;
+	BEGIN FOR i := 0 TO LEN (a) - 1 DO p (a[i]) END;
+	END Iterate;
+
+	PROCEDURE Accummulate (v: INTEGER);
+	BEGIN r := r + v;
+	END Accummulate;
+
+	BEGIN FOR i := 0 TO 4 DO a[i] := i END; r := 0; Iterate (a, Accummulate); ASSERT (r = 10);
+	END Test.
+	
+positive: procedure type with value parameter REAL
 
 	MODULE Test;
 	VAR a: ARRAY 5 OF REAL; i: INTEGER; r: REAL;
@@ -466,7 +483,19 @@ positive: procedure type with value parameter
 	BEGIN FOR i := 0 TO 4 DO a[i] := i END; r := 0; Iterate (a, Accummulate); ASSERT (r = 10);
 	END Test.
 
-positive: procedure type with var parameter
+positive: procedure type with var parameter INTEGER
+
+	MODULE Test;
+	VAR i: INTEGER; k: INTEGER; p: PROCEDURE (VAR r: INTEGER; b: INTEGER);
+
+	PROCEDURE Accummulate (VAR r: INTEGER; v: INTEGER);
+	BEGIN r := r + v;
+	END Accummulate;
+
+	BEGIN k := 0; p := Accummulate; FOR i := 0 TO 4 DO p (k, i) END; ASSERT (k = 10);
+	END Test.
+	
+positive: procedure type with var parameter REAL
 
 	MODULE Test;
 	VAR i: INTEGER; k: REAL; p: PROCEDURE (VAR r: REAL; b: REAL);
@@ -478,7 +507,19 @@ positive: procedure type with var parameter
 	BEGIN k := 0; p := Accummulate; FOR i := 0 TO 4 DO p (k, i) END; ASSERT (k = 10);
 	END Test.
 
-positive: procedure type with result type
+positive: procedure type with result type INTEGER
+
+	MODULE Test;
+	VAR r: INTEGER; p: PROCEDURE (a, b: INTEGER): INTEGER;
+
+	PROCEDURE Add (a, b: INTEGER): INTEGER;
+	BEGIN RETURN a + b;
+	END Add;
+
+	BEGIN p := Add; r := p (3, 4); ASSERT (r = 7);
+	END Test.
+
+positive: procedure type with result type REAL
 
 	MODULE Test;
 	VAR r: REAL; p: PROCEDURE (a, b: REAL): REAL;
@@ -490,7 +531,19 @@ positive: procedure type with result type
 	BEGIN p := Add; r := p (3, 4); ASSERT (r = 7);
 	END Test.
 
-positive: procedure type with result type in record
+positive: procedure type with result type in record INTEGER
+
+	MODULE Test;
+	VAR r: INTEGER; p: RECORD p: PROCEDURE (a, b: INTEGER): INTEGER END;
+
+	PROCEDURE Add (a, b: INTEGER): INTEGER;
+	BEGIN RETURN a + b;
+	END Add;
+
+	BEGIN p.p := Add; r := p.p (3, 4); ASSERT (r = 7);
+	END Test.
+	
+positive: procedure type with result type in record REAL
 
 	MODULE Test;
 	VAR r: REAL; p: RECORD p: PROCEDURE (a, b: REAL): REAL END;
