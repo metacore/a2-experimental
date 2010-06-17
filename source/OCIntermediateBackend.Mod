@@ -113,7 +113,6 @@ TYPE
 
 	DeclarationVisitor =OBJECT(SyntaxTree.Visitor)
 	VAR
-		backend: IntermediateBackend;
 		implementationVisitor: ImplementationVisitor;
 		system: Global.System;
 		currentScope: SyntaxTree.Scope;
@@ -121,18 +120,12 @@ TYPE
 		moduleSelf: SyntaxTree.Variable;
 		dump: BOOLEAN;
 
-		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; backend: IntermediateBackend; dump: BOOLEAN);
+		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; diagnostics: Diagnostics.Diagnostics; dump: BOOLEAN);
 		BEGIN
 			currentScope := NIL; module := NIL; moduleSelf := NIL;
 			SELF.system := system; SELF.implementationVisitor := implementationVisitor;
-			SELF.dump := dump;
-			SELF.backend := backend;
+			SELF.dump := dump
 		END Init;
-
-		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
-		BEGIN
-			backend.Error(module.module.sourceName, position, Diagnostics.Invalid, s);
-		END Error;
 
 		PROCEDURE Type(x: SyntaxTree.Type);
 		BEGIN
@@ -198,18 +191,6 @@ TYPE
 			END;
 			Scope(x.recordScope);
 		END VisitRecordType;
-
-		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
-		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration;
-		BEGIN (* no code emission *)
-			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
-			IF (x.actorScope.ownerModule = module.module)  THEN
-				td := x.typeDeclaration;
-				Global.GetSymbolName(td,name);
-				(* code section for object *)
-			END;
-			Scope(x.actorScope);
-		END VisitActorType;
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
 		BEGIN (* no code emission *)   END VisitProcedureType;
@@ -298,11 +279,6 @@ TYPE
 			currentScope := prevScope;
 		END Scope;
 
-		PROCEDURE DataflowBody(x: SyntaxTree.Body);
-		BEGIN
-			Error(x.position, "dataflow body not yet implemented");
-		END DataflowBody;
-
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
 		VAR scope: SyntaxTree.ProcedureScope;
 			prevScope: SyntaxTree.Scope;
@@ -345,12 +321,8 @@ TYPE
 				ir := IntermediateCode.NewSection(module.sections,Sections.InlineCodeSection,name,x,dump);
 			ELSIF x = module.module.moduleScope.bodyProcedure THEN
 				inline := FALSE;
-				IF (scope.body # NIL) & (scope.body.HasFlag(SyntaxTree.DataflowFlag)) THEN
-					DataflowBody(scope.body);
-					RETURN
-				ELSE
-					ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
-				END;
+				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
+				ASSERT(Sections.CodeSection # Sections.BodyCodeSection,100);
 			ELSE
 				inline := FALSE;
 				ir := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,x,dump);
@@ -524,7 +496,8 @@ TYPE
 
 
 		checker: SemanticChecker.Checker;
-		backend: IntermediateBackend;
+		diagnostics : Diagnostics.Diagnostics;
+		error: BOOLEAN;
 		position: LONGINT;
 		moduleSelf: SyntaxTree.Variable;
 
@@ -556,7 +529,7 @@ TYPE
 		newObjectFile: BOOLEAN;
 
 
-		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; backend: IntermediateBackend;
+		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; diagnostics: Diagnostics.Diagnostics;
 			newObjectFile: BOOLEAN);
 		VAR i: LONGINT;
 		BEGIN
@@ -570,7 +543,8 @@ TYPE
 			awaitProcCounter := 0;
 			labelId := 0; constId := 0; labelId := 0;
 			SELF.checker := checker;
-			SELF.backend := backend;
+			SELF.diagnostics := diagnostics;
+			error := FALSE;
 			position := Diagnostics.Invalid;
 			conditional := FALSE;
 			locked := FALSE;
@@ -1188,10 +1162,13 @@ TYPE
 
 		PROCEDURE Error(CONST s: ARRAY OF CHAR);
 		BEGIN
-			backend.Error(module.module.sourceName,position,Diagnostics.Invalid,s);
+			IF diagnostics # NIL THEN
+				diagnostics.Error(module.module.sourceName,position,Diagnostics.Invalid,s);
+			END;
 			IF dump # NIL THEN
 				dump.String(s); dump.Ln;
 			END;
+			error := TRUE;
 		END Error;
 
 		PROCEDURE ErrorI(CONST s: ARRAY OF CHAR; i: LONGINT);
@@ -1411,7 +1388,7 @@ TYPE
 				Emit(Call(reg, 0));
 			END;
 		END CallThis;
-		(* call moduleName.procedureName if it can be imported, otherwise use altModuleName.altProcedureName  *)
+
 		PROCEDURE CallThis2(CONST moduleName, procedureName,altModuleName, altProcedureName: ARRAY OF CHAR);
 		VAR procedure: SyntaxTree.Procedure; result: Operand; reg: IntermediateCode.Operand; source: IntermediateCode.Section;
 			name: SyntaxTree.String;
@@ -1427,6 +1404,11 @@ TYPE
 				Emit(Call(reg, 0));
 			END;
 		END CallThis2;
+
+
+
+
+
 
 		PROCEDURE CompareString(br: ConditionalBranch; leftExpression,rightExpression: SyntaxTree.Expression);
 		VAR
@@ -4626,11 +4608,6 @@ TYPE
 				(*! check for new object file, correct? *)
 				symbol := IntermediateCode.NewSection(module.importedSymbols,Sections.VarSection,name,x,commentPrintout # NIL);
 				IntermediateCode.InitAddress(result.op, addressType, symbol, 0)
-			ELSIF x.scope IS SyntaxTree.ActorScope THEN
-				InitOperand(result,ModeReference);
-				Global.GetSymbolName(x,name);
-				symbol := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,commentPrintout # NIL);
-				IntermediateCode.InitAddress(result.op, addressType, symbol, 0);
 			ELSE (* field, left designator must have been emitted *)
 				ASSERT(result.mode = ModeReference);
 				IF result.op.mode = IntermediateCode.ModeMemory THEN
@@ -4684,15 +4661,11 @@ TYPE
 			InitOperand(result,ModeReference);
 			result.op := basereg;
 
-			IF x.kind = SyntaxTree.InPort THEN
-				HALT(200);
-			ELSIF x.kind = SyntaxTree.OutPort THEN
-				HALT(200);
-			ELSIF IsOpenArray(type) THEN
+			IF IsOpenArray(type) THEN
 				result.tag := basereg;
 				IntermediateCode.AddOffset(result.op,ToMemoryUnits(system,x.offsetInBits));
 				IntermediateCode.MakeMemory(result.op,addressType);
-				IF IsOberonProcedure(x.ownerType(SyntaxTree.ProcedureType)) THEN
+				IF IsOberonProcedure(x.ownerProcedureType) THEN
 					IntermediateCode.AddOffset(result.tag,ToMemoryUnits(system,x.offsetInBits+addressType.sizeInBits));
 					UseIntermediateOperand(result.tag);
 				ELSE
@@ -5467,6 +5440,8 @@ TYPE
 			END;
 		END InitVariables;
 
+
+
 		PROCEDURE Body(x: SyntaxTree.Body; scope: SyntaxTree.Scope; ir: IntermediateCode.Section; moduleBody: BOOLEAN);
 		VAR prevScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType;
 			end: Label;
@@ -5481,6 +5456,7 @@ TYPE
 				commentPrintout := NIL;
 				dump := NIL;
 			END;
+
 
 			prevScope := currentScope;
 			currentScope := scope;
@@ -5544,21 +5520,22 @@ TYPE
 
 		PROCEDURE GenerateIntermediate*(x: SyntaxTree.Module): Sections.Module;
 		VAR
-			declarationVisitor: DeclarationVisitor;
+			declarator: DeclarationVisitor;
 			implementationVisitor: ImplementationVisitor;
 			module: Sections.Module;
 
 		BEGIN
 			ResetError;
 			NEW(module,x,system); (* backend structures *)
-			NEW(implementationVisitor,system,checker,Supported, Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
-			NEW(declarationVisitor,system,implementationVisitor,SELF,trace);
-			declarationVisitor.Module(x,module);
+			NEW(implementationVisitor,system,checker,Supported, Compiler.FindPC IN flags, runtimeModuleName, diagnostics, newObjectFile);
+			NEW(declarator,system,implementationVisitor,diagnostics,trace);
+			declarator.Module(x,module);
 
 			IF newObjectFile THEN
 				MetaModule(implementationVisitor,module);
 			END;
 
+			IF implementationVisitor.error THEN Error("",Diagnostics.Invalid, Diagnostics.Invalid, "") END;
 			RETURN module
 		END GenerateIntermediate;
 
