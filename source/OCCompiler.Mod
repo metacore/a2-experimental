@@ -434,8 +434,7 @@ TYPE
 			END;
 
 			time := Kernel.GetTicks();
-			context.arg.GetString(filename);
-			WHILE (filename # "") & (filename # ";") & ~error DO
+			WHILE context.arg.GetString(filename) & (filename # ";") & ~error DO
 				IF filename = "@Selection" THEN
 					reader := GetSelectionReader();
 				ELSIF filename = "@Clipboard" THEN
@@ -449,7 +448,6 @@ TYPE
 					error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,log, importCache,findPC);
 				END;
 				context.out.Update;
-				context.arg.GetString(filename);
 			END;
 			IF Silent IN flags THEN
 				time := Kernel.GetTicks()-time;

@@ -473,10 +473,8 @@ BEGIN
 	IF codeFileName # dataFileName THEN NEW (data, dataDisplacement); ELSE data := code; END;
 	NEW (diagnostics, context.error); NEW (linker, diagnostics, verbose, useAll, FALSE, code, data);
 
-	context.arg.GetString (moduleName);
-	WHILE ~linker.error & ((context.arg.res = Streams.Ok) OR ((context.arg.res = Streams.EOF) & (moduleName # ""))) DO
+	WHILE ~linker.error & context.arg.GetString (moduleName) DO
 		ReadObjectFile (moduleName, path, extension, linker);
-		context.arg.GetString (moduleName);
 		IF strict & ~linker.error THEN linker.Resolve END;
 	END;
 	(* do linking after having read in all blocks to account for potential constraints *)

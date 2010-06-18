@@ -206,21 +206,21 @@ VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
 	VAR identifier: ARRAY 10 OF CHAR;
 	BEGIN
 		value := 0;
-		reader.GetString (identifier);
+		reader.SkipWhitespace; reader.String (identifier);
 		WHILE (value # LEN (identifiers)) & (identifier # identifiers[value]) DO INC (value); END;
 		IF value = LEN (identifiers) THEN reader.res := Streams.FormatError; END;
 	END ReadValueIdentifier;
 
 	PROCEDURE ReadPattern (VAR pattern: FixupPattern);
 	BEGIN
-		reader.GetInteger (pattern.offset, FALSE);
-		reader.GetInteger (pattern.bits, FALSE);
+		reader.SkipWhitespace; reader.Int (pattern.offset, FALSE);
+		reader.SkipWhitespace; reader.Int (pattern.bits, FALSE);
 	END ReadPattern;
 
 	PROCEDURE ReadIdentifier(VAR identifier: Identifier);
 	BEGIN
-		reader.GetString(identifier.name);
-		reader.GetInteger(identifier.fingerprint,FALSE);
+		reader.SkipWhitespace; reader.String (identifier.name);
+		reader.SkipWhitespace; reader.Int (identifier.fingerprint,FALSE);
 	END ReadIdentifier;
 
 
@@ -228,11 +228,11 @@ VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
 	VAR i: LONGINT;
 	BEGIN
 		ReadValueIdentifier (fixup.mode, modes);
-		reader.GetInteger (fixup.offset, FALSE);
+		reader.SkipWhitespace; reader.Int (fixup.offset, FALSE);
 		ReadIdentifier(fixup.identifier);
-		reader.GetInteger (fixup.displacement, FALSE);
-		reader.GetInteger (fixup.scale, FALSE);
-		reader.GetInteger (fixup.patterns, FALSE);
+		reader.SkipWhitespace; reader.Int (fixup.displacement, FALSE);
+		reader.SkipWhitespace; reader.Int (fixup.scale, FALSE);
+		reader.SkipWhitespace; reader.Int (fixup.patterns, FALSE);
 		IF (fixup.pattern = NIL) OR (LEN (fixup.pattern) < fixup.patterns) THEN
 			NEW (fixup.pattern, fixup.patterns);
 		END;
@@ -244,12 +244,12 @@ VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
 BEGIN
 	ReadValueIdentifier (section.type, types);
 	ReadIdentifier (section.identifier);
-	reader.GetInteger (section.unit, FALSE);
+	reader.SkipWhitespace; reader.Int (section.unit, FALSE);
 	ReadValueIdentifier(relocatibility, relocatabilities);
 	section.fixed := relocatibility = Fixed;
-	reader.GetInteger (section.alignment, FALSE);
-	reader.GetInteger (section.fixups, FALSE);
-	reader.GetInteger (size, FALSE); size := size * section.unit;
+	reader.SkipWhitespace; reader.Int (section.alignment, FALSE);
+	reader.SkipWhitespace; reader.Int (section.fixups, FALSE);
+	reader.SkipWhitespace; reader.Int (size, FALSE); size := size * section.unit;
 	IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
 		NEW (section.fixup, section.fixups);
 	END;
@@ -262,7 +262,8 @@ BEGIN
 		NEW (section.bits, size);
 	END;
 	FOR i := 0 TO size - 1 BY 4 DO
-		reader.GetChar (char); section.bits.SetBits (i, MIN (4, size - i), CharacterToNibble (char));
+		reader.SkipWhitespace; reader.Char (char);
+		section.bits.SetBits (i, MIN (4, size - i), CharacterToNibble (char));
 	END;
 END ReadSection;
 

@@ -2198,7 +2198,7 @@ BEGIN
 		symbolFileFormat.DefineOptions(options);
 	IF options.Parse(context.arg,context.error) THEN
 		symbolFileFormat.GetOptions(options);
-		context.arg.GetString(moduleName);
+		context.arg.SkipWhitespace; context.arg.String(moduleName);
 		time := Kernel.GetTicks();
 		symbolFileFormat.Initialize(NIL,Global.DefaultSystem());
 		module := symbolFileFormat.Import(moduleName,NIL);

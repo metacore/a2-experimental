@@ -144,8 +144,8 @@ BEGIN
 	options.Add("n", "nofIterations", Options.Integer);
 	IF options.Parse(context.arg, context.error) THEN
 		benchmark := "";
-		context.arg.GetString(filename);
-		context.arg.GetString(benchmark);
+		context.arg.SkipWhitespace; context.arg.String(filename);
+		context.arg.SkipWhitespace; context.arg.String(benchmark);
 		IF ~options.GetString("highlighter", highlighterName) THEN highlighterName := DefaultHighlighterName; END;
 		IF ~options.GetInteger("nofIterations", nofIterations) THEN nofIterations := DefaultNofIterations; END;
 		IF (nofIterations > 0) THEN
@@ -206,10 +206,10 @@ BEGIN
 
 	IF options.Parse(context.arg, context.error) THEN
 		filename := "";
-		context.arg.GetString(filename);
+		context.arg.SkipWhitespace; context.arg.String(filename);
 
 		highlighterName := "";
-		context.arg.GetString(highlighterName);
+		context.arg.SkipWhitespace; context.arg.String(highlighterName);
 
 		highlighter := SyntaxHighlighter.GetHighlighter(highlighterName);
 		IF (highlighter # NIL) THEN

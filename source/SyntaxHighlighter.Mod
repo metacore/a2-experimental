@@ -1950,8 +1950,8 @@ VAR
 	highlighter : Highlighter;
 	text : Texts.Text; format, res : LONGINT;
 BEGIN
-	context.arg.GetString(filename);
-	context.arg.GetString(highlighterName);
+	context.arg.SkipWhitespace; context.arg.String(filename);
+	context.arg.SkipWhitespace; context.arg.String(highlighterName);
 	highlighter := GetHighlighter(highlighterName);
 	IF (highlighter # NIL) THEN
 		NEW(text);
@@ -2005,7 +2005,7 @@ END Dump;
 PROCEDURE Open*(context : Commands.Context); (** filename ~ *)
 VAR filename : Files.FileName; diagnostics : Diagnostics.DiagnosticsList; newHighlighters : Highlighters;
 BEGIN {EXCLUSIVE}
-	context.arg.GetString(filename);
+	context.arg.SkipWhitespace; context.arg.String(filename);
 	NEW(diagnostics);
 	newHighlighters := Parse(filename, diagnostics, error);
 	IF ~error THEN

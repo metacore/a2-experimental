@@ -318,7 +318,7 @@ VAR
 	gadgetWindow : GadgetWindow;
 BEGIN
 	fullName := "";
-	context.arg.GetString(fullName);
+	context.arg.SkipWhitespace; context.arg.String(fullName);
 	IF Repositories.SplitName(fullName, repositoryName, applicationName, refNum) THEN
 		res := GetApplicationInfo(repositoryName, applicationName, info);
 		IF (res = Ok) THEN

@@ -537,7 +537,7 @@ IMPORT WMUtilities,Options,Commands,Files,Strings;
 		END ParseLine;
 
 	BEGIN
-		context.arg.GetString(fileName);
+		context.arg.SkipWhitespace; context.arg.String(fileName);
 		context.out.String("parsing file "); context.out.String(fileName); context.out.Ln;
 		IF fileName # "" THEN
 

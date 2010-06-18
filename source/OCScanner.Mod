@@ -1089,7 +1089,7 @@ TYPE
 	PROCEDURE TestScanner*(context: Commands.Context);
 	VAR filename: ARRAY 256 OF CHAR; reader: Streams.Reader; scanner: Scanner;sym: Symbol;
 	BEGIN
-		context.arg.GetString(filename);
+		context.arg.SkipWhitespace; context.arg.String(filename);
 		reader := TextUtilities.GetTextReader(filename);
 		scanner := NewScanner(filename,reader,0,NIL);
 		REPEAT
