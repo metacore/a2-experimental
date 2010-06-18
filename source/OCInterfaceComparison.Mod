@@ -71,8 +71,8 @@ CONST
 		newSymbol := NextSymbol(new.firstSymbol);
 
 		WHILE (oldSymbol # NIL) & (newSymbol # NIL) DO
-			oldSymbol.name.GetString(oldName);
-			newSymbol.name.GetString(newName);
+			Global.GetSymbolName(oldSymbol,oldName);
+			Global.GetSymbolName(newSymbol,newName);
 			oldPublic := oldSymbol.access * SyntaxTree.Public # {};
 			newPublic := newSymbol.access * SyntaxTree.Public # {};
 			IF oldName = newName THEN
