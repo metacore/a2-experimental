@@ -428,25 +428,24 @@ TYPE
 			resolvedType := ResolvedType(x);
 		END VisitArrayType;
 
-		PROCEDURE ImportArrayBase(position: LONGINT);
+		PROCEDURE ImportModule(name: SyntaxTree.Identifier; position: LONGINT);
 		VAR module: SyntaxTree.Module; import: SyntaxTree.Import; moduleScope: SyntaxTree.ModuleScope;
 		BEGIN
 			module := currentScope.ownerModule;
-			IF module.name.Equals(Global.ArrayBaseName) THEN
+			IF module.name.Equals(name) THEN
 				(* do nothing *)
 			ELSE
 				moduleScope := module.moduleScope;
-				import := moduleScope.FindImport(Global.ArrayBaseName);
+				import := moduleScope.FindImport(name);
 				IF import = NIL THEN
-					import := SyntaxTree.NewImport(position,Global.ArrayBaseName,Global.ArrayBaseName,TRUE);
+					import := SyntaxTree.NewImport(position,name,name,TRUE);
 					moduleScope.AddImport(import);
 					Register(import,moduleScope,FALSE);
+					IF import.context = NIL THEN import.SetContext(SELF.module.context) END;
 					VisitImport(import);
-				ELSE
-					D.Str("array base already imported"); D.Ln;
 				END;
 			END;
-		END ImportArrayBase;
+		END ImportModule;
 
 		(**
 			resolve math array type
@@ -1759,7 +1758,7 @@ TYPE
 					((leftExpression # NIL) & (leftExpression.type # NIL) & (leftExpression.type.resolved IS SyntaxTree.MathArrayType)
 				OR (rightExpression # NIL) & (rightExpression.type # NIL) & (rightExpression.type.resolved IS SyntaxTree.MathArrayType)) THEN
 					IF ((op # Global.Len) OR (rightExpression = NIL)) & (op # Global.Dim) THEN
-						ImportArrayBase(position);
+						ImportModule(Global.ArrayBaseName, position);
 						arrayBaseImported := TRUE;
 					END;
 				END;
@@ -5349,6 +5348,9 @@ TYPE
 				port := scope(SyntaxTree.ModuleScope).ownerModule.firstPort;
 				WHILE(port # NIL) DO
 					Register(port,currentScope, FALSE); port := port.nextPort;
+				END;
+				IF module.type IS SyntaxTree.ActorType THEN
+					ImportModule(SyntaxTree.NewIdentifier(-1,"Dataflow"),module.position);
 				END;
 			ELSIF scope IS SyntaxTree.ProcedureScope THEN
 				(* enter parameters for a procedure scope *)
