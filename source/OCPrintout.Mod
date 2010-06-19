@@ -1431,8 +1431,8 @@ TYPE
 					Identifier(x.context)
 				END;
 
-				IF x.firstPort # NIL THEN (* for actors *)
-					PortList(x.firstPort);
+				IF (x.type IS SyntaxTree.ActorType) & (x.type(SyntaxTree.ActorType).firstPort # NIL) THEN (* for actors *)
+					PortList(x.type(SyntaxTree.ActorType).firstPort);
 				END;
 
 				w.String(";");

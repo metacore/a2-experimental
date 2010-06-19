@@ -5345,11 +5345,11 @@ TYPE
 					IF import.context = NIL THEN import.SetContext(scope.ownerModule.context) END;
 					Register(import, currentScope, FALSE); import := import.nextImport;
 				END;
-				port := scope(SyntaxTree.ModuleScope).ownerModule.firstPort;
-				WHILE(port # NIL) DO
-					Register(port,currentScope, FALSE); port := port.nextPort;
-				END;
 				IF module.type IS SyntaxTree.ActorType THEN
+					port := module.type(SyntaxTree.ActorType).firstPort;
+					WHILE(port # NIL) DO
+						Register(port,currentScope, FALSE); port := port.nextPort;
+					END;
 					ImportModule(SyntaxTree.NewIdentifier(-1,"Dataflow"),module.position);
 				END;
 			ELSIF scope IS SyntaxTree.ProcedureScope THEN

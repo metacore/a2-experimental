@@ -802,13 +802,32 @@ TYPE
 	END RecordType;
 
 	ActorType*=OBJECT (Type)
-	VAR actor-: Module;
+	VAR
+		actor-: Module;
+		firstPort-,lastPort-: Port; numberPorts-: LONGINT;  (* parameters *)
 
 		PROCEDURE &InitActorType(actor: Module);
 		BEGIN
 			InitType(actor.position,{});
 			SELF.actor := actor;
+			numberPorts := 0; firstPort := NIL; lastPort := NIL;
 		END InitActorType;
+
+		PROCEDURE AddPort*(p: Port);
+		BEGIN
+			ASSERT(p # NIL);
+			IF lastPort= NIL THEN firstPort := p ELSE lastPort.nextPort := p; p.prevPort := lastPort; END;
+			lastPort := p;
+			INC(numberPorts);
+		END AddPort;
+
+		PROCEDURE FindPort*(identifier: Identifier): Port;
+		VAR p: Port;
+		BEGIN
+			p := firstPort;
+			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextPort END;
+			RETURN p;
+		END FindPort;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -1911,14 +1930,14 @@ TYPE
 		nextPort-, prevPort-: Port;
 
 		kind-: LONGINT;   (* ValuePort, ConstPort, VarPort *)
-		ownerModule-: Module;
+		ownerType-: ActorType;
 
-		PROCEDURE & InitPort( position: LONGINT;  ownerModule: Module ; name: Identifier; kind: LONGINT);
+		PROCEDURE & InitPort( position: LONGINT;  ownerType: ActorType ; name: Identifier; kind: LONGINT);
 		BEGIN
 			InitSymbol( position, name );
 			SELF.kind := kind; access := access*ReadOnly;
 			nextPort := NIL;
-			SELF.ownerModule := ownerModule;
+			SELF.ownerType := ownerType;
 		END InitPort;
 
 		PROCEDURE Accept*(v: Visitor);
@@ -2892,22 +2911,6 @@ TYPE
 			SELF.body := body;
 		END SetBody;
 
-		PROCEDURE FindParameter*(identifier: Identifier): Parameter;
-		VAR p: Parameter;
-		BEGIN
-			p := ownerProcedure.type(ProcedureType).firstParameter;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextParameter END;
-			IF (p = NIL) THEN
-				D.Str("find par"); D.Str0(identifier.name); D.Ln;
-				p := ownerProcedure.type(ProcedureType).returnParameter;
-				IF p # NIL THEN
-					D.Str("is it this ? "); D.Str0(p.name.name);  D. Ln;
-				END;
-				IF (p # NIL) & (p.name.name # identifier.name) THEN p := NIL END;
-			END;
-			RETURN p;
-		END FindParameter
-
 	END ProcedureScope;
 
 
@@ -3185,13 +3188,6 @@ TYPE
 			END;
 		END RemoveImporters;
 
-		PROCEDURE FindPort*(identifier: Identifier): Port;
-		VAR p: Port;
-		BEGIN
-			p := ownerModule.firstPort;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextPort END;
-			RETURN p;
-		END FindPort
 
 	END ModuleScope;
 
@@ -3203,7 +3199,6 @@ TYPE
 			context-:Identifier; (* modules context *)
 			case-: LONGINT; (* module notation in lower or upper case, important for printout and operators *)
 			firstScope-,lastScope-: Scope; numberScopes-: LONGINT; (* list of all scopes for checker / backend traversal etc. *)
-			firstPort-,lastPort-: Port; numberPorts-: LONGINT;  (* parameters *)
 
 		PROCEDURE & InitModule( CONST sourceName: ARRAY OF CHAR; position: LONGINT; name: Identifier; scope: ModuleScope; case: LONGINT);
 		BEGIN
@@ -3216,16 +3211,7 @@ TYPE
 			SELF.case := case;
 			firstScope := NIL; lastScope := NIL; numberScopes := 0;
 			SetType(moduleType);
-			numberPorts := 0; firstPort := NIL; lastPort := NIL;
 		END InitModule;
-
-		PROCEDURE AddPort*(p: Port);
-		BEGIN
-			ASSERT(p # NIL);
-			IF lastPort= NIL THEN firstPort := p ELSE lastPort.nextPort := p; p.prevPort := lastPort; END;
-			lastPort := p;
-			INC(numberPorts);
-		END AddPort;
 
 		PROCEDURE SetContext*(context: Identifier);
 		BEGIN	SELF.context := context;
@@ -3436,7 +3422,7 @@ VAR
 		RETURN identifier
 	END NewIdentifier;
 
-	PROCEDURE NewPort*( position: LONGINT; owner: Module ;  name: Identifier; passAs: LONGINT): Port;
+	PROCEDURE NewPort*( position: LONGINT; owner: ActorType ;  name: Identifier; passAs: LONGINT): Port;
 	VAR port: Port;
 	BEGIN
 		NEW( port, position, owner, name, passAs);  RETURN port

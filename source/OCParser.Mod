@@ -1271,7 +1271,7 @@ TYPE
 		END Type;
 
 		(** PortDeclaration = ('out' | 'in') Identifier {',' Identifier}':' Type. **)
-		PROCEDURE PortDeclaration(actor: SyntaxTree.Module; parentScope: SyntaxTree.Scope);
+		PROCEDURE PortDeclaration(actor: SyntaxTree.ActorType; parentScope: SyntaxTree.Scope);
 		VAR
 			type: SyntaxTree.Type; name: SyntaxTree.Identifier;
 			firstPort, port: SyntaxTree.Port;   kind: LONGINT;
@@ -1303,7 +1303,7 @@ TYPE
 		END PortDeclaration;
 
 		(** PortList = '('[ParameterDeclaration {';' ParameterDeclaration}]')' [':' Type]. **)
-		PROCEDURE PortList( actor: SyntaxTree.Module ; parentScope: SyntaxTree.Scope);
+		PROCEDURE PortList( actor: SyntaxTree.ActorType ; parentScope: SyntaxTree.Scope);
 		BEGIN
 			IF Trace THEN S( "PortList" ) END;
 			(* left parenthesis already consumed *)
@@ -1695,7 +1695,7 @@ TYPE
 					context := Identifier();
 					module.SetContext(context);
 				END;
-				IF (type IS SyntaxTree.ActorType) & Optional(Scanner.LeftParenthesis) THEN PortList(module,moduleScope) END;
+				IF (type IS SyntaxTree.ActorType) & Optional(Scanner.LeftParenthesis) THEN PortList(module.type(SyntaxTree.ActorType),moduleScope) END;
 				Check(Scanner.Semicolon);
 				IF Optional(Scanner.Import) THEN ImportList(moduleScope) END;
 				DeclarationSequence( moduleScope);
