@@ -897,14 +897,6 @@ TYPE
 			SELF.bodyProcedure := bodyProcedure;
 		END SetBodyProcedure;
 
-		PROCEDURE FindParameter*(identifier: Identifier): Parameter;
-		VAR p: Parameter;
-		BEGIN
-			p := ownerActor.firstParameter;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextParameter END;
-			RETURN p;
-		END FindParameter
-
 	END ActorScope;
 
 	*)
