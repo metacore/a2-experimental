@@ -3,7 +3,7 @@ MODULE WMProcessInfo; (** AUTHOR "tf/staubesv"; PURPOSE "Components for process 
 IMPORT
 	SYSTEM, KernelLog,
 	Streams, Machine, Modules, Objects, Kernel, Reflection, Strings, ProcessInfo, XML, Commands,
-	WMRectangles, WMGraphics, WMProperties, WMComponents, WMStandardComponents, WMGrids, WMStringGrids,
+	WMGraphics, WMProperties, WMComponents, WMStandardComponents, WMGrids, WMStringGrids,
 	WMPopups, WMDialogs;
 
 CONST
@@ -476,11 +476,10 @@ TYPE
 		END HandleUnbreakableHalt;
 
 		PROCEDURE HandleSort(sender, data : ANY);
-		VAR bounds, rectangle: WMRectangles.Rectangle;
+		VAR gx, gy : LONGINT;
 		BEGIN
-			bounds := SELF.bounds.Get();
-			rectangle := sortBtn.bounds.Get();
-			sortPopup.Popup(bounds.l + rectangle.l, bounds.b + rectangle.b- 20);
+			sortBtn.ToWMCoordinates(0, sortBtn.bounds.GetBottom(), gx, gy);
+			sortPopup.Popup(gx, gy);
 		END HandleSort;
 
 		PROCEDURE HandleSortPopup(sender, data : ANY);
