@@ -4234,7 +4234,13 @@ TYPE
 					(* generate actor by calling method on dataflow specification *)
 					p0(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
 					Global.GetSymbolName(p0(SyntaxTree.SymbolDesignator).symbol,name);
-					core := backend.dataflowSpecification.NewCore(name);
+					IF type.typeDeclaration # NIL THEN
+						Global.GetSymbolName(type.typeDeclaration,name1)
+					ELSE
+						ASSERT(type(SyntaxTree.ActorType).actorScope = moduleScope);
+						Global.GetSymbolName(module.module,name1);
+					END;
+					core := backend.dataflowSpecification.NewCore(name,name1);
 
 					AddModules(core,type(SyntaxTree.ActorType).actorScope.ownerModule);
 					IF ~core.Link(backend.diagnostics, Compiler.Info IN backend.flags) THEN

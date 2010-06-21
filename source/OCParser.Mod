@@ -1378,7 +1378,11 @@ TYPE
 			ELSE
 				REPEAT
 					position := symbol.start;
-					identifier := Identifier();
+					IF Optional(Scanner.Dataflow) THEN
+						identifier := SyntaxTree.NewIdentifier(position, Global.StringDataflow)
+					ELSE
+						identifier := Identifier();
+					END;
 					IF Optional(Scanner.LeftParenthesis) THEN
 						expression := Expression();
 						Check(Scanner.RightParenthesis)
