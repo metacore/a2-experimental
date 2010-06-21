@@ -198,7 +198,6 @@ TYPE
 			Scope(x.recordScope);
 		END VisitRecordType;
 
-		(*
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration;
 		BEGIN (* no code emission *)
@@ -210,7 +209,6 @@ TYPE
 			END;
 			Scope(x.actorScope);
 		END VisitActorType;
-		*)
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
 		BEGIN (* no code emission *)   END VisitProcedureType;
@@ -352,9 +350,17 @@ TYPE
 				IF (scope.body # NIL) & (module.module.type = SyntaxTree.dataflowType) THEN
 					DataflowBody(scope.body);
 					RETURN
+				ELSIF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
+					DataflowBody(scope.body);
+					RETURN				
 				ELSE
+					AddBodyCallStub(x);
 					ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
 				END;
+			ELSIF (scope.outerScope IS SyntaxTree.ActorScope) & (x = scope.outerScope(SyntaxTree.ActorScope).bodyProcedure) THEN
+				inline := FALSE;
+				AddBodyCallStub(x);
+				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
 			ELSE
 				inline := FALSE;
 				ir := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,x,dump);
@@ -447,6 +453,23 @@ TYPE
 			currentScope := prevScope;
 		END Procedure;
 
+		PROCEDURE AddBodyCallStub(bodyProcedure: SyntaxTree.Procedure); (* code that is only necessary for static linkers *)
+		VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope; name: SyntaxTree.String;
+			ir: IntermediateCode.Section; op: IntermediateCode.Operand;
+		BEGIN
+			ASSERT (bodyProcedure # NIL);
+			procedureScope := SyntaxTree.NewProcedureScope(bodyProcedure.scope);
+			procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,"$$BODYSTUB"), procedureScope);
+			procedure.SetScope(bodyProcedure.scope);
+			procedure.SetType(SyntaxTree.NewProcedureType(-1,bodyProcedure.scope));
+			procedure.SetAccess(SyntaxTree.Hidden);
+			Global.GetSymbolName (procedure,name);
+			ir := IntermediateCode.NewSection(module.sections,Sections.InitCodeSection,name,procedure,dump);
+			Global.GetSymbolName (bodyProcedure,name);
+			IntermediateCode.InitAddress(op, GetType(system,Global.Address), IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,bodyProcedure,dump) , 0);
+			ir.Emit(Call(op, 0));
+		END AddBodyCallStub;
+
 		(** entry function to visit a complete module *)
 		PROCEDURE Module(x: SyntaxTree.Module; module: Sections.Module);
 		VAR
@@ -467,21 +490,7 @@ TYPE
 				END;
 			END EnsureBodyProcedure;
 
-			PROCEDURE AddModuleBodyCallStub; (* code that is only necessary for static linkers *)
-			VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope; name: SyntaxTree.String;
-			BEGIN
-				ASSERT (x.moduleScope.bodyProcedure # NIL);
-				procedureScope := SyntaxTree.NewProcedureScope(module.module.moduleScope);
-				procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,"$$BODYSTUB"), procedureScope);
-				procedure.SetScope(module.module.moduleScope);
-				procedure.SetType(SyntaxTree.NewProcedureType(-1,module.module.moduleScope));
-				procedure.SetAccess(SyntaxTree.Hidden);
-				Global.GetSymbolName (procedure,name);
-				ir := IntermediateCode.NewSection(module.sections,Sections.InitCodeSection,name,procedure,dump);
-				Global.GetSymbolName (x.moduleScope.bodyProcedure,name);
-				IntermediateCode.InitAddress(op, GetType(system,Global.Address), IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x.moduleScope.bodyProcedure,dump) , 0);
-				ir.Emit(Call(op, 0));
-			END AddModuleBodyCallStub;
+
 
 		BEGIN
 			ASSERT(x # NIL); ASSERT(module # NIL);
@@ -504,7 +513,7 @@ TYPE
 			implementationVisitor.moduleSelf := moduleSelf;
 
 			EnsureBodyProcedure; (* currently needed in Oberon, remove ? *)
-			AddModuleBodyCallStub;
+
 
 			Scope(x.moduleScope);
 		END Module;
@@ -4685,7 +4694,7 @@ TYPE
 				InitOperand(result,ModeReference);
 				GetBaseRegister(result.op,currentScope,x.scope);
 				IntermediateCode.AddOffset(result.op,ToMemoryUnits(system,x.offsetInBits));
-			ELSIF x.scope = moduleScope THEN (* global variable *)
+			ELSIF (x.scope = moduleScope) OR (x.scope IS SyntaxTree.ActorScope) THEN (* global variable *)
 				InitOperand(result,ModeReference);
 				Global.GetSymbolName(x,name);
 				symbol := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,commentPrintout # NIL);

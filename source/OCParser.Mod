@@ -1067,7 +1067,7 @@ TYPE
 			RETURN pointerType
 		END ObjectType;
 
-		(*
+
 		(** ActorType = 'actor' [ParameterList] DeclarationSequence [Body] 'end' [Identifier]
               | 'object'. **)
 		PROCEDURE ActorType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope ): SyntaxTree.Type;
@@ -1079,7 +1079,8 @@ TYPE
 			(* symbol actor already consumed *)
 
 			actorScope := SyntaxTree.NewActorScope(parentScope);
-			actorType := SyntaxTree.NewActorType( position,parentScope,actorScope);
+			actorType := SyntaxTree.NewActorType( position, parentScope,actorScope);
+			actorScope.SetOwnerActor(actorType);
 
 			(*
 			IF Optional(Scanner.LeftBrace) THEN
@@ -1104,7 +1105,7 @@ TYPE
 			IF Trace THEN E( "ActorType" ) END;
 			RETURN actorType
 		END ActorType;
-		*)
+
 
 
 		(** PointerType = 'pointer' 'to' Type. **)
@@ -1258,9 +1259,7 @@ TYPE
 			ELSIF Optional( Scanner.Record ) THEN type := RecordType( position,parentScope );
 			ELSIF Optional( Scanner.Pointer ) THEN type := PointerType( position,parentScope );
 			ELSIF Optional( Scanner.Object ) THEN type := ObjectType( position,name,parentScope );
-			(*
 			ELSIF Optional( Scanner.Actor) THEN type := ActorType( position, name, parentScope); (* only possible if dataflow enabled in scanner *)
-			*)
 			ELSIF Optional( Scanner.Procedure ) THEN type := ProcedureType( position,parentScope);
 			ELSIF Optional( Scanner.Enum ) THEN type := EnumerationType( position,parentScope);
 			ELSE qualifiedIdentifier := QualifiedIdentifier();
@@ -1687,7 +1686,7 @@ TYPE
 			IF isActor OR (type # NIL) THEN
 				moduleName :=  Identifier();
 				module := SyntaxTree.NewModule( scanner.source, moduleName.position, moduleName, moduleScope, scanner.case );
-				IF isActor THEN type := SyntaxTree.NewActorType(module, moduleScope) END;
+				IF isActor THEN type := SyntaxTree.NewActorType(module.position, NIL, moduleScope) END;
 				module.SetType(type);
 				CommentSymbol(module);
 				IF Optional(Scanner.In) THEN

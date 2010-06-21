@@ -149,7 +149,6 @@ TYPE
 				e := e.nextConstant;
 			END;
 
-
 			Keyword(" END");
 		END VisitEnumerationType;
 
@@ -207,6 +206,23 @@ TYPE
 				END;
 			END;
 		END VisitPointerType;
+
+		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
+		BEGIN
+			Keyword("ACTOR ");
+			IF x.firstPort # NIL THEN PortList(x.firstPort) END;
+			Scope(x.actorScope);
+
+			IF (x.actorScope IS SyntaxTree.ActorScope) & (x.actorScope(SyntaxTree.ActorScope).bodyProcedure # NIL) THEN
+				Body(x.actorScope(SyntaxTree.ActorScope).bodyProcedure.procedureScope.body)
+			END;
+
+			Indent; Keyword("END ");
+			IF (x.typeDeclaration # NIL) THEN
+				Identifier(x.typeDeclaration.name);
+			END;
+		END VisitActorType;
+
 
 		PROCEDURE VisitRecordType(x: SyntaxTree.RecordType);
 		VAR prevScope: SyntaxTree.Scope;

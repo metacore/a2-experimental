@@ -533,8 +533,7 @@ TYPE
 			deep := SELF.deep;
 			IF ~fingerprint.shallowAvailable THEN
 				fp := 0;
-				Global.GetSymbolName(x.actor,name);
-				FPString(fp,name);
+				TypeName(fp,x);
 				fingerprint.shallow := fp;
 				fingerprint.public := fp;
 				fingerprint.private := fp;

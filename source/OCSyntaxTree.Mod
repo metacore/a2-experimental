@@ -44,6 +44,7 @@ CONST
 	AccessedFlag*=17;
 	MappedFlag*=18; (* for dataflow ports *)
 
+	DataflowFlag*=19;
 
 	(** Access Flags *)
 	InternalRead* = 0;			(** can read symbol in same module *)
@@ -802,14 +803,13 @@ TYPE
 
 	ActorType*=OBJECT (Type)
 	VAR
-		actor-: Symbol;
 		firstPort-,lastPort-: Port; numberPorts-: LONGINT;  (* parameters *)
 		actorScope-: Scope;
 
-		PROCEDURE &InitActorType(actor: Symbol; actorScope: Scope);
+		PROCEDURE &InitActorType(position: LONGINT; scope, actorScope: Scope);
 		BEGIN
-			InitType(actor.position,{});
-			SELF.actor := actor;
+			InitType(position,{});
+			SELF.scope := scope;
 			numberPorts := 0; firstPort := NIL; lastPort := NIL;
 			SELF.actorScope := actorScope;
 		END InitActorType;
@@ -880,27 +880,10 @@ TYPE
 
 	END ActorType;
 
-
-	ActorScope*=OBJECT (Scope)
-		VAR
-		ownerActor-: ActorType;
-		bodyProcedure-: Procedure;
-
-		PROCEDURE & InitActorScope(outer: Scope);
-		BEGIN
-			InitScope(outer);
-			ownerActor := NIL;
-			bodyProcedure := NIL;
-		END InitActorScope;
-
-		PROCEDURE SetBodyProcedure*(bodyProcedure: Procedure);
-		BEGIN
-			SELF.bodyProcedure := bodyProcedure;
-		END SetBodyProcedure;
-
-	END ActorScope;
-
 	*)
+
+
+
 
 	(** <<procedureType = PROCEDURE [{DELEGATE}] (firstParameter .. lastParameter): returnType>>
 		also used as type for procedures
@@ -3043,6 +3026,31 @@ TYPE
 
 	END RecordScope;
 
+	ActorScope*=OBJECT (Scope)
+		VAR
+		ownerActor-: ActorType;
+		bodyProcedure-: Procedure;
+
+		PROCEDURE & InitActorScope(outer: Scope);
+		BEGIN
+			InitScope(outer);
+			ownerActor := NIL;
+			bodyProcedure := NIL;
+		END InitActorScope;
+
+		PROCEDURE SetOwnerActor*(owner: ActorType);
+		BEGIN
+			ownerActor := owner
+		END SetOwnerActor;
+
+
+		PROCEDURE SetBodyProcedure*(bodyProcedure: Procedure);
+		BEGIN
+			SELF.bodyProcedure := bodyProcedure;
+		END SetBodyProcedure;
+
+	END ActorScope;
+
 	(**
 		<<
 		IMPORT firstImport .. lastImport;
@@ -3371,10 +3379,10 @@ VAR
 		INC( recordTypeCount );  NEW( recordType, position, scope, recordScope);  RETURN recordType
 	END NewRecordType;
 
-	PROCEDURE NewActorType*( actor: Symbol; actorScope: Scope): ActorType;
+	PROCEDURE NewActorType*(position: LONGINT; scope, actorScope: Scope): ActorType;
 	VAR actorType: ActorType;
 	BEGIN
-		NEW(actorType,actor, actorScope); RETURN actorType;
+		NEW(actorType, position, scope, actorScope); RETURN actorType;
 	END NewActorType;
 
 	PROCEDURE NewProcedureType*( position: LONGINT; scope: Scope): ProcedureType;
@@ -3764,6 +3772,11 @@ VAR
 	VAR scope: RecordScope;
 	BEGIN	NEW(scope,outer); RETURN scope
 	END NewRecordScope;
+
+	PROCEDURE NewActorScope*(outer: Scope): ActorScope;
+	VAR scope: ActorScope;
+	BEGIN	NEW(scope,outer); RETURN scope
+	END NewActorScope;
 
 	PROCEDURE NewEnumerationScope*(outer: Scope): EnumerationScope;
 	VAR scope: EnumerationScope;

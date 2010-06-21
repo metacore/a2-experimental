@@ -1045,9 +1045,10 @@ TYPE
 			IF ~fingerPrint.doneFP THEN
 				deep := SELF.deep;
 				SELF.deep := FALSE;
-				fp := 0;
+				fp := 1;
 				fingerPrint.FP := fp;
 				fingerPrint.doneFP := TRUE;
+				fingerPrint.doneAll := TRUE;
 				SELF.deep := deep;
 			END;
 			SELF.fingerPrint := fingerPrint

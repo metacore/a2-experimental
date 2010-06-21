@@ -832,7 +832,6 @@ TYPE
 			resolvedType := ResolvedType(x);
 		END VisitRecordType;
 
-		(*
 		(** check and resolve actor type
 			- check base type: must be actor
 			- check declarations
@@ -840,15 +839,15 @@ TYPE
 		**)
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		VAR
-			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter;
+			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; port: SyntaxTree.Port;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 
 				(* process parameters *)
-				parameter :=x.firstParameter;
-				WHILE (parameter # NIL) DO
-					VisitParameter(parameter);
-					parameter := parameter.nextParameter;
+				port :=x.firstPort;
+				WHILE (port # NIL) DO
+					VisitPort(port);
+					port := port.nextPort;
 				END;
 
 				Declarations(x.actorScope);
@@ -869,7 +868,6 @@ TYPE
 			END;
 			resolvedType := ResolvedType(x);
 		END VisitActorType;
-		*)
 
 		(** resolve all pending types (late resolving).
 			- type fixes are resolved at the end of the declaration phase
@@ -5362,6 +5360,12 @@ TYPE
 				IF parameter # NIL THEN
 					Register(parameter,currentScope, FALSE);
 				END;
+			ELSIF scope IS SyntaxTree.ActorScope THEN
+				port := scope(SyntaxTree.ActorScope).ownerActor.firstPort;
+				WHILE(port # NIL) DO
+					Register(port,scope, FALSE); port := port.nextPort;
+				END;
+				ImportModule(SyntaxTree.NewIdentifier(-1,"Dataflow"),module.position);
 			END;
 			(* constants *)
 			constant := scope.firstConstant;
