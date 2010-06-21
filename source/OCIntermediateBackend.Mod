@@ -3,8 +3,7 @@ MODULE OCIntermediateBackend; (** AUTHOR ""; PURPOSE ""; *)
 IMPORT Basic := OCBasic, SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend := OCBackend, Global := OCGlobal,
 	WMUtilities,Scanner := OCScanner, IntermediateCode := OCIntermediateCode, Sections := OCSections, Printout := OCPrintout,
 	SYSTEM, Diagnostics, Strings, Options, Streams, Compiler, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile, D := Debugging,
-	Fingerprinter := OCFingerprinter;
-
+	Fingerprinter := OCFingerprinter, Dataflow := OCDataflow;
 
 CONST
 		(* operand modes *)
@@ -113,6 +112,7 @@ TYPE
 
 	DeclarationVisitor =OBJECT(SyntaxTree.Visitor)
 	VAR
+		backend: IntermediateBackend;
 		implementationVisitor: ImplementationVisitor;
 		system: Global.System;
 		currentScope: SyntaxTree.Scope;
@@ -120,12 +120,18 @@ TYPE
 		moduleSelf: SyntaxTree.Variable;
 		dump: BOOLEAN;
 
-		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; diagnostics: Diagnostics.Diagnostics; dump: BOOLEAN);
+		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; backend: IntermediateBackend; dump: BOOLEAN);
 		BEGIN
 			currentScope := NIL; module := NIL; moduleSelf := NIL;
 			SELF.system := system; SELF.implementationVisitor := implementationVisitor;
-			SELF.dump := dump
+			SELF.dump := dump;
+			SELF.backend := backend;
 		END Init;
+
+		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
+		BEGIN
+			backend.Error(module.module.sourceName, position, Diagnostics.Invalid, s);
+		END Error;
 
 		PROCEDURE Type(x: SyntaxTree.Type);
 		BEGIN
@@ -192,6 +198,20 @@ TYPE
 			Scope(x.recordScope);
 		END VisitRecordType;
 
+		(*
+		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
+		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration;
+		BEGIN (* no code emission *)
+			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
+			IF (x.actorScope.ownerModule = module.module)  THEN
+				td := x.typeDeclaration;
+				Global.GetSymbolName(td,name);
+				(* code section for object *)
+			END;
+			Scope(x.actorScope);
+		END VisitActorType;
+		*)
+
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
 		BEGIN (* no code emission *)   END VisitProcedureType;
 
@@ -214,7 +234,7 @@ TYPE
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
 		VAR name: SyntaxTree.String; irv: IntermediateCode.Section;
 		BEGIN
-			IF currentScope IS SyntaxTree.ModuleScope THEN
+			IF (currentScope IS SyntaxTree.ModuleScope) THEN
 				(* code section for variable *)
 				Global.GetSymbolName(x,name);
 				irv := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,dump);
@@ -279,6 +299,14 @@ TYPE
 			currentScope := prevScope;
 		END Scope;
 
+		PROCEDURE DataflowBody(x: SyntaxTree.Body);
+		BEGIN
+			implementationVisitor.VisitStatementBlock(x);
+			IF ~backend.dataflowSpecification.Emit() THEN
+				Error(x.position,"could not emit backend specification");
+			END;
+		END DataflowBody;
+
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
 		VAR scope: SyntaxTree.ProcedureScope;
 			prevScope: SyntaxTree.Scope;
@@ -321,8 +349,12 @@ TYPE
 				ir := IntermediateCode.NewSection(module.sections,Sections.InlineCodeSection,name,x,dump);
 			ELSIF x = module.module.moduleScope.bodyProcedure THEN
 				inline := FALSE;
-				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
-				ASSERT(Sections.CodeSection # Sections.BodyCodeSection,100);
+				IF (scope.body # NIL) & (module.module.type = SyntaxTree.dataflowType) THEN
+					DataflowBody(scope.body);
+					RETURN
+				ELSE
+					ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
+				END;
 			ELSE
 				inline := FALSE;
 				ir := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,x,dump);
@@ -472,7 +504,6 @@ TYPE
 			implementationVisitor.moduleSelf := moduleSelf;
 
 			EnsureBodyProcedure; (* currently needed in Oberon, remove ? *)
-
 			AddModuleBodyCallStub;
 
 			Scope(x.moduleScope);
@@ -494,10 +525,8 @@ TYPE
 		hiddenPointerType: SyntaxTree.RecordType; (* used as hidden pointer, for example for ARRAY OF ANY *)
 		delegatePointerType: SyntaxTree.RecordType; (* used for delegates, for example in ARRAY OF PROCEDURE{DELEGATE} *)
 
-
 		checker: SemanticChecker.Checker;
-		diagnostics : Diagnostics.Diagnostics;
-		error: BOOLEAN;
+		backend: IntermediateBackend;
 		position: LONGINT;
 		moduleSelf: SyntaxTree.Variable;
 
@@ -528,8 +557,7 @@ TYPE
 		runtimeModuleName : SyntaxTree.String;
 		newObjectFile: BOOLEAN;
 
-
-		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; diagnostics: Diagnostics.Diagnostics;
+		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
 		VAR i: LONGINT;
 		BEGIN
@@ -543,8 +571,7 @@ TYPE
 			awaitProcCounter := 0;
 			labelId := 0; constId := 0; labelId := 0;
 			SELF.checker := checker;
-			SELF.diagnostics := diagnostics;
-			error := FALSE;
+			SELF.backend := backend;
 			position := Diagnostics.Invalid;
 			conditional := FALSE;
 			locked := FALSE;
@@ -568,7 +595,6 @@ TYPE
 			IntermediateCode.InitImmediate(true,bool,1);
 
 			SELF.newObjectFile := newObjectFile;
-
 		END Init;
 
 		PROCEDURE TraceEnter(CONST s: ARRAY OF CHAR);
@@ -1162,13 +1188,10 @@ TYPE
 
 		PROCEDURE Error(CONST s: ARRAY OF CHAR);
 		BEGIN
-			IF diagnostics # NIL THEN
-				diagnostics.Error(module.module.sourceName,position,Diagnostics.Invalid,s);
-			END;
+			backend.Error(module.module.sourceName,position,Diagnostics.Invalid,s);
 			IF dump # NIL THEN
 				dump.String(s); dump.Ln;
 			END;
-			error := TRUE;
 		END Error;
 
 		PROCEDURE ErrorI(CONST s: ARRAY OF CHAR; i: LONGINT);
@@ -1388,7 +1411,7 @@ TYPE
 				Emit(Call(reg, 0));
 			END;
 		END CallThis;
-
+		(* call moduleName.procedureName if it can be imported, otherwise use altModuleName.altProcedureName  *)
 		PROCEDURE CallThis2(CONST moduleName, procedureName,altModuleName, altProcedureName: ARRAY OF CHAR);
 		VAR procedure: SyntaxTree.Procedure; result: Operand; reg: IntermediateCode.Operand; source: IntermediateCode.Section;
 			name: SyntaxTree.String;
@@ -1404,11 +1427,6 @@ TYPE
 				Emit(Call(reg, 0));
 			END;
 		END CallThis2;
-
-
-
-
-
 
 		PROCEDURE CompareString(br: ConditionalBranch; leftExpression,rightExpression: SyntaxTree.Expression);
 		VAR
@@ -3438,6 +3456,8 @@ TYPE
 				variable.SetType(type);
 				recordScope.AddVariable(variable);
 			END AddVariable;
+
+
 		BEGIN
 			name := "@ArrayDescriptor";
 			Basic.AppendNumber(name,dimensions);
@@ -3501,11 +3521,15 @@ TYPE
 		tmp:IntermediateCode.Operand;
 		size: LONGINT; dim,openDim: LONGINT; pointer: IntermediateCode.Operand; t,t0,t1,t2: SyntaxTree.Type; trueL,falseL,ignore: Label;
 		exit,else,end: Label; procedureType: SyntaxTree.ProcedureType;
-		name: SyntaxTree.String; symbol: Sections.Section; operand: Operand;
+		name,name1,name2: SyntaxTree.String; symbol: Sections.Section; operand: Operand;
 		dest: IntermediateCode.Operand;
 		staticLength: LONGINT; itype: IntermediateCode.Type;
 		convert,isTensor: BOOLEAN;
 		flags: SET;
+		core: Dataflow.Core;
+		formalPort: SyntaxTree.Port;
+		port,port1,port2: Dataflow.Port;
+		channel: Dataflow.Channel;
 
 			PROCEDURE CallBodies(self: IntermediateCode.Operand; type: SyntaxTree.Type);
 			VAR recordScope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure; body: SyntaxTree.Body; flags: LONGINT;
@@ -4197,6 +4221,34 @@ TYPE
 					Emit(Add(sp,sp,tmp));
 
 					SetLabel(exit);
+				ELSIF type IS SyntaxTree.ActorType THEN
+					(* generate actor by calling method on dataflow specification *)
+					p0(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
+					Global.GetSymbolName(p0(SyntaxTree.SymbolDesignator).symbol,name);
+					core := backend.dataflowSpecification.NewCore(name);
+
+					AddModules(core,type(SyntaxTree.ActorType).actorScope.ownerModule);
+					IF ~core.Link(backend.diagnostics, Compiler.Info IN backend.flags) THEN
+						Error("could not link");
+					END;
+
+					formalPort := type(SyntaxTree.ActorType).firstPort;
+					WHILE formalPort # NIL DO
+						COPY(name,name2);
+						Strings.Append(name2,".");
+						formalPort.name.GetString(name1);
+						Strings.Append(name2,name1);
+						IF formalPort.kind = SyntaxTree.InPort THEN
+							i := Dataflow.In;
+						ELSIF formalPort.kind = SyntaxTree.OutPort THEN
+							i := Dataflow.Out;
+						ELSE HALT(100);
+						END;
+						port := core.NewPort(name2,i,0); (*! address!! *)
+						formalPort := formalPort.nextPort;
+					END;
+
+
 
 				ELSE (* no pointer to record, no pointer to array *)
 					HALT(200);
@@ -4314,8 +4366,44 @@ TYPE
 			(* ---- SYSTEM.TRACE ----- *)
 			|Global.systemTrace:
 				SystemTrace(p0);
+			|Global.Connect:
+				Global.GetSymbolName(p0(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name1);
+				Global.GetSymbolName(p1(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name2);
+				p0(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
+				p1(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
+				p0(SyntaxTree.SymbolDesignator).symbol.name.GetString(name);
+				Strings.Append(name1,"."); Strings.Append(name1,name);
+				p1(SyntaxTree.SymbolDesignator).symbol.name.GetString(name);
+				Strings.Append(name2,"."); Strings.Append(name2,name);
+				port1 := backend.dataflowSpecification.ThisPort(name1);
+				port2 := backend.dataflowSpecification.ThisPort(name2);
+				IF port1 = NIL THEN
+					Error("outport not set ");
+				END;
+				IF port2 = NIL THEN
+					Error("inport not set");
+				END;
+				IF (port1#NIL) & (port2#NIL) THEN
+					channel := backend.dataflowSpecification.NewChannel(port1,port2);
+				END;
+			|Global.Send:
+				Evaluate(p0,s0);
+				Evaluate(p1,s1);
+				size := ToMemoryUnits(system,system.SizeOf(p1.type));
+				Emit(Push(s0.op));
+				Emit(Push(s1.op));
+				Emit(Push(IntermediateCode.Immediate(addressType,size)));
+				CallThis("Dataflow","Send");
+			|Global.Receive:
+				Evaluate(p0,s0);
+				Designate(p1,s1);
+				size := ToMemoryUnits(system,system.SizeOf(p1.type));
+				Emit(Push(s0.op));
+				Emit(Push(s1.op));
+				Emit(Push(IntermediateCode.Immediate(addressType,size)));
+				CallThis("Dataflow","Receive");
 			ELSE (* function not yet implemented *)
-				HALT(200)
+				Error("not yet implemented");
 			END;
 			destination := dest;
 			IF Trace THEN TraceExit("VisitBuiltinCallDesignator") END;
@@ -4651,11 +4739,32 @@ TYPE
 			IF Trace THEN TraceExit("VisitVariable") END;
 		END VisitVariable;
 
+		PROCEDURE VisitPort(x: SyntaxTree.Port);
+		VAR adr: LONGINT; port: SyntaxTree.Port;
+		BEGIN
+			IF x.kind = SyntaxTree.InPort THEN
+				InitOperand(result, ModeValue);
+				port := x.ownerType.firstPort;
+				adr := 0; WHILE port # x DO INC(adr); port := port.nextPort END;
+				adr := backend.dataflowSpecification.GetPortAddress(Dataflow.In,adr);
+				IntermediateCode.InitImmediate(result.op,addressType,adr);
+				RETURN
+			ELSIF x.kind = SyntaxTree.OutPort THEN
+				InitOperand(result, ModeValue);
+				port := x.ownerType.firstPort;
+				adr := 0; WHILE port # x DO INC(adr); port := port.nextPort END;
+				adr := backend.dataflowSpecification.GetPortAddress(Dataflow.Out,adr);
+				IntermediateCode.InitImmediate(result.op,addressType,adr);
+				RETURN
+			END;
+		END VisitPort;
+
 		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
 		VAR type: SyntaxTree.Type; basereg, mem: IntermediateCode.Operand;
 		BEGIN
 			type := x.type.resolved;
 			IF Trace THEN TraceEnter("VisitParameter") END;
+
 
 			GetBaseRegister(basereg,currentScope,x.scope);
 			InitOperand(result,ModeReference);
@@ -5440,8 +5549,6 @@ TYPE
 			END;
 		END InitVariables;
 
-
-
 		PROCEDURE Body(x: SyntaxTree.Body; scope: SyntaxTree.Scope; ir: IntermediateCode.Section; moduleBody: BOOLEAN);
 		VAR prevScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType;
 			end: Label;
@@ -5456,7 +5563,6 @@ TYPE
 				commentPrintout := NIL;
 				dump := NIL;
 			END;
-
 
 			prevScope := currentScope;
 			currentScope := scope;
@@ -5506,6 +5612,7 @@ TYPE
 		traceString-: SyntaxTree.String;
 		runtimeModuleName-: SyntaxTree.String;
 		newObjectFile-: BOOLEAN;
+		dataflowSpecification: Dataflow.Specification;
 
 		PROCEDURE &InitIntermediateBackend*;
 		BEGIN
@@ -5520,22 +5627,24 @@ TYPE
 
 		PROCEDURE GenerateIntermediate*(x: SyntaxTree.Module): Sections.Module;
 		VAR
-			declarator: DeclarationVisitor;
+			declarationVisitor: DeclarationVisitor;
 			implementationVisitor: ImplementationVisitor;
 			module: Sections.Module;
-
+			name: SyntaxTree.String;
 		BEGIN
 			ResetError;
+			Global.GetSymbolName(x,name);
+			IF dataflowSpecification = NIL THEN NEW(dataflowSpecification,name,diagnostics) (* default specification *)
+			ELSE dataflowSpecification.Init(name,diagnostics);
+			END;
 			NEW(module,x,system); (* backend structures *)
-			NEW(implementationVisitor,system,checker,Supported, Compiler.FindPC IN flags, runtimeModuleName, diagnostics, newObjectFile);
-			NEW(declarator,system,implementationVisitor,diagnostics,trace);
-			declarator.Module(x,module);
+			NEW(implementationVisitor,system,checker,Supported, Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
+			NEW(declarationVisitor,system,implementationVisitor,SELF,trace);
+			declarationVisitor.Module(x,module);
 
 			IF newObjectFile THEN
 				MetaModule(implementationVisitor,module);
 			END;
-
-			IF implementationVisitor.error THEN Error("",Diagnostics.Invalid, Diagnostics.Invalid, "") END;
 			RETURN module
 		END GenerateIntermediate;
 
@@ -5544,8 +5653,7 @@ TYPE
 		VAR
 			dump: WMUtilities.WindowWriter;
 			module: Sections.Module;
-
-			traceName: SyntaxTree.String;
+			traceName,name: SyntaxTree.String;
 		BEGIN
 			module := GenerateIntermediate(x);
 			IF trace THEN
@@ -5569,6 +5677,7 @@ TYPE
 			options.Add(0X,"trace",Options.String);
 			options.Add(0X,"runtime",Options.String);
 			options.Add(0X,"newObjectFile",Options.Flag);
+			options.Add(0X,"dataflowSpecification",Options.String);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -5579,6 +5688,9 @@ TYPE
 			newObjectFile := options.GetFlag("newObjectFile");
 			IF options.GetString("runtime",name) THEN
 				runtimeModuleName := name
+			END;
+			IF options.GetString("dataflowSpecification",name) THEN
+				dataflowSpecification := GetDataflowSpecification(name)
 			END;
 		END GetOptions;
 
@@ -5596,6 +5708,57 @@ TYPE
 	VAR int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64: IntermediateCode.Type;
 		emptyOperand: IntermediateCode.Operand;
 		systemCalls: ARRAY NumberSystemCalls OF SyntaxTree.Symbol;
+
+	PROCEDURE GetDataflowSpecification(CONST name: ARRAY OF CHAR): Dataflow.Specification;
+	VAR
+		procname: ARRAY 256 OF CHAR;
+		factory: PROCEDURE (): Dataflow.Specification;
+		specification: Dataflow.Specification;
+	BEGIN
+		specification := NIL;
+		IF Strings.Length(name) > 0 THEN
+			GETPROCEDURE(name,"Get", factory); (* try long name for example -G=OCBinaryObjectFile *)
+			IF factory = NIL THEN (* try short name for example -G=Binary*)
+				procname := "OC";
+				Strings.Append(procname, name);
+				GETPROCEDURE(procname,"Get", factory);
+			END;
+			IF factory # NIL THEN
+				specification := factory();
+				ASSERT(specification # NIL);
+			END;
+		END;
+		RETURN specification
+	END GetDataflowSpecification;
+
+	PROCEDURE AddModules(core: Dataflow.Core; x: SyntaxTree.Module);
+
+		PROCEDURE AddImport(x: SyntaxTree.Module);
+		VAR module: Dataflow.Module; VAR name: SyntaxTree.String;
+		BEGIN
+			IF ~Global.IsSystemModule(x) THEN
+				x.name.GetString(name);
+				 IF (Dataflow.FindModule(core.modules,name) = NIL) THEN
+					module := core.NewModule(name,"");
+				END;
+			END;
+		END AddImport;
+
+		PROCEDURE TraverseImports(x: SyntaxTree.Module);
+		VAR import: SyntaxTree.Import; name: SyntaxTree.String;
+		BEGIN
+			import := x.moduleScope.firstImport;
+			WHILE import # NIL DO
+				TraverseImports(import.module);
+				import := import.nextImport;
+			END;
+			x.name.GetString(name);
+			AddImport(x);
+		END TraverseImports;
+
+	BEGIN
+		TraverseImports(x);
+	END AddModules;
 
 	PROCEDURE Assert(cond: BOOLEAN; CONST reason: ARRAY OF CHAR);
 	BEGIN ASSERT(cond);
