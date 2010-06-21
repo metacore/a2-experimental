@@ -872,12 +872,15 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 	OCFingerPrint.Mod  OCInterfaceComparison.Mod OCTextualSymbolFile.Mod OCBinarySymbolFile.Mod
 	OCSections.Mod OCBinaryCode.Mod
 	OCFingerPrinter.Mod
-	OCDataflow.Mod OCIntermediateCode.Mod  OCIntermediateBackend.Mod
+	OCIntermediateCode.Mod
+
+	GenericLinker.Mod StaticLinker.Mod
+	OCDataflow.Mod
+
+	OCIntermediateBackend.Mod
 	OCBinaryObjectFile.Mod OCGenericObjectFile.Mod
 	OCAMD64InstructionSet.Mod OCAMD64Assembler.Mod OCAMD64Backend.Mod
 	OCInstructionSetAMD64TabSeperated.txt
-
-	GenericLinker.Mod StaticLinker.Mod
 END
 
 PACKAGE GuiApplications ARCHIVE "GuiApplications.zip" SOURCE "GuiApplicationsSrc.zip" DESCRIPTION "Window Manager and Graphical Applications"
@@ -1124,7 +1127,7 @@ PACKAGE Contributions ARCHIVE "Contributions.zip" SOURCE "ContributionsSrc.zip" 
 
 	Sage.UDPChat.Text Sage.UDPChatBase.Mod Sage.UDPChatServer.Mod 	# UDP chat tool (Yaroslav Romanchenko)
 	Sage.UDPChatClient.Mod
-	
+
 	CyrillicUtilities.Mod # by sage
 
 	YMF754Util.Mod	# Utilitiy for creating YMF754.Bin for YMF754.Mod sound card driver
