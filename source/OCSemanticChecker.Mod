@@ -2468,7 +2468,7 @@ TYPE
 						IF VerboseErrorMessage THEN Printout.Info("non-record type designator",left) END;
 					END;
 				ELSIF left.type.resolved IS SyntaxTree.ActorType THEN
-					scope := left.type.resolved(SyntaxTree.ActorType).actor.moduleScope;
+					scope := left.type.resolved(SyntaxTree.ActorType).actorScope;
 				ELSE
 					Error(selectorDesignator.position,Diagnostics.Invalid,"field on non-record type designator");
 					IF VerboseErrorMessage THEN Printout.Info("non-record type designator",left) END;

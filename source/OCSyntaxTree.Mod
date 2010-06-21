@@ -9,7 +9,7 @@ MODULE OCSyntaxTree;   (**  AUTHOR "fof & fn"; PURPOSE "Oberon Compiler: Abstrac
 **)
 
 IMPORT
-	Basic := OCBasic, Scanner := OCScanner, BitSets, Commands,StringPool, D := Debugging (* only for debuggging / counting *) ;
+	Basic := OCBasic, Scanner := OCScanner, BitSets, Commands,StringPool (* , D := Debugging (* only for debuggging / counting *) *) ;
 
 CONST
 	(** general flags: used in statements, procedure types and symbols
@@ -738,7 +738,6 @@ TYPE
 			sizeInBits := MIN(LONGINT);
 		END InitRecordType;
 
-
 		PROCEDURE SetBaseType*( type: Type );
 		BEGIN
 			baseType := type;
@@ -803,14 +802,16 @@ TYPE
 
 	ActorType*=OBJECT (Type)
 	VAR
-		actor-: Module;
+		actor-: Symbol;
 		firstPort-,lastPort-: Port; numberPorts-: LONGINT;  (* parameters *)
+		actorScope-: Scope;
 
-		PROCEDURE &InitActorType(actor: Module);
+		PROCEDURE &InitActorType(actor: Symbol; actorScope: Scope);
 		BEGIN
 			InitType(actor.position,{});
 			SELF.actor := actor;
 			numberPorts := 0; firstPort := NIL; lastPort := NIL;
+			SELF.actorScope := actorScope;
 		END InitActorType;
 
 		PROCEDURE AddPort*(p: Port);
@@ -3060,7 +3061,6 @@ TYPE
 		firstComment-,lastComment-: Comment; numberComments-: LONGINT; (* comments *)
 		bodyProcedure-: Procedure;
 
-
 		PROCEDURE & InitModuleScope;
 		BEGIN
 			InitScope(NIL);
@@ -3182,6 +3182,7 @@ TYPE
 
 
 	END ModuleScope;
+
 
 	(* << MODULE name ['in' context] moduleScope name '.' >>  *)
 	Module* = OBJECT (Symbol)
@@ -3370,10 +3371,10 @@ VAR
 		INC( recordTypeCount );  NEW( recordType, position, scope, recordScope);  RETURN recordType
 	END NewRecordType;
 
-	PROCEDURE NewActorType*( actor: Module): ActorType;
+	PROCEDURE NewActorType*( actor: Symbol; actorScope: Scope): ActorType;
 	VAR actorType: ActorType;
 	BEGIN
-		NEW(actorType,actor); RETURN actorType;
+		NEW(actorType,actor, actorScope); RETURN actorType;
 	END NewActorType;
 
 	PROCEDURE NewProcedureType*( position: LONGINT; scope: Scope): ProcedureType;

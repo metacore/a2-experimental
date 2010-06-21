@@ -1687,7 +1687,7 @@ TYPE
 			IF isActor OR (type # NIL) THEN
 				moduleName :=  Identifier();
 				module := SyntaxTree.NewModule( scanner.source, moduleName.position, moduleName, moduleScope, scanner.case );
-				IF isActor THEN type := SyntaxTree.NewActorType(module) END;
+				IF isActor THEN type := SyntaxTree.NewActorType(module, moduleScope) END;
 				module.SetType(type);
 				CommentSymbol(module);
 				IF Optional(Scanner.In) THEN
