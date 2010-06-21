@@ -853,7 +853,7 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	WMShell.Mod	# GUI for Shell
 
 	# GUI for hierarchical profiler (HierarchicalProfiler.Mod)
-	NATIVE { WMProfiler.Mod }
+	NATIVE, WIN { WMProfiler.Mod }
 
 	# ssh
 	SSH.Tool
