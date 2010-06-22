@@ -8,7 +8,7 @@ CONST InvalidAddress* = MAX (Address);
 
 TYPE Priority = LONGINT;
 
-CONST Fixed = 0; InitCode = 1; BodyCode = 2; Code = 3; Default = 4;
+CONST Fixed = 0; InitCode = 1; InitCode2=2; BodyCode = 3; Code = 4; Default = 5;
 
 TYPE Arrangement* = OBJECT
 
@@ -35,12 +35,18 @@ VAR
 	verbose, useAll, stripInitCodes, error-: BOOLEAN;
 	code, data: Arrangement;
 	firstBlock, firstLinkedBlock: Block;
+	linkRoot: ObjectFile.SectionName;
 
 	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; verbose, useAll, stripInitCodes: BOOLEAN; code, data: Arrangement);
 	BEGIN
 		SELF.diagnostics := diagnostics; SELF.verbose := verbose; SELF.useAll := useAll; SELF.stripInitCodes := stripInitCodes;
 		error := FALSE; SELF.code := code; SELF.data := data; firstBlock := NIL; firstLinkedBlock := NIL;
+		linkRoot := "";
 	END InitLinker;
+
+	PROCEDURE SetLinkRoot*(CONST root: ARRAY OF CHAR);
+	BEGIN COPY(root, linkRoot)
+	END SetLinkRoot;
 
 	PROCEDURE Error* (CONST source, message: ARRAY OF CHAR);
 	BEGIN diagnostics.Error (source, Diagnostics.Invalid, Diagnostics.Invalid, message); error := TRUE;
@@ -82,7 +88,7 @@ VAR
 	BEGIN
 		IF ~error THEN block := firstBlock;
 			WHILE block # firstLinkedBlock DO
-				used := useAll OR (GetPriority (block) <= InitCode);
+				used := (useAll OR (GetPriority (block) <= InitCode) OR (linkRoot # "") & Strings.StartsWith(linkRoot,0,block.identifier.name));
 				IF stripInitCodes & (block.type = ObjectFile.InitCode) THEN used := FALSE END;
 				Reference (block, used); block := block.next;
 			END;
@@ -212,6 +218,7 @@ PROCEDURE GetPriority (block: Block): Priority;
 BEGIN
 	IF block.fixed THEN RETURN Fixed END;
 	IF block.type = ObjectFile.InitCode THEN RETURN InitCode END;
+	IF block.type = ObjectFile.InitCode2 THEN RETURN InitCode2 END;
 	IF block.type = ObjectFile.BodyCode THEN RETURN BodyCode END;
 	IF block.type = ObjectFile.Code THEN RETURN Code END;
 	RETURN Default;

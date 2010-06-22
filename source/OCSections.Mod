@@ -6,6 +6,7 @@ CONST
 	(* section types *)
 	CodeSection*=ObjectFile.Code;
 	InitCodeSection*=ObjectFile.InitCode;
+	InitCode2Section*=ObjectFile.InitCode2;
 	BodyCodeSection*=ObjectFile.BodyCode;
 	VarSection*=ObjectFile.Data;
 	ConstSection*=ObjectFile.Const;
@@ -69,6 +70,7 @@ TYPE
 				|VarSection:w.String(".var ");
 				|ConstSection:w.String(".const ");
 				|InitCodeSection: w.String(".initcode ");
+				|InitCode2Section: w.String(".initcode2 ");
 			END;
 			DumpName(w);
 			w.String(" offset="); w.Int(offset,1);

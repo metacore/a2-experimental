@@ -138,7 +138,6 @@ TYPE
 		system: Global.System;
 		generatedModule: Formats.GeneratedModule;
 
-
 		PROCEDURE FinalMessage(CONST msg: ARRAY OF CHAR);
 		VAR message,name: ARRAY 256 OF CHAR;
 		BEGIN
@@ -227,6 +226,14 @@ TYPE
 							FinalMessage(" could not be compiled (object file errors).");
 							RETURN FALSE
 						END;
+					END;
+				END;
+
+				IF backend # NIL THEN
+					backend.Finalize();
+					IF backend.error THEN
+						FinalMessage(" could not postprocess (backend error).");
+						RETURN FALSE
 					END;
 				END;
 

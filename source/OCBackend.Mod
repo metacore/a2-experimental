@@ -57,6 +57,11 @@ TYPE
 			ASSERT(x # NIL);
 			RETURN NIL;
 		END Module;
+		
+		(* method called after code generation *)
+		PROCEDURE Finalize*;
+		BEGIN
+		END Finalize;
 
 		PROCEDURE DefineOptions*(options: Options.Options);
 		END DefineOptions;

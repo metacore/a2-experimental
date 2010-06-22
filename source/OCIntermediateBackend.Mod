@@ -300,9 +300,6 @@ TYPE
 		PROCEDURE DataflowBody(x: SyntaxTree.Body);
 		BEGIN
 			implementationVisitor.VisitStatementBlock(x);
-			IF ~backend.dataflowSpecification.Emit() THEN
-				Error(x.position,"could not emit backend specification");
-			END;
 		END DataflowBody;
 
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
@@ -352,14 +349,14 @@ TYPE
 					RETURN
 				ELSIF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
 					DataflowBody(scope.body);
-					RETURN				
+					RETURN
 				ELSE
-					AddBodyCallStub(x);
+					AddBodyCallStub(x,Sections.InitCodeSection);
 					ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
 				END;
 			ELSIF (scope.outerScope IS SyntaxTree.ActorScope) & (x = scope.outerScope(SyntaxTree.ActorScope).bodyProcedure) THEN
 				inline := FALSE;
-				AddBodyCallStub(x);
+				AddBodyCallStub(x,Sections.InitCode2Section);
 				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
 			ELSE
 				inline := FALSE;
@@ -453,7 +450,7 @@ TYPE
 			currentScope := prevScope;
 		END Procedure;
 
-		PROCEDURE AddBodyCallStub(bodyProcedure: SyntaxTree.Procedure); (* code that is only necessary for static linkers *)
+		PROCEDURE AddBodyCallStub(bodyProcedure: SyntaxTree.Procedure; sectionType: SHORTINT); (* code that is only necessary for static linkers *)
 		VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope; name: SyntaxTree.String;
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand;
 		BEGIN
@@ -464,7 +461,7 @@ TYPE
 			procedure.SetType(SyntaxTree.NewProcedureType(-1,bodyProcedure.scope));
 			procedure.SetAccess(SyntaxTree.Hidden);
 			Global.GetSymbolName (procedure,name);
-			ir := IntermediateCode.NewSection(module.sections,Sections.InitCodeSection,name,procedure,dump);
+			ir := IntermediateCode.NewSection(module.sections,sectionType,name,procedure,dump);
 			Global.GetSymbolName (bodyProcedure,name);
 			IntermediateCode.InitAddress(op, GetType(system,Global.Address), IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,bodyProcedure,dump) , 0);
 			ir.Emit(Call(op, 0));
@@ -781,7 +778,7 @@ TYPE
 				dump.Ln; dump.Update
 			END;
 			IF (usedRegisters[i].count < 0) THEN
-				Error("compiler implementation error: release on unused register");
+				Error(position,"compiler implementation error: release on unused register");
 				usedRegisters[i].count := 0;
 			END;
 		END ReleaseRegister;
@@ -874,7 +871,7 @@ TYPE
 						dump.Ln;
 						dump.Update;
 					END;
-					Error("register not released");
+					Error(position,"register not released");
 					usedRegisters[i].count := 0
 				END;
 			END;
@@ -1195,7 +1192,7 @@ TYPE
 			ReleaseIntermediateOperand(left); ReleaseIntermediateOperand(right);
 		END TypeTest;
 
-		PROCEDURE Error(CONST s: ARRAY OF CHAR);
+		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
 		BEGIN
 			backend.Error(module.module.sourceName,position,Diagnostics.Invalid,s);
 			IF dump # NIL THEN
@@ -1208,7 +1205,7 @@ TYPE
 		BEGIN
 			COPY(s,msg);
 			Basic.AppendNumber(msg,i);
-			Error(msg);
+			Error(position,msg);
 		END ErrorI;
 
 		PROCEDURE AddImport(CONST moduleName: ARRAY OF CHAR; VAR module: SyntaxTree.Module; force: BOOLEAN): BOOLEAN;
@@ -1229,7 +1226,7 @@ TYPE
 							s := "Module ";
 							Strings.Append(s,moduleName);
 							Strings.Append(s," cannot be imported.");
-							Error(s);
+							Error(position,s);
 						END;
 						RETURN FALSE
 					END;
@@ -1263,7 +1260,7 @@ TYPE
 					Strings.Append(s,".");
 					Strings.Append(s,procedureName);
 					Strings.Append(s," not present");
-					Error(s);
+					Error(position,s);
 				ELSE
 					IF x.op2.mode # IntermediateCode.Undefined THEN
 						Emit(Push(x.op2));
@@ -1368,7 +1365,7 @@ TYPE
 					Strings.Append(s,".");
 					Strings.Append(s,procedureName);
 					Strings.Append(s," not present");
-					Error(s);
+					Error(position,s);
 					RETURN FALSE
 				ELSE
 					RETURN TRUE
@@ -1392,7 +1389,7 @@ TYPE
 					Strings.Append(s,".");
 					Strings.Append(s,typeName);
 					Strings.Append(s," not present");
-					Error(s);
+					Error(position,s);
 				END;
 			ELSE symbol := NIL;
 			END;
@@ -2169,7 +2166,7 @@ TYPE
 					Strings.Append(s,".");
 					Strings.Append(s,procedureName);
 					Strings.Append(s," not present");
-					Error(s);
+					Error(position,s);
 				ELSE
 					(* push address of temporary variable *)
 					Symbol(variable,destOperand);
@@ -3004,7 +3001,7 @@ TYPE
 					Strings.Append(s,".");
 					Strings.Append(s,procedureName);
 					Strings.Append(s," not present");
-					Error(s);
+					Error(position,s);
 					RETURN FALSE
 				ELSE
 					RETURN TRUE
@@ -3535,7 +3532,7 @@ TYPE
 		staticLength: LONGINT; itype: IntermediateCode.Type;
 		convert,isTensor: BOOLEAN;
 		flags: SET;
-		core: Dataflow.Core;
+		core,core1,core2: Dataflow.Core;
 		formalPort: SyntaxTree.Port;
 		port,port1,port2: Dataflow.Port;
 		channel: Dataflow.Channel;
@@ -4237,15 +4234,12 @@ TYPE
 					IF type.typeDeclaration # NIL THEN
 						Global.GetSymbolName(type.typeDeclaration,name1)
 					ELSE
-						ASSERT(type(SyntaxTree.ActorType).actorScope = moduleScope);
-						Global.GetSymbolName(module.module,name1);
+						ASSERT(type(SyntaxTree.ActorType).actorScope IS SyntaxTree.ModuleScope);
+						Global.GetSymbolName(type(SyntaxTree.ActorType).actorScope.ownerModule,name1);
 					END;
 					core := backend.dataflowSpecification.NewCore(name,name1);
 
 					AddModules(core,type(SyntaxTree.ActorType).actorScope.ownerModule);
-					IF ~core.Link(backend.diagnostics, Compiler.Info IN backend.flags) THEN
-						Error("could not link");
-					END;
 
 					formalPort := type(SyntaxTree.ActorType).firstPort;
 					WHILE formalPort # NIL DO
@@ -4387,17 +4381,22 @@ TYPE
 				p0(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
 				p1(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
 				p0(SyntaxTree.SymbolDesignator).symbol.name.GetString(name);
-				Strings.Append(name1,"."); Strings.Append(name1,name);
+				core1 := Dataflow.FindCore(backend.dataflowSpecification.cores,name1);
+				IF core1 = NIL THEN Error(p0.position,"core not allocated")
+				ELSE
+					Strings.Append(name1,"."); Strings.Append(name1,name);
+					port1 := Dataflow.FindPort(core1.ports,name1);
+					IF port1 = NIL THEN Error(p0.position,"outport not available") END;
+				END;
 				p1(SyntaxTree.SymbolDesignator).symbol.name.GetString(name);
-				Strings.Append(name2,"."); Strings.Append(name2,name);
-				port1 := backend.dataflowSpecification.ThisPort(name1);
-				port2 := backend.dataflowSpecification.ThisPort(name2);
-				IF port1 = NIL THEN
-					Error("outport not set ");
+				core2 := Dataflow.FindCore(backend.dataflowSpecification.cores,name2);
+				IF core2 = NIL THEN Error(p1.position,"core not allocated")
+				ELSE
+					Strings.Append(name2,"."); Strings.Append(name2,name);
+					port2 := Dataflow.FindPort(core2.ports,name2);
+					IF port2 = NIL THEN Error(p1.position,"inport not available") END;
 				END;
-				IF port2 = NIL THEN
-					Error("inport not set");
-				END;
+
 				IF (port1#NIL) & (port2#NIL) THEN
 					channel := backend.dataflowSpecification.NewChannel(port1,port2);
 				END;
@@ -4418,7 +4417,7 @@ TYPE
 				Emit(Push(IntermediateCode.Immediate(addressType,size)));
 				CallThis("Dataflow","Receive");
 			ELSE (* function not yet implemented *)
-				Error("not yet implemented");
+				Error(position,"not yet implemented");
 			END;
 			destination := dest;
 			IF Trace THEN TraceExit("VisitBuiltinCallDesignator") END;
@@ -5000,7 +4999,7 @@ TYPE
 					Strings.Append(s,".");
 					Strings.Append(s,procedureName);
 					Strings.Append(s," not present");
-					Error(s);
+					Error(position,s);
 				ELSE
 					parameter := SyntaxTree.NewParameter(left.position,procedure.type(SyntaxTree.ProcedureType),SyntaxTree.NewIdentifier(0,"temp"), SyntaxTree.VarParameter);
 					parameter.SetType(leftType);
@@ -5683,6 +5682,7 @@ TYPE
 				END
 			END;
 
+
 			RETURN module
 		END Module;
 
@@ -5709,6 +5709,18 @@ TYPE
 			END;
 		END GetOptions;
 
+		PROCEDURE Finalize*;
+		BEGIN
+			Finalize^;
+			IF dataflowSpecification.cores.first = NIL THEN (* nothing defined *)
+			ELSIF ~dataflowSpecification.Link(Compiler.Info IN flags) THEN
+				Error("", Diagnostics.Invalid, Diagnostics.Invalid,"could not link");
+			ELSIF ~dataflowSpecification.Emit() THEN
+				Error("",Diagnostics.Invalid,Diagnostics.Invalid,"could not emit backend specification");
+			END;
+
+		END Finalize;
+
 		PROCEDURE SetRuntimeModuleName*(CONST name: ARRAY OF CHAR);
 		BEGIN
 			COPY(name, runtimeModuleName);
@@ -5717,6 +5729,7 @@ TYPE
 		PROCEDURE DefaultSymbolFileFormat(): Formats.SymbolFileFormat;
 		BEGIN RETURN SymbolFileFormat.Get()
 		END DefaultSymbolFileFormat;
+
 
 	END IntermediateBackend;
 

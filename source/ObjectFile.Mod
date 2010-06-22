@@ -10,9 +10,10 @@ CONST
 	(* Section types *)
 	Code* = 0;
 	InitCode* = 1;
-	BodyCode* = 2;
-	Data* = 3;
-	Const* = 4;
+	InitCode2*= 2;
+	BodyCode* = 3;
+	Data* = 4;
+	Const* = 5;
 
 	Aligned=0;
 	Fixed=1;
@@ -74,12 +75,12 @@ TYPE
 	END;
 
 VAR
-	types: ARRAY 5 OF ARRAY 10 OF CHAR;
+	types: ARRAY 6 OF ARRAY 10 OF CHAR;
 	modes: ARRAY 2 OF ARRAY 4 OF CHAR;
 	relocatabilities: ARRAY 2 OF ARRAY 8 OF CHAR;
 
 PROCEDURE IsCode* (type: SectionType): BOOLEAN;
-BEGIN RETURN (type = Code) OR (type = InitCode) OR (type = BodyCode);
+BEGIN RETURN (type >= Code) & (type <=  BodyCode);
 END IsCode;
 
 PROCEDURE Matches*(CONST this, that: Identifier): BOOLEAN;
@@ -270,6 +271,7 @@ END ReadSection;
 BEGIN
 	types[Code] := "code";
 	types[InitCode] := "initcode";
+	types[InitCode2] := "initcode2";
 	types[BodyCode] := "bodycode";
 	types[Data] := "data";
 	types[Const] := "const";
