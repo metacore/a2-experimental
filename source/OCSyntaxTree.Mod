@@ -3030,12 +3030,15 @@ TYPE
 		VAR
 		ownerActor-: ActorType;
 		bodyProcedure-: Procedure;
+		firstImport, lastImport: Import; numberImports: LONGINT;
 
 		PROCEDURE & InitActorScope(outer: Scope);
 		BEGIN
 			InitScope(outer);
 			ownerActor := NIL;
 			bodyProcedure := NIL;
+			numberImports := 0;
+			firstImport := NIL; lastImport := NIL;
 		END InitActorScope;
 
 		PROCEDURE SetOwnerActor*(owner: ActorType);
@@ -3043,11 +3046,30 @@ TYPE
 			ownerActor := owner
 		END SetOwnerActor;
 
-
 		PROCEDURE SetBodyProcedure*(bodyProcedure: Procedure);
 		BEGIN
 			SELF.bodyProcedure := bodyProcedure;
 		END SetBodyProcedure;
+
+		PROCEDURE FindImport*(identifier: Identifier): Import;
+		VAR p: Import;
+		BEGIN
+			p := firstImport;
+			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextImport END; (* finds imports and re-imports! *)
+			RETURN p;
+		END FindImport;
+
+		PROCEDURE AddImport*(module: Module);
+		VAR import: Import;
+		BEGIN
+			IF FindImport(module.name) = NIL THEN
+				import := NewImport(0,module.name, module.name, TRUE);
+				IF lastImport= NIL THEN firstImport:= import ELSE lastImport.nextImport := import END;
+				lastImport := import;
+			END;
+			INC(numberImports);
+		END AddImport;
+
 
 	END ActorScope;
 

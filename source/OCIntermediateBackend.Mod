@@ -266,6 +266,7 @@ TYPE
 			variable: SyntaxTree.Variable;
 			prevScope: SyntaxTree.Scope;  typeDeclaration: SyntaxTree.TypeDeclaration;
 		BEGIN
+			IF x IS SyntaxTree.ActorScope THEN implementationVisitor.currentActorScope := x(SyntaxTree.ActorScope) END;
 			prevScope := currentScope;
 			currentScope := x;
 			(* constants treated in implementation visitor  *)
@@ -294,6 +295,7 @@ TYPE
 				constant := constant.nextConstant;
 			END;
 
+			IF x IS SyntaxTree.ActorScope THEN implementationVisitor.currentActorScope := NIL END;
 			currentScope := prevScope;
 		END Scope;
 
@@ -562,6 +564,7 @@ TYPE
 		emitLabels: BOOLEAN;
 		runtimeModuleName : SyntaxTree.String;
 		newObjectFile: BOOLEAN;
+		currentActorScope: SyntaxTree.ActorScope;
 
 		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
@@ -601,6 +604,7 @@ TYPE
 			IntermediateCode.InitImmediate(true,bool,1);
 
 			SELF.newObjectFile := newObjectFile;
+			currentActorScope := NIL;
 		END Init;
 
 		PROCEDURE TraceEnter(CONST s: ARRAY OF CHAR);
@@ -1396,6 +1400,9 @@ TYPE
 			IF importedModule = moduleScope.ownerModule THEN
 				source := IntermediateCode.NewSection(module.sections, Sections.ConstSection, name, symbol, commentPrintout # NIL);
 			ELSE
+				IF currentActorScope # NIL THEN
+					currentActorScope.AddImport(importedModule);
+				END;
 				source := IntermediateCode.NewSection(module.importedSymbols, Sections.ConstSection, name, symbol, commentPrintout # NIL);
 			END;
 			RETURN source
@@ -1412,6 +1419,11 @@ TYPE
 				ReleaseOperand(result);
 			ELSE (* only static linking possible *)
 				COPY(moduleName, name); Strings.Append(name,"."); Strings.Append(name,procedureName);
+
+				IF currentActorScope # NIL THEN
+					(*currentActorScope.AddImport(importedModule);*)
+				END;
+
 				source := IntermediateCode.NewSection(module.importedSymbols, Sections.CodeSection,name, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(reg, addressType, source , 0);
 				Emit(Call(reg, 0));
@@ -1428,6 +1440,10 @@ TYPE
 				ReleaseOperand(result);
 			ELSE (* only static linking possible *)
 				COPY(altModuleName, name); Strings.Append(name,"."); Strings.Append(name,altProcedureName);
+				IF currentActorScope # NIL THEN
+					(* currentActorScope.AddImport(importedModule);*)
+				END;
+
 				source := IntermediateCode.NewSection(module.importedSymbols, Sections.CodeSection,name, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(reg, addressType, source , 0);
 				Emit(Call(reg, 0));
@@ -2922,6 +2938,10 @@ TYPE
 						CheckTypeDeclaration(SELF, module,x,commentPrintout # NIL, newObjectFile);
 						source := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,td,commentPrintout # NIL);
 					ELSE
+						IF currentActorScope # NIL THEN
+							currentActorScope.AddImport(td.scope.ownerModule);
+						END;
+
 						source := IntermediateCode.NewSection(module.importedSymbols,Sections.ConstSection,name,td,commentPrintout # NIL);
 					END;
 					offset := ToMemoryUnits(system,(1+x(SyntaxTree.RecordType).recordScope.numberMethods+16+1)*system.addressSize);
@@ -3523,7 +3543,7 @@ TYPE
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR p0,p1,p2,parameter: SyntaxTree.Expression; len,val: LONGINT; l,r: Operand; res,adr,reg: IntermediateCode.Operand; type: SyntaxTree.Type;
 		constructor: SyntaxTree.Procedure; s0,s1,s2: Operand; hint: HUGEINT;
-		i: LONGINT; formalParameter: SyntaxTree.Parameter;
+		i,j: LONGINT; formalParameter: SyntaxTree.Parameter;
 		tmp:IntermediateCode.Operand;
 		size: LONGINT; dim,openDim: LONGINT; pointer: IntermediateCode.Operand; t,t0,t1,t2: SyntaxTree.Type; trueL,falseL,ignore: Label;
 		exit,else,end: Label; procedureType: SyntaxTree.ProcedureType;
@@ -3917,6 +3937,9 @@ TYPE
 						Global.GetSymbolName(constructor,name);
 						ASSERT(~constructor.HasFlag(SyntaxTree.InlineFlag));
 						IF constructor.scope.ownerModule # module.module THEN
+							IF currentActorScope # NIL THEN
+								currentActorScope.AddImport(constructor.scope.ownerModule);
+							END;
 							symbol := IntermediateCode.NewSection(module.importedSymbols,Sections.CodeSection,name,constructor,commentPrintout # NIL);
 						ELSE
 							symbol := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,constructor,commentPrintout # NIL);
@@ -4239,9 +4262,9 @@ TYPE
 					END;
 					core := backend.dataflowSpecification.NewCore(name,name1);
 
-					AddModules(core,type(SyntaxTree.ActorType).actorScope.ownerModule);
+					AddModules(core,type(SyntaxTree.ActorType).actorScope, type(SyntaxTree.ActorType).actorScope.ownerModule);
 
-					formalPort := type(SyntaxTree.ActorType).firstPort;
+					formalPort := type(SyntaxTree.ActorType).firstPort; j := 0;
 					WHILE formalPort # NIL DO
 						COPY(name,name2);
 						Strings.Append(name2,".");
@@ -4253,8 +4276,9 @@ TYPE
 							i := Dataflow.Out;
 						ELSE HALT(100);
 						END;
-						port := core.NewPort(name2,i,0); (*! address!! *)
+						port := core.NewPort(name2,i,backend.dataflowSpecification.GetPortAddress(i,j)); (*! address!! *)
 						formalPort := formalPort.nextPort;
+						INC(j);
 					END;
 
 
@@ -4708,6 +4732,9 @@ TYPE
 				InitOperand(result,ModeReference);
 				Global.GetSymbolName(x,name);
 				(*! check for new object file, correct? *)
+				IF currentActorScope # NIL THEN
+					currentActorScope.AddImport(x.scope.ownerModule);
+				END;
 				symbol := IntermediateCode.NewSection(module.importedSymbols,Sections.VarSection,name,x,commentPrintout # NIL);
 				IntermediateCode.InitAddress(result.op, addressType, symbol, 0)
 			ELSE (* field, left designator must have been emitted *)
@@ -4913,6 +4940,9 @@ TYPE
 					source.Emit(Asm(x.procedureScope.body.code.sourceCode,x.position));
 				END;
 			ELSE
+				IF currentActorScope # NIL THEN
+					currentActorScope.AddImport(x.scope.ownerModule);
+				END;
 				source := IntermediateCode.NewSection(module.importedSymbols,sectionType,name,x,commentPrintout # NIL);
 			END;
 			IntermediateCode.InitAddress(reg, addressType, source , 0);
@@ -5580,6 +5610,7 @@ TYPE
 
 			prevScope := currentScope;
 			currentScope := scope;
+
 			procedureType := scope(SyntaxTree.ProcedureScope).ownerProcedure.type(SyntaxTree.ProcedureType);
 			IF newObjectFile & moduleBody & ~suppressModuleRegistration THEN
 				PushSelfPointer();
@@ -5759,12 +5790,13 @@ TYPE
 		RETURN specification
 	END GetDataflowSpecification;
 
-	PROCEDURE AddModules(core: Dataflow.Core; x: SyntaxTree.Module);
+	PROCEDURE AddModules(core: Dataflow.Core; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
 
 		PROCEDURE AddImport(x: SyntaxTree.Module);
 		VAR module: Dataflow.Module; VAR name: SyntaxTree.String;
 		BEGIN
 			IF ~Global.IsSystemModule(x) THEN
+				IF (scope IS SyntaxTree.ActorScope) & (scope(SyntaxTree.ActorScope).FindImport(x.name)=NIL) THEN RETURN END;
 				x.name.GetString(name);
 				 IF (Dataflow.FindModule(core.modules,name) = NIL) THEN
 					module := core.NewModule(name,"");
@@ -6445,6 +6477,7 @@ TYPE
 						section := module.sections.FindBySymbol(type.typeDeclaration);
 					ELSE
 						Global.GetSymbolName(typeDeclaration,name);
+
 						section := IntermediateCode.NewSection(module.importedSymbols,Sections.ConstSection,name,typeDeclaration, source.comments # NIL);
 					END;
 					MetaSymbol(module,source,section, 0, ToMemoryUnits(module.system,(1 + type(SyntaxTree.RecordType).recordScope.numberMethods+16+1)*module.system.addressSize));
