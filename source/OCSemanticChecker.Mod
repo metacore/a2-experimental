@@ -4517,7 +4517,8 @@ TYPE
 						END;
 					END;
 					IF module # NIL THEN (* enter reimports into list of imported modules *)
-						IF (SELF.module.type # SyntaxTree.dataflowType) & (module.type IS SyntaxTree.ActorType) THEN
+						IF SELF.module = NIL THEN (* happens in recursive imports *)
+						ELSIF (SELF.module.type # SyntaxTree.dataflowType) & (module.type IS SyntaxTree.ActorType) THEN
 							Error(x.position, Diagnostics.Invalid,"forbidden actor type import");
 						ELSIF (SELF.module.type = SyntaxTree.dataflowType) & ~(module.type IS SyntaxTree.ActorType) THEN
 							Error(x.position, Diagnostics.Invalid, "forbidden import of non-actor type");
