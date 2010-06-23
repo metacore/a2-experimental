@@ -57,11 +57,17 @@ TYPE
 			ASSERT(x # NIL);
 			RETURN NIL;
 		END Module;
-		
+
 		(* method called after code generation *)
 		PROCEDURE Finalize*;
 		BEGIN
 		END Finalize;
+
+		(* method to query the instruction set description *)
+		PROCEDURE GetDescription*(VAR instructionSet: ARRAY OF CHAR);
+		BEGIN instructionSet := "undefined";
+		END GetDescription;
+
 
 		PROCEDURE DefineOptions*(options: Options.Options);
 		END DefineOptions;

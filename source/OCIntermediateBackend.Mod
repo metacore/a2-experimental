@@ -5681,12 +5681,13 @@ TYPE
 			declarationVisitor: DeclarationVisitor;
 			implementationVisitor: ImplementationVisitor;
 			module: Sections.Module;
-			name: SyntaxTree.String;
+			name, instructionSet: SyntaxTree.String;
 		BEGIN
 			ResetError;
 			Global.GetSymbolName(x,name);
-			IF dataflowSpecification = NIL THEN NEW(dataflowSpecification,name,diagnostics) (* default specification *)
-			ELSE dataflowSpecification.Init(name,diagnostics);
+			GetDescription(instructionSet);
+			IF dataflowSpecification = NIL THEN NEW(dataflowSpecification,name,instructionSet,diagnostics) (* default specification *)
+			ELSE dataflowSpecification.Init(name,instructionSet,diagnostics);
 			END;
 			NEW(module,x,system); (* backend structures *)
 			NEW(implementationVisitor,system,checker,Supported, Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
