@@ -4430,7 +4430,10 @@ TYPE
 				size := ToMemoryUnits(system,system.SizeOf(p1.type));
 				Emit(Push(s0.op));
 				Emit(Push(s1.op));
+				(*
 				Emit(Push(IntermediateCode.Immediate(addressType,size)));
+				*)
+				IF size # 1 THEN Error(p1.position,"send not implemented for complex data types") END;
 				CallThis("Dataflow","Send");
 			|Global.Receive:
 				Evaluate(p0,s0);
@@ -4438,7 +4441,10 @@ TYPE
 				size := ToMemoryUnits(system,system.SizeOf(p1.type));
 				Emit(Push(s0.op));
 				Emit(Push(s1.op));
+				(*
 				Emit(Push(IntermediateCode.Immediate(addressType,size)));
+				*)
+				IF size # 1 THEN Error(p1.position,"receive not implemented for complex data types") END;
 				CallThis("Dataflow","Receive");
 			ELSE (* function not yet implemented *)
 				Error(position,"not yet implemented");

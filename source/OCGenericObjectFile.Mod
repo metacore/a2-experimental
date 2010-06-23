@@ -57,6 +57,8 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			IF ~(module IS Sections.Module) THEN
 				diagnostics.Error (module.module.sourceName, Diagnostics.Invalid, Diagnostics.Invalid, "generated module format does not match object file format");
 				RETURN FALSE;
+			ELSIF (module.module.type = SyntaxTree.dataflowType) THEN
+				RETURN TRUE; (* dataflow module does not contain executable code *)
 			END;
 
 			Global.ModuleFileName (module.module.name, module.module.context, moduleName);
