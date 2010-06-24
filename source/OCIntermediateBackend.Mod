@@ -5785,13 +5785,14 @@ TYPE
 		VAR module: Dataflow.Module; VAR name: SyntaxTree.String; device: Dataflow.Device;
 		BEGIN
 			IF ~Global.IsSystemModule(x) THEN
+				x.name.GetString(name);
 				IF ~(scope IS SyntaxTree.ActorScope) OR (scope(SyntaxTree.ActorScope).FindImport(x.name)#NIL) THEN
 					device := Dataflow.FindDevice(core.specification.supportedDevices,name);
 					IF device # NIL THEN
 						device := core.NewDevice(device.name,device.adr)
 					END;
 				END;
-				x.name.GetString(name);
+
 				 IF (Dataflow.FindModule(core.modules,name) = NIL) THEN
 					module := core.NewModule(name,"");
 				END;
