@@ -28,7 +28,7 @@ TYPE
 
 			IF (module # NIL) & ~(SyntaxTree.Resolved IN module.state) THEN
 				(*! should rather be done by importer *)
-				checker := SemanticChecker.NewChecker(NIL,FALSE,system,SELF,importCache);
+				checker := SemanticChecker.NewChecker(NIL,FALSE,system,SELF,NIL,importCache);
 				checker.Module(module); (* semantic check *)
 				IF checker.error THEN module := NIL END;
 			END;
@@ -52,7 +52,7 @@ TYPE
 			ELSE
 
 				flags := {};
-				
+
 				InterfaceComparison.CompareThis(module,SELF,diagnostics,importCache,flags);
 
 				IF noRedefinition OR noModification THEN

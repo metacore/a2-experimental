@@ -5,7 +5,7 @@ IMPORT
 	Scanner := OCScanner, Parser := OCParser,
 	SemanticChecker := OCSemanticChecker, SyntaxTree := OCSyntaxTree, Formats := OCFormats,  WMUtilities, D := Debugging,
 	Streams, TextUtilities, Commands,Diagnostics, Options, Kernel, Printout := OCPrintout, Backend := OCBackend,Strings, Global := OCGlobal
-	,Texts,CompilerInterface;
+	,Texts,CompilerInterface, Dataflow := OCDataflow;
 
 CONST
 	(* flags *)
@@ -116,6 +116,28 @@ TYPE
 		RETURN backend
 	END GetBackend;
 
+	PROCEDURE GetDataflowSpecification(CONST name: ARRAY OF CHAR): Dataflow.Specification;
+	VAR
+		procname: ARRAY 256 OF CHAR;
+		factory: PROCEDURE (): Dataflow.Specification;
+		specification: Dataflow.Specification;
+	BEGIN
+		specification := NIL;
+		IF Strings.Length(name) > 0 THEN
+			GETPROCEDURE(name,"Get", factory); (* try long name for example -G=OCBinaryObjectFile *)
+			IF factory = NIL THEN (* try short name for example -G=Binary*)
+				procname := "OC";
+				Strings.Append(procname, name);
+				GETPROCEDURE(procname,"Get", factory);
+			END;
+			IF factory # NIL THEN
+				specification := factory();
+				ASSERT(specification # NIL);
+			END;
+		END;
+		RETURN specification
+	END GetDataflowSpecification;
+
 	PROCEDURE Module*(	CONST source: ARRAY OF CHAR; (* source file name, for debugging and better error reports *)
 								reader: Streams.Reader; (* reader to read from *)
 								position: LONGINT; (* starting position in reader *)
@@ -124,6 +146,7 @@ TYPE
 								backend: Backend.Backend; (* backend: code generator *)
 								symbolFileFormat: Formats.SymbolFileFormat;
 								objectFileFormat: Formats.ObjectFileFormat;
+								dataflowSpecification: Dataflow.Specification;
 								log: Streams.Writer;
 								VAR importCache: SyntaxTree.ModuleScope;
 								findPC: LONGINT (* locate a source code position providing a binary module offset *)
@@ -170,6 +193,7 @@ TYPE
 			Global.NewBuiltin(Global.Connect,"CONNECT",system.globalScope,{});
 			Global.NewBuiltin(Global.Receive,"RECEIVE",system.globalScope,{});
 			Global.NewBuiltin(Global.Send,"SEND",system.globalScope,{});
+			Global.NewBuiltin(Global.systemHardwareAddress,"HWADR",system.systemScope,{});
 		END;
 		parser := Parser.NewParser( scanner, diagnostics );
 		IF DataFlow IN flags THEN
@@ -189,7 +213,7 @@ TYPE
 				IF (symbolFileFormat # NIL) THEN
 					symbolFileFormat.Initialize(diagnostics,system);
 				END;
-				checker := SemanticChecker.NewChecker(diagnostics,Info IN flags,system,symbolFileFormat,importCache);
+				checker := SemanticChecker.NewChecker(diagnostics,Info IN flags,system,symbolFileFormat,dataflowSpecification,importCache);
 				checker.Module(module);
 				IF checker.error THEN
 					FinalMessage(" could not be compiled (checker errors).");
@@ -201,7 +225,7 @@ TYPE
 
 				(** third phase: generate code, can consist of sub-phases (such as intermediate backend / hardware backend) **)
 				IF backend # NIL THEN
-					backend.Initialize(diagnostics, flags, checker, system);
+					backend.Initialize(diagnostics, flags, checker, system, dataflowSpecification);
 					generatedModule := backend.Module(module);
 					IF backend.error THEN
 						FinalMessage(" could not be compiled (backend errors).");
@@ -229,12 +253,12 @@ TYPE
 					END;
 				END;
 
-				IF backend # NIL THEN
-					backend.Finalize();
-					IF backend.error THEN
-						FinalMessage(" could not postprocess (backend error).");
-						RETURN FALSE
-					END;
+				IF dataflowSpecification = NIL THEN (* no dataflow *)
+				ELSIF dataflowSpecification.cores.first = NIL THEN (* nothing defined *)
+				ELSIF ~dataflowSpecification.Link(Info IN flags) THEN
+					FinalMessage(" could not link"); RETURN FALSE
+				ELSIF ~dataflowSpecification.Emit() THEN
+					FinalMessage(" could not emit backend specification"); RETURN FALSE;
 				END;
 
 			END;
@@ -264,6 +288,7 @@ TYPE
 		VAR backend: Backend.Backend;
 		VAR symbolFile: Formats.SymbolFileFormat;
 		VAR objectFile: Formats.ObjectFileFormat;
+		VAR dataflowSpecification: Dataflow.Specification;
 		VAR findPC: LONGINT
 		): BOOLEAN;
 	VAR options: Options.Options;  name: ARRAY 256 OF CHAR; result: BOOLEAN; position: LONGINT;
@@ -291,6 +316,7 @@ TYPE
 		options.Add(0X, "objectFile", Options.String);
 		options.Add("d","dataflow", Options.Flag);
 		options.Add("w","warnings", Options.Flag);
+		options.Add(0X,"dataflowSpecification", Options.String);
 
 		position := input.Pos();
 		parsed := options.Parse(input,NIL);
@@ -305,7 +331,6 @@ TYPE
 			END;
 		ELSE backend := GetBackend(DefaultBackend)
 		END;
-
 
 		IF options.GetString("objectFile",name) THEN
 			IF name = "" THEN objectFile := NIL
@@ -332,6 +357,12 @@ TYPE
 			symbolFile := objectFile.DefaultSymbolFileFormat();
 		END;
 
+		IF options.GetString("dataflowSpecification",name) THEN
+			dataflowSpecification := GetDataflowSpecification(name);
+		ELSIF options.GetFlag("dataflow") THEN
+			NEW(dataflowSpecification,"","",diagnostics);
+		END;
+
 		IF backend # NIL THEN backend.DefineOptions (options); INCL(flags,Check); END;
 		IF symbolFile # NIL THEN symbolFile.DefineOptions(options); INCL(flags,Check) END;
 		IF objectFile # NIL THEN objectFile.DefineOptions(options); INCL(flags,Check) END;
@@ -349,11 +380,11 @@ TYPE
 			IF options.GetFlag("traceError") THEN INCL(flags, TraceError) END;
 			IF options.GetFlag("info") THEN INCL(flags,Info) END;
 			IF options.GetInteger("findPC",findPC) THEN INCL(flags,FindPC) END;
-			IF options.GetFlag("dataflow") THEN INCL(flags, DataFlow) END;
 			IF options.GetFlag("warnings") THEN INCL(flags, Warnings) END;
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
 			IF objectFile # NIL THEN objectFile.GetOptions(options) END;
+			IF dataflowSpecification # NIL THEN INCL(flags, DataFlow) END;
 		END;
 		RETURN result
 	END GetOptions;
@@ -426,12 +457,13 @@ TYPE
 		importCache: SyntaxTree.ModuleScope;
 		symbolFileFormat: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
+		dataflowSpecification: Dataflow.Specification;
 		findPC: LONGINT;
 	BEGIN
 		error := FALSE;
 
 		NEW(diagnostics, context.out);
-		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,findPC) THEN
+		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,dataflowSpecification,findPC) THEN
 			IF TraceError IN flags THEN diagnostics.TraceError END;
 
 			IF (Print IN flags) THEN
@@ -452,7 +484,7 @@ TYPE
 				IF reader = NIL THEN
 					diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 				ELSE
-					error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,log, importCache,findPC);
+					error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,dataflowSpecification, log, importCache,findPC);
 				END;
 				context.out.Update;
 			END;
@@ -471,6 +503,7 @@ TYPE
 		importCache: SyntaxTree.ModuleScope;
 		symbolFile: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
+		dataflowSpecification: Dataflow.Specification;
 		findPC: LONGINT; flags: SET;
 		reader: Streams.Reader;
 	BEGIN
@@ -480,13 +513,12 @@ TYPE
 		END;
 		NEW(stringReader,LEN(opt));
 		stringReader.Set(opt);
-		IF GetOptions(stringReader,log,diagnostics,flags,backend,symbolFile,objectFile,findPC) THEN
+		IF GetOptions(stringReader,log,diagnostics,flags,backend,symbolFile,objectFile,dataflowSpecification, findPC) THEN
 			reader := GetTextReader(t,pos);
 			IF pc > 0 THEN INCL(flags,FindPC) END;
-			error := ~Module(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,log,importCache,pc)
+			error := ~Module(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,dataflowSpecification, log,importCache,pc)
 		END;
 	END CompileText;
-
 
 	PROCEDURE Assert(b: BOOLEAN; CONST reason: ARRAY OF CHAR);
 	BEGIN

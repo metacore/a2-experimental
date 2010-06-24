@@ -4,7 +4,7 @@ IMPORT
 	Scanner := OCScanner, SyntaxTree := OCSyntaxTree, Global := OCGlobal, Backend := OCBackend, Sections := OCSections,
 	IntermediateCode := OCIntermediateCode, IntermediateBackend := OCIntermediateBackend, BinaryCode := OCBinaryCode,
 	InstructionSet := OCAMD64InstructionSet, Assembler := OCAMD64Assembler, SemanticChecker := OCSemanticChecker, Formats := OCFormats,
-	Diagnostics, Streams, Options, WMUtilities, Strings, ObjectFileFormat := OCBinaryObjectFile, SymbolFileFormat := OCBinarySymbolFile
+	Diagnostics, Streams, Options, WMUtilities, Strings, ObjectFileFormat := OCBinaryObjectFile, SymbolFileFormat := OCBinarySymbolFile, Dataflow := OCDataflow
 	;
 
 CONST
@@ -2532,9 +2532,9 @@ TYPE
 			InitIntermediateBackend;
 		END InitBackendAMD64;
 
-		PROCEDURE Initialize(diagnostics: Diagnostics.Diagnostics; flags: SET; checker: SemanticChecker.Checker; system: Global.System);
+		PROCEDURE Initialize(diagnostics: Diagnostics.Diagnostics; flags: SET; checker: SemanticChecker.Checker; system: Global.System; dataflow: Dataflow.Specification);
 		BEGIN
-			Initialize^(diagnostics,flags,checker,system); NEW(cg, runtimeModuleName, diagnostics);
+			Initialize^(diagnostics,flags,checker,system,dataflow); NEW(cg, runtimeModuleName, diagnostics);
 		END Initialize;
 
 		PROCEDURE GetSystem(): Global.System;

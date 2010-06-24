@@ -2,7 +2,7 @@ MODULE OCSemanticChecker; (* AUTHOR "fof & fn"; PURPOSE "Oberon Compiler: Semant
 (* (c) fof ETHZ 2009 *)
 
 IMPORT D := Debugging, Basic := OCBasic, Scanner := OCScanner, SyntaxTree := OCSyntaxTree,
-Diagnostics, Global := OCGlobal, Printout:= OCPrintout, Formats := OCFormats, SYSTEM, Machine,Strings;
+Diagnostics, Global := OCGlobal, Printout:= OCPrintout, Formats := OCFormats, Dataflow := OCDataflow, SYSTEM, Machine,Strings;
 
 CONST
 	Trace = FALSE;
@@ -91,12 +91,14 @@ TYPE
 		flagExpressions: ARRAY 32 OF SyntaxTree.Expression;
 		dataflowStatement: BOOLEAN;
 		inDataflowBody: BOOLEAN;
+		dataflowSpecification: Dataflow.Specification;
 
-		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; VAR importCache: SyntaxTree.ModuleScope);
+		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope);
 		BEGIN
 			SELF.diagnostics := diagnostics;
 			SELF.system := system;
 			SELF.symbolFileFormat := symbolFileFormat;
+			SELF.dataflowSpecification := dataflowSpecification;
 			error := FALSE;
 			NEW(typeFixes);
 			NEW(pointerFixes);
@@ -3014,6 +3016,20 @@ TYPE
 			RETURN result;
 		END CheckCharacterValue;
 
+		PROCEDURE CheckStringValue(x: SyntaxTree.Expression; VAR value: ARRAY OF CHAR): BOOLEAN;
+		VAR result: BOOLEAN;
+		BEGIN
+			result := FALSE;
+			IF x = SyntaxTree.invalidExpression THEN
+			ELSIF (x.resolved # NIL) & (x.resolved IS SyntaxTree.StringValue) THEN
+				result := TRUE;
+				COPY(x.resolved(SyntaxTree.StringValue).value,value);
+			ELSE
+				Error(x.position,Diagnostics.Invalid,"expression is not a string constant");
+			END;
+			RETURN result
+		END CheckStringValue;
+
 		PROCEDURE CheckPositiveIntegerValue(x: SyntaxTree.Expression; VAR value: LONGINT; includeZero: BOOLEAN): BOOLEAN;
 		VAR result: BOOLEAN;
 		BEGIN
@@ -3053,8 +3069,10 @@ TYPE
 			c: CHAR;
 			id: LONGINT;
 			b: BOOLEAN;
+			name: SyntaxTree.String;
 
 			mathArrayType: SyntaxTree.MathArrayType;
+			device: Dataflow.Device;
 
 			PROCEDURE Parameters(from,to: LONGINT): BOOLEAN;
 			VAR resultB: BOOLEAN;
@@ -3847,6 +3865,18 @@ TYPE
 						ELSE
 							parameter1 := NewConversion(position,parameter1,parameter0.type.resolved,NIL);
 							actualParameters.SetExpression(1,parameter1);
+						END;
+					END;
+				(* --------- HWADR --------- *)
+				ELSIF (id = Global.systemHardwareAddress) & (Parameters(1,1)) THEN
+					IF CheckStringValue(parameter0,name) THEN
+						device := Dataflow.FindDevice(dataflowSpecification.supportedDevices,name);
+						IF device = NIL THEN
+							Error(parameter0.position,Diagnostics.Invalid,"unsupported device");
+							result := SyntaxTree.invalidExpression;
+						ELSE
+							result := Global.NewIntegerValue(system,parameter0.position,device.adr);
+							type := result.type;
 						END;
 					END;
 				ELSE
@@ -6468,10 +6498,10 @@ TYPE
 	END EnterCase;
 
 	(** generate and return a new checker object, errors are entered into diagnostics **)
-	PROCEDURE NewChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; VAR importCache: SyntaxTree.ModuleScope): Checker;
+	PROCEDURE NewChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope): Checker;
 	VAR checker: Checker;
 	BEGIN
-		NEW(checker, diagnostics,verboseErrorMessage,system,symbolFileFormat,importCache);
+		NEW(checker, diagnostics,verboseErrorMessage,system,symbolFileFormat,dataflowSpecification, importCache);
 		RETURN checker
 	END NewChecker;
 

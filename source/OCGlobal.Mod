@@ -77,9 +77,10 @@ CONST
 	systemAdr*= systemTrace+1;
 	systemBit*= systemAdr+1; systemGet64*= systemBit+1; systemGet32*= systemGet64+1; systemGet16*= systemGet32+1;
 	systemGet8*= systemGet16+1; systemLsh*= systemGet8+1; systemRot*= systemLsh+1; systemVal*= systemRot+1; Conversion*= systemVal+1;
+	systemHardwareAddress*=systemVal+1;
 
 	(* from ERA *)
-	systemNull*=systemVal+1; systemXOR*=systemNull+1; systemROR*=systemXOR+1; systemProc*=systemROR+1; systemStop* = systemProc + 1; LSL*=systemStop+1; LSR*=LSL+1; ASR*=LSR+1; Flt*=ASR+1; Floor*=Flt+1; Phi*=Floor+1;
+	systemNull*=systemHardwareAddress+1; systemXOR*=systemNull+1; systemROR*=systemXOR+1; systemProc*=systemROR+1; systemStop* = systemProc + 1; LSL*=systemStop+1; LSR*=LSL+1; ASR*=LSR+1; Flt*=ASR+1; Floor*=Flt+1; Phi*=Floor+1;
 
 	end= Floor+1;
 

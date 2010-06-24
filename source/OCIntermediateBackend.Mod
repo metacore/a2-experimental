@@ -4251,6 +4251,7 @@ TYPE
 
 					SetLabel(exit);
 				ELSIF type IS SyntaxTree.ActorType THEN
+					IF backend.dataflowSpecification = NIL THEN Error(p0.position,"no dataflow specification available"); RETURN END;
 					(* generate actor by calling method on dataflow specification *)
 					p0(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
 					Global.GetSymbolName(p0(SyntaxTree.SymbolDesignator).symbol,name);
@@ -5663,7 +5664,6 @@ TYPE
 		traceString-: SyntaxTree.String;
 		runtimeModuleName-: SyntaxTree.String;
 		newObjectFile-: BOOLEAN;
-		dataflowSpecification: Dataflow.Specification;
 
 		PROCEDURE &InitIntermediateBackend*;
 		BEGIN
@@ -5686,9 +5686,7 @@ TYPE
 			ResetError;
 			Global.GetSymbolName(x,name);
 			GetDescription(instructionSet);
-			IF dataflowSpecification = NIL THEN NEW(dataflowSpecification,name,instructionSet,diagnostics) (* default specification *)
-			ELSE dataflowSpecification.Init(name,instructionSet,diagnostics);
-			END;
+			IF dataflowSpecification # NIL THEN dataflowSpecification.Init(name,instructionSet,diagnostics) END;
 			NEW(module,x,system); (* backend structures *)
 			NEW(implementationVisitor,system,checker,Supported, Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
 			NEW(declarationVisitor,system,implementationVisitor,SELF,trace);
@@ -5730,7 +5728,6 @@ TYPE
 			options.Add(0X,"trace",Options.String);
 			options.Add(0X,"runtime",Options.String);
 			options.Add(0X,"newObjectFile",Options.Flag);
-			options.Add(0X,"dataflowSpecification",Options.String);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -5742,22 +5739,7 @@ TYPE
 			IF options.GetString("runtime",name) THEN
 				runtimeModuleName := name
 			END;
-			IF options.GetString("dataflowSpecification",name) THEN
-				dataflowSpecification := GetDataflowSpecification(name)
-			END;
 		END GetOptions;
-
-		PROCEDURE Finalize*;
-		BEGIN
-			Finalize^;
-			IF dataflowSpecification.cores.first = NIL THEN (* nothing defined *)
-			ELSIF ~dataflowSpecification.Link(Compiler.Info IN flags) THEN
-				Error("", Diagnostics.Invalid, Diagnostics.Invalid,"could not link");
-			ELSIF ~dataflowSpecification.Emit() THEN
-				Error("",Diagnostics.Invalid,Diagnostics.Invalid,"could not emit backend specification");
-			END;
-
-		END Finalize;
 
 		PROCEDURE SetRuntimeModuleName*(CONST name: ARRAY OF CHAR);
 		BEGIN
@@ -5800,10 +5782,15 @@ TYPE
 	PROCEDURE AddModules(core: Dataflow.Core; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
 
 		PROCEDURE AddImport(x: SyntaxTree.Module);
-		VAR module: Dataflow.Module; VAR name: SyntaxTree.String;
+		VAR module: Dataflow.Module; VAR name: SyntaxTree.String; device: Dataflow.Device;
 		BEGIN
 			IF ~Global.IsSystemModule(x) THEN
-				IF (scope IS SyntaxTree.ActorScope) & (scope(SyntaxTree.ActorScope).FindImport(x.name)=NIL) THEN RETURN END;
+				IF ~(scope IS SyntaxTree.ActorScope) OR (scope(SyntaxTree.ActorScope).FindImport(x.name)#NIL) THEN
+					device := Dataflow.FindDevice(core.specification.supportedDevices,name);
+					IF device # NIL THEN
+						device := core.NewDevice(device.name,device.adr)
+					END;
+				END;
 				x.name.GetString(name);
 				 IF (Dataflow.FindModule(core.modules,name) = NIL) THEN
 					module := core.NewModule(name,"");

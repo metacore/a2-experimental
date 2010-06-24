@@ -1,7 +1,7 @@
 MODULE OCTest;	(** AUTHOR "negelef"; PURPOSE "OC tester"; *)
 (* (c) fof ETH Zürich, 2008 *)
 
-IMPORT TestSuite, Diagnostics, Streams, Compiler, Commands, WMUtilities, Shell, Options, Backend := OCBackend, SyntaxTree := OCSyntaxTree, Formats := OCFormats;
+IMPORT TestSuite, Diagnostics, Streams, Compiler, Commands, WMUtilities, Shell, Options, Backend := OCBackend, SyntaxTree := OCSyntaxTree, Formats := OCFormats, Dataflow := OCDataflow;
 
 TYPE
 	Command = ARRAY 256 OF CHAR;
@@ -28,7 +28,7 @@ TYPE
 			result := TestSuite.Failure;
 			IF verbose THEN log.String ("testing: "); log.String (name); log.Ln; log.Update; diagnostics := SELF.diagnostics ELSE diagnostics := NIL END;
 			importCache := NIL;
-			IF Compiler.Module (name, r, position, diagnostics, flags,backend, symbolFile,objectFile,NIL,importCache,MAX(LONGINT)) THEN
+			IF Compiler.Module (name, r, position, diagnostics, flags,backend, symbolFile,objectFile,NIL,NIL, importCache,MAX(LONGINT)) THEN
 				IF command # "" THEN
 					Commands.Call (command, {Commands.Wait}, res, msg);
 					IF res = Commands.Ok THEN
@@ -62,6 +62,7 @@ TYPE
 		optionsString: ARRAY 256 OF CHAR; arg: Streams.StringReader; flags: SET; verbose, execute: BOOLEAN; backend: Backend.Backend;
 		symbolFile: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
+		dataflowSpecification: Dataflow.Specification;
 		findPC: LONGINT;
 	BEGIN
 		IF (context.caller # NIL) & (context.caller IS Shell.Shell) THEN
@@ -81,7 +82,7 @@ TYPE
 			IF options.GetString("o",optionsString) THEN
 				NEW(arg,256);
 				arg.Set(optionsString);
-				ASSERT (Compiler.GetOptions(arg, context.error, diagnostics, flags, backend,symbolFile,objectFile,findPC));
+				ASSERT (Compiler.GetOptions(arg, context.error, diagnostics, flags, backend,symbolFile,objectFile,dataflowSpecification, findPC));
 			END;
 			IF options.GetString ("c", command) THEN END;
 		END;

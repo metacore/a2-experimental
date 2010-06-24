@@ -1,7 +1,7 @@
 MODULE OCBackend; (**  AUTHOR "kaeserm,fof"; PURPOSE "Oberon Compiler: Common backend module";  **)
 
 IMPORT
-	Diagnostics, Global := OCGlobal, Formats := OCFormats, SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Options;
+	Diagnostics, Global := OCGlobal, Formats := OCFormats, SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Dataflow := OCDataflow, Options;
 
 
 TYPE
@@ -13,6 +13,7 @@ TYPE
 		error-: BOOLEAN;
 		checker-: SemanticChecker.Checker;
 		source-: SyntaxTree.String;
+		dataflowSpecification-: Dataflow.Specification;
 
 		(* constructor *)
 		PROCEDURE & InitBackend *;
@@ -28,13 +29,14 @@ TYPE
 		END ResetError;
 
 		(* initialize backend for usage *)
-		PROCEDURE Initialize*(diagnostics: Diagnostics.Diagnostics; flags: SET; checker: SemanticChecker.Checker; system: Global.System);
+		PROCEDURE Initialize*(diagnostics: Diagnostics.Diagnostics; flags: SET; checker: SemanticChecker.Checker; system: Global.System; dataflowSpecification: Dataflow.Specification);
 		BEGIN
 			error := FALSE;
 			SELF.diagnostics := diagnostics;
 			SELF.flags := flags;
 			SELF.checker := checker;
 			SELF.system := system;
+			SELF.dataflowSpecification := dataflowSpecification;
 		END Initialize;
 
 		(* Get the system used by this backend (singleton) *)
@@ -58,16 +60,10 @@ TYPE
 			RETURN NIL;
 		END Module;
 
-		(* method called after code generation *)
-		PROCEDURE Finalize*;
-		BEGIN
-		END Finalize;
-
 		(* method to query the instruction set description *)
 		PROCEDURE GetDescription*(VAR instructionSet: ARRAY OF CHAR);
 		BEGIN instructionSet := "undefined";
 		END GetDescription;
-
 
 		PROCEDURE DefineOptions*(options: Options.Options);
 		END DefineOptions;
