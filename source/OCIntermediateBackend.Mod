@@ -232,7 +232,7 @@ TYPE
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
 		VAR name: SyntaxTree.String; irv: IntermediateCode.Section;
 		BEGIN
-			IF (currentScope IS SyntaxTree.ModuleScope) THEN
+			IF (currentScope IS SyntaxTree.ModuleScope) OR (currentScope IS SyntaxTree.ActorScope) THEN
 				(* code section for variable *)
 				Global.GetSymbolName(x,name);
 				irv := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,dump);

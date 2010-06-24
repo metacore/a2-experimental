@@ -541,6 +541,7 @@ TYPE
 				fingerprint.shallowAvailable := TRUE;
 				x.SetFingerprint(fingerprint);
 			END;
+			SELF.fingerprint := fingerprint
 		END VisitActorType;
 
 		(*
