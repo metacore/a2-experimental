@@ -118,6 +118,7 @@ CONST
 	fpTypeSame = 20;
 	fpTypeRange = 21;
 	fpTypeEnum = 22;
+	fpTypePort= 23;
 
 	fpTypeBasic=1;
 	fpTypeStaticArray=2;
@@ -341,7 +342,7 @@ TYPE
 		PROCEDURE VisitEnumerationType(x: SyntaxTree.EnumerationType);
 		VAR fingerPrint: FingerPrint;
 		VAR position: LONGINT; baseScope: SyntaxTree.EnumerationScope; baseType,resolved: SyntaxTree.Type; enumerationBase: SyntaxTree.EnumerationType;
-			enumerator: SyntaxTree.Constant; fp: LONGINT; 
+			enumerator: SyntaxTree.Constant; fp: LONGINT;
 		BEGIN
 			fingerPrint := GetFingerPrint(x);
 
@@ -353,7 +354,7 @@ TYPE
 				enumerator := x.enumerationScope.firstConstant;
 				WHILE enumerator # NIL DO
 					IF enumerator.access * SyntaxTree.Public # {} THEN
-						FPName(fp,enumerator.name); 
+						FPName(fp,enumerator.name);
 					END;
 					FPValue(fp,enumerator.value);
 					enumerator := enumerator.nextConstant;
@@ -366,8 +367,8 @@ TYPE
 			END;
 
 			SELF.fingerPrint := fingerPrint
-			
-			(*! must be implemented 
+
+			(*! must be implemented
 				IF x.enumerationBase # NIL THEN
 					baseType := ResolveType(x.enumerationBase);
 					resolved := baseType.resolved;
@@ -379,7 +380,7 @@ TYPE
 				x.SetState(SyntaxTree.Resolved);
 			END;
 			resolvedType := ResolvedType(x);
-			*) 
+			*)
 		END VisitEnumerationType;
 
 		PROCEDURE VisitQualifiedType(x: SyntaxTree.QualifiedType);
@@ -509,7 +510,7 @@ TYPE
 			END;
 			*)
 			IF (x.scope # NIL) (*
-				& (x.scope.ownerModule # NIL)  & (x.scope.ownerModule # module)  
+				& (x.scope.ownerModule # NIL)  & (x.scope.ownerModule # module)
 				*)
 				THEN
 				 (* only executed for imported types, reason:
@@ -529,9 +530,9 @@ TYPE
 				END;
 				FPName(fp,x.scope.ownerModule.name);
 				typeDeclaration := x.typeDeclaration;
-				IF (typeDeclaration # NIL) & (typeDeclaration.declaredType.resolved # x) THEN 
+				IF (typeDeclaration # NIL) & (typeDeclaration.declaredType.resolved # x) THEN
 					(* in record type: pointer to type declaration of a pointer *)
-					typeDeclaration := NIL 
+					typeDeclaration := NIL
 				END;
 				IF (typeDeclaration # NIL) & (typeDeclaration.scope # NIL)THEN
 					(*
@@ -551,7 +552,7 @@ TYPE
 					FPNumber(fp,0);
 				END;
 				IF Trace THEN
-					D.Str(", fp = "); 
+					D.Str(", fp = ");
 					D.Hex(fp,-8);
 					D.Ln;
 				END;
@@ -559,6 +560,45 @@ TYPE
 			END;
 
 		END TypeName;
+
+		(*
+		FP(PortType)            = fpTypePort <*> fpTypeBasic -> Name <*> FP(baseType).
+		PublicFP(PortType)      = 0.
+		PrivateFP(PortType)     = 0.
+		*)
+		PROCEDURE VisitPortType(x: SyntaxTree.PortType);
+		VAR fingerPrint: FingerPrint; fp: LONGINT; deep: BOOLEAN;
+		BEGIN
+			IF Trace THEN TraceEnter("PortType");  END;
+			fingerPrint := GetFingerPrint(x);
+			deep := SELF.deep;
+
+			IF ~fingerPrint.doneFP THEN
+				IF Trace THEN TraceIndent; D.Str("PortType shallow");D.Ln;  END;
+				SELF.deep := FALSE;
+				fp := 0;
+				FPNumber(fp, fpTypePort); FPNumber(fp, fpTypeBasic);
+				TypeName(fp,x);
+				FPType(fp,x.channelType);
+				fingerPrint.FP := fp;
+				fingerPrint.doneFP := TRUE;
+				SELF.deep := deep;
+			END;
+
+			fingerPrint.doneAll := TRUE;
+			(*
+			deep fingerprinting leads to cycles -> must be done on record type directly, if a deep FP is needed
+			IF deep & ~fingerPrint.doneAll THEN
+				IF Trace THEN TraceIndent; D.Str("PortType:deep");D.Ln;  END;
+				x.portBase.Accept(SELF);
+				fingerPrint.doneAll := TRUE;
+			END;
+			*)
+
+			IF Trace THEN TraceExit("PortType",fingerPrint) END;
+
+			SELF.fingerPrint := fingerPrint;
+		END VisitPortType;
 
 		(*
 		FP(PointerType)            = fpTypePointer <*> fpTypeBasic -> Name <*> FP(baseType).
@@ -603,15 +643,15 @@ TYPE
 		FP(Method)  = 0 <*> fpModeMethod -> Name(methodName) -> Signature(method).
 		*)
 		PROCEDURE FPrintMethod(VAR private,public: LONGINT; procedure,body: SyntaxTree.Procedure);
-		VAR fingerPrint: FingerPrint; fp: LONGINT; name: ARRAY 256 OF CHAR; 
+		VAR fingerPrint: FingerPrint; fp: LONGINT; name: ARRAY 256 OF CHAR;
 		BEGIN
 			IF Trace THEN TraceEnter("Method");
 				procedure.name.GetString(name);
 				TraceIndent; D.Str("name = "); D.Str(name); D.Ln;
 			END;
 			ASSERT(deep);
-			
-			 
+
+
 			IF procedure.access * SyntaxTree.Public # {} THEN (* visible method or visible supermethod *)
 				fingerPrint := GetFingerPrint(procedure);
 				IF ~fingerPrint.doneFP THEN
@@ -742,7 +782,7 @@ TYPE
 				IF x.recordScope.bodyProcedure # NIL THEN
 					body := x.recordScope.bodyProcedure.procedureScope.body;
 					INCL(flags,  fpHasBody);
-					IF body # NIL THEN 
+					IF body # NIL THEN
 						IF SyntaxTree.ActiveFlag IN body.flags THEN INCL(flags,fpActive) END;
 						IF SyntaxTree.ExclusiveFlag IN body.flags THEN INCL(flags,fpProtected) END;
 					END;
@@ -890,7 +930,7 @@ TYPE
 			VAR deep: BOOLEAN;
 			BEGIN
 				IF par.kind = SyntaxTree.VarParameter THEN  FPNumber(fp, fpModeVarPar)
-				ELSIF par.kind = SyntaxTree.ConstParameter THEN 
+				ELSIF par.kind = SyntaxTree.ConstParameter THEN
 					IF (par.type.resolved IS SyntaxTree.ArrayType) OR (par.type.resolved IS SyntaxTree.RecordType) THEN (*! compatiblity with paco *)
 						FPNumber(fp,fpModeVarPar)
 					ELSE
@@ -1052,9 +1092,9 @@ TYPE
 				SELF.deep := deep;
 			END;
 			SELF.fingerPrint := fingerPrint
-			
+
 		END VisitActorType;
-		
+
 
 		(*
 			FP(VariableDeclaration)    = 0 <*> fpModePar -> Name -> Visibility <*> FP(Type).
@@ -1095,7 +1135,7 @@ TYPE
 				deep := SELF.deep;
 				SELF.deep := FALSE;
 				(* for compatibility with old compiler: *)
-				access := x.access; IF SyntaxTree.PublicRead IN access THEN INCL(access,SyntaxTree.PublicWrite) END;	
+				access := x.access; IF SyntaxTree.PublicRead IN access THEN INCL(access,SyntaxTree.PublicWrite) END;
 				fp := 0;
 				IF SyntaxTree.InlineFlag IN x.flags THEN
 					FPNumber(fp, fpModeInlineProcedure);
@@ -1104,21 +1144,21 @@ TYPE
 					FPSignature(fp,x.type(SyntaxTree.ProcedureType),x IS SyntaxTree.Operator);
 					IF (x.procedureScope.body # NIL) & (x.procedureScope.body.code # NIL) THEN
 						code := x.procedureScope.body.code;
-						IF code.inlineCode = NIL THEN 
-							size := 0 
+						IF code.inlineCode = NIL THEN
+							size := 0
 						ELSE
 							size := code.inlineCode.GetSize() DIV 8;
 						END;
-						FPNumber(fp,size); 
-						FOR i := 0 TO size-1 DO 
+						FPNumber(fp,size);
+						FOR i := 0 TO size-1 DO
 							value := code.inlineCode.GetBits(i*8,8);
-							FPNumber(fp,value); 
+							FPNumber(fp,value);
 						END;
 					END;
 				ELSE
 					FPNumber(fp, fpModeExportedProcedure);
 					Global.GetSymbolName(x,name);
-					FPString(fp,name);	
+					FPString(fp,name);
 					FPVisibility(fp, access);
 					FPSignature(fp,x.type(SyntaxTree.ProcedureType),x IS SyntaxTree.Operator);
 				END;
@@ -1131,7 +1171,7 @@ TYPE
 
 		(* cf. Procedure *)
 		PROCEDURE VisitOperator(x: SyntaxTree.Operator);
-		BEGIN 
+		BEGIN
 			VisitProcedure(x) (* same finger print as a procedure *)
 		END VisitOperator;
 
@@ -1220,7 +1260,7 @@ TYPE
 	BEGIN
 		RETURN type.flags * {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag} = {}
 	END IsOberonProcedure;
-	
+
 	(* fp = fp <*> val *)
 	PROCEDURE FPNumber*(VAR fp: LONGINT; val: LONGINT);
 	BEGIN

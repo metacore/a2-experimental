@@ -96,6 +96,7 @@ CONST
 	fpTypeSame = 20;
 	fpTypeRange = 21;
 	fpTypeEnum = 22;
+	fpTypePort = 23;
 
 	fpTypeBasic=1;
 	fpTypeStaticArray=2;
@@ -491,6 +492,37 @@ TYPE
 
 			SELF.fingerprint := fingerprint;
 		END VisitPointerType;
+
+		(*
+		FP(PortType)            = fpTypePort <*> fpTypeBasic -> Name <*> FP(baseType).
+		PublicFP(PortType)      = 0.
+		PrivateFP(PortType)     = 0.
+		*)
+		PROCEDURE VisitPortType(x: SyntaxTree.PortType);
+		VAR fingerprint: Fingerprint; fp: LONGINT; deep: BOOLEAN;
+		BEGIN
+			IF Trace THEN TraceEnter("PortType");  END;
+			fingerprint := x.fingerprint;
+			deep := SELF.deep;
+
+			IF ~fingerprint.shallowAvailable THEN
+				IF Trace THEN TraceIndent; D.Str("PortType shallow");D.Ln;  END;
+				SELF.deep := FALSE;
+				fp := 0;
+				FPNumber(fp, fpTypePort); FPNumber(fp, fpTypeBasic);
+				TypeName(fp,x);
+				FPType(fp,x.channelType);
+				fingerprint.shallow := fp;
+				fingerprint.private := fp;
+				fingerprint.public := fp;
+				fingerprint.shallowAvailable := TRUE;
+				fingerprint.deepAvailable := TRUE;
+				SELF.deep := deep;
+			END;
+			IF Trace THEN TraceExit("PortType",fingerprint) END;
+
+			SELF.fingerprint := fingerprint;
+		END VisitPortType;
 
 		(*
 		FP(Method)  = 0 <*> fpModeMethod -> Name(methodName) -> Signature(method).
