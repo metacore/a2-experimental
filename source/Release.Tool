@@ -865,8 +865,9 @@ END
 PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Active Oberon Compiler"
 	# this package should be moved before any GUI part (dependencies must be removed in Backend)
 	OC.Tool
-	BitSets.Mod ObjectFile.Mod
-	OCBasic.Mod OCScanner.Mod OCSyntaxTree.Mod OCGlobal.Mod OCFormats.Mod OCPrintout.Mod
+	BitSets.Mod ObjectFile.Mod	GenericLinker.Mod StaticLinker.Mod
+
+	OCBasic.Mod OCScanner.Mod OCSyntaxTree.Mod 	OCDataflow.Mod OCGlobal.Mod OCFormats.Mod OCPrintout.Mod
 	OCParser.Mod OCSemanticChecker.Mod OCBackend.Mod OCCompiler.Mod
 
 	OCFingerPrint.Mod  OCInterfaceComparison.Mod OCTextualSymbolFile.Mod OCBinarySymbolFile.Mod
@@ -874,8 +875,6 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 	OCFingerPrinter.Mod
 	OCIntermediateCode.Mod
 
-	GenericLinker.Mod StaticLinker.Mod
-	OCDataflow.Mod
 
 	OCIntermediateBackend.Mod
 	OCBinaryObjectFile.Mod OCGenericObjectFile.Mod
