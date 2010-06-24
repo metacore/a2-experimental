@@ -75,7 +75,8 @@ CONST
 VAR
 	(** debugging / counters *)
 
-	nodeCount, listCount, identifierCount, qualifiedIdentifierCount, typeCount, basicTypeCount, typeDeclarationCount, arrayTypeCount, pointerTypeCount, recordTypeCount, actorTypeCount,
+	nodeCount, listCount, identifierCount, qualifiedIdentifierCount, typeCount, basicTypeCount, typeDeclarationCount, arrayTypeCount, pointerTypeCount,
+	portTypeCount, recordTypeCount, actorTypeCount,
 	defintionTypeCount, procedureTypeCount, qualifiedTypeCount, typeDeclarationListCount, definitionCount, definitionTypeCount, expressionCount,
 	expressionListCount, selectorCount,
 	identifierDesignatorCount, indexDesignatorCount, parameterDesignatorCount, dereferenceDesignatorCount,
@@ -133,6 +134,9 @@ TYPE
 
 		PROCEDURE VisitPointerType*(x: PointerType);
 		BEGIN HALT(100) (* abstract *) END VisitPointerType;
+
+		PROCEDURE VisitPortType*(x: PortType);
+		BEGIN HALT(100) (* abstract *) END VisitPortType;
 
 		PROCEDURE VisitRecordType*(x: RecordType);
 		BEGIN HALT(100) (* abstract *) END VisitRecordType;
@@ -713,6 +717,32 @@ TYPE
 		END Accept;
 
 	END PointerType;
+
+	(** << (SENDER | RECEIVER) of channelType **)
+	PortType* = OBJECT (Type)
+		VAR
+			channelType-: Type;
+			direction-: LONGINT;
+
+		PROCEDURE & InitPortType(position: LONGINT; direction: LONGINT; channelType: Type; scope: Scope);
+		BEGIN
+			InitType(position, {});
+			SELF.channelType := channelType;
+			SELF.direction := direction;
+			SELF.scope := scope;
+		END InitPortType;
+
+		PROCEDURE SetChannelType*(type: Type);
+		BEGIN channelType := type
+		END SetChannelType;
+
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitPortType(SELF)
+		END Accept;
+
+	END PortType;
 
 	(** <<[pointerType = POINTER TO] RECORD (baseType) .. END>>
 		| <<[OBJECT (baseType) .. END>>
@@ -3395,6 +3425,12 @@ VAR
 		INC( pointerTypeCount );  NEW( pointerType, position,scope);  RETURN pointerType;
 	END NewPointerType;
 
+	PROCEDURE NewPortType*( position: LONGINT; direction: LONGINT; channelType: Type; scope: Scope): PortType;
+	VAR portType: PortType;
+	BEGIN
+		INC( portTypeCount );  NEW( portType, position, direction, channelType, scope);  RETURN portType;
+	END NewPortType;
+
 	PROCEDURE NewRecordType*( position: LONGINT; scope: Scope; recordScope: RecordScope): RecordType;
 	VAR recordType: RecordType;
 	BEGIN
@@ -3832,6 +3868,7 @@ VAR
 		FixedStringInt("basicTypeCount ", basicTypeCount );
 		FixedStringInt("arrayTypeCount ", arrayTypeCount );
 		FixedStringInt("pointerTypeCount ", pointerTypeCount );
+		FixedStringInt("portTypeCount ", portTypeCount );
 		FixedStringInt("recordTypeCount ",recordTypeCount  );
 		FixedStringInt("actorTypeCount ",actorTypeCount  );
 		FixedStringInt("defintionTypeCount ",defintionTypeCount  );
@@ -3929,7 +3966,7 @@ VAR
 
 		(* debugging *)
 		nodeCount := 0;  listCount := 0;  identifierCount := 0;  qualifiedIdentifierCount := 0;
-		typeCount := 0; basicTypeCount := 0;  typeDeclarationCount := 0;  arrayTypeCount := 0;  pointerTypeCount := 0;
+		typeCount := 0; basicTypeCount := 0;  typeDeclarationCount := 0;  arrayTypeCount := 0;  pointerTypeCount := 0; portTypeCount := 0;
 		recordTypeCount := 0; actorTypeCount := 0;
 		defintionTypeCount := 0;  procedureTypeCount := 0;
 		qualifiedTypeCount := 0;  typeDeclarationListCount := 0;  definitionCount := 0;  definitionTypeCount := 0;  expressionCount := 0;

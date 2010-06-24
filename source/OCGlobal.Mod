@@ -351,6 +351,8 @@ TYPE
 			ELSIF type = SyntaxTree.invalidType THEN size := 0
 			ELSIF type IS SyntaxTree.QualifiedType THEN
 				HALT(101); (* hint that unresolved type has been taken for type size computation *)
+			ELSIF type IS SyntaxTree.PortType THEN
+				size := addressSize
 			ELSIF type IS SyntaxTree.ActorType THEN
 				size := 0;
 			ELSE

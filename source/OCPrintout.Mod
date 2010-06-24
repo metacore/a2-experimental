@@ -207,6 +207,18 @@ TYPE
 			END;
 		END VisitPointerType;
 
+		PROCEDURE VisitPortType(x: SyntaxTree.PortType);
+		BEGIN
+			IF x.direction = SyntaxTree.OutPort THEN
+				Keyword("SENDER ")
+			ELSE
+				ASSERT(x.direction = SyntaxTree.InPort);
+				Keyword("RECEIVER ");
+			END;
+			Keyword("OF ");
+			Type(x.channelType);
+		END VisitPortType;
+
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		BEGIN
 			Keyword("ACTOR ");

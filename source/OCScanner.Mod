@@ -50,7 +50,7 @@ CONST
 	(* declaration elements *)
 	Code Const Type Var Out Procedure Operator Import Definition Module Actor Dataflow
 	(* composite type symbols *)
-	Array Object Record Pointer Enum
+	Array Object Record Pointer Enum Receiver Sender
 	(* assembler constants *)
 	Ln PC PCOffset
 	(* number types *)
@@ -86,12 +86,13 @@ CONST
 	Code*= 74; Const*= 75; Type*= 76; Var*= 77; Out*= 78; Procedure*= 79;
 	Operator*= 80; Import*= 81; Definition*= 82; Module*= 83; Actor*= 84; Dataflow*= 85;
 	(* composite type symbols *)
-	Array*= 86; Object*= 87; Record*= 88; Pointer*= 89; Enum*= 90;
+	Array*= 86; Object*= 87; Record*= 88; Pointer*= 89; Enum*= 90; Receiver*= 91;
+	Sender*= 92;
 	(* assembler constants *)
-	Ln*= 91; PC*= 92; PCOffset*= 93;
+	Ln*= 93; PC*= 94; PCOffset*= 95;
 	(* number types *)
-	Shortint*= 94; Integer*= 95; Longint*= 96; Hugeint*= 97; Real*= 98; Longreal*= 99;
-	Comment*= 100; EndOfText*= 101;
+	Shortint*= 96; Integer*= 97; Longint*= 98; Hugeint*= 99; Real*= 100; Longreal*= 101;
+	Comment*= 102; EndOfText*= 103;
 
 	SingleQuote = 27X;  DoubleQuote = 22X;
 	Ellipsis = 7FX;   (* used in Scanner.GetNumber to return with ".." when reading an interval like 3..5 *)
@@ -917,6 +918,8 @@ TYPE
 		tokens[Record] := "Record";
 		tokens[Pointer] := "Pointer";
 		tokens[Enum] := "Enum";
+		tokens[Receiver] := "Receiver";
+		tokens[Sender] := "Sender";
 		tokens[Ln] := "Ln";
 		tokens[PC] := "PC";
 		tokens[PCOffset] := "PCOffset";
@@ -1002,8 +1005,10 @@ TYPE
 		Enter( "out", Out);
 		Enter( "operator" , Operator);
 		Enter( "procedure" , Procedure);
+		Enter( "receiver", Receiver);
 		Enter( "repeat" , Repeat);
 		Enter( "return" , Return);
+		Enter( "sender", Sender);
 		Enter( "self", Self);
 		Enter( "then" , Then);
 		Enter( "true" , True);

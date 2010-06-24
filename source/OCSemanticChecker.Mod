@@ -584,6 +584,21 @@ TYPE
 		END VisitPointerType;
 
 		(**
+			resolve port type
+			- enter port type to list of deferred fixes (to avoid infinite loops in the declaration phase)
+		**)
+		PROCEDURE VisitPortType(x: SyntaxTree.PortType);
+		VAR channelType: SyntaxTree.Type;
+		BEGIN
+			IF TypeNeedsResolution(x) THEN
+				channelType := ResolveType(x.channelType);
+				x.SetChannelType(channelType);
+				x.SetState(SyntaxTree.Resolved);
+			END;
+			resolvedType := ResolvedType(x)
+		END VisitPortType;
+
+		(**
 			deferred procedure type resolving
 			- resolve return type
 			- traverse and resolve parameters
@@ -5730,6 +5745,8 @@ TYPE
 				result := FALSE;
 			ELSIF to IS SyntaxTree.EnumerationType THEN
 				result := IsEnumerationExtension(this,to);
+			ELSIF to IS SyntaxTree.PortType THEN
+				result := SameType(to, this, NIL)
 			ELSE
 				Printout.Info("CompatibleTo",to);
 				HALT(100); (* implement missing type check *)
@@ -6169,6 +6186,9 @@ TYPE
 				result := (t2 IS SyntaxTree.ProcedureType) & SameProcedureType(t1(SyntaxTree.ProcedureType),t2(SyntaxTree.ProcedureType))
 			ELSIF t1 IS SyntaxTree.EnumerationType THEN
 				result := t1=t2;
+			ELSIF (t1 IS SyntaxTree.PortType) THEN
+				result := (t2 IS SyntaxTree.PortType) & (t1(SyntaxTree.PortType).direction = t2(SyntaxTree.PortType).direction)
+						& SameType(t1(SyntaxTree.PortType).channelType, t2(SyntaxTree.PortType).channelType,sameList);
 			ELSE
 				HALT(100); (* implement missing type check *)
 			END;

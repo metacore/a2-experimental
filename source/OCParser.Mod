@@ -1247,6 +1247,15 @@ TYPE
 			RETURN type
 		END EnumerationType;
 
+		(** PortType = (sender|receiver) 'of' Type. *)
+		PROCEDURE PortType(position: LONGINT; direction: LONGINT; parentScope: SyntaxTree.Scope): SyntaxTree.Type;
+		VAR type: SyntaxTree.Type;
+		BEGIN
+			Check(Scanner.Of);
+			type := Type(NIL, parentScope);
+			type := SyntaxTree.NewPortType(position, direction, type, parentScope);
+			RETURN type
+		END PortType;
 
 		(** Type = ArrayType | RecordType | PointerType | ObjectType | ProcedureType
 					  | EnumerationType | QualifiedIdentifier. *)
@@ -1260,6 +1269,8 @@ TYPE
 			ELSIF Optional( Scanner.Pointer ) THEN type := PointerType( position,parentScope );
 			ELSIF Optional( Scanner.Object ) THEN type := ObjectType( position,name,parentScope );
 			ELSIF Optional( Scanner.Actor) THEN type := ActorType( position, name, parentScope); (* only possible if dataflow enabled in scanner *)
+			ELSIF Optional( Scanner.Receiver) THEN type := PortType( position, SyntaxTree.InPort, parentScope)
+			ELSIF Optional( Scanner.Sender) THEN type := PortType( position, SyntaxTree.OutPort, parentScope)
 			ELSIF Optional( Scanner.Procedure ) THEN type := ProcedureType( position,parentScope);
 			ELSIF Optional( Scanner.Enum ) THEN type := EnumerationType( position,parentScope);
 			ELSE qualifiedIdentifier := QualifiedIdentifier();
