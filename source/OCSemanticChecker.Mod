@@ -992,7 +992,7 @@ TYPE
 			IF actualType = SyntaxTree.invalidType THEN (* error already handled *)
 			ELSIF (formal.kind = SyntaxTree.VarParameter) THEN
 
-				IF (SyntaxTree.WinAPIFlag IN formal.ownerProcedureType.flags) & (actualType = Global.Nil) THEN
+				IF (SyntaxTree.WinAPIFlag IN formal.type.flags) & (actualType = Global.Nil) THEN
 					result := TRUE; (* special rule for WINAPI parameters, needed to be able to pass NIL address to var parameters *)
 				ELSIF ~IsVariable(actual) THEN
 					result := FALSE; error := TRUE;
@@ -1017,7 +1017,7 @@ TYPE
 				IF (formalType IS SyntaxTree.CharacterType) & (actualType IS SyntaxTree.StringType) & (actualType(SyntaxTree.StringType).length = 2) THEN
 					actualType := Global.Char;
 				END;
-				IF (SyntaxTree.WinAPIFlag IN formal.ownerProcedureType.flags) &  (actualType = Global.Nil) THEN
+				IF (SyntaxTree.WinAPIFlag IN formal.ownerType.flags) &  (actualType = Global.Nil) THEN
 					result := TRUE; (* special rule for WINAPI parameters *)
 				ELSIF (formalType IS SyntaxTree.ArrayType) & (formalType(SyntaxTree.ArrayType).form = SyntaxTree.Open) THEN
 					result := OpenArrayCompatible(formalType(SyntaxTree.ArrayType),actualType);
@@ -5663,7 +5663,7 @@ TYPE
 			RETURN
 				(numberParameters = 0) & TypeAllowed(procedureType.returnType) OR
 				(numberParameters = 1) & TypeAllowed(procedureType.firstParameter.type) & TypeAllowed(procedureType.returnType) OR
-				(numberParameters = 1) & (procedureType.firstParameter.ownerProcedureType.resolved = Global.Any) & (procedureType.returnType.resolved = Global.Any)
+				(numberParameters = 1) & (procedureType.firstParameter.ownerType.resolved = Global.Any) & (procedureType.returnType.resolved = Global.Any)
 		END;
 	END GetProcedureAllowed;
 

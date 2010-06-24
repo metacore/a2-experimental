@@ -4822,7 +4822,7 @@ TYPE
 				result.tag := basereg;
 				IntermediateCode.AddOffset(result.op,ToMemoryUnits(system,x.offsetInBits));
 				IntermediateCode.MakeMemory(result.op,addressType);
-				IF IsOberonProcedure(x.ownerProcedureType) THEN
+				IF Global.IsOberonProcedure(x.ownerType) THEN
 					IntermediateCode.AddOffset(result.tag,ToMemoryUnits(system,x.offsetInBits+addressType.sizeInBits));
 					UseIntermediateOperand(result.tag);
 				ELSE
@@ -7046,11 +7046,6 @@ TYPE
 		END;
 		RETURN procedure;
 	END GetConstructor;
-
-	PROCEDURE IsOberonProcedure(type: SyntaxTree.ProcedureType): BOOLEAN;
-	BEGIN
-		RETURN type.flags * {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag} = {}
-	END IsOberonProcedure;
 
 	PROCEDURE IsPointerToRecord(type: SyntaxTree.Type; VAR recordType: SyntaxTree.RecordType): BOOLEAN;
 	BEGIN type := type.resolved;

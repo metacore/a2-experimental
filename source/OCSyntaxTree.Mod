@@ -1966,15 +1966,15 @@ TYPE
 		flagList-: Modifier;
 
 		kind-: LONGINT;   (* ValueParameter, ConstParameter, VarParameter *)
-		ownerProcedureType-: ProcedureType;
+		ownerType-: Type;
 
-		PROCEDURE & InitParameter( position: LONGINT;  ownerType: ProcedureType ; name: Identifier; kind: LONGINT);
+		PROCEDURE & InitParameter( position: LONGINT;  ownerType: Type ; name: Identifier; kind: LONGINT);
 		BEGIN
 			InitSymbol( position, name );
 			SELF.kind := kind;
 			IF kind = ConstParameter THEN access := access * ReadOnly  END;
 			nextParameter := NIL;
-			SELF.ownerProcedureType := ownerType;
+			SELF.ownerType := ownerType;
 			flagList := NIL;
 		END InitParameter;
 
@@ -3487,10 +3487,10 @@ VAR
 		NEW( port, position, owner, name, passAs);  RETURN port
 	END NewPort;
 
-	PROCEDURE NewParameter*( position: LONGINT; procedureType:ProcedureType ;  name: Identifier; passAs: LONGINT): Parameter;
+	PROCEDURE NewParameter*( position: LONGINT; ownerType:Type ;  name: Identifier; passAs: LONGINT): Parameter;
 	VAR parameter: Parameter;
 	BEGIN
-		INC( parameterCount );  NEW( parameter, position, procedureType, name, passAs);  RETURN parameter;
+		INC( parameterCount );  NEW( parameter, position, ownerType, name, passAs);  RETURN parameter;
 	END NewParameter;
 
 	PROCEDURE NewExpressionList*(): ExpressionList;

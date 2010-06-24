@@ -369,13 +369,13 @@ TYPE
 					OR (par.type.resolved IS SyntaxTree.MathArrayType) & (par.kind = SyntaxTree.VarParameter)
 				THEN
 					RETURN addressSize
-				ELSIF IsOberonProcedure(par.ownerProcedureType) THEN
+				ELSIF IsOberonProcedure(par.ownerType) THEN
 					RETURN SizeOf(par.type);
 				ELSE RETURN addressSize
 				END
 			ELSIF (par.kind IN {SyntaxTree.ConstParameter,SyntaxTree.VarParameter}) THEN
 				IF (par.type.resolved IS SyntaxTree.RecordType) THEN
-					IF IsOberonProcedure(par.ownerProcedureType) THEN
+					IF IsOberonProcedure(par.ownerType) THEN
 						RETURN 2*addressSize
 					ELSE
 						RETURN addressSize
@@ -556,9 +556,9 @@ TYPE
 		RETURN system
 	END DefaultSystem;
 
-	PROCEDURE IsOberonProcedure(type: SyntaxTree.ProcedureType): BOOLEAN;
+	PROCEDURE IsOberonProcedure*(type: SyntaxTree.Type): BOOLEAN;
 	BEGIN
-		RETURN type.flags * {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag} = {}
+		RETURN (type IS SyntaxTree.ProcedureType) & (type.flags * {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag} = {})
 	END IsOberonProcedure;
 
 	PROCEDURE AlignedSizeOf*(system: System; CONST alignment: Alignment; type: SyntaxTree.Type):LONGINT;
