@@ -857,15 +857,18 @@ TYPE
 		**)
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		VAR
-			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; port: SyntaxTree.Port;
+			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 
 				(* process parameters *)
-				port :=x.firstPort;
-				WHILE (port # NIL) DO
-					VisitPort(port);
-					port := port.nextPort;
+				parameter :=x.firstParameter;
+				WHILE (parameter # NIL) DO
+					VisitParameter(parameter);
+					IF ~(parameter.type.resolved IS SyntaxTree.PortType) THEN
+						Error(parameter.position, Diagnostics.Invalid, "invalid type, must be port");
+					END;
+					parameter := parameter.nextParameter;
 				END;
 
 				Declarations(x.actorScope);
@@ -2847,22 +2850,6 @@ TYPE
 			RETURN result
 		END CheckVariable;
 
-		PROCEDURE CheckPort(x: SyntaxTree.Expression; VAR par: SyntaxTree.Port): BOOLEAN;
-		VAR result: BOOLEAN;
-		BEGIN
-			result := TRUE;
-			IF x = SyntaxTree.invalidExpression THEN
-				result := FALSE;
-			ELSIF ~(x IS SyntaxTree.SymbolDesignator) OR ~(x(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Port) THEN
-				Error(x.position,Diagnostics.Invalid,"not a port");
-				IF VerboseErrorMessage THEN Printout.Info("port",x) END;
-				result := FALSE;
-			ELSE
-				par := x(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Port);
-			END;
-			RETURN result
-		END CheckPort;
-
 		(**
 			if expression x is of basic type then return true else report error and return false
 		**)
@@ -3063,6 +3050,22 @@ TYPE
 			RETURN result;
 		END CheckPositiveIntegerValue;
 
+		PROCEDURE CheckPortType(x: SyntaxTree.Expression; VAR portType: SyntaxTree.PortType): BOOLEAN;
+		VAR type: SyntaxTree.Type; result: BOOLEAN;
+		BEGIN
+			result := FALSE;
+			IF x = SyntaxTree.invalidExpression THEN
+			ELSE
+				type := x.type.resolved;
+				IF (type = NIL) OR ~(type IS SyntaxTree.PortType) THEN
+					Error(x.position,Diagnostics.Invalid,"no port type");
+				ELSE
+					portType := type(SyntaxTree.PortType);
+					result := TRUE
+				END;
+			END;
+			RETURN result
+		END CheckPortType;
 
 		(* move to builtin procedure call statement ?
 			remove builtin procedure call designator ?
@@ -3071,10 +3074,10 @@ TYPE
 		VAR
 			numberActualParameters,numberFormalParameters: LONGINT;
 			formalParameter: SyntaxTree.Parameter;
-			inPort, outPort: SyntaxTree.Port;
 			actualParameter: SyntaxTree.Expression;
 			procedureType: SyntaxTree.ProcedureType;
 			parameter0, parameter1, parameter2, result: SyntaxTree.Expression;
+			inPort, outPort: SyntaxTree.PortType;
 			constructor: SyntaxTree.Procedure;
 			type0,type1,type2: SyntaxTree.Type;
 			type,base: SyntaxTree.Type;
@@ -3849,33 +3852,29 @@ TYPE
 					IF 	~(inDataflowBody) THEN
 						Error(position,Diagnostics.Invalid,"actor allocation outside dataflow body block");
 					END;
-					IF CheckPort(parameter0,outPort) & CheckPort(parameter1,inPort) THEN
-						IF inPort.kind # SyntaxTree.InPort THEN
-							Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
-						ELSIF outPort.kind # SyntaxTree.OutPort THEN
-							Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
-						ELSIF parameter0.type.resolved # parameter1.type.resolved THEN
-							Error(position,Diagnostics.Invalid,"incompatible port types");
-						END;
-						inPort.AddFlags({SyntaxTree.MappedFlag});
-						outPort.AddFlags({SyntaxTree.MappedFlag});
-						dataflowStatement := TRUE;
+					IF ~CheckPortType(parameter1, inPort) OR (inPort.direction # SyntaxTree.InPort) THEN
+						Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
+					ELSIF ~CheckPortType(parameter0, outPort) OR (outPort.direction # SyntaxTree.OutPort) THEN
+						Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
+					ELSIF ~SameType(inPort.channelType, outPort.channelType, NIL) THEN
+						Error(position,Diagnostics.Invalid,"incompatible port types");
 					END;
+					dataflowStatement := TRUE;
 				(* --------- RECEIVE ---------*)
 				ELSIF (id = Global.Receive) & Parameters(2,2) THEN
-					IF CheckPort(parameter0,inPort) & CheckVariable(parameter1) THEN
-						IF inPort.kind # SyntaxTree.InPort THEN
+					IF CheckPortType(parameter0,inPort) & CheckVariable(parameter1) THEN
+						IF inPort.direction # SyntaxTree.InPort THEN
 							Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
-						ELSIF ~SameType(inPort.type,parameter1.type,NIL) THEN
+						ELSIF ~SameType(inPort.channelType,parameter1.type,NIL) THEN
 							Error(parameter1.position,Diagnostics.Invalid,"incompatible to port type");
 						END;
 					END;
 				(* --------- SEND ---------*)
 				ELSIF (id = Global.Send) & Parameters(2,2) THEN
-					IF CheckPort(parameter0,outPort)  THEN
-						IF outPort.kind # SyntaxTree.OutPort THEN
+					IF CheckPortType(parameter0,outPort)  THEN
+						IF outPort.direction # SyntaxTree.OutPort THEN
 							Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
-						ELSIF ~CompatibleTo(system,outPort.type,parameter1.type) THEN
+						ELSIF ~CompatibleTo(system,outPort.channelType,parameter1.type) THEN
 							Error(parameter1.position,Diagnostics.Invalid,"incompatible to port type");
 						ELSE
 							parameter1 := NewConversion(position,parameter1,parameter0.type.resolved,NIL);
@@ -4312,26 +4311,12 @@ TYPE
 				ASSERT(parameter.type.resolved # NIL);
 				CheckSymbol(parameter);
 				IF parameter.kind = SyntaxTree.ConstParameter THEN parameter.SetAccess(parameter.access * SyntaxTree.ReadOnly) END;
+				IF parameter.ownerType IS SyntaxTree.ActorType THEN
+					parameter.SetAccess(SyntaxTree.ReadOnly);
+				END;
 				parameter.SetState(SyntaxTree.Resolved);
 			END;
 		END VisitParameter;
-
-		(** check and resolve a (procedure) parameter
-			- check and set type
-			- check symbol
-			- check parameter kind and set read-only flags if appropriate
-		**)
-		PROCEDURE VisitPort(port: SyntaxTree.Port);
-		BEGIN
-			IF Trace THEN D.Str("VisitPort "); D.Str0(port.name.name);  D.Ln;  END;
-			IF SymbolNeedsResolution(port) THEN
-				port.SetType(ResolveType(port.type));
-				ASSERT(port.type.resolved # NIL);
-				CheckSymbol(port);
-				port.SetAccess(SyntaxTree.ReadOnly); (* globally visible *)
-				port.SetState(SyntaxTree.Resolved);
-			END;
-		END VisitPort;
 
 		(** check and resolve a procedure (with declaration and implementation scope)
 			- check the procedure type
@@ -5376,7 +5361,6 @@ TYPE
 			procedure: SyntaxTree.Procedure;
 			prevScope: SyntaxTree.Scope;
 			parameter: SyntaxTree.Parameter;
-			port: SyntaxTree.Port;
 			import: SyntaxTree.Import;
 			symbol: SyntaxTree.Symbol;
 			prevPhase: LONGINT;
@@ -5396,9 +5380,9 @@ TYPE
 					Register(import, currentScope, FALSE); import := import.nextImport;
 				END;
 				IF module.type IS SyntaxTree.ActorType THEN
-					port := module.type(SyntaxTree.ActorType).firstPort;
-					WHILE(port # NIL) DO
-						Register(port,currentScope, FALSE); port := port.nextPort;
+					parameter := module.type(SyntaxTree.ActorType).firstParameter;
+					WHILE(parameter # NIL) DO
+						Register(parameter,currentScope, FALSE); parameter := parameter.nextParameter;
 					END;
 					ImportModule(SyntaxTree.NewIdentifier(-1,"Dataflow"),module.position);
 				END;
@@ -5413,9 +5397,9 @@ TYPE
 					Register(parameter,currentScope, FALSE);
 				END;
 			ELSIF scope IS SyntaxTree.ActorScope THEN
-				port := scope(SyntaxTree.ActorScope).ownerActor.firstPort;
-				WHILE(port # NIL) DO
-					Register(port,scope, FALSE); port := port.nextPort;
+				parameter := scope(SyntaxTree.ActorScope).ownerActor.firstParameter;
+				WHILE(parameter # NIL) DO
+					Register(parameter,scope, FALSE); parameter := parameter.nextParameter;
 				END;
 				ImportModule(SyntaxTree.NewIdentifier(-1,"Dataflow"),module.position);
 			END;
@@ -5444,7 +5428,7 @@ TYPE
 
 			symbol := scope.firstSymbol;
 			WHILE(symbol # NIL) DO
-				IF ~(symbol IS SyntaxTree.Parameter) THEN
+				IF ~(symbol IS SyntaxTree.Parameter) OR (symbol(SyntaxTree.Parameter).ownerType IS SyntaxTree.ActorType) THEN
 					ResolveSymbol(symbol);
 				END;
 				symbol := symbol.nextSymbol;
@@ -5594,9 +5578,6 @@ TYPE
 
 		PROCEDURE VisitParameter*(x: SyntaxTree.Parameter);
 		BEGIN	END VisitParameter;
-
-		PROCEDURE VisitPort*(x: SyntaxTree.Port);
-		BEGIN	END VisitPort;
 
 		PROCEDURE VisitProcedure*(x: SyntaxTree.Procedure);
 		BEGIN Scope(x.procedureScope) END VisitProcedure;

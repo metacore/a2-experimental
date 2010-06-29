@@ -965,6 +965,32 @@ TYPE
 		END VisitVariable;
 
 		(*
+			FP(ParameterDeclaration)    = 0 <*> fpModePar -> Name -> Visibility <*> FP(Type).
+		*)
+		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
+		VAR fingerprint: Fingerprint; deep: BOOLEAN; name: SyntaxTree.String;
+		BEGIN
+			fingerprint := x.fingerprint;
+
+			IF ~fingerprint.shallowAvailable THEN
+				deep := SELF.deep;
+				SELF.deep := FALSE;
+				fp := 0;
+				FPNumber(fp,fpModePar);
+				Global.GetSymbolName(x,name);
+				FPString(fp,name);
+				FPVisibility(fp,x.access);
+				x.type.Accept(SELF);
+				FPNumber(fp,SELF.fingerprint.shallow);
+				fingerprint.shallow := fp;
+				fingerprint.shallowAvailable := TRUE;
+				x.SetFingerprint(fingerprint);
+				SELF.deep := deep;
+			END;
+			SELF.fingerprint := fingerprint
+		END VisitParameter;
+
+		(*
 		FP(ProcedureDeclaration)   = 0 <*> fpModeInlineProcedure -> Name -> Visibility <*> FP(Type) -> Code.
 		                            | 0 <*> fpModeExportedProcedure -> Name -> Visibility <*> FP(Type)
 		*)

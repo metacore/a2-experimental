@@ -1054,29 +1054,7 @@ TYPE
 			SELF.fingerPrint := fingerPrint
 		END VisitConstant;
 
-		(*
-			FP(PortDeclaration)    = 0 <*> fpModePar -> Name -> Visibility <*> FP(Type).
-		*)
-		PROCEDURE VisitPort(x: SyntaxTree.Port);
-		VAR fingerPrint: FingerPrint; deep: BOOLEAN;
-		BEGIN
-			fingerPrint := GetFingerPrint(x);
 
-			IF ~fingerPrint.doneFP THEN
-				deep := SELF.deep;
-				SELF.deep := FALSE;
-				fp := 0;
-				FPNumber(fp,fpModeVar);
-				FPName(fp,x.name);
-				FPVisibility(fp,x.access);
-				x.type.Accept(SELF);
-				FPNumber(fp,SELF.fingerPrint.FP);
-				fingerPrint.FP := fp;
-				fingerPrint.doneFP := TRUE;
-				SELF.deep := deep;
-			END;
-			SELF.fingerPrint := fingerPrint
-		END VisitPort;
 
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		BEGIN
@@ -1119,6 +1097,33 @@ TYPE
 			END;
 			SELF.fingerPrint := fingerPrint
 		END VisitVariable;
+
+
+		(*
+			FP(VariableDeclaration)    = 0 <*> fpModePar -> Name -> Visibility <*> FP(Type).
+		*)
+		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
+		VAR fingerPrint: FingerPrint; deep: BOOLEAN;
+		BEGIN
+			fingerPrint := GetFingerPrint(x);
+
+			IF ~fingerPrint.doneFP THEN
+				deep := SELF.deep;
+				SELF.deep := FALSE;
+				fp := 0;
+				FPNumber(fp,fpModePar);
+				FPName(fp,x.name);
+				FPVisibility(fp,x.access);
+				x.type.Accept(SELF);
+				FPNumber(fp,SELF.fingerPrint.FP);
+				fingerPrint.FP := fp;
+				fingerPrint.doneFP := TRUE;
+				SELF.deep := deep;
+			END;
+			SELF.fingerPrint := fingerPrint
+		END VisitParameter;
+
+		
 
 		(*
 		FP(ProcedureDeclaration)   = 0 <*> fpModeInlineProcedure -> Name -> Visibility <*> FP(Type) -> Code.

@@ -210,10 +210,10 @@ TYPE
 		PROCEDURE VisitPortType(x: SyntaxTree.PortType);
 		BEGIN
 			IF x.direction = SyntaxTree.OutPort THEN
-				Keyword("SENDER ")
+				Keyword("OUTSTREAM ")
 			ELSE
 				ASSERT(x.direction = SyntaxTree.InPort);
-				Keyword("RECEIVER ");
+				Keyword("INSTREAM ");
 			END;
 			Keyword("OF ");
 			Type(x.channelType);
@@ -222,7 +222,7 @@ TYPE
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		BEGIN
 			Keyword("ACTOR ");
-			IF x.firstPort # NIL THEN PortList(x.firstPort) END;
+			IF x.firstParameter # NIL THEN ParameterList(x.firstParameter) END;
 			Scope(x.actorScope);
 
 			IF (x.actorScope IS SyntaxTree.ActorScope) & (x.actorScope(SyntaxTree.ActorScope).bodyProcedure # NIL) THEN
@@ -750,7 +750,7 @@ TYPE
 			ELSIF SyntaxTree.PublicRead IN x.access THEN
 				IF x IS SyntaxTree.Variable THEN
 					w.String( "-" )
-				ELSIF ~(x IS SyntaxTree.Port) THEN
+				ELSIF ~(x IS SyntaxTree.Parameter) THEN
 					w.String("*")
 				END
 			ELSIF x.access = {} THEN ASSERT(mode > SourceCode);
@@ -880,20 +880,6 @@ TYPE
 			END;
 		END VisitParameter;
 
-		PROCEDURE VisitPort(x: SyntaxTree.Port);
-		BEGIN
-			IF (x.access # SyntaxTree.Hidden) THEN
-				IF x.kind = SyntaxTree.InPort THEN Keyword("IN " );
-				ELSIF x.kind = SyntaxTree.OutPort THEN Keyword("OUT " );
-				END;
-				PrintSymbol(x);
-				w.String( ": " );
-				Type(x.type);
-			ELSIF (mode > SourceCode) THEN
-				PrintSymbol(x);
-			END;
-		END VisitPort;
-
 		PROCEDURE ParameterList*(x: SyntaxTree.Parameter);
 		VAR next: SyntaxTree.Parameter; first: BOOLEAN;
 		BEGIN
@@ -925,36 +911,6 @@ TYPE
 			w.String( ")" );
 		END ParameterList;
 
-		PROCEDURE PortList*(x: SyntaxTree.Port);
-		VAR next: SyntaxTree.Port; first: BOOLEAN;
-		BEGIN
-			first := TRUE;
-			w.String( "(" );
-			WHILE(x # NIL) DO
-				next := x.nextPort;
-				IF (x.access # SyntaxTree.Hidden) OR (mode > SourceCode) THEN
-					IF ~first THEN w.String("; ") END;
-					first := FALSE;
-					IF x.kind = SyntaxTree.InPort THEN Keyword("IN ");
-					ELSIF x.kind = SyntaxTree.OutPort THEN Keyword("OUT ");
-					END;
-					PrintSymbol(x);
-					WHILE (next # NIL) & (next.type = x.type) & (next.kind = x.kind) & ((next.access # SyntaxTree.Hidden) OR (mode > SourceCode)) DO
-						w.String(", "); PrintSymbol(next);
-						next := next.nextPort;
-					END;
-					IF x.access # SyntaxTree.Hidden THEN
-						w.String(": ");
-						Type(x.type);
-					ELSE
-						w.String(": ");
-						ShortType(x.type);
-					END;
-				END;
-				x := next;
-			END;
-			w.String( ")" );
-		END PortList;
 
 		PROCEDURE Access(access: SET);
 		BEGIN
@@ -1459,8 +1415,8 @@ TYPE
 					Identifier(x.context)
 				END;
 
-				IF (x.type IS SyntaxTree.ActorType) & (x.type(SyntaxTree.ActorType).firstPort # NIL) THEN (* for actors *)
-					PortList(x.type(SyntaxTree.ActorType).firstPort);
+				IF (x.type IS SyntaxTree.ActorType) & (x.type(SyntaxTree.ActorType).firstParameter # NIL) THEN (* for actors *)
+					ParameterList(x.type(SyntaxTree.ActorType).firstParameter);
 				END;
 
 				w.String(";");

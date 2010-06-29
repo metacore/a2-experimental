@@ -1005,10 +1005,10 @@ TYPE
 		Enter( "out", Out);
 		Enter( "operator" , Operator);
 		Enter( "procedure" , Procedure);
-		Enter( "receiver", Receiver);
+		Enter( "instream", Receiver);
 		Enter( "repeat" , Repeat);
 		Enter( "return" , Return);
-		Enter( "sender", Sender);
+		Enter( "outstream", Sender);
 		Enter( "self", Self);
 		Enter( "then" , Then);
 		Enter( "true" , True);

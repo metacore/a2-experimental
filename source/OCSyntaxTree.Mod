@@ -262,9 +262,6 @@ TYPE
 		PROCEDURE VisitParameter*(x: Parameter);
 		BEGIN HALT(100) (* abstract *) END VisitParameter;
 
-		PROCEDURE VisitPort*(x: Port);
-		BEGIN HALT(100) (* abstract *) END VisitPort;
-
 		PROCEDURE VisitProcedure*(x: Procedure);
 		BEGIN HALT(100) (* abstract *) END VisitProcedure;
 
@@ -833,32 +830,32 @@ TYPE
 
 	ActorType*=OBJECT (Type)
 	VAR
-		firstPort-,lastPort-: Port; numberPorts-: LONGINT;  (* parameters *)
+		firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters *)
 		actorScope-: Scope;
 
 		PROCEDURE &InitActorType(position: LONGINT; scope, actorScope: Scope);
 		BEGIN
 			InitType(position,{});
 			SELF.scope := scope;
-			numberPorts := 0; firstPort := NIL; lastPort := NIL;
+			numberParameters := 0; firstParameter := NIL; lastParameter := NIL;
 			SELF.actorScope := actorScope;
 		END InitActorType;
 
-		PROCEDURE AddPort*(p: Port);
+		PROCEDURE AddParameter*(p: Parameter);
 		BEGIN
 			ASSERT(p # NIL);
-			IF lastPort= NIL THEN firstPort := p ELSE lastPort.nextPort := p; p.prevPort := lastPort; END;
-			lastPort := p;
-			INC(numberPorts);
-		END AddPort;
+			IF lastParameter= NIL THEN firstParameter := p ELSE lastParameter.nextParameter := p; p.prevParameter := lastParameter; END;
+			lastParameter := p;
+			INC(numberParameters);
+		END AddParameter;
 
-		PROCEDURE FindPort*(identifier: Identifier): Port;
-		VAR p: Port;
+		PROCEDURE FindParameter*(identifier: Identifier): Parameter;
+		VAR p: Parameter;
 		BEGIN
-			p := firstPort;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextPort END;
+			p := firstParameter;
+			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextParameter END;
 			RETURN p;
-		END FindPort;
+		END FindParameter;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -951,15 +948,6 @@ TYPE
 			INC(numberParameters);
 			IF p.access = {} THEN INC(numberHiddenParameters) ELSE ASSERT(numberHiddenParameters = 0) (* hidden parameters must occur at the end *) END;
 		END AddParameter;
-
-		PROCEDURE PrefixParameter*(p: Parameter);
-		BEGIN
-			p.nextParameter := firstParameter;
-			firstParameter.prevParameter := p;
-			firstParameter := p;
-			IF lastParameter = NIL THEN lastParameter := p END;
-			INC(numberParameters);
-		END PrefixParameter;
 
 		PROCEDURE RevertParameters*;
 		VAR this,next: Parameter; pnum: LONGINT;
@@ -1925,36 +1913,6 @@ TYPE
 		END Accept;
 
 	END Variable;
-
-	(** << (IN | OUT) name: type >>
-		Port declaration symbol. Represents a parameter in the form (IN | OUT) name: Type.
-		The port's type is stored in the symbol's type field and is resolved by the semantic checker.
-	**)
-
-	Port* = OBJECT (Symbol)
-	VAR
-		nextPort-, prevPort-: Port;
-
-		kind-: LONGINT;   (* ValuePort, ConstPort, VarPort *)
-		ownerType-: ActorType;
-
-		PROCEDURE & InitPort( position: LONGINT;  ownerType: ActorType ; name: Identifier; kind: LONGINT);
-		BEGIN
-			InitSymbol( position, name );
-			SELF.kind := kind; access := access*ReadOnly;
-			nextPort := NIL;
-			SELF.ownerType := ownerType;
-		END InitPort;
-
-		PROCEDURE Accept*(v: Visitor);
-		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitPort(SELF)
-		END Accept;
-
-		PROCEDURE SetKind*(kind: LONGINT);
-		BEGIN SELF.kind := kind; END SetKind;
-
-	END Port;
 
 	(** << [VAR | CONST] name: type >>
 		Parameter declaration symbol. Represents a parameter in the form [VAR | CONST] name: Type.
@@ -3480,12 +3438,6 @@ VAR
 		INC( identifierCount );  NEW( identifier, position, name);
 		RETURN identifier
 	END NewIdentifier;
-
-	PROCEDURE NewPort*( position: LONGINT; owner: ActorType ;  name: Identifier; passAs: LONGINT): Port;
-	VAR port: Port;
-	BEGIN
-		NEW( port, position, owner, name, passAs);  RETURN port
-	END NewPort;
 
 	PROCEDURE NewParameter*( position: LONGINT; ownerType:Type ;  name: Identifier; passAs: LONGINT): Parameter;
 	VAR parameter: Parameter;

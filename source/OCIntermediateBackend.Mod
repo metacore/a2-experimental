@@ -3553,7 +3553,6 @@ TYPE
 		convert,isTensor: BOOLEAN;
 		flags: SET;
 		core,core1,core2: Dataflow.Core;
-		formalPort: SyntaxTree.Port;
 		port,port1,port2: Dataflow.Port;
 		channel: Dataflow.Channel;
 
@@ -4265,20 +4264,18 @@ TYPE
 
 					AddModules(core,type(SyntaxTree.ActorType).actorScope, type(SyntaxTree.ActorType).actorScope.ownerModule);
 
-					formalPort := type(SyntaxTree.ActorType).firstPort; j := 0;
-					WHILE formalPort # NIL DO
+					formalParameter := type(SyntaxTree.ActorType).firstParameter; j := 0;
+					WHILE formalParameter # NIL DO
 						COPY(name,name2);
 						Strings.Append(name2,".");
-						formalPort.name.GetString(name1);
+						formalParameter.name.GetString(name1);
 						Strings.Append(name2,name1);
-						IF formalPort.kind = SyntaxTree.InPort THEN
-							i := Dataflow.In;
-						ELSIF formalPort.kind = SyntaxTree.OutPort THEN
-							i := Dataflow.Out;
-						ELSE HALT(100);
+						i := formalParameter.type.resolved(SyntaxTree.PortType).direction;
+						IF i = SyntaxTree.OutPort THEN i := Dataflow.Out
+						ELSIF i = SyntaxTree.InPort THEN i := Dataflow.In
 						END;
-						port := core.NewPort(name2,i,backend.dataflowSpecification.GetPortAddress(i,j)); (*! address!! *)
-						formalPort := formalPort.nextPort;
+						port := core.NewPort(name2,i,backend.dataflowSpecification.GetPortAddress(j)); (*! address!! *)
+						formalParameter := formalParameter.nextParameter;
 						INC(j);
 					END;
 
@@ -4400,6 +4397,7 @@ TYPE
 			(* ---- SYSTEM.TRACE ----- *)
 			|Global.systemTrace:
 				SystemTrace(p0);
+			(* ----- CONNECT ------*)
 			|Global.Connect:
 				Global.GetSymbolName(p0(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name1);
 				Global.GetSymbolName(p1(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name2);
@@ -4425,6 +4423,7 @@ TYPE
 				IF (port1#NIL) & (port2#NIL) THEN
 					channel := backend.dataflowSpecification.NewChannel(port1,port2);
 				END;
+			(* ----- SEND ------*)
 			|Global.Send:
 				Evaluate(p0,s0);
 				Evaluate(p1,s1);
@@ -4435,7 +4434,10 @@ TYPE
 				Emit(Push(IntermediateCode.Immediate(addressType,size)));
 				*)
 				IF size # 1 THEN Error(p1.position,"send not implemented for complex data types") END;
+				ReleaseOperand(s0); 
+				ReleaseOperand(s1);
 				CallThis("Dataflow","Send");
+			(* ----- RECEIVE ------*)
 			|Global.Receive:
 				Evaluate(p0,s0);
 				Designate(p1,s1);
@@ -4446,6 +4448,8 @@ TYPE
 				Emit(Push(IntermediateCode.Immediate(addressType,size)));
 				*)
 				IF size # 1 THEN Error(p1.position,"receive not implemented for complex data types") END;
+				ReleaseOperand(s0); 
+				ReleaseOperand(s1);
 				CallThis("Dataflow","Receive");
 			ELSE (* function not yet implemented *)
 				Error(position,"not yet implemented");
@@ -4787,32 +4791,20 @@ TYPE
 			IF Trace THEN TraceExit("VisitVariable") END;
 		END VisitVariable;
 
-		PROCEDURE VisitPort(x: SyntaxTree.Port);
-		VAR adr: LONGINT; port: SyntaxTree.Port;
-		BEGIN
-			IF x.kind = SyntaxTree.InPort THEN
-				InitOperand(result, ModeValue);
-				port := x.ownerType.firstPort;
-				adr := 0; WHILE port # x DO INC(adr); port := port.nextPort END;
-				adr := backend.dataflowSpecification.GetPortAddress(Dataflow.In,adr);
-				IntermediateCode.InitImmediate(result.op,addressType,adr);
-				RETURN
-			ELSIF x.kind = SyntaxTree.OutPort THEN
-				InitOperand(result, ModeValue);
-				port := x.ownerType.firstPort;
-				adr := 0; WHILE port # x DO INC(adr); port := port.nextPort END;
-				adr := backend.dataflowSpecification.GetPortAddress(Dataflow.Out,adr);
-				IntermediateCode.InitImmediate(result.op,addressType,adr);
-				RETURN
-			END;
-		END VisitPort;
-
 		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
-		VAR type: SyntaxTree.Type; basereg, mem: IntermediateCode.Operand;
+		VAR type: SyntaxTree.Type; basereg, mem: IntermediateCode.Operand; parameter: SyntaxTree.Parameter;adr: LONGINT;
 		BEGIN
 			type := x.type.resolved;
 			IF Trace THEN TraceEnter("VisitParameter") END;
 
+			IF x.ownerType IS SyntaxTree.ActorType THEN
+				InitOperand(result, ModeValue);
+				parameter := x.ownerType(SyntaxTree.ActorType).firstParameter;
+				adr := 0; WHILE parameter # x DO INC(adr); parameter := parameter.nextParameter END;
+				adr := backend.dataflowSpecification.GetPortAddress(adr);
+				IntermediateCode.InitImmediate(result.op,addressType,adr);
+				RETURN
+			END;
 
 			GetBaseRegister(basereg,currentScope,x.scope);
 			InitOperand(result,ModeReference);
@@ -5064,7 +5056,8 @@ TYPE
 			ASSERT(left.type # NIL); ASSERT(right.type # NIL);
 			leftType := left.type.resolved; rightType:= right.type.resolved;
 
-			IF (leftType IS SyntaxTree.BasicType) OR (leftType IS SyntaxTree.PointerType) OR (leftType IS SyntaxTree.EnumerationType) THEN
+			IF (leftType IS SyntaxTree.BasicType) OR (leftType IS SyntaxTree.PointerType) OR (leftType IS SyntaxTree.EnumerationType)
+				OR (leftType IS SyntaxTree.PortType) THEN
 				Designate(left,leftO);
 				MakeMemory(mem,leftO.op,GetType(system,left.type),0);
 				destination := mem;
@@ -6988,6 +6981,8 @@ TYPE
 		ELSIF type IS SyntaxTree.MathArrayType THEN
 			ASSERT(type(SyntaxTree.MathArrayType).form IN {SyntaxTree.Static, SyntaxTree.Tensor});
 			RETURN GetType(system,Global.Address);
+		ELSIF type IS SyntaxTree.PortType THEN
+			RETURN GetType(system, Global.Address);
 		ELSE
  			HALT(100);
 		END;

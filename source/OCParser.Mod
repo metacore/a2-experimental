@@ -1284,29 +1284,22 @@ TYPE
 		PROCEDURE PortDeclaration(actor: SyntaxTree.ActorType; parentScope: SyntaxTree.Scope);
 		VAR
 			type: SyntaxTree.Type; name: SyntaxTree.Identifier;
-			firstPort, port: SyntaxTree.Port;   kind: LONGINT;
+			firstParameter, parameter: SyntaxTree.Parameter;
 		BEGIN
 			IF Trace THEN S( "PortDeclaration" ) END;
-			IF Optional( Scanner.In ) THEN
-				kind := SyntaxTree.InPort
-			ELSIF Optional(Scanner.Out) THEN
-				kind := SyntaxTree.OutPort
-			ELSE
-				Error(symbol.start,Diagnostics.Invalid,"invalid port declaration, must start with IN or OUT");
-			END;
-			firstPort := actor.lastPort;
+			firstParameter := actor.lastParameter;
 			REPEAT
 				name := Identifier();
-				port := SyntaxTree.NewPort(name.position,actor,name,kind);
-				actor.AddPort(port);
+				parameter := SyntaxTree.NewParameter(name.position,actor,name,SyntaxTree.ValueParameter);
+				actor.AddParameter(parameter);
 			UNTIL ~Optional( Scanner.Comma );
 			Check( Scanner.Colon );
 			type := Type( NIL, parentScope);
 			ASSERT(type # NIL);
-			IF firstPort # NIL THEN port := firstPort.nextPort ELSE port := actor.firstPort END;
-			WHILE port # NIL DO
-				port.SetType( type );
-				port := port.nextPort;
+			IF firstParameter # NIL THEN parameter := firstParameter.nextParameter ELSE parameter := actor.firstParameter END;
+			WHILE parameter # NIL DO
+				parameter.SetType( type );
+				parameter := parameter.nextParameter;
 			END;
 			IF Trace THEN E( "PortDeclaration" )
 			END;
