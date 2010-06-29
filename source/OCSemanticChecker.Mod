@@ -219,8 +219,6 @@ TYPE
 			IF symbol = NIL THEN (* error already handled *)
 				typeDeclaration := NIL;
 				result := SyntaxTree.invalidType;
-			ELSIF (symbol IS SyntaxTree.Import) & (symbol(SyntaxTree.Import).module # NIL) & (symbol(SyntaxTree.Import).module.type IS SyntaxTree.ActorType) THEN
-				result := symbol(SyntaxTree.Import).module.type;
 			ELSIF ~(symbol IS SyntaxTree.TypeDeclaration) THEN
 				Error(qualifiedIdentifier.suffix.position,Diagnostics.Invalid,"symbol does not denote a type");
 				typeDeclaration := NIL;
@@ -2472,11 +2470,6 @@ TYPE
 				ELSIF left.type.resolved IS SyntaxTree.RecordType THEN
 					scope := left.type.resolved(SyntaxTree.RecordType).recordScope;
 					ASSERT(scope # NIL)
-				(*
-				ELSIF left.type.resolved IS SyntaxTree.ActorType THEN
-					scope := left.type.resolved(SyntaxTree.ActorType).actorScope;
-					ASSERT(scope # NIL);
-				*)
 				ELSIF left.type.resolved = SyntaxTree.typeDeclarationType THEN
 					symbol := left(SyntaxTree.SymbolDesignator).symbol;
 					type := symbol(SyntaxTree.TypeDeclaration).declaredType.resolved;
@@ -4548,12 +4541,6 @@ TYPE
 					END;
 					IF module # NIL THEN (* enter reimports into list of imported modules *)
 						IF SELF.module = NIL THEN (* happens in recursive imports *)
-						ELSIF (SELF.module.type # SyntaxTree.dataflowType) & (module.type IS SyntaxTree.ActorType) THEN
-							Error(x.position, Diagnostics.Invalid,"forbidden actor type import");
-						ELSIF (SELF.module.type = SyntaxTree.dataflowType) & ~(module.type IS SyntaxTree.ActorType) THEN
-							Error(x.position, Diagnostics.Invalid, "forbidden import of non-actor type");
-						ELSIF module.type = SyntaxTree.dataflowType THEN
-							Error(x.position, Diagnostics.Invalid,"forbidden import of dataflow module");
 						END;
 						import := module.moduleScope.firstImport;
 						WHILE(import # NIL) DO
@@ -5378,13 +5365,6 @@ TYPE
 				WHILE(import # NIL) DO
 					IF import.context = NIL THEN import.SetContext(scope.ownerModule.context) END;
 					Register(import, currentScope, FALSE); import := import.nextImport;
-				END;
-				IF module.type IS SyntaxTree.ActorType THEN
-					parameter := module.type(SyntaxTree.ActorType).firstParameter;
-					WHILE(parameter # NIL) DO
-						Register(parameter,currentScope, FALSE); parameter := parameter.nextParameter;
-					END;
-					ImportModule(SyntaxTree.NewIdentifier(-1,"Dataflow"),module.position);
 				END;
 			ELSIF scope IS SyntaxTree.ProcedureScope THEN
 				(* enter parameters for a procedure scope *)
