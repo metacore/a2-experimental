@@ -509,9 +509,9 @@ TYPE
 				typeDeclaration := NIL;
 			END;
 			*)
-			IF (x.scope # NIL) (*
+			IF (x.scope # NIL) 
 				& (x.scope.ownerModule # NIL)  & (x.scope.ownerModule # module)
-				*)
+				
 				THEN
 				 (* only executed for imported types, reason:
 				 	modification of a type name would result in modified fingerprint leading to modified fingerprints of using structures such as
@@ -657,8 +657,11 @@ TYPE
 				IF ~fingerPrint.doneFP THEN
 					fp := 0;
 					FPNumber(fp,fpModeMethod);
+					FPName(fp,procedure.name);
+					(*
 					Global.GetSymbolName(procedure,name);
 					FPString(fp,name);
+					*)
 					FPSignature(fp,procedure.type(SyntaxTree.ProcedureType),procedure IS SyntaxTree.Operator );
 					fingerPrint.FP := fp;
 					fingerPrint.doneFP := TRUE;
@@ -1162,8 +1165,11 @@ TYPE
 					END;
 				ELSE
 					FPNumber(fp, fpModeExportedProcedure);
+					FPName(fp,x.name);
+					(*
 					Global.GetSymbolName(x,name);
 					FPString(fp,name);
+					*)
 					FPVisibility(fp, access);
 					FPSignature(fp,x.type(SyntaxTree.ProcedureType),x IS SyntaxTree.Operator);
 				END;
