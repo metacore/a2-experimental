@@ -3,7 +3,7 @@ MODULE OCIntermediateBackend; (** AUTHOR ""; PURPOSE ""; *)
 IMPORT Basic := OCBasic, SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend := OCBackend, Global := OCGlobal,
 	WMUtilities,Scanner := OCScanner, IntermediateCode := OCIntermediateCode, Sections := OCSections, Printout := OCPrintout,
 	SYSTEM, Diagnostics, Strings, Options, Streams, Compiler, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile, D := Debugging,
-	Fingerprinter := OCFingerprinter, Dataflow := OCDataflow;
+	Fingerprinter := OCFingerprinter, Dataflow := OCDataflow, DataflowBackend := OCDataflowBackend;
 
 CONST
 		(* operand modes *)
@@ -301,7 +301,9 @@ TYPE
 
 		PROCEDURE DataflowBody(x: SyntaxTree.Body);
 		BEGIN
+			(*
 			implementationVisitor.VisitStatementBlock(x);
+			*)
 		END DataflowBody;
 
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
@@ -4250,37 +4252,7 @@ TYPE
 
 					SetLabel(exit);
 				ELSIF type IS SyntaxTree.ActorType THEN
-					IF backend.dataflowSpecification = NIL THEN Error(p0.position,"no dataflow specification available"); RETURN END;
-					(* generate actor by calling method on dataflow specification *)
-					p0(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
-					Global.GetSymbolName(p0(SyntaxTree.SymbolDesignator).symbol,name);
-					IF type.typeDeclaration # NIL THEN
-						Global.GetSymbolName(type.typeDeclaration,name1)
-					ELSE
-						ASSERT(type(SyntaxTree.ActorType).actorScope IS SyntaxTree.ModuleScope);
-						Global.GetSymbolName(type(SyntaxTree.ActorType).actorScope.ownerModule,name1);
-					END;
-					core := backend.dataflowSpecification.NewCore(name,name1);
-
-					AddModules(core,type(SyntaxTree.ActorType).actorScope, type(SyntaxTree.ActorType).actorScope.ownerModule);
-
-					formalParameter := type(SyntaxTree.ActorType).firstParameter; j := 0;
-					WHILE formalParameter # NIL DO
-						COPY(name,name2);
-						Strings.Append(name2,".");
-						formalParameter.name.GetString(name1);
-						Strings.Append(name2,name1);
-						i := formalParameter.type.resolved(SyntaxTree.PortType).direction;
-						IF i = SyntaxTree.OutPort THEN i := Dataflow.Out
-						ELSIF i = SyntaxTree.InPort THEN i := Dataflow.In
-						END;
-						port := core.NewPort(name2,i,backend.dataflowSpecification.GetPortAddress(j)); (*! address!! *)
-						formalParameter := formalParameter.nextParameter;
-						INC(j);
-					END;
-
-
-
+					Error(p0.position,"cannot be allocated in runtime yet");
 				ELSE (* no pointer to record, no pointer to array *)
 					HALT(200);
 				END;
@@ -4399,30 +4371,7 @@ TYPE
 				SystemTrace(p0);
 			(* ----- CONNECT ------*)
 			|Global.Connect:
-				Global.GetSymbolName(p0(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name1);
-				Global.GetSymbolName(p1(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name2);
-				p0(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
-				p1(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
-				p0(SyntaxTree.SymbolDesignator).symbol.name.GetString(name);
-				core1 := Dataflow.FindCore(backend.dataflowSpecification.cores,name1);
-				IF core1 = NIL THEN Error(p0.position,"core not allocated")
-				ELSE
-					Strings.Append(name1,"."); Strings.Append(name1,name);
-					port1 := Dataflow.FindPort(core1.ports,name1);
-					IF port1 = NIL THEN Error(p0.position,"outport not available") END;
-				END;
-				p1(SyntaxTree.SymbolDesignator).symbol.name.GetString(name);
-				core2 := Dataflow.FindCore(backend.dataflowSpecification.cores,name2);
-				IF core2 = NIL THEN Error(p1.position,"core not allocated")
-				ELSE
-					Strings.Append(name2,"."); Strings.Append(name2,name);
-					port2 := Dataflow.FindPort(core2.ports,name2);
-					IF port2 = NIL THEN Error(p1.position,"inport not available") END;
-				END;
-
-				IF (port1#NIL) & (port2#NIL) THEN
-					channel := backend.dataflowSpecification.NewChannel(port1,port2);
-				END;
+				Error(x.position,"cannot be connected in runtime yet");
 			(* ----- SEND ------*)
 			|Global.Send:
 				Evaluate(p0,s0);
@@ -4434,7 +4383,7 @@ TYPE
 				Emit(Push(IntermediateCode.Immediate(addressType,size)));
 				*)
 				IF size # 1 THEN Error(p1.position,"send not implemented for complex data types") END;
-				ReleaseOperand(s0); 
+				ReleaseOperand(s0);
 				ReleaseOperand(s1);
 				CallThis("Dataflow","Send");
 			(* ----- RECEIVE ------*)
@@ -4448,7 +4397,7 @@ TYPE
 				Emit(Push(IntermediateCode.Immediate(addressType,size)));
 				*)
 				IF size # 1 THEN Error(p1.position,"receive not implemented for complex data types") END;
-				ReleaseOperand(s0); 
+				ReleaseOperand(s0);
 				ReleaseOperand(s1);
 				CallThis("Dataflow","Receive");
 			ELSE (* function not yet implemented *)
@@ -5675,15 +5624,22 @@ TYPE
 			implementationVisitor: ImplementationVisitor;
 			module: Sections.Module;
 			name, instructionSet: SyntaxTree.String;
+			dataflowDeclarationVisitor: DataflowBackend.DeclarationVisitor;
+			dataflowImplementationVisitor: DataflowBackend.ImplementationVisitor;
 		BEGIN
 			ResetError;
 			Global.GetSymbolName(x,name);
 			GetDescription(instructionSet);
 			IF dataflowSpecification # NIL THEN dataflowSpecification.Init(name,instructionSet,diagnostics) END;
 			NEW(module,x,system); (* backend structures *)
-			NEW(implementationVisitor,system,checker,Supported, Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
+			NEW(implementationVisitor,system,checker,Supported,Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
 			NEW(declarationVisitor,system,implementationVisitor,SELF,trace);
 			declarationVisitor.Module(x,module);
+			IF dataflowSpecification # NIL THEN
+				NEW(dataflowImplementationVisitor,system,checker,SELF);
+				NEW(dataflowDeclarationVisitor,system,dataflowImplementationVisitor,SELF);
+				dataflowDeclarationVisitor.Module(x);
+			END;
 
 			IF newObjectFile THEN
 				MetaModule(implementationVisitor,module);
