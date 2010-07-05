@@ -199,7 +199,8 @@ TYPE
 		END VisitRecordType;
 
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
-		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration;
+		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration; type: SyntaxTree.Type; len,port,adr: LONGINT;
+			parameter: SyntaxTree.Parameter; symbol: IntermediateCode.Section; op: IntermediateCode.Operand;
 		BEGIN (* no code emission *)
 			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
 			IF (x.actorScope.ownerModule = module.module)  THEN
@@ -207,6 +208,28 @@ TYPE
 				Global.GetSymbolName(td,name);
 				(* code section for object *)
 			END;
+			port := 0;
+			parameter := x.firstParameter;
+			WHILE parameter # NIL DO
+				type := parameter.type.resolved;
+				IF type IS SyntaxTree.PortType THEN
+					len := 1;
+					INC(port);
+				ELSIF SemanticChecker.IsStaticArray(type,type,len) THEN
+					Global.GetSymbolName(parameter,name);
+					symbol := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,parameter,dump);
+					WHILE len > 0 DO
+						adr := backend.dataflowSpecification.GetPortAddress(port);
+						IntermediateCode.InitImmediate(op,GetType(system,Global.Address),adr);
+						symbol.Emit(Data(op));
+						DEC(len); INC(port);
+					END;
+				ELSE
+					Error(parameter.position,"should never happen, check semantic checker!");
+				END;
+				parameter := parameter.nextParameter;
+			END;
+
 			Scope(x.actorScope);
 		END VisitActorType;
 
@@ -4740,24 +4763,41 @@ TYPE
 			IF Trace THEN TraceExit("VisitVariable") END;
 		END VisitVariable;
 
+		
+
 		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
-		VAR type: SyntaxTree.Type; basereg, mem: IntermediateCode.Operand; parameter: SyntaxTree.Parameter;adr: LONGINT;
+		VAR type: SyntaxTree.Type; basereg, mem: IntermediateCode.Operand; parameter: SyntaxTree.Parameter;adr: LONGINT; symbol: Sections.Section;
+			name: SyntaxTree.String; parameterType: SyntaxTree.Type; len: LONGINT;
 		BEGIN
 			type := x.type.resolved;
 			IF Trace THEN TraceEnter("VisitParameter") END;
 
 			IF x.ownerType IS SyntaxTree.ActorType THEN
-				InitOperand(result, ModeValue);
-				parameter := x.ownerType(SyntaxTree.ActorType).firstParameter;
-				adr := 0; WHILE parameter # x DO INC(adr); parameter := parameter.nextParameter END;
-				adr := backend.dataflowSpecification.GetPortAddress(adr);
-				IntermediateCode.InitImmediate(result.op,addressType,adr);
-				RETURN
+				IF ~(x.type.resolved IS SyntaxTree.PortType) THEN
+					InitOperand(result,ModeReference);
+					Global.GetSymbolName(x,name);
+					symbol := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,x,commentPrintout # NIL);
+					IntermediateCode.InitAddress(result.op, addressType, symbol, 0);
+					RETURN
+				ELSE
+					InitOperand(result, ModeValue);
+					parameter := x.ownerType(SyntaxTree.ActorType).firstParameter;
+					adr := 0; 
+					WHILE parameter # x DO 
+						parameterType := parameter.type;
+						IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN INC(adr,len) ELSE INC(adr) END;
+						parameter := parameter.nextParameter 
+					END;
+					adr := backend.dataflowSpecification.GetPortAddress(adr);
+					IntermediateCode.InitImmediate(result.op,addressType,adr);
+					RETURN
+				END;
+			ELSE
+				GetBaseRegister(basereg,currentScope,x.scope);
+				InitOperand(result,ModeReference);
+				result.op := basereg;
 			END;
 
-			GetBaseRegister(basereg,currentScope,x.scope);
-			InitOperand(result,ModeReference);
-			result.op := basereg;
 
 			IF IsOpenArray(type) THEN
 				result.tag := basereg;
@@ -5706,6 +5746,7 @@ TYPE
 		emptyOperand: IntermediateCode.Operand;
 		systemCalls: ARRAY NumberSystemCalls OF SyntaxTree.Symbol;
 
+	
 	PROCEDURE GetDataflowSpecification(CONST name: ARRAY OF CHAR): Dataflow.Specification;
 	VAR
 		procname: ARRAY 256 OF CHAR;

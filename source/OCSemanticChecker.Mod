@@ -855,7 +855,7 @@ TYPE
 		**)
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		VAR
-			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter;
+			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter; type: SyntaxTree.Type; len: LONGINT;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 
@@ -863,8 +863,11 @@ TYPE
 				parameter :=x.firstParameter;
 				WHILE (parameter # NIL) DO
 					VisitParameter(parameter);
-					IF ~(parameter.type.resolved IS SyntaxTree.PortType) THEN
-						Error(parameter.position, Diagnostics.Invalid, "invalid type, must be port");
+					type := parameter.type.resolved;
+					IF ~(type IS SyntaxTree.PortType) THEN
+						IF ~IsStaticArray(type,type,len) OR ~(type IS SyntaxTree.PortType) THEN
+						Error(parameter.position, Diagnostics.Invalid, "invalid type, must be port or static array of port ");
+						END;
 					END;
 					parameter := parameter.nextParameter;
 				END;
@@ -6173,6 +6176,19 @@ TYPE
 		END;
 		RETURN t;
 	END ArrayBase;
+
+	PROCEDURE IsStaticArray*(type: SyntaxTree.Type; VAR base: SyntaxTree.Type; VAR dim :LONGINT): BOOLEAN;
+	BEGIN
+		type := type.resolved;
+		IF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).form = SyntaxTree.Static) THEN
+			base := type(SyntaxTree.ArrayType).arrayBase;
+			dim := type(SyntaxTree.ArrayType).staticLength;
+			RETURN TRUE
+		ELSE
+			RETURN FALSE
+		END;
+	END IsStaticArray;
+
 
 	PROCEDURE Dimension*(t: SyntaxTree.Type; form: SET): LONGINT;
 	VAR i: LONGINT;

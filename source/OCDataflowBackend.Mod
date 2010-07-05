@@ -2,7 +2,7 @@ MODULE OCDataflowBackend; (** AUTHOR ""; PURPOSE ""; *)
 
 IMPORT SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend := OCBackend, Global := OCGlobal,
  	Diagnostics, Strings, Options, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile, D := Debugging,
-	Dataflow := OCDataflow;
+	Dataflow := OCDataflow, Basic := OCBasic;
 
 TYPE
 
@@ -76,7 +76,7 @@ TYPE
 		(* symbols *)
 
 		PROCEDURE VisitProcedure(x: SyntaxTree.Procedure);
-		BEGIN	
+		BEGIN
 			Procedure(x);
 		END VisitProcedure;
 
@@ -277,7 +277,40 @@ TYPE
 		type,t0,t1,t2: SyntaxTree.Type;
 		name,name1,name2: SyntaxTree.String;
 		formalParameter: SyntaxTree.Parameter;
-		i,j,len: LONGINT;
+		i,j,len,direction: LONGINT;
+		parameterType: SyntaxTree.Type;
+
+			PROCEDURE GetNumber(p: SyntaxTree.Expression): LONGINT;
+			BEGIN
+				IF (p.resolved# NIL) & (p.resolved IS SyntaxTree.IntegerValue) THEN RETURN p.resolved(SyntaxTree.IntegerValue).value END;
+			END GetNumber;
+
+
+			PROCEDURE GetPort(p: SyntaxTree.Expression): Dataflow.Port;
+			VAR name1,name2: SyntaxTree.String; port: Dataflow.Port; number: LONGINT;
+			BEGIN
+				port := NIL;
+				IF p IS SyntaxTree.IndexDesignator THEN
+					number := GetNumber(p(SyntaxTree.IndexDesignator).parameters.GetExpression(0));
+					p := p(SyntaxTree.IndexDesignator).left;
+				ELSE
+					number := -1
+				END;
+
+				Global.GetSymbolName(p(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name1);
+				p(SyntaxTree.SymbolDesignator).symbol.name.GetString(name2);
+				core := Dataflow.FindCore(backend.dataflowSpecification.cores,name1);
+				IF core = NIL THEN
+					Error(p.position,"core not allocated");
+				ELSE
+					Strings.Append(name1,"."); Strings.Append(name1,name2);
+					IF number # -1 THEN Strings.Append(name1,"["); Basic.AppendNumber(name1,number); Strings.Append(name1,"]"); END;
+					port := Dataflow.FindPort(core.ports,name1);
+					IF port = NIL THEN Error(p.position,"outport not available") END;
+				END;
+				RETURN port
+			END GetPort;
+
 		BEGIN
 			p0 := NIL; p1 := NIL; p2 := NIL; len := x.parameters.Length();
 			IF len > 0 THEN p0 := x.parameters.GetExpression(0); t0 := p0.type.resolved END;
@@ -310,19 +343,44 @@ TYPE
 						Strings.Append(name2,".");
 						formalParameter.name.GetString(name1);
 						Strings.Append(name2,name1);
-						i := formalParameter.type.resolved(SyntaxTree.PortType).direction;
-						IF i = SyntaxTree.OutPort THEN i := Dataflow.Out
-						ELSIF i = SyntaxTree.InPort THEN i := Dataflow.In
+						parameterType := formalParameter.type.resolved;
+
+						IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN
+							direction := parameterType(SyntaxTree.PortType).direction;
+							IF direction = SyntaxTree.OutPort THEN
+								direction := Dataflow.Out
+							ELSIF direction = SyntaxTree.InPort THEN
+								direction := Dataflow.In
+							END;
+							FOR i := 0 TO len-1 DO
+								COPY(name2,name1);
+								Strings.Append(name1,"[");
+								Basic.AppendNumber(name1,i);
+								Strings.Append(name1,"]");
+								port := core.NewPort(name1,direction,backend.dataflowSpecification.GetPortAddress(j));
+								INC(j);
+							END;
+						ELSE
+							COPY(name2,name1);
+							direction := parameterType(SyntaxTree.PortType).direction;
+							IF direction = SyntaxTree.OutPort THEN
+								direction := Dataflow.Out
+							ELSIF direction = SyntaxTree.InPort THEN
+								direction := Dataflow.In
+							END;
+							port := core.NewPort(name1,direction,backend.dataflowSpecification.GetPortAddress(j));
+							INC(j);
 						END;
-						port := core.NewPort(name2,i,backend.dataflowSpecification.GetPortAddress(j)); (*! address!! *)
 						formalParameter := formalParameter.nextParameter;
-						INC(j);
 					END;
 				ELSE
 					HALT(200);
 				END;
 			(* ----- CONNECT ------*)
 			|Global.Connect:
+				port1 := GetPort(p0);
+				port2 := GetPort(p1);
+				(*
 				Global.GetSymbolName(p0(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name1);
 				Global.GetSymbolName(p1(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name2);
 				p0(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
@@ -343,7 +401,7 @@ TYPE
 					port2 := Dataflow.FindPort(core2.ports,name2);
 					IF port2 = NIL THEN Error(p1.position,"inport not available") END;
 				END;
-
+				*)
 				IF (port1#NIL) & (port2#NIL) THEN
 					channel := backend.dataflowSpecification.NewChannel(port1,port2);
 				END;
