@@ -1,7 +1,7 @@
 MODULE OCDataflowBackend; (** AUTHOR ""; PURPOSE ""; *)
 
 IMPORT SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend := OCBackend, Global := OCGlobal,
- 	Diagnostics, Strings, Options, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile, D := Debugging,
+ 	Diagnostics, Strings, Options, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile,
 	Dataflow := OCDataflow, Basic := OCBasic;
 
 CONST
@@ -9,7 +9,8 @@ CONST
 TYPE
 
 	Value*=OBJECT
-	VAR value: LONGINT; (* currently only support for integer values *)
+	VAR
+		value: LONGINT; (* currently only support for integer values *)
 
 		PROCEDURE &Init;
 		BEGIN
@@ -80,10 +81,12 @@ TYPE
 			SELF.backend := backend;
 		END Init;
 
+		(*
 		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
 		BEGIN
 			backend.Error("", position, Diagnostics.Invalid, s);
 		END Error;
+		*)
 
 		(** types **)
 
@@ -358,13 +361,17 @@ TYPE
 		parameterType: SyntaxTree.Type;
 		CONST FullName= TRUE;
 
+			PROCEDURE AppendIndex(VAR name: ARRAY OF CHAR; index: LONGINT);
+			BEGIN
+				Strings.Append(name,"["); Basic.AppendNumber(name,index); Strings.Append(name,"]");
+			END AppendIndex;
 
 			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
 			BEGIN
 				IF e IS SyntaxTree.IndexDesignator THEN
 					IF e(SyntaxTree.IndexDesignator).parameters.Length() # 1 THEN Error(e.position,"unsupported array dimension") END;
 					Expression(e(SyntaxTree.IndexDesignator).parameters.GetExpression(0));
-					suffix := "["; Basic.AppendNumber(suffix,resultValue.value); Strings.Append(suffix,"]");
+					suffix := ""; AppendIndex(suffix,resultValue.value);
 					e := e(SyntaxTree.IndexDesignator).left;
 				END;
 			END Index;
@@ -380,12 +387,8 @@ TYPE
 				ELSE
 					e(SyntaxTree.SymbolDesignator).symbol.name.GetString(coreName);
 				END;
-				
 				Strings.Append(coreName, suffix);
 				Global.GetSymbolName(type.typeDeclaration,typeName);
-
-				D.String("core name "); D.String(coreName); D.String(" typeName "); D.String(typeName); D.Ln;
-
 				RETURN TRUE
 			END GetCoreName;
 
@@ -401,7 +404,7 @@ TYPE
 					IF core = NIL THEN
 						Error(p.position,"core not allocated");
 					ELSE
-						IF FullName THEN						
+						IF FullName THEN
 							COPY(coreName, name);
 							Strings.Append(name,"."); Strings.Append(name,portName);
 						ELSE
@@ -409,12 +412,20 @@ TYPE
 						END;
 						Strings.Append(name,suffix);
 						port := Dataflow.FindPort(core.ports,name);
-						D.String("port name "); D.String(name); D.Ln;
 						IF port = NIL THEN Error(p.position,"outport not available") END;
 					END;
 				END;
 				RETURN port
 			END GetPort;
+
+			PROCEDURE Direction(direction: LONGINT): LONGINT;
+			BEGIN
+				IF direction = SyntaxTree.OutPort THEN RETURN Dataflow.Out
+				ELSIF direction = SyntaxTree.InPort THEN RETURN Dataflow.In
+				ELSE HALT(100);
+				END;
+			END Direction;
+
 
 		BEGIN
 			p0 := NIL; p1 := NIL; p2 := NIL; len := x.parameters.Length();
@@ -423,15 +434,11 @@ TYPE
 			IF len > 2 THEN p2 := x.parameters.GetExpression(2); t2 := p2.type.resolved END;
 
 			CASE x.id OF
-
 			|Global.New:
 				(*! the following code is only correct for "standard" Oberon calling convention *)
 				type := p0.type.resolved;
 				IF type IS SyntaxTree.ActorType THEN
 					(* generate actor by calling method on dataflow specification *)
-					IF p0 IS SyntaxTree.IndexDesignator THEN
-					END;
-
 					IF GetCoreName(p0,coreName, typeName) THEN
 						core := backend.dataflowSpecification.NewCore(coreName, typeName);
 						AddModules(core,type(SyntaxTree.ActorType).actorScope, type(SyntaxTree.ActorType).actorScope.ownerModule);
@@ -449,29 +456,16 @@ TYPE
 							parameterType := formalParameter.type.resolved;
 
 							IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN
-								direction := parameterType(SyntaxTree.PortType).direction;
-								IF direction = SyntaxTree.OutPort THEN
-									direction := Dataflow.Out
-								ELSIF direction = SyntaxTree.InPort THEN
-									direction := Dataflow.In
-								END;
+								direction := Direction(parameterType(SyntaxTree.PortType).direction);
 								FOR i := 0 TO len-1 DO
 									COPY(portName,name);
-									Strings.Append(name,"[");
-									Basic.AppendNumber(name,i);
-									Strings.Append(name,"]");
+									AppendIndex(name,i);
 									port := core.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(j));
 									INC(j);
 								END;
 							ELSE
-								COPY(portName,name);
-								direction := parameterType(SyntaxTree.PortType).direction;
-								IF direction = SyntaxTree.OutPort THEN
-									direction := Dataflow.Out
-								ELSIF direction = SyntaxTree.InPort THEN
-									direction := Dataflow.In
-								END;
-								port := core.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(j));
+								direction := Direction(parameterType(SyntaxTree.PortType).direction);
+								port := core.NewPort(portName,direction,backend.dataflowSpecification.GetPortAddress(j));
 								INC(j);
 							END;
 							formalParameter := formalParameter.nextParameter;
@@ -484,28 +478,6 @@ TYPE
 			|Global.Connect:
 				port1 := GetPort(p0);
 				port2 := GetPort(p1);
-				(*
-				Global.GetSymbolName(p0(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name1);
-				Global.GetSymbolName(p1(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name2);
-				p0(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
-				p1(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
-				p0(SyntaxTree.SymbolDesignator).symbol.name.GetString(name);
-				core1 := Dataflow.FindCore(backend.dataflowSpecification.cores,name1);
-				IF core1 = NIL THEN Error(p0.position,"core not allocated")
-				ELSE
-					Strings.Append(name1,"."); Strings.Append(name1,name);
-					port1 := Dataflow.FindPort(core1.ports,name1);
-					IF port1 = NIL THEN Error(p0.position,"outport not available") END;
-				END;
-				p1(SyntaxTree.SymbolDesignator).symbol.name.GetString(name);
-				core2 := Dataflow.FindCore(backend.dataflowSpecification.cores,name2);
-				IF core2 = NIL THEN Error(p1.position,"core not allocated")
-				ELSE
-					Strings.Append(name2,"."); Strings.Append(name2,name);
-					port2 := Dataflow.FindPort(core2.ports,name2);
-					IF port2 = NIL THEN Error(p1.position,"inport not available") END;
-				END;
-				*)
 				IF (port1#NIL) & (port2#NIL) THEN
 					channel := backend.dataflowSpecification.NewChannel(port1,port2);
 				END;
