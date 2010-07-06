@@ -88,9 +88,10 @@
 				<Group style="Bold">
 					VAR CONST
 					ARRAY POINTER
+					ACTOR
 				</Group>
 				<Group style="Bold">
-					NEW SELF
+					NEW SELF CONNECT
 				</Group>
 				<Group style="Italic">
 					ABS ASH CAP CHR ORD
@@ -98,6 +99,7 @@
 					MAX MIN ODD SIZEOF SHORT LONG ENTIER ENTIERH
 					DIV MOD IN IS OR
 					INCL EXCL INC DEC
+					SEND RECEIVE
 				</Group>
 				<Group style="Modifiers">
 					DELEGATE
