@@ -4586,9 +4586,11 @@ TYPE
 			IF SyntaxTree.UnreachableFlag IN currentFlags THEN x.AddFlags({SyntaxTree.UnreachableFlag}) END;
 			dataflowStatement := FALSE;
 			x.Accept(SELF);
+			(* removed this, implementation restriction should be resolved by backend
 			IF (inDataflowBody) & (dataflowStatement = FALSE) THEN
 				Error(x.position, Diagnostics.Invalid, "non-dataflow statement in dataflow block - not yet implemented");
 			END;
+			*)
 			resolved := resolvedStatement;
 			resolvedStatement := prev;
 			RETURN resolved

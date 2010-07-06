@@ -4,7 +4,66 @@ IMPORT SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend
  	Diagnostics, Strings, Options, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile, D := Debugging,
 	Dataflow := OCDataflow, Basic := OCBasic;
 
+CONST
+	NotYetImplemented = "not yet implemented";
 TYPE
+
+	Value*=OBJECT
+	VAR value: LONGINT; (* currently only support for integer values *)
+
+		PROCEDURE &Init;
+		BEGIN
+			value := 0;
+		END Init;
+
+	END Value;
+
+	Scope*=OBJECT
+	VAR hashTable: Basic.HashTable;
+
+		PROCEDURE &InitScope;
+		BEGIN
+			NEW(hashTable,32);
+		END InitScope;
+
+		PROCEDURE Put(symbol: SyntaxTree.Symbol; value: Value);
+		BEGIN
+			hashTable.Put(symbol, value);
+		END Put;
+
+		PROCEDURE Get(symbol: SyntaxTree.Symbol): Value;
+		VAR a: ANY; value: Value;
+		BEGIN
+			a := hashTable.Get(symbol);
+			IF a = NIL THEN NEW(value); Put(symbol, value) ELSE value := a(Value) END;
+			RETURN value
+		END Get;
+
+	END Scope;
+
+	Scopes= OBJECT
+		VAR hashTable: Basic.HashTable;
+
+		PROCEDURE &InitScopes;
+		BEGIN
+			NEW(hashTable,32);
+		END InitScopes;
+
+		PROCEDURE Put(s: SyntaxTree.Scope; scope: Scope);
+		BEGIN
+			hashTable.Put(s, scope);
+		END Put;
+
+		PROCEDURE Get(s: SyntaxTree.Scope): Scope;
+		VAR a: ANY; scope: Scope;
+		BEGIN
+			a := hashTable.Get(s);
+			IF a = NIL THEN NEW(scope); Put(s,scope) ELSE scope := a(Scope) END;
+			RETURN scope
+		END Get;
+
+		END Scopes;
+
 
 	DeclarationVisitor* =OBJECT(SyntaxTree.Visitor)
 	VAR
@@ -186,6 +245,11 @@ TYPE
 		currentScope: SyntaxTree.Scope;
 		currentActorScope: SyntaxTree.ActorScope;
 
+		scopes: Scopes;
+
+		resultScope: Scope;
+		resultValue: Value;
+
 		PROCEDURE & Init*(system: Global.System; checker: SemanticChecker.Checker; backend: Backend.Backend);
 		BEGIN
 			SELF.system := system;
@@ -194,6 +258,7 @@ TYPE
 
 			currentScope := NIL;
 			currentActorScope := NIL;
+			NEW(scopes);
 		END Init;
 
 		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
@@ -209,6 +274,7 @@ TYPE
 
 		PROCEDURE Expression(x: SyntaxTree.Expression);
 		BEGIN
+			resultValue := NIL;
 			position := x.position;
 			IF x.resolved # NIL THEN
 				x.resolved.Accept(SELF)
@@ -226,87 +292,126 @@ TYPE
 		(** expressions *)
 		PROCEDURE VisitSet(x: SyntaxTree.Set);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitSet;
 
 		PROCEDURE VisitMathArrayExpression(x: SyntaxTree.MathArrayExpression);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitMathArrayExpression;
 
 		PROCEDURE VisitUnaryExpression(x: SyntaxTree.UnaryExpression);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitUnaryExpression;
 
 		PROCEDURE VisitBinaryExpression(x: SyntaxTree.BinaryExpression);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitBinaryExpression;
 
 		PROCEDURE VisitRangeExpression(x: SyntaxTree.RangeExpression);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitRangeExpression;
 
 		PROCEDURE VisitTensorRangeExpression*(x: SyntaxTree.TensorRangeExpression);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitTensorRangeExpression;
 
 		PROCEDURE VisitConversion(x: SyntaxTree.Conversion);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitConversion;
 
 		PROCEDURE VisitTypeDeclaration(x: SyntaxTree.TypeDeclaration);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitTypeDeclaration;
 
 		(** designators (expressions) *)
 		PROCEDURE VisitSymbolDesignator(x: SyntaxTree.SymbolDesignator);
 		BEGIN
+			Symbol(x.symbol);
 		END VisitSymbolDesignator;
 
 		PROCEDURE VisitIndexDesignator(x: SyntaxTree.IndexDesignator);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitIndexDesignator;
 
 		PROCEDURE VisitProcedureCallDesignator(x: SyntaxTree.ProcedureCallDesignator);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitProcedureCallDesignator;
 
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR p0,p1,p2: SyntaxTree.Expression;
-		core,core1,core2: Dataflow.Core;
+		core: Dataflow.Core;
 		port,port1,port2: Dataflow.Port;
 		channel: Dataflow.Channel;
 		type,t0,t1,t2: SyntaxTree.Type;
-		name,name1,name2: SyntaxTree.String;
+		coreName, typeName, portName, name: SyntaxTree.String;
 		formalParameter: SyntaxTree.Parameter;
 		i,j,len,direction: LONGINT;
 		parameterType: SyntaxTree.Type;
+		CONST FullName= TRUE;
 
-			PROCEDURE GetNumber(p: SyntaxTree.Expression): LONGINT;
+
+			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
 			BEGIN
-				IF (p.resolved# NIL) & (p.resolved IS SyntaxTree.IntegerValue) THEN RETURN p.resolved(SyntaxTree.IntegerValue).value END;
-			END GetNumber;
+				IF e IS SyntaxTree.IndexDesignator THEN
+					IF e(SyntaxTree.IndexDesignator).parameters.Length() # 1 THEN Error(e.position,"unsupported array dimension") END;
+					Expression(e(SyntaxTree.IndexDesignator).parameters.GetExpression(0));
+					suffix := "["; Basic.AppendNumber(suffix,resultValue.value); Strings.Append(suffix,"]");
+					e := e(SyntaxTree.IndexDesignator).left;
+				END;
+			END Index;
+
+			PROCEDURE GetCoreName(e: SyntaxTree.Expression; VAR coreName, typeName: ARRAY OF CHAR): BOOLEAN;
+			VAR suffix: SyntaxTree.String; type: SyntaxTree.Type;
+			BEGIN
+				suffix := ""; type := e.type;
+				Index(e,suffix);
+				IF ~(e IS SyntaxTree.SymbolDesignator) THEN Error(e.position,"unsupported designator"); RETURN FALSE END;
+				IF FullName THEN
+					Global.GetSymbolName(e(SyntaxTree.SymbolDesignator).symbol, coreName);
+				ELSE
+					e(SyntaxTree.SymbolDesignator).symbol.name.GetString(coreName);
+				END;
+				
+				Strings.Append(coreName, suffix);
+				Global.GetSymbolName(type.typeDeclaration,typeName);
+
+				D.String("core name "); D.String(coreName); D.String(" typeName "); D.String(typeName); D.Ln;
+
+				RETURN TRUE
+			END GetCoreName;
 
 
 			PROCEDURE GetPort(p: SyntaxTree.Expression): Dataflow.Port;
-			VAR name1,name2: SyntaxTree.String; port: Dataflow.Port; number: LONGINT;
+			VAR name, coreName, typeName: SyntaxTree.String; port: Dataflow.Port; suffix: SyntaxTree.String;
 			BEGIN
+				Index(p, suffix);
 				port := NIL;
-				IF p IS SyntaxTree.IndexDesignator THEN
-					number := GetNumber(p(SyntaxTree.IndexDesignator).parameters.GetExpression(0));
-					p := p(SyntaxTree.IndexDesignator).left;
-				ELSE
-					number := -1
-				END;
-
-				Global.GetSymbolName(p(SyntaxTree.SymbolDesignator).left(SyntaxTree.SymbolDesignator).symbol,name1);
-				p(SyntaxTree.SymbolDesignator).symbol.name.GetString(name2);
-				core := Dataflow.FindCore(backend.dataflowSpecification.cores,name1);
-				IF core = NIL THEN
-					Error(p.position,"core not allocated");
-				ELSE
-					Strings.Append(name1,"."); Strings.Append(name1,name2);
-					IF number # -1 THEN Strings.Append(name1,"["); Basic.AppendNumber(name1,number); Strings.Append(name1,"]"); END;
-					port := Dataflow.FindPort(core.ports,name1);
-					IF port = NIL THEN Error(p.position,"outport not available") END;
+				IF GetCoreName(p(SyntaxTree.SymbolDesignator).left, coreName, typeName) THEN
+					p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
+					core := Dataflow.FindCore(backend.dataflowSpecification.cores,coreName);
+					IF core = NIL THEN
+						Error(p.position,"core not allocated");
+					ELSE
+						IF FullName THEN						
+							COPY(coreName, name);
+							Strings.Append(name,"."); Strings.Append(name,portName);
+						ELSE
+							COPY(portName, name);
+						END;
+						Strings.Append(name,suffix);
+						port := Dataflow.FindPort(core.ports,name);
+						D.String("port name "); D.String(name); D.Ln;
+						IF port = NIL THEN Error(p.position,"outport not available") END;
+					END;
 				END;
 				RETURN port
 			END GetPort;
@@ -323,58 +428,57 @@ TYPE
 				(*! the following code is only correct for "standard" Oberon calling convention *)
 				type := p0.type.resolved;
 				IF type IS SyntaxTree.ActorType THEN
-					IF backend.dataflowSpecification = NIL THEN Error(p0.position,"no dataflow specification available"); RETURN END;
 					(* generate actor by calling method on dataflow specification *)
-					p0(SyntaxTree.SymbolDesignator).symbol.MarkUsed;
-					Global.GetSymbolName(p0(SyntaxTree.SymbolDesignator).symbol,name);
-					IF type.typeDeclaration # NIL THEN
-						Global.GetSymbolName(type.typeDeclaration,name1)
-					ELSE
-						ASSERT(type(SyntaxTree.ActorType).actorScope IS SyntaxTree.ModuleScope);
-						Global.GetSymbolName(type(SyntaxTree.ActorType).actorScope.ownerModule,name1);
+					IF p0 IS SyntaxTree.IndexDesignator THEN
 					END;
-					core := backend.dataflowSpecification.NewCore(name,name1);
 
-					AddModules(core,type(SyntaxTree.ActorType).actorScope, type(SyntaxTree.ActorType).actorScope.ownerModule);
+					IF GetCoreName(p0,coreName, typeName) THEN
+						core := backend.dataflowSpecification.NewCore(coreName, typeName);
+						AddModules(core,type(SyntaxTree.ActorType).actorScope, type(SyntaxTree.ActorType).actorScope.ownerModule);
 
-					formalParameter := type(SyntaxTree.ActorType).firstParameter; j := 0;
-					WHILE formalParameter # NIL DO
-						COPY(name,name2);
-						Strings.Append(name2,".");
-						formalParameter.name.GetString(name1);
-						Strings.Append(name2,name1);
-						parameterType := formalParameter.type.resolved;
-
-						IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN
-							direction := parameterType(SyntaxTree.PortType).direction;
-							IF direction = SyntaxTree.OutPort THEN
-								direction := Dataflow.Out
-							ELSIF direction = SyntaxTree.InPort THEN
-								direction := Dataflow.In
+						formalParameter := type(SyntaxTree.ActorType).firstParameter; j := 0;
+						WHILE formalParameter # NIL DO
+							IF FullName THEN
+								COPY(coreName, portName);
+								Strings.Append(portName,".");
+							ELSE
+								portName := ""
 							END;
-							FOR i := 0 TO len-1 DO
-								COPY(name2,name1);
-								Strings.Append(name1,"[");
-								Basic.AppendNumber(name1,i);
-								Strings.Append(name1,"]");
-								port := core.NewPort(name1,direction,backend.dataflowSpecification.GetPortAddress(j));
+							formalParameter.name.GetString(name);
+							Strings.Append(portName,name);
+							parameterType := formalParameter.type.resolved;
+
+							IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN
+								direction := parameterType(SyntaxTree.PortType).direction;
+								IF direction = SyntaxTree.OutPort THEN
+									direction := Dataflow.Out
+								ELSIF direction = SyntaxTree.InPort THEN
+									direction := Dataflow.In
+								END;
+								FOR i := 0 TO len-1 DO
+									COPY(portName,name);
+									Strings.Append(name,"[");
+									Basic.AppendNumber(name,i);
+									Strings.Append(name,"]");
+									port := core.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(j));
+									INC(j);
+								END;
+							ELSE
+								COPY(portName,name);
+								direction := parameterType(SyntaxTree.PortType).direction;
+								IF direction = SyntaxTree.OutPort THEN
+									direction := Dataflow.Out
+								ELSIF direction = SyntaxTree.InPort THEN
+									direction := Dataflow.In
+								END;
+								port := core.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(j));
 								INC(j);
 							END;
-						ELSE
-							COPY(name2,name1);
-							direction := parameterType(SyntaxTree.PortType).direction;
-							IF direction = SyntaxTree.OutPort THEN
-								direction := Dataflow.Out
-							ELSIF direction = SyntaxTree.InPort THEN
-								direction := Dataflow.In
-							END;
-							port := core.NewPort(name1,direction,backend.dataflowSpecification.GetPortAddress(j));
-							INC(j);
+							formalParameter := formalParameter.nextParameter;
 						END;
-						formalParameter := formalParameter.nextParameter;
 					END;
 				ELSE
-					HALT(200);
+					Error(x.position,NotYetImplemented)
 				END;
 			(* ----- CONNECT ------*)
 			|Global.Connect:
@@ -406,44 +510,57 @@ TYPE
 					channel := backend.dataflowSpecification.NewChannel(port1,port2);
 				END;
 			ELSE (* function not yet implemented *)
-				Error(position,"not yet implemented");
+				Error(position,NotYetImplemented);
 			END;
 		END VisitBuiltinCallDesignator;
 
 		PROCEDURE VisitTypeGuardDesignator(x: SyntaxTree.TypeGuardDesignator);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitTypeGuardDesignator;
 
 		PROCEDURE VisitDereferenceDesignator(x: SyntaxTree.DereferenceDesignator);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitDereferenceDesignator;
 
 		PROCEDURE VisitSupercallDesignator(x: SyntaxTree.SupercallDesignator);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitSupercallDesignator;
 
 		PROCEDURE VisitSelfDesignator(x: SyntaxTree.SelfDesignator);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitSelfDesignator;
 
 		(** values *)
 		PROCEDURE VisitBooleanValue(x: SyntaxTree.BooleanValue);
+		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitBooleanValue;
 
 		PROCEDURE VisitIntegerValue(x: SyntaxTree.IntegerValue);
+		VAR value: Value;
 		BEGIN
+			NEW(value);
+			value.value := x.value;
+			resultValue := value;
 		END VisitIntegerValue;
 
 		PROCEDURE VisitCharacterValue(x: SyntaxTree.CharacterValue);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitCharacterValue;
 
 		PROCEDURE VisitSetValue(x: SyntaxTree.SetValue);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitSetValue;
 
 		PROCEDURE VisitMathArrayValue(x: SyntaxTree.MathArrayValue);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitMathArrayValue;
 
 		PROCEDURE VisitConstant(x: SyntaxTree.Constant);
@@ -453,18 +570,22 @@ TYPE
 
 		PROCEDURE VisitRealValue(x: SyntaxTree.RealValue);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitRealValue;
 
 		PROCEDURE VisitStringValue(x: SyntaxTree.StringValue);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitStringValue;
 
 		PROCEDURE VisitNilValue(x: SyntaxTree.NilValue);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitNilValue;
 
 		PROCEDURE VisitEnumerationValue(x: SyntaxTree.EnumerationValue);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitEnumerationValue;
 
 		(** symbols *)
@@ -475,18 +596,25 @@ TYPE
 
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
 		BEGIN
+			IF x.type.resolved IS SyntaxTree.IntegerType THEN
+				resultScope := scopes.Get(x.scope);
+				resultValue := resultScope.Get(x);
+			END;
 		END VisitVariable;
 
 		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitParameter;
 
 		PROCEDURE VisitProcedure(x: SyntaxTree.Procedure);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitProcedure;
 
 		PROCEDURE VisitOperator(x: SyntaxTree.Operator);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitOperator;
 
 		(** statements *)
@@ -498,46 +626,68 @@ TYPE
 
 		PROCEDURE VisitAssignment(x: SyntaxTree.Assignment);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitAssignment;
 
 		PROCEDURE VisitIfStatement(x: SyntaxTree.IfStatement);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitIfStatement;
 
 		PROCEDURE VisitWithStatement(x: SyntaxTree.WithStatement);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitWithStatement;
 
 		PROCEDURE VisitCaseStatement(x: SyntaxTree.CaseStatement);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitCaseStatement;
 
 		PROCEDURE VisitWhileStatement(x: SyntaxTree.WhileStatement);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitWhileStatement;
 
 		PROCEDURE VisitRepeatStatement(x: SyntaxTree.RepeatStatement);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitRepeatStatement;
 
 		PROCEDURE VisitForStatement(x: SyntaxTree.ForStatement);
+		VAR variable, from, to: Value; value: LONGINT;
 		BEGIN
+			Expression(x.from);
+			from := resultValue;
+			Expression(x.to);
+			to := resultValue;
+			Expression(x.variable);
+			variable := resultValue;
+
+			FOR value := from.value TO to.value DO
+				variable.value := value;
+				StatementSequence(x.statements)
+			END;
 		END VisitForStatement;
 
 		PROCEDURE VisitLoopStatement(x: SyntaxTree.LoopStatement);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitLoopStatement;
 
 		PROCEDURE VisitExitStatement(x: SyntaxTree.ExitStatement);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitExitStatement;
 
 		PROCEDURE VisitReturnStatement(x: SyntaxTree.ReturnStatement);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitReturnStatement;
 
 		PROCEDURE VisitAwaitStatement(x: SyntaxTree.AwaitStatement);
 		BEGIN
+			Error(position,NotYetImplemented);
 		END VisitAwaitStatement;
 
 		PROCEDURE StatementSequence(x: SyntaxTree.StatementSequence);
@@ -590,7 +740,6 @@ TYPE
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
-		VAR name: SyntaxTree.String;
 		BEGIN
 			GetOptions^(options);
 		END GetOptions;
@@ -600,28 +749,6 @@ TYPE
 		END DefaultSymbolFileFormat;
 
 	END DataflowBackend;
-
-	PROCEDURE GetDataflowSpecification(CONST name: ARRAY OF CHAR): Dataflow.Specification;
-	VAR
-		procname: ARRAY 256 OF CHAR;
-		factory: PROCEDURE (): Dataflow.Specification;
-		specification: Dataflow.Specification;
-	BEGIN
-		specification := NIL;
-		IF Strings.Length(name) > 0 THEN
-			GETPROCEDURE(name,"Get", factory); (* try long name for example -G=OCBinaryObjectFile *)
-			IF factory = NIL THEN (* try short name for example -G=Binary*)
-				procname := "OC";
-				Strings.Append(procname, name);
-				GETPROCEDURE(procname,"Get", factory);
-			END;
-			IF factory # NIL THEN
-				specification := factory();
-				ASSERT(specification # NIL);
-			END;
-		END;
-		RETURN specification
-	END GetDataflowSpecification;
 
 	PROCEDURE AddModules(core: Dataflow.Core; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
 
@@ -658,10 +785,6 @@ TYPE
 	BEGIN
 		TraverseImports(x);
 	END AddModules;
-
-	PROCEDURE Assert(cond: BOOLEAN; CONST reason: ARRAY OF CHAR);
-	BEGIN ASSERT(cond);
-	END Assert;
 
 	PROCEDURE Get*(): Backend.Backend;
 	VAR backend: DataflowBackend;
