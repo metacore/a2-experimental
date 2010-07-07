@@ -235,6 +235,21 @@ TYPE
 			END;
 		END VisitActorType;
 
+		PROCEDURE VisitNetworkType(x: SyntaxTree.NetworkType);
+		BEGIN
+			Keyword("NETWORK ");
+			IF x.firstParameter # NIL THEN ParameterList(x.firstParameter) END;
+			Scope(x.networkScope);
+
+			IF (x.networkScope IS SyntaxTree.NetworkScope) & (x.networkScope(SyntaxTree.NetworkScope).bodyProcedure # NIL) THEN
+				Body(x.networkScope(SyntaxTree.NetworkScope).bodyProcedure.procedureScope.body)
+			END;
+
+			Indent; Keyword("END ");
+			IF (x.typeDeclaration # NIL) THEN
+				Identifier(x.typeDeclaration.name);
+			END;
+		END VisitNetworkType;
 
 		PROCEDURE VisitRecordType(x: SyntaxTree.RecordType);
 		VAR prevScope: SyntaxTree.Scope;

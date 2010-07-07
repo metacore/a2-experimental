@@ -1107,6 +1107,40 @@ TYPE
 		END ActorType;
 
 
+		(** NetworkType = 'network' [ParameterList] DeclarationSequence [Body] 'end' [Identifier]
+              | 'object'. **)
+		PROCEDURE NetworkType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope ): SyntaxTree.Type;
+		VAR
+			networkType: SyntaxTree.NetworkType;
+			networkScope: SyntaxTree.NetworkScope;
+		BEGIN
+			IF Trace THEN S( "NetworkType" ) END;
+			(* symbol network already consumed *)
+
+			networkScope := SyntaxTree.NewNetworkScope(parentScope);
+			networkType := SyntaxTree.NewNetworkType( position, parentScope,networkScope);
+			networkScope.SetOwnerNetwork(networkType);
+
+			(*! add support
+			IF Optional( Scanner.LeftParenthesis ) THEN
+				PortList(networkType,networkScope);
+			END;
+			*)
+
+			DeclarationSequence( networkScope);
+			IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
+				networkScope.SetBodyProcedure(BodyProcedure(networkScope));
+			END;
+			Check(Scanner.End);
+
+			IF ExpectThisIdentifier( name ) THEN
+				(* check name not always, reflect in EBNF? *)
+			END;
+			IF Trace THEN E( "NetworkType" ) END;
+			RETURN networkType
+		END NetworkType;
+
+
 
 		(** PointerType = 'pointer' 'to' Type. **)
 		PROCEDURE PointerType( position: LONGINT; parentScope: SyntaxTree.Scope ): SyntaxTree.PointerType;
@@ -1268,7 +1302,8 @@ TYPE
 			ELSIF Optional( Scanner.Record ) THEN type := RecordType( position,parentScope );
 			ELSIF Optional( Scanner.Pointer ) THEN type := PointerType( position,parentScope );
 			ELSIF Optional( Scanner.Object ) THEN type := ObjectType( position,name,parentScope );
-			ELSIF Optional( Scanner.Actor) THEN type := ActorType( position, name, parentScope); (* only possible if dataflow enabled in scanner *)
+			ELSIF Optional( Scanner.Actor) THEN type := ActorType( position, name, parentScope);
+			ELSIF Optional( Scanner.Network) THEN type := NetworkType( position, name, parentScope);
 			ELSIF Optional( Scanner.Receiver) THEN type := PortType( position, SyntaxTree.InPort, parentScope)
 			ELSIF Optional( Scanner.Sender) THEN type := PortType( position, SyntaxTree.OutPort, parentScope)
 			ELSIF Optional( Scanner.Procedure ) THEN type := ProcedureType( position,parentScope);
@@ -1382,11 +1417,7 @@ TYPE
 			ELSE
 				REPEAT
 					position := symbol.start;
-					IF Optional(Scanner.Dataflow) THEN
-						identifier := SyntaxTree.NewIdentifier(position, Global.StringDataflow)
-					ELSE
-						identifier := Identifier();
-					END;
+					identifier := Identifier();
 					IF Optional(Scanner.LeftParenthesis) THEN
 						expression := Expression();
 						Check(Scanner.RightParenthesis)

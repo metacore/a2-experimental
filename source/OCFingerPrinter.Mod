@@ -576,6 +576,23 @@ TYPE
 			SELF.fingerprint := fingerprint
 		END VisitActorType;
 
+		PROCEDURE VisitNetworkType(x: SyntaxTree.NetworkType);
+		VAR fingerprint: Fingerprint; fp:LONGINT; name: SyntaxTree.String;
+		BEGIN
+			fingerprint := x.fingerprint;
+			deep := SELF.deep;
+			IF ~fingerprint.shallowAvailable THEN
+				fp := 0;
+				TypeName(fp,x);
+				fingerprint.shallow := fp;
+				fingerprint.public := fp;
+				fingerprint.private := fp;
+				fingerprint.deepAvailable := TRUE;
+				fingerprint.shallowAvailable := TRUE;
+				x.SetFingerprint(fingerprint);
+			END;
+			SELF.fingerprint := fingerprint
+		END VisitNetworkType;
 		(*
 		FP(RecordType)             = fpTypeComposite <*> fptypeRecord
 		                            [ -> Name(moduleName) -> Name(typeName)] [<*> FP(baseType)]

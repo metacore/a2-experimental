@@ -84,7 +84,7 @@ CONST
 	End*= 69; Else*= 70; Elsif*= 71; Until*= 72; Finally*= 73;
 	(* declaration elements *)
 	Code*= 74; Const*= 75; Type*= 76; Var*= 77; Out*= 78; Procedure*= 79;
-	Operator*= 80; Import*= 81; Definition*= 82; Module*= 83; Actor*= 84; Dataflow*= 85;
+	Operator*= 80; Import*= 81; Definition*= 82; Module*= 83; Actor*= 84; Network*= 85;
 	(* composite type symbols *)
 	Array*= 86; Object*= 87; Record*= 88; Pointer*= 89; Enum*= 90; Receiver*= 91;
 	Sender*= 92;
@@ -646,13 +646,13 @@ TYPE
 						IF (case=Uppercase) OR (case=Unknown) THEN
 							token := keywordsUpper.IndexByString(symbol.string);
 							IF  (token >= 0) THEN s := token END;
-							IF (s = Module) OR (s=Actor) OR (s=Dataflow) THEN case := Uppercase END;
+							IF (s = Module) THEN case := Uppercase END;
 						END;
 				| "a".."z": s := Identifier; GetIdentifier( symbol);
 						IF (case = Lowercase) OR (case=Unknown) THEN
 							token := keywordsLower.IndexByString(symbol.string);
 							IF  (token >= 0) THEN s := token END;
-							IF (s = Module) OR (s=Actor) OR (s=Dataflow) THEN case := Lowercase END;
+							IF (s = Module) THEN case := Lowercase END;
 						END;
 						IF firstIdentifier & (s # Module) THEN case := Uppercase; s := Identifier END;
 				ELSE s := Identifier;  GetIdentifier( symbol );
@@ -912,7 +912,7 @@ TYPE
 		tokens[Definition] := "Definition";
 		tokens[Module] := "Module";
 		tokens[Actor] := "Actor";
-		tokens[Dataflow] := "Dataflow";
+		tokens[Network] := "Network";
 		tokens[Array] := "Array";
 		tokens[Object] := "Object";
 		tokens[Record] := "Record";
@@ -980,7 +980,7 @@ TYPE
 		Enter( "const" , Const);
 		Enter( "case" , Case);
 		Enter( "code" , Code);
-		Enter( "dataflow", Dataflow);
+		Enter( "network", Network);
 		Enter( "definition", Definition);
 		Enter( "do" , Do);
 		Enter( "div" , Div);

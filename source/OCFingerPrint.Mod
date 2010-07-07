@@ -509,9 +509,9 @@ TYPE
 				typeDeclaration := NIL;
 			END;
 			*)
-			IF (x.scope # NIL) 
+			IF (x.scope # NIL)
 				& (x.scope.ownerModule # NIL)  & (x.scope.ownerModule # module)
-				
+
 				THEN
 				 (* only executed for imported types, reason:
 				 	modification of a type name would result in modified fingerprint leading to modified fingerprints of using structures such as
@@ -1077,6 +1077,22 @@ TYPE
 		END VisitActorType;
 
 
+		PROCEDURE VisitNetworkType(x: SyntaxTree.NetworkType);
+		BEGIN
+			fingerPrint := GetFingerPrint(x);
+
+			IF ~fingerPrint.doneFP THEN
+				deep := SELF.deep;
+				SELF.deep := FALSE;
+				fp := 1;
+				fingerPrint.FP := fp;
+				fingerPrint.doneFP := TRUE;
+				fingerPrint.doneAll := TRUE;
+				SELF.deep := deep;
+			END;
+			SELF.fingerPrint := fingerPrint
+
+		END VisitNetworkType;
 		(*
 			FP(VariableDeclaration)    = 0 <*> fpModePar -> Name -> Visibility <*> FP(Type).
 		*)
@@ -1126,7 +1142,7 @@ TYPE
 			SELF.fingerPrint := fingerPrint
 		END VisitParameter;
 
-		
+
 
 		(*
 		FP(ProcedureDeclaration)   = 0 <*> fpModeInlineProcedure -> Name -> Visibility <*> FP(Type) -> Code.

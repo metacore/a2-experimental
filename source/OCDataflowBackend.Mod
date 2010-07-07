@@ -131,6 +131,11 @@ TYPE
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		BEGIN	END VisitActorType;
 
+		PROCEDURE VisitNetworkType(x: SyntaxTree.NetworkType);
+		BEGIN
+			Scope(x.networkScope);
+		END VisitNetworkType;
+
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
 		BEGIN (* no code emission *)   END VisitProcedureType;
 
@@ -153,7 +158,9 @@ TYPE
 		BEGIN	END VisitVariable;
 
 		PROCEDURE VisitTypeDeclaration(x: SyntaxTree.TypeDeclaration);
-		BEGIN	END VisitTypeDeclaration;
+		BEGIN
+			x.declaredType.Accept(SELF)
+		END VisitTypeDeclaration;
 
 		PROCEDURE VisitConstant(x: SyntaxTree.Constant);
 		BEGIN	END VisitConstant;
@@ -224,6 +231,8 @@ TYPE
 				IF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
 					DataflowBody(scope.body);
 				END;
+			ELSIF (scope.outerScope IS SyntaxTree.NetworkScope) & (x = scope.outerScope(SyntaxTree.NetworkScope).bodyProcedure) THEN
+				DataflowBody(scope.body);
 			END
 		END Procedure;
 

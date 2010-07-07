@@ -144,6 +144,9 @@ TYPE
 		PROCEDURE VisitActorType*(x: ActorType);
 		BEGIN HALT(100) (* abstract *) END VisitActorType;
 
+		PROCEDURE VisitNetworkType*(x: NetworkType);
+		BEGIN HALT(100) (* abstract *) END VisitNetworkType;
+
 		PROCEDURE VisitProcedureType*(x: ProcedureType);
 		BEGIN HALT(100) (* abstract *) END VisitProcedureType;
 
@@ -864,29 +867,18 @@ TYPE
 
 	END ActorType;
 
-	(*
-	(** <<[pointerType = POINTER TO] RECORD (baseType) .. END>>
-		| <<[OBJECT (baseType) .. END>>
-	**)
-	ActorType* = OBJECT (Type)
-		VAR
-			actorScope-:ActorScope;
+	NetworkType*=OBJECT (Type)
+	VAR
+		firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters *)
+		networkScope-: Scope;
 
-			sizeInBits-: LONGINT; (* allocation size of this type in bits *)
-			firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters *)
-
-
-		PROCEDURE & InitActorType( position: LONGINT; scope: Scope; actorScope: ActorScope);
+		PROCEDURE &InitNetworkType(position: LONGINT; scope, networkScope: Scope);
 		BEGIN
-			InitType( position, {});
+			InitType(position,{});
 			SELF.scope := scope;
-			SELF.actorScope := actorScope;
-			ASSERT(actorScope # NIL);
-			ASSERT(actorScope.ownerActor = NIL); (* cannot register twice ! *)
-			actorScope.ownerActor := SELF;
-			sizeInBits := MIN(LONGINT);
 			numberParameters := 0; firstParameter := NIL; lastParameter := NIL;
-		END InitActorType;
+			SELF.networkScope := networkScope;
+		END InitNetworkType;
 
 		PROCEDURE AddParameter*(p: Parameter);
 		BEGIN
@@ -896,21 +888,20 @@ TYPE
 			INC(numberParameters);
 		END AddParameter;
 
-		PROCEDURE SetSize*(sizeInBits: LONGINT);
-		BEGIN SELF.sizeInBits := sizeInBits
-		END SetSize;
+		PROCEDURE FindParameter*(identifier: Identifier): Parameter;
+		VAR p: Parameter;
+		BEGIN
+			p := firstParameter;
+			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextParameter END;
+			RETURN p;
+		END FindParameter;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitActorType(SELF)
+		BEGIN position := SELF.position; v.VisitNetworkType(SELF)
 		END Accept;
 
-	END ActorType;
-
-	*)
-
-
-
+	END NetworkType;
 
 	(** <<procedureType = PROCEDURE [{DELEGATE}] (firstParameter .. lastParameter): returnType>>
 		also used as type for procedures
@@ -3058,9 +3049,35 @@ TYPE
 			INC(numberImports);
 		END AddImport;
 
-
 	END ActorScope;
 
+
+	NetworkScope*=OBJECT (Scope)
+		VAR
+		ownerNetwork-: NetworkType;
+		bodyProcedure-: Procedure;
+		firstImport, lastImport: Import; numberImports: LONGINT;
+
+		PROCEDURE & InitNetworkScope(outer: Scope);
+		BEGIN
+			InitScope(outer);
+			ownerNetwork := NIL;
+			bodyProcedure := NIL;
+			numberImports := 0;
+			firstImport := NIL; lastImport := NIL;
+		END InitNetworkScope;
+
+		PROCEDURE SetOwnerNetwork*(owner: NetworkType);
+		BEGIN
+			ownerNetwork := owner
+		END SetOwnerNetwork;
+
+		PROCEDURE SetBodyProcedure*(bodyProcedure: Procedure);
+		BEGIN
+			SELF.bodyProcedure := bodyProcedure;
+		END SetBodyProcedure;
+
+	END NetworkScope;
 	(**
 		<<
 		IMPORT firstImport .. lastImport;
@@ -3400,6 +3417,12 @@ VAR
 	BEGIN
 		NEW(actorType, position, scope, actorScope); RETURN actorType;
 	END NewActorType;
+
+	PROCEDURE NewNetworkType*(position: LONGINT; scope, networkScope: Scope): NetworkType;
+	VAR networkType: NetworkType;
+	BEGIN
+		NEW(networkType, position, scope, networkScope); RETURN networkType;
+	END NewNetworkType;
 
 	PROCEDURE NewProcedureType*( position: LONGINT; scope: Scope): ProcedureType;
 	VAR procedureType: ProcedureType;
@@ -3787,6 +3810,11 @@ VAR
 	VAR scope: ActorScope;
 	BEGIN	NEW(scope,outer); RETURN scope
 	END NewActorScope;
+
+	PROCEDURE NewNetworkScope*(outer: Scope): NetworkScope;
+	VAR scope: NetworkScope;
+	BEGIN	NEW(scope,outer); RETURN scope
+	END NewNetworkScope;
 
 	PROCEDURE NewEnumerationScope*(outer: Scope): EnumerationScope;
 	VAR scope: EnumerationScope;

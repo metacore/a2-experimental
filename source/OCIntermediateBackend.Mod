@@ -201,7 +201,7 @@ TYPE
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration; type: SyntaxTree.Type; len,port,adr: LONGINT;
 			parameter: SyntaxTree.Parameter; symbol: IntermediateCode.Section; op: IntermediateCode.Operand;
-		BEGIN (* no code emission *)
+		BEGIN
 			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
 			IF (x.actorScope.ownerModule = module.module)  THEN
 				td := x.typeDeclaration;
@@ -232,6 +232,11 @@ TYPE
 
 			Scope(x.actorScope);
 		END VisitActorType;
+
+		PROCEDURE VisitNetworkType(x: SyntaxTree.NetworkType);
+		BEGIN
+			(* no code emission *)
+		END VisitNetworkType;
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
 		BEGIN (* no code emission *)   END VisitProcedureType;
