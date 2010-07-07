@@ -2,7 +2,7 @@ MODULE OCDataflowBackend; (** AUTHOR ""; PURPOSE ""; *)
 
 IMPORT SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend := OCBackend, Global := OCGlobal,
  	Diagnostics, Strings, Options, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile,
-	Dataflow := OCDataflow, Basic := OCBasic;
+	Dataflow := OCDataflow, Basic := OCBasic, Scanner := OCScanner;
 
 CONST
 	NotYetImplemented = "not yet implemented";
@@ -10,11 +10,13 @@ TYPE
 
 	Value*=OBJECT
 	VAR
-		value: LONGINT; (* currently only support for integer values *)
+		type: SyntaxTree.Type;
+		integer: LONGINT;
+		boolean: BOOLEAN;
 
-		PROCEDURE &Init;
+		PROCEDURE &Init(type: SyntaxTree.Type);
 		BEGIN
-			value := 0;
+			integer := 0; boolean := FALSE; SELF.type := type;
 		END Init;
 
 	END Value;
@@ -36,7 +38,7 @@ TYPE
 		VAR a: ANY; value: Value;
 		BEGIN
 			a := hashTable.Get(symbol);
-			IF a = NIL THEN NEW(value); Put(symbol, value) ELSE value := a(Value) END;
+			IF a = NIL THEN NEW(value,symbol.type); Put(symbol, value) ELSE value := a(Value) END;
 			RETURN value
 		END Get;
 
@@ -252,6 +254,8 @@ TYPE
 
 		resultScope: Scope;
 		resultValue: Value;
+		error: BOOLEAN;
+		exit: BOOLEAN;
 
 		PROCEDURE & Init*(system: Global.System; checker: SemanticChecker.Checker; backend: Backend.Backend);
 		BEGIN
@@ -262,21 +266,25 @@ TYPE
 			currentScope := NIL;
 			currentActorScope := NIL;
 			NEW(scopes);
+			error := FALSE;
 		END Init;
 
 		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
 		BEGIN
-			backend.Error("",position,Diagnostics.Invalid,s);
+			backend.Error(moduleScope.ownerModule.sourceName,position,Diagnostics.Invalid,s);
+			error := TRUE;
 		END Error;
 
 		PROCEDURE Symbol(x: SyntaxTree.Symbol);
 		BEGIN
+			IF error THEN RETURN END;
 			position := x.position;
 			x.Accept(SELF);
 		END Symbol;
 
 		PROCEDURE Expression(x: SyntaxTree.Expression);
 		BEGIN
+			IF error THEN RETURN END;
 			resultValue := NIL;
 			position := x.position;
 			IF x.resolved # NIL THEN
@@ -288,9 +296,17 @@ TYPE
 
 		PROCEDURE Statement(x: SyntaxTree.Statement);
 		BEGIN
+			IF error THEN RETURN END;
 			position := x.position;
 			x.Accept(SELF);
 		END Statement;
+		
+		PROCEDURE Evaluate(x: SyntaxTree.Expression; VAR value: Value);
+		BEGIN
+			Expression(x);
+			IF resultValue = NIL THEN Error(position,"could not evaluate"); END;
+			value := resultValue
+		END Evaluate;
 
 		(** expressions *)
 		PROCEDURE VisitSet(x: SyntaxTree.Set);
@@ -304,13 +320,77 @@ TYPE
 		END VisitMathArrayExpression;
 
 		PROCEDURE VisitUnaryExpression(x: SyntaxTree.UnaryExpression);
+		VAR leftValue: Value;
+			PROCEDURE NewBoolean(b: BOOLEAN);
+			BEGIN
+				NEW(resultValue, Global.Boolean); resultValue.boolean := b
+			END NewBoolean;
+
+			PROCEDURE NewInteger(i: LONGINT);
+			BEGIN
+				NEW(resultValue, x.type); resultValue.integer := i;
+			END NewInteger;
 		BEGIN
-			Error(position,NotYetImplemented);
+			Evaluate(x.left, leftValue); IF error THEN RETURN END;
+			IF x.left.type.resolved IS SyntaxTree.IntegerType THEN
+				CASE x.operator OF
+				Scanner.Minus: NewInteger(-leftValue.integer);
+				ELSE
+					Error(position,NotYetImplemented);
+				END;
+			ELSIF x.left.type.resolved = Global.Boolean THEN
+				CASE x.operator OF
+				Scanner.Not: NewBoolean(~leftValue.boolean)
+				ELSE
+					Error(position,NotYetImplemented);
+				END;
+			ELSE
+				Error(position,NotYetImplemented);
+			END;
 		END VisitUnaryExpression;
 
 		PROCEDURE VisitBinaryExpression(x: SyntaxTree.BinaryExpression);
+		VAR leftValue, rightValue: Value;
+			PROCEDURE NewBoolean(b: BOOLEAN);
+			BEGIN
+				NEW(resultValue, Global.Boolean); resultValue.boolean := b
+			END NewBoolean;
+
+			PROCEDURE NewInteger(i: LONGINT);
+			BEGIN
+				NEW(resultValue, x.type); resultValue.integer := i;
+			END NewInteger;
+
 		BEGIN
-			Error(position,NotYetImplemented);
+			Evaluate(x.left, leftValue); IF error THEN RETURN END;
+			Evaluate(x.right, rightValue); IF error THEN RETURN END;
+			IF x.left.type.resolved IS SyntaxTree.IntegerType THEN
+				CASE x.operator OF
+				Scanner.Equal: NewBoolean(leftValue.integer = rightValue.integer);
+				|Scanner.Unequal: NewBoolean(leftValue.integer # rightValue.integer);
+				|Scanner.Less: NewBoolean(leftValue.integer < rightValue.integer);
+				|Scanner.LessEqual: NewBoolean(leftValue.integer <= rightValue.integer);
+				|Scanner.Greater: NewBoolean(leftValue.integer > rightValue.integer);
+				|Scanner.GreaterEqual: NewBoolean(leftValue.integer >= rightValue.integer);
+				|Scanner.Plus: NewInteger(leftValue.integer + rightValue.integer);
+				|Scanner.Minus: NewInteger(leftValue.integer + rightValue.integer);
+				|Scanner.Times: NewInteger(leftValue.integer * rightValue.integer);
+				|Scanner.Div: NewInteger(leftValue.integer DIV rightValue.integer);
+				ELSE
+					Error(x.position, NotYetImplemented);
+				END;
+			ELSIF x.left.type.resolved = Global.Boolean THEN
+				CASE x.operator OF
+				Scanner.Equal: NewBoolean(leftValue.boolean = rightValue.boolean);
+				|Scanner.Unequal: NewBoolean(leftValue.boolean # rightValue.boolean);
+				|Scanner.Or: NewBoolean(leftValue.boolean OR rightValue.boolean);
+				|Scanner.And: NewBoolean(leftValue.boolean & rightValue.boolean);
+				ELSE
+					Error(x.position, NotYetImplemented);
+				END;
+			ELSE
+				Error(x.position,NotYetImplemented)
+			END;
 		END VisitBinaryExpression;
 
 		PROCEDURE VisitRangeExpression(x: SyntaxTree.RangeExpression);
@@ -324,8 +404,18 @@ TYPE
 		END VisitTensorRangeExpression;
 
 		PROCEDURE VisitConversion(x: SyntaxTree.Conversion);
+		VAR integer: HUGEINT; type: SyntaxTree.Type; value: Value;
 		BEGIN
-			Error(position,NotYetImplemented);
+			Evaluate(x.expression, value);
+			type := x.type.resolved;
+			IF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) (* OR (type= Global.Hugeint) *)
+				OR (type = system.sizeType) THEN
+				integer := Global.ConvertSigned(value.integer,system.SizeOf(type));
+				NEW(resultValue, type);
+				resultValue.integer := SHORT(integer)
+			ELSE
+				Error(position,NotYetImplemented);
+			END;
 		END VisitConversion;
 
 		PROCEDURE VisitTypeDeclaration(x: SyntaxTree.TypeDeclaration);
@@ -371,7 +461,7 @@ TYPE
 				IF e IS SyntaxTree.IndexDesignator THEN
 					IF e(SyntaxTree.IndexDesignator).parameters.Length() # 1 THEN Error(e.position,"unsupported array dimension") END;
 					Expression(e(SyntaxTree.IndexDesignator).parameters.GetExpression(0));
-					suffix := ""; AppendIndex(suffix,resultValue.value);
+					suffix := ""; AppendIndex(suffix,resultValue.integer);
 					e := e(SyntaxTree.IndexDesignator).left;
 				END;
 			END Index;
@@ -508,15 +598,18 @@ TYPE
 
 		(** values *)
 		PROCEDURE VisitBooleanValue(x: SyntaxTree.BooleanValue);
+		VAR value: Value;
 		BEGIN
-			Error(position,NotYetImplemented);
+			NEW(value, x.type);
+			value.boolean := x.value;
+			resultValue := value;
 		END VisitBooleanValue;
 
 		PROCEDURE VisitIntegerValue(x: SyntaxTree.IntegerValue);
 		VAR value: Value;
 		BEGIN
-			NEW(value);
-			value.value := x.value;
+			NEW(value,x.type);
+			value.integer := x.value;
 			resultValue := value;
 		END VisitIntegerValue;
 
@@ -597,13 +690,48 @@ TYPE
 		END VisitProcedureCallStatement;
 
 		PROCEDURE VisitAssignment(x: SyntaxTree.Assignment);
+		VAR leftValue, rightValue: Value;
 		BEGIN
-			Error(position,NotYetImplemented);
+			IF (x.left.type.resolved IS SyntaxTree.IntegerType) OR (x.left.type.resolved = Global.Boolean) THEN
+				Evaluate(x.left, leftValue);
+				Evaluate(x.right, rightValue);
+				leftValue.integer := rightValue.integer;
+				leftValue.boolean := rightValue.boolean;
+			ELSE
+				Error(position,NotYetImplemented);
+			END;
 		END VisitAssignment;
 
-		PROCEDURE VisitIfStatement(x: SyntaxTree.IfStatement);
+		PROCEDURE Condition(x: SyntaxTree.Expression): BOOLEAN;
 		BEGIN
-			Error(position,NotYetImplemented);
+			Expression(x); ASSERT(resultValue # NIL); ASSERT(resultValue.type.resolved = Global.Boolean);
+			RETURN resultValue.boolean
+		END Condition;
+
+		PROCEDURE VisitIfStatement(x: SyntaxTree.IfStatement);
+		VAR done: BOOLEAN; elsif: SyntaxTree.IfPart; elsifs: LONGINT; i: LONGINT;
+
+			PROCEDURE IfPart(if: SyntaxTree.IfPart);
+			BEGIN
+				IF Condition(if.condition) THEN
+					StatementSequence(if.statements);
+					done := TRUE;
+				END;
+			END IfPart;
+
+		BEGIN
+			done := FALSE;
+			IfPart(x.ifPart);
+			elsifs := x.ElsifParts();
+			FOR i := 0 TO elsifs-1 DO
+				IF ~done THEN
+					elsif := x.GetElsifPart(i);
+					IfPart(elsif);
+				END;
+			END;
+			IF ~done & (x.elsePart # NIL) THEN
+				StatementSequence(x.elsePart);
+			END;
 		END VisitIfStatement;
 
 		PROCEDURE VisitWithStatement(x: SyntaxTree.WithStatement);
@@ -618,12 +746,16 @@ TYPE
 
 		PROCEDURE VisitWhileStatement(x: SyntaxTree.WhileStatement);
 		BEGIN
-			Error(position,NotYetImplemented);
+			WHILE ~error & Condition(x.condition) DO
+				StatementSequence(x.statements)
+			END;
 		END VisitWhileStatement;
 
 		PROCEDURE VisitRepeatStatement(x: SyntaxTree.RepeatStatement);
 		BEGIN
-			Error(position,NotYetImplemented);
+			REPEAT
+				StatementSequence(x.statements)
+			UNTIL error OR Condition(x.condition);
 		END VisitRepeatStatement;
 
 		PROCEDURE VisitForStatement(x: SyntaxTree.ForStatement);
@@ -636,20 +768,28 @@ TYPE
 			Expression(x.variable);
 			variable := resultValue;
 
-			FOR value := from.value TO to.value DO
-				variable.value := value;
-				StatementSequence(x.statements)
+			FOR value := from.integer TO to.integer DO
+				IF error THEN RETURN END;
+				variable.integer := value;
+				StatementSequence(x.statements);
 			END;
 		END VisitForStatement;
 
 		PROCEDURE VisitLoopStatement(x: SyntaxTree.LoopStatement);
+		VAR prevExit: BOOLEAN;
 		BEGIN
-			Error(position,NotYetImplemented);
+			prevExit := exit;
+			exit := FALSE;
+			LOOP
+				StatementSequence(x.statements);
+				IF exit OR error THEN EXIT END;
+			END;
+			exit := prevExit;
 		END VisitLoopStatement;
 
 		PROCEDURE VisitExitStatement(x: SyntaxTree.ExitStatement);
 		BEGIN
-			Error(position,NotYetImplemented);
+			exit := TRUE;
 		END VisitExitStatement;
 
 		PROCEDURE VisitReturnStatement(x: SyntaxTree.ReturnStatement);
@@ -665,15 +805,17 @@ TYPE
 		PROCEDURE StatementSequence(x: SyntaxTree.StatementSequence);
 		VAR statement: SyntaxTree.Statement;  i: LONGINT; (* pos: LONGINT; *)
 		BEGIN
-			FOR i := 0 TO x.Length() - 1 DO
+			i := 0;
+			WHILE ~exit & ~error &  (i< x.Length()) DO
 				statement := x.GetStatement( i );
 				Statement(statement);
+				INC(i);
 			END;
 		END StatementSequence;
 
 		PROCEDURE VisitStatementBlock(x: SyntaxTree.StatementBlock);
 		BEGIN
-			IF x.statements # NIL THEN
+			IF (x.statements # NIL) THEN
 				StatementSequence(x.statements);
 			END;
 		END VisitStatementBlock;
