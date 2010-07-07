@@ -606,11 +606,6 @@ TYPE
 
 		BEGIN
 			NEW(stringWriter,LEN(s));
-			stringWriter.String(moduleScope.ownerModule.sourceName);
-			stringWriter.String("@");
-			expression := x.GetExpression(0);
-			stringWriter.Int(expression.position,1);
-			stringWriter.String(": ");
 			printout := Printout.NewPrinter(stringWriter,Printout.SourceCode,FALSE);
 			FOR i := 0 TO x.Length()-1 DO
 				expression := x.GetExpression(i);
@@ -631,7 +626,8 @@ TYPE
 				stringWriter.String("; ");
 			END;
 			stringWriter.Get(s);
-			backend.diagnostics.Information("",Diagnostics.Invalid, Diagnostics.Invalid,s);
+			expression := x.GetExpression(0);
+			backend.diagnostics.Information(moduleScope.ownerModule.sourceName,expression.position, Diagnostics.Invalid,s);
 		END SystemTrace;
 
 		PROCEDURE VisitTypeGuardDesignator(x: SyntaxTree.TypeGuardDesignator);
