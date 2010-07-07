@@ -3571,9 +3571,12 @@ TYPE
 						Error(parameter0.position,Diagnostics.Invalid,"is not a type symbol");
 					END
 				(* ---- SYSTEM.TRACE -----*)
-				ELSIF (id = Global.systemTrace) & Parameters(1,1) THEN
-					IF ~IsBasicType(parameter0.type) & ~IsStringType(parameter0.type) THEN
-						Error(parameter0.position,Diagnostics.Invalid,"incompatible parameter");
+				ELSIF (id = Global.systemTrace) & Parameters(1,5) (* artificial limit *) THEN
+					FOR i := 0 TO numberActualParameters-1 DO
+						parameter0 := actualParameters.GetExpression(i);
+						IF ~IsBasicType(parameter0.type) & ~IsStringType(parameter0.type) THEN
+							Error(parameter0.position,Diagnostics.Invalid,"incompatible parameter");
+						END;
 					END;
 					(* remaining issues can only be tested in backend *)
 				(* ---- SYSTEM.ADR----- *)

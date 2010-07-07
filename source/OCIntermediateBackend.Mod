@@ -3024,17 +3024,19 @@ TYPE
 		END MakeTypeTag;
 		*)
 
-		PROCEDURE SystemTrace(x: SyntaxTree.Expression);
+		PROCEDURE SystemTrace(x: SyntaxTree.ExpressionList);
 		VAR
 			traceModule: SyntaxTree.Module;
 			procedure: SyntaxTree.Procedure;
 			s,msg: Scanner.StringType;
 			res: Operand;
+			i: LONGINT;
 			sv: SyntaxTree.StringValue;
 			type: SyntaxTree.Type;
 			recordType: SyntaxTree.RecordType;
 			printout: Printout.Printer;
 			stringWriter: Streams.StringWriter;
+			expression: SyntaxTree.Expression;
 		CONST moduleName="KernelLog";
 
 			PROCEDURE GetProcedure(CONST procedureName: ARRAY OF CHAR): BOOLEAN;
@@ -3156,49 +3158,58 @@ TYPE
 				module.module.name.GetString(s);
 				COPY(s,msg);
 				Strings.Append(msg,"@");
-				Strings.IntToStr(x.position,s);
+				expression := x.GetExpression(0);
+				Strings.IntToStr(expression.position,s);
 				Strings.Append(msg,s);
 				Strings.Append(msg,": ");
 				NEW(stringWriter,LEN(s));
-				printout := Printout.NewPrinter(stringWriter,Printout.SourceCode,FALSE);
-				printout.Expression(x);
-				stringWriter.Get(s);
-				Strings.Append(msg,s);
-				Strings.Append(msg,"= ");
-				String(msg);
-				IF SemanticChecker.IsStringType(x.type) THEN
-					Designate(x,res);
-					StringOperand(res.op,res.tag);
-				ELSE
-					Evaluate(x,res);
-					IF x.type.resolved IS SyntaxTree.IntegerType THEN
-						IF res.op.type.sizeInBits = IntermediateCode.Bits64 THEN
-							Hex64(res.op); String("H");
-						ELSE
-							IF res.op.type.sizeInBits < IntermediateCode.Bits32 THEN
-								Convert(res.op,int32);
-							END;
-							Integer(res.op);
-						END;
-					ELSIF x.type.resolved = Global.Boolean THEN
-						Boolean(res.op);
-					ELSIF x.type.resolved = Global.Set THEN
-						Set(res.op);
-					ELSIF x.type.resolved IS SyntaxTree.FloatType THEN
-						IF res.op.type.sizeInBits = IntermediateCode.Bits32 THEN
-							Convert(res.op,float64);
-						END;
-						Float(res.op);
-					ELSIF x.type.resolved = Global.Char8 THEN
-						Char(res.op);
-					ELSIF x.type.resolved = Global.Address THEN
-						Address(res.op);String("H");
-					ELSIF (x.type.resolved IS SyntaxTree.PointerType) OR IsPointerToRecord(x.type,recordType) THEN
-						Address(res.op);String("H");
-					ELSE HALT(200);
+
+				FOR i := 0 TO x.Length()-1 DO
+					expression := x.GetExpression(i);
+
+					printout := Printout.NewPrinter(stringWriter,Printout.SourceCode,FALSE);
+					IF ~(expression IS SyntaxTree.StringValue) THEN
+						printout.Expression(expression);
+						stringWriter.Get(s);
+						Strings.Append(msg,s);
+						Strings.Append(msg,"= ");
 					END;
+					String(msg);
+					IF SemanticChecker.IsStringType(expression.type) THEN
+						Designate(expression,res);
+						StringOperand(res.op,res.tag);
+					ELSE
+						Evaluate(expression,res);
+						IF expression.type.resolved IS SyntaxTree.IntegerType THEN
+							IF res.op.type.sizeInBits = IntermediateCode.Bits64 THEN
+								Hex64(res.op); String("H");
+							ELSE
+								IF res.op.type.sizeInBits < IntermediateCode.Bits32 THEN
+									Convert(res.op,int32);
+								END;
+								Integer(res.op);
+							END;
+						ELSIF expression.type.resolved = Global.Boolean THEN
+							Boolean(res.op);
+						ELSIF expression.type.resolved = Global.Set THEN
+							Set(res.op);
+						ELSIF expression.type.resolved IS SyntaxTree.FloatType THEN
+							IF res.op.type.sizeInBits = IntermediateCode.Bits32 THEN
+								Convert(res.op,float64);
+							END;
+							Float(res.op);
+						ELSIF expression.type.resolved = Global.Char8 THEN
+							Char(res.op);
+						ELSIF expression.type.resolved = Global.Address THEN
+							Address(res.op);String("H");
+						ELSIF (expression.type.resolved IS SyntaxTree.PointerType) OR IsPointerToRecord(expression.type,recordType) THEN
+							Address(res.op);String("H");
+						ELSE HALT(200);
+						END;
+					END;
+					ReleaseOperand(res);
+					String("; ");
 				END;
-				ReleaseOperand(res);
 				Ln;
 			END;
 		END SystemTrace;
@@ -4391,7 +4402,7 @@ TYPE
 				result.mode := ModeValue;
 			(* ---- SYSTEM.TRACE ----- *)
 			|Global.systemTrace:
-				SystemTrace(p0);
+				SystemTrace(x.parameters);
 			(* ----- CONNECT ------*)
 			|Global.Connect:
 				Error(x.position,"cannot be connected in runtime yet");
@@ -4763,7 +4774,7 @@ TYPE
 			IF Trace THEN TraceExit("VisitVariable") END;
 		END VisitVariable;
 
-		
+
 
 		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
 		VAR type: SyntaxTree.Type; basereg, mem: IntermediateCode.Operand; parameter: SyntaxTree.Parameter;adr: LONGINT; symbol: Sections.Section;
@@ -4782,11 +4793,11 @@ TYPE
 				ELSE
 					InitOperand(result, ModeValue);
 					parameter := x.ownerType(SyntaxTree.ActorType).firstParameter;
-					adr := 0; 
-					WHILE parameter # x DO 
+					adr := 0;
+					WHILE parameter # x DO
 						parameterType := parameter.type;
 						IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN INC(adr,len) ELSE INC(adr) END;
-						parameter := parameter.nextParameter 
+						parameter := parameter.nextParameter
 					END;
 					adr := backend.dataflowSpecification.GetPortAddress(adr);
 					IntermediateCode.InitImmediate(result.op,addressType,adr);
@@ -5746,7 +5757,7 @@ TYPE
 		emptyOperand: IntermediateCode.Operand;
 		systemCalls: ARRAY NumberSystemCalls OF SyntaxTree.Symbol;
 
-	
+
 	PROCEDURE GetDataflowSpecification(CONST name: ARRAY OF CHAR): Dataflow.Specification;
 	VAR
 		procname: ARRAY 256 OF CHAR;

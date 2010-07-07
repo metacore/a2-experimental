@@ -2,7 +2,7 @@ MODULE OCDataflowBackend; (** AUTHOR ""; PURPOSE ""; *)
 
 IMPORT SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend := OCBackend, Global := OCGlobal,
  	Diagnostics, Strings, Options, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile,
-	Dataflow := OCDataflow, Basic := OCBasic, Scanner := OCScanner;
+	Dataflow := OCDataflow, Basic := OCBasic, Scanner := OCScanner, Streams, Printout := OCPrintout;
 
 CONST
 	NotYetImplemented = "not yet implemented";
@@ -13,6 +13,7 @@ TYPE
 		type: SyntaxTree.Type;
 		integer: LONGINT;
 		boolean: BOOLEAN;
+		string: SyntaxTree.String;
 
 		PROCEDURE &Init(type: SyntaxTree.Type);
 		BEGIN
@@ -300,7 +301,7 @@ TYPE
 			position := x.position;
 			x.Accept(SELF);
 		END Statement;
-		
+
 		PROCEDURE Evaluate(x: SyntaxTree.Expression; VAR value: Value);
 		BEGIN
 			Expression(x);
@@ -571,10 +572,67 @@ TYPE
 				IF (port1#NIL) & (port2#NIL) THEN
 					channel := backend.dataflowSpecification.NewChannel(port1,port2);
 				END;
+			|Global.systemTrace:
+				SystemTrace(x.parameters);
 			ELSE (* function not yet implemented *)
 				Error(position,NotYetImplemented);
 			END;
 		END VisitBuiltinCallDesignator;
+
+		PROCEDURE SystemTrace(x: SyntaxTree.ExpressionList);
+		VAR
+			stringWriter: Streams.StringWriter;
+			s: SyntaxTree.String;
+			printout: Printout.Printer;
+			value: Value;
+			expression: SyntaxTree.Expression;
+			i: LONGINT;
+
+			PROCEDURE String(CONST s: ARRAY OF CHAR);
+			BEGIN
+				stringWriter.String(s);
+			END String;
+
+			PROCEDURE Integer(i: LONGINT);
+			BEGIN
+				stringWriter.Int(i,1);
+			END Integer;
+
+			PROCEDURE Boolean(b: BOOLEAN);
+			BEGIN
+				IF b THEN stringWriter.String("TRUE") ELSE stringWriter.String("FALSE") END;
+			END Boolean;
+
+
+		BEGIN
+			NEW(stringWriter,LEN(s));
+			stringWriter.String(moduleScope.ownerModule.sourceName);
+			stringWriter.String("@");
+			expression := x.GetExpression(0);
+			stringWriter.Int(expression.position,1);
+			stringWriter.String(": ");
+			printout := Printout.NewPrinter(stringWriter,Printout.SourceCode,FALSE);
+			FOR i := 0 TO x.Length()-1 DO
+				expression := x.GetExpression(i);
+				IF ~(expression IS SyntaxTree.StringValue) THEN
+					printout.Expression(expression);
+					stringWriter.String("= ");
+				END;
+				Evaluate(expression,value);
+				IF error THEN RETURN END;
+				IF expression.type.resolved IS SyntaxTree.IntegerType THEN
+					Integer(value.integer);
+				ELSIF expression.type.resolved = Global.Boolean THEN
+					Boolean(value.boolean);
+				ELSIF expression.type.resolved IS SyntaxTree.StringType THEN
+					String(value.string);
+				ELSE Error(expression.position,NotYetImplemented);
+				END;
+				stringWriter.String("; ");
+			END;
+			stringWriter.Get(s);
+			backend.diagnostics.Information("",Diagnostics.Invalid, Diagnostics.Invalid,s);
+		END SystemTrace;
 
 		PROCEDURE VisitTypeGuardDesignator(x: SyntaxTree.TypeGuardDesignator);
 		BEGIN
@@ -640,7 +698,8 @@ TYPE
 
 		PROCEDURE VisitStringValue(x: SyntaxTree.StringValue);
 		BEGIN
-			Error(position,NotYetImplemented);
+			NEW(resultValue, x.type);
+			COPY(x.value, resultValue.string);
 		END VisitStringValue;
 
 		PROCEDURE VisitNilValue(x: SyntaxTree.NilValue);
