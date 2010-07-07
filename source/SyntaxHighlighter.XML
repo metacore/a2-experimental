@@ -88,7 +88,7 @@
 				<Group style="Bold">
 					VAR CONST
 					ARRAY POINTER
-					ACTOR
+					ACTOR INSTREAM OUTSTREAM
 				</Group>
 				<Group style="Bold">
 					NEW SELF CONNECT
