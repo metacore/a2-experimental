@@ -202,6 +202,7 @@ TYPE
 			END MakeCore;
 
 		BEGIN
+			(*
 			IF currentScope IS SyntaxTree.NetworkScope THEN
 				type := x.type.resolved;
 				IF ~SemanticChecker.IsStaticArray(type,baseType,len) THEN len := -1; baseType := type END;
@@ -217,6 +218,7 @@ TYPE
 					END;
 				END;
 			END;
+			*)
 		END VisitVariable;
 
 		PROCEDURE VisitTypeDeclaration(x: SyntaxTree.TypeDeclaration);
@@ -451,6 +453,7 @@ TYPE
 				|Scanner.Minus: NewInteger(leftValue.integer + rightValue.integer);
 				|Scanner.Times: NewInteger(leftValue.integer * rightValue.integer);
 				|Scanner.Div: NewInteger(leftValue.integer DIV rightValue.integer);
+				|Scanner.Mod: NewInteger(leftValue.integer DIV rightValue.integer);
 				ELSE
 					Error(x.position, NotYetImplemented);
 				END;
@@ -590,40 +593,48 @@ TYPE
 			CASE x.id OF
 			|Global.New:
 				type := p0.type.resolved;
-				IF InNetworkScope(currentScope,networkScope) THEN
+				(*IF InNetworkScope(currentScope,networkScope) THEN
 					Error(x.position,"forbidden NEW statement in network scope");
-				ELSIF type IS SyntaxTree.ActorType THEN
+				ELS
+				*)
+				IF type IS SyntaxTree.ActorType THEN
 					(* generate actor by calling method on dataflow specification *)
 					IF GetCoreName(p0,coreName, typeName) THEN
-						core := backend.dataflowSpecification.NewCore(coreName, typeName);
-						AddModules(core,type(SyntaxTree.ActorType).actorScope, type(SyntaxTree.ActorType).actorScope.ownerModule);
+						core := Dataflow.FindCore(backend.dataflowSpecification.cores,coreName);
+						IF core # NIL THEN 
+							Error(p0.position,"forbidden double instantiation of core");
+						ELSE
+							core := backend.dataflowSpecification.NewCore(coreName, typeName);
 
-						formalParameter := type(SyntaxTree.ActorType).firstParameter; j := 0;
-						WHILE formalParameter # NIL DO
-							IF FullName THEN
-								COPY(coreName, portName);
-								Strings.Append(portName,".");
-							ELSE
-								portName := ""
-							END;
-							formalParameter.name.GetString(name);
-							Strings.Append(portName,name);
-							parameterType := formalParameter.type.resolved;
+							AddModules(core,type(SyntaxTree.ActorType).actorScope, type(SyntaxTree.ActorType).actorScope.ownerModule);
 
-							IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN
-								direction := Direction(parameterType(SyntaxTree.PortType).direction);
-								FOR i := 0 TO len-1 DO
-									COPY(portName,name);
-									AppendIndex(name,i);
-									port := core.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(j));
+							formalParameter := type(SyntaxTree.ActorType).firstParameter; j := 0;
+							WHILE formalParameter # NIL DO
+								IF FullName THEN
+									COPY(coreName, portName);
+									Strings.Append(portName,".");
+								ELSE
+									portName := ""
+								END;
+								formalParameter.name.GetString(name);
+								Strings.Append(portName,name);
+								parameterType := formalParameter.type.resolved;
+
+								IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN
+									direction := Direction(parameterType(SyntaxTree.PortType).direction);
+									FOR i := 0 TO len-1 DO
+										COPY(portName,name);
+										AppendIndex(name,i);
+										port := core.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(j));
+										INC(j);
+									END;
+								ELSE
+									direction := Direction(parameterType(SyntaxTree.PortType).direction);
+									port := core.NewPort(portName,direction,backend.dataflowSpecification.GetPortAddress(j));
 									INC(j);
 								END;
-							ELSE
-								direction := Direction(parameterType(SyntaxTree.PortType).direction);
-								port := core.NewPort(portName,direction,backend.dataflowSpecification.GetPortAddress(j));
-								INC(j);
+								formalParameter := formalParameter.nextParameter;
 							END;
-							formalParameter := formalParameter.nextParameter;
 						END;
 					END;
 				ELSE
@@ -634,7 +645,13 @@ TYPE
 				port1 := GetPort(p0);
 				port2 := GetPort(p1);
 				IF (port1#NIL) & (port2#NIL) THEN
-					channel := backend.dataflowSpecification.NewChannel(port1,port2);
+					IF Dataflow.FindChannelByPort(backend.dataflowSpecification.channels,port1) # NIL THEN
+						Error(p0.position,"port already connected");
+					ELSIF Dataflow.FindChannelByPort(backend.dataflowSpecification.channels,port2) # NIL THEN
+						Error(p1.position,"port already connected");
+					ELSE
+						channel := backend.dataflowSpecification.NewChannel(port1,port2);
+					END;
 				END;
 			|Global.systemTrace:
 				SystemTrace(x.parameters);
