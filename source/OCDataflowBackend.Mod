@@ -6,6 +6,7 @@ IMPORT SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend
 
 CONST
 	NotYetImplemented = "not yet implemented";
+	FullName= TRUE;
 TYPE
 
 	Value*=OBJECT
@@ -155,7 +156,68 @@ TYPE
 		END VisitOperator;
 
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
-		BEGIN	END VisitVariable;
+		VAR type, baseType: SyntaxTree.Type; i,len: LONGINT;
+
+			PROCEDURE MakeCore(symbol: SyntaxTree.Symbol; type: SyntaxTree.ActorType; index: LONGINT);
+			VAR coreName, typeName, portName, name: SyntaxTree.String;
+				core: Dataflow.Core; formalParameter: SyntaxTree.Parameter; i,portIndex: LONGINT;
+				parameterType: SyntaxTree.Type; direction, len: LONGINT;
+				port: Dataflow.Port;
+			BEGIN
+				Global.GetSymbolName(symbol,coreName);
+				Global.GetSymbolName(type.typeDeclaration,typeName);
+				IF index >= 0 THEN
+					AppendIndex(coreName,index);
+				END;
+				core := backend.dataflowSpecification.NewCore(coreName, typeName);
+				AddModules(core,type.actorScope, type.actorScope.ownerModule);
+
+				formalParameter := type.firstParameter; portIndex := 0;
+				WHILE formalParameter # NIL DO
+					IF FullName THEN
+						COPY(coreName, portName);
+						Strings.Append(portName,".");
+					ELSE
+						portName := ""
+					END;
+					formalParameter.name.GetString(name);
+					Strings.Append(portName,name);
+					parameterType := formalParameter.type.resolved;
+
+					IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN
+						direction := Direction(parameterType(SyntaxTree.PortType).direction);
+						FOR i := 0 TO len-1 DO
+							COPY(portName,name);
+							AppendIndex(name,i);
+							port := core.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+							INC(portIndex);
+						END;
+					ELSE
+						direction := Direction(parameterType(SyntaxTree.PortType).direction);
+						port := core.NewPort(portName,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+						INC(portIndex);
+					END;
+					formalParameter := formalParameter.nextParameter;
+				END;
+			END MakeCore;
+
+		BEGIN
+			IF currentScope IS SyntaxTree.NetworkScope THEN
+				type := x.type.resolved;
+				IF ~SemanticChecker.IsStaticArray(type,baseType,len) THEN len := -1; baseType := type END;
+
+				baseType := baseType.resolved;
+				IF (baseType IS SyntaxTree.ActorType) THEN
+					IF len = -1 THEN
+						MakeCore(x,baseType(SyntaxTree.ActorType),-1);
+					ELSE
+						FOR i := 0 TO len-1 DO
+							MakeCore(x,baseType(SyntaxTree.ActorType),i);
+						END
+					END;
+				END;
+			END;
+		END VisitVariable;
 
 		PROCEDURE VisitTypeDeclaration(x: SyntaxTree.TypeDeclaration);
 		BEGIN
@@ -213,6 +275,7 @@ TYPE
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
 		VAR
 			scope: SyntaxTree.ProcedureScope;
+			networkScope: SyntaxTree.NetworkScope;
 			prevScope: SyntaxTree.Scope;
 			inline: BOOLEAN;
 			name: SyntaxTree.String;
@@ -231,7 +294,7 @@ TYPE
 				IF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
 					DataflowBody(scope.body);
 				END;
-			ELSIF (scope.outerScope IS SyntaxTree.NetworkScope) & (x = scope.outerScope(SyntaxTree.NetworkScope).bodyProcedure) THEN
+			ELSIF InNetworkScope(scope, networkScope) & (x = networkScope.bodyProcedure) THEN
 				DataflowBody(scope.body);
 			END
 		END Procedure;
@@ -459,12 +522,8 @@ TYPE
 		formalParameter: SyntaxTree.Parameter;
 		i,j,len,direction: LONGINT;
 		parameterType: SyntaxTree.Type;
-		CONST FullName= TRUE;
 
-			PROCEDURE AppendIndex(VAR name: ARRAY OF CHAR; index: LONGINT);
-			BEGIN
-				Strings.Append(name,"["); Basic.AppendNumber(name,index); Strings.Append(name,"]");
-			END AppendIndex;
+
 
 			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
 			BEGIN
@@ -518,13 +577,7 @@ TYPE
 				RETURN port
 			END GetPort;
 
-			PROCEDURE Direction(direction: LONGINT): LONGINT;
-			BEGIN
-				IF direction = SyntaxTree.OutPort THEN RETURN Dataflow.Out
-				ELSIF direction = SyntaxTree.InPort THEN RETURN Dataflow.In
-				ELSE HALT(100);
-				END;
-			END Direction;
+
 
 
 		BEGIN
@@ -927,6 +980,33 @@ TYPE
 		END DefaultSymbolFileFormat;
 
 	END DataflowBackend;
+
+	PROCEDURE InNetworkScope(scope: SyntaxTree.Scope; VAR networkScope: SyntaxTree.NetworkScope): BOOLEAN;
+	BEGIN
+		WHILE (scope # NIL) & ~(scope IS SyntaxTree.NetworkScope) DO
+			scope := scope.outerScope
+		END;
+		IF scope = NIL THEN
+			networkScope := NIL;
+			RETURN FALSE
+		ELSE
+			networkScope := scope(SyntaxTree.NetworkScope);
+			RETURN TRUE
+		END;
+	END InNetworkScope;
+
+	PROCEDURE AppendIndex(VAR name: ARRAY OF CHAR; index: LONGINT);
+	BEGIN
+		Strings.Append(name,"["); Basic.AppendNumber(name,index); Strings.Append(name,"]");
+	END AppendIndex;
+
+	PROCEDURE Direction(direction: LONGINT): LONGINT;
+	BEGIN
+		IF direction = SyntaxTree.OutPort THEN RETURN Dataflow.Out
+		ELSIF direction = SyntaxTree.InPort THEN RETURN Dataflow.In
+		ELSE HALT(100);
+		END;
+	END Direction;
 
 	PROCEDURE AddModules(core: Dataflow.Core; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
 
