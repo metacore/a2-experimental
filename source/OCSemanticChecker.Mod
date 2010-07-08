@@ -5572,7 +5572,10 @@ TYPE
 		BEGIN Scope(x.recordScope) END VisitRecordType;
 
 		PROCEDURE VisitActorType*(x: SyntaxTree.ActorType);
-		BEGIN  END VisitActorType;
+		BEGIN  Scope(x.actorScope) END VisitActorType;
+
+		PROCEDURE VisitNetworkType*(x: SyntaxTree.NetworkType);
+		BEGIN Scope(x.networkScope) END VisitNetworkType;
 
 		PROCEDURE VisitProcedureType*(x: SyntaxTree.ProcedureType);
 		BEGIN  END VisitProcedureType;
