@@ -1076,23 +1076,6 @@ TYPE
 
 		END VisitActorType;
 
-
-		PROCEDURE VisitNetworkType(x: SyntaxTree.NetworkType);
-		BEGIN
-			fingerPrint := GetFingerPrint(x);
-
-			IF ~fingerPrint.doneFP THEN
-				deep := SELF.deep;
-				SELF.deep := FALSE;
-				fp := 1;
-				fingerPrint.FP := fp;
-				fingerPrint.doneFP := TRUE;
-				fingerPrint.doneAll := TRUE;
-				SELF.deep := deep;
-			END;
-			SELF.fingerPrint := fingerPrint
-
-		END VisitNetworkType;
 		(*
 			FP(VariableDeclaration)    = 0 <*> fpModePar -> Name -> Visibility <*> FP(Type).
 		*)

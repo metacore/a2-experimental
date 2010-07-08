@@ -233,11 +233,6 @@ TYPE
 			Scope(x.actorScope);
 		END VisitActorType;
 
-		PROCEDURE VisitNetworkType(x: SyntaxTree.NetworkType);
-		BEGIN
-			(* no code emission *)
-		END VisitNetworkType;
-
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
 		BEGIN (* no code emission *)   END VisitProcedureType;
 
@@ -374,18 +369,13 @@ TYPE
 			IF (scope.body # NIL) & (x.HasFlag(SyntaxTree.InlineFlag)) THEN
 				inline := TRUE;
 				ir := IntermediateCode.NewSection(module.sections,Sections.InlineCodeSection,name,x,dump);
+			ELSIF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
+				DataflowBody(scope.body);
+				RETURN
 			ELSIF x = module.module.moduleScope.bodyProcedure THEN
 				inline := FALSE;
-				IF (scope.body # NIL) & (module.module.type = SyntaxTree.dataflowType) THEN
-					DataflowBody(scope.body);
-					RETURN
-				ELSIF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
-					DataflowBody(scope.body);
-					RETURN
-				ELSE
-					AddBodyCallStub(x,Sections.InitCodeSection);
-					ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
-				END;
+				AddBodyCallStub(x,Sections.InitCodeSection);
+				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
 			ELSIF (scope.outerScope IS SyntaxTree.ActorScope) & (x = scope.outerScope(SyntaxTree.ActorScope).bodyProcedure) THEN
 				inline := FALSE;
 				AddBodyCallStub(x,Sections.InitCode2Section);

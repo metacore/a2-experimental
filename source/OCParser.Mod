@@ -1106,42 +1106,6 @@ TYPE
 			RETURN actorType
 		END ActorType;
 
-
-		(** NetworkType = 'network' [ParameterList] DeclarationSequence [Body] 'end' [Identifier]
-              | 'object'. **)
-		PROCEDURE NetworkType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope ): SyntaxTree.Type;
-		VAR
-			networkType: SyntaxTree.NetworkType;
-			networkScope: SyntaxTree.NetworkScope;
-		BEGIN
-			IF Trace THEN S( "NetworkType" ) END;
-			(* symbol network already consumed *)
-
-			networkScope := SyntaxTree.NewNetworkScope(parentScope);
-			networkType := SyntaxTree.NewNetworkType( position, parentScope,networkScope);
-			networkScope.SetOwnerNetwork(networkType);
-
-			(*! add support
-			IF Optional( Scanner.LeftParenthesis ) THEN
-				PortList(networkType,networkScope);
-			END;
-			*)
-
-			DeclarationSequence( networkScope);
-			IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
-				networkScope.SetBodyProcedure(BodyProcedure(networkScope));
-			END;
-			Check(Scanner.End);
-
-			IF ExpectThisIdentifier( name ) THEN
-				(* check name not always, reflect in EBNF? *)
-			END;
-			IF Trace THEN E( "NetworkType" ) END;
-			RETURN networkType
-		END NetworkType;
-
-
-
 		(** PointerType = 'pointer' 'to' Type. **)
 		PROCEDURE PointerType( position: LONGINT; parentScope: SyntaxTree.Scope ): SyntaxTree.PointerType;
 		VAR pointerType: SyntaxTree.PointerType;  base: SyntaxTree.Type; 	flagList: SyntaxTree.Modifier;
@@ -1303,7 +1267,6 @@ TYPE
 			ELSIF Optional( Scanner.Pointer ) THEN type := PointerType( position,parentScope );
 			ELSIF Optional( Scanner.Object ) THEN type := ObjectType( position,name,parentScope );
 			ELSIF Optional( Scanner.Actor) THEN type := ActorType( position, name, parentScope);
-			ELSIF Optional( Scanner.Network) THEN type := NetworkType( position, name, parentScope);
 			ELSIF Optional( Scanner.Receiver) THEN type := PortType( position, SyntaxTree.InPort, parentScope)
 			ELSIF Optional( Scanner.Sender) THEN type := PortType( position, SyntaxTree.OutPort, parentScope)
 			ELSIF Optional( Scanner.Procedure ) THEN type := ProcedureType( position,parentScope);

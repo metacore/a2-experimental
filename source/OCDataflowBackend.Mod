@@ -130,12 +130,9 @@ TYPE
 		BEGIN	END VisitRecordType;
 
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
-		BEGIN	END VisitActorType;
-
-		PROCEDURE VisitNetworkType(x: SyntaxTree.NetworkType);
 		BEGIN
-			Scope(x.networkScope);
-		END VisitNetworkType;
+			Scope(x.actorScope);
+		END VisitActorType;
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
 		BEGIN (* no code emission *)   END VisitProcedureType;
@@ -278,7 +275,6 @@ TYPE
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
 		VAR
 			scope: SyntaxTree.ProcedureScope;
-			networkScope: SyntaxTree.NetworkScope;
 			prevScope: SyntaxTree.Scope;
 			inline: BOOLEAN;
 			name: SyntaxTree.String;
@@ -292,12 +288,7 @@ TYPE
 			currentScope := scope;
 
 			Global.GetSymbolName(x,name);
-			IF x = module.moduleScope.bodyProcedure THEN
-				inline := FALSE;
-				IF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
-					DataflowBody(scope.body);
-				END;
-			ELSIF InNetworkScope(scope, networkScope) & (x = networkScope.bodyProcedure) THEN
+			IF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
 				DataflowBody(scope.body);
 			END;
 			currentScope := prevScope;
@@ -527,7 +518,6 @@ TYPE
 		formalParameter: SyntaxTree.Parameter;
 		i,j,len,direction: LONGINT;
 		parameterType: SyntaxTree.Type;
-		networkScope: SyntaxTree.NetworkScope;
 
 			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
 			BEGIN
@@ -593,15 +583,11 @@ TYPE
 			CASE x.id OF
 			|Global.New:
 				type := p0.type.resolved;
-				(*IF InNetworkScope(currentScope,networkScope) THEN
-					Error(x.position,"forbidden NEW statement in network scope");
-				ELS
-				*)
 				IF type IS SyntaxTree.ActorType THEN
 					(* generate actor by calling method on dataflow specification *)
 					IF GetCoreName(p0,coreName, typeName) THEN
 						core := Dataflow.FindCore(backend.dataflowSpecification.cores,coreName);
-						IF core # NIL THEN 
+						IF core # NIL THEN
 							Error(p0.position,"forbidden double instantiation of core");
 						ELSE
 							core := backend.dataflowSpecification.NewCore(coreName, typeName);
@@ -999,20 +985,6 @@ TYPE
 		END DefaultSymbolFileFormat;
 
 	END DataflowBackend;
-
-	PROCEDURE InNetworkScope(scope: SyntaxTree.Scope; VAR networkScope: SyntaxTree.NetworkScope): BOOLEAN;
-	BEGIN
-		WHILE (scope # NIL) & ~(scope IS SyntaxTree.NetworkScope) DO
-			scope := scope.outerScope
-		END;
-		IF scope = NIL THEN
-			networkScope := NIL;
-			RETURN FALSE
-		ELSE
-			networkScope := scope(SyntaxTree.NetworkScope);
-			RETURN TRUE
-		END;
-	END InNetworkScope;
 
 	PROCEDURE AppendIndex(VAR name: ARRAY OF CHAR; index: LONGINT);
 	BEGIN

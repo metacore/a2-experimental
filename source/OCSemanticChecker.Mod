@@ -891,49 +891,6 @@ TYPE
 			resolvedType := ResolvedType(x);
 		END VisitActorType;
 
-		(** check and resolve network type
-			- check base type: must be network
-			- check declarations
-			- every network type is guaranteed to have a type declaration in the module scope (anonymous or not)
-		**)
-		PROCEDURE VisitNetworkType(x: SyntaxTree.NetworkType);
-		VAR
-			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter; type: SyntaxTree.Type; len: LONGINT;
-		BEGIN
-			IF TypeNeedsResolution(x) THEN
-
-				(* process parameters *)
-				parameter :=x.firstParameter;
-				WHILE (parameter # NIL) DO
-					VisitParameter(parameter);
-					type := parameter.type.resolved;
-					IF ~(type IS SyntaxTree.PortType) THEN
-						IF ~IsStaticArray(type,type,len) OR ~(type IS SyntaxTree.PortType) THEN
-						Error(parameter.position, Diagnostics.Invalid, "invalid type, must be port or static array of port ");
-						END;
-					END;
-					parameter := parameter.nextParameter;
-				END;
-
-				Declarations(x.networkScope);
-
-				symbol := x.networkScope.firstSymbol; (* sorted symbols, important to go through procedures in a sorted way here !*)
-				WHILE symbol # NIL DO
-					IF symbol IS SyntaxTree.Variable THEN
-						isRealtime := isRealtime & symbol.type.resolved.IsRealtime();
-					END;
-					symbol := symbol.nextSymbol;
-				END;
-				IF isRealtime THEN x.AddFlags({SyntaxTree.RealtimeFlag}) END;
-
-				IF (x.typeDeclaration = NIL) THEN
-					AnonymousTypeDeclaration(x,"Anonymous");
-				END;
-				x.SetState(SyntaxTree.Resolved);
-			END;
-			resolvedType := ResolvedType(x);
-		END VisitNetworkType;
-
 		(** resolve all pending types (late resolving).
 			- type fixes are resolved at the end of the declaration phase
 			- type fixes may imply new type fixes that are also entered at the end of the list
@@ -5275,7 +5232,7 @@ TYPE
 		VAR flags: SET;
 		BEGIN
 			BlockFlags(statementBlock);
-			IF (SyntaxTree.DataflowFlag IN statementBlock.flags) OR (currentScope.outerScope IS SyntaxTree.NetworkScope) THEN
+			IF (SyntaxTree.DataflowFlag IN statementBlock.flags)  THEN
 				inDataflowBody := TRUE
 			END;
 			IF SyntaxTree.ExclusiveFlag IN statementBlock.flags THEN
@@ -5573,9 +5530,6 @@ TYPE
 
 		PROCEDURE VisitActorType*(x: SyntaxTree.ActorType);
 		BEGIN  Scope(x.actorScope) END VisitActorType;
-
-		PROCEDURE VisitNetworkType*(x: SyntaxTree.NetworkType);
-		BEGIN Scope(x.networkScope) END VisitNetworkType;
 
 		PROCEDURE VisitProcedureType*(x: SyntaxTree.ProcedureType);
 		BEGIN  END VisitProcedureType;

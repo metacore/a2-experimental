@@ -194,7 +194,6 @@ TYPE
 				RETURN GenerateRecordOffsets(scope(SyntaxTree.RecordScope).ownerRecord)
 			ELSE (* module scope or procedure scope: decreasing indices *)
 				ASSERT((scope IS SyntaxTree.ModuleScope) OR (scope IS SyntaxTree.ProcedureScope) OR (scope IS SyntaxTree.ActorScope)
-				OR (scope IS SyntaxTree.NetworkScope)
 				);
 				offset := 0;
 				variable := scope.firstVariable;
@@ -741,11 +740,6 @@ TYPE
 			ELSIF scope IS SyntaxTree.ActorScope THEN
 				Scope(scope.outerScope);
 				td := scope(SyntaxTree.ActorScope).ownerActor.typeDeclaration;
-				td.name.GetString(n);
-				Strings.Append(name,n); Strings.Append(name,".")
-			ELSIF scope IS SyntaxTree.NetworkScope THEN
-				Scope(scope.outerScope);
-				td := scope(SyntaxTree.NetworkScope).ownerNetwork.typeDeclaration;
 				td.name.GetString(n);
 				Strings.Append(name,n); Strings.Append(name,".")
 			END;
