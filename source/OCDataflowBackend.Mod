@@ -269,6 +269,7 @@ TYPE
 
 		PROCEDURE DataflowBody(x: SyntaxTree.Body);
 		BEGIN
+			implementationVisitor.currentScope := currentScope;
 			implementationVisitor.VisitStatementBlock(x);
 		END DataflowBody;
 
@@ -284,8 +285,8 @@ TYPE
 			IF Trace & (dump # NIL) THEN dump.String("DeclarationVisitor:Procedure"); dump.Ln END;
 			*)
 			(* code section for this procedure *)
-			scope := x.procedureScope;
 			prevScope := currentScope;
+			scope := x.procedureScope;
 			currentScope := scope;
 
 			Global.GetSymbolName(x,name);
@@ -296,7 +297,8 @@ TYPE
 				END;
 			ELSIF InNetworkScope(scope, networkScope) & (x = networkScope.bodyProcedure) THEN
 				DataflowBody(scope.body);
-			END
+			END;
+			currentScope := prevScope;
 		END Procedure;
 
 		(** entry function to visit a complete module *)
@@ -522,8 +524,7 @@ TYPE
 		formalParameter: SyntaxTree.Parameter;
 		i,j,len,direction: LONGINT;
 		parameterType: SyntaxTree.Type;
-
-
+		networkScope: SyntaxTree.NetworkScope;
 
 			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
 			BEGIN
@@ -588,9 +589,10 @@ TYPE
 
 			CASE x.id OF
 			|Global.New:
-				(*! the following code is only correct for "standard" Oberon calling convention *)
 				type := p0.type.resolved;
-				IF type IS SyntaxTree.ActorType THEN
+				IF InNetworkScope(currentScope,networkScope) THEN
+					Error(x.position,"forbidden NEW statement in network scope");
+				ELSIF type IS SyntaxTree.ActorType THEN
 					(* generate actor by calling method on dataflow specification *)
 					IF GetCoreName(p0,coreName, typeName) THEN
 						core := backend.dataflowSpecification.NewCore(coreName, typeName);
