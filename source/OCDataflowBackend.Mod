@@ -553,7 +553,7 @@ TYPE
 				port := NIL;
 				IF GetComponentName(p(SyntaxTree.SymbolDesignator).left, componentName, typeName) THEN
 					p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
-					component := Dataflow.FindComponent(backend.dataflowSpecification.components,componentName);
+					component := backend.dataflowSpecification.components.ByName(componentName);
 					IF component = NIL THEN
 						Error(p.position,"component not allocated");
 					ELSE
@@ -564,7 +564,7 @@ TYPE
 							COPY(portName, name);
 						END;
 						Strings.Append(name,suffix);
-						port := Dataflow.FindPort(component.ports,name);
+						port := component.ports.ByName(name);
 						IF port = NIL THEN Error(p.position,"outport not available") END;
 					END;
 				END;
@@ -586,7 +586,7 @@ TYPE
 				IF type IS SyntaxTree.ActorType THEN
 					(* generate actor by calling method on dataflow specification *)
 					IF GetComponentName(p0,componentName, typeName) THEN
-						component := Dataflow.FindComponent(backend.dataflowSpecification.components,componentName);
+						component := backend.dataflowSpecification.components.ByName(componentName);
 						IF component # NIL THEN
 							Error(p0.position,"forbidden double instantiation of component");
 						ELSE
@@ -631,9 +631,9 @@ TYPE
 				port1 := GetPort(p0);
 				port2 := GetPort(p1);
 				IF (port1#NIL) & (port2#NIL) THEN
-					IF Dataflow.FindChannelByPort(backend.dataflowSpecification.channels,port1) # NIL THEN
+					IF backend.dataflowSpecification.channels.ByPort(port1) # NIL THEN
 						Error(p0.position,"port already connected");
-					ELSIF Dataflow.FindChannelByPort(backend.dataflowSpecification.channels,port2) # NIL THEN
+					ELSIF backend.dataflowSpecification.channels.ByPort(port2) # NIL THEN
 						Error(p1.position,"port already connected");
 					ELSE
 						channel := backend.dataflowSpecification.NewChannel(port1,port2);
@@ -1007,13 +1007,13 @@ TYPE
 			IF ~Global.IsSystemModule(x) THEN
 				x.name.GetString(name);
 				IF ~(scope IS SyntaxTree.ActorScope) OR (scope(SyntaxTree.ActorScope).FindImport(x.name)#NIL) THEN
-					device := Dataflow.FindDevice(component.specification.supportedDevices,name);
+					device := component.specification.supportedDevices.ByName(name);
 					IF device # NIL THEN
 						device := component.NewDevice(device.name,device.adr)
 					END;
 				END;
 
-				 IF (Dataflow.FindModule(component.modules,name) = NIL) THEN
+				 IF component.modules.ByName(name) = NIL THEN
 					module := component.NewModule(name,"");
 				END;
 			END;

@@ -5755,13 +5755,13 @@ TYPE
 			IF ~Global.IsSystemModule(x) THEN
 				x.name.GetString(name);
 				IF ~(scope IS SyntaxTree.ActorScope) OR (scope(SyntaxTree.ActorScope).FindImport(x.name)#NIL) THEN
-					device := Dataflow.FindDevice(component.specification.supportedDevices,name);
+					device := component.specification.supportedDevices.ByName(name);
 					IF device # NIL THEN
 						device := component.NewDevice(device.name,device.adr)
 					END;
 				END;
 
-				 IF (Dataflow.FindModule(component.modules,name) = NIL) THEN
+				 IF component.modules.ByName(name) = NIL THEN
 					module := component.NewModule(name,"");
 				END;
 			END;

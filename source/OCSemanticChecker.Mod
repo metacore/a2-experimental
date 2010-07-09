@@ -3883,7 +3883,7 @@ TYPE
 				(* --------- HWADR --------- *)
 				ELSIF (id = Global.systemHardwareAddress) & (Parameters(1,1)) THEN
 					IF CheckStringValue(parameter0,name) THEN
-						device := Dataflow.FindDevice(dataflowSpecification.supportedDevices,name);
+						device := dataflowSpecification.supportedDevices.ByName(name);
 						IF device = NIL THEN
 							Error(parameter0.position,Diagnostics.Invalid,"unsupported device");
 							result := SyntaxTree.invalidExpression;

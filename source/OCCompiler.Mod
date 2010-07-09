@@ -242,13 +242,6 @@ TYPE
 					END;
 				END;
 
-				IF dataflowSpecification # NIL THEN
-					dataflowBackend.Initialize(diagnostics,flags,checker,system,dataflowSpecification);
-					generatedModule := dataflowBackend.Module(module);
-					IF dataflowBackend.error THEN
-						FinalMessage(" could not be compiled (dataflow backend errors)");
-					END;
-				END;
 
 				(** generate symbol file **)
 				IF (symbolFileFormat # NIL) & ~symbolFileFormat.Export(module, importCache) THEN
@@ -270,8 +263,16 @@ TYPE
 					END;
 				END;
 
+				IF dataflowSpecification # NIL THEN
+					dataflowBackend.Initialize(diagnostics,flags,checker,system,dataflowSpecification);
+					generatedModule := dataflowBackend.Module(module);
+					IF dataflowBackend.error THEN
+						FinalMessage(" could not be compiled (dataflow backend errors)");
+					END;
+				END;
+
 				IF dataflowSpecification = NIL THEN (* no dataflow *)
-				ELSIF dataflowSpecification.components.first = NIL THEN (* nothing defined *)
+				ELSIF dataflowSpecification.components.Length()=0 THEN (* nothing defined *)
 				ELSIF ~dataflowSpecification.Link(Info IN flags) THEN
 					FinalMessage(" could not link"); RETURN FALSE
 				ELSIF ~dataflowSpecification.Emit() THEN
