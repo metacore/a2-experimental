@@ -155,24 +155,24 @@ TYPE
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
 		VAR type, baseType: SyntaxTree.Type; i,len: LONGINT;
 
-			PROCEDURE MakeCore(symbol: SyntaxTree.Symbol; type: SyntaxTree.ActorType; index: LONGINT);
-			VAR coreName, typeName, portName, name: SyntaxTree.String;
-				core: Dataflow.Core; formalParameter: SyntaxTree.Parameter; i,portIndex: LONGINT;
+			PROCEDURE MakeComponent(symbol: SyntaxTree.Symbol; type: SyntaxTree.ActorType; index: LONGINT);
+			VAR componentName, typeName, portName, name: SyntaxTree.String;
+				component: Dataflow.Component; formalParameter: SyntaxTree.Parameter; i,portIndex: LONGINT;
 				parameterType: SyntaxTree.Type; direction, len: LONGINT;
 				port: Dataflow.Port;
 			BEGIN
-				Global.GetSymbolName(symbol,coreName);
+				Global.GetSymbolName(symbol,componentName);
 				Global.GetSymbolName(type.typeDeclaration,typeName);
 				IF index >= 0 THEN
-					AppendIndex(coreName,index);
+					AppendIndex(componentName,index);
 				END;
-				core := backend.dataflowSpecification.NewCore(coreName, typeName);
-				AddModules(core,type.actorScope, type.actorScope.ownerModule);
+				component := backend.dataflowSpecification.NewComponent(componentName, typeName);
+				AddModules(component,type.actorScope, type.actorScope.ownerModule);
 
 				formalParameter := type.firstParameter; portIndex := 0;
 				WHILE formalParameter # NIL DO
 					IF FullName THEN
-						COPY(coreName, portName);
+						COPY(componentName, portName);
 						Strings.Append(portName,".");
 					ELSE
 						portName := ""
@@ -186,17 +186,17 @@ TYPE
 						FOR i := 0 TO len-1 DO
 							COPY(portName,name);
 							AppendIndex(name,i);
-							port := core.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+							port := component.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
 							INC(portIndex);
 						END;
 					ELSE
 						direction := Direction(parameterType(SyntaxTree.PortType).direction);
-						port := core.NewPort(portName,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+						port := component.NewPort(portName,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
 						INC(portIndex);
 					END;
 					formalParameter := formalParameter.nextParameter;
 				END;
-			END MakeCore;
+			END MakeComponent;
 
 		BEGIN
 			(*
@@ -207,10 +207,10 @@ TYPE
 				baseType := baseType.resolved;
 				IF (baseType IS SyntaxTree.ActorType) THEN
 					IF len = -1 THEN
-						MakeCore(x,baseType(SyntaxTree.ActorType),-1);
+						MakeComponent(x,baseType(SyntaxTree.ActorType),-1);
 					ELSE
 						FOR i := 0 TO len-1 DO
-							MakeCore(x,baseType(SyntaxTree.ActorType),i);
+							MakeComponent(x,baseType(SyntaxTree.ActorType),i);
 						END
 					END;
 				END;
@@ -510,11 +510,11 @@ TYPE
 
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR p0,p1,p2: SyntaxTree.Expression;
-		core: Dataflow.Core;
+		component: Dataflow.Component;
 		port,port1,port2: Dataflow.Port;
 		channel: Dataflow.Channel;
 		type,t0,t1,t2: SyntaxTree.Type;
-		coreName, typeName, portName, name: SyntaxTree.String;
+		componentName, typeName, portName, name: SyntaxTree.String;
 		formalParameter: SyntaxTree.Parameter;
 		i,j,len,direction: LONGINT;
 		parameterType: SyntaxTree.Type;
@@ -529,42 +529,42 @@ TYPE
 				END;
 			END Index;
 
-			PROCEDURE GetCoreName(e: SyntaxTree.Expression; VAR coreName, typeName: ARRAY OF CHAR): BOOLEAN;
+			PROCEDURE GetComponentName(e: SyntaxTree.Expression; VAR componentName, typeName: ARRAY OF CHAR): BOOLEAN;
 			VAR suffix: SyntaxTree.String; type: SyntaxTree.Type;
 			BEGIN
 				suffix := ""; type := e.type;
 				Index(e,suffix);
 				IF ~(e IS SyntaxTree.SymbolDesignator) THEN Error(e.position,"unsupported designator"); RETURN FALSE END;
 				IF FullName THEN
-					Global.GetSymbolName(e(SyntaxTree.SymbolDesignator).symbol, coreName);
+					Global.GetSymbolName(e(SyntaxTree.SymbolDesignator).symbol, componentName);
 				ELSE
-					e(SyntaxTree.SymbolDesignator).symbol.name.GetString(coreName);
+					e(SyntaxTree.SymbolDesignator).symbol.name.GetString(componentName);
 				END;
-				Strings.Append(coreName, suffix);
+				Strings.Append(componentName, suffix);
 				Global.GetSymbolName(type.typeDeclaration,typeName);
 				RETURN TRUE
-			END GetCoreName;
+			END GetComponentName;
 
 
 			PROCEDURE GetPort(p: SyntaxTree.Expression): Dataflow.Port;
-			VAR name, coreName, typeName: SyntaxTree.String; port: Dataflow.Port; suffix: SyntaxTree.String;
+			VAR name, componentName, typeName: SyntaxTree.String; port: Dataflow.Port; suffix: SyntaxTree.String;
 			BEGIN
 				Index(p, suffix);
 				port := NIL;
-				IF GetCoreName(p(SyntaxTree.SymbolDesignator).left, coreName, typeName) THEN
+				IF GetComponentName(p(SyntaxTree.SymbolDesignator).left, componentName, typeName) THEN
 					p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
-					core := Dataflow.FindCore(backend.dataflowSpecification.cores,coreName);
-					IF core = NIL THEN
-						Error(p.position,"core not allocated");
+					component := Dataflow.FindComponent(backend.dataflowSpecification.components,componentName);
+					IF component = NIL THEN
+						Error(p.position,"component not allocated");
 					ELSE
 						IF FullName THEN
-							COPY(coreName, name);
+							COPY(componentName, name);
 							Strings.Append(name,"."); Strings.Append(name,portName);
 						ELSE
 							COPY(portName, name);
 						END;
 						Strings.Append(name,suffix);
-						port := Dataflow.FindPort(core.ports,name);
+						port := Dataflow.FindPort(component.ports,name);
 						IF port = NIL THEN Error(p.position,"outport not available") END;
 					END;
 				END;
@@ -585,19 +585,19 @@ TYPE
 				type := p0.type.resolved;
 				IF type IS SyntaxTree.ActorType THEN
 					(* generate actor by calling method on dataflow specification *)
-					IF GetCoreName(p0,coreName, typeName) THEN
-						core := Dataflow.FindCore(backend.dataflowSpecification.cores,coreName);
-						IF core # NIL THEN
-							Error(p0.position,"forbidden double instantiation of core");
+					IF GetComponentName(p0,componentName, typeName) THEN
+						component := Dataflow.FindComponent(backend.dataflowSpecification.components,componentName);
+						IF component # NIL THEN
+							Error(p0.position,"forbidden double instantiation of component");
 						ELSE
-							core := backend.dataflowSpecification.NewCore(coreName, typeName);
+							component := backend.dataflowSpecification.NewComponent(componentName, typeName);
 
-							AddModules(core,type(SyntaxTree.ActorType).actorScope, type(SyntaxTree.ActorType).actorScope.ownerModule);
+							AddModules(component,type(SyntaxTree.ActorType).actorScope, type(SyntaxTree.ActorType).actorScope.ownerModule);
 
 							formalParameter := type(SyntaxTree.ActorType).firstParameter; j := 0;
 							WHILE formalParameter # NIL DO
 								IF FullName THEN
-									COPY(coreName, portName);
+									COPY(componentName, portName);
 									Strings.Append(portName,".");
 								ELSE
 									portName := ""
@@ -611,12 +611,12 @@ TYPE
 									FOR i := 0 TO len-1 DO
 										COPY(portName,name);
 										AppendIndex(name,i);
-										port := core.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(j));
+										port := component.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(j));
 										INC(j);
 									END;
 								ELSE
 									direction := Direction(parameterType(SyntaxTree.PortType).direction);
-									port := core.NewPort(portName,direction,backend.dataflowSpecification.GetPortAddress(j));
+									port := component.NewPort(portName,direction,backend.dataflowSpecification.GetPortAddress(j));
 									INC(j);
 								END;
 								formalParameter := formalParameter.nextParameter;
@@ -962,7 +962,7 @@ TYPE
 			ResetError;
 			Global.GetSymbolName(x,name);
 			GetDescription(instructionSet);
-			IF dataflowSpecification # NIL THEN dataflowSpecification.Init(name,instructionSet,diagnostics) END;
+			ASSERT(dataflowSpecification # NIL); (* must be set by compiler driver *)
 			NEW(implementationVisitor,system,checker,SELF);
 			NEW(declarationVisitor,system,implementationVisitor,SELF);
 			declarationVisitor.Module(x);
@@ -999,7 +999,7 @@ TYPE
 		END;
 	END Direction;
 
-	PROCEDURE AddModules(core: Dataflow.Core; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
+	PROCEDURE AddModules(component: Dataflow.Component; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
 
 		PROCEDURE AddImport(x: SyntaxTree.Module);
 		VAR module: Dataflow.Module; VAR name: SyntaxTree.String; device: Dataflow.Device;
@@ -1007,14 +1007,14 @@ TYPE
 			IF ~Global.IsSystemModule(x) THEN
 				x.name.GetString(name);
 				IF ~(scope IS SyntaxTree.ActorScope) OR (scope(SyntaxTree.ActorScope).FindImport(x.name)#NIL) THEN
-					device := Dataflow.FindDevice(core.specification.supportedDevices,name);
+					device := Dataflow.FindDevice(component.specification.supportedDevices,name);
 					IF device # NIL THEN
-						device := core.NewDevice(device.name,device.adr)
+						device := component.NewDevice(device.name,device.adr)
 					END;
 				END;
 
-				 IF (Dataflow.FindModule(core.modules,name) = NIL) THEN
-					module := core.NewModule(name,"");
+				 IF (Dataflow.FindModule(component.modules,name) = NIL) THEN
+					module := component.NewModule(name,"");
 				END;
 			END;
 		END AddImport;

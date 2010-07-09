@@ -160,6 +160,8 @@ TYPE
 		printer: Printout.Printer;
 		system: Global.System;
 		generatedModule: Formats.GeneratedModule;
+		name: SyntaxTree.String;
+		dataflowBackend: Backend.Backend;
 
 		PROCEDURE FinalMessage(CONST msg: ARRAY OF CHAR);
 		VAR message,name: ARRAY 256 OF CHAR;
@@ -194,6 +196,8 @@ TYPE
 			Global.NewBuiltin(Global.Receive,"RECEIVE",system.globalScope,{});
 			Global.NewBuiltin(Global.Send,"SEND",system.globalScope,{});
 			Global.NewBuiltin(Global.systemHardwareAddress,"HWADR",system.systemScope,{});
+			dataflowBackend := GetBackend("Dataflow");
+			IF dataflowBackend = NIL THEN FinalMessage("could not install dataflow backend"); RETURN FALSE END;
 		END;
 		parser := Parser.NewParser( scanner, diagnostics );
 		IF DataFlow IN flags THEN
@@ -223,6 +227,11 @@ TYPE
 					warnings.Module(module);
 				END;
 
+				IF dataflowSpecification # NIL THEN
+					Global.GetSymbolName(module,name);
+					dataflowSpecification.Init(name,diagnostics)
+				END;
+
 				(** third phase: generate code, can consist of sub-phases (such as intermediate backend / hardware backend) **)
 				IF backend # NIL THEN
 					backend.Initialize(diagnostics, flags, checker, system, dataflowSpecification);
@@ -230,6 +239,14 @@ TYPE
 					IF backend.error THEN
 						FinalMessage(" could not be compiled (backend errors).");
 						RETURN FALSE
+					END;
+				END;
+
+				IF dataflowSpecification # NIL THEN
+					dataflowBackend.Initialize(diagnostics,flags,checker,system,dataflowSpecification);
+					generatedModule := dataflowBackend.Module(module);
+					IF dataflowBackend.error THEN
+						FinalMessage(" could not be compiled (dataflow backend errors)");
 					END;
 				END;
 
@@ -254,7 +271,7 @@ TYPE
 				END;
 
 				IF dataflowSpecification = NIL THEN (* no dataflow *)
-				ELSIF dataflowSpecification.cores.first = NIL THEN (* nothing defined *)
+				ELSIF dataflowSpecification.components.first = NIL THEN (* nothing defined *)
 				ELSIF ~dataflowSpecification.Link(Info IN flags) THEN
 					FinalMessage(" could not link"); RETURN FALSE
 				ELSIF ~dataflowSpecification.Emit() THEN
@@ -360,7 +377,7 @@ TYPE
 		IF options.GetString("dataflowSpecification",name) THEN
 			dataflowSpecification := GetDataflowSpecification(name);
 		ELSIF options.GetFlag("dataflow") THEN
-			NEW(dataflowSpecification,"","",diagnostics);
+			NEW(dataflowSpecification,"",diagnostics);
 		END;
 
 		IF backend # NIL THEN backend.DefineOptions (options); INCL(flags,Check); END;

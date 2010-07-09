@@ -3,7 +3,7 @@ MODULE OCIntermediateBackend; (** AUTHOR ""; PURPOSE ""; *)
 IMPORT Basic := OCBasic, SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend := OCBackend, Global := OCGlobal,
 	WMUtilities,Scanner := OCScanner, IntermediateCode := OCIntermediateCode, Sections := OCSections, Printout := OCPrintout,
 	SYSTEM, Diagnostics, Strings, Options, Streams, Compiler, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile, D := Debugging,
-	Fingerprinter := OCFingerprinter, Dataflow := OCDataflow, DataflowBackend := OCDataflowBackend;
+	Fingerprinter := OCFingerprinter, Dataflow := OCDataflow;
 
 CONST
 		(* operand modes *)
@@ -3574,18 +3574,15 @@ TYPE
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR p0,p1,p2,parameter: SyntaxTree.Expression; len,val: LONGINT; l,r: Operand; res,adr,reg: IntermediateCode.Operand; type: SyntaxTree.Type;
 		constructor: SyntaxTree.Procedure; s0,s1,s2: Operand; hint: HUGEINT;
-		i,j: LONGINT; formalParameter: SyntaxTree.Parameter;
+		i: LONGINT; formalParameter: SyntaxTree.Parameter;
 		tmp:IntermediateCode.Operand;
 		size: LONGINT; dim,openDim: LONGINT; pointer: IntermediateCode.Operand; t,t0,t1,t2: SyntaxTree.Type; trueL,falseL,ignore: Label;
 		exit,else,end: Label; procedureType: SyntaxTree.ProcedureType;
-		name,name1,name2: SyntaxTree.String; symbol: Sections.Section; operand: Operand;
+		name: SyntaxTree.String; symbol: Sections.Section; operand: Operand;
 		dest: IntermediateCode.Operand;
 		staticLength: LONGINT; itype: IntermediateCode.Type;
 		convert,isTensor: BOOLEAN;
 		flags: SET;
-		core,core1,core2: Dataflow.Core;
-		port,port1,port2: Dataflow.Port;
-		channel: Dataflow.Channel;
 
 			PROCEDURE CallBodies(self: IntermediateCode.Operand; type: SyntaxTree.Type);
 			VAR recordScope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure; body: SyntaxTree.Body; flags: LONGINT;
@@ -5670,22 +5667,20 @@ TYPE
 			implementationVisitor: ImplementationVisitor;
 			module: Sections.Module;
 			name, instructionSet: SyntaxTree.String;
-			dataflowDeclarationVisitor: DataflowBackend.DeclarationVisitor;
-			dataflowImplementationVisitor: DataflowBackend.ImplementationVisitor;
 		BEGIN
 			ResetError;
 			Global.GetSymbolName(x,name);
-			GetDescription(instructionSet);
-			IF dataflowSpecification # NIL THEN dataflowSpecification.Init(name,instructionSet,diagnostics) END;
+
+			IF dataflowSpecification # NIL THEN
+				GetDescription(instructionSet);
+				dataflowSpecification.SetInstructionSet(instructionSet)
+			END;
+
 			NEW(module,x,system); (* backend structures *)
 			NEW(implementationVisitor,system,checker,Supported,Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
 			NEW(declarationVisitor,system,implementationVisitor,SELF,trace);
 			declarationVisitor.Module(x,module);
-			IF dataflowSpecification # NIL THEN
-				NEW(dataflowImplementationVisitor,system,checker,SELF);
-				NEW(dataflowDeclarationVisitor,system,dataflowImplementationVisitor,SELF);
-				dataflowDeclarationVisitor.Module(x);
-			END;
+
 
 			IF newObjectFile THEN
 				MetaModule(implementationVisitor,module);
@@ -5698,7 +5693,7 @@ TYPE
 		VAR
 			dump: WMUtilities.WindowWriter;
 			module: Sections.Module;
-			traceName,name: SyntaxTree.String;
+			traceName: SyntaxTree.String;
 		BEGIN
 			module := GenerateIntermediate(x);
 			IF trace THEN
@@ -5752,30 +5747,7 @@ TYPE
 		emptyOperand: IntermediateCode.Operand;
 		systemCalls: ARRAY NumberSystemCalls OF SyntaxTree.Symbol;
 
-
-	PROCEDURE GetDataflowSpecification(CONST name: ARRAY OF CHAR): Dataflow.Specification;
-	VAR
-		procname: ARRAY 256 OF CHAR;
-		factory: PROCEDURE (): Dataflow.Specification;
-		specification: Dataflow.Specification;
-	BEGIN
-		specification := NIL;
-		IF Strings.Length(name) > 0 THEN
-			GETPROCEDURE(name,"Get", factory); (* try long name for example -G=OCBinaryObjectFile *)
-			IF factory = NIL THEN (* try short name for example -G=Binary*)
-				procname := "OC";
-				Strings.Append(procname, name);
-				GETPROCEDURE(procname,"Get", factory);
-			END;
-			IF factory # NIL THEN
-				specification := factory();
-				ASSERT(specification # NIL);
-			END;
-		END;
-		RETURN specification
-	END GetDataflowSpecification;
-
-	PROCEDURE AddModules(core: Dataflow.Core; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
+	PROCEDURE AddModules(component: Dataflow.Component; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
 
 		PROCEDURE AddImport(x: SyntaxTree.Module);
 		VAR module: Dataflow.Module; VAR name: SyntaxTree.String; device: Dataflow.Device;
@@ -5783,14 +5755,14 @@ TYPE
 			IF ~Global.IsSystemModule(x) THEN
 				x.name.GetString(name);
 				IF ~(scope IS SyntaxTree.ActorScope) OR (scope(SyntaxTree.ActorScope).FindImport(x.name)#NIL) THEN
-					device := Dataflow.FindDevice(core.specification.supportedDevices,name);
+					device := Dataflow.FindDevice(component.specification.supportedDevices,name);
 					IF device # NIL THEN
-						device := core.NewDevice(device.name,device.adr)
+						device := component.NewDevice(device.name,device.adr)
 					END;
 				END;
 
-				 IF (Dataflow.FindModule(core.modules,name) = NIL) THEN
-					module := core.NewModule(name,"");
+				 IF (Dataflow.FindModule(component.modules,name) = NIL) THEN
+					module := component.NewModule(name,"");
 				END;
 			END;
 		END AddImport;
