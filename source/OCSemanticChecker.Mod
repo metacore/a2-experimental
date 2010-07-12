@@ -5993,7 +5993,7 @@ TYPE
 		RETURN i
 	END TypeDistance;
 
-	PROCEDURE IsIntegerValue*(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
+	PROCEDURE IsIntegerValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
 	VAR result: BOOLEAN;
 	BEGIN
 		IF (x.resolved # NIL) & (x.resolved IS SyntaxTree.IntegerValue) THEN
