@@ -36,15 +36,16 @@ CONST
 	InterruptFlag*=12;
 	NoPAFFlag*=13;
 	FixedFlag*=14;
+	AlignedFlag*=15;
 
 	(* statement flags *)
-	UnreachableFlag*=15;
+	UnreachableFlag*=16;
 	(* modification flags *)
-	WrittenFlag*=16;
-	AccessedFlag*=17;
-	MappedFlag*=18; (* for dataflow ports *)
+	WrittenFlag*=17;
+	AccessedFlag*=18;
+	MappedFlag*=19; (* for dataflow ports *)
 
-	DataflowFlag*=19;
+	DataflowFlag*=20;
 
 	(** Access Flags *)
 	InternalRead* = 0;			(** can read symbol in same module *)
@@ -1694,6 +1695,9 @@ TYPE
 		scope-:Scope; (* container of symbol *)
 		offsetInBits-: LONGINT; (* offset in stack or heap, in bits *)
 
+		fixed-: BOOLEAN;
+		alignment-: LONGINT;
+
 		position-: LONGINT; state-: SET;
 		fingerprint-: Fingerprint;
 
@@ -1708,8 +1712,13 @@ TYPE
 			state := Undefined;
 			flags := {};
 			offsetInBits := MIN(LONGINT);
+			alignment := 1; fixed := FALSE;
 			InitFingerprint(fingerprint);
 		END InitSymbol;
+
+		PROCEDURE SetAlignment*(fix: BOOLEAN; alignment: LONGINT);
+		BEGIN SELF.alignment := alignment; fixed := fix;
+		END SetAlignment;
 
 		PROCEDURE SetFingerprint*(CONST fp: Fingerprint);
 		BEGIN

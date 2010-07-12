@@ -13,6 +13,7 @@ CONST
 	StringInterrupt*= "INTERRUPT";
 	StringNoPAF*="NOPAF";
 	StringFixed*="FIXED";
+	StringAligned*="ALIGNED";
 
 	(* block modifier flag names *)
 	StringExclusive* = "EXCLUSIVE";

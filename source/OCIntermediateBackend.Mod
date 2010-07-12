@@ -259,6 +259,7 @@ TYPE
 				(* code section for variable *)
 				Global.GetSymbolName(x,name);
 				irv := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,dump);
+				irv.SetAlignment(x.fixed, x.alignment);
 				irv.SetOffset(ToMemoryUnits(system,x.offsetInBits));
 				irv.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(x.type))));
 				CheckTypeDeclaration(implementationVisitor, module,x.type,dump,implementationVisitor.newObjectFile);

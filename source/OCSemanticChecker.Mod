@@ -655,6 +655,7 @@ TYPE
 				ELSIF (name = Global.StringRealtime) THEN flag :=  SyntaxTree.RealtimeFlag
 				ELSIF (name = Global.StringInterrupt) THEN flag :=  SyntaxTree.InterruptFlag
 				ELSIF (name = Global.StringNoPAF) THEN flag :=  SyntaxTree.NoPAFFlag;
+				ELSIF (name = Global.StringAligned) THEN flag := SyntaxTree.AlignedFlag; expressionExpected := TRUE;
 				ELSIF (name = Global.StringFixed) THEN flag :=  SyntaxTree.FixedFlag; expressionExpected := TRUE;
 				ELSE Error(modifier.identifier.position,Diagnostics.Invalid,"Unknown Flag"); flag :=  MIN(LONGINT);
 				END;
@@ -670,22 +671,6 @@ TYPE
 			RETURN flag
 		END GetFlag;
 
-		(**
-			convert a flag identifier to a (checker module local) flag
-		**)
-		PROCEDURE Flag(flagList: SyntaxTree.Modifier; allowedFlags: SET): LONGINT;
-		VAR thisFlag: LONGINT;
-		BEGIN
-			thisFlag := MIN(LONGINT);
-			IF flagList = NIL THEN (* no flag *)
-			ELSIF flagList.nextModifier # NIL THEN (* too many flags *)
-				Error(flagList.nextModifier.identifier.position,Diagnostics.Invalid,"too many flags: only one flag allowed");
-			ELSE
-				thisFlag := GetFlag(flagList);
-				IF ~(thisFlag IN allowedFlags) THEN  Error(flagList.identifier.position, Basic.IllegalyMarkedIdentifier,"") END;
-			END;
-			RETURN thisFlag
-		END Flag;
 
 		PROCEDURE Flags(flagList: SyntaxTree.Modifier; allowedFlags: SET): SET;
 		VAR flags: SET; flag: LONGINT;
@@ -4288,12 +4273,12 @@ TYPE
 			- check symbol
 		**)
 		PROCEDURE VisitVariable(variable: SyntaxTree.Variable);
+		VAR flags: SET; value: LONGINT;
 		BEGIN
 			IF Trace THEN D.Str("VisitVariable "); D.Str0(variable.name.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(variable) THEN
-				IF Flag(variable.flagList,{SyntaxTree.UntracedFlag}) = SyntaxTree.UntracedFlag THEN
-					variable.AddFlags({SyntaxTree.UntracedFlag});
-				END;
+				flags := Flags(variable.flagList,{SyntaxTree.UntracedFlag, SyntaxTree.AlignedFlag});
+				variable.AddFlags(flags);
 				variable.SetType(ResolveType(variable.type));
 				IF variable.type.resolved IS SyntaxTree.ArrayType THEN
 					IF variable.type.resolved(SyntaxTree.ArrayType).length = NIL THEN
@@ -4306,6 +4291,12 @@ TYPE
 						IF VerboseErrorMessage THEN Printout.Info("variable",variable); Printout.Info("variable.type",variable.type.resolved); END;
 						Error(variable.position,Diagnostics.Invalid,"untraced flag on non-pointer variable");
 					END;
+				END;
+				IF (SyntaxTree.AlignedFlag IN flags) & CheckIntegerValue(flagExpressions[SyntaxTree.AlignedFlag],value) THEN
+					IF variable.scope IS SyntaxTree.ProcedureScope THEN
+						Error(variable.position,Diagnostics.Invalid,"not yet implemented");
+					END;
+					variable.SetAlignment(FALSE,value);
 				END;
 				variable.SetState(SyntaxTree.Resolved);
 			END;
@@ -4345,7 +4336,7 @@ TYPE
 			recordBase: SyntaxTree.RecordType; procedureType: SyntaxTree.ProcedureType;
 			selfParameter: SyntaxTree.Parameter; qualifiedIdentifier: SyntaxTree.QualifiedIdentifier;
 			qualifiedType: SyntaxTree.QualifiedType; recentFlags: SET; flags: SET;
-			alignmentExpression: SyntaxTree.Expression;value: LONGINT;
+			alignmentExpression,fixedExpression: SyntaxTree.Expression;value: LONGINT;
 
 		BEGIN
 			IF Trace THEN D.Str("VisitProcedure "); D.Str0(procedure.name.name);  D.Ln;  END;
@@ -4354,7 +4345,8 @@ TYPE
 				IF Trace THEN D.Str("undefined"); D.Ln; END;
 				procedureType := procedure.type(SyntaxTree.ProcedureType);
 				flags := Flags(procedureType.flagList,{SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag,SyntaxTree.RealtimeFlag,SyntaxTree.InterruptFlag,SyntaxTree.NoPAFFlag,SyntaxTree.FixedFlag});
-				alignmentExpression := flagExpressions[SyntaxTree.FixedFlag];
+				fixedExpression := flagExpressions[SyntaxTree.FixedFlag];
+				alignmentExpression := flagExpressions[SyntaxTree.AlignedFlag];
 				procedureType.AddFlags(flags);
 				FixProcedureType(procedureType);
 				IF SyntaxTree.DelegateFlag IN procedureType.flags THEN
@@ -4362,12 +4354,15 @@ TYPE
 				END;
 				procedure.AddFlags(procedureType.flags);
 				currentFlags := currentFlags + procedure.flags;
-				IF (SyntaxTree.FixedFlag IN flags) & CheckIntegerValue(alignmentExpression,value) THEN
+				IF (SyntaxTree.FixedFlag IN flags) & CheckIntegerValue(fixedExpression,value) THEN
 					IF procedure.procedureScope.body # NIL THEN
 						procedure.procedureScope.body.SetAlignment(TRUE,value);
 					END;
+				ELSIF (SyntaxTree.AlignedFlag IN flags) & CheckIntegerValue(alignmentExpression,value) THEN
+					IF procedure.procedureScope.body # NIL THEN
+						procedure.procedureScope.body.SetAlignment(FALSE,value);
+					END;
 				END;
-
 
 				IF procedure.scope IS SyntaxTree.ProcedureScope THEN
 					procedure.SetLevel(procedure.scope(SyntaxTree.ProcedureScope).ownerProcedure.level+1);
@@ -5998,7 +5993,7 @@ TYPE
 		RETURN i
 	END TypeDistance;
 
-	PROCEDURE IsIntegerValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
+	PROCEDURE IsIntegerValue*(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
 	VAR result: BOOLEAN;
 	BEGIN
 		IF (x.resolved # NIL) & (x.resolved IS SyntaxTree.IntegerValue) THEN
