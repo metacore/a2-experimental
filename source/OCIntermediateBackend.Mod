@@ -4289,7 +4289,32 @@ TYPE
 				Convert(s0.op,GetType(system,x.type));
 				result := s0;
 			(* ---- SYSTEM.BIT ----- *)
-			|Global.systemBit: HALT(200);
+			|Global.systemBit:
+				Evaluate(p0,s0);
+				ToMemory(s0.op,addressType,0);
+				ReuseCopy(res,s0.op);
+				ReleaseOperand(s0);
+				Evaluate(p1,s1);
+				Emit(Ror(res,res,s1.op));
+				ReleaseOperand(s1);
+				Emit(And(res,res,IntermediateCode.Immediate(GetType(system,p0.type),1)));
+				IF ~conditional THEN
+					InitOperand(result,ModeValue); result.op := res;
+				ELSE
+					BreqL(trueLabel,IntermediateCode.Immediate(GetType(system,p0.type),1),res);
+					BrL(falseLabel);
+					ReleaseIntermediateOperand(res);
+				END;
+			(* --- SYSTEM.MSK ----*)
+			|Global.systemMsk:
+				Evaluate(p0,s0);
+				Evaluate(p1,s1);
+				ReuseCopy(res,s0.op);
+				ReleaseOperand(s0);
+				Emit(And(res,res,s1.op));
+				ReleaseOperand(s1);
+				InitOperand(result,ModeValue);
+				result.op := res;
 			(* ---- SYSTEM.GET8|16|32|64 ----- *)
 			|Global.systemGet8, Global.systemGet16, Global.systemGet32, Global.systemGet64:
 				Evaluate(p0,s0);

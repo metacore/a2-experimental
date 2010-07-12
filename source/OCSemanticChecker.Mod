@@ -3584,7 +3584,21 @@ TYPE
 						type := system.addressType;
 				(* ---- SYSTEM.BIT ----- *)
 				ELSIF (id = Global.systemBit) & Parameters(2,2) THEN
-					(*! implement *)
+					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
+						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address,NIL);
+						actualParameters.SetExpression(0,parameter0);
+						parameter1 := NewConversion(parameter1.position,parameter1,Global.Address,NIL);
+						actualParameters.SetExpression(1,parameter1);
+					END;
+					type := Global.Boolean;
+				(* ----- SYSTEM.MSK ---- *)
+				ELSIF (id = Global.systemMsk) & Parameters(2,2) THEN
+					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
+						ConvertOperands(parameter0,parameter1);
+						actualParameters.SetExpression(0,parameter0);
+						actualParameters.SetExpression(1,parameter1);
+					END;
+					type := parameter0.type;
 				(* ---- SYSTEM.GET64 ----- *)
 				ELSIF (id = Global.systemGet64) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
