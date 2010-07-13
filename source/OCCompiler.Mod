@@ -195,6 +195,7 @@ TYPE
 			Global.NewBuiltin(Global.Connect,"CONNECT",system.globalScope,{});
 			Global.NewBuiltin(Global.Receive,"RECEIVE",system.globalScope,{});
 			Global.NewBuiltin(Global.Send,"SEND",system.globalScope,{});
+			Global.NewBuiltin(Global.Delegate,"DELEGATE",system.globalScope,{});
 			Global.NewBuiltin(Global.systemHardwareAddress,"HWADR",system.systemScope,{});
 			dataflowBackend := GetBackend("Dataflow");
 			IF dataflowBackend = NIL THEN FinalMessage("could not install dataflow backend"); RETURN FALSE END;

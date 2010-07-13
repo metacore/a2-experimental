@@ -3848,12 +3848,27 @@ TYPE
 				(* ------- CONNECT -------*)
 				ELSIF (id = Global.Connect) & (Parameters(2,2)) THEN
 					IF 	~(inDataflowBody) THEN
-						Error(position,Diagnostics.Invalid,"actor allocation outside dataflow body block");
+						Error(position,Diagnostics.Invalid,"connection outside dataflow body block");
 					END;
 					IF ~CheckPortType(parameter1, inPort) OR (inPort.direction # SyntaxTree.InPort) THEN
 						Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
 					ELSIF ~CheckPortType(parameter0, outPort) OR (outPort.direction # SyntaxTree.OutPort) THEN
 						Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
+					ELSIF ~SameType(inPort.channelType, outPort.channelType, NIL) THEN
+						Error(position,Diagnostics.Invalid,"incompatible port types");
+					END;
+					dataflowStatement := TRUE;
+				(* ---------- DELEGATE --------*)
+				ELSIF (id = Global.Delegate) & (Parameters(2,2)) THEN
+					IF 	~(inDataflowBody) THEN
+						Error(position,Diagnostics.Invalid,"connection delegation outside dataflow body block");
+					END;
+					IF ~CheckPortType(parameter1, inPort) THEN
+						Error(parameter0.position,Diagnostics.Invalid,"not a port")
+					ELSIF ~CheckPortType(parameter0, outPort) THEN
+						Error(parameter1.position,Diagnostics.Invalid,"not a port")
+					ELSIF (outPort.direction # inPort.direction) THEN
+						Error(parameter0.position,Diagnostics.Invalid,"invalid port direction");
 					ELSIF ~SameType(inPort.channelType, outPort.channelType, NIL) THEN
 						Error(position,Diagnostics.Invalid,"incompatible port types");
 					END;

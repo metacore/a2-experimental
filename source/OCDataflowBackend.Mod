@@ -521,7 +521,7 @@ TYPE
 
 			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
 			BEGIN
-				IF e IS SyntaxTree.IndexDesignator THEN
+				IF (e # NIL)&  (e IS SyntaxTree.IndexDesignator) THEN
 					IF e(SyntaxTree.IndexDesignator).parameters.Length() # 1 THEN Error(e.position,"unsupported array dimension") END;
 					Expression(e(SyntaxTree.IndexDesignator).parameters.GetExpression(0));
 					suffix := ""; AppendIndex(suffix,resultValue.integer);
@@ -530,11 +530,18 @@ TYPE
 			END Index;
 
 			PROCEDURE GetComponentName(e: SyntaxTree.Expression; VAR componentName, typeName: ARRAY OF CHAR): BOOLEAN;
-			VAR suffix: SyntaxTree.String; type: SyntaxTree.Type;
+			VAR suffix: SyntaxTree.String; type: SyntaxTree.Type; scope: SyntaxTree.Scope;
 			BEGIN
-				suffix := ""; type := e.type;
+				suffix := ""; 
 				Index(e,suffix);
-				IF ~(e IS SyntaxTree.SymbolDesignator) THEN Error(e.position,"unsupported designator"); RETURN FALSE END;
+				IF e = NIL THEN (* in current scope => take actor type name *)
+					scope := currentScope; WHILE ~(scope IS SyntaxTree.ActorScope) DO scope := scope.outerScope END;
+					Global.GetSymbolName(scope(SyntaxTree.ActorScope).ownerActor.typeDeclaration,componentName);
+					COPY(componentName, typeName);
+					RETURN TRUE
+				ELSIF ~(e IS SyntaxTree.SymbolDesignator) THEN Error(e.position,"unsupported designator"); RETURN FALSE 
+				END;
+				type := e.type;
 				IF FullName THEN
 					Global.GetSymbolName(e(SyntaxTree.SymbolDesignator).symbol, componentName);
 				ELSE
@@ -638,6 +645,18 @@ TYPE
 					ELSE
 						channel := backend.dataflowSpecification.NewChannel(port1,port2);
 					END;
+				END;
+			|Global.Delegate:
+				port1 := GetPort(p0);
+				port2 := GetPort(p1);
+				IF (port1 # NIL) & (port2 # NIL) THEN
+					IF port1.delegate # NIL THEN
+						Error(p0.position,"port already delegated");
+					(*ELSIF port2.connected THEN
+						Error(p1.position,"port already connected");
+					*)
+					END;
+					port1.Delegate(port2);
 				END;
 			|Global.systemTrace:
 				SystemTrace(x.parameters);
