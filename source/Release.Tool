@@ -253,7 +253,6 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	NATIVE,WIN { Files.Mod }
 	UNIX { Unix.Files.Mod }
 
-
 	Dates.Mod Strings.Mod # low-level utility modules
 	UTF8Strings.Mod
 
@@ -291,6 +290,8 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 
 	DynamicStrings.Mod XMLObjects.Mod XML.Mod XMLScanner.Mod XMLParser.Mod 	# XML parser (swalther)
 	Configuration.Mod Configuration.XML Save.Configuration.XML FileHandlers.Mod		# XML-based configuration file
+
+	BootShell.Mod
 
 	I386,UNIX { I386.Network.Mod }
 	AMD64 { AMD64.Network.Mod }
