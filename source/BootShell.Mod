@@ -110,14 +110,14 @@ TYPE
 
 	Character = RECORD
 		ch : CHAR;
-		color : INTEGER;
+		color : SHORTINT;
 	END;
 
 	Line = ARRAY LineWidth OF Character;
 
 	TextBuffer = OBJECT
 	VAR
-		currentColor : INTEGER;
+		currentColor : SHORTINT;
 
 		(* ring buffer of lines *)
 		lines : ARRAY BufferHeight OF Line;
@@ -162,7 +162,7 @@ TYPE
 			Invalidate(SELF);
 		END Clear;
 
-		PROCEDURE SetColor(foreground, background : INTEGER);
+		PROCEDURE SetColor(foreground, background : SHORTINT);
 		BEGIN
 			currentColor := foreground + 10H * background;
 		END SetColor;
