@@ -798,7 +798,7 @@ TYPE
 		RETURN -h
 	END MinInteger;
 
-	PROCEDURE GetIntegerType*(system: System; this: HUGEINT): SyntaxTree.Type;
+	PROCEDURE GetIntegerType*(system: System; this: HUGEINT): SyntaxTree.IntegerType;
 
 		PROCEDURE InBounds(type: SyntaxTree.Type): BOOLEAN;
 		VAR m: HUGEINT;
