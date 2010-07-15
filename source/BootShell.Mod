@@ -727,8 +727,20 @@ BEGIN
 	Close;
 END Cleanup;
 
+PROCEDURE Init;
+VAR value : ARRAY 32 OF CHAR;
+BEGIN
+	Machine.GetConfig("Diagnosis", value);
+	Strings.TrimWS(value);
+	IF (value = "1") THEN
+		Open;
+		BEGIN {EXCLUSIVE} AWAIT(shell = NIL); END;
+	END;
+END Init;
+
 BEGIN
 	Modules.InstallTermHandler(Cleanup);
+	Init;
 END BootShell.
 
 SystemTools.DoCommands
@@ -742,3 +754,26 @@ SystemTools.DoCommands
 
 	VirtualDisks.Uninstall VM0 ~
 ~~~
+
+SystemTools.DoCommands
+
+	FSTools.DeleteFiles BootShell.img ~
+
+	VirtualDisks.Create BootShell.img 2048 512 ~
+	VirtualDisks.Install -c=80 -h=2 -s=18 -b=512 VDISK0 BootShell.img ~
+
+	Linker.Link \P../Test/ \.Obx ../Test/CD.Bin 0100000H 1000H Kernel Traps ProcessInfo SystemTools Keyboard BootShell BootConsole ~
+
+	Partitions.Format VDISK0#0 AosFS 640 ../Test/CD.Bin ~
+
+	Partitions.SetConfig VDISK0#0
+		TraceMode="4" TracePort="1" TraceBPS="115200"
+		ExtMemSize="64"
+		MaxProcs="-1"
+		Diagnosis="1"
+	~
+	VirtualDisks.Uninstall VDISK0 ~
+
+	IsoImages.Make A2Diagnosis.iso BootShell.img ~
+
+~~
