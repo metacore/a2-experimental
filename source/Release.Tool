@@ -1119,6 +1119,18 @@ PACKAGE Build ARCHIVE "Build.zip" SOURCE "BuildSrc.zip"  DESCRIPTION "Build Tool
 	BootManager.Mod BootManager.Tool # Splits up BootManager.Bin into BootManagerMBR.Bin and BootManagerTail.Bin
 END
 
+PACKAGE EFI ARCHIVE "EFI.zip" SOURCE "EFISrc.zip" DESCRIPTION "EFI Boot Loader and API"
+	EFI.Tool EFI.Mod
+
+	EFIBlockIO.Mod EFIDiskIO.Mod
+	EFIFileProtocol.Mod EFISimpleFS.Mod
+	EFILoadedImage.Mod EFIGraphicsOutput.Mod EFITrace.Mod
+
+	EFILib.Mod
+
+	EFITest.Mod EFIA2Loader.Mod
+END
+
 PACKAGE Contributions ARCHIVE "Contributions.zip" SOURCE "ContributionsSrc.zip"  DESCRIPTION "Contributions"
 	# Alan D. Freed (AlFreed@ohio.net) and Felix Friedrich (friedrich@gsf.de)
 	# CAPO - Computational Analysis Platform for Oberon

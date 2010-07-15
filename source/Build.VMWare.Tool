@@ -29,10 +29,10 @@ SystemTools.DoCommands
 
 	ZipTool.ExtractAll --prefix=VDISK: --sourcePath=../Test/ --overwrite --silent
 		Kernel.zip System.zip Drivers.zip ApplicationsMini.zip Applications.zip
-		Compiler.zip GuiApplicationsMini.zip GuiApplications.zip Fun.zip Contributions.zip Build.zip
+		Compiler.zip GuiApplicationsMini.zip GuiApplications.zip Fun.zip Contributions.zip Build.zip EFI.zip
 
 		KernelSrc.zip SystemSrc.zip DriversSrc.zip ApplicationsMiniSrc.zip ApplicationsSrc.zip
-		CompilerSrc.zip GuiApplicationsMiniSrc.zip GuiApplicationsSrc.zip FunSrc.zip ContributionsSrc.zip BuildSrc.zip
+		CompilerSrc.zip GuiApplicationsMiniSrc.zip GuiApplicationsSrc.zip FunSrc.zip ContributionsSrc.zip BuildSrc.zip EFISrc.zip
 
 		ScreenFonts.zip CjkFonts.zip TrueTypeFonts.zip
 	~
@@ -95,7 +95,7 @@ SystemTools.DoCommands
 		ethernet0.generatedAddressOffset = "0"
 
 		sound.present = "FALSE"
-		
+
 		floppy0.present = "FALSE"
 		floppy0.autodetect = "FALSE"
 
@@ -139,4 +139,3 @@ SystemTools.DoCommands
 	SystemTools.Show HDD image build time:  ~ SystemTools.Timer elapsed ~
 	SystemTools.Ln ~
 ~
-
