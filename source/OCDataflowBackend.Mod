@@ -131,14 +131,14 @@ TYPE
 		BEGIN	END VisitRecordType;
 
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
-		VAR componentName, parameterName, name: SyntaxTree.String; component: Dataflow.Component;
+		VAR componentName, parameterName, name: SyntaxTree.String; component: Dataflow.Type;
 			parameter: SyntaxTree.Parameter; parameterType: SyntaxTree.Type; portIndex,i,direction,len: LONGINT;
 			port: Dataflow.Port;
 			prevDataflowScope : Dataflow.Scope;
 		BEGIN
 			prevDataflowScope := currentDataflowScope;
 			Global.GetSymbolName(x.typeDeclaration,componentName);
-			component := backend.dataflowSpecification.NewComponent(componentName);
+			component := backend.dataflowSpecification.NewType(componentName);
 			currentDataflowScope := component;
 			parameter := x.firstParameter;
 			portIndex := 0;
@@ -482,7 +482,7 @@ TYPE
 
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR p0,p1,p2: SyntaxTree.Expression;
-		component: Dataflow.Component;
+		component: Dataflow.Type;
 		port1,port2: Dataflow.Port;
 		channel: Dataflow.Channel;
 		type,t0,t1,t2: SyntaxTree.Type;
@@ -531,7 +531,7 @@ TYPE
 				IF GetInstanceName(p(SyntaxTree.SymbolDesignator).left, instanceName, typeName) THEN
 					instance := currentDataflowScope.instances.ByName(instanceName);
 					IF instance = NIL THEN Error(p.position,"not allocated"); RETURN FALSE END;
-					component := instance.component;
+					component := instance.type;
 					p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
 					(*
 					component := backend.dataflowSpecification.components.ByName(typeName);
@@ -573,7 +573,7 @@ TYPE
 				IF type IS SyntaxTree.ActorType THEN
 					(* generate actor by calling method on dataflow specification *)
 					IF GetInstanceName(p0,instanceName, typeName) THEN
-						component := backend.dataflowSpecification.components.ByName(typeName);
+						component := backend.dataflowSpecification.types.ByName(typeName);
 						instance := currentDataflowScope.NewInstance(instanceName, component);
 					END;
 
@@ -950,7 +950,7 @@ TYPE
 		END;
 	END Direction;
 
-	PROCEDURE AddModules(component: Dataflow.Component; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
+	PROCEDURE AddModules(component: Dataflow.Type; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
 
 		PROCEDURE AddImport(x: SyntaxTree.Module);
 		VAR module: Dataflow.Module; VAR name: SyntaxTree.String; device: Dataflow.Device;

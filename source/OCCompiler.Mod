@@ -273,7 +273,7 @@ TYPE
 				END;
 
 				IF dataflowSpecification = NIL THEN (* no dataflow *)
-				ELSIF dataflowSpecification.components.Length()=0 THEN (* nothing defined *)
+				ELSIF (dataflowSpecification.types.Length() = 0) & (dataflowSpecification.instances.Length()=0) THEN (* nothing defined *)
 				ELSIF ~dataflowSpecification.Link(Info IN flags) THEN
 					FinalMessage(" could not link"); RETURN FALSE
 				ELSIF ~dataflowSpecification.Emit() THEN

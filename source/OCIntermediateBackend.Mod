@@ -5773,7 +5773,7 @@ TYPE
 		emptyOperand: IntermediateCode.Operand;
 		systemCalls: ARRAY NumberSystemCalls OF SyntaxTree.Symbol;
 
-	PROCEDURE AddModules(component: Dataflow.Component; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
+	PROCEDURE AddModules(component: Dataflow.Type; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
 
 		PROCEDURE AddImport(x: SyntaxTree.Module);
 		VAR module: Dataflow.Module; VAR name: SyntaxTree.String; device: Dataflow.Device;
