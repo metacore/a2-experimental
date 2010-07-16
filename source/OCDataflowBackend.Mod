@@ -162,6 +162,7 @@ TYPE
 			END;
 			Scope(x.actorScope);
 			currentDataflowScope := prevDataflowScope;
+			AddModules(component,x.actorScope);
 		END VisitActorType;
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
@@ -533,9 +534,6 @@ TYPE
 					IF instance = NIL THEN Error(p.position,"not allocated"); RETURN FALSE END;
 					component := instance.type;
 					p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
-					(*
-					component := backend.dataflowSpecification.components.ByName(typeName);
-					*)
 					IF component = NIL THEN
 						Error(p.position,"component not allocated"); RETURN FALSE
 					ELSE
@@ -950,14 +948,16 @@ TYPE
 		END;
 	END Direction;
 
-	PROCEDURE AddModules(component: Dataflow.Type; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
+	PROCEDURE AddModules(component: Dataflow.Type; scope: SyntaxTree.ActorScope);
+	VAR import: SyntaxTree.Import;
+		local: BOOLEAN;
 
 		PROCEDURE AddImport(x: SyntaxTree.Module);
 		VAR module: Dataflow.Module; VAR name: SyntaxTree.String; device: Dataflow.Device;
 		BEGIN
 			IF ~Global.IsSystemModule(x) THEN
 				x.name.GetString(name);
-				IF ~(scope IS SyntaxTree.ActorScope) OR (scope(SyntaxTree.ActorScope).FindImport(x.name)#NIL) THEN
+				IF local THEN
 					device := component.specification.supportedDevices.ByName(name);
 					IF device # NIL THEN
 						device := component.NewDevice(device.name,device.adr)
@@ -983,7 +983,14 @@ TYPE
 		END TraverseImports;
 
 	BEGIN
-		TraverseImports(x);
+		local := TRUE;
+		import := scope.firstImport;
+		WHILE import # NIL DO
+			TraverseImports(import.module);
+			import := import.nextImport
+		END;
+		local := FALSE;
+		TraverseImports(scope.ownerModule);
 	END AddModules;
 
 	PROCEDURE Get*(): Backend.Backend;

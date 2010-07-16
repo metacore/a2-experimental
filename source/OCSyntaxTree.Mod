@@ -832,9 +832,9 @@ TYPE
 	ActorType*=OBJECT (Type)
 	VAR
 		firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters *)
-		actorScope-: Scope;
+		actorScope-: ActorScope;
 
-		PROCEDURE &InitActorType(position: LONGINT; scope, actorScope: Scope);
+		PROCEDURE &InitActorType(position: LONGINT; scope: Scope;  actorScope: ActorScope);
 		BEGIN
 			InitType(position,{});
 			SELF.scope := scope;
@@ -2979,7 +2979,7 @@ TYPE
 		VAR
 		ownerActor-: ActorType;
 		bodyProcedure-: Procedure;
-		firstImport, lastImport: Import; numberImports: LONGINT;
+		firstImport-, lastImport-: Import; numberImports-: LONGINT;
 
 		PROCEDURE & InitActorScope(outer: Scope);
 		BEGIN
@@ -3013,6 +3013,7 @@ TYPE
 		BEGIN
 			IF FindImport(module.name) = NIL THEN
 				import := NewImport(0,module.name, module.name, TRUE);
+				import.SetModule(module);
 				IF lastImport= NIL THEN firstImport:= import ELSE lastImport.nextImport := import END;
 				lastImport := import;
 			END;
@@ -3355,7 +3356,7 @@ VAR
 		INC( recordTypeCount );  NEW( recordType, position, scope, recordScope);  RETURN recordType
 	END NewRecordType;
 
-	PROCEDURE NewActorType*(position: LONGINT; scope, actorScope: Scope): ActorType;
+	PROCEDURE NewActorType*(position: LONGINT; scope:Scope; actorScope: ActorScope): ActorType;
 	VAR actorType: ActorType;
 	BEGIN
 		NEW(actorType, position, scope, actorScope); RETURN actorType;

@@ -84,11 +84,12 @@ VAR
 	END AddSection;
 
 	PROCEDURE Resolve*;
-	VAR block: Block; used: BOOLEAN;
+	VAR block: Block; used: BOOLEAN; name: ARRAY 256 OF CHAR;
 	BEGIN
 		IF ~error THEN block := firstBlock;
 			WHILE block # firstLinkedBlock DO
 				used := (useAll OR (GetPriority (block) <= InitCode) OR (linkRoot # "") & Strings.StartsWith(linkRoot,0,block.identifier.name));
+				COPY(block.identifier.name, name);
 				IF stripInitCodes & (block.type = ObjectFile.InitCode) THEN used := FALSE END;
 				Reference (block, used); block := block.next;
 			END;
@@ -123,6 +124,7 @@ VAR
 	BEGIN
 		IF used & ~block.used THEN block.used := TRUE;
 		ELSIF block.referenced THEN RETURN; END; block.referenced := TRUE;
+		IF ~used THEN RETURN END;
 		FOR i := 0 TO block.fixups - 1 DO ReferenceFixup (block.fixup[i]); END;
 	END Reference;
 

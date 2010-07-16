@@ -3,7 +3,7 @@ MODULE OCIntermediateBackend; (** AUTHOR ""; PURPOSE ""; *)
 IMPORT Basic := OCBasic, SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend := OCBackend, Global := OCGlobal,
 	WMUtilities,Scanner := OCScanner, IntermediateCode := OCIntermediateCode, Sections := OCSections, Printout := OCPrintout,
 	SYSTEM, Diagnostics, Strings, Options, Streams, Compiler, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile, D := Debugging,
-	Fingerprinter := OCFingerprinter, Dataflow := OCDataflow;
+	Fingerprinter := OCFingerprinter;
 
 CONST
 		(* operand modes *)
@@ -1442,7 +1442,9 @@ TYPE
 				COPY(moduleName, name); Strings.Append(name,"."); Strings.Append(name,procedureName);
 
 				IF currentActorScope # NIL THEN
-					(*currentActorScope.AddImport(importedModule);*)
+					(*
+					currentActorScope.AddImport(importedModule);
+					*)
 				END;
 
 				source := IntermediateCode.NewSection(module.importedSymbols, Sections.CodeSection,name, NIL,commentPrintout # NIL);
@@ -5772,42 +5774,6 @@ TYPE
 	VAR int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64: IntermediateCode.Type;
 		emptyOperand: IntermediateCode.Operand;
 		systemCalls: ARRAY NumberSystemCalls OF SyntaxTree.Symbol;
-
-	PROCEDURE AddModules(component: Dataflow.Type; scope: SyntaxTree.Scope; x: SyntaxTree.Module);
-
-		PROCEDURE AddImport(x: SyntaxTree.Module);
-		VAR module: Dataflow.Module; VAR name: SyntaxTree.String; device: Dataflow.Device;
-		BEGIN
-			IF ~Global.IsSystemModule(x) THEN
-				x.name.GetString(name);
-				IF ~(scope IS SyntaxTree.ActorScope) OR (scope(SyntaxTree.ActorScope).FindImport(x.name)#NIL) THEN
-					device := component.specification.supportedDevices.ByName(name);
-					IF device # NIL THEN
-						device := component.NewDevice(device.name,device.adr)
-					END;
-				END;
-
-				 IF component.modules.ByName(name) = NIL THEN
-					module := component.NewModule(name,"");
-				END;
-			END;
-		END AddImport;
-
-		PROCEDURE TraverseImports(x: SyntaxTree.Module);
-		VAR import: SyntaxTree.Import; name: SyntaxTree.String;
-		BEGIN
-			import := x.moduleScope.firstImport;
-			WHILE import # NIL DO
-				TraverseImports(import.module);
-				import := import.nextImport;
-			END;
-			x.name.GetString(name);
-			AddImport(x);
-		END TraverseImports;
-
-	BEGIN
-		TraverseImports(x);
-	END AddModules;
 
 	PROCEDURE Assert(cond: BOOLEAN; CONST reason: ARRAY OF CHAR);
 	BEGIN ASSERT(cond);
