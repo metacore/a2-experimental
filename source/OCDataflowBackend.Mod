@@ -6,7 +6,6 @@ IMPORT SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend
 
 CONST
 	NotYetImplemented = "not yet implemented";
-	FullName= TRUE;
 TYPE
 
 	Value*=OBJECT
@@ -76,6 +75,7 @@ TYPE
 		implementationVisitor: ImplementationVisitor;
 		system: Global.System;
 		currentScope: SyntaxTree.Scope;
+		currentDataflowScope: Dataflow.Scope;
 		module: SyntaxTree.Module;
 
 		PROCEDURE & Init*(system: Global.System; implementationVisitor: ImplementationVisitor; backend: Backend.Backend);
@@ -83,6 +83,7 @@ TYPE
 			currentScope := NIL;
 			SELF.system := system; SELF.implementationVisitor := implementationVisitor;
 			SELF.backend := backend;
+			currentDataflowScope := NIL;
 		END Init;
 
 		(*
@@ -130,8 +131,37 @@ TYPE
 		BEGIN	END VisitRecordType;
 
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
+		VAR componentName, parameterName, name: SyntaxTree.String; component: Dataflow.Component;
+			parameter: SyntaxTree.Parameter; parameterType: SyntaxTree.Type; portIndex,i,direction,len: LONGINT;
+			port: Dataflow.Port;
+			prevDataflowScope : Dataflow.Scope;
 		BEGIN
+			prevDataflowScope := currentDataflowScope;
+			Global.GetSymbolName(x.typeDeclaration,componentName);
+			component := backend.dataflowSpecification.NewComponent(componentName);
+			currentDataflowScope := component;
+			parameter := x.firstParameter;
+			portIndex := 0;
+			WHILE parameter # NIL DO
+				parameter.name.GetString(parameterName);
+				parameterType := parameter.type.resolved;
+				IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN
+					direction := Direction(parameterType(SyntaxTree.PortType).direction);
+					FOR i := 0 TO len-1 DO
+						COPY(parameterName,name);
+						AppendIndex(name,i);
+						port := component.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+						INC(portIndex);
+					END;
+				ELSE
+					direction := Direction(parameterType(SyntaxTree.PortType).direction);
+					port := component.NewPort(parameterName,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+					INC(portIndex);
+				END;
+				parameter := parameter.nextParameter;
+			END;
 			Scope(x.actorScope);
+			currentDataflowScope := prevDataflowScope;
 		END VisitActorType;
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
@@ -153,69 +183,7 @@ TYPE
 		END VisitOperator;
 
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
-		VAR type, baseType: SyntaxTree.Type; i,len: LONGINT;
-
-			PROCEDURE MakeComponent(symbol: SyntaxTree.Symbol; type: SyntaxTree.ActorType; index: LONGINT);
-			VAR componentName, typeName, portName, name: SyntaxTree.String;
-				component: Dataflow.Component; formalParameter: SyntaxTree.Parameter; i,portIndex: LONGINT;
-				parameterType: SyntaxTree.Type; direction, len: LONGINT;
-				port: Dataflow.Port;
-			BEGIN
-				Global.GetSymbolName(symbol,componentName);
-				Global.GetSymbolName(type.typeDeclaration,typeName);
-				IF index >= 0 THEN
-					AppendIndex(componentName,index);
-				END;
-				component := backend.dataflowSpecification.NewComponent(componentName, typeName);
-				AddModules(component,type.actorScope, type.actorScope.ownerModule);
-
-				formalParameter := type.firstParameter; portIndex := 0;
-				WHILE formalParameter # NIL DO
-					IF FullName THEN
-						COPY(componentName, portName);
-						Strings.Append(portName,".");
-					ELSE
-						portName := ""
-					END;
-					formalParameter.name.GetString(name);
-					Strings.Append(portName,name);
-					parameterType := formalParameter.type.resolved;
-
-					IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN
-						direction := Direction(parameterType(SyntaxTree.PortType).direction);
-						FOR i := 0 TO len-1 DO
-							COPY(portName,name);
-							AppendIndex(name,i);
-							port := component.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
-							INC(portIndex);
-						END;
-					ELSE
-						direction := Direction(parameterType(SyntaxTree.PortType).direction);
-						port := component.NewPort(portName,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
-						INC(portIndex);
-					END;
-					formalParameter := formalParameter.nextParameter;
-				END;
-			END MakeComponent;
-
 		BEGIN
-			(*
-			IF currentScope IS SyntaxTree.NetworkScope THEN
-				type := x.type.resolved;
-				IF ~SemanticChecker.IsStaticArray(type,baseType,len) THEN len := -1; baseType := type END;
-
-				baseType := baseType.resolved;
-				IF (baseType IS SyntaxTree.ActorType) THEN
-					IF len = -1 THEN
-						MakeComponent(x,baseType(SyntaxTree.ActorType),-1);
-					ELSE
-						FOR i := 0 TO len-1 DO
-							MakeComponent(x,baseType(SyntaxTree.ActorType),i);
-						END
-					END;
-				END;
-			END;
-			*)
 		END VisitVariable;
 
 		PROCEDURE VisitTypeDeclaration(x: SyntaxTree.TypeDeclaration);
@@ -269,6 +237,7 @@ TYPE
 		PROCEDURE DataflowBody(x: SyntaxTree.Body);
 		BEGIN
 			implementationVisitor.currentScope := currentScope;
+			implementationVisitor.currentDataflowScope := currentDataflowScope;
 			implementationVisitor.VisitStatementBlock(x);
 		END DataflowBody;
 
@@ -276,7 +245,6 @@ TYPE
 		VAR
 			scope: SyntaxTree.ProcedureScope;
 			prevScope: SyntaxTree.Scope;
-			inline: BOOLEAN;
 			name: SyntaxTree.String;
 		BEGIN
 			(*
@@ -289,6 +257,9 @@ TYPE
 
 			Global.GetSymbolName(x,name);
 			IF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
+				IF x = module.moduleScope.bodyProcedure THEN
+					currentDataflowScope := backend.dataflowSpecification;
+				END;
 				DataflowBody(scope.body);
 			END;
 			currentScope := prevScope;
@@ -317,6 +288,7 @@ TYPE
 		(* variables for hand over of variables /  temporary state *)
 		currentScope: SyntaxTree.Scope;
 		currentActorScope: SyntaxTree.ActorScope;
+		currentDataflowScope: Dataflow.Scope;
 
 		scopes: Scopes;
 
@@ -511,13 +483,12 @@ TYPE
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR p0,p1,p2: SyntaxTree.Expression;
 		component: Dataflow.Component;
-		port,port1,port2: Dataflow.Port;
+		port1,port2: Dataflow.Port;
 		channel: Dataflow.Channel;
 		type,t0,t1,t2: SyntaxTree.Type;
-		componentName, typeName, portName, name: SyntaxTree.String;
-		formalParameter: SyntaxTree.Parameter;
-		i,j,len,direction: LONGINT;
-		parameterType: SyntaxTree.Type;
+		instanceName, typeName, portName: SyntaxTree.String;
+		len: LONGINT;
+		instance,instance1,instance2: Dataflow.Instance;
 
 			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
 			BEGIN
@@ -529,56 +500,65 @@ TYPE
 				END;
 			END Index;
 
-			PROCEDURE GetComponentName(e: SyntaxTree.Expression; VAR componentName, typeName: ARRAY OF CHAR): BOOLEAN;
-			VAR suffix: SyntaxTree.String; type: SyntaxTree.Type; scope: SyntaxTree.Scope;
+			PROCEDURE GetInstanceName(e: SyntaxTree.Expression; VAR instanceName, typeName: ARRAY OF CHAR): BOOLEAN;
+			VAR suffix: SyntaxTree.String; type: SyntaxTree.Type; name: SyntaxTree.String;
 			BEGIN
-				suffix := ""; 
+				suffix := "";
+				type := e.type.resolved;
 				Index(e,suffix);
-				IF e = NIL THEN (* in current scope => take actor type name *)
-					scope := currentScope; WHILE ~(scope IS SyntaxTree.ActorScope) DO scope := scope.outerScope END;
-					Global.GetSymbolName(scope(SyntaxTree.ActorScope).ownerActor.typeDeclaration,componentName);
-					COPY(componentName, typeName);
-					RETURN TRUE
-				ELSIF ~(e IS SyntaxTree.SymbolDesignator) THEN Error(e.position,"unsupported designator"); RETURN FALSE 
+				IF ~(e IS SyntaxTree.SymbolDesignator) THEN Error(e.position,"unsupported designator"); RETURN FALSE
 				END;
-				type := e.type;
-				IF FullName THEN
-					Global.GetSymbolName(e(SyntaxTree.SymbolDesignator).symbol, componentName);
-				ELSE
-					e(SyntaxTree.SymbolDesignator).symbol.name.GetString(componentName);
+
+				WHILE (e # NIL) & (e IS SyntaxTree.SymbolDesignator) DO
+					e(SyntaxTree.SymbolDesignator).symbol.name.GetString(name);
+					IF instanceName # "" THEN
+						Strings.Append(name,".");
+						Strings.Append(name, instanceName);
+					END;
+					COPY(name,instanceName);
+					e := e(SyntaxTree.SymbolDesignator).left
 				END;
-				Strings.Append(componentName, suffix);
+				Strings.Append(instanceName, suffix);
 				Global.GetSymbolName(type.typeDeclaration,typeName);
 				RETURN TRUE
-			END GetComponentName;
+			END GetInstanceName;
 
-
-			PROCEDURE GetPort(p: SyntaxTree.Expression): Dataflow.Port;
-			VAR name, componentName, typeName: SyntaxTree.String; port: Dataflow.Port; suffix: SyntaxTree.String;
+			PROCEDURE GetPort(p: SyntaxTree.Expression; VAR instance: Dataflow.Instance; VAR port: Dataflow.Port): BOOLEAN;
+			VAR name, instanceName, typeName: SyntaxTree.String; suffix: SyntaxTree.String;
 			BEGIN
 				Index(p, suffix);
 				port := NIL;
-				IF GetComponentName(p(SyntaxTree.SymbolDesignator).left, componentName, typeName) THEN
+				IF GetInstanceName(p(SyntaxTree.SymbolDesignator).left, instanceName, typeName) THEN
+					instance := currentDataflowScope.instances.ByName(instanceName);
+					IF instance = NIL THEN Error(p.position,"not allocated"); RETURN FALSE END;
+					component := instance.component;
 					p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
-					component := backend.dataflowSpecification.components.ByName(componentName);
+					(*
+					component := backend.dataflowSpecification.components.ByName(typeName);
+					*)
 					IF component = NIL THEN
-						Error(p.position,"component not allocated");
+						Error(p.position,"component not allocated"); RETURN FALSE
 					ELSE
-						IF FullName THEN
-							COPY(componentName, name);
-							Strings.Append(name,"."); Strings.Append(name,portName);
-						ELSE
-							COPY(portName, name);
-						END;
-						Strings.Append(name,suffix);
+						COPY(portName, name); Strings.Append(name,suffix);
 						port := component.ports.ByName(name);
-						IF port = NIL THEN Error(p.position,"outport not available") END;
+						IF port = NIL THEN Error(p.position,"port not available"); Error(p.position,name); RETURN FALSE END;
 					END;
+					RETURN TRUE
+				ELSE
+					RETURN FALSE
 				END;
-				RETURN port
 			END GetPort;
 
-
+			PROCEDURE GetDelegatePort(p: SyntaxTree.Expression; VAR port: Dataflow.Port): BOOLEAN;
+			VAR portName, suffix: SyntaxTree.String;
+			BEGIN
+				Index(p,suffix);
+				p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
+				Strings.Append(portName,suffix);
+				port := currentDataflowScope.ports.ByName(portName);
+				IF port = NIL THEN Error(p.position,"port not available") END;
+				RETURN port # NIL
+			END GetDelegatePort;
 
 
 		BEGIN
@@ -592,71 +572,23 @@ TYPE
 				type := p0.type.resolved;
 				IF type IS SyntaxTree.ActorType THEN
 					(* generate actor by calling method on dataflow specification *)
-					IF GetComponentName(p0,componentName, typeName) THEN
-						component := backend.dataflowSpecification.components.ByName(componentName);
-						IF component # NIL THEN
-							Error(p0.position,"forbidden double instantiation of component");
-						ELSE
-							component := backend.dataflowSpecification.NewComponent(componentName, typeName);
-
-							AddModules(component,type(SyntaxTree.ActorType).actorScope, type(SyntaxTree.ActorType).actorScope.ownerModule);
-
-							formalParameter := type(SyntaxTree.ActorType).firstParameter; j := 0;
-							WHILE formalParameter # NIL DO
-								IF FullName THEN
-									COPY(componentName, portName);
-									Strings.Append(portName,".");
-								ELSE
-									portName := ""
-								END;
-								formalParameter.name.GetString(name);
-								Strings.Append(portName,name);
-								parameterType := formalParameter.type.resolved;
-
-								IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN
-									direction := Direction(parameterType(SyntaxTree.PortType).direction);
-									FOR i := 0 TO len-1 DO
-										COPY(portName,name);
-										AppendIndex(name,i);
-										port := component.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(j));
-										INC(j);
-									END;
-								ELSE
-									direction := Direction(parameterType(SyntaxTree.PortType).direction);
-									port := component.NewPort(portName,direction,backend.dataflowSpecification.GetPortAddress(j));
-									INC(j);
-								END;
-								formalParameter := formalParameter.nextParameter;
-							END;
-						END;
+					IF GetInstanceName(p0,instanceName, typeName) THEN
+						component := backend.dataflowSpecification.components.ByName(typeName);
+						instance := currentDataflowScope.NewInstance(instanceName, component);
 					END;
+
 				ELSE
 					Error(x.position,NotYetImplemented)
 				END;
 			(* ----- CONNECT ------*)
 			|Global.Connect:
-				port1 := GetPort(p0);
-				port2 := GetPort(p1);
-				IF (port1#NIL) & (port2#NIL) THEN
-					IF backend.dataflowSpecification.channels.ByPort(port1) # NIL THEN
-						Error(p0.position,"port already connected");
-					ELSIF backend.dataflowSpecification.channels.ByPort(port2) # NIL THEN
-						Error(p1.position,"port already connected");
-					ELSE
-						channel := backend.dataflowSpecification.NewChannel(port1,port2);
-					END;
-				END;
+				IF GetPort(p0,instance1,port1) & GetPort(p1,instance2,port2) THEN
+					ASSERT(instance1 # NIL); ASSERT(instance2 # NIL); ASSERT(port1 # NIL); ASSERT(port2 # NIL);
+					channel := currentDataflowScope.NewChannel(instance1,port1,instance2,port2);
+				END
 			|Global.Delegate:
-				port1 := GetPort(p0);
-				port2 := GetPort(p1);
-				IF (port1 # NIL) & (port2 # NIL) THEN
-					IF port1.delegate # NIL THEN
-						Error(p0.position,"port already delegated");
-					(*ELSIF port2.connected THEN
-						Error(p1.position,"port already connected");
-					*)
-					END;
-					port1.Delegate(port2);
+				IF GetDelegatePort(p0,port1) & GetPort(p1,instance2,port2) THEN
+					port1.Delegate(instance2,port2)
 				END;
 			|Global.systemTrace:
 				SystemTrace(x.parameters);
@@ -1066,3 +998,5 @@ TYPE
 BEGIN
 	Init;
 END OCDataflowBackend.
+
+
