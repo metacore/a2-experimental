@@ -137,7 +137,7 @@ TYPE
 			prevDataflowScope : Dataflow.Scope;
 		BEGIN
 			prevDataflowScope := currentDataflowScope;
-			Global.GetSymbolName(x.typeDeclaration,componentName);
+			x.typeDeclaration.name.GetString(componentName);
 			component := backend.dataflowSpecification.NewType(componentName);
 			currentDataflowScope := component;
 			parameter := x.firstParameter;
@@ -246,7 +246,6 @@ TYPE
 		VAR
 			scope: SyntaxTree.ProcedureScope;
 			prevScope: SyntaxTree.Scope;
-			name: SyntaxTree.String;
 		BEGIN
 			(*
 			IF Trace & (dump # NIL) THEN dump.String("DeclarationVisitor:Procedure"); dump.Ln END;
@@ -256,7 +255,6 @@ TYPE
 			scope := x.procedureScope;
 			currentScope := scope;
 
-			Global.GetSymbolName(x,name);
 			IF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
 				IF x = module.moduleScope.bodyProcedure THEN
 					currentDataflowScope := backend.dataflowSpecification;
@@ -520,7 +518,7 @@ TYPE
 					e := e(SyntaxTree.SymbolDesignator).left
 				END;
 				Strings.Append(instanceName, suffix);
-				Global.GetSymbolName(type.typeDeclaration,typeName);
+				type.typeDeclaration.name.GetString(typeName);
 				RETURN TRUE
 			END GetInstanceName;
 
