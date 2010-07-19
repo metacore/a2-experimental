@@ -2011,8 +2011,8 @@ TYPE
 					ConvertOperands(left,right); (* operands must be of the same type here *)
 					binaryExpression.SetLeft(left);
 					binaryExpression.SetRight(right);
-					type := left.type.resolved;
 				END;
+				type := left.type.resolved;
 				IF left.type.resolved # right.type.resolved THEN
 					Error(binaryExpression.position,Diagnostics.Invalid,"conversion failed ?");
 					IF VerboseErrorMessage THEN
