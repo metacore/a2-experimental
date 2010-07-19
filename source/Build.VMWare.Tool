@@ -139,3 +139,100 @@ SystemTools.DoCommands
 	SystemTools.Show HDD image build time:  ~ SystemTools.Timer elapsed ~
 	SystemTools.Ln ~
 ~
+
+# Step 3 (optional): Generate FAT32 formatted disk image
+
+SystemTools.DoCommands
+
+	SystemTools.Show Generating FAT32 disk image... ~ SystemTools.Ln ~
+	SystemTools.Timer start ~
+
+	VirtualDisks.Create ../Test/FATHDD.img 200000 512~
+	VirtualDisks.Install VDISK1 ../Test/FATHDD.img ~
+
+	Partitions.WriteMBR VDISK1#0 OBEMBR.Bin ~
+	Partitions.Create VDISK1#1 12 9999 ~
+	Partitions.Format VDISK1#1 FatFS ~
+
+	VirtualDisks.Uninstall VDISK1 ~
+
+
+	FSTools.CreateFile -c -r ../Test/fat.vmdk
+		# Disk DescriptorFile
+		version=1
+		CID=c201f407
+		parentCID=ffffffff
+		createType="monolithicFlat"
+
+		# Extent description
+		RW 200000 FLAT "FATHDD.img" 0
+
+		# The Disk Data Base
+		#DDB
+		ddb.virtualHWVersion = "6"
+		ddb.geometry.cylinders = "208"
+		ddb.geometry.heads = "16"
+		ddb.geometry.sectors = "63"
+		ddb.adapterType = "ide"
+	~
+
+	FSTools.CreateFile -c -r ../Test/a2.vmx
+		config.version = "8"
+		virtualHW.version = "6"
+		scsi0.present = "TRUE"
+		memsize = "256"
+		ide0:0.present = "TRUE"
+		ide0:0.fileName = "a2.vmdk"
+		ide0:1.present = "TRUE"
+		ide0:1.fileName = "fat.vmdk"
+		ide1:0.present = "TRUE"
+		ide1:0.fileName = "auto detect"
+		ide1:0.deviceType = "cdrom-raw"
+		ide1:0.autodetect = "TRUE"
+		ethernet0.present = "TRUE"
+		ethernet0.wakeOnPcktRcv = "FALSE"
+		svga.autodetect = "TRUE"
+		pciBridge0.present = "TRUE"
+		mks.keyboardFilter = "allow"
+		displayName = "A2"
+		guestOS = "win95"
+		nvram = "Windows 95.nvram"
+		deploymentPlatform = "windows"
+		virtualHW.productCompatibility = "hosted"
+		tools.upgrade.policy = "useGlobal"
+
+		extendedConfigFile = "Windows 95.vmxf"
+
+		ethernet0.addressType = "generated"
+		uuid.location = "56 4d 08 e1 a6 3b 8b a6-a7 94 60 15 67 22 e5 cb"
+		uuid.bios = "56 4d 08 e1 a6 3b 8b a6-a7 94 60 15 67 22 e5 cb"
+		ide0:0.redo = ""
+		pciBridge0.pciSlotNumber = "17"
+		scsi0.pciSlotNumber = "16"
+		ethernet0.pciSlotNumber = "32"
+		sound.pciSlotNumber = "-1"
+		ethernet0.generatedAddress = "00:0c:29:22:e5:cb"
+		ethernet0.generatedAddressOffset = "0"
+
+		sound.present = "FALSE"
+
+		floppy0.present = "FALSE"
+		floppy0.autodetect = "FALSE"
+
+		serial0.present = "TRUE"
+		serial0.fileType = "file"
+		serial0.fileName = "a2serialport.txt"
+	~
+
+	ZipTool.Delete ../Test/A2VM.zip A2.vmx ~
+
+	ZipTool.Add --nopath ../Test/A2VM.zip
+		../Test/A2.vmx
+	~
+
+	SystemTools.Ln ~
+	SystemTools.Show Generated A2 HDD image ../Test/A2VM.zip ~ SystemTools.Ln ~
+
+	SystemTools.Show HDD image build time:  ~ SystemTools.Timer elapsed ~
+	SystemTools.Ln ~
+~~~
