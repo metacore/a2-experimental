@@ -1178,12 +1178,12 @@ TYPE
 					constant := FALSE;
 				ELSE
 					IF IsIntegerValue(left,leftInteger) & IsIntegerValue(right,rightInteger) THEN
-						IF (leftInteger<0) OR (leftInteger > MAX(SET)) THEN
+						IF (leftInteger<0) OR (leftInteger >= system.SizeOf(Global.Set)) THEN
 							Error(left.position,Diagnostics.Invalid,"not allowed set integer value");
-							IF (rightInteger<0) OR (rightInteger > MAX(SET)) THEN
+							IF (rightInteger<0) OR (rightInteger >= system.SizeOf(Global.Set)) THEN
 								Error(right.position,Diagnostics.Invalid,"not allowed set integer value");
 							END;
-						ELSIF (rightInteger<0) OR (rightInteger > MAX(SET)) THEN
+						ELSIF (rightInteger<0) OR (rightInteger >= system.SizeOf(Global.Set)) THEN
 							Error(right.position,Diagnostics.Invalid,"not allowed set integer value");
 						ELSE
 							s := s + {leftInteger..rightInteger};
