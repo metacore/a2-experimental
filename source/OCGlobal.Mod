@@ -441,7 +441,6 @@ TYPE
 	BEGIN
 		(* type declarations *)
 		DeclareType(Byte,"BYTE",system.systemScope);
-		MapSystemTypes(system,Longint,Longint);
 		DeclareType(system.addressType,"ADDRESS",system.systemScope); (* mapped to longint *)
 		DeclareType(system.sizeType,"SIZE",system.systemScope); (* mapped to longint *)
 		DeclareType(All,"ALL",system.systemScope);
@@ -554,6 +553,7 @@ TYPE
 	VAR system: System;
 	BEGIN
 		NEW(system,8,32, 8,32,32,32,64);
+		MapSystemTypes(system,Longint,Longint);
 		SetDefaultDeclarations(system);
 		SetDefaultOperators(system);
 		RETURN system
