@@ -548,7 +548,7 @@ END EFIA2Loader.
 
 SystemTools.DoCommands
 
-	Compiler.Compile  --objectFile=Generic --symbolFile=Textual --extensions
+	Compiler.Compile  --objectFile=Generic --symbolFile=Textual
 		Runtime.Mod Trace.Mod EFI.Mod EFITrace.Mod EFIFileProtocol.Mod EFISimpleFS.Mod
 		EFILoadedImage.Mod EFIGraphicsOutput.Mod EFILib.Mod EFIA2Loader.Mod ~
 
