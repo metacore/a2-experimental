@@ -12,7 +12,7 @@ VAR
 	root : EFIFileProtocol.Protocol;
 	file : EFIFileProtocol.Protocol;
 	filename : ARRAY 32 OF EFI.Char16;
-	buf : ARRAY 30 OF CHAR;
+	buf : POINTER TO ARRAY 30 OF CHAR;
 BEGIN
 	EFILib.StringToLongString("\test.txt",filename);
 	(*status := EFI.table.ConOut.OutputString(EFI.table.ConOut, filename);*)
@@ -38,10 +38,11 @@ BEGIN
 				Trace.Ln;
 				status := root.Open(root, file, filename, EFIFileProtocol.ModeRead+EFIFileProtocol.ModeWrite, 0);
 				IF status = EFI.Success THEN
+					NEW(buf);
 					size := 20;
-					status := file.Read(file, size, buf);
-					Trace.String(buf);
-					buf := "pipapo";
+					status := file.Read(file, size, SYSTEM.ADR(buf[0]));
+					Trace.String(buf^);
+					buf^ := "pipapo";
 					size := LEN(buf);
 					status := file.SetPosition(file, -1); (* EOF *)
 					status := file.Write(file, size,buf);
