@@ -117,6 +117,7 @@ TYPE
 
 	TextBuffer = OBJECT
 	VAR
+		defaultColor : SHORTINT;
 		currentColor : SHORTINT;
 
 		(* ring buffer of lines *)
@@ -156,8 +157,9 @@ TYPE
 			cursorPosition := 0;
 			editStartPosition := 0; editEndPosition := 0;
 			SetColor(White, Black);
+			defaultColor := White + 10H * Black;
 			FOR i := 0 TO LEN(lines)-1 DO
-				ClearLine(lines[i], 0, LineWidth-1);
+				ClearLine(lines[i], 0, LineWidth-1, defaultColor);
 			END;
 			Invalidate(SELF);
 		END Clear;
@@ -222,7 +224,7 @@ TYPE
 		BEGIN
 			ASSERT(lock.HasLock());
 			lastLine := Add(lastLine, 1, BufferHeight);
-			ClearLine(lines[lastLine], 0, LineWidth-1);
+			ClearLine(lines[lastLine], 0, LineWidth-1, defaultColor);
 			IF (lastLine = firstLine) THEN
 				firstLine := Add(firstLine, 1, BufferHeight);
 				IF (firstLineShown = lastLine) THEN
@@ -269,7 +271,7 @@ TYPE
 			ASSERT(lock.HasLock());
 			IF (ch = CR) THEN (* ignore *)
 			ELSIF (ch = LF) THEN
-				ClearLine(lines[cursorPosition DIV LineWidth], cursorPosition MOD LineWidth, LineWidth-1);
+				ClearLine(lines[cursorPosition DIV LineWidth], cursorPosition MOD LineWidth, LineWidth-1, currentColor);
 				NextLine;
 				cursorPosition := Add(cursorPosition, LineWidth - (cursorPosition MOD LineWidth), BufferSize);
 				editEndPosition := cursorPosition;
@@ -463,7 +465,7 @@ TYPE
 			Inputs.keyboard.Register(SELF);
 		END Init;
 
-		PROCEDURE Handle*(VAR msg: Inputs.Message);
+		PROCEDURE Handle(VAR msg: Inputs.Message);
 		BEGIN
 			IF (msg IS Inputs.KeyboardMsg) & (msg(Inputs.KeyboardMsg).flags * {Inputs.Release} = {}) THEN
 				WITH msg:Inputs.KeyboardMsg DO
@@ -573,7 +575,7 @@ TYPE
 				END;
 
 				NEW(writer, textBuffer.Send, 256);
-				NEW(context, arg, NIL, writer, writer, SELF);
+				NEW(context, NIL, arg, writer, writer, SELF);
 
 				Commands.Activate(command, context, {Commands.Wait}, res, msg);
 
@@ -635,13 +637,14 @@ BEGIN
 	RETURN result;
 END Difference;
 
-PROCEDURE ClearLine(VAR line : Line; from, to : LONGINT);
+PROCEDURE ClearLine(VAR line : Line; from, to : LONGINT; color : SHORTINT);
 VAR i : LONGINT;
 BEGIN
 	ASSERT((0 <= from) & (from < LineWidth));
 	ASSERT((0 <= to) & (to < LineWidth));
 	FOR i := from TO to DO
 		line[i].ch := SPACE;
+		line[i].color := color;
 	END;
 END ClearLine;
 
