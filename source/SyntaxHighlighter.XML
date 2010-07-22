@@ -108,9 +108,11 @@
 					KernelLog.Enter
 					KernelLog.Exit
 					Acquire Release
+					*.Acquire *.Release
+					AcquireRead ReleaseRead
+					AcquireWrite ReleaseWrite
 					*.AcquireRead 	*.ReleaseRead
 					*.AcquireWrite *.ReleaseWrite
-					*.Acquire *.Release
 				</Group>
 				<Group style="Checks">
 					ASSERT
