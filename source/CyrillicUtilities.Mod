@@ -2,6 +2,10 @@ MODULE CyrillicUtilities; (** AUTHOR "SAGE"; PURPOSE "Cyrillic charsets text uti
 
 (*
 	History:
+	21/07/2010 - SAGE:	Calculate the range of unicode char codes on hash table construction,
+									and check that input unicode char is within this range on encoding.
+									Bug 'Code present in table, but not used in current encoding' fixed.
+									Optimizations.
 	20/07/2010 - SAGE:	Common hash table used for 5 Cyrillic encodings. Less memory usage.
 									Potential ability to handle up to 31 encodings in common hash table
 									with little grow of memory usage for every next encoding.
@@ -19,15 +23,15 @@ IMPORT
 CONST
 
 	(* Prime number for hash table *)
-	PRIME = 1301;
+	PRIME = 977;
 
 	(* Available encoding tables  *)
-	CP1251 = 1;
+	CP1251 = 0;
 	KOI8R = CP1251 + 1;
 	KOI8U = KOI8R + 1;
 	CP866 = KOI8U + 1;
 	ISO88595 = CP866 + 1;
-	ENCODINGS_COUNT = ISO88595;
+	ENCODINGS_HIGH = ISO88595;
 
 	CR = 0DX; LF = 0AX;
 
@@ -41,8 +45,10 @@ TYPE
 		RECORD
 			ucs32: Char32;
 			encodings: SET;
-			ch: ARRAY ENCODINGS_COUNT OF CHAR;
+			ch: ARRAY ENCODINGS_HIGH + 1 OF CHAR;
 		END;
+
+	LowBound = ARRAY ENCODINGS_HIGH + 1 OF INTEGER;
 
 	CP1251Decoder = OBJECT(Codecs.TextDecoder)
 	VAR errors : BOOLEAN;
@@ -88,7 +94,7 @@ TYPE
 
 		PROCEDURE GetText*() : Texts.Text;
 		BEGIN
-			RETURN text;
+			RETURN text
 		END GetText;
 
 	END CP1251Decoder;
@@ -99,8 +105,8 @@ TYPE
 		PROCEDURE Open*(out : Streams.Writer);
 		BEGIN
 			IF out = NIL THEN KernelLog.String("CP1251 Encoder Error: output stream is NIL");
-			ELSE SELF.out := out;
-			END;
+			ELSE SELF.out := out
+			END
 		END Open;
 
 		PROCEDURE WriteText*(text : Texts.Text; VAR res : LONGINT);
@@ -113,14 +119,16 @@ TYPE
 			FOR i := 0 TO text.GetLength() - 1 DO
 				r.ReadCh(ch);
 
-				IF hashSearch(CP1251, FALSE, ch, c) THEN
+				IF ch < aLowBound[CP1251] THEN
+					out.Char(CHR(ch))
+				ELSIF hashSearch(CP1251, FALSE, ch, c) THEN
 					out.Char(c)
 				END;
 
 			END;
 			out.Update;
 			text.ReleaseRead;
-			res := Codecs.ResOk;
+			res := Codecs.ResOk
 		END WriteText;
 
 	END CP1251Encoder;
@@ -180,8 +188,8 @@ TYPE
 
 		PROCEDURE Open*(out : Streams.Writer);
 		BEGIN
-			IF out = NIL THEN KernelLog.String("KOI8-R Encoder Error: output stream is NIL");
-			ELSE SELF.out := out;
+			IF out = NIL THEN KernelLog.String("KOI8-R Encoder Error: output stream is NIL")
+			ELSE SELF.out := out
 			END;
 		END Open;
 
@@ -195,14 +203,16 @@ TYPE
 			FOR i := 0 TO text.GetLength() - 1 DO
 				r.ReadCh(ch);
 
-				IF hashSearch(KOI8R, FALSE, ch, c) THEN
+				IF ch < aLowBound[KOI8R] THEN
+					out.Char(CHR(ch))
+				ELSIF hashSearch(KOI8R, FALSE, ch, c) THEN
 					out.Char(c)
 				END;
 
 			END;
 			out.Update;
 			text.ReleaseRead;
-			res := Codecs.ResOk;
+			res := Codecs.ResOk
 		END WriteText;
 
 	END KOI8REncoder;
@@ -251,7 +261,7 @@ TYPE
 
 		PROCEDURE GetText*() : Texts.Text;
 		BEGIN
-			RETURN text;
+			RETURN text
 		END GetText;
 
 	END KOI8UDecoder;
@@ -261,9 +271,9 @@ TYPE
 
 		PROCEDURE Open*(out : Streams.Writer);
 		BEGIN
-			IF out = NIL THEN KernelLog.String("KOI8-U Encoder Error: output stream is NIL");
-			ELSE SELF.out := out;
-			END;
+			IF out = NIL THEN KernelLog.String("KOI8-U Encoder Error: output stream is NIL")
+			ELSE SELF.out := out
+			END
 		END Open;
 
 		PROCEDURE WriteText*(text : Texts.Text; VAR res : LONGINT);
@@ -276,18 +286,19 @@ TYPE
 			FOR i := 0 TO text.GetLength() - 1 DO
 				r.ReadCh(ch);
 
-				IF hashSearch(KOI8U, FALSE, ch, c) THEN
+				IF ch < aLowBound[KOI8U] THEN
+					out.Char(CHR(ch))
+				ELSIF hashSearch(KOI8U, FALSE, ch, c) THEN
 					out.Char(c)
 				END;
 
 			END;
 			out.Update;
 			text.ReleaseRead;
-			res := Codecs.ResOk;
+			res := Codecs.ResOk
 		END WriteText;
 
 	END KOI8UEncoder;
-
 
 	CP866Decoder = OBJECT(Codecs.TextDecoder)
 	VAR errors : BOOLEAN;
@@ -333,7 +344,7 @@ TYPE
 
 		PROCEDURE GetText*() : Texts.Text;
 		BEGIN
-			RETURN text;
+			RETURN text
 		END GetText;
 
 	END CP866Decoder;
@@ -343,8 +354,8 @@ TYPE
 
 		PROCEDURE Open*(out : Streams.Writer);
 		BEGIN
-			IF out = NIL THEN KernelLog.String("CP-866 Encoder Error: output stream is NIL");
-			ELSE SELF.out := out;
+			IF out = NIL THEN KernelLog.String("CP-866 Encoder Error: output stream is NIL")
+			ELSE SELF.out := out
 			END;
 		END Open;
 
@@ -358,14 +369,16 @@ TYPE
 			FOR i := 0 TO text.GetLength() - 1 DO
 				r.ReadCh(ch);
 
-				IF hashSearch(CP866, FALSE, ch, c) THEN
+				IF ch < aLowBound[CP866] THEN
+					out.Char(CHR(ch))
+				ELSIF hashSearch(CP866, FALSE, ch, c) THEN
 					out.Char(c)
-				END;
+				END
 
 			END;
 			out.Update;
 			text.ReleaseRead;
-			res := Codecs.ResOk;
+			res := Codecs.ResOk
 		END WriteText;
 
 	END CP866Encoder;
@@ -414,7 +427,7 @@ TYPE
 
 		PROCEDURE GetText*() : Texts.Text;
 		BEGIN
-			RETURN text;
+			RETURN text
 		END GetText;
 
 	END ISO88595Decoder;
@@ -424,9 +437,9 @@ TYPE
 
 		PROCEDURE Open*(out : Streams.Writer);
 		BEGIN
-			IF out = NIL THEN KernelLog.String("ISO-8859-5 Encoder Error: output stream is NIL");
-			ELSE SELF.out := out;
-			END;
+			IF out = NIL THEN KernelLog.String("ISO-8859-5 Encoder Error: output stream is NIL")
+			ELSE SELF.out := out
+			END
 		END Open;
 
 		PROCEDURE WriteText*(text : Texts.Text; VAR res : LONGINT);
@@ -439,23 +452,28 @@ TYPE
 			FOR i := 0 TO text.GetLength() - 1 DO
 				r.ReadCh(ch);
 
-				IF hashSearch(ISO88595, FALSE, ch, c) THEN
+				IF ch < aLowBound[ISO88595] THEN
+					out.Char(CHR(ch))
+				ELSIF hashSearch(ISO88595, FALSE, ch, c) THEN
 					out.Char(c)
 				END;
 
 			END;
 			out.Update;
 			text.ReleaseRead;
-			res := Codecs.ResOk;
+			res := Codecs.ResOk
 		END WriteText;
 
 	END ISO88595Encoder;
 
 VAR
+	aLowBound: LowBound;
 	koi8r, koi8u, cp1251, cp866, iso88595: StaticTable;
 	hash: HashTable;
-	bCP1251, bKOI8R, bKOI8U, bCP866, bISO88595: BOOLEAN;
+	bFirst: BOOLEAN;
+	setInitDone: SET;
 	nCollisions: LONGINT;
+	ucs32Min, ucs32Max: Char32;
 
 	PROCEDURE hashSearch(encoding: SHORTINT; bAddAllowed: BOOLEAN; ucs32: Char32; VAR ch: CHAR): BOOLEAN;
 	VAR
@@ -464,26 +482,42 @@ VAR
 		bFound, bExit: BOOLEAN;
 	BEGIN
 
-		d := 1;
-		bFound := FALSE;
 		bExit := FALSE;
+		bFound := FALSE;
+		d := 1;
 		h := ucs32 MOD PRIME;
 
-		REPEAT
+		IF bAddAllowed THEN
+			IF bFirst THEN
+				bFirst := FALSE;
+				ucs32Min := ucs32;
+				ucs32Max := ucs32
+			ELSE
+				ucs32Min := MIN(ucs32Min, ucs32);
+				ucs32Max := MAX(ucs32Max, ucs32)
+			END
+		ELSIF (ucs32 < ucs32Min) OR (ucs32 > ucs32Max) THEN
+			bExit := TRUE
+		END;
+
+		WHILE ~(bFound OR bExit) DO
 			IF hash[h].ucs32 = ucs32 THEN (* match *)
 				IF encoding IN hash[h].encodings THEN
 					bFound := TRUE;
-					ch := hash[h].ch[encoding - 1]
+					ch := hash[h].ch[encoding]
 				ELSIF bAddAllowed THEN (* add char in new encoding *)
 					bExit := TRUE;
-					hash[h].ch[encoding - 1] := ch;
+					hash[h].ch[encoding] := ch;
 					hash[h].encodings := hash[h].encodings + {encoding}
+				ELSE
+					(* Code present in table, but not used in current encoding *)
+					bExit := TRUE
 				END
 			ELSIF hash[h].ucs32 = 0 THEN (* new entry *)
 				bExit := TRUE;
 				IF bAddAllowed THEN
 					hash[h].ucs32 := ucs32;
-					hash[h].ch[encoding - 1] := ch;
+					hash[h].ch[encoding] := ch;
 					hash[h].encodings := hash[h].encodings + {encoding}
 				END
 			ELSE (* collision *)
@@ -495,12 +529,12 @@ VAR
 
 				(* Table owerflow! *)
 				IF d = PRIME THEN
-					bExit := TRUE
-				END;
-				ASSERT(d # PRIME)
+					bExit := TRUE;
+					ASSERT(d # PRIME)
+				END
 
 			END
-		UNTIL bFound OR bExit;
+		END;
 
 		RETURN bFound
 
@@ -512,11 +546,10 @@ VAR
 		c: CHAR;
 	BEGIN
 
-		IF ~bKOI8R THEN
+		IF ~(KOI8R IN setInitDone) THEN
+			setInitDone := setInitDone + {KOI8R};
 
-			bKOI8R := TRUE;
-
-			FOR i := 0 TO 07FH DO
+			FOR i := 0 TO aLowBound[KOI8R] - 1 DO
 				koi8r[i] := i
 			END;
 
@@ -649,7 +682,7 @@ VAR
 			koi8r[0FEH] := 00427H;  (* CYRILLIC CAPITAL LETTER CHE *)
 			koi8r[0FFH] := 0042AH;  (* CYRILLIC CAPITAL LETTER HARD SIGN *)
 
-			FOR i := 0 TO 255 DO
+			FOR i := aLowBound[KOI8R] TO 255 DO
 				c := CHR(i);
 				b := hashSearch(KOI8R, TRUE, koi8r[i], c)
 			END
@@ -664,11 +697,10 @@ VAR
 		c: CHAR;
 	BEGIN
 
-		IF ~bKOI8U THEN
+		IF ~(KOI8U IN setInitDone) THEN
+			setInitDone := setInitDone + {KOI8U};
 
-			bKOI8U := TRUE;
-
-			FOR i := 0 TO 07FH DO
+			FOR i := 0 TO aLowBound[KOI8U] - 1 DO
 				koi8u[i] := i
 			END;
 
@@ -801,7 +833,7 @@ VAR
 			koi8u[0FEH] := 00427H; (* CYRILLIC CAPITAL LETTER CHE *)
 			koi8u[0FFH] := 0042AH; (* CYRILLIC CAPITAL LETTER HARD SIGN *)
 
-			FOR i := 0 TO 255 DO
+			FOR i := aLowBound[KOI8U] TO 255 DO
 				c := CHR(i);
 				b := hashSearch(KOI8U, TRUE, koi8u[i], c)
 			END
@@ -816,11 +848,10 @@ VAR
 		c: CHAR;
 	BEGIN
 
-		IF ~bCP1251 THEN
+		IF ~(CP1251 IN setInitDone) THEN
+			setInitDone := setInitDone + {CP1251};
 
-			bCP1251 := TRUE;
-
-			FOR i := 0 TO 07FH DO
+			FOR i := 0 TO aLowBound[CP1251] - 1 DO
 				cp1251[i] := i
 			END;
 
@@ -953,7 +984,7 @@ VAR
 			cp1251[0FEH] := 0044EH; (* CYRILLIC SMALL LETTER YU *)
 			cp1251[0FFH] := 0044FH; (* CYRILLIC SMALL LETTER YA *)
 
-			FOR i := 0 TO 255 DO
+			FOR i := aLowBound[CP1251] TO 255 DO
 				c := CHR(i);
 				b := hashSearch(CP1251, TRUE, cp1251[i], c)
 			END
@@ -968,11 +999,10 @@ VAR
 		c: CHAR;
 	BEGIN
 
-		IF ~bCP866 THEN
+		IF ~(CP866 IN setInitDone) THEN
+			setInitDone := setInitDone + {CP866};
 
-			bCP866 := TRUE;
-
-			FOR i := 0 TO 07FH DO
+			FOR i := 0 TO aLowBound[CP866] - 1 DO
 				cp866[i] := i
 			END;
 
@@ -1105,13 +1135,12 @@ VAR
 			cp866[0FEH] := 025A0H; (* BLACK SQUARE *)
 			cp866[0FFH] := 000A0H; (* NO-BREAK SPACE *)
 
-			FOR i := 0 TO 255 DO
+			FOR i := aLowBound[CP866] TO 255 DO
 				c := CHR(i);
 				b := hashSearch(CP866, TRUE, cp866[i], c)
 			END
 
 		END
-
 	END cp866Init;
 
 	PROCEDURE iso88595Init;
@@ -1120,11 +1149,10 @@ VAR
 		c: CHAR;
 	BEGIN
 
-		IF ~bISO88595 THEN
+		IF ~(ISO88595 IN setInitDone) THEN
+			setInitDone := setInitDone + {ISO88595};
 
-			bISO88595 := TRUE;
-
-			FOR i := 0 TO 09FH DO
+			FOR i := 0 TO aLowBound[ISO88595] - 1 DO
 				iso88595[i] := i
 			END;
 
@@ -1225,13 +1253,12 @@ VAR
 			iso88595[0FEH] := 0045EH; (* CYRILLIC SMALL LETTER SHORT U *)
 			iso88595[0FFH] := 0045FH; (* CYRILLIC SMALL LETTER DZHE U *)
 
-			FOR i := 0 TO 255 DO
+			FOR i := aLowBound[ISO88595] TO 255 DO
 				c := CHR(i);
 				b := hashSearch(ISO88595, TRUE, iso88595[i], c)
 			END
 
 		END
-
 	END iso88595Init;
 
 (* CP1251 File Format *)
@@ -1327,12 +1354,14 @@ BEGIN
 		hash[i].ucs32 := 0;
 		hash[i].encodings := {}
 	END;
-	bCP1251 := FALSE;
-	bKOI8R := FALSE;
-	bKOI8U := FALSE;
-	bCP866 := FALSE;
-	bISO88595 := FALSE;
-	nCollisions := 0
+	aLowBound[CP1251] := 080H;
+	aLowBound[KOI8R] := 080H;
+	aLowBound[KOI8U] := 080H;
+	aLowBound[CP866] := 080H;
+	aLowBound[ISO88595] := 0A0H;
+	setInitDone := {};
+	nCollisions := 0;
+	bFirst := TRUE;
 END Init;
 
 PROCEDURE HashStat*(context: Commands.Context);
@@ -1369,11 +1398,3 @@ END CyrillicUtilities.
 
 SystemTools.Free CyrillicUtilities~
 CyrillicUtilities.HashStat ~
-
-
-
-
-
-
-
-
