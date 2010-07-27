@@ -220,7 +220,7 @@ TYPE
 					symbol := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,parameter,dump);
 					WHILE len > 0 DO
 						adr := backend.dataflowSpecification.GetPortAddress(port);
-						IntermediateCode.InitImmediate(op,GetType(system,Global.Address),adr);
+						IntermediateCode.InitImmediate(op,GetType(system,system.addressType),adr);
 						symbol.Emit(Data(op));
 						DEC(len); INC(port);
 					END;
@@ -403,7 +403,7 @@ TYPE
 					ELSE
 						stackSize := scope.lastVariable.offsetInBits;
 						IF stackSize <0 THEN stackSize := -stackSize END;
-						Basic.Align(stackSize,system.AlignmentOf(system.parameterAlignment,Global.Byte));  (* round up to parameter alignment *)
+						Basic.Align(stackSize,system.AlignmentOf(system.parameterAlignment,system.byteType));  (* round up to parameter alignment *)
 					END;
 					ir.Emit(Nop()); (* placeholder for stack frame check *)
 					ir.Emit(Nop()); (* placeholder for stack frame check (2) *)
@@ -420,14 +420,14 @@ TYPE
 					IF scope.lastVariable # NIL THEN
 						stackSize := scope.lastVariable.offsetInBits;
 						IF stackSize <0 THEN stackSize := -stackSize END;
-						Basic.Align(stackSize,system.AlignmentOf(system.parameterAlignment,Global.Byte));  (* round up to parameter alignment *)
+						Basic.Align(stackSize,system.AlignmentOf(system.parameterAlignment,system.byteType));  (* round up to parameter alignment *)
 					END;
 				END;
 
 				IF ~inline  & (cc#SyntaxTree.NoPAFFlag) THEN
 					IF ToMemoryUnits(system,stackSize) > 4*1024-256 THEN (* stack frame potentially larger than page size *) (*! get page size from backend *)
 						IF implementationVisitor.GetRuntimeProcedure(implementationVisitor.runtimeModuleName,"EnsureAllocatedStack",procedure,TRUE) THEN
-							size := IntermediateCode.Immediate(GetType(system,Global.Address),ToMemoryUnits(system,stackSize+256));
+							size := IntermediateCode.Immediate(GetType(system,system.addressType),ToMemoryUnits(system,stackSize+256));
 							ir.EmitAt(pc,Push(size));
 							implementationVisitor.StaticCallOperand(result,procedure);
 							ir.EmitAt(pc+1,Call(result.op,ProcedureParametersSize(system,procedure)));
@@ -436,15 +436,15 @@ TYPE
 					ir.EmitAt(pc+2,Enter(cc,ToMemoryUnits(system,stackSize))); (*!!*)
 					IF stackSize > 0 THEN
 						IF (stackSize MOD system.addressSize = 0) THEN
-							null := IntermediateCode.Immediate(GetType(system,Global.Address),0);
-							fp := IntermediateCode.Register(GetType(system,Global.Address),IntermediateCode.FP);
+							null := IntermediateCode.Immediate(GetType(system,system.addressType),0);
+							fp := IntermediateCode.Register(GetType(system,system.addressType),IntermediateCode.FP);
 							IntermediateCode.AddOffset(fp,ToMemoryUnits(system,-system.addressSize));
-							size := IntermediateCode.Immediate(GetType(system,Global.Address),stackSize DIV system.addressSize);
+							size := IntermediateCode.Immediate(GetType(system,system.addressType),stackSize DIV system.addressSize);
 						ELSE
 							null := IntermediateCode.Immediate(int8,0);
-							fp := IntermediateCode.Register(GetType(system,Global.Address),IntermediateCode.FP);
+							fp := IntermediateCode.Register(GetType(system,system.addressType),IntermediateCode.FP);
 							IntermediateCode.AddOffset(fp,ToMemoryUnits(system,-null.type.sizeInBits));
-							size := IntermediateCode.Immediate(GetType(system,Global.Address),stackSize DIV null.type.sizeInBits);
+							size := IntermediateCode.Immediate(GetType(system,system.addressType),stackSize DIV null.type.sizeInBits);
 						END;
 						ir.EmitAt(pc+3,Fill(fp,null,size,TRUE));
 					END;
@@ -486,7 +486,7 @@ TYPE
 			Global.GetSymbolName (procedure,name);
 			ir := IntermediateCode.NewSection(module.sections,sectionType,name,procedure,dump);
 			Global.GetSymbolName (bodyProcedure,name);
-			IntermediateCode.InitAddress(op, GetType(system,Global.Address), IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,bodyProcedure,dump) , 0);
+			IntermediateCode.InitAddress(op, GetType(system,system.addressType), IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,bodyProcedure,dump) , 0);
 			ir.Emit(Call(op, 0));
 		END AddBodyCallStub;
 
@@ -519,11 +519,11 @@ TYPE
 			IF ~implementationVisitor.newObjectFile THEN
 				module.module.name.GetString(name); Strings.Append(name,"."); Strings.Append(name,"@moduleSelf");
 				moduleSelf := SyntaxTree.NewVariable(0,SyntaxTree.NewIdentifier(-1,"@moduleSelf"));
-				moduleSelf.SetType(Global.Any);
+				moduleSelf.SetType(system.anyType);
 				moduleSelf.SetScope(x.moduleScope);
 				moduleSelf.AddFlags({SyntaxTree.UntracedFlag});
 				ir := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,moduleSelf,dump);  ir.SetOffset(0);
-				IntermediateCode.InitImmediate(op,GetType(system,Global.Address),0);
+				IntermediateCode.InitImmediate(op,GetType(system,system.addressType),0);
 				ir.Emit(Data(op));
 			END;
 
@@ -606,8 +606,8 @@ TYPE
 			conditional := FALSE;
 			locked := FALSE;
 			InitOperand(result,ModeUndefined);
-			addressType := GetType(system,Global.Address);
-			setType := GetType(system,Global.Set);
+			addressType := GetType(system,system.addressType);
+			setType := GetType(system,system.setType);
 			fp := IntermediateCode.Register(addressType,IntermediateCode.FP);
 			sp := IntermediateCode.Register(addressType,IntermediateCode.SP);
 			nil := IntermediateCode.Immediate(addressType,0);
@@ -620,7 +620,7 @@ TYPE
 			SELF.emitLabels := emitLabels;
 			IntermediateCode.InitOperand(arrayDestinationTag);
 
-			bool := GetType(system,Global.Boolean);
+			bool := GetType(system,system.booleanType);
 			IntermediateCode.InitImmediate(false,bool,0);
 			IntermediateCode.InitImmediate(true,bool,1);
 
@@ -741,7 +741,7 @@ TYPE
 			conditional := FALSE;
 			Expression(x);
 			op := result;
-			ASSERT((op.mode = ModeReference) OR (x.type.resolved = Global.Nil)); (* special case: winapi NIL parameter on references *)
+			ASSERT((op.mode = ModeReference) OR (x.type.resolved IS SyntaxTree.NilType)); (* special case: winapi NIL parameter on references *)
 			conditional := prevConditional;
 		END Designate;
 
@@ -1148,7 +1148,7 @@ TYPE
 			index := SyntaxTree.NewIndexDesignator(x.position,designator);
 			FOR i := 0 TO dim-1 DO
 				element := SyntaxTree.NewIntegerValue(x.position,0);
-				element.SetType(Global.Longint);
+				element.SetType(system.longintType);
 				index.parameters.AddExpression(element);
 			END;
 			index.SetType(SemanticChecker.ArrayBase(x.type,dim));
@@ -1177,7 +1177,7 @@ TYPE
 				InitOperand(result,ModeValue);
 				Reuse1a(result.op,operand.op,dest);
 				type := x.left.type.resolved;
-				IF type = Global.Set THEN
+				IF type IS SyntaxTree.SetType THEN
 					Emit(Not(result.op,operand.op));
 				ELSIF type IS SyntaxTree.NumberType THEN
 					Emit(Neg(result.op,operand.op));
@@ -1336,7 +1336,7 @@ TYPE
 
 		PROCEDURE ValueToCondition(VAR op: Operand);
 		BEGIN
-			LoadValue(op,Global.Boolean);
+			LoadValue(op,system.booleanType);
 			BrneL(trueLabel,op.op, false);
 			BrL(falseLabel);
 			ReleaseOperand(op);
@@ -1590,7 +1590,7 @@ TYPE
 			|Scanner.Plus:
 				Evaluate(x.left,left);
 				Evaluate(x.right,right);
-				IF leftType = Global.Set THEN
+				IF leftType IS SyntaxTree.SetType THEN
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Or(result.op,left.op,right.op));
@@ -1603,7 +1603,7 @@ TYPE
 			|Scanner.Minus:
 				Evaluate(x.left,left);
 				Evaluate(x.right,right);
-				IF leftType = Global.Set THEN
+				IF leftType IS SyntaxTree.SetType THEN
 					InitOperand(result,ModeValue);
 					Reuse1(result.op,right.op);
 					Emit(Not(result.op,right.op));
@@ -1617,7 +1617,7 @@ TYPE
 			|Scanner.Times:
 				Evaluate(x.left,left);
 				Evaluate(x.right,right);
-				IF leftType = Global.Set THEN
+				IF leftType IS SyntaxTree.SetType THEN
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(And(result.op,left.op,right.op));
@@ -1677,7 +1677,7 @@ TYPE
 			|Scanner.Slash:
 				Evaluate(x.left,left);
 				Evaluate(x.right,right);
-				IF leftType = Global.Set THEN
+				IF leftType IS SyntaxTree.SetType THEN
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Xor(result.op,left.op,right.op));
@@ -1705,7 +1705,7 @@ TYPE
 				ELSE
 					Evaluate(x.left,left);
 					Evaluate(x.right,right);
-					IF leftType = Global.Set THEN (* left subsetequal right: left \cap right = left  *)
+					IF leftType IS SyntaxTree.SetType THEN (* left subsetequal right: left \cap right = left  *)
 						Reuse1(temp.op,right.op);
 						Emit(And(temp.op,left.op,right.op));
 						BreqL(trueLabel,temp.op,left.op);
@@ -1718,13 +1718,13 @@ TYPE
 					ReleaseOperand(left); ReleaseOperand(right);
 				END;
 			|Scanner.Less:
-				IF leftType = Global.Set THEN (* left < right <=> left <= right & left # right *)
+				IF leftType IS SyntaxTree.SetType THEN (* left < right <=> left <= right & left # right *)
 					leftExpression := SyntaxTree.NewBinaryExpression(-1,x.left,x.right,Scanner.LessEqual);
-					leftExpression.SetType(Global.Boolean);
+					leftExpression.SetType(system.booleanType);
 					rightExpression := SyntaxTree.NewBinaryExpression(-1,x.left,x.right,Scanner.Unequal);
-					rightExpression.SetType(Global.Boolean);
+					rightExpression.SetType(system.booleanType);
 					leftExpression := SyntaxTree.NewBinaryExpression(-1,leftExpression,rightExpression,Scanner.And);
-					leftExpression.SetType(Global.Boolean);
+					leftExpression.SetType(system.booleanType);
 					Expression(leftExpression);
 				ELSIF ~conditional THEN ConditionToValue(x);
 				ELSIF (leftType IS SyntaxTree.ArrayType) OR (leftType IS SyntaxTree.StringType) THEN (* string comparison *)
@@ -1737,13 +1737,13 @@ TYPE
 					ReleaseOperand(left); ReleaseOperand(right);
 				END;
 			|Scanner.Greater:
-				IF leftType = Global.Set THEN (* left > right <=> left >= right & left # right  *)
+				IF leftType IS SyntaxTree.SetType THEN (* left > right <=> left >= right & left # right  *)
 					leftExpression := SyntaxTree.NewBinaryExpression(-1,x.left,x.right,Scanner.GreaterEqual);
-					leftExpression.SetType(Global.Boolean);
+					leftExpression.SetType(system.booleanType);
 					rightExpression := SyntaxTree.NewBinaryExpression(-1,x.left,x.right,Scanner.Unequal);
-					rightExpression.SetType(Global.Boolean);
+					rightExpression.SetType(system.booleanType);
 					leftExpression := SyntaxTree.NewBinaryExpression(-1,leftExpression,rightExpression,Scanner.And);
-					leftExpression.SetType(Global.Boolean);
+					leftExpression.SetType(system.booleanType);
 					Expression(leftExpression);
 				ELSIF ~conditional THEN ConditionToValue(x);
 				ELSIF (leftType IS SyntaxTree.ArrayType) OR (leftType IS SyntaxTree.StringType) THEN (* string comparison *)
@@ -1762,7 +1762,7 @@ TYPE
 				ELSE
 					Evaluate(x.left,left);
 					Evaluate(x.right,right);
-					IF leftType = Global.Set THEN (* left supsetequal right: left \cap right = right *)
+					IF leftType IS SyntaxTree.SetType THEN (* left supsetequal right: left \cap right = right *)
 						Reuse1(temp.op,left.op);
 						Emit(And(temp.op,left.op,right.op));
 						BreqL(trueLabel, temp.op,right.op);
@@ -1788,7 +1788,7 @@ TYPE
 			|Scanner.In:
 				IF ~conditional THEN ConditionToValue(x);
 				ELSE
-					ASSERT(rightType.resolved = Global.Set);
+					ASSERT(rightType.resolved IS SyntaxTree.SetType);
 					Evaluate(x.left,left);
 					Evaluate(x.right,right);
 					Convert(left.op,setType);
@@ -2067,7 +2067,7 @@ TYPE
 			END;
 			ReleaseOperand(array);
 
-			IF (conditional)  & (type.resolved = Global.Boolean)  THEN
+			IF (conditional)  & (type.resolved IS SyntaxTree.BooleanType)  THEN
 				ValueToCondition(result); (*! wrong as the result of an index designator is always an address *)
 			END;
 		END MathIndexDesignator;
@@ -2164,7 +2164,7 @@ TYPE
 			END;
 			ReleaseOperand(array);
 
-			IF (conditional)  & (type.resolved = Global.Boolean)  THEN
+			IF (conditional)  & (type.resolved IS SyntaxTree.BooleanType)  THEN
 				ValueToCondition(result); (*! wrong as the result of an index designator is always an address *)
 			END;
 		END IndexDesignator;
@@ -2454,7 +2454,7 @@ TYPE
 						IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN (* indexer of form a[e,....,?] *)
 							variable := PrepareTensorDescriptor(expression(SyntaxTree.IndexDesignator));
 							Symbol(variable,variableOp);
-							LoadValue(variableOp,Global.Address);
+							LoadValue(variableOp,system.addressType);
 						ELSE
 							descriptorType := GetMathArrayDescriptorType(dim);
 							variable := GetTemporaryVariable(descriptorType,expression.position);
@@ -2543,7 +2543,7 @@ TYPE
 						IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN (* indexer of form a[e,....,?] *)
 							variable := PrepareTensorDescriptor(expression(SyntaxTree.IndexDesignator));
 							Symbol(variable,variableOp);
-							LoadValue(variableOp,Global.Address);
+							LoadValue(variableOp,system.addressType);
 						ELSE
 							descriptorType := GetMathArrayDescriptorType(dim);
 							variable := GetTemporaryVariable(descriptorType,expression.position);
@@ -2876,7 +2876,7 @@ TYPE
 				END;
 			END;
 
-			IF conditional & (procedureType.returnType # NIL) & (procedureType.returnType.resolved = Global.Boolean) THEN
+			IF conditional & (procedureType.returnType # NIL) & (procedureType.returnType.resolved IS SyntaxTree.BooleanType) THEN
 				ValueToCondition(result);
 			END;
 			destination := dest;
@@ -2895,7 +2895,7 @@ TYPE
 				IF (hiddenPointerType = NIL) OR (hiddenPointerType.typeDeclaration.scope.ownerModule # module.module) THEN
 					scope := SyntaxTree.NewRecordScope(module.module.moduleScope);
 					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,"@Any"));
-					variable.SetType(Global.Any);
+					variable.SetType(system.anyType);
 					scope.AddVariable(variable);
 					hiddenPointerType := SyntaxTree.NewRecordType(-1,NIL,scope);
 					typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(-1,"@HdPtrDesc"));
@@ -2916,7 +2916,7 @@ TYPE
 					variable.SetType(SyntaxTree.NewProcedureType(-1,NIL));
 					scope.AddVariable(variable);
 					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,"@Any"));
-					variable.SetType(Global.Any);
+					variable.SetType(system.anyType);
 					scope.AddVariable(variable);
 					delegatePointerType := SyntaxTree.NewRecordType(-1,NIL,scope);
 					typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(-1,"@Delegate"));
@@ -2940,7 +2940,7 @@ TYPE
 			BEGIN (* no code emission *)
 				source := NIL;
 				x := x.resolved;
-				IF (x = Global.Any) OR (x IS SyntaxTree.PointerType) THEN
+				IF (x IS SyntaxTree.AnyType) OR (x IS SyntaxTree.PointerType) THEN
 					x := GetHiddenPointerType();
 				ELSIF IsDelegate(x) THEN
 					x := GetDelegateType();
@@ -3187,18 +3187,18 @@ TYPE
 								END;
 								Integer(res.op);
 							END;
-						ELSIF expression.type.resolved = Global.Boolean THEN
+						ELSIF expression.type.resolved IS SyntaxTree.BooleanType THEN
 							Boolean(res.op);
-						ELSIF expression.type.resolved = Global.Set THEN
+						ELSIF expression.type.resolved IS SyntaxTree.SetType THEN
 							Set(res.op);
 						ELSIF expression.type.resolved IS SyntaxTree.FloatType THEN
 							IF res.op.type.sizeInBits = IntermediateCode.Bits32 THEN
 								Convert(res.op,float64);
 							END;
 							Float(res.op);
-						ELSIF expression.type.resolved = Global.Char8 THEN
+						ELSIF expression.type.resolved = Global.Character8 THEN
 							Char(res.op);
-						ELSIF expression.type.resolved = Global.Address THEN
+						ELSIF expression.type.resolved = system.addressType THEN
 							Address(res.op);String("H");
 						ELSIF (expression.type.resolved IS SyntaxTree.PointerType) OR IsPointerToRecord(expression.type,recordType) THEN
 							Address(res.op);String("H");
@@ -3534,18 +3534,18 @@ TYPE
 				recordType.SetTypeDeclaration(typeDeclaration);
 				recordType.SetState(SyntaxTree.Resolved);
 				typeDeclaration.SetDeclaredType(recordType);
-				AddVariable("@ptr",Global.Any);
-				AddVariable("@adr",Global.Address);
-				AddVariable("@flags",Global.Address);
-				AddVariable("@dim",Global.Address);
-				AddVariable("@elementSize",Global.Address);
+				AddVariable("@ptr",system.anyType);
+				AddVariable("@adr",system.addressType);
+				AddVariable("@flags",system.addressType);
+				AddVariable("@dim",system.addressType);
+				AddVariable("@elementSize",system.addressType);
 				FOR i := 0 TO dimensions-1  DO
 					name := "@len";
 					Basic.AppendNumber(name,i);
-					AddVariable(name,Global.Address);
+					AddVariable(name,system.addressType);
 					name := "@incr";
 					Basic.AppendNumber(name,i);
-					AddVariable(name,Global.Address);
+					AddVariable(name,system.addressType);
 				END;
 				parentScope.AddTypeDeclaration(typeDeclaration);
 				parentScope.EnterSymbol(typeDeclaration,duplicate);
@@ -3616,7 +3616,7 @@ TYPE
 						IF body.HasFlag(SyntaxTree.SafeFlag) THEN
 							flags := 1;
 						END;
-						Emit(Push(IntermediateCode.Immediate(GetType(system,Global.Set),flags)));
+						Emit(Push(IntermediateCode.Immediate(GetType(system,system.setType),flags)));
 						Emit(Push(self));
 						IF newObjectFile THEN
 							CallThis("Objects","CreateProcess")
@@ -3651,7 +3651,7 @@ TYPE
 			VAR op: IntermediateCode.Operand;
 			BEGIN
 				IF type = NIL THEN Emit(Push(IntermediateCode.Immediate(addressType,0)))
-				ELSIF type.resolved = Global.Any THEN Emit(Push(IntermediateCode.Immediate(addressType,1)))
+				ELSIF type.resolved IS SyntaxTree.AnyType THEN Emit(Push(IntermediateCode.Immediate(addressType,1)))
 				ELSE
 					IF type.resolved IS SyntaxTree.PointerType THEN
 						type := type.resolved(SyntaxTree.PointerType).pointerBase;
@@ -3791,9 +3791,9 @@ TYPE
 				Evaluate(p0,result);
 				ReuseCopy(reg,result.op);
 				ignore := NewLabel();
-				BrltL(ignore, reg,IntermediateCode.Immediate(GetType(system,Global.Char),ORD("a")));
-				BrltL(ignore,IntermediateCode.Immediate(GetType(system,Global.Char),ORD("z")),reg);
-				Emit(And(reg,reg,IntermediateCode.Immediate(GetType(system,Global.Char),5FH)));
+				BrltL(ignore, reg,IntermediateCode.Immediate(GetType(system,system.characterType),ORD("a")));
+				BrltL(ignore,IntermediateCode.Immediate(GetType(system,system.characterType),ORD("z")),reg);
+				Emit(And(reg,reg,IntermediateCode.Immediate(GetType(system,system.characterType),5FH)));
 				SetLabel(ignore);
 				ReleaseIntermediateOperand(result.op);
 				result.op := reg;
@@ -4489,7 +4489,7 @@ TYPE
 		PROCEDURE Dereference(VAR operand: Operand; type: SyntaxTree.Type);
 		VAR dereferenced: IntermediateCode.Operand; arrayDataOffset: LONGINT;
 		BEGIN
-			LoadValue(operand,Global.Address); (* in case operand is not a value yet *)
+			LoadValue(operand,system.addressType); (* in case operand is not a value yet *)
 			ReuseCopy(dereferenced,operand.op);
 			ReleaseOperand(operand);
 			operand.mode := ModeReference;
@@ -4676,7 +4676,7 @@ TYPE
 				Global.GetSymbolName(constantDeclaration,name);
 				irv := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,constantDeclaration,commentPrintout # NIL);
 				FOR i := 0 TO x.length-1 DO
-					IntermediateCode.InitImmediate(op,GetType(system,Global.Char),ORD(x.value[i]));
+					IntermediateCode.InitImmediate(op,GetType(system,system.characterType),ORD(x.value[i]));
 					irv.Emit(Data(op));
 				END;
 				InitOperand(result,ModeReference);
@@ -4761,7 +4761,7 @@ TYPE
 				IntermediateCode.AddOffset(result.op,ToMemoryUnits(system,x.offsetInBits));
 			END;
 
-			IF conditional & (x.type.resolved = Global.Boolean) THEN
+			IF conditional & (x.type.resolved IS SyntaxTree.BooleanType) THEN
 				ValueToCondition(result);
 			ELSIF type IS SyntaxTree.ProcedureType THEN
 				ReleaseIntermediateOperand(result.tag);
@@ -4885,7 +4885,7 @@ TYPE
 				IntermediateCode.AddOffset(result.op,ToMemoryUnits(system,x.offsetInBits));
 			END;
 
-			IF conditional & (x.type.resolved = Global.Boolean) THEN
+			IF conditional & (x.type.resolved IS SyntaxTree.BooleanType) THEN
 				ValueToCondition(result);
 			ELSIF type IS SyntaxTree.ProcedureType THEN
 				ReleaseIntermediateOperand(result.tag);
@@ -5301,7 +5301,7 @@ TYPE
 				cmp := Scanner.GreaterEqual
 			END;
 			binary := SyntaxTree.NewBinaryExpression(0,x.variable,x.temporary,cmp);
-			binary.SetType(Global.Boolean);
+			binary.SetType(system.booleanType);
 
 			SetLabel(start);
 
@@ -5443,7 +5443,7 @@ TYPE
 			procedure.SetAccess(SyntaxTree.Hidden);
 			procedure.SetScope(currentScope);
 			procedureType := SyntaxTree.NewProcedureType(x.position,currentScope);
-			procedureType.SetReturnType(Global.Boolean);
+			procedureType.SetReturnType(system.booleanType);
 			procedure.SetType(procedureType);
 			body := SyntaxTree.NewBody(x.position,procedureScope);
 			procedureScope.SetBody(body);
@@ -5467,7 +5467,7 @@ TYPE
 			symbol := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,proc,commentPrintout # NIL);
 			IntermediateCode.InitAddress(call,addressType,symbol,0);
 			Emit(Call(call,ProcedureParametersSize(system,proc)));
-			IntermediateCode.InitRegister(res,GetType(system,Global.Boolean),IntermediateCode.Result);
+			IntermediateCode.InitRegister(res,GetType(system,system.booleanType),IntermediateCode.Result);
 			InitOperand(result,ModeValue);
 			result.op := res;
 			label := NewLabel();
@@ -5868,21 +5868,21 @@ TYPE
 	PROCEDURE MetaAddress(module: Sections.Module; section: IntermediateCode.Section; value: LONGINT);
 	VAR op: IntermediateCode.Operand;
 	BEGIN
-		IntermediateCode.InitImmediate(op,GetType(module.system, Global.Address),value);
+		IntermediateCode.InitImmediate(op,GetType(module.system, module.system.addressType),value);
 		section.Emit(Data(op));
 	END MetaAddress;
 
 	PROCEDURE MetaSet(module: Sections.Module; section: IntermediateCode.Section; value: SET);
 	VAR op: IntermediateCode.Operand;
 	BEGIN
-		IntermediateCode.InitImmediate(op,GetType(module.system, Global.Longint),SYSTEM.VAL(LONGINT,value));
+		IntermediateCode.InitImmediate(op,GetType(module.system, module.system.longintType),SYSTEM.VAL(LONGINT,value));
 		section.Emit(Data(op));
 	END MetaSet;
 
 	PROCEDURE MetaLongint(module: Sections.Module; section: IntermediateCode.Section; value: LONGINT);
 	VAR op: IntermediateCode.Operand;
 	BEGIN
-		IntermediateCode.InitImmediate(op,GetType(module.system, Global.Longint),value);
+		IntermediateCode.InitImmediate(op,GetType(module.system, module.system.longintType),value);
 		section.Emit(Data(op));
 	END MetaLongint;
 
@@ -5890,7 +5890,7 @@ TYPE
 	VAR op,noOperand: IntermediateCode.Operand;
 	BEGIN
 		IntermediateCode.InitOperand(noOperand);
-		IntermediateCode.InitImmediate(op,GetType(module.system, Global.Longint),value);
+		IntermediateCode.InitImmediate(op,GetType(module.system, module.system.longintType),value);
 		section.PatchOperands(pc,op,noOperand,noOperand);
 	END PatchLongint;
 
@@ -5898,14 +5898,14 @@ TYPE
 	VAR op: IntermediateCode.Operand; intValue: LONGINT;
 	BEGIN
 		IF value = FALSE THEN intValue := 0 ELSE intValue :=1 END;
-		IntermediateCode.InitImmediate(op,GetType(module.system, Global.Boolean),intValue);
+		IntermediateCode.InitImmediate(op,GetType(module.system, module.system.booleanType),intValue);
 		section.Emit(Data(op));
 	END MetaBoolean;
 
 	PROCEDURE MetaChar(module: Sections.Module; section: IntermediateCode.Section; char: CHAR);
 	VAR op: IntermediateCode.Operand;
 	BEGIN
-		IntermediateCode.InitImmediate(op,GetType(module.system, Global.Char),ORD(char));
+		IntermediateCode.InitImmediate(op,GetType(module.system, module.system.characterType),ORD(char));
 		section.Emit(Data(op));
 	END MetaChar;
 
@@ -5928,7 +5928,7 @@ TYPE
 			MetaAddress(module, section, realOffset);
 			ASSERT(virtualOffset = 0);
 		ELSE
-			IntermediateCode.InitAddress(op, GetType(module.system, Global.Address), symbol, virtualOffset);
+			IntermediateCode.InitAddress(op, GetType(module.system, module.system.addressType), symbol, virtualOffset);
 			IntermediateCode.SetOffset(op,realOffset);
 			section.Emit(Data(op));
 		END;
@@ -5941,7 +5941,7 @@ TYPE
 	VAR variable: SyntaxTree.Variable; i,n,size: LONGINT; base: SyntaxTree.Type;
 	BEGIN
 		type := type.resolved;
-		IF type = Global.Any THEN
+		IF type IS SyntaxTree.AnyType THEN
 			MetaSymbol(module,section, symbol, 0, (offset ));
 			INC(numberPointers);
 
@@ -6108,22 +6108,27 @@ TYPE
 			PROCEDURE BaseType(arrayOf: BOOLEAN; type: SyntaxTree.Type);
 			VAR char: CHAR;
 			BEGIN
-				IF type  = Global.Byte THEN char := rfByte
-				ELSIF type = Global.Boolean THEN char := rfBoolean
-				ELSIF type = Global.Char8 THEN char := rfChar8
-				ELSIF type = Global.Char16 THEN char := rfChar16
-				ELSIF type = Global.Char32 THEN char := rfChar32
-				ELSIF type = Global.Shortint THEN char := rfShortint
-				ELSIF type = Global.Integer THEN char := rfInteger
-				ELSIF type = Global.Longint THEN char := rfLongint
-				ELSIF type = Global.Address THEN char := rfLongint
-				ELSIF type = Global.Size THEN char := rfLongint
-				ELSIF type = Global.Hugeint THEN char := rfHugeint
-				ELSIF type = Global.Real THEN char := rfReal
-				ELSIF type = Global.Longreal THEN char := rfLongreal
-				ELSIF type = Global.Set THEN char := rfSet
-				ELSIF type = Global.Any THEN char := rfPointer
-				ELSIF type = Global.Object THEN char := rfPointer
+				IF type  IS SyntaxTree.ByteType THEN char := rfByte
+				ELSIF type IS SyntaxTree.BooleanType THEN char := rfBoolean
+				ELSIF type IS SyntaxTree.CharacterType THEN 
+					IF size = 8 THEN char := rfChar8	
+					ELSIF size = 16 THEN char := rfChar16
+					ELSIF size = 32 THEN char := rfChar32
+					END;
+				ELSIF type IS SyntaxTree.IntegerType THEN
+					IF size = 8 THEN char := rfShortint
+					ELSIF size = 16 THEN char := rfInteger
+					ELSIF size = 32 THEN char := rfLongint
+					ELSIF size = 64 THEN char := rfHugeint
+					END;
+				ELSIF type IS SyntaxTree.SizeType THEN char := rfLongint
+				ELSIF type IS SyntaxTree.FloatType THEN 
+					IF size = 32 THEN char := rfReal
+					ELSIF size = 64 THEN  char := rfLongreal
+					END;
+				ELSIF type IS SyntaxTree.SetType THEN char := rfSet
+				ELSIF type IS SyntaxTree.AnyType THEN char := rfPointer
+				ELSIF type IS SyntaxTree.ObjectType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.PointerType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.ProcedureType THEN char := rfDelegate
 				ELSE ASSERT(arrayOf); char := rfPointer; (*RETURN (* ARRAY OF unknown (record): do not write anything *)*)
@@ -6205,7 +6210,7 @@ TYPE
 				ELSIF type IS SyntaxTree.ArrayType THEN
 					ArrayType(type(SyntaxTree.ArrayType))
 				ELSIF type IS SyntaxTree.EnumerationType THEN
-					BaseType(FALSE,Global.Longint)
+					BaseType(FALSE,module.system.longintType)
 				ELSIF type IS SyntaxTree.PointerType THEN
 					IF type(SyntaxTree.PointerType).pointerBase IS SyntaxTree.RecordType THEN
 						RecordType(type(SyntaxTree.PointerType).pointerBase(SyntaxTree.RecordType));
@@ -6410,7 +6415,7 @@ TYPE
 				RETURN
 					(numberParameters = 0) & TypeAllowed(procedureType.returnType) OR
 					(numberParameters = 1) & TypeAllowed(procedureType.firstParameter.type) & TypeAllowed(procedureType.returnType) OR
-					(numberParameters = 1) & (procedureType.firstParameter.type.resolved = Global.Any) & (procedureType.returnType # NIL) & (procedureType.returnType.resolved = Global.Any);
+					(numberParameters = 1) & (procedureType.firstParameter.type.resolved IS SyntaxTree.AnyType) & (procedureType.returnType # NIL) & (procedureType.returnType.resolved IS SyntaxTree.AnyType);
 			END GetProcedureAllowed;
 
 			PROCEDURE WriteType(type : SyntaxTree.Type);
@@ -6419,7 +6424,7 @@ TYPE
 			BEGIN
 				IF type = NIL THEN
 					MetaAddress(module,source,0);
-				ELSIF (type.resolved = Global.Any) OR (type.resolved = Global.Object) THEN
+				ELSIF (type.resolved IS SyntaxTree.AnyType) OR (type.resolved IS SyntaxTree.ObjectType) THEN
 					MetaAddress(module,source,1);
 				ELSE
 					type := type.resolved;
@@ -6835,7 +6840,7 @@ TYPE
 				*)
 
 				MetaInfo(source, "MethodEnd = MPO");
-				IntermediateCode.InitImmediate(op,GetType(module.system, Global.Address),MPO);
+				IntermediateCode.InitImmediate(op,GetType(module.system, module.system.addressType),MPO);
 				source(IntermediateCode.Section).Emit(Data(op));
 
 				MetaInfo(source, "method table");
@@ -6904,7 +6909,7 @@ TYPE
 					(* data section in intermediate code *)
 					Global.GetSymbolName(td,name);
 					tir := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,td,dump);
-					IntermediateCode.InitImmediate(op,GetType(module.system, Global.Address),0);
+					IntermediateCode.InitImmediate(op,GetType(module.system, module.system.addressType),0);
 					tir.Emit(Data(op));
 				END;
 			END;
@@ -6924,32 +6929,27 @@ TYPE
 	BEGIN
 		type := type.resolved;
 		IF type IS SyntaxTree.CharacterType THEN
-			ASSERT((type = Global.Char8) OR (type=Global.Char16) OR (type=Global.Char32));
 			RETURN UnsignedIntegerType(system.SizeOf(type))
 		ELSIF type IS SyntaxTree.IntegerType THEN
-			ASSERT((type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint ) OR (type = Global.Hugeint));
 			RETURN SignedIntegerType(system.SizeOf(type))
 		ELSIF type IS SyntaxTree.FloatType THEN
-			ASSERT((type = Global.Real) OR (type=Global.Longreal));
 			RETURN FloatType(system.SizeOf(type))
 		ELSIF type IS SyntaxTree.BasicType THEN
-			IF type = Global.Size THEN RETURN SignedIntegerType(system.SizeOf(type))
+			IF type IS SyntaxTree.SizeType THEN RETURN SignedIntegerType(system.SizeOf(type))
 			ELSE
-				ASSERT( (type = Global.Address) OR (type = Global.Byte) OR (type = Global.Set) OR (type = Global.Boolean) OR (type = Global.Nil)
-				OR (type = Global.Object) OR (type = Global.Any));
 				RETURN UnsignedIntegerType(system.SizeOf(type))
 			END;
 		ELSIF type IS SyntaxTree.PointerType THEN
-			RETURN GetType(system,Global.Address)
+			RETURN GetType(system,system.addressType)
 		ELSIF type IS SyntaxTree.EnumerationType THEN
 			RETURN int32
 		ELSIF type IS SyntaxTree.ProcedureType THEN
-			RETURN GetType(system,Global.Address)
+			RETURN GetType(system,system.addressType)
 		ELSIF type IS SyntaxTree.MathArrayType THEN
 			ASSERT(type(SyntaxTree.MathArrayType).form IN {SyntaxTree.Static, SyntaxTree.Tensor});
-			RETURN GetType(system,Global.Address);
+			RETURN GetType(system,system.addressType);
 		ELSIF type IS SyntaxTree.PortType THEN
-			RETURN GetType(system, Global.Address);
+			RETURN GetType(system, system.addressType);
 		ELSE
  			HALT(100);
 		END;
@@ -7023,9 +7023,9 @@ TYPE
 		ELSIF type IS SyntaxTree.RecordType THEN
 			recordType := type(SyntaxTree.RecordType);
 			RETURN type(SyntaxTree.RecordType).pointerType # NIL
-		ELSIF type = Global.Object THEN
+		ELSIF type IS SyntaxTree.ObjectType THEN
 			RETURN TRUE
-		ELSIF type = Global.Any THEN
+		ELSIF type IS SyntaxTree.AnyType THEN
 			RETURN TRUE (*! potentially is a pointer to record, treat it this way?? *)
 		ELSE
 			HALT(200)
@@ -7036,7 +7036,7 @@ TYPE
 	BEGIN
 		type := type.resolved;
 		RETURN (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).form = SyntaxTree.Open)
-		& (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Byte);
+		& (type(SyntaxTree.ArrayType).arrayBase.resolved IS SyntaxTree.ByteType);
 	END IsArrayOfSystemByte;
 
 

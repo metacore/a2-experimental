@@ -9,7 +9,7 @@ MODULE OCSyntaxTree;   (**  AUTHOR "fof & fn"; PURPOSE "Oberon Compiler: Abstrac
 **)
 
 IMPORT
-	Basic := OCBasic, Scanner := OCScanner, BitSets, Commands,StringPool (* , D := Debugging (* only for debuggging / counting *) *) ;
+	Basic := OCBasic, Scanner := OCScanner, BitSets, Commands, StringPool (* , D := Debugging (* only for debuggging / counting *) *) ;
 
 CONST
 	(** general flags: used in statements, procedure types and symbols
@@ -105,6 +105,33 @@ TYPE
 
 		PROCEDURE VisitBasicType*(x: BasicType);
 		BEGIN HALT(100) (* abstract *) END VisitBasicType;
+
+		PROCEDURE VisitByteType*(x: ByteType);
+		BEGIN HALT(100) (* abstract *) END VisitByteType;
+
+		PROCEDURE VisitAnyType*(x: AnyType);
+		BEGIN HALT(100) (* abstract *) END VisitAnyType;
+
+		PROCEDURE VisitObjectType*(x: ObjectType);
+		BEGIN HALT(100) (* abstract *) END VisitObjectType;
+
+		PROCEDURE VisitNilType*(x: NilType);
+		BEGIN HALT(100) (* abstract *) END VisitNilType;
+
+		PROCEDURE VisitAddressType*(x: AddressType);
+		BEGIN HALT(100) (* abstract *) END VisitAddressType;
+
+		PROCEDURE VisitSizeType*(x: SizeType);
+		BEGIN HALT(100) (* abstract *) END VisitSizeType;
+
+		PROCEDURE VisitAllType*(x: AllType);
+		BEGIN HALT(100) (* abstract *) END VisitAllType;
+
+		PROCEDURE VisitBooleanType*(x: BooleanType);
+		BEGIN HALT(100) (* abstract *) END VisitBooleanType;
+
+		PROCEDURE VisitSetType*(x: SetType);
+		BEGIN HALT(100) (* abstract *) END VisitSetType;
 
 		PROCEDURE VisitCharacterType*(x: CharacterType);
 		BEGIN HALT(100) END VisitCharacterType;
@@ -374,6 +401,7 @@ TYPE
 			position-,endposition-: LONGINT;
 			flags-, state-: SET;
 			fingerprint-: Fingerprint;
+			sizeInBits-: LONGINT; (* allocation size of this type in bits *)
 
 
 		PROCEDURE & InitType*( position: LONGINT; flags: SET);
@@ -383,8 +411,13 @@ TYPE
 			typeDeclaration := NIL;
 			scope := NIL;
 			resolved := SELF;
+			sizeInBits := MIN(LONGINT);
 			InitFingerprint(fingerprint)
 		END InitType;
+
+		PROCEDURE SetSize*(sizeInBits: LONGINT);
+		BEGIN SELF.sizeInBits := sizeInBits
+		END SetSize;
 
 		PROCEDURE End*( position: LONGINT );
 		BEGIN SELF.endposition := position;
@@ -426,10 +459,13 @@ TYPE
 	BasicType*= OBJECT(Type)
 	VAR name-: Identifier;
 
-		PROCEDURE & InitBasicType( position: LONGINT; name: Identifier; flags: SET);
+		PROCEDURE & InitBasicType(CONST id: ARRAY OF CHAR; flags: SET; sizeInBits: LONGINT);
+		VAR str: String;
 		BEGIN
-			InitType(position, flags);
-			SELF.name := name;
+			COPY(id, str);Basic.AppendNumber(str,sizeInBits); name := NewIdentifier(-1,str);
+			InitType(-1, flags);
+			SetSize(sizeInBits);
+			SELF.name := name
 		END InitBasicType;
 
 		PROCEDURE SetTypeDeclaration*(typeDeclaration: TypeDeclaration);
@@ -443,14 +479,161 @@ TYPE
 
 	END BasicType;
 
+
+	(** <<OBJECT>>
+		object type (base type of all objects)
+	**)
+	ObjectType*=OBJECT(BasicType)
+
+		PROCEDURE & InitObjectType(sizeInBits: LONGINT);
+		BEGIN
+			InitBasicType("@Object",{},sizeInBits);
+		END InitObjectType;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitObjectType(SELF)
+		END Accept;
+	END ObjectType;
+
+	(** <<NIL>>
+		nil type (type of NIL pointers), may be replaced by any type
+	**)
+	NilType*=OBJECT(BasicType)
+
+		PROCEDURE & InitNilType(sizeInBits: LONGINT);
+		BEGIN
+			InitBasicType("@Nil",{RealtimeFlag},sizeInBits);
+		END InitNilType;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitNilType(SELF)
+		END Accept;
+	END NilType;
+
+	(** <<SYSTEM.BYTE>>
+		any pointer type (pointer to record and pointer to array)
+	**)
+	AnyType*=OBJECT(BasicType)
+
+		PROCEDURE & InitAnyType(sizeInBits: LONGINT);
+		BEGIN
+			InitBasicType("@Any",{},sizeInBits);
+		END InitAnyType;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitAnyType(SELF)
+		END Accept;
+	END AnyType;
+
+	(** <<SYSTEM.BYTE>>
+		byte type
+	**)
+	ByteType*=OBJECT(BasicType)
+
+		PROCEDURE & InitByteType(sizeInBits: LONGINT);
+		BEGIN
+			InitBasicType("@Byte",{RealtimeFlag},sizeInBits);
+		END InitByteType;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitByteType(SELF)
+		END Accept;
+	END ByteType;
+
+	(** <<SYSTEM.ADDRESS>>
+		address type
+	**)
+	AddressType*=OBJECT(BasicType)
+
+		PROCEDURE & InitAddressType(sizeInBits: LONGINT);
+		BEGIN
+			InitBasicType("@Address",{RealtimeFlag},sizeInBits);
+		END InitAddressType;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitAddressType(SELF)
+		END Accept;
+	END AddressType;
+
+	(** <<SYSTEM.SIZE>>
+		size type (signed address type)
+	**)
+	SizeType*=OBJECT(BasicType)
+
+		PROCEDURE & InitSizeType(sizeInBits: LONGINT);
+		BEGIN
+			InitBasicType("@Size",{RealtimeFlag},sizeInBits);
+		END InitSizeType;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitSizeType(SELF)
+		END Accept;
+	END SizeType;
+
+		(** <<SYSTEM.ALL>>
+		all type for array base library
+	**)
+	AllType*=OBJECT(BasicType)
+
+		PROCEDURE & InitAllType(sizeInBits: LONGINT);
+		BEGIN
+			InitBasicType("@All",{RealtimeFlag},sizeInBits);
+		END InitAllType;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitAllType(SELF)
+		END Accept;
+	END AllType;
+
+	(** <<BOOLEAN>>
+		boolean type
+	**)
+	BooleanType*=OBJECT(BasicType)
+
+		PROCEDURE & InitBooleanType(sizeInBits: LONGINT);
+		BEGIN
+			InitBasicType("@Boolean",{RealtimeFlag},sizeInBits);
+		END InitBooleanType;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitBooleanType(SELF)
+		END Accept;
+	END BooleanType;
+
+
+	(** <<SET>>
+		set type
+	**)
+	SetType*=OBJECT(BasicType)
+
+		PROCEDURE & InitSetType(sizeInBits: LONGINT);
+		BEGIN
+			InitBasicType("@Set",{RealtimeFlag},sizeInBits);
+		END InitSetType;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitSetType(SELF)
+		END Accept;
+
+	END SetType;
+
 	(** <<CHAR, CHAR8, CHAR16, CHAR32>>
 		character types
 	**)
 	CharacterType*=OBJECT(BasicType)
 
-		PROCEDURE & InitCharacterType( position: LONGINT; name: Identifier);
+		PROCEDURE & InitCharacterType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType(position,name,{RealtimeFlag});
+			InitBasicType("@Character",{RealtimeFlag}, sizeInBits);
 		END InitCharacterType;
 
 		PROCEDURE Accept*(v: Visitor);
@@ -463,9 +646,9 @@ TYPE
 	(* number types: IntegerType or FloatType *)
 	NumberType*=OBJECT(BasicType)
 
-		PROCEDURE & InitNumberType( position: LONGINT; name: Identifier);
+		PROCEDURE & InitNumberType( CONST name: ARRAY OF CHAR; sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType(position,name,{RealtimeFlag});
+			InitBasicType(name,{RealtimeFlag},sizeInBits);
 		END InitNumberType;
 
 	END NumberType;
@@ -474,10 +657,12 @@ TYPE
 		integer types
 	**)
 	IntegerType*= OBJECT (NumberType)
+	VAR signed-: BOOLEAN;
 
-		PROCEDURE & InitIntegerType( position: LONGINT; name: Identifier);
+		PROCEDURE & InitIntegerType(sizeInBits: LONGINT; signed: BOOLEAN);
 		BEGIN
-			InitNumberType(position,name);
+			InitNumberType("@Integer",sizeInBits);
+			SELF.signed := signed;
 		END InitIntegerType;
 
 		PROCEDURE Accept*(v: Visitor);
@@ -492,9 +677,9 @@ TYPE
 	**)
 	FloatType*= OBJECT (NumberType)
 
-		PROCEDURE & InitFloatType( position: LONGINT; name: Identifier);
+		PROCEDURE & InitFloatType(sizeInBits: LONGINT);
 		BEGIN
-			InitNumberType(position,name);
+			InitNumberType("@Float",sizeInBits);
 		END InitFloatType;
 
 		PROCEDURE Accept*(v: Visitor);
@@ -503,6 +688,7 @@ TYPE
 		END Accept;
 
 	END FloatType;
+
 
 	(** <<qualifiedIdentifier = resolved>>
 		named reference to a type
@@ -751,7 +937,6 @@ TYPE
 			baseType-: Type;
 			pointerType-: PointerType; (* for support of A = POINTER TO RECORD ... END and B = POINTER TO RECORD (A) END; *)
 			isObject-,isProtected: BOOLEAN;
-			sizeInBits-: LONGINT; (* allocation size of this type in bits *)
 
 		PROCEDURE & InitRecordType( position: LONGINT; scope: Scope; recordScope: RecordScope);
 		BEGIN
@@ -764,17 +949,12 @@ TYPE
 			ASSERT(recordScope.ownerRecord = NIL); (* cannot register twice ! *)
 			recordScope.ownerRecord := SELF;
 			isObject := FALSE; isProtected := FALSE;
-			sizeInBits := MIN(LONGINT);
 		END InitRecordType;
 
 		PROCEDURE SetBaseType*( type: Type );
 		BEGIN
 			baseType := type;
 		END SetBaseType;
-
-		PROCEDURE SetSize*(sizeInBits: LONGINT);
-		BEGIN SELF.sizeInBits := sizeInBits
-		END SetSize;
 
 		PROCEDURE SetPointerType*(pointerType: PointerType);
 		BEGIN SELF.pointerType := pointerType
@@ -3277,28 +3457,76 @@ VAR
 		INC( typeCount );  NEW( type, -1, {RealtimeFlag});  RETURN type
 	END NewType;
 
-	PROCEDURE NewBasicType*(position: LONGINT; name: Identifier; flags: SET): BasicType;
-	VAR basicType: BasicType;
+	PROCEDURE NewByteType*(sizeInBits: LONGINT): ByteType;
+	VAR basicType: ByteType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, position, name, flags); RETURN basicType;
-	END NewBasicType;
+		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+	END NewByteType;
 
-	PROCEDURE NewCharacterType*(position: LONGINT;name: Identifier): CharacterType;
+	PROCEDURE NewAnyType*(sizeInBits: LONGINT): AnyType;
+	VAR basicType: AnyType;
+	BEGIN
+		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+	END NewAnyType;
+
+	PROCEDURE NewObjectType*(sizeInBits: LONGINT): ObjectType;
+	VAR basicType: ObjectType;
+	BEGIN
+		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+	END NewObjectType;
+
+	PROCEDURE NewNilType*(sizeInBits: LONGINT): NilType;
+	VAR basicType: NilType;
+	BEGIN
+		INC(basicTypeCount); NEW(basicType,  sizeInBits); RETURN basicType;
+	END NewNilType;
+
+	PROCEDURE NewAddressType*(sizeInBits: LONGINT): AddressType;
+	VAR basicType: AddressType;
+	BEGIN
+		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+	END NewAddressType;
+
+	PROCEDURE NewSizeType*(sizeInBits: LONGINT): SizeType;
+	VAR basicType: SizeType;
+	BEGIN
+		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+	END NewSizeType;
+
+	PROCEDURE NewAllType*(sizeInBits: LONGINT): AllType;
+	VAR basicType: AllType;
+	BEGIN
+		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+	END NewAllType;
+
+	PROCEDURE NewBooleanType*(sizeInBits: LONGINT): BooleanType;
+	VAR basicType: BooleanType;
+	BEGIN
+		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+	END NewBooleanType;
+
+	PROCEDURE NewSetType*(sizeInBits: LONGINT): SetType;
+	VAR basicType: SetType;
+	BEGIN
+		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+	END NewSetType;
+
+	PROCEDURE NewCharacterType*(sizeInBits: LONGINT): CharacterType;
 	VAR basicType: CharacterType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, position, name); RETURN basicType;
+		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
 	END NewCharacterType;
 
-	PROCEDURE NewIntegerType*(position: LONGINT; name: Identifier): IntegerType;
+	PROCEDURE NewIntegerType*(size: LONGINT; signed: BOOLEAN): IntegerType;
 	VAR basicType: IntegerType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, position, name); RETURN basicType;
+		INC(basicTypeCount); NEW(basicType, size, signed); RETURN basicType;
 	END NewIntegerType;
 
-	PROCEDURE NewFloatType*(position: LONGINT; name: Identifier): FloatType;
+	PROCEDURE NewFloatType*(sizeInBits: LONGINT): FloatType;
 	VAR basicType: FloatType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, position, name); RETURN basicType;
+		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
 	END NewFloatType;
 
 	PROCEDURE NewTypeDeclaration*(position: LONGINT; name: Identifier): TypeDeclaration;

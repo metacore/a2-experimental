@@ -198,6 +198,30 @@ TYPE
 		PROCEDURE VisitBasicType(x: SyntaxTree.BasicType);
 		BEGIN END VisitBasicType;
 
+		PROCEDURE VisitByteType(x: SyntaxTree.ByteType);
+		BEGIN END VisitByteType;
+
+		PROCEDURE VisitBooleanType(x: SyntaxTree.BooleanType);
+		BEGIN END VisitBooleanType;
+
+		PROCEDURE VisitSetType(x: SyntaxTree.SetType);
+		BEGIN END VisitSetType;
+
+		PROCEDURE VisitAddressType(x: SyntaxTree.AddressType);
+		BEGIN END VisitAddressType;
+
+		PROCEDURE VisitSizeType(x: SyntaxTree.SizeType);
+		BEGIN END VisitSizeType;
+
+		PROCEDURE VisitAnyType(x: SyntaxTree.AnyType);
+		BEGIN END VisitAnyType;
+
+		PROCEDURE VisitObjectType(x: SyntaxTree.ObjectType);
+		BEGIN END VisitObjectType;
+
+		PROCEDURE VisitNilType(x: SyntaxTree.NilType);
+		BEGIN END VisitNilType;
+
 		PROCEDURE VisitCharacterType(x: SyntaxTree.CharacterType);
 		BEGIN END VisitCharacterType;
 
@@ -533,6 +557,7 @@ TYPE
 			b: BOOLEAN;
 
 			indexToAttribute: IndexToAttribute;
+			predefType: ARRAY sfLastType+1 OF SyntaxTree.Type;
 
 			PROCEDURE NewTypeReference(nr: LONGINT): SyntaxTree.Type;
 			VAR typeReference: TypeReference;
@@ -594,41 +619,41 @@ TYPE
 			(* Value = [ RawNum | RawHInt | RawReal | RawLReal | RawString ] *)
 			PROCEDURE Value(type: SyntaxTree.Type): SyntaxTree.Value;
 			VAR i: LONGINT; huge: HUGEINT;  r: REAL;  lr: LONGREAL;  string: Scanner.StringType; set: SET;
-				value: SyntaxTree.Value;
+				value: SyntaxTree.Value; size: LONGINT;
 			BEGIN
-				IF type = Global.Boolean THEN R.RawNum(i);
+				size := type.sizeInBits;
+				IF type IS SyntaxTree.BooleanType THEN R.RawNum(i);
 					IF TraceImport IN Trace THEN D.Str("InConst / Bool / "); D.Int(i,1); D.Ln;  END;
-					IF	i = 0	THEN	value := Global.NewBooleanValue(-1,FALSE)	 ELSE value := Global.NewBooleanValue(-1,TRUE)	END
-				ELSIF type = Global.Char8 THEN R.RawNum(i);
-					IF TraceImport IN Trace THEN D.Str("InConst / Char / "); D.Int(i,1); D.Ln;  END;
-					value := SyntaxTree.NewCharacterValue(-1,CHR(i));
-				ELSIF type = Global.Char16 THEN R.RawNum(i);
-					IF TraceImport IN Trace THEN  D.Str("InConst / Char / "); D.Int(i,1); D.Ln END;
-					value := SyntaxTree.NewCharacterValue(-1,CHR(i));
-				ELSIF type = Global.Char32 THEN R.RawNum(i);
-					IF TraceImport IN Trace THEN  D.Str("InConst / Char / "); D.Int(i,1); D.Ln END;
-					value := SyntaxTree.NewCharacterValue(-1,CHR(i));
-				ELSIF type = Global.Shortint THEN R.RawNum(i);
-					IF TraceImport IN Trace THEN  D.Str("InConst / SInt / "); D.Int(i,1); D.Ln END;
-					value := SyntaxTree.NewIntegerValue(-1,i);
-				ELSIF type = Global.Integer THEN R.RawNum(i);
-					IF TraceImport IN Trace THEN  D.Str("InConst / Int / "); D.Int(i,1); D.Ln END;
-					value := SyntaxTree.NewIntegerValue(-1,i);
-				ELSIF type = Global.Longint THEN R.RawNum(i);
-					IF TraceImport IN Trace THEN  D.Str("InConst / LInt / "); D.Int(i,1); D.Ln END;
-					value := SyntaxTree.NewIntegerValue(-1,i);
-				ELSIF type = Global.Hugeint THEN R.RawHInt(huge);
-					IF TraceImport IN Trace THEN  D.Str("InConst / HInt / "); D.Ln END;
-					value := SyntaxTree.NewIntegerValue (-1,huge);
-				ELSIF type = Global.Set THEN R.RawNum(SYSTEM.VAL(LONGINT, set));
+					IF	i = 0	THEN	value := Global.NewBooleanValue(system,-1,FALSE)	 ELSE value := Global.NewBooleanValue(system,-1,TRUE)	END
+				ELSIF (type IS SyntaxTree.CharacterType) THEN
+					IF  (size=8) OR (size=16) OR (size=32) THEN
+						R.RawNum(i);
+						IF TraceImport IN Trace THEN D.Str("InConst / Char / "); D.Int(i,1); D.Ln;  END;
+						value := SyntaxTree.NewCharacterValue(-1,CHR(i));
+					END;
+				ELSIF type IS SyntaxTree.IntegerType THEN
+					IF size <=32 THEN
+						R.RawNum(i);
+						IF TraceImport IN Trace THEN  D.Str("InConst / Int"); D.Int(size,1); D.String(" "); D.Int(i,1); D.Ln END;
+						value := SyntaxTree.NewIntegerValue(-1,i);
+					ELSIF size=64 THEN
+						R.RawHInt(huge);
+						IF TraceImport IN Trace THEN  D.Str("InConst / HInt / "); D.Ln END;
+						value := SyntaxTree.NewIntegerValue (-1,huge);
+					END;
+				ELSIF type IS SyntaxTree.SetType THEN R.RawNum(SYSTEM.VAL(LONGINT, set));
 					IF TraceImport IN Trace THEN  D.Str("InConst / Set / "); D.Hex(SYSTEM.VAL(LONGINT, set),1); D.Ln END;
 					value := SyntaxTree.NewSetValue(-1,set);
-				ELSIF type = Global.Real THEN R.RawReal(r);
-					IF TraceImport IN Trace THEN  D.Str("InConst / Real / "); D.Ln END;
-					value := SyntaxTree.NewRealValue(-1,r);
-				ELSIF type = Global.Longreal THEN R.RawLReal(lr);
-					IF TraceImport IN Trace THEN  D.Str("InConst / LongReal / "); D.Ln END;
-					value := SyntaxTree.NewRealValue(-1,lr);
+				ELSIF type IS SyntaxTree.FloatType THEN
+					IF size = 32 THEN
+						R.RawReal(r);
+						IF TraceImport IN Trace THEN  D.Str("InConst / Real / "); D.Ln END;
+						value := SyntaxTree.NewRealValue(-1,r);
+					ELSIF size = 64 THEN
+						R.RawLReal(lr);
+						IF TraceImport IN Trace THEN  D.Str("InConst / LongReal / "); D.Ln END;
+						value := SyntaxTree.NewRealValue(-1,lr);
+					END;
 				ELSIF type IS SyntaxTree.StringType THEN R.RawString(string);
 					IF TraceImport IN Trace THEN  D.Str("InConst / String / "); D.Str(string); D.Ln END;
 					value := SyntaxTree.NewStringValue(-1,string);
@@ -637,7 +662,7 @@ TYPE
 				ELSIF type IS SyntaxTree.EnumerationType THEN R.RawNum(i);
 					IF TraceImport IN Trace THEN  D.Str("InConst / LInt / "); D.Int(i,1); D.Ln END;
 					value := SyntaxTree.NewEnumerationValue(-1,i);
-				ELSIF type = Global.Nil THEN
+				ELSIF type IS SyntaxTree.NilType THEN
 					IF TraceImport IN Trace THEN  D.Str("InConst / Nil"); D.Ln END;
 					value := SyntaxTree.NewNilValue(-1);
 				END;
@@ -944,7 +969,7 @@ TYPE
 						D.Str("Type / Basic "); D.Int(tag,1); D.Ln
 					END
 				ELSIF tag = sfTypeAll THEN
-					type := Global.All
+					type := system.allType
 				ELSIF tag <= sfModOther THEN
 					(* ImportedType = ModuleNumber (structName:RawString | 0X typeIndex:RawNum) *)
 					(* ModuleNumber = sfMod1 | .. | sfModOther-1 | sfModOther moduleNumber:RawNum *)
@@ -1032,7 +1057,7 @@ TYPE
 							IF sfRealtime IN flags THEN type.AddFlags(type.flags+{SyntaxTree.RealtimeFlag}) END;
 							R.RawNum(len);
 							size := SyntaxTree.NewIntegerValue(-1,len);
-							size.SetType(Global.Longint);
+							size.SetType(system.longintType);
 							(*
 							size.SetState(SyntaxTree.Resolved);
 							*)
@@ -1064,7 +1089,7 @@ TYPE
 							R.RawNum(len);
 							mathArrayType.SetArrayBase(baseType);
 							size := SyntaxTree.NewIntegerValue(-1,len);
-							size.SetType(Global.Longint);
+							size.SetType(system.longintType);
 							(*
 							size.SetState(SyntaxTree.Resolved);
 							*)
@@ -1370,8 +1395,33 @@ TYPE
 				END;
 			END Module;
 
+		PROCEDURE InitBasic(type: SyntaxTree.Type; tag: LONGINT);
+		BEGIN
+			predefType[tag] := type;
+		END InitBasic;
+
+		PROCEDURE Init;
+		BEGIN
+			(*Built-In types*)
+			InitBasic(system.booleanType,sfTypeBoolean);
+			InitBasic(Global.Character8,sfTypeChar8);
+			InitBasic(Global.Character16,sfTypeChar16);
+			InitBasic(Global.Character32,sfTypeChar32);
+			InitBasic(Global.Integer8, sfTypeShortint);
+			InitBasic(Global.Integer16, sfTypeInteger);
+			InitBasic(Global.Integer32, sfTypeLongint);
+			InitBasic(Global.Integer64, sfTypeHugeint);
+			InitBasic(Global.Float32, sfTypeReal);
+			InitBasic(Global.Float64, sfTypeLongreal);
+			InitBasic(system.setType, sfTypeSet);
+			InitBasic(system.anyType, sfTypeSptr);
+			InitBasic(system.nilType, sfTypeNilType);
+			InitBasic(NIL, sfTypeNoType);
+			InitBasic(system.byteType, sfTypeByte);
+		END Init;
 
 		BEGIN
+			Init;
 			i := 0; numberTypes := 0; numberReimports := 0;
 			COPY(moduleName,fileName);
 			NEW(allTypes); NEW(indexToAttribute);
@@ -1436,20 +1486,22 @@ TYPE
 			VAR type: SyntaxTree.Type;
 			BEGIN
 				type := v.type.resolved;
-				IF type = Global.Boolean THEN w.RawNum(SYSTEM.VAL(SHORTINT,v(SyntaxTree.BooleanValue).value))
-				ELSIF type = Global.Char8 THEN w.RawNum(ORD(v(SyntaxTree.CharacterValue).value));
+				IF type IS SyntaxTree.BooleanType THEN w.RawNum(SYSTEM.VAL(SHORTINT,v(SyntaxTree.BooleanValue).value))
+				ELSIF type IS SyntaxTree.CharacterType THEN w.RawNum(ORD(v(SyntaxTree.CharacterValue).value));
+				(*
 				ELSIF type = Global.Char16 THEN  w.RawNum(ORD(v(SyntaxTree.CharacterValue).value));
 				ELSIF type = Global.Char32 THEN w.RawNum(ORD(v(SyntaxTree.CharacterValue).value));
-				ELSIF type = Global.Shortint THEN  w.RawNum(v(SyntaxTree.IntegerValue).value);
-				ELSIF type = Global.Integer THEN w.RawNum(v(SyntaxTree.IntegerValue).value);
-				ELSIF type = Global.Longint THEN w.RawNum(v(SyntaxTree.IntegerValue).value);
-				ELSIF type = Global.Hugeint THEN  w.RawHInt(v(SyntaxTree.IntegerValue).hvalue);
-				ELSIF type = Global.Set THEN   w.RawNum(SYSTEM.VAL(LONGINT,v(SyntaxTree.SetValue).value));
-				ELSIF type = Global.Real THEN  w.RawReal(SHORT(v(SyntaxTree.RealValue).value));
-				ELSIF type = Global.Longreal THEN w.RawLReal(v(SyntaxTree.RealValue).value);
+				*)
+				ELSIF (type IS SyntaxTree.IntegerType) & (type.sizeInBits <= 32) THEN w.RawNum(v(SyntaxTree.IntegerValue).value);
+				ELSIF (type IS SyntaxTree.IntegerType) & (type.sizeInBits = 64) THEN w.RawHInt(v(SyntaxTree.IntegerValue).hvalue);
+				ELSIF type IS SyntaxTree.SetType THEN   w.RawNum(SYSTEM.VAL(LONGINT,v(SyntaxTree.SetValue).value));
+				ELSIF type IS SyntaxTree.FloatType THEN
+					IF type.sizeInBits = 32 THEN w.RawReal(SHORT(v(SyntaxTree.RealValue).value));
+					ELSE w.RawLReal(v(SyntaxTree.RealValue).value);
+					END;
 				ELSIF type IS SyntaxTree.StringType THEN  w.RawString(v(SyntaxTree.StringValue).value);
-				ELSIF type = Global.Nil THEN
-				ELSIF type = Global.Byte THEN HALT(100)
+				ELSIF type IS SyntaxTree.NilType THEN
+				ELSIF type IS SyntaxTree.ByteType THEN HALT(100)
 				ELSIF type IS SyntaxTree.EnumerationType THEN w.RawNum(v(SyntaxTree.EnumerationValue).value);
 				ELSE HALT(200);
 				END;
@@ -1545,7 +1597,7 @@ TYPE
 			*)
 			PROCEDURE Type(type: SyntaxTree.Type);
 			VAR typeIndex,moduleIndex: LONGINT; name:Scanner.StringType; importedModule: SyntaxTree.Module; attribute: Attribute;
-				baseType: SyntaxTree.Type; typeDeclaration : SyntaxTree.TypeDeclaration; flags: SET;
+				baseType: SyntaxTree.Type; typeDeclaration : SyntaxTree.TypeDeclaration; flags: SET; size: LONGINT;
 			BEGIN
 				IF type = NIL THEN
 					IF TraceExport IN Trace THEN
@@ -1564,72 +1616,89 @@ TYPE
 					END;
 				END;
 				*)
-
+				size := type.sizeInBits;
 				IF type IS SyntaxTree.BasicType THEN (* BasicType  *)
-					IF type = Global.Boolean THEN w.RawNum(sfTypeBoolean);
+					IF type IS SyntaxTree.BooleanType THEN w.RawNum(sfTypeBoolean);
 					IF TraceExport IN Trace THEN
 						D.Str("Type / Basic / Boolean "); D.Ln
 					END;
-					ELSIF type = Global.Char8 THEN w.RawNum(sfTypeChar8);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Char8"); D.Ln
-					END;
-					ELSIF type = Global.Char16 THEN w.RawNum(sfTypeChar16);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Char16"); D.Ln
-					END;
-					ELSIF type = Global.Char32 THEN w.RawNum(sfTypeChar32);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Char32"); D.Ln
-					END;
-					ELSIF type = Global.Shortint THEN w.RawNum(sfTypeShortint);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Shortint"); D.Ln
-					END;
-					ELSIF type = Global.Integer THEN w.RawNum(sfTypeInteger);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Integer"); D.Ln
-					END;
-					ELSIF type = Global.Longint THEN w.RawNum(sfTypeLongint);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Longint"); D.Ln
-					END;
-					ELSIF type = Global.Hugeint THEN w.RawNum(sfTypeHugeint);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Hugeint"); D.Ln
-					END;
-					ELSIF type = Global.Real THEN w.RawNum(sfTypeReal);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Real"); D.Ln
-					END;
-					ELSIF type = Global.Longreal THEN w.RawNum(sfTypeLongreal);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Longreal"); D.Ln
-					END;
-					ELSIF type = Global.Set THEN w.RawNum(sfTypeSet);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Set"); D.Ln
-					END;
-					ELSIF type = Global.Nil THEN w.RawNum(sfTypeNilType);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / NilType"); D.Ln
-					END;
-					ELSIF type = Global.Any THEN w.RawNum(sfTypeSptr);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Any"); D.Ln
-					END;
-					ELSIF type = Global.Byte THEN w.RawNum(sfTypeByte);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Byte"); D.Ln
-					END;
-					ELSIF type = Global.Object THEN w.RawNum(sfTypeSptr);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / Object"); D.Ln
-					END;
-					ELSIF type = Global.All THEN w.RawNum(sfTypeAll);
-					IF TraceExport IN Trace THEN
-						D.Str("Type / Basic / All"); D.Ln
-					END;
+					ELSIF type IS SyntaxTree.CharacterType THEN
+						IF size = 8 THEN
+							w.RawNum(sfTypeChar8);
+							IF TraceExport IN Trace THEN
+								D.Str("Type / Basic / Char8"); D.Ln
+							END;
+						ELSIF size = 16 THEN
+							w.RawNum(sfTypeChar16);
+							IF TraceExport IN Trace THEN
+								D.Str("Type / Basic / Char16"); D.Ln
+							END;
+						ELSIF size = 32 THEN
+							w.RawNum(sfTypeChar32);
+							IF TraceExport IN Trace THEN
+								D.Str("Type / Basic / Char32"); D.Ln
+							END;
+						END
+					ELSIF type IS SyntaxTree.IntegerType THEN
+						IF size = 8 THEN
+							w.RawNum(sfTypeShortint);
+							IF TraceExport IN Trace THEN
+								D.Str("Type / Basic / Shortint"); D.Ln
+							END;
+						ELSIF size = 16 THEN
+							w.RawNum(sfTypeInteger);
+							IF TraceExport IN Trace THEN
+								D.Str("Type / Basic / Integer"); D.Ln
+							END;
+						ELSIF size = 32 THEN
+							w.RawNum(sfTypeLongint);
+							IF TraceExport IN Trace THEN
+								D.Str("Type / Basic / Longint"); D.Ln
+							END;
+						ELSIF size = 64 THEN w.RawNum(sfTypeHugeint);
+							IF TraceExport IN Trace THEN
+								D.Str("Type / Basic / Hugeint"); D.Ln
+							END;
+						END;
+					ELSIF type IS SyntaxTree.FloatType THEN
+						IF size = 32 THEN
+							w.RawNum(sfTypeReal);
+							IF TraceExport IN Trace THEN
+								D.Str("Type / Basic / Real"); D.Ln
+							END;
+						ELSIF size = 64 THEN
+							w.RawNum(sfTypeLongreal);
+							IF TraceExport IN Trace THEN
+								D.Str("Type / Basic / Longreal"); D.Ln
+							END;
+						END;
+					ELSIF type IS SyntaxTree.SetType THEN
+						w.RawNum(sfTypeSet);
+						IF TraceExport IN Trace THEN
+							D.Str("Type / Basic / Set"); D.Ln
+						END;
+					ELSIF type IS SyntaxTree.NilType THEN w.RawNum(sfTypeNilType);
+						IF TraceExport IN Trace THEN
+							D.Str("Type / Basic / NilType"); D.Ln
+						END;
+					ELSIF type IS SyntaxTree.AnyType THEN w.RawNum(sfTypeSptr);
+						IF TraceExport IN Trace THEN
+							D.Str("Type / Basic / Any"); D.Ln
+						END;
+					ELSIF type IS SyntaxTree.ByteType THEN
+						w.RawNum(sfTypeByte);
+						IF TraceExport IN Trace THEN
+							D.Str("Type / Basic / Byte"); D.Ln
+						END;
+					ELSIF type IS SyntaxTree.ObjectType THEN
+						w.RawNum(sfTypeSptr);
+						IF TraceExport IN Trace THEN
+							D.Str("Type / Basic / Object"); D.Ln
+						END;
+					ELSIF type IS SyntaxTree.AllType THEN w.RawNum(sfTypeAll);
+						IF TraceExport IN Trace THEN
+							D.Str("Type / Basic / All"); D.Ln
+						END;
 					ELSE HALT(100)
 					END;
 				ELSIF type IS SyntaxTree.StringType THEN (* special case BasicType : StringType *)
@@ -2111,7 +2180,7 @@ TYPE
 	END BinarySymbolFile;
 
 	VAR
-	predefType: ARRAY sfLastType+1 OF SyntaxTree.Type;
+
 
 	(* move to basic *)
 	PROCEDURE MakeFileName(VAR file: ARRAY OF CHAR; CONST name, prefix, suffix: ARRAY OF CHAR);
@@ -2153,30 +2222,7 @@ TYPE
 		RETURN res
 	END OpenSymFile;
 
-PROCEDURE InitBasic(type: SyntaxTree.Type; tag: LONGINT);
-BEGIN
-	predefType[tag] := type;
-END InitBasic;
 
-PROCEDURE Init;
-BEGIN
-	(*Built-In types*)
-	InitBasic(Global.Boolean,sfTypeBoolean);
-	InitBasic(Global.Char8,sfTypeChar8);
-	InitBasic(Global.Char16,sfTypeChar16);
-	InitBasic(Global.Char32,sfTypeChar32);
-	InitBasic(Global.Shortint, sfTypeShortint);
-	InitBasic(Global.Integer, sfTypeInteger);
-	InitBasic(Global.Longint, sfTypeLongint);
-	InitBasic(Global.Hugeint, sfTypeHugeint);
-	InitBasic(Global.Real, sfTypeReal);
-	InitBasic(Global.Longreal, sfTypeLongreal);
-	InitBasic(Global.Set, sfTypeSet);
-	InitBasic(Global.Any, sfTypeSptr);
-	InitBasic(Global.Nil, sfTypeNilType);
-	InitBasic(NIL, sfTypeNoType);
-	InitBasic(Global.Byte, sfTypeByte);
-END Init;
 
 PROCEDURE Get*(): Formats.SymbolFileFormat;
 VAR symbolFileFormat: BinarySymbolFile;
@@ -2225,8 +2271,6 @@ BEGIN
 END Test;
 
 
-BEGIN
-	Init;
 END OCBinarySymbolFile.
 
 

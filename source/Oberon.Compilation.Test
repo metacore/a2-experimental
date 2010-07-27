@@ -38548,7 +38548,7 @@ positive: system address type size
 	BEGIN a := SYSTEM.SIZEOF(SYSTEM.ADDRESS)
 	END Test.
 
-negative:  system address function on size-incompatible type
+negative: system address function on size-incompatible type
 
 	MODULE Test;
 	IMPORT SYSTEM;
@@ -38556,7 +38556,7 @@ negative:  system address function on size-incompatible type
 	BEGIN a := SYSTEM.ADR(a)
 	END Test.
 
-positive:  system address function on size-compatible type
+positive: system address function on size-compatible type
 
 	MODULE Test;
 	IMPORT SYSTEM;
@@ -39201,7 +39201,7 @@ positive: use a value for a the address in SYSTEM.GET
 
 	END Test.
 
-positive: negative values in address
+negative: negative values in address
 
 	MODULE Test;
 	IMPORT SYSTEM;

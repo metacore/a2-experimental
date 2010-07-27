@@ -2542,7 +2542,7 @@ TYPE
 
 			PROCEDURE AddRegister(CONST name: Scanner.StringType; val: LONGINT);
 			BEGIN
-				Global.NewConstant(name,val,Global.Shortint,system.systemScope)
+				Global.NewConstant(name,val,system.shortintType,system.systemScope)
 			END AddRegister;
 
 			PROCEDURE AddRegisters;

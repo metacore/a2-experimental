@@ -95,7 +95,7 @@ TYPE
 			IF x.typeDeclaration # NIL THEN
 				Identifier(x.typeDeclaration.name);
 			ELSE
-				Identifier(x.name)
+				AlertString("InvalidBasicType");
 			END
 		END VisitBasicType;
 

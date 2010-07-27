@@ -232,40 +232,110 @@ TYPE
 			RETURN fingerPrint
 		END GetFingerPrint;
 
-		(*
-		FP(BasicType)        = | fpTypeByte | fpTypeAll | fpTypeSame | fpTypeRange | fpTypeBoolean.
-                             | fpTypeSet | fpTypePointer
-		PublicFP(BasicType)  = FP(basicType).
-		PrivateFP(BasicType) = sizeof(basicType).
-		*)
-		PROCEDURE VisitBasicType(x: SyntaxTree.BasicType);
+		PROCEDURE VisitAddressType(x: SyntaxTree.AddressType);
 		VAR fingerPrint: FingerPrint;
 		BEGIN
 			fingerPrint := GetFingerPrint(x);
-
 			IF ~fingerPrint.doneFP THEN
-				IF x =Global.Byte THEN fingerPrint.FP := fpTypeByte; fingerPrint.privateFP := sfTypeByte;
-				ELSIF x = Global.All THEN fingerPrint.FP := fpTypeAll; fingerPrint.privateFP := fpTypeAll;
-				ELSIF x = Global.Same THEN fingerPrint.FP := fpTypeSame; fingerPrint.privateFP := fpTypeSame;
-				ELSIF x = Global.RangeType THEN fingerPrint.FP := fpTypeRange; fingerPrint.privateFP := fpTypeRange;
-				ELSIF x = Global.Boolean THEN fingerPrint.FP := fpTypeBoolean; fingerPrint.privateFP := sfTypeBoolean;
-				ELSIF x = Global.Set THEN fingerPrint.FP := fpTypeSet; fingerPrint.privateFP := sfTypeSet;
-				ELSIF x = Global.Nil THEN fingerPrint.FP := fpTypePointer; fingerPrint.privateFP := sfTypeSptr;
-				ELSIF x = Global.Any THEN fingerPrint.FP := fpTypePointer; fingerPrint.privateFP := sfTypeSptr;
-				(*
-				ELSIF x = Global.Address THEN fingerPrint.FP := fpTypeLongint; fingerPrint.privateFP := fpTypeLongint;
-				ELSIF x = Global.Size THEN fingerPrint.FP := fpTypeLongint; fingerPrint.privateFP := fpTypeLongint;
-				*)
-				ELSIF x = Global.Object THEN fingerPrint.FP := fpTypePointer; fingerPrint.privateFP := sfTypeSptr;
-				ELSE HALT(100)
-				END;
+				fingerPrint.FP := fpTypeLongint; fingerPrint.privateFP := sfTypeLongint;
 				fingerPrint.publicFP := fingerPrint.FP;
 				fingerPrint.doneFP := TRUE;
-				fingerPrint.doneAll := TRUE; (* no distinction between deep and shallow fp necessary *)
+				fingerPrint.doneAll := TRUE;
 			END;
-
 			SELF.fingerPrint := fingerPrint;
-		END VisitBasicType;
+		END VisitAddressType;
+
+		PROCEDURE VisitNilType(x: SyntaxTree.NilType);
+		VAR fingerPrint: FingerPrint;
+		BEGIN
+			fingerPrint := GetFingerPrint(x);
+			IF ~fingerPrint.doneFP THEN
+				fingerPrint.FP := fpTypePointer; fingerPrint.privateFP := sfTypeSptr;
+				fingerPrint.publicFP := fingerPrint.FP;
+				fingerPrint.doneFP := TRUE;
+				fingerPrint.doneAll := TRUE;
+			END;
+			SELF.fingerPrint := fingerPrint;
+		END VisitNilType;
+
+		PROCEDURE VisitByteType(x: SyntaxTree.ByteType);
+		VAR fingerPrint: FingerPrint;
+		BEGIN
+			fingerPrint := GetFingerPrint(x);
+			IF ~fingerPrint.doneFP THEN
+				fingerPrint.FP := fpTypeByte; fingerPrint.privateFP := sfTypeByte;
+				fingerPrint.publicFP := fingerPrint.FP;
+				fingerPrint.doneFP := TRUE;
+				fingerPrint.doneAll := TRUE;
+			END;
+			SELF.fingerPrint := fingerPrint;
+		END VisitByteType;
+
+		PROCEDURE VisitSetType(x: SyntaxTree.SetType);
+		VAR fingerPrint: FingerPrint;
+		BEGIN
+			fingerPrint := GetFingerPrint(x);
+			IF ~fingerPrint.doneFP THEN
+				fingerPrint.FP := fpTypeSet; fingerPrint.privateFP := sfTypeSet;
+				fingerPrint.publicFP := fingerPrint.FP;
+				fingerPrint.doneFP := TRUE;
+				fingerPrint.doneAll := TRUE;
+			END;
+			SELF.fingerPrint := fingerPrint;
+		END VisitSetType;
+
+		PROCEDURE VisitAnyType(x: SyntaxTree.AnyType);
+		VAR fingerPrint: FingerPrint;
+		BEGIN
+			fingerPrint := GetFingerPrint(x);
+			IF ~fingerPrint.doneFP THEN
+				fingerPrint.FP := fpTypePointer; fingerPrint.privateFP := sfTypeSptr;
+				fingerPrint.publicFP := fingerPrint.FP;
+				fingerPrint.doneFP := TRUE;
+				fingerPrint.doneAll := TRUE;
+			END;
+			SELF.fingerPrint := fingerPrint;
+		END VisitAnyType;
+
+		PROCEDURE VisitObjectType(x: SyntaxTree.ObjectType);
+		VAR fingerPrint: FingerPrint;
+		BEGIN
+			fingerPrint := GetFingerPrint(x);
+			IF ~fingerPrint.doneFP THEN
+				fingerPrint.FP := fpTypePointer; fingerPrint.privateFP := sfTypeSptr;
+				fingerPrint.publicFP := fingerPrint.FP;
+				fingerPrint.doneFP := TRUE;
+				fingerPrint.doneAll := TRUE;
+			END;
+			SELF.fingerPrint := fingerPrint;
+		END VisitObjectType;
+
+		PROCEDURE VisitAllType(x: SyntaxTree.AllType);
+		VAR fingerPrint: FingerPrint;
+		BEGIN
+			fingerPrint := GetFingerPrint(x);
+			IF ~fingerPrint.doneFP THEN
+				fingerPrint.FP := fpTypeAll; fingerPrint.privateFP := fpTypeAll;
+				fingerPrint.publicFP := fingerPrint.FP;
+				fingerPrint.doneFP := TRUE;
+				fingerPrint.doneAll := TRUE;
+			END;
+			SELF.fingerPrint := fingerPrint;
+		END VisitAllType;
+
+		PROCEDURE VisitBooleanType(x: SyntaxTree.BooleanType);
+		VAR fingerPrint: FingerPrint;
+		BEGIN
+			fingerPrint := GetFingerPrint(x);
+			IF ~fingerPrint.doneFP THEN
+				fingerPrint.FP := fpTypeBoolean; fingerPrint.privateFP := sfTypeBoolean;
+				fingerPrint.publicFP := fingerPrint.FP;
+				fingerPrint.doneFP := TRUE;
+				fingerPrint.doneAll := TRUE;
+			END;
+			SELF.fingerPrint := fingerPrint;
+		END VisitBooleanType;
+
 
 		(*
 		FP(BasicType)        = fpTypeChar8 | fpTypeChar16 | fpTypeChar32
@@ -278,9 +348,9 @@ TYPE
 			fingerPrint := GetFingerPrint(x);
 
 			IF ~fingerPrint.doneFP THEN
-				IF x = Global.Char8 THEN fingerPrint.FP := fpTypeChar8; fingerPrint.privateFP := sfTypeChar8;
-				ELSIF x = Global.Char16 THEN fingerPrint.FP := fpTypeChar16; fingerPrint.privateFP := sfTypeChar16;
-				ELSIF x = Global.Char32 THEN fingerPrint.FP := fpTypeChar32; fingerPrint.privateFP := sfTypeChar32;
+				IF x.sizeInBits = 8 THEN fingerPrint.FP := fpTypeChar8; fingerPrint.privateFP := sfTypeChar8;
+				ELSIF x.sizeInBits = 16 THEN fingerPrint.FP := fpTypeChar16; fingerPrint.privateFP := sfTypeChar16;
+				ELSIF x.sizeInBits= 32 THEN fingerPrint.FP := fpTypeChar32; fingerPrint.privateFP := sfTypeChar32;
 				END;
 				fingerPrint.publicFP := fingerPrint.FP;
 				fingerPrint.doneFP := TRUE;
@@ -301,10 +371,10 @@ TYPE
 			fingerPrint := GetFingerPrint(x);
 
 			IF ~fingerPrint.doneFP THEN
-				IF x = Global.Shortint THEN fingerPrint.FP := fpTypeShortint; fingerPrint.privateFP := sfTypeShortint;
-				ELSIF x = Global.Integer THEN fingerPrint.FP := fpTypeInteger; fingerPrint.privateFP := sfTypeInteger;
-				ELSIF x = Global.Longint THEN fingerPrint.FP := fpTypeLongint; fingerPrint.privateFP := sfTypeLongint;
-				ELSIF x = Global.Hugeint THEN fingerPrint.FP := fpTypeHugeint; fingerPrint.privateFP := sfTypeHugeint;
+				IF x.sizeInBits=8  THEN fingerPrint.FP := fpTypeShortint; fingerPrint.privateFP := sfTypeShortint;
+				ELSIF x.sizeInBits=16 THEN fingerPrint.FP := fpTypeInteger; fingerPrint.privateFP := sfTypeInteger;
+				ELSIF x.sizeInBits=32 THEN fingerPrint.FP := fpTypeLongint; fingerPrint.privateFP := sfTypeLongint;
+				ELSIF x.sizeInBits=64 THEN fingerPrint.FP := fpTypeHugeint; fingerPrint.privateFP := sfTypeHugeint;
 				END;
 				fingerPrint.publicFP := fingerPrint.FP;
 				fingerPrint.doneFP := TRUE;
@@ -325,8 +395,8 @@ TYPE
 			fingerPrint := GetFingerPrint(x);
 
 			IF ~fingerPrint.doneFP THEN
-				IF x = Global.Real THEN fingerPrint.FP := fpTypeReal; fingerPrint.privateFP := sfTypeReal;
-				ELSIF x = Global.Longreal THEN fingerPrint.FP := fpTypeLongreal; fingerPrint.privateFP := sfTypeLongreal;
+				IF x.sizeInBits = 32 THEN fingerPrint.FP := fpTypeReal; fingerPrint.privateFP := sfTypeReal;
+				ELSIF x.sizeInBits = 64 THEN fingerPrint.FP := fpTypeLongreal; fingerPrint.privateFP := sfTypeLongreal;
 				END;
 				fingerPrint.publicFP := fingerPrint.FP;
 				fingerPrint.doneFP := TRUE;
@@ -861,7 +931,7 @@ TYPE
 
 		(* fp = fp & (HugeInt | Number) *)
 		PROCEDURE VisitIntegerValue(x: SyntaxTree.IntegerValue);
-		BEGIN IF x.type = Global.Hugeint THEN FPHugeInt(SELF.fp,x.hvalue) ELSE FPNumber(SELF.fp,x.value) END;
+		BEGIN IF x.type.sizeInBits=64 THEN FPHugeInt(SELF.fp,x.hvalue) ELSE FPNumber(SELF.fp,x.value) END;
 		END VisitIntegerValue;
 
 		(* fp = fp & (HugeInt | Number) *)
@@ -884,7 +954,7 @@ TYPE
 		(* fp = fp & (Real | LongReal) *)
 		PROCEDURE VisitRealValue(x: SyntaxTree.RealValue);
 		BEGIN
-			IF x.type = Global.Real THEN FPReal(SELF.fp,SHORT(x.value))
+			IF x.type.sizeInBits=32  THEN FPReal(SELF.fp,SHORT(x.value))
 			ELSE FPLongReal(SELF.fp,x.value)
 			END;
 		END VisitRealValue;

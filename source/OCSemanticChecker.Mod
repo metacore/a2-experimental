@@ -279,11 +279,56 @@ TYPE
 			resolvedType := ResolvedType(x)
 		END VisitBasicType;
 
+		PROCEDURE VisitByteType(x: SyntaxTree.ByteType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitByteType;
+
 		(** resolve character type **)
 		PROCEDURE VisitCharacterType(x: SyntaxTree.CharacterType);
 		BEGIN
 			VisitBasicType(x);
 		END VisitCharacterType;
+
+		PROCEDURE VisitBooleanType(x: SyntaxTree.BooleanType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitBooleanType;
+
+		PROCEDURE VisitSetType(x: SyntaxTree.SetType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitSetType;
+
+		PROCEDURE VisitAddressType(x: SyntaxTree.AddressType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitAddressType;
+
+		PROCEDURE VisitSizeType(x: SyntaxTree.SizeType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitSizeType;
+
+		PROCEDURE VisitAllType(x: SyntaxTree.AllType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitAllType;
+
+		PROCEDURE VisitAnyType(x: SyntaxTree.AnyType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitAnyType;
+
+		PROCEDURE VisitObjectType(x: SyntaxTree.ObjectType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitObjectType;
+
+		PROCEDURE VisitNilType(x: SyntaxTree.NilType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitNilType;
 
 		(** resolve integer type **)
 		PROCEDURE VisitIntegerType(x: SyntaxTree.IntegerType);
@@ -614,7 +659,6 @@ TYPE
 				procedureType.SetReturnType(resolved);
 
 				IF (resolved # NIL) & (resolved IS SyntaxTree.MathArrayType) THEN
-					(*! RET should be replaced by better name, procedure name for example ? *)
 					parameter := SyntaxTree.NewParameter(procedureType.position,procedureType,Global.ResultName, SyntaxTree.VarParameter);
 					parameter.SetType(procedureType.returnType);
 					parameter.SetAccess(SyntaxTree.Internal);
@@ -727,7 +771,7 @@ TYPE
 					resolved := baseType.resolved;
 					IF resolved = SyntaxTree.invalidType THEN
 						(* error already handled *)
-					ELSIF (resolved = Global.Object) & (x.pointerType # NIL) THEN
+					ELSIF (resolved IS SyntaxTree.ObjectType) & (x.pointerType # NIL) THEN
 						baseType := NIL;
 					ELSIF (resolved IS SyntaxTree.PointerType) & (resolved(SyntaxTree.PointerType).pointerBase.resolved # NIL) &  (resolved(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.RecordType) & (x.pointerType # NIL) THEN
 					ELSIF ~(resolved IS SyntaxTree.RecordType) THEN
@@ -981,7 +1025,7 @@ TYPE
 			IF actualType = SyntaxTree.invalidType THEN (* error already handled *)
 			ELSIF (formal.kind = SyntaxTree.VarParameter) THEN
 
-				IF (SyntaxTree.WinAPIFlag IN formal.type.flags) & (actualType = Global.Nil) THEN
+				IF (SyntaxTree.WinAPIFlag IN formal.type.flags) & (actualType IS SyntaxTree.NilType) THEN
 					result := TRUE; (* special rule for WINAPI parameters, needed to be able to pass NIL address to var parameters *)
 				ELSIF ~IsVariable(actual) THEN
 					result := FALSE; error := TRUE;
@@ -990,7 +1034,7 @@ TYPE
 						Printout.Info("actual",actual);
 						Printout.Info("formal",formal);
 					END;
-				ELSIF (formalType = Global.Byte) OR (formalType IS SyntaxTree.RecordType) & (~formalType(SyntaxTree.RecordType).isObject) THEN
+				ELSIF (formalType IS SyntaxTree.ByteType) OR (formalType IS SyntaxTree.RecordType) & (~formalType(SyntaxTree.RecordType).isObject) THEN
 					result := CompatibleTo(system,actualType,formalType);
 				ELSIF (formalType IS SyntaxTree.ArrayType) & (formalType(SyntaxTree.ArrayType).form = SyntaxTree.Open) THEN
 					result := OpenArrayCompatible(formalType(SyntaxTree.ArrayType),actualType);
@@ -1004,9 +1048,9 @@ TYPE
 				END
 			ELSE
 				IF (formalType IS SyntaxTree.CharacterType) & (actualType IS SyntaxTree.StringType) & (actualType(SyntaxTree.StringType).length = 2) THEN
-					actualType := Global.Char;
+					actualType := system.characterType;
 				END;
-				IF (SyntaxTree.WinAPIFlag IN formal.ownerType.flags) &  (actualType = Global.Nil) THEN
+				IF (SyntaxTree.WinAPIFlag IN formal.ownerType.flags) &  ((actualType IS SyntaxTree.NilType) OR (actualType IS SyntaxTree.AnyType)) THEN
 					result := TRUE; (* special rule for WINAPI parameters *)
 				ELSIF (formalType IS SyntaxTree.ArrayType) & (formalType(SyntaxTree.ArrayType).form = SyntaxTree.Open) THEN
 					result := OpenArrayCompatible(formalType(SyntaxTree.ArrayType),actualType);
@@ -1037,7 +1081,7 @@ TYPE
 			rightType := RegularType(right.position,right.type);
 
 			IF (leftType IS SyntaxTree.CharacterType) & (rightType IS SyntaxTree.StringType) & (rightType(SyntaxTree.StringType).length = 2) THEN
-				rightType := Global.Char; (* conversion character "x" -> string "x" *)
+				rightType := system.characterType; (* conversion character "x" -> string "x" *)
 			END;
 
 			IF (leftType = SyntaxTree.invalidType) OR (rightType = SyntaxTree.invalidType) THEN
@@ -1081,9 +1125,9 @@ TYPE
 		BEGIN
 			subtype := value(SyntaxTree.RealValue).subtype;
 			IF subtype = Scanner.Real THEN
-				type := Global.Real
+				type := system.realType
 			ELSIF subtype = Scanner.Longreal THEN
-				type := Global.Longreal
+				type := system.longrealType
 			ELSE
 				HALT(100)
 			END;
@@ -1094,7 +1138,7 @@ TYPE
 		(** check and resolve set value **)
 		PROCEDURE VisitSetValue(value: SyntaxTree.SetValue);
 		BEGIN
-			value.SetType(Global.Set);
+			value.SetType(system.setType);
 			resolvedExpression := value
 		END VisitSetValue;
 
@@ -1108,7 +1152,7 @@ TYPE
 		(** check and resolve boolean value **)
 		PROCEDURE VisitBooleanValue(value: SyntaxTree.BooleanValue);
 		BEGIN
-			value.SetType(Global.Boolean);
+			value.SetType(system.booleanType);
 			resolvedExpression := value
 		END VisitBooleanValue;
 
@@ -1122,14 +1166,14 @@ TYPE
 		(** check and resolve character value **)
 		PROCEDURE VisitCharacterValue(value: SyntaxTree.CharacterValue);
 		BEGIN
-			value.SetType(Global.Char);
+			value.SetType(system.characterType);
 			resolvedExpression := value
 		END VisitCharacterValue;
 
 		(** check and resolve nil value **)
 		PROCEDURE VisitNilValue(value: SyntaxTree.NilValue);
 		BEGIN
-			value.SetType(Global.Nil);
+			value.SetType(system.nilType);
 			resolvedExpression := value
 		END VisitNilValue;
 
@@ -1159,8 +1203,8 @@ TYPE
 				elementResult := ResolveExpression(element); (* implies checking of subexpressions in binary expressions *)
 				IF (elementResult IS SyntaxTree.RangeExpression) THEN
 					left := elementResult(SyntaxTree.RangeExpression).from; right := elementResult(SyntaxTree.RangeExpression).to;
-					left := NewConversion(left.position,left,Global.Longint,NIL);
-					right := NewConversion(right.position,right,Global.Longint,NIL);
+					left := NewConversion(left.position,left,system.longintType,NIL);
+					right := NewConversion(right.position,right,system.longintType,NIL);
 					elementResult(SyntaxTree.RangeExpression).SetFrom(left);
 					elementResult(SyntaxTree.RangeExpression).SetTo(right);
 					ASSERT(elementResult(SyntaxTree.RangeExpression).by = NIL); (* must be guaranteed by parser *)
@@ -1169,7 +1213,7 @@ TYPE
 				ELSE
 					left := elementResult; right := elementResult;
 					type := elementResult.type.resolved;
-					elementResult := NewConversion(left.position,left,Global.Longint,NIL);
+					elementResult := NewConversion(left.position,left,system.longintType,NIL);
 				END;
 
 				IF ~(type IS SyntaxTree.IntegerType) THEN
@@ -1178,12 +1222,12 @@ TYPE
 					constant := FALSE;
 				ELSE
 					IF IsIntegerValue(left,leftInteger) & IsIntegerValue(right,rightInteger) THEN
-						IF (leftInteger<0) OR (leftInteger >= system.SizeOf(Global.Set)) THEN
+						IF (leftInteger<0) OR (leftInteger >= system.SizeOf(system.setType)) THEN
 							Error(left.position,Diagnostics.Invalid,"not allowed set integer value");
-							IF (rightInteger<0) OR (rightInteger >= system.SizeOf(Global.Set)) THEN
+							IF (rightInteger<0) OR (rightInteger >= system.SizeOf(system.setType)) THEN
 								Error(right.position,Diagnostics.Invalid,"not allowed set integer value");
 							END;
-						ELSIF (rightInteger<0) OR (rightInteger >= system.SizeOf(Global.Set)) THEN
+						ELSIF (rightInteger<0) OR (rightInteger >= system.SizeOf(system.setType)) THEN
 							Error(right.position,Diagnostics.Invalid,"not allowed set integer value");
 						ELSE
 							s := s + {leftInteger..rightInteger};
@@ -1215,14 +1259,14 @@ TYPE
 			END;
 			IF constant THEN
 				value := SyntaxTree.NewSetValue(set.position,s);
-				value.SetType(Global.Set);
+				value.SetType(system.setType);
 				result.SetResolved(value);
 			END;
 			(* optimization possible
 				convert {a,b,1,2,3,4,c,d} into {a,b,c,d} + {1,2,3,4}
 				left this to the programmer...
 			*)
-			result.SetType(Global.Set);
+			result.SetType(system.setType);
 			resolvedExpression := result;
 		END VisitSet;
 
@@ -1380,7 +1424,7 @@ TYPE
 				Error(left.position,Diagnostics.Invalid,"Operator Not Defined");
 			END;
 			IF  ~(left.type.resolved IS SyntaxTree.BasicType) THEN
-				operatorCall := NewOperatorCall(unaryExpression.position, operator,left,NIL,Global.All);
+				operatorCall := NewOperatorCall(unaryExpression.position, operator,left,NIL,system.allType);
 			END;
 			IF operatorCall # NIL THEN
 				result := operatorCall;
@@ -1411,7 +1455,7 @@ TYPE
 						ELSE
 							type := left.type;
 						END;
-					ELSIF left.type.resolved = Global.Set THEN
+					ELSIF left.type.resolved IS SyntaxTree.SetType THEN
 						IF IsSetValue(left,set) THEN
 							value := SyntaxTree.NewSetValue(unaryExpression.position,-set);
 							result.SetResolved(value);
@@ -1424,14 +1468,14 @@ TYPE
 						Error(left.position,Diagnostics.Invalid,"unary operator not applicable");
 					END;
 				|Scanner.Not:
-					IF left.type.resolved = Global.Boolean THEN
+					IF left.type.resolved IS SyntaxTree.BooleanType THEN
 						IF IsBooleanValue(left,bool)  THEN
 							value := SyntaxTree.NewBooleanValue(unaryExpression.position,~bool);
 							result.SetResolved(value);
-							type := Global.Boolean;
+							type := system.booleanType;
 							value.SetType(type);
 						ELSE
-							type := Global.Boolean;
+							type := system.booleanType;
 						END;
 					ELSE
 						Error(left.position,Diagnostics.Invalid,"unary operator not applicable");
@@ -1463,7 +1507,7 @@ TYPE
 
 		BEGIN
 			result := SyntaxTree.invalidExpression;
-			IF (BaseType(expression.type.resolved) = BaseType(type)) OR (BaseType(type)=Global.All) THEN
+			IF (BaseType(expression.type.resolved) = BaseType(type)) OR (BaseType(type) IS SyntaxTree.AllType) THEN
 				result := expression (* do not convert *)
 			ELSE (* should the search for operators be restricted to the ArrayBase module here ? *)
 				result := NewOperatorCall(expression.position,Global.Conversion,expression,NIL,type);
@@ -1485,23 +1529,22 @@ TYPE
 			result := expression; type := type.resolved;
 			IF expression IS SyntaxTree.IntegerValue THEN
 				int := expression(SyntaxTree.IntegerValue).hvalue;
-				IF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) OR (type= Global.Hugeint)
-					OR (type = system.sizeType) THEN
+				IF (type IS SyntaxTree.IntegerType) OR (type IS SyntaxTree.SizeType) THEN
 					int := Global.ConvertSigned(int,system.SizeOf(type));
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);
-				ELSIF (type = Global.Address) THEN
+				ELSIF (type IS SyntaxTree.AddressType) THEN
 					IF int < 0 THEN Error(position,Diagnostics.Invalid,"negative value cannot be converted to address") END;
 					int := Global.ConvertUnsigned(int,system.SizeOf(type));
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);
-				ELSIF (type= Global.Real) OR (type= Global.Longreal) THEN
+				ELSIF (type IS SyntaxTree.FloatType) THEN
 					result := SyntaxTree.NewRealValue(expression.position,int);
 					result.SetType(type);
-				ELSIF (type = Global.Set) THEN
+				ELSIF (type IS SyntaxTree.SetType) THEN
 					result := SyntaxTree.NewSetValue(expression.position,SYSTEM.VAL(SET,int));
 					result.SetType(type);
-				ELSIF (type = Global.Char) OR (type = Global.Byte) THEN
+				ELSIF (type IS SyntaxTree.CharacterType) OR (type IS SyntaxTree.ByteType) THEN
 					result := SyntaxTree.NewCharacterValue(expression.position,SYSTEM.VAL(CHAR,int));
 					result.SetType(type);
 				ELSIF (type IS SyntaxTree.EnumerationType) THEN
@@ -1519,15 +1562,15 @@ TYPE
 					END;
 				END;
 			ELSIF IsRealValue(expression,real) THEN
-				IF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) THEN
+				IF (type IS SyntaxTree.IntegerType) & (type.sizeInBits < 64) THEN
 					int := Global.ConvertSigned(ENTIER(real),system.SizeOf(type));
 					result := SyntaxTree.NewIntegerValue(expression.position,int);
 					result.SetType(type);
-				ELSIF (type = Global.Hugeint) THEN
+				ELSIF (type IS SyntaxTree.IntegerType) THEN
 					int := ENTIERH(real);
 					result := SyntaxTree.NewIntegerValue(expression.position,int);
 					result.SetType(type);
-				ELSIF (type= Global.Real) OR (type= Global.Longreal) THEN
+				ELSIF (type IS SyntaxTree.FloatType) THEN
 					result := SyntaxTree.NewRealValue(position,real);
 					result.SetType(type);
 				ELSE
@@ -1535,10 +1578,10 @@ TYPE
 					result := SyntaxTree.invalidExpression;
 				END;
 			ELSIF IsSetValue(expression,set) THEN
-				IF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) OR (type= Global.Hugeint) THEN
+				IF (type IS SyntaxTree.IntegerType) THEN
 					result := SyntaxTree.NewIntegerValue(expression.position,SYSTEM.VAL(LONGINT,set));
 					result.SetType(type);
-				ELSIF (type = Global.Char) OR (type = Global.Byte) THEN (* for example: possible via ch = CHR(SYSTEM.VAL(LONGINT,set)) *)
+				ELSIF (type IS SyntaxTree.CharacterType) OR (type IS SyntaxTree.ByteType) THEN (* for example: possible via ch = CHR(SYSTEM.VAL(LONGINT,set)) *)
 					result := SyntaxTree.NewCharacterValue(expression.position,SYSTEM.VAL(CHAR,set));
 					result.SetType(type);
 				ELSE
@@ -1546,31 +1589,31 @@ TYPE
 					result := SyntaxTree.invalidExpression;
 				END;
 			ELSIF IsStringValue(expression,string) THEN
-				IF ((type = Global.Char) OR (type = Global.Byte)) & (string[1]=0X) THEN
+				IF ((type IS SyntaxTree.CharacterType) OR (type IS SyntaxTree.ByteType)) & (string[1]=0X) THEN
 					result := SyntaxTree.NewCharacterValue(expression.position,string[0]);
 					result.SetType(type);
-				ELSIF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char) THEN (* nothing to be done *)
+				ELSIF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved IS SyntaxTree.CharacterType) THEN (* nothing to be done *)
 				ELSE
 					Error(position,Diagnostics.Invalid,"string value cannot be converted");
 					result := SyntaxTree.invalidExpression;
 				END;
 			ELSIF IsCharacterValue(expression,char) THEN
-				IF (type IS SyntaxTree.StringType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char) THEN
+				IF (type IS SyntaxTree.StringType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved IS SyntaxTree.CharacterType) THEN
 					string[0] := char; string[1] := 0X;
 					type := SyntaxTree.NewStringType(InvalidPosition,2);
 					result := SyntaxTree.NewStringValue(expression.position,string);
 					result.SetType(type);
-				ELSIF (type=Global.Byte) THEN
+				ELSIF (type IS SyntaxTree.ByteType) THEN
 					(* do not simply set the new type as this could invalidate types of constants *)
 					result := SyntaxTree.NewCharacterValue(expression.position,char);
 					result.SetType(type)
-				ELSIF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) OR (type= Global.Hugeint) THEN
+				ELSIF (type IS SyntaxTree.IntegerType) THEN
 					result := SyntaxTree.NewIntegerValue(expression.position,SYSTEM.VAL(LONGINT,char));
 					result.SetType(type);
-				ELSIF (type = Global.Set) THEN
+				ELSIF (type IS SyntaxTree.SetType) THEN
 					result := SyntaxTree.NewSetValue(expression.position,SYSTEM.VAL(SET,char));
 					result.SetType(type);
-				ELSIF (type = Global.Char) THEN
+				ELSIF (type IS SyntaxTree.CharacterType) THEN
 					result := SyntaxTree.NewCharacterValue(expression.position,char);
 					result.SetType(type);
 				ELSE
@@ -1615,8 +1658,8 @@ TYPE
 			ELSIF expression.type = NIL THEN
 				Error(position,Diagnostics.Invalid,"expression of type NIL cannot be converted");
 			ELSIF expression.type.resolved = type THEN (* nothing to be done ! *)
-			ELSIF (expression.type.resolved = Global.Any) & (type = Global.Object) THEN (*! binary symbol file problem: ANY and OBJECT cannot be distinguished  *)
-			ELSIF (expression.type.resolved = Global.Object) & (type =Global.Any) THEN (*! binary symbol file problem *)
+			ELSIF (expression.type.resolved IS SyntaxTree.AnyType) THEN (*! binary symbol file problem: ANY and OBJECT cannot be distinguished  *)
+			ELSIF (expression.type.resolved IS SyntaxTree.ObjectType) & (type IS SyntaxTree.AnyType) THEN (*! binary symbol file problem *)
 			ELSIF expression.resolved # NIL THEN (* value *)
 				value := ConvertValue(position,expression.resolved(SyntaxTree.Value),type);
 				result := SyntaxTree.NewConversion(expression.position,expression,type,typeExpression);
@@ -1624,7 +1667,7 @@ TYPE
 					result.SetResolved(value(SyntaxTree.Value));
 					result.SetType(value.type);
 				END;
-			ELSIF (type = Global.Byte) THEN (* do not convert *)
+			ELSIF (type IS SyntaxTree.ByteType) THEN (* do not convert *)
 				expressionList := SyntaxTree.NewExpressionList();
 				typeDeclaration := SyntaxTree.NewTypeDeclaration(expression.position,SyntaxTree.NewIdentifier(InvalidPosition,"@byte"));
 				typeDeclaration.SetDeclaredType(type);
@@ -1642,9 +1685,9 @@ TYPE
 				END;
 			ELSIF (expression.type.resolved IS SyntaxTree.MathArrayType) THEN
 					Error(expression.position,Diagnostics.Invalid,"cannot convert array type to non-array type")
-			ELSIF ~(type IS SyntaxTree.BasicType) & (expression.type.resolved # Global.Char) THEN
+			ELSIF ~(type IS SyntaxTree.BasicType) & ~(expression.type.resolved IS SyntaxTree.CharacterType) THEN
 				(*skip, no conversion*)
-			ELSIF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Byte) THEN
+			ELSIF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved IS SyntaxTree.ByteType) THEN
 				(* skip, no conversion *)
 			ELSE
 				result := SyntaxTree.NewConversion(expression.position,expression,type,typeExpression);
@@ -1808,17 +1851,17 @@ TYPE
 			PROCEDURE NewBool(v: BOOLEAN);
 			BEGIN
 				value := SyntaxTree.NewBooleanValue(binaryExpression.position,v);
-				value.SetType(Global.Boolean);
+				value.SetType(system.booleanType);
 				result.SetResolved(value);
-				type := Global.Boolean;
+				type := system.booleanType
 			END NewBool;
 
 			PROCEDURE NewSet(v: SET);
 			BEGIN
 				value := SyntaxTree.NewSetValue(binaryExpression.position,v);
-				value.SetType(Global.Set);
+				value.SetType(system.setType);
 				result.SetResolved(value);
-				type := Global.Set;
+				type := system.setType;
 			END NewSet;
 
 			PROCEDURE NewInteger(v: HUGEINT; t: SyntaxTree.Type);
@@ -1865,7 +1908,7 @@ TYPE
 				RETURN;
 			END;
 			IF (~(left.type.resolved IS SyntaxTree.BasicType) OR ~(right.type.resolved IS SyntaxTree.BasicType)) THEN
-				operatorCall := NewOperatorCall(binaryExpression.position,operator,left,right,Global.All);
+				operatorCall := NewOperatorCall(binaryExpression.position,operator,left,right,system.allType);
 			END;
 
 			IF operatorCall # NIL THEN
@@ -1911,7 +1954,7 @@ TYPE
 			ELSIF operator = Scanner.Upto THEN (* left .. right: now solved as RangeExpression*)
 				HALT(100);
 			ELSIF operator = Scanner.Is THEN (* left IS right: now solved as IsExpression *)
-				type := Global.Boolean;
+				type := system.booleanType;
 				IF  ~(right.type.resolved = SyntaxTree.typeDeclarationType) THEN
 					Error(right.position,Diagnostics.Invalid,"is not a type ");
 				ELSIF ~IsTypeExtension(left.type.resolved, right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved) THEN
@@ -1922,7 +1965,7 @@ TYPE
 					END;
 				ELSIF (left.type.resolved = right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved) & ~(left.type.resolved IS SyntaxTree.PointerType) THEN
 					NewBool(TRUE)
-				ELSIF right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved = Global.Object THEN
+				ELSIF right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved IS SyntaxTree.AnyType THEN
 					NewBool(TRUE);
 				ELSIF IsUnextensibleRecord(left) THEN
 					NewBool(FALSE)
@@ -1930,15 +1973,15 @@ TYPE
 			ELSIF (right IS SyntaxTree.SymbolDesignator) & (right(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.TypeDeclaration) THEN
 				Error(right.position,Diagnostics.Invalid,"must not be a type");
 			ELSIF operator = Scanner.In THEN (* left IN right *)
-				IF (left.type.resolved IS SyntaxTree.IntegerType) & (right.type.resolved=Global.Set) THEN
+				IF (left.type.resolved IS SyntaxTree.IntegerType) & (right.type.resolved IS SyntaxTree.SetType) THEN
 					IF IsIntegerValue(left,il) & IsSetValue(right,sr) THEN
 						NewBool(il IN sr);
 					ELSE
-						IF left.type.resolved # Global.Longint THEN
-							left := NewConversion(left.position, left, Global.Longint,NIL);
+						IF left.type.resolved.sizeInBits # system.longintType.sizeInBits THEN
+							left := NewConversion(left.position, left, system.longintType,NIL);
 							binaryExpression.SetLeft(left)
 						END;
-						type := Global.Boolean;
+						type := system.booleanType;
 					END
 				ELSE
 					Error(binaryExpression.position,Diagnostics.Invalid, "incompatible operands");
@@ -1948,7 +1991,7 @@ TYPE
 					Error(binaryExpression.position,Diagnostics.Invalid,"incompatible operands");
 				END;
 
-				IF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) THEN type := Global.Boolean
+				IF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) THEN type := system.booleanType
 				ELSE  Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 1")
 				END
 			ELSIF IsPointerType(left.type.resolved) OR IsPointerType(right.type.resolved) THEN
@@ -1957,10 +2000,10 @@ TYPE
 					Error(binaryExpression.position,Diagnostics.Invalid,"incompatible operands");
 					IF VerboseErrorMessage THEN Printout.Info("left.type.resolved",left.type.resolved); Printout.Info("right",right.type.resolved) END
 				ELSIF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) THEN
-					IF (left.type.resolved = Global.Nil) & (right.type.resolved = Global.Nil) THEN
+					IF (left IS SyntaxTree.NilValue) & (right IS SyntaxTree.NilValue) THEN
 						IF operator = Scanner.Equal THEN NewBool(TRUE) ELSE NewBool(FALSE) END;
 					END;
-					type := Global.Boolean;
+					type := system.booleanType;
 				ELSE
 					Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 3");
 				END
@@ -1982,14 +2025,14 @@ TYPE
 					END;
 				ELSIF (operator = Scanner.Equal) OR (operator=Scanner.Unequal) OR (operator = Scanner.Less)
 						OR (operator = Scanner.LessEqual) OR (operator = Scanner.Greater) OR (operator = Scanner.GreaterEqual) THEN
-						type := Global.Boolean
+						type := system.booleanType
 				ELSE
 					Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 5");
 				END;
 				IF (operator = Scanner.Equal) OR (operator=Scanner.Unequal)
 					OR 	(operator = Scanner.Less) OR (operator = Scanner.LessEqual)
 					OR (operator = Scanner.Greater) OR (operator = Scanner.GreaterEqual) THEN
-					type := Global.Boolean;
+					type := system.booleanType;
 				ELSE
 					Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 6");
 				END
@@ -1997,7 +2040,7 @@ TYPE
 				IF IsEnumerationExtension(left.type,right.type) OR IsEnumerationExtension(right.type,left.type) THEN
 					IF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) OR (operator = Scanner.Less) OR (operator = Scanner.LessEqual)
 						OR (operator = Scanner.Greater) OR (operator = Scanner.GreaterEqual) THEN
-						type := Global.Boolean
+						type := system.booleanType
 					ELSE
 						Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined for enumerators");
 					END;
@@ -2020,7 +2063,7 @@ TYPE
 						Printout.Info("right",right);
 					END;
 				ELSIF (left.type.resolved IS SyntaxTree.IntegerType) THEN
-					IF IsIntegerValue(right,ir) & (type # Global.Hugeint) THEN
+					IF IsIntegerValue(right,ir) & (right.type.sizeInBits < 64) THEN
 						IF (ir=0) & ((operator = Scanner.Mod) OR (operator = Scanner.Div) OR (operator = Scanner.Slash)) THEN
 							Error(binaryExpression.position,Diagnostics.Invalid,"division by zero");
 						ELSIF (ir<0) & ((operator = Scanner.Mod) OR (operator = Scanner.Div))THEN
@@ -2028,14 +2071,14 @@ TYPE
 						END;
 					END;
 					(* constant folding *)
-					IF IsIntegerValue(left,il) & IsIntegerValue(right,ir)  & (type#Global.Hugeint) THEN
+					IF IsIntegerValue(left,il) & IsIntegerValue(right,ir)  & (type.sizeInBits < 64) THEN
 						CASE operator OF
 						|Scanner.Plus: NewInteger(il+ir,left.type);
 						|Scanner.Minus: NewInteger(il-ir,left.type);
 						|Scanner.Times: NewInteger(il*ir,left.type);
 						|Scanner.Slash:
 							IF ir # 0 THEN
-								NewReal(il/ir, Global.Real);
+								NewReal(il/ir, system.realType);
 							END;
 						|Scanner.Mod:
 							IF ir > 0 THEN
@@ -2053,7 +2096,7 @@ TYPE
 						|Scanner.GreaterEqual: NewBool(il>=ir);
 						ELSE Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 7");
 						END;
-					ELSIF IsIntegerValue(left,il) & IsIntegerValue(right,ir) & (type=Global.Hugeint) THEN
+					ELSIF IsIntegerValue(left,il) & IsIntegerValue(right,ir) & (type.sizeInBits = 64) THEN
 						hl := left.resolved(SyntaxTree.IntegerValue).hvalue;
 						hr := right.resolved(SyntaxTree.IntegerValue).hvalue;
 						CASE operator OF
@@ -2064,7 +2107,7 @@ TYPE
 							IF hr = 0 THEN
 								Error(binaryExpression.position,Diagnostics.Invalid,"division by zero");
 							ELSE
-								NewReal(hl/hr,Global.Longreal);
+								NewReal(hl/hr,system.longrealType);
 							END;
 						(* do the bootstrapping for this kind of expression on hugeint values , then enable: *)
 						|Scanner.Mod:
@@ -2079,7 +2122,7 @@ TYPE
 							ELSE
 								NewInteger(Machine.DivH(hl,hr),left.type);
 							END;
-						(**)
+						(* *)
 						|Scanner.Equal: NewBool(hl=hr);
 						|Scanner.Unequal: NewBool(hl#hr);
 						|Scanner.Less: NewBool(hl<hr);
@@ -2092,14 +2135,14 @@ TYPE
 					(operator = Scanner.Mod) OR (operator = Scanner.Div) THEN
 						type := left.type
 					ELSIF (operator = Scanner.Slash) THEN
-						left := NewConversion(left.position,left,Global.Real,NIL);
-						right := NewConversion(right.position,right,Global.Real,NIL);
+						left := NewConversion(left.position,left,system.realType,NIL);
+						right := NewConversion(right.position,right,system.realType,NIL);
 						binaryExpression.SetLeft(left);
 						binaryExpression.SetRight(right);
-						type := Global.Real
+						type := system.realType
 					ELSIF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) OR (operator = Scanner.Less) OR (operator = Scanner.LessEqual)
 						OR (operator = Scanner.Greater) OR (operator = Scanner.GreaterEqual) THEN
-						type := Global.Boolean
+						type := system.booleanType
 					ELSE
 						Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 9");
 					END;
@@ -2127,7 +2170,7 @@ TYPE
 						type := left.type
 					ELSIF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) OR (operator = Scanner.Less) OR (operator = Scanner.LessEqual)
 						OR (operator = Scanner.Greater) OR (operator = Scanner.GreaterEqual) THEN
-						type := Global.Boolean
+						type := system.booleanType
 					ELSE
 						Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 11");
 						IF VerboseErrorMessage THEN
@@ -2135,7 +2178,7 @@ TYPE
 							Printout.Info("right",right);
 						END;
 					END;
-				ELSIF (left.type.resolved = Global.Boolean) THEN
+				ELSIF (left.type.resolved IS SyntaxTree.BooleanType) THEN
 					IF IsBooleanValue(left,bl) & IsBooleanValue(right,br) THEN
 						CASE operator OF
 						|Scanner.And: NewBool(bl & br);
@@ -2145,11 +2188,11 @@ TYPE
 						ELSE Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 12");
 						END;
 					ELSIF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) OR (operator = Scanner.And) OR (operator = Scanner.Or)  THEN
-						type := Global.Boolean
+						type := system.booleanType
 					ELSE
 						Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 13");
 					END;
-				ELSIF (left.type.resolved= Global.Set) THEN
+				ELSIF (left.type.resolved IS SyntaxTree.SetType) THEN
 					IF IsSetValue(left,sl) & IsSetValue(right,sr) THEN
 						CASE operator OF
 						|Scanner.Plus: NewSet(sl + sr);
@@ -2168,7 +2211,7 @@ TYPE
 						OR (operator = Scanner.Less) OR (operator = Scanner.LessEqual)
 						OR (operator = Scanner.Greater) OR (operator = Scanner.GreaterEqual)  (* implement inclusion *)
 						THEN
-						type := Global.Boolean
+						type := system.booleanType
 					ELSIF (operator = Scanner.Plus) OR (operator = Scanner.Minus) OR (operator = Scanner.Times) OR (operator = Scanner.Slash) THEN
 						type := left.type
 					ELSE
@@ -2187,7 +2230,7 @@ TYPE
 						END;
 					ELSIF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) OR (operator = Scanner.Less) OR (operator = Scanner.LessEqual)
 						OR (operator = Scanner.Greater) OR (operator = Scanner.GreaterEqual) THEN
-						type := Global.Boolean
+						type := system.booleanType
 					ELSE
 						Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 17");
 					END;
@@ -2224,14 +2267,14 @@ TYPE
 				Error(x.position,Diagnostics.Invalid,"forbidden lower range type");
 				result := SyntaxTree.invalidExpression;
 			ELSIF (from IS SyntaxTree.StringValue) THEN
-				from := ConvertValue(from.position,from(SyntaxTree.Value),Global.Char);
+				from := ConvertValue(from.position,from(SyntaxTree.Value),system.characterType);
 			END;
 			IF to = NIL THEN
 			ELSIF ~(to.type.resolved IS SyntaxTree.IntegerType) & ~IsCharacterType(to.type) THEN
 				Error(to.position,Diagnostics.Invalid,"forbidden upper range type");
 				result := SyntaxTree.invalidExpression;
 			ELSIF (to IS SyntaxTree.StringValue) THEN
-				to := ConvertValue(to.position,to(SyntaxTree.Value),Global.Char);
+				to := ConvertValue(to.position,to(SyntaxTree.Value),system.characterType);
 			END;
 			IF result # SyntaxTree.invalidExpression THEN
 				IF (from # NIL) & (to # NIL) THEN
@@ -2242,7 +2285,7 @@ TYPE
 					END;
 					commonType := from.type;
 				ELSE
-					commonType := Global.Longint
+					commonType := system.longintType
 				END;
 				IF (by = NIL) OR CompatibleTo(system,by.type.resolved,commonType.resolved) THEN
 					x.SetFrom(from); x.SetTo(to); x.SetBy(by);
@@ -2307,7 +2350,7 @@ TYPE
 				scope := scope.outerScope;
 			END;
 			IF scope = NIL THEN (* in module scope *)
-				x.SetType(Global.Any);
+				x.SetType(system.anyType);
 			ELSE (* in record scope *)
 				record := scope(SyntaxTree.RecordScope).ownerRecord;
 				IF (record # NIL) & (record.pointerType # NIL) THEN
@@ -2867,11 +2910,11 @@ TYPE
 			if expression x is of integer type then return true else report error and return false
 		**)
 		PROCEDURE CheckIntegerType(x: SyntaxTree.Expression): BOOLEAN;
-		VAR result: BOOLEAN;
+		VAR result: BOOLEAN; type: SyntaxTree.Type;
 		BEGIN
-			result := FALSE;
+			result := FALSE; type := x.type.resolved;
 			IF x = SyntaxTree.invalidExpression THEN
-			ELSIF ~(x.type.resolved IS SyntaxTree.IntegerType) & (x.type.resolved # Global.Byte) THEN
+			ELSIF ~(type IS SyntaxTree.IntegerType) & ~(type IS SyntaxTree.ByteType) & ~(type IS SyntaxTree.AddressType) & ~(type IS SyntaxTree.SizeType) THEN
 				Error(x.position,Diagnostics.Invalid,"is no integer type");
 			ELSE result := TRUE
 			END;
@@ -2886,7 +2929,7 @@ TYPE
 		BEGIN
 			result := FALSE;
 			IF x = SyntaxTree.invalidExpression THEN
-			ELSIF ~(x.type.resolved = Global.Char) & (x.type.resolved # Global.Byte) & ~IsCharacterType(x.type.resolved) THEN
+			ELSIF ~(x.type.resolved IS SyntaxTree.CharacterType) & ~(x.type.resolved IS SyntaxTree.ByteType) & ~IsCharacterType(x.type.resolved) THEN
 				Error(x.position,Diagnostics.Invalid,"is no character type");
 			ELSE result := TRUE
 			END;
@@ -2916,7 +2959,7 @@ TYPE
 		BEGIN
 			result := FALSE;
 			IF x = SyntaxTree.invalidExpression THEN
-			ELSIF (x.type.resolved # Global.Boolean) THEN
+			ELSIF ~(x.type.resolved IS SyntaxTree.BooleanType) THEN
 				Error(x.position,Diagnostics.Invalid,"is no boolean type");
 			ELSE result := TRUE
 			END;
@@ -2931,7 +2974,7 @@ TYPE
 		BEGIN
 			result := FALSE;
 			IF x = SyntaxTree.invalidExpression THEN
-			ELSIF (x.type.resolved # Global.Set) THEN
+			ELSIF ~(x.type.resolved IS SyntaxTree.SetType) THEN
 				Error(x.position,Diagnostics.Invalid,"is no set type");
 			ELSE result := TRUE
 			END;
@@ -3109,7 +3152,7 @@ TYPE
 
 			id := builtin.id;
 			IF system.operatorDefined[id] THEN (* try to find overloaded operator *)
-				result := NewOperatorCall(position,builtin.id,parameter0,parameter1,Global.All);
+				result := NewOperatorCall(position,builtin.id,parameter0,parameter1,system.allType);
 			END;
 
 			IF result = SyntaxTree.invalidExpression THEN (* error already handled *)
@@ -3172,7 +3215,7 @@ TYPE
 								Error(position,Diagnostics.Invalid,"parameter out of SET range")
 							END;
 						END;
-						parameter1 := NewConversion(0,parameter1,Global.Longint,NIL);
+						parameter1 := NewConversion(0,parameter1,system.longintType,NIL);
 						actualParameters.SetExpression(1,parameter1);
 					END;
 				(* ---- HALT, SYSTEM.HALT ----- *)
@@ -3204,7 +3247,7 @@ TYPE
 									REPEAT
 										actualParameter := actualParameters.GetExpression(i);
 										IF CheckIntegerType(actualParameter) THEN
-											actualParameter := NewConversion(0,actualParameter,Global.Longint,NIL);
+											actualParameter := NewConversion(0,actualParameter,system.longintType,NIL);
 											actualParameters.SetExpression(i,actualParameter);
 										END;
 										INC(i);
@@ -3310,7 +3353,7 @@ TYPE
 								type := Global.GetIntegerType(system,i0);
 							END;
 						END;
-						type := Global.Longint;
+						type := system.longintType;
 						(*!compatibility with release, remove when resolved
 						    critical in release : SHORT(ASH(..))), ASH(ORD(..))
 						*)
@@ -3321,7 +3364,7 @@ TYPE
 					END;
 				(* ---- CAP ----- *)
 				ELSIF (id = Global.Cap) & Parameters(1,1) THEN
-					type := Global.Char;
+					type := system.characterType;
 					IF CheckCharacterType (parameter0) THEN
 						IF IsCharacterValue(parameter0,c) THEN
 							IF (c <= "z") & (c >= "a") THEN
@@ -3333,7 +3376,7 @@ TYPE
 					END;
 				(* ---- CHR ----- *)
 				ELSIF (id = Global.Chr) & Parameters(1,1) THEN
-					type := Global.Char;
+					type := system.characterType;
 					IF CheckIntegerType(parameter0) THEN
 						IF IsIntegerValue(parameter0,i0)  THEN
 							result.SetResolved(SyntaxTree.NewCharacterValue(position,CHR(i0)));
@@ -3346,7 +3389,7 @@ TYPE
 					END
 				(* ---- ENTIER ----- *)
 				ELSIF (id = Global.Entier) & Parameters(1,1) THEN
-					type := Global.Longint;
+					type := system.longintType;
 					IF CheckRealType(parameter0) THEN
 						IF IsRealValue(parameter0,r) THEN
 							result.SetResolved(SyntaxTree.NewIntegerValue(position,ENTIER(r)));
@@ -3355,7 +3398,7 @@ TYPE
 					END;
 				(* ---- ENTIERH ----- *)
 				ELSIF (id = Global.EntierH) & Parameters(1,1) THEN
-					type := Global.Hugeint;
+					type := system.hugeintType;
 					IF CheckRealType(parameter0) THEN
 						IF IsRealValue(parameter0,r) THEN
 							result.SetResolved(SyntaxTree.NewIntegerValue(position,ENTIERH(r)));
@@ -3363,7 +3406,7 @@ TYPE
 					END;
 				(* ---- LEN ----- *)
 				ELSIF (id = Global.Len) & Parameters(1,2) THEN
-					type := Global.Longint;
+					type := system.longintType;
 					base := type0;
 
 					IF (base IS SyntaxTree.PointerType) & (parameter0 IS SyntaxTree.Designator) THEN
@@ -3390,7 +3433,7 @@ TYPE
 							END;
 						END;
 						IF numberActualParameters=2 THEN
-							parameter1 := NewConversion(parameter1.position,parameter1,Global.Longint,NIL);
+							parameter1 := NewConversion(parameter1.position,parameter1,system.longintType,NIL);
 							actualParameters.SetExpression(1,parameter1);
 						ELSIF base IS SyntaxTree.MathArrayType THEN
 							Error(position,Diagnostics.Invalid,"missing dimension specification");
@@ -3417,20 +3460,20 @@ TYPE
 							END;
 						END;
 					ELSE
-						type := Global.Longint;
+						type := system.longintType;
 					END;
 				(* ---- MAX ----- *)
 				ELSIF (id = Global.Max) & Parameters(1,2) THEN
 					IF numberActualParameters = 1 THEN
 						IF parameter0.type = SyntaxTree.typeDeclarationType THEN
 							type := parameter0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved;
-							IF type = Global.Char THEN result.SetResolved(SyntaxTree.NewCharacterValue(position,MAX(CHAR)));
-							ELSIF type = Global.Char16 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0FFFFH));
+							IF type IS SyntaxTree.CharacterType THEN result.SetResolved(SyntaxTree.NewCharacterValue(position,MAX(CHAR)));
+							(*!! ELSIF type = Global.Char16 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0FFFFH));
 							ELSIF type = Global.Char32 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0FFFFFFFFH));
-							ELSIF type IS SyntaxTree.IntegerType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,Global.MaxInteger(system,type)));
-							ELSIF type = Global.Real THEN result.SetResolved(SyntaxTree.NewRealValue(position,MAX(REAL)));
-							ELSIF type = Global.Longreal THEN result.SetResolved(SyntaxTree.NewRealValue(position,MAX(LONGREAL)));
-							ELSIF type = Global.Set THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,system.SizeOf(type)-1)); type := Global.Shortint;
+							*)
+							ELSIF type IS SyntaxTree.IntegerType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,Global.MaxInteger(system,type(SyntaxTree.IntegerType))));
+							ELSIF type IS SyntaxTree.FloatType THEN result.SetResolved(SyntaxTree.NewRealValue(position,Global.MaxFloat(system,type(SyntaxTree.FloatType))));
+							ELSIF type IS SyntaxTree.SetType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,system.SizeOf(type)-1)); type := system.shortintType;
 							ELSE Error(Diagnostics.Invalid,parameter0.position,"builtin function not applicable to this type");
 							END;
 						ELSE
@@ -3456,13 +3499,10 @@ TYPE
 					IF numberActualParameters = 1 THEN
 						IF parameter0.type = SyntaxTree.typeDeclarationType THEN
 							type := parameter0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved;
-							IF type = Global.Char THEN result.SetResolved(SyntaxTree.NewCharacterValue(position,MIN(CHAR)));
-							ELSIF type = Global.Char16 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0H));
-							ELSIF type = Global.Char32 THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0H));
-							ELSIF type IS SyntaxTree.IntegerType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,Global.MinInteger(system,type)));
-							ELSIF type = Global.Real THEN result.SetResolved(SyntaxTree.NewRealValue(position,MIN(REAL)));
-							ELSIF type = Global.Longreal THEN result.SetResolved(SyntaxTree.NewRealValue(position,MIN(LONGREAL)));
-							ELSIF type = Global.Set THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0)); type := Global.Shortint;
+							IF type IS SyntaxTree.CharacterType THEN result.SetResolved(SyntaxTree.NewCharacterValue(position,MIN(CHAR)));
+							ELSIF type IS SyntaxTree.IntegerType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,Global.MinInteger(system,type(SyntaxTree.IntegerType))));
+							ELSIF type IS SyntaxTree.FloatType THEN result.SetResolved(SyntaxTree.NewRealValue(position,Global.MinFloat(system,type(SyntaxTree.FloatType))));
+							ELSIF type IS SyntaxTree.SetType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0)); type := system.shortintType;
 							ELSE Error(parameter0.position,Diagnostics.Invalid,"builtin function not applicable to this type");
 							END;
 						ELSE
@@ -3485,16 +3525,16 @@ TYPE
 					END;
 				(* ---- ODD ----- *)
 				ELSIF (id = Global.Odd) & Parameters(1,1) THEN
-					type := Global.Boolean;
+					type := system.booleanType;
 					IF CheckIntegerType(parameter0) THEN
 						IF IsIntegerValue(parameter0,i0)  THEN
 							result.SetResolved(SyntaxTree.NewBooleanValue(position,ODD(i0)));
-							type := Global.Boolean;
+							type := system.booleanType;
 						END;
 					END;
 				(* ---- ORD ----- *)
 				ELSIF (id = Global.Ord) & Parameters(1,1) THEN
-					type := Global.Integer;
+					type := system.integerType;
 					IF CheckCharacterType(parameter0) THEN
 						 IF IsCharacterValue(parameter0,c)THEN
 							result.SetResolved(Global.NewIntegerValue(system,position,ORD(c)));
@@ -3504,43 +3544,51 @@ TYPE
 				(* ---- SHORT ----- *)
 				ELSIF (id = Global.Short) & Parameters(1,1) THEN
 					type := type0;
-					i := LEN(Global.NumericType)-1;
-					WHILE(i>=0) & (Global.NumericType[i] # type) DO
-						DEC(i);
-					END;
-					IF (i<0) OR (Global.NumericType[i]=Global.Shortint) OR (Global.NumericType[i]=Global.Real)  THEN
-						Error(parameter0.position,Diagnostics.Invalid,"short not applicable");
-						result := SyntaxTree.invalidExpression;
-					ELSE
-						type := Global.NumericType[i-1];
-						IF (parameter0.resolved # NIL) THEN
-							parameter0 := ConvertValue(parameter0.position,parameter0.resolved,type);
-							IF parameter0 IS SyntaxTree.Value THEN
-								result.SetResolved(parameter0(SyntaxTree.Value));
+					IF type IS SyntaxTree.IntegerType THEN
+						IF type.sizeInBits = 8 THEN Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
+						ELSE
+							CASE type.sizeInBits OF
+								16: type := Global.Integer8
+								|32: type := Global.Integer16
+								|64: type := Global.Integer32
 							END;
+						END;
+					ELSIF type IS SyntaxTree.FloatType THEN
+						IF type.sizeInBits = 32 THEN Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
+						ELSIF type.sizeInBits = 64 THEN type := Global.Float32
+						END;
+					ELSE
+						 Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
+					END;
+					IF (parameter0.resolved # NIL) THEN
+						parameter0 := ConvertValue(parameter0.position,parameter0.resolved,type);
+						IF parameter0 IS SyntaxTree.Value THEN
+							result.SetResolved(parameter0(SyntaxTree.Value));
 						END;
 					END;
 				(* ---- LONG ----- *)
 				ELSIF (id = Global.Long) & Parameters(1,1) THEN
 					type := type0;
-					IF type = Global.Char THEN
-						type := Global.Longint;
-					ELSE
-						i := 0;
-						WHILE(i<LEN(Global.NumericType)) & (Global.NumericType[i] # type) DO
-							INC(i);
-						END;
-						IF (i = LEN(Global.NumericType)) OR (Global.NumericType[i] = Global.Longreal) OR (Global.NumericType[i]= Global.Hugeint) THEN
-							Error(parameter0.position,Diagnostics.Invalid,"long not applicable");
-							result := SyntaxTree.invalidExpression;
+					IF type IS SyntaxTree.IntegerType THEN
+						IF type.sizeInBits = 64 THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
 						ELSE
-							type := Global.NumericType[i+1];
-							IF (parameter0.resolved # NIL) THEN
-								parameter0 := ConvertValue(parameter0.position,parameter0.resolved,type);
-								IF parameter0 IS SyntaxTree.Value THEN
-									result.SetResolved(parameter0(SyntaxTree.Value));
-								END;
+							CASE type.sizeInBits OF
+							8: type := Global.Integer16
+							|16: type := Global.Integer32
+							|32: type := Global.Integer64
 							END;
+						END;
+					ELSIF type IS SyntaxTree.FloatType THEN
+						IF type.sizeInBits = 64 THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
+						ELSIF type.sizeInBits = 32 THEN type := Global.Float64
+						END;
+					ELSE
+						 Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
+					END;
+					IF (parameter0.resolved # NIL) THEN
+						parameter0 := ConvertValue(parameter0.position,parameter0.resolved,type);
+						IF parameter0 IS SyntaxTree.Value THEN
+							result.SetResolved(parameter0(SyntaxTree.Value));
 						END;
 					END;
 				(* ---- SYSTEM.SIZEOF ----- *)
@@ -3548,7 +3596,7 @@ TYPE
 					IF (parameter0.type = SyntaxTree.typeDeclarationType) THEN
 						type := parameter0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
 						result.SetResolved(SyntaxTree.NewIntegerValue(position,system.SizeOf(type.resolved) DIV 8 (* in bytes *) ));
-						type := Global.Integer;
+						type := system.integerType;
 						(* was Int16  in paco but should be systemSize (conflict with current release) *)
 					ELSE
 						(* for variables, system sizeof could represent the physically occupied size
@@ -3570,12 +3618,12 @@ TYPE
 				(* ---- SYSTEM.BIT ----- *)
 				ELSIF (id = Global.systemBit) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address,NIL);
+						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType,NIL);
 						actualParameters.SetExpression(0,parameter0);
-						parameter1 := NewConversion(parameter1.position,parameter1,Global.Address,NIL);
+						parameter1 := NewConversion(parameter1.position,parameter1,system.addressType,NIL);
 						actualParameters.SetExpression(1,parameter1);
 					END;
-					type := Global.Boolean;
+					type := system.booleanType;
 				(* ----- SYSTEM.MSK ---- *)
 				ELSIF (id = Global.systemMsk) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
@@ -3587,35 +3635,31 @@ TYPE
 				(* ---- SYSTEM.GET64 ----- *)
 				ELSIF (id = Global.systemGet64) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address,NIL);
+						parameter0 := NewConversion(0,parameter0,system.addressType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 					END;
-					type := Global.Hugeint;
-					(*! implement *)
+					type := system.hugeintType;
 				(* ---- SYSTEM.GET32 ----- *)
 				ELSIF (id = Global.systemGet32) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address,NIL);
+						parameter0 := NewConversion(0,parameter0,system.addressType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 					END;
-					type := Global.Longint;
-					(*! implement *)
+					type := system.longintType;
 				(* ---- SYSTEM.GET16 ----- *)
 				ELSIF (id = Global.systemGet16) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address,NIL);
+						parameter0 := NewConversion(0,parameter0,system.addressType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 					END;
-					type := Global.Integer;
-					(*! implement *)
+					type := system.integerType;
 				(* ---- SYSTEM.GET8 ----- *)
 				ELSIF (id = Global.systemGet8) & Parameters(1,1) THEN
 					IF CheckIntegerType(parameter0) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address,NIL);
+						parameter0 := NewConversion(0,parameter0,system.addressType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 					END;
-					type := Global.Shortint;
-					(*! implement *)
+					type := system.shortintType;
 				(* ---- SYSTEM.LSH, SYSTEM.ROT ----- *)
 				ELSIF ((id = Global.systemLsh) OR (id = Global.systemRot)) & Parameters(2,2) THEN
 (*					type := type0;
@@ -3634,7 +3678,7 @@ TYPE
 								type := Global.GetIntegerType(system,i0);
 							END;
 						END;
-						type := Global.Longint;
+						type := system.longintType;
 						(*!compatibility with release, remove when resolved
 						    critical in release : SHORT(ASH(..))), ASH(ORD(..))
 						*)
@@ -3668,53 +3712,53 @@ TYPE
 				(* ---- SYSTEM.GET ----- *)
 				ELSIF (id = Global.systemGet) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address,NIL);
+						parameter0 := NewConversion(0,parameter0,system.addressType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 				(* ---- SYSTEM.PUT ----- *)
 				ELSIF (id = Global.systemPut) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address,NIL);
+						parameter0 := NewConversion(0,parameter0,system.addressType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 					END;
 				(* ---- SYSTEM.PUT64 ----- *)
 				ELSIF (id = Global.systemPut64) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address,NIL);
-						parameter1 := NewConversion(parameter1.position,parameter1,Global.Hugeint,NIL);
+						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType,NIL);
+						parameter1 := NewConversion(parameter1.position,parameter1,system.hugeintType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
 					END;
 				(* ---- SYSTEM.PUT32 ----- *)
 				ELSIF (id = Global.systemPut32) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address,NIL);
-						parameter1 := NewConversion(parameter1.position,parameter1,Global.Longint,NIL);
+						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType,NIL);
+						parameter1 := NewConversion(parameter1.position,parameter1,system.longintType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
 					END;
 				(* ---- SYSTEM.PUT16 ----- *)
 				ELSIF (id = Global.systemPut16) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address,NIL);
-						parameter1 := NewConversion(parameter1.position,parameter1,Global.Integer,NIL);
+						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType,NIL);
+						parameter1 := NewConversion(parameter1.position,parameter1,system.integerType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
 					END;
 				(* ---- SYSTEM.PUT8 ----- *)
 				ELSIF (id = Global.systemPut8) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
-						parameter0 := NewConversion(parameter0.position,parameter0,Global.Address,NIL);
-						parameter1 := NewConversion(parameter1.position,parameter1,Global.Shortint,NIL);
+						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType,NIL);
+						parameter1 := NewConversion(parameter1.position,parameter1,system.shortintType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
 					END;
 				(* ---- SYSTEM.MOVE ----- *)
 				ELSIF (id = Global.systemMove) & Parameters(3,3) THEN
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) & CheckIntegerType(parameter2) THEN
-						parameter0 := NewConversion(0,parameter0,Global.Address,NIL);
-						parameter1 := NewConversion(0,parameter1,Global.Address,NIL);
-						parameter2 := NewConversion(0,parameter2,Global.Address,NIL);
+						parameter0 := NewConversion(0,parameter0,system.addressType,NIL);
+						parameter1 := NewConversion(0,parameter1,system.addressType,NIL);
+						parameter2 := NewConversion(0,parameter2,system.addressType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
 						actualParameters.SetExpression(2,parameter2);
@@ -3748,17 +3792,17 @@ TYPE
 								base := SyntaxTree.invalidType;
 							END;
 						END;
-						parameter1 := NewConversion(parameter1.position,parameter1,Global.Longint,NIL);
+						parameter1 := NewConversion(parameter1.position,parameter1,system.longintType,NIL);
 						actualParameters.SetExpression(1,parameter1);
 						IF (numberActualParameters =2) & (parameter1 IS SyntaxTree.IntegerValue) THEN
 							mathArrayType := base(SyntaxTree.MathArrayType);
 							IF (mathArrayType.form = SyntaxTree.Static) THEN
 								result := SyntaxTree.NewIntegerValue(position,ToMemoryUnits(system,mathArrayType.staticIncrementInBits));
-								type := Global.Longint;
+								type := system.longintType;
 							END;
 						END;
 					ELSE
-						type := Global.Longint;
+						type := system.longintType;
 					END;
 
 
@@ -3802,10 +3846,10 @@ TYPE
 				(* -------- ERA --------- *)
 				(* ---- SYSTEM.NULL ----- *)
 				ELSIF (id = Global.systemNull) & Parameters(1,1) THEN
-					type := Global.Boolean;
+					type := system.booleanType;
 				(* -------- FLT --------- *)
 				ELSIF (id = Global.Flt) & Parameters(1,1) THEN
-					type := Global.Real;
+					type := system.realType;
 					IF IsRealValue(parameter0, r) THEN
 						result.SetResolved(SyntaxTree.NewRealValue(position, r));
 					ELSIF CheckIntegerType(parameter0) & IsIntegerValue(parameter0, i) THEN
@@ -3824,7 +3868,7 @@ TYPE
 					END;
 				(* ------- FLOOR -------- *)
 				ELSIF (id = Global.Floor) & Parameters(1,1) THEN
-					type := Global.Longint;
+					type := system.longintType;
 					IF CheckRealType(parameter0) & IsRealValue(parameter0,r) THEN
 						result.SetResolved(SyntaxTree.NewIntegerValue(position,ENTIER(r)));
 					END;
@@ -4185,7 +4229,7 @@ TYPE
 			position := expression.position;
 			expression := ResolveExpression(expression);
 			IF expression = SyntaxTree.invalidExpression THEN (* error already reported *)
-			ELSIF (expression.type = NIL) OR ~(expression.type.resolved = Global.Boolean) THEN
+			ELSIF (expression.type = NIL) OR ~(expression.type.resolved IS SyntaxTree.BooleanType) THEN
 				expression := SyntaxTree.invalidExpression;
 				Error(position,Diagnostics.Invalid,"expression is not boolean");
 			END;
@@ -4841,11 +4885,11 @@ TYPE
 					left := ConstantExpression(expression(SyntaxTree.RangeExpression).from);
 					right := ConstantExpression(expression(SyntaxTree.RangeExpression).to);
 					IF IsStringType(left.type) & IsCharacterValue(left,cl) THEN
-						left := Global.NewCharacterValue(left.position,cl);
+						left := Global.NewCharacterValue(system,left.position,cl);
 						expression(SyntaxTree.RangeExpression).from.SetResolved(left(SyntaxTree.CharacterValue));
 					END;
 					IF IsStringType(right.type) & IsCharacterValue(right,cr) THEN
-						right := Global.NewCharacterValue(right.position,cr);
+						right := Global.NewCharacterValue(system,right.position,cr);
 						expression(SyntaxTree.RangeExpression).to.SetResolved(right(SyntaxTree.CharacterValue));
 					END;
 					expressionType := RegularType(position,left.type);
@@ -4854,7 +4898,7 @@ TYPE
 				ELSE
 					expression := ConstantExpression(expression);
 					IF IsStringType(expression.type) & IsCharacterValue(expression,cl) THEN
-						left := Global.NewCharacterValue(expression.position,cl);
+						left := Global.NewCharacterValue(system,expression.position,cl);
 						expression := casePart.elements.GetExpression(i);
 						expression.SetResolved(left(SyntaxTree.CharacterValue));
 						expression := left
@@ -4909,7 +4953,7 @@ TYPE
 				expression := SyntaxTree.invalidExpression;
 			ELSIF (type IS SyntaxTree.IntegerType) THEN
 			ELSIF IsStringType(expression.type) & IsCharacterValue(expression,ch) THEN
-				expression := Global.NewCharacterValue(expression.position,ch);
+				expression := Global.NewCharacterValue(system,expression.position,ch);
 				type := expression.type;
 			ELSIF IsCharacterType(type) THEN
 			ELSE
@@ -5656,7 +5700,7 @@ TYPE
 			RETURN
 				(numberParameters = 0) & TypeAllowed(procedureType.returnType) OR
 				(numberParameters = 1) & TypeAllowed(procedureType.firstParameter.type) & TypeAllowed(procedureType.returnType) OR
-				(numberParameters = 1) & (procedureType.firstParameter.ownerType.resolved = Global.Any) & (procedureType.returnType.resolved = Global.Any)
+				(numberParameters = 1) & (procedureType.firstParameter.ownerType.resolved IS SyntaxTree.AnyType) & (procedureType.returnType.resolved IS SyntaxTree.AnyType)
 		END;
 	END GetProcedureAllowed;
 
@@ -5684,26 +5728,34 @@ TYPE
 			ELSIF to IS SyntaxTree.BasicType THEN
 				IF (to IS SyntaxTree.NumberType) & (this IS SyntaxTree.NumberType) THEN
 					result := Global.BasicTypeDistance(system,this(SyntaxTree.BasicType),to(SyntaxTree.BasicType)) < Infinity;
-				ELSIF to = Global.Any THEN
-					result :=  (this IS SyntaxTree.RecordType) & this(SyntaxTree.RecordType).isObject OR (this IS SyntaxTree.PointerType) OR (this IS SyntaxTree.ProcedureType) OR (this =Global.Nil) OR (this = Global.Any) OR (this=Global.Object);
-				ELSIF to = Global.Object THEN
-					result := IsPointerToRecord(this) OR (this = Global.Nil) OR (this = Global.Object) OR (this = Global.Any) (*! remove when symbol file can distinguish OBJECT from ANY *) ;
-				ELSIF to = Global.Byte THEN
-					result := (this = Global.Shortint) OR IsCharacterType(this)
-				ELSIF to = Global.Char THEN
+				ELSIF (to IS SyntaxTree.IntegerType) & (this IS SyntaxTree.AddressType) THEN
+					result := to.sizeInBits >= this.sizeInBits; (* weak compatibility: (unsigned) address may be assigned to signed integer of same (or greater) size *)
+				ELSIF (to IS SyntaxTree.IntegerType) & (this IS SyntaxTree.SizeType) THEN
+					result := to.sizeInBits >= this.sizeInBits; (* compatibility: (signed) size may be assigned to signed integer of greater or equal size *)
+				ELSIF to IS SyntaxTree.AnyType THEN
+					result :=  (this IS SyntaxTree.RecordType) & this(SyntaxTree.RecordType).isObject OR (this IS SyntaxTree.PointerType) OR (this IS SyntaxTree.ProcedureType) OR (this IS SyntaxTree.NilType) OR (this IS SyntaxTree.AnyType) OR (this IS SyntaxTree.ObjectType);
+				ELSIF to IS SyntaxTree.ObjectType THEN
+					result := IsPointerToRecord(this) OR (this IS SyntaxTree.NilType) OR (this IS SyntaxTree.ObjectType) OR (this IS SyntaxTree.AnyType) (*! remove when symbol file can distinguish OBJECT from ANY *) ;
+				ELSIF to IS SyntaxTree.ByteType THEN
+					result := (this IS SyntaxTree.IntegerType) & (to.sizeInBits = 8) OR IsCharacterType(this)
+				ELSIF to IS SyntaxTree.CharacterType THEN
 					result := IsCharacterType(this)
+				ELSIF (to IS SyntaxTree.SizeType) & ((this IS SyntaxTree.SizeType) OR (this IS SyntaxTree.IntegerType) OR (this IS SyntaxTree.AddressType)) THEN
+					result := to.sizeInBits >= this.sizeInBits (*! weak compatibility: signed size type may be assigned with unsigned address type of same size *)
+				ELSIF (to IS SyntaxTree.AddressType) & ((this IS SyntaxTree.AddressType) OR (this IS SyntaxTree.IntegerType) OR (this IS SyntaxTree.SizeType)) THEN
+					result := to.sizeInBits >= this.sizeInBits; (*! weak compatibility: addresses may be assigned with signed integer *)
 				ELSE
 					result := FALSE
 				END;
 			ELSIF to IS SyntaxTree.PointerType THEN
 				result := IsPointerType(this) & (IsTypeExtension(to,this) OR ((to(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType) & SameType(to,this,NIL)))
-				     & (~to.IsRealtime() OR this.IsRealtime()) OR (this = Global.Nil)
+				     & (~to.IsRealtime() OR this.IsRealtime()) OR (this IS SyntaxTree.NilType)
 			ELSIF to IS SyntaxTree.ProcedureType THEN
-				result := (this = Global.Nil) OR (this IS SyntaxTree.ProcedureType) & SameType(to(SyntaxTree.ProcedureType),this(SyntaxTree.ProcedureType),NIL)
+				result := (this IS SyntaxTree.NilType) OR (this IS SyntaxTree.ProcedureType) & SameType(to(SyntaxTree.ProcedureType),this(SyntaxTree.ProcedureType),NIL)
 					& (~(SyntaxTree.DelegateFlag IN this(SyntaxTree.ProcedureType).flags) OR (SyntaxTree.DelegateFlag IN to(SyntaxTree.ProcedureType).flags))
 					& (~to.IsRealtime() OR this.IsRealtime());
 			ELSIF (to IS SyntaxTree.RecordType) & to(SyntaxTree.RecordType).isObject THEN
-				result := (this = Global.Nil) OR IsTypeExtension(to,this);
+				result := (this IS SyntaxTree.NilType) OR IsTypeExtension(to,this);
 			ELSIF to IS SyntaxTree.RecordType THEN
 				result :=  (this IS SyntaxTree.RecordType) & IsTypeExtension(to,this);
 			ELSIF to IS SyntaxTree.ArrayType THEN
@@ -5714,7 +5766,7 @@ TYPE
 				END;
 			ELSIF to IS SyntaxTree.MathArrayType THEN
 				IF this IS SyntaxTree.MathArrayType THEN
-					IF to(SyntaxTree.MathArrayType).arrayBase.resolved = Global.All THEN
+					IF to(SyntaxTree.MathArrayType).arrayBase.resolved IS SyntaxTree.AllType THEN
 						IF to(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
 							result := TRUE;
 						ELSE
@@ -5770,11 +5822,11 @@ TYPE
 		ELSE
 			arrayBase := formalType.arrayBase.resolved;
 			IF (actualType IS SyntaxTree.StringType) THEN
-				result := arrayBase = Global.Char
+				result := arrayBase IS SyntaxTree.CharacterType
 			ELSIF actualType IS SyntaxTree.ArrayType THEN
-				result := (arrayBase = Global.Byte) OR TC(formalType,actualType)
+				result := (arrayBase IS SyntaxTree.ByteType) OR TC(formalType,actualType)
 			ELSE
-				result := (arrayBase = Global.Byte)
+				result := (arrayBase IS SyntaxTree.ByteType)
 			END;
 		END;
 		RETURN result
@@ -5793,7 +5845,7 @@ TYPE
 				*)
 				actualBase := ArrayBase(actualType,Infinity);
 				formalBase := ArrayBase(formalType,Infinity);
-				result := SameType(formalBase,actualBase,NIL) OR (formalBase = Global.All);
+				result := SameType(formalBase,actualBase,NIL) OR (formalBase IS SyntaxTree.AllType);
 			ELSE
 				(*
 					ARRAY [*|k] OF -> ARRAY [*|n] OF
@@ -5811,7 +5863,7 @@ TYPE
 				IF ~result THEN
 				ELSIF formalBase IS SyntaxTree.MathArrayType THEN
 					result := MathArrayCompatible(formalBase(SyntaxTree.MathArrayType),actualBase)
-				ELSIF formalBase = Global.All THEN
+				ELSIF formalBase IS SyntaxTree.AllType THEN
 					result := ~(actualBase IS SyntaxTree.MathArrayType);
 				ELSE
 					result := SameType(formalBase,actualBase,NIL)
@@ -5855,7 +5907,7 @@ TYPE
 			(* static -> static, open -> open, tensor -> tensor *)
 			IF (from.form # SyntaxTree.Static) OR (from.staticLength = to.staticLength) THEN
 				IF fromBase = toBase THEN i := 0
-				ELSIF toBase = Global.All THEN i := 1
+				ELSIF toBase IS SyntaxTree.AllType THEN i := 1
 				ELSIF (fromBase IS SyntaxTree.MathArrayType) & (toBase IS SyntaxTree.MathArrayType) THEN
 					i := MathArrayTypeDistance(fromBase(SyntaxTree.MathArrayType),toBase(SyntaxTree.MathArrayType));
 				END;
@@ -5865,7 +5917,7 @@ TYPE
 		ELSIF (from.form = SyntaxTree.Tensor) OR (to.form = SyntaxTree.Tensor) THEN
 			(* static -> tensor, open -> tensor, tensor -> open *)
 			IF toBase=fromBase THEN i := 0;
-			ELSIF toBase = Global.All THEN i := 1;
+			ELSIF toBase IS SyntaxTree.AllType THEN i := 1;
 			ELSIF (toBase IS SyntaxTree.MathArrayType) THEN
 				toBase := ArrayBase(toBase,Infinity);
 				IF fromBase=toBase THEN i := 0 END;
@@ -5877,7 +5929,7 @@ TYPE
 		ELSIF (from.form = SyntaxTree.Static) THEN
 			(* static -> open *)
 			IF toBase=fromBase THEN i := 0
-			ELSIF toBase = Global.All THEN i := 1
+			ELSIF toBase IS SyntaxTree.AllType THEN i := 1
 			ELSIF (toBase IS SyntaxTree.MathArrayType) & (fromBase IS SyntaxTree.MathArrayType) THEN
 				i := MathArrayTypeDistance(fromBase(SyntaxTree.MathArrayType),toBase(SyntaxTree.MathArrayType));
 			END;
@@ -5964,21 +6016,21 @@ TYPE
 		i := Infinity;
 		IF from = to THEN
 			i := 0
-		ELSIF to = Global.All THEN
+		ELSIF to IS SyntaxTree.AllType THEN
 			i := 1;
-		ELSIF from = Global.All THEN
+		ELSIF from IS SyntaxTree.AllType THEN
 			i := 1;
-		ELSIF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved = Global.Byte) THEN
+		ELSIF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved IS SyntaxTree.ByteType) THEN
 			i := 1
 		ELSIF (from IS SyntaxTree.StringType) THEN
-			IF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char) THEN  i := 1  END
-		ELSIF (from = Global.Char) THEN
-			IF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char) THEN  i := 1
-			ELSIF to = Global.Byte THEN i := 1 END
-		ELSIF (from = Global.Shortint) & (to = Global.Byte) THEN
+			IF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved  IS SyntaxTree.CharacterType) THEN  i := 1  END
+		ELSIF (from IS SyntaxTree.CharacterType) THEN
+			IF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved IS SyntaxTree.CharacterType) THEN  i := 1
+			ELSIF to IS SyntaxTree.ByteType THEN i := 1 END
+		ELSIF (from IS SyntaxTree.IntegerType) & (to IS SyntaxTree.ByteType) & (to.sizeInBits = from.sizeInBits) THEN
 			i := 1
-		ELSIF (from = Global.Nil) THEN
-			IF (to = Global.Any) OR (to = Global.Object) OR (to IS SyntaxTree.PointerType) OR (to IS SyntaxTree.ProcedureType) THEN i := 1 END
+		ELSIF (from IS SyntaxTree.NilType) THEN
+			IF (to IS SyntaxTree.AnyType) OR (to IS SyntaxTree.ObjectType) OR (to IS SyntaxTree.PointerType) OR (to IS SyntaxTree.ProcedureType) THEN i := 1 END
 		(*
 		ELSIF (from = NoType) THEN
 			IF (to IS Delegate) THEN i := 1 END	(*special case: procedure -> proctype, not resolved yet*)
@@ -5999,7 +6051,7 @@ TYPE
 			END
 		ELSIF (from IS SyntaxTree.PointerType) THEN
 			ptr := from(SyntaxTree.PointerType);
-			IF (to = Global.Any) THEN i := 1
+			IF (to IS SyntaxTree.AnyType) THEN i := 1
 			ELSIF to IS SyntaxTree.PointerType THEN i := PointerTypeDistance(ptr, to(SyntaxTree.PointerType))
 			(* ELSE i := TypeDistance(ptr.base, to); *)
 			END
@@ -6159,9 +6211,9 @@ TYPE
 				result := TRUE
 			ELSIF t1=t2 THEN
 				result := TRUE
-			ELSIF (t1=Global.Object) & (t2=Global.Any) THEN (*! only because we want to get rid of ANY anyway and binary symbol file cannot distinguish the two *)
+			ELSIF (t1 IS SyntaxTree.ObjectType) & (t2 IS SyntaxTree.AnyType) THEN (*! only because we want to get rid of ANY anyway and binary symbol file cannot distinguish the two *)
 				result := TRUE
-			ELSIF (t2=Global.Object) & (t1=Global.Any) THEN (*! only because we want to get rid of ANY anyway and binary symbol file cannot distinguish the two *)
+			ELSIF (t2 IS SyntaxTree.ObjectType) & (t1 IS SyntaxTree.AnyType) THEN (*! only because we want to get rid of ANY anyway and binary symbol file cannot distinguish the two *)
 				result := TRUE
 			ELSIF t1 IS SyntaxTree.BasicType THEN
 				result := t1=t2;
@@ -6246,7 +6298,7 @@ TYPE
 	BEGIN
 		IF type = NIL THEN result := FALSE
 		ELSE
-		type := type.resolved; result :=  (type = Global.Any) OR (type IS SyntaxTree.PointerType) OR (type = Global.Nil) OR (type = Global.Object)
+		type := type.resolved; result :=  (type IS SyntaxTree.AnyType) OR (type IS SyntaxTree.PointerType) OR (type IS SyntaxTree.NilType)  OR (type  IS SyntaxTree.ObjectType)
 		END;
 		RETURN result
 	END IsPointerType;
@@ -6259,7 +6311,7 @@ TYPE
 			type := type.resolved;
 			result := (type IS SyntaxTree.PointerType) & (type(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.RecordType);
 			result := result OR	(type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).pointerType # NIL);
-			result := result OR (type = Global.Object);
+			result := result OR (type IS SyntaxTree.ObjectType);
 		END;
 		RETURN result
 	END IsPointerToRecord;
@@ -6294,7 +6346,7 @@ TYPE
 	BEGIN
 		IF type = NIL THEN RETURN FALSE END;
 		type := type.resolved;
-		RETURN (type IS SyntaxTree.StringType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved = Global.Char);
+		RETURN (type IS SyntaxTree.StringType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved IS SyntaxTree.CharacterType);
 	END IsStringType;
 
 	PROCEDURE IsCharacterType*(type: SyntaxTree.Type):BOOLEAN;
@@ -6312,7 +6364,7 @@ TYPE
 		ASSERT(base # NIL); ASSERT(extension # NIL);
 		base := base.resolved; extension := extension.resolved;
 
-		IF ((base = Global.Object) OR (base = Global.Any)) & IsPointerToRecord(extension) THEN
+		IF ( (base IS SyntaxTree.ObjectType) OR  (base IS SyntaxTree.AnyType)) & IsPointerToRecord(extension) THEN
 			result := TRUE;
 		ELSE
 			IF (base IS SyntaxTree.PointerType) & (extension IS SyntaxTree.PointerType) THEN
@@ -6424,7 +6476,7 @@ TYPE
 		type := type.resolved;
 		IF type IS SyntaxTree.PointerType THEN
 			result := IsExtensibleType(type(SyntaxTree.PointerType).pointerBase.resolved);
-		ELSIF (type = Global.Any) OR (type = Global.Object) THEN
+		ELSIF (type IS SyntaxTree.AnyType) OR (type IS SyntaxTree.ObjectType)  THEN
 			result := TRUE
 		ELSE
 			result := type IS SyntaxTree.RecordType

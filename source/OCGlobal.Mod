@@ -91,22 +91,16 @@ VAR
 	SelfParameterName-,ReturnParameterName-,SystemName-,systemName-,PointerReturnName-, ResultName-,
 	A2Name-,OberonName-,ArrayBaseName-,RecordBodyName-,ModuleBodyName-: SyntaxTree.Identifier;
 
-
-	(* global types, note that no explicit statement is made about the size of the types *)
-	Char-, Char8-, Char16-, Char32-: SyntaxTree.CharacterType; (* currently, the Oberon language defines CHAR = CHAR8 *)
-	Hugeint-, Longint-, Integer-, Shortint-: SyntaxTree.IntegerType; (* (signed) integer types *)
-	Real-, Longreal-: SyntaxTree.FloatType; (* floating point types *)
-	Boolean-, Set-: SyntaxTree.BasicType; (* boolean and set type *)
-	Nil-,Any-, Object-: SyntaxTree.BasicType; (* special types for NIL, ANY and OBJECT *)
-	All-, Same-, RangeType-: SyntaxTree.Type; (* special types for Math Oberon *)
-
-	Byte-, Address-,Size-: SyntaxTree.BasicType; (* special system types *)
-
-	(* helpful mappings for conversions etc *)
-	NumericType-: ARRAY 6 OF SyntaxTree.Type;
-	CharacterType-: ARRAY 3 OF SyntaxTree.Type;
-
 	identifiers: ARRAY 2 OF ARRAY end OF SyntaxTree.Identifier;
+
+	(* some handy type variables for backend / checker implementers *)
+	Boolean8, Boolean32: SyntaxTree.BooleanType;
+	Set32: SyntaxTree.SetType;
+	Integer8-, Integer16-, Integer32-, Integer64-: SyntaxTree.IntegerType;
+	Character8-, Character16-, Character32-: SyntaxTree.CharacterType;
+	Float32-, Float64-: SyntaxTree.FloatType;
+	Byte8: SyntaxTree.ByteType;
+	Byte32: SyntaxTree.ByteType;
 
 TYPE
 	Alignment* = RECORD
@@ -137,12 +131,14 @@ TYPE
 			problematic are mainly the conversions between (signed) Oberon types and (unsigned) addressType.
 			A good concept has to be derived.
 		*)
-		addressType-, sizeType-: SyntaxTree.BasicType;
+
+		addressType-, sizeType-, shortintType-, integerType-, longintType-, hugeintType-, characterType-, setType-, booleanType-, anyType-,byteType-,
+		realType-, longrealType-, allType-, objectType-, nilType-
+		: SyntaxTree.Type;
 
 		PROCEDURE &InitSystem*(dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar: LONGINT);
 		VAR i: LONGINT;
 		BEGIN
-			addressType := Address; sizeType := Size;
 			ASSERT(dataUnit > 0);
 			ASSERT(minVarAlign > 0);
 			ASSERT(maxVarAlign > 0);
@@ -250,35 +246,8 @@ TYPE
 		VAR size: LONGINT;
 		BEGIN
 			type := type.resolved;
-			IF type IS SyntaxTree.CharacterType THEN
-				IF type = Char8 THEN size := 8
-				ELSIF type = Char16 THEN size := 16
-				ELSIF type = Char32 THEN size := 32
-				ELSE HALT(100)
-				END;
-			ELSIF type IS SyntaxTree.NumberType THEN
-				IF type = Shortint THEN size := 8
-				ELSIF type = Integer THEN size := 16
-				ELSIF type = Longint THEN size := 32
-				ELSIF type = Hugeint THEN size := 64
-				ELSIF type = Real THEN size := 32
-				ELSIF type = Longreal THEN size := 64
-				ELSE HALT(100)
-				END;
-			ELSIF type IS SyntaxTree.BasicType THEN
-				IF type = Byte THEN size := 8
-				ELSIF type = All THEN size := addressSize
-				ELSIF type = Same THEN size := addressSize
-				ELSIF type = Boolean THEN size := 8
-				ELSIF type = Set THEN size := addressSize
-				ELSIF type = Any THEN size := addressSize
-				ELSIF type = RangeType THEN size :=3*addressSize
-				ELSIF type = Nil THEN size := addressSize
-				ELSIF type = Object THEN size := addressSize
-				ELSIF type = Address THEN size := addressSize
-				ELSIF type = Size THEN size := addressSize
-				ELSE HALT(100);
-				END
+			IF type IS SyntaxTree.BasicType THEN
+				size := type.sizeInBits
 			ELSIF type IS SyntaxTree.PointerType THEN
 				size := addressSize
 			ELSIF type IS SyntaxTree.ProcedureType THEN
@@ -347,7 +316,7 @@ TYPE
 				END;
 			ELSIF type IS SyntaxTree.StringType THEN
 				ASSERT(SyntaxTree.Resolved IN type.state);
-				size := type(SyntaxTree.StringType).length * SizeOf(Char);
+				size := type(SyntaxTree.StringType).length * SizeOf(characterType);
 			ELSIF type IS SyntaxTree.EnumerationType THEN
 				size := addressSize
 			ELSIF type = SyntaxTree.invalidType THEN size := 0
@@ -403,7 +372,7 @@ TYPE
 					result := alignment.max
 				END;
 			ELSIF type IS SyntaxTree.StringType THEN
-				result := SizeOf(Char);
+				result := SizeOf(characterType);
 			ELSE
 				result := SizeOf(type);
 				IF result > alignment.max THEN result := alignment.max END;
@@ -431,20 +400,43 @@ TYPE
 		system.systemModule[Scanner.Lowercase] := SyntaxTree.NewModule("",-1,systemName,system.systemScope[Scanner.Lowercase],Scanner.Lowercase);
 	END BuildScopes;
 
-	PROCEDURE MapSystemTypes*(system: System; address, size: SyntaxTree.BasicType);
+	PROCEDURE SetDefaultDeclarations*(system: System; minBits: LONGINT);
 	BEGIN
-		system.addressType := address;
-		system.sizeType := size;
-	END MapSystemTypes;
+		(* types *)
+		system.longintType := Integer32;
+		system.hugeintType := Integer64;
+		system.realType := Float32;
+		system.longrealType := Float64;
+		system.setType := Set32;
 
-	PROCEDURE SetDefaultDeclarations*(system: System);
-	BEGIN
+		IF minBits = 32 THEN
+			system.shortintType := Integer32;
+			system.integerType := Integer32;
+			system.booleanType := Boolean32;
+			system.byteType := Byte32;
+			system.characterType := Character32;
+		ELSE
+			ASSERT(minBits = 8); (* nothing else is currently implemented *)
+			system.shortintType := Integer8;
+			system.integerType := Integer16;
+			system.booleanType := Boolean8;
+			system.byteType := Byte8;
+			system.characterType := Character8;
+		END;
+
+		system.allType := SyntaxTree.NewAllType(system.addressSize);
+		system.anyType := SyntaxTree.NewAnyType(system.addressSize);
+		system.objectType := SyntaxTree.NewObjectType(system.addressSize);
+		system.nilType := SyntaxTree.NewNilType(system.addressSize);
+		system.addressType := SyntaxTree.NewAddressType(system.addressSize);
+		system.sizeType := SyntaxTree.NewSizeType(system.addressSize);
+
 		(* type declarations *)
-		DeclareType(Byte,"BYTE",system.systemScope);
+		DeclareType(system.byteType,"BYTE",system.systemScope);
 		DeclareType(system.addressType,"ADDRESS",system.systemScope); (* mapped to longint *)
 		DeclareType(system.sizeType,"SIZE",system.systemScope); (* mapped to longint *)
-		DeclareType(All,"ALL",system.systemScope);
-		DeclareType(Same,"SAME",system.systemScope);
+		DeclareType(system.allType,"ALL",system.systemScope);
+		(*DeclareType(Same,"SAME",system.systemScope);*)
 
 		(* system builtin procedures *)
 		NewBuiltin(systemGet,"GET",system.systemScope,{SyntaxTree.RealtimeFlag});
@@ -473,20 +465,21 @@ TYPE
 		NewBuiltin(systemMsk,"MSK",system.systemScope,{SyntaxTree.RealtimeFlag});
 
 		(* Set up system types *)
-		DeclareType(Char,"CHAR",system.globalScope);
-		DeclareType(Char8,"CHAR8",system.globalScope);
-		DeclareType(Char16,"CHAR16",system.globalScope);
-		DeclareType(Char32,"CHAR32",system.globalScope);
-		DeclareType(Shortint,"SHORTINT",system.globalScope);
-		DeclareType(Integer,"INTEGER",system.globalScope);
-		DeclareType(Longint,"LONGINT",system.globalScope);
-		DeclareType(Hugeint,"HUGEINT",system.globalScope);
-		DeclareType(Real,"REAL",system.globalScope);
-		DeclareType(Longreal,"LONGREAL",system.globalScope);
-		DeclareType(Boolean,"BOOLEAN",system.globalScope);
-		DeclareType(Set,"SET",system.globalScope);
-		DeclareType(Any,"ANY",system.globalScope);
-		DeclareType(Object,"OBJECT",system.globalScope);
+		system.characterType := Character8;
+		DeclareType(system.characterType,"CHAR",system.globalScope);
+		DeclareType(Character8,"CHAR8",system.globalScope);
+		DeclareType(Character16,"CHAR16",system.globalScope);
+		DeclareType(Character32,"CHAR32",system.globalScope);
+		DeclareType(system.shortintType,"SHORTINT",system.globalScope);
+		DeclareType(system.integerType,"INTEGER",system.globalScope);
+		DeclareType(system.longintType,"LONGINT",system.globalScope);
+		DeclareType(system.hugeintType,"HUGEINT",system.globalScope);
+		DeclareType(system.realType,"REAL",system.globalScope);
+		DeclareType(system.longrealType,"LONGREAL",system.globalScope);
+		DeclareType(system.booleanType,"BOOLEAN",system.globalScope);
+		DeclareType(system.setType,"SET",system.globalScope);
+		DeclareType(system.anyType,"ANY",system.globalScope);
+		DeclareType(system.objectType,"OBJECT",system.globalScope);
 
 		(* global functions *)
 		NewBuiltin(Abs,"ABS",system.globalScope,{SyntaxTree.RealtimeFlag});
@@ -553,8 +546,7 @@ TYPE
 	VAR system: System;
 	BEGIN
 		NEW(system,8,32, 8,32,32,32,64);
-		MapSystemTypes(system,Longint,Longint);
-		SetDefaultDeclarations(system);
+		SetDefaultDeclarations(system,8);
 		SetDefaultOperators(system);
 		RETURN system
 	END DefaultSystem;
@@ -600,38 +592,6 @@ TYPE
 		DeclareType0(type,nameU,scope[Scanner.Uppercase]);
 		DeclareType0(type,nameL,scope[Scanner.Lowercase]);
 	END DeclareType;
-
-	PROCEDURE NewBasicType(CONST name: Scanner.StringType; flags: SET): SyntaxTree.BasicType;
-	VAR basicType: SyntaxTree.BasicType;
-	BEGIN
-		basicType := SyntaxTree.NewBasicType(-1,SyntaxTree.NewIdentifier(-1,name),flags);
-		basicType.SetState(SyntaxTree.Resolved);
-		RETURN basicType;
-	END NewBasicType;
-
-	PROCEDURE NewCharacterType(CONST name: Scanner.StringType): SyntaxTree.CharacterType;
-	VAR basicType: SyntaxTree.CharacterType;
-	BEGIN
-		basicType := SyntaxTree.NewCharacterType(-1,SyntaxTree.NewIdentifier(-1,name));
-		basicType.SetState(SyntaxTree.Resolved);
-		RETURN basicType;
-	END NewCharacterType;
-
-	PROCEDURE NewIntegerType(CONST name: Scanner.StringType): SyntaxTree.IntegerType;
-	VAR basicType: SyntaxTree.IntegerType;
-	BEGIN
-		basicType := SyntaxTree.NewIntegerType(-1,SyntaxTree.NewIdentifier(-1,name));
-		basicType.SetState(SyntaxTree.Resolved);
-		RETURN basicType;
-	END NewIntegerType;
-
-	PROCEDURE NewFloatType(CONST name: Scanner.StringType): SyntaxTree.FloatType;
-	VAR basicType: SyntaxTree.FloatType;
-	BEGIN
-		basicType := SyntaxTree.NewFloatType(-1,SyntaxTree.NewIdentifier(-1,name));
-		basicType.SetState(SyntaxTree.Resolved);
-		RETURN basicType;
-	END NewFloatType;
 
 	PROCEDURE NewConstant0(CONST name: Scanner.StringType; int: LONGINT; type: SyntaxTree.Type; in: SyntaxTree.Scope);
 	VAR constant: SyntaxTree.Constant; value: SyntaxTree.IntegerValue;duplicate: BOOLEAN;
@@ -759,8 +719,20 @@ TYPE
 	PROCEDURE Level*(t: SyntaxTree.Type): LONGINT;
 	VAR level: LONGINT;
 	BEGIN
-		level := LEN(NumericType)-1;
-		WHILE (level >= 0) & (NumericType[level] # t) DO DEC(level) END;
+		IF t IS SyntaxTree.IntegerType THEN
+			CASE t.sizeInBits OF
+				8: level := 0;
+				|16: level := 1;
+				|32: level := 2;
+				|64: level := 3;
+			END;
+		ELSIF t IS SyntaxTree.FloatType THEN
+			CASE t.sizeInBits OF
+				32: level := 4;
+				|64: level := 5;
+			END
+		ELSE HALT(100)
+		END;
 		RETURN level
 	END Level;
 
@@ -782,21 +754,30 @@ TYPE
 		RETURN h;
 	END ConvertUnsigned;
 
-
-
-	PROCEDURE MaxInteger*(system: System; type: SyntaxTree.Type): HUGEINT;
+	PROCEDURE MaxInteger*(system: System; type: SyntaxTree.IntegerType): HUGEINT;
 	VAR h: HUGEINT;
 	BEGIN
 		h := Runtime.AslH(1,system.SizeOf(type)-1);
 		RETURN h-1
 	END MaxInteger;
 
-	PROCEDURE MinInteger*(system: System; type: SyntaxTree.Type): HUGEINT;
+	PROCEDURE MinInteger*(system: System; type: SyntaxTree.IntegerType): HUGEINT;
 	VAR h: HUGEINT;
 	BEGIN
 		h := Runtime.AslH(1,system.SizeOf(type)-1);
 		RETURN -h
 	END MinInteger;
+
+	(*! make architecture  independent ! *)
+	PROCEDURE MaxFloat*(system: System; type: SyntaxTree.FloatType): LONGREAL;
+	BEGIN
+		IF system.SizeOf(type) = 32 THEN RETURN MAX(REAL) ELSE RETURN MAX(LONGREAL) END;
+	END MaxFloat;
+
+	PROCEDURE MinFloat*(system: System; type: SyntaxTree.FloatType): LONGREAL;
+	BEGIN
+		IF system.SizeOf(type) = 32 THEN RETURN MIN(REAL) ELSE RETURN MIN(LONGREAL) END;
+	END MinFloat;
 
 	PROCEDURE GetIntegerType*(system: System; this: HUGEINT): SyntaxTree.IntegerType;
 
@@ -808,10 +789,10 @@ TYPE
 		END InBounds;
 
 	BEGIN
-		IF InBounds(Shortint) THEN RETURN Shortint
-		ELSIF InBounds(Integer) THEN RETURN Integer
-		ELSIF InBounds(Longint) THEN RETURN Longint
-		ELSE RETURN Hugeint
+		IF InBounds(Integer8) THEN RETURN Integer8
+		ELSIF InBounds(Integer16) THEN RETURN Integer16
+		ELSIF InBounds(Integer32) THEN RETURN Integer32
+		ELSE RETURN Integer64
 		END;
 	END GetIntegerType;
 
@@ -823,63 +804,59 @@ TYPE
 		RETURN value
 	END NewIntegerValue;
 
-	PROCEDURE NewBooleanValue*(position: LONGINT; b: BOOLEAN): SyntaxTree.Value;
+	PROCEDURE NewBooleanValue*(system: System; position: LONGINT; b: BOOLEAN): SyntaxTree.Value;
 	VAR value: SyntaxTree.BooleanValue;
 	BEGIN
 		value := SyntaxTree.NewBooleanValue(position,b);
-		value.SetType(Boolean);
+		value.SetType(system.booleanType);
 		RETURN value
 	END NewBooleanValue;
 
-	PROCEDURE NewSetValue*(position: LONGINT; s: SET): SyntaxTree.Value;
+	PROCEDURE NewSetValue*(system: System; position: LONGINT; s: SET): SyntaxTree.Value;
 	VAR value: SyntaxTree.SetValue;
 	BEGIN
 		value := SyntaxTree.NewSetValue(position,s);
-		value.SetType(Set);
+		value.SetType(system.setType);
 		RETURN value
 	END NewSetValue;
 
-	PROCEDURE NewCharacterValue*(position: LONGINT; c: CHAR): SyntaxTree.Value;
+	PROCEDURE NewCharacterValue*(system: System; position: LONGINT; c: CHAR): SyntaxTree.Value;
 	VAR value: SyntaxTree.CharacterValue;
 	BEGIN
 		value := SyntaxTree.NewCharacterValue(position,c);
-		value.SetType(Char);
+		value.SetType(system.characterType);
 		RETURN value
 	END NewCharacterValue;
 
-	PROCEDURE NewNilValue*(position: LONGINT): SyntaxTree.Value;
+	PROCEDURE NewNilValue*(system: System; position: LONGINT): SyntaxTree.Value;
 	VAR value: SyntaxTree.NilValue;
 	BEGIN
 		value := SyntaxTree.NewNilValue(position);
-		value.SetType(Nil);
+		value.SetType(system.anyType);
 		RETURN value
 	END NewNilValue;
 
+	(* distance for assignment to <- from *)
 	PROCEDURE BasicTypeDistance*(system: System; from, to: SyntaxTree.BasicType): LONGINT;
-	VAR i, j: LONGINT;
+	VAR fromSize, toSize, distance: LONGINT;
 	BEGIN
-		IF from IS SyntaxTree.CharacterType THEN
-			i := 0; j := LEN(CharacterType);
-			WHILE (i < LEN(CharacterType)) & (CharacterType[i] # from) DO  INC(i)  END;
-			REPEAT  DEC(j)  UNTIL (j < i) OR (CharacterType[j] = to);
-		ELSE
-			i := 0; j := LEN(NumericType);
-			WHILE (i < LEN(NumericType)) & (NumericType[i] # from) DO  INC(i)  END;
-			REPEAT  DEC(j)  UNTIL (j < i) OR (NumericType[j] = to);
-		END;
-
-		j := j-i;
-
-		(* special rule for dialects that support things like SIZEOF(INTEGER) = SIZEOF(LONGINT) *)
-		IF (j<0) & (from IS SyntaxTree.IntegerType) & (to IS SyntaxTree.IntegerType) THEN
-			IF system.SizeOf(from) = system.SizeOf(to) THEN
-				j := 0
+		fromSize := system.SizeOf(from); toSize := system.SizeOf(to);
+		distance := -1;
+		IF (from IS SyntaxTree.CharacterType) & (to IS SyntaxTree.CharacterType) OR
+			(from IS SyntaxTree.IntegerType) & (to IS SyntaxTree.IntegerType) OR
+			(from IS SyntaxTree.FloatType) & (to IS SyntaxTree.FloatType) THEN
+			WHILE toSize >= fromSize DO
+				toSize := toSize DIV 2; INC(distance);
+			END;
+		ELSIF (from IS SyntaxTree.IntegerType) & (to IS SyntaxTree.FloatType) THEN
+			IF toSize = 64 THEN distance := 1 ELSE distance := 0 END;
+			toSize := 64;
+			WHILE toSize >= fromSize DO
+				toSize := toSize DIV 2; INC(distance);
 			END;
 		END;
-
-
-		IF j<0 THEN j := MAX(LONGINT) END;
-		RETURN j
+		IF distance < 0 THEN distance := MAX(LONGINT) END;
+		RETURN distance
 	END BasicTypeDistance;
 
 	PROCEDURE GetIdentifier*(symbol: LONGINT; case: LONGINT): SyntaxTree.Identifier;
@@ -961,44 +938,21 @@ TYPE
 		RecordBodyName := SyntaxTree.NewIdentifier(-1,"@Body");
 		ModuleBodyName := SyntaxTree.NewIdentifier(-1,"$$Body");
 
-
 		(* types *)
-		Char8 := NewCharacterType("Char8");
-		Char := Char8;
-		Char16 := NewCharacterType("Char16");
-		Char32 := NewCharacterType("Char32");
-		CharacterType[0] := Char8;
-		CharacterType[1] := Char16;
-		CharacterType[2] := Char32;
-
-		Shortint := NewIntegerType("Shortint");
-		Integer := NewIntegerType("Integer");
-		Longint := NewIntegerType("Longint");
-		Hugeint := NewIntegerType("Hugeint");
-		Real := NewFloatType("Real");
-		Longreal := NewFloatType("Longreal");
-		NumericType[0] := Shortint;
-		NumericType[1] := Integer;
-		NumericType[2] := Longint;
-		NumericType[3] := Hugeint;
-		NumericType[4] := Real;
-		NumericType[5] := Longreal;
-
-		Boolean := NewBasicType("Boolean",{SyntaxTree.RealtimeFlag});
-		Set := NewBasicType("Set",{SyntaxTree.RealtimeFlag});
-
-		Any := NewBasicType("Any",{});
-		RangeType := NewBasicType("RangeType",{SyntaxTree.RealtimeFlag});
-
-		Object := NewBasicType("ObjectType",{});
-		Nil := NewBasicType("NilType",{SyntaxTree.RealtimeFlag});
-
-
-		Address := NewBasicType("systemAddress",{SyntaxTree.RealtimeFlag});
-		Size := NewBasicType("systemSize",{SyntaxTree.RealtimeFlag});
-		Byte := NewBasicType("systemByte",{SyntaxTree.RealtimeFlag});
-		All := NewBasicType("systemAll",{});
-		Same := NewBasicType("systemSame",{});
+		Boolean8 := SyntaxTree.NewBooleanType(8);
+		Boolean32 := SyntaxTree.NewBooleanType(32);
+		Set32 := SyntaxTree.NewSetType(32);
+		Integer8 := SyntaxTree.NewIntegerType(8, TRUE);
+		Integer16 := SyntaxTree.NewIntegerType(16, TRUE);
+		Integer32 := SyntaxTree.NewIntegerType(32, TRUE);
+		Integer64 := SyntaxTree.NewIntegerType(64, TRUE);
+		Float32 := SyntaxTree.NewFloatType(32);
+		Float64 := SyntaxTree.NewFloatType(64);
+		Byte8 := SyntaxTree.NewByteType(8);
+		Byte32 := SyntaxTree.NewByteType(32);
+		Character8 := SyntaxTree.NewCharacterType(8);
+		Character16 := SyntaxTree.NewCharacterType(16);
+		Character32 := SyntaxTree.NewCharacterType(32);
 	END Init;
 
 BEGIN

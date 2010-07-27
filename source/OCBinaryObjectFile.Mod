@@ -539,7 +539,7 @@ TYPE
 				RETURN
 					(numberParameters = 0) & TypeAllowed(procedureType.returnType) OR
 					(numberParameters = 1) & TypeAllowed(procedureType.firstParameter.type) & TypeAllowed(procedureType.returnType) OR
-					(numberParameters = 1) & (procedureType.firstParameter.type.resolved = Global.Any) & (procedureType.returnType # NIL) & (procedureType.returnType.resolved = Global.Any);
+					(numberParameters = 1) & (procedureType.firstParameter.type.resolved IS SyntaxTree.AnyType) & (procedureType.returnType # NIL) & (procedureType.returnType.resolved IS SyntaxTree.AnyType);
 			END GetProcedureAllowed;
 
 			PROCEDURE WriteType(type : SyntaxTree.Type);
@@ -551,7 +551,7 @@ TYPE
 						IF Trace THEN
 							D.String(", t="); D.Int(0,1);
 						END;
-				ELSIF (type.resolved = Global.Any) OR (type.resolved = Global.Object) THEN
+				ELSIF (type.resolved IS SyntaxTree.AnyType) OR (type.resolved IS SyntaxTree.ObjectType) THEN
 					w.RawNum(1);
 						IF Trace THEN
 							D.String(", t="); D.Int(1,1);
@@ -611,7 +611,7 @@ TYPE
 		VAR variable: SyntaxTree.Variable; i,n,size: LONGINT; base: SyntaxTree.Type;
 		BEGIN
 			type := type.resolved;
-			IF type = Global.Any THEN
+			IF type IS SyntaxTree.AnyType THEN
 				w.RawNum((offset )); INC(numberPointers);
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 			ELSIF type IS SyntaxTree.PointerType THEN
@@ -1607,22 +1607,28 @@ TYPE
 			PROCEDURE BaseType(arrayOf: BOOLEAN; type: SyntaxTree.Type);
 			VAR char: CHAR;
 			BEGIN
-				IF type  = Global.Byte THEN char := rfByte
-				ELSIF type = Global.Boolean THEN char := rfBoolean
-				ELSIF type = Global.Char8 THEN char := rfChar8
-				ELSIF type = Global.Char16 THEN char := rfChar16
-				ELSIF type = Global.Char32 THEN char := rfChar32
-				ELSIF type = Global.Shortint THEN char := rfShortint
-				ELSIF type = Global.Integer THEN char := rfInteger
-				ELSIF type = Global.Longint THEN char := rfLongint
-				ELSIF type = Global.Address THEN char := rfLongint
-				ELSIF type = Global.Size THEN char := rfLongint
-				ELSIF type = Global.Hugeint THEN char := rfHugeint
-				ELSIF type = Global.Real THEN char := rfReal
-				ELSIF type = Global.Longreal THEN char := rfLongreal
-				ELSIF type = Global.Set THEN char := rfSet
-				ELSIF type = Global.Any THEN char := rfPointer
-				ELSIF type = Global.Object THEN char := rfPointer
+				IF type  IS SyntaxTree.ByteType THEN char := rfByte
+				ELSIF type IS SyntaxTree.BooleanType THEN char := rfBoolean
+				ELSIF type IS SyntaxTree.CharacterType THEN
+					IF type.sizeInBits = 8 THEN char := rfChar8
+					ELSIF type.sizeInBits = 16 THEN char := rfChar16
+					ELSIF type.sizeInBits = 32 THEN char := rfChar32
+					END;
+				ELSIF type IS SyntaxTree.IntegerType THEN
+					IF type.sizeInBits = 8 THEN char := rfShortint
+					ELSIF type.sizeInBits = 16 THEN char := rfInteger
+					ELSIF type.sizeInBits = 32 THEN char := rfLongint
+					ELSIF type.sizeInBits =64 THEN char := rfHugeint
+					END;
+				ELSIF type IS SyntaxTree.AddressType THEN char := rfLongint
+				ELSIF type IS SyntaxTree.SizeType THEN char := rfLongint
+				ELSIF type IS SyntaxTree.FloatType THEN 
+					IF type.sizeInBits = 32 THEN char := rfReal
+					ELSIF type.sizeInBits = 64 THEN char := rfLongreal
+					END;
+				ELSIF type IS SyntaxTree.SetType THEN char := rfSet
+				ELSIF type IS SyntaxTree.AnyType THEN char := rfPointer
+				ELSIF type IS SyntaxTree.ObjectType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.PointerType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.ProcedureType THEN char := rfDelegate
 				ELSE ASSERT(arrayOf); char := rfPointer; (*RETURN (* ARRAY OF unknown (record): do not write anything *)*)
@@ -1695,7 +1701,7 @@ TYPE
 				ELSIF type IS SyntaxTree.ArrayType THEN
 					ArrayType(type(SyntaxTree.ArrayType))
 				ELSIF type IS SyntaxTree.EnumerationType THEN
-					BaseType(FALSE,Global.Longint)
+					BaseType(FALSE,module.system.longintType)
 				ELSIF type IS SyntaxTree.PointerType THEN
 					IF type(SyntaxTree.PointerType).pointerBase IS SyntaxTree.RecordType THEN
 						RecordType(type(SyntaxTree.PointerType).pointerBase(SyntaxTree.RecordType));

@@ -362,7 +362,7 @@ TYPE
 		VAR leftValue: Value;
 			PROCEDURE NewBoolean(b: BOOLEAN);
 			BEGIN
-				NEW(resultValue, Global.Boolean); resultValue.boolean := b
+				NEW(resultValue, system.booleanType); resultValue.boolean := b
 			END NewBoolean;
 
 			PROCEDURE NewInteger(i: LONGINT);
@@ -377,7 +377,7 @@ TYPE
 				ELSE
 					Error(position,NotYetImplemented);
 				END;
-			ELSIF x.left.type.resolved = Global.Boolean THEN
+			ELSIF x.left.type.resolved IS SyntaxTree.BooleanType THEN
 				CASE x.operator OF
 				Scanner.Not: NewBoolean(~leftValue.boolean)
 				ELSE
@@ -392,7 +392,7 @@ TYPE
 		VAR leftValue, rightValue: Value;
 			PROCEDURE NewBoolean(b: BOOLEAN);
 			BEGIN
-				NEW(resultValue, Global.Boolean); resultValue.boolean := b
+				NEW(resultValue, system.booleanType); resultValue.boolean := b
 			END NewBoolean;
 
 			PROCEDURE NewInteger(i: LONGINT);
@@ -419,7 +419,7 @@ TYPE
 				ELSE
 					Error(x.position, NotYetImplemented);
 				END;
-			ELSIF x.left.type.resolved = Global.Boolean THEN
+			ELSIF x.left.type.resolved IS SyntaxTree.BooleanType THEN
 				CASE x.operator OF
 				Scanner.Equal: NewBoolean(leftValue.boolean = rightValue.boolean);
 				|Scanner.Unequal: NewBoolean(leftValue.boolean # rightValue.boolean);
@@ -448,7 +448,7 @@ TYPE
 		BEGIN
 			Evaluate(x.expression, value);
 			type := x.type.resolved;
-			IF (type = Global.Shortint) OR (type = Global.Integer) OR (type = Global.Longint) (* OR (type= Global.Hugeint) *)
+			IF (type IS SyntaxTree.IntegerType) & (type.sizeInBits < 64)
 				OR (type = system.sizeType) THEN
 				integer := Global.ConvertSigned(value.integer,system.SizeOf(type));
 				NEW(resultValue, type);
@@ -631,7 +631,7 @@ TYPE
 				IF error THEN RETURN END;
 				IF expression.type.resolved IS SyntaxTree.IntegerType THEN
 					Integer(value.integer);
-				ELSIF expression.type.resolved = Global.Boolean THEN
+				ELSIF expression.type.resolved IS SyntaxTree.BooleanType THEN
 					Boolean(value.boolean);
 				ELSIF expression.type.resolved IS SyntaxTree.StringType THEN
 					String(value.string);
@@ -761,7 +761,7 @@ TYPE
 		PROCEDURE VisitAssignment(x: SyntaxTree.Assignment);
 		VAR leftValue, rightValue: Value;
 		BEGIN
-			IF (x.left.type.resolved IS SyntaxTree.IntegerType) OR (x.left.type.resolved = Global.Boolean) THEN
+			IF (x.left.type.resolved IS SyntaxTree.IntegerType) OR (x.left.type.resolved IS SyntaxTree.BooleanType) THEN
 				Evaluate(x.left, leftValue);
 				Evaluate(x.right, rightValue);
 				leftValue.integer := rightValue.integer;
@@ -773,7 +773,7 @@ TYPE
 
 		PROCEDURE Condition(x: SyntaxTree.Expression): BOOLEAN;
 		BEGIN
-			Expression(x); ASSERT(resultValue # NIL); ASSERT(resultValue.type.resolved = Global.Boolean);
+			Expression(x); ASSERT(resultValue # NIL); ASSERT(resultValue.type.resolved IS SyntaxTree.BooleanType);
 			RETURN resultValue.boolean
 		END Condition;
 
