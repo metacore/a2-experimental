@@ -6138,7 +6138,7 @@ TYPE
 
 	PROCEDURE SameType(t1,t2: SyntaxTree.Type): BOOLEAN;
 	BEGIN
-		RETURN t1.SameType(t2);
+		RETURN t1.SameType(t2.resolved);
 	END SameType;
 
 	PROCEDURE ArrayBase*(t: SyntaxTree.Type; max: LONGINT): SyntaxTree.Type;
