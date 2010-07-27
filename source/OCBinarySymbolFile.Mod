@@ -958,7 +958,7 @@ TYPE
 						D.Str("Type / OldStr "); D.Int(-tag,1); D.Ln
 					END
 				ELSIF tag = sfTypeString THEN
-					type := SyntaxTree.NewStringType(-1,0);
+					type := SyntaxTree.NewStringType(-1,system.characterType,0);
 					IF TraceImport IN Trace THEN
 						D.Str("Type / String "); D.Int(tag,1); D.Ln
 					END

@@ -992,7 +992,7 @@ TYPE
 		PROCEDURE SignatureCompatible(position: LONGINT; this, to: SyntaxTree.ProcedureType): BOOLEAN;
 		VAR result: BOOLEAN;
 		BEGIN
-			result := SameType(to,this,NIL);
+			result := SameType(to,this);
 			IF ~result THEN
 				Error(position,Diagnostics.Invalid,"signature incompatible");
 				IF VerboseErrorMessage THEN
@@ -1044,7 +1044,7 @@ TYPE
 						Error(actual.position,Diagnostics.Invalid,"incompatible tensor (use a range expression)");
 					END;
 				ELSE
-					result := SameType(actualType,formalType,NIL)
+					result := SameType(actualType,formalType)
 				END
 			ELSE
 				IF (formalType IS SyntaxTree.CharacterType) & (actualType IS SyntaxTree.StringType) & (actualType(SyntaxTree.StringType).length = 2) THEN
@@ -1159,7 +1159,7 @@ TYPE
 		(** check and resolve string value **)
 		PROCEDURE VisitStringValue(value: SyntaxTree.StringValue);
 		BEGIN
-			value.SetType(ResolveType(SyntaxTree.NewStringType(value.position,value.length)));
+			value.SetType(ResolveType(SyntaxTree.NewStringType(value.position,system.characterType,value.length)));
 			resolvedExpression := value
 		END VisitStringValue;
 
@@ -1600,7 +1600,7 @@ TYPE
 			ELSIF IsCharacterValue(expression,char) THEN
 				IF (type IS SyntaxTree.StringType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved IS SyntaxTree.CharacterType) THEN
 					string[0] := char; string[1] := 0X;
-					type := SyntaxTree.NewStringType(InvalidPosition,2);
+					type := SyntaxTree.NewStringType(InvalidPosition,system.characterType,2);
 					result := SyntaxTree.NewStringValue(expression.position,string);
 					result.SetType(type);
 				ELSIF (type IS SyntaxTree.ByteType) THEN
@@ -3898,7 +3898,7 @@ TYPE
 						Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
 					ELSIF ~CheckPortType(parameter0, outPort) OR (outPort.direction # SyntaxTree.OutPort) THEN
 						Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
-					ELSIF ~SameType(inPort.channelType, outPort.channelType, NIL) THEN
+					ELSIF ~SameType(inPort.channelType, outPort.channelType) THEN
 						Error(position,Diagnostics.Invalid,"incompatible port types");
 					END;
 					dataflowStatement := TRUE;
@@ -3913,7 +3913,7 @@ TYPE
 						Error(parameter1.position,Diagnostics.Invalid,"not a port")
 					ELSIF (outPort.direction # inPort.direction) THEN
 						Error(parameter0.position,Diagnostics.Invalid,"invalid port direction");
-					ELSIF ~SameType(inPort.channelType, outPort.channelType, NIL) THEN
+					ELSIF ~SameType(inPort.channelType, outPort.channelType) THEN
 						Error(position,Diagnostics.Invalid,"incompatible port types");
 					END;
 					dataflowStatement := TRUE;
@@ -3922,7 +3922,7 @@ TYPE
 					IF CheckPortType(parameter0,inPort) & CheckVariable(parameter1) THEN
 						IF inPort.direction # SyntaxTree.InPort THEN
 							Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
-						ELSIF ~SameType(inPort.channelType,parameter1.type,NIL) THEN
+						ELSIF ~SameType(inPort.channelType,parameter1.type) THEN
 							Error(parameter1.position,Diagnostics.Invalid,"incompatible to port type");
 						END;
 					END;
@@ -5663,13 +5663,6 @@ TYPE
 
 	END Warnings;
 
-	Same= POINTER TO RECORD
-		t1,t2: SyntaxTree.Type;
-		next: Same;
-	END;
-
-
-
 	PROCEDURE ToMemoryUnits(system: Global.System; size: LONGINT): LONGINT;
 	BEGIN
 		ASSERT(size MOD system.dataUnit = 0);
@@ -5720,6 +5713,9 @@ TYPE
 	BEGIN
 		IF this= NIL THEN result := (to=NIL)
 		ELSIF to=NIL THEN result := FALSE
+		(*! will be replaced by this:
+		ELSE result := this.CompatibleTo(to.resolved);
+		*)
 		ELSIF to=SyntaxTree.invalidType THEN result := FALSE
 		ELSE
 			this := this.resolved; to := to.resolved;
@@ -5748,10 +5744,10 @@ TYPE
 					result := FALSE
 				END;
 			ELSIF to IS SyntaxTree.PointerType THEN
-				result := IsPointerType(this) & (IsTypeExtension(to,this) OR ((to(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType) & SameType(to,this,NIL)))
+				result := IsPointerType(this) & (IsTypeExtension(to,this) OR ((to(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType) & SameType(to,this)))
 				     & (~to.IsRealtime() OR this.IsRealtime()) OR (this IS SyntaxTree.NilType)
 			ELSIF to IS SyntaxTree.ProcedureType THEN
-				result := (this IS SyntaxTree.NilType) OR (this IS SyntaxTree.ProcedureType) & SameType(to(SyntaxTree.ProcedureType),this(SyntaxTree.ProcedureType),NIL)
+				result := (this IS SyntaxTree.NilType) OR (this IS SyntaxTree.ProcedureType) & SameType(to(SyntaxTree.ProcedureType),this(SyntaxTree.ProcedureType))
 					& (~(SyntaxTree.DelegateFlag IN this(SyntaxTree.ProcedureType).flags) OR (SyntaxTree.DelegateFlag IN to(SyntaxTree.ProcedureType).flags))
 					& (~to.IsRealtime() OR this.IsRealtime());
 			ELSIF (to IS SyntaxTree.RecordType) & to(SyntaxTree.RecordType).isObject THEN
@@ -5762,7 +5758,7 @@ TYPE
 				IF IsStringType(to) & (this IS SyntaxTree.StringType) THEN
 					result := (to(SyntaxTree.ArrayType).form = SyntaxTree.Open) OR (to(SyntaxTree.ArrayType).staticLength >= this(SyntaxTree.StringType).length)
 				ELSE
-					result := (to(SyntaxTree.ArrayType).staticLength # 0) & SameType(to,this,NIL)
+					result := (to(SyntaxTree.ArrayType).staticLength # 0) & SameType(to,this)
 				END;
 			ELSIF to IS SyntaxTree.MathArrayType THEN
 				IF this IS SyntaxTree.MathArrayType THEN
@@ -5791,12 +5787,11 @@ TYPE
 			ELSIF to IS SyntaxTree.EnumerationType THEN
 				result := IsEnumerationExtension(this,to);
 			ELSIF to IS SyntaxTree.PortType THEN
-				result := SameType(to, this, NIL)
+				result := SameType(to, this)
 			ELSE
 				Printout.Info("CompatibleTo",to);
 				HALT(100); (* implement missing type check *)
 			END;
-
 		END;
 		RETURN result
 	END CompatibleTo;
@@ -5808,7 +5803,7 @@ TYPE
 		PROCEDURE TC(formal,actual: SyntaxTree.Type): BOOLEAN;
 		VAR actualBase,formalBase: SyntaxTree.Type; result: BOOLEAN;
 		BEGIN
-			result := SameType(formal,actual,NIL);
+			result := SameType(formal,actual);
 			IF ~result & (formal IS SyntaxTree.ArrayType) & (actual IS SyntaxTree.ArrayType) THEN
 				actualBase := actual(SyntaxTree.ArrayType).arrayBase.resolved;
 				formalBase := formal(SyntaxTree.ArrayType).arrayBase.resolved;
@@ -5845,7 +5840,7 @@ TYPE
 				*)
 				actualBase := ArrayBase(actualType,Infinity);
 				formalBase := ArrayBase(formalType,Infinity);
-				result := SameType(formalBase,actualBase,NIL) OR (formalBase IS SyntaxTree.AllType);
+				result := SameType(formalBase,actualBase) OR (formalBase IS SyntaxTree.AllType);
 			ELSE
 				(*
 					ARRAY [*|k] OF -> ARRAY [*|n] OF
@@ -5866,7 +5861,7 @@ TYPE
 				ELSIF formalBase IS SyntaxTree.AllType THEN
 					result := ~(actualBase IS SyntaxTree.MathArrayType);
 				ELSE
-					result := SameType(formalBase,actualBase,NIL)
+					result := SameType(formalBase,actualBase)
 				END;
 			END;
 		ELSE
@@ -6141,104 +6136,9 @@ TYPE
 		RETURN (x IS SyntaxTree.ArrayType) OR (x IS SyntaxTree.MathArrayType);
 	END Indexable;
 
-
-
-
-	PROCEDURE SameType(t1,t2: SyntaxTree.Type; sameList: Same): BOOLEAN;
-	VAR result: BOOLEAN; s: Same;
-
-		PROCEDURE CheckRecursion(t1,t2: SyntaxTree.Type): BOOLEAN;
-		VAR result: BOOLEAN;
-		BEGIN
-			result := FALSE;
-			s := sameList;
-			WHILE(s # NIL) DO
-				IF (s.t1=t1) & (s.t2=t2) THEN result := TRUE END;
-				s := s.next;
-			END;
-			IF ~result THEN
-				NEW(s); s.t1 := t1; s.t2 := t2; s.next := sameList; sameList := s;
-			END;
-			RETURN result
-		END CheckRecursion;
-
-		PROCEDURE SameArrayType(t1,t2: SyntaxTree.ArrayType): BOOLEAN;
-		BEGIN
-			result := CheckRecursion(t1,t2);
-			RETURN result OR (t1.staticLength = t2.staticLength) & SameType(t1.arrayBase,t2.arrayBase,sameList)
-		END SameArrayType;
-
-		PROCEDURE SameMathArrayType(t1,t2: SyntaxTree.MathArrayType): BOOLEAN;
-		BEGIN
-			RETURN (t1.form = t2.form) & (t1.staticLength = t2.staticLength) & SameType(t1.arrayBase,t2.arrayBase,sameList)
-		END SameMathArrayType;
-
-		PROCEDURE SameProcedureType(t1,t2: SyntaxTree.ProcedureType): BOOLEAN;
-		VAR p1,p2: SyntaxTree.Parameter; result: BOOLEAN;
-		BEGIN
-			(* special cycle check for procedures, for example:
-				A = PROCEDURE (b: B);
-				B = PROCEDURE (a: A);
-				VAR variable: A; result: B;
-				BEGIN  result := variable;
-			*)
-
-			result := CheckRecursion(t1,t2);
-			IF ~result THEN
-				IF SameType(t1.returnType,t2.returnType,sameList) THEN
-					p1 := t1.firstParameter; p2 := t2.firstParameter;
-					WHILE (p1 # NIL) & (p2#NIL) &(p1.access # SyntaxTree.Hidden) & (p2.access # SyntaxTree.Hidden) & (p1.kind = p2.kind) & SameType(p1.type,p2.type,sameList) DO
-						p1 := p1.nextParameter; p2 := p2.nextParameter;
-					END;
-					result := ((p1=NIL) OR (p1.access = SyntaxTree.Hidden)) & ((p2=NIL)  OR (p2.access= SyntaxTree.Hidden));
-				ELSE
-					result := FALSE
-				END;
-			END;
-			result := result & (t1.flags * {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag} = t2.flags * {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag} );
-			RETURN result
-		END SameProcedureType;
-
+	PROCEDURE SameType(t1,t2: SyntaxTree.Type): BOOLEAN;
 	BEGIN
-
-
-		IF result THEN (* same type via recursion ... *)
-		ELSIF t1=NIL THEN result := t2=NIL
-		ELSIF t2=NIL THEN result := FALSE
-		ELSE
-			t1 := t1.resolved; t2 := t2.resolved;
-			IF (t1 = SyntaxTree.invalidType) OR (t2=SyntaxTree.invalidType) THEN (* error already handled elsewhere *)
-				result := TRUE
-			ELSIF t1=t2 THEN
-				result := TRUE
-			ELSIF (t1 IS SyntaxTree.ObjectType) & (t2 IS SyntaxTree.AnyType) THEN (*! only because we want to get rid of ANY anyway and binary symbol file cannot distinguish the two *)
-				result := TRUE
-			ELSIF (t2 IS SyntaxTree.ObjectType) & (t1 IS SyntaxTree.AnyType) THEN (*! only because we want to get rid of ANY anyway and binary symbol file cannot distinguish the two *)
-				result := TRUE
-			ELSIF t1 IS SyntaxTree.BasicType THEN
-				result := t1=t2;
-			ELSIF t1 IS SyntaxTree.ArrayType THEN
-				result := (t2 IS SyntaxTree.ArrayType) & SameArrayType(t1(SyntaxTree.ArrayType),t2(SyntaxTree.ArrayType))
-			ELSIF t1 IS SyntaxTree.MathArrayType THEN
-				result := (t2 IS SyntaxTree.MathArrayType) & SameMathArrayType(t1(SyntaxTree.MathArrayType),t2(SyntaxTree.MathArrayType))
-			ELSIF (t1 IS SyntaxTree.RecordType) & t1(SyntaxTree.RecordType).isObject THEN
-				result := t1=t2
-			ELSIF t1 IS SyntaxTree.RecordType THEN
-				result := t1=t2
-			ELSIF t1 IS SyntaxTree.PointerType THEN
-				result := (t2 IS SyntaxTree.PointerType) & SameType(t1(SyntaxTree.PointerType).pointerBase,t2(SyntaxTree.PointerType).pointerBase,sameList)
-			ELSIF t1 IS SyntaxTree.ProcedureType THEN
-				result := (t2 IS SyntaxTree.ProcedureType) & SameProcedureType(t1(SyntaxTree.ProcedureType),t2(SyntaxTree.ProcedureType))
-			ELSIF t1 IS SyntaxTree.EnumerationType THEN
-				result := t1=t2;
-			ELSIF (t1 IS SyntaxTree.PortType) THEN
-				result := (t2 IS SyntaxTree.PortType) & (t1(SyntaxTree.PortType).direction = t2(SyntaxTree.PortType).direction)
-						& SameType(t1(SyntaxTree.PortType).channelType, t2(SyntaxTree.PortType).channelType,sameList);
-			ELSE
-				HALT(100); (* implement missing type check *)
-			END;
-		END;
-		RETURN result
+		RETURN t1.SameType(t2);
 	END SameType;
 
 	PROCEDURE ArrayBase*(t: SyntaxTree.Type; max: LONGINT): SyntaxTree.Type;

@@ -3063,7 +3063,7 @@ TYPE
 			BEGIN
 				IF GetProcedure("String") THEN
 					sv := SyntaxTree.NewStringValue(-1,s);
-					type := SyntaxTree.NewStringType(-1,Strings.Length(s));
+					type := SyntaxTree.NewStringType(-1,system.characterType,Strings.Length(s));
 					sv.SetType(type);
 					Designate(sv,res);
 					Emit(Push(res.tag));

@@ -316,7 +316,7 @@ TYPE
 				END;
 			ELSIF type IS SyntaxTree.StringType THEN
 				ASSERT(SyntaxTree.Resolved IN type.state);
-				size := type(SyntaxTree.StringType).length * SizeOf(characterType);
+				size := type(SyntaxTree.StringType).length * SizeOf(type(SyntaxTree.StringType).baseType);
 			ELSIF type IS SyntaxTree.EnumerationType THEN
 				size := addressSize
 			ELSIF type = SyntaxTree.invalidType THEN size := 0
@@ -372,7 +372,7 @@ TYPE
 					result := alignment.max
 				END;
 			ELSIF type IS SyntaxTree.StringType THEN
-				result := SizeOf(characterType);
+				result := SizeOf(type(SyntaxTree.StringType).baseType);
 			ELSE
 				result := SizeOf(type);
 				IF result > alignment.max THEN result := alignment.max END;

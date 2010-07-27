@@ -71,7 +71,7 @@ CONST
 	Tensor*=3; (* ARRAY [?] OF ... *)
 
 	(** node states, important for checker to avoid cycles *)
-	Undefined*={}; BeingResolved*=1; Resolved*=2; FingerPrinted*=3;
+	Undefined*={}; BeingResolved*=1; Resolved*=2; FingerPrinted*=3; RecursionFlag=31;
 
 VAR
 	(** debugging / counters *)
@@ -453,6 +453,15 @@ TYPE
 		BEGIN RETURN (RealtimeFlag IN flags);
 		END IsRealtime;
 
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN FALSE
+		END SameType;
+
+		(* assignment compatibility of this := SELF *)
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN FALSE
+		END CompatibleTo;
+
 	END Type;
 
 	(* basic types, defined in global name space *)
@@ -490,6 +499,14 @@ TYPE
 			InitBasicType("@Object",{},sizeInBits);
 		END InitObjectType;
 
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN (this IS ObjectType)
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN ((to IS AnyType) OR (to IS ObjectType))
+		END CompatibleTo;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitObjectType(SELF)
@@ -506,6 +523,14 @@ TYPE
 			InitBasicType("@Nil",{RealtimeFlag},sizeInBits);
 		END InitNilType;
 
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN (this IS NilType)
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS NilType) OR (to IS ObjectType) OR (to IS AnyType) OR (to IS PointerType) OR (to IS ProcedureType)
+		END CompatibleTo;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitNilType(SELF)
@@ -521,6 +546,14 @@ TYPE
 		BEGIN
 			InitBasicType("@Any",{},sizeInBits);
 		END InitAnyType;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN this IS AnyType
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS AnyType)
+		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -542,6 +575,15 @@ TYPE
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitByteType(SELF)
 		END Accept;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN this IS ByteType
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS ByteType)
+		END CompatibleTo;
+
 	END ByteType;
 
 	(** <<SYSTEM.ADDRESS>>
@@ -553,6 +595,14 @@ TYPE
 		BEGIN
 			InitBasicType("@Address",{RealtimeFlag},sizeInBits);
 		END InitAddressType;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN this IS AddressType
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS AddressType) OR (to IS SizeType) OR (to IS IntegerType) & (to.sizeInBits >= sizeInBits)
+		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -570,6 +620,14 @@ TYPE
 			InitBasicType("@Size",{RealtimeFlag},sizeInBits);
 		END InitSizeType;
 
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN	RETURN this IS SizeType
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS SizeType) OR (to IS AddressType) OR (to IS IntegerType) & (to.sizeInBits >= sizeInBits)
+		END CompatibleTo;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitSizeType(SELF)
@@ -586,6 +644,14 @@ TYPE
 			InitBasicType("@All",{RealtimeFlag},sizeInBits);
 		END InitAllType;
 
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN this IS AllType
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS AllType)
+		END CompatibleTo;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitAllType(SELF)
@@ -601,6 +667,14 @@ TYPE
 		BEGIN
 			InitBasicType("@Boolean",{RealtimeFlag},sizeInBits);
 		END InitBooleanType;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN this IS BooleanType
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS BooleanType)
+		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -619,6 +693,14 @@ TYPE
 			InitBasicType("@Set",{RealtimeFlag},sizeInBits);
 		END InitSetType;
 
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN (this IS SetType)
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS SetType)
+		END CompatibleTo;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitSetType(SELF)
@@ -635,6 +717,14 @@ TYPE
 		BEGIN
 			InitBasicType("@Character",{RealtimeFlag}, sizeInBits);
 		END InitCharacterType;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN (this = SELF) OR (this IS CharacterType) & (this.sizeInBits = sizeInBits)
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN ((to IS CharacterType) OR (to IS ByteType)) & (to.sizeInBits >= sizeInBits)
+		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -665,6 +755,14 @@ TYPE
 			SELF.signed := signed;
 		END InitIntegerType;
 
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN (this = SELF) OR (this IS IntegerType) & (this.sizeInBits = sizeInBits)
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN ((to IS IntegerType) OR (to IS AddressType) OR (to IS SizeType) OR (to IS ByteType)) & (to.sizeInBits >= sizeInBits) OR (to IS FloatType)
+		END CompatibleTo;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitIntegerType(SELF)
@@ -681,6 +779,14 @@ TYPE
 		BEGIN
 			InitNumberType("@Float",sizeInBits);
 		END InitFloatType;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN (this = SELF) OR (this IS FloatType) & (this.sizeInBits = sizeInBits)
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS FloatType) & (to.sizeInBits >= sizeInBits)
+		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -706,6 +812,14 @@ TYPE
 			resolved := NIL;
 		END InitQualifiedType;
 
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN resolved.SameType(this)
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN resolved.CompatibleTo(to)
+		END CompatibleTo;
+
 		PROCEDURE SetResolved*(resolved: Type);
 		BEGIN SELF.resolved := resolved
 		END SetResolved;
@@ -721,16 +835,34 @@ TYPE
 	StringType*= OBJECT(Type)
 	VAR
 		length-: LONGINT;
+		baseType-: Type;
 
-		PROCEDURE & InitStringType(position: LONGINT;  length: LONGINT);
+		PROCEDURE & InitStringType(position: LONGINT; baseType: Type; length: LONGINT);
 		BEGIN
 			InitType(position, {RealtimeFlag});
 			SELF.length := length;
+			SELF.baseType := baseType;
 		END InitStringType;
 
 		PROCEDURE SetLength*(length: LONGINT);
 		BEGIN SELF.length := length
 		END SetLength;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN (this IS StringType) & (this(StringType).length = length)
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN
+			IF to IS ArrayType THEN
+				WITH to: ArrayType DO
+					RETURN to.arrayBase.SameType(baseType.resolved) & ((to.form = Open) OR (to.staticLength >= length))
+				END;
+			ELSIF to IS CharacterType THEN
+				RETURN (length=2) & baseType.CompatibleTo(to)
+			ELSE RETURN FALSE
+			END;
+		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -763,6 +895,18 @@ TYPE
 		PROCEDURE SetRange*(lowest,highest: LONGINT);
 		BEGIN rangeLowest := lowest; rangeHighest := highest;
 		END SetRange;
+
+		PROCEDURE Extends*(this: EnumerationType): BOOLEAN;
+		BEGIN	RETURN (SELF = this) OR (enumerationBase # NIL) & (enumerationBase.resolved(EnumerationType).Extends(this));
+		END Extends;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN this = SELF
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS EnumerationType) & (to(EnumerationType).Extends(SELF))
+		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -816,11 +960,6 @@ TYPE
 			END;
 		END SetLength;
 
-		PROCEDURE Accept*(v: Visitor);
-		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitArrayType(SELF)
-		END Accept;
-
 		PROCEDURE Child*(nr: LONGINT):Type;
 		BEGIN
 			IF nr = 0 THEN RETURN SELF;
@@ -828,6 +967,38 @@ TYPE
 			ELSE RETURN arrayBase.resolved(ArrayType).Child(nr-1);
 			END;
 		END Child;
+
+		(* recursion safety for cases such as
+			A= POINTER TO ARRAY OF B;
+			B= POINTER TO ARRAY OF A;
+		*)
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		VAR result : BOOLEAN;
+		BEGIN
+			result := FALSE;
+			IF this = SELF THEN
+				result := TRUE
+			ELSIF RecursionFlag IN flags THEN
+				result := TRUE;
+			ELSIF this IS ArrayType THEN
+				INCL(flags, RecursionFlag);
+				WITH this: ArrayType DO
+					result := (this.form = form) & (this.staticLength = staticLength) & arrayBase.SameType(this.arrayBase.resolved);
+				END;
+			END;
+			EXCL(flags, RecursionFlag);
+			RETURN result
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN
+			RETURN (form = Static) & SameType(to)
+		END CompatibleTo;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitArrayType(SELF)
+		END Accept;
 
 	END ArrayType;
 
@@ -865,6 +1036,34 @@ TYPE
 		BEGIN staticIncrementInBits := increment
 		END SetIncrement;
 
+		(* recursion safety for cases such as
+			A= POINTER TO ARRAY OF B;
+			B= POINTER TO ARRAY OF A;
+		*)
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		VAR result: BOOLEAN;
+		BEGIN
+			result := FALSE;
+			IF this = SELF THEN
+				result := FALSE
+			ELSIF RecursionFlag IN flags THEN
+				result := TRUE;
+			ELSIF this IS MathArrayType THEN
+				INCL(flags, RecursionFlag);
+				WITH this: MathArrayType DO
+					result := (this.form = form) & (this.staticLength = staticLength) & arrayBase.SameType(this.arrayBase.resolved);
+				END;
+			END;
+			EXCL(flags, RecursionFlag);
+			RETURN result
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN
+			HALT(200); (*! implement *)
+			RETURN (form = Static) & SameType(to)
+		END CompatibleTo;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitMathArrayType(SELF)
@@ -895,6 +1094,34 @@ TYPE
 			pointerBase := type;
 		END SetPointerBase;
 
+		PROCEDURE Extends*(this: Type): BOOLEAN;
+		VAR result: BOOLEAN; extension, base: Type;
+		BEGIN
+			result := FALSE;
+			IF ((this IS ObjectType) OR (this IS AnyType)) & (pointerBase.resolved IS RecordType) THEN result := TRUE
+			ELSE
+				extension := pointerBase.resolved;
+				IF this IS PointerType THEN
+					base := this(PointerType).pointerBase.resolved;
+				ELSIF this IS RecordType THEN
+					base := this
+				ELSE base := NIL
+				END;
+				IF (extension IS RecordType) & (base # NIL) THEN
+					result := extension(RecordType).Extends(base)
+				END;
+			END;
+			RETURN result
+		END Extends;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN	RETURN (SELF = this) OR (this IS PointerType) & (this(PointerType).pointerBase.SameType(pointerBase.resolved))
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN	RETURN SameType(to) OR ~(to IS RecordType) & SELF.Extends(to)
+		END CompatibleTo;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitPointerType(SELF)
@@ -920,6 +1147,13 @@ TYPE
 		BEGIN channelType := type
 		END SetChannelType;
 
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN (this IS PortType) & (this(PortType).direction = direction) & channelType.SameType(this(PortType).channelType.resolved)
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN	RETURN SameType(to)
+		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -1002,6 +1236,32 @@ TYPE
 			RETURN NIL;
 		END GetBaseRecord;
 
+		PROCEDURE Extends*(this: Type): BOOLEAN;
+		VAR result: BOOLEAN; extension: Type;
+		BEGIN
+			result := FALSE;
+			IF this = SELF THEN result := TRUE
+			ELSIF this IS RecordType THEN
+				IF (baseType # NIL) THEN
+					extension := baseType.resolved;
+					IF extension IS PointerType THEN
+						result := extension(PointerType).Extends(this)
+					ELSIF extension IS RecordType THEN
+						result := extension(RecordType).Extends(this)
+					END;
+				END;
+			END;
+			RETURN result
+		END Extends;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN (this = SELF)
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN	RETURN Extends(to)
+		END CompatibleTo;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitRecordType(SELF)
@@ -1037,6 +1297,14 @@ TYPE
 			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextParameter END;
 			RETURN p;
 		END FindParameter;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN this = SELF
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN SameType(to)
+		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -1110,6 +1378,35 @@ TYPE
 		BEGIN
 			returnParameter := parameter
 		END SetReturnParameter;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		VAR result: BOOLEAN; p1,p2: Parameter;
+		BEGIN
+			result := FALSE;
+			IF RecursionFlag IN flags THEN
+				result := TRUE
+			ELSIF this IS ProcedureType THEN
+				INCL(flags,RecursionFlag);
+				WITH this: ProcedureType DO
+					result := (returnType = NIL) & (this.returnType = NIL) OR (returnType # NIL) & returnType.SameType(this.returnType.resolved);
+					result := result & (flags * {WinAPIFlag,CFlag} = this.flags * {WinAPIFlag,CFlag} );
+					IF result THEN
+						p1 := firstParameter; p2 := this.firstParameter;
+						WHILE (p1 # NIL) & (p2 # NIL) & (p1.access # Hidden) & (p2.access # Hidden) & (p1.kind = p2.kind) & p1.type.resolved.SameType(p2.type.resolved) DO
+							p1 := p1.nextParameter; p2 := p2.nextParameter
+						END;
+						result := ((p1=NIL) OR (p1.access = Hidden)) & ((p2=NIL)  OR (p2.access= Hidden));
+					END;
+				END;
+			END;
+			EXCL(flags,RecursionFlag);
+			RETURN result
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN
+			RETURN SameType(to) & (~(DelegateFlag IN flags) OR (DelegateFlag IN to.flags)) & (~to.IsRealtime() OR SELF.IsRealtime());
+		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -3536,10 +3833,10 @@ VAR
 		INC(typeDeclarationCount); NEW(typeDeclaration,position,name); RETURN typeDeclaration
 	END NewTypeDeclaration;
 
-	PROCEDURE NewStringType*( position: LONGINT; length: LONGINT): StringType;
+	PROCEDURE NewStringType*( position: LONGINT; baseType: Type; length: LONGINT): StringType;
 	VAR stringType: StringType;
 	BEGIN
-		NEW( stringType, position, length);  RETURN stringType;
+		NEW( stringType, position, baseType, length);  RETURN stringType;
 	END NewStringType;
 
 	PROCEDURE NewEnumerationType*( position: LONGINT; scope: Scope; enumerationScope: EnumerationScope): EnumerationType;
