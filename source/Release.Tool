@@ -269,10 +269,11 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	NATIVE,WIN { RelativeFileSystem.Mod } # file system relative to path
 
 	NATIVE,WIN { Loader.Mod }
-	UNIX { Unix.Loader.Mod Unix.Starter.Mod }
+	UNIX { Unix.Loader.Mod }
 
 	# binding modules
 	NATIVE,WIN { BootConsole.Mod }
+	UNIX { Unix.BootConsole.Mod }
 
 	NATIVE,WIN { Displays.Mod }
 	UNIX { Unix.Displays.Mod }
@@ -704,7 +705,7 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	cjkfont.bfnt # since used as fallback
 
 	WindowManager.Mod
-	UNIX { Unix.X11.Mod Unix.XDisplay.Mod Unix.Beep.Mod Unix.KbdMouse.Mod Unix.BootConsole.Mod }
+	UNIX { Unix.X11.Mod Unix.XDisplay.Mod Unix.Beep.Mod Unix.KbdMouse.Mod }
 
 	WMDropTarget.Mod
 
