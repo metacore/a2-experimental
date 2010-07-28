@@ -593,10 +593,10 @@ TYPE
 						symbol := Dataflow.GetSymbol(backend.dataflowSpecification,typeName);
 						IF (symbol = NIL) OR ~(symbol IS Dataflow.Type) THEN
 							Error(p0.position,"could not find type");
+							Error(p0.position,typeName);
 						ELSE
 							instanceType := symbol(Dataflow.Type);
 						END;
-						instanceType := backend.dataflowSpecification.types.ByName(typeName);
 						instance := currentDataflowScope.NewInstance(instanceName, instanceType);
 					END;
 
