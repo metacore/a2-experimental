@@ -370,7 +370,7 @@ TYPE
 			IF (scope.body # NIL) & (x.HasFlag(SyntaxTree.InlineFlag)) THEN
 				inline := TRUE;
 				ir := IntermediateCode.NewSection(module.sections,Sections.InlineCodeSection,name,x,dump);
-			ELSIF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
+			ELSIF (scope.body # NIL) & (SyntaxTree.NetworkFlag IN scope.body.flags) THEN
 				DataflowBody(scope.body);
 				RETURN
 			ELSIF x = module.module.moduleScope.bodyProcedure THEN

@@ -45,7 +45,7 @@ CONST
 	AccessedFlag*=18;
 	MappedFlag*=19; (* for dataflow ports *)
 
-	DataflowFlag*=20;
+	NetworkFlag*=20;
 
 	(** Access Flags *)
 	InternalRead* = 0;			(** can read symbol in same module *)

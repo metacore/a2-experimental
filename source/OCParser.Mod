@@ -1246,10 +1246,20 @@ TYPE
 		END EnumerationType;
 
 		(** PortType = (sender|receiver) 'of' Type. *)
-		PROCEDURE PortType(position: LONGINT; direction: LONGINT; parentScope: SyntaxTree.Scope): SyntaxTree.Type;
-		VAR type: SyntaxTree.Type;
+		PROCEDURE PortType(position: LONGINT; parentScope: SyntaxTree.Scope): SyntaxTree.Type;
+		VAR type: SyntaxTree.Type; direction: LONGINT;
 		BEGIN
+			Check(Scanner.LeftBrace);
+			IF Optional(Scanner.In) THEN
+				direction := SyntaxTree.InPort
+			ELSIF Optional(Scanner.Out) THEN
+				direction := SyntaxTree.OutPort
+			ELSE
+				Error(position,Diagnostics.Invalid,"invalid direction, expected IN or OUT");
+			END;
+			Check(Scanner.RightBrace);
 			Check(Scanner.Of);
+
 			type := Type(NIL, parentScope);
 			type := SyntaxTree.NewPortType(position, direction, type, parentScope);
 			RETURN type
@@ -1267,8 +1277,7 @@ TYPE
 			ELSIF Optional( Scanner.Pointer ) THEN type := PointerType( position,parentScope );
 			ELSIF Optional( Scanner.Object ) THEN type := ObjectType( position,name,parentScope );
 			ELSIF Optional( Scanner.Actor) THEN type := ActorType( position, name, parentScope);
-			ELSIF Optional( Scanner.Receiver) THEN type := PortType( position, SyntaxTree.InPort, parentScope)
-			ELSIF Optional( Scanner.Sender) THEN type := PortType( position, SyntaxTree.OutPort, parentScope)
+			ELSIF Optional( Scanner.Stream) THEN type := PortType( position, parentScope)
 			ELSIF Optional( Scanner.Procedure ) THEN type := ProcedureType( position,parentScope);
 			ELSIF Optional( Scanner.Enum ) THEN type := EnumerationType( position,parentScope);
 			ELSE qualifiedIdentifier := QualifiedIdentifier();

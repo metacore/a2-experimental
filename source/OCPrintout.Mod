@@ -209,11 +209,12 @@ TYPE
 
 		PROCEDURE VisitPortType(x: SyntaxTree.PortType);
 		BEGIN
+			Keyword("STREAM ");
 			IF x.direction = SyntaxTree.OutPort THEN
-				Keyword("OUTSTREAM ")
+				Keyword("{OUT} ")
 			ELSE
 				ASSERT(x.direction = SyntaxTree.InPort);
-				Keyword("INSTREAM ");
+				Keyword("{IN} ");
 			END;
 			Keyword("OF ");
 			Type(x.channelType);

@@ -48,9 +48,9 @@ CONST
 	Semicolon Transpose RightBrace RightBracket RightParenthesis Questionmark Upto
     	Arrow Period Comma Colon Of Then Do To By Becomes Bar End Else Elsif Until Finally
 	(* declaration elements *)
-	Code Const Type Var Out Procedure Operator Import Definition Module Actor Dataflow
+	Code Const Type Var Out Procedure Operator Import Definition Module Actor
 	(* composite type symbols *)
-	Array Object Record Pointer Enum Receiver Sender
+	Array Object Record Pointer Enum Stream
 	(* assembler constants *)
 	Ln PC PCOffset
 	(* number types *)
@@ -59,40 +59,39 @@ CONST
 	~
 	*)
 
-	None*= 0;
+	None*= 0; 
 	(* RelationOps: Equal ... Is *)
-	Equal*= 1; DotEqual*= 2; Unequal*= 3; DotUnequal*= 4; Less*= 5; DotLess*= 6;
-	LessEqual*= 7; DotLessEqual*= 8; Greater*= 9; DotGreater*= 10; GreaterEqual*= 11; DotGreaterEqual*= 12;
-	In*= 13; Is*= 14;
+	Equal*= 1; DotEqual*= 2; Unequal*= 3; DotUnequal*= 4; Less*= 5; DotLess*= 6; 
+	LessEqual*= 7; DotLessEqual*= 8; Greater*= 9; DotGreater*= 10; GreaterEqual*= 11; DotGreaterEqual*= 12; 
+	In*= 13; Is*= 14; 
 	(* MulOps: Times ... And *)
-	Times*= 15; TimesTimes*= 16; DotTimes*= 17; PlusTimes*= 18; Slash*= 19; Backslash*= 20;
-	DotSlash*= 21; Div*= 22; Mod*= 23; And*= 24;
+	Times*= 15; TimesTimes*= 16; DotTimes*= 17; PlusTimes*= 18; Slash*= 19; Backslash*= 20; 
+	DotSlash*= 21; Div*= 22; Mod*= 23; And*= 24; 
 	(* AddOps: Or ... Minus *)
-	Or*= 25; Plus*= 26; Minus*= 27;
+	Or*= 25; Plus*= 26; Minus*= 27; 
 	(* Prefix Unary Operators Plus ... Not *)
-	Not*= 28;
+	Not*= 28; 
 	(* expressions may start with Plus ... Identifier *)
-	LeftParenthesis*= 29; LeftBracket*= 30; LeftBrace*= 31; Number*= 32; Character*= 33; String*= 34;
-	Nil*= 35; True*= 36; False*= 37; Self*= 38; Identifier*= 39;
+	LeftParenthesis*= 29; LeftBracket*= 30; LeftBrace*= 31; Number*= 32; Character*= 33; String*= 34; 
+	Nil*= 35; True*= 36; False*= 37; Self*= 38; Identifier*= 39; 
 	(* statementy may start with Self ... Begin *)
-	If*= 40; Case*= 41; While*= 42; Repeat*= 43; For*= 44; Loop*= 45;
-	With*= 46; Exit*= 47; Await*= 48; Return*= 49; Begin*= 50;
+	If*= 40; Case*= 41; While*= 42; Repeat*= 43; For*= 44; Loop*= 45; 
+	With*= 46; Exit*= 47; Await*= 48; Return*= 49; Begin*= 50; 
 	(* symbols, expressions and statements cannot start with *)
-	Semicolon*= 51; Transpose*= 52; RightBrace*= 53; RightBracket*= 54; RightParenthesis*= 55; Questionmark*= 56;
-	Upto*= 57; Arrow*= 58; Period*= 59; Comma*= 60; Colon*= 61; Of*= 62;
-	Then*= 63; Do*= 64; To*= 65; By*= 66; Becomes*= 67; Bar*= 68;
-	End*= 69; Else*= 70; Elsif*= 71; Until*= 72; Finally*= 73;
+	Semicolon*= 51; Transpose*= 52; RightBrace*= 53; RightBracket*= 54; RightParenthesis*= 55; Questionmark*= 56; 
+	Upto*= 57; Arrow*= 58; Period*= 59; Comma*= 60; Colon*= 61; Of*= 62; 
+	Then*= 63; Do*= 64; To*= 65; By*= 66; Becomes*= 67; Bar*= 68; 
+	End*= 69; Else*= 70; Elsif*= 71; Until*= 72; Finally*= 73; 
 	(* declaration elements *)
-	Code*= 74; Const*= 75; Type*= 76; Var*= 77; Out*= 78; Procedure*= 79;
-	Operator*= 80; Import*= 81; Definition*= 82; Module*= 83; Actor*= 84; Network*= 85;
+	Code*= 74; Const*= 75; Type*= 76; Var*= 77; Out*= 78; Procedure*= 79; 
+	Operator*= 80; Import*= 81; Definition*= 82; Module*= 83; Actor*= 84; 
 	(* composite type symbols *)
-	Array*= 86; Object*= 87; Record*= 88; Pointer*= 89; Enum*= 90; Receiver*= 91;
-	Sender*= 92;
+	Array*= 85; Object*= 86; Record*= 87; Pointer*= 88; Enum*= 89; Stream*= 90; 
 	(* assembler constants *)
-	Ln*= 93; PC*= 94; PCOffset*= 95;
+	Ln*= 91; PC*= 92; PCOffset*= 93; 
 	(* number types *)
-	Shortint*= 96; Integer*= 97; Longint*= 98; Hugeint*= 99; Real*= 100; Longreal*= 101;
-	Comment*= 102; EndOfText*= 103;
+	Shortint*= 94; Integer*= 95; Longint*= 96; Hugeint*= 97; Real*= 98; Longreal*= 99; 
+	Comment*= 100; EndOfText*= 101; 
 
 	SingleQuote = 27X;  DoubleQuote = 22X;
 	Ellipsis = 7FX;   (* used in Scanner.GetNumber to return with ".." when reading an interval like 3..5 *)
@@ -912,14 +911,12 @@ TYPE
 		tokens[Definition] := "Definition";
 		tokens[Module] := "Module";
 		tokens[Actor] := "Actor";
-		tokens[Network] := "Network";
 		tokens[Array] := "Array";
 		tokens[Object] := "Object";
 		tokens[Record] := "Record";
 		tokens[Pointer] := "Pointer";
 		tokens[Enum] := "Enum";
-		tokens[Receiver] := "Receiver";
-		tokens[Sender] := "Sender";
+		tokens[Stream] := "Stream";
 		tokens[Ln] := "Ln";
 		tokens[PC] := "PC";
 		tokens[PCOffset] := "PCOffset";
@@ -980,7 +977,6 @@ TYPE
 		Enter( "const" , Const);
 		Enter( "case" , Case);
 		Enter( "code" , Code);
-		Enter( "network", Network);
 		Enter( "definition", Definition);
 		Enter( "do" , Do);
 		Enter( "div" , Div);
@@ -1005,10 +1001,9 @@ TYPE
 		Enter( "out", Out);
 		Enter( "operator" , Operator);
 		Enter( "procedure" , Procedure);
-		Enter( "instream", Receiver);
+		Enter( "stream", Stream);
 		Enter( "repeat" , Repeat);
 		Enter( "return" , Return);
-		Enter( "outstream", Sender);
 		Enter( "self", Self);
 		Enter( "then" , Then);
 		Enter( "true" , True);

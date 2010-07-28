@@ -90,7 +90,7 @@ TYPE
 		withEntries: WithEntry;
 		flagExpressions: ARRAY 32 OF SyntaxTree.Expression;
 		dataflowStatement: BOOLEAN;
-		inDataflowBody: BOOLEAN;
+		inAssemblyBody: BOOLEAN;
 		dataflowSpecification: Dataflow.Specification;
 
 		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope);
@@ -3311,7 +3311,7 @@ TYPE
 								END;
 							END;
 						ELSIF type0 IS SyntaxTree.ActorType THEN
-							IF Parameters(1,1) & ~(inDataflowBody) THEN
+							IF Parameters(1,1) & ~(inAssemblyBody) THEN
 								Error(position,Diagnostics.Invalid,"actor allocation outside dataflow ");
 							END;
 							dataflowStatement := TRUE;
@@ -3891,7 +3891,7 @@ TYPE
 					type := type0;
 				(* ------- CONNECT -------*)
 				ELSIF (id = Global.Connect) & (Parameters(2,2)) THEN
-					IF 	~(inDataflowBody) THEN
+					IF 	~(inAssemblyBody) THEN
 						Error(position,Diagnostics.Invalid,"connection outside dataflow body block");
 					END;
 					IF ~CheckPortType(parameter1, inPort) OR (inPort.direction # SyntaxTree.InPort) THEN
@@ -3904,7 +3904,7 @@ TYPE
 					dataflowStatement := TRUE;
 				(* ---------- DELEGATE --------*)
 				ELSIF (id = Global.Delegate) & (Parameters(2,2)) THEN
-					IF 	~(inDataflowBody) THEN
+					IF 	~(inAssemblyBody) THEN
 						Error(position,Diagnostics.Invalid,"connection delegation outside dataflow body block");
 					END;
 					IF ~CheckPortType(parameter1, inPort) THEN
@@ -4658,7 +4658,7 @@ TYPE
 			dataflowStatement := FALSE;
 			x.Accept(SELF);
 			(* removed this, implementation restriction should be resolved by backend
-			IF (inDataflowBody) & (dataflowStatement = FALSE) THEN
+			IF (inAssemblyBody) & (dataflowStatement = FALSE) THEN
 				Error(x.position, Diagnostics.Invalid, "non-dataflow statement in dataflow block - not yet implemented");
 			END;
 			*)
@@ -5272,8 +5272,8 @@ TYPE
 					flag := SyntaxTree.SafeFlag;
 				ELSIF name = Global.StringRealtime THEN
 					flag := SyntaxTree.RealtimeFlag
-				ELSIF name = Global.StringDataflow THEN
-					flag := SyntaxTree.DataflowFlag
+				ELSIF name = Global.StringAssembly THEN
+					flag := SyntaxTree.NetworkFlag
 				ELSE
 					Error(position,Diagnostics.Invalid,"unknown block modifier");
 				END;
@@ -5300,8 +5300,8 @@ TYPE
 		VAR flags: SET;
 		BEGIN
 			BlockFlags(statementBlock);
-			IF (SyntaxTree.DataflowFlag IN statementBlock.flags)  THEN
-				inDataflowBody := TRUE
+			IF (SyntaxTree.NetworkFlag IN statementBlock.flags)  THEN
+				inAssemblyBody := TRUE
 			END;
 			IF SyntaxTree.ExclusiveFlag IN statementBlock.flags THEN
 				(* check that not in exclusive block *)
@@ -5323,7 +5323,7 @@ TYPE
 		 **)
 		PROCEDURE Body(body: SyntaxTree.Body);
 		BEGIN
-			inDataflowBody := FALSE;
+			inAssemblyBody := FALSE;
 			VisitStatementBlock(body);
 			IF SyntaxTree.ActiveFlag IN body.flags THEN
 				IF  ~(SyntaxTree.BodyProcedureFlag IN currentFlags) THEN

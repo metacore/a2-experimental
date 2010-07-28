@@ -130,16 +130,19 @@ TYPE
 		PROCEDURE VisitRecordType(x: SyntaxTree.RecordType);
 		BEGIN	END VisitRecordType;
 
+
+
+
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
-		VAR componentName, parameterName, name: SyntaxTree.String; component: Dataflow.Type;
+		VAR componentName, parameterName, name: SyntaxTree.String; instanceType: Dataflow.Type;
 			parameter: SyntaxTree.Parameter; parameterType: SyntaxTree.Type; portIndex,i,direction,len: LONGINT;
 			port: Dataflow.Port;
 			prevDataflowScope : Dataflow.Scope;
 		BEGIN
 			prevDataflowScope := currentDataflowScope;
 			x.typeDeclaration.name.GetString(componentName);
-			component := backend.dataflowSpecification.NewType(componentName);
-			currentDataflowScope := component;
+			instanceType := backend.dataflowSpecification.NewType(componentName);
+			currentDataflowScope := instanceType;
 			parameter := x.firstParameter;
 			portIndex := 0;
 			WHILE parameter # NIL DO
@@ -150,19 +153,19 @@ TYPE
 					FOR i := 0 TO len-1 DO
 						COPY(parameterName,name);
 						AppendIndex(name,i);
-						port := component.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+						port := instanceType.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
 						INC(portIndex);
 					END;
 				ELSE
 					direction := Direction(parameterType(SyntaxTree.PortType).direction);
-					port := component.NewPort(parameterName,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+					port := instanceType.NewPort(parameterName,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
 					INC(portIndex);
 				END;
 				parameter := parameter.nextParameter;
 			END;
 			Scope(x.actorScope);
 			currentDataflowScope := prevDataflowScope;
-			AddModules(component,x.actorScope);
+			AddModules(instanceType,x.actorScope);
 		END VisitActorType;
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
@@ -173,6 +176,12 @@ TYPE
 		END VisitEnumerationType;
 
 		(* symbols *)
+		PROCEDURE VisitImport(x: SyntaxTree.Import);
+		VAR name: SyntaxTree.String;
+		BEGIN
+			x.module.name.GetString(name);
+			backend.dataflowSpecification.AddImport(name);
+		END VisitImport;
 
 		PROCEDURE VisitProcedure(x: SyntaxTree.Procedure);
 		BEGIN
@@ -200,12 +209,20 @@ TYPE
 		VAR procedure: SyntaxTree.Procedure;
 			constant: SyntaxTree.Constant;
 			variable: SyntaxTree.Variable;
+			import: SyntaxTree.Import;
 			prevScope: SyntaxTree.Scope;  typeDeclaration: SyntaxTree.TypeDeclaration;
 		BEGIN
 			IF x IS SyntaxTree.ActorScope THEN implementationVisitor.currentActorScope := x(SyntaxTree.ActorScope) END;
 			prevScope := currentScope;
 			currentScope := x;
 			(* constants treated in implementation visitor  *)
+
+			IF x IS SyntaxTree.ModuleScope THEN
+				import := x(SyntaxTree.ModuleScope).firstImport;
+				WHILE import # NIL DO
+					VisitImport(import); import := import.nextImport
+				END;
+			END;
 
 			typeDeclaration := x.firstTypeDeclaration;
 			WHILE typeDeclaration # NIL DO
@@ -255,7 +272,7 @@ TYPE
 			scope := x.procedureScope;
 			currentScope := scope;
 
-			IF (scope.body # NIL) & (SyntaxTree.DataflowFlag IN scope.body.flags) THEN
+			IF (scope.body # NIL) & (SyntaxTree.NetworkFlag IN scope.body.flags) THEN
 				IF x = module.moduleScope.bodyProcedure THEN
 					currentDataflowScope := backend.dataflowSpecification;
 				END;
@@ -481,13 +498,14 @@ TYPE
 
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR p0,p1,p2: SyntaxTree.Expression;
-		component: Dataflow.Type;
+		instanceType: Dataflow.Type;
 		port1,port2: Dataflow.Port;
 		channel: Dataflow.Channel;
 		type,t0,t1,t2: SyntaxTree.Type;
 		instanceName, typeName, portName: SyntaxTree.String;
 		len: LONGINT;
 		instance,instance1,instance2: Dataflow.Instance;
+		symbol: Dataflow.Symbol;
 
 			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
 			BEGIN
@@ -518,7 +536,10 @@ TYPE
 					e := e(SyntaxTree.SymbolDesignator).left
 				END;
 				Strings.Append(instanceName, suffix);
-				type.typeDeclaration.name.GetString(typeName);
+				IF type.typeDeclaration.scope.ownerModule # moduleScope.ownerModule THEN Global.GetSymbolName(type.typeDeclaration,typeName)
+				ELSE
+					type.typeDeclaration.name.GetString(typeName);
+				END;
 				RETURN TRUE
 			END GetInstanceName;
 
@@ -530,13 +551,13 @@ TYPE
 				IF GetInstanceName(p(SyntaxTree.SymbolDesignator).left, instanceName, typeName) THEN
 					instance := currentDataflowScope.instances.ByName(instanceName);
 					IF instance = NIL THEN Error(p.position,"not allocated"); RETURN FALSE END;
-					component := instance.type;
+					instanceType := instance.type;
 					p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
-					IF component = NIL THEN
-						Error(p.position,"component not allocated"); RETURN FALSE
+					IF instanceType = NIL THEN
+						Error(p.position,"component type could not be derived"); RETURN FALSE
 					ELSE
 						COPY(portName, name); Strings.Append(name,suffix);
-						port := component.ports.ByName(name);
+						port := instanceType.ports.ByName(name);
 						IF port = NIL THEN Error(p.position,"port not available"); Error(p.position,name); RETURN FALSE END;
 					END;
 					RETURN TRUE
@@ -569,8 +590,14 @@ TYPE
 				IF type IS SyntaxTree.ActorType THEN
 					(* generate actor by calling method on dataflow specification *)
 					IF GetInstanceName(p0,instanceName, typeName) THEN
-						component := backend.dataflowSpecification.types.ByName(typeName);
-						instance := currentDataflowScope.NewInstance(instanceName, component);
+						symbol := Dataflow.GetSymbol(backend.dataflowSpecification,typeName);
+						IF (symbol = NIL) OR ~(symbol IS Dataflow.Type) THEN
+							Error(p0.position,"could not find type");
+						ELSE
+							instanceType := symbol(Dataflow.Type);
+						END;
+						instanceType := backend.dataflowSpecification.types.ByName(typeName);
+						instance := currentDataflowScope.NewInstance(instanceName, instanceType);
 					END;
 
 				ELSE
@@ -946,7 +973,7 @@ TYPE
 		END;
 	END Direction;
 
-	PROCEDURE AddModules(component: Dataflow.Type; scope: SyntaxTree.ActorScope);
+	PROCEDURE AddModules(instanceType: Dataflow.Type; scope: SyntaxTree.ActorScope);
 	VAR import: SyntaxTree.Import;
 		local: BOOLEAN;
 
@@ -956,14 +983,14 @@ TYPE
 			IF ~Global.IsSystemModule(x) THEN
 				x.name.GetString(name);
 				IF local THEN
-					device := component.specification.supportedDevices.ByName(name);
+					device := instanceType.specification.supportedDevices.ByName(name);
 					IF device # NIL THEN
-						device := component.NewDevice(device.name,device.adr)
+						device := instanceType.NewDevice(device.name,device.adr)
 					END;
 				END;
 
-				 IF component.modules.ByName(name) = NIL THEN
-					module := component.NewModule(name,"");
+				 IF instanceType.modules.ByName(name) = NIL THEN
+					module := instanceType.NewModule(name,"");
 				END;
 			END;
 		END AddImport;
