@@ -10,13 +10,13 @@
 		<!ELEMENT Regions (Region*)>
 		<!ELEMENT Region EMPTY>
 		<!ATTLIST Style
-			name CDATA #REQUIRED
-			fontname CDATA #REQUIRED
-			fontsize CDATA #REQUIRED
-			fontstyle CDATA #REQUIRED
-			color CDATA #REQUIRED
-			bgcolor CDATA #IMPLIED
-			voff CDATA #IMPLIED
+			name NMTOKEN #REQUIRED
+			fontname NMTOKEN "Syntax"
+			fontsize NMTOKEN "10"
+			fontstyle CDATA "{}"
+			color NMTOKEN "FF"
+			bgcolor NMTOKEN "0"
+			voff NMTOKEN "0"
 		>
 		<!ATTLIST Highlighter
 			name CDATA #REQUIRED
@@ -36,35 +36,38 @@
 
 <SyntaxHighlighter>
 	<Styles>
-		<Style name="Comment" fontname="Syntax" fontsize="10" fontstyle="{}" color="808080FF"/>
-		<Style name="CommentItalic" fontname="Syntax" fontsize="10" fontstyle="{1}" color="808080FF"/>
-		<Style name="Control" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
-		<Style name="Modifiers" fontname="Syntax" fontsize="10" fontstyle="{}" color="A000FF"/>
-		<Style name="Locking" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF"/>
-		<Style name="Checks" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
-		<Style name="Threads" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF00FFFF"/>
-		<Style name="Structure" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF"/>
-		<Style name="Operators" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
-		<Style name="Values" fontname="Syntax" fontsize="10" fontstyle="{}" color="30A0A0FF"/>
-		<Style name="BasicTypes" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
-		<Style name="ComplexTypes" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FFFF"/>
-		<Style name="Dangerous" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF0000FF"/>
-		<Style name="Debug" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
-		<Style name="String" fontname="Syntax" fontsize="10" fontstyle="{}" color="BF003FFF"/>
-
-		<Style name="Normal" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF"/>
-		<Style name="Bold" fontname="Syntax" fontsize="10" fontstyle="{0}" color="FF"/>
-		<Style name="Italic" fontname="Syntax" fontsize="10" fontstyle="{1}" color="FF"/>
-		<Style name="Red" fontname="Syntax" fontsize="10" fontstyle="{}" color="FF0000FF"/>
-		<Style name="Blue" fontname="Syntax" fontsize="10" fontstyle="{}" color="FFFF"/>
-		<Style name="Green" fontname="Syntax" fontsize="10" fontstyle="{0}" color="9000FF"/>
+		<Style name="Default"/>
+		<Style name="Bold" fontstyle="{0}"/>
+		<Style name="Italic" fontstyle="{1}"/>
+		<Style name="Red" color="FF0000FF"/>
+		<Style name="Blue" color="FFFF"/>
+		<Style name="Green" fontstyle="{0}" color="9000FF"/>
+		<Style name="Comment" color="808080FF"/>
+		<Style name="CommentItalic" fontstyle="{1}" color="808080FF"/>
+		<Style name="Control" fontstyle="{0}" color="FFFF"/>
+		<Style name="Modifiers" color="A000FF"/>
+		<Style name="Locking" color="FF00FFFF"/>
+		<Style name="Checks" fontstyle="{0}" color="FFFF"/>
+		<Style name="Threads" color="FF00FFFF"/>
+		<Style name="Structure" fontstyle="{0}" color="FF"/>
+		<Style name="Operators" fontstyle="{0}" color="FFFF"/>
+		<Style name="Values" color="30A0A0FF"/>
+		<Style name="BasicTypes" color="FFFF"/>
+		<Style name="ComplexTypes" fontstyle="{0}" color="FFFF"/>
+		<Style name="Dangerous" fontstyle="{0}" color="FF0000FF"/>
+		<Style name="Debug" color="FFFF"/>
+		<Style name="String" color="BF003FFF"/>
+		<Style name="Error" bgcolor="FF0000FF"/>
 	</Styles>
 
 	<Highlighters>
 		<Highlighter name="Oberon" defaultstyle="">
 			<Tokens>
 				<Group style="Green">
-					( (* *) )
+					( (* )
+				</Group>
+				<Group style="Error">
+					*)
 				</Group>
 				<Group style="Red">
 					= := * + - /
