@@ -83,7 +83,7 @@ TYPE
 			currentScope := NIL;
 			SELF.system := system; SELF.implementationVisitor := implementationVisitor;
 			SELF.backend := backend;
-			currentDataflowScope := NIL;
+			currentDataflowScope := backend.dataflowSpecification;
 		END Init;
 
 		(*
@@ -141,7 +141,7 @@ TYPE
 		BEGIN
 			prevDataflowScope := currentDataflowScope;
 			x.typeDeclaration.name.GetString(componentName);
-			instanceType := backend.dataflowSpecification.NewType(componentName);
+			instanceType := currentDataflowScope.NewType(componentName); (*backend.dataflowSpecification.NewType(componentName);*)
 			currentDataflowScope := instanceType;
 			parameter := x.firstParameter;
 			portIndex := 0;
@@ -273,9 +273,6 @@ TYPE
 			currentScope := scope;
 
 			IF (scope.body # NIL) & (SyntaxTree.NetworkFlag IN scope.body.flags) THEN
-				IF x = module.moduleScope.bodyProcedure THEN
-					currentDataflowScope := backend.dataflowSpecification;
-				END;
 				DataflowBody(scope.body);
 			END;
 			currentScope := prevScope;
@@ -285,6 +282,7 @@ TYPE
 		PROCEDURE Module*(x: SyntaxTree.Module);
 		BEGIN
 			ASSERT(x # NIL); module := x;
+			currentDataflowScope := backend.dataflowSpecification;
 			implementationVisitor.moduleScope := x.moduleScope;
 			Scope(x.moduleScope);
 		END Module;
@@ -590,7 +588,7 @@ TYPE
 				IF type IS SyntaxTree.ActorType THEN
 					(* generate actor by calling method on dataflow specification *)
 					IF GetInstanceName(p0,instanceName, typeName) THEN
-						symbol := Dataflow.GetSymbol(backend.dataflowSpecification,typeName);
+						symbol := Dataflow.GetSymbol(currentDataflowScope,typeName);
 						IF (symbol = NIL) OR ~(symbol IS Dataflow.Type) THEN
 							Error(p0.position,"could not find type");
 							Error(p0.position,typeName);

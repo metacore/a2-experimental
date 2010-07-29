@@ -269,12 +269,13 @@ TYPE
 					generatedModule := dataflowBackend.Module(module);
 					IF dataflowBackend.error THEN
 						FinalMessage(" could not be compiled (dataflow backend errors)");
+						RETURN FALSE
 					END;
 				END;
 
 				IF dataflowSpecification = NIL THEN (* no dataflow *)
 				ELSIF (dataflowSpecification.types.Length() = 0) & (dataflowSpecification.instances.Length()=0) THEN (* nothing defined *)
-				ELSIF ~dataflowSpecification.Link(Info IN flags) THEN
+				ELSIF ~dataflowSpecification.Link(diagnostics,Info IN flags) THEN
 					FinalMessage(" could not link"); RETURN FALSE
 				ELSIF ~dataflowSpecification.Emit() THEN
 					FinalMessage(" could not emit backend specification"); RETURN FALSE;
