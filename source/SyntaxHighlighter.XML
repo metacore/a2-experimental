@@ -88,7 +88,7 @@
 				<Group style="Bold">
 					VAR CONST
 					ARRAY POINTER
-					ACTOR INSTREAM OUTSTREAM
+					ACTOR STREAM
 				</Group>
 				<Group style="Bold">
 					NEW SELF CONNECT
@@ -100,9 +100,10 @@
 					DIV MOD IN IS OR
 					INCL EXCL INC DEC
 					SEND RECEIVE
+					OUT
 				</Group>
 				<Group style="Modifiers">
-					DELEGATE
+					DELEGATE ASSEMBLY
 				</Group>
 				<Group style="Locking">
 					KernelLog.Enter
