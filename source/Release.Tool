@@ -1286,8 +1286,6 @@ PACKAGE Oberon ARCHIVE "Oberon.zip" SOURCE "OberonSrc.zip"  DESCRIPTION "Oberon 
 
 	Oberon.In.Mod Oberon.Out.Mod Oberon.Dates.Mod Oberon.Strings.Mod 	# Utility modules
 
-	UNIX { Unix.Oberon.HostSysinfo.Mod Unix.Oberon.KeyboardMap.Mod }
-
 	NATIVE, iWIN { Oberon.Centronics.Mod }
 
 	NATIVE,iWIN,UNIX { I386.Oberon.Bitmaps.Mod Oberon.Pictures.Mod }
