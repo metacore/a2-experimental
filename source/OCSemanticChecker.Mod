@@ -90,7 +90,6 @@ TYPE
 		withEntries: WithEntry;
 		flagExpressions: ARRAY 32 OF SyntaxTree.Expression;
 		dataflowStatement: BOOLEAN;
-		inAssemblyBody: BOOLEAN;
 		dataflowSpecification: Dataflow.Specification;
 
 		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope);
@@ -3311,7 +3310,7 @@ TYPE
 								END;
 							END;
 						ELSIF type0 IS SyntaxTree.ActorType THEN
-							IF Parameters(1,1) & ~(inAssemblyBody) THEN
+							IF Parameters(1,1) & ~(SyntaxTree.AssemblyFlag IN currentFlags) THEN
 								Error(position,Diagnostics.Invalid,"actor allocation outside dataflow ");
 							END;
 							dataflowStatement := TRUE;
@@ -3891,7 +3890,7 @@ TYPE
 					type := type0;
 				(* ------- CONNECT -------*)
 				ELSIF (id = Global.Connect) & (Parameters(2,2)) THEN
-					IF 	~(inAssemblyBody) THEN
+					IF 	~(SyntaxTree.AssemblyFlag IN currentFlags) THEN
 						Error(position,Diagnostics.Invalid,"connection outside dataflow body block");
 					END;
 					IF ~CheckPortType(parameter1, inPort) OR (inPort.direction # SyntaxTree.InPort) THEN
@@ -3904,7 +3903,7 @@ TYPE
 					dataflowStatement := TRUE;
 				(* ---------- DELEGATE --------*)
 				ELSIF (id = Global.Delegate) & (Parameters(2,2)) THEN
-					IF 	~(inAssemblyBody) THEN
+					IF 	~(SyntaxTree.AssemblyFlag IN currentFlags) THEN
 						Error(position,Diagnostics.Invalid,"connection delegation outside dataflow body block");
 					END;
 					IF ~CheckPortType(parameter1, inPort) THEN
@@ -5272,8 +5271,6 @@ TYPE
 					flag := SyntaxTree.SafeFlag;
 				ELSIF name = Global.StringRealtime THEN
 					flag := SyntaxTree.RealtimeFlag
-				ELSIF name = Global.StringAssembly THEN
-					flag := SyntaxTree.NetworkFlag
 				ELSE
 					Error(position,Diagnostics.Invalid,"unknown block modifier");
 				END;
@@ -5300,9 +5297,6 @@ TYPE
 		VAR flags: SET;
 		BEGIN
 			BlockFlags(statementBlock);
-			IF (SyntaxTree.NetworkFlag IN statementBlock.flags)  THEN
-				inAssemblyBody := TRUE
-			END;
 			IF SyntaxTree.ExclusiveFlag IN statementBlock.flags THEN
 				(* check that not in exclusive block *)
 				IF SyntaxTree.ExclusiveFlag IN currentFlags THEN
@@ -5323,7 +5317,6 @@ TYPE
 		 **)
 		PROCEDURE Body(body: SyntaxTree.Body);
 		BEGIN
-			inAssemblyBody := FALSE;
 			VisitStatementBlock(body);
 			IF SyntaxTree.ActiveFlag IN body.flags THEN
 				IF  ~(SyntaxTree.BodyProcedureFlag IN currentFlags) THEN
@@ -5368,14 +5361,27 @@ TYPE
 		(*!	can in principle be done in parallel on different checkers: implementations do only depend on declarations)
 		 move implementation checker to a separate object ? *)
 		PROCEDURE Implementation(scope: SyntaxTree.Scope);
-		VAR prevScope: SyntaxTree.Scope; prevFlags: SET;
+		VAR prevScope: SyntaxTree.Scope; prevFlags: SET; procedure: SyntaxTree.Procedure;
 		BEGIN
 			prevFlags := currentFlags;
 			prevScope := currentScope;
 			currentScope := scope;
 			IF (scope IS SyntaxTree.ProcedureScope) THEN
-				currentFlags := currentFlags + scope(SyntaxTree.ProcedureScope).ownerProcedure.type(SyntaxTree.ProcedureType).flags;
-				currentFlags := currentFlags + scope(SyntaxTree.ProcedureScope).ownerProcedure.flags;
+				procedure := scope(SyntaxTree.ProcedureScope).ownerProcedure;
+				currentFlags := currentFlags + procedure.type(SyntaxTree.ProcedureType).flags;
+				currentFlags := currentFlags + procedure.flags;
+				IF (procedure.scope # NIL) &
+					((procedure.scope IS SyntaxTree.ModuleScope)
+					& (procedure.scope(SyntaxTree.ModuleScope).bodyProcedure = procedure)
+					& (SyntaxTree.AssemblyFlag IN procedure.scope(SyntaxTree.ModuleScope).ownerModule.flags)
+					OR
+					 (procedure.scope IS SyntaxTree.ActorScope) 
+					 & (procedure.scope(SyntaxTree.ActorScope).bodyProcedure = procedure)
+					 & (procedure.scope(SyntaxTree.ActorScope).ownerActor.isAssembly)
+					 )
+				THEN
+					INCL(currentFlags, SyntaxTree.AssemblyFlag)
+				END;
 			END;
 			IF (scope IS SyntaxTree.ProcedureScope) & (scope(SyntaxTree.ProcedureScope).body # NIL) (* & ~(scope IS SyntaxTree.RecordScope) *) THEN
 				(* module body, record bodies are wrapped into an artifical procedure *)

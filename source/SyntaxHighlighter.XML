@@ -91,10 +91,9 @@
 				<Group style="Bold">
 					VAR CONST
 					ARRAY POINTER
-					ACTOR STREAM
 				</Group>
 				<Group style="Bold">
-					NEW SELF CONNECT
+					NEW SELF
 				</Group>
 				<Group style="Italic">
 					ABS ASH CAP CHR ORD
@@ -106,7 +105,7 @@
 					OUT
 				</Group>
 				<Group style="Modifiers">
-					DELEGATE ASSEMBLY
+					DELEGATE
 				</Group>
 				<Group style="Locking">
 					KernelLog.Enter
@@ -174,6 +173,121 @@
 					Trace.HIntHex
 					Trace.Memory Trace.Buffer Trace.Bits
 					Trace.Blue Trace.Green Trace.Red Trace.Yellow Trace.Default
+				</Group>
+			</Words>
+
+			<Regions>
+				<Region
+					style="Comment" styleOpen="Comment" styleClose="Comment"
+					open="(*" close="*)" nesting="TRUE" multiline="TRUE"
+				/>
+				<Region
+					style="Blue" styleOpen="Comment" styleClose="Comment"
+					open="(*!" close="*)" nesting="TRUE" multiline="TRUE"
+				/>
+				<Region
+					style="Red" styleOpen="Comment" styleClose="Comment"
+					open="(*?" close="*)" nesting="TRUE" multiline="TRUE"
+				/>
+				<Region
+					style="Comment" styleOpen="CommentItalic" styleClose="CommentItalic"
+					open="(**" close="*)" nesting="TRUE" multiline="TRUE"
+				/>
+				<Region
+					style="String" styleOpen="Bold" styleClose="Bold"
+					open='"' close='"' nesting="FALSE" multiline="FALSE"
+				/>
+				<Region
+					style="String" styleOpen="Bold" styleClose="Bold"
+					open="'" close="'" nesting="FALSE" multiline="FALSE"
+				/>
+			</Regions>
+
+		</Highlighter>
+
+		<Highlighter name="DataflowOberon" defaultstyle="">
+			<Tokens>
+				<Group style="Green">
+					( (* )
+				</Group>
+				<Group style="Error">
+					*)
+				</Group>
+				<Group style="Red">
+					= := * + - /
+					&lt; &lt;= &gt;= &gt; #
+				</Group>
+				<Group style="Comment">
+					; : ,
+				</Group>
+			</Tokens>
+
+			<Words allowCharacters="._" numberStyle="Values">
+				<Group style="Bold">
+					FOR TO WHILE DO REPEAT UNTIL IF THEN ELSE ELSIF
+					LOOP CASE BY
+					BEGIN END CODE FINALLY
+					OF
+				</Group>
+				<Group style="Green">
+					RETURN EXIT
+				</Group>
+				<Group style="Bold">
+					VAR CONST
+					ARRAY POINTER
+					ACTOR ASSEMBLY STREAM
+				</Group>
+				<Group style="Bold">
+					NEW SELF CONNECT DELEGATE
+				</Group>
+				<Group style="Italic">
+					ABS ASH CAP CHR ORD
+					COPY GETPROCEDURE LEN
+					MAX MIN ODD SIZEOF SHORT LONG ENTIER ENTIERH
+					DIV MOD IN IS OR
+					INCL EXCL INC DEC
+					SEND RECEIVE
+					OUT
+				</Group>
+				<Group style="Checks">
+					ASSERT
+				</Group>
+				<Group style="Threads">
+					ACTIVE SHARED PRIORITY AWAIT EXCLUSIVE
+				</Group>
+				<Group style="Structure">
+					MODULE IMPORT TYPE DEFINITION REFINES IMPLEMENTS PROCEDURE
+					OBJECT RECORD
+				</Group>
+				<Group style="Values">
+					NIL TRUE FALSE
+				</Group>
+				<Group style="Bold">
+					BOOLEAN
+					SHORTINT INTEGER LONGINT HUGEINT
+					REAL LONGREAL
+					SET
+					CHAR
+					ANY
+				</Group>
+				<Group style="Dangerous">
+					SYSTEM.GET SYSTEM.GET8 SYSTEM.GET16 SYSTEM.GET32 SYSTEM.GET64
+					SYSTEM.ADDRESS SYSTEM.SIZE
+					SYSTEM.SIZEOF SYSTEM.TYPEOF
+					SYSTEM.PUT SYSTEM.PUT8 SYSTEM.PUT16 SYSTEM.PUT32 SYSTEM.PUT64
+					SYSTEM.VAL
+					SYSTEM.ADR
+					SYSTEM.MOVE
+					SYSTEM.PORTIN SYSTEM.PORTOUT
+					SYSTEM.ROT SYSTEM.LSH
+					SYSTEM.CLI SYSTEM.STI
+					SYSTEM
+					SYSTEM.BIT SYSTEM.MSK
+					HALT
+					UNTRACED
+				</Group>
+				<Group style="Debug">
+					TRACE
 				</Group>
 			</Words>
 

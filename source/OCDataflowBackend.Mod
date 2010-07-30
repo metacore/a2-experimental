@@ -252,12 +252,12 @@ TYPE
 			currentScope := prevScope;
 		END Scope;
 
-		PROCEDURE DataflowBody(x: SyntaxTree.Body);
+		PROCEDURE AssemblyBody(x: SyntaxTree.Body);
 		BEGIN
 			implementationVisitor.currentScope := currentScope;
 			implementationVisitor.currentDataflowScope := currentDataflowScope;
 			implementationVisitor.VisitStatementBlock(x);
-		END DataflowBody;
+		END AssemblyBody;
 
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
 		VAR
@@ -272,8 +272,17 @@ TYPE
 			scope := x.procedureScope;
 			currentScope := scope;
 
-			IF (scope.body # NIL) & (SyntaxTree.NetworkFlag IN scope.body.flags) THEN
-				DataflowBody(scope.body);
+			IF  (x.scope IS SyntaxTree.ModuleScope)
+				&  (x= x.scope(SyntaxTree.ModuleScope).bodyProcedure)
+				& (SyntaxTree.AssemblyFlag IN module.flags)
+				OR
+				(x.scope IS SyntaxTree.ActorScope)
+				& (x= x.scope(SyntaxTree.ActorScope).bodyProcedure)
+				& (x.scope(SyntaxTree.ActorScope).ownerActor.isAssembly)
+			THEN
+				IF scope.body # NIL THEN
+					AssemblyBody(scope.body);
+				END;
 			END;
 			currentScope := prevScope;
 		END Procedure;

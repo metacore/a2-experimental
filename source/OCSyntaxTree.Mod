@@ -45,7 +45,7 @@ CONST
 	AccessedFlag*=18;
 	MappedFlag*=19; (* for dataflow ports *)
 
-	NetworkFlag*=20;
+	AssemblyFlag*=20;
 
 	(** Access Flags *)
 	InternalRead* = 0;			(** can read symbol in same module *)
@@ -1273,6 +1273,7 @@ TYPE
 	VAR
 		firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters *)
 		actorScope-: ActorScope;
+		isAssembly-: BOOLEAN;
 
 		PROCEDURE &InitActorType(position: LONGINT; scope: Scope;  actorScope: ActorScope);
 		BEGIN
@@ -1297,6 +1298,10 @@ TYPE
 			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextParameter END;
 			RETURN p;
 		END FindParameter;
+
+		PROCEDURE IsAssembly*(t: BOOLEAN);
+		BEGIN isAssembly := t
+		END IsAssembly;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
 		BEGIN RETURN this = SELF

@@ -21,7 +21,6 @@ CONST
 	StringPriority* = "PRIORITY";
 	StringSafe* = "SAFE";
 	StringRealtime*= "REALTIME";
-	StringAssembly *="ASSEMBLY";
 
 
 

@@ -323,13 +323,6 @@ TYPE
 			currentScope := prevScope;
 		END Scope;
 
-		PROCEDURE DataflowBody(x: SyntaxTree.Body);
-		BEGIN
-			(*
-			implementationVisitor.VisitStatementBlock(x);
-			*)
-		END DataflowBody;
-
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
 		VAR scope: SyntaxTree.ProcedureScope;
 			prevScope: SyntaxTree.Scope;
@@ -370,8 +363,9 @@ TYPE
 			IF (scope.body # NIL) & (x.HasFlag(SyntaxTree.InlineFlag)) THEN
 				inline := TRUE;
 				ir := IntermediateCode.NewSection(module.sections,Sections.InlineCodeSection,name,x,dump);
-			ELSIF (scope.body # NIL) & (SyntaxTree.NetworkFlag IN scope.body.flags) THEN
-				DataflowBody(scope.body);
+			ELSIF (x.scope # NIL) & (x.scope IS SyntaxTree.ActorScope) & (x.scope(SyntaxTree.ActorScope).ownerActor.isAssembly)
+				OR (x.scope # NIL) & (x.scope IS SyntaxTree.ModuleScope) & (SyntaxTree.AssemblyFlag IN x.scope(SyntaxTree.ModuleScope).ownerModule.flags) THEN
+					(* assembly *)
 				RETURN
 			ELSIF x = module.module.moduleScope.bodyProcedure THEN
 				inline := FALSE;
@@ -6110,8 +6104,8 @@ TYPE
 			BEGIN
 				IF type  IS SyntaxTree.ByteType THEN char := rfByte
 				ELSIF type IS SyntaxTree.BooleanType THEN char := rfBoolean
-				ELSIF type IS SyntaxTree.CharacterType THEN 
-					IF size = 8 THEN char := rfChar8	
+				ELSIF type IS SyntaxTree.CharacterType THEN
+					IF size = 8 THEN char := rfChar8
 					ELSIF size = 16 THEN char := rfChar16
 					ELSIF size = 32 THEN char := rfChar32
 					END;
@@ -6122,7 +6116,7 @@ TYPE
 					ELSIF size = 64 THEN char := rfHugeint
 					END;
 				ELSIF type IS SyntaxTree.SizeType THEN char := rfLongint
-				ELSIF type IS SyntaxTree.FloatType THEN 
+				ELSIF type IS SyntaxTree.FloatType THEN
 					IF size = 32 THEN char := rfReal
 					ELSIF size = 64 THEN  char := rfLongreal
 					END;

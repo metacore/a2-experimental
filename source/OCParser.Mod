@@ -1070,7 +1070,7 @@ TYPE
 
 		(** ActorType = 'actor' [ParameterList] DeclarationSequence [Body] 'end' [Identifier]
               | 'object'. **)
-		PROCEDURE ActorType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope ): SyntaxTree.Type;
+		PROCEDURE ActorType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope; isAssembly: BOOLEAN): SyntaxTree.Type;
 		VAR
 			actorType: SyntaxTree.ActorType;
 			actorScope: SyntaxTree.ActorScope;
@@ -1080,6 +1080,7 @@ TYPE
 
 			actorScope := SyntaxTree.NewActorScope(parentScope);
 			actorType := SyntaxTree.NewActorType( position, parentScope,actorScope);
+			actorType.IsAssembly(isAssembly);
 			actorScope.SetOwnerActor(actorType);
 
 			(*
@@ -1276,7 +1277,8 @@ TYPE
 			ELSIF Optional( Scanner.Record ) THEN type := RecordType( position,parentScope );
 			ELSIF Optional( Scanner.Pointer ) THEN type := PointerType( position,parentScope );
 			ELSIF Optional( Scanner.Object ) THEN type := ObjectType( position,name,parentScope );
-			ELSIF Optional( Scanner.Actor) THEN type := ActorType( position, name, parentScope);
+			ELSIF Optional( Scanner.Actor) THEN type := ActorType( position, name, parentScope,FALSE);
+			ELSIF Optional( Scanner.Assembly) THEN type := ActorType( position, name, parentScope, TRUE);
 			ELSIF Optional( Scanner.Stream) THEN type := PortType( position, parentScope)
 			ELSIF Optional( Scanner.Procedure ) THEN type := ProcedureType( position,parentScope);
 			ELSIF Optional( Scanner.Enum ) THEN type := EnumerationType( position,parentScope);
@@ -1682,15 +1684,17 @@ TYPE
 		(** Module = 'module' Identifier ['in' Identifier]';' [ImportList] DeclarationSequence [Body]
 			         'end' Identifier '.'. **)
 		PROCEDURE Module*(): SyntaxTree.Module;
-		VAR moduleName, context: SyntaxTree.Identifier;  module: SyntaxTree.Module;  position: LONGINT;
+		VAR moduleName, context: SyntaxTree.Identifier;  module: SyntaxTree.Module;  position: LONGINT; isAssembly: BOOLEAN;
 		BEGIN
 			IF Trace THEN S( "Module" ) END;
 			position := symbol.start;
 			moduleScope := SyntaxTree.NewModuleScope(); (* needed to feed in comment already before module starts *)
 			currentScope := moduleScope;
-			IF Mandatory( Scanner.Module ) THEN
+			isAssembly := Optional(Scanner.Assembly);
+			IF isAssembly OR Mandatory( Scanner.Module ) THEN
 				moduleName :=  Identifier();
 				module := SyntaxTree.NewModule( scanner.source, moduleName.position, moduleName, moduleScope, scanner.case );
+				IF isAssembly THEN module.AddFlags({SyntaxTree.AssemblyFlag}) END;
 
 				module.SetType(SyntaxTree.moduleType);
 				CommentSymbol(module);
@@ -1720,7 +1724,7 @@ TYPE
 		PROCEDURE NextModule*(): BOOLEAN;
 		BEGIN
 			scanner.ResetCase;
-			NextSymbol; RETURN Peek(Scanner.Module);
+			NextSymbol; RETURN Peek(Scanner.Module) OR Peek(Scanner.Assembly);
 		END NextModule;
 
 	END Parser;
