@@ -764,9 +764,9 @@ TYPE
 			BEGIN
 				fullLayout := FALSE;
 				state.FindTriple(position, hasLeft, hasMiddle, hasRight, left, middle, right);
-				IF hasMiddle THEN
+				IF hasMiddle & (position > middle.open) THEN
 					location := GetLocation(position, middle);
-					IF (location = OpenString) OR (location = CloseString) THEN
+					IF (location = OpenString) OR ((location = CloseString) & (position > middle.close - middle.region.closeLength + 1)) THEN
 						state.RemoveFrom(position);
 						Scan(reader, middle.open, MAX(LONGINT), state, ignore);
 						fullLayout := TRUE;
@@ -849,7 +849,7 @@ TYPE
 						Scan(reader, start, MAX(LONGINT), state, ignore);
 						fullLayout := TRUE;
 					ELSE
-						end := position + longestClose - 1;
+						end := position - 1;
 						state.Patch(position, -length);
 						Scan(reader, start, end, state, match);
 						IF match THEN
@@ -1347,16 +1347,33 @@ BEGIN
 	FOR i := 1 TO level DO out.Char(" "); END;
 END Indent;
 
+(**
+	Example:
+
+	open:	 <!-- 	entry.region.openLength = 4
+	close:	 -->	entry.region.closeLength = 3
+
+	String:  <	!	-	-	B	L	A	H	-	-	>
+			0	1	2	3	4	5	6	7	8	9	10
+
+	OpenString: 	[0, 3]
+	Content: 		[4, 7]
+	CloseString:		[8, 10]
+*)
 PROCEDURE GetLocation(position : LONGINT; CONST entry : DataEntry) : LONGINT;
 VAR location, closeLength : LONGINT;
 BEGIN
 	IF entry.eol THEN closeLength := 0; ELSE closeLength := entry.region.closeLength; END;
-	IF (entry.open <= position) & (position <= entry.open + entry.region.openLength - 1) THEN
-		location := OpenString;
-	ELSIF (entry.open + 1 <= position) & (position <= entry.close - closeLength ) THEN
-		location := Content;
-	ELSIF (entry.close - closeLength + 1 <= position) & (position <= entry.close) THEN
-		location := CloseString;
+	IF (position >= entry.open) THEN
+		IF (position <= entry.open + entry.region.openLength - 1) THEN
+			location := OpenString;
+		ELSIF (position <= entry.close - closeLength) THEN
+			location := Content;
+		ELSIF (position <= entry.close) THEN
+			location := CloseString;
+		ELSE
+			location := Outside;
+		END;
 	ELSE
 		location := Outside;
 	END;
