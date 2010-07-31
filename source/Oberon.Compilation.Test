@@ -39272,3 +39272,84 @@ positive: export and import real number
 	BEGIN 
 		ASSERT(A.e = e);
 	END Test.
+	
+positive: addition of SYSTEM.ADDRESS and SYSTEM.SIZE
+	MODULE Test;
+	IMPORT SYSTEM; 
+	VAR a: SYSTEM.ADDRESS; s: SYSTEM.SIZE;
+
+	BEGIN
+		a := a + s;
+	END Test.
+
+positive: implicit HUGEINT conversion in comparison
+	MODULE Test;
+	VAR h: HUGEINT; 
+	BEGIN 
+		IF h < 0 THEN END
+	END Test.
+
+positive: SYSTEM.ADDRESS as variable in for loop
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a,b,i: SYSTEM.ADDRESS;
+	BEGIN
+		FOR i := a TO b DO
+		END;
+	END Test.
+
+positive: subtract a SYSTEM.ADDRESS from SYSTEM.ADDRESS
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a,b: SYSTEM.ADDRESS; size: SYSTEM.SIZE;
+	BEGIN
+		size := a-b;
+		size := -size
+	END Test.
+
+positive: LONG conversion on SYSTEM.ADDRESS
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a: SYSTEM.ADDRESS; v: HUGEINT;
+	BEGIN
+		v := LONG(a)
+	END Test.
+
+positive: add negative value to SYSTEM.ADDRESS
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a: SYSTEM.ADDRESS;
+	CONST const = -4;
+	BEGIN 
+		a := a + const;
+	END Test.
+
+positive: unary negation of SYSTEM.ADDRESS
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a: SYSTEM.ADDRESS;
+	BEGIN
+		a := a + (-a) MOD 4;
+	END Test.
+
+positive: export and import SYSTEM.ADDRESS parameter
+	MODULE A;
+	IMPORT SYSTEM;
+	PROCEDURE P*(VAR a: SYSTEM.ADDRESS);
+	BEGIN
+	END P;
+	END A.
+
+	MODULE Test;
+	IMPORT SYSTEM,A;
+	VAR a: SYSTEM.ADDRESS;
+	BEGIN A.P(a)
+	END Test.
+
+positive: use SYSTEM.ADDRESS as array index
+	MODULE Test;
+	IMPORT SYSTEM;
+	VAR a: SYSTEM.ADDRESS; b: ARRAY 32 OF SYSTEM.ADDRESS;
+	BEGIN b[a] := b[a]
+	END Test.
+
