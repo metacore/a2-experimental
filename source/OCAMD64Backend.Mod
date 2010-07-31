@@ -2362,7 +2362,7 @@ TYPE
 		PROCEDURE EmitNeg(CONST instr: IntermediateCode.Instruction);
 		VAR op: Operand; minusOne: Assembler.Operand;
 		BEGIN
-			IF instr.op1.type.form =IntermediateCode.SignedInteger THEN
+			IF instr.op1.type.form IN IntermediateCode.Integer THEN
 				PrepareOp2(instr,op);
 				IF instr.op1.type.sizeInBits = IntermediateCode.Bits64 THEN
 					emitter.Emit1(InstructionSet.opNOT,op.high);
@@ -2375,7 +2375,10 @@ TYPE
 				FinishOp2(instr,op);
 			ELSIF instr.op1.type.form = IntermediateCode.Float THEN
 				TwoOperandFPInstruction(instr,InstructionSet.opFCHS)
+			(**
 			ELSE Halt("does not make sense on unsigned integer");
+				counterexample: (-adr MOD alignment)
+			*)
 			END;
 		END EmitNeg;
 

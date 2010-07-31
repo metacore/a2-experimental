@@ -1435,7 +1435,7 @@ TYPE
 			ELSE
 				CASE unaryExpression.operator OF
 				|Scanner.Minus:
-					IF left.type.resolved IS SyntaxTree.IntegerType THEN
+					IF IsIntegerType(left.type.resolved) THEN
 						IF left.resolved # NIL THEN
 							int := -left.resolved(SyntaxTree.IntegerValue).hvalue;
 							value := SyntaxTree.NewIntegerValue(unaryExpression.position,int);
@@ -1533,7 +1533,9 @@ TYPE
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);
 				ELSIF (type IS SyntaxTree.AddressType) THEN
+					(*
 					IF int < 0 THEN Error(position,Diagnostics.Invalid,"negative value cannot be converted to address") END;
+					*)
 					int := Global.ConvertUnsigned(int,system.SizeOf(type));
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);
@@ -1656,7 +1658,7 @@ TYPE
 			ELSIF expression = NIL THEN (* NIL expression *)
 			ELSIF expression.type = NIL THEN
 				Error(position,Diagnostics.Invalid,"expression of type NIL cannot be converted");
-			ELSIF expression.type.resolved = type THEN (* nothing to be done ! *)
+			ELSIF expression.type.SameType(type) THEN (* nothing to be done ! *)
 			ELSIF (expression.type.resolved IS SyntaxTree.AnyType) THEN (*! binary symbol file problem: ANY and OBJECT cannot be distinguished  *)
 			ELSIF (expression.type.resolved IS SyntaxTree.ObjectType) & (type IS SyntaxTree.AnyType) THEN (*! binary symbol file problem *)
 			ELSIF expression.resolved # NIL THEN (* value *)
@@ -1841,6 +1843,7 @@ TYPE
 		(*! clean up *)
 		PROCEDURE VisitBinaryExpression(binaryExpression: SyntaxTree.BinaryExpression);
 		VAR left,right,result: SyntaxTree.Expression;
+			leftType, rightType: SyntaxTree.Type;
 			il,ir: LONGINT; rl,rr: LONGREAL; hl,hr: HUGEINT;bl,br: BOOLEAN; sl,sr: SET;  strl,strr: Scanner.StringType;
 			cl,cr: CHAR;
 			operator: LONGINT; operatorCall: SyntaxTree.Expression;
@@ -1906,7 +1909,8 @@ TYPE
 				result := SyntaxTree.invalidExpression;
 				RETURN;
 			END;
-			IF (~(left.type.resolved IS SyntaxTree.BasicType) OR ~(right.type.resolved IS SyntaxTree.BasicType)) THEN
+			leftType := left.type.resolved; rightType := right.type.resolved;
+			IF (~(leftType IS SyntaxTree.BasicType) OR ~(rightType IS SyntaxTree.BasicType)) THEN
 				operatorCall := NewOperatorCall(binaryExpression.position,operator,left,right,system.allType);
 			END;
 
@@ -1948,21 +1952,21 @@ TYPE
 			ELSIF (right.type = NIL) THEN
 				Error(right.position,Diagnostics.Invalid,"type (right operand) = NIL in binary expression");
 				result := SyntaxTree.invalidExpression;
-			ELSIF (left.type.resolved = SyntaxTree.invalidType) OR (right.type.resolved = SyntaxTree.invalidType) THEN (* error already handled *)
+			ELSIF (leftType = SyntaxTree.invalidType) OR (rightType = SyntaxTree.invalidType) THEN (* error already handled *)
 				result := SyntaxTree.invalidExpression;
 			ELSIF operator = Scanner.Upto THEN (* left .. right: now solved as RangeExpression*)
 				HALT(100);
 			ELSIF operator = Scanner.Is THEN (* left IS right: now solved as IsExpression *)
 				type := system.booleanType;
-				IF  ~(right.type.resolved = SyntaxTree.typeDeclarationType) THEN
+				IF  ~(rightType = SyntaxTree.typeDeclarationType) THEN
 					Error(right.position,Diagnostics.Invalid,"is not a type ");
-				ELSIF ~IsTypeExtension(left.type.resolved, right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved) THEN
+				ELSIF ~IsTypeExtension(leftType, right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved) THEN
 					Error(binaryExpression.position,Diagnostics.Invalid,"is not a  type extension of ");
 					IF VerboseErrorMessage THEN
 						Printout.Info("left",left);
 						Printout.Info("right",right);
 					END;
-				ELSIF (left.type.resolved = right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved) & ~(left.type.resolved IS SyntaxTree.PointerType) THEN
+				ELSIF (leftType.SameType(right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved)) & ~(leftType IS SyntaxTree.PointerType) THEN
 					NewBool(TRUE)
 				ELSIF right(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved IS SyntaxTree.AnyType THEN
 					NewBool(TRUE);
@@ -1972,11 +1976,11 @@ TYPE
 			ELSIF (right IS SyntaxTree.SymbolDesignator) & (right(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.TypeDeclaration) THEN
 				Error(right.position,Diagnostics.Invalid,"must not be a type");
 			ELSIF operator = Scanner.In THEN (* left IN right *)
-				IF (left.type.resolved IS SyntaxTree.IntegerType) & (right.type.resolved IS SyntaxTree.SetType) THEN
+				IF (leftType IS SyntaxTree.IntegerType) & (rightType IS SyntaxTree.SetType) THEN
 					IF IsIntegerValue(left,il) & IsSetValue(right,sr) THEN
 						NewBool(il IN sr);
 					ELSE
-						IF left.type.resolved.sizeInBits # system.longintType.sizeInBits THEN
+						IF leftType.sizeInBits # system.longintType.sizeInBits THEN
 							left := NewConversion(left.position, left, system.longintType,NIL);
 							binaryExpression.SetLeft(left)
 						END;
@@ -1985,19 +1989,19 @@ TYPE
 				ELSE
 					Error(binaryExpression.position,Diagnostics.Invalid, "incompatible operands");
 				END
-			ELSIF (left.type.resolved IS SyntaxTree.ProcedureType) OR (right.type.resolved IS SyntaxTree.ProcedureType) THEN
-				IF ~CompatibleTo(system,left.type.resolved,right.type.resolved) & ~CompatibleTo(system,right.type.resolved,left.type.resolved) THEN
+			ELSIF (leftType IS SyntaxTree.ProcedureType) OR (rightType IS SyntaxTree.ProcedureType) THEN
+				IF ~CompatibleTo(system,leftType,rightType) & ~CompatibleTo(system,rightType,leftType) THEN
 					Error(binaryExpression.position,Diagnostics.Invalid,"incompatible operands");
 				END;
 
 				IF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) THEN type := system.booleanType
 				ELSE  Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 1")
 				END
-			ELSIF IsPointerType(left.type.resolved) OR IsPointerType(right.type.resolved) THEN
-				IF ~CompatibleTo(system,left.type.resolved,right.type.resolved) & ~CompatibleTo(system,right.type.resolved,left.type.resolved) THEN
-				(* IsPointerType(left.type.resolved) OR ~IsPointerType(right.type.resolved) THEN *)
+			ELSIF IsPointerType(leftType) OR IsPointerType(rightType) THEN
+				IF ~CompatibleTo(system,leftType,rightType) & ~CompatibleTo(system,rightType,leftType) THEN
+				(* IsPointerType(leftType) OR ~IsPointerType(rightType) THEN *)
 					Error(binaryExpression.position,Diagnostics.Invalid,"incompatible operands");
-					IF VerboseErrorMessage THEN Printout.Info("left.type.resolved",left.type.resolved); Printout.Info("right",right.type.resolved) END
+					IF VerboseErrorMessage THEN Printout.Info("leftType",leftType); Printout.Info("right",rightType) END
 				ELSIF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) THEN
 					IF (left IS SyntaxTree.NilValue) & (right IS SyntaxTree.NilValue) THEN
 						IF operator = Scanner.Equal THEN NewBool(TRUE) ELSE NewBool(FALSE) END;
@@ -2008,8 +2012,8 @@ TYPE
 				END
 			ELSIF (left.resolved# NIL) & (left.resolved IS SyntaxTree.NilValue) THEN Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined");
 			ELSIF (right.resolved # NIL) & (right.resolved IS SyntaxTree.NilValue) THEN Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined");
-			ELSIF IsStringType(left.type.resolved) & IsStringType(right.type.resolved) THEN		(* string ops*)
-				IF IsStringType(left.type.resolved) & IsStringType(right.type.resolved) THEN	(*ok*)
+			ELSIF IsStringType(leftType) & IsStringType(rightType) THEN		(* string ops*)
+				IF IsStringType(leftType) & IsStringType(rightType) THEN	(*ok*)
 					IF IsStringValue(left,strl) & IsStringValue(right,strr) THEN
 						CASE operator OF
 						|Scanner.Equal: NewBool(strl=strr);
@@ -2035,7 +2039,7 @@ TYPE
 				ELSE
 					Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 6");
 				END
-			ELSIF (left.type.resolved IS SyntaxTree.EnumerationType) OR (right.type.resolved IS SyntaxTree.EnumerationType) THEN
+			ELSIF (leftType IS SyntaxTree.EnumerationType) OR (rightType IS SyntaxTree.EnumerationType) THEN
 				IF IsEnumerationExtension(left.type,right.type) OR IsEnumerationExtension(right.type,left.type) THEN
 					IF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) OR (operator = Scanner.Less) OR (operator = Scanner.LessEqual)
 						OR (operator = Scanner.Greater) OR (operator = Scanner.GreaterEqual) THEN
@@ -2046,22 +2050,24 @@ TYPE
 				ELSE
 					Error(binaryExpression.position,Diagnostics.Invalid,"operator not applicable between different enumerators");
 				END;
-			ELSIF (left.type.resolved IS SyntaxTree.BasicType) & (right.type.resolved IS SyntaxTree.BasicType)
-				OR IsCharacterType(left.type.resolved) & IsCharacterType(right.type.resolved)
+			ELSIF (leftType IS SyntaxTree.BasicType) & (rightType IS SyntaxTree.BasicType)
+				OR IsCharacterType(leftType) & IsCharacterType(rightType)
 			THEN
-				IF left.type.resolved # right.type.resolved THEN
+				IF leftType # rightType THEN
 					ConvertOperands(left,right); (* operands must be of the same type here *)
 					binaryExpression.SetLeft(left);
 					binaryExpression.SetRight(right);
+					leftType := left.type.resolved; 
+					rightType := right.type.resolved;
 				END;
-				type := left.type.resolved;
-				IF left.type.resolved # right.type.resolved THEN
+				type := leftType;
+				IF ~leftType.SameType(rightType) THEN
 					Error(binaryExpression.position,Diagnostics.Invalid,"conversion failed ?");
 					IF VerboseErrorMessage THEN
 						Printout.Info("left",left);
 						Printout.Info("right",right);
 					END;
-				ELSIF (left.type.resolved IS SyntaxTree.IntegerType) THEN
+				ELSIF IsIntegerType(leftType) THEN
 					IF IsIntegerValue(right,ir) & (right.type.sizeInBits < 64) THEN
 						IF (ir=0) & ((operator = Scanner.Mod) OR (operator = Scanner.Div) OR (operator = Scanner.Slash)) THEN
 							Error(binaryExpression.position,Diagnostics.Invalid,"division by zero");
@@ -2145,17 +2151,17 @@ TYPE
 					ELSE
 						Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 9");
 					END;
-				ELSIF (left.type.resolved IS SyntaxTree.FloatType) THEN
+				ELSIF (leftType IS SyntaxTree.FloatType) THEN
 					IF IsRealValue(left,rl) & IsRealValue(right,rr) THEN
 						CASE operator OF
-						|Scanner.Plus: NewReal(rl+rr,left.type.resolved);
-						|Scanner.Minus: NewReal(rl-rr,left.type.resolved);
-						|Scanner.Times:NewReal(rl*rr,left.type.resolved);
+						|Scanner.Plus: NewReal(rl+rr,leftType);
+						|Scanner.Minus: NewReal(rl-rr,leftType);
+						|Scanner.Times:NewReal(rl*rr,leftType);
 						|Scanner.Slash:
 							IF rr = 0 THEN
 								Error(binaryExpression.position,Diagnostics.Invalid,"division by zero");
 							ELSE
-								NewReal(rl/rr,left.type.resolved);
+								NewReal(rl/rr,leftType);
 							END
 						|Scanner.Equal: NewBool(rl=rr);
 						|Scanner.Unequal: NewBool(rl#rr);
@@ -2177,7 +2183,7 @@ TYPE
 							Printout.Info("right",right);
 						END;
 					END;
-				ELSIF (left.type.resolved IS SyntaxTree.BooleanType) THEN
+				ELSIF (leftType IS SyntaxTree.BooleanType) THEN
 					IF IsBooleanValue(left,bl) & IsBooleanValue(right,br) THEN
 						CASE operator OF
 						|Scanner.And: NewBool(bl & br);
@@ -2191,7 +2197,7 @@ TYPE
 					ELSE
 						Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 13");
 					END;
-				ELSIF (left.type.resolved IS SyntaxTree.SetType) THEN
+				ELSIF (leftType IS SyntaxTree.SetType) THEN
 					IF IsSetValue(left,sl) & IsSetValue(right,sr) THEN
 						CASE operator OF
 						|Scanner.Plus: NewSet(sl + sr);
@@ -2644,7 +2650,7 @@ TYPE
 			parameters := index.parameters;
 			IF (expression.type = NIL) THEN
 				Error(position,Diagnostics.Invalid,"invalid index");
-			ELSIF (expression.type.resolved IS SyntaxTree.IntegerType) THEN
+			ELSIF IsIntegerType(expression.type.resolved) THEN
 				IndexCheck(expression,over.length);
 				expression := NewConversion(InvalidPosition,expression,system.sizeType,NIL);
 				parameters.AddExpression(expression);
@@ -3543,7 +3549,7 @@ TYPE
 				(* ---- SHORT ----- *)
 				ELSIF (id = Global.Short) & Parameters(1,1) THEN
 					type := type0;
-					IF type IS SyntaxTree.IntegerType THEN
+					IF IsIntegerType(type) THEN
 						IF type.sizeInBits = 8 THEN Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
 						ELSE
 							CASE type.sizeInBits OF
@@ -3568,7 +3574,7 @@ TYPE
 				(* ---- LONG ----- *)
 				ELSIF (id = Global.Long) & Parameters(1,1) THEN
 					type := type0;
-					IF type IS SyntaxTree.IntegerType THEN
+					IF IsIntegerType(type) THEN
 						IF type.sizeInBits = 64 THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
 						ELSE
 							CASE type.sizeInBits OF
@@ -5058,8 +5064,7 @@ TYPE
 			var := NewSymbolDesignator(index,NIL,variable);
 			RETURN var(SyntaxTree.Designator)
 		END GetTemporaryVariable;
-
-
+		
 		(** check and resolve for statement FOR variable := from TO to BY by DO StatementSequence END;
 			- check that variable is an integer variable
 			- check that from is integer typed with compatible type
@@ -5073,7 +5078,7 @@ TYPE
 			type := SyntaxTree.invalidType;
 			IF designator.type = SyntaxTree.invalidType THEN (* error already handled *)
 				designator := SyntaxTree.invalidDesignator;
-			ELSIF ~(designator.type.resolved IS SyntaxTree.IntegerType) THEN
+			ELSIF ~IsIntegerType(designator.type.resolved) THEN
 				Error(designator.position,Diagnostics.Invalid,"control variable of non-integer type");
 				designator := SyntaxTree.invalidDesignator;
 			ELSIF CheckVariable(designator) THEN
@@ -6060,6 +6065,11 @@ TYPE
 		END;
 		RETURN i
 	END TypeDistance;
+
+	PROCEDURE IsIntegerType(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN
+		RETURN (type IS SyntaxTree.IntegerType) OR (type IS SyntaxTree.AddressType) OR (type IS SyntaxTree.SizeType)
+	END IsIntegerType;
 
 	PROCEDURE IsIntegerValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
 	VAR result: BOOLEAN;

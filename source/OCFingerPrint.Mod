@@ -245,6 +245,19 @@ TYPE
 			SELF.fingerPrint := fingerPrint;
 		END VisitAddressType;
 
+		PROCEDURE VisitSizeType(x: SyntaxTree.SizeType);
+		VAR fingerPrint: FingerPrint;
+		BEGIN
+			fingerPrint := GetFingerPrint(x);
+			IF ~fingerPrint.doneFP THEN
+				fingerPrint.FP := fpTypeLongint; fingerPrint.privateFP := sfTypeLongint;
+				fingerPrint.publicFP := fingerPrint.FP;
+				fingerPrint.doneFP := TRUE;
+				fingerPrint.doneAll := TRUE;
+			END;
+			SELF.fingerPrint := fingerPrint;
+		END VisitSizeType;
+
 		PROCEDURE VisitNilType(x: SyntaxTree.NilType);
 		VAR fingerPrint: FingerPrint;
 		BEGIN

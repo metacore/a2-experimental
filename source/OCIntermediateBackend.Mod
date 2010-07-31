@@ -627,6 +627,7 @@ TYPE
 			IF dump # NIL THEN
 				dump.String("enter "); dump.String(s); dump.Ln;
 			END;
+			D.String("enter"); D.String(s); D.Ln;
 		END TraceEnter;
 
 		PROCEDURE TraceExit(CONST s: ARRAY OF CHAR);
@@ -634,6 +635,7 @@ TYPE
 			IF dump # NIL THEN
 				dump.String("exit "); dump.String(s); dump.Ln;
 			END;
+			D.String("exit"); D.String(s); D.Ln;
 		END TraceExit;
 
 
@@ -1173,7 +1175,7 @@ TYPE
 				type := x.left.type.resolved;
 				IF type IS SyntaxTree.SetType THEN
 					Emit(Not(result.op,operand.op));
-				ELSIF type IS SyntaxTree.NumberType THEN
+				ELSIF (type IS SyntaxTree.NumberType) OR (type IS SyntaxTree.SizeType) OR (type IS SyntaxTree.AddressType) THEN
 					Emit(Neg(result.op,operand.op));
 				ELSE HALT(200)
 				END;
@@ -4798,6 +4800,7 @@ TYPE
 			IF Trace THEN TraceEnter("VisitParameter") END;
 
 			IF x.ownerType IS SyntaxTree.ActorType THEN
+				HALT(100);
 				IF ~(x.type.resolved IS SyntaxTree.PortType) THEN
 					InitOperand(result,ModeReference);
 					Global.GetSymbolName(x,name);
@@ -6116,6 +6119,7 @@ TYPE
 					ELSIF size = 64 THEN char := rfHugeint
 					END;
 				ELSIF type IS SyntaxTree.SizeType THEN char := rfLongint
+				ELSIF type IS SyntaxTree.AddressType THEN char := rfLongint
 				ELSIF type IS SyntaxTree.FloatType THEN
 					IF size = 32 THEN char := rfReal
 					ELSIF size = 64 THEN  char := rfLongreal
