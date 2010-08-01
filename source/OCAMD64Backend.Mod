@@ -731,6 +731,7 @@ TYPE
 			realRegisters[from].lowSpilled := FALSE;
 			realRegisters[from].highSpilled := FALSE;
 			registerType[to] := registerType[from];
+			EXCL(currentlyUsed, from);
 		END TransferRegister;
 
 

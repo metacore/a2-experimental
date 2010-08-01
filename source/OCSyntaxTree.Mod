@@ -621,7 +621,7 @@ TYPE
 		END InitSizeType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
-		BEGIN	RETURN this IS SizeType
+		BEGIN	RETURN (this IS SizeType) OR (this IS IntegerType) & (this(IntegerType).signed = TRUE) & (this.sizeInBits = sizeInBits)
 		END SameType;
 
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
@@ -756,7 +756,7 @@ TYPE
 		END InitIntegerType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
-		BEGIN RETURN (this = SELF) OR (this IS IntegerType) & (this.sizeInBits = sizeInBits)
+		BEGIN RETURN (this = SELF) OR (this.sizeInBits = sizeInBits) & (this IS IntegerType) & (this(IntegerType).signed = signed) OR (this IS SizeType) & (this.sizeInBits=sizeInBits) & signed
 		END SameType;
 
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
@@ -813,7 +813,7 @@ TYPE
 		END InitQualifiedType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
-		BEGIN RETURN resolved.SameType(this)
+		BEGIN RETURN (this = SELF) OR (resolved # NIL) & (this.resolved # NIL) & resolved.SameType(this.resolved)
 		END SameType;
 
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
@@ -1397,7 +1397,7 @@ TYPE
 					result := result & (flags * {WinAPIFlag,CFlag} = this.flags * {WinAPIFlag,CFlag} );
 					IF result THEN
 						p1 := firstParameter; p2 := this.firstParameter;
-						WHILE (p1 # NIL) & (p2 # NIL) & (p1.access # Hidden) & (p2.access # Hidden) & (p1.kind = p2.kind) & p1.type.resolved.SameType(p2.type.resolved) DO
+						WHILE (p1 # NIL) & (p2 # NIL) & (p1.access # Hidden) & (p2.access # Hidden) & (p1.kind = p2.kind) & p1.type.SameType(p2.type) DO
 							p1 := p1.nextParameter; p2 := p2.nextParameter
 						END;
 						result := ((p1=NIL) OR (p1.access = Hidden)) & ((p2=NIL)  OR (p2.access= Hidden));

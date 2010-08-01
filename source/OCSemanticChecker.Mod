@@ -1024,7 +1024,7 @@ TYPE
 			IF actualType = SyntaxTree.invalidType THEN (* error already handled *)
 			ELSIF (formal.kind = SyntaxTree.VarParameter) THEN
 
-				IF (SyntaxTree.WinAPIFlag IN formal.type.flags) & (actualType IS SyntaxTree.NilType) THEN
+				IF (SyntaxTree.WinAPIFlag IN formal.ownerType.flags) & (actualType IS SyntaxTree.NilType) THEN
 					result := TRUE; (* special rule for WINAPI parameters, needed to be able to pass NIL address to var parameters *)
 				ELSIF ~IsVariable(actual) THEN
 					result := FALSE; error := TRUE;
@@ -1976,7 +1976,7 @@ TYPE
 			ELSIF (right IS SyntaxTree.SymbolDesignator) & (right(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.TypeDeclaration) THEN
 				Error(right.position,Diagnostics.Invalid,"must not be a type");
 			ELSIF operator = Scanner.In THEN (* left IN right *)
-				IF (leftType IS SyntaxTree.IntegerType) & (rightType IS SyntaxTree.SetType) THEN
+				IF IsIntegerType(leftType) & (rightType IS SyntaxTree.SetType) THEN
 					IF IsIntegerValue(left,il) & IsSetValue(right,sr) THEN
 						NewBool(il IN sr);
 					ELSE
@@ -4956,7 +4956,7 @@ TYPE
 			type := RegularType(expression.position,expression.type);
 			IF type = SyntaxTree.invalidType THEN
 				expression := SyntaxTree.invalidExpression;
-			ELSIF (type IS SyntaxTree.IntegerType) THEN
+			ELSIF IsIntegerType(type) THEN
 			ELSIF IsStringType(expression.type) & IsCharacterValue(expression,ch) THEN
 				expression := Global.NewCharacterValue(system,expression.position,ch);
 				type := expression.type;
