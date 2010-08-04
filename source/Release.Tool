@@ -717,6 +717,7 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	WMStandardComponents.Mod
 	WMProgressComponents.Mod
 	WMShapes.Mod
+	WMFigures.Mod
 	WMScrollableComponents.Mod
 	WMPieMenu.Mod
 	WMPopups.Mod
