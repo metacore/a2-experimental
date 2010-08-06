@@ -263,26 +263,6 @@ TYPE
 			text.ReleaseRead
 		END FixLayoutFrom;
 
-		PROCEDURE Show;
-		VAR i : LONGINT;
-		BEGIN
-			FOR i := 0 TO LEN(lines)-1 DO
-				KernelLog.Int(i, 3); KernelLog.String(": ");
-				KernelLog.String("pos: "); KernelLog.Int(lines[i].pos, 0);
-				KernelLog.String(", w: "); KernelLog.Int(lines[i].width, 0);
-				KernelLog.String(", h: "); KernelLog.Int(lines[i].height, 0);
-				KernelLog.String(", ascent: "); KernelLog.Int(lines[i].ascent, 0);
-				KernelLog.String(" (");
-				KernelLog.String("li: "); KernelLog.Int(lines[i].leftIndent, 0);
-				KernelLog.String(", ri: "); KernelLog.Int(lines[i].rightIndent, 0);
-				KernelLog.String(", fi: "); KernelLog.Int(lines[i].firstIndent, 0);
-				KernelLog.String(", sb: "); KernelLog.Int(lines[i].spaceBefore, 0);
-				KernelLog.String(", sa: "); KernelLog.Int(lines[i].spaceAfter, 0);
-				KernelLog.String(")");
-				KernelLog.Ln;
-			END;
-		END Show;
-
 	END Layout;
 
 CONST HLOver* = 0; HLUnder* = 1; HLWave* = 2;
@@ -522,7 +502,7 @@ TYPE
 	CursorBlinkerCallback = PROCEDURE {DELEGATE} (isVisible : BOOLEAN);
 
 	(** Global thread that periodically toggles the visibility of the currently active cursor *)
-	CursorBlinker = OBJECT
+	CursorBlinker* = OBJECT
 	VAR
 		cursor : ANY;
 		callback : CursorBlinkerCallback;
@@ -1412,20 +1392,15 @@ TYPE
 						UpdateScrollbars;
 						Release;
 						InvalidateRect(WMRectangles.MakeRect(0, t, bounds.GetWidth(), b));
+					ELSIF (lastTimeStamp -  info.timestamp) > 0 THEN
+						(* Don't update lastTimeStamp since we didn't update the layout *)
+						Release
 					ELSE
-						IF TraceRenderOptimize IN Trace THEN KernelLog.String("Timestamp not equal ==> Complete re_layout"); KernelLog.Ln
-						END;
-
-						IF (lastTimeStamp -  info.timestamp) > 0 THEN
-							(* Don't update lastTimeStamp since we didn't update the layout *)
-							Release
-						ELSE
-							layout.FullLayout(TRUE);
-							lastTimeStamp := text.GetTimestamp();
-							CheckCursor;
-							Release;
-							InvalidateRect(GetClientRect())
-						END;
+						layout.FullLayout(TRUE);
+						lastTimeStamp := text.GetTimestamp();
+						CheckCursor;
+						Release;
+						InvalidateRect(GetClientRect())
 					END;
 					text.ReleaseRead
 				ELSE
@@ -3558,35 +3533,28 @@ TYPE
 		PROCEDURE Handle(VAR x: WMMessages.Message);
 		VAR pos : LONGINT; obj : ANY; link : Texts.Link;
 		BEGIN
-			IF (x.msgType = WMMessages.MsgKey) & objHasFocus THEN					(* forward KeyMsg *)
-				(* KernelLog.String("Forwarding KeyMsg to FocusObject "); KernelLog.Int(focusPos, 0); KernelLog.Ln; *)
+			IF (x.msgType = WMMessages.MsgKey) & objHasFocus THEN (* forward KeyMsg *)
 				WITH focusObject : WMComponents.VisualComponent DO
 					focusObject.Handle(x);
 					InvalidateRange(focusPos, focusPos+1)
 				END
-			ELSIF (x.msgType # WMMessages.MsgKey) & HitObject(x.x, x.y, pos, obj) THEN	(* forward Msg *)
+			ELSIF (x.msgType # WMMessages.MsgKey) & HitObject(x.x, x.y, pos, obj) THEN (* forward Msg *)
 				SetFocus; cursor.SetVisible(FALSE);
-				(* KernelLog.String("Forwarding Msg "); KernelLog.Int(x.msgType, 0); KernelLog.String(" to Object: "); KernelLog.Int(pos, 0);KernelLog.Ln; *)
 				IF obj IS WMComponents.VisualComponent THEN
 					WITH obj : WMComponents.VisualComponent DO
 						(* remove oldObject first *)
 						IF (oldObject # NIL) & (oldObject # obj) THEN
-							(* KernelLog.String("Killing old Object "); KernelLog.Int(oldPos, 0); KernelLog.Ln; *)
-						(*	mx := x.x; my := x.y;
-							TransformCoordinates(x.x, x.y, oldObject(WMComponents.VisualComponent));
-						*)	oldObject(WMComponents.VisualComponent).Handle(x);
+							oldObject(WMComponents.VisualComponent).Handle(x);
 							InvalidateRange(oldPos, oldPos+1);
-						(*	x.x := mx; x.y := my;		*)
 						END;
 
-						TransformCoordinates(x.x, x.y, obj);									(* transform to obj coords *)
-						obj.Handle(x);														(* call obj Handle *)
-						ChangePointer(obj.GetPointerInfo());									(* change the pointer Image *)
-						InvalidateRange(pos, pos+1);										(* redraw obj *)
-						oldObject := obj; oldPos := pos;										(* store last object *)
+						TransformCoordinates(x.x, x.y, obj);		(* transform to obj coords *)
+						obj.Handle(x);								(* call obj Handle *)
+						ChangePointer(obj.GetPointerInfo());		(* change the pointer Image *)
+						InvalidateRange(pos, pos+1);				(* redraw obj *)
+						oldObject := obj; oldPos := pos;			(* store last object *)
 						(* transfer focus to Object *)
 						IF (x.msgType = WMMessages.MsgPointer) & (x.flags * {0, 1, 2} = {0}) THEN
-							(* KernelLog.String("-> focus change"); KernelLog.Ln; *)
 							(* remove old focus first *)
 							IF (focusObject # NIL) & (focusObject # obj) THEN
 								focusObject(WMComponents.VisualComponent).FocusLost;
@@ -3604,8 +3572,7 @@ TYPE
 				IF (x.msgSubType = 2) &(oldFlags / x.flags =  {CallURLPointer}) THEN LinkClick(link); END;
 				oldFlags := x.flags;
 			ELSE
-				ChangePointer(manager.pointerText);									(* change Pointer back *)
-				(* KernelLog.String("TV message"); *)
+				ChangePointer(manager.pointerText);	 (* change Pointer back *)
 				(* transfer focus back to TextView *)
 				IF (focusObject # NIL) & (x.msgType = WMMessages.MsgPointer) & (x.flags * {0, 1, 2} = {0}) THEN
 					focusObject(WMComponents.VisualComponent).FocusLost;
@@ -3616,13 +3583,10 @@ TYPE
 				END;
 				(* update last Object *)
 				IF (oldObject # NIL) & (x.msgType = WMMessages.MsgPointer) THEN
-					(* KernelLog.String(" - Killing old Object "); KernelLog.Int(oldPos, 0); *)
 					oldObject(WMComponents.VisualComponent).Handle(x);
 					InvalidateRange(oldPos, oldPos+1);
 					oldObject := NIL
 				END;
-				(* KernelLog.Ln; *)
-
 				IF (x.msgType = WMMessages.MsgExt) & (x.ext # NIL) & (x.ext IS Texts.StyleChangedMsg) THEN
 					layout.FullLayout(TRUE); Invalidate; CheckNumberOfLines;
 				ELSE
@@ -4035,23 +3999,18 @@ TYPE
 						UpdateScrollbars;
 						Release;
 						InvalidateRect(WMRectangles.MakeRect(0, t, bounds.GetWidth(), b));
+					ELSIF (lastTimeStamp -  info.timestamp) > 0 THEN
+						(* Don't update lastTimeStamp since we didn't update the layout *)
+						Release
 					ELSE
-						IF TraceRenderOptimize IN Trace THEN KernelLog.String("Timestamp not equal ==> Complete re_layout"); KernelLog.Ln
+						IF (highlighter # NIL) & (state # NIL) THEN
+							highlighter.RebuildRegions(utilreader, state);
 						END;
-
-						IF (lastTimeStamp -  info.timestamp) > 0 THEN
-							(* Don't update lastTimeStamp since we didn't update the layout *)
-							Release
-						ELSE
-							IF (highlighter # NIL) & (state # NIL) THEN
-								highlighter.RebuildRegions(utilreader, state);
-							END;
-							layout.FullLayout(TRUE);
-							lastTimeStamp := text.GetTimestamp();
-							CheckCursor;
-							Release;
-							InvalidateRect(GetClientRect())
-						END;
+						layout.FullLayout(TRUE);
+						lastTimeStamp := text.GetTimestamp();
+						CheckCursor;
+						Release;
+						InvalidateRect(GetClientRect())
 					END;
 					text.ReleaseRead
 				ELSE
