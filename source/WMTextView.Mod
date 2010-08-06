@@ -1338,7 +1338,6 @@ TYPE
 			ELSE
 				IF (data # NIL) & (data IS Texts.TextChangeInfo) & (data(Texts.TextChangeInfo).op # Texts.OpMulti) THEN
 					text.AcquireRead;
-					Acquire;
 					info := data(Texts.TextChangeInfo);
 					IF text.GetTimestamp() = info.timestamp THEN
 						info := data(Texts.TextChangeInfo);
@@ -1390,16 +1389,13 @@ TYPE
 						CheckCursor;
 
 						UpdateScrollbars;
-						Release;
 						InvalidateRect(WMRectangles.MakeRect(0, t, bounds.GetWidth(), b));
 					ELSIF (lastTimeStamp -  info.timestamp) > 0 THEN
 						(* Don't update lastTimeStamp since we didn't update the layout *)
-						Release
 					ELSE
 						layout.FullLayout(TRUE);
 						lastTimeStamp := text.GetTimestamp();
 						CheckCursor;
-						Release;
 						InvalidateRect(GetClientRect())
 					END;
 					text.ReleaseRead
@@ -3919,7 +3915,6 @@ TYPE
 				IF (data # NIL) & (data IS Texts.TextChangeInfo) & (data(Texts.TextChangeInfo).op # Texts.OpMulti) THEN
 					info := data(Texts.TextChangeInfo);
 					text.AcquireRead;
-					Acquire;
 					highlighter := SELF.highlighter;
 					state := SELF.state;
 
@@ -3942,7 +3937,6 @@ TYPE
 							layout.FullLayout(TRUE);
 							lastTimeStamp := text.GetTimestamp();
 							CheckCursor;
-							Release;
 							text.ReleaseRead;
 							CheckNumberOfLines;
 							InvalidateRect(GetClientRect());
@@ -3997,11 +3991,9 @@ TYPE
 						CheckCursor;
 
 						UpdateScrollbars;
-						Release;
 						InvalidateRect(WMRectangles.MakeRect(0, t, bounds.GetWidth(), b));
 					ELSIF (lastTimeStamp -  info.timestamp) > 0 THEN
 						(* Don't update lastTimeStamp since we didn't update the layout *)
-						Release
 					ELSE
 						IF (highlighter # NIL) & (state # NIL) THEN
 							highlighter.RebuildRegions(utilreader, state);
@@ -4009,7 +4001,6 @@ TYPE
 						layout.FullLayout(TRUE);
 						lastTimeStamp := text.GetTimestamp();
 						CheckCursor;
-						Release;
 						InvalidateRect(GetClientRect())
 					END;
 					text.ReleaseRead
