@@ -1185,8 +1185,8 @@ TYPE
 			ELSE
 				data := sender;
 				IF (data # NIL) & (data IS PositionMarker) THEN
-					IF data = cursor THEN CheckCursor END;
 					text.AcquireRead;
+					IF data = cursor THEN CheckCursor END;
 					IF FindScreenPos(data(PositionMarker).pos.GetPosition(), x, y) THEN
 						l := layout.FindLineNrByPos(data(PositionMarker).pos.GetPosition());
 						IF (l < LEN(layout.lines^)) & (l >= 0) THEN
@@ -1233,11 +1233,10 @@ TYPE
 			x, dummyY, xend, paperWidth, newShift: LONGINT;
 			dummyBool : BOOLEAN;
 		BEGIN
+			ASSERT(IsCallFromSequencer() & text.HasReadLock());
 			(* Scroll up, down to make cursor visible *)
-			text.AcquireRead;
 			cp := cursor.GetPosition();
 			IF cp = lastCursorPos THEN
-				text.ReleaseRead;
 				RETURN
 			ELSE
 				lastCursorPos := cp
@@ -1296,7 +1295,6 @@ TYPE
 			paperWidth := layout.paperWidth - bordersI.l - x0;
 
 			IF paperWidth > 0 THEN
-
 				IF x-leftShiftI  > paperWidth  THEN (* cursor right of displayed area *)
 					newShift := x-paperWidth; (* move content such that cursor is barely visible to the right *)
 				ELSIF x-leftShiftI  < 0  THEN (* cursor is left of displayed area *)
@@ -1313,10 +1311,7 @@ TYPE
 				IF newShift # leftShiftI THEN
 					leftShift.Set(newShift);
 				END;
-
 			END;
-
-			text.ReleaseRead;
 		END CheckCursor;
 
 		PROCEDURE CheckParagraphBegin(lineNr : LONGINT; VAR height: LONGINT);
@@ -1403,8 +1398,8 @@ TYPE
 					text.AcquireRead;
 					layout.FullLayout(TRUE);
 					lastTimeStamp := text.GetTimestamp();
-					text.ReleaseRead;
 					CheckCursor;
+					text.ReleaseRead;
 					InvalidateRect(GetClientRect())
 				END;
 				CheckNumberOfLines;
@@ -3867,7 +3862,7 @@ TYPE
 			ELSE
 				data := sender;
 				IF (data # NIL) & (data IS PositionMarker) THEN
-					IF data = cursor THEN CheckCursor END;
+					IF data = cursor THEN text.AcquireRead; CheckCursor; text.ReleaseRead; END;
 					IF (data = cursor) & (clBgCurrentLineI # 0) THEN
 						Invalidate; (* HACK to handle clBgCurrentLine correcty. Should be replaced by a more efficient solution *)
 					ELSE
@@ -4012,8 +4007,8 @@ TYPE
 					END;
 					layout.FullLayout(TRUE);
 					lastTimeStamp := text.GetTimestamp();
-					text.ReleaseRead;
 					CheckCursor;
+					text.ReleaseRead;
 					InvalidateRect(GetClientRect())
 				END;
 				CheckNumberOfLines;
