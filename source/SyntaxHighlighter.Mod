@@ -54,6 +54,8 @@ CONST
 	Trace_1 = 1;
 	Trace_Max = 2;
 
+	Statistics = TRUE;
+
 	NOTCLOSED = MAX(LONGINT) - 128; (* some safety distance to protect against overflow *)
 
 	MaxOpenLength = 32;
@@ -730,6 +732,7 @@ TYPE
 		VAR ignore : BOOLEAN;
 		BEGIN
 			ASSERT((reader # NIL) & (state # NIL));
+			IF Statistics THEN INC(NnofRebuildRegions); END;
 			state.Clear;
 			state.ResetMatchers;
 			Scan(reader, 0, MAX(LONGINT), state, ignore);
@@ -762,11 +765,14 @@ TYPE
 				ignore, match : BOOLEAN;
 				location : LONGINT;
 			BEGIN
+				IF Statistics THEN INC(NnofPatchInsert); END;
 				fullLayout := FALSE;
 				state.FindTriple(position, hasLeft, hasMiddle, hasRight, left, middle, right);
 				IF hasMiddle & (position > middle.open) THEN
+					IF Statistics THEN INC(NnofPatchInsertHit); END;
 					location := GetLocation(position, middle);
 					IF (location = OpenString) OR ((location = CloseString) & (position > middle.close - middle.region.closeLength + 1)) THEN
+						IF Statistics THEN INC(NnofPiOpenClose); END;
 						state.RemoveFrom(position);
 						Scan(reader, middle.open, MAX(LONGINT), state, ignore);
 						fullLayout := TRUE;
@@ -776,23 +782,32 @@ TYPE
 						state.Remove(middle);
 						Scan(reader, oldStart, oldEnd + length, state, ignore);
 						res := state.Find(position, middle);
-						IF ~res OR  (middle.open # oldStart) OR (middle.close # oldEnd + length) THEN
+						IF 		~res OR
+								(middle.open # oldStart) OR
+								((oldEnd # NOTCLOSED) & (middle.close # oldEnd + length)) OR
+								((oldEnd = NOTCLOSED) & (middle.close # NOTCLOSED)) THEN
+							IF Statistics THEN INC(NnofPiNestedFull); END;
 							state.RemoveFrom(position);
 							Scan(reader, oldStart, MAX(LONGINT), state, ignore);
 							fullLayout := TRUE;
 						ELSE
+							IF Statistics THEN INC(NnofPiNestedSimple); END;
 							state.Patch(middle.close + 1, length); (* middle is already patched *)
 						END;
 					ELSIF NeedRescan(position, length) THEN
+						IF Statistics THEN INC(NnofPiRescan); END;
 						state.RemoveFrom(position); (* TBD optimize *)
 						Scan(reader, middle.open, MAX(LONGINT), state, ignore);
 						fullLayout := TRUE;
 					ELSE
+						IF Statistics THEN INC(NnofPiSimple); END;
 						state.Patch(position, length);
 					END;
 				ELSE
+					IF Statistics THEN INC(NnofPiNoHit); END;
 					state.Patch(position, length);
 					IF NeedRescan(position, length) THEN
+						IF Statistics THEN INC(NnofPiNoHitRescan); END;
 						start := position - longestOpen + 1;
 						IF (longestClose > 0) THEN
 							end := position + length + longestClose - 1;
@@ -803,6 +818,7 @@ TYPE
 						IF hasRight & (right.open + length <= end) THEN end := right.open + length - 1; END; (* manually patched since copy *)
 						Scan(reader, start, end, state, match);
 						IF match THEN
+							IF Statistics THEN INC(NnofPiNoHitFull); END;
 							state.RemoveFrom(start);
 							Scan(reader, start, MAX(LONGINT), state, match);
 							fullLayout := TRUE;
@@ -830,7 +846,10 @@ TYPE
 						state.Remove(middle);
 						Scan(reader, middle.open, middle.close, state, ignore);
 						res := state.Find(position, middle);
-						IF ~res OR (middle.open # oldStart) OR (middle.close # oldEnd - length) THEN
+						IF 		~res OR
+								(middle.open # oldStart) OR
+								((oldEnd # NOTCLOSED) & (middle.close # oldEnd - length)) OR
+								((oldEnd = NOTCLOSED) & (middle.close # NOTCLOSED)) THEN
 							state.RemoveFrom(position);
 							Scan(reader, oldStart, MAX(LONGINT), state, ignore);
 							fullLayout := TRUE;
@@ -864,6 +883,7 @@ TYPE
 		BEGIN
 			ASSERT((info.op = Texts.OpInsert) OR (info.op = Texts.OpDelete));
 			ASSERT(reader # NIL);
+			IF Statistics THEN INC(NnofPatchRegions); END;
 			IF traceLevel >= Trace_1 THEN
 				IF (info.op = Texts.OpInsert) THEN KernelLog.String("INS ");
 				ELSE KernelLog.String("DEL ");
@@ -1219,6 +1239,12 @@ VAR
 	global_highlighters : Highlighters;
 
 	traceLevel : LONGINT;
+
+	(* Statistics (not thread-safe) *)
+	NnofRebuildRegions, NnofPatchRegions,
+	NnofPatchInsert, NnofPatchInsertHit, NnofPiOpenClose, NnofPiNestedFull, NnofPiNestedSimple,
+	NnofPiRescan, NnofPiSimple, NnofPiNoHit, NnofPiNoHitRescan, NnofPiNoHitFull
+	: LONGINT;
 
 PROCEDURE GetHighlighter*(CONST name : ARRAY OF CHAR) : Highlighter;
 VAR highlighter : Highlighter; diagnostics : Diagnostics.Diagnostics;
@@ -2010,6 +2036,14 @@ BEGIN
 	END;
 END Highlight;
 
+PROCEDURE ClearStats*(context : Commands.Context);
+BEGIN
+	NnofRebuildRegions := 0; NnofPatchRegions := 0;
+	NnofPatchInsert := 0; NnofPatchInsertHit := 0; NnofPiOpenClose := 0; NnofPiNestedFull := 0; NnofPiNestedSimple := 0;
+	NnofPiRescan := 0; NnofPiSimple := 0; NnofPiNoHit := 0; NnofPiNoHitRescan := 0; NnofPiNoHitFull := 0;
+	context.out.String("SyntaxHighlighter: Statistics cleared."); context.out.Ln;
+END ClearStats;
+
 PROCEDURE Dump*(context : Commands.Context);
 BEGIN {EXCLUSIVE}
 	IF (global_highlighters # NIL) THEN
@@ -2044,3 +2078,11 @@ END SyntaxHighlighter.
 SyntaxHighlighter.Open SyntaxHighlighter.XML ~
 
 SyntaxHighlighter.Dump ~
+
+WMPerfMonPluginModVars.Install SyntaxHighlighter
+	SyntaxHighlighter.NnofRebuildRegions SyntaxHighlighter.NnofPatchRegions
+	SyntaxHighlighter.NnofPatchInsert SyntaxHighlighter.NnofPatchInsertHit SyntaxHighlighter.NnofPiOpenClose
+	SyntaxHighlighter.NnofPiNestedFull SyntaxHighlighter.NnofPiNestedSimple,
+	SyntaxHighlighter.NnofPiRescan SyntaxHighlighter.NnofPiSimple SyntaxHighlighter.NnofPiNoHit SyntaxHighlighter.NnofPiNoHitRescan
+	SyntaxHighlighter.NnofPiNoHitFull
+~
