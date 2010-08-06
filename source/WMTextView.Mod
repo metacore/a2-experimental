@@ -32,7 +32,7 @@ CONST
 	MaxCallParameterBuf = 1 * 1024 * 1024;
 	MaxCommandLength = 256; (* without parameters *)
 
-	(* If TRUE, a mouse middle click will open a pie menu *)
+	(* If TRUE, a mouse right click will open a pie menu *)
 	UsePieMenu = TRUE;
 
 	InterclickNone = 0;
@@ -42,7 +42,6 @@ CONST
 
 TYPE
 	Char32 = Texts.Char32;
-	String = Strings.String;
 
 	ClickInfo = OBJECT
 	VAR
@@ -617,7 +616,7 @@ TYPE
 	TextView* = OBJECT(WMComponents.VisualComponent)
 	VAR
 		defaultTextColor-, defaultTextBgColor- : WMProperties.ColorProperty; (* cached in defaultAttr *)
-		defaultAttr : Texts.Attributes;
+		defaultTextColorI, defaultTextBgColorI : LONGINT;
 
 		isMultiLine- : WMProperties.BooleanProperty;
 		isMultiLineI : BOOLEAN;
@@ -786,7 +785,6 @@ TYPE
 			oldPos := 0; focusPos := 0;
 			objHasFocus := FALSE;
 
-			NEW(defaultAttr);
 			takesFocus.Set(TRUE);
 			needsTab.Set(TRUE);
 			SetPointerInfo(manager.pointerText);
@@ -856,8 +854,8 @@ TYPE
 		VAR oldBorders : WMRectangles.Rectangle;
 		BEGIN
 			RecacheProperties^;
-			defaultAttr.color := defaultTextColor.Get();
-			defaultAttr.bgcolor := defaultTextBgColor.Get();
+			defaultTextColorI := defaultTextColor.Get();
+			defaultTextBgColorI := defaultTextBgColor.Get();
 			isMultiLineI := isMultiLine.Get();
 			wrapModeI := wrapMode.Get();
 			firstLineI := firstLine.Get();
@@ -885,12 +883,11 @@ TYPE
 			Release
 		END SetScrollbars;
 
-		PROCEDURE ScrollbarsChanged*(sender, data : ANY);
+		PROCEDURE ScrollbarsChanged(sender, data : ANY);
 		BEGIN
 			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.ScrollbarsChanged, sender, data)
 			ELSE
-				IF sender = vScrollbar THEN
-					firstLine.Set(vScrollbar.pos.Get())
+				IF sender = vScrollbar THEN firstLine.Set(vScrollbar.pos.Get())
 				ELSIF sender = hScrollbar THEN leftShift.Set(hScrollbar.pos.Get())
 				END
 			END
@@ -941,9 +938,9 @@ TYPE
 		VAR oldBorders : WMRectangles.Rectangle;
 		BEGIN
 			IF data = defaultTextColor THEN
-				defaultAttr.color := defaultTextColor.Get(); Invalidate;
+				defaultTextColorI := defaultTextColor.Get(); Invalidate;
 			ELSIF data = defaultTextBgColor THEN
-				defaultAttr.bgcolor := defaultTextBgColor.Get(); Invalidate;
+				defaultTextBgColorI := defaultTextBgColor.Get(); Invalidate;
 			ELSIF data = isMultiLine THEN
 				isMultiLineI := isMultiLine.Get(); Invalidate;
 			ELSIF data = wrapMode THEN
@@ -2085,16 +2082,15 @@ TYPE
 		(* llen = -1 to render until the end of line > 0 to render llen elements in the line *)
 		PROCEDURE RenderLine*(canvas : WMGraphics.Canvas; VAR l : LineInfo; linenr, top, llen : LONGINT);
 		VAR sx, dx, dy, x, sp, i, j, k, t, tx, linelength, w, voff, bgcolor, p : LONGINT; char : Char32; gs: WMGraphics.GlyphSpacings;
-	 		curAttr : Texts.Attributes; curCStyle : Texts.CharacterStyle;
+	 		curAttr : ANY; curCStyle : Texts.CharacterStyle;
 	 		font : WMGraphics.Font; vc : WMComponents.VisualComponent;
 	 		hc : BOOLEAN;
 	 		bidiTextReader, localTextReader : Texts.TextReader;
 		BEGIN
+			curAttr := DefaultStyle;
 			font := GetFont();
-			ASSERT(defaultAttr # NIL);
-			curAttr := defaultAttr;
-			canvas.SetColor(defaultAttr.color);
-			bgcolor := defaultAttr.bgcolor;
+			canvas.SetColor(defaultTextColorI);
+			bgcolor := defaultTextBgColorI;
 			IF TraceRenderOptimize IN Trace THEN
 				KernelLog.String("RenderLine : "); KernelLog.Int(linenr, 5); KernelLog.String(" from position : ");
 				KernelLog.Int(layout.GetLineStartPos(linenr), 5); KernelLog.Ln;
@@ -2156,7 +2152,7 @@ TYPE
 						IF localTextReader.attributes # NIL THEN
 							(* Black is the default color *)
 							IF localTextReader.attributes.color # 0FFH THEN canvas.SetColor(localTextReader.attributes.color);
-							ELSE canvas.SetColor(defaultAttr.color)
+							ELSE canvas.SetColor(defaultTextColorI)
 							END;
 							IF localTextReader.attributes.fontInfo # NIL THEN
 								IF (localTextReader.attributes.fontInfo.fontcache # NIL)
@@ -2172,19 +2168,19 @@ TYPE
 							voff := localTextReader.attributes.voff;
 							curAttr := localTextReader.attributes
 						ELSE
-							IF curAttr # defaultAttr THEN
-								canvas.SetColor(defaultAttr.color);
-								bgcolor := defaultAttr.bgcolor;
-								voff := defaultAttr.voff;
-								curAttr := defaultAttr;
+							IF curAttr # DefaultStyle THEN
+								curAttr := DefaultStyle;
+								canvas.SetColor(defaultTextColorI);
+								bgcolor := defaultTextBgColorI;
+								voff := 0;
 								font := GetFont()
 							END
 						END;
 					ELSIF curAttr = NIL THEN
-						canvas.SetColor(defaultAttr.color);
-						bgcolor := defaultAttr.bgcolor;
-						voff := defaultAttr.voff;
-						curAttr := defaultAttr;
+						canvas.SetColor(defaultTextColorI);
+						bgcolor := defaultTextBgColorI;
+						voff := 0;
+						curAttr := DefaultStyle;
 						font := GetFont();
 					END;
 					curCStyle := NIL;
@@ -3302,19 +3298,19 @@ TYPE
 		BEGIN
 			text.AcquireRead;
 			utilreader.SetDirection(-1); utilreader.SetPosition(pos);
-			REPEAT	utilreader.ReadCh(ch) UNTIL TextUtilities.IsWhiteSpace(ch,text.isUTF) OR utilreader.eot;
+			REPEAT utilreader.ReadCh(ch) UNTIL TextUtilities.IsWhiteSpace(ch,text.isUTF) OR utilreader.eot;
 			start := utilreader.GetPosition() + 2;
 			IF utilreader.eot THEN DEC(start, 2) END;
 
 			utilreader.SetDirection(1); utilreader.SetPosition(pos);
-			REPEAT	utilreader.ReadCh(ch) UNTIL TextUtilities.IsWhiteSpace(ch,text.isUTF) OR utilreader.eot;
+			REPEAT utilreader.ReadCh(ch) UNTIL TextUtilities.IsWhiteSpace(ch,text.isUTF) OR utilreader.eot;
 			end := utilreader.GetPosition() - 1;
 			IF utilreader.eot THEN INC(end) END;
 			text.ReleaseRead;
 		END FindCommand;
 
-		(* start the AosCommand in the text, starting on pos (or wordboundary before),
-		caller should hold lock on text  to make the pos stable *)
+		(**	Start the command in the text, starting on pos (or wordboundary before),
+			caller should hold lock on text  to make the pos stable *)
 		PROCEDURE StartCommand*(pos : LONGINT; openFile : BOOLEAN);
 		VAR
 			start, end, bufSize : LONGINT;
@@ -4084,7 +4080,7 @@ TYPE
 			END GetExtents;
 
 		BEGIN
-			style.voff := defaultAttr.voff;
+			style.voff := 0;
 			style.font := GetFont();
 
 			x := 0; l.pos := pos; l.height := style.font.GetHeight(); eol := FALSE;
@@ -4233,9 +4229,9 @@ TYPE
 							END
 						END;
 					ELSE
-						IF (currentStyle # defaultAttr) THEN
-							currentStyle := defaultAttr;
-							style.voff := defaultAttr.voff;
+						IF (currentStyle # DefaultStyle) THEN
+							currentStyle := DefaultStyle;
+							style.voff := 0;
 							style.font := GetFont();
 							ld := 0;
 						END;
@@ -4352,10 +4348,10 @@ TYPE
 			sp := l.pos;
 			IF sp >= text.GetLength() THEN RETURN END;
 
-			style.color := defaultAttr.color;
+			style.color := defaultTextColorI;
 			canvas.SetColor(style.color); lastColor := style.color;
-			style.bgColor := defaultAttr.bgcolor;
-			style.voff := defaultAttr.voff;
+			style.bgColor := defaultTextBgColorI;
+			style.voff := 0;
 			style.font := GetFont();
 
 			IF llen < 0 THEN
@@ -4436,7 +4432,7 @@ TYPE
 
 			lastEnd := -1;
 			highlighterStyle := NIL; lastHighlighterStyle := NIL;
-			currentStyle := NIL; lastStyle := NIL;
+			currentStyle := DefaultStyle; lastStyle := NIL;
 
 			REPEAT
 
@@ -4495,11 +4491,11 @@ TYPE
 							END;
 						END;
 					ELSE
-						IF (currentStyle # defaultAttr) THEN
-							currentStyle := defaultAttr;
-							style.color := defaultAttr.color;
-							style.bgColor := defaultAttr.bgcolor;
-							style.voff := defaultAttr.voff;
+						IF (currentStyle # DefaultStyle) THEN
+							currentStyle := DefaultStyle;
+							style.color := defaultTextColorI;
+							style.bgColor := defaultTextBgColorI;
+							style.voff := 0;
 							style.font := GetFont();
 						END;
 					END;
@@ -4643,6 +4639,8 @@ VAR
 
 	StrTextView, StrCodeView : Strings.String;
 
+	DefaultStyle : POINTER TO RECORD END;
+
 PROCEDURE Limit(x, min, max : LONGINT) : LONGINT;
 BEGIN
 	IF x < min THEN x := min END;
@@ -4675,70 +4673,75 @@ BEGIN
 	ASSERT(style.attributes.fontInfo.fontcache # NIL);
 END CheckFont;
 
-PROCEDURE TextViewDefaults;
+PROCEDURE InitStrings;
 BEGIN
-	NEW(PTVIsMultiLine, NIL, NewString("multiLine"), NewString("defines if more than one line is visible"));
-	PTVIsMultiLine.Set(TRUE);
-	NEW(PTVShowBorder, NIL, NewString("ShowBorder"), NewString("show border"));
-	PTVShowBorder.Set(FALSE);
-	NEW(PTVIsPassword, NIL, NewString("password"),
-		NewString("defines if the view is a password text. Characters are replaced by passwordChar"));
-	NEW(PTVPasswordChar, NIL, NewString("passwordChar"),
-		NewString("character that is the placeholder for a character in a password"));
-	PTVPasswordChar.Set(43);
-	NEW(PTValwaysShowCursor, NIL, NewString("alwaysShowCursor"),
-		NewString("set to true, if the cursor should not be hidden when focus is lost"));
-	PTValwaysShowCursor.Set(FALSE);
-	NEW(PTVShowLabels, NIL, NewString("ShowLabels"),
-		NewString("set to true, if the labels should be shown in the text"));
-	PTVShowLabels.Set(FALSE);
-	NEW(PTVMouseWheelScrollSpeed, NIL, NewString("MouseWheelScrollSpeed"),
-		NewString("Multiplier for mouse wheel, 0 to disable mouse wheel scrolling"));
-	PTVMouseWheelScrollSpeed.Set(3);
-	NEW(PTVAllowCommandExecution, NIL, NewString("allowCommandExecution"),
-		NewString("if set to true, middle-clicked words are executed as command"));
-	PTVAllowCommandExecution.Set(TRUE);
-	NEW(PTVAllowTextSelection, NIL, NewString("allowTextSelection"),
-		NewString("is the user allowed to select text using the mouse?"));
-	PTVAllowTextSelection.Set(TRUE);
-	NEW(PTVAllowPiemenu, NIL, NewString("allowPiemenu"),
-		NewString("if set to true, a mouse right-click opens the pie menu"));
-	PTVAllowPiemenu.Set(TRUE);
-	NEW(PTVWrapMode, NIL, NewString("wrapMode"), NewString("Set text wrapping mode"));
-	PTVWrapMode.Set(WrapWord);
-	NEW(PTVfirstLine, NIL, NewString("firstLine"),
-		NewString("the first visible line of text in the view"));
-	PTVfirstLine.Set(0);
-	NEW(PTVleftShift, NIL, NewString("leftShift"),
-		NewString("how many pixels the text in the view is shifted to the left"));
-	 PTVleftShift.Set(0);
-	NEW(PTVdefaultTextColor, NIL, NewString("defaultTextColor"),
-		NewString("the color of a text that does not explicitly specify a color"));
-	PTVdefaultTextColor.Set(0FFH);
-	NEW(PTVdefaultTextBgColor, NIL, NewString("defaultTextBgColor"),
-		NewString("The color of a text background if not specified otherwise in the text"));
-	PTVdefaultTextBgColor.Set(0);
-	NEW(PTVborders, NIL, NewString("borders"),
-		NewString("spaces from bounds of the component to the text"));
-	PTVborders.Set(WMRectangles.MakeRect(5, 5, 5, 5));
-	NEW(PCVIndicateTabs, NIL, NewString("IndicateTabs"), NewString("Indicate tabs?"));
-	PCVIndicateTabs.Set(FALSE);
-	NEW(PCVShowLineNumbers, NIL, NewString("ShowLineNumbers"), NewString("Show line numbers?"));
-	PCVShowLineNumbers.Set(FALSE);
-	NEW(PCVLineNumberColor, NIL, NewString("LineNumberColor"), NewString("Color of line numbers"));
-	PCVLineNumberColor.Set(WMGraphics.Black);
-	NEW(PCVLineNumberBgColor, NIL, NewString("LineNumberBgColor"), NewString("Background color of line numbers"));
-	PCVLineNumberBgColor.Set(0CCCCCCFFH);
-	NEW(PCVHighlighting, NIL, NewString("Highlighting"), NewString("Name of highlighting to be applied"));
-	PCVHighlighting.Set(NIL);
-	NEW(PCVclBgCurrentLine, NIL, NewString("ClBgCurrentLine"), NewString("Background color of currently edited line"));
-	PCVclBgCurrentLine.Set(0);
-END TextViewDefaults;
+	StrTextView := Strings.NewString("TextView");
+	StrCodeView := Strings.NewString("CodeView");
+	PTVonLinkClick := Strings.NewString("Link Click Event");
+	PTVonLinkClickInfo := Strings.NewString("fired when a link is pressed");
+	PTVonCtrlLinkClick := Strings.NewString("Ctrl Click Event");
+	PTVonCtrlLinkClickInfo := Strings.NewString("fired when Ctrl pressend and clicked");
+END InitStrings;
 
-PROCEDURE NewString*(CONST x : ARRAY OF CHAR) : String;
+PROCEDURE InitPrototypes;
 BEGIN
-	RETURN Strings.NewString(x)
-END NewString;
+	NEW(PTVIsMultiLine, NIL, Strings.NewString("multiLine"), Strings.NewString("defines if more than one line is visible"));
+	PTVIsMultiLine.Set(TRUE);
+	NEW(PTVShowBorder, NIL, Strings.NewString("ShowBorder"), Strings.NewString("show border"));
+	PTVShowBorder.Set(FALSE);
+	NEW(PTVIsPassword, NIL, Strings.NewString("password"),
+		Strings.NewString("defines if the view is a password text. Characters are replaced by passwordChar"));
+	NEW(PTVPasswordChar, NIL, Strings.NewString("passwordChar"),
+		Strings.NewString("character that is the placeholder for a character in a password"));
+	PTVPasswordChar.Set(43);
+	NEW(PTValwaysShowCursor, NIL, Strings.NewString("alwaysShowCursor"),
+		Strings.NewString("set to true, if the cursor should not be hidden when focus is lost"));
+	PTValwaysShowCursor.Set(FALSE);
+	NEW(PTVShowLabels, NIL, Strings.NewString("ShowLabels"),
+		Strings.NewString("set to true, if the labels should be shown in the text"));
+	PTVShowLabels.Set(FALSE);
+	NEW(PTVMouseWheelScrollSpeed, NIL, Strings.NewString("MouseWheelScrollSpeed"),
+		Strings.NewString("Multiplier for mouse wheel, 0 to disable mouse wheel scrolling"));
+	PTVMouseWheelScrollSpeed.Set(3);
+	NEW(PTVAllowCommandExecution, NIL, Strings.NewString("allowCommandExecution"),
+		Strings.NewString("if set to true, middle-clicked words are executed as command"));
+	PTVAllowCommandExecution.Set(TRUE);
+	NEW(PTVAllowTextSelection, NIL, Strings.NewString("allowTextSelection"),
+		Strings.NewString("is the user allowed to select text using the mouse?"));
+	PTVAllowTextSelection.Set(TRUE);
+	NEW(PTVAllowPiemenu, NIL, Strings.NewString("allowPiemenu"),
+		Strings.NewString("if set to true, a mouse right-click opens the pie menu"));
+	PTVAllowPiemenu.Set(TRUE);
+	NEW(PTVWrapMode, NIL, Strings.NewString("wrapMode"), Strings.NewString("Set text wrapping mode"));
+	PTVWrapMode.Set(WrapWord);
+	NEW(PTVfirstLine, NIL, Strings.NewString("firstLine"),
+		Strings.NewString("the first visible line of text in the view"));
+	PTVfirstLine.Set(0);
+	NEW(PTVleftShift, NIL, Strings.NewString("leftShift"),
+		Strings.NewString("how many pixels the text in the view is shifted to the left"));
+	 PTVleftShift.Set(0);
+	NEW(PTVdefaultTextColor, NIL, Strings.NewString("defaultTextColor"),
+		Strings.NewString("the color of a text that does not explicitly specify a color"));
+	PTVdefaultTextColor.Set(0FFH);
+	NEW(PTVdefaultTextBgColor, NIL, Strings.NewString("defaultTextBgColor"),
+		Strings.NewString("The color of a text background if not specified otherwise in the text"));
+	PTVdefaultTextBgColor.Set(0);
+	NEW(PTVborders, NIL, Strings.NewString("borders"),
+		Strings.NewString("spaces from bounds of the component to the text"));
+	PTVborders.Set(WMRectangles.MakeRect(5, 5, 5, 5));
+	NEW(PCVIndicateTabs, NIL, Strings.NewString("IndicateTabs"), Strings.NewString("Indicate tabs?"));
+	PCVIndicateTabs.Set(FALSE);
+	NEW(PCVShowLineNumbers, NIL, Strings.NewString("ShowLineNumbers"), Strings.NewString("Show line numbers?"));
+	PCVShowLineNumbers.Set(FALSE);
+	NEW(PCVLineNumberColor, NIL, Strings.NewString("LineNumberColor"), Strings.NewString("Color of line numbers"));
+	PCVLineNumberColor.Set(WMGraphics.Black);
+	NEW(PCVLineNumberBgColor, NIL, Strings.NewString("LineNumberBgColor"), Strings.NewString("Background color of line numbers"));
+	PCVLineNumberBgColor.Set(0CCCCCCFFH);
+	NEW(PCVHighlighting, NIL, Strings.NewString("Highlighting"), Strings.NewString("Name of highlighting to be applied"));
+	PCVHighlighting.Set(NIL);
+	NEW(PCVclBgCurrentLine, NIL, Strings.NewString("ClBgCurrentLine"), Strings.NewString("Background color of currently edited line"));
+	PCVclBgCurrentLine.Set(0);
+END InitPrototypes;
 
 PROCEDURE TextViewFactory*() : XML.Element;
 VAR e : TextView;
@@ -4751,12 +4754,6 @@ VAR e : CodeView;
 BEGIN
 	NEW(e); RETURN e
 END CodeViewFactory;
-
-PROCEDURE InitStrings;
-BEGIN
-	StrTextView := Strings.NewString("TextView");
-	StrCodeView := Strings.NewString("CodeView");
-END InitStrings;
 
 (* Inserts a ocharacter from the outside into the current textView's text at its current position *)
 PROCEDURE InsertChar*(newChar : Char32) : INTEGER;
@@ -4777,9 +4774,6 @@ BEGIN
 	END;
 END Refresh;
 
-PROCEDURE Load*;
-END Load;
-
 PROCEDURE Cleanup;
 BEGIN
 	cursorBlinker.Finalize;
@@ -4787,12 +4781,9 @@ END Cleanup;
 
 BEGIN
 	NEW(cursorBlinker);
+	NEW(DefaultStyle);
 	Modules.InstallTermHandler(Cleanup);
 	InitStrings;
-	TextViewDefaults;
+	InitPrototypes;
 	manager := WMWindowManager.GetDefaultManager();
-	PTVonLinkClick := Strings.NewString("Link Click Event");
-	PTVonLinkClickInfo := Strings.NewString("fired when a link is pressed");
-	PTVonCtrlLinkClick := Strings.NewString("Ctrl Click Event");
-	PTVonCtrlLinkClickInfo := Strings.NewString("fired when Ctrl pressend and clicked");
 END WMTextView.
