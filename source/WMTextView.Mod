@@ -112,15 +112,15 @@ TYPE
 		PROCEDURE &New*;
 		BEGIN
 			NEW(lines, 4);
-
 			(* this helps saving some bidi computations *)
 			initialized := FALSE;
 		END New;
 
 		(** Replace the text *)
-		PROCEDURE SetText(t : Texts.Text);
+		PROCEDURE SetText(text : Texts.Text);
 		BEGIN
-			text := t
+			ASSERT(text # NIL);
+			SELF.text := text;
 		END SetText;
 
 		PROCEDURE GrowLines;
@@ -178,10 +178,9 @@ TYPE
 		PROCEDURE FullLayout(textChanged : BOOLEAN);
 		VAR i, pos, oldpos : LONGINT;
 		BEGIN
-			IF text = NIL THEN RETURN END;
-			textWidth := 0;
-			ASSERT(lines#NIL);
+			ASSERT((text # NIL) & (lines#NIL));
 			text.AcquireRead;
+			textWidth := 0;
 			IF TraceLayout IN Trace THEN KernelLog.String("FullLayout"); KernelLog.Ln END;
 
 			(* create a new bidiformatter and reformat the whole text if necessary *)
@@ -208,7 +207,7 @@ TYPE
 		PROCEDURE FixLayoutFrom(pos, delta : LONGINT; VAR first, last : LONGINT; VAR linesChanged : BOOLEAN);
 		VAR l, dl, oldh : LONGINT;
 		BEGIN
-			ASSERT(text#NIL);
+			ASSERT(text # NIL);
 			text.AcquireRead;
 			linesChanged := FALSE;
 			l := FindLineNrByPos(pos);
@@ -615,7 +614,7 @@ TYPE
 TYPE
 	TextView* = OBJECT(WMComponents.VisualComponent)
 	VAR
-		defaultTextColor-, defaultTextBgColor- : WMProperties.ColorProperty; (* cached in defaultAttr *)
+		defaultTextColor-, defaultTextBgColor- : WMProperties.ColorProperty;
 		defaultTextColorI, defaultTextBgColorI : LONGINT;
 
 		isMultiLine- : WMProperties.BooleanProperty;
@@ -853,6 +852,7 @@ TYPE
 		PROCEDURE RecacheProperties;
 		VAR oldBorders : WMRectangles.Rectangle;
 		BEGIN
+			ASSERT(IsCallFromSequencer());
 			RecacheProperties^;
 			defaultTextColorI := defaultTextColor.Get();
 			defaultTextBgColorI := defaultTextBgColor.Get();
@@ -915,6 +915,7 @@ TYPE
 		PROCEDURE BordersChanged;
 		VAR vScroll : LONGINT;
 		BEGIN
+			ASSERT(IsCallFromSequencer());
 			IF (vScrollbar # NIL) & (vScrollbar.visible.Get()) THEN vScroll := vScrollbar.bounds.GetWidth() ELSE vScroll := 0 END;
 			borderClip := WMRectangles.MakeRect(bordersI.l, bordersI.t, bounds.GetWidth() - bordersI.r, bounds.GetHeight() - bordersI.b);
 			layout.paperWidth := bounds.GetWidth() - (bordersI.l + bordersI.r) - vScroll;
@@ -923,6 +924,7 @@ TYPE
 
 		PROCEDURE WrapModeChanged;
 		BEGIN
+			ASSERT(IsCallFromSequencer());
 			wrapModeI := wrapMode.Get();
 			IF (wrapModeI # NoWrap) THEN
 				leftShift.Set(0); leftShiftI := 0; (* no scrollbars -> don't shift *)
@@ -1008,11 +1010,10 @@ TYPE
 		BEGIN
 			Acquire;
 			defaultTabStops := ts;
-			Release;
 			layout.FullLayout(TRUE);
-			CheckNumberOfLines
+			CheckNumberOfLines;
+			Release;
 		END SetTabStops;
-
 
 (* BEGIN highlighting *)
 		PROCEDURE AddHighlight(highlight : Highlight);
@@ -1425,6 +1426,7 @@ TYPE
 		PROCEDURE FindLineByY*(firstLine, y : LONGINT) : LONGINT;
 		VAR i : LONGINT; ypos : LONGINT;
 		BEGIN
+			ASSERT(text.HasReadLock());
 			ypos := bordersI.t; i := firstLine;
 			IF y < 0 THEN RETURN 0 END;
 			WHILE (i < layout.nofLines) & (ypos <= y) DO
@@ -2387,6 +2389,7 @@ TYPE
 		(* abort a possible start of a command. Clear the command start indicator, if it was set *)
 		PROCEDURE AbortStart;
 		BEGIN
+			ASSERT(IsCallFromSequencer());
 			IF commandMarker # NIL THEN
 				RemoveHighlight(commandMarker);
 				commandMarker := NIL
@@ -2728,7 +2731,7 @@ TYPE
 			w := Limit(w, 20, 400);
 
 			(* render to bitmap *)
-			NEW(img);	Raster.Create(img, w, h, Raster.BGRA8888);
+			NEW(img); Raster.Create(img, w, h, Raster.BGRA8888);
 			NEW(c, img);
 			top := 0;
 			(* hack the startpos of the first line *)
@@ -2747,7 +2750,6 @@ TYPE
 					top := top + (l.height)
 				END
 			END;
-
 			text.ReleaseRead;
 
 			IF StartDrag(NIL, img, DragWasAccepted, NIL) THEN
@@ -2894,11 +2896,13 @@ TYPE
 
 		PROCEDURE DeleteSelection*;
 		BEGIN
+			Acquire; (* protect cursor *)
 			text.AcquireWrite;
 			selection.Sort;
 			text.Delete(selection.a, selection.b - selection.a);
 			cursor.SetVisible(TRUE);
-			text.ReleaseWrite
+			text.ReleaseWrite;
+			Release;
 		END DeleteSelection;
 
 		PROCEDURE Paste*;
@@ -2915,11 +2919,13 @@ TYPE
 
 		PROCEDURE SelectAll*;
 		BEGIN
+			Acquire; (* protect cursor *)
 			text.AcquireRead;
 			selection.SetFromTo(0, text.GetLength());
 			cursor.SetVisible(text.GetLength() <= 0);
 			Texts.SetLastSelection(text, selection.from, selection.to);
-			text.ReleaseRead
+			text.ReleaseRead;
+			Release;
 		END SelectAll;
 
 		(* Prepare to start the selection by keyboard. Clear the selection, if it is not contigous *)
@@ -2947,6 +2953,7 @@ TYPE
 		VAR
 			pos, cPos, cl, lineStart : LONGINT;
 		BEGIN
+			Acquire;
 			text.AcquireRead;
 			pos := GetInternalPos(cursor.GetPosition());
 			IF select THEN
@@ -2969,12 +2976,14 @@ TYPE
 				KeyUpdateSelection(GetInternalPos(cursor.GetPosition()));
 			END;
 			text.ReleaseRead;
+			Release;
 			CursorChanged
 		END CursorUp;
 
 		PROCEDURE CursorDown*(select : BOOLEAN);
 		VAR pos, cPos, cl, lineStart : LONGINT;
 		BEGIN
+			Acquire;
 			text.AcquireRead;
 			pos := GetInternalPos(cursor.GetPosition());
 			IF select THEN
@@ -2998,6 +3007,7 @@ TYPE
 				KeyUpdateSelection(GetInternalPos(cursor.GetPosition()))
 			END;
 			text.ReleaseRead;
+			Release;
 			CursorChanged
 		END CursorDown;
 
@@ -3006,6 +3016,7 @@ TYPE
 		VAR
 			pos, cPos, wPos : LONGINT;
 		BEGIN
+			Acquire;
 			text.AcquireRead;
 			PositionDebugging.SetPos(GetInternalPos(cursor.GetPosition()),cursor.GetPosition());
 			pos := GetInternalPos(cursor.GetPosition());
@@ -3028,6 +3039,7 @@ TYPE
 			END;
 			StoreLineEnter;
 			text.ReleaseRead;
+			Release;
 			CursorChanged
 		END CursorLeft;
 
@@ -3036,6 +3048,7 @@ TYPE
 		VAR
 			pos, cPos, wPos : LONGINT;
 		BEGIN
+			Acquire;
 			text.AcquireRead;
 			PositionDebugging.SetPos(GetInternalPos(cursor.GetPosition()),cursor.GetPosition());
 			pos := GetInternalPos(cursor.GetPosition());
@@ -3058,6 +3071,7 @@ TYPE
 			END;
 			StoreLineEnter;
 			text.ReleaseRead;
+			Release;
 			CursorChanged
 		END CursorRight;
 
@@ -3065,6 +3079,7 @@ TYPE
 		VAR dy : LONGINT; i, pos, iPos : LONGINT;
 			cx, cy : LONGINT;
 		BEGIN
+			Acquire;
 			text.AcquireRead;
 			iPos := GetInternalPos(cursor.GetPosition());
 			IF select THEN
@@ -3094,6 +3109,7 @@ TYPE
 				KeyUpdateSelection(GetInternalPos(cursor.GetPosition()))
 			END;
 			text.ReleaseRead;
+			Release;
 			CursorChanged
 		END PageDown;
 
@@ -3101,6 +3117,7 @@ TYPE
 		VAR dy : LONGINT; i, pos, iPos : LONGINT;
 			cx, cy : LONGINT;
 		BEGIN
+			Acquire;
 			text.AcquireRead;
 			iPos := GetInternalPos(cursor.GetPosition());
 			IF select THEN
@@ -3132,6 +3149,7 @@ TYPE
 				KeyUpdateSelection(GetInternalPos(cursor.GetPosition()))
 			END;
 			text.ReleaseRead;
+			Release;
 			CursorChanged
 		END PageUp;
 
@@ -3139,6 +3157,7 @@ TYPE
 		VAR
 			lineStart, cl, pos : LONGINT;
 		BEGIN
+			Acquire;
 			text.AcquireRead;
 			pos := GetInternalPos(cursor.GetPosition());
 			IF select THEN
@@ -3161,17 +3180,16 @@ TYPE
 			IF select THEN
 				KeyUpdateSelection(GetInternalPos(cursor.GetPosition()))
 			END;
-
 			text.ReleaseRead;
+			Release;
 			CursorChanged
 		END Home;
 
 		PROCEDURE End*(ctrl, select : BOOLEAN);
-		VAR
-			lineEnd, textLength, cl, pos, dispPos: LONGINT;
+		VAR lineEnd, textLength, cl, pos, dispPos: LONGINT;
 		BEGIN
+			Acquire;
 			text.AcquireRead;
-
 			pos := GetInternalPos(cursor.GetPosition());
 			IF select THEN
 				KeyStartSelection(pos)
@@ -3196,8 +3214,8 @@ TYPE
 			IF select THEN
 				KeyUpdateSelection(GetInternalPos(cursor.GetPosition()))
 			END;
-
 			text.ReleaseRead;
+			Release;
 			CursorChanged
 		END End;
 
@@ -3327,6 +3345,7 @@ TYPE
 			from, to: Texts.TextPosition;
 			commandCaller:OBJECT;
 		BEGIN
+			Acquire;
 			text.AcquireRead;
 			IF openFile THEN FindCommand(pos, start, end)
 			ELSE FindCommandRange(pos, start, end, nofLastSelections)
@@ -3335,6 +3354,7 @@ TYPE
 			NEW(s, bufSize);
 			TextUtilities.SubTextToStr(text, start, end - start, s^);
 			text.ReleaseRead;
+			Release;
 			IF  Inputs.Shift * modifierFlags # {} THEN
 				 (*
 				 	Command / open will not see the caller => called as if no calling context was specified.
@@ -3471,6 +3491,7 @@ TYPE
 			window : WMWindowManager.Window;
 			nofLastSelections : LONGINT;
 		BEGIN
+			ASSERT(IsCallFromSequencer());
 			text.AcquireRead;
 			FindCommand(cursor.GetPosition(), start, end);
 			bufSize := Strings.Max(Strings.Min((end - start) * 5 + 1 (* for UTF *), 4096), 1);
@@ -3517,9 +3538,10 @@ TYPE
 			END
 		END ShowContextMenu;
 
-		PROCEDURE Handle(VAR x: WMMessages.Message);
+		PROCEDURE HandleInternal(VAR x: WMMessages.Message);
 		VAR pos : LONGINT; obj : ANY; link : Texts.Link;
 		BEGIN
+			ASSERT(IsCallFromSequencer());
 			IF (x.msgType = WMMessages.MsgKey) & objHasFocus THEN (* forward KeyMsg *)
 				WITH focusObject : WMComponents.VisualComponent DO
 					focusObject.Handle(x);
@@ -3577,10 +3599,10 @@ TYPE
 				IF (x.msgType = WMMessages.MsgExt) & (x.ext # NIL) & (x.ext IS Texts.StyleChangedMsg) THEN
 					layout.FullLayout(TRUE); Invalidate; CheckNumberOfLines;
 				ELSE
-					Handle^(x);
+					HandleInternal^(x);
 				END;
 			END
-		END Handle;
+		END HandleInternal;
 
 	END TextView;
 
