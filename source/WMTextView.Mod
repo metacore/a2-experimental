@@ -3761,18 +3761,17 @@ TYPE
 		BEGIN
 			Acquire;
 			IF (SELF.highlighter # highlighter) & ((SELF.highlighter # NIL) OR (highlighter # NIL)) THEN
+				text.AcquireRead; (* also protect SELF.highlighter and SELF.state here *)
 				SELF.highlighter := highlighter;
 				IF (highlighter # NIL) THEN
 					IF (state = NIL) THEN state := highlighter.GetState() END;
-					text.AcquireRead;
 					highlighter.RebuildRegions(utilreader, state);
-					text.ReleaseRead;
 				ELSE
 					state := NIL;
 				END;
-				layout.SetText(text);
 				layout.FullLayout(TRUE);
 				CheckNumberOfLines;
+				text.ReleaseRead;
 				Invalidate;
 			END;
 			Release;
@@ -3810,17 +3809,17 @@ TYPE
 					positionMarkers[i].pos.SetDisplayPositionTranslator(GetDisplayPos);
 				END;
 			END;
+			text.AcquireRead; (* also protect SELF.highlighter and SELF.state here *)
 			IF (highlighter # NIL) THEN
 				IF (state = NIL) THEN state := highlighter.GetState() END;
-				text.AcquireRead;
 				highlighter.RebuildRegions(utilreader, state);
-				text.ReleaseRead;
 			ELSE
 				state := NIL;
 			END;
 			layout.SetText(text);
 			layout.FullLayout(TRUE);
 			CheckNumberOfLines;
+			text.ReleaseRead;
 			Invalidate;
 			Release
 		END SetText;
@@ -3918,9 +3917,7 @@ TYPE
 		PROCEDURE TextChanged(sender, data : ANY);
 		VAR f, l, t, b, i, p, pa, pb, h: LONGINT; linesChanged : BOOLEAN;
 			info : Texts.TextChangeInfo;
-			rebuild, fullLayout: BOOLEAN;
-			highlighter : SyntaxHighlighter.Highlighter;
-			state : SyntaxHighlighter.State;
+			fullLayout: BOOLEAN;
 		BEGIN
 			IF ~initialized THEN RETURN END;
 			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.TextChanged, sender, data)
@@ -3928,33 +3925,34 @@ TYPE
 				IF (data # NIL) & (data IS Texts.TextChangeInfo) & (data(Texts.TextChangeInfo).op # Texts.OpMulti) THEN
 					info := data(Texts.TextChangeInfo);
 					text.AcquireRead;
-					highlighter := SELF.highlighter;
-					state := SELF.state;
 
 					IF text.GetTimestamp() = info.timestamp THEN
 						info := data(Texts.TextChangeInfo);
 
-						fullLayout := FALSE; rebuild := FALSE;
 						IF (highlighter # NIL) & (state # NIL) THEN
+
+							fullLayout := FALSE;
+
 							IF ((info.op = Texts.OpInsert) OR (info.op = Texts.OpDelete)) THEN
 								highlighter.PatchRegions(info, utilreader, state, fullLayout);
-								fullLayout := fullLayout OR rebuild;
 							ELSIF (info.op = Texts.OpAttributes) THEN
 								(* do nothing here *)
 							ELSE
 								highlighter.RebuildRegions(utilreader, state);
+								fullLayout := TRUE;
 							END;
-						END;
 
-						IF (fullLayout) THEN
-							layout.FullLayout(TRUE);
-							lastTimeStamp := text.GetTimestamp();
-							CheckCursor;
-							text.ReleaseRead;
-							CheckNumberOfLines;
-							InvalidateRect(GetClientRect());
-							cursorBlinker.Show(cursor);
-							RETURN;
+							IF fullLayout THEN
+								layout.FullLayout(TRUE);
+								lastTimeStamp := text.GetTimestamp();
+								CheckCursor;
+								CheckNumberOfLines;
+								text.ReleaseRead;
+								InvalidateRect(GetClientRect());
+								cursorBlinker.Show(cursor);
+								RETURN;
+							END;
+
 						END;
 
 						(* Upon an insertion or deletion in the text, parts of the text may need reformatting *)
@@ -4016,6 +4014,7 @@ TYPE
 						CheckCursor;
 						InvalidateRect(GetClientRect())
 					END;
+					CheckNumberOfLines;
 					text.ReleaseRead
 				ELSE
 					text.AcquireRead;
@@ -4026,10 +4025,10 @@ TYPE
 					layout.FullLayout(TRUE);
 					lastTimeStamp := text.GetTimestamp();
 					CheckCursor;
+					CheckNumberOfLines;
 					text.ReleaseRead;
 					InvalidateRect(GetClientRect())
 				END;
-				CheckNumberOfLines;
 			END;
 			cursorBlinker.Show(cursor);
 		END TextChanged;
