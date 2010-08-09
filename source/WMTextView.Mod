@@ -4018,7 +4018,6 @@ TYPE
 					text.ReleaseRead
 				ELSE
 					text.AcquireRead;
-					highlighter := SELF.highlighter; state := SELF.state;
 					IF (highlighter # NIL) & (state # NIL) THEN
 						highlighter.RebuildRegions(utilreader, state);
 					END;
