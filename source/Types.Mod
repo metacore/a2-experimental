@@ -16,10 +16,14 @@ CONST
 	CannotConvert* = -10;
 	ConversionError* = -11;
 	TruncatedError* = -12; (* string truncation leads to error *)
+	CannotRead* = -20;
+	CannotWrite* = -21;
 
 TYPE
 
 	Wrapper* = RECORD END;
+
+	(** Basic types *)
 
 	Boolean* = RECORD(Wrapper)
 		value* : BOOLEAN;
@@ -65,8 +69,23 @@ TYPE
 		value* : Repositories.Component;
 	END;
 
+TYPE
+
+	(** Generic types *)
+
+	(** Read value into wrapper *)
+	Getter* = PROCEDURE {DELEGATE} (VAR wrapper : Wrapper; VAR res : LONGINT);
+
+	(** Store value into wrapper *)
+	Setter* = PROCEDURE {DELEGATE} (CONST wrapper : Wrapper; VAR res : LONGINT);
+
+	GenericWrapper* = RECORD(Wrapper)
+		Get* : Getter;
+		Set* : Setter;
+	END;
+
 PROCEDURE GetBoolean*(CONST wrapper : Wrapper; VAR value : BOOLEAN; VAR res : LONGINT);
-VAR temp : ARRAY 2 OF CHAR;
+VAR temp : ARRAY 2 OF CHAR; boolean : Boolean;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Boolean) THEN
@@ -85,13 +104,22 @@ BEGIN
 		Strings.StrToBool(wrapper(String32).value, value);
 	ELSIF (wrapper IS String256) THEN
 		Strings.StrToBool(wrapper(String256).value, value);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Get # NIL) THEN
+			wrapper(GenericWrapper).Get(boolean, res);
+			IF (res = Ok) THEN
+				value := boolean.value;
+			END;
+		ELSE
+			res := CannotRead;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END GetBoolean;
 
 PROCEDURE SetBoolean*(VAR wrapper : Wrapper; value : BOOLEAN; VAR res : LONGINT);
-VAR temp : ARRAY 2 OF CHAR;
+VAR temp : ARRAY 2 OF CHAR; boolean : Boolean;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Boolean) THEN
@@ -109,12 +137,20 @@ BEGIN
 		Strings.BoolToStr(value, wrapper(String32).value);
 	ELSIF (wrapper IS String256) THEN
 		Strings.BoolToStr(value, wrapper(String256).value);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Set # NIL) THEN
+			boolean.value := value;
+			wrapper(GenericWrapper).Set(boolean, res);
+		ELSE
+			res := CannotWrite;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END SetBoolean;
 
 PROCEDURE GetInteger*(CONST wrapper : Wrapper; VAR value : LONGINT; VAR res : LONGINT);
+VAR integer : Integer;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Integer) THEN
@@ -133,12 +169,22 @@ BEGIN
 		Strings.StrToInt(wrapper(String32).value, value);
 	ELSIF (wrapper IS String256) THEN
 		Strings.StrToInt(wrapper(String256).value, value);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Get # NIL) THEN
+			wrapper(GenericWrapper).Get(integer, res);
+			IF (res = Ok) THEN
+				value := integer.value;
+			END;
+		ELSE
+			res := CannotRead;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END GetInteger;
 
 PROCEDURE SetInteger*(VAR wrapper : Wrapper; value : LONGINT;  VAR res : LONGINT);
+VAR integer : Integer;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Integer) THEN
@@ -157,13 +203,20 @@ BEGIN
 		Strings.IntToStr(value, wrapper(String32).value);
 	ELSIF (wrapper IS String256) THEN
 		Strings.IntToStr(value, wrapper(String256).value);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Set # NIL) THEN
+			integer.value := value;
+			wrapper(GenericWrapper).Set(integer, res);
+		ELSE
+			res := CannotWrite;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END SetInteger;
 
 PROCEDURE GetReal*(CONST wrapper : Wrapper; VAR value : REAL; VAR res : LONGINT);
-VAR longreal : LONGREAL;
+VAR longreal : LONGREAL; real : Real;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Real) THEN
@@ -185,12 +238,22 @@ BEGIN
 	ELSIF (wrapper IS String256) THEN
 		Strings.StrToFloat(wrapper(String256).value, longreal);
 		value := SHORT(longreal);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Get # NIL) THEN
+			wrapper(GenericWrapper).Get(real, res);
+			IF (res = Ok) THEN
+				value := real.value;
+			END;
+		ELSE
+			res := CannotRead;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END GetReal;
 
 PROCEDURE SetReal*(VAR wrapper : Wrapper; value : REAL; VAR res : LONGINT);
+VAR real : Real;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Real) THEN
@@ -209,12 +272,20 @@ BEGIN
 		Strings.FloatToStr(value, 0, 1, 0, wrapper(String32).value);
 	ELSIF (wrapper IS String256) THEN
 		Strings.FloatToStr(value, 0, 1, 0, wrapper(String256).value);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Set # NIL) THEN
+			real.value := value;
+			wrapper(GenericWrapper).Set(real, res);
+		ELSE
+			res := CannotWrite;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END SetReal;
 
 PROCEDURE GetLongreal*(CONST wrapper : Wrapper; VAR value : LONGREAL; VAR res : LONGINT);
+VAR longreal : Longreal;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Longreal) THEN
@@ -233,12 +304,22 @@ BEGIN
 		Strings.StrToFloat(wrapper(String32).value, value);
 	ELSIF (wrapper IS String256) THEN
 		Strings.StrToFloat(wrapper(String256).value, value);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Get # NIL) THEN
+			wrapper(GenericWrapper).Get(longreal, res);
+			IF (res = Ok) THEN
+				value := longreal.value;
+			END;
+		ELSE
+			res := CannotRead;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END GetLongreal;
 
 PROCEDURE SetLongreal*(VAR wrapper : Wrapper; value : LONGREAL; VAR res : LONGINT);
+VAR longreal : Longreal;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Longreal) THEN
@@ -257,13 +338,20 @@ BEGIN
 		Strings.FloatToStr(value, 0, 0, 0, wrapper(String32).value);
 	ELSIF (wrapper IS String256) THEN
 		Strings.FloatToStr(value, 0, 0, 0, wrapper(String256).value);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Set # NIL) THEN
+			longreal.value := value;
+			wrapper(GenericWrapper).Set(longreal, res);
+		ELSE
+			res := CannotWrite;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END SetLongreal;
 
 PROCEDURE GetChar*(CONST wrapper : Wrapper; VAR value : CHAR; VAR res : LONGINT);
-VAR string : ARRAY 8 OF CHAR;
+VAR string : ARRAY 8 OF CHAR; char : Char;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Char) THEN
@@ -281,13 +369,22 @@ BEGIN
 		value := wrapper(String32).value[0];
 	ELSIF (wrapper IS String256) THEN
 		value := wrapper(String256).value[0];
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Get # NIL) THEN
+			wrapper(GenericWrapper).Get(char, res);
+			IF (res = Ok) THEN
+				value := char.value;
+			END;
+		ELSE
+			res := CannotRead;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END GetChar;
 
 PROCEDURE SetChar*(VAR wrapper : Wrapper; value : CHAR; VAR res : LONGINT);
-VAR temp : ARRAY 2 OF CHAR;
+VAR temp : ARRAY 2 OF CHAR; char : Char;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Char) THEN
@@ -309,6 +406,13 @@ BEGIN
 		temp[0] := value;
 		temp[1] := 0X;
 		Strings.StrToBool(temp, wrapper(Boolean).value);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Set # NIL) THEN
+			char.value := value;
+			wrapper(GenericWrapper).Set(char, res);
+		ELSE
+			res := CannotWrite;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
@@ -340,13 +444,19 @@ BEGIN
 		value[1] := 0X;
 	ELSIF (wrapper IS Object) THEN
 		ComponentToString(wrapper(Object).value, value, res);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Get # NIL) THEN
+			(* TBD *)
+		ELSE
+			res := CannotRead;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END GetString;
 
 PROCEDURE SetString*(VAR wrapper : Wrapper; value : Strings.String; VAR res : LONGINT);
-VAR temp : LONGREAL;
+VAR temp : LONGREAL; string : String;
 BEGIN
 	res := Ok;
 	IF (wrapper IS String) THEN
@@ -366,12 +476,20 @@ BEGIN
 		wrapper(Char).value := value[0];
 	ELSIF (wrapper IS Object) THEN
 		StringToComponent(value^, wrapper(Object).value, res);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Set # NIL) THEN
+			string.value := value;
+			wrapper(GenericWrapper).Set(string, res);
+		ELSE
+			res := CannotWrite;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END SetString;
 
 PROCEDURE GetSet*(CONST wrapper : Wrapper; VAR value : SET; VAR res : LONGINT);
+VAR set : Set;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Set) THEN
@@ -386,13 +504,22 @@ BEGIN
 		Strings.StrToSet(wrapper(String32).value, value);
 	ELSIF (wrapper IS String256) THEN
 		Strings.StrToSet(wrapper(String256).value, value);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Get # NIL) THEN
+			wrapper(GenericWrapper).Get(set, res);
+			IF (res = Ok) THEN
+				value := set.value;
+			END;
+		ELSE
+			res := CannotRead;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END GetSet;
 
 PROCEDURE SetSet*(VAR wrapper : Wrapper; value : SET; VAR res : LONGINT);
-VAR temp : ARRAY 32 OF CHAR;
+VAR temp : ARRAY 32 OF CHAR; set : Set;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Set) THEN
@@ -404,40 +531,65 @@ BEGIN
 		Strings.SetToStr(value, wrapper(String32).value);
 	ELSIF (wrapper IS String256) THEN
 		Strings.SetToStr(value, wrapper(String256).value);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Set # NIL) THEN
+			set.value := value;
+			wrapper(GenericWrapper).Set(set, res);
+		ELSE
+			res := CannotWrite;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END SetSet;
 
-PROCEDURE GetObject*(CONST wrapper : Wrapper; VAR object : Repositories.Component; VAR res : LONGINT);
+PROCEDURE GetObject*(CONST wrapper : Wrapper; VAR value : Repositories.Component; VAR res : LONGINT);
+VAR object : Object;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Object) THEN
-		object := wrapper(Object).value;
+		value := wrapper(Object).value;
 	ELSIF (wrapper IS String32) THEN
-		StringToComponent(wrapper(String32).value, object, res);
+		StringToComponent(wrapper(String32).value, value, res);
 	ELSIF (wrapper IS String256) THEN
-		StringToComponent(wrapper(String256).value, object, res);
+		StringToComponent(wrapper(String256).value, value, res);
 	ELSIF (wrapper IS String) THEN
 		(*? TBD Check for NIL *)
-		StringToComponent(wrapper(String).value^, object, res);
+		StringToComponent(wrapper(String).value^, value, res);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Get # NIL) THEN
+			wrapper(GenericWrapper).Get(object, res);
+			IF (res = Ok) THEN
+				value := object.value;
+			END;
+		ELSE
+			res := CannotRead;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
 END GetObject;
 
 (*? TBD Check for NIL *)
-PROCEDURE SetObject*(VAR wrapper : Wrapper; CONST object : Repositories.Component; VAR res : LONGINT);
+PROCEDURE SetObject*(VAR wrapper : Wrapper; CONST value : Repositories.Component; VAR res : LONGINT);
+VAR object : Object;
 BEGIN
 	res := Ok;
 	IF (wrapper IS Object) THEN
-		wrapper(Object).value := object;
+		wrapper(Object).value := value;
 	ELSIF (wrapper IS String32) THEN
-		ComponentToString(object, wrapper(String32).value, res);
+		ComponentToString(value, wrapper(String32).value, res);
 	ELSIF (wrapper IS String256) THEN
-		ComponentToString(object, wrapper(String256).value, res);
+		ComponentToString(value, wrapper(String256).value, res);
 	ELSIF (wrapper IS String) THEN
-		ComponentToString(object, wrapper(String).value^, res);
+		ComponentToString(value, wrapper(String).value^, res);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Set # NIL) THEN
+			object.value := value;
+			wrapper(GenericWrapper).Set(object, res);
+		ELSE
+			res := CannotWrite;
+		END;
 	ELSE
 		res := CannotConvert;
 	END;
