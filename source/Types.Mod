@@ -73,16 +73,17 @@ TYPE
 
 	(** Generic types *)
 
-	(** Read value into wrapper *)
-	Getter* = PROCEDURE {DELEGATE} (VAR wrapper : Wrapper; VAR res : LONGINT);
-
-	(** Store value into wrapper *)
-	Setter* = PROCEDURE {DELEGATE} (CONST wrapper : Wrapper; VAR res : LONGINT);
-
 	GenericWrapper* = RECORD(Wrapper)
 		Get* : Getter;
 		Set* : Setter;
 	END;
+
+	(** Read value into wrapper *)
+	Getter* = PROCEDURE {DELEGATE} (CONST self : GenericWrapper; VAR wrapper : Wrapper; VAR res : LONGINT);
+
+	(** Store value into wrapper *)
+	Setter* = PROCEDURE {DELEGATE} (CONST self : GenericWrapper; CONST wrapper : Wrapper; VAR res : LONGINT);
+
 
 PROCEDURE GetBoolean*(CONST wrapper : Wrapper; VAR value : BOOLEAN; VAR res : LONGINT);
 VAR temp : ARRAY 2 OF CHAR; boolean : Boolean;
@@ -106,7 +107,7 @@ BEGIN
 		Strings.StrToBool(wrapper(String256).value, value);
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Get # NIL) THEN
-			wrapper(GenericWrapper).Get(boolean, res);
+			wrapper(GenericWrapper).Get(wrapper(GenericWrapper), boolean, res);
 			IF (res = Ok) THEN
 				value := boolean.value;
 			END;
@@ -140,7 +141,7 @@ BEGIN
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Set # NIL) THEN
 			boolean.value := value;
-			wrapper(GenericWrapper).Set(boolean, res);
+			wrapper(GenericWrapper).Set(wrapper(GenericWrapper), boolean, res);
 		ELSE
 			res := CannotWrite;
 		END;
@@ -171,7 +172,7 @@ BEGIN
 		Strings.StrToInt(wrapper(String256).value, value);
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Get # NIL) THEN
-			wrapper(GenericWrapper).Get(integer, res);
+			wrapper(GenericWrapper).Get(wrapper(GenericWrapper), integer, res);
 			IF (res = Ok) THEN
 				value := integer.value;
 			END;
@@ -206,7 +207,7 @@ BEGIN
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Set # NIL) THEN
 			integer.value := value;
-			wrapper(GenericWrapper).Set(integer, res);
+			wrapper(GenericWrapper).Set(wrapper(GenericWrapper), integer, res);
 		ELSE
 			res := CannotWrite;
 		END;
@@ -240,7 +241,7 @@ BEGIN
 		value := SHORT(longreal);
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Get # NIL) THEN
-			wrapper(GenericWrapper).Get(real, res);
+			wrapper(GenericWrapper).Get(wrapper(GenericWrapper), real, res);
 			IF (res = Ok) THEN
 				value := real.value;
 			END;
@@ -275,7 +276,7 @@ BEGIN
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Set # NIL) THEN
 			real.value := value;
-			wrapper(GenericWrapper).Set(real, res);
+			wrapper(GenericWrapper).Set(wrapper(GenericWrapper), real, res);
 		ELSE
 			res := CannotWrite;
 		END;
@@ -306,7 +307,7 @@ BEGIN
 		Strings.StrToFloat(wrapper(String256).value, value);
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Get # NIL) THEN
-			wrapper(GenericWrapper).Get(longreal, res);
+			wrapper(GenericWrapper).Get(wrapper(GenericWrapper), longreal, res);
 			IF (res = Ok) THEN
 				value := longreal.value;
 			END;
@@ -341,7 +342,7 @@ BEGIN
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Set # NIL) THEN
 			longreal.value := value;
-			wrapper(GenericWrapper).Set(longreal, res);
+			wrapper(GenericWrapper).Set(wrapper(GenericWrapper), longreal, res);
 		ELSE
 			res := CannotWrite;
 		END;
@@ -371,7 +372,7 @@ BEGIN
 		value := wrapper(String256).value[0];
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Get # NIL) THEN
-			wrapper(GenericWrapper).Get(char, res);
+			wrapper(GenericWrapper).Get(wrapper(GenericWrapper), char, res);
 			IF (res = Ok) THEN
 				value := char.value;
 			END;
@@ -409,7 +410,7 @@ BEGIN
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Set # NIL) THEN
 			char.value := value;
-			wrapper(GenericWrapper).Set(char, res);
+			wrapper(GenericWrapper).Set(wrapper(GenericWrapper), char, res);
 		ELSE
 			res := CannotWrite;
 		END;
@@ -479,7 +480,7 @@ BEGIN
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Set # NIL) THEN
 			string.value := value;
-			wrapper(GenericWrapper).Set(string, res);
+			wrapper(GenericWrapper).Set(wrapper(GenericWrapper), string, res);
 		ELSE
 			res := CannotWrite;
 		END;
@@ -506,7 +507,7 @@ BEGIN
 		Strings.StrToSet(wrapper(String256).value, value);
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Get # NIL) THEN
-			wrapper(GenericWrapper).Get(set, res);
+			wrapper(GenericWrapper).Get(wrapper(GenericWrapper), set, res);
 			IF (res = Ok) THEN
 				value := set.value;
 			END;
@@ -534,7 +535,7 @@ BEGIN
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Set # NIL) THEN
 			set.value := value;
-			wrapper(GenericWrapper).Set(set, res);
+			wrapper(GenericWrapper).Set(wrapper(GenericWrapper), set, res);
 		ELSE
 			res := CannotWrite;
 		END;
@@ -558,7 +559,7 @@ BEGIN
 		StringToComponent(wrapper(String).value^, value, res);
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Get # NIL) THEN
-			wrapper(GenericWrapper).Get(object, res);
+			wrapper(GenericWrapper).Get(wrapper(GenericWrapper), object, res);
 			IF (res = Ok) THEN
 				value := object.value;
 			END;
@@ -586,7 +587,7 @@ BEGIN
 	ELSIF (wrapper IS GenericWrapper) THEN
 		IF (wrapper(GenericWrapper).Set # NIL) THEN
 			object.value := value;
-			wrapper(GenericWrapper).Set(object, res);
+			wrapper(GenericWrapper).Set(wrapper(GenericWrapper), object, res);
 		ELSE
 			res := CannotWrite;
 		END;
