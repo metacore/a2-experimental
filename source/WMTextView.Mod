@@ -791,6 +791,7 @@ TYPE
 
 		PROCEDURE Initialize*;
 		BEGIN
+			ASSERT(IsCallFromSequencer());
 			Initialize^;
 			RecacheProperties;
 			cursor.SetVisible(FALSE);
@@ -972,10 +973,12 @@ TYPE
 
 		PROCEDURE Resized;
 		BEGIN
+			ASSERT(IsCallFromSequencer());
 			Resized^;
 			layout.paperWidth := bounds.GetWidth() - (bordersI.l + bordersI.r);
 			borderClip.r := bounds.GetWidth() - bordersI.r; borderClip.b := bounds.GetHeight() - bordersI.b;
-			layout.FullLayout(optimize); CheckNumberOfLines;
+			layout.FullLayout(optimize);
+			CheckNumberOfLines;
 		END Resized;
 
 		(** Replace the text *)
