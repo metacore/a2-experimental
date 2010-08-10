@@ -712,8 +712,10 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	# Icons representing applications (don't put icons used by applications inside!)
 	WMIcons.tar
 
+	Types.Mod
+
 	# Components
-	WMModels.Mod
+	Models.Mod
 	WMStandardComponents.Mod
 	WMProgressComponents.Mod
 	WMShapes.Mod
