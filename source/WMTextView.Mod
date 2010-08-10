@@ -3759,18 +3759,23 @@ TYPE
 
 		PROCEDURE SetSyntaxHighlighter*(highlighter : SyntaxHighlighter.Highlighter);
 		BEGIN
+			ASSERT(text # NIL);
 			Acquire;
 			IF (SELF.highlighter # highlighter) & ((SELF.highlighter # NIL) OR (highlighter # NIL)) THEN
 				text.AcquireRead; (* also protect SELF.highlighter and SELF.state here *)
 				SELF.highlighter := highlighter;
 				IF (highlighter # NIL) THEN
-					IF (state = NIL) THEN state := highlighter.GetState() END;
+					IF (state = NIL) THEN
+						state := highlighter.GetState();
+						ASSERT(state # NIL);
+					END;
 					highlighter.RebuildRegions(utilreader, state);
 				ELSE
 					state := NIL;
 				END;
 				layout.FullLayout(TRUE);
 				CheckNumberOfLines;
+				ASSERT(((highlighter = NIL) & (state = NIL)) OR ((highlighter # NIL) & (state # NIL)));
 				text.ReleaseRead;
 				Invalidate;
 			END;
@@ -3811,14 +3816,13 @@ TYPE
 			END;
 			text.AcquireRead; (* also protect SELF.highlighter and SELF.state here *)
 			IF (highlighter # NIL) THEN
-				IF (state = NIL) THEN state := highlighter.GetState() END;
+				ASSERT(state # NIL);
 				highlighter.RebuildRegions(utilreader, state);
-			ELSE
-				state := NIL;
 			END;
 			layout.SetText(text);
 			layout.FullLayout(TRUE);
 			CheckNumberOfLines;
+			ASSERT(((highlighter = NIL) & (state = NIL)) OR ((highlighter # NIL) & (state # NIL)));
 			text.ReleaseRead;
 			Invalidate;
 			Release
@@ -3929,7 +3933,8 @@ TYPE
 					IF text.GetTimestamp() = info.timestamp THEN
 						info := data(Texts.TextChangeInfo);
 
-						IF (highlighter # NIL) & (state # NIL) THEN
+						IF (highlighter # NIL) THEN
+							ASSERT(state # NIL);
 
 							fullLayout := FALSE;
 
@@ -4006,7 +4011,8 @@ TYPE
 					ELSIF (lastTimeStamp -  info.timestamp) > 0 THEN
 						(* Don't update lastTimeStamp since we didn't update the layout *)
 					ELSE
-						IF (highlighter # NIL) & (state # NIL) THEN
+						IF (highlighter # NIL) THEN
+							ASSERT(state # NIL);
 							highlighter.RebuildRegions(utilreader, state);
 						END;
 						layout.FullLayout(TRUE);
@@ -4018,7 +4024,8 @@ TYPE
 					text.ReleaseRead
 				ELSE
 					text.AcquireRead;
-					IF (highlighter # NIL) & (state # NIL) THEN
+					IF (highlighter # NIL) THEN
+						ASSERT(state # NIL);
 						highlighter.RebuildRegions(utilreader, state);
 					END;
 					layout.FullLayout(TRUE);
