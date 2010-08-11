@@ -52,7 +52,7 @@ VAR
 	status : EFI.Status;
 	i : LONGINT;
 BEGIN
-	FOR i := 0 TO maxAllocations - 1 DO
+	FOR i := 0 TO numAllocations - 1 DO
 		status := EFI.table.BS.FreePages(allocations[i].baseAddress, allocations[i].numPages);
 	END;
 END FreeMemory;
