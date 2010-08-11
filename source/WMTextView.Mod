@@ -661,6 +661,25 @@ TYPE
 		(** Should a mouse right-click open the pie menu? (default : TRUE) *)
 		allowPiemenu- : WMProperties.BooleanProperty;
 
+		(** Syntax highlighting *)
+		highlighting- : WMProperties.StringProperty;
+		highlighter : SyntaxHighlighter.Highlighter;
+		state : SyntaxHighlighter.State;
+		fontCache : FontCache;
+
+		showLineNumbers- : WMProperties.BooleanProperty;
+		showLineNumbersI : BOOLEAN;
+
+		lineNumberColor-, lineNumberBgColor- : WMProperties.ColorProperty;
+		lineNumberColorI, lineNumberBgColorI : LONGINT;
+		lineNumberFont, lineNumberFont10 : WMGraphics.Font;
+
+		indicateTabs- : WMProperties.BooleanProperty;
+		indicateTabsI : BOOLEAN;
+
+		clBgCurrentLine- : WMProperties.ColorProperty;
+		clBgCurrentLineI : LONGINT;
+
 		selection- : Highlight;
 		cursor- : Cursor;
 
@@ -742,6 +761,15 @@ TYPE
 			NEW(allowCommandExecution, PTVAllowCommandExecution, NIL, NIL); properties.Add(allowCommandExecution);
 			NEW(allowTextSelection, PTVAllowTextSelection, NIL, NIL); properties.Add(allowTextSelection);
 			NEW(allowPiemenu, PTVAllowPiemenu, NIL, NIL); properties.Add(allowPiemenu);
+			NEW(highlighting, PTVHighlighting, NIL, NIL); properties.Add(highlighting);
+			highlighter := NIL; state := NIL; fontCache := NIL;
+			NEW(showLineNumbers, PTVShowLineNumbers, NIL, NIL); properties.Add(showLineNumbers);
+			NEW(lineNumberColor, PTVLineNumberColor, NIL, NIL); properties.Add(lineNumberColor);
+			NEW(lineNumberBgColor, PTVLineNumberBgColor, NIL, NIL); properties.Add(lineNumberBgColor);
+			lineNumberFont := NIL; lineNumberFont10 := NIL;
+			NEW(indicateTabs, PTVIndicateTabs, NIL, NIL); properties.Add(indicateTabs);
+			NEW(clBgCurrentLine, PTVclBgCurrentLine, NIL, NIL); properties.Add(clBgCurrentLine);
+
 			(* events *)
 			NEW(onLinkClicked, SELF, PTVonLinkClick, PTVonLinkClickInfo, SELF.StringToCompCommand); events.Add(onLinkClicked);
 			onLinkClicked.Add(LinkClicked);
@@ -818,6 +846,14 @@ TYPE
 			currentTextView := SELF;
 		END FocusReceived;
 
+		PROCEDURE FocusLost*;
+		BEGIN
+			FocusLost^;
+			modifierFlags := {};
+			cursorBlinker.Remove(cursor);
+			IF ~alwaysShowCursorI THEN cursor.SetVisible(FALSE); END;
+		END FocusLost;
+
 		(* Inserts a character directly into the text. This should be used by external tools that insert character
 			without the usage of the keyboard, e.g. WMUnicodeMarkerTool) *)
 		PROCEDURE InsertChar(char : Char32) : INTEGER;
@@ -829,7 +865,6 @@ TYPE
 				IF text.isUTF OR (char < 256) THEN
 					oneCharString[0] := char;
 					oneCharString[1] := 0H;
-
 					text.AcquireWrite;
 					text.InsertUCS32(GetInternalPos(cursor.GetPosition()),oneCharString);
 					text.ReleaseWrite;
@@ -842,16 +877,11 @@ TYPE
 			END;
 		END InsertChar;
 
-		PROCEDURE FocusLost*;
-		BEGIN
-			FocusLost^;
-			modifierFlags := {};
-			cursorBlinker.Remove(cursor);
-			IF ~alwaysShowCursorI THEN cursor.SetVisible(FALSE); END;
-		END FocusLost;
-
 		PROCEDURE RecacheProperties;
-		VAR oldBorders : WMRectangles.Rectangle;
+		VAR
+			highlighter : SyntaxHighlighter.Highlighter;
+			oldBorders : WMRectangles.Rectangle;
+			string : Strings.String;
 		BEGIN
 			ASSERT(IsCallFromSequencer());
 			RecacheProperties^;
@@ -867,6 +897,19 @@ TYPE
 			alwaysShowCursorI := alwaysShowCursor.Get();
 			mouseWheelScrollSpeedI := mouseWheelScrollSpeed.Get();
 			isPasswordI := isPassword.Get();
+			showLineNumbersI := showLineNumbers.Get();
+			ShowLineNumbers(showLineNumbersI);
+			lineNumberColorI := lineNumberColor.Get();
+			lineNumberBgColorI := lineNumberBgColor.Get();
+			indicateTabsI := indicateTabs.Get();
+			clBgCurrentLineI := clBgCurrentLine.Get();
+			string := highlighting.Get();
+			IF (string # NIL) THEN
+				highlighter := SyntaxHighlighter.GetHighlighter(string^);
+			ELSE
+				highlighter := NIL;
+			END;
+			SetSyntaxHighlighter(highlighter);
 			UpdateScrollbars;
 			IF ~WMRectangles.IsEqual(oldBorders, bordersI) THEN BordersChanged END;
 			Invalidate;
@@ -937,37 +980,60 @@ TYPE
 			Invalidate;
 		END WrapModeChanged;
 
-		PROCEDURE PropertyChanged*(sender, data : ANY);
-		VAR oldBorders : WMRectangles.Rectangle;
+		PROCEDURE PropertyChanged*(sender, property : ANY);
+		VAR
+			highlighter : SyntaxHighlighter.Highlighter;
+			oldBorders : WMRectangles.Rectangle;
+			string : Strings.String;
 		BEGIN
-			IF data = defaultTextColor THEN
+			IF property = defaultTextColor THEN
 				defaultTextColorI := defaultTextColor.Get(); Invalidate;
-			ELSIF data = defaultTextBgColor THEN
+			ELSIF property = defaultTextBgColor THEN
 				defaultTextBgColorI := defaultTextBgColor.Get(); Invalidate;
-			ELSIF data = isMultiLine THEN
+			ELSIF property = isMultiLine THEN
 				isMultiLineI := isMultiLine.Get(); Invalidate;
-			ELSIF data = wrapMode THEN
+			ELSIF property = wrapMode THEN
 				wrapModeI := wrapMode.Get(); WrapModeChanged; Invalidate;
-			ELSIF data = firstLine THEN
+			ELSIF property = firstLine THEN
 				firstLineI := firstLine.Get(); UpdateScrollbars; Invalidate;
-			ELSIF data = leftShift THEN
+			ELSIF property = leftShift THEN
 				leftShiftI := leftShift.Get(); UpdateScrollbars; Invalidate;
-			ELSIF data = showBorder THEN
+			ELSIF property = showBorder THEN
 				showBorderI := showBorder.Get(); Invalidate;
-			ELSIF data = borders THEN
+			ELSIF property = borders THEN
 				oldBorders := bordersI; bordersI := borders.Get(); BordersChanged; Invalidate;
-			ELSIF data = alwaysShowCursor THEN
+			ELSIF property = alwaysShowCursor THEN
 				alwaysShowCursorI := alwaysShowCursor.Get();
 				IF (alwaysShowCursorI = TRUE) THEN cursor.SetVisible(TRUE);
 				ELSIF ~hasFocus THEN cursor.SetVisible(FALSE);
 				END;
 				Invalidate;
-			ELSIF data = mouseWheelScrollSpeed THEN
+			ELSIF property = mouseWheelScrollSpeed THEN
 				mouseWheelScrollSpeedI := mouseWheelScrollSpeed.Get();
-			ELSIF data = isPassword THEN
+			ELSIF property = isPassword THEN
 				isPasswordI := isPassword.Get(); Invalidate;
+			ELSIF (property = highlighting) THEN
+				string := highlighting.Get();
+				IF (string # NIL) THEN
+					highlighter := SyntaxHighlighter.GetHighlighter(string^);
+				ELSE
+					highlighter := NIL;
+				END;
+				SetSyntaxHighlighter(highlighter);
+			ELSIF (property = showLineNumbers) THEN
+				showLineNumbersI := showLineNumbers.Get();
+				ShowLineNumbers(showLineNumbersI);
+				Invalidate;
+			ELSIF (property = indicateTabs) THEN
+				indicateTabsI := indicateTabs.Get(); Invalidate;
+			ELSIF (property = clBgCurrentLine) THEN
+				clBgCurrentLineI := clBgCurrentLine.Get(); Invalidate;
+			ELSIF (property = lineNumberColor) OR (property = lineNumberBgColor) THEN
+				lineNumberColorI := lineNumberColor.Get();
+				lineNumberBgColorI := lineNumberBgColor.Get();
+				Invalidate;
 			ELSE
-				PropertyChanged^(sender, data)
+				PropertyChanged^(sender, property)
 			END
 		END PropertyChanged;
 
@@ -982,32 +1048,76 @@ TYPE
 		END Resized;
 
 		(** Replace the text *)
-		PROCEDURE SetText*(t : Texts.Text);
+		PROCEDURE SetText*(text : Texts.Text);
 		VAR i : LONGINT;
 		BEGIN
-			ASSERT(t # NIL);
+			ASSERT(text # NIL);
 			Acquire;
-			IF text # NIL THEN text.onTextChanged.Remove(TextChanged) END;  (* unregister the TextChanged listener from the old text *)
-			text := t;
+			IF SELF.text # NIL THEN SELF.text.onTextChanged.Remove(TextChanged) END; (* unregister the TextChanged listener from the old text *)
+			SELF.text := text;
 			text.onTextChanged.Add(TextChanged); (* register the TextChanged listener with the new text*)
 			NEW(utilreader, text);
 			(* update all highlights *)
 			FOR i := 0 TO nofHighlights - 1 DO highlights[i].SetText(text) END;
 			FOR i := 0 TO nofPositionMarkers - 1 DO
 				positionMarkers[i].SetText(text);
-
 				(* Let the cursor know about the local position-translation procedures *)
 				IF text.isUTF THEN
 					positionMarkers[i].pos.SetInternalPositionTranslator(GetInternalPos);
 					positionMarkers[i].pos.SetDisplayPositionTranslator(GetDisplayPos);
 				END;
 			END;
+			text.AcquireRead; (* also protect SELF.highlighter and SELF.state here *)
+			IF (highlighter # NIL) THEN
+				ASSERT(state # NIL);
+				highlighter.RebuildRegions(utilreader, state);
+			END;
 			layout.SetText(text);
 			layout.FullLayout(TRUE);
 			CheckNumberOfLines;
+			ASSERT(((highlighter = NIL) & (state = NIL)) OR ((highlighter # NIL) & (state # NIL)));
+			text.ReleaseRead;
 			Invalidate;
 			Release
 		END SetText;
+
+		PROCEDURE SetSyntaxHighlighter*(highlighter : SyntaxHighlighter.Highlighter);
+		BEGIN
+			ASSERT(text # NIL);
+			Acquire;
+			IF (SELF.highlighter # highlighter) & ((SELF.highlighter # NIL) OR (highlighter # NIL)) THEN
+				text.AcquireRead; (* also protect SELF.highlighter and SELF.state here *)
+				SELF.highlighter := highlighter;
+				IF (highlighter # NIL) THEN
+					IF (state = NIL) THEN
+						state := highlighter.GetState();
+						ASSERT(state # NIL);
+					END;
+					highlighter.RebuildRegions(utilreader, state);
+				ELSE
+					state := NIL;
+				END;
+				layout.FullLayout(TRUE);
+				CheckNumberOfLines;
+				ASSERT(((highlighter = NIL) & (state = NIL)) OR ((highlighter # NIL) & (state # NIL)));
+				text.ReleaseRead;
+				Invalidate;
+			END;
+			Release;
+		END SetSyntaxHighlighter;
+
+		PROCEDURE ShowLineNumbers(enabled : BOOLEAN);
+		BEGIN
+			IF enabled THEN
+				x0 := 35;
+				lineNumberFont := WMGraphics.GetFont("Oberon", 8, {});
+				lineNumberFont10 := WMGraphics.GetFont("Oberon", 8, {WMGraphics.FontBold});
+			ELSE
+				x0 := 0;
+				lineNumberFont := NIL;
+				lineNumberFont10 := NIL;
+			END;
+		END ShowLineNumbers;
 
 		PROCEDURE SetTabStops*(ts : TabStops);
 		BEGIN
@@ -1187,28 +1297,32 @@ TYPE
 				data := sender;
 				IF (data # NIL) & (data IS PositionMarker) THEN
 					text.AcquireRead;
-					IF data = cursor THEN CheckCursor END;
-					IF FindScreenPos(data(PositionMarker).pos.GetPosition(), x, y) THEN
-						l := layout.FindLineNrByPos(data(PositionMarker).pos.GetPosition());
-						IF (l < LEN(layout.lines^)) & (l >= 0) THEN
-							ascent := layout.lines[l].ascent;
-(*							IF ascent = 0 THEN ascent := layout.lines[l].height END;
-							IF ascent = 0 THEN ascent := 10 END;*)
-							newRect := data(PositionMarker).GetArea(x, y, ascent)
-						END
-					END;
+					IF data = cursor THEN CheckCursor; END;
+					IF (data = cursor) & (clBgCurrentLineI # 0) THEN
+						Invalidate; (* HACK to handle clBgCurrentLine correcty. Should be replaced by a more efficient solution *)
+					ELSE
+						IF FindScreenPos(data(PositionMarker).pos.GetPosition(), x, y) THEN
+							l := layout.FindLineNrByPos(data(PositionMarker).pos.GetPosition());
+							IF (l < LEN(layout.lines^)) & (l >= 0) THEN
+								ascent := layout.lines[l].ascent;
+	(*							IF ascent = 0 THEN ascent := layout.lines[l].height END;
+								IF ascent = 0 THEN ascent := 10 END;*)
+								newRect := data(PositionMarker).GetArea(x, y, ascent)
+							END
+						END;
 
-					combinedRect := data(PositionMarker).currentArea;
-					IF WMRectangles.RectEmpty(combinedRect) THEN combinedRect := newRect
-					ELSE WMRectangles.ExtendRect(combinedRect, newRect)
-					END;
-					IF ~WMRectangles.RectEmpty(combinedRect) THEN
-						IF (WMRectangles.Area(data(PositionMarker).currentArea) + WMRectangles.Area(newRect)) * 5 <  WMRectangles.Area(combinedRect) THEN
-							InvalidateRect(data(PositionMarker).currentArea);
-							InvalidateRect(newRect)
-						ELSE
-							InvalidateRect(combinedRect)
-						END
+						combinedRect := data(PositionMarker).currentArea;
+						IF WMRectangles.RectEmpty(combinedRect) THEN combinedRect := newRect
+						ELSE WMRectangles.ExtendRect(combinedRect, newRect)
+						END;
+						IF ~WMRectangles.RectEmpty(combinedRect) THEN
+							IF (WMRectangles.Area(data(PositionMarker).currentArea) + WMRectangles.Area(newRect)) * 5 <  WMRectangles.Area(combinedRect) THEN
+								InvalidateRect(data(PositionMarker).currentArea);
+								InvalidateRect(newRect)
+							ELSE
+								InvalidateRect(combinedRect)
+							END
+						END;
 					END;
 					text.ReleaseRead;
 				ELSE
@@ -1326,7 +1440,8 @@ TYPE
 		END CheckParagraphEnd;
 
 		PROCEDURE TextChanged(sender, data : ANY);
-		VAR f, l, t, b, i, p, pa, pb, h: LONGINT; linesChanged : BOOLEAN;
+		VAR
+			f, l, t, b, i, p, pa, pb, h: LONGINT; linesChanged, fullLayout : BOOLEAN;
 			info : Texts.TextChangeInfo;
 		BEGIN
 			IF ~initialized THEN RETURN END;
@@ -1337,6 +1452,31 @@ TYPE
 					info := data(Texts.TextChangeInfo);
 					IF text.GetTimestamp() = info.timestamp THEN
 						info := data(Texts.TextChangeInfo);
+
+						IF (highlighter # NIL) THEN
+
+							ASSERT(state # NIL);
+							fullLayout := FALSE;
+							IF ((info.op = Texts.OpInsert) OR (info.op = Texts.OpDelete)) THEN
+								highlighter.PatchRegions(info, utilreader, state, fullLayout);
+							ELSIF (info.op = Texts.OpAttributes) THEN
+								(* do nothing here *)
+							ELSE
+								highlighter.RebuildRegions(utilreader, state);
+								fullLayout := TRUE;
+							END;
+
+							IF fullLayout THEN
+								layout.FullLayout(TRUE);
+								lastTimeStamp := text.GetTimestamp();
+								CheckCursor;
+								CheckNumberOfLines;
+								text.ReleaseRead;
+								InvalidateRect(GetClientRect());
+								cursorBlinker.Show(cursor);
+								RETURN;
+							END;
+						END;
 
 						(* Upon an insertion or deletion in the text, parts of the text may need reformatting *)
 						IF info.op = Texts.OpInsert THEN
@@ -1389,23 +1529,32 @@ TYPE
 					ELSIF (lastTimeStamp -  info.timestamp) > 0 THEN
 						(* Don't update lastTimeStamp since we didn't update the layout *)
 					ELSE
+						IF (highlighter # NIL) THEN
+							ASSERT(state # NIL);
+							highlighter.RebuildRegions(utilreader, state);
+						END;
 						layout.FullLayout(TRUE);
 						lastTimeStamp := text.GetTimestamp();
 						CheckCursor;
 						InvalidateRect(GetClientRect())
 					END;
+					CheckNumberOfLines;
 					text.ReleaseRead
 				ELSE
 					text.AcquireRead;
+					IF (highlighter # NIL) THEN
+						ASSERT(state # NIL);
+						highlighter.RebuildRegions(utilreader, state);
+					END;
 					layout.FullLayout(TRUE);
 					lastTimeStamp := text.GetTimestamp();
 					CheckCursor;
+					CheckNumberOfLines;
 					text.ReleaseRead;
 					InvalidateRect(GetClientRect())
 				END;
-				CheckNumberOfLines;
+				cursorBlinker.Show(cursor);
 			END;
-			cursorBlinker.Show(cursor);
 		END TextChanged;
 
 (* BEGIN view dependant layout functions *)
@@ -1624,265 +1773,6 @@ TYPE
 
 (* END view dependant layout functions *)
 
-		PROCEDURE GetFontFromAttr(info : Texts.FontInfo) : WMGraphics.Font;
-		BEGIN
-			RETURN WMGraphics.GetFont(info.name, info.size, info.style);
-		END GetFontFromAttr;
-
-		PROCEDURE LayoutLine(VAR pos : LONGINT; VAR ch : Char32; VAR l : LineInfo; wrapwidth, stopPos, stopXPos : LONGINT);
-		VAR
-			i, wrapPos : LONGINT;
-			f : WMGraphics.Font;
-			eol, first : BOOLEAN;
-			voff, ascent, descent, leading, ld, a, d, dx, x : LONGINT;
-			align, firstIndent, leftIndent, rightIndent, spaceBefore, spaceAfter : LONGINT;
-			tabstring : ARRAY 256 OF CHAR; tabs : CustomTabStops; tp : TabPositions;
-			sr : Streams.StringReader; tabCounter, tabPos : LONGINT; token : ARRAY 16 OF CHAR;
-			pStyle : Texts.ParagraphStyle;
-			cStyle : Texts.CharacterStyle;
-			start, stop, isFirst : BOOLEAN;
-			bidiTextReader, localTextReader : Texts.TextReader;
-
-			PROCEDURE GetExtents(ch : Char32; VAR dx, ascent, descent: LONGINT);
-			VAR gs : WMGraphics.GlyphSpacings; vc : WMComponents.VisualComponent;
-			BEGIN
-				IF ch = Texts.ObjectChar THEN
-					IF (localTextReader.object # NIL) & (localTextReader.object IS WMGraphics.Image) THEN
-						ascent := localTextReader.object(WMGraphics.Image).height - voff;
-						descent := voff;
-						dx :=  localTextReader.object(WMGraphics.Image).width
-					ELSIF (localTextReader.object # NIL) & (localTextReader.object IS WMComponents.VisualComponent) THEN
-						vc := localTextReader.object(WMComponents.VisualComponent);
-						dx := vc.bounds.GetWidth();
-						ascent := vc.bounds.GetHeight() - voff;
-						descent := voff;
-						(* Add a Sequencer to the object if none exists *)
-						IF (vc.sequencer = NIL) OR (vc.sequencer # sequencer) THEN
-							vc.SetSequencer(sequencer);
-							vc.Reset(NIL, NIL);
-						END;
-					END
-				ELSIF ch = Texts.TabChar THEN
-					IF l.tabStops # NIL THEN dx := l.tabStops.GetNextTabStop(x) - x
-					ELSE dx := defaultTabStops.GetNextTabStop(x) - x
-					END;
-					ascent := f.GetAscent() - voff;
-					descent := f.GetDescent() + voff
-				ELSIF ch = Texts.LabelChar THEN
-					IF showLabels.Get() THEN
-						f := GetFont();
-						f.GetStringSize(localTextReader.object(Texts.LabelPiece).label^, dx, ascent);
-						INC(dx, 4);
-					ELSE
-						ascent := 0; descent := 0;
-						dx := 0;
-					END;
-				ELSE
-					IF isPasswordI THEN ch := passwordChar.Get() END;
-					IF f.HasChar(ch) THEN
-						f.GetGlyphSpacings(ch, gs);
-				(*		ascent := f.GetAscent() - voff;
-						descent := f.GetDescent() + voff *)
-					ELSE
-						WMGraphics.FBGetGlyphSpacings(ch, gs);
-(*						ascent := gs.ascent - voff;
-						descent := gs.descent + voff *)
-					END;
-					ascent := gs.ascent - voff;
-					descent := gs.descent + voff;
-					dx := gs.bearing.l + gs.width + gs.bearing.r
-				END
-			END GetExtents;
-
-		BEGIN
-			f := GetFont(); (* set the default component font *)
-			x := 0; l.pos := pos; l.height := f.GetHeight(); eol := FALSE;
-
-			(* For layouting a reordered line, the reordered text is needed, to correctly measure
-				the extends of each character. *)
-			IF text.isUTF & (layout.bidiFormatter # NIL) THEN
-				isFirst := FALSE;
-				bidiTextReader := layout.bidiFormatter.ReadyTextReader(pos,isFirst);
-			END;
-
-
-			(* if a reformatted text is available initialize it correpsondingly *)
-			IF (bidiTextReader # NIL) THEN
-				(* if a reordered line is available, the contextual dependency rules are applied *)
-				bidiTextReader.CloneProperties(utilreader);
-				localTextReader := bidiTextReader;
-				localTextReader.text.AcquireRead;
-				localTextReader.SetPosition(0);
-
-			(* or initialize to default otherwise *)
-			ELSE
-				localTextReader := utilreader;
-				localTextReader.SetPosition(pos);
-			END;
-
-			localTextReader.SetDirection(1); first := TRUE;
-
-			(* the bidi formatter needs special treatment when finding out about the first line of the paragraph *)
-			start := FALSE; stop := FALSE;
-			IF (pos = 0) THEN start := TRUE;
-			ELSIF (bidiTextReader = NIL) THEN
-				localTextReader.SetPosition(pos-1);
-				localTextReader.ReadCh(ch);
-				IF (ch = Texts.NewLineChar) THEN start := TRUE;
-				ELSE start := FALSE;
-				END;
-			ELSE (* bidiTextReader # NIL *)
-				IF isFirst THEN
-					start := TRUE;
-				ELSE
-					start := FALSE;
-				END;
-			END;
-
-			i := 0;  ascent := f.GetAscent(); descent := f.GetDescent();
-			align := AlignLeft; l.tabStops := NIL; COPY("", tabstring);
-			firstIndent := 0; leftIndent := 0; rightIndent := 0; spaceBefore := 0; spaceAfter := 0;
-
-			REPEAT
-				localTextReader.ReadCh(ch);
-
-				(* Get the Paragraph Style *)
-				IF localTextReader.pstyle # NIL THEN
-					pStyle := localTextReader.pstyle;
-					(* pStyle := Texts.GetParagraphStyleByName(pStyle.name); *)
-					spaceBefore := ENTIER(FP1616.FixpToFloat(pStyle.spaceBefore));
-					spaceAfter := ENTIER(FP1616.FixpToFloat(pStyle.spaceAfter));
-					firstIndent := ENTIER(FP1616.FixpToFloat(pStyle.firstIndent));
-					leftIndent := ENTIER(FP1616.FixpToFloat(pStyle.leftIndent));
-					rightIndent := ENTIER(FP1616.FixpToFloat(pStyle.rightIndent));
-					align := pStyle.alignment;
-					(* parse tabstops *)
-					COPY(pStyle.tabStops, tabstring);
-					IF (tabstring # "default") & (tabstring # "0") & (tabstring # "") THEN
-						NEW(sr, LEN(tabstring)); sr.Set(tabstring); tabCounter := 0;
-						WHILE (sr.res = Streams.Ok) DO
-							sr.SkipWhitespace; sr.String(token);
-							INC(tabCounter);
-						END;
-						NEW(tp, tabCounter);
-						sr.Reset; tabCounter := 0;
-						WHILE (sr.res = Streams.Ok) DO
-							sr.SkipWhitespace; sr.String(token);
-							Strings.StrToInt(token, tabPos);
-							tp[tabCounter] := tabPos;
-							INC(tabCounter);
-						END;
-						NEW(tabs, tp);
-						IF l.tabStops = NIL THEN l.tabStops := tabs END
-					END;
-				END;
-				(* Get the Character Styles / Attributes *)
-				IF localTextReader.cstyle # NIL THEN
-					cStyle := localTextReader.cstyle;
-					voff := ENTIER(FP1616.FixpToFloat(cStyle.baselineShift));
-					ld := ENTIER(FP1616.FixpToFloat(cStyle.leading));
-					IF (cStyle.fontcache #NIL) & (cStyle.fontcache IS WMGraphics.Font) THEN
-						f := cStyle.fontcache(WMGraphics.Font);
-					ELSE
-						 f := WMGraphics.GetFont(cStyle.family, ENTIER(FP1616.FixpToFloat(cStyle.size)), cStyle.style);
-						localTextReader.cstyle.fontcache := f
-					END;
-				ELSIF localTextReader.pstyle # NIL THEN
-					IF pStyle.charStyle # NIL THEN
-						cStyle := pStyle.charStyle;
-						voff := ENTIER(FP1616.FixpToFloat(cStyle.baselineShift));
-						ld := ENTIER(FP1616.FixpToFloat(cStyle.leading));
-						IF (cStyle.fontcache #NIL) &
-							(cStyle.fontcache IS WMGraphics.Font) THEN
-							f := cStyle.fontcache(WMGraphics.Font);
-						ELSE
-							 f := WMGraphics.GetFont(cStyle.family, ENTIER(FP1616.FixpToFloat(cStyle.size)), cStyle.style);
-							localTextReader.pstyle.charStyle.fontcache := f
-						END
-					END;
-				ELSIF localTextReader.attributes # NIL THEN
-					voff := localTextReader.attributes.voff;
-					ld := 0;
-					IF localTextReader.attributes.fontInfo # NIL THEN
-						IF (localTextReader.attributes.fontInfo.fontcache # NIL)
-							& (localTextReader.attributes.fontInfo.fontcache IS WMGraphics.Font) THEN
-							f := localTextReader.attributes.fontInfo.fontcache(WMGraphics.Font);
-						ELSE
-							f := GetFontFromAttr(localTextReader.attributes.fontInfo);
-							localTextReader.attributes.fontInfo.fontcache := f
-						END
-					ELSE f := GetFont()
-					END
-				ELSE voff := 0; f := GetFont(); ld := 0;
-				END;
-
-				IF first THEN
-					IF ch = Texts.NewLineChar THEN
-						ascent := f.GetAscent(); descent := 0;
-					ELSE
-						descent := 0; ascent := 0;
-					END;
-					IF start THEN wrapwidth := wrapwidth - firstIndent - rightIndent;
-					ELSE wrapwidth := wrapwidth - leftIndent - rightIndent;
-					END;
-					first := FALSE;
-				END;
-				INC(pos);
-				IF (stopPos < 0) OR (pos <= stopPos) THEN
-					IF ch # Texts.NewLineChar THEN
-						GetExtents(ch, dx, a, d); ascent := Strings.Max(ascent, a); descent := Strings.Max(descent, d);
-						IF ld = 0 THEN ld := ascent + descent; ELSE ld := Strings.Max(ld, ascent + descent); END; leading := Strings.Max(leading, ld);
-						IF isMultiLineI & (wrapModeI # NoWrap) & (i > 0) & (x0 + x + dx > wrapwidth) THEN
-							eol := TRUE; DEC(pos); wrapPos := pos;
-							(* Go left for last space *)
-							IF wrapModeI = WrapWord THEN
-								pos := TextUtilities.FindPosWordLeft(localTextReader, pos);
-								IF pos <= l.pos THEN pos := wrapPos (* no word break found. wrap at latest possible pos *)
-								ELSE (* decrease width to actual size.. *)
-(*									localTextReader.SetPosition(pos);
-									WHILE pos < wrapPos DO
-										localTextReader.ReadCh(ch); GetExtents(ch, dx, a, d); x := x - dx; INC(pos)
-									END
-*)								END
-							END
-						ELSE
-							IF (stopXPos >= 0) & (x + dx DIV 2 > stopXPos) THEN
-								DEC(pos);
-
-								(* the bidi formatted text's lock needs to be released explicitly *)
-								IF (bidiTextReader # NIL) THEN
-									localTextReader.text.ReleaseRead;
-								END;
-								RETURN
-							END;
-							INC(x, dx)
-						END;
-					ELSE
-						eol := TRUE;
-						stop := TRUE;
-						IF (stopXPos >= 0) THEN DEC(pos) END;
-					END;
-				ELSE
-					eol := TRUE
-				END;
-				INC(i)
-			UNTIL eol OR localTextReader.eot;
-
-			l.width := x;
-			l.ascent := ascent; l.height := leading; (* ascent + descent; *)
-			l.align := align; l.leftIndent := leftIndent; l.rightIndent := rightIndent;
-			IF l.height = 0 THEN l.height := f.GetHeight() END;
-			IF start THEN l.firstInParagraph := TRUE; l.firstIndent := firstIndent;	l.spaceBefore := spaceBefore;
-			ELSE l.firstInParagraph := FALSE;	END;
-			IF stop THEN l.lastInParagraph := TRUE; l.spaceAfter := spaceAfter;
-			ELSE l.lastInParagraph := FALSE END;
-
-			(* the bidi formatted text's lock needs to be released explicitly *)
-			IF (bidiTextReader # NIL) THEN
-				localTextReader.text.ReleaseRead;
-			END;
-		END LayoutLine;
-
 		PROCEDURE LineYPos(lineNr : LONGINT; VAR y0, y1 : LONGINT);
 		VAR i : LONGINT;
 		BEGIN
@@ -2084,30 +1974,350 @@ TYPE
 		END GetParagraphEmbeddingLevel;
 
 
+				PROCEDURE LayoutLine(VAR pos : LONGINT; VAR ch : Char32; VAR l : LineInfo; wrapwidth, stopPos, stopXPos : LONGINT);
+		VAR
+			i, wrapPos : LONGINT;
+			eol, first : BOOLEAN;
+			ascent, descent, leading, ld, a, d, dx, x : LONGINT;
+			align, firstIndent, leftIndent, rightIndent, spaceBefore, spaceAfter : LONGINT;
+			tabstring : ARRAY 256 OF CHAR; tabs : CustomTabStops; tp : TabPositions;
+			sr : Streams.StringReader; tabCounter, tabPos : LONGINT; token : ARRAY 16 OF CHAR;
+			pStyle : Texts.ParagraphStyle;
+			start, stop, isFirst : BOOLEAN;
+			bidiTextReader, localTextReader : Texts.TextReader;
+			regionStart, regionEnd,lastEnd : LONGINT;
+			readerPosition : LONGINT;
+			highlighterStyle, lastHighlighterStyle : SyntaxHighlighter.Style;
+			currentStyle, lastStyle : ANY;
+			style : RECORD
+				voff : LONGINT;
+				font : WMGraphics.Font;
+			END;
+
+			PROCEDURE GetExtents(ch : Char32; VAR dx, ascent, descent: LONGINT);
+			VAR gs : WMGraphics.GlyphSpacings; vc : WMComponents.VisualComponent; font : WMGraphics.Font;
+			BEGIN
+				IF ch = Texts.ObjectChar THEN
+					IF (localTextReader.object # NIL) & (localTextReader.object IS WMGraphics.Image) THEN
+						ascent := localTextReader.object(WMGraphics.Image).height - style.voff;
+						descent := style.voff;
+						dx :=  localTextReader.object(WMGraphics.Image).width
+					ELSIF (localTextReader.object # NIL) & (localTextReader.object IS WMComponents.VisualComponent) THEN
+						vc := localTextReader.object(WMComponents.VisualComponent);
+						dx := vc.bounds.GetWidth();
+						ascent := vc.bounds.GetHeight() - style.voff;
+						descent := style.voff;
+						(* Add a Sequencer to the object if none exists *)
+						IF (vc.sequencer = NIL) OR (vc.sequencer # sequencer) THEN
+							vc.SetSequencer(sequencer);
+							vc.Reset(NIL, NIL);
+						END;
+					END
+				ELSIF ch = Texts.TabChar THEN
+					IF l.tabStops # NIL THEN dx := l.tabStops.GetNextTabStop(x) - x
+					ELSE dx := defaultTabStops.GetNextTabStop(x) - x
+					END;
+					ascent := style.font.GetAscent() - style.voff;
+					descent := style.font.GetDescent() + style.voff
+				ELSIF ch = Texts.LabelChar THEN
+					IF showLabels.Get() THEN
+						font := GetFont();
+						font.GetStringSize(localTextReader.object(Texts.LabelPiece).label^, dx, ascent);
+						INC(dx, 4);
+					ELSE
+						ascent := 0; descent := 0;
+						dx := 0;
+					END;
+				ELSE
+					IF isPasswordI THEN ch := passwordChar.Get() END;
+					IF style.font.HasChar(ch) THEN
+						style.font.GetGlyphSpacings(ch, gs);
+					ELSE
+						WMGraphics.FBGetGlyphSpacings(ch, gs);
+					END;
+					ascent := gs.ascent - style.voff;
+					descent := gs.descent + style.voff;
+					dx := gs.bearing.l + gs.width + gs.bearing.r
+				END
+			END GetExtents;
+
+		BEGIN
+			style.voff := 0;
+			style.font := GetFont();
+
+			x := 0; l.pos := pos; l.height := style.font.GetHeight(); eol := FALSE;
+
+			(* For layouting a reordered line, the reordered text is needed, to correctly measure
+				the extends of each character. *)
+			IF text.isUTF & (layout.bidiFormatter # NIL) THEN
+				isFirst := FALSE;
+				bidiTextReader := layout.bidiFormatter.ReadyTextReader(pos,isFirst);
+			END;
+
+			(* if a reformatted text is available initialize it correpsondingly *)
+			IF (bidiTextReader # NIL) THEN
+				(* if a reordered line is available, the contextual dependency rules are applied *)
+				bidiTextReader.CloneProperties(utilreader);
+				localTextReader := bidiTextReader;
+				localTextReader.text.AcquireRead;
+				localTextReader.SetPosition(0);
+			(* or initialize to default otherwise *)
+			ELSE
+				localTextReader := utilreader;
+				localTextReader.SetPosition(pos);
+			END;
+
+			localTextReader.SetDirection(1); first := TRUE;
+
+			(* the bidi formatter needs special treatment when finding out about the first line of the paragraph *)
+			start := FALSE; stop := FALSE;
+			IF (pos = 0) THEN start := TRUE;
+			ELSIF (bidiTextReader = NIL) THEN
+				localTextReader.SetPosition(pos-1);
+				localTextReader.ReadCh(ch);
+				IF (ch = Texts.NewLineChar) THEN start := TRUE;
+				ELSE start := FALSE;
+				END;
+			ELSE (* bidiTextReader # NIL *)
+				IF isFirst THEN
+					start := TRUE;
+				ELSE
+					start := FALSE;
+				END;
+			END;
+
+			i := 0;  ascent := style.font.GetAscent(); descent := style.font.GetDescent();
+			align := AlignLeft; l.tabStops := NIL; COPY("", tabstring);
+			firstIndent := 0; leftIndent := 0; rightIndent := 0; spaceBefore := 0; spaceAfter := 0;
+
+			lastEnd := -1;
+			highlighterStyle := NIL; lastHighlighterStyle := NIL;
+			currentStyle := NIL; lastStyle := NIL;
+
+			REPEAT
+
+				readerPosition := localTextReader.GetPosition();
+				localTextReader.ReadCh(ch);
+
+				IF (highlighter # NIL) THEN
+					ASSERT(state # NIL);
+					IF (lastEnd < readerPosition) THEN
+						highlighterStyle := highlighter.GetRegionStyle(readerPosition, state, regionStart, regionEnd);
+						IF (highlighterStyle # NIL) THEN
+							lastEnd := regionEnd;
+						ELSE
+							IF (ch > 32) THEN
+								highlighterStyle := highlighter.GetWordStyle(localTextReader, readerPosition, lastEnd);
+							END;
+						END;
+						localTextReader.SetPosition(readerPosition);
+						localTextReader.ReadCh(ch); (* restore text reader state *)
+					END;
+					IF (highlighterStyle = NIL) THEN
+						highlighterStyle := highlighter.GetDefaultStyle();
+					END;
+				END;
+
+				(* Get the Paragraph Style *)
+				IF localTextReader.pstyle # NIL THEN
+					pStyle := localTextReader.pstyle;
+					(* pStyle := Texts.GetParagraphStyleByName(pStyle.name); *)
+					spaceBefore := ENTIER(FP1616.FixpToFloat(pStyle.spaceBefore));
+					spaceAfter := ENTIER(FP1616.FixpToFloat(pStyle.spaceAfter));
+					firstIndent := ENTIER(FP1616.FixpToFloat(pStyle.firstIndent));
+					leftIndent := ENTIER(FP1616.FixpToFloat(pStyle.leftIndent));
+					rightIndent := ENTIER(FP1616.FixpToFloat(pStyle.rightIndent));
+					align := pStyle.alignment;
+					(* parse tabstops *)
+					COPY(pStyle.tabStops, tabstring);
+					IF (tabstring # "default") & (tabstring # "0") & (tabstring # "") THEN
+						NEW(sr, LEN(tabstring)); sr.Set(tabstring); tabCounter := 0;
+						WHILE (sr.res = Streams.Ok) DO
+							sr.SkipWhitespace; sr.String(token);
+							INC(tabCounter);
+						END;
+						NEW(tp, tabCounter);
+						sr.Reset; tabCounter := 0;
+						WHILE (sr.res = Streams.Ok) DO
+							sr.SkipWhitespace; sr.String(token);
+							Strings.StrToInt(token, tabPos);
+							tp[tabCounter] := tabPos;
+							INC(tabCounter);
+						END;
+						NEW(tabs, tp);
+						IF l.tabStops = NIL THEN l.tabStops := tabs END
+					END;
+				END;
+
+				IF (highlighterStyle = NIL) OR (highlighterStyle.defined * SyntaxHighlighter.DefineMask # SyntaxHighlighter.DefineMask) THEN
+
+					IF localTextReader.cstyle # NIL THEN
+						IF (currentStyle # localTextReader.cstyle) THEN
+							currentStyle := localTextReader.cstyle;
+							style.voff := ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.baselineShift));
+							ld := ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.leading));
+							IF (localTextReader.cstyle.fontcache #NIL) & (localTextReader.cstyle.fontcache IS WMGraphics.Font) THEN
+								style.font := localTextReader.cstyle.fontcache(WMGraphics.Font);
+							ELSE
+								style.font := WMGraphics.GetFont(localTextReader.cstyle.family, ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.size)), localTextReader.cstyle.style);
+								localTextReader.cstyle.fontcache := style.font;
+							END;
+						END;
+					ELSIF localTextReader.pstyle # NIL THEN
+						IF pStyle.charStyle # NIL THEN
+							style.voff := ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.baselineShift));
+							ld := ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.leading));
+							IF (localTextReader.cstyle.fontcache #NIL) & (localTextReader.cstyle.fontcache IS WMGraphics.Font) THEN
+								style.font := localTextReader.cstyle.fontcache(WMGraphics.Font);
+							ELSE
+								 style.font := WMGraphics.GetFont(localTextReader.cstyle.family, ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.size)), localTextReader.cstyle.style);
+								localTextReader.pstyle.charStyle.fontcache := style.font
+							END
+						END;
+					ELSIF localTextReader.attributes # NIL THEN
+						IF (currentStyle # localTextReader.attributes) THEN
+							currentStyle := localTextReader.attributes;
+							style.voff := localTextReader.attributes.voff;
+							ld := 0;
+							IF localTextReader.attributes.fontInfo # NIL THEN
+								IF (localTextReader.attributes.fontInfo.fontcache # NIL) & (localTextReader.attributes.fontInfo.fontcache IS WMGraphics.Font) THEN
+									style.font := localTextReader.attributes.fontInfo.fontcache(WMGraphics.Font);
+								ELSE
+									style.font := GetFontFromAttr(localTextReader.attributes.fontInfo);
+									localTextReader.attributes.fontInfo.fontcache := style.font;
+								END
+							ELSE
+								style.font := GetFont()
+							END
+						END;
+					ELSE
+						IF (currentStyle # DefaultStyle) THEN
+							currentStyle := DefaultStyle;
+							style.voff := 0;
+							style.font := GetFont();
+							ld := 0;
+						END;
+					END;
+					ASSERT(style.font # NIL);
+				END;
+
+				IF (highlighterStyle # NIL) THEN
+					IF (highlighterStyle # lastHighlighterStyle) OR (currentStyle # lastStyle) THEN
+						IF SyntaxHighlighter.Voff IN highlighterStyle.defined THEN style.voff := highlighterStyle.attributes.voff; END;
+						IF (SyntaxHighlighter.FontMask * highlighterStyle.defined # {}) THEN
+							CheckFont(highlighterStyle, style.font, fontCache);
+							style.font := highlighterStyle.attributes.fontInfo.fontcache (WMGraphics.Font);
+						END;
+					END;
+					currentStyle := NIL;
+				END;
+				lastStyle := currentStyle;
+				lastHighlighterStyle := highlighterStyle;
+
+				IF first THEN
+					IF ch = Texts.NewLineChar THEN
+						ascent := style.font.GetAscent(); descent := 0;
+					ELSE
+						descent := 0; ascent := 0;
+					END;
+					IF start THEN wrapwidth := wrapwidth - firstIndent - rightIndent;
+					ELSE wrapwidth := wrapwidth - leftIndent - rightIndent;
+					END;
+					first := FALSE;
+				END;
+				INC(pos);
+				IF (stopPos < 0) OR (pos <= stopPos) THEN
+					IF ch # Texts.NewLineChar THEN
+						GetExtents(ch, dx, a, d); ascent := Strings.Max(ascent, a); descent := Strings.Max(descent, d);
+						IF ld = 0 THEN ld := ascent + descent; ELSE ld := Strings.Max(ld, ascent + descent); END; leading := Strings.Max(leading, ld);
+						IF isMultiLineI & (wrapModeI # NoWrap) & (i > 0) & (x0 + x + dx > wrapwidth) THEN
+							eol := TRUE; DEC(pos); wrapPos := pos;
+							(* Go left for last space *)
+							IF wrapModeI = WrapWord THEN
+								pos := TextUtilities.FindPosWordLeft(localTextReader, pos);
+								IF pos <= l.pos THEN pos := wrapPos (* no word break found. wrap at latest possible pos *)
+								ELSE (* decrease width to actual size.. *)
+(*									localTextReader.SetPosition(pos);
+									WHILE pos < wrapPos DO
+										localTextReader.ReadCh(ch); GetExtents(ch, dx, a, d); x := x - dx; INC(pos)
+									END
+*)								END
+							END
+						ELSE
+							IF (stopXPos >= 0) & (x + dx DIV 2 > stopXPos) THEN
+								DEC(pos);
+
+								(* the bidi formatted text's lock needs to be released explicitly *)
+								IF (bidiTextReader # NIL) THEN
+									localTextReader.text.ReleaseRead;
+								END;
+								RETURN
+							END;
+							INC(x, dx)
+						END;
+					ELSE
+						eol := TRUE;
+						stop := TRUE;
+						IF (stopXPos >= 0) THEN DEC(pos) END;
+					END;
+				ELSE
+					eol := TRUE
+				END;
+				INC(i)
+			UNTIL eol OR localTextReader.eot;
+
+			l.width := x;
+			l.ascent := ascent; l.height := leading; (* ascent + descent; *)
+			l.align := align; l.leftIndent := leftIndent; l.rightIndent := rightIndent;
+			IF l.height = 0 THEN l.height := style.font.GetHeight() END;
+			IF start THEN l.firstInParagraph := TRUE; l.firstIndent := firstIndent;	l.spaceBefore := spaceBefore;
+			ELSE l.firstInParagraph := FALSE;	END;
+			IF stop THEN l.lastInParagraph := TRUE; l.spaceAfter := spaceAfter;
+			ELSE l.lastInParagraph := FALSE END;
+
+			(* the bidi formatted text's lock needs to be released explicitly *)
+			IF (bidiTextReader # NIL) THEN
+				localTextReader.text.ReleaseRead;
+			END;
+		END LayoutLine;
+
 		(* llen = -1 to render until the end of line > 0 to render llen elements in the line *)
 		PROCEDURE RenderLine*(canvas : WMGraphics.Canvas; VAR l : LineInfo; linenr, top, llen : LONGINT);
-		VAR sx, dx, dy, x, sp, i, j, k, t, tx, linelength, w, voff, bgcolor, p : LONGINT; char : Char32; gs: WMGraphics.GlyphSpacings;
-	 		curAttr : ANY; curCStyle : Texts.CharacterStyle;
-	 		font : WMGraphics.Font; vc : WMComponents.VisualComponent;
+		VAR sx, dx, dy, x, sp, i, j, k, t, tx, linelength, w, p : LONGINT; char : Char32; gs: WMGraphics.GlyphSpacings;
+	 		font : WMGraphics.Font;
+	 		vc : WMComponents.VisualComponent;
 	 		hc : BOOLEAN;
 	 		bidiTextReader, localTextReader : Texts.TextReader;
+			cursorPosition : LONGINT;
+			regionStart, regionEnd, lastEnd: LONGINT;
+			readerPosition : LONGINT;
+			lineNumberString : ARRAY 16 OF CHAR;
+			canvasState : WMGraphics.CanvasState;
+			cliprect, temp : WMRectangles.Rectangle;
+			highlighterStyle, lastHighlighterStyle : SyntaxHighlighter.Style;
+			currentStyle, lastStyle : ANY;
+			lastColor : LONGINT;
+			style : RECORD
+				color, bgColor, voff : LONGINT;
+				font : WMGraphics.Font;
+			END;
 		BEGIN
-			curAttr := DefaultStyle;
-			font := GetFont();
-			canvas.SetColor(defaultTextColorI);
-			bgcolor := defaultTextBgColorI;
 			IF TraceRenderOptimize IN Trace THEN
 				KernelLog.String("RenderLine : "); KernelLog.Int(linenr, 5); KernelLog.String(" from position : ");
 				KernelLog.Int(layout.GetLineStartPos(linenr), 5); KernelLog.Ln;
 			END;
 
-		(*	sp := layout.GetLineStartPos(linenr); *)
 			sp := l.pos;
 			IF sp >= text.GetLength() THEN RETURN END;
 
+			style.color := defaultTextColorI;
+			canvas.SetColor(style.color); lastColor := style.color;
+			style.bgColor := defaultTextBgColorI;
+			style.voff := 0;
+			style.font := GetFont();
+
 			IF llen < 0 THEN
 				linelength := layout.GetLineLength(linenr);
-
 				(* hack for the bidi formatter *)
 				IF linenr = layout.GetNofLines() - 1 THEN
 					DEC(linelength);
@@ -2140,7 +2350,6 @@ TYPE
 				localTextReader.SetPosition(sp);
 			END;
 
-			localTextReader.SetDirection(1);
 			i := 0;
 			x := GetLineLeftIndent(linenr);
 			sx := - leftShiftI + bordersI.l + x0;
@@ -2148,67 +2357,133 @@ TYPE
 				canvas.Line(0, top + (l.ascent), bounds.GetWidth(), top + (l.ascent), 01F0000FFH, WMGraphics.ModeCopy)
 			END;
 
+			selection.Sort;
+			IF (cursor.visible) & (selection.b - selection.a <= 0) & (clBgCurrentLineI # 0) THEN
+				cursorPosition := cursor.GetPosition();
+				IF (l.pos <= cursorPosition) & (cursorPosition < l.pos + linelength) THEN
+					canvas.Fill(WMRectangles.MakeRect(0, top, bounds.GetWidth() - bordersI.r, top + l.height), clBgCurrentLineI, WMGraphics.ModeSrcOverDst);
+				END;
+			END;
+
+			IF showLineNumbersI THEN
+				canvas.SaveState(canvasState);
+				Strings.IntToStr(linenr + 1, lineNumberString);
+				temp := WMRectangles.MakeRect(bordersI.l, top, x0 - 1, top + l.height);
+				IF (lineNumberBgColorI # 0) THEN
+					canvas.Fill(temp, lineNumberBgColorI, WMGraphics.ModeSrcOverDst);
+				END;
+				temp.r := temp.r - 4;
+				IF ((linenr + 1) MOD 10 = 0) THEN
+					canvas.SetFont(lineNumberFont10);
+				ELSE
+					canvas.SetFont(lineNumberFont);
+				END;
+				canvas.SetColor(lineNumberColorI);
+				WMGraphics.DrawStringInRect(canvas, temp, FALSE, WMGraphics.AlignRight, WMGraphics.AlignCenter, lineNumberString);
+				canvas.RestoreState(canvasState); (* restore font and font color *)
+
+				canvas.SaveState(canvasState);
+				canvas.GetClipRect(cliprect);
+				cliprect.l := x0;
+				canvas.SetClipRect(cliprect);
+			END;
+
 			w := bounds.GetWidth() - bordersI.r;
+
+			localTextReader.SetDirection(1);
+
+			lastEnd := -1;
+			highlighterStyle := NIL; lastHighlighterStyle := NIL;
+			currentStyle := DefaultStyle; lastStyle := NIL;
+
 			REPEAT
+
+				readerPosition := localTextReader.GetPosition();
 				localTextReader.ReadCh(char);
 
-				IF localTextReader.cstyle = NIL THEN
-					IF curAttr # localTextReader.attributes THEN
-						IF localTextReader.attributes # NIL THEN
-							(* Black is the default color *)
-							IF localTextReader.attributes.color # 0FFH THEN canvas.SetColor(localTextReader.attributes.color);
-							ELSE canvas.SetColor(defaultTextColorI)
-							END;
-							IF localTextReader.attributes.fontInfo # NIL THEN
-								IF (localTextReader.attributes.fontInfo.fontcache # NIL)
-									& (localTextReader.attributes.fontInfo.fontcache IS WMGraphics.Font) THEN
-									font := localTextReader.attributes.fontInfo.fontcache(WMGraphics.Font);
-								ELSE
-									font := GetFontFromAttr(localTextReader.attributes.fontInfo);
-									localTextReader.attributes.fontInfo.fontcache := font
-								END
-							ELSE font := GetFont()
-							END;
-							bgcolor := localTextReader.attributes.bgcolor;
-							voff := localTextReader.attributes.voff;
-							curAttr := localTextReader.attributes
+				IF (highlighter # NIL) THEN
+					ASSERT(state # NIL);
+					IF (lastEnd < readerPosition) THEN
+						highlighterStyle := highlighter.GetRegionStyle(readerPosition, state, regionStart, regionEnd);
+						IF (highlighterStyle # NIL) THEN
+							lastEnd := regionEnd;
 						ELSE
-							IF curAttr # DefaultStyle THEN
-								curAttr := DefaultStyle;
-								canvas.SetColor(defaultTextColorI);
-								bgcolor := defaultTextBgColorI;
-								voff := 0;
-								font := GetFont()
-							END
+							IF (char > 32) THEN
+								highlighterStyle := highlighter.GetWordStyle(localTextReader, readerPosition, lastEnd);
+							END;
 						END;
-					ELSIF curAttr = NIL THEN
-						canvas.SetColor(defaultTextColorI);
-						bgcolor := defaultTextBgColorI;
-						voff := 0;
-						curAttr := DefaultStyle;
-						font := GetFont();
+						localTextReader.SetPosition(readerPosition);
+						localTextReader.ReadCh(char); (* restore text reader state *)
 					END;
-					curCStyle := NIL;
-				ELSE
-					IF curCStyle # localTextReader.cstyle THEN
-						curCStyle := localTextReader.cstyle;
-						canvas.SetColor(curCStyle.color);
-						bgcolor := curCStyle.bgColor;
-						voff := curCStyle.baselineShift;
-						(* get style from cache if possible *)
-						IF (curCStyle.fontcache #NIL) & (curCStyle.fontcache IS WMGraphics.Font) THEN
-							font := curCStyle.fontcache(WMGraphics.Font);
-						ELSE
-							 font := WMGraphics.GetFont(curCStyle.family, ENTIER(FP1616.FixpToFloat(curCStyle.size)), curCStyle.style);
-							curCStyle.fontcache := font
-						END;
+					IF (highlighterStyle = NIL) THEN
+						highlighterStyle := highlighter.GetDefaultStyle();
 					END;
-					curAttr := NIL;
 				END;
+
+				IF (highlighterStyle = NIL) OR (highlighterStyle.defined * SyntaxHighlighter.DefineMask # SyntaxHighlighter.DefineMask) THEN
+
+					IF (localTextReader.cstyle # NIL) THEN
+						IF (currentStyle # localTextReader.cstyle) THEN
+							currentStyle := localTextReader.cstyle;
+							style.color := localTextReader.cstyle.color;
+							style.bgColor := localTextReader.cstyle.bgColor;
+							style.voff := localTextReader.cstyle.baselineShift;
+							IF (localTextReader.cstyle.fontcache # NIL) & (localTextReader.cstyle.fontcache IS WMGraphics.Font) THEN
+								style.font := localTextReader.cstyle.fontcache(WMGraphics.Font);
+							ELSE
+								style.font := WMGraphics.GetFont(localTextReader.cstyle.family, ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.size)), localTextReader.cstyle.style);
+								localTextReader.cstyle.fontcache := style.font;
+							END;
+						END;
+					ELSIF (localTextReader.attributes # NIL) THEN
+						IF (currentStyle # localTextReader.attributes) THEN
+							currentStyle := localTextReader.attributes;
+							style.color := localTextReader.attributes.color;
+							style.bgColor := localTextReader.attributes.bgcolor;
+							style.voff := localTextReader.attributes.voff;
+							IF (localTextReader.attributes.fontInfo # NIL) THEN
+								IF (localTextReader.attributes.fontInfo.fontcache # NIL) & (localTextReader.attributes.fontInfo.fontcache IS WMGraphics.Font) THEN
+									style.font := localTextReader.attributes.fontInfo.fontcache (WMGraphics.Font);
+								ELSE
+									style.font := GetFontFromAttr(localTextReader.attributes.fontInfo);
+									localTextReader.attributes.fontInfo.fontcache := style.font;
+								END;
+							ELSE
+								style.font := GetFont();
+							END;
+						END;
+					ELSE
+						IF (currentStyle # DefaultStyle) THEN
+							currentStyle := DefaultStyle;
+							style.color := defaultTextColorI;
+							style.bgColor := defaultTextBgColorI;
+							style.voff := 0;
+							style.font := GetFont();
+						END;
+					END;
+					ASSERT(style.font # NIL);
+				END;
+
+				IF (highlighterStyle # NIL) THEN
+					IF (highlighterStyle # lastHighlighterStyle) OR (currentStyle # lastStyle) THEN
+						IF SyntaxHighlighter.Voff IN highlighterStyle.defined THEN style.voff := highlighterStyle.attributes.voff; END;
+						IF SyntaxHighlighter.Color IN highlighterStyle.defined THEN style.color := highlighterStyle.attributes.color; END;
+						IF SyntaxHighlighter.BgColor IN highlighterStyle.defined THEN style.bgColor := highlighterStyle.attributes.bgcolor; END;
+						IF (SyntaxHighlighter.FontMask * highlighterStyle.defined # {}) THEN
+							CheckFont(highlighterStyle, style.font, fontCache);
+							style.font := highlighterStyle.attributes.fontInfo.fontcache (WMGraphics.Font);
+						END;
+					END;
+					currentStyle := NIL; (* force reevaluation of localTextReader style *)
+				END;
+				lastStyle := currentStyle;
+				lastHighlighterStyle := highlighterStyle;
+
+				IF (style.color # lastColor) THEN canvas.SetColor(style.color); lastColor := style.color; END;
 
 				IF char = Texts.ObjectChar THEN
 					IF (localTextReader.object # NIL) & (localTextReader.object IS WMGraphics.Image) THEN
-						canvas.DrawImage(x, top + (l.ascent) + voff - localTextReader.object(WMGraphics.Image).height, localTextReader.object(WMGraphics.Image),
+						canvas.DrawImage(x, top + (l.ascent) + style.voff - localTextReader.object(WMGraphics.Image).height, localTextReader.object(WMGraphics.Image),
 							WMGraphics.ModeSrcOverDst);
 						dx := localTextReader.object(WMGraphics.Image).width
 					ELSIF (localTextReader.object # NIL) & (localTextReader.object IS WMComponents.VisualComponent) THEN
@@ -2230,9 +2505,10 @@ TYPE
 					IF l.tabStops # NIL THEN dx := l.tabStops.GetNextTabStop(tx) - tx
 					ELSE dx := defaultTabStops.GetNextTabStop(tx) - tx
 					END;
-					IF bgcolor # 0 THEN
-						canvas.Fill(WMRectangles.MakeRect(x + sx, top, x + dx + sx, top + (l.height)), bgcolor, WMGraphics.ModeCopy)
-					END
+					IF style.bgColor # 0 THEN
+						canvas.Fill(WMRectangles.MakeRect(x + sx, top, x + dx + sx, top + (l.height)), style.bgColor, WMGraphics.ModeSrcOverDst)
+					END;
+					IF indicateTabsI THEN canvas.SetPixel(x + sx + ((dx + 1) DIV 2), top + ((l.ascent + 1) DIV 2), WMGraphics.Blue, WMGraphics.ModeCopy); END;
 				ELSIF char = Texts.LabelChar THEN
 					IF showLabels.Get() THEN
 						font := GetFont();
@@ -2245,6 +2521,7 @@ TYPE
 				ELSE
 					IF char = Texts.NewLineChar THEN
 						localTextReader.text.ReleaseRead;
+						IF showLineNumbersI THEN canvas.RestoreState(canvasState); END;
 						RETURN
 					END;
 					IF isPasswordI THEN
@@ -2256,17 +2533,17 @@ TYPE
 					IF text.isUTF THEN
 						UnicodeBidirectionality.GetDisplayCharacter(char);
 					END;
-					hc := font.HasChar(char);
-					IF hc THEN font.GetGlyphSpacings(char, gs)
+					hc := style.font.HasChar(char);
+					IF hc THEN style.font.GetGlyphSpacings(char, gs)
 					ELSE WMGraphics.FBGetGlyphSpacings(char, gs)
 					END;
 					dx := gs.bearing.l + gs.width + gs.bearing.r;
 
-					IF bgcolor MOD 256 # 0 THEN
-						canvas.Fill(WMRectangles.MakeRect(x + sx, top, x + dx + sx, top + (l.height)), bgcolor, WMGraphics.ModeCopy)
+					IF style.bgColor MOD 256 # 0 THEN
+						canvas.Fill(WMRectangles.MakeRect(x + sx, top, x + dx + sx, top + (l.height)), style.bgColor, WMGraphics.ModeCopy)
 					END;
-					IF hc THEN font.RenderChar(canvas, x + sx, top + (l.ascent) + voff, char)
-					ELSE WMGraphics.FBRenderChar(canvas, x + sx, top + (l.ascent) + voff, char)
+					IF hc THEN style.font.RenderChar(canvas, x + sx, top + (l.ascent) + style.voff, char)
+					ELSE WMGraphics.FBRenderChar(canvas, x + sx, top + (l.ascent) + style.voff, char)
 					END
 				END;
 
@@ -2300,6 +2577,7 @@ TYPE
 				INC(i)
 			UNTIL (i >= linelength) OR localTextReader.eot OR (x + sx > w);
 			localTextReader.text.ReleaseRead;
+			IF showLineNumbersI THEN canvas.RestoreState(canvasState); END;
 		END RenderLine;
 
 		PROCEDURE RenderAboveTextMarkers*(canvas : WMGraphics.Canvas);
@@ -3719,937 +3997,6 @@ TYPE
 
 	END FontCache;
 
-TYPE
-
-	CodeView* = OBJECT(TextView)
-	VAR
-		highlighting- : WMProperties.StringProperty;
-		highlighter : SyntaxHighlighter.Highlighter;
-		state : SyntaxHighlighter.State;
-		fontCache : FontCache;
-
-		showLineNumbers- : WMProperties.BooleanProperty;
-		showLineNumbersI : BOOLEAN;
-
-		lineNumberColor-, lineNumberBgColor- : WMProperties.ColorProperty;
-		lineNumberColorI, lineNumberBgColorI : LONGINT;
-		lineNumberFont, lineNumberFont10 : WMGraphics.Font;
-
-		indicateTabs- : WMProperties.BooleanProperty;
-		indicateTabsI : BOOLEAN;
-
-		clBgCurrentLine- : WMProperties.ColorProperty;
-		clBgCurrentLineI : LONGINT;
-
-		PROCEDURE &Init*;
-		BEGIN
-			Init^;
-			SetNameAsString(StrCodeView);
-			NEW(highlighting, PCVHighlighting, NIL, NIL); properties.Add(highlighting);
-			highlighter := NIL; state := NIL;
-			NEW(showLineNumbers, PCVShowLineNumbers, NIL, NIL); properties.Add(showLineNumbers);
-			showLineNumbersI := showLineNumbers.Get();
-			ShowLineNumbers(showLineNumbersI);
-			NEW(lineNumberColor, PCVLineNumberColor, NIL, NIL); properties.Add(lineNumberColor);
-			lineNumberColorI := lineNumberColor.Get();
-			NEW(lineNumberBgColor, PCVLineNumberBgColor, NIL, NIL); properties.Add(lineNumberBgColor);
-			lineNumberBgColorI := lineNumberBgColor.Get();
-			lineNumberFont := NIL; lineNumberFont10 := NIL;
-			NEW(indicateTabs, PCVIndicateTabs, NIL, NIL); properties.Add(indicateTabs);
-			NEW(clBgCurrentLine, PCVclBgCurrentLine, NIL, NIL); properties.Add(clBgCurrentLine);
-			NEW(fontCache);
-		END Init;
-
-		PROCEDURE SetSyntaxHighlighter*(highlighter : SyntaxHighlighter.Highlighter);
-		BEGIN
-			ASSERT(text # NIL);
-			Acquire;
-			IF (SELF.highlighter # highlighter) & ((SELF.highlighter # NIL) OR (highlighter # NIL)) THEN
-				text.AcquireRead; (* also protect SELF.highlighter and SELF.state here *)
-				SELF.highlighter := highlighter;
-				IF (highlighter # NIL) THEN
-					IF (state = NIL) THEN
-						state := highlighter.GetState();
-						ASSERT(state # NIL);
-					END;
-					highlighter.RebuildRegions(utilreader, state);
-				ELSE
-					state := NIL;
-				END;
-				layout.FullLayout(TRUE);
-				CheckNumberOfLines;
-				ASSERT(((highlighter = NIL) & (state = NIL)) OR ((highlighter # NIL) & (state # NIL)));
-				text.ReleaseRead;
-				Invalidate;
-			END;
-			Release;
-		END SetSyntaxHighlighter;
-
-		PROCEDURE ShowLineNumbers(enabled : BOOLEAN);
-		BEGIN
-			IF enabled THEN
-				x0 := 35;
-				lineNumberFont := WMGraphics.GetFont("Oberon", 8, {});
-				lineNumberFont10 := WMGraphics.GetFont("Oberon", 8, {WMGraphics.FontBold});
-			ELSE
-				x0 := 0;
-				lineNumberFont := NIL;
-				lineNumberFont10 := NIL;
-			END;
-		END ShowLineNumbers;
-
-		PROCEDURE SetText*(text : Texts.Text);
-		VAR i : LONGINT;
-		BEGIN
-			ASSERT(text # NIL);
-			Acquire;
-			IF SELF.text # NIL THEN SELF.text.onTextChanged.Remove(TextChanged) END; (* unregister the TextChanged listener from the old text *)
-			SELF.text := text;
-			text.onTextChanged.Add(TextChanged); (* register the TextChanged listener with the new text*)
-			NEW(utilreader, text);
-			(* update all highlights *)
-			FOR i := 0 TO nofHighlights - 1 DO highlights[i].SetText(text) END;
-			FOR i := 0 TO nofPositionMarkers - 1 DO
-				positionMarkers[i].SetText(text);
-				(* Let the cursor know about the local position-translation procedures *)
-				IF text.isUTF THEN
-					positionMarkers[i].pos.SetInternalPositionTranslator(GetInternalPos);
-					positionMarkers[i].pos.SetDisplayPositionTranslator(GetDisplayPos);
-				END;
-			END;
-			text.AcquireRead; (* also protect SELF.highlighter and SELF.state here *)
-			IF (highlighter # NIL) THEN
-				ASSERT(state # NIL);
-				highlighter.RebuildRegions(utilreader, state);
-			END;
-			layout.SetText(text);
-			layout.FullLayout(TRUE);
-			CheckNumberOfLines;
-			ASSERT(((highlighter = NIL) & (state = NIL)) OR ((highlighter # NIL) & (state # NIL)));
-			text.ReleaseRead;
-			Invalidate;
-			Release
-		END SetText;
-
-		PROCEDURE PropertyChanged(sender, property : ANY);
-		VAR highlighter : SyntaxHighlighter.Highlighter; string : Strings.String;
-		BEGIN
-			IF (property = highlighting) THEN
-				string := highlighting.Get();
-				IF (string # NIL) THEN
-					highlighter := SyntaxHighlighter.GetHighlighter(string^);
-				ELSE
-					highlighter := NIL;
-				END;
-				SetSyntaxHighlighter(highlighter);
-			ELSIF (property = showLineNumbers) THEN
-				showLineNumbersI := showLineNumbers.Get();
-				ShowLineNumbers(showLineNumbersI);
-				Invalidate;
-			ELSIF (property = indicateTabs) THEN
-				indicateTabsI := indicateTabs.Get(); Invalidate;
-			ELSIF (property = clBgCurrentLine) THEN
-				clBgCurrentLineI := clBgCurrentLine.Get(); Invalidate;
-			ELSIF (property = lineNumberColor) OR (property = lineNumberBgColor) THEN
-				lineNumberColorI := lineNumberColor.Get();
-				lineNumberBgColorI := lineNumberBgColor.Get();
-				Invalidate;
-			ELSE
-				PropertyChanged^(sender, property);
-			END;
-		END PropertyChanged;
-
-		PROCEDURE RecacheProperties;
-		VAR string : Strings.String;
-		BEGIN
-			RecacheProperties^;
-			string := highlighting.Get();
-			IF (string # NIL) THEN
-				highlighter := SyntaxHighlighter.GetHighlighter(string^);
-			ELSE
-				highlighter := NIL;
-			END;
-			SetSyntaxHighlighter(highlighter);
-			showLineNumbersI := showLineNumbers.Get();
-			ShowLineNumbers(showLineNumbersI);
-			lineNumberColorI := lineNumberColor.Get();
-			lineNumberBgColorI := lineNumberBgColor.Get();
-			indicateTabsI := indicateTabs.Get();
-			clBgCurrentLineI := clBgCurrentLine.Get();
-			Invalidate;
-		END RecacheProperties;
-
-		PROCEDURE PositionMarkerChanged(sender, data : ANY);
-		VAR newRect, combinedRect : WMRectangles.Rectangle; x, y, l, ascent : LONGINT;
-		BEGIN
-			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.PositionMarkerChanged, sender, data)
-			ELSE
-				data := sender;
-				IF (data # NIL) & (data IS PositionMarker) THEN
-					IF data = cursor THEN text.AcquireRead; CheckCursor; text.ReleaseRead; END;
-					IF (data = cursor) & (clBgCurrentLineI # 0) THEN
-						Invalidate; (* HACK to handle clBgCurrentLine correcty. Should be replaced by a more efficient solution *)
-					ELSE
-						text.AcquireRead;
-						IF FindScreenPos(data(PositionMarker).pos.GetPosition(), x, y) THEN
-							l := layout.FindLineNrByPos(data(PositionMarker).pos.GetPosition());
-							IF (l < LEN(layout.lines^)) & (l >= 0) THEN
-								ascent := layout.lines[l].ascent;
-	(*							IF ascent = 0 THEN ascent := layout.lines[l].height END;
-								IF ascent = 0 THEN ascent := 10 END;*)
-								newRect := data(PositionMarker).GetArea(x, y, ascent)
-							END
-						END;
-
-						combinedRect := data(PositionMarker).currentArea;
-						IF WMRectangles.RectEmpty(combinedRect) THEN combinedRect := newRect
-						ELSE WMRectangles.ExtendRect(combinedRect, newRect)
-						END;
-						IF ~WMRectangles.RectEmpty(combinedRect) THEN
-							IF (WMRectangles.Area(data(PositionMarker).currentArea) + WMRectangles.Area(newRect)) * 5 <  WMRectangles.Area(combinedRect) THEN
-								InvalidateRect(data(PositionMarker).currentArea);
-								InvalidateRect(newRect)
-							ELSE
-								InvalidateRect(combinedRect)
-							END
-						END;
-						text.ReleaseRead;
-					END;
-				ELSE
-					Invalidate;
-				END;
-			END
-		END PositionMarkerChanged;
-
-		PROCEDURE TextChanged(sender, data : ANY);
-		VAR f, l, t, b, i, p, pa, pb, h: LONGINT; linesChanged : BOOLEAN;
-			info : Texts.TextChangeInfo;
-			fullLayout: BOOLEAN;
-		BEGIN
-			IF ~initialized THEN RETURN END;
-			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.TextChanged, sender, data)
-			ELSE
-				IF (data # NIL) & (data IS Texts.TextChangeInfo) & (data(Texts.TextChangeInfo).op # Texts.OpMulti) THEN
-					info := data(Texts.TextChangeInfo);
-					text.AcquireRead;
-
-					IF text.GetTimestamp() = info.timestamp THEN
-						info := data(Texts.TextChangeInfo);
-
-						IF (highlighter # NIL) THEN
-							ASSERT(state # NIL);
-
-							fullLayout := FALSE;
-
-							IF ((info.op = Texts.OpInsert) OR (info.op = Texts.OpDelete)) THEN
-								highlighter.PatchRegions(info, utilreader, state, fullLayout);
-							ELSIF (info.op = Texts.OpAttributes) THEN
-								(* do nothing here *)
-							ELSE
-								highlighter.RebuildRegions(utilreader, state);
-								fullLayout := TRUE;
-							END;
-
-							IF fullLayout THEN
-								layout.FullLayout(TRUE);
-								lastTimeStamp := text.GetTimestamp();
-								CheckCursor;
-								CheckNumberOfLines;
-								text.ReleaseRead;
-								InvalidateRect(GetClientRect());
-								cursorBlinker.Show(cursor);
-								RETURN;
-							END;
-
-						END;
-
-						(* Upon an insertion or deletion in the text, parts of the text may need reformatting *)
-						IF info.op = Texts.OpInsert THEN
-							(* If necessary, reformat the affected text *)
-							IF layout.initialized & text.isUTF & (layout.bidiFormatter # NIL) THEN
-								layout.bidiFormatter.ReformatTextFrom(info.pos,info.len);
-							END;
-							layout.FixLayoutFrom(info.pos, info.len, f, l, linesChanged);
-						ELSE
-							(* If necessary, reformat the affected text *)
-							IF layout.initialized & text.isUTF & (layout.bidiFormatter # NIL) THEN
-								layout.bidiFormatter.ReformatTextFrom(info.pos,-info.len)
-							END;
-							layout.FixLayoutFrom(info.pos, -info.len, f, l, linesChanged);
-						END;
-
-						t := bordersI.t;
-						FOR i := firstLineI TO f - 1 DO
-							t := t + (layout.lines[i].height);
-							CheckParagraphBegin(i, t);
-							CheckParagraphEnd(i, t);
-						END;
-
-						h := bounds.GetHeight();
-						IF linesChanged THEN b := h ELSE
-							b := t; i := f;
-							WHILE (i <= l) & (b < h) DO
-								b := b + (layout.lines[i].height);
-								CheckParagraphBegin(i, b);
-								CheckParagraphEnd(i, b);
-								INC(i);
-							END
-						END;
-
-						pa := layout.lines[f].pos;
-						IF l + 1 < layout.nofLines THEN pb := layout.lines[l + 1].pos ELSE pb := text.GetLength() END;
-						FOR i := 0 TO nofPositionMarkers - 1 DO
-							p := positionMarkers[i].pos.GetPosition();
-							IF (p >= pa) & (p < pb) THEN
-								(* very conservative *)
-								h := positionMarkers[i].currentArea.b - positionMarkers[i].currentArea.t;
-								t := t - h;
-								b := b + h
-							END
-						END;
-						CheckCursor;
-
-						UpdateScrollbars;
-						InvalidateRect(WMRectangles.MakeRect(0, t, bounds.GetWidth(), b));
-					ELSIF (lastTimeStamp -  info.timestamp) > 0 THEN
-						(* Don't update lastTimeStamp since we didn't update the layout *)
-					ELSE
-						IF (highlighter # NIL) THEN
-							ASSERT(state # NIL);
-							highlighter.RebuildRegions(utilreader, state);
-						END;
-						layout.FullLayout(TRUE);
-						lastTimeStamp := text.GetTimestamp();
-						CheckCursor;
-						InvalidateRect(GetClientRect())
-					END;
-					CheckNumberOfLines;
-					text.ReleaseRead
-				ELSE
-					text.AcquireRead;
-					IF (highlighter # NIL) THEN
-						ASSERT(state # NIL);
-						highlighter.RebuildRegions(utilreader, state);
-					END;
-					layout.FullLayout(TRUE);
-					lastTimeStamp := text.GetTimestamp();
-					CheckCursor;
-					CheckNumberOfLines;
-					text.ReleaseRead;
-					InvalidateRect(GetClientRect())
-				END;
-			END;
-			cursorBlinker.Show(cursor);
-		END TextChanged;
-
-		PROCEDURE LayoutLine(VAR pos : LONGINT; VAR ch : Char32; VAR l : LineInfo; wrapwidth, stopPos, stopXPos : LONGINT);
-		VAR
-			i, wrapPos : LONGINT;
-			eol, first : BOOLEAN;
-			ascent, descent, leading, ld, a, d, dx, x : LONGINT;
-			align, firstIndent, leftIndent, rightIndent, spaceBefore, spaceAfter : LONGINT;
-			tabstring : ARRAY 256 OF CHAR; tabs : CustomTabStops; tp : TabPositions;
-			sr : Streams.StringReader; tabCounter, tabPos : LONGINT; token : ARRAY 16 OF CHAR;
-			pStyle : Texts.ParagraphStyle;
-			start, stop, isFirst : BOOLEAN;
-			bidiTextReader, localTextReader : Texts.TextReader;
-			regionStart, regionEnd,lastEnd : LONGINT;
-			readerPosition : LONGINT;
-			highlighterStyle, lastHighlighterStyle : SyntaxHighlighter.Style;
-			currentStyle, lastStyle : ANY;
-			style : RECORD
-				voff : LONGINT;
-				font : WMGraphics.Font;
-			END;
-
-			PROCEDURE GetExtents(ch : Char32; VAR dx, ascent, descent: LONGINT);
-			VAR gs : WMGraphics.GlyphSpacings; vc : WMComponents.VisualComponent; font : WMGraphics.Font;
-			BEGIN
-				IF ch = Texts.ObjectChar THEN
-					IF (localTextReader.object # NIL) & (localTextReader.object IS WMGraphics.Image) THEN
-						ascent := localTextReader.object(WMGraphics.Image).height - style.voff;
-						descent := style.voff;
-						dx :=  localTextReader.object(WMGraphics.Image).width
-					ELSIF (localTextReader.object # NIL) & (localTextReader.object IS WMComponents.VisualComponent) THEN
-						vc := localTextReader.object(WMComponents.VisualComponent);
-						dx := vc.bounds.GetWidth();
-						ascent := vc.bounds.GetHeight() - style.voff;
-						descent := style.voff;
-						(* Add a Sequencer to the object if none exists *)
-						IF (vc.sequencer = NIL) OR (vc.sequencer # sequencer) THEN
-							vc.SetSequencer(sequencer);
-							vc.Reset(NIL, NIL);
-						END;
-					END
-				ELSIF ch = Texts.TabChar THEN
-					IF l.tabStops # NIL THEN dx := l.tabStops.GetNextTabStop(x) - x
-					ELSE dx := defaultTabStops.GetNextTabStop(x) - x
-					END;
-					ascent := style.font.GetAscent() - style.voff;
-					descent := style.font.GetDescent() + style.voff
-				ELSIF ch = Texts.LabelChar THEN
-					IF showLabels.Get() THEN
-						font := GetFont();
-						font.GetStringSize(localTextReader.object(Texts.LabelPiece).label^, dx, ascent);
-						INC(dx, 4);
-					ELSE
-						ascent := 0; descent := 0;
-						dx := 0;
-					END;
-				ELSE
-					IF isPasswordI THEN ch := passwordChar.Get() END;
-					IF style.font.HasChar(ch) THEN
-						style.font.GetGlyphSpacings(ch, gs);
-					ELSE
-						WMGraphics.FBGetGlyphSpacings(ch, gs);
-					END;
-					ascent := gs.ascent - style.voff;
-					descent := gs.descent + style.voff;
-					dx := gs.bearing.l + gs.width + gs.bearing.r
-				END
-			END GetExtents;
-
-		BEGIN
-			style.voff := 0;
-			style.font := GetFont();
-
-			x := 0; l.pos := pos; l.height := style.font.GetHeight(); eol := FALSE;
-
-			(* For layouting a reordered line, the reordered text is needed, to correctly measure
-				the extends of each character. *)
-			IF text.isUTF & (layout.bidiFormatter # NIL) THEN
-				isFirst := FALSE;
-				bidiTextReader := layout.bidiFormatter.ReadyTextReader(pos,isFirst);
-			END;
-
-			(* if a reformatted text is available initialize it correpsondingly *)
-			IF (bidiTextReader # NIL) THEN
-				(* if a reordered line is available, the contextual dependency rules are applied *)
-				bidiTextReader.CloneProperties(utilreader);
-				localTextReader := bidiTextReader;
-				localTextReader.text.AcquireRead;
-				localTextReader.SetPosition(0);
-			(* or initialize to default otherwise *)
-			ELSE
-				localTextReader := utilreader;
-				localTextReader.SetPosition(pos);
-			END;
-
-			localTextReader.SetDirection(1); first := TRUE;
-
-			(* the bidi formatter needs special treatment when finding out about the first line of the paragraph *)
-			start := FALSE; stop := FALSE;
-			IF (pos = 0) THEN start := TRUE;
-			ELSIF (bidiTextReader = NIL) THEN
-				localTextReader.SetPosition(pos-1);
-				localTextReader.ReadCh(ch);
-				IF (ch = Texts.NewLineChar) THEN start := TRUE;
-				ELSE start := FALSE;
-				END;
-			ELSE (* bidiTextReader # NIL *)
-				IF isFirst THEN
-					start := TRUE;
-				ELSE
-					start := FALSE;
-				END;
-			END;
-
-			i := 0;  ascent := style.font.GetAscent(); descent := style.font.GetDescent();
-			align := AlignLeft; l.tabStops := NIL; COPY("", tabstring);
-			firstIndent := 0; leftIndent := 0; rightIndent := 0; spaceBefore := 0; spaceAfter := 0;
-
-			lastEnd := -1;
-			highlighterStyle := NIL; lastHighlighterStyle := NIL;
-			currentStyle := NIL; lastStyle := NIL;
-
-			REPEAT
-
-				readerPosition := localTextReader.GetPosition();
-				localTextReader.ReadCh(ch);
-
-				IF (highlighter # NIL) THEN
-					ASSERT(state # NIL);
-					IF (lastEnd < readerPosition) THEN
-						highlighterStyle := highlighter.GetRegionStyle(readerPosition, state, regionStart, regionEnd);
-						IF (highlighterStyle # NIL) THEN
-							lastEnd := regionEnd;
-						ELSE
-							IF (ch > 32) THEN
-								highlighterStyle := highlighter.GetWordStyle(localTextReader, readerPosition, lastEnd);
-							END;
-						END;
-						localTextReader.SetPosition(readerPosition);
-						localTextReader.ReadCh(ch); (* restore text reader state *)
-					END;
-					IF (highlighterStyle = NIL) THEN
-						highlighterStyle := highlighter.GetDefaultStyle();
-					END;
-				END;
-
-				(* Get the Paragraph Style *)
-				IF localTextReader.pstyle # NIL THEN
-					pStyle := localTextReader.pstyle;
-					(* pStyle := Texts.GetParagraphStyleByName(pStyle.name); *)
-					spaceBefore := ENTIER(FP1616.FixpToFloat(pStyle.spaceBefore));
-					spaceAfter := ENTIER(FP1616.FixpToFloat(pStyle.spaceAfter));
-					firstIndent := ENTIER(FP1616.FixpToFloat(pStyle.firstIndent));
-					leftIndent := ENTIER(FP1616.FixpToFloat(pStyle.leftIndent));
-					rightIndent := ENTIER(FP1616.FixpToFloat(pStyle.rightIndent));
-					align := pStyle.alignment;
-					(* parse tabstops *)
-					COPY(pStyle.tabStops, tabstring);
-					IF (tabstring # "default") & (tabstring # "0") & (tabstring # "") THEN
-						NEW(sr, LEN(tabstring)); sr.Set(tabstring); tabCounter := 0;
-						WHILE (sr.res = Streams.Ok) DO
-							sr.SkipWhitespace; sr.String(token);
-							INC(tabCounter);
-						END;
-						NEW(tp, tabCounter);
-						sr.Reset; tabCounter := 0;
-						WHILE (sr.res = Streams.Ok) DO
-							sr.SkipWhitespace; sr.String(token);
-							Strings.StrToInt(token, tabPos);
-							tp[tabCounter] := tabPos;
-							INC(tabCounter);
-						END;
-						NEW(tabs, tp);
-						IF l.tabStops = NIL THEN l.tabStops := tabs END
-					END;
-				END;
-
-				IF (highlighterStyle = NIL) OR (highlighterStyle.defined * SyntaxHighlighter.DefineMask # SyntaxHighlighter.DefineMask) THEN
-
-					IF localTextReader.cstyle # NIL THEN
-						IF (currentStyle # localTextReader.cstyle) THEN
-							currentStyle := localTextReader.cstyle;
-							style.voff := ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.baselineShift));
-							ld := ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.leading));
-							IF (localTextReader.cstyle.fontcache #NIL) & (localTextReader.cstyle.fontcache IS WMGraphics.Font) THEN
-								style.font := localTextReader.cstyle.fontcache(WMGraphics.Font);
-							ELSE
-								style.font := WMGraphics.GetFont(localTextReader.cstyle.family, ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.size)), localTextReader.cstyle.style);
-								localTextReader.cstyle.fontcache := style.font;
-							END;
-						END;
-					ELSIF localTextReader.pstyle # NIL THEN
-						IF pStyle.charStyle # NIL THEN
-							style.voff := ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.baselineShift));
-							ld := ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.leading));
-							IF (localTextReader.cstyle.fontcache #NIL) & (localTextReader.cstyle.fontcache IS WMGraphics.Font) THEN
-								style.font := localTextReader.cstyle.fontcache(WMGraphics.Font);
-							ELSE
-								 style.font := WMGraphics.GetFont(localTextReader.cstyle.family, ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.size)), localTextReader.cstyle.style);
-								localTextReader.pstyle.charStyle.fontcache := style.font
-							END
-						END;
-					ELSIF localTextReader.attributes # NIL THEN
-						IF (currentStyle # localTextReader.attributes) THEN
-							currentStyle := localTextReader.attributes;
-							style.voff := localTextReader.attributes.voff;
-							ld := 0;
-							IF localTextReader.attributes.fontInfo # NIL THEN
-								IF (localTextReader.attributes.fontInfo.fontcache # NIL) & (localTextReader.attributes.fontInfo.fontcache IS WMGraphics.Font) THEN
-									style.font := localTextReader.attributes.fontInfo.fontcache(WMGraphics.Font);
-								ELSE
-									style.font := GetFontFromAttr(localTextReader.attributes.fontInfo);
-									localTextReader.attributes.fontInfo.fontcache := style.font;
-								END
-							ELSE
-								style.font := GetFont()
-							END
-						END;
-					ELSE
-						IF (currentStyle # DefaultStyle) THEN
-							currentStyle := DefaultStyle;
-							style.voff := 0;
-							style.font := GetFont();
-							ld := 0;
-						END;
-					END;
-					ASSERT(style.font # NIL);
-				END;
-
-				IF (highlighterStyle # NIL) THEN
-					IF (highlighterStyle # lastHighlighterStyle) OR (currentStyle # lastStyle) THEN
-						IF SyntaxHighlighter.Voff IN highlighterStyle.defined THEN style.voff := highlighterStyle.attributes.voff; END;
-						IF (SyntaxHighlighter.FontMask * highlighterStyle.defined # {}) THEN
-							CheckFont(highlighterStyle, style.font, fontCache);
-							style.font := highlighterStyle.attributes.fontInfo.fontcache (WMGraphics.Font);
-						END;
-					END;
-					currentStyle := NIL;
-				END;
-				lastStyle := currentStyle;
-				lastHighlighterStyle := highlighterStyle;
-
-				IF first THEN
-					IF ch = Texts.NewLineChar THEN
-						ascent := style.font.GetAscent(); descent := 0;
-					ELSE
-						descent := 0; ascent := 0;
-					END;
-					IF start THEN wrapwidth := wrapwidth - firstIndent - rightIndent;
-					ELSE wrapwidth := wrapwidth - leftIndent - rightIndent;
-					END;
-					first := FALSE;
-				END;
-				INC(pos);
-				IF (stopPos < 0) OR (pos <= stopPos) THEN
-					IF ch # Texts.NewLineChar THEN
-						GetExtents(ch, dx, a, d); ascent := Strings.Max(ascent, a); descent := Strings.Max(descent, d);
-						IF ld = 0 THEN ld := ascent + descent; ELSE ld := Strings.Max(ld, ascent + descent); END; leading := Strings.Max(leading, ld);
-						IF isMultiLineI & (wrapModeI # NoWrap) & (i > 0) & (x0 + x + dx > wrapwidth) THEN
-							eol := TRUE; DEC(pos); wrapPos := pos;
-							(* Go left for last space *)
-							IF wrapModeI = WrapWord THEN
-								pos := TextUtilities.FindPosWordLeft(localTextReader, pos);
-								IF pos <= l.pos THEN pos := wrapPos (* no word break found. wrap at latest possible pos *)
-								ELSE (* decrease width to actual size.. *)
-(*									localTextReader.SetPosition(pos);
-									WHILE pos < wrapPos DO
-										localTextReader.ReadCh(ch); GetExtents(ch, dx, a, d); x := x - dx; INC(pos)
-									END
-*)								END
-							END
-						ELSE
-							IF (stopXPos >= 0) & (x + dx DIV 2 > stopXPos) THEN
-								DEC(pos);
-
-								(* the bidi formatted text's lock needs to be released explicitly *)
-								IF (bidiTextReader # NIL) THEN
-									localTextReader.text.ReleaseRead;
-								END;
-								RETURN
-							END;
-							INC(x, dx)
-						END;
-					ELSE
-						eol := TRUE;
-						stop := TRUE;
-						IF (stopXPos >= 0) THEN DEC(pos) END;
-					END;
-				ELSE
-					eol := TRUE
-				END;
-				INC(i)
-			UNTIL eol OR localTextReader.eot;
-
-			l.width := x;
-			l.ascent := ascent; l.height := leading; (* ascent + descent; *)
-			l.align := align; l.leftIndent := leftIndent; l.rightIndent := rightIndent;
-			IF l.height = 0 THEN l.height := style.font.GetHeight() END;
-			IF start THEN l.firstInParagraph := TRUE; l.firstIndent := firstIndent;	l.spaceBefore := spaceBefore;
-			ELSE l.firstInParagraph := FALSE;	END;
-			IF stop THEN l.lastInParagraph := TRUE; l.spaceAfter := spaceAfter;
-			ELSE l.lastInParagraph := FALSE END;
-
-			(* the bidi formatted text's lock needs to be released explicitly *)
-			IF (bidiTextReader # NIL) THEN
-				localTextReader.text.ReleaseRead;
-			END;
-		END LayoutLine;
-
-		(* llen = -1 to render until the end of line > 0 to render llen elements in the line *)
-		PROCEDURE RenderLine*(canvas : WMGraphics.Canvas; VAR l : LineInfo; linenr, top, llen : LONGINT);
-		VAR sx, dx, dy, x, sp, i, j, k, t, tx, linelength, w, p : LONGINT; char : Char32; gs: WMGraphics.GlyphSpacings;
-	 		font : WMGraphics.Font;
-	 		vc : WMComponents.VisualComponent;
-	 		hc : BOOLEAN;
-	 		bidiTextReader, localTextReader : Texts.TextReader;
-			cursorPosition : LONGINT;
-			regionStart, regionEnd, lastEnd: LONGINT;
-			readerPosition : LONGINT;
-			lineNumberString : ARRAY 16 OF CHAR;
-			canvasState : WMGraphics.CanvasState;
-			cliprect, temp : WMRectangles.Rectangle;
-			highlighterStyle, lastHighlighterStyle : SyntaxHighlighter.Style;
-			currentStyle, lastStyle : ANY;
-			lastColor : LONGINT;
-			style : RECORD
-				color, bgColor, voff : LONGINT;
-				font : WMGraphics.Font;
-			END;
-		BEGIN
-			IF TraceRenderOptimize IN Trace THEN
-				KernelLog.String("RenderLine : "); KernelLog.Int(linenr, 5); KernelLog.String(" from position : ");
-				KernelLog.Int(layout.GetLineStartPos(linenr), 5); KernelLog.Ln;
-			END;
-
-			sp := l.pos;
-			IF sp >= text.GetLength() THEN RETURN END;
-
-			style.color := defaultTextColorI;
-			canvas.SetColor(style.color); lastColor := style.color;
-			style.bgColor := defaultTextBgColorI;
-			style.voff := 0;
-			style.font := GetFont();
-
-			IF llen < 0 THEN
-				linelength := layout.GetLineLength(linenr);
-				(* hack for the bidi formatter *)
-				IF linenr = layout.GetNofLines() - 1 THEN
-					DEC(linelength);
-				END;
-			ELSE
-				linelength := llen
-			END;
-
-			(* if there is a bidi formatter, reorder the current line *)
-			IF text.isUTF & (layout.bidiFormatter # NIL) THEN
-				bidiTextReader := layout.bidiFormatter.ReorderLine(sp,linelength);
-			END;
-
-			(* the bidi text reader needs special treatment for the initialization *)
-			IF (bidiTextReader # NIL) THEN
-				(* after reordering the line, contextual dependency rules are applied *)
-				bidiTextReader := ContextualDependency.AnalyzeLine(bidiTextReader,-1,-1);
-				layout.bidiFormatter.SetReadyTextReader(sp,bidiTextReader);
-				bidiTextReader.CloneProperties(utilreader);
-				localTextReader := bidiTextReader;
-				localTextReader.text.AcquireRead;
-				localTextReader.SetPosition(0);
-			ELSE
-				(* revert the hack for the bidi formatter *)
-				IF (llen < 0) & (linenr = layout.GetNofLines() - 1) THEN
-					INC(linelength);
-				END;
-				localTextReader := utilreader;
-				localTextReader.text.AcquireRead;
-				localTextReader.SetPosition(sp);
-			END;
-
-			i := 0;
-			x := GetLineLeftIndent(linenr);
-			sx := - leftShiftI + bordersI.l + x0;
-			IF TraceBaseLine IN Trace THEN
-				canvas.Line(0, top + (l.ascent), bounds.GetWidth(), top + (l.ascent), 01F0000FFH, WMGraphics.ModeCopy)
-			END;
-
-			selection.Sort;
-			IF (cursor.visible) & (selection.b - selection.a <= 0) & (clBgCurrentLineI # 0) THEN
-				cursorPosition := cursor.GetPosition();
-				IF (l.pos <= cursorPosition) & (cursorPosition < l.pos + linelength) THEN
-					canvas.Fill(WMRectangles.MakeRect(0, top, bounds.GetWidth() - bordersI.r, top + l.height), clBgCurrentLineI, WMGraphics.ModeSrcOverDst);
-				END;
-			END;
-
-			IF showLineNumbersI THEN
-				canvas.SaveState(canvasState);
-				Strings.IntToStr(linenr + 1, lineNumberString);
-				temp := WMRectangles.MakeRect(bordersI.l, top, x0 - 1, top + l.height);
-				IF (lineNumberBgColorI # 0) THEN
-					canvas.Fill(temp, lineNumberBgColorI, WMGraphics.ModeSrcOverDst);
-				END;
-				temp.r := temp.r - 4;
-				IF ((linenr + 1) MOD 10 = 0) THEN
-					canvas.SetFont(lineNumberFont10);
-				ELSE
-					canvas.SetFont(lineNumberFont);
-				END;
-				canvas.SetColor(lineNumberColorI);
-				WMGraphics.DrawStringInRect(canvas, temp, FALSE, WMGraphics.AlignRight, WMGraphics.AlignCenter, lineNumberString);
-				canvas.RestoreState(canvasState); (* restore font and font color *)
-
-				canvas.SaveState(canvasState);
-				canvas.GetClipRect(cliprect);
-				cliprect.l := x0;
-				canvas.SetClipRect(cliprect);
-			END;
-
-			w := bounds.GetWidth() - bordersI.r;
-
-			localTextReader.SetDirection(1);
-
-			lastEnd := -1;
-			highlighterStyle := NIL; lastHighlighterStyle := NIL;
-			currentStyle := DefaultStyle; lastStyle := NIL;
-
-			REPEAT
-
-				readerPosition := localTextReader.GetPosition();
-				localTextReader.ReadCh(char);
-
-				IF (highlighter # NIL) THEN
-					ASSERT(state # NIL);
-					IF (lastEnd < readerPosition) THEN
-						highlighterStyle := highlighter.GetRegionStyle(readerPosition, state, regionStart, regionEnd);
-						IF (highlighterStyle # NIL) THEN
-							lastEnd := regionEnd;
-						ELSE
-							IF (char > 32) THEN
-								highlighterStyle := highlighter.GetWordStyle(localTextReader, readerPosition, lastEnd);
-							END;
-						END;
-						localTextReader.SetPosition(readerPosition);
-						localTextReader.ReadCh(char); (* restore text reader state *)
-					END;
-					IF (highlighterStyle = NIL) THEN
-						highlighterStyle := highlighter.GetDefaultStyle();
-					END;
-				END;
-
-				IF (highlighterStyle = NIL) OR (highlighterStyle.defined * SyntaxHighlighter.DefineMask # SyntaxHighlighter.DefineMask) THEN
-
-					IF (localTextReader.cstyle # NIL) THEN
-						IF (currentStyle # localTextReader.cstyle) THEN
-							currentStyle := localTextReader.cstyle;
-							style.color := localTextReader.cstyle.color;
-							style.bgColor := localTextReader.cstyle.bgColor;
-							style.voff := localTextReader.cstyle.baselineShift;
-							IF (localTextReader.cstyle.fontcache # NIL) & (localTextReader.cstyle.fontcache IS WMGraphics.Font) THEN
-								style.font := localTextReader.cstyle.fontcache(WMGraphics.Font);
-							ELSE
-								style.font := WMGraphics.GetFont(localTextReader.cstyle.family, ENTIER(FP1616.FixpToFloat(localTextReader.cstyle.size)), localTextReader.cstyle.style);
-								localTextReader.cstyle.fontcache := style.font;
-							END;
-						END;
-					ELSIF (localTextReader.attributes # NIL) THEN
-						IF (currentStyle # localTextReader.attributes) THEN
-							currentStyle := localTextReader.attributes;
-							style.color := localTextReader.attributes.color;
-							style.bgColor := localTextReader.attributes.bgcolor;
-							style.voff := localTextReader.attributes.voff;
-							IF (localTextReader.attributes.fontInfo # NIL) THEN
-								IF (localTextReader.attributes.fontInfo.fontcache # NIL) & (localTextReader.attributes.fontInfo.fontcache IS WMGraphics.Font) THEN
-									style.font := localTextReader.attributes.fontInfo.fontcache (WMGraphics.Font);
-								ELSE
-									style.font := GetFontFromAttr(localTextReader.attributes.fontInfo);
-									localTextReader.attributes.fontInfo.fontcache := style.font;
-								END;
-							ELSE
-								style.font := GetFont();
-							END;
-						END;
-					ELSE
-						IF (currentStyle # DefaultStyle) THEN
-							currentStyle := DefaultStyle;
-							style.color := defaultTextColorI;
-							style.bgColor := defaultTextBgColorI;
-							style.voff := 0;
-							style.font := GetFont();
-						END;
-					END;
-					ASSERT(style.font # NIL);
-				END;
-
-				IF (highlighterStyle # NIL) THEN
-					IF (highlighterStyle # lastHighlighterStyle) OR (currentStyle # lastStyle) THEN
-						IF SyntaxHighlighter.Voff IN highlighterStyle.defined THEN style.voff := highlighterStyle.attributes.voff; END;
-						IF SyntaxHighlighter.Color IN highlighterStyle.defined THEN style.color := highlighterStyle.attributes.color; END;
-						IF SyntaxHighlighter.BgColor IN highlighterStyle.defined THEN style.bgColor := highlighterStyle.attributes.bgcolor; END;
-						IF (SyntaxHighlighter.FontMask * highlighterStyle.defined # {}) THEN
-							CheckFont(highlighterStyle, style.font, fontCache);
-							style.font := highlighterStyle.attributes.fontInfo.fontcache (WMGraphics.Font);
-						END;
-					END;
-					currentStyle := NIL; (* force reevaluation of localTextReader style *)
-				END;
-				lastStyle := currentStyle;
-				lastHighlighterStyle := highlighterStyle;
-
-				IF (style.color # lastColor) THEN canvas.SetColor(style.color); lastColor := style.color; END;
-
-				IF char = Texts.ObjectChar THEN
-					IF (localTextReader.object # NIL) & (localTextReader.object IS WMGraphics.Image) THEN
-						canvas.DrawImage(x, top + (l.ascent) + style.voff - localTextReader.object(WMGraphics.Image).height, localTextReader.object(WMGraphics.Image),
-							WMGraphics.ModeSrcOverDst);
-						dx := localTextReader.object(WMGraphics.Image).width
-					ELSIF (localTextReader.object # NIL) & (localTextReader.object IS WMComponents.VisualComponent) THEN
-						vc := localTextReader.object(WMComponents.VisualComponent);
-						dx := vc.bounds.GetWidth();
-						dy := vc.bounds.GetHeight();
-						canvas.SaveState(clipState); (* save the current clip-state *)
-						canvas.SetClipRect(WMRectangles.MakeRect(x + sx, top + (l.ascent - dy), x + dx + sx, top + (l.height)));
-						canvas.ClipRectAsNewLimits(x + sx, top + (l.ascent - dy));
-						(* assuming the component will not delay --> otherwise a buffer is needed *)
-						vc.Acquire; vc.Draw(canvas); vc.Release;
-						canvas.RestoreState(clipState)
-					END
-				ELSIF char = 0 THEN (* EOT *)
-				ELSIF char = Texts.TabChar THEN
-					tx := x;
-					IF l.firstInParagraph THEN tx := tx - l.firstIndent
-					ELSE tx := tx - l.leftIndent END;
-					IF l.tabStops # NIL THEN dx := l.tabStops.GetNextTabStop(tx) - tx
-					ELSE dx := defaultTabStops.GetNextTabStop(tx) - tx
-					END;
-					IF style.bgColor # 0 THEN
-						canvas.Fill(WMRectangles.MakeRect(x + sx, top, x + dx + sx, top + (l.height)), style.bgColor, WMGraphics.ModeSrcOverDst)
-					END;
-					IF indicateTabsI THEN canvas.SetPixel(x + sx + ((dx + 1) DIV 2), top + ((l.ascent + 1) DIV 2), WMGraphics.Blue, WMGraphics.ModeCopy); END;
-				ELSIF char = Texts.LabelChar THEN
-					IF showLabels.Get() THEN
-						font := GetFont();
-						font.GetStringSize(localTextReader.object(Texts.LabelPiece).label^, dx, dy);
-						font.RenderString(canvas, x + sx+2, top + (l.ascent), localTextReader.object(Texts.LabelPiece).label^);
-						INC(dx, 4);
-						canvas.Fill(WMRectangles.MakeRect(x + sx, top, x + dx + sx, top + (l.height)), SHORT(0FF880050H), WMGraphics.ModeSrcOverDst);
-						WMGraphicUtilities.RectGlassShade(canvas, WMRectangles.MakeRect(x + sx, top, x + dx + sx, top + (l.height)), 1, FALSE)
-					ELSE dx := 0; END;
-				ELSE
-					IF char = Texts.NewLineChar THEN
-						localTextReader.text.ReleaseRead;
-						IF showLineNumbersI THEN canvas.RestoreState(canvasState); END;
-						RETURN
-					END;
-					IF isPasswordI THEN
-						char := passwordChar.Get()
-					END;
-
-					(* If the text is utf-formatted get the display version of the character.
-						Note, that only some special invisible characters differ from their actual representation. *)
-					IF text.isUTF THEN
-						UnicodeBidirectionality.GetDisplayCharacter(char);
-					END;
-					hc := style.font.HasChar(char);
-					IF hc THEN style.font.GetGlyphSpacings(char, gs)
-					ELSE WMGraphics.FBGetGlyphSpacings(char, gs)
-					END;
-					dx := gs.bearing.l + gs.width + gs.bearing.r;
-
-					IF style.bgColor MOD 256 # 0 THEN
-						canvas.Fill(WMRectangles.MakeRect(x + sx, top, x + dx + sx, top + (l.height)), style.bgColor, WMGraphics.ModeCopy)
-					END;
-					IF hc THEN style.font.RenderChar(canvas, x + sx, top + (l.ascent) + style.voff, char)
-					ELSE WMGraphics.FBRenderChar(canvas, x + sx, top + (l.ascent) + style.voff, char)
-					END
-				END;
-
-				(* link *)
-				IF localTextReader.link # NIL THEN
-					canvas.Line(x + sx, top + (l.ascent)+1, x + dx + sx, top + (l.ascent)+1, canvas.color, WMGraphics.ModeSrcOverDst);
-				END;
-
-				(* highlight - since highlights store the global text position, the line's starting position needs to be added,
-					when operating on the local, bidirectional text reader. *)
-				IF bidiTextReader # NIL THEN
-					p := GetInternalPos(localTextReader.GetPosition()+sp-1);
-				ELSE
-					p := localTextReader.GetPosition() - 1;
-				END;
-				FOR j := 0 TO nofHighlights - 1 DO
-					IF (p >= highlights[j].a) & (p < highlights[j].b) THEN
-						CASE highlights[j].kind OF
-							|HLOver: canvas.Fill(WMGraphics.MakeRectangle(x + sx, top, x + dx + sx, top + (l.height)), highlights[j].color, WMGraphics.ModeSrcOverDst)
-							|HLUnder: canvas.Line(x + sx, top + (l.ascent), x + dx + sx, top + (l.ascent), highlights[j].color, WMGraphics.ModeSrcOverDst);
-							|HLWave:
-								FOR k := 0 TO dx - 1 DO
-									t := 1 - ABS((x + k) MOD 4 - 2); (* because of compiler bug on intel *)
-									canvas.SetPixel(x + k + sx, top + l.ascent + t, highlights[j].color, WMGraphics.ModeSrcOverDst);
-								END;
-						ELSE
-						END
-					END
-				END;
-				x := x + dx;
-				INC(i)
-			UNTIL (i >= linelength) OR localTextReader.eot OR (x + sx > w);
-			localTextReader.text.ReleaseRead;
-			IF showLineNumbersI THEN canvas.RestoreState(canvasState); END;
-		END RenderLine;
-
-	END CodeView;
-
 VAR
 	manager : WMWindowManager.WindowManager;
 	cursorBlinker- : CursorBlinker;
@@ -4662,12 +4009,12 @@ VAR
 	PTVborders : WMProperties.RectangleProperty;
 	PTVonLinkClick, PTVonLinkClickInfo : Strings.String;
 	PTVonCtrlLinkClick, PTVonCtrlLinkClickInfo : Strings.String;
-	PCVShowLineNumbers, PCVIndicateTabs : WMProperties.BooleanProperty;
-	PCVHighlighting : WMProperties.StringProperty;
-	PCVLineNumberColor, PCVLineNumberBgColor, PCVclBgCurrentLine : WMProperties.ColorProperty;
+	PTVShowLineNumbers, PTVIndicateTabs : WMProperties.BooleanProperty;
+	PTVHighlighting : WMProperties.StringProperty;
+	PTVLineNumberColor, PTVLineNumberBgColor, PTVclBgCurrentLine : WMProperties.ColorProperty;
 	currentTextView : TextView;
 
-	StrTextView, StrCodeView : Strings.String;
+	StrTextView : Strings.String;
 
 	DefaultStyle : POINTER TO RECORD END;
 
@@ -4678,16 +4025,21 @@ BEGIN
 	RETURN x
 END Limit;
 
+PROCEDURE GetFontFromAttr(info : Texts.FontInfo) : WMGraphics.Font;
+BEGIN
+	RETURN WMGraphics.GetFont(info.name, info.size, info.style);
+END GetFontFromAttr;
+
 PROCEDURE IsSameFont(f1, f2 : WMGraphics.Font) : BOOLEAN;
 BEGIN
 	RETURN (f1 = f2) OR ((f1 # NIL) & (f2 # NIL) & (f1.size  = f2.size) & (f1.style = f2.style) & (f1.name = f2.name));
 END IsSameFont;
 
-PROCEDURE CheckFont(style : SyntaxHighlighter.Style; font : WMGraphics.Font; fontCache : FontCache);
+PROCEDURE CheckFont(style : SyntaxHighlighter.Style; font : WMGraphics.Font; VAR fontCache : FontCache);
 VAR fontname : ARRAY 256 OF CHAR; fontsize : LONGINT; fontstyle : SET;
 BEGIN
 	ASSERT(style # NIL);
-	ASSERT(fontCache # NIL);
+	IF (fontCache = NIL) THEN NEW(fontCache); END;
 	IF (style.defined * SyntaxHighlighter.FontMask = SyntaxHighlighter.FontMask) OR (font = NIL) THEN
 		COPY(style.attributes.fontInfo.name, fontname);
 		fontsize := style.attributes.fontInfo.size;
@@ -4706,7 +4058,6 @@ END CheckFont;
 PROCEDURE InitStrings;
 BEGIN
 	StrTextView := Strings.NewString("TextView");
-	StrCodeView := Strings.NewString("CodeView");
 	PTVonLinkClick := Strings.NewString("Link Click Event");
 	PTVonLinkClickInfo := Strings.NewString("fired when a link is pressed");
 	PTVonCtrlLinkClick := Strings.NewString("Ctrl Click Event");
@@ -4759,18 +4110,18 @@ BEGIN
 	NEW(PTVborders, NIL, Strings.NewString("borders"),
 		Strings.NewString("spaces from bounds of the component to the text"));
 	PTVborders.Set(WMRectangles.MakeRect(5, 5, 5, 5));
-	NEW(PCVIndicateTabs, NIL, Strings.NewString("IndicateTabs"), Strings.NewString("Indicate tabs?"));
-	PCVIndicateTabs.Set(FALSE);
-	NEW(PCVShowLineNumbers, NIL, Strings.NewString("ShowLineNumbers"), Strings.NewString("Show line numbers?"));
-	PCVShowLineNumbers.Set(FALSE);
-	NEW(PCVLineNumberColor, NIL, Strings.NewString("LineNumberColor"), Strings.NewString("Color of line numbers"));
-	PCVLineNumberColor.Set(WMGraphics.Black);
-	NEW(PCVLineNumberBgColor, NIL, Strings.NewString("LineNumberBgColor"), Strings.NewString("Background color of line numbers"));
-	PCVLineNumberBgColor.Set(0CCCCCCFFH);
-	NEW(PCVHighlighting, NIL, Strings.NewString("Highlighting"), Strings.NewString("Name of highlighting to be applied"));
-	PCVHighlighting.Set(NIL);
-	NEW(PCVclBgCurrentLine, NIL, Strings.NewString("ClBgCurrentLine"), Strings.NewString("Background color of currently edited line"));
-	PCVclBgCurrentLine.Set(0);
+	NEW(PTVIndicateTabs, NIL, Strings.NewString("IndicateTabs"), Strings.NewString("Indicate tabs?"));
+	PTVIndicateTabs.Set(FALSE);
+	NEW(PTVShowLineNumbers, NIL, Strings.NewString("ShowLineNumbers"), Strings.NewString("Show line numbers?"));
+	PTVShowLineNumbers.Set(FALSE);
+	NEW(PTVLineNumberColor, NIL, Strings.NewString("LineNumberColor"), Strings.NewString("Color of line numbers"));
+	PTVLineNumberColor.Set(WMGraphics.Black);
+	NEW(PTVLineNumberBgColor, NIL, Strings.NewString("LineNumberBgColor"), Strings.NewString("Background color of line numbers"));
+	PTVLineNumberBgColor.Set(0CCCCCCFFH);
+	NEW(PTVHighlighting, NIL, Strings.NewString("Highlighting"), Strings.NewString("Name of highlighting to be applied"));
+	PTVHighlighting.Set(NIL);
+	NEW(PTVclBgCurrentLine, NIL, Strings.NewString("ClBgCurrentLine"), Strings.NewString("Background color of currently edited line"));
+	PTVclBgCurrentLine.Set(0);
 END InitPrototypes;
 
 PROCEDURE TextViewFactory*() : XML.Element;
@@ -4778,12 +4129,6 @@ VAR e : TextView;
 BEGIN
 	NEW(e); RETURN e
 END TextViewFactory;
-
-PROCEDURE CodeViewFactory*() : XML.Element;
-VAR e : CodeView;
-BEGIN
-	NEW(e); RETURN e
-END CodeViewFactory;
 
 (* Inserts a ocharacter from the outside into the current textView's text at its current position *)
 PROCEDURE InsertChar*(newChar : Char32) : INTEGER;
