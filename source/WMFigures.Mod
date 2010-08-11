@@ -232,7 +232,7 @@ TYPE
 
 	PointArray = POINTER TO ARRAY OF WMGraphics.Point2d;
 
-	Line* = OBJECT(Figure)
+	Polynomial* = OBJECT(Figure)
 	VAR
 		pointArray : PointArray; (* {pointArray # NIL} *)
 
@@ -328,7 +328,7 @@ TYPE
 			END;
 		END DrawBackground;
 
-	END Line;
+	END Polynomial;
 
 TYPE
 
@@ -727,11 +727,11 @@ PROCEDURE Max(x, y: LONGINT): LONGINT;
 BEGIN IF x > y THEN RETURN x ELSE RETURN y END
 END Max;
 
-PROCEDURE GenLine*() : XML.Element;
-VAR line : Line;
+PROCEDURE GenPolynomial*() : XML.Element;
+VAR polynomial : Polynomial;
 BEGIN
-	NEW(line); RETURN line;
-END GenLine;
+	NEW(polynomial); RETURN polynomial;
+END GenPolynomial;
 
 PROCEDURE GenCircle*() : XML.Element;
 VAR circle : Circle;
