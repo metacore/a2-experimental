@@ -22,7 +22,7 @@
 # 	Release.Build --build WinAos ~
 #
 #	Bootimage
-#	PELinker.Link --path=../ObjI/  Win32.Aos.Link ~
+#	PELinker.Link --path=../obj/  Win32.Aos.Link ~
 #
 # 	External version: Oberon Applications runs in a separate MS Windows Window
 #
@@ -122,7 +122,7 @@ BUILDS
 		COMPILEOPTIONS ""
 		TARGET "386"
 		EXTENSION "Obw"
-		PATH "../ObjI/"
+		PATH "../obj/"
 		EXCLUDEPACKAGES ""
 		DISABLED "FALSE"
 	}

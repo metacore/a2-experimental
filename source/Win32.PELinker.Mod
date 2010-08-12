@@ -1435,6 +1435,6 @@ SystemTools.Free PELinker ~
 
 PELinker.Link Win32.Aos.Link ~
 
-PELinker.Link -v --path=../ObjI/ --extension=.Obw --destination=../a2.exe Win32.Aos.Link ~
+PELinker.Link -v --path=../obj/ --extension=.Obw --destination=../a2.exe Win32.Aos.Link ~
 
 PET.Open Win32.Aos.Link ~
