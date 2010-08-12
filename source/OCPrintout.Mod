@@ -170,12 +170,12 @@ TYPE
 		BEGIN
 			w.String("NILTYPE");
 		END VisitNilType;
-		
+
 		PROCEDURE VisitAddressType(x: SyntaxTree.AddressType);
 		BEGIN
 			w.String("ADDRESSTYPE");
 		END VisitAddressType;
-		
+
 
 		PROCEDURE VisitMathArrayType(x: SyntaxTree.MathArrayType);
 		BEGIN

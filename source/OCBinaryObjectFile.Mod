@@ -1622,7 +1622,7 @@ TYPE
 					END;
 				ELSIF type IS SyntaxTree.AddressType THEN char := rfLongint
 				ELSIF type IS SyntaxTree.SizeType THEN char := rfLongint
-				ELSIF type IS SyntaxTree.FloatType THEN 
+				ELSIF type IS SyntaxTree.FloatType THEN
 					IF type.sizeInBits = 32 THEN char := rfReal
 					ELSIF type.sizeInBits = 64 THEN char := rfLongreal
 					END;

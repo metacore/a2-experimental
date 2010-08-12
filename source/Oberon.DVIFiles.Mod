@@ -17,7 +17,7 @@ TYPE
       specialCacheComplete: BOOLEAN;
       spec: Special
    END;
-   
+
    FontInfo* = POINTER TO FontInfoDesc;
    FontInfoDesc* = RECORD
       next: FontInfo;
@@ -27,7 +27,7 @@ TYPE
       s,d,a,l: LONGINT; (* cf. DVIViewers *)
       width*: ARRAY 256 OF LONGREAL; (** widths in dvi-units **)
    END;
-   
+
    File* = POINTER TO FileDesc;
    FileDesc* = RECORD(Gadgets.ObjDesc)
       fileName: ARRAY 128 OF CHAR;
@@ -36,9 +36,9 @@ TYPE
       pageNr*: LONGINT; (* number of pages in the dvi-file *)
       page: POINTER TO ARRAY OF PageDesc;
       fonts: FontInfo;
-      
+
    END;
-   
+
 
    (** Read an unsigned byte from rider r. **)
    PROCEDURE ReadByte*(VAR r: Files.Rider): LONGINT;
@@ -47,7 +47,7 @@ TYPE
       Files.Read(r,c);
       RETURN ORD(c)
    END ReadByte;
-   
+
    (** Read a signed byte from rider r. **)
    PROCEDURE ReadSignedByte*(VAR r: Files.Rider): LONGINT;
    VAR s: SHORTINT;
@@ -55,7 +55,7 @@ TYPE
       Files.Read(r,s);
       RETURN s
    END ReadSignedByte;
-   
+
    (** Read an unsigned word (two bytes) from rider r. **)
    PROCEDURE ReadWord*(VAR r: Files.Rider): LONGINT;
    VAR l,u: LONGINT;
@@ -63,7 +63,7 @@ TYPE
       u:= ReadByte(r); l:= ReadByte(r);
       RETURN u*100H+l;
    END ReadWord;
-   
+
    (** Read a signed word (two bytes) from rider r. **)
    PROCEDURE ReadSignedWord*(VAR r: Files.Rider): LONGINT;
    CONST Sign = 8000H; Moduli = 10000H;
@@ -73,7 +73,7 @@ TYPE
       IF s >= Sign THEN RETURN s - Moduli
       ELSE RETURN s END
    END ReadSignedWord;
-   
+
    (** Read an unsigned trio (three bytes) from rider r. **)
    PROCEDURE ReadTrio*(VAR r: Files.Rider): LONGINT;
    VAR l,u: LONGINT;
@@ -81,7 +81,7 @@ TYPE
       u:= ReadByte(r); l:= ReadWord(r);
       RETURN u*10000H+l;
    END ReadTrio;
-   
+
    (** Read a signed trio (three bytes) from rider r. **)
    PROCEDURE ReadSignedTrio*(VAR r: Files.Rider): LONGINT;
    CONST Sign = 800000H; Moduli = 1000000H;
@@ -91,7 +91,7 @@ TYPE
       IF s >= Sign THEN RETURN s - Moduli
       ELSE RETURN s END
    END ReadSignedTrio;
-   
+
    (** Read a signed quad (four bytes) from rider r. **)
    PROCEDURE ReadSignedQuad*(VAR r: Files.Rider): LONGINT;
    VAR l,u: LONGINT;
@@ -99,7 +99,7 @@ TYPE
       u:= ReadWord(r); l:= ReadWord(r);
       RETURN ASH(u,16)+l;
    END ReadSignedQuad;
-   
+
    (** Read size bytes as an unsigned value from rider r. **)
    PROCEDURE Read*(VAR r: Files.Rider; size: LONGINT): LONGINT;
    BEGIN
@@ -110,7 +110,7 @@ TYPE
        | 1: RETURN ReadByte(r);
       END
    END Read;
-   
+
    (** Read size bytes as a signed value from rider r. **)
    PROCEDURE ReadSigned*(VAR r: Files.Rider; size: LONGINT): LONGINT;
    BEGIN
@@ -121,7 +121,7 @@ TYPE
        | 1: RETURN ReadSignedByte(r);
       END
    END ReadSigned;
-   
+
    (** Read four bytes from rider r and interpret them as
        fixed-point number. **)
    PROCEDURE ReadFixedWord*(VAR r: Files.Rider): LONGREAL;
@@ -129,13 +129,13 @@ TYPE
    BEGIN
       RETURN ReadSignedQuad(r) * Multiplier
    END ReadFixedWord;
-   
+
    (** Advance rider r by numberOfBytes bytes. **)
    PROCEDURE SkipBytes*(VAR r: Files.Rider; numberOfBytes: LONGINT);
    BEGIN
       Files.Set(r,Files.Base(r),Files.Pos(r)+numberOfBytes);
    END SkipBytes;
-   
+
    PROCEDURE Assert(expr: BOOLEAN; msg: ARRAY OF CHAR);
    BEGIN
       IF expr = FALSE THEN
@@ -143,7 +143,7 @@ TYPE
          HALT(25)
       END
    END Assert;
-   
+
 
    PROCEDURE ReadCharacterWidths(font: FontInfo);
    VAR
@@ -152,7 +152,7 @@ TYPE
       w: POINTER TO ARRAY OF LONGREAL;
       wIndex: ARRAY 256 OF INTEGER;
       headerLength,begin,end,widthNr,i: LONGINT;
-   
+
       PROCEDURE OpenTFMFile(VAR fontName: ARRAY OF CHAR): Files.File;
       CONST
          DefaultPath = "";
@@ -173,8 +173,8 @@ TYPE
          END;
          RETURN tfm;
       END OpenTFMFile;
-      
-   
+
+
    BEGIN
       tfmFile:= OpenTFMFile(font.name^);
       Files.Set(tfm,tfmFile,0);
@@ -192,17 +192,17 @@ TYPE
       FOR i:= begin TO end DO
          wIndex[i]:= SHORT(ReadByte(tfm)); SkipBytes(tfm,3);
       END;
-      
+
       FOR i:= 0 TO widthNr-1 DO
          w[i]:= ReadFixedWord(tfm)
       END;
-      
+
       FOR i:= begin TO end DO
          font.width[i]:= w[wIndex[i]] * font.s
       END;
-      
+
    END ReadCharacterWidths;
-   
+
 
    PROCEDURE ParsePostamble(m: File; postamble: LONGINT): LONGINT;
    CONST
@@ -242,7 +242,7 @@ TYPE
       END;
       RETURN lastPage
    END ParsePostamble;
-   
+
    PROCEDURE ScanPages(m: File; lastPageOffset,postambleOffset: LONGINT);
    VAR currPage,currPageOffset, prevOffset: LONGINT;
       r: Files.Rider; s: Special;
@@ -268,7 +268,7 @@ TYPE
       Assert(currPageOffset = -1,
          "There seem to be more pages in the dvi-file than stated.");
    END ScanPages;
-   
+
    PROCEDURE LoadDVIFile(m: File);
    CONST DVITag = 0F702H; EndTag = 223; DVIVersion = 02H;
    VAR
@@ -282,7 +282,7 @@ TYPE
          Out.String("File doen't look like a dvi-file (strange header).");
          COPY("",m.fileName); RETURN
       END;
-      
+
       Files.Set(r,m.file,Files.Length(m.file)-1);
       l:= ReadByte(r);
       REPEAT
@@ -299,13 +299,13 @@ TYPE
          Out.String("This dvi-file seems corrupt (postamble not found).");
          COPY("",m.fileName); RETURN
       END;
-      
+
       l:= ParsePostamble(m,postambleOffset); (* read global
          parameters (mag, etc.), create the font-info descriptions
          and return a pointer to the beginning of the last page *)
       ScanPages(m,l,postambleOffset); (* create the page-descriptors *)
    END LoadDVIFile;
-   
+
    PROCEDURE GetPage*(m: File; pageNo: LONGINT;
       VAR r: Files.Rider): BOOLEAN;
    BEGIN
@@ -315,7 +315,7 @@ TYPE
       Files.Set(r,m.file,m.page[pageNo-1].offset);
       RETURN TRUE;
    END GetPage;
-   
+
    PROCEDURE GetFont*(m: File; fontNo: LONGINT): FontInfo;
    VAR f: FontInfo;
    BEGIN
@@ -326,20 +326,20 @@ TYPE
       END;
       RETURN f
    END GetFont;
-   
+
    PROCEDURE IsSpecialCacheComplete*(m: File; pageNo: LONGINT): BOOLEAN;
    BEGIN
       RETURN (m.fileName # "") & (pageNo >= 1) & (pageNo <= m.pageNr) &
          m.page[pageNo-1].specialCacheComplete;
    END IsSpecialCacheComplete;
-   
+
    PROCEDURE CacheComplete*(m: File; pageNo: LONGINT);
    BEGIN
       IF (m.fileName # "") & (pageNo >= 1) & (pageNo <= m.pageNr) THEN
          m.page[pageNo-1].specialCacheComplete:= TRUE
       END
    END CacheComplete;
-   
+
    PROCEDURE FindSpecial(m: File; pageNo,pos: LONGINT): Special;
    (* Precondition: 0 < pos < MAX(LONGINT).
       Postcondition for the result s: s.pos < pos <= s.next.pos. *)
@@ -351,7 +351,7 @@ TYPE
       (* => m.page[...].spec.pos < pos <= m.page[...].spec.next.pos *)
       RETURN m.page[pageNo-1].spec
    END FindSpecial;
-   
+
    PROCEDURE GetCachedSpecial*(m: File; pageNo,pos: LONGINT): Special;
    (* Precondition: 0 < pos < MAX(LONGINT). *)
    VAR s: Special;
@@ -363,14 +363,14 @@ TYPE
       IF pos = s.next.pos THEN RETURN s.next
       ELSE RETURN NIL END
    END GetCachedSpecial;
-   
+
    PROCEDURE CacheSpecial*(m: File; pageNo: LONGINT; new: Special);
    VAR s: Special;
    BEGIN
       s:= FindSpecial(m,pageNo,new.pos);
       new.next:= s.next; s.next:= new;
    END CacheSpecial;
-   
+
    PROCEDURE DoAttributeMsg(obj: File; VAR M: Objects.AttrMsg);
    BEGIN
       IF M.id = Objects.get THEN
@@ -389,7 +389,7 @@ TYPE
          M.Enum("File"); Gadgets.objecthandle(obj,M);
       END
    END DoAttributeMsg;
-   
+
    PROCEDURE Copy*(VAR M: Objects.CopyMsg; from, to: File);
    BEGIN
       to.fileName:= from.fileName; to.file:= from.file;
@@ -398,7 +398,7 @@ TYPE
       to.page:= from.page;
       Gadgets.CopyObject(M, from, to)
    END Copy;
-   
+
    PROCEDURE DoCopyMsg(obj: File; VAR M: Objects.CopyMsg);
    VAR tmp: File;
    BEGIN
@@ -409,18 +409,18 @@ TYPE
          M.obj := tmp
       END
    END DoCopyMsg;
-   
+
    PROCEDURE DoStoreMsg(obj: File; VAR M: Objects.FileMsg);
    BEGIN
       Files.WriteString(M.R,obj.fileName);
    END DoStoreMsg;
-   
+
    PROCEDURE DoLoadMsg(obj: File; VAR M: Objects.FileMsg);
    BEGIN
       Files.ReadString(M.R, obj.fileName);
       LoadDVIFile(obj)
    END DoLoadMsg;
-   
+
    PROCEDURE Handler*(obj: Objects.Object; VAR M: Objects.ObjMsg);
    BEGIN
       WITH obj: File DO
@@ -441,17 +441,17 @@ TYPE
          END
       END
    END Handler;
-   
+
    PROCEDURE Init*(obj: File; fileName: ARRAY OF CHAR);
    BEGIN
       obj.handle:= Handler; COPY(fileName,obj.fileName);
       LoadDVIFile(obj); Gadgets.Update(obj)
    END Init;
-   
+
    PROCEDURE New*;
    VAR obj: File;
    BEGIN
       NEW(obj); Init(obj,""); Objects.NewObj:= obj
    END New;
-   
+
 END DVIFiles.

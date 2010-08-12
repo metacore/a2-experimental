@@ -1,8 +1,8 @@
 MODULE EFIDiskIO; (** AUTHOR "Matthias Frei"; PURPOSE "EFI Disk I/O Protocol"; *)
 
-(** This protocol is used to abstract the block accesses of 
-the Block I/O protocol to a more general offset-length protocol. The firmware is responsible for adding 
-this protocol to any Block I/O interface that appears in the system that does not already have a Disk I/O 
+(** This protocol is used to abstract the block accesses of
+the Block I/O protocol to a more general offset-length protocol. The firmware is responsible for adding
+this protocol to any Block I/O interface that appears in the system that does not already have a Disk I/O
 protocol. File systems and other disk access code utilize the Disk I/O protocol." *)
 
 IMPORT

@@ -27,16 +27,16 @@ TYPE
       b,l,h,w: INTEGER;
       M: Display3.Mask; clipReg: GfxRegions.Region;
       context: Gfx.Context;
-      
+
       drawChar: DrawCharHook;
    END;
-   
+
    StackElement = POINTER TO StackElementDesc;
    StackElementDesc = RECORD
       next: StackElement;
       h,v,w,x,y,z: LONGREAL
    END;
-   
+
    PSFileSpecial = POINTER TO PSFileSpecialDesc;
    PSFileSpecialDesc = RECORD(DVIFiles.SpecialDesc)
       name: POINTER TO ARRAY OF CHAR; (* file's name *)
@@ -45,7 +45,7 @@ TYPE
       angle: REAL; (* angle in degrees counterclockwise *)
       image: Images.Image;
    END;
-   
+
 VAR
    tmpRgn: GfxRegions.Region;
 
@@ -56,46 +56,46 @@ VAR
          HALT(25)
       END
    END Assert;
-   
+
    PROCEDURE DVIToScreenX(F: Frame; x: LONGREAL): LONGREAL;
    BEGIN
       RETURN F.l+(x-F.hOffset)*F.zoom*F.conv;
    END DVIToScreenX;
-   
+
    PROCEDURE DVIToScreenY(F: Frame; y: LONGREAL): LONGREAL;
    BEGIN
       RETURN F.b+F.h-(y-F.vOffset)*F.zoom*F.conv;
    END DVIToScreenY;
-   
+
    PROCEDURE ScreenToDVIX(F: Frame; x: INTEGER): LONGREAL;
    BEGIN
       RETURN F.hOffset + (x-F.l)/F.zoom/F.conv;
    END ScreenToDVIX;
-   
+
    PROCEDURE ScreenToDVIY(F: Frame; y: INTEGER): LONGREAL;
    BEGIN
       RETURN F.vOffset + (F.b+F.h-y)/F.zoom/F.conv;
    END ScreenToDVIY;
-   
+
    PROCEDURE Push(VAR s: StackElement; h,v,w,x,y,z: LONGREAL);
    VAR e: StackElement;
    BEGIN
       NEW(e); e.h:= h; e.v:= v; e.w:= w; e.x:= x; e.y:= y; e.z:= z;
       e.next:= s; s:= e
    END Push;
-   
+
    PROCEDURE Pop(VAR s: StackElement; VAR h,v,w,x,y,z: LONGREAL);
    BEGIN
       Assert(s#NIL,"More Pops than Push's in this page of the dvi-file.");
       h:= s.h; v:= s.v; w:= s.w; x:= s.x; y:= s.y; z:= s.z;
       s:= s.next;
    END Pop;
-   
+
    PROCEDURE GetResolution() : LONGREAL;
    BEGIN
       RETURN 91.44;
    END GetResolution;
-   
+
    PROCEDURE DrawCharImage(c: CHAR; x,y,dviWidth: LONGREAL; F: Frame);
    VAR cx, cy, dx, dy, llx, lly, urx, ury: REAL; img: GfxImages.Image;
    BEGIN
@@ -107,7 +107,7 @@ VAR
          Gfx.DrawImageAt(F.context,cx,cy,img,GfxImages.NoFilter)
       END
    END DrawCharImage;
-   
+
    PROCEDURE DrawChar(c: CHAR; x,y,dviWidth: LONGREAL; F: Frame);
    VAR str: ARRAY 2 OF CHAR;
    BEGIN
@@ -115,7 +115,7 @@ VAR
       Gfx.DrawStringAt(F.context,SHORT(DVIToScreenX(F,x)),
         SHORT(DVIToScreenY(F,y)),str)
    END DrawChar;
-   
+
    PROCEDURE DrawRule(x,y,h,w: LONGREAL; F: Frame);
    VAR llx, lly, urx, ury, lw, tmp: REAL;
    BEGIN
@@ -154,7 +154,7 @@ VAR
          END;
          RETURN ds
       END DesignSize;
-      
+
    BEGIN
       GfxMatrix.Init(m,F.zoom,0.0,0.0,F.zoom,0.0,0.0);
       f:= GfxFonts.Open(font.name^,DesignSize(font.name^),m);
@@ -165,7 +165,7 @@ VAR
          Gfx.SetFont(F.context,f)
       END
    END SetCurrentFont;
-   
+
    PROCEDURE ReadPSPreview(s: PSFileSpecial);
    CONST Tag = "01%%BeginPreview:"; End = 16;
       (* (state "0" means we're waiting for a new-line, state "1"
@@ -178,7 +178,7 @@ VAR
       str: ARRAY End+2 OF CHAR;
       hex: INTEGER; (* hex=-1 means that we're waiting for the first digit *)
       val: INTEGER; base,bytesPerColumn,i: LONGINT;
-   
+
       PROCEDURE EatWhiteSpace(): BOOLEAN;
       (* returns true iff eof is not readched *)
       BEGIN
@@ -188,7 +188,7 @@ VAR
          END;
          RETURN TRUE
       END EatWhiteSpace;
-   
+
       PROCEDURE ParseInt(VAR n: INTEGER): BOOLEAN;
       (* returns true iff eof is not readched *)
       BEGIN
@@ -201,7 +201,7 @@ VAR
          END;
          RETURN TRUE
       END ParseInt;
-   
+
       PROCEDURE Abort;
       BEGIN
          Out.String("Cannot find preview in PS-file."); Out.Ln;
@@ -267,7 +267,7 @@ VAR
          Files.Read(r,ch)
       END;
    END ReadPSPreview;
-   
+
    PROCEDURE ParseSpecial(M: DVIFiles.File; VAR r: Files.Rider;
       pageNo,len: LONGINT): DVIFiles.Special;
    CONST
@@ -287,7 +287,7 @@ VAR
       s: PSFileSpecial;
       i: INTEGER;
       c: LONGREAL; (* one 1/72 inch represents c dvi-units *)
-   
+
       PROCEDURE GetToken(): INTEGER;
       (* Uses the variables r, len, n, str^.
          Preconditon: len >= 0 & LEN(str) > len. *)
@@ -332,8 +332,8 @@ VAR
             RETURN Identifier;
          END;
       END GetToken;
-      
-   
+
+
    BEGIN
       NEW(s); s.pos:= Files.Pos(r); NEW(str,len+1); NEW(s.name,len+1);
       IF (GetToken() = Identifier) & (str^ = "PSfile") THEN
@@ -410,7 +410,7 @@ VAR
          RETURN s
       ELSE DVIFiles.SkipBytes(r,len); RETURN NIL END;
    END ParseSpecial;
-   
+
    PROCEDURE DoSpecial(F: Frame; M: DVIFiles.File; h,v: LONGREAL;
       VAR r: Files.Rider; len: LONGINT);
    VAR
@@ -471,7 +471,7 @@ VAR
          Fnt1Cmd = 235; Fnt4Cmd = 238;
          Xxx1Cmd = 239; Xxx4Cmd = 242;
          FntDef1Cmd = 243; FntDef4Cmd = 246;
-      
+
    VAR
       r: Files.Rider;
       cmd: LONGINT;
@@ -554,7 +554,7 @@ VAR
       UNTIL cmd = EopCmd;
       DVIFiles.CacheComplete(M,F.pageNo)
    END DrawPage;
-   
+
    (* Routines to Manage the Gadget's Attributes: *)
    PROCEDURE UpdateModels(F: Frame);
    (* Notify the zoom- and page-number models that we
@@ -568,7 +568,7 @@ VAR
       Attributes.SetReal(m,"Value",F.zoom);
       Gadgets.Update(m);
    END UpdateModels;
-   
+
    PROCEDURE DoAttributeMsg(F: Frame; VAR M: Objects.AttrMsg);
    BEGIN
       IF M.id = Objects.get THEN
@@ -600,7 +600,7 @@ VAR
          M.Enum("File"); Gadgets.framehandle(F, M)
       END
    END DoAttributeMsg;
-   
+
    (* Routines to Copy, Load & Store the Gadget: *)
    PROCEDURE Copy*(VAR M: Objects.CopyMsg; from, to: Frame);
    VAR dc: GfxDisplay.Context;
@@ -612,7 +612,7 @@ VAR
          Display.Width,Display.Height); to.drawChar:= DrawCharImage;
       Gadgets.CopyFrame(M,from,to);
    END Copy;
-   
+
    PROCEDURE DoCopyMsg(F: Frame; VAR M: Objects.CopyMsg);
    VAR tmp: Frame;
    BEGIN
@@ -622,7 +622,7 @@ VAR
       Copy(M, F, tmp); M.obj:= tmp
       END
    END DoCopyMsg;
-   
+
    PROCEDURE DoStore(F: Frame; M: Objects.FileMsg);
    BEGIN
       Files.WriteLInt(M.R,F.pageNo);
@@ -630,7 +630,7 @@ VAR
       Files.WriteLReal(M.R,F.vOffset);
       Files.WriteReal(M.R,F.zoom)
    END DoStore;
-   
+
    PROCEDURE DoLoad(F: Frame; M: Objects.FileMsg);
    BEGIN
       Files.ReadLInt(M.R,F.pageNo);
@@ -638,13 +638,13 @@ VAR
       Files.ReadLReal(M.R,F.vOffset);
       Files.ReadReal(M.R,F.zoom)
    END DoLoad;
-   
+
    (* Routines to Draw & Print the Gadget: *)
    PROCEDURE AddMaskRect(x,y,w,h: INTEGER);
    BEGIN
       GfxRegions.AddRect(tmpRgn,x,y,x+w,y+h)
    END AddMaskRect;
-   
+
    PROCEDURE DoRestore(F: Frame);
    VAR f: DVIFiles.File; inch: LONGREAL;
       PROCEDURE PrinterToDVIUnits(x:LONGREAL): LONGREAL;
@@ -683,7 +683,7 @@ VAR
             F.l,F.b,F.l,F.b,F.w,F.h,Display.paint)
       END
    END DoRestore;
-   
+
    PROCEDURE DoPrint(F: Frame; VAR M: Display.DisplayMsg);
    (* following is old:
    VAR Q: Display3.Mask;
@@ -696,7 +696,7 @@ VAR
          P(F.H), Display.replace)
    * till here. *)
    END DoPrint;
-   
+
    (* Routines for Mouse-Handling: *)
    PROCEDURE MoveViewToMouse(F: Frame;
       dviX,dviY: LONGREAL; mX,mY: INTEGER);
@@ -707,14 +707,14 @@ VAR
       F.hOffset:= F.hOffset + (dviX - ScreenToDVIX(F,mX));
       F.vOffset:= F.vOffset + (dviY - ScreenToDVIY(F,mY));
    END MoveViewToMouse;
-   
+
    PROCEDURE DoMouseEvent(F: Frame; VAR M: Oberon.InputMsg);
    CONST right = 0; middle = 1; left = 2;
    VAR
       keysum: SET; (* accumulates key-buttons during interclicks *)
       X,Y,W,H: INTEGER; (* dummy variables *)
       dviX,dviY: LONGREAL;  (* mouse-loc in dvi-coords *)
-   
+
       PROCEDURE DoZoomIn;
       BEGIN
         Effects.SizeRect(F.M,keysum,M.X,M.Y,X,Y,W,H,NIL);
@@ -736,7 +736,7 @@ VAR
           END;
         END;
       END DoZoomIn;
-   
+
       PROCEDURE DoPanning;
       VAR mX,mY,dX,dY: INTEGER; n,copy: Display3.Mask;
       BEGIN
@@ -763,7 +763,7 @@ VAR
            DoRestore(F); F.M:= NIL; Gadgets.MakeMask(F,F.l,F.b,M.dlink,F.M);
          UNTIL M.keys = {};
       END DoPanning;
-   
+
       PROCEDURE DoZoomOut;
       BEGIN
          keysum:= M.keys;
@@ -778,7 +778,7 @@ VAR
             UpdateModels(F); (* because we changed our attributes *)
          END;
       END DoZoomOut;
-   
+
    BEGIN
       Gadgets.MakeMask(F,F.l,F.b,M.dlink,F.M);
       dviX:= ScreenToDVIX(F,M.X); dviY:= ScreenToDVIY(F,M.Y);
@@ -793,7 +793,7 @@ VAR
       Oberon.DrawCursor(Oberon.Mouse,Effects.PointHand,M.X,M.Y);
       M.res:= 0
    END DoMouseEvent;
-   
+
    (* Message- Handler: *)
    PROCEDURE CheckModels(M: Gadgets.UpdateMsg; F: Frame);
    (* Check whether the zoom- and page-number models changed. *)
@@ -812,7 +812,7 @@ VAR
       END;
       M.res:= 0
    END CheckModels;
-   
+
    PROCEDURE Handle*(F: Objects.Object; VAR M: Objects.ObjMsg);
    BEGIN
       WITH F: Frame DO
@@ -862,7 +862,7 @@ VAR
       END
       END
    END Handle;
-   
+
    (* Routines to Initialize & Instantiate the Gadget: *)
    PROCEDURE Init*(F: Frame);
    VAR dc: GfxDisplay.Context;
@@ -873,13 +873,13 @@ VAR
       NEW(dc); F.context:= dc; GfxDisplay.Init(dc,Display.ColLeft,0,
          Display.Width, Display.Height); F.drawChar:= DrawCharImage;
    END Init;
-   
+
    PROCEDURE New*;
    VAR F: Frame;
    BEGIN
       NEW(F); Init(F); Objects.NewObj:= F
    END New;
-   
+
    PROCEDURE CurrentDVIViewer(): Frame;
    (* First we check, whether the current document contains an item
    called "DVIViewer" and, if so, returns it.  Otherwise we try to find a
@@ -903,7 +903,7 @@ VAR
       RETURN M.loc(Frame) END;
       RETURN NIL
    END CurrentDVIViewer;
-   
+
    (** go to the next page **)
    PROCEDURE Next*;
    VAR
@@ -919,7 +919,7 @@ VAR
          END
       END
    END Next;
-   
+
    (** go to the previous page **)
    PROCEDURE Prev*;
    VAR
@@ -932,7 +932,7 @@ VAR
          Gadgets.Update(v);
       END
    END Prev;
-   
+
    (** reset zoom to 100% and move origin to top-left corner **)
    PROCEDURE Home*;
    VAR
@@ -943,7 +943,7 @@ VAR
       UpdateModels(v);
       Gadgets.Update(v);
    END Home;
-   
+
    PROCEDURE ToPSFile*;
    (** Create a PS-file from the current dvi-document.
        Usage: ToPSFile [A4|Letter] outfile
@@ -986,5 +986,5 @@ VAR
      v.vOffset:= oldVOff; v.drawChar:= oldDrawChar; v.pageNo:= oldPageNo;
      Out.String("done."); Out.Ln;
    END ToPSFile;
-   
+
 END DVIViewers.

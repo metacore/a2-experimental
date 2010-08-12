@@ -2057,7 +2057,7 @@ TYPE
 					ConvertOperands(left,right); (* operands must be of the same type here *)
 					binaryExpression.SetLeft(left);
 					binaryExpression.SetRight(right);
-					leftType := left.type.resolved; 
+					leftType := left.type.resolved;
 					rightType := right.type.resolved;
 				END;
 				type := leftType;
@@ -5064,7 +5064,7 @@ TYPE
 			var := NewSymbolDesignator(index,NIL,variable);
 			RETURN var(SyntaxTree.Designator)
 		END GetTemporaryVariable;
-		
+
 		(** check and resolve for statement FOR variable := from TO to BY by DO StatementSequence END;
 			- check that variable is an integer variable
 			- check that from is integer typed with compatible type
@@ -5380,7 +5380,7 @@ TYPE
 					& (procedure.scope(SyntaxTree.ModuleScope).bodyProcedure = procedure)
 					& (SyntaxTree.AssemblyFlag IN procedure.scope(SyntaxTree.ModuleScope).ownerModule.flags)
 					OR
-					 (procedure.scope IS SyntaxTree.ActorScope) 
+					 (procedure.scope IS SyntaxTree.ActorScope)
 					 & (procedure.scope(SyntaxTree.ActorScope).bodyProcedure = procedure)
 					 & (procedure.scope(SyntaxTree.ActorScope).ownerActor.isAssembly)
 					 )

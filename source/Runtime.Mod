@@ -1,7 +1,7 @@
 MODULE Runtime; (** AUTHOR "fof"; PURPOSE "runtime support for the Active Obero compiler"; *)
 IMPORT SYSTEM;
 
-VAR 
+VAR
 	kernelModule-: ARRAY 32 OF SYSTEM.ADDRESS;
 	modules-: LONGINT;
 
