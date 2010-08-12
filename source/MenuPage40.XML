@@ -36,6 +36,7 @@
 			</Standard:SystemCommand>
 		</Standard:Button>
 	</Standard:Panel>
+
 	<!-- Second column -->
 	<Standard:Panel>
 		<Properties>
@@ -71,6 +72,7 @@
 			</Standard:SystemCommand>
 		</Standard:Button>
 	</Standard:Panel>
+
 	<!-- 3rd column -->
 	<Standard:Panel>
 		<Properties>
@@ -106,6 +108,7 @@
 			</Standard:SystemCommand>
 		</Standard:Button>
 	</Standard:Panel>
+
 	<!-- 4th column -->
 	<Standard:Panel>
 		<Properties>

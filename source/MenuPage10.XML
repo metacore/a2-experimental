@@ -5,9 +5,9 @@
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
 
 		<Standard:Button>
@@ -16,7 +16,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -24,14 +24,14 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-		
+
 		<Standard:Button>
 			<Properties>
 				<Caption>Log</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -40,14 +40,14 @@
 			</Standard:SystemCommand>
 		</Standard:Button>
 	</Standard:Panel>
-	
-<!-- Second column -->	
+
+<!-- Second column -->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
 
 		<Standard:Button>
@@ -56,7 +56,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -64,14 +64,14 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-		
+
 		<Standard:Button>
 			<Properties>
 				<Caption>Calendar</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -82,13 +82,13 @@
 
 	</Standard:Panel>
 
-<!-- Third column -->	
+<!-- Third column -->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
 		<Standard:Button>
 			<Properties>
@@ -96,7 +96,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -104,14 +104,14 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-		
+
 				<Standard:Button>
 			<Properties>
 				<Caption>SaveDesktop</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -119,16 +119,16 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-		
-	</Standard:Panel>	
-	
-<!-- Reboot Shutdown-->	
+
+	</Standard:Panel>
+
+<!-- Reboot Shutdown-->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
 
 		<Standard:Button>
@@ -139,7 +139,7 @@
 				<ClHover>0FF0000FF</ClHover>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -147,7 +147,7 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-		
+
 		<Standard:Button>
 			<Properties>
 				<Caption>Shutdown</Caption>
@@ -156,7 +156,7 @@
 				<ClHover>0FF0000FF</ClHover>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -164,6 +164,6 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-	</Standard:Panel>	
+	</Standard:Panel>
 
 </Standard:Panel>

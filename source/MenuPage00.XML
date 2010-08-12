@@ -6,9 +6,9 @@
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
 
 		<Standard:Button>
@@ -17,7 +17,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -25,14 +25,14 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-		
+
 		<Standard:Button>
 			<Properties>
 				<Caption>ChineseTutorial</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -40,15 +40,15 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-	</Standard:Panel>	
-	
-<!-- 2. column -->	
+	</Standard:Panel>
+
+<!-- 2. column -->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
 
 		<Standard:Button>
@@ -57,7 +57,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -72,7 +72,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -82,22 +82,22 @@
 		</Standard:Button>
 	</Standard:Panel>
 
-<!-- 3. column -->	
+<!-- 3. column -->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
-	
+
 		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -112,7 +112,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -121,25 +121,25 @@
 			</Standard:SystemCommand>
 		</Standard:Button>
 
-		
+
 	</Standard:Panel>
 
-<!-- 4. column -->	
+<!-- 4. column -->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
-	
+
 		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -154,7 +154,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -162,7 +162,7 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-		
+
 	</Standard:Panel>
-	
+
 </Standard:Panel>

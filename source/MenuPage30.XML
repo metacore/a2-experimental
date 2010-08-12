@@ -2,8 +2,8 @@
 	<Properties>	<FillColor>0</FillColor> </Properties>
 	<Standard:Panel>
 		<Properties>
-			<Alignment>1</Alignment>	
-			<Bounds> <Width>120</Width>	</Bounds>	
+			<Alignment>1</Alignment>
+			<Bounds> <Width>120</Width>	</Bounds>
 		</Properties>
 
 		<Standard:Button>
@@ -12,21 +12,21 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties> <ID>X</ID>
 					<CommandString>WMSearchTool.Open</CommandString>
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-		
+
 		<Standard:Button>
 			<Properties>
 				<Caption>Oberon</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -35,12 +35,12 @@
 			</Standard:SystemCommand>
 		</Standard:Button>
 	</Standard:Panel>
-	
-<!-- Second column -->	
+
+<!-- Second column -->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds> <Width>120</Width> </Bounds>	
+			<Bounds> <Width>120</Width> </Bounds>
 		</Properties>
 
 		<Standard:Button>
@@ -49,7 +49,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -64,7 +64,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -72,13 +72,13 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-	</Standard:Panel>	
-	
-<!-- 3rd column -->	
+	</Standard:Panel>
+
+<!-- 3rd column -->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds> <Width>120</Width> </Bounds>	
+			<Bounds> <Width>120</Width> </Bounds>
 		</Properties>
 
 		<Standard:Button>
@@ -87,7 +87,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -95,14 +95,14 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-		
+
 		<Standard:Button>
 			<Properties>
 				<Caption>VNC</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -110,15 +110,15 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-	</Standard:Panel>	
+	</Standard:Panel>
 
-<!-- 4th column -->	
+<!-- 4th column -->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
 
 		<Standard:Button>
@@ -127,7 +127,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -135,14 +135,14 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-		
+
 		<Standard:Button>
 			<Properties>
 				<Caption>Console</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -150,15 +150,15 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-	</Standard:Panel>	
-	
+	</Standard:Panel>
+
 <!-- 5th column -->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
-			<Bounds>	
+			<Bounds>
 				<Width>120</Width>
-			</Bounds>	
+			</Bounds>
 		</Properties>
 
 		<Standard:Button>
@@ -167,7 +167,7 @@
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -175,14 +175,14 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-		
+
 		<Standard:Button>
 			<Properties>
 				<Caption></Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler></OnClickHandler>
 			</Properties>
-			
+
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
@@ -190,7 +190,6 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-	</Standard:Panel>	
+	</Standard:Panel>
 
-	
 </Standard:Panel>
