@@ -155,7 +155,7 @@ TYPE
 				realToVirtual[index] := free;
 			END;
 		END Free;
-
+		(*
 		PROCEDURE NextFree(sizeInBits: LONGINT): SHORTINT;
 		VAR i: SHORTINT;
 		BEGIN
@@ -203,7 +203,8 @@ TYPE
 			END;
 		END NextFree;
 
-		(*
+		*)
+		
 		PROCEDURE NextFree(sizeInBits: LONGINT): SHORTINT;
 		VAR i: SHORTINT;
 		BEGIN
@@ -254,7 +255,7 @@ TYPE
 			ELSE HALT(100)
 			END;
 		END NextFree;
-		*)
+	
 
 	END RegisterAllocator;
 
