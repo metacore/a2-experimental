@@ -46,7 +46,7 @@ TYPE
 		string: Strings.String;
 	END;
 
-	CommandHistory = OBJECT
+	CommandHistoryObject = OBJECT
 	VAR
 		first, current: CommandsString;
 
@@ -104,7 +104,7 @@ TYPE
 		BEGIN first := NIL; current := NIL;
 		END Init;
 
-	END CommandHistory;
+	END CommandHistoryObject;
 
 TYPE
 
@@ -449,7 +449,7 @@ TYPE
 	Shell = OBJECT(Inputs.Sink)
 	VAR
 		textBuffer : TextBuffer;
-		history : CommandHistory;
+		history : CommandHistoryObject;
 
 		PROCEDURE &Init;
 		BEGIN

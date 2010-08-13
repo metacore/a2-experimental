@@ -1476,14 +1476,15 @@ TYPE
 		VAR
 			i: LONGINT;
 			tag: CHAR;
+			a: LONGINT;
 		BEGIN
 			NEW(module.exTable, header.exTableLen);
 			FOR i := 0 TO header.exTableLen -1 DO
 				r.Char(tag);
 				ASSERT(tag = 0FEX);
-				r.RawNum(module.exTable[i].pcFrom);
-				r.RawNum(module.exTable[i].pcTo);
-				r.RawNum(module.exTable[i].pcHandler);
+				r.RawNum(a); module.exTable[i].pcFrom := a;
+				r.RawNum(a); module.exTable[i].pcTo := a;
+				r.RawNum(a); module.exTable[i].pcHandler := a;
 			END;
 		END DecodeExTable;
 

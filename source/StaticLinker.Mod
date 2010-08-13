@@ -7,7 +7,7 @@ TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 		displacement: GenericLinker.Address;
 		bits: BitSets.BitSet;
 
-	PROCEDURE & InitArrangement (displacement: GenericLinker.Address);
+	PROCEDURE & InitArrangement* (displacement: GenericLinker.Address);
 	BEGIN SELF.displacement := displacement; NEW (bits, 0);
 	END InitArrangement;
 
