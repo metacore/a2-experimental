@@ -865,7 +865,7 @@ TYPE
 						END;
 					END;
 				END;
-				IF (object.super # NIL) & addSuperClasses THEN
+				IF (object.super # NIL) & (object.super.ident # NIL) & addSuperClasses THEN
 					AddPostfixToCaption(p, Strings.NewString(" ("));
 					AddPostfixToCaption(p, object.super.ident.name);
 					AddPostfixToCaption(p, Strings.NewString(")"));
