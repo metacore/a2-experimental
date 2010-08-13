@@ -40,11 +40,11 @@ CONST
 	(* special registers *)
 	HwRegister*=-8; (* any value below (or equal) hwreg is a user defined hardware register *)
 	(*! alternative: generate inline assembler *)
-	Result2*=-5; (* used for tags such as for variables with delegate procedure type *)
+	Result2*=31; (* used for tags such as for variables with delegate procedure type *)
 	(*! result2 should be removed ASAP. Can be removed once delegate return types are represented as structured return type
 		we have it here for compatibility with old compiler
 	*)
-	Result*=-4; (* result register *)
+	Result*=30; (* result register *)
 	FP*=-3; (* frame pointer *)
 	SP*=-2; (* stack pointer *)
 	None*=-1; (* no register assigned *)
@@ -54,14 +54,14 @@ CONST
 		br breq brne brge brlt
 		pop push neg not abs
 		mul div  mod sub add and or xor shl shr rol ror
-		copy fillup filldown inline data reserve NofOpcodes~
+		copy fillup filldown inline data reserve label acquire release NofOpcodes~
 	*)
 
 	nop*= 0; mov*= 1; conv*= 2; call*= 3; enter*= 4; leave*= 5; return*= 6; trap*= 7;
 	br*= 8; breq*= 9; brne*= 10; brge*= 11; brlt*= 12; pop*= 13; push*= 14; neg*= 15;
 	not*= 16; abs*= 17; mul*= 18; div*= 19; mod*= 20; sub*= 21; add*= 22; and*= 23;
 	or*= 24; xor*= 25; shl*= 26; shr*= 27; rol*= 28; ror*= 29; copy*= 30; fillup *= 31; filldown*= 32; asm*= 33;
-	data*= 34; reserve*= 35; label*=36; NofOpcodes*= 37;
+	data*= 34; reserve*= 35; label*=36; acquire*=37; release*=38; NofOpcodes*= 39;
 
 TYPE
 	Type*=RECORD
@@ -333,17 +333,17 @@ TYPE
 
 	PROCEDURE DumpRegister*(w: Streams.Writer; reg: SHORTINT);
 	BEGIN
-		IF reg > None THEN
-			w.String("$");
-			w.Int(reg,1);
-		ELSIF reg = SP THEN
+		IF reg = SP THEN
 			w.String("$SP")
 		ELSIF reg = FP THEN
 			w.String("$FP")
 		ELSIF reg = Result THEN
-			w.String("$RES")
+			w.String("$Res")
 		ELSIF reg = Result2 THEN
-			w.String("4RES2")
+			w.String("$Res2")
+		ELSIF reg > None THEN
+			w.String("$");
+			w.Int(reg,1);
 		ELSIF reg <= HwRegister THEN
 			w.String("$R#");
 			w.Int(HwRegister-reg,1);
@@ -551,6 +551,10 @@ TYPE
 		AddFormat(reserve, "reserve",Num,Undef,Undef,{});
 		(* label - pseudo-instruction to reference back to source code positions *)
 		AddFormat(label, "label",Num,Undef,Undef,{});
+		(* allocate - pseudo-instruction for register allocation *)
+		AddFormat(acquire, "acquire",{ModeRegister},Undef,Undef,{});
+		(* free - pseudo - instruction for register de-allocation *)
+		AddFormat(release, "release",{ModeRegister},Undef,Undef,{});
 	END InitInstructions;
 
 	PROCEDURE InitInstruction*(VAR instr: Instruction; opcode: SHORTINT; op1,op2,op3: Operand);

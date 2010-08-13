@@ -597,7 +597,7 @@ TYPE
 		END InitAddressType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
-		BEGIN RETURN this IS AddressType
+		BEGIN RETURN (this IS AddressType)
 		END SameType;
 
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
@@ -756,7 +756,8 @@ TYPE
 		END InitIntegerType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
-		BEGIN RETURN (this = SELF) OR (this.sizeInBits = sizeInBits) & (this IS IntegerType) & (this(IntegerType).signed = signed) OR (this IS SizeType) & (this.sizeInBits=sizeInBits) & signed
+		BEGIN RETURN (this = SELF) OR (this.sizeInBits = sizeInBits) & (this IS IntegerType) & (this(IntegerType).signed = signed)
+			OR (this IS SizeType) & (this.sizeInBits=sizeInBits)
 		END SameType;
 
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
@@ -1045,7 +1046,7 @@ TYPE
 		BEGIN
 			result := FALSE;
 			IF this = SELF THEN
-				result := FALSE
+				result := TRUE
 			ELSIF RecursionFlag IN flags THEN
 				result := TRUE;
 			ELSIF this IS MathArrayType THEN
@@ -1390,6 +1391,8 @@ TYPE
 			result := FALSE;
 			IF RecursionFlag IN flags THEN
 				result := TRUE
+			ELSIF this = SELF THEN 
+				result := TRUE
 			ELSIF this IS ProcedureType THEN
 				INCL(flags,RecursionFlag);
 				WITH this: ProcedureType DO
@@ -1397,7 +1400,7 @@ TYPE
 					result := result & (flags * {WinAPIFlag,CFlag} = this.flags * {WinAPIFlag,CFlag} );
 					IF result THEN
 						p1 := firstParameter; p2 := this.firstParameter;
-						WHILE (p1 # NIL) & (p2 # NIL) & (p1.access # Hidden) & (p2.access # Hidden) & (p1.kind = p2.kind) & p1.type.SameType(p2.type) DO
+						WHILE (p1 # NIL) & (p2 # NIL) & (p1.access # Hidden) & (p2.access # Hidden) & (p1.kind = p2.kind) & (p1.type.SameType(p2.type) OR p1.type.SameType(p2.type.resolved)) DO
 							p1 := p1.nextParameter; p2 := p2.nextParameter
 						END;
 						result := ((p1=NIL) OR (p1.access = Hidden)) & ((p2=NIL)  OR (p2.access= Hidden));

@@ -2813,7 +2813,7 @@ TYPE
 						ELSIF (SyntaxTree.RealtimeFlag IN currentFlags) & ~actualParameter.type.resolved.IsRealtime() THEN
 							Error(position,Diagnostics.Invalid,"non-realtime actual parameter in context of realtime procedure");
 						ELSE
-							IF formalParameter.type.resolved # actualParameter.type.resolved THEN
+							IF ~formalParameter.type.SameType(actualParameter.type.resolved) THEN
 								actualParameter := NewConversion(actualParameter.position,actualParameter,formalParameter.type,NIL);
 							END;
 							actualParameters.SetExpression(i,actualParameter);
@@ -5739,6 +5739,8 @@ TYPE
 					result := to.sizeInBits >= this.sizeInBits; (* weak compatibility: (unsigned) address may be assigned to signed integer of same (or greater) size *)
 				ELSIF (to IS SyntaxTree.IntegerType) & (this IS SyntaxTree.SizeType) THEN
 					result := to.sizeInBits >= this.sizeInBits; (* compatibility: (signed) size may be assigned to signed integer of greater or equal size *)
+				ELSIF (to IS SyntaxTree.FloatType) & (this IS SyntaxTree.AddressType) OR (this IS SyntaxTree.SizeType) THEN
+					result := TRUE;
 				ELSIF to IS SyntaxTree.AnyType THEN
 					result :=  (this IS SyntaxTree.RecordType) & this(SyntaxTree.RecordType).isObject OR (this IS SyntaxTree.PointerType) OR (this IS SyntaxTree.ProcedureType) OR (this IS SyntaxTree.NilType) OR (this IS SyntaxTree.AnyType) OR (this IS SyntaxTree.ObjectType);
 				ELSIF to IS SyntaxTree.ObjectType THEN

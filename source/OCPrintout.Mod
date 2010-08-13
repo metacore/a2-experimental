@@ -95,9 +95,24 @@ TYPE
 			IF x.typeDeclaration # NIL THEN
 				Identifier(x.typeDeclaration.name);
 			ELSE
-				AlertString("InvalidBasicType");
+				Identifier(x.name);
 			END
 		END VisitBasicType;
+
+		PROCEDURE VisitBooleanType(x: SyntaxTree.BooleanType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitBooleanType;
+
+		PROCEDURE VisitSetType(x: SyntaxTree.SetType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitSetType;
+
+		PROCEDURE VisitSizeType(x: SyntaxTree.SizeType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitSizeType;
 
 		PROCEDURE VisitCharacterType(x: SyntaxTree.CharacterType);
 		BEGIN

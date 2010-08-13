@@ -238,7 +238,7 @@ CONST
 	(** 8 bit general purpose registers : index DIV 32 = 0**)
 	regAL*= 0; regCL*= 1; regDL*= 2; regBL*= 3; regAH*= 4; regCH*= 5; regDH*= 6; regBH*= 7;
 	regSPL*= 8; regBPL*= 9; regSIL*= 10; regDIL*= 11;
-	regR8B*= 16; regR9B*= 17; regR10B*= 18; regR11B*= 19; regR12B*= 20; regR13B*= 21; regR14B*= 22; regR15B*= 23; 	(** 16 bit general purpose registers **)
+	regR8B*= 16; regR9B*= 17; regR10B*= 18; regR11B*= 19; regR12B*= 20; regR13B*= 21; regR14B*= 22; regR15B*= 23; 
 	(** 16 bit general purpose registers : index DIV 32 = 1**)
 	regAX*= 32; regCX*= 33; regDX*= 34; regBX*= 35; regSP*= 36; regBP*= 37; regSI*= 38; regDI*= 39;
 	regR8W*= 40; regR9W*= 41; regR10W*= 42; regR11W*= 43; regR12W*= 44; regR13W*= 45; regR14W*= 46; regR15W*= 47;

@@ -91,9 +91,12 @@ CONST
 		sfTypeNoType =  13;
 		sfTypeNilType =  14;
 		sfTypeByte =  15;
-		sfTypeSptr =  16;
+		sfTypeAny =  16;
+		sfTypeObject = 17;
+		sfTypeAddress= 18;
+		sfTypeSize = 19;
 
-		sfLastType = sfTypeSptr;
+		sfLastType = sfTypeSize;
 		sfMod1 =  sfLastType+1;
 
 		sfModOther=2DH;
@@ -178,16 +181,53 @@ TYPE
 
 	END IndexToType;
 
+
+	LateFix= POINTER TO RECORD (* contains a late fix to be resolved in a later step: type fixes and implementations *)
+		p: ANY; (*scope: SyntaxTree.Scope;*)
+		next: LateFix;
+	END;
+
+	LateFixList = OBJECT (* fifo queue for items to be resolved later on - deferred fixes *)
+	VAR first,last: LateFix;
+
+		PROCEDURE & Init;
+		BEGIN first := NIL; last := NIL;
+		END Init;
+
+		(* get and remove element from list *)
+		PROCEDURE Get((*VAR scope: SyntaxTree.Scope*)): ANY;
+		VAR p: ANY;
+		BEGIN
+			IF first # NIL THEN p := first.p; (*scope := first.scope;*) first := first.next ELSE p := NIL; END;
+			IF first = NIL THEN last := NIL END;
+			RETURN p;
+		END Get;
+
+		(* add unresolved type to list *)
+		PROCEDURE Add(p: ANY (*; scope: SyntaxTree.Scope*));
+		VAR next: LateFix;
+		BEGIN
+			(*ASSERT(scope # NIL);*)
+			NEW(next); next.p := p; (* next.scope := scope;*)
+			next.next := NIL;
+			IF first = NIL THEN first := next; last := next;
+			ELSE last.next := next; last := next
+			END;
+		END Add;
+
+	END LateFixList;
+
+
 	(*
 		The resolver object is used to replace type references in a SyntaxTree.Module tree with the respective types from a given type list.
 		To do so, the resolver traverses the module tree partially with direct procedural recursion and partially using the visitor pattern.
 	*)
 	Resolver=OBJECT (SyntaxTree.Visitor)
-	VAR typeList: IndexToType; system: Global.System;
+	VAR typeList: IndexToType; system: Global.System; typeFixes: LateFixList;
 
 		PROCEDURE & Init(system: Global.System);
 		BEGIN
-			typeList := NIL; SELF.system := system
+			typeList := NIL; SELF.system := system; NEW(typeFixes);
 		END Init;
 
 		(* types that do not refer to other types *)
@@ -232,7 +272,9 @@ TYPE
 		BEGIN END VisitFloatType;
 
 		PROCEDURE VisitQualifiedType(x: SyntaxTree.QualifiedType);
-		BEGIN END VisitQualifiedType;
+		BEGIN
+			x.SetResolved(ResolveType(x.resolved))
+		END VisitQualifiedType;
 
 		PROCEDURE VisitStringType(x: SyntaxTree.StringType);
 		BEGIN END VisitStringType;
@@ -293,6 +335,11 @@ TYPE
 		PROCEDURE VisitPointerType(pointerType: SyntaxTree.PointerType);
 		VAR recordType: SyntaxTree.RecordType;
 		BEGIN
+			IF ~(SyntaxTree.Resolved IN pointerType.state) THEN
+				typeFixes.Add(pointerType);
+				pointerType.SetState(SyntaxTree.Resolved);
+			END;
+			(*
 			pointerType.SetPointerBase(ResolveType(pointerType.pointerBase));
 
 			IF pointerType.pointerBase.resolved IS SyntaxTree.RecordType THEN
@@ -304,7 +351,24 @@ TYPE
 			END;
 
 			pointerType.SetState(SyntaxTree.Resolved);
+			*)
 		END VisitPointerType;
+
+		PROCEDURE FixPointerType(pointerType: SyntaxTree.PointerType);
+		VAR recordType: SyntaxTree.RecordType;
+		BEGIN
+			pointerType.SetPointerBase(ResolveType(pointerType.pointerBase));
+
+			IF pointerType.pointerBase.resolved IS SyntaxTree.RecordType THEN
+				recordType := pointerType.pointerBase.resolved(SyntaxTree.RecordType);
+				IF (recordType.typeDeclaration = NIL) THEN
+					recordType.SetPointerType(pointerType);
+					recordType.SetTypeDeclaration(pointerType.typeDeclaration)
+				END;
+			END;
+
+		END FixPointerType;
+
 
 		PROCEDURE VisitRecordType(recordType: SyntaxTree.RecordType);
 		VAR recordBase: SyntaxTree.RecordType; numberMethods: LONGINT; procedure,super,testsuper: SyntaxTree.Procedure; recordScope: SyntaxTree.RecordScope;
@@ -393,7 +457,18 @@ TYPE
 			*)
 		END VisitRecordType;
 
+
 		PROCEDURE VisitProcedureType(procedureType: SyntaxTree.ProcedureType);
+		VAR parameter: SyntaxTree.Parameter;
+		BEGIN
+			IF ~(SyntaxTree.Resolved IN procedureType.state) THEN
+				typeFixes.Add(procedureType);
+				procedureType.SetState(SyntaxTree.Resolved);
+			END;
+		END VisitProcedureType;
+
+
+		PROCEDURE FixProcedureType(procedureType: SyntaxTree.ProcedureType);
 		VAR parameter: SyntaxTree.Parameter;
 		BEGIN
 			(* parameter list *)
@@ -407,7 +482,7 @@ TYPE
 			IF procedureType.returnParameter # NIL THEN
 				procedureType.returnParameter.SetType(ResolveType(procedureType.returnParameter.type));
 			END;
-		END VisitProcedureType;
+		END FixProcedureType;
 
 		(* a type reference is resolved by replacing it with the respective element of the type list, all other types remain *)
 		PROCEDURE ResolveType(type: SyntaxTree.Type): SyntaxTree.Type;
@@ -416,12 +491,36 @@ TYPE
 			ELSIF (type IS TypeReference) THEN
 				type :=  typeList.GetType(type(TypeReference).nr);
 			END;
-			IF ~(SyntaxTree.Resolved IN type.state) THEN
+			IF ~(SyntaxTree.Resolved IN type.state)  THEN
 				type.Accept(SELF);
 				type.SetState(SyntaxTree.Resolved);
 			END;
 			RETURN type;
 		END ResolveType;
+
+		(** resolve all pending types (late resolving).
+			- type fixes are resolved at the end of the declaration phase
+			- type fixes may imply new type fixes that are also entered at the end of the list
+		**)
+		PROCEDURE FixTypes;
+		VAR p: ANY; prevScope: SyntaxTree.Scope;
+		BEGIN
+			(*prevScope := currentScope;*)
+			p := typeFixes.Get((*currentScope*));
+			WHILE p # NIL DO
+				ASSERT(p IS SyntaxTree.Type);
+
+				IF p IS SyntaxTree.PointerType THEN
+					FixPointerType(p(SyntaxTree.PointerType))
+				ELSIF p IS SyntaxTree.ProcedureType THEN
+					FixProcedureType(p(SyntaxTree.ProcedureType))
+				ELSE
+					HALT(100);
+				END;
+				p := typeFixes.Get((*currentScope*));
+			END;
+			(*currentScope :=prevScope;*)
+		END FixTypes;
 
 		(* scope traversal *)
 		PROCEDURE Scope(scope: SyntaxTree.Scope);
@@ -458,6 +557,7 @@ TYPE
 		BEGIN
 			SELF.typeList := typeList;
 			Scope(module.moduleScope);
+			FixTypes;
 			module.SetState(SyntaxTree.Resolved);
 		END Resolve;
 
@@ -1414,10 +1514,13 @@ TYPE
 			InitBasic(Global.Float32, sfTypeReal);
 			InitBasic(Global.Float64, sfTypeLongreal);
 			InitBasic(system.setType, sfTypeSet);
-			InitBasic(system.anyType, sfTypeSptr);
+			InitBasic(system.anyType, sfTypeAny);
+			InitBasic(system.objectType, sfTypeObject);
 			InitBasic(system.nilType, sfTypeNilType);
 			InitBasic(NIL, sfTypeNoType);
 			InitBasic(system.byteType, sfTypeByte);
+			InitBasic(system.sizeType, sfTypeSize);
+			InitBasic(system.addressType, sfTypeAddress);
 		END Init;
 
 		BEGIN
@@ -1681,24 +1784,26 @@ TYPE
 						IF TraceExport IN Trace THEN
 							D.Str("Type / Basic / NilType"); D.Ln
 						END;
-					ELSIF type IS SyntaxTree.AnyType THEN w.RawNum(sfTypeSptr);
+					ELSIF type IS SyntaxTree.AnyType THEN w.RawNum(sfTypeAny);
 						IF TraceExport IN Trace THEN
 							D.Str("Type / Basic / Any"); D.Ln
+						END;
+					ELSIF type IS SyntaxTree.ObjectType THEN
+						w.RawNum(sfTypeObject);
+						IF TraceExport IN Trace THEN
+							D.Str("Type / Basic / Object"); D.Ln
 						END;
 					ELSIF type IS SyntaxTree.ByteType THEN
 						w.RawNum(sfTypeByte);
 						IF TraceExport IN Trace THEN
 							D.Str("Type / Basic / Byte"); D.Ln
 						END;
-					ELSIF type IS SyntaxTree.ObjectType THEN
-						w.RawNum(sfTypeSptr);
-						IF TraceExport IN Trace THEN
-							D.Str("Type / Basic / Object"); D.Ln
-						END;
 					ELSIF type IS SyntaxTree.AllType THEN w.RawNum(sfTypeAll);
 						IF TraceExport IN Trace THEN
 							D.Str("Type / Basic / All"); D.Ln
 						END;
+					ELSIF type IS SyntaxTree.AddressType THEN w.RawNum(sfTypeAddress) (*! compatibility with PACO *)
+					ELSIF type IS SyntaxTree.SizeType THEN w.RawNum(sfTypeLongint)
 					ELSE HALT(100)
 					END;
 				ELSIF type IS SyntaxTree.StringType THEN (* special case BasicType : StringType *)
