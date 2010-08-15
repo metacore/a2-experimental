@@ -578,7 +578,11 @@ TYPE
 			emitter.SetCode(out);
 			spillStackSize := 0;
 			Section^(in,out);
-			PatchEnter();
+			IF spillStackSize >0 THEN
+				out.Reset;
+				Section^(in,out);
+			END;
+			(*PatchEnter();*)
 			error := error OR emitter.error;
 		END Section;
 
@@ -1052,13 +1056,45 @@ TYPE
 		END EmitRelease;
 
 		PROCEDURE Enter(size: LONGINT);
-		VAR op1,op2: Assembler.Operand;
+		VAR op1,op2,imm: Assembler.Operand;
+		CONST initialize=TRUE;
 		BEGIN
 			IF TRUE (* OR  size > MAX(INTEGER) DIV 2  *) THEN
 				emitter.Emit1(InstructionSet.opPUSH,opEBP);
 				emitter.Emit2(InstructionSet.opMOV,opEBP,opESP);
-				op1 := Assembler.NewImm32(size);
-				emitter.Emit2(InstructionSet.opSUB,opESP,op1);
+				IF initialize THEN
+					ASSERT(size MOD 4 = 0); size := size DIV 4;
+					IF size >0  THEN
+						emitter.Emit2(InstructionSet.opXOR,opEAX,opEAX);
+						WHILE size MOD 4 #0 DO
+							emitter.Emit1(InstructionSet.opPUSH, opEAX);
+							DEC(size);
+						END;
+						IF size >4 THEN
+							Assembler.InitImm(imm, Assembler.bits32, size);
+							emitter.Emit2(InstructionSet.opMOV, opECX, imm);
+							emitter.Emit1(InstructionSet.opDEC, opECX);						
+							emitter.Emit1(InstructionSet.opPUSH, opEAX);
+							emitter.Emit1(InstructionSet.opPUSH, opEAX);
+							emitter.Emit1(InstructionSet.opPUSH, opEAX);
+							emitter.Emit1(InstructionSet.opPUSH, opEAX);
+							Assembler.InitImm(imm, Assembler.bits8, -7);
+							emitter.Emit1(InstructionSet.opJNZ, imm)						
+						ELSE
+							WHILE size >0  DO
+								emitter.Emit1(InstructionSet.opPUSH, opEAX);
+								DEC(size);
+							END;						
+						END;
+					END;
+					IF spillStackSize >0 THEN
+						op1 := Assembler.NewImm32(spillStackSize*4);
+						emitter.Emit2(InstructionSet.opSUB,opESP,op1);
+					END;
+				ELSE
+					op1 := Assembler.NewImm32(size);
+					emitter.Emit2(InstructionSet.opSUB,opESP,op1);
+				END;
 			ELSE
 				op1 := Assembler.NewImm16(size);
 				op2 := Assembler.NewImm8(0);
@@ -1079,13 +1115,14 @@ TYPE
 				emitter.Emit1(InstructionSet.opPUSH,opEDI);
 				emitter.Emit1(InstructionSet.opPUSH,opESI);
 			END;
-			spillStackSize := 0;
+			(*spillStackSize := 0;*)
 			spillStackStart := (stackSize );
 		END EmitEnter;
 
 		PROCEDURE PatchEnter;
 		VAR pc: LONGINT;
 		BEGIN
+			RETURN;
 			IF spillStackSize > 0 THEN
 				pc := emitter.StartEmitAt(enterPos);
 				Enter((stackSize )+spillStackSize*4);
@@ -2338,6 +2375,8 @@ TYPE
 			op: LONGINT;
 			edi, ecx: LONGINT;
 		BEGIN
+			RETURN;
+		
 			IF FALSE & (instr.op3.mode = IntermediateCode.ModeImmediate) & (instr.op3.symbol = NIL) & (instr.op3.intValue < 5) THEN
 				sizeInBits := instr.op2.type.sizeInBits;
 				IF sizeInBits = IntermediateCode.Bits8 THEN src := opAL;

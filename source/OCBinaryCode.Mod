@@ -154,6 +154,15 @@ TYPE
 			pc := 0;
 			fixed := FALSE;
 		END InitBinarySection;
+		
+		PROCEDURE Reset*;
+		BEGIN
+			NEW(bits,0);
+			NEW(fixupList);
+			validPAFEnter := 0; validPAFExit := 0;
+			pc := 0;			
+		END Reset;
+		
 
 		PROCEDURE EnterValidPAF*;
 		BEGIN
