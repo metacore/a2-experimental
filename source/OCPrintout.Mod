@@ -191,6 +191,15 @@ TYPE
 			w.String("ADDRESSTYPE");
 		END VisitAddressType;
 
+		PROCEDURE VisitObjectType(x: SyntaxTree.ObjectType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitObjectType;
+
+		PROCEDURE VisitAnyType(x: SyntaxTree.AnyType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitAnyType;
 
 		PROCEDURE VisitMathArrayType(x: SyntaxTree.MathArrayType);
 		BEGIN

@@ -1071,7 +1071,7 @@ TYPE
 							DEC(size);
 						END;
 						IF size >4 THEN
-							Assembler.InitImm(imm, Assembler.bits32, size);
+							Assembler.InitImm(imm, Assembler.bits32, size DIV 4);
 							emitter.Emit2(InstructionSet.opMOV, opECX, imm);
 							emitter.Emit1(InstructionSet.opDEC, opECX);						
 							emitter.Emit1(InstructionSet.opPUSH, opEAX);
@@ -2375,8 +2375,6 @@ TYPE
 			op: LONGINT;
 			edi, ecx: LONGINT;
 		BEGIN
-			RETURN;
-		
 			IF FALSE & (instr.op3.mode = IntermediateCode.ModeImmediate) & (instr.op3.symbol = NIL) & (instr.op3.intValue < 5) THEN
 				sizeInBits := instr.op2.type.sizeInBits;
 				IF sizeInBits = IntermediateCode.Bits8 THEN src := opAL;

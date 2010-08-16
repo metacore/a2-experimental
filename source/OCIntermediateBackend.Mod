@@ -420,12 +420,14 @@ TYPE
 
 				IF ~inline  & (cc#SyntaxTree.NoPAFFlag) THEN
 					IF ToMemoryUnits(system,stackSize) > 4*1024-256 THEN (* stack frame potentially larger than page size *) (*! get page size from backend *)
+						(*! unnecessary with new implementation of ENTER -- should potentially be called by backend
 						IF implementationVisitor.GetRuntimeProcedure(implementationVisitor.runtimeModuleName,"EnsureAllocatedStack",procedure,TRUE) THEN
 							size := IntermediateCode.Immediate(GetType(system,system.addressType),ToMemoryUnits(system,stackSize+256));
 							ir.EmitAt(pc,Push(size));
 							implementationVisitor.StaticCallOperand(result,procedure);
 							ir.EmitAt(pc+1,Call(result.op,ProcedureParametersSize(system,procedure)));
 						END;
+						*)
 					END;
 					ir.EmitAt(pc+2,Enter(cc,ToMemoryUnits(system,stackSize))); (*!!*)
 					IF stackSize > 0 THEN
@@ -440,7 +442,9 @@ TYPE
 							IntermediateCode.AddOffset(fp,ToMemoryUnits(system,-null.type.sizeInBits));
 							size := IntermediateCode.Immediate(GetType(system,system.addressType),stackSize DIV null.type.sizeInBits);
 						END;
+						(*! should potentially be called by backend -- enter might initialize
 						ir.EmitAt(pc+3,Fill(fp,null,size,TRUE));
+						*)
 					END;
 
 					ir.ExitValidPAF;
@@ -1340,8 +1344,8 @@ TYPE
 				AcquireThisRegister(x.op1.type,IntermediateCode.Result);
 				RestoreRegisters(saved);
 				IF x.op1.register > 0 THEN
-					IF usedRegisters[x.op1.register].count = 0 THEN 
-						AcquireThisRegister(usedRegisters[x.op1.register].type,x.op1.register) 
+					IF usedRegisters[x.op1.register].count = 0 THEN
+						AcquireThisRegister(usedRegisters[x.op1.register].type,x.op1.register)
 					ELSE
 						UseRegister(x.op1.register);
 					END;
@@ -1653,13 +1657,15 @@ TYPE
 					InitOperand(result,ModeValue);
 					Reuse1(result.op,right.op);
 					Emit(Not(result.op,right.op));
+					ReleaseOperand(right);
 					Emit(And(result.op,result.op,left.op));
+					ReleaseOperand(left);
 				ELSE
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Sub(result.op,left.op,right.op));
+					ReleaseOperand(left); ReleaseOperand(right);
 				END;
-				ReleaseOperand(left); ReleaseOperand(right);
 			|Scanner.Times:
 				Evaluate(x.left,left);
 				Evaluate(x.right,right);
@@ -1741,8 +1747,8 @@ TYPE
 					Evaluate(x.left,left);
 					Evaluate(x.right,right);
 					BrneL(falseLabel,left.op,right.op); (* inverse evaluation to optimize jumps for true case *)
-					BrL(trueLabel);
 					ReleaseOperand(left); ReleaseOperand(right);
+					BrL(trueLabel);
 				END;
 			|Scanner.LessEqual:
 				IF ~conditional THEN ConditionToValue(x);
@@ -1754,14 +1760,15 @@ TYPE
 					IF leftType IS SyntaxTree.SetType THEN (* left subsetequal right: left \cap right = left  *)
 						Reuse1(temp.op,right.op);
 						Emit(And(temp.op,left.op,right.op));
+						ReleaseOperand(right);
 						BreqL(trueLabel,temp.op,left.op);
 						BrL(falseLabel);
-						ReleaseOperand(temp);
+						ReleaseOperand(temp);ReleaseOperand(left);
 					ELSE
 						BrltL(falseLabel,right.op,left.op); (* inverse evaluation to optimize jumps for true case *)
 						BrL(trueLabel);
+						ReleaseOperand(left); ReleaseOperand(right);
 					END;
-					ReleaseOperand(left); ReleaseOperand(right);
 				END;
 			|Scanner.Less:
 				IF leftType IS SyntaxTree.SetType THEN (* left < right <=> left <= right & left # right *)
@@ -1779,8 +1786,8 @@ TYPE
 					Evaluate(x.left,left);
 					Evaluate(x.right,right);
 					BrgeL(falseLabel,left.op,right.op); (* inverse evaluation to optimize jumps for true case *)
-					BrL(trueLabel);
 					ReleaseOperand(left); ReleaseOperand(right);
+					BrL(trueLabel);
 				END;
 			|Scanner.Greater:
 				IF leftType IS SyntaxTree.SetType THEN (* left > right <=> left >= right & left # right  *)
@@ -1798,8 +1805,8 @@ TYPE
 					Evaluate(x.left,left);
 					Evaluate(x.right,right);
 					BrgeL(falseLabel, right.op,left.op); (* inverse evaluation to optimize jumps for true case *)
-					BrL(trueLabel);
 					ReleaseOperand(left); ReleaseOperand(right);
+					BrL(trueLabel);
 				END;
 			|Scanner.GreaterEqual:
 				IF ~conditional THEN ConditionToValue(x);
@@ -1811,14 +1818,15 @@ TYPE
 					IF leftType IS SyntaxTree.SetType THEN (* left supsetequal right: left \cap right = right *)
 						Reuse1(temp.op,left.op);
 						Emit(And(temp.op,left.op,right.op));
+						ReleaseOperand(left);
 						BreqL(trueLabel, temp.op,right.op);
+						ReleaseOperand(temp); ReleaseOperand(right);
 						BrL(falseLabel);
-						ReleaseOperand(temp);
 					ELSE
 						BrltL(falseLabel, left.op,right.op); (* inverse evaluation to optimize jumps for true case *)
+						ReleaseOperand(left); ReleaseOperand(right);
 						BrL(trueLabel);
 					END;
-					ReleaseOperand(left); ReleaseOperand(right);
 				END;
 			|Scanner.Unequal:
 				IF ~conditional THEN ConditionToValue(x);
@@ -1828,8 +1836,8 @@ TYPE
 					Evaluate(x.left,left);
 					Evaluate(x.right,right);
 					BreqL(falseLabel,left.op,right.op); (* inverse evaluation to optimize jumps for true case *)
-					BrL(trueLabel);
 					ReleaseOperand(left); ReleaseOperand(right);
+					BrL(trueLabel);
 				END;
 			|Scanner.In:
 				IF ~conditional THEN ConditionToValue(x);
@@ -1841,11 +1849,13 @@ TYPE
 					Reuse1(temp.op,left.op);
 					IntermediateCode.InitImmediate(one,setType,1);
 					Emit(Shl(temp.op,one,left.op));
+					ReleaseOperand(left);
 					Emit(And(temp.op,temp.op,right.op));
+					ReleaseOperand(right);
 					IntermediateCode.InitImmediate(zero,setType,0);
 					BrneL(trueLabel,temp.op,zero);
+					ReleaseOperand(temp);
 					BrL(falseLabel);
-					ReleaseOperand(left); ReleaseOperand(right); ReleaseOperand(temp);
 				END;
 			ELSE
 				HALT(100);
