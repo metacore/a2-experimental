@@ -1010,7 +1010,7 @@ PACKAGE Fun ARCHIVE "Fun.zip" SOURCE "FunSrc.zip" DESCRIPTION "Games, Demos and 
 	# 3D menu
 	W3dVectors.Mod W3dMatrix.Mod W3dGeometry.Mod W3dAbstractWorld.Mod
 	W3dObjectGenerator.Mod W3dRasterizer.Mod W3dWorld.Mod W3dExplorer.Mod
-	W3dMenu.Mod W3dMenu.XML W3dNetTools.XML W3dFun.XML W3dPersonal.XML
+	W3dMenu.Mod W3dMenu.XML
 	W3dMenuIcons.tar
 	CATServer.Mod
 	W3dClusterWatch.Mod W3dClusterWatchIcons.tar Cluster.XML  # 3D Cluster monitor tool
