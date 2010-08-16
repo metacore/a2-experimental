@@ -277,7 +277,13 @@ BEGIN
 		END;
 		IF trace THEN
 			Machine.Acquire (Machine.TraceOutput);
-			Trace.String("<"); Trace.StringLn (name);
+			IF m = NIL THEN
+				Trace.String("could not load "); Trace.StringLn(name)
+			ELSIF ~m.published THEN
+				Trace.String("not published "); Trace.StringLn(name)
+			ELSE
+				Trace.String("<"); Trace.StringLn (name);
+			END;
 			Machine.Release (Machine.TraceOutput);
 		END;
 	END;
