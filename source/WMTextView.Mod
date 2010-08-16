@@ -40,6 +40,10 @@ CONST
 	Interclick02 = 2; (* mouse button 0 & 2 *)
 	InterclickCancelled = 99;
 
+	SelectionColor = 0000FF60H;
+	SelectionColorInterclick01 = SHORT(0FFFF0060H);
+	SelectionColorInterclick02 = SHORT(0FF000060H);
+
 TYPE
 	Char32 = Texts.Char32;
 
@@ -273,13 +277,14 @@ TYPE
 		a*, b* : LONGINT; (* only valid after sort, while holding the lock *)
 		active* : BOOLEAN; (* only valid after sort, while holding the lock *)
 		oldFrom, oldTo : LONGINT;
-		color : WMGraphics.Color;
+		oldColor, color : WMGraphics.Color;
 		text : Texts.UnicodeText;
 		onChanged : WMMessages.CompCommand;
 
 		PROCEDURE &New*;
 		BEGIN
-			color := 0FF80H
+			color := SelectionColor;
+			oldColor := color;
 		END New;
 
 		PROCEDURE SetKind*(kind : LONGINT);
@@ -292,6 +297,7 @@ TYPE
 
 		PROCEDURE SetColor*(color : WMGraphics.Color);
 		BEGIN
+			oldColor := SELF.color;
 			IF SELF.color # color THEN
 				SELF.color := color;
 				onChanged(SELF, NIL)
@@ -784,7 +790,7 @@ TYPE
 			NEW(positionMarkers, 4); nofPositionMarkers := 0;
 			selection := CreateHighlight();
 			selection.kind := HLOver;
-			selection.color := 0000FF80H;
+			selection.color := SelectionColor;
 			cursor := CreateCursor();
 			commandCaller := NIL;
 			onCursorChanged := NIL;
@@ -851,6 +857,7 @@ TYPE
 			FocusLost^;
 			modifierFlags := {};
 			cursorBlinker.Remove(cursor);
+			SetInterclick(InterclickNone);
 			IF ~alwaysShowCursorI THEN cursor.SetVisible(FALSE); END;
 		END FocusLost;
 
@@ -1206,7 +1213,7 @@ TYPE
 				text.AcquireRead;
 				IF (sender # NIL) & (sender IS Highlight) THEN
 					hl := sender(Highlight);
-					IF (hl.oldFrom # hl.from.GetPosition()) & (hl.oldTo # hl.to.GetPosition()) THEN (* both changed *)
+					IF ((hl.oldFrom # hl.from.GetPosition()) & (hl.oldTo # hl.to.GetPosition())) OR (hl.oldColor # hl.color) THEN (* both changed *)
 						min := Strings.Min(
 										Strings.Min(hl.oldFrom, hl.from.GetPosition()),
 										Strings.Min(hl.oldTo, hl.to.GetPosition()));
@@ -2739,6 +2746,21 @@ TYPE
 			cursor.SetVisible(to - from > 0);
 		END DoubleClickSelect;
 
+		PROCEDURE SetInterclick(new : LONGINT);
+		VAR old : LONGINT;
+		BEGIN
+			old := interclick;
+			IF (old # new) THEN
+				interclick := new;
+				CASE new OF
+					| Interclick01: selection.SetColor(SelectionColorInterclick01);
+					| Interclick02: selection.SetColor(SelectionColorInterclick02);
+				ELSE
+					selection.SetColor(SelectionColor);
+				END;
+			END;
+		END SetInterclick;
+
 		PROCEDURE PointerDown*(x, y : LONGINT; keys : SET);
 		VAR pos, a, b, internalPos : LONGINT; oldInterclick : LONGINT;
 		BEGIN
@@ -2746,14 +2768,14 @@ TYPE
 			internalPos := GetInternalPos(pos);
 
 			oldInterclick := interclick;
-			IF (keys * {0, 1} = {0,1}) THEN interclick := Interclick01;
-			ELSIF (keys * {0,2} = {0,2}) THEN interclick := Interclick02;
-			ELSE interclick := InterclickNone;
+			IF (keys * {0, 1} = {0,1}) THEN SetInterclick(Interclick01);
+			ELSIF (keys * {0,2} = {0,2}) THEN SetInterclick(Interclick02);
+			ELSE SetInterclick(InterclickNone);
 			END;
 			(* Determine whether to cancel an interclick if any *)
 			IF (oldInterclick = InterclickCancelled) OR
 				((oldInterclick # InterclickNone) & (interclick # InterclickNone)) THEN
-				interclick := InterclickCancelled;
+				SetInterclick(InterclickCancelled);
 			END;
 			IF allowCommandExecution.Get() & (keys * {0, 1, 2} = {1}) THEN
 				canStart := TRUE; openFile := FALSE;
@@ -2768,7 +2790,7 @@ TYPE
 					text.ReleaseRead
 				END;
 			END;
-			IF canStart & (2 IN keys) THEN openFile := TRUE; interclick := InterclickCancelled; END;
+			IF canStart & (2 IN keys) THEN openFile := TRUE; SetInterclick(InterclickCancelled); END;
 			IF keys * {0, 1, 2} = {0, 1, 2} THEN AbortStart END;
 			IF allowPiemenu.Get() & (keys * {0, 1, 2} = {2}) THEN
 				text.AcquireRead;
@@ -2861,7 +2883,7 @@ TYPE
 				IF (interclick = Interclick02) THEN
 					DeleteSelection;
 				END;
-				interclick := InterclickNone;
+				SetInterclick(InterclickNone);
 			END;
 			IF dragPossible THEN selection.SetFromTo(0, 0); cursor.SetVisible(TRUE); Texts.ClearLastSelection (* reset selection *) END;
 			dragPossible := FALSE
