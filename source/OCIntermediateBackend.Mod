@@ -5851,6 +5851,7 @@ TYPE
 		END DefaultSymbolFileFormat;
 
 
+
 	END IntermediateBackend;
 
 	VAR int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64: IntermediateCode.Type;
@@ -5994,6 +5995,7 @@ TYPE
 	PROCEDURE MetaString(module: Sections.Module; section: IntermediateCode.Section; CONST str: ARRAY OF CHAR);
 	VAR i: LONGINT;
 	BEGIN
+		MetaInfo(section,str);
 		i := 0;
 		WHILE(str[i] # 0X) DO
 			MetaChar(module,section,str[i]);
@@ -6193,21 +6195,21 @@ TYPE
 				IF type  IS SyntaxTree.ByteType THEN char := rfByte
 				ELSIF type IS SyntaxTree.BooleanType THEN char := rfBoolean
 				ELSIF type IS SyntaxTree.CharacterType THEN
-					IF size = 8 THEN char := rfChar8
-					ELSIF size = 16 THEN char := rfChar16
-					ELSIF size = 32 THEN char := rfChar32
+					IF type.sizeInBits = 8 THEN char := rfChar8
+					ELSIF type.sizeInBits = 16 THEN char := rfChar16
+					ELSIF type.sizeInBits = 32 THEN char := rfChar32
 					END;
 				ELSIF type IS SyntaxTree.IntegerType THEN
-					IF size = 8 THEN char := rfShortint
-					ELSIF size = 16 THEN char := rfInteger
-					ELSIF size = 32 THEN char := rfLongint
-					ELSIF size = 64 THEN char := rfHugeint
+					IF type.sizeInBits = 8 THEN char := rfShortint
+					ELSIF type.sizeInBits = 16 THEN char := rfInteger
+					ELSIF type.sizeInBits = 32 THEN char := rfLongint
+					ELSIF type.sizeInBits = 64 THEN char := rfHugeint
 					END;
 				ELSIF type IS SyntaxTree.SizeType THEN char := rfLongint
 				ELSIF type IS SyntaxTree.AddressType THEN char := rfLongint
 				ELSIF type IS SyntaxTree.FloatType THEN
-					IF size = 32 THEN char := rfReal
-					ELSIF size = 64 THEN  char := rfLongreal
+					IF type.sizeInBits = 32 THEN char := rfReal
+					ELSIF type.sizeInBits = 64 THEN  char := rfLongreal
 					END;
 				ELSIF type IS SyntaxTree.SetType THEN char := rfSet
 				ELSIF type IS SyntaxTree.AnyType THEN char := rfPointer
@@ -6401,6 +6403,7 @@ TYPE
 						DeclarationName(record.typeDeclaration,recordName);
 					END;
 					i := 0;
+					MetaInfo(section,recordName);
 					WHILE recordName[i] # 0X DO
 						MetaChar(module,section,recordName[i]); INC(i);
 						INC(size);
@@ -7568,3 +7571,6 @@ BEGIN
 	Init;
 
 END OCIntermediateBackend.
+
+
+Compiler.Compile OCIntermediateBackend.Mod ~

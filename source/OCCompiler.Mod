@@ -149,7 +149,7 @@ TYPE
 								dataflowSpecification: Dataflow.Specification;
 								log: Streams.Writer;
 								VAR importCache: SyntaxTree.ModuleScope;
-								findPC: LONGINT (* locate a source code position providing a binary module offset *)
+								CONST findPC: ARRAY OF CHAR (* locate a source code position providing a binary module offset *)
 								): BOOLEAN;
 	VAR
 		module: SyntaxTree.Module;
@@ -162,6 +162,8 @@ TYPE
 		generatedModule: Formats.GeneratedModule;
 		name: SyntaxTree.String;
 		dataflowBackend: Backend.Backend;
+		split: Strings.StringArray;
+		sectionOffset: LONGINT;
 
 		PROCEDURE FinalMessage(CONST msg: ARRAY OF CHAR);
 		VAR message,name: ARRAY 256 OF CHAR;
@@ -236,6 +238,21 @@ TYPE
 				(** third phase: generate code, can consist of sub-phases (such as intermediate backend / hardware backend) **)
 				IF backend # NIL THEN
 					backend.Initialize(diagnostics, flags, checker, system, dataflowSpecification);
+					IF findPC # "" THEN
+						split := Strings.Split(findPC,":");
+						IF LEN(split)>1 THEN
+							Strings.StrToInt(split[1]^,sectionOffset);
+						ELSE
+							sectionOffset := 0;
+						END;
+						backend.FindPC(module, split[0]^,sectionOffset);
+						IF backend.error THEN
+							FinalMessage(" could not be compiled (backend errors).");
+							RETURN FALSE
+						ELSE
+							RETURN TRUE
+						END;
+					END;
 					generatedModule := backend.Module(module);
 					IF backend.error THEN
 						FinalMessage(" could not be compiled (backend errors).");
@@ -256,7 +273,9 @@ TYPE
 					IF generatedModule = NIL THEN
 						FinalMessage(" could not write object file (nothing generated).");
 					ELSE
+						(*
 						IF FindPC IN flags THEN generatedModule.SetFindPC(findPC) END;
+						*)
 						IF ~objectFileFormat.Export(generatedModule,symbolFileFormat) THEN
 							FinalMessage(" could not be compiled (object file errors).");
 							RETURN FALSE
@@ -309,7 +328,7 @@ TYPE
 		VAR symbolFile: Formats.SymbolFileFormat;
 		VAR objectFile: Formats.ObjectFileFormat;
 		VAR dataflowSpecification: Dataflow.Specification;
-		VAR findPC: LONGINT
+		VAR findPC: ARRAY OF CHAR
 		): BOOLEAN;
 	VAR options: Options.Options;  name: ARRAY 256 OF CHAR; result: BOOLEAN; position: LONGINT;
 		parsed: BOOLEAN;
@@ -331,7 +350,7 @@ TYPE
 		options.Add("I","interface",Options.Flag);
 		options.Add("i","info",Options.Flag);
 		options.Add("b","backend",Options.String);
-		options.Add("f","findPC",Options.Integer);
+		options.Add("f","findPC",Options.String);
 		options.Add(0X, "symbolFile", Options.String);
 		options.Add(0X, "objectFile", Options.String);
 		options.Add("d","dataflow", Options.Flag);
@@ -399,7 +418,7 @@ TYPE
 			IF options.GetFlag("check") THEN INCL(flags, Check) END;
 			IF options.GetFlag("traceError") THEN INCL(flags, TraceError) END;
 			IF options.GetFlag("info") THEN INCL(flags,Info) END;
-			IF options.GetInteger("findPC",findPC) THEN INCL(flags,FindPC) END;
+			IF options.GetString("findPC",findPC) THEN INCL(flags,FindPC) END;
 			IF options.GetFlag("warnings") THEN INCL(flags, Warnings) END;
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
@@ -478,7 +497,7 @@ TYPE
 		symbolFileFormat: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
 		dataflowSpecification: Dataflow.Specification;
-		findPC: LONGINT;
+		findPC: SyntaxTree.String;
 	BEGIN
 		error := FALSE;
 
@@ -524,7 +543,7 @@ TYPE
 		symbolFile: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
 		dataflowSpecification: Dataflow.Specification;
-		findPC: LONGINT; flags: SET;
+		findPC: SyntaxTree.String; flags: SET;
 		reader: Streams.Reader;
 	BEGIN
 		IF t = NIL THEN
@@ -536,7 +555,7 @@ TYPE
 		IF GetOptions(stringReader,log,diagnostics,flags,backend,symbolFile,objectFile,dataflowSpecification, findPC) THEN
 			reader := GetTextReader(t,pos);
 			IF pc > 0 THEN INCL(flags,FindPC) END;
-			error := ~Module(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,dataflowSpecification, log,importCache,pc)
+			error := ~Module(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,dataflowSpecification, log,importCache,"" (*! implement *))
 		END;
 	END CompileText;
 

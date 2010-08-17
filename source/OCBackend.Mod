@@ -14,6 +14,8 @@ TYPE
 		checker-: SemanticChecker.Checker;
 		source-: SyntaxTree.String;
 		dataflowSpecification-: Dataflow.Specification;
+		findSectionName-: SyntaxTree.String;
+		findSectionOffset-: LONGINT;
 
 		(* constructor *)
 		PROCEDURE & InitBackend *;
@@ -22,6 +24,8 @@ TYPE
 			diagnostics := NIL;
 			flags := {};
 			error := FALSE;
+			findSectionName := "";
+			findSectionOffset := 0;
 		END InitBackend;
 
 		PROCEDURE ResetError*;
@@ -38,6 +42,7 @@ TYPE
 			SELF.system := system;
 			SELF.dataflowSpecification := dataflowSpecification;
 		END Initialize;
+		
 
 		(* Get the system used by this backend (singleton) *)
 		PROCEDURE GetSystem*():Global.System;
@@ -59,6 +64,10 @@ TYPE
 			ASSERT(x # NIL);
 			RETURN NIL;
 		END Module;
+		
+		PROCEDURE FindPC*(x: SyntaxTree.Module; CONST sectionName: ARRAY OF CHAR; sectionOffset: LONGINT);
+		BEGIN
+		END FindPC;
 
 		(* method to query the instruction set description *)
 		PROCEDURE GetDescription*(VAR instructionSet: ARRAY OF CHAR);

@@ -1246,7 +1246,7 @@ TYPE
 			objectFileFormat : Formats.ObjectFileFormat;
 			dataflowSpecification: Dataflow.Specification;
 			flags : SET;
-			findPC : LONGINT;
+			findPC : ARRAY 256 OF CHAR;
 			options : ARRAY 1024 OF CHAR;
 			optionsReader : Streams.StringReader;
 			message : ARRAY 512 OF CHAR;

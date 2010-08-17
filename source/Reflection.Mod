@@ -1,6 +1,6 @@
 MODULE Reflection; (** AUTHOR "fof"; PURPOSE "tools for module, stack and process reflection"; *)
 
-IMPORT Modules,Streams,Machine,Heaps,Objects,SYSTEM;
+IMPORT Modules,Streams,Machine,Heaps,Objects,SYSTEM, Trace;
 
 CONST
 	ShowAllProcs = TRUE;
@@ -209,7 +209,9 @@ VAR
 			IF newObjectFile THEN
 				IF (tstart <=modpc) & (tend  > modpc) THEN
 					ch := 0X; startpc := tstart;
+					Trace.Int(modpc,1); Trace.String(" found at "); Trace.Int(tstart,1); Trace.String(" - "); Trace.Int(tend,1);Trace.Ln;
 				ELSE
+					Trace.Int(modpc,1); Trace.String(" not at"); Trace.Int(tstart,1); Trace.String(" - "); Trace.Int(tend,1);Trace.Ln;
 					proc := -1
 				END;
 			END;
@@ -294,7 +296,8 @@ VAR
 					w.Char(".");
 					ch := refs[refpos]; INC(refpos);
 					IF ch = "$" THEN base := mod.sb ELSE base := fp END;	(* for variables *)
-					WHILE ch # 0X DO w.Char(ch); ch := refs[refpos]; INC(refpos) END
+					WHILE ch # 0X DO w.Char(ch); ch := refs[refpos]; INC(refpos) END;
+					w.Char(":"); w.Int(pc-startpc,1);
 				END
 			END;
 			w.String(" pc="); w.Int(pc,1); w.String(" ["); w.Address (pc); w.String("H]");

@@ -28,7 +28,7 @@ TYPE
 			result := TestSuite.Failure;
 			IF verbose THEN log.String ("testing: "); log.String (name); log.Ln; log.Update; diagnostics := SELF.diagnostics ELSE diagnostics := NIL END;
 			importCache := NIL;
-			IF Compiler.Module (name, r, position, diagnostics, flags,backend, symbolFile,objectFile,NIL,NIL, importCache,MAX(LONGINT)) THEN
+			IF Compiler.Module (name, r, position, diagnostics, flags,backend, symbolFile,objectFile,NIL,NIL, importCache,"") THEN
 				IF command # "" THEN
 					Commands.Call (command, {Commands.Wait}, res, msg);
 					IF res = Commands.Ok THEN
@@ -63,7 +63,7 @@ TYPE
 		symbolFile: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
 		dataflowSpecification: Dataflow.Specification;
-		findPC: LONGINT;
+		findPC: SyntaxTree.String;
 	BEGIN
 		IF (context.caller # NIL) & (context.caller IS Shell.Shell) THEN
 			writer := context.out

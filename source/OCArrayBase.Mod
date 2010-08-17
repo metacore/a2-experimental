@@ -8137,6 +8137,14 @@ Sufficient (but not necessary) conditions:
 										  SYSTEM.SIZEOF( LONGREAL ), loopMulAXSX );
 		RETURN RESULT
 	END "**";
+	
+	PROCEDURE ExpandDimensions*(CONST left: ARRAY [?] OF SYSTEM.ALL; CONST a: ARRAY [*] OF BOOLEAN): ARRAY [?] OF SYSTEM.ALL;
+	VAR newdim: LONGINT;
+	BEGIN
+		newdim := LEN(a);
+		
+	END ExpandDimensions;
+	
 
 	PROCEDURE InitOptimization;
 	VAR p: PROCEDURE;

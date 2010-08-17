@@ -81,11 +81,27 @@ TYPE BitSet* = OBJECT
 END BitSet;
 
 PROCEDURE CopyBits* (source: BitSet; sourcePos: LONGINT; dest: BitSet; destPos, count: LONGINT);
+CONST setSize= MAX(SET)+1;
 BEGIN
 	ASSERT (count >= 0);
-	WHILE count # 0 DO
-		dest.SetBit (destPos, source.GetBit (sourcePos));
-		INC (sourcePos); INC (destPos); DEC (count);
+	IF sourcePos MOD setSize = destPos MOD setSize THEN
+		WHILE (count # 0) & (sourcePos MOD setSize # 0) DO
+			dest.SetBit (destPos, source.GetBit (sourcePos));
+			INC (sourcePos); INC (destPos); DEC (count);
+		END;
+		WHILE (count > 31) DO
+			dest.data[destPos DIV setSize] := source.data[sourcePos DIV setSize];
+			INC(sourcePos,setSize); INC(destPos,setSize); DEC(count,setSize);
+		END;
+		WHILE count # 0 DO
+			dest.SetBit (destPos, source.GetBit (sourcePos));
+			INC (sourcePos); INC (destPos); DEC (count);
+		END;
+	ELSE
+		WHILE count # 0 DO
+			dest.SetBit (destPos, source.GetBit (sourcePos));
+			INC (sourcePos); INC (destPos); DEC (count);
+		END;
 	END;
 END CopyBits;
 
