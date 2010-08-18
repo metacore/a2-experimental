@@ -676,7 +676,7 @@ TYPE
 		readerOrgPos: LONGINT;
 		startPosition: LONGINT;
 
-		PROCEDURE &InitAssemblerScanner( CONST source: ARRAY OF CHAR; reader: Streams.Reader; position: LONGINT; diagnostics: Diagnostics.Diagnostics );
+		PROCEDURE &InitAssemblerScanner*( CONST source: ARRAY OF CHAR; reader: Streams.Reader; position: LONGINT; diagnostics: Diagnostics.Diagnostics );
 		BEGIN
 			SELF.startPosition := position;
 			SELF.readerOrgPos := reader.Pos();

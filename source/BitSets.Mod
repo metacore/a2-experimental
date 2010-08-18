@@ -1,5 +1,7 @@
 MODULE BitSets;	(** AUTHOR "negelef"; PURPOSE "generic bit container"; *)
 
+IMPORT SYSTEM; 
+
 CONST Elements = MAX (SET) - MIN (SET) + 1;
 
 TYPE Data = POINTER TO ARRAY OF SET;
@@ -11,6 +13,11 @@ TYPE BitSet* = OBJECT
 	PROCEDURE & InitBitSet* (size: LONGINT);
 	BEGIN SELF.size := size; Resize (size);
 	END InitBitSet;
+
+	PROCEDURE Zero*;
+	VAR i: LONGINT;
+	BEGIN FOR i := 0 TO LEN(data)-1 DO data[i] := {} END;
+	END Zero;
 
 	PROCEDURE Resize* (size: LONGINT);
 	VAR newData: Data; i: LONGINT;
@@ -50,30 +57,41 @@ TYPE BitSet* = OBJECT
 	END GetBit;
 
 	PROCEDURE SetBits* (startPos, bits, value: LONGINT);
+	VAR adr: SYSTEM.ADDRESS;
 	BEGIN
 		ASSERT (startPos >= 0); ASSERT (startPos+bits <= size);
-		WHILE bits > 0 DO
-			SetBit (startPos, ODD (value)); value := value DIV 2;
-			INC(startPos); DEC(bits)
-		END;
-		WHILE bits < 0 DO
-			SetBit (startPos, ODD (value)); value := value DIV 2;
-			DEC(startPos); INC(bits)
+		IF (bits = 8) & (startPos MOD 8 = 0) THEN
+			adr := SYSTEM.ADR(data[0])+startPos DIV 8;
+			SYSTEM.PUT(adr, CHR(value));
+		ELSE
+			WHILE bits > 0 DO
+				SetBit (startPos, ODD (value)); value := value DIV 2;
+				INC(startPos); DEC(bits)
+			END;
+			WHILE bits < 0 DO
+				SetBit (startPos, ODD (value)); value := value DIV 2;
+				DEC(startPos); INC(bits)
+			END;
 		END;
 	END SetBits;
 
 	PROCEDURE GetBits* (startPos, bits: LONGINT): LONGINT;
-	VAR value: LONGINT;
+	VAR value: LONGINT; adr: SYSTEM.ADDRESS;
 	BEGIN
 		ASSERT (startPos >= 0); ASSERT (startPos+bits <= size);
-		INC (startPos, bits); value := 0;
-		WHILE bits > 0 DO
-			value := value*2; DEC (startPos); DEC (bits);
-			IF GetBit (startPos) THEN INC (value) END;
-		END;
-		WHILE bits < 0 DO
-			value := value*2; INC (startPos); INC (bits);
-			IF GetBit (startPos) THEN INC (value) END;
+		IF (bits = 8) & (startPos MOD 8 =0) THEN
+			adr := SYSTEM.ADR(data[0])+startPos DIV 8;
+			value := SYSTEM.GET8(adr)
+		ELSE
+			INC (startPos, bits); value := 0;
+			WHILE bits > 0 DO
+				value := value*2; DEC (startPos); DEC (bits);
+				IF GetBit (startPos) THEN INC (value) END;
+			END;
+			WHILE bits < 0 DO
+				value := value*2; INC (startPos); INC (bits);
+				IF GetBit (startPos) THEN INC (value) END;
+			END;
 		END;
 		RETURN value;
 	END GetBits;

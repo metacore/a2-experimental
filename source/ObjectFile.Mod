@@ -131,7 +131,7 @@ END CharacterToNibble;
 
 PROCEDURE WriteSection* (writer: Streams.Writer; CONST section: Section);
 CONST Separator = ' '; Tab = 09X;
-VAR i: LONGINT; size: Bits;
+VAR i: LONGINT; size: Bits; bits: LONGINT;
 
 	PROCEDURE WriteValueIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
 	BEGIN
@@ -193,9 +193,18 @@ BEGIN
 	FOR i := 0 TO section.fixups - 1 DO
 		writer.Ln; writer.Char (Tab); WriteFixup (section.fixup[i]);
 	END;
-	FOR i := 0 TO size - 1 BY 4 DO
-		IF i MOD (32 * 8) = 0 THEN writer.Ln; writer.Char (Tab); END;
-		writer.Char (NibbleToCharacter (section.bits.GetBits (i, MIN (4, size - i))));
+	i := 0; bits := 0; 
+	WHILE (i < size) & (bits = 0) DO
+		bits := section.bits.GetBits(i, MIN(4, size-i));
+		INC(i,4);
+	END;
+	IF (bits = 0) & (size > 0) THEN
+		writer.Ln; writer.Char(Tab); writer.Char('N')
+	ELSE		
+		FOR i := 0 TO size - 1 BY 4 DO
+			IF i MOD (32 * 8) = 0 THEN writer.Ln; writer.Char (Tab); END;
+			writer.Char (NibbleToCharacter (section.bits.GetBits (i, MIN (4, size - i))));
+		END;
 	END;
 	writer.Ln;
 END WriteSection;
@@ -264,6 +273,11 @@ BEGIN
 	END;
 	FOR i := 0 TO size - 1 BY 4 DO
 		reader.SkipWhitespace; reader.Char (char);
+		IF char = 'N' THEN 
+			ASSERT(i=0);
+			section.bits.Zero;
+		(* skip rest of section *) RETURN 
+		END;
 		section.bits.SetBits (i, MIN (4, size - i), CharacterToNibble (char));
 	END;
 END ReadSection;
