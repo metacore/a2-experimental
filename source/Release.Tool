@@ -227,7 +227,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	I386 { Traps.Mod }
 	AMD64 { AMD64.Traps.Mod }
 	WIN {  Win32.Traps.Mod }
-	UNIX { Unix.I386.Traps.Mod }
+	UNIX { Unix.Traps.Mod }
 
 	# Recursive and R/W locks
 	Locks.Mod
