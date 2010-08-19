@@ -373,6 +373,14 @@ TYPE
 				FOR register := 0 TO MaxVirtualRegisters-1 DO
 					IF lastUse[register] = pc THEN INCL(toBeReleased,register) END;
 				END;
+				currentlyUsed := {};
+				IF instr.opcode = IntermediateCode.call THEN
+					INCL(currentlyUsed, IntermediateCode.Result);
+					INCL(currentlyUsed, IntermediateCode.Result2);
+				END;
+				IF instr.op1.register > 0 THEN INCL(currentlyUsed,instr.op1.register) END;
+				IF instr.op2.register > 0 THEN INCL(currentlyUsed,instr.op2.register) END;
+				IF instr.op3.register > 0 THEN INCL(currentlyUsed,instr.op3.register) END;
 			END Prepare;
 
 			PROCEDURE Release(instr: IntermediateCode.Instruction);
