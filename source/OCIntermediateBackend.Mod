@@ -4390,10 +4390,11 @@ TYPE
 				Emit(Ror(res,res,s1.op));
 				ReleaseOperand(s1);
 				Emit(And(res,res,IntermediateCode.Immediate(GetType(system,p0.type),1)));
+				Convert(res,GetType(system,system.booleanType));
 				IF ~conditional THEN
 					InitOperand(result,ModeValue); result.op := res;
 				ELSE
-					BreqL(trueLabel,IntermediateCode.Immediate(GetType(system,p0.type),1),res);
+					BreqL(trueLabel,IntermediateCode.Immediate(res.type,1),res);
 					BrL(falseLabel);
 					ReleaseIntermediateOperand(res);
 				END;
