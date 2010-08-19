@@ -538,7 +538,7 @@ TYPE
 
 	END DeclarationVisitor;
 
-	Register = RECORD count: LONGINT; type: IntermediateCode.Type END;
+	Register = RECORD count: LONGINT; type: IntermediateCode.Type; acquirePosition: LONGINT END;
 	Registers= ARRAY 32 OF Register;
 
 	ImplementationVisitor =OBJECT(SyntaxTree.Visitor)
@@ -610,7 +610,8 @@ TYPE
 			sp := IntermediateCode.Register(addressType,IntermediateCode.SP);
 			nil := IntermediateCode.Immediate(addressType,0);
 			FOR i := 0 TO LEN(usedRegisters)-1 DO
-				usedRegisters[i].count := 0
+				usedRegisters[i].count := 0;
+				usedRegisters[i].acquirePosition := -1;
 			END;
 			IntermediateCode.InitOperand(destination);
 			tagsAvailable := TRUE;
@@ -765,6 +766,7 @@ TYPE
 			IF TraceRegisters & (dump # NIL) THEN dump.String("acquire register: "); END;
 			UseRegister(register);
 			IntermediateCode.InitRegister(op,usedRegisters[register].type,register);
+			usedRegisters[register].acquirePosition := section.pc;
 			Emit(Acquire(op));
 		END AcquireThisRegister;
 
@@ -794,6 +796,17 @@ TYPE
 			END;
 		END UseRegister;
 
+		PROCEDURE PatchAcquire(acquirePosition,releasePosition: LONGINT);
+		VAR first,last: IntermediateCode.Operand; firstUse, lastUse: LONGINT;
+		BEGIN
+			firstUse := acquirePosition+1;
+			lastUse := releasePosition-1;
+			WHILE (section.instructions[firstUse].opcode = IntermediateCode.acquire) DO INC(firstUse) END;
+			IntermediateCode.InitNumber(first, firstUse);
+			IntermediateCode.InitNumber(last, lastUse);
+			IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.acquire, section.instructions[acquirePosition].op1,first, last);
+		END PatchAcquire;
+
 		PROCEDURE ReleaseRegister(i: SHORTINT);
 		VAR op: IntermediateCode.Operand;
 		BEGIN
@@ -811,8 +824,7 @@ TYPE
 				dump.Ln; dump.Update
 			END;
 			IF usedRegisters[i].count = 0 THEN
-				IntermediateCode.InitRegister(op,usedRegisters[i].type,i);
-				Emit(Release(op));
+				PatchAcquire(usedRegisters[i].acquirePosition,section.pc);
 			END;
 			IF (usedRegisters[i].count < 0) THEN
 				Error(position,"compiler implementation error: release on unused register");
@@ -873,8 +885,7 @@ TYPE
 		BEGIN
 			FOR i := 1 TO LEN(usedRegisters)-1 DO
 				IF usedRegisters[i].count > 0 THEN
-					IntermediateCode.InitRegister(op,usedRegisters[i].type,i);
-					Emit(Release(op));
+					PatchAcquire(usedRegisters[i].acquirePosition,section.pc);
 					usedRegisters[i].count := 0;
 				END;
 			END;
@@ -4872,7 +4883,6 @@ TYPE
 			IF Trace THEN TraceEnter("VisitParameter") END;
 
 			IF x.ownerType IS SyntaxTree.ActorType THEN
-				HALT(100);
 				IF ~(x.type.resolved IS SyntaxTree.PortType) THEN
 					InitOperand(result,ModeReference);
 					Global.GetSymbolName(x,name);
@@ -7500,20 +7510,12 @@ TYPE
 	END LabelInstruction;
 
 	PROCEDURE Acquire(op: IntermediateCode.Operand): IntermediateCode.Instruction;
-	VAR instruction: IntermediateCode.Instruction;
+	VAR instruction: IntermediateCode.Instruction; imm: IntermediateCode.Operand;
 	BEGIN
-		IntermediateCode.InitInstruction(instruction,IntermediateCode.acquire, op, emptyOperand, emptyOperand);
+		IntermediateCode.InitNumber(imm,-1);
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.acquire, op, imm, imm);
 		RETURN instruction
 	END Acquire;
-
-
-	PROCEDURE Release(op: IntermediateCode.Operand): IntermediateCode.Instruction;
-	VAR instruction: IntermediateCode.Instruction;
-	BEGIN
-		IntermediateCode.InitInstruction(instruction,IntermediateCode.release, op, emptyOperand, emptyOperand);
-		RETURN instruction
-	END Release;
-
 
 	PROCEDURE EnterImmediate*(data: IntermediateCode.Section; CONST vop: IntermediateCode.Operand): LONGINT;
 	VAR pc: LONGINT;
@@ -7534,7 +7536,7 @@ TYPE
 	BEGIN
 		ASSERT(vop.mode = IntermediateCode.ModeImmediate);
 		pc := 0;
-		WHILE (pc<data.pc) & ~ProvidesValue(data.instr[pc],vop) DO
+		WHILE (pc<data.pc) & ~ProvidesValue(data.instructions[pc],vop) DO
 			INC(pc);
 		END;
 

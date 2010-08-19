@@ -263,7 +263,7 @@ TYPE
 	VAR
 		diagnostics: Diagnostics.Diagnostics; (* error stream *)
 		inmodule: Sections.Module;
-		registerUse: ARRAY MaxVirtualRegisters OF LONGINT;
+		lastUse: ARRAY MaxVirtualRegisters OF LONGINT;
 		dump: Streams.Writer;
 		in: IntermediateCode.Section; out: BinaryCode.Section;
 		inPC: LONGINT;
@@ -277,8 +277,8 @@ TYPE
 		BEGIN
 			SELF.inmodule := NIL;
 			SELF.diagnostics := diagnostics;
-			FOR i := 0 TO LEN(registerUse)-1 DO
-				registerUse[i] := 0;
+			FOR i := 0 TO LEN(lastUse)-1 DO
+				lastUse[i] := 0;
 			END;
 			SELF.error := FALSE;
 		END InitGenerator;
@@ -298,6 +298,7 @@ TYPE
 		PROCEDURE Section(in: IntermediateCode.Section; out: BinaryCode.Section);
 		VAR pc: LONGINT; name: SyntaxTree.String; ignore: BOOLEAN;
 
+			(*
 			PROCEDURE CheckAcquire(CONST instr: IntermediateCode.Instruction; VAR ignore: BOOLEAN);
 			VAR i: LONGINT; register: LONGINT;
 
@@ -337,15 +338,15 @@ TYPE
 						Assert(registerUse[register] = 0,"register already acquired");
 						i := pc;
 						REPEAT
-							CheckUsage(in.instr[i].op1.register);
-							CheckUsage(in.instr[i].op2.register);
-							CheckUsage(in.instr[i].op3.register);
-							IF in.instr[i].opcode = IntermediateCode.call THEN
+							CheckUsage(in.instructions[i].op1.register);
+							CheckUsage(in.instructions[i].op2.register);
+							CheckUsage(in.instructions[i].op3.register);
+							IF in.instructions[i].opcode = IntermediateCode.call THEN
 								CheckUsage(IntermediateCode.Result);
 								CheckUsage(IntermediateCode.Result2);
 							END;
 							INC(i);
-						UNTIL (i = in.pc) OR CheckDest(in.instr[i]);
+						UNTIL (i = in.pc) OR CheckDest(in.instructions[i]);
 
 					END;
 				END Reserve;
@@ -364,26 +365,29 @@ TYPE
 				IF instr.op2.register > 0 THEN INCL(currentlyUsed,instr.op2.register) END;
 				IF instr.op3.register > 0 THEN INCL(currentlyUsed,instr.op3.register) END;
 			END CheckAcquire;
+			*)
 
-			PROCEDURE PrepareRelease(instr: IntermediateCode.Instruction);
+			PROCEDURE Prepare(instr: IntermediateCode.Instruction);
 				PROCEDURE CheckUsage(register: LONGINT);
 				BEGIN
 					IF register > 0 THEN
-						DEC(registerUse[register]);
-						IF registerUse[register] = 0 THEN
+						INCL(currentlyUsed,register);
+						IF lastUse[register] = instr.pc THEN
 							INCL(toBeReleased,register);
 						END;
 					END;
 				END CheckUsage;
 			BEGIN
+				currentlyUsed := {};
+				toBeReleased := {};
+				IF instr.opcode = IntermediateCode.call THEN
+					INCL(currentlyUsed, IntermediateCode.Result);
+					INCL(currentlyUsed, IntermediateCode.Result2);
+				END;
 				CheckUsage(instr.op1.register);
 				CheckUsage(instr.op2.register);
 				CheckUsage(instr.op3.register);
-				IF instr.opcode = IntermediateCode.call THEN
-					CheckUsage(IntermediateCode.Result);
-					CheckUsage(IntermediateCode.Result2);
-				END;
-			END PrepareRelease;
+			END Prepare;
 
 			PROCEDURE Release(instr: IntermediateCode.Instruction);
 				PROCEDURE CheckUsage(register: LONGINT);
@@ -392,15 +396,10 @@ TYPE
 						ReleaseRegister(register); EXCL(toBeReleased,register);
 					END;
 				END CheckUsage;
-
 			BEGIN
 				CheckUsage(instr.op1.register);
 				CheckUsage(instr.op2.register);
 				CheckUsage(instr.op3.register);
-				IF instr.opcode = IntermediateCode.call THEN
-					CheckUsage(IntermediateCode.Result);
-					CheckUsage(IntermediateCode.Result2);
-				END;
 			END Release;
 
 			PROCEDURE ResolveLocalFixups;
@@ -418,7 +417,7 @@ TYPE
 						dest := fixup.symbolOffset;
 						IF dest # 0 THEN
 							ASSERT(in.pc > dest);
-							dest := in.instr[dest].pc;
+							dest := in.instructions[dest].pc;
 						END;
 						fixup.SetSymbol(fixup.symbol,0,dest+fixup.displacement);
 						IF dump # NIL THEN
@@ -434,29 +433,6 @@ TYPE
 				END;
 			END ResolveLocalFixups;
 
-			PROCEDURE PrepareRelease2(pc: LONGINT);
-			BEGIN
-				WHILE (pc < in.pc) & (in.instr[pc].opcode = IntermediateCode.release) DO
-					INCL(toBeReleased, in.instr[pc].op1.register);
-					INC(pc);
-				END;
-			END PrepareRelease2;
-
-			PROCEDURE SetupCurrentUse(CONST instr: IntermediateCode.Instruction);
-			BEGIN
-				currentlyUsed := {};
-				IF instr.opcode = IntermediateCode.call THEN
-					INCL(currentlyUsed, IntermediateCode.Result);
-					INCL(currentlyUsed, IntermediateCode.Result2);
-				END;
-				IF instr.op1.register > 0 THEN INCL(currentlyUsed,instr.op1.register) END;
-				IF instr.op2.register > 0 THEN INCL(currentlyUsed,instr.op2.register) END;
-				IF instr.op3.register > 0 THEN INCL(currentlyUsed,instr.op3.register) END;
-			END SetupCurrentUse;
-
-
-
-
 		BEGIN
 			name := in.name; (*debugging*)
 			SELF.in := in; SELF.out := out;
@@ -466,32 +442,20 @@ TYPE
 				IF pc = in.finally THEN out.SetFinally(out.pc) END;
 				IF pc = in.validPAFEnter THEN out.EnterValidPAF END;
 				IF pc = in.validPAFExit THEN out.ExitValidPAF END;
-				(*
-				toBeReleased := {};
-				*)
-				(*
-				IF (in.instr[pc].opcode # IntermediateCode.acquire) & (in.instr[pc].opcode # IntermediateCode.release) THEN
-					CheckAcquire(in.instr[pc],ignore);
-					PrepareRelease(in.instr[pc]);
-				END;
-				*)
-				IF in.instr[pc].opcode # IntermediateCode.release THEN
-					PrepareRelease2(pc+1);
-				END;
-				SetupCurrentUse(in.instr[pc]);
+				Prepare(in.instructions[pc]);
 
 				IF dump # NIL THEN
 					dump.Set(toBeReleased); dump.Ln;
-					dump.Int(pc,1); dump.String(": "); IntermediateCode.DumpInstruction(dump,in.instr[pc]);
+					dump.Int(pc,1); dump.String(": "); IntermediateCode.DumpInstruction(dump,in.instructions[pc]);
 					IF ignore THEN dump.String(" ignored.") END;
 					dump.Ln;
 				END;
 				inPC := pc;
 				in.SetPC(pc,out.pc); (* set pc of (intermediate) instruction at pc to newPC *)
 				IF ~ignore THEN
-					Generate(in.instr[pc]);
+					Generate(in.instructions[pc]);
 					(*
-					Release(in.instr[pc]);
+					Release(in.instructions[pc]);
 					*)
 				END;
 			END;
@@ -1030,7 +994,6 @@ TYPE
 			|IntermediateCode.reserve: EmitReserve(instr);
 			|IntermediateCode.label: EmitLabel(instr);
 			|IntermediateCode.acquire: EmitAcquire(instr)
-			|IntermediateCode.release: EmitRelease(instr)
 			END;
 
 			WHILE numberTemporary > 0 DO
@@ -1048,12 +1011,8 @@ TYPE
 		PROCEDURE EmitAcquire(CONST instr: IntermediateCode.Instruction);
 		BEGIN
 			AcquireRegister(instr.op1.register, instr.op1.type);
+			lastUse[instr.op1.register] := SHORT(instr.op3.intValue);
 		END EmitAcquire;
-
-		PROCEDURE EmitRelease(CONST instr: IntermediateCode.Instruction);
-		BEGIN
-			ReleaseRegister(instr.op1.register);
-		END EmitRelease;
 
 		PROCEDURE Enter(size: LONGINT);
 		VAR op1,op2,imm: Assembler.Operand;
@@ -2453,7 +2412,7 @@ TYPE
 				IF instr.op1.mode = IntermediateCode.ModeImmediate THEN
 					Assert(instr.op1.symbol # NIL,"branch without symbol destination");
 					dest := (instr.op1.symbolOffset); (* this is the offset in the in-data section (intermediate code), it is not byte- *)
-					destPC := (in.instr[dest].pc );
+					destPC := (in.instructions[dest].pc );
 					offset := destPC - (out.pc );
 					IF dest > inPC THEN (* forward jump *)
 						Assembler.InitOffset32(target.low,0);
@@ -2977,7 +2936,7 @@ TYPE
 							displacement := resolved.pc
 						ELSIF (symbolOffset # 0) THEN
 							ASSERT(in.pc > symbolOffset);
-							displacement := in.instr[symbolOffset].pc;
+							displacement := in.instructions[symbolOffset].pc;
 						ELSE
 							displacement := 0;
 						END;

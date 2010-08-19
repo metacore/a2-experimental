@@ -54,14 +54,14 @@ CONST
 		br breq brne brge brlt
 		pop push neg not abs
 		mul div  mod sub add and or xor shl shr rol ror
-		copy fillup filldown inline data reserve label acquire release NofOpcodes~
+		copy fillup filldown inline data reserve label acquire NofOpcodes~
 	*)
 
 	nop*= 0; mov*= 1; conv*= 2; call*= 3; enter*= 4; leave*= 5; return*= 6; trap*= 7;
 	br*= 8; breq*= 9; brne*= 10; brge*= 11; brlt*= 12; pop*= 13; push*= 14; neg*= 15;
 	not*= 16; abs*= 17; mul*= 18; div*= 19; mod*= 20; sub*= 21; add*= 22; and*= 23;
 	or*= 24; xor*= 25; shl*= 26; shr*= 27; rol*= 28; ror*= 29; copy*= 30; fillup *= 31; filldown*= 32; asm*= 33;
-	data*= 34; reserve*= 35; label*=36; acquire*=37; release*=38; NofOpcodes*= 39;
+	data*= 34; reserve*= 35; label*=36; acquire*=37; NofOpcodes*= 38;
 
 TYPE
 	Type*=RECORD
@@ -113,7 +113,7 @@ TYPE
 	(** code object *)
 	Section*= OBJECT (Sections.Section)
 	VAR
-		instr-: Instructions; (* array of instructions *)
+		instructions-: Instructions; (* array of instructions *)
 		pc-: LONGINT; (* points to next instruction = len *)
 		finally-: LONGINT; (* finally section starts at, -1 if none *)
 		resolved-: BinaryCode.Section; (* reference to section containing compiled byte array *)
@@ -152,7 +152,7 @@ TYPE
 		PROCEDURE InitArray;
 		CONST MinInstructions = 128;
 		BEGIN
-			IF instr = NIL THEN NEW(instr, MinInstructions); END;
+			IF instructions = NIL THEN NEW(instructions, MinInstructions); END;
 			pc := 0;
 		END InitArray;
 
@@ -184,13 +184,13 @@ TYPE
 			IF Op1IsDestination IN instructionFormat[instruction.opcode].flags THEN
 				Assert((instruction.op1.mode # ModeRegister) OR (instruction.op1.offset = 0),"destination operand may not be register with nonzero offset");
 			END;
-			IF pc = LEN(instr) THEN
-				NEW(new,2*LEN(instr));
-				SYSTEM.MOVE(SYSTEM.ADR(instr[0]), SYSTEM.ADR(new[0]), LEN(instr)*SYSTEM.SIZEOF(Instruction));
-				instr := new;
+			IF pc = LEN(instructions) THEN
+				NEW(new,2*LEN(instructions));
+				SYSTEM.MOVE(SYSTEM.ADR(instructions[0]), SYSTEM.ADR(new[0]), LEN(instructions)*SYSTEM.SIZEOF(Instruction));
+				instructions := new;
 			END;
 			instruction.pc := pc;
-			instr[pc] := instruction;
+			instructions[pc] := instruction;
 			INC(pc);
 		END Emit;
 
@@ -198,27 +198,27 @@ TYPE
 		VAR oldpc: LONGINT;
 		BEGIN
 			oldpc := pc;
-			pc := at; Assert(pc < LEN(instr),"EmitAt only in existing code");
+			pc := at; Assert(pc < LEN(instructions),"EmitAt only in existing code");
 			Emit(instruction);
 			pc := oldpc;
 		END EmitAt;
 
 		PROCEDURE PatchOperands*(pc: LONGINT; op1,op2,op3: Operand);
-		BEGIN instr[pc].op1 := op1; instr[pc].op2 := op2; instr[pc].op3 := op3;
+		BEGIN instructions[pc].op1 := op1; instructions[pc].op2 := op2; instructions[pc].op3 := op3;
 		END PatchOperands;
 
 		PROCEDURE PatchAddress*(pc: LONGINT; symbolOffset: LONGINT);
 		BEGIN
-			ASSERT((br <= instr[pc].opcode) & (instr[pc].opcode <= brlt));
-			ASSERT(instr[pc].op1.symbol = SELF);
+			ASSERT((br <= instructions[pc].opcode) & (instructions[pc].opcode <= brlt));
+			ASSERT(instructions[pc].op1.symbol = SELF);
 			(*
 			ASSERT(instr[pc].op1.symbol = SELF);
 			*)
-			instr[pc].op1.symbolOffset := symbolOffset;
+			instructions[pc].op1.symbolOffset := symbolOffset;
 		END PatchAddress;
 
 		PROCEDURE SetPC*(at: LONGINT; pc: LONGINT);
-		BEGIN instr[at].pc := pc;
+		BEGIN instructions[at].pc := pc;
 		END SetPC;
 
 		PROCEDURE DumpCode*(w: Streams.Writer; from,to: LONGINT);
@@ -236,7 +236,7 @@ TYPE
 						c := c.nextComment;
 					END;
 					w.Int(i,1); w.String(":"); w.Char(09X);
-					DumpInstruction(w,instr[i]); w.Ln;
+					DumpInstruction(w,instructions[i]); w.Ln;
 					INC(i);
 				END;
 				IF (c#NIL) & (c.pos = to) THEN
@@ -246,7 +246,7 @@ TYPE
 				i := from;
 				WHILE(i<=to) DO
 					w.Int(i,1); w.String(":"); w.Char(09X);
-					DumpInstruction(w,instr[i]); w.Ln;
+					DumpInstruction(w,instructions[i]); w.Ln;
 					INC(i);
 				END;
 			END;
@@ -551,10 +551,8 @@ TYPE
 		AddFormat(reserve, "reserve",Num,Undef,Undef,{});
 		(* label - pseudo-instruction to reference back to source code positions *)
 		AddFormat(label, "label",Num,Undef,Undef,{});
-		(* allocate - pseudo-instruction for register allocation *)
-		AddFormat(acquire, "acquire",{ModeRegister},Undef,Undef,{});
-		(* free - pseudo - instruction for register de-allocation *)
-		AddFormat(release, "release",{ModeRegister},Undef,Undef,{});
+		(* allocate - pseudo-instruction for register allocation, op2=firstUse, op3=lastUse *)
+		AddFormat(acquire, "acquire",{ModeRegister},Num,Num,{});
 	END InitInstructions;
 
 	PROCEDURE InitInstruction*(VAR instr: Instruction; opcode: SHORTINT; op1,op2,op3: Operand);
