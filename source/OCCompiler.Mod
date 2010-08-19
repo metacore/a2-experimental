@@ -199,7 +199,7 @@ TYPE
 			Global.NewBuiltin(Global.Send,"SEND",system.globalScope,{});
 			Global.NewBuiltin(Global.Delegate,"DELEGATE",system.globalScope,{});
 			Global.NewBuiltin(Global.systemHardwareAddress,"HWADR",system.systemScope,{});
-			dataflowBackend := GetBackend("Dataflow");
+			dataflowBackend := GetBackend("OCDataflowBackend");
 			IF dataflowBackend = NIL THEN FinalMessage("could not install dataflow backend"); RETURN FALSE END;
 		END;
 		parser := Parser.NewParser( scanner, diagnostics );
