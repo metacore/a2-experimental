@@ -278,7 +278,7 @@ TYPE
 			SELF.inmodule := NIL;
 			SELF.diagnostics := diagnostics;
 			FOR i := 0 TO LEN(lastUse)-1 DO
-				lastUse[i] := 0;
+				lastUse[i] := -1;
 			END;
 			SELF.error := FALSE;
 		END InitGenerator;
@@ -367,40 +367,37 @@ TYPE
 			END CheckAcquire;
 			*)
 
-			PROCEDURE Prepare(instr: IntermediateCode.Instruction);
-				PROCEDURE CheckUsage(register: LONGINT);
-				BEGIN
-					IF register > 0 THEN
-						INCL(currentlyUsed,register);
-						IF lastUse[register] = instr.pc THEN
-							INCL(toBeReleased,register);
-						END;
-					END;
-				END CheckUsage;
+			PROCEDURE Prepare(instr: IntermediateCode.Instruction; pc: LONGINT);
+			VAR register: LONGINT;
 			BEGIN
-				currentlyUsed := {};
-				toBeReleased := {};
-				IF instr.opcode = IntermediateCode.call THEN
-					INCL(currentlyUsed, IntermediateCode.Result);
-					INCL(currentlyUsed, IntermediateCode.Result2);
+				FOR register := 0 TO MaxVirtualRegisters-1 DO
+					IF lastUse[register] = pc THEN INCL(toBeReleased,register) END;
 				END;
-				CheckUsage(instr.op1.register);
-				CheckUsage(instr.op2.register);
-				CheckUsage(instr.op3.register);
 			END Prepare;
 
 			PROCEDURE Release(instr: IntermediateCode.Instruction);
-				PROCEDURE CheckUsage(register: LONGINT);
-				BEGIN
-					IF (register > 0) & (register IN toBeReleased)  THEN
-						ReleaseRegister(register); EXCL(toBeReleased,register);
-					END;
-				END CheckUsage;
+			VAR register: LONGINT;
 			BEGIN
-				CheckUsage(instr.op1.register);
-				CheckUsage(instr.op2.register);
-				CheckUsage(instr.op3.register);
+				FOR register := 0 TO MaxVirtualRegisters-1 DO
+					IF register IN toBeReleased THEN
+						ReleaseRegister(register);
+					END;
+				END;
 			END Release;
+
+			PROCEDURE CheckRelease;
+			VAR register: LONGINT;
+			BEGIN
+				FOR register := 0 TO MaxVirtualRegisters-1 DO
+					IF register IN toBeReleased THEN
+						Error("register not released");
+					END;
+					IF lastUse[register] # -1 THEN
+						Error("register still used");
+					END;
+				END;
+			END CheckRelease;
+
 
 			PROCEDURE ResolveLocalFixups;
 			VAR fixup,next: BinaryCode.Fixup;  dest: LONGINT;
@@ -434,31 +431,33 @@ TYPE
 			END ResolveLocalFixups;
 
 		BEGIN
+			ignore := FALSE;
 			name := in.name; (*debugging*)
 			SELF.in := in; SELF.out := out;
 			dump := out.comments;
-			toBeReleased := {};
+			(* dump := D.Log;*)
 			FOR pc := 0 TO in.pc-1 DO
 				IF pc = in.finally THEN out.SetFinally(out.pc) END;
 				IF pc = in.validPAFEnter THEN out.EnterValidPAF END;
 				IF pc = in.validPAFExit THEN out.ExitValidPAF END;
-				Prepare(in.instructions[pc]);
-
+				Prepare(in.instructions[pc],pc);
 				IF dump # NIL THEN
-					dump.Set(toBeReleased); dump.Ln;
 					dump.Int(pc,1); dump.String(": "); IntermediateCode.DumpInstruction(dump,in.instructions[pc]);
 					IF ignore THEN dump.String(" ignored.") END;
+					dump.String(" | ");
+					dump.Set(toBeReleased);
+					dump.Set(currentlyUsed);
 					dump.Ln;
 				END;
 				inPC := pc;
 				in.SetPC(pc,out.pc); (* set pc of (intermediate) instruction at pc to newPC *)
 				IF ~ignore THEN
 					Generate(in.instructions[pc]);
-					(*
 					Release(in.instructions[pc]);
-					*)
 				END;
 			END;
+			CheckRelease();
+
 			ResolveLocalFixups;
 			IF dump # NIL THEN
 				dump.Update
@@ -602,7 +601,7 @@ TYPE
 			END NextFree;
 
 		BEGIN
-			IF (vreg <0) OR (realRegisters[vreg].lowSpilled) & (realRegisters[vreg].highSpilled) THEN RETURN END;
+			IF (vreg <0) THEN RETURN END;
 			low := realRegisters[vreg].low;
 			IF ~(realRegisters[vreg].lowSpilled) & (low # none) THEN
 				index := NextFree();
@@ -952,6 +951,7 @@ TYPE
 				END
 			END;
 			EXCL(toBeReleased,reg);
+			lastUse[reg] := -1;
 		END ReleaseRegister;
 
 		PROCEDURE Generate(CONST instr: IntermediateCode.Instruction);
@@ -2298,6 +2298,7 @@ TYPE
 			esi := registerAllocator.realToVirtual[ESI];
 			edi := registerAllocator.realToVirtual[EDI];
 			ecx := registerAllocator.realToVirtual[ECX];
+
 			IF esi # free THEN Spill(esi) END;
 			IF edi # free THEN Spill(edi) END;
 			IF ecx # free THEN Spill(ecx) END;
@@ -2305,8 +2306,6 @@ TYPE
 			registerAllocator.Allocate(ESI,reserved);
 			registerAllocator.Allocate(EDI,reserved);
 			registerAllocator.Allocate(ECX,reserved);
-
-
 
 			MakeOperand(instr.op1,op1,0,EDI);
 			MakeOperand(instr.op2,op2,0,ESI);
@@ -2455,10 +2454,12 @@ TYPE
 				IF (instr.op2.mode = IntermediateCode.ModeRegister) & (instr.op2.register IN toBeReleased) THEN
 					ReleaseFPRegister(instr.op2.register);
 					EXCL(toBeReleased,instr.op2.register);
+					lastUse[instr.op2.register] := -1;
 				END;
 				IF (instr.op3.mode = IntermediateCode.ModeRegister) & (instr.op3.register IN toBeReleased) THEN
 					ReleaseFPRegister(instr.op3.register);
 					EXCL(toBeReleased,instr.op3.register);
+					lastUse[instr.op3.register] := -1;
 				END;
 				emitter.Emit0(InstructionSet.opSAHF);
 			ELSE

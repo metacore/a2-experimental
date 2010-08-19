@@ -799,12 +799,21 @@ TYPE
 		PROCEDURE PatchAcquire(acquirePosition,releasePosition: LONGINT);
 		VAR first,last: IntermediateCode.Operand; firstUse, lastUse: LONGINT;
 		BEGIN
+				
 			firstUse := acquirePosition+1;
 			lastUse := releasePosition-1;
-			WHILE (section.instructions[firstUse].opcode = IntermediateCode.acquire) DO INC(firstUse) END;
-			IntermediateCode.InitNumber(first, firstUse);
-			IntermediateCode.InitNumber(last, lastUse);
-			IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.acquire, section.instructions[acquirePosition].op1,first, last);
+			IF firstUse >= section.pc THEN
+				IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.nop, emptyOperand, emptyOperand, emptyOperand); 
+			ELSE
+				WHILE (section.instructions[firstUse].opcode = IntermediateCode.acquire) DO INC(firstUse) END;
+				IntermediateCode.InitNumber(first, firstUse);
+				IntermediateCode.InitNumber(last, lastUse);
+				IF lastUse >= firstUse THEN
+					IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.acquire, section.instructions[acquirePosition].op1,first, last);
+				ELSE
+					IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.nop, emptyOperand, emptyOperand, emptyOperand); 
+				END;
+			END;
 		END PatchAcquire;
 
 		PROCEDURE ReleaseRegister(i: SHORTINT);
@@ -870,7 +879,6 @@ TYPE
 						IntermediateCode.DumpRegister(dump,i);
 					END;
 					Emit(Push(op));
-
 					(*Emit(Release(op));*)
 
 				ELSE
@@ -925,7 +933,8 @@ TYPE
 						dump.Int(usedRegisters[i].count,1);
 						dump.String(")");
 					END;
-
+				
+					usedRegisters[i].acquirePosition := section.pc;
 					Emit(Acquire(op));
 
 					Emit(Pop(op));
@@ -1266,8 +1275,8 @@ TYPE
 				IntermediateCode.MakeMemory(right,addressType);
 			END;
 			BreqL(trueL,left,right);
-			BrL(falseL);
 			ReleaseIntermediateOperand(left); ReleaseIntermediateOperand(right);
+			BrL(falseL);
 		END TypeTest;
 
 		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
@@ -1562,13 +1571,13 @@ TYPE
 
 				StaticCallOperand(result,procedure);
 				Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
+				ReleaseOperand(result);
 				AcquireThisRegister(int8,IntermediateCode.Result);
 				RestoreRegisters(saved); (* must be done before use of result, might be jumped over otherwise *)
 				IntermediateCode.InitRegister(reg,int8,IntermediateCode.Result);
 				br(trueLabel,reg,IntermediateCode.Immediate(int8,0));
 				ReleaseIntermediateOperand(reg);
 				BrL(falseLabel);
-				ReleaseOperand(result);
 			END;
 		END CompareString;
 
@@ -3892,12 +3901,13 @@ TYPE
 				IF x.id = Global.Max THEN BrltL(else,s0.op,s1.op);
 				ELSE BrltL(else,s1.op,s0.op) END;
 				Emit(Mov(res,s0.op));
+				ReleaseOperand(s0); 
 				end := NewLabel();
 				BrL(end);
 				SetLabel(else);
 				Emit(MovReplace(res,s1.op));
 				SetLabel(end);
-				ReleaseOperand(s0); ReleaseOperand(s1);
+				ReleaseOperand(s1);
 				InitOperand(result,ModeValue);
 				result.op := res;
 			(* ---- ODD ----- *)
@@ -3912,8 +3922,8 @@ TYPE
 					ReleaseIntermediateOperand(result.op);
 					result.op := res;
 					BreqL(trueLabel,IntermediateCode.Immediate(GetType(system,p0.type),1),result.op);
-					BrL(falseLabel);
 					ReleaseOperand(result);
+					BrL(falseLabel);
 				END;
 			(* ---- ORD ----- *)
 			|Global.Ord:
