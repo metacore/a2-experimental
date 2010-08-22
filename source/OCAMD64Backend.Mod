@@ -262,7 +262,7 @@ TYPE
 	CodeGenerator= OBJECT (* code generator : generic part, may be moved to generic code generator module *)
 	VAR
 		diagnostics: Diagnostics.Diagnostics; (* error stream *)
-		inmodule: Sections.Module;
+		module: Sections.Module;
 		lastUse: ARRAY MaxVirtualRegisters OF LONGINT;
 		dump: Streams.Writer;
 		in: IntermediateCode.Section; out: BinaryCode.Section;
@@ -275,7 +275,7 @@ TYPE
 		PROCEDURE & InitGenerator(diagnostics: Diagnostics.Diagnostics);
 		VAR i: LONGINT;
 		BEGIN
-			SELF.inmodule := NIL;
+			SELF.module := NIL;
 			SELF.diagnostics := diagnostics;
 			FOR i := 0 TO LEN(lastUse)-1 DO
 				lastUse[i] := -1;
@@ -285,7 +285,7 @@ TYPE
 
 		PROCEDURE SetModule(module: Sections.Module); (* needed for inline code for symbol reference *)
 		BEGIN
-			SELF.inmodule := module;
+			SELF.module := module;
 		END SetModule;
 
 		PROCEDURE Error( CONST message: ARRAY OF CHAR);
@@ -333,7 +333,7 @@ TYPE
 						END;
 
 						IF ~ignore THEN
-							AcquireRegister(register,instr.op1.type);
+							MapVirtualRegister(register,instr.op1.type);
 						END;
 						Assert(registerUse[register] = 0,"register already acquired");
 						i := pc;
@@ -388,7 +388,7 @@ TYPE
 			BEGIN
 				FOR register := 0 TO MaxVirtualRegisters-1 DO
 					IF register IN toBeReleased THEN
-						ReleaseRegister(register);
+						UnmapVirtualRegister(register);
 					END;
 				END;
 			END Release;
@@ -472,13 +472,13 @@ TYPE
 			END
 		END Section;
 
-		PROCEDURE AcquireRegister(reg: LONGINT; type: IntermediateCode.Type);
+		PROCEDURE MapVirtualRegister(reg: LONGINT; type: IntermediateCode.Type);
 		BEGIN HALT(100); (* abstract *)
-		END AcquireRegister;
+		END MapVirtualRegister;
 
-		PROCEDURE ReleaseRegister(reg: LONGINT);
+		PROCEDURE UnmapVirtualRegister(reg: LONGINT);
 		BEGIN HALT(100); (* abstract *)
-		END ReleaseRegister;
+		END UnmapVirtualRegister;
 
 		PROCEDURE TransferRegister(from, to: LONGINT);
 		BEGIN HALT(100);
@@ -731,7 +731,7 @@ TYPE
 			END;
 		END FreeRegister;
 
-		PROCEDURE AcquireRegister(reg: LONGINT; type: IntermediateCode.Type);
+		PROCEDURE MapVirtualRegister(reg: LONGINT; type: IntermediateCode.Type);
 		VAR index: LONGINT;
 
 			PROCEDURE NextFree(): LONGINT;
@@ -855,7 +855,7 @@ TYPE
 				END;
 			END;
 			registerType[reg] := type;
-		END AcquireRegister;
+		END MapVirtualRegister;
 
 
 		PROCEDURE ReleaseFPRegister(reg: LONGINT);
@@ -917,7 +917,7 @@ TYPE
 			EXCL(currentlyUsed, from);
 		END TransferRegister;
 
-		PROCEDURE ReleaseRegister(reg: LONGINT);
+		PROCEDURE UnmapVirtualRegister(reg: LONGINT);
 		VAR type: IntermediateCode.Type;
 		BEGIN
 			type := registerType[reg];
@@ -960,7 +960,7 @@ TYPE
 			END;
 			EXCL(toBeReleased,reg);
 			lastUse[reg] := -1;
-		END ReleaseRegister;
+		END UnmapVirtualRegister;
 
 		PROCEDURE Generate(CONST instr: IntermediateCode.Instruction);
 		VAR opcode: SHORTINT; i: LONGINT;
@@ -1018,7 +1018,7 @@ TYPE
 
 		PROCEDURE EmitAcquire(CONST instr: IntermediateCode.Instruction);
 		BEGIN
-			AcquireRegister(instr.op1.register, instr.op1.type);
+			MapVirtualRegister(instr.op1.register, instr.op1.type);
 			lastUse[instr.op1.register] := SHORT(instr.op3.intValue);
 		END EmitAcquire;
 
@@ -1131,10 +1131,10 @@ TYPE
 		PROCEDURE GetDataSection(): IntermediateCode.Section;
 		VAR name: SyntaxTree.String; section: IntermediateCode.Section;
 		BEGIN
-			inmodule.module.name.GetString(name);
+			module.module.name.GetString(name);
 			Strings.Append(name,".");
 			Strings.Append(name,"@Immediates");
-			section := IntermediateCode.NewSection(inmodule.sections,Sections.ConstSection,name,NIL,TRUE);
+			section := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
 			RETURN section
 		END GetDataSection;
 
@@ -2764,7 +2764,7 @@ TYPE
 			procedure := symbol(SyntaxTree.Procedure);
 			scope := procedure.procedureScope;
 			NEW(assembler,diagnostics,emitter);
-			assembler.Assemble(reader,SHORT(instr.op1.intValue),scope,in,in,inmodule,procedure.access * SyntaxTree.Public # {}, SyntaxTree.InlineFlag IN procedure.flags)	;
+			assembler.Assemble(reader,SHORT(instr.op1.intValue),scope,in,in,module,procedure.access * SyntaxTree.Public # {}, SyntaxTree.InlineFlag IN procedure.flags)	;
 			error := error OR assembler.error
 		END EmitAsm;
 

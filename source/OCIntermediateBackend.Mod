@@ -3,7 +3,7 @@ MODULE OCIntermediateBackend; (** AUTHOR ""; PURPOSE ""; *)
 IMPORT Basic := OCBasic, SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend := OCBackend, Global := OCGlobal,
 	WMUtilities,Scanner := OCScanner, IntermediateCode := OCIntermediateCode, Sections := OCSections, Printout := OCPrintout,
 	SYSTEM, Diagnostics, Strings, Options, Streams, Compiler, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile, D := Debugging,
-	Fingerprinter := OCFingerprinter;
+	Fingerprinter := OCFingerprinter, BinaryCode := OCBinaryCode;
 
 CONST
 		(* operand modes *)
@@ -59,7 +59,7 @@ CONST
 		DefaultRuntimeModuleName ="Runtime";
 
 		suppressModuleRegistration=FALSE;
-
+		MaxVirtualRegisters=32;
 
 TYPE
 	SupportedProcedure= PROCEDURE {DELEGATE} (CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
@@ -798,20 +798,29 @@ TYPE
 
 		PROCEDURE PatchAcquire(acquirePosition,releasePosition: LONGINT);
 		VAR first,last: IntermediateCode.Operand; firstUse, lastUse: LONGINT;
+
+		PROCEDURE HasRegister(CONST instruction: IntermediateCode.Instruction; register: LONGINT): BOOLEAN;
 		BEGIN
-				
+			RETURN (instruction.op1.register = register) OR (instruction.op2.register = register) OR (instruction.op3.register = register)
+		END HasRegister;
+		
+		BEGIN
+
 			firstUse := acquirePosition+1;
 			lastUse := releasePosition-1;
 			IF firstUse >= section.pc THEN
-				IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.nop, emptyOperand, emptyOperand, emptyOperand); 
+				IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.nop, emptyOperand, emptyOperand, emptyOperand);
 			ELSE
 				WHILE (section.instructions[firstUse].opcode = IntermediateCode.acquire) DO INC(firstUse) END;
 				IntermediateCode.InitNumber(first, firstUse);
 				IntermediateCode.InitNumber(last, lastUse);
+				WHILE (lastUse >= firstUse) & ~HasRegister(section.instructions[lastUse], section.instructions[acquirePosition].op1.register) DO
+					DEC(lastUse)
+				END;
 				IF lastUse >= firstUse THEN
 					IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.acquire, section.instructions[acquirePosition].op1,first, last);
 				ELSE
-					IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.nop, emptyOperand, emptyOperand, emptyOperand); 
+					IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.nop, emptyOperand, emptyOperand, emptyOperand);
 				END;
 			END;
 		END PatchAcquire;
@@ -853,8 +862,8 @@ TYPE
 
 		PROCEDURE ReleaseOperand(CONST op: Operand);
 		BEGIN
-			ReleaseIntermediateOperand(op.op);
-			ReleaseIntermediateOperand(op.tag);
+			IF (op.op.register > 0) THEN ReleaseRegister(op.op.register) END;
+			IF (op.tag.register > 0) THEN ReleaseRegister(op.tag.register) END;
 		END ReleaseOperand;
 
 		PROCEDURE UseOperand(CONST op: Operand);
@@ -933,7 +942,7 @@ TYPE
 						dump.Int(usedRegisters[i].count,1);
 						dump.String(")");
 					END;
-				
+
 					usedRegisters[i].acquirePosition := section.pc;
 					Emit(Acquire(op));
 
@@ -1407,8 +1416,8 @@ TYPE
 		BEGIN
 			LoadValue(op,system.booleanType);
 			BrneL(trueLabel,op.op, false);
-			BrL(falseLabel);
 			ReleaseOperand(op);
+			BrL(falseLabel);
 		END ValueToCondition;
 
 		PROCEDURE GetDynamicSize(type: SyntaxTree.Type; tag: IntermediateCode.Operand):IntermediateCode.Operand;
@@ -1558,16 +1567,16 @@ TYPE
 				Designate(leftExpression,left);
 				leftSize := GetDynamicSize(leftExpression.type,left.tag);
 				Emit(Push(leftSize));
+				ReleaseIntermediateOperand(leftSize);
 				Emit(Push(left.op));
 				ReleaseOperand(left);
-				ReleaseIntermediateOperand(leftSize);
 
 				Designate(rightExpression,right);
 				rightSize := GetDynamicSize(rightExpression.type,right.tag);
 				Emit(Push(rightSize));
+				ReleaseIntermediateOperand(rightSize);
 				Emit(Push(right.op));
 				ReleaseOperand(right);
-				ReleaseIntermediateOperand(rightSize);
 
 				StaticCallOperand(result,procedure);
 				Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
@@ -1596,16 +1605,16 @@ TYPE
 				Designate(leftExpression,left);
 				leftSize := GetDynamicSize(leftExpression.type,left.tag);
 				Emit(Push(leftSize));
+				ReleaseIntermediateOperand(leftSize);
 				Emit(Push(left.op));
 				ReleaseOperand(left);
-				ReleaseIntermediateOperand(leftSize);
 
 				Designate(rightExpression,right);
 				rightSize := GetDynamicSize(rightExpression.type,right.tag);
 				Emit(Push(rightSize));
+				ReleaseIntermediateOperand(rightSize);
 				Emit(Push(right.op));
 				ReleaseOperand(right);
-				ReleaseIntermediateOperand(rightSize);
 
 				StaticCallOperand(result,procedure);
 				Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
@@ -1786,8 +1795,8 @@ TYPE
 						ReleaseOperand(temp);ReleaseOperand(left);
 					ELSE
 						BrltL(falseLabel,right.op,left.op); (* inverse evaluation to optimize jumps for true case *)
-						BrL(trueLabel);
 						ReleaseOperand(left); ReleaseOperand(right);
+						BrL(trueLabel);
 					END;
 				END;
 			|Scanner.Less:
@@ -3878,12 +3887,12 @@ TYPE
 			|Global.Cap:
 				Evaluate(p0,result);
 				ReuseCopy(reg,result.op);
+				ReleaseIntermediateOperand(result.op);
 				ignore := NewLabel();
 				BrltL(ignore, reg,IntermediateCode.Immediate(GetType(system,system.characterType),ORD("a")));
 				BrltL(ignore,IntermediateCode.Immediate(GetType(system,system.characterType),ORD("z")),reg);
 				Emit(And(reg,reg,IntermediateCode.Immediate(GetType(system,system.characterType),5FH)));
 				SetLabel(ignore);
-				ReleaseIntermediateOperand(result.op);
 				result.op := reg;
 			(* ---- CHR ----- *)
 			|Global.Chr:
@@ -3901,7 +3910,7 @@ TYPE
 				IF x.id = Global.Max THEN BrltL(else,s0.op,s1.op);
 				ELSE BrltL(else,s1.op,s0.op) END;
 				Emit(Mov(res,s0.op));
-				ReleaseOperand(s0); 
+				ReleaseOperand(s0);
 				end := NewLabel();
 				BrL(end);
 				SetLabel(else);
@@ -5146,9 +5155,7 @@ TYPE
 					parameter.SetKind(rightKind);
 					PushParameter(right,parameter,{});
 					size := ToMemoryUnits(system,system.SizeOf(rightBase));
-				Emit(Push(IntermediateCode.Immediate(int32,size)));
-
-
+					Emit(Push(IntermediateCode.Immediate(int32,size)));
 					StaticCallOperand(result,procedure);
 					Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
 					ReleaseOperand(result);
@@ -5164,7 +5171,6 @@ TYPE
 		BEGIN
 			ASSERT(left.type # NIL); ASSERT(right.type # NIL);
 			leftType := left.type.resolved; rightType:= right.type.resolved;
-
 			IF (leftType IS SyntaxTree.BasicType) OR (leftType IS SyntaxTree.PointerType) OR (leftType IS SyntaxTree.EnumerationType)
 				OR (leftType IS SyntaxTree.PortType) THEN
 				Designate(left,leftO);
@@ -5427,7 +5433,7 @@ TYPE
 		VAR outer: SyntaxTree.Statement;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitExitStatement") END;
-			IF locked  THEN (* check if we jump out of an exclusive block *)
+			IF locked  THEN (* r if we jump out of an exclusive block *)
 				outer := x.outer;
 				WHILE ~(outer IS SyntaxTree.LoopStatement) & ~(SyntaxTree.ExclusiveFlag IN outer.flags) DO
 					outer := outer.outer;
@@ -5693,10 +5699,10 @@ TYPE
 						ReleaseIntermediateOperand(size);
 						size := GetDynamicSize(type,op.tag);
 						Emit(Copy(sp,op.op,size));
+						ReleaseIntermediateOperand(size);
+						ReleaseOperand(op);
 						IntermediateCode.MakeMemory(par,addressType);
 						Emit(Mov(par,sp));
-						ReleaseOperand(op);
-						ReleaseIntermediateOperand(size);
 					END;
 				END;
 				parameter := parameter.nextParameter;
@@ -5874,6 +5880,217 @@ TYPE
 
 
 	END IntermediateBackend;
+
+	GenericCodeGenerator*= OBJECT
+	VAR
+		diagnostics-: Diagnostics.Diagnostics; (* error stream *)
+		module-: Sections.Module;
+		lastUse: ARRAY MaxVirtualRegisters OF LONGINT;
+		dump-: Streams.Writer;
+		in-: IntermediateCode.Section; out-: BinaryCode.Section;
+		inPC-, outPC-: LONGINT;
+
+		toBeReleased-: SET; (* registers that will be released after current instruction *)
+		currentlyUsed-: SET; (* registers that are used in current instruction *)
+		error* : BOOLEAN;
+		allocateData-: BOOLEAN;
+		dataAddress*: LONGINT;
+
+		(* generic *)
+		PROCEDURE & InitGenerator*(diagnostics: Diagnostics.Diagnostics; allocateData: BOOLEAN);
+		VAR i: LONGINT;
+		BEGIN
+			dataAddress := 0;
+			SELF.allocateData := allocateData;
+			SELF.module := NIL;
+			SELF.diagnostics := diagnostics;
+			FOR i := 0 TO LEN(lastUse)-1 DO
+				lastUse[i] := -1;
+			END;
+			error := FALSE;
+		END InitGenerator;
+
+		PROCEDURE SetModule*(module: Sections.Module); (* needed for inline code for symbol reference *)
+		BEGIN
+			SELF.module := module;
+		END SetModule;
+
+		PROCEDURE Error*(CONST message: ARRAY OF CHAR);
+		BEGIN
+			IF diagnostics # NIL THEN
+				diagnostics.Error(in.name, inPC, Diagnostics.Invalid, message)
+			END;
+			error := TRUE;
+		END Error;
+
+		(* mark register released *)
+		PROCEDURE Released*(register: LONGINT);
+		BEGIN
+			EXCL(toBeReleased, register);
+			(*
+			ASSERT(lastUse[register] = -1);
+			lastUse[register] := -1;
+			*)
+		END Released;
+
+		(* generic *)
+		PROCEDURE Section*(in: IntermediateCode.Section; out: BinaryCode.Section);
+		VAR pc,i: LONGINT; name: SyntaxTree.String; ignore: BOOLEAN; instruction: IntermediateCode.Instruction;
+
+			PROCEDURE Ignore(CONST instr: IntermediateCode.Instruction): BOOLEAN;
+			VAR register: LONGINT;
+			BEGIN
+				RETURN FALSE;
+				register := instr.op1.register;
+				IF (register >0) & (instr.op2.register # register) & (instr.op2.register > 0) & (instr.op2.mode = IntermediateCode.ModeRegister) & (instr.op2.offset = 0) 
+					& (register <IntermediateCode.Result) & (instr.op2.register < IntermediateCode.Result)
+				THEN
+					IF (instr.opcode = IntermediateCode.conv) OR (instr.opcode = IntermediateCode.mov) THEN
+						IF (instr.op2.type.form IN IntermediateCode.Integer) & (instr.op1.type.form IN IntermediateCode.Integer)
+							& (instr.op1.type.sizeInBits = instr.op2.type.sizeInBits) & (instr.op2.register IN toBeReleased)
+						THEN
+							IF dump # NIL THEN dump.String("transfer register: ");
+								IntermediateCode.DumpOperand(dump,instr.op1,TRUE); dump.String("<--");
+								IntermediateCode.DumpOperand(dump,instr.op2,TRUE); dump.Ln;
+							END;
+							IF register IN toBeReleased THEN
+								UnmapVirtualRegister(register);
+								INCL(toBeReleased,register);
+							ELSE
+								UnmapVirtualRegister(register);
+							END;
+							TransferRegister(instr.op2.register, register);
+							Released(instr.op2.register);
+							RETURN TRUE
+						END;
+					END;
+				END;
+				RETURN FALSE
+			END Ignore;
+
+			PROCEDURE ResolveLocalFixups;
+			VAR fixup, next: BinaryCode.Fixup; dest: LONGINT; msg: SyntaxTree.String; number: ARRAY 32 OF CHAR;
+			BEGIN
+				fixup := out.fixupList.firstFixup;
+				out.fixupList.InitFixupList;
+				WHILE fixup # NIL DO
+					next := fixup.nextFixup;
+					IF fixup.symbol = in THEN (* local fixup *)
+						IF dump # NIL THEN
+							dump.String("local fixup "); dump.Int(fixup.offset,1); dump.String(" <-- ");
+							fixup.Dump(dump); dump.Ln; dump.Update;
+						END;
+						IF fixup.symbolOffset # 0 THEN
+							dest := fixup.symbolOffset;
+							dest := in.instructions[dest].pc;
+						ELSE
+							dest := 0;
+						END;
+						fixup.SetSymbol(fixup.symbol, 0, dest+fixup.displacement);
+						IF dump # NIL THEN
+							dump.String("local fixup resolved: ");
+							dump.Int(fixup.offset,1); dump.String(" <-- ");
+							fixup.Dump(dump); dump.Ln; dump.Update;
+						END;
+						IF ~out.ApplyFixup(fixup) THEN
+							COPY("fixup out of range: ", msg);
+							Strings.Append(msg, fixup.symbol.name);
+							Strings.Append(msg, ":");
+							Strings.IntToStr(fixup.offset, number);
+							Strings.Append(msg, number);
+							Error(msg)
+						END
+					ELSE
+						out.fixupList.AddFixup(fixup);
+					END;
+					fixup := next;
+				END;
+			END ResolveLocalFixups;
+
+			PROCEDURE Prepare(instr: IntermediateCode.Instruction; pc: LONGINT);
+			VAR register: LONGINT;
+			BEGIN
+				FOR register := 0 TO MaxVirtualRegisters-1 DO
+					IF lastUse[register] = pc THEN INCL(toBeReleased,register); lastUse[register] := -1 END;
+				END;
+				currentlyUsed := {};
+				IF instr.opcode = IntermediateCode.call THEN
+					INCL(currentlyUsed, IntermediateCode.Result);
+					INCL(currentlyUsed, IntermediateCode.Result2);
+				END;
+				IF instr.op1.register > 0 THEN INCL(currentlyUsed,instr.op1.register) END;
+				IF instr.op2.register > 0 THEN INCL(currentlyUsed,instr.op2.register) END;
+				IF instr.op3.register > 0 THEN INCL(currentlyUsed,instr.op3.register) END;
+			END Prepare;
+
+			PROCEDURE Release(instr: IntermediateCode.Instruction);
+			VAR register: LONGINT;
+			BEGIN
+				FOR register := 0 TO MaxVirtualRegisters-1 DO
+					IF register IN toBeReleased THEN
+						UnmapVirtualRegister(register); Released(register);
+					END;
+				END;
+			END Release;
+
+		BEGIN
+			name := in.name; (*debugging*)
+			SELF.in := in; SELF.out := out;
+			dump := out.comments;
+			IF allocateData & (in.type IN {Sections.VarSection, Sections.ConstSection}) THEN
+				out.SetAlignment(TRUE, dataAddress);
+			END;
+
+			FOR pc := 0 TO in.pc-1 DO
+				inPC := pc; outPC := out.pc; in.SetPC(pc, outPC);
+				IF pc = in.finally THEN out.SetFinally(out.pc) END;
+				instruction := in.instructions[pc];
+				Prepare(instruction,pc);
+				ignore := Ignore(instruction);
+				IF dump # NIL THEN
+					dump.Int(pc, 1); dump.String(": "); IntermediateCode.DumpInstruction(dump, in.instructions[pc]);
+					IF ignore THEN dump.String(" ignored") END;
+					dump.Ln;
+				END;
+				IF ~ignore THEN
+					IF instruction.opcode = IntermediateCode.acquire THEN
+						lastUse[instruction.op1.register] := SHORT(instruction.op3.intValue); 
+						MapVirtualRegister(instruction.op1.register, instruction.op1.type);
+					ELSE
+						Generate(instruction);
+					END;
+				END;
+				Release(instruction);
+			END;
+			FOR i := 0 TO MaxVirtualRegisters-1 DO 
+				ASSERT(lastUse[i]=-1)
+			END;
+			ResolveLocalFixups;
+			IF dump # NIL THEN
+				dump.Update
+			END;
+			IF allocateData & (in.type IN {Sections.VarSection, Sections.ConstSection}) THEN
+				INC(dataAddress, out.pc);
+			END;
+		END Section;
+
+		PROCEDURE MapVirtualRegister*(reg: LONGINT; type: IntermediateCode.Type);
+		BEGIN HALT(100); (* abstract *)
+		END MapVirtualRegister;
+
+		PROCEDURE UnmapVirtualRegister*(reg: LONGINT);
+		BEGIN HALT(100); (* abstract *)
+		END UnmapVirtualRegister;
+
+		PROCEDURE TransferRegister*(from,to: LONGINT);
+		BEGIN HALT(100);
+		END TransferRegister;
+
+		PROCEDURE Generate*(CONST instr: IntermediateCode.Instruction);
+		BEGIN HALT(100); (* abstract *)
+		END Generate;
+
+	END GenericCodeGenerator;
 
 	VAR int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64: IntermediateCode.Type;
 		emptyOperand: IntermediateCode.Operand;
