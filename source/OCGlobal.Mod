@@ -649,7 +649,7 @@ TYPE
 		ELSE
 			ASSERT(context.Equals(OberonName));
 			context.GetString(prefix);
-			Basic.Concat(fileName,prefix,".",name);
+			Basic.Concat(fileName,prefix,"-",name);
 		END;
 	END ModuleFileName;
 
@@ -677,15 +677,24 @@ TYPE
 		module := SyntaxTree.NewIdentifier(-1,moduleName);
 		context := SyntaxTree.NewIdentifier(-1,contextName);
 	END ContextFromName;
-
+	
+	PROCEDURE GetModuleName*(module: SyntaxTree.Module; VAR name: ARRAY OF CHAR);
+	VAR n: SyntaxTree.String;
+	BEGIN
+		module.context.GetString(n);
+		IF n# "A2" THEN Strings.Append(name,n);Strings.Append(name,"-") END;
+		module.name.GetString(n);
+		Strings.Append(name,n);
+	END GetModuleName;
+	
 	PROCEDURE GetSymbolName*(symbol: SyntaxTree.Symbol; VAR name: ARRAY OF CHAR);
 	VAR n: SyntaxTree.String; td: SyntaxTree.TypeDeclaration;
 		PROCEDURE Scope(scope: SyntaxTree.Scope);
 		BEGIN
 			IF scope = NIL THEN (* do nothing, locally declared temporary symbol *)
 			ELSIF scope IS SyntaxTree.ModuleScope THEN
-				scope.ownerModule.name.GetString(n);
-				Strings.Append(name,n);Strings.Append(name,".");
+				GetModuleName(scope.ownerModule, name);
+				Strings.Append(name,".");
 			ELSIF scope IS SyntaxTree.RecordScope THEN
 				Scope(scope.outerScope);
 				td := scope(SyntaxTree.RecordScope).ownerRecord.typeDeclaration;

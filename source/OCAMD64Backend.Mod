@@ -1131,7 +1131,7 @@ TYPE
 		PROCEDURE GetDataSection(): IntermediateCode.Section;
 		VAR name: SyntaxTree.String; section: IntermediateCode.Section;
 		BEGIN
-			module.module.name.GetString(name);
+			Global.GetModuleName(module.module,name);
 			Strings.Append(name,".");
 			Strings.Append(name,"@Immediates");
 			section := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);

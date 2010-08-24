@@ -515,7 +515,7 @@ TYPE
 			SELF.module := module;
 
 			IF ~implementationVisitor.newObjectFile THEN
-				module.module.name.GetString(name); Strings.Append(name,"."); Strings.Append(name,"@moduleSelf");
+				Global.GetModuleName(module.module,name); Strings.Append(name,"."); Strings.Append(name,"@moduleSelf");
 				moduleSelf := SyntaxTree.NewVariable(0,SyntaxTree.NewIdentifier(-1,"@moduleSelf"));
 				moduleSelf.SetType(system.anyType);
 				moduleSelf.SetScope(x.moduleScope);
@@ -1307,10 +1307,11 @@ TYPE
 		PROCEDURE AddImport(CONST moduleName: ARRAY OF CHAR; VAR module: SyntaxTree.Module; force: BOOLEAN): BOOLEAN;
 		VAR import: SyntaxTree.Import;
 			s: Scanner.StringType;
-			selfName: SyntaxTree.String;
+			selfName, selfContext: SyntaxTree.String;
 		BEGIN
 			moduleScope.ownerModule.name.GetString(selfName);
-			IF moduleName = selfName THEN
+			moduleScope.ownerModule.context.GetString(selfContext);
+			IF (moduleName = selfName) & (selfContext = "A2") THEN
 				module := moduleScope.ownerModule
 			ELSE
 				import := moduleScope.ImportByModuleName(SyntaxTree.NewIdentifier(-1,moduleName),SyntaxTree.NewIdentifier(-1,"A2"));
@@ -3250,7 +3251,7 @@ TYPE
 
 		BEGIN
 			IF AddImport(moduleName,traceModule,TRUE) THEN
-				module.module.name.GetString(s);
+				Global.GetModuleName(module.module, s);
 				COPY(s,msg);
 				Strings.Append(msg,"@");
 				expression := x.GetExpression(0);
@@ -6929,7 +6930,7 @@ TYPE
 	PROCEDURE MetaModuleSection(implementationVisitor: ImplementationVisitor; module: Sections.Module): IntermediateCode.Section;
 	VAR name: ARRAY 128 OF CHAR; moduleSection,moduleTD: IntermediateCode.Section; offset: LONGINT;
 	BEGIN
-		module.module.name.GetString(name);
+		Global.GetModuleName(module.module,name);
 		Strings.Append(name,".@Module");
 		moduleSection := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
 		IF moduleSection.pc = 0 THEN
@@ -6973,7 +6974,7 @@ TYPE
 
 
 	BEGIN
-		module.module.name.GetString(moduleName);
+		Global.GetModuleName(module.module,moduleName);
 		exportDescArray := HeapBlock("Heaps","SystemBlockDesc",".@ExportDescArray",exportDescArrayOffset);
 		MetaExportDescArray(module,exportDescArray, exportDescSize);
 		pointerSection := HeapBlock("Heaps","SystemBlockDesc",".@PointerArray",pointerSectionOffset);
@@ -7283,7 +7284,8 @@ TYPE
 	VAR n: SyntaxTree.String;
 	BEGIN
 		COPY(base,n);
-		module.name.GetString(name); Strings.Append(name,"."); Strings.Append(name,"@"); Strings.Append(name,n); Basic.AppendNumber(name,number);
+		Global.GetModuleName(module,name);
+		Strings.Append(name,"."); Strings.Append(name,"@"); Strings.Append(name,n); Basic.AppendNumber(name,number);
 		INC(number);
 	END UniqueId;
 

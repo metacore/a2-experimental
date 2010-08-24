@@ -2858,7 +2858,7 @@ TYPE
 	BEGIN
 		StringPool.GetString (context, string);
 		IF string # Modules.DefaultContext THEN
-			Strings.Append (string, ".");
+			Strings.Append (string, "-");
 			StringPool.GetString (name, temp);
 			Strings.Append (string, temp);
 			StringPool.GetIndex (string, name);
