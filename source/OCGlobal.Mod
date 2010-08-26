@@ -657,7 +657,7 @@ TYPE
 	VAR moduleName, contextName: Scanner.StringType; i,j: LONGINT;
 	BEGIN
 		i := 0; j := 0;
-		WHILE (fileName[i] # 0X) & (fileName[i] # ".") DO
+		WHILE (fileName[i] # 0X) & (fileName[i] # "-") DO
 			contextName[i] := fileName[i];
 			INC(i);
 		END;

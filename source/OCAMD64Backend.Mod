@@ -54,7 +54,6 @@ VAR registerOperands: ARRAY InstructionSet.numberRegisters OF Assembler.Operand;
 
 	 opEAX, opECX, opEDX, opEBX, opESP, opEBP, opESI, opEDI, opAX, opCX, opDX, opBX, opSI, opDI, opAL, opCL, opDL, opBL, opAH, opCH, opDH, opBH,opST0: Assembler.Operand;
 
-
 TYPE
 	Register = RECORD
 		lowSpilled, highSpilled: BOOLEAN; (* is register spilled on the spill stack ? *)
@@ -2851,6 +2850,88 @@ TYPE
 
 	END CodeGeneratorAMD64;
 
+			Worker=OBJECT
+			VAR start: BOOLEAN; finished: BOOLEAN;
+				in: IntermediateCode.Section; next: Worker;
+				cg: CodeGeneratorAMD64;
+				pool: Pool;
+
+			PROCEDURE &Init(pool: Pool);
+			BEGIN
+				start := FALSE; SELF.pool := pool;
+				NEW(cg, "", NIL);
+			END Init;
+
+			PROCEDURE Start(in: IntermediateCode.Section; CONST runtimeModuleName: SyntaxTree.String; diagnostics: Diagnostics.Diagnostics; module: Sections.Module);
+			BEGIN{EXCLUSIVE}
+				cg.InitGeneratorAMD64(runtimeModuleName, diagnostics);
+				cg.SetModule(module);
+				SELF.in := in;
+				start := TRUE;
+			END Start;
+
+			PROCEDURE Do;
+			VAR out: BinaryCode.Section; procedure: SyntaxTree.Procedure;
+			BEGIN{EXCLUSIVE}
+				LOOP
+					AWAIT(start);
+					(* inline case
+					out := ResolvedSection(in(IntermediateCode.Section));
+			 		cg.Section(in(IntermediateCode.Section),out);
+			 		procedure := in.symbol(SyntaxTree.Procedure);
+			 		procedure.procedureScope.body.code.SetBinaryCode(out.bits);
+					*)
+			 		out := ResolvedSection(in(IntermediateCode.Section));
+			 		cg.Section(in(IntermediateCode.Section),out);
+			 		IF out.type = Sections.VarSection THEN
+			 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
+			 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
+			 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
+			 			END;
+			 		ELSIF out.type = Sections.ConstSection THEN
+			 			out.SetAlignment(FALSE,4);
+			 		END;
+
+					start := FALSE;
+					pool.Finished(SELF);
+				END;
+			END Do;
+
+			BEGIN{ACTIVE}
+				Do;
+			END Worker;
+
+			Pool=OBJECT
+			VAR ready: Worker; numReady, numTotal: LONGINT;
+
+				PROCEDURE &Init();
+				VAR i: LONGINT; worker: Worker;
+				BEGIN
+					FOR i := 1 TO 4 DO
+						NEW(worker,SELF); worker.next := ready; ready := worker; INC(numReady); INC(numTotal);
+					END;
+				END Init;
+
+				PROCEDURE Finished(worker: Worker);
+				BEGIN{EXCLUSIVE}
+					worker.next := ready; ready := worker; INC(numReady);
+				END Finished;
+
+				PROCEDURE Work(in: IntermediateCode.Section; CONST runtimeModuleName: SyntaxTree.String; diagnostics: Diagnostics.Diagnostics; module: Sections.Module);
+				VAR worker: Worker;
+				BEGIN{EXCLUSIVE}
+					AWAIT(numReady > 0);
+					worker := ready; ready := worker.next; worker.next := NIL; DEC(numReady);
+					worker.Start(in,runtimeModuleName, diagnostics, module);
+				END Work;
+
+				PROCEDURE Wait;
+				BEGIN{EXCLUSIVE}
+					AWAIT(numReady = numTotal);
+				END Wait;
+
+			END Pool;
+
 	BackendAMD64= OBJECT (IntermediateBackend.IntermediateBackend)
 	VAR
 		cg: CodeGeneratorAMD64;
@@ -2925,8 +3006,12 @@ TYPE
 		END Supported;
 
 		PROCEDURE GenerateBinary(module: Sections.Module; dump: Streams.Writer);
+		TYPE
+
+
+
 		VAR
-			in: Sections.Section;
+			in,last: Sections.Section;
 			out: BinaryCode.Section;
 			name: SyntaxTree.String;
 			procedure: SyntaxTree.Procedure;
@@ -2969,24 +3054,34 @@ TYPE
 		 		in := in.nextSection;
 		 	END;
 
-
-		 	in := module.sections.first;
-		 	WHILE in # NIL DO
-		 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
-			 		COPY(in.name,name);
-			 		out := ResolvedSection(in(IntermediateCode.Section));
-			 		cg.Section(in(IntermediateCode.Section),out);
-			 		IF out.type = Sections.VarSection THEN
-			 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
-			 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
-			 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
-			 			END;
-			 		ELSIF out.type = Sections.ConstSection THEN
-			 			out.SetAlignment(FALSE,4);
+		 	REPEAT
+			 	in := module.sections.first;
+		 	 	last := module.sections.last;
+			 	WHILE (in # NIL) DO
+			 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
+				 		COPY(in.name,name);
+				 		pool.Work(in(IntermediateCode.Section), runtimeModuleName, diagnostics, module);
+				 		(*
+				 		out := ResolvedSection(in(IntermediateCode.Section));
+				 		cg.Section(in(IntermediateCode.Section),out);
+				 		IF out.type = Sections.VarSection THEN
+				 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
+				 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
+				 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
+				 			END;
+				 		ELSIF out.type = Sections.ConstSection THEN
+				 			out.SetAlignment(FALSE,4);
+				 		END;
+				 		*)
 			 		END;
-		 		END;
-		 		in := in.nextSection;
-		 	END;
+			 		IF in = last THEN 
+			 			in := NIL 
+			 		ELSE
+				 		in := in.nextSection;
+				 	END;
+			 	END;		 	
+			 	pool.Wait;
+			UNTIL last = module.sections.last; (* process remaining sections that have been added during traversal of sections *)
 
 		 	in := module.caseTables.first;
 		 	WHILE in # NIL DO
@@ -3114,6 +3209,7 @@ TYPE
 
 
 	END BackendAMD64;
+VAR pool: Pool; 
 
 	PROCEDURE Assert(b: BOOLEAN; CONST s: ARRAY OF CHAR);
 	BEGIN
@@ -3182,4 +3278,5 @@ TYPE
 
 BEGIN
 	Init;
+	NEW(pool);
 END OCAMD64Backend.

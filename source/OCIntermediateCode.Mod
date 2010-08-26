@@ -283,7 +283,7 @@ TYPE
 
 	PROCEDURE NewSection*(list: Sections.SectionList; type: SHORTINT; CONST name: ARRAY OF CHAR; x: SyntaxTree.Symbol; dump: BOOLEAN): Section;
 	VAR res: Sections.Section; section: Section;
-	BEGIN
+	BEGIN{EXCLUSIVE}
 		(* if section list for symbol or namel is already present then return this section, otherwise enter new one *)
 		IF x # NIL THEN
 			res := list.FindBySymbol(x);
