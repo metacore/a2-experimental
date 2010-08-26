@@ -299,6 +299,15 @@ BEGIN
 	Module(PCS.InitWithText(t, pos), source, opt, pc, log, diagnostics, error);
 END CompileText;
 
+PROCEDURE CompileInterface(t: Texts.Text; CONST source: ARRAY OF CHAR; pos: LONGINT; CONST pc,opt: ARRAY OF CHAR; log: Streams.Writer;
+diagnostics : Diagnostics.Diagnostics; VAR error: BOOLEAN);
+VAR pcNum: LONGINT;
+BEGIN
+	Strings.StrToInt(pc, pcNum);
+	CompileText(t,source,pos,pcNum, opt,log, diagnostics, error);
+END CompileInterface;
+
+
 (** Compile file *)
 
 PROCEDURE CompileFile*(CONST name, opt: ARRAY OF CHAR; pc: LONGINT; log: Streams.Writer;
@@ -449,7 +458,7 @@ BEGIN
 	PCV.Install;
 	InitErrMsg;
 	Modules.InstallTermHandler(Cleanup);
-	CompilerInterface.Register(Name, Description, FileExtension, CompileText);
+	CompilerInterface.Register(Name, Description, FileExtension, CompileInterface);
 END PC.
 
 (*

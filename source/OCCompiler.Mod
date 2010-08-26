@@ -535,7 +535,7 @@ TYPE
 	END Compile;
 
 
-	PROCEDURE CompileText*(t: Texts.Text; CONST source: ARRAY OF CHAR; pos, pc: LONGINT; CONST opt: ARRAY OF CHAR; log: Streams.Writer;
+	PROCEDURE CompileText*(t: Texts.Text; CONST source: ARRAY OF CHAR; pos: LONGINT; CONST pc,opt: ARRAY OF CHAR; log: Streams.Writer;
 	diagnostics : Diagnostics.Diagnostics; VAR error: BOOLEAN);
 	VAR stringReader: Streams.StringReader;
 		backend: Backend.Backend;
@@ -554,8 +554,10 @@ TYPE
 		stringReader.Set(opt);
 		IF GetOptions(stringReader,log,diagnostics,flags,backend,symbolFile,objectFile,dataflowSpecification, findPC) THEN
 			reader := GetTextReader(t,pos);
-			IF pc > 0 THEN INCL(flags,FindPC) END;
-			error := ~Module(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,dataflowSpecification, log,importCache,"" (*! implement *))
+			IF pc # "" THEN INCL(flags,FindPC); COPY(pc, findPC);
+			ELSIF findPC # "" THEN INCL(flags,FindPC)
+			END;
+			error := ~Module(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,dataflowSpecification, log,importCache,findPC)
 		END;
 	END CompileText;
 

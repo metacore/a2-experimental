@@ -859,7 +859,7 @@ TYPE
 			logEdit.text.ReleaseWrite;
 		END ClearLog;
 
-		PROCEDURE DoCompile(findPC : BOOLEAN; pc : LONGINT; options : CompilerOptions);
+		PROCEDURE DoCompile(findPC : BOOLEAN; CONST pc :ARRAY OF CHAR; options : CompilerOptions);
 		VAR compiler : CompilerInterface.Compiler; tw : TextUtilities.TextWriter; errors : BOOLEAN;
 		BEGIN
 			RemoveErrorMarkers;
@@ -1497,7 +1497,7 @@ TYPE
 						END;
 					END;
 					optionsEdit.GetAsString(options);
-					currentPage.DoCompile(FALSE, 0, options);
+					currentPage.DoCompile(FALSE, "", options);
 				END;
 			ELSIF sender = wrapBtn THEN
 				IF (currentPage # NIL) THEN
@@ -2452,8 +2452,8 @@ TYPE
 		END LinkClickedHandler;
 
 		PROCEDURE FindPC(sender, data : ANY);
-		VAR pc, a, b : LONGINT;
-			pcStr : ARRAY 64 OF CHAR;
+		VAR a, b : LONGINT;
+			pcStr : ARRAY 128 OF CHAR;
 			selectionText: Texts.Text;
 			from, to: Texts.TextPosition;
 			options : CompilerOptions;
@@ -2466,16 +2466,14 @@ TYPE
 				TextUtilities.SubTextToStr(selectionText, a, b - a, pcStr);
 				selectionText.ReleaseRead;
 				Strings.Trim(pcStr, " ");
-				Strings.StrToInt(pcStr, pc);
 			END;
 			optionsEdit.GetAsString(options);
-			IF pc <= 0 THEN
+			IF pcStr = "" THEN
 				IF WMDialogs.QueryString("Enter PC to locate", pcStr) = WMDialogs.ResOk THEN
-					Strings.StrToInt(pcStr, pc);
-					currentPage.DoCompile(TRUE, pc, options)
+					currentPage.DoCompile(TRUE, pcStr, options)
 				END
 			ELSE
-				currentPage.DoCompile(TRUE, pc, options)
+				currentPage.DoCompile(TRUE, pcStr, options)
 			END
 		END FindPC;
 
@@ -2763,7 +2761,7 @@ TYPE
 			ELSIF (keysym = 08H) & ControlKeyDown(flags) THEN (* CTRL-H *)
 				IF currentPage # NIL THEN
 					optionsEdit.GetAsString(options);
-					currentPage.DoCompile(FALSE, 0, options);
+					currentPage.DoCompile(FALSE, "", options);
 				END;
 			ELSIF (keysym = 0FH) & ControlKeyDown(flags) THEN (* CTRL-O *)
 				filenameEdit.SetAsString("");
