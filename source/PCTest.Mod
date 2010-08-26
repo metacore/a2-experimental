@@ -149,8 +149,8 @@ END ParseOptions;
 PROCEDURE RunTests(
 	text : Texts.Text;
 	CONST source: ARRAY OF CHAR;
-	pos, pc : LONGINT; (* ignore *)
-	CONST opt: ARRAY OF CHAR;
+	pos: LONGINT; (* ignore *)
+	CONST pc,opt: ARRAY OF CHAR;
 	log: Streams.Writer; diagnostics : Diagnostics.Diagnostics; VAR error: BOOLEAN);
 VAR
 	execute, regression: BOOLEAN;

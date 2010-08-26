@@ -1876,8 +1876,8 @@ TYPE
 PROCEDURE AssembleText(
 	text : Texts.Text;
 	CONST source: ARRAY OF CHAR;
-	pos, pc: LONGINT; (* ignore *)
-	CONST opt: ARRAY OF CHAR; (* filename *)
+	pos: LONGINT; (* ignore *)
+	CONST pc,opt: ARRAY OF CHAR; (* filename *)
 	log: Streams.Writer; diagnostics : Diagnostics.Diagnostics; VAR error: BOOLEAN);
 VAR
 	assembly: Assembly;
