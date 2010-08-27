@@ -5887,7 +5887,7 @@ TYPE
 		diagnostics-: Diagnostics.Diagnostics; (* error stream *)
 		module-: Sections.Module;
 		lastUse: ARRAY MaxVirtualRegisters OF LONGINT;
-		dump-: Streams.Writer;
+		dump*: Streams.Writer;
 		in-: IntermediateCode.Section; out-: BinaryCode.Section;
 		inPC-, outPC-: LONGINT;
 

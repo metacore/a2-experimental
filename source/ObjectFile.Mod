@@ -51,14 +51,24 @@ TYPE
 		fingerprint*: LONGINT;
 	END;
 
+	Offsets*= POINTER TO ARRAY OF Unit;
+
+	Patch*= RECORD
+		mode-: INTEGER; (* fixup mode: relative or absolute *)
+		displacement-: Unit; (* displacement of the fixup ('source') *)
+		scale-: Bits; (* exponent of scale factor (factor=2^scale) *)
+		offsets-: LONGINT;
+		offset-: Offsets;
+		patterns-: LONGINT;
+		pattern-: FixupPatterns; (* patterns describing the fixup format, cf. above *)
+	END;
+	Patches*= POINTER TO ARRAY OF Patch;
+
 	Fixup* = RECORD
-		mode*: INTEGER; (* fixup mode: relative or absolute *)
-		offset*: Unit; (* offset of address that has to be patched ('destination') *)
 		identifier*: Identifier;
-		displacement*: Unit; (* displacement of the fixup ('destination') *)
-		scale*: Bits; (* exponent of scale factor (factor=2^scale) *)
-		patterns*: LONGINT;
-		pattern*: FixupPatterns; (* patterns describing the fixup format, cf. above *)
+		patches-: LONGINT;
+		patch-: Patches;
+		filler1*: ARRAY 32 OF LONGINT; (* necessary for paco to work correctly. No idea why. *)
 	END;
 
 	Fixups*=POINTER TO ARRAY OF Fixup;
@@ -69,8 +79,8 @@ TYPE
 		unit*: Bits;
 		fixed*: BOOLEAN;
 		alignment*: Unit;
-		fixups*: LONGINT;
-		fixup*: Fixups;
+		fixups-: LONGINT;
+		fixup-: Fixups;
 		bits*: BitSets.BitSet;
 	END;
 
@@ -90,8 +100,40 @@ BEGIN
 	END;
 END Matches;
 
+PROCEDURE CopyPatch*(CONST source: Patch; VAR dest: Patch);
+VAR i: LONGINT;
+	BEGIN
+	dest.mode := source.mode;
+	dest.displacement := source.displacement;
+	dest.scale := source.scale;
+	dest.patterns := source.patterns;
+	dest.offsets := source.offsets;
+
+	NEW(dest.offset, dest.offsets);
+	FOR i := 0 TO source.offsets-1 DO
+		dest.offset[i] := source.offset[i]
+	END;
+
+	NEW(dest.pattern, dest.patterns);
+	FOR i := 0 TO source.patterns-1 DO
+		dest.pattern[i] := source.pattern[i]
+	END;
+END CopyPatch;
+
+PROCEDURE CopyFixup*(CONST source: Fixup; VAR dest: Fixup);
+VAR i: LONGINT;
+BEGIN
+	COPY(source.identifier.name, dest.identifier.name);
+	dest.identifier.fingerprint := source.identifier.fingerprint;
+	dest.patches := source.patches;
+	NEW(dest.patch, dest.patches);
+	FOR i := 0 TO source.patches-1 DO
+		CopyPatch(source.patch[i], dest.patch[i]);
+	END;
+END CopyFixup;
+
 PROCEDURE CopySection* (CONST source: Section; VAR dest: Section);
-VAR i,j: LONGINT;
+VAR i: LONGINT;
 BEGIN
 	dest.type := source.type;
 	dest.identifier := source.identifier;
@@ -100,14 +142,10 @@ BEGIN
 	dest.alignment := source.alignment;
 	dest.fixups:= source.fixups;
 	NEW (dest.fixup, dest.fixups);
-	NEW (dest.bits, source.bits.GetSize ());
 	FOR i := 0 TO dest.fixups - 1 DO
-		dest.fixup[i] := source.fixup[i];
-		NEW(dest.fixup[i].pattern,source.fixup[i].patterns);
-		FOR j := 0 TO source.fixup[i].patterns-1 DO
-			dest.fixup[i].pattern[j] := source.fixup[i].pattern[j];
-		END;
+		CopyFixup(source.fixup[i], dest.fixup[i]);
 	END;
+	NEW (dest.bits, source.bits.GetSize ());
 	BitSets.CopyBits (source.bits, 0, dest.bits, 0, source.bits.GetSize ());
 END CopySection;
 
@@ -153,23 +191,37 @@ VAR i: LONGINT; size: Bits; bits: LONGINT;
 		writer.Int (identifier.fingerprint, 0);
 	END WriteIdentifier;
 
+	PROCEDURE WritePatch(CONST patch: Patch);
+	VAR i: LONGINT;
+	BEGIN
+		WriteValueIdentifier (patch.mode, modes);
+		writer.Char (Separator);
+		writer.Int (patch.displacement, 0);
+		writer.Char (Separator);
+		writer.Int (patch.scale, 0);
+		writer.Char (Separator);
+		writer.Int (patch.patterns, 0);
+		writer.Char (Separator);
+		FOR i := 0 TO patch.patterns - 1 DO
+			WritePattern (patch.pattern[i]);
+		END;
+		writer.Int (patch.offsets, 0);
+		writer.Char (Separator);
+		FOR i := 0 TO patch.offsets - 1 DO
+			writer.Int (patch.offset[i], 0);
+			writer.Char (Separator);
+		END;
+	END WritePatch;
+
 	PROCEDURE WriteFixup (CONST fixup: Fixup);
 	VAR i: LONGINT;
 	BEGIN
-		WriteValueIdentifier (fixup.mode, modes);
-		writer.Char (Separator);
-		writer.Int (fixup.offset, 0);
-		writer.Char (Separator);
 		WriteIdentifier(fixup.identifier);
 		writer.Char (Separator);
-		writer.Int (fixup.displacement, 0);
-		writer.Char (Separator);
-		writer.Int (fixup.scale, 0);
-		writer.Char (Separator);
-		writer.Int (fixup.patterns, 0);
-		writer.Char (Separator);
-		FOR i := 0 TO fixup.patterns - 1 DO
-			WritePattern (fixup.pattern[i]);
+		writer.Int(fixup.patches,1);
+		writer.Char(Separator);
+		FOR i := 0 TO fixup.patches-1 DO
+			WritePatch(fixup.patch[i]);
 		END;
 	END WriteFixup;
 
@@ -193,14 +245,14 @@ BEGIN
 	FOR i := 0 TO section.fixups - 1 DO
 		writer.Ln; writer.Char (Tab); WriteFixup (section.fixup[i]);
 	END;
-	i := 0; bits := 0; 
+	i := 0; bits := 0;
 	WHILE (i < size) & (bits = 0) DO
 		bits := section.bits.GetBits(i, MIN(4, size-i));
 		INC(i,4);
 	END;
 	IF (bits = 0) & (size > 0) THEN
 		writer.Ln; writer.Char(Tab); writer.Char('N')
-	ELSE		
+	ELSE
 		FOR i := 0 TO size - 1 BY 4 DO
 			IF i MOD (32 * 8) = 0 THEN writer.Ln; writer.Char (Tab); END;
 			writer.Char (NibbleToCharacter (section.bits.GetBits (i, MIN (4, size - i))));
@@ -233,21 +285,40 @@ VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
 		reader.SkipWhitespace; reader.Int (identifier.fingerprint,FALSE);
 	END ReadIdentifier;
 
+	PROCEDURE ReadPatch(VAR patch: Patch);
+	VAR i: LONGINT;
+	BEGIN
+		reader.SkipWhitespace;
+		ReadValueIdentifier (patch.mode, modes);
+		reader.SkipWhitespace; reader.Int (patch.displacement, FALSE);
+		reader.SkipWhitespace; reader.Int (patch.scale, FALSE);
+		reader.SkipWhitespace; reader.Int (patch.patterns, FALSE);
+
+		IF (patch.pattern = NIL) OR (LEN (patch.pattern) < patch.patterns) THEN
+			NEW (patch.pattern, patch.patterns);
+		END;
+		FOR i := 0 TO patch.patterns - 1 DO
+			ReadPattern (patch.pattern[i]);
+		END;
+		reader.SkipWhitespace; reader.Int(patch.offsets, FALSE);
+		IF (patch.offset = NIL) OR (LEN(patch.offset) < patch.offsets) THEN
+			NEW(patch.offset, patch.offsets);
+		END;
+		FOR i := 0 TO patch.offsets-1 DO
+			reader.SkipWhitespace; reader.Int (patch.offset[i], FALSE);
+		END;
+	END ReadPatch;
 
 	PROCEDURE ReadFixup (VAR fixup: Fixup);
 	VAR i: LONGINT;
 	BEGIN
-		ReadValueIdentifier (fixup.mode, modes);
-		reader.SkipWhitespace; reader.Int (fixup.offset, FALSE);
-		ReadIdentifier(fixup.identifier);
-		reader.SkipWhitespace; reader.Int (fixup.displacement, FALSE);
-		reader.SkipWhitespace; reader.Int (fixup.scale, FALSE);
-		reader.SkipWhitespace; reader.Int (fixup.patterns, FALSE);
-		IF (fixup.pattern = NIL) OR (LEN (fixup.pattern) < fixup.patterns) THEN
-			NEW (fixup.pattern, fixup.patterns);
+		reader.SkipWhitespace; ReadIdentifier (fixup.identifier);
+		reader.SkipWhitespace; reader.Int (fixup.patches, FALSE);
+		IF (fixup.patch = NIL) OR (LEN (fixup.patch) < fixup.patches) THEN
+			NEW (fixup.patch, fixup.patches);
 		END;
-		FOR i := 0 TO fixup.patterns - 1 DO
-			ReadPattern (fixup.pattern[i]);
+		FOR i := 0 TO fixup.patches - 1 DO
+			ReadPatch (fixup.patch[i]);
 		END;
 	END ReadFixup;
 
@@ -273,14 +344,115 @@ BEGIN
 	END;
 	FOR i := 0 TO size - 1 BY 4 DO
 		reader.SkipWhitespace; reader.Char (char);
-		IF char = 'N' THEN 
+		IF char = 'N' THEN
 			ASSERT(i=0);
 			section.bits.Zero;
-		(* skip rest of section *) RETURN 
+		(* skip rest of section *) RETURN
 		END;
 		section.bits.SetBits (i, MIN (4, size - i), CharacterToNibble (char));
 	END;
 END ReadSection;
+
+PROCEDURE SetFixups*(VAR section: Section; fixups: LONGINT; fixup: Fixups);
+BEGIN
+	section.fixups := fixups;
+	section.fixup := fixup;
+END SetFixups;
+
+
+
+PROCEDURE AddOffset(VAR offsets: LONGINT; VAR offset: Offsets; ofs: LONGINT);
+VAR newOffset: Offsets; newOffsets:LONGINT; i: LONGINT;
+BEGIN
+	FOR i := 0 TO offsets-1 DO
+		ASSERT(offset[i] # ofs);
+	END;
+	newOffsets := offsets+1;
+	IF (offset = NIL) OR (LEN(offset) < newOffsets) THEN
+		NEW(newOffset, 2*newOffsets);
+		FOR i := 0 TO offsets-1 DO
+			newOffset[i] := offset[i];
+		END;
+		offset := newOffset;
+	END;
+	offset[offsets] := ofs;
+	offsets := newOffsets;
+END AddOffset;
+
+
+PROCEDURE SamePattern(patterns: LONGINT; left, right: FixupPatterns): BOOLEAN;
+VAR i: LONGINT;
+BEGIN
+	FOR i := 0 TO patterns-1 DO
+		IF (left[i].offset # right[i].offset) OR (left[i].bits # right[i].bits) THEN RETURN FALSE END;
+	END;
+	RETURN TRUE
+END SamePattern;
+
+
+PROCEDURE AddPatch(VAR patches: LONGINT; VAR patch: Patches; mode: INTEGER; displacement, scale: LONGINT; patterns: LONGINT; pattern: FixupPatterns; offset: LONGINT);
+VAR i: LONGINT; newPatches: LONGINT; newPatch: Patches; len: LONGINT;
+BEGIN
+	FOR i := 0 TO patches-1 DO
+		len := LEN(patch);
+		ASSERT(patch # NIL,101);
+		ASSERT(LEN(patch) > i,102);
+		IF (patch[i].mode = mode) & (patch[i].displacement = displacement) & (patch[i].scale = scale) &  (patch[i].patterns = patterns) & SamePattern(patterns, patch[i].pattern, pattern) THEN
+			AddOffset(patch[i].offsets, patch[i].offset, offset);
+			RETURN
+		END;
+	END;
+	newPatches := patches+1;
+	IF (patch = NIL) OR (LEN(patch) < newPatches) THEN
+		ASSERT(newPatches > 0);
+		NEW(newPatch, 2*newPatches);
+		FOR i := 0 TO patches-1 DO
+			newPatch[i] := patch[i];
+			(*
+			CopyPatch(patch[i], newPatch[i]);
+			*)
+		END;
+		patch := newPatch;
+	END;
+	ASSERT(LEN(patch) > patches);
+	patch[patches].mode := mode;
+	patch[patches].displacement := displacement;
+	patch[patches].patterns := patterns;
+	patch[patches].pattern := pattern;
+	patch[patches].offsets := 0;
+	patch[patches].offset := NIL;
+	AddOffset(patch[patches].offsets, patch[patches].offset, offset);
+	patches := newPatches;
+	(* increase size and add *)
+END AddPatch;
+
+
+PROCEDURE AddFixup*(VAR fixups: LONGINT; VAR fixup: Fixups; CONST name: ARRAY OF CHAR; fingerprint: LONGINT; mode: INTEGER; displacement, scale: LONGINT; patterns: LONGINT; pattern: FixupPatterns; offset: LONGINT);
+VAR i: LONGINT; newFixups: LONGINT; newFixup: Fixups;
+BEGIN
+	FOR i := 0 TO fixups-1 DO
+		IF (name = fixup[i].identifier.name) & (fixup[i].identifier.fingerprint = fingerprint) THEN
+			AddPatch(fixup[i].patches, fixup[i].patch, mode, displacement, scale, patterns, pattern, offset);
+			RETURN
+		END;
+	END;
+	newFixups := fixups+1;
+	IF (fixup = NIL) OR (LEN(fixup) < newFixups) THEN
+		NEW(newFixup, 2*newFixups);
+		FOR i := 0 TO fixups-1 DO
+			newFixup[i] := fixup[i];
+			(*CopyFixup(fixup[i], newFixup[i]);*)
+		END;
+		fixup := newFixup;
+	END;
+	COPY(name, fixup[fixups].identifier.name);
+	fixup[fixups].identifier.fingerprint := fingerprint;
+	fixup[fixups].patches := 0;
+	fixup[fixups].patch := NIL;
+	AddPatch(fixup[fixups].patches, fixup[fixups].patch, mode, displacement, scale, patterns, pattern, offset);
+	fixups := newFixups;
+	(* increase size and add *)
+END AddFixup;
 
 BEGIN
 	types[Code] := "code";
@@ -295,3 +467,5 @@ BEGIN
 	relocatabilities[Aligned] := "aligned";
 END ObjectFile.
 
+
+ObjectFile.Test

@@ -109,17 +109,14 @@ BEGIN
 END GetFingerprint;
 
 PROCEDURE UpdateFixups (section: BinaryCode.Section;  fingerprinter: Fingerprinter.Fingerprinter);
-VAR fixup: BinaryCode.Fixup; i: INTEGER;
+VAR fixup: BinaryCode.Fixup; i: INTEGER; fixupList: ObjectFile.Fixups; fixups: LONGINT;
 BEGIN
-	section.fixups := section.fixupList.fixups;
-	IF section.fixups # 0 THEN NEW (section.fixup, section.fixups); ELSE section.fixup := NIL; END;
-	fixup := section.fixupList.firstFixup; i := 0;
+	fixup := section.fixupList.firstFixup; i := 0; fixups := 0; fixupList := NIL;
 	WHILE fixup # NIL DO
-		section.fixup[i] := fixup^;
-		COPY (fixup.symbol.name, section.fixup[i].identifier.name);
-		section.fixup[i].identifier.fingerprint := GetFingerprint (fixup.symbol, fingerprinter);
+		ObjectFile.AddFixup(fixups, fixupList, fixup.symbol.name, GetFingerprint(fixup.symbol, fingerprinter), fixup.mode, fixup.displacement, fixup.scale, fixup.patterns, fixup.pattern, fixup.offset);
 		fixup := fixup.nextFixup; INC (i);
 	END;
+	ObjectFile.SetFixups(section^, fixups, fixupList);
 END UpdateFixups;
 
 PROCEDURE Get*(): Formats.ObjectFileFormat;

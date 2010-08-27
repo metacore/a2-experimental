@@ -11,11 +11,18 @@ TYPE
 	Unit*= ObjectFile.Unit;
 	Bits*=ObjectFile.Bits;
 
-	ObjectFileFixup=POINTER TO ObjectFile.Fixup;
 	FixupPatterns*=ObjectFile.FixupPatterns;
 
-	Fixup*=OBJECT (ObjectFileFixup)
-	VAR nextFixup-: Fixup;
+	Fixup*=OBJECT
+	VAR
+		nextFixup-: Fixup;
+		mode-: INTEGER; (* fixup mode: relative or absolute *)
+		displacement-: ObjectFile.Unit; (* displacement of the fixup ('source') *)
+		scale-: ObjectFile.Bits; (* exponent of scale factor (factor=2^scale) *)
+		patterns-: LONGINT;
+		pattern-: FixupPatterns; (* patterns describing the fixup format, cf. above *)
+		offset-: ObjectFile.Unit;
+
 		symbol-: Sections.Section; (* reference to the fixup's destination section *)
 		symbolOffset-: LONGINT; (* offset in intermediate section, must be patched (resolved and added to displacement) to destination section displacement *)
 
@@ -25,17 +32,18 @@ TYPE
 			ASSERT(symbol # NIL);
 			nextFixup := NIL;
 			SELF.mode := mode;
-			SELF.offset := fixupOffset;
-			SELF.symbol := symbol;
-			SELF.symbolOffset := symbolOffset;
 			SELF.displacement := displacement;
 			SELF.scale := scale;
+			SELF.offset := fixupOffset;
 			SELF.pattern := fixupPattern;
 			IF fixupPattern # NIL THEN
 				SELF.patterns := LEN(fixupPattern);
 			ELSE
 				SELF.patterns := 0
 			END;
+
+			SELF.symbol := symbol;
+			SELF.symbolOffset := symbolOffset;
 		END InitFixup;
 
 		PROCEDURE SetFixupOffset*(offset: Unit);
@@ -154,15 +162,15 @@ TYPE
 			pc := 0;
 			fixed := FALSE;
 		END InitBinarySection;
-		
+
 		PROCEDURE Reset*;
 		BEGIN
 			NEW(bits,0);
 			NEW(fixupList);
 			validPAFEnter := 0; validPAFExit := 0;
-			pc := 0;			
+			pc := 0;
 		END Reset;
-		
+
 
 		PROCEDURE EnterValidPAF*;
 		BEGIN

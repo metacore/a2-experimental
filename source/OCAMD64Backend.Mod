@@ -10,6 +10,7 @@ IMPORT
 CONST
 
 	optimizeExperiment=TRUE;
+	SupportPool=TRUE;
 
 	none=-1; free=-1;
 	reserved=-2;
@@ -3060,27 +3061,28 @@ TYPE
 			 	WHILE (in # NIL) DO
 			 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
 				 		COPY(in.name,name);
-				 		pool.Work(in(IntermediateCode.Section), runtimeModuleName, diagnostics, module);
-				 		(*
-				 		out := ResolvedSection(in(IntermediateCode.Section));
-				 		cg.Section(in(IntermediateCode.Section),out);
-				 		IF out.type = Sections.VarSection THEN
-				 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
-				 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
-				 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
-				 			END;
-				 		ELSIF out.type = Sections.ConstSection THEN
-				 			out.SetAlignment(FALSE,4);
+				 		IF SupportPool THEN
+					 		pool.Work(in(IntermediateCode.Section), runtimeModuleName, diagnostics, module);
+				 		ELSE
+					 		out := ResolvedSection(in(IntermediateCode.Section));
+					 		cg.Section(in(IntermediateCode.Section),out);
+					 		IF out.type = Sections.VarSection THEN
+					 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
+					 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
+					 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
+					 			END;
+					 		ELSIF out.type = Sections.ConstSection THEN
+					 			out.SetAlignment(FALSE,4);
+					 		END;
 				 		END;
-				 		*)
 			 		END;
 			 		IF in = last THEN 
 			 			in := NIL 
 			 		ELSE
 				 		in := in.nextSection;
 				 	END;
-			 	END;		 	
-			 	pool.Wait;
+			 	END;
+			 	IF SupportPool THEN pool.Wait END;
 			UNTIL last = module.sections.last; (* process remaining sections that have been added during traversal of sections *)
 
 		 	in := module.caseTables.first;
@@ -3278,5 +3280,5 @@ VAR pool: Pool;
 
 BEGIN
 	Init;
-	NEW(pool);
+	IF SupportPool THEN NEW(pool) END;
 END OCAMD64Backend.

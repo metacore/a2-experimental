@@ -157,39 +157,50 @@ VAR
 			BEGIN arrangement.Patch (target, address, pattern.offset, pattern.bits, block.unit); address := ASH (address, -pattern.bits);
 			END PatchPattern;
 
-			PROCEDURE CheckBits;
+			PROCEDURE CheckBits(value: LONGINT; CONST patch: ObjectFile.Patch; offset: LONGINT);
 			VAR i, nobits: LONGINT; minval, maxval: ObjectFile.Unit; name: ObjectFile.SectionName; number: ARRAY 32 OF CHAR;
 			BEGIN
 				nobits := 0;
-				FOR i := 0 TO fixup.patterns-1 DO
-					INC(nobits,fixup.pattern[i].bits);
+				FOR i := 0 TO patch.patterns-1 DO
+					INC(nobits,patch.pattern[i].bits);
 				END;
 				IF nobits >= 32 THEN RETURN END;
-				IF fixup.mode = ObjectFile.Relative THEN (* negative values allowed *)
+				IF patch.mode = ObjectFile.Relative THEN (* negative values allowed *)
 					maxval := ASH(1,nobits-1)-1; minval := -maxval-1
 				ELSE
 					minval := 0; maxval := ASH(1,nobits);
 				END;
-				IF (address < minval) OR (address > maxval) THEN
+				IF (value < minval) OR (value > maxval) THEN
 					COPY(block.identifier.name,name);
 					Strings.Append(name,":");
-					Strings.IntToStr(fixup.offset,number);
+					Strings.IntToStr(offset,number);
 					Strings.Append(name,number);
 					Error(name,"fixup out of range");
 				END;
 			END CheckBits;
 
+			PROCEDURE ApplyPatch(CONST patch: ObjectFile.Patch);
+			VAR i,j: LONGINT;
+			BEGIN
+				FOR i := 0 TO patch.offsets-1 DO
+					target := block.address + patch.offset[i];
+					address := reference.address + patch.displacement;
+					IF patch.mode = ObjectFile.Relative THEN
+						DEC(address,target)
+					END;
+					address := ASH (address, patch.scale);
+					CheckBits(address, patch, patch.offset[i]);
+					FOR j := 0 TO patch.patterns-1 DO PatchPattern(patch.pattern[j]) END;
+				END;
+			END ApplyPatch;
+
 		BEGIN
-			target := block.address + fixup.offset;
 			reference := FindBlock (fixup.identifier);
 			IF reference = NIL THEN reference := ImportBlock(fixup.identifier) END;
-
 			ASSERT (reference # NIL);
-			address := reference.address + fixup.displacement;
-			IF fixup.mode = ObjectFile.Relative THEN DEC (address, target) END;
-			address := ASH (address, fixup.scale);
-			CheckBits;
-			FOR i := 0 TO fixup.patterns - 1 DO PatchPattern (fixup.pattern[i]); END;
+			FOR i := 0 TO fixup.patches-1 DO
+				ApplyPatch(fixup.patch[i]);
+			END;
 		END PatchFixup;
 
 	BEGIN
