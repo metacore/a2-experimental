@@ -354,6 +354,46 @@
 		</Highlighter>
 
 		<Highlighter name="C">
+			<Tokens>
+				<Group style="Green">
+					( )
+				</Group>
+				<Group style="Red">
+					= * + - / &amp;
+					&lt; &lt;= &gt;= &gt; #
+				</Group>
+				<Group style="Comment">
+					; : ,
+				</Group>
+			</Tokens>
+			<Words>
+				<Group style="Bold">
+					signed unsigned
+					short long
+					char, int
+					float double
+					void
+				</Group>
+				<Group style="Bold">
+					typedef
+					union struct enum
+					sizeof
+				</Group>
+				<Group style="Bold">
+					auto default extern inline register volatile
+					restrict
+					static
+					const
+				</Group>
+				<Group style="Bold">
+					break continue
+					switch case for
+					if else
+					do while
+					goto
+					return
+				</Group>
+			</Words>
 			<Regions>
 				<Region
 					style="Comment" styleOpen="Comment" styleClose="Comment"
@@ -362,6 +402,14 @@
 				<Region
 					style="Comment" styleOpen="Comment" styleClose="Comment"
 					open="//" close="" nesting="FALSE" multiline="FALSE"
+				/>
+				<Region
+					style="String" styleOpen="Bold" styleClose="Bold"
+					open='"' close='"' nesting="FALSE" multiline="TRUE"
+				/>
+				<Region
+					style="String" styleOpen="Bold" styleClose="Bold"
+					open="'" close="'" nesting="FALSE" multiline="TRUE"
 				/>
 			</Regions>
 		</Highlighter>
