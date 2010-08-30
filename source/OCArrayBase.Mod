@@ -4,7 +4,7 @@ MODULE OCArrayBase; (* stubs for array base runtime - can only be compiled by oc
 IMPORT SYSTEM, KernelLog, Heaps;
 
 TYPE
-	ADDRESS = SYSTEM.ADDRESS;
+	ADDRESS = LONGINT;
 
 	UnaryAALoop = PROCEDURE ( ladr, dadr, linc, dinc, len: ADDRESS );
 	UnaryASLoop = PROCEDURE ( ladr, dadr, linc, len: ADDRESS );
@@ -8137,14 +8137,13 @@ Sufficient (but not necessary) conditions:
 										  SYSTEM.SIZEOF( LONGREAL ), loopMulAXSX );
 		RETURN RESULT
 	END "**";
-	
+
 	PROCEDURE ExpandDimensions*(CONST left: ARRAY [?] OF SYSTEM.ALL; CONST a: ARRAY [*] OF BOOLEAN): ARRAY [?] OF SYSTEM.ALL;
 	VAR newdim: LONGINT;
 	BEGIN
-		newdim := LEN(a);
-		
+		newdim := LEN(a,0);
 	END ExpandDimensions;
-	
+
 
 	PROCEDURE InitOptimization;
 	VAR p: PROCEDURE;

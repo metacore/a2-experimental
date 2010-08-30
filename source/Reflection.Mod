@@ -179,8 +179,9 @@ VAR
 		newObjectFile := NewObjectFile(refs);
 		proc := -1; i := 0; m := LEN(refs^);
 		IF newObjectFile THEN INC(i) END;
-		ch := refs[i]; INC(i);
+		ch := refs[i]; INC(i); tstart := 0;
 		WHILE (i < m) & ((ch = 0F8X) OR (ch = 0F9X)) DO	(* proc *)
+			startpc := tstart;
 			GetNum(refs, i, tstart);	(* pofs *)
 			IF newObjectFile THEN GetNum(refs,i,tend) END;
 			IF ~newObjectFile & (tstart > modpc) THEN	(* previous procedure was the one *)
@@ -209,9 +210,14 @@ VAR
 			IF newObjectFile THEN
 				IF (tstart <=modpc) & (tend  > modpc) THEN
 					ch := 0X; startpc := tstart;
+
+					(*
 					Trace.Int(modpc,1); Trace.String(" found at "); Trace.Int(tstart,1); Trace.String(" - "); Trace.Int(tend,1);Trace.Ln;
+					*)
 				ELSE
+					(*
 					Trace.Int(modpc,1); Trace.String(" not at"); Trace.Int(tstart,1); Trace.String(" - "); Trace.Int(tend,1);Trace.Ln;
+					*)
 					proc := -1
 				END;
 			END;

@@ -3076,8 +3076,8 @@ TYPE
 					 		END;
 				 		END;
 			 		END;
-			 		IF in = last THEN 
-			 			in := NIL 
+			 		IF in = last THEN
+			 			in := NIL
 			 		ELSE
 				 		in := in.nextSection;
 				 	END;
@@ -3178,7 +3178,7 @@ TYPE
 			ELSE
 				binarySection := section(IntermediateCode.Section).resolved;
 				label := binarySection.labels;
-				WHILE (label # NIL) & (label.offset > sectionOffset) DO
+				WHILE (label # NIL) & (label.offset >= sectionOffset) DO
 					label := label.prev;
 				END;
 				IF label # NIL THEN
@@ -3211,7 +3211,7 @@ TYPE
 
 
 	END BackendAMD64;
-VAR pool: Pool; 
+VAR pool: Pool;
 
 	PROCEDURE Assert(b: BOOLEAN; CONST s: ARRAY OF CHAR);
 	BEGIN
