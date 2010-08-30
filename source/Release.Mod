@@ -3103,7 +3103,7 @@ BEGIN
 							context.out.String(" ... "); context.out.Update;
 							build.GenerateToolFile(fullname, res);
 							IF (res = 0) THEN
-								context.out.String("done."); context.out.Update;
+								context.out.String("done."); context.out.Ln; context.out.Update;
 								IF options.GetFlag("build") THEN
 									IF ~options.GetInteger("workers", nofWorkers) THEN nofWorkers := 0; END;
 									build.Compile(nofWorkers, context.out, context.error, options.GetFlag("verbose"), diagnostics, error);
@@ -3114,9 +3114,8 @@ BEGIN
 								IF ~options.GetFlag("build") THEN
 									CallCommand("Notepad.Open", fullname, context);
 								END;
-								context.out.String("error, res: "); context.out.Int(res, 0);
+								context.out.String("error, res: "); context.out.Int(res, 0); context.out.Ln;
 							END;
-							context.out.Ln;
 						END;
 					END;
 				ELSE
@@ -3199,7 +3198,7 @@ BEGIN
 						context.out.String(" ... "); context.out.Update;
 						build.GenerateToolFile(fullname, res);
 						IF (res = 0) THEN
-							context.out.String("done."); context.out.Update;
+							context.out.String("done."); context.out.Ln; context.out.Update;
 							IF options.GetFlag("build") THEN
 								build.Compile(nofWorkers, context.out, context.error, options.GetFlag("verbose"), diagnostics, error);
 							ELSIF ~options.GetFlag("zip") THEN
@@ -3225,9 +3224,8 @@ BEGIN
 							IF ~options.GetFlag("build") THEN
 								CallCommand("Notepad.Open", fullname, context);
 							END;
-							context.out.String("error, res: "); context.out.Int(res, 0);
+							context.out.String("error, res: "); context.out.Int(res, 0); context.out.Ln;
 						END;
-						context.out.Ln; context.out.Update;
 					END;
 				ELSE
 					context.error.String("Build "); context.error.String(buildname); context.error.String(" not found."); context.error.Ln;
