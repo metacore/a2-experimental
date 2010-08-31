@@ -256,6 +256,9 @@ TYPE
 		PROCEDURE VisitAnyType(x: SyntaxTree.AnyType);
 		BEGIN END VisitAnyType;
 
+		PROCEDURE VisitAllType(x: SyntaxTree.AllType);
+		BEGIN END VisitAllType;
+
 		PROCEDURE VisitObjectType(x: SyntaxTree.ObjectType);
 		BEGIN END VisitObjectType;
 
