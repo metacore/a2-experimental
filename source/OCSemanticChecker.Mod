@@ -1485,6 +1485,8 @@ TYPE
 					ELSE
 						Error(left.position,Diagnostics.Invalid,"unary operator not applicable");
 					END;
+				ELSE
+					Error(left.position,Diagnostics.Invalid,"unary operator not defined");
 				END;
 			END;
 			result.SetType(type);
@@ -4357,9 +4359,11 @@ TYPE
 					END;
 				END;
 				IF (SyntaxTree.AlignedFlag IN flags) & CheckIntegerValue(flagExpressions[SyntaxTree.AlignedFlag],value) THEN
+					(*
 					IF variable.scope IS SyntaxTree.ProcedureScope THEN
 						Error(variable.position,Diagnostics.Invalid,"not yet implemented");
 					END;
+					*)
 					variable.SetAlignment(FALSE,value);
 				END;
 				variable.SetState(SyntaxTree.Resolved);

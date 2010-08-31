@@ -264,6 +264,10 @@ TYPE
 				irv.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(x.type))));
 				CheckTypeDeclaration(implementationVisitor, module,x.type,dump,implementationVisitor.newObjectFile);
 			ELSIF currentScope IS SyntaxTree.RecordScope THEN
+			ELSIF currentScope IS SyntaxTree.ProcedureScope THEN
+				IF x.alignment > 1 THEN
+					HALT(100);
+				END;
 			END;
 			(* do not call Type(x.type) here as this must already performed in the type declaration section ! *)
 		END VisitVariable;
@@ -803,7 +807,7 @@ TYPE
 		BEGIN
 			RETURN (instruction.op1.register = register) OR (instruction.op2.register = register) OR (instruction.op3.register = register)
 		END HasRegister;
-		
+
 		BEGIN
 
 			firstUse := acquirePosition+1;
@@ -5943,7 +5947,7 @@ TYPE
 			BEGIN
 				RETURN FALSE;
 				register := instr.op1.register;
-				IF (register >0) & (instr.op2.register # register) & (instr.op2.register > 0) & (instr.op2.mode = IntermediateCode.ModeRegister) & (instr.op2.offset = 0) 
+				IF (register >0) & (instr.op2.register # register) & (instr.op2.register > 0) & (instr.op2.mode = IntermediateCode.ModeRegister) & (instr.op2.offset = 0)
 					& (register <IntermediateCode.Result) & (instr.op2.register < IntermediateCode.Result)
 				THEN
 					IF (instr.opcode = IntermediateCode.conv) OR (instr.opcode = IntermediateCode.mov) THEN
@@ -6055,7 +6059,7 @@ TYPE
 				END;
 				IF ~ignore THEN
 					IF instruction.opcode = IntermediateCode.acquire THEN
-						lastUse[instruction.op1.register] := SHORT(instruction.op3.intValue); 
+						lastUse[instruction.op1.register] := SHORT(instruction.op3.intValue);
 						MapVirtualRegister(instruction.op1.register, instruction.op1.type);
 					ELSE
 						Generate(instruction);
@@ -6063,7 +6067,7 @@ TYPE
 				END;
 				Release(instruction);
 			END;
-			FOR i := 0 TO MaxVirtualRegisters-1 DO 
+			FOR i := 0 TO MaxVirtualRegisters-1 DO
 				ASSERT(lastUse[i]=-1)
 			END;
 			ResolveLocalFixups;
