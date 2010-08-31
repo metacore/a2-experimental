@@ -5,7 +5,7 @@ IMPORT
 	IntermediateCode := OCIntermediateCode, IntermediateBackend := OCIntermediateBackend, BinaryCode := OCBinaryCode,
 	InstructionSet := OCAMD64InstructionSet, Assembler := OCAMD64Assembler, SemanticChecker := OCSemanticChecker, Formats := OCFormats,
 	Diagnostics, Streams, Options, WMUtilities, Strings, ObjectFileFormat := OCBinaryObjectFile, Dataflow := OCDataflow
-	, D := Debugging;
+	, D := Debugging, Machine;
 
 CONST
 
@@ -52,7 +52,7 @@ TYPE
 
 
 VAR registerOperands: ARRAY InstructionSet.numberRegisters OF Assembler.Operand;
-
+	usePool: BOOLEAN;
 	 opEAX, opECX, opEDX, opEBX, opESP, opEBP, opESI, opEDI, opAX, opCX, opDX, opBX, opSI, opDI, opAL, opCL, opDL, opBL, opAH, opCH, opDH, opBH,opST0: Assembler.Operand;
 
 TYPE
@@ -2908,7 +2908,7 @@ TYPE
 				PROCEDURE &Init();
 				VAR i: LONGINT; worker: Worker;
 				BEGIN
-					FOR i := 1 TO 4 DO
+					FOR i := 1 TO Machine.NumberOfProcessors() DO
 						NEW(worker,SELF); worker.next := ready; ready := worker; INC(numReady); INC(numTotal);
 					END;
 				END Init;
@@ -3061,7 +3061,7 @@ TYPE
 			 	WHILE (in # NIL) DO
 			 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
 				 		COPY(in.name,name);
-				 		IF SupportPool THEN
+				 		IF SupportPool & usePool THEN
 					 		pool.Work(in(IntermediateCode.Section), runtimeModuleName, diagnostics, module);
 				 		ELSE
 					 		out := ResolvedSection(in(IntermediateCode.Section));
@@ -3082,7 +3082,7 @@ TYPE
 				 		in := in.nextSection;
 				 	END;
 			 	END;
-			 	IF SupportPool THEN pool.Wait END;
+			 	IF SupportPool&usePool THEN pool.Wait END;
 			UNTIL last = module.sections.last; (* process remaining sections that have been added during traversal of sections *)
 
 		 	in := module.caseTables.first;
@@ -3280,5 +3280,6 @@ VAR pool: Pool;
 
 BEGIN
 	Init;
-	IF SupportPool THEN NEW(pool) END;
+	usePool := Machine.NumberOfProcessors()>1;
+	IF SupportPool & usePool THEN NEW(pool) END;
 END OCAMD64Backend.
