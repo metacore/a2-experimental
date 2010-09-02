@@ -160,7 +160,7 @@ TYPE
 
 		PROCEDURE & InitTypeReference(nr: LONGINT);
 		BEGIN
-			InitType(-1, {}); SELF.nr := nr;
+			InitType(-1); SELF.nr := nr;
 		END InitTypeReference;
 
 	END TypeReference;
@@ -800,7 +800,7 @@ TYPE
 
 
 			(* ParameterList = { [sfObjflag ( sfCParam | sfWinAPIParam )] [sfVar] [sfReadOnly] Type name:RawString } sfEnd *)
-			PROCEDURE ParameterList(VAR flags: SET; parentScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType);
+			PROCEDURE ParameterList(VAR callingConvention: LONGINT; parentScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType);
 			VAR name: Scanner.StringType; type: SyntaxTree.Type; f: LONGINT;
 				kind: LONGINT;
 				parameter, sparameter, rparameter: SyntaxTree.Parameter;
@@ -811,15 +811,16 @@ TYPE
 				END;
 				sparameter := NIL;
 				rparameter := NIL;
+				callingConvention := SyntaxTree.OberonCallingConvention;
 
 				R.RawNum(tag);
 				WHILE  tag#sfEnd  DO
 					IF tag = sfObjFlag THEN (*! the calling convention should not be expressed via the parameters (compatiblity with old compiler) *)
 						R.RawNum(f);
 						IF f = sfCParam THEN (* fof for Linux *)
-							INCL(flags,SyntaxTree.CFlag);
+							callingConvention := SyntaxTree.CCallingConvention
 						ELSIF f=sfWinAPIParam THEN
-							INCL(flags,SyntaxTree.WinAPIFlag);
+							callingConvention := SyntaxTree.WinAPICallingConvention
 						ELSE HALT(100)
 						END;
 						R.RawNum(tag);
@@ -855,7 +856,7 @@ TYPE
 					R.RawNum(tag)
 				END;
 
-				IF {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag} * flags # {} THEN
+				IF callingConvention # SyntaxTree.OberonCallingConvention THEN
 					procedureType.RevertParameters; (*! compatibility to PACO *)
 					ASSERT(sparameter = NIL);
 					(* ASSERT(rparameter = NIL);*)
@@ -895,10 +896,12 @@ TYPE
 			*)
 			PROCEDURE Record(recordType: SyntaxTree.RecordType; baseType: SyntaxTree.Type);
 			VAR
-				mode,flags: SET;
-				bodyFlags: SET;
+				mode: SET;
 				priority: LONGINT;
 				visibility: SET;
+
+				active, safe: BOOLEAN;
+				untraced, realtime, constructor: BOOLEAN;
 
 				variable: SyntaxTree.Variable;
 				procedure: SyntaxTree.Procedure;
@@ -908,17 +911,15 @@ TYPE
 				name: Scanner.StringType;
 
 				ch: CHAR;
+				callingConvention: LONGINT;
 
 			BEGIN
 				recordScope := recordType.recordScope;
 
 				R.RawNum(SYSTEM.VAL(LONGINT, mode));
-				IF sfActive IN mode THEN INCL(flags,SyntaxTree.ActiveFlag) END;
+				IF sfActive IN mode THEN active := TRUE ELSE active := FALSE END;
 				IF sfProtected IN mode THEN recordType.SetProtected(TRUE) END;
-				IF sfSafe IN mode THEN INCL(flags,SyntaxTree.SafeFlag) END;
-
-				bodyFlags := flags;
-				flags := {};
+				IF sfSafe IN mode THEN safe := TRUE ELSE safe := FALSE END;
 
 				R.Char(ch);
 				priority := ORD(ch); (* body priority, if active object *)
@@ -929,12 +930,12 @@ TYPE
 
 				R.RawNum(tag);
 				WHILE  (tag < sfTProcedure) OR (tag > sfEnd) DO	(*read fields*)
-					Symbol(recordScope,type,name,visibility,flags,FALSE);
+					Symbol(recordScope,type,name,visibility,untraced, realtime, constructor, FALSE);
 					ASSERT(type # NIL);
 					IF  name = "" THEN visibility := SyntaxTree.Internal END;
 					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,name));
 					variable.SetType(type);
-					variable.AddFlags(flags);
+					variable.SetUntraced(untraced);
 					variable.SetAccess(visibility);
 					variable.SetState(SyntaxTree.Resolved);
 					recordScope.AddVariable(variable);
@@ -945,25 +946,23 @@ TYPE
 				IF tag=sfTProcedure THEN
 					R.RawNum(tag);
 					WHILE  tag#sfEnd  DO
-						Symbol(recordScope,type,name, visibility,flags,FALSE);
+						Symbol(recordScope,type,name, visibility,untraced, realtime, constructor,FALSE);
 						IF  name = "" THEN  R.RawString(name)  END;
 
 						procedureScope := SyntaxTree.NewProcedureScope(recordScope);
 						procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
 						procedureType := SyntaxTree.NewProcedureType(-1,recordScope);
 						procedureType.SetReturnType(type);
-						procedureType.AddFlags(flags);
-						procedureType.AddFlags({SyntaxTree.DelegateFlag});
-						procedure.AddFlags(flags);
+						procedureType.SetRealtime(realtime);
+						procedureType.SetDelegate(TRUE);
 						procedure.SetType(procedureType);
 						procedure.SetAccess(visibility);
 						procedure.SetState(SyntaxTree.Resolved);
-						IF SyntaxTree.ConstructorFlag IN procedure.flags THEN
+						IF constructor THEN
 							recordScope.SetConstructor(procedure); (*! redundant *)
 						END;
 
-						flags := {};
-						ParameterList(flags,procedureScope,procedureType);
+						ParameterList(callingConvention,procedureScope,procedureType);
 
 						recordScope.AddProcedure(procedure);
 						recordScope.EnterSymbol(procedure,b);
@@ -983,14 +982,17 @@ TYPE
 						IF procedure.name.Equals(Global.RecordBodyName) THEN
 							recordScope.SetBodyProcedure(procedure);
 							recordBody := SyntaxTree.NewBody(-1,procedureScope);
-							recordBody.AddFlags(bodyFlags);
+							recordBody.SetSafe(safe);
+							recordBody.SetActive(active);
 							procedureScope.SetBody(recordBody);
 						END;
 					END
 				ELSE ASSERT(tag = sfEnd);
 				END;
 
+				(*
 				ASSERT((bodyFlags = {}) OR (recordScope.bodyProcedure # NIL));
+				*)
 
 				recordType.SetBaseType(baseType);
 
@@ -1051,6 +1053,7 @@ TYPE
 				sysflag: LONGINT; flags: SET;
 
 				attribute: Attribute;
+				callingConvention: LONGINT;
 
 			BEGIN
 				visibility := SyntaxTree.Public+SyntaxTree.Protected+SyntaxTree.Internal; flags := {};
@@ -1146,7 +1149,7 @@ TYPE
 							type := arrayType;
 							arrayType.SetArrayBase(baseType);
 							R.RawNum(SYSTEM.VAL(LONGINT,flags));
-							IF sfRealtime IN flags THEN type.AddFlags(type.flags+{SyntaxTree.RealtimeFlag}) END;
+							IF sfRealtime IN flags THEN type.SetRealtime(TRUE) END;
 					| sfTypeStaticArray:
 							IF TraceImport IN Trace THEN
 								D.Str("Type / User / Array ");
@@ -1157,7 +1160,7 @@ TYPE
 							type := arrayType;
 							arrayType.SetArrayBase(baseType);
 							R.RawNum(SYSTEM.VAL(LONGINT,flags));
-							IF sfRealtime IN flags THEN type.AddFlags(type.flags+{SyntaxTree.RealtimeFlag}) END;
+							IF sfRealtime IN flags THEN type.SetRealtime(TRUE) END;
 							R.RawNum(len);
 							size := SyntaxTree.NewIntegerValue(-1,len);
 							size.SetType(system.longintType);
@@ -1205,7 +1208,7 @@ TYPE
 							type := pointerType;
 							pointerType.SetPointerBase(baseType);
 							R.RawNum(SYSTEM.VAL(LONGINT,flags));
-							IF sfRealtime IN flags THEN type.AddFlags(type.flags+{SyntaxTree.RealtimeFlag}) END;
+							IF sfRealtime IN flags THEN type.SetRealtime(TRUE) END;
 					| sfTypeRecord:
 							IF TraceImport IN Trace THEN
 								D.Str("Type / User / Record "); D.Str(name); D.Ln
@@ -1214,7 +1217,7 @@ TYPE
 							recordType := SyntaxTree.NewRecordType(-1,moduleScope,recordScope);
 							type := recordType;
 							R.RawNum(SYSTEM.VAL(LONGINT,flags));
-							IF sfRealtime IN flags THEN type.AddFlags(type.flags+{SyntaxTree.RealtimeFlag}) END;
+							IF sfRealtime IN flags THEN type.SetRealtime(TRUE) END;
 							Record(recordType,baseType);
 					| sfTypeProcedure:
 							IF TraceImport IN Trace THEN
@@ -1225,15 +1228,15 @@ TYPE
 							procedureType.SetReturnType(baseType);
 							type := procedureType;
 
-							IF sysflag = sfDelegate THEN procedureType.AddFlags(procedureType.flags+{SyntaxTree.DelegateFlag})  END;
+							IF sysflag = sfDelegate THEN procedureType.SetDelegate(TRUE)  END;
 
 							R.RawNum(SYSTEM.VAL(LONGINT,flags));
-							IF sfWinAPIParam IN flags THEN procedureType.AddFlags(procedureType.flags+{SyntaxTree.WinAPIFlag});
-							ELSIF sfCParam IN flags THEN procedureType.AddFlags(procedureType.flags+{SyntaxTree.CFlag});
+							IF sfWinAPIParam IN flags THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
+							ELSIF sfCParam IN flags THEN procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
 							END;
-							IF sfRealtime IN flags THEN procedureType.AddFlags(procedureType.flags+{SyntaxTree.RealtimeFlag}) END;
+							IF sfRealtime IN flags THEN procedureType.SetRealtime(TRUE) END;
 
-							ParameterList(flags,procedureScope,procedureType);
+							ParameterList(callingConvention,procedureScope,procedureType);
 					| sfTypeEnumeration:
 							IF TraceImport IN Trace THEN
 								D.Str("Type / User / Enumerator "); D.Str(name); D.Ln
@@ -1309,18 +1312,18 @@ TYPE
 			END Inline;
 
 			(* Symbol = [sfObjFlag flag:RawNum] [sfReadOnly] Type name:RawString *)
-			PROCEDURE Symbol(parentScope: SyntaxTree.Scope; VAR type: SyntaxTree.Type; VAR name: Scanner.StringType;  VAR visibility,flags: SET; operator: BOOLEAN);
+			PROCEDURE Symbol(parentScope: SyntaxTree.Scope; VAR type: SyntaxTree.Type; VAR name: Scanner.StringType;  VAR visibility: SET; VAR untraced, realtime, constructor: BOOLEAN; operator: BOOLEAN);
 			VAR  f,i: LONGINT;
 			BEGIN
 				IF TraceImport IN Trace THEN
 					D.Str("Symbol: --> "); D.Ln
 				END;
-				flags := {};
+				untraced := FALSE; realtime := FALSE; constructor := FALSE;
 				visibility:=SyntaxTree.Public+SyntaxTree.Protected+SyntaxTree.Internal;
 				IF tag=sfObjFlag THEN
 					R.RawNum(f);
-					IF f = sfUntraced THEN INCL(flags,SyntaxTree.UntracedFlag)
-					ELSIF f = sfRealtime THEN INCL(flags,SyntaxTree.RealtimeFlag)
+					IF f = sfUntraced THEN untraced := TRUE
+					ELSIF f = sfRealtime THEN realtime := TRUE
 					ELSE D.Str("Object: unknown objflag"); D.Ln
 					END;
 					R.RawNum(tag);
@@ -1331,7 +1334,7 @@ TYPE
 				IF name = "" THEN
 					visibility := visibility * SyntaxTree.Internal;
 				ELSIF ~operator & (name[0] = "&") THEN
-					INCL(flags,SyntaxTree.ConstructorFlag);
+					constructor := TRUE;
 					i := 0; REPEAT  name[i] := name[i+1]; INC(i)  UNTIL name[i] = 0X;
 				END;
 				IF TraceImport IN Trace THEN
@@ -1356,7 +1359,7 @@ TYPE
 			*)
 
 			PROCEDURE Module;
-			VAR flags: SET;
+			VAR flags: SET; untraced, realtime, constructor: BOOLEAN; callingConvention: LONGINT;
 			BEGIN
 				R.RawSet(flags);
 
@@ -1372,7 +1375,7 @@ TYPE
 				IF TraceImport IN Trace THEN  D.Str("importing constants"); D.Ln; END;
 				IF tag=sfConst	THEN R.RawNum(tag);
 					WHILE	(tag < sfVar) OR (tag > sfEnd) DO
-						Symbol(moduleScope,type,name, visibility,flags,FALSE);
+						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,FALSE);
 						ASSERT(type # NIL);
 						value := Value(type);
 						constant := SyntaxTree.NewConstant(-1,SyntaxTree.NewIdentifier(-1,name));
@@ -1389,7 +1392,7 @@ TYPE
 				IF TraceImport IN Trace THEN  D.Str("importing variables"); D.Ln; END;
 				IF	tag=sfVar	THEN	R.RawNum(tag);
 					WHILE	(tag < sfXProcedure) OR (tag > sfEnd)	DO
-						Symbol(moduleScope,type,name, visibility,flags,FALSE);
+						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,FALSE);
 						ASSERT(type # NIL);
 						variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,name));
 						variable.SetType(type);
@@ -1404,17 +1407,18 @@ TYPE
 				IF TraceImport IN Trace THEN  D.Str("importing procedures"); D.Ln; END;
 				IF	tag=sfXProcedure	THEN	R.RawNum(tag);
 					WHILE	(tag < sfOperator) OR (tag > sfEnd)	DO
-						Symbol(moduleScope,type,name, visibility,flags,FALSE);
-						ASSERT(~(SyntaxTree.ConstructorFlag IN flags));
+						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,FALSE);
+						ASSERT(~(constructor));
 						procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
 						procedureType := SyntaxTree.NewProcedureType(-1,moduleScope);
 						procedureType.SetReturnType(type);
 						procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
 						procedure.SetType(procedureType);
 						procedure.SetAccess(visibility);
-						ParameterList(flags,procedureScope,procedureType);
-						procedureType.AddFlags(flags);
+						ParameterList(callingConvention,procedureScope,procedureType);
+						procedureType.SetRealtime(realtime);
 						procedure.SetState(SyntaxTree.Resolved);
+						procedure.SetConstructor(constructor);
 						moduleScope.AddProcedure(procedure);
 						moduleScope.EnterSymbol(procedure,b);
 						R.RawNum(tag)
@@ -1424,17 +1428,18 @@ TYPE
 				IF TraceImport IN Trace THEN  D.Str("importing operators"); D.Ln; END;
 				IF	tag=sfOperator	THEN	R.RawNum(tag);
 					WHILE	(tag < sfCProcedure) OR (tag > sfEnd)	DO
-						Symbol(moduleScope,type,name, visibility,flags,TRUE);
-						ASSERT(~(SyntaxTree.ConstructorFlag IN flags));
+
+						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,TRUE);
+						ASSERT(~(constructor));
 						procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
 						procedureType := SyntaxTree.NewProcedureType(-1,moduleScope);
 						procedureType.SetReturnType(type);
-						procedureType.AddFlags(flags);
+						procedureType.SetRealtime(realtime);
 						procedure := SyntaxTree.NewOperator(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
 						procedure.SetType(procedureType);
 						procedure.SetAccess(visibility);
-						ParameterList(flags,procedureScope,procedureType);
-						procedureType.AddFlags(flags);
+						ParameterList(callingConvention,procedureScope,procedureType);
+						procedureType.SetCallingConvention(callingConvention);
 						procedure.SetState(SyntaxTree.Resolved);
 						module.moduleScope.AddProcedure(procedure);
 						module.moduleScope.AddOperator(procedure(SyntaxTree.Operator));
@@ -1442,8 +1447,7 @@ TYPE
 						R.RawNum(tag);
 						IF tag = sfInline THEN
 							Inline(procedureScope);
-							procedure.AddFlags({SyntaxTree.InlineFlag});
-							procedureType.AddFlags({SyntaxTree.InlineFlag});
+							procedure.SetInline(TRUE);
 							R.RawNum(tag);
 						END;
 					END
@@ -1451,17 +1455,16 @@ TYPE
 				IF TraceImport IN Trace THEN  D.Str("importing inline procedures"); D.Ln; END;
 				IF  tag = sfCProcedure  THEN	R.RawNum(tag);
 					WHILE	(tag < sfAlias) OR (tag > sfEnd)	DO
-						Symbol(moduleScope,type,name, visibility,flags,FALSE);
-						ASSERT(~(SyntaxTree.ConstructorFlag IN flags));
+						Symbol(moduleScope,type,name, visibility,untraced, realtime, constructor,FALSE);
+						ASSERT(~(constructor));
 						procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
 						procedureType := SyntaxTree.NewProcedureType(-1,moduleScope);
 						procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
 						procedureType.SetReturnType(type);
-						procedureType.AddFlags(flags+{SyntaxTree.InlineFlag});
-						procedure.AddFlags({SyntaxTree.InlineFlag});
+						procedure.SetInline(TRUE);
 						procedure.SetType(procedureType);
 						procedure.SetAccess(visibility);
-						ParameterList(flags,procedureScope,procedureType);
+						ParameterList(callingConvention,procedureScope,procedureType);
 						procedure.SetState(SyntaxTree.Resolved);
 						module.moduleScope.AddProcedure(procedure);
 						module.moduleScope.EnterSymbol(procedure,b);
@@ -1621,13 +1624,13 @@ TYPE
 			*)
 			PROCEDURE Record(record: SyntaxTree.RecordType);
 			VAR scope: SyntaxTree.RecordScope; variable: SyntaxTree.Variable; procedure: SyntaxTree.Procedure; name: Scanner.StringType; flags,mode: SET;
-				procedureType: SyntaxTree.ProcedureType;
+				procedureType: SyntaxTree.ProcedureType; body: SyntaxTree.Body;
 			BEGIN
 				scope := record.recordScope;
 				IF record.recordScope.bodyProcedure # NIL THEN
-					flags := record.recordScope.bodyProcedure.procedureScope.body.flags;
-					IF SyntaxTree.ActiveFlag IN flags THEN INCL(mode,sfActive) END;
-					IF SyntaxTree.SafeFlag IN flags THEN INCL(mode,sfSafe) END;
+					body := record.recordScope.bodyProcedure.procedureScope.body;
+					IF body.isActive THEN INCL(mode,sfActive) END;
+					IF body.isSafe THEN INCL(mode,sfSafe) END;
 				END;
 				IF record.IsProtected() THEN INCL(mode,sfProtected) END;
 				IF record.pointerType # NIL THEN INCL(mode,sfClass) END;
@@ -1637,7 +1640,7 @@ TYPE
 				variable := scope.firstVariable;
 				WHILE variable # NIL DO
 					ASSERT(variable.type # NIL);
-					Symbol(variable.type,variable.name,variable.access,variable.flags);
+					Symbol(variable.type,variable.name,variable.access,variable.untraced,FALSE, FALSE);
 					variable := variable.nextVariable;
 				END;
 				procedure := scope.firstProcedure;
@@ -1646,11 +1649,13 @@ TYPE
 					WHILE procedure # NIL DO
 						procedureType := procedure.type(SyntaxTree.ProcedureType);
 						IF (procedure.access * SyntaxTree.Internal = procedure.access) THEN  (* not exported method *)
-							Symbol(procedureType.returnType,procedure.name,procedure.access,procedure.flags);
+							Symbol(procedureType.returnType,procedure.name,procedure.access,FALSE, procedureType.isRealtime,procedure.isConstructor);
 							procedure.name.GetString(name);
 							w.RawString(name);
 						ELSE (* exported method *)
-							Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),procedure.flags);
+							Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),
+							FALSE, procedureType.isRealtime,procedure.isConstructor
+							);
 						END;
 						ParameterList(procedure.type(SyntaxTree.ProcedureType));
 						(*! inline *)
@@ -1871,7 +1876,7 @@ TYPE
 								baseType := type.baseType;
 								Type(baseType);
 								w.RawString(name);
-								IF SyntaxTree.RealtimeFlag IN type.flags THEN INCL(flags,sfRealtime) END;
+								IF type.isRealtime THEN INCL(flags,sfRealtime) END;
 								w.RawNum(SYSTEM.VAL(LONGINT,flags));
 								Record(type)
 							END
@@ -1880,7 +1885,7 @@ TYPE
 							w.RawNum(sfTypePointer);
 							Type(type(SyntaxTree.PointerType).pointerBase);
 							w.RawString(name);
-							IF SyntaxTree.RealtimeFlag IN type.flags THEN INCL(flags,sfRealtime) END;
+							IF type.isRealtime THEN INCL(flags,sfRealtime) END;
 							w.RawNum(SYSTEM.VAL(LONGINT,flags));
 						ELSIF type IS SyntaxTree.ArrayType THEN
 							IF TraceExport IN Trace THEN D.Str("Type / UserType / ArrayType"); D.Str(name); D.Ln END;
@@ -1893,7 +1898,7 @@ TYPE
 								END;
 								Type(type.arrayBase);
 								w.RawString(name);
-								IF SyntaxTree.RealtimeFlag IN type.flags THEN INCL(flags,sfRealtime) END;
+								IF type.isRealtime THEN INCL(flags,sfRealtime) END;
 								w.RawNum(SYSTEM.VAL(LONGINT,flags));
 								IF type.form = SyntaxTree.Static THEN
 									w.RawNum(type.staticLength);
@@ -1919,19 +1924,19 @@ TYPE
 						ELSIF type IS SyntaxTree.ProcedureType THEN
 							IF TraceExport IN Trace THEN D.Str("Type / UserType / ProcedureType"); D.Str(name); D.Ln END;
 							WITH type: SyntaxTree.ProcedureType DO
-								IF SyntaxTree.DelegateFlag IN type.flags THEN
+								IF type.isDelegate THEN
 									w.RawNum(sfSysFlag); w.RawNum(sfDelegate);
 								END;
 								w.RawNum(sfTypeProcedure);
 								Type(type.returnType);
 								w.RawString(name);
 
-								IF SyntaxTree.WinAPIFlag IN type.flags THEN
+								IF type.callingConvention =  SyntaxTree.WinAPICallingConvention THEN
 									INCL(flags,sfWinAPIParam);
-								ELSIF SyntaxTree.CFlag IN type.flags  THEN
+								ELSIF  type.callingConvention =  SyntaxTree.CCallingConvention  THEN
 									INCL(flags,sfCParam);
 								END;
-								IF SyntaxTree.RealtimeFlag IN type.flags THEN
+								IF type.isRealtime THEN
 									INCL(flags,sfRealtime)
 								END;
 								w.RawNum(SYSTEM.VAL(LONGINT,flags));
@@ -1978,13 +1983,14 @@ TYPE
 			PROCEDURE ParameterList(procedureType: SyntaxTree.ProcedureType);
 			VAR flags: SET; name: Scanner.StringType;
 				PROCEDURE Parameters(parameter: SyntaxTree.Parameter; reverse: BOOLEAN);
+				VAR procedureType: SyntaxTree.ProcedureType;
 				BEGIN
 					WHILE parameter # NIL DO
 						(*! the calling convention should not be expressed via the parameters (compatiblity with old compiler) *)
-						flags := parameter.ownerType.flags;
-						IF  SyntaxTree.WinAPIFlag IN flags THEN
+						procedureType := parameter.ownerType(SyntaxTree.ProcedureType);
+						IF  procedureType.callingConvention = SyntaxTree.WinAPICallingConvention THEN
 							w.RawNum(sfObjFlag); w.RawNum(sfWinAPIParam);
-						ELSIF SyntaxTree.CFlag IN flags THEN
+						ELSIF procedureType.callingConvention = SyntaxTree.CCallingConvention THEN
 							w.RawNum(sfObjFlag); w.RawNum(sfCParam);
 						END;
 
@@ -2008,8 +2014,7 @@ TYPE
 				END Parameters;
 
 			BEGIN
-				flags := procedureType.flags;
-				IF (SyntaxTree.CFlag IN flags) OR (SyntaxTree.WinAPIFlag IN flags)  THEN
+				IF procedureType.callingConvention # SyntaxTree.OberonCallingConvention  THEN
 					ASSERT(procedureType.returnParameter = NIL);
 					Parameters(procedureType.lastParameter,TRUE);
 				ELSE
@@ -2051,15 +2056,15 @@ TYPE
 			(* Symbol =
 				[sfObjFlag flag:RawNum] [sfReadOnly] Type Name
 			*)
-			PROCEDURE Symbol(type: SyntaxTree.Type; name: SyntaxTree.Identifier; visibility: SET;flags:SET);
+			PROCEDURE Symbol(type: SyntaxTree.Type; name: SyntaxTree.Identifier; visibility: SET;untraced, realtime, constructor: BOOLEAN);
 			VAR string,string2: Scanner.StringType;
 			BEGIN
 				IF TraceExport IN Trace THEN
 					name.GetString(string);
 					D.Str("Symbol "); D.Str(string); D.Ln;
 				END;
-				IF SyntaxTree.UntracedFlag IN flags THEN w.RawNum(sfObjFlag); w.RawNum(sfUntraced)
-				ELSIF SyntaxTree.RealtimeFlag IN flags THEN w.RawNum(sfObjFlag); w.RawNum(sfRealtime) END;
+				IF untraced THEN w.RawNum(sfObjFlag); w.RawNum(sfUntraced)
+				ELSIF realtime  THEN w.RawNum(sfObjFlag); w.RawNum(sfRealtime) END;
 				IF (SyntaxTree.PublicRead IN visibility) & ~(SyntaxTree.PublicWrite IN visibility) THEN
 					w.RawNum(sfReadOnly);
 				END;
@@ -2067,7 +2072,7 @@ TYPE
 				IF visibility * SyntaxTree.Internal = visibility THEN
 					string2 := ""
 				ELSE name.GetString(string);
-					IF SyntaxTree.ConstructorFlag IN flags THEN
+					IF constructor THEN
 						Basic.Concat(string2,"&",string,"");
 					ELSE
 						string2 := string
@@ -2116,7 +2121,7 @@ TYPE
 				WHILE constant # NIL DO
 					IF constant.access * SyntaxTree.Public # {} THEN
 						IF first THEN w.RawNum(sfConst); first := FALSE END;
-						Symbol(constant.type,constant.name,SyntaxTree.Public (*! for compatiblity should be constant.access *) ,{});
+						Symbol(constant.type,constant.name,SyntaxTree.Public (*! for compatiblity should be constant.access *) ,FALSE,FALSE,FALSE);
 						constant.name.GetString(name);
 						Value(constant.value.resolved(SyntaxTree.Value))
 					END;
@@ -2132,7 +2137,7 @@ TYPE
 				WHILE variable # NIL DO
 					IF variable.access * SyntaxTree.Public # {} THEN
 						IF first THEN w.RawNum(sfVar); first := FALSE END;
-						Symbol(variable.type,variable.name,variable.access,variable.flags);
+						Symbol(variable.type,variable.name,variable.access,variable.untraced, FALSE, FALSE);
 					END;
 					variable := variable.nextVariable;
 				END;
@@ -2146,9 +2151,10 @@ TYPE
 				WHILE procedure # NIL DO
 					IF (procedure.access * SyntaxTree.Public # {}) & ~(procedure IS SyntaxTree.Operator)  THEN
 						procedureType := procedure.type(SyntaxTree.ProcedureType);
-						IF ~procedure.HasFlag(SyntaxTree.InlineFlag)  THEN
+						IF ~procedure.isInline  THEN
 							IF first THEN w.RawNum(sfXProcedure); first := FALSE END;
-							Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),procedure.flags);
+							Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),
+							FALSE, procedureType.isRealtime, procedure.isConstructor);
 							ParameterList(procedureType);
 						END;
 					END;
@@ -2165,9 +2171,10 @@ TYPE
 					IF (procedure.access * SyntaxTree.Public # {}) & (procedure IS SyntaxTree.Operator)  THEN
 						procedureType := procedure.type(SyntaxTree.ProcedureType);
 						IF first THEN w.RawNum(sfOperator); first := FALSE END;
-						Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),procedure.flags);
+						Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),
+						FALSE, procedure.isInline, procedure.isConstructor);
 						ParameterList(procedureType);
-						IF procedure.HasFlag(SyntaxTree.InlineFlag) THEN
+						IF procedure.isInline THEN
 							w.RawNum(sfInline); Inline(procedure.procedureScope);
 						END;
 					END;
@@ -2183,9 +2190,10 @@ TYPE
 				WHILE procedure # NIL DO
 					IF (procedure.access * SyntaxTree.Public # {}) & ~(procedure IS SyntaxTree.Operator)  THEN
 						procedureType := procedure.type(SyntaxTree.ProcedureType);
-						IF procedure.HasFlag(SyntaxTree.InlineFlag) THEN
+						IF procedure.isInline THEN
 							IF first THEN w.RawNum(sfCProcedure); first := FALSE END;
-							Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),procedure.flags);
+							Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),
+							FALSE, procedure.isInline, procedure.isConstructor);
 							ParameterList(procedureType);
 							Inline(procedure.procedureScope);
 						END;

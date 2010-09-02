@@ -844,7 +844,7 @@ TYPE
 						FPName(fp,variable.name);
 
 						FPVisibility(fp,variable.access);
-						IF SyntaxTree.UntracedFlag IN variable.flags THEN FPNumber(fp,fpUntraced) END;
+						IF  variable.untraced THEN FPNumber(fp,fpUntraced) END;
 						variableTypeFingerPrint := TypeFP(variable.type); (* deep finger print *)
 						FPNumber(fp,variableTypeFingerPrint.FP);
 						variableFingerPrint.FP := fp;
@@ -857,7 +857,7 @@ TYPE
 						IF Trace THEN TraceIndent; D.Str("RecordType Field "); D.Str0(variable.name.name); D.Str(" "); TraceFP(fingerPrint); D.Ln; END;
 					ELSE
 						fp := 0;
-						IF SyntaxTree.UntracedFlag IN variable.flags THEN FPNumber(fp,fpUntraced) END;
+						IF variable.untraced THEN FPNumber(fp,fpUntraced) END;
 						FPNumber(fingerPrint.privateFP,fp);
 						IF Trace THEN TraceIndent; D.Str("RecordType InvisibleField "); TraceFP(fingerPrint); D.Ln;  END;
 					END;
@@ -869,8 +869,8 @@ TYPE
 					body := x.recordScope.bodyProcedure.procedureScope.body;
 					INCL(flags,  fpHasBody);
 					IF body # NIL THEN
-						IF SyntaxTree.ActiveFlag IN body.flags THEN INCL(flags,fpActive) END;
-						IF SyntaxTree.ExclusiveFlag IN body.flags THEN INCL(flags,fpProtected) END;
+						IF body.isActive THEN INCL(flags,fpActive) END;
+						IF body.isExclusive THEN INCL(flags,fpProtected) END;
 					END;
 					IF Trace THEN TraceIndent; D.Str("RecordType Body "); TraceFP(fingerPrint); D.Ln;  END;
 				END;
@@ -909,7 +909,7 @@ TYPE
 				fp := 0;
 				FPNumber(fp,fpTypeProcedure);
 				FPNumber(fp,fpTypeBasic);
-				IF SyntaxTree.DelegateFlag IN x.flags THEN FPNumber(fp,fpDelegate) END;
+				IF x.isDelegate THEN FPNumber(fp,fpDelegate) END;
 				TypeName(fp,x);
 
 				fingerPrint.publicFP := fp; fingerPrint.privateFP := fp;
@@ -1227,7 +1227,7 @@ TYPE
 				(* for compatibility with old compiler: *)
 				access := x.access; IF SyntaxTree.PublicRead IN access THEN INCL(access,SyntaxTree.PublicWrite) END;
 				fp := 0;
-				IF SyntaxTree.InlineFlag IN x.flags THEN
+				IF x.isInline THEN
 					FPNumber(fp, fpModeInlineProcedure);
 					FPName(fp,x.name);
 					FPVisibility(fp, access);
@@ -1351,7 +1351,7 @@ TYPE
 	(** ---------- Fingerprinting primitives -------------- *)
 	PROCEDURE IsOberonProcedure(type: SyntaxTree.ProcedureType): BOOLEAN;
 	BEGIN
-		RETURN type.flags * {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag} = {}
+		RETURN type.callingConvention = SyntaxTree.OberonCallingConvention
 	END IsOberonProcedure;
 
 	(* fp = fp <*> val *)

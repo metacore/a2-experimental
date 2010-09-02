@@ -978,7 +978,7 @@ TYPE
 			END;
 			parentScope.AddProcedure(procedure);
 			procedure.SetType(SyntaxTree.NewProcedureType(-1,parentScope));
-			procedure.AddFlags({SyntaxTree.BodyProcedureFlag});
+			procedure.SetBodyProcedure(TRUE);
 			procedureScope.SetBody(Body(procedureScope));
 			RETURN procedure
 		END BodyProcedure;
@@ -991,7 +991,7 @@ TYPE
 			(* procedure symbol already consumed *)
 			procedureType := SyntaxTree.NewProcedureType( position, parentScope);
 			IF Optional(Scanner.LeftBrace) THEN
-				procedureType.SetFlagList(Flags());
+				procedureType.SetModifiers(Flags());
 			END;
 			IF Optional(Scanner.LeftParenthesis) THEN FormalParameters( procedureType, parentScope) END;
 			IF Trace THEN E( "ProcedureType" )
@@ -1010,7 +1010,7 @@ TYPE
 			identifier: SyntaxTree.Identifier;
 			str: Scanner.StringType;
 			type: SyntaxTree.Type;
-			flagList: SyntaxTree.Modifier;
+			modifiers: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "ObjectType" ) END;
 			(* symbol object already consumed *)
@@ -1032,8 +1032,8 @@ TYPE
 			pointerType.SetPointerBase(objectType);
 
 			IF Optional(Scanner.LeftBrace) THEN
-				flagList := Flags();
-				pointerType.SetFlagList(flagList);
+				modifiers := Flags();
+				pointerType.SetModifiers(modifiers);
 			END;
 
 			IF Optional( Scanner.LeftParenthesis ) THEN
@@ -1085,8 +1085,8 @@ TYPE
 
 			(*
 			IF Optional(Scanner.LeftBrace) THEN
-				flagList := Flags();
-				actorType.SetFlagList(flagList);
+				modifiers := Flags();
+				actorType.SetFlagList(modifiers);
 			END;
 			*)
 
@@ -1109,14 +1109,14 @@ TYPE
 
 		(** PointerType = 'pointer' 'to' Type. **)
 		PROCEDURE PointerType( position: LONGINT; parentScope: SyntaxTree.Scope ): SyntaxTree.PointerType;
-		VAR pointerType: SyntaxTree.PointerType;  base: SyntaxTree.Type; 	flagList: SyntaxTree.Modifier;
+		VAR pointerType: SyntaxTree.PointerType;  base: SyntaxTree.Type; 	modifiers: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "PointerType" ) END;
 			(* pointer symbol already consumed *)
 			pointerType := SyntaxTree.NewPointerType( position ,parentScope);
 			IF Optional(Scanner.LeftBrace) THEN
-				flagList := Flags();
-				pointerType.SetFlagList(flagList)
+				modifiers := Flags();
+				pointerType.SetModifiers(modifiers)
 			END;
 			Check( Scanner.To );
 			base := Type(NIL, parentScope);
@@ -1426,27 +1426,26 @@ TYPE
 			procedureScope : SyntaxTree.ProcedureScope;
 			access: SET;
 			position: LONGINT;
-			constructor: BOOLEAN;
-			flagList: SyntaxTree.Modifier;
-			inline: BOOLEAN;
-			flags: SET;
+			isConstructor: BOOLEAN;
+			isInline: BOOLEAN;
+			modifiers: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "Procedure" ) END;
 			(* symbol procedure has already been consumed *)
 
-			constructor := FALSE; inline := FALSE;
-			flagList := NIL;
-			flags := {};
+			modifiers := NIL;
+			isConstructor := FALSE; isInline := FALSE;
 
+			procedureType := SyntaxTree.NewProcedureType(symbol.start, parentScope);
+			isConstructor := FALSE; isInline := FALSE;
 			IF Optional( Scanner.And ) THEN  (* constructor *)
-				INCL(flags,SyntaxTree.ConstructorFlag);
+				isConstructor := TRUE
 			ELSIF Optional( Scanner.Minus ) THEN  (* inline *)
-				INCL(flags,SyntaxTree.InlineFlag);
-				inline := TRUE
+				isInline := TRUE;
 			ELSIF Optional( Scanner.LeftBrace) THEN
-				flagList := Flags();
+				modifiers := Flags();
 				IF Optional( Scanner.Minus ) THEN  (* inline *)
-					INCL(flags,SyntaxTree.InlineFlag)
+					isInline := TRUE
 				END;
 			END;
 
@@ -1459,12 +1458,12 @@ TYPE
 
 			procedureScope := SyntaxTree.NewProcedureScope(parentScope);
 			procedure := SyntaxTree.NewProcedure( position, name, procedureScope);
+			procedure.SetConstructor(isConstructor);
+			procedure.SetInline(isInline);
 			CommentSymbol(procedure);
-			procedure.AddFlags(flags);
 			procedure.SetAccess(access * SyntaxTree.ReadOnly);
-			procedureType := SyntaxTree.NewProcedureType(symbol.start, parentScope);
-			procedureType.SetFlagList(flagList);
-			procedureType.AddFlags(flags);
+
+			procedureType.SetModifiers(modifiers);
 			procedure.SetType(procedureType);
 			IF Optional(Scanner.LeftParenthesis) THEN FormalParameters( procedureType, procedureScope) END;
 			Check( Scanner.Semicolon );
@@ -1547,7 +1546,7 @@ TYPE
 				IdentifierDefinition( varname, access,TRUE);
 				variable := SyntaxTree.NewVariable( position, varname );
 				CommentSymbol(variable);
-				IF Optional(Scanner.LeftBrace) THEN variable.SetFlag(Flags()) END;
+				IF Optional(Scanner.LeftBrace) THEN variable.SetModifiers(Flags()) END;
 				variable.SetAccess(access);
 				scope.AddVariable(variable);
 			UNTIL ~Optional( Scanner.Comma );
@@ -1694,7 +1693,7 @@ TYPE
 			IF isAssembly OR Mandatory( Scanner.Module ) THEN
 				moduleName :=  Identifier();
 				module := SyntaxTree.NewModule( scanner.source, moduleName.position, moduleName, moduleScope, scanner.case );
-				IF isAssembly THEN module.AddFlags({SyntaxTree.AssemblyFlag}) END;
+				IF isAssembly THEN module.SetAssembly(TRUE) END;
 
 				module.SetType(SyntaxTree.moduleType);
 				CommentSymbol(module);

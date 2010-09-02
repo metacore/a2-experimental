@@ -237,7 +237,7 @@ TYPE
 				IF (pointerBase IS SyntaxTree.RecordType) & (pointerBase(SyntaxTree.RecordType).isObject) THEN
 					VisitRecordType(pointerBase(SyntaxTree.RecordType))
 				ELSE
-					Keyword("POINTER "); Flags(x.flags); Keyword("TO " );  Type(x.pointerBase)
+					Keyword("POINTER "); Flags((*x.flags*)); Keyword("TO " );  Type(x.pointerBase)
 				END;
 			END;
 		END VisitPointerType;
@@ -276,7 +276,7 @@ TYPE
 		BEGIN
 			IF x.isObject THEN
 				Keyword("OBJECT ");
-				IF x.pointerType # NIL THEN Flags(x.pointerType.flags) END;
+				IF x.pointerType # NIL THEN Flags((*x.pointerType.flags*)) END;
 				IF info THEN BeginComment; w.String("ObjectType"); EndComment;  END;
 				IF (x.baseType # NIL)  THEN
 					w.String( "(" );
@@ -316,7 +316,8 @@ TYPE
 			END;
 		END VisitRecordType;
 
-		PROCEDURE Flags(flags: SET);
+		PROCEDURE Flags((*flags: SET*));
+		(*
 		VAR first: BOOLEAN;
 			PROCEDURE Flag(CONST name: ARRAY OF CHAR);
 			BEGIN
@@ -343,15 +344,20 @@ TYPE
 				IF ~first THEN w.String("}") END;
 				EndComment;
 			END;
+			*)
 		END Flags;
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
 		BEGIN
 			Keyword("PROCEDURE " );
-			IF (x.flagList = NIL) THEN Flags(x.flags) ELSE Modifiers(x.flagList) END;
+			IF (x.modifiers = NIL) THEN
+				Flags((*x.flags*))
+			ELSE
+				Modifiers(x.modifiers)
+			END;
 			IF info THEN
 				BeginComment;
-				Flags(x.flags);
+				Flags((*x.flags*));
 				EndComment;
 			END;
 			(*
@@ -864,7 +870,7 @@ TYPE
 			IF Visible(x) THEN
 				IF (x.access # SyntaxTree.Hidden) THEN
 					PrintSymbol(x);
-					Flags(x.flags);
+					Flags((*x.flags*));
 					w.String( ": " );
 					Type(x.type);
 				ELSIF mode>SourceCode THEN
@@ -882,9 +888,9 @@ TYPE
 				IF (x.access # SyntaxTree.Hidden) OR (mode > SourceCode) THEN
 					Indent;
 					PrintSymbol(x);
-					Flags(x.flags);
+					Flags((*x.flags*));
 					WHILE(next # NIL) & (next.type = x.type) & ((next.access # SyntaxTree.Hidden) OR (mode > SourceCode)) DO
-						w.String(", "); PrintSymbol(next); Flags(next.flags);
+						w.String(", "); PrintSymbol(next); Flags((*next.flags*));
 						next := next.nextVariable;
 					END;
 					IF x.access # SyntaxTree.Hidden THEN
@@ -962,15 +968,18 @@ TYPE
 		BEGIN
 			IF Visible(x) THEN
 				Indent;  Keyword("PROCEDURE " );
-				Modifiers(x.type(SyntaxTree.ProcedureType).flagList);
+				Modifiers(x.type(SyntaxTree.ProcedureType).modifiers);
 				(*
 				CallingConvention(x.type(SyntaxTree.ProcedureType).callingConvention);
 				*)
 				type := x.type(SyntaxTree.ProcedureType);
+				(*
 				flags := type.flags;
-				IF SyntaxTree.InlineFlag IN flags  THEN w.String(" - ") END;
-				IF SyntaxTree.ConstructorFlag IN flags THEN w.String(" & ") END;
-				IF (SyntaxTree.RealtimeFlag IN flags) & (x.type(SyntaxTree.ProcedureType).flagList = NIL)  THEN w.String("{REALTIME}") END;
+				*)
+				IF x.isInline THEN w.String(" - ") END;
+				IF x.isConstructor THEN w.String(" & ") END;
+				IF (type.isRealtime) & (type.modifiers = NIL)  THEN w.String("{REALTIME}") END;
+				IF type.stackAlignment > 1 THEN w.String("{ALIGNSTACK("); w.Int(type.stackAlignment,1); w.String("}"); END;
 				PrintSymbol(x);
 				IF (type.firstParameter # NIL)  OR (type.returnType # NIL ) THEN  (* print parentheses only if not parameterless procedure *)
 					ParameterList(type.firstParameter);
@@ -1017,7 +1026,7 @@ TYPE
 		BEGIN
 			w.IncIndent;
 			WHILE(x # NIL) DO
-				IF (x.access # SyntaxTree.Hidden) & ~(SyntaxTree.BodyProcedureFlag IN x.flags) OR (mode > SourceCode)  THEN
+				IF (x.access # SyntaxTree.Hidden) & ~(x.isBodyProcedure) OR (mode > SourceCode)  THEN
 					Symbol(x);
 					w.String( "; " );
 				END;
@@ -1354,13 +1363,14 @@ TYPE
 		END VisitStatementBlock;
 
 		PROCEDURE Code(x: SyntaxTree.Code);
-		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN; procedure: SyntaxTree.Procedure;
+		VAR  i: LONGINT; ch: CHAR; cr: BOOLEAN; procedure: SyntaxTree.Procedure; procedureType: SyntaxTree.ProcedureType;
 		CONST CR=0DX;
 		BEGIN
 			IF (currentScope # NIL) & (currentScope IS SyntaxTree.ProcedureScope) THEN
 				procedure := currentScope(SyntaxTree.ProcedureScope).ownerProcedure;
+				procedureType := procedure.type(SyntaxTree.ProcedureType);
 			END;
-			IF (mode >= SourceCode) OR (procedure = NIL) OR (procedure.access * SyntaxTree.Public # {}) & procedure.HasFlag(SyntaxTree.InlineFlag) THEN
+			IF (mode >= SourceCode) OR (procedure = NIL) OR (procedure.access * SyntaxTree.Public # {}) & procedure.isInline THEN
 				(*
 				IF x.inlineCode # NIL THEN
 					unit := 8;

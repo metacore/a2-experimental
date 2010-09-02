@@ -10,7 +10,7 @@ IMPORT
 CONST
 
 	optimizeExperiment=TRUE;
-	SupportPool=TRUE;
+	SupportPool=FALSE;
 
 	none=-1; free=-1;
 	reserved=-2;
@@ -1077,7 +1077,7 @@ TYPE
 			enterPos := emitter.code.pc;
 			Enter((stackSize ));
 
-			IF cc = SyntaxTree.WinAPIFlag THEN (* the winapi calling convention presumes that all registers except EAX, EDX and ECX are retained by the callee *)
+			IF cc = SyntaxTree.WinAPICallingConvention THEN (* the winapi calling convention presumes that all registers except EAX, EDX and ECX are retained by the callee *)
 				emitter.Emit1(InstructionSet.opPUSH,opEBX);
 				emitter.Emit1(InstructionSet.opPUSH,opEDI);
 				emitter.Emit1(InstructionSet.opPUSH,opESI);
@@ -1101,7 +1101,7 @@ TYPE
 		VAR cc: LONGINT;
 		BEGIN
 			cc := SHORT(instr.op1.intValue);
-			IF cc = SyntaxTree.WinAPIFlag THEN
+			IF cc = SyntaxTree.WinAPICallingConvention THEN
 				emitter.Emit1(InstructionSet.opPOP,opESI);
 				emitter.Emit1(InstructionSet.opPOP,opEDI);
 				emitter.Emit1(InstructionSet.opPOP,opEBX);
@@ -2764,7 +2764,7 @@ TYPE
 			procedure := symbol(SyntaxTree.Procedure);
 			scope := procedure.procedureScope;
 			NEW(assembler,diagnostics,emitter);
-			assembler.Assemble(reader,SHORT(instr.op1.intValue),scope,in,in,module,procedure.access * SyntaxTree.Public # {}, SyntaxTree.InlineFlag IN procedure.flags)	;
+			assembler.Assemble(reader,SHORT(instr.op1.intValue),scope,in,in,module,procedure.access * SyntaxTree.Public # {}, procedure.isInline)	;
 			error := error OR assembler.error
 		END EmitAsm;
 

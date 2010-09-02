@@ -490,13 +490,13 @@ TYPE
 			numberEntries := 0; tail := NIL; prev := NIL; firstOffset := -1;
 			p := module.sections.first;
 			WHILE p # NIL DO
-				IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).HasFlag(SyntaxTree.InlineFlag) THEN
+				IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).isInline THEN
 					fixups :=  GetFixups(module,p,fixup);
 					p.symbol.name.GetString(name); (*debugging*)
 					procedure := p.symbol(SyntaxTree.Procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
 					(* entry for public procedures and all methods *)
-					IF (procedure.access*SyntaxTree.Public # {}) OR (SyntaxTree.DelegateFlag IN procedureType.flags) OR (fixup # NIL) 	THEN
+					IF (procedure.access*SyntaxTree.Public # {}) OR (procedureType.isDelegate) OR (fixup # NIL) 	THEN
 						p(IntermediateCode.Section).SetEntryNumber(numberEntries);
 						w.RawNum((p.offset )); INC(numberEntries);
 
@@ -578,7 +578,7 @@ TYPE
 				IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure)  THEN
 					procedure := p.symbol(SyntaxTree.Procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
-					IF (SyntaxTree.PublicRead IN procedure.access) & ~(SyntaxTree.InlineFlag IN procedureType.flags) & ~(SyntaxTree.DelegateFlag IN procedureType.flags) & GetProcedureAllowed() THEN
+					IF (SyntaxTree.PublicRead IN procedure.access) & ~(procedure.isInline) & ~(procedureType.isDelegate) & GetProcedureAllowed() THEN
 						procedure.name.GetString(name);
 						IF Trace THEN
 							D.Str("Command : "); D.Str(name); D.Str(" @ "); D.Int(p.offset ,1);
@@ -617,7 +617,7 @@ TYPE
 			ELSIF type IS SyntaxTree.PointerType THEN
 				w.RawNum((offset )); INC(numberPointers);
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1);D.Ln;  END;
-			ELSIF (type IS SyntaxTree.ProcedureType) & (SyntaxTree.DelegateFlag IN type(SyntaxTree.ProcedureType).flags) THEN
+			ELSIF (type IS SyntaxTree.ProcedureType) & (type(SyntaxTree.ProcedureType).isDelegate) THEN
 				w.RawNum((offset )+module.system.addressSize DIV 8 ); INC(numberPointers);
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset+module.system.addressSize DIV 8,1); END;
 			ELSIF (type IS SyntaxTree.RecordType) THEN
@@ -629,7 +629,7 @@ TYPE
 					END;
 					variable := type.recordScope.firstVariable;
 					WHILE(variable # NIL) DO
-						IF ~(SyntaxTree.UntracedFlag IN variable.flags) THEN
+						IF ~(variable.untraced) THEN
 							OutPointers(offset+variable.offsetInBits DIV 8,variable.type,numberPointers);
 						END;
 						variable := variable.nextVariable;
@@ -697,7 +697,7 @@ TYPE
 			WHILE (s # NIL) DO
 				IF (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Variable) THEN
 					variable := s.symbol(SyntaxTree.Variable);
-					IF ~(SyntaxTree.UntracedFlag IN variable.flags) THEN
+					IF ~(variable.untraced) THEN
 						OutPointers(s.offset, variable.type, numberPointers);
 					END;
 				END;
@@ -903,11 +903,11 @@ TYPE
 			i := 0;
 			p := module.sections.first;
 			WHILE p # NIL DO (* cf. Entries *)
-				IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).HasFlag(SyntaxTree.InlineFlag) THEN
+				IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).isInline THEN
 					fixups := GetFixups(module,p,fixup);
 					procedure := p.symbol(SyntaxTree.Procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
-					IF (procedure.access * SyntaxTree.Public # {}) OR (SyntaxTree.DelegateFlag IN procedureType.flags) OR (fixup # NIL) THEN
+					IF (procedure.access * SyntaxTree.Public # {}) OR (procedureType.isDelegate) OR (fixup # NIL) THEN
 						w.RawNum(fixups);
 						INC(i);
 					END;
@@ -998,7 +998,7 @@ TYPE
 						END;
 						procedure := type(SyntaxTree.RecordType).recordScope.firstProcedure;
 						WHILE procedure # NIL DO
-							IF (procedure.access * SyntaxTree.Public # {}) & ~(SyntaxTree.InlineFlag IN procedure.flags) THEN
+							IF (procedure.access * SyntaxTree.Public # {}) & ~(procedure.isInline) THEN
 								fingerPrint := fingerprinter.SymbolFP(procedure);
 								w.RawNum(fingerPrint.FP);
 								INC(count);
@@ -1014,7 +1014,7 @@ TYPE
 			PROCEDURE SymbolOffset(symbol: SyntaxTree.Symbol): LONGINT;
 			VAR s: Sections.Section; name: SyntaxTree.String;
 			BEGIN
-				IF (symbol IS SyntaxTree.Procedure) & (symbol(SyntaxTree.Procedure).HasFlag(SyntaxTree.InlineFlag)) THEN
+				IF (symbol IS SyntaxTree.Procedure) & (symbol(SyntaxTree.Procedure).isInline) THEN
 					RETURN 0
 				END;
 				symbol.name.GetString(name); (* debugging *)
@@ -1330,7 +1330,7 @@ TYPE
 
 					procedure := importedModule.moduleScope.firstProcedure;
 					WHILE procedure # NIL DO
-						IF ~procedure.HasFlag(SyntaxTree.InlineFlag) THEN
+						IF ~procedure.isInline THEN
 							s := module.importedSymbols.FindBySymbol(procedure);
 							IF (s # NIL) THEN
 								fixups := GetFixups(module,s,fixup);
@@ -1441,7 +1441,7 @@ TYPE
 			i := 0;
 			m := type.recordScope.firstProcedure;
 			WHILE (m#NIL) DO
-				IF ~(SyntaxTree.InlineFlag IN m.flags) THEN
+				IF ~(m.isInline) THEN
 					procedure := module.sections.FindBySymbol(m);
 
 					m.name.GetString(name);
@@ -1581,7 +1581,7 @@ TYPE
 			maxPtrs := 0;
 			destination := module.sections.first; i := 0;
 			WHILE(destination # NIL) DO
-				IF (destination.type # Sections.InitCodeSection) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).HasFlag(SyntaxTree.InlineFlag) THEN
+				IF (destination.type # Sections.InitCodeSection) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).isInline THEN
 					IF Trace THEN D.Str("pointers in "); D.Str(destination.name); D.Ln END;
 					PointerOffsets(destination);
 					INC(i);
@@ -1840,7 +1840,7 @@ TYPE
 			s := module.sections.first;
 			WHILE s # NIL DO
 				IF (s.symbol = moduleScope.bodyProcedure) THEN (* already done, see above *)
-				ELSIF (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Procedure) & ~s.symbol(SyntaxTree.Procedure).HasFlag(SyntaxTree.InlineFlag) THEN
+				ELSIF (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Procedure) & ~s.symbol(SyntaxTree.Procedure).isInline THEN
 					Procedure(s)
 				END;
 				s := s.nextSection;

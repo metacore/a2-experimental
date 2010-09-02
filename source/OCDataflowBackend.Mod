@@ -274,7 +274,7 @@ TYPE
 
 			IF  (x.scope IS SyntaxTree.ModuleScope)
 				&  (x= x.scope(SyntaxTree.ModuleScope).bodyProcedure)
-				& (SyntaxTree.AssemblyFlag IN module.flags)
+				& (module.isAssembly)
 				OR
 				(x.scope IS SyntaxTree.ActorScope)
 				& (x= x.scope(SyntaxTree.ActorScope).bodyProcedure)

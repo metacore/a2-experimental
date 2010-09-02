@@ -85,7 +85,11 @@ TYPE
 		resolvedExpression: SyntaxTree.Expression; (** temporary variable used for expression resolution **)
 		resolvedStatement: SyntaxTree.Statement; (** used for statement resolution **)
 		currentScope: SyntaxTree.Scope;
-		currentFlags: SET; (** used for check on recursive exclusive sections etc. *)
+		currentIsRealtime: BOOLEAN;
+		currentIsUnreachable: BOOLEAN;
+		currentIsAssembly: BOOLEAN;
+		currentIsBodyProcedure: BOOLEAN;
+		currentIsExclusive: BOOLEAN;
 		global: SyntaxTree.ModuleScope;
 		withEntries: WithEntry;
 		flagExpressions: ARRAY 32 OF SyntaxTree.Expression;
@@ -111,7 +115,11 @@ TYPE
 			SELF.VerboseErrorMessage := verboseErrorMessage;
 			global := NIL;
 			phase := UndefinedPhase;
-			currentFlags := {};
+			currentIsRealtime := FALSE;
+			currentIsUnreachable := FALSE;
+			currentIsAssembly := FALSE;
+			currentIsBodyProcedure := FALSE;
+			currentIsExclusive := FALSE;
 			withEntries := NIL;
 		END InitChecker;
 
@@ -456,7 +464,7 @@ TYPE
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 				x.SetArrayBase(ResolveType(x.arrayBase));
-				IF x.arrayBase.resolved.IsRealtime() THEN x.AddFlags({SyntaxTree.RealtimeFlag}) END;
+				IF x.arrayBase.resolved.isRealtime THEN x.SetRealtime(TRUE) END;
 				arrayBase := x.arrayBase.resolved;
 				IF x.length # NIL THEN
 					x.SetLength(ConstantIntegerGeq0(x.length));
@@ -584,14 +592,14 @@ TYPE
 				IF (resolved.resolved IS SyntaxTree.RecordType) THEN
 					recordType := resolved.resolved(SyntaxTree.RecordType);
 					IF recordType.isObject & (recordType.baseType # NIL) THEN
-						IF type.IsRealtime() & ~recordType.baseType.resolved.IsRealtime() THEN
+						IF type.isRealtime & ~recordType.baseType.resolved.isRealtime THEN
 							Error(position,Diagnostics.Invalid,"base type of object must be a realtime object");
-						ELSIF ~type.IsRealtime() & recordType.baseType.resolved.IsRealtime() THEN
+						ELSIF ~type.isRealtime & recordType.baseType.resolved.isRealtime THEN
 							Error(position,Diagnostics.Invalid,"extensions of realtime objects must be explicitly declared as realtime objects");
 						END;
 					END;
 				END;
-				IF type.IsRealtime() & ~resolved.resolved.IsRealtime() THEN
+				IF type.isRealtime & ~resolved.resolved.isRealtime THEN
 					Error(position,Diagnostics.Invalid,"realtime object contains references to non-realtime objects");
 				END
 			ELSE
@@ -606,9 +614,12 @@ TYPE
 		**)
 		PROCEDURE VisitPointerType(x: SyntaxTree.PointerType);
 		VAR recordType: SyntaxTree.RecordType; recordBaseType: SyntaxTree.Type;
+		modifiers: SyntaxTree.Modifier;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
-				x.AddFlags(Flags(x.flagList,{SyntaxTree.RealtimeFlag}));
+				modifiers := x.modifiers;
+				x.SetRealtime(HasFlag(modifiers,Global.NameRealtime));
+				CheckEmpty(modifiers);
 				(* inheritance cycle check
 					example:
 					A=POINTER TO RECORD(B) END;
@@ -672,7 +683,7 @@ TYPE
 					parameter := parameter.nextParameter;
 				END;
 
-				IF (procedureType.flags * {SyntaxTree.CFlag,SyntaxTree.WinAPIFlag} = {} ) & (procedureType.returnType # NIL) & ContainsPointer(procedureType.returnType) THEN (*! needed for compatibility with paco *)
+				IF (procedureType.callingConvention = SyntaxTree.OberonCallingConvention) & (procedureType.returnType # NIL) & ContainsPointer(procedureType.returnType) THEN (*! needed for compatibility with paco *)
 					returnParameter := SyntaxTree.NewParameter(procedureType.position,procedureType,Global.PointerReturnName,SyntaxTree.VarParameter);
 					returnParameter.SetType(procedureType.returnType);
 					returnParameter.SetAccess(SyntaxTree.Hidden);
@@ -683,6 +694,8 @@ TYPE
 					Error(procedureType.position, Diagnostics.Invalid, "problems during parameter offset generation");
 				END
 		END FixProcedureType;
+
+		(*
 
 		PROCEDURE GetFlag(modifier: SyntaxTree.Modifier): LONGINT;
 		VAR name: Scanner.StringType; expressionExpected: BOOLEAN; flag: LONGINT;
@@ -699,6 +712,7 @@ TYPE
 				ELSIF (name = Global.StringInterrupt) THEN flag :=  SyntaxTree.InterruptFlag
 				ELSIF (name = Global.StringNoPAF) THEN flag :=  SyntaxTree.NoPAFFlag;
 				ELSIF (name = Global.StringAligned) THEN flag := SyntaxTree.AlignedFlag; expressionExpected := TRUE;
+				ELSIF (name = Global.StringAlignStack) THEN flag := SyntaxTree.StackAlignFlag; expressionExpected := TRUE;
 				ELSIF (name = Global.StringFixed) THEN flag :=  SyntaxTree.FixedFlag; expressionExpected := TRUE;
 				ELSE Error(modifier.identifier.position,Diagnostics.Invalid,"Unknown Flag"); flag :=  MIN(LONGINT);
 				END;
@@ -715,14 +729,14 @@ TYPE
 		END GetFlag;
 
 
-		PROCEDURE Flags(flagList: SyntaxTree.Modifier; allowedFlags: SET): SET;
+		PROCEDURE Flags(modifiers: SyntaxTree.Modifier; allowedFlags: SET): SET;
 		VAR flags: SET; flag: LONGINT;
 		BEGIN
 			flags := {};
-			WHILE flagList # NIL DO
-				flag := GetFlag(flagList);
+			WHILE modifiers # NIL DO
+				flag := GetFlag(modifiers);
 				IF flag > 0 THEN
-					IF  ~(flag IN allowedFlags) THEN Error(flagList.identifier.position,Basic.IllegalyMarkedIdentifier,"")
+					IF  ~(flag IN allowedFlags) THEN Error(modifiers.identifier.position,Basic.IllegalyMarkedIdentifier,"")
 					ELSE
 						INCL(flags,flag);
 						IF flag = SyntaxTree.WinAPIFlag THEN allowedFlags := allowedFlags - {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag}
@@ -731,22 +745,72 @@ TYPE
 						END;
 					END;
 				END;
-				flagList := flagList.nextModifier;
+				modifiers := modifiers.nextModifier;
 			END;
 			RETURN flags;
 		END Flags;
+		*)
+
+		PROCEDURE HasFlag(VAR modifiers: SyntaxTree.Modifier; name: SyntaxTree.Identifier): BOOLEAN;
+		VAR prev,this: SyntaxTree.Modifier;
+		BEGIN
+			this := modifiers;prev := NIL;
+			WHILE (this # NIL) & (this.identifier.name # name.name) DO
+			prev := this; this := this.nextModifier;
+			END;
+			IF this # NIL THEN
+				IF this.expression # NIL THEN
+					Error(this.identifier.position,Diagnostics.Invalid,"unexpected expression");
+				END;
+				IF prev = NIL THEN modifiers := this.nextModifier ELSE prev.SetNext(this.nextModifier) END;
+				RETURN TRUE
+			ELSE
+				RETURN FALSE
+			END;
+		END HasFlag;
+
+		PROCEDURE HasValue(VAR modifiers: SyntaxTree.Modifier; name: SyntaxTree.Identifier; VAR value: LONGINT): BOOLEAN;
+		VAR prev,this: SyntaxTree.Modifier;
+		BEGIN
+			this := modifiers;prev := NIL;
+			WHILE (this # NIL) & (this.identifier.name # name.name) DO
+				prev := this; this := this.nextModifier;
+			END;
+			IF this # NIL THEN
+				IF this.expression = NIL THEN
+					Error(this.identifier.position,Diagnostics.Invalid,"expected expression value");
+				ELSIF CheckIntegerValue(this.expression,value) THEN
+				END;
+				IF prev = NIL THEN modifiers := this.nextModifier ELSE prev.SetNext(this.nextModifier) END;
+				RETURN TRUE
+			ELSE RETURN FALSE
+			END;
+		END HasValue;
+
+		PROCEDURE CheckEmpty(modifiers: SyntaxTree.Modifier);
+		BEGIN
+			WHILE modifiers # NIL DO
+				Error(modifiers.identifier.position,Diagnostics.Invalid,"unexpected modifier");
+				modifiers := modifiers.nextModifier
+			END;
+		END CheckEmpty;
+
 
 		(**
 			resolve procedure type
 			- enter procedure to list of deferred fixes (to avoid infinite loops in the declaration phase)
 		**)
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
-		VAR flags: SET;
+		VAR modifiers: SyntaxTree.Modifier;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
-				flags := Flags(x.flagList,{SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag,SyntaxTree.RealtimeFlag});
-				x.AddFlags(flags);
-
+				modifiers := x.modifiers;
+				IF HasFlag(modifiers, Global.NameWinAPI) THEN x.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
+				ELSIF HasFlag(modifiers,Global.NameC) THEN x.SetCallingConvention(SyntaxTree.CCallingConvention)
+				END;
+				IF HasFlag(modifiers, Global.NameDelegate) THEN x.SetDelegate(TRUE) END;
+				IF HasFlag(modifiers, Global.NameRealtime) THEN x.SetRealtime(TRUE) END;
+				CheckEmpty(modifiers);
 				typeFixes.Add(x,currentScope);
 				x.SetState(SyntaxTree.Resolved);
 			END;
@@ -805,7 +869,7 @@ TYPE
 				symbol := x.recordScope.firstSymbol; (* sorted symbols, important to go through procedures in a sorted way here !*)
 				WHILE symbol # NIL DO
 					IF symbol IS SyntaxTree.Variable THEN
-						isRealtime := isRealtime & symbol.type.resolved.IsRealtime();
+						isRealtime := isRealtime & symbol.type.resolved.isRealtime;
 					END;
 					IF symbol IS SyntaxTree.Procedure THEN
 						procedure := symbol(SyntaxTree.Procedure);
@@ -818,7 +882,7 @@ TYPE
 					END;
 					symbol := symbol.nextSymbol;
 				END;
-				IF isRealtime THEN x.AddFlags({SyntaxTree.RealtimeFlag}) END;
+				IF isRealtime THEN x.SetRealtime(TRUE) END;
 				(*
 				procedure := x.recordScope.firstProcedure;
 				WHILE (procedure # NIL) DO
@@ -905,11 +969,11 @@ TYPE
 				symbol := x.actorScope.firstSymbol; (* sorted symbols, important to go through procedures in a sorted way here !*)
 				WHILE symbol # NIL DO
 					IF symbol IS SyntaxTree.Variable THEN
-						isRealtime := isRealtime & symbol.type.resolved.IsRealtime();
+						isRealtime := isRealtime & symbol.type.resolved.isRealtime;
 					END;
 					symbol := symbol.nextSymbol;
 				END;
-				IF isRealtime THEN x.AddFlags({SyntaxTree.RealtimeFlag}) END;
+				IF isRealtime THEN x.SetRealtime(TRUE) END;
 
 				IF (x.typeDeclaration = NIL) THEN
 					AnonymousTypeDeclaration(x,"Anonymous");
@@ -998,7 +1062,7 @@ TYPE
 					Printout.Info("this",this);
 					Printout.Info("to",to);
 				END;
-			ELSIF (SyntaxTree.RealtimeFlag IN to(SyntaxTree.ProcedureType).flags) & ~(SyntaxTree.RealtimeFlag IN this(SyntaxTree.ProcedureType).flags) THEN
+			ELSIF (to(SyntaxTree.ProcedureType).isRealtime) & ~(this(SyntaxTree.ProcedureType).isRealtime) THEN
 				Error(position,Diagnostics.Invalid,"signature incompatible: realtime flag must be inherited");
 			END;
 			RETURN result
@@ -1024,7 +1088,7 @@ TYPE
 			IF actualType = SyntaxTree.invalidType THEN (* error already handled *)
 			ELSIF (formal.kind = SyntaxTree.VarParameter) THEN
 
-				IF (SyntaxTree.WinAPIFlag IN formal.ownerType.flags) & (actualType IS SyntaxTree.NilType) THEN
+				IF (formal.ownerType(SyntaxTree.ProcedureType).callingConvention = SyntaxTree.WinAPICallingConvention) & (actualType IS SyntaxTree.NilType) THEN
 					result := TRUE; (* special rule for WINAPI parameters, needed to be able to pass NIL address to var parameters *)
 				ELSIF ~IsVariable(actual) THEN
 					result := FALSE; error := TRUE;
@@ -1049,7 +1113,7 @@ TYPE
 				IF (formalType IS SyntaxTree.CharacterType) & (actualType IS SyntaxTree.StringType) & (actualType(SyntaxTree.StringType).length = 2) THEN
 					actualType := system.characterType;
 				END;
-				IF (SyntaxTree.WinAPIFlag IN formal.ownerType.flags) &  ((actualType IS SyntaxTree.NilType) OR (actualType IS SyntaxTree.AnyType)) THEN
+				IF (formal.ownerType(SyntaxTree.ProcedureType).callingConvention = SyntaxTree.WinAPICallingConvention) &  ((actualType IS SyntaxTree.NilType) OR (actualType IS SyntaxTree.AnyType)) THEN
 					result := TRUE; (* special rule for WINAPI parameters *)
 				ELSIF (formalType IS SyntaxTree.ArrayType) & (formalType(SyntaxTree.ArrayType).form = SyntaxTree.Open) THEN
 					result := OpenArrayCompatible(formalType(SyntaxTree.ArrayType),actualType);
@@ -1215,7 +1279,9 @@ TYPE
 					elementResult := NewConversion(left.position,left,system.longintType,NIL);
 				END;
 
-				IF ~(type IS SyntaxTree.IntegerType) THEN
+				IF type = SyntaxTree.invalidType THEN
+					(* error already handled *)
+				ELSIF ~(type IS SyntaxTree.IntegerType) THEN
 					Error(left.position,Diagnostics.Invalid,"wrong type in set");
 					elementResult := SyntaxTree.invalidExpression;
 					constant := FALSE;
@@ -1421,6 +1487,9 @@ TYPE
 			result := unaryExpression;
 			IF ~system.operatorDefined[operator] THEN
 				Error(left.position,Diagnostics.Invalid,"Operator Not Defined");
+				RETURN
+			ELSIF left = SyntaxTree.invalidExpression THEN (* error already handled *)
+				RETURN
 			END;
 			IF  ~(left.type.resolved IS SyntaxTree.BasicType) THEN
 				operatorCall := NewOperatorCall(unaryExpression.position, operator,left,NIL,system.allType);
@@ -1707,6 +1776,8 @@ TYPE
 		BEGIN
 			IF left.type = NIL THEN Error(left.position,Diagnostics.Invalid,"no type")
 			ELSIF right.type= NIL THEN Error(right.position,Diagnostics.Invalid,"no type")
+			ELSIF (left = SyntaxTree.invalidExpression) OR (right = SyntaxTree.invalidExpression) THEN
+				(* error already handled *)
 			ELSE
 				leftType := left.type.resolved; rightType := right.type.resolved;
 				IF CompatibleTo(system,leftType,rightType) THEN
@@ -2795,7 +2866,7 @@ TYPE
 			numberFormalParameters := formalType.numberParameters-formalType.numberHiddenParameters;
 			numberActualParameters := actualParameters.Length();
 
-			IF (SyntaxTree.RealtimeFlag IN currentFlags) & ~(SyntaxTree.RealtimeFlag IN formalType.flags) THEN
+			IF (currentIsRealtime) & ~(formalType.isRealtime) THEN
 				Error(position,Diagnostics.Invalid,"forbidden call of non-realtime procedure in realtime block");
 			END;
 
@@ -2812,7 +2883,7 @@ TYPE
 						actualParameter := actualParameters.GetExpression(i);
 						IF (actualParameter = SyntaxTree.invalidExpression) THEN
 						ELSIF ~ParameterCompatible(formalParameter,actualParameter) THEN
-						ELSIF (SyntaxTree.RealtimeFlag IN currentFlags) & ~actualParameter.type.resolved.IsRealtime() THEN
+						ELSIF (currentIsRealtime) & ~actualParameter.type.resolved.isRealtime THEN
 							Error(position,Diagnostics.Invalid,"non-realtime actual parameter in context of realtime procedure");
 						ELSE
 							IF ~formalParameter.type.SameType(actualParameter.type.resolved) THEN
@@ -2829,7 +2900,7 @@ TYPE
 				END;
 
 				(*! do this in backend? *)
-				IF ContainsPointer(formalType.returnType) & (formalType.flags * {SyntaxTree.CFlag,SyntaxTree.WinAPIFlag} = {} )THEN
+				IF ContainsPointer(formalType.returnType) & (formalType.callingConvention = SyntaxTree.OberonCallingConvention )THEN
 					hiddenPointerDesignator := GetTemporaryVariable(formalType.returnType,position); (*! try to make reuse of pointers *)
 					actualParameters.AddExpression(hiddenPointerDesignator);
 				END;
@@ -3174,7 +3245,7 @@ TYPE
 						fof: commented in again as ASSERT is crucial for compilation tests, Oberon07 obviously needs a HALT statement
 							misusing ASSERT does not make the language clearer nor odes it make the compiler simpler!
 	*)
-						IF IsBooleanValue(parameter0,b) & ~b & ~(SyntaxTree.UnreachableFlag IN currentFlags)  THEN
+						IF IsBooleanValue(parameter0,b) & ~b & ~(currentIsUnreachable)  THEN
 							Error(position,Diagnostics.Invalid,"assert failed");
 						END;
 						IF (numberActualParameters > 1) & CheckIntegerValue(parameter1,i1) THEN
@@ -3234,7 +3305,7 @@ TYPE
 					END;
 				(* ---- NEW ----- *)
 				ELSIF (id = Global.New) & Parameters(1,Infinity) THEN
-					IF SyntaxTree.RealtimeFlag IN currentFlags THEN
+					IF currentIsRealtime THEN
 						Error(position,Diagnostics.Invalid,"forbidden new in realtime block");
 					END;
 					(* check constructor *)
@@ -3318,7 +3389,7 @@ TYPE
 								END;
 							END;
 						ELSIF type0 IS SyntaxTree.ActorType THEN
-							IF Parameters(1,1) & ~(SyntaxTree.AssemblyFlag IN currentFlags) THEN
+							IF Parameters(1,1) & ~(currentIsAssembly) THEN
 								Error(position,Diagnostics.Invalid,"actor allocation outside dataflow ");
 							END;
 							dataflowStatement := TRUE;
@@ -3898,7 +3969,7 @@ TYPE
 					type := type0;
 				(* ------- CONNECT -------*)
 				ELSIF (id = Global.Connect) & (Parameters(2,2)) THEN
-					IF 	~(SyntaxTree.AssemblyFlag IN currentFlags) THEN
+					IF 	~(currentIsAssembly) THEN
 						Error(position,Diagnostics.Invalid,"connection outside dataflow body block");
 					END;
 					IF ~CheckPortType(parameter1, inPort) OR (inPort.direction # SyntaxTree.InPort) THEN
@@ -3911,7 +3982,7 @@ TYPE
 					dataflowStatement := TRUE;
 				(* ---------- DELEGATE --------*)
 				ELSIF (id = Global.Delegate) & (Parameters(2,2)) THEN
-					IF 	~(SyntaxTree.AssemblyFlag IN currentFlags) THEN
+					IF 	~(currentIsAssembly) THEN
 						Error(position,Diagnostics.Invalid,"connection delegation outside dataflow body block");
 					END;
 					IF ~CheckPortType(parameter1, inPort) THEN
@@ -4153,8 +4224,8 @@ TYPE
 				expression.SetType(SyntaxTree.invalidType);
 				expression.Accept(SELF);
 				result := resolvedExpression;
-				IF SyntaxTree.RealtimeFlag IN currentFlags THEN
-					IF (result.type # NIL) & ~result.type.resolved.IsRealtime() THEN
+				IF currentIsRealtime THEN
+					IF (result.type # NIL) & ~result.type.resolved.isRealtime THEN
 						Error(expression.position,Diagnostics.Invalid,"forbidden non-realtime expression in realtime procedure");
 					END;
 				END;
@@ -4262,7 +4333,7 @@ TYPE
 				scope := scope.outerScope;
 			END;
 			IF (scope # NIL) THEN (* symbol (directly or indirectly) in procedure scope *)
-				IF (symbol.access * SyntaxTree.Public # {}) & ~(SyntaxTree.BodyProcedureFlag IN symbol.flags) & ~(SyntaxTree.ConstructorFlag IN symbol.flags)  THEN
+				IF (symbol.access * SyntaxTree.Public # {}) & (~(symbol IS SyntaxTree.Procedure) OR  ~symbol(SyntaxTree.Procedure).isBodyProcedure & ~symbol(SyntaxTree.Procedure).isConstructor)  THEN
 					Error(symbol.position,Diagnostics.Invalid,"cannot be exported");
 					IF VerboseErrorMessage THEN
 						Printout.Info("symbol",symbol);
@@ -4333,18 +4404,48 @@ TYPE
 			END;
 		END VisitConstant;
 
+		PROCEDURE AdaptStackAlignment(procedure: SyntaxTree.Procedure; alignment: LONGINT);
+		VAR procedureAlignment: LONGINT;
+
+			PROCEDURE LCM(a0,b0: LONGINT): LONGINT;
+			(* least common multiple *)
+			VAR a,b: LONGINT;
+			BEGIN
+				a := a0; b := b0;
+				WHILE (a # b) DO
+					IF a < b THEN a := a+a0
+					ELSE b := b + b0
+					END;
+				END;
+				RETURN a
+			END LCM;
+
+		BEGIN
+			IF alignment > 1 THEN
+				procedureAlignment := procedure.type(SyntaxTree.ProcedureType).stackAlignment;
+				IF (procedureAlignment > 1) THEN
+					alignment := LCM(alignment, procedureAlignment);
+				END;
+				procedure.type(SyntaxTree.ProcedureType).SetStackAlignment(alignment);
+			END;
+		END AdaptStackAlignment;
+
+
 		(** check and resolve a variable / field
 			- check and set type
 			- negative check on open array type
 			- check symbol
 		**)
 		PROCEDURE VisitVariable(variable: SyntaxTree.Variable);
-		VAR flags: SET; value: LONGINT;
+		VAR modifiers: SyntaxTree.Modifier; value: LONGINT;
 		BEGIN
 			IF Trace THEN D.Str("VisitVariable "); D.Str0(variable.name.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(variable) THEN
-				flags := Flags(variable.flagList,{SyntaxTree.UntracedFlag, SyntaxTree.AlignedFlag});
+				modifiers := variable.modifiers;
+				(*
+				flags := Flags(variable.modifiers,{SyntaxTree.UntracedFlag, SyntaxTree.AlignedFlag, SyntaxTree.FixedFlag});
 				variable.AddFlags(flags);
+				*)
 				variable.SetType(ResolveType(variable.type));
 				IF variable.type.resolved IS SyntaxTree.ArrayType THEN
 					IF variable.type.resolved(SyntaxTree.ArrayType).length = NIL THEN
@@ -4352,20 +4453,24 @@ TYPE
 					END;
 				END;
 				CheckSymbol(variable);
-				IF SyntaxTree.UntracedFlag IN variable.flags THEN
+				IF HasFlag(modifiers, Global.NameUntraced) THEN
+					variable.SetUntraced(TRUE);
 					IF ~ContainsPointer(variable.type) THEN
 						IF VerboseErrorMessage THEN Printout.Info("variable",variable); Printout.Info("variable.type",variable.type.resolved); END;
 						Error(variable.position,Diagnostics.Invalid,"untraced flag on non-pointer variable");
 					END;
 				END;
-				IF (SyntaxTree.AlignedFlag IN flags) & CheckIntegerValue(flagExpressions[SyntaxTree.AlignedFlag],value) THEN
-					(*
-					IF variable.scope IS SyntaxTree.ProcedureScope THEN
-						Error(variable.position,Diagnostics.Invalid,"not yet implemented");
+				IF HasValue(modifiers, Global.NameAligned, value) THEN
+					IF (variable.scope IS SyntaxTree.ProcedureScope) THEN
+						AdaptStackAlignment(variable.scope(SyntaxTree.ProcedureScope).ownerProcedure, value);
 					END;
-					*)
 					variable.SetAlignment(FALSE,value);
+				ELSIF HasValue(modifiers, Global.NameFixed, value) THEN
+					IF (variable.scope IS SyntaxTree.ProcedureScope) THEN
+						Error(variable.position,Diagnostics.Invalid,"fixed position not possible in procedure");
+					END;
 				END;
+				CheckEmpty(modifiers);
 				variable.SetState(SyntaxTree.Resolved);
 			END;
 		END VisitVariable;
@@ -4405,23 +4510,37 @@ TYPE
 			selfParameter: SyntaxTree.Parameter; qualifiedIdentifier: SyntaxTree.QualifiedIdentifier;
 			qualifiedType: SyntaxTree.QualifiedType; recentFlags: SET; flags: SET;
 			alignmentExpression,fixedExpression: SyntaxTree.Expression;value: LONGINT;
-
+			modifiers: SyntaxTree.Modifier; recentIsRealtime, recentIsBodyProcedure: BOOLEAN;
 		BEGIN
 			IF Trace THEN D.Str("VisitProcedure "); D.Str0(procedure.name.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(procedure) THEN
-				recentFlags := currentFlags;
+				recentIsRealtime := currentIsRealtime;
+				recentIsBodyProcedure := currentIsBodyProcedure;
+
 				IF Trace THEN D.Str("undefined"); D.Ln; END;
 				procedureType := procedure.type(SyntaxTree.ProcedureType);
-				flags := Flags(procedureType.flagList,{SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag,SyntaxTree.RealtimeFlag,SyntaxTree.InterruptFlag,SyntaxTree.NoPAFFlag,SyntaxTree.FixedFlag});
+				(*
+				flags := Flags(procedureType.modifiers,{SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag,SyntaxTree.RealtimeFlag,SyntaxTree.InterruptFlag,SyntaxTree.NoPAFFlag,SyntaxTree.FixedFlag});
 				fixedExpression := flagExpressions[SyntaxTree.FixedFlag];
 				alignmentExpression := flagExpressions[SyntaxTree.AlignedFlag];
 				procedureType.AddFlags(flags);
-				FixProcedureType(procedureType);
-				IF SyntaxTree.DelegateFlag IN procedureType.flags THEN
-					Error(procedure.position,Diagnostics.Invalid,"procedure illegaly marked delegate");
+				*)
+				modifiers := procedureType.modifiers;
+				IF HasFlag(modifiers, Global.NameWinAPI) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
+				ELSIF HasFlag(modifiers, Global.NameC) THEN procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
 				END;
-				procedure.AddFlags(procedureType.flags);
-				currentFlags := currentFlags + procedure.flags;
+				IF HasFlag(modifiers,Global.NameInterrupt) THEN procedureType.SetInterrupt(TRUE) END;
+				IF HasFlag(modifiers,Global.NameNoPAF) THEN procedureType.SetNoPAF(TRUE) END;
+				IF HasValue(modifiers,Global.NameAligned,value) THEN procedure.SetAlignment(FALSE,value)
+				ELSIF HasValue(modifiers,Global.NameFixed,value) THEN procedure.SetAlignment(TRUE,value)
+				END;
+				IF HasFlag(modifiers,Global.NameRealtime) THEN procedureType.SetRealtime(TRUE) END;
+				CheckEmpty(modifiers);
+				FixProcedureType(procedureType);
+				currentIsRealtime := procedureType.isRealtime;
+				currentIsBodyProcedure := procedure.isBodyProcedure;
+
+				(*
 				IF (SyntaxTree.FixedFlag IN flags) & CheckIntegerValue(fixedExpression,value) THEN
 					IF procedure.procedureScope.body # NIL THEN
 						procedure.procedureScope.body.SetAlignment(TRUE,value);
@@ -4431,6 +4550,7 @@ TYPE
 						procedure.procedureScope.body.SetAlignment(FALSE,value);
 					END;
 				END;
+				*)
 
 				IF procedure.scope IS SyntaxTree.ProcedureScope THEN
 					procedure.SetLevel(procedure.scope(SyntaxTree.ProcedureScope).ownerProcedure.level+1);
@@ -4440,8 +4560,7 @@ TYPE
 				END;
 				IF procedure.scope IS SyntaxTree.RecordScope THEN
 					record := procedure.scope(SyntaxTree.RecordScope).ownerRecord;
-					procedureType.AddFlags({SyntaxTree.DelegateFlag});
-					procedure.AddFlags({SyntaxTree.DelegateFlag});
+					procedureType.SetDelegate(TRUE);
 
 					selfParameter := SyntaxTree.NewParameter(procedure.position,procedureType,Global.SelfParameterName,SyntaxTree.ValueParameter);
 					IF record.pointerType.typeDeclaration = NIL THEN
@@ -4457,7 +4576,7 @@ TYPE
 
 
 					(*! constructor information is redundant, we can remove "isConstructor" and repplace by constructor procedure reference *)
-					IF SyntaxTree.ConstructorFlag IN procedure.flags THEN
+					IF procedure.isConstructor THEN
 						(*! constructor is always visible, compatibility to paco
 						procedure.SetAccess(SyntaxTree.Public+SyntaxTree.Protected+SyntaxTree.Internal);
 						*)
@@ -4466,7 +4585,7 @@ TYPE
 							Error(procedure.position,Diagnostics.Invalid,"constructor with forbidden return type");
 						END;
 						proc := procedure.scope.firstProcedure;
-						WHILE (proc # NIL) & ((proc = procedure) OR ~(SyntaxTree.ConstructorFlag IN proc.flags)) DO
+						WHILE (proc # NIL) & ((proc = procedure) OR ~(proc.isConstructor)) DO
 							proc := proc.nextProcedure;
 						END;
 						IF proc # NIL THEN
@@ -4491,7 +4610,7 @@ TYPE
 							END;
 						END;
 						IF (super # NIL) & SignatureCompatible(procedure.position,procedureType,super.type.resolved(SyntaxTree.ProcedureType)) THEN
-							IF (SyntaxTree.ConstructorFlag IN super.flags) & ~(SyntaxTree.ConstructorFlag IN procedure.flags) THEN
+							IF (super.isConstructor) & ~(procedure.isConstructor) THEN
 								Error(procedure.position,Diagnostics.Invalid,"incompatible signature: non-constructor extends constructor");
 							END;
 							procedure.SetSuper(super);
@@ -4502,14 +4621,15 @@ TYPE
 					THEN
 						Error(procedure.position,Diagnostics.Invalid,"problems during parameter offset computation");
 					END;
-				ELSIF SyntaxTree.ConstructorFlag IN procedure.flags THEN
+				ELSIF procedure.isConstructor THEN
 					Error(procedure.position,Diagnostics.Invalid,"procedure illegaly marked as initializer - not in object scope");
 				END;
 				Declarations(procedure.procedureScope);
 				(* body resolution part done as late fix of the procedure type *)
 				CheckSymbol(procedure);
 				procedure.SetState(SyntaxTree.Resolved);
-				currentFlags := recentFlags;
+				currentIsRealtime := recentIsRealtime;
+				currentIsBodyProcedure := recentIsBodyProcedure;
 			END;
 		END VisitProcedure;
 
@@ -4663,7 +4783,7 @@ TYPE
 		BEGIN
 			prev := resolvedStatement;
 			resolvedStatement := x;
-			IF SyntaxTree.UnreachableFlag IN currentFlags THEN x.AddFlags({SyntaxTree.UnreachableFlag}) END;
+			IF currentIsUnreachable THEN x.SetUnreachable(TRUE) END;
 			dataflowStatement := FALSE;
 			x.Accept(SELF);
 			(* removed this, implementation restriction should be resolved by backend
@@ -4712,7 +4832,7 @@ TYPE
 				(* error already handled *)
 			ELSIF ~IsCallable(call) THEN
 				Error(procedureCall.position,Diagnostics.Invalid,"called object is not a procedure");
-			ELSIF (call.type # NIL) &  (call.left # NIL) &  ~(SyntaxTree.WinAPIFlag IN call.left.type.resolved(SyntaxTree.ProcedureType).flags) THEN
+			ELSIF (call.type # NIL) &  (call.left # NIL) &  (call.left.type.resolved(SyntaxTree.ProcedureType).callingConvention # SyntaxTree.WinAPICallingConvention) THEN
 				Error(procedureCall.position,Diagnostics.Invalid,"calling procedure with non-void return type");
 				IF VerboseErrorMessage THEN Printout.Info("call ",call) END;
 			END;
@@ -4760,28 +4880,28 @@ TYPE
 			- check statement sequence
 		**)
 		PROCEDURE IfPart(ifPart: SyntaxTree.IfPart; VAR true: BOOLEAN);
-		VAR prevFlags: SET; b: BOOLEAN;
+		VAR prevUnreachable, b: BOOLEAN;
 		BEGIN
-			prevFlags := currentFlags;
+			prevUnreachable := currentIsUnreachable;
 			ifPart.SetCondition(ResolveCondition(ifPart.condition));
 			IF IsBooleanValue(ifPart.condition,b) THEN
 				IF b=FALSE THEN
-					INCL(currentFlags,SyntaxTree.UnreachableFlag);
+					currentIsUnreachable := TRUE
 				ELSIF b=TRUE THEN
 					true := TRUE
 				END;
 			END;
 			StatementSequence(ifPart.statements);
-			currentFlags := prevFlags;
+			currentIsUnreachable := prevUnreachable;
 		END IfPart;
 
 		(** check and resolve if statement
 			- check if parts and else part statement sequence
 		**)
 		PROCEDURE VisitIfStatement(ifStatement: SyntaxTree.IfStatement);
-		VAR elsif: SyntaxTree.IfPart; i: LONGINT; ifPartTrue: BOOLEAN; prevFlags: SET;
+		VAR elsif: SyntaxTree.IfPart; i: LONGINT; ifPartTrue, prevUnreachable: BOOLEAN;
 		BEGIN
-			prevFlags := currentFlags;
+			prevUnreachable := currentIsUnreachable;
 			ifPartTrue := FALSE;
 			IfPart(ifStatement.ifPart,ifPartTrue);
 			FOR i := 0 TO ifStatement.ElsifParts()-1 DO
@@ -4790,11 +4910,11 @@ TYPE
 			END;
 			IF ifStatement.elsePart # NIL THEN
 				IF ifPartTrue THEN
-					INCL(currentFlags,SyntaxTree.UnreachableFlag);
+					currentIsUnreachable := TRUE
 				END;
 				StatementSequence(ifStatement.elsePart)
 			END;
-			currentFlags := prevFlags;
+			currentIsUnreachable := prevUnreachable;
 		END VisitIfStatement;
 
 
@@ -4992,17 +5112,17 @@ TYPE
 			- check statement sequence
 		**)
 		PROCEDURE VisitWhileStatement(whileStatement: SyntaxTree.WhileStatement);
-		VAR prevFlags: SET; b: BOOLEAN;
+		VAR prevIsUnreachable,b: BOOLEAN;
 		BEGIN
-			prevFlags := currentFlags;
+			prevIsUnreachable := currentIsUnreachable;
 			whileStatement.SetCondition(ResolveCondition(whileStatement.condition));
 			IF IsBooleanValue(whileStatement.condition,b) THEN
 				IF b=FALSE THEN
-					INCL(currentFlags,SyntaxTree.UnreachableFlag);
+					currentIsUnreachable := TRUE
 				END;
 			END;
 			StatementSequence(whileStatement.statements);
-			currentFlags := prevFlags;
+			currentIsUnreachable := prevIsUnreachable
 		END VisitWhileStatement;
 
 		(** check and resolve repeat statement
@@ -5211,7 +5331,7 @@ TYPE
 		VAR condition: SyntaxTree.Expression;
 		BEGIN
 			condition := ResolveCondition(awaitStatement.condition);
-			IF SyntaxTree.RealtimeFlag IN currentFlags THEN
+			IF currentIsRealtime THEN
 				Error(awaitStatement.position,Diagnostics.Invalid,"forbidden await statement in realtime block");
 			END;
 			IF (condition.resolved # NIL) & (condition.resolved IS SyntaxTree.BooleanValue) THEN
@@ -5233,8 +5353,8 @@ TYPE
 			- check for valid names
 		**)
 		PROCEDURE BlockFlags(block: SyntaxTree.StatementBlock);
-		VAR blockModifier: SyntaxTree.Modifier; expression: SyntaxTree.Expression; name: Scanner.StringType; flags: SET; position: LONGINT;
-			forbidden: SET; flag: LONGINT;
+		VAR blockModifier: SyntaxTree.Modifier; expression: SyntaxTree.Expression; name: SyntaxTree.Identifier; flags: SET; position: LONGINT;
+			forbidden: SET; flag: LONGINT; recordBody: SyntaxTree.Body;
 
 			PROCEDURE SetProtectedRecord;
 			VAR scope: SyntaxTree.Scope;
@@ -5251,51 +5371,64 @@ TYPE
 
 		BEGIN
 			flags := {};
-			IF ~(block IS SyntaxTree.Body) OR ~(SyntaxTree.BodyProcedureFlag IN currentFlags) OR (currentScope.outerScope # NIL) & (currentScope.outerScope IS SyntaxTree.ModuleScope) (* module body *) THEN
-				forbidden := {SyntaxTree.PriorityFlag, SyntaxTree.ActiveFlag, SyntaxTree.SafeFlag, SyntaxTree.RealtimeFlag}
+			IF (block IS SyntaxTree.Body) & (currentIsBodyProcedure) & ((currentScope.outerScope = NIL) OR ~(currentScope.outerScope IS SyntaxTree.ModuleScope)) THEN
+				recordBody := block(SyntaxTree.Body)
 			ELSE
-				forbidden := {};
+				recordBody := NIL
 			END;
+
 			blockModifier := block.blockModifiers;
 			WHILE(blockModifier # NIL) DO
-				blockModifier.identifier.GetString(name);
-				Basic.Uppercase(name,name);
+				name := blockModifier.identifier;
 				expression := blockModifier.expression;
 				position := blockModifier.identifier.position;
 				flag := -1;
-				IF (name = Global.StringPriority) THEN
-					flag := SyntaxTree.PriorityFlag;
+				IF name.Equals(Global.NamePriority) THEN
 					IF expression = NIL THEN
 						Error(position,Diagnostics.Invalid,"missing priority expression");
+					ELSIF recordBody = NIL THEN
+						Error(position,Diagnostics.Invalid,"priority not on record body");
+					ELSIF recordBody.priority # NIL THEN
+						Error(position,Diagnostics.Invalid,"duplicate priority expression");
 					ELSE
-						block(SyntaxTree.Body).SetPriority(expression);
+						recordBody.SetPriority(expression);
 					END;
 				ELSIF expression # NIL THEN
 					Error(expression.position,Diagnostics.Invalid,"expression not in connection with priority")
-				ELSIF name = Global.StringExclusive THEN
-					flag := SyntaxTree.ExclusiveFlag; SetProtectedRecord;
-				ELSIF name = Global.StringActive THEN
-					flag := SyntaxTree.ActiveFlag; SetProtectedRecord;
-				ELSIF name = Global.StringSafe THEN
-					flag := SyntaxTree.SafeFlag;
-				ELSIF name = Global.StringRealtime THEN
-					flag := SyntaxTree.RealtimeFlag
+				ELSIF name.Equals(Global.NameExclusive) THEN
+					IF block.isExclusive THEN
+						Error(position,Diagnostics.Invalid,"duplicate exclusive flag")
+					END;
+					block.SetExclusive(TRUE); SetProtectedRecord;
+				ELSIF name.Equals(Global.NameActive) THEN
+					IF recordBody = NIL THEN
+						Error(position,Diagnostics.Invalid,"active not in record body");
+					ELSIF recordBody.isActive THEN
+						Error(position,Diagnostics.Invalid,"duplicate active flag")
+					ELSE
+						recordBody.SetActive(TRUE)
+					END;
+				ELSIF name.Equals(Global.NameSafe) THEN
+					IF recordBody = NIL THEN
+						Error(position,Diagnostics.Invalid,"safe not in record body");
+					ELSIF recordBody.isSafe THEN
+						Error(position,Diagnostics.Invalid,"duplicate safe flag")
+					ELSE
+						recordBody.SetActive(TRUE)
+					END;
+				ELSIF name.Equals(Global.NameRealtime) THEN
+					IF recordBody = NIL THEN
+						Error(position,Diagnostics.Invalid,"realtime not in record body");
+					ELSIF recordBody.isRealtime THEN
+						Error(position,Diagnostics.Invalid,"duplicate realtime flag")
+					ELSE
+						recordBody.SetRealtime(TRUE)
+					END;
 				ELSE
 					Error(position,Diagnostics.Invalid,"unknown block modifier");
 				END;
-
-				IF flag >= 0 THEN
-					IF flag IN forbidden THEN
-						Error(position,Diagnostics.Invalid,"forbidden modifier");
-					ELSIF flag IN flags THEN
-						Error(position,Diagnostics.Invalid,"duplicate modifier");
-					ELSE
-						INCL(flags,flag);
-					END
-				END;
 				blockModifier := blockModifier.nextModifier;
 			END;
-			block.AddFlags(flags);
 		END BlockFlags;
 
 		(** check and resolve statement block
@@ -5303,21 +5436,24 @@ TYPE
 			- check statement sequence
 		**)
 		PROCEDURE VisitStatementBlock(statementBlock: SyntaxTree.StatementBlock);
-		VAR flags: SET;
+		VAR recentExclusive, recentUnreachable: BOOLEAN;
 		BEGIN
 			BlockFlags(statementBlock);
-			IF SyntaxTree.ExclusiveFlag IN statementBlock.flags THEN
+			IF statementBlock.isExclusive THEN
 				(* check that not in exclusive block *)
-				IF SyntaxTree.ExclusiveFlag IN currentFlags THEN
+				IF currentIsExclusive THEN
 					Error (statementBlock.position,Diagnostics.Invalid,"forbidden recursive exclusive")
-				ELSIF SyntaxTree.RealtimeFlag IN currentFlags THEN
+				ELSIF currentIsRealtime THEN
 					Error( statementBlock.position,Diagnostics.Invalid,"forbidden exculsive in realtime block");
 				END;
 			END;
-			flags := currentFlags;
-			currentFlags := currentFlags + statementBlock.flags;
+			recentExclusive := currentIsExclusive;
+			recentUnreachable := currentIsUnreachable;
+			IF statementBlock.isExclusive THEN currentIsExclusive := TRUE END;
+			IF statementBlock.isUnreachable THEN currentIsUnreachable := TRUE END;
 			StatementSequence(statementBlock.statements);
-			currentFlags := flags;
+			currentIsExclusive := recentExclusive;
+			currentIsUnreachable := recentUnreachable;
 		END VisitStatementBlock;
 
 		(** check and resolve body
@@ -5327,15 +5463,15 @@ TYPE
 		PROCEDURE Body(body: SyntaxTree.Body);
 		BEGIN
 			VisitStatementBlock(body);
-			IF SyntaxTree.ActiveFlag IN body.flags THEN
-				IF  ~(SyntaxTree.BodyProcedureFlag IN currentFlags) THEN
+			IF body.isActive THEN
+				IF  ~currentIsBodyProcedure THEN
 					Error(body.position,Diagnostics.Invalid,"active flag not in object body");
-				ELSIF SyntaxTree.PriorityFlag IN body.flags THEN
+				ELSIF body.priority # NIL THEN
 					body.SetPriority(ConstantInteger(body.priority));
 				END;
-			ELSIF SyntaxTree.SafeFlag IN body.flags THEN
+			ELSIF body.isSafe THEN
 				Error(body.position,Diagnostics.Invalid,"safe flag not in active body");
-			ELSIF SyntaxTree.PriorityFlag IN body.flags THEN
+			ELSIF body.priority # NIL THEN
 				Error(body.position,Diagnostics.Invalid,"priority flag not in active body");
 			END;
 			StatementSequence(body.finally)
@@ -5370,26 +5506,28 @@ TYPE
 		(*!	can in principle be done in parallel on different checkers: implementations do only depend on declarations)
 		 move implementation checker to a separate object ? *)
 		PROCEDURE Implementation(scope: SyntaxTree.Scope);
-		VAR prevScope: SyntaxTree.Scope; prevFlags: SET; procedure: SyntaxTree.Procedure;
+		VAR prevScope: SyntaxTree.Scope; procedure: SyntaxTree.Procedure; prevIsRealtime, prevIsBodyProcedure, prevIsAssembly: BOOLEAN
 		BEGIN
-			prevFlags := currentFlags;
+			prevIsRealtime := currentIsRealtime;
+			prevIsBodyProcedure := currentIsBodyProcedure;
+			prevIsAssembly := currentIsAssembly;
 			prevScope := currentScope;
 			currentScope := scope;
 			IF (scope IS SyntaxTree.ProcedureScope) THEN
 				procedure := scope(SyntaxTree.ProcedureScope).ownerProcedure;
-				currentFlags := currentFlags + procedure.type(SyntaxTree.ProcedureType).flags;
-				currentFlags := currentFlags + procedure.flags;
+				currentIsBodyProcedure := currentIsBodyProcedure OR procedure.isBodyProcedure;
+				currentIsRealtime := currentIsRealtime OR procedure.type.isRealtime;
 				IF (procedure.scope # NIL) &
 					((procedure.scope IS SyntaxTree.ModuleScope)
 					& (procedure.scope(SyntaxTree.ModuleScope).bodyProcedure = procedure)
-					& (SyntaxTree.AssemblyFlag IN procedure.scope(SyntaxTree.ModuleScope).ownerModule.flags)
+					& (procedure.scope(SyntaxTree.ModuleScope).ownerModule.isAssembly)
 					OR
 					 (procedure.scope IS SyntaxTree.ActorScope)
 					 & (procedure.scope(SyntaxTree.ActorScope).bodyProcedure = procedure)
 					 & (procedure.scope(SyntaxTree.ActorScope).ownerActor.isAssembly)
 					 )
 				THEN
-					INCL(currentFlags, SyntaxTree.AssemblyFlag)
+					currentIsAssembly := TRUE
 				END;
 			END;
 			IF (scope IS SyntaxTree.ProcedureScope) & (scope(SyntaxTree.ProcedureScope).body # NIL) (* & ~(scope IS SyntaxTree.RecordScope) *) THEN
@@ -5397,7 +5535,9 @@ TYPE
 				Body(scope(SyntaxTree.ProcedureScope).body)
 			END;
 			currentScope := prevScope;
-			currentFlags := prevFlags;
+			currentIsRealtime := prevIsRealtime;
+			currentIsBodyProcedure := prevIsBodyProcedure;
+			currentIsAssembly := prevIsAssembly;
 		END Implementation;
 
 		(** implementation phase:
@@ -5505,14 +5645,14 @@ TYPE
 				symbol := symbol.nextSymbol;
 			END;
 
-			IF (scope IS SyntaxTree.ProcedureScope) & scope(SyntaxTree.ProcedureScope).ownerProcedure.type.IsRealtime() THEN
+			IF (scope IS SyntaxTree.ProcedureScope) & scope(SyntaxTree.ProcedureScope).ownerProcedure.type.isRealtime THEN
 				symbol := scope.firstSymbol;
 				WHILE symbol # NIL DO
 					IF (symbol IS SyntaxTree.Variable) OR (symbol IS SyntaxTree.Parameter) THEN
 						IF (symbol.type IS SyntaxTree.PointerType) OR (symbol.type IS SyntaxTree.QualifiedType) THEN
 							pointerFixes.Add(symbol, currentScope);
 						END;
-						IF ~symbol.type.resolved.IsRealtime() THEN
+						IF ~symbol.type.resolved.isRealtime THEN
 							Error(symbol.position,Diagnostics.Invalid,"symbol has no realtime type");
 						END;
 					END;
@@ -5629,7 +5769,7 @@ TYPE
 		(** symbols *)
 		PROCEDURE Symbol(x: SyntaxTree.Symbol);
 		BEGIN
-			IF ~x.HasFlag(SyntaxTree.AccessedFlag) & (x.access * SyntaxTree.Public = {}) & (x.access # SyntaxTree.Hidden) THEN
+			IF ~x.used & (x.access * SyntaxTree.Public = {}) & (x.access # SyntaxTree.Hidden) THEN
 				Warning(x,"never used");
 			END;
 			x.Accept(SELF);
@@ -5762,11 +5902,11 @@ TYPE
 				END;
 			ELSIF to IS SyntaxTree.PointerType THEN
 				result := IsPointerType(this) & (IsTypeExtension(to,this) OR ((to(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType) & SameType(to,this)))
-				     & (~to.IsRealtime() OR this.IsRealtime()) OR (this IS SyntaxTree.NilType)
+				     & (~to.isRealtime OR this.isRealtime) OR (this IS SyntaxTree.NilType)
 			ELSIF to IS SyntaxTree.ProcedureType THEN
 				result := (this IS SyntaxTree.NilType) OR (this IS SyntaxTree.ProcedureType) & SameType(to(SyntaxTree.ProcedureType),this(SyntaxTree.ProcedureType))
-					& (~(SyntaxTree.DelegateFlag IN this(SyntaxTree.ProcedureType).flags) OR (SyntaxTree.DelegateFlag IN to(SyntaxTree.ProcedureType).flags))
-					& (~to.IsRealtime() OR this.IsRealtime());
+					& (~(this(SyntaxTree.ProcedureType).isDelegate) OR (to(SyntaxTree.ProcedureType).isDelegate))
+					& (~to.isRealtime OR this.isRealtime);
 			ELSIF (to IS SyntaxTree.RecordType) & to(SyntaxTree.RecordType).isObject THEN
 				result := (this IS SyntaxTree.NilType) OR IsTypeExtension(to,this);
 			ELSIF to IS SyntaxTree.RecordType THEN
@@ -6257,7 +6397,7 @@ TYPE
 				END;
 				RETURN ContainsPointer(type(SyntaxTree.RecordType).baseType)
 			ELSIF (type IS SyntaxTree.ProcedureType) THEN
-				RETURN SyntaxTree.DelegateFlag IN type(SyntaxTree.ProcedureType).flags
+				RETURN type(SyntaxTree.ProcedureType).isDelegate
 			END;
 		END;
 		RETURN FALSE

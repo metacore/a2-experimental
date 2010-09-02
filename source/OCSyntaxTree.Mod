@@ -17,12 +17,17 @@ CONST
 		flag numbers have no meaning and are not used for object files etc., i.e. flag renumbering is possible without effect
 	*)
 
+	OberonCallingConvention* =0;
+	CCallingConvention* =1;
+	WinAPICallingConvention* =2;
 	(* block modifier flags *)
+	(*
 	ActiveFlag*= 0; 				(** block is an active body **)
 	ExclusiveFlag*=1;				(** block is exclusive **)
 	SafeFlag*=2; 					(** block is safe (restartable) **)
 	PriorityFlag*=3; 				(** block has priority **)
 	RealtimeFlag*=4; 				(** block has realtime flag **)
+
 	(* non-Oberon calling conventions *)
 	WinAPIFlag*=5;
 	CFlag*=6;
@@ -46,6 +51,9 @@ CONST
 	MappedFlag*=19; (* for dataflow ports *)
 
 	AssemblyFlag*=20;
+	StackAlignFlag*=21;
+
+	*)
 
 	(** Access Flags *)
 	InternalRead* = 0;			(** can read symbol in same module *)
@@ -399,19 +407,24 @@ TYPE
 			scope-: Scope; (* scope where the type has been declared *)
 			resolved-: Type; (* indirection to resolved type to preserve qualified types *)
 			position-,endposition-: LONGINT;
-			flags-, state-: SET;
+			state-: SET;
 			fingerprint-: Fingerprint;
+
+			isRealtime-: BOOLEAN;
+			recursion: BOOLEAN;
+
 			sizeInBits-: LONGINT; (* allocation size of this type in bits *)
 
 
-		PROCEDURE & InitType*( position: LONGINT; flags: SET);
+		PROCEDURE & InitType*( position: LONGINT);
 		BEGIN
 			SELF.position := position; state := Undefined;
-			SELF.flags := flags;
 			typeDeclaration := NIL;
 			scope := NIL;
 			resolved := SELF;
 			sizeInBits := MIN(LONGINT);
+			isRealtime := FALSE;
+			recursion := FALSE;
 			InitFingerprint(fingerprint)
 		END InitType;
 
@@ -432,10 +445,6 @@ TYPE
 		BEGIN	INCL(SELF.state,state);
 		END SetState;
 
-		PROCEDURE AddFlags*(flags: SET);
-		BEGIN SELF.flags := SELF.flags + flags;
-		END AddFlags;
-
 		PROCEDURE SetTypeDeclaration*(typeDeclaration: TypeDeclaration);
 		BEGIN SELF.typeDeclaration := typeDeclaration
 		END SetTypeDeclaration;
@@ -449,9 +458,9 @@ TYPE
 		BEGIN position := SELF.position; v.VisitType(SELF)
 		END Accept;
 
-		PROCEDURE IsRealtime*(): BOOLEAN;
-		BEGIN RETURN (RealtimeFlag IN flags);
-		END IsRealtime;
+		PROCEDURE SetRealtime*(isRealtime: BOOLEAN);
+		BEGIN SELF.isRealtime := isRealtime
+		END SetRealtime;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
 		BEGIN RETURN FALSE
@@ -468,11 +477,11 @@ TYPE
 	BasicType*= OBJECT(Type)
 	VAR name-: Identifier;
 
-		PROCEDURE & InitBasicType(CONST id: ARRAY OF CHAR; flags: SET; sizeInBits: LONGINT);
+		PROCEDURE & InitBasicType(CONST id: ARRAY OF CHAR; sizeInBits: LONGINT);
 		VAR str: String;
 		BEGIN
 			COPY(id, str);Basic.AppendNumber(str,sizeInBits); name := NewIdentifier(-1,str);
-			InitType(-1, flags);
+			InitType(-1);
 			SetSize(sizeInBits);
 			SELF.name := name
 		END InitBasicType;
@@ -496,7 +505,7 @@ TYPE
 
 		PROCEDURE & InitObjectType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType("@Object",{},sizeInBits);
+			InitBasicType("@Object",sizeInBits);
 		END InitObjectType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -520,7 +529,8 @@ TYPE
 
 		PROCEDURE & InitNilType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType("@Nil",{RealtimeFlag},sizeInBits);
+			InitBasicType("@Nil",sizeInBits);
+			SetRealtime(TRUE);
 		END InitNilType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -544,7 +554,7 @@ TYPE
 
 		PROCEDURE & InitAnyType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType("@Any",{},sizeInBits);
+			InitBasicType("@Any",sizeInBits);
 		END InitAnyType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -568,7 +578,8 @@ TYPE
 
 		PROCEDURE & InitByteType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType("@Byte",{RealtimeFlag},sizeInBits);
+			InitBasicType("@Byte",sizeInBits);
+			SetRealtime(TRUE);
 		END InitByteType;
 
 		PROCEDURE Accept*(v: Visitor);
@@ -593,7 +604,8 @@ TYPE
 
 		PROCEDURE & InitAddressType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType("@Address",{RealtimeFlag},sizeInBits);
+			InitBasicType("@Address",sizeInBits);
+			SetRealtime(TRUE);
 		END InitAddressType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -617,7 +629,8 @@ TYPE
 
 		PROCEDURE & InitSizeType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType("@Size",{RealtimeFlag},sizeInBits);
+			InitBasicType("@Size",sizeInBits);
+			SetRealtime(TRUE);
 		END InitSizeType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -641,7 +654,8 @@ TYPE
 
 		PROCEDURE & InitAllType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType("@All",{RealtimeFlag},sizeInBits);
+			InitBasicType("@All",sizeInBits);
+			SetRealtime(TRUE);
 		END InitAllType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -665,7 +679,8 @@ TYPE
 
 		PROCEDURE & InitBooleanType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType("@Boolean",{RealtimeFlag},sizeInBits);
+			InitBasicType("@Boolean",sizeInBits);
+			SetRealtime(TRUE);
 		END InitBooleanType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -690,7 +705,8 @@ TYPE
 
 		PROCEDURE & InitSetType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType("@Set",{RealtimeFlag},sizeInBits);
+			InitBasicType("@Set",sizeInBits);
+			SetRealtime(TRUE);
 		END InitSetType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -715,7 +731,8 @@ TYPE
 
 		PROCEDURE & InitCharacterType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType("@Character",{RealtimeFlag}, sizeInBits);
+			InitBasicType("@Character", sizeInBits);
+			SetRealtime(TRUE);
 		END InitCharacterType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -738,7 +755,8 @@ TYPE
 
 		PROCEDURE & InitNumberType( CONST name: ARRAY OF CHAR; sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType(name,{RealtimeFlag},sizeInBits);
+			InitBasicType(name, sizeInBits);
+			SetRealtime(TRUE);
 		END InitNumberType;
 
 	END NumberType;
@@ -807,7 +825,7 @@ TYPE
 		PROCEDURE & InitQualifiedType( position: LONGINT; scope: Scope;  qualifiedIdentifier: QualifiedIdentifier);
 		BEGIN
 			ASSERT(qualifiedIdentifier # NIL);
-			InitType( position, {});
+			InitType( position);
 			SELF.scope := scope;
 			SELF.qualifiedIdentifier := qualifiedIdentifier;
 			resolved := NIL;
@@ -840,7 +858,8 @@ TYPE
 
 		PROCEDURE & InitStringType(position: LONGINT; baseType: Type; length: LONGINT);
 		BEGIN
-			InitType(position, {RealtimeFlag});
+			InitType(position);
+			SetRealtime(TRUE);
 			SELF.length := length;
 			SELF.baseType := baseType;
 		END InitStringType;
@@ -881,7 +900,8 @@ TYPE
 
 		PROCEDURE &InitEnumerationType(position: LONGINT; scope: Scope; enumerationScope: EnumerationScope);
 		BEGIN
-			InitType(position, {RealtimeFlag});
+			InitType(position);
+			SetRealtime(TRUE);
 			SELF.scope := scope;
 			enumerationBase := NIL;
 			rangeLowest := 0; rangeHighest := 0;
@@ -923,7 +943,8 @@ TYPE
 
 		PROCEDURE & InitRangeType(position: LONGINT; scope: Scope; commonType: Type);
 		BEGIN
-			InitType(position, {RealtimeFlag});
+			InitType(position);
+			SetRealtime(TRUE);
 			SetScope(scope);
 			SELF.commonType := commonType;
 		END InitRangeType;
@@ -945,7 +966,7 @@ TYPE
 
 		PROCEDURE & InitArrayType(position: LONGINT; scope: Scope;  form: LONGINT);
 		BEGIN
-			length := NIL; arrayBase := NIL; InitType(position, {}); staticLength := 0; SELF.form := form; SELF.scope := scope;
+			length := NIL; arrayBase := NIL; InitType(position); staticLength := 0; SELF.form := form; SELF.scope := scope;
 		END InitArrayType;
 
 		PROCEDURE SetArrayBase*( type: Type );
@@ -979,15 +1000,15 @@ TYPE
 			result := FALSE;
 			IF this = SELF THEN
 				result := TRUE
-			ELSIF RecursionFlag IN flags THEN
+			ELSIF recursion THEN
 				result := TRUE;
 			ELSIF this IS ArrayType THEN
-				INCL(flags, RecursionFlag);
+				recursion := TRUE;
 				WITH this: ArrayType DO
 					result := (this.form = form) & (this.staticLength = staticLength) & arrayBase.SameType(this.arrayBase.resolved);
 				END;
 			END;
-			EXCL(flags, RecursionFlag);
+			recursion := FALSE;
 			RETURN result
 		END SameType;
 
@@ -1014,7 +1035,7 @@ TYPE
 
 		PROCEDURE & InitMathArrayType(position: LONGINT;scope: Scope; form: LONGINT);
 		BEGIN
-			length := NIL; arrayBase := NIL; InitType(position, {}); staticLength := 0; staticIncrementInBits := 0; SELF.form := form; SELF.scope := scope;
+			length := NIL; arrayBase := NIL; InitType(position); staticLength := 0; staticIncrementInBits := 0; SELF.form := form; SELF.scope := scope;
 		END InitMathArrayType;
 
 		PROCEDURE SetArrayBase*( type: Type );
@@ -1047,15 +1068,15 @@ TYPE
 			result := FALSE;
 			IF this = SELF THEN
 				result := TRUE
-			ELSIF RecursionFlag IN flags THEN
+			ELSIF recursion THEN
 				result := TRUE;
 			ELSIF this IS MathArrayType THEN
-				INCL(flags, RecursionFlag);
+				recursion := TRUE;
 				WITH this: MathArrayType DO
 					result := (this.form = form) & (this.staticLength = staticLength) & arrayBase.SameType(this.arrayBase.resolved);
 				END;
 			END;
-			EXCL(flags, RecursionFlag);
+			recursion := FALSE;
 			RETURN result
 		END SameType;
 
@@ -1075,20 +1096,20 @@ TYPE
 	(** <<POINTER TO pointerBase>> **)
 	PointerType* = OBJECT (Type)
 		VAR
-			flagList-: Modifier; (* set by the parser *)
+			modifiers-: Modifier; (* set by the parser *)
 			pointerBase-: Type;
 
 		PROCEDURE & InitPointerType(position: LONGINT; scope: Scope);
 		BEGIN
-			flagList := NIL;
+			modifiers := NIL;
 			pointerBase := NIL;
-			InitType(position, {});
+			InitType(position);
 			SELF.scope := scope;
 		END InitPointerType;
 
-		PROCEDURE SetFlagList*(flags: Modifier);
-		BEGIN flagList := flags
-		END SetFlagList;
+		PROCEDURE SetModifiers*(flags: Modifier);
+		BEGIN modifiers := flags
+		END SetModifiers;
 
 		PROCEDURE SetPointerBase*( type: Type );
 		BEGIN
@@ -1138,7 +1159,7 @@ TYPE
 
 		PROCEDURE & InitPortType(position: LONGINT; direction: LONGINT; channelType: Type; scope: Scope);
 		BEGIN
-			InitType(position, {});
+			InitType(position);
 			SELF.channelType := channelType;
 			SELF.direction := direction;
 			SELF.scope := scope;
@@ -1175,7 +1196,7 @@ TYPE
 
 		PROCEDURE & InitRecordType( position: LONGINT; scope: Scope; recordScope: RecordScope);
 		BEGIN
-			InitType( position, {});
+			InitType( position);
 			SELF.scope := scope;
 			baseType := NIL;
 			pointerType := NIL;
@@ -1278,7 +1299,7 @@ TYPE
 
 		PROCEDURE &InitActorType(position: LONGINT; scope: Scope;  actorScope: ActorScope);
 		BEGIN
-			InitType(position,{});
+			InitType(position);
 			SELF.scope := scope;
 			numberParameters := 0; firstParameter := NIL; lastParameter := NIL;
 			SELF.actorScope := actorScope;
@@ -1324,28 +1345,50 @@ TYPE
 	**)
 	ProcedureType* = OBJECT (Type)
 		VAR
-			flagList-: Modifier; (* set by the parser *)
+			modifiers-: Modifier; (* set by the parser *)
 			returnType-: Type;
 			returnParameter-: Parameter;
 			firstParameter-,lastParameter-: Parameter; numberParameters-, numberHiddenParameters-: LONGINT;  (* parameters *)
+			isDelegate-,isInterrupt-,noPAF-: BOOLEAN;
+			callingConvention-: LONGINT;
+			stackAlignment-: LONGINT;
 
 		PROCEDURE & InitProcedureType( position: LONGINT; scope: Scope);
 		BEGIN
-			InitType( position, {} );
+			InitType( position);
 			SELF.scope := scope;
-			flagList := NIL;
+			modifiers := NIL;
 			firstParameter := NIL; lastParameter := NIL; numberParameters := 0; numberHiddenParameters := 0;
 			returnType := NIL; returnParameter := NIL;
-			flags := {};
+			stackAlignment := 1;
+			isDelegate := FALSE; isInterrupt := FALSE; noPAF := FALSE;
+			callingConvention := OberonCallingConvention;
 		END InitProcedureType;
 
-		PROCEDURE HasFlag*(flag: LONGINT): BOOLEAN;
-		BEGIN RETURN flag IN flags
-		END HasFlag;
+		PROCEDURE SetNoPAF*(noPAF: BOOLEAN);
+		BEGIN SELF.noPAF := noPAF
+		END SetNoPAF;
 
-		PROCEDURE SetFlagList*(flags: Modifier);
-		BEGIN flagList := flags
-		END SetFlagList;
+		PROCEDURE SetInterrupt*(isIrq: BOOLEAN);
+		BEGIN SELF.isInterrupt := isIrq
+		END SetInterrupt;
+
+		PROCEDURE SetModifiers*(flags: Modifier);
+		BEGIN modifiers := flags
+		END SetModifiers;
+
+		PROCEDURE SetDelegate*(delegate: BOOLEAN);
+		BEGIN SELF.isDelegate := delegate
+		END SetDelegate;
+
+		PROCEDURE SetStackAlignment*(alignment: LONGINT);
+		BEGIN
+			stackAlignment := alignment;
+		END SetStackAlignment;
+
+		PROCEDURE SetCallingConvention*(cc: LONGINT);
+		BEGIN callingConvention := cc
+		END SetCallingConvention;
 
 		PROCEDURE AddParameter*(p: Parameter);
 		BEGIN
@@ -1389,15 +1432,15 @@ TYPE
 		VAR result: BOOLEAN; p1,p2: Parameter;
 		BEGIN
 			result := FALSE;
-			IF RecursionFlag IN flags THEN
+			IF recursion THEN
 				result := TRUE
-			ELSIF this = SELF THEN 
+			ELSIF this = SELF THEN
 				result := TRUE
 			ELSIF this IS ProcedureType THEN
-				INCL(flags,RecursionFlag);
+				recursion := TRUE;
 				WITH this: ProcedureType DO
 					result := (returnType = NIL) & (this.returnType = NIL) OR (returnType # NIL) & returnType.SameType(this.returnType.resolved);
-					result := result & (flags * {WinAPIFlag,CFlag} = this.flags * {WinAPIFlag,CFlag} );
+					result := result & (callingConvention = this.callingConvention);
 					IF result THEN
 						p1 := firstParameter; p2 := this.firstParameter;
 						WHILE (p1 # NIL) & (p2 # NIL) & (p1.access # Hidden) & (p2.access # Hidden) & (p1.kind = p2.kind) & (p1.type.SameType(p2.type) OR p1.type.SameType(p2.type.resolved)) DO
@@ -1407,13 +1450,13 @@ TYPE
 					END;
 				END;
 			END;
-			EXCL(flags,RecursionFlag);
+			recursion := FALSE;
 			RETURN result
 		END SameType;
 
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
 		BEGIN
-			RETURN SameType(to) & (~(DelegateFlag IN flags) OR (DelegateFlag IN to.flags)) & (~to.IsRealtime() OR SELF.IsRealtime());
+			RETURN SameType(to) & (~isDelegate OR to(ProcedureType).isDelegate) & (~to.isRealtime OR isRealtime);
 		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
@@ -2175,16 +2218,17 @@ TYPE
 		nextSymbol-: Symbol;
 
 		name-: Identifier; (* constant / variable / parameter / type name / module name *)
-		access-,flags-: SET; (* access flags (exported, readonly etc.) *)
+		access-: SET; (* access flags (exported, readonly etc.) *)
 		type-: Type; (* type of constant / variable / parameter / procedure return type *)
 		scope-:Scope; (* container of symbol *)
 		offsetInBits-: LONGINT; (* offset in stack or heap, in bits *)
-
+		used-, written-: BOOLEAN;
 		fixed-: BOOLEAN;
 		alignment-: LONGINT;
 
 		position-: LONGINT; state-: SET;
 		fingerprint-: Fingerprint;
+
 
 		PROCEDURE & InitSymbol(position: LONGINT; name:Identifier);
 		BEGIN
@@ -2195,9 +2239,9 @@ TYPE
 			type := NIL;
 			access := Internal;
 			state := Undefined;
-			flags := {};
 			offsetInBits := MIN(LONGINT);
 			alignment := 1; fixed := FALSE;
+			used := FALSE; written := FALSE;
 			InitFingerprint(fingerprint);
 		END InitSymbol;
 
@@ -2217,14 +2261,6 @@ TYPE
 		PROCEDURE SetScope*(scope: Scope);
 		BEGIN	SELF.scope := scope
 		END SetScope;
-
-		PROCEDURE AddFlags*(flags: SET);
-		BEGIN SELF.flags := SELF.flags + flags
-		END AddFlags;
-
-		PROCEDURE HasFlag*(flag: LONGINT): BOOLEAN;
-		BEGIN RETURN flag IN flags
-		END HasFlag;
 
 		PROCEDURE SetType*(type: Type);
 		BEGIN
@@ -2249,13 +2285,11 @@ TYPE
 		END SetOffset;
 
 		PROCEDURE MarkUsed*;
-		BEGIN
-			INCL(flags, AccessedFlag);
+		BEGIN used := TRUE
 		END MarkUsed;
 
 		PROCEDURE MarkWritten*;
-		BEGIN
-			INCL(flags, WrittenFlag);
+		BEGIN written := TRUE
 		END MarkWritten;
 
 		PROCEDURE Accept*(v: Visitor);
@@ -2340,18 +2374,26 @@ TYPE
 	Variable* = OBJECT (Symbol)
 	VAR
 		nextVariable-: Variable;
-		flagList-: Modifier;
+		untraced-: BOOLEAN;
+		modifiers-: Modifier;
 
 		PROCEDURE & InitVariable( position: LONGINT;  name: Identifier);
 		BEGIN
 			InitSymbol(position,name);
 			nextVariable := NIL;
-			flagList := NIL;
+			modifiers := NIL;
+			untraced := FALSE;
+			modifiers := NIL;
 		END InitVariable;
 
-		PROCEDURE SetFlag*(flag: Modifier);
-		BEGIN SELF.flagList := flag;
-		END SetFlag;
+		PROCEDURE SetUntraced*(u: BOOLEAN);
+		BEGIN untraced := u
+		END SetUntraced;
+
+
+		PROCEDURE SetModifiers*(flag: Modifier);
+		BEGIN SELF.modifiers := flag;
+		END SetModifiers;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -2367,10 +2409,11 @@ TYPE
 	Parameter* = OBJECT (Symbol)
 	VAR
 		nextParameter-, prevParameter-: Parameter;
-		flagList-: Modifier;
+		modifiers-: Modifier;
 
 		kind-: LONGINT;   (* ValueParameter, ConstParameter, VarParameter *)
 		ownerType-: Type;
+		untraced-: BOOLEAN;
 
 		PROCEDURE & InitParameter( position: LONGINT;  ownerType: Type ; name: Identifier; kind: LONGINT);
 		BEGIN
@@ -2379,12 +2422,17 @@ TYPE
 			IF kind = ConstParameter THEN access := access * ReadOnly  END;
 			nextParameter := NIL;
 			SELF.ownerType := ownerType;
-			flagList := NIL;
+			modifiers := NIL;
+			untraced := FALSE;
 		END InitParameter;
 
-		PROCEDURE SetFlag*(flag: Modifier);
-		BEGIN SELF.flagList := flag;
-		END SetFlag;
+		PROCEDURE SetModifiers*(flag: Modifier);
+		BEGIN SELF.modifiers := flag;
+		END SetModifiers;
+
+		PROCEDURE SetUntraced*(untraced: BOOLEAN);
+		BEGIN SELF.untraced := untraced
+		END SetUntraced;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -2407,6 +2455,7 @@ TYPE
 			procedureScope- : ProcedureScope;
 			super-: Procedure;
 			level-, methodNumber-: LONGINT;
+			isBodyProcedure-, isConstructor-, isInline-: BOOLEAN;
 
 		PROCEDURE & InitProcedure( position: LONGINT;  name: Identifier; scope: ProcedureScope);
 		BEGIN
@@ -2418,12 +2467,27 @@ TYPE
 			super := NIL;
 			level := 0;
 			methodNumber := -1;
+			isBodyProcedure := FALSE;
+			isConstructor := FALSE;
+			isInline := FALSE;
 		END InitProcedure;
 
 		PROCEDURE SetSuper*(super: Procedure);
 		BEGIN
 			SELF.super := super
 		END SetSuper;
+
+		PROCEDURE SetBodyProcedure*(isBodyProcedure: BOOLEAN);
+		BEGIN SELF.isBodyProcedure := isBodyProcedure;
+		END SetBodyProcedure;
+
+		PROCEDURE SetConstructor*(isConstructor: BOOLEAN);
+		BEGIN SELF.isConstructor := isConstructor
+		END SetConstructor;
+
+		PROCEDURE SetInline*(isInline: BOOLEAN);
+		BEGIN SELF.isInline := isInline
+		END SetInline;
 
 		PROCEDURE SetLevel*(level: LONGINT);
 		BEGIN SELF.level := level
@@ -2571,22 +2635,18 @@ TYPE
 	Statement*= OBJECT
 	VAR outer-: Statement;
 		position-: LONGINT;
-		flags-: SET;
+		isUnreachable-: BOOLEAN;
 
 		PROCEDURE & InitStatement(position: LONGINT; outer: Statement);
 		BEGIN
 			SELF.position := position;
 			SELF.outer := outer;
-			flags := {};
+			isUnreachable := FALSE;
 		END InitStatement;
 
-		PROCEDURE AddFlags*(flags: SET);
-		BEGIN SELF.flags := SELF.flags + flags
-		END AddFlags;
-
-		PROCEDURE HasFlag*(flag: LONGINT): BOOLEAN;
-		BEGIN RETURN flag IN flags
-		END HasFlag;
+		PROCEDURE SetUnreachable*(unreachable: BOOLEAN);
+		BEGIN isUnreachable := unreachable
+		END SetUnreachable;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -3018,16 +3078,22 @@ TYPE
 		VAR
 			statements-: StatementSequence;
 			blockModifiers-: Modifier;
+			isExclusive-: BOOLEAN;
 
 		PROCEDURE & InitStatementBlock( position: LONGINT ; outer: Statement);
 		BEGIN
 			InitStatement( position ,outer);  statements := NIL;  blockModifiers := NIL;
+			isExclusive := FALSE;
 		END InitStatementBlock;
 
 		PROCEDURE SetModifier*(modifier: Modifier);
 		BEGIN
 			blockModifiers := modifier;
 		END SetModifier;
+
+		PROCEDURE SetExclusive*(excl: BOOLEAN);
+		BEGIN isExclusive := excl
+		END SetExclusive;
 
 		PROCEDURE SetStatementSequence*( statements: StatementSequence );
 		BEGIN SELF.statements := statements;
@@ -3076,16 +3142,27 @@ TYPE
 	VAR
 		finally-: StatementSequence;
 		priority-: Expression; (* set by checker *)
-		fixed-: BOOLEAN;
-		alignment-: LONGINT; (* set by checker *)
 		inScope-: ProcedureScope;
 		code-: Code;
+		isActive-, isSafe-, isRealtime-: BOOLEAN;
 
 		PROCEDURE & InitBody(position: LONGINT; scope: ProcedureScope);
 		BEGIN
 			InitStatementBlock(position,NIL); finally := NIL; priority := NIL; inScope := scope; code := NIL;
-			alignment := 0; fixed :=FALSE;
+			isActive := FALSE; isSafe := FALSE; isRealtime := FALSE;
 		END InitBody;
+
+		PROCEDURE SetActive*(active: BOOLEAN);
+		BEGIN SELF.isActive := active
+		END SetActive;
+
+		PROCEDURE SetSafe*(safe: BOOLEAN);
+		BEGIN SELF.isSafe := safe
+		END SetSafe;
+
+		PROCEDURE SetRealtime*(realtime: BOOLEAN);
+		BEGIN SELF.isRealtime := TRUE
+		END SetRealtime;
 
 		PROCEDURE SetFinally*( finally: StatementSequence );
 		BEGIN SELF.finally := finally
@@ -3094,11 +3171,6 @@ TYPE
 		PROCEDURE SetPriority*(expression: Expression);
 		BEGIN priority := expression
 		END SetPriority;
-
-		PROCEDURE SetAlignment*(fix: BOOLEAN; alignAt: LONGINT);
-		BEGIN
-			SELF.fixed := fix; alignment := alignAt;
-		END SetAlignment;
 
 		PROCEDURE SetCode*(code: Code);
 		BEGIN SELF.code := code;
@@ -3656,6 +3728,7 @@ TYPE
 			moduleScope-: ModuleScope;
 			context-:Identifier; (* modules context *)
 			case-: LONGINT; (* module notation in lower or upper case, important for printout and operators *)
+			isAssembly-: BOOLEAN;
 			firstScope-,lastScope-: Scope; numberScopes-: LONGINT; (* list of all scopes for checker / backend traversal etc. *)
 
 		PROCEDURE & InitModule( CONST sourceName: ARRAY OF CHAR; position: LONGINT; name: Identifier; scope: ModuleScope; case: LONGINT);
@@ -3670,6 +3743,11 @@ TYPE
 			firstScope := NIL; lastScope := NIL; numberScopes := 0;
 			SetType(moduleType);
 		END InitModule;
+
+		PROCEDURE SetAssembly*(isAssembly: BOOLEAN);
+		BEGIN SELF.isAssembly := isAssembly
+		END SetAssembly;
+
 
 		PROCEDURE SetContext*(context: Identifier);
 		BEGIN	SELF.context := context;
@@ -3759,7 +3837,9 @@ VAR
 	PROCEDURE NewType*(): Type;  (* for error handling: invalid Type, is realtime type *)
 	VAR type: Type;
 	BEGIN
-		INC( typeCount );  NEW( type, -1, {RealtimeFlag});  RETURN type
+		INC( typeCount );  NEW( type, -1);
+		type.SetRealtime(TRUE);
+		RETURN type
 	END NewType;
 
 	PROCEDURE NewByteType*(sizeInBits: LONGINT): ByteType;

@@ -194,11 +194,11 @@ TYPE
 
 		scanner := Scanner.NewScanner(source,reader,position,diagnostics);
 		IF DataFlow IN flags THEN
-			Global.NewBuiltin(Global.Connect,"CONNECT",system.globalScope,{});
-			Global.NewBuiltin(Global.Receive,"RECEIVE",system.globalScope,{});
-			Global.NewBuiltin(Global.Send,"SEND",system.globalScope,{});
-			Global.NewBuiltin(Global.Delegate,"DELEGATE",system.globalScope,{});
-			Global.NewBuiltin(Global.systemHardwareAddress,"HWADR",system.systemScope,{});
+			Global.NewBuiltin(Global.Connect,"CONNECT",system.globalScope,FALSE);
+			Global.NewBuiltin(Global.Receive,"RECEIVE",system.globalScope,FALSE);
+			Global.NewBuiltin(Global.Send,"SEND",system.globalScope,FALSE);
+			Global.NewBuiltin(Global.Delegate,"DELEGATE",system.globalScope,FALSE);
+			Global.NewBuiltin(Global.systemHardwareAddress,"HWADR",system.systemScope,FALSE);
 			dataflowBackend := GetBackend("OCDataflowBackend");
 			IF dataflowBackend = NIL THEN FinalMessage("could not install dataflow backend"); RETURN FALSE END;
 		END;
