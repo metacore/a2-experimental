@@ -812,7 +812,7 @@ END ExpandHeap;
 (* Set memory block end address *)
 PROCEDURE SetMemoryBlockEndAddress*(memBlock: MemoryBlock; endBlockAdr: SYSTEM.ADDRESS);
 BEGIN
-	ASSERT(endBlockAdr >= memBlock.beginBlockAdr);
+	ASSERT(GreaterOrEqual(endBlockAdr,memBlock.beginBlockAdr));
 	memBlock.endBlockAdr := endBlockAdr
 END SetMemoryBlockEndAddress;
 
