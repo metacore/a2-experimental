@@ -113,6 +113,9 @@ TYPE
 			fport := WSock32.ntohs( sadr.sinPort );
 			SYSTEM.MOVE( SYSTEM.ADR( sadr.sinAddr ), SYSTEM.ADR( fip ), IPAdrLen );
 
+			(*? Problem - Windows XP does not fill in the Fip.UseProtocol field for IPv4 packets ! done manually here*)
+			IF fip.ipv4Adr # 0 THEN fip.usedProtocol := IP.IPv4 END;
+			
 			IF trace THEN
 				IF (fip.usedProtocol = IP.IPv4) THEN
 					KernelLog.String( "UDP.Receive : " );  KernelLog.Int( fip.ipv4Adr, 1 );  KernelLog.String( " , " );  KernelLog.Int( fport, 1 );
