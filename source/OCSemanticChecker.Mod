@@ -5506,7 +5506,7 @@ TYPE
 		(*!	can in principle be done in parallel on different checkers: implementations do only depend on declarations)
 		 move implementation checker to a separate object ? *)
 		PROCEDURE Implementation(scope: SyntaxTree.Scope);
-		VAR prevScope: SyntaxTree.Scope; procedure: SyntaxTree.Procedure; prevIsRealtime, prevIsBodyProcedure, prevIsAssembly: BOOLEAN
+		VAR prevScope: SyntaxTree.Scope; procedure: SyntaxTree.Procedure; prevIsRealtime, prevIsBodyProcedure, prevIsAssembly: BOOLEAN;
 		BEGIN
 			prevIsRealtime := currentIsRealtime;
 			prevIsBodyProcedure := currentIsBodyProcedure;
