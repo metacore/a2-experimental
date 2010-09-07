@@ -347,17 +347,41 @@ TYPE
 			*)
 		END Flags;
 
+		PROCEDURE Flag(identifier: SyntaxTree.Identifier; VAR first: BOOLEAN);
+		VAR name: SyntaxTree.String;
+		BEGIN
+			IF first THEN w.String("{") ELSE w.String(", ") END;
+			first := FALSE;
+			identifier.GetString(name);
+			w.String(name);
+		END Flag;
+
+		PROCEDURE Value(identifier: SyntaxTree.Identifier; value: LONGINT; VAR first: BOOLEAN);
+		BEGIN
+			Flag(identifier,first);
+			w.String("("); w.Int(value,1); w.String(")");
+		END Value;
+
+
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
+		VAR first: BOOLEAN;
 		BEGIN
 			Keyword("PROCEDURE " );
-			IF (x.modifiers = NIL) THEN
-				Flags((*x.flags*))
-			ELSE
-				Modifiers(x.modifiers)
+			first := TRUE;
+			IF x.isDelegate THEN Flag(Global.NameDelegate,first) END;
+			IF x.isInterrupt THEN Flag(Global.NameInterrupt,first) END;
+			IF x.noPAF THEN Flag(Global.NameNoPAF,first) END;
+			IF x.callingConvention = SyntaxTree.WinAPICallingConvention THEN
+				Flag(Global.NameWinAPI,first)
+			ELSIF x.callingConvention = SyntaxTree.CCallingConvention THEN
+				Flag(Global.NameC,first)
 			END;
-			IF info THEN
+			IF x.stackAlignment > 1 THEN Value(Global.NameStackAligned,x.stackAlignment,first) END;
+			IF ~first THEN w.String("}") END;
+
+			IF (x.modifiers # NIL) & info THEN
 				BeginComment;
-				Flags((*x.flags*));
+				Modifiers(x.modifiers);
 				EndComment;
 			END;
 			(*
@@ -866,10 +890,14 @@ TYPE
 		END ConstantList;
 
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
+		VAR first: BOOLEAN;
 		BEGIN
 			IF Visible(x) THEN
 				IF (x.access # SyntaxTree.Hidden) THEN
 					PrintSymbol(x);
+					first := TRUE;
+					IF x.aligned >1 THEN Value(Global.NameAligned,x.aligned) END;
+					IF ~first THEN w.String("} ");
 					Flags((*x.flags*));
 					w.String( ": " );
 					Type(x.type);
@@ -964,11 +992,11 @@ TYPE
 		END Access;
 
 		PROCEDURE VisitProcedure(x: SyntaxTree.Procedure);
-		VAR type: SyntaxTree.ProcedureType;  flags: SET;
+		VAR type: SyntaxTree.ProcedureType;  flags: SET; first: BOOLEAN;
 		BEGIN
 			IF Visible(x) THEN
 				Indent;  Keyword("PROCEDURE " );
-				Modifiers(x.type(SyntaxTree.ProcedureType).modifiers);
+
 				(*
 				CallingConvention(x.type(SyntaxTree.ProcedureType).callingConvention);
 				*)
@@ -978,8 +1006,18 @@ TYPE
 				*)
 				IF x.isInline THEN w.String(" - ") END;
 				IF x.isConstructor THEN w.String(" & ") END;
-				IF (type.isRealtime) & (type.modifiers = NIL)  THEN w.String("{REALTIME}") END;
-				IF type.stackAlignment > 1 THEN w.String("{ALIGNSTACK("); w.Int(type.stackAlignment,1); w.String("}"); END;
+
+				first := TRUE;
+				IF type.stackAlignment > 1 THEN Value(Global.NameStackAligned,type.stackAlignment,first) END;
+				IF (type.isRealtime) & (type.modifiers = NIL)  THEN Flag(Global.NameRealtime,first) END;
+				IF ~first THEN w.String("}") END;
+
+				IF info THEN
+					BeginComment;
+					Modifiers(x.type(SyntaxTree.ProcedureType).modifiers);
+					EndComment;
+				END;
+
 				PrintSymbol(x);
 				IF (type.firstParameter # NIL)  OR (type.returnType # NIL ) THEN  (* print parentheses only if not parameterless procedure *)
 					ParameterList(type.firstParameter);

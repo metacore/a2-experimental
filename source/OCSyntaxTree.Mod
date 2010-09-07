@@ -16,45 +16,11 @@ CONST
 		general flags are unique and may overlap with access flags only
 		flag numbers have no meaning and are not used for object files etc., i.e. flag renumbering is possible without effect
 	*)
-
+	(** calling conventions *)
 	OberonCallingConvention* =0;
 	CCallingConvention* =1;
 	WinAPICallingConvention* =2;
-	(* block modifier flags *)
-	(*
-	ActiveFlag*= 0; 				(** block is an active body **)
-	ExclusiveFlag*=1;				(** block is exclusive **)
-	SafeFlag*=2; 					(** block is safe (restartable) **)
-	PriorityFlag*=3; 				(** block has priority **)
-	RealtimeFlag*=4; 				(** block has realtime flag **)
-
-	(* non-Oberon calling conventions *)
-	WinAPIFlag*=5;
-	CFlag*=6;
-	(* other flags *)
-	InlineFlag*=7;
-	DelegateFlag*=8;
-	UntracedFlag*=9;
-	ConstructorFlag*=10;
-	BodyProcedureFlag*=11;
-
-	InterruptFlag*=12;
-	NoPAFFlag*=13;
-	FixedFlag*=14;
-	AlignedFlag*=15;
-
-	(* statement flags *)
-	UnreachableFlag*=16;
-	(* modification flags *)
-	WrittenFlag*=17;
-	AccessedFlag*=18;
-	MappedFlag*=19; (* for dataflow ports *)
-
-	AssemblyFlag*=20;
-	StackAlignFlag*=21;
-
-	*)
-
+	
 	(** Access Flags *)
 	InternalRead* = 0;			(** can read symbol in same module *)
 	InternalWrite* = 1;		(** can write symbol in same module *)

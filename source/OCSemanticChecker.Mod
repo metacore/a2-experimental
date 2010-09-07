@@ -800,21 +800,22 @@ TYPE
 			resolve procedure type
 			- enter procedure to list of deferred fixes (to avoid infinite loops in the declaration phase)
 		**)
-		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
-		VAR modifiers: SyntaxTree.Modifier;
+		PROCEDURE VisitProcedureType(procedureType: SyntaxTree.ProcedureType);
+		VAR modifiers: SyntaxTree.Modifier; value: LONGINT;
 		BEGIN
-			IF TypeNeedsResolution(x) THEN
-				modifiers := x.modifiers;
-				IF HasFlag(modifiers, Global.NameWinAPI) THEN x.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
-				ELSIF HasFlag(modifiers,Global.NameC) THEN x.SetCallingConvention(SyntaxTree.CCallingConvention)
+			IF TypeNeedsResolution(procedureType) THEN
+				modifiers := procedureType.modifiers;
+				IF HasFlag(modifiers, Global.NameWinAPI) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
+				ELSIF HasFlag(modifiers,Global.NameC) THEN procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
 				END;
-				IF HasFlag(modifiers, Global.NameDelegate) THEN x.SetDelegate(TRUE) END;
-				IF HasFlag(modifiers, Global.NameRealtime) THEN x.SetRealtime(TRUE) END;
+				IF HasValue(modifiers,Global.NameStackAligned,value) THEN procedureType.SetStackAlignment(value) END;
+				IF HasFlag(modifiers, Global.NameDelegate) THEN procedureType.SetDelegate(TRUE) END;
+				IF HasFlag(modifiers, Global.NameRealtime) THEN procedureType.SetRealtime(TRUE) END;
 				CheckEmpty(modifiers);
-				typeFixes.Add(x,currentScope);
-				x.SetState(SyntaxTree.Resolved);
+				typeFixes.Add(procedureType,currentScope);
+				procedureType.SetState(SyntaxTree.Resolved);
 			END;
-			resolvedType := ResolvedType(x)
+			resolvedType := ResolvedType(procedureType)
 		END VisitProcedureType;
 
 		(** check and resolve record type
@@ -4534,6 +4535,7 @@ TYPE
 				IF HasValue(modifiers,Global.NameAligned,value) THEN procedure.SetAlignment(FALSE,value)
 				ELSIF HasValue(modifiers,Global.NameFixed,value) THEN procedure.SetAlignment(TRUE,value)
 				END;
+				IF HasValue(modifiers,Global.NameStackAligned,value) THEN procedureType.SetStackAlignment(value) END;
 				IF HasFlag(modifiers,Global.NameRealtime) THEN procedureType.SetRealtime(TRUE) END;
 				CheckEmpty(modifiers);
 				FixProcedureType(procedureType);
