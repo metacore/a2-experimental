@@ -20,7 +20,7 @@ CONST
 	OberonCallingConvention* =0;
 	CCallingConvention* =1;
 	WinAPICallingConvention* =2;
-	
+
 	(** Access Flags *)
 	InternalRead* = 0;			(** can read symbol in same module *)
 	InternalWrite* = 1;		(** can write symbol in same module *)
@@ -1318,6 +1318,7 @@ TYPE
 			isDelegate-,isInterrupt-,noPAF-: BOOLEAN;
 			callingConvention-: LONGINT;
 			stackAlignment-: LONGINT;
+			parameterOffset-: LONGINT; (* stack parameter offset caused by parameters on stack *)
 
 		PROCEDURE & InitProcedureType( position: LONGINT; scope: Scope);
 		BEGIN
@@ -1329,6 +1330,7 @@ TYPE
 			stackAlignment := 1;
 			isDelegate := FALSE; isInterrupt := FALSE; noPAF := FALSE;
 			callingConvention := OberonCallingConvention;
+			parameterOffset := 0;
 		END InitProcedureType;
 
 		PROCEDURE SetNoPAF*(noPAF: BOOLEAN);
@@ -1351,6 +1353,10 @@ TYPE
 		BEGIN
 			stackAlignment := alignment;
 		END SetStackAlignment;
+
+		PROCEDURE SetParameterOffset*(ofs: LONGINT);
+		BEGIN parameterOffset := ofs
+		END SetParameterOffset;
 
 		PROCEDURE SetCallingConvention*(cc: LONGINT);
 		BEGIN callingConvention := cc
@@ -2211,8 +2217,8 @@ TYPE
 			InitFingerprint(fingerprint);
 		END InitSymbol;
 
-		PROCEDURE SetAlignment*(fix: BOOLEAN; alignment: LONGINT);
-		BEGIN SELF.alignment := alignment; fixed := fix;
+		PROCEDURE SetAlignment*(fix: BOOLEAN; align: LONGINT);
+		BEGIN SELF.alignment := align; fixed := fix;
 		END SetAlignment;
 
 		PROCEDURE SetFingerprint*(CONST fp: Fingerprint);

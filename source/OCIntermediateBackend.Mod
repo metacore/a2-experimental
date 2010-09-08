@@ -2810,11 +2810,12 @@ TYPE
 			noPush: Label;
 			returnTypeSize,returnTypeOffset: LONGINT;
 			structuredReturnType: BOOLEAN;
-			reg,size: IntermediateCode.Operand;
+			reg,size,mem,mask: IntermediateCode.Operand;
 			operand: Operand;
 			saved: Registers;
 			dest : IntermediateCode.Operand; variable: SyntaxTree.Variable;
 			d: SyntaxTree.Expression;
+
 		BEGIN
 			IF Trace THEN TraceEnter("VisitProcedureCallDesignator") END;
 			dest := destination; destination := emptyOperand;
@@ -2822,6 +2823,20 @@ TYPE
 
 			procedureType := x.left.type.resolved(SyntaxTree.ProcedureType);
 			parameters := x.parameters;
+
+			IF procedureType.stackAlignment > 1 THEN
+				IntermediateCode.InitRegister(reg,addressType,AcquireRegister(addressType));
+				Emit(Mov(reg, sp));
+				(*
+				Emit(Push(reg)); (* push to allocate one space on stack *)
+				*)
+				Emit(Sub(sp, sp, IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.addressSize))));
+				IntermediateCode.InitImmediate(mask,addressType,-procedureType.stackAlignment);
+				Emit(And(sp, sp, mask));
+				IntermediateCode.InitMemory(mem, addressType, sp, 0);
+				Emit(Mov(mem,reg));
+				ReleaseIntermediateOperand(reg);
+			END;
 
 			IF (procedureType.returnType # NIL)
 				& ~(procedureType.returnType.resolved IS SyntaxTree.BasicType)
@@ -2971,6 +2986,10 @@ TYPE
 
 					END;
 				END;
+			END;
+
+			IF procedureType.stackAlignment > 1 THEN
+				Emit(Pop(sp));
 			END;
 
 			IF conditional & (procedureType.returnType # NIL) & (procedureType.returnType.resolved IS SyntaxTree.BooleanType) THEN

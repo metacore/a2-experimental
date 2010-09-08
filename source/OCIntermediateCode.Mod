@@ -304,6 +304,30 @@ TYPE
 		RETURN section
 	END NewSection;
 
+	PROCEDURE SameOperand*(CONST left, right: Operand): BOOLEAN;
+	VAR mode: LONGINT;
+	BEGIN
+		IF (left.type.form =right.type.form) & (left.type.sizeInBits=right.type.sizeInBits) & (mode = right.mode) THEN
+			CASE mode OF
+			ModeRegister: RETURN (left.register = right.register) & (left.offset = right.offset)
+			|ModeMemory: RETURN (left.register = right.register) &(left.offset = right.offset) & (left.symbol = right.symbol) & (left.symbolOffset = right.symbolOffset);
+			|ModeImmediate:
+				IF left.type.form = Float THEN
+					RETURN (left.floatValue = right.floatValue) & (left.symbol = right.symbol) & (left.symbolOffset = right.symbolOffset)
+				ELSE
+					RETURN (left.intValue = right.intValue) & (left.symbol = right.symbol) & (left.symbolOffset = right.symbolOffset)
+				END;
+			|ModeNumber:
+				RETURN left.intValue = right.intValue
+			|ModeString:
+				RETURN left.string = right.string
+			|Undefined: (* nothing *) RETURN TRUE
+			END;
+		ELSE RETURN FALSE
+		END;
+	END SameOperand;
+
+
 	PROCEDURE CheckOperand(CONST operand: Operand);
 	BEGIN
 		CASE operand.mode OF

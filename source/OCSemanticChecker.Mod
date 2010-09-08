@@ -614,11 +614,11 @@ TYPE
 		**)
 		PROCEDURE VisitPointerType(x: SyntaxTree.PointerType);
 		VAR recordType: SyntaxTree.RecordType; recordBaseType: SyntaxTree.Type;
-		modifiers: SyntaxTree.Modifier;
+		modifiers: SyntaxTree.Modifier; position: LONGINT;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 				modifiers := x.modifiers;
-				x.SetRealtime(HasFlag(modifiers,Global.NameRealtime));
+				x.SetRealtime(HasFlag(modifiers,Global.NameRealtime, position));
 				CheckEmpty(modifiers);
 				(* inheritance cycle check
 					example:
@@ -751,7 +751,7 @@ TYPE
 		END Flags;
 		*)
 
-		PROCEDURE HasFlag(VAR modifiers: SyntaxTree.Modifier; name: SyntaxTree.Identifier): BOOLEAN;
+		PROCEDURE HasFlag(VAR modifiers: SyntaxTree.Modifier; name: SyntaxTree.Identifier; VAR position: LONGINT): BOOLEAN;
 		VAR prev,this: SyntaxTree.Modifier;
 		BEGIN
 			this := modifiers;prev := NIL;
@@ -763,13 +763,14 @@ TYPE
 					Error(this.identifier.position,Diagnostics.Invalid,"unexpected expression");
 				END;
 				IF prev = NIL THEN modifiers := this.nextModifier ELSE prev.SetNext(this.nextModifier) END;
+				position := this.identifier.position;
 				RETURN TRUE
 			ELSE
 				RETURN FALSE
 			END;
 		END HasFlag;
 
-		PROCEDURE HasValue(VAR modifiers: SyntaxTree.Modifier; name: SyntaxTree.Identifier; VAR value: LONGINT): BOOLEAN;
+		PROCEDURE HasValue(VAR modifiers: SyntaxTree.Modifier; name: SyntaxTree.Identifier; VAR position: LONGINT; VAR value: LONGINT): BOOLEAN;
 		VAR prev,this: SyntaxTree.Modifier;
 		BEGIN
 			this := modifiers;prev := NIL;
@@ -781,6 +782,7 @@ TYPE
 					Error(this.identifier.position,Diagnostics.Invalid,"expected expression value");
 				ELSIF CheckIntegerValue(this.expression,value) THEN
 				END;
+				position := this.identifier.position;
 				IF prev = NIL THEN modifiers := this.nextModifier ELSE prev.SetNext(this.nextModifier) END;
 				RETURN TRUE
 			ELSE RETURN FALSE
@@ -801,16 +803,16 @@ TYPE
 			- enter procedure to list of deferred fixes (to avoid infinite loops in the declaration phase)
 		**)
 		PROCEDURE VisitProcedureType(procedureType: SyntaxTree.ProcedureType);
-		VAR modifiers: SyntaxTree.Modifier; value: LONGINT;
+		VAR modifiers: SyntaxTree.Modifier; value,position: LONGINT;
 		BEGIN
 			IF TypeNeedsResolution(procedureType) THEN
 				modifiers := procedureType.modifiers;
-				IF HasFlag(modifiers, Global.NameWinAPI) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
-				ELSIF HasFlag(modifiers,Global.NameC) THEN procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
+				IF HasFlag(modifiers, Global.NameWinAPI,position) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
+				ELSIF HasFlag(modifiers,Global.NameC,position) THEN procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
 				END;
-				IF HasValue(modifiers,Global.NameStackAligned,value) THEN procedureType.SetStackAlignment(value) END;
-				IF HasFlag(modifiers, Global.NameDelegate) THEN procedureType.SetDelegate(TRUE) END;
-				IF HasFlag(modifiers, Global.NameRealtime) THEN procedureType.SetRealtime(TRUE) END;
+				IF HasValue(modifiers,Global.NameStackAligned,position,value) THEN procedureType.SetStackAlignment(value) END;
+				IF HasFlag(modifiers, Global.NameDelegate,position) THEN procedureType.SetDelegate(TRUE) END;
+				IF HasFlag(modifiers, Global.NameRealtime,position) THEN procedureType.SetRealtime(TRUE) END;
 				CheckEmpty(modifiers);
 				typeFixes.Add(procedureType,currentScope);
 				procedureType.SetState(SyntaxTree.Resolved);
@@ -4438,7 +4440,7 @@ TYPE
 			- check symbol
 		**)
 		PROCEDURE VisitVariable(variable: SyntaxTree.Variable);
-		VAR modifiers: SyntaxTree.Modifier; value: LONGINT;
+		VAR modifiers: SyntaxTree.Modifier; value,position: LONGINT;
 		BEGIN
 			IF Trace THEN D.Str("VisitVariable "); D.Str0(variable.name.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(variable) THEN
@@ -4454,22 +4456,27 @@ TYPE
 					END;
 				END;
 				CheckSymbol(variable);
-				IF HasFlag(modifiers, Global.NameUntraced) THEN
+				IF HasFlag(modifiers, Global.NameUntraced,position) THEN
 					variable.SetUntraced(TRUE);
 					IF ~ContainsPointer(variable.type) THEN
 						IF VerboseErrorMessage THEN Printout.Info("variable",variable); Printout.Info("variable.type",variable.type.resolved); END;
-						Error(variable.position,Diagnostics.Invalid,"untraced flag on non-pointer variable");
+						Error(position,Diagnostics.Invalid,"untraced flag on non-pointer variable");
 					END;
 				END;
-				IF HasValue(modifiers, Global.NameAligned, value) THEN
+				IF HasValue(modifiers, Global.NameAligned,position, value) THEN
 					IF (variable.scope IS SyntaxTree.ProcedureScope) THEN
-						AdaptStackAlignment(variable.scope(SyntaxTree.ProcedureScope).ownerProcedure, value);
+						IF ~PowerOf2(value) THEN
+							Error(position,Diagnostics.Invalid,"forbidden alignment - must be power of two");
+						ELSE
+							AdaptStackAlignment(variable.scope(SyntaxTree.ProcedureScope).ownerProcedure, value);
+						END;
 					END;
 					variable.SetAlignment(FALSE,value);
-				ELSIF HasValue(modifiers, Global.NameFixed, value) THEN
+				ELSIF HasValue(modifiers, Global.NameFixed,position, value) THEN
 					IF (variable.scope IS SyntaxTree.ProcedureScope) THEN
-						Error(variable.position,Diagnostics.Invalid,"fixed position not possible in procedure");
+						Error(position,Diagnostics.Invalid,"fixed position not possible in procedure");
 					END;
+					variable.SetAlignment(TRUE, value);
 				END;
 				CheckEmpty(modifiers);
 				variable.SetState(SyntaxTree.Resolved);
@@ -4512,6 +4519,7 @@ TYPE
 			qualifiedType: SyntaxTree.QualifiedType; recentFlags: SET; flags: SET;
 			alignmentExpression,fixedExpression: SyntaxTree.Expression;value: LONGINT;
 			modifiers: SyntaxTree.Modifier; recentIsRealtime, recentIsBodyProcedure: BOOLEAN;
+			position: LONGINT;
 		BEGIN
 			IF Trace THEN D.Str("VisitProcedure "); D.Str0(procedure.name.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(procedure) THEN
@@ -4527,16 +4535,22 @@ TYPE
 				procedureType.AddFlags(flags);
 				*)
 				modifiers := procedureType.modifiers;
-				IF HasFlag(modifiers, Global.NameWinAPI) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
-				ELSIF HasFlag(modifiers, Global.NameC) THEN procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
+				IF HasFlag(modifiers, Global.NameWinAPI,position) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
+				ELSIF HasFlag(modifiers, Global.NameC,position) THEN procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
 				END;
-				IF HasFlag(modifiers,Global.NameInterrupt) THEN procedureType.SetInterrupt(TRUE) END;
-				IF HasFlag(modifiers,Global.NameNoPAF) THEN procedureType.SetNoPAF(TRUE) END;
-				IF HasValue(modifiers,Global.NameAligned,value) THEN procedure.SetAlignment(FALSE,value)
-				ELSIF HasValue(modifiers,Global.NameFixed,value) THEN procedure.SetAlignment(TRUE,value)
+				IF HasFlag(modifiers,Global.NameInterrupt,position) THEN procedureType.SetInterrupt(TRUE) END;
+				IF HasFlag(modifiers,Global.NameNoPAF,position) THEN procedureType.SetNoPAF(TRUE) END;
+				IF HasValue(modifiers,Global.NameAligned,position,value) THEN procedure.SetAlignment(FALSE,value)
+				ELSIF HasValue(modifiers,Global.NameFixed,position,value) THEN procedure.SetAlignment(TRUE,value)
 				END;
-				IF HasValue(modifiers,Global.NameStackAligned,value) THEN procedureType.SetStackAlignment(value) END;
-				IF HasFlag(modifiers,Global.NameRealtime) THEN procedureType.SetRealtime(TRUE) END;
+				IF HasValue(modifiers,Global.NameStackAligned,value,position) THEN
+					IF ~PowerOf2(value) THEN
+						Error(position,Diagnostics.Invalid,"forbidden stack alignment - must be power of two");
+					ELSE
+						procedureType.SetStackAlignment(value)
+					END;
+				END;
+				IF HasFlag(modifiers,Global.NameRealtime,position) THEN procedureType.SetRealtime(TRUE) END;
 				CheckEmpty(modifiers);
 				FixProcedureType(procedureType);
 				currentIsRealtime := procedureType.isRealtime;
@@ -5819,6 +5833,17 @@ TYPE
 		END Module;
 
 	END Warnings;
+
+	PROCEDURE PowerOf2(x: LONGINT): BOOLEAN;
+	VAR i: LONGINT;
+	BEGIN
+		i := 1;
+		WHILE i < x DO
+			i := i *2
+		END;
+		IF i # x THEN RETURN FALSE ELSE RETURN TRUE END;
+	END PowerOf2;
+
 
 	PROCEDURE ToMemoryUnits(system: Global.System; size: LONGINT): LONGINT;
 	BEGIN

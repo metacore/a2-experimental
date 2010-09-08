@@ -227,6 +227,14 @@ TYPE
 			Type(x.arrayBase);
 		END VisitMathArrayType;
 
+		PROCEDURE PointerFlags(x: SyntaxTree.PointerType);
+		VAR first: BOOLEAN;
+		BEGIN
+			first := TRUE;
+			IF x.isRealtime THEN Flag(Global.NameRealtime,first) END;
+			FlagEnd(first);
+		END PointerFlags;
+
 		PROCEDURE VisitPointerType(x: SyntaxTree.PointerType);
 		VAR pointerBase: SyntaxTree.Type;
 		BEGIN
@@ -355,6 +363,12 @@ TYPE
 			identifier.GetString(name);
 			w.String(name);
 		END Flag;
+
+		PROCEDURE FlagEnd(first: BOOLEAN);
+		BEGIN
+			IF ~first THEN w.String("} ") END;
+		END FlagEnd;
+
 
 		PROCEDURE Value(identifier: SyntaxTree.Identifier; value: LONGINT; VAR first: BOOLEAN);
 		BEGIN
@@ -805,6 +819,7 @@ TYPE
 		END Visible;
 
 		PROCEDURE PrintSymbol(x: SyntaxTree.Symbol);
+		VAR first: BOOLEAN;
 		BEGIN
 			IF x IS SyntaxTree.Operator THEN
 				w.String('"');Identifier(x.name);  w.String('"')
@@ -821,6 +836,7 @@ TYPE
 			ELSIF x.access = {} THEN ASSERT(mode > SourceCode);
 				IF info THEN BeginComment; w.String("<- hidden"); EndComment  END;
 			END;
+
 			IF info THEN
 				BeginComment;
 				w.String("access= {");
@@ -895,10 +911,6 @@ TYPE
 			IF Visible(x) THEN
 				IF (x.access # SyntaxTree.Hidden) THEN
 					PrintSymbol(x);
-					first := TRUE;
-					IF x.aligned >1 THEN Value(Global.NameAligned,x.aligned) END;
-					IF ~first THEN w.String("} ");
-					Flags((*x.flags*));
 					w.String( ": " );
 					Type(x.type);
 				ELSIF mode>SourceCode THEN
@@ -909,16 +921,32 @@ TYPE
 
 		PROCEDURE VariableList(x: SyntaxTree.Variable);
 		VAR next: SyntaxTree.Variable;
+
+			PROCEDURE Flags(x: SyntaxTree.Variable);
+			VAR first: BOOLEAN;
+			BEGIN
+				first := TRUE;
+				IF x.fixed THEN
+					Value(Global.NameFixed,x.alignment,first)
+				ELSIF x.alignment > 1 THEN
+					Value(Global.NameAligned,x.alignment,first)
+				END;
+				IF x.untraced THEN
+					Flag(Global.NameUntraced,first)
+				END;
+				FlagEnd(first);
+			END Flags;
+
 		BEGIN
 			w.IncIndent;
 			WHILE(x # NIL) DO
 				next := x.nextVariable;
 				IF (x.access # SyntaxTree.Hidden) OR (mode > SourceCode) THEN
 					Indent;
-					PrintSymbol(x);
-					Flags((*x.flags*));
+					PrintSymbol(x); Flags(x);
 					WHILE(next # NIL) & (next.type = x.type) & ((next.access # SyntaxTree.Hidden) OR (mode > SourceCode)) DO
-						w.String(", "); PrintSymbol(next); Flags((*next.flags*));
+
+						w.String(", "); PrintSymbol(next); Flags(next);
 						next := next.nextVariable;
 					END;
 					IF x.access # SyntaxTree.Hidden THEN
@@ -1010,7 +1038,10 @@ TYPE
 				first := TRUE;
 				IF type.stackAlignment > 1 THEN Value(Global.NameStackAligned,type.stackAlignment,first) END;
 				IF (type.isRealtime) & (type.modifiers = NIL)  THEN Flag(Global.NameRealtime,first) END;
-				IF ~first THEN w.String("}") END;
+				IF (x.fixed) THEN Value(Global.NameFixed, x.alignment,first)
+				ELSIF (x.alignment >1) THEN Value(Global.NameAligned, x.alignment, first)
+				END;
+				FlagEnd(first);
 
 				IF info THEN
 					BeginComment;

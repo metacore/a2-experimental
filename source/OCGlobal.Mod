@@ -188,7 +188,7 @@ TYPE
 		END GenerateRecordOffsets;
 
 		PROCEDURE GenerateVariableOffsets*(scope: SyntaxTree.Scope): BOOLEAN;
-		VAR variable: SyntaxTree.Variable; offset,size: LONGINT; alignment: LONGINT;
+		VAR variable: SyntaxTree.Variable; offset,size: LONGINT; alignment: LONGINT; parameterOffset :LONGINT;
 		BEGIN
 			IF scope IS SyntaxTree.RecordScope THEN (* increasing indices *)
 				RETURN GenerateRecordOffsets(scope(SyntaxTree.RecordScope).ownerRecord)
@@ -196,6 +196,12 @@ TYPE
 				ASSERT((scope IS SyntaxTree.ModuleScope) OR (scope IS SyntaxTree.ProcedureScope) OR (scope IS SyntaxTree.ActorScope)
 				);
 				offset := 0;
+				IF scope IS SyntaxTree.ProcedureScope THEN
+					parameterOffset := scope(SyntaxTree.ProcedureScope).ownerProcedure.type(SyntaxTree.ProcedureType).parameterOffset
+				ELSE
+					parameterOffset := 0
+				END;
+
 				variable := scope.firstVariable;
 				WHILE (variable # NIL) DO
 					size := SizeOf(variable.type.resolved);
@@ -203,6 +209,13 @@ TYPE
 					DEC(offset,size);
 					alignment := AlignmentOf(SELF.variableAlignment,variable.type.resolved);
 					Basic.Align(offset,-alignment);
+
+					IF variable.alignment > 1 THEN
+						DEC(offset, parameterOffset);
+						Basic.Align(offset, -variable.alignment*dataUnit);
+						INC(offset, parameterOffset);
+					END;
+
 					variable.SetOffset(offset);
 					variable := variable.nextVariable;
 				END;
@@ -242,6 +255,7 @@ TYPE
 					parameter := parameter.nextParameter;
 				END;
 			END;
+			procedureType.SetParameterOffset(offset);
 			RETURN TRUE
 		END GenerateParameterOffsets;
 
