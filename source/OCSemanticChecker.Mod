@@ -5422,7 +5422,7 @@ TYPE
 					ELSIF recordBody.isActive THEN
 						Error(position,Diagnostics.Invalid,"duplicate active flag")
 					ELSE
-						recordBody.SetActive(TRUE)
+						recordBody.SetActive(TRUE); SetProtectedRecord;
 					END;
 				ELSIF name.Equals(Global.NameSafe) THEN
 					IF recordBody = NIL THEN
@@ -5430,7 +5430,7 @@ TYPE
 					ELSIF recordBody.isSafe THEN
 						Error(position,Diagnostics.Invalid,"duplicate safe flag")
 					ELSE
-						recordBody.SetActive(TRUE)
+						recordBody.SetActive(TRUE);SetProtectedRecord;
 					END;
 				ELSIF name.Equals(Global.NameRealtime) THEN
 					IF recordBody = NIL THEN
