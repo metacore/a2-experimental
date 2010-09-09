@@ -3898,7 +3898,7 @@ BEGIN
 		END;
 	END ParamTensor;
 
-	PROCEDURE RangeDescriptorHead*( code: Code;  VAR ap,dim: Item );
+	PROCEDURE RangeDescriptorHead*( code: Code;  VAR ap,dim,descr: Item );
 	VAR adr, const: PCLIR.Register;  t: PCT.Struct;
 	BEGIN
 		t := PCT.ElementType(ap.type);
@@ -3911,8 +3911,10 @@ BEGIN
 											SYSTEM.VAL( LONGINT, {RangeFlag} ) );   (* flags, no reallocation *)
 		PCLIR.Emit01( code, PCLIR.push, adr );
 		PCLIR.Emit01( code, PCLIR.push, ap.adr );   (* push array reference  *)
-		PCLIR.EmitLoadConst( code, adr, PCLIR.Address, FALSE , 0 );
-		PCLIR.Emit01( code, PCLIR.push, adr );   (* NIL ptr, may be replaced by pointer to support gc in subroutine *)
+		
+		IF descr.mode # Reg THEN LoadAdr( code, descr );  END;
+		PCLIR.EmitLoadRelative(code,PCLIR.Address,TRUE,adr,Descr_PtrOffs*PCT.AddressSize,descr.adr); (* load current flags from the descriptor *)
+		PCLIR.Emit01( code, PCLIR.push, adr );   (*  ptr *)
 		(* code only necessary if we want to refer to the array descriptor afterwards.*)
 		PCLIR.EmitLoadConst( code, const, PCLIR.Int32, FALSE ,0 (* ap.type(PCT.EnhArray).dim * 8 + Descr_LenOffs*PCT.AddressSize *) );
 		PCLIR.Emit12( code, PCLIR.add, ap.adr, PCLIR.SP, const );   (* addr of ap now points to descriptor field on the *)
@@ -3949,8 +3951,7 @@ BEGIN
 
 			PCLIR.EmitLoadConst( code, adr, PCLIR.Address, FALSE , type.dim );
 			PCLIR.Emit01( code, PCLIR.push, adr );
-			PCLIR.EmitLoadConst( code, adr, PCLIR.Address, FALSE ,
-												SYSTEM.VAL( LONGINT, {RangeFlag} ) );   (* to protect size *)
+			PCLIR.EmitLoadConst( code, adr, PCLIR.Address, FALSE , SYSTEM.VAL( LONGINT, {RangeFlag} ) );   (* to protect size *)
 			PCLIR.Emit01( code, PCLIR.push, adr );
 			IF arr.mode # Reg THEN LoadAdr( code, arr );  END;
 			PCLIR.Emit01( code, PCLIR.push, arr.adr );

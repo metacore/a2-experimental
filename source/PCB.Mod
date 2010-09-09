@@ -1995,7 +1995,7 @@ g) Static array as return type of a function
 			PCC.SetType(a,type);
 			IF isRange THEN  (* push remaining descriptor information to stack *)
 				PCC.MakeSizeConst( dim, type( PCT.EnhArray ).dim );
-				PCC.RangeDescriptorHead( code, a, dim );
+				PCC.RangeDescriptorHead( code, a, dim, descr );
 			END;
 
 		END Emit;
@@ -2221,7 +2221,7 @@ g) Static array as return type of a function
 			ELSE PCC.MakeSizeConst( dimI, SELF.dim );
 			END;
 			IF isRange THEN
-				PCC.RangeDescriptorHead( code, a, dimI );
+				PCC.RangeDescriptorHead( code, a, dimI, descr );
 			END;
 		END Emit;
 
@@ -5722,7 +5722,8 @@ BEGIN
 END PCB.
 
 
-(*
+
+
 	Impossible errors:
 
 	1500	Conversion: const LONGREAL to other than REAL
@@ -5773,4 +5774,3 @@ END PCB.
 	26.04.01	prk	separation of RECORD and OBJECT in the parser
 	11.04.01	prk	Allow SYSTEM.VAL(static array, int const), used in Raster.Mod
 	26.03.01	prk	Projection of numeric const to pointer type
-*)
