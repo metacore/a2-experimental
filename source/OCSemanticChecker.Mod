@@ -5933,7 +5933,8 @@ TYPE
 			ELSIF to IS SyntaxTree.ProcedureType THEN
 				result := (this IS SyntaxTree.NilType) OR (this IS SyntaxTree.ProcedureType) & SameType(to(SyntaxTree.ProcedureType),this(SyntaxTree.ProcedureType))
 					& (~(this(SyntaxTree.ProcedureType).isDelegate) OR (to(SyntaxTree.ProcedureType).isDelegate))
-					& (~to.isRealtime OR this.isRealtime);
+					& (~to.isRealtime OR this.isRealtime)
+					& ((this(SyntaxTree.ProcedureType).stackAlignment <=1) OR (this(SyntaxTree.ProcedureType).stackAlignment <= to(SyntaxTree.ProcedureType).stackAlignment));
 			ELSIF (to IS SyntaxTree.RecordType) & to(SyntaxTree.RecordType).isObject THEN
 				result := (this IS SyntaxTree.NilType) OR IsTypeExtension(to,this);
 			ELSIF to IS SyntaxTree.RecordType THEN

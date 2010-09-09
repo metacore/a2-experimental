@@ -222,7 +222,7 @@ TYPE
 			dump := code.comments
 		END SetCode;
 
-		PROCEDURE SetBits (numberBits: LONGINT): BOOLEAN;
+		PROCEDURE SetBits* (numberBits: LONGINT): BOOLEAN;
 		BEGIN
 			CASE numberBits OF
 			16: cpuBits := bits16;
