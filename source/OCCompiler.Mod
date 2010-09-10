@@ -185,6 +185,26 @@ TYPE
 			END
 		END FinalMessage;
 
+		PROCEDURE Log;
+		BEGIN
+			(** logging and tracing **)
+			IF (log # NIL) THEN
+				IF Print IN flags THEN
+					IF Info IN flags THEN
+						printer := Printout.NewPrinter(log,Printout.All,Info IN flags);
+					ELSE
+						printer := Printout.NewPrinter(log,Printout.SourceCode,Info IN flags);
+					END;
+					log.Ln; printer.Module(module); log.Ln;
+					log.Update;
+				END;
+			END;
+			IF ~(Silent IN flags) & ~(FindPC IN flags) THEN
+				FinalMessage(" successfully compiled.")
+			END;
+		END Log;
+
+
 	BEGIN
 		IF backend = NIL THEN
 			system := Global.DefaultSystem()
@@ -229,6 +249,8 @@ TYPE
 					warnings := SemanticChecker.NewWarnings(diagnostics);
 					warnings.Module(module);
 				END;
+
+				Log;
 
 				IF dataflowSpecification # NIL THEN
 					Global.GetSymbolName(module,name);
@@ -300,24 +322,12 @@ TYPE
 					FinalMessage(" could not emit backend specification"); RETURN FALSE;
 				END;
 
+			ELSE Log;
 			END;
 
-			IF ~(Silent IN flags) & ~(FindPC IN flags) THEN
-				FinalMessage(" successfully compiled.")
-			END;
 
-			(** logging and tracing **)
-			IF (log # NIL) THEN
-				IF Print IN flags THEN
-					IF Info IN flags THEN
-						printer := Printout.NewPrinter(log,Printout.All,Info IN flags);
-					ELSE
-						printer := Printout.NewPrinter(log,Printout.SourceCode,Info IN flags);
-					END;
-					log.Ln; printer.Module(module); log.Ln;
-					log.Update;
-				END;
-			END;
+
+
 
 		UNTIL ~parser.NextModule();
 		RETURN TRUE;

@@ -1737,10 +1737,12 @@ TYPE
 			ELSIF (expression.type.resolved IS SyntaxTree.ObjectType) & (type IS SyntaxTree.AnyType) THEN (*! binary symbol file problem *)
 			ELSIF expression.resolved # NIL THEN (* value *)
 				value := ConvertValue(position,expression.resolved(SyntaxTree.Value),type);
-				result := SyntaxTree.NewConversion(expression.position,expression,type,typeExpression);
+				(* result := SyntaxTree.NewConversion(expression.position,expression,type,typeExpression);*)
 				IF value IS SyntaxTree.Value THEN
 					result.SetResolved(value(SyntaxTree.Value));
 					result.SetType(value.type);
+				ELSE
+					result := value
 				END;
 			ELSIF (type IS SyntaxTree.ByteType) THEN (* do not convert *)
 				expressionList := SyntaxTree.NewExpressionList();

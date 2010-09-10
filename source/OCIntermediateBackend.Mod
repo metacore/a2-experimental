@@ -2382,7 +2382,8 @@ TYPE
 				Emit(Push(operand.op)); (* address of the array *)
 			ELSIF parameter.type.resolved IS SyntaxTree.MathArrayType THEN
 				(* case 1 *)
-				IF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) & (parameter.kind IN {SyntaxTree.ValueParameter, SyntaxTree.ConstParameter}) THEN
+				IF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) & 
+					(parameter.kind IN {SyntaxTree.ValueParameter, SyntaxTree.ConstParameter}) THEN
 					size := MathLenOffset + 2*SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
 					size := ToMemoryUnits(system,size*addressType.sizeInBits);
 					Emit(Sub(sp,sp,IntermediateCode.Immediate(addressType,size)));
@@ -2429,7 +2430,7 @@ TYPE
 						Designate(expression,operand);
 						Dereference(operand,type.resolved);
 						DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
-						Emit(Copy(arrayDestinationTag,operand.tag,IntermediateCode.Immediate(addressType,size)));
+						Emit(Copy(sp(*arrayDestinationTag*),operand.tag,IntermediateCode.Immediate(addressType,size)));
 					(* case 1f *)
 					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
 						Designate(expression,operand);
@@ -2842,7 +2843,8 @@ TYPE
 				& ~(procedureType.returnType.resolved IS SyntaxTree.BasicType)
 				& ~(procedureType.returnType.resolved IS SyntaxTree.ProcedureType)
 				& ~(procedureType.returnType.resolved IS SyntaxTree.PointerType)
-				& ~((procedureType.returnType.resolved IS SyntaxTree.RecordType) & (procedureType.returnType.resolved(SyntaxTree.RecordType).pointerType # NIL))
+				& ~((procedureType.returnType.resolved IS SyntaxTree.RecordType)
+						& (procedureType.returnType.resolved(SyntaxTree.RecordType).pointerType # NIL))
 			THEN
 				variable := GetTemporaryVariable(procedureType.returnType,x.position);
 				returnTypeOffset := variable.offsetInBits;
