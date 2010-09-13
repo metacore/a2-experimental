@@ -7731,22 +7731,55 @@ Sufficient (but not necessary) conditions:
 			ptr := GetArrayDesc( newDim );  new := SYSTEM.VAL( LONGINT, ptr );
 		END NewDescriptor;
 
+		(* 	Added by Alexey
+			Returns TRUE if the new shape is the result of squeezing (removing of singleton dimensions)
+		*)
+		PROCEDURE SqueezingReshape(): BOOLEAN;
+		VAR
+			i, j, n: LONGINT;
+		BEGIN
+			IF oldDim > newDim THEN
+				i := 0; j := 0;
+				WHILE (i < oldDim) & (j < newDim) DO
+					n := GetLen(src,i);
+					IF n = shape[j] THEN INC(j); END;
+					INC(i);
+				END;
+				WHILE (i < oldDim) & (GetLen(src,i) = 1) DO INC(i); END; (* account for a trailing sequence of 1 *)
+			ELSE
+				RETURN FALSE;
+			END;
+
+			RETURN (i = oldDim) & (j = newDim);
+		END SqueezingReshape;
+
 		(* Added by Alexey *)
 		PROCEDURE NewDescriptorForSameData;
-		VAR len, size, i: LONGINT;
+		VAR len, size, i, j: LONGINT;
 		BEGIN
 			ptr := GetArrayDesc( newDim );  new := SYSTEM.VAL( LONGINT, ptr );
 
-			size := Size;
-			FOR i := newDim - 1 TO 0 BY -1 DO
-				len := shape[i];  PutInc( new, i, size );  PutLen( new, i, len );
-				size := size * len;
+			IF ~(RangeFlag IN GetFlags(src)) THEN
+				size := Size;
+				FOR i := newDim - 1 TO 0 BY -1 DO
+					len := shape[i];  PutInc( new, i, size );  PutLen( new, i, len );
+					size := size * len;
+				END;
+			ELSE (* squeezing reshape *)				
+				j := 0; len := shape[j];
+				FOR i := 0 TO oldDim-1 DO					
+					IF GetLen(src,i) = len THEN
+						PutInc(new,j,GetIncr(src,i)); PutLen(new,j,len);
+						INC(j);
+						IF j < newDim THEN len := shape[j]; END;
+					END;
+				END;
 			END;
+
 			PutAdr( new, GetAdr(src) );
 			PutPtr( new, GetPtr(src) );  PutDim( new, newDim );
 			PutSize( new, Size );
 		END NewDescriptorForSameData;
-
 
 		PROCEDURE NewData;
 		VAR len, size, i: LONGINT;
@@ -7860,8 +7893,15 @@ Sufficient (but not necessary) conditions:
 		ASSERT( (Size > 0) & (Size < 128) );   (*! heuristic, remove upper bound *)
 
 		IF dest = src THEN (* added by Alexey *)
-			NewDescriptorForSameData;
-			dest := new;
+			IF ~(RangeFlag IN GetFlags(dest)) OR SqueezingReshape() THEN
+				NewDescriptorForSameData;
+				dest := new;
+			ELSIF ((newDim = oldDim) & ~ShapeDiffers()) THEN
+				(* create a copy of the original descriptor *)
+				ptr := GetArrayDesc(newDim);  dest := SYSTEM.VAL(LONGINT,ptr); CopyDescriptor(src,dest);
+			ELSE
+				Err( "RESHAPE: given RANGE array can not be reshaped!" );
+			END;
 		ELSIF (dest = 0) THEN  (* is tensor for sure *)
 			NewDescriptor;  NewData;  CopyData;  dest := new;
 		ELSIF (newDim # GetDim( dest )) THEN  (* must be tensor *)
