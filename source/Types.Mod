@@ -1,7 +1,7 @@
 MODULE Types; (** AUTHOR "staubesv"; PURPOSE "Generic types and type conversion"; *)
 
 IMPORT
-	Strings, Texts, Repositories;
+	Strings, Texts, TextUtilities, Repositories;
 
 CONST
 
@@ -18,6 +18,7 @@ CONST
 	TruncatedError* = -12; (* string truncation leads to error *)
 	CannotRead* = -20;
 	CannotWrite* = -21;
+	TargetIsNIL* = -30;
 
 TYPE
 
@@ -83,7 +84,6 @@ TYPE
 
 	(** Store value into wrapper *)
 	Setter* = PROCEDURE {DELEGATE} (CONST self : GenericWrapper; CONST wrapper : Wrapper; VAR res : LONGINT);
-
 
 PROCEDURE GetBoolean*(CONST wrapper : Wrapper; VAR value : BOOLEAN; VAR res : LONGINT);
 VAR temp : ARRAY 2 OF CHAR; boolean : Boolean;
@@ -543,6 +543,120 @@ BEGIN
 		res := CannotConvert;
 	END;
 END SetSet;
+
+PROCEDURE GetText*(CONST wrapper : Wrapper; VAR value : Texts.Text; VAR res : LONGINT);
+VAR
+	temp : ARRAY 64 OF CHAR;
+	text : Text;
+
+	PROCEDURE SetAsString(CONST string : ARRAY OF CHAR);
+	BEGIN
+		IF (value = NIL) THEN
+			NEW(value);
+			value.AcquireWrite;
+		ELSE
+			value.AcquireWrite;
+			value.Delete(0, value.GetLength());
+		END;
+		value.InsertUTF8(0, string);
+		value.ReleaseWrite;
+	END SetAsString;
+
+BEGIN
+	res := Ok;
+	IF (wrapper IS Text) THEN
+		value := wrapper(Text).value;
+	ELSIF (wrapper IS String) THEN
+		IF (wrapper(String).value # NIL) THEN
+			SetAsString(wrapper(String).value^);
+		ELSE
+			SetAsString(""); (*? semantics? *)
+		END;
+	ELSIF (wrapper IS String32) THEN
+		SetAsString(wrapper(String32).value);
+	ELSIF (wrapper IS String256) THEN
+		SetAsString(wrapper(String256).value);
+	ELSIF (wrapper IS Integer) THEN
+		Strings.IntToStr(wrapper(Integer).value, temp);
+		SetAsString(temp);
+	ELSIF (wrapper IS Boolean) THEN
+		Strings.BoolToStr(wrapper(Boolean).value, temp);
+		SetAsString(temp);
+	ELSIF (wrapper IS Set) THEN
+		Strings.SetToStr(wrapper(Set).value, temp);
+		SetAsString(temp);
+	ELSIF (wrapper IS Char) THEN
+		temp[0] := wrapper(Char).value;
+		temp[1] := 0X;
+		SetAsString(temp);
+	ELSIF (wrapper IS Real) THEN
+		Strings.FloatToStr(wrapper(Real).value, 20, 8, 10, temp);
+		SetAsString(temp);
+	ELSIF (wrapper IS Longreal) THEN
+		Strings.FloatToStr(wrapper(Longreal).value, 20, 8, 10, temp);
+		SetAsString(temp);
+	ELSIF (wrapper IS Object) THEN
+		ComponentToString(wrapper(Object).value, temp, res);
+		IF (res = Ok) THEN
+			SetAsString(temp);
+		END;
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Get # NIL) THEN
+			wrapper(GenericWrapper).Get(wrapper(GenericWrapper), text, res);
+			IF (res = Ok) THEN
+				value := text.value;
+			END;
+		ELSE
+			res := CannotRead;
+		END;
+	ELSE
+		res := CannotConvert;
+	END;
+END GetText;
+
+PROCEDURE SetText*(VAR wrapper : Wrapper; CONST value : Texts.Text; VAR res : LONGINT);
+VAR text : Text; temp : ARRAY 64 OF CHAR; lr : LONGREAL;
+BEGIN
+	res := Ok;
+	IF (wrapper IS Text) THEN
+		wrapper(Text).value := value;
+	ELSIF (wrapper IS String) THEN
+		IF (wrapper(String).value # NIL) THEN
+			TextUtilities.TextToStr(value, wrapper(String).value^); (*? no valid result code, e.g. truncation *)
+		ELSE
+			res := ConversionError;
+		END;
+	ELSIF (wrapper IS String32) THEN
+		TextUtilities.TextToStr(value, wrapper(String32).value); (*? no valid result code, e.g. truncation *)
+	ELSIF (wrapper IS String256) THEN
+		TextUtilities.TextToStr(value, wrapper(String256).value); (*? no valid result code, e.g. truncation *)
+	ELSIF (wrapper IS Integer) THEN
+		TextUtilities.TextToStr(value, temp);
+		Strings.StrToInt(temp, wrapper(Integer).value);
+	ELSIF (wrapper IS Boolean) THEN
+		TextUtilities.TextToStr(value, temp);
+		Strings.StrToBool(temp, wrapper(Boolean).value);
+	ELSIF (wrapper IS Set) THEN
+		TextUtilities.TextToStr(value, temp);
+		Strings.StrToSet(temp, wrapper(Set).value);
+	ELSIF (wrapper IS Real) THEN
+		TextUtilities.TextToStr(value, temp);
+		Strings.StrToFloat(temp, lr);
+		wrapper(Real).value := SHORT(lr);
+	ELSIF (wrapper IS Longreal) THEN
+		TextUtilities.TextToStr(value, temp);
+		Strings.StrToFloat(temp, wrapper(Longreal).value);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Set # NIL) THEN
+			text.value := value;
+			wrapper(GenericWrapper).Set(wrapper(GenericWrapper), text, res);
+		ELSE
+			res := CannotWrite;
+		END;
+	ELSE
+		res := CannotConvert;
+	END;
+END SetText;
 
 PROCEDURE GetObject*(CONST wrapper : Wrapper; VAR value : Repositories.Component; VAR res : LONGINT);
 VAR object : Object;

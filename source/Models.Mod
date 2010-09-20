@@ -1,7 +1,7 @@
 MODULE Models; (** AUTHOR "staubesv"; PURPOSE "Models"; *)
 
 IMPORT
-	Types, Strings, XML, WMProperties, WMEvents, WMComponents;
+	Types, Strings, XML, Texts, TextUtilities, WMProperties, WMEvents, WMComponents;
 
 CONST
 	Ok* = Types.Ok;
@@ -402,7 +402,6 @@ TYPE
 
 	END Set;
 
-(*
 TYPE
 
 	TextModel* = OBJECT(Model)
@@ -417,8 +416,7 @@ TYPE
 		END Init;
 
 		PROCEDURE Set*(text : Texts.Text);
-		BEGIN
-			AcquireWrite;
+		BEGIN {EXCLUSIVE}
 			IF (text = NIL) THEN
 				SELF.text.AcquireWrite;
 				SELF.text.Delete(0, SELF.text.GetLength());
@@ -428,17 +426,14 @@ TYPE
 				SELF.text := text;
 				SELF.text.onTextChanged.Add(OnTextChanged);
 			END;
-			ReleaseWrite;
 			ASSERT(text # NIL);
 			Changed;
 		END Set;
 
 		PROCEDURE Get*() : Texts.Text;
 		VAR text : Texts.Text;
-		BEGIN
-			AcquireRead;
+		BEGIN {EXCLUSIVE}
 			text := SELF.text;
-			ReleaseRead;
 			ASSERT(text # NIL);
 			RETURN text;
 		END Get;
@@ -449,102 +444,37 @@ TYPE
 		END OnTextChanged;
 
 		PROCEDURE SetAsString*(CONST string : ARRAY OF CHAR);
-		BEGIN
-			AcquireWrite;
+		BEGIN {EXCLUSIVE}
 			SELF.text.AcquireWrite;
 			SELF.text.Delete(0, SELF.text.GetLength());
 			TextUtilities.StrToText(SELF.text, 0, string);
 			SELF.text.ReleaseWrite;
-			ReleaseWrite;
 		END SetAsString;
 
 		PROCEDURE GetAsString*(VAR string : ARRAY OF CHAR);
-		BEGIN
-			AcquireRead;
+		BEGIN {EXCLUSIVE}
 			SELF.text.AcquireRead;
 			TextUtilities.TextToStr(SELF.text, string);
 			SELF.text.ReleaseRead;
-			ReleaseRead;
 		END GetAsString;
 
 		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : ARRAY 32 OF CHAR;
+		VAR text : Texts.Text;
 		BEGIN
-			res := Ok;
-			IF (wrapper IS Text) THEN
-				Set(wrapper(Text).value);
-			ELSIF (wrapper IS String) THEN
-				IF (wrapper(String).value # NIL) THEN
-					SetAsString(wrapper(String).value^);
-				ELSE
-					res := ConversionError;
-				END;
-			ELSIF (wrapper IS String32) THEN
-				SetAsString(wrapper(String32).value);
-			ELSIF (wrapper IS String256) THEN
-				SetAsString(wrapper(String256).value);
-			ELSIF (wrapper IS Integer) THEN
-				Strings.IntToStr(wrapper(Integer).value, value);
-				SetAsString(value);
-			ELSIF (wrapper IS Boolean) THEN
-				Strings.BoolToStr(wrapper(Boolean).value, value);
-				SetAsString(value);
-			ELSIF (wrapper IS SetTypes.Wrapper) THEN
-				Strings.SetToStr(wrapper(SetTypes.Wrapper).value, value);
-				SetAsString(value);
-			ELSE
-				res := CannotConvert;
-			END;
+			Types.GetText(wrapper, text, res);
+			IF (res = Types.Ok) THEN Set(text); END;
 		END SetGeneric;
 
 		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR temp : ARRAY 32 OF CHAR; length : LONGINT;
+		VAR text : Texts.Text;
 		BEGIN
-			res := Ok;
-			IF (wrapper IS Text) THEN
-				AcquireRead; wrapper(Text).value := SELF.text; ReleaseRead;
-			ELSIF (wrapper IS String) THEN
-				AcquireRead;
-				SELF.text.AcquireRead;
-				length := SELF.text.GetLength();
-				IF (wrapper(String).value = NIL) THEN
-					IF (length = 0) THEN
-						NEW(wrapper(String).value, InitialStringSize);
-						wrapper(String).value^ := "";
-					ELSE
-						NEW(wrapper(String).value, 5 * length); (* UTF8 char is max. 5 bytes *)
-						TextUtilities.TextToStr(SELF.text, wrapper(String).value^);
-					END;
-				ELSE
-					IF (length = 0) THEN
-						wrapper(String).value^ := "";
-					ELSIF (5 * length < LEN(wrapper(String).value)) THEN
-						TextUtilities.TextToStr(SELF.text, wrapper(String).value^);
-					ELSE
-						NEW(wrapper(String).value, 5 * length);
-						TextUtilities.TextToStr(SELF.text, wrapper(String).value^);
-					END;
-				END;
-				SELF.text.ReleaseRead;
-				ReleaseRead;
-				wrapper(String).value := Strings.NewString(temp);
-			ELSIF (wrapper IS String32) THEN
-				GetAsString(wrapper(String32).value);
-			ELSIF (wrapper IS String256) THEN
-				GetAsString(wrapper(String256).value);
-			ELSIF (wrapper IS Integer) THEN
-				GetAsString(temp); Strings.StrToInt(temp, wrapper(Integer).value);
-			ELSIF (wrapper IS Boolean) THEN
-				GetAsString(temp); Strings.StrToBool(temp, wrapper(Boolean).value);
-			ELSIF (wrapper IS SetTypes.Wrapper) THEN
-				GetAsString(temp); Strings.StrToSet(temp, wrapper(SetTypes.Wrapper).value);
-			ELSE
-				res := CannotConvert;
-			END;
+			text := Get();
+			Types.SetText(wrapper, text, res);
 		END GetGeneric;
 
 	END TextModel;
 
+(*
 TYPE
 
 	Container* = OBJECT(Model)
@@ -674,7 +604,6 @@ TYPE
 		END GetField;
 
 	END Container;
-
 *)
 
 VAR
