@@ -1,7 +1,7 @@
 MODULE Texts;	(** AUTHOR "TF"; PURPOSE "Basic Unicode text system"; *)
 
 IMPORT
-	KernelLog, Streams, Kernel, WMEvents, Locks, Strings, FP1616,
+	KernelLog, Streams, Kernel, WMEvents, Locks, Strings, FP1616, UTF8Strings,
 	XML, XMLParser, XMLScanner, XMLObjects, Files;
 
 CONST
@@ -255,6 +255,15 @@ TYPE
 			NEW(SELF.buffer, len);
 			FOR i := 0 TO len - 1 DO SELF.buffer[i] := buffer[i] END
 		END SetBuf;
+
+		PROCEDURE SetBufAsUTF8(CONST buffer : ARRAY OF CHAR);
+		VAR length, i, idx : LONGINT;
+		BEGIN
+			length := UTF8Strings.Length(buffer);
+			NEW(SELF.buffer, length);
+			i := 0; idx := 0;
+			WHILE (i < length) & UTF8Strings.DecodeChar(buffer, idx, SELF.buffer[i]) DO INC(i); END;
+		END SetBufAsUTF8;
 
 		(** Return a copy of the piece, prev/next pointers nil and pos 0 *)
 		PROCEDURE Clone*() : Piece;
@@ -881,6 +890,31 @@ TYPE
 			END;
 			InsertPiece(pos, n);
 		END InsertUCS32;
+
+		PROCEDURE InsertUTF8*(pos : LONGINT; CONST buf : ARRAY OF CHAR);
+		VAR n : MemUnicodePiece; p : Piece; text : Text;
+		BEGIN
+			ASSERT(lock.HasWriteLock(), 3000);
+			IF (buf[0] # 0X) THEN
+				IF (pos > GetLength()) THEN pos := GetLength(); END;
+				NEW(n); n.SetBufAsUTF8(buf);
+				FindPiece(pos, p);
+				IF (p # NIL) THEN
+					n.attributes := p.attributes;
+					n.cstyle := p.cstyle;
+					n.pstyle := p.pstyle;
+					n.link := p.link;
+				END;
+				IF (um # NIL) THEN
+					NEW(text);
+					text.AcquireWrite;
+					text.InsertUTF8(0, buf);
+					um.InsertText(pos, text);
+					text.ReleaseWrite;
+				END;
+				InsertPiece(pos, n);
+			END;
+		END InsertUTF8;
 
 		(** Delete len characters from position pos  *)
 		PROCEDURE Delete* (pos, len : LONGINT);
