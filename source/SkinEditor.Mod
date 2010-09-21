@@ -669,8 +669,8 @@ VAR
 PROCEDURE Open*(context : Commands.Context);
 VAR window : Window; filename : Files.FileName;
 BEGIN
+	NEW(window, NIL);
 	IF context.arg.GetString(filename) THEN
-		NEW(window, NIL);
 		window.Load(filename);
 	END;
 END Open;
