@@ -223,10 +223,15 @@ TYPE
 			RETURN TRUE
 		END GenerateVariableOffsets;
 
-		PROCEDURE GenerateParameterOffsets*(procedureType : SyntaxTree.ProcedureType; nestedProcedure: BOOLEAN): BOOLEAN;
-		VAR offset,size: LONGINT;parameter: SyntaxTree.Parameter;
+		PROCEDURE GenerateParameterOffsets*(procedure : SyntaxTree.Procedure; nestedProcedure: BOOLEAN): BOOLEAN;
+		VAR offset,size: LONGINT;parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType;
 		BEGIN
-			offset := SELF.offsetFirstParameter;
+			procedureType := procedure.type(SyntaxTree.ProcedureType);
+			IF (procedure.isInline) THEN
+				offset := 0
+			ELSE
+				offset := SELF.offsetFirstParameter;
+			END;
 			IF nestedProcedure THEN
 				INC(offset,addressSize); (* parameter offset of static link *) (*! check alternative: add hidden parameter *)
 			END;

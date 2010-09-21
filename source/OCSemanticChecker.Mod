@@ -690,9 +690,11 @@ TYPE
 					procedureType.AddParameter(returnParameter);
 				END;
 
+				(*
 				IF ~system.GenerateParameterOffsets(procedureType,FALSE) THEN
 					Error(procedureType.position, Diagnostics.Invalid, "problems during parameter offset generation");
 				END
+				*)
 		END FixProcedureType;
 
 		(*
@@ -4557,6 +4559,10 @@ TYPE
 				FixProcedureType(procedureType);
 				currentIsRealtime := procedureType.isRealtime;
 				currentIsBodyProcedure := procedure.isBodyProcedure;
+				IF  ~system.GenerateParameterOffsets(procedure,FALSE) (* assume that this is no nested procedure, is fixed later otherwise *)
+				THEN
+					Error(procedure.position,Diagnostics.Invalid,"problems during parameter offset computation");
+				END;
 
 				(*
 				IF (SyntaxTree.FixedFlag IN flags) & CheckIntegerValue(fixedExpression,value) THEN
@@ -4572,7 +4578,7 @@ TYPE
 
 				IF procedure.scope IS SyntaxTree.ProcedureScope THEN
 					procedure.SetLevel(procedure.scope(SyntaxTree.ProcedureScope).ownerProcedure.level+1);
-					IF ~system.GenerateParameterOffsets(procedureType,TRUE) THEN
+					IF ~system.GenerateParameterOffsets(procedure,TRUE) THEN
 						Error(procedure.position,Diagnostics.Invalid,"problem during parameter offset generation");
 					END;
 				END;
@@ -4635,7 +4641,7 @@ TYPE
 							procedure.SetAccess(procedure.access+super.access);
 						END;
 					END;
-					IF  ~system.GenerateParameterOffsets(procedureType,FALSE) (* assume that this is no nested procedure, is fixed later otherwise *)
+					IF  ~system.GenerateParameterOffsets(procedure,FALSE) (* assume that this is no nested procedure, is fixed later otherwise *)
 					THEN
 						Error(procedure.position,Diagnostics.Invalid,"problems during parameter offset computation");
 					END;
