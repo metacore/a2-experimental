@@ -8,6 +8,8 @@ CONST
 
 	InitialStringSize = 128;
 
+	AttributeName = "name";
+
 TYPE
 
 	Model* = OBJECT(WMComponents.Component)
@@ -474,82 +476,28 @@ TYPE
 
 	END TextModel;
 
-(*
 TYPE
 
 	Container* = OBJECT(Model)
-	VAR
-		models : Model;
 
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
 			SetNameAsString(StrContainer);
-			models := NIL;
 		END Init;
 
-		PROCEDURE AddContent(content : XML.Content);
-		VAR model : Model; oldLock : Locks.RWLock;
-		BEGIN
-			AddContent^(content);
-			IF (content # NIL) & (content IS Model) THEN
-				model := content(Model);
-				IF (model.GetAttributeValue(AttributeName) # NIL) THEN
-					ASSERT((model.parent = NIL) & (model.next = NIL) & (model.lock # NIL));
-					model.lock.AcquireWrite;
-					oldLock := model.lock;
-					model.lock := SELF.lock;
-					oldLock.ReleaseWrite;
-					model.next := models;
-					models := model;
-				ELSE
-					KernelLog.String("Warning: WMModels.Container.AddContent: Tried to add unnamed model to container");
-					KernelLog.Ln;
-				END;
-			END;
-		END AddContent;
-
-		PROCEDURE AddAttribute(attribute : XML.Attribute);
-		BEGIN
-			AddAttribute^(attribute);
-		END AddAttribute;
-
-		PROCEDURE RemoveContent(content : XML.Content);
-		VAR model, m : Model;
-		BEGIN
-			RemoveContent^(content);
-			IF (content # NIL) & (content IS Model) THEN
-				model := content(Model);
-				IF (models = model) THEN
-					models := model.next;
-				ELSE
-					m := models;
-					WHILE (m # NIL) & (m.next # NIL) & (m.next # model) DO m := m.next; END;
-					IF (m # NIL) THEN
-						m.next := m.next.next;
-					END;
-				END;
-				(* TODO: Exchange lock *)
-				model.next := NIL;
-				model.parent := NIL;
-			END;
-		END RemoveContent;
-
 		PROCEDURE FindModel(CONST name : ARRAY OF CHAR) : Model;
-		VAR model, result : Model; string : Strings.String;
+		VAR result : Model; string : Strings.String; content : XML.Content;
 		BEGIN
-			KernelLog.String("FindModel: "); KernelLog.String(name); KernelLog.Ln;
 			result := NIL;
-			model := models;
-			WHILE (result = NIL) & (model # NIL) DO
-				string := model.GetAttributeValue(AttributeName);
-				KernelLog.String("CompareTo : ");
-				IF (string = NIL) THEN KernelLog.String("NIL");
-				ELSE KernelLog.String(string^);
+			(*? locking!!! *)
+			content := GetFirst();
+			WHILE (result = NIL) & (content # NIL) DO
+				IF (content IS Model) THEN
+					string := content(Model).GetAttributeValue(AttributeName);
+					IF (string # NIL) & (string^ = name) THEN result := content(Model); END;
 				END;
-				KernelLog.Ln;
-				IF (string # NIL) & (string^ =  name) THEN result := model; END;
-				model := model.next;
+				content := GetNext(content);
 			END;
 			RETURN result;
 		END FindModel;
@@ -584,8 +532,6 @@ TYPE
 		BEGIN
 			model := FindModelByName(name);
 			IF (model # NIL) & ~(model IS Container) THEN
-				IF (model IS IntegerModel) THEN KernelLog.String("INTEGER"); KernelLog.Ln; END;
-				IF (wrapper IS String256) THEN KernelLog.String("String256"); KernelLog.Ln;ELSE KernelLog.String("OOPSS"); KernelLog.Ln; END;
 				model.SetGeneric(wrapper, res);
 			ELSE
 				res := 192;
@@ -604,7 +550,6 @@ TYPE
 		END GetField;
 
 	END Container;
-*)
 
 VAR
 	PrototypeBiMin, PrototypeBiMax : WMProperties.Int32Property;
@@ -658,7 +603,6 @@ BEGIN
 	NEW(set); RETURN set;
 END GenSet;
 
-(*
 PROCEDURE GenText*() : XML.Element;
 VAR text : TextModel;
 BEGIN
@@ -670,7 +614,6 @@ VAR container : Container;
 BEGIN
 	NEW(container); RETURN container;
 END GenContainer;
-*)
 
 PROCEDURE InitPrototypes;
 BEGIN
