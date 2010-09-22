@@ -4792,7 +4792,6 @@ TYPE
 									reimport.SetContext(import.context);
 									reimport.SetModule(import.module);
 									moduleScope.AddImport(reimport);
-									Register(reimport, moduleScope, FALSE);
 								ELSE
 									ASSERT(import.module # NIL);
 									reimport.SetModule(import.module); (* direct or indirect import *)
