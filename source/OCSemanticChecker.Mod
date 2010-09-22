@@ -1493,6 +1493,10 @@ TYPE
 			IF ~system.operatorDefined[operator] THEN
 				Error(left.position,Diagnostics.Invalid,"Operator Not Defined");
 				RETURN
+			ELSIF left.type = NIL THEN
+				Error(left.position,Diagnostics.Invalid,"Invalid Nil Argument in Unary Expression");
+				resolvedExpression := SyntaxTree.invalidExpression;
+				RETURN
 			ELSIF left = SyntaxTree.invalidExpression THEN (* error already handled *)
 				RETURN
 			END;
@@ -1906,6 +1910,7 @@ TYPE
 						WHILE(import # NIL) & (import.module # operator.scope.ownerModule) DO
 							import := import.nextImport;
 						END;
+						ASSERT(import.scope # NIL);
 						expression := NewSymbolDesignator(position,NIL,import);
 						designator := expression(SyntaxTree.Designator);
 					END;
@@ -4685,6 +4690,7 @@ TYPE
 			VisitImport(x);
 			IF ~error THEN
 				module.moduleScope.AddImport(x);
+				Register(x,currentScope,FALSE);
 			END;
 			currentScope := prevScope;
 			diagnostics := prevDiagnostics;
@@ -4786,6 +4792,7 @@ TYPE
 									reimport.SetContext(import.context);
 									reimport.SetModule(import.module);
 									moduleScope.AddImport(reimport);
+									Register(reimport, moduleScope, FALSE);
 								ELSE
 									ASSERT(import.module # NIL);
 									reimport.SetModule(import.module); (* direct or indirect import *)
