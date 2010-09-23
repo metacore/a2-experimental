@@ -2539,6 +2539,12 @@ TYPE
 		BEGIN
 			SELF.module := module;
 		END SetModule;
+		
+		PROCEDURE SetDirect*(d: BOOLEAN);
+		BEGIN
+			direct := d
+		END SetDirect;
+		
 
 		PROCEDURE SetModuleName*(moduleName: Identifier);
 		BEGIN SELF.moduleName := moduleName

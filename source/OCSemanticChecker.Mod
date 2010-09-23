@@ -496,6 +496,9 @@ TYPE
 					Register(import,moduleScope,FALSE);
 					IF import.context = NIL THEN import.SetContext(SELF.module.context) END;
 					VisitImport(import);
+				ELSIF import.direct=FALSE THEN
+					import.SetScope(module.moduleScope);
+					import.SetDirect(TRUE);
 				END;
 			END;
 		END ImportModule;
@@ -4690,7 +4693,7 @@ TYPE
 			VisitImport(x);
 			IF ~error THEN
 				module.moduleScope.AddImport(x);
-				Register(x,currentScope,FALSE);
+				x.SetScope(module.moduleScope);
 			END;
 			currentScope := prevScope;
 			diagnostics := prevDiagnostics;
