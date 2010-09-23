@@ -713,6 +713,7 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	WMIcons.tar
 
 	Types.Mod
+	Attributes.Mod
 
 	# Components
 	Models.Mod
