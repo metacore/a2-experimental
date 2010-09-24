@@ -307,6 +307,7 @@ TYPE
 	PROCEDURE SameOperand*(CONST left, right: Operand): BOOLEAN;
 	VAR mode: LONGINT;
 	BEGIN
+		mode := left.mode;
 		IF (left.type.form =right.type.form) & (left.type.sizeInBits=right.type.sizeInBits) & (mode = right.mode) THEN
 			CASE mode OF
 			ModeRegister: RETURN (left.register = right.register) & (left.offset = right.offset)

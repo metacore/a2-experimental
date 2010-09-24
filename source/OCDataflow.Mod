@@ -734,7 +734,7 @@ TYPE
 			NEW(supportedDevices);
 			SELF.diagnostics := diagnostics;
 			NEW(device,"DDR",SELF, 0FFCAH); supportedDevices.AddDevice(device);
-			NEW(device,"RS232",SELF,0FFC4H); supportedDevices.AddDevice(device);
+			NEW(device,"RS232",SELF,LONGINT(0FFFFFFC4H)); supportedDevices.AddDevice(device);
 			NEW(device,"LCD",SELF,0FFC9H); supportedDevices.AddDevice(device);
 			NEW(device,"CF",SELF,0); supportedDevices.AddDevice(device);
 			NEW(device,"LED",SELF,0); supportedDevices.AddDevice(device);
