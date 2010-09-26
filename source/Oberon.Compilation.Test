@@ -37861,6 +37861,20 @@ positive: non-exported constructor overwritten by new constructor with same name
 		NEW(a,10,"test");
 	END Test.
 
+negative: new on object with non-exported constructor with empty parameter list
+
+	MODULE Dummy;
+	TYPE O*=OBJECT
+		PROCEDURE & Init;
+		END Init;
+	END O;
+	END Dummy.
+
+	MODULE Test;
+	IMPORT Dummy;
+	VAR o: Dummy.O;
+	BEGIN NEW(o)
+	END Test.
 
 # realtime objects
 
