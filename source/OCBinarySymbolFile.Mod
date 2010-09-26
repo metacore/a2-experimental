@@ -1331,11 +1331,12 @@ TYPE
 				IF tag=sfReadOnly THEN  visibility := visibility * SyntaxTree.ReadOnly; R.RawNum(tag) END;
 				type := Type();
 				R.RawString(name);
-				IF name = "" THEN
-					visibility := visibility * SyntaxTree.Internal;
-				ELSIF ~operator & (name[0] = "&") THEN
+				IF ~operator & (name[0] = "&") THEN
 					constructor := TRUE;
 					i := 0; REPEAT  name[i] := name[i+1]; INC(i)  UNTIL name[i] = 0X;
+				END;
+				IF name = "" THEN
+					visibility := visibility * SyntaxTree.Internal;
 				END;
 				IF TraceImport IN Trace THEN
 					D.Str("<-- "); D.Str(name); D.Ln
@@ -2070,7 +2071,8 @@ TYPE
 				END;
 				Type(type);
 				IF visibility * SyntaxTree.Internal = visibility THEN
-					string2 := ""
+					string2 := "";
+					IF constructor THEN string2 := "&" END;
 				ELSE name.GetString(string);
 					IF constructor THEN
 						Basic.Concat(string2,"&",string,"");
