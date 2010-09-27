@@ -145,6 +145,11 @@ TYPE
 			RETURN first;
 		END GetFirst;
 
+		PROCEDURE GetLast*() : Content;
+		BEGIN
+			RETURN last;
+		END GetLast;
+
 		PROCEDURE GetNext*(content : Content) : Content;
 		BEGIN
 			ASSERT(content # NIL);
