@@ -3901,6 +3901,7 @@ TYPE
 
 				(* ---- SUM ----- *)
 				ELSIF (id = Global.Sum) & Parameters(1,2) THEN
+					HALT(200);
 					IF numberActualParameters=1 THEN
 					ELSE
 					END;
@@ -3917,6 +3918,21 @@ TYPE
 					END;
 				(* ---- RESHAPE ----- *)
 				ELSIF (id = Global.systemReshape) & Parameters(2,2) THEN
+					IF type0 IS SyntaxTree.MathArrayType THEN
+						(* use type checking facilities of procedure calls: artificially build parameters here and call checker *)
+						HALT(200); (* not yet implemented *)
+						(*
+						baseType0 := BaseType(type0);
+						type := MakeTensor(baseType0);
+						argumentType1 := MakeTensor(baseType1);
+						argumentType2 := MakeMathArray(Global.Longint);
+						MakeProcedureCall();
+						*)
+					ELSE
+						Error(position, Diagnostics.Invalid,"reshape on non math array type")
+					END;
+
+					HALT(200);
 					(*! implement *)
 				(* ---- SYSTEM.ZEROCOPY----- *)
 				ELSIF (id = Global.systemZeroCopy) & Parameters(2,2) THEN
@@ -6175,6 +6191,8 @@ TYPE
 			(*! taken from paco, seems to not be 100% correct, check (in particular array part -> length of arrays??) *)
 			WHILE (formalParameter # NIL) & (formalParameter.access # SyntaxTree.Hidden) & (result # Infinity) DO
 				actualParameter := actualParameters.GetExpression(i);
+				ASSERT(actualParameter.type # NIL);
+				ASSERT(formalParameter.type # NIL);
 				distance := TypeDistance(system,actualParameter.type.resolved,formalParameter.type.resolved,formalParameter.kind = SyntaxTree.VarParameter);
 				IF distance = Infinity THEN
 					result := Infinity;

@@ -1116,10 +1116,12 @@ Sufficient (but not necessary) conditions:
 	END CopyArraySelf;
 
 	PROCEDURE CopyArray*( dest: ADDRESS;  src: ADDRESS; elementsize: LONGINT );
-	VAR p: ANY;
+	VAR p: ANY; srcdim, destdim: LONGINT;
 	BEGIN
 		ASSERT( dest # 0 );   (* impossible unless compiler error *)
 		IF GetDim( src ) # GetDim( dest ) THEN  (* not allowed but possible (tensor) *)
+			srcdim := GetDim(src);
+			destdim := GetDim(dest);
 			HALT( 100 );
 		ELSIF src = dest THEN  (* self copy *)
 			CopyArraySelf( dest, src, elementsize );
@@ -7721,7 +7723,9 @@ Sufficient (but not necessary) conditions:
 		END;
 	END Zero;
 *)
-	PROCEDURE Reshape*( VAR dest: LONGINT;  src: LONGINT; CONST shape: ARRAY [ * ] OF LONGINT );
+
+
+	PROCEDURE DoReshape*( VAR dest: LONGINT;  src: LONGINT; CONST shape: ARRAY [ * ] OF LONGINT );
 	VAR i, Size: LONGINT;  ptr, data: ANY;  new: LONGINT;
 
 		oldSize, newSize: LONGINT;  oldDim, newDim: LONGINT;
@@ -7765,9 +7769,9 @@ Sufficient (but not necessary) conditions:
 					len := shape[i];  PutInc( new, i, size );  PutLen( new, i, len );
 					size := size * len;
 				END;
-			ELSE (* squeezing reshape *)				
+			ELSE (* squeezing reshape *)
 				j := 0; len := shape[j];
-				FOR i := 0 TO oldDim-1 DO					
+				FOR i := 0 TO oldDim-1 DO
 					IF GetLen(src,i) = len THEN
 						PutInc(new,j,GetIncr(src,i)); PutLen(new,j,len);
 						INC(j);
@@ -7917,7 +7921,7 @@ Sufficient (but not necessary) conditions:
 		ELSE  (* same shape, just copy *)
 			CopyContent( src, dest, Size );  RETURN;
 		END;
-	END Reshape;
+	END DoReshape;
 
 	PROCEDURE AllocateTensorX*( VAR dest: LONGINT; CONST a: ARRAY [ * ] OF LONGINT;  Size: LONGINT );
 	VAR descr, data: ANY;  same: BOOLEAN;  i: LONGINT;  dim: LONGINT;
@@ -8235,6 +8239,20 @@ Sufficient (but not necessary) conditions:
 			*)
 		END;
 	END CopyDescriptor;
+
+		(*
+			when Reshape is called by a compiler, the arguments are - for the compiler - replaced as follows, this makes them compatible
+				VAR dest: ARRAY [?] OF basetype
+				CONST src: ARRAY [?] OF basetype
+				CONST shape: ARRAY [*] OF LONGINT
+	*)
+
+
+	PROCEDURE Reshape*(CONST left: ARRAY [?] OF SYSTEM.ALL; CONST right: ARRAY [*] OF LONGINT): ARRAY [?] OF SYSTEM.ALL;
+	BEGIN
+		DoReshape(SYSTEM.VAL(LONGINT,RESULT), SYSTEM.VAL(LONGINT,left), right);
+		RETURN RESULT
+	END Reshape;
 
 BEGIN
 	alloc := 0;  SetDefaults();  InitOptimization();  (* CreateTypePool;  *)
