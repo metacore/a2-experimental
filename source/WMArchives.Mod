@@ -1137,12 +1137,11 @@ BEGIN
 END InitPrototypes;
 
 PROCEDURE Open*(context : Commands.Context);
-VAR inst : Window; filename : Files.FileName;
+VAR window : Window; filename : Files.FileName;
 BEGIN
+	NEW(window, NIL);
 	IF context.arg.GetString(filename) THEN
-		NEW(inst, NIL); inst.Load(filename);
-	ELSE
-		context.result := Commands.CommandParseError;
+		window.Load(filename);
 	END;
 END Open;
 
