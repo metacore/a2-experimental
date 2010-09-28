@@ -419,7 +419,81 @@ BEGIN
 	END;
 END SetChar;
 
-PROCEDURE GetString*(CONST wrapper : Wrapper; VAR value : ARRAY OF CHAR; VAR res : LONGINT);
+PROCEDURE GetAOC*(CONST wrapper : Wrapper; VAR value : ARRAY OF CHAR; VAR res : LONGINT);
+BEGIN
+	res := Ok;
+	IF (wrapper IS String) THEN
+		IF (wrapper(String).value # NIL) THEN
+			COPY(wrapper(String).value^, value);
+			IF (Strings.Length(wrapper(String).value^) >= LEN(value)) THEN
+				res := Truncated;
+			END;
+		ELSE
+			value := "";
+		END;
+	ELSIF (wrapper IS String32) THEN
+		COPY(wrapper(String32).value, value);
+	ELSIF (wrapper IS String256) THEN
+		COPY(wrapper(String256).value, value);
+	ELSIF (wrapper IS Boolean) THEN
+		Strings.BoolToStr(wrapper(Boolean).value, value);
+	ELSIF (wrapper IS Integer) THEN
+		Strings.IntToStr(wrapper(Integer).value, value);
+	ELSIF (wrapper IS Real) THEN
+		(* TODO *)
+	ELSIF (wrapper IS Longreal) THEN
+		(* TODO *)
+	ELSIF (wrapper IS Char) THEN
+		value[0] := wrapper(Char).value;
+		value[1] := 0X;
+	ELSIF (wrapper IS Object) THEN
+		ComponentToString(wrapper(Object).value, value, res);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Get # NIL) THEN
+			(* TBD *)
+		ELSE
+			res := CannotRead;
+		END;
+	ELSE
+		res := CannotConvert;
+	END;
+END GetAOC;
+
+PROCEDURE SetAOC*(VAR wrapper : Wrapper; CONST value : ARRAY OF CHAR; VAR res : LONGINT);
+VAR temp : LONGREAL; string : String;
+BEGIN
+	res := Ok;
+	IF (wrapper IS String) THEN
+		wrapper(String).value := Strings.NewString(value); (*? most likely not what we want *)
+	ELSIF (wrapper IS String32) THEN
+		COPY(value, wrapper(String32).value);
+	ELSIF (wrapper IS String256) THEN
+		COPY(value, wrapper(String256).value);
+	ELSIF (wrapper IS Boolean) THEN
+		Strings.StrToBool(value, wrapper(Boolean).value);
+	ELSIF (wrapper IS Integer) THEN
+		Strings.StrToInt(value, wrapper(Integer).value);
+	ELSIF (wrapper IS Real) THEN
+		Strings.StrToFloat(value, temp);
+		wrapper(Real).value := SHORT(temp);
+	ELSIF (wrapper IS Char) THEN
+		wrapper(Char).value := value[0];
+	ELSIF (wrapper IS Object) THEN
+		StringToComponent(value, wrapper(Object).value, res);
+	ELSIF (wrapper IS GenericWrapper) THEN
+		IF (wrapper(GenericWrapper).Set # NIL) THEN
+			string.value := Strings.NewString(value); (*? !!! *)
+			wrapper(GenericWrapper).Set(wrapper(GenericWrapper), string, res);
+		ELSE
+			res := CannotWrite;
+		END;
+	ELSE
+		res := CannotConvert;
+	END;
+END SetAOC;
+
+PROCEDURE GetString*(CONST wrapper : Wrapper; VAR string : Strings.String; VAR res : LONGINT);
+VAR value : ARRAY 64 OF CHAR; (*? !!! *)
 BEGIN
 	res := Ok;
 	IF (wrapper IS String) THEN
@@ -457,34 +531,13 @@ BEGIN
 END GetString;
 
 PROCEDURE SetString*(VAR wrapper : Wrapper; value : Strings.String; VAR res : LONGINT);
-VAR temp : LONGREAL; string : String;
 BEGIN
-	res := Ok;
-	IF (wrapper IS String) THEN
+	IF (value # NIL) THEN
+		SetAOC(wrapper, value^, res);
+	ELSIF (wrapper IS String) THEN
 		wrapper(String).value := value;
-	ELSIF (wrapper IS String32) THEN
-		COPY(value^, wrapper(String32).value);
-	ELSIF (wrapper IS String256) THEN
-		COPY(value^, wrapper(String256).value);
-	ELSIF (wrapper IS Boolean) THEN
-		Strings.StrToBool(value^, wrapper(Boolean).value);
-	ELSIF (wrapper IS Integer) THEN
-		Strings.StrToInt(value^, wrapper(Integer).value);
-	ELSIF (wrapper IS Real) THEN
-		Strings.StrToFloat(value^, temp);
-		wrapper(Real).value := SHORT(temp);
-	ELSIF (wrapper IS Char) THEN
-		wrapper(Char).value := value[0];
-	ELSIF (wrapper IS Object) THEN
-		StringToComponent(value^, wrapper(Object).value, res);
-	ELSIF (wrapper IS GenericWrapper) THEN
-		IF (wrapper(GenericWrapper).Set # NIL) THEN
-			string.value := value;
-			wrapper(GenericWrapper).Set(wrapper(GenericWrapper), string, res);
-		ELSE
-			res := CannotWrite;
-		END;
-	ELSE
+		res := Ok;
+	ELSE (*? semantics *)
 		res := CannotConvert;
 	END;
 END SetString;
