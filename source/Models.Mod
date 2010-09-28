@@ -411,7 +411,7 @@ TYPE
 
 TYPE
 
-	TextModel* = OBJECT(Model)
+	Text* = OBJECT(Model)
 	VAR
 		text : Texts.Text; (* {value # NIL} *)
 
@@ -479,7 +479,7 @@ TYPE
 			Types.SetText(wrapper, text, res);
 		END GetGeneric;
 
-	END TextModel;
+	END Text;
 
 TYPE
 
@@ -609,7 +609,7 @@ BEGIN
 END GenSet;
 
 PROCEDURE GenText*() : XML.Element;
-VAR text : TextModel;
+VAR text : Text;
 BEGIN
 	NEW(text); RETURN text;
 END GenText;
