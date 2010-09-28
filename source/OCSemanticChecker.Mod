@@ -6244,6 +6244,8 @@ TYPE
 		i := Infinity;
 		IF from = to THEN
 			i := 0
+		ELSIF (from IS SyntaxTree.NilType) OR (to IS SyntaxTree.NilType) THEN
+			i := Infinity;
 		ELSIF to IS SyntaxTree.AllType THEN
 			i := 1;
 		ELSIF from IS SyntaxTree.AllType THEN
