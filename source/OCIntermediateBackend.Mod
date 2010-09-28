@@ -2382,7 +2382,7 @@ TYPE
 				Emit(Push(operand.op)); (* address of the array *)
 			ELSIF parameter.type.resolved IS SyntaxTree.MathArrayType THEN
 				(* case 1 *)
-				IF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) & 
+				IF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) &
 					(parameter.kind IN {SyntaxTree.ValueParameter, SyntaxTree.ConstParameter}) THEN
 					size := MathLenOffset + 2*SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
 					size := ToMemoryUnits(system,size*addressType.sizeInBits);
@@ -2985,7 +2985,6 @@ TYPE
 						IntermediateCode.InitRegister(result.tag,addressType,AcquireRegister(addressType));
 						Emit(Mov(result.tag,reg));
 						ReleaseIntermediateOperand(reg);
-
 					END;
 				END;
 			END;
@@ -3704,6 +3703,9 @@ TYPE
 		staticLength: LONGINT; itype: IntermediateCode.Type;
 		convert,isTensor: BOOLEAN;
 		flags: SET;
+		left: SyntaxTree.Expression;
+		call: SyntaxTree.Designator;
+		procedure: SyntaxTree.Procedure;
 
 			PROCEDURE CallBodies(self: IntermediateCode.Operand; type: SyntaxTree.Type);
 			VAR recordScope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure; body: SyntaxTree.Body; flags: LONGINT;
@@ -4525,9 +4527,16 @@ TYPE
 				MathArrayDim(p0.type.resolved(SyntaxTree.MathArrayType),s0.tag,result);
 				ReleaseOperand(s0);
 			(* ---- RESHAPE ----- *)
-			|Global.systemReshape: HALT(200);
+			|Global.Reshape:
+				IF GetRuntimeProcedure("OCArrayBase","Reshape",procedure,TRUE) THEN
+					left := SyntaxTree.NewSymbolDesignator(Diagnostics.Invalid,NIL,procedure);
+					left.SetType(procedure.type);
+					call := SyntaxTree.NewProcedureCallDesignator(position,left(SyntaxTree.Designator),x.parameters);
+					VisitProcedureCallDesignator(call(SyntaxTree.ProcedureCallDesignator));
+				END;
 			(* ---- SYSTEM.ZEROCOPY----- *)
-			|Global.systemZeroCopy: HALT(200);
+			|Global.systemZeroCopy:
+				Error(position,"not yet implemented");
 			(* ---- SYSTEM.TYPECODE ----- *)
 			|Global.systemTypeCode:
 				type := p0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;

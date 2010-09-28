@@ -47,7 +47,7 @@ CONST
 		Sum Dim Lsl Lsr Asr
 		(* system proper procedures *)
 		systemGet  systemPut  systemMove  systemNew
-		systemIncr systemReshape
+		systemIncr Reshape
 		systemZeroCopy systemTypeCode systemHalt
 		systemPut8 systemPut16 systemPut32 systemPut64 systemTrace
 		(* system functions *)
@@ -71,7 +71,7 @@ CONST
 	(* system proper procedures *)
 	systemGet*= Dim+1; systemPut*= systemGet+1; systemMove*= systemPut+1;
 	systemNew*= systemMove+1;
-	systemIncr*= systemNew+1; systemReshape*= systemIncr+1; systemZeroCopy*= systemReshape+1; systemTypeCode*= systemZeroCopy+1; systemHalt*= systemTypeCode+1;
+	systemIncr*= systemNew+1; Reshape*= systemIncr+1; systemZeroCopy*= Reshape+1; systemTypeCode*= systemZeroCopy+1; systemHalt*= systemTypeCode+1;
 	systemPut8*= systemHalt+1; systemPut16*= systemPut8+1; systemPut32*= systemPut16+1; systemPut64*= systemPut32+1;
 	systemTrace*= systemPut64+1;
 
@@ -466,7 +466,7 @@ TYPE
 		NewBuiltin(systemPut,"PUT",system.systemScope,TRUE);
 		NewBuiltin(systemMove,"MOVE",system.systemScope,TRUE);
 		NewBuiltin(systemNew,"NEW",system.systemScope,FALSE);
-		NewBuiltin(systemReshape,"RESHAPE",system.systemScope,TRUE);
+		NewBuiltin(Reshape,"RESHAPE",system.globalScope,TRUE);
 		NewBuiltin(systemZeroCopy,"ZEROCOPY",system.systemScope,TRUE);
 		NewBuiltin(systemHalt,"HALT",system.systemScope,TRUE);
 		NewBuiltin(systemPut64,"PUT64",system.systemScope,TRUE);

@@ -3197,8 +3197,10 @@ TYPE
 			inPort, outPort: SyntaxTree.PortType;
 			constructor: SyntaxTree.Procedure;
 			type0,type1,type2: SyntaxTree.Type;
-			type,base: SyntaxTree.Type;
+			type,base,parameterType: SyntaxTree.Type;
 			arrayType: SyntaxTree.ArrayType;
+			parameter: SyntaxTree.Parameter;
+			procedure: SyntaxTree.Procedure;
 			i,i0,i1: LONGINT;
 			r,r0,r1: LONGREAL;
 			c: CHAR;
@@ -3917,23 +3919,34 @@ TYPE
 						Error(position,Diagnostics.Invalid,"dimension on non math array type");
 					END;
 				(* ---- RESHAPE ----- *)
-				ELSIF (id = Global.systemReshape) & Parameters(2,2) THEN
+				ELSIF (id = Global.Reshape) & Parameters(2,2) THEN
 					IF type0 IS SyntaxTree.MathArrayType THEN
 						(* use type checking facilities of procedure calls: artificially build parameters here and call checker *)
-						HALT(200); (* not yet implemented *)
-						(*
-						baseType0 := BaseType(type0);
-						type := MakeTensor(baseType0);
-						argumentType1 := MakeTensor(baseType1);
-						argumentType2 := MakeMathArray(Global.Longint);
-						MakeProcedureCall();
-						*)
-					ELSE
-						Error(position, Diagnostics.Invalid,"reshape on non math array type")
-					END;
+						base := ArrayBase(type0,MAX(LONGINT));
+						type := SyntaxTree.NewMathArrayType(Diagnostics.Invalid,currentScope,SyntaxTree.Tensor);
+						type(SyntaxTree.MathArrayType).SetArrayBase(base);
 
-					HALT(200);
-					(*! implement *)
+						parameterType := SyntaxTree.NewMathArrayType(Diagnostics.Invalid,currentScope,SyntaxTree.Tensor);
+						parameterType(SyntaxTree.MathArrayType).SetArrayBase(base);
+						IF ~CompatibleTo(system,type0,parameterType) THEN
+							Error(parameter0.position,Diagnostics.Invalid,"incompatible parameter in reshape");
+							result := SyntaxTree.invalidExpression;
+						ELSE
+							parameter0 := NewConversion(Diagnostics.Invalid,parameter0,parameterType,NIL); actualParameters.SetExpression(0,parameter0);
+						END;
+
+						parameterType := SyntaxTree.NewMathArrayType(Diagnostics.Invalid,currentScope,SyntaxTree.Open);
+						parameterType(SyntaxTree.MathArrayType).SetArrayBase(system.longintType);
+						IF ~CompatibleTo(system,type1,parameterType) THEN
+							Error(parameter1.position,Diagnostics.Invalid,"parameter incompatible to math array of longint");
+							result := SyntaxTree.invalidExpression;
+						ELSE
+							parameter1 := NewConversion(Diagnostics.Invalid,parameter1,parameterType,NIL); actualParameters.SetExpression(1,parameter1);
+						END;
+					ELSE
+						Error(position, Diagnostics.Invalid,"reshape on non math array type");
+						result := SyntaxTree.invalidExpression;
+					END;
 				(* ---- SYSTEM.ZEROCOPY----- *)
 				ELSIF (id = Global.systemZeroCopy) & Parameters(2,2) THEN
 					(*! implement *)

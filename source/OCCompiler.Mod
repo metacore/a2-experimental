@@ -199,9 +199,6 @@ TYPE
 					log.Update;
 				END;
 			END;
-			IF ~(Silent IN flags) & ~(FindPC IN flags) THEN
-				FinalMessage(" successfully compiled.")
-			END;
 		END Log;
 
 
@@ -324,11 +321,9 @@ TYPE
 
 			ELSE Log;
 			END;
-
-
-
-
-
+			IF ~(Silent IN flags) & ~(FindPC IN flags) THEN
+				FinalMessage(" successfully compiled.")
+			END;
 		UNTIL ~parser.NextModule();
 		RETURN TRUE;
 	END Module;
