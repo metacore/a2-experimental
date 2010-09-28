@@ -1,7 +1,7 @@
 MODULE Models; (** AUTHOR "staubesv"; PURPOSE "Models"; *)
 
 IMPORT
-	Types, Strings, XML, Texts, TextUtilities, WMProperties, WMEvents, WMComponents;
+	Types, Strings, XML, Texts, TextUtilities, Repositories, WMProperties, WMEvents;
 
 CONST
 	Ok* = Types.Ok;
@@ -12,24 +12,20 @@ CONST
 
 TYPE
 
-	Model* = OBJECT(WMComponents.Component)
+	Model* = OBJECT(Repositories.Component)
 	VAR
 		onChanged- : WMEvents.EventSource;
 
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
-			NEW(onChanged, NIL, NIL, NIL, NIL); events.Add(onChanged);
+			NEW(onChanged, NIL, NIL, NIL, NIL);
 		END Init;
 
-		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
-		BEGIN
-			res := Types.CannotConvert;
+		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT); (** abstract *)
 		END SetGeneric;
 
-		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT);
-		BEGIN
-			res := Types.CannotConvert;
+		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT); (** abstract *)
 		END GetGeneric;
 
 		PROCEDURE Changed*; (** protected *)
@@ -141,14 +137,12 @@ TYPE
 
 	BoundedInteger* = OBJECT(Integer)
 	VAR
-		min, max : WMProperties.Int32Property;
+		min, max : LONGINT;
 
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
 			SetNameAsString(StrBoundedInteger);
-			NEW(min, PrototypeBiMin, NIL, NIL); properties.Add(min);
-			NEW(max, PrototypeBiMax, NIL, NIL); properties.Add(max);
 		END Init;
 
 		PROCEDURE Set*(value : LONGINT);
@@ -304,7 +298,24 @@ TYPE
 			SetNameAsString(StrString);
 		END Init;
 
-		PROCEDURE Set*(CONST value : ARRAY OF CHAR);
+		PROCEDURE Set*(value : Strings.String);
+		VAR changed : BOOLEAN;
+		BEGIN
+			ASSERT(value # NIL); (*? CHECK *)
+			BEGIN {EXCLUSIVE}
+				changed := value # SELF.value;
+				SELF.value := value;
+			END;
+			IF changed THEN Changed; END;
+		END Set;
+
+		PROCEDURE Get*() : Strings.String;
+		BEGIN {EXCLUSIVE}
+			ASSERT(SELF.value # NIL);
+			RETURN value;
+		END Get;
+
+		PROCEDURE SetAOC*(CONST value : ARRAY OF CHAR);
 		VAR changed : BOOLEAN; length : LONGINT;
 		BEGIN
 			length := 0;
@@ -320,13 +331,7 @@ TYPE
 			END;
 			ASSERT(SELF.value # NIL);
 			IF changed THEN Changed; END;
-		END Set;
-
-		PROCEDURE Get*() : Strings.String;
-		BEGIN {EXCLUSIVE}
-			ASSERT(SELF.value # NIL);
-			RETURN value;
-		END Get;
+		END SetAOC;
 
 		PROCEDURE GetAOC*(VAR value : ARRAY OF CHAR);
 		BEGIN {EXCLUSIVE}
@@ -334,7 +339,7 @@ TYPE
 		END GetAOC;
 
 		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : ARRAY 256 OF CHAR;
+		VAR value : Strings.String;
 		BEGIN
 			Types.GetString(wrapper, value, res);
 			IF (res = Types.Ok) THEN Set(value); END;
