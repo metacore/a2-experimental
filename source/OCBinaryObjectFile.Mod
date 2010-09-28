@@ -179,6 +179,11 @@ TYPE
 		BEGIN RETURN SymbolFileFormat.Get();
 		END DefaultSymbolFileFormat;
 
+		PROCEDURE ForceModuleBodies(): BOOLEAN; (* necessary in binary object file format as bodies not recognizable later on *)
+		BEGIN RETURN TRUE
+		END ForceModuleBodies;
+
+
 	END ObjectFileFormat;
 
 	VAR SysCallMap : ARRAY DefaultNofSysCalls OF CHAR;

@@ -19,7 +19,7 @@ TYPE
 		END SetFindPC;
 
 		PROCEDURE & Init*(module: SyntaxTree.Module; system: Global.System);
-		BEGIN SELF.module := module; SELF.system := system; findPC := NoFindPC;
+		BEGIN SELF.module := module; SELF.system := system; findPC := NoFindPC
 		END Init;
 
 		PROCEDURE Dump*(w: Streams.Writer);
@@ -85,6 +85,10 @@ TYPE
 		PROCEDURE DefaultSymbolFileFormat*(): SymbolFileFormat;
 		BEGIN RETURN NIL
 		END DefaultSymbolFileFormat;
+
+		PROCEDURE ForceModuleBodies*(): BOOLEAN;
+		BEGIN RETURN FALSE
+		END ForceModuleBodies;
 
 	END ObjectFileFormat;
 

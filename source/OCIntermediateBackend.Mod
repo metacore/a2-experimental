@@ -119,13 +119,15 @@ TYPE
 		module: Sections.Module;
 		moduleSelf: SyntaxTree.Variable;
 		dump: BOOLEAN;
+		forceModuleBody: BOOLEAN;
 
-		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; backend: IntermediateBackend; dump: BOOLEAN);
+		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; backend: IntermediateBackend; forceModuleBody, dump: BOOLEAN);
 		BEGIN
 			currentScope := NIL; module := NIL; moduleSelf := NIL;
 			SELF.system := system; SELF.implementationVisitor := implementationVisitor;
 			SELF.dump := dump;
 			SELF.backend := backend;
+			SELF.forceModuleBody := forceModuleBody;
 		END Init;
 
 		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
@@ -529,7 +531,7 @@ TYPE
 			implementationVisitor.moduleScope := x.moduleScope;
 			implementationVisitor.moduleSelf := moduleSelf;
 
-			EnsureBodyProcedure; (* currently needed in Oberon, remove ? *)
+			IF forceModuleBody THEN EnsureBodyProcedure; (* currently needed in Oberon, remove ? *) END;
 
 
 			Scope(x.moduleScope);
@@ -5848,7 +5850,7 @@ TYPE
 
 			NEW(module,x,system); (* backend structures *)
 			NEW(implementationVisitor,system,checker,Supported,Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
-			NEW(declarationVisitor,system,implementationVisitor,SELF,trace);
+			NEW(declarationVisitor,system,implementationVisitor,SELF,Compiler.ForceModuleBodies IN flags,trace);
 			declarationVisitor.Module(x,module);
 
 

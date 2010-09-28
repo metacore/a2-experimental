@@ -17,6 +17,7 @@ CONST
 	FindPC* = 5;
 	DataFlow*=6;
 	Warnings*=7;
+	ForceModuleBodies*=8;
 
 	Name = "OC";
 	Description = "Oberon Compiler";
@@ -208,6 +209,7 @@ TYPE
 		ELSE
 			system := backend.GetSystem();
 		END;
+		IF (objectFileFormat # NIL) & (objectFileFormat.ForceModuleBodies()) THEN INCL(flags, ForceModuleBodies) END;
 
 		scanner := Scanner.NewScanner(source,reader,position,diagnostics);
 		IF DataFlow IN flags THEN
