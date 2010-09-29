@@ -26,25 +26,44 @@ CONST
 
 
 TYPE
-	StreamDiagnostics=OBJECT (Diagnostics.StreamDiagnostics)
-	VAR traceError: BOOLEAN;
+	TracingDiagnostics=OBJECT (Diagnostics.Diagnostics)
+	VAR diagnostics: Diagnostics.Diagnostics;
+
+		PROCEDURE &InitDiagnostics(diagnostics: Diagnostics.Diagnostics);
+		BEGIN
+			SELF.diagnostics := diagnostics
+		END InitDiagnostics;
 
 		PROCEDURE Error(CONST source: ARRAY OF CHAR; position, errorCode : LONGINT; CONST message : ARRAY OF CHAR);
 		BEGIN
-			Error^(source, position,errorCode,message);
-			IF traceError THEN D.TraceBack END;
+			IF diagnostics # NIL THEN
+				diagnostics.Error(source,position,errorCode,message);
+			END;
+			D.Ln;
+			D.String(" ---------------------- TRACE for COMPILER ERROR  < ");
+			D.String(source);
+			IF position # Diagnostics.Invalid THEN D.String("@"); D.Int(position,1) END;
+			IF errorCode # Diagnostics.Invalid THEN D.String(" "); D.Int(errorCode,1); END;
+			D.String(" "); D.String(message);
+			D.String(" > ---------------------- ");
+			D.TraceBack
 		END Error;
 
-		PROCEDURE & InitDiagnostics(w: Streams.Writer);
+		PROCEDURE Warning*(CONST source : ARRAY OF CHAR; position, errorCode : LONGINT; CONST message : ARRAY OF CHAR);
 		BEGIN
-			Init (w); traceError := FALSE;
-		END InitDiagnostics;
+			IF diagnostics # NIL THEN
+				diagnostics.Warning(source,position,errorCode,message);
+			END;
+		END Warning;
 
-		PROCEDURE TraceError;
-		BEGIN traceError := TRUE
-		END TraceError;
+		PROCEDURE Information*(CONST source : ARRAY OF CHAR; position, errorCode : LONGINT; CONST message : ARRAY OF CHAR);
+		BEGIN
+			IF diagnostics # NIL THEN
+				diagnostics.Information(source,position,errorCode,message);
+			END;
+		END Information;
 
-	END StreamDiagnostics;
+	END TracingDiagnostics;
 
 	PROCEDURE GetSymbolFileFormat*(CONST name: ARRAY OF CHAR): Formats.SymbolFileFormat;
 	VAR
@@ -165,8 +184,9 @@ TYPE
 		dataflowBackend: Backend.Backend;
 		split: Strings.StringArray;
 		sectionOffset: LONGINT;
+		traceDiagnostics : TracingDiagnostics;
 
-		PROCEDURE FinalMessage(CONST msg: ARRAY OF CHAR);
+		PROCEDURE FinalMessage(error: BOOLEAN; CONST msg: ARRAY OF CHAR);
 		VAR message,name: ARRAY 256 OF CHAR;
 		BEGIN
 			IF diagnostics # NIL THEN
@@ -182,7 +202,11 @@ TYPE
 					Strings.Append (message, name);
 				END;
 				Strings.Append (message, msg);
-				diagnostics.Information (source, Diagnostics.Invalid, Diagnostics.Invalid, message);
+				IF error THEN
+					diagnostics.Error (source, Diagnostics.Invalid, Diagnostics.Invalid, message);
+				ELSE
+					diagnostics.Information (source, Diagnostics.Invalid, Diagnostics.Invalid, message);
+				END;
 			END
 		END FinalMessage;
 
@@ -204,6 +228,10 @@ TYPE
 
 
 	BEGIN
+		IF TraceError IN flags THEN
+			NEW(traceDiagnostics,diagnostics); diagnostics := traceDiagnostics
+		END;
+
 		IF backend = NIL THEN
 			system := Global.DefaultSystem()
 		ELSE
@@ -219,7 +247,7 @@ TYPE
 			Global.NewBuiltin(Global.Delegate,"DELEGATE",system.globalScope,FALSE);
 			Global.NewBuiltin(Global.systemHardwareAddress,"HWADR",system.systemScope,FALSE);
 			dataflowBackend := GetBackend("OCDataflowBackend");
-			IF dataflowBackend = NIL THEN FinalMessage("could not install dataflow backend"); RETURN FALSE END;
+			IF dataflowBackend = NIL THEN FinalMessage(TRUE,"could not install dataflow backend"); RETURN FALSE END;
 		END;
 		parser := Parser.NewParser( scanner, diagnostics );
 		IF DataFlow IN flags THEN
@@ -229,7 +257,7 @@ TYPE
 			(** first phase: scan and parse **)
 			module := parser.Module();
 			IF parser.error THEN
-				FinalMessage(" could not be compiled (parser errors).");
+				FinalMessage(TRUE," could not be compiled (parser errors).");
 				RETURN FALSE;
 			END;
 			ASSERT(module # NIL);
@@ -242,7 +270,7 @@ TYPE
 				checker := SemanticChecker.NewChecker(diagnostics,Info IN flags,system,symbolFileFormat,dataflowSpecification,importCache);
 				checker.Module(module);
 				IF checker.error THEN
-					FinalMessage(" could not be compiled (checker errors).");
+					FinalMessage(TRUE," could not be compiled (checker errors).");
 					RETURN FALSE
 				ELSIF Warnings IN flags THEN
 					warnings := SemanticChecker.NewWarnings(diagnostics);
@@ -268,7 +296,7 @@ TYPE
 						END;
 						backend.FindPC(module, split[0]^,sectionOffset);
 						IF backend.error THEN
-							FinalMessage(" could not be compiled (backend errors).");
+							FinalMessage(TRUE," could not be compiled (backend errors).");
 							RETURN FALSE
 						ELSE
 							RETURN TRUE
@@ -276,7 +304,7 @@ TYPE
 					END;
 					generatedModule := backend.Module(module);
 					IF backend.error THEN
-						FinalMessage(" could not be compiled (backend errors).");
+						FinalMessage(TRUE, " could not be compiled (backend errors).");
 						RETURN FALSE
 					END;
 				END;
@@ -284,7 +312,7 @@ TYPE
 
 				(** generate symbol file **)
 				IF (symbolFileFormat # NIL) & ~symbolFileFormat.Export(module, importCache) THEN
-					FinalMessage(" could not be compiled (symbol File errors).");
+					FinalMessage(TRUE, " could not be compiled (symbol File errors).");
 					RETURN FALSE
 				END;
 
@@ -292,13 +320,13 @@ TYPE
 				IF objectFileFormat # NIL THEN
 					objectFileFormat.Initialize(diagnostics);
 					IF generatedModule = NIL THEN
-						FinalMessage(" could not write object file (nothing generated).");
+						FinalMessage(TRUE, " could not write object file (nothing generated).");
 					ELSE
 						(*
 						IF FindPC IN flags THEN generatedModule.SetFindPC(findPC) END;
 						*)
 						IF ~objectFileFormat.Export(generatedModule,symbolFileFormat) THEN
-							FinalMessage(" could not be compiled (object file errors).");
+							FinalMessage(TRUE, " could not be compiled (object file errors).");
 							RETURN FALSE
 						END;
 					END;
@@ -308,7 +336,7 @@ TYPE
 					dataflowBackend.Initialize(diagnostics,flags,checker,system,dataflowSpecification);
 					generatedModule := dataflowBackend.Module(module);
 					IF dataflowBackend.error THEN
-						FinalMessage(" could not be compiled (dataflow backend errors)");
+						FinalMessage(TRUE, " could not be compiled (dataflow backend errors)");
 						RETURN FALSE
 					END;
 				END;
@@ -316,15 +344,15 @@ TYPE
 				IF dataflowSpecification = NIL THEN (* no dataflow *)
 				ELSIF (dataflowSpecification.types.Length() = 0) & (dataflowSpecification.instances.Length()=0) THEN (* nothing defined *)
 				ELSIF ~dataflowSpecification.Link(diagnostics,Info IN flags) THEN
-					FinalMessage(" could not link"); RETURN FALSE
+					FinalMessage(TRUE, " could not link"); RETURN FALSE
 				ELSIF ~dataflowSpecification.Emit() THEN
-					FinalMessage(" could not emit backend specification"); RETURN FALSE;
+					FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;
 				END;
 
 			ELSE Log;
 			END;
 			IF ~(Silent IN flags) & ~(FindPC IN flags) THEN
-				FinalMessage(" successfully compiled.")
+				FinalMessage(FALSE, " successfully compiled.")
 			END;
 		UNTIL ~parser.NextModule();
 		RETURN TRUE;
@@ -496,7 +524,7 @@ TYPE
 	VAR
 		filename: ARRAY 256 OF CHAR;
 		error: BOOLEAN; log: WMUtilities.WindowWriter;
-		diagnostics: StreamDiagnostics;
+		diagnostics: Diagnostics.StreamDiagnostics;
 		time: LONGINT; reader: Streams.Reader;
 		flags: SET;
 		backend: Backend.Backend;
@@ -510,7 +538,6 @@ TYPE
 
 		NEW(diagnostics, context.out);
 		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,dataflowSpecification,findPC) THEN
-			IF TraceError IN flags THEN diagnostics.TraceError END;
 
 			IF (Print IN flags) THEN
 				NEW(log,"Compiler",600,800,TRUE); log.SetFontSize(10);
