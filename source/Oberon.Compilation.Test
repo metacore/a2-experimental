@@ -39367,3 +39367,38 @@ positive: use SYSTEM.ADDRESS as array index
 	BEGIN b[a] := b[a]
 	END Test.
 
+positive: long jumps (backend test for TRM)
+
+	MODULE Test;
+
+	PROCEDURE LongJumpBackwards;
+	VAR a,b,c: LONGINT;
+	BEGIN
+		REPEAT
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+		UNTIL a<b
+	END LongJumpBackwards;
+
+	PROCEDURE LongJumpForwards;
+	VAR a,b,c: LONGINT;
+	BEGIN
+		IF a>=b THEN
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
+		END;
+	END LongJumpForwards;
+
+	END Test.
