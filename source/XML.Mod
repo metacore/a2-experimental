@@ -1289,6 +1289,7 @@ TYPE
 
 		PROCEDURE GetName*(): String;
 		BEGIN
+			ASSERT(name # NIL);
 			RETURN name
 		END GetName;
 
