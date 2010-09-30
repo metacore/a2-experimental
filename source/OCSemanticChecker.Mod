@@ -5476,7 +5476,8 @@ TYPE
 					ELSIF recordBody.isSafe THEN
 						Error(position,Diagnostics.Invalid,"duplicate safe flag")
 					ELSE
-						recordBody.SetActive(TRUE);SetProtectedRecord;
+						recordBody.SetSafe(TRUE);
+						SetProtectedRecord;
 					END;
 				ELSIF name.Equals(Global.NameRealtime) THEN
 					IF recordBody = NIL THEN
