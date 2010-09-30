@@ -1,7 +1,7 @@
 MODULE Models; (** AUTHOR "staubesv"; PURPOSE "Models"; *)
 
 IMPORT
-	Types, Strings, XML, Texts, TextUtilities, Repositories, WMProperties, WMEvents;
+	Locks, Types, Strings, XML, Texts, TextUtilities, Repositories, WMProperties, WMEvents;
 
 CONST
 	Ok* = Types.Ok;
@@ -15,11 +15,15 @@ TYPE
 	Model* = OBJECT(Repositories.Component)
 	VAR
 		onChanged- : WMEvents.EventSource;
+		changed : BOOLEAN;
+		lock : Locks.RWLock;
 
-		PROCEDURE &Init*;
+		PROCEDURE &Init*; (** protected *)
 		BEGIN
 			Init^;
 			NEW(onChanged, NIL, NIL, NIL, NIL);
+			changed := FALSE;
+			NEW(lock);
 		END Init;
 
 		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT); (** abstract *)
@@ -28,9 +32,48 @@ TYPE
 		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT); (** abstract *)
 		END GetGeneric;
 
+		PROCEDURE AcquireRead*;
+		BEGIN
+			lock.AcquireRead;
+		END AcquireRead;
+
+		PROCEDURE ReleaseRead*;
+		BEGIN
+			lock.ReleaseRead;
+		END ReleaseRead;
+
+		PROCEDURE HasReadLock*() : BOOLEAN;
+		BEGIN
+			RETURN lock.HasReadLock();
+		END HasReadLock;
+
+		PROCEDURE AcquireWrite*;
+		BEGIN
+			lock.AcquireWrite;
+		END AcquireWrite;
+
+		PROCEDURE ReleaseWrite*;
+		VAR notifyListeners : BOOLEAN;
+		BEGIN
+			(* If the last writer releases the lock and the model data has changed, we have to notify interested listeners *)
+			notifyListeners := (lock.GetWLockLevel() = 1) & changed;
+			lock.ReleaseWrite;
+			IF notifyListeners THEN
+				onChanged.Call(SELF);
+			END;
+		END ReleaseWrite;
+
+		PROCEDURE HasWriteLock*() : BOOLEAN;
+		BEGIN
+			RETURN lock.HasWriteLock();
+		END HasWriteLock;
+
+		(** 	Indicate that the value of the model has changed. Listeners will be notified when the writer lock
+			is released *)
 		PROCEDURE Changed*; (** protected *)
 		BEGIN
-			onChanged.Call(SELF);
+			ASSERT(HasWriteLock());
+			changed := TRUE;
 		END Changed;
 
 	END Model;
@@ -49,17 +92,19 @@ TYPE
 		END Init;
 
 		PROCEDURE Set*(value : BOOLEAN);
-		VAR changed : BOOLEAN;
 		BEGIN
-			BEGIN {EXCLUSIVE}
-				changed := SELF.value # value;
-				SELF.value := value;
-			END;
-			IF changed THEN Changed; END;
+			AcquireWrite;
+			IF (SELF.value # value) THEN Changed; END;
+			SELF.value := value;
+			ReleaseWrite;
 		END Set;
 
 		PROCEDURE Get*() : BOOLEAN;
-		BEGIN {EXCLUSIVE}
+		VAR value : BOOLEAN;
+		BEGIN
+			AcquireRead;
+			value := SELF.value;
+			ReleaseRead;
 			RETURN value;
 		END Get;
 
@@ -93,27 +138,29 @@ TYPE
 		END Init;
 
 		PROCEDURE Set*(value : LONGINT);
-		VAR changed : BOOLEAN;
 		BEGIN
-			BEGIN {EXCLUSIVE}
-				changed := SELF.value # value;
-				SELF.value := value;
-			END;
-			IF changed THEN Changed; END;
+			AcquireWrite;
+			IF (SELF.value # value) THEN Changed; END;
+			SELF.value := value;
+			ReleaseWrite;
 		END Set;
 
 		PROCEDURE Get*() : LONGINT;
-		BEGIN {EXCLUSIVE}
+		VAR value : LONGINT;
+		BEGIN
+			AcquireRead;
+			value := SELF.value;
+			ReleaseRead;
 			RETURN value;
 		END Get;
 
 		PROCEDURE Add*(value : LONGINT);
 		BEGIN
 			IF (value # 0) THEN
-				BEGIN {EXCLUSIVE}
-					SELF.value := SELF.value + value;
-				END;
+				AcquireWrite;
+				SELF.value := SELF.value + value;
 				Changed;
+				ReleaseWrite;
 			END;
 		END Add;
 
@@ -145,11 +192,6 @@ TYPE
 			SetNameAsString(StrBoundedInteger);
 		END Init;
 
-		PROCEDURE Set*(value : LONGINT);
-		BEGIN {EXCLUSIVE}
-			SELF.value := value;
-		END Set;
-
 	END BoundedInteger;
 
 TYPE
@@ -166,17 +208,19 @@ TYPE
 		END Init;
 
 		PROCEDURE Set*(value : REAL);
-		VAR changed : BOOLEAN;
 		BEGIN
-			BEGIN {EXCLUSIVE}
-				changed := SELF.value # value;
-				SELF.value := value;
-			END;
-			IF changed THEN Changed; END;
+			AcquireWrite;
+			IF (SELF.value # value) THEN Changed; END;
+			SELF.value := value;
+			ReleaseWrite;
 		END Set;
 
 		PROCEDURE Get*() : REAL;
-		BEGIN {EXCLUSIVE}
+		VAR value : REAL;
+		BEGIN
+			AcquireRead;
+			value := SELF.value;
+			ReleaseRead;
 			RETURN value;
 		END Get;
 
@@ -210,17 +254,19 @@ TYPE
 		END Init;
 
 		PROCEDURE Set*(value : LONGREAL);
-		VAR changed : BOOLEAN;
 		BEGIN
-			BEGIN {EXCLUSIVE}
-				changed := SELF.value # value;
-				SELF.value := value;
-			END;
-			IF changed THEN Changed; END;
+			AcquireWrite;
+			IF (SELF.value # value) THEN Changed; END;
+			SELF.value := value;
+			ReleaseWrite;
 		END Set;
 
 		PROCEDURE Get*() : LONGREAL;
-		BEGIN {EXCLUSIVE}
+		VAR value : LONGREAL;
+		BEGIN
+			AcquireRead;
+			value := SELF.value;
+			ReleaseRead;
 			RETURN value;
 		END Get;
 
@@ -254,17 +300,19 @@ TYPE
 		END Init;
 
 		PROCEDURE Set*(value : CHAR);
-		VAR changed : BOOLEAN;
 		BEGIN
-			BEGIN {EXCLUSIVE}
-				changed := SELF.value # value;
-				SELF.value := value;
-			END;
-			IF changed THEN Changed; END;
+			AcquireWrite;
+			IF (SELF.value # value) THEN Changed; END;
+			SELF.value := value;
+			ReleaseWrite;
 		END Set;
 
 		PROCEDURE Get*() : CHAR;
-		BEGIN {EXCLUSIVE}
+		VAR value : CHAR;
+		BEGIN
+			AcquireRead;
+			value := SELF.value;
+			ReleaseRead;
 			RETURN value;
 		END Get;
 
@@ -299,43 +347,46 @@ TYPE
 		END Init;
 
 		PROCEDURE Set*(value : Strings.String);
-		VAR changed : BOOLEAN;
 		BEGIN
 			ASSERT(value # NIL); (*? CHECK *)
-			BEGIN {EXCLUSIVE}
-				changed := value # SELF.value;
-				SELF.value := value;
-			END;
-			IF changed THEN Changed; END;
+			AcquireWrite;
+			IF (value # SELF.value) THEN Changed; END;
+			SELF.value := value;
+			ReleaseWrite;
 		END Set;
 
 		PROCEDURE Get*() : Strings.String;
-		BEGIN {EXCLUSIVE}
-			ASSERT(SELF.value # NIL);
+		VAR value : Strings.String;
+		BEGIN
+			AcquireRead;
+			value := SELF.value;
+			ReleaseRead;
+			ASSERT(value # NIL);
 			RETURN value;
 		END Get;
 
 		PROCEDURE SetAOC*(CONST value : ARRAY OF CHAR);
-		VAR changed : BOOLEAN; length : LONGINT;
+		VAR length : LONGINT;
 		BEGIN
 			length := 0;
 			WHILE (length < LEN(value)) & (value[length] # 0X) DO INC(length); END;
-			BEGIN {EXCLUSIVE}
-				IF (length > LEN(value)) THEN
-					SELF.value := Strings.NewString(value);
-					changed := TRUE;
-				ELSE
-					changed := SELF.value^ # value;
-					IF changed THEN COPY(value, SELF.value^); END;
-				END;
+			AcquireWrite;
+			IF (length > LEN(value)) THEN
+				SELF.value := Strings.NewString(value);
+				Changed;
+			ELSIF (SELF.value^ # value) THEN
+				COPY(value, SELF.value^);
+				Changed;
 			END;
 			ASSERT(SELF.value # NIL);
-			IF changed THEN Changed; END;
+			ReleaseWrite;
 		END SetAOC;
 
 		PROCEDURE GetAOC*(VAR value : ARRAY OF CHAR);
-		BEGIN {EXCLUSIVE}
+		BEGIN
+			AcquireRead;
 			COPY(SELF.value^, value);
+			ReleaseRead;
 		END GetAOC;
 
 		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
@@ -368,44 +419,50 @@ TYPE
 		END Init;
 
 		PROCEDURE Set*(value : SET);
-		VAR changed : BOOLEAN;
 		BEGIN
-			BEGIN {EXCLUSIVE}
-				changed := SELF.value # value;
-				SELF.value := value;
-			END;
-			IF changed THEN Changed; END;
+			AcquireWrite;
+			IF (SELF.value # value) THEN Changed; END;
+			SELF.value := value;
+			ReleaseWrite;
 		END Set;
 
 		PROCEDURE Get*() : SET;
-		BEGIN {EXCLUSIVE}
+		VAR value : SET;
+		BEGIN
+			AcquireRead;
+			value := SELF.value;
+			ReleaseRead;
 			RETURN value;
 		END Get;
 
 		PROCEDURE Include*(element : LONGINT);
-		VAR changed : BOOLEAN;
 		BEGIN
-			BEGIN {EXCLUSIVE}
-				changed := ~(element IN SELF.value);
-				IF changed THEN INCL(SELF.value, element); END;
+			AcquireWrite;
+			IF ~(element IN SELF.value) THEN
+				INCL(SELF.value, element);
+				Changed;
 			END;
-			IF changed THEN Changed(); END;
+			ReleaseWrite;
 		END Include;
 
 		PROCEDURE Exclude*(element : LONGINT);
-		VAR changed : BOOLEAN;
 		BEGIN
-			BEGIN {EXCLUSIVE}
-				changed := (element IN SELF.value);
-				IF changed THEN EXCL(SELF.value, element); END;
+			AcquireWrite;
+			IF (element IN SELF.value) THEN
+				EXCL(SELF.value, element);
+				Changed;
 			END;
-			IF changed THEN Changed(); END;
+			ReleaseWrite;
 		END Exclude;
 
-		PROCEDURE IsInSet*(element : LONGINT) : BOOLEAN;
-		BEGIN {EXCLUSIVE}
-			RETURN element IN SELF.value;
-		END IsInSet;
+		PROCEDURE Contains*(element : LONGINT) : BOOLEAN;
+		VAR result : BOOLEAN;
+		BEGIN
+			AcquireRead;
+			result := element IN SELF.value;
+			ReleaseRead;
+			RETURN result;
+		END Contains;
 
 	END Set;
 
