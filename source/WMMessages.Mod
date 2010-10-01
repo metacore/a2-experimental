@@ -37,7 +37,7 @@ TYPE
 		ext* : ANY; (** extended message *)
 	END;
 
-	MessageExtension* = OBJECT END MessageExtension;
+	MessageExtension* = POINTER TO RECORD END;
 
 	(** AsyncToken can be used to synchronize asynchronous method invocation *)
 	AsyncToken* = OBJECT
