@@ -1,7 +1,7 @@
 MODULE Models; (** AUTHOR "staubesv"; PURPOSE "Models"; *)
 
 IMPORT
-	Locks, Types, Strings, XML, Texts, TextUtilities, Repositories, WMProperties, WMEvents;
+	Streams, Locks, Types, Strings, XML, Texts, TextUtilities, Repositories, WMProperties, WMEvents;
 
 CONST
 	Ok* = Types.Ok;
@@ -12,6 +12,14 @@ CONST
 
 TYPE
 
+	(**
+		Base class of models.
+		Services:
+			- Abstract interface for generic read/write access
+			- Recursive reader/writer lock
+			- Notification of listeners
+			- Internalization/externalization
+	*)
 	Model* = OBJECT(Repositories.Component)
 	VAR
 		onChanged- : WMEvents.EventSource;
@@ -26,32 +34,44 @@ TYPE
 			NEW(lock);
 		END Init;
 
+	(** Generic access to data of the model using type conversion *)
+
+		(** Generically set data of model. Implicit type conversion if necessary and possible *)
 		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT); (** abstract *)
 		END SetGeneric;
 
+		(** Generically get data of model. Implicit type conversion if necessary and possible *)
 		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT); (** abstract *)
 		END GetGeneric;
 
+	(** Locking (Recursive reader/writer lock) *)
+
+		(** Acquire read lock. *)
 		PROCEDURE AcquireRead*;
 		BEGIN
 			lock.AcquireRead;
 		END AcquireRead;
 
+		(** Release read lock *)
 		PROCEDURE ReleaseRead*;
 		BEGIN
 			lock.ReleaseRead;
 		END ReleaseRead;
 
+		(** Returns TRUE if the caller holds a read lock, FALSE otherwise *)
 		PROCEDURE HasReadLock*() : BOOLEAN;
 		BEGIN
 			RETURN lock.HasReadLock();
 		END HasReadLock;
 
+		(** Acquire write lock *)
 		PROCEDURE AcquireWrite*;
 		BEGIN
 			lock.AcquireWrite;
 		END AcquireWrite;
 
+		(** Release write lock. If the data has changed, all listeners will be notified when the last
+			writer releases its lock *)
 		PROCEDURE ReleaseWrite*;
 		VAR notifyListeners : BOOLEAN;
 		BEGIN
@@ -63,18 +83,63 @@ TYPE
 			END;
 		END ReleaseWrite;
 
+		(** Returns TRUE if the caller holds the writer lock, FALSE otherwise *)
 		PROCEDURE HasWriteLock*() : BOOLEAN;
 		BEGIN
 			RETURN lock.HasWriteLock();
 		END HasWriteLock;
 
+	(** Change notification *)
+
 		(** 	Indicate that the value of the model has changed. Listeners will be notified when the writer lock
-			is released *)
+			is released. Caller must hold write lock! *)
 		PROCEDURE Changed*; (** protected *)
 		BEGIN
 			ASSERT(HasWriteLock());
 			changed := TRUE;
 		END Changed;
+
+	(** Internalization and externalization *)
+
+		PROCEDURE AddContent*(content : XML.Content); (** overwrite, protected *)
+		VAR string : Types.String; res : LONGINT;
+		BEGIN
+			IF (SELF IS Container) THEN
+				AddContent^(content);
+			ELSE
+				(* This violates the XML document structure. Could be fixed by allowing XML.ArrayChars SET and GET
+					procedures that dynamically set/get the model data as string *)
+				ASSERT((content # NIL) & (content IS XML.ArrayChars));
+				string.value := content(XML.ArrayChars).GetStr();
+				IF (string.value # NIL) THEN
+					SetGeneric(string, res); (* ignore res *)
+				END;
+			END;
+		END AddContent;
+
+		(** Write current data value of model to stream <w> at indention level <level>. Caller must hold read lock *)
+		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT);
+		BEGIN
+			ASSERT(w # NIL);
+			ASSERT(HasReadLock());
+		END WriteValue;
+
+		(** Externalize model to stream <w> at indention level <level> *)
+		PROCEDURE Write*(w: Streams.Writer; level : LONGINT); (** overwrite *)
+		VAR name : Strings.String;
+		BEGIN
+			IF (SELF IS Container) THEN
+				Write^(w, level);
+			ELSE
+				(* Hmm... this violates the idea of XML.Element as container *)
+				AcquireRead;
+				name := GetName();
+				w.Char('<'); w.String(name^); WriteAttributes(w, level); w.Char('>');
+				WriteValue(w, level + 1);
+				w.String("</"); w.String(name^); w.Char('>');
+				ReleaseRead;
+			END;
+		END Write;
 
 	END Model;
 
@@ -121,6 +186,12 @@ TYPE
 			value := Get();
 			Types.SetBoolean(wrapper, value, res);
 		END GetGeneric;
+
+		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
+		BEGIN
+			WriteValue^(w, level);
+			IF value THEN w.String("TRUE"); ELSE w.String("FALSE"); END;
+		END WriteValue;
 
 	END Boolean;
 
@@ -178,21 +249,13 @@ TYPE
 			Types.SetInteger(wrapper, value, res);
 		END GetGeneric;
 
-	END Integer;
-
-TYPE
-
-	BoundedInteger* = OBJECT(Integer)
-	VAR
-		min, max : LONGINT;
-
-		PROCEDURE &Init*;
+		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
 		BEGIN
-			Init^;
-			SetNameAsString(StrBoundedInteger);
-		END Init;
+			WriteValue^(w, level);
+			w.Int(value, 0);
+		END WriteValue;
 
-	END BoundedInteger;
+	END Integer;
 
 TYPE
 
@@ -237,6 +300,12 @@ TYPE
 			value := Get();
 			Types.SetReal(wrapper, value, res);
 		END GetGeneric;
+
+		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
+		BEGIN
+			WriteValue^(w, level);
+			w.Float(value, 8);
+		END WriteValue;
 
 	END Real;
 
@@ -284,6 +353,12 @@ TYPE
 			Types.SetLongreal(wrapper, value, res);
 		END GetGeneric;
 
+		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
+		BEGIN
+			WriteValue^(w, level);
+			w.Float(value, 10);
+		END WriteValue;
+
 	END Longreal;
 
 TYPE
@@ -329,6 +404,16 @@ TYPE
 			value := Get();
 			Types.SetChar(wrapper, value, res);
 		END GetGeneric;
+
+		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
+		BEGIN
+			WriteValue^(w, level);
+			IF IsPrintableCharacter(value) THEN
+				w.Char(value);
+			ELSE
+				w.String("0x"); w.Int(ORD(value), 0); (*? TBD Support in Types.Mod *)
+			END;
+		END WriteValue;
 
 	END Char;
 
@@ -403,6 +488,13 @@ TYPE
 			Types.SetString(wrapper, value, res);
 		END GetGeneric;
 
+		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
+		VAR res : LONGINT;
+		BEGIN
+			WriteValue^(w, level);
+			XML.UTF8ToStream(value^, w, res); (* ignore res *)
+		END WriteValue;
+
 	END String;
 
 TYPE
@@ -463,6 +555,12 @@ TYPE
 			ReleaseRead;
 			RETURN result;
 		END Contains;
+
+		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
+		BEGIN
+			WriteValue^(w, level);
+			w.Set(value);
+		END WriteValue;
 
 	END Set;
 
@@ -535,6 +633,12 @@ TYPE
 			text := Get();
 			Types.SetText(wrapper, text, res);
 		END GetGeneric;
+
+		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
+		BEGIN
+			WriteValue^(w, level);
+			(* TBD *)
+		END WriteValue;
 
 	END Text;
 
@@ -617,6 +721,15 @@ VAR
 	PrototypeBiMin, PrototypeBiMax : WMProperties.Int32Property;
 	StrBoolean, StrInteger, StrBoundedInteger, StrReal, StrLongreal, StrChar, StrString, StrSet, StrText, StrContainer : Strings.String;
 
+(* Helper procedures *)
+
+PROCEDURE IsPrintableCharacter(ch : CHAR) : BOOLEAN;
+BEGIN
+	RETURN (" " < ch) & (ORD(ch) < 128);
+END IsPrintableCharacter;
+
+(** Generator procedures *)
+
 PROCEDURE GenBoolean*() : XML.Element;
 VAR boolean : Boolean;
 BEGIN
@@ -628,12 +741,6 @@ VAR integer : Integer;
 BEGIN
 	NEW(integer); RETURN integer;
 END GenInteger;
-
-PROCEDURE GenBoundedInteger*() : XML.Element;
-VAR bi : BoundedInteger;
-BEGIN
-	NEW(bi); RETURN bi;
-END GenBoundedInteger;
 
 PROCEDURE GenReal*() : XML.Element;
 VAR real : Real;
