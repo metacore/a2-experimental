@@ -5912,8 +5912,6 @@ TYPE
 		BEGIN RETURN SymbolFileFormat.Get()
 		END DefaultSymbolFileFormat;
 
-
-
 	END IntermediateBackend;
 
 	GenericCodeGenerator*= OBJECT
@@ -5954,6 +5952,9 @@ TYPE
 		BEGIN
 			IF diagnostics # NIL THEN
 				diagnostics.Error(in.name, inPC, Diagnostics.Invalid, message)
+			END;
+			IF dump # NIL THEN (* to see error in trace output also *)
+				dump.String("Error: "); dump.String(message); dump.Ln;
 			END;
 			error := TRUE;
 		END Error;
