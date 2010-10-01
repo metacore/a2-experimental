@@ -159,8 +159,10 @@ TYPE
 		PROCEDURE Set*(value : BOOLEAN);
 		BEGIN
 			AcquireWrite;
-			IF (SELF.value # value) THEN Changed; END;
-			SELF.value := value;
+			IF (SELF.value # value) THEN
+				SELF.value := value;
+				Changed;
+			END;
 			ReleaseWrite;
 		END Set;
 
@@ -211,8 +213,10 @@ TYPE
 		PROCEDURE Set*(value : LONGINT);
 		BEGIN
 			AcquireWrite;
-			IF (SELF.value # value) THEN Changed; END;
-			SELF.value := value;
+			IF (SELF.value # value) THEN
+				SELF.value := value;
+				Changed;
+			END;
 			ReleaseWrite;
 		END Set;
 
@@ -273,8 +277,10 @@ TYPE
 		PROCEDURE Set*(value : REAL);
 		BEGIN
 			AcquireWrite;
-			IF (SELF.value # value) THEN Changed; END;
-			SELF.value := value;
+			IF (SELF.value # value) THEN
+				SELF.value := value;
+				Changed;
+			END;
 			ReleaseWrite;
 		END Set;
 
@@ -325,8 +331,10 @@ TYPE
 		PROCEDURE Set*(value : LONGREAL);
 		BEGIN
 			AcquireWrite;
-			IF (SELF.value # value) THEN Changed; END;
-			SELF.value := value;
+			IF (SELF.value # value) THEN
+				SELF.value := value;
+				Changed;
+			END;
 			ReleaseWrite;
 		END Set;
 
@@ -377,8 +385,10 @@ TYPE
 		PROCEDURE Set*(value : CHAR);
 		BEGIN
 			AcquireWrite;
-			IF (SELF.value # value) THEN Changed; END;
-			SELF.value := value;
+			IF (SELF.value # value) THEN
+				SELF.value := value;
+				Changed;
+			END;
 			ReleaseWrite;
 		END Set;
 
@@ -435,8 +445,10 @@ TYPE
 		BEGIN
 			ASSERT(value # NIL); (*? CHECK *)
 			AcquireWrite;
-			IF (value # SELF.value) THEN Changed; END;
-			SELF.value := value;
+			IF (value # SELF.value) THEN
+				SELF.value := value;
+				Changed;
+			END;
 			ReleaseWrite;
 		END Set;
 
@@ -513,8 +525,10 @@ TYPE
 		PROCEDURE Set*(value : SET);
 		BEGIN
 			AcquireWrite;
-			IF (SELF.value # value) THEN Changed; END;
-			SELF.value := value;
+			IF (SELF.value # value) THEN
+				SELF.value := value;
+				Changed;
+			END;
 			ReleaseWrite;
 		END Set;
 
