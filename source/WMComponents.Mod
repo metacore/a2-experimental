@@ -1,7 +1,7 @@
 MODULE WMComponents;	(** AUTHOR "TF"; PURPOSE "Experiments with component concepts"; *)
 
 IMPORT
-	KernelLog, Inputs, Streams, Files,
+	KernelLog, Inputs, Streams, Events, Files,
 	XML, XMLScanner, XMLParser, XMLObjects, Codecs, Localization, Repositories,
 	Messages := WMMessages, Rectangles := WMRectangles,
 	WMEvents, WMProperties, WMGraphics, Strings, WM := WMWindowManager, Raster,
@@ -15,6 +15,8 @@ CONST
 	TraceFocus = 0;
 	TraceFinalize = 1;
 	Trace = {};
+
+	Logging = TRUE;
 
 TYPE
 	(** Installable event preview handlers. Are called by the components sequencer thread *)
@@ -33,6 +35,47 @@ TYPE
 	LanguageExtension* = POINTER TO RECORD(Messages.MessageExtension)
 		languages* : Localization.Languages;
 	END;
+
+	Event* = RECORD
+		timestamp- : LONGINT;
+	END;
+
+	KeyPressedEvent* = RECORD(Event)
+		ucs- : LONGINT;
+		flags- : SET;
+		keysym- : LONGINT;
+	END;
+
+	PointerEvent* = RECORD(Event)
+		x-, y-, z- : LONGINT;
+		keys- : SET;
+	END;
+
+	EventContext* = OBJECT(Repositories.Context)
+	VAR
+		originator- : Component; (** {originator # NIL} *)
+		command- : Strings.String; (** {command # NIL} *)
+		timestamp- : LONGINT;
+
+		PROCEDURE &New(originator : Component; command : Strings.String; in, arg : Streams.Reader; out, error : Streams.Writer; caller : OBJECT);
+		BEGIN
+			ASSERT((originator # NIL) & (command # NIL));
+			SELF.originator := originator;
+			SELF.command := command;
+			Init(in, arg, out, error, caller);
+		END New;
+
+	END EventContext;
+
+	PointerContext* = OBJECT(EventContext)
+	VAR
+		pointer- : PointerEvent;
+	END PointerContext;
+
+	KeyContext* = OBJECT(EventContext)
+	VAR
+		key- : KeyPressedEvent;
+	END KeyContext;
 
 TYPE
 	(** Basic component *)
@@ -421,6 +464,33 @@ TYPE
 				AddAttribute^(attribute) (* save the attribute literally if it is not a known property of the component *)
 			END
 		END AddAttribute;
+
+		PROCEDURE HasAttribute*(CONST name : ARRAY OF CHAR) : BOOLEAN;
+		BEGIN
+			RETURN properties.HasProperty(name) OR HasAttribute^(name);
+		END HasAttribute;
+
+		PROCEDURE SetAttributeValue*(CONST name, value : ARRAY OF CHAR);
+		VAR dummyName, dummyValue : Strings.String;
+		BEGIN
+			dummyName := Strings.NewString(name);
+			dummyValue := Strings.NewString(value);
+			IF ~properties.SetPropertyValue(dummyName, dummyValue) THEN
+				SetAttributeValue^(name, value);
+			END;
+		END SetAttributeValue;
+
+		PROCEDURE GetAttributeValue*(CONST name : ARRAY OF CHAR) : Strings.String;
+		VAR dummy : Strings.String;
+		BEGIN
+			NEW(dummy, 256);
+			IF properties.GetPropertyValue(name, dummy^) THEN
+				RETURN dummy;
+			ELSE
+				RETURN GetAttributeValue^(name);
+			END;
+		END GetAttributeValue;
+
 	END Component;
 
 TYPE
@@ -1033,6 +1103,46 @@ TYPE
 		BEGIN ASSERT(IsCallFromSequencer());
 		END KeyEvent;
 
+		PROCEDURE CheckKeyEvents(ucs : LONGINT; flags: SET; VAR keySym: LONGINT); (** FINAL *)
+		VAR event : KeyPressedEvent; command : Strings.String;
+		BEGIN
+			ASSERT(IsCallFromSequencer());
+			event.ucs := ucs; event.flags := flags; event.keysym := keySym;
+
+			IF (keySym = Inputs.KsReturn) THEN
+				command := GetAttributeValue("onReturn");
+			ELSIF (keySym = Inputs.KsEscape) THEN
+				command := GetAttributeValue("onEscape");
+			ELSE
+				command := GetAttributeValue("onKeyPressed");
+			END;
+
+			IF (command # NIL) THEN
+				HandleEvent(event, SELF, command);
+			END;
+		END CheckKeyEvents;
+
+		PROCEDURE CheckPointerEvent(x, y, z : LONGINT; keys : SET);
+		VAR event : PointerEvent; command : Strings.String;
+		BEGIN
+			ASSERT(IsCallFromSequencer());
+			event.x := x; event.y := y; event.z := z;
+
+			IF ({0} * keys = {0}) THEN
+				command := GetAttributeValue("onLeftClick");
+			ELSIF ({1} * keys = {1}) THEN
+				command := GetAttributeValue("onRightClick");
+			ELSIF ({2} * keys = {2}) THEN
+				command := GetAttributeValue("onMiddleClick");
+			ELSIF (keys # {}) THEN
+				command := GetAttributeValue("onClick");
+			END;
+
+			IF (command # NIL) THEN
+				HandleEvent(event, SELF, command);
+			END;
+		END CheckPointerEvent;
+
 		PROCEDURE HandleInternal*(VAR msg : Messages.Message); (** PROTECTED *)
 		VAR
 			po : VisualComponent; nm : Messages.Message; handled : BOOLEAN; b : Rectangles.Rectangle;
@@ -1062,7 +1172,7 @@ TYPE
 				IF (fPointerOwner = SELF) THEN
 					IF msg.msgSubType = Messages.MsgSubPointerMove THEN
 						IF extPointerMove # NIL THEN extPointerMove(msg.x, msg.y, msg.flags, handled) END;
-							SetInternalPointerInfo(pointerInfo);
+						SetInternalPointerInfo(pointerInfo);
 						IF ~handled THEN PointerMove(msg.x, msg.y, msg.flags) END;
 						IF msg.dz # 0 THEN WheelMove(msg.dz) END
 					ELSIF msg.msgSubType = Messages.MsgSubPointerDown THEN
@@ -1075,7 +1185,10 @@ TYPE
 					ELSIF msg.msgSubType = Messages.MsgSubPointerLeave THEN
 						IF extPointerLeave # NIL THEN extPointerLeave(handled) END;
 						IF ~handled THEN PointerLeave END
-					END
+					END;
+					IF (msg.flags * {0, 1, 2} # {}) THEN
+						CheckPointerEvent(msg.x, msg.y, msg.z, msg.flags);
+					END;
 				ELSE
 					b := fPointerOwner.bounds.Get();
 					msg.x := msg.x - b.l; msg.y := msg.y - b.t;
@@ -1089,7 +1202,8 @@ TYPE
 					ELSIF msg.y = 0FF67H THEN ShowContextMenu(0, 0)
 					ELSE
 						IF extKeyEvent # NIL THEN extKeyEvent(msg.x, msg.flags, msg.y, handled) END;
-						IF ~handled THEN KeyEvent(msg.x, msg.flags, msg.y) END
+						IF ~handled THEN KeyEvent(msg.x, msg.flags, msg.y) END;
+						CheckKeyEvents(msg.x, msg.flags, msg.y);
 					END
 				END;
 			ELSIF msg.msgType = Messages.MsgDrag THEN
@@ -1424,6 +1538,94 @@ VAR
 	currentStyle- : XML.Element;
 	componentStyleMsg- : ComponentStyleChanged;
 
+	timestamp : LONGINT;
+
+PROCEDURE IsWhiteSpace(ch : CHAR) : BOOLEAN;
+BEGIN
+	RETURN ch <= " ";
+END IsWhiteSpace;
+
+PROCEDURE SkipWhiteSpace(CONST string : ARRAY OF CHAR; VAR index : LONGINT);
+VAR length : LONGINT;
+BEGIN
+	length := LEN(string);
+	WHILE (index < length) & (string[index] # 0X) & IsWhiteSpace(string[index]) DO INC(index); END;
+	ASSERT(index < LEN(string));
+END SkipWhiteSpace;
+
+PROCEDURE ReadWord(CONST string : ARRAY OF CHAR; VAR word : ARRAY OF CHAR; VAR index : LONGINT) : BOOLEAN;
+VAR length, wordLength, i : LONGINT;
+BEGIN
+	SkipWhiteSpace(string, index);
+	length := LEN(string);
+	wordLength := LEN(word);
+	i := 0;
+	WHILE (index < length) & (string[index] # 0X) & ~IsWhiteSpace(string[index]) & (i < wordLength) DO
+		word[i] := string[index];
+		INC(i);
+		INC(index);
+	END;
+	IF (i < wordLength) THEN word[i] := 0X; END;
+	ASSERT(index < LEN(string));
+	RETURN (i > 0) & (index < length) & (i < wordLength);
+END ReadWord;
+
+PROCEDURE GenerateContext*(command : Strings.String; index : LONGINT; originator : Component; CONST event : Event) : EventContext;
+VAR
+	context : EventContext; pointerContext : PointerContext; keyContext : KeyContext;
+	arguments : Streams.StringReader;
+	i : LONGINT;
+BEGIN
+	ASSERT((command # NIL) & (0 <= index) & (index < LEN(command)));
+	i := index;
+	WHILE (i < LEN(command)) & (command[i] # 0X) DO INC(i); END;
+	IF (i # index) THEN
+		NEW(arguments, i - index + 1);
+		arguments.SetRaw(command^, index, i - index + 1);
+	ELSE
+		arguments := NIL;
+	END;
+	IF (event IS PointerEvent) THEN
+		NEW(pointerContext, originator, command, NIL, arguments, NIL, NIL, NIL); pointerContext. pointer := event(PointerEvent);
+		context := pointerContext;
+	ELSIF (event IS KeyPressedEvent) THEN
+		NEW(keyContext, originator, command, NIL, arguments, NIL, NIL, NIL); keyContext.key := event(KeyPressedEvent);
+		context := keyContext;
+	ELSE
+		NEW(context, originator, command, NIL, arguments, NIL, NIL, NIL);
+	END;
+	BEGIN {EXCLUSIVE}
+		context.timestamp := timestamp;
+		INC(timestamp);
+	END;
+	ASSERT(context # NIL);
+	RETURN context;
+END GenerateContext;
+
+PROCEDURE HandleEvent*(CONST event : Event; originator : Component; command : Strings.String);
+VAR
+	commandString : ARRAY 128 OF CHAR;
+	context : EventContext;
+	msg : Events.Message;
+	index : LONGINT;
+BEGIN
+	ASSERT((originator # NIL) & (command # NIL));
+	index := 0;
+	IF Logging THEN
+		COPY(command^, msg);
+		Events.AddEvent("Components", Events.Information, 0, 0, 0, msg, FALSE);
+	END;
+
+	IF ReadWord(command^, commandString, index) THEN
+		context := GenerateContext(command, index, originator, event);
+		Commands.Activate(commandString, context, {Commands.Wait}, context.result, msg); (*? for now synchronous call *)
+		IF (context.result # Commands.Ok) THEN
+			Events.AddEvent("Components", Events.Error, 0, 0, 0, msg, FALSE);
+		END;
+	ELSE
+		Events.AddEvent("Components", Events.Error, 0, 0, 0, "Expected command", FALSE);
+	END;
+END HandleEvent;
 
 (** Activate a string of commands, including their parameters.
 	The string is parsed from left to right and Activate is called for every command.
@@ -1769,6 +1971,7 @@ BEGIN
 END NewLine;
 
 BEGIN
+	timestamp := 0;
 	NEW(componentStyleMsg);
 	NEW(propertyListList);
 	InitStrings;
