@@ -1616,6 +1616,45 @@ BEGIN
 	IF (name = "") THEN COPY(namespace, name); COPY("", namespace); END; (* no namespace *)
 END SplitMacroString;
 
+PROCEDURE ReportError(CONST text, argument1, argument2 : ARRAY OF CHAR);
+VAR
+	message : Events.Message;
+	textIdx, messageIdx : LONGINT;
+	secondArgument : BOOLEAN;
+
+	PROCEDURE Append(VAR message : ARRAY OF CHAR; CONST argument : ARRAY OF CHAR; VAR index : LONGINT);
+	VAR i : LONGINT;
+	BEGIN
+		i := 0;
+		WHILE (i < LEN(argument)) & (argument[i] # 0X) & (index < LEN(message) - 1) DO
+			message[index] := argument[i];
+			INC(i);
+			INC(index);
+		END;
+	END Append;
+
+BEGIN
+	secondArgument := FALSE;
+	textIdx := 0;
+	messageIdx := 0;
+	WHILE (textIdx < LEN(text)) & (text[textIdx] # 0X) & (messageIdx < LEN(message) - 1) DO
+		IF (text[textIdx] # "%") THEN
+			message[messageIdx] := text[textIdx];
+			INC(messageIdx);
+		ELSE
+			IF ~secondArgument THEN
+				secondArgument := TRUE;
+				Append(message, argument1, messageIdx);
+			ELSE
+				Append(message, argument2, messageIdx);
+			END;
+		END;
+		INC(textIdx);
+	END;
+	message[messageIdx] := 0X;
+	Events.AddEvent("Components", Events.Error, 0, 0, 0, message, FALSE);
+END ReportError;
+
 PROCEDURE GenerateContext*(oldCommand, command : Strings.String; index : LONGINT; originator : Component; CONST event : Event) : EventContext;
 VAR
 	context : EventContext; pointerContext : PointerContext; keyContext : KeyContext;
@@ -1763,12 +1802,47 @@ BEGIN
 	ELSE
 		newCommand := command;
 	END;
-	KernelLog.String("OLD="); KernelLog.String(command^); KernelLog.Ln;
-	KernelLog.String("NEW="); KernelLog.String(newCommand^); KernelLog.Ln;
 	ASSERT(newCommand # NIL);
 END SubstituteMacros;
 
-PROCEDURE DefaultMacroHandler(CONST macro : ARRAY OF CHAR; originator : Component; w : Streams.Writer; VAR handled : BOOLEAN);
+PROCEDURE GetAttributeValue(originator : Component; CONST fullname : ARRAY OF CHAR) : Strings.String;
+VAR value : Strings.String; c : Component; component, attribute : ARRAY 64 OF CHAR;
+BEGIN
+	value := NIL;
+	IF (originator # NIL) THEN
+		Strings.GetExtension(fullname, component, attribute);
+		IF (attribute = "") THEN
+			COPY(component, attribute);
+			COPY("", component);
+		END;
+		IF (component[0] = "@") THEN component[0] := "&"; END; (*? TBD: Hack to avoid ampersand in XML *)
+
+		IF (component = "") THEN
+			c := originator;
+		ELSE
+			c := originator.Find(component);
+		END;
+
+		IF (c # NIL) THEN
+			IF c.HasAttribute(attribute) THEN
+				RETURN c.GetAttributeValue(attribute);
+			ELSE
+				ReportError("Attribute % of component % not found", attribute, component);
+			END;
+		ELSE
+			ReportError("Component % not found", component, "");
+		END;
+	ELSE
+		ReportError("Cannot read attribute % because originator unknown", fullname, "");
+	END;
+	RETURN value;
+END GetAttributeValue;
+
+PROCEDURE DefaultMacroHandler(CONST macro : Macro; originator : Component; w : Streams.Writer; VAR handled : BOOLEAN);
+CONST
+	Attribute = "attribute=";
+VAR
+	string, value : Strings.String;
 BEGIN
 	ASSERT(w # NIL);
 	handled := TRUE;
@@ -1776,6 +1850,14 @@ BEGIN
 		WriteSelectionToStream(w);
 	ELSIF (macro = "clipboard") THEN
 		TextUtilities.TextToStream(Texts.clipboard, w);
+	ELSIF Strings.StartsWith(Attribute, 0, macro) THEN
+		string := Strings.Substring(Strings.Length(Attribute), Strings.Length(macro), macro);
+		value := GetAttributeValue(originator, string^);
+		IF (value # NIL) THEN
+			w.String(value^);
+		ELSE
+			handled := FALSE;
+		END;
 	ELSE
 		handled := FALSE;
 	END;
