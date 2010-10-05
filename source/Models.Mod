@@ -580,38 +580,70 @@ TYPE
 
 TYPE
 
+	(*? would make more sense to Texts.UnicodeText to be the model itself *)
 	Text* = OBJECT(Model)
 	VAR
-		text : Texts.Text; (* {value # NIL} *)
+		value : Texts.Text; (* {value # NIL} *)
 
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
 			SetNameAsString(StrText);
-			NEW(text);
+			NEW(value); value.onTextChanged.Add(OnTextChanged);
 		END Init;
 
-		PROCEDURE Set*(text : Texts.Text);
-		BEGIN {EXCLUSIVE}
-			IF (text = NIL) THEN
-				SELF.text.AcquireWrite;
-				SELF.text.Delete(0, SELF.text.GetLength());
-				SELF.text.ReleaseWrite;
-			ELSE
-				SELF.text.onTextChanged.Remove(OnTextChanged);
-				SELF.text := text;
-				SELF.text.onTextChanged.Add(OnTextChanged);
+		PROCEDURE AcquireRead*;
+		BEGIN
+			value.AcquireRead;
+		END AcquireRead;
+
+		PROCEDURE ReleaseRead*;
+		BEGIN
+			value.ReleaseRead;
+		END ReleaseRead;
+
+		PROCEDURE HasReadLock*() : BOOLEAN;
+		BEGIN
+			RETURN value.HasReadLock();
+		END HasReadLock;
+
+		PROCEDURE AcquireWrite;
+		BEGIN
+			value.AcquireWrite;
+		END AcquireWrite;
+
+		PROCEDURE ReleaseWrite;
+		BEGIN
+			value.ReleaseWrite;
+			onChanged.Call(SELF); (*? TBD only call when text has changed *)
+		END ReleaseWrite;
+
+		PROCEDURE HasWriteLock*() : BOOLEAN;
+		BEGIN
+			RETURN value.HasWriteLock();
+		END HasWriteLock;
+
+		(* will copy text! *)
+		PROCEDURE Set*(value : Texts.Text);
+		BEGIN
+			AcquireWrite;
+			IF (SELF.value # value) THEN
+				SELF.value.Delete(0, SELF.value.GetLength());
+				value.AcquireRead;
+				SELF.value.CopyFromText(value, 0, value.GetLength(), 0);
+				value.ReleaseRead;
+				Changed;
 			END;
-			ASSERT(text # NIL);
-			Changed;
+			ReleaseWrite;
 		END Set;
 
 		PROCEDURE Get*() : Texts.Text;
-		VAR text : Texts.Text;
-		BEGIN {EXCLUSIVE}
-			text := SELF.text;
-			ASSERT(text # NIL);
-			RETURN text;
+		VAR value : Texts.Text;
+		BEGIN
+			AcquireRead;
+			value := SELF.value;
+			ReleaseRead;
+			RETURN value;
 		END Get;
 
 		PROCEDURE OnTextChanged(sender, data : ANY);
@@ -620,18 +652,18 @@ TYPE
 		END OnTextChanged;
 
 		PROCEDURE SetAsString*(CONST string : ARRAY OF CHAR);
-		BEGIN {EXCLUSIVE}
-			SELF.text.AcquireWrite;
-			SELF.text.Delete(0, SELF.text.GetLength());
-			TextUtilities.StrToText(SELF.text, 0, string);
-			SELF.text.ReleaseWrite;
+		BEGIN
+			value.AcquireWrite;
+			value.Delete(0, value.GetLength());
+			TextUtilities.StrToText(value, 0, string);
+			ReleaseWrite;
 		END SetAsString;
 
 		PROCEDURE GetAsString*(VAR string : ARRAY OF CHAR);
-		BEGIN {EXCLUSIVE}
-			SELF.text.AcquireRead;
-			TextUtilities.TextToStr(SELF.text, string);
-			SELF.text.ReleaseRead;
+		BEGIN
+			AcquireRead;
+			TextUtilities.TextToStr(value, string);
+			ReleaseRead;
 		END GetAsString;
 
 		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
@@ -642,10 +674,10 @@ TYPE
 		END SetGeneric;
 
 		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR text : Texts.Text;
+		VAR value : Texts.Text;
 		BEGIN
-			text := Get();
-			Types.SetText(wrapper, text, res);
+			value := Get();
+			Types.SetText(wrapper, value, res);
 		END GetGeneric;
 
 		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
