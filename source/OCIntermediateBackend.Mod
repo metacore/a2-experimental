@@ -5971,7 +5971,63 @@ TYPE
 
 		(* generic *)
 		PROCEDURE Section*(in: IntermediateCode.Section; out: BinaryCode.Section);
-		VAR pc,i: LONGINT; name: SyntaxTree.String; ignore: BOOLEAN; instruction: IntermediateCode.Instruction;
+		VAR pc,i: LONGINT; name: SyntaxTree.String; ignore: BOOLEAN; instruction: IntermediateCode.Instruction
+
+			PROCEDURE CheckAcquire(CONST instr: IntermediateCode.Instruction);
+			VAR i: LONGINT;
+
+				PROCEDURE CheckUsage(CONST instr: IntermediateCode.Instruction; register: LONGINT; at: LONGINT);
+				BEGIN
+					IF instr.op1.register = register THEN lastUse[register] := at
+					ELSIF instr.op2.register = register THEN lastUse[register] := at
+					ELSIF instr.op3.register = register THEN lastUse[register] := at
+					END;
+				END CheckUsage;
+
+				PROCEDURE CheckDest(CONST instr: IntermediateCode.Instruction; register: LONGINT): BOOLEAN;
+				(* check if instruction uses register as new destination operand
+					examples:
+						mov $0, $1
+						add $0, [$1]
+						call (implicit for $res and $res2)
+					but not:
+						mov [$0], $1
+						add $0, $0, 1
+				*)
+				BEGIN
+					RETURN
+					(instr.op1.mode = IntermediateCode.ModeRegister)
+					& (IntermediateCode.Op1IsDestination IN IntermediateCode.instructionFormat[instr.opcode].flags) (* first operand is destination operand *)
+					& (instr.op1.register = register) & (instr.op2.register # register) & (instr.op3.register # register)
+					OR (instr.opcode = IntermediateCode.call) & (register IN {IntermediateCode.Result, IntermediateCode.Result2})
+				END CheckDest;
+
+				PROCEDURE Reserve(register: LONGINT);
+				BEGIN
+					IF (register >0) & CheckDest(instr,register) THEN
+						Assert(lastUse[register] < 0,"error in register usage");
+						i := pc+1; lastUse[register] := pc;
+						WHILE (i<in.pc) & ~CheckDest(in.instructions[i],register) DO
+							CheckUsage(in.instructions[i],register,i); INC(i);
+						END;
+						IF (instr.opcode # IntermediateCode.call) OR (lastUse[register] >pc) THEN (* used at all *)
+							IF dump # NIL THEN
+								dump.String("map virtual register $"); dump.Int(register,1);
+								dump.String(" until "); dump.Int(lastUse[register],1); dump.Ln;
+							END;
+							MapVirtualRegister(register,instr.op1.type);
+						ELSE lastUse[register] := -1;
+						END;
+					END;
+				END Reserve;
+
+			BEGIN
+				Reserve(instr.op1.register);
+				IF instr.opcode = IntermediateCode.call THEN
+					Reserve(IntermediateCode.Result);
+					Reserve(IntermediateCode.Result2);
+				END;
+			END CheckAcquire;
 
 			PROCEDURE Ignore(CONST instr: IntermediateCode.Instruction): BOOLEAN;
 			VAR register: LONGINT;
@@ -6090,11 +6146,23 @@ TYPE
 				END;
 				IF ~ignore THEN
 					IF instruction.opcode = IntermediateCode.acquire THEN
+						IF dump # NIL THEN
+							dump.String("acquire ignored");
+							dump.Int(instruction.op1.register,1); dump.String(" to ");
+							dump.Int(SHORT(instruction.op3.intValue),1); dump.Ln;
+						END;
+					ELSE
+						CheckAcquire(instruction);
+						Generate(instruction);
+					END;
+					(*
+					IF instruction.opcode = IntermediateCode.acquire THEN
 						lastUse[instruction.op1.register] := SHORT(instruction.op3.intValue);
 						MapVirtualRegister(instruction.op1.register, instruction.op1.type);
 					ELSE
 						Generate(instruction);
 					END;
+					*)
 				END;
 				Release(instruction);
 			END;
