@@ -27,7 +27,8 @@ MODULE WMInspectionComponents; (** AUTHOR "staubesv"; PURPOSE "Components for co
 
 IMPORT
 	SYSTEM,
-	Kernel, KernelLog, Strings, Files, XML, XMLObjects, Repositories, Types, Models, WMDialogs, WMUtilities,
+	Modules, Kernel, KernelLog, Strings, Files, XML, XMLObjects, Repositories, Types, Models, WMDialogs, WMUtilities,
+	WMMessages, WMWindowManager,
 	WMRectangles, WMGraphics, WMEvents, WMProperties, WMComponents, WMStandardComponents,
 	WMEditors, WMColorComponents, WMDropDownLists, WMTabComponents, WMScrollableComponents;
 
@@ -42,6 +43,8 @@ CONST
 
 	(** maximum number of property sheet cache entries per instance *)
 	MaxNofCacheEntries = 20;
+
+	ModelWindowWidth = 320; ModelWindowHeight = 80;
 
 TYPE
 
@@ -1026,7 +1029,8 @@ TYPE
 		reference : WMProperties.ReferenceProperty;
 		object : XML.Element;
 		editor : WMEditors.TextField;
-		adrLabel, label : WMStandardComponents.Label;
+		adrLabel : WMStandardComponents.Label;
+		button : WMStandardComponents.Button;
 		outOfDate : BOOLEAN;
 
 		PROCEDURE &Init;
@@ -1036,10 +1040,12 @@ TYPE
 			ofsInfo := -1;
 			reference := NIL;
 			object := NIL;
-			NEW(label); label.alignment.Set(WMComponents.AlignRight);
-			label.bounds.SetWidth(60);
-			label.fillColor.Set(WMGraphics.Red);
-			AddContent(label);
+			NEW(button); button.alignment.Set(WMComponents.AlignRight);
+			button.bounds.SetWidth(60);
+			button.fillColor.Set(WMGraphics.Red);
+			button.enabled.Set(FALSE);
+			button.onClick.Add(HandleButton);
+			AddContent(button);
 			NEW(adrLabel); adrLabel.alignment.Set(WMComponents.AlignRight);
 			adrLabel.bounds.SetWidth(60);
 			adrLabel.fillColor.Set(0CCCCCCCH);
@@ -1053,6 +1059,18 @@ TYPE
 			outOfDate := FALSE;
 		END Init;
 
+		PROCEDURE HandleButton(sender, data : ANY);
+		VAR object : XML.Element; modelView : ModelView; window : Window;
+		BEGIN
+			object := SELF.object;
+			IF (object # NIL) & (object IS Models.Model) THEN
+				NEW(modelView); modelView.SetModel(object(Models.Model));
+				modelView.bounds.SetExtents(ModelWindowWidth, ModelWindowHeight);
+				modelView.fillColor.Set(WMGraphics.White);
+				NEW(window, modelView);
+			END;
+		END HandleButton;
+
 		PROCEDURE Apply(force : BOOLEAN);
 		VAR reference : WMProperties.ReferenceProperty; string, oldString : ARRAY 256 OF CHAR;
 		BEGIN
@@ -1063,6 +1081,7 @@ TYPE
 				IF force OR (string # oldString) THEN
 					reference.SetAsString(string);
 					object := reference.Get();
+					UpdateButton(object);
 				ELSE
 					SetOutOfDate(FALSE);
 				END;
@@ -1077,7 +1096,7 @@ TYPE
 				lastTimestamp := reference.GetTimestamp();
 				reference.GetAsString(string);
 				object := reference.Get();
-				UpdateLabel(object);
+				UpdateButton(object);
 				editor.SetAsString(string);
 				SetOutOfDate(FALSE);
 			END;
@@ -1098,29 +1117,32 @@ TYPE
 			editor.enabled.Set(FALSE);
 		END Disable;
 
-		PROCEDURE UpdateLabel(object : XML.Element);
+		PROCEDURE UpdateButton(object : XML.Element);
 		VAR string : Types.String32; res : LONGINT; nbrStr : ARRAY 17 OF CHAR;
 		BEGIN
 			IF (object # NIL) THEN
 				Strings.AddressToStr(SYSTEM.ADR(object), nbrStr);
 				adrLabel.caption.SetAOC(nbrStr);
-				label.fillColor.Set(WMGraphics.Green);
+				button.fillColor.Set(WMGraphics.Green);
 				IF (object IS Models.Model) THEN
+					button.enabled.Set(TRUE);
 					object(Models.Model).GetGeneric(string, res);
 					IF (res = Models.Ok) THEN
-						label.caption.SetAOC(string.value);
+						button.caption.SetAOC(string.value);
 					ELSE
-						label.caption.SetAOC("res#Ok");
+						button.caption.Set(StrNoCaption);
 					END;
 				ELSE
-					label.caption.SetAOC("NotModel");
+					button.enabled.Set(FALSE);
+					button.caption.Set(StrNoCaption);
 				END;
 			ELSE
 				adrLabel.caption.SetAOC("NIL");
-				label.fillColor.Set(WMGraphics.Red);
-				label.caption.SetAOC("");
+				button.enabled.Set(FALSE);
+				button.fillColor.Set(WMGraphics.Red);
+				button.caption.Set(StrNoCaption);
 			END;
-		END UpdateLabel;
+		END UpdateButton;
 
 		PROCEDURE SetProperty(property : WMProperties.Property);
 		BEGIN
@@ -1134,7 +1156,7 @@ TYPE
 				SELF.object := NIL;
 				editor.SetAsString("");
 			END;
-			UpdateLabel(SELF.object);
+			UpdateButton(SELF.object);
 		END SetProperty;
 
 		PROCEDURE SetOutOfDate(value : BOOLEAN);
@@ -3101,12 +3123,150 @@ TYPE
 
 	END XMLPanel;
 
+TYPE
+
+	ModelView* = OBJECT(WMComponents.VisualComponent)
+	VAR
+		model : Models.Model;
+		typeLabel : WMStandardComponents.Label;
+		textfield : WMEditors.TextField;
+
+		PROCEDURE &Init*;
+		VAR panel : WMStandardComponents.Panel; label : WMStandardComponents.Label;
+		BEGIN
+			Init^;
+			SetNameAsString(StrModelView);
+			model := NIL;
+			bearing.Set(WMRectangles.MakeRect(LineBearing, LineBearing, LineBearing, LineBearing));
+
+			NEW(panel); panel.alignment.Set(WMComponents.AlignTop);
+			panel.bounds.SetHeight(LineHeight);
+			AddInternalComponent(panel);
+
+			NEW(label); label.alignment.Set(WMComponents.AlignLeft);
+			label.bounds.SetWidth(80);
+			label.caption.Set(StrType);
+			panel.AddInternalComponent(label);
+
+			NEW(typeLabel); typeLabel.alignment.Set(WMComponents.AlignClient);
+			typeLabel.caption.Set(StrNoCaption);
+			panel.AddInternalComponent(typeLabel);
+
+			NEW(textfield);
+			textfield.alignment.Set(WMComponents.AlignClient);
+			textfield.onEnter.Add(EnterHandler);
+			AddInternalComponent(textfield);
+		END Init;
+
+		PROCEDURE EnterHandler(sender, data : ANY);
+		VAR model : Models.Model; string : Types.String256; res : LONGINT;
+		BEGIN
+			model := SELF.model;
+			IF (model # NIL) THEN
+				textfield.GetAsString(string.value);
+				model.SetGeneric(string, res);
+			ELSE
+				textfield.SetAsString("");
+			END;
+		END EnterHandler;
+
+		PROCEDURE SetModel*(model : Models.Model);
+		BEGIN
+			Acquire;
+			IF (SELF.model # NIL) THEN SELF.model.onChanged.Remove(ModelChanged); END;
+			SELF.model := model;
+			IF (SELF.model # NIL) THEN
+				SELF.model.onChanged.Add(ModelChanged);
+				typeLabel.caption.Set(GetModelTypeString(SELF.model));
+			ELSE
+				typeLabel.caption.Set(StrNoCaption);
+			END;
+			Release;
+			Invalidate;
+		END SetModel;
+
+		PROCEDURE ModelChanged(sender, data : ANY);
+		VAR model : Models.Model; string : Types.String256; res : LONGINT;
+		BEGIN
+			model := SELF.model;
+			IF (model # NIL) THEN
+				model.GetGeneric(string, res);
+				textfield.SetAsString(string.value);
+			ELSE
+				textfield.SetAsString("");
+			END;
+		END ModelChanged;
+
+		PROCEDURE Finalize;
+		BEGIN
+			Finalize^;
+			IF (model # NIL) THEN model.onChanged.Remove(ModelChanged); END;
+		END Finalize;
+
+	END ModelView;
+
+TYPE
+
+	KillerMsg = OBJECT END KillerMsg;
+
+	Window = OBJECT(WMComponents.FormWindow)
+
+		PROCEDURE &New*(vc : WMComponents.VisualComponent);
+		BEGIN
+			ASSERT((vc # NIL) & (vc.bounds.GetWidth() > 0) & (vc.bounds.GetHeight() > 0));
+			Init^(vc.bounds.GetWidth(), vc.bounds.GetHeight(), FALSE);
+			vc.alignment.Set(WMComponents.AlignClient);
+			SetTitle(StrWindowTitle);
+			SetContent(vc);
+			IncCount;
+			WMWindowManager.DefaultAddWindow(SELF);
+		END New;
+
+		PROCEDURE Close;
+		BEGIN
+			Close^;
+			DecCount
+		END Close;
+
+		PROCEDURE Handle(VAR x : WMMessages.Message);
+		BEGIN
+			IF (x.msgType = WMMessages.MsgExt) & (x.ext # NIL) & (x.ext IS KillerMsg) THEN Close;
+			ELSE Handle^(x)
+			END
+		END Handle;
+
+	END Window;
+
 VAR
-	StrNotAvailable,
+	nofWindows : LONGINT;
+
+	StrNotAvailable, StrNoCaption, StrType,
 	StrComponentInfo, StrStandardProperties, StrExtendedProperties, StrExtendedPropertiesView, StrEventListeners, StrEventSources,
 	StrBooleanPropertyView, StrInt32PropertyView, StrRealPropertyView, StrRectanglePropertyView, StrStringPropertyView,
 	StrColorPropertyView, StrEventSourceView, StrEventListenerView, StrUnknownPropertyView,
-	StrFontPropertyView, StrReferencePropertyView, StrAlignmentPropertyView : Strings.String;
+	StrFontPropertyView, StrReferencePropertyView, StrAlignmentPropertyView, StrModelView : Strings.String;
+	StrBoolean, StrInteger, StrBoundedInteger, StrReal, StrLongreal, StrChar,
+	StrString, StrSet, StrText, StrContainer, StrCustom, StrNil : Strings.String;
+	StrWindowTitle : Strings.String;
+
+PROCEDURE GetModelTypeString(model : Models.Model) : Strings.String;
+VAR string : Strings.String;
+BEGIN
+	IF (model = NIL) THEN string := StrNil;
+	ELSIF (model IS Models.Boolean) THEN string := StrBoolean;
+	ELSIF (model IS Models.Integer) THEN string := StrInteger;
+	ELSIF (model IS Models.Real) THEN string := StrReal;
+	ELSIF (model IS Models.Longreal) THEN string := StrLongreal;
+	ELSIF (model IS Models.Char) THEN string := StrChar;
+	ELSIF (model IS Models.String) THEN string := StrString;
+	ELSIF (model IS Models.Set) THEN string := StrSet;
+	ELSIF (model IS Models.Text) THEN string := StrText;
+	ELSIF (model IS Models.Container) THEN string := StrContainer;
+	ELSE string := StrCustom;
+	END;
+	ASSERT(string # NIL);
+	RETURN string;
+END GetModelTypeString;
 
 PROCEDURE IsComponentProperty(property : WMProperties.Property) : BOOLEAN;
 VAR name : Strings.String;
@@ -3195,9 +3355,34 @@ BEGIN
 	END;
 END GetPropertyType;
 
+PROCEDURE IncCount;
+BEGIN {EXCLUSIVE}
+	INC(nofWindows)
+END IncCount;
+
+PROCEDURE DecCount;
+BEGIN {EXCLUSIVE}
+	DEC(nofWindows)
+END DecCount;
+
+PROCEDURE Cleanup;
+VAR die : KillerMsg;
+	 msg : WMMessages.Message;
+	 m : WMWindowManager.WindowManager;
+BEGIN {EXCLUSIVE}
+	NEW(die);
+	msg.ext := die;
+	msg.msgType := WMMessages.MsgExt;
+	m := WMWindowManager.GetDefaultManager();
+	m.Broadcast(msg);
+	AWAIT(nofWindows = 0)
+END Cleanup;
+
 PROCEDURE InitStrings;
 BEGIN
+	StrNoCaption := Strings.NewString("");
 	StrNotAvailable := Strings.NewString("<n/a>");
+	StrType := Strings.NewString("Type : ");
 	StrComponentInfo := Strings.NewString("ComponentInfo");
 	StrStandardProperties := Strings.NewString("StandardProperties");
 	StrExtendedProperties := Strings.NewString("ExtendedProperties");
@@ -3216,8 +3401,24 @@ BEGIN
 	StrUnknownPropertyView := Strings.NewString("UnknownPropertyView");
 	StrReferencePropertyView := Strings.NewString("ReferencePropertyView");
 	StrAlignmentPropertyView := Strings.NewString("AlignmentPropertyView");
+	StrModelView := Strings.NewString("ModelView");
+	StrBoolean := Strings.NewString("Boolean");
+	StrInteger := Strings.NewString("Integer");
+	StrBoundedInteger := Strings.NewString("Bounded Integer");
+	StrReal := Strings.NewString("Real");
+	StrLongreal := Strings.NewString("Longreal");
+	StrChar := Strings.NewString("Char");
+	StrString := Strings.NewString("String");
+	StrSet := Strings.NewString("Set");
+	StrText := Strings.NewString("Text");
+	StrContainer := Strings.NewString("Container");
+	StrCustom := Strings.NewString("Userdefined");
+	StrNil := Strings.NewString("NIL");
+	StrWindowTitle := Strings.NewString("Reference");
 END InitStrings;
 
 BEGIN
+	nofWindows := 0;
 	InitStrings;
+	Modules.InstallTermHandler(Cleanup);
 END WMInspectionComponents.
