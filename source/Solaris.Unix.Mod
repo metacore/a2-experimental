@@ -98,19 +98,36 @@ CONST
 	(*---------------------------- IP -----------------------------------*)
 
 CONST
-	(* types of connection*)
-		SOCKSTREAM* = 2;
-		SOCKDGRAM* =  1;
-	(*Protocols *)
-		IPPROTOUDP* = 17;
-		IPPROTOTCP* =    6;
+	(* domain *)
+		AFINET* = 2;
+		AFINET6* = 26;
+		
+		PFINET* = AFINET;
+		PFINET6* = AFINET6;
+		
+	(* types of connection *)
+		SockStream*	= 2;
+		SockDGram*	= 1;
+		
+	(* protocols *)
+		IpProtoUDP*	= 17;
+		IpProtoTCP*		=  6;
 
-	(*setsockopt() *)
-		SOLSOCKET* =  0FFFFH;		(* socket option level *)
-		SOLINGER*   =  80H; 		(* linger (gracefully close the connection)*)
-
-	(*ioctl() *)
-		FIONREAD* = 4004667FH;	(* something to read ? *)
+	(* setsockopt *)
+		SoLSocket*		= 0FFFFH;	(* socket option level *)
+		SoLinger*		= 80H; 		(* linger (gracefully close the connection)*)
+		SoKeepAlive*	= 8;			(* keep connection alive *)
+		
+	(* ioctl *)
+		FioNRead*		= 4004667FH;	(* something to read ? *)
+		
+	(* recv *)
+		MsgPeek*		= 2;
+		MsgDontWait*	= 80H;		(* non blocking read *)
+		
+	(* shutdown *)
+		ShutRDWR*	= 2;
+		
 
 	(*------------------------------------------------------------------*)
 
@@ -131,9 +148,9 @@ TYPE
 				size-		: LONGINT;
 				pad3-		: LONGINT;
 				atime-		: Timeval;
-				mtime-	: Timeval;
+				mtime-		: Timeval;
 				ctime-		: Timeval;
-				blksize-	: LONGINT;
+				blksize-		: LONGINT;
 				blocks-		: LONGINT;
 				fstype-		: ARRAY 16 OF CHAR;
 				pad4-		: ARRAY 8 OF LONGINT;

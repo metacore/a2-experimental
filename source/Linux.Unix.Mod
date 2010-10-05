@@ -66,7 +66,7 @@ CONST
 	ENOMSG* = 42;   (* No message of desired type *)
 	EIDRM* = 43;   (* Identifier removed *)
 	ECHRNG* = 44;   (* Channel number out of range *)
-	EL2NSYNC = 45;   (* Level 2 not synchronized *)
+	EL2NSYNC* = 45;   (* Level 2 not synchronized *)
 	EL3HLT* = 46;   (* Level 3 halted *)
 	EL3RST* = 47;   (* Level 3 reset *)
 	ELNRNG* = 48;   (* Link number out of range *)
@@ -93,20 +93,35 @@ CONST
 	(*---------------------------- IP -----------------------------------*)
 
 CONST
-	(*socket()*)
+	(* domain *)
+		AFINET* = 2;
+		AFINET6* = 26;
+		
+		PFINET* = AFINET;
+		PFINET6* = AFINET6;
+		
 	(* types of connection*)
-		SOCKSTREAM* = 1;
-		SOCKDGRAM* =  2;
-	(*Protocols *)
-		IPPROTOUDP* = 17;
-		IPPROTOTCP* =    6;
+		SockStream*	= 1;
+		SockDGram*	= 2;
+		
+	(* Protocols *)
+		IpProtoUDP*	= 17;
+		IpProtoTCP*		=  6;
 
-	(*setsockopt() *)
-		SOLSOCKET* =  1;		(* socket option level *)
-		SOLINGER*   = 13; 		(* linger (gracefully close the connection)*)
+	(* setsockopt *)
+		SoLSocket*		= 1;			(* socket option level *)
+		SoLinger* 		= 13; 		(* linger (gracefully close the connection)*)
+		SoKeepAlive*	= 9;			(* keep connection alive *)
 
-	(*ioctl() *)
-		FIONREAD* = 541BH;	(* something to read ? *)
+	(* ioctl *)
+		FioNRead*		= 541BH;	(* something to read ? *)
+		
+	(* recv *)
+		MsgPeek*		= 2;
+		MsgDontWait*	= 40H;		(* non blocking read *)
+		
+	(* shutdown *)
+		ShutRDWR*	= 2;
 
 	(*------------------------------------------------------------------*)
 

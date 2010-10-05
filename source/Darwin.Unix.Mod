@@ -93,20 +93,34 @@ CONST
 	(*---------------------------- IP -----------------------------------*)
 
 CONST
-	(*socket()*)
-	(* types of connection*)
-		SOCKSTREAM* = 1;
-		SOCKDGRAM* =  2;
-	(*Protocols *)
-		IPPROTOUDP* = 17;
-		IPPROTOTCP* =    6;
+	(* domain *)
+		AFINET* = 2;
+		AFINET6* = 26;
+		
+		PFINET* = AFINET;
+		PFINET6* = AFINET6;
+		
+	(* types of connection *)
+		SockStream*	= 1;
+		SockDGram*	= 2;
+	(* Protocols *)
+		IpProtoUDP*	= 17;
+		IpProtoTCP*		= 6;
 
-	(*setsockopt() *)
-		SOLSOCKET* =  0FFFFH;		(* socket option level *)
-		SOLINGER*   = 80H; 		(* linger (gracefully close the connection)*)
+	(* setsockopt *)
+		SoLSocket*		= 0FFFFH;	(* socket option level *)
+		SoLinger* 		= 80H; 		(* linger (gracefully close the connection)*)
+		SoKeepAlive*	= 8;			(* keep connection alive *)
 
-	(*ioctl() *)
-		FIONREAD* = 4004667FH;	(* something to read ? *)
+	(* ioctl *)
+		FioNRead*		= 4004667FH;	(* something to read ? *)
+		
+	(* recv *)
+		MsgPeek*		= 2;
+		MsgDontWait*	= 80H;		(* non blocking read *)
+		
+	(* shutdown *)
+		ShutRDWR*	= 2;
 
 	(*------------------------------------------------------------------*)
 
