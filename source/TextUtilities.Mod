@@ -1907,6 +1907,45 @@ BEGIN
 	text.ReleaseRead
 END TextToStr;
 
+(** 	Write <length> characters starting at <start> to stream <w>. Objects and attributes are lost
+	Caller MUST HOLD lock!!! *)
+PROCEDURE SubTextToStream*(text : Text; start, length : LONGINT; w : Streams.Writer);
+VAR r : Texts.TextReader; ok : BOOLEAN; ch : Texts.Char32; buffer : ARRAY 6 OF CHAR; i : LONGINT;
+BEGIN
+	ASSERT((text # NIL) & (text.HasReadLock()));
+	ASSERT((0 <= start) & (length >= 0) & (start + length <= text.GetLength()));
+	ASSERT(w # NIL);
+	IF (length > 0) THEN
+		NEW(r, text);
+		r.SetPosition(start);
+		ok := TRUE;
+		r.ReadCh(ch);
+		WHILE (length > 0) & (w.res = Streams.Ok) DO
+			ASSERT(ch # 0); (* we already checked start + length <= text.GetLength()) *)
+			i := 0;
+			ok := UTF8Strings.EncodeChar(ch, buffer, i);
+			ASSERT(ok & (i < LEN(buffer))); (* buffer is always large enough *)
+			buffer[i] := 0X;
+			w.String(buffer);
+			r.ReadCh(ch); (* we may read past start + length / end-of-text *)
+			DEC(length);
+		END;
+	END;
+END SubTextToStream;
+
+(** Text to stream as UTF-8. Objects and attributes are lost. *)
+PROCEDURE TextToStream*(text : Text; w : Streams.Writer);
+VAR length : LONGINT;
+BEGIN
+	ASSERT((text # NIL) & (w # NIL));
+	text.AcquireRead;
+	length := text.GetLength();
+	IF (length > 0) THEN
+		SubTextToStream(text, 0, length, w);
+	END;
+	text.ReleaseRead;
+END TextToStream;
+
 (** Text to UTF8 string. Objects and attributes are lost. The String is truncated if buffer is too small *)
 PROCEDURE SubTextToStrAt*(text : Text; startPos, len : LONGINT; VAR index : LONGINT; VAR string : ARRAY OF CHAR);
 VAR i, length, pos : LONGINT; r : Texts.TextReader; ch : Texts.Char32; ok : BOOLEAN;
