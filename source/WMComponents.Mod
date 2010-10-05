@@ -8,6 +8,9 @@ IMPORT
 	Commands;
 
 CONST
+	Ok* = 0;
+	DuplicateNamespace* = 1;
+
 	AlignNone* = 0; AlignLeft* = 1; AlignTop* = 2; AlignRight* = 3; AlignBottom* = 4; AlignClient* = 5;
 
 	MaxComponentNameSize* = 64; (* including 0X *)
@@ -19,6 +22,7 @@ CONST
 	Logging = TRUE;
 
 	MacroCharacter = "^";
+	NamespaceCharacter = ":";
 
 TYPE
 	(** Installable event preview handlers. Are called by the components sequencer thread *)
@@ -39,7 +43,6 @@ TYPE
 	END;
 
 	Event* = RECORD
-		timestamp- : LONGINT;
 	END;
 
 	KeyPressedEvent* = RECORD(Event)
@@ -56,7 +59,7 @@ TYPE
 	EventContext* = OBJECT(Repositories.Context)
 	VAR
 		originator- : Component; (** {originator # NIL} *)
-		command- : Strings.String; (** {command # NIL} *)
+		command- : Strings.String; (** {command # NIL}, immutable *)
 		timestamp- : LONGINT;
 
 		PROCEDURE &New(originator : Component; command : Strings.String; in, arg : Streams.Reader; out, error : Streams.Writer; caller : OBJECT);
@@ -494,6 +497,21 @@ TYPE
 		END GetAttributeValue;
 
 	END Component;
+
+TYPE
+
+	Macro* = ARRAY 128 OF CHAR;
+
+	(** Installable macro handler procedure. {(originator # NIL) & (w # NIL)} *)
+	MacroHandlerProcedure* = PROCEDURE {DELEGATE} (CONST macro : Macro; originator : Component; w : Streams.Writer; VAR handled : BOOLEAN);
+
+	Namespace = ARRAY 16 OF CHAR;
+
+	MacroHandler = POINTER TO RECORD
+		handler : MacroHandlerProcedure;
+		namespace : Namespace;
+		next : MacroHandler;
+	END;
 
 TYPE
 
@@ -1542,6 +1560,8 @@ VAR
 
 	timestamp : LONGINT;
 
+	macroHandlers : MacroHandler; (* the head of the list is always the DefaultMacroHandler *)
+
 PROCEDURE IsWhiteSpace(ch : CHAR) : BOOLEAN;
 BEGIN
 	RETURN ch <= " ";
@@ -1572,6 +1592,30 @@ BEGIN
 	RETURN (i > 0) & (index < length) & (i < wordLength);
 END ReadWord;
 
+(* Split <string> into two strings separated by <separator> *)
+PROCEDURE SplitMacroString(CONST string : ARRAY OF CHAR; VAR namespace, name : ARRAY OF CHAR; separator : CHAR);
+VAR i, j : LONGINT;
+BEGIN
+	ASSERT((LEN(namespace) >= LEN(string)) & (LEN(name) >= LEN(string)));
+	i := 0;
+	WHILE (i < LEN(string)) & (string[i] # 0X) & (string[i] # separator) DO
+		namespace[i] := string[i];
+		INC(i);
+	END;
+	namespace[i] := 0X;
+
+	INC(i); (* skip separator *)
+
+	j := 0;
+	WHILE (i < LEN(string)) & (string[i] # 0X) DO
+		name[j] := string[i];
+		INC(i); INC(j);
+	END;
+	name[j] := 0X;
+
+	IF (name = "") THEN COPY(namespace, name); COPY("", namespace); END; (* no namespace *)
+END SplitMacroString;
+
 PROCEDURE GenerateContext*(oldCommand, command : Strings.String; index : LONGINT; originator : Component; CONST event : Event) : EventContext;
 VAR
 	context : EventContext; pointerContext : PointerContext; keyContext : KeyContext;
@@ -1588,7 +1632,7 @@ BEGIN
 		arguments := NIL;
 	END;
 	IF (event IS PointerEvent) THEN
-		NEW(pointerContext, originator, oldCommand, NIL, arguments, NIL, NIL, NIL); pointerContext. pointer := event(PointerEvent);
+		NEW(pointerContext, originator, oldCommand, NIL, arguments, NIL, NIL, NIL); pointerContext.pointer := event(PointerEvent);
 		context := pointerContext;
 	ELSIF (event IS KeyPressedEvent) THEN
 		NEW(keyContext, originator, oldCommand, NIL, arguments, NIL, NIL, NIL); keyContext.key := event(KeyPressedEvent);
@@ -1619,7 +1663,7 @@ BEGIN
 		Events.AddEvent("Components", Events.Information, 0, 0, 0, msg, FALSE);
 	END;
 
-	SubstituteMacros(command, newCommand);
+	SubstituteMacros(command, newCommand, originator);
 
 	IF ReadWord(newCommand^, commandString, index) THEN
 		context := GenerateContext(command, newCommand, index, originator, event);
@@ -1664,26 +1708,34 @@ BEGIN
 	END;
 END WriteSelectionToStream;
 
-PROCEDURE SubstituteMacro(CONST command : Strings.String; VAR index : LONGINT; w : Streams.Writer);
-VAR oldIndex : LONGINT; macro : ARRAY 256 OF CHAR;
+PROCEDURE SubstituteMacro(CONST command : Strings.String; VAR index : LONGINT; originator : Component; w : Streams.Writer);
+VAR oldIndex : LONGINT; macro, namespace, name : Macro; handler : MacroHandlerProcedure; handled : BOOLEAN;
 BEGIN
 	ASSERT((command # NIL) & (0 <= index) & (index < LEN(command)) & (command[index] = MacroCharacter));
 	ASSERT(w # NIL);
 	oldIndex := index;
 	INC(index); (* skip MacroCharacter *)
 	IF ReadWord(command^, macro, index) THEN (*? TBD error handling *)
-		IF (macro = "selection") THEN
-			WriteSelectionToStream(w);
-		ELSIF (macro = "clipboard") THEN
-			TextUtilities.TextToStream(Texts.clipboard, w);
+		SplitMacroString(macro, namespace, name, NamespaceCharacter);
+		IF (namespace = "") THEN
+			handler := DefaultMacroHandler;
 		ELSE
+			BEGIN {EXCLUSIVE}
+				handler := FindMacroHandler(namespace);
+			END;
+		END;
+
+		handled := FALSE;
+		IF (handler # NIL) THEN handler(name, originator, w, handled); END;
+
+		IF ~handled THEN
 			w.Char(MacroCharacter); w.String(macro); (* don't substitute *)
 		END;
 	END;
 	ASSERT(index > oldIndex);
 END SubstituteMacro;
 
-PROCEDURE SubstituteMacros*(CONST command : Strings.String; VAR newCommand : Strings.String);
+PROCEDURE SubstituteMacros*(CONST command : Strings.String; VAR newCommand : Strings.String; originator : Component);
 VAR index, oldIndex, length : LONGINT; w : Streams.Writer; buffer : Strings.Buffer;
 BEGIN
 	ASSERT(command # NIL);
@@ -1699,7 +1751,7 @@ BEGIN
 					index := index + 2; (* skip both MacroCharacter's *)
 				ELSE
 					(* substitute macro *)
-					SubstituteMacro(command, index, w);
+					SubstituteMacro(command, index, originator, w);
 				END;
 			ELSE
 				w.Char(command[index]);
@@ -1715,6 +1767,63 @@ BEGIN
 	KernelLog.String("NEW="); KernelLog.String(newCommand^); KernelLog.Ln;
 	ASSERT(newCommand # NIL);
 END SubstituteMacros;
+
+PROCEDURE DefaultMacroHandler(CONST macro : ARRAY OF CHAR; originator : Component; w : Streams.Writer; VAR handled : BOOLEAN);
+BEGIN
+	ASSERT(w # NIL);
+	handled := TRUE;
+	IF (macro = "selection") THEN
+		WriteSelectionToStream(w);
+	ELSIF (macro = "clipboard") THEN
+		TextUtilities.TextToStream(Texts.clipboard, w);
+	ELSE
+		handled := FALSE;
+	END;
+END DefaultMacroHandler;
+
+PROCEDURE FindMacroHandler(CONST namespace : ARRAY OF CHAR) : MacroHandlerProcedure;
+VAR node : MacroHandler; handler : MacroHandlerProcedure;
+BEGIN (* caller must hold module lock! *)
+	node := macroHandlers;
+	WHILE (node # NIL) & (node.namespace # namespace) DO node := node.next; END;
+	IF (node # NIL) THEN
+		handler := node.handler;
+	ELSE
+		handler := NIL;
+	END;
+	RETURN handler;
+END FindMacroHandler;
+
+PROCEDURE AddMacroHandler*(CONST namespace : Namespace; handler : MacroHandlerProcedure; VAR res : LONGINT);
+VAR new, node : MacroHandler; h : MacroHandlerProcedure;
+BEGIN {EXCLUSIVE}
+	ASSERT((namespace # "") & (handler # NIL));
+	ASSERT(macroHandlers # NIL);
+	h := FindMacroHandler(namespace);
+	IF (h = NIL) THEN (* append new handler to list *)
+		NEW(new);
+		new.handler := handler;
+		new.namespace := namespace;
+		new.next := NIL;
+		node := macroHandlers;
+		WHILE (node.next # NIL) DO node := node.next; END;
+		node.next := new;
+		res := Ok;
+	ELSE
+		res := DuplicateNamespace;
+	END;
+END AddMacroHandler;
+
+PROCEDURE RemoveMacroHandler*(handler : MacroHandlerProcedure);
+VAR node : MacroHandler;
+BEGIN {EXCLUSIVE}
+	ASSERT((handler # NIL) & (handler # DefaultMacroHandler));
+	ASSERT(macroHandlers # NIL);
+	node := macroHandlers;
+	WHILE (node.next # NIL) & (node.next.handler # handler) DO node := node.next; END;
+	ASSERT((node.next # NIL) & (node.next.handler = handler));
+	node.next := node.next.next;
+END RemoveMacroHandler;
 
 (** Activate a string of commands, including their parameters.
 	The string is parsed from left to right and Activate is called for every command.
@@ -2059,6 +2168,14 @@ BEGIN
 	w.Ln; WHILE level > 0 DO w.Char(09X); DEC(level) END
 END NewLine;
 
+PROCEDURE InstallDefaultMacroHandler;
+BEGIN
+	NEW(macroHandlers);
+	macroHandlers.handler := DefaultMacroHandler;
+	macroHandlers.namespace := "system";
+	macroHandlers.next := NIL;
+END InstallDefaultMacroHandler;
+
 BEGIN
 	timestamp := 0;
 	NEW(componentStyleMsg);
@@ -2066,6 +2183,7 @@ BEGIN
 	InitStrings;
 	InitPrototypes;
 	NEW(invalidateRectMsg);
+	InstallDefaultMacroHandler;
 END WMComponents.
 
 The message sequencer contains a reader writer lock that can be used to block the hierarchy.
