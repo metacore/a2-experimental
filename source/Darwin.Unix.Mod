@@ -66,7 +66,7 @@ CONST
 	ENOMSG* = 42;   (* No message of desired type *)
 	EIDRM* = 43;   (* Identifier removed *)
 	ECHRNG* = 44;   (* Channel number out of range *)
-	EL2NSYNC = 45;   (* Level 2 not synchronized *)
+	EL2NSYNC* = 45;   (* Level 2 not synchronized *)
 	EL3HLT* = 46;   (* Level 3 halted *)
 	EL3RST* = 47;   (* Level 3 reset *)
 	ELNRNG* = 48;   (* Link number out of range *)
@@ -253,7 +253,7 @@ VAR
 	unlink-			: PROCEDURE {C} ( name: Address ): LONGINT;
 	rename-		: PROCEDURE {C} ( oldname, newname: Address ): LONGINT;
 	ftruncate-		: PROCEDURE {C} ( fd: LONGINT;  length: Size ): LONGINT;
-	chmod-		: PROCEDURE {C} ( name: Address;  mode: SET ): LONGINT;
+	chmod-			: PROCEDURE {C} ( name: Address;  mode: SET ): LONGINT;
 	utime-			: PROCEDURE {C} ( fd: LONGINT;  tb: Address ): LONGINT;
 	access-			: PROCEDURE {C} ( name: Address;  mode: SET ): LONGINT;
 	select-			: PROCEDURE {C} ( width: LONGINT; rd, wr, ex: FdSetPtr;  VAR timeout: Timeval ): LONGINT;
@@ -269,7 +269,7 @@ VAR
 	getpid-			: PROCEDURE {C} ( ): LONGINT;
 	getuid-			: PROCEDURE {C} ( ): LONGINT;
 
-	malloc-		: PROCEDURE {C} ( size: Size ): Address;
+	malloc-			: PROCEDURE {C} ( size: Size ): Address;
 	valloc-			: PROCEDURE {C} ( size: Size ): Address;
 	free-			: PROCEDURE {C} ( p: Address );
 	mprotect-		: PROCEDURE {C} ( p: Address; len: Size; prot: LONGINT ): LONGINT;
@@ -284,29 +284,23 @@ VAR
 	time-			: PROCEDURE {C} ( VAR tv: Timeval ): LONGINT;
 	times-			: PROCEDURE {C} ( VAR tms: Tms ): LONGINT;
 
-	system-		: PROCEDURE {C} ( cmd: Address );
-	uname-		: PROCEDURE {C} ( utsname: Address ): LONGINT;
+	system-			: PROCEDURE {C} ( cmd: Address );
+	uname-			: PROCEDURE {C} ( utsname: Address ): LONGINT;
 
 	getcwd-		: PROCEDURE {C} ( buf: Address;  len: Size ): LONGINT;
-	getenv-		: PROCEDURE {C} ( name: Address ): LONGINT;
+	getenv-			: PROCEDURE {C} ( name: Address ): LONGINT;
 
 	opendir-		: PROCEDURE {C} ( name: Address ): Address;
 	readdir-		: PROCEDURE {C} ( dir: Address ): Dirent;
 	closedir-		: PROCEDURE {C} ( dir: Address );
 
 	sigsetjmp-		: PROCEDURE {C} ( env: Address;  savemask: LONGINT ): LONGINT;
-	siglongjmp-	: PROCEDURE {C} ( env: Address;  val: LONGINT );
+	siglongjmp-		: PROCEDURE {C} ( env: Address;  val: LONGINT );
 
 	kill-			: PROCEDURE {C} ( pid, sig: LONGINT ): LONGINT;
 	exit-			: PROCEDURE {C} ( status: LONGINT );
 	perror-			: PROCEDURE {C} ( msg: Address );
 	errno-			: PROCEDURE {C} ( ): LONGINT;
-
-	Shmctl-		: PROCEDURE {C} ( shmid, cmd, buf: LONGINT ): LONGINT;
-	Shmget-		: PROCEDURE {C} ( key, size, shmflg: LONGINT ): LONGINT;
-	Shmat-		: PROCEDURE {C} ( shmid, shmaddr, shmflg: LONGINT ): LONGINT;
-	Shmdt-		: PROCEDURE {C} ( shmaddr: LONGINT ): LONGINT;
-
 
 
 	libc-: LONGINT;
@@ -314,6 +308,10 @@ VAR
 	libraryPaths: ARRAY 7 OF ARRAY 32 OF CHAR;
 
 
+	PROCEDURE Perror*( CONST msg: ARRAY OF CHAR );
+	BEGIN
+		perror( S.ADR( msg ) )
+	END Perror;
 
 	PROCEDURE Dlsym*( lib: LONGINT;  CONST sym: ARRAY OF CHAR;  VAR var: Address );
 	BEGIN
@@ -471,12 +469,6 @@ BEGIN
 	Dlsym( libc, "exit", S.VAL( Address, exit ) );
 	Dlsym( libc, "perror", S.VAL( Address, perror ) );
 	Dlsym( libc, "errno", S.VAL( Address, errno ) );
-
-	Dlsym( libc, "shmctl", S.VAL( Address, Shmctl ) );
-	Dlsym( libc, "shmget", S.VAL( Address, Shmget ) );
-	Dlsym( libc, "shmat", S.VAL( Address, Shmat ) );
-	Dlsym( libc, "shmdt", S.VAL( Address, Shmdt ) );
-
 
 	getSysinfo;
 END Unix.
