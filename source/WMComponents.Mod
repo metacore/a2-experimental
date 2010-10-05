@@ -1,4 +1,44 @@
 MODULE WMComponents;	(** AUTHOR "TF"; PURPOSE "Experiments with component concepts"; *)
+(**
+
+-- 	Events: --
+
+	Each VisualComponent can produce keyboard and mouse events which can trigger A2 commands.
+	The command string for a given event can by specified by the usage of XML attributes.
+	The following attributes are defined:
+
+	Keyboard:  onReturn, onEscape, onKeyPressed
+	Mouse: onLeftClick, onRightClick, onMiddleClick, onClick
+
+	The command strings are processed (macro substitution) before the actual command is called.
+
+-- 	Macro substitution: --
+
+	General form: "^" [namespace ":"] macrostring
+
+	A macro always start with MacroCharacter ("^"). The next occurence of a whitespace character determines the end of the macro.
+	Two consequent MacroCharacter's ("^^") will be replaced by the MacroCharacter ("^") not triggering macro substitution at all.
+
+	The user can install MacroHandlerProcedures for a given namespace. At most one handler per namespace can be installed.
+	If the namespace is omitted, the default macro handler is triggered.
+
+	The DefaultMacroHandler currently supports the following macro substitutions:
+
+	^selection			is replaced by the last selection of the user
+	^clipboard			is replaced by the content of the clipboard
+
+	^attribute=[component "."] attribute
+
+	is replaced by the value of <attribute>. If the component qualifier is omitted, <attribute> is supposed to be an attribute of the
+	originator of the event.
+
+	If no MacroHandlerProcedure is found for a given macro, no substitution takes place.
+
+	Example:
+
+	onMiddleClick = SystemTools.Show ^attribute=FillColor
+
+*)
 
 IMPORT
 	KernelLog, Inputs, Streams, Events, Files, Texts, TextUtilities,
