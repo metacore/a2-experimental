@@ -1410,7 +1410,7 @@ TYPE
 			Emit(Mov(result.op,true));
 			BrL(exit);
 			SetLabel(falseL);
-			Emit(Mov(result.op,false));
+			Emit(MovReplace(result.op,false));
 			SetLabel(exit);
 		END ConditionToValue;
 
@@ -7353,7 +7353,7 @@ TYPE
 		op.dimOffset := 0;
 	END InitOperand;
 
-	PROCEDURE GetType(system: Global.System; type: SyntaxTree.Type): IntermediateCode.Type;
+	PROCEDURE GetType*(system: Global.System; type: SyntaxTree.Type): IntermediateCode.Type;
 	BEGIN
 		type := type.resolved;
 		IF type IS SyntaxTree.CharacterType THEN
