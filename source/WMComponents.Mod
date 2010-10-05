@@ -1,7 +1,7 @@
 MODULE WMComponents;	(** AUTHOR "TF"; PURPOSE "Experiments with component concepts"; *)
 
 IMPORT
-	KernelLog, Inputs, Streams, Events, Files,
+	KernelLog, Inputs, Streams, Events, Files, Texts, TextUtilities,
 	XML, XMLScanner, XMLParser, XMLObjects, Codecs, Localization, Repositories,
 	Messages := WMMessages, Rectangles := WMRectangles,
 	WMEvents, WMProperties, WMGraphics, Strings, WM := WMWindowManager, Raster,
@@ -17,6 +17,8 @@ CONST
 	Trace = {};
 
 	Logging = TRUE;
+
+	MacroCharacter = "^";
 
 TYPE
 	(** Installable event preview handlers. Are called by the components sequencer thread *)
@@ -1130,9 +1132,9 @@ TYPE
 
 			IF ({0} * keys = {0}) THEN
 				command := GetAttributeValue("onLeftClick");
-			ELSIF ({1} * keys = {1}) THEN
-				command := GetAttributeValue("onRightClick");
 			ELSIF ({2} * keys = {2}) THEN
+				command := GetAttributeValue("onRightClick");
+			ELSIF ({1} * keys = {1}) THEN
 				command := GetAttributeValue("onMiddleClick");
 			ELSIF (keys # {}) THEN
 				command := GetAttributeValue("onClick");
@@ -1570,7 +1572,7 @@ BEGIN
 	RETURN (i > 0) & (index < length) & (i < wordLength);
 END ReadWord;
 
-PROCEDURE GenerateContext*(command : Strings.String; index : LONGINT; originator : Component; CONST event : Event) : EventContext;
+PROCEDURE GenerateContext*(oldCommand, command : Strings.String; index : LONGINT; originator : Component; CONST event : Event) : EventContext;
 VAR
 	context : EventContext; pointerContext : PointerContext; keyContext : KeyContext;
 	arguments : Streams.StringReader;
@@ -1586,13 +1588,13 @@ BEGIN
 		arguments := NIL;
 	END;
 	IF (event IS PointerEvent) THEN
-		NEW(pointerContext, originator, command, NIL, arguments, NIL, NIL, NIL); pointerContext. pointer := event(PointerEvent);
+		NEW(pointerContext, originator, oldCommand, NIL, arguments, NIL, NIL, NIL); pointerContext. pointer := event(PointerEvent);
 		context := pointerContext;
 	ELSIF (event IS KeyPressedEvent) THEN
-		NEW(keyContext, originator, command, NIL, arguments, NIL, NIL, NIL); keyContext.key := event(KeyPressedEvent);
+		NEW(keyContext, originator, oldCommand, NIL, arguments, NIL, NIL, NIL); keyContext.key := event(KeyPressedEvent);
 		context := keyContext;
 	ELSE
-		NEW(context, originator, command, NIL, arguments, NIL, NIL, NIL);
+		NEW(context, originator, oldCommand, NIL, arguments, NIL, NIL, NIL);
 	END;
 	BEGIN {EXCLUSIVE}
 		context.timestamp := timestamp;
@@ -1605,6 +1607,7 @@ END GenerateContext;
 PROCEDURE HandleEvent*(CONST event : Event; originator : Component; command : Strings.String);
 VAR
 	commandString : ARRAY 128 OF CHAR;
+	newCommand : Strings.String;
 	context : EventContext;
 	msg : Events.Message;
 	index : LONGINT;
@@ -1616,8 +1619,10 @@ BEGIN
 		Events.AddEvent("Components", Events.Information, 0, 0, 0, msg, FALSE);
 	END;
 
-	IF ReadWord(command^, commandString, index) THEN
-		context := GenerateContext(command, index, originator, event);
+	SubstituteMacros(command, newCommand);
+
+	IF ReadWord(newCommand^, commandString, index) THEN
+		context := GenerateContext(command, newCommand, index, originator, event);
 		Commands.Activate(commandString, context, {Commands.Wait}, context.result, msg); (*? for now synchronous call *)
 		IF (context.result # Commands.Ok) THEN
 			Events.AddEvent("Components", Events.Error, 0, 0, 0, msg, FALSE);
@@ -1626,6 +1631,90 @@ BEGIN
 		Events.AddEvent("Components", Events.Error, 0, 0, 0, "Expected command", FALSE);
 	END;
 END HandleEvent;
+
+PROCEDURE ContainsMacros(CONST string : ARRAY OF CHAR) : BOOLEAN;
+VAR result : BOOLEAN; length, i : LONGINT;
+BEGIN
+	result := FALSE;
+	i := 0; length := LEN(string);
+	WHILE (i < length) & (string[i] # 0X) & ~result DO
+		IF (string[i] = MacroCharacter) THEN
+			result := (i + 1 < length) & (string[i+1] # MacroCharacter);
+			IF ~result THEN (* two consequent MacroCharacter's are used to escape *)
+				INC(i); (*skip string[i+1] *)
+			END;
+		END;
+		INC(i);
+	END;
+	RETURN result;
+END ContainsMacros;
+
+PROCEDURE WriteSelectionToStream(w : Streams.Writer);
+VAR text : Texts.Text; from, to : Texts.TextPosition; a, b : LONGINT;
+BEGIN
+	ASSERT(w # NIL);
+	IF Texts.GetLastSelection(text, from, to) THEN
+		text.AcquireRead;
+		a := Strings.Min(from.GetPosition(), to.GetPosition());
+		b := Strings.Max(from.GetPosition(), to.GetPosition());
+		IF (text.GetLength() > 0) THEN
+			TextUtilities.SubTextToStream(text, a, b - a + 1, w);
+		END;
+		text.ReleaseRead;
+	END;
+END WriteSelectionToStream;
+
+PROCEDURE SubstituteMacro(CONST command : Strings.String; VAR index : LONGINT; w : Streams.Writer);
+VAR oldIndex : LONGINT; macro : ARRAY 256 OF CHAR;
+BEGIN
+	ASSERT((command # NIL) & (0 <= index) & (index < LEN(command)) & (command[index] = MacroCharacter));
+	ASSERT(w # NIL);
+	oldIndex := index;
+	INC(index); (* skip MacroCharacter *)
+	IF ReadWord(command^, macro, index) THEN (*? TBD error handling *)
+		IF (macro = "selection") THEN
+			WriteSelectionToStream(w);
+		ELSIF (macro = "clipboard") THEN
+			TextUtilities.TextToStream(Texts.clipboard, w);
+		ELSE
+			w.Char(MacroCharacter); w.String(macro); (* don't substitute *)
+		END;
+	END;
+	ASSERT(index > oldIndex);
+END SubstituteMacro;
+
+PROCEDURE SubstituteMacros*(CONST command : Strings.String; VAR newCommand : Strings.String);
+VAR index, oldIndex, length : LONGINT; w : Streams.Writer; buffer : Strings.Buffer;
+BEGIN
+	ASSERT(command # NIL);
+	IF ContainsMacros(command^) THEN
+		NEW(buffer, 256);
+		w := buffer.GetWriter();
+		index := 0; length := LEN(command^);
+		WHILE (index < length) & (command[index] # 0X) DO
+			oldIndex := index;
+			IF (command[index] = MacroCharacter) THEN
+				IF (index + 1 < length) & (command[index + 1] = MacroCharacter) THEN (* escape *)
+					w.Char(MacroCharacter);
+					index := index + 2; (* skip both MacroCharacter's *)
+				ELSE
+					(* substitute macro *)
+					SubstituteMacro(command, index, w);
+				END;
+			ELSE
+				w.Char(command[index]);
+				INC(index);
+			END;
+			ASSERT(index > oldIndex);
+		END;
+		newCommand := buffer.GetString();
+	ELSE
+		newCommand := command;
+	END;
+	KernelLog.String("OLD="); KernelLog.String(command^); KernelLog.Ln;
+	KernelLog.String("NEW="); KernelLog.String(newCommand^); KernelLog.Ln;
+	ASSERT(newCommand # NIL);
+END SubstituteMacros;
 
 (** Activate a string of commands, including their parameters.
 	The string is parsed from left to right and Activate is called for every command.

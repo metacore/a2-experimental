@@ -478,13 +478,14 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 	FP1616.Mod DefaultTextStyles.XML	# Text System
 
 	Texts.Mod
+
+
 	UndoManager.Mod
 
 	CRC.Mod
 	Inflate.Mod # decompression on streams
 	Unzip.Mod 	# zip file support
 	ZipFS.Mod
-
 
 	Codecs.Mod	# Codec Defintions
 
@@ -502,6 +503,9 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 	AMD64 { AMD64.WMRasterScale.Mod }
 
 	WMGraphics.Mod
+
+	TextUtilities.Mod bluebottle.xsl	# Text Utilities
+
 	WMProperties.Mod
 
 	WMMessages.Mod
@@ -510,8 +514,6 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 	WMGraphicUtilities.Mod
 
 	WMComponents.Mod # Components
-
-	TextUtilities.Mod bluebottle.xsl	# Text Utilities
 
 	KernelLogger.Mod
 
