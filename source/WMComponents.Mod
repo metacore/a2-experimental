@@ -7,8 +7,8 @@ MODULE WMComponents;	(** AUTHOR "TF"; PURPOSE "Experiments with component concep
 	The command string for a given event can by specified by the usage of XML attributes.
 	The following attributes are defined:
 
-	Keyboard:  onReturn, onEscape, onKeyPressed
-	Mouse: onLeftClick, onRightClick, onMiddleClick, onClick
+	Keyboard:  	onReturn, onEscape, onKeyPressed, onKeyReleased
+	Mouse: 		onLeftClick, onRightClick, onMiddleClick, onClick
 
 	The command strings are processed (macro substitution) before the actual command is called.
 
@@ -1169,16 +1169,19 @@ TYPE
 			ASSERT(IsCallFromSequencer());
 			event.ucs := ucs; event.flags := flags; event.keysym := keySym;
 
-			IF (keySym = Inputs.KsReturn) THEN
-				command := GetAttributeValue("onReturn");
-			ELSIF (keySym = Inputs.KsEscape) THEN
-				command := GetAttributeValue("onEscape");
-			ELSE
-				command := GetAttributeValue("onKeyPressed");
-			END;
+			IF ({Inputs.Release} * flags = {}) THEN
+				IF (keySym = Inputs.KsReturn) THEN
+					command := GetAttributeValue("onReturn");
+				ELSIF (keySym = Inputs.KsEscape) THEN
+					command := GetAttributeValue("onEscape");
+				END;
+				IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 
-			IF (command # NIL) THEN
-				HandleEvent(event, SELF, command);
+				command := GetAttributeValue("onKeyPressed");
+				IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
+			ELSE
+				command := GetAttributeValue("onKeyReleased");
+				IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 			END;
 		END CheckKeyEvents;
 
@@ -1186,7 +1189,7 @@ TYPE
 		VAR event : PointerEvent; command : Strings.String;
 		BEGIN
 			ASSERT(IsCallFromSequencer());
-			event.x := x; event.y := y; event.z := z;
+			event.x := x; event.y := y; event.z := z; event.keys := keys;
 
 			IF ({0} * keys = {0}) THEN
 				command := GetAttributeValue("onLeftClick");
@@ -1194,13 +1197,11 @@ TYPE
 				command := GetAttributeValue("onRightClick");
 			ELSIF ({1} * keys = {1}) THEN
 				command := GetAttributeValue("onMiddleClick");
-			ELSIF (keys # {}) THEN
-				command := GetAttributeValue("onClick");
 			END;
+			IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 
-			IF (command # NIL) THEN
-				HandleEvent(event, SELF, command);
-			END;
+			command := GetAttributeValue("onClick");
+			IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 		END CheckPointerEvent;
 
 		PROCEDURE HandleInternal*(VAR msg : Messages.Message); (** PROTECTED *)
@@ -1702,6 +1703,7 @@ VAR
 	i : LONGINT;
 BEGIN
 	ASSERT((command # NIL) & (0 <= index) & (index < LEN(command)));
+	ASSERT(originator # NIL);
 	i := index;
 	WHILE (i < LEN(command)) & (command[i] # 0X) DO INC(i); END;
 	IF (i # index) THEN
@@ -1746,7 +1748,7 @@ BEGIN
 
 	IF ReadWord(newCommand^, commandString, index) THEN
 		context := GenerateContext(command, newCommand, index, originator, event);
-		Commands.Activate(commandString, context, {Commands.Wait}, context.result, msg); (*? for now synchronous call *)
+		Commands.Activate(commandString, context, {}, context.result, msg); (* asynchronous call since holding the originators lock! *)
 		IF (context.result # Commands.Ok) THEN
 			Events.AddEvent("Components", Events.Error, 0, 0, 0, msg, FALSE);
 		END;
@@ -1791,6 +1793,7 @@ PROCEDURE SubstituteMacro(CONST command : Strings.String; VAR index : LONGINT; o
 VAR oldIndex : LONGINT; macro, namespace, name : Macro; handler : MacroHandlerProcedure; handled : BOOLEAN;
 BEGIN
 	ASSERT((command # NIL) & (0 <= index) & (index < LEN(command)) & (command[index] = MacroCharacter));
+	ASSERT(originator # NIL);
 	ASSERT(w # NIL);
 	oldIndex := index;
 	INC(index); (* skip MacroCharacter *)
@@ -1817,7 +1820,7 @@ END SubstituteMacro;
 PROCEDURE SubstituteMacros*(CONST command : Strings.String; VAR newCommand : Strings.String; originator : Component);
 VAR index, oldIndex, length : LONGINT; w : Streams.Writer; buffer : Strings.Buffer;
 BEGIN
-	ASSERT(command # NIL);
+	ASSERT((command # NIL) & (originator # NIL));
 	IF ContainsMacros(command^) THEN
 		NEW(buffer, 256);
 		w := buffer.GetWriter();
@@ -1848,32 +1851,29 @@ END SubstituteMacros;
 PROCEDURE GetAttributeValue(originator : Component; CONST fullname : ARRAY OF CHAR) : Strings.String;
 VAR value : Strings.String; c : Component; component, attribute : ARRAY 64 OF CHAR;
 BEGIN
+	ASSERT(originator # NIL);
 	value := NIL;
-	IF (originator # NIL) THEN
-		Strings.GetExtension(fullname, component, attribute);
-		IF (attribute = "") THEN
-			COPY(component, attribute);
-			COPY("", component);
-		END;
-		IF (component[0] = "@") THEN component[0] := "&"; END; (*? TBD: Hack to avoid ampersand in XML *)
+	Strings.GetExtension(fullname, component, attribute);
+	IF (attribute = "") THEN
+		COPY(component, attribute);
+		COPY("", component);
+	END;
+	IF (component[0] = "@") THEN component[0] := "&"; END; (*? TBD: Hack to avoid ampersand in XML *)
 
-		IF (component = "") THEN
-			c := originator;
-		ELSE
-			c := originator.Find(component);
-		END;
+	IF (component = "") THEN
+		c := originator;
+	ELSE
+		c := originator.Find(component);
+	END;
 
-		IF (c # NIL) THEN
-			IF c.HasAttribute(attribute) THEN
-				RETURN c.GetAttributeValue(attribute);
-			ELSE
-				ReportError("Attribute % of component % not found", attribute, component);
-			END;
+	IF (c # NIL) THEN
+		IF c.HasAttribute(attribute) THEN
+			RETURN c.GetAttributeValue(attribute);
 		ELSE
-			ReportError("Component % not found", component, "");
+			ReportError("Attribute % of component % not found", attribute, component);
 		END;
 	ELSE
-		ReportError("Cannot read attribute % because originator unknown", fullname, "");
+		ReportError("Component % not found", component, "");
 	END;
 	RETURN value;
 END GetAttributeValue;
@@ -1884,7 +1884,7 @@ CONST
 VAR
 	string, value : Strings.String;
 BEGIN
-	ASSERT(w # NIL);
+	ASSERT((originator # NIL) & (w # NIL));
 	handled := TRUE;
 	IF (macro = "selection") THEN
 		WriteSelectionToStream(w);
@@ -1946,6 +1946,32 @@ BEGIN {EXCLUSIVE}
 	ASSERT((node.next # NIL) & (node.next.handler = handler));
 	node.next := node.next.next;
 END RemoveMacroHandler;
+
+PROCEDURE SetAttribute*(context : Commands.Context); (** component attribute value ~ *)
+VAR originator, target : Component; name, attribute, value : ARRAY 128 OF CHAR; (*? TBD array size *)
+BEGIN
+	IF (context IS EventContext) THEN
+		originator := context(EventContext).originator;
+		IF context.arg.GetString(name) & context.arg.GetString(attribute) & context.arg.GetString(value) THEN
+			target := originator.Find(name);
+			IF (target # NIL) THEN
+				IF target.HasAttribute(attribute) THEN
+					target.SetAttributeValue(attribute, value);
+				ELSE
+					context.result := Commands.CommandError;
+				END;
+			ELSE
+				context.result := Commands.CommandError;
+			END;
+		ELSE
+			context.error.String("Expected component name, attribute and value parameters"); context.error.Ln;
+			context.result := Commands.CommandParseError;
+		END;
+	ELSE
+		context.error.String("Command requires EventContext."); context.error.Ln;
+		context.result := Commands.CommandParseError;
+	END;
+END SetAttribute;
 
 (** Activate a string of commands, including their parameters.
 	The string is parsed from left to right and Activate is called for every command.
