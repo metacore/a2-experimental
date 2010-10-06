@@ -5887,8 +5887,9 @@ TYPE
 		in-: IntermediateCode.Section; out-: BinaryCode.Section;
 		inPC-, outPC-: LONGINT;
 
-		toBeReleased-: SET; (* registers that will be released after current instruction *)
+		toBeReleased-, toBeAcquired-: SET; (* registers that will be released after / acquired during current instruction *)
 		currentlyUsed-: SET; (* registers that are used in current instruction *)
+		virtualRegisterType-: ARRAY MaxVirtualRegisters OF IntermediateCode.Type;
 		error* : BOOLEAN;
 		allocateData-: BOOLEAN;
 		dataAddress*: LONGINT;
@@ -5904,6 +5905,7 @@ TYPE
 			FOR i := 0 TO LEN(lastUse)-1 DO
 				lastUse[i] := -1;
 			END;
+			toBeReleased := {}; toBeAcquired := {};
 			error := FALSE;
 		END InitGenerator;
 
@@ -5924,22 +5926,32 @@ TYPE
 		END Error;
 
 		(* mark register released *)
-		PROCEDURE Released*(register: LONGINT);
+		PROCEDURE MarkReleased*(register: LONGINT);
 		BEGIN
 			EXCL(toBeReleased, register);
-			(*
-			ASSERT(lastUse[register] = -1);
-			lastUse[register] := -1;
-			*)
-		END Released;
+		END MarkReleased;
+
+		PROCEDURE MustBeReleased*(register: LONGINT): BOOLEAN;
+		BEGIN RETURN (register >= 0) & (register IN toBeReleased)
+		END MustBeReleased;
+
+		(* mark register acquired *)
+		PROCEDURE MarkAcquired*(register: LONGINT);
+		BEGIN
+			EXCL(toBeAcquired, register)
+		END MarkAcquired;
+
+		PROCEDURE MustBeAcquired*(register: LONGINT): BOOLEAN;
+		BEGIN RETURN (register >= 0) & (register IN toBeAcquired)
+		END MustBeAcquired;
+
 
 		(* generic *)
 		PROCEDURE Section*(in: IntermediateCode.Section; out: BinaryCode.Section);
-		VAR pc,i: LONGINT; name: SyntaxTree.String; ignore: BOOLEAN; instruction: IntermediateCode.Instruction
+		VAR pc,i: LONGINT; name: SyntaxTree.String; ignore: BOOLEAN; instruction: IntermediateCode.Instruction;
 
 			PROCEDURE CheckAcquire(CONST instr: IntermediateCode.Instruction);
 			VAR i: LONGINT; type: IntermediateCode.Type;
-				(*lastUse: ARRAY MaxVirtualRegisters OF LONGINT;*)
 
 				PROCEDURE CheckOperand(CONST operand: IntermediateCode.Operand; register: LONGINT; at: LONGINT);
 				BEGIN
@@ -5988,10 +6000,12 @@ TYPE
 						END;
 						IF (instr.opcode # IntermediateCode.call) OR (lastUse[register] >pc) THEN (* used at all *)
 							IF dump # NIL THEN
-								dump.String("Acquire virtual register ");IntermediateCode.DumpType(dump,type); dump.String(" $"); dump.Int(register,1);
+								dump.String("ToBeAcquired: register ");IntermediateCode.DumpType(dump,type); dump.String(" $"); dump.Int(register,1);
 								dump.String(", last use:"); dump.Int(lastUse[register],1);
 								dump.Ln;
 							END;
+							INCL(toBeAcquired, register);
+							virtualRegisterType[register] := type;
 							MapVirtualRegister(register,type);
 						ELSE lastUse[register] := -1;
 						END;
@@ -5999,6 +6013,7 @@ TYPE
 				END Reserve;
 
 			BEGIN
+				toBeAcquired := {};
 				Reserve(instr.op1.register);
 				IF instr.opcode = IntermediateCode.call THEN
 					Reserve(IntermediateCode.Result);
@@ -6029,7 +6044,7 @@ TYPE
 								UnmapVirtualRegister(register);
 							END;
 							TransferRegister(instr.op2.register, register);
-							Released(instr.op2.register);
+							MarkReleased(instr.op2.register);
 							RETURN TRUE
 						END;
 					END;
@@ -6076,7 +6091,7 @@ TYPE
 				END;
 			END ResolveLocalFixups;
 
-			PROCEDURE Prepare(instr: IntermediateCode.Instruction; pc: LONGINT);
+			PROCEDURE CheckUsage(instr: IntermediateCode.Instruction; pc: LONGINT);
 			VAR register: LONGINT;
 			BEGIN
 				FOR register := 0 TO MaxVirtualRegisters-1 DO
@@ -6090,14 +6105,14 @@ TYPE
 				IF instr.op1.register > 0 THEN INCL(currentlyUsed,instr.op1.register) END;
 				IF instr.op2.register > 0 THEN INCL(currentlyUsed,instr.op2.register) END;
 				IF instr.op3.register > 0 THEN INCL(currentlyUsed,instr.op3.register) END;
-			END Prepare;
+			END CheckUsage;
 
 			PROCEDURE Release(instr: IntermediateCode.Instruction);
 			VAR register: LONGINT;
 			BEGIN
 				FOR register := 0 TO MaxVirtualRegisters-1 DO
 					IF register IN toBeReleased THEN
-						UnmapVirtualRegister(register); Released(register);
+						UnmapVirtualRegister(register); MarkReleased(register);
 					END;
 				END;
 			END Release;
@@ -6114,7 +6129,8 @@ TYPE
 				inPC := pc; outPC := out.pc; in.SetPC(pc, outPC);
 				IF pc = in.finally THEN out.SetFinally(out.pc) END;
 				instruction := in.instructions[pc];
-				Prepare(instruction,pc);
+				CheckAcquire(instruction);
+				CheckUsage(instruction,pc);
 				ignore := Ignore(instruction);
 				IF dump # NIL THEN
 					dump.Int(pc, 1); dump.String(": "); IntermediateCode.DumpInstruction(dump, in.instructions[pc]);
@@ -6122,13 +6138,14 @@ TYPE
 					dump.Ln;
 				END;
 				IF ~ignore THEN
-					CheckAcquire(instruction);
 					Generate(instruction);
 				END;
 				Release(instruction);
 			END;
 			FOR i := 0 TO MaxVirtualRegisters-1 DO
-				ASSERT(lastUse[i]=-1)
+				IF lastUse[i] # -1 THEN
+					Error("register not set to unused");
+				END;
 			END;
 			ResolveLocalFixups;
 			IF dump # NIL THEN
