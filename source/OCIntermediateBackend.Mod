@@ -7820,16 +7820,6 @@ TYPE
 		RETURN instruction
 	END LabelInstruction;
 
-	(*
-	PROCEDURE Acquire(op: IntermediateCode.Operand): IntermediateCode.Instruction;
-	VAR instruction: IntermediateCode.Instruction; imm: IntermediateCode.Operand;
-	BEGIN
-		IntermediateCode.InitNumber(imm,-1);
-		IntermediateCode.InitInstruction(instruction,IntermediateCode.acquire, op, imm, imm);
-		RETURN instruction
-	END Acquire;
-	*)
-
 	PROCEDURE EnterImmediate*(data: IntermediateCode.Section; CONST vop: IntermediateCode.Operand): LONGINT;
 	VAR pc: LONGINT;
 
