@@ -1,1 +1,36 @@
 # Math Array Exeuction Test Suite
+
+positive: DIM and LEN
+
+	MODULE Test;
+	VAR
+		v1: ARRAY [*] OF INTEGER;
+		v2: ARRAY [*,*] OF INTEGER;
+		v3: ARRAY [*,*,*] OF INTEGER;
+		t1,t2,t3: ARRAY [?] OF INTEGER;
+		s1: ARRAY [3] OF INTEGER;
+		s2: ARRAY [3,4] OF INTEGER;
+		s3: ARRAY [3,4,5] OF INTEGER;
+		h2: ARRAY [*,4] OF INTEGER;
+		h3: ARRAY [*,*,5] OF INTEGER;
+	BEGIN
+		NEW(v1,3); NEW(v2,3,4); NEW(v3,3,4,5);
+		NEW(t1,3); NEW(t2,3,4); NEW(t3,3,4,5);
+		NEW(h2,3); NEW(h3,3,4);
+		ASSERT(DIM(v1)=1);	ASSERT(DIM(v2)=2); 	ASSERT(DIM(v3)=3);
+		ASSERT(DIM(t1)=1);	ASSERT(DIM(t2)=2); ASSERT(DIM(t3)=3);
+		ASSERT(DIM(s1)=1);	ASSERT(DIM(s2)=2);	ASSERT(DIM(s3)=3);
+		ASSERT(DIM(h2)=2); ASSERT(DIM(h3)=3);
+		ASSERT(LEN(v1,0)=3); 
+		ASSERT(LEN(v2,0)=3); 	ASSERT(LEN(v2,1)=4); 	
+		ASSERT(LEN(v3,0)=3);		ASSERT(LEN(v3,1)=4); 	ASSERT(LEN(v3,2)=5);
+		ASSERT(LEN(t1,0)=3); 
+		ASSERT(LEN(t2,0)=3); 	ASSERT(LEN(t2,1)=4); 	
+		ASSERT(LEN(t3,0)=3);		ASSERT(LEN(t3,1)=4); 	ASSERT(LEN(t3,2)=5);
+		ASSERT(LEN(s1,0)=3); 
+		ASSERT(LEN(s2,0)=3); 	ASSERT(LEN(s2,1)=4); 	
+		ASSERT(LEN(s3,0)=3);		ASSERT(LEN(s3,1)=4); 	ASSERT(LEN(s3,2)=5);
+		ASSERT(LEN(h2,0)=3); ASSERT(LEN(h2,1)=4);
+		ASSERT(LEN(h3,0)=3); ASSERT(LEN(h3,1)=4); ASSERT(LEN(h3,2)=5);
+	END Test.
+
