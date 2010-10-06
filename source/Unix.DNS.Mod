@@ -3,61 +3,122 @@
 MODULE DNS;   (** AUTHOR "pjm, mvt"; PURPOSE "DNS client"; *)
 
 
-IMPORT KernelLog, Machine, NetBase, IP;
+IMPORT S := SYSTEM, Out := KernelLog, Unix, Machine, IP;
 
 CONST
 	(** Error codes *)
 	Ok* = 0;  NotFound* = 3601;  BadName* = 3602;
 	MaxNofServer* = 10;   (* max. number registered of DNS servers *)
+	
 
 TYPE
+	Address = S.ADDRESS;
 	Name* = ARRAY 128 OF CHAR;   (* domain or host name type *)
-
+	
+	
+	Hostent = POINTER TO RECORD
+			name		: Address;
+			aliases		: Address;
+			addrtype	: LONGINT;
+			length		: LONGINT;
+			addrlist		: Address
+		END;
 
 VAR
 	(** Local domain name *)
 	domain*: Name;
+	
+	nlib: Address;
 
+	gethostbyaddr		: PROCEDURE {C} ( adr: Address; len, typ: LONGINT ): Hostent;
+	gethostbyname		: PROCEDURE {C} ( name: Address ): Hostent;
+	gethostname		: PROCEDURE {C} ( name: Address; len: LONGINT ): LONGINT;
 
 	(* Statistic variables *)
 	NDNSReceived-, NDNSSent-, NDNSMismatchID-, NDNSError-: LONGINT;
 
 	(** Find the host responsible for mail exchange of the specified domain. *)
-	PROCEDURE MailHostByDomain*( domain: ARRAY OF CHAR;  VAR hostname: ARRAY OF CHAR;  VAR res: LONGINT );
+	PROCEDURE MailHostByDomain*( CONST domain: ARRAY OF CHAR;  VAR hostname: ARRAY OF CHAR;  VAR res: LONGINT );
 	BEGIN
 		HALT( 99 );	(* not implemented yet. needed ?? *)
+		hostname[0] := 0X
 	END MailHostByDomain;
 
 	(** Find the IP address of the specified host. *)
 
-	PROCEDURE HostByName*( hostname: ARRAY OF CHAR;  VAR adr: IP.Adr;  VAR res: LONGINT );
+	PROCEDURE HostByName*( CONST hostname: ARRAY OF CHAR;  VAR addr: IP.Adr;  VAR res: LONGINT );
+	VAR 
+		hostent: Hostent;  
+		firstaddrPtr: Address;
 	BEGIN {EXCLUSIVE}
-		NetBase.GetHostByName( hostname, adr );
-		IF NetBase.done THEN  res := Ok
-		ELSE  res := NotFound
+		hostent := gethostbyname( S.ADR( hostname ) );
+		IF hostent # NIL THEN		
+			S.GET( hostent.addrlist, firstaddrPtr );
+			IF hostent.length = 4 THEN
+				S.MOVE( firstaddrPtr, S.ADR( addr.ipv4Adr ), 4 );
+				addr.usedProtocol := IP.IPv4;
+			ELSE
+				S.MOVE( firstaddrPtr, S.ADR( addr.ipv6Adr ), 16 );
+				addr.usedProtocol := IP.IPv6;			
+			END;
+			res := Ok
+		ELSE 
+			res := NotFound
 		END
 	END HostByName;
 
 	(** Find the host name of the specified IP address. *)
 
-	PROCEDURE HostByNumber*( adr: IP.Adr;  VAR hostname: ARRAY OF CHAR;  VAR res: LONGINT );
+	PROCEDURE HostByNumber*( addr: IP.Adr;  VAR hostname: ARRAY OF CHAR;  VAR res: LONGINT );
+	VAR 
+		hostent: Hostent;
+		namePtr: Address;
+		ch: CHAR; i: INTEGER;
 	BEGIN {EXCLUSIVE}
-		IF ~IP.IsNilAdr( adr ) THEN
-			NetBase.GetHostByAdr( adr, hostname );
-			IF NetBase.done THEN  res := Ok  ELSE  res := NotFound  END
-		ELSE  hostname[0] := 0X;  res := BadName;
+		IF IP.IsNilAdr( addr ) THEN
+			hostname[0] := 0X;  res := BadName;  RETURN
 		END;
+		IF addr.usedProtocol = IP.IPv4 THEN
+			hostent := gethostbyaddr( S.ADR( addr.ipv4Adr ), 4, Unix.PFINET ) 
+		ELSE
+			hostent := gethostbyaddr( S.ADR( addr.ipv6Adr ), 16, Unix.PFINET6 )
+		END;		
+		IF hostent # NIL THEN	(* err points to struct hostent *)
+			S.GET( hostent.name, namePtr );
+			i := 0;
+			REPEAT		
+				S.GET( namePtr + i, ch ); 
+				hostname[i]:= ch;  INC( i )
+			UNTIL ch = 0X;
+			res := Ok
+		ELSE	
+			res := NotFound
+		END
 	END HostByNumber;
+	
+
+
 
 BEGIN
 	(* Get domain name from configuration. *)
 	Machine.GetConfig( "Domain", domain );
+	NDNSReceived := 0;
+	NDNSSent := 0; 
+	NDNSMismatchID := 0;
+	NDNSError := 0;
+	
+	IF Unix.sysinfo.sysname = "Darwin" THEN
+		nlib := Unix.libc
+	ELSE
+		nlib := Unix.Dlopen( "libnsl.so.1", 2 );
+		IF nlib = 0 THEN  nlib := Unix.Dlopen( "libnsl.so", 2 )  END;
+		IF nlib = 0 THEN  
+			Out.String( "Unix.Dlopen( 'libnsl.so' ) failed" );  Out.Ln  
+		END;
+	END;
+	Unix.Dlsym( nlib, "gethostbyaddr", S.VAL( Address, gethostbyaddr ) );
+	Unix.Dlsym( nlib, "gethostbyname", S.VAL( Address, gethostbyname ) );
+	Unix.Dlsym( nlib, "gethostname", S.VAL( Address, gethostname ) );
 END DNS.
 
-(*
-History:
-02.11.2003	mvt	Adapted for new interfaces of Network, IP and UDP.
-03.11.2003	mvt	Added support for MX queries (mail exchange).
-21.11.2003	mvt	Support for concurrent queries.
-02.05.2005	eb	Type AAAA supported
-*)
+

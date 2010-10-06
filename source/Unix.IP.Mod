@@ -41,7 +41,8 @@ TYPE
 											size, sendTime, updateTime, updateDate, hash: LONGINT);
 
 	Interface* = OBJECT
-				(* mostly a dummy, only 'localAdr' contains valid data in UnixAos !! *)
+				(* 	unused in UnixAos, included only for interface compatibility
+					mostly a dummy, only 'localAdr' contains valid data in UnixAos !! *)
 
 			VAR
 				(** IP addresses of this interface. *)
@@ -63,126 +64,12 @@ TYPE
 				protocol-: LONGINT;
 							 (* Interface for IPv4 or IPv6?. Only used by IP otherwise use dynamic type checking! *)
 
-				(*====================================
-				(** Set addresses. Is normally called just after instanciation, but can also be called later, e.g. by DHCP.
-				If "gatewayAdr" is "NilAdr", the subnet is considered to have no gateway, else it must be in the same
-				subnet as the "localAdr". "domain" can be an empty string. It is normally used by a DNS implementation.
-				It is not used in IP directly. In IPv6 maskAdr is the prefix of the currently IP address *)
-				procedure SetAdrs*( localAdr, maskOrPrefixAdr, gatewayAdr: Adr;  VAR res: LONGINT );
-				begin
-					(* Extensions have to override this method.*)
-				end SetAdrs;
 
 
-				(** Remove all domain name servers from the interface. *)
-				procedure DNSRemoveAll*( );
-				begin {EXCLUSIVE}
-					DNScount := 0;
-				end DNSRemoveAll;
-
-
-				(** Add a domain name server to the interface. *)
-				procedure DNSAdd*( adr: Adr );
-				VAR i: LONGINT;
-
-				begin {EXCLUSIVE}
-					(* concurrent lookup is consistent *)
-				end DNSAdd;
-
-
-				(** Remove a domain name server from the interface. *)
-				procedure DNSRemove*( adr: Adr );
-				VAR i: LONGINT;
-				begin {EXCLUSIVE}
-					(* concurrent lookup could result in a duplicate address in worst-case *)
-					(* this happends hardly ever and is harmless for DNS anyway *)
-				end DNSRemove;
-
-
-				(** Send an IP packet on this interface. *)
-				procedure Send*( typ: LONGINT;  destAdr: Adr;  VAR l4hdr, data: array of  CHAR;
-											  h4len, dofs, dlen, TTL: LONGINT );
-				begin
-					(* Extensions have to override this method.*)
-				end Send;
-
-
-				(* Internal procedure to perform the rest of the send operation. Used by "Send" and for IP forwarding. *)
-				procedure DoSend*( destAdr: Adr;  VAR l3hdr, l4hdr, data: array of  CHAR;
-												    h3len, h4len, dofs, dlen: LONGINT );
-				begin
-					(* Extensions have to override this method.*)
-				end DoSend;
-
-
-				(** Enumerate all ARP table entries. *)
-				procedure ARPEnumerate*( handle: ARPHandler );
-				begin
-					(* Extensions have to override this method.*)
-				end ARPEnumerate;
-
-
-				(** Close and deactivate the interface, i.e. remove it from the configuration. *)
-				procedure Close*( );
-				begin
-					(* Extensions have to override this method.*)
-				end Close;
-
-
-				(** Check if adr is a broadcast address *)
-				procedure IsBroadcast*( adr: Adr ): BOOLEAN;
-				begin
-					(* Extensions have to override this method.*)
-				end IsBroadcast;
-
-
-				(** Check if adr is a multicast address *)
-				procedure IsMulticast*( adr: Adr ): BOOLEAN;
-				begin
-					(* Extensions have to override this method.*)
-				end IsMulticast;
-
-
-				(** Receive an IP packet *)
-				procedure IPInput*( dev: Network.LinkDevice;  typ: LONGINT;  buffer: Network.Buffer );
-				begin
-					(* Extensions have to override this method.*)
-				end IPInput;
-
-
-				(** Reads the source address of a IP packet buffer *)
-				procedure ReadSrcAdr*( buffer: Network.Buffer ): Adr;
-				begin
-					(* Extensions have to override this method.*)
-				end ReadSrcAdr;
-
-
-				(** Reads the destination address of a IP packet buffer *)
-				procedure ReadDestAdr*( buffer: Network.Buffer ): Adr;
-				begin
-					(* Extensions have to override this method.*)
-				end ReadDestAdr;
-
-
-				(** Creates a pseudo-header for checksum calculation (TCP/UDP) and returns the length of this header *)
-				procedure WritePseudoHeader*( VAR pseudoHdr: array of  CHAR;  src, dst: Adr;
-																		 protocol, pktLengthUpperLayer: LONGINT ): LONGINT;
-				begin
-					(* Extensions have to override this method.*)
-				end WritePseudoHeader;
-
-
-				(** Writes the configuration of this interface *)
-				procedure OutInterface*;
-				begin
-					(* Extensions have to override this method.*)
-				end OutInterface;
-				==========================*)
-
-				PROCEDURE & Init( addr: LONGINT );
+				PROCEDURE & Init( addr: Adr );
 				BEGIN
-					localAdr.ipv4Adr := addr;
-					localAdr.usedProtocol := IPv4
+					localAdr := addr;
+					name := "dummy";
 				END Init;
 
 			END Interface;
@@ -389,7 +276,7 @@ VAR
 	PROCEDURE AdrToStr*( adr: Adr;  VAR string: ARRAY OF CHAR );
 	VAR i, j, x: LONGINT;
 		a: ARRAY 4 OF CHAR;
-		val, res: LONGINT;
+		val: LONGINT;
 		hexToStr: ARRAY 5 OF CHAR;
 		prefixLenStr: ARRAY 64 OF CHAR;
 		maxZeroRow: LONGINT;  currentZeroRow: LONGINT;
@@ -398,7 +285,7 @@ VAR
 	BEGIN
 		CASE adr.usedProtocol OF
 		| IPv4:
-				Put4( a, 0, adr.ipv4Adr );
+				Network.Put4( a, 0, adr.ipv4Adr );
 				i := 0;
 				FOR j := 0 TO 3 DO
 					x := ORD( a[j] );
@@ -411,9 +298,10 @@ VAR
 		| IPv6:
 				FOR i := 0 TO LEN( adr.ipv6Adr ) - 1 BY 2 DO
 					(* simple version *)
-					val := ORD( adr.ipv6Adr[i] )*256;  val := val + ORD( adr.ipv6Adr[i + 1] );
+					val := ORD( adr.ipv6Adr[i] )*256;  
+					val := val + ORD( adr.ipv6Adr[i + 1] );
 					Strings.IntToHexStr( val, 3, hexToStr );
-					IF res # Strings.Ok THEN  string[0] := 0X;  RETURN  END;
+					
 					(* Delete leading zeros *)
 					WHILE (hexToStr[0] = "0") & (hexToStr[1] # 0X) DO  Strings.Delete( hexToStr, 0, 1 )  END;
 					Strings.Append( string, hexToStr );
@@ -724,23 +612,6 @@ VAR
 		FOR i := 0 TO 15 DO  adr.ipv6Adr[i] := 0X  END;
 	END SetIPv6AdrNil;
 
-	(** Put a 32-bit host value into buf[ofs..ofs+3] *)
-	PROCEDURE Put4( VAR buf: ARRAY OF CHAR; ofs, val: LONGINT );
-	CODE {SYSTEM.i386}
-		MOV EAX, [EBP+val]
-		MOV EBX, [EBP+ofs]
-		MOV ECX, [EBP+buf]
-		MOV [ECX+EBX], EAX
-	END Put4;
-
-
-	(** Get a 32-bit host value from buf[ofs..ofs+3] *)
-	PROCEDURE Get4( VAR buf: ARRAY OF CHAR; ofs: LONGINT ): LONGINT;
-	CODE {SYSTEM.i386}
-		MOV EBX, [EBP+ofs]
-		MOV ECX, [EBP+buf]
-		MOV EAX, [ECX+EBX]
-	END Get4;
 
 	(* Swap internal representation of an IP address from big to little endian or vice versa. *)
 	PROCEDURE  -SwapEndian(  VAR adr: LONGINT );

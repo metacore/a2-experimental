@@ -3,7 +3,7 @@
 MODULE TCP;   (** AUTHOR "pjm, mvt"; PURPOSE "TCP protocol"; *)
 
 
-IMPORT SYSTEM, KernelLog, IP, Streams,  Glue, Unix, B := NetBase, Threads;
+IMPORT Out := KernelLog, IP, Streams,  Glue, Unix, B := NetBase, Threads;
 
 CONST
 	NilPort* = 0;
@@ -30,7 +30,7 @@ CONST
 	ClosedStates* = {Unused, Closed};
 	HalfClosedStates* = ClosedStates + {};
 	FinStates* = {Unused, Closed};
-
+		
 VAR
 	trace: BOOLEAN;
 
@@ -43,80 +43,82 @@ TYPE
 
 	Connection* = OBJECT (Streams.Connection)
 			VAR
-				int-: IP.Interface;	(* Unix port: dummy, only 'localAdr' contains valid data *)
-				socket: LONGINT;
-				laddr, faddr: B.Sockaddrin;
+				int-: IP.Interface;	(* Unix port: dummy, only 'int.localAdr' contains valid data *)
+				
 				lport-: LONGINT;
 				fip-: IP.Adr;  (* foreign protocol address *)
 				fport-: LONGINT;
 				state*: SHORTINT;   (* TCP state *)
 
-
+				socket: LONGINT;
+				localAdr, foreignAdr: B.SocketAdr;
+				
 				(* Initialization for internal use only. *)
 
 				PROCEDURE & Init;
 				BEGIN
 					state := Unused;
 				END Init;
+				
+
 
 				(** Open a TCP connection (only use once per Connection instance).
 					Use TCP.NilPort for lport to automatically assign an unused local port.*)
 				PROCEDURE Open*( lport: LONGINT;  fip: IP.Adr;  fport: LONGINT;  VAR res: LONGINT );
 				BEGIN {EXCLUSIVE}
 					ASSERT( (state = Unused) & (lport >= 0) & (lport < 10000H) & (fport >= 0) & (fport < 10000H) );
-					IF trace THEN  KernelLog.String( "Open connection " )  END;
-					B.Socket( socket, B.AFINET, B.SOCKSTREAM, B.IPPROTOTCP );
-					IF B.done THEN
+					IF trace THEN  Out.String( "Open connection " )  END;
+					socket := B.Socket( Unix.AFINET, Unix.SockStream, Unix.IpProtoTCP );
+					IF socket # 0 THEN
 						IF (~IP.IsNilAdr( fip )) & (fport # NilPort) THEN
-							IF trace THEN  KernelLog.String( "(inout) " )  END;
+							IF trace THEN  Out.String( "(inout) " )  END;
 							(* active open (connect) *)
-							faddr.sinfamily := B.AFINET;
-							faddr.sinaddr := fip.ipv4Adr;
-							faddr.sinport := B.IntToNet( SHORT( fport ) );
-							B.Connect( socket, faddr );
-							IF B.done THEN
-								B.SetLinger( socket );
+							foreignAdr := B.NewSocketAdr( fip, fport );
+							IF B.Connect( socket, foreignAdr ) THEN
+								IF B.SetLinger( socket ) THEN  END;
 								SELF.fip := fip;  SELF.fport := fport;
-								B.Getsockname( socket, laddr );
-								SELF.lport := B.NetToInt( laddr.sinport );
+								localAdr := B.Getsockname( socket );
+								SELF.lport := B.PortNumberOf( localAdr );
 								state := Established;  res := Ok
-							ELSE  B.Close( socket );  res := ConnectionRefused
+							ELSE  
+								Out.String( "connect failed" ); Out.Ln;
+								B.Close( socket );  res := ConnectionRefused
 							END
 						ELSE
-							IF trace THEN  KernelLog.String( "(listen) " )  END;
+							IF trace THEN  Out.String( "(listen) " )  END;
 							(* passive open (listen) *)
 							ASSERT( (fport = NilPort) & (IP.IsNilAdr( fip )) );
-							laddr.sinfamily := B.AFINET;
-							laddr.sinaddr := 0 (*IP.NilAdrIPv4*);
-							laddr.sinport := B.IntToNet( SHORT( lport ) );
-							B.Bind( socket, laddr );
-							IF B.done THEN
-								B.Getsockname( socket, laddr );
-								SELF.lport := B.NetToInt( laddr.sinport );
-								B.Listen( socket );
-								IF B.done THEN
-									B.SetLinger( socket );  state := Listen;
+							localAdr := B.NewSocketAdr( IP.NilAdr, lport );
+							IF B.Bind( socket, localAdr ) THEN
+								localAdr := B.Getsockname( socket );
+								SELF.lport := B.PortNumberOf( localAdr );
+								IF B.Listen( socket ) THEN
+									IF B.SetLinger( socket ) THEN  END;
 									SELF.fip := IP.NilAdr;
-									res := Ok
+									state := Listen;  res := Ok
 								ELSE  B.Close( socket );  res := NotConnected
 								END
 							ELSE  B.Close( socket );  res := NotConnected
 							END
 						END
-					ELSE  res := NotConnected
+					ELSE  
+						Out.String( "open socket failed" );  Out.Ln;
+						res := NotConnected
 					END;
 					IF res = Ok THEN
 						IF SELF.lport < 0 THEN  SELF.lport := 10000H + SELF.lport  END;
-						NEW( int, laddr.sinaddr );	(* create a dummy interface with correct local IP-adr *)
+						(* create a dummy interface with correct local IP-adr *)
+						NEW( int, B.SockAdrToIPAdr( localAdr ) )
 					END;
 					IF trace THEN
 						IF res = Ok THEN
-							KernelLog.String( "socket=" );  KernelLog.Int( socket, 0 );
-							KernelLog.String( ", locport=" );  KernelLog.Int( SELF.lport, 0 );
-							KernelLog.String( " done." )
-						ELSE  KernelLog.String( " failed." )
+							Out.String( "socket=" );  Out.Int( socket, 0 );
+							Out.String( ", locport=" );  Out.Int( SELF.lport, 0 );
+							Out.String( " done." )
+						ELSE  
+							Out.String( " failed." )
 						END;
-						KernelLog.Ln
+						Out.Ln
 					END;
 				END Open;
 
@@ -125,13 +127,14 @@ TYPE
 				PROCEDURE Send*( CONST data: ARRAY OF CHAR;  ofs, len: LONGINT;  propagate: BOOLEAN;  VAR res: LONGINT );
 				VAR n: LONGINT;
 				BEGIN (*{EXCLUSIVE}*)
-					IF trace THEN  KernelLog.String( "Send: socket=" );  KernelLog.Int( socket, 0 );  ShowBuffer( data, ofs, len )  END;
+					IF trace THEN  Out.String( "Send: socket=" );  Out.Int( socket, 0 );  ShowBuffer( data, ofs, len )  END;
 					IF state = Established THEN
 						WHILE len > 0 DO
 							n := len;
-							B.Send( socket, data, ofs, n );
-							IF B.done THEN  res := Ok;  DEC( len, n );  INC( ofs, n )
-							ELSE  res := ConnectionReset;  len := 0
+							IF B.Send( socket, data, ofs, n ) THEN  
+								res := Ok;  DEC( len, n );  INC( ofs, n )
+							ELSE  
+								res := ConnectionReset;  len := 0
 							END
 						END
 					ELSE
@@ -147,38 +150,45 @@ TYPE
 					and must by <= size. The len parameter returns the number of bytes received, and the
 					res parameter returns 0 if ok, or a non-zero error code otherwise (e.g. if the connection is closed
 					by the communication partner, or by a call of the Close method). *)
+				
 				PROCEDURE Receive*( VAR data: ARRAY OF CHAR;  ofs, size, min: LONGINT;  VAR len, res: LONGINT );
-				VAR available, tries, p, x: LONGINT;
+				VAR p, x: LONGINT;
 				BEGIN (*{EXCLUSIVE}*)
 					ASSERT( (ofs >= 0) & (ofs + size <= LEN( data )) & (min <= size) );   (* parameter consistency check *)
 					IF trace THEN
-						KernelLog.String( "Receive: socket=" );  KernelLog.Int( socket, 0 );
-						KernelLog.String( " min=" );  KernelLog.Int( min, 0 );
+						Out.String( "Receive: socket=" );  Out.Int( socket, 0 );
+						Out.String( " min=" );  Out.Int( min, 0 );
 						p := ofs
 					END;
 					len := 0;  res := Ok;
+					IF size = 0 THEN  RETURN  END;
 					IF state IN {Listen, Established} THEN
-						tries := 0;
 						LOOP
-							available := B.Available( socket );
-							IF B.done THEN
-								IF available > 0 THEN
-									x := Min( available, size - len );
-									B.Recv( socket, data, ofs, x );
-									IF B.done THEN  INC( ofs, x );  INC( len, x );  DEC( size, x )  END
-								ELSIF len >= min THEN  EXIT
-								ELSIF tries > 30000 THEN  res := TimedOut;  EXIT
-								ELSE  Threads.Sleep( 10 );  INC( tries )
+							x := size;
+							IF B.Recv( socket, data, ofs, x, 0 ) THEN
+								IF x > 0 THEN
+									DEC( size, x );  INC( len, x );  INC( ofs, x );
+									IF len >= min THEN  
+										IF trace THEN  ShowBuffer( data, p, len )  END;
+										RETURN  
+									END
+								ELSE
+									(* x = 0: closed by peer *)
+									B.Close( socket );  state := Closed;
+									res := NotConnected;  RETURN
 								END
-							ELSE  res := NotConnected;  EXIT
-							END  ;
-							IF len >= size THEN  EXIT  END
-						END
-					ELSE  res := NotConnected
+							ELSE
+								B.Close( socket );  state := Closed;
+								res := NotConnected;  RETURN
+							END
+						END; (* loop *)
+					ELSE  
+						res := NotConnected
 					END;
-					IF trace THEN  ShowBuffer( data, p, len )  END;
 				END Receive;
-
+			
+				
+				
 				(** Enable or disable delayed send (Nagle algorithm).
 					If enabled, the sending of a segment is delayed if it is not filled by one call to Send, in order to be able
 					to be filled by further calls to Send. This is the default option.
@@ -191,17 +201,23 @@ TYPE
 
 				(** Enable or disable keep-alive. (default: disabled) *)
 				PROCEDURE KeepAlive*( enable: BOOLEAN );
-					(* dummy *)
+				VAR dum: BOOLEAN;
+				BEGIN
+					dum := B.KeepAlive( socket, enable )
 				END KeepAlive;
 
 
 				(** Return number of bytes that may be read without blocking. *)
 				PROCEDURE Available*( ): LONGINT;
-				VAR available: LONGINT;
+				VAR available: LONGINT; 
 				BEGIN {EXCLUSIVE}
 					IF state IN {Established, Listen} THEN
-						available := B.Available( socket );
-						IF B.done THEN  RETURN available  END;
+						IF B.Requested( socket ) THEN 
+							available := B.Available( socket ); 
+							IF available >= 0 THEN  
+								RETURN available  
+							END;
+						END	
 					END;
 					RETURN  0
 				END Available;
@@ -233,36 +249,40 @@ TYPE
 				(** Accept a client waiting on a listening connection. Blocks until a client is available or the
 					  connection is closed. *)
 				PROCEDURE Accept*( VAR client: Connection;  VAR res: LONGINT );
-				VAR newsocket: LONGINT;
+				VAR newsocket: LONGINT;  peerAdr: B.SocketAdr;
 				BEGIN {EXCLUSIVE}
 					IF trace THEN
-						KernelLog.String( "Accept: socket=" ); KernelLog.Int( socket, 0 );  KernelLog.String( " ... " )
+						Out.String( "Accept: socket=" ); Out.Int( socket, 0 );  Out.String( " ... " )
 					END;
 					IF state = Listen THEN
-						B.Accept( socket, newsocket );
-						IF B.done THEN
+						newsocket := B.Accept( socket );
+						IF newsocket > 0 THEN
+							peerAdr := B.GetPeerName( newsocket );
 							NEW( client );
+							client.int := int;
 							client.socket := newsocket;
 							client.state := Established;
+							client.fip := B.SockAdrToIPAdr( peerAdr );
+							client.fport := B.PortNumberOf( peerAdr );
 							IF trace THEN
-								KernelLog.String( "Accept done, client socket=" );  KernelLog.Int( newsocket, 0 );  KernelLog.Ln
+								Out.String( "Accept done, client socket=" );  Out.Int( newsocket, 0 );  Out.Ln
 							END;
 							res := Ok
 						ELSE
 							res := NotConnected ;
-							Unix.perror( SYSTEM.ADR( "accept" ) );
-							IF trace THEN  KernelLog.String( "Accept failed." );  KernelLog.Ln  END
+							Unix.Perror( "accept" );
+							IF trace THEN  Out.String( "Accept failed." );  Out.Ln  END
 						END;
 					ELSE
 						res := NotConnected ;
-						IF trace THEN  KernelLog.String( "Accept failed (state # Listen)." );  KernelLog.Ln  END
+						IF trace THEN  Out.String( "Accept failed (state # Listen)." );  Out.Ln  END
 					END;
 				END Accept;
 
 				(** Return TRUE iff a listening connection has clients waiting to be accepted. *)
 				PROCEDURE Requested*( ): BOOLEAN;
 				BEGIN {EXCLUSIVE}
-					RETURN (state = Listen) & B.Requested( socket ) & B.done
+					RETURN (state = Listen) & B.Requested( socket ) 
 				END Requested;
 
 
@@ -274,32 +294,27 @@ TYPE
 	PROCEDURE ShowBuffer( CONST buf: ARRAY OF CHAR;  p, l: LONGINT );
 	VAR i, pe: LONGINT;  c: CHAR;  x: LONGINT;
 	BEGIN
-		KernelLog.Ln;  KernelLog.Char( '[' );
+		Out.Ln;  Out.Char( '[' );
 		pe := p + l - 1;  i := 0;
 		WHILE (p < LEN( buf )) & (p <= pe) DO
 			c := buf[p];  INC( p );
-			IF (c >= ' ') & (c <= '~') THEN  KernelLog.Char( c )
+			IF (c >= ' ') & (c <= '~') THEN  Out.Char( c )
 			ELSE
 				x := ORD( c );
 				CASE x OF
-				|10:  KernelLog.String( "\n" )
-				|11:  KernelLog.String( "\t" )
-				|13:  KernelLog.String( "\c" )
+				|10:  Out.String( "\n" )
+				|11:  Out.String( "\t" )
+				|13:  Out.String( "\c" )
 				ELSE
-					KernelLog.Char( '\' );  KernelLog.Char( hex[x DIV 16] );  KernelLog.Char( hex[x MOD 16] );
+					Out.Char( '\' );  Out.Char( hex[x DIV 16] );  Out.Char( hex[x MOD 16] );
 				END
 			END;
 			INC( i );
-			IF (p < pe) & ((i >= 80) OR (c = 0AX)) THEN  KernelLog.Ln;  i := 0  END
+			IF (p < pe) & ((i >= 80) OR (c = 0AX)) THEN  Out.Ln;  i := 0  END
 		END;
-		KernelLog.Char( ']' );  KernelLog.Ln
+		Out.Char( ']' );  Out.Ln
 	END ShowBuffer;
 
-
-	PROCEDURE Min( a, b: LONGINT ): LONGINT;
-	BEGIN
-		IF a < b THEN  RETURN a  ELSE  RETURN b  END
-	END Min;
 
 	(** Aos command - display all errors *)
 	PROCEDURE DisplayErrors*( par: ANY ): ANY;
@@ -319,10 +334,10 @@ TYPE
 	PROCEDURE ToggleTrace*;
 	BEGIN
 		trace := ~trace;
-		KernelLog.Enter;
-		KernelLog.String( "TCP trace " );
-		IF trace THEN  KernelLog.String( "on" )  ELSE  KernelLog.String( "off" )  END;
-		KernelLog.Exit
+		Out.Enter;
+		Out.String( "TCP trace " );
+		IF trace THEN  Out.String( "on" )  ELSE  Out.String( "off" )  END;
+		Out.Exit
 	END ToggleTrace;
 
 

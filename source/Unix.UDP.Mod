@@ -25,7 +25,7 @@ MODULE UDP;   (** AUTHOR "pjm, mvt"; PURPOSE "UDP protocol"; *)
 	o Always access fields as 8-, 16- or 32-bit values and use DIV, MOD, ASH, ODD for bit access.
 *)
 
-IMPORT SYSTEM, Objects, IP, KernelLog, B := NetBase;
+IMPORT IP, B := NetBase, Unix;
 
 CONST
 	(** Error codes *)
@@ -34,9 +34,7 @@ CONST
 
 	NilPort* = 0;  anyport = 0;
 
-	IPTypeUDP = 17;   (* UDP type code for IP packets *)
 	UDPHdrLen = 8;
-	MaxPseudoHdrLen = 40;   (* IPv4: 12, IPv6: 40 *)
 	MaxUDPDataLen = 10000H - UDPHdrLen;
 VAR
 	anyIP: IP.Adr;
@@ -44,28 +42,23 @@ VAR
 TYPE
 	(** Socket. Stores the state of a UDP communication endpoint. *)
 	Socket* = OBJECT
-			VAR next: Socket;   (* link for socket pool *)
+			VAR 
 				socket: LONGINT;
 				lport: LONGINT;   (* local port *)
-				(* Variables for handling timeout *)
-				timer: Objects.Timer;
-				timeout, open: BOOLEAN;
+				open: BOOLEAN;
 
 
 				(** Constructor *)
 				PROCEDURE & Open( lport: LONGINT;  VAR res: LONGINT );
-				VAR laddr: B.Sockaddrin;
+				VAR laddr: B.SocketAdr;
 				BEGIN
 					ASSERT( (lport >= 0) & (lport < 10000H) );
 					SELF.lport := lport;  res := Error;
-					B.Socket( socket, B.AFINET, B.SOCKDGRAM, B.IPPROTOUDP );
-					IF B.done THEN
+					socket := B.Socket( Unix.AFINET, Unix.SockDGram, Unix.IpProtoUDP );
+					IF socket # 0 THEN
 						IF lport # anyport THEN
-							laddr.sinfamily := B.AFINET;
-							laddr.sinaddr := anyIP.ipv4Adr;
-							laddr.sinport := B.IntToNet( SHORT( lport ) );
-							B.Bind( socket, laddr );
-							IF B.done THEN  res := Ok;  open := TRUE  ELSE  B.Close( socket )  END
+							laddr := B.NewSocketAdr( anyIP, lport );
+							IF B.Bind( socket, laddr ) THEN  res := Ok;  open := TRUE  ELSE  B.Close( socket )  END
 						END
 					END
 				END Open;
@@ -74,24 +67,24 @@ TYPE
 				(** Send a UDP datagram to the foreign address specified by "fip" and "fport".
 					   The data is in "data[ofs..ofs+len-1]".  In case of concurrent sends the datagrams are serialized.
 					*)
-				PROCEDURE Send*( fip: IP.Adr;  fport: LONGINT;  VAR data: ARRAY OF CHAR;  ofs, len: LONGINT;
-											   VAR res: LONGINT );
-				VAR faddr: B.Sockaddrin;
+				PROCEDURE Send*( fip: IP.Adr;  
+								   fport: LONGINT;  
+								   CONST data: ARRAY OF CHAR;  ofs, len: LONGINT;
+								   VAR res: LONGINT );
+				VAR addr: B.SocketAdr;
 				BEGIN {EXCLUSIVE}
-					ASSERT( (fport >= 0) & (fport < 10000H) );  ASSERT( (len >= 0) & (len <= MaxUDPDataLen) );
-					faddr.sinfamily := B.AFINET;
-					faddr.sinport := B.IntToNet( SHORT( fport ) );
-					faddr.sinaddr := fip.ipv4Adr;
-					B.SendTo( socket, faddr, data, ofs, len );
-					IF B.done THEN  res := Ok  ELSE  res := Error  END
+					ASSERT( (fport >= 0) & (fport < 10000H) );  
+					ASSERT( (len >= 0) & (len <= MaxUDPDataLen) );
+					addr := B.NewSocketAdr( fip, fport );
+					IF B.SendTo( socket, addr, data, ofs, len ) THEN  res := Ok  ELSE  res := Error  END
 				END Send;
 
 
 				(** Send a broadcast UDP datagram via interface "int" to port "lport". Normally only used by DHCP.
 					   The data is in "data[ofs..ofs+len-1]".  In case of concurrent sends the datagrams are serialized.
 					*)
-				PROCEDURE SendBroadcast*( int: IP.Interface;  fport: LONGINT;  VAR data: ARRAY OF CHAR;
-															    ofs, len: LONGINT );
+				PROCEDURE SendBroadcast*( int: IP.Interface;  fport: LONGINT;  
+										      CONST data: ARRAY OF CHAR;  ofs, len: LONGINT );
 				BEGIN (*{EXCLUSIVE}*)
 					ASSERT( (fport >= 0) & (fport < 10000H) );  ASSERT( (len >= 0) & (len <= MaxUDPDataLen) );
 					HALT( 99 ) (* not implemented yet *)
@@ -106,27 +99,29 @@ TYPE
 					"res" returns "Timeout" in case of a timeout and "BufferOverflow" if the received datagram was
 					too big.
 				*)
-				PROCEDURE Receive*( VAR data: ARRAY OF CHAR;  ofs, size, ms: LONGINT;  VAR fip: IP.Adr;
-												   VAR fport, len, res: LONGINT );
-				VAR faddr: B.Sockaddrin;
+				PROCEDURE Receive*( VAR data: ARRAY OF CHAR;  ofs, size, ms: LONGINT;  
+									 VAR fip: IP.Adr;  VAR fport, len, res: LONGINT );
+				VAR 
+					addr: B.SocketAdr; i: LONGINT;
 				BEGIN {EXCLUSIVE}
 					IF ~open THEN  res := Closed;  RETURN   END;
-					B.RecvFrom( socket, faddr, data, ofs, len );
-					IF B.done THEN
-						fip.usedProtocol := IP.IPv4;
-						fip.ipv4Adr := faddr.sinaddr;
-						fport := B.NetToInt( faddr.sinport );
+					IF B.RecvFrom( socket, addr, data, ofs, len ) THEN
+						fport := B.NetToInt( addr.port );
+						IF addr IS B.SocketAdrV4 THEN
+							fip.usedProtocol := IP.IPv4;
+							fip.ipv4Adr := addr(B.SocketAdrV4).v4Adr;
+						ELSE
+							fip.usedProtocol := IP.IPv6;
+							FOR i := 0 TO 15 DO  
+								fip.ipv6Adr[i] := addr(B.SocketAdrV6).v6Adr[i]
+							END
+						END;
 						res := Ok;
-					ELSE  res := Error
+					ELSE  
+						res := Error
 					END
 				END Receive;
 
-
-				(* Handle timeout call from Objects *)
-				PROCEDURE DoTimeout;
-				BEGIN {EXCLUSIVE}
-					timeout := TRUE;
-				END DoTimeout;
 
 
 				(** Close the Socket, freeing its address for re-use. *)
