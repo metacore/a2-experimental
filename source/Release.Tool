@@ -1585,11 +1585,6 @@ PACKAGE OberonApplications ARCHIVE "OberonApplications.zip" SOURCE "OberonApplic
 	SavePoints.Text Oberon.SavePoints.Mod SavePoints.Data Oberon.MakePoints.Mod
 	SaveLife.html SaveLife.gif Oberon.SaveLife.Mod Oberon.SaveArt.Mod
 
-	# OberonSSH
-	Oberon.SSHUtils.Mod Oberon.SSHHostkeys.Mod Oberon.SSHTransport.Mod Oberon.SSHAuth.Mod Oberon.SSH.Mod
-	Oberon.SSHGadgets.Mod
-	SSH.Panel SSH.Tool SSHConfiguration.Text
-
 	NATIVE { LPRPrinter.Tool Oberon.LPRPrinter.Mod } 	# LPRPrinter
 	Oberon.DayTime.Mod 	# DayTime client
 
