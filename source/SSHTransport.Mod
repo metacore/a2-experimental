@@ -71,6 +71,7 @@ TYPE
 							state := Connected;
 							COPY( hostname, servername );
 							Out.String( "connected" );  Out.Ln;
+							tcp.KeepAlive( TRUE );
 							p := 0;  U.PutString( cvers, p, ClientVersion );
 							incipher := Ciphers.NewCipher( "" );
 							outcipher := Ciphers.NewCipher( "" );		(* empty ciphers, no encryption *)
@@ -177,6 +178,7 @@ TYPE
 					IF state = Closed THEN RETURN 0X END;
 					cbs := incipher.blockSize;
 					tcp.Receive( trbuf, 0, cbs, cbs, l, res );
+					IF res # TCP.Ok THEN (* closed by peer *) size := 0;  RETURN 0X  END;
 					incipher.Decrypt( trbuf, 0, cbs );
 					pos := 0;
 					U.GetLength( trbuf, pos, trlen );

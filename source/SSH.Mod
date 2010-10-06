@@ -11,8 +11,8 @@ CONST
 	OpenFailure = 5CX;  WindAdjust = 5DX;  Data = 5EX;  ExtData = 5FX;  ChannelEOF = 60X;  ChannelClose = 61X;
 	ChannelRequest = 62X;  ChannelSuccess = 63X;  ChannelFailure = 64X;
 
-	WinSize = 2*1024;
-	MaxPacketSize = 1024;   (* max packet size *)
+	WinSize = 8*1024;
+	MaxPacketSize = 2048;   (* max packet size *)
 
 	CR = 0DX;  NL = 0AX;
 
@@ -24,6 +24,39 @@ CONST
 	(*---------------------- TCP/IP port forwarding ----------------------------*)
 
 TYPE
+	ClientHandler = OBJECT 
+			VAR
+				f: Forwarder; (* this client belogs to *)
+				p: T.Packet;
+				buf: ARRAY 64 OF CHAR;
+				len, res: LONGINT;
+				
+			
+			
+			PROCEDURE & Init( forw: Forwarder );
+			BEGIN
+				f := forw
+			END Init;
+			
+		BEGIN {ACTIVE}
+			f.clientHandlerRunning := TRUE;
+			LOOP
+				len := 16;
+				f.clientConn.Receive( buf, 0, len, 1, len, res );
+				IF len > 0 THEN
+					p := f.chan.NewPacket( len + 32 );
+					p.AppArray( buf, 0, len );
+					f.chan.SendPacket( p )
+				ELSE
+					Out.String( "client at port " ); Out.Int( f.localPort, 0 );
+					Out.String( " closed connection" ); Out.Ln;
+					f.clientConn.Close;  f.clientConn := NIL;
+					EXIT
+				END
+			END;
+			f.clientHandlerRunning := FALSE;
+		END ClientHandler;
+	
 	Forwarder = OBJECT
 			VAR
 				next: Forwarder;
@@ -40,29 +73,34 @@ TYPE
 				chan: Channel;  	(* encrypted channel to destport at remote host *)
 
 				buf: ARRAY 4096 OF CHAR;
-				p: T.Packet;
 				type: CHAR;
 				len, res: LONGINT;
+				
+				clientHandlerRunning: BOOLEAN;
+				clientHandler: ClientHandler;
 
 
 				PROCEDURE OpenTunnel( ): BOOLEAN;
+				CONST DestHost = "localhost";
 				VAR
 					buf: ARRAY 3000 OF CHAR;
 					len: LONGINT;  p: T.Packet;
 					clientAddress: ARRAY 64 OF CHAR;
 					clientPort: LONGINT;
+					chanNo: LONGINT;
 				BEGIN
 					NEW( chan, remConn );
-
+					
 					IP.AdrToStr( clientConn.fip, clientAddress );
 					clientPort := clientConn.fport;
+					chanNo := remConn.GetChannelNo();
 
-					NEW( p, ChannelOpen, 256 );
+					NEW( p, ChannelOpen, 512 );
 						p.AppString( "direct-tcpip" );
-						p.AppInteger( remConn.GetChannelNo() );
+						p.AppInteger( chanNo );
 						p.AppInteger( WinSize );
 						p.AppInteger( MaxPacketSize );
-						p.AppString( "localhost" );
+						p.AppString( DestHost );
 						p.AppInteger( destPort );
 						p.AppString( clientAddress );
 						p.AppInteger( clientPort );
@@ -75,7 +113,7 @@ TYPE
 					chan.rchan := U.GetInt( buf, 5 );
 					chan.wsize := U.GetInt( buf, 9 );
 					chan.pmax := U.GetInt( buf, 13 );
-
+					
 					chan.state := ChanOpen;
 					RETURN TRUE
 				END OpenTunnel;
@@ -83,56 +121,66 @@ TYPE
 
 				PROCEDURE Stop;
 				BEGIN
-					active := FALSE;
-					chan.Close;  remConn.Disconnect( 11, "" );
-					clientConn.Close;  localConn.Close;
+					active := FALSE;  clientHandlerRunning := FALSE
 				END Stop;
 
-
-				PROCEDURE & Init*( lConn: TCP.Connection; lPort: LONGINT; rConn: T.Connection; dPort: LONGINT );
-				VAR
-					res: LONGINT;
+				PROCEDURE CloseAllConnections;
 				BEGIN
-					NEW( timer );  active := FALSE;
-
+					IF chan # NIL THEN  chan.Close;  chan := NIL  END;  
+					remConn.Disconnect( 11, "god bye" );  remConn := NIL;
+					IF clientConn # NIL THEN  clientConn.Close;  clientConn := NIL  END;  
+					localConn.Close;  localConn := NIL
+				END CloseAllConnections;
+				
+				
+				PROCEDURE & Init*( lConn: TCP.Connection; lPort: LONGINT; rConn: T.Connection; dPort: LONGINT );
+				BEGIN
+					localConn := lConn;
 					localPort := lPort;
 					remConn := rConn;
 					destPort := dPort;
 
-					lConn.Accept( clientConn, res );
-					IF res = TCP.Ok THEN
-						IF OpenTunnel(  ) THEN
-							WHILE ~lConn.Requested(  ) DO   timer.Sleep( 100 )  END;
-							active := TRUE
-						ELSE  remConn.Disconnect( 11, "Good bye" )
-						END
-					END;
+					NEW( timer );  active := TRUE;
 				END Init;
+				
 
 			BEGIN {ACTIVE}
-				WHILE active DO
-					IF (remConn.state = T.Closed) OR
-					    ~(clientConn.state IN {TCP.Listen, TCP.Established})  THEN  Stop
+				Out.String( "Start forwarding port " ); Out.Int( localPort, 0 );  Out.Ln;
+				REPEAT
+					localConn.Accept( clientConn, res );
+					IF res # TCP.Ok THEN
+						Out.String( "accept request failed" ); Out.Ln;
+						CloseAllConnections;
+						RETURN
 					END;
-					len := clientConn.Available(  );
-					IF remConn.PacketAvailable() THEN
-						type := chan.ReceivePacket( buf, len );
-						IF type = Data THEN
-							len := U.GetInt( buf, 5 );
-							clientConn.Send( buf, 9, len, TRUE, res )
-						ELSIF (type = ChannelEOF) OR (type = ChannelClose) THEN  Stop
-						END
-					ELSIF (len > 0) & (chan.wsize >= len) THEN
-						p := chan.NewPacket( len + 64 );
-						p.AppInteger( len );
-						clientConn.Receive( buf, 0, len, len, len, res );
-						p.AppArray( buf, 0, len );
-						chan.SendPacket( p )
-					ELSE
-						Out.Char( "w" ); timer.Sleep( 500 )
+					Out.String( "client request accepted" ); Out.Ln;
+					IF ~OpenTunnel(  ) THEN
+						Out.String( "open tunnel failed" ); Out.Ln;
+						CloseAllConnections;
+						RETURN
 					END;
-
-				END
+					NEW( clientHandler, SELF );
+					WHILE ~clientHandlerRunning DO  timer.Sleep( 10 )  END;
+					LOOP
+						IF clientHandlerRunning & remConn.PacketAvailable() THEN	
+							type := chan.ReceivePacket( buf, len );
+							IF type = Data THEN
+								len := U.GetInt( buf, 5 );
+								clientConn.Send( buf, 9, len, TRUE, res )
+							ELSIF type = 0X THEN  
+								Stop  
+							END
+						ELSE
+							IF ~active THEN
+								CloseAllConnections;  EXIT
+							ELSE
+								IF ~clientHandlerRunning THEN  EXIT  END;
+								timer.Sleep( 50 )
+							END
+						END	
+					END; (* loop *)
+				UNTIL ~active;
+				Out.String( "Terminate forwarding port " ); Out.Int( localPort, 0 );  Out.Ln;
 			END Forwarder;
 
 VAR
@@ -167,8 +215,8 @@ TYPE
 						(* wait for server window space *)
 						t := ReceivePacket( buf, l );
 						IF t = Data THEN  (* must buffer it ? *)
-							Error( "got data while waiting for window space" )
-						ELSIF t = 0X THEN  Error( "unexpected end of data" )
+							Error( "got data while waiting for window space" ); RETURN
+						ELSIF t = 0X THEN  Error( "unexpected end of data" ); RETURN
 						END
 					END;
 					conn.SendPacket( p );  DEC( wsize, len );  res := Streams.Ok
@@ -236,8 +284,8 @@ TYPE
 							(* wait for server window space *)
 							t := ReceivePacket( buf, len );
 							IF t = Data THEN  (* must buffer it ? *)
-								Error( "got data while waiting for window space" )
-							ELSIF t = 0X THEN  Error( "unexpected end of data" )
+								Error( "got data while waiting for window space" ); RETURN
+							ELSIF t = 0X THEN  Error( "unexpected end of data" ); RETURN
 							END
 						END;
 						conn.SendPacket( p );  DEC( wsize, dsize )
@@ -311,8 +359,8 @@ TYPE
 								p.AppString( "" );   (* language tag *)
 								conn.SendPacket( p )
 						| ChannelRequest:
-								NEW( p, ChannelFailure, 64 );
-								conn.SendPacket( p )
+							(*	NEW( p, ChannelFailure, 64 );
+								conn.SendPacket( p )	*)
 						ELSE
 							ErrorResponse( "SSH.Channel.read", buf );
 							conn.Disconnect( 2, "protocol error" );
@@ -512,11 +560,10 @@ TYPE
 		Out.Int( U.GetInt( p, 1 ), 0 );  Out.Char( ' ' )
 	END PrintPackageType;
 
-
 	PROCEDURE Error( CONST msg: ARRAY OF CHAR );
 	BEGIN
-		Out.String( "Error: " );  Out.String( msg );  Out.Ln;
-		HALT (99 )
+		Out.Ln;
+		Out.String( "### Error: " ); Out.String( msg );  Out.Ln
 	END Error;
 
 	PROCEDURE ErrorResponse( CONST msg, buf: ARRAY OF CHAR );
@@ -539,24 +586,26 @@ TYPE
 
 
 	PROCEDURE ShowResp( CONST resp: ARRAY OF CHAR );
-	VAR buf: ARRAY 256 OF CHAR;
+	VAR buf: ARRAY 1024 OF CHAR;
 		i, j, v: INTEGER;  c: CHAR;  err: BOOLEAN;
 	BEGIN
-		i := 0;  j := 0;
+		i := 0;  j := 0; 
 		err := ORD( resp[0] ) IN {1, 2};
 		IF err THEN  i := 1  END;
 		REPEAT
 			c := resp[i];  INC( i );
 			IF c >= ' ' THEN  buf[j] := c;  INC( j )
-			ELSIF (c # CR) & (c # NL) THEN
+			ELSE
 				v := ORD( c );  buf[j] := '\';  INC( j );
 				buf[j] := CHR( v DIV 64 MOD 8 + 48 );  INC( j );
 				buf[j] := CHR( v DIV 8 MOD 8 + 48 );  INC( j );
 				buf[j] := CHR( v MOD 8 + 48 );  INC( j );
 			END
-		UNTIL (c = NL) OR (i >= LEN( resp ));
-		buf[j] := 0X;
-		IF err THEN  Error( buf )  ELSE  Out.String( buf );  Out.Ln  END
+		UNTIL (i > 256) OR (i >= LEN( resp ));
+		FOR i := 0 TO j - 1 DO  
+			IF i MOD 64 = 0 THEN  Out.Ln  END;
+			Out.Char( buf[i] )
+		END
 	END ShowResp;
 
 
@@ -751,13 +800,11 @@ TYPE
 		IF LEN( strings^ ) # 2 THEN  Out.String( usage ); Out.Ln;  RETURN  END;
 		COPY( strings[0]^, user );
 		COPY( strings[1]^, remhost );
-
 		arg.SkipWhitespace; arg.String( token );
 		strings := Strings.Split( token, ':' );
 		IF  LEN( strings^ ) # 2 THEN  Out.String( usage ); Out.Ln;  RETURN  END;
 		Strings.StrToInt( strings[0]^, locPort );
 		Strings.StrToInt( strings[1]^, destPort );
-
  		f := forwarderList;
 		WHILE f # NIL DO
 			IF f.localPort = locPort THEN
@@ -765,16 +812,15 @@ TYPE
 			END;
 			f := f.next
 		END;
-
 		NEW( locConn );
-		locConn.Open( locPort, IP.ArrayToAdr( "0.0.0.0", 0, IP.IPv4, TRUE ), TCP.NilPort, res );
+		locConn.Open( locPort, IP.NilAdr, TCP.NilPort, res );
 		IF res = TCP.Ok THEN
 			remConn := A.OpenConnection( remhost, user );
 			IF remConn # NIL THEN
 				NEW( f, locConn, locPort, remConn, destPort );
-				Out.String( "Started forwarding port " );  Out.Int( locPort, 1 );  Out.Ln;
 				f.next := forwarderList;  forwarderList := f;
 			ELSE
+				Out.String( "connecting remote host hailed" ); Out.Ln;
 				locConn.Close;
 			END
 		ELSE
@@ -792,7 +838,6 @@ TYPE
 			REPEAT  pred := t;  t := t.next  UNTIL (t = NIL ) OR (t = fw);
 			IF t # NIL THEN  pred.next := t.next  END
 		END;
-		Out.String( "Stopped forwarding port " );  Out.Int( fw.localPort, 1 );  Out.Ln;
 	END Stop;
 
 	(**  SSH.StopForwarding all | { portnumber }  ~ *)
