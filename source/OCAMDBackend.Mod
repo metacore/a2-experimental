@@ -513,74 +513,75 @@ TYPE
 		PROCEDURE Section(in: IntermediateCode.Section; out: BinaryCode.Section);
 		VAR pc: LONGINT; name: SyntaxTree.String; ignore: BOOLEAN;
 
-			(*
-			PROCEDURE CheckAcquire(CONST instr: IntermediateCode.Instruction; VAR ignore: BOOLEAN);
-			VAR i: LONGINT; register: LONGINT;
+			PROCEDURE CheckAcquire(CONST instr: IntermediateCode.Instruction);
+			VAR i: LONGINT; type: IntermediateCode.Type;
+				(*lastUse: ARRAY MaxVirtualRegisters OF LONGINT;*)
 
-				PROCEDURE CheckUsage(reg: LONGINT);
-				BEGIN IF reg = register THEN INC(registerUse[reg]); END;
+				PROCEDURE CheckOperand(CONST operand: IntermediateCode.Operand; register: LONGINT; at: LONGINT);
+				BEGIN
+					IF operand.register = register THEN lastUse[register] := at;
+						IF operand.mode = IntermediateCode.ModeMemory THEN
+							type := IntermediateBackend.GetType(module.system,module.system.addressType);
+						ELSE
+							type := operand.type
+						END;
+					END;
+				END CheckOperand;
+
+				PROCEDURE CheckUsage(CONST instr: IntermediateCode.Instruction; register: LONGINT; at: LONGINT);
+				BEGIN
+					CheckOperand(instr.op1,register, at);
+					CheckOperand(instr.op2,register, at);
+					CheckOperand(instr.op3,register, at);
 				END CheckUsage;
 
-				PROCEDURE CheckDest(CONST instr: IntermediateCode.Instruction): BOOLEAN;
+				PROCEDURE CheckDest(CONST instr: IntermediateCode.Instruction; register: LONGINT): BOOLEAN;
+				(* check if instruction uses register as new destination operand
+					examples:
+						mov $0, $1
+						add $0, [$1]
+						call (implicit for $res and $res2)
+					but not:
+						mov [$0], $1
+						add $0, $0, 1
+				*)
 				BEGIN
-					RETURN (instr.op1.mode = IntermediateCode.ModeRegister) & (IntermediateCode.instructionFormat[instr.opcode].op1 = IntermediateCode.RegMem) & (instr.op1.register = register) & (instr.op2.register # register) & (instr.op3.register # register)
-							OR (register IN {IntermediateCode.Result, IntermediateCode.Result2}) & (instr.opcode = IntermediateCode.call)
+					RETURN
+					(instr.op1.mode = IntermediateCode.ModeRegister)
+					& (IntermediateCode.Op1IsDestination IN IntermediateCode.instructionFormat[instr.opcode].flags) (* first operand is destination operand *)
+					& (instr.op1.register = register) & (instr.op2.register # register) & (instr.op3.register # register)
+					OR (instr.opcode = IntermediateCode.call) & (register IN {IntermediateCode.Result, IntermediateCode.Result2})
 				END CheckDest;
 
-				PROCEDURE Reserve;
+				PROCEDURE Reserve(register: LONGINT);
 				BEGIN
-					IF (register >0) & CheckDest(instr) THEN
-
-						IF optimizeExperiment & (instr.op2.register > 0) & (instr.op2.mode = IntermediateCode.ModeRegister) & (instr.op2.offset = 0) THEN
-							IF (instr.opcode = IntermediateCode.conv) OR (instr.opcode = IntermediateCode.mov)
-							THEN
-								IF (instr.op2.type.form IN IntermediateCode.Integer) & (instr.op1.type.form IN IntermediateCode.Integer)
-									& (instr.op1.type.sizeInBits = instr.op2.type.sizeInBits) & (registerUse[instr.op2.register]=1)
-									& (instr.op1.register < IntermediateCode.Result)
-								THEN
-									IF dump # NIL THEN dump.String("transfer register: ");
-										IntermediateCode.DumpOperand(dump,instr.op1,TRUE); dump.String("<--");
-										IntermediateCode.DumpOperand(dump,instr.op2,TRUE); dump.Ln;
-									END;
-									TransferRegister(instr.op2.register, register); ignore := TRUE;
-								END;
-							END;
+					IF (register >0) & CheckDest(instr,register) THEN
+						Assert(lastUse[register] < 0,"error in register usage");
+						type := instr.op1.type;
+						i := pc+1; lastUse[register] := pc;
+						WHILE (i<in.pc) & ~CheckDest(in.instructions[i],register) DO
+							CheckUsage(in.instructions[i],register,i); INC(i);
 						END;
-
-						IF ~ignore THEN
-							MapVirtualRegister(register,instr.op1.type);
-						END;
-						Assert(registerUse[register] = 0,"register already acquired");
-						i := pc;
-						REPEAT
-							CheckUsage(in.instructions[i].op1.register);
-							CheckUsage(in.instructions[i].op2.register);
-							CheckUsage(in.instructions[i].op3.register);
-							IF in.instructions[i].opcode = IntermediateCode.call THEN
-								CheckUsage(IntermediateCode.Result);
-								CheckUsage(IntermediateCode.Result2);
+						IF (instr.opcode # IntermediateCode.call) OR (lastUse[register] >pc) THEN (* used at all *)
+							IF dump # NIL THEN
+								dump.String("map virtual register $"); dump.Int(register,1);
+								dump.String(", last use:"); dump.Int(lastUse[register],1);
+								IntermediateCode.DumpType(dump,type);
+								dump.Ln;
 							END;
-							INC(i);
-						UNTIL (i = in.pc) OR CheckDest(in.instructions[i]);
-
+							MapVirtualRegister(register,type);
+						ELSE lastUse[register] := -1;
+						END;
 					END;
 				END Reserve;
 
 			BEGIN
-				ignore := FALSE;
-				register := instr.op1.register;
-				Reserve;
-				currentlyUsed := {};
+				Reserve(instr.op1.register);
 				IF instr.opcode = IntermediateCode.call THEN
-					register := IntermediateCode.Result; Reserve; register := IntermediateCode.Result2; Reserve;
-					INCL(currentlyUsed, IntermediateCode.Result);
-					INCL(currentlyUsed, IntermediateCode.Result2);
+					Reserve(IntermediateCode.Result);
+					Reserve(IntermediateCode.Result2);
 				END;
-				IF instr.op1.register > 0 THEN INCL(currentlyUsed,instr.op1.register) END;
-				IF instr.op2.register > 0 THEN INCL(currentlyUsed,instr.op2.register) END;
-				IF instr.op3.register > 0 THEN INCL(currentlyUsed,instr.op3.register) END;
 			END CheckAcquire;
-			*)
 
 			PROCEDURE Prepare(instr: IntermediateCode.Instruction; pc: LONGINT);
 			VAR register: LONGINT;
@@ -663,6 +664,7 @@ TYPE
 				IF pc = in.finally THEN out.SetFinally(out.pc) END;
 				IF pc = in.validPAFEnter THEN out.EnterValidPAF END;
 				IF pc = in.validPAFExit THEN out.ExitValidPAF END;
+				CheckAcquire(in.instructions[pc]);
 				Prepare(in.instructions[pc],pc);
 				IF dump # NIL THEN
 					dump.Int(pc,1); dump.String(": "); IntermediateCode.DumpInstruction(dump,in.instructions[pc]);
@@ -1237,7 +1239,6 @@ TYPE
 			|IntermediateCode.data: EmitData(instr);
 			|IntermediateCode.reserve: EmitReserve(instr);
 			|IntermediateCode.label: EmitLabel(instr);
-			|IntermediateCode.acquire: EmitAcquire(instr)
 			END;
 
 			WHILE numberTemporary > 0 DO
@@ -1251,12 +1252,6 @@ TYPE
 				END;
 			END;
 		END Generate;
-
-		PROCEDURE EmitAcquire(CONST instr: IntermediateCode.Instruction);
-		BEGIN
-			MapVirtualRegister(instr.op1.register, instr.op1.type);
-			lastUse[instr.op1.register] := SHORT(instr.op3.intValue);
-		END EmitAcquire;
 
 		PROCEDURE Enter(size: LONGINT);
 		VAR op1,op2,imm: Assembler.Operand;

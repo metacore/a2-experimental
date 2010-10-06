@@ -54,14 +54,14 @@ CONST
 		br breq brne brge brlt
 		pop push neg not abs
 		mul div  mod sub add and or xor shl shr rol ror
-		copy fillup filldown inline data reserve label acquire NofOpcodes~
+		copy fillup filldown inline data reserve label NofOpcodes~
 	*)
 
 	nop*= 0; mov*= 1; conv*= 2; call*= 3; enter*= 4; leave*= 5; return*= 6; trap*= 7;
 	br*= 8; breq*= 9; brne*= 10; brge*= 11; brlt*= 12; pop*= 13; push*= 14; neg*= 15;
 	not*= 16; abs*= 17; mul*= 18; div*= 19; mod*= 20; sub*= 21; add*= 22; and*= 23;
 	or*= 24; xor*= 25; shl*= 26; shr*= 27; rol*= 28; ror*= 29; copy*= 30; fillup *= 31; filldown*= 32; asm*= 33;
-	data*= 34; reserve*= 35; label*=36; acquire*=37; NofOpcodes*= 38;
+	data*= 34; reserve*= 35; label*=36; NofOpcodes*= 37;
 
 TYPE
 	Type*=RECORD
@@ -576,8 +576,6 @@ TYPE
 		AddFormat(reserve, "reserve",Num,Undef,Undef,{});
 		(* label - pseudo-instruction to reference back to source code positions *)
 		AddFormat(label, "label",Num,Undef,Undef,{});
-		(* allocate - pseudo-instruction for register allocation, op2=firstUse, op3=lastUse *)
-		AddFormat(acquire, "acquire",{ModeRegister},Num,Num,{});
 	END InitInstructions;
 
 	PROCEDURE InitInstruction*(VAR instr: Instruction; opcode: SHORTINT; op1,op2,op3: Operand);

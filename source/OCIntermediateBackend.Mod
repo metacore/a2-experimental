@@ -768,7 +768,6 @@ TYPE
 			UseRegister(register);
 			IntermediateCode.InitRegister(op,usedRegisters[register].type,register);
 			usedRegisters[register].acquirePosition := section.pc;
-			Emit(Acquire(op));
 		END AcquireThisRegister;
 
 		PROCEDURE AcquireRegister(type: IntermediateCode.Type): SHORTINT;
@@ -797,35 +796,6 @@ TYPE
 			END;
 		END UseRegister;
 
-		PROCEDURE PatchAcquire(acquirePosition,releasePosition: LONGINT);
-		VAR first,last: IntermediateCode.Operand; firstUse, lastUse: LONGINT;
-
-		PROCEDURE HasRegister(CONST instruction: IntermediateCode.Instruction; register: LONGINT): BOOLEAN;
-		BEGIN
-			RETURN (instruction.op1.register = register) OR (instruction.op2.register = register) OR (instruction.op3.register = register)
-		END HasRegister;
-
-		BEGIN
-
-			firstUse := acquirePosition+1;
-			lastUse := releasePosition-1;
-			IF firstUse >= section.pc THEN
-				IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.nop, emptyOperand, emptyOperand, emptyOperand);
-			ELSE
-				WHILE (section.instructions[firstUse].opcode = IntermediateCode.acquire) DO INC(firstUse) END;
-				IntermediateCode.InitNumber(first, firstUse);
-				IntermediateCode.InitNumber(last, lastUse);
-				WHILE (lastUse >= firstUse) & ~HasRegister(section.instructions[lastUse], section.instructions[acquirePosition].op1.register) DO
-					DEC(lastUse)
-				END;
-				IF lastUse >= firstUse THEN
-					IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.acquire, section.instructions[acquirePosition].op1,first, last);
-				ELSE
-					IntermediateCode.InitInstruction(section.instructions[acquirePosition], IntermediateCode.nop, emptyOperand, emptyOperand, emptyOperand);
-				END;
-			END;
-		END PatchAcquire;
-
 		PROCEDURE ReleaseRegister(i: SHORTINT);
 		VAR op: IntermediateCode.Operand;
 		BEGIN
@@ -841,9 +811,6 @@ TYPE
 				dump.Int(usedRegisters[i].count,1);
 				dump.String(")");
 				dump.Ln; dump.Update
-			END;
-			IF usedRegisters[i].count = 0 THEN
-				PatchAcquire(usedRegisters[i].acquirePosition,section.pc);
 			END;
 			IF (usedRegisters[i].count < 0) THEN
 				Error(position,"compiler implementation error: release on unused register");
@@ -903,7 +870,6 @@ TYPE
 		BEGIN
 			FOR i := 1 TO LEN(usedRegisters)-1 DO
 				IF usedRegisters[i].count > 0 THEN
-					PatchAcquire(usedRegisters[i].acquirePosition,section.pc);
 					usedRegisters[i].count := 0;
 				END;
 			END;
@@ -945,8 +911,6 @@ TYPE
 					END;
 
 					usedRegisters[i].acquirePosition := section.pc;
-					Emit(Acquire(op));
-
 					Emit(Pop(op));
 				END;
 			END;
@@ -5974,14 +5938,25 @@ TYPE
 		VAR pc,i: LONGINT; name: SyntaxTree.String; ignore: BOOLEAN; instruction: IntermediateCode.Instruction
 
 			PROCEDURE CheckAcquire(CONST instr: IntermediateCode.Instruction);
-			VAR i: LONGINT;
+			VAR i: LONGINT; type: IntermediateCode.Type;
+				(*lastUse: ARRAY MaxVirtualRegisters OF LONGINT;*)
+
+				PROCEDURE CheckOperand(CONST operand: IntermediateCode.Operand; register: LONGINT; at: LONGINT);
+				BEGIN
+					IF operand.register = register THEN lastUse[register] := at;
+						IF operand.mode = IntermediateCode.ModeMemory THEN
+							type := GetType(module.system,module.system.addressType);
+						ELSE
+							type := operand.type
+						END;
+					END;
+				END CheckOperand;
 
 				PROCEDURE CheckUsage(CONST instr: IntermediateCode.Instruction; register: LONGINT; at: LONGINT);
 				BEGIN
-					IF instr.op1.register = register THEN lastUse[register] := at
-					ELSIF instr.op2.register = register THEN lastUse[register] := at
-					ELSIF instr.op3.register = register THEN lastUse[register] := at
-					END;
+					CheckOperand(instr.op1,register, at);
+					CheckOperand(instr.op2,register, at);
+					CheckOperand(instr.op3,register, at);
 				END CheckUsage;
 
 				PROCEDURE CheckDest(CONST instr: IntermediateCode.Instruction; register: LONGINT): BOOLEAN;
@@ -6006,16 +5981,18 @@ TYPE
 				BEGIN
 					IF (register >0) & CheckDest(instr,register) THEN
 						Assert(lastUse[register] < 0,"error in register usage");
+						type := instr.op1.type;
 						i := pc+1; lastUse[register] := pc;
 						WHILE (i<in.pc) & ~CheckDest(in.instructions[i],register) DO
 							CheckUsage(in.instructions[i],register,i); INC(i);
 						END;
 						IF (instr.opcode # IntermediateCode.call) OR (lastUse[register] >pc) THEN (* used at all *)
 							IF dump # NIL THEN
-								dump.String("map virtual register $"); dump.Int(register,1);
-								dump.String(" until "); dump.Int(lastUse[register],1); dump.Ln;
+								dump.String("Acquire virtual register ");IntermediateCode.DumpType(dump,type); dump.String(" $"); dump.Int(register,1);
+								dump.String(", last use:"); dump.Int(lastUse[register],1);
+								dump.Ln;
 							END;
-							MapVirtualRegister(register,instr.op1.type);
+							MapVirtualRegister(register,type);
 						ELSE lastUse[register] := -1;
 						END;
 					END;
@@ -6145,24 +6122,8 @@ TYPE
 					dump.Ln;
 				END;
 				IF ~ignore THEN
-					IF instruction.opcode = IntermediateCode.acquire THEN
-						IF dump # NIL THEN
-							dump.String("acquire ignored");
-							dump.Int(instruction.op1.register,1); dump.String(" to ");
-							dump.Int(SHORT(instruction.op3.intValue),1); dump.Ln;
-						END;
-					ELSE
-						CheckAcquire(instruction);
-						Generate(instruction);
-					END;
-					(*
-					IF instruction.opcode = IntermediateCode.acquire THEN
-						lastUse[instruction.op1.register] := SHORT(instruction.op3.intValue);
-						MapVirtualRegister(instruction.op1.register, instruction.op1.type);
-					ELSE
-						Generate(instruction);
-					END;
-					*)
+					CheckAcquire(instruction);
+					Generate(instruction);
 				END;
 				Release(instruction);
 			END;
@@ -7842,6 +7803,7 @@ TYPE
 		RETURN instruction
 	END LabelInstruction;
 
+	(*
 	PROCEDURE Acquire(op: IntermediateCode.Operand): IntermediateCode.Instruction;
 	VAR instruction: IntermediateCode.Instruction; imm: IntermediateCode.Operand;
 	BEGIN
@@ -7849,6 +7811,7 @@ TYPE
 		IntermediateCode.InitInstruction(instruction,IntermediateCode.acquire, op, imm, imm);
 		RETURN instruction
 	END Acquire;
+	*)
 
 	PROCEDURE EnterImmediate*(data: IntermediateCode.Section; CONST vop: IntermediateCode.Operand): LONGINT;
 	VAR pc: LONGINT;
