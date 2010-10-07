@@ -579,9 +579,12 @@ TYPE
 	END InitInstructions;
 
 	PROCEDURE InitInstruction*(VAR instr: Instruction; opcode: SHORTINT; op1,op2,op3: Operand);
-	VAR format: InstructionFormat;
+	VAR format: InstructionFormat; mode1, mode2, mode3: LONGINT; (* debugging *)
 	BEGIN
 		format := instructionFormat[opcode];
+		mode1 := op1.mode;
+		mode2 := op2.mode;
+		mode3 := op3.mode;
 		Assert(op1.mode IN format.op1,"first operand mode mismatch");
 		Assert(op2.mode IN format.op2,"second operand mode mismatch");
 		Assert(op3.mode IN format.op3,"third operand mode mismatch");

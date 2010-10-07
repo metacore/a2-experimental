@@ -129,6 +129,7 @@ CONST
 		sfTypeTensor=42H;
 		sfTypeStaticMathArray = 43H;
 		sfTypeAll = 44H;
+		sfTypeRange = 45H;
 
 		(* workaround: handle inlined operators *)
 		sfInline = 0ABH;
@@ -282,8 +283,8 @@ TYPE
 		PROCEDURE VisitStringType(x: SyntaxTree.StringType);
 		BEGIN END VisitStringType;
 
-		PROCEDURE VisitRangeType(x: SyntaxTree.RangeType);
-		BEGIN END VisitRangeType;
+		PROCEDURE VisitArrayRangeType(x: SyntaxTree.ArrayRangeType);
+		BEGIN END VisitArrayRangeType;
 
 		(* types containing links to other types *)
 
@@ -1076,6 +1077,8 @@ TYPE
 					END
 				ELSIF tag = sfTypeAll THEN
 					type := system.allType
+				ELSIF tag = sfTypeRange THEN
+					type := system.arrayRangeType;
 				ELSIF tag <= sfModOther THEN
 					(* ImportedType = ModuleNumber (structName:RawString | 0X typeIndex:RawNum) *)
 					(* ModuleNumber = sfMod1 | .. | sfModOther-1 | sfModOther moduleNumber:RawNum *)
@@ -1810,6 +1813,10 @@ TYPE
 					ELSIF type IS SyntaxTree.AllType THEN w.RawNum(sfTypeAll);
 						IF TraceExport IN Trace THEN
 							D.Str("Type / Basic / All"); D.Ln
+						END;
+					ELSIF type IS SyntaxTree.ArrayRangeType THEN w.RawNum(sfTypeRange);
+						IF TraceExport IN Trace THEN
+							D.Str("Type / Basic / Range"); D.Ln
 						END;
 					ELSIF type IS SyntaxTree.AddressType THEN w.RawNum(sfTypeAddress) (*! compatibility with PACO *)
 					ELSIF type IS SyntaxTree.SizeType THEN w.RawNum(sfTypeLongint)

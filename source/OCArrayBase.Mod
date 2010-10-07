@@ -1054,14 +1054,16 @@ Sufficient (but not necessary) conditions:
 		PROCEDURE UseDescriptor;
 		VAR tag: LONGINT;
 		BEGIN
-			SYSTEM.GET( src - 4, tag );  Heaps.NewRec( ptr, tag, FALSE );
+			SYSTEM.GET( src - 4, tag );  
+			Heaps.NewRec( ptr, tag, FALSE );
 			dest := SYSTEM.VAL( LONGINT, ptr );
 		END UseDescriptor;
 
 		PROCEDURE NewData;
 		VAR dim, len, size: LONGINT;
 		BEGIN
-			dim := GetDim( src );  size := elementsize;  PutDim( dest, dim );
+			dim := GetDim( src );  size := elementsize;  
+			PutDim( dest, dim );
 			PutSize( dest, elementsize );
 			WHILE (dim > 0) DO
 				DEC( dim );  len := GetLen( src, dim );  PutLen( dest, dim, len );
@@ -1079,6 +1081,7 @@ Sufficient (but not necessary) conditions:
 			IF TensorFlag IN GetFlags( src ) THEN UseDescriptor();
 			ELSE ptr := GetArrayDesc( GetDim( src ) );  dest := SYSTEM.VAL( LONGINT, ptr );
 			END;
+			PutFlags(dest, {TensorFlag});
 			NewData();  RETURN ptr;
 		ELSIF GetDim( dest ) # GetDim( src ) THEN  (* different dimension *)
 			(* check if re-allocation of descriptor is allowed *)
@@ -1086,7 +1089,9 @@ Sufficient (but not necessary) conditions:
 				~(TemporaryFlag IN GetFlags( dest )) THEN  (* no, not allowed*)
 				HALT( 100 );
 			END;
-			UseDescriptor();  NewData();  RETURN ptr;
+			UseDescriptor();
+			PutFlags(dest, {TensorFlag});
+			NewData();  RETURN ptr;
 		ELSIF (GetAdr( dest ) = 0) OR ~SameShape( dest, src ) THEN
 			(* check if re-allocation of array data is allowed *)
 			IF RangeFlag IN GetFlags( dest ) THEN  (* no! not allowed *)
@@ -1122,7 +1127,7 @@ Sufficient (but not necessary) conditions:
 		IF GetDim( src ) # GetDim( dest ) THEN  (* not allowed but possible (tensor) *)
 			srcdim := GetDim(src);
 			destdim := GetDim(dest);
-			HALT( 100 );
+			HALT(100);
 		ELSIF src = dest THEN  (* self copy *)
 			CopyArraySelf( dest, src, elementsize );
 		ELSE
@@ -8182,13 +8187,6 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "**";
 
-	PROCEDURE ExpandDimensions*(CONST left: ARRAY [?] OF SYSTEM.ALL; CONST a: ARRAY [*] OF BOOLEAN): ARRAY [?] OF SYSTEM.ALL;
-	VAR newdim: LONGINT;
-	BEGIN
-		newdim := LEN(a,0);
-	END ExpandDimensions;
-
-
 	PROCEDURE InitOptimization;
 	VAR p: PROCEDURE;
 	BEGIN
@@ -8240,19 +8238,96 @@ Sufficient (but not necessary) conditions:
 		END;
 	END CopyDescriptor;
 
-		(*
-			when Reshape is called by a compiler, the arguments are - for the compiler - replaced as follows, this makes them compatible
-				VAR dest: ARRAY [?] OF basetype
-				CONST src: ARRAY [?] OF basetype
-				CONST shape: ARRAY [*] OF LONGINT
+	(* when Reshape is called by a compiler, the arguments are - for the compiler - replaced as follows, this makes them compatible
+		VAR dest: ARRAY [?] OF basetype
+		CONST src: ARRAY [?] OF basetype
+		CONST shape: ARRAY [*] OF LONGINT
 	*)
-
-
 	PROCEDURE Reshape*(CONST left: ARRAY [?] OF SYSTEM.ALL; CONST right: ARRAY [*] OF LONGINT): ARRAY [?] OF SYSTEM.ALL;
 	BEGIN
 		DoReshape(SYSTEM.VAL(LONGINT,RESULT), SYSTEM.VAL(LONGINT,left), right);
 		RETURN RESULT
 	END Reshape;
+
+	(* OLIVIER *)
+	(** creates a degenerated range from an integer.
+		- makes it possible to convert the result of an integer-valued procedure F() into a range
+		without executing the procedure twice as it would happen in "(F() .. F() BY 1)"
+	**)
+	PROCEDURE RangeFromInteger*(CONST integer: LONGINT): RANGE;
+	BEGIN RETURN (integer .. integer BY 1)
+	END RangeFromInteger;
+
+	(* OLIVIER *)
+	(** create an array with the same data but with more dimensions
+		- each element in the array 'keptDimensions' corresponds to a dimension in the resulting array
+		- if element = TRUE: use a dimension from the source array, i.e. reuse length and increment
+		- if element = FALSE: insert a new dimension having length = 1 and increment = 0
+
+		e.g.:
+			ExpandDimensions(array, [FALSE, TRUE, FALSE, FALSE, TRUE])
+			performs the following type transformation:
+			ARRAY [10, 20] OF REAL -> ARRAY [1, 10, 1, 1, 20] OF REAL
+
+	**)
+	PROCEDURE ExpandDimensions*(CONST sourceArray: ARRAY [?] OF SYSTEM.ALL; CONST keptDimensions: ARRAY [*] OF BOOLEAN): ARRAY [?] OF SYSTEM.ALL;
+	VAR
+		targetDimensionality, sourceIndex, targetIndex: LONGINT;
+		sourceAddress, targetAddress: LONGINT;
+		targetArrayDescriptor: ANY;
+	BEGIN
+		sourceAddress := SYSTEM.VAL(LONGINT, sourceArray);
+		targetDimensionality := LEN(keptDimensions, 0);
+		targetArrayDescriptor := GetArrayDesc(targetDimensionality); (* create a new array descriptor *)
+		SYSTEM.PUT(SYSTEM.ADR(RESULT), targetArrayDescriptor);
+		targetAddress := SYSTEM.VAL(LONGINT, RESULT);
+
+		PutAdr(targetAddress, GetAdr(sourceAddress));
+		PutPtr(targetAddress, GetPtr(sourceAddress));
+		PutFlags(targetAddress, {TensorFlag});
+		PutSize(targetAddress, GetSize(sourceAddress)); 
+
+		(* set increments and lengths *)
+		sourceIndex := 0;
+		FOR targetIndex := 0 TO targetDimensionality - 1 DO
+			IF keptDimensions[targetIndex] THEN
+				(* reuse length and increment from source array *)
+				ASSERT(sourceIndex < DIM(sourceArray));
+				PutLen(targetAddress, targetIndex, GetLen(sourceAddress, sourceIndex));
+				PutInc(targetAddress, targetIndex, GetIncr(sourceAddress, sourceIndex));
+				INC(sourceIndex)
+			ELSE
+				(* set length = 1 and increment = 0 *)
+				PutLen(targetAddress, targetIndex, 1);
+				PutInc(targetAddress, targetIndex, 0);
+			END
+		END;
+		
+		(* Report("expand dimensions: ", targetAddress); *)
+		RETURN RESULT
+	END ExpandDimensions;
+
+	(* OLIVIER *)	
+	(* the length of a range, i.e. the number of indices that it stands for *)
+	OPERATOR "LEN"*(CONST range: RANGE): LONGINT;
+	VAR
+		temp, result: LONGINT;
+	BEGIN
+		IF (LAST(range) < FIRST(range)) OR (FIRST(range) < 0) OR (STEP(range) < 1) THEN
+			(* invalid range *)
+			result := 0
+		ELSIF LAST(range) = MAX(LONGINT) THEN
+			(* open-ended range *)
+			result := MAX(LONGINT)
+		ELSE
+			temp := 1 + LAST(range) - FIRST(range);
+			result := temp DIV STEP(range);
+			IF (temp MOD STEP(range)) # 0 THEN
+				INC(result)
+			END
+		END;
+		RETURN result
+	END "LEN";
 
 BEGIN
 	alloc := 0;  SetDefaults();  InitOptimization();  (* CreateTypePool;  *)

@@ -114,8 +114,8 @@ TYPE
 		PROCEDURE VisitStringType(x: SyntaxTree.StringType);
 		BEGIN (* no code emission *)   END VisitStringType;
 
-		PROCEDURE VisitRangeType(x: SyntaxTree.RangeType);
-		BEGIN (* no code emission *)   END VisitRangeType;
+		PROCEDURE VisitArrayRangeType(x: SyntaxTree.ArrayRangeType);
+		BEGIN (* no code emission *)   END VisitArrayRangeType;
 
 		PROCEDURE VisitArrayType(x: SyntaxTree.ArrayType);
 		BEGIN (* no code emission *)   END VisitArrayType;

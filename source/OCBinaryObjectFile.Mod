@@ -1636,6 +1636,7 @@ TYPE
 				ELSIF type IS SyntaxTree.ObjectType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.PointerType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.ProcedureType THEN char := rfDelegate
+				ELSIF type IS SyntaxTree.ArrayRangeType THEN char := rfRange
 				ELSE ASSERT(arrayOf); char := rfPointer; (*RETURN (* ARRAY OF unknown (record): do not write anything *)*)
 				END;
 				IF arrayOf THEN
@@ -1778,10 +1779,14 @@ TYPE
 				 parameter: SyntaxTree.Parameter; variable: SyntaxTree.Variable;
 				 name,recordName: ARRAY 256 OF CHAR;
 				 record: SyntaxTree.RecordType;  i: LONGINT;
+
+
 			BEGIN
 				procedure := s.symbol(SyntaxTree.Procedure); (*! check for variable or type symbol for object body *)
-				procedure.name.GetString(name);
+				(*procedure.name.GetString(name);*)
+				Global.GetSymbolNameInScope(procedure,moduleScope,name);
 				procedureType := procedure.type(SyntaxTree.ProcedureType);
+
 
 				w.Char(0F9X);
 				w.RawNum((s.offset ));
@@ -1789,6 +1794,7 @@ TYPE
 				ReturnType(procedureType.returnType);
 				w.RawNum(0); (*! level *)
 				w.RawNum(0);
+				(*
 				IF procedure.scope IS SyntaxTree.RecordScope THEN (* add object name *)
 					record := procedure.scope(SyntaxTree.RecordScope).ownerRecord;
 					recordName := "";
@@ -1803,6 +1809,7 @@ TYPE
 					END;
 					w.Char(".");
 				END;
+				*)
 				w.RawString(name);
 				parameter := procedureType.firstParameter;
 				WHILE(parameter # NIL) DO

@@ -23,9 +23,6 @@ CONST
 	StringSafe* = "SAFE";
 	StringRealtime*= "REALTIME";
 
-
-
-
 	(* traps *)
 	WithTrap* = 1;
 	CaseTrap* = 2;
@@ -44,7 +41,7 @@ CONST
 		Read Write
 		(* global functions *)
 		Abs  Ash  Cap  Chr  Entier  EntierH  Len  Long  Max  Min Odd  Ord  Short  Size
-		Sum Dim Lsl Lsr Asr
+		Sum Dim First Last Step Lsl Lsr Asr
 		(* system proper procedures *)
 		systemGet  systemPut  systemMove  systemNew
 		systemIncr Reshape
@@ -66,10 +63,10 @@ CONST
 	Abs*= Send+1; Ash*= Abs+1; Cap*= Ash+1; Chr*= Cap+1; Entier*= Chr+1;
 	EntierH*= Entier+1; Len*= EntierH+1; Long*= Len+1; Max*= Long+1; Min*= Max+1;
 	Odd*= Min+1; Ord*= Odd+1; Short*= Ord+1; systemSizeOf*= Short+1; Sum*= systemSizeOf+1;
-	Dim*= Sum+1;
+	Dim*= Sum+1; First*= Dim+1; Last*=First+1; Step*=Last+1; (* OLIVIER *)
 
 	(* system proper procedures *)
-	systemGet*= Dim+1; systemPut*= systemGet+1; systemMove*= systemPut+1;
+	systemGet*= Step+1; (* OLIVIER *) systemPut*= systemGet+1; systemMove*= systemPut+1;
 	systemNew*= systemMove+1;
 	systemIncr*= systemNew+1; Reshape*= systemIncr+1; systemZeroCopy*= Reshape+1; systemTypeCode*= systemZeroCopy+1; systemHalt*= systemTypeCode+1;
 	systemPut8*= systemHalt+1; systemPut16*= systemPut8+1; systemPut32*= systemPut16+1; systemPut64*= systemPut32+1;
@@ -136,8 +133,7 @@ TYPE
 		*)
 
 		addressType-, sizeType-, shortintType-, integerType-, longintType-, hugeintType-, characterType-, setType-, booleanType-, anyType-,byteType-,
-		realType-, longrealType-, allType-, objectType-, nilType-
-		: SyntaxTree.Type;
+		realType-, longrealType-, allType-, objectType-, nilType-, arrayRangeType- (* OLIVIER *): SyntaxTree.Type;
 
 		PROCEDURE &InitSystem*(dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar: LONGINT);
 		VAR i: LONGINT;
@@ -349,6 +345,9 @@ TYPE
 				size := addressSize
 			ELSIF type IS SyntaxTree.ActorType THEN
 				size := 0;
+			(* OLIVIER *)
+			ELSIF type IS SyntaxTree.ArrayRangeType THEN
+				size := 3 * SizeOf(longintType);
 			ELSE
 				HALT(100)
 			END;
@@ -367,6 +366,15 @@ TYPE
 					RETURN SizeOf(par.type);
 				ELSE RETURN addressSize
 				END
+
+			(* OLIVIER *)
+			ELSIF par.type.resolved IS SyntaxTree.ArrayRangeType THEN
+				IF par.kind = SyntaxTree.VarParameter THEN
+					RETURN addressSize
+				ELSE
+					RETURN SizeOf(arrayRangeType) (* array range components are materialized on stack for both value and const parameters *)
+				END
+
 			ELSIF (par.kind IN {SyntaxTree.ConstParameter,SyntaxTree.VarParameter}) THEN
 				IF (par.type.resolved IS SyntaxTree.RecordType) THEN
 					IF IsOberonProcedure(par.ownerType) THEN
@@ -423,6 +431,7 @@ TYPE
 		system.systemModule[Scanner.Lowercase] := SyntaxTree.NewModule("",-1,systemName,system.systemScope[Scanner.Lowercase],Scanner.Lowercase);
 	END BuildScopes;
 
+	(* OLIVIER *)
 	PROCEDURE SetDefaultDeclarations*(system: System; minBits: LONGINT);
 	BEGIN
 		(* types *)
@@ -453,6 +462,7 @@ TYPE
 		system.nilType := SyntaxTree.NewNilType(system.addressSize);
 		system.addressType := SyntaxTree.NewAddressType(system.addressSize);
 		system.sizeType := SyntaxTree.NewSizeType(system.addressSize);
+		system.arrayRangeType := SyntaxTree.NewArrayRangeType(3 * system.SizeOf(system.longintType)); (* OLIVIER *)
 
 		(* type declarations *)
 		DeclareType(system.byteType,"BYTE",system.systemScope);
@@ -493,6 +503,7 @@ TYPE
 		DeclareType(Character8,"CHAR8",system.globalScope);
 		DeclareType(Character16,"CHAR16",system.globalScope);
 		DeclareType(Character32,"CHAR32",system.globalScope);
+		DeclareType(system.arrayRangeType,"RANGE",system.globalScope); (* OLIVIER *)
 		DeclareType(system.shortintType,"SHORTINT",system.globalScope);
 		DeclareType(system.integerType,"INTEGER",system.globalScope);
 		DeclareType(system.longintType,"LONGINT",system.globalScope);
@@ -520,6 +531,11 @@ TYPE
 		NewBuiltin(Short,"SHORT",system.globalScope,TRUE);
 		NewBuiltin(Sum,"SUM",system.globalScope,TRUE);
 		NewBuiltin(Dim,"DIM",system.globalScope,TRUE);
+
+		(* OLIVIER *)
+		NewBuiltin(First,"FIRST",system.globalScope,TRUE);
+		NewBuiltin(Last,"LAST",system.globalScope,TRUE);
+		NewBuiltin(Step,"STEP",system.globalScope,TRUE);
 
 		(* global proper procedures *)
 		NewBuiltin(Assert,"ASSERT",system.globalScope,TRUE);
@@ -711,11 +727,12 @@ TYPE
 		Strings.Append(name,n);
 	END GetModuleName;
 
-	PROCEDURE GetSymbolName*(symbol: SyntaxTree.Symbol; VAR name: ARRAY OF CHAR);
+	PROCEDURE GetSymbolNameInScope*(symbol: SyntaxTree.Symbol; inScope: SyntaxTree.Scope; VAR name: ARRAY OF CHAR);
 	VAR n: SyntaxTree.String; td: SyntaxTree.TypeDeclaration;
 		PROCEDURE Scope(scope: SyntaxTree.Scope);
 		BEGIN
 			IF scope = NIL THEN (* do nothing, locally declared temporary symbol *)
+			ELSIF scope = inScope THEN (* do not traverse further *)
 			ELSIF scope IS SyntaxTree.ModuleScope THEN
 				GetModuleName(scope.ownerModule, name);
 				Strings.Append(name,".");
@@ -746,6 +763,10 @@ TYPE
 		IF symbol IS SyntaxTree.Operator THEN (*! append some more bits to make discrimintation possible *)
 		END;
 		Strings.Append(name,n);
+	END GetSymbolNameInScope;
+
+	PROCEDURE GetSymbolName*(symbol: SyntaxTree.Symbol; VAR name: ARRAY OF CHAR);
+	BEGIN GetSymbolNameInScope(symbol,NIL,name)
 	END GetSymbolName;
 
 	PROCEDURE Level*(t: SyntaxTree.Type): LONGINT;

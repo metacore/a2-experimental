@@ -8,7 +8,7 @@ CONST
 	Trace = FALSE;
 
 	Infinity = MAX(LONGINT); (* for type distance *)
-	InvalidPosition = Diagnostics.Invalid;
+	InvalidPosition* = Diagnostics.Invalid; (* OLIVIER *)
 	UndefinedPhase = 0; DeclarationPhase=1; ImplementationPhase=2;
 
 TYPE
@@ -95,6 +95,7 @@ TYPE
 		flagExpressions: ARRAY 32 OF SyntaxTree.Expression;
 		dataflowStatement: BOOLEAN;
 		dataflowSpecification: Dataflow.Specification;
+		negativeCounter : LONGINT;
 
 		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope);
 		BEGIN
@@ -121,7 +122,14 @@ TYPE
 			currentIsBodyProcedure := FALSE;
 			currentIsExclusive := FALSE;
 			withEntries := NIL;
+			negativeCounter := 0;
 		END InitChecker;
+
+		PROCEDURE GetUniqueNegativeInteger*(): LONGINT;
+		BEGIN
+			DEC(negativeCounter);
+			RETURN negativeCounter
+		END GetUniqueNegativeInteger;
 
 		(** report error **)
 		PROCEDURE Error(position: LONGINT; code: LONGINT; CONST message: ARRAY OF CHAR);
@@ -427,13 +435,13 @@ TYPE
 		(**
 			resolve range type: nothing to be done
 		**)
-		PROCEDURE VisitRangeType(x: SyntaxTree.RangeType);
+		PROCEDURE VisitArrayRangeType(x: SyntaxTree.ArrayRangeType);
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 				x.SetState(SyntaxTree.Resolved);
 			END;
 			resolvedType := ResolvedType(x)
-		END VisitRangeType;
+		END VisitArrayRangeType;
 
 		(**
 			resolve qualified type
@@ -825,34 +833,111 @@ TYPE
 			resolvedType := ResolvedType(procedureType)
 		END VisitProcedureType;
 
+		(* OLIVIER *)
 		(** check and resolve record type
-			- check base type: must be record
+			- check base type: must be record, math array or array-structured object type
 			- check declarations
 			- every record type is guaranteed to have a type declaration in the module scope (anonymous or not)
 		**)
 		PROCEDURE VisitRecordType(x: SyntaxTree.RecordType);
 		VAR resolved, baseType: SyntaxTree.Type; position: LONGINT;
-			numberMethods: LONGINT; recordBase: SyntaxTree.RecordType; procedure: SyntaxTree.Procedure;
+			numberMethods: LONGINT; recordBase, recordType: SyntaxTree.RecordType; procedure: SyntaxTree.Procedure;
 			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN;
+
+			PROCEDURE IsPointerToRecord(type: SyntaxTree.Type; VAR recordType: SyntaxTree.RecordType): BOOLEAN;
+			BEGIN
+				type := type.resolved;
+				IF	(type IS SyntaxTree.PointerType) &
+					(type(SyntaxTree.PointerType).pointerBase.resolved # NIL) &
+					(type(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.RecordType) THEN
+					recordType := type(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
+					RETURN TRUE
+				ELSE
+					RETURN FALSE
+				END;
+			END IsPointerToRecord;
+
+
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 				IF x.baseType # NIL THEN
 					position := x.baseType.position;
 					baseType := ResolveType(x.baseType);
 					resolved := baseType.resolved;
+
+					(* OLIVIER *)
+					IF x.isObject THEN (* object *)
+						ASSERT(x.pointerType # NIL);
+						IF resolved = SyntaxTree.invalidType THEN (* error already handled *)
+						ELSIF resolved IS SyntaxTree.ObjectType THEN
+							baseType := NIL
+						ELSIF IsPointerToRecord(resolved,recordType) THEN
+							IF (recordType.isObject) & recordType.HasArrayStructure() THEN
+								x.SetArrayStructure(recordType.arrayStructure)
+							END;
+						ELSIF resolved IS SyntaxTree.MathArrayType THEN
+							IF resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
+								Error(position, Diagnostics.Invalid,"object extends tensor math array")
+							ELSE
+								x.SetArrayStructure(resolved(SyntaxTree.MathArrayType))
+							END
+						ELSE
+							Error(position, Diagnostics.Invalid,"object does not extend pointer to record, object or math array ")
+						END;
+					ELSIF x.pointerType # NIL THEN (* record with type declaration POINTER TO RECORD *)
+						IF resolved = SyntaxTree.invalidType THEN (* error already handled *)
+						ELSIF IsPointerToRecord(resolved,recordType) THEN
+							IF recordType.isObject THEN Error(position, Diagnostics.Invalid,"pointer to record extends object") END;
+						ELSIF resolved IS SyntaxTree.RecordType THEN
+						ELSE
+							Error(position, Diagnostics.Invalid,"pointer to record does not extend pointer to record or record")
+						END;
+					ELSE
+						IF resolved IS SyntaxTree.RecordType THEN
+						ELSE
+							Error(position, Diagnostics.Invalid,"record does not extend record")
+						END;
+					END;
+
+					(*
 					IF resolved = SyntaxTree.invalidType THEN
 						(* error already handled *)
 					ELSIF (resolved IS SyntaxTree.ObjectType) & (x.pointerType # NIL) THEN
 						baseType := NIL;
-					ELSIF (resolved IS SyntaxTree.PointerType) & (resolved(SyntaxTree.PointerType).pointerBase.resolved # NIL) &  (resolved(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.RecordType) & (x.pointerType # NIL) THEN
+
+					ELSIF IsObject(resolved) & ~x.isObject THEN
+							Error(position, Diagnostics.Invalid, "record extends object" );
+					ELSIF IsObject(resolved) & (x.isObject) THEN
+							ASSERT(x.pointerType # NIL);
+						IF (resolved(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType).HasArrayStructure()) THEN
+							(* if object to be extended has an array structure, then inherit it *)
+							x.SetArrayStructure(resolved(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType).arrayStructure)
+						END
+					ELSIF resolved IS SyntaxTree.ArrayType THEN
+						Error(position, Diagnostics.Invalid,"object/record extends non-math array")
+					ELSIF resolved IS SyntaxTree.MathArrayType THEN
+						IF x.isObject THEN
+							IF resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
+								Error(position, Diagnostics.Invalid,"object extends tensor math array")
+							ELSE
+								x.SetArrayStructure(resolved(SyntaxTree.MathArrayType))
+							END
+						ELSE
+							Error(position, Diagnostics.Invalid,"record extends math array")
+						END
+					ELSIF (resolved IS SyntaxTree.PointerType) & (resolved(SyntaxTree.
 					ELSIF ~(resolved IS SyntaxTree.RecordType) THEN
-						Error(position,Diagnostics.Invalid,"record extends a non-record")
-					ELSIF (resolved IS SyntaxTree.RecordType) & (resolved(SyntaxTree.RecordType).isObject) THEN
-						Error(position,Diagnostics.Invalid,"record extends an object")
+						Error(position, Diagnostics.Invalid,"record/object does not extend record/object, math array or array-structured object type")
+					(* TODO: how is this possible? *)
+					ELSIF (resolved IS SyntaxTree.RecordType) &
+							(resolved(SyntaxTree.RecordType).isObject) THEN
+						Error(position, Diagnostics.Invalid,"record/object extends an object directly")
 					END;
+					*)
+
 					x.SetBaseType(baseType);
 					IF x.Level() > 15 THEN
-						Error(position,Diagnostics.Invalid,"record inheritance level too high");
+						Error(position,Diagnostics.Invalid,"record/object inheritance level too high");
 						(* note:
 							the restriction to inheritance with a maximum level of 15 is caused by the implementation of the
 							runtime structures: type tests are very efficient and rely on the fact that each type descriptor contains the whole
@@ -864,6 +949,10 @@ TYPE
 					END;
 				END;
 				Declarations(x.recordScope);
+
+				(* OLIVIER *)
+				(* TODO: skip this if error has already occurred? *)
+				IF x.HasArrayStructure() THEN CheckArrayStructuredObjectType(x) END;
 
 				(* computation of sizes and offsets skipped -> done in backend / system *)
 
@@ -928,8 +1017,10 @@ TYPE
 				END;
 				*)
 
-				IF (x.isObject) & (x.baseType # NIL) & ~(x.baseType.resolved IS SyntaxTree.PointerType) THEN
-					Error(x.position,Diagnostics.Invalid,"object extends a record");
+				(* OLIVIER *)
+				(* TODO: is this needed anymore? *)
+				IF (x.isObject) & (x.baseType # NIL) & (x.baseType.resolved IS SyntaxTree.RecordType) THEN
+					Error(x.position,Diagnostics.Invalid,"object extends a record")
 				END;
 
 				IF (x.typeDeclaration = NIL) THEN
@@ -990,6 +1081,252 @@ TYPE
 			END;
 			resolvedType := ResolvedType(x);
 		END VisitActorType;
+
+		(* OLIVIER *)
+		(* check an array-structured object type
+			- collect operators from top to bottom in the inheritance hierarchy
+			- check if LEN operator is declared for non-static array structures
+			- determine number of possible index operators
+			- check if index operators for both sub-array extraction and allocation are present
+		*)
+		PROCEDURE CheckArrayStructuredObjectType(recordType: SyntaxTree.RecordType);
+		VAR
+			indexOperatorCount, i: LONGINT;
+			arrayAccessOperators: SyntaxTree.ArrayAccessOperators;
+
+		BEGIN
+			ASSERT(recordType.HasArrayStructure());
+			ASSERT(recordType.arrayStructure.form # SyntaxTree.Tensor);
+
+			(* 2 to the power of the dimensionality *)
+			indexOperatorCount := 1;
+			FOR i := 1 TO recordType.arrayStructure.Dimensionality() DO
+				indexOperatorCount := indexOperatorCount * 2
+			END;
+
+			(* reset array access operators *)
+			arrayAccessOperators.len := NIL;
+			NEW(arrayAccessOperators.read, indexOperatorCount);
+			NEW(arrayAccessOperators.write, indexOperatorCount);
+			FOR i := 0 TO indexOperatorCount - 1 DO
+				arrayAccessOperators.read[i] := NIL;
+				arrayAccessOperators.write[i] := NIL
+			END;
+
+			(* collect access operators in the record scope *)
+			CollectArrayAccessOperators(recordType.recordScope, recordType.arrayStructure, arrayAccessOperators);
+
+			(* show error messages for missing operators *)
+			IF arrayAccessOperators.read[indexOperatorCount - 1] = NIL THEN Error(recordType.position, Diagnostics.Invalid, "[] operator for sub-array extraction missing") END;
+			IF arrayAccessOperators.write[indexOperatorCount - 1] = NIL THEN Error(recordType.position, Diagnostics.Invalid, "[] operator for sub-array allocation missing") END;
+			IF arrayAccessOperators.len = NIL THEN
+				IF recordType.arrayStructure.form = SyntaxTree.Static THEN
+					(* TODO: insert the following operator declaration into the record scope:
+					OPERATOR "LEN"*(): ARRAY [<d>] OF LONGINT;
+					BEGIN RETURN [<lengths>];
+					END "LEN";
+					*)
+					Error(recordType.position, Diagnostics.Invalid, "automatic creation of LEN operator for static ASOTs not yet implemented")
+				ELSE
+					Error(recordType.position, Diagnostics.Invalid, "LEN operator missing")
+				END
+			END;
+
+			recordType.SetArrayAccessOperators(arrayAccessOperators)
+		END CheckArrayStructuredObjectType;
+
+		(* OLIVIER *)
+		(** collect array access operators in a record scope **)
+		PROCEDURE CollectArrayAccessOperators(recordScope: SyntaxTree.RecordScope; arrayStructure: SyntaxTree.MathArrayType; VAR arrayAccessOperators: SyntaxTree.ArrayAccessOperators);
+		VAR
+			baseType: SyntaxTree.Type;
+			operator: SyntaxTree.Operator;
+			isReadOperator: BOOLEAN;
+			indexListKind: LONGINT;
+
+		BEGIN
+			(* if a parent record scope exists, collect the operators there first *)
+			baseType := recordScope.ownerRecord.baseType;
+			IF (baseType # NIL) & (baseType.resolved IS SyntaxTree.PointerType) THEN
+				baseType := baseType.resolved(SyntaxTree.PointerType).pointerBase.resolved
+			END;
+			IF (baseType # NIL) & (baseType.resolved IS SyntaxTree.RecordType) THEN
+				CollectArrayAccessOperators(baseType(SyntaxTree.RecordType).recordScope, arrayStructure, arrayAccessOperators);
+			END;
+
+			(* go through all operators in the current record scope *)
+			operator := recordScope.firstOperator;
+			WHILE operator # NIL DO
+				IF operator.name.Equals(SyntaxTree.NewIdentifier(InvalidPosition, "LEN")) THEN
+					IF CheckLenOperator(operator, arrayStructure) THEN arrayAccessOperators.len := operator END
+
+				ELSIF operator.name.Equals(SyntaxTree.NewIdentifier(InvalidPosition, "[]")) THEN
+					IF CheckIndexOperator(operator, arrayStructure, isReadOperator, indexListKind) THEN
+						IF isReadOperator THEN
+							arrayAccessOperators.read[indexListKind] := operator
+						ELSE
+							arrayAccessOperators.write[indexListKind] := operator
+						END
+					END
+				ELSE
+					Error(operator.position, Diagnostics.Invalid, 'invalid operator')
+
+				END;
+				operator := operator.nextOperator
+			END
+		END CollectArrayAccessOperators;
+
+		(* OLIVIER *)
+		(** check if a LEN operator has a correct signature. i.e.
+		'OPERATOR "LEN"(): ARRAY [<dimensionality>] OF LONGINT;'
+		**)
+		PROCEDURE CheckLenOperator(operator: SyntaxTree.Operator; arrayStructure: SyntaxTree.MathArrayType): BOOLEAN;
+		VAR
+			procedureType: SyntaxTree.ProcedureType;
+			returnedArrayType: SyntaxTree.MathArrayType;
+			result: BOOLEAN;
+		BEGIN
+			result := FALSE;
+			procedureType := operator.type.resolved(SyntaxTree.ProcedureType);
+			IF (procedureType.numberParameters - procedureType.numberHiddenParameters = 0) THEN
+				IF (procedureType.returnType # NIL) & (procedureType.returnType.resolved IS SyntaxTree.MathArrayType) THEN
+					returnedArrayType := procedureType.returnType.resolved(SyntaxTree.MathArrayType);
+					IF system.longintType.SameType(returnedArrayType.arrayBase.resolved) THEN
+						IF (returnedArrayType.form = SyntaxTree.Static) & (returnedArrayType.staticLength = arrayStructure.Dimensionality()) THEN
+							result := TRUE
+						ELSIF returnedArrayType.form = SyntaxTree.Open THEN
+							result := TRUE (* also acceptable*)
+						END
+					END
+				END
+			END;
+			IF result THEN
+				(* export symbol automatically *)
+				operator.SetAccess(SyntaxTree.Public + SyntaxTree.Protected + SyntaxTree.Internal)
+			ELSE
+				Error(operator.position, Diagnostics.Invalid, "LEN operator with invalid signature");
+			END;
+			RETURN result
+		END CheckLenOperator;
+
+		(* OLIVIER *)
+		(** check if an index operator has a correct signature. i.e.
+			- for read operators: 'OPERATOR "[]"(i0: <LONGINT/RANGE>; i1: <LONGINT/RANGE>; ...; in: <LONGINT/RANGE>): <Type>;'
+			- for write operators: 'OPERATOR "[]"(i0: <LONGINT/RANGE>; i1: <LONGINT/RANGE>; ...; in: <LONGINT/RANGE>; rhs: <Type>);'
+
+			- determine if it is a read or write operator
+			- determine the kind of index list this operator handles. index lists are numbered as follows:
+				[LONGINT] -> binary 0 -> 0
+				[RANGE] -> binary 1 -> 1
+
+				[LONGINT, LONGINT] -> binary 00 -> 0
+				[LONGINT, RANGE] -> binary 01 -> 1
+				[RANGE, LONGINT] -> binary 10 -> 2
+				[RANGE, RANGE] -> binary 11 -> 3
+
+				etc.
+
+			- the number of parameters must match the array structure's dimensionality (plus an additional parameter for write operators)
+			- all of the parameters must be either of integer or range type (exept the last one for write operators)
+			- the return type/type of last parameter must match the type of the array that is read or written to
+		**)
+		PROCEDURE CheckIndexOperator(operator: SyntaxTree.Operator; arrayStructure: SyntaxTree.MathArrayType; VAR isReadOperator: BOOLEAN; VAR indexListKind: LONGINT): BOOLEAN;
+		VAR
+			elementType, otherElementType, mainType: SyntaxTree.Type;
+			procedureType: SyntaxTree.ProcedureType;
+			mathArrayType: SyntaxTree.MathArrayType;
+			parameter: SyntaxTree.Parameter;
+			dimensionality, requiredParameterCount, rangeCount, i: LONGINT;
+			hasTypeError: BOOLEAN;
+
+		BEGIN
+			procedureType := operator.type.resolved(SyntaxTree.ProcedureType);
+
+			IF arrayStructure.form = SyntaxTree.Tensor THEN HALT(200) END;
+			dimensionality := arrayStructure.Dimensionality();
+
+			(* determine if it is a read or write operator *)
+			isReadOperator := (procedureType.returnType # NIL);
+
+			(* check number of formal parameters *)
+			IF isReadOperator THEN
+				requiredParameterCount := dimensionality
+			ELSE
+				requiredParameterCount := 1 + dimensionality
+			END;
+			IF (procedureType.numberParameters - procedureType.numberHiddenParameters) # requiredParameterCount THEN
+				Error(operator.position, Diagnostics.Invalid, "[] operator with invalid number of parameters");
+				RETURN FALSE
+			END;
+
+			(* go through all parameters that are part of the index list
+			- determine the index list kind
+			- count the number of ranges
+			*)
+			indexListKind := 0;
+			rangeCount := 0;
+			parameter := procedureType.firstParameter;
+			FOR i := 1 TO dimensionality DO
+				indexListKind := indexListKind * 2;
+				IF parameter.type.resolved IS SyntaxTree.IntegerType THEN
+				ELSIF parameter.type.resolved IS SyntaxTree.ArrayRangeType THEN
+					INC(indexListKind);
+					INC(rangeCount)
+				ELSE
+					Error(parameter.position, Diagnostics.Invalid, "integer or array range expected");
+					RETURN FALSE
+				END;
+				parameter := parameter.nextParameter
+			END;
+
+			(*
+			- for read operators: check type of last parameter
+			- for write operators: check return type
+			*)
+			elementType := arrayStructure.ElementType();
+			IF isReadOperator THEN
+				mainType := procedureType.returnType (* the return type *)
+			ELSE
+				mainType := parameter.type (* the type of the last non-hidden parameter *)
+			END;
+			hasTypeError := FALSE;
+			IF rangeCount = 0 THEN
+				IF mainType.resolved # elementType.resolved THEN
+					hasTypeError := TRUE
+				END
+			ELSE
+				IF mainType.resolved IS SyntaxTree.MathArrayType THEN
+					mathArrayType := mainType.resolved(SyntaxTree.MathArrayType);
+					IF mathArrayType.IsFullyDynamic() THEN
+						IF mathArrayType.Dimensionality() = rangeCount THEN
+							otherElementType := mathArrayType.ElementType();
+							IF otherElementType.resolved # elementType.resolved THEN
+								hasTypeError := TRUE
+							END
+						ELSE
+							hasTypeError := TRUE
+						END
+					ELSE
+						hasTypeError := TRUE
+					END
+				ELSE
+					hasTypeError := TRUE
+				END
+			END;
+			IF hasTypeError THEN
+				IF isReadOperator THEN
+					Error(operator.position, Diagnostics.Invalid, "return type does not match")
+				ELSE
+					Error(parameter.nextParameter.position, Diagnostics.Invalid, "type of last parameter does not match")
+				END;
+				RETURN FALSE
+			END;
+
+			(* export symbol automatically *)
+			operator.SetAccess(SyntaxTree.Public + SyntaxTree.Protected + SyntaxTree.Internal);
+
+			RETURN TRUE
+		END CheckIndexOperator;
 
 		(** resolve all pending types (late resolving).
 			- type fixes are resolved at the end of the declaration phase
@@ -1139,6 +1476,7 @@ TYPE
 			RETURN result
 		END ParameterCompatible;
 
+		(* OLIVIER *)
 		(** check compatibility for expressions of the form left := right
 			- if compatible then return true else error report and return false
 			- check if left is variable
@@ -1155,15 +1493,21 @@ TYPE
 				rightType := system.characterType; (* conversion character "x" -> string "x" *)
 			END;
 
+			(* OLIVIER *)
+			(* special rule: a type is assignment compatible to an ASOT if it is assignment compatible to its structure *)
+			IF IsArrayStructuredObjectType(leftType) THEN leftType := MathArrayStructureOfType(leftType) END;
+
 			IF (leftType = SyntaxTree.invalidType) OR (rightType = SyntaxTree.invalidType) THEN
 				(* error already handled *)
 				result := TRUE;
+
 			ELSIF ~IsVariable(left) THEN
 				Error(left.position,Diagnostics.Invalid,"is not a variable");
 				IF VerboseErrorMessage THEN
 					Printout.Info("left",left);
 					Printout.Info("right",right);
 				END;
+
 			ELSIF ~CompatibleTo(system,rightType,leftType) THEN
 				Error(left.position,Diagnostics.Invalid,"incompatible assignment");
 				IF VerboseErrorMessage THEN
@@ -1258,49 +1602,75 @@ TYPE
 
 		(*** expressions ***)
 
-		(** check and resolve a Set expression of the form {element | range, element | range, ...}
+		(* OLIVIER *)
+		(** check and resolve a Set expression of the form {Expression, Expression, ...}
 			- check all elements on integer type
-			- if element or range is constant, then check lower and upper bound
+			- if element range is constant, then check lower and upper bound
 			- if all elements constant then return constant set value else return set expression (via global variable resolvedExpression)
 			if an error occurs then report error and return invalidExpression
 		**)
 		PROCEDURE VisitSet(set: SyntaxTree.Set);
-		VAR i: LONGINT; element: SyntaxTree.Expression; constant: BOOLEAN; elements: SyntaxTree.ExpressionList; s: SET;
-		result: SyntaxTree.Expression; type: SyntaxTree.Type; value: SyntaxTree.Value;
+		VAR
+			i: LONGINT;
+			element: SyntaxTree.Expression;
+			constant: BOOLEAN;
+			elements: SyntaxTree.ExpressionList;
+			s: SET;
+			result: SyntaxTree.Expression;
+			value: SyntaxTree.Value;
 
 			PROCEDURE CheckElement(element: SyntaxTree.Expression): SyntaxTree.Expression;
-			VAR leftInteger, rightInteger: LONGINT;  left,right: SyntaxTree.Expression; elementResult: SyntaxTree.Expression;
+			VAR
+				left, right: SyntaxTree.Expression;
+				elementResult: SyntaxTree.Expression;
+				leftInteger, rightInteger: LONGINT;
 			BEGIN
-				elementResult := ResolveExpression(element); (* implies checking of subexpressions in binary expressions *)
-				IF (elementResult IS SyntaxTree.RangeExpression) THEN
-					left := elementResult(SyntaxTree.RangeExpression).from; right := elementResult(SyntaxTree.RangeExpression).to;
-					left := NewConversion(left.position,left,system.longintType,NIL);
-					right := NewConversion(right.position,right,system.longintType,NIL);
-					elementResult(SyntaxTree.RangeExpression).SetFrom(left);
-					elementResult(SyntaxTree.RangeExpression).SetTo(right);
-					ASSERT(elementResult(SyntaxTree.RangeExpression).by = NIL); (* must be guaranteed by parser *)
-					ASSERT(left.type.resolved = right.type.resolved); (* guaranteed by VisitRangeExpression *)
-					type := left.type.resolved;
-				ELSE
-					left := elementResult; right := elementResult;
-					type := elementResult.type.resolved;
-					elementResult := NewConversion(left.position,left,system.longintType,NIL);
+				(* mark ranges to be of set range kind *)
+				IF element IS SyntaxTree.RangeExpression THEN
+					element(SyntaxTree.RangeExpression).SetKind(SyntaxTree.SetRangeKind)
 				END;
 
-				IF type = SyntaxTree.invalidType THEN
-					(* error already handled *)
-				ELSIF ~(type IS SyntaxTree.IntegerType) THEN
-					Error(left.position,Diagnostics.Invalid,"wrong type in set");
-					elementResult := SyntaxTree.invalidExpression;
-					constant := FALSE;
+				elementResult := ResolveExpression(element); (* implies checking of subexpressions in binary expressions *)
+
+				IF elementResult = SyntaxTree.invalidExpression THEN
+					(* error already reported *)
+					constant := FALSE
+
+				ELSIF elementResult IS SyntaxTree.SetRangeExpression THEN
+					(* the element is a range *)
+
+					(* extract left and right hand side of range *)
+					left := elementResult(SyntaxTree.SetRangeExpression).first;
+					right := elementResult(SyntaxTree.SetRangeExpression).last;
+
+					(* guaranteed by VisitSetRangeExpression: *)
+					ASSERT((left # NIL) & (right # NIL));
+					ASSERT(system.longintType.SameType(left.type.resolved) & system.longintType.SameType(right.type.resolved));
+
 				ELSE
+					(* the element is not a range *)
+
+					(* check type and add conversion if needed *)
+					IF elementResult.type.resolved IS SyntaxTree.IntegerType THEN
+						elementResult := NewConversion(elementResult.position, elementResult, system.longintType, NIL)
+					ELSE
+						Error(elementResult.position, Diagnostics.Invalid, "non integer element in set");
+						elementResult := SyntaxTree.invalidExpression;
+						constant := FALSE
+					END;
+
+					left := elementResult;
+					right := elementResult
+				END;
+
+				IF elementResult # SyntaxTree.invalidExpression THEN
 					IF IsIntegerValue(left,leftInteger) & IsIntegerValue(right,rightInteger) THEN
-						IF (leftInteger<0) OR (leftInteger >= system.SizeOf(system.setType)) THEN
+						IF (leftInteger<0) OR (leftInteger > MAX(SET)) THEN
 							Error(left.position,Diagnostics.Invalid,"not allowed set integer value");
-							IF (rightInteger<0) OR (rightInteger >= system.SizeOf(system.setType)) THEN
+							IF (rightInteger<0) OR (rightInteger > MAX(SET)) THEN
 								Error(right.position,Diagnostics.Invalid,"not allowed set integer value");
-							END;
-						ELSIF (rightInteger<0) OR (rightInteger >= system.SizeOf(system.setType)) THEN
+							END
+						ELSIF (rightInteger<0) OR (rightInteger > MAX(SET)) THEN
 							Error(right.position,Diagnostics.Invalid,"not allowed set integer value");
 						ELSE
 							s := s + {leftInteger..rightInteger};
@@ -1313,9 +1683,10 @@ TYPE
 						END;
 					ELSE
 						constant := FALSE;
-					END;
+					END
 				END;
-				RETURN elementResult;
+
+				RETURN elementResult
 			END CheckElement;
 
 		BEGIN
@@ -1343,7 +1714,7 @@ TYPE
 			resolvedExpression := result;
 		END VisitSet;
 
-		(*!
+		(*
 		old variant: quite generic but needs better conversion handling, do this?
 
 		PROCEDURE VisitMathArrayExpression(x: SyntaxTree.MathArrayExpression);
@@ -1723,7 +2094,7 @@ TYPE
 			RETURN result
 		END ConvertValue;
 
-
+		(* OLIVIER *)
 		(**
 			return a conversion of an expression to a given type
 				- if expression is already of same type then return expression
@@ -1763,9 +2134,17 @@ TYPE
 				expressionList.AddExpression(expression);
 				result := SyntaxTree.NewBuiltinCallDesignator(expression.position,Global.systemVal,expressionList);
 				result.SetType(type);
+			ELSIF IsArrayStructuredObjectType(type) THEN
+				(* no type can be converted to an array-structured object type *)
+				HALT(100)
 			ELSIF (type IS SyntaxTree.MathArrayType) THEN
 				IF expression.type.resolved IS SyntaxTree.MathArrayType THEN
 					result := MathArrayConversion(expression,type);
+				(* OLIVIER *)
+				ELSIF IsArrayStructuredObjectType(expression.type) THEN
+					expression := ConvertToMathArray(expression);
+					type := MathArrayStructureOfType(type);
+					result := MathArrayConversion(expression, type)
 				ELSE
 					Error(expression.position,Diagnostics.Invalid,"cannot convert non array type to array type")
 				END;
@@ -1776,6 +2155,7 @@ TYPE
 			ELSIF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved IS SyntaxTree.ByteType) THEN
 				(* skip, no conversion *)
 			ELSE
+				ASSERT(~(type IS SyntaxTree.ArrayRangeType));
 				result := SyntaxTree.NewConversion(expression.position,expression,type,typeExpression);
 				ASSERT(type # NIL);
 			END;
@@ -1873,28 +2253,76 @@ TYPE
 			currentScope := scope;
 		END SetCurrentScope;
 
-
+		(* OLIVIER *)
 		(**
-			return a procedure call designator for the  best matching operator procedure of the form "op"(leftExpression,rightExpression) (if any)
+			return a procedure call designator for the best matching operator procedure of the form "op"(leftExpression,rightExpression) (if any)
+			- handle LEN and DIM operator for array-structured object types
 			- find operator, if found then
 				- if in other module then add import designator
 				- create symbol designator for operator
 			- if error then return invalidExpression, if no operator then return NIL
 		**)
-		PROCEDURE NewOperatorCall*(position: LONGINT; op: LONGINT; leftExpression,rightExpression: SyntaxTree.Expression; resultType: SyntaxTree.Type): SyntaxTree.Expression;
-		VAR operator: SyntaxTree.Operator; import: SyntaxTree.Import; expression: SyntaxTree.Expression; designator: SyntaxTree.Designator;  result: SyntaxTree.Expression;
-			actualParameters: SyntaxTree.ExpressionList;
+		PROCEDURE NewOperatorCall*(position: LONGINT; op: LONGINT; leftExpression, rightExpression: SyntaxTree.Expression; resultType: SyntaxTree.Type): SyntaxTree.Expression;
+		VAR
+			operator: SyntaxTree.Operator;
+			import: SyntaxTree.Import;
+			expression, result: SyntaxTree.Expression;
+			designator: SyntaxTree.Designator;
+			actualParameters, tempList: SyntaxTree.ExpressionList;
+			recordType: SyntaxTree.RecordType;
 		BEGIN
 			IF (leftExpression = SyntaxTree.invalidExpression) OR (rightExpression = SyntaxTree.invalidExpression)  THEN
 				result := SyntaxTree.invalidExpression
-			ELSIF (leftExpression = NIL) THEN
+
+			ELSIF leftExpression = NIL THEN
 				result := NIL
+
+			ELSIF IsArrayStructuredObjectType(leftExpression.type) & ((op = Global.Len) OR (op = Global.Dim)) THEN
+				(* LEN or DIM operator on array-structured object type *)
+				ASSERT(leftExpression.type.resolved IS SyntaxTree.PointerType);
+				recordType := leftExpression.type.resolved(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
+				ASSERT(leftExpression IS SyntaxTree.Designator);
+				designator := leftExpression(SyntaxTree.Designator);
+				ASSERT(recordType.arrayAccessOperators.len # NIL);
+				expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(position, designator), recordType.arrayAccessOperators.len);
+				ASSERT(expression IS SyntaxTree.Designator);
+				designator := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), SyntaxTree.NewExpressionList());
+
+				IF (op = Global.Len) & (rightExpression = NIL) THEN
+					(* LEN(OBJECT) -> OBJECT^."LEN"() *)
+					result := designator
+
+				ELSIF (op = Global.Len) & (rightExpression # NIL) & (rightExpression.type.resolved IS SyntaxTree.IntegerType) THEN
+					(* LEN(OBJECT, LONGINT) -> OBJECT^."LEN"()[LONGINT] *)
+					tempList := SyntaxTree.NewExpressionList();
+					tempList.AddExpression(rightExpression);
+					result := ResolveDesignator(SyntaxTree.NewBracketDesignator(InvalidPosition, designator, tempList))
+
+				ELSIF (op = Global.Dim) & (rightExpression = NIL) THEN
+					(* DIM(OBJECT) -> LEN(OBJECT^."LEN"(), 0) *)
+					tempList := SyntaxTree.NewExpressionList();
+					tempList.AddExpression(designator);
+					tempList.AddExpression(SyntaxTree.NewIntegerValue(InvalidPosition, 0));
+					designator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.GetIdentifier(Global.Len, module.case));
+					result := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, designator, tempList))
+				END
+
 			ELSE
-				IF ~arrayBaseImported &
-					((leftExpression # NIL) & (leftExpression.type # NIL) & (leftExpression.type.resolved IS SyntaxTree.MathArrayType)
-				OR (rightExpression # NIL) & (rightExpression.type # NIL) & (rightExpression.type.resolved IS SyntaxTree.MathArrayType)) THEN
-					IF ((op # Global.Len) OR (rightExpression = NIL)) & (op # Global.Dim) THEN
-						ImportModule(Global.ArrayBaseName, position);
+				(* import OCArrayBase if needed *)
+				IF ~arrayBaseImported THEN
+					IF (leftExpression # NIL) & IsMathArrayType(leftExpression.type) OR (rightExpression # NIL) & IsMathArrayType(rightExpression.type) THEN
+						IF op = Global.Dim THEN
+							(* not existing in OCArrayBase *)
+						ELSIF (op = Global.Len) & (rightExpression # NIL) THEN
+							(* not existing in OCArrayBase *)
+						ELSE
+							ImportModule(Global.ArrayBaseName,position);
+							arrayBaseImported := TRUE;
+						END
+					END;
+					IF (op = Global.Len) & (leftExpression # NIL) & IsArrayRangeType(leftExpression.type) & (rightExpression = NIL) THEN
+						(* LEN(RANGE) *)
+						ImportModule(Global.ArrayBaseName,position);
 						arrayBaseImported := TRUE;
 					END;
 				END;
@@ -1913,7 +2341,6 @@ TYPE
 						WHILE(import # NIL) & (import.module # operator.scope.ownerModule) DO
 							import := import.nextImport;
 						END;
-						ASSERT(import.scope # NIL);
 						expression := NewSymbolDesignator(position,NIL,import);
 						designator := expression(SyntaxTree.Designator);
 					END;
@@ -1937,6 +2364,7 @@ TYPE
 			operator: LONGINT; operatorCall: SyntaxTree.Expression;
 			type: SyntaxTree.Type;
 			value: SyntaxTree.Value;
+			leftFirst, leftLast, leftStep, rightFirst, rightLast, rightStep: LONGINT;
 
 			PROCEDURE NewBool(v: BOOLEAN);
 			BEGIN
@@ -2285,6 +2713,22 @@ TYPE
 					ELSE
 						Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 13");
 					END;
+				(* OLIVIER *)
+				ELSIF left.type.resolved IS SyntaxTree.ArrayRangeType THEN
+					(* constant folding *)
+					IF IsStaticArrayRange(left, leftFirst, leftLast, leftStep) & IsStaticArrayRange(right, rightFirst, rightLast, rightStep) THEN
+						IF operator = Scanner.Equal THEN
+							NewBool((leftFirst = rightFirst) & (leftLast = rightLast) & (leftStep = rightStep))
+						ELSIF operator = Scanner.Unequal THEN
+							NewBool((leftFirst # rightFirst) OR (leftLast # rightLast) OR (leftStep # rightStep))
+						END;
+					END;
+
+					IF (operator = Scanner.Equal) OR (operator = Scanner.Unequal) THEN
+						type := system.booleanType;
+					ELSE
+						Error(binaryExpression.position, Diagnostics.Invalid, "operator not defined");
+					END;
 				ELSIF (leftType IS SyntaxTree.SetType) THEN
 					IF IsSetValue(left,sl) & IsSetValue(right,sr) THEN
 						CASE operator OF
@@ -2341,55 +2785,212 @@ TYPE
 			resolvedExpression := result
 		END VisitBinaryExpression;
 
-		(** resolve a range expression from .. to BY by
-			- if from or to are not of integer type or character type error
-			- if from and to type incompatible then error
-			- if by # NIL and by of incompatible type then error
-			if error then return invalidExpression else set range type
+		(** resolve a generic range expression from <<first .. last BY step>>
+		    - depending on the value of 'kind', convert the RangeExpression into one of the following:
+		        - CaseRangeExpression
+		        - SetRangeExpression
+		        - ArrayRangeExpression
+		    - if step size is specified for non-array range: error
+		    - if error: return invalidExpression
 		**)
 		PROCEDURE VisitRangeExpression(x: SyntaxTree.RangeExpression);
-		VAR from,to,by: SyntaxTree.Expression; commonType: SyntaxTree.Type; result: SyntaxTree.Expression;
+		VAR expression: SyntaxTree.Expression;
 		BEGIN
-			result := x;
-			IF x.from # NIL THEN from := ResolveExpression(x.from) ELSE from := NIL END;
-			IF x.to # NIL THEN to := ResolveExpression(x.to)  ELSE to := NIL END;
-			IF x.by # NIL THEN by := ResolveExpression(x.by) ELSE by := NIL END;
+			(* check if step size is specified for non-array range *)
+			IF (x.kind # SyntaxTree.ArrayRangeKind) & (x.step # NIL) THEN
+				Error(x.step.position, Diagnostics.Invalid, "not allowed specification of step size");
+				resolvedExpression := SyntaxTree.invalidExpression
+			ELSE
+				(* convert the RangeExpression into one of the following:
+					- CaseRangeExpression
+					- SetRangeExpression
+					- ArrayRangeExpression
+				*)
 
-			IF from = NIL THEN
-			ELSIF ~(from.type.resolved IS SyntaxTree.IntegerType) & ~IsCharacterType(from.type) THEN
-				Error(x.position,Diagnostics.Invalid,"forbidden lower range type");
-				result := SyntaxTree.invalidExpression;
-			ELSIF (from IS SyntaxTree.StringValue) THEN
-				from := ConvertValue(from.position,from(SyntaxTree.Value),system.characterType);
-			END;
-			IF to = NIL THEN
-			ELSIF ~(to.type.resolved IS SyntaxTree.IntegerType) & ~IsCharacterType(to.type) THEN
-				Error(to.position,Diagnostics.Invalid,"forbidden upper range type");
-				result := SyntaxTree.invalidExpression;
-			ELSIF (to IS SyntaxTree.StringValue) THEN
-				to := ConvertValue(to.position,to(SyntaxTree.Value),system.characterType);
-			END;
-			IF result # SyntaxTree.invalidExpression THEN
-				IF (from # NIL) & (to # NIL) THEN
-					ConvertOperands(from,to);
-					IF from.type.resolved # to.type.resolved THEN
-						Error(x.position,Diagnostics.Invalid,"incompatible range operands");
-						result := SyntaxTree.invalidExpression;
-					END;
-					commonType := from.type;
+				IF x.kind = SyntaxTree.CaseRangeKind THEN
+					expression := SyntaxTree.NewCaseRangeExpression(x.position, x.first, x.last)
+				ELSIF x.kind = SyntaxTree.SetRangeKind THEN
+					expression := SyntaxTree.NewSetRangeExpression(x.position, x.first, x.last)
 				ELSE
-					commonType := system.longintType
+					ASSERT(x.kind = SyntaxTree.ArrayRangeKind);
+					expression := SyntaxTree.NewArrayRangeExpression(x.position, x.first, x.last, x.step)
 				END;
-				IF (by = NIL) OR CompatibleTo(system,by.type.resolved,commonType.resolved) THEN
-					x.SetFrom(from); x.SetTo(to); x.SetBy(by);
-					x.SetType(SyntaxTree.NewRangeType(x.position,NIL,commonType))
-				ELSE
-					Error(by.position,Diagnostics.Invalid,"incompatible increment in range");
-					result := SyntaxTree.invalidExpression;
-				END;
+
+				(* resolve the expression again in its more concrete form *)
+				resolvedExpression := ResolveExpression(expression)
 			END;
-			resolvedExpression := result
 		END VisitRangeExpression;
+
+		(** resolve a case range expression from <<first .. last>>
+			- if 'first' or 'last' = NIL: error
+			- if 'first' and 'last' not of integer or character type: error
+			- if 'first' and 'last' not constant: error
+			- add conversions to ensure the same type for 'first' and 'last'
+			- if error: return invalidExpression
+		*)
+		PROCEDURE VisitCaseRangeExpression(x: SyntaxTree.CaseRangeExpression);
+		VAR
+			hasError: BOOLEAN;
+			first, last: SyntaxTree.Expression;
+		BEGIN
+			hasError := FALSE;
+
+			IF x.first = NIL THEN
+				Error(x.position, Diagnostics.Invalid, "missing lower bound of case range");
+				hasError := TRUE
+			ELSE
+				first := ResolveExpression(x.first);
+
+				IF ~(first.type.resolved IS SyntaxTree.IntegerType) & ~IsCharacterType(first.type.resolved) THEN
+					Error(first.position, Diagnostics.Invalid, "lower bound of case range not integer or character type");
+					hasError := TRUE
+				ELSE
+					IF first IS SyntaxTree.StringValue THEN
+						(* add conversion from string to character *)
+						first := ConvertValue(first.position, first(SyntaxTree.Value), system.characterType)
+					END
+				END;
+
+				(* check if expression is constant *)
+				IF ConstantExpression(first) = SyntaxTree.invalidExpression THEN
+					(* error already reported *)
+					hasError := TRUE
+				END
+			END;
+
+			IF x.last = NIL THEN
+				Error(x.position, Diagnostics.Invalid, "missing upper bound of case range");
+				hasError := TRUE
+			ELSE
+				last := ResolveExpression(x.last);
+
+				IF ~(last.type.resolved IS SyntaxTree.IntegerType) & ~IsCharacterType(last.type) THEN
+					Error(last.position, Diagnostics.Invalid, "upper bound of case range not integer or character type");
+					hasError := TRUE
+				ELSE
+					IF last IS SyntaxTree.StringValue THEN
+						(* add conversion from string to character *)
+						last := ConvertValue(last.position, last(SyntaxTree.Value), system.characterType)
+					END
+				END;
+
+				(* check if expression is constant *)
+				IF ConstantExpression(last) = SyntaxTree.invalidExpression THEN
+					(* error already reported *)
+					hasError := TRUE
+				END
+			END;
+
+			IF ~hasError THEN
+				ConvertOperands(first, last);
+				IF first.type.resolved # last.type.resolved THEN
+					Error(x.position, Diagnostics.Invalid, "incompatible case range operands");
+					hasError := TRUE
+				END
+			END;
+
+			IF hasError THEN
+				resolvedExpression := SyntaxTree.invalidExpression
+			ELSE
+				x.SetFirst(first);
+				x.SetLast(last);
+				x.SetType(SyntaxTree.nonArrayRangeType); (* set the type to a pseudo type *)
+				resolvedExpression := x
+			END
+		END VisitCaseRangeExpression;
+
+		(** resolve a set range expression from <<first .. last>>
+			- if 'first' or 'last' = NIL: error
+			- if 'first' and 'last' not of integer type: error
+			- add conversions to LONGINT
+			- if error: return invalidExpression
+		*)
+		PROCEDURE VisitSetRangeExpression(x: SyntaxTree.SetRangeExpression);
+		VAR
+			first, last: SyntaxTree.Expression;
+			hasError: BOOLEAN;
+		BEGIN
+			hasError := FALSE;
+			IF x.first = NIL THEN
+				Error(x.position, Diagnostics.Invalid, "missing lower bound of set range");
+				hasError := TRUE
+			ELSE
+				first := ResolveExpression(x.first);
+				IF ~(first.type.resolved IS SyntaxTree.IntegerType) THEN
+					Error(first.position, Diagnostics.Invalid, "lower bound of set range not integer type");
+					hasError := TRUE
+				END
+			END;
+			IF x.last = NIL THEN
+				Error(x.position, Diagnostics.Invalid, "missing upper bound of set range");
+				hasError := TRUE
+			ELSE
+				last := ResolveExpression(x.last);
+				IF ~(last.type.resolved IS SyntaxTree.IntegerType) THEN
+					Error(last.position, Diagnostics.Invalid, "upper bound of set range not integer type");
+					hasError := TRUE
+				END
+			END;
+
+			IF hasError THEN
+				resolvedExpression := SyntaxTree.invalidExpression
+			ELSE
+				x.SetFirst(NewConversion(first.position, first, system.longintType, NIL));
+				x.SetLast(NewConversion(last.position, last, system.longintType, NIL));
+				x.SetType(SyntaxTree.nonArrayRangeType); (* set the type to a pseudo type *)
+				resolvedExpression := x
+			END
+		END VisitSetRangeExpression;
+
+		(** resolve an array range expression from <<first .. last BY step>>
+			- insert values for omitted components
+			- if 'first', 'last' and 'step' not of integer type: error
+			- add conversions to LONGINT
+			- if error: return invalidExpression
+		*)
+		PROCEDURE VisitArrayRangeExpression(x: SyntaxTree.ArrayRangeExpression);
+		VAR
+			first, last, step: SyntaxTree.Expression;
+			hasError: BOOLEAN;
+		BEGIN
+			hasError := FALSE;
+			first := x.first;
+			last := x.last;
+			step := x.step;
+
+			IF first = NIL THEN first := SyntaxTree.NewIntegerValue(x.position, 0) END;
+			IF last = NIL THEN last := SyntaxTree.NewIntegerValue(x.position, MAX(LONGINT)) END;
+			IF step = NIL THEN step := SyntaxTree.NewIntegerValue(x.position, 1) END;
+
+			first := ResolveExpression(first);
+			last := ResolveExpression(last);
+			step := ResolveExpression(step);
+
+			IF ~(first.type.resolved IS SyntaxTree.IntegerType) THEN
+				Error(first.position, Diagnostics.Invalid, "upper bound of array range not integer type");
+				hasError := TRUE
+			END;
+			IF ~(last.type.resolved IS SyntaxTree.IntegerType) THEN
+				Error(last.position, Diagnostics.Invalid, "upper bound of array range not integer type");
+				hasError := TRUE
+			END;
+			IF ~(last.type.resolved IS SyntaxTree.IntegerType) THEN
+				Error(last.position, Diagnostics.Invalid, "step size of array range not integer type");
+				hasError := TRUE
+			END;
+
+			IF hasError THEN
+				resolvedExpression := SyntaxTree.invalidExpression;
+			ELSE
+				x.SetFirst(NewConversion(first.position, first, system.longintType, NIL));
+				x.SetLast(NewConversion(step.position, last, system.longintType, NIL));
+				x.SetStep(NewConversion(last.position, step, system.longintType, NIL));
+
+				x.SetType(system.arrayRangeType);
+				resolvedExpression := x;
+				resolvedExpression.SetAssignable(FALSE) (* array range expressions may never be assigned to *)
+			END
+		END VisitArrayRangeExpression;
 
 		PROCEDURE VisitTensorRangeExpression(x: SyntaxTree.TensorRangeExpression);
 		BEGIN
@@ -2397,12 +2998,11 @@ TYPE
 			resolvedExpression := x;
 		END VisitTensorRangeExpression;
 
-
 		(** resolve the expression d and return result as designator
 			- resolve expression
 			- if expression is a designator then return designator else error message and return invalidDesignator
 		**)
-		PROCEDURE ResolveDesignator(d: SyntaxTree.Expression): SyntaxTree.Designator;
+		PROCEDURE ResolveDesignator*(d: SyntaxTree.Expression): SyntaxTree.Designator;
 		VAR result: SyntaxTree.Designator; resolved: SyntaxTree.Expression;
 		BEGIN
 			IF Trace THEN D.Str("ResolveDesignator"); D.Ln; END;
@@ -2505,7 +3105,8 @@ TYPE
 
 			assignable := (left = NIL) OR left.assignable OR (left IS SyntaxTree.DereferenceDesignator);
 
-			IF (symbol.scope.ownerModule # currentScope.ownerModule) THEN
+			(* OLIVIER *)
+			IF (currentScope # NIL) & (symbol.scope.ownerModule # currentScope.ownerModule) THEN
 				assignable := assignable & (SyntaxTree.PublicWrite IN symbol.access);
 			ELSE
 				assignable := assignable & (SyntaxTree.InternalWrite IN symbol.access);
@@ -2644,93 +3245,154 @@ TYPE
 			END;
 		END IndexCheck;
 
-		PROCEDURE SetIndexBaseType(index: SyntaxTree.IndexDesignator; type: SyntaxTree.Type);
-		VAR m: SyntaxTree.MathArrayType;
+		(* OLIVIER *)
+		(*
+			- if index designator has not type, use newBaseType as its type
+			- otherwise, replace the element type (last base type of math array chain) with newBaseType
+			- special rule: if static array of dynamic array occurs, make it all dynamic
+
+			index designator type:	new base type:		new index designator type:
+			NIL						z					z
+			ARRAY [x, y]			z					ARRAY [x, y] OF z
+			ARRAY [x, y]			ARRAY [z]			ARRAY [x, y, z]
+			ARRAY [x, y]	 		ARRAY [*]			ARRAY [*, *, *]
+		*)
+		PROCEDURE SetIndexBaseType(indexDesignator: SyntaxTree.IndexDesignator; newBaseType: SyntaxTree.Type);
+		VAR
+			mathArrayType: SyntaxTree.MathArrayType;
+			makeDynamic: BOOLEAN;
 		BEGIN
-			IF index.type = NIL THEN
-				index.SetType(type)
-			ELSE (* index must be a math array type *)
-				m := index.type(SyntaxTree.MathArrayType);
-				WHILE (m.arrayBase # NIL) & (m.arrayBase IS SyntaxTree.MathArrayType) DO
-					ASSERT(m#type);
-					m := m.arrayBase(SyntaxTree.MathArrayType);
+			IF indexDesignator.type = NIL THEN
+				indexDesignator.SetType(newBaseType)
+			ELSE
+				(* index designator must be a of math array type *)
+				ASSERT(indexDesignator.type.resolved IS SyntaxTree.MathArrayType);
+				mathArrayType := indexDesignator.type.resolved(SyntaxTree.MathArrayType);
+
+				(* determine if all arrays have to be made dynamic *)
+				makeDynamic :=
+						(newBaseType.resolved IS SyntaxTree.MathArrayType) &
+						(newBaseType.resolved(SyntaxTree.MathArrayType).form # SyntaxTree.Static);
+
+				WHILE (mathArrayType.arrayBase # NIL) & (mathArrayType.arrayBase IS SyntaxTree.MathArrayType) DO
+					IF makeDynamic THEN mathArrayType.SetForm(SyntaxTree.Open) END;
+					mathArrayType := mathArrayType.arrayBase(SyntaxTree.MathArrayType)
 				END;
-				ASSERT(m#type);
-				m.SetArrayBase(type);
-			END;
+				IF makeDynamic THEN mathArrayType.SetForm(SyntaxTree.Open) END;
+				mathArrayType.SetArrayBase(newBaseType)
+			END
 		END SetIndexBaseType;
 
-		(** check and append index to indexer of math array
-			- index check
+		(* OLIVIER *)
+		(** check and append index list element to index designator of math array
+			- check validity of single index or array range
 			- compute new type
-				- if range then create new array type
-				- otherwise take over.arrayBase as new type
+				- if range then create new array type (calculate length of resulting array)
+				- otherwise take sourceArray.arrayBase as new type
 				- type is not only replaced but might have to be inserted when resolving expressions of the form A[*,i,j,*]
 		**)
-		PROCEDURE AppendMathIndex(position: LONGINT; index: SyntaxTree.IndexDesignator; expression: SyntaxTree.Expression; over: SyntaxTree.MathArrayType);
-		VAR parameters: SyntaxTree.ExpressionList;
-		range: SyntaxTree.RangeExpression; array: SyntaxTree.MathArrayType; from,to,by: SyntaxTree.Expression;
-		fromvalue,tovalue,byvalue,length: LONGINT;
+		PROCEDURE AppendMathIndex(position: LONGINT; indexDesignator: SyntaxTree.IndexDesignator; indexListItem: SyntaxTree.Expression; sourceArray: SyntaxTree.MathArrayType);
+		VAR
+			targetArray: SyntaxTree.MathArrayType;
+			first, last, step: SyntaxTree.Expression;
+			firstValue, lastValue, stepValue, length: LONGINT;
+			rangeExpression: SyntaxTree.ArrayRangeExpression;
+			isStaticTargetArrayLength: BOOLEAN;
 		BEGIN
-			parameters := index.parameters;
-			IF (expression.type = SyntaxTree.invalidType) THEN (* error already handled *)
-				parameters.AddExpression(expression);
-			ELSIF expression IS SyntaxTree.TensorRangeExpression THEN
-				parameters.AddExpression(expression);
-				array := SyntaxTree.NewMathArrayType(position,NIL,SyntaxTree.Tensor);
-				SetIndexBaseType(index,array);
-				index.HasRange;
-			ELSIF (expression.type.resolved IS SyntaxTree.IntegerType) THEN
-				IndexCheck(expression,over.length);
-				expression := NewConversion(InvalidPosition,expression,system.sizeType,NIL);
-				parameters.AddExpression(expression);
-			ELSIF (expression IS SyntaxTree.RangeExpression) THEN
-				range := expression(SyntaxTree.RangeExpression);
-				parameters.AddExpression(expression);
-				array := SyntaxTree.NewMathArrayType(position,NIL,SyntaxTree.Open);
-				SetIndexBaseType(index,array);
-				index.HasRange;
-				IF ~(expression.type.resolved(SyntaxTree.RangeType).commonType.resolved IS SyntaxTree.IntegerType) THEN
-					Error(position,Diagnostics.Invalid,"non-integer range type");
-				END;
-				from := range.from; to := range.to; by := range.by;
+			IF indexListItem.type = SyntaxTree.invalidType THEN
+				(* error already handled *)
+				indexDesignator.parameters.AddExpression(indexListItem)
 
-				IF (from = NIL) THEN
-					(* handled by backend
-					from := Global.NewIntegerValue(system,position,0);
-					range.SetFrom(from);
-					*)
-				ELSE IndexCheck(from,over.length)
-				END;
+			ELSIF indexListItem IS SyntaxTree.TensorRangeExpression THEN
+				indexDesignator.HasRange;
+				indexDesignator.HasTensorRange;
+				indexDesignator.parameters.AddExpression(indexListItem);
+				indexDesignator.SetType(SyntaxTree.NewMathArrayType(position, NIL, SyntaxTree.Tensor))
 
-				IF (to = NIL) THEN
-					(* handled by backend
-					IF (over.length # NIL) & IsIntegerValue(over.length,length)  THEN
-						to := Global.NewIntegerValue(system,position,length-1);
-						range.SetTo(to);
+			ELSIF indexListItem.type.resolved IS SyntaxTree.IntegerType THEN
+				IndexCheck(indexListItem, sourceArray.length);
+				indexListItem := NewConversion(InvalidPosition, indexListItem, system.sizeType, NIL);
+				indexDesignator.parameters.AddExpression(indexListItem)
+
+			ELSIF indexListItem.type.resolved IS SyntaxTree.ArrayRangeType THEN
+				indexDesignator.HasRange;
+
+				(* if the range is given as an array range expression, check the validity of its components *)
+				IF indexListItem IS SyntaxTree.ArrayRangeExpression THEN
+					rangeExpression := indexListItem(SyntaxTree.ArrayRangeExpression);
+					first := rangeExpression.first;
+					last := rangeExpression.last;
+					step := rangeExpression.step;
+
+					(* perform static checks on range components *)
+					IndexCheck(first, sourceArray.length);
+					IF ~(IsIntegerValue(last, lastValue) & (lastValue = MAX(LONGINT))) THEN
+						IndexCheck(last, sourceArray.length)
 					END;
-					*)
-				ELSE IndexCheck(to,over.length)
+					IF IsIntegerValue(first, firstValue) & IsIntegerValue(last, lastValue) & (firstValue > lastValue ) THEN
+						Error(indexListItem.position, Diagnostics.Invalid,"upper bound of array range smaller than lower bound")
+					END;
+					IF IsIntegerValue(step, stepValue) & (stepValue < 1) THEN
+						Error(indexListItem.position, Diagnostics.Invalid,"invalid step size")
+					END;
+
+					(* add conversions to size type *)
+					(* TODO: needed? *)
+					rangeExpression.SetFirst(NewConversion(InvalidPosition, first, system.sizeType, NIL));
+					rangeExpression.SetLast(NewConversion(InvalidPosition, last, system.sizeType, NIL));
+					rangeExpression.SetStep(NewConversion(InvalidPosition, step, system.sizeType, NIL));
 				END;
 
-				range.SetFrom(NewConversion(InvalidPosition,range.from,system.sizeType,NIL));
-				range.SetTo(NewConversion(InvalidPosition,range.to,system.sizeType,NIL));
-
-				IF (to # NIL) & IsIntegerValue(from,fromvalue) & IsIntegerValue(to,tovalue) & ((by = NIL) OR IsIntegerValue(by,byvalue)) THEN
-					length := tovalue - fromvalue;
-					INC(length);
-					IF by # NIL THEN
-						length := length DIV byvalue;
-					END;
-					array.SetLength(Global.NewIntegerValue(system,position,length));
+				IF indexDesignator.hasTensorRange THEN
+					(* the index designator's base type is a tensor: leave it as is *)
 				ELSE
-					array.SetLength(over.length);
+					(* append a new math array to the index designator's base type *)
+					targetArray := SyntaxTree.NewMathArrayType(position, NIL, SyntaxTree.Open);
+
+					IF ~error THEN
+						(* optimization: calculate length of target array for static ranges *)
+						IF indexListItem IS SyntaxTree.ArrayRangeExpression THEN
+							IF IsStaticallyOpenRange(rangeExpression) THEN
+								(* range is open ('*'): reuse source array length as target array length *)
+								targetArray.SetLength(sourceArray.length); (* the length may or may not be static *)
+								targetArray.SetIncrement(sourceArray.staticIncrementInBits)
+
+							ELSIF IsStaticArrayRange(rangeExpression, firstValue, lastValue, stepValue) THEN
+								IF lastValue = MAX(LONGINT) THEN
+									IF IsIntegerValue(sourceArray.length, length) THEN
+										lastValue := length - 1;
+										isStaticTargetArrayLength := TRUE
+									ELSE
+										isStaticTargetArrayLength := FALSE
+									END
+								ELSE
+									isStaticTargetArrayLength := TRUE;
+								END;
+								IF isStaticTargetArrayLength THEN
+									(* calculate static target array length *)
+									length := 1 + lastValue - firstValue;
+									IF length MOD stepValue = 0 THEN
+										length := length DIV stepValue
+									ELSE
+										length := length DIV stepValue + 1
+									END;
+									targetArray.SetLength(Global.NewIntegerValue(system, position, length));
+									targetArray.SetIncrement(sourceArray.staticIncrementInBits * stepValue);
+									ASSERT(targetArray.form = SyntaxTree.Static)
+								END
+							END
+						END
+					END;
+
+					SetIndexBaseType(indexDesignator, targetArray)
 				END;
+
+				indexDesignator.parameters.AddExpression(indexListItem)
+
 			ELSE
-				Error(position,Diagnostics.Invalid,"invalid indexer");
+				Error(position, Diagnostics.Invalid,"invalid index list item");
 			END;
 		END AppendMathIndex;
-
 
 		PROCEDURE AppendIndex(position: LONGINT; index: SyntaxTree.IndexDesignator; expression: SyntaxTree.Expression; over: SyntaxTree.ArrayType);
 		VAR  parameters: SyntaxTree.ExpressionList;
@@ -2747,102 +3409,402 @@ TYPE
 			END;
 		END AppendIndex;
 
-		(** check and semantically resolve a bracket designator of the form left[expression, ... , expression]
-			- returns a (chain of) index designator(s)
-				left[expression,expression,expression]^[expression,expression] ...
-			- does auto-dereferenciation for each index designator
+		(* OLIVIER *)
+		(** convert an expression to math array type
+			if expression is of math array type: return expression itself
+			if expression is of array-structured object type: return an index operator call on it
+				e.g. if expression is 3-dim. ASOT: expression -> expression^."[]"( * , * , * )
+			otherwise: return invalid expression
+		**)
+		PROCEDURE ConvertToMathArray(expression: SyntaxTree.Expression): SyntaxTree.Expression;
+		VAR
+			result: SyntaxTree.Expression;
+			indexList: SyntaxTree.ExpressionList;
+			mathArrayType: SyntaxTree.MathArrayType;
+			i: LONGINT;
+		BEGIN
+			IF expression.type = NIL THEN
+				result := SyntaxTree.invalidExpression
+			ELSIF expression.type.resolved IS SyntaxTree.MathArrayType THEN
+				(* expression of math array type *)
+				result := expression
+			ELSIF IsArrayStructuredObjectType(expression.type) THEN
+				(* expression of array-structured object type *)
+				mathArrayType := MathArrayStructureOfType(expression.type);
+				result := NewIndexOperatorCall(expression, ListOfOpenRanges(mathArrayType.Dimensionality()), NIL)
+			ELSE
+				result := SyntaxTree.invalidExpression
+			END;
+			RETURN result
+		END ConvertToMathArray;
 
-			Note that for mathematical arrays there can be a difference between
-				A[ expression , expression ]
-			and
-				A[ expression ][ expression ].
-			This is due to the fact that while A[x] is of the base type of A the expression A[*] is of an array type of the base type of A.
-			Example:
-			Let A: ARRAY [*,*] OF LONGINT;
-			Here the expression A[*][i] is equivalent to A[i] while A[*,i] stands for the first column of the matrix A.
+		(* OLIVIER *)
+		(** get an expression list containing a certain amount of open ranges, e.g. [*, *, *, *] **)
+		PROCEDURE ListOfOpenRanges(itemCount: LONGINT): SyntaxTree.ExpressionList;
+		VAR
+			result: SyntaxTree.ExpressionList;
+			i: LONGINT;
+		BEGIN
+			result := SyntaxTree.NewExpressionList();
+			FOR i := 1 TO itemCount DO
+				result.AddExpression(ResolveExpression(SyntaxTree.NewArrayRangeExpression(InvalidPosition, NIL, NIL, NIL)))
+			END;
+			RETURN result
+		END ListOfOpenRanges;
 
-			Indexers are not chained as in older Oberon compilers, i.e. A[x,y,z] -> A[x][y][z] but rather the other way round:
-			A[left][right] is translated to A[left,right] whenever possible (i.e. whenever there is no range between left and right).
-			When autodereferenciation takes place then the indexers are separated:
-			Let A: POINTER TO ARRAY OF POINTER TO ARRAY OF LONGINT;
-			Here A[x,y] -> A^[x]^[y].
+		(* OLIVIER *)
+		(** create a procedure call designator for an index operator call on an array-structured object type
+			- use given index list as actual parameters
+			- if rhs parameter is not NIL: call write operator, otherwise read operator
+		**)
+		PROCEDURE NewIndexOperatorCall*(left: SyntaxTree.Expression; indexList: SyntaxTree.ExpressionList; rhs: SyntaxTree.Expression): SyntaxTree.Designator;
+		VAR
+			operator: SyntaxTree.Operator;
+			expression: SyntaxTree.Expression;
+			actualParameters, tempList: SyntaxTree.ExpressionList;
+			tempMathArrayExpression: SyntaxTree.MathArrayExpression;
+			result, tempDesignator: SyntaxTree.Designator;
+			formalParameter: SyntaxTree.Parameter;
+			recordType: SyntaxTree.RecordType;
+			arrayAccessOperators: SyntaxTree.ArrayAccessOperators;
+			needsReshaping: BOOLEAN;
+			i, indexListKind: LONGINT;
+		BEGIN
+			ASSERT(IsArrayStructuredObjectType(left.type));
+			ASSERT(left.type.resolved IS SyntaxTree.PointerType);
 
-			Note that mathematical arrays of conventional arrays (vice versa) are forbidden by the type system.
-			However pointers are permitted: ARRAY [10] OF POINTER TO ARRAY is a valid type.
+			(* determine index list kind *)
+			indexListKind := 0;
+			FOR i := 0 TO indexList.Length() - 1 DO
+				indexListKind := indexListKind * 2;
+				expression := indexList.GetExpression(i);
+				IF expression.type.resolved IS SyntaxTree.ArrayRangeType THEN INC(indexListKind) END
+			END;
+
+			recordType := left.type.resolved(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
+
+			(* select applicable index operator; determine if reshaping is needed *)
+			needsReshaping := FALSE;
+			IF rhs # NIL THEN
+				operator := recordType.arrayAccessOperators.write[indexListKind];
+				IF operator = NIL THEN
+					operator := recordType.arrayAccessOperators.write[LEN(recordType.arrayAccessOperators.write, 0) - 1];
+					needsReshaping := TRUE
+				END
+			ELSE
+				operator := recordType.arrayAccessOperators.read[indexListKind];
+				IF operator = NIL THEN
+					operator := recordType.arrayAccessOperators.read[LEN(recordType.arrayAccessOperators.read, 0) - 1];
+					needsReshaping := TRUE
+				END
+			END;
+			ASSERT(operator # NIL);
+
+			(* import OCArrayBase if reshaping is needed *)
+			IF needsReshaping & ~arrayBaseImported THEN
+				ImportModule(Global.ArrayBaseName,InvalidPosition);
+				arrayBaseImported := TRUE
+			END;
+
+			(* add the index list entries to the list of actual parameters *)
+			actualParameters := SyntaxTree.NewExpressionList();
+			FOR i := 0 TO indexList.Length() - 1 DO
+				expression := indexList.GetExpression(i);
+				IF (expression.type.resolved IS SyntaxTree.IntegerType) & needsReshaping THEN
+					(* convert integer to range using OCArrayBase.RangeFromInteger *)
+					tempList := SyntaxTree.NewExpressionList();
+					tempList.AddExpression(expression);
+					tempDesignator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
+					tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier(InvalidPosition, "RangeFromInteger"));
+					expression := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, tempDesignator, tempList));
+				END;
+				actualParameters.AddExpression(expression)
+			END;
+
+			IF rhs # NIL THEN
+				(* add actual parameter for RHS *)
+
+				(* TODO: does this happen automatically?
+				(* check compability of RHS and add conversion if needed *)
+				IF CompatibleTo(system, rhs.type, ???leftType) THEN
+					rhs := NewConversion(rhs.position, rhs, ???leftType, NIL);
+				ELSE
+					Error(left.position,Diagnostics.Invalid,"incompatible assignment");
+					rhs := SyntaxTree.invalidExpression;
+				END;
+				*)
+
+				IF needsReshaping THEN
+					(* reshape using OCArrayBase.ExpandDimensions *)
+					tempMathArrayExpression := SyntaxTree.NewMathArrayExpression(InvalidPosition);
+					FOR i := 0 TO indexList.Length() - 1 DO
+						expression := indexList.GetExpression(i);
+						IF expression.type.resolved IS SyntaxTree.IntegerType THEN
+							tempMathArrayExpression.elements.AddExpression(SyntaxTree.NewBooleanValue(InvalidPosition, FALSE))
+						ELSE
+							tempMathArrayExpression.elements.AddExpression(SyntaxTree.NewBooleanValue(InvalidPosition, TRUE))
+						END
+					END;
+					tempList := SyntaxTree.NewExpressionList();
+					tempList.AddExpression(rhs);
+					tempList.AddExpression(tempMathArrayExpression);
+					tempDesignator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
+					tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier(InvalidPosition, "ExpandDimensions"));
+					expression := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, tempDesignator, tempList));
+
+					(*
+					(* make sure the expression is of the same type as the last non-hidden formal parameter *)
+					formalParameter := operator.type.resolved(SyntaxTree.ProcedureType).firstParameter;
+					FOR i := 1 TO indexList.Length() DO formalParameter := formalParameter.nextParameter END;
+					expression.SetType(formalParameter.type);
+					*)
+
+					(* change the base type of the returned tensor from SYSTEM.ALL to the array structure's element type *)
+					ASSERT(expression.type.resolved IS SyntaxTree.MathArrayType);
+					expression.type.resolved(SyntaxTree.MathArrayType).SetArrayBase(recordType.arrayStructure.arrayBase);
+
+					actualParameters.AddExpression(expression)
+				ELSE
+					actualParameters.AddExpression(rhs)
+				END
+			END;
+
+			(* add dereference operator and create procedure call designator *)
+			ASSERT(left IS SyntaxTree.Designator);
+			expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(InvalidPosition, left(SyntaxTree.Designator)), operator);
+
+			ASSERT(expression IS SyntaxTree.Designator);
+			result := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), actualParameters);
+
+			IF (rhs = NIL) & needsReshaping THEN
+				(* reshape using an additional bracket designator with zeros and open ranges at the end; e.g. designator[0, *, *, 0] *)
+				tempList := SyntaxTree.NewExpressionList();
+				FOR i := 0 TO indexList.Length() - 1 DO
+					expression := indexList.GetExpression(i);
+					IF expression.type.resolved IS SyntaxTree.IntegerType THEN
+						tempList.AddExpression(SyntaxTree.NewIntegerValue(InvalidPosition, 0))
+					ELSE
+						tempList.AddExpression(SyntaxTree.NewArrayRangeExpression(InvalidPosition, NIL, NIL, NIL))
+					END
+				END;
+				result := ResolveDesignator(SyntaxTree.NewBracketDesignator(InvalidPosition, result, tempList))
+			END;
+
+			IF rhs = NIL THEN
+				(* special rule: index read operator calls are considered to be assignable *)
+				result.SetAssignable(TRUE)
+			END;
+
+			(* put information about this index operator call into the resulting designator *)
+			result.SetRelatedAsot(left);
+			result.SetRelatedIndexList(indexList);
+
+			RETURN result
+		END NewIndexOperatorCall;
+
+		(* OLIVIER *)
+		(** check and semantically resolve a bracket designator of the form 'left[expression, ..., expression]'
+			1. convert bracket designator chains into a single one that contains separators
+				e.g.: left[a, b, c][d, e][f] -> left[a, b, c, |, d, e, |, f]
+
+			2. convert single bracket designator into a chain of index- , dereference- and procedure call designators
+				e.g.: left[a, b, c, |, d, e, |, f] -> left^[a]^."[]"(b, c, d)[e, f]
+
+				- if an array or math array is indexed over, create index designator
+					a[x, |, y] -> a[x][y] (split at separator if 'x' contains range or 'a' is tensor math array)
+					a[x, |, y] -> a[x, y] (otherwise, combine into single one)
+
+				- if a pointer is indexed over, splitting and auto-dereferencing takes place:
+					a[x, y] -> a[x]^[y] (a: ARRAY OF POINTER TO ARRAY OF BYTE)
+
+				- if an array-structured object type is indexed over, create procedure call designator
+					e.g.: a[x, y] -> a^."[]"(x, y)
+
+			Note 1: for math arrays, there can be a difference between a[x, y] and [y, x]:
+				- a[i, *] = a[i][*]
+				- a[*, i] # a[*][i]
+
+				Because:
+				- 'i-th row' = a[*][i] = a[*][i, *] = a[i, *] = a[i] = a[i][*] = a[i][*][*] = a[i][*][*][*]
+				- 'i-th column' = a[*, i]
+
+			Note 2: math arrays of arrays (and vice versa) are forbidden by the type system.
+			However, pointers are permitted: e.g. ARRAY [10] OF POINTER TO ARRAY is a valid type.
+
+			Note 3: while this compiler tries to combine multiple bracket designators into a single index designator,
+			older Oberon compilers did this the other way around: a[x, y, z] -> A[x][y][z].
 		**)
 		PROCEDURE VisitBracketDesignator(bracketDesignator: SyntaxTree.BracketDesignator);
-		VAR left: SyntaxTree.Designator; expressionList: SyntaxTree.ExpressionList; i: LONGINT;
-			expression: SyntaxTree.Expression; position: LONGINT;
-			type: SyntaxTree.Type; index: SyntaxTree.IndexDesignator;
+		VAR
+			leftBracketDesignator: SyntaxTree.BracketDesignator;
+			indexDesignator: SyntaxTree.IndexDesignator;
+			designator: SyntaxTree.Designator;
+			type: SyntaxTree.Type;
+			recordType: SyntaxTree.RecordType;
+			expression, rhs: SyntaxTree.Expression;
+			indexList: SyntaxTree.ExpressionList;
+			i: LONGINT;
+			hasError: BOOLEAN;
+
+			PROCEDURE FinalizeIndexDesignator;
+			BEGIN
+				IF indexDesignator # NIL THEN
+					(* the end of a tensor has been reached: *)
+					IF IsTensor(type) THEN type := type(SyntaxTree.MathArrayType).arrayBase.resolved END;
+					SetIndexBaseType(indexDesignator, type);
+					indexDesignator.SetType(ResolveType(indexDesignator.type));
+					designator := indexDesignator;
+					type := designator.type.resolved;
+					indexDesignator := NIL;
+					ASSERT(SyntaxTree.Resolved IN type.state)
+				END
+			END FinalizeIndexDesignator;
+
 		BEGIN
 			IF Trace THEN D.Str("VisitBracketDesignator"); D.Ln; END;
-			position := bracketDesignator.position;
-			expressionList := bracketDesignator.parameters;
-			left := ResolveDesignator(bracketDesignator.left);
-			type := left.type.resolved;
 
-			IF (left IS SyntaxTree.IndexDesignator) & ~(left(SyntaxTree.IndexDesignator).hasRange) THEN
-				index := left(SyntaxTree.IndexDesignator);
-			ELSIF (type IS SyntaxTree.PointerType) THEN
-				left := NewDereferenceDesignator(bracketDesignator.position,left);
-				type := left.type.resolved;
-				index := SyntaxTree.NewIndexDesignator(bracketDesignator.position,left);
-				index.SetAssignable(left.assignable);
-				left := index;
+			IF bracketDesignator.left IS SyntaxTree.BracketDesignator THEN
+				leftBracketDesignator := bracketDesignator.left(SyntaxTree.BracketDesignator);
+				(* copy all index list entries including a separator to the left bracket designator *)
+				leftBracketDesignator.parameters.AddExpression(SyntaxTree.indexListSeparator);
+				FOR i := 0 TO bracketDesignator.parameters.Length() - 1 DO
+					leftBracketDesignator.parameters.AddExpression(bracketDesignator.parameters.GetExpression(i))
+				END;
+				(* propagate the related RHS *)
+				leftBracketDesignator.SetRelatedRhs(bracketDesignator.relatedRhs); (* for 'left[a][b] := rhs;' *)
+				(* only resolve left bracket designator and use as final result *)
+				resolvedExpression := ResolveExpression(leftBracketDesignator)
+
 			ELSE
-				index := SyntaxTree.NewIndexDesignator(bracketDesignator.position,left);
-				index.SetAssignable(left.assignable);
-			END;
-			index.SetType(NIL); (* type will be re-set after indexer traversal *)
-			left := index;
+				ASSERT(~(bracketDesignator.left IS SyntaxTree.BracketDesignator));
 
-			FOR i := 0 TO expressionList.Length()-1 DO
-				expression := expressionList.GetExpression(i);
-				position := expression.position;
-				expression := ResolveExpression(expression);
-				IF (type IS SyntaxTree.PointerType) THEN
-					IF (index.hasRange) THEN
-						(* forbidden expression of the form A[*,...] over ARRAY [...] OF POINTER TO ARRAY OF ... *)
-						Error(position,Diagnostics.Invalid,"forbidden range valued indexer over pointer to array");
-						type := SyntaxTree.invalidType;
-						left := SyntaxTree.invalidDesignator;
+				designator := ResolveDesignator(bracketDesignator.left);
+				type := designator.type.resolved;
+				indexDesignator := NIL;
+
+				i := 0;
+				WHILE i <= bracketDesignator.parameters.Length() - 1 DO
+					expression := bracketDesignator.parameters.GetExpression(i);
+					expression := ResolveExpression(expression);
+					bracketDesignator.parameters.SetExpression(i, expression);
+
+					IF expression = SyntaxTree.indexListSeparator THEN
+						(* finalize an existing index designator if needed *)
+						IF IsTensor(type) OR (indexDesignator # NIL) & (indexDesignator.hasRange) THEN FinalizeIndexDesignator END;
+						INC(i)
+
 					ELSE
-						(* expression of the form A[x,...] over ARRAY [...] OF POINTER TO ARRAY OF ... *)
-						SetIndexBaseType(index,type);
-						left := NewDereferenceDesignator(bracketDesignator.position,left);
-						type := left.type.resolved;
-						index := SyntaxTree.NewIndexDesignator(bracketDesignator.position,left);
-						index.SetAssignable(left.assignable);
-						left := index;
-					END;
+						(* do auto-dereferencing if needed *)
+						IF (type IS SyntaxTree.PointerType) & ~IsArrayStructuredObjectType(type) THEN
+							(* expression of the form A[x,...] over ARRAY [...] OF POINTER TO ARRAY OF ... *)
+							IF (indexDesignator # NIL) & indexDesignator.hasRange THEN
+								Error(expression.position, Diagnostics.Invalid, "forbidden range valued indexer over pointer to array");
+								designator := SyntaxTree.invalidDesignator;
+								type := SyntaxTree.invalidType
+							ELSE
+								FinalizeIndexDesignator;
+								designator := NewDereferenceDesignator(bracketDesignator.position, designator);
+								type := designator.type.resolved
+							END
+						END;
+
+						(* create a new index designator, if needed *)
+						IF (indexDesignator = NIL) & ((type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.MathArrayType)) THEN
+							indexDesignator := SyntaxTree.NewIndexDesignator(bracketDesignator.position, designator);
+							indexDesignator.SetAssignable(designator.assignable);
+							indexDesignator.SetType(NIL); (* type will be re-set when index designator is finalized *)
+							(* designator := indexDesignator *)
+						END;
+
+						IF type = SyntaxTree.invalidType THEN
+							(* error already handled *)
+							INC(i)
+
+						ELSIF type IS SyntaxTree.ArrayType THEN
+							(* indexing over an array *)
+							ASSERT(IsIntegerType(expression.type.resolved));
+							ASSERT(indexDesignator # NIL);
+							AppendIndex(expression.position, indexDesignator, expression, type(SyntaxTree.ArrayType));
+							type := type(SyntaxTree.ArrayType).arrayBase.resolved;
+							INC(i)
+
+						ELSIF type IS SyntaxTree.MathArrayType THEN
+							(* indexing over a math array *)
+
+							ASSERT(indexDesignator # NIL);
+							AppendMathIndex(expression.position, indexDesignator, expression, type(SyntaxTree.MathArrayType));
+							IF type(SyntaxTree.MathArrayType).form # SyntaxTree.Tensor THEN type := type(SyntaxTree.MathArrayType).arrayBase.resolved END;
+							INC(i)
+
+						ELSIF IsArrayStructuredObjectType(type) THEN
+							(* indexing over array-structured object type *)
+							FinalizeIndexDesignator;
+
+							ASSERT(type IS SyntaxTree.PointerType);
+							recordType := type(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
+							ASSERT(recordType.arrayStructure.form # SyntaxTree.Tensor);
+
+							(*
+							- create index list from bracket designator entries
+							- check for errors
+							- make sure that the list's entry count matches the array-structure's dimensionality by appending open ranges ('*')
+							*)
+							indexList := SyntaxTree.NewExpressionList();
+							hasError := FALSE;
+							WHILE indexList.Length() < recordType.arrayStructure.Dimensionality() DO
+								IF i <= bracketDesignator.parameters.Length() - 1 THEN
+									expression := bracketDesignator.parameters.GetExpression(i);
+								ELSE
+									expression := SyntaxTree.NewArrayRangeExpression(InvalidPosition, NIL, NIL, NIL)
+								END;
+								IF expression # SyntaxTree.indexListSeparator THEN
+									expression := ResolveExpression(expression);
+									IF ~(expression.type.resolved IS SyntaxTree.IntegerType) & ~(expression.type.resolved IS SyntaxTree.ArrayRangeType) THEN
+										Error(expression.position, Diagnostics.Invalid, "integer or range expected");
+
+										expression := SyntaxTree.invalidExpression;
+										hasError := TRUE
+									END;
+									indexList.AddExpression(expression)
+								END;
+								INC(i)
+							END;
+
+							IF hasError THEN
+								designator := SyntaxTree.invalidDesignator;
+								type := SyntaxTree.invalidType;
+							ELSE
+								(* determine if read or write mode applies: write mode applies if there is a related RHS
+								and the last entry in the index list belongs to the array-structured object type in question.
+								E.g.: for a 2-dimensional array-structured object type:
+									- 'lhs := asot[1, 2]' -> read mode
+									- 'asot[1, 2] := rhs' -> write mode
+									- 'asot[1, 2, 3] := rhs' -> read mode
+								*)
+								IF (bracketDesignator.relatedRhs # NIL) & (i > bracketDesignator.parameters.Length() - 1) THEN
+									rhs := bracketDesignator.relatedRhs
+								ELSE
+									rhs := NIL
+								END;
+								designator := NewIndexOperatorCall(designator, indexList, rhs);
+								type := designator.type
+							END
+
+						ELSE
+							Error(expression.position, Diagnostics.Invalid,"indexing over non-array type");
+							designator := SyntaxTree.invalidDesignator;
+							type := SyntaxTree.invalidType;
+							INC(i)
+
+						END
+					END
 				END;
 
-				IF type = SyntaxTree.invalidType THEN (* error already handled *)
-				ELSIF (type IS SyntaxTree.ArrayType) THEN
-					(* index over array, can only be of the form [... x ...] *)
-					AppendIndex(position,index,expression,type(SyntaxTree.ArrayType));
-					type := type(SyntaxTree.ArrayType).arrayBase.resolved;
-				ELSIF (type IS SyntaxTree.MathArrayType) THEN
-					(* index over math array, might be [ ... x ... ] or [... x..y by z ....] *)
-					AppendMathIndex(position,index,expression,type(SyntaxTree.MathArrayType));
-					IF type(SyntaxTree.MathArrayType).form # SyntaxTree.Tensor THEN
-						type := type(SyntaxTree.MathArrayType).arrayBase.resolved;
-					END;
-				ELSE
-					Error(position,Diagnostics.Invalid,"indexed element is no array");
-					type := SyntaxTree.invalidType;
-				END;
-			END;
-			IF (type IS SyntaxTree.MathArrayType) & (type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) THEN
-				type := type(SyntaxTree.MathArrayType).arrayBase.resolved;
-			END;
-			IF type = SyntaxTree.invalidType THEN (* error *)
-				left := SyntaxTree.invalidDesignator;
-			ELSE
-				SetIndexBaseType(index,type);
-			END;
-			resolvedExpression := left;
+				FinalizeIndexDesignator;
+				resolvedExpression := designator
+			END
 		END VisitBracketDesignator;
+
 
 		(** check and resolve expression list
 			- resolve each expression in an expression list
@@ -3043,6 +4005,21 @@ TYPE
 			END;
 			RETURN result
 		END CheckRealType;
+
+		(**
+			if expression x is of array range type then return true else report error and return false
+		**)
+		PROCEDURE CheckArrayRangeType(x: SyntaxTree.Expression): BOOLEAN;
+		VAR result: BOOLEAN;
+		BEGIN
+			result := FALSE;
+			IF x = SyntaxTree.invalidExpression THEN
+			ELSIF ~(x.type.resolved IS SyntaxTree.ArrayRangeType) THEN
+				Error(x.position,Diagnostics.Invalid,"is no array range type");
+			ELSE result := TRUE
+			END;
+			RETURN result
+		END CheckArrayRangeType;
 
 		(**
 			if expression x is of boolean type then return true else report error and return false
@@ -3557,6 +4534,28 @@ TYPE
 					ELSE
 						type := system.longintType;
 					END;
+
+				(* OLIVIER *)
+				(* ---- FIRST ---- *)
+				ELSIF (id = Global.First) & Parameters(1,1) THEN
+					type := system.longintType;
+					IF CheckArrayRangeType(parameter0) THEN END;
+					result.SetAssignable(parameter0.assignable)
+
+				(* OLIVIER *)
+				(* ---- LAST ---- *)
+				ELSIF (id = Global.Last) & Parameters(1,1) THEN
+					type := system.longintType;
+					IF CheckArrayRangeType(parameter0) THEN END;
+					result.SetAssignable(parameter0.assignable)
+
+				(* OLIVIER *)
+				(* ---- STEP ---- *)
+				ELSIF (id = Global.Step) & Parameters(1,1) THEN
+					type := system.longintType;
+					IF CheckArrayRangeType(parameter0) THEN END;
+					result.SetAssignable(parameter0.assignable)
+
 				(* ---- MAX ----- *)
 				ELSIF (id = Global.Max) & Parameters(1,2) THEN
 					IF numberActualParameters = 1 THEN
@@ -4901,40 +5900,64 @@ TYPE
 			procedureCall.SetCall(call);
 		END VisitProcedureCallStatement;
 
-
-		(** check and resolve assignment left := right
-			- check left designator and right expression
-			- check for operator first
-			- check if assignment compatible
-			- set left designator and right expression
+		(* OLIVIER *)
+		(** check and resolve assignment LHS := RHS
+			- resolve LHS and RHS
+			- check if assignment operator is found. if yes, return operator call instead of assignment instruction
+			- check if assignment is compatible
+			- check if LHS is variable (i.e. assignable)
+			- convert RHS if necessary
+			- for the following two cases, return index write operator call on ASOT instead of assignment instruction:
+				- assignment between different ASOTs
+					asot := asot2; -> asot^."[]"( *, *, ..., *, asot2);
+				- assignment to ASOT elements:
+					asot[indexList] := rhs; -> asot^."[]"(indexList, rhs);
 		**)
 		PROCEDURE VisitAssignment(assignment: SyntaxTree.Assignment);
-		VAR left: SyntaxTree.Designator; right: SyntaxTree.Expression;
-			operator: SyntaxTree.Expression;
+		VAR
+			left: SyntaxTree.Designator;
+			right, expression: SyntaxTree.Expression;
+			designator: SyntaxTree.Designator;
+			procedureCallDesignator: SyntaxTree.ProcedureCallDesignator;
+			mathArrayType: SyntaxTree.MathArrayType;
+			dimensionality: LONGINT;
 		BEGIN
-			left := ResolveDesignator(assignment.left);
-			assignment.SetLeft(left);
 			right := ResolveExpression(assignment.right);
-			assignment.SetRight(right);
+			assignment.left.SetRelatedRhs(right); (* store a reference to the RHS in the assignement's LHS*)
+			left := ResolveDesignator(assignment.left);
 
 			IF (left = SyntaxTree.invalidDesignator) OR (right = SyntaxTree.invalidExpression) THEN
 				(* error already handled *)
+
+			ELSIF (left IS SyntaxTree.ProcedureCallDesignator) & (left.type = NIL) & (left.relatedAsot # NIL) THEN
+				(* LHS is index write operator call on ASOT *)
+				procedureCallDesignator :=  left(SyntaxTree.ProcedureCallDesignator);
+				resolvedStatement := SyntaxTree.NewProcedureCallStatement(assignment.position, procedureCallDesignator, assignment.outer)
+
 			ELSIF CheckVariable(left) THEN
-				operator := NewOperatorCall(assignment.position,Scanner.Becomes,assignment.left,assignment.right,NIL);
-				IF (operator # NIL) & (operator IS SyntaxTree.ProcedureCallDesignator) THEN
-					IF (left.type.resolved IS SyntaxTree.MathArrayType) & (right.type.resolved IS SyntaxTree.MathArrayType) &
-						AssignmentCompatible(left,right)
-					THEN
-						right := NewConversion(right.position,right,left.type.resolved,NIL);
-						operator(SyntaxTree.ProcedureCallDesignator).parameters.SetExpression(1,right);
+				expression := NewOperatorCall(assignment.position, Scanner.Becomes, left, right, NIL);
+				IF (expression # NIL) & (expression IS SyntaxTree.ProcedureCallDesignator) THEN
+					procedureCallDesignator := expression(SyntaxTree.ProcedureCallDesignator);
+					IF (left.type.resolved IS SyntaxTree.MathArrayType) & (right.type.resolved IS SyntaxTree.MathArrayType) & AssignmentCompatible(left, right) THEN
+						right := NewConversion(right.position, right, left.type.resolved, NIL);
+						procedureCallDesignator.parameters.SetExpression(1, right);
 					END;
-					resolvedStatement := SyntaxTree.NewProcedureCallStatement(assignment.position,operator(SyntaxTree.ProcedureCallDesignator),assignment.outer);
-				ELSIF AssignmentCompatible(left,right) THEN
-					assignment.SetLeft(left);
-					assignment.SetRight(NewConversion(right.position,right,left.type.resolved,NIL));
-					resolvedStatement := assignment;
-				END;
-			END;
+					resolvedStatement := SyntaxTree.NewProcedureCallStatement(assignment.position, procedureCallDesignator, assignment.outer);
+
+				ELSIF AssignmentCompatible(left, right) THEN
+					IF IsArrayStructuredObjectType(left.type) & (left.type.resolved # right.type.resolved) THEN
+						mathArrayType := MathArrayStructureOfType(right.type);
+						right := NewConversion(right.position, right, mathArrayType, NIL);
+						designator := NewIndexOperatorCall(left, ListOfOpenRanges(mathArrayType.Dimensionality()), right);
+						resolvedStatement := SyntaxTree.NewProcedureCallStatement(assignment.position, designator, assignment.outer)
+					ELSE
+						right := NewConversion(right.position, right, left.type.resolved, NIL);
+						assignment.SetLeft(left);
+						assignment.SetRight(right);
+						resolvedStatement := assignment
+					END
+				END
+			END
 		END VisitAssignment;
 
 		(** check and resolve if/eslif part
@@ -5054,38 +6077,49 @@ TYPE
 
 
 
-		(** check and resolve case part   a,b,c..d: StatementSequence
-			- check expression to be constant or binary expression from .. to with constants from and to and compatible to type
-			- check from < to and no overlaps between different case labels
+		(* OLIVIER *)
+		(** check and resolve case part <<a, b, c..d: StatementSequence>>
+			- check expression to be constant or case range expression <<first .. last>> with constants 'first' and 'last' and compatible to type
+			- check 'first' < 'last' and no overlaps between different case labels
 			- check statement sequence
 		**)
 		PROCEDURE CasePart(casePart: SyntaxTree.CasePart; type: SyntaxTree.Type; VAR allcases: SyntaxTree.CaseConstant; VAR min,max: LONGINT);
-		VAR i: LONGINT; position: LONGINT; expression,left,right: SyntaxTree.Expression; expressionType: SyntaxTree.Type;
-			l,r: LONGINT; cl,cr: CHAR;
+		VAR
+			i: LONGINT;
+			position: LONGINT;
+			expression, left, right: SyntaxTree.Expression;
+			expressionType: SyntaxTree.Type;
+			l, r: LONGINT;
+			cl, cr: CHAR;
 			thiscases: SyntaxTree.CaseConstant;
 		BEGIN
 			thiscases := NIL;
-			FOR i := 0 TO casePart.elements.Length()-1 DO
+			FOR i := 0 TO casePart.elements.Length() - 1 DO
 				expression := casePart.elements.GetExpression(i);
 				position := expression.position;
+
+				(* mark ranges to be of case range kind *)
+				IF expression IS SyntaxTree.RangeExpression THEN
+					expression(SyntaxTree.RangeExpression).SetKind(SyntaxTree.CaseRangeKind)
+				END;
+
 				expression := ResolveExpression(expression);
+
 				IF expression = SyntaxTree.invalidExpression THEN
 					(* error already reported *)
 					expressionType := SyntaxTree.invalidType;
-				ELSIF (expression IS SyntaxTree.RangeExpression) THEN
-					left := ConstantExpression(expression(SyntaxTree.RangeExpression).from);
-					right := ConstantExpression(expression(SyntaxTree.RangeExpression).to);
-					IF IsStringType(left.type) & IsCharacterValue(left,cl) THEN
-						left := Global.NewCharacterValue(system,left.position,cl);
-						expression(SyntaxTree.RangeExpression).from.SetResolved(left(SyntaxTree.CharacterValue));
-					END;
-					IF IsStringType(right.type) & IsCharacterValue(right,cr) THEN
-						right := Global.NewCharacterValue(system,right.position,cr);
-						expression(SyntaxTree.RangeExpression).to.SetResolved(right(SyntaxTree.CharacterValue));
-					END;
-					expressionType := RegularType(position,left.type);
-					ASSERT(left.type.resolved = right.type.resolved); (* guaranteed by parser *)
-					ASSERT(expression(SyntaxTree.RangeExpression).by = NIL); (* guaranteed by VisitRangeExpression *)
+
+				ELSIF (expression IS SyntaxTree.CaseRangeExpression) THEN
+					(* read out 'first' and 'last' *)
+					left := expression(SyntaxTree.CaseRangeExpression).first;
+					right := expression(SyntaxTree.CaseRangeExpression).last;
+
+					(* guaranteed by VisitRangeExpression: *)
+					ASSERT((left # NIL) & (right # NIL));
+					ASSERT(left.type.resolved = right.type.resolved);
+
+					expressionType := RegularType(position, left.type);
+
 				ELSE
 					expression := ConstantExpression(expression);
 					IF IsStringType(expression.type) & IsCharacterValue(expression,cl) THEN
@@ -5095,7 +6129,7 @@ TYPE
 						expression := left
 					END;
 					left := expression; right := expression;
-					expressionType := RegularType(position,expression.type);
+					expressionType := RegularType(position,expression.type)
 				END;
 
 				IF (expressionType = SyntaxTree.invalidType) THEN
@@ -5221,6 +6255,10 @@ TYPE
 		scope: SyntaxTree.Scope; duplicate: BOOLEAN; offset: LONGINT;
 		BEGIN
 			COPY("@hiddenVar",string);
+			(* OLIVIER *)
+			IF index = InvalidPosition THEN
+				index := GetUniqueNegativeInteger();
+			END;
 			IF index # 0 THEN
 				Basic.AppendNumber(string,index);
 			END;
@@ -5369,6 +6407,8 @@ TYPE
 						returnType := returnType.resolved;
 						IF expression = NIL THEN
 							Error(position,Diagnostics.Invalid,"empty return type in procedure providing a return type")
+						ELSIF expression.type = NIL THEN
+							Error(position, Diagnostics.Invalid,"returned type incompatible: expression has no type");
 						ELSIF ~CompatibleTo(system,expression.type.resolved,returnType) THEN
 							Error(position,Diagnostics.Invalid,"return type not compatible");
 							IF VerboseErrorMessage THEN
@@ -5799,8 +6839,8 @@ TYPE
 		PROCEDURE VisitEnumerationType*(x: SyntaxTree.EnumerationType);
 		BEGIN END VisitEnumerationType;
 
-		PROCEDURE VisitRangeType*(x: SyntaxTree.RangeType);
-		BEGIN  END VisitRangeType;
+		PROCEDURE VisitArrayRangeType*(x: SyntaxTree.ArrayRangeType);
+		BEGIN  END VisitArrayRangeType;
 
 		PROCEDURE VisitArrayType*(x: SyntaxTree.ArrayType);
 		BEGIN END VisitArrayType;
@@ -5936,6 +6976,7 @@ TYPE
 		END;
 	END RemoveModuleFromCache;
 
+	(* OLIVIER *)
 	PROCEDURE CompatibleTo(system: Global.System; this,to: SyntaxTree.Type): BOOLEAN;
 	(* to <- this assignment compatibility *)
 	VAR result: BOOLEAN;
@@ -5974,6 +7015,7 @@ TYPE
 				ELSE
 					result := FALSE
 				END;
+
 			ELSIF to IS SyntaxTree.PointerType THEN
 				result := IsPointerType(this) & (IsTypeExtension(to,this) OR ((to(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType) & SameType(to,this)))
 				     & (~to.isRealtime OR this.isRealtime) OR (this IS SyntaxTree.NilType)
@@ -6011,6 +7053,12 @@ TYPE
 					ELSE
 						result := FALSE
 					END;
+
+				(* OLIVIER *)
+				(* an array-structured object type is compatible to the type of its array structure *)
+				ELSIF IsArrayStructuredObjectType(this) THEN
+					result := CompatibleTo(system, to, MathArrayStructureOfType(this))
+
 				ELSE
 					result := FALSE;
 				END;
@@ -6121,6 +7169,7 @@ TYPE
 			tensor -> open
 			tensor -> static
 	**)
+	(*! think about the metric here: is form matching more important than element type matching? *)
 	PROCEDURE MathArrayTypeDistance(system: Global.System; from,to: SyntaxTree.MathArrayType; varpar:BOOLEAN): LONGINT;
 	VAR i: LONGINT; fromBase, toBase: SyntaxTree.Type;
 	BEGIN
@@ -6298,9 +7347,9 @@ TYPE
 		RETURN i
 	END TypeDistance;
 
-	PROCEDURE IsIntegerType(type: SyntaxTree.Type): BOOLEAN;
+	PROCEDURE IsIntegerType*(type: SyntaxTree.Type): BOOLEAN;
 	BEGIN
-		RETURN (type IS SyntaxTree.IntegerType) OR (type IS SyntaxTree.AddressType) OR (type IS SyntaxTree.SizeType)
+		RETURN (type # NIL) & ((type IS SyntaxTree.IntegerType) OR (type IS SyntaxTree.AddressType) OR (type IS SyntaxTree.SizeType))
 	END IsIntegerType;
 
 	PROCEDURE IsIntegerValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
@@ -6737,6 +7786,121 @@ TYPE
 		NEW(warnings, diagnostics); RETURN warnings;
 	END NewWarnings;
 
+	(********************************************************************************)
+
+	(* OLIVIER *)
+	PROCEDURE IsArrayRangeType(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN RETURN (type # NIL) & (type.resolved IS SyntaxTree.ArrayRangeType);
+	END IsArrayRangeType;
+
+	(* OLIVIER *)
+	PROCEDURE IsMathArrayType(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN RETURN (type # NIL) & (type.resolved IS SyntaxTree.MathArrayType);
+	END IsMathArrayType;
+
+	(* OLIVIER *)
+	PROCEDURE IsArrayStructuredObjectType*(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN
+		IF type = NIL THEN
+			RETURN FALSE
+		ELSE
+			type := type.resolved;
+			IF type IS SyntaxTree.PointerType THEN
+				type := type(SyntaxTree.PointerType).pointerBase.resolved;
+			END;
+			RETURN (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).arrayStructure # NIL)
+		END
+	END IsArrayStructuredObjectType;
+
+	(* OLIVIER *)
+	(** the math array structure of a type
+		- for math arrays: the array itself
+		- for pointers: the math array structure of the pointer base
+		- for array-structured object types: the underlying structure
+		- for non-math arrays and all other types: NIL
+	**)
+	PROCEDURE MathArrayStructureOfType(type: SyntaxTree.Type): SyntaxTree.MathArrayType;
+	VAR
+		result: SyntaxTree.MathArrayType;
+	BEGIN
+		IF type = NIL THEN
+			result := NIL
+		ELSE
+			type := type.resolved;
+			IF type IS SyntaxTree.PointerType THEN
+				type := type(SyntaxTree.PointerType).pointerBase.resolved;
+			END;
+			IF type IS SyntaxTree.MathArrayType THEN
+				result := type(SyntaxTree.MathArrayType)
+			ELSIF type IS SyntaxTree.RecordType THEN
+				result := type(SyntaxTree.RecordType).arrayStructure
+			ELSE
+				result := NIL
+			END
+		END;
+		RETURN result
+	END MathArrayStructureOfType;
+
+	(* OLIVIER *)
+	PROCEDURE IsStaticallyOpenRange(x: SyntaxTree.Expression): BOOLEAN;
+	VAR
+		result: BOOLEAN;
+		value: LONGINT;
+		rangeExpression: SyntaxTree.ArrayRangeExpression;
+	BEGIN
+		IF x IS SyntaxTree.ArrayRangeExpression THEN
+			rangeExpression := x(SyntaxTree.ArrayRangeExpression);
+			result := TRUE;
+			IF IsIntegerValue(rangeExpression.first, value) & (value # 0) THEN result := FALSE END;
+			IF IsIntegerValue(rangeExpression.last, value) & (value # MAX(LONGINT)) THEN result := FALSE END;
+			IF IsIntegerValue(rangeExpression.step, value) & (value # 1) THEN result := FALSE END
+		ELSE
+			result := FALSE
+		END;
+		RETURN result
+	END IsStaticallyOpenRange;
+
+	(* OLIVIER *)
+	PROCEDURE IsStaticArrayRange(x: SyntaxTree.Expression; VAR firstValue, lastValue, stepValue: LONGINT): BOOLEAN;
+	VAR
+		result: BOOLEAN;
+		rangeExpression: SyntaxTree.ArrayRangeExpression;
+	BEGIN
+		IF x IS SyntaxTree.ArrayRangeExpression THEN
+			rangeExpression := x(SyntaxTree.ArrayRangeExpression);
+			result := TRUE;
+			IF ~IsIntegerValue(rangeExpression.first, firstValue) THEN result := FALSE END;
+			IF ~IsIntegerValue(rangeExpression.last, lastValue) THEN result := FALSE END;
+			IF ~IsIntegerValue(rangeExpression.step, stepValue) THEN result := FALSE END
+		ELSE
+			result := FALSE
+		END;
+		RETURN result
+	END IsStaticArrayRange;
+
+	(* OLIVIER *)
+	(** whether a type is a math array of tensor form **)
+	PROCEDURE IsTensor(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN RETURN (type.resolved IS SyntaxTree.MathArrayType) & (type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor)
+	END IsTensor;
+
+	(* OLIVIER *)
+	(** get a math array expression containing the lengths of a static math array type **)
+	PROCEDURE StaticMathArrayLengths(mathArrayType: SyntaxTree.MathArrayType): SyntaxTree.MathArrayExpression;
+	VAR
+		result: SyntaxTree.MathArrayExpression;
+		type: SyntaxTree.Type;
+		length: LONGINT;
+	BEGIN
+		ASSERT(mathArrayType.form = SyntaxTree.Static);
+		result := SyntaxTree.NewMathArrayExpression(InvalidPosition);
+		type := mathArrayType;
+		WHILE type IS SyntaxTree.MathArrayType DO
+			length := type(SyntaxTree.MathArrayType).staticLength;
+			result.elements.AddExpression(SyntaxTree.NewIntegerValue(InvalidPosition, length));
+			type := type(SyntaxTree.MathArrayType).arrayBase.resolved
+		END
+	END StaticMathArrayLengths;
 
 END OCSemanticChecker.
 

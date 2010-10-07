@@ -8,6 +8,11 @@ CONST
 
 	(** the parser reflects the following EBNF
 
+		(OLIVIER) 
+		Element (removed)
+		Range (removed)
+		RangeList (removed)
+
 		Module               = 'module' Identifier ['in' Identifier]';' [ImportList] DeclarationSequence [Body]
 		                       'end' Identifier '.'.
 
@@ -54,9 +59,11 @@ CONST
 
 		PointerType          = 'pointer' [Flags] 'to' Type.
 
-		ObjectType           = 'object' [Flags] ['(' QualifiedIdentifier ')'] DeclarationSequence [Body]
+		(OLIVIER)
+		ObjectType           = 'object' [Flags] ['(' (QualifiedIdentifier | ArrayType) ')'] DeclarationSequence [Body]
 		                       'end' [Identifier]
 		                     | 'object'.
+
 
 		ProcedureType        = 'procedure' [Flags] [FormalParameters].
 
@@ -89,13 +96,18 @@ CONST
 
 		StatementBlock       = [Flags] StatementSequence.
 
-		Case                 = Element {',' Element} ':' StatementSequence.
+		(OLIVIER)
+		Case                 = RangeExpression {',' RangeExpression} ':' StatementSequence.
 
-		Expression           = SimpleExpression [RelationOp SimpleExpression].
+		(OLIVIER)
+		Expression           = RangeExpression [RelationOp RangeExpression].
 
 		RelationOp           = '=' | '.=' | '#' | '.#'
 		                     | '<' | '.<' | '<=' | '.<=' | '>' | '.>' | '>=' | '.>='
 		                     | 'in' | 'is'
+
+		(OLIVIER)
+		RangeExpression  = SimpleExpression | [SimpleExpression] '..' [SimpleExpression] ['by' SimpleExpression] | '*'.
 
 		SimpleExpression     = ['+'|'-'] Term {AddOp Term}.
 
@@ -105,21 +117,20 @@ CONST
 
 		MulOp                = '*' | '**' | '.*' | '+*' | '/' | './' | 'div' | 'mod' | '&'.
 
-		Factor               = Number | Character | String | 'nil' | 'true' | 'false' | Set
-		                     | '(' Expression ')' | '~' Factor | Factor '`' | Designator | MathArray.
+		Factor               = Number | Character | String | 'nil' | 'true' | 'false' | Set |
+		                       '(' Expression ')' | '~' Factor | Factor '`' | Designator | MathArray.
 
 		MathArray            = '[' Expression {',' Expression} ']'.
 
-		Set                  = '{' [Element {',' Element}] '}'.
+		(OLIVIER)
+		Set                  = '{' [ RangeExpression {',' RangeExpression} ] '}'.
 
-		Element              = Expression ['..' Expression].
-
+		(OLIVIER)
 		Designator           = ('self' | Identifier)
-		                       {'.' Identifier|'[' RangeList ']' | '('[ExpressionList]')' | '^'}.
+		                       {'.' Identifier | '[' IndexList ']' | '(' [ExpressionList] ')' | '^'}.
 
-		RangeList            = Range {',' Range}.
-
-		Range                = Expression | [Expression] '..' [Expression] ['by' Expression] | '?' | '*'.
+		(OLIVIER)
+		IndexList            = '?' [',' ExpressionList ] | ExpressionList [',' '?'].
 
 		ExpressionList       = Expression {','Expression}.
 
@@ -149,7 +160,6 @@ CONST
 		Digit                = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' .
 
 	**)
-
 
 TYPE
 	Parser* = OBJECT
@@ -406,51 +416,127 @@ TYPE
 			IF Trace THEN E( "ExpressionList" ) END;
 		END ExpressionList;
 
-		(** Range = Expression | [Expression] '..' [Expression] ['by' Expression] | '?' | '*'. **)
-		PROCEDURE Range(): SyntaxTree.Expression;
-		VAR expression, to, by: SyntaxTree.Expression; position: LONGINT; isRange,isOpenRange: BOOLEAN;
+		(* OLIVIER  *)
+		(** IndexList = '?' [',' ExpressionList ] | ExpressionList [',' '?']. **)
+		PROCEDURE IndexList(expressionList: SyntaxTree.ExpressionList);
+		VAR
+			position: LONGINT;
+			done: BOOLEAN;
 		BEGIN
+			IF Trace THEN S( "IndexList" ) END;
 			position := symbol.start;
-			expression := NIL; to := NIL; by := NIL; isRange := FALSE; isOpenRange := FALSE;
-			IF Optional(Scanner.Times) THEN
-				isRange := TRUE;
-			ELSIF Optional(Scanner.Questionmark) THEN
-				isOpenRange := TRUE;
-				expression := SyntaxTree.NewTensorRangeExpression(position);
-			ELSIF Peek(Scanner.Upto) THEN (* handled below *)
+
+			IF Optional(Scanner.Questionmark) THEN
+				expressionList.AddExpression(SyntaxTree.NewTensorRangeExpression(position));
+				WHILE Optional(Scanner.Comma) DO
+					expressionList.AddExpression(Expression())
+				END
 			ELSE
-				expression := Expression(); isRange := FALSE
+				expressionList.AddExpression(Expression());
+
+				done := FALSE;
+				WHILE ~done DO
+					IF Optional(Scanner.Comma) THEN
+						IF Optional(Scanner.Questionmark) THEN
+							expressionList.AddExpression(SyntaxTree.NewTensorRangeExpression(position));
+							done := TRUE;
+						ELSE
+							expressionList.AddExpression(Expression())
+						END
+
+					ELSE
+						done := TRUE
+					END
+				END
 			END;
-			IF ~isRange & ~isOpenRange & Optional(Scanner.Upto) THEN
-				isRange := TRUE;
-				IF Optional(Scanner.By) THEN
-					by := Expression();
-				ELSIF Peek(Scanner.Comma) OR Peek(Scanner.RightBracket) OR Peek(Scanner.RightParenthesis) THEN
-					(* finished *)
+			IF Trace THEN E( "IndexList" ) END;
+		END IndexList;
+
+		(* OLIVIER *)
+		(** RangeExpression = SimpleExpression | [SimpleExpression] '..' [SimpleExpression] ['by' SimpleExpression] | '*'.
+			i.e., a RangeExpression can have one of the following forms:
+				'*'
+				'..' [delimiter]
+				'..' 'by' SimpleExpression
+				'..' SimpleExpression
+				'..' SimpleExpression 'by' SimpleExpression
+				SimpleExpression
+				SimpleExpression '..' [delimiter]
+				SimpleExpression '..' 'by' SimpleExpression
+				SimpleExpression '..' SimpleExpression
+				SimpleExpression '..' SimpleExpression 'by' SimpleExpression
+
+			a RangeExpression is always delimited by any of the following tokens: ",", ";", ":", "]", ")", "}", "=", "#", "END".
+		**)
+		PROCEDURE RangeExpression(): SyntaxTree.Expression;
+		VAR
+			expression, first, last, step: SyntaxTree.Expression;
+			position: LONGINT;
+
+			PROCEDURE HasDelimiter(): BOOLEAN;
+			BEGIN RETURN
+						Peek(Scanner.Comma) OR Peek(Scanner.Semicolon) OR Peek(Scanner.Colon) OR
+						Peek(Scanner.RightBracket) OR Peek(Scanner.RightParenthesis) OR Peek(Scanner.RightBrace) OR
+						Peek(Scanner.Equal) OR Peek(Scanner.Unequal) OR Peek(Scanner.End)
+			END HasDelimiter;
+
+		BEGIN
+			IF Trace THEN S( "RangeExpression" ) END;
+			position := symbol.start;
+
+			IF Optional(Scanner.Times) THEN
+				expression := SyntaxTree.NewRangeExpression(position, NIL, NIL, NIL)
+
+			ELSIF Optional(Scanner.Upto) THEN
+				(* is range expression *)
+				first := NIL;
+				IF HasDelimiter() THEN
+					last := NIL;
+					step := NIL
+				ELSIF Optional(Scanner.By) THEN
+					last := NIL;
+					step := SimpleExpression()
 				ELSE
-					to := Expression();
+					last := SimpleExpression();
 					IF Optional(Scanner.By) THEN
-						by := Expression();
+						step := SimpleExpression()
+					ELSE
+						step := NIL
+					END
+				END;
+				expression := SyntaxTree.NewRangeExpression(position, first, last, step)
+			ELSE
+				expression := SimpleExpression();
+				IF Optional(Scanner.Upto) THEN
+					(* is range expression *)
+					first := expression;
+
+					IF HasDelimiter() THEN
+						last := NIL;
+						step := NIL
+					ELSIF Optional(Scanner.By) THEN
+						last := NIL;
+						step := SimpleExpression()
+					ELSE
+						last := SimpleExpression();
+						IF Optional(Scanner.By) THEN
+							step := SimpleExpression()
+						ELSE
+							step := NIL
+						END
 					END;
+					expression := SyntaxTree.NewRangeExpression(position, first, last, step)
 				END;
 			END;
-			IF isRange THEN expression := SyntaxTree.NewRangeExpression(position,expression,to,by) END;
-			RETURN expression;
-		END Range;
 
-		(** RangeList = Range {',' Range}. **)
-		PROCEDURE RangeList(expressionList: SyntaxTree.ExpressionList);
-		VAR expression: SyntaxTree.Expression;
-		BEGIN
-			IF Trace THEN S( "RangeList" ) END;
-			REPEAT
-				expression := Range();
-				expressionList.AddExpression( expression )
-			UNTIL ~Optional( Scanner.Comma );
-			IF Trace THEN E( "RangeList" ) END;
-		END RangeList;
+			IF Trace THEN E( "RangeExpression" ) END;
+			RETURN expression
+		END RangeExpression;
 
-		(** Designator = ('self' | Identifier) {'.' Identifier|'[' RangeList ']' | '('[ExpressionList]')' | '^'}. **)
+		(* OLIVIER *)
+		(** Designator  = ('self' | Identifier)
+		                  {'.' Identifier | '[' IndexList ']' | '(' [ExpressionList] ')' | '^'}.
+		**)
 		PROCEDURE Designator( ): SyntaxTree.Designator;
 		VAR
 			designator: SyntaxTree.Designator;  expressionList: SyntaxTree.ExpressionList;
@@ -471,7 +557,7 @@ TYPE
 					designator := SyntaxTree.NewSelectorDesignator(identifier.position,designator,identifier);
 				ELSIF Optional( Scanner.LeftBracket ) THEN
 					expressionList := SyntaxTree.NewExpressionList();
-					RangeList( expressionList );
+					IndexList( expressionList );
 					Check( Scanner.RightBracket );
 					designator:= SyntaxTree.NewBracketDesignator( position,designator,expressionList );
 				ELSIF Optional( Scanner.LeftParenthesis ) THEN
@@ -490,36 +576,24 @@ TYPE
 			RETURN designator
 		END Designator;
 
-		(* Element = Expression ['..' Expression].*)
-		PROCEDURE Element( ): SyntaxTree.Expression;
-		VAR from,to: SyntaxTree.Expression;  element: SyntaxTree.Expression;  position: LONGINT;
-		BEGIN
-			IF Trace THEN S( "Element" ) END;
-			position := symbol.start;
-			from := Expression();
-			IF Optional( Scanner.Upto ) THEN
-				to := Expression();
-			ELSE
-				to := from;
-			END;
-			element := SyntaxTree.NewElement( position, from, to );
-			element.End( symbol.start );
-			IF Trace THEN E( "Element" ) END;
-			RETURN element
-		END Element;
-
-		(** Set = '{' [Element {',' Element}] '}'. **)
+		(* OLIVIER *)
+		(** Set = '{' [ Expression {',' Expression} ] '}'. **)
 		PROCEDURE Set( ): SyntaxTree.Expression;
-		VAR set: SyntaxTree.Set;  element: SyntaxTree.Expression;
+		VAR
+			set: SyntaxTree.Set;
 		BEGIN
 			IF Trace THEN S( "Set" ) END;
-			set := SyntaxTree.NewSet( symbol.start );
-			Check( Scanner.LeftBrace );
-			IF ~Optional( Scanner.RightBrace ) THEN
-				REPEAT element := Element();  set.elements.AddExpression( element ) UNTIL ~Optional( Scanner.Comma );
-				Check( Scanner.RightBrace );
+
+			set := SyntaxTree.NewSet(symbol.start);
+			Check(Scanner.LeftBrace);
+			IF ~Optional(Scanner.RightBrace) THEN
+				REPEAT
+					set.elements.AddExpression(RangeExpression())
+				UNTIL ~Optional(Scanner.Comma);
+				Check(Scanner.RightBrace);
 			END;
-			set.End( symbol.start );
+			set.End(symbol.start);
+
 			IF Trace THEN E( "Set" ) END;
 			RETURN set
 		END Set;
@@ -664,8 +738,9 @@ TYPE
 			RETURN expression
 		END SimpleExpression;
 
+		(* OLIVIER *)
 		(**
-			Expression           = SimpleExpression [RelationOp SimpleExpression].
+			Expression           = RangeExpression [RelationOp RangeExpression].
 			RelationOp           = '=' | '.=' | '#' | '.#'
 			                     | '<' | '.<' | '<=' | '.<=' | '>' | '.>' | '>=' | '.>='
 			                     | 'in' | 'is'
@@ -675,26 +750,29 @@ TYPE
 		BEGIN
 			IF Trace THEN S( "Expression" ) END;
 			position := symbol.start;
-			expression := SimpleExpression();
+			expression := RangeExpression();
 			IF (symbol.token >= Scanner.Equal) & (symbol.token <= Scanner.Is) THEN
 				operator := symbol.token;
 				NextSymbol;
-				rightExpression := SimpleExpression();
+				rightExpression := RangeExpression();
 				expression := SyntaxTree.NewBinaryExpression(position, expression, rightExpression, operator );
 			END;
 			IF Trace THEN E( "Expression" ) END;
 			RETURN expression
 		END Expression;
 
-
-		(** Case = Element {',' Element} ':' StatementSequence. **)
+		(* OLIVIER *)
+		(** Case = RangeExpression {',' RangeExpression} ':' StatementSequence. **)
 		PROCEDURE Case( caseStatement: SyntaxTree.CaseStatement );
-		VAR statements: SyntaxTree.StatementSequence;  casePart: SyntaxTree.CasePart;  element: SyntaxTree.Expression;
+		VAR
+			casePart: SyntaxTree.CasePart;
+			statements: SyntaxTree.StatementSequence;
+			element: SyntaxTree.Expression;
 		BEGIN
 			IF Trace THEN S( "Case" ) END;
 			casePart := SyntaxTree.NewCasePart();
 			REPEAT
-				element := Element();
+				element := RangeExpression();
 				casePart.elements.AddExpression( element );
 			UNTIL ~Optional( Scanner.Comma );
 			Check( Scanner.Colon );
@@ -703,6 +781,7 @@ TYPE
 			caseStatement.AddCasePart( casePart );
 			IF Trace THEN E( "Case" ) END;
 		END Case;
+
 
 		(**		Statement =
                      [
@@ -999,14 +1078,15 @@ TYPE
 			RETURN procedureType;
 		END ProcedureType;
 
-		(** ObjectType = 'object' ['(' QualifiedIdentifier ')'] DeclarationSequence [Body] 'end' [Identifier]
-		              | 'object'. **)
+		(* OLIVIER *)
+		(** ObjectType = 'object' ['(' (QualifiedIdentifier | ArrayType) ')'] DeclarationSequence [Body] 'end' [Identifier] | 'object'. **)
 		PROCEDURE ObjectType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope ): SyntaxTree.Type;
 		VAR
 			objectType: SyntaxTree.RecordType;
 			pointerType: SyntaxTree.PointerType;
 			recordScope: SyntaxTree.RecordScope;
-			qualifiedIdentifier: SyntaxTree.QualifiedIdentifier;  qualifiedType: SyntaxTree.QualifiedType;
+			qualifiedIdentifier: SyntaxTree.QualifiedIdentifier;
+			baseType: SyntaxTree.Type;
 			identifier: SyntaxTree.Identifier;
 			str: Scanner.StringType;
 			type: SyntaxTree.Type;
@@ -1037,9 +1117,14 @@ TYPE
 			END;
 
 			IF Optional( Scanner.LeftParenthesis ) THEN
-				qualifiedIdentifier := QualifiedIdentifier();
-				qualifiedType := SyntaxTree.NewQualifiedType( qualifiedIdentifier.suffix.position, parentScope,  qualifiedIdentifier );
-				objectType.SetBaseType( qualifiedType );
+				(* OLIVIER *)
+				IF Optional(Scanner.Array) THEN
+					baseType := ArrayType(position, parentScope) (* TODO: correct position? *)
+				ELSE
+					qualifiedIdentifier := QualifiedIdentifier();
+					baseType := SyntaxTree.NewQualifiedType(qualifiedIdentifier.suffix.position, parentScope, qualifiedIdentifier)
+				END;
+				objectType.SetBaseType(baseType);
 				Check( Scanner.RightParenthesis )
 			END;
 			(*
@@ -1479,6 +1564,7 @@ TYPE
 			IF Trace THEN E( "Procedure") END;
 		END ProcedureDeclaration;
 
+		(* OLIVIER *)
 		(** OperatorDeclaration  = 'operator' String ['*'|'-'] FormalParameters ';'
 			                       DeclarationSequence [Body] 'end' String.
 		**)
@@ -1529,6 +1615,11 @@ TYPE
 			parentScope.AddProcedure(operator);
 			IF parentScope IS SyntaxTree.ModuleScope THEN
 				parentScope(SyntaxTree.ModuleScope).AddOperator(operator);
+			
+			(* OLIVIER *)
+			ELSIF parentScope IS SyntaxTree.RecordScope THEN
+				parentScope(SyntaxTree.RecordScope).AddOperator(operator);
+			
 			ELSE
 				Error(position,Diagnostics.Invalid,"Operators only allowed in module scope");
 			END;
