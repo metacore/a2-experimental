@@ -34,3 +34,115 @@ positive: DIM and LEN
 		ASSERT(LEN(h3,0)=3); ASSERT(LEN(h3,1)=4); ASSERT(LEN(h3,2)=5);
 	END Test.
 
+positive: assignment and equality, dynamic arrays
+	MODULE Test;
+	VAR
+		v1: ARRAY [*] OF INTEGER;
+		v2: ARRAY [*,*] OF INTEGER;
+		v3: ARRAY [*,*,*] OF INTEGER;
+	BEGIN
+		v1 := [1,2,3];
+		v2 := [[1,2,3],[4,5,6],[7,8,9]];
+		v3 := [
+				[[1,2,3],[4,5,6],[7,8,9]],
+				[[11,12,13],[14,15,16],[17,18,19]]
+				];
+		ASSERT(v1=[1,2,3]);
+		ASSERT(v2=[[1,2,3],[4,5,6],[7,8,9]]);
+		ASSERT(v3=[
+				[[1,2,3],[4,5,6],[7,8,9]],
+				[[11,12,13],[14,15,16],[17,18,19]]
+				]);
+	END Test.
+	
+negative: assignment and equality, one dimensional dynamic arrays
+
+	MODULE Test;
+	VAR
+		v1: ARRAY [*] OF INTEGER;
+	BEGIN
+		v1 := [1,2,3];
+		ASSERT(v1=[1,2,4]);
+	END Test.
+
+negative: assignment and equality, two dimensional dynamic arrays
+
+	MODULE Test;
+	VAR
+		v2: ARRAY [*,*] OF INTEGER;
+	BEGIN
+		v2 := [[1,2,3],[4,5,6],[7,8,9]];
+		ASSERT(v2=[[1,2,3],[40,5,6],[7,8,9]]);
+	END Test.
+	
+positive: assignment and equality, tensor
+	MODULE Test;
+	VAR
+		v1: ARRAY [?] OF INTEGER;
+		v2: ARRAY [?] OF INTEGER;
+		v3: ARRAY [?] OF INTEGER;
+	BEGIN
+		v1 := [1,2,3];
+		v2 := [[1,2,3],[4,5,6],[7,8,9]];
+		v3 := [
+				[[1,2,3],[4,5,6],[7,8,9]],
+				[[11,12,13],[14,15,16],[17,18,19]]
+				];
+		ASSERT(v1=[1,2,3]);
+		ASSERT(v2=[[1,2,3],[4,5,6],[7,8,9]]);
+		ASSERT(v3=[
+				[[1,2,3],[4,5,6],[7,8,9]],
+				[[11,12,13],[14,15,16],[17,18,19]]
+				]);
+	END Test.
+	
+negative: assignment and equality, one dimensional tensor
+
+	MODULE Test;
+	VAR
+		v1: ARRAY [?] OF INTEGER;
+	BEGIN
+		v1 := [1,2,3];
+		ASSERT(v1=[1,2,4]);
+	END Test.
+
+negative: assignment and equality, two dimensional tensor
+
+	MODULE Test;
+	VAR
+		v2: ARRAY [?] OF INTEGER;
+	BEGIN
+		v2 := [[1,2,3],[4,5,6],[7,8,9]];
+		ASSERT(v2=[[1,2,3],[40,5,6],[7,8,9]]);
+	END Test.
+
+positive: initialization of math arrays during module initialization and during allocation
+
+	MODULE Test;
+	TYPE
+		Record = RECORD
+			v: ARRAY [*] OF INTEGER;
+			r: RECORD
+				v: ARRAY [*] OF INTEGER
+			END;
+			a: ARRAY 2 OF RECORD
+				v: ARRAY [*] OF INTEGER
+			END;
+		END;
+		Pointer= POINTER TO Record;
+
+	VAR
+		v: ARRAY [*] OF INTEGER;
+		r: Record;
+		p: Pointer;
+	BEGIN
+		v := [1,2,3];  
+		r.v := [1,2,3]; ASSERT(r.v = v);
+		r.r.v := [1,2,3]; ASSERT( r.r.v = v);
+		r.a[1].v := [1,2,3]; ASSERT(r.a[1].v = v);
+		NEW(p);
+		p.v := [1,2,3]; ASSERT(p.v = v);
+		p.r.v := [1,2,3]; ASSERT( p.r.v = v);
+		p.a[1].v := [1,2,3]; ASSERT(p.a[1].v = v);
+	END Test.
+	
