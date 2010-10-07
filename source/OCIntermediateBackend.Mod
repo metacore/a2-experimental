@@ -3430,7 +3430,7 @@ TYPE
 			(* OLIVIER *)
 			(* determine if a structured return type is needed *)
 			structuredReturnType := NeedsStructuredReturnType(procedureType);
-
+			
 			IF structuredReturnType THEN
 				variable := GetTemporaryVariable(procedureType.returnType,x.position);
 				returnTypeOffset := variable.offsetInBits;
@@ -3461,28 +3461,28 @@ TYPE
 				IF expression IS SyntaxTree.Designator THEN
 					designator := expression(SyntaxTree.Designator);
 					IF (formalParameter.kind = SyntaxTree.VarParameter) & (designator.relatedAsot # NIL) THEN
-						(* actual parameter is an index read operator call on ASOT and formal parameter is of VAR kind *)
-						D.Log.String("!!! ASOT VAR parameter detected"); D.Log.Ln; D.Log.Update; (* TENTATIVE*)
-
+						(* actual parameter is an index read operator call on ASOT and formal parameter is of VAR kind *)	
+						IF dump # NIL THEN dump.String("!!! BEGIN ASOT VAR parameter preparation"); dump.Ln; dump.Update END; (* TENTATIVE*)
+						
 						(* allocate temporary variable *)
-						ASSERT(expression.type.resolved IS SyntaxTree.MathArrayType);
+						ASSERT(expression.type.resolved IS SyntaxTree.MathArrayType);												
 						variable := GetTemporaryVariable(expression.type.resolved, checker.GetUniqueNegativeInteger());
 						tempVariableDesignator := SyntaxTree.NewSymbolDesignator(SemanticChecker.InvalidPosition, NIL, variable);
 						tempVariableDesignator.SetType(expression.type.resolved);
-						ASSERT(tempVariableDesignator IS SyntaxTree.SymbolDesignator);
+						ASSERT(tempVariableDesignator IS SyntaxTree.SymbolDesignator);						
 						ASSERT(tempVariableDesignator.type # NIL);
 						ASSERT(tempVariableDesignator.type.resolved IS SyntaxTree.MathArrayType);
-						D.Log.String("!!! temp. variable allocated"); D.Log.Ln; D.Log.Update; (* TENTATIVE*)
-
+						
 						(* copy math array stored in actual parameter to temporary variable *)
 						BackupGlobalState;
+						IF dump # NIL THEN dump.String("!!! BEGIN copy actual parameter to temp variable"); dump.Ln; dump.Update END; (* TENTATIVE*)
 						AssignMathArray(tempVariableDesignator, expression);
+						IF dump # NIL THEN dump.String("!!! END copy actual parameter to temp variable"); dump.Ln; dump.Update END; (* TENTATIVE*)
 						RestoreGlobalState;
-						D.Log.String("!!! actual parameter copied to temp. variable"); D.Log.Ln; D.Log.Update; (* TENTATIVE*)
-
+						
 						(* use temporary variable as actual parameter instead of the original one *)
 						parameters.SetExpression(i, tempVariableDesignator);
-
+						
 						(* create write-back call and store it in linked list *)
 						(* create new list entry *)
 						IF firstWriteBackCall = NIL THEN
@@ -3495,13 +3495,13 @@ TYPE
 						END;
  						expression := checker.NewIndexOperatorCall(designator.relatedAsot, designator.relatedIndexList, tempVariableDesignator);
 						ASSERT(expression.type = NIL);
-						currentWriteBackCall.call := expression(SyntaxTree.ProcedureCallDesignator)
-						;D.Log.String("!!! write back created and registered"); D.Log.Ln; D.Log.Update; (* TENTATIVE*)
- 					END
+						currentWriteBackCall.call := expression(SyntaxTree.ProcedureCallDesignator);
+						IF dump # NIL THEN dump.String("!!! END ASOT VAR parameter preparation"); dump.Ln; dump.Update END; (* TENTATIVE*)
+					END
 				END;
 				formalParameter := formalParameter.nextParameter
 			END;
-
+			
 			IF procedureType.callingConvention # SyntaxTree.OberonCallingConvention THEN
 				formalParameter := procedureType.lastParameter;
 				FOR i := parameters.Length()-1 TO 0 BY -1 DO
@@ -3628,18 +3628,19 @@ TYPE
 				ValueToCondition(result);
 			END;
 			destination := dest;
-
+						
 			(* OLIVIER *)
 			(* perform all write-back calls in the list *)
 			BackupGlobalState;
 			currentWriteBackCall := firstWriteBackCall;
 			WHILE currentWriteBackCall # NIL DO
+				IF dump # NIL THEN dump.String("!!! BEGIN ASOT VAR parameter write back call"); dump.Ln; dump.Update END; (* TENTATIVE*)
 				VisitProcedureCallDesignator(currentWriteBackCall.call);
-				D.Log.String("!!! ASOT VAR write back call finished"); D.Log.Ln; D.Log.Update; (* TENTATIVE*)
+				IF dump # NIL THEN dump.String("!!! END ASOT VAR parameter write back call"); dump.Ln; dump.Update END; (* TENTATIVE*)
 				currentWriteBackCall := currentWriteBackCall.next
 			END;
 			RestoreGlobalState;
-
+			
 			IF Trace THEN TraceExit("VisitProcedureCallDesignator") END;
 		END VisitProcedureCallDesignator;
 

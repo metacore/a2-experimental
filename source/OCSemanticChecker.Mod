@@ -1393,6 +1393,7 @@ TYPE
 			RETURN result
 		END RegularType;
 
+		
 		(** returns signature compatibility of procedure types this and to
 			- if not compatible then error is reported
 			- compatibility means type equality
@@ -1413,6 +1414,7 @@ TYPE
 			RETURN result
 		END SignatureCompatible;
 
+		(* OLIVIER *)
 		(** check parameter compatibility for expressions of the form P(actual) where P = PROCEDURE([VAR|CONST] formal)
 			- for var parameters compatibility means same type except for
 				- formal is of open array of system byte
@@ -1447,6 +1449,10 @@ TYPE
 				ELSIF (formalType IS SyntaxTree.ArrayType) & (formalType(SyntaxTree.ArrayType).form = SyntaxTree.Open) THEN
 					result := OpenArrayCompatible(formalType(SyntaxTree.ArrayType),actualType);
 				ELSIF (formalType IS SyntaxTree.MathArrayType) THEN
+					(* OLIVIER *)
+					IF IsArrayStructuredObjectType(actualType) THEN
+						actualType := MathArrayStructureOfType(actualType)
+					END;
 					result := MathArrayCompatible(formalType(SyntaxTree.MathArrayType),actualType);
 					IF result & (actualType(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (formalType(SyntaxTree.MathArrayType).form # SyntaxTree.Tensor) THEN
 						Error(actual.position,Diagnostics.Invalid,"incompatible tensor (use a range expression)");
