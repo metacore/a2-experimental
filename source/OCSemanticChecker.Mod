@@ -6121,8 +6121,7 @@ TYPE
 			tensor -> open
 			tensor -> static
 	**)
-	(*! think about the metric here: is form matching more important than element type matching? *)
-	PROCEDURE MathArrayTypeDistance(from,to: SyntaxTree.MathArrayType): LONGINT;
+	PROCEDURE MathArrayTypeDistance(system: Global.System; from,to: SyntaxTree.MathArrayType; varpar:BOOLEAN): LONGINT;
 	VAR i: LONGINT; fromBase, toBase: SyntaxTree.Type;
 	BEGIN
 		fromBase := from.arrayBase.resolved;
@@ -6136,7 +6135,9 @@ TYPE
 				IF fromBase = toBase THEN i := 0
 				ELSIF toBase IS SyntaxTree.AllType THEN i := 1
 				ELSIF (fromBase IS SyntaxTree.MathArrayType) & (toBase IS SyntaxTree.MathArrayType) THEN
-					i := MathArrayTypeDistance(fromBase(SyntaxTree.MathArrayType),toBase(SyntaxTree.MathArrayType));
+					i := MathArrayTypeDistance(system,fromBase(SyntaxTree.MathArrayType),toBase(SyntaxTree.MathArrayType),varpar);
+				ELSE
+					i := TypeDistance(system,fromBase, toBase, varpar);
 				END;
 			END;
 		ELSIF (to.form = SyntaxTree.Static) THEN
@@ -6147,10 +6148,15 @@ TYPE
 			ELSIF toBase IS SyntaxTree.AllType THEN i := 1;
 			ELSIF (toBase IS SyntaxTree.MathArrayType) THEN
 				toBase := ArrayBase(toBase,Infinity);
-				IF fromBase=toBase THEN i := 0 END;
+				IF fromBase=toBase THEN i := 0
+				ELSE i := TypeDistance(system,fromBase,toBase,varpar);
+				END;
 			ELSIF (fromBase IS SyntaxTree.MathArrayType) THEN
 				fromBase := ArrayBase(fromBase,Infinity);
-				IF fromBase=toBase THEN i := 0 END;
+				IF fromBase=toBase THEN i := 0
+				ELSE i := TypeDistance(system,fromBase,toBase,varpar);
+				END;
+			ELSE i := TypeDistance(system, fromBase, toBase, varpar);
 			END;
 			IF i # Infinity THEN INC(i,2) END;
 		ELSIF (from.form = SyntaxTree.Static) THEN
@@ -6158,7 +6164,8 @@ TYPE
 			IF toBase=fromBase THEN i := 0
 			ELSIF toBase IS SyntaxTree.AllType THEN i := 1
 			ELSIF (toBase IS SyntaxTree.MathArrayType) & (fromBase IS SyntaxTree.MathArrayType) THEN
-				i := MathArrayTypeDistance(fromBase(SyntaxTree.MathArrayType),toBase(SyntaxTree.MathArrayType));
+				i := MathArrayTypeDistance(system,fromBase(SyntaxTree.MathArrayType),toBase(SyntaxTree.MathArrayType),varpar);
+			ELSE i := TypeDistance(system,fromBase, toBase, varpar);
 			END;
 			IF i # Infinity THEN INC(i,1) END;
 		ELSE HALT(100); (* unknown case *)
@@ -6277,7 +6284,7 @@ TYPE
 				IF varpar & (from(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (to(SyntaxTree.MathArrayType).form # SyntaxTree.Tensor) THEN
 					i := Infinity;
 				ELSE
-					i := MathArrayTypeDistance(from(SyntaxTree.MathArrayType), to(SyntaxTree.MathArrayType))
+					i := MathArrayTypeDistance(system,from(SyntaxTree.MathArrayType), to(SyntaxTree.MathArrayType),varpar)
 				END;
 			END
 		ELSIF (from IS SyntaxTree.PointerType) THEN
