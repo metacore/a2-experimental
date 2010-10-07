@@ -214,8 +214,6 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	# Kernel log output
 	KernelLog.Mod
 
-	OCArrayBase.Mod # Runtime support for math oberon (Move to Kernel package? *)
-
 	# Services and device drivers
 	Plugins.Mod Streams.Mod Pipes.Mod Commands.Mod
 
@@ -888,6 +886,8 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 	OCBinaryObjectFile.Mod OCGenericObjectFile.Mod
 	OCAMD64InstructionSet.Mod OCAMD64Assembler.Mod OCAMD64Backend.Mod
 	OCInstructionSetAMD64TabSeperated.txt
+
+	OCArrayBase.Mod # Runtime support for math oberon (Move to runtime package? *)
 END
 
 PACKAGE GuiApplications ARCHIVE "GuiApplications.zip" SOURCE "GuiApplicationsSrc.zip" DESCRIPTION "Window Manager and Graphical Applications"
