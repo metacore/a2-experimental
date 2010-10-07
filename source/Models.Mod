@@ -1,7 +1,7 @@
 MODULE Models; (** AUTHOR "staubesv"; PURPOSE "Models"; *)
 
 IMPORT
-	Streams, Locks, Types, Strings, XML, Texts, TextUtilities, Repositories, WMProperties, WMEvents;
+	Streams, Locks, Types, Strings, XML, Texts, TextUtilities, Repositories, WMEvents;
 
 CONST
 	Ok* = Types.Ok;
@@ -778,8 +778,7 @@ TYPE
 	END Container;
 
 VAR
-	PrototypeBiMin, PrototypeBiMax : WMProperties.Int32Property;
-	StrBoolean, StrInteger, StrBoundedInteger, StrReal, StrLongreal, StrChar, StrString, StrSet, StrText, StrContainer : Strings.String;
+	StrBoolean, StrInteger, StrReal, StrLongreal, StrChar, StrString, StrSet, StrText, StrContainer : Strings.String;
 
 (* Helper procedures *)
 
@@ -844,19 +843,10 @@ BEGIN
 	NEW(container); RETURN container;
 END GenContainer;
 
-PROCEDURE InitPrototypes;
-BEGIN
-	NEW(PrototypeBiMin, NIL, Strings.NewString("Min"), Strings.NewString("Lower bound"));
-	PrototypeBiMin.Set(MIN(LONGINT));
-	NEW(PrototypeBiMax, NIL, Strings.NewString("Max"), Strings.NewString("Upper bounds"));
-	PrototypeBiMax.Set(MAX(LONGINT));
-END InitPrototypes;
-
 PROCEDURE InitStrings;
 BEGIN
 	StrBoolean := Strings.NewString("Boolean");
 	StrInteger := Strings.NewString("Integer");
-	StrBoundedInteger := Strings.NewString("BoundedInteger");
 	StrReal := Strings.NewString("Real");
 	StrLongreal := Strings.NewString("Longreal");
 	StrChar := Strings.NewString("Char");
@@ -868,5 +858,4 @@ END InitStrings;
 
 BEGIN
 	InitStrings;
-	InitPrototypes;
 END Models.
