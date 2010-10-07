@@ -146,3 +146,269 @@ positive: initialization of math arrays during module initialization and during 
 		p.a[1].v := [1,2,3]; ASSERT(p.a[1].v = v);
 	END Test.
 	
+positive: test driver (fill and compare arrays)
+
+	MODULE Driver;
+	IMPORT Random;
+	VAR gen: Random.Generator;
+
+		PROCEDURE FillS0(VAR a: ARRAY [?] OF SHORTINT; base: SHORTINT);
+		VAR i: SHORTINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO SHORTINT(LEN(a,0)-1) DO a[i] := 10*base+i END;
+			ELSE
+				FOR i := 0 TO SHORTINT(LEN(a,0)-1) DO FillS0(a[i,?],10*base+i) END;
+			END;
+		END FillS0;
+
+		PROCEDURE FillS*(VAR a: ARRAY [?] OF SHORTINT);
+		BEGIN FillS0(a,0);
+		END FillS;
+
+		PROCEDURE TestFillS0*(CONST a: ARRAY [?] OF SHORTINT; base: SHORTINT);
+		VAR i: SHORTINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO SHORTINT(LEN(a,0)-1) DO ASSERT(a[i] = 10*base+i) END;
+			ELSE
+				FOR i := 0 TO SHORTINT(LEN(a,0)-1) DO TestFillS0(a[i,?],10*base+i) END;
+			END;
+		END TestFillS0;
+
+		PROCEDURE TestFillS*(CONST a: ARRAY [?] OF SHORTINT);
+		BEGIN
+			TestFillS0(a,0)
+		END TestFillS;
+
+		PROCEDURE RandomS*(VAR a: ARRAY [?] OF SHORTINT);
+		VAR i: SHORTINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO SHORTINT(LEN(a,0)-1) DO a[i] := SHORTINT(gen.Dice(1000)) END;
+			ELSE
+				FOR i := 0 TO SHORTINT(LEN(a,0)-1) DO RandomS(a[i,?]) END;
+			END;
+		END RandomS;
+
+		PROCEDURE FillI0(VAR a: ARRAY [?] OF INTEGER; base: INTEGER);
+		VAR i: INTEGER;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO INTEGER(LEN(a,0)-1) DO a[i] := 10*base+i END;
+			ELSE
+				FOR i := 0 TO INTEGER(LEN(a,0)-1) DO FillI0(a[i,?],10*base+i) END;
+			END;
+		END FillI0;
+
+		PROCEDURE FillI*(VAR a: ARRAY [?] OF INTEGER);
+		BEGIN FillI0(a,0);
+		END FillI;
+
+		PROCEDURE TestFillI0*(CONST a: ARRAY [?] OF INTEGER; base: INTEGER);
+		VAR i: INTEGER;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO INTEGER(LEN(a,0)-1) DO ASSERT(a[i] = 10*base+i) END;
+			ELSE
+				FOR i := 0 TO INTEGER(LEN(a,0)-1) DO TestFillI0(a[i,?],10*base+i) END;
+			END;
+		END TestFillI0;
+
+		PROCEDURE TestFillI*(CONST a: ARRAY [?] OF INTEGER);
+		BEGIN
+			TestFillI0(a,0)
+		END TestFillI;
+
+		PROCEDURE RandomI*(VAR a: ARRAY [?] OF INTEGER);
+		VAR i: INTEGER;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO INTEGER(LEN(a,0)-1) DO a[i] := INTEGER(gen.Dice(1000)) END;
+			ELSE
+				FOR i := 0 TO INTEGER(LEN(a,0)-1) DO RandomI(a[i,?]) END;
+			END;
+		END RandomI;
+
+		PROCEDURE FillL0(VAR a: ARRAY [?] OF LONGINT; base: LONGINT);
+		VAR i: LONGINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO LEN(a,0)-1 DO a[i] := 10*base+i END;
+			ELSE
+				FOR i := 0 TO LEN(a,0)-1 DO FillL0(a[i,?],10*base+i) END;
+			END;
+		END FillL0;
+
+		PROCEDURE FillL*(VAR a: ARRAY [?] OF LONGINT);
+		BEGIN FillL0(a,0);
+		END FillL;
+
+		PROCEDURE TestFillL0*(CONST a: ARRAY [?] OF LONGINT; base: LONGINT);
+		VAR i: LONGINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO LEN(a,0)-1 DO ASSERT(a[i] = 10*base+i) END;
+			ELSE
+				FOR i := 0 TO LEN(a,0)-1 DO TestFillL0(a[i,?],10*base+i) END;
+			END;
+		END TestFillL0;
+
+		PROCEDURE TestFillL*(CONST a: ARRAY [?] OF LONGINT);
+		BEGIN
+			TestFillL0(a,0)
+		END TestFillL;
+
+		PROCEDURE RandomL*(VAR a: ARRAY [?] OF LONGINT);
+		VAR i: LONGINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO LEN(a,0)-1 DO a[i] := gen.Dice(1000) END;
+			ELSE
+				FOR i := 0 TO LEN(a,0)-1 DO RandomL(a[i,?]) END;
+			END;
+		END RandomL;
+
+		PROCEDURE FillX0(VAR a: ARRAY [?] OF LONGREAL; base: LONGINT);
+		VAR i: LONGINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO LEN(a,0)-1 DO a[i] := 10*base+i END;
+			ELSE
+				FOR i := 0 TO LEN(a,0)-1 DO FillX0(a[i,?],10*base+i) END;
+			END;
+		END FillX0;
+
+		PROCEDURE FillX*(VAR a: ARRAY [?] OF LONGREAL);
+		BEGIN FillX0(a,0);
+		END FillX;
+
+		PROCEDURE TestFillX0*(CONST a: ARRAY [?] OF LONGREAL; base: LONGINT);
+		VAR i: LONGINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO LEN(a,0)-1 DO ASSERT(ENTIER(a[i]+0.5) = 10*base+i) END;
+			ELSE
+				FOR i := 0 TO LEN(a,0)-1 DO TestFillX0(a[i,?],10*base+i) END;
+			END;
+		END TestFillX0;
+
+		PROCEDURE TestFillX*(CONST a: ARRAY [?] OF LONGREAL);
+		BEGIN
+			TestFillX0(a,0);
+		END TestFillX;
+
+		PROCEDURE RandomX*(VAR a: ARRAY [?] OF LONGREAL);
+		VAR i: LONGINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO LEN(a,0)-1 DO a[i] := gen.Uniform() END;
+			ELSE
+				FOR i := 0 TO LEN(a,0)-1 DO RandomX(a[i,?]) END;
+			END;
+		END RandomX;
+
+		PROCEDURE FillR0(VAR a: ARRAY [?] OF REAL; base: LONGINT);
+		VAR i: LONGINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO LEN(a,0)-1 DO a[i] := 10*base+i END;
+			ELSE
+				FOR i := 0 TO LEN(a,0)-1 DO FillR0(a[i,?],10*base+i) END;
+			END;
+		END FillR0;
+
+		PROCEDURE FillR*(VAR a: ARRAY [?] OF REAL);
+		BEGIN FillR0(a,0);
+		END FillR;
+
+		PROCEDURE TestFillR0*(CONST a: ARRAY [?] OF REAL; base: LONGINT);
+		VAR i: LONGINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO LEN(a,0)-1 DO ASSERT(ENTIER(a[i]+0.5) = 10*base+i) END;
+			ELSE
+				FOR i := 0 TO LEN(a,0)-1 DO TestFillR0(a[i,?],10*base+i) END;
+			END;
+		END TestFillR0;
+
+		PROCEDURE TestFillR*(CONST a: ARRAY [?] OF LONGREAL);
+		BEGIN
+			TestFillX0(a,0);
+		END TestFillR;
+
+		PROCEDURE RandomR*(VAR a: ARRAY [?] OF REAL);
+		VAR i: LONGINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO LEN(a,0)-1 DO a[i] := gen.Uniform() END;
+			ELSE
+				FOR i := 0 TO LEN(a,0)-1 DO RandomR(a[i,?]) END;
+			END;
+		END RandomR;
+
+	BEGIN NEW(gen);
+	END Driver.
+
+	MODULE Test;
+	IMPORT Driver;
+
+		PROCEDURE TestS;
+		VAR a: ARRAY [*,*] OF SHORTINT; b: ARRAY [?] OF SHORTINT; c: ARRAY [2,3] OF SHORTINT;
+		BEGIN
+			NEW(a,2,3); NEW(b,2,3);
+			Driver.FillS(a); Driver.FillS(b); Driver.FillS(c);
+			Driver.TestFillS(a); Driver.TestFillS(b); Driver.TestFillS(c);
+			Driver.TestFillL(a); Driver.TestFillL(b); Driver.TestFillL(c);
+			ASSERT(a = [[0,1,2],[10,11,12]]);
+			ASSERT(b = a); ASSERT(c=a);
+			Driver.RandomS(a); Driver.RandomS(b); Driver.RandomS(c);
+		END TestS;
+
+		PROCEDURE TestI;
+		VAR a: ARRAY [*,*] OF INTEGER; b: ARRAY [?] OF INTEGER; c: ARRAY [2,3] OF INTEGER;
+		BEGIN
+			NEW(a,2,3); NEW(b,2,3);
+			Driver.FillI(a); Driver.FillI(b); Driver.FillI(c);
+			Driver.TestFillL(a); Driver.TestFillL(b); Driver.TestFillL(c);
+			ASSERT(a = [[0,1,2],[10,11,12]]);
+			ASSERT(b = a); ASSERT(c=a);
+			Driver.RandomI(a); Driver.RandomI(b); Driver.RandomI(c);
+		END TestI;
+
+		PROCEDURE TestL;
+		VAR a: ARRAY [*,*] OF LONGINT; b: ARRAY [?] OF LONGINT; c: ARRAY [2,3] OF LONGINT;
+		BEGIN
+			NEW(a,2,3); NEW(b,2,3);
+			Driver.FillL(a); Driver.FillL(b); Driver.FillL(c);
+			Driver.TestFillL(a); Driver.TestFillL(b); Driver.TestFillL(c);
+			ASSERT(a = [[0,1,2],[10,11,12]]);
+			ASSERT(b = a); ASSERT(c=a);
+			Driver.RandomL(a); Driver.RandomL(b); Driver.RandomL(c);
+		END TestL;
+
+		PROCEDURE TestR;
+		VAR a: ARRAY [*,*] OF REAL; b: ARRAY [?] OF REAL; c: ARRAY [2,3] OF REAL;
+		BEGIN
+			NEW(a,2,3); NEW(b,2,3);
+			Driver.FillR(a); Driver.FillR(b); Driver.FillR(c);
+			Driver.TestFillR(a); Driver.TestFillR(b); Driver.TestFillR(c);
+			ASSERT(a = [[0,1,2],[10,11,12]]);
+			ASSERT(b = a); ASSERT(c=a);
+			Driver.RandomR(a); Driver.RandomR(b); Driver.RandomR(c);
+		END TestR;
+
+		PROCEDURE TestX;
+		VAR a: ARRAY [*,*] OF LONGREAL; b: ARRAY [?] OF LONGREAL; c: ARRAY [2,3] OF LONGREAL;
+		BEGIN
+			NEW(a,2,3); NEW(b,2,3);
+			Driver.FillX(a); Driver.FillX(b); Driver.FillX(c);
+			Driver.TestFillX(a); Driver.TestFillX(b); Driver.TestFillX(c);
+			ASSERT(a = [[0,1,2],[10,11,12]]);
+			ASSERT(b = a); ASSERT(c=a);
+			Driver.RandomX(a); Driver.RandomX(b); Driver.RandomX(c);
+		END TestX;
+
+	BEGIN
+		TestS; TestI; TestL; TestR; TestX
+	END Test.
