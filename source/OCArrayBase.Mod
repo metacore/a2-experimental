@@ -1,7 +1,7 @@
 MODULE OCArrayBase; (* stubs for array base runtime - can only be compiled by oc compiler *)
 (* (c) fof, fn, ETH Zürich, 2008 *)
 
-IMPORT SYSTEM, KernelLog, Heaps;
+IMPORT SYSTEM, KernelLog, Heaps,Debugging;
 
 TYPE
 	ADDRESS = LONGINT;
@@ -1127,6 +1127,8 @@ Sufficient (but not necessary) conditions:
 		IF GetDim( src ) # GetDim( dest ) THEN  (* not allowed but possible (tensor) *)
 			srcdim := GetDim(src);
 			destdim := GetDim(dest);
+			Debugging.Stack("copy array");
+			Report( "copy array source", src );  Report( "copy array  des", dest );  
 			HALT(100);
 		ELSIF src = dest THEN  (* self copy *)
 			CopyArraySelf( dest, src, elementsize );

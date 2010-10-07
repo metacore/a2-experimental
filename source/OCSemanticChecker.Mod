@@ -3356,6 +3356,7 @@ TYPE
 					targetArray := SyntaxTree.NewMathArrayType(position, NIL, SyntaxTree.Open);
 
 					IF ~error THEN
+						(*
 						(* optimization: calculate length of target array for static ranges *)
 						IF indexListItem IS SyntaxTree.ArrayRangeExpression THEN
 							IF IsStaticallyOpenRange(rangeExpression) THEN
@@ -3388,6 +3389,7 @@ TYPE
 								END
 							END
 						END
+						*)
 					END;
 
 					SetIndexBaseType(indexDesignator, targetArray)

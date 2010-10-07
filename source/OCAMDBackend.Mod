@@ -778,13 +778,19 @@ TYPE
 		END Error;
 
 		PROCEDURE Section(in: IntermediateCode.Section; out: BinaryCode.Section);
+		VAR oldSpillStackSize,i: LONGINT;
 		BEGIN
 			emitter.SetCode(out);
 			spillStackSize := 0;
 			Section^(in,out);
 			IF spillStackSize >0 THEN
+				oldSpillStackSize := spillStackSize;
 				out.Reset;
+				FOR i := 0 TO LEN(spillStack)-1 DO
+					spillStack[i] := none;
+				END;
 				Section^(in,out);
+				ASSERT(spillStackSize = oldSpillStackSize);
 			END;
 			(*PatchEnter();*)
 			error := error OR emitter.error;
