@@ -37,11 +37,11 @@ TYPE
 	(** Generic access to data of the model using type conversion *)
 
 		(** Generically set data of model. Implicit type conversion if necessary and possible *)
-		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT); (** abstract *)
+		PROCEDURE SetGeneric*(CONST value : Types.Any; VAR res : LONGINT); (** abstract *)
 		END SetGeneric;
 
 		(** Generically get data of model. Implicit type conversion if necessary and possible *)
-		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT); (** abstract *)
+		PROCEDURE GetGeneric*(VAR value : Types.Any; VAR res : LONGINT); (** abstract *)
 		END GetGeneric;
 
 	(** Locking (Recursive reader/writer lock) *)
@@ -175,18 +175,18 @@ TYPE
 			RETURN value;
 		END Get;
 
-		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : BOOLEAN;
+		PROCEDURE SetGeneric*(CONST value : Types.Any; VAR res : LONGINT);
+		VAR newValue : BOOLEAN;
 		BEGIN
-			Types.GetBoolean(wrapper, value, res);
-			IF (res = Types.Ok) THEN Set(value); END;
+			Types.GetBoolean(value, newValue, res);
+			IF (res = Types.Ok) THEN Set(newValue); END;
 		END SetGeneric;
 
-		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : BOOLEAN;
+		PROCEDURE GetGeneric*(VAR value : Types.Any; VAR res : LONGINT);
+		VAR currentValue : BOOLEAN;
 		BEGIN
-			value := Get();
-			Types.SetBoolean(wrapper, value, res);
+			currentValue := Get();
+			Types.SetBoolean(value, currentValue, res);
 		END GetGeneric;
 
 		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
@@ -239,18 +239,18 @@ TYPE
 			END;
 		END Add;
 
-		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : LONGINT;
+		PROCEDURE SetGeneric*(CONST value : Types.Any; VAR res : LONGINT);
+		VAR newValue : LONGINT;
 		BEGIN
-			Types.GetInteger(wrapper, value, res);
-			IF (res = Types.Ok) THEN Set(value); END;
+			Types.GetInteger(value, newValue, res);
+			IF (res = Types.Ok) THEN Set(newValue); END;
 		END SetGeneric;
 
-		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : LONGINT;
+		PROCEDURE GetGeneric*(VAR value : Types.Any; VAR res : LONGINT);
+		VAR currentValue : LONGINT;
 		BEGIN
-			value := Get();
-			Types.SetInteger(wrapper, value, res);
+			currentValue := Get();
+			Types.SetInteger(value, currentValue, res);
 		END GetGeneric;
 
 		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
@@ -293,18 +293,18 @@ TYPE
 			RETURN value;
 		END Get;
 
-		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : REAL;
+		PROCEDURE SetGeneric*(CONST value : Types.Any; VAR res : LONGINT);
+		VAR newValue : REAL;
 		BEGIN
-			Types.GetReal(wrapper, value, res);
-			IF (res = Types.Ok) THEN Set(value); END;
+			Types.GetReal(value, newValue, res);
+			IF (res = Types.Ok) THEN Set(newValue); END;
 		END SetGeneric;
 
-		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : REAL;
+		PROCEDURE GetGeneric*(VAR value : Types.Any; VAR res : LONGINT);
+		VAR currentValue : REAL;
 		BEGIN
-			value := Get();
-			Types.SetReal(wrapper, value, res);
+			currentValue := Get();
+			Types.SetReal(value, currentValue, res);
 		END GetGeneric;
 
 		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
@@ -347,18 +347,18 @@ TYPE
 			RETURN value;
 		END Get;
 
-		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : LONGREAL;
+		PROCEDURE SetGeneric*(CONST value : Types.Any; VAR res : LONGINT);
+		VAR newValue : LONGREAL;
 		BEGIN
-			Types.GetLongreal(wrapper, value, res);
-			IF (res = Types.Ok) THEN Set(value); END;
+			Types.GetLongreal(value, newValue, res);
+			IF (res = Types.Ok) THEN Set(newValue); END;
 		END SetGeneric;
 
-		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : LONGREAL;
+		PROCEDURE GetGeneric*(VAR value : Types.Any; VAR res : LONGINT);
+		VAR currentValue : LONGREAL;
 		BEGIN
-			value := Get();
-			Types.SetLongreal(wrapper, value, res);
+			currentValue := Get();
+			Types.SetLongreal(value, currentValue, res);
 		END GetGeneric;
 
 		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
@@ -401,18 +401,18 @@ TYPE
 			RETURN value;
 		END Get;
 
-		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : CHAR;
+		PROCEDURE SetGeneric*(CONST value : Types.Any; VAR res : LONGINT);
+		VAR newValue : CHAR;
 		BEGIN
-			Types.GetChar(wrapper, value, res);
-			IF (res = Types.Ok) THEN Set(value); END;
+			Types.GetChar(value, newValue, res);
+			IF (res = Types.Ok) THEN Set(newValue); END;
 		END SetGeneric;
 
-		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : CHAR;
+		PROCEDURE GetGeneric*(VAR value : Types.Any; VAR res : LONGINT);
+		VAR currentValue : CHAR;
 		BEGIN
-			value := Get();
-			Types.SetChar(wrapper, value, res);
+			currentValue := Get();
+			Types.SetChar(value, currentValue, res);
 		END GetGeneric;
 
 		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
@@ -486,18 +486,18 @@ TYPE
 			ReleaseRead;
 		END GetAOC;
 
-		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : Strings.String;
+		PROCEDURE SetGeneric*(CONST value : Types.Any; VAR res : LONGINT);
+		VAR newValue : Strings.String;
 		BEGIN
-			Types.GetString(wrapper, value, res);
-			IF (res = Types.Ok) THEN Set(value); END;
+			Types.GetString(value, newValue, res);
+			IF (res = Types.Ok) THEN Set(newValue); END;
 		END SetGeneric;
 
-		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : Strings.String;
+		PROCEDURE GetGeneric*(VAR value : Types.Any; VAR res : LONGINT);
+		VAR currentValue : Strings.String;
 		BEGIN
-			value := Get();
-			Types.SetString(wrapper, value, res);
+			currentValue := Get();
+			Types.SetString(value, currentValue, res);
 		END GetGeneric;
 
 		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
@@ -569,6 +569,20 @@ TYPE
 			ReleaseRead;
 			RETURN result;
 		END Contains;
+
+		PROCEDURE SetGeneric*(CONST value : Types.Any; VAR res : LONGINT);
+		VAR newValue : SET;
+		BEGIN
+			Types.GetSet(value, newValue, res);
+			IF (res = Types.Ok) THEN Set(newValue); END;
+		END SetGeneric;
+
+		PROCEDURE GetGeneric*(VAR value : Types.Any; VAR res : LONGINT);
+		VAR currentValue : SET;
+		BEGIN
+			currentValue := Get();
+			Types.SetSet(value, currentValue, res);
+		END GetGeneric;
 
 		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
 		BEGIN
@@ -666,18 +680,18 @@ TYPE
 			ReleaseRead;
 		END GetAsString;
 
-		PROCEDURE SetGeneric*(CONST wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR text : Texts.Text;
+		PROCEDURE SetGeneric*(CONST value : Types.Any; VAR res : LONGINT);
+		VAR newValue : Texts.Text;
 		BEGIN
-			Types.GetText(wrapper, text, res);
-			IF (res = Types.Ok) THEN Set(text); END;
+			Types.GetText(value, newValue, res);
+			IF (res = Types.Ok) THEN Set(newValue); END;
 		END SetGeneric;
 
-		PROCEDURE GetGeneric*(VAR wrapper : Types.Wrapper; VAR res : LONGINT);
-		VAR value : Texts.Text;
+		PROCEDURE GetGeneric*(VAR value : Types.Any; VAR res : LONGINT);
+		VAR currentValue : Texts.Text;
 		BEGIN
-			value := Get();
-			Types.SetText(wrapper, value, res);
+			currentValue := Get();
+			Types.SetText(value, currentValue, res);
 		END GetGeneric;
 
 		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
@@ -739,23 +753,23 @@ TYPE
 			RETURN curModel;
 		END FindModelByName;
 
-		PROCEDURE SetField*(CONST name : ARRAY OF CHAR; CONST wrapper : Types.Wrapper; VAR res : LONGINT);
+		PROCEDURE SetField*(CONST name : ARRAY OF CHAR; CONST value : Types.Any; VAR res : LONGINT);
 		VAR model : Model;
 		BEGIN
 			model := FindModelByName(name);
 			IF (model # NIL) & ~(model IS Container) THEN
-				model.SetGeneric(wrapper, res);
+				model.SetGeneric(value, res);
 			ELSE
 				res := 192;
 			END;
 		END SetField;
 
-		PROCEDURE GetField*(CONST name : ARRAY OF CHAR; VAR wrapper : Types.Wrapper; VAR res : LONGINT);
+		PROCEDURE GetField*(CONST name : ARRAY OF CHAR; VAR value : Types.Any; VAR res : LONGINT);
 		VAR model : Model;
 		BEGIN
 			model := FindModelByName(name);
 			IF (model # NIL) & ~(model IS Container) THEN
-				model.GetGeneric(wrapper, res);
+				model.GetGeneric(value, res);
 			ELSE
 				res := 192;
 			END;
