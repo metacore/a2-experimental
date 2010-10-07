@@ -891,7 +891,7 @@ TYPE
 					dump.String("unspill "); dump.Int(vreg,1); dump.String(":"); dump.Int(low,1); dump.String(" -> "); dump.String(InstructionSet.registers[lowIndex].name); dump.Ln;
 				END;
 				emitter.Emit2(InstructionSet.opMOV,registerOperands[lowIndex],spillStackOperand[low]);
-				spillStack[vreg] := none;
+				spillStack[low] := none;
 				realRegisters[vreg].low := lowIndex;
 				realRegisters[vreg].lowSpilled := FALSE;
 			END;
@@ -906,7 +906,7 @@ TYPE
 					dump.String("unspill "); dump.Int(vreg,1); dump.String(":"); dump.Int(high,1); dump.String(" -> "); dump.String(InstructionSet.registers[lowIndex].name); dump.Ln;
 				END;
 				emitter.Emit2(InstructionSet.opMOV,registerOperands[highIndex],spillStackOperand[high]);
-				spillStack[vreg] := none;
+				spillStack[high] := none;
 				realRegisters[vreg].high := highIndex;
 				realRegisters[vreg].highSpilled := FALSE;
 			END;
