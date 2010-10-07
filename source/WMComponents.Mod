@@ -59,10 +59,25 @@ CONST
 	TraceFinalize = 1;
 	Trace = {};
 
+	(* Enable event logging? *)
 	Logging = TRUE;
+
+	(* Macro handling *)
+
+	(* General form of macro: MacroCharacter [Namespace + NamespaceCharacter] MacroName *)
 
 	MacroCharacter = "^";
 	NamespaceCharacter = ":";
+
+	NoNamespace = "";
+	
+	(* Namespace used if no namespace is specified *)
+	DefaultNamespace = "system";
+	
+	(* Macros names of default macro handler *)
+	MacroSelection = "selection";
+	MacroClipboard = "clipboard";
+	MacroAttributePrefix = "attribute=";
 
 TYPE
 	(** Installable event preview handlers. Are called by the components sequencer thread *)
@@ -1654,7 +1669,7 @@ BEGIN
 	END;
 	name[j] := 0X;
 
-	IF (name = "") THEN COPY(namespace, name); COPY("", namespace); END; (* no namespace *)
+	IF (name = "") THEN COPY(namespace, name); COPY(NoNamespace, namespace); END; (* no namespace *)
 END SplitMacroString;
 
 PROCEDURE ReportError(CONST text, argument1, argument2 : ARRAY OF CHAR);
@@ -1799,7 +1814,7 @@ BEGIN
 	INC(index); (* skip MacroCharacter *)
 	IF ReadWord(command^, macro, index) THEN (*? TBD error handling *)
 		SplitMacroString(macro, namespace, name, NamespaceCharacter);
-		IF (namespace = "") THEN
+		IF (namespace = NoNamespace) OR (namespace = DefaultNamespace) THEN
 			handler := DefaultMacroHandler;
 		ELSE
 			BEGIN {EXCLUSIVE}
@@ -1879,19 +1894,16 @@ BEGIN
 END GetAttributeValue;
 
 PROCEDURE DefaultMacroHandler(CONST macro : Macro; originator : Component; w : Streams.Writer; VAR handled : BOOLEAN);
-CONST
-	Attribute = "attribute=";
-VAR
-	string, value : Strings.String;
+VAR string, value : Strings.String;
 BEGIN
 	ASSERT((originator # NIL) & (w # NIL));
 	handled := TRUE;
-	IF (macro = "selection") THEN
+	IF (macro = MacroSelection) THEN
 		WriteSelectionToStream(w);
-	ELSIF (macro = "clipboard") THEN
+	ELSIF (macro = MacroClipboard) THEN
 		TextUtilities.TextToStream(Texts.clipboard, w);
-	ELSIF Strings.StartsWith(Attribute, 0, macro) THEN
-		string := Strings.Substring(Strings.Length(Attribute), Strings.Length(macro), macro);
+	ELSIF Strings.StartsWith(MacroAttributePrefix, 0, macro) THEN
+		string := Strings.Substring(Strings.Length(MacroAttributePrefix), Strings.Length(macro), macro);
 		value := GetAttributeValue(originator, string^);
 		IF (value # NIL) THEN
 			w.String(value^);
@@ -1919,7 +1931,7 @@ END FindMacroHandler;
 PROCEDURE AddMacroHandler*(CONST namespace : Namespace; handler : MacroHandlerProcedure; VAR res : LONGINT);
 VAR new, node : MacroHandler; h : MacroHandlerProcedure;
 BEGIN {EXCLUSIVE}
-	ASSERT((namespace # "") & (handler # NIL));
+	ASSERT((namespace # NoNamespace) & (handler # NIL));
 	ASSERT(macroHandlers # NIL);
 	h := FindMacroHandler(namespace);
 	IF (h = NIL) THEN (* append new handler to list *)
@@ -2320,7 +2332,7 @@ PROCEDURE InstallDefaultMacroHandler;
 BEGIN
 	NEW(macroHandlers);
 	macroHandlers.handler := DefaultMacroHandler;
-	macroHandlers.namespace := "system";
+	macroHandlers.namespace := DefaultNamespace;
 	macroHandlers.next := NIL;
 END InstallDefaultMacroHandler;
 
