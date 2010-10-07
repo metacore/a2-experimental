@@ -3214,7 +3214,7 @@ TYPE
 		PROCEDURE &New*(vc : WMComponents.VisualComponent);
 		BEGIN
 			ASSERT((vc # NIL) & (vc.bounds.GetWidth() > 0) & (vc.bounds.GetHeight() > 0));
-			Init^(vc.bounds.GetWidth(), vc.bounds.GetHeight(), FALSE);
+			Init(vc.bounds.GetWidth(), vc.bounds.GetHeight(), FALSE);
 			vc.alignment.Set(WMComponents.AlignClient);
 			SetTitle(StrWindowTitle);
 			SetContent(vc);
