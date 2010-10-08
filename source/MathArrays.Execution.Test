@@ -146,7 +146,7 @@ positive: initialization of math arrays during module initialization and during 
 		p.a[1].v := [1,2,3]; ASSERT(p.a[1].v = v);
 	END Test.
 	
-positive: test driver (fill and compare arrays)
+positive: test driver 
 
 	MODULE Driver;
 	IMPORT Random,Debugging;
@@ -175,6 +175,37 @@ positive: test driver (fill and compare arrays)
 				FOR i := 0 TO SHORTINT(LEN(a,0)-1) DO TestFillS0(a[i,?],10*base+i) END;
 			END;
 		END TestFillS0;
+
+		PROCEDURE TestS1*(CONST a: ARRAY [*] OF SHORTINT; r: RANGE);
+		VAR i: LONGINT;
+		BEGIN
+		 	i := FIRST(r); WHILE i <= LAST(r) DO
+		 		ASSERT(a[(i-FIRST(r)) DIV STEP(r)]=SHORTINT(i));
+		 		INC(i,STEP(r));
+		 	END;
+		END TestS1;
+
+		PROCEDURE TestS2*(CONST a: ARRAY [*,*] OF SHORTINT; r1, r2: RANGE);
+		VAR i,j: LONGINT;
+		BEGIN
+		 	i := FIRST(r1); WHILE i <= LAST(r1) DO
+		 	j := FIRST(r2); WHILE j <= LAST(r2) DO
+		 		ASSERT(a[(i-FIRST(r1)) DIV STEP(r1),(j-FIRST(r2)) DIV STEP(r2)]=SHORTINT(10*i+j));
+		 	INC(j,STEP(r2)) END;
+		 	INC(i,STEP(r1)) END;
+		END TestS2;
+
+		PROCEDURE TestS3*(CONST a: ARRAY [*,*,*] OF SHORTINT; r1, r2, r3: RANGE);
+		VAR i,j,k: LONGINT;
+		BEGIN
+		 	i := FIRST(r1); WHILE i <= LAST(r1) DO
+		 	j := FIRST(r2); WHILE j <= LAST(r2) DO
+		 	k := FIRST(r3); WHILE k <= LAST(r3) DO
+		 		ASSERT(a[(i-FIRST(r1)) DIV STEP(r1),(j-FIRST(r2)) DIV STEP(r2),(k-FIRST(r3)) DIV STEP(r3)]=SHORTINT(100*i+10*j+k));
+		 	INC(k,STEP(r3)) END;
+		 	INC(j,STEP(r2)) END;
+		 	INC(i,STEP(r1)) END;
+		END TestS3;
 
 		PROCEDURE TestFillS*(CONST a: ARRAY [?] OF SHORTINT);
 		BEGIN
@@ -230,6 +261,38 @@ positive: test driver (fill and compare arrays)
 			END;
 		END RandomI;
 
+		PROCEDURE TestI1*(CONST a: ARRAY [*] OF INTEGER; r: RANGE);
+		VAR i: LONGINT;
+		BEGIN
+		 	i := FIRST(r); WHILE i <= LAST(r) DO
+		 		ASSERT(a[(i-FIRST(r)) DIV STEP(r)]=INTEGER(i));
+		 		INC(i,STEP(r));
+		 	END;
+		END TestI1;
+
+		PROCEDURE TestI2*(CONST a: ARRAY [*,*] OF INTEGER; r1, r2: RANGE);
+		VAR i,j: LONGINT;
+		BEGIN
+		 	i := FIRST(r1); WHILE i <= LAST(r1) DO
+		 	j := FIRST(r2); WHILE j <= LAST(r2) DO
+		 		ASSERT(a[(i-FIRST(r1)) DIV STEP(r1),(j-FIRST(r2)) DIV STEP(r2)]=INTEGER(10*i+j));
+		 	INC(j,STEP(r2)) END;
+		 	INC(i,STEP(r1)) END;
+		END TestI2;
+
+		PROCEDURE TestI3*(CONST a: ARRAY [*,*,*] OF INTEGER; r1, r2, r3: RANGE);
+		VAR i,j,k: LONGINT;
+		BEGIN
+		 	i := FIRST(r1); WHILE i <= LAST(r1) DO
+		 	j := FIRST(r2); WHILE j <= LAST(r2) DO
+		 	k := FIRST(r3); WHILE k <= LAST(r3) DO
+		 		ASSERT(a[(i-FIRST(r1)) DIV STEP(r1),(j-FIRST(r2)) DIV STEP(r2),(k-FIRST(r3)) DIV STEP(r3)]=INTEGER(100*i+10*j+k));
+		 	INC(k,STEP(r3)) END;
+		 	INC(j,STEP(r2)) END;
+		 	INC(i,STEP(r1)) END;
+		END TestI3;
+
+
 		PROCEDURE FillL0(VAR a: ARRAY [?] OF LONGINT; base: LONGINT);
 		VAR i: LONGINT;
 		BEGIN
@@ -269,6 +332,37 @@ positive: test driver (fill and compare arrays)
 			END;
 		END RandomL;
 
+		PROCEDURE TestL1*(CONST a: ARRAY [*] OF LONGINT; r: RANGE);
+		VAR i: LONGINT;
+		BEGIN
+		 	i := FIRST(r); WHILE i <= LAST(r) DO
+		 		ASSERT(a[(i-FIRST(r)) DIV STEP(r)]=LONGINT(i));
+		 		INC(i,STEP(r));
+		 	END;
+		END TestL1;
+
+		PROCEDURE TestL2*(CONST a: ARRAY [*,*] OF LONGINT; r1, r2: RANGE);
+		VAR i,j: LONGINT;
+		BEGIN
+		 	i := FIRST(r1); WHILE i <= LAST(r1) DO
+		 	j := FIRST(r2); WHILE j <= LAST(r2) DO
+		 		ASSERT(a[(i-FIRST(r1)) DIV STEP(r1),(j-FIRST(r2)) DIV STEP(r2)]=LONGINT(10*i+j));
+		 	INC(j,STEP(r2)) END;
+		 	INC(i,STEP(r1)) END;
+		END TestL2;
+
+		PROCEDURE TestL3*(CONST a: ARRAY [*,*,*] OF LONGINT; r1, r2, r3: RANGE);
+		VAR i,j,k: LONGINT;
+		BEGIN
+		 	i := FIRST(r1); WHILE i <= LAST(r1) DO
+		 	j := FIRST(r2); WHILE j <= LAST(r2) DO
+		 	k := FIRST(r3); WHILE k <= LAST(r3) DO
+		 		ASSERT(a[(i-FIRST(r1)) DIV STEP(r1),(j-FIRST(r2)) DIV STEP(r2),(k-FIRST(r3)) DIV STEP(r3)]=LONGINT(100*i+10*j+k));
+		 	INC(k,STEP(r3)) END;
+		 	INC(j,STEP(r2)) END;
+		 	INC(i,STEP(r1)) END;
+		END TestL3;
+
 		PROCEDURE FillX0(VAR a: ARRAY [?] OF LONGREAL; base: LONGINT);
 		VAR i: LONGINT;
 		BEGIN
@@ -307,7 +401,7 @@ positive: test driver (fill and compare arrays)
 				FOR i := 0 TO LEN(a,0)-1 DO RandomX(a[i,?]) END;
 			END;
 		END RandomX;
-		
+
 		PROCEDURE PrintX*(CONST a: ARRAY [?] OF LONGREAL);
 		VAR i: LONGINT;
 		BEGIN
@@ -317,7 +411,39 @@ positive: test driver (fill and compare arrays)
 				FOR i := 0 TO LEN(a,0)-1 DO PrintX(a[i,?]); Debugging.Ln; END;
 			END;
 		END PrintX;
-		
+
+		PROCEDURE TestX1*(CONST a: ARRAY [*] OF LONGREAL; r: RANGE);
+		VAR i: LONGINT;
+		BEGIN
+		 	i := FIRST(r); WHILE i <= LAST(r) DO
+		 		ASSERT(a[(i-FIRST(r)) DIV STEP(r)]=LONGREAL(i));
+		 		INC(i,STEP(r));
+		 	END;
+		END TestX1;
+
+		PROCEDURE TestX2*(CONST a: ARRAY [*,*] OF LONGREAL; r1, r2: RANGE);
+		VAR i,j: LONGINT;
+		BEGIN
+		 	i := FIRST(r1); WHILE i <= LAST(r1) DO
+		 	j := FIRST(r2); WHILE j <= LAST(r2) DO
+		 		ASSERT(a[(i-FIRST(r1)) DIV STEP(r1),(j-FIRST(r2)) DIV STEP(r2)]=LONGREAL(10*i+j));
+		 	INC(j,STEP(r2)) END;
+		 	INC(i,STEP(r1)) END;
+		END TestX2;
+
+		PROCEDURE TestX3*(CONST a: ARRAY [*,*,*] OF LONGREAL; r1, r2, r3: RANGE);
+		VAR i,j,k: LONGINT;
+		BEGIN
+		 	i := FIRST(r1); WHILE i <= LAST(r1) DO
+		 	j := FIRST(r2); WHILE j <= LAST(r2) DO
+		 	k := FIRST(r3); WHILE k <= LAST(r3) DO
+		 		ASSERT(a[(i-FIRST(r1)) DIV STEP(r1),(j-FIRST(r2)) DIV STEP(r2),(k-FIRST(r3)) DIV STEP(r3)]=LONGREAL(100*i+10*j+k));
+		 	INC(k,STEP(r3)) END;
+		 	INC(j,STEP(r2)) END;
+		 	INC(i,STEP(r1)) END;
+		END TestX3;
+
+
 		PROCEDURE FillR0(VAR a: ARRAY [?] OF REAL; base: LONGINT);
 		VAR i: LONGINT;
 		BEGIN
@@ -357,8 +483,41 @@ positive: test driver (fill and compare arrays)
 			END;
 		END RandomR;
 
+		PROCEDURE TestR1*(CONST a: ARRAY [*] OF REAL; r: RANGE);
+		VAR i: LONGINT;
+		BEGIN
+		 	i := FIRST(r); WHILE i <= LAST(r) DO
+		 		ASSERT(a[(i-FIRST(r)) DIV STEP(r)]=REAL(i));
+		 		INC(i,STEP(r));
+		 	END;
+		END TestR1;
+
+		PROCEDURE TestR2*(CONST a: ARRAY [*,*] OF REAL; r1, r2: RANGE);
+		VAR i,j: LONGINT;
+		BEGIN
+		 	i := FIRST(r1); WHILE i <= LAST(r1) DO
+		 	j := FIRST(r2); WHILE j <= LAST(r2) DO
+		 		ASSERT(a[(i-FIRST(r1)) DIV STEP(r1),(j-FIRST(r2)) DIV STEP(r2)]=REAL(10*i+j));
+		 	INC(j,STEP(r2)) END;
+		 	INC(i,STEP(r1)) END;
+		END TestR2;
+
+		PROCEDURE TestR3*(CONST a: ARRAY [*,*,*] OF REAL; r1, r2, r3: RANGE);
+		VAR i,j,k: LONGINT;
+		BEGIN
+		 	i := FIRST(r1); WHILE i <= LAST(r1) DO
+		 	j := FIRST(r2); WHILE j <= LAST(r2) DO
+		 	k := FIRST(r3); WHILE k <= LAST(r3) DO
+		 		ASSERT(a[(i-FIRST(r1)) DIV STEP(r1),(j-FIRST(r2)) DIV STEP(r2),(k-FIRST(r3)) DIV STEP(r3)]=REAL(100*i+10*j+k));
+		 	INC(k,STEP(r3)) END;
+		 	INC(j,STEP(r2)) END;
+		 	INC(i,STEP(r1)) END;
+		END TestR3;
+
 	BEGIN NEW(gen);
 	END Driver.
+
+positive: driver tests (fill and compare arrays)
 
 	MODULE Test;
 	IMPORT Driver;
@@ -445,6 +604,102 @@ positive: test for unequality with unallocated arrays
 	BEGIN 
 		ASSERT(array # [1,2]);
 		ASSERT(~(array = [1,2]));
+		ASSERT(~(array > [1,2]));
+		ASSERT(~(array < [1,2]));
+		ASSERT(~(array >= [1,2]));
+		ASSERT(~(array <= [1,2]));
 		ASSERT(tensor # [1,2]);
+		ASSERT(~(tensor = [1,2]));
+		ASSERT(~(tensor > [1,2]));
+		ASSERT(~(tensor < [1,2]));
+		ASSERT(~(tensor >= [1,2]));
+		ASSERT(~(tensor <= [1,2]));
+	END Test.
+
+
+positive: simple tests for ranges
+
+	MODULE Test;
+
+	IMPORT Driver;
+
+	PROCEDURE TestS;
+	VAR s1: ARRAY [*] OF SHORTINT; s2: ARRAY [*,*] OF SHORTINT; s3: ARRAY [*,*,*] OF SHORTINT;
+	BEGIN
+		NEW(s1,3); NEW(s2,3,4); NEW(s3,3,4,5);
+		Driver.FillS(s1); Driver.FillS(s2); Driver.FillS(s3);
+		Driver.TestFillS(s1); Driver.TestFillS(s2); Driver.TestFillS(s3);
+		Driver.TestS1(s1[1..2],1..2);
+		Driver.TestS2(s2[1..2,2..3],1..2,2..3);
+		Driver.TestS3(s3[1..2,2..3,3..4],1..2,2..3,3..4);
+	END TestS;
+
+	PROCEDURE TestI;
+	VAR s1: ARRAY [*] OF INTEGER; s2: ARRAY [*,*] OF INTEGER; s3: ARRAY [*,*,*] OF INTEGER;
+	BEGIN
+		NEW(s1,3); NEW(s2,3,4); NEW(s3,3,4,5);
+		Driver.FillI(s1); Driver.FillI(s2); Driver.FillI(s3);
+		Driver.TestFillI(s1); Driver.TestFillI(s2); Driver.TestFillI(s3);
+		Driver.TestI1(s1[1..2],1..2);
+		Driver.TestI2(s2[1..2,2..3],1..2,2..3);
+		Driver.TestI3(s3[1..2,2..3,3..4],1..2,2..3,3..4);
+	END TestI;
+
+	PROCEDURE TestL;
+	VAR s1: ARRAY [*] OF LONGINT; s2: ARRAY [*,*] OF LONGINT; s3: ARRAY [*,*,*] OF LONGINT;
+	BEGIN
+		NEW(s1,3); NEW(s2,3,4); NEW(s3,3,4,5);
+		Driver.FillL(s1); Driver.FillL(s2); Driver.FillL(s3);
+		Driver.TestFillL(s1); Driver.TestFillL(s2); Driver.TestFillL(s3);
+		Driver.TestL1(s1[1..2],1..2);
+		Driver.TestL2(s2[1..2,2..3],1..2,2..3);
+		Driver.TestL3(s3[1..2,2..3,3..4],1..2,2..3,3..4);
+	END TestL;
+
+	PROCEDURE TestR;
+	VAR s1: ARRAY [*] OF REAL; s2: ARRAY [*,*] OF REAL; s3: ARRAY [*,*,*] OF REAL;
+	BEGIN
+		NEW(s1,3); NEW(s2,3,4); NEW(s3,3,4,5);
+		Driver.FillR(s1); Driver.FillR(s2); Driver.FillR(s3);
+		Driver.TestFillR(s1); Driver.TestFillR(s2); Driver.TestFillR(s3);
+		Driver.TestR1(s1[1..2],1..2);
+		Driver.TestR2(s2[1..2,2..3],1..2,2..3);
+		Driver.TestR3(s3[1..2,2..3,3..4],1..2,2..3,3..4);
+	END TestR;
+
+	PROCEDURE TestX;
+	VAR s1: ARRAY [*] OF LONGREAL; s2: ARRAY [*,*] OF LONGREAL; s3: ARRAY [*,*,*] OF LONGREAL;
+	BEGIN
+		NEW(s1,3); NEW(s2,3,4); NEW(s3,3,4,5);
+		Driver.FillX(s1); Driver.FillX(s2); Driver.FillX(s3);
+		Driver.TestFillX(s1); Driver.TestFillX(s2); Driver.TestFillX(s3);
+		Driver.TestX1(s1[1..2],1..2);
+		Driver.TestX2(s2[1..2,2..3],1..2,2..3);
+		Driver.TestX3(s3[1..2,2..3,3..4],1..2,2..3,3..4);
+	END TestX;
+
+	BEGIN TestS; TestI; TestL; TestR; TestX
+	END Test.
+	
+
+positive: conversion tests
+
+	MODULE Test;
+
+	IMPORT Driver;
+
+	VAR s: ARRAY [?] OF SHORTINT; i: ARRAY [?] OF INTEGER; l: ARRAY [?] OF LONGINT; r: ARRAY [?] OF REAL; x: ARRAY [?] OF LONGREAL;
+
+	BEGIN
+		NEW(s,3,4,5);
+		Driver.FillS(s); Driver.TestFillS(s);
+		i := s; l := s; r := s; x := s; Driver.TestFillI(i); Driver.TestFillL(l); Driver.TestFillR(r); Driver.TestFillX(x);
+		l := i; r := i; x := i; Driver.TestFillL(l); Driver.TestFillR(r); Driver.TestFillX(x);
+		r := l; x := l;	Driver.TestFillR(r); Driver.TestFillX(x);
+		x := r; Driver.TestFillX(x);
+		r := SHORT(x); Driver.TestFillR(r);
+		l := ENTIER(x); Driver.TestFillL(l);
+		i := SHORT(l); Driver.TestFillI(i);
+		s := SHORT(i); Driver.TestFillS(s);
 	END Test.
 
