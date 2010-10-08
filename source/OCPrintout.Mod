@@ -200,6 +200,12 @@ TYPE
 		BEGIN
 			VisitBasicType(x);
 		END VisitAnyType;
+		
+		PROCEDURE VisitAllType(x: SyntaxTree.AllType);
+		BEGIN
+			w.String("SYSTEM.ALL");
+		END VisitAllType;
+		
 
 		PROCEDURE VisitMathArrayType(x: SyntaxTree.MathArrayType);
 		BEGIN

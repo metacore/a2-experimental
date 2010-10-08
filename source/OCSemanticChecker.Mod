@@ -679,7 +679,7 @@ TYPE
 				END;
 
 				procedureType.SetReturnType(resolved);
-				
+
 				(* OLVIER *)
 				IF (resolved # NIL) & (resolved.resolved IS SyntaxTree.MathArrayType) THEN
 					parameter := SyntaxTree.NewParameter(procedureType.position,procedureType,Global.ResultName, SyntaxTree.VarParameter);
@@ -1395,7 +1395,7 @@ TYPE
 			RETURN result
 		END RegularType;
 
-		
+
 		(** returns signature compatibility of procedure types this and to
 			- if not compatible then error is reported
 			- compatibility means type equality
@@ -2296,7 +2296,7 @@ TYPE
 					result := SyntaxTree.invalidExpression
 				ELSE
 					ASSERT(leftExpression IS SyntaxTree.Designator);
-					designator := leftExpression(SyntaxTree.Designator);				
+					designator := leftExpression(SyntaxTree.Designator);
 					expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(position, designator), recordType.arrayAccessOperators.len);
 					ASSERT(expression IS SyntaxTree.Designator);
 					designator := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), SyntaxTree.NewExpressionList());
@@ -3484,6 +3484,7 @@ TYPE
 			arrayAccessOperators: SyntaxTree.ArrayAccessOperators;
 			needsReshaping: BOOLEAN;
 			i, indexListKind: LONGINT;
+			castReturnType: SyntaxTree.MathArrayType;
 		BEGIN
 			ASSERT(IsArrayStructuredObjectType(left.type));
 			ASSERT(left.type.resolved IS SyntaxTree.PointerType);
@@ -3513,7 +3514,7 @@ TYPE
 					needsReshaping := TRUE
 				END
 			END;
-			
+
 			IF operator = NIL THEN
 				Error(position, Diagnostics.Invalid, "call of undeclared [] operator");
 				result := SyntaxTree.invalidDesignator;
@@ -3576,20 +3577,26 @@ TYPE
 						FOR i := 1 TO indexList.Length() DO formalParameter := formalParameter.nextParameter END;
 						expression.SetType(formalParameter.type);
 						*)
-						
+
 						IF expression.type.resolved IS SyntaxTree.MathArrayType THEN
 							(* change the base type of the returned tensor from SYSTEM.ALL to the array structure's element type *)
+							castReturnType := SyntaxTree.NewMathArrayType(Diagnostics.Invalid, expression.type.scope,SyntaxTree.Tensor);
+							castReturnType.SetArrayBase(ArrayBase(recordType.arrayStructure,MAX(LONGINT)));
+
+							expression.SetType(castReturnType);
+							(*
 							expression.type.resolved(SyntaxTree.MathArrayType).SetArrayBase(recordType.arrayStructure.arrayBase);
+							*)
 						ELSE
 							Error(expression.position, Diagnostics.Invalid, "problem with resolving OCArrayBase.ExpandDimensions");
 						END;
-						
+
 						actualParameters.AddExpression(expression)
 					ELSE
 						actualParameters.AddExpression(rhs)
 					END
 				END;
-				
+
 				(* add dereference operator and create procedure call designator *)
 				ASSERT(left IS SyntaxTree.Designator);
 				expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(InvalidPosition, left(SyntaxTree.Designator)), operator);
@@ -3620,7 +3627,7 @@ TYPE
 				result.SetRelatedAsot(left);
 				result.SetRelatedIndexList(indexList)
 			END;
-			
+
 			RETURN result
 		END NewIndexOperatorCall;
 
