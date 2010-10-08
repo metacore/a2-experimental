@@ -2014,6 +2014,8 @@ TYPE
 					END;
 					result := SyntaxTree.NewEnumerationValue(expression.position,SHORT(int));
 					result.SetType(type);
+				ELSIF (type IS SyntaxTree.PortType) THEN
+					result := ConvertValue(position, expression, type(SyntaxTree.PortType).channelType);
 				ELSE
 					Error(position,Diagnostics.Invalid,"integer value cannot be converted");
 					result := SyntaxTree.invalidExpression;
@@ -6991,13 +6993,13 @@ TYPE
 	BEGIN
 		IF this= NIL THEN result := (to=NIL)
 		ELSIF to=NIL THEN result := FALSE
-		(*! will be replaced by this:
-		ELSE result := this.CompatibleTo(to.resolved);
-		*)
-		ELSIF to=SyntaxTree.invalidType THEN result := FALSE
 		ELSE
+			(*! will be replaced by this:
+			ELSE result := this.CompatibleTo(to.resolved);
+			*)
 			this := this.resolved; to := to.resolved;
-			IF to = this THEN
+			IF to=SyntaxTree.invalidType THEN result := FALSE
+			ELSIF to = this THEN
 				result := ~(to IS SyntaxTree.ArrayType) OR (to(SyntaxTree.ArrayType).form # SyntaxTree.Open);
 			ELSIF to IS SyntaxTree.BasicType THEN
 				IF (to IS SyntaxTree.NumberType) & (this IS SyntaxTree.NumberType) THEN
