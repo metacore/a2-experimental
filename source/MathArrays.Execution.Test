@@ -149,7 +149,7 @@ positive: initialization of math arrays during module initialization and during 
 positive: test driver (fill and compare arrays)
 
 	MODULE Driver;
-	IMPORT Random;
+	IMPORT Random,Debugging;
 	VAR gen: Random.Generator;
 
 		PROCEDURE FillS0(VAR a: ARRAY [?] OF SHORTINT; base: SHORTINT);
@@ -307,7 +307,17 @@ positive: test driver (fill and compare arrays)
 				FOR i := 0 TO LEN(a,0)-1 DO RandomX(a[i,?]) END;
 			END;
 		END RandomX;
-
+		
+		PROCEDURE PrintX*(CONST a: ARRAY [?] OF LONGREAL);
+		VAR i: LONGINT;
+		BEGIN
+			IF DIM(a) = 1 THEN
+				FOR i := 0 TO LEN(a,0)-1 DO Debugging.Int(ENTIER(a[i]+0.5),5) END;
+			ELSE
+				FOR i := 0 TO LEN(a,0)-1 DO PrintX(a[i,?]); Debugging.Ln; END;
+			END;
+		END PrintX;
+		
 		PROCEDURE FillR0(VAR a: ARRAY [?] OF REAL; base: LONGINT);
 		VAR i: LONGINT;
 		BEGIN
@@ -412,3 +422,19 @@ positive: test driver (fill and compare arrays)
 	BEGIN
 		TestS; TestI; TestL; TestR; TestX
 	END Test.
+	
+positive: use ranges in procedure with static global array (was: register allocation problem)
+
+	MODULE Test;
+	VAR a: ARRAY [3,3] OF SHORTINT;
+
+	PROCEDURE Test(r1,r2: RANGE);
+	BEGIN
+		ASSERT (a[r1,r2] = [[2,3],[5,6]]);
+	END Test;
+
+	BEGIN
+		a := [[1,2,3],[4,5,6],[7,8,9]];
+		Test(0..1,1..2);
+	END Test.
+	
