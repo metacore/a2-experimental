@@ -3340,7 +3340,7 @@ TYPE
 		PROCEDURE VisitProcedureCallDesignator(x: SyntaxTree.ProcedureCallDesignator);
 		VAR
 			parameters: SyntaxTree.ExpressionList;
-			d, expression: SyntaxTree.Expression;
+			d, actualParameter, expression: SyntaxTree.Expression;
 			designator: SyntaxTree.Designator;
 			procedureType: SyntaxTree.ProcedureType;
 			formalParameter: SyntaxTree.Parameter;
@@ -3404,7 +3404,66 @@ TYPE
 				locked := oldLocked;
 				usedRegisters := oldUsedRegisters
 			END RestoreGlobalState;
-
+			
+			(* OLIVIER *)
+			(** if array-structured object type is passed as VAR parameter:
+				- allocate temporary variable of math array type
+				- copy contents of ASOT to be passed to temporary variable
+				- use temporary variable as the actual parameter instead
+				- create and store a write-back call in a list (an index operator call that writes the contents of the temp. variable back into the ASOT)
+			otherwise: nothing to do
+			**)
+			PROCEDURE PrepareParameter(VAR actualParameter: SyntaxTree.Expression; formalParameter: SyntaxTree.Parameter);
+			VAR
+				expression: SyntaxTree.Expression;
+			BEGIN
+				(* handle ASOT VAR parameters *)
+				IF actualParameter IS SyntaxTree.Designator THEN
+					designator := actualParameter(SyntaxTree.Designator);
+					IF (formalParameter.kind = SyntaxTree.VarParameter) & (designator.relatedAsot # NIL) THEN
+						(* actual parameter is an index read operator call on ASOT and formal parameter is of VAR kind *)	
+						IF dump # NIL THEN dump.String("!!! BEGIN ASOT VAR parameter preparation"); dump.Ln; dump.Update END; (* TENTATIVE*)
+						ASSERT(checker # NIL);
+						checker.SetCurrentScope(currentScope);
+						
+						(* allocate temporary variable *)				
+						ASSERT(actualParameter.type # NIL);
+						ASSERT(actualParameter.type.resolved IS SyntaxTree.MathArrayType);	
+						variable := GetTemporaryVariable(actualParameter.type.resolved, checker.GetUniqueNegativeInteger());
+						tempVariableDesignator := SyntaxTree.NewSymbolDesignator(SemanticChecker.InvalidPosition, NIL, variable);
+						tempVariableDesignator.SetType(actualParameter.type.resolved);
+						ASSERT(tempVariableDesignator IS SyntaxTree.SymbolDesignator);
+						ASSERT(tempVariableDesignator.type # NIL);
+						ASSERT(tempVariableDesignator.type.resolved IS SyntaxTree.MathArrayType);
+												
+						(* copy math array stored in actual parameter to temporary variable *)
+						BackupGlobalState;
+						IF dump # NIL THEN dump.String("!!! BEGIN copy actual parameter to temp variable"); dump.Ln; dump.Update END; (* TENTATIVE*)
+						AssignMathArray(tempVariableDesignator, actualParameter);
+						IF dump # NIL THEN dump.String("!!! END copy actual parameter to temp variable"); dump.Ln; dump.Update END; (* TENTATIVE*)
+						RestoreGlobalState;
+						
+						(* use temporary variable as actual parameter instead of the original one *)
+						actualParameter := tempVariableDesignator;
+												
+						(* create write-back call and store it in linked list *)
+						(* create new list entry *)
+						IF firstWriteBackCall = NIL THEN
+							NEW(firstWriteBackCall);
+							currentWriteBackCall := firstWriteBackCall
+						ELSE
+							ASSERT(currentWriteBackCall # NIL);
+							NEW(currentWriteBackCall.next);
+							currentWriteBackCall := currentWriteBackCall.next
+						END;
+ 						expression := checker.NewIndexOperatorCall(SemanticChecker.InvalidPosition, designator.relatedAsot, designator.relatedIndexList, tempVariableDesignator);
+						ASSERT(expression.type = NIL);
+						currentWriteBackCall.call := expression(SyntaxTree.ProcedureCallDesignator);
+						IF dump # NIL THEN dump.String("!!! END ASOT VAR parameter preparation"); dump.Ln; dump.Update END; (* TENTATIVE*)
+					END
+				END
+			END PrepareParameter;
+			
 		BEGIN
 			IF Trace THEN TraceEnter("VisitProcedureCallDesignator") END;
 			dest := destination; destination := emptyOperand;
@@ -3430,7 +3489,7 @@ TYPE
 			(* OLIVIER *)
 			(* determine if a structured return type is needed *)
 			structuredReturnType := NeedsStructuredReturnType(procedureType);
-
+			
 			IF structuredReturnType THEN
 				variable := GetTemporaryVariable(procedureType.returnType,x.position);
 				returnTypeOffset := variable.offsetInBits;
@@ -3453,69 +3512,28 @@ TYPE
 		 	END;
 
 			(* OLIVIER *)
-			(* handle ASOT VAR parameters *)
 			firstWriteBackCall := NIL; (* reset write-back call list *)
-			formalParameter := procedureType.firstParameter;
-			FOR i := 0 TO parameters.Length() - 1 DO
-				expression := parameters.GetExpression(i);
-				IF expression IS SyntaxTree.Designator THEN
-					designator := expression(SyntaxTree.Designator);
-					IF (formalParameter.kind = SyntaxTree.VarParameter) & (designator.relatedAsot # NIL) THEN
-						(* actual parameter is an index read operator call on ASOT and formal parameter is of VAR kind *)
-						IF dump # NIL THEN dump.String("!!! BEGIN ASOT VAR parameter preparation"); dump.Ln; dump.Update END; (* TENTATIVE*)
-
-						(* allocate temporary variable *)
-						ASSERT(expression.type.resolved IS SyntaxTree.MathArrayType);
-						variable := GetTemporaryVariable(expression.type.resolved, checker.GetUniqueNegativeInteger());
-						tempVariableDesignator := SyntaxTree.NewSymbolDesignator(SemanticChecker.InvalidPosition, NIL, variable);
-						tempVariableDesignator.SetType(expression.type.resolved);
-						ASSERT(tempVariableDesignator IS SyntaxTree.SymbolDesignator);
-						ASSERT(tempVariableDesignator.type # NIL);
-						ASSERT(tempVariableDesignator.type.resolved IS SyntaxTree.MathArrayType);
-
-						(* copy math array stored in actual parameter to temporary variable *)
-						BackupGlobalState;
-						IF dump # NIL THEN dump.String("!!! BEGIN copy actual parameter to temp variable"); dump.Ln; dump.Update END; (* TENTATIVE*)
-						AssignMathArray(tempVariableDesignator, expression);
-						IF dump # NIL THEN dump.String("!!! END copy actual parameter to temp variable"); dump.Ln; dump.Update END; (* TENTATIVE*)
-						RestoreGlobalState;
-
-						(* use temporary variable as actual parameter instead of the original one *)
-						parameters.SetExpression(i, tempVariableDesignator);
-
-						(* create write-back call and store it in linked list *)
-						(* create new list entry *)
-						IF firstWriteBackCall = NIL THEN
-							NEW(firstWriteBackCall);
-							currentWriteBackCall := firstWriteBackCall
-						ELSE
-							ASSERT(currentWriteBackCall # NIL);
-							NEW(currentWriteBackCall.next);
-							currentWriteBackCall := currentWriteBackCall.next
-						END;
- 						expression := checker.NewIndexOperatorCall(designator.relatedAsot, designator.relatedIndexList, tempVariableDesignator);
-						ASSERT(expression.type = NIL);
-						currentWriteBackCall.call := expression(SyntaxTree.ProcedureCallDesignator);
-						IF dump # NIL THEN dump.String("!!! END ASOT VAR parameter preparation"); dump.Ln; dump.Update END; (* TENTATIVE*)
-					END
-				END;
-				formalParameter := formalParameter.nextParameter
-			END;
-
+			
 			IF procedureType.callingConvention # SyntaxTree.OberonCallingConvention THEN
 				formalParameter := procedureType.lastParameter;
-				FOR i := parameters.Length()-1 TO 0 BY -1 DO
-					PushParameter(parameters.GetExpression(i), formalParameter,procedureType.callingConvention);
+				FOR i := parameters.Length() - 1 TO 0 BY -1 DO
+					(* OLIVIER *)
+					actualParameter := parameters.GetExpression(i);
+					PrepareParameter(actualParameter, formalParameter);
+					PushParameter(actualParameter, formalParameter, procedureType.callingConvention);
 					formalParameter := formalParameter.prevParameter;
 				END;
 			ELSE
 				formalParameter := procedureType.firstParameter;
-				FOR i := 0 TO parameters.Length()-1 DO
-					PushParameter(parameters.GetExpression(i), formalParameter, procedureType.callingConvention);
+				FOR i := 0 TO parameters.Length() - 1 DO
+					(* OLIVIER *)
+					actualParameter := parameters.GetExpression(i);
+					PrepareParameter(actualParameter, formalParameter);
+					PushParameter(actualParameter, formalParameter, procedureType.callingConvention);
 					formalParameter := formalParameter.nextParameter;
 				END;
 			END;
-
+			
 			IF x.left IS SyntaxTree.SupercallDesignator THEN
 				symbol := x.left(SyntaxTree.SupercallDesignator).left(SyntaxTree.SymbolDesignator).symbol;
 			ELSIF x.left IS SyntaxTree.IndexDesignator THEN
@@ -3628,7 +3646,7 @@ TYPE
 				ValueToCondition(result);
 			END;
 			destination := dest;
-
+						
 			(* OLIVIER *)
 			(* perform all write-back calls in the list *)
 			BackupGlobalState;
@@ -3640,7 +3658,7 @@ TYPE
 				currentWriteBackCall := currentWriteBackCall.next
 			END;
 			RestoreGlobalState;
-
+			
 			IF Trace THEN TraceExit("VisitProcedureCallDesignator") END;
 		END VisitProcedureCallDesignator;
 
@@ -4719,7 +4737,6 @@ TYPE
 				ELSE HALT(100);
 				END;
 				Convert(result.op,GetType(system, x.type));
-			(* ---- ABS ----- *)
 
 			(* OLIVIER *)
 			(* ---- FIRST ---- *)
@@ -4761,7 +4778,8 @@ TYPE
 					(* add offset to result.op *)
 					IntermediateCode.AddOffset(result.op, 2 * ToMemoryUnits(system, system.SizeOf(system.longintType)))
 				END
-
+				
+			(* ---- ABS ----- *)
 			|Global.Abs:
 				Evaluate(p0,operand);
 				type := p0.type.resolved;
@@ -6348,8 +6366,14 @@ TYPE
 				ELSIF (type IS SyntaxTree.MathArrayType) THEN
 					parameter := procedureType.returnParameter;
 					checker.SetCurrentScope(currentScope);
-					parameterDesignator :=checker.NewSymbolDesignator(expression.position,NIL,parameter);
-					AssignMathArray(parameterDesignator,expression);
+					
+					(* OLIVIER *)
+					IF parameter = NIL THEN
+						Error(procedure.position, "structured return of parameter of procedure not found");
+					ELSE
+						parameterDesignator := checker.NewSymbolDesignator(expression.position,NIL,parameter);
+						AssignMathArray(parameterDesignator,expression);
+					END;
 					(*
 					operatorCall := checker.NewOperatorCall(expression.position,Scanner.Becomes,parameterDesignator,expression,NIL);
 					Expression(operatorCall);

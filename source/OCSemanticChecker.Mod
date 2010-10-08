@@ -84,7 +84,7 @@ TYPE
 		resolvedType: SyntaxTree.Type; (** temporary used for type resolution **)
 		resolvedExpression: SyntaxTree.Expression; (** temporary variable used for expression resolution **)
 		resolvedStatement: SyntaxTree.Statement; (** used for statement resolution **)
-		currentScope: SyntaxTree.Scope;
+		currentScope-: SyntaxTree.Scope;
 		currentIsRealtime: BOOLEAN;
 		currentIsUnreachable: BOOLEAN;
 		currentIsAssembly: BOOLEAN;
@@ -137,6 +137,7 @@ TYPE
 		BEGIN
 			IF diagnostics # NIL THEN
 				Basic.GetErrorMessage(code,message,errorMessage);
+				ASSERT(currentScope # NIL); (* OLIVIER *)
 				IF module # NIL THEN errModule := module ELSE errModule := currentScope.ownerModule END;
 				diagnostics.Error(errModule.sourceName, position, code, errorMessage);
 			END;
@@ -678,8 +679,9 @@ TYPE
 				END;
 
 				procedureType.SetReturnType(resolved);
-
-				IF (resolved # NIL) & (resolved IS SyntaxTree.MathArrayType) THEN
+				
+				(* OLVIER *)
+				IF (resolved # NIL) & (resolved.resolved IS SyntaxTree.MathArrayType) THEN
 					parameter := SyntaxTree.NewParameter(procedureType.position,procedureType,Global.ResultName, SyntaxTree.VarParameter);
 					parameter.SetType(procedureType.returnType);
 					parameter.SetAccess(SyntaxTree.Internal);
@@ -1120,16 +1122,16 @@ TYPE
 			IF arrayAccessOperators.read[indexOperatorCount - 1] = NIL THEN Error(recordType.position, Diagnostics.Invalid, "[] operator for sub-array extraction missing") END;
 			IF arrayAccessOperators.write[indexOperatorCount - 1] = NIL THEN Error(recordType.position, Diagnostics.Invalid, "[] operator for sub-array allocation missing") END;
 			IF arrayAccessOperators.len = NIL THEN
+				(*
 				IF recordType.arrayStructure.form = SyntaxTree.Static THEN
 					(* TODO: insert the following operator declaration into the record scope:
 					OPERATOR "LEN"*(): ARRAY [<d>] OF LONGINT;
 					BEGIN RETURN [<lengths>];
 					END "LEN";
 					*)
-					Error(recordType.position, Diagnostics.Invalid, "automatic creation of LEN operator for static ASOTs not yet implemented")
-				ELSE
-					Error(recordType.position, Diagnostics.Invalid, "LEN operator missing")
-				END
+				END;
+				*)
+				Error(recordType.position, Diagnostics.Invalid, "LEN operator missing")
 			END;
 
 			recordType.SetArrayAccessOperators(arrayAccessOperators)
@@ -2289,32 +2291,35 @@ TYPE
 				(* LEN or DIM operator on array-structured object type *)
 				ASSERT(leftExpression.type.resolved IS SyntaxTree.PointerType);
 				recordType := leftExpression.type.resolved(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
-				ASSERT(leftExpression IS SyntaxTree.Designator);
-				designator := leftExpression(SyntaxTree.Designator);
-				ASSERT(recordType.arrayAccessOperators.len # NIL);
-				expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(position, designator), recordType.arrayAccessOperators.len);
-				ASSERT(expression IS SyntaxTree.Designator);
-				designator := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), SyntaxTree.NewExpressionList());
+				IF recordType.arrayAccessOperators.len = NIL THEN
+					Error(position, Diagnostics.Invalid, "call of undeclared LEN operator");
+					result := SyntaxTree.invalidExpression
+				ELSE
+					ASSERT(leftExpression IS SyntaxTree.Designator);
+					designator := leftExpression(SyntaxTree.Designator);				
+					expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(position, designator), recordType.arrayAccessOperators.len);
+					ASSERT(expression IS SyntaxTree.Designator);
+					designator := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), SyntaxTree.NewExpressionList());
 
-				IF (op = Global.Len) & (rightExpression = NIL) THEN
-					(* LEN(OBJECT) -> OBJECT^."LEN"() *)
-					result := designator
+					IF (op = Global.Len) & (rightExpression = NIL) THEN
+						(* LEN(OBJECT) -> OBJECT^."LEN"() *)
+						result := designator
 
-				ELSIF (op = Global.Len) & (rightExpression # NIL) & (rightExpression.type.resolved IS SyntaxTree.IntegerType) THEN
-					(* LEN(OBJECT, LONGINT) -> OBJECT^."LEN"()[LONGINT] *)
-					tempList := SyntaxTree.NewExpressionList();
-					tempList.AddExpression(rightExpression);
-					result := ResolveDesignator(SyntaxTree.NewBracketDesignator(InvalidPosition, designator, tempList))
+					ELSIF (op = Global.Len) & (rightExpression # NIL) & (rightExpression.type.resolved IS SyntaxTree.IntegerType) THEN
+						(* LEN(OBJECT, LONGINT) -> OBJECT^."LEN"()[LONGINT] *)
+						tempList := SyntaxTree.NewExpressionList();
+						tempList.AddExpression(rightExpression);
+						result := ResolveDesignator(SyntaxTree.NewBracketDesignator(InvalidPosition, designator, tempList))
 
-				ELSIF (op = Global.Dim) & (rightExpression = NIL) THEN
-					(* DIM(OBJECT) -> LEN(OBJECT^."LEN"(), 0) *)
-					tempList := SyntaxTree.NewExpressionList();
-					tempList.AddExpression(designator);
-					tempList.AddExpression(SyntaxTree.NewIntegerValue(InvalidPosition, 0));
-					designator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.GetIdentifier(Global.Len, module.case));
-					result := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, designator, tempList))
-				END
-
+					ELSIF (op = Global.Dim) & (rightExpression = NIL) THEN
+						(* DIM(OBJECT) -> LEN(OBJECT^."LEN"(), 0) *)
+						tempList := SyntaxTree.NewExpressionList();
+						tempList.AddExpression(designator);
+						tempList.AddExpression(SyntaxTree.NewIntegerValue(InvalidPosition, 0));
+						designator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.GetIdentifier(Global.Len, module.case));
+						result := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, designator, tempList))
+					END
+				END;
 			ELSE
 				(* import OCArrayBase if needed *)
 				IF ~arrayBaseImported THEN
@@ -3441,7 +3446,7 @@ TYPE
 			ELSIF IsArrayStructuredObjectType(expression.type) THEN
 				(* expression of array-structured object type *)
 				mathArrayType := MathArrayStructureOfType(expression.type);
-				result := NewIndexOperatorCall(expression, ListOfOpenRanges(mathArrayType.Dimensionality()), NIL)
+				result := NewIndexOperatorCall(InvalidPosition, expression, ListOfOpenRanges(mathArrayType.Dimensionality()), NIL)
 			ELSE
 				result := SyntaxTree.invalidExpression
 			END;
@@ -3467,7 +3472,7 @@ TYPE
 			- use given index list as actual parameters
 			- if rhs parameter is not NIL: call write operator, otherwise read operator
 		**)
-		PROCEDURE NewIndexOperatorCall*(left: SyntaxTree.Expression; indexList: SyntaxTree.ExpressionList; rhs: SyntaxTree.Expression): SyntaxTree.Designator;
+		PROCEDURE NewIndexOperatorCall*(position: LONGINT; left: SyntaxTree.Expression; indexList: SyntaxTree.ExpressionList; rhs: SyntaxTree.Expression): SyntaxTree.Designator;
 		VAR
 			operator: SyntaxTree.Operator;
 			expression: SyntaxTree.Expression;
@@ -3508,107 +3513,114 @@ TYPE
 					needsReshaping := TRUE
 				END
 			END;
-			ASSERT(operator # NIL);
+			
+			IF operator = NIL THEN
+				Error(position, Diagnostics.Invalid, "call of undeclared [] operator");
+				result := SyntaxTree.invalidDesignator;
+			ELSE
+				(* import OCArrayBase if reshaping is needed *)
+				IF needsReshaping & ~arrayBaseImported THEN
+					ImportModule(Global.ArrayBaseName,InvalidPosition);
+					arrayBaseImported := TRUE
+				END;
 
-			(* import OCArrayBase if reshaping is needed *)
-			IF needsReshaping & ~arrayBaseImported THEN
-				ImportModule(Global.ArrayBaseName,InvalidPosition);
-				arrayBaseImported := TRUE
-			END;
+				(* add the index list entries to the list of actual parameters *)
+				actualParameters := SyntaxTree.NewExpressionList();
+				FOR i := 0 TO indexList.Length() - 1 DO
+					expression := indexList.GetExpression(i);
+					IF (expression.type.resolved IS SyntaxTree.IntegerType) & needsReshaping THEN
+						(* convert integer to range using OCArrayBase.RangeFromInteger *)
+						tempList := SyntaxTree.NewExpressionList();
+						tempList.AddExpression(expression);
+						tempDesignator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
+						tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier(InvalidPosition, "RangeFromInteger"));
+						expression := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, tempDesignator, tempList));
+					END;
+					actualParameters.AddExpression(expression)
+				END;
 
-			(* add the index list entries to the list of actual parameters *)
-			actualParameters := SyntaxTree.NewExpressionList();
-			FOR i := 0 TO indexList.Length() - 1 DO
-				expression := indexList.GetExpression(i);
-				IF (expression.type.resolved IS SyntaxTree.IntegerType) & needsReshaping THEN
-					(* convert integer to range using OCArrayBase.RangeFromInteger *)
+				IF rhs # NIL THEN
+					(* add actual parameter for RHS *)
+
+					(* TODO: does this happen automatically?
+					(* check compability of RHS and add conversion if needed *)
+					IF CompatibleTo(system, rhs.type, ???leftType) THEN
+						rhs := NewConversion(rhs.position, rhs, ???leftType, NIL);
+					ELSE
+						Error(left.position,Diagnostics.Invalid,"incompatible assignment");
+						rhs := SyntaxTree.invalidExpression;
+					END;
+					*)
+
+					IF needsReshaping THEN
+						(* reshape using OCArrayBase.ExpandDimensions *)
+						tempMathArrayExpression := SyntaxTree.NewMathArrayExpression(InvalidPosition);
+						FOR i := 0 TO indexList.Length() - 1 DO
+							expression := indexList.GetExpression(i);
+							IF expression.type.resolved IS SyntaxTree.IntegerType THEN
+								tempMathArrayExpression.elements.AddExpression(SyntaxTree.NewBooleanValue(InvalidPosition, FALSE))
+							ELSE
+								tempMathArrayExpression.elements.AddExpression(SyntaxTree.NewBooleanValue(InvalidPosition, TRUE))
+							END
+						END;
+						tempList := SyntaxTree.NewExpressionList();
+						tempList.AddExpression(rhs);
+						tempList.AddExpression(tempMathArrayExpression);
+						tempDesignator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
+						tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier(InvalidPosition, "ExpandDimensions"));
+						expression := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, tempDesignator, tempList));
+
+						(*
+						(* make sure the expression is of the same type as the last non-hidden formal parameter *)
+						formalParameter := operator.type.resolved(SyntaxTree.ProcedureType).firstParameter;
+						FOR i := 1 TO indexList.Length() DO formalParameter := formalParameter.nextParameter END;
+						expression.SetType(formalParameter.type);
+						*)
+						
+						IF expression.type.resolved IS SyntaxTree.MathArrayType THEN
+							(* change the base type of the returned tensor from SYSTEM.ALL to the array structure's element type *)
+							expression.type.resolved(SyntaxTree.MathArrayType).SetArrayBase(recordType.arrayStructure.arrayBase);
+						ELSE
+							Error(expression.position, Diagnostics.Invalid, "problem with resolving OCArrayBase.ExpandDimensions");
+						END;
+						
+						actualParameters.AddExpression(expression)
+					ELSE
+						actualParameters.AddExpression(rhs)
+					END
+				END;
+				
+				(* add dereference operator and create procedure call designator *)
+				ASSERT(left IS SyntaxTree.Designator);
+				expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(InvalidPosition, left(SyntaxTree.Designator)), operator);
+
+				ASSERT(expression IS SyntaxTree.Designator);
+				result := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), actualParameters);
+
+				IF (rhs = NIL) & needsReshaping THEN
+					(* reshape using an additional bracket designator with zeros and open ranges at the end; e.g. designator[0, *, *, 0] *)
 					tempList := SyntaxTree.NewExpressionList();
-					tempList.AddExpression(expression);
-					tempDesignator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
-					tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier(InvalidPosition, "RangeFromInteger"));
-					expression := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, tempDesignator, tempList));
-				END;
-				actualParameters.AddExpression(expression)
-			END;
-
-			IF rhs # NIL THEN
-				(* add actual parameter for RHS *)
-
-				(* TODO: does this happen automatically?
-				(* check compability of RHS and add conversion if needed *)
-				IF CompatibleTo(system, rhs.type, ???leftType) THEN
-					rhs := NewConversion(rhs.position, rhs, ???leftType, NIL);
-				ELSE
-					Error(left.position,Diagnostics.Invalid,"incompatible assignment");
-					rhs := SyntaxTree.invalidExpression;
-				END;
-				*)
-
-				IF needsReshaping THEN
-					(* reshape using OCArrayBase.ExpandDimensions *)
-					tempMathArrayExpression := SyntaxTree.NewMathArrayExpression(InvalidPosition);
 					FOR i := 0 TO indexList.Length() - 1 DO
 						expression := indexList.GetExpression(i);
 						IF expression.type.resolved IS SyntaxTree.IntegerType THEN
-							tempMathArrayExpression.elements.AddExpression(SyntaxTree.NewBooleanValue(InvalidPosition, FALSE))
+							tempList.AddExpression(SyntaxTree.NewIntegerValue(InvalidPosition, 0))
 						ELSE
-							tempMathArrayExpression.elements.AddExpression(SyntaxTree.NewBooleanValue(InvalidPosition, TRUE))
+							tempList.AddExpression(SyntaxTree.NewArrayRangeExpression(InvalidPosition, NIL, NIL, NIL))
 						END
 					END;
-					tempList := SyntaxTree.NewExpressionList();
-					tempList.AddExpression(rhs);
-					tempList.AddExpression(tempMathArrayExpression);
-					tempDesignator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
-					tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier(InvalidPosition, "ExpandDimensions"));
-					expression := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, tempDesignator, tempList));
-
-					(*
-					(* make sure the expression is of the same type as the last non-hidden formal parameter *)
-					formalParameter := operator.type.resolved(SyntaxTree.ProcedureType).firstParameter;
-					FOR i := 1 TO indexList.Length() DO formalParameter := formalParameter.nextParameter END;
-					expression.SetType(formalParameter.type);
-					*)
-
-					(* change the base type of the returned tensor from SYSTEM.ALL to the array structure's element type *)
-					ASSERT(expression.type.resolved IS SyntaxTree.MathArrayType);
-					expression.type.resolved(SyntaxTree.MathArrayType).SetArrayBase(recordType.arrayStructure.arrayBase);
-
-					actualParameters.AddExpression(expression)
-				ELSE
-					actualParameters.AddExpression(rhs)
-				END
-			END;
-
-			(* add dereference operator and create procedure call designator *)
-			ASSERT(left IS SyntaxTree.Designator);
-			expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(InvalidPosition, left(SyntaxTree.Designator)), operator);
-
-			ASSERT(expression IS SyntaxTree.Designator);
-			result := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), actualParameters);
-
-			IF (rhs = NIL) & needsReshaping THEN
-				(* reshape using an additional bracket designator with zeros and open ranges at the end; e.g. designator[0, *, *, 0] *)
-				tempList := SyntaxTree.NewExpressionList();
-				FOR i := 0 TO indexList.Length() - 1 DO
-					expression := indexList.GetExpression(i);
-					IF expression.type.resolved IS SyntaxTree.IntegerType THEN
-						tempList.AddExpression(SyntaxTree.NewIntegerValue(InvalidPosition, 0))
-					ELSE
-						tempList.AddExpression(SyntaxTree.NewArrayRangeExpression(InvalidPosition, NIL, NIL, NIL))
-					END
+					result := ResolveDesignator(SyntaxTree.NewBracketDesignator(InvalidPosition, result, tempList))
 				END;
-				result := ResolveDesignator(SyntaxTree.NewBracketDesignator(InvalidPosition, result, tempList))
+
+				IF rhs = NIL THEN
+					(* special rule: index read operator calls are considered to be assignable *)
+					result.SetAssignable(TRUE)
+				END;
+
+				(* put information about this index operator call into the resulting designator *)
+				result.SetRelatedAsot(left);
+				result.SetRelatedIndexList(indexList)
 			END;
-
-			IF rhs = NIL THEN
-				(* special rule: index read operator calls are considered to be assignable *)
-				result.SetAssignable(TRUE)
-			END;
-
-			(* put information about this index operator call into the resulting designator *)
-			result.SetRelatedAsot(left);
-			result.SetRelatedIndexList(indexList);
-
+			
 			RETURN result
 		END NewIndexOperatorCall;
 
@@ -3732,7 +3744,6 @@ TYPE
 
 						ELSIF type IS SyntaxTree.ArrayType THEN
 							(* indexing over an array *)
-							ASSERT(IsIntegerType(expression.type.resolved));
 							ASSERT(indexDesignator # NIL);
 							AppendIndex(expression.position, indexDesignator, expression, type(SyntaxTree.ArrayType));
 							type := type(SyntaxTree.ArrayType).arrayBase.resolved;
@@ -3796,7 +3807,7 @@ TYPE
 								ELSE
 									rhs := NIL
 								END;
-								designator := NewIndexOperatorCall(designator, indexList, rhs);
+								designator := NewIndexOperatorCall(bracketDesignator.position, designator, indexList, rhs);
 								type := designator.type
 							END
 
@@ -5958,7 +5969,7 @@ TYPE
 					IF IsArrayStructuredObjectType(left.type) & (left.type.resolved # right.type.resolved) THEN
 						mathArrayType := MathArrayStructureOfType(right.type);
 						right := NewConversion(right.position, right, mathArrayType, NIL);
-						designator := NewIndexOperatorCall(left, ListOfOpenRanges(mathArrayType.Dimensionality()), right);
+						designator := NewIndexOperatorCall(InvalidPosition, left, ListOfOpenRanges(mathArrayType.Dimensionality()), right);
 						resolvedStatement := SyntaxTree.NewProcedureCallStatement(assignment.position, designator, assignment.outer)
 					ELSE
 						right := NewConversion(right.position, right, left.type.resolved, NIL);
@@ -7085,7 +7096,6 @@ TYPE
 		END;
 		RETURN result
 	END CompatibleTo;
-
 
 	PROCEDURE OpenArrayCompatible(formalType: SyntaxTree.ArrayType; actualType: SyntaxTree.Type): BOOLEAN;
 	VAR arrayBase: SyntaxTree.Type; result: BOOLEAN;
