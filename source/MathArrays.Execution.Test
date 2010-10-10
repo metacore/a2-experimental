@@ -685,13 +685,10 @@ positive: simple tests for ranges
 positive: conversion tests
 
 	MODULE Test;
-
 	IMPORT Driver;
-
 	VAR s: ARRAY [?] OF SHORTINT; i: ARRAY [?] OF INTEGER; l: ARRAY [?] OF LONGINT; r: ARRAY [?] OF REAL; x: ARRAY [?] OF LONGREAL;
-
 	BEGIN
-		NEW(s,3,4,5);
+		NEW(s,2,3,5);
 		Driver.FillS(s); Driver.TestFillS(s);
 		i := s; l := s; r := s; x := s; Driver.TestFillI(i); Driver.TestFillL(l); Driver.TestFillR(r); Driver.TestFillX(x);
 		l := i; r := i; x := i; Driver.TestFillL(l); Driver.TestFillR(r); Driver.TestFillX(x);
