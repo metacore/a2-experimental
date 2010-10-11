@@ -729,3 +729,40 @@ positive: array structured object type (was: problem with register restoration w
 	  ASSERT(asot[*, *][*, 0] = [LONGINT(0),0,0,0]);
 	  ASSERT(asot[*, *][*, 0] = [LONGINT(0),0,0,0]);
 	 END Test.
+
+positive: correct use of SYSTEM.ADR and SYSTEM.VAL for tensors and open math arrays
+
+	MODULE Test;
+	IMPORT SYSTEM;
+
+	VAR a: ARRAY [*,*,*] OF REAL;
+
+	PROCEDURE GetDim(adr: SYSTEM.ADDRESS): LONGINT;
+	CONST
+		AddressSize=SYSTEM.SIZEOF(SYSTEM.ADDRESS);
+		MathDimOffset=3*AddressSize;
+	BEGIN
+		SYSTEM.GET(adr+MathDimOffset,adr); RETURN adr;
+	END GetDim;
+
+	PROCEDURE P(CONST a: ARRAY [?] OF REAL);
+	VAR adr,val,val2: LONGINT;
+	BEGIN
+		adr := SYSTEM.ADR(a);
+		SYSTEM.GET(adr,val2);
+		val := SYSTEM.VAL(LONGINT,a);
+		ASSERT(val = val2);
+		ASSERT(GetDim(val) = 3);
+	END P;
+
+	PROCEDURE Q(CONST a: ARRAY [*,*,*] OF REAL);
+	VAR adr: LONGINT;
+	BEGIN
+		adr := SYSTEM.ADR(a);
+		ASSERT(GetDim(adr) = 3);
+	END Q;
+
+	BEGIN
+		NEW(a,1,2,3);
+		P(a); Q(a);
+	END Test.

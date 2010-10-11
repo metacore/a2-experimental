@@ -329,7 +329,7 @@ TYPE
 	END SameOperand;
 
 
-	PROCEDURE CheckOperand(CONST operand: Operand);
+	PROCEDURE CheckOperand(CONST operand: Operand(*; VAR msg: ARRAY OF CHAR*));
 	BEGIN
 		CASE operand.mode OF
 		Undefined:
@@ -388,7 +388,6 @@ TYPE
 
 
 	PROCEDURE DumpOperand*(w: Streams.Writer; CONST operand: Operand; size: BOOLEAN);
-
 
 		PROCEDURE DumpString(CONST str: ARRAY OF CHAR);
 		VAR i: LONGINT; ch: CHAR; newln,multiline: BOOLEAN;
@@ -467,7 +466,6 @@ TYPE
 		END;
 		w.Update();
 		CheckOperand(operand);
-
 	END DumpOperand;
 
 	PROCEDURE TypeEquals*(CONST s1,s2: Type): BOOLEAN;
@@ -599,6 +597,7 @@ TYPE
 		op.mode := Undefined; op.type.form := Undefined; op.type.sizeInBits := Undefined;
 		op.register := None; op.offset := 0;
 		op.intValue := 0;
+		op.floatValue := 0;
 		op.symbol := NIL;
 		op.symbolOffset := 0;
 	END InitOperand;

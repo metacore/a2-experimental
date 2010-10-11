@@ -4833,7 +4833,7 @@ TYPE
 					END;
 				(* ---- SYSTEM.GET ----- *)
 				ELSIF (id = Global.systemGet) & Parameters(2,2) THEN
-					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) THEN
+					IF CheckIntegerType(parameter0) & CheckBasicType(parameter1) & CheckVariable(parameter1) THEN
 						parameter0 := NewConversion(0,parameter0,system.addressType,NIL);
 						actualParameters.SetExpression(0,parameter0);
 					END;

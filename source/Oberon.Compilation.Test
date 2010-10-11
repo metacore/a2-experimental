@@ -39214,6 +39214,20 @@ positive: use a value for a the address in SYSTEM.GET
 	END P;
 
 	END Test.
+	
+negative: use a non variable for destination in SYSTEM.GET
+
+	MODULE Test;
+
+	IMPORT SYSTEM;
+
+	PROCEDURE P(VAR buf: SYSTEM.BYTE);
+	VAR adr: SYSTEM.ADDRESS;
+	BEGIN
+		SYSTEM.GET (adr, adr+1);	(* EBDA address *)
+	END P;
+
+	END Test.
 
 negative: negative values in address
 

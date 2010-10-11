@@ -5175,6 +5175,11 @@ TYPE
 			|Global.systemAdr:
 				Designate(p0,s0);
 				s0.mode := ModeValue;
+				IF (t0 IS SyntaxTree.MathArrayType) & (t0(SyntaxTree.MathArrayType).form = SyntaxTree.Open) THEN
+					ReleaseIntermediateOperand(s0.op);
+					s0.op := s0.tag;
+					IntermediateCode.InitOperand(s0.tag);
+				END;
 				Convert(s0.op,GetType(system,x.type));
 				result := s0;
 			(* ---- SYSTEM.BIT ----- *)

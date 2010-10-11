@@ -721,6 +721,7 @@ TYPE
 	PROCEDURE GetModuleName*(module: SyntaxTree.Module; VAR name: ARRAY OF CHAR);
 	VAR n: SyntaxTree.String;
 	BEGIN
+		name := "";
 		module.context.GetString(n);
 		IF n# "A2" THEN Strings.Append(name,n);Strings.Append(name,"-") END;
 		module.name.GetString(n);
