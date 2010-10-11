@@ -7548,7 +7548,12 @@ TYPE
 			type := type.resolved;
 			IF IsPointerType(type) THEN RETURN TRUE
 			ELSIF type IS SyntaxTree.ArrayType THEN RETURN ContainsPointer(type(SyntaxTree.ArrayType).arrayBase)
-			ELSIF type IS SyntaxTree.MathArrayType THEN RETURN ContainsPointer(type(SyntaxTree.MathArrayType).arrayBase)
+			ELSIF type IS SyntaxTree.MathArrayType THEN
+				IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
+					RETURN ContainsPointer(type(SyntaxTree.MathArrayType).arrayBase)
+				ELSE
+					RETURN TRUE
+				END;
 			ELSIF type IS SyntaxTree.RecordType THEN
 				scope := type(SyntaxTree.RecordType).recordScope;
 				variable := scope.firstVariable;

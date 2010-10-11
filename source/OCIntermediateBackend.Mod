@@ -5049,7 +5049,7 @@ TYPE
 					ASSERT(~(type IS SyntaxTree.MathArrayType) OR (type(SyntaxTree.MathArrayType).form IN {SyntaxTree.Static,SyntaxTree.Tensor}));
 
 					(*! the following code is only correct for "standard" Oberon calling convention *)
-					IF SemanticChecker.ContainsPointer(type) THEN
+					IF SemanticChecker.ContainsPointer(SemanticChecker.ArrayBase(type,MAX(LONGINT))) THEN
 						t := type;
 						IF ~isTensor & (t IS SyntaxTree.MathArrayType) THEN
 							staticLength := 1;
