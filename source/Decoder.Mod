@@ -686,12 +686,12 @@ TYPE
 			END;
 			ch := reader.Get();
 			fieldInfo.type := SYSTEM.VAL(LONGINT, reader.Get());
-			IF fieldInfo.type <= 10H THEN
+			IF fieldInfo.type <= 15H THEN
 				fieldInfo.kind := VarType;
 			ELSIF (fieldInfo.type >= 81H) & (fieldInfo.type <= 90H) THEN
 				fieldInfo.kind := VarArray;
 				DEC(fieldInfo.type, 80H);
-				reader.RawNum(fieldInfo.dim)
+				reader.RawNum(fieldInfo.dim)				
 			ELSE
 				ASSERT((fieldInfo.type = 16H) OR (fieldInfo.type = 1DH));
 				fieldInfo.kind := VarRecord;

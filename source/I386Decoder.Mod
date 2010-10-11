@@ -1154,6 +1154,9 @@ TYPE
 
 		PROCEDURE PrintArguments(w : Streams.Writer);
 		BEGIN
+			IF (argStructure >=0) & (arg1 = NIL) THEN w.String("{too little arguments}");RETURN
+			ELSIF (argStructure >= ArgRegReg) & (arg2=NIL) THEN w.String("{too little arguments}");RETURN
+			END;
 			ASSERT((argStructure < 0) OR (arg1 # NIL)); (* if instr has arguments, arg1 must not be NIL *)
 			ASSERT((argStructure < ArgRegReg) OR (arg2 # NIL)); (* if there are 2 args, the second one must not be NIL *)
 			(*
