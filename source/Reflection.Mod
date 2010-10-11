@@ -51,7 +51,7 @@ VAR
 			IF ch # 0X THEN w.Char("!") END
 		ELSE
 			WHILE v.n > 0 DO
-				WriteSimpleVar(w, v.adr, v.type, v.tdadr, col);
+				WriteSimpleVar(w, v.adr, v.type, v.tdadr, col);				
 				DEC(v.n); INC(v.adr, v.size);
 				IF v.n > 0 THEN
 					w.String(", "); INC(col, 2)
@@ -443,6 +443,7 @@ VAR
 	VAR ch: CHAR;  sval: SHORTINT;  ival: INTEGER;  lval: LONGINT;  rval: REAL; xval: LONGREAL; hval : HUGEINT;
 		address: SYSTEM.ADDRESS; pos0: LONGINT;
 	BEGIN
+		IF ~CheckHeapAddress(adr) THEN w.String("invalid adr"); RETURN END;
 		pos0 := w.Pos();
 		CASE type OF
 		1, 3:  (* BYTE, CHAR *)
