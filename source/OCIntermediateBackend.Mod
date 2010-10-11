@@ -5091,7 +5091,11 @@ TYPE
 						ReleaseIntermediateOperand(tmp);
 						ReleaseIntermediateOperand(reg);
 					ELSE
-						size := ToMemoryUnits(system,system.SizeOf(type));
+						IF isTensor THEN
+							size := ToMemoryUnits(system,system.SizeOf(SemanticChecker.ArrayBase(type,MAX(LONGINT))));
+						ELSE
+							size := ToMemoryUnits(system,system.SizeOf(SemanticChecker.ArrayBase(type,openDim)));
+						END;
 						IF (size # 1) THEN
 							Emit(Mul(reg,reg,IntermediateCode.Immediate(addressType,size))); (*! optimize the multiplication of immediate operands *)
 						END;
