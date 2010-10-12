@@ -5,7 +5,7 @@ MODULE KbdMouse;   (* g.f.	9.7.07 *)
 
 (* replacement for the keyboard and mouse drivers in the Unix ports *)
 
-IMPORT X11, Unix, S := SYSTEM, Inputs, Plugins, Displays, XDisplay, Objects, Threads, Out := KernelLog;
+IMPORT X11, Unix, S := SYSTEM, Inputs, Plugins, Displays, XDisplay, Objects, Threads;
 
 
 
@@ -102,7 +102,6 @@ VAR
 							WHILE i < keycount DO
 								km.ch := buffer[i];  km.flags := KeyState( );
 								km.keysym := keySymbol[ORD( km.ch )];
-Out.Hex( ORD( km.ch ), 9 ); Out.Hex( km.keysym, 9 ); Out.Ln;
 								IF km.ch = 0F1X THEN  km.ch := 0A4X
 								ELSIF km.ch = 0F2X THEN km.ch := 0A5X
 								END;
