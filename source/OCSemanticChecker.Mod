@@ -696,7 +696,9 @@ TYPE
 					parameter := parameter.nextParameter;
 				END;
 
-				IF (procedureType.callingConvention = SyntaxTree.OberonCallingConvention) & (procedureType.returnType # NIL) & ContainsPointer(procedureType.returnType) THEN (*! needed for compatibility with paco *)
+				IF (procedureType.callingConvention = SyntaxTree.OberonCallingConvention) & (procedureType.returnType # NIL) 
+					& (procedureType.returnType.resolved IS SyntaxTree.PointerType)
+					(*& ContainsPointer(procedureType.returnType)  *) THEN (*! needed for compatibility with paco *)
 					returnParameter := SyntaxTree.NewParameter(procedureType.position,procedureType,Global.PointerReturnName,SyntaxTree.VarParameter);
 					returnParameter.SetType(procedureType.returnType);
 					returnParameter.SetAccess(SyntaxTree.Hidden);
@@ -3905,7 +3907,7 @@ TYPE
 				END;
 
 				(*! do this in backend? *)
-				IF ContainsPointer(formalType.returnType) & (formalType.callingConvention = SyntaxTree.OberonCallingConvention )THEN
+				IF (*ContainsPointer(formalType.returnType) &*) (formalType.returnType # NIL) & (formalType.returnType.resolved IS SyntaxTree.PointerType) & (formalType.callingConvention = SyntaxTree.OberonCallingConvention )THEN
 					hiddenPointerDesignator := GetTemporaryVariable(formalType.returnType,position); (*! try to make reuse of pointers *)
 					actualParameters.AddExpression(hiddenPointerDesignator);
 				END;
