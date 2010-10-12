@@ -51,7 +51,7 @@ VAR
 			IF ch # 0X THEN w.Char("!") END
 		ELSE
 			WHILE v.n > 0 DO
-				WriteSimpleVar(w, v.adr, v.type, v.tdadr, col);				
+				WriteSimpleVar(w, v.adr, v.type, v.tdadr, col);
 				DEC(v.n); INC(v.adr, v.size);
 				IF v.n > 0 THEN
 					w.String(", "); INC(col, 2)
@@ -63,18 +63,7 @@ VAR
 	PROCEDURE CheckHeapAddress(address: SYSTEM.ADDRESS): BOOLEAN;
 	VAR i: LONGINT; block{UNTRACED}: Machine.MemoryBlock; hit: BOOLEAN;
 	BEGIN
-		IF address <= 0 THEN RETURN FALSE
-		ELSE
-			block := Machine.memBlockHead; i := 0; hit := FALSE;
-			WHILE (i<10000) & (block # Machine.memBlockTail) & ~hit DO
-				IF (address >= block.beginBlockAdr) & (address <= block.endBlockAdr) THEN
-					hit := TRUE
-				END;
-				block := block.next;
-				INC(i);
-			END;
-			RETURN hit;
-		END;
+		RETURN Machine.ValidAddress(address);
 	END CheckHeapAddress;
 
 	(* Get a compressed refblk number. *)
