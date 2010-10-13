@@ -1194,7 +1194,7 @@ TYPE
 							END;
 							ASSERT(baseType # NIL);
 							mathArrayType :=SyntaxTree.NewMathArrayType(-1,moduleScope,SyntaxTree.Static);
-							type := arrayType;
+							type := mathArrayType;
 							R.RawNum(len);
 							mathArrayType.SetArrayBase(baseType);
 							size := SyntaxTree.NewIntegerValue(-1,len);
