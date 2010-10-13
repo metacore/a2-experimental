@@ -27,7 +27,7 @@ TYPE
 
 	Report* = OBJECT
 
-	VAR tests-, succeeded-, failed-: INTEGER;
+	VAR tests-, succeeded-, succeededThisTime-, failed-, failedThisTime-: INTEGER;
 
 	PROCEDURE Open*;
 	END Open;
@@ -79,13 +79,14 @@ TYPE
 	PROCEDURE Print* (report: Report);
 	VAR test, result: TestResult;
 	BEGIN
-		report.tests := 0; report.succeeded := 0; report.failed := 0;
+		report.tests := 0; report.succeeded := 0; report.succeededThisTime := 0; report.failed := 0; report.failedThisTime := 0;
 		report.Open;
 		test := tests.first;
 		WHILE test # NIL DO
 			INC (report.tests); IF test.succeeded THEN INC (report.succeeded) ELSE INC (report.failed) END;
 			result := FindResult (results, test.name);
 			test.new := (result = NIL) OR (test.succeeded # result.succeeded);
+			IF test.new THEN IF test.succeeded THEN INC (report.succeededThisTime) ELSE INC (report.failedThisTime) END END;
 			IF (~test.succeeded) OR (test.new) THEN report.Handle (test) END;
 			test := test.next;
 		END;
@@ -144,8 +145,10 @@ TYPE
 		PROCEDURE Close;
 		BEGIN w.Ln; Bold; w.String ("Summary:"); Default; w.Ln;
 			w.String ("number of tests:"); w.Char (9X); w.Int (tests, 0); w.Ln;
-			w.String ("successful tests:"); w.Char (9X); IF succeeded = tests THEN Green ELSE Red END; w.Int (succeeded, 0); Default; w.Ln;
-			w.String ("failed tests:"); w.Char (9X); w.Char (9X); IF failed = 0 THEN Green ELSE Red END; w.Int (failed, 0); Default; w.Ln
+			w.String ("successful tests:"); w.Char (9X); IF succeeded = tests THEN Green ELSE Red END; w.Int (succeeded, 0); Default;
+			IF succeededThisTime > 0 THEN w.Char (9X); w.Char ('('); w.Char ('+'); w.Int (succeededThisTime, 0); w.Char (')'); END; w.Ln;
+			w.String ("failed tests:"); w.Char (9X); w.Char (9X); IF failed = 0 THEN Green ELSE Red END; w.Int (failed, 0); Default;
+			IF failedThisTime > 0 THEN w.Char (9X); w.Char ('('); w.Char ('+'); w.Int (failedThisTime, 0); w.Char (')'); END; w.Ln;
 		END Close;
 
 	END StreamReport;
