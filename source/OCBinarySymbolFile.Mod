@@ -381,9 +381,14 @@ TYPE
 			recordType.SetBaseType(ResolveType(recordType.baseType));
 
 			recordScope := recordType.recordScope;
+			IF (recordType.baseType # NIL ) & (recordType.baseType.resolved IS SyntaxTree.MathArrayType) THEN
+				recordType.SetArrayStructure(recordType.baseType.resolved(SyntaxTree.MathArrayType))
+			END;
 			recordBase := recordType.GetBaseRecord();
 			IF recordBase = NIL THEN numberMethods := 0;
-			ELSE 	recordBase.Accept(SELF); numberMethods := recordBase.recordScope.numberMethods;
+			ELSE
+				recordBase.Accept(SELF); numberMethods := recordBase.recordScope.numberMethods;
+				recordType.SetArrayStructure(recordBase.arrayStructure);
 			END;
 			symbol := recordScope.firstSymbol; (* must use the sorted list here, important! *)
 			WHILE symbol # NIL DO
