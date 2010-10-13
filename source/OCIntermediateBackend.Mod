@@ -3932,17 +3932,13 @@ TYPE
 
 		BEGIN
 			IF AddImport(moduleName,traceModule,TRUE) THEN
-				Global.GetModuleName(module.module, s);
-				COPY(s,msg);
-				Strings.Append(msg,"@");
-				expression := x.GetExpression(0);
-				Strings.IntToStr(expression.position,s);
-				Strings.Append(msg,s);
-				Strings.Append(msg,": ");
 				NEW(stringWriter,LEN(s));
-
 				FOR i := 0 TO x.Length()-1 DO
+					msg := "";
 					expression := x.GetExpression(i);
+					Global.GetModuleName(module.module, s);
+					stringWriter.String(s); stringWriter.String("@"); stringWriter.Int(expression.position,1);
+					stringWriter.String(":");
 
 					printout := Printout.NewPrinter(stringWriter,Printout.SourceCode,FALSE);
 					IF ~(expression IS SyntaxTree.StringValue) THEN
@@ -3950,6 +3946,7 @@ TYPE
 						stringWriter.Get(s);
 						Strings.Append(msg,s);
 						Strings.Append(msg,"= ");
+					ELSE stringWriter.Get(s); (* remove from string writer *)
 					END;
 					String(msg);
 					IF SemanticChecker.IsStringType(expression.type) THEN
