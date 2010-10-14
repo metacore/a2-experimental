@@ -850,7 +850,7 @@ TYPE
 					parameter.SetState(SyntaxTree.Resolved);
 
 					IF parameter.name.Equals( Global.SelfParameterName) THEN	(*move SELF to list of hidden parameters *)
-						sparameter := parameter
+						procedureType.SetSelfParameter(parameter);
 					ELSIF parameter.name.Equals( Global.ReturnParameterName) OR parameter.name.Equals(Global.PointerReturnName) (* compatibility with paco *) THEN
 						(* move return parameter to list of hidden parameters *)
 						rparameter := parameter
@@ -872,10 +872,6 @@ TYPE
 						rparameter.name.GetString(rparametername);
 						rparameter.SetAccess(SyntaxTree.Hidden);
 						procedureType.AddParameter(rparameter);
-					END;
-					IF sparameter # NIL THEN
-						sparameter.SetAccess(SyntaxTree.Hidden);
-						procedureType.AddParameter(sparameter);
 					END;
 				END;
 
@@ -2032,6 +2028,7 @@ TYPE
 					Parameters(procedureType.lastParameter,TRUE);
 				ELSE
 					Parameters(procedureType.returnParameter,FALSE);
+					Parameters(procedureType.selfParamater,FALSE);
 					Parameters(procedureType.firstParameter,FALSE);
 				END;
 				w.RawNum(sfEnd);
