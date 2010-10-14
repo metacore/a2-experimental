@@ -157,11 +157,22 @@ TYPE
 		END InitSystem;
 
 		PROCEDURE GenerateRecordOffsets*(x: SyntaxTree.RecordType): BOOLEAN; (* normally done in checker but the binary symbol file format makes this necessary *)
-		VAR baseType: SyntaxTree.RecordType; offset,size: LONGINT; alignment: LONGINT; variable: SyntaxTree.Variable;
+		VAR baseType: SyntaxTree.RecordType; offset,size: LONGINT; alignment: LONGINT; variable: SyntaxTree.Variable; error: BOOLEAN;
+			PROCEDURE Variable(variable: SyntaxTree.Variable);
+			BEGIN
+				size := SizeOf(variable.type.resolved);
+				IF size < 0 THEN error := TRUE END;
+				alignment := AlignmentOf(SELF.variableAlignment, variable.type.resolved);
+				Basic.Align(offset,alignment);
+				variable.SetOffset(offset);
+				INC(offset,size);
+			END Variable;
+
 		BEGIN
+			error := FALSE;
 			baseType :=x.GetBaseRecord();
 			IF (baseType  # NIL) & (baseType.sizeInBits < 0) THEN
-				RETURN GenerateRecordOffsets(baseType);
+				error := ~GenerateRecordOffsets(baseType);
 			END;
 			IF baseType # NIL THEN
 				offset := baseType.sizeInBits
@@ -170,24 +181,39 @@ TYPE
 			END;
 			variable := x.recordScope.firstVariable;
 			WHILE (variable # NIL) DO
-				size := SizeOf(variable.type.resolved);
-				IF size < 0 THEN RETURN FALSE END;
-				alignment := AlignmentOf(SELF.variableAlignment, variable.type.resolved);
-				Basic.Align(offset,alignment);
-				variable.SetOffset(offset);
-				INC(offset,size);
+				Variable(variable);
 				variable := variable.nextVariable;
 			END;
 			Basic.Align(offset,addressSize);
 			x.SetSize(offset);
-			RETURN TRUE
+			RETURN ~error
 		END GenerateRecordOffsets;
 
 		PROCEDURE GenerateVariableOffsets*(scope: SyntaxTree.Scope): BOOLEAN;
-		VAR variable: SyntaxTree.Variable; offset,size: LONGINT; alignment: LONGINT; parameterOffset :LONGINT;
+		VAR variable: SyntaxTree.Variable; offset,size: LONGINT; alignment: LONGINT; parameterOffset :LONGINT; error: BOOLEAN;
+
+			PROCEDURE Variable(variable: SyntaxTree.Variable);
+			BEGIN
+				size := SizeOf(variable.type.resolved);
+				IF size<0 THEN error := TRUE END;
+				DEC(offset,size);
+				alignment := AlignmentOf(SELF.variableAlignment,variable.type.resolved);
+				Basic.Align(offset,-alignment);
+
+				(* alignment on stack *)
+				IF variable.alignment > 1 THEN
+					DEC(offset, parameterOffset);
+					Basic.Align(offset, -variable.alignment*dataUnit);
+					INC(offset, parameterOffset);
+				END;
+
+				variable.SetOffset(offset);
+			END Variable;
+
 		BEGIN
+			error := FALSE;
 			IF scope IS SyntaxTree.RecordScope THEN (* increasing indices *)
-				RETURN GenerateRecordOffsets(scope(SyntaxTree.RecordScope).ownerRecord)
+				error := ~GenerateRecordOffsets(scope(SyntaxTree.RecordScope).ownerRecord)
 			ELSE (* module scope or procedure scope: decreasing indices *)
 				ASSERT((scope IS SyntaxTree.ModuleScope) OR (scope IS SyntaxTree.ProcedureScope) OR (scope IS SyntaxTree.ActorScope)
 				);
@@ -200,28 +226,29 @@ TYPE
 
 				variable := scope.firstVariable;
 				WHILE (variable # NIL) DO
-					size := SizeOf(variable.type.resolved);
-					IF size < 0 THEN RETURN FALSE END;
-					DEC(offset,size);
-					alignment := AlignmentOf(SELF.variableAlignment,variable.type.resolved);
-					Basic.Align(offset,-alignment);
-
-					IF variable.alignment > 1 THEN
-						DEC(offset, parameterOffset);
-						Basic.Align(offset, -variable.alignment*dataUnit);
-						INC(offset, parameterOffset);
-					END;
-
-					variable.SetOffset(offset);
+					Variable(variable);
 					variable := variable.nextVariable;
 				END;
 			END;
-			RETURN TRUE
+			RETURN ~error
 		END GenerateVariableOffsets;
 
 		PROCEDURE GenerateParameterOffsets*(procedure : SyntaxTree.Procedure; nestedProcedure: BOOLEAN): BOOLEAN;
-		VAR offset,size: LONGINT;parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType;
+		VAR offset,size: LONGINT;parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType; error: BOOLEAN;
+
+			PROCEDURE Parameter(parameter: SyntaxTree.Parameter);
+			BEGIN
+				IF parameter # NIL THEN
+					Basic.Align(offset,addressSize);
+					parameter.SetOffset(offset);
+					size := SizeOfParameter(parameter);
+					IF size < 0 THEN error := TRUE END;
+					INC(offset,SizeOfParameter(parameter));
+				END;
+			END Parameter;
+
 		BEGIN
+			error := FALSE;
 			procedureType := procedure.type(SyntaxTree.ProcedureType);
 			IF (procedure.isInline) THEN
 				offset := 0
@@ -232,36 +259,27 @@ TYPE
 				INC(offset,addressSize); (* parameter offset of static link *) (*! check alternative: add hidden parameter *)
 			END;
 			IF procedureType.callingConvention = SyntaxTree.OberonCallingConvention THEN
+				Parameter(procedureType.selfParameter);
 				parameter := procedureType.lastParameter;
 				WHILE (parameter # NIL) DO
-					Basic.Align(offset,addressSize);
-					parameter.SetOffset(offset);
-					size := SizeOfParameter(parameter);
-					IF size < 0 THEN RETURN FALSE END;
-					INC(offset,SizeOfParameter(parameter));
+					Parameter(parameter);
 					parameter := parameter.prevParameter;
 				END;
-				IF procedureType.returnParameter # NIL THEN
-					Basic.Align(offset,addressSize);
-					procedureType.returnParameter.SetOffset(offset);
-				END;
+				procedureType.SetParameterOffset(offset);
+				Parameter(procedureType.returnParameter);
 			ELSE
 				parameter := procedureType.firstParameter;
 				WHILE (parameter # NIL) DO
-					Basic.Align(offset,addressSize);
-					parameter.SetOffset(offset);
-					size := SizeOfParameter(parameter);
-					IF size < 0 THEN RETURN FALSE END;
-					INC(offset,size);
+					Parameter(parameter);
 					parameter := parameter.nextParameter;
 				END;
+				procedureType.SetParameterOffset(offset);
 			END;
-			procedureType.SetParameterOffset(offset);
-			RETURN TRUE
+			RETURN ~error
 		END GenerateParameterOffsets;
 
 		PROCEDURE SizeOf*(type: SyntaxTree.Type): LONGINT;
-		VAR size: LONGINT;
+		VAR size: LONGINT; error: BOOLEAN;
 		BEGIN
 			type := type.resolved;
 			IF type IS SyntaxTree.BasicType THEN

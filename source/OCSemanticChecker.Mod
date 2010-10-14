@@ -5661,8 +5661,7 @@ TYPE
 						selfParameter.SetType(qualifiedType);
 					END;
 					selfParameter.SetAccess(SyntaxTree.Hidden);
-					procedureType.AddParameter(selfParameter);
-
+					procedureType.SetSelfParameter(selfParameter);
 
 					(*! constructor information is redundant, we can remove "isConstructor" and repplace by constructor procedure reference *)
 					IF procedure.isConstructor THEN

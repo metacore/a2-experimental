@@ -1053,13 +1053,13 @@ TYPE
 			SELF.length := length;
 			IF (length # NIL) & (length.resolved # NIL) & (length.resolved IS IntegerValue) THEN
 				staticLength := length.resolved(IntegerValue).value;
-				
+
 				(* OLIVIER *)
 				(* optimization: unless the base type is a dynamic array, make this array static *)
 				IF ~((arrayBase # NIL) & (arrayBase IS MathArrayType) & (arrayBase(MathArrayType).form # Static)) THEN
 					form := Static;
-				END	
-				
+				END
+
 			ELSIF length = NIL THEN
 				form := Open;
 			END;
@@ -1437,8 +1437,10 @@ TYPE
 		VAR
 			modifiers-: Modifier; (* set by the parser *)
 			returnType-: Type;
-			returnParameter-: Parameter;
+			returnParameter-: Parameter; (* not encoded in list of parameters as backend can decide about implementation *)
+			selfParameter-: Parameter; (* not encoded in list of parameters as backend can decide about implementation *)
 			firstParameter-,lastParameter-: Parameter; numberParameters-, numberHiddenParameters-: LONGINT;  (* parameters *)
+
 			isDelegate-,isInterrupt-,noPAF-: BOOLEAN;
 			callingConvention-: LONGINT;
 			stackAlignment-: LONGINT;
@@ -1450,7 +1452,7 @@ TYPE
 			SELF.scope := scope;
 			modifiers := NIL;
 			firstParameter := NIL; lastParameter := NIL; numberParameters := 0; numberHiddenParameters := 0;
-			returnType := NIL; returnParameter := NIL;
+			returnType := NIL; returnParameter := NIL; selfParameter := NIL;
 			stackAlignment := 1;
 			isDelegate := FALSE; isInterrupt := FALSE; noPAF := FALSE;
 			callingConvention := OberonCallingConvention;
@@ -1520,9 +1522,12 @@ TYPE
 		END SetReturnType;
 
 		PROCEDURE SetReturnParameter*(parameter: Parameter);
-		BEGIN
-			returnParameter := parameter
+		BEGIN returnParameter := parameter
 		END SetReturnParameter;
+
+		PROCEDURE SetSelfParameter*(parameter: Parameter);
+		BEGIN selfParameter := parameter
+		END SetSelfParameter;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
 		VAR result: BOOLEAN; p1,p2: Parameter;
@@ -1925,10 +1930,10 @@ TYPE
 	Designator* = OBJECT(Expression)
 		VAR
 			left-: Expression; (* currently only designators are allowed but for later purposes ... (as for example (a+b).c) *)
-			
+
 			(* OLIVIER *)
 			relatedRhs-: Expression; (* the RHS of an assignment if this designator is used on the LHS: *)
-			
+
 			(* used if this designator contains an index operator call, e.g. 'asot.^"[]"(indexList)': *)
 			relatedAsot-: Expression; (* the ASOT on which the index operator is called *)
 			relatedIndexList-: ExpressionList; (* the index list *)
@@ -1946,7 +1951,7 @@ TYPE
 		PROCEDURE SetLeft*(expression: Expression);
 		BEGIN left := expression
 		END SetLeft;
-	
+
 		(* OLIVIER *)
 		PROCEDURE SetRelatedRhs*(relatedRhs: Expression);
 		BEGIN SELF.relatedRhs := relatedRhs
@@ -1961,7 +1966,7 @@ TYPE
 		PROCEDURE SetRelatedIndexList*(relatedIndexList: ExpressionList);
 		BEGIN SELF.relatedIndexList := relatedIndexList
 		END SetRelatedIndexList;
-		
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitDesignator(SELF)
@@ -2105,7 +2110,7 @@ TYPE
 		PROCEDURE HasRange*;
 		BEGIN hasRange := TRUE;
 		END HasRange;
-		
+
 		PROCEDURE HasTensorRange*;
 		BEGIN hasTensorRange := TRUE;
 		END HasTensorRange;

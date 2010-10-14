@@ -3560,13 +3560,10 @@ TYPE
 
 				IF x.left IS SyntaxTree.SupercallDesignator THEN
 					Emit(Push(operand.tag));
-					parametersSize := ProcedureParametersSize(system,symbol(SyntaxTree.Procedure));
 				ELSIF (procedureType.isDelegate) THEN
 					Emit(Push(operand.tag));
-					parametersSize := ProcedureParametersSize(system,symbol(SyntaxTree.Procedure));
-				ELSE
-					parametersSize := ProcedureParametersSize(system,symbol(SyntaxTree.Procedure));
 				END;
+				parametersSize := ProcedureParametersSize(system,symbol(SyntaxTree.Procedure));
 			ELSIF (symbol IS SyntaxTree.Variable) OR (symbol IS SyntaxTree.Parameter) THEN
 				(*! done in frontend, better do it here?
 				IF SemanticChecker.ContainsPointer(procedureType.returnType) THEN
@@ -8381,14 +8378,23 @@ TYPE
 	(* OLIVIER *)
 	PROCEDURE ParametersSize(system: Global.System; procedureType: SyntaxTree.ProcedureType; isNested: BOOLEAN): LONGINT;
 	VAR parSize: LONGINT; parameter: SyntaxTree.Parameter;
+	
+		PROCEDURE Parameter(parameter: SyntaxTree.Parameter);
+		BEGIN
+			IF parameter # NIL THEN
+				INC(parSize,system.SizeOfParameter(parameter));
+				parSize := parSize + (-parSize) MOD system.addressSize;
+			END;
+		END Parameter;
+		
 	BEGIN
 		parSize := 0;
 		parameter :=procedureType.lastParameter;
 		WHILE (parameter # NIL) DO
-			INC(parSize,system.SizeOfParameter(parameter));
-			parSize := parSize + (-parSize) MOD system.addressSize;
+			Parameter(parameter);
 			parameter := parameter.prevParameter;
 		END;
+		Parameter(procedureType.selfParameter);
 		(*
 		IF procedureType.HasFlag(SyntaxTree.DelegateFlag) THEN INC(parSize,system.addressSize) END; (* method => self pointer *)
 			NO, SELF is encoded as regular parameter
