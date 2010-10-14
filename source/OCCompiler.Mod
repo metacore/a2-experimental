@@ -403,7 +403,8 @@ TYPE
 					Error("backend could not be installed"); result := FALSE;
 				END;
 			END;
-		ELSE backend := GetBackend(DefaultBackend)
+		ELSE backend := GetBackend(DefaultBackend);
+			IF backend = NIL THEN Error("default backend could not be installed"); result := FALSE END;
 		END;
 
 		IF options.GetString("objectFile",name) THEN

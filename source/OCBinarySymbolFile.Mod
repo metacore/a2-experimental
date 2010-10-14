@@ -491,6 +491,9 @@ TYPE
 			IF procedureType.returnParameter # NIL THEN
 				procedureType.returnParameter.SetType(ResolveType(procedureType.returnParameter.type));
 			END;
+			IF procedureType.selfParameter # NIL THEN
+				procedureType.selfParameter.SetType(ResolveType(procedureType.selfParameter.type));
+			END;
 		END FixProcedureType;
 
 		(* a type reference is resolved by replacing it with the respective element of the type list, all other types remain *)
@@ -2028,7 +2031,7 @@ TYPE
 					Parameters(procedureType.lastParameter,TRUE);
 				ELSE
 					Parameters(procedureType.returnParameter,FALSE);
-					Parameters(procedureType.selfParamater,FALSE);
+					Parameters(procedureType.selfParameter,FALSE);
 					Parameters(procedureType.firstParameter,FALSE);
 				END;
 				w.RawNum(sfEnd);

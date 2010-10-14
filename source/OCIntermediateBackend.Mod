@@ -8378,7 +8378,7 @@ TYPE
 	(* OLIVIER *)
 	PROCEDURE ParametersSize(system: Global.System; procedureType: SyntaxTree.ProcedureType; isNested: BOOLEAN): LONGINT;
 	VAR parSize: LONGINT; parameter: SyntaxTree.Parameter;
-	
+
 		PROCEDURE Parameter(parameter: SyntaxTree.Parameter);
 		BEGIN
 			IF parameter # NIL THEN
@@ -8386,15 +8386,16 @@ TYPE
 				parSize := parSize + (-parSize) MOD system.addressSize;
 			END;
 		END Parameter;
-		
+
 	BEGIN
 		parSize := 0;
+		Parameter(procedureType.selfParameter);
 		parameter :=procedureType.lastParameter;
 		WHILE (parameter # NIL) DO
 			Parameter(parameter);
 			parameter := parameter.prevParameter;
 		END;
-		Parameter(procedureType.selfParameter);
+
 		(*
 		IF procedureType.HasFlag(SyntaxTree.DelegateFlag) THEN INC(parSize,system.addressSize) END; (* method => self pointer *)
 			NO, SELF is encoded as regular parameter
