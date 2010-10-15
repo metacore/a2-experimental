@@ -1267,7 +1267,7 @@ TYPE
 			(* list of all operators needed to access an array-structured object type *)
 			arrayAccessOperators-: ArrayAccessOperators;
 
-
+		(* OLIVIER *)
 		PROCEDURE & InitRecordType( position: LONGINT; scope: Scope; recordScope: RecordScope);
 		BEGIN
 			InitType( position);
@@ -1279,7 +1279,7 @@ TYPE
 			ASSERT(recordScope.ownerRecord = NIL); (* cannot register twice ! *)
 			recordScope.ownerRecord := SELF;
 			isObject := FALSE; isProtected := FALSE;
-			arrayStructure := NIL;
+			arrayStructure := NIL; (* OLIVIER *)
 		END InitRecordType;
 
 		PROCEDURE SetBaseType*( type: Type );
@@ -1737,7 +1737,7 @@ TYPE
 
 	END BinaryExpression;
 
-
+	(* OLIVIER *)
 	(** expression that denotes any kind of range (before the semantic check)
 	    <<[first] '..' [last] ['by' step] | '*' >>
 	**)
@@ -1786,9 +1786,8 @@ TYPE
 
 	END RangeExpression;
 
-
-
-(** expression that denotes a range of elements inside a case-statement (after the semantic check)
+	(* OLIVIER *)
+	(** expression that denotes a range of elements inside a case-statement (after the semantic check)
 	    <<first .. last>>
 	**)
 	CaseRangeExpression* = OBJECT (Expression)
@@ -1817,6 +1816,7 @@ TYPE
 
 	END CaseRangeExpression;
 
+	(* OLIVIER *)
 	(** expression that denotes a range of elements inside a set (after the semantic check)
 	    <<first .. last>>
 	**)
@@ -2097,20 +2097,22 @@ TYPE
 			parameters-: ExpressionList;
 			hasRange-: BOOLEAN;
 			hasTensorRange-: BOOLEAN; (* OLIVIER *)
-
+			
+		(* OLIVIER *)
 		PROCEDURE &InitIndexDesignator(position: LONGINT; left: Designator);
 		BEGIN
 			InitDesignator(position);
 			SELF.left := left;
 			parameters := NewExpressionList();
 			hasRange := FALSE;
-			hasTensorRange := FALSE;
+			hasTensorRange := FALSE;(* OLIVIER *)
 		END InitIndexDesignator;
 
 		PROCEDURE HasRange*;
 		BEGIN hasRange := TRUE;
 		END HasRange;
 
+		(* OLIVIER *)
 		PROCEDURE HasTensorRange*;
 		BEGIN hasTensorRange := TRUE;
 		END HasTensorRange;

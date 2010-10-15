@@ -872,18 +872,10 @@ TYPE
 					IF x.isObject THEN (* object *)
 						ASSERT(x.pointerType # NIL);
 						IF resolved = SyntaxTree.invalidType THEN (* error already handled *)
-						ELSIF resolved IS SyntaxTree.ObjectType THEN
+						ELSIF resolved IS SyntaxTree.ObjectType THEN (* the type denoted by the <<OBJECT>> alone *)
 							baseType := NIL
 						ELSIF IsPointerToRecord(resolved,recordType) THEN
-							IF (recordType.isObject) & recordType.HasArrayStructure() THEN
-								x.SetArrayStructure(recordType.arrayStructure)
-							END;
 						ELSIF resolved IS SyntaxTree.MathArrayType THEN
-							IF resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
-								Error(position, Diagnostics.Invalid,"object extends tensor math array")
-							ELSE
-								x.SetArrayStructure(resolved(SyntaxTree.MathArrayType))
-							END
 						ELSE
 							Error(position, Diagnostics.Invalid,"object does not extend pointer to record, object or math array ")
 						END;
@@ -902,42 +894,6 @@ TYPE
 						END;
 					END;
 
-					(*
-					IF resolved = SyntaxTree.invalidType THEN
-						(* error already handled *)
-					ELSIF (resolved IS SyntaxTree.ObjectType) & (x.pointerType # NIL) THEN
-						baseType := NIL;
-
-					ELSIF IsObject(resolved) & ~x.isObject THEN
-							Error(position, Diagnostics.Invalid, "record extends object" );
-					ELSIF IsObject(resolved) & (x.isObject) THEN
-							ASSERT(x.pointerType # NIL);
-						IF (resolved(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType).HasArrayStructure()) THEN
-							(* if object to be extended has an array structure, then inherit it *)
-							x.SetArrayStructure(resolved(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType).arrayStructure)
-						END
-					ELSIF resolved IS SyntaxTree.ArrayType THEN
-						Error(position, Diagnostics.Invalid,"object/record extends non-math array")
-					ELSIF resolved IS SyntaxTree.MathArrayType THEN
-						IF x.isObject THEN
-							IF resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
-								Error(position, Diagnostics.Invalid,"object extends tensor math array")
-							ELSE
-								x.SetArrayStructure(resolved(SyntaxTree.MathArrayType))
-							END
-						ELSE
-							Error(position, Diagnostics.Invalid,"record extends math array")
-						END
-					ELSIF (resolved IS SyntaxTree.PointerType) & (resolved(SyntaxTree.
-					ELSIF ~(resolved IS SyntaxTree.RecordType) THEN
-						Error(position, Diagnostics.Invalid,"record/object does not extend record/object, math array or array-structured object type")
-					(* TODO: how is this possible? *)
-					ELSIF (resolved IS SyntaxTree.RecordType) &
-							(resolved(SyntaxTree.RecordType).isObject) THEN
-						Error(position, Diagnostics.Invalid,"record/object extends an object directly")
-					END;
-					*)
-
 					x.SetBaseType(baseType);
 					IF x.Level() > 15 THEN
 						Error(position,Diagnostics.Invalid,"record/object inheritance level too high");
@@ -954,8 +910,7 @@ TYPE
 				Declarations(x.recordScope);
 
 				(* OLIVIER *)
-				(* TODO: skip this if error has already occurred? *)
-				IF x.HasArrayStructure() THEN CheckArrayStructuredObjectType(x) END;
+				ResolveArrayStructure(x);
 
 				(* computation of sizes and offsets skipped -> done in backend / system *)
 
@@ -983,42 +938,8 @@ TYPE
 					symbol := symbol.nextSymbol;
 				END;
 				IF isRealtime THEN x.SetRealtime(TRUE) END;
-				(*
-				procedure := x.recordScope.firstProcedure;
-				WHILE (procedure # NIL) DO
-					IF procedure.super # NIL THEN
-						procedure.SetMethodNumber(procedure.super.methodNumber)
-					ELSE
-						procedure.SetMethodNumber(numberMethods);
-						INC(numberMethods);
-					END;
-					procedure := procedure.nextProcedure;
-				END;
-				*)
-				x.recordScope.SetNumberMethods(numberMethods);
 
-				(*! testing
-				recordBase := x;
-				WHILE recordBase # NIL DO
-					IF recordBase.typeDeclaration # NIL THEN
-						D.Str0(recordBase.typeDeclaration.name.name);D.Ln;
-					ELSE
-						D.Str("no type decl"); D.Ln;
-					END;
-					symbol := recordBase.recordScope.firstSymbol;
-					WHILE symbol # NIL DO
-						IF symbol IS SyntaxTree.Procedure THEN
-							D.String("procedure ");
-							D.Str0(symbol.name.name);
-							D.String(" : ");
-							D.Int(symbol(SyntaxTree.Procedure).methodNumber,1);
-							D.Ln;
-						END;
-						symbol := symbol.nextSymbol
-					END;
-					recordBase := recordBase.GetBaseRecord();
-				END;
-				*)
+				x.recordScope.SetNumberMethods(numberMethods);
 
 				(* OLIVIER *)
 				(* TODO: is this needed anymore? *)
@@ -1086,58 +1007,70 @@ TYPE
 		END VisitActorType;
 
 		(* OLIVIER *)
-		(* check an array-structured object type
+		(* check if an object is an array-structured object type
+			- determine the array structure
 			- collect operators from top to bottom in the inheritance hierarchy
 			- check if LEN operator is declared for non-static array structures
 			- determine number of possible index operators
 			- check if index operators for both sub-array extraction and allocation are present
 		*)
-		PROCEDURE CheckArrayStructuredObjectType(recordType: SyntaxTree.RecordType);
+		PROCEDURE ResolveArrayStructure*(recordType: SyntaxTree.RecordType);
 		VAR
 			indexOperatorCount, i: LONGINT;
 			arrayAccessOperators: SyntaxTree.ArrayAccessOperators;
-
+			
 		BEGIN
-			ASSERT(recordType.HasArrayStructure());
-			ASSERT(recordType.arrayStructure.form # SyntaxTree.Tensor);
-
-			(* 2 to the power of the dimensionality *)
-			indexOperatorCount := 1;
-			FOR i := 1 TO recordType.arrayStructure.Dimensionality() DO
-				indexOperatorCount := indexOperatorCount * 2
+			IF recordType.isObject & (recordType.baseType # NIL) THEN
+				(* determine array structure *)	
+				recordType.SetArrayStructure(MathArrayStructureOfType(recordType.baseType.resolved))
 			END;
+			
+			IF recordType.HasArrayStructure() THEN
+				(* the object is an ASOT *)
+				
+				IF recordType.arrayStructure.form = SyntaxTree.Tensor THEN
+					Error(recordType.position, Diagnostics.Invalid, "array-structured object type based on tensor")
+				ELSE
+					
+					(* 2 to the power of the dimensionality *)
+					indexOperatorCount := 1;
+					FOR i := 1 TO recordType.arrayStructure.Dimensionality() DO
+						indexOperatorCount := indexOperatorCount * 2
+					END;
 
-			(* reset array access operators *)
-			arrayAccessOperators.len := NIL;
-			NEW(arrayAccessOperators.read, indexOperatorCount);
-			NEW(arrayAccessOperators.write, indexOperatorCount);
-			FOR i := 0 TO indexOperatorCount - 1 DO
-				arrayAccessOperators.read[i] := NIL;
-				arrayAccessOperators.write[i] := NIL
-			END;
+					(* reset array access operators *)
+					arrayAccessOperators.len := NIL;
+					NEW(arrayAccessOperators.read, indexOperatorCount);
+					NEW(arrayAccessOperators.write, indexOperatorCount);
+					FOR i := 0 TO indexOperatorCount - 1 DO
+						arrayAccessOperators.read[i] := NIL;
+						arrayAccessOperators.write[i] := NIL
+					END;
 
-			(* collect access operators in the record scope *)
-			CollectArrayAccessOperators(recordType.recordScope, recordType.arrayStructure, arrayAccessOperators);
+					(* collect access operators in the record scope *)
+					CollectArrayAccessOperators(recordType.recordScope, recordType.arrayStructure, arrayAccessOperators);
 
-			(* show error messages for missing operators *)
-			IF arrayAccessOperators.read[indexOperatorCount - 1] = NIL THEN Error(recordType.position, Diagnostics.Invalid, "[] operator for sub-array extraction missing") END;
-			IF arrayAccessOperators.write[indexOperatorCount - 1] = NIL THEN Error(recordType.position, Diagnostics.Invalid, "[] operator for sub-array allocation missing") END;
-			IF arrayAccessOperators.len = NIL THEN
-				(*
-				IF recordType.arrayStructure.form = SyntaxTree.Static THEN
-					(* TODO: insert the following operator declaration into the record scope:
-					OPERATOR "LEN"*(): ARRAY [<d>] OF LONGINT;
-					BEGIN RETURN [<lengths>];
-					END "LEN";
-					*)
+					(* show error messages for missing operators *)
+					IF arrayAccessOperators.read[indexOperatorCount - 1] = NIL THEN Error(recordType.position, Diagnostics.Invalid, "[] operator for sub-array extraction missing") END;
+					IF arrayAccessOperators.write[indexOperatorCount - 1] = NIL THEN Error(recordType.position, Diagnostics.Invalid, "[] operator for sub-array allocation missing") END;
+					IF arrayAccessOperators.len = NIL THEN
+						(*
+						IF recordType.arrayStructure.form = SyntaxTree.Static THEN
+							(* TODO: insert the following operator declaration into the record scope:
+							OPERATOR "LEN"*(): ARRAY [<d>] OF LONGINT;
+							BEGIN RETURN [<lengths>];
+							END "LEN";
+							*)
+						END;
+						*)
+						Error(recordType.position, Diagnostics.Invalid, "LEN operator missing")
+					END
 				END;
-				*)
-				Error(recordType.position, Diagnostics.Invalid, "LEN operator missing")
-			END;
 
-			recordType.SetArrayAccessOperators(arrayAccessOperators)
-		END CheckArrayStructuredObjectType;
-
+				recordType.SetArrayAccessOperators(arrayAccessOperators)
+			END
+		END ResolveArrayStructure;
+		
 		(* OLIVIER *)
 		(** collect array access operators in a record scope **)
 		PROCEDURE CollectArrayAccessOperators(recordScope: SyntaxTree.RecordScope; arrayStructure: SyntaxTree.MathArrayType; VAR arrayAccessOperators: SyntaxTree.ArrayAccessOperators);
@@ -3544,16 +3477,6 @@ TYPE
 				IF rhs # NIL THEN
 					(* add actual parameter for RHS *)
 
-					(* TODO: does this happen automatically?
-					(* check compability of RHS and add conversion if needed *)
-					IF CompatibleTo(system, rhs.type, ???leftType) THEN
-						rhs := NewConversion(rhs.position, rhs, ???leftType, NIL);
-					ELSE
-						Error(left.position,Diagnostics.Invalid,"incompatible assignment");
-						rhs := SyntaxTree.invalidExpression;
-					END;
-					*)
-
 					IF needsReshaping THEN
 						(* reshape using OCArrayBase.ExpandDimensions *)
 						tempMathArrayExpression := SyntaxTree.NewMathArrayExpression(InvalidPosition);
@@ -3571,23 +3494,12 @@ TYPE
 						tempDesignator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
 						tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier(InvalidPosition, "ExpandDimensions"));
 						expression := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, tempDesignator, tempList));
-
-						(*
-						(* make sure the expression is of the same type as the last non-hidden formal parameter *)
-						formalParameter := operator.type.resolved(SyntaxTree.ProcedureType).firstParameter;
-						FOR i := 1 TO indexList.Length() DO formalParameter := formalParameter.nextParameter END;
-						expression.SetType(formalParameter.type);
-						*)
-
+						
 						IF expression.type.resolved IS SyntaxTree.MathArrayType THEN
 							(* change the base type of the returned tensor from SYSTEM.ALL to the array structure's element type *)
 							castReturnType := SyntaxTree.NewMathArrayType(Diagnostics.Invalid, expression.type.scope,SyntaxTree.Tensor);
 							castReturnType.SetArrayBase(ArrayBase(recordType.arrayStructure,MAX(LONGINT)));
-
 							expression.SetType(castReturnType);
-							(*
-							expression.type.resolved(SyntaxTree.MathArrayType).SetArrayBase(recordType.arrayStructure.arrayBase);
-							*)
 						ELSE
 							Error(expression.position, Diagnostics.Invalid, "problem with resolving OCArrayBase.ExpandDimensions");
 						END;
@@ -7831,7 +7743,9 @@ TYPE
 	END IsMathArrayType;
 
 	(* OLIVIER *)
+	(** if a type is an array-structured object type *)
 	PROCEDURE IsArrayStructuredObjectType*(type: SyntaxTree.Type): BOOLEAN;
+	VAR recordType: SyntaxTree.RecordType;
 	BEGIN
 		IF type = NIL THEN
 			RETURN FALSE
@@ -7839,10 +7753,18 @@ TYPE
 			type := type.resolved;
 			IF type IS SyntaxTree.PointerType THEN
 				type := type(SyntaxTree.PointerType).pointerBase.resolved;
-			END;
-			RETURN (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).arrayStructure # NIL)
+				IF type IS SyntaxTree.RecordType THEN
+					recordType := type(SyntaxTree.RecordType);
+					RETURN recordType.isObject & recordType.HasArrayStructure()
+				ELSE
+					RETURN FALSE
+				END
+			ELSE
+				RETURN FALSE
+			END
 		END
 	END IsArrayStructuredObjectType;
+
 
 	(* OLIVIER *)
 	(** the math array structure of a type

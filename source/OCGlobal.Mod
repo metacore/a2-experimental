@@ -278,6 +278,7 @@ TYPE
 			RETURN ~error
 		END GenerateParameterOffsets;
 
+		(* OLIVIER *)
 		PROCEDURE SizeOf*(type: SyntaxTree.Type): LONGINT;
 		VAR size: LONGINT; error: BOOLEAN;
 		BEGIN
@@ -372,6 +373,7 @@ TYPE
 			RETURN size
 		END SizeOf;
 
+		(* OLIVIER *)
 		PROCEDURE SizeOfParameter*(par: SyntaxTree.Parameter):LONGINT;
 		BEGIN
 			IF (par.type.resolved IS SyntaxTree.ArrayType) OR (par.type.resolved IS SyntaxTree.MathArrayType) THEN

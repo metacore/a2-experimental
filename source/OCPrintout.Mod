@@ -128,6 +128,11 @@ TYPE
 		BEGIN
 			VisitBasicType(x);
 		END VisitFloatType;
+		
+		PROCEDURE VisitByteType(x: SyntaxTree.ByteType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitByteType;
 
 		PROCEDURE VisitQualifiedType(x: SyntaxTree.QualifiedType);
 		BEGIN
@@ -135,7 +140,6 @@ TYPE
 				AlertString("(*unresolved*)");
 			END;
 			IF x.qualifiedIdentifier # NIL THEN
-				QualifiedIdentifier(x.qualifiedIdentifier)
 			ELSE
 				AlertString("NIL (* missing qualified identifier *)");
 			END;
@@ -525,7 +529,7 @@ TYPE
 			END
 		END VisitCaseRangeExpression;
 
-		(* TODO: ok? *)
+		(* OLIVIER *)
 		PROCEDURE VisitSetRangeExpression(x: SyntaxTree.SetRangeExpression);
 		BEGIN
 			Expression(x.first);
@@ -541,7 +545,7 @@ TYPE
 			END
 		END VisitSetRangeExpression;
 
-		(* TODO: ok? *)
+		(* OLIVIER *)
 		PROCEDURE VisitArrayRangeExpression(x: SyntaxTree.ArrayRangeExpression);
 		BEGIN
 			IF x.missingFirst & x.missingLast & x.missingStep THEN
@@ -572,8 +576,6 @@ TYPE
 		BEGIN
 			w.String(" ? ");
 		END VisitTensorRangeExpression;
-
-
 
 		PROCEDURE VisitConversion(x: SyntaxTree.Conversion);
 		BEGIN
@@ -1152,6 +1154,7 @@ TYPE
 			END;
 		END VisitProcedure;
 
+		(* OLIVIER *)
 		PROCEDURE VisitOperator(x: SyntaxTree.Operator);
 		VAR type: SyntaxTree.ProcedureType;
 			recordType: SyntaxTree.RecordType;
@@ -1161,6 +1164,7 @@ TYPE
 			IF Visible(x) THEN
 				Indent;
 				(* TODO: ok? *)
+				(* OLIVIER *)
 				(* mark array access operators for array-structured object types *)
 				IF info THEN
 					IF (x.scope # NIL) & (x.scope IS SyntaxTree.RecordScope) THEN
@@ -1738,7 +1742,7 @@ VAR
 		D.Update();
 	END Info;
 
-	(* TODO: ok? *)
+	(* OLIVIER *)
 	PROCEDURE IsIntegerValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
 	VAR result: BOOLEAN;
 	BEGIN

@@ -3,7 +3,7 @@ MODULE OCBinarySymbolFile; (** AUTHOR "fof"; PURPOSE "Symbol File - Binary Forma
 IMPORT
 	 Basic := OCBasic,  Scanner := OCScanner, SyntaxTree := OCSyntaxTree, Global := OCGlobal,
 	 Files,Streams, Kernel, SYSTEM, D := Debugging,  Diagnostics, Options, Formats := OCFormats, InterfaceComparison := OCInterfaceComparison
-	 ,Commands, WMUtilities, Printout := OCPrintout
+	 ,Commands, WMUtilities, Printout := OCPrintout, SemanticChecker := OCSemanticChecker (* OLIVIER *)
 	 ;
 
 (** Symbol File Format
@@ -226,9 +226,17 @@ TYPE
 	Resolver=OBJECT (SyntaxTree.Visitor)
 	VAR typeList: IndexToType; system: Global.System; typeFixes: LateFixList;
 
-		PROCEDURE & Init(system: Global.System);
+		(* OLIVIER *)
+		checker: SemanticChecker.Checker;
+
+		PROCEDURE & Init(system: Global.System; symbolFile: BinarySymbolFile; importCache: SyntaxTree.ModuleScope);
+		VAR streamDiagnostics: Diagnostics.StreamDiagnostics;
 		BEGIN
 			typeList := NIL; SELF.system := system; NEW(typeFixes);
+			(* OLIVIER *)
+			(* TODO: how to get: diagnostics, symbolFileFormat, dataflowSpecification and importCache *)
+			NEW(streamDiagnostics, D.Log);
+			checker := SemanticChecker.NewChecker(streamDiagnostics,FALSE,system,symbolFile,NIL,importCache);
 		END Init;
 
 		(* types that do not refer to other types *)
@@ -381,14 +389,10 @@ TYPE
 			recordType.SetBaseType(ResolveType(recordType.baseType));
 
 			recordScope := recordType.recordScope;
-			IF (recordType.baseType # NIL ) & (recordType.baseType.resolved IS SyntaxTree.MathArrayType) THEN
-				recordType.SetArrayStructure(recordType.baseType.resolved(SyntaxTree.MathArrayType))
-			END;
 			recordBase := recordType.GetBaseRecord();
 			IF recordBase = NIL THEN numberMethods := 0;
 			ELSE
 				recordBase.Accept(SELF); numberMethods := recordBase.recordScope.numberMethods;
-				recordType.SetArrayStructure(recordBase.arrayStructure);
 			END;
 			symbol := recordScope.firstSymbol; (* must use the sorted list here, important! *)
 			WHILE symbol # NIL DO
@@ -425,34 +429,23 @@ TYPE
 				symbol := symbol.nextSymbol;
 			END;
 
-			(*
-			procedure := recordScope.firstProcedure;
-			WHILE (procedure # NIL) DO
-				IF recordBase # NIL THEN
-					super := recordBase.recordScope.FindProcedure(procedure.name);
-					IF (super # NIL) & (SyntaxTree.Public * super.access # {}) OR (recordBase.recordScope.ownerModule = recordScope.ownerModule) THEN
-						procedure.SetSuper(super);
-					END;
-				END;
-
-				IF procedure.super # NIL THEN
-					procedure.SetMethodNumber(procedure.super.methodNumber)
-				ELSE
-					procedure.SetMethodNumber(numberMethods);
-					INC(numberMethods);
-				END;
-
-				procedure := procedure.nextProcedure;
-			END;
-			*)
 			recordScope.SetNumberMethods(numberMethods);
 
 			IF (recordScope.firstProcedure # NIL) OR (recordBase # NIL) & (recordBase.isObject) THEN
 				recordType.IsObject(TRUE)
 			END;
 
-
 			Scope(recordType.recordScope);
+
+			(*
+			Printout.Info("Record ", recordType);
+			Printout.Info("RecordScope ",recordType.recordScope);
+			*)
+
+			(* OLIVIER *)
+			checker.SetCurrentScope(recordType.recordScope);
+			checker.ResolveArrayStructure(recordType);
+
 			recordType.SetState(SyntaxTree.Resolved);
 			size := system.SizeOf(recordType); (* generate field offsets *)
 
@@ -461,9 +454,6 @@ TYPE
 				typeDeclaration := pointerType.typeDeclaration;
 				recordType.SetTypeDeclaration(typeDeclaration);
 			END;
-			(*
-			ASSERT(recordType.typeDeclaration # NIL);
-			*)
 		END VisitRecordType;
 
 
@@ -905,11 +895,12 @@ TYPE
 				priority: LONGINT;
 				visibility: SET;
 
-				active, safe: BOOLEAN;
+				active, safe, isOperator: BOOLEAN;
 				untraced, realtime, constructor: BOOLEAN;
 
 				variable: SyntaxTree.Variable;
 				procedure: SyntaxTree.Procedure;
+				operator: SyntaxTree.Operator;
 				procedureType: SyntaxTree.ProcedureType;
 				recordScope: SyntaxTree.RecordScope;
 				recordBody: SyntaxTree.Body;
@@ -935,7 +926,8 @@ TYPE
 
 				R.RawNum(tag);
 				WHILE  (tag < sfTProcedure) OR (tag > sfEnd) DO	(*read fields*)
-					Symbol(recordScope,type,name,visibility,untraced, realtime, constructor, FALSE);
+					isOperator := FALSE;
+					Symbol(recordScope,type,name,visibility,untraced, realtime, constructor, isOperator);
 					ASSERT(type # NIL);
 					IF  name = "" THEN visibility := SyntaxTree.Internal END;
 					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,name));
@@ -951,11 +943,17 @@ TYPE
 				IF tag=sfTProcedure THEN
 					R.RawNum(tag);
 					WHILE  tag#sfEnd  DO
-						Symbol(recordScope,type,name, visibility,untraced, realtime, constructor,FALSE);
+						isOperator := FALSE;
+						Symbol(recordScope,type,name, visibility,untraced, realtime, constructor, isOperator);
 						IF  name = "" THEN  R.RawString(name)  END;
 
 						procedureScope := SyntaxTree.NewProcedureScope(recordScope);
-						procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
+						IF isOperator THEN
+							operator := SyntaxTree.NewOperator(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
+							procedure := operator
+						ELSE
+							procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
+						END;
 						procedureType := SyntaxTree.NewProcedureType(-1,recordScope);
 						procedureType.SetReturnType(type);
 						procedureType.SetRealtime(realtime);
@@ -970,6 +968,9 @@ TYPE
 						ParameterList(callingConvention,procedureScope,procedureType);
 
 						recordScope.AddProcedure(procedure);
+						IF isOperator THEN
+							recordScope.AddOperator(operator);
+						END;
 						recordScope.EnterSymbol(procedure,b);
 
 						(* This identifies a inlined Indexer *)
@@ -992,6 +993,7 @@ TYPE
 							procedureScope.SetBody(recordBody);
 						END;
 					END
+
 				ELSE ASSERT(tag = sfEnd);
 				END;
 
@@ -1319,7 +1321,7 @@ TYPE
 			END Inline;
 
 			(* Symbol = [sfObjFlag flag:RawNum] [sfReadOnly] Type name:RawString *)
-			PROCEDURE Symbol(parentScope: SyntaxTree.Scope; VAR type: SyntaxTree.Type; VAR name: Scanner.StringType;  VAR visibility: SET; VAR untraced, realtime, constructor: BOOLEAN; operator: BOOLEAN);
+			PROCEDURE Symbol(parentScope: SyntaxTree.Scope; VAR type: SyntaxTree.Type; VAR name: Scanner.StringType;  VAR visibility: SET; VAR untraced, realtime, constructor, operator: BOOLEAN);
 			VAR  f,i: LONGINT;
 			BEGIN
 				IF TraceImport IN Trace THEN
@@ -1327,10 +1329,11 @@ TYPE
 				END;
 				untraced := FALSE; realtime := FALSE; constructor := FALSE;
 				visibility:=SyntaxTree.Public+SyntaxTree.Protected+SyntaxTree.Internal;
-				IF tag=sfObjFlag THEN
+				WHILE tag=sfObjFlag DO
 					R.RawNum(f);
 					IF f = sfUntraced THEN untraced := TRUE
 					ELSIF f = sfRealtime THEN realtime := TRUE
+					ELSIF f = sfOperator THEN operator := TRUE;
 					ELSE D.Str("Object: unknown objflag"); D.Ln
 					END;
 					R.RawNum(tag);
@@ -1367,7 +1370,7 @@ TYPE
 			*)
 
 			PROCEDURE Module;
-			VAR flags: SET; untraced, realtime, constructor: BOOLEAN; callingConvention: LONGINT;
+			VAR flags: SET; untraced, realtime, constructor,operator: BOOLEAN; callingConvention: LONGINT;
 			BEGIN
 				R.RawSet(flags);
 
@@ -1383,7 +1386,8 @@ TYPE
 				IF TraceImport IN Trace THEN  D.Str("importing constants"); D.Ln; END;
 				IF tag=sfConst	THEN R.RawNum(tag);
 					WHILE	(tag < sfVar) OR (tag > sfEnd) DO
-						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,FALSE);
+						operator := FALSE;
+						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,operator);
 						ASSERT(type # NIL);
 						value := Value(type);
 						constant := SyntaxTree.NewConstant(-1,SyntaxTree.NewIdentifier(-1,name));
@@ -1400,7 +1404,8 @@ TYPE
 				IF TraceImport IN Trace THEN  D.Str("importing variables"); D.Ln; END;
 				IF	tag=sfVar	THEN	R.RawNum(tag);
 					WHILE	(tag < sfXProcedure) OR (tag > sfEnd)	DO
-						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,FALSE);
+						operator := FALSE;
+						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,operator);
 						ASSERT(type # NIL);
 						variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,name));
 						variable.SetType(type);
@@ -1415,7 +1420,8 @@ TYPE
 				IF TraceImport IN Trace THEN  D.Str("importing procedures"); D.Ln; END;
 				IF	tag=sfXProcedure	THEN	R.RawNum(tag);
 					WHILE	(tag < sfOperator) OR (tag > sfEnd)	DO
-						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,FALSE);
+						operator := FALSE;
+						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,operator);
 						ASSERT(~(constructor));
 						procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
 						procedureType := SyntaxTree.NewProcedureType(-1,moduleScope);
@@ -1436,8 +1442,8 @@ TYPE
 				IF TraceImport IN Trace THEN  D.Str("importing operators"); D.Ln; END;
 				IF	tag=sfOperator	THEN	R.RawNum(tag);
 					WHILE	(tag < sfCProcedure) OR (tag > sfEnd)	DO
-
-						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,TRUE);
+						operator := TRUE;
+						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,operator);
 						ASSERT(~(constructor));
 						procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
 						procedureType := SyntaxTree.NewProcedureType(-1,moduleScope);
@@ -1463,7 +1469,8 @@ TYPE
 				IF TraceImport IN Trace THEN  D.Str("importing inline procedures"); D.Ln; END;
 				IF  tag = sfCProcedure  THEN	R.RawNum(tag);
 					WHILE	(tag < sfAlias) OR (tag > sfEnd)	DO
-						Symbol(moduleScope,type,name, visibility,untraced, realtime, constructor,FALSE);
+						operator := FALSE;
+						Symbol(moduleScope,type,name, visibility,untraced, realtime, constructor,operator);
 						ASSERT(~(constructor));
 						procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
 						procedureType := SyntaxTree.NewProcedureType(-1,moduleScope);
@@ -1565,7 +1572,7 @@ TYPE
 			Module;
 
 			stamp := Kernel.GetTicks();
-			NEW(resolver,system);
+			NEW(resolver,system,SELF,importCache);
 			resolver.Resolve(module,allTypes);
 			module.SetState(SyntaxTree.Resolved);
 
@@ -1632,7 +1639,7 @@ TYPE
 			*)
 			PROCEDURE Record(record: SyntaxTree.RecordType);
 			VAR scope: SyntaxTree.RecordScope; variable: SyntaxTree.Variable; procedure: SyntaxTree.Procedure; name: Scanner.StringType; flags,mode: SET;
-				procedureType: SyntaxTree.ProcedureType; body: SyntaxTree.Body;
+				procedureType: SyntaxTree.ProcedureType; body: SyntaxTree.Body; first: BOOLEAN;
 			BEGIN
 				scope := record.recordScope;
 				IF record.recordScope.bodyProcedure # NIL THEN
@@ -1648,21 +1655,22 @@ TYPE
 				variable := scope.firstVariable;
 				WHILE variable # NIL DO
 					ASSERT(variable.type # NIL);
-					Symbol(variable.type,variable.name,variable.access,variable.untraced,FALSE, FALSE);
+					Symbol(variable.type,variable.name,variable.access,variable.untraced,FALSE, FALSE, FALSE);
 					variable := variable.nextVariable;
 				END;
+
 				procedure := scope.firstProcedure;
 				IF procedure # NIL THEN
 					w.RawNum(sfTProcedure);
 					WHILE procedure # NIL DO
 						procedureType := procedure.type(SyntaxTree.ProcedureType);
 						IF (procedure.access * SyntaxTree.Internal = procedure.access) THEN  (* not exported method *)
-							Symbol(procedureType.returnType,procedure.name,procedure.access,FALSE, procedureType.isRealtime,procedure.isConstructor);
+							Symbol(procedureType.returnType,procedure.name,procedure.access,FALSE, procedureType.isRealtime,procedure.isConstructor,procedure IS SyntaxTree.Operator);
 							procedure.name.GetString(name);
 							w.RawString(name);
 						ELSE (* exported method *)
 							Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),
-							FALSE, procedureType.isRealtime,procedure.isConstructor
+							FALSE, procedureType.isRealtime,procedure.isConstructor, procedure IS SyntaxTree.Operator
 							);
 						END;
 						ParameterList(procedure.type(SyntaxTree.ProcedureType));
@@ -2069,7 +2077,7 @@ TYPE
 			(* Symbol =
 				[sfObjFlag flag:RawNum] [sfReadOnly] Type Name
 			*)
-			PROCEDURE Symbol(type: SyntaxTree.Type; name: SyntaxTree.Identifier; visibility: SET;untraced, realtime, constructor: BOOLEAN);
+			PROCEDURE Symbol(type: SyntaxTree.Type; name: SyntaxTree.Identifier; visibility: SET;untraced, realtime, constructor, operator: BOOLEAN);
 			VAR string,string2: Scanner.StringType;
 			BEGIN
 				IF TraceExport IN Trace THEN
@@ -2077,7 +2085,9 @@ TYPE
 					D.Str("Symbol "); D.Str(string); D.Ln;
 				END;
 				IF untraced THEN w.RawNum(sfObjFlag); w.RawNum(sfUntraced)
-				ELSIF realtime  THEN w.RawNum(sfObjFlag); w.RawNum(sfRealtime) END;
+				ELSIF realtime  THEN w.RawNum(sfObjFlag); w.RawNum(sfRealtime)
+				END;
+				IF operator THEN w.RawNum(sfObjFlag); w.RawNum(sfOperator) END;
 				IF (SyntaxTree.PublicRead IN visibility) & ~(SyntaxTree.PublicWrite IN visibility) THEN
 					w.RawNum(sfReadOnly);
 				END;
@@ -2135,7 +2145,7 @@ TYPE
 				WHILE constant # NIL DO
 					IF constant.access * SyntaxTree.Public # {} THEN
 						IF first THEN w.RawNum(sfConst); first := FALSE END;
-						Symbol(constant.type,constant.name,SyntaxTree.Public (*! for compatiblity should be constant.access *) ,FALSE,FALSE,FALSE);
+						Symbol(constant.type,constant.name,SyntaxTree.Public (*! for compatiblity should be constant.access *) ,FALSE,FALSE,FALSE,FALSE);
 						constant.name.GetString(name);
 						Value(constant.value.resolved(SyntaxTree.Value))
 					END;
@@ -2151,7 +2161,7 @@ TYPE
 				WHILE variable # NIL DO
 					IF variable.access * SyntaxTree.Public # {} THEN
 						IF first THEN w.RawNum(sfVar); first := FALSE END;
-						Symbol(variable.type,variable.name,variable.access,variable.untraced, FALSE, FALSE);
+						Symbol(variable.type,variable.name,variable.access,variable.untraced, FALSE, FALSE, FALSE);
 					END;
 					variable := variable.nextVariable;
 				END;
@@ -2168,7 +2178,7 @@ TYPE
 						IF ~procedure.isInline  THEN
 							IF first THEN w.RawNum(sfXProcedure); first := FALSE END;
 							Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),
-							FALSE, procedureType.isRealtime, procedure.isConstructor);
+							FALSE, procedureType.isRealtime, procedure.isConstructor, FALSE);
 							ParameterList(procedureType);
 						END;
 					END;
@@ -2186,7 +2196,7 @@ TYPE
 						procedureType := procedure.type(SyntaxTree.ProcedureType);
 						IF first THEN w.RawNum(sfOperator); first := FALSE END;
 						Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),
-						FALSE, procedure.isInline, procedure.isConstructor);
+						FALSE, procedure.isInline, procedure.isConstructor, FALSE);
 						ParameterList(procedureType);
 						IF procedure.isInline THEN
 							w.RawNum(sfInline); Inline(procedure.procedureScope);
@@ -2207,7 +2217,7 @@ TYPE
 						IF procedure.isInline THEN
 							IF first THEN w.RawNum(sfCProcedure); first := FALSE END;
 							Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),
-							FALSE, procedure.isInline, procedure.isConstructor);
+							FALSE, procedure.isInline, procedure.isConstructor, FALSE);
 							ParameterList(procedureType);
 							Inline(procedure.procedureScope);
 						END;
