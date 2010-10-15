@@ -320,7 +320,7 @@ VAR
 		i := 0;
 		WHILE name[i] # 0X DO
 			ch := name[i];
-			IF ~(((CAP( ch ) >= "A") & (CAP( ch ) <= "Z")) OR ((i > 0) & (ch >= '0') & (ch <= '9')) OR (ch = ".")) THEN  RETURN FALSE   END;
+			IF ~(((CAP( ch ) >= "A") & (CAP( ch ) <= "Z")) OR ((i > 0) & (ch >= '0') & (ch <= '9')) OR (ch = "-")) THEN  RETURN FALSE   END;
 			INC( i )
 		END;
 		RETURN TRUE
@@ -336,7 +336,7 @@ VAR
 	BEGIN
 		res := 0;  msg[0] := 0X;
 		IF ~CheckModuleName( name ) THEN
-			 res := 6;   (* module not found *)
+			res := 6;   (* module not found *)
 			COPY( "module '", msg );  Append( name, msg );  Append( "' not found", msg );  RETURN NIL
 		END;
 		m := ModuleByName( name );
@@ -358,7 +358,7 @@ VAR
 						Trace.Hex( S.ADR( m.code[0] ), -8 ); Trace.Char( ':' );
 						FOR i := 0 TO 6 DO Trace.Char( ' ' ); Trace.Hex( ORD( m.code[i] ), 1 )  END;
 						Trace.Ln
-					 END;
+					END;
 					body := S.VAL( Body, S.ADR( m.code[0] ) );
 					body;
 					res := 0;  msg[0] := 0X;
