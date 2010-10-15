@@ -140,6 +140,7 @@ TYPE
 				AlertString("(*unresolved*)");
 			END;
 			IF x.qualifiedIdentifier # NIL THEN
+				QualifiedIdentifier(x.qualifiedIdentifier)
 			ELSE
 				AlertString("NIL (* missing qualified identifier *)");
 			END;
