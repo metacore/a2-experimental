@@ -128,7 +128,7 @@ TYPE
 		BEGIN
 			VisitBasicType(x);
 		END VisitFloatType;
-		
+
 		PROCEDURE VisitByteType(x: SyntaxTree.ByteType);
 		BEGIN
 			VisitBasicType(x);
@@ -205,12 +205,12 @@ TYPE
 		BEGIN
 			VisitBasicType(x);
 		END VisitAnyType;
-		
+
 		PROCEDURE VisitAllType(x: SyntaxTree.AllType);
 		BEGIN
 			w.String("SYSTEM.ALL");
 		END VisitAllType;
-		
+
 
 		PROCEDURE VisitMathArrayType(x: SyntaxTree.MathArrayType);
 		BEGIN
@@ -512,7 +512,7 @@ TYPE
 				Expression(x.step)
 			END
 		END VisitRangeExpression;
-		
+
 		(* OLIVIER *)
 		(* actually not needed because content is already printed in CasePart *)
 		PROCEDURE VisitCaseRangeExpression(x: SyntaxTree.CaseRangeExpression);
@@ -1144,7 +1144,14 @@ TYPE
 				END;
 				IF info & (type.returnParameter # NIL) THEN
 					BeginComment;
+					w.String("retPar = ");
 					VisitParameter(type.returnParameter);
+					EndComment;
+				END;
+				IF info & (type.selfParameter # NIL) THEN
+					BeginComment;
+					w.String("selfPar = ");
+					VisitParameter(type.selfParameter);
 					EndComment;
 				END;
 				w.String( ";" );

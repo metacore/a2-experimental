@@ -481,9 +481,11 @@ TYPE
 			IF procedureType.returnParameter # NIL THEN
 				procedureType.returnParameter.SetType(ResolveType(procedureType.returnParameter.type));
 			END;
+			(*
 			IF procedureType.selfParameter # NIL THEN
 				procedureType.selfParameter.SetType(ResolveType(procedureType.selfParameter.type));
 			END;
+			*)
 		END FixProcedureType;
 
 		(* a type reference is resolved by replacing it with the respective element of the type list, all other types remain *)
@@ -843,7 +845,10 @@ TYPE
 					parameter.SetState(SyntaxTree.Resolved);
 
 					IF parameter.name.Equals( Global.SelfParameterName) THEN	(*move SELF to list of hidden parameters *)
+						(*
 						procedureType.SetSelfParameter(parameter);
+						*)
+						sparameter := parameter;
 					ELSIF parameter.name.Equals( Global.ReturnParameterName) OR parameter.name.Equals(Global.PointerReturnName) (* compatibility with paco *) THEN
 						(* move return parameter to list of hidden parameters *)
 						rparameter := parameter
@@ -865,6 +870,10 @@ TYPE
 						rparameter.name.GetString(rparametername);
 						rparameter.SetAccess(SyntaxTree.Hidden);
 						procedureType.AddParameter(rparameter);
+					END;
+					IF sparameter # NIL THEN
+						sparameter.SetAccess(SyntaxTree.Hidden);
+						procedureType.AddParameter(sparameter);
 					END;
 				END;
 
@@ -957,6 +966,7 @@ TYPE
 						procedureType := SyntaxTree.NewProcedureType(-1,recordScope);
 						procedureType.SetReturnType(type);
 						procedureType.SetRealtime(realtime);
+						procedure.SetConstructor(constructor);
 						procedureType.SetDelegate(TRUE);
 						procedure.SetType(procedureType);
 						procedure.SetAccess(visibility);
@@ -2036,10 +2046,13 @@ TYPE
 			BEGIN
 				IF procedureType.callingConvention # SyntaxTree.OberonCallingConvention  THEN
 					ASSERT(procedureType.returnParameter = NIL);
+					ASSERT(procedureType.selfParameter = NIL);
 					Parameters(procedureType.lastParameter,TRUE);
 				ELSE
 					Parameters(procedureType.returnParameter,FALSE);
+					(*
 					Parameters(procedureType.selfParameter,FALSE);
+					*)
 					Parameters(procedureType.firstParameter,FALSE);
 				END;
 				w.RawNum(sfEnd);

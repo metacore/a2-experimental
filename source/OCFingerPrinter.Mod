@@ -968,13 +968,17 @@ TYPE
 			END;
 
 			IF IsOberonProcedure(t) THEN
-
 				self := t.firstParameter;
 				WHILE (self # NIL) & (~self.name.Equals(Global.SelfParameterName)) DO
 					self := self.nextParameter;
 				END;
 				IF self # NIL THEN FPPar(fp,self) END; (* self parameter *)
-
+				
+				(*
+				IF t.selfParameter # NIL THEN FPPar(fp,t.selfParameter) END; (* self parameter *)
+				self := NIL;
+				*)
+				
 				IF Trace THEN
 					TraceIndent; D.Str("FPSignature after self "); D.Hex(fp,-8); D.Ln;
 				END;

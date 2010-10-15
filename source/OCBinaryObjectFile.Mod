@@ -1573,6 +1573,12 @@ TYPE
 					OutPointers(parameter.offsetInBits DIV 8,parameter.type,numberPointers);
 					parameter := parameter.nextParameter;
 				END;
+				(*
+				parameter := procedureType.selfParameter;
+				IF parameter # NIL THEN
+					OutPointers(parameter.offsetInBits DIV 8,parameter.type,numberPointers);
+				END;
+				*)
 				RawLIntAt(numberPointersPos,numberPointers);
 				IF numberPointers > maxPtrs THEN
 					maxPtrs := numberPointers
@@ -1816,6 +1822,12 @@ TYPE
 					WriteParameter(parameter,parameter.kind # SyntaxTree.ValueParameter); (*!treat  exceptions !*)
 					parameter := parameter.nextParameter;
 				END;
+				(*
+				parameter := procedureType.selfParameter;
+				IF parameter # NIL THEN
+					WriteParameter(parameter,parameter.kind # SyntaxTree.ValueParameter); (*!treat  exceptions !*)
+				END;
+				*)
 				variable := procedure.procedureScope.firstVariable;
 				WHILE(variable # NIL) DO
 					WriteVariable(variable,FALSE);

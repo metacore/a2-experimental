@@ -8374,7 +8374,8 @@ TYPE
 		END;
 		RETURN i
 	END DynamicDim;
-
+	
+	(*
 	(* OLIVIER *)
 	PROCEDURE ParametersSize(system: Global.System; procedureType: SyntaxTree.ProcedureType; isNested: BOOLEAN): LONGINT;
 	VAR parSize: LONGINT; parameter: SyntaxTree.Parameter;
@@ -8410,7 +8411,33 @@ TYPE
 
 		RETURN ToMemoryUnits(system,parSize)
 	END ParametersSize;
+	*)
+	(* OLIVIER *)
+	PROCEDURE ParametersSize(system: Global.System; procedureType: SyntaxTree.ProcedureType; isNested: BOOLEAN): LONGINT;
+	VAR parSize: LONGINT; parameter: SyntaxTree.Parameter;
+	BEGIN
+		parSize := 0;
+		parameter :=procedureType.lastParameter;
+		WHILE (parameter # NIL) DO
+			INC(parSize,system.SizeOfParameter(parameter));
+			parSize := parSize + (-parSize) MOD system.addressSize;
+			parameter := parameter.prevParameter;
+		END;
+		(*
+		IF procedureType.HasFlag(SyntaxTree.DelegateFlag) THEN INC(parSize,system.addressSize) END; (* method => self pointer *)
+			NO, SELF is encoded as regular parameter
+		*)
+		IF isNested THEN INC(parSize,system.addressSize) END; (* nested procedure => static base *)
+		(* OLIVIER *)
+		IF NeedsStructuredReturnType(procedureType) THEN
+			IF procedureType.returnParameter = NIL THEN (* otherwise handled by caller *)
+				parSize := parSize + 2*system.addressSize
+			END
+		END;
 
+		RETURN ToMemoryUnits(system,parSize)
+	END ParametersSize;
+	
 	(* OLIVIER *)
 	(** if a structured return type is needed for a given procedure type **)
 	PROCEDURE NeedsStructuredReturnType(procedureType: SyntaxTree.ProcedureType): BOOLEAN;

@@ -156,6 +156,7 @@ TYPE
 			END;
 		END InitSystem;
 
+		(*
 		PROCEDURE GenerateRecordOffsets*(x: SyntaxTree.RecordType): BOOLEAN; (* normally done in checker but the binary symbol file format makes this necessary *)
 		VAR baseType: SyntaxTree.RecordType; offset,size: LONGINT; alignment: LONGINT; variable: SyntaxTree.Variable; error: BOOLEAN;
 			PROCEDURE Variable(variable: SyntaxTree.Variable);
@@ -188,6 +189,36 @@ TYPE
 			x.SetSize(offset);
 			RETURN ~error
 		END GenerateRecordOffsets;
+		*)
+		
+		PROCEDURE GenerateRecordOffsets*(x: SyntaxTree.RecordType): BOOLEAN; (* normally done in checker but the binary symbol file format makes this necessary *)
+		VAR baseType: SyntaxTree.RecordType; offset,size: LONGINT; alignment: LONGINT; variable: SyntaxTree.Variable;
+		BEGIN
+			baseType :=x.GetBaseRecord();
+			IF (baseType  # NIL) & (baseType.sizeInBits < 0) THEN
+				RETURN GenerateRecordOffsets(baseType);
+			END;
+			IF baseType # NIL THEN
+				offset := baseType.sizeInBits
+			ELSE
+				offset := 0
+			END;
+			variable := x.recordScope.firstVariable;
+			WHILE (variable # NIL) DO
+				size := SizeOf(variable.type.resolved);
+				IF size < 0 THEN RETURN FALSE END;
+				alignment := AlignmentOf(SELF.variableAlignment, variable.type.resolved);
+				Basic.Align(offset,alignment);
+				variable.SetOffset(offset);
+				INC(offset,size);
+				variable := variable.nextVariable;
+			END;
+			Basic.Align(offset,addressSize);
+			x.SetSize(offset);
+			RETURN TRUE
+		END GenerateRecordOffsets;
+
+		(*
 
 		PROCEDURE GenerateVariableOffsets*(scope: SyntaxTree.Scope): BOOLEAN;
 		VAR variable: SyntaxTree.Variable; offset,size: LONGINT; alignment: LONGINT; parameterOffset :LONGINT; error: BOOLEAN;
@@ -232,7 +263,46 @@ TYPE
 			END;
 			RETURN ~error
 		END GenerateVariableOffsets;
+		
+		*)
+		
+		PROCEDURE GenerateVariableOffsets*(scope: SyntaxTree.Scope): BOOLEAN;
+		VAR variable: SyntaxTree.Variable; offset,size: LONGINT; alignment: LONGINT; parameterOffset :LONGINT;
+		BEGIN
+			IF scope IS SyntaxTree.RecordScope THEN (* increasing indices *)
+				RETURN GenerateRecordOffsets(scope(SyntaxTree.RecordScope).ownerRecord)
+			ELSE (* module scope or procedure scope: decreasing indices *)
+				ASSERT((scope IS SyntaxTree.ModuleScope) OR (scope IS SyntaxTree.ProcedureScope) OR (scope IS SyntaxTree.ActorScope)
+				);
+				offset := 0;
+				IF scope IS SyntaxTree.ProcedureScope THEN
+					parameterOffset := scope(SyntaxTree.ProcedureScope).ownerProcedure.type(SyntaxTree.ProcedureType).parameterOffset
+				ELSE
+					parameterOffset := 0
+				END;
 
+				variable := scope.firstVariable;
+				WHILE (variable # NIL) DO
+					size := SizeOf(variable.type.resolved);
+					IF size < 0 THEN RETURN FALSE END;
+					DEC(offset,size);
+					alignment := AlignmentOf(SELF.variableAlignment,variable.type.resolved);
+					Basic.Align(offset,-alignment);
+
+					IF variable.alignment > 1 THEN
+						DEC(offset, parameterOffset);
+						Basic.Align(offset, -variable.alignment*dataUnit);
+						INC(offset, parameterOffset);
+					END;
+
+					variable.SetOffset(offset);
+					variable := variable.nextVariable;
+				END;
+			END;
+			RETURN TRUE
+		END GenerateVariableOffsets;
+
+		(*
 		PROCEDURE GenerateParameterOffsets*(procedure : SyntaxTree.Procedure; nestedProcedure: BOOLEAN): BOOLEAN;
 		VAR offset,size: LONGINT;parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType; error: BOOLEAN;
 
@@ -268,6 +338,7 @@ TYPE
 				procedureType.SetParameterOffset(offset);
 				Parameter(procedureType.returnParameter);
 			ELSE
+				ASSERT(procedureType.selfParameter = NIL);
 				parameter := procedureType.firstParameter;
 				WHILE (parameter # NIL) DO
 					Parameter(parameter);
@@ -277,10 +348,150 @@ TYPE
 			END;
 			RETURN ~error
 		END GenerateParameterOffsets;
+		*)
+		
+				PROCEDURE GenerateParameterOffsets*(procedure : SyntaxTree.Procedure; nestedProcedure: BOOLEAN): BOOLEAN;
+		VAR offset,size: LONGINT;parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType;
+		BEGIN
+			procedureType := procedure.type(SyntaxTree.ProcedureType);
+			IF (procedure.isInline) THEN
+				offset := 0
+			ELSE
+				offset := SELF.offsetFirstParameter;
+			END;
+			IF nestedProcedure THEN
+				INC(offset,addressSize); (* parameter offset of static link *) (*! check alternative: add hidden parameter *)
+			END;
+			IF procedureType.callingConvention = SyntaxTree.OberonCallingConvention THEN
+				parameter := procedureType.lastParameter;
+				WHILE (parameter # NIL) DO
+					Basic.Align(offset,addressSize);
+					parameter.SetOffset(offset);
+					size := SizeOfParameter(parameter);
+					IF size < 0 THEN RETURN FALSE END;
+					INC(offset,SizeOfParameter(parameter));
+					parameter := parameter.prevParameter;
+				END;
+				IF procedureType.returnParameter # NIL THEN
+					Basic.Align(offset,addressSize);
+					procedureType.returnParameter.SetOffset(offset);
+				END;
+			ELSE
+				parameter := procedureType.firstParameter;
+				WHILE (parameter # NIL) DO
+					Basic.Align(offset,addressSize);
+					parameter.SetOffset(offset);
+					size := SizeOfParameter(parameter);
+					IF size < 0 THEN RETURN FALSE END;
+					INC(offset,size);
+					parameter := parameter.nextParameter;
+				END;
+			END;
+			procedureType.SetParameterOffset(offset);
+			RETURN TRUE
+		END GenerateParameterOffsets;
+		
 
-		(* OLIVIER *)
+
+		(*
 		PROCEDURE SizeOf*(type: SyntaxTree.Type): LONGINT;
 		VAR size: LONGINT; error: BOOLEAN;
+		BEGIN
+			type := type.resolved;
+			IF type IS SyntaxTree.BasicType THEN
+				size := type.sizeInBits
+			ELSIF type IS SyntaxTree.PointerType THEN
+				size := addressSize
+			ELSIF type IS SyntaxTree.ProcedureType THEN
+
+				IF type(SyntaxTree.ProcedureType).isDelegate THEN
+					size := 2*addressSize
+				ELSE
+					size := addressSize
+				END;
+			ELSIF type IS SyntaxTree.RecordType THEN
+				(* do not treat a record type like a pointer even if the Pointer field is set, this leads to problems in object files
+					rather make sure that each reference type is a POINTER TO at least behind the secenes!
+				*)
+				ASSERT(SyntaxTree.Resolved IN type.state);
+				size :=type(SyntaxTree.RecordType).sizeInBits;
+				IF size < 0 THEN
+					IF GenerateRecordOffsets(type(SyntaxTree.RecordType)) THEN
+						size :=type(SyntaxTree.RecordType).sizeInBits;
+					ELSE
+						size := -1
+					END;
+				END;
+				(*
+			ELSIF type IS SyntaxTree.ActorType THEN
+				(* do not treat a record type like a pointer even if the Pointer field is set, this leads to problems in object files
+					rather make sure that each reference type is a POINTER TO at least behind the secenes!
+				*)
+				ASSERT(SyntaxTree.Resolved IN type.state);
+				size :=type(SyntaxTree.ActorType).sizeInBits;
+				IF size < 0 THEN
+					IF GenerateVariableOffsets(type(SyntaxTree.ActorType).actorScope) THEN
+						IF type(SyntaxTree.ActorType).actorScope.lastVariable = NIL THEN
+							size := 0
+						ELSE
+							size := ABS(type(SyntaxTree.ActorType).actorScope.lastVariable.offsetInBits);
+						END;
+					ELSE
+						size := -1
+					END;
+				END;
+				*)
+			ELSIF type IS SyntaxTree.ArrayType THEN
+				ASSERT(SyntaxTree.Resolved IN type.state);
+				IF type(SyntaxTree.ArrayType).form = SyntaxTree.Static THEN
+					size := SizeOf(type(SyntaxTree.ArrayType).arrayBase.resolved)*type(SyntaxTree.ArrayType).staticLength
+				ELSE
+					size := 0;
+					WHILE(type IS SyntaxTree.ArrayType) DO
+						type := type(SyntaxTree.ArrayType).arrayBase.resolved;
+						INC(size); (* length field *)
+					END;
+					size := size*addressSize+addressSize
+				END;
+			ELSIF type IS SyntaxTree.MathArrayType THEN
+				ASSERT(SyntaxTree.Resolved IN type.state);
+				IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
+					size := SizeOf(type(SyntaxTree.MathArrayType).arrayBase.resolved)*type(SyntaxTree.MathArrayType).staticLength
+				ELSIF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
+					size := addressSize (* pointer to geometry descriptor *)
+				ELSE
+					size := 0;
+					WHILE(type IS SyntaxTree.MathArrayType) DO
+						type := type(SyntaxTree.MathArrayType).arrayBase.resolved;
+						INC(size);
+					END;
+					size := size*2*addressSize (* length and increments *) +5*addressSize (* data ptr, adr ptr, flags, dim and elementsize *);
+				END;
+			ELSIF type IS SyntaxTree.StringType THEN
+				ASSERT(SyntaxTree.Resolved IN type.state);
+				size := type(SyntaxTree.StringType).length * SizeOf(type(SyntaxTree.StringType).baseType);
+			ELSIF type IS SyntaxTree.EnumerationType THEN
+				size := addressSize
+			ELSIF type = SyntaxTree.invalidType THEN size := 0
+			ELSIF type IS SyntaxTree.QualifiedType THEN
+				HALT(101); (* hint that unresolved type has been taken for type size computation *)
+			ELSIF type IS SyntaxTree.PortType THEN
+				size := addressSize
+			ELSIF type IS SyntaxTree.ActorType THEN
+				size := 0;
+			(* OLIVIER *)
+			ELSIF type IS SyntaxTree.ArrayRangeType THEN
+				size := 3 * SizeOf(longintType);
+			ELSE
+				HALT(100)
+			END;
+			RETURN size
+		END SizeOf;
+		*)
+
+		(* OLIVIER *)	
+		PROCEDURE SizeOf*(type: SyntaxTree.Type): LONGINT;
+		VAR size: LONGINT;
 		BEGIN
 			type := type.resolved;
 			IF type IS SyntaxTree.BasicType THEN
