@@ -755,7 +755,8 @@ TYPE
 			ReleaseIntermediateOperand(res);
 			res := mem;
 		END ToMemory;
-
+		
+		(* OLIVIER *)
 		PROCEDURE LoadValue(VAR operand: Operand; type: SyntaxTree.Type);
 		VAR mem: IntermediateCode.Operand;
 			firstOp, lastOp, stepOp: IntermediateCode.Operand;
@@ -1653,6 +1654,7 @@ TYPE
 			END;
 		END CopyString;
 
+		(* OLIVIER *)
 		PROCEDURE VisitBinaryExpression(x: SyntaxTree.BinaryExpression);
 		VAR left,right: Operand; temp: Operand;  zero, one: IntermediateCode.Operand;
 			leftType,rightType: SyntaxTree.Type;
@@ -2094,7 +2096,7 @@ TYPE
 			ReleaseIntermediateOperand(d);
 		END DimensionCheck;
 
-(*
+(*		old version
 		PROCEDURE MathIndexDesignator(x: SyntaxTree.IndexDesignator);
 		VAR res,summand: IntermediateCode.Operand; index,array,incr,length: Operand; i: LONGINT; e: SyntaxTree.Expression;
 			indexLen: IntermediateCode.Operand; type,leftType: SyntaxTree.Type; dim,indexDim: LONGINT; tmp: IntermediateCode.Operand;
@@ -2834,6 +2836,7 @@ TYPE
 
 		END PrepareTensorDescriptor;
 
+		(* OLIVIER *)
 		PROCEDURE PushParameter(expression: SyntaxTree.Expression; parameter: SyntaxTree.Parameter; callingConvention: LONGINT);
 		VAR
 			type, descriptorType, baseType: SyntaxTree.Type;
@@ -3337,6 +3340,7 @@ TYPE
 			IF Trace THEN TraceExit("PushParameter") END;
 		END PushParameter;
 
+		(* OLIVIER *)
 		PROCEDURE VisitProcedureCallDesignator(x: SyntaxTree.ProcedureCallDesignator);
 		VAR
 			parameters: SyntaxTree.ExpressionList;
@@ -4399,6 +4403,7 @@ TYPE
 			END;
 		END NewMathArrayDescriptor;
 
+		(* OLIVIER *)
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR p0,p1,p2,parameter: SyntaxTree.Expression; len,val: LONGINT; l,r: Operand; res,adr,reg: IntermediateCode.Operand; type: SyntaxTree.Type;
 		constructor: SyntaxTree.Procedure; s0,s1,s2: Operand; hint: HUGEINT;
@@ -5692,6 +5697,7 @@ TYPE
 			IF Trace THEN TraceExit("VisitVariable") END;
 		END VisitVariable;
 
+		(* OLIVIER *)
 		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
 		VAR type: SyntaxTree.Type; basereg, mem: IntermediateCode.Operand; parameter: SyntaxTree.Parameter;adr: LONGINT; symbol: Sections.Section;
 			name: SyntaxTree.String; parameterType: SyntaxTree.Type; len: LONGINT;
@@ -5964,7 +5970,7 @@ TYPE
 
 		END AssignMathArray;
 
-
+		(* OLIVIER *)
 		PROCEDURE Assign(left,right: SyntaxTree.Expression);
 		VAR
 			leftO, rightO: Operand;
@@ -6276,6 +6282,7 @@ TYPE
 			IF Trace THEN TraceExit("VisitExitStatement") END;
 		END VisitExitStatement;
 
+		(* OLIVIER *)
 		PROCEDURE VisitReturnStatement(x: SyntaxTree.ReturnStatement);
 		VAR
 			expression, parameterDesignator: SyntaxTree.Expression;
@@ -6338,7 +6345,7 @@ TYPE
 					END;
 					left := IntermediateCode.Memory(addressType,fp,ToMemoryUnits(system,returnTypeOffset));
 
-
+					(* OLIVIER *)
 					IF type IS SyntaxTree.ArrayRangeType THEN
 						(* array range type *)
 						Evaluate(expression, right);

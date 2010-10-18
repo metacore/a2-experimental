@@ -8,7 +8,7 @@ CONST
 	Trace = FALSE;
 
 	Infinity = MAX(LONGINT); (* for type distance *)
-	InvalidPosition* = Diagnostics.Invalid; (* OLIVIER *)
+	InvalidPosition* = Diagnostics.Invalid; (* OLIVIER : exported *)
 	UndefinedPhase = 0; DeclarationPhase=1; ImplementationPhase=2;
 
 TYPE
@@ -95,8 +95,9 @@ TYPE
 		flagExpressions: ARRAY 32 OF SyntaxTree.Expression;
 		dataflowStatement: BOOLEAN;
 		dataflowSpecification: Dataflow.Specification;
-		negativeCounter : LONGINT;
+		negativeCounter : LONGINT; (* OLIVIER *)
 
+		(* OLIVIER *)
 		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope);
 		BEGIN
 			SELF.diagnostics := diagnostics;
@@ -122,15 +123,17 @@ TYPE
 			currentIsBodyProcedure := FALSE;
 			currentIsExclusive := FALSE;
 			withEntries := NIL;
-			negativeCounter := 0;
+			negativeCounter := 0;		(* OLIVIER *)
 		END InitChecker;
 
+		(* OLIVIER *)
 		PROCEDURE GetUniqueNegativeInteger*(): LONGINT;
 		BEGIN
 			DEC(negativeCounter);
 			RETURN negativeCounter
 		END GetUniqueNegativeInteger;
 
+		(* OLIVIER *)
 		(** report error **)
 		PROCEDURE Error(position: LONGINT; code: LONGINT; CONST message: ARRAY OF CHAR);
 		VAR errorMessage: ARRAY 256 OF CHAR; errModule: SyntaxTree.Module;
@@ -2301,6 +2304,7 @@ TYPE
 			RETURN result
 		END NewOperatorCall;
 
+		(* OLIVIER *)
 		(** check and resolve binary expression **)
 		(*! clean up *)
 		PROCEDURE VisitBinaryExpression(binaryExpression: SyntaxTree.BinaryExpression);
@@ -2732,6 +2736,7 @@ TYPE
 			resolvedExpression := result
 		END VisitBinaryExpression;
 
+		(* OLIVIER *)
 		(** resolve a generic range expression from <<first .. last BY step>>
 		    - depending on the value of 'kind', convert the RangeExpression into one of the following:
 		        - CaseRangeExpression
@@ -2768,6 +2773,7 @@ TYPE
 			END;
 		END VisitRangeExpression;
 
+		(* OLIVIER *)
 		(** resolve a case range expression from <<first .. last>>
 			- if 'first' or 'last' = NIL: error
 			- if 'first' and 'last' not of integer or character type: error
@@ -2846,6 +2852,7 @@ TYPE
 			END
 		END VisitCaseRangeExpression;
 
+		(* OLIVIER *)
 		(** resolve a set range expression from <<first .. last>>
 			- if 'first' or 'last' = NIL: error
 			- if 'first' and 'last' not of integer type: error
@@ -2889,6 +2896,7 @@ TYPE
 			END
 		END VisitSetRangeExpression;
 
+		(* OLIVIER *)
 		(** resolve an array range expression from <<first .. last BY step>>
 			- insert values for omitted components
 			- if 'first', 'last' and 'step' not of integer type: error
@@ -3230,7 +3238,7 @@ TYPE
 			END
 		END SetIndexBaseType;
 
-		(* OLIVIER *)
+		(* OLIVIER : rewritten *)
 		(** check and append index list element to index designator of math array
 			- check validity of single index or array range
 			- compute new type
@@ -3483,9 +3491,9 @@ TYPE
 						FOR i := 0 TO indexList.Length() - 1 DO
 							expression := indexList.GetExpression(i);
 							IF expression.type.resolved IS SyntaxTree.IntegerType THEN
-								tempMathArrayExpression.elements.AddExpression(SyntaxTree.NewBooleanValue(InvalidPosition, FALSE))
+								tempMathArrayExpression.elements.AddExpression(SyntaxTree.NewBooleanValue(InvalidPosition, FALSE)) (* insert dimension *)
 							ELSE
-								tempMathArrayExpression.elements.AddExpression(SyntaxTree.NewBooleanValue(InvalidPosition, TRUE))
+								tempMathArrayExpression.elements.AddExpression(SyntaxTree.NewBooleanValue(InvalidPosition, TRUE)) (* keep dimension *)
 							END
 						END;
 						tempList := SyntaxTree.NewExpressionList();
@@ -3544,7 +3552,7 @@ TYPE
 			RETURN result
 		END NewIndexOperatorCall;
 
-		(* OLIVIER *)
+		(* OLIVIER : rewritten *)
 		(** check and semantically resolve a bracket designator of the form 'left[expression, ..., expression]'
 			1. convert bracket designator chains into a single one that contains separators
 				e.g.: left[a, b, c][d, e][f] -> left[a, b, c, |, d, e, |, f]
@@ -3557,7 +3565,7 @@ TYPE
 					a[x, |, y] -> a[x, y] (otherwise, combine into single one)
 
 				- if a pointer is indexed over, splitting and auto-dereferencing takes place:
-					a[x, y] -> a[x]^[y] (a: ARRAY OF POINTER TO ARRAY OF BYTE)
+					a[x, y] -> a[x]^[y] (a: ARRAY OF POINTER TO ARRAY OF INTEGER)
 
 				- if an array-structured object type is indexed over, create procedure call designator
 					e.g.: a[x, y] -> a^."[]"(x, y)
@@ -3947,6 +3955,7 @@ TYPE
 			RETURN result
 		END CheckRealType;
 
+		(* OLIVIER *)
 		(**
 			if expression x is of array range type then return true else report error and return false
 		**)
@@ -4102,6 +4111,7 @@ TYPE
 			RETURN result
 		END CheckPortType;
 
+		(* OLIVIER *)
 		(* move to builtin procedure call statement ?
 			remove builtin procedure call designator ?
 		*)
@@ -6190,6 +6200,7 @@ TYPE
 			END;
 		END GetGuard;
 
+		(* OLIVIER : changes *)
 		(**
 			create a temporary variable in current scope
 		**)
@@ -7732,8 +7743,6 @@ TYPE
 	BEGIN
 		NEW(warnings, diagnostics); RETURN warnings;
 	END NewWarnings;
-
-	(********************************************************************************)
 
 	(* OLIVIER *)
 	PROCEDURE IsArrayRangeType(type: SyntaxTree.Type): BOOLEAN;

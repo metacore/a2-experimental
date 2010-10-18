@@ -382,6 +382,7 @@ TYPE
 		END FixPointerType;
 
 
+		(* OLIVIER: changes *)
 		PROCEDURE VisitRecordType(recordType: SyntaxTree.RecordType);
 		VAR recordBase: SyntaxTree.RecordType; numberMethods: LONGINT; procedure,super,testsuper: SyntaxTree.Procedure; recordScope: SyntaxTree.RecordScope;
 			pointerType: SyntaxTree.Type; typeDeclaration: SyntaxTree.TypeDeclaration; symbol: SyntaxTree.Symbol; size: HUGEINT;
