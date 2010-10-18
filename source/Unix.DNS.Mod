@@ -96,6 +96,13 @@ VAR
 		END
 	END HostByNumber;
 	
+	(* none portable, Unix ports only! *)
+	PROCEDURE GetHostName*( VAR name: ARRAY OF CHAR;  VAR res: LONGINT );
+	VAR len, x: LONGINT;
+	BEGIN
+		x := gethostname( S.ADR( name ), S.ADR( len ) );
+		IF x >= 0 THEN  res := Ok  ELSE  res := NotFound  END
+	END GetHostName;
 
 
 
