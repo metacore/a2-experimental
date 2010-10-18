@@ -810,6 +810,8 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	MultiLogger.Mod ModuleTrees.Mod ModuleTreesIcons.tar
 	WMXMLTree.Mod
 
+	WMDiagnostics.Mod
+
 	PETTrees.Mod PETModuleTree.Mod PETXMLTree.Mod
 	PET.Mod PETIcons.tar
 

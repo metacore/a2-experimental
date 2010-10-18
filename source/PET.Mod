@@ -43,9 +43,9 @@ MODULE PET; (** AUTHOR "TF, PL"; PURPOSE "Programmer's Editing Tool"; *)
 
 IMPORT
 	KernelLog, Modules, Commands, Options, Streams, Inputs, Files, WMRestorable, XML, XMLScanner, XMLParser, XMLObjects,
-	WMStandardComponents, WMGraphics, WMGraphicUtilities, Diagnostics, CompilerInterface, WhitespaceRemover,
-	WMComponents, WMRectangles, WMMessages, WMDialogs,
-	WMTextView, WMEditors, Strings, TextUtilities, Texts, WMBitmapFont,
+	WMStandardComponents, WMGraphics, CompilerInterface, WhitespaceRemover,
+	WMComponents, WMRectangles, WMMessages, WMDialogs, WMDiagnostics,
+	WMTextView, WMEditors, Strings, TextUtilities, Texts,
 	WMWindowManager, WMGrids, WMMacros, WMPopups, WMDropTarget,
 	PETTrees, Configuration, Codecs, WMTabComponents, UndoManager, WMSearchComponents;
 
@@ -102,21 +102,12 @@ CONST
 	MaxNbrOfTabs = 100;
 	MaxNbrOfCompilers = 8;
 
-	PictureError = "PETIcons.tar://errorpos.png";
-	PictureWarning = "PETIcons.tar://warningpos.png";
-	PicturePCPosition = "PETIcons.tar://pcpos.png";
-
 	WindowTitle = "Programmer's Editing Tool v2.1";
 
 	DefaultTextFormat = "Oberon";
 
 	EditorFocus = 1;
 	SplitEditorFocus = 2;
-
-	(* Error grid colors *)
-	ColorError = SHORT(0FF3030A0H);
-	ColorWarning = SHORT(0D0D040C0H);
-	ColorPCPosition = 0007F00A0H;
 
 TYPE
 
@@ -342,85 +333,6 @@ TYPE
 
 TYPE
 
-	PETDiagnostics = OBJECT(Diagnostics.DiagnosticsList)
-
-		(* Returns a string summarizing the number of errors and warnings *)
-		PROCEDURE GetSummary(VAR summary : ARRAY OF CHAR);
-		VAR nbr : ARRAY 8 OF CHAR;
-		BEGIN
-			summary := "";
-			IF (nofErrors > 0) THEN
-				Strings.IntToStr(nofErrors, nbr);
-				Strings.Append(summary, nbr);
-				Strings.Append(summary, " error");
-				IF (nofErrors > 1) THEN
-					Strings.Append(summary, "s");
-				END;
-			ELSE
-				summary := "no errors";
-			END;
-
-			IF (nofWarnings > 0) THEN
-				Strings.Append(summary, ", ");
-				Strings.IntToStr(nofWarnings, nbr);
-				Strings.Append(summary, nbr);
-				Strings.Append(summary, " warning");
-				IF (nofWarnings > 1) THEN
-					Strings.Append(summary, "s");
-				END;
-			END;
-		END GetSummary;
-
-		PROCEDURE GetEntryArray() : EntryArray;
-		VAR result : EntryArray; index : LONGINT;
-
-			PROCEDURE AddEntriesOfType(type : LONGINT);
-			VAR e : Entry;
-			BEGIN
-				IF (entries # NIL) & (entries IS Entry) THEN
-					e := entries (Entry);
-					WHILE (e # NIL) DO
-						IF (e.type = type) THEN
-							result[index] := e;
-							INC(index);
-						END;
-						IF e.next # NIL THEN e := e.next (Entry); ELSE e := NIL; END;
-					END;
-				END;
-			END AddEntriesOfType;
-
-		BEGIN {EXCLUSIVE}
-			result := NIL; index := 0;
-			IF nofMessages > 0 THEN
-				NEW(result, nofMessages);
-				AddEntriesOfType(Diagnostics.TypeInformation);
-				AddEntriesOfType(Diagnostics.TypeError);
-				AddEntriesOfType(Diagnostics.TypeWarning);
-			END;
-			RETURN result;
-		END GetEntryArray;
-
-		PROCEDURE NewEntry(type: LONGINT; CONST source: ARRAY OF CHAR; position, errorCode : LONGINT; CONST message : ARRAY OF CHAR; next: Diagnostics.Entry) : Diagnostics.Entry;
-		VAR entry : Entry;
-		BEGIN
-			NEW(entry);
-			entry.type := type;
-			entry.position := position;
-			entry.errorCode := errorCode;
-			COPY (message, entry.message);
-			entry.next := next;
-			NEW(entry.pos, 2);
-			RETURN entry;
-		END NewEntry;
-
-	END PETDiagnostics;
-
-	Entry = POINTER TO RECORD (Diagnostics.Entry)
-		pos : POINTER TO ARRAY OF WMTextView.PositionMarker;
-	END;
-
-	EntryArray = POINTER TO ARRAY OF Entry;
-
 	CaptionObject = OBJECT
 	VAR caption : ARRAY 128 OF CHAR;
 
@@ -567,12 +479,14 @@ TYPE
 	VAR
 		editor, splitEditor : WMEditors.Editor;
 		logEdit : WMEditors.Editor;
-		errorLog : WMGrids.GenericGrid;
 		scratchPanel, splitPanel : WMStandardComponents.Panel;
 		scratch : ScratchPanel;
 		sidePanel : WMStandardComponents.Panel;
 		logPanel, editPanel: WMStandardComponents.Panel;
 		searchPanel: WMSearchComponents.SearchPanel;
+
+		errorGrid : WMDiagnostics.DiagnosticsView;
+		diagnostics : WMDiagnostics.Model;
 
 		tree : PETTrees.Tree;
 
@@ -588,10 +502,6 @@ TYPE
 		options : CompilerOptions;
 		compilerSettings : CompilerSettings;
 
-		diagnostics : PETDiagnostics;
-
-		entries : EntryArray;
-		errorSummaryStr : ARRAY 128 OF CHAR;
 		showErrorMarkers : BOOLEAN;
 
 		positions : Positions;
@@ -603,6 +513,7 @@ TYPE
 			resizerH, resizerV: WMStandardComponents.Resizer;
 			um: UndoManager.UndoManager;
 			colWidths : WMGrids.Spacings;
+			textViews : ARRAY 2 OF WMTextView.TextView;
 		BEGIN
 			Init;
 			owner := window;
@@ -611,8 +522,6 @@ TYPE
 			showErrorMarkers := TRUE;
 			COPY("Untitled.Mod", filename);
 			COPY("Untitled.Mod", name);
-
-			NEW(diagnostics);
 
 			(* -- left tool area *)
 			NEW(sidePanel);
@@ -660,21 +569,24 @@ TYPE
 			editPanel.AddContent(logEdit);
 			editPanel.AddContent(logPanel);
 
-			NEW(errorLog);
-			errorLog.alignment.Set(WMComponents.AlignClient);
-			errorLog.nofCols.Set(3);
-			errorLog.fixedRows.Set(1);
-			errorLog.adjustFocusPosition.Set(FALSE);
+			NEW(diagnostics);
+
+			NEW(errorGrid);
+			errorGrid.SetModel(diagnostics);
+			errorGrid.alignment.Set(WMComponents.AlignClient);
+			errorGrid.nofCols.Set(3);
+			errorGrid.fixedRows.Set(1);
+			errorGrid.adjustFocusPosition.Set(FALSE);
+
 			NEW(colWidths, 3);
 			colWidths[0] := 60;
 			colWidths[1] := 40;
 			colWidths[2] := 2048;
-			errorLog.SetColSpacings(colWidths);
-			errorLog.SetDrawCellProc(DrawCell);
-			errorLog.onClick.Add(ErrorClick);
-			errorLog.SetSelectionMode(WMGrids.GridSelectSingleRow);
-			errorLog.visible.Set(FALSE);
-			logPanel.AddContent(errorLog);
+			errorGrid.SetColSpacings(colWidths);
+			errorGrid.onClick.Add(ErrorClick);
+			errorGrid.SetSelectionMode(WMGrids.GridSelectSingleRow);
+			errorGrid.visible.Set(FALSE);
+			logPanel.AddContent(errorGrid);
 
 			NEW(searchPanel);
 			searchPanel.alignment.Set(WMComponents.AlignBottom);
@@ -719,6 +631,10 @@ TYPE
 			splitEditor.tv.indicateTabs.Set(settings.indicateTabs);
 			splitEditor.tv.clBgCurrentLine.Set(settings.currentLineColor);
 
+			textViews[0] := editor.tv;
+			textViews[1] := splitEditor.tv;
+			errorGrid.SetTextViews(textViews);
+
 			logPanel.visible.Set(FALSE);
 			splitPanel.visible.Set(FALSE);
 
@@ -733,61 +649,6 @@ TYPE
 			editor.text.SetUndoManager(um);
 			editor.SetUndoManager(um);
 		END InitPanel;
-
-		PROCEDURE DrawCell(canvas : WMGraphics.Canvas; w, h : LONGINT; state : SET; x, y : LONGINT);
-		VAR color: LONGINT; str : ARRAY 128 OF CHAR;
-		BEGIN
-			color := WMGraphics.RGBAToColor(255, 255, 255, 255);
-			IF state * {WMGrids.CellFixed, WMGrids.CellSelected} = {WMGrids.CellFixed, WMGrids.CellSelected} THEN
-				color := WMGraphics.RGBAToColor(0, 128, 255, 255)
-			ELSIF WMGrids.CellFixed IN state THEN
-				color := WMGraphics.RGBAToColor(196, 196, 196, 255)
-			ELSIF WMGrids.CellSelected IN state THEN
-				color := WMGraphics.RGBAToColor(196, 196, 255, 255)
-			END;
-			canvas.SetColor(WMGraphics.RGBAToColor(0, 0, 0, 255));
-			canvas.SetFont(WMBitmapFont.bimbofont);
-
-			canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), color, WMGraphics.ModeCopy);
-			IF (WMGrids.CellFocused IN state) & ~(WMGrids.CellHighlighted IN state) THEN
-				WMGraphicUtilities.DrawBevel(canvas, WMRectangles.MakeRect(0, 0, w, h), 1, TRUE, WMGraphics.RGBAToColor(0, 0, 0, 196),
-				WMGraphics.ModeSrcOverDst)
-			END;
-
-			IF y = 0 THEN
-				CASE x OF
-					| 0 : str := "pos"
-					| 1 : str := "err"
-					| 2 :
-						str := "Error Str";
-						Strings.Append(str, " ("); Strings.Append(str, errorSummaryStr); Strings.Append(str, ")");
-				ELSE
-				END
-			ELSIF (entries # NIL) & (y - 1 >= 0) & (y-1 < LEN(entries)) THEN
-				CASE x OF
-					| 0 :
-						IF entries[y - 1].pos[0] # NIL THEN Strings.IntToStr(entries[y - 1].pos[0].GetPosition(), str) END;
-						IF entries[y - 1].type = Diagnostics.TypeError THEN
-							canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), ColorError, WMGraphics.ModeSrcOverDst);
-						ELSIF entries[y - 1].type = Diagnostics.TypeWarning THEN
-							canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), ColorWarning, WMGraphics.ModeSrcOverDst);
-						ELSIF entries[y - 1].type = Diagnostics.TypeInformation THEN
-							canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), ColorPCPosition, WMGraphics.ModeSrcOverDst);
-						ELSIF entries[y - 1].type = Diagnostics.TypeInformation THEN
-							(* do nothing *)
-						END;
-					| 1 : IF (entries[y-1].errorCode # Diagnostics.Invalid) THEN
-							Strings.IntToStr(entries[y - 1].errorCode, str);
-						ELSE
-							COPY("", str);
-						END;
-					| 2 : COPY(entries[y - 1].message, str)
-				ELSE
-				END
-			END;
-
-			canvas.DrawString(4, h - 4, str)
-		END DrawCell;
 
 		PROCEDURE CreateSidePanel(settings : CompilerSettings);
 		VAR factory : PETTrees.Factory; strings : Strings.StringArray;
@@ -860,13 +721,14 @@ TYPE
 		END ClearLog;
 
 		PROCEDURE DoCompile(findPC : BOOLEAN; CONST pc :ARRAY OF CHAR; options : CompilerOptions);
-		VAR compiler : CompilerInterface.Compiler; tw : TextUtilities.TextWriter; errors : BOOLEAN;
+		VAR
+			compiler : CompilerInterface.Compiler; tw : TextUtilities.TextWriter; errors : BOOLEAN;
+			positions : ARRAY 2 OF LONGINT;
 		BEGIN
-			RemoveErrorMarkers;
 			ClearLog;
 			IF findPC THEN Strings.Append(options, " /f") END;
 			NEW(tw, logEdit.text);
-			diagnostics.Reset;
+			diagnostics.Clear;
 			compiler := CompilerInterface.GetCompilerByName(compilerSettings.name);
 			IF (compiler = NIL) & (compilerSettings.loadmodule # "") THEN
 				LoadModule(compilerSettings.loadmodule); (* compiler shall register itself at the CompilerInterface *)
@@ -882,144 +744,56 @@ TYPE
 			IF settings.enableWhitespaceWarnings THEN
 				WhitespaceRemover.CheckWhitespace(editor.text, diagnostics);
 			END;
-			ProcessDiagnostics(diagnostics, options);
-		END DoCompile;
-
-		PROCEDURE ShowEntry(entry : Entry);
-		VAR picture : Filename;
-		BEGIN
-			picture := "";
-			IF (entry.errorCode = 400) THEN (* TODO *)
-				picture := PicturePCPosition;
-			ELSIF (entry.type = Diagnostics.TypeError) THEN
-				picture := PictureError;
-			ELSIF (entry.type = Diagnostics.TypeWarning) THEN
-				picture := PictureWarning;
-			END;
-
-			(* main editor *)
-			IF (entry.position # Diagnostics.Invalid) THEN
-				entry.pos[0] := editor.tv.CreatePositionMarker();
-				IF (picture # "") THEN entry.pos[0].Load(picture); END;
-				entry.pos[0].SetPosition(entry.position);
-				(* split editor *)
-				entry.pos[1] := splitEditor.tv.CreatePositionMarker();
-				IF (picture # "") THEN entry.pos[1].Load(picture); END;
-				entry.pos[1].SetPosition(entry.position);
-			END;
-		END ShowEntry;
-
-		PROCEDURE ProcessDiagnostics(diagnostics : PETDiagnostics; CONST options : CompilerOptions);
-		VAR i : LONGINT;
-		BEGIN
-			editor.text.AcquireRead;
-			IF (entries # NIL) THEN RemoveErrorMarkers; END;
-			IF (diagnostics = NIL) THEN RETURN; END;
-			IF (diagnostics.nofMessages > 0) THEN
-				entries := diagnostics.GetEntryArray();
-
-				FOR i := 0 TO LEN(entries)-1 DO
-					ShowEntry(entries[i]);
-				END;
-				diagnostics.GetSummary(errorSummaryStr);
-
-				IF (entries[0].pos # NIL) THEN
-					IF (focus = EditorFocus) & (entries[0].pos[0] # NIL) THEN
-						editor.tv.cursor.SetPosition(entries[0].pos[0].GetPosition());
-						editor.SetFocus
-					ELSE
-						IF (entries[0].pos[1] # NIL) THEN
-							splitEditor.tv.cursor.SetPosition(entries[0].pos[1].GetPosition());
-							splitEditor.SetFocus
-						END;
-					END
+			IF (diagnostics.nofEntries > 0) THEN
+				errorGrid.GetFirstPosition(positions);
+				IF (focus = EditorFocus) & (positions[0] # WMDiagnostics.Invalid) THEN
+					editor.tv.cursor.SetPosition(positions[0]);
+					editor.SetFocus;
+				ELSIF (focus = SplitEditorFocus) THEN
+					splitEditor.tv.cursor.SetPosition(positions[0]);
+					splitEditor.SetFocus;
 				END;
 				CursorChanged;
+				errorGrid.visible.Set(TRUE);
 				logPanel.visible.Set(TRUE); logEdit.visible.Set(TRUE);
-				logPanel.Invalidate;
-				errorLog.nofRows.Set(diagnostics.nofMessages + 1);
-				errorLog.SetTopPosition(0, 0, TRUE);
-				errorLog.visible.Set(TRUE);
 			ELSE
 				logPanel.visible.Set(FALSE); logEdit.visible.Set(TRUE);
-				errorLog.visible.Set(FALSE);
+				errorGrid.visible.Set(FALSE);
 			END;
-			editor.text.ReleaseRead;
-		END ProcessDiagnostics;
+		END DoCompile;
 
 		PROCEDURE ErrorClick(sender, data : ANY);
-		VAR scol, srow, ecol, erow, y : LONGINT;
+		VAR
 			focusEditor: WMEditors.Editor;
+			entry : WMDiagnostics.ViewEntry;
 			index: LONGINT;
 		BEGIN
-			errorLog.GetSelection(scol, srow, ecol, erow);
-			y := srow;
-			IF (entries # NIL) & (y > 0) & (y <= LEN(entries^)) THEN
-				DEC(y);	(* first row is header row *)
-				IF focus = EditorFocus THEN focusEditor := editor; index := 0
-				ELSIF focus = SplitEditorFocus THEN focusEditor := splitEditor; index := 1
-				ELSE RETURN
+			IF (data # NIL) & (data IS WMDiagnostics.CellInfo) & (data(WMDiagnostics.CellInfo).entryValid) THEN
+				IF (focus = EditorFocus) THEN focusEditor := editor; index := 0;
+				ELSIF (focus = SplitEditorFocus) THEN focusEditor := splitEditor; index := 1;
+				ELSE
+					HALT(99);
 				END;
-				IF entries[y].pos[index] # NIL THEN
+				entry := data(WMDiagnostics.CellInfo).entry;
+				IF (entry.pos # NIL) & (LEN(entry.pos) = 2) THEN
 					focusEditor.tv.selection.SetFromTo(0, 0);
-					focusEditor.tv.cursor.SetPosition(entries[y].pos[index].GetPosition());
-					focusEditor.SetFocus
-				END
-			END
+					focusEditor.tv.cursor.SetPosition(entry.pos[index].GetPosition());
+					focusEditor.SetFocus;
+				END;
+			END;
 		END ErrorClick;
 
-		PROCEDURE RemoveErrorMarkers;
-		VAR i : LONGINT;
-		BEGIN
-			IF (entries = NIL) THEN RETURN; END;
-			FOR i := 0 TO LEN(entries) - 1 DO
-				IF entries[i].pos[0] # NIL THEN
-					editor.tv.RemovePositionMarker(entries[i].pos[0]);
-					entries[i].pos[0] := NIL;
-				END;
-				IF entries[i].pos[1] # NIL THEN
-					splitEditor.tv.RemovePositionMarker(entries[i].pos[1]);
-					entries[i].pos[1] := NIL
-				END
-			END;
-		END RemoveErrorMarkers;
-
 		PROCEDURE GoToNextError(forward : BOOLEAN);
-		VAR bestPos, row, index : LONGINT; focusEditor: WMEditors.Editor;
-
-			(* The error list is not sorted *)
-			PROCEDURE FindPosition(forward : BOOLEAN; VAR bestPos, row : LONGINT);
-			VAR cursorPos, pos, i : LONGINT;
-			BEGIN
-				bestPos := -1; row := 1; (* row 0 is grid title *)
-				cursorPos := editor.tv.cursor.GetPosition();
-				LOOP
-					IF (i >= LEN(entries)) OR ((i < LEN(entries)) & (entries[i].pos[index] = NIL)) THEN EXIT; END;
-					pos := entries[i].pos[index].GetPosition();
-					IF forward & (pos > cursorPos) THEN
-						IF (bestPos = -1) OR (pos < bestPos) THEN bestPos := pos; row := i+1; END;
-					ELSIF ~forward & (pos < cursorPos) THEN
-						IF (bestPos = -1) OR (pos > bestPos) THEN bestPos := pos; row := i+1; END;
-					END;
-					INC(i);
-				END;
-				IF (bestPos = -1) THEN
-					bestPos := cursorPos;
-					IF forward & (i > 1) THEN (* select maximum row *) row := i; END;
-				END;
-			END FindPosition;
-
+		VAR nearestPosition, row, index : LONGINT; focusEditor: WMEditors.Editor;
 		BEGIN
-			IF focus = EditorFocus THEN focusEditor := editor; index := 0
-			ELSIF focus = SplitEditorFocus THEN focusEditor := splitEditor; index := 1
-			ELSE RETURN
+			IF focus = EditorFocus THEN focusEditor := editor; index := 0;
+			ELSIF focus = SplitEditorFocus THEN focusEditor := splitEditor; index := 1;
+			ELSE RETURN;
 			END;
 			focusEditor.tv.selection.SetFromTo(0, 0);
-			IF entries[0].pos[index] = NIL THEN (* no errors *) RETURN; END;
-			FindPosition(forward, bestPos, row);
-			editor.tv.cursor.SetPosition(bestPos);
-			errorLog.SetSelection(0, row, 2, row);
-			errorLog.SetTopPosition(0, row, TRUE);
+			errorGrid.GetNearestPosition(editor.tv.cursor.GetPosition(), index, forward, nearestPosition, row);
+			editor.tv.cursor.SetPosition(nearestPosition);
+			errorGrid.SelectEntry(row, TRUE);
 		END GoToNextError;
 
 		PROCEDURE EditorFocusHandler(hasFocus: BOOLEAN);
@@ -1097,7 +871,7 @@ TYPE
 				END;
 				IF searchPanel.visible.Get() THEN
 					searchPanel.HandlePreviousNext(forward);
-				ELSIF errorLog.visible.Get() THEN
+				ELSIF errorGrid.visible.Get() THEN
 					GoToNextError(forward);
 				END;
 				CursorChanged;
@@ -3076,7 +2850,7 @@ END PET.
 
 SystemTools.Free PET ~
 WMMacros.ReadMacros Macros.XML ~
-PET.Open ~
+PET2.Open ~
 PET.Open PET.Mod ~
 
 SystemTools.Free PET WMXMLTree ~
