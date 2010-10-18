@@ -728,6 +728,7 @@ TYPE
 			ClearLog;
 			IF findPC THEN Strings.Append(options, " /f") END;
 			NEW(tw, logEdit.text);
+			diagnostics.DisableNotification;
 			diagnostics.Clear;
 			compiler := CompilerInterface.GetCompilerByName(compilerSettings.name);
 			IF (compiler = NIL) & (compilerSettings.loadmodule # "") THEN
@@ -744,6 +745,7 @@ TYPE
 			IF settings.enableWhitespaceWarnings THEN
 				WhitespaceRemover.CheckWhitespace(editor.text, diagnostics);
 			END;
+			diagnostics.EnableNotification;
 			IF (diagnostics.nofEntries > 0) THEN
 				errorGrid.GetFirstPosition(positions);
 				IF (focus = EditorFocus) & (positions[0] # WMDiagnostics.Invalid) THEN
@@ -1096,8 +1098,8 @@ TYPE
 
 		PROCEDURE CreateForm():WMComponents.VisualComponent;
 		VAR
-			panel : WMStandardComponents.Panel;
-			resizerPanel, resizer : WMStandardComponents.Resizer;
+			panel, resizerPanel : WMStandardComponents.Panel;
+			resizer : WMStandardComponents.Resizer;
 			posLabel : WMStandardComponents.Label;
 			font: WMGraphics.Font;
 			dx, dy: LONGINT;
