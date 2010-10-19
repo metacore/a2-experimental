@@ -95,7 +95,7 @@ TYPE
 		flagExpressions: ARRAY 32 OF SyntaxTree.Expression;
 		dataflowStatement: BOOLEAN;
 		dataflowSpecification: Dataflow.Specification;
-		negativeCounter : LONGINT; (* OLIVIER *)
+		indexCounter : LONGINT; (* OLIVIER *)
 
 		(* OLIVIER *)
 		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope);
@@ -123,15 +123,14 @@ TYPE
 			currentIsBodyProcedure := FALSE;
 			currentIsExclusive := FALSE;
 			withEntries := NIL;
-			negativeCounter := 0;		(* OLIVIER *)
+			indexCounter := 0;		(* OLIVIER *)
 		END InitChecker;
 
 		(* OLIVIER *)
-		PROCEDURE GetUniqueNegativeInteger*(): LONGINT;
+		PROCEDURE GetIndex(): LONGINT;
 		BEGIN
-			DEC(negativeCounter);
-			RETURN negativeCounter
-		END GetUniqueNegativeInteger;
+			INC(indexCounter); RETURN indexCounter;
+		END GetIndex;
 
 		(* OLIVIER *)
 		(** report error **)
@@ -1021,20 +1020,20 @@ TYPE
 		VAR
 			indexOperatorCount, i: LONGINT;
 			arrayAccessOperators: SyntaxTree.ArrayAccessOperators;
-			
+
 		BEGIN
 			IF recordType.isObject & (recordType.baseType # NIL) THEN
-				(* determine array structure *)	
+				(* determine array structure *)
 				recordType.SetArrayStructure(MathArrayStructureOfType(recordType.baseType.resolved))
 			END;
-			
+
 			IF recordType.HasArrayStructure() THEN
 				(* the object is an ASOT *)
-				
+
 				IF recordType.arrayStructure.form = SyntaxTree.Tensor THEN
 					Error(recordType.position, Diagnostics.Invalid, "array-structured object type based on tensor")
 				ELSE
-					
+
 					(* 2 to the power of the dimensionality *)
 					indexOperatorCount := 1;
 					FOR i := 1 TO recordType.arrayStructure.Dimensionality() DO
@@ -1073,7 +1072,7 @@ TYPE
 				recordType.SetArrayAccessOperators(arrayAccessOperators)
 			END
 		END ResolveArrayStructure;
-		
+
 		(* OLIVIER *)
 		(** collect array access operators in a record scope **)
 		PROCEDURE CollectArrayAccessOperators(recordScope: SyntaxTree.RecordScope; arrayStructure: SyntaxTree.MathArrayType; VAR arrayAccessOperators: SyntaxTree.ArrayAccessOperators);
@@ -2047,7 +2046,7 @@ TYPE
 				- if expression is already of same type then return expression
 				- if incompatible conversion then report error and return invalidExpression
 		**)
-		PROCEDURE NewConversion(position: LONGINT; expression: SyntaxTree.Expression; type: SyntaxTree.Type; typeExpression: SyntaxTree.Expression): SyntaxTree.Expression;
+		PROCEDURE NewConversion*(position: LONGINT; expression: SyntaxTree.Expression; type: SyntaxTree.Type; typeExpression: SyntaxTree.Expression): SyntaxTree.Expression;
 		VAR result: SyntaxTree.Expression; value: SyntaxTree.Expression; expressionList: SyntaxTree.ExpressionList; typeDeclaration: SyntaxTree.TypeDeclaration; typeSymbol: SyntaxTree.Designator;
 		BEGIN
 			type := type.resolved;
@@ -3502,7 +3501,7 @@ TYPE
 						tempDesignator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
 						tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier(InvalidPosition, "ExpandDimensions"));
 						expression := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, tempDesignator, tempList));
-						
+
 						IF expression.type.resolved IS SyntaxTree.MathArrayType THEN
 							(* change the base type of the returned tensor from SYSTEM.ALL to the array structure's element type *)
 							castReturnType := SyntaxTree.NewMathArrayType(Diagnostics.Invalid, expression.type.scope,SyntaxTree.Tensor);
@@ -3827,7 +3826,7 @@ TYPE
 
 				(*! do this in backend? *)
 				IF IsPointerType(formalType.returnType) & (formalType.callingConvention = SyntaxTree.OberonCallingConvention )THEN
-					hiddenPointerDesignator := GetTemporaryVariable(formalType.returnType,position); (*! try to make reuse of pointers *)
+					hiddenPointerDesignator := GetTemporaryVariable(formalType.returnType); (*! try to make reuse of pointers *)
 					actualParameters.AddExpression(hiddenPointerDesignator);
 				END;
 
@@ -4301,7 +4300,7 @@ TYPE
 											END;
 											formalParameter := formalParameter.nextParameter;
 										END;
-										result(SyntaxTree.BuiltinCallDesignator).SetHiddenVariable(GetTemporaryVariable(type0,parameter0.position));
+										result(SyntaxTree.BuiltinCallDesignator).SetHiddenVariable(GetTemporaryVariable(type0));
 									ELSIF numberActualParameters > numberFormalParameters THEN
 										Error(position,Diagnostics.Invalid,"more actual than formal parameters")
 									ELSE
@@ -6204,18 +6203,13 @@ TYPE
 		(**
 			create a temporary variable in current scope
 		**)
-		PROCEDURE GetTemporaryVariable(type: SyntaxTree.Type; index: LONGINT): SyntaxTree.Designator;
+		PROCEDURE GetTemporaryVariable(type: SyntaxTree.Type): SyntaxTree.Designator;
 		VAR name: SyntaxTree.Identifier; string: Scanner.StringType ; var: SyntaxTree.Expression; variable: SyntaxTree.Symbol;
-		scope: SyntaxTree.Scope; duplicate: BOOLEAN; offset: LONGINT;
+		scope: SyntaxTree.Scope; duplicate: BOOLEAN; offset,index: LONGINT;
 		BEGIN
 			COPY("@hiddenVar",string);
 			(* OLIVIER *)
-			IF index = InvalidPosition THEN
-				index := GetUniqueNegativeInteger();
-			END;
-			IF index # 0 THEN
-				Basic.AppendNumber(string,index);
-			END;
+			Basic.AppendNumber(string,GetIndex());
 			name := SyntaxTree.NewIdentifier(index,string);
 			scope := currentScope;
 			variable := Find(scope, name,FALSE);
@@ -6261,7 +6255,7 @@ TYPE
 				designator := SyntaxTree.invalidDesignator;
 			ELSIF CheckVariable(designator) THEN
 				type := designator.type;
-				forStatement.SetTemporary(GetTemporaryVariable(type,forStatement.position));
+				forStatement.SetTemporary(GetTemporaryVariable(type));
 			END;
 			forStatement.SetVariable(designator);
 

@@ -341,6 +341,9 @@ TYPE
 		PROCEDURE VisitMathArrayType(arrayType: SyntaxTree.MathArrayType);
 		BEGIN
 			arrayType.SetArrayBase(ResolveType(arrayType.arrayBase));
+			IF arrayType.form = SyntaxTree.Static THEN
+				arrayType.SetIncrement(system.SizeOf(arrayType.arrayBase));
+			END;
 			arrayType.SetState(SyntaxTree.Resolved);
 		END VisitMathArrayType;
 
