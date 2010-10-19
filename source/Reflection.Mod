@@ -432,7 +432,6 @@ VAR
 	VAR ch: CHAR;  sval: SHORTINT;  ival: INTEGER;  lval: LONGINT;  rval: REAL; xval: LONGREAL; hval : HUGEINT;
 		address: SYSTEM.ADDRESS; pos0: LONGINT;
 	BEGIN
-		IF ~CheckHeapAddress(adr) THEN w.String("invalid adr"); RETURN END;
 		pos0 := w.Pos();
 		CASE type OF
 		1, 3:  (* BYTE, CHAR *)
