@@ -3487,7 +3487,7 @@ TYPE
 					IF needsReshaping THEN
 						(* reshape using OCArrayBase.ExpandDimensions *)
 						tempList := SyntaxTree.NewExpressionList();
-						
+
 						(* source array *)
 						IF rhs.type.resolved IS SyntaxTree.MathArrayType THEN
 							tempList.AddExpression(rhs);
@@ -3497,7 +3497,7 @@ TYPE
 							tempMathArrayExpression.elements.AddExpression(rhs);
 							tempList.AddExpression(tempMathArrayExpression)
 						END;
-						
+
 						(* list of kept dimensions *)
 						tempMathArrayExpression := SyntaxTree.NewMathArrayExpression(InvalidPosition);
 						FOR i := 0 TO indexList.Length() - 1 DO
@@ -3516,8 +3516,10 @@ TYPE
 						IF expression.type.resolved IS SyntaxTree.MathArrayType THEN
 							(* change the base type of the returned tensor from SYSTEM.ALL to the array structure's element type *)
 							castReturnType := SyntaxTree.NewMathArrayType(Diagnostics.Invalid, expression.type.scope,SyntaxTree.Tensor);
-							castReturnType.SetArrayBase(ArrayBase(recordType.arrayStructure,MAX(LONGINT)));
+							castReturnType.SetArrayBase(ArrayBase(rhs.type.resolved,MAX(LONGINT)));
 							expression.SetType(castReturnType);
+							
+							
 						ELSE
 							Error(expression.position, Diagnostics.Invalid, "problem with resolving OCArrayBase.ExpandDimensions");
 						END;
@@ -5882,6 +5884,8 @@ TYPE
 			right, expression: SyntaxTree.Expression;
 			designator: SyntaxTree.Designator;
 			procedureCallDesignator: SyntaxTree.ProcedureCallDesignator;
+			type: SyntaxTree.Type;
+			procedureType: SyntaxTree.ProcedureType;
 			mathArrayType: SyntaxTree.MathArrayType;
 			dimensionality: LONGINT;
 		BEGIN
@@ -5895,8 +5899,13 @@ TYPE
 			ELSIF (left IS SyntaxTree.ProcedureCallDesignator) & (left.type = NIL) & (left.relatedAsot # NIL) THEN
 				(* LHS is index write operator call on ASOT *)
 				procedureCallDesignator :=  left(SyntaxTree.ProcedureCallDesignator);
-				resolvedStatement := SyntaxTree.NewProcedureCallStatement(assignment.position, procedureCallDesignator, assignment.outer)
-
+				(* necessary ?
+				procedureType := procedureCallDesignator.left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Procedure).type(SyntaxTree.ProcedureType);
+				type := procedureType.firstParameter.type;
+				expression := procedureCallDesignator.parameters.GetExpression(0);
+				procedureCallDesignator.parameters.SetExpression(0,NewConversion(0,expression,type,NIL));
+				*)
+				resolvedStatement := SyntaxTree.NewProcedureCallStatement(assignment.position, procedureCallDesignator, assignment.outer);
 			ELSIF CheckVariable(left) THEN
 				expression := NewOperatorCall(assignment.position, Scanner.Becomes, left, right, NIL);
 				IF (expression # NIL) & (expression IS SyntaxTree.ProcedureCallDesignator) THEN
@@ -5909,7 +5918,7 @@ TYPE
 
 				ELSIF AssignmentCompatible(left, right) THEN
 					IF IsArrayStructuredObjectType(left.type) & (left.type.resolved # right.type.resolved) THEN
-						mathArrayType := MathArrayStructureOfType(right.type);
+						mathArrayType := MathArrayStructureOfType(left.type);
 						right := NewConversion(right.position, right, mathArrayType, NIL);
 						designator := NewIndexOperatorCall(InvalidPosition, left, ListOfOpenRanges(mathArrayType.Dimensionality()), right);
 						resolvedStatement := SyntaxTree.NewProcedureCallStatement(assignment.position, designator, assignment.outer)
