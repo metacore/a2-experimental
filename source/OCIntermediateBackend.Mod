@@ -3434,7 +3434,7 @@ TYPE
 					designator := actualParameter(SyntaxTree.Designator);
 					IF (formalParameter.kind = SyntaxTree.VarParameter) & (designator.relatedAsot # NIL) THEN
 						(* actual parameter is an index read operator call on ASOT and formal parameter is of VAR kind *)
-						IF dump # NIL THEN dump.String("!!! BEGIN ASOT VAR parameter preparation"); dump.Ln; dump.Update END; (* TENTATIVE*)
+						(* IF dump # NIL THEN dump.String("!!! BEGIN ASOT VAR parameter preparation"); dump.Ln; dump.Update END; *) (* TENTATIVE*)
 						ASSERT(checker # NIL);
 						checker.SetCurrentScope(currentScope);
 
@@ -3450,9 +3450,9 @@ TYPE
 
 						(* copy math array stored in actual parameter to temporary variable *)
 						BackupGlobalState;
-						IF dump # NIL THEN dump.String("!!! BEGIN copy actual parameter to temp variable"); dump.Ln; dump.Update END; (* TENTATIVE*)
+						(* IF dump # NIL THEN dump.String("!!! BEGIN copy actual parameter to temp variable"); dump.Ln; dump.Update END; *) (* TENTATIVE*)
 						AssignMathArray(tempVariableDesignator, actualParameter);
-						IF dump # NIL THEN dump.String("!!! END copy actual parameter to temp variable"); dump.Ln; dump.Update END; (* TENTATIVE*)
+						(* IF dump # NIL THEN dump.String("!!! END copy actual parameter to temp variable"); dump.Ln; dump.Update END; *) (* TENTATIVE*)
 						RestoreGlobalState;
 
 						(* use temporary variable as actual parameter instead of the original one *)
@@ -3471,7 +3471,7 @@ TYPE
  						expression := checker.NewIndexOperatorCall(SemanticChecker.InvalidPosition, designator.relatedAsot, designator.relatedIndexList, tempVariableDesignator);
 						ASSERT(expression.type = NIL);
 						currentWriteBackCall.call := expression(SyntaxTree.ProcedureCallDesignator);
-						IF dump # NIL THEN dump.String("!!! END ASOT VAR parameter preparation"); dump.Ln; dump.Update END; (* TENTATIVE*)
+						(*IF dump # NIL THEN dump.String("!!! END ASOT VAR parameter preparation"); dump.Ln; dump.Update END; *) (* TENTATIVE*)
 					END
 				END
 			END PrepareParameter;
@@ -3662,9 +3662,9 @@ TYPE
 			BackupGlobalState;
 			currentWriteBackCall := firstWriteBackCall;
 			WHILE currentWriteBackCall # NIL DO
-				IF dump # NIL THEN dump.String("!!! BEGIN ASOT VAR parameter write back call"); dump.Ln; dump.Update END; (* TENTATIVE*)
+				(* IF dump # NIL THEN dump.String("!!! BEGIN ASOT VAR parameter write back call"); dump.Ln; dump.Update END; *) (* TENTATIVE*)
 				VisitProcedureCallDesignator(currentWriteBackCall.call);
-				IF dump # NIL THEN dump.String("!!! END ASOT VAR parameter write back call"); dump.Ln; dump.Update END; (* TENTATIVE*)
+				(* IF dump # NIL THEN dump.String("!!! END ASOT VAR parameter write back call"); dump.Ln; dump.Update END; *) (* TENTATIVE*)
 				currentWriteBackCall := currentWriteBackCall.next
 			END;
 			RestoreGlobalState;
