@@ -3486,6 +3486,19 @@ TYPE
 
 					IF needsReshaping THEN
 						(* reshape using OCArrayBase.ExpandDimensions *)
+						tempList := SyntaxTree.NewExpressionList();
+						
+						(* source array *)
+						IF rhs.type.resolved IS SyntaxTree.MathArrayType THEN
+							tempList.AddExpression(rhs);
+						ELSE
+							(* convert scalar to one-dimensional array *)
+							tempMathArrayExpression := SyntaxTree.NewMathArrayExpression(InvalidPosition);
+							tempMathArrayExpression.elements.AddExpression(rhs);
+							tempList.AddExpression(tempMathArrayExpression)
+						END;
+						
+						(* list of kept dimensions *)
 						tempMathArrayExpression := SyntaxTree.NewMathArrayExpression(InvalidPosition);
 						FOR i := 0 TO indexList.Length() - 1 DO
 							expression := indexList.GetExpression(i);
@@ -3495,8 +3508,6 @@ TYPE
 								tempMathArrayExpression.elements.AddExpression(SyntaxTree.NewBooleanValue(InvalidPosition, TRUE)) (* keep dimension *)
 							END
 						END;
-						tempList := SyntaxTree.NewExpressionList();
-						tempList.AddExpression(rhs);
 						tempList.AddExpression(tempMathArrayExpression);
 						tempDesignator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
 						tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier(InvalidPosition, "ExpandDimensions"));
