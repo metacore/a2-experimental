@@ -2425,7 +2425,8 @@ TYPE
 							ReleaseIntermediateOperand(lastIndex);
 							skipLabel1 := NewLabel();
 							BrneL(skipLabel1, lastIndex, IntermediateCode.Immediate(addressType, MAX(LONGINT)));
-							Emit(Sub(lastIndex, sourceLength.op, IntermediateCode.Immediate(addressType, 1)));
+							Emit(MovReplace(lastIndex, sourceLength.op)); (* make sure that no new register is allocated *)
+							Emit(Sub(lastIndex, lastIndex, IntermediateCode.Immediate(addressType, 1)));
 							SetLabel(skipLabel1)
 						END;
 
