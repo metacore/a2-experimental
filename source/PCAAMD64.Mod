@@ -918,13 +918,13 @@ TYPE
 
 				SetPC (prevPC);
 
-				IF (listing # NIL) & (pass = maxPasses) THEN listing.Hex (pc, 0); listing.Char (' ') END;
-				FOR i := 0 TO size - 1 DO
-					buffer[i] := GetByte ();
-					IF (listing # NIL) & (pass = maxPasses) THEN listing.Hex (ORD (buffer[i]), -2); END;
-				END;
+				IF times > 0 THEN
+					IF (listing # NIL) & (pass = maxPasses) THEN listing.Hex (pc, 0); listing.Char (' ') END;
+						FOR i := 0 TO size - 1 DO
+						buffer[i] := GetByte ();
+						IF (listing # NIL) & (pass = maxPasses) THEN listing.Hex (ORD (buffer[i]), -2); END;
+					END;
 
-				IF times > 1 THEN
 					WHILE times # 1 DO
 						IF fixup # NIL THEN
 							AddFixup (fixup.adr, pc + fixup.offset - prevPC);
