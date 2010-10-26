@@ -191,7 +191,7 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	I386 { I386.Machine.Mod }
 	AMD64 { AMD64.Machine.Mod }
 	WIN { Win32.Kernel32.Mod Win32.Machine.Mod }
-	UNIX { Unix.Threads.Mod Unix.I386.Machine.Mod }
+	UNIX { Unix.I386.Machine.Mod }
 
 	NATIVE,WIN { Heaps.Mod }
 	UNIX { Unix.Heaps.Mod }

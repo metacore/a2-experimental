@@ -5,7 +5,7 @@ MODULE KbdMouse;   (* g.f.	9.7.07 *)
 
 (* replacement for the keyboard and mouse drivers in the Unix ports *)
 
-IMPORT X11, Unix, S := SYSTEM, Inputs, Plugins, Displays, XDisplay, Objects, Threads;
+IMPORT X11, Unix, S := SYSTEM, Inputs, Plugins, Displays, XDisplay, Objects;
 
 
 
@@ -29,9 +29,9 @@ VAR
 TYPE
 	Poll = OBJECT
 		BEGIN {ACTIVE, SAFE}
-			IF Threads.High > Threads.Low THEN  Objects.SetPriority( Threads.High - 1 )  END;
+			Objects.SetPriority( Objects.High );
 			LOOP
-				Threads.Sleep( 10 );  PollXQueue;
+				Objects.Sleep( 10 );  PollXQueue;
 			END  (* loop *)
 		END Poll;
 
@@ -317,7 +317,7 @@ VAR
 
 		InitKeysym;
 
-		NEW( poll );  Threads.Sleep( 10 );  timeStart := Time()
+		NEW( poll );  Objects.Sleep( 10 );  timeStart := Time()
 	END Init;
 
 	PROCEDURE InitKeysym;

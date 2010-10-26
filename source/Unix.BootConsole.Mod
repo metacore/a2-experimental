@@ -1,6 +1,6 @@
 MODULE BootConsole;
 
-IMPORT Trace, Glue, Unix, Threads, Machine, Modules, Loader, Commands;
+IMPORT Trace, Glue, Unix, Machine, Modules, Objects, Loader, Commands;
 
 TYPE
 	Module = Modules.Module;
@@ -112,7 +112,7 @@ BEGIN
 	Execute( "UnixFiles",  "Install" );
 	StartSystem;
 	LOOP (* idle *)
-		Threads.Sleep( 100 );
+		Objects.Sleep( 100 );
 		IF Glue.systemTerminating THEN  EXIT  END;
 	END
 END BootConsole.

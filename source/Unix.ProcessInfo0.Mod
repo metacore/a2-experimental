@@ -1,35 +1,35 @@
 MODULE ProcessInfo0; (** AUTHOR "staubesv"; PURPOSE "Platform-dependent process interface"; *)
 
 IMPORT
-	Threads, Objects;
+	Objects;
 
 TYPE
 
 	ProcessArray* = ARRAY OF Objects.Process;
 
 PROCEDURE GetProcesses*(VAR array : ProcessArray; VAR nofProcesses : LONGINT);
-VAR thread : Threads.Thread; length : LONGINT;
+VAR thread : Objects.Process; length : LONGINT;
 BEGIN
 	nofProcesses := 0;
 	length := LEN(array);
-	thread := Threads.threads;
+	thread := Objects.processes;
 	WHILE (thread # NIL) & (nofProcesses < length) DO
-		IF (thread(Objects.Process).mode # Objects.Terminated) THEN
+		IF (thread.mode # Objects.Terminated) THEN
 			array[nofProcesses] := thread(Objects.Process);
 			INC(nofProcesses);
 		END;
-		thread := thread.next;
+		thread := thread.processLink;
 	END;
 END GetProcesses;
 
 PROCEDURE GetProcess*(id : LONGINT) : Objects.Process;
-VAR process : Objects.Process; thread : Threads.Thread;
+VAR process, thread : Objects.Process; 
 BEGIN
 	process := NIL;
-	thread := Threads.threads;
+	thread := Objects.processes;
 	WHILE (thread # NIL) & (process = NIL) DO
-		IF thread(Objects.Process).id = id THEN process := thread(Objects.Process); END;
-		thread := thread.next;
+		IF thread.id = id THEN process := thread; END;
+		thread := thread.processLink;
 	END;
 	RETURN process;
 END GetProcess;

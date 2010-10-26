@@ -3,10 +3,10 @@ Refer to the "General ETH Oberon System Source License" contract available at: h
 
 MODULE Heaps;
 
-IMPORT S := SYSTEM, Aos := Basetypes, Glue, Trace, Machine, Unix, Threads;
+IMPORT S := SYSTEM, Aos := Basetypes, Glue, Trace, Machine, Unix;
 
 TYPE
-	Module = Aos.Module;  TypeDesc = Aos.TypeDesc; Thread = Threads.Thread;
+	Module = Aos.Module;  TypeDesc = Aos.TypeDesc; 
 
 	Address = S.ADDRESS;
 	Size = S.SIZE;
@@ -37,7 +37,7 @@ VAR
 	(* ----------------- object finalization ------------------------------*)
 
 TYPE
-	Finalizer* = Threads.Finalizer;  (*===  PROCEDURE {DELEGATE}( obj: ANY ) ===*)
+	Finalizer* = PROCEDURE {DELEGATE}( obj: ANY );
 
 	FinalizerNode* = POINTER TO RECORD
 				objWeak*{UNTRACED}: ANY;	(* weak reference to checked object *)
@@ -89,6 +89,10 @@ VAR
 	collecting-: BOOLEAN;
 
 	findRootsInModules*: PROCEDURE;
+	
+	suspendActivities*: PROCEDURE;
+	resumeActivities*: PROCEDURE;
+	findRootsInStacks*: PROCEDURE;
 
 	(** Statistics. Will only be maintained if Stats = TRUE *)
 
@@ -108,13 +112,6 @@ VAR
 
 	(* ----------------- object finalization ---------------------------*)
 
-
-	PROCEDURE RegisterFinalizer( obj: ANY;  fin: Finalizer );
-	VAR n: FinalizerNode;  a: ANY;
-	BEGIN
-		NewRec( a, FinalizerTag, FALSE );  n := S.VAL( FinalizerNode, a );  n.finalizer := fin;
-		AddFinalizer( obj, n );
-	END RegisterFinalizer;
 
 	PROCEDURE AddFinalizer*( obj: ANY;  n: FinalizerNode );
 	VAR adr: Address;
@@ -474,7 +471,7 @@ VAR
 	END CheckCandidates;
 
 
-	PROCEDURE Candidate( p: Address );
+	PROCEDURE AddCandidate*( p: Address );
 	VAR tag0Addr, tag0, tag: Address;
 	BEGIN
 		IF p MOD 32 = 0 THEN
@@ -494,23 +491,8 @@ VAR
 				IF nofcand = LEN( candidates ) THEN  CheckCandidates  END
 			END;
 		END
-	END Candidate;
+	END AddCandidate;
 
-
-	PROCEDURE FindRootsInStacks;
-	VAR thr: Thread;  sp, p: Address;
-	BEGIN
-		IF traceGC  THEN  Trace.String( "mark stacks:  " )  END;
-		thr := Threads.threads;  nofcand := 0;
-		WHILE thr # NIL DO
-			IF traceGC  THEN  Trace.Char( '.' )  END;
-			sp := thr.SP - 32;
-			WHILE sp < thr.stackBottom DO  S.GET( sp, p );  Candidate( p );  INC( sp, AdrSize )  END;
-			IF nofcand > 0 THEN  CheckCandidates  END;
-			thr := thr.next
-		END;
-		IF traceGC  THEN  Trace.String( " done" );  Trace.Ln  END;
-	END FindRootsInStacks;
 
 
 	PROCEDURE Collect*;
@@ -523,17 +505,20 @@ VAR
 			INC(Ngc);
 			time1 := Machine.GetTimer ();
 		END;
-		Threads.SuspendThreads;
+		suspendActivities;
 		collecting := TRUE;
 
 		findRootsInModules;
-		FindRootsInStacks;
+		
+		nofcand := 0;
+		findRootsInStacks;
+		IF nofcand > 0 THEN  CheckCandidates  END;
 
 		CheckFinalizedObjects;
 		Sweep;
 
 		collecting := FALSE;  throuput := 0;
-		Threads.ResumeThreads;
+		resumeActivities;
 		gcBarrier := Machine.Ticks( ) + 100;
 		IF traceGC  THEN  Trace.String( "Heaps.Collect done " );  Trace.Ln;  Trace.Ln  END;
 		IF Stats THEN
@@ -962,7 +947,6 @@ VAR
 		InitHeap;
 		InitTypeTags;
 
-		Threads.registerFinalizer := RegisterFinalizer;
 	END Init;
 
 

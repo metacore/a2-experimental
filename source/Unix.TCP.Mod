@@ -3,7 +3,7 @@
 MODULE TCP;   (** AUTHOR "pjm, mvt"; PURPOSE "TCP protocol"; *)
 
 
-IMPORT Out := KernelLog, IP, Streams,  Glue, Unix, B := NetBase, Threads;
+IMPORT Out := KernelLog, IP, Streams,  Glue, Unix, B := NetBase, Objects;
 
 CONST
 	NilPort* = 0;
@@ -231,7 +231,7 @@ TYPE
 				(** Wait until the connection state is either in the good or bad set, up to "ms" milliseconds. *)
 				PROCEDURE AwaitState*( good, bad: SET;  ms: LONGINT;  VAR res: LONGINT );
 				BEGIN
-					WHILE (ms > 0) & ~(state IN (good+bad)) DO  Threads.Sleep( 10 );  DEC( ms, 10 )  END
+					WHILE (ms > 0) & ~(state IN (good+bad)) DO  Objects.Sleep( 10 );  DEC( ms, 10 )  END
 				END AwaitState;
 
 				(** Close a TCP connection (half-close). *)

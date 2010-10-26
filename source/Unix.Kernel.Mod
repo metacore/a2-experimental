@@ -1,6 +1,6 @@
 MODULE Kernel;	(** AUTHOR "pjm"; PURPOSE "Implementation-independent kernel interface"; *)
 
-IMPORT SYSTEM, Trace, Machine, Threads, Heaps, Objects;
+IMPORT SYSTEM, Machine, Heaps, Objects;
 
 CONST
 	TimerFree = 0; TimerSleeping = 1; TimerWoken = 2; TimerExpired = 3;	(* Timer state *)
@@ -52,8 +52,8 @@ TYPE
 			ASSERT(state = TimerFree);	(* only one process may sleep on a timer *)
 			state := TimerSleeping;
 			WHILE (state = TimerSleeping) & (ms > 0) DO
-				IF ms > 10 THEN  Threads.Sleep( 10 );  DEC( ms, 10 )
-				ELSE  Threads.Sleep( ms );  ms := 0
+				IF ms > 10 THEN  Objects.Sleep( 10 );  DEC( ms, 10 )
+				ELSE  Objects.Sleep( ms );  ms := 0
 				END
 			END;
 			state := TimerFree
