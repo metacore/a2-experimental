@@ -1067,6 +1067,7 @@ PACKAGE Testing ARCHIVE "Testing.zip" SOURCE "TestingSrc.zip" DESCRIPTION "Tests
 	TestDates.Mod # Dates.Mod
 	TestStrings.Mod # Strings.Mod
 
+	BenchXML.Mod
 	BenchSyntaxHighlighter.Mod
 
 	testutf8.txt 	# utf8 sample file
