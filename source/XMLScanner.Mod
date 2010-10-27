@@ -4,6 +4,22 @@ IMPORT
 	KernelLog, Streams, Strings, DynamicStrings;
 
 CONST
+
+	(* String pooling settings *)
+	Str_ElementName* = 1;
+	Str_AttributeName* = 2;
+	Str_CharRef* = 10;
+	Str_EntityRef* = 11;
+	Str_EntityValue* = 12;
+	Str_AttributeValue* = 13;
+	Str_Comment* = 20;
+	Str_ProcessingInstruction* = 21;
+	Str_CDataSection* = 22;
+	Str_SystemLiteral* = 23;
+	Str_PublicLiteral* = 24;
+	Str_CharData* = 25;
+	Str_Other* = 30;
+
 	(** Scanner: Tokens *)
 	Invalid* = -1;
 	TagElemStartOpen* = 0;	(** '<' *)
@@ -55,6 +71,8 @@ TYPE
 			nextCh: CHAR;	(* look-ahead *)
 			dynstr: DynamicStrings.DynamicString;	(* buffer for CharData, Literal, Name, CharRef, EntityRef and ParamEntityRef *)
 			r : Streams.Reader;
+			stringPool : DynamicStrings.Pool;
+			stringPooling : SET;
 
 		(** Initialize scanner to read from the given ascii file *)
 		PROCEDURE & Init*(r: Streams.Reader);
@@ -63,8 +81,21 @@ TYPE
 			SELF.r := r;
 			NEW(dynstr);
 			line := 1; pos := 0; col := 0;
+			stringPool := NIL;
+			stringPooling := {};
 			NextCh();
 		END Init;
+
+		PROCEDURE SetStringPooling*(stringPooling : SET);
+		BEGIN
+			SELF.stringPooling := stringPooling;
+			IF (stringPooling = {}) THEN
+				stringPool := NIL;
+			ELSIF (stringPool = NIL) THEN
+				NEW(stringPool);
+			END;
+			ASSERT((stringPool = NIL) = (stringPooling = {}));
+		END SetStringPooling;		
 
 		PROCEDURE Error(CONST msg: ARRAY OF CHAR);
 		BEGIN
@@ -459,10 +490,16 @@ TYPE
 			END
 		END ScanContent;
 
-		PROCEDURE GetStr*(): String;
+		PROCEDURE GetString*(type : LONGINT): String;
+		VAR string : String;
 		BEGIN
-			RETURN dynstr.ToArrOfChar();
-		END GetStr;
+			IF (type IN stringPooling) THEN
+				string := stringPool.Get(dynstr);
+			ELSE
+				string := dynstr.ToArrOfChar();
+			END;
+			RETURN string;
+		END GetString;
 
 		PROCEDURE GetPos*(): LONGINT;
 		BEGIN
