@@ -95,7 +95,7 @@ TYPE
 				NEW(stringPool);
 			END;
 			ASSERT((stringPool = NIL) = (stringPooling = {}));
-		END SetStringPooling;		
+		END SetStringPooling;
 
 		PROCEDURE Error(CONST msg: ARRAY OF CHAR);
 		BEGIN
@@ -425,9 +425,8 @@ TYPE
 			EntityRef
 			Eof *)
 		PROCEDURE ScanContent*;
-		VAR op, i: LONGINT;
+		VAR op : LONGINT;
 		BEGIN
-			i := 0;
 			op := GetPos();
 			SkipWhiteSpaces(); oldpos := GetPos();
 			IF sym = Eof THEN nextCh := 0X END;
@@ -480,11 +479,11 @@ TYPE
 					END
 *)			| '&': NextCh(); ScanReference()
 			ELSE
+				dynstr.Clear;
 				REPEAT
-					dynstr.Put(nextCh, i); INC(i);
+					dynstr.AppendCharacter(nextCh);
 					NextCh();
 				UNTIL (nextCh='<') OR (sym = Eof);
-				dynstr.Put(0X, i);
 				oldpos := op;
 				sym := CharData
 			END
