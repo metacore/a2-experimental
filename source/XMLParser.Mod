@@ -229,7 +229,7 @@ TYPE
 			NEW(dtd); dtd.SetPos(scanner.GetPos());
 			scanner.ScanMarkup();
 			IF ~CheckSymbol({Scanner.Name}, "DTD name expected") THEN RETURN END;
-			s := scanner.GetStr(); dtd.SetName(s^);
+			s := scanner.GetStr(); dtd.SetNameAsString(s);
 			scanner.ScanMarkup();
 			IF scanner.sym = Scanner.Name THEN	(* DTD points to external subset *)
 				NEW(externalSubset); externalSubset.SetPos(scanner.GetPos());
@@ -307,7 +307,7 @@ TYPE
 			ed := dtd.GetElementDecl(s^);
 			IF ed = NIL THEN	(* Attribute List Declaration not occured yet -> create new element declaration and add it to the DTD *)
 				NEW(ed); ed.SetPos(scanner.GetPos());
-				ed.SetName(s^);
+				ed.SetNameAsString(s);
 				dtd.AddMarkupDecl(ed)
 			END;
 			scanner.ScanMarkup();
@@ -340,14 +340,14 @@ TYPE
 			ed := dtd.GetElementDecl(s^);
 			IF ed = NIL THEN	(* Element Declaration not occured yet -> create new element declaration and add it to the DTD *)
 				NEW(ed); ed.SetPos(scanner.GetPos());
-				ed.SetName(s^);
+				ed.SetNameAsString(s);
 				dtd.AddMarkupDecl(ed)
 			END;
 			scanner.ScanMarkup();
 			WHILE (scanner.sym # Scanner.TagClose)  DO	(* parse AttDefs *)
 				IF ~CheckSymbol({Scanner.Name}, "Attribute Name expected") THEN RETURN END;
 				s := scanner.GetStr(); NEW(ad); ad.SetPos(scanner.GetPos());
-				ad.SetName(s^);
+				ad.SetNameAsString(s);
 				scanner.ScanMarkup();
 				IF ~CheckSymbol({Scanner.Name, Scanner.ParenOpen}, "Attribute Type expected") THEN RETURN END;
 				IF scanner.sym = Scanner.Name THEN
@@ -435,7 +435,7 @@ TYPE
 				contentType := XML.MixedContent;
 				s := scanner.GetStr();
 				IF s^ = '#PCDATA' THEN
-					NEW(ncp); ncp.SetPos(scanner.GetPos()); ncp.SetName(s^); ncp.SetOccurence(XML.Once);
+					NEW(ncp); ncp.SetPos(scanner.GetPos()); ncp.SetNameAsString(s); ncp.SetOccurence(XML.Once);
 					NEW(ccp); ccp.SetType(XML.Choice); ccp.AddChild(ncp);
 					scanner.ScanMarkup();
 					IF ~CheckSymbol({Scanner.ParenClose, Scanner.Or}, "')' or '|' expected") THEN RETURN ccp END;
@@ -455,7 +455,7 @@ TYPE
 							scanner.ScanMarkup();
 							IF ~CheckSymbol({Scanner.Name}, "Element Name expected") THEN RETURN ccp END;
 							s := scanner.GetStr(); NEW(ncp); ncp.SetPos(scanner.GetPos());
-							ncp.SetName(s^); ncp.SetOccurence(XML.Once);
+							ncp.SetNameAsString(s); ncp.SetOccurence(XML.Once);
 							ccp.AddChild(ncp);
 							scanner.ScanMarkup();
 							IF ~CheckSymbol({Scanner.ParenClose, Scanner.Or}, "')' or '|' expected") THEN RETURN ccp END
@@ -518,7 +518,7 @@ TYPE
 			IF ~CheckSymbol({Scanner.Name, Scanner.ParenOpen}, "Element Name or '(' expected") THEN RETURN cp END;
 			IF scanner.sym = Scanner.Name THEN
 				NEW(ncp); ncp.SetPos(scanner.GetPos()); s := scanner.GetStr();
-				ncp.SetName(s^); cp := ncp
+				ncp.SetNameAsString(s); cp := ncp
 			ELSIF scanner.sym = Scanner.ParenOpen THEN
 				scanner.ScanMarkup();
 				cp := ParseElementContent();
@@ -567,7 +567,7 @@ TYPE
 			END;
 			IF ~CheckSymbol({Scanner.Name}, "Entity Declaration Name expected") THEN RETURN END;
 			s := scanner.GetStr();
-			ed.SetName(s^);
+			ed.SetNameAsString(s);
 			scanner.ScanMarkup();
 			IF ~CheckSymbol({Scanner.Literal, Scanner.Name}, "EntityValue, 'SYSTEM' or 'PUBLIC' expected") THEN RETURN END;
 			IF scanner.sym = Scanner.Literal THEN	(* EntityValue *)
@@ -615,7 +615,7 @@ TYPE
 			scanner.ScanMarkup();
 			IF ~CheckSymbol({Scanner.Name}, "Notation Name expected") THEN RETURN END;
 			s := scanner.GetStr();
-			nd.SetName(s^);
+			nd.SetNameAsString(s);
 			scanner.ScanMarkup();
 			IF ~CheckSymbol({Scanner.Name}, "'PUBLIC' or 'SYSTEM' expected") THEN RETURN END;
 			s := scanner.GetStr();
@@ -716,7 +716,7 @@ TYPE
 			END;
 			IF e = NIL THEN NEW(e) END;
 			e.SetPos(scanner.GetPos());
-			e.SetName(s^);
+			e.SetNameAsString(s);
 			scanner.ScanMarkup();
 			WHILE scanner.sym = Scanner.Name DO
 				e.AddAttribute(ParseAttribute());
@@ -735,7 +735,7 @@ TYPE
 		BEGIN
 			NEW(a); a.SetPos(scanner.GetPos());
 			s := scanner.GetStr();
-			a.SetName(s^);
+			a.SetNameAsString(s);
 			scanner.ScanMarkup();
 			IF ~CheckSymbol({Scanner.Equal}, "'=' expected") THEN RETURN a END;
 			scanner.ScanMarkup();
@@ -898,11 +898,11 @@ TYPE
 				s2 := ent.GetValue();
 				IF s2 # NIL THEN
 					NEW(int); int.SetPos(scanner.GetPos());
-					int.SetName(s1^);
+					int.SetNameAsString(s1);
 					RETURN int
 				ELSE
 					NEW(ext); ext.SetPos(scanner.GetPos());
-					ext.SetName(s1^);
+					ext.SetNameAsString(s1);
 					RETURN ext
 				END
 			ELSE

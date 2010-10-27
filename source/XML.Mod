@@ -64,6 +64,15 @@ TYPE
 			SELF.name := NewString(name)
 		END SetName;
 
+		PROCEDURE SetNameAsString*(name : String);
+		BEGIN
+			IF (name # NIL) THEN
+				SELF.name := name;
+			ELSE
+				SELF.name := StrNoName;
+			END;
+		END SetNameAsString;
+
 		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
 		BEGIN
 			w.String(name^)
@@ -658,6 +667,11 @@ TYPE
 		BEGIN
 			SELF.name := NewString(name)
 		END SetName;
+
+		PROCEDURE SetNameAsString*(name : String);
+		BEGIN
+			SELF.name := name;
+		END SetNameAsString;
 
 		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
 		VAR ch: CHAR;
