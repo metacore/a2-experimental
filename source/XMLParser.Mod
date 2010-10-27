@@ -7,16 +7,18 @@ TYPE
 	String = Strings.String;
 
 	Parser* = OBJECT
-		VAR
-			scanner: Scanner.Scanner;
-			dtd: XML.DocTypeDecl;
-			elemReg*: XML.ElementRegistry;
-			reportError*: PROCEDURE {DELEGATE} (pos, line, row: LONGINT; CONST msg: ARRAY OF CHAR);
+	VAR
+		scanner: Scanner.Scanner;
+		dtd: XML.DocTypeDecl;
+		elemReg*: XML.ElementRegistry;
+		reportError*: PROCEDURE {DELEGATE} (pos, line, row: LONGINT; CONST msg: ARRAY OF CHAR);
+		ds1, ds2 : DynamicStrings.DynamicString; (** utility string, { (ds1 # NIL) & (ds2 # NIL) } *)
 
 		PROCEDURE &Init*(s: Scanner.Scanner);
 		BEGIN
 			reportError := DefaultReportError;
-			scanner := s
+			scanner := s;
+			NEW(ds1); NEW(ds2);
 		END Init;
 
 		PROCEDURE Error(CONST msg: ARRAY OF CHAR);
@@ -760,10 +762,10 @@ TYPE
 		END ParseEndTag;
 
 		PROCEDURE ParseEntityValue(): String;
-		VAR s, es: String; ds1, ds2: DynamicStrings.DynamicString;
-			start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
+		VAR s, es: String; start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
 		BEGIN
-			s := scanner.GetStr(); NEW(ds1); ds1.Append(s^);
+			s := scanner.GetStr();
+			ds1.Clear; ds1.Append(s^);
 			start := 0; len := ds1.Length();
 			WHILE start < len DO
 				WHILE (start < len) & ((ds1.Get(start) # '&') OR (ds1.Get(start + 1) # '#')) & (ds1.Get(start) # '%') DO
@@ -775,7 +777,7 @@ TYPE
 						INC(end)
 					END;
 					IF ds1.Get(end) = ';' THEN
-						NEW(ds2);
+						ds2.Clear;
 						s := ds1.Extract(0, start);	(* literal before reference *)
 						ds2.Append(s^);
 						IF (ds1.Get(start) = '&') & (ds1.Get(start + 1) = '#') THEN	(* character reference *)
@@ -805,7 +807,7 @@ TYPE
 						END;
 						s := ds1.Extract(end + 1, len - end -1);	(* literal after reference *)
 						ds2.Append(s^);
-						ds1 := ds2;
+						ds1.CopyFrom(ds2, 0, ds2.Length());
 						len := ds1.Length()
 					ELSE
 						Error("';' expected (unclosed reference)"); RETURN ds1.ToArrOfChar()
@@ -816,10 +818,10 @@ TYPE
 		END ParseEntityValue;
 
 		PROCEDURE ParseAttributeValue(): String;
-		VAR s, es: String; ds1, ds2: DynamicStrings.DynamicString;
-			start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
+		VAR s, es: String; start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
 		BEGIN
-			s := scanner.GetStr(); NEW(ds1); ds1.Append(s^);
+			s := scanner.GetStr();
+			ds1.Clear; ds1.Append(s^);
 			start := 0; len := ds1.Length();
 			WHILE start < len DO
 				WHILE (start < len) & (ds1.Get(start) # '&') DO
@@ -831,7 +833,7 @@ TYPE
 						INC(end)
 					END;
 					IF ds1.Get(end) = ';' THEN
-						NEW(ds2);
+						ds2.Clear;
 						s := ds1.Extract(0, start);	(* literal before reference *)
 						ds2.Append(s^);
 						IF ds1.Get(start + 1) = '#' THEN	(* character reference *)
@@ -859,9 +861,10 @@ TYPE
 							END;
 							ds2.Append(es^);
 						END;
+
 						s := ds1.Extract(end + 1, len - end -1);	(* literal after reference *)
 						ds2.Append(s^);
-						ds1 := ds2;
+						ds1.CopyFrom(ds2, 0, ds2.Length());
 						len := ds1.Length()
 					ELSE
 						Error("';' expected (unclosed reference)"); RETURN ds1.ToArrOfChar()

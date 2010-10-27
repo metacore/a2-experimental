@@ -39,7 +39,7 @@ TYPE
 		VAR newBuffer : String;
 		BEGIN
 			IF minSize >= bufferSize THEN
-				REPEAT bufferSize := 2 * bufferSize; UNTIL (bufferSize > minSize); 
+				REPEAT bufferSize := 2 * bufferSize; UNTIL (bufferSize > minSize);
 				NEW(newBuffer, bufferSize);
 				COPY(buffer^, newBuffer^);
 				buffer := newBuffer;
@@ -106,6 +106,25 @@ TYPE
 			NEW(buffer, length + 1);
 			COPY(s^, buffer^);
 		END FromArrOfChar;
+
+		(** Copy <len> characters starting at <offset> from string <ds> into this dynamic string*)
+		PROCEDURE CopyFrom*(ds : DynamicString; offset, len : LONGINT);
+		VAR i : LONGINT;
+		BEGIN
+			ASSERT((ds # NIL) & (offset >= 0) & (len >= 0));
+			IF (offset < length) THEN
+				IF (offset + len > length) THEN len := length - offset; END;
+				AdjustBufferSize(len + 1);
+				FOR i := 0 TO len - 1 DO
+					buffer[i] := ds.buffer[i + offset];
+				END;
+				buffer[len] := 0X;
+				length := len;
+			ELSE
+				buffer[0] := 0X;
+				length := 0;
+			END;
+		END CopyFrom;
 
 	END DynamicString;
 
