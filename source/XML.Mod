@@ -1038,6 +1038,11 @@ TYPE
 			len := DynamicStrings.StringLength(str)
 		END SetStr;
 
+		PROCEDURE SetStrAsString*(str : String);
+		BEGIN
+			SELF.str := str;
+		END SetStrAsString;
+
 	END ArrayChars;
 
 	Comment* = OBJECT (ArrayChars)
@@ -1196,6 +1201,14 @@ TYPE
 				SELF.value := NewString(value)
 			END
 		END SetValue;
+
+		PROCEDURE SetValueAsString*(value : String);
+		BEGIN
+			ASSERT(value # NIL);
+			IF IsAllowedValue(value^) THEN
+				SELF.value := value;
+			END;
+		END SetValueAsString;
 
 		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
 		BEGIN

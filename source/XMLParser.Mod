@@ -206,7 +206,7 @@ TYPE
 		BEGIN
 			NEW(comment); comment.SetPos(scanner.GetPos());
 			s := scanner.GetString(Scanner.Str_Comment);
-			comment.SetStr(s^);
+			comment.SetStrAsString(s);
 			RETURN comment
 		END ParseComment;
 
@@ -662,7 +662,7 @@ TYPE
 		BEGIN
 			NEW(cds); cds.SetPos(scanner.GetPos());
 			s := scanner.GetString(Scanner.Str_CDataSection);
-			cds.SetStr(s^);
+			cds.SetStrAsString(s);
 			RETURN cds
 		END ParseCDataSect;
 
@@ -673,7 +673,7 @@ TYPE
 			NEW(cd); (* cd.SetFilePos(scanner.GetFile(), scanner.GetOldPos()); cd.SetLen(scanner.GetPos() - oldpos); *)
 			cd.SetPos(scanner.GetPos());
 			s := scanner.GetString(Scanner.Str_CharData);
-			cd.SetStr(s^);
+			cd.SetStrAsString(s);
 			RETURN cd
 		END ParseCharData;
 
@@ -741,7 +741,7 @@ TYPE
 			scanner.ScanMarkup();
 			IF ~CheckSymbol({Scanner.Literal}, "Attribute Value expected") THEN RETURN a END;
 			s := ParseAttributeValue();
-			a.SetValue(s^);
+			a.SetValueAsString(s);
 			RETURN a
 		END ParseAttribute;
 
@@ -818,16 +818,19 @@ TYPE
 		END ParseEntityValue;
 
 		PROCEDURE ParseAttributeValue(): String;
-		VAR s, es: String; start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
+		VAR
+			s, es: String; start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
+			expanded : BOOLEAN;
 		BEGIN
 			s := scanner.GetString(Scanner.Str_AttributeValue);
 			ds1.Clear; ds1.Append(s^);
-			start := 0; len := ds1.Length();
+			start := 0; len := ds1.Length(); expanded := FALSE;
 			WHILE start < len DO
 				WHILE (start < len) & (ds1.Get(start) # '&') DO
 					INC(start)
 				END;
 				IF ds1.Get(start) = '&' THEN
+					expanded := TRUE;
 					end := start + 1;
 					WHILE (end < len) & (ds1.Get(end) # ';') DO
 						INC(end)
@@ -871,7 +874,11 @@ TYPE
 					END
 				END
 			END;
-			RETURN ds1.ToArrOfChar()
+			IF expanded THEN
+				RETURN ds1.ToArrOfChar();
+			ELSE
+				RETURN s;
+			END;
 		END ParseAttributeValue;
 
 		PROCEDURE ParseCharRef(): XML.CharReference;
