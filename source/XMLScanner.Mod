@@ -62,7 +62,6 @@ TYPE
 			reportError := DefaultReportError;
 			SELF.r := r;
 			NEW(dynstr);
-			dynstr.Init();
 			line := 1; pos := 0; col := 0;
 			NextCh();
 		END Init;
@@ -86,13 +85,12 @@ TYPE
 		END NextCh;
 
 		PROCEDURE ReadTillChar(ch: CHAR);
-		VAR i: LONGINT;
 		BEGIN
-			i := 0;
+			dynstr.Clear;
 			WHILE (nextCh # ch) & (sym # Eof) DO
-				dynstr.Put(nextCh, i); INC(i); NextCh()
+				dynstr.AppendCharacter(nextCh);
+				NextCh();
 			END;
-			dynstr.Put(0X, i);
 			IF sym = Eof THEN sym := Invalid END
 		END ReadTillChar;
 
@@ -104,15 +102,15 @@ TYPE
 		END SkipWhiteSpaces;
 
 		PROCEDURE ScanPoundName;
-		VAR i: LONGINT;
 		BEGIN
-			dynstr.Put(nextCh, 0);
-			i := 1; NextCh();
+			dynstr.Clear;
+			dynstr.AppendCharacter(nextCh);
+			NextCh();
 			WHILE (('a' <= nextCh) & (nextCh <= 'z')) OR (('A' <= nextCh) & (nextCh <= 'Z')) OR
 				(('0' <= nextCh) & (nextCh <= '9')) OR (nextCh = '.') OR (nextCh = '-') OR (nextCh = '_') OR (nextCh = ':') DO
-				dynstr.Put(nextCh, i); INC(i); NextCh()
+				dynstr.AppendCharacter(nextCh);
+				NextCh();
 			END;
-			dynstr.Put(0X, i);
 			IF sym # Eof THEN sym := PoundName ELSE sym := Invalid END
 		END ScanPoundName;
 
@@ -121,7 +119,6 @@ TYPE
 				Nmtoken
 				Invalid	*)
 		PROCEDURE ScanNm;
-		VAR i: LONGINT;
 		BEGIN
 			SkipWhiteSpaces();
 			IF (('0' <= nextCh) & (nextCh <= '9')) OR (nextCh = '.') OR (nextCh = '-') THEN
@@ -131,14 +128,15 @@ TYPE
 			ELSE
 				sym := Invalid; RETURN
 			END;
-			dynstr.Put(nextCh, 0);
-			i := 1; NextCh();
+			dynstr.Clear;
+			dynstr.AppendCharacter(nextCh);
+			NextCh();
 			WHILE ((('a' <= nextCh) & (nextCh <= 'z')) OR (('A' <= nextCh) & (nextCh <= 'Z')) OR
 					(('0' <= nextCh) & (nextCh <= '9')) OR (nextCh = '.') OR (nextCh = '-') OR (nextCh = '_')
 					OR (nextCh = ':')) & (sym # Eof) DO
-				dynstr.Put(nextCh, i); INC(i); NextCh()
+				dynstr.AppendCharacter(nextCh);
+				NextCh();
 			END;
-			dynstr.Put(0X, i);
 			IF sym = Eof THEN sym := Invalid END
 		END ScanNm;
 
@@ -147,24 +145,24 @@ TYPE
 				Invalid
 				Comment	*)
 		PROCEDURE ScanComment;
-		VAR i: LONGINT;
 		BEGIN
-			i := 0;
+			dynstr.Clear;
 			LOOP
 				WHILE (nextCh # '-') & (sym # Eof) DO
-					dynstr.Put(nextCh, i); INC(i); NextCh()
+					dynstr.AppendCharacter(nextCh);
+					NextCh()
 				END;
 				IF nextCh = '-' THEN
 					NextCh();
 					IF nextCh = '-' THEN
 						NextCh();
 						IF nextCh = '>' THEN
-							dynstr.Put(0X, i); NextCh(); sym := Comment; RETURN
+							NextCh(); sym := Comment; RETURN
 						ELSE
 							sym := Invalid; RETURN
 						END
 					ELSE
-						dynstr.Put('-', i); INC(i)
+						dynstr.AppendCharacter('-');
 					END
 				ELSE
 					sym := Invalid; RETURN
@@ -177,17 +175,17 @@ TYPE
 				TagCDataSectClose
 				Invalid	*)
 		PROCEDURE ScanCDataSect;
-		VAR i, bc: LONGINT;
-			escape : BOOLEAN;
+		VAR bc: LONGINT; escape : BOOLEAN;
 		BEGIN
 			IF sym = Eof THEN
 				sym := Invalid;
 				RETURN
 			END;
-			i := 0;
+			dynstr.Clear;
 			LOOP
 				WHILE (nextCh # ']') &  (sym # Eof) DO
-					dynstr.Put(nextCh, i); INC(i); NextCh()
+					dynstr.AppendCharacter(nextCh);
+					NextCh()
 				END;
 				IF nextCh = ']' THEN
 					bc := 1; escape := FALSE; NextCh();
@@ -199,17 +197,17 @@ TYPE
 					END;
 					IF escape THEN
 						WHILE (bc > 2) DO
-							DEC(bc); dynstr.Put(']', i); INC(i);
+							DEC(bc);
+							dynstr.AppendCharacter(']');
 						END;
-						dynstr.Put(0X, i);
 						sym := CDataSect; RETURN
 					ELSE
 						WHILE (bc > 0) DO
-							DEC(bc); dynstr.Put(']', i); INC(i);
+							DEC(bc); dynstr.AppendCharacter(']');
 						END;
 					END;
 				ELSE
-					dynstr.Put(0X, i); sym := CharData; RETURN
+					sym := CharData; RETURN
 				END
 			END
 		END ScanCDataSect;
@@ -244,28 +242,28 @@ TYPE
 			TagPIClose
 			CharData	*)
 		PROCEDURE ScanPInstruction*;
-		VAR i: LONGINT;
 		BEGIN
 			IF sym = Eof THEN
 				sym := Invalid;
 				RETURN
 			END;
-			i := 0;
+			dynstr.Clear;
 			LOOP
 				WHILE (nextCh # '?') & (sym # Eof) DO
-					dynstr.Put(nextCh, i); INC(i); NextCh()
+					dynstr.AppendCharacter(nextCh);
+					NextCh();
 				END;
 				IF nextCh = '?' THEN
 					NextCh();
 					IF nextCh = '>' THEN
 						sym := TagPIClose; NextCh(); RETURN
 					ELSE
-						dynstr.Put('?', i); INC(i)
+						dynstr.AppendCharacter('?');
 					END
 				ELSIF sym = Eof THEN
 					sym := Invalid; RETURN
 				ELSE
-					dynstr.Put(0X, i); sym := CharData; RETURN
+					sym := CharData; RETURN
 				END
 			END
 		END ScanPInstruction;
@@ -396,7 +394,7 @@ TYPE
 			EntityRef
 			Eof *)
 		PROCEDURE ScanContent*;
-		VAR s: String; op, i: LONGINT;
+		VAR op, i: LONGINT;
 		BEGIN
 			i := 0;
 			op := GetPos();
@@ -409,8 +407,7 @@ TYPE
 					| '/': sym := TagElemEndOpen; NextCh()
 					| '?': NextCh(); ScanNm();
 							IF (sym = Name) THEN
-								s := dynstr.ToArrOfChar(); DynamicStrings.Lower(s^, s^);
-								IF s^ = "xml" THEN
+								IF dynstr.EqualsTo("xml", TRUE) THEN
 									sym := TagXMLDeclOpen
 								ELSE
 									sym := TagPIOpen
@@ -427,8 +424,8 @@ TYPE
 									Error("'<!--' expected")
 								END
 							ELSIF nextCh = '[' THEN
-								NextCh(); ScanNm(); s := dynstr.ToArrOfChar();
-								IF (sym = Name) & (s^ = "CDATA") & (nextCh = '[') THEN
+								NextCh(); ScanNm();
+								IF (sym = Name) & dynstr.EqualsTo("CDATA", FALSE) & (nextCh = '[') THEN
 									NextCh(); ScanCDataSect()
 								ELSE
 									Error("'<[CDATA[' expected'")

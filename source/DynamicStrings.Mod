@@ -48,7 +48,7 @@ TYPE
 
 		PROCEDURE Put*(ch: CHAR; at: LONGINT);
 		BEGIN
-			AdjustBufferSize(at + 1);
+			IF (at + 1 >= bufferSize) THEN AdjustBufferSize(at + 1); END;
 			buffer[at] := ch;
 			length := StringLength(buffer^); (* not optimized *)
 		END Put;
@@ -61,6 +61,16 @@ TYPE
 				RETURN buffer[at];
 			END;
 		END Get;
+
+		PROCEDURE AppendCharacter*(ch : CHAR);
+		BEGIN
+			IF (ch # 0X) THEN
+				IF (length + 1 + 1 >= bufferSize) THEN AdjustBufferSize(length + 1 + 1); END;
+				buffer[length] := ch;
+				buffer[length + 1] := 0X;
+				INC(length);
+			END;
+		END AppendCharacter;
 
 		PROCEDURE Append*(CONST this: ARRAY OF CHAR);
 		VAR thisLength : LONGINT;
@@ -125,6 +135,28 @@ TYPE
 				length := 0;
 			END;
 		END CopyFrom;
+
+		PROCEDURE EqualsTo*(CONST string : ARRAY OF CHAR; ignoreCase : BOOLEAN) : BOOLEAN;
+		VAR len : LONGINT; result : BOOLEAN; i : LONGINT;
+		BEGIN
+			len := StringLength(string);
+			result := (len = length);
+			IF result THEN
+				i := 0;
+				IF ignoreCase THEN
+					WHILE result & (i < length) DO
+						result := Strings.UP(string[i]) = Strings.UP(buffer[i]);
+						INC(i);
+					END;
+				ELSE
+					WHILE result & (i < length) DO
+						result := string[i] = buffer[i];
+						INC(i);
+					END;
+				END;
+			END;
+			RETURN result;
+		END EqualsTo;
 
 	END DynamicString;
 
