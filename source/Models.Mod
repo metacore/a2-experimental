@@ -76,7 +76,12 @@ TYPE
 		VAR notifyListeners : BOOLEAN;
 		BEGIN
 			(* If the last writer releases the lock and the model data has changed, we have to notify interested listeners *)
-			notifyListeners := (lock.GetWLockLevel() = 1) & changed;
+			IF (lock.GetWLockLevel() = 1) THEN
+				notifyListeners := changed;
+				changed := FALSE;
+			ELSE
+				notifyListeners := FALSE;
+			END;
 			lock.ReleaseWrite;
 			IF notifyListeners THEN
 				onChanged.Call(SELF);
