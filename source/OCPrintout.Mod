@@ -1676,7 +1676,7 @@ TYPE
 		BEGIN singleStatement := b
 		END SingleStatement;
 
-		PROCEDURE &Init(w: Streams.Writer; mode: LONGINT; info: BOOLEAN);
+		PROCEDURE &Init*(w: Streams.Writer; mode: LONGINT; info: BOOLEAN);
 		BEGIN
 			NEW(SELF.w,w);
 			SELF.mode := mode; NEW(ws,128); SELF.info := info; case := Scanner.Uppercase;

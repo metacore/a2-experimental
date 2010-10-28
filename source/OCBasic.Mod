@@ -704,7 +704,7 @@ TYPE
 	VAR
 		list: List;
 
-		PROCEDURE & Init;
+		PROCEDURE & Init*;
 		BEGIN NEW(list); END Init;
 
 		(* Push on top of stack *)
@@ -742,7 +742,7 @@ TYPE
 	VAR
 		list: IntegerList;
 
-		PROCEDURE & Init;
+		PROCEDURE & Init*;
 		BEGIN NEW(list); END Init;
 
 		(* Push on top of stack *)
@@ -784,7 +784,7 @@ TYPE
 	VAR
 		top, last: QueueEntry;
 
-		PROCEDURE & Init;
+		PROCEDURE & Init *;
 		BEGIN
 			top := NIL; last := NIL;
 		END Init;
@@ -935,12 +935,12 @@ TYPE
 
 	Graph* = OBJECT
 	VAR
-		firstBlock-, lastBlock-: Block;
-		blocks-: BlockList;
+		firstBlock*, lastBlock-: Block;
+		blocks*: BlockList;
 		edges-: EdgeList;
 		edgesLookup: HashTable2D;
 
-		PROCEDURE & Init;
+		PROCEDURE & Init *;
 		BEGIN
 			NEW(blocks);
 			NEW(edges);
@@ -1124,9 +1124,9 @@ TYPE
 	Block* = OBJECT
 	VAR
 		predecessors-, successors-, dominanceFrontier-: BlockList;
-		index-, immediateDominator-: LONGINT;
+		index*, immediateDominator*: LONGINT;
 
-		PROCEDURE & Init;
+		PROCEDURE & Init*;
 		BEGIN
 			NEW(predecessors);
 			NEW(successors);
@@ -1244,7 +1244,7 @@ TYPE
 			writer := w;
 		END SetWriter;
 
-		PROCEDURE & Init(c: ContentFunction);
+		PROCEDURE & Init*(c: ContentFunction);
 		BEGIN
 			content := c;
 		END Init;

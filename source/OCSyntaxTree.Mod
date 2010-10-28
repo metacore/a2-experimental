@@ -1939,7 +1939,7 @@ TYPE
 			relatedIndexList-: ExpressionList; (* the index list *)
 
 		(* OLIVIER *)
-		PROCEDURE &InitDesignator(position: LONGINT);
+		PROCEDURE &InitDesignator*(position: LONGINT);
 		BEGIN
 			InitExpression(position);
 			left := NIL;
@@ -2631,7 +2631,7 @@ TYPE
 		untraced-: BOOLEAN;
 		modifiers-: Modifier;
 
-		PROCEDURE & InitVariable( position: LONGINT;  name: Identifier);
+		PROCEDURE & InitVariable*( position: LONGINT;  name: Identifier);
 		BEGIN
 			InitSymbol(position,name);
 			nextVariable := NIL;
@@ -2897,7 +2897,7 @@ TYPE
 		position-: LONGINT;
 		isUnreachable-: BOOLEAN;
 
-		PROCEDURE & InitStatement(position: LONGINT; outer: Statement);
+		PROCEDURE & InitStatement*(position: LONGINT; outer: Statement);
 		BEGIN
 			SELF.position := position;
 			SELF.outer := outer;
@@ -2938,7 +2938,7 @@ TYPE
 	Assignment* = OBJECT (Statement)
 	VAR left-: Designator; right-: Expression;
 
-		PROCEDURE & InitAssignment( position: LONGINT;  left: Designator;  right: Expression; outer: Statement );
+		PROCEDURE & InitAssignment*( position: LONGINT;  left: Designator;  right: Expression; outer: Statement );
 		BEGIN
 			InitStatement( position,outer );  SELF.left := left;  SELF.right := right;
 		END InitAssignment;

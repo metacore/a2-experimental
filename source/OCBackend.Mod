@@ -8,7 +8,7 @@ TYPE
 	Backend* = OBJECT
 	VAR
 		diagnostics-: Diagnostics.Diagnostics;
-		flags-: SET;
+		flags*: SET;
 		system-: Global.System;
 		error-: BOOLEAN;
 		checker-: SemanticChecker.Checker;
