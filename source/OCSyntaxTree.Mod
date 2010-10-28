@@ -45,7 +45,7 @@ CONST
 	Tensor*=3; (* ARRAY [?] OF ... *)
 
 	(** node states, important for checker to avoid cycles *)
-	Undefined*={}; BeingResolved*=1; Resolved*=2; FingerPrinted*=3; RecursionFlag=31;
+	Undefined*={}; BeingResolved*=1; Resolved*=2; FingerPrinted*=3; Warned*=4; RecursionFlag=31;
 
 	(* OLIVIER *)
 	(* kind of RangeExpression *)
@@ -436,6 +436,11 @@ TYPE
 		PROCEDURE SetState*(state: LONGINT);
 		BEGIN	INCL(SELF.state,state);
 		END SetState;
+
+		PROCEDURE RemoveState*(state: LONGINT);
+		BEGIN EXCL(SELF.state,state)
+		END RemoveState;
+
 
 		PROCEDURE SetTypeDeclaration*(typeDeclaration: TypeDeclaration);
 		BEGIN SELF.typeDeclaration := typeDeclaration
@@ -2097,7 +2102,7 @@ TYPE
 			parameters-: ExpressionList;
 			hasRange-: BOOLEAN;
 			hasTensorRange-: BOOLEAN; (* OLIVIER *)
-			
+
 		(* OLIVIER *)
 		PROCEDURE &InitIndexDesignator(position: LONGINT; left: Designator);
 		BEGIN

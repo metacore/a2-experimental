@@ -169,9 +169,9 @@ TYPE
 			scope := inScope;
 			WHILE (scope # NIL) & (symbol = NIL) DO
 				symbol := scope.FindSymbol(name);
-
 				WHILE (symbol # NIL) & (symbol.scope.ownerModule # currentScope.ownerModule) & (symbol.access * SyntaxTree.Public = {}) DO
 					(* found symbol in different module, but is it not exported, can we go on searching in record base scopes ? *)
+					symbol.MarkUsed;
 					IF (symbol.scope IS SyntaxTree.RecordScope) THEN
 						ownerRecord := symbol.scope(SyntaxTree.RecordScope).ownerRecord;
 						base := RecordBase(ownerRecord);
@@ -192,6 +192,7 @@ TYPE
 					ASSERT(phase = DeclarationPhase);
 					ResolveSymbol(symbol)
 				END;
+				symbol.MarkUsed;
 			END;
 			RETURN symbol
 		END Find;
@@ -3518,8 +3519,8 @@ TYPE
 							castReturnType := SyntaxTree.NewMathArrayType(Diagnostics.Invalid, expression.type.scope,SyntaxTree.Tensor);
 							castReturnType.SetArrayBase(ArrayBase(rhs.type.resolved,MAX(LONGINT)));
 							expression.SetType(castReturnType);
-							
-							
+
+
 						ELSE
 							Error(expression.position, Diagnostics.Invalid, "problem with resolving OCArrayBase.ExpandDimensions");
 						END;
@@ -5605,7 +5606,7 @@ TYPE
 						(*! constructor is always visible, compatibility to paco
 						procedure.SetAccess(SyntaxTree.Public+SyntaxTree.Protected+SyntaxTree.Internal);
 						*)
-
+						procedure.MarkUsed;
 						IF procedureType.returnType # NIL THEN
 							Error(procedure.position,Diagnostics.Invalid,"constructor with forbidden return type");
 						END;
@@ -5640,6 +5641,7 @@ TYPE
 							END;
 							procedure.SetSuper(super);
 							procedure.SetAccess(procedure.access+super.access);
+							procedure.MarkUsed;
 						END;
 					END;
 					IF  ~system.GenerateParameterOffsets(procedure,FALSE) (* assume that this is no nested procedure, is fixed later otherwise *)
@@ -6811,13 +6813,28 @@ TYPE
 		BEGIN  END VisitArrayRangeType;
 
 		PROCEDURE VisitArrayType*(x: SyntaxTree.ArrayType);
-		BEGIN END VisitArrayType;
+		BEGIN
+			IF ~(SyntaxTree.Warned IN x.state) THEN
+				x.SetState(SyntaxTree.Warned);
+				Type(x.arrayBase);
+			END;
+		END VisitArrayType;
 
 		PROCEDURE VisitMathArrayType*(x: SyntaxTree.MathArrayType);
-		BEGIN END VisitMathArrayType;
+		BEGIN
+			IF ~(SyntaxTree.Warned IN x.state) THEN
+				x.SetState(SyntaxTree.Warned);
+				Type(x.arrayBase);
+			END;
+		END VisitMathArrayType;
 
 		PROCEDURE VisitPointerType*(x: SyntaxTree.PointerType);
-		BEGIN  END VisitPointerType;
+		BEGIN
+			IF ~(SyntaxTree.Warned IN x.state) THEN
+				x.SetState(SyntaxTree.Warned);
+				Type(x.pointerBase);
+			END;
+		END VisitPointerType;
 
 		PROCEDURE VisitRecordType*(x: SyntaxTree.RecordType);
 		BEGIN Scope(x.recordScope) END VisitRecordType;
@@ -6853,13 +6870,13 @@ TYPE
 		BEGIN Type(x.declaredType) END VisitTypeDeclaration;
 
 		PROCEDURE VisitConstant*(x: SyntaxTree.Constant);
-		BEGIN  END VisitConstant;
+		BEGIN END VisitConstant;
 
 		PROCEDURE VisitVariable*(x: SyntaxTree.Variable);
-		BEGIN  END VisitVariable;
+		BEGIN END VisitVariable;
 
 		PROCEDURE VisitParameter*(x: SyntaxTree.Parameter);
-		BEGIN	END VisitParameter;
+		BEGIN END VisitParameter;
 
 		PROCEDURE VisitProcedure*(x: SyntaxTree.Procedure);
 		BEGIN Scope(x.procedureScope) END VisitProcedure;
