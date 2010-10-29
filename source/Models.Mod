@@ -785,6 +785,12 @@ TYPE
 VAR
 	StrBoolean, StrInteger, StrReal, StrLongreal, StrChar, StrString, StrSet, StrText, StrContainer : Strings.String;
 
+PROCEDURE NewLine*(w : Streams.Writer; level : LONGINT);
+BEGIN
+	ASSERT(w # NIL);
+	w.Ln; WHILE level > 0 DO w.Char(09X); DEC(level) END
+END NewLine;
+
 (* Helper procedures *)
 
 PROCEDURE IsPrintableCharacter(ch : CHAR) : BOOLEAN;
