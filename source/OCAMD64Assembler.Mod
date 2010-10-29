@@ -241,7 +241,9 @@ TYPE
 			COPY(message,msg);
 			Strings.Append(msg," in ");
 			Strings.Append(msg, code.identifier.name);
-			diagnostics.Error("",Diagnostics.Invalid,Diagnostics.Invalid,msg);
+			IF diagnostics # NIL THEN
+				diagnostics.Error("",Diagnostics.Invalid,Diagnostics.Invalid,msg);
+			END;
 			error := TRUE;
 			IF dump # NIL THEN dump.Update; END;
 		END Error;
