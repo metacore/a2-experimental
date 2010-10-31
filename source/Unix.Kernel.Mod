@@ -1,6 +1,6 @@
 MODULE Kernel;	(** AUTHOR "pjm"; PURPOSE "Implementation-independent kernel interface"; *)
 
-IMPORT SYSTEM, Machine, Heaps, Objects;
+IMPORT SYSTEM, Trace, Machine, Heaps, Objects;
 
 CONST
 	TimerFree = 0; TimerSleeping = 1; TimerWoken = 2; TimerExpired = 3;	(* Timer state *)
@@ -34,7 +34,6 @@ TYPE
 		END HandleTimeout;
 
 		(** Delay the calling process the specified number of milliseconds or until Wakeup is called. Only one process may sleep on a specific timer at a time. *)
-		(*--------
 		PROCEDURE Sleep*(ms: LONGINT);
 		BEGIN {EXCLUSIVE}
 			ASSERT(state = TimerFree);	(* only one process may sleep on a timer *)
@@ -44,21 +43,7 @@ TYPE
 			IF state # TimerExpired THEN Objects.CancelTimeout( timer ) END;
 			state := TimerFree
 		END Sleep;
-		---------*)
 
-		(* UnixAos: more efficient on this ports ? -----*)
-		PROCEDURE Sleep*(ms: LONGINT);
-		BEGIN
-			ASSERT(state = TimerFree);	(* only one process may sleep on a timer *)
-			state := TimerSleeping;
-			WHILE (state = TimerSleeping) & (ms > 0) DO
-				IF ms > 10 THEN  Objects.Sleep( 10 );  DEC( ms, 10 )
-				ELSE  Objects.Sleep( ms );  ms := 0
-				END
-			END;
-			state := TimerFree
-		END Sleep;
-		(*-------------------*)
 
 		(** Wake up the process sleeping on the timer, if any. *)
 		PROCEDURE Wakeup*;
@@ -247,6 +232,9 @@ BEGIN
 	second := Second;
 	NEW(finalizer);	(* activate finalizer object *)
 	Heaps.GC := GC;	(* switch to GC procedure with finalization *)
+	Machine.Acquire(Machine.TraceOutput);
+	Trace.String("Kernel: Initialized and started."); Trace.Ln;
+	Machine.Release(Machine.TraceOutput);
 END Kernel.
 
 (**
