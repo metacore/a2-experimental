@@ -108,7 +108,7 @@ TYPE
 							conWait( childrunning, start1 );
 						mtxUnlock( start1 );
 						ASSERT( id = nid );					
-						RegisterFinalizer( SELF, FinalizeProcess )
+						RegisterFinalizer( SELF, FinalizeProcess );
 					ELSE 
 						name := "Main Thread";
 						stackBottom := Glue.stackBottom;  
@@ -118,7 +118,8 @@ TYPE
 						noThreads := 1;
 					END;
 					mode := Ready;
-					mtxUnlock( start )
+					mtxUnlock( start );
+				Sleep( 5 ) (* give the child time to do get a llttle further, needed for paco *) 
 				END Initialize;
 				
 				PROCEDURE Cancel*;
@@ -168,7 +169,7 @@ TYPE
 	Timer* =  OBJECT
 			VAR
 				next: Timer;
-				stamp, trigger: LONGINT;
+				trigger: LONGINT;
 				handler: EventHandler
 			END Timer;
 
@@ -177,8 +178,8 @@ CONST
 	Solaris = 1;  Linux = 2;  Darwin = 3;
 
 VAR
-	timers: Timer;  tmtx: cMutex;
-	timeStart: LONGINT;   (* milliseconds *)
+	timers: Timer;  
+	tmtx: cMutex;
 	
 	processes-: Process;	(*  Anchor of all instantiated threads in system *)
 	noThreads-: LONGINT;
@@ -189,7 +190,7 @@ VAR
 	newProcess: Process;
 	nid: cThread;
 	
-	timerThread: Process;
+	
 	createmtx: cMutex;
 
 	hostSystem: LONGINT;
@@ -491,31 +492,30 @@ VAR
 
 	(*---------------------------- Timer --------------------------------*)
 
-
-
-	PROCEDURE timer( type: Address; obj: ProtectedObject );
-	VAR sleeptime, stamp: LONGINT;  t, lastt: Timer;
+	PROCEDURE tSleep( ms: LONGINT );
 	BEGIN
+		mtxUnlock( tmtx );  Sleep( ms );  mtxLock( tmtx )
+	END tSleep;
+
+	
+	PROCEDURE timer( type: Address; obj: ProtectedObject );
+	CONST Interval = 10;
+	VAR sleeptime: LONGINT;  t: Timer; 
+	BEGIN
+		mtxLock( tmtx );  
 		LOOP
-			mtxLock( tmtx );  (* don't grab a timer just beeing removed *)
-			IF timers # NIL THEN
-				t := timers;
-				IF t # lastt THEN  stamp := t.stamp;  sleeptime := t.trigger - Machine.Ticks();  lastt := t  END;
-				mtxUnlock( tmtx );
-				IF sleeptime > 0 THEN
-					IF sleeptime > 10 THEN  Sleep( 10 );  DEC( sleeptime, 10 )
-					ELSE  Sleep( sleeptime );  sleeptime := 0
-					END
+			t := timers;
+			IF t # NIL THEN
+				sleeptime := t.trigger - Machine.Ticks();  
+				IF sleeptime > Interval THEN  tSleep( Interval );  DEC( sleeptime, Interval )
+				ELSIF sleeptime > 0 THEN  tSleep( sleeptime );  sleeptime := 0
 				END;
-				mtxLock( tmtx );
-				IF (sleeptime <= 0) & (t.stamp # 0) THEN  (* expired, not canceled *)
+				IF (sleeptime <= 0) & (t.handler # NIL) THEN  (* expired, not canceled *)
 					t.handler;
 					Remove( t );
 				END;
-				mtxUnlock( tmtx )
 			ELSE
-				mtxUnlock( tmtx );
-				Sleep( 10 )
+				tSleep( Interval )
 			END
 		END
 	END timer;
@@ -523,67 +523,60 @@ VAR
 	PROCEDURE Remove( t: Timer );  (* remove timer from list of active timers *)
 	VAR p, x: Timer;
 	BEGIN
-		t.stamp := 0;  t.trigger := 0;  t.handler := NIL;
+		t.trigger := 0;  t.handler := NIL;
 		IF timers # NIL THEN
-			IF t = timers THEN  timers := t.next
+			IF t = timers THEN  
+				timers := t.next
 			ELSE
 				p := timers;  x := p.next;
 				WHILE (x # NIL) &(x # t)  DO  p := x;  x := p.next  END;
 				IF x = t THEN  p.next := t.next  END
 			END;
-			t.next := NIL;
+			t.next := NIL
 		END;
 	END Remove;
-
-	PROCEDURE SetTimeout*( t: Timer;  h: EventHandler;  ms: LONGINT );
-	VAR p, x: Timer;
+	
+	PROCEDURE Insert( t: Timer );
+	VAR  p, x: Timer;
 	BEGIN
-		ASSERT( t # NIL );
-		IF ms < 0 THEN  ms := 0  END;
-		mtxLock( tmtx );  Remove( t );  mtxUnlock( tmtx );
-		IF ms > 0 THEN
-			ASSERT( h # NIL );
-			mtxLock( tmtx );
-			t.stamp := Machine.Ticks();  t.trigger := t.stamp + ms;  t.handler := h;
-			p := NIL;  x := timers;
-			WHILE (x # NIL) &(x.trigger < t.trigger)  DO  p := x;  x := p.next  END;
-			t.next := x;
-			IF p = NIL THEN  timers := t  ELSE   p.next := t  END;
-			IF timerThread = NIL THEN
-				NEW( timerThread, NIL, timer, phigh, {}, 10000 );
-				timerThread.SetPriority( phigh )
-			END;
-			mtxUnlock( tmtx )
-		END;
-	END SetTimeout;
-
-	PROCEDURE SetTimeoutAt*( t: Timer;  h: EventHandler;  ms: LONGINT );
-	VAR p, x: Timer;
-	BEGIN
-		ASSERT(( t # NIL ) & ( h # NIL ));
-		mtxLock( tmtx );
-		Remove( t );
-		t.stamp := Machine.Ticks();  t.trigger := ms;  t.handler := h;
 		p := NIL;  x := timers;
 		WHILE (x # NIL) &(x.trigger < t.trigger)  DO  p := x;  x := p.next  END;
 		t.next := x;
 		IF p = NIL THEN  timers := t  ELSE   p.next := t  END;
-		IF timerThread = NIL THEN
-			NEW( timerThread, NIL, timer, phigh, {}, 10000 );
-			timerThread.SetPriority( phigh )
-		END;
+	END Insert;
+
+	PROCEDURE SetTimeout*( t: Timer;  h: EventHandler;  ms: LONGINT );
+	BEGIN
+		ASSERT(( t # NIL ) & ( h # NIL ));
+		mtxLock( tmtx ); 
+			Remove( t );  
+			IF ms < 1 THEN ms := 1 END;
+			t.trigger := Machine.Ticks() + ms;  t.handler := h;
+			Insert( t );
+		mtxUnlock( tmtx );
+	END SetTimeout;
+
+	PROCEDURE SetTimeoutAt*( t: Timer;  h: EventHandler;  ms: LONGINT );
+	BEGIN
+		ASSERT(( t # NIL ) & ( h # NIL ));
+		mtxLock( tmtx );
+			Remove( t );
+			t.trigger := ms;  t.handler := h;
+			Insert( t );
 		mtxUnlock( tmtx )
 	END SetTimeoutAt;
 
 	PROCEDURE CancelTimeout*( t: Timer );
 	BEGIN
-		SetTimeout( t, NIL, 0 )
+		mtxLock( tmtx );  Remove( t );  mtxUnlock( tmtx )
 	END CancelTimeout;
 
-	PROCEDURE InitTimer;
+	PROCEDURE StartTimer;
+	VAR p: Process;
 	BEGIN
-		tmtx := mtxInit();  timeStart := Machine.Ticks();
-	END InitTimer;
+		tmtx := mtxInit();  timers := NIL;  
+		NEW( p, NIL, timer, phigh, {Restart}, 10000 ); 
+	END StartTimer;
 
 	(*------------------------------------------------------------------*)
 
@@ -784,9 +777,10 @@ VAR
 		traceGC := 1 IN Glue.debug;
 		traceThreads := 2 IN Glue.debug;
 		
-		GetHostSystem;  GetStacksize;  InitTimer;
+		GetHostSystem;  GetStacksize;  
 		
 		Convert;
+		StartTimer;
 	END Init;
 
 BEGIN
