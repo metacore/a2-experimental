@@ -108,6 +108,12 @@ TYPE
 		BEGIN
 			Invalidate;
 		END ModelChanged;
+		
+		PROCEDURE Finalize;
+		BEGIN
+			Finalize^;
+			IF (modelI # NIL) THEN modelI.onChanged.Remove(ModelChanged); END;
+		END Finalize;
 
 	END MatrixBase;
 

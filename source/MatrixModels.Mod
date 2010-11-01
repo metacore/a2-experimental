@@ -31,6 +31,7 @@ TYPE
 		BEGIN
 			AcquireWrite;
 			SELF.matrix := matrix;
+			Changed;
 			ReleaseWrite;
 		END Set;
 
@@ -345,7 +346,7 @@ BEGIN
 			res := Types.ConversionError;
 		END;
 	ELSIF (source IS Types.DynamicString) THEN
-		StringToMatrix(source(Types.String).value^, value, res);
+		StringToMatrix(source(Types.DynamicString).value^, value, res);
 	ELSIF (source IS Types.Generic) THEN
 		IF (source(Types.Generic).Get # NIL) THEN
 			source(Types.Generic).Get(source(Types.Generic), matrixValue, res);
