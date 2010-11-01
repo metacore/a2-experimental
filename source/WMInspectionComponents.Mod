@@ -27,7 +27,7 @@ MODULE WMInspectionComponents; (** AUTHOR "staubesv"; PURPOSE "Components for co
 
 IMPORT
 	SYSTEM,
-	Modules, Kernel, KernelLog, Strings, Files, XML, XMLObjects, Repositories, Types, Models, WMDialogs, WMUtilities,
+	Modules, Kernel, KernelLog, Strings, Inputs, Files, XML, XMLObjects, Repositories, Types, Models, WMDialogs, WMUtilities,
 	WMMessages, WMWindowManager,
 	WMRectangles, WMGraphics, WMEvents, WMProperties, WMComponents, WMStandardComponents,
 	WMEditors, WMColorComponents, WMDropDownLists, WMTabComponents, WMScrollableComponents;
@@ -3129,7 +3129,7 @@ TYPE
 	VAR
 		model : Models.Model;
 		typeLabel : WMStandardComponents.Label;
-		textfield : WMEditors.TextField;
+		editor : WMEditors.Editor;
 
 		PROCEDURE &Init*;
 		VAR panel : WMStandardComponents.Panel; label : WMStandardComponents.Label;
@@ -3152,23 +3152,43 @@ TYPE
 			typeLabel.caption.Set(StrNoCaption);
 			panel.AddInternalComponent(typeLabel);
 
-			NEW(textfield);
-			textfield.alignment.Set(WMComponents.AlignClient);
-			textfield.onEnter.Add(EnterHandler);
-			AddInternalComponent(textfield);
+			NEW(editor);
+			editor.alignment.Set(WMComponents.AlignClient);
+			editor.tv.showBorder.Set(TRUE);
+			editor.tv.borders.Set(WMRectangles.MakeRect(1, 1, 1, 1));
+			editor.tv.SetExtKeyEventHandler(EditorKeyEvent);
+			AddInternalComponent(editor);
 		END Init;
 
-		PROCEDURE EnterHandler(sender, data : ANY);
-		VAR model : Models.Model; string : Types.String256; res : LONGINT;
+		PROCEDURE EditorKeyEvent(ucs : LONGINT; flags : SET; VAR keySym : LONGINT; VAR handled : BOOLEAN);
+		BEGIN
+			IF (keySym = Inputs.KsReturn) & (Inputs.Shift * flags # {}) THEN
+				HandleShiftReturn;
+				handled := TRUE;
+			ELSIF (keySym = Inputs.KsEscape) THEN
+				ModelChanged(NIL, NIL);
+				handled := TRUE;
+			ELSE
+				editor.KeyPressed(ucs, flags, keySym, handled);
+			END;
+		END EditorKeyEvent;
+
+		PROCEDURE HandleShiftReturn;
+		VAR model : Models.Model; string : Types.DynamicString; length, res : LONGINT;
 		BEGIN
 			model := SELF.model;
 			IF (model # NIL) THEN
-				textfield.GetAsString(string.value);
+				string := Types.NewString();
+				editor.text.AcquireRead;
+				length := editor.text.GetLength();
+				Types.EnsureLength(string, 5*length); (* UTF8 uses at most 5 bytes for encoding Unicode characters *)
+				editor.GetAsString(string.value^);
+				editor.text.ReleaseRead;
 				model.SetGeneric(string, res);
 			ELSE
-				textfield.SetAsString("");
+				editor.SetAsString("");
 			END;
-		END EnterHandler;
+		END HandleShiftReturn;
 
 		PROCEDURE SetModel*(model : Models.Model);
 		VAR string : Types.DynamicString; res : LONGINT;
@@ -3182,13 +3202,13 @@ TYPE
 				string := Types.NewString();
 				SELF.model.GetGeneric(string, res);
 				IF (res = Types.Ok) THEN
-					textfield.SetAsString(string.value^);
+					editor.SetAsString(string.value^);
 				ELSE
-					textfield.SetAsString("<ERROR>");
+					editor.SetAsString("<ERROR>");
 				END;
 			ELSE
 				typeLabel.caption.Set(StrNoCaption);
-				textfield.SetAsString("");
+				editor.SetAsString("");
 			END;
 			Release;
 			Invalidate;
@@ -3201,12 +3221,12 @@ TYPE
 			IF (model # NIL) THEN
 				model.GetGeneric(string, res);
 				IF (res = Types.Ok) THEN
-					textfield.SetAsString(string.value);
+					editor.SetAsString(string.value);
 				ELSE
-					textfield.SetAsString("[ERROR]");
+					editor.SetAsString("[ERROR]");
 				END;
 			ELSE
-				textfield.SetAsString("");
+				editor.SetAsString("");
 			END;
 		END ModelChanged;
 
