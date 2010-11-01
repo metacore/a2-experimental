@@ -55,7 +55,13 @@ TYPE
 	END;
 
 	String* = RECORD(Any)
-		value* : Strings.String; (* {value # NIL} ??? *)
+		value* : Strings.String;
+	END;
+
+	DynamicString* = RECORD(Any) (** Initialize using NewString! *)
+		value- : Strings.String; (* {value  # NIL} *)
+		length : LONGINT; (* {(0 <= length) & (length < LEN(value))} *)
+		bufferLength : LONGINT; (* {(0 <= bufferLength) & (bufferLength = LEN(value))} *)
 	END;
 
 	Set* = RECORD(Any)
@@ -79,11 +85,14 @@ TYPE
 		Set* : Setter;
 	END;
 
-	(** Read value into source *)
-	Getter* = PROCEDURE {DELEGATE} (CONST self : Generic; VAR value : Any; VAR res : LONGINT);
+	(** Get own value and store it into target *)
+	Getter* = PROCEDURE {DELEGATE} (CONST self : Generic; VAR target : Any; VAR res : LONGINT);
 
-	(** Store value into source *)
-	Setter* = PROCEDURE {DELEGATE} (CONST self : Generic; CONST value : Any; VAR res : LONGINT);
+	(** Set own value from source *)
+	Setter* = PROCEDURE {DELEGATE} (CONST self : Generic; CONST source : Any; VAR res : LONGINT);
+
+VAR
+	StrEmptyString : Strings.String;
 
 PROCEDURE GetBoolean*(CONST source : Any; VAR value : BOOLEAN; VAR res : LONGINT);
 VAR temp : ARRAY 2 OF CHAR; boolean : Boolean;
@@ -101,6 +110,8 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (source IS DynamicString) THEN
+		Strings.StrToBool(source(String).value^, value);
 	ELSIF (source IS String32) THEN
 		Strings.StrToBool(source(String32).value, value);
 	ELSIF (source IS String256) THEN
@@ -134,6 +145,9 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (target IS DynamicString) THEN
+		EnsureLength(target(DynamicString), 5);
+		Strings.BoolToStr(value, target(DynamicString).value^);
 	ELSIF (target IS String32) THEN
 		Strings.BoolToStr(value, target(String32).value);
 	ELSIF (target IS String256) THEN
@@ -166,6 +180,8 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (source IS DynamicString) THEN
+		Strings.StrToInt(source(DynamicString).value^, value);
 	ELSIF (source IS String32) THEN
 		Strings.StrToInt(source(String32).value, value);
 	ELSIF (source IS String256) THEN
@@ -200,6 +216,9 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (target IS DynamicString) THEN
+		EnsureLength(target(DynamicString), 11);
+		Strings.IntToStr(value, target(DynamicString).value^);
 	ELSIF (target IS String32) THEN
 		Strings.IntToStr(value, target(String32).value);
 	ELSIF (target IS String256) THEN
@@ -233,6 +252,9 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (source IS DynamicString) THEN
+		Strings.StrToFloat(source(DynamicString).value^, longreal);
+		value := SHORT(longreal);
 	ELSIF (source IS String32) THEN
 		Strings.StrToFloat(source(String32).value, longreal);
 		value := SHORT(longreal);
@@ -269,6 +291,9 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (target IS DynamicString) THEN
+		EnsureLength(target(DynamicString), 32); (* TBD: max length of real? *)
+		Strings.FloatToStr(value, 0, 1, 0, target(DynamicString).value^);
 	ELSIF (target IS String32) THEN
 		Strings.FloatToStr(value, 0, 1, 0, target(String32).value);
 	ELSIF (target IS String256) THEN
@@ -301,6 +326,8 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (source IS DynamicString) THEN
+		Strings.StrToFloat(source(DynamicString).value^, value);
 	ELSIF (source IS String32) THEN
 		Strings.StrToFloat(source(String32).value, value);
 	ELSIF (source IS String256) THEN
@@ -335,6 +362,9 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (target IS DynamicString) THEN
+		EnsureLength(target(DynamicString), 128); (* TBD max length of longreal? *)
+		Strings.FloatToStr(value, 0, 0, 0, target(DynamicString).value^);
 	ELSIF (target IS String32) THEN
 		Strings.FloatToStr(value, 0, 0, 0, target(String32).value);
 	ELSIF (target IS String256) THEN
@@ -366,6 +396,8 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (source IS DynamicString) THEN
+		value := source(DynamicString).value[0];
 	ELSIF (source IS String32) THEN
 		value := source(String32).value[0];
 	ELSIF (source IS String256) THEN
@@ -397,6 +429,10 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (target IS DynamicString) THEN
+		temp[0] := value;
+		temp[1] := 0X;
+		SetValue(target(DynamicString), temp);
 	ELSIF (target IS String32) THEN
 		target(String32).value[0] := value;
 		target(String32).value[1] := 0X;
@@ -431,6 +467,11 @@ BEGIN
 		ELSE
 			value := "";
 		END;
+	ELSIF (source IS DynamicString) THEN
+		COPY(source(DynamicString).value^, value);
+		IF (source(DynamicString).length >= LEN(value)) THEN
+			res := Truncated;
+		END;
 	ELSIF (source IS String32) THEN
 		COPY(source(String32).value, value);
 	ELSIF (source IS String256) THEN
@@ -464,7 +505,16 @@ VAR temp : LONGREAL; string : String;
 BEGIN
 	res := Ok;
 	IF (target IS String) THEN
-		target(String).value := Strings.NewString(value); (*? most likely not what we want *)
+		IF (target(String).value # NIL) THEN
+			COPY(value, target(String).value^);
+			IF (Strings.Length(value) >= LEN(target(String).value)) THEN
+				res := Truncated;
+			END;
+		ELSE
+			res := ConversionError;
+		END;
+	ELSIF (target IS DynamicString) THEN
+		SetValue(target(DynamicString), value);
 	ELSIF (target IS String32) THEN
 		COPY(value, target(String32).value);
 	ELSIF (target IS String256) THEN
@@ -502,6 +552,8 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (source IS DynamicString) THEN
+
 	ELSIF (source IS String32) THEN
 		COPY(source(String32).value, value);
 	ELSIF (source IS String256) THEN
@@ -554,6 +606,8 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (source IS DynamicString) THEN
+		Strings.StrToSet(source(DynamicString).value^, value);
 	ELSIF (source IS String32) THEN
 		Strings.StrToSet(source(String32).value, value);
 	ELSIF (source IS String256) THEN
@@ -573,14 +627,20 @@ BEGIN
 END GetSet;
 
 PROCEDURE SetSet*(VAR target : Any; value : SET; VAR res : LONGINT);
-VAR temp : ARRAY 32 OF CHAR; set : Set;
+VAR set : Set;
 BEGIN
 	res := Ok;
 	IF (target IS Set) THEN
 		target(Set).value := value;
 	ELSIF (target IS String) THEN
-		Strings.SetToStr(value, temp);
-		target(String).value := Strings.NewString(temp);
+		IF (target(String).value # NIL) THEN
+			Strings.SetToStr(value, target(String).value^);
+		ELSE
+			res := ConversionError;
+		END;
+	ELSIF (target IS DynamicString) THEN
+		EnsureLength(target(DynamicString), 64); (* TBD: Max length of set *)
+		Strings.SetToStr(value, target(DynamicString).value^);
 	ELSIF (target IS String32) THEN
 		Strings.SetToStr(value, target(String32).value);
 	ELSIF (target IS String256) THEN
@@ -625,6 +685,8 @@ BEGIN
 		ELSE
 			SetAsString(""); (*? semantics? *)
 		END;
+	ELSIF (source IS DynamicString) THEN
+		SetAsString(source(String).value^);
 	ELSIF (source IS String32) THEN
 		SetAsString(source(String32).value);
 	ELSIF (source IS String256) THEN
@@ -679,6 +741,9 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+	ELSIF (target IS DynamicString) THEN
+		EnsureLength(target(DynamicString), 256); (* Text length in UTF8 *)
+		TextUtilities.TextToStr(value, target(DynamicString).value^);
 	ELSIF (target IS String32) THEN
 		TextUtilities.TextToStr(value, target(String32).value); (*? no valid result code, e.g. truncation *)
 	ELSIF (target IS String256) THEN
@@ -722,7 +787,12 @@ BEGIN
 	ELSIF (source IS String256) THEN
 		StringToComponent(source(String256).value, value, res);
 	ELSIF (source IS String) THEN
-		(*? TBD Check for NIL *)
+		IF (source(String).value # NIL) THEN
+			StringToComponent(source(String).value^, value, res);
+		ELSE
+			res := ConversionError;
+		END;
+	ELSIF (source IS DynamicString) THEN
 		StringToComponent(source(String).value^, value, res);
 	ELSIF (source IS Generic) THEN
 		IF (source(Generic).Get # NIL) THEN
@@ -738,7 +808,6 @@ BEGIN
 	END;
 END GetObject;
 
-(*? TBD Check for NIL *)
 PROCEDURE SetObject*(VAR target : Any; CONST value : Repositories.Component; VAR res : LONGINT);
 VAR object : Object;
 BEGIN
@@ -751,6 +820,9 @@ BEGIN
 		ComponentToString(value, target(String256).value, res);
 	ELSIF (target IS String) THEN
 		ComponentToString(value, target(String).value^, res);
+	ELSIF (target IS DynamicString) THEN
+		EnsureLength(target(DynamicString), 256); (* TBD: max length of component name *)
+		ComponentToString(value, target(DynamicString).value^, res);
 	ELSIF (target IS Generic) THEN
 		IF (target(Generic).Set # NIL) THEN
 			object.value := value;
@@ -782,6 +854,8 @@ BEGIN
 		SetAOC(to, from(String256).value, res);
 	ELSIF (from IS String) THEN
 		SetString(to, from(String).value, res);
+	ELSIF (from IS DynamicString) THEN
+		SetString(to, from(DynamicString).value, res);
 	ELSIF (from IS Set) THEN
 		SetSet(to, from(Set).value, res);
 	ELSIF (from IS Text )THEN
@@ -839,4 +913,71 @@ BEGIN
 	END;
 END ComponentToString;
 
+(* DynamicString operations *)
+
+PROCEDURE NewString*() : DynamicString;
+VAR string : DynamicString;
+BEGIN
+	string.value := StrEmptyString;
+	string.length := 0;
+	string.bufferLength := 0; (* force allocation of new string when set *)
+	RETURN string;
+END NewString;
+
+(* Ensure the <string> can hold at least minLength characters (excl. 0X-terminator) *)
+PROCEDURE EnsureLength*(VAR string : DynamicString; minLength : LONGINT);
+VAR newBuffer : Strings.String; i : LONGINT;
+BEGIN
+	ASSERT((string.value # NIL) & (LEN(string.value) = string.bufferLength) & (minLength >= 0));
+	IF (minLength + 1 >= string.bufferLength) THEN
+		IF (string.bufferLength = 0) THEN string.bufferLength := 2; END;
+		WHILE (minLength + 1 >=  string.bufferLength) DO
+			string.bufferLength := 2 * string.bufferLength;
+		END;
+		NEW(newBuffer, string.bufferLength);
+		FOR i := 0 TO string.length - 1 DO
+			newBuffer[i] := string.value[i];
+		END;
+		newBuffer[string.length] := 0X;
+		string.value := newBuffer;
+	END;
+END EnsureLength;
+
+PROCEDURE SetValue*(VAR string : DynamicString; CONST value : ARRAY OF CHAR);
+VAR length : LONGINT;
+BEGIN
+	length := Strings.Length(value);
+	EnsureLength(string, length);
+	COPY(value, string.value^);
+	string.length := length;
+END SetValue;
+
+PROCEDURE Free*(VAR string : DynamicString);
+BEGIN
+	string.value := StrEmptyString;
+	string.length := 0;
+	string.bufferLength := 0; (* force allocation of new string when set *)
+END Free;
+
+PROCEDURE Append*(VAR string : DynamicString; CONST suffix : ARRAY OF CHAR);
+VAR suffixLength : LONGINT;
+BEGIN
+	suffixLength := Strings.Length(suffix);
+	EnsureLength(string, string.length + suffixLength);
+	Strings.Append(string.value^, suffix);
+	string.length := string.length + suffixLength;
+END Append;
+
+PROCEDURE GetLength*(CONST string : DynamicString) : LONGINT;
+BEGIN
+	RETURN string.length;
+END GetLength;
+
+PROCEDURE InitStrings;
+BEGIN
+	StrEmptyString := Strings.NewString("");
+END InitStrings;
+
+BEGIN
+	InitStrings;
 END Types.
