@@ -3130,6 +3130,9 @@ TYPE
 		model : Models.Model;
 		typeLabel : WMStandardComponents.Label;
 		editor : WMEditors.Editor;
+		autoRefreshBtn : WMStandardComponents.Button;
+
+		autoRefresh : BOOLEAN;
 
 		PROCEDURE &Init*;
 		VAR panel : WMStandardComponents.Panel; label : WMStandardComponents.Label;
@@ -3138,6 +3141,7 @@ TYPE
 			SetNameAsString(StrModelView);
 			model := NIL;
 			bearing.Set(WMRectangles.MakeRect(LineBearing, LineBearing, LineBearing, LineBearing));
+			autoRefresh := FALSE;
 
 			NEW(panel); panel.alignment.Set(WMComponents.AlignTop);
 			panel.bounds.SetHeight(LineHeight);
@@ -3152,6 +3156,14 @@ TYPE
 			typeLabel.caption.Set(StrNoCaption);
 			panel.AddInternalComponent(typeLabel);
 
+			NEW(autoRefreshBtn); autoRefreshBtn.alignment.Set(WMComponents.AlignBottom);
+			autoRefreshBtn.bounds.SetHeight(20);
+			autoRefreshBtn.caption.SetAOC("AutoRefresh");
+			autoRefreshBtn.isToggle.Set(TRUE);
+			autoRefreshBtn.SetPressed(autoRefresh);
+			autoRefreshBtn.onClick.Add(HandleAutoRefreshBtn);
+			AddInternalComponent(autoRefreshBtn);
+
 			NEW(editor);
 			editor.alignment.Set(WMComponents.AlignClient);
 			editor.tv.showBorder.Set(TRUE);
@@ -3159,6 +3171,16 @@ TYPE
 			editor.tv.SetExtKeyEventHandler(EditorKeyEvent);
 			AddInternalComponent(editor);
 		END Init;
+
+		PROCEDURE HandleAutoRefreshBtn(sender, data : ANY);
+		BEGIN
+			IF autoRefresh THEN
+				autoRefresh := FALSE;
+			ELSE
+				autoRefresh := TRUE;
+				ModelChanged(NIL, NIL);
+			END;
+		END HandleAutoRefreshBtn;
 
 		PROCEDURE EditorKeyEvent(ucs : LONGINT; flags : SET; VAR keySym : LONGINT; VAR handled : BOOLEAN);
 		BEGIN
@@ -3217,16 +3239,18 @@ TYPE
 		PROCEDURE ModelChanged(sender, data : ANY);
 		VAR model : Models.Model; string : Types.String256; res : LONGINT;
 		BEGIN
-			model := SELF.model;
-			IF (model # NIL) THEN
-				model.GetGeneric(string, res);
-				IF (res = Types.Ok) THEN
-					editor.SetAsString(string.value);
+			IF autoRefresh THEN
+				model := SELF.model;
+				IF (model # NIL) THEN
+					model.GetGeneric(string, res);
+					IF (res = Types.Ok) THEN
+						editor.SetAsString(string.value);
+					ELSE
+						editor.SetAsString("[ERROR]");
+					END;
 				ELSE
-					editor.SetAsString("[ERROR]");
+					editor.SetAsString("");
 				END;
-			ELSE
-				editor.SetAsString("");
 			END;
 		END ModelChanged;
 
