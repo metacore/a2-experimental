@@ -3171,6 +3171,7 @@ TYPE
 		END EnterHandler;
 
 		PROCEDURE SetModel*(model : Models.Model);
+		VAR string : Types.DynamicString; res : LONGINT;
 		BEGIN
 			Acquire;
 			IF (SELF.model # NIL) THEN SELF.model.onChanged.Remove(ModelChanged); END;
@@ -3178,8 +3179,16 @@ TYPE
 			IF (SELF.model # NIL) THEN
 				SELF.model.onChanged.Add(ModelChanged);
 				typeLabel.caption.Set(GetModelTypeString(SELF.model));
+				string := Types.NewString();
+				SELF.model.GetGeneric(string, res);
+				IF (res = Types.Ok) THEN
+					textfield.SetAsString(string.value^);
+				ELSE
+					textfield.SetAsString("<ERROR>");
+				END;
 			ELSE
 				typeLabel.caption.Set(StrNoCaption);
+				textfield.SetAsString("");
 			END;
 			Release;
 			Invalidate;
@@ -3191,7 +3200,11 @@ TYPE
 			model := SELF.model;
 			IF (model # NIL) THEN
 				model.GetGeneric(string, res);
-				textfield.SetAsString(string.value);
+				IF (res = Types.Ok) THEN
+					textfield.SetAsString(string.value);
+				ELSE
+					textfield.SetAsString("[ERROR]");
+				END;
 			ELSE
 				textfield.SetAsString("");
 			END;
