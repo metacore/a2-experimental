@@ -928,7 +928,7 @@ END NewString;
 PROCEDURE EnsureLength*(VAR string : DynamicString; minLength : LONGINT);
 VAR newBuffer : Strings.String; i : LONGINT;
 BEGIN
-	ASSERT((string.value # NIL) & (LEN(string.value) = string.bufferLength) & (minLength >= 0));
+	ASSERT((string.value # NIL) & ((LEN(string.value) = string.bufferLength) OR (string.value = StrEmptyString)) & (minLength >= 0));
 	IF (minLength + 1 >= string.bufferLength) THEN
 		IF (string.bufferLength = 0) THEN string.bufferLength := 2; END;
 		WHILE (minLength + 1 >=  string.bufferLength) DO
