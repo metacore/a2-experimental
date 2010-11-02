@@ -1562,8 +1562,12 @@ TYPE
 						symbol := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,scopeSymbol,dump # NIL);
 						InitMem(operand,IntermediateCode.Bits32,none,0); (* or immediate ?? *)
 					ELSIF (scopeSymbol IS SyntaxTree.Procedure) & (scopeSymbol.scope = module.module.moduleScope) THEN
-						symbol := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,scopeSymbol,dump # NIL);
-						InitOffset32(operand,0); (* or immediate ?? *)
+						IF scopeSymbol(SyntaxTree.Procedure).isInline THEN
+							Error("fobidden reference to inline call");
+						ELSE
+							symbol := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,scopeSymbol,dump # NIL);
+							InitOffset32(operand,0); (* or immediate ?? *)
+						END;
 					ELSIF (scopeSymbol IS SyntaxTree.Procedure) THEN
 						symbol := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,scopeSymbol,dump # NIL);
 						InitOffset32(operand,0); (* or immediate ?? *)
