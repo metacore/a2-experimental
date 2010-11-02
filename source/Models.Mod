@@ -6,6 +6,11 @@ IMPORT
 CONST
 	Ok* = Types.Ok;
 
+	(** Notification mode *)
+	NoNotifications* = 0; (** No notification of listeners upon changes *)
+	OnChanged* = 1; (** Notify listeners when model value has changed after releasing the write lock *)
+
+
 	InitialStringSize = 128;
 
 	AttributeName = "name";
@@ -24,12 +29,14 @@ TYPE
 	VAR
 		onChanged- : WMEvents.EventSource;
 		changed : BOOLEAN;
+		notificationMode : SHORTINT;
 		lock : Locks.RWLock;
 
 		PROCEDURE &Init*; (** protected *)
 		BEGIN
 			Init^;
 			NEW(onChanged, NIL, NIL, NIL, NIL);
+			notificationMode := OnChanged;
 			changed := FALSE;
 			NEW(lock);
 		END Init;
@@ -77,8 +84,12 @@ TYPE
 		BEGIN
 			(* If the last writer releases the lock and the model data has changed, we have to notify interested listeners *)
 			IF (lock.GetWLockLevel() = 1) THEN
-				notifyListeners := changed;
-				changed := FALSE;
+				IF (notificationMode = OnChanged) THEN
+					notifyListeners := changed;
+					changed := FALSE;
+				ELSE
+					notifyListeners := FALSE;
+				END;
 			ELSE
 				notifyListeners := FALSE;
 			END;
@@ -95,6 +106,19 @@ TYPE
 		END HasWriteLock;
 
 	(** Change notification *)
+
+		(** Set how the model notifies listeners upon value changes *)
+		PROCEDURE SetNotificationMode*(mode : SHORTINT);
+		BEGIN
+			ASSERT((mode = NoNotifications) OR (mode = OnChanged));
+			lock.AcquireWrite;
+			IF (notificationMode # mode) THEN
+				notificationMode := mode;
+			END;
+			(*	the release of the write lock will cause notification if model value has changed and
+				notification was disabled before *)
+			lock.ReleaseWrite;
+		END SetNotificationMode;
 
 		(** 	Indicate that the value of the model has changed. Listeners will be notified when the writer lock
 			is released. Caller must hold write lock! *)
