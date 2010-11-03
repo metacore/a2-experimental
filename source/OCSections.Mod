@@ -164,6 +164,13 @@ TYPE
 			Ln^;
 			Update;
 		END Ln;
+		
+		PROCEDURE Reset*;
+		BEGIN
+			firstComment := NIL; lastComment := NIL; comments := 0;
+			Reset^;
+		END Reset;
+		
 
 		PROCEDURE & InitCommentWriter*(getPC: GetPCProcedure);
 		BEGIN

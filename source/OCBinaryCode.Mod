@@ -167,6 +167,7 @@ TYPE
 		BEGIN
 			NEW(bits,0);
 			NEW(fixupList);
+			comments.Reset;
 			validPAFEnter := 0; validPAFExit := 0;
 			pc := 0;
 		END Reset;
