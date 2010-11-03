@@ -77,7 +77,7 @@ TYPE
 							IF B.Connect( socket, foreignAdr ) THEN
 								IF B.SetLinger( socket ) THEN  END;
 								SELF.fip := fip;  SELF.fport := fport;
-								localAdr := B.Getsockname( socket );
+								localAdr := B.GetSockName( socket );
 								SELF.lport := B.PortNumberOf( localAdr );
 								state := Established;  res := Ok
 							ELSE  
@@ -90,7 +90,7 @@ TYPE
 							ASSERT( (fport = NilPort) & (IP.IsNilAdr( fip )) );
 							localAdr := B.NewSocketAdr( IP.NilAdr, lport );
 							IF B.Bind( socket, localAdr ) THEN
-								localAdr := B.Getsockname( socket );
+								localAdr := B.GetSockName( socket );
 								SELF.lport := B.PortNumberOf( localAdr );
 								IF B.Listen( socket ) THEN
 									IF B.SetLinger( socket ) THEN  END;
@@ -106,7 +106,6 @@ TYPE
 						res := NotConnected
 					END;
 					IF res = Ok THEN
-						IF SELF.lport < 0 THEN  SELF.lport := 10000H + SELF.lport  END;
 						(* create a dummy interface with correct local IP-adr *)
 						NEW( int, B.SockAdrToIPAdr( localAdr ) )
 					END;
@@ -270,7 +269,6 @@ TYPE
 							res := Ok
 						ELSE
 							res := NotConnected ;
-							Unix.Perror( "accept" );
 							IF trace THEN  Out.String( "Accept failed." );  Out.Ln  END
 						END;
 					ELSE

@@ -26,7 +26,7 @@ TYPE
 		
 		SocketAdr* = POINTER TO RECORD 
 			family*		: INTEGER;
-			port*		: INTEGER;
+			port*		: INTEGER;	(* in network byte order! *)
 		END;
 		
 		SocketAdrV4* = POINTER TO RECORD (SocketAdr)
@@ -136,7 +136,7 @@ VAR
 	PROCEDURE PortNumberOf*( sadr: SocketAdr ): LONGINT;
 	VAR port: LONGINT;
 	BEGIN
-		port := sadr.port;
+		port := NetToInt( sadr.port );
 		IF port < 0 THEN port := port + 10000H END;
 		RETURN port
 	END PortNumberOf;
@@ -156,10 +156,14 @@ VAR
 	END BufToSocketAdr;
 
 	PROCEDURE Accept*( s: LONGINT ): LONGINT;
-	VAR len: LONGINT; new: LONGINT;
+	VAR len, err: LONGINT; new: LONGINT;
 	BEGIN
 		len := 0;
-		new := accept( s, 0, len );
+		REPEAT
+			new := accept( s, 0, len );
+			IF new < 0 THEN  err := Unix.errno()  END
+		UNTIL (new > 0) OR (err # Unix.EINTR);
+		IF new < 0 THEN  Unix.Perror( "NetBase.Accept" )  END;
 		RETURN new
 	END Accept;
 
@@ -186,13 +190,13 @@ VAR
 		IF err = 0 THEN 
 			RETURN TRUE 
 		ELSE 
-			Unix.Perror( "connect: " );
+			Unix.Perror( "NetBase.Connect: " );
 			RETURN FALSE
 		END;
 		RETURN err = 0
 	END Connect;
 
-	PROCEDURE Getsockname*( s: LONGINT ): SocketAdr;
+	PROCEDURE GetSockName*( s: LONGINT ): SocketAdr;
 	VAR len, err: LONGINT; buf: NameBuf;
 	BEGIN
 		NEW( buf );  len := 64;
@@ -200,10 +204,10 @@ VAR
 		IF err = 0 THEN 
 			RETURN BufToSocketAdr( buf.buf, len )
 		ELSE
-			Unix.Perror( "getsockname" );
+			Unix.Perror( "NetBase.GetSockName" );
 			RETURN NIL 
 		END
-	END Getsockname;
+	END GetSockName;
 
 
 	PROCEDURE GetPeerName*( s: LONGINT ): SocketAdr;
@@ -214,6 +218,7 @@ VAR
 		IF err = 0 THEN 
 			RETURN BufToSocketAdr( buf.buf, len )
 		ELSE 
+			Unix.Perror( "NetBase.GetPeerName" );
 			RETURN NIL 
 		END
 	END GetPeerName;
@@ -226,12 +231,16 @@ VAR
 	END Listen;
 
 	PROCEDURE Recv*( s: LONGINT; VAR buf: ARRAY OF CHAR; pos: LONGINT; VAR len: LONGINT; flags: LONGINT ): BOOLEAN;
-	VAR err: LONGINT;
+	VAR res, err: LONGINT;
 	BEGIN
-		err:= recv( s, S.ADR( buf[pos] ), len, flags );
+		REPEAT
+			res := recv( s, S.ADR( buf[pos] ), len, flags );
+			IF res < 0 THEN  err := Unix.errno()  END
+		UNTIL (res >= 0) OR (err # Unix.EINTR);
 		IF err >= 0 THEN 
-			len:= err;  RETURN TRUE 
+			len:= res;  RETURN TRUE 
 		ELSE 
+			Unix.Perror( "NetBase.Recv" );
 			len:= 0;  RETURN FALSE 
 		END
 	END Recv;
@@ -240,11 +249,12 @@ VAR
 	VAR err: LONGINT;
 	BEGIN
 		ASSERT( LEN(buf)-pos >= len );
-		err:= send( s, S.ADR( buf[pos] ), len, 0 );
+		err := send( s, S.ADR( buf[pos] ), len, 0 );
 		IF err >= 0 THEN 
-			len:= err; RETURN TRUE 
+			len := err;  RETURN TRUE 
 		ELSE 
-			len:= 0; RETURN FALSE 
+			Unix.Perror( "NetBase.Send" );
+			len := 0;  RETURN FALSE 
 		END
 	END Send;
 	
@@ -252,15 +262,19 @@ VAR
 	
 	PROCEDURE RecvFrom*( s: LONGINT; VAR from: SocketAdr; 
 						    VAR buf: ARRAY OF CHAR; pos: LONGINT; VAR len: LONGINT ): BOOLEAN;
-	VAR err, size: LONGINT; nbuf: NameBuf;
+	VAR res, err, size: LONGINT; nbuf: NameBuf;
 	BEGIN
 		NEW( nbuf ); size := 64;
-		err:= recvfrom( s, S.ADR(buf[pos]), len, 0, nbuf, size );
-		IF err >= 0 THEN 
+		REPEAT
+			res := recvfrom( s, S.ADR(buf[pos]), len, 0, nbuf, size );
+			IF res < 0 THEN  err := Unix.errno()  END
+		UNTIL (res >= 0) OR (err # Unix.EINTR);
+		IF res >= 0 THEN 
 			from := BufToSocketAdr( nbuf.buf, size );
-			len:= err; RETURN TRUE 
+			len := res;  RETURN TRUE 
 		ELSE 
-			len:= 0; RETURN FALSE 
+			Unix.Perror( "NetBase.RecvFrom" );
+			len := 0;  RETURN FALSE 
 		END
 	END RecvFrom;
 
@@ -271,9 +285,10 @@ VAR
 		IF dest.family = Unix.AFINET THEN  size := SAdr4Size  ELSE  size := SAdr6Size  END;
 		err:= sendto( s, S.ADR( buf[pos] ), len, 0, dest, size );
 		IF err >= 0 THEN 
-			len:= err; RETURN TRUE 
+			len := err;  RETURN TRUE 
 		ELSE 
-			len:= 0; RETURN FALSE 
+			Unix.Perror( "NetBase.SendTo" );
+			len := 0;  RETURN FALSE 
 		END
 	END SendTo;
 
@@ -292,6 +307,7 @@ VAR
 		IF err = 0 THEN
 			RETURN available
 		ELSE
+			Unix.Perror( "NetBase.Available (ioctl)" );
 			RETURN -1
 		END
 	END Available;
@@ -307,9 +323,8 @@ VAR
 		err := Unix.select( s+1, S.VAL( Unix.FdSetPtr, S.ADR( readfds ) ), NIL, NIL, timeout );
 		IF err < 0 THEN  RETURN FALSE  ELSE  RETURN TRUE  END;
 	END Requested;
+
 	
-
-
 	PROCEDURE SetLinger* ( s: LONGINT ): BOOLEAN;
 	VAR 
 		linger: Linger;
@@ -317,6 +332,7 @@ VAR
 	BEGIN
 		NEW( linger);  linger.onoff := 1;  linger.linger := 1;
 		err := setsockopt( s, Unix.SoLSocket, Unix.SoLinger, linger, LingerSize );
+		IF err # 0 THEN  Unix.Perror(  "NetBase.SetLinger (setsockopt)" )  END;
 		RETURN err = 0 
 	END SetLinger;
 	
@@ -328,7 +344,7 @@ VAR
 		NEW( opt );  
 		IF enable THEN  opt.onoff := 1  ELSE  opt.onoff := 0  END;  
 		err := setsockopt( s, Unix.SoLSocket, Unix.SoKeepAlive, opt, 4 );
-		IF err # 0 THEN  Unix.Perror(  "setsockopt" )  END;
+		IF err # 0 THEN  Unix.Perror(  "NetBase.KeepAlive (setsockopt)" )  END;
 		RETURN err = 0 
 	END KeepAlive;
 	
