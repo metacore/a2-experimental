@@ -263,7 +263,7 @@ TYPE
 			NEW(s,LEN(msg));
 			DumpInstruction(s,mnemonic,operands);
 			s.String(" @");
-			s.Hex(code.pc,1);
+			s.Int(code.pc,1);
 			s.Get(msg);
 			ErrorSS(msg1,msg);
 		END ErrorSI;
