@@ -2078,6 +2078,11 @@ TYPE
 		RETURN op.type IN {reg8, reg16, reg32, reg64, CRn, DRn, segReg, sti, mmx, xmm}
 	END IsRegisterOperand;
 
+	PROCEDURE IsMemoryOperand*(CONST op: Operand): BOOLEAN;
+	BEGIN 	RETURN op.type = mem
+	END IsMemoryOperand;
+
+
 	PROCEDURE DumpType*(w: Streams.Writer; type: LONGINT);
 	BEGIN
 		CASE type OF
