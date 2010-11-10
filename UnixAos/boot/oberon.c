@@ -7,16 +7,17 @@
  * PR,  01.02.95  support for sockets added
  * PR,  05.02.95  support for V24 added
  * PR,  23.12.95  migration to shared ELF libraries
- * RLI, 22.08.96  added some math primitives
- * RLI, 27.01.97  included pixmap
- * RLI, 13.10.97  changed name of Fontmap - File
- * g.f. 01.11.99  added InstallTraphandler
+ * g.f. 01.11.99  added InstallTrap
  *		  added Threads support
  *		  removed cmd line parameter evaluation
  * g.f. 22.11.04  call to mprotect added
  * g.f. 03.04.07  Darwin/Intel version
  *
  *-----------------------------------------------------------*/
+
+#ifdef MAC
+#  define	__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__	1059
+#endif
 
 #include <sys/types.h>
 #include <fcntl.h>
@@ -29,7 +30,6 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <math.h>		/* RLI */
 #include <setjmp.h>		/* g.f. */
 #ifdef MAC
 #  include <sys/ucontext.h>
@@ -53,7 +53,7 @@ char path[4096];
 char *dirs[255];
 char fullname[512];
 int nofdir;
-char defaultpath[] = ".:/usr/aos:/usr/aos/obj:/usr/aos/XFonts";
+char defaultpath[] = ".:/usr/aos/obj:/usr/aos/system";
 #ifdef SOLARIS
   char bootname[64] = "SolarisOberonCore";
 #endif
@@ -64,6 +64,7 @@ char defaultpath[] = ".:/usr/aos:/usr/aos/obj:/usr/aos/XFonts";
   char bootname[64] = "MacOberonCore";
 #endif
 uint heapSize;
+uint codeSize;
 addr heapAdr;
 int Argc;
 char **Argv;
@@ -75,18 +76,21 @@ static stack_t sigstk;
 #define BLSIZE	4096
 #define SIGSTACKSIZE 32*BLSIZE
 
-typedef	void(*traphandler_t)(long, void*, void*, int);
+typedef	void(*trap_t)(long, void*, void*, int);
 
-static traphandler_t	OberonTrapHandler;
+static trap_t	AosTrap;
 
+
+static void sighandler(int sig, void *scp, void *ucp) {
 	
-static void traphandler(int sig, void *scp, void *ucp) {
-	
-	if (debug)
+	if ((debug!=0)|(AosTrap==NULL))
 	    printf("\nhandler for signal %d got called, ucp = %x\n", 
 			sig, ucp);
-	OberonTrapHandler(0, ucp, scp, sig); /* rev. order: Oberon <--> C */
-	// printf("returned fron Oberon Trap Handler\n");
+	if (AosTrap!=NULL)
+	    AosTrap(0, ucp, scp, sig); /* rev. order: Oberon <--> C */
+	else
+	    exit(1);
+	// printf("returned fron Oberon Trap\n");
 	return;
 }
 
@@ -94,14 +98,13 @@ static void traphandler(int sig, void *scp, void *ucp) {
 static void installHandler(int sig) {
 	struct sigaction act;
 	sigset_t mask;
-
 	sigemptyset(&mask);
 	act.sa_mask = mask;
 	act.sa_flags =  SA_SIGINFO|SA_ONSTACK|SA_NODEFER;
 #ifdef LINUX
-	act.sa_handler = (__sighandler_t)traphandler;
+	act.sa_handler = (__sighandler_t)sighandler;
 #else
-	act.sa_handler = traphandler;
+	act.sa_handler = sighandler;
 #endif
 	if (sigaction( sig, &act, NULL ) != 0) {
 		perror("sigaction");
@@ -109,7 +112,7 @@ static void installHandler(int sig) {
 }
 
 
-void InitTrapHandler() {
+void InitSignalHandler() {
 	int i;
 	
 	for (i = 1; i <= 15; i++) {
@@ -118,11 +121,11 @@ void InitTrapHandler() {
 }
 
 
-static void InstallTrapHandler(traphandler_t p) {
+static void InstallTrap(trap_t p) {
 	
 	if (debug)
-		printf("Installing Oberon TrapHandler\n");
-	OberonTrapHandler = p;
+		printf("Installing Oberon Trap\n");
+	AosTrap = p;
 }
 
 
@@ -173,7 +176,7 @@ void dl_close(int handle)	/* not necessary */
   dlclose((void *)handle);
 }
 
-static int errnof()
+static int o_errno()
 {
 	return errno;
 }
@@ -196,11 +199,7 @@ int o_fstat(int fd, void* buf) {
 }
 
 int o_open(char* name, int flags, int mode) {
-	int r;
-	
-	r = open(name, flags, mode);
-	if (r < 0) { fprintf(stderr, "<%s> ", name ); perror("open");  }
-	return r;
+	return open(name, flags, mode);
 }
 
 void *o_malloc( long size ) {
@@ -213,6 +212,10 @@ void *o_memalign( long alignment, long size ) {
 
 void *o_calloc( long nelem, long elsize ) {
 	return calloc( nelem, elsize );
+}
+
+int o_mprotect( long addr, long len, int prot ) {
+	return mprotect( addr, len, prot );
 }
 
 int o_lseek( int fd, long pos, int whence ) {
@@ -265,33 +268,27 @@ void dl_sym(int handle, char *symbol, int *adr)
   else if (strcmp("argc",	symbol) == 0) *adr = Argc;
   else if (strcmp("argv",	symbol) == 0) *adr = (int)Argv;
   else if (strcmp("exit",	symbol) == 0) *adr = (int)exit;
-  else if (strcmp("errno",	symbol) == 0) *adr = (int)errnof;
+  else if (strcmp("errno",	symbol) == 0) *adr = (int)o_errno;
   else if (strcmp("printf",	symbol) == 0) *adr = (int)o_printf;
+  
+  else if (strcmp("open",	symbol) == 0) *adr = (int)o_open;
   else if (strcmp("stat",	symbol) == 0) *adr = (int)o_stat;
   else if (strcmp("lstat",	symbol) == 0) *adr = (int)o_lstat;
   else if (strcmp("fstat",	symbol) == 0) *adr = (int)o_fstat;
   else if (strcmp("lseek",	symbol) == 0) *adr = (int)o_lseek;
+
+  else if (strcmp("malloc",	symbol) == 0) *adr = (int)o_malloc;
+  else if (strcmp("calloc",	symbol) == 0) *adr = (int)o_calloc;
+  else if (strcmp("memalign",	symbol) == 0) *adr = (int)o_memalign;
+  else if (strcmp("mprotect",	symbol) == 0) *adr = (int)o_mprotect;
+
   else if (strcmp("cout",	symbol) == 0) *adr = (int)o_cout;
-  else if (strcmp("InstallTrapHandler",
-  				symbol) == 0) *adr = (int)InstallTrapHandler;
+  else if (strcmp("InstallTrap",symbol) == 0) *adr = (int)InstallTrap;
   else if (strcmp("InitXErrH",  symbol) == 0) *adr = (int)SetupXErrHandlers;
 #ifdef LINUX
   else if (strcmp("sigsetjmp",	symbol) == 0) *adr = (int)__sigsetjmp;
   else if (strcmp("setjmp",	symbol) == 0) *adr = (int)__sigsetjmp;
-  else if (strcmp("mknod",	symbol) == 0) *adr = (int)mknod;
 #endif
-#ifdef MAC
-  else if (strcmp("malloc",	symbol) == 0) *adr = (int)o_malloc;
-  else if (strcmp("calloc",	symbol) == 0) *adr = (int)o_calloc;
-  else if (strcmp("memalign",	symbol) == 0) *adr = (int)o_memalign;
-#endif
-  /* Math.Mod stuff -- added by RLI */  
-  else if (strcmp("sin",	symbol) == 0) *adr = (int)sin;
-  else if (strcmp("cos",	symbol) == 0) *adr = (int)cos;
-  else if (strcmp("log",	symbol) == 0) *adr = (int)log;
-  else if (strcmp("atan",	symbol) == 0) *adr = (int)atan;
-  else if (strcmp("exp",	symbol) == 0) *adr = (int)exp;
-  else if (strcmp("sqrt",	symbol) == 0) *adr = (int)sqrt;
 
   /* threads support */
   else if (strcmp("mtxInit",   		symbol) == 0) *adr = (int)_mtx_init;
@@ -348,6 +345,21 @@ int RNum()
   }
   return n + (((x & 0x3f) - ((x >> 6) << 6)) << shift);
 }
+
+void Assert( uint x ) {
+  uint y;
+
+  if((x < heapAdr) | (x >= heapAdr + heapSize)) {
+    printf("bad reloc. pos %x [%x, %x]\n", x, heapAdr, heapAdr+heapSize);
+  }
+  if (x > heapAdr+codeSize) {
+    y = *(int*)x;
+    if((y < heapAdr) | (y >= heapAdr+heapSize)) {
+      printf("bad reloc. value %x [%x, %x]\n", y, heapAdr, heapAdr+heapSize);
+    }
+  }
+}
+
 	
 void Relocate(uint heapAdr, int shift)
 {
@@ -358,6 +370,7 @@ void Relocate(uint heapAdr, int shift)
     adr = RNum(); 
     adr += heapAdr; 
     *((int *)adr) += shift; 
+    Assert( adr );
     len--; 
   } 
 }
@@ -376,7 +389,7 @@ void showProc(addr adr) {
 void Boot()
 {
   addr adr, fileHeapAdr, dlsymAdr;
-  uint len, d, codeSize, fileHeapSize;
+  uint len, d, fileHeapSize;
   int shift, notfound;  
   Proc body;
 
@@ -466,7 +479,7 @@ int main(int argc, char *argv[])
   if (p != NULL)  debug = atoi(p);
 
   if (debug) {
-     printf("UnixAos Boot Loader 11.11.2009\n");
+     printf("UnixAos Boot Loader 05.11.2010\n");
      printf( "debug = %d\n", debug );
   }
 
@@ -483,11 +496,9 @@ int main(int argc, char *argv[])
 
   InitPath();
   CreateSignalstack();
-  InitTrapHandler();
+  InitSignalHandler();
   
   Boot();
   return 0;
 }
-
-
 

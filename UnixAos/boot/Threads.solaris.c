@@ -12,7 +12,7 @@ static _thr_ mainthread = 0;
 
 extern void SetSigaltstack();
 
-_mut_ _mtx_init( ) {
+_mut_ _mtx_init(int dummy) {
     _mut_ mtx;
 
     mtx = (_mut_)malloc( sizeof(mutex_t) );
@@ -35,7 +35,7 @@ void _mtx_unlock(_mut_ mtx) {
     mutex_unlock( mtx );
 }
 
-_con_ _con_init( ) {
+_con_ _con_init(int dummy) {
     _con_	c;
 
     c = (_con_)malloc( sizeof(cond_t) );
@@ -93,7 +93,7 @@ _thr_ _thr_start( oberon_proc p, int len ) {
 }
 
 
-_thr_ _thr_this() {
+_thr_ _thr_this(int dummy) {
     return thr_self();
 }
 
@@ -107,11 +107,11 @@ void _thr_sleep(int ms) {
 }
 
 
-void _thr_pass( ) {
+void _thr_pass(int dummy) {
     thr_yield( );
 }
 
-void _thr_exit() {
+void _thr_exit(int dummy) {
     thr_exit( 0 );
 }
 

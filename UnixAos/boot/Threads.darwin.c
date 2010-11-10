@@ -37,11 +37,12 @@ void _thr_sleep(int ms) {
 
 
 _mut_
-_mtx_init( ) {
+_mtx_init(int dummy) {
     _mut_ mtx;
-
     mtx = (_mut_)malloc( sizeof(pthread_mutex_t) );
-    pthread_mutex_init( mtx, NULL );
+    if (pthread_mutex_init( mtx, NULL )){
+        perror("pthread_mutex_init");
+    }
     return mtx;
 }
 
@@ -68,11 +69,13 @@ void _mtx_unlock(_mut_ mtx) {
 }
 
 
-_con_ _con_init( ) {
+_con_ _con_init(int dummy) {
     _con_	c;
 
     c = (_con_)malloc( sizeof(pthread_cond_t) );
-    pthread_cond_init( c, NULL );
+    if (pthread_cond_init( c, NULL )){
+        perror("pthread_cond_init");
+    }
     return c;
 }
 
@@ -142,22 +145,22 @@ _thr_start( oberon_proc p, int len ) {
 
 
 
-_thr_ _thr_this() {
+_thr_ _thr_this(int dummy) {
 
     return pthread_self();
 }
 
 
 
-void _thr_pass( ) {
+void _thr_pass(int dummy) {
 
     _thr_sleep( 10 );
 }
 
 
 
-void _thr_exit( ) {
-    
+void _thr_exit(int dummy) {
+   
     pthread_exit( 0 );
 }
 
@@ -193,15 +196,11 @@ void _thr_setprio(_thr_ thr, int prio) {
     struct sched_param param;
     int policy;
 
-    if ( suid_root == 0) return;
-
     pthread_mutex_lock( &prio_mutex );
-    seteuid(0);
     pthread_getschedparam( thr, &policy, &param );
     param.sched_priority = prio;
-    if (pthread_setschedparam( thr, SCHED_FIFO, &param ) != 0)
+    if (pthread_setschedparam( thr, SCHED_RR, &param ) != 0)
     	perror("pthread_setschedparam");
-    seteuid( getuid());
     pthread_mutex_unlock( &prio_mutex );
 }
 
@@ -211,8 +210,6 @@ int _thr_getprio(_thr_ thr) {
 
     struct sched_param param;
     int policy;
-
-    if ( suid_root == 0) return 0;
 
     pthread_mutex_lock( &prio_mutex );
     pthread_getschedparam( thr, &policy, &param );
@@ -244,18 +241,17 @@ int _thr_initialize( int *low, int* high ) {
     if ( suid_root == 0) {
     	prio_high = sched_get_priority_max(SCHED_RR);
     	prio_low = sched_get_priority_min(SCHED_RR);
-    	*low = prio_low;
-    	*high = prio_high;
         param.sched_priority = prio_high;
         pthread_setschedparam( mainthread, SCHED_RR, &param );
     }else{
+	printf("Aos running suid root!\n");
     	prio_high = sched_get_priority_max(SCHED_FIFO);
     	prio_low = sched_get_priority_min(SCHED_FIFO);
-    	*low = prio_low;
-    	*high = prio_high;	
-
-    	pthread_mutex_init( &prio_mutex, NULL );
     }
+    *low = prio_low;
+    *high = prio_high;	
+
+    pthread_mutex_init( &prio_mutex, NULL );
     return 1;
 }
 

@@ -60,7 +60,7 @@ void _thr_sleep(int ms) {
 
 
 _mut_
-_mtx_init( ) {
+_mtx_init(int dummy) {
     _mut_ mtx;
 
     mtx = (_mut_)malloc( sizeof(pthread_mutex_t) );
@@ -91,14 +91,10 @@ void _mtx_unlock(_mut_ mtx) {
 }
 
 
-_con_ _con_init( ) {
+_con_ _con_init(int dymmy) {
     _con_	c;
 
-#ifdef SOLARIS
-    c = (_con_)malloc( sizeof(cond_t) );
-#else
     c = (_con_)malloc( sizeof(pthread_cond_t) );
-#endif
     pthread_cond_init( c, NULL );
     return c;
 }
@@ -174,21 +170,11 @@ static void *starter(void *p) {
 
 
 
-#ifdef PowerPC_Oberon_Compiler
-_thr_ 
-_thr_start( int PC, int SB, int len ) {
-    
-    oberon_proc p = (oberon_proc)malloc(8);
-    _thr_ id;
-    pthread_attr_t attr;
-    p->pc = PC; p->sb = SB;
-#else
 _thr_ 
 _thr_start( oberon_proc p, int len ) {
     
     _thr_ id;
     pthread_attr_t attr;
-#endif
      
     if (len < PTHREAD_STACK_MIN) len = PTHREAD_STACK_MIN;
     pthread_attr_init( &attr );
@@ -203,21 +189,21 @@ _thr_start( oberon_proc p, int len ) {
 
 
 
-_thr_ _thr_this() {
+_thr_ _thr_this(int dummy) {
 
     return pthread_self();
 }
 
 
 
-void _thr_pass( ) {
+void _thr_pass(int dummy) {
 
     _thr_sleep( 10 );
 }
 
 
 
-void _thr_exit( ) {
+void _thr_exit(int dummy) {
     
     pthread_exit( 0 );
 }
@@ -277,8 +263,6 @@ int _thr_getprio(_thr_ thr) {
 
     struct sched_param param;
     int policy;
-
-    if ( suid_root == 0) return 0;
 
     pthread_mutex_lock( &prio_mutex );
     pthread_getschedparam( thr, &policy, &param );
