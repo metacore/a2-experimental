@@ -82,7 +82,7 @@ VAR
 	VAR i: INTEGER;
 	BEGIN
 		Machine.Acquire( Machine.Modules );
-		i := 0;  Trace.Ln;
+		i := 0;  
 		WHILE i < llev DO  Trace.String( "    " );  INC( i )  END;
 		Trace.String( m );
 		IF s = "" THEN Trace.Ln  ELSE  Trace.String( s ) END;
@@ -354,10 +354,7 @@ VAR
 				p := m;  Publish( m, new );
 				IF new THEN  (* m was successfully published *)
 					IF 0 IN debug THEN
-						trace( name, ".body " );
-						Trace.Hex( S.ADR( m.code[0] ), -8 ); Trace.Char( ':' );
-						FOR i := 0 TO 6 DO Trace.Char( ' ' ); Trace.Hex( ORD( m.code[i] ), 1 )  END;
-						Trace.Ln
+						trace( name, ".body " );  Trace.Ln
 					END;
 					body := S.VAL( Body, S.ADR( m.code[0] ) );
 					body;

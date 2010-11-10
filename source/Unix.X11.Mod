@@ -391,13 +391,13 @@ VAR
 
 	PROCEDURE Lock*;
 	BEGIN
-		Machine.Acquire( Machine.X11IO )
+		Machine.Acquire( Machine.X11 )
 	END Lock;
 
 
 	PROCEDURE Unlock*;
 	BEGIN
-		Machine.Release( Machine.X11IO )
+		Machine.Release( Machine.X11 )
 	END Unlock;
 
 	PROCEDURE LinkToX;

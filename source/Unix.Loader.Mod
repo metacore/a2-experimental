@@ -981,7 +981,8 @@ BEGIN
 				END;
 				dataLink := NIL;  link := NIL;  type := NIL
 			ELSE
-				res := IncompatibleModuleName;  COPY(fileName, msg);  Modules.Append(" incompatible module name", msg)
+				res := IncompatibleModuleName;  
+				COPY(fileName, msg);  Modules.Append(" incompatible module name", msg)
 			END;
 		END;
 		IF (res # Ok) & (msg[0] = 0X) THEN COPY(fileName, msg);  Modules.Append(" corrupt", msg) END

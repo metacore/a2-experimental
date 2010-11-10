@@ -89,7 +89,7 @@ TYPE
 				VAR ttag: Address;  
 				BEGIN
 					mtxLock( start );
-					SELF.obj := obj;  condition := NIL;  cond := conInit( );
+					SELF.obj := obj;  condition := NIL;  cond := conInit(0);
 					flags := fl;
 					priority := prio;
 					processLink := NIL;
@@ -113,7 +113,7 @@ TYPE
 						name := "Main Thread";
 						stackBottom := Glue.stackBottom;  
 						SP  := Machine.CurrentSP( );
-						id := thrThis();
+						id := thrThis(0);
 						processes := SELF;
 						noThreads := 1;
 					END;
@@ -140,9 +140,9 @@ TYPE
 							Trace.Ln;  Trace.String( "cancel thread " ); Trace.String( name );
 							Trace.String( ", threads left: " );  Trace.Int( noThreads, 1 );  Trace.Ln
 						END;
-						Machine.Acquire( Machine.X11IO );  (* let the thread to be killed first finish its last I/O, if any *)
+						Machine.Acquire( Machine.X11 );  (* let the thread to be killed first finish its last I/O, if any *)
 						IF kt # 0 THEN  thrKill( kt )  END;
-						Machine.Release( Machine.X11IO );
+						Machine.Release( Machine.X11 );
 					END
 				END Cancel;
 
@@ -153,7 +153,7 @@ TYPE
 
 				PROCEDURE SetPriority*( prio: LONGINT );
 				BEGIN
-					priority := max( plow, min( prio, phigh ) );
+					priority := max( Machine.prioLow, min( prio, Machine.prioHigh ) );
 					thrSetPriority( id, priority )
 				END SetPriority;
 				
@@ -183,7 +183,6 @@ VAR
 	
 	processes-: Process;	(*  Anchor of all instantiated threads in system *)
 	noThreads-: LONGINT;
-	plow, phigh: LONGINT;   (* permitted thread priorities, both are the same if not running suid root *)
 	
 	start, start1: cMutex;
 	childrunning: cCond;
@@ -198,23 +197,22 @@ VAR
 	
 	traceGC, traceThreads: BOOLEAN;
 
-	mtxInit-: 		PROCEDURE {REALTIME, C} ( ): cMutex;
-	mtxDestroy-: 	PROCEDURE {REALTIME, C}  ( mtx: cMutex );
-	mtxLock-: 		PROCEDURE {REALTIME, C}  ( mtx: cMutex );
-	mtxUnlock-: 	PROCEDURE {REALTIME, C}  ( mtx: cMutex );
+	(* the dummy parameters assure proper stack alignment when compiled with option \A *)
+	mtxInit: 		PROCEDURE {REALTIME, C}  ( dummy: LONGINT ): cMutex;
+	mtxDestroy: 	PROCEDURE {REALTIME, C}  ( mtx: cMutex );
+	mtxLock: 		PROCEDURE {REALTIME, C}  ( mtx: cMutex );
+	mtxUnlock:	 	PROCEDURE {REALTIME, C}  ( mtx: cMutex );
 
-	conInit: 			PROCEDURE {REALTIME, C}  ( ): cCond;
+	conInit: 			PROCEDURE {REALTIME, C}  ( dummy: LONGINT ): cCond;
 	conDestroy: 	PROCEDURE {REALTIME, C}  ( cond: cCond );
 	conWait: 		PROCEDURE {REALTIME, C}  ( cond: cCond;  mtx: cMutex );
 	conSignal: 		PROCEDURE {REALTIME, C}  ( cond: cCond );
-
-	thrInitialize: 	PROCEDURE {REALTIME, C} ( VAR low, high: LONGINT ): BOOLEAN;
 	
 	thrStart: 		PROCEDURE {REALTIME, C} ( p: PROCEDURE;  stackLen: LONGINT ): cThread;
-	thrThis: 			PROCEDURE {REALTIME, C} ( ): cThread;
+	thrThis: 			PROCEDURE {REALTIME, C} ( dummy: LONGINT ): cThread;
 	thrSleep: 		PROCEDURE {REALTIME, C} ( ms: LONGINT );
-	thrPass: 		PROCEDURE {REALTIME, C};
-	thrExit: 			PROCEDURE {REALTIME, C};
+	thrPass: 		PROCEDURE {REALTIME, C} ( dummy: LONGINT );
+	thrExit: 			PROCEDURE {REALTIME, C} ( dummy: LONGINT );
 	thrSuspend: 	PROCEDURE {REALTIME, C} ( t: cThread );
 	thrResume: 		PROCEDURE {REALTIME, C} ( t: cThread );
 	thrSetPriority: 	PROCEDURE {REALTIME, C} ( t: cThread;  prio: LONGINT );
@@ -242,7 +240,7 @@ VAR
 		p.mode := AwaitingLock;
 		IF hdr.mtx = 0 THEN
 			(* module object *)
-			hdr.mtx := mtxInit( );  hdr.locked := FALSE;
+			hdr.mtx := mtxInit( 0 );  hdr.locked := FALSE;
 			RegisterFinalizer( obj, FinalizeProtObject )
 		END;
 		mtxLock( hdr.mtx );
@@ -297,7 +295,7 @@ VAR
 	VAR t, p: Process;  proc: Body;  id: cThread; res: LONGINT; type: Address;
 	BEGIN
 		mtxLock( start1 );
-			id := thrThis();  
+			id := thrThis(0);  
 			newProcess.id := id;
 			newProcess.SP := Machine.CurrentSP(  );  
 			newProcess.stackBottom := Machine.CurrentBP( );
@@ -332,7 +330,7 @@ VAR
 	BEGIN
 		mtxLock( createmtx );
 		hdr := S.VAL( ObjectHeader, S.VAL( Address, obj ) - Heaps.ProtOfs );
-		hdr.mtx := mtxInit ();  hdr.locked := FALSE;
+		hdr.mtx := mtxInit( 0 );  hdr.locked := FALSE;
 		NEW( p, obj, body, priority, flags, stacksize ) ;	(* execute ObjBodyStarter as new (posix or solaris) thread *)
 		mtxUnlock( createmtx );
 		RegisterFinalizer( obj, FinalizeActiveObj )
@@ -389,7 +387,7 @@ VAR
 			Trace.String( "termiating " ); Trace.String( t.name );
 			Trace.String( ", threads left: " );  Trace.Int( noThreads, 1 );  Trace.Ln
 		END;
-		thrExit
+		thrExit(0)
 	END Exit;
 
 	PROCEDURE ExitTrap*;
@@ -410,7 +408,7 @@ VAR
 	PROCEDURE SetPriority*( pri: LONGINT );		(* Set the current process' priority. *)
 	VAR me: Process;
 	BEGIN
-		IF phigh > plow THEN
+		IF Machine.prioHigh > Machine.prioLow THEN
 			me := This();
 			me.SetPriority( pri )
 		END
@@ -420,7 +418,7 @@ VAR
 	PROCEDURE This( ): Process;
 	VAR me: cThread;  p: Process;
 	BEGIN
-		me := thrThis();
+		me := thrThis(0);
 		p := processes;
 		WHILE (p # NIL ) & (p.id # me) DO  p := p.processLink  END;
 		RETURN p
@@ -456,7 +454,7 @@ VAR
 
 	PROCEDURE Yield*;	(* Relinquish control. *)
 	BEGIN
-		thrPass;
+		thrPass(0);
 	END Yield;
 
 
@@ -574,8 +572,8 @@ VAR
 	PROCEDURE StartTimer;
 	VAR p: Process;
 	BEGIN
-		tmtx := mtxInit();  timers := NIL;  
-		NEW( p, NIL, timer, phigh, {Restart}, 10000 ); 
+		tmtx := mtxInit(0);  timers := NIL;  
+		NEW( p, NIL, timer, Machine.prioHigh, {Restart}, 10000 ); 
 	END StartTimer;
 
 	(*------------------------------------------------------------------*)
@@ -600,7 +598,7 @@ VAR
 	VAR t: Process;  me: cThread;
 	BEGIN
 		IF traceGC THEN  Trace.String( "Suspending threads " )  END;
-		me := thrThis();
+		me := thrThis(0);
 		t := processes;
 		WHILE t # NIL DO
 			IF t.id # me THEN
@@ -616,7 +614,7 @@ VAR
 	VAR t: Process;  me: cThread;
 	BEGIN
 		IF traceGC THEN  Trace.String( "Resuming threads " )  END;
-		me := thrThis();
+		me := thrThis(0);
 		t := processes;
 		WHILE t # NIL DO
 			IF t.id # me THEN
@@ -649,7 +647,7 @@ VAR
 	PROCEDURE {REALTIME} SaveSP;   (* save current SP for usage by the GC *)
 	VAR me: cThread;  t: Process;
 	BEGIN
-		me := thrThis();  t := processes;
+		me := thrThis(0);  t := processes;
 		WHILE (t # NIL ) & (t.id # me) DO  t := t.processLink  END;
 		IF t # NIL THEN  t.SP := Machine.CurrentSP( )  END
 	END SaveSP;
@@ -710,20 +708,6 @@ VAR
 		END
 	END GetHostSystem;
 
-	PROCEDURE InitThreads;
-	VAR res: BOOLEAN; 
-	BEGIN
-		res := thrInitialize( plow, phigh );
-		IF res THEN
-			start := mtxInit();  start1 := mtxInit();  childrunning := conInit( ); 
-			createmtx := mtxInit( );
-			processes := NIL; 
-		ELSE
-			Trace.StringLn( "Objects.InitThreads: no threads support in boot environment.  teminating" ); 
-			Unix.exit( 1 )
-		END;
-	END InitThreads;
-
 	
 	PROCEDURE Convert;
 	VAR p: Process;
@@ -765,11 +749,13 @@ VAR
 		Unix.Dlsym( 0, "thrGetPriority",	S.VAL( Address, thrGetPriority ) );
 		Unix.Dlsym( 0, "thrSetPriority",	S.VAL( Address, thrSetPriority ) );
 		Unix.Dlsym( 0, "thrKill",		S.VAL( Address, thrKill ) );
-		Unix.Dlsym( 0, "thrInitialize",	S.VAL( Address, thrInitialize ) );
 		
-		InitThreads;
+		createmtx := mtxInit( 0 );
+		start := mtxInit(0);  start1 := mtxInit(0);  childrunning := conInit(0); 
+		
 		
 		Machine.saveSP := SaveSP;
+		
 		Heaps.findRootsInStacks := FindRootsInStacks;
 		Heaps.suspendActivities := SuspendActivities;
 		Heaps.resumeActivities := ResumeActivities;
