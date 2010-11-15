@@ -1,6 +1,6 @@
 MODULE BootConsole;
 
-IMPORT Trace, Glue, Unix, Machine, Modules, Objects, Loader, Commands;
+IMPORT Trace, Glue, Unix, Machine, Modules, Loader, Commands;
 
 TYPE
 	Module = Modules.Module;
@@ -99,8 +99,6 @@ VAR
 			Command( "WindowManager.Install" );
 			Command( "DisplayRefresher.Install" );
 
-			Glue.systemIsUp := TRUE;
-
 			Command( "Autostart.Run" );
 		END
 	END StartSystem;
@@ -111,10 +109,7 @@ BEGIN
 	Modules.AddLoader( Machine.DefaultObjectFileExtension, Loader.LoadObj );
 	Execute( "UnixFiles",  "Install" );
 	StartSystem;
-	LOOP (* idle *)
-		Objects.Sleep( 100 );
-		IF Glue.systemTerminating THEN  EXIT  END;
-	END
+	Machine.AwaitShutdown;
 END BootConsole.
 
 

@@ -478,7 +478,7 @@ VAR
 			WHILE m # NIL DO
 				Heaps.CleanupModuleFinalizers( S.ADR( m.code[0] ), LEN( m.code ), m.name );  m := m.next
 			END;
-			Heaps.Terminate( 0 )
+			Machine.Shutdown( FALSE )
 		END
 	END Shutdown;
 
@@ -654,16 +654,6 @@ VAR
 		WHILE m # NIL DO
 			IF m.published THEN
 				IF traceGC  THEN  Trace.Char( '.' )   END;
-				(* no longer needed ====
-				IF m.types > 0 THEN
-					 (* in the core modules the typeInfo array is a subobject *)
-					 (* therefor we must mark the type descriptors explicitly *)
-					 FOR i := 0 TO m.types - 1 DO
-						 Heaps.Mark( S.VAL( Address, m.typeInfo[i] ) )
-					 END;
-					 Heaps.Mark( S.VAL( Address, m.typeInfo ) )
-				END;
-				========*)
 				FOR i := 0 TO m.pointers -1 DO
 					S.GET( m.ptrAdr[i], ptr );
 					IF ptr # 0 THEN  Heaps.Mark( ptr )  END

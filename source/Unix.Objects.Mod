@@ -394,12 +394,10 @@ VAR
 	VAR p: Process;
 	BEGIN
 		p := This();
-		IF ~Glue.systemTerminating  THEN
-			(* restart the object body if it was given the SAFE flag *)
-			IF p.state0 # NIL THEN
-				Trace.String( "restarting " ); Trace.StringLn( p.name );
-				Unix.siglongjmp( S.ADR( p.state0[0] ), 1 )
-			END
+		(* restart the object body if it was given the SAFE flag *)
+		IF p.state0 # NIL THEN
+			Trace.String( "restarting " ); Trace.StringLn( p.name );
+			Unix.siglongjmp( S.ADR( p.state0[0] ), 1 )
 		END;
 		Exit
 	END ExitTrap;

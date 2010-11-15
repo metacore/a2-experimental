@@ -23,19 +23,16 @@ VAR
 	AAgetadr-	: PROCEDURE {C} ( handle: LONGINT;  symbol,  adr: LONGINT );
 
 	dlsym-		: PROCEDURE {C} ( handle: Address;  name: Address; adr: Address );
-	dlopen-	: PROCEDURE {C} ( pathname: Address;  mode: LONGINT ): Address;
-	dlclose-	: PROCEDURE {C} ( handle: Address );
+	dlopen-		: PROCEDURE {C} ( pathname: Address;  mode: LONGINT ): Address;
+	dlclose-		: PROCEDURE {C} ( handle: Address );
 	cout		: PROCEDURE {C} ( c: CHAR );
 
-	debug-	: SET;	(* value of environment variable  OBERON_DEBUG  *)
+	debug-		: SET;	(* value of environment variable  OBERON_DEBUG  *)
 
-	modules-		: Module;   (** prelinked modules *)
+	modules-	: Module;   (** prelinked modules *)
 
 	stackBottom-	: Address;
 
-
-	systemIsUp*			: BOOLEAN;
-	systemTerminating*	: BOOLEAN;
 
 	PROCEDURE Char (c: CHAR );
 	BEGIN

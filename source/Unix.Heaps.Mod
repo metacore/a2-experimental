@@ -3,7 +3,7 @@ Refer to the "General ETH Oberon System Source License" contract available at: h
 
 MODULE Heaps;
 
-IMPORT S := SYSTEM, Aos := Basetypes, Glue, Trace, Machine, Unix;
+IMPORT S := SYSTEM, Aos := Basetypes, Glue, Trace, Machine;
 
 TYPE
 	Module = Aos.Module;  TypeDesc = Aos.TypeDesc; 
@@ -842,15 +842,6 @@ VAR
 	BEGIN
 		RETURN MAX( LONGINT );
 	END LargestAvailable;
-
-
-	(** Terminate Aos. Termination handlers will be called. *)
-	PROCEDURE Terminate*( err: LONGINT );
-	BEGIN
-		IF Glue.debug # {} THEN  Trace.String( "Terminating Aos" );  Trace.Ln  END;
-		Glue.systemTerminating := TRUE;
-		Unix.exit( err );
-	END Terminate;
 
 
 	PROCEDURE GCBarrier*( ms: LONGINT );
