@@ -61,7 +61,7 @@ MODULE PCI;	(** non-portable *)
 		pci: BOOLEAN;
 		pciEntry: LONGINT;
 
-	PROCEDURE -BiosServiceDirectory(sadr, sid, fs: LONGINT; VAR badr, len, entry: LONGINT): CHAR;
+	PROCEDURE -BiosServiceDirectory(sadr, sid, fs: LONGINT; VAR badr: SYSTEM.ADDRESS; VAR len, entry: LONGINT): CHAR;
 	CODE {SYSTEM.i386}
 		DB 55H	; push ebp
 		DB 8BH, 0ECH	; mov ebp, esp
@@ -82,7 +82,7 @@ MODULE PCI;	(** non-portable *)
 		DB 081H, 0C4H, 018H, 0H, 0H, 0H		; add esp, 24
 	END BiosServiceDirectory;
 
-	PROCEDURE FindBios32Service*(serviceId, serviceFkt: LONGINT; VAR serviceAdr, serviceLen, entryOffset: LONGINT): LONGINT;
+	PROCEDURE FindBios32Service*(serviceId, serviceFkt: LONGINT; VAR serviceAdr: SYSTEM.ADDRESS; VAR  serviceLen, entryOffset: LONGINT): LONGINT;
 	VAR ch: CHAR; res: LONGINT; state: SET;
 	BEGIN {EXCLUSIVE}
 		IF bios32 THEN
@@ -446,7 +446,7 @@ MODULE PCI;	(** non-portable *)
 	END WriteConfigDword;
 
 	PROCEDURE DetectPCI;
-	VAR res, adr, len, entry: LONGINT;
+	VAR res, len, entry: LONGINT; adr: SYSTEM.ADDRESS;
 	BEGIN
 		res := FindBios32Service(PCIServiceId, 0, adr, len, entry);
 		pci := res = Done;

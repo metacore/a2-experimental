@@ -1323,7 +1323,7 @@ TYPE
 		BEGIN
 			prevScope := currentScope;
 			currentScope := x;
-			IF (mode  >= SourceCode) THEN Scope(x) END;
+			IF (mode  >= SourceCode) OR (x.ownerProcedure.isInline) THEN Scope(x) END;
 			IF (mode >= SymbolFile) & (x.body # NIL) THEN Body(x.body)
 			END;
 			currentScope := prevScope;
