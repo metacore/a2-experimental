@@ -388,4 +388,5 @@ END EnsureAllocatedStack;
 
 
 BEGIN
+	(*! assumed that modules = 0, implicit call of InsertModule *)
 END Runtime.
