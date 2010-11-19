@@ -6701,7 +6701,7 @@ TYPE
 
 			NEW(module,x,system); (* backend structures *)
 			NEW(implementationVisitor,system,checker,Supported,Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
-			NEW(declarationVisitor,system,implementationVisitor,SELF,Compiler.ForceModuleBodies IN flags,trace);
+			NEW(declarationVisitor,system,implementationVisitor,SELF,(Compiler.ForceModuleBodies IN flags) OR newObjectFile,trace);
 			declarationVisitor.Module(x,module);
 
 
