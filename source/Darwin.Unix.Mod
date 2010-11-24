@@ -86,7 +86,7 @@ CONST
 
 CONST
 	(* Thread priorities *)
-	ThreadLow* = 15; ThreadNormal* = 15; ThreadHigh* = 47;	(* "user" priorities *)
+	ThreadLow* = 15; ThreadNormal* = 20; ThreadHigh* = 47;	
 	NumPriorities* = 33;	(* number of priority levels *)
 
 
@@ -137,12 +137,12 @@ TYPE
 				gid-		: LONGINT;
 				rdev-		: DevT;
 				atime-		: Timeval;
-				mtime-	: Timeval;
+				mtime-		: Timeval;
 				ctime-		: Timeval;
 				size-		: LONGINT;
 				size2-		: LONGINT;
 				blocks-		: HUGEINT;
-				blksize-	: LONGINT;
+				blksize-		: LONGINT;
 				flags-		: LONGINT;
 				gen-		: LONGINT;
 				lspare-		: LONGINT;
@@ -211,7 +211,7 @@ TYPE
 				ecx-		: LONGINT;
 				edx-		: LONGINT;
 				edi-		: LONGINT;
-				esi-		: LONGINT;
+				esi-			: LONGINT;
 				ebp-		: LONGINT;
 				espatsig-	: LONGINT;
 				ss-			: LONGINT;

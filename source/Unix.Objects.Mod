@@ -19,10 +19,10 @@ CONST
 
 
 	MinPriority* = Unix.ThreadLow;
-	Low* = Unix.ThreadLow;
+	Low* = Unix.ThreadLow + 1;
 	Normal* = Unix.ThreadNormal;
-	High* = Unix.ThreadHigh;
-	GCPriority* = Unix.ThreadHigh;
+	High* = Unix.ThreadHigh - 2;
+	GCPriority* = Unix.ThreadHigh - 1;
 	Realtime* = Unix.ThreadHigh;
 
 	(* Process flag defined by compiler in OPC.CallRecBody *)
@@ -172,6 +172,40 @@ TYPE
 				trigger: LONGINT;
 				handler: EventHandler
 			END Timer;
+			
+CONST
+	TimerInterval = 10; (* ms *)
+
+TYPE			
+	TimerActivity = OBJECT		
+	VAR sleeptime: LONGINT;  t: Timer; 
+	
+	PROCEDURE tSleep( ms: LONGINT );
+		BEGIN
+			mtxUnlock( tmtx );  Sleep( ms );  mtxLock( tmtx )
+		END tSleep;
+		
+	BEGIN{ACTIVE, SAFE, PRIORITY(Realtime)}
+		mtxLock( tmtx );  
+		LOOP
+			t := timers;
+			IF t # NIL THEN
+				sleeptime := t.trigger - Machine.Ticks();  
+				IF sleeptime > TimerInterval THEN  
+					tSleep( TimerInterval );  DEC( sleeptime, TimerInterval )
+				ELSIF sleeptime > 0 THEN  
+					tSleep( sleeptime );  sleeptime := 0
+				END;
+				IF (sleeptime <= 0) & (t.handler # NIL) THEN  (* expired, not canceled *)
+					t.handler;
+					Remove( t );
+				END;
+			ELSE
+				tSleep( TimerInterval )
+			END
+		END
+	END TimerActivity;
+
 
 CONST
 	(* host system values *)
@@ -179,6 +213,7 @@ CONST
 
 VAR
 	timers: Timer;  
+	timerActivity: TimerActivity;
 	tmtx: cMutex;
 	
 	processes-: Process;	(*  Anchor of all instantiated threads in system *)
@@ -331,6 +366,7 @@ VAR
 		mtxLock( createmtx );
 		hdr := S.VAL( ObjectHeader, S.VAL( Address, obj ) - Heaps.ProtOfs );
 		hdr.mtx := mtxInit( 0 );  hdr.locked := FALSE;
+		IF priority = 0 THEN  priority := Normal  END;
 		NEW( p, obj, body, priority, flags, stacksize ) ;	(* execute ObjBodyStarter as new (posix or solaris) thread *)
 		mtxUnlock( createmtx );
 		RegisterFinalizer( obj, FinalizeActiveObj )
@@ -488,33 +524,6 @@ VAR
 
 	(*---------------------------- Timer --------------------------------*)
 
-	PROCEDURE tSleep( ms: LONGINT );
-	BEGIN
-		mtxUnlock( tmtx );  Sleep( ms );  mtxLock( tmtx )
-	END tSleep;
-
-	
-	PROCEDURE timer( type: Address; obj: ProtectedObject );
-	CONST Interval = 10;
-	VAR sleeptime: LONGINT;  t: Timer; 
-	BEGIN
-		mtxLock( tmtx );  
-		LOOP
-			t := timers;
-			IF t # NIL THEN
-				sleeptime := t.trigger - Machine.Ticks();  
-				IF sleeptime > Interval THEN  tSleep( Interval );  DEC( sleeptime, Interval )
-				ELSIF sleeptime > 0 THEN  tSleep( sleeptime );  sleeptime := 0
-				END;
-				IF (sleeptime <= 0) & (t.handler # NIL) THEN  (* expired, not canceled *)
-					t.handler;
-					Remove( t );
-				END;
-			ELSE
-				tSleep( Interval )
-			END
-		END
-	END timer;
 
 	PROCEDURE Remove( t: Timer );  (* remove timer from list of active timers *)
 	VAR p, x: Timer;
@@ -568,10 +577,9 @@ VAR
 	END CancelTimeout;
 
 	PROCEDURE StartTimer;
-	VAR p: Process;
 	BEGIN
 		tmtx := mtxInit(0);  timers := NIL;  
-		NEW( p, NIL, timer, Machine.prioHigh, {Restart}, 10000 ); 
+		NEW( timerActivity )
 	END StartTimer;
 
 	(*------------------------------------------------------------------*)

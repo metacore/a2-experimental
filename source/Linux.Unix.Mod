@@ -86,8 +86,8 @@ CONST
 
 CONST
 	(* Thread priorities *)
-	ThreadLow* = 1; ThreadNormal* = 1; ThreadHigh* = 97;	(* "user" priorities *)
-	NumPriorities* = 96;	(* number of priority levels *)
+	ThreadLow* = 1; ThreadNormal* = 20; ThreadHigh* = 99;	
+	NumPriorities* = 99;	(* number of priority levels *)
 
 
 	(*---------------------------- IP -----------------------------------*)
@@ -140,10 +140,10 @@ TYPE
 				rdev-		: DevT;
 				unused2-	: LONGINT;
 				size-		: LONGINT;
-				blksize-	: LONGINT;
+				blksize-		: LONGINT;
 				blocks-		: LONGINT;
 				atime-		: Timeval;
-				mtime-	: Timeval;
+				mtime-		: Timeval;
 				ctime-		: Timeval;
 				unused-	: ARRAY 2 OF LONGINT;
 			END;
@@ -180,7 +180,7 @@ TYPE
 				ino-, off-	: LONGINT;   (* these may change to HUGEINT in future Linux releases!! *)
 				reclen-		: INTEGER;
 				typ-		: CHAR;
-				name-		:  (*array of*) CHAR;
+				name-		: (*array of*) CHAR;
 			END;
 
 	Stack* = RECORD

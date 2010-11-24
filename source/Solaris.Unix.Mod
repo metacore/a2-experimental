@@ -91,8 +91,8 @@ CONST
 
 CONST
 	(* Thread priorities *)
-	ThreadLow* = 0; ThreadNormal* = 0; ThreadHigh* = 98;	(* "user" priorities *)
-	NumPriorities* = 98;	(* number of priority levels *)
+	ThreadLow* = 0; ThreadNormal* = 20; ThreadHigh* = 100;	
+	NumPriorities* = 101;	(* number of priority levels *)
 
 
 	(*---------------------------- IP -----------------------------------*)
@@ -209,18 +209,18 @@ TYPE
 	Mcontext* = POINTER TO McontextDesc;
 	McontextDesc* = RECORD
 				gs-, gsh-	: INTEGER;
-				fs-, fsh-	: INTEGER;
+				fs-, fsh-		: INTEGER;
 				es-, esh-	: INTEGER;
 				ds-, dsh-	: INTEGER;
 				edi-		: LONGINT;
-				esi-		: LONGINT;
+				esi-			: LONGINT;
 				ebp-		: LONGINT;
 				esp-		: LONGINT;
 				ebx-		: LONGINT;
 				edx-		: LONGINT;
 				ecx-		: LONGINT;
 				eax-		: LONGINT;
-				trapno-	: LONGINT;
+				trapno-		: LONGINT;
 				err-		: LONGINT;
 				eip-		: LONGINT;
 				cs-, csh-	: INTEGER;
