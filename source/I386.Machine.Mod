@@ -1138,7 +1138,7 @@ BEGIN
 		END;
 		INC (adr, 16); DEC (size, 16)
 	END;
-	RETURN -1	(* not found *)
+	RETURN NilAdr	(* not found *)
 END SearchMem;
 
 (* Search for MP spec info. *)
@@ -1149,24 +1149,24 @@ BEGIN
 	SYSTEM.GET (040EH, SYSTEM.VAL (INTEGER, adr));	(* EBDA address *)
 	adr := adr*16;
 	IF adr < 100000H THEN adr := SearchMem(adr, 1024)	(* 1. look in EBDA *)
-	ELSE adr := -1
+	ELSE adr := NilAdr
 	END;
-	IF adr < 0 THEN	(* 2. look in last kb of base memory *)
+	IF adr = NilAdr THEN	(* 2. look in last kb of base memory *)
 		adr := SearchMem(lowTop + (-lowTop) MOD 10000H - 1024, 1024);
-		IF adr < 0 THEN	(* 3. look at top of physical memory *)
+		IF adr = NilAdr THEN	(* 3. look at top of physical memory *)
 			adr := SearchMem(memTop - 1024, 1024);
-			IF adr < 0 THEN	(* 4. look in BIOS ROM space *)
+			IF adr = NilAdr THEN	(* 4. look in BIOS ROM space *)
 				adr := SearchMem(0E0000H, 20000H)
 			END
 		END
 	END;
-	IF adr < 0 THEN
-		revMP := 0X; configMP := -1
+	IF adr = NilAdr THEN
+		revMP := 0X; configMP := NilAdr
 	ELSE
 		SYSTEM.GET (adr + 9, revMP);
 		SYSTEM.MOVE(adr + 11, SYSTEM.ADR(featureMP[0]), 5);	(* feature bytes *)
 		configMP := SYSTEM.GET32 (adr + 4);	(* physical address outside reported RAM (spec 1.4 p. 4-2) *)
-		IF configMP = 0 THEN configMP := -1 END
+		IF configMP = 0 THEN configMP := NilAdr END
 	END
 END SearchMP;
 
@@ -1460,7 +1460,7 @@ END ReleaseObject;
 (* Load global descriptor table *)
 PROCEDURE LoadGDT(base: SYSTEM.ADDRESS; size: SYSTEM.SIZE);
 CODE {SYSTEM.i386, SYSTEM.Privileged}
-	SHL [EBP+size], 16
+	SHL DWORD [EBP+size], 16
 	MOV EBX, 2
 	LGDT [EBP+EBX+size]
 END LoadGDT;
@@ -2239,12 +2239,12 @@ END ValidAddress;
 PROCEDURE JumpToUserLevel*(userEBP: SYSTEM.ADDRESS);
 CODE {SYSTEM.i386}
 	PUSH UserStackSel		; SS3
-	PUSH [EBP+userEBP]		; ESP3
+	PUSH DWORD [EBP+userEBP]		; ESP3
 	PUSHFD	; EFLAGS3
 	PUSH UserCodeSel		; CS3
 	CALL L1	; PUSH L1 (EIP3)
 L1:
-	ADD DWORD [ESP], 5	; adjust EIP3 to L2 (L2-L1 = 5)
+	ADD DWORD [ESP], BYTE 5; adjust EIP3 to L2 (L2-L1 = 5)
 	IRETD					; switch to level 3 and continue at following instruction
 L2:
 	POP EBP				; from level 3 stack (refer to Objects.NewProcess)
@@ -2689,7 +2689,7 @@ END FieldIRQ;
 (* LoadIDT - Load interrupt descriptor table *)
 PROCEDURE LoadIDT(base: SYSTEM.ADDRESS; size: SYSTEM.SIZE);
 CODE {SYSTEM.i386, SYSTEM.Privileged}
-	SHL [EBP+size], 16
+	SHL DWORD [EBP+size], 16
 	MOV EBX, 2
 	LIDT [EBP+EBX+size]
 END LoadIDT;
@@ -3321,7 +3321,7 @@ BEGIN
 	GetConfig("MaxProcs", str);
 	i := 0; maxProcessors := StrToInt(i, str);
 	IF maxProcessors = 0 THEN maxProcessors := MaxCPU END;
-	IF (maxProcessors > 0) & (adr > 0) THEN	(* MP config table present, possible multi-processor *)
+	IF (maxProcessors > 0) & (adr # NilAdr) THEN	(* MP config table present, possible multi-processor *)
 		Trace.String("Machine: Intel MP Spec "); Trace.Int(ORD(revMP) DIV 10H + 1, 1);
 		Trace.Char("."); Trace.Int(ORD(revMP) MOD 10H, 1); Trace.Ln;
 		IF TraceVerbose THEN
