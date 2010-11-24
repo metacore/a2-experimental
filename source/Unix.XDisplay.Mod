@@ -3,7 +3,7 @@ Refer to the general ETH Oberon System license contract available at: http://www
 
 MODULE XDisplay;   (** X Windows display driver *)
 
-IMPORT S := SYSTEM, Trace, Unix, Machine, Files IN Oberon, X11, Displays;
+IMPORT S := SYSTEM, Trace, Unix, Machine, Files, X11, Displays;
 
 CONST
 	IconNameStr = "UnixAos";
@@ -751,15 +751,15 @@ VAR
 
 
 	PROCEDURE InitPalette( d: Display );
-	VAR F: Files.File;  R: Files.Rider;  r, g, b: CHAR;  i, cols: INTEGER;
+	VAR f: Files.File;  r: Files.Reader;  red, green, blue: CHAR;  i, cols: INTEGER;
 	BEGIN
 		IF d.depth >= 8 THEN cols := 256 ELSE cols := 16 END;
-		F := Files.Old( "Default.Pal" );
-		IF F # NIL THEN
-			Files.Set( R, F, 0 );
+		f := Files.Old( "Default.Pal" );
+		IF f # NIL THEN
+			Files.OpenReader( r, f, 0 );
 			FOR i := 0 TO cols - 1 DO
-				Files.Read( R, r );  Files.Read( R, g );  Files.Read( R, b );
-				d.SetColor( i, ORD( r ), ORD( g ), ORD( b ) )
+				r.Char( red );  r.Char( green );  r.Char( blue );
+				d.SetColor( i, ORD( red ), ORD( green ), ORD( blue ) )
 			END
 		END;
 		d.defPal := d.rgb
