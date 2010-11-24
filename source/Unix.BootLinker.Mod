@@ -1378,16 +1378,16 @@ VAR
 					ReadUseBlock( r, m, dataLink^, res, msg ) & ReadTypeBlock( r, m, type^ ) &
 					ReadExTableBlock( r, m ) & ReadPtrsInProcBlock( r, m )  & ReadRefBlock( r, m )
 				THEN
+					IF m.name = "Glue" THEN  PrepareGlue( m )
+					ELSIF m.name = "Heaps" THEN  GetHeapRoutines( m )
+					ELSIF m.name = "Modules" THEN  GetModuleRoutines( m )
+					ELSIF m.name = "Objects" THEN  GetObjectRoutines( m )
+					END;
 					IF h.dataLinks # 0 THEN  FixupGlobals( m, dataLink^ )  END;
 					IF h.links # 0 THEN  FixupLinks( m, links^, fixupCounts^, caseTableSize, res )  END;
 					IF h.commands # 0 THEN  FixupCommands( m )  END;
 					FOR i := 0 TO LEN(type^)-1  DO  InitType( m, type^, i )  END;
 					m.initialized := TRUE;  m.published := TRUE;
-					IF m.name = "Glue" THEN  PrepareGlue( m )
-					ELSIF m.name = "Heaps" THEN  GetHeapRoutines( m )
-					ELSIF m.name = "Modules" THEN  GetModuleRoutines( m )
-					ELSIF m.name = "Objects" THEN  GetObjectRoutines( m )
-					END
 				END
 			END
 		ELSE
