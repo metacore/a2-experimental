@@ -1150,10 +1150,6 @@ BEGIN
 		p := p + heapBlock.size;
 		heapBlock := SYSTEM.VAL(HeapBlock, p + BlockHeaderSize)
 	END;
-	IF initBlock # NIL THEN (* machine reported the static heap *)
-		SYSTEM.GET(SYSTEM.VAL(SYSTEM.ADDRESS,initBlock), ch); ASSERT(ch = 0E8X);	(* call to first module body *)
-	END;
-	(* now initBlock points to last block, i.e. the init calls => they won't be GC'ed *)
 
 	ASSERT(p = freeBlockAdr);
 	IF Machine.GreaterThan(endBlockAdr - freeBlockAdr, 0) THEN
@@ -1191,7 +1187,7 @@ END SetMetaData;
 BEGIN
 	Trace.String("Heaps: Initializing heap...");
 	(* The meta data stack inspection is more efficient than the heuristics *)
-	SetMetaData;
+	SetHeuristic;
 	Init;
 	Trace.Green; Trace.StringLn("... Ok"); Trace.Default;
 END Heaps.
