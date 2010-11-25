@@ -211,7 +211,8 @@ TYPE
 
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration; type: SyntaxTree.Type; len,port,adr: LONGINT;
-			parameter: SyntaxTree.Parameter; symbol: IntermediateCode.Section; op: IntermediateCode.Operand;
+			parameter: SyntaxTree.Parameter; symbol: IntermediateCode.Section; op: IntermediateCode.Operand; section: IntermediateCode.Section;
+			reg, imm: IntermediateCode.Operand;
 		BEGIN
 			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
 			IF (x.actorScope.ownerModule = module.module)  THEN
@@ -240,6 +241,13 @@ TYPE
 				END;
 				parameter := parameter.nextParameter;
 			END;
+
+			(*
+			IF HasValue(x.modifiers,"DataMemorySize",dataMemorySize) THEN
+				instanceType.SetDataMemorySize(dataMemorySize);
+			END;
+			*)
+
 
 			Scope(x.actorScope);
 		END VisitActorType;
@@ -349,6 +357,7 @@ TYPE
 			result: Operand;
 			alignment : LONGINT;
 			cc: LONGINT;
+			actorType: SyntaxTree.ActorType;
 
 			PROCEDURE Parameters;
 			VAR parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType;
@@ -363,7 +372,36 @@ TYPE
 				(* END; *)
 			END Parameters;
 
+			PROCEDURE CheckIntegerValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
+			VAR result: BOOLEAN;
+			BEGIN
+				result := FALSE;
+				IF x = SyntaxTree.invalidExpression THEN
+				ELSIF (x.resolved # NIL) & (x.resolved IS SyntaxTree.IntegerValue) THEN
+					result := TRUE;
+					value := x.resolved(SyntaxTree.IntegerValue).value;
+				ELSE
+					Error(x.position,"expression is not an integer constant");
+				END;
+				RETURN result;
+			END CheckIntegerValue;
 
+			PROCEDURE HasValue(modifiers: SyntaxTree.Modifier; CONST name: ARRAY OF CHAR; VAR value: LONGINT): BOOLEAN;
+			VAR this: SyntaxTree.Modifier; id: SyntaxTree.Identifier;
+			BEGIN
+				this := modifiers; id := SyntaxTree.NewIdentifier(-1,name);
+				WHILE (this # NIL) & (this.identifier.name # id.name) DO
+					this := this.nextModifier;
+				END;
+				IF this # NIL THEN
+					IF this.expression = NIL THEN
+						Error(this.identifier.position,"expected expression value");
+					ELSIF CheckIntegerValue(this.expression,value) THEN
+					END;
+					RETURN TRUE
+				ELSE RETURN FALSE
+				END;
+			END HasValue;
 
 
 		BEGIN
@@ -385,11 +423,13 @@ TYPE
 				RETURN
 			ELSIF x = module.module.moduleScope.bodyProcedure THEN
 				inline := FALSE;
-				AddBodyCallStub(x,Sections.InitCodeSection);
+				AddBodyCallStub(x,Sections.InitCodeSection,0);
 				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
 			ELSIF (scope.outerScope IS SyntaxTree.ActorScope) & (x = scope.outerScope(SyntaxTree.ActorScope).bodyProcedure) THEN
 				inline := FALSE;
-				AddBodyCallStub(x,Sections.InitCode2Section);
+				actorType := scope.outerScope(SyntaxTree.ActorScope).ownerActor;
+				IF HasValue(actorType.modifiers,"DataMemorySize",stackSize) THEN stackSize := stackSize*1024 ELSE stackSize := 1024 END;
+				AddBodyCallStub(x,Sections.InitCode2Section,stackSize);
 				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
 			ELSE
 				inline := FALSE;
@@ -481,7 +521,7 @@ TYPE
 			currentScope := prevScope;
 		END Procedure;
 
-		PROCEDURE AddBodyCallStub(bodyProcedure: SyntaxTree.Procedure; sectionType: SHORTINT); (* code that is only necessary for static linkers *)
+		PROCEDURE AddBodyCallStub(bodyProcedure: SyntaxTree.Procedure; sectionType: SHORTINT; initStack: LONGINT); (* code that is only necessary for static linkers *)
 		VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope; name: SyntaxTree.String;
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand;
 		BEGIN
@@ -493,6 +533,12 @@ TYPE
 			procedure.SetAccess(SyntaxTree.Hidden);
 			Global.GetSymbolName (procedure,name);
 			ir := IntermediateCode.NewSection(module.sections,sectionType,name,procedure,dump);
+
+			IF initStack # 0 THEN
+				IntermediateCode.InitImmediate(op,GetType(system,system.addressType),initStack);
+				ir.Emit(Mov(implementationVisitor.sp,op));
+			END;
+
 			Global.GetSymbolName (bodyProcedure,name);
 			IntermediateCode.InitAddress(op, GetType(system,system.addressType), IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,bodyProcedure,dump) , 0);
 			ir.Emit(Call(op, 0));
@@ -5351,17 +5397,28 @@ TYPE
 			(* ----- RECEIVE ------*)
 			|Global.Receive:
 				Evaluate(p0,s0);
+				Emit(Push(s0.op));
 				Designate(p1,s1);
 				size := ToMemoryUnits(system,system.SizeOf(p1.type));
-				Emit(Push(s0.op));
 				Emit(Push(s1.op));
+				IF p2 # NIL THEN
+					Designate(p2,s2);
+					Emit(Push(s2.op));
+				END;
+
+
 				(*
 				Emit(Push(IntermediateCode.Immediate(addressType,size)));
 				*)
 				IF size # 1 THEN Error(p1.position,"receive not implemented for complex data types") END;
 				ReleaseOperand(s0);
 				ReleaseOperand(s1);
-				CallThis("Dataflow","Receive");
+				ReleaseOperand(s2);
+				IF p2 = NIL THEN
+					CallThis("Dataflow","Receive")
+				ELSE
+					CallThis("Dataflow","ReceiveNonBlocking")
+				END;
 			ELSE (* function not yet implemented *)
 				Error(position,"not yet implemented");
 			END;

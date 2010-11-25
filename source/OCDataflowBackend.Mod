@@ -86,12 +86,10 @@ TYPE
 			currentDataflowScope := backend.dataflowSpecification;
 		END Init;
 
-		(*
 		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
 		BEGIN
 			backend.Error("", position, Diagnostics.Invalid, s);
 		END Error;
-		*)
 
 		(** types **)
 
@@ -130,18 +128,51 @@ TYPE
 		PROCEDURE VisitRecordType(x: SyntaxTree.RecordType);
 		BEGIN	END VisitRecordType;
 
+		PROCEDURE CheckIntegerValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
+		VAR result: BOOLEAN;
+		BEGIN
+			result := FALSE;
+			IF x = SyntaxTree.invalidExpression THEN
+			ELSIF (x.resolved # NIL) & (x.resolved IS SyntaxTree.IntegerValue) THEN
+				result := TRUE;
+				value := x.resolved(SyntaxTree.IntegerValue).value;
+			ELSE
+				Error(x.position,"expression is not an integer constant");
+			END;
+			RETURN result;
+		END CheckIntegerValue;
 
-
+		PROCEDURE HasValue(modifiers: SyntaxTree.Modifier; CONST name: ARRAY OF CHAR; VAR value: LONGINT): BOOLEAN;
+		VAR this: SyntaxTree.Modifier; id: SyntaxTree.Identifier;
+		BEGIN
+			this := modifiers; id := SyntaxTree.NewIdentifier(-1,name);
+			WHILE (this # NIL) & (this.identifier.name # id.name) DO
+				this := this.nextModifier;
+			END;
+			IF this # NIL THEN
+				IF this.expression = NIL THEN
+					Error(this.identifier.position,"expected expression value");
+				ELSIF CheckIntegerValue(this.expression,value) THEN
+				END;
+				RETURN TRUE
+			ELSE RETURN FALSE
+			END;
+		END HasValue;
 
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		VAR componentName, parameterName, name: SyntaxTree.String; instanceType: Dataflow.Type;
 			parameter: SyntaxTree.Parameter; parameterType: SyntaxTree.Type; portIndex,i,direction,len: LONGINT;
 			port: Dataflow.Port;
 			prevDataflowScope : Dataflow.Scope;
+			dataMemorySize: LONGINT;
 		BEGIN
 			prevDataflowScope := currentDataflowScope;
 			x.typeDeclaration.name.GetString(componentName);
 			instanceType := currentDataflowScope.NewType(componentName); (*backend.dataflowSpecification.NewType(componentName);*)
+			IF HasValue(x.modifiers,"DataMemorySize",dataMemorySize) THEN
+				instanceType.SetDataMemorySize(dataMemorySize);
+			END;
+
 			currentDataflowScope := instanceType;
 			parameter := x.firstParameter;
 			portIndex := 0;
@@ -154,11 +185,13 @@ TYPE
 						COPY(parameterName,name);
 						AppendIndex(name,i);
 						port := instanceType.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+						port.SetWidth(system.SizeOf(parameterType(SyntaxTree.PortType).channelType));
 						INC(portIndex);
 					END;
 				ELSE
 					direction := Direction(parameterType(SyntaxTree.PortType).direction);
 					port := instanceType.NewPort(parameterName,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+					port.SetWidth(system.SizeOf(parameterType(SyntaxTree.PortType).channelType));
 					INC(portIndex);
 				END;
 				parameter := parameter.nextParameter;
@@ -513,6 +546,7 @@ TYPE
 		len: LONGINT;
 		instance,instance1,instance2: Dataflow.Instance;
 		symbol: Dataflow.Symbol;
+		value: LONGINT;
 
 			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
 			BEGIN
@@ -615,6 +649,11 @@ TYPE
 				IF GetPort(p0,instance1,port1) & GetPort(p1,instance2,port2) THEN
 					ASSERT(instance1 # NIL); ASSERT(instance2 # NIL); ASSERT(port1 # NIL); ASSERT(port2 # NIL);
 					channel := currentDataflowScope.NewChannel(instance1,port1,instance2,port2);
+					IF (p2 # NIL) THEN
+						value := p2.resolved(SyntaxTree.IntegerValue).value;
+						channel.SetFifoSize(value);
+					END;
+					channel.SetWidth(port1.width);
 				END
 			|Global.Delegate:
 				IF GetDelegatePort(p0,port1) & GetPort(p1,instance2,port2) THEN

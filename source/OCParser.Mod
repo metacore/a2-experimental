@@ -1159,6 +1159,7 @@ TYPE
 		VAR
 			actorType: SyntaxTree.ActorType;
 			actorScope: SyntaxTree.ActorScope;
+			modifiers: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "ActorType" ) END;
 			(* symbol actor already consumed *)
@@ -1168,12 +1169,12 @@ TYPE
 			actorType.IsAssembly(isAssembly);
 			actorScope.SetOwnerActor(actorType);
 
-			(*
+			
 			IF Optional(Scanner.LeftBrace) THEN
 				modifiers := Flags();
-				actorType.SetFlagList(modifiers);
+				actorType.SetModifiers(modifiers);
 			END;
-			*)
+			
 
 			IF Optional( Scanner.LeftParenthesis ) THEN
 				PortList(actorType,actorScope);

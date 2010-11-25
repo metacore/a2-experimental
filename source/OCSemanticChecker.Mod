@@ -974,8 +974,17 @@ TYPE
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		VAR
 			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter; type: SyntaxTree.Type; len: LONGINT;
+			modifier: SyntaxTree.Modifier; expression: SyntaxTree.Expression;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
+
+				modifier := x.modifiers;
+				WHILE (modifier # NIL) DO
+					IF modifier.expression # NIL THEN
+						expression := ConstantExpression(modifier.expression);
+					END;
+					modifier := modifier.nextModifier;
+				END;
 
 				(* process parameters *)
 				parameter :=x.firstParameter;
@@ -4975,7 +4984,7 @@ TYPE
 					END;
 					type := type0;
 				(* ------- CONNECT -------*)
-				ELSIF (id = Global.Connect) & (Parameters(2,2)) THEN
+				ELSIF (id = Global.Connect) & (Parameters(2,3)) THEN
 					IF 	~(currentIsAssembly) THEN
 						Error(position,Diagnostics.Invalid,"connection outside dataflow body block");
 					END;
@@ -4985,6 +4994,13 @@ TYPE
 						Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
 					ELSIF ~SameType(inPort.channelType, outPort.channelType) THEN
 						Error(position,Diagnostics.Invalid,"incompatible port types");
+					END;
+					IF numberActualParameters = 3 THEN
+						IF IsIntegerValue(parameter2,i0) & (i0>=0) THEN
+							parameter2.SetResolved(SyntaxTree.NewIntegerValue(position,ABS(i0)));
+						ELSE
+							Error(position,Diagnostics.Invalid,"incompatible channel size parameter");
+						END;
 					END;
 					dataflowStatement := TRUE;
 				(* ---------- DELEGATE --------*)
@@ -5003,12 +5019,17 @@ TYPE
 					END;
 					dataflowStatement := TRUE;
 				(* --------- RECEIVE ---------*)
-				ELSIF (id = Global.Receive) & Parameters(2,2) THEN
+				ELSIF (id = Global.Receive) & Parameters(2,3) THEN
 					IF CheckPortType(parameter0,inPort) & CheckVariable(parameter1) THEN
 						IF inPort.direction # SyntaxTree.InPort THEN
 							Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
 						ELSIF ~SameType(inPort.channelType,parameter1.type) THEN
 							Error(parameter1.position,Diagnostics.Invalid,"incompatible to port type");
+						END;
+						IF (numberActualParameters=3) & CheckVariable(parameter2) THEN
+							IF ~SameType(parameter2.type, system.integerType) THEN
+								Error(parameter2.position,Diagnostics.Invalid,"incompatible to integer type");
+							END;
 						END;
 					END;
 				(* --------- SEND ---------*)

@@ -28,6 +28,11 @@ TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 		RETURN address DIV section.unit + displacement;
 	END Allocate;
 
+	PROCEDURE SizeInBits*(): LONGINT;
+	BEGIN RETURN bits.GetSize()
+	END SizeInBits;
+
+
 	PROCEDURE Patch* (pos, value: GenericLinker.Address; offset, bits, unit: ObjectFile.Bits);
 	BEGIN SELF.bits.SetBits ((pos - displacement) * unit + offset, bits, value);
 	END Patch;

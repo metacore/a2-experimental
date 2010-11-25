@@ -4,10 +4,11 @@ IMPORT SyntaxTree := OCSyntaxTree, Basic := OCBasic, Files, Streams, D := Debugg
 
 CONST
 	In*= SyntaxTree.InPort; Out*= SyntaxTree.OutPort;
-	defaultInstructionMemorySize*=2;
+	defaultInstructionMemorySize*=0;
 	defaultDataMemorySize *=2;
 	defaultPortWidth *=32; (* bits *)
-	defaultFifoSize *=16;
+	defaultFifoSize *=16; (* "words" of port width size *)
+	defaultChannelWidth* = 32;
 	CodeFileExtension*="code";
 	DataFileExtension*="data";
 	SpecificationFileExtension*="spec";
@@ -21,6 +22,7 @@ TYPE
 		instance-: Instance; port-: Port
 	END;
 
+	(* base type of all ingredients of the specification graph *)
 	Symbol*=OBJECT
 	VAR name-: SyntaxTree.String;
 		scope-: Scope;
@@ -55,6 +57,10 @@ TYPE
 		END ByName;
 	END SymbolList;
 
+	(* representation of a connection point
+		- represented as STREAM parameter in the language
+		- endpoint of FIFOs in hardware
+	*)
 	Port*= OBJECT (Symbol)
 	VAR
 		direction-: LONGINT;
@@ -73,6 +79,11 @@ TYPE
 			index := -1;
 		END InitPort;
 
+		PROCEDURE SetWidth*(widthInBits: LONGINT);
+		BEGIN width := widthInBits
+		END SetWidth;
+
+
 		PROCEDURE Delegate*(instance: Instance; port: Port);
 		BEGIN
 			delegate.instance := instance; delegate.port := port
@@ -88,7 +99,7 @@ TYPE
 			ELSIF direction=Out THEN w.String("out ");
 			END;
 			w.String(" adr="); w.Int(adr,1);
-			w.String(" width= "); w.Int(width,1);
+			w.String(" width="); w.Int(width,1);
 			w.String(" delegateInstance=");
 			IF delegate.instance = NIL THEN
 				w.String("none")
@@ -150,6 +161,10 @@ TYPE
 
 	END PortList;
 
+	(* devices are additional components that can be attached to processors
+		- implicitly represented as imported module and used interface in the language
+		- represented as components attached to processor in hardware
+	*)
 	Device*= OBJECT (Symbol)
 	VAR
 		adr-: LONGINT;
@@ -204,6 +219,11 @@ TYPE
 
 	END DeviceList;
 
+	(*
+		a module is a collection of actors
+		- represented as IMPORT in source code
+		- has no representation in hardware
+	*)
 	Module*=OBJECT (Symbol)
 	VAR
 		fileName*: Files.FileName; (* preparation for separate compilation (optimization) *)
@@ -260,6 +280,11 @@ TYPE
 
 	END ModuleList;
 
+	(*
+		instances are variables in networks pointing to a type
+		- represented as VAR ... in assemblies (networks)
+		- when instantiated the instance represents the instance of a processor in hardware
+	*)
 	Instance*=OBJECT (Symbol)
 	VAR
 		type-: Type; (* instance type *)
@@ -418,6 +443,8 @@ TYPE
 				type := types.GetType(i);
 				IF type.instances.Length()=0 THEN
 					IF ~type.LinkType(diagnostics,verbose) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+				ELSE
+					type.SetDataMemorySize(0);
 				END;
 				IF ~type.Link(diagnostics, verbose) THEN RETURN FALSE END; (* subtypes ? *)
 			END;
@@ -426,12 +453,19 @@ TYPE
 
 	END Scope;
 
+	(*
+		definition of a (virtual) computing node (processor)
+		- represented by ACTOR or ASSEMBLY (-> virtual) in source code
+		- represented as processor (if ACTOR) and as network or processors (if ASSEMBLY) in hardware
+	*)
+
 	Type*=OBJECT (Scope)
 	VAR
 
 		devices-: DeviceList;
 		modules-: ModuleList; (* for linking / compiling *)
 		instructionMemorySize-, dataMemorySize-: LONGINT;
+
 
 		PROCEDURE & InitType*(CONST name: ARRAY OF CHAR; scope: Scope);
 		BEGIN
@@ -444,6 +478,13 @@ TYPE
 			SELF.scope := scope
 		END InitType;
 
+		PROCEDURE SetInstructionMemorySize*(value: LONGINT);
+		BEGIN instructionMemorySize := value
+		END SetInstructionMemorySize;
+
+		PROCEDURE SetDataMemorySize*(value: LONGINT);
+		BEGIN dataMemorySize := value
+		END SetDataMemorySize;
 
 		(* generate a new device, may be overwritten by implementations if a non-default device object has to be installed *)
 		PROCEDURE NewDevice*(CONST name: ARRAY OF CHAR; adr: LONGINT): Device;
@@ -502,6 +543,8 @@ TYPE
 
 			(* do linking after having read in all blocks to account for potential constraints *)
 			IF ~linker.error THEN linker.Link; END;
+
+			instructionMemorySize := 1+ code.SizeInBits() DIV 36 DIV 1024 ;
 
 			GetFullName(fileName,NIL);
 			Files.JoinExtension(fileName,CodeFileExtension,codeFileName);
@@ -639,20 +682,35 @@ TYPE
 
 	END TypeList;
 
+	(*
+		channel defines the connection between ports
+		- defined by CONNECT in source code
+		- represented as FIFO in hardware
+	*)
 	Channel*=OBJECT (Symbol)
 	VAR
 		in-, out-: PortInstance;
 		fifoSize-: LONGINT;
+		widthInBits-: LONGINT;
 		index-: LONGINT; (* useful for implementations that emulate channels (simulator) *)
 
 		PROCEDURE & InitChannel(CONST name: ARRAY OF CHAR; scope: Scope; inInstance: Instance; inPort: Port; outInstance: Instance; outPort: Port);
 		BEGIN
 			InitSymbol(name,scope);
 			fifoSize := defaultFifoSize;
+			widthInBits := defaultChannelWidth;
 			in.port := inPort; in.instance := inInstance;
 			out.port := outPort; out.instance := outInstance;
 			SELF.index := -1;
 		END InitChannel;
+
+		PROCEDURE SetFifoSize*(size: LONGINT);
+		BEGIN fifoSize := size
+		END SetFifoSize;
+
+		PROCEDURE SetWidth*(width: LONGINT);
+		BEGIN widthInBits := width
+		END SetWidth;
 
 		PROCEDURE Read(r: Streams.Reader): BOOLEAN;
 		VAR s: SyntaxTree.String; i: LONGINT;
@@ -667,6 +725,10 @@ TYPE
 			in.instance := scope.instances.ByName(s);
 			IF ~CheckItem(r,"inPort")OR ~GetString(r,s) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			in.port := in.instance.type.ports.ByName(s);
+			IF ~CheckItem(r,"size")OR ~r.GetInteger(i,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+			fifoSize := i;
+			IF ~CheckItem(r,"width")OR ~r.GetInteger(i,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+			widthInBits := i;
 			RETURN TRUE
 		END Read;
 
@@ -678,8 +740,10 @@ TYPE
 			w.String(" outInstance="); w.String(out.instance.name);
 			w.String(" outPort="); w.String(out.port.name);
 			w.String(" inInstance="); w.String(in.instance.name);
-			w.String(" inPort="); w.String(in.port.name); w.Ln;
-			w.Update;
+			w.String(" inPort="); w.String(in.port.name);
+			w.String(" size="); w.Int(fifoSize,1);
+			w.String(" width="); w.Int(widthInBits,1);
+			w.Ln;w.Update;
 		END Write;
 
 	END Channel;
@@ -718,6 +782,11 @@ TYPE
 
 	END ChannelList;
 
+	(*
+		a specification is a collection of actors together with factory procedures to build hardware
+		- represented as IMPORT in source code
+		- to build hardware scripts generating hardware
+	*)
 	Specification*=OBJECT (Scope) (* specification object including hardware factory *)
 	VAR
 		instructionSet-: SyntaxTree.String;

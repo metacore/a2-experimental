@@ -1391,6 +1391,7 @@ TYPE
 		firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters *)
 		actorScope-: ActorScope;
 		isAssembly-: BOOLEAN;
+		modifiers-: Modifier;
 
 		PROCEDURE &InitActorType(position: LONGINT; scope: Scope;  actorScope: ActorScope);
 		BEGIN
@@ -1415,6 +1416,10 @@ TYPE
 			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextParameter END;
 			RETURN p;
 		END FindParameter;
+
+		PROCEDURE SetModifiers*(flag: Modifier);
+		BEGIN SELF.modifiers := flag;
+		END SetModifiers;
 
 		PROCEDURE IsAssembly*(t: BOOLEAN);
 		BEGIN isAssembly := t
