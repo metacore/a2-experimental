@@ -793,7 +793,7 @@ TYPE
 						IF Trace THEN KernelLog.String(" cw "); END;
 						IF val # -1 THEN code.PutByte (val); val := -1 END;
 						FOR i := 0 TO maxNumberOperands - 1 DO
-							IF (free[i]) & (operands[i].type = ioffset) THEN
+							IF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.rel16off) THEN
 								offset := SHORT(operands[i].val - code.pc  - 2);
 								IF lastPass & ~ValueInWordRange (offset) THEN
 									Error( "value exceeds bounds");
@@ -801,7 +801,7 @@ TYPE
 								operands[i].pc := code.pc;
 								code.PutWord (offset);
 								free[i] := FALSE; i:= maxNumberOperands;
-							ELSIF (free[i]) & (operands[i].type = imm) THEN
+							ELSIF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.imm16) THEN
 								offset := SHORT (operands[i].val);
 								IF lastPass & ~ValueInWordRange (offset) THEN
 									Error( "value exceeds bounds");
@@ -816,7 +816,7 @@ TYPE
 						IF Trace THEN KernelLog.String(" cd "); END;
 						IF val # -1 THEN code.PutByte (val); val := -1 END;
 						FOR i := 0 TO maxNumberOperands - 1 DO
-							IF (free[i]) & (operands[i].type = ioffset) THEN
+							IF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.rel32off) THEN
 								operands[i].pc := code.pc;
 
 								IF lastPass & (operands[i].symbol # NIL) THEN
@@ -827,7 +827,7 @@ TYPE
 								END;
 
 								free[i] := FALSE; i:= maxNumberOperands;
-							ELSIF (free[i]) & (operands[i].type = imm) THEN
+							ELSIF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.imm32) THEN
 								operands[i].pc := code.pc;
 
 								IF lastPass & (operands[i].symbol # NIL) THEN
@@ -873,14 +873,14 @@ TYPE
 						IF Trace THEN KernelLog.String(" id "); END;
 						IF val # -1 THEN code.PutByte (val); val := -1 END;
 						FOR i := 0 TO maxNumberOperands - 1 DO
-							IF (free[i]) & (operands[i].type = ioffset) THEN
+							IF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.rel32off) THEN
 								operands[i].pc := code.pc;
 
 								IF lastPass & (operands[i].symbol # NIL) THEN AddFixup(BinaryCode.Relative,4,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement-4)  END;
 
 								code.PutDWord (SHORT (operands[i].val - code.pc - 4));
 								free[i] := FALSE; i:= maxNumberOperands;
-							ELSIF (free[i]) & (operands[i].type = imm) THEN
+							ELSIF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.imm32) THEN
 								operands[i].pc := code.pc;
 								IF lastPass & (operands[i].symbol # NIL) THEN AddFixup(BinaryCode.Absolute,4,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement)  END;
 
@@ -892,7 +892,7 @@ TYPE
 						IF Trace THEN KernelLog.String(" iq "); END;
 						IF val # -1 THEN code.PutByte (val); val := -1 END;
 						FOR i := 0 TO maxNumberOperands - 1 DO
-							IF (free[i]) & (operands[i].type = imm) OR (operands[i].type = ioffset) THEN
+							IF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.imm64) THEN
 								operands[i].pc := code.pc;
 								IF lastPass & (operands[i].symbol # NIL) THEN
 									 AddFixup(BinaryCode.Absolute,8,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement)
