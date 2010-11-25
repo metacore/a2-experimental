@@ -201,6 +201,10 @@
 					style="String" styleOpen="Bold" styleClose="Bold"
 					open="'" close="'" nesting="FALSE" multiline="FALSE"
 				/>
+				<Region
+					style="Default" styleOpen="Default" styleClose="Default"
+					open="CODE" close="END" nesting="FALSE" multiline="TRUE"
+				/>
 			</Regions>
 
 		</Highlighter>
