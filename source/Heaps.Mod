@@ -19,8 +19,8 @@ CONST
 	AddressSize = SYSTEM.SIZEOF(SYSTEM.ADDRESS);
 
 	MaxTries = 16;				(* max number of times to try and allocate memory, before trapping *)
-	Unmarked = 0;				(* mark value of free blocks *)
-	TemporaryMarkValue = -1;	(* temporary mark value for newly assigned objects *)
+	Unmarked = -1;				(* mark value of free blocks *)
+	TemporaryMarkValue = -2;	(* temporary mark value for newly assigned objects *)
 
 	BlockSize* = 32;			(* power of two, <= 32 for RegisterCandidates *)
 	ArrayAlignment = 8;			(* first array element of ArrayBlock and first data element of SystemBlock must be aligned to 0 MOD ArrayAlignment *)
@@ -1136,11 +1136,11 @@ BEGIN
 	Machine.GetStaticHeap(beginBlockAdr, endBlockAdr, freeBlockAdr);
 
 	(* read block tags stored by the linker as values of type ANY into proper variables *)
-	freeBlockTag := SYSTEM.VAL(SYSTEM.ADDRESS, freeBlockTagPtr);
-	systemBlockTag := SYSTEM.VAL(SYSTEM.ADDRESS, systemBlockTagPtr);
-	recordBlockTag := SYSTEM.VAL(SYSTEM.ADDRESS, recordBlockTagPtr);
-	protRecBlockTag := SYSTEM.VAL(SYSTEM.ADDRESS, protRecBlockTagPtr);
-	arrayBlockTag := SYSTEM.VAL(SYSTEM.ADDRESS, arrayBlockTagPtr);
+	freeBlockTag := SYSTEM.TYPECODE (FreeBlockDesc);
+	systemBlockTag := SYSTEM.TYPECODE (SystemBlockDesc);
+	recordBlockTag := SYSTEM.TYPECODE (RecordBlockDesc);
+	protRecBlockTag := SYSTEM.TYPECODE (ProtRecBlockDesc);
+	arrayBlockTag := SYSTEM.TYPECODE (ArrayBlockDesc);
 
 	(* find last block in static heap *)
 	p := beginBlockAdr;
