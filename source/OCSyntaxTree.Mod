@@ -3349,12 +3349,19 @@ TYPE
 			statements-: StatementSequence;
 			blockModifiers-: Modifier;
 			isExclusive-: BOOLEAN;
+			isRealtime-: BOOLEAN;
 
 		PROCEDURE & InitStatementBlock( position: LONGINT ; outer: Statement);
 		BEGIN
 			InitStatement( position ,outer);  statements := NIL;  blockModifiers := NIL;
 			isExclusive := FALSE;
+			isRealtime := FALSE;
 		END InitStatementBlock;
+
+		PROCEDURE SetRealtime*(b: BOOLEAN);
+		BEGIN
+			isRealtime := b
+		END SetRealtime;
 
 		PROCEDURE SetModifier*(modifier: Modifier);
 		BEGIN
@@ -3414,7 +3421,7 @@ TYPE
 		priority-: Expression; (* set by checker *)
 		inScope-: ProcedureScope;
 		code-: Code;
-		isActive-, isSafe-, isRealtime-: BOOLEAN;
+		isActive-, isSafe-: BOOLEAN;
 
 		PROCEDURE & InitBody(position: LONGINT; scope: ProcedureScope);
 		BEGIN
@@ -3429,10 +3436,6 @@ TYPE
 		PROCEDURE SetSafe*(safe: BOOLEAN);
 		BEGIN SELF.isSafe := safe
 		END SetSafe;
-
-		PROCEDURE SetRealtime*(realtime: BOOLEAN);
-		BEGIN SELF.isRealtime := TRUE
-		END SetRealtime;
 
 		PROCEDURE SetFinally*( finally: StatementSequence );
 		BEGIN SELF.finally := finally

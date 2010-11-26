@@ -6516,7 +6516,8 @@ TYPE
 					ELSIF recordBody.isRealtime THEN
 						Error(position,Diagnostics.Invalid,"duplicate realtime flag")
 					ELSE
-						recordBody.SetRealtime(TRUE)
+						recordBody.SetRealtime(TRUE);
+						block.SetRealtime(TRUE);
 					END;
 				ELSE
 					Error(position,Diagnostics.Invalid,"unknown block modifier");
@@ -6530,7 +6531,7 @@ TYPE
 			- check statement sequence
 		**)
 		PROCEDURE VisitStatementBlock(statementBlock: SyntaxTree.StatementBlock);
-		VAR recentExclusive, recentUnreachable: BOOLEAN;
+		VAR recentExclusive, recentUnreachable, recentRealtime: BOOLEAN;
 		BEGIN
 			BlockFlags(statementBlock);
 			IF statementBlock.isExclusive THEN
@@ -6543,9 +6544,12 @@ TYPE
 			END;
 			recentExclusive := currentIsExclusive;
 			recentUnreachable := currentIsUnreachable;
+			recentRealtime := currentIsRealtime;
 			IF statementBlock.isExclusive THEN currentIsExclusive := TRUE END;
 			IF statementBlock.isUnreachable THEN currentIsUnreachable := TRUE END;
+			IF statementBlock.isRealtime THEN currentIsRealtime := TRUE END;
 			StatementSequence(statementBlock.statements);
+			currentIsRealtime := recentRealtime;
 			currentIsExclusive := recentExclusive;
 			currentIsUnreachable := recentUnreachable;
 		END VisitStatementBlock;
