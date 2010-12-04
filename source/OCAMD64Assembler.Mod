@@ -2082,6 +2082,9 @@ TYPE
 	BEGIN 	RETURN op.type = mem
 	END IsMemoryOperand;
 
+	PROCEDURE IsImmediateOperand*(CONST op: Operand): BOOLEAN;
+	BEGIN 	RETURN op.type = imm
+	END IsImmediateOperand;
 
 	PROCEDURE DumpType*(w: Streams.Writer; type: LONGINT);
 	BEGIN
