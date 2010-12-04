@@ -7048,4 +7048,40 @@ positive: assignment of extended record type to base type (check destination siz
 
 	BEGIN Test
 	END Test.
+	
+positive: return of real number (was: problem in AMD float stack)
 
+	MODULE Test; (** AUTHOR ""; PURPOSE ""; *)
+
+	VAR r: LONGREAL;
+
+	PROCEDURE P(): LONGREAL;
+	VAR x,y : LONGREAL;
+	BEGIN
+		x := 10;
+		y := 20;
+		x := x*x;
+		RETURN y
+	END P;
+
+	BEGIN
+		ASSERT(P()=20);
+	END Test.
+
+positive: multiplication with 8-bit number (was: problem in AMD backend register reuse)
+
+	MODULE Test;
+	VAR longint: LONGINT;
+		PROCEDURE Mul16(ch1,ch2: CHAR; VAR long:LONGINT);
+		VAR
+			int1,int0: INTEGER;
+		BEGIN
+			int1 := ORD(ch1);
+			int0 := ORD(ch2);
+			long := 256 * LONG(int1) + int0;
+		END Mul16;
+	BEGIN
+		Mul16(10X,20X,longint);
+		ASSERT(longint = 256*10H+20H);
+	END Test.
+	
