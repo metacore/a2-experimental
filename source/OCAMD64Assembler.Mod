@@ -10,7 +10,7 @@ IMPORT
 	;
 
 CONST
-	Trace= TRUE;
+	Trace= FALSE;
 
 	none* = InstructionSet.none;
 
