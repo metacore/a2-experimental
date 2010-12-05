@@ -10,7 +10,7 @@ IMPORT
 	;
 
 CONST
-	Trace= FALSE;
+	Trace= TRUE;
 
 	none* = InstructionSet.none;
 
@@ -285,7 +285,7 @@ TYPE
 			opcode: ARRAY InstructionSet.maxCodeLength OF InstructionSet.Code;
 			pc0: LONGINT;
 
-			debug: LONGINT;
+			debug,temp: LONGINT;
 
 			PROCEDURE FindInstruction(mnem: LONGINT; CONST operands: ARRAY OF Operand): LONGINT;
 			VAR instr: LONGINT;
@@ -434,6 +434,13 @@ TYPE
 			END;
 			IF addressOperand = none THEN
 				addressOperand := GetRegOperand ();
+				IF regOperand # none THEN
+					temp := InstructionSet.instructions[instr].operands[regOperand];
+					IF (temp = xmm) OR (temp = mmx) THEN (* patch case such as PEXTRW EDX, XMM3, 0 *)
+						temp := addressOperand; addressOperand := regOperand; regOperand := temp;
+					END;
+				ELSE
+				END;
 			END;
 
 			(* KernelLog.String (InstructionSet.mnemonics[mnem].name); KernelLog.Int (regOperand, 10); KernelLog.Int (addressOperand, 10); KernelLog.Ln; *)
