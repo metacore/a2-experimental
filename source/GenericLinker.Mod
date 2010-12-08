@@ -158,19 +158,21 @@ VAR
 			END PatchPattern;
 
 			PROCEDURE CheckBits(value: LONGINT; CONST patch: ObjectFile.Patch; offset: LONGINT);
-			VAR i, nobits: LONGINT; minval, maxval: ObjectFile.Unit; name: ObjectFile.SectionName; number: ARRAY 32 OF CHAR;
+			VAR i, nobits,remainder: LONGINT; minval, maxval: ObjectFile.Unit; name: ObjectFile.SectionName; number: ARRAY 32 OF CHAR;
 			BEGIN
 				nobits := 0;
 				FOR i := 0 TO patch.patterns-1 DO
 					INC(nobits,patch.pattern[i].bits);
 				END;
-				IF nobits >= 32 THEN RETURN END;
-				IF patch.mode = ObjectFile.Relative THEN (* negative values allowed *)
-					maxval := ASH(1,nobits-1)-1; minval := -maxval-1
-				ELSE
-					minval := 0; maxval := ASH(1,nobits);
-				END;
-				IF (value < minval) OR (value > maxval) THEN
+
+				remainder := ASH(address,-nobits);
+
+				IF  (nobits <32) & ((remainder > 0) OR (remainder < -1)) THEN
+					IF patch.mode = ObjectFile.Relative THEN (* negative values allowed *)
+						maxval := ASH(1,nobits-1)-1; minval := -maxval-1
+					ELSE
+						minval := 0; maxval := ASH(1,nobits);
+					END;
 					COPY(block.identifier.name,name);
 					Strings.Append(name,":");
 					Strings.IntToStr(offset,number);

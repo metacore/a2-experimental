@@ -447,25 +447,14 @@ TYPE
 			END PatchPattern;
 
 			PROCEDURE CheckBits(): BOOLEAN;
-			VAR nobits,minval, maxval: LONGINT;
+			VAR nobits,remainder,i: LONGINT;
 			BEGIN
 				nobits := 0;
 				FOR i := 0 TO fixup.patterns-1 DO
 					INC(nobits,fixup.pattern[i].bits);
 				END;
-				IF fixup.mode = Relative THEN (* negative values allowed *)
-					maxval := ASH(1,nobits-1)-1; minval := -maxval-1
-				ELSE
-					minval := 0; maxval := ASH(1,nobits);
-				END;
-				IF (minval > address) OR (maxval < address) THEN
-					D.String("minval="); D.Int(minval,1); D.Ln;
-					D.String("maxval="); D.Int(maxval,1);D.Ln;
-					D.String("address="); D.Int(address,1); D.Ln;
-					RETURN FALSE
-				ELSE
-					RETURN TRUE
-				END;
+				remainder := ASH(address,-nobits);
+				RETURN (nobits >31) OR (remainder = 0) OR (remainder = -1)
 			END CheckBits;
 
 		BEGIN
