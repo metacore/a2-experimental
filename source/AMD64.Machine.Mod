@@ -278,13 +278,15 @@ TYPE
 
 	TimeArray = ARRAY MaxCPU OF HUGEINT;
 
+	Address32* = LONGINT;
+
 VAR
 	lowTop*: SYSTEM.ADDRESS;	(** top of low memory *)
 	memTop*: SYSTEM.ADDRESS;	(** top of memory *)
 	dmaSize*: SYSTEM.SIZE;	(** size of ISA dma area, above lowTop (for use in Aos.Diskettes) *)
 
 	configMP: SYSTEM.ADDRESS;	(** MP spec config table physical address (outside reported RAM) *)
-	revMP: CHAR;	(** MP spec revision *)
+	revMP: CHAR;					(** MP spec revision *)
 	featureMP: ARRAY 5 OF CHAR;	(** MP spec feature bytes 1-5 *)
 
 	version-: ARRAY 64 OF CHAR;	(** Aos version *)
@@ -318,8 +320,6 @@ TYPE
 		locked : BOOLEAN;
 		filler : ARRAY CacheLineSize - 1 OF CHAR;
 	END;
-
-	Address32* = LONGINT;
 
 VAR
 	lock: ARRAY MaxLocks OF Lock;	(** all locks *)
@@ -379,7 +379,6 @@ VAR
 	ipcBusy, ipcFlags, ipcFrontBarrier, ipcBackBarrier: SET;
 	ipcHandler: BroadcastHandler;
 	ipcMessage: Message;
-(*	gcBarrier*: SET; *)
 	numProcessors-: LONGINT;	(* number of processors we attempted to boot (some may have failed) *)
 	maxProcessors: LONGINT;	(* max number of processors we are allowed to boot (-1 for uni) *)
 	allProcessors-: SET;	(* IDs of all successfully booted processors *)
@@ -402,10 +401,6 @@ VAR
 
 	traceProcessorProc*: EventHandler;	(** temp tracing *)
 	traceProcessor: BOOLEAN;
-
-(*
-	HandleGC*: BroadcastHandler;
-*)
 
 	Timeslice*: Handler;
 
@@ -640,39 +635,40 @@ CODE {SYSTEM.386, SYSTEM.Privileged}
 	MOV CR0, EAX
 END DisableEmulation;
 
-(** CPU identification. *)
-PROCEDURE CPUID* (VAR vendor: Vendor; VAR version: LONGINT; VAR features: SET);
-CODE {SYSTEM.AMD64, SYSTEM.Pentium}
-	XOR RAX, RAX
-	CPUID
-	CMP EAX, 0
-	JNE ok
+(** CPU identification *)
+PROCEDURE CPUID*(function : LONGINT; VAR eax, ebx, ecx, edx : SET);
+CODE {SYSTEM.AMD64}
+	MOV EAX, [RBP+function]	; CPUID function parameter
 
-	MOV RSI, [RBP + vendor]
-	MOV [RSI], AL		; AL = 0
-	MOV RSI, [RBP + version]
-	MOV [RSI], EAX		; EAX = 0
-	MOV RSI, [RBP + features]
-	MOV [RSI], RAX
-	JMP end
+	MOV RSI, [RBP+ecx]		; copy ecx into ECX (sometimes used as input parameter)
+	MOV ECX, [RSI]
 
-ok:
-	MOV RSI, [RBP + vendor]
-	MOV [RSI + 0], EBX
-	MOV [RSI + 4], EDX
-	MOV [RSI + 8], ECX
-	MOV BYTE [RSI + 12], 0
+	CPUID					; execute CPUID
 
-	MOV EAX, 1
-	CPUID
-
-	MOV RSI, [RBP + version]
+	MOV RSI, [RBP+eax]		; copy EAX into eax;
 	MOV [RSI], EAX
-	MOV RSI, [RBP + features]
+	MOV RSI, [RBP+ebx]		; copy EBX into ebx
+	MOV [RSI], EBX
+	MOV RSI, [RBP+ecx]		; copy ECX into ecx
+	MOV [RSI], ECX
+	MOV RSI, [RBP+edx]		; copy EDX into edx
 	MOV [RSI], EDX
-
-end:
 END CPUID;
+
+(* If the CPUID instruction is supported, the ID flag (bit 21) of the EFLAGS register is r/w *)
+PROCEDURE CpuIdSupported*() : BOOLEAN;
+CODE {SYSTEM.AMD64}
+	PUSHFQ					; save RFLAGS
+	POP RAX				; store RFLAGS in RAX
+	MOV EBX, EAX			; save EBX for later testing
+	XOR EAX, 00200000H	; toggle bit 21
+	PUSH RAX				; push to stack
+	POPFQ					; save changed RAX to RFLAGS
+	PUSHFQ					; push RFLAGS to TOS
+	POP RAX				; store RFLAGS in RAX
+	CMP EAX, EBX			; see if bit 21 has changed
+	SETNE AL;				; return TRUE if bit 21 has changed, FALSE otherwise
+END CpuIdSupported;
 
 (** Initialise current processor. Must be called by every processor. *)
 PROCEDURE InitProcessor*;
@@ -695,9 +691,85 @@ BEGIN
 END InitAPICIDAdr;
 
 PROCEDURE InitBoot;
-VAR i, version: LONGINT; u: ARRAY 8 OF CHAR; vendor: Vendor;
+VAR
+	largestFunction, i: LONGINT;
+	eax, ebx, ecx, edx : SET;
+	logicalProcessorCount : LONGINT;
+	u: ARRAY 8 OF CHAR; vendor : Vendor;
+
+	PROCEDURE GetString(VAR string : ARRAY OF CHAR; offset : LONGINT; register : SET);
+	BEGIN
+		string[offset] :=CHR(SYSTEM.VAL(LONGINT, register * {0..7}));
+		string[offset+1] := CHR(SYSTEM.VAL(LONGINT, SYSTEM.LSH(register * {8..15}, -8)));
+		string[offset+2] := CHR(SYSTEM.VAL(LONGINT, SYSTEM.LSH(register * {16..23}, -16)));
+		string[offset+3] := CHR(SYSTEM.VAL(LONGINT, SYSTEM.LSH(register * {24..31}, -24)));
+	END GetString;
+
 BEGIN
-	CPUID (vendor, version, features);	(* set features - assume all processors same as boot processor *)
+	vendor := "Unknown"; features := {}; features2 := {};
+	coresPerProcessor := 1; threadsPerCore := 1;
+	IF CpuIdSupported() THEN
+		(* Assume that all processors are the same *)
+
+		(* CPUID standard function 0 returns:  eax: largest CPUID standard function supported, ebx, edx, ecx: vendor string *)
+		CPUID(0, eax, ebx, ecx, edx);
+		largestFunction := SYSTEM.VAL(LONGINT, eax);
+		ASSERT(LEN(vendor) >= 13);
+		GetString(vendor, 0, ebx); GetString(vendor, 4, edx); GetString(vendor, 8, ecx); vendor[12] := 0X;
+
+		IF (largestFunction >= 1) THEN
+
+			(* CPUID standard function 1 returns: CPU features in ecx & edx *)
+			CPUID(1, eax, ebx, ecx, edx);
+			features := SYSTEM.VAL(SET, edx);
+			features2 := SYSTEM.VAL(SET, ecx);
+
+			(* 	The code below is used to determine the number of threads per processor core (hyperthreading). This is required
+				since processors supporting hyperthreading are listed only once in the MP tables, so we need to know the
+				exact number of threads per processor to start the processor correctly *)
+
+			IF (HTT IN features) THEN (* multithreading supported by CPU *)
+				(* logical processor count = number of cores * number of threads per core = total number of threads supported *)
+				logicalProcessorCount := SYSTEM.VAL(LONGINT, SYSTEM.LSH(ebx * {16..23}, -16));
+				IF (vendor = "GenuineIntel") THEN
+					IF (largestFunction >= 4) THEN
+						(* CPUID standard function 4 returns: number of processor cores -1 on this die eax[26.31] *)
+						ecx := SYSTEM.VAL(SET, 0); (* input parameter - must be set to 0 *)
+						CPUID(4, eax, ebx, ecx, edx);
+						coresPerProcessor := SYSTEM.VAL(LONGINT, SYSTEM.LSH(eax * {26..31}, -26)) + 1;
+						threadsPerCore := logicalProcessorCount DIV coresPerProcessor;
+					ELSE
+						threadsPerCore := logicalProcessorCount;
+					END;
+				ELSIF (vendor = "AuthenticAMD") THEN
+					(* CPUID extended function 1 returns: largest extended function *)
+					CPUID(SHORT(80000000H), eax, ebx, ecx, edx);
+					largestFunction := SYSTEM.VAL(LONGINT, eax - {31}); (* remove sign *)
+					IF (largestFunction >= 8) THEN
+						(* CPUID extended function 8 returns: *)
+						CPUID(SHORT(80000008H), eax, ebx, ecx, edx);
+						coresPerProcessor := SYSTEM.VAL(LONGINT, ecx * {0..7}) + 1;
+						threadsPerCore := logicalProcessorCount DIV coresPerProcessor;
+					ELSIF (largestFunction >= 1) THEN
+						(* CPUID extended function 1 returns CmpLegacy bit in ecx *)
+						CPUID(SHORT(80000001H), eax, ebx, ecx, edx);
+						IF 1 IN ecx THEN (* CmpLegacy bit set -> no hyperthreading *)
+							coresPerProcessor := logicalProcessorCount;
+							threadsPerCore := 1;
+						END;
+					ELSE
+						(* single-core, single-thread *)
+					END;
+				ELSE
+					Trace.String("Machine: "); Trace.Yellow; Trace.String("Warning: Cannot detect hyperthreading, unknown CPU vendor ");
+					Trace.String(vendor); Trace.Ln; Trace.Default;
+				END;
+			END;
+		END;
+	END;
+	Trace.String("Machine: "); Trace.Int(coresPerProcessor, 0); Trace.String(" cores per physical package, ");
+	Trace.Int(threadsPerCore, 0); Trace.String(" threads per core.");
+	Trace.Ln;
 	InitFPU;
 	fcr := (FCR () - {0, 2, 3, 10, 11}) + {0 .. 5, 8, 9};	(* default FCR RC=00B *)
 	bootID := 0; map[0] := 0;
@@ -1534,7 +1606,7 @@ BEGIN
 END ExpandNow;
 
 (* Try to expand the heap by at least "size" bytes *)
-PROCEDURE ExpandHeap*(try: LONGINT; size: SYSTEM.SIZE; VAR beginBlockAdr, endBlockAdr: SYSTEM.ADDRESS);
+PROCEDURE ExpandHeap*(try: LONGINT; size: SYSTEM.SIZE; VAR memBlock: MemoryBlock; VAR beginBlockAdr, endBlockAdr: SYSTEM.ADDRESS);
 BEGIN
 	IF ExpandNow(try) THEN
 		IF size < expandMin THEN size := expandMin END;
@@ -1542,12 +1614,21 @@ BEGIN
 		endBlockAdr := beginBlockAdr;
 		INC(endBlockAdr, size);
 		SetHeapEndAdr(endBlockAdr);	(* in/out parameter *)
-		memBlockHead.endBlockAdr := endBlockAdr
+		memBlock := memBlockHead;
+		(* endBlockAdr of memory block is set by caller after free block has been set in memory block - this process is part of lock-free heap expansion *)
 	ELSE
 		beginBlockAdr := memBlockHead.endBlockAdr;
-		endBlockAdr := memBlockHead.endBlockAdr
+		endBlockAdr := memBlockHead.endBlockAdr;
+		memBlock := NIL
 	END
 END ExpandHeap;
+
+(* Set memory block end address *)
+PROCEDURE SetMemoryBlockEndAddress*(memBlock: MemoryBlock; endBlockAdr: SYSTEM.ADDRESS);
+BEGIN
+	ASSERT(endBlockAdr >= memBlock.beginBlockAdr);
+	memBlock.endBlockAdr := endBlockAdr
+END SetMemoryBlockEndAddress;
 
 (* Free unused memory block *)
 PROCEDURE FreeMemBlock*(memBlock: MemoryBlock);
@@ -1829,11 +1910,15 @@ BEGIN
 	lTop := lowTop;
 	DEC(lTop, lTop MOD PS);	(* lTop MOD PS = 0 *)
 	(* initialize NewDirectPage and SetHeapEndAdr (get kernel range) *)
-	SYSTEM.GET (LinkAdr+EndBlockOfs, heapEndAdr);	(* new place *)
-	IF heapEndAdr = 0 THEN SYSTEM.GET (LinkAdr+16H, heapEndAdr) END;	(* old place *)
+	SYSTEM.GET (LinkAdr + EndBlockOfs, heapEndAdr);
+(* ug *) (*
 	SYSTEM.PUT (heapEndAdr, NIL);	(* set tag to NIL *)
 	INC(heapEndAdr, AddressSize);	(* space for NIL *)
+*)
+(* ug: not needed, extension of heap done in GetStaticHeap anyway
+	INC(heapEndAdr, K); (* space for free heap block descriptor of type Heaps.HeapBlockDesc at heapEndAdr, initialization is done in Heaps *)
 	INC(heapEndAdr, (-heapEndAdr) MOD PS);	(* round up to page size *)
+*)
 	pageHeapAdr := mTop;
 	freeHighPages := SYSTEM.LSH(pageHeapAdr, -PSlog2) - SYSTEM.LSH(heapEndAdr, -PSlog2);
 	IF TraceVerbose THEN
@@ -1869,11 +1954,7 @@ BEGIN
 	FOR i := MaxUserStacks TO LEN(freeStack)*SetSize-1 DO EXCL(freeStack[i DIV SetSize], i MOD SetSize) END;
 	freeStackIndex := 0;
 	(* mappings *)
-
-
-	(* actually: mapTop := MapAreaAdr, but PACO generates weird behaviour *)
-	mapTop:= 20000000H;
-
+	mapTop := MapAreaAdr;
 	(* create the address space *)
 	NewPage(kernelPML4); ASSERT(kernelPML4 # NilAdr);
 	Fill32(kernelPML4, TPS, PageNotPresent);
@@ -3811,13 +3892,6 @@ BEGIN
 	InitPages;	(* create page tables *)
 	InitMemory;	(* switch on segmentation, paging and switch stack *)
 	Trace.Green; Trace.StringLn("Ok"); Trace.Default;
-
-	(* Check whether lock data structure is CacheLineSize-aligned for optimal performance *)
-	IF (SYSTEM.ADR(lock[0].locked) MOD CacheLineSize # 0) THEN
-		Trace.Yellow;
-		Trace.String("Machine: Performance Warning: Lock data structures alignment suboptimal."); Trace.Ln;
-		Trace.Default;
-	END;
 
 	FOR i := 0 TO IDTSize - 1 DO
 		FOR j := 0 TO MaxNumHandlers - 1 DO
