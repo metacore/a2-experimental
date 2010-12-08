@@ -316,7 +316,7 @@ VAR
 		IF ~handled THEN
 			(* Taken from Machine to allow the FINALLY in the kernel *)
 			exc.locks := Machine.BreakAll();
-			SYSTEM.STI;
+			Machine.Sti();
 			IF ~traceTrap THEN	(* trap *)
 				IF user THEN	(* return to outer level *)
 					IF TraceVerbose THEN
@@ -348,7 +348,7 @@ VAR
 	BEGIN
 		t := Objects.running[Machine.ID()];
 		IF Machine.IFBit IN state.FLAGS THEN	(* enable interrupts again if they were enabled *)
-			SYSTEM.STI	(* avoid Processors.StopAll deadlock when waiting for locks below (fixme: remove) *)
+			Machine.Sti()	(* avoid Processors.StopAll deadlock when waiting for locks below (fixme: remove) *)
 		END;
 		IF (t = NIL) OR ~Machine.ExtendStack(t.stack, Machine.CR2()) THEN
 			IF TraceVerbose THEN

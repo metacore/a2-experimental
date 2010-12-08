@@ -293,11 +293,11 @@ VAR
 					ch := refs[refpos]; INC(refpos);
 					IF ch = "$" THEN base := mod.sb ELSE base := fp END;	(* for variables *)
 					WHILE ch # 0X DO w.Char(ch); ch := refs[refpos]; INC(refpos) END;
-					w.Char(":"); w.Int(pc-startpc,1);
+					w.Char(":"); w.Int(LONGINT(pc-startpc),1);
 				END
 			END;
-			w.String(" pc="); w.Int(pc,1); w.String(" ["); w.Address (pc); w.String("H]");
-			w.String(" = "); w.Int(startpc,1);  w.String(" + "); w.Int(pc-startpc,1);
+			w.String(" pc="); w.Int(LONGINT(pc),1); w.String(" ["); w.Address (pc); w.String("H]");
+			w.String(" = "); w.Int(LONGINT(startpc),1);  w.String(" + "); w.Int(LONGINT(pc-startpc),1);
 		END
 	END WriteProc0;
 

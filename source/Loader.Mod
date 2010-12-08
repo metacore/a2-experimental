@@ -493,7 +493,7 @@ BEGIN
 		END;
 		FOR i := 0 TO LEN(type)-1 DO
 			type[i].init := FALSE;
-			r.RawNum(recSize);
+			r.RawNum(num); recSize := num;
 			r.RawNum(num); type[i].entry := num;
 			r.RawNum(num); type[i].baseMod := num;
 			r.RawNum(num); type[i].baseEntry := num;
@@ -523,7 +523,7 @@ BEGIN
 			staticTypeBlock := SYSTEM.VAL(Heaps.StaticTypeBlock, tdAdr);
 			ASSERT(LEN(staticTypeBlock.pointerOffsets) = pointers);
 			FOR j := 0 TO pointers - 1 DO
-				r.RawNum(ofs);
+				r.RawNum(num); ofs := num;
 				ASSERT(ofs MOD AddressSize  =  0);	(* no deep copy flag *)
 				staticTypeBlock.pointerOffsets[j] := ofs;
 				ASSERT(SYSTEM.ADR(staticTypeBlock.pointerOffsets[j]) < startAddr + tdSize)
