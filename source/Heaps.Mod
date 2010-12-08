@@ -506,7 +506,7 @@ BEGIN
 						SYSTEM.GET(heapBlock.dataAdr + staticTypeBlock.pointerOffsets[i], refBlock);
 						IF ~CheckBlock(refBlock) THEN
 							Trace.String("SEVERE ERROR: RecordBlock = "); Trace.Hex(heapBlock.dataAdr, 8);
-							Trace.String(" invalid reference at pointer offset = "); Trace.Int(staticTypeBlock.pointerOffsets[i], 0); Trace.Ln
+							Trace.String(" invalid reference at pointer offset = "); Trace.Hex(staticTypeBlock.pointerOffsets[i], 0); Trace.Ln
 						END
 					END;
 					IF heapBlock IS ProtRecBlock THEN
@@ -532,7 +532,7 @@ BEGIN
 							SYSTEM.GET(currentArrayElemAdr + staticTypeBlock.pointerOffsets[i], refBlock);
 							IF ~CheckBlock(refBlock) THEN
 								Trace.String("SEVERE ERROR in ArrayBlock = "); Trace.Hex(currentArrayElemAdr, 8);
-								Trace.String(" invalid reference at pointer offset = "); Trace.Int(staticTypeBlock.pointerOffsets[i], 0); Trace.Ln
+								Trace.String(" invalid reference at pointer offset = "); Trace.Hex(staticTypeBlock.pointerOffsets[i], 0); Trace.Ln
 							END
 						END;
 					 	INC(currentArrayElemAdr, staticTypeBlock.recSize)

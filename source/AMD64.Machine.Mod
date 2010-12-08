@@ -5,7 +5,7 @@ MODULE Machine;	(** AUTHOR "pjm"; PURPOSE "Bootstrapping, configuration and mach
 IMPORT SYSTEM, Trace;
 
 CONST
-	Version = "A2 Revision 2294 (04.06.2009)";
+	Version = "A2 Revision 2958 (26.02.2010)";
 
 	MaxCPU* = 8;	(** maximum number of processors (up to 16) *)
 
@@ -299,6 +299,7 @@ VAR
 	mhz*: HUGEINT;	(** clock rate of GetTimer in MHz, or 0 if not known *)
 
 	chs: ARRAY MaxDisks OF RECORD cyls, hds, spt: LONGINT END;
+	initRegs0, initRegs1: HUGEINT;
 	initRegs: ARRAY 2 OF HUGEINT;	(* kernel parameters *)
 	config: ARRAY 2048 OF CHAR;	(* config strings *)
 	bootFlag: SYSTEM.ADDRESS;
@@ -398,6 +399,7 @@ VAR
 
 	gcThreshold-: SYSTEM.SIZE;
 	memBlockHead-{UNTRACED}, memBlockTail-{UNTRACED}: MemoryBlock; (* refer to the same memory block for I386, not traced by GC *)
+	initialMemBlock: MemoryBlockDesc;
 
 	traceProcessorProc*: EventHandler;	(** temp tracing *)
 	traceProcessor: BOOLEAN;
@@ -2280,7 +2282,7 @@ CODE {SYSTEM.AMD64, SYSTEM.Privileged}
 	PUSH User64CodeSel	; CS3
 	CALL DWORD L1	; PUSH L1 (RIP3)
 L1:
-	ADD QWORD [RSP], BYTE L2 - L1	; adjust RIP3 to L2 (L2-L1 = 8)
+	ADD QWORD [RSP],  L2 - L1	; adjust RIP3 to L2 (L2-L1 = 8)
 	IRETQ	; switch to level 3 and continue at following instruction
 L2:
 	POP RBP	; from level 3 stack (refer to AosActive.NewProcess)
@@ -2675,7 +2677,7 @@ nodelegate:
 END FieldInterrupt;
 
 PROCEDURE FieldIRQ;
-CODE {SYSTEM.AMD64, System.Privileged}	; 4 bytes implicit code skipped: ENTER 0, 0
+CODE {SYSTEM.AMD64}	; 4 bytes implicit code skipped: ENTER 0, 0
 entry:
 
 	; fake PUSHAD (not available in 64-bit mode)
@@ -2901,11 +2903,14 @@ END GetRDI;
 
 
 PROCEDURE -SetRAX*(n: HUGEINT);
-CODE{SYSTEM.AMD64}	POP RAX
+CODE{SYSTEM.AMD64}	
+	NOP
+	POP RAX
 END SetRAX;
 
 PROCEDURE -SetRBX*(n: HUGEINT);
 CODE{SYSTEM.AMD64}
+	NOP
 	POP RBX
 END SetRBX;
 
@@ -3868,10 +3873,41 @@ BEGIN
 	traceColor := 7; Trace.Char := TraceChar; Trace.Color := TraceColor;
 END InitTrace;
 
+(* The following procedure is linked as the first block in the bootfile *)
+PROCEDURE {NOPAF, FIXED(0100000H)} FirstAddress;
+CODE{SYSTEM.AMD64}
+	; relocate the bootfile from 0x1000 to target address 0x100000
+	PUSHAD
+	MOV RSI,1000H
+	MOV RDI,100000H
+	MOV RCX, LastAddress
+	SUB RCX, RDI
+	CLD
+	REP MOVSB
+	POPAD
+
+	; continue in relocated bootfile
+	JMP DWORD 100000H - 1000H + Skip
+Skip:
+
+	; save arguments passed by bootloader
+	MOV bootFlag, RAX
+	MOV initRegs0,RSI
+	MOV initRegs1, RDI
+END FirstAddress;
+
+(* empty section allocated at end of bootfile *)
+PROCEDURE {NOPAF} LastAddress;
+CODE {SYSTEM.AMD64}
+END LastAddress;
+
 (* Init code called from OBL. EAX = boot table offset. ESI, EDI=initRegs. 2k stack is available. No trap handling. *)
 BEGIN
-	bootFlag := GetRAX();(* EAX from bootstrap loader *)
-	initRegs[0] := GetRSI(); initRegs[1] := GetRDI();(* initRegs0 & initRegs1 *)
+	initRegs[0] := initRegs0;
+	initRegs[1] := initRegs1;
+	(* registers 6 and 7 get converted to 32 bit, cf. PCB.Assigne
+	SYSTEM.GETREG(6, initRegs[0]); SYSTEM.GETREG(7, initRegs[1]);	(* initRegs0 & initRegs1 *)
+	*)
 	SYSTEM.PUT16(0472H, 01234H);	(* soft boot flag, for when we reboot *)
 	ReadBootTable(bootFlag);
 	InitTrace;
@@ -3892,6 +3928,13 @@ BEGIN
 	InitPages;	(* create page tables *)
 	InitMemory;	(* switch on segmentation, paging and switch stack *)
 	Trace.Green; Trace.StringLn("Ok"); Trace.Default;
+
+	(* allocate empty memory block with enough space for at least one free block *)
+	memBlockHead := SYSTEM.VAL (MemoryBlock, SYSTEM.ADR (initialMemBlock));
+	memBlockTail := memBlockHead;
+	initialMemBlock.beginBlockAdr := SYSTEM.VAL (SYSTEM.ADDRESS, LastAddress);
+	initialMemBlock.endBlockAdr := initialMemBlock.beginBlockAdr + StaticBlockSize;
+	initialMemBlock.size := initialMemBlock.endBlockAdr - initialMemBlock.beginBlockAdr;
 
 	FOR i := 0 TO IDTSize - 1 DO
 		FOR j := 0 TO MaxNumHandlers - 1 DO
