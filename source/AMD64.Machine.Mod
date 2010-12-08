@@ -3877,23 +3877,35 @@ END InitTrace;
 PROCEDURE {NOPAF, FIXED(0100000H)} FirstAddress;
 CODE{SYSTEM.AMD64}
 	; relocate the bootfile from 0x1000 to target address 0x100000
-	PUSHAD
+
+	PUSH RAX
+	PUSH RSI
+	PUSH RDI
+
 	MOV RSI,1000H
 	MOV RDI,100000H
 	MOV RCX, LastAddress
 	SUB RCX, RDI
 	CLD
+
+
 	REP MOVSB
-	POPAD
+	POP RDI
+	POP RSI
+	POP RAX	
+
+
 
 	; continue in relocated bootfile
 	JMP DWORD 100000H - 1000H + Skip
 Skip:
 
+
 	; save arguments passed by bootloader
 	MOV bootFlag, RAX
 	MOV initRegs0,RSI
 	MOV initRegs1, RDI
+
 END FirstAddress;
 
 (* empty section allocated at end of bootfile *)
@@ -3903,6 +3915,8 @@ END LastAddress;
 
 (* Init code called from OBL. EAX = boot table offset. ESI, EDI=initRegs. 2k stack is available. No trap handling. *)
 BEGIN
+	LOOP END;
+
 	initRegs[0] := initRegs0;
 	initRegs[1] := initRegs1;
 	(* registers 6 and 7 get converted to 32 bit, cf. PCB.Assigne
