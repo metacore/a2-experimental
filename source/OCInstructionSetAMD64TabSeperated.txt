@@ -15,11 +15,11 @@ AAS				3F	8086	Not64
 ADC	AL	 imm8		14 ib	8086	
 ADC	AX	 imm16		15 iw	8086	O16
 ADC	EAX	 imm32		15 id	386	O32
-ADC	RAX	 imm32		15 id	AMD64	
+ADC	RAX	 simm32		15 id	AMD64	
 ADC	reg/mem8	 imm8		80 /2 ib	8086	
 ADC	reg/mem16	 imm16		81 /2 iw	8086	O16
 ADC	reg/mem32	 imm32		81 /2 id	386	O32
-ADC	reg/mem64	 imm32		81 /2 id	AMD64	
+ADC	reg/mem64	 simm32		81 /2 id	AMD64	
 ADC	reg/mem16	 simm8		83 /2 ib	8086	O16
 ADC	reg/mem32	 simm8		83 /2 ib	386	O32
 ADC	reg/mem64	 simm8		83 /2 ib	AMD64	
@@ -35,11 +35,11 @@ ADC	reg64	 reg/mem64		13 /r	AMD64
 ADD	AL	 imm8		04 ib	8086	
 ADD	AX	 imm16		05 iw	8086	O16
 ADD	EAX	 imm32		05 id	386	O32
-ADD	RAX	 imm32		05 id	AMD64	
+ADD	RAX	 simm32		05 id	AMD64	
 ADD	reg/mem8	 imm8		80 /0 ib	8086	
 ADD	reg/mem16	 imm16		81 /0 iw	8086	O16
 ADD	reg/mem32	 imm32		81 /0 id	386	O32
-ADD	reg/mem64	 imm32		81 /0 id	AMD64	
+ADD	reg/mem64	 simm32		81 /0 id	AMD64	
 ADD	reg/mem16	 simm8		83 /0 ib	8086	O16
 ADD	reg/mem32	 simm8		83 /0 ib	386	O32
 ADD	reg/mem64	 simm8		83 /0 ib	AMD64	
@@ -55,11 +55,11 @@ ADD	reg64	 reg/mem64		03 /r	AMD64
 AND	AL	 imm8		24 ib	8086	
 AND	AX	 imm16		25 iw	8086	O16
 AND	EAX	 imm32		25 id	386	O32
-AND	RAX	 imm32		25 id	AMD64	
+AND	RAX	 simm32		25 id	AMD64	
 AND	reg/mem8	 imm8		80 /4 ib	8086	
 AND	reg/mem16	 imm16		81 /4 iw	8086	O16
 AND	reg/mem32	 imm32		81 /4 id	386	O32
-AND	reg/mem64	 imm32		81 /4 id	AMD64	
+AND	reg/mem64	 simm32		81 /4 id	AMD64	
 AND	reg/mem16	 simm8		83 /4 ib	8086	O16
 AND	reg/mem32	 simm8		83 /4 ib	386	O32
 AND	reg/mem64	 simm8		83 /4 ib	AMD64	
@@ -235,11 +235,11 @@ CMOVG	reg64	 reg/mem64		0F 4F /r	AMD64
 CMP	AL	 imm8		3C ib	8086	
 CMP	AX	 imm16		3D iw	8086	O16
 CMP	EAX	 imm32		3D id	386	O32
-CMP	RAX	 imm32		3D id	AMD64	
+CMP	RAX	 simm32		3D id	AMD64	
 CMP	reg/mem8	 imm8		80 /7 ib	8086	
 CMP	reg/mem16	 imm16		81 /7 iw	8086	O16
 CMP	reg/mem32	 imm32		81 /7 id	386	O32
-CMP	reg/mem64	 imm32		81 /7 id	AMD64	
+CMP	reg/mem64	 simm32		81 /7 id	AMD64	
 CMP	reg/mem16	 simm8		83 /7 ib	8086	O16
 CMP	reg/mem32	 simm8		83 /7 ib	386	O32
 CMP	reg/mem64	 simm8		83 /7 ib	AMD64	
@@ -507,7 +507,7 @@ MOV	reg64	 imm64		B8 +rq iq	AMD64
 MOV	reg/mem8	 imm8		C6 /0 ib	8086	
 MOV	reg/mem16	 imm16		C7 /0 iw	8086	O16
 MOV	reg/mem32	 imm32		C7 /0 id	386	O32
-MOV	reg/mem64	 imm32		C7 /0 id	AMD64	
+MOV	reg/mem64	 simm32		C7 /0 id	AMD64	
 						
 MOVD	xmm	 reg/mem32		66 0F 6E /r	SSE2	
 MOVD	xmm	 reg/mem64		66 0F 6E /r	AMD64,SSE2	
@@ -570,11 +570,11 @@ NOT	reg/mem64			F7 /2	AMD64
 OR	AL	 imm8		0C ib	8086	
 OR	AX	 imm16		0D iw	8086	O16
 OR	EAX	 imm32		0D id	386	O32
-OR	RAX	 imm32		0D id	AMD64	
+OR	RAX	 simm32		0D id	AMD64	
 OR	reg/mem8	 imm8		80 /1 ib	8086	
 OR	reg/mem16	 imm16		81 /1 iw	8086	O16
 OR	reg/mem32	 imm32		81 /1 id	386	O32
-OR	reg/mem64	 imm32		81 /1 id	AMD64	
+OR	reg/mem64	 simm32		81 /1 id	AMD64	
 OR	reg/mem16	 simm8		83 /1 ib	8086	O16
 OR	reg/mem32	 simm8		83 /1 ib	386	O32
 OR	reg/mem64	 simm8		83 /1 ib	AMD64	
@@ -640,8 +640,8 @@ PUSH	reg32			50 +rd	386	O32
 PUSH	reg64			50 +rq	AMD64	
 PUSH	imm8			6A ib	186	
 PUSH	imm16			68 iw	186	
-PUSH	imm32			68 id	186	
-PUSH	imm64			68 id	186	
+PUSH	imm32			68 id	186	Not64
+PUSH	simm32			68 id	AMD64	
 PUSH	CS			0E	8086	Not64
 PUSH	SS			16	8086	Not64
 PUSH	DS			1E	8086	Not64
@@ -754,14 +754,14 @@ SAR	reg/mem64	1		D1 /7	AMD64
 SAR	reg/mem64	 CL		D3 /7	AMD64	
 SAR	reg/mem64	 uimm8		C1 /7 ib	AMD64	
 						
-SBB	AL	 uimm8		1C ib	8086	
-SBB	AX	 uimm16		1D iw	8086	O16
-SBB	EAX	 uimm32		1D id	386	O32
-SBB	RAX	 uimm32		1D id	AMD64	
-SBB	reg/mem8	 uimm8		80 /3 ib	8086	
-SBB	reg/mem16	 uimm16		81 /3 iw	8086	O16
-SBB	reg/mem32	 uimm32		81 /3 id	386	O32
-SBB	reg/mem64	 uimm32		81 /3 id	AMD64	
+SBB	AL	 imm8		1C ib	8086	
+SBB	AX	 imm16		1D iw	8086	O16
+SBB	EAX	 imm32		1D id	386	O32
+SBB	RAX	 simm32		1D id	AMD64	
+SBB	reg/mem8	 imm8		80 /3 ib	8086	
+SBB	reg/mem16	 imm16		81 /3 iw	8086	O16
+SBB	reg/mem32	 imm32		81 /3 id	386	O32
+SBB	reg/mem64	 simm32		81 /3 id	AMD64	
 SBB	reg/mem16	 simm8		83 /3 ib	8086	O16
 SBB	reg/mem32	 simm8		83 /3 ib	386	O32
 SBB	reg/mem64	 simm8		83 /3 ib	AMD64	
@@ -859,11 +859,11 @@ STOSQ				AB	AMD64
 SUB	AL	 imm8		2C ib	8086	
 SUB	AX	 imm16		2D iw	8086	O16
 SUB	EAX	 imm32		2D id	386	O32
-SUB	RAX	 imm32		2D id	AMD64	
+SUB	RAX	 simm32		2D id	AMD64	
 SUB	reg/mem8	 imm8		80 /5 ib	8086	
 SUB	reg/mem16	 imm16		81 /5 iw	8086	O16
 SUB	reg/mem32	 imm32		81 /5 id	386	O32
-SUB	reg/mem64	 imm32		81 /5 id	AMD64	
+SUB	reg/mem64	 simm32		81 /5 id	AMD64	
 SUB	reg/mem16	 simm8		83 /5 ib	8086	O16
 SUB	reg/mem32	 simm8		83 /5 ib	386	O32
 SUB	reg/mem64	 simm8		83 /5 ib	AMD64	
@@ -879,11 +879,11 @@ SUB	reg64	 reg/mem64		2B /r	AMD64
 TEST	AL	 imm8		A8 ib	8086	
 TEST	AX	 imm16		A9 iw	8086	O16
 TEST	EAX	 imm32		A9 id	386	O32
-TEST	RAX	 imm32		A9 id	AMD64	
+TEST	RAX	 simm32		A9 id	AMD64	
 TEST	reg/mem8	 imm8		F6 /0 ib	8086	
 TEST	reg/mem16	 imm16		F7 /0 iw	8086	O16
 TEST	reg/mem32	 imm32		F7 /0 id	386	O32
-TEST	reg/mem64	 imm32		F7 /0 id	AMD64	
+TEST	reg/mem64	 simm32		F7 /0 id	AMD64	
 TEST	reg/mem8	 reg8		84 /r	8086	
 TEST	reg/mem16	 reg16		85 /r	8086	O16
 TEST	reg/mem32	 reg32		85 /r	386	O32
@@ -915,11 +915,11 @@ XLATB				D7	8086
 XOR	AL	 imm8		34 ib	8086	
 XOR	AX	 imm16		35 iw	8086	O16
 XOR	EAX	 imm32		35 id	386	O32
-XOR	RAX	 imm32		35 id	AMD64	
+XOR	RAX	 simm32		35 id	AMD64	
 XOR	reg/mem8	 imm8		80 /6 ib	8086	
 XOR	reg/mem16	 imm16		81 /6 iw	8086	O16
 XOR	reg/mem32	 imm32		81 /6 id	386	O32
-XOR	reg/mem64	 imm32		81 /6 id	AMD64	
+XOR	reg/mem64	 simm32		81 /6 id	AMD64	
 XOR	reg/mem16	 simm8		83 /6 ib	8086	O16
 XOR	reg/mem32	 simm8		83 /6 ib	386	O32
 XOR	reg/mem64	 simm8		83 /6 ib	AMD64	
