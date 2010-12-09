@@ -1142,9 +1142,9 @@ VAR
 		AddInstruction(19, regmem16, imm16, none, "81/2iw", {optO16}, {cpu8086});
 		AddInstruction(20, regmem32, imm32, none, "81/2id", {optO32}, {cpu386});
 		AddInstruction(21, regmem64, imm32, none, "81/2id", {}, {cpuAMD64});
-		AddInstruction(22, regmem16, imm8, none, "83/2ib", {optO16}, {cpu8086});
-		AddInstruction(23, regmem32, imm8, none, "83/2ib", {optO32}, {cpu386});
-		AddInstruction(24, regmem64, imm8, none, "83/2ib", {}, {cpuAMD64});
+		AddInstruction(22, regmem16, simm8, none, "83/2ib", {optO16}, {cpu8086});
+		AddInstruction(23, regmem32, simm8, none, "83/2ib", {optO32}, {cpu386});
+		AddInstruction(24, regmem64, simm8, none, "83/2ib", {}, {cpuAMD64});
 		EndMnemonic(opADC, 24);
 
 		StartMnemonic(opADD, "ADD", 25);
@@ -1164,9 +1164,9 @@ VAR
 		AddInstruction(38, regmem16, imm16, none, "81/0iw", {optO16}, {cpu8086});
 		AddInstruction(39, regmem32, imm32, none, "81/0id", {optO32}, {cpu386});
 		AddInstruction(40, regmem64, imm32, none, "81/0id", {}, {cpuAMD64});
-		AddInstruction(41, regmem16, imm8, none, "83/0ib", {optO16}, {cpu8086});
-		AddInstruction(42, regmem32, imm8, none, "83/0ib", {optO32}, {cpu386});
-		AddInstruction(43, regmem64, imm8, none, "83/0ib", {}, {cpuAMD64});
+		AddInstruction(41, regmem16, simm8, none, "83/0ib", {optO16}, {cpu8086});
+		AddInstruction(42, regmem32, simm8, none, "83/0ib", {optO32}, {cpu386});
+		AddInstruction(43, regmem64, simm8, none, "83/0ib", {}, {cpuAMD64});
 		EndMnemonic(opADD, 43);
 
 		StartMnemonic(opADDPD, "ADDPD", 44);
@@ -1210,9 +1210,9 @@ VAR
 		AddInstruction(63, regmem16, imm16, none, "81/4iw", {optO16}, {cpu8086});
 		AddInstruction(64, regmem32, imm32, none, "81/4id", {optO32}, {cpu386});
 		AddInstruction(65, regmem64, imm32, none, "81/4id", {}, {cpuAMD64});
-		AddInstruction(66, regmem16, imm8, none, "83/4ib", {optO16}, {cpu8086});
-		AddInstruction(67, regmem32, imm8, none, "83/4ib", {optO32}, {cpu386});
-		AddInstruction(68, regmem64, imm8, none, "83/4ib", {}, {cpuAMD64});
+		AddInstruction(66, regmem16, simm8, none, "83/4ib", {optO16}, {cpu8086});
+		AddInstruction(67, regmem32, simm8, none, "83/4ib", {optO32}, {cpu386});
+		AddInstruction(68, regmem64, simm8, none, "83/4ib", {}, {cpuAMD64});
 		EndMnemonic(opAND, 68);
 
 		StartMnemonic(opANDNPD, "ANDNPD", 69);
@@ -1261,36 +1261,36 @@ VAR
 		AddInstruction(84, regmem16, reg16, none, "0FA3/r", {optO16}, {cpu386});
 		AddInstruction(85, regmem32, reg32, none, "0FA3/r", {optO32}, {cpu386});
 		AddInstruction(86, regmem64, reg64, none, "0FA3/r", {}, {cpuAMD64});
-		AddInstruction(87, regmem16, imm8, none, "0FBA/4ib", {optO16}, {cpu386});
-		AddInstruction(88, regmem32, imm8, none, "0FBA/4ib", {optO32}, {cpu386});
-		AddInstruction(89, regmem64, imm8, none, "0FBA/4ib", {}, {cpuAMD64});
+		AddInstruction(87, regmem16, uimm8, none, "0FBA/4ib", {optO16}, {cpu386});
+		AddInstruction(88, regmem32, uimm8, none, "0FBA/4ib", {optO32}, {cpu386});
+		AddInstruction(89, regmem64, uimm8, none, "0FBA/4ib", {}, {cpuAMD64});
 		EndMnemonic(opBT, 89);
 
 		StartMnemonic(opBTC, "BTC", 90);
 		AddInstruction(90, regmem16, reg16, none, "0FBB/r", {optO16}, {cpu386});
 		AddInstruction(91, regmem32, reg32, none, "0FBB/r", {optO32}, {cpu386});
 		AddInstruction(92, regmem64, reg64, none, "0FBB/r", {}, {cpuAMD64});
-		AddInstruction(93, regmem16, imm8, none, "0FBA/7ib", {optO16}, {cpu386});
-		AddInstruction(94, regmem32, imm8, none, "0FBA/7ib", {optO32}, {cpu386});
-		AddInstruction(95, regmem64, imm8, none, "0FBA/7ib", {}, {cpuAMD64});
+		AddInstruction(93, regmem16, uimm8, none, "0FBA/7ib", {optO16}, {cpu386});
+		AddInstruction(94, regmem32, uimm8, none, "0FBA/7ib", {optO32}, {cpu386});
+		AddInstruction(95, regmem64, uimm8, none, "0FBA/7ib", {}, {cpuAMD64});
 		EndMnemonic(opBTC, 95);
 
 		StartMnemonic(opBTR, "BTR", 96);
 		AddInstruction(96, regmem16, reg16, none, "0FB3/r", {optO16}, {cpu386});
 		AddInstruction(97, regmem32, reg32, none, "0FB3/r", {optO32}, {cpu386});
 		AddInstruction(98, regmem64, reg64, none, "0FB3/r", {}, {cpuAMD64});
-		AddInstruction(99, regmem16, imm8, none, "0FBA/6ib", {optO16}, {cpu386});
-		AddInstruction(100, regmem32, imm8, none, "0FBA/6ib", {optO32}, {cpu386});
-		AddInstruction(101, regmem64, imm8, none, "0FBA/6ib", {}, {cpuAMD64});
+		AddInstruction(99, regmem16, uimm8, none, "0FBA/6ib", {optO16}, {cpu386});
+		AddInstruction(100, regmem32, uimm8, none, "0FBA/6ib", {optO32}, {cpu386});
+		AddInstruction(101, regmem64, uimm8, none, "0FBA/6ib", {}, {cpuAMD64});
 		EndMnemonic(opBTR, 101);
 
 		StartMnemonic(opBTS, "BTS", 102);
 		AddInstruction(102, regmem16, reg16, none, "0FAB/r", {optO16}, {cpu386});
 		AddInstruction(103, regmem32, reg32, none, "0FAB/r", {optO32}, {cpu386});
 		AddInstruction(104, regmem64, reg64, none, "0FAB/r", {}, {cpuAMD64});
-		AddInstruction(105, regmem16, imm8, none, "0FBA/5ib", {optO16}, {cpu386});
-		AddInstruction(106, regmem32, imm8, none, "0FBA/5ib", {optO32}, {cpu386});
-		AddInstruction(107, regmem64, imm8, none, "0FBA/5ib", {}, {cpuAMD64});
+		AddInstruction(105, regmem16, uimm8, none, "0FBA/5ib", {optO16}, {cpu386});
+		AddInstruction(106, regmem32, uimm8, none, "0FBA/5ib", {optO32}, {cpu386});
+		AddInstruction(107, regmem64, uimm8, none, "0FBA/5ib", {}, {cpuAMD64});
 		EndMnemonic(opBTS, 107);
 
 		StartMnemonic(opCALL, "CALL", 108);
@@ -1545,17 +1545,17 @@ VAR
 		AddInstruction(230, regmem16, imm16, none, "81/7iw", {optO16}, {cpu8086});
 		AddInstruction(231, regmem32, imm32, none, "81/7id", {optO32}, {cpu386});
 		AddInstruction(232, regmem64, imm32, none, "81/7id", {}, {cpuAMD64});
-		AddInstruction(233, regmem16, imm8, none, "83/7ib", {optO16}, {cpu8086});
-		AddInstruction(234, regmem32, imm8, none, "83/7ib", {optO32}, {cpu386});
-		AddInstruction(235, regmem64, imm8, none, "83/7ib", {}, {cpuAMD64});
+		AddInstruction(233, regmem16, simm8, none, "83/7ib", {optO16}, {cpu8086});
+		AddInstruction(234, regmem32, simm8, none, "83/7ib", {optO32}, {cpu386});
+		AddInstruction(235, regmem64, simm8, none, "83/7ib", {}, {cpuAMD64});
 		EndMnemonic(opCMP, 235);
 
 		StartMnemonic(opCMPPD, "CMPPD", 236);
-		AddInstruction(236, xmm, xmmmem128, imm8, "660FC2/rib", {}, {cpuSSE2});
+		AddInstruction(236, xmm, xmmmem128, uimm8, "660FC2/rib", {}, {cpuSSE2});
 		EndMnemonic(opCMPPD, 236);
 
 		StartMnemonic(opCMPPS, "CMPPS", 237);
-		AddInstruction(237, xmm, xmmmem128, imm8, "0FC2/rib", {}, {cpuSSE});
+		AddInstruction(237, xmm, xmmmem128, uimm8, "0FC2/rib", {}, {cpuSSE});
 		EndMnemonic(opCMPPS, 237);
 
 		StartMnemonic(opCMPS, "CMPS", 238);
@@ -1571,7 +1571,7 @@ VAR
 
 		StartMnemonic(opCMPSD, "CMPSD", 243);
 		AddInstruction(243, none, none, none, "A7", {optO32}, {cpu386});
-		AddInstruction(244, xmm, xmmmem64, imm8, "F20FC2/rib", {}, {cpuSSE2});
+		AddInstruction(244, xmm, xmmmem64, uimm8, "F20FC2/rib", {}, {cpuSSE2});
 		EndMnemonic(opCMPSD, 244);
 
 		StartMnemonic(opCMPSQ, "CMPSQ", 245);
@@ -1579,7 +1579,7 @@ VAR
 		EndMnemonic(opCMPSQ, 245);
 
 		StartMnemonic(opCMPSS, "CMPSS", 246);
-		AddInstruction(246, xmm, xmmmem32, imm8, "F30FC2/rib", {}, {cpuSSE});
+		AddInstruction(246, xmm, xmmmem32, uimm8, "F30FC2/rib", {}, {cpuSSE});
 		EndMnemonic(opCMPSS, 246);
 
 		StartMnemonic(opCMPSW, "CMPSW", 247);
@@ -1770,7 +1770,7 @@ VAR
 		EndMnemonic(opEMMS, 310);
 
 		StartMnemonic(opENTER, "ENTER", 311);
-		AddInstruction(311, imm16, imm8, none, "C8iwib", {}, {cpu186});
+		AddInstruction(311, uimm16, uimm8, none, "C8iwib", {}, {cpu186});
 		EndMnemonic(opENTER, 311);
 
 		StartMnemonic(opF2XM1, "F2XM1", 312);
@@ -2257,18 +2257,18 @@ VAR
 		AddInstruction(486, reg16, regmem16, none, "0FAF/r", {optO16}, {cpu386});
 		AddInstruction(487, reg32, regmem32, none, "0FAF/r", {optO32}, {cpu386});
 		AddInstruction(488, reg64, regmem64, none, "0FAF/r", {}, {cpuAMD64});
-		AddInstruction(489, reg16, regmem16, imm8, "6B/rib", {optO16}, {cpu186});
-		AddInstruction(490, reg32, regmem32, imm8, "6B/rib", {optO32}, {cpu386});
-		AddInstruction(491, reg64, regmem64, imm8, "6B/rib", {}, {cpuAMD64});
-		AddInstruction(492, reg16, regmem16, imm16, "69/riw", {optO16}, {cpu186});
-		AddInstruction(493, reg32, regmem32, imm32, "69/rid", {optO32}, {cpu386});
-		AddInstruction(494, reg64, regmem64, imm32, "69/rid", {}, {cpuAMD64});
+		AddInstruction(489, reg16, regmem16, simm8, "6B/rib", {optO16}, {cpu186});
+		AddInstruction(490, reg32, regmem32, simm8, "6B/rib", {optO32}, {cpu386});
+		AddInstruction(491, reg64, regmem64, simm8, "6B/rib", {}, {cpuAMD64});
+		AddInstruction(492, reg16, regmem16, simm16, "69/riw", {optO16}, {cpu186});
+		AddInstruction(493, reg32, regmem32, simm32, "69/rid", {optO32}, {cpu386});
+		AddInstruction(494, reg64, regmem64, simm32, "69/rid", {}, {cpuAMD64});
 		EndMnemonic(opIMUL, 494);
 
 		StartMnemonic(opIN, "IN", 495);
-		AddInstruction(495, AL, imm8, none, "E4ib", {}, {cpu8086});
-		AddInstruction(496, AX, imm8, none, "E5ib", {optO16}, {cpu8086});
-		AddInstruction(497, EAX, imm8, none, "E5ib", {optO32}, {cpu386});
+		AddInstruction(495, AL, uimm8, none, "E4ib", {}, {cpu8086});
+		AddInstruction(496, AX, uimm8, none, "E5ib", {optO16}, {cpu8086});
+		AddInstruction(497, EAX, uimm8, none, "E5ib", {optO32}, {cpu386});
 		AddInstruction(498, AL, DX, none, "EC", {}, {cpu8086});
 		AddInstruction(499, AX, DX, none, "ED", {optO16}, {cpu8086});
 		AddInstruction(500, EAX, DX, none, "ED", {optO32}, {cpu386});
@@ -2302,7 +2302,7 @@ VAR
 		EndMnemonic(opINSW, 512);
 
 		StartMnemonic(opINT, "INT", 513);
-		AddInstruction(513, imm8, none, none, "CDib", {}, {cpu8086});
+		AddInstruction(513, uimm8, none, none, "CDib", {}, {cpu8086});
 		EndMnemonic(opINT, 513);
 
 		StartMnemonic(opINT3, "INT3", 514);
@@ -3010,9 +3010,9 @@ VAR
 		AddInstruction(837, regmem16, imm16, none, "81/1iw", {optO16}, {cpu8086});
 		AddInstruction(838, regmem32, imm32, none, "81/1id", {optO32}, {cpu386});
 		AddInstruction(839, regmem64, imm32, none, "81/1id", {}, {cpuAMD64});
-		AddInstruction(840, regmem16, imm8, none, "83/1ib", {optO16}, {cpu8086});
-		AddInstruction(841, regmem32, imm8, none, "83/1ib", {optO32}, {cpu386});
-		AddInstruction(842, regmem64, imm8, none, "83/1ib", {}, {cpuAMD64});
+		AddInstruction(840, regmem16, simm8, none, "83/1ib", {optO16}, {cpu8086});
+		AddInstruction(841, regmem32, simm8, none, "83/1ib", {optO32}, {cpu386});
+		AddInstruction(842, regmem64, simm8, none, "83/1ib", {}, {cpuAMD64});
 		EndMnemonic(opOR, 842);
 
 		StartMnemonic(opORPD, "ORPD", 843);
@@ -3024,9 +3024,9 @@ VAR
 		EndMnemonic(opORPS, 844);
 
 		StartMnemonic(opOUT, "OUT", 845);
-		AddInstruction(845, imm8, AL, none, "E6ib", {}, {cpu8086});
-		AddInstruction(846, imm8, AX, none, "E7ib", {optO16}, {cpu8086});
-		AddInstruction(847, imm8, EAX, none, "E7ib", {optO32}, {cpu386});
+		AddInstruction(845, uimm8, AL, none, "E6ib", {}, {cpu8086});
+		AddInstruction(846, uimm8, AX, none, "E7ib", {optO16}, {cpu8086});
+		AddInstruction(847, uimm8, EAX, none, "E7ib", {optO32}, {cpu386});
 		AddInstruction(848, DX, AL, none, "EE", {}, {cpu8086});
 		AddInstruction(849, DX, AX, none, "EF", {optO16}, {cpu8086});
 		AddInstruction(850, DX, EAX, none, "EF", {optO32}, {cpu386});
@@ -3164,8 +3164,8 @@ VAR
 		EndMnemonic(opPCMPGTW, 900);
 
 		StartMnemonic(opPEXTRW, "PEXTRW", 901);
-		AddInstruction(901, reg32, xmm, imm8, "660FC5/rib", {}, {cpuSSE2});
-		AddInstruction(902, reg32, mmx, imm8, "0FC5/rib", {}, {cpuMMX});
+		AddInstruction(901, reg32, xmm, uimm8, "660FC5/rib", {}, {cpuSSE2});
+		AddInstruction(902, reg32, mmx, uimm8, "0FC5/rib", {}, {cpuMMX});
 		EndMnemonic(opPEXTRW, 902);
 
 		StartMnemonic(opPF2ID, "PF2ID", 903);
@@ -3253,10 +3253,10 @@ VAR
 		EndMnemonic(opPI2FW, 923);
 
 		StartMnemonic(opPINSRW, "PINSRW", 924);
-		AddInstruction(924, xmm, regmem16, imm8, "660FC4/rib", {}, {cpuSSE2});
-		AddInstruction(925, xmm, regmem32, imm8, "660FC4/rib", {}, {cpuSSE2});
-		AddInstruction(926, mmx, regmem16, imm8, "0FC4/rib", {}, {cpuMMX});
-		AddInstruction(927, mmx, regmem32, imm8, "0FC4/rib", {}, {cpuMMX});
+		AddInstruction(924, xmm, regmem16, uimm8, "660FC4/rib", {}, {cpuSSE2});
+		AddInstruction(925, xmm, regmem32, uimm8, "660FC4/rib", {}, {cpuSSE2});
+		AddInstruction(926, mmx, regmem16, uimm8, "0FC4/rib", {}, {cpuMMX});
+		AddInstruction(927, mmx, regmem32, uimm8, "0FC4/rib", {}, {cpuMMX});
 		EndMnemonic(opPINSRW, 927);
 
 		StartMnemonic(opPMADDWD, "PMADDWD", 928);
@@ -3386,15 +3386,15 @@ VAR
 		EndMnemonic(opPSADBW, 975);
 
 		StartMnemonic(opPSHUFD, "PSHUFD", 976);
-		AddInstruction(976, xmm, xmmmem128, imm8, "660F70/rib", {}, {cpuSSE2});
+		AddInstruction(976, xmm, xmmmem128, uimm8, "660F70/rib", {}, {cpuSSE2});
 		EndMnemonic(opPSHUFD, 976);
 
 		StartMnemonic(opPSHUFHW, "PSHUFHW", 977);
-		AddInstruction(977, xmm, xmmmem128, imm8, "F30F70/rib", {}, {cpuSSE2});
+		AddInstruction(977, xmm, xmmmem128, uimm8, "F30F70/rib", {}, {cpuSSE2});
 		EndMnemonic(opPSHUFHW, 977);
 
 		StartMnemonic(opPSHUFLW, "PSHUFLW", 978);
-		AddInstruction(978, xmm, xmmmem128, imm8, "F20F70/rib", {}, {cpuSSE2});
+		AddInstruction(978, xmm, xmmmem128, uimm8, "F20F70/rib", {}, {cpuSSE2});
 		EndMnemonic(opPSHUFLW, 978);
 
 		StartMnemonic(opPSHUFW, "PSHUFW", 979);
@@ -3403,64 +3403,64 @@ VAR
 
 		StartMnemonic(opPSLLD, "PSLLD", 980);
 		AddInstruction(980, xmm, xmmmem128, none, "660FF2/r", {}, {cpuSSE2});
-		AddInstruction(981, xmm, imm8, none, "660F72/6ib", {}, {cpuSSE2});
+		AddInstruction(981, xmm, uimm8, none, "660F72/6ib", {}, {cpuSSE2});
 		AddInstruction(982, mmx, mmxmem64, none, "0FF2/r", {}, {cpuMMX});
 		AddInstruction(983, mmx, imm8, none, "0F72/6ib", {}, {cpuMMX});
 		EndMnemonic(opPSLLD, 983);
 
 		StartMnemonic(opPSLLDQ, "PSLLDQ", 984);
-		AddInstruction(984, xmm, imm8, none, "660F73/7ib", {}, {cpuSSE2});
+		AddInstruction(984, xmm, uimm8, none, "660F73/7ib", {}, {cpuSSE2});
 		EndMnemonic(opPSLLDQ, 984);
 
 		StartMnemonic(opPSLLQ, "PSLLQ", 985);
 		AddInstruction(985, xmm, xmmmem128, none, "660FF3/r", {}, {cpuSSE2});
-		AddInstruction(986, xmm, imm8, none, "660F73/6ib", {}, {cpuSSE2});
+		AddInstruction(986, xmm, uimm8, none, "660F73/6ib", {}, {cpuSSE2});
 		AddInstruction(987, mmx, mmxmem64, none, "0FF3/r", {}, {cpuMMX});
 		AddInstruction(988, mmx, imm8, none, "0F73/6ib", {}, {cpuMMX});
 		EndMnemonic(opPSLLQ, 988);
 
 		StartMnemonic(opPSLLW, "PSLLW", 989);
 		AddInstruction(989, xmm, xmmmem128, none, "660FF1/r", {}, {cpuSSE2});
-		AddInstruction(990, xmm, imm8, none, "660F71/6ib", {}, {cpuSSE2});
+		AddInstruction(990, xmm, uimm8, none, "660F71/6ib", {}, {cpuSSE2});
 		AddInstruction(991, mmx, mmxmem64, none, "0FF1/r", {}, {cpuMMX});
 		AddInstruction(992, mmx, imm8, none, "0F71/6ib", {}, {cpuMMX});
 		EndMnemonic(opPSLLW, 992);
 
 		StartMnemonic(opPSRAD, "PSRAD", 993);
 		AddInstruction(993, xmm, xmmmem128, none, "660FE2/r", {}, {cpuSSE2});
-		AddInstruction(994, xmm, imm8, none, "660F72/4ib", {}, {cpuSSE2});
+		AddInstruction(994, xmm, uimm8, none, "660F72/4ib", {}, {cpuSSE2});
 		AddInstruction(995, mmx, mmxmem64, none, "0FE2/r", {}, {cpuMMX});
 		AddInstruction(996, mmx, imm8, none, "0F72/4ib", {}, {cpuMMX});
 		EndMnemonic(opPSRAD, 996);
 
 		StartMnemonic(opPSRAW, "PSRAW", 997);
 		AddInstruction(997, xmm, xmmmem128, none, "660FE1/r", {}, {cpuSSE2});
-		AddInstruction(998, xmm, imm8, none, "660F71/4ib", {}, {cpuSSE2});
+		AddInstruction(998, xmm, uimm8, none, "660F71/4ib", {}, {cpuSSE2});
 		AddInstruction(999, mmx, mmxmem64, none, "0FE1/r", {}, {cpuMMX});
 		AddInstruction(1000, mmx, imm8, none, "0F71/4ib", {}, {cpuMMX});
 		EndMnemonic(opPSRAW, 1000);
 
 		StartMnemonic(opPSRLD, "PSRLD", 1001);
 		AddInstruction(1001, xmm, xmmmem128, none, "660FD2/r", {}, {cpuSSE2});
-		AddInstruction(1002, xmm, imm8, none, "660F72/2ib", {}, {cpuSSE2});
+		AddInstruction(1002, xmm, uimm8, none, "660F72/2ib", {}, {cpuSSE2});
 		AddInstruction(1003, mmx, mmxmem64, none, "0FD2/r", {}, {cpuMMX});
 		AddInstruction(1004, mmx, imm8, none, "0F72/2ib", {}, {cpuMMX});
 		EndMnemonic(opPSRLD, 1004);
 
 		StartMnemonic(opPSRLDQ, "PSRLDQ", 1005);
-		AddInstruction(1005, xmm, imm8, none, "660F73/3ib", {}, {cpuSSE2});
+		AddInstruction(1005, xmm, uimm8, none, "660F73/3ib", {}, {cpuSSE2});
 		EndMnemonic(opPSRLDQ, 1005);
 
 		StartMnemonic(opPSRLQ, "PSRLQ", 1006);
 		AddInstruction(1006, xmm, xmmmem128, none, "660FD3/r", {}, {cpuSSE2});
-		AddInstruction(1007, xmm, imm8, none, "660F73/2ib", {}, {cpuSSE2});
+		AddInstruction(1007, xmm, uimm8, none, "660F73/2ib", {}, {cpuSSE2});
 		AddInstruction(1008, mmx, mmxmem64, none, "0FD3/r", {}, {cpuMMX});
 		AddInstruction(1009, mmx, imm8, none, "0F73/2ib", {}, {cpuMMX});
 		EndMnemonic(opPSRLQ, 1009);
 
 		StartMnemonic(opPSRLW, "PSRLW", 1010);
 		AddInstruction(1010, xmm, xmmmem128, none, "660FD1/r", {}, {cpuSSE2});
-		AddInstruction(1011, xmm, imm8, none, "660F71/2ib", {}, {cpuSSE2});
+		AddInstruction(1011, xmm, uimm8, none, "660F71/2ib", {}, {cpuSSE2});
 		AddInstruction(1012, mmx, mmxmem64, none, "0FD1/r", {}, {cpuMMX});
 		AddInstruction(1013, mmx, imm8, none, "0F71/2ib", {}, {cpuMMX});
 		EndMnemonic(opPSRLW, 1013);
@@ -3594,16 +3594,16 @@ VAR
 		StartMnemonic(opRCL, "RCL", 1068);
 		AddInstruction(1068, regmem8, one, none, "D0/2", {}, {cpu8086});
 		AddInstruction(1069, regmem8, CL, none, "D2/2", {}, {cpu8086});
-		AddInstruction(1070, regmem8, imm8, none, "C0/2ib", {}, {cpu186});
+		AddInstruction(1070, regmem8, uimm8, none, "C0/2ib", {}, {cpu186});
 		AddInstruction(1071, regmem16, one, none, "D1/2", {optO16}, {cpu8086});
 		AddInstruction(1072, regmem16, CL, none, "D3/2", {optO16}, {cpu8086});
-		AddInstruction(1073, regmem16, imm8, none, "C1/2ib", {optO16}, {cpu186});
+		AddInstruction(1073, regmem16, uimm8, none, "C1/2ib", {optO16}, {cpu186});
 		AddInstruction(1074, regmem32, one, none, "D1/2", {optO32}, {cpu386});
 		AddInstruction(1075, regmem32, CL, none, "D3/2", {optO32}, {cpu386});
-		AddInstruction(1076, regmem32, imm8, none, "C1/2ib", {optO32}, {cpu386});
+		AddInstruction(1076, regmem32, uimm8, none, "C1/2ib", {optO32}, {cpu386});
 		AddInstruction(1077, regmem64, one, none, "D1/2", {}, {cpuAMD64});
 		AddInstruction(1078, regmem64, CL, none, "D3/2", {}, {cpuAMD64});
-		AddInstruction(1079, regmem64, imm8, none, "C1/2ib", {}, {cpuAMD64});
+		AddInstruction(1079, regmem64, uimm8, none, "C1/2ib", {}, {cpuAMD64});
 		EndMnemonic(opRCL, 1079);
 
 		StartMnemonic(opRCPPS, "RCPPS", 1080);
@@ -3617,16 +3617,16 @@ VAR
 		StartMnemonic(opRCR, "RCR", 1082);
 		AddInstruction(1082, regmem8, one, none, "D0/3", {}, {cpu8086});
 		AddInstruction(1083, regmem8, CL, none, "D2/3", {}, {cpu8086});
-		AddInstruction(1084, regmem8, imm8, none, "C0/3ib", {}, {cpu186});
+		AddInstruction(1084, regmem8, uimm8, none, "C0/3ib", {}, {cpu186});
 		AddInstruction(1085, regmem16, one, none, "D1/3", {optO16}, {cpu8086});
 		AddInstruction(1086, regmem16, CL, none, "D3/3", {optO16}, {cpu8086});
-		AddInstruction(1087, regmem16, imm8, none, "C1/3ib", {optO16}, {cpu186});
+		AddInstruction(1087, regmem16, uimm8, none, "C1/3ib", {optO16}, {cpu186});
 		AddInstruction(1088, regmem32, one, none, "D1/3", {optO32}, {cpu386});
 		AddInstruction(1089, regmem32, CL, none, "D3/3", {optO32}, {cpu386});
-		AddInstruction(1090, regmem32, imm8, none, "C1/3ib", {optO32}, {cpu386});
+		AddInstruction(1090, regmem32, uimm8, none, "C1/3ib", {optO32}, {cpu386});
 		AddInstruction(1091, regmem64, one, none, "D1/3", {}, {cpuAMD64});
 		AddInstruction(1092, regmem64, CL, none, "D3/3", {}, {cpuAMD64});
-		AddInstruction(1093, regmem64, imm8, none, "C1/3ib", {}, {cpuAMD64});
+		AddInstruction(1093, regmem64, uimm8, none, "C1/3ib", {}, {cpuAMD64});
 		EndMnemonic(opRCR, 1093);
 
 		StartMnemonic(opRDMSR, "RDMSR", 1094);
@@ -3647,42 +3647,42 @@ VAR
 
 		StartMnemonic(opRET, "RET", 1098);
 		AddInstruction(1098, none, none, none, "C3", {}, {cpu8086});
-		AddInstruction(1099, imm16, none, none, "C2iw", {}, {cpu8086});
+		AddInstruction(1099, uimm16, none, none, "C2iw", {}, {cpu8086});
 		EndMnemonic(opRET, 1099);
 
 		StartMnemonic(opRETF, "RETF", 1100);
 		AddInstruction(1100, none, none, none, "CB", {}, {cpu8086});
-		AddInstruction(1101, imm16, none, none, "CAiw", {}, {cpu8086});
+		AddInstruction(1101, uimm16, none, none, "CAiw", {}, {cpu8086});
 		EndMnemonic(opRETF, 1101);
 
 		StartMnemonic(opROL, "ROL", 1102);
 		AddInstruction(1102, regmem8, one, none, "D0/0", {}, {cpu8086});
 		AddInstruction(1103, regmem8, CL, none, "D2/0", {}, {cpu8086});
-		AddInstruction(1104, regmem8, imm8, none, "C0/0ib", {}, {cpu186});
+		AddInstruction(1104, regmem8, uimm8, none, "C0/0ib", {}, {cpu186});
 		AddInstruction(1105, regmem16, one, none, "D1/0", {optO16}, {cpu8086});
 		AddInstruction(1106, regmem16, CL, none, "D3/0", {optO16}, {cpu8086});
-		AddInstruction(1107, regmem16, imm8, none, "C1/0ib", {optO16}, {cpu186});
+		AddInstruction(1107, regmem16, uimm8, none, "C1/0ib", {optO16}, {cpu186});
 		AddInstruction(1108, regmem32, one, none, "D1/0", {optO32}, {cpu386});
 		AddInstruction(1109, regmem32, CL, none, "D3/0", {optO32}, {cpu386});
-		AddInstruction(1110, regmem32, imm8, none, "C1/0ib", {optO32}, {cpu386});
+		AddInstruction(1110, regmem32, uimm8, none, "C1/0ib", {optO32}, {cpu386});
 		AddInstruction(1111, regmem64, one, none, "D1/0", {}, {cpuAMD64});
 		AddInstruction(1112, regmem64, CL, none, "D3/0", {}, {cpuAMD64});
-		AddInstruction(1113, regmem64, imm8, none, "C1/0ib", {}, {cpuAMD64});
+		AddInstruction(1113, regmem64, uimm8, none, "C1/0ib", {}, {cpuAMD64});
 		EndMnemonic(opROL, 1113);
 
 		StartMnemonic(opROR, "ROR", 1114);
 		AddInstruction(1114, regmem8, one, none, "D0/1", {}, {cpu8086});
 		AddInstruction(1115, regmem8, CL, none, "D2/1", {}, {cpu8086});
-		AddInstruction(1116, regmem8, imm8, none, "C0/1ib", {}, {cpu186});
+		AddInstruction(1116, regmem8, uimm8, none, "C0/1ib", {}, {cpu186});
 		AddInstruction(1117, regmem16, one, none, "D1/1", {optO16}, {cpu8086});
 		AddInstruction(1118, regmem16, CL, none, "D3/1", {optO16}, {cpu8086});
-		AddInstruction(1119, regmem16, imm8, none, "C1/1ib", {optO16}, {cpu186});
+		AddInstruction(1119, regmem16, uimm8, none, "C1/1ib", {optO16}, {cpu186});
 		AddInstruction(1120, regmem32, one, none, "D1/1", {optO32}, {cpu386});
 		AddInstruction(1121, regmem32, CL, none, "D3/1", {optO32}, {cpu386});
-		AddInstruction(1122, regmem32, imm8, none, "C1/1ib", {optO32}, {cpu386});
+		AddInstruction(1122, regmem32, uimm8, none, "C1/1ib", {optO32}, {cpu386});
 		AddInstruction(1123, regmem64, one, none, "D1/1", {}, {cpuAMD64});
 		AddInstruction(1124, regmem64, CL, none, "D3/1", {}, {cpuAMD64});
-		AddInstruction(1125, regmem64, imm8, none, "C1/1ib", {}, {cpuAMD64});
+		AddInstruction(1125, regmem64, uimm8, none, "C1/1ib", {}, {cpuAMD64});
 		EndMnemonic(opROR, 1125);
 
 		StartMnemonic(opRSM, "RSM", 1126);
@@ -3704,31 +3704,31 @@ VAR
 		StartMnemonic(opSAL, "SAL", 1130);
 		AddInstruction(1130, regmem8, one, none, "D0/4", {}, {cpu8086});
 		AddInstruction(1131, regmem8, CL, none, "D2/4", {}, {cpu8086});
-		AddInstruction(1132, regmem8, imm8, none, "C0/4ib", {}, {cpu186});
+		AddInstruction(1132, regmem8, uimm8, none, "C0/4ib", {}, {cpu186});
 		AddInstruction(1133, regmem16, one, none, "D1/4", {optO16}, {cpu8086});
 		AddInstruction(1134, regmem16, CL, none, "D3/4", {optO16}, {cpu8086});
-		AddInstruction(1135, regmem16, imm8, none, "C1/4ib", {optO16}, {cpu186});
+		AddInstruction(1135, regmem16, uimm8, none, "C1/4ib", {optO16}, {cpu186});
 		AddInstruction(1136, regmem32, one, none, "D1/4", {optO32}, {cpu386});
 		AddInstruction(1137, regmem32, CL, none, "D3/4", {optO32}, {cpu386});
-		AddInstruction(1138, regmem32, imm8, none, "C1/4ib", {optO32}, {cpu386});
+		AddInstruction(1138, regmem32, uimm8, none, "C1/4ib", {optO32}, {cpu386});
 		AddInstruction(1139, regmem64, one, none, "D1/4", {}, {cpuAMD64});
 		AddInstruction(1140, regmem64, CL, none, "D3/4", {}, {cpuAMD64});
-		AddInstruction(1141, regmem64, imm8, none, "C1/4ib", {}, {cpuAMD64});
+		AddInstruction(1141, regmem64, uimm8, none, "C1/4ib", {}, {cpuAMD64});
 		EndMnemonic(opSAL, 1141);
 
 		StartMnemonic(opSAR, "SAR", 1142);
 		AddInstruction(1142, regmem8, one, none, "D0/7", {}, {cpu8086});
 		AddInstruction(1143, regmem8, CL, none, "D2/7", {}, {cpu8086});
-		AddInstruction(1144, regmem8, imm8, none, "C0/7ib", {}, {cpu186});
+		AddInstruction(1144, regmem8, uimm8, none, "C0/7ib", {}, {cpu186});
 		AddInstruction(1145, regmem16, one, none, "D1/7", {optO16}, {cpu8086});
 		AddInstruction(1146, regmem16, CL, none, "D3/7", {optO16}, {cpu8086});
-		AddInstruction(1147, regmem16, imm8, none, "C1/7ib", {optO16}, {cpu186});
+		AddInstruction(1147, regmem16, uimm8, none, "C1/7ib", {optO16}, {cpu186});
 		AddInstruction(1148, regmem32, one, none, "D1/7", {optO32}, {cpu386});
 		AddInstruction(1149, regmem32, CL, none, "D3/7", {optO32}, {cpu386});
-		AddInstruction(1150, regmem32, imm8, none, "C1/7ib", {optO32}, {cpu386});
+		AddInstruction(1150, regmem32, uimm8, none, "C1/7ib", {optO32}, {cpu386});
 		AddInstruction(1151, regmem64, one, none, "D1/7", {}, {cpuAMD64});
 		AddInstruction(1152, regmem64, CL, none, "D3/7", {}, {cpuAMD64});
-		AddInstruction(1153, regmem64, imm8, none, "C1/7ib", {}, {cpuAMD64});
+		AddInstruction(1153, regmem64, uimm8, none, "C1/7ib", {}, {cpuAMD64});
 		EndMnemonic(opSAR, 1153);
 
 		StartMnemonic(opSBB, "SBB", 1154);
@@ -3740,17 +3740,17 @@ VAR
 		AddInstruction(1159, reg16, regmem16, none, "1B/r", {optO16}, {cpu8086});
 		AddInstruction(1160, reg32, regmem32, none, "1B/r", {optO32}, {cpu386});
 		AddInstruction(1161, reg64, regmem64, none, "1B/r", {}, {cpuAMD64});
-		AddInstruction(1162, AL, imm8, none, "1Cib", {}, {cpu8086});
-		AddInstruction(1163, AX, imm16, none, "1Diw", {optO16}, {cpu8086});
-		AddInstruction(1164, EAX, imm32, none, "1Did", {optO32}, {cpu386});
-		AddInstruction(1165, RAX, imm32, none, "1Did", {}, {cpuAMD64});
-		AddInstruction(1166, regmem8, imm8, none, "80/3ib", {}, {cpu8086});
-		AddInstruction(1167, regmem16, imm16, none, "81/3iw", {optO16}, {cpu8086});
-		AddInstruction(1168, regmem32, imm32, none, "81/3id", {optO32}, {cpu386});
-		AddInstruction(1169, regmem64, imm32, none, "81/3id", {}, {cpuAMD64});
-		AddInstruction(1170, regmem16, imm8, none, "83/3ib", {optO16}, {cpu8086});
-		AddInstruction(1171, regmem32, imm8, none, "83/3ib", {optO32}, {cpu386});
-		AddInstruction(1172, regmem64, imm8, none, "83/3ib", {}, {cpuAMD64});
+		AddInstruction(1162, AL, uimm8, none, "1Cib", {}, {cpu8086});
+		AddInstruction(1163, AX, uimm16, none, "1Diw", {optO16}, {cpu8086});
+		AddInstruction(1164, EAX, uimm32, none, "1Did", {optO32}, {cpu386});
+		AddInstruction(1165, RAX, uimm32, none, "1Did", {}, {cpuAMD64});
+		AddInstruction(1166, regmem8, uimm8, none, "80/3ib", {}, {cpu8086});
+		AddInstruction(1167, regmem16, uimm16, none, "81/3iw", {optO16}, {cpu8086});
+		AddInstruction(1168, regmem32, uimm32, none, "81/3id", {optO32}, {cpu386});
+		AddInstruction(1169, regmem64, uimm32, none, "81/3id", {}, {cpuAMD64});
+		AddInstruction(1170, regmem16, simm8, none, "83/3ib", {optO16}, {cpu8086});
+		AddInstruction(1171, regmem32, simm8, none, "83/3ib", {optO32}, {cpu386});
+		AddInstruction(1172, regmem64, simm8, none, "83/3ib", {}, {cpuAMD64});
 		EndMnemonic(opSBB, 1172);
 
 		StartMnemonic(opSCAS, "SCAS", 1173);
@@ -3908,57 +3908,57 @@ VAR
 		StartMnemonic(opSHL, "SHL", 1214);
 		AddInstruction(1214, regmem8, one, none, "D0/4", {}, {cpu8086});
 		AddInstruction(1215, regmem8, CL, none, "D2/4", {}, {cpu8086});
-		AddInstruction(1216, regmem8, imm8, none, "C0/4ib", {}, {cpu186});
+		AddInstruction(1216, regmem8, uimm8, none, "C0/4ib", {}, {cpu186});
 		AddInstruction(1217, regmem16, one, none, "D1/4", {optO16}, {cpu8086});
 		AddInstruction(1218, regmem16, CL, none, "D3/4", {optO16}, {cpu8086});
-		AddInstruction(1219, regmem16, imm8, none, "C1/4ib", {optO16}, {cpu186});
+		AddInstruction(1219, regmem16, uimm8, none, "C1/4ib", {optO16}, {cpu186});
 		AddInstruction(1220, regmem32, one, none, "D1/4", {optO32}, {cpu386});
 		AddInstruction(1221, regmem32, CL, none, "D3/4", {optO32}, {cpu386});
-		AddInstruction(1222, regmem32, imm8, none, "C1/4ib", {optO32}, {cpu386});
+		AddInstruction(1222, regmem32, uimm8, none, "C1/4ib", {optO32}, {cpu386});
 		AddInstruction(1223, regmem64, one, none, "D1/4", {}, {cpuAMD64});
 		AddInstruction(1224, regmem64, CL, none, "D3/4", {}, {cpuAMD64});
-		AddInstruction(1225, regmem64, imm8, none, "C1/4ib", {}, {cpuAMD64});
+		AddInstruction(1225, regmem64, uimm8, none, "C1/4ib", {}, {cpuAMD64});
 		EndMnemonic(opSHL, 1225);
 
 		StartMnemonic(opSHLD, "SHLD", 1226);
-		AddInstruction(1226, regmem16, reg16, imm8, "0FA4/rib", {optO16}, {cpu386});
+		AddInstruction(1226, regmem16, reg16, uimm8, "0FA4/rib", {optO16}, {cpu386});
 		AddInstruction(1227, regmem16, reg16, CL, "0FA5/r", {optO16}, {cpu386});
-		AddInstruction(1228, regmem32, reg32, imm8, "0FA4/rib", {optO32}, {cpu386});
+		AddInstruction(1228, regmem32, reg32, uimm8, "0FA4/rib", {optO32}, {cpu386});
 		AddInstruction(1229, regmem32, reg32, CL, "0FA5/r", {optO32}, {cpu386});
-		AddInstruction(1230, regmem64, reg64, imm8, "0FA4/rib", {}, {cpuAMD64});
+		AddInstruction(1230, regmem64, reg64, uimm8, "0FA4/rib", {}, {cpuAMD64});
 		AddInstruction(1231, regmem64, reg64, CL, "0FA5/r", {}, {cpuAMD64});
 		EndMnemonic(opSHLD, 1231);
 
 		StartMnemonic(opSHR, "SHR", 1232);
 		AddInstruction(1232, regmem8, one, none, "D0/5", {}, {cpu8086});
 		AddInstruction(1233, regmem8, CL, none, "D2/5", {}, {cpu8086});
-		AddInstruction(1234, regmem8, imm8, none, "C0/5ib", {}, {cpu186});
+		AddInstruction(1234, regmem8, uimm8, none, "C0/5ib", {}, {cpu186});
 		AddInstruction(1235, regmem16, one, none, "D1/5", {optO16}, {cpu8086});
 		AddInstruction(1236, regmem16, CL, none, "D3/5", {optO16}, {cpu8086});
-		AddInstruction(1237, regmem16, imm8, none, "C1/5ib", {optO16}, {cpu186});
+		AddInstruction(1237, regmem16, uimm8, none, "C1/5ib", {optO16}, {cpu186});
 		AddInstruction(1238, regmem32, one, none, "D1/5", {optO32}, {cpu386});
 		AddInstruction(1239, regmem32, CL, none, "D3/5", {optO32}, {cpu386});
-		AddInstruction(1240, regmem32, imm8, none, "C1/5ib", {optO32}, {cpu386});
+		AddInstruction(1240, regmem32, uimm8, none, "C1/5ib", {optO32}, {cpu386});
 		AddInstruction(1241, regmem64, one, none, "D1/5", {}, {cpuAMD64});
 		AddInstruction(1242, regmem64, CL, none, "D3/5", {}, {cpuAMD64});
-		AddInstruction(1243, regmem64, imm8, none, "C1/5ib", {}, {cpuAMD64});
+		AddInstruction(1243, regmem64, uimm8, none, "C1/5ib", {}, {cpuAMD64});
 		EndMnemonic(opSHR, 1243);
 
 		StartMnemonic(opSHRD, "SHRD", 1244);
-		AddInstruction(1244, regmem16, reg16, imm8, "0FAC/rib", {optO16}, {cpu386});
+		AddInstruction(1244, regmem16, reg16, uimm8, "0FAC/rib", {optO16}, {cpu386});
 		AddInstruction(1245, regmem16, reg16, CL, "0FAD/r", {optO16}, {cpu386});
-		AddInstruction(1246, regmem32, reg32, imm8, "0FAC/rib", {optO32}, {cpu386});
+		AddInstruction(1246, regmem32, reg32, uimm8, "0FAC/rib", {optO32}, {cpu386});
 		AddInstruction(1247, regmem32, reg32, CL, "0FAD/r", {optO32}, {cpu386});
-		AddInstruction(1248, regmem64, reg64, imm8, "0FAC/rib", {}, {cpuAMD64});
+		AddInstruction(1248, regmem64, reg64, uimm8, "0FAC/rib", {}, {cpuAMD64});
 		AddInstruction(1249, regmem64, reg64, CL, "0FAD/r", {}, {cpuAMD64});
 		EndMnemonic(opSHRD, 1249);
 
 		StartMnemonic(opSHUFPD, "SHUFPD", 1250);
-		AddInstruction(1250, xmm, xmmmem128, imm8, "660FC6/rib", {}, {cpuSSE2});
+		AddInstruction(1250, xmm, xmmmem128, uimm8, "660FC6/rib", {}, {cpuSSE2});
 		EndMnemonic(opSHUFPD, 1250);
 
 		StartMnemonic(opSHUFPS, "SHUFPS", 1251);
-		AddInstruction(1251, xmm, xmmmem128, imm8, "0FC6/rib", {}, {cpuSSE});
+		AddInstruction(1251, xmm, xmmmem128, uimm8, "0FC6/rib", {}, {cpuSSE});
 		EndMnemonic(opSHUFPS, 1251);
 
 		StartMnemonic(opSIDT, "SIDT", 1252);
@@ -4067,9 +4067,9 @@ VAR
 		AddInstruction(1297, regmem16, imm16, none, "81/5iw", {optO16}, {cpu8086});
 		AddInstruction(1298, regmem32, imm32, none, "81/5id", {optO32}, {cpu386});
 		AddInstruction(1299, regmem64, imm32, none, "81/5id", {}, {cpuAMD64});
-		AddInstruction(1300, regmem16, imm8, none, "83/5ib", {optO16}, {cpu8086});
-		AddInstruction(1301, regmem32, imm8, none, "83/5ib", {optO32}, {cpu386});
-		AddInstruction(1302, regmem64, imm8, none, "83/5ib", {}, {cpuAMD64});
+		AddInstruction(1300, regmem16, simm8, none, "83/5ib", {optO16}, {cpu8086});
+		AddInstruction(1301, regmem32, simm8, none, "83/5ib", {optO32}, {cpu386});
+		AddInstruction(1302, regmem64, simm8, none, "83/5ib", {}, {cpuAMD64});
 		EndMnemonic(opSUB, 1302);
 
 		StartMnemonic(opSUBPD, "SUBPD", 1303);
@@ -4232,9 +4232,9 @@ VAR
 		AddInstruction(1372, regmem16, imm16, none, "81/6iw", {optO16}, {cpu8086});
 		AddInstruction(1373, regmem32, imm32, none, "81/6id", {optO32}, {cpu386});
 		AddInstruction(1374, regmem64, imm32, none, "81/6id", {}, {cpuAMD64});
-		AddInstruction(1375, regmem16, imm8, none, "83/6ib", {optO16}, {cpu8086});
-		AddInstruction(1376, regmem32, imm8, none, "83/6ib", {optO32}, {cpu386});
-		AddInstruction(1377, regmem64, imm8, none, "83/6ib", {}, {cpuAMD64});
+		AddInstruction(1375, regmem16, simm8, none, "83/6ib", {optO16}, {cpu8086});
+		AddInstruction(1376, regmem32, simm8, none, "83/6ib", {optO32}, {cpu386});
+		AddInstruction(1377, regmem64, simm8, none, "83/6ib", {}, {cpuAMD64});
 		EndMnemonic(opXOR, 1377);
 
 		StartMnemonic(opXORPD, "XORPD", 1378);
@@ -4244,7 +4244,6 @@ VAR
 		StartMnemonic(opXORPS, "XORPS", 1379);
 		AddInstruction(1379, xmm, xmmmem128, none, "0F57/r", {}, {cpuSSE});
 		EndMnemonic(opXORPS, 1379);
-
 
 	END InitInstructions;
 
