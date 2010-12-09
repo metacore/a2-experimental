@@ -808,7 +808,7 @@ TYPE
 								operands[i].pc := code.pc;
 								code.PutWord (offset);
 								free[i] := FALSE; i:= maxNumberOperands;
-							ELSIF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.imm16) THEN
+							ELSIF (free[i]) & InstructionSet.IsImmediate16(InstructionSet.instructions[instr].operands[i]) THEN
 								offset := SHORT (operands[i].val);
 								IF lastPass & ~ValueInWordRange (offset) THEN
 									Error( "value exceeds bounds");
@@ -834,7 +834,7 @@ TYPE
 								END;
 
 								free[i] := FALSE; i:= maxNumberOperands;
-							ELSIF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.imm32) THEN
+							ELSIF (free[i]) & InstructionSet.IsImmediate32(InstructionSet.instructions[instr].operands[i])  THEN
 								operands[i].pc := code.pc;
 
 								IF lastPass & (operands[i].symbol # NIL) THEN
@@ -887,7 +887,7 @@ TYPE
 
 								code.PutDWord (SHORT (operands[i].val - code.pc - 4));
 								free[i] := FALSE; i:= maxNumberOperands;
-							ELSIF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.imm32) THEN
+							ELSIF (free[i]) & InstructionSet.IsImmediate32(InstructionSet.instructions[instr].operands[i])  THEN
 								operands[i].pc := code.pc;
 								IF lastPass & (operands[i].symbol # NIL) THEN AddFixup(BinaryCode.Absolute,4,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement)  END;
 
@@ -899,7 +899,7 @@ TYPE
 						IF Trace THEN KernelLog.String(" iq "); END;
 						IF val # -1 THEN code.PutByte (val); val := -1 END;
 						FOR i := 0 TO maxNumberOperands - 1 DO
-							IF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.imm64) THEN
+							IF (free[i]) & InstructionSet.IsImmediate64(InstructionSet.instructions[instr].operands[i])  THEN
 								operands[i].pc := code.pc;
 								IF lastPass & (operands[i].symbol # NIL) THEN
 									 AddFixup(BinaryCode.Absolute,8,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement)
