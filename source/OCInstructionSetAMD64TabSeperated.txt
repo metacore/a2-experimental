@@ -131,7 +131,7 @@ CDQE				98	AMD64
 						
 CWD				99	8086	O16
 CDQ				99	386	O32
-CQO				99	AMD64	
+CQO				99	AMD64	O64
 						
 CLC				F8	8086	
 						

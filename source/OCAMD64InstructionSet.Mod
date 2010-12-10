@@ -1614,7 +1614,7 @@ VAR
 		EndMnemonic(opCPUID, 256);
 
 		StartMnemonic(opCQO, "CQO", 257);
-		AddInstruction(257, none, none, none, "99", {}, {cpuAMD64});
+		AddInstruction(257, none, none, none, "99", {optO64}, {cpuAMD64});
 		EndMnemonic(opCQO, 257);
 
 		StartMnemonic(opCVTDQ2PD, "CVTDQ2PD", 258);
