@@ -420,10 +420,12 @@ VAR
 (** Return current processor ID (0 to MaxNum-1). *)
 PROCEDURE ID* (): LONGINT;
 CODE {SYSTEM.AMD64}
-	MOV RAX, idAdr	; get address of idAdr
+	; todo: use MOV instead of LEA as soon as assembler returns address for global variables
+
+	LEA RAX, idAdr	; get address of idAdr
 	MOV RAX, [RAX]	; get value of idAdr
 	MOV EAX, [RAX]	; dereference idAdr
-	MOV RBX, map	; address of map
+	LEA RBX, map	; address of map
 	SHR EAX, 24
 	AND EAX, 15
 	MOV AL, [RBX + RAX]
@@ -2249,21 +2251,10 @@ END SetGCParams;
 (** Get first memory block and first free address, heap area in first memory block is automatically expanded to account for the first
       few calls to NEW  *)
 PROCEDURE GetStaticHeap*(VAR beginBlockAdr, endBlockAdr, freeBlockAdr: SYSTEM.ADDRESS);
-VAR memBlockAdr, endAdr: SYSTEM.ADDRESS;
 BEGIN
-	SYSTEM.GET(LinkAdr + EndBlockOfs, freeBlockAdr);
-	ASSERT(freeBlockAdr MOD StaticBlockSize = 0);
-	memBlockAdr := LinkAdr + HeaderSize + MemoryBlockOfs;
-	memBlockHead := SYSTEM.VAL(MemoryBlock, memBlockAdr);
-	ASSERT(memBlockHead.beginBlockAdr MOD StaticBlockSize = 0);
-	endAdr := memBlockHead.endBlockAdr;
-	INC(endAdr, InitialHeapIncrement);
-	SetHeapEndAdr(endAdr);	(* in/out parameter *)
-	memBlockHead.endBlockAdr := endAdr;
-	ASSERT((memBlockHead.endBlockAdr - memBlockHead.beginBlockAdr) MOD StaticBlockSize = 0);
-	memBlockTail := memBlockHead;
-	beginBlockAdr := memBlockHead.beginBlockAdr;
-	endBlockAdr := memBlockHead.endBlockAdr
+	beginBlockAdr := initialMemBlock.beginBlockAdr;
+	endBlockAdr := initialMemBlock.endBlockAdr;
+	freeBlockAdr := beginBlockAdr;
 END GetStaticHeap;
 
 (* returns if an address is a currently allocated heap address *)
@@ -2936,7 +2927,7 @@ END SetRDI;
 
 PROCEDURE  Portin8*(port: LONGINT; VAR val: CHAR);
 CODE{SYSTEM.AMD64}
-	MOV EDX,[EBP+port]
+	MOV EDX,[RBP+port]
 	IN AL, DX
 	MOV RCX, [RBP+val]
 	MOV [RCX], AL
@@ -3915,8 +3906,6 @@ END LastAddress;
 
 (* Init code called from OBL. EAX = boot table offset. ESI, EDI=initRegs. 2k stack is available. No trap handling. *)
 BEGIN
-	LOOP END;
-
 	initRegs[0] := initRegs0;
 	initRegs[1] := initRegs1;
 	(* registers 6 and 7 get converted to 32 bit, cf. PCB.Assigne
@@ -3924,8 +3913,10 @@ BEGIN
 	*)
 	SYSTEM.PUT16(0472H, 01234H);	(* soft boot flag, for when we reboot *)
 	ReadBootTable(bootFlag);
+
 	InitTrace;
 	Trace.String("Machine: "); Trace.Blue;Trace.StringLn (Version); Trace.Default;
+
 	CheckMemory;
 	SearchMP;
 	AllocateDMA;	(* must be called after SearchMP, as lowTop is modified *)
