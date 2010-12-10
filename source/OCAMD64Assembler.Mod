@@ -708,6 +708,8 @@ TYPE
 									IF Trace THEN KernelLog.String(" no displacement "); END;
 									IF (operands[addressOperand].register # none) & (InstructionSet.RegisterIndex(operands[addressOperand].register) = RBP) THEN
 										modField := 1;
+									ELSIF  (operands[addressOperand].register # none) & (InstructionSet.RegisterIndex(operands[addressOperand].register) = R13) THEN
+										modField := 1;
 									ELSE
 										modField := 0;
 									END;
