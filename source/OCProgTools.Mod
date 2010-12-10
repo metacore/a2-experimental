@@ -709,4 +709,4 @@ OCProgTools.Enum --start=10 a b c  d e ~
 OCProgTools.Enum --start=10 --hex  a b c  d e ~
 
 
-OCProgTools.ParseAMDInstructionSet  oc/OCInstructionSetAMD64TabSeperated.txt ~
+OCProgTools.ParseAMDInstructionSet  OCInstructionSetAMD64TabSeperated.txt ~
