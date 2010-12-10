@@ -2595,8 +2595,8 @@ END GetExceptionState;
 		--	--	locals	<-- RSP
 *)
 
-PROCEDURE FieldInterrupt;
-CODE {SYSTEM.AMD64, SYSTEM.Privileged}	; 4 bytes implicit code skipped: ENTER 0, 0
+PROCEDURE {NOPAF} FieldInterrupt;
+CODE {SYSTEM.AMD64, SYSTEM.Privileged}
 entry:
 
 	; fake PUSHAD (not available in 64-bit mode)
@@ -2620,10 +2620,12 @@ entry:
 
 	LEA RBP, [RSP + 136]
 	MOV RBX, [RSP + 128]	; RBX = int number
-	MOV RAX, intHandler	; first handler in intHandler array
+	; todo: replace LEA by MOV when compiler supports this
+	LEA RAX, intHandler	; first handler in intHandler array
 	MOV RAX, [RBX*8 + RAX]	; handler for int number in intHandler array
 
-	MOV RDX, stateTag
+	; todo: replace LEA by MOV when compiler supports this
+	LEA RDX, stateTag
 
 loop:	; call all handlers for the interrupt
 	MOV RCX, RSP
@@ -2667,8 +2669,8 @@ nodelegate:
 	IRETQ
 END FieldInterrupt;
 
-PROCEDURE FieldIRQ;
-CODE {SYSTEM.AMD64}	; 4 bytes implicit code skipped: ENTER 0, 0
+PROCEDURE {NOPAF} FieldIRQ;
+CODE {SYSTEM.AMD64}
 entry:
 
 	; fake PUSHAD (not available in 64-bit mode)
@@ -2696,10 +2698,13 @@ entry:
 ;;	CALL traceInterruptIn
 
 	MOV RBX, [RSP + 128]	; RBX = int number
-	MOV RAX, intHandler	; first handler in intHandler array
+
+	; todo: replace LEA by MOV when compiler supports this
+	LEA RAX, intHandler	; first handler in intHandler array
 	MOV RAX, [RBX*8 + RAX]	; handler for int number in intHandler array
 
-	MOV RDX, stateTag
+	; todo: replace LEA by MOV when compiler supports this
+	LEA RDX, stateTag
 
 loop:	; call all handlers for the interrupt
 	MOV RCX, RSP
@@ -2806,8 +2811,7 @@ BEGIN
 		glue[i][o] := 6AX; INC (o); glue[i][o] := CHR(i); INC (o);	(* PUSH i *)
 		IF (i >= IRQ0) & (i <= IRQ15) THEN p := FieldIRQ ELSE p := FieldInterrupt END;
 
-		(* skip ENTER instruction of target procedure (4 bytes) *)
-		a := SYSTEM.VAL(SYSTEM.ADDRESS, p)+4 - (SYSTEM.ADR(glue[i][o])+5);
+		a := SYSTEM.VAL(SYSTEM.ADDRESS, p) - (SYSTEM.ADR(glue[i][o])+5);
 
 		(* a must be a 32-bit offset to be used with the followingjump instruction, ensured since
 		    both the glue code array and the interrupt functions are inside this module *)
