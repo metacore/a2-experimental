@@ -2569,7 +2569,10 @@ TYPE
 	BEGIN InitOperand(operand); operand.type := pntr1632; operand.selector := s; operand.offset := o;
 	END InitPntr1632;
 
-
+	PROCEDURE SetSize*(VAR operand: Operand;sizeInBytes: Size);
+	BEGIN operand.sizeInBytes := sizeInBytes
+	END SetSize;
+	
 	PROCEDURE SameOperand*(CONST left,right: Operand): BOOLEAN;
 	BEGIN
 		IF (left.type # right.type) OR (left.sizeInBytes # right.sizeInBytes) OR (left.symbol # right.symbol) THEN RETURN FALSE END;
