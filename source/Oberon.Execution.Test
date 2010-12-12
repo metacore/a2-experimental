@@ -7084,4 +7084,61 @@ positive: multiplication with 8-bit number (was: problem in AMD backend register
 		Mul16(10X,20X,longint);
 		ASSERT(longint = 256*10H+20H);
 	END Test.
-	
+
+positive: test for correct use of SYSTEM.VAL (without conversion)
+
+	MODULE Test;
+
+	IMPORT SYSTEM;
+
+	VAR r: REAL; x: LONGREAL;  l: LONGINT; h: HUGEINT;
+
+	PROCEDURE Real(): LONGINT;
+	VAR r: REAL; l: LONGINT;
+	BEGIN
+		r := 10;
+		(* trick to store real value in original format in longint variable wihout using SYSTEM.VAL, for testing SYSTEM.VAL ! *)
+		SYSTEM.MOVE(SYSTEM.ADR(r),SYSTEM.ADR(l),SYSTEM.SIZEOF(REAL));
+		RETURN l;
+	END Real;
+
+	PROCEDURE Longreal(): HUGEINT;
+	VAR r: LONGREAL; l: HUGEINT;
+	BEGIN
+		r := 10;
+		(* trick to store real value in original format in longint variable wihout using SYSTEM.VAL, for testing SYSTEM.VAL ! *)
+		SYSTEM.MOVE(SYSTEM.ADR(r),SYSTEM.ADR(l),SYSTEM.SIZEOF(HUGEINT));
+		RETURN l;
+	END Longreal;
+
+	PROCEDURE Longint(): REAL;
+	VAR r: REAL; l: LONGINT;
+	BEGIN
+		l := 10;
+		(* trick to store real value in original format in longint variable wihout using SYSTEM.VAL, for testing SYSTEM.VAL ! *)
+		SYSTEM.MOVE(SYSTEM.ADR(l),SYSTEM.ADR(r),SYSTEM.SIZEOF(REAL));
+		RETURN r;	
+	END Longint;
+
+	PROCEDURE Hugeint(): LONGREAL;
+	VAR r: LONGREAL; l: HUGEINT;
+	BEGIN
+		l := 10;
+		(* trick to store real value in original format in longint variable wihout using SYSTEM.VAL, for testing SYSTEM.VAL ! *)
+		SYSTEM.MOVE(SYSTEM.ADR(l),SYSTEM.ADR(r),SYSTEM.SIZEOF(LONGREAL));
+		RETURN r;	
+	END Hugeint;
+
+		
+	BEGIN
+		r := SYSTEM.VAL(REAL,Real());
+		ASSERT(r = 10);
+		x := SYSTEM.VAL(LONGREAL,Longreal());
+		ASSERT(x = 10);
+		l := SYSTEM.VAL(LONGINT, Longint());
+		ASSERT(l=10);
+		h := SYSTEM.VAL(HUGEINT, Hugeint());
+		ASSERT(h=10);
+	END Test.
+
+
