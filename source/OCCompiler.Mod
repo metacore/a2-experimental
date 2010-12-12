@@ -22,7 +22,7 @@ CONST
 	Name = "OC";
 	Description = "Oberon Compiler";
 	FileExtension = "MOD"; (*! temporary *)
-	DefaultBackend = "AMD64";
+	DefaultBackend = "AMD";
 
 
 TYPE
