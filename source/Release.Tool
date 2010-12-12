@@ -873,20 +873,15 @@ END
 PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Active Oberon Compiler"
 	# this package should be moved before any GUI part (dependencies must be removed in Backend)
 	OC.Tool
-	BitSets.Mod ObjectFile.Mod	GenericLinker.Mod StaticLinker.Mod
-
-	OCBasic.Mod OCScanner.Mod OCSyntaxTree.Mod 	OCDataflow.Mod OCGlobal.Mod OCFormats.Mod OCPrintout.Mod
-	OCParser.Mod OCSemanticChecker.Mod OCBackend.Mod OCCompiler.Mod
-
+	BitSets.Mod ObjectFile.Mod Runtime.Mod GenericLinker.Mod StaticLinker.Mod 
+	OCProgTools.Mod OCBasic.Mod  OCScanner.Mod OCSyntaxTree.Mod OCDataflow.Mod OCGlobal.Mod OCFormats.Mod OCPrintout.Mod
+	OCParser.Mod  OCSemanticChecker.Mod 
+	OCBackend.Mod OCCompiler.Mod
 	OCFingerPrint.Mod  OCInterfaceComparison.Mod OCTextualSymbolFile.Mod OCBinarySymbolFile.Mod
 	OCSections.Mod OCBinaryCode.Mod
-	OCFingerPrinter.Mod
-	OCIntermediateCode.Mod
-
-	OCDataflowBackend.Mod
-	OCIntermediateBackend.Mod
+	OCIntermediateCode.Mod OCFingerprinter.Mod OCDataflowBackend.Mod OCIntermediateBackend.Mod
 	OCBinaryObjectFile.Mod OCGenericObjectFile.Mod
-	OCAMD64InstructionSet.Mod OCAMD64Assembler.Mod OCAMD64Backend.Mod
+	OCAMD64InstructionSet.Mod OCAMD64Assembler.Mod OCAMDBackend.Mod
 	OCInstructionSetAMD64TabSeperated.txt
 
 	OCArrayBase.Mod # Runtime support for math oberon (Move to runtime package? *)

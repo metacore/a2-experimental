@@ -169,6 +169,7 @@ TYPE
 			scope := inScope;
 			WHILE (scope # NIL) & (symbol = NIL) DO
 				symbol := scope.FindSymbol(name);
+
 				WHILE (symbol # NIL) & (symbol.scope.ownerModule # currentScope.ownerModule) & (symbol.access * SyntaxTree.Public = {}) DO
 					(* found symbol in different module, but is it not exported, can we go on searching in record base scopes ? *)
 					symbol.MarkUsed;
@@ -684,7 +685,7 @@ TYPE
 				procedureType.SetReturnType(resolved);
 
 				(* OLVIER *)
-				IF (resolved # NIL) & (resolved.resolved IS SyntaxTree.MathArrayType) THEN
+				IF (resolved # NIL) & ((resolved.resolved IS SyntaxTree.MathArrayType) OR (resolved.resolved IS SyntaxTree.ProcedureType)) THEN
 					parameter := SyntaxTree.NewParameter(procedureType.position,procedureType,Global.ResultName, SyntaxTree.VarParameter);
 					parameter.SetType(procedureType.returnType);
 					parameter.SetAccess(SyntaxTree.Internal);
@@ -3628,7 +3629,7 @@ TYPE
 					designator := indexDesignator;
 					type := designator.type.resolved;
 					indexDesignator := NIL;
-					ASSERT(SyntaxTree.Resolved IN type.state)
+					ASSERT((type = SyntaxTree.invalidType) OR (SyntaxTree.Resolved IN type.state))
 				END
 			END FinalizeIndexDesignator;
 
@@ -4832,17 +4833,16 @@ TYPE
 					END;
 				(* ---- SYSTEM.NEW ----- *)
 				ELSIF (id = Global.systemNew) & Parameters(2,2) THEN
-					(*! implement *)
+					IF ~IsPointerType(parameter0.type) THEN
+						Error(parameter0.position,Diagnostics.Invalid,"is not a pointer")
+					ELSIF CheckIntegerType(parameter1) THEN
+						parameter1 := NewConversion(Diagnostics.Invalid, parameter1, system.sizeType,NIL);
+						actualParameters.SetExpression(1,parameter1);
+					END;
 				(* ---- SYSTEM.INCR ----- *)
 				ELSIF (id = Global.systemIncr) & Parameters(1,2) THEN
-
-
-
-
 					type := system.sizeType;
 					base := type0;
-
-
 					IF (numberActualParameters =2) & CheckIntegerType(parameter1) THEN
 						IF ~IsIntegerValue(parameter1,i1) THEN i1 := 0 END;
 						IF i1 < 0 THEN
@@ -5132,7 +5132,7 @@ TYPE
 						END
 					ELSIF IsTypeDesignator(left,typeDeclaration)  & (parameters.Length()=1) THEN
 						expression := parameters.GetExpression(0);
-						IF (typeDeclaration.declaredType.resolved IS SyntaxTree.NumberType) & (expression.type.resolved IS SyntaxTree.NumberType) THEN
+						IF (typeDeclaration.declaredType.resolved IS SyntaxTree.NumberType) & ((expression.type.resolved IS SyntaxTree.NumberType) OR (expression.type.resolved IS SyntaxTree.AddressType) OR (expression.type.resolved IS SyntaxTree.SizeType)) THEN
 							result := NewConversion(designator.position,expression,typeDeclaration.declaredType,left)
 						ELSE
 							Error(left.position,Diagnostics.Invalid,"invalid type in explicit conversion");
@@ -6895,13 +6895,13 @@ TYPE
 		BEGIN Type(x.declaredType) END VisitTypeDeclaration;
 
 		PROCEDURE VisitConstant*(x: SyntaxTree.Constant);
-		BEGIN END VisitConstant;
+		BEGIN  END VisitConstant;
 
 		PROCEDURE VisitVariable*(x: SyntaxTree.Variable);
-		BEGIN END VisitVariable;
+		BEGIN  END VisitVariable;
 
 		PROCEDURE VisitParameter*(x: SyntaxTree.Parameter);
-		BEGIN END VisitParameter;
+		BEGIN	END VisitParameter;
 
 		PROCEDURE VisitProcedure*(x: SyntaxTree.Procedure);
 		BEGIN Scope(x.procedureScope) END VisitProcedure;

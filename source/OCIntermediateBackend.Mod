@@ -46,7 +46,6 @@ CONST
 		NegativeDivisorTrap*=12;
 
 		Trace = FALSE;
-		TraceRegisters=FALSE;
 
 		ArrayAlignment = 8*8;			(* first array element of ArrayBlock and first data element of SystemBlock must be aligned to 0 MOD ArrayAlignment *)
 
@@ -59,7 +58,8 @@ CONST
 		DefaultRuntimeModuleName ="Runtime";
 
 		suppressModuleRegistration=FALSE;
-		MaxVirtualRegisters=32;
+
+		None=-1;
 
 TYPE
 	SupportedProcedure= PROCEDURE {DELEGATE} (CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
@@ -211,8 +211,7 @@ TYPE
 
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration; type: SyntaxTree.Type; len,port,adr: LONGINT;
-			parameter: SyntaxTree.Parameter; symbol: IntermediateCode.Section; op: IntermediateCode.Operand; section: IntermediateCode.Section;
-			reg, imm: IntermediateCode.Operand;
+			parameter: SyntaxTree.Parameter; symbol: IntermediateCode.Section; op: IntermediateCode.Operand;
 		BEGIN
 			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
 			IF (x.actorScope.ownerModule = module.module)  THEN
@@ -241,13 +240,6 @@ TYPE
 				END;
 				parameter := parameter.nextParameter;
 			END;
-
-			(*
-			IF HasValue(x.modifiers,"DataMemorySize",dataMemorySize) THEN
-				instanceType.SetDataMemorySize(dataMemorySize);
-			END;
-			*)
-
 
 			Scope(x.actorScope);
 		END VisitActorType;
@@ -291,7 +283,7 @@ TYPE
 		PROCEDURE VisitTypeDeclaration(x: SyntaxTree.TypeDeclaration);
 		BEGIN
 			Type(x.declaredType); (* => code in objects *)
-			IF x.declaredType.resolved IS SyntaxTree.PointerType THEN
+			IF ~(x.declaredType IS SyntaxTree.QualifiedType) & (x.declaredType.resolved IS SyntaxTree.PointerType) THEN
 				Type(x.declaredType.resolved(SyntaxTree.PointerType).pointerBase);
 			END;
 		END VisitTypeDeclaration;
@@ -449,10 +441,14 @@ TYPE
 						IF stackSize <0 THEN stackSize := -stackSize END;
 						Basic.Align(stackSize,system.AlignmentOf(system.parameterAlignment,system.byteType));  (* round up to parameter alignment *)
 					END;
+					(*
 					ir.Emit(Nop()); (* placeholder for stack frame check *)
 					ir.Emit(Nop()); (* placeholder for stack frame check (2) *)
+					*)
 					ir.Emit(Nop()); (* placeholder for enter *)
+					(*
 					ir.Emit(Nop()); (* placeholder for fill *)
+					*)
 					ir.EnterValidPAF;
 				END;
 
@@ -479,7 +475,7 @@ TYPE
 						END;
 						*)
 					END;
-					ir.EmitAt(pc+2,Enter(cc,ToMemoryUnits(system,stackSize))); (*!!*)
+					ir.EmitAt(pc(*+2*),Enter(cc,ToMemoryUnits(system,stackSize))); (*!!*)
 					IF stackSize > 0 THEN
 						IF (stackSize MOD system.addressSize = 0) THEN
 							null := IntermediateCode.Immediate(GetType(system,system.addressType),0);
@@ -502,7 +498,7 @@ TYPE
 					parSize := ProcedureParametersSize(system,x);
 					IF (procedureType.returnType = NIL) OR (scope.body.code # NIL)  THEN
 						ir.Emit(Leave(cc));
-						ir.Emit(Return(parSize));
+						ir.Emit(Exit(parSize));
 					ELSE
 						ir.Emit(Trap(ReturnTrap));
 					END
@@ -514,7 +510,7 @@ TYPE
 				implementationVisitor.Body(scope.body,currentScope,ir,x = module.module.moduleScope.bodyProcedure);
 				ir.ExitValidPAF;
 				ir.Emit(Leave(cc));
-				ir.Emit(Return(parSize));
+				ir.Emit(Exit(parSize));
 			END;
 			Scope(scope);
 			Parameters;
@@ -566,7 +562,6 @@ TYPE
 			END EnsureBodyProcedure;
 
 			PROCEDURE TypeNeedsInitialization(type: SyntaxTree.Type): BOOLEAN;
-			VAR variable: SyntaxTree.Variable;
 			BEGIN
 				type := type.resolved;
 				IF type IS SyntaxTree.RecordType THEN
@@ -629,8 +624,82 @@ TYPE
 
 	END DeclarationVisitor;
 
-	Register = RECORD count: LONGINT; type: IntermediateCode.Type; acquirePosition: LONGINT END;
-	Registers= ARRAY 32 OF Register;
+	UsedArray*=POINTER TO ARRAY OF RECORD count: LONGINT; map: LONGINT; type: IntermediateCode.Type END;
+	RegisterUsage*=OBJECT
+	VAR used: UsedArray; count: LONGINT;
+
+		PROCEDURE &Init;
+		VAR i: LONGINT;
+		BEGIN
+			count := 0;
+			IF used = NIL THEN NEW(used,64); END;
+			FOR i := 0 TO LEN(used)-1 DO used[i].count := 0 END;
+		END Init;
+
+		PROCEDURE Grow;
+		VAR new: UsedArray; size,i: LONGINT;
+		BEGIN
+			size := LEN(used)*2;
+			NEW(new,size);
+			FOR i := 0 TO LEN(used)-1 DO
+				new[i].count := used[i].count;
+				new[i].type := used[i].type;
+				new[i].map := used[i].map
+			END;
+			FOR i := LEN(used) TO LEN(new)-1 DO new[i].count := 0 END;
+			used := new
+		END Grow;
+
+		PROCEDURE Next(type: IntermediateCode.Type): LONGINT;
+		BEGIN
+			INC(count);
+			IF count = LEN(used) THEN Grow END;
+			used[count].type := type;
+			used[count].map := count;
+			RETURN count;
+		END Next;
+
+		PROCEDURE IncUse(register: LONGINT);
+		BEGIN
+			INC(used[register].count);
+		END IncUse;
+
+		PROCEDURE DecUse(register: LONGINT);
+		BEGIN
+			DEC(used[register].count);
+		END DecUse;
+
+		PROCEDURE Map(register: LONGINT): LONGINT;
+		VAR map : LONGINT;
+		BEGIN
+			IF register > 0 THEN
+				map := used[register].map;
+				WHILE register # map DO register := map; map := used[register].map END;
+			END;
+			RETURN register
+		END Map;
+
+		PROCEDURE Remap(register: LONGINT; to: LONGINT);
+		BEGIN
+			used[register].map := to
+		END Remap;
+
+
+		PROCEDURE Use(register: LONGINT): LONGINT;
+		BEGIN
+			IF register < LEN(used) THEN
+				RETURN used[register].count
+			ELSE
+				RETURN 0
+			END
+		END Use;
+
+	END RegisterUsage;
+
+	RegisterEntry = POINTER TO RECORD
+		prev,next: RegisterEntry;
+		register: LONGINT;
+	END;
 
 	ImplementationVisitor =OBJECT(SyntaxTree.Visitor)
 	VAR
@@ -661,7 +730,11 @@ TYPE
 		conditional: BOOLEAN;
 		trueLabel, falseLabel: Label;
 		locked: BOOLEAN;
+		(*
 		usedRegisters: Registers;
+		*)
+		registerUsage: RegisterUsage;
+		usedRegisters: RegisterEntry;
 
 		(* useful operands and types *)
 		nil,fp,sp,true,false: IntermediateCode.Operand;
@@ -679,7 +752,6 @@ TYPE
 
 		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
-		VAR i: LONGINT;
 		BEGIN
 			SELF.system := system;
 			SELF.runtimeModuleName := runtime;
@@ -701,10 +773,7 @@ TYPE
 			fp := IntermediateCode.Register(addressType,IntermediateCode.FP);
 			sp := IntermediateCode.Register(addressType,IntermediateCode.SP);
 			nil := IntermediateCode.Immediate(addressType,0);
-			FOR i := 0 TO LEN(usedRegisters)-1 DO
-				usedRegisters[i].count := 0;
-				usedRegisters[i].acquirePosition := -1;
-			END;
+
 			IntermediateCode.InitOperand(destination);
 			tagsAvailable := TRUE;
 			supported := supportedProcedure;
@@ -718,20 +787,28 @@ TYPE
 			SELF.newObjectFile := newObjectFile;
 			currentActorScope := NIL;
 			indexCounter := 0;
+			NEW(registerUsage);
+			usedRegisters := NIL;
 		END Init;
+
+		PROCEDURE AcquireRegister(CONST type: IntermediateCode.Type): LONGINT;
+		VAR new: LONGINT;
+		BEGIN
+			new :=  registerUsage.Next(type);
+			UseRegister(new);
+			RETURN new
+		END AcquireRegister;
 
 		PROCEDURE GetIndex(): LONGINT;
 		BEGIN
 			INC(indexCounter); RETURN indexCounter
 		END GetIndex;
 
-
 		PROCEDURE TraceEnter(CONST s: ARRAY OF CHAR);
 		BEGIN
 			IF dump # NIL THEN
 				dump.String("enter "); dump.String(s); dump.Ln;
 			END;
-			D.String("enter"); D.String(s); D.Ln;
 		END TraceEnter;
 
 		PROCEDURE TraceExit(CONST s: ARRAY OF CHAR);
@@ -739,13 +816,21 @@ TYPE
 			IF dump # NIL THEN
 				dump.String("exit "); dump.String(s); dump.Ln;
 			END;
-			D.String("exit"); D.String(s); D.Ln;
 		END TraceExit;
 
 
 		PROCEDURE Emit(instruction: IntermediateCode.Instruction);
 		VAR moduleName, procedureName: SyntaxTree.String;
+
+			PROCEDURE CheckRegister(VAR op: IntermediateCode.Operand);
+			BEGIN
+				IF op.register >0 THEN IntermediateCode.SetRegister(op,registerUsage.Map(op.register)) END;
+			END CheckRegister;
+
 		BEGIN
+			CheckRegister(instruction.op1);
+			CheckRegister(instruction.op2);
+			CheckRegister(instruction.op3);
 			IF supported(instruction,moduleName,procedureName) THEN section.Emit(instruction)
 			ELSE Emulate(instruction,moduleName,procedureName);
 			END;
@@ -870,81 +955,46 @@ TYPE
 			trueLabel := prevTrue;falseLabel := prevFalse;conditional := prevConditional;
 		END Condition;
 
-		(** registers **)
-		PROCEDURE AcquireThisRegister(type: IntermediateCode.Type; register: SHORTINT);
-		VAR op: IntermediateCode.Operand;
+		PROCEDURE NewRegisterOperand(type: IntermediateCode.Type): IntermediateCode.Operand;
+		VAR op: IntermediateCode.Operand; reg: LONGINT;
 		BEGIN
-			usedRegisters[register].type := type;
-			IF TraceRegisters & (dump # NIL) THEN dump.String("acquire register: "); END;
-			UseRegister(register);
-			IntermediateCode.InitRegister(op,usedRegisters[register].type,register);
-			usedRegisters[register].acquirePosition := section.pc;
-		END AcquireThisRegister;
+			reg := AcquireRegister(type);
+			IntermediateCode.InitRegister(op, type, reg);
+			RETURN op
+		END NewRegisterOperand;
 
-		PROCEDURE AcquireRegister(type: IntermediateCode.Type): SHORTINT;
-		VAR i: SHORTINT;
+		PROCEDURE UnuseRegister(register: LONGINT);
 		BEGIN
-			i := 1;
-			WHILE (i < LEN(usedRegisters)) & (usedRegisters[i].count # 0) DO
-				INC(i)
+			IF (register > 0) THEN
+				registerUsage.DecUse(register);
+				IF registerUsage.Use(register)=0 THEN RemoveRegisterEntry(usedRegisters,register) END;
 			END;
-			Assert(i<LEN(usedRegisters),"not enough virtual registers");
-			AcquireThisRegister(type,i);
-			RETURN i
-		END AcquireRegister;
+		END UnuseRegister;
 
-		PROCEDURE UseRegister(i: SHORTINT);
+		PROCEDURE UseRegister(register: LONGINT);
 		BEGIN
-			INC(usedRegisters[i].count);
-			IF TraceRegisters & (dump # NIL) THEN
-				dump.String("use register: ");
-				IntermediateCode.DumpType(dump,usedRegisters[i].type);
-				IntermediateCode.DumpRegister(dump,i);
-				dump.String("(");
-				dump.Int(usedRegisters[i].count,1);
-				dump.String(")");
-				dump.Ln; dump.Update
+			IF (register > 0) THEN
+				registerUsage.IncUse(register);
+				IF registerUsage.Use(register)=1 THEN AddRegisterEntry(usedRegisters,register) END;
 			END;
 		END UseRegister;
 
-		PROCEDURE ReleaseRegister(i: SHORTINT);
-		VAR op: IntermediateCode.Operand;
-		BEGIN
-			(*
-			Assert (usedRegisters[i] > 0,"release on unused register");
-			*)
-			DEC(usedRegisters[i].count);
-			IF TraceRegisters & (dump # NIL) THEN
-				dump.String("release register:");
-				IntermediateCode.DumpType(dump,usedRegisters[i].type);
-				IntermediateCode.DumpRegister(dump,i);
-				dump.String("(");
-				dump.Int(usedRegisters[i].count,1);
-				dump.String(")");
-				dump.Ln; dump.Update
-			END;
-			IF (usedRegisters[i].count < 0) THEN
-				Error(position,"compiler implementation error: release on unused register");
-				usedRegisters[i].count := 0;
-			END;
-		END ReleaseRegister;
-
 		PROCEDURE ReleaseIntermediateOperand(CONST op: IntermediateCode.Operand);
 		BEGIN
-			IF (op.register > 0) THEN ReleaseRegister(op.register) END;
+			UnuseRegister(op.register)
 		END ReleaseIntermediateOperand;
 
 		PROCEDURE UseIntermediateOperand(CONST op: IntermediateCode.Operand);
 		BEGIN
-			IF (op.register > 0) THEN UseRegister(op.register) END;
+			UseRegister(op.register)
 		END UseIntermediateOperand;
 
 		(* OLIVIER *)
 		PROCEDURE ReleaseOperand(CONST op: Operand);
 		BEGIN
-			IF (op.op.register > 0) THEN ReleaseRegister(op.op.register) END;
-			IF (op.tag.register > 0) THEN ReleaseRegister(op.tag.register) END;
-			IF (op.extra.register > 0) THEN ReleaseRegister(op.extra.register) END;
+			UnuseRegister(op.op.register);
+			UnuseRegister(op.tag.register);
+			UnuseRegister(op.extra.register);
 		END ReleaseOperand;
 
 		(* OLIVIER *)
@@ -958,99 +1008,50 @@ TYPE
 		(* save registers marked in array "markedRegisters" to the stack
 			remove entries from array "markedRegisters" and save to array "saved" (=> recursion possible)
 		*)
-		PROCEDURE SaveRegisters(VAR saved: Registers);
-		VAR i: SHORTINT; op: IntermediateCode.Operand;
+		PROCEDURE SaveRegisters();
+		VAR op: IntermediateCode.Operand; entry: RegisterEntry; type: IntermediateCode.Type;
 		BEGIN
-			FOR i := 1 TO LEN(usedRegisters)-1 DO
-				IF usedRegisters[i].count > 0 THEN
-					IntermediateCode.InitRegister(op,usedRegisters[i].type,i);
-					saved[i] := usedRegisters[i];
-					IF TraceRegisters & (dump # NIL) THEN
-						dump.String("save register: ");
-						IntermediateCode.DumpType(dump,usedRegisters[i].type);
-						IntermediateCode.DumpRegister(dump,i);
-					END;
-					Emit(Push(op));
-					(*Emit(Release(op));*)
-
-				ELSE
-					ASSERT(usedRegisters[i].count = 0);
-					saved[i].count := 0
-				END;
+			entry := usedRegisters;
+			WHILE entry # NIL DO
+				type := registerUsage.used[entry.register].type;
+				IntermediateCode.InitRegister(op,type,entry.register);
+				Emit(Push(op));
+				entry := entry.next;
 			END;
 		END SaveRegisters;
 
-		PROCEDURE ReleaseUsedRegisters();
-		VAR i: SHORTINT; op: IntermediateCode.Operand;
+		PROCEDURE ReleaseUsedRegisters(VAR saved: RegisterEntry);
 		BEGIN
-			FOR i := 1 TO LEN(usedRegisters)-1 DO
-				IF usedRegisters[i].count > 0 THEN
-					usedRegisters[i].count := 0;
-				END;
-			END;
+			saved := usedRegisters;
+			usedRegisters := NIL;
 		END ReleaseUsedRegisters;
 
-
 		(* restore registers from array saved and re-enter into array markedRegisters (recursion possible) *)
-		PROCEDURE RestoreRegisters(CONST saved: Registers);
-		VAR i,new: SHORTINT; op: IntermediateCode.Operand;
+		PROCEDURE RestoreRegisters(CONST saved: RegisterEntry);
+		VAR op: IntermediateCode.Operand; entry,prev: RegisterEntry; type: IntermediateCode.Type;
 		BEGIN
-			FOR i := LEN(usedRegisters)-1 TO 1 BY -1 DO
-				IF (i= IntermediateCode.Result) OR (i=IntermediateCode.Result2) THEN
-					(* result register might be acquired already  *)
-				ELSIF usedRegisters[i].count > 0 THEN ErrorI("register not released:",i)
-				ELSIF usedRegisters[i].count < 0 THEN ErrorI("register released too often:",i);
-				END;
-				(*
-				Assert(usedRegisters[i].count = 0,"restore registers after register has been acquired");
-				*)
-				IF saved[i].count > 0  THEN
-					(*
-					register change does not work here: old register numbers are still in use in expressions!
-					new := AcquireRegister(saved[i].type);
-					usedRegisters[new].count := saved[i].count;
-					usedRegisters[new].type := saved[i].type;
-					IntermediateCode.InitRegister(op,saved[i].type,new);
-					*)
-
-					IntermediateCode.InitRegister(op,saved[i].type,i);
-					usedRegisters[i] := saved[i];
-
-					IF TraceRegisters & (dump # NIL) THEN
-						dump.String("restore register: ");
-						IntermediateCode.DumpType(dump,usedRegisters[i].type);
-						IntermediateCode.DumpRegister(dump,i);
-						dump.String("(");
-						dump.Int(usedRegisters[i].count,1);
-						dump.String(")");
-					END;
-
-					usedRegisters[i].acquirePosition := section.pc;
-					Emit(Pop(op));
-				END;
+			entry := saved;
+			WHILE (entry # NIL) DO prev := entry; entry := entry.next END;
+			entry := prev;
+			WHILE entry # NIL DO
+				prev := entry.prev;
+				type := registerUsage.used[entry.register].type;
+				IntermediateCode.InitRegister(op,type,entry.register);
+				registerUsage.Remap(entry.register,registerUsage.Next(type));
+				Emit(Pop(op));
+				AddRegisterEntry(usedRegisters,entry.register);
+				entry := prev;
 			END;
+			(*
+			usedRegisters := saved;
+			*)
 		END RestoreRegisters;
 
 		PROCEDURE CheckRegistersFree;
-		VAR i: SHORTINT;
 		BEGIN
-			FOR i := 0 TO LEN(usedRegisters)-1 DO
-				IF usedRegisters[i].count # 0 THEN
-					IF (dump # NIL) THEN
-						dump.String("implementation error: register not released: ");
-						IntermediateCode.DumpType(dump,usedRegisters[i].type);
-						IntermediateCode.DumpRegister(dump,i);
-						dump.String("(");
-						dump.Int(usedRegisters[i].count,1);
-						dump.String(")");
-						dump.Ln;
-						dump.Update;
-					END;
-					Error(position,"register not released");
-					usedRegisters[i].count := 0
-				END;
+			IF usedRegisters # NIL THEN
+				Error(position,"register not released");
 			END;
-
 		END CheckRegistersFree;
 
 
@@ -1380,14 +1381,6 @@ TYPE
 			END;
 		END Error;
 
-		PROCEDURE ErrorI(CONST s: ARRAY OF CHAR; i: LONGINT);
-		VAR msg: SyntaxTree.String;
-		BEGIN
-			COPY(s,msg);
-			Basic.AppendNumber(msg,i);
-			Error(position,msg);
-		END ErrorI;
-
 		PROCEDURE AddImport(CONST moduleName: ARRAY OF CHAR; VAR module: SyntaxTree.Module; force: BOOLEAN): BOOLEAN;
 		VAR import: SyntaxTree.Import;
 			s: Scanner.StringType;
@@ -1424,16 +1417,15 @@ TYPE
 		VAR
 			machine: SyntaxTree.Module;
 			procedure: SyntaxTree.Procedure;
-			saved: Registers;
+			saved: RegisterEntry;
 			s: Scanner.StringType;
-			reg: IntermediateCode.Operand;
 			prevResult: Operand;
 		BEGIN
 			IF AddImport(moduleName,machine,TRUE) THEN
-				IF x.op1.register > 0 THEN
-					ReleaseRegister(x.op1.register); (* avoid push on acquired but not yet set destination register *)
-				END;
-				SaveRegisters(saved);
+				(*IF x.op1.register > 0 THEN
+					registers.Unuse(x.op1.register); (* avoid push on acquired but not yet set destination register *)
+				END;*)
+				IF x.op1.register >0 THEN RemoveRegisterEntry(usedRegisters,x.op1.register) END;
 				procedure := machine.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(-1,procedureName));
 				IF procedure = NIL THEN
 					s := "Instruction not supported on target, emulation procedure ";
@@ -1443,18 +1435,26 @@ TYPE
 					Strings.Append(s," not present");
 					Error(position,s);
 				ELSE
+					prevResult := result;
+					StaticCallOperand(result,procedure);
+					SaveRegisters();
 					IF x.op2.mode # IntermediateCode.Undefined THEN
 						Emit(Push(x.op2));
 					END;
 					IF x.op3.mode # IntermediateCode.Undefined THEN
 						Emit(Push(x.op3));
 					END;
-					prevResult := result;
-					StaticCallOperand(result,procedure);
-					ReleaseUsedRegisters();
+					ReleaseUsedRegisters(saved);
 					Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
+					(*IF x.op1.register > 0 THEN
+						registers.Use(x.op1.register); (* avoid push on acquired but not yet set destination register *)
+					END;*)
+					Emit(Result(x.op1));
 					result := prevResult;
+					RestoreRegisters(saved);
+					IF x.op1.register >0 THEN AddRegisterEntry(usedRegisters,x.op1.register) END;
 				END;
+				(*
 				AcquireThisRegister(x.op1.type,IntermediateCode.Result);
 				RestoreRegisters(saved);
 				IF x.op1.register > 0 THEN
@@ -1467,6 +1467,7 @@ TYPE
 				IntermediateCode.InitRegister(reg,x.op1.type,IntermediateCode.Result);
 				Emit(Mov(x.op1,reg));
 				ReleaseIntermediateOperand(reg);
+				*)
 			END;
 		END Emulate;
 
@@ -1616,23 +1617,25 @@ TYPE
 			END;
 		END CallThis;
 		(* call moduleName.procedureName if it can be imported, otherwise use altModuleName.altProcedureName  *)
-		PROCEDURE CallThis2(CONST moduleName, procedureName,altModuleName, altProcedureName: ARRAY OF CHAR);
-		VAR procedure: SyntaxTree.Procedure; result: Operand; reg: IntermediateCode.Operand; source: IntermediateCode.Section;
+		PROCEDURE CallThis2(CONST moduleName, procedureName,altModuleName, altProcedureName: ARRAY OF CHAR; return: IntermediateCode.Operand);
+		VAR procedure: SyntaxTree.Procedure; result: Operand; address: IntermediateCode.Operand; source: IntermediateCode.Section;
 			name: SyntaxTree.String;
 		BEGIN
 			IF GetRuntimeProcedure(moduleName,procedureName,procedure,FALSE) THEN (* ready for dynamic linking *)
 				StaticCallOperand(result,procedure);
 				Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
+				Emit(Result(return));
 				ReleaseOperand(result);
 			ELSE (* only static linking possible *)
 				COPY(altModuleName, name); Strings.Append(name,"."); Strings.Append(name,altProcedureName);
 				IF currentActorScope # NIL THEN
 					(* currentActorScope.AddImport(importedModule);*)
 				END;
-
 				source := IntermediateCode.NewSection(module.importedSymbols, Sections.CodeSection,name, NIL,commentPrintout # NIL);
-				IntermediateCode.InitAddress(reg, addressType, source , 0);
-				Emit(Call(reg, 0));
+				IntermediateCode.InitAddress(address, addressType, source , 0);
+				Emit(Call(address, 0));
+
+				Emit(Result(return));
 			END;
 		END CallThis2;
 
@@ -1641,14 +1644,14 @@ TYPE
 			left,right: Operand;
 			leftSize, rightSize: IntermediateCode.Operand;
 			procedure: SyntaxTree.Procedure;
-			saved: Registers;
+			saved: RegisterEntry;
 			reg: IntermediateCode.Operand;
 			procedureName: SyntaxTree.String;
 		BEGIN
 			procedureName := "CompareString";
 
 			IF GetRuntimeProcedure(runtimeModuleName,procedureName,procedure,TRUE) THEN
-				SaveRegisters(saved);ReleaseUsedRegisters();
+				SaveRegisters();ReleaseUsedRegisters(saved);
 				Designate(leftExpression,left);
 				leftSize := GetDynamicSize(leftExpression.type,left.tag);
 				Emit(Push(leftSize));
@@ -1664,11 +1667,17 @@ TYPE
 				ReleaseOperand(right);
 
 				StaticCallOperand(result,procedure);
+				IntermediateCode.InitRegister(reg,int8,AcquireRegister(int8));
 				Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
+				Emit(Result(reg));
 				ReleaseOperand(result);
+				(*
 				AcquireThisRegister(int8,IntermediateCode.Result);
+				*)
 				RestoreRegisters(saved); (* must be done before use of result, might be jumped over otherwise *)
+				(*
 				IntermediateCode.InitRegister(reg,int8,IntermediateCode.Result);
+				*)
 				br(trueLabel,reg,IntermediateCode.Immediate(int8,0));
 				ReleaseIntermediateOperand(reg);
 				BrL(falseLabel);
@@ -1680,13 +1689,13 @@ TYPE
 			left,right: Operand;
 			leftSize, rightSize: IntermediateCode.Operand;
 			procedure: SyntaxTree.Procedure;
-			saved: Registers;
+			saved: RegisterEntry;
 			procedureName: SyntaxTree.String;
 		BEGIN
 			procedureName := "CopyString";
 
 			IF GetRuntimeProcedure(runtimeModuleName,procedureName,procedure,TRUE) THEN
-				SaveRegisters(saved);ReleaseUsedRegisters();
+				SaveRegisters();ReleaseUsedRegisters(saved);
 				Designate(leftExpression,left);
 				leftSize := GetDynamicSize(leftExpression.type,left.tag);
 				Emit(Push(leftSize));
@@ -2699,23 +2708,6 @@ TYPE
 
 		END MathIndexDesignator;
 
-		(* OLIVIER *)
-		(* TENTATIVE *)
-		PROCEDURE DumpOperand(operand: Operand);
-		BEGIN
-			D.Log.String("    op = ");
-			IntermediateCode.DumpOperand(D.Log, operand.op, TRUE);
-			D.Log.Ln;
-			D.Log.String("    tag = ");
-			IntermediateCode.DumpOperand(D.Log, operand.tag, TRUE);
-			D.Log.Ln;
-			D.Log.String("    extra = ");
-			IntermediateCode.DumpOperand(D.Log, operand.extra, TRUE);
-			D.Log.Ln;
-			D.Log.Update
-		END DumpOperand;
-
-
 		PROCEDURE IndexDesignator(x: SyntaxTree.IndexDesignator);
 		VAR length,res: IntermediateCode.Operand; type: SyntaxTree.Type; maxDim: LONGINT; array:Operand;
 			index: Operand; e: SyntaxTree.Expression;i: LONGINT; size: LONGINT;
@@ -2830,7 +2822,7 @@ TYPE
 
 		PROCEDURE PrepareTensorDescriptor(expression: SyntaxTree.IndexDesignator): SyntaxTree.Variable;
 		VAR variable: SyntaxTree.Variable; srcOperand,destOperand,procOp: Operand;
-			moduleName, procedureName: SyntaxTree.String; arrayBase: SyntaxTree.Module; saved: Registers; s: SyntaxTree.String;
+			moduleName, procedureName: SyntaxTree.String; arrayBase: SyntaxTree.Module; saved: RegisterEntry; s: SyntaxTree.String;
 			procedure: SyntaxTree.Procedure;
 			parameters: SyntaxTree.ExpressionList; e: SyntaxTree.Expression;
 			prefixIndices, prefixRanges, suffixIndices, suffixRanges,i : LONGINT; tensorFound: BOOLEAN;
@@ -2841,7 +2833,7 @@ TYPE
 			moduleName := "OCArrayBase";
 			procedureName := "CopyDescriptor";
 			IF AddImport(moduleName,arrayBase,TRUE) THEN
-				SaveRegisters(saved);ReleaseUsedRegisters();
+				SaveRegisters();ReleaseUsedRegisters(saved);
 				procedure := arrayBase.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(-1,procedureName));
 				IF procedure = NIL THEN
 					s := "procedure ";
@@ -3399,14 +3391,14 @@ TYPE
 		PROCEDURE VisitProcedureCallDesignator(x: SyntaxTree.ProcedureCallDesignator);
 		VAR
 			parameters: SyntaxTree.ExpressionList;
-			d, actualParameter, expression: SyntaxTree.Expression;
+			d, actualParameter: SyntaxTree.Expression;
 			designator: SyntaxTree.Designator;
 			procedureType: SyntaxTree.ProcedureType;
 			formalParameter: SyntaxTree.Parameter;
 			noPush: Label;
 			operand: Operand;
 			reg, size, mem, mask, dest: IntermediateCode.Operand;
-			saved: Registers;
+			saved: RegisterEntry;
 			symbol: SyntaxTree.Symbol;
 			variable: SyntaxTree.Variable;
 			i, parametersSize, returnTypeSize, returnTypeOffset: LONGINT;
@@ -3428,7 +3420,10 @@ TYPE
 			oldConditional: BOOLEAN;
 			oldTrueLabel, oldFalseLabel: Label;
 			oldLocked: BOOLEAN;
-			oldUsedRegisters: Registers;
+			registerUsage: RegisterUsage;
+			usedRegisters,oldUsedRegisters: RegisterEntry;
+
+			return: IntermediateCode.Operand;
 
 			(* OLIVIER *)
 			PROCEDURE BackupGlobalState;
@@ -3526,7 +3521,7 @@ TYPE
 		BEGIN
 			IF Trace THEN TraceEnter("VisitProcedureCallDesignator") END;
 			dest := destination; destination := emptyOperand;
-			SaveRegisters(saved);ReleaseUsedRegisters();
+			SaveRegisters();ReleaseUsedRegisters(saved);
 
 			procedureType := x.left.type.resolved(SyntaxTree.ProcedureType);
 			parameters := x.parameters;
@@ -3632,7 +3627,7 @@ TYPE
 					END;
 				END;
 				*)
-				IF (procedureType.isDelegate) THEN
+				IF (procedureType.isDelegate) THEN (* push self pointer only if procedure is a method *)
 					noPush := NewLabel();
 					BreqL(noPush,operand.tag,nil);
 					Emit(Push(operand.tag));
@@ -3642,13 +3637,19 @@ TYPE
 			ELSE HALT(200);
 			END;
 			Emit(Call(operand.op,parametersSize));
+			IF (procedureType.returnType # NIL) & ~structuredReturnType THEN
+				return := NewRegisterOperand(GetType(system,procedureType.returnType));
+				Emit(Result(return));
+			END;
 			ReleaseOperand(operand);
+			(*
 			IF (procedureType.returnType # NIL) & ~structuredReturnType THEN
 				AcquireThisRegister(GetType(system,procedureType.returnType),IntermediateCode.Result);
 				IF IsDelegate(procedureType.returnType) THEN
 						AcquireThisRegister(GetType(system,procedureType.returnType),IntermediateCode.Result2);
 				END;
 			END;
+			*)
 			IF procedureType.callingConvention = SyntaxTree.CCallingConvention THEN
 				size := IntermediateCode.Immediate(addressType,parametersSize);
 				Emit(Add(sp,sp,size));
@@ -3679,19 +3680,25 @@ TYPE
 				ELSE
 					RestoreRegisters(saved);
 					InitOperand(result,ModeValue);
+					result.op := return;
+
+					(*
 					IntermediateCode.InitRegister(reg,GetType(system,procedureType.returnType),IntermediateCode.Result);
+
 
 
 					IntermediateCode.InitRegister(result.op,GetType(system,procedureType.returnType),AcquireRegister(GetType(system,procedureType.returnType)));
 					Emit(Mov(result.op,reg));
 					ReleaseIntermediateOperand(reg);
-
+					*)
+					(*
 					IF IsDelegate(procedureType.returnType) THEN
 						IntermediateCode.InitRegister(reg,addressType,IntermediateCode.Result2);
 						IntermediateCode.InitRegister(result.tag,addressType,AcquireRegister(addressType));
 						Emit(Mov(result.tag,reg));
 						ReleaseIntermediateOperand(reg);
 					END;
+					*)
 				END;
 			END;
 
@@ -4090,7 +4097,7 @@ TYPE
 		END InitFields;
 
 		PROCEDURE InitVariable(VAR variable: SyntaxTree.Variable);
-		VAR type,baseType: SyntaxTree.Type; operand: Operand; imm: IntermediateCode.Operand; dim: LONGINT;
+		VAR type: SyntaxTree.Type; operand: Operand;
 		BEGIN
 			type := variable.type.resolved;
 			IF (type IS SyntaxTree.MathArrayType) THEN
@@ -4281,6 +4288,8 @@ TYPE
 				result.op := res;
 			END;
 		END MathArrayLenOrIncr;
+
+
 
 		PROCEDURE ArrayLen(type: SyntaxTree.ArrayType; VAR operand: Operand; VAR dim: IntermediateCode.Operand; VAR result: Operand );
 		VAR val: LONGINT; res,res2: IntermediateCode.Operand; end,next: Label; t: SyntaxTree.Type; imm: IntermediateCode.Operand; hasDynamicPart: BOOLEAN;
@@ -5278,6 +5287,7 @@ TYPE
 				s1 := result;
 				type :=p0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
 				IF s1.mode = ModeReference THEN
+					(* nothing to  be done if not record type, just take over new type *)
 					IF (type IS SyntaxTree.RecordType) THEN
 						ReleaseIntermediateOperand(s1.tag);
 						s1.tag := TypeDescriptorAdr(type);
@@ -5286,10 +5296,21 @@ TYPE
 						END;
 						UseIntermediateOperand(s1.tag);
 					END;
-				ELSE
-					Convert(s1.op, GetType(system,type));
+					result := s1;
+				ELSE (* copy over result to different type, may not use convert *)
+					itype := GetType(system,type);
+					IF itype.sizeInBits = s1.op.type.sizeInBits THEN
+						IntermediateCode.InitRegister(s0.op,itype,AcquireRegister(itype));
+						Emit(Mov(s0.op,s1.op));
+						ReleaseOperand(s1);
+						InitOperand(result,ModeValue);
+						result.op := s0.op;
+					ELSE (* different size, must convert *) 
+						(*! this is not very clean, should we forbid conversions between operands with different sizes or should we implement a cutting move ??? *)
+						Convert(s1.op, GetType(system,type));
+						result := s1;
+					END;
 				END;
-				result := s1;
 			(* ---- SYSTEM.GET ----- *)
 			|Global.systemGet:
 				Evaluate(p0,s0); (* adr *)
@@ -5971,7 +5992,7 @@ TYPE
 		VAR leftType, rightType: SyntaxTree.MathArrayType;
 			leftBase, rightBase: SyntaxTree.Type;
 			procedureName,s: SyntaxTree.String;
-			arrayBase: SyntaxTree.Module; saved: Registers;  procedure: SyntaxTree.Procedure; parameter: SyntaxTree.Parameter;
+			arrayBase: SyntaxTree.Module; saved: RegisterEntry;  procedure: SyntaxTree.Procedure; parameter: SyntaxTree.Parameter;
 			size: LONGINT; rightKind: LONGINT;
 		CONST moduleName = "OCArrayBase";
 
@@ -5987,10 +6008,9 @@ TYPE
 				RETURN result
 			END OpenArray;
 
-
 		BEGIN
 			IF AddImport(moduleName,arrayBase,TRUE) THEN
-				SaveRegisters(saved);ReleaseUsedRegisters();
+				SaveRegisters();ReleaseUsedRegisters(saved);
 				leftType := left.type.resolved(SyntaxTree.MathArrayType);
 				rightType := right.type.resolved(SyntaxTree.MathArrayType);
 				leftBase := SemanticChecker.ArrayBase(leftType,MAX(LONGINT));
@@ -6039,7 +6059,6 @@ TYPE
 			mem: IntermediateCode.Operand;
 			leftType, rightType: SyntaxTree.Type;
 			size: LONGINT;
-			arrayRangeExpression: SyntaxTree.ArrayRangeExpression;
 		BEGIN
 			ASSERT(left.type # NIL); ASSERT(right.type # NIL);
 			leftType := left.type.resolved; rightType:= right.type.resolved;
@@ -6348,14 +6367,13 @@ TYPE
 		PROCEDURE VisitReturnStatement(x: SyntaxTree.ReturnStatement);
 		VAR
 			expression, parameterDesignator: SyntaxTree.Expression;
-			arrayRangeExpression: SyntaxTree.ArrayRangeExpression;
 			type: SyntaxTree.Type;
 			res, right: Operand;
-			left, size, mem: IntermediateCode.Operand;
+			left, size, mem, reg: IntermediateCode.Operand;
 			parameter: SyntaxTree.Parameter;
 			procedure: SyntaxTree.Procedure;
 			procedureType: SyntaxTree.ProcedureType;
-			parSize, returnTypeOffset, cc: LONGINT;
+			parSize, returnTypeOffset: LONGINT;
 			delegate: BOOLEAN;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitReturnStatement") END;
@@ -6365,36 +6383,48 @@ TYPE
 				type := expression.type.resolved;
 				IF (expression IS SyntaxTree.SymbolDesignator) & (expression(SyntaxTree.SymbolDesignator).symbol = procedureType.returnParameter) THEN
 					(* "RETURN RESULT" -> no assignment, it is assumed that result has been written to return parameter via structured return type *)
-				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.ArrayRangeType) OR
-						(type IS SyntaxTree.ProcedureType) OR (type IS SyntaxTree.PointerType) THEN
+				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.ArrayRangeType) (*OR
+						(type IS SyntaxTree.ProcedureType) & ~type(SyntaxTree.ProcedureType).isDelegate OR*) OR  (type IS SyntaxTree.PointerType) THEN
 					(* return without structured return parameter *)
 					Evaluate(expression,res);
 					delegate := (type IS SyntaxTree.ProcedureType) & (type(SyntaxTree.ProcedureType).isDelegate);
 					IF locked THEN
 						Emit(Push(res.op));
-						IF delegate THEN Emit(Push(res.tag)) END;
+						IF delegate THEN HALT(200); Emit(Push(res.tag)) END;
 						ReleaseOperand(res);
 						Lock(FALSE);
+						(*
 						IF delegate THEN
 							AcquireThisRegister(GetType(system,type),IntermediateCode.Result2);
 							Emit(Pop(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result2)));
-							ReleaseRegister(IntermediateCode.Result2);
+							registers.Unuse(IntermediateCode.Result2);
 						END;
+						*)
+						reg := NewRegisterOperand(res.op.type);
+						Emit(Pop(reg));
+						Emit(Return(reg));
+						ReleaseIntermediateOperand(reg);
+						(*
 						AcquireThisRegister(GetType(system,type),IntermediateCode.Result);
 						Emit(Pop(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result)));
-						ReleaseRegister(IntermediateCode.Result);
+						registers.Unuse(IntermediateCode.Result);
+						*)
 					ELSE
+						Emit(Return(res.op));
+						(*
 						AcquireThisRegister(GetType(system,type),IntermediateCode.Result);
 						Emit(Mov(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result),res.op));
-						ReleaseRegister(IntermediateCode.Result);
+						registers.Unuse(IntermediateCode.Result);
 						IF delegate THEN
 							AcquireThisRegister(GetType(system,type),IntermediateCode.Result2);
 							Emit(Mov(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result2),res.tag));
-							ReleaseRegister(IntermediateCode.Result2);
+							registers.Unuse(IntermediateCode.Result2);
 						END;
+						*)
 						ReleaseOperand(res);
 					END;
-				ELSIF (type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.ArrayRangeType) THEN
+				ELSIF (type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.ArrayRangeType)
+				THEN
 					(* return using structured return parameter *)
 					ASSERT((type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.ArrayRangeType) OR (type(SyntaxTree.ArrayType).form = SyntaxTree.Static));
 					(* parameter := currentScope(SyntaxTree.ProcedureScope).FindParameter(Global.ReturnParameterName); *)
@@ -6425,7 +6455,6 @@ TYPE
 						ReleaseIntermediateOperand(mem);
 
 						ReleaseOperand(right);
-
 					ELSE
 						(* not array range type *)
 						Designate(expression, right);
@@ -6436,7 +6465,7 @@ TYPE
 					ReleaseIntermediateOperand(left);
 					IF locked THEN Lock(FALSE) END
 
-				ELSIF (type IS SyntaxTree.MathArrayType) THEN
+				ELSIF (type IS SyntaxTree.MathArrayType) OR (type IS SyntaxTree.ProcedureType) THEN
 					parameter := procedureType.returnParameter;
 					checker.SetCurrentScope(currentScope);
 
@@ -6451,6 +6480,7 @@ TYPE
 					operatorCall := checker.NewOperatorCall(expression.position,Scanner.Becomes,parameterDesignator,expression,NIL);
 					Expression(operatorCall);
 					*)
+					IF locked THEN Lock(FALSE) END
 				ELSE
 					HALT(200);
 				END;
@@ -6467,7 +6497,8 @@ TYPE
 			*)
 
 			Emit(Leave(procedure.type(SyntaxTree.ProcedureType).callingConvention));
-			Emit(Return(parSize));
+			Emit(Exit(parSize));
+			(*Emit(Return(parSize));*)
 			IF Trace THEN TraceExit("VisitReturnStatement") END;
 		END VisitReturnStatement;
 
@@ -6511,9 +6542,13 @@ TYPE
 			Global.GetSymbolName(proc,name);
 			symbol := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,proc,commentPrintout # NIL);
 			IntermediateCode.InitAddress(call,addressType,symbol,0);
+			res := NewRegisterOperand(GetType(system,system.booleanType));
 			Emit(Call(call,ProcedureParametersSize(system,proc)));
+			Emit(Result(res));
+			(*
 			AcquireThisRegister(GetType(system,system.booleanType),IntermediateCode.Result);
 			IntermediateCode.InitRegister(res,GetType(system,system.booleanType),IntermediateCode.Result);
+			*)
 			InitOperand(result,ModeValue);
 			result.op := res;
 			label := NewLabel();
@@ -6662,7 +6697,7 @@ TYPE
 
 		PROCEDURE Body(x: SyntaxTree.Body; scope: SyntaxTree.Scope; ir: IntermediateCode.Section; moduleBody: BOOLEAN);
 		VAR prevScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType; procedure: SyntaxTree.Procedure;
-			end: Label;
+			end: Label;res: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("Body") END;
 			section := ir;
@@ -6674,6 +6709,7 @@ TYPE
 				commentPrintout := NIL;
 				dump := NIL;
 			END;
+			registerUsage.Init;
 
 			prevScope := currentScope;
 			currentScope := scope;
@@ -6688,11 +6724,12 @@ TYPE
 				op := IntermediateCode.Address(addressType, moduleSection, moduleOffset);
 				Emit(Push(op));
 				*)
-				CallThis2("Modules","PublishThis","Runtime","InsertModule");
+				res := NewRegisterOperand(bool);
+				CallThis2("Modules","PublishThis","Runtime","InsertModule",res);
 				end := NewLabel();
-				AcquireThisRegister(bool, IntermediateCode.Result);
-				BrneL(end, IntermediateCode.Register(bool,IntermediateCode.Result),true);
-				ReleaseRegister(IntermediateCode.Result);
+				(*AcquireThisRegister(bool, IntermediateCode.Result);*)
+				BrneL(end, res,true);
+				ReleaseIntermediateOperand(res);
 			END;
 			IF x # NIL THEN
 				section.SetAlignment(procedure.fixed, procedure.alignment);
@@ -6722,6 +6759,47 @@ TYPE
 		END Body;
 
 	END ImplementationVisitor;
+
+	AllocationArray=POINTER TO ARRAY OF RECORD
+		first, last: LONGINT
+	END;
+
+	RegisterAllocation*=OBJECT
+	VAR
+		table: AllocationArray;
+
+		PROCEDURE &Init;
+		VAR i: LONGINT;
+		BEGIN
+			IF table = NIL THEN NEW(table,64) END;
+			FOR i := 0 TO LEN(table)-1 DO
+				table[i].first := MAX(LONGINT);
+				table[i].last := MIN(LONGINT);
+			END;
+		END Init;
+
+		PROCEDURE Grow;
+		VAR new: AllocationArray; i: LONGINT;
+		BEGIN
+			NEW(new,LEN(table)*2);
+			FOR i := 0 TO LEN(table)-1 DO
+				new[i] := table[i]
+			END;
+			FOR i := LEN(table) TO LEN(new)-1 DO
+				new[i].first := MAX(LONGINT);
+				new[i].last := MIN(LONGINT);
+			END;
+			table := new;
+		END Grow;
+
+		PROCEDURE Use(register, pc: LONGINT);
+		BEGIN
+			IF LEN(table) <= register THEN Grow END;
+			IF table[register].first >pc THEN table[register].first := pc END;
+			IF table[register].last <pc THEN table[register].last := pc END;
+		END Use;
+
+	END RegisterAllocation;
 
 	IntermediateBackend*= OBJECT (Backend.Backend)
 	VAR
@@ -6758,7 +6836,7 @@ TYPE
 
 			NEW(module,x,system); (* backend structures *)
 			NEW(implementationVisitor,system,checker,Supported,Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
-			NEW(declarationVisitor,system,implementationVisitor,SELF,(Compiler.ForceModuleBodies IN flags) OR newObjectFile,trace);
+			NEW(declarationVisitor,system,implementationVisitor,SELF,Compiler.ForceModuleBodies IN flags,trace);
 			declarationVisitor.Module(x,module);
 
 
@@ -6774,8 +6852,11 @@ TYPE
 			dump: WMUtilities.WindowWriter;
 			module: Sections.Module;
 			traceName: SyntaxTree.String;
+			codeGenerator: GenericCodeGenerator;
+			in: Sections.Section; out: BinaryCode.Section;
 		BEGIN
 			module := GenerateIntermediate(x);
+
 			IF trace THEN
 				traceName := "intermediate code trace: ";
 				Strings.Append(traceName,traceString);
@@ -6788,6 +6869,23 @@ TYPE
 				END
 			END;
 
+			(*
+			NEW(codeGenerator,diagnostics,FALSE);
+			in := module.sections.first;
+			WHILE in # NIL DO
+				out := ResolvedSection(in(IntermediateCode.Section));
+				codeGenerator.Section(in(IntermediateCode.Section),out);
+				in := in.nextSection;
+			END;
+			IF trace THEN
+				IF (traceString="") OR (traceString="*") THEN
+					module.Dump(dump);
+					dump.Update
+				ELSE
+					Sections.DumpFiltered(dump,module,traceString);
+				END
+			END;
+			*)
 
 			RETURN module
 		END Module;
@@ -6820,39 +6918,312 @@ TYPE
 		BEGIN RETURN SymbolFileFormat.Get()
 		END DefaultSymbolFileFormat;
 
-
-
 	END IntermediateBackend;
+
+	(* ----------------------------------- register allocation ------------------------------------- *)
+
+
+		(* register mapping scheme
+			virtual register number	--> register mapping   = 		part(0)		-->	ticket	<-->	physical register
+																											spill offset
+
+																	part(n)		-->	ticket	<-->	physical register
+																											spill offset
+		*)
+
+
+	Ticket*=POINTER TO RECORD
+		next-: Ticket;
+		type-: IntermediateCode.Type;
+		lastuse-: LONGINT;
+		spilled*: BOOLEAN;
+		register*, offset*: LONGINT;
+		parts-: LONGINT;
+	END;
+
+	Tickets*=OBJECT
+	VAR
+		live-: Ticket;
+		free: Ticket	;
+
+		PROCEDURE &Init*;
+		BEGIN
+			live := NIL; free := NIL
+		END Init;
+
+		(* enter a new ticket into the list of live tickets, sorted by lastuse *)
+		PROCEDURE Enter*(CONST type: IntermediateCode.Type; register: LONGINT; spilled: BOOLEAN; offset: LONGINT; lastuse: LONGINT): Ticket;
+		VAR ticket,link: Ticket;
+		BEGIN
+			ASSERT(~spilled & (register # None) OR spilled & (offset # None));
+			IF free # NIL THEN ticket := free; free := free.next; ticket.next := NIL;
+			ELSE NEW(ticket)
+			END;
+			ticket.type := type;	ticket.register := register; ticket.spilled := spilled;	ticket.offset := offset; ticket.lastuse := lastuse; ticket.parts := 0;
+			IF (live = NIL) OR (live.lastuse > ticket.lastuse) THEN
+				ticket.next := live; live := ticket
+			ELSE
+				link := live;
+				WHILE (link.next # NIL) & (link.next.lastuse < ticket.lastuse) DO
+					ASSERT((link.register # ticket.register) OR ticket.spilled);
+					link := link.next;
+				END;
+				IF (link.register=ticket.register) & (~ticket.spilled & ~link.spilled) THEN Dump(D.Log); D.Update; END;
+				ASSERT((link.register # ticket.register) OR ticket.spilled OR link.spilled);
+				ticket.next := link.next; link.next := ticket;
+			END;
+			RETURN ticket
+		END Enter;
+
+		(* remove ticket from live list *)
+		PROCEDURE Remove*(ticket: Ticket);
+		VAR link: Ticket;
+		BEGIN
+			IF live=ticket THEN
+				live := live.next;
+			ELSE
+				link := live;
+				WHILE (link.next # NIL) & (link.next # ticket) DO
+					link := link.next
+				END;
+				ASSERT(link.next=ticket);
+				link.next := ticket.next;
+			END;
+			ticket.next := free; free := ticket
+		END Remove;
+
+		PROCEDURE Dump*(w: Streams.Writer);
+		VAR ticket: Ticket;
+		BEGIN
+			w.String("---- tickets.live ----- "); w.Ln;
+			ticket := live;
+			WHILE ticket # NIL DO
+				DumpTicket(w,ticket);
+				w.Ln;
+				ticket := ticket.next;
+			END;
+		END Dump;
+
+	END Tickets;
+
+	VirtualRegisterMappings=POINTER TO ARRAY OF Ticket;
+
+	VirtualRegisters*=OBJECT
+	VAR
+		tickets: VirtualRegisterMappings;
+		parts: LONGINT;
+
+		PROCEDURE &Init*(parts: LONGINT);
+		VAR i: LONGINT;
+		BEGIN
+			SELF.parts := parts;
+			IF tickets = NIL THEN NEW(tickets,64*parts) END;
+			FOR i := 0 TO LEN(tickets)-1 DO
+				tickets[i]:=NIL;
+			END;
+		END Init;
+
+		PROCEDURE Grow;
+		VAR new: VirtualRegisterMappings; i: LONGINT;
+		BEGIN
+			NEW(new,LEN(tickets)*2);
+			FOR i := 0 TO LEN(tickets)-1 DO
+				new[i] := tickets[i];
+			END;
+			FOR i := LEN(tickets) TO LEN(new)-1 DO
+				new[i]:=NIL;
+			END;
+			tickets := new;
+		END Grow;
+
+		PROCEDURE Mapped*(register: LONGINT; part: LONGINT): Ticket;
+		BEGIN
+			ASSERT((part >=0) & (part < parts));
+			IF (register > 0 ) & (register*parts < LEN(tickets)) THEN RETURN tickets[register * parts + part] ELSE RETURN NIL END;
+		END Mapped;
+
+		PROCEDURE SetMapped*(register: LONGINT; part: LONGINT; ticket: Ticket);
+		BEGIN
+			ASSERT((part >=0) & (part < parts));
+			WHILE (register*parts >= LEN(tickets)) DO Grow END;
+			tickets[register*parts+part] := ticket;
+			INC(ticket.parts);
+		END SetMapped;
+
+		PROCEDURE Unmap*(register: LONGINT);
+		VAR i: LONGINT;
+		BEGIN
+			IF (register > 0) & (register*parts < LEN(tickets)) THEN
+				FOR i := 0 TO parts-1 DO
+					tickets[register*parts+i] := NIL;
+				END;
+			END;
+		END Unmap;
+
+		PROCEDURE Parts*(): LONGINT;
+		BEGIN RETURN parts
+		END Parts;
+
+		PROCEDURE Dump*(w: Streams.Writer);
+		VAR register,part: LONGINT; ticket: Ticket;
+		BEGIN
+			w.String("---- virtual register mapping ----- "); w.Ln;
+			register := 0;
+			WHILE register*parts < LEN(tickets) DO
+				FOR part := 0 TO parts-1 DO
+					ticket := tickets[register*parts+part];
+					IF ticket # NIL THEN
+						w.String("register.part "); w.Int(register,1); w.String("."); w.Int(part,1); w.String(": ");
+						DumpTicket(w,ticket); w.Ln;
+					END;
+				END;
+				INC(register);
+			END;
+		END Dump;
+
+	END VirtualRegisters;
+
+	PhysicalRegisters*=OBJECT
+	VAR
+		PROCEDURE &InitPhysicalRegisters;
+		END InitPhysicalRegisters;
+
+
+		PROCEDURE Allocate*(index: LONGINT; virtualRegister: Ticket);
+		END Allocate;
+
+		PROCEDURE Mapped*(physical: LONGINT): Ticket;
+		END Mapped;
+
+		PROCEDURE Free*(index: LONGINT);
+		END Free;
+
+		PROCEDURE NextFree*(CONST type: IntermediateCode.Type): LONGINT;
+		END NextFree;
+
+		(* give a hint for the next register to return by NextFree *)
+		PROCEDURE AllocationHint*(index: LONGINT);
+		END AllocationHint;
+
+		PROCEDURE SetReserved*(index: LONGINT; res: BOOLEAN);
+		BEGIN
+		END SetReserved;
+
+		PROCEDURE Reserved*(index: LONGINT): BOOLEAN;
+		BEGIN
+		END Reserved;
+
+		PROCEDURE Dump*(w: Streams.Writer);
+		BEGIN
+		END Dump;
+
+		PROCEDURE NumberRegisters*(): LONGINT;
+		BEGIN
+		END NumberRegisters;
+
+
+	END PhysicalRegisters;
+
+	CONST 	MaxSpilledRegisters=64;
+
+	TYPE
+	SpillStack*=OBJECT
+	VAR
+		spillStack: ARRAY MaxSpilledRegisters OF Ticket; (* registers of spill stack position to virtual register, none if unused *)
+		spillStackSize,maxSpillStackSize: LONGINT;
+
+		PROCEDURE &Init*;
+		VAR i: LONGINT;
+		BEGIN
+			spillStackSize := 0; maxSpillStackSize := 0;
+			FOR i := 0 TO LEN(spillStack)-1 DO
+				spillStack[i] := NIL;
+			END;
+		END Init;
+
+		(* return next free spill offset in stack *)
+		PROCEDURE NextFree*(): LONGINT;
+		VAR i: LONGINT; index: Ticket;
+		BEGIN
+			i := 0;
+			index := spillStack[i];
+			WHILE (index # NIL) DO
+				INC(i); index := spillStack[i];
+			END;
+			RETURN i
+		END NextFree;
+
+		PROCEDURE Allocate*(offset: LONGINT; ticket: Ticket);
+		BEGIN
+			spillStack[ticket.offset] := ticket;
+			IF spillStackSize <= ticket.offset THEN spillStackSize := ticket.offset+1 END;
+			IF maxSpillStackSize < spillStackSize THEN maxSpillStackSize := spillStackSize END;
+		END Allocate;
+
+		PROCEDURE Free*(offset: LONGINT);
+		BEGIN
+			spillStack[offset] := NIL;
+			IF offset+1 = spillStackSize THEN (* rewind spillstack *)
+				WHILE (offset >= 0) & (spillStack[offset]= NIL) DO
+					DEC(offset);
+				END;
+				spillStackSize := offset+1;
+			END;
+		END Free;
+
+		PROCEDURE Size*(): LONGINT;
+		BEGIN RETURN spillStackSize
+		END Size;
+
+		PROCEDURE MaxSize*(): LONGINT;
+		BEGIN RETURN maxSpillStackSize
+		END MaxSize;
+
+		PROCEDURE Dump*(w: Streams.Writer);
+		VAR i: LONGINT;
+		BEGIN
+			w.String("---- spillstack -----");w.Ln;
+			w.String("spillStackSize = "); w.Int(spillStackSize,1); w.Ln;
+			w.String("maxSpillStackSze = "); w.Int(maxSpillStackSize,1); w.Ln;
+			FOR i := 0 TO spillStackSize-1 DO
+				IF spillStack[i]# NIL THEN DumpTicket(w,spillStack[i]);END
+			END;
+		END Dump;
+
+
+	END SpillStack;
 
 	GenericCodeGenerator*= OBJECT
 	VAR
 		diagnostics-: Diagnostics.Diagnostics; (* error stream *)
 		module-: Sections.Module;
-		lastUse: ARRAY MaxVirtualRegisters OF LONGINT;
 		dump*: Streams.Writer;
 		in-: IntermediateCode.Section; out-: BinaryCode.Section;
 		inPC-, outPC-: LONGINT;
 
-		toBeReleased-, toBeAcquired-: SET; (* registers that will be released after / acquired during current instruction *)
-		currentlyUsed-: SET; (* registers that are used in current instruction *)
-		virtualRegisterType-: ARRAY MaxVirtualRegisters OF IntermediateCode.Type;
 		error* : BOOLEAN;
 		allocateData-: BOOLEAN;
 		dataAddress*: LONGINT;
+		allocation: RegisterAllocation;
+
+		physicalRegisters-: PhysicalRegisters; (* physical registers <-> tickets *)
+		virtualRegisters-: VirtualRegisters; (* virtual registers --> tickets *)
+		tickets-: Tickets;  (* tickets <-> physical registers *)
+		spillStack-: SpillStack; (* spill stack offset <-> ticket *)
 
 		(* generic *)
-		PROCEDURE & InitGenerator*(diagnostics: Diagnostics.Diagnostics; allocateData: BOOLEAN);
-		VAR i: LONGINT;
+		PROCEDURE & InitGenerator*(diagnostics: Diagnostics.Diagnostics; allocateData: BOOLEAN; numberRegisterParts: LONGINT; physicalRegisters: PhysicalRegisters);
 		BEGIN
 			dataAddress := 0;
 			SELF.allocateData := allocateData;
 			SELF.module := NIL;
 			SELF.diagnostics := diagnostics;
-			FOR i := 0 TO LEN(lastUse)-1 DO
-				lastUse[i] := -1;
-			END;
-			toBeReleased := {}; toBeAcquired := {};
 			error := FALSE;
+			NEW(allocation);
+			NEW(tickets);
+			NEW(virtualRegisters,numberRegisterParts);
+			NEW(spillStack);
+			SELF.physicalRegisters := physicalRegisters;
 		END InitGenerator;
 
 		PROCEDURE SetModule*(module: Sections.Module); (* needed for inline code for symbol reference *)
@@ -6871,132 +7242,9 @@ TYPE
 			error := TRUE;
 		END Error;
 
-		(* mark register released *)
-		PROCEDURE MarkReleased*(register: LONGINT);
-		BEGIN
-			EXCL(toBeReleased, register);
-		END MarkReleased;
-
-		PROCEDURE MustBeReleased*(register: LONGINT): BOOLEAN;
-		BEGIN RETURN (register >= 0) & (register IN toBeReleased)
-		END MustBeReleased;
-
-		(* mark register acquired *)
-		PROCEDURE MarkAcquired*(register: LONGINT);
-		BEGIN
-			EXCL(toBeAcquired, register)
-		END MarkAcquired;
-
-		PROCEDURE MustBeAcquired*(register: LONGINT): BOOLEAN;
-		BEGIN RETURN (register >= 0) & (register IN toBeAcquired)
-		END MustBeAcquired;
-
-
 		(* generic *)
 		PROCEDURE Section*(in: IntermediateCode.Section; out: BinaryCode.Section);
-		VAR pc,i: LONGINT; name: SyntaxTree.String; ignore: BOOLEAN; instruction: IntermediateCode.Instruction;
-
-			PROCEDURE CheckAcquire(CONST instr: IntermediateCode.Instruction);
-			VAR i: LONGINT; type: IntermediateCode.Type;
-
-				PROCEDURE CheckOperand(CONST operand: IntermediateCode.Operand; register: LONGINT; at: LONGINT);
-				BEGIN
-					IF operand.register = register THEN lastUse[register] := at;
-						IF operand.mode = IntermediateCode.ModeMemory THEN
-							type := GetType(module.system,module.system.addressType);
-						ELSE
-							type := operand.type
-						END;
-					END;
-				END CheckOperand;
-
-				PROCEDURE CheckUsage(CONST instr: IntermediateCode.Instruction; register: LONGINT; at: LONGINT);
-				BEGIN
-					CheckOperand(instr.op1,register, at);
-					CheckOperand(instr.op2,register, at);
-					CheckOperand(instr.op3,register, at);
-				END CheckUsage;
-
-				PROCEDURE CheckDest(CONST instr: IntermediateCode.Instruction; register: LONGINT): BOOLEAN;
-				(* check if instruction uses register as new destination operand
-					examples:
-						mov $0, $1
-						add $0, [$1]
-						call (implicit for $res and $res2)
-					but not:
-						mov [$0], $1
-						add $0, $0, 1
-				*)
-				BEGIN
-					RETURN
-					(instr.op1.mode = IntermediateCode.ModeRegister)
-					& (IntermediateCode.Op1IsDestination IN IntermediateCode.instructionFormat[instr.opcode].flags) (* first operand is destination operand *)
-					& (instr.op1.register = register) & (instr.op2.register # register) & (instr.op3.register # register)
-					OR (instr.opcode = IntermediateCode.call) & (register IN {IntermediateCode.Result, IntermediateCode.Result2})
-				END CheckDest;
-
-				PROCEDURE Reserve(register: LONGINT);
-				BEGIN
-					IF (register >0) & CheckDest(instr,register) THEN
-						Assert(lastUse[register] < 0,"error in register usage");
-						type := instr.op1.type;
-						i := pc+1; lastUse[register] := pc;
-						WHILE (i<in.pc) & ~CheckDest(in.instructions[i],register) DO
-							CheckUsage(in.instructions[i],register,i); INC(i);
-						END;
-						IF (instr.opcode # IntermediateCode.call) OR (lastUse[register] >pc) THEN (* used at all *)
-							IF dump # NIL THEN
-								dump.String("ToBeAcquired: register ");IntermediateCode.DumpType(dump,type); dump.String(" $"); dump.Int(register,1);
-								dump.String(", last use:"); dump.Int(lastUse[register],1);
-								dump.Ln;
-							END;
-							INCL(toBeAcquired, register);
-							virtualRegisterType[register] := type;
-							MapVirtualRegister(register,type);
-						ELSE lastUse[register] := -1;
-						END;
-					END;
-				END Reserve;
-
-			BEGIN
-				toBeAcquired := {};
-				Reserve(instr.op1.register);
-				IF instr.opcode = IntermediateCode.call THEN
-					Reserve(IntermediateCode.Result);
-					Reserve(IntermediateCode.Result2);
-				END;
-			END CheckAcquire;
-
-			PROCEDURE Ignore(CONST instr: IntermediateCode.Instruction): BOOLEAN;
-			VAR register: LONGINT;
-			BEGIN
-				RETURN FALSE;
-				register := instr.op1.register;
-				IF (register >0) & (instr.op2.register # register) & (instr.op2.register > 0) & (instr.op2.mode = IntermediateCode.ModeRegister) & (instr.op2.offset = 0)
-					& (register <IntermediateCode.Result) & (instr.op2.register < IntermediateCode.Result)
-				THEN
-					IF (instr.opcode = IntermediateCode.conv) OR (instr.opcode = IntermediateCode.mov) THEN
-						IF (instr.op2.type.form IN IntermediateCode.Integer) & (instr.op1.type.form IN IntermediateCode.Integer)
-							& (instr.op1.type.sizeInBits = instr.op2.type.sizeInBits) & (instr.op2.register IN toBeReleased)
-						THEN
-							IF dump # NIL THEN dump.String("transfer register: ");
-								IntermediateCode.DumpOperand(dump,instr.op1,TRUE); dump.String("<--");
-								IntermediateCode.DumpOperand(dump,instr.op2,TRUE); dump.Ln;
-							END;
-							IF register IN toBeReleased THEN
-								UnmapVirtualRegister(register);
-								INCL(toBeReleased,register);
-							ELSE
-								UnmapVirtualRegister(register);
-							END;
-							TransferRegister(instr.op2.register, register);
-							MarkReleased(instr.op2.register);
-							RETURN TRUE
-						END;
-					END;
-				END;
-				RETURN FALSE
-			END Ignore;
+		VAR pc: LONGINT; name: SyntaxTree.String; instruction: IntermediateCode.Instruction;
 
 			PROCEDURE ResolveLocalFixups;
 			VAR fixup, next: BinaryCode.Fixup; dest: LONGINT; msg: SyntaxTree.String; number: ARRAY 32 OF CHAR;
@@ -7005,7 +7253,7 @@ TYPE
 				out.fixupList.InitFixupList;
 				WHILE fixup # NIL DO
 					next := fixup.nextFixup;
-					IF fixup.symbol = in THEN (* local fixup *)
+					IF (fixup.symbol = in) & (fixup.mode = BinaryCode.Relative) THEN (* local relative fixup *)
 						IF dump # NIL THEN
 							dump.String("local fixup "); dump.Int(fixup.offset,1); dump.String(" <-- ");
 							fixup.Dump(dump); dump.Ln; dump.Update;
@@ -7037,33 +7285,47 @@ TYPE
 				END;
 			END ResolveLocalFixups;
 
-			PROCEDURE CheckUsage(instr: IntermediateCode.Instruction; pc: LONGINT);
-			VAR register: LONGINT;
+			PROCEDURE GetRegisterAllocation;
+			VAR pc: LONGINT;
+				PROCEDURE RegisterUsage(CONST instruction: IntermediateCode.Instruction);
+					PROCEDURE Use(CONST operand: IntermediateCode.Operand);
+					BEGIN
+						IF operand.register > 0 THEN
+							allocation.Use(operand.register,inPC);
+						END;
+					END Use;
+				BEGIN
+					Use(instruction.op1);
+					Use(instruction.op2);
+					Use(instruction.op3);
+				END RegisterUsage;
 			BEGIN
-				FOR register := 0 TO MaxVirtualRegisters-1 DO
-					IF lastUse[register] = pc THEN INCL(toBeReleased,register); lastUse[register] := -1 END;
+				allocation.Init;
+				FOR pc := 0 TO in.pc-1 DO
+					inPC := pc;
+					RegisterUsage(in.instructions[pc]);
 				END;
-				currentlyUsed := {};
-				IF instr.opcode = IntermediateCode.call THEN
-					INCL(currentlyUsed, IntermediateCode.Result);
-					INCL(currentlyUsed, IntermediateCode.Result2);
-				END;
-				IF instr.op1.register > 0 THEN INCL(currentlyUsed,instr.op1.register) END;
-				IF instr.op2.register > 0 THEN INCL(currentlyUsed,instr.op2.register) END;
-				IF instr.op3.register > 0 THEN INCL(currentlyUsed,instr.op3.register) END;
-			END CheckUsage;
+			END GetRegisterAllocation;
 
-			PROCEDURE Release(instr: IntermediateCode.Instruction);
-			VAR register: LONGINT;
-			BEGIN
-				FOR register := 0 TO MaxVirtualRegisters-1 DO
-					IF register IN toBeReleased THEN
-						UnmapVirtualRegister(register); MarkReleased(register);
+			PROCEDURE DumpInstruction(CONST instruction: IntermediateCode.Instruction);
+				PROCEDURE Use(CONST operand: IntermediateCode.Operand);
+				BEGIN
+					IF FirstUse(operand.register)=inPC THEN
+						dump.String(" ; +"); IntermediateCode.DumpRegister(dump,operand.register);
 					END;
-				END;
-			END Release;
+					IF LastUse(operand.register)=inPC THEN
+						dump.String(" ; -"); IntermediateCode.DumpRegister(dump,operand.register);
+					END;
+				END Use;
+			BEGIN
+				dump.Int(pc, 1); dump.String(": "); IntermediateCode.DumpInstruction(dump, instruction);
+				Use(instruction.op1);
+				Use(instruction.op2);
+				Use(instruction.op3);
+			END DumpInstruction;
 
 		BEGIN
+
 			name := in.name; (*debugging*)
 			SELF.in := in; SELF.out := out;
 			dump := out.comments;
@@ -7071,28 +7333,25 @@ TYPE
 				out.SetAlignment(TRUE, dataAddress);
 			END;
 
+			GetRegisterAllocation;
+			Prepare;
+
 			FOR pc := 0 TO in.pc-1 DO
-				inPC := pc; outPC := out.pc; in.SetPC(pc, outPC);
+				inPC := pc; outPC := out.pc;
+				in.SetPC(pc, outPC);
 				IF pc = in.finally THEN out.SetFinally(out.pc) END;
 				instruction := in.instructions[pc];
-				CheckAcquire(instruction);
-				CheckUsage(instruction,pc);
-				ignore := Ignore(instruction);
-				IF dump # NIL THEN
-					dump.Int(pc, 1); dump.String(": "); IntermediateCode.DumpInstruction(dump, in.instructions[pc]);
-					IF ignore THEN dump.String(" ignored") END;
-					dump.Ln;
-				END;
-				IF ~ignore THEN
+				IF dump # NIL THEN DumpInstruction(instruction); dump.Ln END;
+				CASE instruction.opcode OF
+					IntermediateCode.data: EmitData(instruction);
+					|IntermediateCode.reserve: EmitReserve(instruction);
+					|IntermediateCode.label: EmitLabel(instruction);
+				ELSE
 					Generate(instruction);
 				END;
-				Release(instruction);
 			END;
-			FOR i := 0 TO MaxVirtualRegisters-1 DO
-				IF lastUse[i] # -1 THEN
-					Error("register not set to unused");
-				END;
-			END;
+
+			(* CheckRegistersFree();*)
 			ResolveLocalFixups;
 			IF dump # NIL THEN
 				dump.Update
@@ -7102,27 +7361,484 @@ TYPE
 			END;
 		END Section;
 
-		PROCEDURE MapVirtualRegister*(reg: LONGINT; type: IntermediateCode.Type);
+		PROCEDURE FirstUse*(register: LONGINT): LONGINT;
+		BEGIN
+			IF (register > 0)  THEN RETURN allocation.table[register].first ELSE RETURN None END;
+		END FirstUse;
+
+		PROCEDURE LastUse*(register: LONGINT): LONGINT;
+		BEGIN
+			IF (register > 0)  THEN RETURN allocation.table[register].last ELSE RETURN None END;
+		END LastUse;
+
+
+		(*-------------------  procedures that must be overwritten by implementers  ----------------------*)
+
+		(* generate procedure - is called for any instruction that cannot be output directly by the generic code generator *)
+		PROCEDURE Generate*(CONST instr: IntermediateCode.Instruction);
+		BEGIN (*HALT(100); *) (* abstract *)
+		END Generate;
+
+		(* input: type (such as that of an intermediate operand), output: type part *)
+		PROCEDURE GetPartType*(CONST type: IntermediateCode.Type; part: LONGINT; VAR typePart: IntermediateCode.Type);
 		BEGIN HALT(100); (* abstract *)
+		END GetPartType;
+
+		PROCEDURE ToSpillStack*(ticket: Ticket);
+		BEGIN HALT(100) (* abstract *)
+		END ToSpillStack;
+
+		PROCEDURE AllocateSpillStack*(size: LONGINT);
+		BEGIN HALT(100) (* abstract *)
+		END AllocateSpillStack;
+
+		PROCEDURE ToRegister*(ticket: Ticket);
+		BEGIN HALT(100) (* abstract *)
+		END ToRegister;
+
+		PROCEDURE ExchangeTickets*(ticket1,ticket2: Ticket);
+		BEGIN HALT(100) (* abstract *)
+		END ExchangeTickets;
+
+
+		(*---------------------------- ticket handling and register allocation ----------------------------*)
+
+		(* Spill register of a ticket, if any *)
+		PROCEDURE Spill*(ticket: Ticket);
+		VAR register,offset,size: LONGINT;
+		BEGIN
+			IF (ticket = NIL) OR (ticket.spilled) THEN RETURN END;
+			register := ticket.register;
+			offset := spillStack.NextFree();
+			ticket.offset := offset;
+			size := spillStack.Size();
+			spillStack.Allocate(offset,ticket);
+			size := spillStack.Size()-size;
+			ASSERT(size>=0);
+			IF size>0 THEN AllocateSpillStack(size) END;
+
+			ToSpillStack(ticket);
+			ticket.offset := offset;
+			physicalRegisters.Free(register);
+			ticket.spilled := TRUE;
+		END Spill;
+
+		(* Make sure a ticket reprents a physical register *)
+		PROCEDURE UnSpill*(ticket: Ticket);
+		VAR mapped:Ticket; register: LONGINT;
+
+			PROCEDURE ExchangeSpill(ticket1, ticket2: Ticket): BOOLEAN;
+			BEGIN
+				IF ticket1.spilled THEN ASSERT(~ticket2.spilled); RETURN ExchangeSpill(ticket2,ticket1) END;
+				IF (ticket1.type.sizeInBits # ticket2.type.sizeInBits)
+					OR ~(ticket1.type.form IN IntermediateCode.Integer) OR ~(ticket2.type.form IN IntermediateCode.Integer)
+					OR ticket1.spilled THEN
+					RETURN FALSE
+				END;
+
+				ASSERT(~ticket1.spilled); ASSERT(ticket1.register # None);
+				ASSERT(ticket2.spilled); ASSERT((ticket2.register = ticket1.register) OR (ticket2.register = None));
+
+				ExchangeTickets(ticket1,ticket2);
+
+				physicalRegisters.Free(ticket1.register);
+				spillStack.Free(ticket2.offset);
+				ticket2.register := ticket1.register;
+				ticket1.offset := ticket2.offset;
+				ticket1.spilled := TRUE;
+				ticket2.spilled := FALSE;
+				physicalRegisters.Allocate(ticket2.register,ticket2);
+				spillStack.Allocate(ticket1.offset,ticket1);
+				RETURN TRUE
+			END ExchangeSpill;
+
+			PROCEDURE SpillToRegister(ticket: Ticket; register: LONGINT);
+			VAR size: LONGINT;
+			BEGIN
+				ASSERT(~physicalRegisters.Reserved(ticket.register) OR (register = ticket.register));
+				ticket.register := register;
+				IF dump # NIL THEN
+					dump.String(" allocate register : index="); dump.Int(ticket.register,1); dump.Ln;
+				END;
+				ToRegister(ticket);
+				size := spillStack.Size();
+				spillStack.Free(ticket.offset);
+				ticket.spilled := FALSE;
+				ticket.offset := 0;
+				physicalRegisters.Allocate(register,ticket);
+				size := spillStack.Size()-size;
+				ASSERT(size<=0);
+				IF size<0 THEN AllocateSpillStack(size) END;
+			END SpillToRegister;
+
+		BEGIN
+			IF (ticket = NIL) OR ~ticket.spilled THEN RETURN END;
+
+			register := ticket.register;
+			IF register = None THEN
+				register := physicalRegisters.NextFree(ticket.type);
+				IF register # None THEN (* free register found rightaway*)
+					SpillToRegister(ticket, register)
+				ELSE
+					mapped := GetPreferredSpill(ticket.type);
+					IF ~ExchangeSpill(mapped, ticket) THEN
+						register := ForceFreeRegister(ticket.type);
+						SpillToRegister(ticket, register);
+					END;
+				END;
+			ELSE
+				mapped := physicalRegisters.Mapped(register);
+				IF mapped = NIL THEN
+					SpillToRegister(ticket, register)
+				ELSIF ~ExchangeSpill(mapped, ticket) THEN
+					WHILE mapped # NIL DO
+						Spill(mapped);
+						mapped := physicalRegisters.Mapped(ticket.register);
+					END;
+					SpillToRegister(ticket, register)
+				END;
+			END;
+		END UnSpill;
+
+		PROCEDURE GetPreferredSpill*(CONST type: IntermediateCode.Type): Ticket;
+		VAR ticket,spill: Ticket;
+			PROCEDURE Spillable(ticket: Ticket; best:BOOLEAN): BOOLEAN;
+			BEGIN
+				RETURN
+					~ticket.spilled & (ticket.register # None)
+					& ((ticket.type.form = IntermediateCode.Float) = (type.form = IntermediateCode.Float)) (* don't spill float when int is needed *)
+					& (~best OR (ticket.type.sizeInBits = type.sizeInBits))
+					(*! check that register is not in use in current instruction*)
+			END Spillable;
+		BEGIN
+			ticket := tickets.live;
+			WHILE ticket # NIL DO
+				IF Spillable(ticket,TRUE) THEN spill := ticket END;
+				ticket := ticket.next
+			END;
+			IF ticket = NIL THEN
+				ticket := tickets.live;
+				WHILE ticket # NIL DO
+					IF Spillable(ticket,FALSE) THEN spill := ticket END;
+					ticket := ticket.next
+				END;
+			END;
+			ASSERT(spill # NIL);
+			RETURN spill
+		END GetPreferredSpill;
+
+		PROCEDURE ForceFreeRegister*(CONST type:IntermediateCode.Type): LONGINT;
+		VAR tempReg: LONGINT; ticket: Ticket;
+		BEGIN
+			tempReg := physicalRegisters.NextFree(type);
+			WHILE tempReg = None DO
+				ticket := GetPreferredSpill(type);
+				Spill(ticket);
+				tempReg := physicalRegisters.NextFree(type);
+			END;
+			RETURN tempReg
+		END ForceFreeRegister;
+
+		PROCEDURE ReservePhysicalRegister*(CONST type: IntermediateCode.Type; register: LONGINT): Ticket;
+		VAR ticket: Ticket;
+		BEGIN
+			ticket := tickets.Enter(type,register,FALSE,None,inPC);
+			IF dump # NIL THEN
+				dump.String(" allocate register : index="); dump.Int(register,1); dump.Ln;
+			END;
+			physicalRegisters.Allocate(register, ticket);
+			RETURN ticket
+		END ReservePhysicalRegister;
+
+		PROCEDURE TemporaryTicket*(CONST type: IntermediateCode.Type): Ticket;
+		VAR register: LONGINT; ticket: Ticket;
+		BEGIN
+			IF type.form > IntermediateCode.Undefined THEN
+				register := ForceFreeRegister(type);
+				ticket := ReservePhysicalRegister(type,register);
+			ELSE
+				ticket := NIL
+			END;
+			RETURN ticket
+		END TemporaryTicket;
+
+		(*-------------------  register mapping  ----------------------*)
+
+		PROCEDURE MapVirtualRegister*(virtualRegister: LONGINT; type: IntermediateCode.Type; part: LONGINT);
+		VAR partType: IntermediateCode.Type; lastuse:LONGINT;
+
+			PROCEDURE MapTicket(virtualRegister: LONGINT; part: LONGINT; CONST type: IntermediateCode.Type; lastuse:LONGINT);
+			VAR index,offset,size: LONGINT; ticket: Ticket;
+			BEGIN
+
+				index := physicalRegisters.NextFree(type);
+				IF index # None THEN
+					ticket := tickets.Enter(type,index,FALSE,0,lastuse);
+					IF dump # NIL THEN
+						dump.String(" allocate register : index="); dump.Int(index,1); dump.Ln;
+					END;
+					physicalRegisters.Allocate(index,ticket);
+					physicalRegisters.SetReserved(index,TRUE);
+				ELSE (* spill new ticket rightaway, no phyiscal register assigned yet *)
+					offset := spillStack.NextFree();
+					ticket := tickets.Enter(type,index,TRUE,offset,lastuse);
+					size := spillStack.Size();
+					ticket.offset := offset;
+					spillStack.Allocate(offset,ticket);
+					size := spillStack.Size()-size;
+					ASSERT(size>=0);
+					IF size>0 THEN AllocateSpillStack(size) END;
+				END;
+				virtualRegisters.SetMapped(virtualRegister,part,ticket);
+			END MapTicket;
+
+		BEGIN
+			IF virtualRegisters.Mapped(virtualRegister,part)=NIL THEN
+				lastuse := LastUse(virtualRegister);
+				GetPartType(type,part,partType);
+				IF partType.form # IntermediateCode.Undefined THEN
+					MapTicket(virtualRegister,part,partType,lastuse)
+				END;
+			END;
 		END MapVirtualRegister;
 
-		PROCEDURE UnmapVirtualRegister*(reg: LONGINT);
-		BEGIN HALT(100); (* abstract *)
-		END UnmapVirtualRegister;
+		PROCEDURE ResetTicket(ticket: Ticket);
+		BEGIN
+			ticket.offset := 0;
+			ticket.spilled := FALSE;
+			ticket.register := None;
+			ticket.parts := 0;
+		END ResetTicket;
 
-		PROCEDURE TransferRegister*(from,to: LONGINT);
-		BEGIN HALT(100);
-		END TransferRegister;
+		PROCEDURE FreeTicket(ticket: Ticket);
+		VAR size: LONGINT;
+		BEGIN
+			IF ticket.spilled THEN
+				IF dump # NIL THEN
+					dump.String(" free spilled register : ofs="); dump.Int(ticket.offset,1); dump.Ln;
+				END;
+				size := spillStack.Size();
+				spillStack.Free(ticket.offset);
+				size := spillStack.Size()-size;
+				ASSERT(size<=0);
+				IF size<0 THEN AllocateSpillStack(size) END;
+			ELSIF ticket.register # None THEN
+				IF dump # NIL THEN
+					dump.String("free register: index="); dump.Int(ticket.register,1);  dump.Ln;
+				END;
+				physicalRegisters.SetReserved(ticket.register,FALSE);
+				physicalRegisters.Free(ticket.register);
+				ASSERT(~physicalRegisters.Reserved(ticket.register));
+			END;
+		END FreeTicket;
 
-		PROCEDURE Generate*(CONST instr: IntermediateCode.Instruction);
-		BEGIN HALT(100); (* abstract *)
-		END Generate;
+		PROCEDURE RemapTicket(ticket: Ticket);
+		VAR size: LONGINT;
+		BEGIN
+			IF ~ticket.spilled THEN
+				IF dump # NIL THEN
+					dump.String(" remap register : index="); dump.Int(ticket.register,1); dump.Ln;
+				END;
+				physicalRegisters.Allocate(ticket.register,ticket);
+				physicalRegisters.SetReserved(ticket.register,TRUE);
+			ELSE (* spill new ticket rightaway, no phyiscal register assigned yet *)
+				size := spillStack.Size();
+				spillStack.Allocate(ticket.offset,ticket);
+				size := spillStack.Size()-size;
+				ASSERT(size>=0);
+				IF size>0 THEN AllocateSpillStack(size) END;
+			END;
+		END RemapTicket;
+
+		(* unmap ticket: free  register or spill stack position and remove ticket from list of live tickets *)
+		PROCEDURE UnmapTicket*(ticket: Ticket);
+		BEGIN
+			IF ticket = NIL THEN RETURN END;
+			FreeTicket(ticket);
+			tickets.Remove(ticket);
+			ResetTicket(ticket);
+		END UnmapTicket;
+
+		PROCEDURE TryAllocate*(CONST operand: IntermediateCode.Operand; part: LONGINT);
+		BEGIN
+			IF (FirstUse(operand.register) = inPC) & (virtualRegisters.Mapped(operand.register,part)=NIL)  THEN
+				(*
+				D.String("IntermediateBackend.TryAllocate: "); D.Int(operand.register,1); D.Ln;
+				*)
+				(*ASSERT(virtualRegisters.Mapped(operand.register,0)=NIL);
+				*)
+				IF operand.mode = IntermediateCode.ModeMemory THEN
+					MapVirtualRegister(operand.register,GetType(module.system,module.system.addressType),part);
+				ELSE
+					MapVirtualRegister(operand.register, operand.type,part);
+				END;
+				ASSERT(virtualRegisters.Mapped(operand.register,part)#NIL);
+			END;
+		END TryAllocate;
+
+		PROCEDURE TryUnmap*(CONST operand: IntermediateCode.Operand);
+		VAR ticket: Ticket; part: LONGINT;
+		BEGIN
+			IF (operand.register >=0) & (LastUse(operand.register) = inPC) THEN
+				part := 0;
+				WHILE (part<virtualRegisters.Parts()) DO
+					ticket := virtualRegisters.Mapped(operand.register,part);
+					IF (ticket # NIL) THEN
+						virtualRegisters.Unmap(operand.register)
+					END;
+					INC(part);
+				END;
+			END;
+		END TryUnmap;
+
+		PROCEDURE ReleaseHint*(register: LONGINT);
+		VAR ticket: Ticket;
+		BEGIN
+			IF register >=0 THEN
+				ticket := physicalRegisters.Mapped(register);
+				IF (ticket # NIL) & (ticket.lastuse = inPC) THEN
+					DEC(ticket.parts); (* to avoid freeing a register that is used at several parts of an operand *)
+					IF ticket.parts=0 THEN
+						physicalRegisters.SetReserved(register,FALSE);
+						UnmapTicket(ticket);
+						physicalRegisters.AllocationHint(register);
+					END;
+				END;
+			END;
+		END ReleaseHint;
+
+		(* increase usage counter of register mapped by ticket - allocated or not *)
+		PROCEDURE ReserveTicketRegister*(ticket: Ticket; reserved: BOOLEAN);
+		BEGIN
+			IF (ticket#NIL) & (ticket.register # None) THEN
+				physicalRegisters.SetReserved(ticket.register,reserved)
+			END;
+		END ReserveTicketRegister;
+
+		PROCEDURE ReserveOperandRegisters*(CONST operand: IntermediateCode.Operand; reserved: BOOLEAN);
+		VAR i: LONGINT; ticket: Ticket;
+		BEGIN
+			FOR i := 0 TO virtualRegisters.Parts()-1 DO
+				ticket := virtualRegisters.Mapped(operand.register,i);
+				IF ticket # NIL THEN
+					ReserveTicketRegister(ticket,reserved);
+					IF operand.mode = IntermediateCode.ModeMemory THEN
+						ticket.parts := virtualRegisters.Parts()
+					ELSE
+						ticket.parts := 1
+					END;
+				END;
+			END;
+		END ReserveOperandRegisters;
+
+		(* ---------------------- generically available code emission ------------------------- *)
+
+
+		PROCEDURE GetDataSection*(): IntermediateCode.Section;
+		VAR name: SyntaxTree.String; section: IntermediateCode.Section;
+		BEGIN
+			Global.GetModuleName(module.module,name);
+			Strings.Append(name,".");
+			Strings.Append(name,"@Immediates");
+			section := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
+			RETURN section
+		END GetDataSection;
+
+		PROCEDURE EmitData(CONST instruction: IntermediateCode.Instruction);
+			VAR type: IntermediateCode.Type; fixup: BinaryCode.Fixup; pc: LONGINT;fixupFormat: BinaryCode.FixupPatterns;
+		BEGIN
+			type := instruction.op1.type;
+			pc := out.pc;
+			IF type.form IN IntermediateCode.Integer THEN
+				out.PutBytes(instruction.op1.intValue,SHORT(type.sizeInBits DIV 8));
+			ELSE
+				IF type.sizeInBits = IntermediateCode.Bits32 THEN
+					out.PutReal(SHORT(instruction.op1.floatValue));
+				ELSIF type.sizeInBits = IntermediateCode.Bits64 THEN
+					out.PutLongreal(instruction.op1.floatValue);
+				ELSE Assert(FALSE,"no floats other than 32 or 64 bit")
+				END;
+			END;
+			IF instruction.op1.symbol # NIL THEN
+				NEW(fixupFormat,1);
+				fixupFormat[0].offset := 0;
+				fixupFormat[0].bits := type.sizeInBits;
+				fixup := BinaryCode.NewFixup(BinaryCode.Absolute,pc,instruction.op1.symbol,instruction.op1.symbolOffset,instruction.op1.offset,0,fixupFormat);
+				out.fixupList.AddFixup(fixup);
+			END;
+		END EmitData;
+
+		PROCEDURE EmitReserve(CONST instruction: IntermediateCode.Instruction);
+		VAR sizeInUnits,i: LONGINT;
+		BEGIN
+			sizeInUnits := SHORT(instruction.op1.intValue);
+			ASSERT(sizeInUnits >= 0); (* size is initialized to MIN(LONGINT), this checks if size field has been visited *)
+			FOR i := 0 TO sizeInUnits-1 DO
+				out.PutBits(0,out.unit);
+			END;
+		END EmitReserve;
+
+		PROCEDURE EmitLabel(CONST instruction: IntermediateCode.Instruction);
+		VAR position: LONGINT;
+		BEGIN
+			position := SHORT(instruction.op1.intValue);
+			out.AddLabel(position);
+		END EmitLabel;
+
+		PROCEDURE Prepare*;
+		BEGIN
+
+		END Prepare;
 
 	END GenericCodeGenerator;
 
-	VAR int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64: IntermediateCode.Type;
+
+
+	VAR int8-, int16-, int32-, int64-, uint8-, uint16-, uint32-, uint64-, float32-, float64-: IntermediateCode.Type;
 		emptyOperand: IntermediateCode.Operand;
 		systemCalls: ARRAY NumberSystemCalls OF SyntaxTree.Symbol;
+
+
+
+	PROCEDURE AddRegisterEntry(VAR queue: RegisterEntry; register: LONGINT);
+	VAR new: RegisterEntry;
+	BEGIN
+		NEW(new); new.register := register; new.next := NIL; new.prev := NIL;
+		IF queue = NIL THEN
+			queue := new
+		ELSE
+			new.next := queue;
+			IF queue#NIL THEN queue.prev := new END;
+			queue := new
+		END;
+	END AddRegisterEntry;
+
+	PROCEDURE RemoveRegisterEntry(VAR queue: RegisterEntry; register: LONGINT);
+	VAR this: RegisterEntry;
+	BEGIN
+		this := queue;
+		WHILE (this # NIL) & (this.register # register) DO
+			this := this.next;
+		END;
+		IF this = queue THEN queue := queue.next END;
+		IF this.prev # NIL THEN this.prev.next := this.next END;
+		IF this.next # NIL THEN this.next.prev := this.prev END;
+	END RemoveRegisterEntry;
+
+	PROCEDURE DumpRegisterEntry(dump: Streams.Writer; entry: RegisterEntry);
+	BEGIN
+		IntermediateCode.DumpRegister(dump,entry.register);
+	END DumpRegisterEntry;
+
+	PROCEDURE DumpTicket*(w: Streams.Writer; ticket: Ticket);
+	BEGIN
+		w.String("register "); w.Int(ticket.register,1);
+		w.String(" with type ");
+		IntermediateCode.DumpType(w,ticket.type);
+		IF ticket.spilled THEN w.String(" spilled at "); w.Int(ticket.offset,1) END;
+		w.String(" parts "); w.Int(ticket.parts,1);
+		w.String(" last use "); w.Int(ticket.lastuse,1);
+	END DumpTicket;
 
 	PROCEDURE Assert(cond: BOOLEAN; CONST reason: ARRAY OF CHAR);
 	BEGIN ASSERT(cond);
@@ -8522,7 +9238,7 @@ TYPE
 			ELSIF type IS SyntaxTree.BasicType THEN
 				RETURN FALSE
 			ELSIF type IS SyntaxTree.ProcedureType THEN
-				RETURN FALSE
+				RETURN TRUE
 			ELSIF type IS SyntaxTree.PointerType THEN
 				RETURN FALSE (* pointer type *)
 			ELSIF (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).pointerType # NIL) THEN
@@ -8611,14 +9327,28 @@ TYPE
 		RETURN instruction
 	END Leave;
 
-	PROCEDURE Return(parSize: LONGINT): IntermediateCode.Instruction;
- 	VAR op1: IntermediateCode.Operand;
+	PROCEDURE Exit(parSize: LONGINT): IntermediateCode.Instruction;
+	VAR op1: IntermediateCode.Operand;
 	VAR instruction: IntermediateCode.Instruction;
 	BEGIN
 		IntermediateCode.InitNumber(op1,parSize);
-		IntermediateCode.InitInstruction(instruction,IntermediateCode.return,op1,emptyOperand,emptyOperand);
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.exit,op1,emptyOperand,emptyOperand);
+		RETURN instruction
+	END Exit;
+
+	PROCEDURE Return(res: IntermediateCode.Operand): IntermediateCode.Instruction;
+	VAR instruction: IntermediateCode.Instruction;
+	BEGIN
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.return,res,emptyOperand,emptyOperand);
 		RETURN instruction
 	END Return;
+
+	PROCEDURE Result(res: IntermediateCode.Operand): IntermediateCode.Instruction;
+	VAR instruction: IntermediateCode.Instruction;
+	BEGIN
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.result,res,emptyOperand,emptyOperand);
+		RETURN instruction
+	END Result;
 
 	PROCEDURE Trap(nr: LONGINT): IntermediateCode.Instruction;
  	VAR op1: IntermediateCode.Operand;
@@ -8790,14 +9520,10 @@ TYPE
 		RETURN instruction
 	END Copy;
 
-	PROCEDURE Fill(dest,src,size: IntermediateCode.Operand; down: BOOLEAN):IntermediateCode.Instruction;
+	PROCEDURE Fill(dest,src,size: IntermediateCode.Operand):IntermediateCode.Instruction;
 	VAR instruction: IntermediateCode.Instruction;
 	BEGIN
-		IF down THEN
-			IntermediateCode.InitInstruction(instruction,IntermediateCode.filldown,dest,src,size);
-		ELSE
-			IntermediateCode.InitInstruction(instruction,IntermediateCode.fillup,dest,src,size);
-		END;
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.fill,dest,src,size);
 		RETURN instruction
 	END Fill;
 

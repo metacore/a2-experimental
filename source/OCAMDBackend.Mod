@@ -5,53 +5,36 @@ IMPORT
 	IntermediateCode := OCIntermediateCode, IntermediateBackend := OCIntermediateBackend, BinaryCode := OCBinaryCode,
 	InstructionSet := OCAMD64InstructionSet, Assembler := OCAMD64Assembler, SemanticChecker := OCSemanticChecker, Formats := OCFormats,
 	Diagnostics, Streams, Options, WMUtilities, Strings, ObjectFileFormat := OCBinaryObjectFile, Dataflow := OCDataflow
-	, D := Debugging, Machine;
+	, Machine, D := Debugging;
 
 CONST
 
-	optimizeExperiment=TRUE;
-	SupportPool=FALSE;
+	(* constants for the register allocator *)
+	none=-1;
 
-	none=-1; free=-1;
-	reserved=-2;
-	split=-3;
-	blocked=-4;
-	unusable=-5;
+	RAX=InstructionSet.regRAX; RCX=InstructionSet.regRCX; RDX=InstructionSet.regRDX; RBX=InstructionSet.regRBX;
+	RSP=InstructionSet.regRSP; RBP=InstructionSet.regRBP; RSI=InstructionSet.regRSI; RDI=InstructionSet.regRDI;
+	R8=InstructionSet.regR8; 	R9=InstructionSet.regR9; 	R10=InstructionSet.regR10; 	R11=InstructionSet.regR11;
+	R12=InstructionSet.regR12; 	R13=InstructionSet.regR13; 	R14=InstructionSet.regR14; 	R15=InstructionSet.regR15;
+	EAX=InstructionSet.regEAX; ECX=InstructionSet.regECX; EDX=InstructionSet.regEDX; EBX=InstructionSet.regEBX;
+	ESP=InstructionSet.regESP; EBP=InstructionSet.regEBP; ESI=InstructionSet.regESI; EDI=InstructionSet.regEDI;
+	R8D=InstructionSet.regR8D; 	R9D=InstructionSet.regR9D; 	R10D=InstructionSet.regR10D; 	R11D=InstructionSet.regR11D;
+	R12D=InstructionSet.regR12D; 	R13D=InstructionSet.regR13D; 	R14D=InstructionSet.regR14D; 	R15D=InstructionSet.regR15D;
+	AX=InstructionSet.regAX;	CX=InstructionSet.regCX;	DX=InstructionSet.regDX;	BX=InstructionSet.regBX;
+	SI=InstructionSet.regSI; DI=InstructionSet.regDI; BP=InstructionSet.regBP; SP=InstructionSet.regSP;
+	R8W=InstructionSet.regR8W; 	R9W=InstructionSet.regR9W; 	R10W=InstructionSet.regR10W; 	R11W=InstructionSet.regR11W;
+	R12W=InstructionSet.regR12W; 	R13W=InstructionSet.regR13W; 	R14W=InstructionSet.regR14W; 	R15W=InstructionSet.regR15W;
+	AL=InstructionSet.regAL;	CL=InstructionSet.regCL;	DL=InstructionSet.regDL;	BL=InstructionSet.regBL;	SIL=InstructionSet.regSIL;
+	DIL=InstructionSet.regDIL; BPL=InstructionSet.regBPL; SPL=InstructionSet.regSPL;
+	R8B=InstructionSet.regR8B; 	R9B=InstructionSet.regR9B; 	R10B=InstructionSet.regR10B; 	R11B=InstructionSet.regR11B;
+	R12B=InstructionSet.regR12B; 	R13B=InstructionSet.regR13B; 	R14B=InstructionSet.regR14B; 	R15B=InstructionSet.regR15B;
+	AH=InstructionSet.regAH;	CH=InstructionSet.regCH;	DH=InstructionSet.regDH;	BH=InstructionSet.regBH;
+	ST0=InstructionSet.regST0;
 
-
-	RAX*=InstructionSet.regRAX; RCX*=InstructionSet.regRCX; RDX*=InstructionSet.regRDX; RBX*=InstructionSet.regRBX;
-	RSP*=InstructionSet.regRSP; RBP*=InstructionSet.regRBP; RSI*=InstructionSet.regRSI; RDI*=InstructionSet.regRDI;
-
-	R8*=InstructionSet.regR8; 	R9*=InstructionSet.regR9; 	R10*=InstructionSet.regR10; 	R11*=InstructionSet.regR11;
-	R12*=InstructionSet.regR12; 	R13*=InstructionSet.regR13; 	R14*=InstructionSet.regR14; 	R15*=InstructionSet.regR15;
-
-	EAX*=InstructionSet.regEAX; ECX*=InstructionSet.regECX; EDX*=InstructionSet.regEDX; EBX*=InstructionSet.regEBX;
-	ESP*=InstructionSet.regESP; EBP*=InstructionSet.regEBP; ESI*=InstructionSet.regESI; EDI*=InstructionSet.regEDI;
-
-	R8D*=InstructionSet.regR8D; 	R9D*=InstructionSet.regR9D; 	R10D*=InstructionSet.regR10D; 	R11D*=InstructionSet.regR11D;
-	R12D*=InstructionSet.regR12D; 	R13D*=InstructionSet.regR13D; 	R14D*=InstructionSet.regR14D; 	R15D*=InstructionSet.regR15D;
-
-	AX*=InstructionSet.regAX;	CX*=InstructionSet.regCX;	DX*=InstructionSet.regDX;	BX*=InstructionSet.regBX;
-	SI*=InstructionSet.regSI; DI*=InstructionSet.regDI; BP*=InstructionSet.regBP; SP*=InstructionSet.regSP;
-
-	R8W*=InstructionSet.regR8W; 	R9W*=InstructionSet.regR9W; 	R10W*=InstructionSet.regR10W; 	R11W*=InstructionSet.regR11W;
-	R12W*=InstructionSet.regR12W; 	R13W*=InstructionSet.regR13W; 	R14W*=InstructionSet.regR14W; 	R15W*=InstructionSet.regR15W;
-
-	AL*=InstructionSet.regAL;	CL*=InstructionSet.regCL;	DL*=InstructionSet.regDL;	BL*=InstructionSet.regBL;
-	SIL*=InstructionSet.regSIL; DIL*=InstructionSet.regDIL; BPL*=InstructionSet.regBPL; SPL*=InstructionSet.regSPL;
-
-	R8B*=InstructionSet.regR8B; 	R9B*=InstructionSet.regR9B; 	R10B*=InstructionSet.regR10B; 	R11B*=InstructionSet.regR11B;
-	R12B*=InstructionSet.regR12B; 	R13B*=InstructionSet.regR13B; 	R14B*=InstructionSet.regR14B; 	R15B*=InstructionSet.regR15B;
-
-	AH*=InstructionSet.regAH;	CH*=InstructionSet.regCH;	DH*=InstructionSet.regDH;	BH*=InstructionSet.regBH;
-
-	ST0*=InstructionSet.regST0;
-
-	MaxVirtualRegisters=32;
 	MaxSpilledRegisters=64;
+	Low=0; High=1;
 
-TYPE
-
+	FrameSpillStack=TRUE;
 
 VAR registerOperands: ARRAY InstructionSet.numberRegisters OF Assembler.Operand;
 	usePool: BOOLEAN;
@@ -59,748 +42,476 @@ VAR registerOperands: ARRAY InstructionSet.numberRegisters OF Assembler.Operand;
 	 opESI, opEDI, opAX, opCX, opDX, opBX, opSI, opDI, opAL, opCL, opDL, opBL, opAH, opCH, opDH, opBH,opST0
 	 , opRSP, opRBP: Assembler.Operand;
 
+	 unusable,split,blocked,free: IntermediateBackend.Ticket;
+
 TYPE
-	Register = RECORD
-		lowSpilled, highSpilled: BOOLEAN; (* is register spilled on the spill stack ? *)
-		low, high: LONGINT; (* real register index or position on spill stack *)
-	END;
 
-	Operand = RECORD
-		low,high: Assembler.Operand;
-	END;
+	Ticket=IntermediateBackend.Ticket;
 
-	RegisterAllocator=OBJECT
+	PhysicalRegisters*=OBJECT (IntermediateBackend.PhysicalRegisters)
 	VAR
-		realToVirtual: ARRAY InstructionSet.numberRegisters OF LONGINT; (* mapping real register -> none / reserved / split / blocked / virtual register (>0) *)
+		toVirtual: ARRAY InstructionSet.numberRegisters OF Ticket; (* registers real register -> none / reserved / split / blocked / virtual register (>0) *)
+		reserved: ARRAY InstructionSet.numberRegisters OF BOOLEAN;
+		hint: LONGINT;
 
-		PROCEDURE &InitRegisterAllocator;
+		PROCEDURE &InitPhysicalRegisters;
 		VAR i: LONGINT;
 		BEGIN
-			FOR i := 0 TO LEN(realToVirtual)-1 DO
-				realToVirtual[i] := free;
+			FOR i := 0 TO LEN(toVirtual)-1 DO
+				toVirtual[i] := NIL;
+				reserved[i] := FALSE;
 			END;
 			(* reserve stack and base pointer registers *)
-			realToVirtual[BPL] := unusable;
-			realToVirtual[SPL] := unusable;
-			realToVirtual[BP] := unusable;
-			realToVirtual[SP] := unusable;
-			realToVirtual[EBP] := unusable;
-			realToVirtual[ESP] := unusable;
-			realToVirtual[RBP] := unusable;
-			realToVirtual[RSP] := unusable;
-		END InitRegisterAllocator;
+			toVirtual[BPL] := unusable;
+			toVirtual[SPL] := unusable;
+			toVirtual[BP] := unusable;
+			toVirtual[SP] := unusable;
+			toVirtual[EBP] := unusable;
+			toVirtual[ESP] := unusable;
+			toVirtual[RBP] := unusable;
+			toVirtual[RSP] := unusable;
+			hint := none;
+		END InitPhysicalRegisters;
 
-		PROCEDURE Allocate(index: LONGINT; virtualRegister: LONGINT);
-		END Allocate;
+		PROCEDURE AllocationHint(index: LONGINT);
+		BEGIN hint := index
+		END AllocationHint;
 
-		PROCEDURE Free(index: LONGINT);
-		END Free;
+		PROCEDURE NumberRegisters(): LONGINT;
+		BEGIN
+			RETURN LEN(toVirtual)
+		END NumberRegisters;
 
-		PROCEDURE NextFree(sizeInBits: LONGINT): SHORTINT;
-		END NextFree;
+	END PhysicalRegisters;
 
-	END RegisterAllocator;
+	PhysicalRegisters32=OBJECT (PhysicalRegisters) (* 32 bit implementation *)
 
-	RegisterAllocator32=OBJECT (RegisterAllocator) (* 32 bit implementation *)
-
-		PROCEDURE & InitRegisterAllocator32;
+		PROCEDURE & InitPhysicalRegisters32;
 		VAR i: LONGINT;
 		BEGIN
-			InitRegisterAllocator;
-			(* reserve registers only usable in 64 bit mode *)
+			InitPhysicalRegisters;
+			(* disable registers that are only usable in 64 bit mode *)
+			FOR i := 0 TO 31 DO
+				toVirtual[i+RAX] := unusable;
+			END;
 			FOR i := 8 TO 15 DO
-				realToVirtual[i+AL] := unusable;
-				realToVirtual[i+AH] := unusable;
-				realToVirtual[i+EAX] := unusable;
-				realToVirtual[i+AX] := unusable;
+				toVirtual[i+AL] := unusable;
+				toVirtual[i+AH] := unusable;
+				toVirtual[i+EAX] := unusable;
+				toVirtual[i+AX] := unusable;
 			END;
 			FOR i := 4 TO 7 DO
-				realToVirtual[i+AL] := unusable;
-				realToVirtual[i+AH] := unusable;
+				toVirtual[i+AL] := unusable;
+				toVirtual[i+AH] := unusable;
 			END;
-		END InitRegisterAllocator32;
+			FOR i := 0 TO LEN(reserved)-1 DO reserved[i] := FALSE END;
+		END InitPhysicalRegisters32;
 
-		PROCEDURE Allocate(index: LONGINT; virtualRegister: LONGINT);
+		PROCEDURE Allocate(index: LONGINT; virtualRegister: Ticket);
 		BEGIN
 			(*
-			D.String("allocate "); D.Int(index,1); D.String(": "); D.Int(virtualRegister,1); D.Ln;
-			D.TraceBack;
+			D.String("allocate register x : index="); D.Int(index,1); D.Ln;
 			*)
+			Assert(toVirtual[index] = free,"register already allocated");
+			toVirtual[index] := virtualRegister;
 			IF index DIV 32 = 2 THEN (* 32 bit *)
-				Assert(realToVirtual[index] = free,"register already allocated");
-				Assert(realToVirtual[index MOD 32 + AX] = free,"free register split");
-				realToVirtual[index] := virtualRegister;
-				realToVirtual[index MOD 32 + AX] := blocked;
+				Assert(toVirtual[index MOD 32 + AX] = free,"free register split");
+				toVirtual[index MOD 32 + AX] := blocked;
 				IF index MOD 32 < 4 THEN
-					Assert(realToVirtual[index MOD 32 + AL] = free,"register already allocated");
-					Assert(realToVirtual[index MOD 32 + AH] = free,"register already allocated");
-					realToVirtual[index MOD 32 + AL] := blocked;
-					realToVirtual[index MOD 32 + AH] := blocked;
+					Assert(toVirtual[index MOD 32 + AL] = free,"register already allocated");
+					Assert(toVirtual[index MOD 32 + AH] = free,"register already allocated");
+					toVirtual[index MOD 32 + AL] := blocked;
+					toVirtual[index MOD 32 + AH] := blocked;
 				END;
 			ELSIF index DIV 32 = 1 THEN (* 16 bit *)
-				Assert(realToVirtual[index] = free,"register already allocated");
-				Assert(realToVirtual[index MOD 8 + EAX] = free,"free register split");
-				realToVirtual[index] := virtualRegister;
-				realToVirtual[index MOD 32 + EAX] := split;
+				Assert(toVirtual[index MOD 8 + EAX] = free,"free register split");
+				toVirtual[index MOD 32 + EAX] := split;
 				IF index MOD 32 < 4 THEN
-					Assert(realToVirtual[index MOD 32 + AL] = free,"register already allocated");
-					Assert(realToVirtual[index MOD 32 + AH] = free,"register already allocated");
-					realToVirtual[index MOD 32 + AL] := blocked;
-					realToVirtual[index MOD 32 + AH] := blocked;
+					Assert(toVirtual[index MOD 32 + AL] = free,"register already allocated");
+					Assert(toVirtual[index MOD 32 + AH] = free,"register already allocated");
+					toVirtual[index MOD 32 + AL] := blocked;
+					toVirtual[index MOD 32 + AH] := blocked;
 				END;
 			ELSIF index DIV 32 = 0 THEN (* 8 bit *)
-				Assert(realToVirtual[index] = free,"register already allocated");
-				Assert((realToVirtual[index MOD 4 + EAX] = free) OR (realToVirtual[index MOD 4 + EAX] = split),"free register blocked");
-				Assert((realToVirtual[index MOD 4 + AX] = free) OR (realToVirtual[index MOD 4 + AX] = split),"free register blocked");
-				realToVirtual[index] := virtualRegister;
-				realToVirtual[index MOD 4 + EAX] := split;
-				realToVirtual[index MOD 4 + AX] := split;
+				Assert((toVirtual[index MOD 4 + EAX] = free) OR (toVirtual[index MOD 4 + EAX] = split),"free register blocked");
+				Assert((toVirtual[index MOD 4 + AX] = free) OR (toVirtual[index MOD 4 + AX] = split),"free register blocked");
+				toVirtual[index MOD 4 + EAX] := split;
+				toVirtual[index MOD 4 + AX] := split;
 			ELSE Assert( (index >=InstructionSet.regST0) & (index <= InstructionSet.regST7 ),"not a float register"); (* floats *)
-				realToVirtual[index] := virtualRegister;
 			END;
 		END Allocate;
 
+		PROCEDURE SetReserved(index: LONGINT; res: BOOLEAN);
+		BEGIN
+			IF index DIV 32 <=2 THEN
+				index := index MOD 16;
+				reserved[index+AH] := res;
+				reserved[index+AL] := res;
+				reserved[index+AX] := res;
+				reserved[index+EAX] := res;
+			ELSE
+				reserved[index] := res;
+			END;
+		END SetReserved;
+
+		PROCEDURE Reserved(index: LONGINT): BOOLEAN;
+		BEGIN
+			RETURN (index>0) & reserved[index]
+		END Reserved;
+
 		PROCEDURE Free(index: LONGINT);
-		VAR x: LONGINT;
+		VAR x: Ticket;
 		BEGIN
 			(*
-			D.String("Release "); D.Int(index,1); D.Ln;
+			D.String("free register x : index="); D.Int(index,1); D.Ln;
 			*)
-			x := realToVirtual[index];
-			Assert((realToVirtual[index] > 0) OR (realToVirtual[index]=reserved),"register not reserved");
-			realToVirtual[index] := free;
+			x := toVirtual[index];
+			Assert((toVirtual[index] # NIL),"register not reserved");
+			toVirtual[index] := free;
 			IF index DIV 32 =2  THEN (* 32 bit *)
-				Assert(realToVirtual[index MOD 32 + AX] = blocked,"reserved register did not block");
-				realToVirtual[index MOD 32 + AX] := free;
+				Assert(toVirtual[index MOD 32 + AX] = blocked,"reserved register did not block");
+				toVirtual[index MOD 32 + AX] := free;
 				IF index MOD 32 < 4 THEN
-					Assert(realToVirtual[index MOD 32 + AL] = blocked,"reserved register did not block");
-					Assert(realToVirtual[index MOD 32 + AH] = blocked,"reserved register did not block");
-					realToVirtual[index MOD 32 + AL] := free;
-					realToVirtual[index MOD 32 + AH] := free;
+					Assert(toVirtual[index MOD 32 + AL] = blocked,"reserved register did not block");
+					Assert(toVirtual[index MOD 32 + AH] = blocked,"reserved register did not block");
+					toVirtual[index MOD 32 + AL] := free;
+					toVirtual[index MOD 32 + AH] := free;
 				END;
 			ELSIF index DIV 32 = 1 THEN (* 16 bit *)
-				Assert(realToVirtual[index MOD 32 + EAX] = split,"reserved register did not split");
-				realToVirtual[index MOD 32 + EAX] := free;
+				Assert(toVirtual[index MOD 32 + EAX] = split,"reserved register did not split");
+				toVirtual[index MOD 32 + EAX] := free;
 				IF index MOD 32 < 4 THEN
-					Assert(realToVirtual[index MOD 32 + AL] = blocked,"reserved register did not block");
-					Assert(realToVirtual[index MOD 32 + AH] = blocked,"reserved register did not block");
-					realToVirtual[index MOD 32 + AL] := free;
-					realToVirtual[index MOD 32 + AH] := free;
+					Assert(toVirtual[index MOD 32 + AL] = blocked,"reserved register did not block");
+					Assert(toVirtual[index MOD 32 + AH] = blocked,"reserved register did not block");
+					toVirtual[index MOD 32 + AL] := free;
+					toVirtual[index MOD 32 + AH] := free;
 				END;
 			ELSIF index DIV 32 = 0 THEN (* 8 bit *)
-				IF (realToVirtual[index MOD 4 + AL] = free) & (realToVirtual[index MOD 4 + AH] = free) THEN
-					Assert(realToVirtual[index MOD 4 + EAX] = split,"reserved register did not split");
-					Assert(realToVirtual[index MOD 4 + AX] = split,"reserved register did not split");
-					realToVirtual[index MOD 4 + EAX] := free;
-					realToVirtual[index MOD 4 + AX] := free;
+				IF (toVirtual[index MOD 4 + AL] = free) & (toVirtual[index MOD 4 + AH] = free) THEN
+					Assert(toVirtual[index MOD 4 + EAX] = split,"reserved register did not split");
+					Assert(toVirtual[index MOD 4 + AX] = split,"reserved register did not split");
+					toVirtual[index MOD 4 + EAX] := free;
+					toVirtual[index MOD 4 + AX] := free;
 				END;
 			ELSE Assert( (index >=InstructionSet.regST0) & (index <= InstructionSet.regST7 ),"not a float register"); (* floats *)
-				realToVirtual[index] := free;
 			END;
 		END Free;
-		(*
-		PROCEDURE NextFree(sizeInBits: LONGINT): SHORTINT;
-		VAR i: SHORTINT;
+
+		PROCEDURE NextFree(CONST type: IntermediateCode.Type):LONGINT;
+		VAR i,sizeInBits: LONGINT;
+
+			PROCEDURE Get(from1,to1,from2,to2: LONGINT): LONGINT;
+			BEGIN
+				IF (hint # none) & (toVirtual[hint] = free) & ~Reserved(hint) & ((from1 <= hint) & (hint <= to1) OR (from2 <= hint) & (hint <= to2)) THEN
+					i := hint; hint := none
+				ELSE
+
+					i := to2;
+					WHILE (i>= from2) & ((toVirtual[i]#free) OR Reserved(i)) DO
+						DEC(i);
+					END;
+					IF i < from2 THEN
+						i := to1;
+						WHILE (i>= from1) & ((toVirtual[i]#free) OR Reserved(i)) DO
+							DEC(i);
+						END;
+						IF i < from1 THEN i := none END
+					END;
+				END;
+				RETURN i
+			END Get;
+
 		BEGIN
-			IF sizeInBits = IntermediateCode.Bits8 THEN
-				i := AL;
-				WHILE (i<=BL) & (realToVirtual[i] # free)  DO
-					INC(i);
+			IF type.form IN IntermediateCode.Integer THEN
+				sizeInBits := type.sizeInBits;
+				IF type.sizeInBits = IntermediateCode.Bits8 THEN
+					i := Get(AH,BH,AL,BL)
+				ELSIF type.sizeInBits = IntermediateCode.Bits16 THEN
+					i := Get(AX,BX,SI,DI);
+				ELSIF type.sizeInBits = IntermediateCode.Bits32 THEN
+					i := Get(EAX,EBX,ESI,EDI);
+				ELSE HALT(100)
 				END;
-				IF i> BL THEN
-					i := AH;
-					WHILE (i<=BH) & (realToVirtual[i] # free)  DO
-						INC(i);
-					END;
-					IF i> BH THEN i := none END;
-					(* Assert(i >=AH,"not enough 8 bit registers"); *)
-				END;
-				RETURN i;
-			ELSIF sizeInBits = IntermediateCode.Bits16 THEN
-				i := AX;
-				WHILE (i <= BX) & (realToVirtual[i] # free) DO
-					INC(i);
-				END;
-				IF i> BX THEN
-					i := SI;
-					WHILE (i <= DI) & (realToVirtual[i] # free) DO
-						INC(i);
-					END;
-					IF i > DI THEN i := none END;
-				END;
-				RETURN i;
-			ELSIF sizeInBits = IntermediateCode.Bits32 THEN
-				i := EAX;
-				WHILE (i <= EBX) & (realToVirtual[i] # free) DO
-					INC(i);
-				END;
-				IF i> EBX THEN
-					i := ESI;
-					WHILE (i <= EDI) & (realToVirtual[i] # free) DO
-						INC(i);
-					END;
-					IF i > EDI THEN i := none END;
-				END;
-				RETURN i;
-			ELSE HALT(100)
+			ELSE
+				ASSERT(type.form = IntermediateCode.Float);
+				i := InstructionSet.regST0;
+				(* ST7 unusable as it is overwritten during arithmetic instructions *)
+				WHILE (i < InstructionSet.regST7) & (toVirtual[i] # free) DO INC(i) END;
+				IF i = InstructionSet.regST7 THEN i := none END; (* SP7 not usable as frequently overwritten during expressions *)
 			END;
+			hint := none; (* reset *)
+			RETURN i
 		END NextFree;
 
-		*)
-
-		PROCEDURE NextFree(sizeInBits: LONGINT): SHORTINT;
-		VAR i: SHORTINT;
+		PROCEDURE Mapped(physical: LONGINT): Ticket;
+		VAR virtual: Ticket;
 		BEGIN
-			IF sizeInBits = IntermediateCode.Bits8 THEN
-				i := BL;
-				WHILE (i>=AL) & (realToVirtual[i] # free)  DO
-					DEC(i);
+			virtual := toVirtual[physical];
+			IF virtual = blocked THEN virtual :=  Mapped(physical+32)
+			ELSIF virtual = split THEN
+				IF physical < 32 THEN virtual := Mapped(physical+16 MOD 32)
+				ELSE virtual := Mapped(physical-32)
 				END;
-				IF i< AL THEN
-					i := BH;
-					WHILE (i>=AH) & (realToVirtual[i] # free)  DO
-						DEC(i);
-					END;
-					IF i< AH THEN i := none END;
-					(* Assert(i >=AH,"not enough 8 bit registers"); *)
-				END;
-				RETURN i;
-			ELSIF sizeInBits = IntermediateCode.Bits16 THEN
-				i := DI;
-				WHILE (i >= SI) & (realToVirtual[i] # free) DO
-					DEC(i);
-				END;
-				IF i < SI THEN
-					i := BX;
-					WHILE (i >= AX) & (realToVirtual[i] # free) DO
-						DEC(i);
-					END;
-					IF i< AX THEN i := none END;
-					(* Assert(i>=AX,"not enough 16 bit registers");*)
-				END;
-				RETURN i;
-			ELSIF sizeInBits = IntermediateCode.Bits32 THEN
-				i := EDI;
-				WHILE (i>=ESI) & (realToVirtual[i] # free) DO
-					DEC(i);
-				END;
-				IF i < ESI THEN
-					i := EBX;
-					WHILE (i >= EAX) & (realToVirtual[i] # free)  DO
-						DEC(i);
-					END;
-					IF i< EAX THEN i := none END;
-					(*
-					Assert(i>=EAX,"not enough 32 bit registers");
-					*)
-				END;
-				RETURN i;
-			ELSE HALT(100)
 			END;
-		END NextFree;
 
+			ASSERT((virtual = free) OR (virtual = unusable) OR (toVirtual[virtual.register] = virtual));
+			RETURN virtual
+		END Mapped;
 
-	END RegisterAllocator32;
-
-	RegisterAllocator64=OBJECT (RegisterAllocator) (* 64 bit implementation *)
-
-		PROCEDURE & InitRegisterAllocator64;
+		PROCEDURE Dump(w: Streams.Writer);
+		VAR i: LONGINT; virtual: Ticket;
 		BEGIN
-			InitRegisterAllocator;
-		END InitRegisterAllocator64;
+			w.String("---- registers ----"); w.Ln;
+			FOR i := 0 TO LEN(toVirtual)-1 DO
+				virtual := toVirtual[i];
+				IF virtual # unusable THEN
+					w.String("reg "); w.Int(i,1); w.String(": ");
+					IF virtual = free THEN w.String("free")
+					ELSIF virtual = blocked THEN w.String("blocked")
+					ELSIF virtual = split THEN w.String("split")
+					ELSE	w.String(" r"); w.Int(virtual.register,1);
+					END;
+					IF reserved[i] THEN w.String("reserved") END;
+					w.Ln;
+				END;
+			END;
+		END Dump;
 
-		PROCEDURE Allocate(index: LONGINT; virtualRegister: LONGINT);
+	END PhysicalRegisters32;
+
+	PhysicalRegisters64=OBJECT (PhysicalRegisters) (* 64 bit implementation *)
+
+		PROCEDURE & InitPhysicalRegisters64;
+		BEGIN
+			InitPhysicalRegisters;
+		END InitPhysicalRegisters64;
+
+		PROCEDURE SetReserved(index: LONGINT; res: BOOLEAN);
 		BEGIN
 			(*
-			D.String("allocate "); D.Int(index,1); D.String(": "); D.Int(virtualRegister,1); D.Ln;
-			D.TraceBack;
+			IF res THEN D.String("reserve ") ELSE D.String("unreserve ") END;
+			D.String("register: index="); D.Int(index,1); D.Ln;
 			*)
+			IF index DIV 32 <=2 THEN
+				index := index MOD 16;
+				reserved[index+AH] := res;
+				reserved[index+AL] := res;
+				reserved[index+AX] := res;
+				reserved[index+EAX] := res;
+				reserved[index+RAX] := res;
+			ELSE
+				reserved[index] := res
+			END;
+		END SetReserved;
+
+		PROCEDURE Reserved(index: LONGINT): BOOLEAN;
+		BEGIN
+			RETURN reserved[index]
+		END Reserved;
+
+		PROCEDURE Allocate(index: LONGINT; virtualRegister: Ticket);
+		BEGIN
+			(*
+			D.String("allocate register x : index="); D.Int(index,1); D.Ln;
+			*)
+			Assert(toVirtual[index] = free,"register already allocated");
+			toVirtual[index] := virtualRegister;
 			IF index DIV 32 = 3 THEN (* 64 bit *)
-				Assert(realToVirtual[index] = free,"register already allocated");
-				Assert(realToVirtual[index MOD 32 + EAX] = free,"free register split");
-				realToVirtual[index] := virtualRegister;
-				realToVirtual[index MOD 32 + EAX] := blocked;
-				realToVirtual[index MOD 32 + AX] := blocked;
-				realToVirtual[index MOD 32 + AL] := blocked;
+				Assert(toVirtual[index MOD 32 + EAX] = free,"free register split");
+				toVirtual[index MOD 32 + EAX] := blocked;
+				toVirtual[index MOD 32 + AX] := blocked;
+				toVirtual[index MOD 32 + AL] := blocked;
 			ELSIF index DIV 32 = 2 THEN (* 32 bit *)
-				Assert(realToVirtual[index] = free,"register already allocated");
-				Assert(realToVirtual[index MOD 32 + AX] = free,"free register split");
-				realToVirtual[index] := virtualRegister;
-				realToVirtual[index MOD 32 + RAX] := split;
-				realToVirtual[index MOD 32 + AX] := blocked;
-				realToVirtual[index MOD 32 + AL] := blocked;
+				Assert(toVirtual[index MOD 32 + AX] = free,"free register split");
+				toVirtual[index MOD 32 + RAX] := split;
+				toVirtual[index MOD 32 + AX] := blocked;
+				toVirtual[index MOD 32 + AL] := blocked;
 			ELSIF index DIV 32 = 1 THEN (* 16 bit *)
-				Assert(realToVirtual[index] = free,"register already allocated");
-				realToVirtual[index] := virtualRegister;
-				realToVirtual[index MOD 32 + RAX] := split;
-				realToVirtual[index MOD 32 + EAX] := split;
-				realToVirtual[index MOD 32 + AL] := blocked;
+				toVirtual[index MOD 32 + RAX] := split;
+				toVirtual[index MOD 32 + EAX] := split;
+				toVirtual[index MOD 32 + AL] := blocked;
 			ELSIF index DIV 32 = 0 THEN (* 8 bit *)
-				Assert(realToVirtual[index] = free,"register already allocated");
-				realToVirtual[index] := virtualRegister;
-				realToVirtual[index MOD 32 + RAX] := split;
-				realToVirtual[index MOD 32 + EAX] := split;
-				realToVirtual[index MOD 32 + AX] := split;
+				toVirtual[index MOD 32 + RAX] := split;
+				toVirtual[index MOD 32 + EAX] := split;
+				toVirtual[index MOD 32 + AX] := split;
 			ELSE Assert( (index >=InstructionSet.regST0) & (index <= InstructionSet.regST7 ),"not a float register"); (* floats *)
-				realToVirtual[index] := virtualRegister;
 			END;
 		END Allocate;
 
 		PROCEDURE Free(index: LONGINT);
-		VAR x: LONGINT;
 		BEGIN
 			(*
-			D.String("Release "); D.Int(index,1); D.Ln;
+			D.String("release register x : index="); D.Int(index,1); D.Ln;
 			*)
-			x := realToVirtual[index];
-			Assert((realToVirtual[index] > 0) OR (realToVirtual[index]=reserved),"register not reserved");
-			realToVirtual[index] := free;
+			Assert(toVirtual[index]#NIL,"register not reserved");
+			toVirtual[index] := free;
 			IF index DIV 32 =3  THEN (* 64 bit *)
-				Assert(realToVirtual[index MOD 32 + EAX] = blocked,"reserved register did not block");
-				realToVirtual[index MOD 32 + EAX] := free;
-				realToVirtual[index MOD 32 + AL] := free;
+				Assert(toVirtual[index MOD 32 + EAX] = blocked,"reserved register did not block");
+				toVirtual[index MOD 32 + EAX] := free;
+				toVirtual[index MOD 32 + AX] := free;
+				toVirtual[index MOD 32 + AL] := free;
 			ELSIF index DIV 32 =2  THEN (* 32 bit *)
-				Assert(realToVirtual[index MOD 32 + RAX] = split,"reserved register did not split");
-				Assert(realToVirtual[index MOD 32 + AX] = blocked,"reserved register did not block");
-				Assert(realToVirtual[index MOD 32 + AL] = blocked,"reserved register did not block");
-				realToVirtual[index MOD 32 + RAX] := free;
-				realToVirtual[index MOD 32 + AX] := free;
-				realToVirtual[index MOD 32 + AL] := free;
+				Assert(toVirtual[index MOD 32 + RAX] = split,"reserved register did not split");
+				Assert(toVirtual[index MOD 32 + AX] = blocked,"reserved register did not block");
+				Assert(toVirtual[index MOD 32 + AL] = blocked,"reserved register did not block");
+				toVirtual[index MOD 32 + RAX] := free;
+				toVirtual[index MOD 32 + AX] := free;
+				toVirtual[index MOD 32 + AL] := free;
 			ELSIF index DIV 32 = 1 THEN (* 16 bit *)
-				Assert(realToVirtual[index MOD 32 + RAX] = split,"reserved register did not split");
-				Assert(realToVirtual[index MOD 32 + EAX] = split,"reserved register did not split");
-				Assert(realToVirtual[index MOD 32 + AL] = blocked,"reserved register did not split");
-				realToVirtual[index MOD 32 + RAX] := free;
-				realToVirtual[index MOD 32 + EAX] := free;
-				realToVirtual[index MOD 32 + AL] := free;
+				Assert(toVirtual[index MOD 32 + RAX] = split,"reserved register did not split");
+				Assert(toVirtual[index MOD 32 + EAX] = split,"reserved register did not split");
+				Assert(toVirtual[index MOD 32 + AL] = blocked,"reserved register did not split");
+				toVirtual[index MOD 32 + RAX] := free;
+				toVirtual[index MOD 32 + EAX] := free;
+				toVirtual[index MOD 32 + AL] := free;
 			ELSIF index DIV 32 = 0 THEN (* 8 bit *)
-				Assert(realToVirtual[index MOD 32 + RAX] = split,"reserved register did not split");
-				Assert(realToVirtual[index MOD 32 + EAX] = split,"reserved register did not split");
-				Assert(realToVirtual[index MOD 32 + AX] = split,"reserved register did not split");
-				realToVirtual[index MOD 32 + RAX] := free;
-				realToVirtual[index MOD 32 + EAX] := free;
-				realToVirtual[index MOD 32 + AX] := free;
+				Assert(toVirtual[index MOD 32 + RAX] = split,"reserved register did not split");
+				Assert(toVirtual[index MOD 32 + EAX] = split,"reserved register did not split");
+				Assert(toVirtual[index MOD 32 + AX] = split,"reserved register did not split");
+				toVirtual[index MOD 32 + RAX] := free;
+				toVirtual[index MOD 32 + EAX] := free;
+				toVirtual[index MOD 32 + AX] := free;
 			ELSE Assert( (index >=InstructionSet.regST0) & (index <= InstructionSet.regST7 ),"not a float register"); (* floats *)
-				realToVirtual[index] := free;
 			END;
 		END Free;
-		(*
-		PROCEDURE NextFree(sizeInBits: LONGINT): SHORTINT;
-		VAR i: SHORTINT;
+
+		PROCEDURE NextFree(CONST type: IntermediateCode.Type): LONGINT;
+		VAR i: LONGINT;
+			PROCEDURE Get(from,to: LONGINT): LONGINT;
+			BEGIN
+				IF (hint # none) & (toVirtual[hint] = free) & ~Reserved(i) & (from <= hint) & (hint <= to) THEN
+					i := hint; hint := none
+				ELSE
+					i := to;
+					WHILE (i>= from) & ((toVirtual[i]#free) OR Reserved(i)) DO
+						DEC(i);
+					END;
+					IF i < from THEN i := none END;
+				END;
+				RETURN i
+			END Get;
 		BEGIN
-			IF sizeInBits = IntermediateCode.Bits8 THEN
-				i := AL;
-				WHILE (i<=BL) & (realToVirtual[i] # free)  DO
-					INC(i);
+			IF type.form IN IntermediateCode.Integer THEN
+				IF type.sizeInBits = IntermediateCode.Bits8 THEN
+					i := Get(AL,R15B)
+				ELSIF type.sizeInBits = IntermediateCode.Bits16 THEN
+					i := Get(AX,R15W);
+				ELSIF type.sizeInBits = IntermediateCode.Bits32 THEN
+					i := Get(EAX,R15D);
+				ELSIF type.sizeInBits = IntermediateCode.Bits64 THEN
+					i := Get(RAX, R15)
+				ELSE HALT(100)
 				END;
-				IF i> BL THEN
-					i := AH;
-					WHILE (i<=BH) & (realToVirtual[i] # free)  DO
-						INC(i);
-					END;
-					IF i> BH THEN i := none END;
-					(* Assert(i >=AH,"not enough 8 bit registers"); *)
-				END;
-				RETURN i;
-			ELSIF sizeInBits = IntermediateCode.Bits16 THEN
-				i := AX;
-				WHILE (i <= BX) & (realToVirtual[i] # free) DO
-					INC(i);
-				END;
-				IF i> BX THEN
-					i := SI;
-					WHILE (i <= DI) & (realToVirtual[i] # free) DO
-						INC(i);
-					END;
-					IF i > DI THEN i := none END;
-				END;
-				RETURN i;
-			ELSIF sizeInBits = IntermediateCode.Bits32 THEN
-				i := EAX;
-				WHILE (i <= EBX) & (realToVirtual[i] # free) DO
-					INC(i);
-				END;
-				IF i> EBX THEN
-					i := ESI;
-					WHILE (i <= EDI) & (realToVirtual[i] # free) DO
-						INC(i);
-					END;
-					IF i > EDI THEN i := none END;
-				END;
-				RETURN i;
-			ELSE HALT(100)
+			ELSE
+				ASSERT(type.form = IntermediateCode.Float);
+				i := InstructionSet.regST0;
+				(* ST7 unusable as it is overwritten during arithmetic instructions *)
+				WHILE (i < InstructionSet.regST7) & (toVirtual[i] # free) DO INC(i) END;
+				IF i = InstructionSet.regST7 THEN i := none END;
 			END;
+			RETURN i;
 		END NextFree;
+
+		PROCEDURE Mapped(physical: LONGINT): Ticket;
+		VAR virtual: Ticket;
+		BEGIN
+			virtual := toVirtual[physical];
+			IF virtual = blocked THEN RETURN Mapped(physical+32) END;
+			IF virtual = split THEN RETURN Mapped(physical-32) END;
+			RETURN virtual
+		END Mapped;
+
+	END PhysicalRegisters64;
+
+	CodeGeneratorAMD64 = OBJECT (IntermediateBackend.GenericCodeGenerator)
+	VAR
+		(* static generator state variables, considered constant during generation *)
+		runtimeModuleName: SyntaxTree.String;
+		cpuBits: LONGINT;
+		opBP, opSP, opRA, opRC, opRD, opRS: Assembler.Operand; (* base pointer, stack pointer, register A, depends on cpuBits*)
+		BP, SP, RA, RD, RS, RC: LONGINT; (* base pointer and stack pointer register index, depends on cpuBits *)
+
+		emitter: Assembler.Emitter; (* assembler generating and containing the machine code *)
+
+		(* register spill state *)
+		stackSize: LONGINT;
+		spillStackStart: LONGINT;
+
+		(* floating point stack state *)
+		fpStackPointer: LONGINT; (* floating point stack pointer, increases with allocation, decreases with releasing, used to determine current relative position on stack (as is necessary for intel FP instructions) *)
+		(*
+			FP register usage scheme:
+
+												sp=1>	FP0 - temp
+		sp=0>	FP0 - reg0								FP1 - reg0						sp=0>	FP0 - reg0
+				FP1 - reg1								FP2 - reg1								FP1 - reg1
+				FP2 - reg2								FP3 - reg2								FP2 - reg2
+				FP3 - reg3	 = load op1 =>			FP4 - reg3		= op =>				FP3 - reg3
+				FP4 - reg4								FP5 - reg4								FP4 - reg4
+				FP5 - reg5								FP6 - reg5								FP5 - reg5
+				FP6 - reg6								FP7 - reg6								FP6 - reg6
+				FP7 - reg7									(reg7 lost)							FP7 - reg7
 
 		*)
 
-		PROCEDURE NextFree(sizeInBits: LONGINT): SHORTINT;
-		VAR i: SHORTINT;
-		BEGIN
-			IF sizeInBits = IntermediateCode.Bits8 THEN
-				i := R15B;
-				WHILE (i>=AL) & (realToVirtual[i] # free)  DO
-					DEC(i);
-				END;
-				IF i< AL THEN
-					i := none;
-					(* Assert(i >=AH,"not enough 8 bit registers"); *)
-				END;
-				RETURN i;
-			ELSIF sizeInBits = IntermediateCode.Bits16 THEN
-				i := R15W;
-				WHILE (i >= AX) & (realToVirtual[i] # free) DO
-					DEC(i);
-				END;
-				IF i< AX THEN i := none END;
-				RETURN i;
-			ELSIF sizeInBits = IntermediateCode.Bits32 THEN
-				i := R15D;
-				WHILE (i>=EAX) & (realToVirtual[i] # free) DO
-					DEC(i);
-				END;
-				IF i< EAX THEN i := none END;
-				RETURN i;
-			ELSIF sizeInBits = IntermediateCode.Bits64 THEN
-				i := R15;
-				WHILE (i>=RAX) & (realToVirtual[i] # free) DO
-					DEC(i);
-				END;
-				IF i< EAX THEN i := none END;
-				RETURN i;
-			ELSE HALT(100)
-			END;
-		END NextFree;
 
-	END RegisterAllocator64;
-
-	CodeGenerator= OBJECT (* code generator : generic part, may be moved to generic code generator module *)
-	VAR
-		diagnostics: Diagnostics.Diagnostics; (* error stream *)
-		module: Sections.Module;
-		lastUse: ARRAY MaxVirtualRegisters OF LONGINT;
-		dump: Streams.Writer;
-		in: IntermediateCode.Section; out: BinaryCode.Section;
-		inPC: LONGINT;
-		toBeReleased: SET; (* registers that will be released after current instruction *)
-		currentlyUsed: SET; (* registers that are used in current instruction *)
-		error: BOOLEAN;
-
-		(* generic *)
-		PROCEDURE & InitGenerator(diagnostics: Diagnostics.Diagnostics);
-		VAR i: LONGINT;
-		BEGIN
-			SELF.module := NIL;
-			SELF.diagnostics := diagnostics;
-			FOR i := 0 TO LEN(lastUse)-1 DO
-				lastUse[i] := -1;
-			END;
-			SELF.error := FALSE;
-		END InitGenerator;
-
-		PROCEDURE SetModule(module: Sections.Module); (* needed for inline code for symbol reference *)
-		BEGIN
-			SELF.module := module;
-		END SetModule;
-
-		PROCEDURE Error( CONST message: ARRAY OF CHAR);
-		BEGIN
-			diagnostics.Error("",0,Diagnostics.Invalid,message);
-			error := TRUE;
-		END Error;
-
-		(* generic *)
-		PROCEDURE Section(in: IntermediateCode.Section; out: BinaryCode.Section);
-		VAR pc: LONGINT; name: SyntaxTree.String; ignore: BOOLEAN;
-
-			PROCEDURE CheckAcquire(CONST instr: IntermediateCode.Instruction);
-			VAR i: LONGINT; type: IntermediateCode.Type;
-				(*lastUse: ARRAY MaxVirtualRegisters OF LONGINT;*)
-
-				PROCEDURE CheckOperand(CONST operand: IntermediateCode.Operand; register: LONGINT; at: LONGINT);
-				BEGIN
-					IF operand.register = register THEN lastUse[register] := at;
-						IF operand.mode = IntermediateCode.ModeMemory THEN
-							type := IntermediateBackend.GetType(module.system,module.system.addressType);
-						ELSE
-							type := operand.type
-						END;
-					END;
-				END CheckOperand;
-
-				PROCEDURE CheckUsage(CONST instr: IntermediateCode.Instruction; register: LONGINT; at: LONGINT);
-				BEGIN
-					CheckOperand(instr.op1,register, at);
-					CheckOperand(instr.op2,register, at);
-					CheckOperand(instr.op3,register, at);
-				END CheckUsage;
-
-				PROCEDURE CheckDest(CONST instr: IntermediateCode.Instruction; register: LONGINT): BOOLEAN;
-				(* check if instruction uses register as new destination operand
-					examples:
-						mov $0, $1
-						add $0, [$1]
-						call (implicit for $res and $res2)
-					but not:
-						mov [$0], $1
-						add $0, $0, 1
-				*)
-				BEGIN
-					RETURN
-					(instr.op1.mode = IntermediateCode.ModeRegister)
-					& (IntermediateCode.Op1IsDestination IN IntermediateCode.instructionFormat[instr.opcode].flags) (* first operand is destination operand *)
-					& (instr.op1.register = register) & (instr.op2.register # register) & (instr.op3.register # register)
-					OR (instr.opcode = IntermediateCode.call) & (register IN {IntermediateCode.Result, IntermediateCode.Result2})
-				END CheckDest;
-
-				PROCEDURE Reserve(register: LONGINT);
-				BEGIN
-					IF (register >0) & CheckDest(instr,register) THEN
-						Assert(lastUse[register] < 0,"error in register usage");
-						type := instr.op1.type;
-						i := pc+1; lastUse[register] := pc;
-						WHILE (i<in.pc) & ~CheckDest(in.instructions[i],register) DO
-							CheckUsage(in.instructions[i],register,i); INC(i);
-						END;
-						IF (instr.opcode # IntermediateCode.call) OR (lastUse[register] >pc) THEN (* used at all *)
-							IF dump # NIL THEN
-								dump.String("map virtual register $"); dump.Int(register,1);
-								dump.String(", last use:"); dump.Int(lastUse[register],1);
-								IntermediateCode.DumpType(dump,type);
-								dump.Ln;
-							END;
-							MapVirtualRegister(register,type);
-						ELSE lastUse[register] := -1;
-						END;
-					END;
-				END Reserve;
-
-			BEGIN
-				Reserve(instr.op1.register);
-				IF instr.opcode = IntermediateCode.call THEN
-					Reserve(IntermediateCode.Result);
-					Reserve(IntermediateCode.Result2);
-				END;
-			END CheckAcquire;
-
-			PROCEDURE Prepare(instr: IntermediateCode.Instruction; pc: LONGINT);
-			VAR register: LONGINT;
-			BEGIN
-				FOR register := 0 TO MaxVirtualRegisters-1 DO
-					IF lastUse[register] = pc THEN INCL(toBeReleased,register) END;
-				END;
-				currentlyUsed := {};
-				IF instr.opcode = IntermediateCode.call THEN
-					INCL(currentlyUsed, IntermediateCode.Result);
-					INCL(currentlyUsed, IntermediateCode.Result2);
-				END;
-				IF instr.op1.register > 0 THEN INCL(currentlyUsed,instr.op1.register) END;
-				IF instr.op2.register > 0 THEN INCL(currentlyUsed,instr.op2.register) END;
-				IF instr.op3.register > 0 THEN INCL(currentlyUsed,instr.op3.register) END;
-			END Prepare;
-
-			PROCEDURE Release(instr: IntermediateCode.Instruction);
-			VAR register: LONGINT;
-			BEGIN
-				FOR register := 0 TO MaxVirtualRegisters-1 DO
-					IF register IN toBeReleased THEN
-						UnmapVirtualRegister(register);
-					END;
-				END;
-			END Release;
-
-			PROCEDURE CheckRelease;
-			VAR register: LONGINT;
-			BEGIN
-				FOR register := 0 TO MaxVirtualRegisters-1 DO
-					IF register IN toBeReleased THEN
-						Error("register not released");
-					END;
-					IF lastUse[register] # -1 THEN
-						Error("register still used");
-					END;
-				END;
-			END CheckRelease;
-
-
-			PROCEDURE ResolveLocalFixups;
-			VAR fixup,next: BinaryCode.Fixup;  dest: LONGINT;
-			BEGIN
-				fixup := out.fixupList.firstFixup;
-				out.fixupList.InitFixupList;
-				WHILE fixup # NIL DO
-					next := fixup.nextFixup;
-
-					IF (fixup.symbol = in) & (fixup.mode = BinaryCode.Relative) THEN (* local fixup *)
-						IF dump # NIL THEN
-							dump.String("local fixup: "); fixup.Dump(dump); dump.Ln;
-						END;
-						dest := fixup.symbolOffset;
-						IF dest # 0 THEN
-							ASSERT(in.pc > dest);
-							dest := in.instructions[dest].pc;
-						END;
-						fixup.SetSymbol(fixup.symbol,0,dest+fixup.displacement);
-						IF dump # NIL THEN
-							dump.String("local fixup resolved: "); fixup.Dump(dump); dump.Ln;
-						END;
-						IF ~out.ApplyFixup(fixup) THEN
-							Error("local fixup out of range");
-						END
-					ELSE
-						out.fixupList.AddFixup(fixup);
-					END;
-					fixup := next;
-				END;
-			END ResolveLocalFixups;
-
-		BEGIN
-			ignore := FALSE;
-			name := in.name; (*debugging*)
-			SELF.in := in; SELF.out := out;
-			dump := out.comments;
-			(* dump := D.Log;*)
-			FOR pc := 0 TO in.pc-1 DO
-				IF pc = in.finally THEN out.SetFinally(out.pc) END;
-				IF pc = in.validPAFEnter THEN out.EnterValidPAF END;
-				IF pc = in.validPAFExit THEN out.ExitValidPAF END;
-				CheckAcquire(in.instructions[pc]);
-				Prepare(in.instructions[pc],pc);
-				IF dump # NIL THEN
-					dump.Int(pc,1); dump.String(": "); IntermediateCode.DumpInstruction(dump,in.instructions[pc]);
-					IF ignore THEN dump.String(" ignored.") END;
-					dump.String(" | ");
-					dump.Set(toBeReleased);
-					dump.Set(currentlyUsed);
-					dump.Ln;
-				END;
-				inPC := pc;
-				in.SetPC(pc,out.pc); (* set pc of (intermediate) instruction at pc to newPC *)
-				IF ~ignore THEN
-					Generate(in.instructions[pc]);
-					Release(in.instructions[pc]);
-				END;
-			END;
-			CheckRelease();
-
-			ResolveLocalFixups;
-			IF dump # NIL THEN
-				dump.Update
-			END
-		END Section;
-
-		PROCEDURE MapVirtualRegister(reg: LONGINT; type: IntermediateCode.Type);
-		BEGIN HALT(100); (* abstract *)
-		END MapVirtualRegister;
-
-		PROCEDURE UnmapVirtualRegister(reg: LONGINT);
-		BEGIN HALT(100); (* abstract *)
-		END UnmapVirtualRegister;
-
-		PROCEDURE TransferRegister(from, to: LONGINT);
-		BEGIN HALT(100);
-		END TransferRegister;
-
-
-		PROCEDURE Generate(CONST instr: IntermediateCode.Instruction);
-		BEGIN HALT(100); (* abstract *)
-		END Generate;
-
-	END CodeGenerator;
-
-
-	CodeGeneratorAMD64 = OBJECT (CodeGenerator)
-	VAR
-		emitter: Assembler.Emitter; (* assembler generating and containing the machine code *)
-		bits: LONGINT;
-		registerAllocator: RegisterAllocator;
-		realRegisters: ARRAY MaxVirtualRegisters OF Register; (* mapping to general purpose registers *)
-
-		stackSize, enterPos: LONGINT;
-		spillStack: ARRAY MaxSpilledRegisters OF LONGINT; (* mapping of spill stack position to virtual register, none if unused *)
-		spillStackOperand: ARRAY MaxSpilledRegisters OF Assembler.Operand;
-		spillStackStart, spillStackSize: LONGINT;
-		fpRegisters: ARRAY MaxVirtualRegisters OF LONGINT; (* mapping virtual register => fp stack position *)
-		registerType: ARRAY MaxVirtualRegisters OF IntermediateCode.Type;
-		fpMapped: ARRAY 9 OF LONGINT; (* mapping fp stack position => virtual register *)
-		fpStackPointer: LONGINT; (* floating point stack pointer, increases with allocation, decreases with releasing, used to determine current relative position on stack (as is necessary for intel FP instructions) *)
-
-		temporary: ARRAY 6 OF LONGINT; numberTemporary : LONGINT;
-		runtimeModuleName: SyntaxTree.String;
-
-		opBP, opSP, opA: Assembler.Operand;
-		BP, SP: LONGINT;
-
+		(* -------------------------- constructor -------------------------------*)
 		PROCEDURE &InitGeneratorAMD64(CONST runtime: SyntaxTree.String; diagnostics: Diagnostics.Diagnostics; bits: LONGINT);
-		VAR i: LONGINT; registerAllocator32: RegisterAllocator32; registerAllocator64: RegisterAllocator64;
+		VAR physicalRegisters: PhysicalRegisters; physicalRegisters32: PhysicalRegisters32; physicalRegisters64: PhysicalRegisters64;
 		BEGIN
 			runtimeModuleName := runtime;
-			InitGenerator(diagnostics);
+
 			NEW(emitter,diagnostics);
 			IF bits=32 THEN
-				NEW(registerAllocator32); registerAllocator := registerAllocator32; error := ~emitter.SetBits(32);
-				opBP := opEBP; opSP := opESP; opA := opEAX;
-				SP := ESP; BP := EBP;
+				NEW(physicalRegisters32); physicalRegisters := physicalRegisters32; error := ~emitter.SetBits(32);
+				opBP := opEBP; opSP := opESP; opRA := opEAX; opRD := opEDI; opRS := opESI; opRC := opECX;
+				SP := ESP; BP := EBP; RA := EAX;
+				RD := EDI; RS := ESI; RC := ECX;
 				ASSERT(~error);
 			ELSIF bits=64 THEN
-				NEW(registerAllocator64); registerAllocator := registerAllocator64; error := ~emitter.SetBits(64);
-				opBP := opRBP; opSP := opRSP; opA := registerOperands[RAX];
-				SP := RSP; BP := RBP;
+				NEW(physicalRegisters64); physicalRegisters := physicalRegisters64; error := ~emitter.SetBits(64);
+				opBP := opRBP; opSP := opRSP; opRA := registerOperands[RAX]; opRD := registerOperands[RDI];
+				opRS := registerOperands[RSI]; opRC := registerOperands[RCX];
+				SP := RSP; BP := RBP; RA := RAX;
+				RD := RDI; RS := RSI; RC := RCX;
 				ASSERT(~error);
 			ELSE Halt("no register allocator for bits other than 32 / 64 ");
 			END;
-			SELF.bits := bits;
-			(*
-			registerAllocator.Allocate(EAX,reserved);
-			registerAllocator.Allocate(EDX,reserved);
-			*)
-			(* registers EAX and EDX are reserved as return registers and for multi purpose use during
-			the whole code generation process *)
+			SELF.cpuBits := bits;
 			fpStackPointer := 0;
-			FOR i := 0 TO LEN(spillStack)-1 DO
-				spillStack[i] := none;
-			END;
-			FOR i := 0 TO LEN(realRegisters)-1 DO
-				realRegisters[i].low := none;
-				realRegisters[i].high := none;
-				realRegisters[i].lowSpilled := FALSE;
-				realRegisters[i].highSpilled := FALSE;
-			END;
+			InitGenerator(diagnostics,FALSE,2,physicalRegisters);
 		END InitGeneratorAMD64;
 
-		PROCEDURE Error( CONST message: ARRAY OF CHAR);
-		BEGIN
-			diagnostics.Error(emitter.code.identifier.name,(emitter.code.pc),Diagnostics.Invalid,message);
-			IF dump # NIL THEN
-				dump.String(message); dump.Ln;
-			END;
-			error := TRUE;
-		END Error;
-
+		(*------------------- overwritten methods ----------------------*)
 		PROCEDURE Section(in: IntermediateCode.Section; out: BinaryCode.Section);
-		VAR oldSpillStackSize,i: LONGINT;
+		VAR oldSpillStackSize: LONGINT;
+
+			PROCEDURE CheckEmptySpillStack;
+			BEGIN
+				IF spillStack.Size()#0 THEN Error("implementation error, spill stack not cleared") END;
+			END CheckEmptySpillStack;
+
 		BEGIN
+			spillStack.Init;
 			emitter.SetCode(out);
-			spillStackSize := 0;
 			Section^(in,out);
-			IF spillStackSize >0 THEN
-				oldSpillStackSize := spillStackSize;
+			IF FrameSpillStack & (spillStack.MaxSize() >0) THEN
+				oldSpillStackSize := spillStack.MaxSize();
 				out.Reset;
-				FOR i := 0 TO LEN(spillStack)-1 DO
-					spillStack[i] := none;
-				END;
+				CheckEmptySpillStack;
 				Section^(in,out);
-				ASSERT(spillStackSize = oldSpillStackSize);
+				ASSERT(spillStack.MaxSize() = oldSpillStackSize);
 			END;
-			(*PatchEnter();*)
+			ASSERT(fpStackPointer = 0);
+			CheckEmptySpillStack;
 			error := error OR emitter.error;
 		END Section;
 
-		PROCEDURE Supported(CONST instr: IntermediateCode.Instruction; VAR moduleName, procedureName: ARRAY OF CHAR): BOOLEAN;
+		PROCEDURE Supported(CONST instruction: IntermediateCode.Instruction; VAR moduleName, procedureName: ARRAY OF CHAR): BOOLEAN;
 		BEGIN
 			COPY(runtimeModuleName, moduleName);
-			IF (bits=32) & (instr.op2.type.sizeInBits = IntermediateCode.Bits64) & (instr.op2.type.form IN IntermediateCode.Integer) THEN
-				CASE instr.opcode OF
+			IF (cpuBits=32) & (instruction.op2.type.sizeInBits = IntermediateCode.Bits64) & (instruction.op2.type.form IN IntermediateCode.Integer) THEN
+				CASE instruction.opcode OF
 				IntermediateCode.div:
 					procedureName := "DivH"; RETURN FALSE
 				| IntermediateCode.mul:
@@ -810,13 +521,13 @@ TYPE
 				| IntermediateCode.abs :
 					procedureName := "AbsH"; RETURN FALSE;
 				| IntermediateCode.shl :
-					IF instr.op1.type.form = IntermediateCode.SignedInteger THEN
+					IF instruction.op1.type.form = IntermediateCode.SignedInteger THEN
 						procedureName := "AslH"; RETURN FALSE;
 					ELSE
 						procedureName := "LslH"; RETURN FALSE;
 					END;
 				| IntermediateCode.shr :
-					IF instr.op1.type.form = IntermediateCode.SignedInteger THEN
+					IF instruction.op1.type.form = IntermediateCode.SignedInteger THEN
 						procedureName := "AsrH"; RETURN FALSE;
 					ELSE
 						procedureName := "LsrH"; RETURN FALSE;
@@ -831,813 +542,328 @@ TYPE
 			RETURN TRUE
 		END Supported;
 
-
-		PROCEDURE Spill(vreg: LONGINT);
-		VAR low,high,index: LONGINT;
-
-			PROCEDURE NextFree(): LONGINT;
-			VAR i,index: LONGINT;
-			BEGIN
-				i := 0;
-				index := spillStack[i];
-				WHILE (index # none) DO
-					INC(i); index := spillStack[i];
-				END;
-				IF i >= spillStackSize THEN spillStackSize := i+1 END;
-				RETURN i
-			END NextFree;
-
+		(* input: type (such as that of an intermediate operand), output: low and high type (such as in low and high type of an operand) *)
+		PROCEDURE GetPartType(CONST type: IntermediateCode.Type; part: LONGINT; VAR typePart: IntermediateCode.Type);
 		BEGIN
-			IF (vreg <0) THEN RETURN END;
-			low := realRegisters[vreg].low;
-			IF ~(realRegisters[vreg].lowSpilled) & (low # none) THEN
-				index := NextFree();
-				spillStack[index] := vreg;
-				spillStackOperand[index] := Assembler.NewMem(registerOperands[low].sizeInBytes,BP , -(spillStackStart + 4 + index*4));
-				IF dump # NIL THEN
-					dump.String("spill "); dump.Int(vreg,1); dump.String(":"); dump.String(InstructionSet.registers[low].name);dump.String(" -> "); dump.Int(index,1); dump.Ln;
-				END;
-				emitter.Emit2(InstructionSet.opMOV,spillStackOperand[index],registerOperands[low]);
-				realRegisters[vreg].low := index;
-				registerAllocator.Free(low);
-				realRegisters[vreg].lowSpilled := TRUE;
+			ASSERT(type.sizeInBits >0);
+			IF (type.sizeInBits > cpuBits) & (type.form IN IntermediateCode.Integer) THEN
+				IntermediateCode.InitType(typePart,type.form,32);
+			ELSE ASSERT((type.form IN IntermediateCode.Integer) OR (type.form = IntermediateCode.Float));
+				IF part=Low THEN typePart := type ELSE typePart := IntermediateCode.undef END;
 			END;
-			high := realRegisters[vreg].high;
-			IF ~(realRegisters[vreg].highSpilled) & (high # none) THEN
-				index := NextFree();
-				spillStack[index] := vreg;
-				spillStackOperand[index] := Assembler.NewMem(registerOperands[high].sizeInBytes,BP , -(spillStackStart + 4 + index*4));
-				IF dump # NIL THEN
-					dump.String("spill "); dump.Int(vreg,1); dump.String(":"); dump.String(InstructionSet.registers[high].name);dump.String(" -> "); dump.Int(index,1); dump.Ln;
-				END;
-				emitter.Emit2(InstructionSet.opMOV,spillStackOperand[index],registerOperands[high]);
-				realRegisters[vreg].high := index;
-				registerAllocator.Free(high);
-				realRegisters[vreg].highSpilled := TRUE;
-			END;
-		END Spill;
+		END GetPartType;
 
-		PROCEDURE UnSpill(vreg: LONGINT; lowIndex, highIndex: LONGINT);
-		VAR low,high,i: LONGINT;
+		PROCEDURE ToSpillStack(ticket: Ticket);
+		VAR op: Assembler.Operand;
 		BEGIN
-			IF (vreg < 0) OR (~realRegisters[vreg].lowSpilled) & (~realRegisters[vreg].highSpilled) THEN RETURN END;
-			low := realRegisters[vreg].low;
-			IF (low # none) & realRegisters[vreg].lowSpilled THEN
-				IF lowIndex = none THEN
-					lowIndex := TrySpill(spillStackOperand[low].sizeInBytes*8);
-				END;
-				registerAllocator.Allocate(lowIndex,vreg);
-				IF dump # NIL THEN
-					dump.String("unspill "); dump.Int(vreg,1); dump.String(":"); dump.Int(low,1); dump.String(" -> "); dump.String(InstructionSet.registers[lowIndex].name); dump.Ln;
-				END;
-				emitter.Emit2(InstructionSet.opMOV,registerOperands[lowIndex],spillStackOperand[low]);
-				spillStack[low] := none;
-				realRegisters[vreg].low := lowIndex;
-				realRegisters[vreg].lowSpilled := FALSE;
-			END;
-
-			high := realRegisters[vreg].high;
-			IF (high # none) & realRegisters[vreg].highSpilled THEN
-				IF highIndex = none THEN
-					highIndex := registerAllocator.NextFree(spillStackOperand[high].sizeInBytes*8);
-				END;
-				registerAllocator.Allocate(highIndex,vreg);
-				IF dump # NIL THEN
-					dump.String("unspill "); dump.Int(vreg,1); dump.String(":"); dump.Int(high,1); dump.String(" -> "); dump.String(InstructionSet.registers[lowIndex].name); dump.Ln;
-				END;
-				emitter.Emit2(InstructionSet.opMOV,registerOperands[highIndex],spillStackOperand[high]);
-				spillStack[high] := none;
-				realRegisters[vreg].high := highIndex;
-				realRegisters[vreg].highSpilled := FALSE;
-			END;
-		END UnSpill;
-
-		PROCEDURE FreeRegister(index: LONGINT);
-		VAR virtual,new: LONGINT; newOp, oldOp: Operand; type: IntermediateCode.Type; size: LONGINT; high: BOOLEAN;
-		BEGIN
-			IF index = none THEN RETURN END;
-			virtual := registerAllocator.realToVirtual[index];
-			IF virtual # free THEN
-				IF virtual = blocked THEN
-					IF (AL <= index) & (index <= BH) THEN
-						FreeRegister(index MOD 4+32);
-					ELSIF (AX <= index) & (index <= BX) THEN
-						FreeRegister(index + 32)
-					ELSE HALT(100) END;
-				ELSIF virtual = split THEN
-					IF (EAX <= index) & (index <= EBX) THEN
-						FreeRegister(index - 32)
-					ELSIF (AX <= index) & (index <= BX) THEN
-						FreeRegister( (index -32) MOD 4); registerAllocator.Allocate((index - 32) MOD 4, reserved); (* protect from being reused during free *)
-						FreeRegister( (index -32) MOD 4 +4); registerAllocator.Free((index - 32) MOD 4);
-					ELSE HALT(100)
-					END;
-				ELSE
-					ASSERT((realRegisters[virtual].low = index) OR (realRegisters[virtual].high = index));
-					type := registerType[virtual];
-					IF type.sizeInBits >= 32 THEN size := 32 ELSE size := type.sizeInBits END;
-
-					(* protect from being spilled *)
-					registerAllocator.Free(index);
-					registerAllocator.Allocate(index, reserved);
-					IF (bits=64) OR (type.sizeInBits <64) OR (realRegisters[virtual].low = index) THEN
-						realRegisters[virtual].low := none;
-						realRegisters[virtual].lowSpilled := FALSE;
-						high := FALSE;
-					ELSE ASSERT(realRegisters[virtual].high = index);
-						realRegisters[virtual].high := none;
-						realRegisters[virtual].highSpilled := FALSE;
-						high := TRUE;
-					END;
-					(* try to replace with new register or spill *)
-					new := registerAllocator.NextFree(size);
-					IF new = none THEN new := TrySpill(size) END;
-
-					Assembler.InitOperand(newOp.high); Assembler.InitOperand(oldOp.high);
-					newOp.low := Assembler.NewRegister(new);
-					oldOp.low := Assembler.NewRegister(index);
-					Mov(InstructionSet.opMOV, newOp, oldOp);
-					IF ~high THEN
-						realRegisters[virtual].low := new;
-						realRegisters[virtual].lowSpilled := FALSE;
-					ELSE
-						realRegisters[virtual].high := new;
-						realRegisters[virtual].highSpilled := FALSE;
-					END;
-					registerAllocator.Free(index);
-					registerAllocator.Allocate(new, virtual);
-				END;
-			END;
-		END FreeRegister;
-
-		PROCEDURE MapVirtualRegister(reg: LONGINT; type: IntermediateCode.Type);
-		VAR index: LONGINT;
-
-			PROCEDURE NextFree(): LONGINT;
-			VAR i,index: LONGINT;
-			BEGIN
-				i := 0;
-				index := spillStack[i];
-				WHILE (index # none) DO
-					INC(i); index := spillStack[i];
-				END;
-				IF i >= spillStackSize THEN spillStackSize := i+1 END;
-				RETURN i
-			END NextFree;
-
-		BEGIN
-			IF type.form IN IntermediateCode.Integer THEN
-				IF (type.sizeInBits = IntermediateCode.Bits64) & (bits = 32) THEN
-					IF reg = IntermediateCode.Result THEN
-						index := EAX;
-						FreeRegister(index);
-					ELSE
-						index := registerAllocator.NextFree(IntermediateCode.Bits32);
-					END;
-
-					IF index = none THEN
-						index := NextFree();
-						realRegisters[reg].lowSpilled := TRUE;
-						realRegisters[reg].low := index;
-						spillStack[index] := reg;
-						spillStackOperand[index] := Assembler.NewMem(IntermediateCode.Bits32 DIV 8,BP, -(spillStackStart + 4 + index*4));
-
-						IF dump # NIL THEN
-							dump.String("acquire register "); dump.Int(reg,1); dump.String("(low, virtual)  : "); dump.Int(index,1); dump.Ln;
-						END;
-					ELSE
-						realRegisters[reg].lowSpilled := FALSE;
-						realRegisters[reg].low := index;
-						registerAllocator.Allocate(index,reg);
-						IF dump # NIL THEN
-							dump.String("acquire register "); dump.Int(reg,1); dump.String("(low)  : "); dump.String(InstructionSet.registers[index].name); dump.Ln;
-						END;
-					END;
-
-					IF reg = IntermediateCode.Result THEN
-						index := EDX;
-						FreeRegister(index);
-					ELSE
-						index := registerAllocator.NextFree(IntermediateCode.Bits32);
-					END;
-					IF index = none THEN
-						index := NextFree();
-						realRegisters[reg].highSpilled := TRUE;
-						realRegisters[reg].high := index;
-						spillStack[index] := reg;
-						spillStackOperand[index] := Assembler.NewMem(IntermediateCode.Bits32 DIV 8,BP, -(spillStackStart + 4 + index*4));
-						IF dump # NIL THEN
-							dump.String("acquire register "); dump.Int(reg,1); dump.String("(high, virtual)  : "); dump.Int(index,1); dump.Ln;
-						END;
-					ELSE
-						realRegisters[reg].highSpilled := FALSE;
-						realRegisters[reg].high := index;
-						registerAllocator.Allocate(index,reg);
-						IF dump # NIL THEN
-							dump.String("acquire register "); dump.Int(reg,1); dump.String("(high)  : "); dump.String(InstructionSet.registers[index].name); dump.Ln;
-						END;
-					END;
-				ELSE
-					ASSERT(bits >= type.sizeInBits);
-					IF reg = IntermediateCode.Result THEN
-						IF type.sizeInBits = 64 THEN
-							index := RAX
-						ELSIF type.sizeInBits = 32 THEN
-							index := EAX
-						ELSIF type.sizeInBits =16 THEN
-							index := AX
-						ELSIF type.sizeInBits = 8 THEN
-							index := AL
-						END;
-						FreeRegister(index);
-					ELSIF reg = IntermediateCode.Result2 THEN
-						IF type.sizeInBits = 64 THEN
-							index := RDX
-						ELSIF type.sizeInBits = 32 THEN
-							index := EDX
-						ELSIF type.sizeInBits =16 THEN
-							index := DX
-						ELSIF type.sizeInBits = 8 THEN
-							index := DL
-						END;
-						FreeRegister(index);
-					ELSE
-						index := registerAllocator.NextFree(type.sizeInBits);
-					END;
-					IF index = none THEN
-						index := NextFree();
-						realRegisters[reg].lowSpilled := TRUE;
-						realRegisters[reg].low := index;
-						realRegisters[reg].high := none;
-						realRegisters[reg].highSpilled := FALSE;
-						spillStack[index] := reg;
-						spillStackOperand[index] := Assembler.NewMem(SHORT(type.sizeInBits DIV 8),BP, -(spillStackStart + 4 + index*4));
-
-						IF dump # NIL THEN
-							dump.String("acquire register "); dump.Int(reg,1); dump.String("(low, virtual)  : "); dump.Int(index,1); dump.Ln;
-						END;
-					ELSE
-
-						realRegisters[reg].lowSpilled := FALSE;
-						realRegisters[reg].low := index;
-						registerAllocator.Allocate(index,reg);
-						realRegisters[reg].high := none;
-						realRegisters[reg].highSpilled := FALSE;
-						IF dump # NIL THEN
-							dump.String("acquire register "); dump.Int(reg,1); dump.String("(low)  : "); dump.String(InstructionSet.registers[index].name); dump.Ln;
-						END;
-					END;
-				END;
-			ELSIF reg # IntermediateCode.Result THEN
-				(*! think about move assumption, cf. method Mov *)
-				index := fpStackPointer+1;
-				fpRegisters[reg] := index;
-				fpMapped[index] := reg;
-				Assert(fpStackPointer < 8,"not enough fp registers");
-				IF dump # NIL THEN
-					dump.String("acquire register "); dump.Int(reg,1); dump.String("(fp)  : "); dump.Int(fpRegisters[reg],1); dump.Ln;
-				END;
-			END;
-			registerType[reg] := type;
-		END MapVirtualRegister;
-
-
-		PROCEDURE ReleaseFPRegister(reg: LONGINT);
-		VAR index,exchangeReg: LONGINT;
-		BEGIN
-			IF dump # NIL THEN
-				dump.String("release register "); dump.Int(reg,1); dump.String("(fp)  : "); dump.Int(fpRegisters[reg],1); dump.Ln;
-				(* dump.String("stack pointer is at "); dump.Int(fpStackPointer,1); dump.Ln; *)
-			END;
-			index := -fpRegisters[reg]+fpStackPointer;
-			IF index =0 THEN (* must pop it from stack now *)
-				emitter.Emit1(InstructionSet.opFFREE,opST0);
-				emitter.Emit0(InstructionSet.opFINCSTP);
+			IF ticket.type.form = IntermediateCode.Float THEN
+				emitter.Emit1(InstructionSet.opFLD,registerOperands[ticket.register]);
+				INC(fpStackPointer);
+				GetSpillOperand(ticket,op);
+				emitter.Emit1(InstructionSet.opFSTP,op);
 				DEC(fpStackPointer);
-			ELSIF index >0 THEN (* not on top of stack, we must shuffle around and remap registers *)
-				exchangeReg := fpMapped[fpStackPointer]; (* on top of stack *)
-				emitter.Emit1(InstructionSet.opFXCH, registerOperands[ST0+index]);
-				fpRegisters[exchangeReg] := fpRegisters[reg];
-				fpMapped[fpRegisters[reg]] := exchangeReg;
-
-				emitter.Emit1(InstructionSet.opFFREE,opST0);
-				emitter.Emit0(InstructionSet.opFINCSTP);
-				DEC(fpStackPointer);
-			ELSIF reg # IntermediateCode.Result THEN
-				Error("compiler implementation error: fp register already released?");
-				(*!
-				Halt("fp allocation problem: register already released?")
-				*)
-			END;
-		END ReleaseFPRegister;
-
-		PROCEDURE TransferRegister(from,to: LONGINT);
-		VAR reg: LONGINT;
-		BEGIN
-			realRegisters[to] := realRegisters[from];
-
-			reg := realRegisters[to].low;
-			IF reg > 0 THEN
-				IF realRegisters[to].lowSpilled THEN
-					spillStack[reg] := to;
-				ELSE
-					registerAllocator.realToVirtual[reg] := to;
-				END;
-			END;
-			reg := realRegisters[to].high;
-			IF reg > 0 THEN
-				IF realRegisters[to].highSpilled THEN
-					spillStack[reg] := to;
-				ELSE
-					registerAllocator.realToVirtual[reg] := to;
-				END;
-			END;
-
-			realRegisters[from].low := none;
-			realRegisters[from].high := none;
-			realRegisters[from].lowSpilled := FALSE;
-			realRegisters[from].highSpilled := FALSE;
-			registerType[to] := registerType[from];
-			EXCL(currentlyUsed, from);
-		END TransferRegister;
-
-		PROCEDURE UnmapVirtualRegister(reg: LONGINT);
-		VAR type: IntermediateCode.Type;
-		BEGIN
-			type := registerType[reg];
-			IF type.form IN IntermediateCode.Integer THEN
-				IF realRegisters[reg].lowSpilled THEN
-					IF dump # NIL THEN
-						dump.String("release register "); dump.Int(reg,1); dump.String("(spilled) : "); dump.Int(realRegisters[reg].low,1); dump.Ln;
-					END;
-					spillStack[realRegisters[reg].low] := none;
-					realRegisters[reg].low := none;
-					realRegisters[reg].lowSpilled := FALSE;
-				ELSE
-					IF dump # NIL THEN
-						dump.String("release register "); dump.Int(reg,1); dump.String("(low) : "); dump.String(InstructionSet.registers[realRegisters[reg].low].name); dump.Ln;
-					END;
-					registerAllocator.Free(realRegisters[reg].low);
-					realRegisters[reg].low := none;
-				END;
-
-				IF realRegisters[reg].high # none THEN
-					IF realRegisters[reg].highSpilled THEN
-						IF dump # NIL THEN
-							dump.String("release register "); dump.Int(reg,1); dump.String("(spilled) : "); dump.Int(realRegisters[reg].high,1); dump.Ln;
-						END;
-						spillStack[realRegisters[reg].high] := none;
-						realRegisters[reg].high := none;
-						realRegisters[reg].highSpilled := FALSE;
-					ELSE
-						IF dump # NIL THEN
-							dump.String("release register "); dump.Int(reg,1); dump.String("(high) : "); dump.String(InstructionSet.registers[realRegisters[reg].high].name);  dump.Ln;
-						END;
-						registerAllocator.Free(realRegisters[reg].high);
-						realRegisters[reg].high := none;
-					END;
-				END;
 			ELSE
-				IF (reg IN toBeReleased) & (reg # IntermediateCode.Result) THEN (* otherwise already released *)
-					ReleaseFPRegister(reg);
-				END
+				GetSpillOperand(ticket,op);
+				emitter.Emit2(InstructionSet.opMOV,op,registerOperands[ticket.register]);
 			END;
-			EXCL(toBeReleased,reg);
-			lastUse[reg] := -1;
-		END UnmapVirtualRegister;
+		END ToSpillStack;
 
-		PROCEDURE Generate(CONST instr: IntermediateCode.Instruction);
-		VAR opcode: SHORTINT; i: LONGINT;
+		PROCEDURE AllocateSpillStack(size: LONGINT);
 		BEGIN
-			numberTemporary := 0;
-			opcode := instr.opcode;
-			CASE opcode OF
-			IntermediateCode.nop: (* do nothing *)
-			|IntermediateCode.mov: EmitMov(instr);
-			|IntermediateCode.conv: EmitConv(instr);
-			|IntermediateCode.call: EmitCall(instr);
-			|IntermediateCode.enter: EmitEnter(instr);
-			|IntermediateCode.leave: EmitLeave(instr);
-			|IntermediateCode.return: EmitReturn(instr);
-			|IntermediateCode.trap: EmitTrap(instr);
-			|IntermediateCode.br .. IntermediateCode.brlt: EmitBr(instr)
-			|IntermediateCode.pop: EmitPop(instr);
-			|IntermediateCode.push: EmitPush(instr);
-			|IntermediateCode.neg: EmitNeg(instr);
-			|IntermediateCode.not: EmitNot(instr);
-			|IntermediateCode.abs: EmitAbs(instr);
-			|IntermediateCode.mul: EmitMul(instr);
-			|IntermediateCode.div: EmitDiv(instr);
-			|IntermediateCode.mod: EmitMod(instr);
-			|IntermediateCode.sub: EmitSub(instr);
-			|IntermediateCode.add: EmitAdd(instr);
-			|IntermediateCode.and: EmitAnd(instr);
-			|IntermediateCode.or: EmitOr(instr);
-			|IntermediateCode.xor: EmitXor(instr);
-			|IntermediateCode.shl: EmitShift(instr);
-			|IntermediateCode.shr: EmitShift(instr);
-			|IntermediateCode.rol: EmitShift(instr);
-			|IntermediateCode.ror: EmitShift(instr);
-			|IntermediateCode.copy: EmitCopy(instr);
-			|IntermediateCode.fillup: EmitFill(instr,FALSE);
-			|IntermediateCode.filldown: EmitFill(instr,TRUE);
-			|IntermediateCode.asm: EmitAsm(instr);
-			|IntermediateCode.data: EmitData(instr);
-			|IntermediateCode.reserve: EmitReserve(instr);
-			|IntermediateCode.label: EmitLabel(instr);
+			IF ~FrameSpillStack THEN
+				AllocateStack(cpuBits DIV 8*size)
 			END;
+		END AllocateSpillStack;
 
-			WHILE numberTemporary > 0 DO
-				DEC(numberTemporary);
-				registerAllocator.Free(temporary[numberTemporary]);
-			END;
-
-			FOR i := 0 TO LEN(registerAllocator.realToVirtual)-1 DO
-				IF registerAllocator.realToVirtual[i] = reserved THEN (* temporarily reserved register *)
-					registerAllocator.Free(i);
-				END;
-			END;
-		END Generate;
-
-		PROCEDURE Enter(size: LONGINT);
-		VAR op1,op2,imm: Assembler.Operand;
-		CONST initialize=TRUE;
+		PROCEDURE ToRegister(ticket: Ticket);
+		VAR op: Assembler.Operand;
 		BEGIN
-			IF TRUE (* OR  size > MAX(INTEGER) DIV 2  *) THEN
-				emitter.Emit1(InstructionSet.opPUSH,opBP);
-				emitter.Emit2(InstructionSet.opMOV,opBP,opSP);
-				IF initialize THEN
-					ASSERT(size MOD opA.sizeInBytes = 0);
-					size := size DIV opA.sizeInBytes;
-					IF size >0  THEN
-						emitter.Emit2(InstructionSet.opXOR,opA,opA);
-						WHILE size MOD 4 #0 DO
-							emitter.Emit1(InstructionSet.opPUSH, opA);
-							DEC(size);
-						END;
-						IF size >4 THEN
-							Assembler.InitImm(imm, Assembler.bits32, size DIV 4);
-							emitter.Emit2(InstructionSet.opMOV, opECX, imm);
-							emitter.Emit1(InstructionSet.opDEC, opECX);
-							emitter.Emit1(InstructionSet.opPUSH, opA);
-							emitter.Emit1(InstructionSet.opPUSH, opA);
-							emitter.Emit1(InstructionSet.opPUSH, opA);
-							emitter.Emit1(InstructionSet.opPUSH, opA);
-							Assembler.InitImm(imm, Assembler.bits8, -7);
-							emitter.Emit1(InstructionSet.opJNZ, imm)
-						ELSE
-							WHILE size >0  DO
-								emitter.Emit1(InstructionSet.opPUSH, opEAX);
-								DEC(size);
+			GetSpillOperand(ticket,op);
+			emitter.Emit2(InstructionSet.opMOV,registerOperands[ticket.register],op);
+		END ToRegister;
+
+		PROCEDURE ExchangeTickets(ticket1,ticket2: Ticket);
+		VAR op1,op2: Assembler.Operand;
+		BEGIN
+			TicketToOperand(ticket1, op1);
+			TicketToOperand(ticket2, op2);
+			emitter.Emit2(InstructionSet.opXCHG, op1,op2);
+		END ExchangeTickets;
+
+		(*-------------------  particular register mappings / operands  ----------------------*)
+
+		(* returns if a virtual register is mapped to the register set described by virtualRegisterMapping*)
+		PROCEDURE MappedTo(CONST virtualRegister: LONGINT; part:LONGINT; physicalRegister: LONGINT): BOOLEAN;
+		VAR ticket: Ticket;
+		BEGIN
+			IF (virtualRegister > 0) THEN
+				ticket := virtualRegisters.Mapped(virtualRegister,part);
+				RETURN (ticket # NIL) & ~(ticket.spilled) & (ticket.register = physicalRegister)
+			ELSIF (virtualRegister = IntermediateCode.FP) THEN
+				RETURN physicalRegister= BP
+			ELSIF (virtualRegister = IntermediateCode.SP) THEN
+				RETURN physicalRegister = SP
+			ELSE
+				RETURN FALSE
+			END;
+		END MappedTo;
+
+		PROCEDURE ResultRegister(CONST type: IntermediateCode.Type; part: LONGINT): LONGINT;
+		BEGIN
+			IF type.form IN IntermediateCode.Integer THEN
+				CASE type.sizeInBits OF
+					| 64:
+						IF cpuBits = 32 THEN
+							IF part = Low THEN RETURN EAX
+							ELSE RETURN EDX
 							END;
+						ELSE
+							ASSERT(part = Low);
+							RETURN RAX
 						END;
-					END;
-					IF spillStackSize >0 THEN
-						op1 := Assembler.NewImm32(spillStackSize*4);
-						emitter.Emit2(InstructionSet.opSUB,opSP,op1);
-					END;
-				ELSE
-					op1 := Assembler.NewImm32(size);
-					emitter.Emit2(InstructionSet.opSUB,opSP,op1);
+					| 32: ASSERT(part=Low); RETURN EAX
+					| 16: ASSERT(part=Low); RETURN AX
+					| 8: ASSERT(part=Low); RETURN AL
 				END;
+			ELSE ASSERT(type.form = IntermediateCode.Float);ASSERT(part=Low);
+				RETURN ST0
+			END;
+		END ResultRegister;
+
+		(*-------------------  operand reflection ----------------------*)
+		PROCEDURE IsMemoryOperand(vop: IntermediateCode.Operand; part: LONGINT): BOOLEAN;
+		VAR ticket: Ticket;
+		BEGIN
+			IF vop.mode = IntermediateCode.ModeMemory THEN RETURN TRUE
+			ELSIF vop.mode = IntermediateCode.ModeRegister THEN
+				ticket := virtualRegisters.Mapped(vop.register,part);
+				RETURN (ticket # NIL) & (ticket.spilled);
+			ELSE RETURN FALSE
+			END;
+		END IsMemoryOperand;
+
+		PROCEDURE IsRegister(CONST vop: IntermediateCode.Operand): BOOLEAN;
+		BEGIN
+			RETURN (vop.mode = IntermediateCode.ModeRegister) & (vop.offset = 0)
+		END IsRegister;
+
+		(* infer intermediate code type from physical operand as far as possible *)
+		PROCEDURE PhysicalOperandType(CONST op:Assembler.Operand; VAR type:IntermediateCode.Type);
+		BEGIN
+			IF op.type = Assembler.sti THEN
+				IntermediateCode.InitType(type, IntermediateCode.Float, op.sizeInBytes*8)
 			ELSE
-				op1 := Assembler.NewImm16(size);
-				op2 := Assembler.NewImm8(0);
-				emitter.Emit2(InstructionSet.opENTER,op1,op2);
-			END;
-		END Enter;
-
-		PROCEDURE EmitEnter(CONST instr: IntermediateCode.Instruction);
-		VAR cc: LONGINT;
-		BEGIN
-			cc := SHORT(instr.op1.intValue);
-			stackSize := SHORT(instr.op2.intValue);
-			enterPos := emitter.code.pc;
-			Enter((stackSize ));
-
-			IF cc = SyntaxTree.WinAPICallingConvention THEN (* the winapi calling convention presumes that all registers except EAX, EDX and ECX are retained by the callee *)
-				emitter.Emit1(InstructionSet.opPUSH,opEBX);
-				emitter.Emit1(InstructionSet.opPUSH,opEDI);
-				emitter.Emit1(InstructionSet.opPUSH,opESI);
-			END;
-			(*spillStackSize := 0;*)
-			spillStackStart := (stackSize );
-		END EmitEnter;
-
-		PROCEDURE PatchEnter;
-		VAR pc: LONGINT;
-		BEGIN
-			RETURN;
-			IF spillStackSize > 0 THEN
-				pc := emitter.StartEmitAt(enterPos);
-				Enter((stackSize )+spillStackSize*4);
-				emitter.EndEmitAt(pc);
-			END;
-		END PatchEnter;
-
-		PROCEDURE EmitLeave(CONST instr: IntermediateCode.Instruction);
-		VAR cc: LONGINT;
-		BEGIN
-			cc := SHORT(instr.op1.intValue);
-			IF cc = SyntaxTree.WinAPICallingConvention THEN
-				emitter.Emit1(InstructionSet.opPOP,opESI);
-				emitter.Emit1(InstructionSet.opPOP,opEDI);
-				emitter.Emit1(InstructionSet.opPOP,opEBX);
-			END;
-
-			emitter.Emit2(InstructionSet.opMOV,opSP,opBP);
-			emitter.Emit1(InstructionSet.opPOP,opBP);
-			(*
-			emitter.Emit0(InstructionSet.opLEAVE);
-			*)
-		END EmitLeave;
-
-		PROCEDURE EmitReturn(CONST instr: IntermediateCode.Instruction);
-		VAR operand: Assembler.Operand; fpsp: LONGINT;
-		BEGIN
-			fpsp := fpStackPointer;
-			IF fpStackPointer # 0 THEN Error("compiler implementation error: fp stack not cleared") END;
-			(*! Assert(fpStackPointer = 0,"fp stack not cleared"); *)
-			IF instr.op1.intValue = 0 THEN (* parsize *)
-				emitter.Emit0(InstructionSet.opRET);
-			ELSE
-				operand := Assembler.NewImm16(instr.op1.intValue );
-				emitter.Emit1(InstructionSet.opRET,operand)
+				IntermediateCode.InitType(type, IntermediateCode.SignedInteger, op.sizeInBytes*8)
 			END
-		END EmitReturn;
+		END PhysicalOperandType;
 
-		PROCEDURE GetDataSection(): IntermediateCode.Section;
-		VAR name: SyntaxTree.String; section: IntermediateCode.Section;
+		(*-------------------  operand generation ----------------------*)
+		PROCEDURE GetSpillOperand(ticket: Ticket; VAR op: Assembler.Operand);
 		BEGIN
-			Global.GetModuleName(module.module,name);
-			Strings.Append(name,".");
-			Strings.Append(name,"@Immediates");
-			section := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
-			RETURN section
-		END GetDataSection;
+			IF FrameSpillStack THEN
+				op := Assembler.NewMem(SHORT(ticket.type.sizeInBits DIV 8), BP , -(spillStackStart + 4 + ticket.offset*4));
+			ELSE
+				op := Assembler.NewMem(SHORT(ticket.type.sizeInBits DIV 8),SP , (spillStack.Size()-ticket.offset)*4);
+			END;
+		END GetSpillOperand;
 
-		PROCEDURE GetImmediateMem(CONST vop: IntermediateCode.Operand; VAR imm: Operand);
+		PROCEDURE TicketToOperand(ticket: Ticket; VAR op: Assembler.Operand);
+		BEGIN
+			IF (ticket = NIL) THEN
+				Assembler.InitOperand(op)
+			ELSIF ticket.spilled THEN
+				GetSpillOperand(ticket,op)
+			ELSE
+				IF ticket.register = none THEN physicalRegisters.Dump(D.Log); tickets.Dump(D.Log); virtualRegisters.Dump(D.Log); D.Update; END;
+				ASSERT(ticket.register # none);
+				IF ticket.type.form = IntermediateCode.Float THEN
+					op := registerOperands[ticket.register+fpStackPointer]
+				ELSE
+					op := registerOperands[ticket.register];
+				END;
+			END;
+		END TicketToOperand;
+
+		PROCEDURE GetTemporaryRegister(type: IntermediateCode.Type; VAR op: Assembler.Operand);
+		BEGIN
+			TicketToOperand(TemporaryTicket(type),op)
+		END GetTemporaryRegister;
+
+		PROCEDURE GetImmediateMem(CONST vop: IntermediateCode.Operand; part: LONGINT; VAR imm: Assembler.Operand);
 		VAR data: IntermediateCode.Section;pc: LONGINT;
 		BEGIN
 			data := GetDataSection();
 			pc := IntermediateBackend.EnterImmediate(data,vop);
-			Assembler.InitMem(imm.low, SHORT(vop.type.sizeInBits DIV 8) , Assembler.none,0);
-			Assembler.SetSymbol(imm.low,data,pc,0);
+			Assembler.InitMem(imm, SHORT(vop.type.sizeInBits DIV 8) , Assembler.none,0);
+			Assembler.SetSymbol(imm,data,pc,0);
 		END GetImmediateMem;
 
-		PROCEDURE MakeOperand(CONST vop: IntermediateCode.Operand; VAR rop: Operand; sizeInBits: INTEGER; thisregister: LONGINT);
-		VAR virtualReg, realReg, tempReg: LONGINT; tmp,imm: Assembler.Operand; i: LONGINT;
+		PROCEDURE GetImmediate(CONST virtual: IntermediateCode.Operand; part: LONGINT; VAR physical: Assembler.Operand; forbidden16Bit: BOOLEAN);
+		VAR type: IntermediateCode.Type; temp: Assembler.Operand; size: SHORTINT; value: HUGEINT;
+
+			PROCEDURE IsImm8(value: HUGEINT): BOOLEAN;
+			BEGIN
+				RETURN (value >= -80H) & (value < 80H)
+			END IsImm8;
+
+			PROCEDURE IsImm16(value: HUGEINT): BOOLEAN;
+			BEGIN
+				RETURN (value >= -8000H) & (value < 10000H)
+			END IsImm16;
+
+			PROCEDURE IsImm32(value: HUGEINT): BOOLEAN;
+			BEGIN
+				value := value DIV 10000H DIV 10000H;
+				RETURN (value = 0) OR (value=-1);
+			END IsImm32;
+
 		BEGIN
-			Assembler.InitOperand(rop.high);
-			IF sizeInBits = 0 THEN sizeInBits := vop.type.sizeInBits END;
-			IF (bits=32) & (sizeInBits = IntermediateCode.Bits64) & (vop.type.form # IntermediateCode.Float) THEN sizeInBits := IntermediateCode.Bits32 END;
+			ASSERT(virtual.mode = IntermediateCode.ModeImmediate);
+			GetPartType(virtual.type,part,type);
+			IF virtual.type.form IN IntermediateCode.Integer THEN
+				IF IsComplex(virtual) THEN
+					IF part = High THEN value := SHORT(virtual.intValue DIV 10000H DIV 10000H)
+					ELSE value := virtual.intValue
+					END;
+				ELSE value := virtual.intValue
+				END;
+
+				IF virtual.symbol # NIL THEN size := SHORT(type.sizeInBits DIV 8);
+				ELSIF forbidden16Bit & IsImm16(value) & ~(IsImm8(value)) THEN size := Assembler.bits32;
+				ELSE size := 0
+				END;
+				Assembler.InitImm(physical,size ,value);
+				IF virtual.symbol # NIL THEN Assembler.SetSymbol(physical,virtual.symbol,virtual.symbolOffset,virtual.offset+part*Assembler.bits32) END;
+				IF (cpuBits=64) & ((physical.sizeInBytes=8) OR ~IsImm32(value)) THEN
+					ASSERT(cpuBits=64);
+					GetTemporaryRegister(IntermediateCode.int64,temp);
+					emitter.Emit2(InstructionSet.opMOV,temp,physical);
+					physical := temp;
+				END;
+			ELSE
+				GetImmediateMem(virtual,part,physical);
+			END;
+		END GetImmediate;
+
+		PROCEDURE GetMemory(CONST virtual: IntermediateCode.Operand; part: LONGINT; VAR physical: Assembler.Operand);
+		VAR type: IntermediateCode.Type; virtualRegister, physicalRegister,offset: LONGINT; ticket,orig: Ticket; dest, source: Assembler.Operand;
+		BEGIN
+			ASSERT(virtual.mode = IntermediateCode.ModeMemory);
+			GetPartType(virtual.type,part,type);
+
+			IF virtual.register # IntermediateCode.None THEN
+				virtualRegister := virtual.register;
+				IF virtualRegister = IntermediateCode.FP THEN physicalRegister := BP;
+				ELSIF virtualRegister = IntermediateCode.SP THEN  physicalRegister := SP;
+				ELSE
+					ticket := virtualRegisters.Mapped(virtualRegister,Low);
+					IF ticket.spilled THEN
+						IF physicalRegisters.Reserved(ticket.register) THEN
+							orig := ticket;
+							ticket := TemporaryTicket(IntermediateBackend.GetType(module.system,module.system.addressType));
+							TicketToOperand(orig,source);
+							TicketToOperand(ticket,dest);
+							Mov(InstructionSet.opMOV,dest,source);
+							physicalRegister := ticket.register;
+						ELSE
+							UnSpill(ticket);
+							physicalRegister := ticket.register;
+						END;
+					ELSE
+						physicalRegister := ticket.register;
+					END;
+				END;
+				offset := virtual.offset;
+				ASSERT(virtual.intValue = 0);
+			ELSIF virtual.symbol # NIL THEN
+				physicalRegister := Assembler.none;
+				offset := virtual.offset;
+				ASSERT(virtual.intValue = 0);
+			ELSE
+				physicalRegister := Assembler.none;
+				offset := SHORT(virtual.intValue);
+				ASSERT(virtual.offset = 0);
+			END;
+			Assembler.InitMem(physical, SHORT(type.sizeInBits DIV 8) , physicalRegister, offset+4*part);
+			IF virtual.symbol # NIL THEN
+				Assembler.SetSymbol(physical,virtual.symbol,virtual.symbolOffset,virtual.offset+4*part);
+			END;
+		END GetMemory;
+
+		PROCEDURE GetRegister(CONST virtual: IntermediateCode.Operand; part:LONGINT; VAR physical: Assembler.Operand; VAR ticket: Ticket);
+		VAR type: IntermediateCode.Type; virtualRegister, tempReg: LONGINT;
+			tmp,imm: Assembler.Operand;
+		BEGIN
+			ASSERT(virtual.mode = IntermediateCode.ModeRegister);
+			GetPartType(virtual.type,part,type);
+			virtualRegister := virtual.register;
+
+			IF (virtual.register > 0) THEN
+				TicketToOperand(virtualRegisters.Mapped(virtual.register,part), physical);
+			ELSIF virtual.register = IntermediateCode.FP THEN
+				Assert(part=Low,"forbidden partitioned register on BP");
+				physical := opBP;
+			ELSIF virtual.register = IntermediateCode.SP THEN
+				Assert(part=Low,"forbidden partitioned register on SP");
+				physical := opSP;
+			ELSE HALT(100);
+			END;
+
+			IF virtual.offset # 0 THEN
+				Assert(type.form # IntermediateCode.Float,"forbidden offset on float");
+				IF ticket = NIL THEN
+					tempReg := ForceFreeRegister(type);
+					TicketToOperand(ReservePhysicalRegister(type,tempReg),tmp);
+				ELSE
+					TicketToOperand(ticket, tmp);
+					ticket := NIL;
+				END;
+				IF Assembler.IsRegisterOperand(physical) THEN
+					Assembler.InitMem(physical,SHORT(type.sizeInBits DIV 8) , physical.register, virtual.offset);
+					emitter.Emit2(InstructionSet.opLEA, tmp,physical);
+				ELSE
+					emitter.Emit2(InstructionSet.opMOV,tmp,physical);
+					Assembler.InitImm(imm,0 ,virtual.offset);
+					emitter.Emit2(InstructionSet.opADD,tmp,imm);
+				END;
+				physical := tmp;
+			END;
+		END GetRegister;
+
+
+		(* make physical operand from virtual operand, if ticket given then write result into phyiscal register represented by ticket *)
+		PROCEDURE MakeOperand(CONST vop: IntermediateCode.Operand; part: LONGINT; VAR op: Assembler.Operand; ticket: Ticket);
+		VAR tmp: Assembler.Operand;
+		BEGIN
+			TryAllocate(vop,part);
 			CASE vop.mode OF
-			IntermediateCode.ModeMemory:
-				IF vop.register # IntermediateCode.None THEN
-					UnSpill(vop.register,none,none);
-					virtualReg := vop.register;
-					IF virtualReg = IntermediateCode.FP THEN realReg := BP;
-					ELSIF virtualReg = IntermediateCode.SP THEN  realReg := SP;
-					ELSE realReg := realRegisters[virtualReg].low;
-					END;
-					Assembler.InitMem(rop.low,SHORT(sizeInBits DIV 8) , realReg,(vop.offset ));
-					IF (bits=32) & (vop.type.sizeInBits = IntermediateCode.Bits64) THEN
-						Assembler.InitMem(rop.high,SHORT(sizeInBits DIV 8) , realReg,(vop.offset )+4);
-					END;
-				ELSIF vop.symbol # NIL THEN
-					Assembler.InitMem(rop.low,SHORT(sizeInBits DIV 8) , Assembler.none,0);
-					Assembler.SetSymbol(rop.low,vop.symbol,vop.symbolOffset,vop.offset);
-					IF (bits=32) & (vop.type.form # IntermediateCode.Float) & (vop.type.sizeInBits = IntermediateCode.Bits64) THEN
-						Assembler.InitMem(rop.high,SHORT(sizeInBits DIV 8) , Assembler.none,0);
-						Assembler.SetSymbol(rop.high,vop.symbol,vop.symbolOffset,vop.offset+4);
-					END;
-				ELSE (* immediate memory operand, for example in SYSTEM.GET(0400H,var) *)
-					Assembler.InitMem(rop.low,SHORT(sizeInBits DIV 8) , Assembler.none,SHORT(vop.intValue));
-				END;
-				IF (thisregister # none) THEN
-					ASSERT(sizeInBits DIV 8  = registerOperands[thisregister].sizeInBytes);
-					tmp := registerOperands[thisregister];
-					emitter.Emit2(InstructionSet.opMOV, tmp,rop.low);
-					rop.low := tmp;
-				END;
-			|IntermediateCode.ModeRegister:
-				IF vop.type.form IN IntermediateCode.Integer THEN
-					IF (vop.register > 0) & (vop.register < IntermediateCode.Result) THEN
-						IF realRegisters[vop.register].lowSpilled THEN
-							realReg := realRegisters[vop.register].low;
-							rop.low := spillStackOperand[realReg];
-							realReg := spillStackOperand[realReg].register;
-						ELSE
-							realReg := realRegisters[vop.register].low;
-							rop.low := registerOperands[realReg];
-						END
-					ELSIF vop.register = IntermediateCode.FP THEN
-						realReg := BP;
-						rop.low := opBP;
-					ELSIF vop.register = IntermediateCode.SP THEN
-						realReg := SP;
-						rop.low := opSP;
-					ELSIF vop.register = IntermediateCode.Result THEN
-						IF (bits=64) & (vop.type.sizeInBits = IntermediateCode.Bits64) THEN
-							realReg := RAX;
-							rop.low := registerOperands[RAX]
-						ELSIF (vop.type.sizeInBits = IntermediateCode.Bits32) OR (vop.type.sizeInBits = IntermediateCode.Bits64) THEN
-							realReg := EAX;
-							rop.low := opEAX
-						ELSIF vop.type.sizeInBits = IntermediateCode.Bits16 THEN
-							realReg := AX;
-							rop.low := opAX
-						ELSIF vop.type.sizeInBits = IntermediateCode.Bits8 THEN
-							realReg := AL;
-							rop.low := opAL
-						ELSE
-							Halt("unsupported result register size");
-						END;
-					ELSIF vop.register = IntermediateCode.Result2 THEN
-						ASSERT(vop.type.sizeInBits <= IntermediateCode.Bits32);
-						IF (vop.type.sizeInBits = IntermediateCode.Bits64) THEN
-							realReg := RDX;
-							rop.low := registerOperands[RDX]
-						ELSIF (vop.type.sizeInBits = IntermediateCode.Bits32) THEN
-							realReg := EDX;
-							rop.low := opEDX
-						ELSIF vop.type.sizeInBits = IntermediateCode.Bits16 THEN
-							realReg := DX;
-							rop.low := opDX
-						ELSIF vop.type.sizeInBits = IntermediateCode.Bits8 THEN
-							realReg := DL;
-							rop.low := opDL
-						ELSE
-							Halt("unsupported result register size");
-						END;
-					ELSE Halt("invalid register index");
-					END;
-
-					IF vop.offset # 0 THEN
-						Assert((bits=64) OR (sizeInBits # IntermediateCode.Bits64),"forbidden offset on 64 bit register");
-						IF thisregister = none THEN
-							tempReg := TrySpill(sizeInBits);
-							registerAllocator.Allocate(tempReg,reserved);
-							temporary[numberTemporary] := tempReg; INC(numberTemporary);
-						ELSE
-							ASSERT(sizeInBits DIV 8 = registerOperands[thisregister].sizeInBytes);
-							tempReg := thisregister
-						END;
-						tmp := registerOperands[tempReg];
-						IF ~((vop.register > 0) & realRegisters[vop.register].lowSpilled) &  (sizeInBits = IntermediateCode.Bits32) THEN
-							ASSERT(realReg # 0);
-							Assembler.InitMem(rop.low,SHORT(sizeInBits DIV 8) ,realReg,(vop.offset ));
-							emitter.Emit2(InstructionSet.opLEA, tmp,rop.low);
-						ELSE
-							emitter.Emit2(InstructionSet.opMOV,tmp,rop.low);
-							IF sizeInBits=64 THEN
-							Assembler.InitImm(imm,(32 DIV 8) ,vop.offset);
-							ELSE
-							Assembler.InitImm(imm,SHORT(sizeInBits DIV 8) ,vop.offset);
-							END;
-							emitter.Emit2(InstructionSet.opADD,tmp,imm);
-						END;
-						rop.low := tmp;
-					ELSIF (thisregister # none) THEN
-						ASSERT(sizeInBits DIV 8 = registerOperands[thisregister].sizeInBytes);
-						tmp := registerOperands[thisregister];
-						emitter.Emit2(InstructionSet.opMOV, tmp,rop.low);
-						rop.low := tmp;
-					END;
-
-					IF (bits=32) & (vop.type.sizeInBits = IntermediateCode.Bits64) THEN
-						IF (vop.register > 0) & (vop.register < IntermediateCode.Result) THEN
-							IF realRegisters[vop.register].highSpilled THEN
-								realReg := realRegisters[vop.register].high;
-								rop.high := spillStackOperand[realReg];
-							ELSE
-								realReg := realRegisters[vop.register].high;
-								rop.high := registerOperands[realReg];
-							END;
-						ELSIF vop.register = IntermediateCode.Result THEN
-							rop.high := opEDX;
-						ELSIF vop.register = IntermediateCode.Result2 THEN
-							HALT(101)
-						ELSE HALT(100)
-						END;
-					END;
-				ELSE
-					IF vop.register = IntermediateCode.Result THEN
-						realReg := fpStackPointer;
-						rop.low := registerOperands[ST0+realReg];
-					ELSE
-						realReg := -fpRegisters[vop.register]+fpStackPointer;
-						rop.low := registerOperands[ST0+realReg];
-					END;
-				END;
-			|IntermediateCode.ModeImmediate:
-				IF vop.type.form IN IntermediateCode.Integer THEN
-					IF (bits=32) & (vop.type.sizeInBits # IntermediateCode.Bits64) THEN
-						Assembler.InitImm(rop.low,SHORT(sizeInBits DIV 8) ,vop.intValue);
-						Assembler.SetSymbol(rop.low,vop.symbol,vop.symbolOffset,vop.offset);
-					ELSE
-						Assembler.InitImm(rop.low,SHORT(sizeInBits DIV 8) ,(vop.intValue));
-						Assembler.SetSymbol(rop.low,vop.symbol,vop.symbolOffset,vop.offset);
-						Assembler.InitImm(rop.high,SHORT(sizeInBits DIV 8) ,SHORT(vop.intValue DIV 10000H DIV 10000H));
-						Assembler.SetSymbol(rop.high,vop.symbol,vop.symbolOffset, vop.offset+4);
-					END;
-				ELSE
-					GetImmediateMem(vop,rop);
-				END;
-				IF (thisregister # none) THEN
-					ASSERT(sizeInBits DIV 8 = registerOperands[thisregister].sizeInBytes);
-					tmp := registerOperands[thisregister];
-					emitter.Emit2(InstructionSet.opMOV, tmp,rop.low);
-					rop.low := tmp;
-				END;
+				IntermediateCode.ModeMemory: GetMemory(vop,part,op);
+				|IntermediateCode.ModeRegister:	GetRegister(vop,part,op,ticket);
+				|IntermediateCode.ModeImmediate: GetImmediate(vop,part,op,FALSE);
+			END;
+			IF ticket # NIL THEN
+				TicketToOperand(ticket, tmp);
+				emitter.Emit2(InstructionSet.opMOV, tmp, op);
+				op := tmp;
 			END;
 		END MakeOperand;
 
-		PROCEDURE TrySpill(sizeInBits: LONGINT): SHORTINT;
-		VAR tempReg: SHORTINT; i: LONGINT;
-		BEGIN
-			tempReg := registerAllocator.NextFree(sizeInBits);
-			i := 0;
-			WHILE tempReg = none DO
-				IF ~(i IN currentlyUsed) (* does implicitly not free locally reserved registers as they refer to reserved < 0 *) THEN
-					Spill(i);
-					tempReg := registerAllocator.NextFree(sizeInBits);
-				END;
-				INC(i);
-			END;
-			RETURN tempReg
-		END TrySpill;
+		(*-------------------  helpers for code generation ----------------------*)
 
-		(* allocate temporary operand using EAX and EDX registers *)
-		PROCEDURE Temporary(sizeInBits: LONGINT; VAR op: Operand);
-		VAR register: LONGINT;
+		PROCEDURE Mov(op: LONGINT; VAR dest,src: Assembler.Operand);
+		VAR temp: Assembler.Operand; type: IntermediateCode.Type; ticket: Ticket;
 		BEGIN
-			IF (sizeInBits < IntermediateCode.Bits64) OR (bits=64)  THEN
-				Assembler.InitOperand(op.high);
-				register := registerAllocator.NextFree(sizeInBits);
-				IF register = none THEN
-					register := TrySpill(sizeInBits);
-				END;
-				ASSERT(register # none);
-				op.low := registerOperands[register];
-				registerAllocator.Allocate(register, reserved);
+			IF Assembler.SameOperand(src,dest) THEN (* do nothing *)
+			ELSIF ~Assembler.IsMemoryOperand(dest) OR ~Assembler.IsMemoryOperand(src) THEN
+				emitter.Emit2(op,dest,src);
 			ELSE
-				register := registerAllocator.NextFree(32);
-				IF register = none THEN
-					register := TrySpill(32);
-				END;
-				ASSERT(register # none);
-				op.low := registerOperands[register];
-				registerAllocator.Allocate(register, reserved);
-				register := registerAllocator.NextFree(32);
-				IF register = none THEN
-					register := TrySpill(32);
-				END;
-				ASSERT(register # none);
-				op.high := registerOperands[register];
-				registerAllocator.Allocate(register, reserved);
+				PhysicalOperandType(dest,type);
+				ticket := TemporaryTicket(type);
+				TicketToOperand(ticket,temp);
+				emitter.Emit2(op,temp,src);
+				emitter.Emit2(InstructionSet.opMOV,dest,temp);
+				UnmapTicket(ticket);
 			END;
-			(*
-			IF sizeInBits = IntermediateCode.Bits64 THEN
-				op.low := opEAX;
-				op.high := opEDX;
-			ELSIF sizeInBits = IntermediateCode.Bits32 THEN
-				op.low := opEAX;
-				Assembler.InitOperand(op.high);
-			ELSIF sizeInBits = IntermediateCode.Bits16 THEN
-				op.low := opAX;
-				Assembler.InitOperand(op.high);
-			ELSIF sizeInBits = IntermediateCode.Bits8 THEN
-				op.low := opAL;
-				Assembler.InitOperand(op.high);
-			END
-			*)
-		END Temporary;
-
-		(* 8 / 16 / 32 / 64 bit move, may destroy EAX by use of temporary *)
-		PROCEDURE Mov(op: LONGINT; dest,src: Operand);
-		VAR temp: Operand;
-		BEGIN
-			IF Assembler.IsRegisterOperand(dest.low) OR Assembler.IsRegisterOperand(src.low) THEN
-				emitter.Emit2(op,dest.low,src.low);
-			ELSE
-				Temporary(dest.low.sizeInBytes*8,temp);
-				emitter.Emit2(op,temp.low,src.low);
-				emitter.Emit2(InstructionSet.opMOV,dest.low,temp.low);
-				registerAllocator.Free(temp.low.register);
-			END;
-
-			IF  (src.high.type # Assembler.none) & (dest.high.type # Assembler.none) THEN
-				IF Assembler.IsRegisterOperand(dest.high) OR Assembler.IsRegisterOperand(src.high) THEN
-					emitter.Emit2(op,dest.high,src.high);
-				ELSE
-					Temporary(dest.high.sizeInBytes*8,temp);
-					emitter.Emit2(op,temp.low,src.high);
-					emitter.Emit2(InstructionSet.opMOV,dest.high,temp.low);
-					registerAllocator.Free(temp.low.register);
-				END;
-			END;
-
 		END Mov;
 
 		PROCEDURE AllocateStack(sizeInBytes: LONGINT);
@@ -1655,269 +881,609 @@ TYPE
 			emitter.Emit2(opcode,opSP,sizeOp);
 		END AllocateStack;
 
-		(*
-		PROCEDURE AddOffset(op: Assembler.Operand; offset: LONGINT);
-		VAR imm: Assembler.Operand;
-		BEGIN
-			Assembler.InitImm(imm,op.sizeInBytes,offset);
-			emitter.Emit2(InstructionSet.opADD,op,imm);
-		END AddOffset;
-		*)
-		PROCEDURE IsMemoryOperand(vop: IntermediateCode.Operand): BOOLEAN;
-		VAR r: LONGINT;
-		BEGIN
-			r := vop.register;
-			RETURN (vop.mode = IntermediateCode.ModeMemory) OR (vop.mode = IntermediateCode.ModeRegister) & (vop.register >= 0)
-				& ((realRegisters[vop.register].lowSpilled) OR (realRegisters[vop.register].highSpilled));
-		END IsMemoryOperand;
+		(*-------------------  generation = emit dispatch  / emit procedures ----------------------*)
+		PROCEDURE IsFloat(CONST operand: IntermediateCode.Operand): BOOLEAN;
+		BEGIN RETURN operand.type.form = IntermediateCode.Float
+		END IsFloat;
 
+		PROCEDURE IsComplex(CONST operand: IntermediateCode.Operand): BOOLEAN;
+		BEGIN RETURN (operand.type.form IN IntermediateCode.Integer) & (operand.type.sizeInBits > cpuBits)
+		END IsComplex;
 
-		PROCEDURE EmitMov(CONST instr: IntermediateCode.Instruction);
-		VAR op1,op2: Operand; tmp: IntermediateCode.Operand;
+		PROCEDURE Generate(CONST instruction: IntermediateCode.Instruction);
+		VAR opcode: SHORTINT; ticket: Ticket; i:LONGINT;
 		BEGIN
-			IF instr.op1.type.form IN IntermediateCode.Integer THEN
-				MakeOperand(instr.op1,op1,0,none);
-				IF IsMemoryOperand(instr.op1) & IsMemoryOperand(instr.op2) THEN
-					MakeOperand(instr.op2,op2,0,none);
-					Mov(InstructionSet.opMOV,op1,op2);
-				ELSIF (instr.op1.mode = IntermediateCode.ModeRegister) & (instr.op2.mode = IntermediateCode.ModeRegister) & (instr.op2.offset # 0) THEN
-					tmp := instr.op2; IntermediateCode.MakeMemory(tmp,instr.op2.type);
-					MakeOperand(tmp,op2,0,none);
-					emitter.Emit2(InstructionSet.opLEA,op1.low,op2.low);
-					IF (bits =32) & (instr.op1.type.sizeInBits = IntermediateCode.Bits64) THEN
-						emitter.Emit2(InstructionSet.opLEA,op1.high,op2.high);
-					END;
+			ReserveOperandRegisters(instruction.op1,TRUE); ReserveOperandRegisters(instruction.op2,TRUE);ReserveOperandRegisters(instruction.op3,TRUE);
+			(*TryAllocate(instruction.op1,Low);
+			IF IsComplex(instruction.op1) THEN TryAllocate(instruction.op1,High) END;
+			*)
+			opcode := instruction.opcode;
+			CASE opcode OF
+			IntermediateCode.nop: (* do nothing *)
+			|IntermediateCode.mov:
+				IF IsFloat(instruction.op1) OR IsFloat(instruction.op2) THEN EmitMovFPU(instruction.op1,instruction.op2)
+				ELSE EmitMov(instruction.op1,instruction.op2,Low);
+					IF IsComplex(instruction.op1) THEN EmitMov(instruction.op1,instruction.op2, High) END;
+				END;
+			|IntermediateCode.conv:
+				IF IsFloat(instruction.op1) OR IsFloat(instruction.op2) THEN EmitConvertFPU(instruction.op1,instruction.op2)
+				ELSE EmitConvert(instruction.op1,instruction.op2,Low);
+					IF IsComplex(instruction.op1) THEN EmitConvert(instruction.op1,instruction.op2,High) END;
+				END;
+			|IntermediateCode.call: EmitCall(instruction);
+			|IntermediateCode.enter: EmitEnter(instruction);
+			|IntermediateCode.leave: EmitLeave(instruction);
+			|IntermediateCode.exit: EmitExit(instruction);
+			|IntermediateCode.result:
+				IF IsFloat(instruction.op1) THEN EmitResultFPU(instruction)
+				ELSE EmitResult(instruction,Low);
+					IF IsComplex(instruction.op1) THEN EmitResult(instruction,High) END;
+				END;
+			|IntermediateCode.return:
+				IF IsFloat(instruction.op1) THEN EmitReturnFPU(instruction)
+				ELSE EmitReturn(instruction,Low);
+					IF IsComplex(instruction.op1) THEN EmitReturn(instruction, High) END;
+				END;
+			|IntermediateCode.trap: EmitTrap(instruction);
+			|IntermediateCode.br .. IntermediateCode.brlt: EmitBr(instruction)
+			|IntermediateCode.pop:
+				IF IsFloat(instruction.op1) THEN
+					EmitPopFPU(instruction.op1)
 				ELSE
-					MakeOperand(instr.op2,op2,0,none);
-					emitter.Emit2(InstructionSet.opMOV,op1.low,op2.low);
-					IF (bits=32) & (instr.op1.type.sizeInBits = IntermediateCode.Bits64) THEN
-						emitter.Emit2(InstructionSet.opMOV,op1.high,op2.high);
+					EmitPop(instruction.op1,Low);
+					IF IsComplex(instruction.op1) THEN
+						EmitPop(instruction.op1,High)
 					END;
+				END;
+			|IntermediateCode.push:
+				IF IsFloat(instruction.op1) THEN
+					EmitPushFPU(instruction.op1)
+				ELSE
+					IF IsComplex(instruction.op1) THEN
+						EmitPush(instruction.op1,High);
+					END;
+					EmitPush(instruction.op1,Low)
+				END;
+			|IntermediateCode.neg:
+				IF IsFloat(instruction.op1) THEN EmitArithmetic2FPU(instruction,InstructionSet.opFCHS)
+				ELSE EmitNeg(instruction);
+				END;
+			|IntermediateCode.not:
+				Assert(~IsFloat(instruction.op1),"instruction not supported for float");
+				EmitArithmetic2(instruction,Low,InstructionSet.opNOT);
+				IF IsComplex(instruction.op1) THEN EmitArithmetic2(instruction, High, InstructionSet.opNOT) END;
+			|IntermediateCode.abs:
+				IF IsFloat(instruction.op1) THEN EmitArithmetic2FPU(instruction,InstructionSet.opFABS)
+				ELSE EmitAbs(instruction);
+				END;
+			|IntermediateCode.mul:
+				IF IsFloat(instruction.op1) THEN
+					EmitArithmetic3FPU(instruction, InstructionSet.opFMUL)
+				ELSE
+					EmitMul(instruction);
+				END;
+			|IntermediateCode.div:
+				IF  IsFloat(instruction.op1 )THEN
+					EmitArithmetic3FPU(instruction,InstructionSet.opFDIV)
+				ELSE
+					EmitDivMod(instruction);
+				END;
+			|IntermediateCode.mod:
+				Assert(~IsFloat(instruction.op1),"instruction not supported for float");
+				EmitDivMod(instruction);
+			|IntermediateCode.sub:
+				IF IsFloat(instruction.op1) THEN EmitArithmetic3FPU(instruction,InstructionSet.opFSUB)
+				ELSE EmitArithmetic3(instruction,Low,InstructionSet.opSUB);
+					IF IsComplex(instruction.op1) THEN EmitArithmetic3(instruction, High, InstructionSet.opSBB) END;
+				END;
+			|IntermediateCode.add:
+				IF IsFloat(instruction.op1) THEN EmitArithmetic3FPU(instruction,InstructionSet.opFADD)
+				ELSE EmitArithmetic3(instruction,Low,InstructionSet.opADD);
+					IF IsComplex(instruction.op1) THEN EmitArithmetic3(instruction, High, InstructionSet.opADC) END;
+				END;
+			|IntermediateCode.and:
+				Assert(~IsFloat(instruction.op1),"operation not defined on float");
+				EmitArithmetic3(instruction,Low,InstructionSet.opAND);
+				IF IsComplex(instruction.op1) THEN EmitArithmetic3(instruction, High, InstructionSet.opAND) END;
+			|IntermediateCode.or:
+				Assert(~IsFloat(instruction.op1),"operation not defined on float");
+				EmitArithmetic3(instruction,Low,InstructionSet.opOR);
+				IF IsComplex(instruction.op1) THEN EmitArithmetic3(instruction, High, InstructionSet.opOR) END;
+			|IntermediateCode.xor:
+				Assert(~IsFloat(instruction.op1),"operation not defined on float");
+				EmitArithmetic3(instruction,Low,InstructionSet.opXOR);
+				IF IsComplex(instruction.op1) THEN EmitArithmetic3(instruction, High, InstructionSet.opXOR) END;
+			|IntermediateCode.shl: EmitShift(instruction);
+			|IntermediateCode.shr: EmitShift(instruction);
+			|IntermediateCode.rol: EmitShift(instruction);
+			|IntermediateCode.ror: EmitShift(instruction);
+			|IntermediateCode.copy: EmitCopy(instruction);
+			|IntermediateCode.fill: EmitFill(instruction,FALSE);
+			|IntermediateCode.asm: EmitAsm(instruction);
+			END;
+
+			ReserveOperandRegisters(instruction.op3,FALSE); ReserveOperandRegisters(instruction.op2,FALSE); ReserveOperandRegisters(instruction.op1,FALSE);
+			TryUnmap(instruction.op3); TryUnmap(instruction.op2); TryUnmap(instruction.op1);
+
+			ticket := tickets.live;
+			WHILE (ticket # NIL) & (ticket.lastuse = inPC) DO
+				UnmapTicket(ticket);
+				ticket := tickets.live
+			END;
+
+			FOR i := 0 TO physicalRegisters.NumberRegisters()-1 DO
+				IF physicalRegisters.Reserved(i) THEN
+					Error("register still reserved") ;
+					physicalRegisters.SetReserved(i,FALSE);
+				END;
+			END;
+		END Generate;
+
+		(* enter procedure: generate PAF and clear stack *)
+		PROCEDURE EmitEnter(CONST instruction: IntermediateCode.Instruction);
+		VAR op1,imm,target: Assembler.Operand; cc,size,numberMachineWords,destPC: LONGINT;
+		CONST initialize=TRUE;
+		BEGIN
+			cc := SHORT(instruction.op1.intValue);
+			stackSize := SHORT(instruction.op2.intValue);
+			size := stackSize;
+
+			emitter.Emit1(InstructionSet.opPUSH,opBP);
+			emitter.Emit2(InstructionSet.opMOV,opBP,opSP);
+			IF initialize THEN
+				ASSERT(size MOD opRA.sizeInBytes = 0);
+				numberMachineWords := size DIV opRA.sizeInBytes;
+				IF numberMachineWords >0  THEN
+					emitter.Emit2(InstructionSet.opXOR,opRA,opRA);
+					WHILE numberMachineWords MOD 4 # 0 DO
+						emitter.Emit1(InstructionSet.opPUSH, opRA);
+						DEC(numberMachineWords);
+					END;
+					IF numberMachineWords >4 THEN
+						Assembler.InitImm(imm, 0, numberMachineWords DIV 4);
+						emitter.Emit2(InstructionSet.opMOV, opRC, imm);
+						destPC := out.pc;
+						emitter.Emit1(InstructionSet.opDEC, opRC);
+						emitter.Emit1(InstructionSet.opPUSH, opRA);
+						emitter.Emit1(InstructionSet.opPUSH, opRA);
+						emitter.Emit1(InstructionSet.opPUSH, opRA);
+						emitter.Emit1(InstructionSet.opPUSH, opRA);
+
+						Assembler.InitOffset8(target,destPC);
+						emitter.Emit1(InstructionSet.opJNZ, target)
+					ELSE
+						WHILE numberMachineWords >0  DO
+							emitter.Emit1(InstructionSet.opPUSH, opRA);
+							DEC(numberMachineWords);
+						END;
+					END;
+				END;
+				IF spillStack.MaxSize()>0 THEN (* register spill stack, does not have to be initialized *)
+					op1 := Assembler.NewImm32(spillStack.MaxSize()*4);
+					emitter.Emit2(InstructionSet.opSUB,opSP,op1);
 				END;
 			ELSE
+				op1 := Assembler.NewImm32(size);
+				emitter.Emit2(InstructionSet.opSUB,opSP,op1);
+			END;
+
+			IF cc = SyntaxTree.WinAPICallingConvention THEN
+				(* the winapi calling convention presumes that all registers except EAX, EDX and ECX are retained by the callee *)
+				emitter.Emit1(InstructionSet.opPUSH,opEBX);
+				emitter.Emit1(InstructionSet.opPUSH,opEDI);
+				emitter.Emit1(InstructionSet.opPUSH,opESI);
+			END;
+			spillStackStart := stackSize;
+		END EmitEnter;
+
+		PROCEDURE EmitLeave(CONST instruction: IntermediateCode.Instruction);
+		VAR cc: LONGINT;
+		BEGIN
+			cc := SHORT(instruction.op1.intValue);
+			IF cc = SyntaxTree.WinAPICallingConvention THEN
+				emitter.Emit1(InstructionSet.opPOP,opESI);
+				emitter.Emit1(InstructionSet.opPOP,opEDI);
+				emitter.Emit1(InstructionSet.opPOP,opEBX);
+			END;
+			emitter.Emit2(InstructionSet.opMOV,opSP,opBP);
+			emitter.Emit1(InstructionSet.opPOP,opBP);
+		END EmitLeave;
+
+		PROCEDURE EmitExit(CONST instruction: IntermediateCode.Instruction);
+		VAR parSize: LONGINT; operand: Assembler.Operand;
+		BEGIN
+			parSize := SHORT(instruction.op1.intValue);
+			IF parSize = 0 THEN
+				emitter.Emit0(InstructionSet.opRET)
+			ELSE
+				operand := Assembler.NewImm16(instruction.op1.intValue );
+				emitter.Emit1(InstructionSet.opRET,operand)
+			END;
+			IF fpStackPointer # 0 THEN Error("compiler implementation error: fp stack not cleared") END;
+		END EmitExit;
+
+
+		PROCEDURE EmitReturnFPU(CONST instruction: IntermediateCode.Instruction);
+		VAR operand: Assembler.Operand;
+		BEGIN
+			IF IsRegister(instruction.op1) & MappedTo(instruction.op1.register,Low, ST0) THEN
+				(* nothing to do: result is already in return register *)
+			ELSE
+				MakeOperand(instruction.op1, Low, operand,NIL);
+				emitter.Emit1(InstructionSet.opFLD,operand);
 				(*
-					the following code is written under the assumption that the result of a procedure is always written to before a return instruction and
-					it is read after a call and potential pops of registers (fp or not) from stack.
-						MOV #result, src is always the last (floating point relevant) instruction before exiting a procedure
-						MOV src, #result is always the first (floating point relevant) instruction after a return from a procedure call
-											(except for POPs which may modify the FP stack but they leave the stack bottom untouched)
-				*)
-				MakeOperand(instr.op2,op2,0,none);
-				emitter.Emit1(InstructionSet.opFLD,op2.low);
+				not necessary to clear from top of stack as callee will clear
 				INC(fpStackPointer);
+				emitter.Emit1(InstructionSet.opFSTP,registerOperands[ST0+1]);
+				DEC(fpStackPointer);
+				*)
+			END;
+		END EmitReturnFPU;
 
-				IF (instr.op1.mode # IntermediateCode.ModeRegister) OR (instr.op1.register = IntermediateCode.Result) OR (-fpRegisters[instr.op1.register]+fpStackPointer # 0) THEN
-					MakeOperand(instr.op1,op1,0,none);
-					emitter.Emit1(InstructionSet.opFSTP,op1.low);
+		(* return operand
+			store operand in return register or on fp stack
+		*)
+		PROCEDURE EmitReturn(CONST instruction: IntermediateCode.Instruction; part: LONGINT);
+		VAR return,operand: Assembler.Operand;  register: LONGINT; ticket: Ticket; type: IntermediateCode.Type;
+		BEGIN
+			register := ResultRegister(instruction.op1.type, part);
+			IF IsRegister(instruction.op1) & MappedTo(instruction.op1.register,part, register) THEN
+				(* nothing to do: result is already in return register *)
+			ELSE
+				GetPartType(instruction.op1.type,part, type);
+				MakeOperand(instruction.op1, part, operand,NIL);
+				ticket := ReservePhysicalRegister(type,register);
+				TicketToOperand(ticket, return);
+				(* Mov takes care of potential register overlaps *)
+				emitter.Emit2(InstructionSet.opMOV,return, operand);
+				UnmapTicket(ticket);
+			END;
+		END EmitReturn;
+
+		PROCEDURE EmitMovFPU(CONST vdest,vsrc:IntermediateCode.Operand);
+		VAR op1,op2, espm: Assembler.Operand; sizeInBytes: SHORTINT; vcopy: IntermediateCode.Operand;
+		BEGIN
+			sizeInBytes := SHORTINT(vdest.type.sizeInBits DIV 8);
+			IF vdest.type.form IN IntermediateCode.Integer THEN
+				IF vsrc.mode = IntermediateCode.ModeMemory THEN
+					vcopy := vsrc; IntermediateCode.SetType(vcopy,vdest.type);
+					EmitMov(vdest, vcopy,Low);
+					IF IsComplex(vdest) THEN
+						EmitMov(vdest,vcopy,High);
+					END;
+				ELSE
+					MakeOperand(vsrc,Low,op2,NIL);
+					emitter.Emit1(InstructionSet.opFLD,op2);
+					INC(fpStackPointer);
+					IF vdest.mode = IntermediateCode.ModeMemory THEN
+						MakeOperand(vdest,Low,op1,NIL);
+						Assembler.SetSize(op1,sizeInBytes);
+						emitter.Emit1(InstructionSet.opFSTP,op1);
+						DEC(fpStackPointer);
+					ELSE
+						AllocateStack(sizeInBytes);
+						Assembler.InitMem(espm, sizeInBytes,SP,0);
+						emitter.Emit1(InstructionSet.opFSTP,espm);
+						DEC(fpStackPointer);
+						MakeOperand(vdest,Low,op1,NIL);
+						EmitPop(vdest,Low);
+						IF IsComplex(vdest) THEN
+							EmitPop(vdest,High);
+						END;
+					END;
+				END;
+			ELSIF vsrc.type.form IN IntermediateCode.Integer THEN
+				IF vdest.mode = IntermediateCode.ModeMemory THEN
+					vcopy := vdest; IntermediateCode.SetType(vcopy,vsrc.type);
+					EmitMov(vcopy, vsrc,Low);
+					IF IsComplex(vsrc) THEN
+						EmitMov(vcopy,vsrc,High);
+					END;
+				ELSE
+					IF vsrc.mode = IntermediateCode.ModeMemory THEN
+						MakeOperand(vsrc,Low,op2,NIL);
+						Assembler.SetSize(op2,sizeInBytes);
+						emitter.Emit1(InstructionSet.opFLD,op2);
+					ELSE
+						IF IsComplex(vsrc) THEN
+							EmitPush(vsrc,High);
+						END;
+						EmitPush(vsrc,Low);
+						Assembler.InitMem(espm, sizeInBytes,SP,0);
+						emitter.Emit1(InstructionSet.opFLD,espm);
+						ASSERT(sizeInBytes >0);
+						AllocateStack(-sizeInBytes);
+					END;
+					INC(fpStackPointer);
+					MakeOperand(vdest,Low,op1,NIL);
+					emitter.Emit1(InstructionSet.opFSTP,op1);
 					DEC(fpStackPointer);
-				ELSE (* result may stay on top of stack, op1 has been allocated in place *)
 				END;
+			ELSE
+				MakeOperand(vsrc,Low,op2,NIL);
+				emitter.Emit1(InstructionSet.opFLD,op2);
+				INC(fpStackPointer);
+				MakeOperand(vdest,Low,op1,NIL);
+				emitter.Emit1(InstructionSet.opFSTP,op1);
+				DEC(fpStackPointer);
+			END;
+		END EmitMovFPU;
 
-				IF (instr.op2.mode = IntermediateCode.ModeRegister) & (instr.op2.register = IntermediateCode.Result) THEN
-					(* result must be removed from stack, as it is on the bottom of stack it can be just freed without further manipulation *)
-					IF dump # NIL THEN dump.String("free result on fp stack"); dump.Ln; END;
-					 emitter.Emit1(InstructionSet.opFFREE,registerOperands[ST0+fpStackPointer]);
-				END;
-
-
-			END
+		PROCEDURE EmitMov(CONST vdest,vsrc: IntermediateCode.Operand; part: LONGINT);
+		VAR op1,op2: Assembler.Operand; tmp: IntermediateCode.Operand; srcType, destType: IntermediateCode.Type; sameType: BOOLEAN;
+		BEGIN
+			IF (vdest.mode = IntermediateCode.ModeRegister) & (vsrc.mode = IntermediateCode.ModeRegister) & (vsrc.offset # 0) THEN
+				(* MOV R1, R2+offset => LEA EAX, [EBX+offset] *)
+				tmp := vsrc;
+				IntermediateCode.MakeMemory(tmp,vsrc.type);
+				MakeOperand(tmp,part,op2,NIL);
+				(*
+				ReleaseHint(op2.register);
+				*)
+				MakeOperand(vdest,part,op1,NIL);
+				emitter.Emit2(InstructionSet.opLEA,op1,op2);
+			ELSE
+				MakeOperand(vsrc,part,op2,NIL);
+				(*
+				ReleaseHint(op2.register);
+				*)
+				MakeOperand(vdest,part,op1,NIL);
+				Mov(InstructionSet.opMOV,op1,op2);
+			END;
 		END EmitMov;
 
-		PROCEDURE EmitConv(CONST instr: IntermediateCode.Instruction);
-		VAR destType, srcType: IntermediateCode.Type; op1,op2: Operand; index: LONGINT; nul,espm,imm: Assembler.Operand; sizeInBytes: LONGINT;
-		temp: Operand;
+		PROCEDURE EmitConvertFPU(CONST vdest, vsrc: IntermediateCode.Operand);
+		VAR destType, srcType: IntermediateCode.Type; dest,src,espm,imm: Assembler.Operand; sizeInBytes: SHORTINT;
+		temp: Assembler.Operand; ticket: Ticket;
 		BEGIN
-			srcType := instr.op2.type;
-			destType := instr.op1.type;
-			CASE destType.form OF
-			IntermediateCode.SignedInteger, IntermediateCode.UnsignedInteger:
+			srcType := vsrc.type;
+			destType := vdest.type;
+			IF destType.form = IntermediateCode.Float THEN
 				CASE srcType.form OF
-				IntermediateCode.SignedInteger, IntermediateCode.UnsignedInteger:
-					IF destType.sizeInBits < srcType.sizeInBits THEN (* (implicit) SHORT *)
-						MakeOperand(instr.op1,op1,0,none);
-						MakeOperand(instr.op2,op2,0,none);
-						index := op1.low.register;
+				|IntermediateCode.Float: (* just a move *)
+					EmitMovFPU(vdest, vsrc);
+				|IntermediateCode.SignedInteger:
+					(* put value to stack and then read from stack via FPU *)
+					IF vsrc.type.sizeInBits < IntermediateCode.Bits32 THEN
+						MakeOperand(vsrc,Low,src,NIL);
+						ticket := TemporaryTicket(IntermediateCode.int32);
+						TicketToOperand(ticket,temp);
+						emitter.Emit2(InstructionSet.opMOVSX,temp,src);
+						emitter.Emit1(InstructionSet.opPUSH,temp);
+						UnmapTicket(ticket);
+						sizeInBytes := temp.sizeInBytes;
+					ELSIF IsComplex(vsrc) THEN
+						EmitPush(vsrc,High);
+						EmitPush(vsrc,Low);
+						(*
+						MakeOperand(vsrc,High,src,NIL);
+						emitter.Emit1(InstructionSet.opPUSH,src);
+						MakeOperand(vsrc,Low,src,NIL);
+						emitter.Emit1(InstructionSet.opPUSH,src);
+						*)
+						sizeInBytes := 8
+					ELSE
+						EmitPush(vsrc,Low);
+						(*
+						MakeOperand(vsrc,Low,src,NIL);
+						emitter.Emit1(InstructionSet.opPUSH,src);
+						*)
+						sizeInBytes := SHORTINT(cpuBits DIV 8) (*SHORT(srcType.sizeInBits DIV 8)*);
+					END;
+					Assembler.InitMem(espm, sizeInBytes,SP,0);
+					emitter.Emit1(InstructionSet.opFILD,espm);
+					INC(fpStackPointer);
+					ASSERT(sizeInBytes >0);
+					AllocateStack(-sizeInBytes);
+					MakeOperand(vdest,Low,dest,NIL);
+					emitter.Emit1(InstructionSet.opFSTP,dest);
+					DEC(fpStackPointer);
+				END;
+			ELSE
+				ASSERT(destType.form IN IntermediateCode.Integer);
+				ASSERT(srcType.form = IntermediateCode.Float);
+				Assert(vdest.type.form = IntermediateCode.SignedInteger, "no entier as result for unsigned integer");
+				MakeOperand(vsrc,Low,src,NIL);
+				emitter.Emit1(InstructionSet.opFLD,src); INC(fpStackPointer);
+				MakeOperand(vdest,Low,dest,NIL);
+				IF destType.sizeInBits = IntermediateCode.Bits64 THEN AllocateStack(12) ELSE AllocateStack(8) END;
+
+				Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,0);
+
+				emitter.Emit1(InstructionSet.opFNSTCW,espm);
+				emitter.Emit0(InstructionSet.opFWAIT);
+
+				Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,0);
+				ticket := TemporaryTicket(IntermediateCode.int32);
+				TicketToOperand(ticket,temp);
+
+				emitter.Emit2(InstructionSet.opMOV,temp,espm);
+				imm := Assembler.NewImm32(0F3FFH);
+				emitter.Emit2(InstructionSet.opAND,temp,imm);
+				imm := Assembler.NewImm32(0400H);
+				emitter.Emit2(InstructionSet.opOR,temp,imm);
+				Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,4);
+				emitter.Emit2(InstructionSet.opMOV,espm,temp);
+				Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,4);
+				emitter.Emit1(InstructionSet.opFLDCW,espm);
+				IF destType.sizeInBits = IntermediateCode.Bits64 THEN
+					Assembler.InitMem(espm,IntermediateCode.Bits64 DIV 8,SP,4);
+					emitter.Emit1(InstructionSet.opFISTP,espm);DEC(fpStackPointer);
+					emitter.Emit0(InstructionSet.opFWAIT);
+				ELSE
+					Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,4);
+					emitter.Emit1(InstructionSet.opFISTP,espm); DEC(fpStackPointer);
+					emitter.Emit0(InstructionSet.opFWAIT);
+				END;
+				Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,0);
+				emitter.Emit1(InstructionSet.opFLDCW,espm);
+
+				emitter.Emit1(InstructionSet.opPOP,temp);
+				UnmapTicket(ticket);
+
+				emitter.Emit1(InstructionSet.opPOP,dest);
+				IF IsComplex(vdest) THEN
+					MakeOperand(vdest,High,dest,NIL);
+					emitter.Emit1(InstructionSet.opPOP,dest);
+				END;
+			END;
+		END EmitConvertFPU;
+
+		PROCEDURE EmitConvert(CONST vdest, vsrc: IntermediateCode.Operand; part: LONGINT);
+		VAR destType, srcType: IntermediateCode.Type; op1,op2: Assembler.Operand; index: LONGINT; nul: Assembler.Operand;
+		temp: Assembler.Operand; ticket: Ticket; vop: IntermediateCode.Operand; ediReserved, esiReserved: BOOLEAN;
+			eax, edx: Ticket; symbol: Sections.Section; offset: LONGINT;
+		BEGIN
+			GetPartType(vdest.type,part, destType);
+			GetPartType(vsrc.type,part,srcType);
+			ASSERT(vdest.type.form IN IntermediateCode.Integer);
+			ASSERT(destType.form IN IntermediateCode.Integer);
+			IF destType.sizeInBits < srcType.sizeInBits THEN (* SHORT *)
+				ASSERT(part # High);
+				MakeOperand(vdest,part,op1,NIL);
+				IF vsrc.mode = IntermediateCode.ModeImmediate THEN
+					vop := vsrc;
+					IntermediateCode.SetType(vop,destType);
+					MakeOperand(vop,part,op2,NIL);
+				ELSE
+					MakeOperand(vsrc,part,op2,NIL);
+					IF Assembler.IsRegisterOperand(op1) & ((op1.register DIV 32 >0) (* not 8 bit register *) OR (op1.register DIV 16 = 0) & (physicalRegisters.Mapped(op1.register MOD 16 + AH)=free) (* low 8 bit register with free upper part *)) THEN
+						(* try EAX <- EDI  for dest = AL or AX, src=EDI *)
+						index := op1.register;
 						CASE srcType.sizeInBits OF
 							IntermediateCode.Bits16: index := index MOD 32 + AX;
 							|IntermediateCode.Bits32: index := index MOD 32 + EAX;
-							|IntermediateCode.Bits64: index := index MOD 32 + EAX;
+							|IntermediateCode.Bits64: index := index MOD 32 + RAX;
 						END;
-						emitter.Emit2(InstructionSet.opMOV,registerOperands[index],op2.low);
-					ELSIF destType.sizeInBits > srcType.sizeInBits THEN
-						IF srcType.form = IntermediateCode.SignedInteger THEN (* destType.sizeInBits > srcType.sizeInBits *)  (* (implicit) LONG *)
-							MakeOperand(instr.op1,op1,0,none);
-							MakeOperand(instr.op2,op2,0,none);
-							IF (destType.sizeInBits = IntermediateCode.Bits64)  THEN
-								IF srcType.sizeInBits = IntermediateCode.Bits32 THEN
-									Mov(InstructionSet.opMOV,op1,op2);
-								ELSE
-									IF IsMemoryOperand(instr.op1) THEN
-										Temporary(destType.sizeInBits,temp);
-										(*
-										CASE destType.sizeInBits OF
-											IntermediateCode.Bits16: index :=AX;
-											|IntermediateCode.Bits32: index :=EAX;
-										END;
-										*)
-										emitter.Emit2(InstructionSet.opMOVSX,temp.low,op2.low);
-										emitter.Emit2(InstructionSet.opMOV,op1.low,temp.low);
-										registerAllocator.Free(temp.low.register);
-									ELSE
-										Mov(InstructionSet.opMOVSX,op1,op2);
-									END;
-								END;
-
-								IF (registerAllocator.realToVirtual[EAX] # free)  & (EAX # op1.low.register) THEN
-									emitter.Emit1(InstructionSet.opPUSH,opEAX);
-								END;
-								IF (registerAllocator.realToVirtual[EDX] # free)  & (EDX # op1.high.register)  THEN
-									emitter.Emit1(InstructionSet.opPUSH,opEDX)
-								END;
-								emitter.Emit2(InstructionSet.opMOV,opEAX,op1.low);
-								emitter.Emit0(InstructionSet.opCDQ);
-								emitter.Emit2(InstructionSet.opMOV,op1.high,opEDX);
-								IF (registerAllocator.realToVirtual[EDX] # free)  & (EDX # op1.high.register)  THEN
-									emitter.Emit1(InstructionSet.opPOP,opEDX)
-								END;
-								IF (registerAllocator.realToVirtual[EAX] # free)  & (EAX # op1.low.register) THEN
-									emitter.Emit1(InstructionSet.opPOP,opEAX);
-								END;
+						op1 := registerOperands[index];
+					ELSE
+						(* reserve register with a low part *)
+						IF destType.sizeInBits=8 THEN (* make sure that allocated temporary register has a low part with 8 bits, i.e.  exclude ESI or EDI *)
+							ediReserved := physicalRegisters.Reserved(EDI);
+							esiReserved := physicalRegisters.Reserved(ESI);
+							physicalRegisters.SetReserved(EDI,TRUE); physicalRegisters.SetReserved(ESI,TRUE);
+							ticket := TemporaryTicket(srcType); (* register with low part *)
+							physicalRegisters.SetReserved(EDI,ediReserved); physicalRegisters.SetReserved(ESI,esiReserved);
+						ELSE
+							ticket := TemporaryTicket(srcType); (* any register with low part *)
+						END;
+						MakeOperand(vsrc,part,op2,ticket); (* stores op2 in ticket register *)
+						index := op2.register;
+						CASE destType.sizeInBits OF (* choose low part accordingly *)
+							IntermediateCode.Bits8: index := index MOD 32 + AL;
+							|IntermediateCode.Bits16: index := index MOD 32 + AX;
+							|IntermediateCode.Bits32: index := index MOD 32 + EAX;
+						END;
+						op2 := registerOperands[index];
+					END;
+					Mov(InstructionSet.opMOV,op1,op2);
+				END;
+			ELSIF destType.sizeInBits > srcType.sizeInBits THEN (* (implicit) LONG *)
+				IF part = High THEN
+					IF destType.form = IntermediateCode.SignedInteger THEN
+						Spill(physicalRegisters.Mapped(EAX));
+						eax := ReservePhysicalRegister(IntermediateCode.int32,EAX);
+						Spill(physicalRegisters.Mapped(EDX));
+						edx := ReservePhysicalRegister(IntermediateCode.int32,EDX);
+						IF vsrc.type.sizeInBits < 32 THEN
+							MakeOperand(vsrc,Low,op2,NIL);
+							Mov(InstructionSet.opMOVSX,opEAX,op2);
+						ELSE
+							MakeOperand(vsrc,Low,op2,eax);
+						END;
+						emitter.Emit0(InstructionSet.opCDQ);
+						MakeOperand(vdest,High,op1,NIL);
+						emitter.Emit2(InstructionSet.opMOV,op1,opEDX);
+						UnmapTicket(eax); UnmapTicket(edx);
+					ELSE
+						MakeOperand(vdest,part,op1,NIL);
+						IF (vdest.mode = IntermediateCode.ModeRegister) THEN
+							emitter.Emit2(InstructionSet.opXOR,op1,op1)
+						ELSE
+							Assembler.InitImm(nul,0,0);
+							emitter.Emit2(InstructionSet.opMOV,op1,nul);
+						END;
+					END;
+				ELSE
+					ASSERT(part=Low);
+					MakeOperand(vdest,part,op1,NIL);
+					MakeOperand(vsrc,part,op2,NIL);
+					IF srcType.sizeInBits = destType.sizeInBits THEN
+						Mov(InstructionSet.opMOV,op1,op2);
+					ELSIF  srcType.form = IntermediateCode.SignedInteger THEN
+						IF srcType.sizeInBits=32 THEN (* 64 bits only *)
+							ASSERT(cpuBits=64);
+							Mov(InstructionSet.opMOVSXD,op1,op2);
+						ELSE
+							Mov(InstructionSet.opMOVSX,op1,op2);
+						END;
+					ELSE
+						ASSERT(srcType.form = IntermediateCode.UnsignedInteger);
+						IF srcType.sizeInBits=32 THEN (* 64 bits only *)
+							ASSERT(cpuBits=64);
+							IF Assembler.IsRegisterOperand(op1) THEN
+								Mov(InstructionSet.opMOV, registerOperands[op1.register MOD 32 + EAX], op2);
 							ELSE
-								IF IsMemoryOperand(instr.op1) THEN
-									(*
-									CASE destType.sizeInBits OF
-										IntermediateCode.Bits16: index :=AX;
-										|IntermediateCode.Bits32: index :=EAX;
-									END;
-									*)
-									Temporary(destType.sizeInBits,temp);
-									emitter.Emit2(InstructionSet.opMOVSX,temp.low,op2.low);
-									emitter.Emit2(InstructionSet.opMOV,op1.low,temp.low);
-								ELSE
-									Mov(InstructionSet.opMOVSX,op1,op2);
-								END;
+								ASSERT(Assembler.IsMemoryOperand(op1));
+								symbol := op1.symbol; offset := op1.offset;
+								Assembler.InitMem(op1,Assembler.bits32,op1.register, op1.displacement);
+								Assembler.SetSymbol(op1,symbol,offset,op1.displacement);
+								Mov(InstructionSet.opMOV, op1, op2);
+								Assembler.InitMem(op1,Assembler.bits32,op1.register, op1.displacement+Assembler.bits32);
+								Assembler.SetSymbol(op1,symbol,offset,op1.displacement);
+								Assembler.InitImm(op2,0,0);
+								Mov(InstructionSet.opMOV, op1, op2);
 							END;
 						ELSE
-							MakeOperand(instr.op1,op1,0,none);
-							MakeOperand(instr.op2,op2,0,none);
-							IF (destType.sizeInBits = IntermediateCode.Bits64)  THEN
-								IF srcType.sizeInBits = IntermediateCode.Bits32 THEN
-									emitter.Emit2(InstructionSet.opMOV,op1.low,op2.low);
-								ELSE
-									emitter.Emit2(InstructionSet.opMOVZX,op1.low,op2.low);
-								END;
-
-								IF (instr.op1.mode = IntermediateCode.ModeRegister) THEN
-									emitter.Emit2(InstructionSet.opXOR,op1.high,op1.high)
-								ELSE
-									Assembler.InitImm(nul,IntermediateCode.Bits32,0);
-									emitter.Emit2(InstructionSet.opMOV,op1.high,nul);
-								END;
-							ELSE
-								Mov(InstructionSet.opMOVZX,op1,op2);
-							END;
-						END;
-					ELSE
-						MakeOperand(instr.op1,op1,0,none);
-						MakeOperand(instr.op2,op2,0,none);
-						IF (instr.op1.mode = instr.op2.mode) & (instr.op1.register = instr.op2.register) & (instr.op1.offset = instr.op2.offset) &
-							(instr.op1.symbol = instr.op2.symbol) THEN
-						ELSE
-							Mov(InstructionSet.opMOV,op1,op2);
+							Mov(InstructionSet.opMOVZX, op1, op2)
 						END;
 					END;
-				|IntermediateCode.Float: (* entier *)
-					MakeOperand(instr.op1,op1,0,none);
-					MakeOperand(instr.op2,op2,0,none);
-					emitter.Emit1(InstructionSet.opFLD,op2.low); INC(fpStackPointer);
-					Assert(instr.op1.type.form = IntermediateCode.SignedInteger, "no entier as result for unsigned integer");
-					IF destType.sizeInBits = IntermediateCode.Bits64 THEN AllocateStack(12) ELSE AllocateStack(8) END;
-
-					Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,0);
-
-					emitter.Emit1(InstructionSet.opFNSTCW,espm);
-					emitter.Emit0(InstructionSet.opFWAIT);
-
-					Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,0);
-					Temporary(IntermediateCode.Bits32,temp);
-					emitter.Emit2(InstructionSet.opMOV,temp.low,espm);
-					imm := Assembler.NewImm32(0F3FFH);
-					emitter.Emit2(InstructionSet.opAND,temp.low,imm);
-					imm := Assembler.NewImm32(0400H);
-					emitter.Emit2(InstructionSet.opOR,temp.low,imm);
-					Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,4);
-					emitter.Emit2(InstructionSet.opMOV,espm,temp.low);
-					Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,4);
-					emitter.Emit1(InstructionSet.opFLDCW,espm);
-					IF destType.sizeInBits = IntermediateCode.Bits64 THEN
-						Assembler.InitMem(espm,IntermediateCode.Bits64 DIV 8,SP,4);
-						emitter.Emit1(InstructionSet.opFISTP,espm);DEC(fpStackPointer);
-						emitter.Emit0(InstructionSet.opFWAIT);
-					ELSE
-						Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,4);
-						emitter.Emit1(InstructionSet.opFISTP,espm); DEC(fpStackPointer);
-						emitter.Emit0(InstructionSet.opFWAIT);
-					END;
-					Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,0);
-					emitter.Emit1(InstructionSet.opFLDCW,espm);
-
-					emitter.Emit1(InstructionSet.opPOP,temp.low);
-
-					emitter.Emit1(InstructionSet.opPOP,op1.low);
-					IF destType.sizeInBits = IntermediateCode.Bits64 THEN emitter.Emit1(InstructionSet.opPOP,op1.high);
-					END;
 				END;
-			|IntermediateCode.Float:
-				CASE srcType.form OF
-				|IntermediateCode.Float: (* just a move *)
-					MakeOperand(instr.op2,op2,0,none);
-					emitter.Emit1(InstructionSet.opFLD,op2.low); INC(fpStackPointer);
-
-					IF (instr.op1.mode # IntermediateCode.ModeRegister) OR (-fpRegisters[instr.op1.register]+fpStackPointer # 0) THEN
-						MakeOperand(instr.op1,op1,0,none);
-						emitter.Emit1(InstructionSet.opFSTP,op1.low);
-						DEC(fpStackPointer);
-					ELSE (* result may stay on top of stack, op1 has been allocated in place *)
-					END;
-				|IntermediateCode.SignedInteger:
-					MakeOperand(instr.op2,op2,0,none);
-					IF instr.op2.type.sizeInBits < IntermediateCode.Bits32 THEN
-						Temporary(32,temp);
-						emitter.Emit2(InstructionSet.opMOVSX,temp.low,op2.low);
-						Push(temp);
-						Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,0);
-						sizeInBytes := 4
-					ELSIF instr.op2.type.sizeInBits = IntermediateCode.Bits64 THEN
-						emitter.Emit1(InstructionSet.opPUSH,op2.high);
-						emitter.Emit1(InstructionSet.opPUSH,op2.low);
-						Assembler.InitMem(espm,IntermediateCode.Bits64 DIV 8,SP,0);
-						sizeInBytes := 8
-					ELSE
-						emitter.Emit1(InstructionSet.opPUSH,op2.low);
-						Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,0);
-						sizeInBytes := 4
-					END;
-					emitter.Emit1(InstructionSet.opFILD,espm);INC(fpStackPointer);
-					AllocateStack(-sizeInBytes);
-
-					IF (instr.op1.mode # IntermediateCode.ModeRegister) OR (-fpRegisters[instr.op1.register]+fpStackPointer # 0) THEN
-						MakeOperand(instr.op1,op1,0,none);
-						emitter.Emit1(InstructionSet.opFSTP,op1.low);
-						DEC(fpStackPointer);
-					ELSE (* result may stay on top of stack, op1 has been allocated in place *)
-					END;
-				END;
+			ELSE (* destType.sizeInBits = srcType.sizeInBits) *)
+				EmitMov(vdest,vsrc,part);
 			END;
-		END EmitConv;
+		END EmitConvert;
+
+		PROCEDURE EmitResult(CONST instruction: IntermediateCode.Instruction; part: LONGINT);
+		VAR register: LONGINT; ticket:Ticket; result,op: Assembler.Operand; type: IntermediateCode.Type;
+		BEGIN
+			register := ResultRegister(instruction.op1.type,part);
+			(*
+			ticket := ReservePhysicalRegister(type,register);
+			TicketToOperand(ticket,result);
+			*)
+			result := registerOperands[register];
+			MakeOperand(instruction.op1,part,op,NIL);
+			Mov(InstructionSet.opMOV,op,result);
+			(*
+			UnmapTicket(ticket);
+			*)
+		END EmitResult;
+
+		PROCEDURE EmitResultFPU(CONST instruction: IntermediateCode.Instruction);
+		VAR result,op: Assembler.Operand; ticket:Ticket;
+		BEGIN
+			(*result := registerOperands[ST0];
+			(*
+			ticket := ReservePhysicalRegister(instruction.op1.type,ST0);
+			TicketToOperand(ticket,result);
+			*)
+			emitter.Emit1(InstructionSet.opFLD,result);
+			*)
+			INC(fpStackPointer); (* callee has left the result on top of stack, don't have to allocate here *)
+			MakeOperand(instruction.op1,Low,op,NIL);
+			emitter.Emit1(InstructionSet.opFSTP,op);
+			DEC(fpStackPointer);
+			(*
+			UnmapTicket(ticket);
+			*)
+		END EmitResultFPU;
 
 		PROCEDURE EmitCall(CONST instruction: IntermediateCode.Instruction);
-		VAR fixup: Sections.Section;  target: Assembler.Operand; op: Operand;
+		VAR fixup: Sections.Section;  target: Assembler.Operand; op: Assembler.Operand;
 			code: SyntaxTree.Code; emitterFixup,newFixup: BinaryCode.Fixup; resolved: BinaryCode.Section; pc: LONGINT;
 		BEGIN
 			IF fpStackPointer # 0 THEN Error("compiler implementation error: fp stack not cleared before call") END;
-			(*!
-			Assert(fpStackPointer = 0,"fp stack not cleared before call");
-			*)
 			IF instruction.op1.mode = IntermediateCode.ModeImmediate THEN
 				fixup := instruction.op1.symbol;
 				IF fixup.type = Sections.InlineCodeSection THEN
@@ -1942,277 +1508,270 @@ TYPE
 					emitter.Emit1(InstructionSet.opCALL,target);
 				END;
 			ELSE
-				MakeOperand(instruction.op1,op,0,none);
-				emitter.Emit1(InstructionSet.opCALL,op.low);
-			END
+				MakeOperand(instruction.op1,Low,op,NIL);
+				emitter.Emit1(InstructionSet.opCALL,op);
+			END;
 		END EmitCall;
 
-		PROCEDURE PrepareOp3(CONST instr: IntermediateCode.Instruction; VAR left,right: Operand);
-		VAR op1,op2,op3: Operand; vop1,vop2,vop3: IntermediateCode.Operand;
+(*
+		register allocation
+
+		instruction dest, src1, src2
+
+		preconditions
+			dest is memory operand or dest is register with offset = 0
+			src1 and src2 may be immediates, registers with or without offset and memory operands
+
+		1.) translation into two-operand code
+
+			a) dest = src1 (no assumption on src2, src2=src1 is permitted )
+				i) dest and src2 are both memory operands or src2 is a register with offset # 0
+					alloc temp register
+					mov temp, src2
+					instruction2 dest, temp
+				ii) dest or src2 is not a memory operand
+					instruction2 dest, src2
+			b) dest = src2
+				=>	src2 is not a register with offset # 0
+				alloc temp register
+				mov dest, src1
+				mov temp, src2
+				instruction2 dest, temp
+			c) dest # src2
+				mov dest, src1
+				i) dest and src2 are both memory operands or src2 is a register with offset # 0
+					allocate temp register
+					mov temp, src2
+					instruction2 dest, temp
+				ii)
+					instruction2 dest, src2
+
+		1'.) translation into one operand code
+			instruction dest, src1
+
+			a) dest = src1
+				=> src1 is not a register with offset # 0
+				instruction1 dest
+			b) dest # src1
+				mov dest, src1
+				instruction1 dest
+
+		2.) register allocation
+			precondition: src1 and src2 are already allocated
+
+			a) dest is already allocated
+				go on according to 1.
+
+			b) dest needs to be allocated
+				check if register is free
+				i) yes: allocate free register and go on with 1.
+				ii) no: spill last register in livelist, map register and go on with 1.
+*)
+
+		PROCEDURE PrepareOp3(CONST instruction: IntermediateCode.Instruction;part: LONGINT; VAR left, right: Assembler.Operand; VAR ticket: Ticket);
+		VAR vop1,vop2, vop3: IntermediateCode.Operand; op1,op2,op3,temp: Assembler.Operand; type: IntermediateCode.Type;
 		BEGIN
-			vop1 := instr.op1; vop2 := instr.op2; vop3 := instr.op3;
-			IF IntermediateCode.OperandEquals(vop1,vop3) & (IntermediateCode.Commute23 IN IntermediateCode.instructionFormat[instr.opcode].flags) THEN
-				vop3 := instr.op2; vop2 := instr.op3;
+			ticket := NIL;
+			vop1 := instruction.op1; vop2 := instruction.op2; vop3 := instruction.op3;
+			IF IntermediateCode.OperandEquals(vop1,vop3) & (IntermediateCode.Commute23 IN IntermediateCode.instructionFormat[instruction.opcode].flags) THEN
+				vop3 := instruction.op2; vop2 := instruction.op3;
 			END;
-			MakeOperand(vop1,op1,0,none);
-			MakeOperand(vop3,op3,0,none);
-			IF (vop1.mode = IntermediateCode.ModeRegister) & (~IsMemoryOperand(vop1)) & (vop1.register # vop3.register)  THEN
+			MakeOperand(vop3,part, op3,NIL);
+			IF (vop1.mode = IntermediateCode.ModeRegister) & (~IsMemoryOperand(vop1,part)) & (vop1.register # vop3.register)  THEN
 				IF (vop2.mode = IntermediateCode.ModeRegister) & (vop2.register = vop1.register) & (vop2.offset = 0) THEN
 					(* same register *)
+					MakeOperand(vop1,part, op1,NIL);
 				ELSE
-					MakeOperand(vop2,op2,0,none);
+					MakeOperand(vop2,part, op2,NIL);
+					(*
+					ReleaseHint(op2.register);
+					*)
+					MakeOperand(vop1,part, op1,NIL);
+
 					Mov(InstructionSet.opMOV,op1,op2);
 				END;
 				left := op1; right := op3;
-			ELSIF IntermediateCode.OperandEquals(vop1,vop2) & (~IsMemoryOperand(vop1) OR ~IsMemoryOperand(vop3)) THEN
+			ELSIF IntermediateCode.OperandEquals(vop1,vop2) & (~IsMemoryOperand(vop1,part) OR ~IsMemoryOperand(vop3,part)) THEN
+				MakeOperand(vop1,part, op1,NIL);
 				left := op1; right := op3;
 			ELSE
-				MakeOperand(vop2,op2,0,none);
-				Temporary(vop1.type.sizeInBits,left);
-				Mov(InstructionSet.opMOV,left,op2);
-				right := op3;
+				MakeOperand(vop1,part, op1,NIL);
+				GetPartType(instruction.op1.type,part,type);
+				MakeOperand(vop2,part, op2,NIL);
+				(*ReleaseHint(op2.register);*)
+				ticket := TemporaryTicket(type);
+				TicketToOperand(ticket,temp);
+				Mov(InstructionSet.opMOV,temp,op2);
+				left := temp; right := op3;
 			END;
 		END PrepareOp3;
 
-		PROCEDURE FinishOp3(CONST instr: IntermediateCode.Instruction; left: Operand);
-		VAR op1: Operand; vop1,vop2,vop3: IntermediateCode.Operand;
+		PROCEDURE PrepareOp2(CONST instruction: IntermediateCode.Instruction; part: LONGINT; VAR left: Assembler.Operand;VAR ticket: Ticket);
+		VAR op2: Assembler.Operand; imm: Assembler.Operand; sizeInBits: INTEGER; type: IntermediateCode.Type;
 		BEGIN
-			vop1 := instr.op1; vop2 := instr.op2; vop3 := instr.op3;
-			IF IntermediateCode.OperandEquals(vop1,vop3) & (IntermediateCode.Commute23 IN IntermediateCode.instructionFormat[instr.opcode].flags) THEN
-				vop3 := instr.op2; vop2 := instr.op3;
-			END;
-			IF (vop1.mode = IntermediateCode.ModeRegister) & (~IsMemoryOperand(vop1)) &  (vop1.register # vop3.register)  THEN
-			ELSIF IntermediateCode.OperandEquals(vop1,vop2)& (~IsMemoryOperand(vop1) OR ~IsMemoryOperand(vop3))  THEN
-			ELSE
-				MakeOperand(vop1,op1,0,none);
-				Mov(InstructionSet.opMOV,op1,left);
-			END;
-		END FinishOp3;
+			ticket := NIL;
 
-		PROCEDURE ThreeOperandInstruction(CONST instr: IntermediateCode.Instruction; opLow,opHigh: LONGINT);
-		VAR left,right: Operand;
-		BEGIN
-			PrepareOp3(instr,left,right);
-			emitter.Emit2(opLow,left.low,right.low);
-			IF left.high.type # Assembler.none THEN
-				emitter.Emit2(opHigh,left.high,right.high);
-			END;
-			FinishOp3(instr,left);
-		END ThreeOperandInstruction;
-
-		PROCEDURE PrepareOp2(CONST instr: IntermediateCode.Instruction; VAR op: Operand);
-		VAR op1,op2: Operand; imm: Assembler.Operand; sizeInBits: INTEGER;
-		BEGIN
-			MakeOperand(instr.op1,op1,0,none); MakeOperand(instr.op2,op2,0,none);
-			IF (instr.op1.mode = IntermediateCode.ModeRegister) THEN
-				IF (instr.op2.mode = IntermediateCode.ModeRegister) & (instr.op2.register = instr.op1.register) & (instr.op2.offset = 0) THEN
+			IF (instruction.op1.mode = IntermediateCode.ModeRegister) THEN
+				MakeOperand(instruction.op1,part,left,NIL);
+				MakeOperand(instruction.op2,part,op2,NIL);
+				IF (instruction.op2.mode = IntermediateCode.ModeRegister) & (instruction.op2.register = instruction.op1.register) & (instruction.op2.offset = 0) THEN
 				ELSE
-					Mov(InstructionSet.opMOV,op1,op2);
-					IF (instr.op2.offset # 0) & ~IsMemoryOperand(instr.op2) THEN
-						sizeInBits := instr.op2.type.sizeInBits;
-						IF sizeInBits = IntermediateCode.Bits64 THEN sizeInBits := IntermediateCode.Bits32 END;
-						Assembler.InitImm(imm,SHORT(sizeInBits DIV 8),instr.op2.offset);
-						emitter.Emit2(InstructionSet.opADD,op1.low,imm);
+					Mov(InstructionSet.opMOV,left,op2);
+					IF (instruction.op2.offset # 0) & ~IsMemoryOperand(instruction.op2,part) THEN
+						GetPartType(instruction.op2.type,part,type);
+						sizeInBits := type.sizeInBits;
+						Assembler.InitImm(imm,0,instruction.op2.offset);
+						emitter.Emit2(InstructionSet.opADD,left,imm);
 					END;
 				END;
-				op := op1;
-			ELSIF IntermediateCode.OperandEquals(instr.op1,instr.op2) & ((instr.op1.mode # IntermediateCode.ModeMemory) OR (instr.op3.mode # IntermediateCode.ModeMemory)) THEN
-				op := op1;
+			ELSIF IntermediateCode.OperandEquals(instruction.op1,instruction.op2) & ((instruction.op1.mode # IntermediateCode.ModeMemory) OR (instruction.op3.mode # IntermediateCode.ModeMemory)) THEN
+				MakeOperand(instruction.op1,part,left,NIL);
 			ELSE
-				Temporary(instr.op1.type.sizeInBits,op);
-				Mov(InstructionSet.opMOV,op,op2);
+				MakeOperand(instruction.op2,part, op2,NIL);
+				GetPartType(instruction.op1.type,part,type);
+				ticket := TemporaryTicket(type);
+				TicketToOperand(ticket,left);
+				Mov(InstructionSet.opMOV,left,op2);
 			END;
 		END PrepareOp2;
 
-		PROCEDURE FinishOp2(CONST instr: IntermediateCode.Instruction; op: Operand);
-		VAR op1: Operand;
+		PROCEDURE FinishOp(CONST vop: IntermediateCode.Operand; part: LONGINT; left: Assembler.Operand; ticket: Ticket);
+		VAR op1: Assembler.Operand;
 		BEGIN
-			IF (instr.op1.mode = IntermediateCode.ModeRegister) THEN
-			ELSIF IntermediateCode.OperandEquals(instr.op1,instr.op2) & ((instr.op1.mode # IntermediateCode.ModeMemory) OR (instr.op3.mode # IntermediateCode.ModeMemory)) THEN
+			IF ticket # NIL THEN
+				MakeOperand(vop,part, op1,NIL);
+				Mov(InstructionSet.opMOV,op1,left);
+				UnmapTicket(ticket);
+			END;
+		END FinishOp;
+
+		PROCEDURE EmitArithmetic3(CONST instruction: IntermediateCode.Instruction; part: LONGINT; opcode: LONGINT);
+		VAR left,right: Assembler.Operand; ticket: Ticket;
+		BEGIN
+			PrepareOp3(instruction, part, left,right,ticket);
+			emitter.Emit2(opcode,left,right);
+			FinishOp(instruction.op1,part,left,ticket);
+		END EmitArithmetic3;
+
+		PROCEDURE EmitArithmetic2(CONST instruction: IntermediateCode.Instruction; part: LONGINT; opcode: LONGINT);
+		VAR left:Assembler.Operand;ticket: Ticket;
+		BEGIN
+			PrepareOp2(instruction,part,left,ticket);
+			emitter.Emit1(opcode,left);
+			FinishOp(instruction.op1,part,left,ticket);
+		END EmitArithmetic2;
+
+		PROCEDURE EmitArithmetic3FPU(CONST instruction: IntermediateCode.Instruction; op: LONGINT);
+		VAR op1,op2,op3: Assembler.Operand;
+		BEGIN
+			MakeOperand(instruction.op2,Low,op2,NIL);
+			emitter.Emit1(InstructionSet.opFLD,op2);
+			INC(fpStackPointer);
+
+			MakeOperand(instruction.op3,Low,op3,NIL);
+			IF instruction.op3.mode = IntermediateCode.ModeRegister THEN
+				emitter.Emit2(op,opST0,op3);
 			ELSE
-				MakeOperand(instr.op1,op1,0,none);
-				Mov(InstructionSet.opMOV,op1,op);
+				emitter.Emit1(op,op3);
 			END;
-		END FinishOp2;
+			MakeOperand(instruction.op1,Low,op1,NIL);
+			emitter.Emit1(InstructionSet.opFSTP,op1);
+			DEC(fpStackPointer);
+		END EmitArithmetic3FPU;
 
-		PROCEDURE TwoOperandInstruction(CONST instr: IntermediateCode.Instruction; opLow,opHigh: LONGINT);
-		VAR left: Operand;
+		PROCEDURE EmitArithmetic2FPU(CONST instruction: IntermediateCode.Instruction; opcode: LONGINT);
+		VAR op1,op2: Assembler.Operand;
 		BEGIN
-			PrepareOp2(instr,left);
-			emitter.Emit1(opLow,left.low);
-			IF left.high.type # Assembler.none THEN
-				emitter.Emit1(opHigh,left.high);
-			END;
-			FinishOp2(instr,left);
-		END TwoOperandInstruction;
+			MakeOperand(instruction.op2,Low,op2,NIL);
+			emitter.Emit1(InstructionSet.opFLD,op2);
+			INC(fpStackPointer);
+			emitter.Emit0(opcode);
+			MakeOperand(instruction.op1,Low,op1,NIL);
+			emitter.Emit1(InstructionSet.opFSTP,op1);
+			DEC(fpStackPointer);
+		END EmitArithmetic2FPU;
 
-		PROCEDURE ThreeOperandFPInstruction(CONST instr: IntermediateCode.Instruction; op: LONGINT);
-		VAR op1,op2,op3: Operand;
+		PROCEDURE EmitMul(CONST instruction: IntermediateCode.Instruction);
+		VAR op1,op2,op3,temp: Assembler.Operand; ra,rd: Ticket;
 		BEGIN
-				MakeOperand(instr.op2,op2,0,none);
-				emitter.Emit1(InstructionSet.opFLD,op2.low);
-				INC(fpStackPointer);
-
-				MakeOperand(instr.op3,op3,0,none);
-				IF instr.op3.mode = IntermediateCode.ModeRegister THEN
-					emitter.Emit2(op,opST0,op3.low);
+			ASSERT(~IsComplex(instruction.op1));
+			ASSERT(instruction.op1.type.form IN IntermediateCode.Integer);
+			IF (instruction.op1.type.sizeInBits = IntermediateCode.Bits8) THEN
+				Spill(physicalRegisters.Mapped(AL));
+				Spill(physicalRegisters.Mapped(AH));
+				ra := ReservePhysicalRegister(IntermediateCode.int8,AL);
+				rd := ReservePhysicalRegister(IntermediateCode.int8,AH);
+				MakeOperand(instruction.op1,Low,op1,NIL);
+				MakeOperand(instruction.op2,Low,op2,ra);
+				IF instruction.op3.mode = IntermediateCode.ModeImmediate THEN
+					MakeOperand(instruction.op3,Low,op3,rd);
 				ELSE
-					emitter.Emit1(op,op3.low);
+					MakeOperand(instruction.op3,Low,op3,NIL);
 				END;
-
-				IF (instr.op1.mode # IntermediateCode.ModeRegister) OR (-fpRegisters[instr.op1.register]+fpStackPointer # 0) THEN
-					MakeOperand(instr.op1,op1,0,none);
-					emitter.Emit1(InstructionSet.opFSTP,op1.low);
-					DEC(fpStackPointer);
-				ELSE (* result may stay on top of stack, op1 has been allocated in place *)
-				END;
-		END ThreeOperandFPInstruction;
-
-		PROCEDURE TwoOperandFPInstruction(CONST instr: IntermediateCode.Instruction; opcode: LONGINT);
-		VAR op1,op2: Operand;
-		BEGIN
-			IF (instr.op1.mode = IntermediateCode.ModeRegister) & (instr.op2.mode = IntermediateCode.ModeRegister) &
-				(instr.op1.register = instr.op2.register) & (-fpRegisters[instr.op1.register]+fpStackPointer = 0) (* src = dest and top of stack *)
-			THEN emitter.Emit0(opcode);
+				emitter.Emit1(InstructionSet.opIMUL,op3);
+				emitter.Emit2(InstructionSet.opMOV,op1,opAL);
+				UnmapTicket(ra);
+				UnmapTicket(rd);
 			ELSE
-				MakeOperand(instr.op2,op2,0,none);
-				emitter.Emit1(InstructionSet.opFLD,op2.low);
-				INC(fpStackPointer);
-				emitter.Emit0(opcode);
-				IF (instr.op1.mode # IntermediateCode.ModeRegister) OR (-fpRegisters[instr.op1.register]+fpStackPointer # 0) THEN
-					MakeOperand(instr.op1,op1,0,none);
-					emitter.Emit1(InstructionSet.opFSTP,op1.low);
-					DEC(fpStackPointer);
-				ELSE (* result may stay on top of stack, op1 has been allocated in place *)
-				END;
-			END;
-		END TwoOperandFPInstruction;
+				MakeOperand(instruction.op1,Low,op1,NIL);
+				MakeOperand(instruction.op2,Low,op2,NIL);
+				MakeOperand(instruction.op3,Low,op3,NIL);
 
-		PROCEDURE EmitAdd(CONST instr: IntermediateCode.Instruction);
-		BEGIN
-			IF instr.op1.type.form IN IntermediateCode.Integer THEN
-				ThreeOperandInstruction(instr,InstructionSet.opADD,InstructionSet.opADC);
-			ELSE
-				ThreeOperandFPInstruction(instr,InstructionSet.opFADD)
-			END;
-		END EmitAdd;
-
-		PROCEDURE EmitSub(CONST instr: IntermediateCode.Instruction);
-		BEGIN
-			IF instr.op1.type.form IN IntermediateCode.Integer THEN
-				ThreeOperandInstruction(instr,InstructionSet.opSUB,InstructionSet.opSBB);
-			ELSE
-				ThreeOperandFPInstruction(instr,InstructionSet.opFSUB)
-			END;
-		END EmitSub;
-
-		PROCEDURE EmitMul(CONST instr: IntermediateCode.Instruction);
-		VAR op1,op2,op3,temp: Operand;
-
-			(*
-			PROCEDURE IMul64(CONST instr: IntermediateCode.Instruction);
-			VAR op1, op2, op3: Operand; op1Temp: Operand;
-				virtual: LONGINT;
-			BEGIN
-
-				MakeOperand(instr.op1,op1,0,none);
-				IF instr.op3.mode = IntermediateCode.ModeImmediate THEN
-					MakeOperand(instr.op2,op3,0,none); MakeOperand(instr.op3,op2,0,none);
-				ELSE
-					MakeOperand(instr.op2,op2,0,none); MakeOperand(instr.op3,op3,0,none);
-				END;
-				virtual := registerAllocator.realToVirtual[EAX];
-				IF (virtual # none) & (virtual # instr.op1.register) & (virtual # instr.op1.register) THEN
-					emitter.Emit1(InstructionSet.opPUSH,opEAX);
-				END;
-				virtual := registerAllocator.realToVirtual[EDX];
-				IF (virtual # none) & (virtual # instr.op1.register) & (virtual # instr.op1.register)THEN
-					emitter.Emit1(InstructionSet.opPUSH,opEDX);
-				END;
-				emitter.Emit1(InstructionSet.opPUSH,op1.low);
-				emitter.Emit1(InstructionSet.opPUSH,op1.high);
-				Assembler.InitMem(op1Temp.low,IntermediateCode.Bits32 DIV 8,ESP,4);
-				Assembler.InitMem(op1Temp.high,IntermediateCode.Bits32 DIV 8,ESP,0);
-				emitter.Emit2(InstructionSet.opMOV,opEAX,op2.low);
-				emitter.Emit1(InstructionSet.opMUL,op3.low);
-				emitter.Emit2(InstructionSet.opMOV,op1Temp.low,opEAX);
-				emitter.Emit2(InstructionSet.opMOV,op1Temp.high,opEDX);
-				emitter.Emit2(InstructionSet.opMOV,opEAX,op2.low);
-				emitter.Emit1(InstructionSet.opIMUL,op3.high);
-				emitter.Emit2(InstructionSet.opADD,op1Temp.high,opEAX);
-				emitter.Emit2(InstructionSet.opMOV,opEAX,op2.high);
-				emitter.Emit1(InstructionSet.opIMUL,op3.low);
-				emitter.Emit2(InstructionSet.opADD,op1Temp.high,opEAX);
-
-				Mov(InstructionSet.opMOV,op1,op1Temp);
-				AllocateStack(-8);
-
-				virtual := registerAllocator.realToVirtual[EDX];
-				IF (virtual # none) & (virtual # instr.op1.register) & (virtual # instr.op1.register) THEN
-					emitter.Emit1(InstructionSet.opPOP,opEDX);
-				END;
-				virtual := registerAllocator.realToVirtual[EAX];
-				IF (virtual # none) & (virtual # instr.op1.register) & (virtual # instr.op1.register)  THEN
-					emitter.Emit1(InstructionSet.opPOP,opEAX);
+				IF ~Assembler.IsRegisterOperand(op1) THEN
+					temp := op1;
+					ra := TemporaryTicket(instruction.op1.type);
+					TicketToOperand(ra,op1);
 				END;
 
-			END IMul64;
-			*)
+				IF Assembler.SameOperand(op1,op3) THEN temp := op2; op2 := op3; op3 := temp END;
 
-		BEGIN
-			IF (bits=32) & (instr.op1.type.form IN IntermediateCode.Integer) & (instr.op1.type.sizeInBits = IntermediateCode.Bits64) THEN
-				HALT(100); (*! should be implemented by library *)
-				(*IMul64(instr)*)
-			ELSIF (instr.op1.type.form IN IntermediateCode.Integer) & (instr.op1.type.sizeInBits = IntermediateCode.Bits8) THEN
-				MakeOperand(instr.op1,op1,0,none); MakeOperand(instr.op2,op2,0,none); MakeOperand(instr.op3,op3,0,none);
-				emitter.Emit2(InstructionSet.opMOV,opAL,op2.low);
-				IF instr.op3.mode = IntermediateCode.ModeImmediate THEN
-					emitter.Emit2(InstructionSet.opMOV,opAH,op3.low); op3.low := opAH;
-				END;
-				emitter.Emit1(InstructionSet.opIMUL,op3.low);
-				emitter.Emit2(InstructionSet.opMOV,op1.low,opAL);
-			ELSIF (instr.op1.type.form IN IntermediateCode.Integer) THEN
-				MakeOperand(instr.op1,op1,0,none); MakeOperand(instr.op2,op2,0,none); MakeOperand(instr.op3,op3,0,none);
-				IF (instr.op3.mode = IntermediateCode.ModeImmediate) THEN
-					IF ~Assembler.IsRegisterOperand(op1.low)  THEN
-						Temporary(instr.op1.type.sizeInBits,temp);
-						Mov(InstructionSet.opMOV,temp,op3);
-						emitter.Emit2(InstructionSet.opIMUL,temp.low,op2.low);
-						Mov(InstructionSet.opMOV,op1,temp);
+				IF Assembler.IsRegisterOperand(op2) OR Assembler.IsMemoryOperand(op2) THEN
+					IF Assembler.IsImmediateOperand(op3) THEN
+						emitter.Emit3(InstructionSet.opIMUL,op1,op2,op3);
+					ELSIF Assembler.IsRegisterOperand(op2) & (op2.register = op1.register) THEN
+						IF Assembler.IsRegisterOperand(op3) OR Assembler.IsMemoryOperand(op3) THEN
+							emitter.Emit2(InstructionSet.opIMUL,op1,op3);
+						ELSE
+							rd := TemporaryTicket(instruction.op1.type);
+							TicketToOperand(rd,temp);
+							Mov(InstructionSet.opMOV,temp,op3);
+							emitter.Emit2(InstructionSet.opIMUL,op1,temp);
+							UnmapTicket(rd);
+						END;
 					ELSE
-						emitter.Emit3(InstructionSet.opIMUL,op1.low,op2.low,op3.low);
-					END;
-				ELSIF (instr.op2.mode = IntermediateCode.ModeImmediate) THEN
-					MakeOperand(instr.op1,op1,0,none); MakeOperand(instr.op2,op2,0,none); MakeOperand(instr.op3,op3,0,none);
-					IF ~Assembler.IsRegisterOperand(op1.low)  THEN
-						Temporary(instr.op1.type.sizeInBits,temp);
-						Mov(InstructionSet.opMOV,temp,op2);
-						emitter.Emit2(InstructionSet.opIMUL,temp.low,op3.low);
-						Mov(InstructionSet.opMOV,op1,temp);
+						Mov(InstructionSet.opMOV,op1,op3);
+						emitter.Emit2(InstructionSet.opIMUL,op1,op2);
+					END
+				ELSIF Assembler.IsRegisterOperand(op3) OR Assembler.IsMemoryOperand(op3) THEN
+					IF Assembler.IsImmediateOperand(op2) THEN
+						emitter.Emit3(InstructionSet.opIMUL,op1,op3,op2);
+					ELSIF Assembler.IsRegisterOperand(op3) & (op2.register = op1.register) THEN
+						IF Assembler.IsRegisterOperand(op2) OR Assembler.IsMemoryOperand(op2) THEN
+							emitter.Emit2(InstructionSet.opIMUL,op1,op2);
+						ELSE
+							rd := TemporaryTicket(instruction.op1.type);
+							TicketToOperand(rd,temp);
+							Mov(InstructionSet.opMOV,temp,op2);
+							emitter.Emit2(InstructionSet.opIMUL,op1,temp);
+							UnmapTicket(rd);
+						END;
 					ELSE
-						emitter.Emit3(InstructionSet.opIMUL,op1.low,op3.low,op2.low);
+						Mov(InstructionSet.opMOV,op1,op2);
+						emitter.Emit2(InstructionSet.opIMUL,op1,op3);
 					END;
-				ELSE
-					PrepareOp3(instr,op1,op2);
-					IF ~Assembler.IsRegisterOperand(op1.low) THEN
-						Temporary(op1.low.sizeInBytes*8,temp);
-						emitter.Emit2(InstructionSet.opMOV,temp.low,op1.low);
-						emitter.Emit2(InstructionSet.opIMUL,temp.low,op2.low);
-						emitter.Emit2(InstructionSet.opMOV,op1.low,temp.low);
-					ELSE
-						emitter.Emit2(InstructionSet.opIMUL,op1.low,op2.low);
-					END;
-					FinishOp3(instr,op1);
-				END
-			ELSE
-				ThreeOperandFPInstruction(instr,InstructionSet.opFMUL)
+				END;
+
+				IF ra # NIL THEN
+					Mov(InstructionSet.opMOV,temp,op1);
+					UnmapTicket(ra);
+				END;
 			END;
 		END EmitMul;
 
-		PROCEDURE EmitDivMod(CONST instr: IntermediateCode.Instruction);
+		PROCEDURE EmitDivMod(CONST instruction: IntermediateCode.Instruction);
 		VAR
 			dividend,quotient,remainder,imm,target,memop: Assembler.Operand;
-			op1,op2,op3: Operand;
+			op1,op2,op3: Assembler.Operand; ra,rd: Ticket;
 		BEGIN
 			(*
 			In general it must obviously hold that
@@ -2291,197 +1850,118 @@ TYPE
 				result is in EAX
 			*)
 
-
-			MakeOperand(instr.op2,op2,0,none);
-			CASE instr.op1.type.sizeInBits OF
+			MakeOperand(instruction.op2,Low,op2,NIL);
+			CASE instruction.op1.type.sizeInBits OF
 			IntermediateCode.Bits8:
-				FreeRegister(AL); registerAllocator.Allocate(AL,reserved);
-				emitter.Emit2(InstructionSet.opMOV,opAL,op2.low);
+				Spill(physicalRegisters.Mapped(AL)); ra := ReservePhysicalRegister(IntermediateCode.int8,AL);
+				emitter.Emit2(InstructionSet.opMOV,opAL,op2);
 				dividend := opAX;
 				quotient := opAL;
 				remainder := opAH;
 				emitter.Emit0(InstructionSet.opCBW);
 			| IntermediateCode.Bits16:
-				FreeRegister(AX);registerAllocator.Allocate(AX,reserved);
-				emitter.Emit2(InstructionSet.opMOV,opAX,op2.low);
-				FreeRegister(DX);registerAllocator.Allocate(DX,reserved);
+				Spill(physicalRegisters.Mapped(AX)); ra := ReservePhysicalRegister(IntermediateCode.int16,AX);
+				emitter.Emit2(InstructionSet.opMOV,opAX,op2);
+				Spill(physicalRegisters.Mapped(DX)); rd := ReservePhysicalRegister(IntermediateCode.int16,DX);
 				dividend := opAX;
 				quotient := dividend;
 				remainder := opDX;
 				emitter.Emit0(InstructionSet.opCWD);
 			| IntermediateCode.Bits32:
-				FreeRegister(EAX);registerAllocator.Allocate(EAX,reserved);
-				emitter.Emit2(InstructionSet.opMOV,opEAX,op2.low);
-				FreeRegister(EDX);registerAllocator.Allocate(EDX,reserved);
+				Spill(physicalRegisters.Mapped(EAX)); ra := ReservePhysicalRegister(IntermediateCode.int32,EAX);
+				emitter.Emit2(InstructionSet.opMOV,opEAX,op2);
+				Spill(physicalRegisters.Mapped(EDX)); rd := ReservePhysicalRegister(IntermediateCode.int32,EDX);
 				dividend := opEAX;
 				quotient := dividend;
 				remainder := opEDX;
 				emitter.Emit0(InstructionSet.opCDQ);
+			| IntermediateCode.Bits64:
+				Spill(physicalRegisters.Mapped(RAX)); ra := ReservePhysicalRegister(IntermediateCode.int64,RAX);
+				emitter.Emit2(InstructionSet.opMOV,opRA,op2);
+				Spill(physicalRegisters.Mapped(RDX)); rd := ReservePhysicalRegister(IntermediateCode.int64,RDX);
+				dividend := opRA;
+				quotient := dividend;
+				remainder := registerOperands[RDX];
+				emitter.Emit0(InstructionSet.opCQO);
 			END;
 			(* registers might have been changed, so we make the operands now *)
-			MakeOperand(instr.op1,op1,0,none);
-			MakeOperand(instr.op2,op2,0,none);
-			MakeOperand(instr.op3,op3,0,none);
-			IF instr.op3.mode = IntermediateCode.ModeImmediate THEN
-				AllocateStack(instr.op3.type.sizeInBits DIV 8);
-				Assembler.InitMem(memop,SHORT(instr.op3.type.sizeInBits DIV 8),SP,0);
-				emitter.Emit2(InstructionSet.opMOV,memop,op3.low);
-				op3.low := memop;
+			MakeOperand(instruction.op1,Low,op1,NIL);
+			MakeOperand(instruction.op2,Low,op2,NIL);
+			MakeOperand(instruction.op3,Low,op3,NIL);
+			IF instruction.op3.mode = IntermediateCode.ModeImmediate THEN
+				AllocateStack(instruction.op3.type.sizeInBits DIV 8);
+				Assembler.InitMem(memop,SHORT(instruction.op3.type.sizeInBits DIV 8),SP,0);
+				emitter.Emit2(InstructionSet.opMOV,memop,op3);
+				op3 := memop;
 			END;
+			emitter.Emit1(InstructionSet.opIDIV,op3);
 
-			emitter.Emit1(InstructionSet.opIDIV,op3.low);
-
-			IF instr.opcode = IntermediateCode.mod THEN
+			IF instruction.opcode = IntermediateCode.mod THEN
 				imm := Assembler.NewImm8 (0);
 				emitter.Emit2(InstructionSet.opCMP, remainder, imm);
 				Assembler.InitImm8(target,0);
 				emitter.Emit1(InstructionSet.opJGE, target);
-				emitter.Emit2( InstructionSet.opADD, remainder, op3.low);
+				emitter.Emit2( InstructionSet.opADD, remainder, op3);
 				emitter.code.PutByteAt(target.pc,(emitter.code.pc -target.pc )-1);
-				emitter.Emit2(InstructionSet.opMOV, op1.low, remainder);
+				emitter.Emit2(InstructionSet.opMOV, op1, remainder);
 			ELSE
 				imm := Assembler.NewImm8 (1);
 				emitter.Emit2(InstructionSet.opSHL, remainder, imm);
 				imm := Assembler.NewImm8 (0);
 				emitter.Emit2(InstructionSet.opSBB, quotient, imm);
-				emitter.Emit2(InstructionSet.opMOV, op1.low, quotient);
+				emitter.Emit2(InstructionSet.opMOV, op1, quotient);
 			END;
 
-			IF instr.op3.mode = IntermediateCode.ModeImmediate THEN
-				AllocateStack(-instr.op3.type.sizeInBits DIV 8);
+			IF instruction.op3.mode = IntermediateCode.ModeImmediate THEN
+				AllocateStack(- (instruction.op3.type.sizeInBits DIV 8));
 			END;
-
 		END EmitDivMod;
 
-		PROCEDURE EmitDiv(CONST instr: IntermediateCode.Instruction);
-		BEGIN
-			IF  instr.op1.type.form = IntermediateCode.Float THEN
-				ThreeOperandFPInstruction(instr,InstructionSet.opFDIV)
-			ELSE
-				Assert(instr.op1.type.sizeInBits # IntermediateCode.Bits64,"hugeint not supported"); (* hugeint implemented as library *)
-				EmitDivMod(instr);
-			END;
-		END EmitDiv;
-
-		(* undefined for float and huegint, huegint version as library *)
-		PROCEDURE EmitMod(CONST instr: IntermediateCode.Instruction);
-		BEGIN
-			Assert(instr.op1.type.form IN IntermediateCode.Integer,"mod only on integers");
-			Assert(instr.op1.type.sizeInBits # IntermediateCode.Bits64,"hugeint not supported");
-			EmitDivMod(instr);
-		END EmitMod;
-
-		PROCEDURE EmitAnd(CONST instr: IntermediateCode.Instruction);
-		BEGIN
-			IF instr.op1.type.form IN IntermediateCode.Integer THEN
-				ThreeOperandInstruction(instr,InstructionSet.opAND,InstructionSet.opAND);
-			ELSE Halt("must be integer");
-			END
-		END EmitAnd;
-
-		PROCEDURE EmitOr(CONST instr: IntermediateCode.Instruction);
-		BEGIN
-			IF instr.op1.type.form IN IntermediateCode.Integer THEN
-				ThreeOperandInstruction(instr,InstructionSet.opOR,InstructionSet.opOR);
-			ELSE Halt("must be integer");
-			END
-		END EmitOr;
-
-		PROCEDURE EmitXor(CONST instr: IntermediateCode.Instruction);
-		BEGIN
-			IF instr.op1.type.form IN IntermediateCode.Integer THEN
-				ThreeOperandInstruction(instr,InstructionSet.opXOR,InstructionSet.opXOR)
-			ELSE Halt("must be integer");
-			END
-		END EmitXor;
-
-		(*! remove?
-		PROCEDURE MakeFree(register: LONGINT);
-		VAR old,new: LONGINT; virtual: LONGINT;
-		BEGIN
-			IF registerAllocator.realToVirtual[register] = free THEN RETURN END;
-			old := register MOD 32;
-			IF registerAllocator.realToVirtual[old + AL] > 0 THEN
-				old := old+AL;
-				new := registerAllocator.NextFree(IntermediateCode.Bits8);
-			ELSIF registerAllocator.realToVirtual[old+AX] > 0 THEN
-				old := old+AX;
-				new := registerAllocator.NextFree(IntermediateCode.Bits16);
-			ELSIF registerAllocator.realToVirtual[old+EAX] > 0 THEN
-				old := old+EAX;
-				new := registerAllocator.NextFree(IntermediateCode.Bits32);
-			END;
-			virtual := registerAllocator.realToVirtual[old];
-			IF realRegisters[virtual].low = old THEN realRegisters[virtual].low := new;
-				IF dump # NIL THEN
-					dump.String("replace register "); dump.Int(virtual,1); dump.String("(low) : "); dump.String(InstructionSet.registers[old].name); dump.String(" -> "); dump.String(InstructionSet.registers[new].name); dump.Ln;
-				END;
-			ELSIF realRegisters[virtual].high = old THEN realRegisters[virtual].high := new;
-				IF dump # NIL THEN
-					dump.String("replace register "); dump.Int(virtual,1); dump.String("(high) : "); dump.String(InstructionSet.registers[old].name);  dump.String(" -> "); dump.String(InstructionSet.registers[new].name); dump.Ln;
-				END;
-			END;
-			emitter.Emit2(InstructionSet.opMOV,registerOperands[new],registerOperands[old]);
-			registerAllocator.Free(old);
-			registerAllocator.Allocate(new,virtual);
-		END MakeFree;
-		*)
-
-		PROCEDURE EmitShift(CONST instr: IntermediateCode.Instruction);
+		PROCEDURE EmitShift(CONST instruction: IntermediateCode.Instruction);
 		VAR
 			shift: Assembler.Operand;
 			op: LONGINT;
-			op1,op2,op3,dest,temporary: Operand;
+			op1,op2,op3,dest,temporary,op1High,op2High: Assembler.Operand;
 
-			bits64: BOOLEAN;
 			index: SHORTINT; temp: Assembler.Operand;
 
 			left: BOOLEAN;
-			ecx,cx,ch,cl: LONGINT;
+			ecx,ticket: Ticket;
 		BEGIN
-			Assert(instr.op1.type.form IN IntermediateCode.Integer,"must be integer operand");
-			IF instr.op1.type.form = IntermediateCode.UnsignedInteger THEN
-				IF instr.opcode = IntermediateCode.shr THEN op :=  InstructionSet.opSHR; left := FALSE;
-				ELSIF instr.opcode = IntermediateCode.shl THEN  op :=  InstructionSet.opSHL; left := TRUE;
-				ELSIF instr.opcode = IntermediateCode.ror THEN  op := InstructionSet.opROR; left := FALSE;
-				ELSIF instr.opcode = IntermediateCode.rol THEN op := InstructionSet.opROL; left := TRUE;
+			Assert(instruction.op1.type.form IN IntermediateCode.Integer,"must be integer operand");
+			IF instruction.op1.type.form = IntermediateCode.UnsignedInteger THEN
+				IF instruction.opcode = IntermediateCode.shr THEN op :=  InstructionSet.opSHR; left := FALSE;
+				ELSIF instruction.opcode = IntermediateCode.shl THEN  op :=  InstructionSet.opSHL; left := TRUE;
+				ELSIF instruction.opcode = IntermediateCode.ror THEN  op := InstructionSet.opROR; left := FALSE;
+				ELSIF instruction.opcode = IntermediateCode.rol THEN op := InstructionSet.opROL; left := TRUE;
 				END;
 			ELSE
-				IF instr.opcode = IntermediateCode.shr THEN op :=  InstructionSet.opSAR; left := FALSE;
-				ELSIF instr.opcode = IntermediateCode.shl THEN op :=  InstructionSet.opSAL; left := TRUE;
-				ELSIF instr.opcode = IntermediateCode.ror THEN op := InstructionSet.opROR; left := FALSE;
-				ELSIF instr.opcode = IntermediateCode.rol THEN op := InstructionSet.opROL; left := TRUE;
+				IF instruction.opcode = IntermediateCode.shr THEN op :=  InstructionSet.opSAR; left := FALSE;
+				ELSIF instruction.opcode = IntermediateCode.shl THEN op :=  InstructionSet.opSAL; left := TRUE;
+				ELSIF instruction.opcode = IntermediateCode.ror THEN op := InstructionSet.opROR; left := FALSE;
+				ELSIF instruction.opcode = IntermediateCode.rol THEN op := InstructionSet.opROL; left := TRUE;
 				END;
 			END;
-			bits64 := instr.op1.type.sizeInBits = IntermediateCode.Bits64;
 
-			ecx := registerAllocator.realToVirtual[ECX];
-			IF ecx # free THEN Spill(ecx) END; (*! can optimize if ecx already contains shift *)
-			cx := registerAllocator.realToVirtual[CX];
-			IF cx # free THEN Spill(cx) END; (*! can optimize if ecx already contains shift *)
-			cl := registerAllocator.realToVirtual[CL];
-			IF cl # free THEN Spill(cl) END; (*! can optimize if ecx already contains shift *)
-			ch := registerAllocator.realToVirtual[CH];
-			IF  ch # free THEN Spill(ch) END; (*! can optimize if ecx already contains shift *)
 
-			registerAllocator.Allocate(ECX,reserved);
+			Spill(physicalRegisters.Mapped(ECX)); ecx := ReservePhysicalRegister(IntermediateCode.int32,ECX);
 
-			Temporary(instr.op2.type.sizeInBits,dest);
-			MakeOperand(instr.op1,op1,0,none);
-			MakeOperand(instr.op2,op2,0,none);
-			MakeOperand(instr.op3,op3,0,none);
-			IF instr.op3.mode = IntermediateCode.ModeImmediate THEN
-				Assembler.InitImm8(shift,instr.op3.intValue);
+			GetTemporaryRegister(instruction.op2.type,dest);
+			MakeOperand(instruction.op1,Low,op1,NIL);
+			MakeOperand(instruction.op2,Low,op2,NIL);
+			MakeOperand(instruction.op3,Low,op3,NIL);
+			IF instruction.op3.mode = IntermediateCode.ModeImmediate THEN
+				Assembler.InitImm8(shift,instruction.op3.intValue);
 			ELSE
-				CASE instr.op3.type.sizeInBits OF
+				CASE instruction.op3.type.sizeInBits OF
 					IntermediateCode.Bits8: index := CL;
 					|IntermediateCode.Bits16: index := CX;
 					|IntermediateCode.Bits32: index := ECX;
-					|IntermediateCode.Bits64: index := ECX;
+					|IntermediateCode.Bits64: index := RCX;
 				END;
 
 				(*
-				IF (registerAllocator.realToVirtual[index] # free) & ((registerAllocator.realToVirtual[index] # instr.op1.register) OR (instr.op1.mode # IntermediateCode.ModeRegister)) THEN
+				IF (physicalRegisters.toVirtual[index] # free) & ((physicalRegisters.toVirtual[index] # instruction.op1.register) OR (instruction.op1.mode # IntermediateCode.ModeRegister)) THEN
 					Spill();
 					(*
 					emitter.Emit1(InstructionSet.opPUSH,opECX);
@@ -2489,124 +1969,110 @@ TYPE
 					*)
 				END;
 				*)
-				IF (instr.op3.mode # IntermediateCode.ModeRegister) OR (realRegisters[instr.op3.register].low # index) THEN
-					emitter.Emit2(InstructionSet.opMOV,registerOperands[index],op3.low);
+				ticket := virtualRegisters.Mapped(instruction.op3.register,Low);
+				IF (instruction.op3.mode # IntermediateCode.ModeRegister) OR (ticket = NIL) OR (ticket.spilled) OR (ticket.register # index) THEN
+					emitter.Emit2(InstructionSet.opMOV,registerOperands[index],op3);
 				END;
 				shift := opCL;
 			END;
 
 
-			IF ~bits64 THEN
+			IF ~IsComplex(instruction.op1) THEN
 				Mov(InstructionSet.opMOV,dest,op2);
-				emitter.Emit2 (op, dest.low,shift);
+				emitter.Emit2 (op, dest,shift);
 				Mov(InstructionSet.opMOV,op1,dest);
 			ELSIF left THEN
+				MakeOperand(instruction.op1,High,op1High,NIL);
+				MakeOperand(instruction.op2,High,op2High,NIL);
 
-				IF ~IntermediateCode.OperandEquals(instr.op1,instr.op2) THEN
-					Mov(InstructionSet.opMOV,op1,op2)
+				IF ~IntermediateCode.OperandEquals(instruction.op1,instruction.op2) THEN
+					Mov(InstructionSet.opMOV,op1,op2);
+					Mov(InstructionSet.opMOV,op1High,op2High)
 				END;
 
-				IF (instr.opcode=IntermediateCode.rol) THEN
+				IF (instruction.opcode=IntermediateCode.rol) THEN
 					(*  |high| <- |low| <- |temp=high| *)
-					Temporary(32,temporary);
-					emitter.Emit2( InstructionSet.opMOV, temporary.low, op1.high);
-					emitter.Emit3( InstructionSet.opSHLD,op1.high, op1.low, shift);
-					emitter.Emit3( InstructionSet.opSHLD, op1.low, temporary.low, shift);
-					registerAllocator.Free(temporary.low.index);
+					ticket := TemporaryTicket(IntermediateCode.int32);
+					TicketToOperand(ticket,temp);
+
+					emitter.Emit2( InstructionSet.opMOV, temp, op1High);
+					emitter.Emit3( InstructionSet.opSHLD,op1High, op1, shift);
+					emitter.Emit3( InstructionSet.opSHLD, op1, temp, shift);
+					UnmapTicket(ticket);
 				ELSE
 					(* |high| <- |low| *)
-					emitter.Emit3( InstructionSet.opSHLD, op1.low,op1.high,shift);
-					emitter.Emit2( op, op1.low,shift);
+					emitter.Emit3( InstructionSet.opSHLD, op1,op1High,shift);
+					emitter.Emit2( op, op1,shift);
 				END;
 			ELSE
-				IF ~IntermediateCode.OperandEquals(instr.op1,instr.op2) THEN
+				IF ~IntermediateCode.OperandEquals(instruction.op1,instruction.op2) THEN
 					Mov(InstructionSet.opMOV,op1,op2)
 				END;
 
-				IF instr.opcode=IntermediateCode.ror THEN
+				IF instruction.opcode=IntermediateCode.ror THEN
 					(*  |temp=low| -> |high| -> |low| *)
-					Temporary(32,temporary);
-					emitter.Emit2( InstructionSet.opMOV, temporary.low, op1.low);
-					emitter.Emit3( InstructionSet.opSHRD,op1.low, op1.high, shift);
-					emitter.Emit3( InstructionSet.opSHRD, op1.high, temporary.low, shift);
-					registerAllocator.Free(temporary.low.index);
+					ticket := TemporaryTicket(IntermediateCode.int32);
+					TicketToOperand(ticket,temp);
+					emitter.Emit2( InstructionSet.opMOV, temporary, op1);
+					emitter.Emit3( InstructionSet.opSHRD,op1, op1High, shift);
+					emitter.Emit3( InstructionSet.opSHRD, op1High, temporary, shift);
+					UnmapTicket(ticket);
 				ELSE
 					(*  |high| -> |low| *)
-					emitter.Emit3( InstructionSet.opSHRD, op1.low,op1.high,shift);
-					emitter.Emit2( op, op1.high, shift);
+					emitter.Emit3( InstructionSet.opSHRD, op1,op1High,shift);
+					emitter.Emit2( op, op1High, shift);
 				END;
-
 			END;
-			registerAllocator.Free(ECX);
-
-			IF ecx # free THEN UnSpill(ecx,ECX,none) END;
-			IF cx # free THEN UnSpill(cx,CX,none) END;
-			IF cl # free THEN UnSpill(cl,CL,none) END;
-			IF ch # free THEN UnSpill(ch,CH,none) END;
-
-
 		END EmitShift;
 
-		PROCEDURE EmitCopy(CONST instr: IntermediateCode.Instruction);
-		VAR op1,op2,op3: Operand; esi, edi, ecx: LONGINT;
-
+		PROCEDURE EmitCopy(CONST instruction: IntermediateCode.Instruction);
+		VAR op1,op2,op3: Assembler.Operand; esi, edi, ecx: Ticket;
 		BEGIN
-			esi := registerAllocator.realToVirtual[ESI];
-			edi := registerAllocator.realToVirtual[EDI];
-			ecx := registerAllocator.realToVirtual[ECX];
+			Spill(physicalRegisters.Mapped(ESI));
+			Spill(physicalRegisters.Mapped(EDI));
+			Spill(physicalRegisters.Mapped(ECX));;
 
-			IF esi # free THEN Spill(esi) END;
-			IF edi # free THEN Spill(edi) END;
-			IF ecx # free THEN Spill(ecx) END;
+			esi := ReservePhysicalRegister(IntermediateCode.int32,RS);
+			edi := ReservePhysicalRegister(IntermediateCode.int32,RD);
+			ecx := ReservePhysicalRegister(IntermediateCode.int32,RC);
 
-			registerAllocator.Allocate(ESI,reserved);
-			registerAllocator.Allocate(EDI,reserved);
-			registerAllocator.Allocate(ECX,reserved);
-
-			MakeOperand(instr.op1,op1,0,EDI);
-			MakeOperand(instr.op2,op2,0,ESI);
-			MakeOperand(instr.op3,op3,0,ECX);
-			(*
-			emitter.Emit2(InstructionSet.opMOV,opEDI, op1.low);
-			emitter.Emit2(InstructionSet.opMOV,opESI, op2.low);
-			emitter.Emit2(InstructionSet.opMOV,opECX, op3.low);
-			*)
-
-			registerAllocator.Free(ESI);
-			registerAllocator.Free(EDI);
-			registerAllocator.Free(ECX);
-
+			MakeOperand(instruction.op1,Low,op1,edi);
+			MakeOperand(instruction.op2,Low,op2,esi);
+			MakeOperand(instruction.op3,Low,op3,ecx);
 
 			emitter.Emit0(InstructionSet.opCLD); (* copy upwards *)
 			emitter.EmitPrefix (InstructionSet.prfREP);
 			emitter.Emit0(InstructionSet.opMOVSB);
 
+			UnmapTicket(esi);
+			UnmapTicket(edi);
+			UnmapTicket(ecx);
 		END EmitCopy;
 
 
-		PROCEDURE EmitFill(CONST instr: IntermediateCode.Instruction; down: BOOLEAN);
-		VAR op1,op2,op3: Operand; reg,sizeInBits,i: LONGINT;val,src,dest: Assembler.Operand;
+		PROCEDURE EmitFill(CONST instruction: IntermediateCode.Instruction; down: BOOLEAN);
+		VAR op1,op2,op3: Assembler.Operand; reg,sizeInBits,i: LONGINT;val,src,dest: Assembler.Operand;
 			op: LONGINT;
-			edi, ecx: LONGINT;
+			edi, ecx: Ticket;
 		BEGIN
-			IF FALSE & (instr.op3.mode = IntermediateCode.ModeImmediate) & (instr.op3.symbol = NIL) & (instr.op3.intValue < 5) THEN
-				sizeInBits := instr.op2.type.sizeInBits;
+			IF FALSE & (instruction.op3.mode = IntermediateCode.ModeImmediate) & (instruction.op3.symbol = NIL) & (instruction.op3.intValue < 5) THEN
+				sizeInBits := instruction.op2.type.sizeInBits;
 				IF sizeInBits = IntermediateCode.Bits8 THEN src := opAL;
 				ELSIF sizeInBits = IntermediateCode.Bits16 THEN src := opAX;
 				ELSIF sizeInBits = IntermediateCode.Bits32 THEN src := opEAX;
 				ELSE HALT(200)
 				END;
-				MakeOperand(instr.op1,op1,0,none);
-				IF instr.op1.mode = IntermediateCode.ModeRegister THEN reg := op1.low.register
-				ELSE emitter.Emit2(InstructionSet.opMOV,opEDX,op1.low); reg := EDX;
+				MakeOperand(instruction.op1,Low,op1,NIL);
+				IF instruction.op1.mode = IntermediateCode.ModeRegister THEN reg := op1.register
+				ELSE emitter.Emit2(InstructionSet.opMOV,opEDX,op1); reg := EDX;
 				END;
-				IF (instr.op2.mode = IntermediateCode.ModeImmediate) & (instr.op2.type.form IN IntermediateCode.Integer) & (instr.op2.intValue = 0) THEN
+				IF (instruction.op2.mode = IntermediateCode.ModeImmediate) & (instruction.op2.type.form IN IntermediateCode.Integer) & (instruction.op2.intValue = 0) THEN
 					emitter.Emit2(InstructionSet.opXOR,opEAX,opEAX);
 				ELSE
-					MakeOperand(instr.op2,op2,0,none);
-					emitter.Emit2(InstructionSet.opMOV,src,op2.low);
+					MakeOperand(instruction.op2,Low,op2,NIL);
+					emitter.Emit2(InstructionSet.opMOV,src,op2);
 				END;
-				FOR i := 0 TO SHORT(instr.op3.intValue)-1 DO
+				FOR i := 0 TO SHORT(instruction.op3.intValue)-1 DO
 					IF down THEN
 						Assembler.InitMem(dest,SHORT(SHORT(sizeInBits DIV 8)),reg,-i*sizeInBits DIV 8);
 					ELSE
@@ -2615,31 +2081,29 @@ TYPE
 					emitter.Emit2(InstructionSet.opMOV,dest,src);
 				END;
 			ELSE
-				edi := registerAllocator.realToVirtual[EDI];
-				ecx := registerAllocator.realToVirtual[ECX];
-				IF edi # free THEN Spill(edi) END;
-				IF ecx # free THEN Spill(ecx) END;
-				registerAllocator.Allocate(EDI,reserved);
-				registerAllocator.Allocate(ECX,reserved);
+				Spill(physicalRegisters.Mapped(EDI));
+				Spill(physicalRegisters.Mapped(ECX));
+				edi := ReservePhysicalRegister(IntermediateCode.int32,EDI);
+				ecx := ReservePhysicalRegister(IntermediateCode.int32,ECX);
 
-				MakeOperand(instr.op1,op1,0,EDI);
-				MakeOperand(instr.op3,op3,0,ECX);
-				MakeOperand(instr.op2,op2,0,none);
+				MakeOperand(instruction.op1,Low,op1,edi);
+				MakeOperand(instruction.op3,Low,op3,ecx);
+				MakeOperand(instruction.op2,Low,op2,NIL);
 				(*
-				emitter.Emit2(InstructionSet.opMOV,opEDI, op1.low);
-				emitter.Emit2(InstructionSet.opMOV,opECX, op3.low);
+				emitter.Emit2(InstructionSet.opMOV,opEDI, op1[Low]);
+				emitter.Emit2(InstructionSet.opMOV,opECX, op3[Low]);
 				*)
-				CASE instr.op2.type.sizeInBits OF
+				CASE instruction.op2.type.sizeInBits OF
 					IntermediateCode.Bits8: val := opAL; op := InstructionSet.opSTOSB;
 					|IntermediateCode.Bits16: val := opAX; op := InstructionSet.opSTOSW;
 					|IntermediateCode.Bits32: val := opEAX; op := InstructionSet.opSTOSD;
 				ELSE Halt("only supported for upto 32 bit integers ");
 				END;
 
-				IF (instr.op2.mode = IntermediateCode.ModeImmediate) & (instr.op2.type.form IN IntermediateCode.Integer) & (instr.op2.intValue = 0) THEN
+				IF (instruction.op2.mode = IntermediateCode.ModeImmediate) & (instruction.op2.type.form IN IntermediateCode.Integer) & (instruction.op2.intValue = 0) THEN
 					emitter.Emit2(InstructionSet.opXOR,opEAX,opEAX);
 				ELSE
-					emitter.Emit2(InstructionSet.opMOV,val,op2.low);
+					emitter.Emit2(InstructionSet.opMOV,val,op2);
 				END;
 
 				IF down THEN
@@ -2652,534 +2116,328 @@ TYPE
 				IF down THEN (* needed as calls to windows crash otherwise *)
 					emitter.Emit0(InstructionSet.opCLD);
 				END;
-				registerAllocator.Free(EDI);
-				registerAllocator.Free(ECX);
 			END;
 		END EmitFill;
 
-		PROCEDURE EmitBr (CONST instr: IntermediateCode.Instruction);
-		VAR dest,destPC,offset: LONGINT; target: Operand;lowHit: LONGINT; reverse: BOOLEAN;
-			(* jump operands *)  left,right,temp: Operand; hiHit, hiFail: LONGINT;
-				fail: Assembler.Operand; failPC: LONGINT;
+		PROCEDURE EmitBr (CONST instruction: IntermediateCode.Instruction);
+		VAR dest,destPC,offset: LONGINT; target: Assembler.Operand;hit,fail: LONGINT; reverse: BOOLEAN;
+			(* jump operands *)  left,right,temp: Assembler.Operand;
+				failOp: Assembler.Operand; failPC: LONGINT;
 
 			PROCEDURE JmpDest(brop: LONGINT);
 			BEGIN
-				IF instr.op1.mode = IntermediateCode.ModeImmediate THEN
-					Assert(instr.op1.symbol # NIL,"branch without symbol destination");
-					dest := (instr.op1.symbolOffset); (* this is the offset in the in-data section (intermediate code), it is not byte- *)
+				IF instruction.op1.mode = IntermediateCode.ModeImmediate THEN
+					Assert(instruction.op1.symbol # NIL,"branch without symbol destination");
+					dest := (instruction.op1.symbolOffset); (* this is the offset in the in-data section (intermediate code), it is not byte- *)
 					destPC := (in.instructions[dest].pc );
 					offset := destPC - (out.pc );
 					IF dest > inPC THEN (* forward jump *)
-						Assembler.InitOffset32(target.low,0);
-						Assembler.SetSymbol(target.low,instr.op1.symbol,instr.op1.symbolOffset,instr.op1.offset);
-						emitter.Emit1(brop,target.low);
+						Assembler.InitOffset32(target,0);
+						Assembler.SetSymbol(target,instruction.op1.symbol,instruction.op1.symbolOffset,instruction.op1.offset);
+						emitter.Emit1(brop,target);
 					ELSIF ABS(offset)  <= 126 THEN
-						Assembler.InitOffset8(target.low,destPC);
-						emitter.Emit1(brop,target.low);
+						Assembler.InitOffset8(target,destPC);
+						emitter.Emit1(brop,target);
 					ELSE
-						Assembler.InitOffset32(target.low,destPC);
-						emitter.Emit1(brop,target.low);
+						Assembler.InitOffset32(target,destPC);
+						emitter.Emit1(brop,target);
 					END;
 				ELSE
-					MakeOperand(instr.op1,target,0,none);
-					emitter.Emit1(brop,target.low);
+					MakeOperand(instruction.op1,Low,target,NIL);
+					emitter.Emit1(brop,target);
 				END;
 			END JmpDest;
 
+			PROCEDURE CmpFloat;
+			BEGIN
+				MakeOperand(instruction.op2,Low,left,NIL);
+				emitter.Emit1(InstructionSet.opFLD,left); INC(fpStackPointer);
+				MakeOperand(instruction.op3,Low,right,NIL);
+				emitter.Emit1(InstructionSet.opFCOMP,right); DEC(fpStackPointer);
+				emitter.Emit1(InstructionSet.opFNSTSW,opAX);
+				emitter.Emit0(InstructionSet.opSAHF);
+			END CmpFloat;
+
+			PROCEDURE Cmp(part: LONGINT; VAR reverse: BOOLEAN);
+			VAR type: IntermediateCode.Type; left,right: Assembler.Operand;
+			BEGIN
+				IF (instruction.op2.mode = IntermediateCode.ModeImmediate) & (instruction.op3.mode = IntermediateCode.ModeImmediate) THEN
+					reverse := FALSE;
+					GetPartType(instruction.op2.type,part,type);
+					GetTemporaryRegister(type,temp);
+					MakeOperand(instruction.op2,part,left,NIL);
+					MakeOperand(instruction.op3,part,right,NIL);
+					Mov(InstructionSet.opMOV,temp,left);
+					left := temp;
+				ELSIF instruction.op2.mode = IntermediateCode.ModeImmediate THEN
+					reverse := TRUE;
+					MakeOperand(instruction.op2,part,right,NIL);
+					MakeOperand(instruction.op3,part,left,NIL);
+				ELSIF IsMemoryOperand(instruction.op2,part) & IsMemoryOperand(instruction.op3,part) THEN
+					reverse := FALSE;
+					GetPartType(instruction.op2.type,part,type);
+					GetTemporaryRegister(type,temp);
+					MakeOperand(instruction.op2,part,left,NIL);
+					MakeOperand(instruction.op3,part,right,NIL);
+					Mov(InstructionSet.opMOV,temp,right);
+					right := temp;
+				ELSE
+					reverse := FALSE;
+					MakeOperand(instruction.op2,part,left,NIL);
+					MakeOperand(instruction.op3,part,right,NIL);
+				END;
+				emitter.Emit2(InstructionSet.opCMP,left,right);
+			END Cmp;
+
+
 		BEGIN
-			IF (instr.op1.symbol = in) & (instr.op1.symbolOffset = inPC +1) THEN (* jump to next instruction can be ignored *)
+			IF (instruction.op1.symbol = in) & (instruction.op1.symbolOffset = inPC +1) THEN (* jump to next instruction can be ignored *)
 				IF dump # NIL THEN dump.String("jump to next instruction ignored"); dump.Ln END;
 				RETURN
 			END;
 
 			failPC := 0;
-			IF instr.opcode = IntermediateCode.br THEN
-				lowHit := InstructionSet.opJMP
-			ELSIF instr.op2.type.form = IntermediateCode.Float THEN
-				CASE instr.opcode OF
-				IntermediateCode.breq:	lowHit := InstructionSet.opJE;
-				|IntermediateCode.brne:lowHit := InstructionSet.opJNE;
-				|IntermediateCode.brge: lowHit := InstructionSet.opJAE
-				|IntermediateCode.brlt: lowHit := InstructionSet.opJB
+			IF instruction.opcode = IntermediateCode.br THEN
+				hit := InstructionSet.opJMP
+			ELSIF instruction.op2.type.form = IntermediateCode.Float THEN
+				CmpFloat;
+				CASE instruction.opcode OF
+				IntermediateCode.breq:	hit := InstructionSet.opJE;
+				|IntermediateCode.brne:hit := InstructionSet.opJNE;
+				|IntermediateCode.brge: hit := InstructionSet.opJAE
+				|IntermediateCode.brlt: hit := InstructionSet.opJB
 				END;
-				MakeOperand(instr.op2,left,0,none);
-				emitter.Emit1(InstructionSet.opFLD,left.low); INC(fpStackPointer);
-				MakeOperand(instr.op3,right,0,none);
-				emitter.Emit1(InstructionSet.opFCOMP,right.low); DEC(fpStackPointer);
-				emitter.Emit1(InstructionSet.opFNSTSW,opAX);
-				IF (instr.op2.mode = IntermediateCode.ModeRegister) & (instr.op2.register IN toBeReleased) THEN
-					ReleaseFPRegister(instr.op2.register);
-					EXCL(toBeReleased,instr.op2.register);
-					lastUse[instr.op2.register] := -1;
-				END;
-				IF (instr.op3.mode = IntermediateCode.ModeRegister) & (instr.op3.register IN toBeReleased) THEN
-					ReleaseFPRegister(instr.op3.register);
-					EXCL(toBeReleased,instr.op3.register);
-					lastUse[instr.op3.register] := -1;
-				END;
-				emitter.Emit0(InstructionSet.opSAHF);
 			ELSE
-				IF (instr.op2.mode = IntermediateCode.ModeImmediate) & (instr.op3.mode = IntermediateCode.ModeImmediate) THEN
-					Temporary(instr.op2.type.sizeInBits,temp);
-					MakeOperand(instr.op2,left,0,none);
-					MakeOperand(instr.op3,right,0,none);
-					Mov(InstructionSet.opMOV,temp,left);
-					left := temp;
-				ELSIF instr.op2.mode = IntermediateCode.ModeImmediate THEN
-					reverse := TRUE;
-					MakeOperand(instr.op2,right,0,none);
-					MakeOperand(instr.op3,left,0,none);
-				ELSIF IsMemoryOperand(instr.op2) & IsMemoryOperand(instr.op3) THEN
-					Temporary(instr.op2.type.sizeInBits,temp);
-					MakeOperand(instr.op2,left,0,none);
-					MakeOperand(instr.op3,right,0,none);
-					Mov(InstructionSet.opMOV,temp,right);
-					right := temp;
-				ELSE
-					reverse := FALSE;
-					MakeOperand(instr.op2,left,0,none);
-					MakeOperand(instr.op3,right,0,none);
-				END;
-				IF instr.op2.type.sizeInBits # IntermediateCode.Bits64 THEN
-					CASE instr.opcode OF
-					IntermediateCode.breq:
-						lowHit := InstructionSet.opJE;
-					|IntermediateCode.brne:
-						lowHit := InstructionSet.opJNE;
+				IF ~IsComplex(instruction.op2) THEN
+					Cmp(Low,reverse);
+					CASE instruction.opcode OF
+					IntermediateCode.breq: hit := InstructionSet.opJE;
+					|IntermediateCode.brne: hit := InstructionSet.opJNE;
 					|IntermediateCode.brge:
-						IF instr.op2.type.form = IntermediateCode.SignedInteger THEN
-							IF reverse THEN lowHit := InstructionSet.opJLE ELSE lowHit := InstructionSet.opJGE END;
-						ELSIF instr.op2.type.form = IntermediateCode.UnsignedInteger THEN
-							IF reverse THEN lowHit := InstructionSet.opJBE ELSE lowHit := InstructionSet.opJAE END;
+						IF instruction.op2.type.form = IntermediateCode.SignedInteger THEN
+							IF reverse THEN hit := InstructionSet.opJLE ELSE hit := InstructionSet.opJGE END;
+						ELSIF instruction.op2.type.form = IntermediateCode.UnsignedInteger THEN
+							IF reverse THEN hit := InstructionSet.opJBE ELSE hit := InstructionSet.opJAE END;
 						END;
 					|IntermediateCode.brlt:
-						IF instr.op2.type.form = IntermediateCode.SignedInteger THEN
-							IF reverse THEN lowHit := InstructionSet.opJG ELSE lowHit := InstructionSet.opJL END;
-						ELSIF instr.op2.type.form = IntermediateCode.UnsignedInteger THEN
-							IF reverse THEN lowHit := InstructionSet.opJA ELSE lowHit := InstructionSet.opJB END;
+						IF instruction.op2.type.form = IntermediateCode.SignedInteger THEN
+							IF reverse THEN hit := InstructionSet.opJG ELSE hit := InstructionSet.opJL END;
+						ELSIF instruction.op2.type.form = IntermediateCode.UnsignedInteger THEN
+							IF reverse THEN hit := InstructionSet.opJA ELSE hit := InstructionSet.opJB END;
 						END;
 					END;
 				ELSE
-					Assert(instr.op2.type.form = IntermediateCode.SignedInteger,"no unsigned integer64");
-					CASE instr.opcode OF
-					IntermediateCode.breq:
-						hiHit := 0; hiFail := InstructionSet.opJNE;	lowHit := InstructionSet.opJE
-					|IntermediateCode.brne:
-						hiHit := InstructionSet.opJNE; hiFail := 0; lowHit := InstructionSet.opJNE
+					Assert(instruction.op2.type.form = IntermediateCode.SignedInteger,"no unsigned integer64");
+					Cmp(High,reverse);
+					CASE instruction.opcode OF
+					IntermediateCode.breq: hit := 0; fail := InstructionSet.opJNE;
+					|IntermediateCode.brne: hit := InstructionSet.opJNE; fail := 0;
 					|IntermediateCode.brge:
-						IF reverse THEN
-							hiHit := InstructionSet.opJL; hiFail := InstructionSet.opJG; lowHit := InstructionSet.opJBE
-						ELSE
-							hiHit := InstructionSet.opJG; hiFail := InstructionSet.opJL; lowHit := InstructionSet.opJAE
+						IF reverse THEN hit := InstructionSet.opJL; fail := InstructionSet.opJG;
+						ELSE hit := InstructionSet.opJG; fail := InstructionSet.opJL
 						END;
 					|IntermediateCode.brlt:
-						IF reverse THEN
-							hiHit := InstructionSet.opJG; hiFail := InstructionSet.opJL; lowHit := InstructionSet.opJA
-						ELSE
-							hiHit := InstructionSet.opJL; hiFail := InstructionSet.opJG; lowHit := InstructionSet.opJB
+						IF reverse THEN hit := InstructionSet.opJG; fail := InstructionSet.opJL
+						ELSE hit := InstructionSet.opJL; fail := InstructionSet.opJG
 						END;
 					END;
-					emitter.Emit2(InstructionSet.opCMP,left.high,right.high);
-					IF hiHit # 0 THEN
-						JmpDest(hiHit);
-					END;
-					IF hiFail # 0 THEN
+					IF hit # 0 THEN JmpDest(hit)	END;
+					IF fail # 0 THEN
 						failPC := out.pc; (* to avoid potential value overflow problem, will be patched anyway  *)
-						Assembler.InitOffset8(fail,failPC );
-						emitter.Emit1(hiFail,fail);
-						failPC := fail.pc;
+						Assembler.InitOffset8(failOp,failPC );
+						emitter.Emit1(fail,failOp);
+						failPC := failOp.pc;
+					END;
+					Cmp(Low,reverse);
+					CASE instruction.opcode OF
+					IntermediateCode.breq: hit := InstructionSet.opJE
+					|IntermediateCode.brne: hit := InstructionSet.opJNE
+					|IntermediateCode.brge:
+						IF reverse THEN hit := InstructionSet.opJBE ELSE hit := InstructionSet.opJAE END;
+					|IntermediateCode.brlt:
+						IF reverse THEN hit := InstructionSet.opJA ELSE hit := InstructionSet.opJB END;
 					END;
 				END;
-				emitter.Emit2(InstructionSet.opCMP,left.low,right.low);
 			END;
-			JmpDest(lowHit);
-			IF failPC > 0 THEN out.PutByteAt(failPC,((out.pc-failPC) )-1); END;
+			JmpDest(hit);
+			IF failPC > 0 THEN out.PutByteAt(failPC,(out.pc-failPC)-1); END;
 		END EmitBr;
 
-		PROCEDURE EmitPop(CONST instr: IntermediateCode.Instruction);
-		VAR
-			type: IntermediateCode.Type; op1: Operand; memop: Assembler.Operand; sizeInBytes,reg: LONGINT;
+		PROCEDURE EmitPush(CONST vop: IntermediateCode.Operand; part: LONGINT);
+		VAR  index: LONGINT; type,cpuType: IntermediateCode.Type; op1: Assembler.Operand; ra: Ticket;
 		BEGIN
-			type := instr.op1.type;
+			GetPartType(vop.type,part,type);
+			ASSERT(type.form IN IntermediateCode.Integer);
 
-			CASE type.form OF
-			IntermediateCode.SignedInteger, IntermediateCode.UnsignedInteger:
-				IF type.sizeInBits = IntermediateCode.Bits32 THEN
-					MakeOperand(instr.op1,op1,0,none);
-					emitter.Emit1(InstructionSet.opPOP,op1.low);
-				ELSIF type.sizeInBits = IntermediateCode.Bits8 THEN
-					MakeOperand(instr.op1,op1,0,none);
-					IF (op1.low.type = Assembler.reg8) & (AL <= op1.low.register) & (op1.low.register <= BL) & (registerAllocator.realToVirtual[op1.low.register + 4] = free) THEN
-						emitter.Emit1(InstructionSet.opPOP,registerOperands[op1.low.register+2*32]);
-					ELSE
-						Assembler.InitMem(memop,IntermediateCode.Bits8 DIV 8,SP,0);
-						emitter.Emit2(InstructionSet.opMOV,op1.low,memop);
-						AllocateStack(-4);
-					END;
-				ELSIF type.sizeInBits = IntermediateCode.Bits16 THEN
-					MakeOperand(instr.op1,op1,0,none);
-					IF op1.low.type = Assembler.reg16 THEN
-						emitter.Emit1(InstructionSet.opPOP,registerOperands[op1.low.register+1*32]);
-					ELSE
-						Assembler.InitMem(memop,IntermediateCode.Bits16 DIV 8,SP,0);
-						emitter.Emit2(InstructionSet.opMOV,op1.low,memop);
-						AllocateStack(-4);
-					END;
+			IF	vop.mode = IntermediateCode.ModeImmediate THEN (* may not push 16 bit immediate: strange instruction in 32 / 64 bit mode *)
+				GetImmediate(vop,part,op1,TRUE);
+				emitter.Emit1(InstructionSet.opPUSH,op1);
+			ELSIF (type.sizeInBits = cpuBits) THEN
+				MakeOperand(vop,part,op1,NIL);
+				emitter.Emit1(InstructionSet.opPUSH,op1);
+			ELSE
+				ASSERT(type.sizeInBits < cpuBits);
+				MakeOperand(vop,part,op1,NIL);
+				IF Assembler.IsRegisterOperand(op1) & ~((cpuBits=32) & (type.sizeInBits=8) & (op1.register >= AH)) THEN
+					index := op1.register MOD 32 + opRA.register;
+					emitter.Emit1(InstructionSet.opPUSH, registerOperands[index]);
 				ELSE
-					MakeOperand(instr.op1,op1,0,none);
-					emitter.Emit1(InstructionSet.opPOP,op1.low);
-					emitter.Emit1(InstructionSet.opPOP,op1.high);
-				END;
-			|IntermediateCode.Float:
-				MakeOperand(instr.op1,op1,0,none);
-				IF type.sizeInBits = IntermediateCode.Bits32 THEN
-					sizeInBytes := 4;
-					Assembler.InitMem(memop,IntermediateCode.Bits32 DIV 8,SP,0);
-				ELSE
-					sizeInBytes := 8;
-					Assembler.InitMem(memop,IntermediateCode.Bits64 DIV 8,SP,0);
-				END;
-				reg := instr.op1.register;
-				IF reg # IntermediateCode.Result THEN (* nothing to do, on top of stack anyway *)
-					emitter.Emit1(InstructionSet.opFLD,memop); INC(fpStackPointer);
-					IF -fpRegisters[reg] + fpStackPointer # 0 THEN
-						emitter.Emit1(InstructionSet.opFSTP,op1.low); DEC(fpStackPointer);
-					ELSE (* result may stay on top of stack, op1 has been allocated in place *)
+					WHILE physicalRegisters.Mapped(opRA.register) # free DO Spill(physicalRegisters.Mapped(opRA.register)) END;
+					IntermediateCode.InitType(cpuType,IntermediateCode.SignedInteger,SHORT(cpuBits));
+					ra := ReservePhysicalRegister(cpuType,opRA.register);
+					CASE type.sizeInBits OF
+						8: index := AL
+						|16: index := AX
+						|32: index := EAX
+						|64: index := RAX
 					END;
-					AllocateStack(-sizeInBytes);
-				END;
-			END;
-		END EmitPop;
-
-		PROCEDURE Push(CONST operand: Operand);
-			PROCEDURE Push32(operand: Assembler.Operand);
-			BEGIN
-				IF (operand.type = Assembler.reg8) THEN
-					IF (AL <= operand.register) & (operand.register <= BL)  THEN
-						emitter.Emit1(InstructionSet.opPUSH,registerOperands[operand.register+2*32]);
-					ELSE
-						HALT(100)
-					END;
-				ELSIF (operand.type = Assembler.reg16) THEN
-					emitter.Emit1(InstructionSet.opPUSH,registerOperands[operand.register+32]);
-				ELSIF (operand.type = Assembler.reg32) THEN
-					emitter.Emit1(InstructionSet.opPUSH,operand);
-				ELSE HALT(100)
-				END;
-			END Push32;
-		BEGIN
-			IF operand.high.type # Assembler.none THEN
-				Push32(operand.high)
-			END;
-			Push32(operand.low)
-		END Push;
-
-
-		PROCEDURE EmitPush(CONST instr: IntermediateCode.Instruction);
-		VAR  index: LONGINT; type: IntermediateCode.Type; op1: Operand; memop: Assembler.Operand;
-		BEGIN
-			type := instr.op1.type;
-
-			CASE type.form OF
-			IntermediateCode.SignedInteger, IntermediateCode.UnsignedInteger:
-				IF type.sizeInBits = IntermediateCode.Bits32 THEN
-					MakeOperand(instr.op1,op1,0,none);
-					emitter.Emit1(InstructionSet.opPUSH,op1.low);
-				ELSIF type.sizeInBits = IntermediateCode.Bits8 THEN
-					IF (instr.op1.mode = IntermediateCode.ModeRegister) & (realRegisters[instr.op1.register].low >= AL) & (realRegisters[instr.op1.register].low <= BL) THEN
-						index := realRegisters[instr.op1.register].low;
-						index := index MOD 32 + EAX;
-						emitter.Emit1(InstructionSet.opPUSH,registerOperands[index]);
-					ELSE
-						MakeOperand(instr.op1,op1,IntermediateCode.Bits32,none);
-						emitter.Emit1(InstructionSet.opPUSH,op1.low);
-						(*
-						emitter.Emit2(InstructionSet.opMOV,opAL,op1.low);
-						emitter.Emit1(InstructionSet.opPUSH,opEAX);
-						*)
-					END;
-				ELSIF type.sizeInBits < IntermediateCode.Bits32 THEN
-					IF instr.op1.mode = IntermediateCode.ModeRegister THEN
-						index := realRegisters[instr.op1.register].low;
-						index := index MOD 32 + EAX;
-						emitter.Emit1(InstructionSet.opPUSH,registerOperands[index]);
-					ELSE
-						MakeOperand(instr.op1,op1,IntermediateCode.Bits32,none);
-						emitter.Emit1(InstructionSet.opPUSH,op1.low);
-					END;
-				ELSIF type.sizeInBits = IntermediateCode.Bits64 THEN
-					MakeOperand(instr.op1,op1,0,none);
-					emitter.Emit1(InstructionSet.opPUSH,op1.high);
-					emitter.Emit1(InstructionSet.opPUSH,op1.low);
-				ELSE Halt("unsupported bit length");
-				END;
-			|IntermediateCode.Float:
-				MakeOperand(instr.op1,op1,0,none);
-				IF (instr.op1.mode = IntermediateCode.ModeMemory) & (type.sizeInBits = IntermediateCode.Bits32) THEN
-					emitter.Emit1(InstructionSet.opPUSH,op1.low);
-				ELSE
-					IF type.sizeInBits = IntermediateCode.Bits32 THEN
-						AllocateStack(4);
-						Assembler.InitMem(memop,IntermediateCode.Bits32 DIV 8,SP,0);
-					ELSE
-						AllocateStack(8);
-						Assembler.InitMem(memop,IntermediateCode.Bits64 DIV 8,SP,0);
-					END;
-					emitter.Emit1(InstructionSet.opFLD,op1.low); INC(fpStackPointer);
-					emitter.Emit1(InstructionSet.opFSTP,memop); DEC(fpStackPointer);
+					emitter.Emit2(InstructionSet.opMOV,registerOperands[index],op1);
+					emitter.Emit1(InstructionSet.opPUSH,opRA);
+					UnmapTicket(ra);
 				END;
 			END;
 		END EmitPush;
 
-		PROCEDURE EmitNeg(CONST instr: IntermediateCode.Instruction);
-		VAR op: Operand; minusOne: Assembler.Operand;
+		PROCEDURE EmitPop(CONST vop: IntermediateCode.Operand; part: LONGINT);
+		VAR  index: LONGINT; type,cpuType: IntermediateCode.Type; op1: Assembler.Operand; ra: Ticket;
 		BEGIN
-			IF instr.op1.type.form IN IntermediateCode.Integer THEN
-				PrepareOp2(instr,op);
-				IF instr.op1.type.sizeInBits = IntermediateCode.Bits64 THEN
-					emitter.Emit1(InstructionSet.opNOT,op.high);
-					emitter.Emit1(InstructionSet.opNEG,op.low);
-					Assembler.InitImm8(minusOne,-1);
-					emitter.Emit2(InstructionSet.opSBB,op.high,minusOne);
+			GetPartType(vop.type,part,type);
+			ASSERT(type.form IN IntermediateCode.Integer);
+
+			IF (type.sizeInBits = cpuBits) THEN
+				MakeOperand(vop,part,op1,NIL);
+				emitter.Emit1(InstructionSet.opPOP,op1);
+			ELSE
+				ASSERT(type.sizeInBits < cpuBits);
+				MakeOperand(vop,part,op1,NIL);
+				IF Assembler.IsRegisterOperand(op1) & ~((cpuBits=32) & (type.sizeInBits=8) & (op1.register >= AH)) THEN
+					index := op1.register MOD 32 + opRA.register;
+					emitter.Emit1(InstructionSet.opPOP, registerOperands[index]);
 				ELSE
-					emitter.Emit1(InstructionSet.opNEG,op.low);
+					WHILE physicalRegisters.Mapped(opRA.register) # free DO Spill(physicalRegisters.Mapped(opRA.register)) END;
+					IntermediateCode.InitType(cpuType, IntermediateCode.SignedInteger, SHORT(cpuBits));
+					ra := ReservePhysicalRegister(cpuType,opRA.register);
+					emitter.Emit1(InstructionSet.opPOP,opRA);
+					CASE type.sizeInBits OF
+						8: index := AL
+						|16: index := AX
+						|32: index := EAX
+						|64: index := RAX
+					END;
+					emitter.Emit2(InstructionSet.opMOV, op1, registerOperands[index]);
+					UnmapTicket(ra);
 				END;
-				FinishOp2(instr,op);
-			ELSIF instr.op1.type.form = IntermediateCode.Float THEN
-				TwoOperandFPInstruction(instr,InstructionSet.opFCHS)
-			(**
-			ELSE Halt("does not make sense on unsigned integer");
-				counterexample: (-adr MOD alignment)
-			*)
+			END;
+		END EmitPop;
+
+		PROCEDURE EmitPushFPU(CONST vop: IntermediateCode.Operand);
+		VAR sizeInBytes: LONGINT; memop: Assembler.Operand; op: Assembler.Operand;
+		BEGIN
+			MakeOperand(vop,Low,op,NIL);
+			IF (vop.mode = IntermediateCode.ModeMemory) & (vop.type.sizeInBits =cpuBits) THEN
+				emitter.Emit1(InstructionSet.opPUSH,op);
+			ELSE
+				sizeInBytes := vop.type.sizeInBits DIV 8;
+				AllocateStack(sizeInBytes);
+				Assembler.InitMem(memop, SHORTINT(sizeInBytes),SP,0);
+				emitter.Emit1(InstructionSet.opFLD,op); INC(fpStackPointer);
+				emitter.Emit1(InstructionSet.opFSTP,memop); DEC(fpStackPointer);
+			END;
+		END EmitPushFPU;
+
+		PROCEDURE EmitPopFPU(CONST vop: IntermediateCode.Operand);
+		VAR sizeInBytes: LONGINT; memop: Assembler.Operand; op: Assembler.Operand;
+		BEGIN
+			sizeInBytes := vop.type.sizeInBits DIV 8;
+			IF (vop.mode = IntermediateCode.ModeMemory) & (vop.type.sizeInBits =cpuBits) THEN
+				MakeOperand(vop,Low,op,NIL);
+				emitter.Emit1(InstructionSet.opPOP,op);
+			ELSE
+				Assembler.InitMem(memop, SHORTINT(sizeInBytes),SP,0);
+				emitter.Emit1(InstructionSet.opFLD,memop);
+				INC(fpStackPointer);
+				MakeOperand(vop,Low,op,NIL);
+				emitter.Emit1(InstructionSet.opFSTP,op);
+				DEC(fpStackPointer);
+				ASSERT(sizeInBytes > 0);
+				AllocateStack(-sizeInBytes);
+			END;
+		END EmitPopFPU;
+
+		PROCEDURE EmitNeg(CONST instruction: IntermediateCode.Instruction);
+		VAR opLow,opHigh: Assembler.Operand; minusOne: Assembler.Operand; ticketLow,ticketHigh: Ticket;
+		BEGIN
+			IF IsComplex(instruction.op1) THEN
+				PrepareOp2(instruction,High,opHigh,ticketHigh);
+				PrepareOp2(instruction,Low,opLow,ticketLow);
+				emitter.Emit1(InstructionSet.opNOT,opHigh);
+				emitter.Emit1(InstructionSet.opNEG,opLow);
+				Assembler.InitImm8(minusOne,-1);
+				emitter.Emit2(InstructionSet.opSBB,opHigh,minusOne);
+				FinishOp(instruction.op1,High,opHigh,ticketHigh);
+				FinishOp(instruction.op1,Low,opLow,ticketLow);
+			ELSE
+				EmitArithmetic2(instruction,Low,InstructionSet.opNEG);
 			END;
 		END EmitNeg;
 
-		PROCEDURE EmitNot(CONST instr: IntermediateCode.Instruction);
+		PROCEDURE EmitAbs(CONST instruction: IntermediateCode.Instruction);
+		VAR op1,op2: Assembler.Operand; source,imm: Assembler.Operand; eax: Ticket;
 		BEGIN
-			IF instr.op1.type.form IN IntermediateCode.Integer THEN
-				TwoOperandInstruction(instr,InstructionSet.opNOT,InstructionSet.opNOT);
-			ELSE HALT(100) (* does not make sense on float *)
-			END;
-		END EmitNot;
+			Assert(~IsComplex(instruction.op1),"complex Abs not supported");
+			IF instruction.op1.type.form  = IntermediateCode.SignedInteger THEN
+				Spill(physicalRegisters.Mapped(EAX));
+				eax := ReservePhysicalRegister(IntermediateCode.int32,EAX);
 
-		PROCEDURE EmitAbs(CONST instr: IntermediateCode.Instruction);
-		VAR op1,op2: Operand; source,imm: Assembler.Operand;
-		BEGIN
-			IF instr.op1.type.form  = IntermediateCode.SignedInteger THEN
-				Assert(instr.op1.type.sizeInBits # IntermediateCode.Bits64,"64bit not supported"); (* 64 bit version via procedure call, cf. method Supported *)
-				FreeRegister(EAX); registerAllocator.Allocate(EAX,reserved);
-				MakeOperand(instr.op1,op1,0,none);
-				MakeOperand(instr.op2,op2,0,none);
+				MakeOperand(instruction.op1,Low,op1,NIL);
+				MakeOperand(instruction.op2,Low,op2,NIL);
 
-				CASE instr.op1.type.sizeInBits OF
+				CASE instruction.op1.type.sizeInBits OF
 				| IntermediateCode.Bits8: imm := Assembler.NewImm8 (7); source := opAL;
 				| IntermediateCode.Bits16: imm := Assembler.NewImm8 (15); source := opAX;
 				| IntermediateCode.Bits32: imm := Assembler.NewImm8 (31); source := opEAX;
 				END;
-				emitter.Emit2 (InstructionSet.opMOV, source,op2.low);
-				emitter.Emit2 (InstructionSet.opMOV, op1.low,source);
+				emitter.Emit2 (InstructionSet.opMOV, source,op2);
+				emitter.Emit2 (InstructionSet.opMOV, op1,source);
 
 				emitter.Emit2 (InstructionSet.opSAR, source, imm);
-				emitter.Emit2 (InstructionSet.opXOR, op1.low, source);
-				emitter.Emit2 (InstructionSet.opSUB, op1.low, source);
-			ELSIF instr.op1.type.form = IntermediateCode.Float THEN
-				TwoOperandFPInstruction(instr,InstructionSet.opFABS)
-			ELSE Halt("does not make sense on unsigned integer")
+				emitter.Emit2 (InstructionSet.opXOR, op1, source);
+				emitter.Emit2 (InstructionSet.opSUB, op1, source);
+
+				UnmapTicket(eax);
+			ELSE Halt("Abs does not make sense on unsigned integer")
 			END;
 		END EmitAbs;
 
-		PROCEDURE EmitTrap(CONST instr: IntermediateCode.Instruction);
+		PROCEDURE EmitTrap(CONST instruction: IntermediateCode.Instruction);
 		VAR operand: Assembler.Operand;
 		BEGIN
-			IF instr.op1.intValue < 80H THEN
-				operand := Assembler.NewImm8(instr.op1.intValue);
+			IF instruction.op1.intValue < 80H THEN
+				operand := Assembler.NewImm8(instruction.op1.intValue);
 			ELSE
-				operand := Assembler.NewImm32(instr.op1.intValue);
+				operand := Assembler.NewImm32(instruction.op1.intValue);
 			END;
 			emitter.Emit1(InstructionSet.opPUSH, operand);
 			emitter.Emit0(InstructionSet.opINT3);
 		END EmitTrap;
 
-		PROCEDURE EmitAsm(CONST instr: IntermediateCode.Instruction);
+		PROCEDURE EmitAsm(CONST instruction: IntermediateCode.Instruction);
 		VAR reader: Streams.StringReader;  procedure: SyntaxTree.Procedure; scope: SyntaxTree.Scope;
 				len: LONGINT; symbol: SyntaxTree.Symbol; assembler: Assembler.Assembly;
 		BEGIN
-			len := Strings.Length(instr.op1.string^);
+			len := Strings.Length(instruction.op1.string^);
 			NEW(reader,len);
-			reader.Set(instr.op1.string^);
+			reader.Set(instruction.op1.string^);
 
 			symbol := in.symbol;
 			procedure := symbol(SyntaxTree.Procedure);
 			scope := procedure.procedureScope;
 			NEW(assembler,diagnostics,emitter);
-			assembler.Assemble(reader,SHORT(instr.op1.intValue),scope,in,in,module,procedure.access * SyntaxTree.Public # {}, procedure.isInline)	;
+			assembler.Assemble(reader,SHORT(instruction.op1.intValue),scope,in,in,module,procedure.access * SyntaxTree.Public # {}, procedure.isInline)	;
 			error := error OR assembler.error
 		END EmitAsm;
 
-	(*
-		PROCEDURE Code(source: BackendStructures.Assembly);
-		VAR reader: Streams.StringReader;  procedure: SyntaxTree.Procedure; scope: SyntaxTree.Scope;
-			inline: BOOLEAN;  inlinecode: Assembler.Code; inlineassembler: Assembler.Assembly; name: ARRAY 256 OF CHAR;
-			outer: SyntaxTree.Statement;
-		BEGIN
-			IF source.code.inlineCode # NIL THEN RETURN END; (* already assembled inline *)
-			NEW(reader,source.code.sourceCodeLength);
-			reader.Set(source.code.sourceCode^);
-
-			outer := source.code.outer;
-			WHILE (outer # NIL) & ~(outer IS SyntaxTree.Body) DO
-				outer := outer.outer;
-			END;
-			IF outer # NIL THEN
-				scope := outer(SyntaxTree.Body).inScope;
-			ELSE
-				scope := NIL;
-			END;
-			IF (scope # NIL) & (scope IS SyntaxTree.ProcedureScope) THEN
-				procedure := scope(SyntaxTree.ProcedureScope).ownerProcedure;
-				inline := procedure.HasFlag(SyntaxTree.InlineFlag);
-				procedure.name.GetString(name);
-			ELSE
-				inline := FALSE;
-			END;
-
-			IF inline THEN
-				NEW(inlinecode);
-				NEW(inlineassembler,diagnostics,inlinecode,dump);
-				inlineassembler.Assemble(reader,source.code.position,scope,module,source,procedure.access * SyntaxTree.Public # {},TRUE);
-				source.code.SetInlineCode(inlinecode.code,inlinecode.pc );
-				procedure.name.GetString(name);
-			ELSE
-				emitter.Assemble(reader, source.code.position , scope, module, source, procedure.access * SyntaxTree.Public # {},FALSE);
-			END;
-		END Code;
-	*)
-
-
-		PROCEDURE EmitData(CONST instr: IntermediateCode.Instruction);
-			VAR type: IntermediateCode.Type; fixup: BinaryCode.Fixup; pc: LONGINT;fiuxpFormat: BinaryCode.FixupPatterns;
-		BEGIN
-			type := instr.op1.type;
-			pc := out.pc;
-			IF type.form IN IntermediateCode.Integer THEN
-				out.PutBytes(instr.op1.intValue,SHORT(type.sizeInBits DIV 8));
-			ELSE
-				IF type.sizeInBits = IntermediateCode.Bits32 THEN
-					out.PutReal(SHORT(instr.op1.floatValue));
-				ELSIF type.sizeInBits = IntermediateCode.Bits64 THEN
-					out.PutLongreal(instr.op1.floatValue);
-				ELSE Halt("no floats other than 32 or 64 bit")
-				END;
-			END;
-			IF instr.op1.symbol # NIL THEN
-				NEW(fiuxpFormat,1);
-				fiuxpFormat[0].offset := 0;
-				fiuxpFormat[0].bits := type.sizeInBits;
-				fixup := BinaryCode.NewFixup(BinaryCode.Absolute,pc,instr.op1.symbol,instr.op1.symbolOffset,instr.op1.offset,0,fiuxpFormat);
-				out.fixupList.AddFixup(fixup);
-			END;
-		END EmitData;
-
-		PROCEDURE EmitReserve(CONST instr: IntermediateCode.Instruction);
-		VAR sizeInBytes,i: LONGINT;
-		BEGIN
-			sizeInBytes := SHORT(instr.op1.intValue);
-			ASSERT(sizeInBytes >= 0); (* size is initialized to MIN(LONGINT), this checks if size field has been visited *)
-			FOR i := 0 TO sizeInBytes-1 DO
-				out.PutByte(0);
-			END;
-		END EmitReserve;
-
-		PROCEDURE EmitLabel(CONST instr: IntermediateCode.Instruction);
-		VAR position: LONGINT;
-		BEGIN
-			position := SHORT(instr.op1.intValue);
-			out.AddLabel(position);
-		END EmitLabel;
-
 	END CodeGeneratorAMD64;
-
-			Worker=OBJECT
-			VAR start: BOOLEAN; finished: BOOLEAN;
-				in: IntermediateCode.Section; next: Worker;
-				cg: CodeGeneratorAMD64;
-				pool: Pool;
-
-			PROCEDURE &Init(pool: Pool);
-			BEGIN
-				start := FALSE; SELF.pool := pool;
-				NEW(cg, "", NIL, 32);
-			END Init;
-
-			PROCEDURE Start(in: IntermediateCode.Section; CONST runtimeModuleName: SyntaxTree.String; diagnostics: Diagnostics.Diagnostics; module: Sections.Module; bits: LONGINT);
-			BEGIN{EXCLUSIVE}
-				cg.InitGeneratorAMD64(runtimeModuleName, diagnostics, bits);
-				cg.SetModule(module);
-				SELF.in := in;
-				start := TRUE;
-			END Start;
-
-			PROCEDURE Do;
-			VAR out: BinaryCode.Section; procedure: SyntaxTree.Procedure;
-			BEGIN{EXCLUSIVE}
-				LOOP
-					AWAIT(start);
-					(* inline case
-					out := ResolvedSection(in(IntermediateCode.Section));
-			 		cg.Section(in(IntermediateCode.Section),out);
-			 		procedure := in.symbol(SyntaxTree.Procedure);
-			 		procedure.procedureScope.body.code.SetBinaryCode(out.bits);
-					*)
-			 		out := ResolvedSection(in(IntermediateCode.Section));
-			 		cg.Section(in(IntermediateCode.Section),out);
-			 		IF out.type = Sections.VarSection THEN
-			 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
-			 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
-			 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
-			 			END;
-			 		ELSIF out.type = Sections.ConstSection THEN
-			 			out.SetAlignment(FALSE,4);
-			 		END;
-
-					start := FALSE;
-					pool.Finished(SELF);
-				END;
-			END Do;
-
-			BEGIN{ACTIVE}
-				Do;
-			END Worker;
-
-			Pool=OBJECT
-			VAR ready: Worker; numReady, numTotal: LONGINT;
-
-				PROCEDURE &Init();
-				VAR i: LONGINT; worker: Worker;
-				BEGIN
-					FOR i := 1 TO Machine.NumberOfProcessors() DO
-						NEW(worker,SELF); worker.next := ready; ready := worker; INC(numReady); INC(numTotal);
-					END;
-				END Init;
-
-				PROCEDURE Finished(worker: Worker);
-				BEGIN{EXCLUSIVE}
-					worker.next := ready; ready := worker; INC(numReady);
-				END Finished;
-
-				PROCEDURE Work(in: IntermediateCode.Section; CONST runtimeModuleName: SyntaxTree.String; diagnostics: Diagnostics.Diagnostics; module: Sections.Module; bits: LONGINT);
-				VAR worker: Worker;
-				BEGIN{EXCLUSIVE}
-					AWAIT(numReady > 0);
-					worker := ready; ready := worker.next; worker.next := NIL; DEC(numReady);
-					worker.Start(in,runtimeModuleName, diagnostics, module, bits);
-				END Work;
-
-				PROCEDURE Wait;
-				BEGIN{EXCLUSIVE}
-					AWAIT(numReady = numTotal);
-				END Wait;
-
-			END Pool;
 
 	BackendAMD64= OBJECT (IntermediateBackend.IntermediateBackend)
 	VAR
@@ -3318,19 +2576,15 @@ TYPE
 			 	WHILE (in # NIL) DO
 			 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
 				 		COPY(in.name,name);
-				 		IF SupportPool & usePool THEN
-					 		pool.Work(in(IntermediateCode.Section), runtimeModuleName, diagnostics, module, bits);
-				 		ELSE
-					 		out := ResolvedSection(in(IntermediateCode.Section));
-					 		cg.Section(in(IntermediateCode.Section),out);
-					 		IF out.type = Sections.VarSection THEN
-					 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
-					 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
-					 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
-					 			END;
-					 		ELSIF out.type = Sections.ConstSection THEN
-					 			out.SetAlignment(FALSE,4);
-					 		END;
+				 		out := ResolvedSection(in(IntermediateCode.Section));
+				 		cg.Section(in(IntermediateCode.Section),out);
+				 		IF out.type = Sections.VarSection THEN
+				 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
+				 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
+				 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
+				 			END;
+				 		ELSIF out.type = Sections.ConstSection THEN
+				 			out.SetAlignment(FALSE,4);
 				 		END;
 			 		END;
 			 		IF in = last THEN
@@ -3339,7 +2593,6 @@ TYPE
 				 		in := in.nextSection;
 				 	END;
 			 	END;
-			 	IF SupportPool&usePool THEN pool.Wait END;
 			UNTIL last = module.sections.last; (* process remaining sections that have been added during traversal of sections *)
 
 		 	in := module.caseTables.first;
@@ -3350,24 +2603,6 @@ TYPE
 			 	END;
 		 		in := in.nextSection;
 		 	END;
-
-		 	(*
-		 	in := module.importedSymbols.first;
-		 	WHILE in # NIL DO
-		 		IF in(IntermediateCode.Section).resolved = NIL THEN
-			 		out := ResolvedSection(in(IntermediateCode.Section));
-			 		in := in.nextSection;
-			 	END;
-		 	END;
-
-		 	in := module.systemCalls.first;
-		 	WHILE in # NIL DO
-		 		IF in(IntermediateCode.Section).resolved = NIL THEN
-			 		out := ResolvedSection(in(IntermediateCode.Section));
-			 		in := in.nextSection;
-			 	END;
-		 	END;
-			*)
 
 		 	in := module.sections.first;
 		 	WHILE in # NIL DO
@@ -3420,6 +2655,20 @@ TYPE
 				END;
 			END;
 			RETURN intermediateModule
+		FINALLY
+			IF dump # NIL THEN
+				dump.Ln; dump.Ln;
+				dump.String("------------------ rescued code (code generation trapped) -------------------"); dump.Ln;
+				IF (traceString="") OR (traceString="*") THEN
+					intermediateModule.Dump(dump);
+					dump.Update
+				ELSE
+					Sections.DumpFiltered(dump,intermediateModule(Sections.Module),traceString);
+					dump.Update;
+				END
+			END;
+			HALT(100); (* do not continue compiling after trap *)
+			RETURN intermediateModule
 		END Module;
 
 		PROCEDURE FindPC(x: SyntaxTree.Module; CONST sectionName: ARRAY OF CHAR; sectionOffset: LONGINT);
@@ -3467,9 +2716,7 @@ TYPE
 			RETURN NIL
 		END DefaultSymbolFileFormat;
 
-
 	END BackendAMD64;
-VAR pool: Pool;
 
 	PROCEDURE Assert(b: BOOLEAN; CONST s: ARRAY OF CHAR);
 	BEGIN
@@ -3531,6 +2778,8 @@ VAR pool: Pool;
 
 		opST0 := registerOperands[ST0];
 
+		NEW(unusable); NEW(blocked); NEW(split); free := NIL;
+
 	END Init;
 
 	PROCEDURE Get*(): Backend.Backend;
@@ -3541,5 +2790,4 @@ VAR pool: Pool;
 BEGIN
 	Init;
 	usePool := Machine.NumberOfProcessors()>1;
-	IF SupportPool & usePool THEN NEW(pool) END;
 END OCAMDBackend.

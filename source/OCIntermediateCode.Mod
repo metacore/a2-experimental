@@ -16,9 +16,11 @@ CONST
 	(* operand classes *)
 	Undef* = {Undefined};
 	Imm*={ModeImmediate};
+	Reg*={ModeRegister};
 	RegMem* = {ModeRegister,ModeMemory};
 	RegMemImm* = {ModeRegister,ModeMemory,ModeImmediate};
 	UndefReg*={Undefined,ModeRegister};
+	UndefRegMem*={Undefined, ModeRegister, ModeMemory};
 	Num* = {ModeNumber};
 	Str*= {ModeString};
 
@@ -33,6 +35,7 @@ CONST
 	SameType23*=1; (* type of second operand must match type of third operand *)
 	Op1IsDestination*=2; (* first operand is a destination operand (=>may not be register with offset) *)
 	Commute23*=3; (* second and third operand can be exchanged *)
+	SameSize12*=4;
 
 	(* operand sizes in bits *)
 	Bits8*=8; Bits16*=16; Bits32*=32; Bits64*=64; Bits128*=128;
@@ -40,28 +43,29 @@ CONST
 	(* special registers *)
 	HwRegister*=-8; (* any value below (or equal) hwreg is a user defined hardware register *)
 	(*! alternative: generate inline assembler *)
-	Result2*=31; (* used for tags such as for variables with delegate procedure type *)
+	(*
+		Result2*=31; (* used for tags such as for variables with delegate procedure type *)
+	*)
 	(*! result2 should be removed ASAP. Can be removed once delegate return types are represented as structured return type
 		we have it here for compatibility with old compiler
 	*)
-	Result*=30; (* result register *)
-	FP*=-3; (* frame pointer *)
-	SP*=-2; (* stack pointer *)
+	(*Result*=30; (* result register *)*)
 	None*=-1; (* no register assigned *)
+	SP*=-2; (* stack pointer *)
+	FP*=-3; (* frame pointer *)
 
 	(* OCProgTools.Enum -e -l=8
-		nop mov conv call enter leave return trap
+		nop mov conv call enter exit leave return result trap
 		br breq brne brge brlt
 		pop push neg not abs
 		mul div  mod sub add and or xor shl shr rol ror
-		copy fillup filldown inline data reserve label NofOpcodes~
+		copy fill asm data reserve label NofOpcodes~
 	*)
-
-	nop*= 0; mov*= 1; conv*= 2; call*= 3; enter*= 4; leave*= 5; return*= 6; trap*= 7;
-	br*= 8; breq*= 9; brne*= 10; brge*= 11; brlt*= 12; pop*= 13; push*= 14; neg*= 15;
-	not*= 16; abs*= 17; mul*= 18; div*= 19; mod*= 20; sub*= 21; add*= 22; and*= 23;
-	or*= 24; xor*= 25; shl*= 26; shr*= 27; rol*= 28; ror*= 29; copy*= 30; fillup *= 31; filldown*= 32; asm*= 33;
-	data*= 34; reserve*= 35; label*=36; NofOpcodes*= 37;
+	nop*= 0; mov*= 1; conv*= 2; call*= 3; enter*= 4; exit*= 5; leave*= 6; return*= 7;
+	result*= 8; trap*= 9; br*= 10; breq*= 11; brne*= 12; brge*= 13; brlt*= 14; pop*= 15;
+	push*= 16; neg*= 17; not*= 18; abs*= 19; mul*= 20; div*= 21; mod*= 22; sub*= 23;
+	add*= 24; and*= 25; or*= 26; xor*= 27; shl*= 28; shr*= 29; rol*= 30; ror*= 31;
+	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; NofOpcodes*= 38;
 
 TYPE
 	Type*=RECORD
@@ -72,7 +76,7 @@ TYPE
 	Operand* = RECORD
 		mode-: SHORTINT; (* Undefined, ModeRegister, ModeImmediate, ModeMemory, ModeNumber or ModeString *)
 		type-: Type; (* size and form *)
-		register-: SHORTINT; (* (virtual) register number, equals None if no register *)
+		register-: LONGINT; (* (virtual) register number, equals None if no register *)
 		offset-: LONGINT; (* offset on register or immediate symbol, in units *)
 		intValue-: HUGEINT; (* integer value, if mode = ModeImmediate and type.form IN Integer *)
 		floatValue-: LONGREAL; (* real value, if mode = ModeImmediate and type.form = Float *)
@@ -98,7 +102,7 @@ TYPE
 	Instruction* = RECORD
 		opcode-: SHORTINT; (* instruction opcode *)
 		pc-: LONGINT; (* backend program counter (in bits) for debugging and for label fixups in backend *)
-		op1-,op2-,op3-: Operand; (* first operand typically provides the result, if any *)
+		op1*,op2*,op3*: Operand; (* first operand typically provides the result, if any *)
 	END;
 
 	InstructionFormat* = RECORD
@@ -177,6 +181,9 @@ TYPE
 
 			IF SameType12 IN instructionFormat[instruction.opcode].flags THEN
 				Assert(TypeEquals(instruction.op1.type,instruction.op2.type),"operands 1 and 2 not of same type");
+			END;
+			IF SameSize12 IN instructionFormat[instruction.opcode].flags THEN
+				Assert(instruction.op1.type.sizeInBits = instruction.op2.type.sizeInBits, "operands 1 and 2 not of same size");
 			END;
 			IF SameType23 IN instructionFormat[instruction.opcode].flags THEN
 				Assert(TypeEquals(instruction.op2.type,instruction.op3.type),"operands 2 and 3 not of  same type");
@@ -270,7 +277,9 @@ TYPE
 
 	END Section;
 
-	VAR instructionFormat-: ARRAY NofOpcodes OF InstructionFormat;
+	VAR
+		instructionFormat-: ARRAY NofOpcodes OF InstructionFormat;
+		int8-, int16-, int32-, int64-, uint8-, uint16-, uint32-, uint64-, float32-, float64-, undef-: Type;
 
 	PROCEDURE Assert(condition: BOOLEAN; CONST reason: ARRAY OF CHAR);
 	BEGIN ASSERT(condition);
@@ -356,16 +365,18 @@ TYPE
 		END;
 	END CheckOperand;
 
-	PROCEDURE DumpRegister*(w: Streams.Writer; reg: SHORTINT);
+	PROCEDURE DumpRegister*(w: Streams.Writer; reg: LONGINT);
 	BEGIN
 		IF reg = SP THEN
 			w.String("$SP")
 		ELSIF reg = FP THEN
 			w.String("$FP")
+		(*
 		ELSIF reg = Result THEN
 			w.String("$Res")
 		ELSIF reg = Result2 THEN
 			w.String("$Res2")
+		*)
 		ELSIF reg > None THEN
 			w.String("$");
 			w.Int(reg,1);
@@ -380,12 +391,11 @@ TYPE
 	BEGIN
 		CASE type.form OF
 			Undefined:
-			|UnsignedInteger: w.String("u");w.Int(type.sizeInBits,1);w.String(" ");
-			|SignedInteger: w.String("s");w.Int(type.sizeInBits,1);w.String(" ");
-			|Float: w.String("f");w.Int(type.sizeInBits,1);w.String(" ");
+			|UnsignedInteger: w.String("u");w.Int(type.sizeInBits,1);
+			|SignedInteger: w.String("s");w.Int(type.sizeInBits,1);
+			|Float: w.String("f");w.Int(type.sizeInBits,1);
 		END;
 	END DumpType;
-
 
 	PROCEDURE DumpOperand*(w: Streams.Writer; CONST operand: Operand; size: BOOLEAN);
 
@@ -422,7 +432,7 @@ TYPE
 
 	BEGIN
 		IF size THEN
-			DumpType(w,operand.type);
+			DumpType(w,operand.type); w.String(" ");
 		END;
 
 		CASE operand.mode OF
@@ -503,17 +513,21 @@ TYPE
 		AddFormat(nop, "nop", Undef, Undef, Undef, {});
 		(* mov dest src - mov content of src to dest, if a third parameter is provided (set to a register),
 			it has no meaning for interpreters or execution but provides a "reuse" hint for register allocators *)
-		AddFormat(mov, "mov", RegMem, RegMemImm, UndefReg, {SameType12,Op1IsDestination});
+		AddFormat(mov, "mov", RegMem, RegMemImm, UndefReg, {SameSize12,Op1IsDestination});
 		(* conv dest src - convert src to dest,  type of conversion derived from type of operands *)
 		AddFormat(conv, "conv", RegMem, RegMemImm, Undef, {Op1IsDestination});
 		(* call adr parSize - procedure call, second operand contains parameter size *)
 		AddFormat(call, "call", RegMemImm, Num, Undef,{});
-		(* enter cc pafSize symbol - set up procedure activation frame;  op1 = calling convention, op2 = paf size, op3 = symbol  *)
+		(* enter cc pafSize - set up procedure activation frame;  op1 = calling convention, op2 = paf size *)
 		AddFormat(enter, "enter", Num, Num, Undef ,{});
-		(* leave cc parSize symbol- remove paf, does not imply return, op1 = calling convention, op2 = symbol  *)
+		(* leave cc - remove paf, does not imply return, op1= calling convention, does not imply exit from procedure *)
 		AddFormat(leave, "leave", Num, Undef, Undef ,{});
-		(* return num - return from procedure, does not imply removal of the procedure avtivation frame, op1 = size of parameters *)
-		AddFormat(return,"return",Num, Undef, Undef,{});
+		(* return value : return value, op1= returned value, if any, does not imply exit from procedure *)
+		AddFormat(return,"return",RegMemImm, Undef, Undef,{});
+		(* exit parSize - exit from procedure *)
+		AddFormat(exit, "exit", Num, Undef, Undef ,{});
+		(* result, store result to operand op1 *)
+		AddFormat(result,"result",RegMem,Undef,Undef,{Op1IsDestination});
 		(* trap num- interrupt*)
 		AddFormat(trap, "trap", Num, Undef, Undef,{});
 		(* br op1 - unconditional branch to op1 *)
@@ -563,9 +577,7 @@ TYPE
 		(* copy dest src size - move a block of size op3 units of memory from [op2] to [op1] *)
 		AddFormat(copy, "copy", RegMemImm, RegMemImm, RegMemImm,{SameType12,SameType23});
 		(* fill dest val size - fill a block of size op2 units of memory from [op1] with value in op3 *)
-		AddFormat(fillup, "fillup", RegMemImm, RegMemImm, RegMemImm,{SameType12});
-		(* fill dest val size - fill a block of size op2 units of memory from [op1] with value in op3 *)
-		AddFormat(filldown, "filldown", RegMemImm, RegMemImm, RegMemImm,{SameType12});
+		AddFormat(fill, "fill", RegMemImm, RegMemImm, RegMemImm,{SameType12});
 		(* asm attribute - asm code contained in attribute *)
 		AddFormat(asm, "asm", Str, Undef, Undef,{});
 		(* data imm - instruction to build up constants or (global) variables *)
@@ -602,16 +614,16 @@ TYPE
 		op.symbolOffset := 0;
 	END InitOperand;
 
-	PROCEDURE InitRegister*(VAR op: Operand; type: Type; register: SHORTINT);
+	PROCEDURE InitRegister*(VAR op: Operand; type: Type; register: LONGINT);
 	BEGIN
-		Assert((register >0) OR (register = SP) OR (register = FP) OR (register = Result) OR (register = Result2) ,"unmapped register number");
+		Assert((register >0) OR (register = SP) OR (register = FP) (* OR (register = Result) OR (register = Result2) *) ,"unmapped register number");
 		InitOperand(op);
 		op.mode := ModeRegister;
 		op.type := type;
 		op.register := register;
 	END InitRegister;
 
-	PROCEDURE Register*(type: Type; register: SHORTINT): Operand;
+	PROCEDURE Register*(type: Type; register: LONGINT): Operand;
 	VAR op: Operand;
 	BEGIN InitRegister(op,type,register); RETURN op
 	END Register;
@@ -641,6 +653,7 @@ TYPE
 		Assert((op.mode = ModeRegister) OR (op.mode = ModeMemory) OR (op.mode = ModeImmediate) & (op.type.form = UnsignedInteger) ,"operand mode not of register or unsigned integer immediate");
 		op.type := type;
 		op.mode := ModeMemory;
+		ASSERT(op.register # 0);
 	END MakeMemory;
 
 	PROCEDURE InitAddress*(VAR op: Operand; type: Type; symbol: Sections.Section; symbolOffset: LONGINT);
@@ -714,6 +727,11 @@ TYPE
 	BEGIN InitType(type,form,sizeInBits); RETURN type
 	END NewType;
 
+	PROCEDURE SetType*(VAR op: Operand; CONST type: Type);
+	BEGIN op.type := type
+	END SetType;
+
+
 	PROCEDURE FindMnemonic*(CONST name: ARRAY OF CHAR): LONGINT;
 	VAR i: LONGINT;
 	BEGIN
@@ -724,6 +742,12 @@ TYPE
 		END;
 		RETURN None;
 	END FindMnemonic;
+
+	PROCEDURE SetRegister*(VAR op: Operand; reg: LONGINT);
+	BEGIN
+		op.register := reg; ASSERT(reg # 0);
+	END SetRegister;
+
 
 	PROCEDURE FindRegister*(CONST name: ARRAY OF CHAR): LONGINT;
 	VAR i,nr: LONGINT;
@@ -740,8 +764,10 @@ TYPE
 	BEGIN
 		IF name = "SP" THEN RETURN SP
 		ELSIF name = "FP" THEN RETURN FP
+		(*
 		ELSIF name ="Res" THEN RETURN Result
 		ELSIF name ="Res2" THEN RETURN Result2
+		*)
 		ELSIF name[0] = "$" THEN
 			nr := 0; i := 1;
 			WHILE (i < LEN(name)) & (name[i]#0X) & Number(name[i]) DO
@@ -755,4 +781,15 @@ TYPE
 
 BEGIN
 	InitInstructions;
+	InitType(int8, SignedInteger,8);
+	InitType(int16, SignedInteger,16);
+	InitType(int32, SignedInteger,32);
+	InitType(int64, SignedInteger,64);
+	InitType(uint8, UnsignedInteger,8);
+	InitType(uint16, UnsignedInteger,16);
+	InitType(uint32, UnsignedInteger,32);
+	InitType(uint64, UnsignedInteger,64);
+	InitType(float32, Float,32);
+	InitType(float64, Float,64);
+	InitType(undef, Undefined,0);
 END OCIntermediateCode.
