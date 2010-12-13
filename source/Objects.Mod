@@ -1129,25 +1129,25 @@ BEGIN
 	IF VeryConservative THEN
 		Machine.Fill32(t.stack.adr, sp-t.stack.adr, SHORT(0D0D0DEADH))
 	END;
-	SYSTEM.PUT (sp-4, type);	(* typetag parameter for body *)
-	SYSTEM.PUT (sp-8, obj); (* self parameter for body *)
-	SYSTEM.PUT (sp-12, terminate); (* return address for body *)
+	SYSTEM.PUT (sp-1*AddressSize, type);	(* typetag parameter for body *)
+	SYSTEM.PUT (sp-2*AddressSize, obj); (* self parameter for body *)
+	SYSTEM.PUT (sp-3*AddressSize, terminate); (* return address for body *)
 		(* the following will be popped by SwitchTo exit code or Machine.JumpToUserLevel *)
-	(*SYSTEM.PUT (sp-16, NIL);*)	(* parameter for SwitchTo (ADR(running)) *)
-	(*SYSTEM.PUT (sp-20, NIL);*)	(* parameter for SwitchTo (new) *)
-	SYSTEM.PUT (sp-24, body); (* return address for SwitchTo (body entry point) *)
-	SYSTEM.PUT (sp-28, NIL);	(* end of dynamic link list (FP value at entry to body) *)
+	(*SYSTEM.PUT (sp-4*AddressSize, NIL);*)	(* parameter for SwitchTo (ADR(running)) *)
+	(*SYSTEM.PUT (sp-5*AddressSize, NIL);*)	(* parameter for SwitchTo (new) *)
+	SYSTEM.PUT (sp-6*AddressSize, body); (* return address for SwitchTo (body entry point) *)
+	SYSTEM.PUT (sp-7*AddressSize, NIL);	(* end of dynamic link list (FP value at entry to body) *)
 	t.sseAdr := SYSTEM.ADR(t.sse) + ((-SYSTEM.ADR(t.sse)) MOD 16);
 	IF Machine.SSESupport THEN Machine.SSESaveMin(t.sseAdr)
 	ELSE Machine.FPUSaveMin(t.sse)	(* inherit FPU state of caller *)
 	END;
-	t.state.BP := sp-28;
+	t.state.BP := sp-7*AddressSize;
 	t.state.SP := t.state.BP;
 	t.state.PC := 0; (* indicating that process is not running yet *)
 	(* set up exception handling *)
 	IF Restart IN flags THEN	(* restart object body *)
 		t.restartPC := SYSTEM.VAL (SYSTEM.ADDRESS, body);
-		t.restartSP := sp-12	(* 2 parameters and return address of body *)
+		t.restartSP := sp-3*AddressSize	(* 2 parameters and return address of body *)
 	ELSE (* terminate process *)
 		t.restartPC := SYSTEM.VAL (SYSTEM.ADDRESS, terminate);
 		t.restartSP := sp
