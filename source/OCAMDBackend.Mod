@@ -2511,7 +2511,7 @@ TYPE
 					Global.SetDefaultDeclarations(system,8);
 					Global.SetDefaultOperators(system);
 				ELSE
-					NEW(system,8,64,8,64,64,64,128);
+					NEW(system,8,64,8,32,64,64,128);
 					Global.SetDefaultDeclarations(system,8);
 					Global.SetDefaultOperators(system);
 				END;
