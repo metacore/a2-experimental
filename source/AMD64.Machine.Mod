@@ -246,7 +246,7 @@ TYPE
 
 	HandlerRec = RECORD
 		valid: BOOLEAN;	(* offset 0 *)
-		handler: Handler	(* offset 8 *)
+		handler: Handler	(* offset 4 *)
 	END;
 
 	GateDescriptor = RECORD
@@ -2636,13 +2636,13 @@ loop:	; call all handlers for the interrupt
 	PUSH RAX	; save ptr for table
 	PUSH RDX	; TAG(state)
 	PUSH RCX	; ADR(state)
-	MOV RBX, [RAX + 16]	; check for delegate
+	MOV RBX, [RAX + 12]	; check for delegate
 	CMP RBX, 0
 	JE nodelegate
 	PUSH RBX	; object pointer for DELEGATE
 
 nodelegate:
-	CALL QWORD [RAX+8]	; call handler
+	CALL QWORD [RAX+4]	; call handler
 	CLI	; handler may have re-enabled interrupts
 	POP RAX
 	ADD RAX, SizeOfHandlerRec
@@ -2675,6 +2675,7 @@ nodelegate:
 END FieldInterrupt;
 
 PROCEDURE {NOPAF} FieldIRQ;
+CONST SizeOfHandlerRec = SYSTEM.SIZEOF(HandlerRec);
 CODE {SYSTEM.AMD64}
 entry:
 
@@ -2704,9 +2705,11 @@ entry:
 
 	MOV RBX, [RSP + 128]	; RBX = int number
 
+	IMUL RBX, RBX, MaxNumHandlers
+	IMUL RBX, RBX, SizeOfHandlerRec
 	; todo: replace LEA by MOV when compiler supports this
-	LEA RAX, intHandler	; first handler in intHandler array
-	MOV RAX, [RBX*8 + RAX]	; handler for int number in intHandler array
+	LEA RAX, intHandler
+	ADD RAX, RBX		; address of intHandler[int, 0]
 
 	; todo: replace LEA by MOV when compiler supports this
 	LEA RDX, stateTag
@@ -2716,17 +2719,18 @@ loop:	; call all handlers for the interrupt
 	PUSH RAX	; save ptr for linked list
 	PUSH RDX	; TAG(state)
 	PUSH RCX	; ADR(state)
-	MOV RBX, [RAX + 16]	; check for delegate
+	MOV RBX, [RAX + 12]	; check for delegate
 	CMP RBX, 0
 	JE nodelegate
 	PUSH RBX	; object pointer for DELEGATE
 
 nodelegate:
-	CALL QWORD [RAX + 8]	; call handler
+	CALL QWORD [RAX + 4]	; call handler
 	CLI	; handler may have re-enabled interrupts
 	POP RAX
-	MOV RAX, [RAX]
-	CMP RAX, 0
+	ADD RAX, SizeOfHandlerRec
+	MOV RBX, [RAX]
+	CMP RBX, 0
 	JNE loop
 
 ;;	PUSH 32[ESP]	; int number
@@ -3924,7 +3928,7 @@ BEGIN
 	ReadBootTable(bootFlag);
 
 	InitTrace;
-	Trace.String("XMachine: "); Trace.Blue;Trace.StringLn (Version); Trace.Default;
+	Trace.String("Machine: "); Trace.Blue;Trace.StringLn (Version); Trace.Default;
 
 	CheckMemory;
 	SearchMP;
