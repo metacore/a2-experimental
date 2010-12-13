@@ -2334,7 +2334,7 @@ VAR
 		EndMnemonic(opIRETD, 520);
 
 		StartMnemonic(opIRETQ, "IRETQ", 521);
-		AddInstruction(521, none, none, none, "CF", {}, {cpuAMD64});
+		AddInstruction(521, none, none, none, "CF", {optO64}, {cpuAMD64});
 		EndMnemonic(opIRETQ, 521);
 
 		StartMnemonic(opJA, "JA", 522);
