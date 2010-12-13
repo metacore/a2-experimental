@@ -2614,7 +2614,7 @@ entry:
 
 loop:					; call all handlers for the interrupt
 	MOV ECX, ESP
-	PUSH EAX			; save ptr for linked list
+	PUSH EAX			; save ptr for table
 	PUSH stateTag		; TAG(state)
 	PUSH ECX			; ADR(state)
 	MOV EBX, [EAX+8]

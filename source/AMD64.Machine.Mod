@@ -2273,11 +2273,11 @@ CODE {SYSTEM.AMD64, SYSTEM.Privileged}
 	PUSH User64CodeSel	; CS3
 	CALL DWORD L1	; PUSH L1 (RIP3)
 L1:
-	ADD QWORD [RSP],  L2 - L1	; adjust RIP3 to L2 (L2-L1 = 8)
+	ADD QWORD [RSP], BYTE 7	; adjust RIP3 to L2 (L2-L1 should be 7)
 	IRETQ	; switch to level 3 and continue at following instruction
 L2:
 	POP RBP	; from level 3 stack (refer to AosActive.NewProcess)
-	RET 16	; jump to body of first active object
+	RET 16	; jump to body of first active object; cf. Objects.NewProcess
 END JumpToUserLevel;
 
 (* should ensure that a given address can be represented in the legacy 4GB address space
@@ -2596,6 +2596,7 @@ END GetExceptionState;
 *)
 
 PROCEDURE {NOPAF} FieldInterrupt;
+CONST SizeOfHandlerRec = SYSTEM.SIZEOF(HandlerRec);
 CODE {SYSTEM.AMD64, SYSTEM.Privileged}
 entry:
 
@@ -2620,16 +2621,19 @@ entry:
 
 	LEA RBP, [RSP + 136]
 	MOV RBX, [RSP + 128]	; RBX = int number
+	
+	IMUL RBX, RBX, MaxNumHandlers
+	IMUL RBX, RBX, SizeOfHandlerRec
 	; todo: replace LEA by MOV when compiler supports this
-	LEA RAX, intHandler	; first handler in intHandler array
-	MOV RAX, [RBX*8 + RAX]	; handler for int number in intHandler array
+	LEA RAX, intHandler
+	ADD RAX, RBX		; address of intHandler[int, 0]
 
 	; todo: replace LEA by MOV when compiler supports this
 	LEA RDX, stateTag
 
 loop:	; call all handlers for the interrupt
 	MOV RCX, RSP
-	PUSH RAX	; save ptr for linked list
+	PUSH RAX	; save ptr for table
 	PUSH RDX	; TAG(state)
 	PUSH RCX	; ADR(state)
 	MOV RBX, [RAX + 16]	; check for delegate
@@ -2638,11 +2642,12 @@ loop:	; call all handlers for the interrupt
 	PUSH RBX	; object pointer for DELEGATE
 
 nodelegate:
-	CALL QWORD [RAX + 8]	; call handler
+	CALL QWORD [RAX+8]	; call handler
 	CLI	; handler may have re-enabled interrupts
 	POP RAX
-	MOV RAX, [RAX]
-	CMP RAX, 0
+	ADD RAX, SizeOfHandlerRec
+	MOV RBX, [RAX]
+	CMP RBX, 0
 	JNE loop
 
 	; fake POPAD (not available in 64-bit mode)
@@ -3919,7 +3924,7 @@ BEGIN
 	ReadBootTable(bootFlag);
 
 	InitTrace;
-	Trace.String("Machine: "); Trace.Blue;Trace.StringLn (Version); Trace.Default;
+	Trace.String("XMachine: "); Trace.Blue;Trace.StringLn (Version); Trace.Default;
 
 	CheckMemory;
 	SearchMP;
