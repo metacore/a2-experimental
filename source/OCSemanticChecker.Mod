@@ -1620,14 +1620,15 @@ TYPE
 
 				IF elementResult # SyntaxTree.invalidExpression THEN
 					IF IsIntegerValue(left,leftInteger) & IsIntegerValue(right,rightInteger) THEN
-						IF (leftInteger<0) OR (leftInteger > MAX(SET)) THEN
+						IF (leftInteger<0) OR (leftInteger >= system.setType.sizeInBits) THEN
 							Error(left.position,Diagnostics.Invalid,"not allowed set integer value");
-							IF (rightInteger<0) OR (rightInteger > MAX(SET)) THEN
+							IF (rightInteger<0) OR (rightInteger  >= system.setType.sizeInBits) THEN
 								Error(right.position,Diagnostics.Invalid,"not allowed set integer value");
 							END
-						ELSIF (rightInteger<0) OR (rightInteger > MAX(SET)) THEN
+						ELSIF (rightInteger<0) OR (rightInteger >= system.setType.sizeInBits) THEN
 							Error(right.position,Diagnostics.Invalid,"not allowed set integer value");
 						ELSE
+							IF rightInteger > MAX(SET) THEN rightInteger := MAX(SET) END; (*!!!!!!!!! this is a hack !!!!!!! *)
 							s := s + {leftInteger..rightInteger};
 							(* same but more explicit:
 							WHILE (leftInteger <= rightInteger) DO
@@ -4257,7 +4258,7 @@ TYPE
 				ELSIF ((id = Global.Excl) OR (id = Global.Incl)) & Parameters(2,2) THEN
 					IF CheckVariable(parameter0) & CheckSetType(parameter0) & CheckIntegerType(parameter1) THEN
 						IF IsIntegerValue(parameter1,i0) THEN
-							IF (i0 < MIN(SET)) OR (i0>MAX(SET)) THEN
+							IF (i0 < 0) OR (i0>= system.setType.sizeInBits) THEN
 								Error(position,Diagnostics.Invalid,"parameter out of SET range")
 							END;
 						END;
@@ -7004,6 +7005,8 @@ TYPE
 			ELSIF to IS SyntaxTree.BasicType THEN
 				IF (to IS SyntaxTree.NumberType) & (this IS SyntaxTree.NumberType) THEN
 					result := Global.BasicTypeDistance(system,this(SyntaxTree.BasicType),to(SyntaxTree.BasicType)) < Infinity;
+				ELSIF (to IS SyntaxTree.SetType) & (this IS SyntaxTree.SetType) THEN
+					result := to.sizeInBits = this.sizeInBits;
 				ELSIF (to IS SyntaxTree.IntegerType) & (this IS SyntaxTree.AddressType) THEN
 					result := to.sizeInBits >= this.sizeInBits; (* weak compatibility: (unsigned) address may be assigned to signed integer of same (or greater) size *)
 				ELSIF (to IS SyntaxTree.IntegerType) & (this IS SyntaxTree.SizeType) THEN

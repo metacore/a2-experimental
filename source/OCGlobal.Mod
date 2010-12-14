@@ -95,7 +95,6 @@ VAR
 
 	(* some handy type variables for backend / checker implementers *)
 	Boolean8, Boolean32: SyntaxTree.BooleanType;
-	Set32: SyntaxTree.SetType;
 	Integer8-, Integer16-, Integer32-, Integer64-: SyntaxTree.IntegerType;
 	Character8-, Character16-, Character32-: SyntaxTree.CharacterType;
 	Float32-, Float64-: SyntaxTree.FloatType;
@@ -190,7 +189,7 @@ TYPE
 			RETURN ~error
 		END GenerateRecordOffsets;
 		*)
-		
+
 		PROCEDURE GenerateRecordOffsets*(x: SyntaxTree.RecordType): BOOLEAN; (* normally done in checker but the binary symbol file format makes this necessary *)
 		VAR baseType: SyntaxTree.RecordType; offset,size: LONGINT; alignment: LONGINT; variable: SyntaxTree.Variable;
 		BEGIN
@@ -263,9 +262,9 @@ TYPE
 			END;
 			RETURN ~error
 		END GenerateVariableOffsets;
-		
+
 		*)
-		
+
 		PROCEDURE GenerateVariableOffsets*(scope: SyntaxTree.Scope): BOOLEAN;
 		VAR variable: SyntaxTree.Variable; offset,size: LONGINT; alignment: LONGINT; parameterOffset :LONGINT;
 		BEGIN
@@ -349,7 +348,7 @@ TYPE
 			RETURN ~error
 		END GenerateParameterOffsets;
 		*)
-		
+
 				PROCEDURE GenerateParameterOffsets*(procedure : SyntaxTree.Procedure; nestedProcedure: BOOLEAN): BOOLEAN;
 		VAR offset,size: LONGINT;parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType;
 		BEGIN
@@ -390,7 +389,7 @@ TYPE
 			procedureType.SetParameterOffset(offset);
 			RETURN TRUE
 		END GenerateParameterOffsets;
-		
+
 
 
 		(*
@@ -489,7 +488,7 @@ TYPE
 		END SizeOf;
 		*)
 
-		(* OLIVIER *)	
+		(* OLIVIER *)
 		PROCEDURE SizeOf*(type: SyntaxTree.Type): LONGINT;
 		VAR size: LONGINT;
 		BEGIN
@@ -670,7 +669,7 @@ TYPE
 		system.hugeintType := Integer64;
 		system.realType := Float32;
 		system.longrealType := Float64;
-		system.setType := Set32;
+
 
 		IF minBits = 32 THEN
 			system.shortintType := Integer32;
@@ -694,7 +693,7 @@ TYPE
 		system.addressType := SyntaxTree.NewAddressType(system.addressSize);
 		system.sizeType := SyntaxTree.NewSizeType(system.addressSize);
 		system.arrayRangeType := SyntaxTree.NewArrayRangeType(3 * system.SizeOf(system.longintType)); (* OLIVIER *)
-
+		system.setType := SyntaxTree.NewSetType(system.addressSize);
 		(* type declarations *)
 		DeclareType(system.byteType,"BYTE",system.systemScope);
 		DeclareType(system.addressType,"ADDRESS",system.systemScope); (* mapped to longint *)
@@ -1242,7 +1241,6 @@ TYPE
 		(* types *)
 		Boolean8 := SyntaxTree.NewBooleanType(8);
 		Boolean32 := SyntaxTree.NewBooleanType(32);
-		Set32 := SyntaxTree.NewSetType(32);
 		Integer8 := SyntaxTree.NewIntegerType(8, TRUE);
 		Integer16 := SyntaxTree.NewIntegerType(16, TRUE);
 		Integer32 := SyntaxTree.NewIntegerType(32, TRUE);
