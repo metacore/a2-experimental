@@ -591,9 +591,9 @@ END Yield;
 PROCEDURE SwitchToState(new: Process; VAR state: Machine.State);
 BEGIN
 	(* simulate return from SwitchTo - MOV ESP, EBP; POP EBP; RET 8 *)
-	state.SP := new.state.BP+16;	(* +16 is effect of POP, RET *)
+	state.SP := new.state.BP+AddressSize*4;	(* AddressSize*4 is effect of POP, RET AddressSize*2 *)
 	SYSTEM.GET (new.state.BP, state.BP);	(* effect of POP *)
-	SYSTEM.GET (new.state.BP + 4, state.PC);	(* effect of RET *)
+	SYSTEM.GET (new.state.BP + AddressSize, state.PC);	(* effect of RET *)
 END SwitchToState;
 
 (** Preempt the current process. *)
