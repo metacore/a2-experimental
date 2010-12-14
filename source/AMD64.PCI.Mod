@@ -61,14 +61,14 @@ MODULE PCI;	(** non-portable *)
 		pci: BOOLEAN;
 		pciEntry: SYSTEM.ADDRESS;
 
-	PROCEDURE -BiosServiceDirectory(sadr: SYSTEM.ADDRESS; sid, fsel: LONGINT; VAR badr: SYSTEM.ADDRESS; VAR len, entry: LONGINT): CHAR;
+	PROCEDURE BiosServiceDirectory(sadr: SYSTEM.ADDRESS; sid, fsel: LONGINT; VAR badr: SYSTEM.ADDRESS; VAR len, entry: LONGINT): CHAR;
 	CODE {SYSTEM.AMD64}
 		MOV EAX, [RBP + sid]
 		MOV EBX, [RBP + fsel]
 
-		PUSH QWORD [RBP + entry]
-		MOV [RSP + 4], WORD 3*8
-		DB 0FFH, 01CH, 024h
+		PUSH QWORD [RBP + sadr]
+		MOV WORD [RSP + 4], 3*8
+		DB 0FFH, 01CH, 024h ; CALL FAR [RSP]
 
 		MOV R8, [RBP + badr]
 		MOV [R8], RBX
@@ -127,7 +127,7 @@ MODULE PCI;	(** non-portable *)
 		END
 	END DetectBios32;
 
-		PROCEDURE -pcicall(entry:SYSTEM.ADDRESS; VAR peax,pebx,pecx,pedx,pesi,pedi:LONGINT; VAR eflags: SET);
+		PROCEDURE pcicall(entry:SYSTEM.ADDRESS; VAR peax,pebx,pecx,pedx,pesi,pedi:LONGINT; VAR eflags: SET);
 		CODE {SYSTEM.AMD64}
 			MOV R8, [RBP + peax]
 			MOV EAX, [R8]
@@ -143,8 +143,8 @@ MODULE PCI;	(** non-portable *)
 			MOV EDI, [R8]
 
 			PUSH QWORD [RBP + entry]
-			MOV [RSP + 4], WORD 3*8
-			DB 0FFH, 01CH, 024h
+			MOV WORD [RSP + 4], 3*8
+			DB 0FFH, 01CH, 024h; FAR CALL [RSP]
 
 			PUSHFQ
 			MOV R8, [RBP + peax]
