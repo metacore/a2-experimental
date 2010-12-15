@@ -2,7 +2,7 @@ MODULE Release; (** AUTHOR "staubesv"; PURPOSE "Release build tool"; *)
 (**
  * WORKAROUND: FOR NOW, SUPPORT BOTH PACO AND OC. SUPPORT FOR PACO WILL BE REMOVED ONCE OC WORKS STABLE!
  *
- * PACO is used as default compiler. If the option -y is set, the OC compiler is used.
+ * OC is used as default compiler. If the option -y is set, PACO is used.
  *
  * Usage:
  *
@@ -590,7 +590,7 @@ TYPE
 					Strings.TrimWS(string);
 					excludedPackages := Strings.Split(string, " ");
 				END;
-				usePACO := ~options.GetFlag("y");
+				usePACO := options.GetFlag("y");
 			END;
 		END SetOptions;
 
@@ -1192,7 +1192,7 @@ TYPE
 				IF path # "" THEN Strings.Append(options, " \P"); Strings.Append(options, path) END;
 			ELSE
 				IF target # "" THEN
-					IF (target = "386") THEN target := "AMD64"; END;
+					IF (target = "386") THEN target := "AMD"; END;
 					Strings.Append(options, " -b="); Strings.Append(options, target);
 				END;
 				IF extension # "" THEN
