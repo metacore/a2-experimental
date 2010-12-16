@@ -777,7 +777,7 @@ TYPE
 					HALT(99);
 				END;
 				entry := data(WMDiagnostics.CellInfo).entry;
-				IF (entry.pos # NIL) & (LEN(entry.pos) = 2) THEN
+				IF (entry.pos # NIL) & (LEN(entry.pos) = 2) & (entry.pos[index] # NIL) THEN
 					focusEditor.tv.selection.SetFromTo(0, 0);
 					focusEditor.tv.cursor.SetPosition(entry.pos[index].GetPosition());
 					focusEditor.SetFocus;
