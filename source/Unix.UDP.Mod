@@ -49,7 +49,7 @@ TYPE
 
 
 				(** Constructor *)
-				PROCEDURE & Open( lport: LONGINT;  VAR res: LONGINT );
+				PROCEDURE & Open*( lport: LONGINT;  VAR res: LONGINT );
 				VAR laddr: B.SocketAdr;
 				BEGIN
 					ASSERT( (lport >= 0) & (lport < 10000H) );

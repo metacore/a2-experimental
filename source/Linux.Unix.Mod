@@ -230,7 +230,8 @@ TYPE
 
 
 VAR
-	argc-: LONGINT;  argv-: LONGINT;
+	argc-: LONGINT;  argv-: Address;
+	aargc: Address;
 
 	sysinfo-: RECORD
 				sysname-, nodename-, release-, version-, machine-: ARRAY 65 OF CHAR;
@@ -394,7 +395,8 @@ VAR
 	END getSysinfo;
 
 BEGIN
-	Dlsym( 0, "argc", argc );  Dlsym( 0, "argv", argv );
+	Dlsym( 0, "argc", aargc );  argc := aargc;
+	Dlsym( 0, "argv", argv );
 
 	libraryPaths[0] := "/lib32";
 	libraryPaths[1] := "/usr/lib32";

@@ -66,7 +66,7 @@ TYPE
 
 
 
-				PROCEDURE & Init( addr: Adr );
+				PROCEDURE & Init*( addr: Adr );
 				BEGIN
 					localAdr := addr;
 					name := "dummy";

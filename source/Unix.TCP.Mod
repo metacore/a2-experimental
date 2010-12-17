@@ -55,7 +55,7 @@ TYPE
 				
 				(* Initialization for internal use only. *)
 
-				PROCEDURE & Init;
+				PROCEDURE & Init*;
 				BEGIN
 					state := Unused;
 				END Init;
