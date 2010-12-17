@@ -74,7 +74,7 @@ TYPE
 					received := pos;   (* this effects that AosIO.Reader.Pos() returns the correct location in the file *)
 				END SetPos;
 
-				PROCEDURE & InitFileReader( f: File;  pos: LONGINT );
+				PROCEDURE & InitFileReader*( f: File;  pos: LONGINT );
 				BEGIN
 					ASSERT( f # NIL );
 					file := f;  file.Set( r, pos );
@@ -112,7 +112,7 @@ TYPE
 					Update;  RETURN file.Pos( r )
 				END Pos;
 
-				PROCEDURE & InitFileWriter( f: File;  pos: LONGINT );
+				PROCEDURE & InitFileWriter*( f: File;  pos: LONGINT );
 				BEGIN
 					ASSERT( f # NIL );
 					file := f;  file.Set( r, pos );
