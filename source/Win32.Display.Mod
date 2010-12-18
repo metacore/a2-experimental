@@ -1064,6 +1064,9 @@ VAR
 	VAR ts: ARRAY 16 OF CHAR;
 		res: LONGINT;  create: CreateStruct;  win: Window;  hMenu: User32.HMenu;  x, y: LONGINT;
 	VAR border: LONGINT;  rect: User32.Rect;   (*ALEX 2005.11.30*)
+	
+		hDC: User32.HDC;
+		
 	CONST SMCYMaximized = 62;  SMCXMaximized = 61;
 	BEGIN
 		IF disp = NIL THEN
@@ -1136,6 +1139,11 @@ VAR
 
 			User32.BringWindowToTop( root.hWnd );  User32.SetForegroundWindow( root.hWnd );
 		END;
+		
+		hDC := User32.GetDC(0);
+		disp.unit := GDI32.GetDeviceCaps(hDC,GDI32.LogPixelsX);
+		disp.unit := ENTIER((36000.0*disp.unit)/25.4);
+		User32.ReleaseDC(0,hDC);
 	END DoInstall;
 
 	PROCEDURE Install*(context : Commands.Context); (** ["H"] [ width [height] ] ["FULLSCREEN"] [ x [y] ] *)
