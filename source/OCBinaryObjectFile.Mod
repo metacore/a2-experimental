@@ -1678,25 +1678,59 @@ TYPE
 				END;
 			END RecordType;
 
-			PROCEDURE ArrayType(type: SyntaxTree.ArrayType);
+			PROCEDURE StaticArrayLength(type: SyntaxTree.ArrayType; VAR baseType: SyntaxTree.Type): LONGINT;
 			BEGIN
-				IF type.arrayBase.resolved IS SyntaxTree.ArrayType THEN 	w.Char(CHR(ORD(rfPointer)+ORD(rfArrayFlag)));
-				ELSE BaseType(TRUE,type.arrayBase.resolved)
-				END;
+				baseType := type.arrayBase.resolved;
 				IF type.form = SyntaxTree.Static THEN
-					w.RawNum(type.staticLength)
+					IF baseType IS SyntaxTree.ArrayType THEN
+						RETURN type.staticLength * StaticArrayLength(baseType(SyntaxTree.ArrayType),baseType)
+					ELSE
+						RETURN 1
+					END
+				ELSE
+					RETURN -1
+				END;
+			END StaticArrayLength;
+
+			PROCEDURE ArrayType(type: SyntaxTree.ArrayType);
+			VAR length: LONGINT; baseType: SyntaxTree.Type;
+			BEGIN
+				length := StaticArrayLength(type, baseType);
+				IF baseType IS SyntaxTree.ArrayType THEN
+					w.Char(CHR(ORD(rfPointer)+ORD(rfArrayFlag)));
+				ELSE BaseType(TRUE,baseType)
+				END;
+				IF length >= 0 THEN
+					w.RawNum(length)
 				ELSE
 					w.RawNum(0)
 				END;
 			END ArrayType;
 
-			PROCEDURE MathArrayType(type: SyntaxTree.MathArrayType);
+			PROCEDURE StaticMathArrayLength(type: SyntaxTree.MathArrayType; VAR baseType: SyntaxTree.Type): LONGINT;
 			BEGIN
-				IF type.arrayBase.resolved IS SyntaxTree.MathArrayType THEN 	w.Char(CHR(ORD(rfPointer)+ORD(rfArrayFlag)));
-				ELSE BaseType(TRUE,type.arrayBase.resolved)
-				END;
+				baseType := type.arrayBase.resolved;
 				IF type.form = SyntaxTree.Static THEN
-					w.RawNum(type.staticLength)
+					IF baseType IS SyntaxTree.MathArrayType THEN
+						RETURN type.staticLength * StaticMathArrayLength(baseType(SyntaxTree.MathArrayType),baseType)
+					ELSE
+						RETURN 1
+					END
+				ELSE
+					RETURN -1
+				END;
+			END StaticMathArrayLength;
+
+			PROCEDURE MathArrayType(type: SyntaxTree.MathArrayType);
+			VAR length: LONGINT; baseType: SyntaxTree.Type;
+			BEGIN
+				length := StaticMathArrayLength(type, baseType);
+				IF baseType IS SyntaxTree.MathArrayType THEN
+					w.Char(CHR(ORD(rfPointer)+ORD(rfArrayFlag)));
+				ELSE BaseType(TRUE,baseType)
+				END;
+				IF length >= 0 THEN
+					w.RawNum(length)
 				ELSE
 					w.RawNum(0)
 				END;
