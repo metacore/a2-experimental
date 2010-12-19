@@ -1615,7 +1615,7 @@ TYPE
 
 		VAR start: LONGINT; s: Sections.Section;
 
-			PROCEDURE BaseType(arrayOf: BOOLEAN; type: SyntaxTree.Type);
+			PROCEDURE BaseType(type: SyntaxTree.Type): CHAR;
 			VAR char: CHAR;
 			BEGIN
 				IF type  IS SyntaxTree.ByteType THEN char := rfByte
@@ -1625,13 +1625,12 @@ TYPE
 					ELSIF type.sizeInBits = 16 THEN char := rfChar16
 					ELSIF type.sizeInBits = 32 THEN char := rfChar32
 					END;
-				ELSIF type IS SyntaxTree.IntegerType THEN
+				ELSIF (type IS SyntaxTree.IntegerType) OR (type IS SyntaxTree.AddressType) OR (type IS SyntaxTree.SizeType) THEN
 					IF type.sizeInBits = 8 THEN char := rfShortint
 					ELSIF type.sizeInBits = 16 THEN char := rfInteger
 					ELSIF type.sizeInBits = 32 THEN char := rfLongint
 					ELSIF type.sizeInBits =64 THEN char := rfHugeint
 					END;
-				ELSIF type IS SyntaxTree.AddressType THEN char := rfLongint
 				ELSIF type IS SyntaxTree.SizeType THEN char := rfLongint
 				ELSIF type IS SyntaxTree.FloatType THEN
 					IF type.sizeInBits = 32 THEN char := rfReal
@@ -1643,14 +1642,9 @@ TYPE
 				ELSIF type IS SyntaxTree.PointerType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.ProcedureType THEN char := rfDelegate
 				ELSIF type IS SyntaxTree.ArrayRangeType THEN char := rfRange
-				ELSE ASSERT(arrayOf); char := rfPointer; (*RETURN (* ARRAY OF unknown (record): do not write anything *)*)
+				ELSE char := rfPointer; (*RETURN (* ARRAY OF unknown (record): do not write anything *)*)
 				END;
-				IF arrayOf THEN
-					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
-				ELSE
-					w.Char(char)
-				END;
-
+				RETURN char
 			END BaseType;
 
 			PROCEDURE RecordType(type: SyntaxTree.RecordType);
@@ -1685,26 +1679,20 @@ TYPE
 					IF baseType IS SyntaxTree.ArrayType THEN
 						RETURN type.staticLength * StaticArrayLength(baseType(SyntaxTree.ArrayType),baseType)
 					ELSE
-						RETURN 1
+						RETURN type.staticLength
 					END
 				ELSE
-					RETURN -1
+					RETURN 0
 				END;
 			END StaticArrayLength;
 
 			PROCEDURE ArrayType(type: SyntaxTree.ArrayType);
-			VAR length: LONGINT; baseType: SyntaxTree.Type;
+			VAR length: LONGINT; baseType: SyntaxTree.Type; char: CHAR;
 			BEGIN
 				length := StaticArrayLength(type, baseType);
-				IF baseType IS SyntaxTree.ArrayType THEN
-					w.Char(CHR(ORD(rfPointer)+ORD(rfArrayFlag)));
-				ELSE BaseType(TRUE,baseType)
-				END;
-				IF length >= 0 THEN
-					w.RawNum(length)
-				ELSE
-					w.RawNum(0)
-				END;
+				char := BaseType(baseType);
+				w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
+				w.RawNum(length)
 			END ArrayType;
 
 			PROCEDURE StaticMathArrayLength(type: SyntaxTree.MathArrayType; VAR baseType: SyntaxTree.Type): LONGINT;
@@ -1714,26 +1702,20 @@ TYPE
 					IF baseType IS SyntaxTree.MathArrayType THEN
 						RETURN type.staticLength * StaticMathArrayLength(baseType(SyntaxTree.MathArrayType),baseType)
 					ELSE
-						RETURN 1
+						RETURN type.staticLength
 					END
 				ELSE
-					RETURN -1
+					RETURN 0
 				END;
 			END StaticMathArrayLength;
 
 			PROCEDURE MathArrayType(type: SyntaxTree.MathArrayType);
-			VAR length: LONGINT; baseType: SyntaxTree.Type;
+			VAR length: LONGINT; baseType: SyntaxTree.Type; char: CHAR;
 			BEGIN
 				length := StaticMathArrayLength(type, baseType);
-				IF baseType IS SyntaxTree.MathArrayType THEN
-					w.Char(CHR(ORD(rfPointer)+ORD(rfArrayFlag)));
-				ELSE BaseType(TRUE,baseType)
-				END;
-				IF length >= 0 THEN
-					w.RawNum(length)
-				ELSE
-					w.RawNum(0)
-				END;
+				char := rfPointer;
+				w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
+				w.RawNum(length)
 			END MathArrayType;
 
 			PROCEDURE Type(type: SyntaxTree.Type);
@@ -1741,21 +1723,21 @@ TYPE
 				IF type = NIL THEN w.Char(0X); RETURN ELSE type := type.resolved END;
 
 				IF type IS SyntaxTree.BasicType THEN
-					BaseType(FALSE,type)
+					w.Char(BaseType(type))
 				ELSIF type IS SyntaxTree.RecordType THEN
 					RecordType(type(SyntaxTree.RecordType));
 				ELSIF type IS SyntaxTree.ArrayType THEN
 					ArrayType(type(SyntaxTree.ArrayType))
 				ELSIF type IS SyntaxTree.EnumerationType THEN
-					BaseType(FALSE,module.system.longintType)
+					w.Char(BaseType(module.system.longintType))
 				ELSIF type IS SyntaxTree.PointerType THEN
 					IF type(SyntaxTree.PointerType).pointerBase IS SyntaxTree.RecordType THEN
 						RecordType(type(SyntaxTree.PointerType).pointerBase(SyntaxTree.RecordType));
 					ELSE
-						BaseType(FALSE,type)
+						w.Char(BaseType(type))
 					END;
 				ELSIF type IS SyntaxTree.ProcedureType THEN
-					BaseType(FALSE,type);
+					w.Char(BaseType(type));
 				ELSIF type IS SyntaxTree.MathArrayType THEN
 					MathArrayType(type(SyntaxTree.MathArrayType));
 				ELSE HALT(200)
@@ -1802,7 +1784,7 @@ TYPE
 				ELSIF type IS SyntaxTree.RecordType THEN
 					w.Char(rfRecord);
 				ELSE
-					BaseType(FALSE,type);
+					w.Char(BaseType(type));
 				END;
 			END ReturnType;
 
