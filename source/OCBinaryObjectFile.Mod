@@ -1691,8 +1691,15 @@ TYPE
 			BEGIN
 				length := StaticArrayLength(type, baseType);
 				char := BaseType(baseType);
-				w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
-				w.RawNum(length)
+				IF type.form # SyntaxTree.Open THEN
+					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
+					w.RawNum(length)
+				ELSE
+					char := BaseType(module.system.longintType);
+					length := 1+SemanticChecker.Dimension(type,{SyntaxTree.Open});
+					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
+					w.RawNum(length)
+				END;					
 			END ArrayType;
 
 			PROCEDURE StaticMathArrayLength(type: SyntaxTree.MathArrayType; VAR baseType: SyntaxTree.Type): LONGINT;
@@ -1713,9 +1720,19 @@ TYPE
 			VAR length: LONGINT; baseType: SyntaxTree.Type; char: CHAR;
 			BEGIN
 				length := StaticMathArrayLength(type, baseType);
-				char := rfPointer;
-				w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
-				w.RawNum(length)
+				char :=  BaseType(baseType);
+				IF type.form = SyntaxTree.Open THEN
+					char := BaseType(module.system.longintType);
+					length := 5+2*SemanticChecker.Dimension(type,{SyntaxTree.Open});
+					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
+					w.RawNum(length)
+				ELSIF type.form=SyntaxTree.Tensor THEN
+					char := rfPointer;
+					w.Char(CHR(ORD(char)));
+				ELSE
+					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
+					w.RawNum(length)					
+				END;
 			END MathArrayType;
 
 			PROCEDURE Type(type: SyntaxTree.Type);
