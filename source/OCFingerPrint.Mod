@@ -26,7 +26,7 @@ IMPORT SyntaxTree := OCSyntaxTree, SYSTEM, Global := OCGlobal,Scanner := OCScann
 	                            | fpTypeShortint | fpTypeInteger | fpTypeLongint | fpTypeHugeint
 	                            | fpTypeReal | fpTypeLongreal
 	                            | fpTypeSet | fpTypePointer |fpTypeString
-	                            | fpTypeByte | fpTypeAll | fpTypeSame | fpTypeArrayRange | fpTypeBoolean.
+	                            | fpTypeByte | fpTypeAll | fpTypeSame | fpTypeRange | fpTypeBoolean.
 	PublicFP(BasicType)        = FP(basicType).
 	PrivateFP(BasicType)       = sizeof(basicType).
 
@@ -116,7 +116,7 @@ CONST
 	fpTypeChar32 = 18;
 	fpTypeAll = 19;
 	fpTypeSame = 20;
-	fpTypeArrayRange = 21;
+	fpTypeRange = 21;
 	fpTypeEnum = 22;
 	fpTypePort= 23;
 
@@ -297,7 +297,7 @@ TYPE
 			SELF.fingerPrint := fingerPrint;
 		END VisitSetType;
 
-		PROCEDURE VisitArrayRangeType(x: SyntaxTree.ArrayRangeType);
+		PROCEDURE VisitRangeType(x: SyntaxTree.RangeType);
 		VAR fingerPrint: FingerPrint;
 		BEGIN
 			fingerPrint := GetFingerPrint(x);
@@ -308,7 +308,7 @@ TYPE
 				fingerPrint.doneAll := TRUE;
 			END;
 			SELF.fingerPrint := fingerPrint;
-		END VisitArrayRangeType;
+		END VisitRangeType;
 
 		PROCEDURE VisitAnyType(x: SyntaxTree.AnyType);
 		VAR fingerPrint: FingerPrint;

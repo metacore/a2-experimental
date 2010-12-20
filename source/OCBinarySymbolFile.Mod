@@ -291,8 +291,8 @@ TYPE
 		PROCEDURE VisitStringType(x: SyntaxTree.StringType);
 		BEGIN END VisitStringType;
 
-		PROCEDURE VisitArrayRangeType(x: SyntaxTree.ArrayRangeType);
-		BEGIN END VisitArrayRangeType;
+		PROCEDURE VisitRangeType(x: SyntaxTree.RangeType);
+		BEGIN END VisitRangeType;
 
 		(* types containing links to other types *)
 
@@ -1098,7 +1098,7 @@ TYPE
 				ELSIF tag = sfTypeAll THEN
 					type := system.allType
 				ELSIF tag = sfTypeRange THEN
-					type := system.arrayRangeType;
+					type := system.rangeType;
 				ELSIF tag <= sfModOther THEN
 					(* ImportedType = ModuleNumber (structName:RawString | 0X typeIndex:RawNum) *)
 					(* ModuleNumber = sfMod1 | .. | sfModOther-1 | sfModOther moduleNumber:RawNum *)
@@ -1840,7 +1840,7 @@ TYPE
 						IF TraceExport IN Trace THEN
 							D.Str("Type / Basic / All"); D.Ln
 						END;
-					ELSIF type IS SyntaxTree.ArrayRangeType THEN w.RawNum(sfTypeRange);
+					ELSIF type IS SyntaxTree.RangeType THEN w.RawNum(sfTypeRange);
 						IF TraceExport IN Trace THEN
 							D.Str("Type / Basic / Range"); D.Ln
 						END;

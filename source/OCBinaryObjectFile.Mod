@@ -1641,7 +1641,7 @@ TYPE
 				ELSIF type IS SyntaxTree.ObjectType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.PointerType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.ProcedureType THEN char := rfDelegate
-				ELSIF type IS SyntaxTree.ArrayRangeType THEN char := rfRange
+				ELSIF type IS SyntaxTree.RangeType THEN char := rfRange
 				ELSE char := rfPointer; (*RETURN (* ARRAY OF unknown (record): do not write anything *)*)
 				END;
 				RETURN char

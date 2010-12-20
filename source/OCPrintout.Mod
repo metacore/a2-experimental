@@ -172,10 +172,9 @@ TYPE
 			Keyword(" END");
 		END VisitEnumerationType;
 
-		(* OLIVIER *)
-		PROCEDURE VisitArrayRangeType(x: SyntaxTree.ArrayRangeType);
+		PROCEDURE VisitRangeType(x: SyntaxTree.RangeType);
 		BEGIN VisitBasicType(x);
-		END VisitArrayRangeType;
+		END VisitRangeType;
 
 		PROCEDURE VisitArrayType(x: SyntaxTree.ArrayType);
 		BEGIN
@@ -298,7 +297,7 @@ TYPE
 				IF x.pointerType # NIL THEN Flags((*x.pointerType.flags*)) END;
 				IF info THEN
 					BeginComment; w.String("ObjectType");
-					(* OLIVIER *)
+
 					IF x.HasArrayStructure() THEN
 						w.String(" (array structure: ");
 						VisitMathArrayType(x.arrayStructure);
@@ -499,59 +498,12 @@ TYPE
 			w.String(")");
 		END VisitBinaryExpression;
 
-		(* OLIVIER *)
 		PROCEDURE VisitRangeExpression(x: SyntaxTree.RangeExpression);
 		BEGIN
-			IF info THEN AlertString("(*<RangeExpression>*)") END;
-
-			IF x.first # NIL THEN Expression(x.first) END;
-			w.String(" .. ");
-			IF x.last # NIL THEN Expression(x.last) END;
-			IF x.step # NIL THEN
-				Keyword(" BY ");
-				Expression(x.step)
-			END
-		END VisitRangeExpression;
-
-		(* OLIVIER *)
-		(* actually not needed because content is already printed in CasePart *)
-		PROCEDURE VisitCaseRangeExpression(x: SyntaxTree.CaseRangeExpression);
-		BEGIN
-			Expression(x.first);
-			w.String(" .. ");
-			Expression(x.last);
-
-			IF info THEN
-				BeginComment;
-				w.String("<CaseRangeExpression:");
-				ShortType(x.type);
-				w.String(">");
-				EndComment
-			END
-		END VisitCaseRangeExpression;
-
-		(* OLIVIER *)
-		PROCEDURE VisitSetRangeExpression(x: SyntaxTree.SetRangeExpression);
-		BEGIN
-			Expression(x.first);
-			w.String(" .. ");
-			Expression(x.last);
-
-			IF info THEN
-				BeginComment;
-				w.String("<SetRangeExpression:");
-				ShortType(x.type);
-				w.String(">");
-				EndComment
-			END
-		END VisitSetRangeExpression;
-
-		(* OLIVIER *)
-		PROCEDURE VisitArrayRangeExpression(x: SyntaxTree.ArrayRangeExpression);
-		BEGIN
 			IF x.missingFirst & x.missingLast & x.missingStep THEN
-				(* open array range expression *)
-				(* the surrounding spaces prevent the asterisk from being next to a parenthesis, which could be confused with the beginning or end of a comment *)
+				(* open range expression *)
+				(* the surrounding spaces prevent the asterisk from being next to a parenthesis, 
+				which could be confused with the beginning or end of a comment *)
 				w.String(" * ")
 
 			ELSE
@@ -566,12 +518,12 @@ TYPE
 
 			IF info THEN
 				BeginComment;
-				w.String("<ArrayRangeExpression:");
+				w.String("<RangeExpression:");
 				ShortType(x.type);
 				w.String(">");
 				EndComment
 			END
-		END VisitArrayRangeExpression;
+		END VisitRangeExpression;
 
 		PROCEDURE VisitTensorRangeExpression(x: SyntaxTree.TensorRangeExpression);
 		BEGIN
@@ -1162,7 +1114,6 @@ TYPE
 			END;
 		END VisitProcedure;
 
-		(* OLIVIER *)
 		PROCEDURE VisitOperator(x: SyntaxTree.Operator);
 		VAR type: SyntaxTree.ProcedureType;
 			recordType: SyntaxTree.RecordType;
@@ -1171,8 +1122,7 @@ TYPE
 		BEGIN
 			IF Visible(x) THEN
 				Indent;
-				(* TODO: ok? *)
-				(* OLIVIER *)
+				
 				(* mark array access operators for array-structured object types *)
 				IF info THEN
 					IF (x.scope # NIL) & (x.scope IS SyntaxTree.RecordScope) THEN
@@ -1181,10 +1131,12 @@ TYPE
 							BeginComment;
 							valid := FALSE;
 							IF x = recordType.arrayAccessOperators.len THEN w.String("the length operator: "); valid := TRUE;
+							ELSIF x = recordType.arrayAccessOperators.generalRead THEN w.String("the general read operator"); valid := TRUE;
+							ELSIF x = recordType.arrayAccessOperators.generalWrite THEN w.String("the general write operator"); valid := TRUE;
 							ELSE
 								FOR i := 0 TO LEN(recordType.arrayAccessOperators.read, 0) - 1 DO
-									IF x = recordType.arrayAccessOperators.read[i] THEN w.String("a read operator (kind="); w.Int(i, 1); w.String("):"); valid := TRUE;
-									ELSIF x = recordType.arrayAccessOperators.write[i] THEN w.String("a write operator (kind="); w.Int(i, 1); w.String("):"); valid := TRUE;
+									IF x = recordType.arrayAccessOperators.read[i] THEN w.String("a read operator (hash="); w.Int(i, 1); w.String("):"); valid := TRUE;
+									ELSIF x = recordType.arrayAccessOperators.write[i] THEN w.String("a write operator (hash="); w.Int(i, 1); w.String("):"); valid := TRUE;
 									END
 								END
 							END;
@@ -1750,7 +1702,6 @@ VAR
 		D.Update();
 	END Info;
 
-	(* OLIVIER *)
 	PROCEDURE IsIntegerValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
 	VAR result: BOOLEAN;
 	BEGIN

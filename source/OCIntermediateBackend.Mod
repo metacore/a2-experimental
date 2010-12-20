@@ -38,7 +38,7 @@ CONST
 		ReturnTrap* = 3;
 		TypeEqualTrap* = 5;
 		TypeCheckTrap* = 6;
-		IndexCheckTrap* = 7; (* generated when index is out of bounds or range is invalid *)(* OLIVIER *)
+		IndexCheckTrap* = 7; (* generated when index is out of bounds or range is invalid *)
 		AssertTrap* = 8; (* generated when an assert fails *)
 		ArraySizeTrap* = 9;
 		ArrayFormTrap*=10; (* indicates that array cannot be (re-)allocated since shape, type or size does not match *)
@@ -77,7 +77,6 @@ TYPE
 		nextFixup: Fixup;
 	END;
 
-	(* OLIVIER *)
 	WriteBackCall = POINTER TO RECORD
 		call: SyntaxTree.ProcedureCallDesignator;
 		next: WriteBackCall;
@@ -173,8 +172,7 @@ TYPE
 		PROCEDURE VisitStringType(x: SyntaxTree.StringType);
 		BEGIN (* no code emission *)   END VisitStringType;
 
-		(* OLIVIER *)
-		PROCEDURE VisitArrayRangeType(x: SyntaxTree.ArrayRangeType);
+		PROCEDURE VisitArrayRangeType(x: SyntaxTree.RangeType);
 		BEGIN (* no code emission *)
 		END VisitArrayRangeType;
 
@@ -895,15 +893,13 @@ TYPE
 			res := mem;
 		END ToMemory;
 
-		(* OLIVIER *)
 		PROCEDURE LoadValue(VAR operand: Operand; type: SyntaxTree.Type);
 		VAR mem: IntermediateCode.Operand;
 			firstOp, lastOp, stepOp: IntermediateCode.Operand;
 		BEGIN
 			type := type.resolved;
 			IF operand.mode = ModeReference THEN
-				(* OLIVIER *)
-				IF type IS SyntaxTree.ArrayRangeType THEN
+				IF type IS SyntaxTree.RangeType THEN
 					MakeMemory(firstOp, operand.op, GetType(system, system.longintType), 0);
 					MakeMemory(lastOp, operand.op, GetType(system, system.longintType), ToMemoryUnits(system, system.SizeOf(system.longintType)));
 					MakeMemory(stepOp, operand.op, GetType(system, system.longintType), 2 * ToMemoryUnits(system, system.SizeOf(system.longintType)));
@@ -989,7 +985,6 @@ TYPE
 			UseRegister(op.register)
 		END UseIntermediateOperand;
 
-		(* OLIVIER *)
 		PROCEDURE ReleaseOperand(CONST op: Operand);
 		BEGIN
 			UnuseRegister(op.op.register);
@@ -997,7 +992,6 @@ TYPE
 			UnuseRegister(op.extra.register);
 		END ReleaseOperand;
 
-		(* OLIVIER *)
 		PROCEDURE UseOperand(CONST op: Operand);
 		BEGIN
 			UseIntermediateOperand(op.op);
@@ -1201,26 +1195,78 @@ TYPE
 			Emit(Trap(trapNo));
 			SetLabel(exit);
 		END TrapC;
-
-		(* OLIVIER *)
-		(* used by VisitSet and VisitSetRangeExpression *)
-		PROCEDURE CheckSetElement(o: Operand);
+		
+		(** expressions *)
+		
+		(** emit necessary runtime check for set elements **)
+		PROCEDURE CheckSetElement(o: IntermediateCode.Operand);
 		VAR max: IntermediateCode.Operand;
 		BEGIN
-			IF o.op.mode # IntermediateCode.ModeImmediate THEN (* otherwise it's the job of the checker *)
-				IntermediateCode.InitImmediate(max,setType,setType.sizeInBits (* number of bits in set *) -1);
-				TrapC(BrgeL,max,o.op,SetElementTrap);
+			IF o.mode # IntermediateCode.ModeImmediate THEN (* otherwise it's the job of the checker *)
+				IntermediateCode.InitImmediate(max, setType, setType.sizeInBits (* number of bits in set *) -1);
+				TrapC(BrgeL, max, o, SetElementTrap);
 			END;
 		END CheckSetElement;
+		
+		(** the set that a range represents **)
+		PROCEDURE SetFromRange(x: SyntaxTree.RangeExpression): IntermediateCode.Operand;
+		VAR
+			operand: Operand;
+			resultingSet, temp, size, allBits, noBits, one: IntermediateCode.Operand;
+		BEGIN
+			ASSERT((x.first # NIL) & (x.last # NIL)); (* ensured by the checker *)
 
-		(** expressions *)
+			allBits := IntermediateCode.Immediate(setType, -1);  (* bit mask 111...11111 *)
+			noBits := IntermediateCode.Immediate(setType, 0);  (* bit mask 0...0 *)
+			one := IntermediateCode.Immediate(setType, 1);
 
-		(* OLIVIER *)
+			Evaluate(x, operand);
+			
+			Convert(operand.op, setType);
+			Convert(operand.tag, setType);
+
+			CheckSetElement(operand.op);
+			CheckSetElement(operand.tag);
+
+			(* create mask for lower bound
+				i.e. shift 11111111 to the left by the value of the lower bound
+			*)
+			Reuse1(temp, operand.op);
+			Emit(Shl(temp, allBits, operand.op));
+			ReleaseIntermediateOperand(operand.op);
+			operand.op := temp;
+
+			(* create mask for upper bound
+				i.e. shift 11111111 to the right by the difference between the
+				upper bound and the maximum number of set elements
+			*)
+			IF (operand.tag.mode = IntermediateCode.ModeImmediate) & (operand.tag.symbol = NIL) THEN
+				IntermediateCode.InitImmediate(operand.tag, operand.tag.type, operand.op.type.sizeInBits - 1- operand.tag.intValue);
+				Reuse1(temp, operand.tag);
+			ELSE
+				Reuse1(temp, operand.tag);
+				IntermediateCode.InitImmediate(size, operand.tag.type, operand.op.type.sizeInBits - 1);
+				Emit(Sub(temp, size, operand.tag));
+			END;
+			Emit(Shr(temp, allBits, operand.tag));
+			ReleaseIntermediateOperand(operand.tag);
+			operand.tag := temp;
+
+			Reuse2(resultingSet, operand.op, operand.tag);
+
+			(* intersect the two masks *)
+			Emit(And(resultingSet, operand.op, operand.tag));
+
+			ReleaseOperand(operand);
+			
+			RETURN resultingSet
+		END SetFromRange;
+		
 		PROCEDURE VisitSet(x: SyntaxTree.Set);
 		VAR
 			res, operand: Operand;
 			temp, one, noBits, dest: IntermediateCode.Operand;
-			e: SyntaxTree.Expression;
+			expression: SyntaxTree.Expression;
 			i: LONGINT;
 
 		BEGIN
@@ -1232,40 +1278,34 @@ TYPE
 			noBits := IntermediateCode.Immediate(setType, 0);
 			one := IntermediateCode.Immediate(setType, 1);
 
-			(* initialize 'res' with the empty set *)
+			(* start off with the empty set *)
 			InitOperand(res, ModeValue);
 			IntermediateCode.InitRegister(res.op, setType, AcquireRegister(setType));
 			Emit(Mov(res.op, noBits));
 
 			FOR i := 0 TO x.elements.Length() - 1 DO
-				e := x.elements.GetExpression(i);
+				expression := x.elements.GetExpression(i);
 
-				IF (e IS SyntaxTree.SetRangeExpression) THEN
+				IF expression IS SyntaxTree.RangeExpression THEN
 					(* range of set elements *)
-
-					Evaluate(e, operand);
-					ASSERT(IntermediateCode.TypeEquals(setType, operand.op.type));
-
-					(* combine new value with existing 'res' *)
-					Emit(Or(res.op, res.op, operand.op));
-
-					ReleaseOperand(operand)
-
+					temp := SetFromRange(expression(SyntaxTree.RangeExpression));
+					ASSERT(IntermediateCode.TypeEquals(setType, temp.type));
+					Emit(Or(res.op, res.op, temp)); (* unify subset with current set *)
+					ReleaseIntermediateOperand(temp)
 				ELSE
 					(* singelton element *)
-
-					Evaluate(e, operand);
+					Evaluate(expression, operand);
 					Convert(operand.op, setType);
-					CheckSetElement(operand);
+					CheckSetElement(operand.op);
+					
+					(* create subset containing single element *)
 					Reuse1(temp, operand.op);
 					Emit(Shl(temp, one, operand.op));
-
-					(* combine new value with existing 'res' *)
-					Emit(Or(res.op, res.op, operand.op));
-
-					ReleaseIntermediateOperand(temp);
 					ReleaseOperand(operand);
-				END;
+					
+					Emit(Or(res.op, res.op, temp)); (* unify subset with current set *)
+					ReleaseIntermediateOperand(temp);					
+				END
 			END;
 
 			result := res;
@@ -1717,7 +1757,6 @@ TYPE
 			END;
 		END CopyString;
 
-		(* OLIVIER *)
 		PROCEDURE VisitBinaryExpression(x: SyntaxTree.BinaryExpression);
 		VAR left,right: Operand; temp: Operand;  zero, one: IntermediateCode.Operand;
 			leftType,rightType: SyntaxTree.Type;
@@ -1870,9 +1909,8 @@ TYPE
 				ELSE
 					Evaluate(x.left,left);
 					Evaluate(x.right,right);
-					(* OLIVIER *)
-					IF leftType IS SyntaxTree.ArrayRangeType THEN
-						ASSERT(rightType IS SyntaxTree.ArrayRangeType);
+					IF leftType IS SyntaxTree.RangeType THEN
+						ASSERT(rightType IS SyntaxTree.RangeType);
 						BrneL(falseLabel, left.op, right.op); (* first *)
 						BrneL(falseLabel, left.tag, right.tag); (* last *)
 						BrneL(falseLabel, left.extra, right.extra); (* step *)
@@ -1969,8 +2007,8 @@ TYPE
 				ELSE
 					Evaluate(x.left,left);
 					Evaluate(x.right,right);
-					IF leftType IS SyntaxTree.ArrayRangeType THEN
-						ASSERT(rightType IS SyntaxTree.ArrayRangeType);
+					IF leftType IS SyntaxTree.RangeType THEN
+						ASSERT(rightType IS SyntaxTree.RangeType);
 						BrneL(trueLabel, left.op, right.op); (* first *)
 						BrneL(trueLabel, left.tag, right.tag); (* last *)
 						BrneL(trueLabel, left.extra, right.extra); (* step *)
@@ -2007,101 +2045,36 @@ TYPE
 			IF Trace THEN TraceExit("VisitBinaryExpression") END;
 		END VisitBinaryExpression;
 
-		(* OLIVIER *)
 		PROCEDURE VisitRangeExpression(x: SyntaxTree.RangeExpression);
-		BEGIN HALT(100)
-			(* should never be evaluated, because generic range expressions do not exist after the semantic check *)
-		END VisitRangeExpression;
-
-		(* OLIVIER *)
-		PROCEDURE VisitCaseRangeExpression(x: SyntaxTree.CaseRangeExpression);
-		BEGIN	HALT(100)
-			(* should never be evaluated, because code for case constants is generated in 'VisitCaseStatement'
-			using a different data structure *)
-		END VisitCaseRangeExpression;
-
-		(* OLIVIER *)
-		PROCEDURE VisitSetRangeExpression(x: SyntaxTree.SetRangeExpression);
-		VAR
-			left, right: Operand;
-			temp, size, allBits, noBits, one: IntermediateCode.Operand;
-		BEGIN
-			ASSERT((x.first # NIL) & (x.last # NIL)); (* ensured by the checker *)
-
-			allBits := IntermediateCode.Immediate(setType, -1);  (* bit mask 111...11111 *)
-			noBits := IntermediateCode.Immediate(setType, 0);  (* bit mask 0...0 *)
-			one := IntermediateCode.Immediate(setType, 1);
-
-			Evaluate(x.first, left);
-			Evaluate(x.last, right);
-
-			Convert(left.op, setType);
-			Convert(right.op, setType);
-
-			CheckSetElement(left);
-			CheckSetElement(right);
-
-			(* create mask for lower bound
-				i.e. shift 11111111 to the left by the value of the lower bound
-			*)
-			Reuse1(temp, left.op);
-			Emit(Shl(temp, allBits, left.op));
-			ReleaseIntermediateOperand(left.op);
-			left.op := temp;
-
-			(* create mask for upper bound
-				i.e. shift 11111111 to the right by the difference between the
-				upper bound and the maximum number of set elements
-			*)
-			IF (right.op.mode = IntermediateCode.ModeImmediate) & (right.op.symbol = NIL) THEN
-				IntermediateCode.InitImmediate(right.op, right.op.type, left.op.type.sizeInBits - 1- right.op.intValue);
-				Reuse1(temp, right.op);
-			ELSE
-				Reuse1(temp, right.op);
-				IntermediateCode.InitImmediate(size, right.op.type, left.op.type.sizeInBits - 1);
-				Emit(Sub(temp, size, right.op));
-			END;
-			Emit(Shr(temp, allBits, right.op));
-			ReleaseIntermediateOperand(right.op);
-			right.op := temp;
-
-			InitOperand(result, ModeValue);
-			Reuse2(result.op, left.op, right.op);
-
-			(* perform AND operation on the two masks *)
-			Emit(And(result.op, left.op, right.op));
-
-			ReleaseOperand(left);
-			ReleaseOperand(right);
-		END VisitSetRangeExpression;
-
-		(* OLIVIER *)
-		PROCEDURE VisitArrayRangeExpression(x: SyntaxTree.ArrayRangeExpression);
 		VAR localResult, operand: Operand;
 		BEGIN
-			IF Trace THEN TraceEnter("VisitArrayRangeExpression") END;
+			IF Trace THEN TraceEnter("VisitRangeExpression") END;
 
 			InitOperand(localResult, ModeValue);
 
+			ASSERT(x.first # NIL);
 			Evaluate(x.first, operand);
 			localResult.op := operand.op;
 			ReleaseOperand(operand);
 			UseIntermediateOperand(localResult.op);
 
+			ASSERT(x.last # NIL);
 			Evaluate(x.last, operand);
 			localResult.tag := operand.op;
 			ReleaseOperand(operand);
 			UseIntermediateOperand(localResult.tag);
 
-			Evaluate(x.step, operand);
-			localResult.extra := operand.op;
-			ReleaseOperand(operand);
-			UseIntermediateOperand(localResult.extra);
-
+			IF x.step # NIL THEN
+				Evaluate(x.step, operand);
+				localResult.extra := operand.op;
+				ReleaseOperand(operand);
+				UseIntermediateOperand(localResult.extra);
+			END;
+			
 			result := localResult;
 
-			IF Trace THEN TraceExit("VisitArrayRangeExpression") END
-		END VisitArrayRangeExpression;
+			IF Trace THEN TraceExit("VisitRangeExpression") END
+		END VisitRangeExpression;
 
 		PROCEDURE VisitTensorRangeExpression*(x: SyntaxTree.TensorRangeExpression);
 		BEGIN
@@ -2112,7 +2085,7 @@ TYPE
 		VAR old: Operand; dest: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitConversion") END;
-			ASSERT(~(x.expression.type.resolved IS SyntaxTree.ArrayRangeType));
+			ASSERT(~(x.expression.type.resolved IS SyntaxTree.RangeType));
 
 			dest := destination; destination := emptyOperand;
 			Evaluate(x.expression,old);
@@ -2348,7 +2321,6 @@ TYPE
 		END MathIndexDesignator;
 *)
 
-		(* OLIVIER *)
 		PROCEDURE MathIndexDesignator(x: SyntaxTree.IndexDesignator);
 		VAR
 			index, range, array, sourceLength, sourceIncrement, localResult: Operand;
@@ -2401,7 +2373,7 @@ TYPE
 			rangeCount := 0;
 			FOR i := 0 TO indexListSize - 1 DO
 				expression := x.parameters.GetExpression(i);
-				IF (expression.type # NIL) & (expression.type.resolved IS SyntaxTree.ArrayRangeType) THEN INC(rangeCount) END
+				IF (expression.type # NIL) & (expression.type.resolved IS SyntaxTree.RangeType) THEN INC(rangeCount) END
 			END;
 
 			(* determine source and destination dimension offsets; this depends on if the list starts with a '?' *)
@@ -2459,7 +2431,7 @@ TYPE
 						ReuseCopy(summand, index.op);
 						ReleaseOperand(index)
 
-					ELSIF expression.type.resolved IS SyntaxTree.ArrayRangeType THEN
+					ELSIF expression.type.resolved IS SyntaxTree.RangeType THEN
 						(* RANGE OF INDICES *)
 						Evaluate(expression, range);
 						firstIndex := range.op; UseIntermediateOperand(firstIndex);
@@ -2708,6 +2680,22 @@ TYPE
 
 		END MathIndexDesignator;
 
+		(* TENTATIVE *)
+		PROCEDURE DumpOperand(operand: Operand);
+		BEGIN
+			D.Log.String("    op = ");
+			IntermediateCode.DumpOperand(D.Log, operand.op, TRUE);
+			D.Log.Ln;
+			D.Log.String("    tag = ");
+			IntermediateCode.DumpOperand(D.Log, operand.tag, TRUE);
+			D.Log.Ln;
+			D.Log.String("    extra = ");
+			IntermediateCode.DumpOperand(D.Log, operand.extra, TRUE);
+			D.Log.Ln;
+			D.Log.Update
+		END DumpOperand;
+
+
 		PROCEDURE IndexDesignator(x: SyntaxTree.IndexDesignator);
 		VAR length,res: IntermediateCode.Operand; type: SyntaxTree.Type; maxDim: LONGINT; array:Operand;
 			index: Operand; e: SyntaxTree.Expression;i: LONGINT; size: LONGINT;
@@ -2883,7 +2871,6 @@ TYPE
 
 		END PrepareTensorDescriptor;
 
-		(* OLIVIER *)
 		PROCEDURE PushParameter(expression: SyntaxTree.Expression; parameter: SyntaxTree.Parameter; callingConvention: LONGINT);
 		VAR
 			type, descriptorType, baseType: SyntaxTree.Type;
@@ -3316,10 +3303,9 @@ TYPE
 				ELSE HALT(200)
 				END;
 
-			(* OLIVIER *)
-			ELSIF parameter.type.resolved IS SyntaxTree.ArrayRangeType THEN
+			ELSIF parameter.type.resolved IS SyntaxTree.RangeType THEN
 				IF parameter.kind = SyntaxTree.VarParameter THEN
-					ASSERT(~(expression IS SyntaxTree.ArrayRangeExpression));
+					ASSERT(~(expression IS SyntaxTree.RangeExpression));
 					Designate(expression, operand);
 					Emit(Push(operand.op))
 				ELSE
@@ -3378,7 +3364,6 @@ TYPE
 				END;
 			END;
 
-			(* OLIVIER *)
 			(* TODO: needed? *)
 			arrayDestinationTag := oldArrayDestinationTag;
 			arrayDestinationDimension := oldArrayDestinationDimension;
@@ -3387,7 +3372,6 @@ TYPE
 			IF Trace THEN TraceExit("PushParameter") END;
 		END PushParameter;
 
-		(* OLIVIER *)
 		PROCEDURE VisitProcedureCallDesignator(x: SyntaxTree.ProcedureCallDesignator);
 		VAR
 			parameters: SyntaxTree.ExpressionList;
@@ -3403,12 +3387,9 @@ TYPE
 			variable: SyntaxTree.Variable;
 			i, parametersSize, returnTypeSize, returnTypeOffset: LONGINT;
 			structuredReturnType: BOOLEAN;
-
-			(* OLIVIER *)
 			firstWriteBackCall, currentWriteBackCall: WriteBackCall;
 			tempVariableDesignator: SyntaxTree.Designator;
-
-			(* OLIVIER *)
+			
 			(* TODO: remove unnecessary backup variables *)
 			oldResult: Operand;
 			oldCurrentScope: SyntaxTree.Scope;
@@ -3425,7 +3406,6 @@ TYPE
 
 			return: IntermediateCode.Operand;
 
-			(* OLIVIER *)
 			PROCEDURE BackupGlobalState;
 			BEGIN
 				oldResult := result;
@@ -3442,7 +3422,6 @@ TYPE
 				oldUsedRegisters := usedRegisters
 			END BackupGlobalState;
 
-			(* OLIVIER *)
 			PROCEDURE RestoreGlobalState;
 			BEGIN
 				result := oldResult;
@@ -3459,7 +3438,6 @@ TYPE
 				usedRegisters := oldUsedRegisters
 			END RestoreGlobalState;
 
-			(* OLIVIER *)
 			(** if array-structured object type is passed as VAR parameter:
 				- allocate temporary variable of math array type
 				- copy contents of ASOT to be passed to temporary variable
@@ -3540,7 +3518,6 @@ TYPE
 				ReleaseIntermediateOperand(reg);
 			END;
 
-			(* OLIVIER *)
 			(* determine if a structured return type is needed *)
 			structuredReturnType := NeedsStructuredReturnType(procedureType);
 
@@ -3565,13 +3542,11 @@ TYPE
 		 		END;
 		 	END;
 
-			(* OLIVIER *)
 			firstWriteBackCall := NIL; (* reset write-back call list *)
 
 			IF procedureType.callingConvention # SyntaxTree.OberonCallingConvention THEN
 				formalParameter := procedureType.lastParameter;
 				FOR i := parameters.Length() - 1 TO 0 BY -1 DO
-					(* OLIVIER *)
 					actualParameter := parameters.GetExpression(i);
 					PrepareParameter(actualParameter, formalParameter);
 					PushParameter(actualParameter, formalParameter, procedureType.callingConvention);
@@ -3580,7 +3555,6 @@ TYPE
 			ELSE
 				formalParameter := procedureType.firstParameter;
 				FOR i := 0 TO parameters.Length() - 1 DO
-					(* OLIVIER *)
 					actualParameter := parameters.GetExpression(i);
 					PrepareParameter(actualParameter, formalParameter);
 					PushParameter(actualParameter, formalParameter, procedureType.callingConvention);
@@ -3711,7 +3685,6 @@ TYPE
 			END;
 			destination := dest;
 
-			(* OLIVIER *)
 			(* perform all write-back calls in the list *)
 			BackupGlobalState;
 			currentWriteBackCall := firstWriteBackCall;
@@ -4463,7 +4436,6 @@ TYPE
 			END;
 		END NewMathArrayDescriptor;
 
-		(* OLIVIER *)
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR p0,p1,p2,parameter: SyntaxTree.Expression; len,val: LONGINT; l,r: Operand; res,adr,reg: IntermediateCode.Operand; type: SyntaxTree.Type;
 		constructor: SyntaxTree.Procedure; s0,s1,s2: Operand; hint: HUGEINT;
@@ -4480,7 +4452,6 @@ TYPE
 		call: SyntaxTree.Designator;
 		procedure: SyntaxTree.Procedure;
 
-			(* OLIVIER *)
 			PROCEDURE CallBodies(self: IntermediateCode.Operand; type: SyntaxTree.Type);
 			VAR recordScope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure; body: SyntaxTree.Body; flags: LONGINT;
 				priority: IntermediateCode.Operand;
@@ -4491,7 +4462,7 @@ TYPE
 				IF type IS SyntaxTree.PointerType THEN
 					type := type(SyntaxTree.PointerType).pointerBase.resolved
 				END;
-				IF type IS SyntaxTree.MathArrayType THEN RETURN END; (* OLIVIER *)
+				IF type IS SyntaxTree.MathArrayType THEN RETURN END;
 				CallBodies(self,type(SyntaxTree.RecordType).baseType);
 				recordScope := type(SyntaxTree.RecordType).recordScope;
 				IF recordScope.bodyProcedure # NIL THEN
@@ -4798,20 +4769,18 @@ TYPE
 				END;
 				Convert(result.op,GetType(system, x.type));
 
-			(* OLIVIER *)
 			(* ---- FIRST ---- *)
 			|Global.First:
-				IF p0 IS SyntaxTree.ArrayRangeExpression THEN (* optimization, could also work with designate *)
-					Evaluate(p0(SyntaxTree.ArrayRangeExpression).first, result)
+				IF p0 IS SyntaxTree.RangeExpression THEN (* optimization, could also work with designate *)
+					Evaluate(p0(SyntaxTree.RangeExpression).first, result)
 				ELSE
 					Designate(p0, result)
 				END
 
-			(* OLIVIER *)
 			(* ---- LAST ---- *)
 			|Global.Last:
-				IF p0 IS SyntaxTree.ArrayRangeExpression THEN (* optimization, could also work with designate *)
-					Evaluate(p0(SyntaxTree.ArrayRangeExpression).last, result)
+				IF p0 IS SyntaxTree.RangeExpression THEN (* optimization, could also work with designate *)
+					Evaluate(p0(SyntaxTree.RangeExpression).last, result)
 				ELSE
 					Designate(p0, result);
 					(* make sure result.op is a register *)
@@ -4822,11 +4791,10 @@ TYPE
 					IntermediateCode.AddOffset(result.op, ToMemoryUnits(system, system.SizeOf(system.longintType)))
 				END
 
-			(* OLIVIER *)
 			(* ---- STEP ---- *)
 			|Global.Step:
-				IF p0 IS SyntaxTree.ArrayRangeExpression THEN (* optimization, could also work with designate *)
-					Evaluate(p0(SyntaxTree.ArrayRangeExpression).step, result)
+				IF p0 IS SyntaxTree.RangeExpression THEN (* optimization, could also work with designate *)
+					Evaluate(p0(SyntaxTree.RangeExpression).step, result)
 				ELSE
 					Designate(p0, result);
 
@@ -5780,7 +5748,6 @@ TYPE
 			IF Trace THEN TraceExit("VisitVariable") END;
 		END VisitVariable;
 
-		(* OLIVIER *)
 		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
 		VAR type: SyntaxTree.Type; basereg, mem: IntermediateCode.Operand; parameter: SyntaxTree.Parameter;adr: LONGINT; symbol: Sections.Section;
 			name: SyntaxTree.String; parameterType: SyntaxTree.Type; len: LONGINT;
@@ -5866,7 +5833,6 @@ TYPE
 				IntermediateCode.AddOffset(result.op,ToMemoryUnits(system,x.offsetInBits));
 				IntermediateCode.MakeMemory(result.op,addressType);
 
-			(* OLIVIER *)
 			ELSIF (x.kind = SyntaxTree.ValueParameter) OR (x.kind = SyntaxTree.ConstParameter) THEN
 				IntermediateCode.AddOffset(result.op,ToMemoryUnits(system,x.offsetInBits));
 			END;
@@ -6052,7 +6018,6 @@ TYPE
 
 		END AssignMathArray;
 
-		(* OLIVIER *)
 		PROCEDURE Assign(left,right: SyntaxTree.Expression);
 		VAR
 			leftO, rightO: Operand;
@@ -6062,11 +6027,9 @@ TYPE
 		BEGIN
 			ASSERT(left.type # NIL); ASSERT(right.type # NIL);
 			leftType := left.type.resolved; rightType:= right.type.resolved;
-
-			(* OLIVIER *)
-			IF leftType IS SyntaxTree.ArrayRangeType THEN
+			IF leftType IS SyntaxTree.RangeType THEN
 				(* LHS is of array range type *)
-				ASSERT(rightType IS SyntaxTree.ArrayRangeType); (* ensured by the checker *)
+				ASSERT(rightType IS SyntaxTree.RangeType); (* ensured by the checker *)
 
 				Designate(left, leftO);
 				Evaluate(right, rightO);
@@ -6363,7 +6326,6 @@ TYPE
 			IF Trace THEN TraceExit("VisitExitStatement") END;
 		END VisitExitStatement;
 
-		(* OLIVIER *)
 		PROCEDURE VisitReturnStatement(x: SyntaxTree.ReturnStatement);
 		VAR
 			expression, parameterDesignator: SyntaxTree.Expression;
@@ -6383,7 +6345,7 @@ TYPE
 				type := expression.type.resolved;
 				IF (expression IS SyntaxTree.SymbolDesignator) & (expression(SyntaxTree.SymbolDesignator).symbol = procedureType.returnParameter) THEN
 					(* "RETURN RESULT" -> no assignment, it is assumed that result has been written to return parameter via structured return type *)
-				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.ArrayRangeType) (*OR
+				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.RangeType) (*OR
 						(type IS SyntaxTree.ProcedureType) & ~type(SyntaxTree.ProcedureType).isDelegate OR*) OR  (type IS SyntaxTree.PointerType) THEN
 					(* return without structured return parameter *)
 					Evaluate(expression,res);
@@ -6423,10 +6385,10 @@ TYPE
 						*)
 						ReleaseOperand(res);
 					END;
-				ELSIF (type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.ArrayRangeType)
+				ELSIF (type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.RangeType)
 				THEN
 					(* return using structured return parameter *)
-					ASSERT((type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.ArrayRangeType) OR (type(SyntaxTree.ArrayType).form = SyntaxTree.Static));
+					ASSERT((type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.RangeType) OR (type(SyntaxTree.ArrayType).form = SyntaxTree.Static));
 					(* parameter := currentScope(SyntaxTree.ProcedureScope).FindParameter(Global.ReturnParameterName); *)
 					parameter :=procedureType.firstParameter;
 					IF parameter# NIL THEN
@@ -6437,8 +6399,7 @@ TYPE
 					END;
 					left := IntermediateCode.Memory(addressType,fp,ToMemoryUnits(system,returnTypeOffset));
 
-					(* OLIVIER *)
-					IF type IS SyntaxTree.ArrayRangeType THEN
+					IF type IS SyntaxTree.RangeType THEN
 						(* array range type *)
 						Evaluate(expression, right);
 
@@ -6468,8 +6429,7 @@ TYPE
 				ELSIF (type IS SyntaxTree.MathArrayType) OR (type IS SyntaxTree.ProcedureType) THEN
 					parameter := procedureType.returnParameter;
 					checker.SetCurrentScope(currentScope);
-
-					(* OLIVIER *)
+					
 					IF parameter = NIL THEN
 						Error(procedure.position, "structured return of parameter of procedure not found");
 					ELSE
@@ -8985,7 +8945,6 @@ TYPE
 		END
 	END CheckTypeDeclaration;
 
-	(* OLIVIER *)
 	PROCEDURE InitOperand(VAR op: Operand; mode: SHORTINT);
 	BEGIN
 		op.mode := mode;
@@ -8995,7 +8954,6 @@ TYPE
 		op.dimOffset := 0;
 	END InitOperand;
 
-	(* OLIVIER *)
 	PROCEDURE GetType*(system: Global.System; type: SyntaxTree.Type): IntermediateCode.Type;
 	BEGIN
 		type := type.resolved;
@@ -9005,8 +8963,8 @@ TYPE
 			RETURN SignedIntegerType(system.SizeOf(type))
 		ELSIF type IS SyntaxTree.FloatType THEN
 			RETURN FloatType(system.SizeOf(type))
-		ELSIF type IS SyntaxTree.ArrayRangeType THEN
-			RETURN GetType(system,system.addressType) (* OLIVIER *)
+		ELSIF type IS SyntaxTree.RangeType THEN
+			RETURN GetType(system,system.addressType)
 		ELSIF type IS SyntaxTree.BasicType THEN
 			IF type IS SyntaxTree.SizeType THEN RETURN SignedIntegerType(system.SizeOf(type))
 			ELSE
@@ -9020,7 +8978,6 @@ TYPE
 			RETURN GetType(system,system.addressType)
 		ELSIF type IS SyntaxTree.MathArrayType THEN
 
-			(* OLIVIER *)
 			(* TODO: ok to comment out the following assertion?:
 			ASSERT(type(SyntaxTree.MathArrayType).form IN {SyntaxTree.Static, SyntaxTree.Tensor}); *)
 
@@ -9161,7 +9118,6 @@ TYPE
 	END DynamicDim;
 
 	(*
-	(* OLIVIER *)
 	PROCEDURE ParametersSize(system: Global.System; procedureType: SyntaxTree.ProcedureType; isNested: BOOLEAN): LONGINT;
 	VAR parSize: LONGINT; parameter: SyntaxTree.Parameter;
 
@@ -9187,7 +9143,6 @@ TYPE
 			NO, SELF is encoded as regular parameter
 		*)
 		IF isNested THEN INC(parSize,system.addressSize) END; (* nested procedure => static base *)
-		(* OLIVIER *)
 		IF NeedsStructuredReturnType(procedureType) THEN
 			IF procedureType.returnParameter = NIL THEN (* otherwise handled by caller *)
 				parSize := parSize + 2*system.addressSize
@@ -9197,7 +9152,7 @@ TYPE
 		RETURN ToMemoryUnits(system,parSize)
 	END ParametersSize;
 	*)
-	(* OLIVIER *)
+
 	PROCEDURE ParametersSize(system: Global.System; procedureType: SyntaxTree.ProcedureType; isNested: BOOLEAN): LONGINT;
 	VAR parSize: LONGINT; parameter: SyntaxTree.Parameter;
 	BEGIN
@@ -9213,7 +9168,7 @@ TYPE
 			NO, SELF is encoded as regular parameter
 		*)
 		IF isNested THEN INC(parSize,system.addressSize) END; (* nested procedure => static base *)
-		(* OLIVIER *)
+	
 		IF NeedsStructuredReturnType(procedureType) THEN
 			IF procedureType.returnParameter = NIL THEN (* otherwise handled by caller *)
 				parSize := parSize + 2*system.addressSize
@@ -9223,7 +9178,6 @@ TYPE
 		RETURN ToMemoryUnits(system,parSize)
 	END ParametersSize;
 
-	(* OLIVIER *)
 	(** if a structured return type is needed for a given procedure type **)
 	PROCEDURE NeedsStructuredReturnType(procedureType: SyntaxTree.ProcedureType): BOOLEAN;
 	VAR type: SyntaxTree.Type;
@@ -9232,7 +9186,7 @@ TYPE
 			RETURN FALSE (* no return type *)
 		ELSE
 			type := procedureType.returnType.resolved;
-			IF type IS SyntaxTree.ArrayRangeType THEN
+			IF type IS SyntaxTree.RangeType THEN
 				(* array range type is the only basic type that does not fit in a register, therefore needs a structured return type *)
 				RETURN TRUE
 			ELSIF type IS SyntaxTree.BasicType THEN

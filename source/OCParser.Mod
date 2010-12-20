@@ -6,13 +6,8 @@ IMPORT Basic := OCBasic, Scanner := OCScanner, D := Debugging, SyntaxTree := OCS
 CONST
 	Trace = FALSE;
 
-	(** the parser reflects the following EBNF
-
-		(OLIVIER) 
-		Element (removed)
-		Range (removed)
-		RangeList (removed)
-
+	(** the parser reflects the following EBNF:
+	
 		Module               = 'module' Identifier ['in' Identifier]';' [ImportList] DeclarationSequence [Body]
 		                       'end' Identifier '.'.
 
@@ -59,7 +54,6 @@ CONST
 
 		PointerType          = 'pointer' [Flags] 'to' Type.
 
-		(OLIVIER)
 		ObjectType           = 'object' [Flags] ['(' (QualifiedIdentifier | ArrayType) ')'] DeclarationSequence [Body]
 		                       'end' [Identifier]
 		                     | 'object'.
@@ -96,17 +90,14 @@ CONST
 
 		StatementBlock       = [Flags] StatementSequence.
 
-		(OLIVIER)
 		Case                 = RangeExpression {',' RangeExpression} ':' StatementSequence.
 
-		(OLIVIER)
 		Expression           = RangeExpression [RelationOp RangeExpression].
 
 		RelationOp           = '=' | '.=' | '#' | '.#'
 		                     | '<' | '.<' | '<=' | '.<=' | '>' | '.>' | '>=' | '.>='
 		                     | 'in' | 'is'
 
-		(OLIVIER)
 		RangeExpression  = SimpleExpression | [SimpleExpression] '..' [SimpleExpression] ['by' SimpleExpression] | '*'.
 
 		SimpleExpression     = ['+'|'-'] Term {AddOp Term}.
@@ -122,14 +113,11 @@ CONST
 
 		MathArray            = '[' Expression {',' Expression} ']'.
 
-		(OLIVIER)
 		Set                  = '{' [ RangeExpression {',' RangeExpression} ] '}'.
 
-		(OLIVIER)
 		Designator           = ('self' | Identifier)
 		                       {'.' Identifier | '[' IndexList ']' | '(' [ExpressionList] ')' | '^'}.
 
-		(OLIVIER)
 		IndexList            = '?' [',' ExpressionList ] | ExpressionList [',' '?'].
 
 		ExpressionList       = Expression {','Expression}.
@@ -416,7 +404,6 @@ TYPE
 			IF Trace THEN E( "ExpressionList" ) END;
 		END ExpressionList;
 
-		(* OLIVIER  *)
 		(** IndexList = '?' [',' ExpressionList ] | ExpressionList [',' '?']. **)
 		PROCEDURE IndexList(expressionList: SyntaxTree.ExpressionList);
 		VAR
@@ -452,7 +439,6 @@ TYPE
 			IF Trace THEN E( "IndexList" ) END;
 		END IndexList;
 
-		(* OLIVIER *)
 		(** RangeExpression = SimpleExpression | [SimpleExpression] '..' [SimpleExpression] ['by' SimpleExpression] | '*'.
 			i.e., a RangeExpression can have one of the following forms:
 				'*'
@@ -533,7 +519,6 @@ TYPE
 			RETURN expression
 		END RangeExpression;
 
-		(* OLIVIER *)
 		(** Designator  = ('self' | Identifier)
 		                  {'.' Identifier | '[' IndexList ']' | '(' [ExpressionList] ')' | '^'}.
 		**)
@@ -576,7 +561,6 @@ TYPE
 			RETURN designator
 		END Designator;
 
-		(* OLIVIER *)
 		(** Set = '{' [ Expression {',' Expression} ] '}'. **)
 		PROCEDURE Set( ): SyntaxTree.Expression;
 		VAR
@@ -738,7 +722,6 @@ TYPE
 			RETURN expression
 		END SimpleExpression;
 
-		(* OLIVIER *)
 		(**
 			Expression           = RangeExpression [RelationOp RangeExpression].
 			RelationOp           = '=' | '.=' | '#' | '.#'
@@ -761,7 +744,6 @@ TYPE
 			RETURN expression
 		END Expression;
 
-		(* OLIVIER *)
 		(** Case = RangeExpression {',' RangeExpression} ':' StatementSequence. **)
 		PROCEDURE Case( caseStatement: SyntaxTree.CaseStatement );
 		VAR
@@ -1078,7 +1060,6 @@ TYPE
 			RETURN procedureType;
 		END ProcedureType;
 
-		(* OLIVIER *)
 		(** ObjectType = 'object' ['(' (QualifiedIdentifier | ArrayType) ')'] DeclarationSequence [Body] 'end' [Identifier] | 'object'. **)
 		PROCEDURE ObjectType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope ): SyntaxTree.Type;
 		VAR
@@ -1117,7 +1098,6 @@ TYPE
 			END;
 
 			IF Optional( Scanner.LeftParenthesis ) THEN
-				(* OLIVIER *)
 				IF Optional(Scanner.Array) THEN
 					baseType := ArrayType(position, parentScope) (* TODO: correct position? *)
 				ELSE
@@ -1565,7 +1545,6 @@ TYPE
 			IF Trace THEN E( "Procedure") END;
 		END ProcedureDeclaration;
 
-		(* OLIVIER *)
 		(** OperatorDeclaration  = 'operator' String ['*'|'-'] FormalParameters ';'
 			                       DeclarationSequence [Body] 'end' String.
 		**)
@@ -1617,7 +1596,6 @@ TYPE
 			IF parentScope IS SyntaxTree.ModuleScope THEN
 				parentScope(SyntaxTree.ModuleScope).AddOperator(operator);
 			
-			(* OLIVIER *)
 			ELSIF parentScope IS SyntaxTree.RecordScope THEN
 				parentScope(SyntaxTree.RecordScope).AddOperator(operator);
 			

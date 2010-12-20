@@ -47,12 +47,11 @@ CONST
 	(** node states, important for checker to avoid cycles *)
 	Undefined*={}; BeingResolved*=1; Resolved*=2; FingerPrinted*=3; Warned*=4; RecursionFlag=31;
 
-	(* OLIVIER *)
-	(* kind of RangeExpression *)
-	CaseRangeKind* = 0;
-	SetRangeKind* = 1;
-	ArrayRangeKind* = 2;
-
+	(* context in which a range expression is used *)
+	ArrayIndex* = 0;
+	SetElement* = 1;
+	CaseGuard* = 2;
+	
 VAR
 	(** debugging / counters *)
 
@@ -131,9 +130,8 @@ TYPE
 		PROCEDURE VisitEnumerationType*(x: EnumerationType);
 		BEGIN HALT(100) (* abstract *) END VisitEnumerationType;
 
-		(* OLIVIER *)
-		PROCEDURE VisitArrayRangeType*(x: ArrayRangeType);
-		BEGIN HALT(100) (* abstract *) END VisitArrayRangeType;
+		PROCEDURE VisitRangeType*(x: RangeType);
+		BEGIN HALT(100) (* abstract *) END VisitRangeType;
 
 		PROCEDURE VisitArrayType*(x: ArrayType);
 		BEGIN HALT(100) (* abstract *) END VisitArrayType;
@@ -172,21 +170,8 @@ TYPE
 		PROCEDURE VisitBinaryExpression*(x: BinaryExpression);
 		BEGIN HALT(100) (* abstract *) END VisitBinaryExpression;
 
-		(* OLIVIER *)
 		PROCEDURE VisitRangeExpression*(x: RangeExpression);
 		BEGIN HALT(100) (* abstract *) END VisitRangeExpression;
-
-		(* OLIVIER *)
-		PROCEDURE VisitCaseRangeExpression*(x: CaseRangeExpression);
-		BEGIN HALT(100) (* abstract *) END VisitCaseRangeExpression;
-
-		(* OLIVIER *)
-		PROCEDURE VisitSetRangeExpression*(x: SetRangeExpression);
-		BEGIN HALT(100) (* abstract *) END VisitSetRangeExpression;
-
-		(* OLIVIER *)
-		PROCEDURE VisitArrayRangeExpression*(x: ArrayRangeExpression);
-		BEGIN HALT(100) (* abstract *) END VisitArrayRangeExpression;
 
 		PROCEDURE VisitTensorRangeExpression*(x: TensorRangeExpression);
 		BEGIN HALT(100) (* abstract *) END VisitTensorRangeExpression;
@@ -343,11 +328,11 @@ TYPE
 		BEGIN HALT(100) (* abstract *) END VisitCode;
 
 	END Visitor;
-
-	(* OLIVIER *)
+	
 	ArrayAccessOperators* = RECORD
-		len*: Operator;
-		read*, write*: ARRAY [*] OF Operator;
+		len*: Operator; (* length operator *)
+		generalRead*, generalWrite*: Operator; (* operators on ARRAY [*] RANGE, for tensors *)
+		read*, write*: ARRAY [*] OF Operator; (* fixed-dim. operators *)
 	END;
 
 	Fingerprint*= RECORD
@@ -747,20 +732,18 @@ TYPE
 
 	END CharacterType;
 
-	(* OLIVIER *)
-	(** type of math array index ranges, as in
-		<<array[0..10 BY 2]>>
+	(** type of ranges (case constants, set elements, array indices)
 		represented by basic type <<RANGE>>
 	**)
-	ArrayRangeType* = OBJECT(BasicType)
-		PROCEDURE & InitArrayRangeType(sizeInBits: LONGINT);
+	RangeType* = OBJECT(BasicType)
+		PROCEDURE & InitRangeType(sizeInBits: LONGINT);
 		BEGIN
-			InitBasicType("@ArrayRangeType",sizeInBits);
+			InitBasicType("@RangeType",sizeInBits);
 			SetRealtime(TRUE);
-		END InitArrayRangeType;
+		END InitRangeType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
-		BEGIN RETURN (this = SELF) OR (this IS ArrayRangeType)
+		BEGIN RETURN (this = SELF) OR (this IS RangeType)
 		END SameType;
 
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
@@ -769,9 +752,9 @@ TYPE
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitArrayRangeType(SELF)
+		BEGIN position := SELF.position; v.VisitRangeType(SELF)
 		END Accept;
-	END ArrayRangeType;
+	END RangeType;
 
 	(* number types: IntegerType or FloatType *)
 	NumberType*=OBJECT(BasicType)
@@ -1041,7 +1024,6 @@ TYPE
 			length := NIL; arrayBase := NIL; InitType(position); staticLength := 0; staticIncrementInBits := 0; SELF.form := form; SELF.scope := scope;
 		END InitMathArrayType;
 
-		(* OLIVIER *)
 		PROCEDURE SetForm*(form: LONGINT);
 		BEGIN
 			SELF.form := form;
@@ -1052,14 +1034,12 @@ TYPE
 			arrayBase := type;
 		END SetArrayBase;
 
-		(* OLIVIER *)
 		PROCEDURE SetLength*(length: Expression);
 		BEGIN
 			SELF.length := length;
 			IF (length # NIL) & (length.resolved # NIL) & (length.resolved IS IntegerValue) THEN
 				staticLength := length.resolved(IntegerValue).value;
 
-				(* OLIVIER *)
 				(* optimization: unless the base type is a dynamic array, make this array static *)
 				IF ~((arrayBase # NIL) & (arrayBase IS MathArrayType) & (arrayBase(MathArrayType).form # Static)) THEN
 					form := Static;
@@ -1102,7 +1082,6 @@ TYPE
 			RETURN (form = Static) & SameType(to)
 		END CompatibleTo;
 
-		(* OLIVIER *)
 		(** get the element  type of a math array, i.e. the first type in the math array chain that is not a math array **)
 		PROCEDURE ElementType*(): Type;
 		VAR
@@ -1115,7 +1094,6 @@ TYPE
 			RETURN type
 		END ElementType;
 
-		(* OLIVIER *)
 		(** get the number of dimensions of a math array; 0 in case of tensors **)
 		PROCEDURE Dimensionality*(): LONGINT;
 		VAR
@@ -1136,7 +1114,6 @@ TYPE
 			RETURN dim
 		END Dimensionality;
 
-		(* OLIVIER *)
 		(** if the math array is of the form ARRAY [*, *, ..., *], i.e. contains no static length and is not a tensor either **)
 		PROCEDURE IsFullyDynamic*(): BOOLEAN;
 		VAR
@@ -1254,7 +1231,6 @@ TYPE
 
 	END PortType;
 
-	(* OLIVIER *)
 	(** << recordType =
 		[POINTER TO] RECORD (baseType) .. END |
 		OBJECT (baseType) .. END
@@ -1266,13 +1242,11 @@ TYPE
 			pointerType-: PointerType; (* for support of A = POINTER TO RECORD ... END and B = POINTER TO RECORD (A) END; *)
 			isObject-,isProtected: BOOLEAN;
 
-			(* OLIVIER *)
 			(* a math array type describing an object's array structure; NIL if the type does not exhibit an array structure *)
 			arrayStructure-: MathArrayType;
 			(* list of all operators needed to access an array-structured object type *)
 			arrayAccessOperators-: ArrayAccessOperators;
 
-		(* OLIVIER *)
 		PROCEDURE & InitRecordType( position: LONGINT; scope: Scope; recordScope: RecordScope);
 		BEGIN
 			InitType( position);
@@ -1284,7 +1258,7 @@ TYPE
 			ASSERT(recordScope.ownerRecord = NIL); (* cannot register twice ! *)
 			recordScope.ownerRecord := SELF;
 			isObject := FALSE; isProtected := FALSE;
-			arrayStructure := NIL; (* OLIVIER *)
+			arrayStructure := NIL;
 		END InitRecordType;
 
 		PROCEDURE SetBaseType*( type: Type );
@@ -1364,17 +1338,14 @@ TYPE
 		BEGIN	RETURN Extends(to)
 		END CompatibleTo;
 
-		(* OLIVIER *)
 		PROCEDURE SetArrayStructure*(arrayStructure: MathArrayType);
 		BEGIN SELF.arrayStructure := arrayStructure
 		END SetArrayStructure;
 
-		(* OLIVIER *)
 		PROCEDURE SetArrayAccessOperators*(arrayAccessOperators: ArrayAccessOperators);
 		BEGIN SELF.arrayAccessOperators := arrayAccessOperators
 		END SetArrayAccessOperators;
 
-		(* OLIVIER *)
 		PROCEDURE HasArrayStructure*(): BOOLEAN;
 		BEGIN RETURN (arrayStructure # NIL)
 		END HasArrayStructure;
@@ -1747,126 +1718,18 @@ TYPE
 
 	END BinaryExpression;
 
-	(* OLIVIER *)
-	(** expression that denotes any kind of range (before the semantic check)
+	(** expression that denotes a range
 	    <<[first] '..' [last] ['by' step] | '*' >>
 	**)
-	RangeExpression*= OBJECT (Expression)
-	VAR
-		(* The kind of a RangeExpression. Determined and used by the Semantic Checker to convert
-		   a generic RangeExpression into one of the following:
-			- CaseRangeExpression
-			- SetRangeExpression
-			- ArrayRangeExpression
-		*)
-		kind-: SHORTINT;
-
-		first-, last-, step-: Expression; (* in case of <<*>> or <<..>>, the fields 'first', 'last' and 'step' are set to 'NIL' *)
-
-		PROCEDURE &InitRangeExpression(position: LONGINT; first, last, step: Expression);
-		BEGIN
-			InitExpression(position);
-			(* a range expression is by default assumed to be of the array kind *)
-			SELF.kind := ArrayRangeKind;
-			SELF.first := first;
-			SELF.last := last;
-			SELF.step := step;
-		END InitRangeExpression;
-
-		PROCEDURE SetKind*(kind: SHORTINT);
-		BEGIN SELF.kind := kind
-		END SetKind;
-
-		PROCEDURE SetFirst*(first: Expression);
-		BEGIN SELF.first := first
-		END SetFirst;
-
-		PROCEDURE SetLast*(last: Expression);
-		BEGIN SELF.last := last
-		END SetLast;
-
-		PROCEDURE SetStep*(step: Expression);
-		BEGIN SELF.step := step
-		END SetStep;
-
-		PROCEDURE Accept*(v: Visitor);
-		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitRangeExpression(SELF)
-		END Accept;
-
-	END RangeExpression;
-
-	(* OLIVIER *)
-	(** expression that denotes a range of elements inside a case-statement (after the semantic check)
-	    <<first .. last>>
-	**)
-	CaseRangeExpression* = OBJECT (Expression)
-	VAR
-		first-, last-: Expression;
-
-		PROCEDURE &InitCaseRangeExpression(position: LONGINT; first, last: Expression);
-		BEGIN
-			InitExpression(position);
-			SELF.first := first;
-			SELF.last := last;
-		END InitCaseRangeExpression;
-
-		PROCEDURE SetFirst*(first: Expression);
-		BEGIN SELF.first := first
-		END SetFirst;
-
-		PROCEDURE SetLast*(last: Expression);
-		BEGIN SELF.last := last
-		END SetLast;
-
-		PROCEDURE Accept*(v: Visitor);
-		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitCaseRangeExpression(SELF)
-		END Accept;
-
-	END CaseRangeExpression;
-
-	(* OLIVIER *)
-	(** expression that denotes a range of elements inside a set (after the semantic check)
-	    <<first .. last>>
-	**)
-	SetRangeExpression* = OBJECT (Expression)
-	VAR
-		first-, last-: Expression;
-
-		PROCEDURE &InitSetRangeExpression(position: LONGINT; first, last: Expression);
-		BEGIN
-			InitExpression(position);
-			SELF.first := first;
-			SELF.last := last;
-		END InitSetRangeExpression;
-
-		PROCEDURE SetFirst*(first: Expression);
-		BEGIN SELF.first := first
-		END SetFirst;
-
-		PROCEDURE SetLast*(last: Expression);
-		BEGIN SELF.last := last
-		END SetLast;
-
-		PROCEDURE Accept*(v: Visitor);
-		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitSetRangeExpression(SELF)
-		END Accept;
-
-	END SetRangeExpression;
-
-	(* OLIVIER *)
-	(** expression that denotes a range of indices for a math array (after the semantic check)
-	    <<[first] '..' [last] ['by' step] | '*' >>
-	**)
-	ArrayRangeExpression* = OBJECT (Expression)
+	RangeExpression* = OBJECT (Expression)
 	VAR
 		first-, last-, step-: Expression;
-		missingFirst-, missingLast-, missingStep- :BOOLEAN; (* only for printout*)
-
-		PROCEDURE &InitArrayRangeExpression(position: LONGINT; first, last, step: Expression);
+		missingFirst-, missingLast-, missingStep-: BOOLEAN; (* only for printout*)
+		context-: SHORTINT; (* one of ArrayIndex, SetElement or CaseGuard *)
+		
+		PROCEDURE &InitRangeExpression(position: LONGINT; first, last, step: Expression);
 		BEGIN
+			context := ArrayIndex; (* by default, a range represents array indices *)
 			InitExpression(position);
 			missingFirst := (first = NIL);
 			missingLast := (last = NIL);
@@ -1874,7 +1737,7 @@ TYPE
 			SELF.first := first;
 			SELF.last := last;
 			SELF.step := step;
-		END InitArrayRangeExpression;
+		END InitRangeExpression;
 
 		PROCEDURE SetFirst*(first: Expression);
 		BEGIN
@@ -1889,13 +1752,17 @@ TYPE
 		BEGIN SELF.step := step
 		END SetStep;
 
+		PROCEDURE SetContext*(context: SHORTINT);
+		BEGIN
+			SELF.context := context
+		END SetContext;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitArrayRangeExpression(SELF)
+		BEGIN position := SELF.position; v.VisitRangeExpression(SELF)
 		END Accept;
 
-	END ArrayRangeExpression;
-
+	END RangeExpression;
 
 	(** << ? >> **)
 	TensorRangeExpression*=OBJECT (Expression);
@@ -1941,14 +1808,12 @@ TYPE
 		VAR
 			left-: Expression; (* currently only designators are allowed but for later purposes ... (as for example (a+b).c) *)
 
-			(* OLIVIER *)
 			relatedRhs-: Expression; (* the RHS of an assignment if this designator is used on the LHS: *)
 
 			(* used if this designator contains an index operator call, e.g. 'asot.^"[]"(indexList)': *)
 			relatedAsot-: Expression; (* the ASOT on which the index operator is called *)
 			relatedIndexList-: ExpressionList; (* the index list *)
 
-		(* OLIVIER *)
 		PROCEDURE &InitDesignator*(position: LONGINT);
 		BEGIN
 			InitExpression(position);
@@ -1962,17 +1827,14 @@ TYPE
 		BEGIN left := expression
 		END SetLeft;
 
-		(* OLIVIER *)
 		PROCEDURE SetRelatedRhs*(relatedRhs: Expression);
 		BEGIN SELF.relatedRhs := relatedRhs
 		END SetRelatedRhs;
 
-		(* OLIVIER *)
 		PROCEDURE SetRelatedAsot*(relatedAsot: Expression);
 		BEGIN SELF.relatedAsot := relatedAsot
 		END SetRelatedAsot;
 
-		(* OLIVIER *)
 		PROCEDURE SetRelatedIndexList*(relatedIndexList: ExpressionList);
 		BEGIN SELF.relatedIndexList := relatedIndexList
 		END SetRelatedIndexList;
@@ -2106,23 +1968,21 @@ TYPE
 		VAR
 			parameters-: ExpressionList;
 			hasRange-: BOOLEAN;
-			hasTensorRange-: BOOLEAN; (* OLIVIER *)
+			hasTensorRange-: BOOLEAN;
 
-		(* OLIVIER *)
 		PROCEDURE &InitIndexDesignator(position: LONGINT; left: Designator);
 		BEGIN
 			InitDesignator(position);
 			SELF.left := left;
 			parameters := NewExpressionList();
 			hasRange := FALSE;
-			hasTensorRange := FALSE;(* OLIVIER *)
+			hasTensorRange := FALSE;
 		END InitIndexDesignator;
 
 		PROCEDURE HasRange*;
 		BEGIN hasRange := TRUE;
 		END HasRange;
 
-		(* OLIVIER *)
 		PROCEDURE HasTensorRange*;
 		BEGIN hasTensorRange := TRUE;
 		END HasTensorRange;
@@ -3702,7 +3562,6 @@ TYPE
 			constructor-: Procedure;
 			numberMethods-: LONGINT;
 			firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters for dataflow programming*)
-			(* OLIVIER *)
 			firstOperator-, lastOperator-: Operator; numberOperators: LONGINT; (* defined operators *)
 
 		PROCEDURE & InitRecordScope(outer: Scope);
@@ -3727,7 +3586,6 @@ TYPE
 		BEGIN SELF.numberMethods := numberMethods;
 		END SetNumberMethods;
 
-		(* OLIVIER *)
 		PROCEDURE AddOperator*(p: Operator);
 		BEGIN
 			ASSERT(p # NIL);
@@ -4068,8 +3926,6 @@ VAR
 	typeDeclarationType-: Type;
 	moduleType-: Type;
 
-	(* OLIVIER *)
-	nonArrayRangeType-: Type;
 	indexListSeparator-: Expression;
 
 	PROCEDURE InitFingerprint*(VAR fingerprint: Fingerprint);
@@ -4191,12 +4047,11 @@ VAR
 		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
 	END NewCharacterType;
 
-	(* OLIVIER *)
-	PROCEDURE NewArrayRangeType*(sizeInBits: LONGINT): ArrayRangeType;
-	VAR basicType: ArrayRangeType;
+	PROCEDURE NewRangeType*(sizeInBits: LONGINT): RangeType;
+	VAR basicType: RangeType;
 	BEGIN
 		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
-	END NewArrayRangeType;
+	END NewRangeType;
 
 	PROCEDURE NewIntegerType*(size: LONGINT; signed: BOOLEAN): IntegerType;
 	VAR basicType: IntegerType;
@@ -4433,25 +4288,6 @@ VAR
 	BEGIN
 		NEW(rangeExpression, position, first, last, step); RETURN rangeExpression
 	END NewRangeExpression;
-
-	(* OLIVIER *)
-	PROCEDURE NewCaseRangeExpression*(position: LONGINT; first, last: Expression): CaseRangeExpression;
-	VAR caseRangeExpression: CaseRangeExpression;
-	BEGIN
-		NEW(caseRangeExpression, position, first, last); RETURN caseRangeExpression
-	END NewCaseRangeExpression;
-	(* OLIVIER *)
-	PROCEDURE NewSetRangeExpression*(position: LONGINT; first, last: Expression): SetRangeExpression;
-	VAR setRangeExpression: SetRangeExpression;
-	BEGIN
-		NEW(setRangeExpression, position, first, last); RETURN setRangeExpression
-	END NewSetRangeExpression;
-	(* OLIVIER *)
-	PROCEDURE NewArrayRangeExpression*(position: LONGINT; first, last, step: Expression): ArrayRangeExpression;
-	VAR arrayRangeExpression: ArrayRangeExpression;
-	BEGIN
-		NEW(arrayRangeExpression, position, first, last, step); RETURN arrayRangeExpression
-	END NewArrayRangeExpression;
 
 	PROCEDURE NewTensorRangeExpression*(position: LONGINT): TensorRangeExpression;
 	VAR tensorRangeExpression: TensorRangeExpression;
@@ -4794,13 +4630,8 @@ VAR
 		anonymous := Basic.MakeString("");
 		anonymousIdentifier := NewIdentifier(-1,"");
 
-		(* OLIVIER *)
 		indexListSeparator := NewDesignator();
 		indexListSeparator.SetType(invalidType);
-		(* OLIVIER *)
-		(* initialize pseudo-type for CaseRangeExpressions and SetRangeExpressions *)
-		nonArrayRangeType := NewType();
-		nonArrayRangeType.SetState(Resolved);
 
 		(* debugging *)
 		nodeCount := 0;  listCount := 0;  identifierCount := 0;  qualifiedIdentifierCount := 0;

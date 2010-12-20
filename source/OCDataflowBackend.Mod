@@ -112,7 +112,7 @@ TYPE
 		PROCEDURE VisitStringType(x: SyntaxTree.StringType);
 		BEGIN (* no code emission *)   END VisitStringType;
 
-		PROCEDURE VisitArrayRangeType(x: SyntaxTree.ArrayRangeType);
+		PROCEDURE VisitArrayRangeType(x: SyntaxTree.RangeType);
 		BEGIN (* no code emission *)   END VisitArrayRangeType;
 
 		PROCEDURE VisitArrayType(x: SyntaxTree.ArrayType);
