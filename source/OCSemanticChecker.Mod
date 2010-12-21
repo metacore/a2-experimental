@@ -4275,19 +4275,19 @@ TYPE
 
 		BEGIN
 			type := NIL; result := NIL;
-
+			type0 := NIL; type1 := NIL; type2 := NIL;
 			numberActualParameters := actualParameters.Length();
 			IF numberActualParameters>0 THEN
 				parameter0 := actualParameters.GetExpression(0);
-				type0 := parameter0.type.resolved;
+				IF parameter0.type # NIL THEN type0 := parameter0.type.resolved END
 			END;
 			IF numberActualParameters >1 THEN
 				parameter1 := actualParameters.GetExpression(1);
-				type1 := parameter1.type.resolved;
+				IF parameter1.type # NIL THEN type1 := parameter1.type.resolved END
 			END;
 			IF numberActualParameters >2 THEN
 				parameter2 := actualParameters.GetExpression(2);
-				type2 := parameter1.type.resolved;
+				IF parameter2.type # NIL THEN type2 := parameter2.type.resolved END
 			END;
 
 			id := builtin.id;
