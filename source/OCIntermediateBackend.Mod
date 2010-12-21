@@ -2025,7 +2025,7 @@ TYPE
 				Evaluate(x.left,left);
 				Evaluate(x.right,right);
 				Convert(left.op,setType);
-				Reuse1(temp.op,right.op);
+				ReuseCopy(temp.op,right.op);
 				Emit(Shr(temp.op,temp.op,left.op));
 				ReleaseOperand(right); ReleaseOperand(left);
 				IntermediateCode.InitImmediate(one,setType,1);
