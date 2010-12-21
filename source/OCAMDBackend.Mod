@@ -200,23 +200,24 @@ TYPE
 		PROCEDURE NextFree(CONST type: IntermediateCode.Type):LONGINT;
 		VAR i,sizeInBits: LONGINT;
 
-			PROCEDURE Get(from1,to1,from2,to2: LONGINT): LONGINT;
+			PROCEDURE GetHint(offset: LONGINT): LONGINT;
+			VAR res: LONGINT;
 			BEGIN
-				IF (hint # none) & (toVirtual[hint] = free) & ~Reserved(hint) & ((from1 <= hint) & (hint <= to1) OR (from2 <= hint) & (hint <= to2)) THEN
-					i := hint; hint := none
-				ELSE
+				IF (hint # none) & (toVirtual[hint MOD 32 + offset]=free) & ~Reserved(hint) THEN res := hint ELSE res := none END;
+				hint := none;
+				RETURN res
+			END GetHint;
 
-					i := to2;
-					WHILE (i>= from2) & ((toVirtual[i]#free) OR Reserved(i)) DO
-						DEC(i);
-					END;
-					IF i < from2 THEN
-						i := to1;
-						WHILE (i>= from1) & ((toVirtual[i]#free) OR Reserved(i)) DO
-							DEC(i);
-						END;
-						IF i < from1 THEN i := none END
-					END;
+			PROCEDURE Get(from,to: LONGINT): LONGINT;
+			VAR i: LONGINT;
+			BEGIN
+				i := from;
+				IF from <= to THEN
+					WHILE (i <= to) & ((toVirtual[i]#free) OR Reserved(i)) DO INC(i) END;
+					IF i > to THEN i := none END;
+				ELSE
+					WHILE (i >=to) & ((toVirtual[i]#free) OR Reserved(i)) DO DEC(i) END;
+					IF i < to THEN i := none END;
 				END;
 				RETURN i
 			END Get;
@@ -225,19 +226,23 @@ TYPE
 			IF type.form IN IntermediateCode.Integer THEN
 				sizeInBits := type.sizeInBits;
 				IF type.sizeInBits = IntermediateCode.Bits8 THEN
-					i := Get(AH,BH,AL,BL)
+					i := GetHint(AL);
+					IF i = none THEN i := Get(BL, AL) END;
+					IF i = none THEN i := Get(BH, AH) END;
 				ELSIF type.sizeInBits = IntermediateCode.Bits16 THEN
-					i := Get(AX,BX,SI,DI);
+					i := GetHint(AX);
+					IF i = none THEN i := Get(DI, SI) END;
+					IF i = none THEN i := Get(BX, AX) END;
 				ELSIF type.sizeInBits = IntermediateCode.Bits32 THEN
-					i := Get(EAX,EBX,ESI,EDI);
+					i := GetHint(EAX);
+					IF i = none THEN i := Get(EDI,ESI) END;
+					IF i = none THEN i := Get(EBX,EAX) END;
 				ELSE HALT(100)
 				END;
 			ELSE
 				ASSERT(type.form = IntermediateCode.Float);
-				i := InstructionSet.regST0;
+				i := Get(InstructionSet.regST0, InstructionSet.regST6);
 				(* ST7 unusable as it is overwritten during arithmetic instructions *)
-				WHILE (i < InstructionSet.regST7) & (toVirtual[i] # free) DO INC(i) END;
-				IF i = InstructionSet.regST7 THEN i := none END; (* SP7 not usable as frequently overwritten during expressions *)
 			END;
 			hint := none; (* reset *)
 			RETURN i
@@ -377,37 +382,56 @@ TYPE
 
 		PROCEDURE NextFree(CONST type: IntermediateCode.Type): LONGINT;
 		VAR i: LONGINT;
-			PROCEDURE Get(from,to: LONGINT): LONGINT;
+			PROCEDURE GetHint(offset: LONGINT): LONGINT;
+			VAR res: LONGINT;
 			BEGIN
-				IF (hint # none) & (toVirtual[hint] = free) & ~Reserved(i) & (from <= hint) & (hint <= to) THEN
-					i := hint; hint := none
+				IF (hint # none) & (toVirtual[hint MOD 32 + offset]=free) & ~Reserved(hint) THEN res := hint ELSE res := none END;
+				hint := none;
+				RETURN res
+			END GetHint;
+
+			PROCEDURE Get(from,to: LONGINT): LONGINT;
+			VAR i: LONGINT;
+			BEGIN
+				i := from;
+				IF from <= to THEN
+					WHILE (i <= to) & ((toVirtual[i]#free) OR Reserved(i)) DO INC(i) END;
+					IF i > to THEN i := none END;
 				ELSE
-					i := to;
-					WHILE (i>= from) & ((toVirtual[i]#free) OR Reserved(i)) DO
-						DEC(i);
-					END;
-					IF i < from THEN i := none END;
+					WHILE (i >=to) & ((toVirtual[i]#free) OR Reserved(i)) DO DEC(i) END;
+					IF i < to THEN i := none END;
 				END;
 				RETURN i
 			END Get;
-		BEGIN
+
+			BEGIN
 			IF type.form IN IntermediateCode.Integer THEN
 				IF type.sizeInBits = IntermediateCode.Bits8 THEN
-					i := Get(AL,R15B)
+					i := GetHint(AL);
+					IF i = none THEN
+						i := Get(AL,R15B)
+					END;
 				ELSIF type.sizeInBits = IntermediateCode.Bits16 THEN
-					i := Get(AX,R15W);
+					i := GetHint(AX);
+					IF i = none THEN
+						i := Get(AX,R15W);
+					END;
 				ELSIF type.sizeInBits = IntermediateCode.Bits32 THEN
-					i := Get(EAX,R15D);
+					i := GetHint(EAX);
+					IF i = none THEN
+						i := Get(EAX,R15D);
+					END;
 				ELSIF type.sizeInBits = IntermediateCode.Bits64 THEN
-					i := Get(RAX, R15)
+					i := GetHint(RAX);
+					IF i = none THEN
+						i := Get(RAX, R15)
+					END;
 				ELSE HALT(100)
 				END;
 			ELSE
 				ASSERT(type.form = IntermediateCode.Float);
-				i := InstructionSet.regST0;
+				i := Get(InstructionSet.regST0, InstructionSet.regST6);
 				(* ST7 unusable as it is overwritten during arithmetic instructions *)
-				WHILE (i < InstructionSet.regST7) & (toVirtual[i] # free) DO INC(i) END;
-				IF i = InstructionSet.regST7 THEN i := none END;
 			END;
 			RETURN i;
 		END NextFree;
@@ -1132,6 +1156,7 @@ TYPE
 			ELSE
 				GetPartType(instruction.op1.type,part, type);
 				MakeOperand(instruction.op1, part, operand,NIL);
+				Spill(physicalRegisters.Mapped(register));
 				ticket := ReservePhysicalRegister(type,register);
 				TicketToOperand(ticket, return);
 				(* Mov takes care of potential register overlaps *)
@@ -1946,8 +1971,9 @@ TYPE
 
 			Spill(physicalRegisters.Mapped(ECX)); ecx := ReservePhysicalRegister(IntermediateCode.int32,ECX);
 
-			GetTemporaryRegister(instruction.op2.type,dest);
+			(*GetTemporaryRegister(instruction.op2.type,dest);*)
 			MakeOperand(instruction.op1,Low,op1,NIL);
+			IF ~Assembler.IsRegisterOperand(op1) THEN GetTemporaryRegister(instruction.op2.type,dest) ELSE dest := op1 END;
 			MakeOperand(instruction.op2,Low,op2,NIL);
 			MakeOperand(instruction.op3,Low,op3,NIL);
 			IF instruction.op3.mode = IntermediateCode.ModeImmediate THEN
