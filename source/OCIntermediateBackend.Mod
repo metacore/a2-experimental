@@ -1195,9 +1195,9 @@ TYPE
 			Emit(Trap(trapNo));
 			SetLabel(exit);
 		END TrapC;
-		
+
 		(** expressions *)
-		
+
 		(** emit necessary runtime check for set elements **)
 		PROCEDURE CheckSetElement(o: IntermediateCode.Operand);
 		VAR max: IntermediateCode.Operand;
@@ -1207,7 +1207,7 @@ TYPE
 				TrapC(BrgeL, max, o, SetElementTrap);
 			END;
 		END CheckSetElement;
-		
+
 		(** the set that a range represents **)
 		PROCEDURE SetFromRange(x: SyntaxTree.RangeExpression): IntermediateCode.Operand;
 		VAR
@@ -1221,7 +1221,7 @@ TYPE
 			one := IntermediateCode.Immediate(setType, 1);
 
 			Evaluate(x, operand);
-			
+
 			Convert(operand.op, setType);
 			Convert(operand.tag, setType);
 
@@ -1258,10 +1258,10 @@ TYPE
 			Emit(And(resultingSet, operand.op, operand.tag));
 
 			ReleaseOperand(operand);
-			
+
 			RETURN resultingSet
 		END SetFromRange;
-		
+
 		PROCEDURE VisitSet(x: SyntaxTree.Set);
 		VAR
 			res, operand: Operand;
@@ -1297,14 +1297,14 @@ TYPE
 					Evaluate(expression, operand);
 					Convert(operand.op, setType);
 					CheckSetElement(operand.op);
-					
+
 					(* create subset containing single element *)
 					Reuse1(temp, operand.op);
 					Emit(Shl(temp, one, operand.op));
 					ReleaseOperand(operand);
-					
+
 					Emit(Or(res.op, res.op, temp)); (* unify subset with current set *)
-					ReleaseIntermediateOperand(temp);					
+					ReleaseIntermediateOperand(temp);
 				END
 			END;
 
@@ -2021,22 +2021,24 @@ TYPE
 					END;
 				END;
 			|Scanner.In:
-				IF ~conditional THEN ConditionToValue(x);
-				ELSE
-					ASSERT(rightType.resolved IS SyntaxTree.SetType);
-					Evaluate(x.left,left);
-					Evaluate(x.right,right);
-					Convert(left.op,setType);
-					Reuse1(temp.op,left.op);
-					IntermediateCode.InitImmediate(one,setType,1);
-					Emit(Shl(temp.op,one,left.op));
-					ReleaseOperand(left);
-					Emit(And(temp.op,temp.op,right.op));
-					ReleaseOperand(right);
+				ASSERT(rightType.resolved IS SyntaxTree.SetType);
+				Evaluate(x.left,left);
+				Evaluate(x.right,right);
+				Convert(left.op,setType);
+				Reuse1(temp.op,right.op);
+				Emit(Shr(temp.op,temp.op,left.op));
+				ReleaseOperand(right); ReleaseOperand(left);
+				IntermediateCode.InitImmediate(one,setType,1);
+				Emit(And(temp.op,temp.op,one));
+				IF conditional THEN
 					IntermediateCode.InitImmediate(zero,setType,0);
 					BrneL(trueLabel,temp.op,zero);
 					ReleaseOperand(temp);
 					BrL(falseLabel);
+				ELSE
+					Convert(temp.op,bool);
+					result.mode := ModeValue;
+					result.op := temp.op;
 				END;
 			ELSE
 				HALT(100);
@@ -2070,7 +2072,7 @@ TYPE
 				ReleaseOperand(operand);
 				UseIntermediateOperand(localResult.extra);
 			END;
-			
+
 			result := localResult;
 
 			IF Trace THEN TraceExit("VisitRangeExpression") END
@@ -3389,7 +3391,7 @@ TYPE
 			structuredReturnType: BOOLEAN;
 			firstWriteBackCall, currentWriteBackCall: WriteBackCall;
 			tempVariableDesignator: SyntaxTree.Designator;
-			
+
 			(* TODO: remove unnecessary backup variables *)
 			oldResult: Operand;
 			oldCurrentScope: SyntaxTree.Scope;
@@ -5273,7 +5275,7 @@ TYPE
 						ReleaseOperand(s1);
 						InitOperand(result,ModeValue);
 						result.op := s0.op;
-					ELSE (* different size, must convert *) 
+					ELSE (* different size, must convert *)
 						(*! this is not very clean, should we forbid conversions between operands with different sizes or should we implement a cutting move ??? *)
 						Convert(s1.op, GetType(system,type));
 						result := s1;
@@ -6429,7 +6431,7 @@ TYPE
 				ELSIF (type IS SyntaxTree.MathArrayType) OR (type IS SyntaxTree.ProcedureType) THEN
 					parameter := procedureType.returnParameter;
 					checker.SetCurrentScope(currentScope);
-					
+
 					IF parameter = NIL THEN
 						Error(procedure.position, "structured return of parameter of procedure not found");
 					ELSE
@@ -9168,7 +9170,7 @@ TYPE
 			NO, SELF is encoded as regular parameter
 		*)
 		IF isNested THEN INC(parSize,system.addressSize) END; (* nested procedure => static base *)
-	
+
 		IF NeedsStructuredReturnType(procedureType) THEN
 			IF procedureType.returnParameter = NIL THEN (* otherwise handled by caller *)
 				parSize := parSize + 2*system.addressSize
