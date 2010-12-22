@@ -6033,8 +6033,8 @@ TYPE
 				(* LHS is of array range type *)
 				ASSERT(rightType IS SyntaxTree.RangeType); (* ensured by the checker *)
 
-				Designate(left, leftO);
 				Evaluate(right, rightO);
+				Designate(left, leftO);(* The order is crucial. Do not reorder emission of left and right *)
 
 				(* first *)
 				MakeMemory(mem, leftO.op, GetType(system, system.longintType), 0);
@@ -6055,12 +6055,13 @@ TYPE
 				ReleaseOperand(leftO)
 			ELSIF (leftType IS SyntaxTree.BasicType) OR (leftType IS SyntaxTree.PointerType) OR (leftType IS SyntaxTree.EnumerationType)
 				OR (leftType IS SyntaxTree.PortType) THEN
+				(* rightO := leftO;*)
+				Evaluate(right,rightO);
+				(* DO NOT REORDER EMISSION OF LEFT AND RIGHT OPERAND *)
 				Designate(left,leftO);
 				MakeMemory(mem,leftO.op,GetType(system,left.type),0);
 				destination := mem;
 				ReleaseOperand(leftO);
-				(* rightO := leftO;*)
-				Evaluate(right,rightO);
 				IF destination.mode # IntermediateCode.Undefined THEN
 					Emit(Mov(destination,rightO.op));
 				END;
