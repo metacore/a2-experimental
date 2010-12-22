@@ -6,7 +6,7 @@ MODULE Objects;   (** AUTHOR "pjm"; PURPOSE "Active object runtime support"; *)
 (*	2007.04.13	g.f.	Timer added *)
 (*	2007.09.21	g.f.	Lock, Unlock fixed *)
 
-IMPORT S := SYSTEM, Trace, Aos := Basetypes, Glue, Unix, Machine, Heaps, Modules;
+IMPORT S := SYSTEM, Trace, Glue, Unix, Machine, Heaps, Modules;
 
 CONST
 
@@ -64,42 +64,36 @@ TYPE
 	Body = PROCEDURE ( typetag: Address;  self: ProtectedObject );
 	Condition = PROCEDURE ( slink: Address ): BOOLEAN;
 	
-	Process* = OBJECT 
+	Process* = OBJECT (Heaps.RootObject)
 			VAR
-				processLink-		: Process;
-				stackBottom-, SP-	: Address;
-				id-		: LONGINT;
-				name-	: ARRAY 64 OF CHAR;
-				proc	: Body;
+				processLink-	: Process;
+				stackBottom-	: Address;
+				SP-				: Address;
+				id-				: LONGINT;
+				proc			: Body;
+				mode-			: LONGINT;
+				flags-			: SET;
+				priority-		: LONGINT;	(* only used if Aos is running SUID root *)
 				
 				succ: Process;   		  		(* in ProcessQueue *)
 				obj-: ProtectedObject;		(* associated active object *)
 				condition-: Condition;   		(* awaited process' condition *)
 				condFP-: Address;			(* awaited process' condition's context *)
 				cond: cCond;				(* gets signaled when condition yields true *)
-				state0: POINTER TO ARRAY  2048 OF CHAR;
-				mode-: LONGINT;
-				procID-: LONGINT;
-				flags-: SET;
-				priority-: LONGINT;
-				waitingOn-: ProtectedObject;
-				state-: Machine.State;
-
+				waitingOn-	: ProtectedObject;
+				procID-		: LONGINT;			(* processor ID where running, not used in UnixAos *)
+				state-		: Machine.State;		(* not used in UnixAos *)
+				state0: ARRAY  2048 OF CHAR;		(* thread state at starting, used for restart after trap *)
+				
+				
 				PROCEDURE & Initialize( obj: ProtectedObject;  bodyProc: Body;  prio: LONGINT; fl: SET; stacksize: LONGINT );
-				VAR ttag: Address;  
 				BEGIN
-					mtxLock( start );
 					SELF.obj := obj;  condition := NIL;  cond := conInit(0);
 					flags := fl;
 					priority := prio;
 					processLink := NIL;
 					IF processes # NIL THEN
-						IF obj # NIL THEN 
-							S.GET( S.VAL( Address, obj ) - 4, ttag );
-							GetTypeName( ttag, name );
-						ELSE
-							name := ""
-						END;
+						Machine.Acquire( Machine.Objects );
 						newProcess := SELF;
 						ASSERT( bodyProc # NIL );
 						proc := bodyProc;  
@@ -109,24 +103,38 @@ TYPE
 						mtxUnlock( start1 );
 						ASSERT( id = nid );					
 						RegisterFinalizer( SELF, FinalizeProcess );
+						Machine.Release( Machine.Objects);
+						Sleep( 5 ) (* give the child time to do get a llttle further, needed for paco *) 
 					ELSE 
-						name := "Main Thread";
 						stackBottom := Glue.stackBottom;  
-						SP  := Machine.CurrentSP( );
+						SP := Machine.CurrentSP( );
 						id := thrThis(0);
 						processes := SELF;
+						mode := Running;
 						noThreads := 1;
 					END;
-					mode := Ready;
-					mtxUnlock( start );
-				Sleep( 5 ) (* give the child time to do get a llttle further, needed for paco *) 
 				END Initialize;
+				
+				PROCEDURE FindRoots*;
+				VAR sp, ptr: Address;
+				BEGIN
+					IF mode # Terminated THEN
+						sp := SP;
+						WHILE sp < stackBottom DO  
+							S.GET( sp, ptr );  
+							Heaps.AddCandidate( ptr );  
+							INC( sp, AdrSize )  
+						END;
+					END;
+					IF Heaps.useRootObjects THEN  Heaps.Mark( processLink )  END
+				END FindRoots;
 				
 				PROCEDURE Cancel*;
 				VAR pt, t: Process;  kt: cThread;
 				BEGIN
 					IF SELF = This() THEN  Exit
 					ELSE
+						Machine.Acquire( Machine.X11 );  (* let the thread to be killed first finish its last I/O, if any *)
 						Machine.Acquire( Machine.Heaps );
 						pt := NIL; t := processes;  kt := 0;
 						WHILE (t # NIL ) & (t # SELF) DO  pt := t;  t := t.processLink  END;
@@ -137,10 +145,9 @@ TYPE
 						END;
 						Machine.Release( Machine.Heaps );
 						IF traceThreads & (noThreads < 100) THEN
-							Trace.Ln;  Trace.String( "cancel thread " ); Trace.String( name );
+							Trace.Ln;  Trace.String( "cancel thread " ); 
 							Trace.String( ", threads left: " );  Trace.Int( noThreads, 1 );  Trace.Ln
 						END;
-						Machine.Acquire( Machine.X11 );  (* let the thread to be killed first finish its last I/O, if any *)
 						IF kt # 0 THEN  thrKill( kt )  END;
 						Machine.Release( Machine.X11 );
 					END
@@ -152,9 +159,11 @@ TYPE
 				END GetPriority;
 
 				PROCEDURE SetPriority*( prio: LONGINT );
+				VAR pr: LONGINT;
 				BEGIN
-					priority := max( Machine.prioLow, min( prio, Machine.prioHigh ) );
-					thrSetPriority( id, priority )
+					pr := max( Machine.prioLow, min( prio, Machine.prioHigh ) );
+					thrSetPriority( id, pr );	(* works only if SUID root *)
+					priority := GetPriority( )
 				END SetPriority;
 				
 			END Process;
@@ -185,7 +194,7 @@ TYPE
 			mtxUnlock( tmtx );  Sleep( ms );  mtxLock( tmtx )
 		END tSleep;
 		
-	BEGIN{ACTIVE, SAFE, PRIORITY(Realtime)}
+	BEGIN{ACTIVE, SAFE, PRIORITY(High)}
 		mtxLock( tmtx );  
 		LOOP
 			t := timers;
@@ -219,11 +228,10 @@ VAR
 	processes-: Process;	(*  Anchor of all instantiated threads in system *)
 	noThreads-: LONGINT;
 	
-	start, start1: cMutex;
+	start1: cMutex;
 	childrunning: cCond;
-	newProcess: Process;
-	nid: cThread;
-	
+	newProcess{UNTRACED}: Process;
+	nid: cThread;	
 	
 	createmtx: cMutex;
 
@@ -327,7 +335,7 @@ VAR
 
 
 	PROCEDURE BodyStarter;
-	VAR t, p: Process;  proc: Body;  id: cThread; res: LONGINT; type: Address;
+	VAR p{UNTRACED}: Process;  proc: Body;  id: cThread; res: LONGINT; type: Address;
 	BEGIN
 		mtxLock( start1 );
 			id := thrThis(0);  
@@ -336,26 +344,24 @@ VAR
 			newProcess.stackBottom := Machine.CurrentBP( );
 			proc := newProcess.proc; 
 			Machine.Acquire( Machine.Heaps );
-			t := processes;
-			WHILE t.processLink # NIL DO  t := t.processLink  END;
-			t.processLink := newProcess;
+			(* processes # NIL *)
+			newProcess.processLink := processes;  processes := newProcess;
+			p := newProcess;  
 			INC( noThreads );
 			Machine.Release( Machine.Heaps );
 			IF traceThreads  THEN
-				Trace.Ln;  Trace.String( "starting thread " ); Trace.Int( noThreads, 1 ); Trace.String( "  " );  Trace.String( newProcess.name );  Trace.Ln
+				Trace.Ln;  Trace.String( "starting thread " ); Trace.Int( noThreads, 1 ); Trace.Ln
 			END;
 		mtxUnlock( start1 );
 		conSignal( childrunning );
-		p := newProcess;
+	(*	Machine.Release( Machine.Objects ); *)
 		SetPriority( p.priority );
 		IF Restart IN p.flags THEN
-			NEW( p.state0 );
 			res := Unix.sigsetjmp( S.ADR( p.state0[0] ), 1 );
-		ELSE  
-			p.state0 := NIL
 		END;
 		IF p.obj # NIL THEN  S.GET( S.VAL( Address, p.obj ) - AdrSize, type )  ELSE type := 0  END;
 		proc( type, p.obj );
+		p.mode := Terminated;
 		Exit
 	END BodyStarter;
 
@@ -373,15 +379,20 @@ VAR
 	END CreateProcess;
 
 	PROCEDURE FinalizeActiveObj( obj: ANY );
-	VAR t: Process;
+	VAR p: Process;
 	BEGIN
-		t := processes;
-		WHILE (t # NIL) & (t.obj # obj) DO t := t.processLink  END;
-		IF (t # NIL) & (t.obj = obj) THEN
-			conDestroy( t.cond );
-			t.cond := 0;
+		Machine.Acquire( Machine.Heaps );
+		p := processes;
+		WHILE (p # NIL) & (p.obj # obj) DO p := p.processLink  END;
+		IF (p # NIL) & (p.obj = obj) THEN
+			p.mode := Terminated;
+			Machine.Release( Machine.Heaps );
+			conDestroy( p.cond );
+			p.cond := 0;
 			FinalizeProtObject( obj );
-			t.Cancel
+			p.Cancel
+		ELSE
+			Machine.Release( Machine.Heaps )
 		END;
 	END FinalizeActiveObj;
 
@@ -407,20 +418,21 @@ VAR
 	
 	(** Terminate calling thread. *)
 	PROCEDURE Exit;
-	VAR pt, t, me: Process;
+	VAR prev, p, me: Process;
 	BEGIN
 		me := This();
+		me.mode := Terminated;
 		Machine.Acquire( Machine.Heaps );
-		pt := NIL;  t := processes;
-		WHILE (t # NIL ) & (t # me) DO  pt := t;  t := t.processLink  END;
-		IF t = me THEN
-			IF pt = NIL THEN  processes := t.processLink  ELSE  pt.processLink := t.processLink  END;
+		prev := NIL;  p := processes;
+		WHILE (p # NIL ) & (p # me) DO  prev := p;  p := p.processLink  END;
+		IF p = me THEN
+			IF prev = NIL THEN  processes := p.processLink  ELSE  prev.processLink := p.processLink  END;
 			DEC( noThreads )
 		END ;
 		Machine.Release( Machine.Heaps );
 		IF traceThreads & (noThreads < 100) THEN
 			Trace.Ln;
-			Trace.String( "termiating " ); Trace.String( t.name );
+			Trace.String( "termiating thread" ); 
 			Trace.String( ", threads left: " );  Trace.Int( noThreads, 1 );  Trace.Ln
 		END;
 		thrExit(0)
@@ -431,8 +443,8 @@ VAR
 	BEGIN
 		p := This();
 		(* restart the object body if it was given the SAFE flag *)
-		IF p.state0 # NIL THEN
-			Trace.String( "restarting " ); Trace.StringLn( p.name );
+		IF Restart IN p.flags THEN
+			Trace.String( "restarting thread" ); 
 			Unix.siglongjmp( S.ADR( p.state0[0] ), 1 )
 		END;
 		Exit
@@ -590,9 +602,10 @@ VAR
 		Exit
 	END Terminate;
 
-	PROCEDURE TerminateThis*( t: Process; unbreakable: BOOLEAN );
+	PROCEDURE TerminateThis*( p: Process; unbreakable: BOOLEAN );
 	BEGIN
-		t.Cancel
+		p.mode := Terminated;
+		p.Cancel
 	END TerminateThis;
 
 
@@ -600,7 +613,7 @@ VAR
 	(*------------------------------------------------------------------*)
 	
 	
-	PROCEDURE SuspendActivities;
+	PROCEDURE SuspendActivities*;
 	VAR t: Process;  me: cThread;
 	BEGIN
 		IF traceGC THEN  Trace.String( "Suspending threads " )  END;
@@ -616,7 +629,7 @@ VAR
 		IF traceGC THEN  Trace.Ln  END;
 	END SuspendActivities;
 
-	PROCEDURE ResumeActivities;
+	PROCEDURE ResumeActivities*;
 	VAR t: Process;  me: cThread;
 	BEGIN
 		IF traceGC THEN  Trace.String( "Resuming threads " )  END;
@@ -633,24 +646,18 @@ VAR
 	END ResumeActivities;
 	
 	PROCEDURE FindRootsInStacks;
-	VAR p: Process;  sp, ptr: Address;
+	VAR p: Process;  
 	BEGIN
 		IF traceGC  THEN  Trace.String( "mark stacks:  " )  END;
 		p := processes;  
-		WHILE p # NIL DO
-			IF traceGC  THEN  Trace.Char( '.' )  END;
-			sp := p.SP - 32;
-			WHILE sp < p.stackBottom DO  
-				S.GET( sp, ptr );  Heaps.AddCandidate( ptr );  INC( sp, AdrSize )  
-			END;
+		WHILE p # NIL DO 
+			p.FindRoots;
 			p := p.processLink
 		END;
 		IF traceGC  THEN  Trace.String( " done" );  Trace.Ln  END;
 	END FindRootsInStacks;
-	
 
-
-	PROCEDURE {REALTIME} SaveSP;   (* save current SP for usage by the GC *)
+	PROCEDURE SaveSP;   (* save current SP for usage by the GC *)
 	VAR me: cThread;  t: Process;
 	BEGIN
 		me := thrThis(0);  t := processes;
@@ -673,22 +680,6 @@ VAR
 		*)
 	END GetCpuCycles;
 
-	PROCEDURE Append( VAR ar: ARRAY OF CHAR;  CONST this: ARRAY OF CHAR );
-	VAR i, j: LONGINT;
-	BEGIN
-		i := 0;  j := 0;
-		WHILE ar[i] # 0X DO  INC( i )  END;
-		WHILE (i < LEN( ar ) - 1) & (this[j] # 0X) DO  ar[i] := this[j];  INC( i );  INC( j )  END;
-		ar[i] := 0X
-	END Append;
-
-	PROCEDURE GetTypeName( tag: Address;  VAR name: ARRAY OF CHAR );
-	VAR  typ: Aos.TypeDesc;
-	BEGIN
-		S.GET( tag - 4, typ );  name[0] := 0X;
-		IF typ.mod # NIL THEN  Append( name, typ.mod.name );  Append( name,  "." )  END;
-		Append( name, typ.name )
-	END GetTypeName;
 
 	PROCEDURE GetStacksize;
 	VAR str: ARRAY  32 OF  CHAR;  i: LONGINT;
@@ -757,15 +748,13 @@ VAR
 		Unix.Dlsym( 0, "thrKill",		S.VAL( Address, thrKill ) );
 		
 		createmtx := mtxInit( 0 );
-		start := mtxInit(0);  start1 := mtxInit(0);  childrunning := conInit(0); 
+		start1 := mtxInit(0);  childrunning := conInit(0); 
 		
 		
 		Machine.saveSP := SaveSP;
 		
 		Heaps.findRootsInStacks := FindRootsInStacks;
-		Heaps.suspendActivities := SuspendActivities;
-		Heaps.resumeActivities := ResumeActivities;
-		
+			
 		traceGC := 1 IN Glue.debug;
 		traceThreads := 2 IN Glue.debug;
 		

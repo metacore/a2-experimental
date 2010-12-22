@@ -28,8 +28,7 @@ VAR
 
 TYPE
 	Poll = OBJECT
-		BEGIN {ACTIVE, SAFE}
-			Objects.SetPriority( Objects.High );
+		BEGIN {ACTIVE, SAFE,PRIORITY(Objects.High - 1)}
 			LOOP
 				Objects.Sleep( 10 );  PollXQueue;
 			END  (* loop *)

@@ -8,16 +8,16 @@ MODULE BootLinker;   (* Oberon for Windows bootlinker (MH) / based on MIPS bootl
 (* 2009.01.27	g.f.	separated TypeTag from TypeDesc	*)
 
 
-IMPORT S := SYSTEM, Heaps, Modules, Commands, Streams, Files, Out := KernelLog;
+IMPORT S := SYSTEM, Commands, Streams, Files, Out := KernelLog;
 
 CONST
-	Version = "02.05.2010";
+	Version = "22.12.2010";
 
+	StartModule = "BootConsole";
+	
 	ObjSuffix = ".Obj";
 
 	AdrSize = S.SIZEOF( S.ADDRESS );
-
-	ArrayAlignment = 8;
 
 	BootHeapSize = 32*1024*1024;  NofPtrFix = 10000;  ProtOff = 48;
 
@@ -26,13 +26,36 @@ TYPE
 	Address = S.ADDRESS; Size = S.SIZE;
 
 
-	(* ------------------- Basetypes (from Unix.Basetyped.Mod) ------------ *)
+	(* ------------ Heaps -------------------------------------------- *)
+	
+CONST
+	NilVal* = 0;
+	ArrayAlignment = 8;
+	ProtTypeBit* = 31;   (* flags in TypeDesc, low bits reserved for extLevel *)
+	
+TYPE	
+	RootObject* = OBJECT 
+		PROCEDURE FindRoots*;	(** abstract *)
+		BEGIN HALT( 301 ) END FindRoots;
+	END RootObject;
+		
+		
+	(* ------------ Modules ------------------------------------------ *)
 
+CONST
+	MaxTags* = 16;   (* in type descriptor *)
+	
+	(** type descriptor field offsets relative to root (middle) *)
+	Tag0Ofs* = -8;   (** first tag *)
+	Mth0Ofs* = Tag0Ofs - 4*MaxTags;   (** first method *)
+	Ptr0Ofs* = 4;   (** first pointer offset *)
+	
+	InitTableLen = 1024;
+	InitPtrTableLen = 2048;
+
+TYPE
 	Name* = ARRAY 32 OF CHAR;
 	TermHandler* = PROCEDURE;
-
-	CommandProc* = PROCEDURE;
-	CommandParProc* = PROCEDURE ( par: ANY ): ANY;
 
 	Command* = RECORD
 				name*		: Name;		(* Name of the command *)
@@ -55,11 +78,11 @@ TYPE
 
 	TypeDesc* = POINTER TO TypeDescRec;
 	TypeDescRec* = RECORD
-				tdSize*		: Size;
-				sentinel*	: Size;		(*  = -AdrSize *)
+				tdSize*		: LONGINT;
+				sentinel*	: LONGINT;	(*  = -4 *)
 				tag*		: Address; 	(* pointer to static type descriptor, only used by linker and loader *)
 				flags*		: SET;
-				mod*{UNTRACED}	: Module;   	(** hint only, because module may have been freed *)
+				mod*		: Module;   	(** hint only, because module may have been freed *)
 				name*		: Name;
 			END;
 
@@ -69,6 +92,8 @@ TYPE
 				pcHandler*	: Address;
 			END;
 
+	
+	
 	ExceptionTable* = POINTER TO ARRAY OF ExceptionTableEntry;
 
 	ProcTableEntry* = RECORD
@@ -78,29 +103,33 @@ TYPE
 				pcStatementEnd*	: Address;
 				noPtr*				: LONGINT
 			END;
+	
+	ProcOffsetEntry* = RECORD
+		data*: ProcTableEntry;	(* code offsets of procedures *)
+		startIndex*: LONGINT;	(* index into global ptrOffsets table *)
+	END;
 
+	ProcOffsetTable* = POINTER TO ARRAY OF ProcOffsetEntry;
+	
 	ProcTable* = POINTER TO ARRAY OF ProcTableEntry;
 	PtrTable* = POINTER TO ARRAY OF Address;
 
 	Bytes* = POINTER TO ARRAY OF CHAR;
-	TypeInfo = POINTER TO ARRAY OF TypeDesc;
+	
 
-	Module* = POINTER TO ModuleDesc;
-	ModuleDesc* = RECORD
+	Module* = OBJECT(RootObject)
+			VAR
 				next*		: Module;
 				name*		: Name;
-				initialized*	: BOOLEAN;
+				init*		: BOOLEAN;
 				published*	: BOOLEAN;
 				refcnt*		: LONGINT;
 				sb*	 		: Address;
-
-				dataSize*, constSize*, codeSize*, refSize*	: LONGINT;
-				entries*, commands*, modules*, types*, pointers*	: LONGINT;
-
+			
 				entry*			: POINTER TO ARRAY OF Address;
-				command*	: POINTER TO ARRAY OF Command;
+				command*		: POINTER TO ARRAY OF Command;
 				ptrAdr*			: POINTER TO ARRAY OF Address;
-				typeInfo*		: TypeInfo;
+				typeInfo*		: POINTER TO ARRAY OF TypeDesc;
 				module*		: POINTER TO ARRAY OF Module;
 
 				procTable*		: ProcTable; (* information inserted by loader, removed after use in Publish *)
@@ -116,7 +145,14 @@ TYPE
 				firstProc*		: Address;   (* procedure with lowest PC in module *)
 				maxPtrs*		: LONGINT;
 				staticTdSize*	: LONGINT;
-			END;
+			END Module;
+
+VAR
+	procOffsets{UNTRACED}: ProcOffsetTable;	(* global table containing procedure code offsets and pointer offsets, sorted in ascending order of procedure code offsets *)
+	numProcs: LONGINT;			(* number of entries in procOffsets *)
+	ptrOffsets{UNTRACED}: PtrTable;
+	numPtrs: LONGINT;
+
 
 
 	(* ------------------- Boot Heap ---------------------------------- *)
@@ -128,10 +164,10 @@ CONST
 VAR
 	AN:  Address;
 
-	heapAdr, dlsymAdr, kernelBody: Address;
+	heapAdr, dlsymAdr, startModuleBody: Address;
 
-	modTag, expTag, procTableEntryTag, ptrTableTag, tdTag: Address;
-	(* heap: ANY;  *)
+	modTag, expTag, ptrElemTag, procTableEntryTag, procOffsetEntryTag, ptrTableTag, tdTag: Address;
+
 	ptrFix: ARRAY NofPtrFix OF LONGINT;
 	ptrFixx: LONGINT;
 
@@ -209,16 +245,6 @@ VAR
 				adr: Address
 			END;
 
-	tempModuleTD:	RECORD
-			size: Size;
-			off0: Size
-		END;
-
-	tempPtrTableTD:	RECORD
-			size: Size;
-			off0: Size;
-			off1: Size;
-		END;
 
 	(* ------------------- General procedures -------------------- *)
 
@@ -280,13 +306,13 @@ VAR
 	END NewBlock;
 
 
-	PROCEDURE NewSys( size: LONGINT; isRealtime: BOOLEAN ): Address;   (* implementation of S.NEW(ptr, size) *)
+	PROCEDURE NewSys( size: LONGINT ): Address;   (* implementation of S.NEW(ptr, size) *)
 	VAR ptr: Address;
 	BEGIN
 		INC( size, AdrSize + 24 );  INC( size, (-size) MOD B );
 		ptr := NewBlock( size ) + AdrSize;
 		ClearMem( ptr, size - AdrSize );
-		S.PUT( ptr - AdrSize, ptr );  AddFixpoint( ptr - AdrSize );
+		S.PUT( ptr - AdrSize, ptr );  Relocate( ptr - AdrSize );
 		S.PUT( ptr, size - AdrSize );
 		S.PUT( ptr + AdrSize, S.VAL( LONGINT, -AdrSize ) );
 		S.PUT( ptr + 24 - AdrSize, ptr );
@@ -294,30 +320,31 @@ VAR
 	END NewSys;
 
 
-	PROCEDURE NewRec( tag: Address;  size: LONGINT;  isRealtime: BOOLEAN ): Address;   (* implementation of NEW( ptr ) *)
+	PROCEDURE NewRec( VAR ptr: ANY; tag: Address;  size: LONGINT );   (* implementation of NEW( ptr ) *)
 	VAR p: Address;  typ: TypeDesc;
 	BEGIN
 		IF tag # 0 THEN
 			S.GET( tag - AdrSize, typ );   (* will be replaced by direct compiler call of NewProtObj *)
-			IF Heaps.ProtTypeBit IN typ.flags THEN  (* protected record *)
-				RETURN  NewProtRec( tag, isRealtime );
+			IF ProtTypeBit IN typ.flags THEN  (* protected record *)
+				NewProtRec( S.VAL( ANY, ptr  ), tag );
+				RETURN
 			END
 		END;
 		INC( size, AdrSize ); INC( size, (-size) MOD B );
 		p := NewBlock( size ) + AdrSize;
-		S.PUT( p - AdrSize, tag );  AddFixpoint( p - AdrSize );
+		S.PUT( p - AdrSize, tag );  Relocate( p - AdrSize );
 		ClearMem( p, size - AdrSize );
-		RETURN p
+		ptr := S.VAL( ANY, p )
 	END NewRec;
 
 
-	PROCEDURE NewProtRec( tag: Address; isRealtime: BOOLEAN ): Address;
+	PROCEDURE NewProtRec( VAR p: ANY;  tag: Address );
 	VAR size: LONGINT;  ptr: Address;
 	BEGIN
 		S.GET( tag, size );
 		(* add space for tag and header and round up to BlockSize *)
 		INC( size, AdrSize + ProtOff );  INC( size, (-size) MOD B );
-		ptr := NewBlock( size ) + AdrSize;  AddFixpoint( ptr - AdrSize );
+		ptr := NewBlock( size ) + AdrSize;  Relocate( ptr - AdrSize );
 		S.PUT( ptr - AdrSize, ptr );   (* set the main tag *)
 		S.PUT( ptr, size - AdrSize );   (* size *)
 		S.PUT( ptr + AdrSize, S.VAL( LONGINT, -AdrSize ) );
@@ -325,15 +352,15 @@ VAR
 		S.PUT16( ptr + 10, -1 );   (* flag = -1 *)
 		S.PUT( ptr + (ProtOff - AdrSize), tag );   (* set the tag *)
 		ptr := ptr + ProtOff;
-		S.PUT( ptr - AdrSize, tag );  AddFixpoint( ptr - AdrSize );   (* set the tag *)
+		S.PUT( ptr - AdrSize, tag );  Relocate( ptr - AdrSize );   (* set the tag *)
 		(* clear must be done inside lock to ensure all traced pointer fields are initialized to NIL *)
 		ClearMem( ptr, size - (AdrSize + ProtOff) );   (* clear everything except tag & header *)
-		RETURN ptr
+		p := S.VAL( ANY,  ptr )
 	END NewProtRec;
 
 
 
-	PROCEDURE NewArr( eltag: Address;  nofelem, nofdim: LONGINT; isRealtime: BOOLEAN ): Address;
+	PROCEDURE NewArr( VAR ptr: ANY; eltag: Address;  nofelem, nofdim: LONGINT );
 	(* implementation of NEW(ptr, dim0,  ...) *)
 	VAR size, elSize, arrSize, ptrOffset, dataOffset: Size;  firstElem, p: Address;
 	BEGIN
@@ -343,25 +370,25 @@ VAR
 		dataOffset := 3*AdrSize + nofdim*AdrSize;
 		INC( dataOffset, (-dataOffset) MOD ArrayAlignment );  (* -> ADR(firstElem) MOD 8 = 0 *)
 		IF arrSize = 0 THEN
-			p := NewSys( nofdim*4 + 3*AdrSize, isRealtime );
+			p := NewSys( nofdim*4 + 3*AdrSize );
 		ELSE
-			S.GET( eltag + AdrSize, ptrOffset );
+			IF eltag # 0 THEN  S.GET( eltag + AdrSize, ptrOffset )  ELSE ptrOffset := -AdrSize  END;
 			IF ptrOffset = -AdrSize THEN  (* no pointers in element type *)
-				p := NewSys( dataOffset + arrSize, isRealtime );
+				p := NewSys( dataOffset + arrSize );
 				S.PUT( p + 3*AdrSize, nofelem )
 			ELSE
-				size := AdrSize + dataOffset + arrSize; INC( size, (-size) MOD B );
+				size := AdrSize + dataOffset + arrSize;  INC( size, (-size) MOD B );
 				p := NewBlock( size ) + AdrSize;
-				S.PUT( p - AdrSize, S.VAL( SET, eltag ) + {1} );  AddFixpoint( p - AdrSize );
+				S.PUT( p - AdrSize, S.VAL( SET, eltag ) + {1} );  Relocate( p - AdrSize );
 				ClearMem( p, size - AdrSize );
 				firstElem := p + dataOffset;
-				S.PUT( p, firstElem + arrSize - elSize );  AddFixpoint( p );
+				S.PUT( p, firstElem + arrSize - elSize );  Relocate( p );
 				(* p + 4 is reserved for mark phase *)
-				S.PUT( p + 2*AdrSize, firstElem );  AddFixpoint( p + 2*AdrSize );
+				S.PUT( p + 2*AdrSize, firstElem );  Relocate( p + 2*AdrSize );
 				S.PUT( p + 3*AdrSize, nofelem );
 			END
 		END;
-		RETURN p
+		ptr := S.VAL( ANY, p )
 	END NewArr;
 
 
@@ -380,7 +407,7 @@ VAR
 		staticTypeAdr := startAddr + offset;
 		S.PUT( staticTypeAdr, recSize );					(* recSize *)
 		S.PUT( staticTypeAdr - AdrSize, typeInfoAdr );		(* pointer to typeInfo *)
-		AddFixpoint( staticTypeAdr - AdrSize );
+		Relocate( staticTypeAdr - AdrSize );
 
 		(* ptrOfs filled in later *)
 
@@ -407,7 +434,7 @@ VAR
 	VAR i: INTEGER;  ch: CHAR;
 	BEGIN
 		i := 0;
-		REPEAT  S.GET( pos, ch );  INC( pos );  n[i] := ch;  INC( i )  UNTIL ch = 0X
+		REPEAT  S.GET( pos, ch );  INC( pos );  n[i] := ch;  INC( i )  UNTIL ch = 0X;
 	END RefReadName;
 
 	PROCEDURE RefReadChar( VAR pos: LONGINT;  VAR ch: CHAR );
@@ -417,17 +444,22 @@ VAR
 
 	PROCEDURE ProcByName( CONST pname: ARRAY OF CHAR;  m: Module ): LONGINT;
 	CONST mBodyTag = 0F8X;  ProcRefTag = 0F9X;  VarTag = 1X;  VarParTag = 3X;
-	VAR pos, refend, adr, size, tdAdr: LONGINT;  ch: CHAR;  name: Name;
+	VAR 
+		pos, refend, adr, t, size, tdAdr: LONGINT;  ch: CHAR;  name: ARRAY 128 OF CHAR; 
+		newObjectFile: BOOLEAN;
 	BEGIN
 		IF pname = "" THEN  RETURN 0  END;
 		pos := S.ADR( m.refs[0] );  refend := pos + LEN( m.refs^ );
 		RefReadChar( pos, ch );
+		newObjectFile := ch = 0FFX;  
+		IF newObjectFile THEN  RefReadChar( pos, ch )  END;
 		WHILE (pos <= refend) & ((ch = mBodyTag) OR (ch = ProcRefTag)) DO
 			RefReadNum( pos, adr );
+			IF newObjectFile THEN RefReadNum( pos, t )  END;
 			IF ch = ProcRefTag THEN
-				(* skip n param, ret type, lev, slNeeded *)
-				RefReadChar( pos, ch );  RefReadChar( pos, ch );
-				RefReadChar( pos, ch );  RefReadChar( pos, ch )
+				RefReadNum( pos, t );	(* nofPars *)
+				INC( pos, 3 );		(* ret type, lev, slNeeded *)
+				IF newObjectFile THEN  INC( pos, 6 )  END
 			END;
 			RefReadName( pos, name );
 			IF name = pname THEN  RETURN S.ADR( m.code[adr] )  END;
@@ -467,17 +499,32 @@ VAR
 
 
 	PROCEDURE PrepareGlue( m: Module );
+	VAR i, n: LONGINT; name: Name; x: Module;
 	BEGIN
 		INC( m.refcnt );   (* gets never unloaded *)
 
-		(* link to Unix (dlsym) and entry point: *)
+		(* link to Unix (dlsym) *)
 		dlsymAdr := m.sb - AdrSize;
-		kernelBody := S.ADR( m.code[0] );
+		
+		n := 0;
+		FOR i := 0 TO LEN( m.typeInfo ) - 1 DO
+			name := m.typeInfo[i].name;
+			IF name = "PtrElemDesc" THEN  ptrElemTag := m.typeInfo[i].tag ;  INC( n )  END;
+		END;
+		IF n # 1 THEN
+			Out.Ln;
+			Out.String( "### 'PtrElemDesc' not found in module Glue" );  Out.Ln;
+		END;
+		x := modules;
+		WHILE x # NIL DO
+			S.PUT( S.VAL( Address, x.typeInfo ) - AdrSize, S.VAL( SET, ptrElemTag ) + arrayMask );
+			x := x.next
+		END
 	END PrepareGlue;
-
-	PROCEDURE PrepareBasetypes( m: Module );
-	VAR i, n: LONGINT;  name: Name; a: Address;
-
+	
+	PROCEDURE FixTypeDescs( m: Module );
+	VAR i: LONGINT; 
+		
 		PROCEDURE PatchExport( VAR scope: ExportDesc;  tag: LONGINT );
 		VAR i: LONGINT;  t: Address;
 		BEGIN
@@ -490,36 +537,42 @@ VAR
 				END
 			END
 		END PatchExport;
+	
+	BEGIN
+		FOR i := 0 TO LEN( m.typeInfo ) -1 DO
+			S.PUT( S.ADR( m.typeInfo[i]^ ) - AdrSize, tdTag );
+		END;
+		S.PUT( S.VAL( Address, m ) - AdrSize,  modTag );
+		PatchExport( m.export, S.VAL( Address, S.VAL( SET, expTag ) + arrayMask ) );
+	END FixTypeDescs;
 
+
+	
+	PROCEDURE FixupModuletypes( m: Module );
+	VAR i, n: LONGINT;  name: Name;  x: Module;
 	BEGIN
 		n := 0;
-		FOR i := 0 TO m.types - 1 DO
+		FOR i := 0 TO LEN( m.typeInfo ) - 1 DO
 			name := m.typeInfo[i].name;
 			IF name = "TypeDesc" THEN  tdTag := m.typeInfo[i].tag;  INC( n )  END;
-			IF name = "ModuleDesc" THEN  modTag := m.typeInfo[i].tag;  INC( n )  END;
-			IF name = "PtrElemDesc" THEN  ptrTableTag := m.typeInfo[i].tag ;  INC( n )  END;
+			IF name = "Module" THEN  modTag := m.typeInfo[i].tag;  INC( n )  END;
 			IF name = "ExportDesc" THEN  expTag := m.typeInfo[i].tag;  INC( n )  END;
 			IF name = "ProcTableEntry" THEN  procTableEntryTag := m.typeInfo[i].tag;  INC( n )  END;
+			IF name = "ProcOffsetEntry" THEN  procOffsetEntryTag := m.typeInfo[i].tag;  INC( n )  END;
 		END;
-
+		
 		IF n # 5 THEN
 			Out.Ln;
-			Out.String( "### not all expected types found in module Basetypes" );  Out.Ln;
-			modTag := 0
+			Out.String( "### not all expected types found in module 'Modules'" );  Out.Ln;
 		END;
+		x := modules;
+		WHILE x # NIL DO
+			FixTypeDescs( x );
+			x := x.next
+		END
+	END FixupModuletypes;
 
-		FOR i := 0 TO m.types -1 DO
-			S.PUT( S.ADR( m.typeInfo[i]^ ) - AdrSize, tdTag );
-			S.GET( m.typeInfo[i].tag - AdrSize, a );
-			ASSERT( a = S.ADR( m.typeInfo[i]^ ) )
-		END;
-
-		S.PUT( S.VAL( Address, m ) - AdrSize,  modTag );
-		S.PUT( S.VAL( Address, m.typeInfo ) - AdrSize, S.VAL( SET, ptrTableTag ) + arrayMask );
-		PatchExport( m.export, S.VAL( Address, S.VAL( SET, expTag ) + arrayMask ) );
-	END PrepareBasetypes;
-
-	PROCEDURE AddFixpoint( adr: LONGINT );
+	PROCEDURE Relocate( adr: LONGINT );
 	VAR i: LONGINT;
 	BEGIN
 		FOR i := 0 TO ptrFixx - 1 DO
@@ -534,7 +587,70 @@ VAR
 			ELSE  Error( "", "Too many ptr fixes" );  ptrFixx := -1
 			END
 		END
-	END AddFixpoint;
+	END Relocate;
+
+
+	(* GetNum - Get a compressed refblk number. *)
+
+	PROCEDURE GetNum( refs: Bytes;  VAR i, num: LONGINT );
+	VAR n, s: LONGINT;  x: CHAR;
+	BEGIN
+		s := 0;  n := 0;
+		x := refs[i];  INC(i);
+		WHILE ORD(x) >= 128 DO
+			INC(n, ASH(ORD(x) - 128, s));
+			INC(s, 7);
+			x := refs[i];  INC(i)
+		END;
+		num := n + ASH(ORD(x) MOD 64 - ORD(x) DIV 64 * 64, s)
+	END GetNum;
+
+	(* VarByName - Find a global variable in the reference block. *)
+
+	PROCEDURE VarByName( refs: Bytes;  CONST name: ARRAY OF CHAR ): S.SIZE;
+	VAR mode: CHAR;  j, m, adr, type, t, i: LONGINT;  s: Name;  found: BOOLEAN;
+	BEGIN
+		ASSERT((refs[0] = 0F8X) & (refs[1] = 0X) & (refs[2] = "$") & (refs[3] = "$") & (refs[4] = 0X));
+		m := LEN(refs^);  found := FALSE; i := 5;
+		mode := refs[i];  INC(i);
+		WHILE (i < m) & ((mode = 1X) OR (mode = 3X)) & ~found DO	(* var *)
+			type := ORD(refs[i]);  INC(i);
+			IF (type >= 81H) OR (type = 16H) OR (type = 1DH) THEN
+				GetNum( refs, i, t )	(* dim/tdadr *)
+			END;
+			GetNum( refs, i, adr );
+			j := 0;  REPEAT s[j] := refs[i];  INC(i);  INC(j) UNTIL s[j-1] = 0X;
+			IF s = name THEN found := TRUE
+			ELSIF i < m THEN mode := refs[i];  INC(i)
+			END
+		END;
+		IF found THEN
+			ASSERT((mode = 1X) & ((type = 0DH) OR (type = 1DH) OR (type = 06H)))	(* pointer or LInt VAR *)
+		ELSE
+			adr := 0
+		END;
+		RETURN S.VAL( S.SIZE, adr )
+	END VarByName;
+	
+	
+	PROCEDURE AssignValue( CONST module, variable: ARRAY OF CHAR; value: Address; reloc: BOOLEAN );
+	VAR m: Module; ofs: S.SIZE;
+	BEGIN
+		m := modules;
+		WHILE (m # NIL) & (m.name # module) DO m := m.next  END;
+		IF m = NIL THEN
+			Str( "### AssignValue: module '" ); Str( module ); Str( "' not found" ); Ln;
+		ELSE
+			ofs := VarByName( m.refs, variable );
+			IF ofs = 0 THEN
+				Str( "### AssignValue: variable '" ); Str( module ); Out.Char( '.' ); Str( variable );
+				Str( "' not found" ); Ln
+			ELSE
+				S.PUT( m.sb + ofs, value );
+				IF reloc THEN  Relocate( m.sb + ofs )  END
+			END
+		END
+	END AssignValue;
 
 
 	(* -------------------------  Loader  ------------------------- *)
@@ -612,7 +728,7 @@ VAR
 	END ReadString8;
 
 
-	PROCEDURE AllocateModule( m: Module );
+	PROCEDURE AllocateModule( m: Module; h: ObjHeader );
 	CONST ArrHdrSize = 16;   (* {MOD 8 = 0} *)
 		LenOfs = 12;   (* offset of dimension 0 in array header *)
 		Align = ArrHdrSize + 4 + 15;   (* 4 for tag of next block, 15 for rounding up to 16 *)
@@ -631,54 +747,53 @@ VAR
 			a := adr;  s := ArrSize( elements, elemSize );
 			INC( adr, s );  DEC( size, s );   (* allocate *)
 			(* array header *)
-			S.PUT( a - AdrSize, tag );   (* indirect tag *) AddFixpoint( a - AdrSize );
+			S.PUT( a - AdrSize, tag );   (* indirect tag *) Relocate( a - AdrSize );
 			S.PUT( a + LenOfs, elements );   (* dimension *)
-			ptr := S.VAL( ANY, a );  AddFixpoint( S.ADR( ptr ) );
+			ptr := S.VAL( ANY, a );  Relocate( S.ADR( ptr ) );
 		END SubObjArray;
 
 	BEGIN
-		dataSize := m.dataSize + (-m.dataSize) MOD 8;   (* round up to 8 to align constant block *)
+		dataSize := h.dataSize + (-h.dataSize) MOD 8;   (* round up to 8 to align constant block *)
 
-		size :=	ArrSize( m.entries, AdrSize ) +
-				ArrSize( m.commands, S.SIZEOF( Command ) ) +
-				ArrSize( m.pointers, AdrSize ) +
-				ArrSize( m.modules, S.SIZEOF( Module ) ) +
-				ArrSize( dataSize + m.constSize, 1 ) +
-				ArrSize( m.codeSize, 1 ) +
-				ArrSize( m.staticTdSize, 1 ) +
-				ArrSize( m.exTableLen, S.SIZEOF( ExceptionTableEntry ) ) +
-				ArrSize( m.refSize, 1 );
+		size :=	ArrSize( h.entries, AdrSize ) +
+				ArrSize( h.commands, S.SIZEOF( Command ) ) +
+				ArrSize( h.pointers, AdrSize ) +
+				ArrSize( h.modules, S.SIZEOF( Module ) ) +
+				ArrSize( dataSize + h.constSize, 1 ) +
+				ArrSize( h.codeSize, 1 ) +
+				ArrSize( h.staticTdSize, 1 ) +
+				ArrSize( h.exTableLen, S.SIZEOF( ExceptionTableEntry ) ) +
+				ArrSize( h.refSize, 1 );
 
-		adr := NewSys( size, FALSE );  S.GET( adr - AdrSize, tag );
+		adr := NewSys( size );  S.GET( adr - AdrSize, tag );
 
-		SubObjArray( S.VAL( ANY, m.entry ), m.entries, AdrSize );
-		SubObjArray( S.VAL( ANY, m.command ), m.commands, S.SIZEOF( Command ) );
-		SubObjArray( S.VAL( ANY, m.ptrAdr ), m.pointers, AdrSize );
-		m.typeInfo := S.VAL( TypeInfo, NewArr( ptrTableTag, m.types, 1, FALSE ) );
-		AddFixpoint( S.ADR( m.typeInfo ) );
-		SubObjArray( S.VAL( ANY, m.module ), m.modules, S.SIZEOF( Module ) );
-		SubObjArray( S.VAL( ANY, m.data ), dataSize + m.constSize, 1 );
-		SubObjArray( S.VAL( ANY, m.code ), m.codeSize, 1 );
-		SubObjArray( S.VAL( ANY, m.staticTypeDescs ), m.staticTdSize, 1 );
-		SubObjArray( S.VAL( ANY, m.exTable ), m.exTableLen, S.SIZEOF( ExceptionTableEntry ) );
-		SubObjArray( S.VAL( ANY, m.refs ), m.refSize, 1 );
+		SubObjArray( S.VAL( ANY, m.entry ), h.entries, AdrSize );
+		SubObjArray( S.VAL( ANY, m.command ), h.commands, S.SIZEOF( Command ) );
+		SubObjArray( S.VAL( ANY, m.ptrAdr ), h.pointers, AdrSize );
+		NewArr( S.VAL( ANY, m.typeInfo ), ptrElemTag, h.types, 1 ); Relocate( S.ADR( m.typeInfo ) );
+		SubObjArray( S.VAL( ANY, m.module ), h.modules, S.SIZEOF( Module ) );
+		SubObjArray( S.VAL( ANY, m.data ), dataSize + h.constSize, 1 );
+		SubObjArray( S.VAL( ANY, m.code ), h.codeSize, 1 );
+		SubObjArray( S.VAL( ANY, m.staticTypeDescs ), h.staticTdSize, 1 );
+		SubObjArray( S.VAL( ANY, m.exTable ), h.exTableLen, S.SIZEOF( ExceptionTableEntry ) );
+		SubObjArray( S.VAL( ANY, m.refs ), h.refSize, 1 );
 
 		m.sb := S.ADR( m.data[0] ) + dataSize;   (* constants positive, data negative *)
-		AddFixpoint( S.ADR( m.sb ) );
+		Relocate( S.ADR( m.sb ) );
 	END AllocateModule;
 
 
 	(* ReadEntryBlock - Read the entry block. *)
 
-	PROCEDURE ReadEntryBlock( r: Streams.Reader;  m: Module ): BOOLEAN;
+	PROCEDURE ReadEntryBlock( r: Streams.Reader;  m: Module; h: ObjHeader ): BOOLEAN;
 	VAR tag: CHAR;  i, num: LONGINT;
 	BEGIN
 		r.Char(tag);
 		IF tag = 82X THEN	(* entry tag *)
-			FOR i := 0 TO m.entries-1 DO
+			FOR i := 0 TO h.entries-1 DO
 				r.RawNum(num);
 				m.entry[i] := num + S.ADR( m.code[0] );
-				AddFixpoint( S.ADR( m.entry[i] ) );
+				Relocate( S.ADR( m.entry[i] ) );
 			END;
 			(*ASSERT((m.entries > 0) & (m.entry[0] = S.ADR(m.code[0])));*)	(* entry[0] is beginning of code (cf. OPL.Init) *)
 			RETURN TRUE
@@ -690,16 +805,16 @@ VAR
 
 	(* ReadPointerBlock - Read the pointer block. *)
 
-	PROCEDURE ReadPointerBlock( r: Streams.Reader;  m: Module ): BOOLEAN;
+	PROCEDURE ReadPointerBlock( r: Streams.Reader;  m: Module; h: ObjHeader ): BOOLEAN;
 	VAR tag: CHAR;  i, num: LONGINT;
 	BEGIN
 		r.Char(tag);
 		IF tag = 84X THEN	(* pointer tag *)
-			FOR i := 0 TO m.pointers-1 DO
+			FOR i := 0 TO h.pointers-1 DO
 				r.RawNum(num);
 				ASSERT(num MOD AdrSize = 0);	(* no deep copy flag *)
 				m.ptrAdr[i] := m.sb + num;
-				AddFixpoint( S.ADR( m.ptrAdr[i] ) );
+				Relocate( S.ADR( m.ptrAdr[i] ) );
 			END;
 			RETURN TRUE
 		ELSE
@@ -710,19 +825,19 @@ VAR
 
 	(* ReadImportBlock - Read the import block. *)
 
-	PROCEDURE ReadImportBlock(	r: Streams.Reader;  m: Module;
+	PROCEDURE ReadImportBlock(	r: Streams.Reader;  m: Module; h: ObjHeader;
 								VAR res: LONGINT;  VAR msg: ARRAY OF CHAR ): BOOLEAN;
 	VAR
-		tag: CHAR;  i: LONGINT;  name: Modules.Name;
+		tag: CHAR;  i: LONGINT;  name: Name;
 	BEGIN
 		r.Char(tag);
 		IF tag = 85X THEN	(* import tag *)
 			i := 0;
-			WHILE (i # m.modules) & (res = Ok) DO
+			WHILE (i # h.modules) & (res = Ok) DO
 				ReadString8( r, name );
 				(* recursively load the imported module *)
 				m.module[i] := Load( name, res, msg );
-				AddFixpoint( S.ADR( m.module[i] ) );
+				Relocate( S.ADR( m.module[i] ) );
 				INC( i )
 			END
 		ELSE
@@ -761,19 +876,19 @@ VAR
 
 	(* ReadConstBlock - Read the constant block. *)
 
-	PROCEDURE ReadConstBlock( r: Streams.Reader;  m: Module ): BOOLEAN;
+	PROCEDURE ReadConstBlock( r: Streams.Reader;  m: Module; h: ObjHeader ): BOOLEAN;
 	VAR tag: CHAR;  i: LONGINT; t: S.ADDRESS;
 	BEGIN
 		r.Char(tag);
 		IF tag = 87X THEN	(* constant tag *)
 			t := m.sb;
-			FOR i := 0 TO m.constSize-1 DO
+			FOR i := 0 TO h.constSize-1 DO
 				r.Char(tag);  S.PUT(t, tag);  INC(t)
 			END;
 			IF modTag # 0 THEN
 				S.GET(m.sb, t);  ASSERT(t = 0);
 				S.PUT(m.sb, m);	(* SELF *)
-				AddFixpoint( m.sb )
+				Relocate( m.sb )
 			END;
 			RETURN TRUE
 		ELSE
@@ -784,12 +899,12 @@ VAR
 
 	(* ReadCodeBlock - Read the code block. *)
 
-	PROCEDURE ReadCodeBlock( r: Streams.Reader;  m: Module ): BOOLEAN;
+	PROCEDURE ReadCodeBlock( r: Streams.Reader;  m: Module; h: ObjHeader ): BOOLEAN;
 	VAR tag: CHAR; ignore: LONGINT;
 	BEGIN
 		r.Char(tag);
 		IF tag = 89X THEN	(* code tag *)
-			r.Bytes(m.code^, 0, m.codeSize, ignore);
+			r.Bytes(m.code^, 0, h.codeSize, ignore);
 			RETURN TRUE
 		ELSE
 			RETURN FALSE
@@ -799,12 +914,12 @@ VAR
 
 	(* ReadRefBlock - Read the reference block. *)
 
-	PROCEDURE ReadRefBlock( r: Streams.Reader;  m: Module ): BOOLEAN;
+	PROCEDURE ReadRefBlock( r: Streams.Reader;  m: Module; h: ObjHeader ): BOOLEAN;
 	VAR tag: CHAR; ignore: LONGINT;
 	BEGIN
 		r.Char( tag );
 		IF tag = 8CX THEN	(* ref tag *)
-			r.Bytes( m.refs^, 0, m.refSize, ignore );
+			r.Bytes( m.refs^, 0, h.refSize, ignore );
 			RETURN TRUE
 		ELSE
 			RETURN FALSE
@@ -813,7 +928,7 @@ VAR
 
 
 
-	PROCEDURE ReadTypeBlock( r: Streams.Reader;  m: Module;  VAR type: ARRAY OF TypeRec ): BOOLEAN;
+	PROCEDURE ReadTypeBlock( r: Streams.Reader;  m: Module; h: ObjHeader; VAR type: ARRAY OF TypeRec ): BOOLEAN;
 	VAR
 		tag: CHAR;
 		i, j, recSize, ofs, num: LONGINT;  newMethods, method, pointers, entry: LONGINT;
@@ -825,53 +940,52 @@ VAR
 		r.Char(tag);
 		IF tag = 8BX THEN	(* type tag *)
 			totTdSize := 0;
-			IF m.staticTdSize > 0 THEN  startAddr := S.ADR(m.staticTypeDescs[0])  END;
-			FOR i := 0 TO m.types - 1 DO
+			IF h.staticTdSize > 0 THEN  startAddr := S.ADR(m.staticTypeDescs[0])  END;
+			FOR i := 0 TO h.types - 1 DO
 				flags := {};  type[i].init := FALSE;
 				r.RawNum( recSize );
 				r.RawNum( num );  type[i].entry := num;
 				r.RawNum( num );  type[i].baseMod := num;
 				r.RawNum( num );  type[i].baseEntry := num;
 				r.RawNum( num );  type[i].methods := ABS( num );
-				IF num # 0 THEN  flags := {Heaps.ProtTypeBit}  END;
+				IF num # 0 THEN  flags := {ProtTypeBit}  END;
 				r.RawNum( num );  type[i].inhMethods := num;
 				r.RawNum( newMethods );
 				r.RawLInt( pointers );
 				r.RawString( name );
 				r.RawLInt( tdSize);
 
-				m.typeInfo[i] := S.VAL( TypeDesc, NewRec( tdTag, S.SIZEOF( TypeDescRec), FALSE ) );
-				AddFixpoint( S.ADR( m.typeInfo[i] ) );
+				NewRec( S.VAL( ANY, m.typeInfo[i] ), tdTag, S.SIZEOF( TypeDescRec) );
+				Relocate( S.ADR( m.typeInfo[i] ) );
 				FillStaticType( tdAdr, startAddr, S.VAL( Address, m.typeInfo[i] ), tdSize, recSize, pointers,
-							    Modules.MaxTags + type[i].methods);
-				m.typeInfo[i].tag := tdAdr;	AddFixpoint( S.ADR( m.typeInfo[i].tag ) );
+							    MaxTags + type[i].methods);
+				m.typeInfo[i].tag := tdAdr;	Relocate( S.ADR( m.typeInfo[i].tag ) );
 				m.typeInfo[i].flags := flags;
-				m.typeInfo[i].mod := m;		AddFixpoint( S.ADR( m.typeInfo[i].mod ) );
+				m.typeInfo[i].mod := m;		Relocate( S.ADR( m.typeInfo[i].mod ) );
 				m.typeInfo[i].name := name;
 
-				base := m.typeInfo[i].tag + Modules.Mth0Ofs;   (* read new methods *)
+				base := m.typeInfo[i].tag + Mth0Ofs;   (* read new methods *)
 				FOR j := 0 TO newMethods - 1 DO
 					r.RawNum( method );
 					r.RawNum( entry );
 					S.PUT( base - AdrSize*method, m.entry[entry] );
-					AddFixpoint( base - AdrSize*method );
+					Relocate( base - AdrSize*method );
 				END;
 				(* other methods are left NIL *)
-				base := m.typeInfo[i].tag + Modules.Ptr0Ofs;   (* read pointers *)
+				base := m.typeInfo[i].tag + Ptr0Ofs;   (* read pointers *)
 				FOR j := 0 TO pointers - 1 DO
 					r.RawNum( ofs );
 					ASSERT( ofs MOD 4 = 0 );   (* no deep copy flag *)
 					S.PUT( base, ofs );  INC( base, AdrSize )
 				END;
 				S.PUT( m.sb + type[i].entry, m.typeInfo[i].tag );    (* patch in constant area *)
-				AddFixpoint( m.sb + type[i].entry );
+				Relocate( m.sb + type[i].entry );
 				startAddr := startAddr + tdSize;
 				totTdSize := totTdSize + tdSize;
 			END;
 			base := S.VAL( Address, m.typeInfo ) - AdrSize;
-			S.PUT( base, S.VAL( SET, ptrTableTag ) + arrayMask );
+			S.PUT( base, S.VAL( SET, ptrElemTag ) + arrayMask );
 
-			IF m.name = "Basetypes" THEN  PrepareBasetypes( m )  END;
 			RETURN modTag # 0
 		ELSE
 			RETURN FALSE
@@ -880,16 +994,16 @@ VAR
 
 	(* ReadCommandBlock - Read the command block. *)
 
-	PROCEDURE ReadCommandBlock( r: Streams.Reader;  m: Module ): BOOLEAN;
-	VAR tag: CHAR;  i: LONGINT;
+	PROCEDURE ReadCommandBlock( r: Streams.Reader;  m: Module; h: ObjHeader ): BOOLEAN;
+	VAR tag: CHAR;  i, adr: LONGINT;
 	BEGIN
 		r.Char( tag );
 		IF tag = 83X THEN  (* command tag *)
-			FOR i := 0 TO m.commands - 1 DO
-				r.RawNum( m.command[i].argTdAdr );
-				r.RawNum( m.command[i].retTdAdr );
+			FOR i := 0 TO h.commands - 1 DO
+				r.RawNum( adr );  m.command[i].argTdAdr := adr;
+				r.RawNum( adr );  m.command[i].retTdAdr := adr;
 				r.RawString( m.command[i].name );
-				r.RawNum( m.command[i].entryAdr );
+				r.RawNum( adr );  m.command[i].entryAdr := adr;
 				(* addresses will be fixed up later in FixupCommands *)
 			END;
 			RETURN TRUE
@@ -959,8 +1073,7 @@ VAR
 	BEGIN
 		r.Char( tag );
 		IF tag = 8FX THEN
-			procTable := S.VAL( ProcTable, NewArr( procTableEntryTag, m.noProcs, 1, FALSE ) );
-			ptrTable := S.VAL( PtrTable, NewArr( ptrTableTag, m.noProcs*m.maxPtrs, 1, FALSE ) );
+			NEW( procTable, m.noProcs );  NEW( ptrTable, m.noProcs*m.maxPtrs );
 			(* m.noProcs > 0 since the empty module contains the module body procedure *)
 			FOR i := 0 TO m.noProcs - 1 DO
 				r.RawNum( codeoffset );
@@ -969,16 +1082,13 @@ VAR
 				r.RawLInt( nofptrs );   (* fixed size *)
 
 				procTable[i].pcFrom := codeoffset + S.ADR( m.code[0] );
-				AddFixpoint( S.ADR( procTable[i].pcFrom ) );
 				procTable[i].pcStatementBegin := beginOffset + S.ADR( m.code[0] );
-				AddFixpoint( S.ADR( procTable[i].pcStatementBegin ) );
 				procTable[i].pcStatementEnd := endOffset + S.ADR( m.code[0] );
-				AddFixpoint( S.ADR( procTable[i].pcStatementEnd ) );
 				procTable[i].noPtr := nofptrs;
 				FOR j := 0 TO nofptrs - 1 DO  r.RawNum( p );  ptrTable[i*m.maxPtrs + j] := p;   END  ;
 			END;
 			SortProcTable();
-			m.firstProc := procTable[0].pcFrom;  AddFixpoint( S.ADR( m.firstProc ) );
+			m.firstProc := procTable[0].pcFrom;  Relocate( S.ADR( m.firstProc ) );
 			FOR i := 0 TO m.noProcs - 2 DO  procTable[i].pcLimit := procTable[i + 1].pcFrom  END;
 			procTable[m.noProcs - 1].pcLimit := S.ADR( m.code[0] ) + LEN( m.code ) + 1;
 					(* last element ùerved for end of code segment, allow 1 byte extra, cf. Modules.ThisModuleByAdr *)
@@ -1015,11 +1125,11 @@ VAR
 					r.RawNum( pcTo );
 					r.RawNum( pcHandler );
 					m.exTable[i].pcFrom := pcFrom + S.ADR( m.code[0] );
-					AddFixpoint( S.ADR( m.exTable[i].pcFrom ) );
+					Relocate( S.ADR( m.exTable[i].pcFrom ) );
 					m.exTable[i].pcTo := pcTo + S.ADR( m.code[0] );
-					AddFixpoint( S.ADR( m.exTable[i].pcTo ) );
+					Relocate( S.ADR( m.exTable[i].pcTo ) );
 					m.exTable[i].pcHandler := pcHandler + S.ADR( m.code[0] );
-					AddFixpoint( S.ADR( m.exTable[i].pcHandler ) )
+					Relocate( S.ADR( m.exTable[i].pcHandler ) )
 				ELSE
 					RETURN FALSE
 				END;
@@ -1045,8 +1155,8 @@ VAR
 			no1 := 0;  no2 := 0;
 
 			IF scope.exports # 0 THEN
-				S.PUT( S.ADR( scope.dsc ), NewArr( expTag, scope.exports, 1, FALSE ) );
-				AddFixpoint( S.ADR( scope.dsc ) );
+				NewArr( S.VAL( ANY, scope.dsc ), expTag, scope.exports, 1 );
+				Relocate( S.ADR( scope.dsc ) );
 				scope.dsc[0].adr := adr
 			END;
 			IF level = EUrecScope THEN
@@ -1060,7 +1170,7 @@ VAR
 						p := S.VAL( ExportPtr, struct[-off] );
 						scope.dsc[no2].exports := p.exports;
 						scope.dsc[no2].dsc := p.dsc;   (* old type *)
-						AddFixpoint( S.ADR( scope.dsc[no2].dsc ) )
+						Relocate( S.ADR( scope.dsc[no2].dsc ) )
 					ELSE
 						LoadScope( scope.dsc[no2], EUrecScope, off )
 					END
@@ -1076,7 +1186,7 @@ VAR
 		r.Char(tag);
 		IF tag = 88X THEN	(* export tag *)
 			structs := 0;
-			FOR i := 0 TO MaxStructs - 1 DO  struct[i] := Heaps.NilVal  END;
+			FOR i := 0 TO MaxStructs - 1 DO  struct[i] := NilVal  END;
 			LoadScope( m.export, EUobjScope, 0 );
 			RETURN TRUE
 		ELSE
@@ -1105,7 +1215,7 @@ VAR
 			FOR i := 0 TO dataLink[link].fixups - 1 DO
 				adr := code + dataLink[link].ofs[i];
 				S.GET( adr, val );
-				S.PUT( adr, val + fixval );		AddFixpoint( adr );
+				S.PUT( adr, val + fixval );		Relocate( adr );
 			END
 		END FixupVar;
 
@@ -1120,7 +1230,7 @@ VAR
 					S.PUT( code + link, fixval - (code + link + 4) ) (* + 4: to next instruction *)
 					(* relative, no further fixup required *)
 				ELSE  (* move instruction absolute *)
-					S.PUT( code + link, fixval );  AddFixpoint( code + link )
+					S.PUT( code + link, fixval );  Relocate( code + link )
 				END;
 				link := nextlink
 			UNTIL link = Sentinel
@@ -1139,7 +1249,7 @@ VAR
 							IF link # 0 THEN
 								adr := scope.dsc[i].dsc[0].adr;
 								S.GET( mod.sb + adr, tdadr );
-								S.PUT( m.sb - link, tdadr );  AddFixpoint( m.sb - link )
+								S.PUT( m.sb - link, tdadr );  Relocate( m.sb - link )
 							END
 						END;
 						CheckScope( scope.dsc[i], EUrecScope )
@@ -1194,26 +1304,26 @@ VAR
 		IF dataLink[0].mod = 0 THEN  (* local module has globals *)
 			FOR i := 0 TO dataLink[0].fixups - 1 DO
 				adr := S.ADR( m.code[0] ) + dataLink[0].ofs[i];
-				S.GET( adr, t );  S.PUT( adr, t + m.sb );  AddFixpoint( adr )
+				S.GET( adr, t );  S.PUT( adr, t + m.sb );  Relocate( adr )
 			END
 		END
 	END FixupGlobals;
 
 	(* When loader parsed the command block, the type descriptors had not yet been allocated
 		so we could not fixup the addresses -> do it now. *)
-	PROCEDURE FixupCommands( m: Module );
+	PROCEDURE FixupCommands( m: Module; h: ObjHeader );
 	VAR i: LONGINT;
 	BEGIN
-		FOR i := 0 TO LEN( m.command ) - 1 DO
+		FOR i := 0 TO h.commands - 1 DO
 			m.command[i].entryAdr := m.command[i].entryAdr + S.ADR( m.code[0] );
-			AddFixpoint( S.ADR( m.command[i].entryAdr ) );
+			Relocate( S.ADR( m.command[i].entryAdr ) );
 			IF m.command[i].argTdAdr > 1 THEN
 				S.GET( m.sb + m.command[i].argTdAdr, m.command[i].argTdAdr );
-				AddFixpoint( S.ADR( m.command[i].argTdAdr ) )
+				Relocate( S.ADR( m.command[i].argTdAdr ) )
 			END;
 			IF m.command[i].retTdAdr > 1 THEN
 				S.GET( m.sb + m.command[i].retTdAdr, m.command[i].retTdAdr );
-				AddFixpoint( S.ADR( m.command[i].retTdAdr ) )
+				Relocate( S.ADR( m.command[i].retTdAdr ) )
 			END;
 		END;
 	END FixupCommands;
@@ -1226,8 +1336,8 @@ VAR
 	BEGIN
 		IF ~type[i].init THEN
 			root := m.typeInfo[i].tag;
-			baseTag := root + Modules.Tag0Ofs;
-			baseMth := root + Modules.Mth0Ofs;
+			baseTag := root + Tag0Ofs;
+			baseMth := root + Mth0Ofs;
 			baseMod := type[i].baseMod;  extLevel := 0;
 			ASSERT( baseMod >= -1 );
 			IF baseMod # -1 THEN  (* extended type *)
@@ -1245,27 +1355,27 @@ VAR
 				END;
 				(* copy base tags *)
 				S.GET( baseM.sb + type[i].baseEntry, baseRoot );
-				S.GET( baseRoot + Modules.Tag0Ofs, t );
+				S.GET( baseRoot + Tag0Ofs, t );
 				WHILE t # 0 DO
 					S.PUT( baseTag - AdrSize*extLevel, t );
-					AddFixpoint( S.ADR( baseTag - AdrSize*extLevel ) );
+					Relocate( S.ADR( baseTag - AdrSize*extLevel ) );
 					INC( extLevel );
-					S.GET( baseRoot + Modules.Tag0Ofs - AdrSize*extLevel, t )
+					S.GET( baseRoot + Tag0Ofs - AdrSize*extLevel, t )
 				END;
 				(* copy non-overwritten base methods *)
 				FOR j := 0 TO type[i].inhMethods - 1 DO
 					S.GET( baseMth - AdrSize*j, t );   (* existing method *)
 					IF t = 0 THEN
-						S.GET( baseRoot + Modules.Mth0Ofs - AdrSize*j, t );   (* base method *)
-						S.PUT( baseMth - AdrSize*j, t );  AddFixpoint( baseMth - AdrSize*j )
+						S.GET( baseRoot + Mth0Ofs - AdrSize*j, t );   (* base method *)
+						S.PUT( baseMth - AdrSize*j, t );  Relocate( baseMth - AdrSize*j )
 					END;
 				END
 			END;
 			m.typeInfo[i].flags := m.typeInfo[i].flags + S.VAL( SET, extLevel );
-			ASSERT( extLevel < Modules.MaxTags );
+			ASSERT( extLevel < MaxTags );
 
 			S.PUT( baseTag - AdrSize*extLevel, m.typeInfo[i].tag );    (* self *)
-			AddFixpoint( baseTag - AdrSize*extLevel );
+			Relocate( baseTag - AdrSize*extLevel );
 
 			(* init type for static type descriptors *)
 			type[i].init := TRUE
@@ -1299,7 +1409,7 @@ VAR
 			WHILE ofs # Sentinel  DO
 				adr := codeadr + ofs;  S.GET( adr, t );
 				WHILE fixupCounts[i] = 0 DO  INC( i )  END;
-				S.PUT( adr, m.entry[i] );  AddFixpoint( adr );
+				S.PUT( adr, m.entry[i] );  Relocate( adr );
 				DEC( fixupCounts[i] );  ofs := t
 			END
 		END FixEntry;
@@ -1309,7 +1419,7 @@ VAR
 		BEGIN
 			i := caseTableSize;
 			WHILE i > 0 DO
-				adr := m.sb + ofs;  S.GET( adr, t );  S.PUT( adr, codeadr + t );  AddFixpoint( adr );
+				adr := m.sb + ofs;  S.GET( adr, t );  S.PUT( adr, codeadr + t );  Relocate( adr );
 				DEC( i );  ofs := ofs + 4
 			END
 		END FixCase;
@@ -1348,52 +1458,56 @@ VAR
 		IF res = Ok THEN
 			IF h.name = name THEN
 
-				m := S.VAL( Module, NewProtRec( modTag, FALSE ) );
+				NewProtRec( S.VAL( ANY, m ), modTag );  
 
 				imp := lastMod;
-				IF imp # NIL THEN  imp.next := m;  AddFixpoint( S.ADR( imp.next ) )  END;
+				IF imp # NIL THEN  imp.next := m;  Relocate( S.ADR( imp.next ) )   END;
 				lastMod := m;
 				IF modules = NIL THEN  modules := lastMod  END;
-				m.initialized := FALSE;  m.refcnt := 0;  m.next := NIL;  m.export.dsc := NIL;  m.term := NIL;
-
+				m.init := FALSE;  m.refcnt := 0;  m.next := NIL;  m.export.dsc := NIL;  m.term := NIL;
+				
 				i := 0;  WHILE h.name[i] # 0X DO m.name[i] := h.name[i];  INC(i) END;
 				m.name[i] := 0X;
-				m.refSize := h.refSize;  m.entries := h.entries;  m.commands := h.commands;
-				m.pointers := h.pointers;  m.types := h.types;  m.modules := h.modules;
-				m.dataSize := h.dataSize;  m.constSize := h.constSize;  m.codeSize := h.codeSize;
+				
 				m.exTableLen := h.exTableLen;
 				m.noProcs := h.procs;
 				m.maxPtrs := h.maxPtrs;
 				m.staticTdSize := h.staticTdSize; (* ug *)
 
-				AllocateModule( m );
+				AllocateModule( m, h );
 
 				NEW( dataLink, h.dataLinks );  NEW( links, h.links );  NEW( fixupCounts, h.entries );
-				NEW( type, m.types );
+				NEW( type, h.types );
 
-				IF ReadEntryBlock( r, m ) & ReadCommandBlock( r, m ) & ReadPointerBlock( r, m ) &
-					ReadImportBlock( r, m, res, msg ) & ReadDataLinkBlock( r, h.dataLinks, dataLink^ ) &
+				IF ReadEntryBlock( r, m, h ) & ReadCommandBlock( r, m, h ) & ReadPointerBlock( r, m, h ) &
+					ReadImportBlock( r, m, h, res, msg ) & ReadDataLinkBlock( r, h.dataLinks, dataLink^ ) &
 					ReadLinkBlock( r, h.links, h.entries, links^, fixupCounts^, caseTableSize ) &
-					ReadConstBlock(r, m) & ReadExportBlock(r, m) & ReadCodeBlock(r, m) &
-					ReadUseBlock( r, m, dataLink^, res, msg ) & ReadTypeBlock( r, m, type^ ) &
-					ReadExTableBlock( r, m ) & ReadPtrsInProcBlock( r, m )  & ReadRefBlock( r, m )
+					ReadConstBlock(r, m, h) & ReadExportBlock(r, m) & ReadCodeBlock( r, m, h ) &
+					ReadUseBlock( r, m, dataLink^, res, msg ) & ReadTypeBlock( r, m, h, type^ ) &
+					ReadExTableBlock( r, m ) & ReadPtrsInProcBlock( r, m )  & ReadRefBlock( r, m, h )
 				THEN
 					IF m.name = "Glue" THEN  PrepareGlue( m )
 					ELSIF m.name = "Heaps" THEN  GetHeapRoutines( m )
-					ELSIF m.name = "Modules" THEN  GetModuleRoutines( m )
+					ELSIF m.name = "Modules" THEN  
+						FixupModuletypes( m );
+						GetModuleRoutines( m )
 					ELSIF m.name = "Objects" THEN  GetObjectRoutines( m )
+					ELSIF m.name = StartModule THEN
+						startModuleBody := S.ADR( m.code[0] )
 					END;
 					IF h.dataLinks # 0 THEN  FixupGlobals( m, dataLink^ )  END;
 					IF h.links # 0 THEN  FixupLinks( m, links^, fixupCounts^, caseTableSize, res )  END;
-					IF h.commands # 0 THEN  FixupCommands( m )  END;
+					IF h.commands # 0 THEN  FixupCommands( m, h )  END;
 					FOR i := 0 TO LEN(type^)-1  DO  InitType( m, type^, i )  END;
-					m.initialized := TRUE;  m.published := TRUE;
+					m.init := TRUE;  m.published := TRUE;
+					(*InsertProcOffsets(m.procTable, m.ptrTable, m.maxPtrs);*)
+					m.procTable := NIL; m.ptrTable := NIL; (* not used any more as entered in global variable *)
 				END
 			END
 		ELSE
-			res := IncompatibleModuleName;  COPY(fileName, msg);  Modules.Append(" incompatible module name", msg)
+			res := IncompatibleModuleName;  COPY(fileName, msg);  Append(" incompatible module name", msg)
 		END;
-		IF (res # Ok) & (msg[0] = 0X) THEN  COPY(fileName, msg);  Modules.Append(" corrupt", msg)  END;
+		IF (res # Ok) & (msg[0] = 0X) THEN  COPY(fileName, msg);  Append(" corrupt", msg)  END;
 		IF res # Ok THEN  m := NIL  END;
 		RETURN m
 	END LoadObj;
@@ -1414,7 +1528,7 @@ VAR
 			END;
 			Files.OpenReader( r, f, 0 );
 			m := LoadObj( name, fname, r, res, msg )
-		ELSIF ~m.initialized THEN
+		ELSIF ~m.init THEN
 			Error( "", "cyclic import not allowed" );
 			m := NIL
 		END;
@@ -1435,20 +1549,21 @@ VAR
 	END Append;
 
 	PROCEDURE MakeTD;
-		(* temp. type tags to make NewArr( ...Tag, ... ) and NewProtRec( modTag )
-		    working in first module *)
-	VAR exp: ExportPtr;
+		(* create temp. type tags which are needed to load the *)
+		(* first modules up to module 'Modules'  *)
+	VAR 
+		exp: ExportPtr;  mod: Module;
+		ptr: POINTER TO RECORD a: ANY  END;
+		proc: ProcTable;  procOfs: ProcOffsetTable;
+		td: TypeDesc;
 	BEGIN
-		NEW( exp );  S.GET( S.VAL( LONGINT, exp ) - AdrSize, expTag );
-
-		tempModuleTD.size := S.SIZEOF( ModuleDesc );
-		tempModuleTD.off0 := -AdrSize;
-		modTag := S.ADR( tempModuleTD );
-
-		tempPtrTableTD.size := AdrSize;
-		tempPtrTableTD.off0 := 0;
-		tempPtrTableTD.off1 := -(2*AdrSize);
-		ptrTableTag := S.ADR( tempPtrTableTD );
+		NEW( exp );  S.GET( S.VAL( Address, exp ) - AdrSize, expTag );
+		NEW( td );  S.GET( S.VAL( Address, td ) - AdrSize, tdTag );
+		NEW( mod );  S.GET( S.VAL( Address, mod ) - AdrSize, modTag );
+		NEW( ptr );  S.GET( S.VAL( Address, ptr ) - AdrSize, ptrElemTag );
+		NEW( proc, 1 );  S.GET( S.VAL( Address, proc ) - AdrSize, procTableEntryTag );
+		NEW( procOfs, 1 );  S.GET( S.VAL( Address, proc ) - AdrSize, procOffsetEntryTag );
+		ptrTableTag := 0;
 	END MakeTD;
 
 
@@ -1465,9 +1580,8 @@ VAR
 		KernelRoutines[7].name := "Unlock";
 		KernelRoutines[10].name := "GetProcedure";
 		modules := NIL;  lastMod := NIL;
-		tdTag := 0; modTag := 0;  expTag := 0;  ptrTableTag := 0;  procTableEntryTag := 0;
 
-		dlsymAdr := 0; kernelBody := 0;
+		dlsymAdr := 0; startModuleBody := 0;
 
 		FOR i := 0 TO NofPtrFix -1 DO  ptrFix[i] := 0  END;
 		ptrFixx := 0;
@@ -1499,7 +1613,7 @@ VAR
 		from := heapAdr + B - AdrSize;
 		w.RawLInt( from );  w.RawLInt( top - from );
 		WHILE from < top DO  S.GET( from, i );  w.RawLInt( i );  INC( from, 4 )  END;
-		w.RawLInt( kernelBody );  (* entrypoint *)
+		w.RawLInt( startModuleBody );  (* entrypoint *)
 		w.RawLInt( 0 );
 
 		(* output relocate information *)
@@ -1514,6 +1628,11 @@ VAR
 		Str( "  file: " );  Int( f.Length( ) )
 	END OutBootfile;
 
+	PROCEDURE RelocateProcOffsets;
+	END RelocateProcOffsets;
+
+	PROCEDURE RelocatePtrOffsets;
+	END RelocatePtrOffsets;
 
 	PROCEDURE Link*( context: Commands.Context );
 	VAR bootFileName, name: Name;
@@ -1529,6 +1648,11 @@ VAR
 		END;
 		IF context.arg.GetString( name ) THEN
 			Init( heap );
+			NewArr( S.VAL( ANY, procOffsets ), procOffsetEntryTag, InitTableLen, 1 );
+			numProcs := 0; 
+			NewArr( S.VAL( ANY, ptrOffsets ), 0, InitPtrTableLen, 1 );
+			numPtrs := 0; 
+			
 			Str( "linking " );  Str( bootFileName );  Ln;  res := Ok;
 			REPEAT
 				Str( "    " );  Str( name );
@@ -1536,7 +1660,19 @@ VAR
 				IF m = NIL THEN  Str( "   failed: " );  Str( msg )  END;
 				Ln;
 			UNTIL ~context.arg.GetString( name ) OR (m = NIL);
-			IF res = Ok THEN  OutBootfile( bootFileName )  END;
+			IF res = Ok THEN  
+				AssignValue( "Modules", "root", S.VAL( Address, modules ), TRUE );
+	
+				RelocateProcOffsets;
+				AssignValue( "Modules", "procOffsets", S.VAL( Address, procOffsets ), TRUE );
+				AssignValue( "Modules", "numProcs", S.VAL( Address, numProcs ), FALSE );
+				
+				RelocatePtrOffsets;
+				AssignValue( "Modules", "ptrOffsets", S.VAL( Address, ptrOffsets ), TRUE );
+				AssignValue( "Modules", "numPtrs", S.VAL( Address, numPtrs ), FALSE );
+
+				OutBootfile( bootFileName )  
+			END;
 			Ln
 		ELSE  Str( "parameter error, module names missing, terminating" ); Ln
 		END

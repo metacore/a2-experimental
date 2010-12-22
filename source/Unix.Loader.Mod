@@ -38,8 +38,6 @@ CONST
 	DefinitionModule = "Interfaces";	(* runtime module that supplies definition support *)
 
 TYPE
-	Address = SYSTEM.ADDRESS;
-
 	ObjHeader = RECORD (* data from object file header *)
 		entries, commands, pointers, types, modules, links, dataLinks: LONGINT;
 		codeSize, dataSize, refSize, constSize, exTableLen, procs, maxPtrs: LONGINT;
@@ -72,7 +70,7 @@ VAR
 (* ReadHeader - Read object file header. *)
 
 PROCEDURE ReadHeader(r: Streams.Reader; VAR h: ObjHeader; VAR res: LONGINT; VAR msg: ARRAY OF CHAR);
-VAR symSize: LONGINT; flags: SET; ignore: Modules.Module; tag: CHAR;
+VAR symSize: LONGINT; flags: SET; tag: CHAR;
 BEGIN
 	r.Char(tag);
 	IF tag = FileTag THEN
@@ -131,20 +129,6 @@ BEGIN
 	END
 END ReadHeader;
 
-(* ReadString7 - Read 7-bit encoded string. *)
-(*
-PROCEDURE ReadString7(r: Streams.Reader;  VAR str: ARRAY OF CHAR);
-VAR i: LONGINT;  ch: CHAR;
-BEGIN
-	i := 0;  r.Char(ch);
-	WHILE ch # 0X DO
-		IF ch > 7FX THEN str[i] := CHR(ORD(ch)-80H);  INC(i);  ch := 0X
-		ELSE str[i] := ch;  INC(i);  r.Char(ch)
-		END
-	END;
-	str[i] := 0X
-END ReadString7;
-*)
 
 (* zero compressed strings don't like UTF-8 encoding *)
 
@@ -160,108 +144,22 @@ BEGIN
 	str[i] := 0X;
 END ReadString8;
 
-(* ug: OLD VERSION
-(* AllocateModule - Allocate module data. *)
-PROCEDURE AllocateModule(m: Modules.Module);
-CONST
-	ArrHdrSize = 16;	(* {MOD 8 = 0} *)
-	LenOfs = 3 * AddressSize;	(* offset of dimension 0 in array header *)
-	Align = ArrHdrSize + 4 + 15;	(* 4 for tag of next block, 15 for rounding up to 16 *)
 
-VAR
-	adr, tag: SYSTEM.ADDRESS; size, dataSize: SYSTEM.SIZE; block: ANY;
-
-	PROCEDURE ArrSize(elements: LONGINT; elemSize: SYSTEM.SIZE): SYSTEM.SIZE;
-	BEGIN
-		RETURN (elements*elemSize + Align) DIV 16 * 16	(* size rounded up for header and alignment *)
-	END ArrSize;
-
-	PROCEDURE NewArr(VAR ptr: ANY;  elements: LONGINT; elemSize: SYSTEM.SIZE);
-	VAR a: SYSTEM.ADDRESS; s: SYSTEM.SIZE;
-	BEGIN
-		ASSERT(adr MOD 16 = 8);	(* => adr MOD 8 = 0 *)
-		a := adr;  s := ArrSize(elements, elemSize);
-		INC(adr, s);  DEC(size, s);	(* allocate *)
-			(* array header *)
-		SYSTEM.PUT(a-AddressSize, tag);	(* indirect tag *)
-		SYSTEM.PUT(a+LenOfs, elements);	(* dimension *)
-		ptr := SYSTEM.VAL(ANY, a)
-	END NewArr;
-
-BEGIN
-	dataSize := SYSTEM.VAL(SYSTEM.SIZE, m.dataSize) + (-m.dataSize) MOD 8;	(* round up to 8 to align constant block *)
-
-	size := ArrSize(m.entries, SYSTEM.SIZEOF(SYSTEM.ADDRESS)) + ArrSize(m.commands, SYSTEM.SIZEOF(Modules.Command)) +
-		ArrSize(m.pointers, SYSTEM.SIZEOF(SYSTEM.ADDRESS)) + ArrSize(m.types, SYSTEM.SIZEOF(SYSTEM.ADDRESS)) (* array of pointers *) +
-		ArrSize(m.modules, SYSTEM.SIZEOF(Modules.Module)) + ArrSize(dataSize + m.constSize, 1) +
-		ArrSize(m.codeSize, 1) + ArrSize(m.exTableLen, SYSTEM.SIZEOF(Modules.ExceptionTableEntry)) +
-		ArrSize(m.refSize, 1);
-
-	Heaps.NewSys(block, size);
-	adr := SYSTEM.VAL(SYSTEM.ADDRESS, block);
-	SYSTEM.GET(adr-AddressSize, tag);
-
-	NewArr(SYSTEM.VAL(ANY, m.entry), m.entries, SYSTEM.SIZEOF(SYSTEM.ADDRESS));
-	NewArr(SYSTEM.VAL(ANY, m.command), m.commands, SYSTEM.SIZEOF(Modules.Command));
-	NewArr(SYSTEM.VAL(ANY, m.ptrAdr), m.pointers, SYSTEM.SIZEOF(SYSTEM.ADDRESS));
-	NewArr(SYSTEM.VAL(ANY, m.type), m.types, SYSTEM.SIZEOF(SYSTEM.ADDRESS));
-	NewArr(SYSTEM.VAL(ANY, m.module), m.modules, SYSTEM.SIZEOF(Modules.Module));
-	NewArr(SYSTEM.VAL(ANY, m.data), dataSize + m.constSize, 1);
-	NewArr(SYSTEM.VAL(ANY, m.code), m.codeSize, 1);
-	NewArr(SYSTEM.VAL(ANY, m.exTable), m.exTableLen, SYSTEM.SIZEOF(Modules.ExceptionTableEntry));
-	NewArr(SYSTEM.VAL(ANY, m.refs), m.refSize, 1);
-
-	ASSERT(size = 0);	(* account for every byte *)
-
-	m.sb := SYSTEM.ADR(m.data[0]) + dataSize	(* constants positive, data negative *)
-END AllocateModule;
-*)
-
-(* new executable block outside the Oberon heap ==Unix== *)
-PROCEDURE NewCodeBlock( codeSize: LONGINT ): Modules.Bytes;
-VAR allocSize, arrSize,  res: LONGINT;  bladr, p: Address;
-BEGIN
-	arrSize := codeSize + (-codeSize) MOD 16;
-	allocSize :=  24 + 16 +  arrSize;
-	INC( allocSize, (-allocSize) MOD Unix.PageSize );
-	bladr := Unix.valloc( allocSize );
-	(* bladr MOD 32 = 0 *)
-	IF bladr # 0 THEN
-		Heaps.ClearMem( bladr, allocSize );
-		res := Unix.mprotect( bladr, allocSize, 7 ); (*PROT_READ|PROT_WRITE|PROT_EXEC*)
-		IF res # 0 THEN
-			Unix.perror( SYSTEM.ADR( "AosLoader.NewCodeBlock: Unix.mprotect" ) );
-			RETURN NIL
-		END;
-		p := bladr  + 24;		(* MOD 16 = 8 *)
-		SYSTEM.PUT( p + 12, codeSize );
-		SYSTEM.PUT( p - 4, bladr );
-		SYSTEM.PUT( bladr, allocSize );
-		RETURN SYSTEM.VAL( Modules.Bytes, p )
-	ELSE
-		Unix.perror( SYSTEM.ADR( "AosLoader.NewCodeBlock: Unix.valloc" ) );
-		RETURN  NIL
-	END;
-END NewCodeBlock;
-
-
-PROCEDURE AllocateModule(m: Modules.Module);
+PROCEDURE AllocateModule(m: Modules.Module; h: ObjHeader);
 VAR dataSize: SYSTEM.SIZE;
 BEGIN
-	dataSize := SYSTEM.VAL(SYSTEM.SIZE, m.dataSize) + (-m.dataSize) MOD 8;	(* round up to 8 to align constant block *)
+	dataSize := SYSTEM.VAL(SYSTEM.SIZE, h.dataSize) + (-h.dataSize) MOD 8;	(* round up to 8 to align constant block *)
 
-	NEW(m.entry, m.entries);
-	NEW(m.command, m.commands);
-	NEW(m.ptrAdr, m.pointers);
-	NEW(m.typeInfo, m.types);
-	NEW(m.module, m.modules);
-	NEW(m.data, dataSize + m.constSize);
-	(*NEW(m.code, m.codeSize);*)
-	m.code := NewCodeBlock( m.codeSize );		(* ==Unix== code inside Aos heap doesn't work
-															 in most new Linux systems *)
-	NEW(m.staticTypeDescs, m.staticTdSize);
-	NEW(m.refs, m.refSize);
-	NEW(m.exTable, m.exTableLen);
+	NEW(m.entry, h.entries);
+	NEW(m.command, h.commands);
+	NEW(m.ptrAdr, h.pointers);
+	NEW(m.typeInfo, h.types);
+	NEW(m.module, h.modules);
+	NEW(m.data, dataSize + h.constSize);
+	NEW(m.code, h.codeSize);
+	NEW(m.staticTypeDescs, h.staticTdSize);
+	NEW(m.refs, h.refSize);
+	NEW(m.exTable, h.exTableLen);
 
 	m.sb := SYSTEM.ADR(m.data[0]) + dataSize;	(* constants positive, data negative *)
 END AllocateModule;
@@ -273,7 +171,7 @@ VAR tag: CHAR;  i, num: LONGINT;
 BEGIN
 	r.Char(tag);
 	IF tag = 82X THEN	(* entry tag *)
-		FOR i := 0 TO m.entries-1 DO
+		FOR i := 0 TO LEN(m.entry)-1 DO
 			r.RawNum(num);
 			m.entry[i] := num + SYSTEM.ADR(m.code[0])
 		END;
@@ -291,7 +189,7 @@ VAR tag : CHAR; i, adr : LONGINT;
 BEGIN
 	r.Char(tag);
 	IF tag = 83X THEN (* command tag *)
-		FOR i := 0 TO m.commands-1 DO
+		FOR i := 0 TO LEN(m.command)-1 DO
 			r.RawNum(adr); m.command[i].argTdAdr := adr;
 			r.RawNum(adr); m.command[i].retTdAdr := adr;
 			r.RawString(m.command[i].name);
@@ -311,7 +209,7 @@ VAR tag: CHAR;  i, num: LONGINT;
 BEGIN
 	r.Char(tag);
 	IF tag = 84X THEN	(* pointer tag *)
-		FOR i := 0 TO m.pointers-1 DO
+		FOR i := 0 TO LEN(m.ptrAdr)-1 DO
 			r.RawNum(num);
 			ASSERT(num MOD AddressSize = 0);	(* no deep copy flag *)
 			m.ptrAdr[i] := m.sb + num
@@ -331,7 +229,7 @@ BEGIN
 	r.Char(tag);
 	IF tag = 85X THEN	(* import tag *)
 		i := 0;
-		WHILE (i # m.modules) & (res = Ok) DO
+		WHILE (i # LEN(m.module)) & (res = Ok) DO
 			ReadString8(r, name);
 			m.module[i] := Modules.ThisModule(name, res, msg);	(* recursively load the imported module *)
 			INC(i)
@@ -392,13 +290,13 @@ END ReadLinkBlock;
 
 (* ReadConstBlock - Read the constant block. *)
 
-PROCEDURE ReadConstBlock(r: Streams.Reader;  m: Modules.Module): BOOLEAN;
+PROCEDURE ReadConstBlock(r: Streams.Reader;  m: Modules.Module; h: ObjHeader): BOOLEAN;
 VAR tag: CHAR;  i: LONGINT; t: SYSTEM.ADDRESS;
 BEGIN
 	r.Char(tag);
 	IF tag = 87X THEN	(* constant tag *)
 		t := m.sb;
-		FOR i := 0 TO m.constSize-1 DO
+		FOR i := 0 TO h.constSize-1 DO
 			r.Char(tag);  SYSTEM.PUT(t, tag);  INC(t)
 		END;
 		SYSTEM.GET(m.sb, t);  ASSERT(t = 0);
@@ -466,7 +364,7 @@ VAR tag: CHAR; ignore: LONGINT;
 BEGIN
 	r.Char(tag);
 	IF tag = 89X THEN	(* code tag *)
-		r.Bytes(m.code^, 0, m.codeSize, ignore);
+		r.Bytes(m.code^, 0, LEN(m.code), ignore);
 		RETURN TRUE
 	ELSE
 		RETURN FALSE
@@ -492,7 +390,7 @@ VAR tag: CHAR;  i: LONGINT;  name, prevname: ARRAY 256 OF CHAR; (*fof: not Modul
 	VAR nextlink: SYSTEM.SIZE; opcode: CHAR;
 	BEGIN
 		REPEAT
-			ASSERT((link >= 0) & (link < m.codeSize));
+			ASSERT((link >= 0) & (link < LEN(m.code)));
 			SYSTEM.GET(code + link, nextlink);
 			SYSTEM.GET(code + link - 1, opcode);	(* backward disassembly safe? *)
 			IF opcode = 0E8X THEN	(* call instruction relative *)
@@ -594,10 +492,10 @@ BEGIN
 	r.Char(tag);
 	IF tag = 8BX THEN	(* type tag *)
 		totTdSize := 0;
-		IF m.staticTdSize > 0 THEN
+		IF LEN(m.staticTypeDescs) > 0 THEN
 			startAddr := SYSTEM.ADR(m.staticTypeDescs[0]);
 		END;
-		FOR i := 0 TO m.types-1 DO
+		FOR i := 0 TO LEN(type)-1 DO
 			type[i].init := FALSE;
 			r.RawNum(recSize);
 			r.RawNum(num); type[i].entry := num;
@@ -656,7 +554,7 @@ VAR tag: CHAR; ignore: LONGINT;
 BEGIN
 	r.Char(tag);
 	IF tag = 8CX THEN	(* ref tag *)
-		r.Bytes(m.refs^, 0, m.refSize, ignore);
+		r.Bytes(m.refs^, 0, LEN(m.refs), ignore);
 		RETURN TRUE
 	ELSE
 		RETURN FALSE
@@ -919,15 +817,6 @@ BEGIN
 	END
 END ReadPtrsInProcBlock;
 
-PROCEDURE ProtModule(): Modules.Module;	(* ==Unix== *)
-VAR m: Modules.Module;  t: Modules.TypeDesc;
-	msg: ARRAY 64 OF CHAR; res: LONGINT;
-BEGIN
-	m := Modules.ThisModule( "Basetypes", res, msg );
-	t := Modules.ThisType( m, "ModuleDesc" );
-	Heaps.NewProtRec( SYSTEM.VAL( ANY, m ), SYSTEM.VAL( Address, t.tag ), FALSE );
-	RETURN m
-END ProtModule;
 
 (** LoadObj - Load an Active Oberon object file. *)
 
@@ -948,25 +837,22 @@ BEGIN
 		IF res = Ok THEN
 			IF h.name = name THEN
 				Heaps.GCBarrier( 500 );				(* ==Unix== *)
-				(*NEW(m);*)  m := ProtModule();	(* ==Unix== *)
+				NEW(m); 
 				i := 0;  WHILE h.name[i] # 0X DO m.name[i] := h.name[i];  INC(i) END;
 				m.name[i] := 0X;
-				m.refSize := h.refSize;  m.entries := h.entries;  m.commands := h.commands;
-				m.pointers := h.pointers;  m.types := h.types;  m.modules := h.modules;
-				m.dataSize := h.dataSize;  m.constSize := h.constSize;  m.codeSize := h.codeSize;
 				m.exTableLen := h.exTableLen;
 				m.noProcs := h.procs;
 				m.maxPtrs := h.maxPtrs;
 				m.staticTdSize := h.staticTdSize; (* ug *)
-				AllocateModule(m);
+				AllocateModule(m, h);
 				IF trace THEN
 					KernelLog.Hex(SYSTEM.ADR(m.code[0]), 8);  KernelLog.Char(" ");
 					KernelLog.String(m.name);  KernelLog.Hex(m.sb, 9);  KernelLog.Ln
 				END;
-				NEW(dataLink, h.dataLinks);  NEW(link, h.links);  NEW(fixupCounts, h.entries); NEW(type, m.types);
+				NEW(dataLink, h.dataLinks);  NEW(link, h.links);  NEW(fixupCounts, h.entries); NEW(type, h.types);
 				IF ReadEntryBlock(r, m) & ReadCommandBlock(r, m) & ReadPointerBlock(r, m) &
 						ReadImportBlock(r, m, res, msg) & ReadDataLinkBlock(r, h.dataLinks, dataLink^) &
-						ReadLinkBlock(r, h.links, h.entries, link^, fixupCounts^, caseTableSize) & ReadConstBlock(r, m) & ReadExportBlock(r, m) &
+						ReadLinkBlock(r, h.links, h.entries, link^, fixupCounts^, caseTableSize) & ReadConstBlock(r, m, h) & ReadExportBlock(r, m) &
 						ReadCodeBlock(r, m) & ReadUseBlock(r, m, dataLink^, res, msg) &
 						ReadTypeBlock(r, m, type^) & ReadExTableBlock(r, m)  & ReadPtrsInProcBlock(r, m)  &
 						ReadRefBlock(r, m) THEN

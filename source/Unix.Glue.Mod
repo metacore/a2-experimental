@@ -6,17 +6,17 @@ MODULE Glue;   (* g.f.  25.2.98 *)	(** non portable *)
 (** Interface to the dynamic linker of Unix *)
 
 
-IMPORT S := SYSTEM, Aos := Basetypes, Trace;
+IMPORT S := SYSTEM, Trace;
 
 TYPE
 	Address = S.ADDRESS;
-	Module = Aos.Module;
+	
+	PtrElemDesc* = RECORD  a: ANY  END;	(* used by BootLinker only *)
+		(* has same type descriptor as element of ARRAY OF POINTER TO ... *)
 
 CONST
 	AdrSize = S.SIZEOF( S.ADDRESS );
 
-	B = 32;   (* must be a mutiple of 32 *)
-	ProtOfs = B + 16;
 
 VAR
 	(* the first variable ("AA...") gets initialized by the bootfile loader *)
@@ -29,7 +29,6 @@ VAR
 
 	debug-		: SET;	(* value of environment variable  OBERON_DEBUG  *)
 
-	modules-	: Module;   (** prelinked modules *)
 
 	stackBottom-	: Address;
 
@@ -47,41 +46,6 @@ VAR
 	END GetStackBottom;
 
 
-	PROCEDURE CallBodies;
-		(* initialize prelinked modules *)
-		(* the last one (Starter) will startup the system *)
-	TYPE Body = PROCEDURE;
-	VAR m, last: Module;  body: Body;  consoleReady: BOOLEAN;
-	BEGIN
-		last := modules;  consoleReady := FALSE;
-		WHILE last.next # NIL DO  last := last.next;   END;
-
-		m := modules;
-		LOOP
-			IF m.name # "Glue" THEN
-				IF debug # {} THEN
-					Trace.String( "Glue: Initializing " );  Trace.StringLn( m.name )
-				END;
-				body := S.VAL( Body, S.ADR( m.code[0] ) );
-				body;
-				IF m.name = "Trace" THEN  Trace.Char := Char  END;
-			END;
-			IF m = last THEN  EXIT   END;   (* initialize modules belonging to bootfile only *)
-			m := m.next
-		END
-	END CallBodies;
-
-
-	PROCEDURE GetPrelinkedModules;
-	VAR heapAdr, firstBlock: Address;
-	BEGIN
-		dlsym( 0, S.ADR( "heapAdr" ), S.ADR( heapAdr ) );
-		firstBlock := heapAdr + ((-heapAdr - 4) MOD B);
-		modules := S.VAL( Module, firstBlock + 4 + ProtOfs );
-	END GetPrelinkedModules;
-
-
-
 
 	PROCEDURE Init;
 	BEGIN
@@ -96,6 +60,4 @@ VAR
 BEGIN
 	Init;
 	GetStackBottom;
-	GetPrelinkedModules;
-	CallBodies;
 END Glue.

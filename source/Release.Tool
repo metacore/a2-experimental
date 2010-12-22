@@ -185,7 +185,7 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	# Low-level trace output
 	Trace.Mod
 
-	UNIX { Unix.Basetypes.Mod Unix.Glue.Mod }
+	UNIX { Unix.Glue.Mod }
 	DARWIN { Darwin.Unix.Mod } LINUX { Linux.Unix.Mod } SOLARIS { Solaris.Unix.Mod }
 
 	I386 { I386.Machine.Mod }
@@ -879,7 +879,7 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 	OCBackend.Mod OCCompiler.Mod
 	OCFingerPrint.Mod  OCInterfaceComparison.Mod OCTextualSymbolFile.Mod OCBinarySymbolFile.Mod
 	OCSections.Mod OCBinaryCode.Mod
-	OCIntermediateCode.Mod OCFingerprinter.Mod OCDataflowBackend.Mod OCIntermediateBackend.Mod
+	OCIntermediateCode.Mod OCFingerPrinter.Mod OCDataflowBackend.Mod OCIntermediateBackend.Mod
 	OCBinaryObjectFile.Mod OCGenericObjectFile.Mod
 	OCAMD64InstructionSet.Mod OCAMD64Assembler.Mod OCAMDBackend.Mod
 	OCInstructionSetAMD64TabSeperated.txt

@@ -9,27 +9,130 @@ MODULE Modules;   (* Oberon for Windows Module Loader; RC/MH 10.12.93 / 3.2.94 /
 (*	2007.04.30	g.f.	adapted to the new extended Module structure *)
 
 
-IMPORT S := SYSTEM, Glue, Aos := Basetypes, Heaps, Machine, Trace, Unix;
+IMPORT S := SYSTEM, Glue, Heaps, Machine, Trace;
 
 TYPE
 	Address = S.ADDRESS;
 	Size = S.SIZE;
 
-	Name* = Aos.Name;  Module* = Aos.Module;  Command* = Aos.Command;
-	CommandProc* = Aos.CommandProc;  CommandParProc* = Aos.CommandParProc;
-	TypeDesc* = Aos.TypeDesc;  ExportPtr* = Aos.ExportPtr;  ExportDesc* = Aos.ExportDesc;
-	ExceptionTable* = Aos.ExceptionTable;  ExceptionTableEntry* = Aos.ExceptionTableEntry;
-	ProcTable* = Aos.ProcTable;  ProcTableEntry* = Aos.ProcTableEntry;
+	Name* = ARRAY 32 OF CHAR;
+	TerminationHandler* = PROCEDURE;
 
-	Bytes* = Aos.Bytes;  TerminationHandler* = Aos.TermHandler;
+	CommandProc* = PROCEDURE;
+	CommandParProc* = PROCEDURE ( par: ANY ): ANY;
 
-	ProcOffsetEntry* = RECORD
-				data*: ProcTableEntry;   (* code offsets of procedures *)
-				startIndex*: LONGINT;   (* index into global ptrOffsets table *)
+	Command* = RECORD
+				name*	: Name;   (** Name of the command *)
+				argTdAdr*	: Address;   (* address of type descriptor of argument *)
+				retTdAdr*	: Address;   (* address of type descriptor of return type, 0 if no type *)
+				entryAdr*	: Address;   (* entry address of procedure *)
 			END;
 
+	ExportPtr* = POINTER TO ExportDesc;
+	
+	ExportDesc* = RECORD
+				fp*	: Address;
+				adr*	: Address;
+				exports*	: LONGINT;
+				dsc*	: ExportArray
+			END;
+	ExportArray* = POINTER TO ARRAY OF ExportDesc;
+	
+	TypeDesc* = POINTER TO RECORD 	(** pointer to "start" of type descriptor *)
+				descSize: LONGINT;  	(* placeholder *)
+				sentinel	: LONGINT;	(* placeholder = MPO-4 *)
+				tag*	: Address; 	(* = ADR(recSize) *)  (** pointer to "middle" of type descriptor. *)
+				flags*	: SET;		(** low 8 bits reserved for extLevel *)
+				mod*	: Module;   	(** hint only, because module may have been freed *)
+				name*	: Name;   	(** name of the module. *)
+			END;
+	
+	ExceptionTableEntry* = RECORD
+				pcFrom*: Address;
+				pcTo*: Address;
+				pcHandler*: Address;
+			END;
+
+	ExceptionTable* = POINTER TO ARRAY OF ExceptionTableEntry;
+
+	ProcTableEntry* = RECORD
+				pcFrom*		: Address;
+				pcLimit*		: Address;
+				pcStatementBegin*	: Address;
+				pcStatementEnd*	: Address;
+				noPtr*		: LONGINT
+			END;
+
+	ProcOffsetEntry* = RECORD
+		data*: ProcTableEntry;	(* code offsets of procedures *)
+		startIndex*: LONGINT;	(* index into global ptrOffsets table *)
+	END;
+
 	ProcOffsetTable* = POINTER TO ARRAY OF ProcOffsetEntry;
-	PtrTable* = Aos.PtrTable;
+
+	ProcTable* = POINTER TO ARRAY OF ProcTableEntry;
+	PtrTable* = POINTER TO ARRAY OF Address;
+
+
+	Bytes* = POINTER TO ARRAY OF CHAR;
+	
+	
+		Module* = OBJECT(Heaps.RootObject) 
+			VAR
+				next*		: Module;
+				name*		: Name;
+				init*, 
+				published*	: BOOLEAN;
+				refcnt*		: LONGINT;
+				sb*	 		: Address;
+
+				entry*			: POINTER TO ARRAY OF Address;
+				command*		: POINTER TO ARRAY OF Command;
+				ptrAdr*			: POINTER TO ARRAY OF Address;
+				typeInfo*		: POINTER TO ARRAY OF TypeDesc;
+				module*		: POINTER TO ARRAY OF Module;
+
+				procTable*		: ProcTable; (* information inserted by loader, removed after use in Publish *)
+				ptrTable*		: PtrTable;  (* information inserted by loader, removed after use in Publish *)
+
+				data*, code*, staticTypeDescs*, refs*	: Bytes;
+
+				export*			: ExportDesc;
+				term*			: TerminationHandler;
+				exTable*		: ExceptionTable;
+				exTableLen*	: LONGINT;
+				noProcs*		: LONGINT;
+				firstProc*		: Address;   (* procedure with lowest PC in module *)
+				maxPtrs*		: LONGINT;
+				staticTdSize*	: LONGINT;
+				
+			PROCEDURE FindRoots;	(* override *)
+			VAR i: LONGINT; ptr: ANY; moduleName: Name;
+			BEGIN
+				IF published THEN	(* mark global pointers *)
+					moduleName := name;
+					FOR i := 0 TO LEN(ptrAdr) - 1 DO
+						S.GET (ptrAdr[i], ptr);
+						IF ptr # NIL THEN Heaps.Mark(ptr) END
+					END;
+					IF Heaps.useRootObjects THEN  Heaps.Mark(next)  END;
+					Heaps.Mark(entry);
+					Heaps.Mark(command);
+					Heaps.Mark(ptrAdr);
+					Heaps.Mark(typeInfo);
+					Heaps.Mark(module);
+					
+					Heaps.Mark(data);
+					Heaps.Mark(code);
+					Heaps.Mark(staticTypeDescs);
+					Heaps.Mark(refs);
+					Heaps.Mark(export.dsc);
+					Heaps.Mark(exTable)
+				END;
+			END FindRoots;	
+			
+		END Module;
+
 
 	Suffix* = ARRAY 8 OF CHAR;
 
@@ -66,9 +169,11 @@ VAR
 	procOffsets-: ProcOffsetTable;   (* global table containing procedure code offsets and pointer offsets,
 										sorted in ascending order of procedure code offsets *)
 	numProcs: LONGINT;   (* number of entries in procOffsets *)
-	ptrOffsets-: PtrTable;  numPtrs: LONGINT;
+	
+	ptrOffsets-: PtrTable;  
+	numPtrs: LONGINT;
 
-	root*: Module;
+	root-: Module;
 	shutdown*: LONGINT;   (** None, Reboot, PowerDown *)
 
 	freeRoot*: Module;   (** list of freed modules (temporary) *)
@@ -132,7 +237,7 @@ VAR
 	BEGIN
 		m := ThisModule( moduleName, res, msg );
 		IF res = 0 THEN
-			ASSERT( m.initialized );   (* module body must have been called (see note at end of module) *)
+			ASSERT( m.init );   (* module body must have been called (see note at end of module) *)
 			Machine.Acquire( Machine.Modules );
 			i := 0;  entryAdr := 0;
 			WHILE (entryAdr = 0) & (i # LEN( m.command^ )) DO
@@ -264,11 +369,6 @@ VAR
 		END
 	END DeleteProcOffsets;
 
-	PROCEDURE DeAllocCodeBlock( p: Address );
-	BEGIN
-		Unix.free( p - 24 )
-	END DeAllocCodeBlock;
-
 
 	(* Generate a module file name. *)
 	PROCEDURE GetFileName( CONST name, extension: ARRAY OF CHAR;  VAR fileName: ARRAY OF CHAR );
@@ -308,7 +408,7 @@ VAR
 			m.refcnt := 0;
 			InsertProcOffsets(m.procTable, m.ptrTable, m.maxPtrs);
 			m.procTable := NIL; m.ptrTable := NIL; (* not used any more as entered in global variable *)
-			FOR i := 0 TO m.modules - 1 DO  INC( m.module[i].refcnt )  END;
+			FOR i := 0 TO LEN( m.module ) - 1 DO  INC( m.module[i].refcnt )  END;
 			new := TRUE
 		END;
 		Machine.Release( Machine.Modules );
@@ -359,7 +459,7 @@ VAR
 					body := S.VAL( Body, S.ADR( m.code[0] ) );
 					body;
 					res := 0;  msg[0] := 0X;
-					m.initialized := TRUE;   (* allow ThisCommand *)
+					m.init := TRUE;   (* allow ThisCommand *)
 				ELSE
 					(* m was part of cycle, replaced by existing module *)
 				END
@@ -396,19 +496,6 @@ VAR
 		RETURN m
 	END ThisModuleByAdr;
 
-	PROCEDURE FindCommand( m: Module;  CONST name: ARRAY OF CHAR;  VAR cmd: Command );
-	VAR i: LONGINT;  found: BOOLEAN;
-	BEGIN
-		ASSERT( m.initialized );   (* module body must have been called (see note at end of module) *)
-		Machine.Acquire( Machine.Modules );
-		i := 0;  found := FALSE;
-		WHILE ~found & (i # LEN( m.command^ )) DO
-			IF m.command[i].name = name THEN  found := TRUE;  cmd := m.command[i]  ELSE  INC( i )  END
-		END;
-		IF ~found THEN  cmd.argTdAdr := 0;  cmd.retTdAdr := 0;  cmd.entryAdr := 0  END;
-		Machine.Release( Machine.Modules )
-	END FindCommand;
-
 
 	(** Return the named module or NIL if it is not loaded yet. *)
 
@@ -422,43 +509,7 @@ VAR
 		RETURN m
 	END ModuleByName;
 
-	(** Return the named command. *)
-	PROCEDURE ThisCommand*( m: Module;  CONST name: ARRAY OF CHAR ): CommandProc;
-	VAR cmd: Command;
-	BEGIN
-		FindCommand( m, name, cmd );
-		IF (cmd.entryAdr # 0) & (cmd.argTdAdr = 0) & (cmd.retTdAdr = 0) THEN
-			RETURN S.VAL( CommandProc, cmd.entryAdr )
-		ELSE  RETURN NIL
-		END
-	END ThisCommand;
 
-	(** Return the named parameterized command. *)
-	PROCEDURE ThisCommandPar*( m: Module;  CONST name: ARRAY OF CHAR ): CommandParProc;
-	VAR cmd: Command;
-	BEGIN
-		FindCommand( m, name, cmd );  RETURN S.VAL( CommandParProc, cmd.entryAdr )
-	END ThisCommandPar;
-
-	(** Return the CommandParProc of a command given by a string in the format <module>.<command>
-		returns NIL if either the Module or the CommandParProc is not found *)
-	PROCEDURE GetCommandByString*( cmd: ARRAY OF CHAR ): CommandParProc;
-	VAR i, n, res: LONGINT;
-		msg: ARRAY 64 OF CHAR;
-		m: Module;
-	BEGIN
-		i := 0;
-		WHILE (cmd[i] # 0X) & (cmd[i] # ".") DO  INC( i )  END;
-		IF cmd[i] = "." THEN
-			cmd[i] := 0X;  m := ThisModule( cmd, res, msg );
-			IF m # NIL THEN
-				INC( i );  n := i;
-				WHILE cmd[i] # 0X DO  cmd[i - n] := cmd[i];  INC( i )  END;
-				cmd[i - n] := 0X;  RETURN ThisCommandPar( m, cmd )
-			END
-		END;
-		RETURN NIL
-	END GetCommandByString;
 
 	PROCEDURE Shutdown*( scode: LONGINT );
 	VAR m: Module;  term: TerminationHandler;
@@ -488,7 +539,7 @@ VAR
 		Then the module's data and code are invalidated. *)
 
 	PROCEDURE FreeModule*( CONST name: ARRAY OF CHAR;  VAR res: LONGINT;  VAR msg: ARRAY OF CHAR );
-	VAR p, m, im: Module;  term: Aos.TermHandler;  i: LONGINT;
+	VAR p, m, im: Module;  term: TerminationHandler;  i: LONGINT;
 	BEGIN
 		m := ModuleByName( name );
 		IF (m # NIL ) & (m.refcnt = 0) THEN  (* will be freed below *)
@@ -504,18 +555,16 @@ VAR
 		IF m # NIL THEN
 			IF m.refcnt = 0 THEN  (* free the module *)
 				FOR i := 0 TO LEN( m.module ) - 1 DO  im := m.module[i];  DEC( im.refcnt )  END;
-				m.initialized := FALSE;   (* disallow ThisCommand *)
+				m.init := FALSE;   (* disallow ThisCommand *)
 				Append( "?", m.name );
 				(* move module to free list *)
 				IF p = NIL THEN  root := root.next  ELSE  p.next := m.next  END;
 				m.next := freeRoot;  freeRoot := m;
 				(* clear global pointers and code *)
 				FOR i := 0 TO LEN( m.ptrAdr ) - 1 DO  S.PUT( m.ptrAdr[i], NIL )  END;
-				(*==== Code resides outside Aos heap =============
 				IF ClearCode THEN
 					FOR i := 0 TO LEN( m.code^ ) - 1 DO  m.code[i] := 0CCX  END
 				END;
-				===============*)
 				(* remove references to module data *)
 				m.published := FALSE;  m.entry := NIL;  m.command := NIL;  m.ptrAdr := NIL;
 				(* do not clear m.type or m.module, as old heap block tags might reference type descs indirectly. *)
@@ -620,7 +669,7 @@ VAR
 	PROCEDURE GetExceptionHandler*( pc: LONGINT ): LONGINT;
 	VAR m: Module;
 
-		PROCEDURE BinSearch( exTable: Aos.ExceptionTable;  key: LONGINT ): LONGINT;
+		PROCEDURE BinSearch( exTable: ExceptionTable;  key: LONGINT ): LONGINT;
 		VAR x, l, r: LONGINT;
 		BEGIN
 			l := 0;  r := LEN( exTable ) - 1;
@@ -646,27 +695,6 @@ VAR
 	END GetKernelProc;
 
 
-	PROCEDURE MarkModules;
-	VAR m: Module;  i: LONGINT;  ptr: Address;
-	BEGIN
-		IF traceGC  THEN  Trace.String( "mark modules: " )  END;
-		m := root;
-		WHILE m # NIL DO
-			IF m.published THEN
-				IF traceGC  THEN  Trace.Char( '.' )   END;
-				FOR i := 0 TO m.pointers -1 DO
-					S.GET( m.ptrAdr[i], ptr );
-					IF ptr # 0 THEN  Heaps.Mark( ptr )  END
-				END
-			END;
-
-			Heaps.Mark( S.VAL( Address, m ) );
-			m := m.next;
-		END;
-		IF traceGC  THEN  Trace.Ln  END
-	END MarkModules;
-
-
 	PROCEDURE Init;
 	VAR
 		newRec: PROCEDURE ( VAR p: ANY;  tag: Address;  isRealtime: BOOLEAN );
@@ -689,18 +717,17 @@ VAR
 		kernelProc[8] := 0;	(* 245 *)
 		kernelProc[9] := 0;	(* 244 *)
 		kernelProc[10] := S.VAL(Address, getProcedure);	(* 243 *)
-		(* Kernel0.SetKernelProc( 10, S.VAL( Address, getProcedure ) );   (* 243 *)===*)
-
-		root := Glue.modules;
 
 		traceLoad := 0 IN Glue.debug;
 		traceGC := 1 IN Glue.debug;
 		debug := Glue.debug;  llev := 1;
 		numLoaders := 0;
 
-		Heaps.findRootsInModules := MarkModules;
-		NEW( procOffsets, InitTableLen );
-		NEW( ptrOffsets, InitPtrTableLen );
+	(*	NEW( procOffsets, InitTableLen );
+		NEW( ptrOffsets, InitPtrTableLen );	
+		Trace.String( "size procOffsets: " ); Trace.Int( LEN( procOffsets ), 1 ); Trace.Int( numProcs, 5 ); Trace.Ln;
+		Trace.String( "size ptrOffsets: " ); Trace.Int( LEN( ptrOffsets ), 1 ); Trace.Int( numPtrs, 5 ); Trace.Ln;
+	*)
 	END Init;
 
 BEGIN

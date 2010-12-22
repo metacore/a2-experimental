@@ -1,10 +1,10 @@
 MODULE BootConsole;
 
-IMPORT Trace, Glue, Unix, Machine, Modules, Loader, Commands;
+IMPORT S := SYSTEM, Trace, Glue, Unix, Machine, Modules, Loader, Commands;
 
 TYPE
 	Module = Modules.Module;
-	CommandProc = Modules.CommandProc;
+	CommandProc = PROCEDURE;
 
 	CommandThread = OBJECT
 		BEGIN {ACTIVE}
@@ -14,7 +14,7 @@ TYPE
 
 VAR
 	modName, cmdName: ARRAY 32 OF CHAR;
-	appl: CommandThread;
+	appl{UNTRACED}: CommandThread;
 
 
 	PROCEDURE LoadModule( CONST name: ARRAY OF CHAR );
@@ -39,13 +39,28 @@ VAR
 	END Command;
 
 
+	(** Return the named command. *)
+	PROCEDURE ThisCommand( m: Module;  CONST name: ARRAY OF CHAR ): CommandProc;
+	VAR cmd: Modules.Command; i: LONGINT;  found: BOOLEAN;
+	BEGIN		
+		i := 0;  found := FALSE;
+		WHILE ~found & (i # LEN( m.command^ )) DO
+			IF m.command[i].name = name THEN  found := TRUE;  cmd := m.command[i]  ELSE  INC( i )  END
+		END;
+		IF (cmd.entryAdr # 0) & (cmd.argTdAdr = 0) & (cmd.retTdAdr = 0) THEN
+			RETURN S.VAL( CommandProc, cmd.entryAdr )
+		ELSE  
+			RETURN NIL
+		END
+	END ThisCommand;
+
 	PROCEDURE Execute( CONST modName, procName: ARRAY OF CHAR );
 	VAR m: Module;  cmd: CommandProc;  res: LONGINT;
 		msg: ARRAY 256 OF CHAR;
 	BEGIN
 		m := Modules.ThisModule( modName, res, msg );
 		IF m # NIL THEN
-			cmd := Modules.ThisCommand( m, procName );
+			cmd := ThisCommand( m, procName );
 			IF cmd # NIL THEN  cmd
 			ELSE
 				Trace.String( "Starter.Execute:  module " );  Trace.String( modName );
@@ -77,6 +92,23 @@ VAR
 			RETURN FALSE
 		END;
 	END getCmd;
+	
+	PROCEDURE InitPrelinkedModules;
+	TYPE Body = PROCEDURE;
+	VAR m: Modules.Module;  body: Body; traceEnabled: BOOLEAN;
+	BEGIN
+		m := Modules.root;  traceEnabled := FALSE;
+		LOOP
+			IF m.name = "BootConsole" THEN  EXIT   END;   (* initialize modules belonging to bootfile only *)
+			IF (Glue.debug # {}) & traceEnabled THEN
+				Trace.String( "Initializing " );  Trace.StringLn( m.name )
+			END;
+			body := S.VAL( Body, S.ADR( m.code[0] ) );
+			body;	
+			IF m.name = "Glue" THEN  traceEnabled := TRUE  END;
+			m := m.next
+		END
+	END InitPrelinkedModules;
 
 
 	PROCEDURE StartSystem;
@@ -106,6 +138,7 @@ VAR
 
 
 BEGIN
+	InitPrelinkedModules;
 	Modules.AddLoader( Machine.DefaultObjectFileExtension, Loader.LoadObj );
 	Execute( "UnixFiles",  "Install" );
 	StartSystem;

@@ -1,6 +1,6 @@
 MODULE Kernel;	(** AUTHOR "pjm"; PURPOSE "Implementation-independent kernel interface"; *)
 
-IMPORT SYSTEM, Trace, Machine, Heaps, Objects;
+IMPORT SYSTEM, Trace, Glue, Machine, Heaps, Modules, Objects;
 
 CONST
 	TimerFree = 0; TimerSleeping = 1; TimerWoken = 2; TimerExpired = 3;	(* Timer state *)
@@ -52,7 +52,7 @@ TYPE
 		END Wakeup;
 
 		(** Initializer. *)
-		PROCEDURE &Init;
+		PROCEDURE &Init*;
 		BEGIN
 			state := TimerFree;  NEW( timer )
 		END Init;
@@ -137,7 +137,7 @@ TYPE
 		END EnumerateN;
 
 		(** Initialize new collection. May also be called to clear an existing collection. *)
-		PROCEDURE &Clear;
+		PROCEDURE &Clear*;
 		BEGIN {EXCLUSIVE}
 			NEW(root); root.nextObj := NIL	(* head *)
 		END Clear;
@@ -172,19 +172,54 @@ TYPE
 					n.finalizer(n.objStrong)	(* may acquire locks *)
 				END
 			END;
+			Machine.Release( Machine.GC )
 		END
 	END FinalizerCaller;
 
 VAR
 	second*: LONGINT;	(** number of timer counts per second (Hz) *)
 	finalizer: FinalizerCaller;
+	
+	traceGC: BOOLEAN;
 
 (** -- Garbage collection -- *)
+
+
+	PROCEDURE MarkModules;
+	VAR m: Modules.Module;  i: LONGINT;  ptr: ANY;
+	BEGIN
+		IF traceGC  THEN  Trace.String( "mark modules: " )  END;	
+		m := Modules.root;
+		WHILE m # NIL DO
+		(*	IF m.published THEN
+				IF traceGC  THEN  Trace.Char( '.' )   END;	
+				FOR i := 0 TO LEN( m.ptrAdr ) -1 DO
+					SYSTEM.GET( m.ptrAdr[i], ptr );
+					IF ptr # NIL THEN  Heaps.Mark( ptr )  END
+				END
+			END;
+
+			Heaps.Mark( m );	*)
+			m.FindRoots;
+			m := m.next;
+		END;
+		IF traceGC  THEN  Trace.Ln  END	
+	END MarkModules;
 
 (** Activate the garbage collector immediately. *)
 PROCEDURE GC*;
 BEGIN
-	Heaps.Collect;
+	Machine.Acquire( Machine.GC );		(* released by FinalizerCaller *)
+	Machine.Acquire( Machine.X11 );	(* disable polling for input *)
+	Machine.Acquire( Machine.Heaps );
+		Objects.SuspendActivities;
+
+		Heaps.Collect( Modules.root );
+		
+		Objects.ResumeActivities;
+	Machine.Release( Machine.Heaps );
+	Machine.Release( Machine.X11 );
+	
 	finalizer.Activate  (* finalizers will be called by seperate process *)
 END GC;
 
@@ -231,7 +266,11 @@ BEGIN
 	ASSERT(1000 MOD Second = 0);	(* for Elapsed *)
 	second := Second;
 	NEW(finalizer);	(* activate finalizer object *)
+	
+	traceGC := 1 IN Glue.debug;
+	Heaps.findRootsInModules := MarkModules;
 	Heaps.GC := GC;	(* switch to GC procedure with finalization *)
+	
 	Machine.Acquire(Machine.TraceOutput);
 	Trace.String("Kernel: Initialized and started."); Trace.Ln;
 	Machine.Release(Machine.TraceOutput);

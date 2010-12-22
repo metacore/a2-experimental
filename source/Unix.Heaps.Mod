@@ -3,11 +3,9 @@ Refer to the "General ETH Oberon System Source License" contract available at: h
 
 MODULE Heaps;
 
-IMPORT S := SYSTEM, Aos := Basetypes, Glue, Trace, Machine;
+IMPORT S := SYSTEM, Glue, Trace, Machine;
 
 TYPE
-	Module = Aos.Module;  TypeDesc = Aos.TypeDesc; 
-
 	Address = S.ADDRESS;
 	Size = S.SIZE;
 
@@ -15,11 +13,18 @@ TYPE
 CONST
 	Stats* = TRUE; (* maintain statistical counters *)
 
+	
 	AdrSize = S.SIZEOF( S.ADDRESS );
 	SizeSize = S.SIZEOF( S.SIZE );
 
 	TypeDescOffset* = -AdrSize;
 
+	FlagsOfs = AdrSize * 3;			(* flags offset in TypeDesc *)
+	ModOfs* = AdrSize * 4;			(* moduleAdr offset in TypeDesc *)
+	TypeNameOfs = AdrSize * 5;		(* type name offset in TypeDesc *)
+	ModNameOfs = AdrSize * 2;		(* module name offset in ModuleDesc *)
+	
+	
 	NilVal* = 0;
 
 	MaxHeapBlockSize = 512*1024*1024;
@@ -32,7 +37,7 @@ CONST
 VAR
 
 	debug: SET;
-
+	useRootObjects-: BOOLEAN;
 
 	(* ----------------- object finalization ------------------------------*)
 
@@ -52,12 +57,11 @@ VAR
 	checkRoot: FinalizerNode;   (* list of checked objects (contains weak references to the checked objects) *)
 	finalizeRoot: FinalizerNode;   (* objects scheduled for finalization (contains references to scheduled objects) *)
 
-	FinalizerTag: Address;
 
 	(* ------------------------- Heap ------------------------------- *)
 CONST
 	BlockSize = 32;
-	N = 9;  Nil = 0;
+	N = 9;  
 	ProtOfs* = BlockSize + 16;
 	ProtTypeBit* = 31;   (** flags in TypeDesc, low bits reserved for extLevel *)
 
@@ -71,28 +75,28 @@ TYPE
 				next: Address;
 			END;
 
+	RootObject* = OBJECT 
+		PROCEDURE FindRoots*;	(** abstract *)
+		BEGIN HALT( 301 ) END FindRoots;
+	END RootObject;
 
 
 VAR
 	A: ARRAY N + 1 OF  (*FreeBlk*) Address;
 	candidates: ARRAY 1024 OF  Address;
-	nofcand: INTEGER;
+	nofcand, marks: LONGINT;
 
 	heapSize: Size;
 
 	throuput, gcBarrier:  LONGINT;
-	GCEnabled, traceGC, traceNEW: BOOLEAN;
+	GCEnabled: BOOLEAN;
 	GC*: PROCEDURE;
-
-	tdTag: Address;
-
 	collecting-: BOOLEAN;
 
-	findRootsInModules*: PROCEDURE;
+	traceGC, traceNEW: BOOLEAN;
 	
-	suspendActivities*: PROCEDURE;
-	resumeActivities*: PROCEDURE;
 	findRootsInStacks*: PROCEDURE;
+	findRootsInModules*: PROCEDURE;
 
 	(** Statistics. Will only be maintained if Stats = TRUE *)
 
@@ -134,10 +138,10 @@ VAR
 	VAR n, p, t: FinalizerNode;  n1, n2: LONGINT;
 
 		PROCEDURE MarkDelegate( p: Finalizer );
-		VAR pointer: Address;
+		VAR pointer: ANY;
 		BEGIN
 			S.GET( S.ADR( p ) + AdrSize, pointer );
-			IF pointer # 0 THEN  Mark( pointer )  END
+			IF pointer # NIL THEN  Mark( pointer )  END
 		END MarkDelegate;
 
 	BEGIN
@@ -160,7 +164,7 @@ VAR
 		n := finalizeRoot;
 		WHILE n # NIL DO
 			MarkDelegate( n.finalizerStrong );
-			Mark( S.VAL( Address, n.objStrong ) );  n := n.nextFin
+			Mark( n.objStrong );  n := n.nextFin
 		END;
 
 		n := checkRoot;
@@ -225,10 +229,11 @@ VAR
 	(* ------------------------- garbage collector ----------------------- *)
 
 
-	PROCEDURE UnmarkedObject( block: Address ): BOOLEAN; (* FALSE: alredy marked or sysblock or subobj *)
-	VAR taddr, haddr: Address;  hval, tag: SET;  sysblock: BOOLEAN;
+	PROCEDURE UnmarkedObject( ptr: ANY ): BOOLEAN; (* FALSE: alredy marked or sysblock or subobj *)
+	VAR taddr, haddr, block: Address;  hval, tag: SET;  sysblock: BOOLEAN;
 	BEGIN
-		IF block = 0 THEN  RETURN FALSE  END;
+		IF ptr = NIL THEN  RETURN FALSE  END;
+		block := S.VAL( Address, ptr );
 		IF ~ValidPointer( block ) THEN  RETURN FALSE  END;
 		sysblock := FALSE;  taddr := block - AdrSize;
 		IF SubObjBit IN S.VAL( SET, block ) THEN
@@ -245,8 +250,11 @@ VAR
 
 		S.GET( haddr, hval );
 		IF ~(MarkBit IN hval) THEN
-			S.PUT( haddr, hval + {MarkBit} );   (* mark this block *)
-			IF ~sysblock THEN  RETURN TRUE  END
+			S.PUT( haddr, hval + {MarkBit} );   (* mark this block *)  INC( marks );
+			IF ~sysblock THEN  
+				IF useRootObjects & (ptr IS RootObject) THEN  ptr(RootObject).FindRoots  END;	
+				RETURN TRUE  
+			END
 		END;
 		RETURN FALSE
 	END UnmarkedObject;
@@ -280,12 +288,15 @@ VAR
 
 
 
-	PROCEDURE Mark*( block: Address );
-	VAR field, father, tmp: Address; cur, lastElem: Address;
+	PROCEDURE Mark*( ptr: ANY );
+	VAR 
+		block: Address;
+		field, father, tmp: Address; cur, lastElem: Address;
 		offset, elsize: LONGINT;  tag: Address;  arr: BOOLEAN;  stag: SET;
 	BEGIN
 		IF Stats THEN INC(Nmark); END;
-		IF UnmarkedObject( block ) THEN
+		IF UnmarkedObject( ptr ) THEN
+			block := S.VAL( Address, ptr );
 			InitMarkState( block, cur, tag, arr );
 			father := 0;
 
@@ -294,7 +305,7 @@ VAR
 				S.GET( tag, offset );   (* array: 0 or -8, record: ptr offset or -AdrSize(n+1) *)
 				IF offset >= 0 THEN
 					S.GET( cur + offset, field );
-					IF UnmarkedObject( field ) THEN
+					IF UnmarkedObject( S.VAL( ANY, field ) ) THEN
 						(* down *)
 						SaveMarkState( block, cur, tag, arr );
 						S.PUT( cur + offset, father );
@@ -342,7 +353,7 @@ VAR
 	BEGIN
 		IF traceGC  THEN  Trace.String( "Sweep" );  Trace.Ln  END;
 		i := 0;
-		WHILE i <= N DO  A[i] := Nil;  lastA[i] := S.ADR( A[i] );  INC( i )  END;
+		WHILE i <= N DO  A[i] := NilVal;  lastA[i] := S.ADR( A[i] );  INC( i )  END;
 
 		sb := Machine.memBlockHead;
 		WHILE sb # NIL DO
@@ -364,6 +375,7 @@ VAR
 				IF ~(MarkBit IN tag) THEN
 					(* collect *)
 					IF lastsize = 0 THEN  lastp := S.VAL( FreeBlk, block )  END;
+					S.PUT( block, S.VAL( Address, 0 ) );  (* remove type tag *)
 					INC( lastsize, size );
 				ELSE
 					S.PUT( block, tag - {MarkBit} );	(* remove mark bit *)
@@ -371,7 +383,7 @@ VAR
 						lastp.size := lastsize - AdrSize;  lastp.tag := S.ADR( lastp.size );
 						i := lastsize DIV BlockSize;
 						IF i > N THEN  i := N  END;
-						lastp.next := Nil;  S.PUT( lastA[i], lastp );  lastA[i] := S.ADR( lastp.next );
+						lastp.next := NilVal;  S.PUT( lastA[i], lastp );  lastA[i] := S.ADR( lastp.next );
 						lastsize := 0
 					END
 				END;
@@ -388,19 +400,25 @@ VAR
 				lastp.size := lastsize - AdrSize;  lastp.tag := S.ADR( lastp.size );
 				i := lastsize DIV BlockSize;
 				IF i > N THEN  i := N  END;
-				lastp.next := Nil;  S.PUT( lastA[i], lastp );  lastA[i] := S.ADR( lastp.next )
+				lastp.next := NilVal;  S.PUT( lastA[i], lastp );  lastA[i] := S.ADR( lastp.next )
 			END;
 			sb := nextSuper;
 		END
 	END Sweep;
 
+	PROCEDURE MarkCandidate( p: ANY );
+	BEGIN
+	(*	IF ~(p IS RootObject) THEN  Mark( p )  END *)
+		Mark( p )
+	END MarkCandidate;
 
-	PROCEDURE CheckCandidates;   (* nofcand > 0 *)
+	PROCEDURE CheckCandidates;  
 	VAR
 		i, j, h: LONGINT; tag: SET;  sb: Machine.MemoryBlock;
 		p, tag1, tag2, block, lastElem, sbEnd: Address;
 		recSize, blockSize: Size;
 	BEGIN
+		IF nofcand = 0 THEN  RETURN  END;
 		(* first sort them in increasing order using shellsort *)
 		h := 1;
 		REPEAT  h := h*3 + 1  UNTIL h > nofcand;
@@ -426,7 +444,7 @@ VAR
 				IF p <= block + AdrSize THEN
 					IF p = block + AdrSize THEN
 						S.GET( block, tag1 );
-						IF tag1 # p THEN  Mark( p )  END
+						IF tag1 # p THEN  MarkCandidate( S.VAL( ANY, p ) )  END
 					END;
 					INC( i );
 					IF i = nofcand THEN  EXIT   END;
@@ -435,14 +453,14 @@ VAR
 					S.GET( block, tag1 );
 					S.GET( p - AdrSize, tag2 );
 					IF (tag2 = p - 24) & (tag2 = tag1)  THEN
-						(* really a sysblock *)  Mark( p );
+						(* really a sysblock *)  Mark( S.VAL( ANY, p ) );
 					END;
 					INC( i );
 					IF i = nofcand THEN  EXIT   END;
 					p := candidates[i]
 				ELSIF p = block + AdrSize + ProtOfs  THEN  (* prot. obj. ? *)
 					S.GET( block, tag1 );
-					IF tag1 = block + AdrSize THEN  Mark( p )  END;
+					IF tag1 = block + AdrSize THEN  MarkCandidate( S.VAL( ANY, p ) )  END;
 					INC( i );
 					IF i = nofcand THEN  EXIT   END;
 					p := candidates[i]
@@ -495,31 +513,34 @@ VAR
 
 
 
-	PROCEDURE Collect*;
+	PROCEDURE Collect*( root: RootObject );
 	VAR time1, time2 : HUGEINT;
 	BEGIN
-		Machine.Acquire( Machine.Heaps );
 		IF traceGC  THEN  Trace.String( "Heaps.Collect ... " );  Trace.Ln  END;
 		IF Stats THEN
 			Nmark := 0; Nmarked := 0;
 			INC(Ngc);
 			time1 := Machine.GetTimer ();
 		END;
-		suspendActivities;
 		collecting := TRUE;
-
-		findRootsInModules;
 		
-		nofcand := 0;
-		findRootsInStacks;
-		IF nofcand > 0 THEN  CheckCandidates  END;
-
+		IF useRootObjects THEN
+			Mark( root );
+		ELSE
+			findRootsInModules;	
+			findRootsInStacks;
+		END;
+		
+			
+	
+		CheckCandidates;
 		CheckFinalizedObjects;
 		Sweep;
 
+		marks := 0;
 		collecting := FALSE;  throuput := 0;
-		resumeActivities;
 		gcBarrier := Machine.Ticks( ) + 100;
+
 		IF traceGC  THEN  Trace.String( "Heaps.Collect done " );  Trace.Ln;  Trace.Ln  END;
 		IF Stats THEN
 			time2 := Machine.GetTimer ();
@@ -528,7 +549,6 @@ VAR
 			INC(NgcCyclesAllRuns, NgcCyclesLastRun);
 			NgcCyclesMark := NgcCyclesLastRun
 		END;
-		Machine.Release( Machine.Heaps );
 	END Collect;
 
 
@@ -611,11 +631,12 @@ VAR
 
 	(** Private compiler interface. Do not use. *)
 	PROCEDURE NewRec*( VAR p: ANY;  tag: Address; isRealtime: BOOLEAN );   (* implementation of NEW( ptr ) *)
-	VAR size, recSize: Size;  ptr: Address;  typ: TypeDesc;
+	VAR size, recSize: Size;  ptr: Address;  typeInfoAdr: Address;  flags: SET;
 	BEGIN
 		IF traceNEW  THEN  Trace.Char( 'r' )  END;
-		S.GET( tag - AdrSize, typ );   (* will be replaced by direct compiler call of NewProtObj *)
-		IF ProtTypeBit IN typ.flags THEN  (* protected record *)
+		S.GET( tag - AdrSize, typeInfoAdr );   
+		S.GET( typeInfoAdr + FlagsOfs, flags );
+		IF ProtTypeBit IN flags THEN  (* protected record *)
 			NewProtRec( p, tag, isRealtime );  RETURN
 		END;
 		S.GET( tag, recSize );
@@ -705,7 +726,7 @@ VAR
 	VAR staticTypeAdr, offset: Address;
 	BEGIN
 		Machine.Acquire( Machine.Heaps );
-		Machine.Fill32( startAddr, size, 0 );	(* clear whole static type, size MOD AddressSize = 0 implicitly, see WriteType in PCOF.Mod *)
+		Machine.Fill32( startAddr, size, 0 );	(* clear whole static type, size MOD AdrSize = 0 implicitly, see WriteType in PCOF.Mod *)
 		S.PUT( startAddr, S.VAL( Address, -AdrSize ) );	(* sentinel *)
 
 		(* methods and tags filled in later *)
@@ -857,35 +878,6 @@ VAR
 
 	(*------------------ Initialization --------------------------------------------------*)
 
-	PROCEDURE GetTDTag;
-	VAR m: Module; i: LONGINT;
-	BEGIN
-		m := Glue.modules;
-		WHILE m.name # "Basetypes" DO
-			m := m.next
-		END;
-		i := 0;
-		WHILE m.typeInfo[i].name # "TypeDesc" DO
-			INC( i )
-		END;
-		S.GET( S.ADR( m.typeInfo[i]^ ) - AdrSize, tdTag )
-	END GetTDTag;
-
-
-	PROCEDURE InitTypeTags;
-	VAR i: LONGINT;  m: Module;
-	BEGIN
-		m := Glue.modules;
-		WHILE m.name # "Heaps" DO  m := m.next  END;
-		FOR i := 0 TO m.types - 1 DO
-			IF m.typeInfo[i].name = "FinalizerNode" THEN
-				FinalizerTag := m.typeInfo[i].tag
-			END
-		END;
-		ASSERT( FinalizerTag # 0 );
-		GetTDTag;
-	END InitTypeTags;
-
 	PROCEDURE InitHeap;
 	VAR i: LONGINT;
 		recSize, size: Size;
@@ -913,7 +905,7 @@ VAR
 		S.PUT( block + 2*AdrSize, 0 );
 
 		i := 0;
-		WHILE i < N DO  A[i] := Nil;  INC( i )  END;
+		WHILE i < N DO  A[i] := NilVal;  INC( i )  END;
 		A[N] := block;
 	END InitHeap;
 
@@ -926,8 +918,9 @@ VAR
 			NgcCyclesMark := 0; NgcCyclesLastRun := 0; NgcCyclesMax := 0; NgcCyclesAllRuns := 0;
 		END;
 
-		GC := Collect;
+		GC := EmptyProc;
 		findRootsInModules := EmptyProc;
+		nofcand := 0; marks := 0;
 
 		debug := Glue.debug;
 		GCEnabled :=  ~(6 IN debug);
@@ -936,11 +929,10 @@ VAR
 		gcBarrier := Machine.Ticks( ) + 2000;
 
 		InitHeap;
-		InitTypeTags;
-
 	END Init;
 
 
 BEGIN
+	useRootObjects := FALSE;
 	Init;
 END Heaps.
