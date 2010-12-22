@@ -56,6 +56,7 @@ CONST
 		SysRegisterInterface* = 10; SysGetProcedure* = 11;
 
 		DefaultRuntimeModuleName ="Runtime";
+		DefaultTraceModuleName ="KernelLog";
 
 		suppressModuleRegistration=FALSE;
 
@@ -3852,14 +3853,13 @@ TYPE
 			printout: Printout.Printer;
 			stringWriter: Streams.StringWriter;
 			expression: SyntaxTree.Expression;
-		CONST moduleName="KernelLog";
 
 			PROCEDURE GetProcedure(CONST procedureName: ARRAY OF CHAR): BOOLEAN;
 			BEGIN
 				procedure := traceModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(-1,procedureName));
 				IF procedure = NIL THEN
 					s := "procedure ";
-					Strings.Append(s,moduleName);
+					Strings.Append(s,backend.traceModuleName);
 					Strings.Append(s,".");
 					Strings.Append(s,procedureName);
 					Strings.Append(s," not present");
@@ -3969,7 +3969,7 @@ TYPE
 
 
 		BEGIN
-			IF AddImport(moduleName,traceModule,TRUE) THEN
+			IF AddImport(backend.traceModuleName,traceModule,TRUE) THEN
 				NEW(stringWriter,LEN(s));
 				FOR i := 0 TO x.Length()-1 DO
 					msg := "";
@@ -6769,11 +6769,12 @@ TYPE
 		trace-: BOOLEAN;
 		traceString-: SyntaxTree.String;
 		runtimeModuleName-: SyntaxTree.String;
+		traceModuleName-: SyntaxTree.String;
 		newObjectFile-: BOOLEAN;
 
 		PROCEDURE &InitIntermediateBackend*;
 		BEGIN
-			InitBackend; runtimeModuleName := DefaultRuntimeModuleName;
+			InitBackend;
 		END InitIntermediateBackend;
 
 		PROCEDURE Supported*(CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
@@ -6859,6 +6860,7 @@ TYPE
 			options.Add(0X,"trace",Options.String);
 			options.Add(0X,"runtime",Options.String);
 			options.Add(0X,"newObjectFile",Options.Flag);
+			options.Add(0X,"traceModule",Options.String);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -6867,8 +6869,11 @@ TYPE
 			GetOptions^(options);
 			trace := options.GetString("trace",traceString);
 			newObjectFile := options.GetFlag("newObjectFile");
-			IF options.GetString("runtime",name) THEN
-				runtimeModuleName := name
+			IF ~options.GetString("runtime",runtimeModuleName) THEN
+				runtimeModuleName := DefaultRuntimeModuleName;
+			END;
+			IF ~options.GetString("traceModule",traceModuleName) THEN
+				traceModuleName := DefaultTraceModuleName;
 			END;
 		END GetOptions;
 
