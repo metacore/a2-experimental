@@ -3,7 +3,8 @@ MODULE OCBinarySymbolFile; (** AUTHOR "fof"; PURPOSE "Symbol File - Binary Forma
 IMPORT
 	 Basic := OCBasic,  Scanner := OCScanner, SyntaxTree := OCSyntaxTree, Global := OCGlobal,
 	 Files,Streams, Kernel, SYSTEM, D := Debugging,  Diagnostics, Options, Formats := OCFormats, InterfaceComparison := OCInterfaceComparison
-	 ,Commands, WMUtilities, Printout := OCPrintout, SemanticChecker := OCSemanticChecker (* OLIVIER *)
+	 ,Commands, WMUtilities, Printout := OCPrintout, SemanticChecker := OCSemanticChecker, (* OLIVIER *)
+	 Machine
 	 ;
 
 (** Symbol File Format
@@ -2327,7 +2328,9 @@ TYPE
 
 		PROCEDURE GetOptions*(options: Options.Options);
 		BEGIN
-			IF ~options.GetString("symbolFileExtension",extension) THEN extension := ".Obw" END;
+			IF ~options.GetString("symbolFileExtension",extension) THEN 
+				extension := Machine.DefaultObjectFileExtension
+			END;
 			IF ~options.GetString("symbolFilePrefix",prefix) THEN prefix := "" END;
 			noRedefinition := options.GetFlag("noRedefinition");
 			noModification := options.GetFlag("noModification");

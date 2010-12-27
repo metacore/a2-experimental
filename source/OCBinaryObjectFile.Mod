@@ -3,7 +3,7 @@ MODULE OCBinaryObjectFile; (** AUTHOR "fof"; PURPOSE "Oberon Compiler Object Fil
 IMPORT
 	Scanner := OCScanner, SyntaxTree := OCSyntaxTree, Global := OCGlobal, SemanticChecker := OCSemanticChecker, FingerPrint := OCFingerPrint, Sections := OCSections,
 	Streams, D := Debugging, Files, SYSTEM,Strings, BinaryCode := OCBinaryCode, KernelLog, Diagnostics, SymbolFileFormat := OCBinarySymbolFile, Basic := OCBasic, Options,
-	Formats := OCFormats, IntermediateCode := OCIntermediateCode
+	Formats := OCFormats, IntermediateCode := OCIntermediateCode, Machine
 	;
 
 (** Object File Format
@@ -171,7 +171,9 @@ TYPE
 
 		PROCEDURE GetOptions*(options: Options.Options);
 		BEGIN
-			IF ~options.GetString("objectFileExtension",extension) THEN extension := ".Obw" END;
+			IF ~options.GetString("objectFileExtension",extension) THEN 
+				extension := Machine.DefaultObjectFileExtension
+			END;
 			IF ~options.GetString("objectFilePrefix",prefix) THEN prefix := "" END
 		END GetOptions;
 
