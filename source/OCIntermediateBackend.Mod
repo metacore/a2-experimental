@@ -720,6 +720,7 @@ TYPE
 		currentScope: SyntaxTree.Scope;
 		constantDeclaration : SyntaxTree.Symbol;
 		result: Operand; (* result of the most recent expression / statement *)
+		destination: IntermediateCode.Operand;
 
 		arrayDestinationTag: IntermediateCode.Operand;
 		arrayDestinationDimension:LONGINT;
@@ -772,6 +773,7 @@ TYPE
 			sp := IntermediateCode.Register(addressType,IntermediateCode.SP);
 			nil := IntermediateCode.Immediate(addressType,0);
 
+			IntermediateCode.InitOperand(destination);
 			tagsAvailable := TRUE;
 			supported := supportedProcedure;
 			SELF.emitLabels := emitLabels;
@@ -934,7 +936,9 @@ TYPE
 			conditional := FALSE;
 			Expression(x);
 			op := result;
+		(*
 			ASSERT((op.mode = ModeReference) OR (x.type.resolved IS SyntaxTree.NilType)); (* special case: winapi NIL parameter on references *)
+		*)
 			conditional := prevConditional;
 		END Designate;
 
@@ -1061,6 +1065,24 @@ TYPE
 			END;
 		END Reuse2;
 
+		(* Reuse2a: reuse src1 or src2 for ongoing computation if src1 or src2, respectively, is a register.
+			Otherwise check if an alternative destination is available. If so, then take the alternative (which is not necessarily a register).
+			If not then allocate a new register.
+			Does NOT necessarily keep the content of src1 or src2 in result!
+		*)
+		PROCEDURE Reuse2a(VAR result: IntermediateCode.Operand; src1,src2: IntermediateCode.Operand; VAR alternative: IntermediateCode.Operand);
+		BEGIN
+			IF ReusableRegister(src1) THEN IntermediateCode.InitRegister(result,src1.type,src1.register);
+				UseIntermediateOperand(result);
+			ELSIF ReusableRegister(src2) THEN IntermediateCode.InitRegister(result,src2.type,src2.register);
+				UseIntermediateOperand(result);
+			ELSIF alternative.mode # IntermediateCode.Undefined THEN
+				result := alternative; alternative := emptyOperand;
+				UseIntermediateOperand(result);
+			ELSE IntermediateCode.InitRegister(result,src1.type,AcquireRegister(src1.type));
+			END;
+		END Reuse2a;
+
 		(* like reuse2 but only one source *)
 		PROCEDURE Reuse1(VAR result: IntermediateCode.Operand; src1: IntermediateCode.Operand);
 		BEGIN
@@ -1069,6 +1091,17 @@ TYPE
 			ELSE IntermediateCode.InitRegister(result,src1.type,AcquireRegister(src1.type));
 			END;
 		END Reuse1;
+
+		(* like reuse2a but only one source *)
+		PROCEDURE Reuse1a(VAR result: IntermediateCode.Operand; src1: IntermediateCode.Operand; VAR alternative: IntermediateCode.Operand);
+		BEGIN
+			IF ReusableRegister(src1) THEN IntermediateCode.InitRegister(result,src1.type,src1.register);
+				UseIntermediateOperand(result);
+			ELSIF alternative.mode # IntermediateCode.Undefined THEN result := alternative; alternative := emptyOperand;
+				UseIntermediateOperand(result);
+			ELSE IntermediateCode.InitRegister(result,src1.type,AcquireRegister(src1.type));
+			END;
+		END Reuse1a;
 
 		(* like reuse1 but guarantees that content of src1 is in result *)
 		PROCEDURE ReuseCopy(VAR result: IntermediateCode.Operand; src1: IntermediateCode.Operand);
@@ -1235,13 +1268,15 @@ TYPE
 		PROCEDURE VisitSet(x: SyntaxTree.Set);
 		VAR
 			res, operand: Operand;
-			temp, one, noBits: IntermediateCode.Operand;
+			temp, one, noBits, dest: IntermediateCode.Operand;
 			expression: SyntaxTree.Expression;
 			i: LONGINT;
 
 		BEGIN
 			IF Trace THEN TraceEnter("VisitSet") END;
 
+			dest := destination;
+			destination := emptyOperand;
 
 			noBits := IntermediateCode.Immediate(setType, 0);
 			one := IntermediateCode.Immediate(setType, 1);
@@ -1277,6 +1312,7 @@ TYPE
 			END;
 
 			result := res;
+			destination := dest;
 
 			IF Trace THEN TraceExit("VisitSet") END;
 		END VisitSet;
@@ -1321,23 +1357,24 @@ TYPE
 
 
 		PROCEDURE VisitUnaryExpression(x: SyntaxTree.UnaryExpression);
-		VAR type: SyntaxTree.Type; operand: Operand;
+		VAR type: SyntaxTree.Type; operand: Operand; dest: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitUnaryExpression") END;
+			dest := destination; destination := emptyOperand;
 			IF x.operator = Scanner.Not THEN
 				IF conditional THEN
 					Condition(x.left,falseLabel,trueLabel)
 				ELSE
 					Evaluate(x.left,operand);
 					InitOperand(result,ModeValue);
-					Reuse1(result.op,operand.op);
+					Reuse1a(result.op,operand.op,dest);
 					Emit(Xor(result.op,operand.op,true));
 					ReleaseOperand(operand);
 				END;
 			ELSIF x.operator = Scanner.Minus THEN
 				Evaluate(x.left,operand);
 				InitOperand(result,ModeValue);
-				Reuse1(result.op,operand.op);
+				Reuse1a(result.op,operand.op,dest);
 				type := x.left.type.resolved;
 				IF type IS SyntaxTree.SetType THEN
 					Emit(Not(result.op,operand.op));
@@ -1348,6 +1385,7 @@ TYPE
 				ReleaseOperand(operand);
 			ELSE HALT(100)
 			END;
+			destination := dest;
 			IF Trace THEN TraceExit("VisitUnaryExpression") END;
 		END VisitUnaryExpression;
 
@@ -1726,9 +1764,10 @@ TYPE
 		VAR left,right: Operand; temp: Operand;  zero, one: IntermediateCode.Operand;
 			leftType,rightType: SyntaxTree.Type;
 			leftExpression,rightExpression : SyntaxTree.Expression;
-			value: HUGEINT; exp: LONGINT;next,exit: Label; recordType: SyntaxTree.RecordType;
+			value: HUGEINT; exp: LONGINT;next,exit: Label; recordType: SyntaxTree.RecordType; dest: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitBinaryExpression") END;
+			dest := destination; destination := emptyOperand;
 			leftType := x.left.type.resolved;
 			rightType := x.right.type.resolved;
 			(* for "OR" and "&" the left and right expressions may not be emitted first <= shortcut evaluation *)
@@ -1769,11 +1808,11 @@ TYPE
 				Evaluate(x.right,right);
 				IF leftType IS SyntaxTree.SetType THEN
 					InitOperand(result,ModeValue);
-					Reuse2(result.op,left.op,right.op);
+					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Or(result.op,left.op,right.op));
 				ELSE
 					InitOperand(result,ModeValue);
-					Reuse2(result.op,left.op,right.op);
+					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Add(result.op,left.op,right.op));
 				END;
 				ReleaseOperand(left); ReleaseOperand(right);
@@ -1789,7 +1828,7 @@ TYPE
 					ReleaseOperand(left);
 				ELSE
 					InitOperand(result,ModeValue);
-					Reuse2(result.op,left.op,right.op);
+					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Sub(result.op,left.op,right.op));
 					ReleaseOperand(left); ReleaseOperand(right);
 				END;
@@ -1798,16 +1837,16 @@ TYPE
 				Evaluate(x.right,right);
 				IF leftType IS SyntaxTree.SetType THEN
 					InitOperand(result,ModeValue);
-					Reuse2(result.op,left.op,right.op);
+					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(And(result.op,left.op,right.op));
 				ELSIF (x.type.resolved IS SyntaxTree.IntegerType) & IsIntegerConstant(x.right,value) & PowerOf2(value,exp) THEN
 					InitOperand(result,ModeValue);
-					Reuse1(result.op,left.op);
+					Reuse1a(result.op,left.op,dest);
 					IntermediateCode.InitImmediate(right.op,GetType(system,rightType),exp);
 					Emit(Shl(result.op,left.op,right.op));
 				ELSE
 					InitOperand(result,ModeValue);
-					Reuse2(result.op,left.op,right.op);
+					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Mul(result.op,left.op,right.op));
 				END;
 				ReleaseOperand(left); ReleaseOperand(right);
@@ -1816,7 +1855,7 @@ TYPE
 				Evaluate(x.right,right);
 				IF (x.type.resolved IS SyntaxTree.IntegerType) & IsIntegerConstant(x.right,value) & PowerOf2(value,exp) THEN
 					InitOperand(result,ModeValue);
-					Reuse1(result.op,left.op);
+					Reuse1a(result.op,left.op,dest);
 					IntermediateCode.InitImmediate(right.op,GetType(system,rightType),exp);
 					Emit(Shr(result.op,left.op,right.op));
 				ELSE
@@ -1828,7 +1867,7 @@ TYPE
 						SetLabel(exit);
 					END;
 					InitOperand(result,ModeValue);
-					Reuse2(result.op,left.op,right.op);
+					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Div(result.op,left.op,right.op));
 				END;
 				ReleaseOperand(left); ReleaseOperand(right);
@@ -1838,7 +1877,7 @@ TYPE
 				IF (x.type.resolved IS SyntaxTree.IntegerType) & IsIntegerConstant(x.right,value) & PowerOf2(value,exp) THEN
 					IntermediateCode.InitImmediate(right.op,GetType(system,x.type),value-1);
 					InitOperand(result,ModeValue);
-					Reuse1(result.op,left.op);
+					Reuse1a(result.op,left.op,dest);
 					Emit(And(result.op,left.op,right.op));
 				ELSE
 					IF (x.type.resolved IS SyntaxTree.IntegerType) & (x.right.resolved = NIL) THEN (* divisor negative check *)
@@ -1849,7 +1888,7 @@ TYPE
 						SetLabel(exit);
 					END;
 					InitOperand(result,ModeValue);
-					Reuse2(result.op,left.op,right.op);
+					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Mod(result.op,left.op,right.op));
 				END;
 				ReleaseOperand(left); ReleaseOperand(right);
@@ -1858,11 +1897,11 @@ TYPE
 				Evaluate(x.right,right);
 				IF leftType IS SyntaxTree.SetType THEN
 					InitOperand(result,ModeValue);
-					Reuse2(result.op,left.op,right.op);
+					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Xor(result.op,left.op,right.op));
 				ELSE
 					InitOperand(result,ModeValue);
-					Reuse2(result.op,left.op,right.op);
+					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Div(result.op,left.op,right.op));
 				END;
 				ReleaseOperand(left); ReleaseOperand(right);
@@ -2007,6 +2046,7 @@ TYPE
 			ELSE
 				HALT(100);
 			END;
+			destination := dest;
 			IF Trace THEN TraceExit("VisitBinaryExpression") END;
 		END VisitBinaryExpression;
 
@@ -2047,11 +2087,12 @@ TYPE
 		END VisitTensorRangeExpression;
 
 		PROCEDURE VisitConversion(x: SyntaxTree.Conversion);
-		VAR old: Operand;
+		VAR old: Operand; dest: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitConversion") END;
 			ASSERT(~(x.expression.type.resolved IS SyntaxTree.RangeType));
 
+			dest := destination; destination := emptyOperand;
 			Evaluate(x.expression,old);
 			InitOperand(result,ModeValue);
 			result.op := old.op;
@@ -2059,6 +2100,7 @@ TYPE
 			Convert(result.op,GetType(system,x.type));
 			ASSERT(result.op.mode # 0);
 			result.tag := old.tag; (*! probably never used *)
+			destination := dest;
 			IF Trace THEN TraceExit("VisitConversion") END;
 		END VisitConversion;
 
@@ -2757,15 +2799,17 @@ TYPE
 		END IndexDesignator;
 
 		PROCEDURE VisitIndexDesignator(x: SyntaxTree.IndexDesignator);
-		VAR type: SyntaxTree.Type;
+		VAR type: SyntaxTree.Type; dest: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitIndexDesignator") END;
+			dest := destination; destination := emptyOperand;
 			type := x.left.type.resolved;
 			IF type IS SyntaxTree.MathArrayType THEN
 				MathIndexDesignator(x);
 			ELSE ASSERT(type IS SyntaxTree.ArrayType);
 				IndexDesignator(x);
 			END;
+			destination := dest;
 			IF Trace THEN TraceExit("VisitIndexDesignator") END;
 		END VisitIndexDesignator;
 
@@ -3342,7 +3386,7 @@ TYPE
 			formalParameter: SyntaxTree.Parameter;
 			noPush: Label;
 			operand: Operand;
-			reg, size, mem, mask: IntermediateCode.Operand;
+			reg, size, mem, mask, dest: IntermediateCode.Operand;
 			saved: RegisterEntry;
 			symbol: SyntaxTree.Symbol;
 			variable: SyntaxTree.Variable;
@@ -3357,6 +3401,7 @@ TYPE
 			oldArrayDestinationTag: IntermediateCode.Operand;
 			oldArrayDestinationDimension: LONGINT;
 			oldConstantDeclaration: SyntaxTree.Symbol;
+			oldDestination: IntermediateCode.Operand;
 			oldCurrentLoop: Label;
 			oldConditional: BOOLEAN;
 			oldTrueLabel, oldFalseLabel: Label;
@@ -3373,6 +3418,7 @@ TYPE
 				oldArrayDestinationTag := arrayDestinationTag;
 				oldArrayDestinationDimension := arrayDestinationDimension;
 				oldConstantDeclaration := constantDeclaration;
+				oldDestination := destination;
 				oldCurrentLoop := currentLoop;
 				oldConditional := conditional;
 				oldTrueLabel := trueLabel;
@@ -3388,6 +3434,7 @@ TYPE
 				arrayDestinationTag := oldArrayDestinationTag;
 				arrayDestinationDimension := oldArrayDestinationDimension;
 				constantDeclaration := oldConstantDeclaration;
+				destination := oldDestination;
 				currentLoop := oldCurrentLoop;
 				conditional := oldConditional;
 				trueLabel := oldTrueLabel;
@@ -3456,6 +3503,7 @@ TYPE
 
 		BEGIN
 			IF Trace THEN TraceEnter("VisitProcedureCallDesignator") END;
+			dest := destination; destination := emptyOperand;
 			SaveRegisters();ReleaseUsedRegisters(saved);
 
 			procedureType := x.left.type.resolved(SyntaxTree.ProcedureType);
@@ -3640,6 +3688,7 @@ TYPE
 			IF conditional & (procedureType.returnType # NIL) & (procedureType.returnType.resolved IS SyntaxTree.BooleanType) THEN
 				ValueToCondition(result);
 			END;
+			destination := dest;
 
 			(* perform all write-back calls in the list *)
 			BackupGlobalState;
@@ -4399,6 +4448,7 @@ TYPE
 		size: LONGINT; dim,openDim: LONGINT; pointer: IntermediateCode.Operand; t,t0,t1,t2: SyntaxTree.Type; trueL,falseL,ignore: Label;
 		exit,else,end: Label; procedureType: SyntaxTree.ProcedureType;
 		name: SyntaxTree.String; symbol: Sections.Section; operand: Operand;
+		dest: IntermediateCode.Operand;
 		staticLength: LONGINT; itype: IntermediateCode.Type;
 		convert,isTensor: BOOLEAN;
 		flags: SET;
@@ -4488,6 +4538,7 @@ TYPE
 		BEGIN
 			IF Trace THEN TraceEnter("VisitBuiltinCallDesignator") END;
 
+			dest := destination; destination := emptyOperand;
 			p0 := NIL; p1 := NIL; p2 := NIL; len := x.parameters.Length();
 			IF len > 0 THEN p0 := x.parameters.GetExpression(0); t0 := p0.type.resolved END;
 			IF len > 1 THEN p1 := x.parameters.GetExpression(1); t1 := p1.type.resolved END;
@@ -4765,7 +4816,7 @@ TYPE
 				Evaluate(p0,operand);
 				type := p0.type.resolved;
 				InitOperand(result,ModeValue);
-				Reuse1(result.op,operand.op);
+				Reuse1a(result.op,operand.op,dest);
 				Emit(Abs(result.op,operand.op));
 				ReleaseOperand(operand);
 			(* ---- NEW ----- *)
@@ -5364,13 +5415,15 @@ TYPE
 			ELSE (* function not yet implemented *)
 				Error(position,"not yet implemented");
 			END;
+			destination := dest;
 			IF Trace THEN TraceExit("VisitBuiltinCallDesignator") END;
 		END VisitBuiltinCallDesignator;
 
 		PROCEDURE VisitTypeGuardDesignator(x: SyntaxTree.TypeGuardDesignator);
-		VAR trueL,falseL: Label; recordType: SyntaxTree.RecordType;
+		VAR trueL,falseL: Label; recordType: SyntaxTree.RecordType; dest: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitTypeGuardDesignator") END;
+			dest := destination; destination := emptyOperand;
 
 			IF x.left.type.resolved = x.type.resolved THEN (* always true: do nothing *)
 			ELSE
@@ -5387,6 +5440,7 @@ TYPE
 				ReleaseOperand(result);
 			END;
 			Expression(x.left);
+			destination := dest;
 			IF Trace THEN TraceExit("VisitTypeGuardDesignator") END;
 		END VisitTypeGuardDesignator;
 
@@ -5416,20 +5470,23 @@ TYPE
 		END Dereference;
 
 		PROCEDURE VisitDereferenceDesignator(x: SyntaxTree.DereferenceDesignator);
-		VAR  type: SyntaxTree.Type; d: Operand;
+		VAR  type: SyntaxTree.Type; d: Operand; dest: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitDereferenceDesignator") END;
+			dest := destination; destination := emptyOperand;
 			Evaluate(x.left,d);
 			type := x.type.resolved;
 			Dereference(d,type);
 			result := d;
+			destination := dest;
 			IF Trace THEN TraceExit("VisitDereferenceDesignator") END;
 		END VisitDereferenceDesignator;
 
 		PROCEDURE VisitSupercallDesignator(x: SyntaxTree.SupercallDesignator);
-		VAR procedure: SyntaxTree.Procedure; tag: IntermediateCode.Operand;
+		VAR procedure: SyntaxTree.Procedure; tag: IntermediateCode.Operand; dest: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitSupercallDesignator") END;
+			dest := destination; destination := emptyOperand;
 			Designate(x.left(SyntaxTree.SymbolDesignator).left,result);
 			tag := result.op;
 			ReleaseIntermediateOperand(result.tag);
@@ -5437,14 +5494,16 @@ TYPE
 			StaticCallOperand(result,procedure.super);
 			ReleaseIntermediateOperand(result.tag);
 			result.tag := tag;
+			destination := dest;
 			IF Trace THEN TraceExit("VisitSupercallDesignator") END;
 		END VisitSupercallDesignator;
 
 		PROCEDURE VisitSelfDesignator(x: SyntaxTree.SelfDesignator);
-		VAR basereg: IntermediateCode.Operand; scope: SyntaxTree.Scope;
+		VAR basereg: IntermediateCode.Operand; scope: SyntaxTree.Scope; dest: IntermediateCode.Operand;
 			moduleSection: IntermediateCode.Section; moduleOffset: LONGINT;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitSelfDesignator") END;
+			dest := destination; destination := emptyOperand;
 			scope := currentScope;
 			WHILE (scope.outerScope # NIL) & (scope.outerScope IS SyntaxTree.ProcedureScope) DO
 				scope := scope.outerScope;
@@ -5466,6 +5525,7 @@ TYPE
 				IntermediateCode.AddOffset(result.op,ToMemoryUnits(system,2*addressType.sizeInBits));
 				(* tag must be loaded when dereferencing SELF pointer *)
 			END;
+			destination := dest;
 			IF Trace THEN TraceExit("VisitSelfDesignator") END;
 		END VisitSelfDesignator;
 
@@ -6002,10 +6062,14 @@ TYPE
 				(* DO NOT REORDER EMISSION OF LEFT AND RIGHT OPERAND *)
 				Designate(left,leftO);
 				MakeMemory(mem,leftO.op,GetType(system,left.type),0);
+				destination := mem;
 				ReleaseOperand(leftO);
-				Emit(Mov(mem,rightO.op));
+				IF destination.mode # IntermediateCode.Undefined THEN
+					Emit(Mov(destination,rightO.op));
+				END;
 				ReleaseOperand(rightO);
 				ReleaseIntermediateOperand(mem);
+				IntermediateCode.InitOperand(destination);
 			ELSIF (leftType IS SyntaxTree.ProcedureType) THEN
 				Evaluate(right,rightO);
 				Designate(left,leftO);
