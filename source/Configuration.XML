@@ -268,7 +268,7 @@ To update: Configuration.Init ~
 		</Section>
 		<Section name="mod">
 			<Setting name="Open" value="PET.Open"/>
-			<Setting name="Compile" value="PC.Compile \s @filename"/>
+			<Setting name="Compile" value="Compiler.Compile @filename"/>
 		</Section>
 		<Section name="mdf">
 			<Setting name="Open" value="PET.Open"/>
@@ -294,6 +294,9 @@ To update: Configuration.Init ~
 			<Setting name="Open" value="Decoder.Open"/>
 		</Section>
 		<Section name="obx">
+			<Setting name="Open" value="Decoder.Open"/>
+		</Section>
+		<Section name="obj">
 			<Setting name="Open" value="Decoder.Open"/>
 		</Section>
 		<Section name="ogg">
