@@ -406,11 +406,6 @@ VAR
 		END
 	END Sweep;
 
-	PROCEDURE MarkCandidate( p: ANY );
-	BEGIN
-	(*	IF ~(p IS RootObject) THEN  Mark( p )  END *)
-		Mark( p )
-	END MarkCandidate;
 
 	PROCEDURE CheckCandidates;  
 	VAR
@@ -444,7 +439,7 @@ VAR
 				IF p <= block + AdrSize THEN
 					IF p = block + AdrSize THEN
 						S.GET( block, tag1 );
-						IF tag1 # p THEN  MarkCandidate( S.VAL( ANY, p ) )  END
+						IF tag1 # p THEN  Mark( S.VAL( ANY, p ) )  END
 					END;
 					INC( i );
 					IF i = nofcand THEN  EXIT   END;
@@ -460,7 +455,7 @@ VAR
 					p := candidates[i]
 				ELSIF p = block + AdrSize + ProtOfs  THEN  (* prot. obj. ? *)
 					S.GET( block, tag1 );
-					IF tag1 = block + AdrSize THEN  MarkCandidate( S.VAL( ANY, p ) )  END;
+					IF tag1 = block + AdrSize THEN  Mark( S.VAL( ANY, p ) )  END;
 					INC( i );
 					IF i = nofcand THEN  EXIT   END;
 					p := candidates[i]
@@ -524,15 +519,8 @@ VAR
 		END;
 		collecting := TRUE;
 		
-		IF useRootObjects THEN
-			Mark( root );
-		ELSE
-			findRootsInModules;	
-			findRootsInStacks;
-		END;
-		
-			
-	
+		Mark( root );
+
 		CheckCandidates;
 		CheckFinalizedObjects;
 		Sweep;
@@ -933,6 +921,6 @@ VAR
 
 
 BEGIN
-	useRootObjects := FALSE;
+	useRootObjects := TRUE;
 	Init;
 END Heaps.

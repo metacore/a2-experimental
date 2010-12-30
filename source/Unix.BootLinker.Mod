@@ -140,11 +140,9 @@ TYPE
 				export*			: ExportDesc;
 				term*			: TermHandler;
 				exTable*		: ExceptionTable;
-				exTableLen*	: LONGINT;
 				noProcs*		: LONGINT;
 				firstProc*		: Address;   (* procedure with lowest PC in module *)
 				maxPtrs*		: LONGINT;
-				staticTdSize*	: LONGINT;
 			END Module;
 
 VAR
@@ -1118,7 +1116,7 @@ VAR
 	BEGIN
 		r.Char( tag );
 		IF tag = 8EX THEN
-			FOR i := 0 TO m.exTableLen - 1 DO
+			FOR i := 0 TO LEN( m.exTable ) - 1 DO
 				r.Char( tag );
 				IF tag = 0FEX THEN
 					r.RawNum( pcFrom );
@@ -1469,10 +1467,8 @@ VAR
 				i := 0;  WHILE h.name[i] # 0X DO m.name[i] := h.name[i];  INC(i) END;
 				m.name[i] := 0X;
 				
-				m.exTableLen := h.exTableLen;
 				m.noProcs := h.procs;
 				m.maxPtrs := h.maxPtrs;
-				m.staticTdSize := h.staticTdSize; (* ug *)
 
 				AllocateModule( m, h );
 

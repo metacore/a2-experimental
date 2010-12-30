@@ -197,7 +197,7 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	UNIX { Unix.Heaps.Mod }
 
 	NATIVE,WIN { Modules.Mod }
-	UNIX { Unix.Modules.Mod }
+	UNIX { Modules.Mod }
 
 	NATIVE { Objects.Mod Kernel.Mod }
 	WIN { Win32.Objects.Mod Win32.Kernel.Mod }

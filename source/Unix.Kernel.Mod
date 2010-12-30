@@ -191,15 +191,6 @@ VAR
 		IF traceGC  THEN  Trace.String( "mark modules: " )  END;	
 		m := Modules.root;
 		WHILE m # NIL DO
-		(*	IF m.published THEN
-				IF traceGC  THEN  Trace.Char( '.' )   END;	
-				FOR i := 0 TO LEN( m.ptrAdr ) -1 DO
-					SYSTEM.GET( m.ptrAdr[i], ptr );
-					IF ptr # NIL THEN  Heaps.Mark( ptr )  END
-				END
-			END;
-
-			Heaps.Mark( m );	*)
 			m.FindRoots;
 			m := m.next;
 		END;
