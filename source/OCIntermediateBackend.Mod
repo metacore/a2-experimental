@@ -46,6 +46,7 @@ CONST
 		NegativeDivisorTrap*=12;
 
 		Trace = FALSE;
+		TraceRegisterUsage=FALSE;
 
 		ArrayAlignment = 8*8;			(* first array element of ArrayBlock and first data element of SystemBlock must be aligned to 0 MOD ArrayAlignment *)
 
@@ -966,6 +967,9 @@ TYPE
 		BEGIN
 			IF (register > 0) THEN
 				registerUsage.DecUse(register);
+				IF TraceRegisterUsage & (dump# NIL) THEN
+					dump.String("unuse register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln;
+				END;
 				IF registerUsage.Use(register)=0 THEN RemoveRegisterEntry(usedRegisters,register) END;
 			END;
 		END UnuseRegister;
@@ -974,6 +978,9 @@ TYPE
 		BEGIN
 			IF (register > 0) THEN
 				registerUsage.IncUse(register);
+				IF TraceRegisterUsage & (dump# NIL) THEN
+					dump.String("use register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln;
+				END;
 				IF registerUsage.Use(register)=1 THEN AddRegisterEntry(usedRegisters,register) END;
 			END;
 		END UseRegister;
@@ -1045,8 +1052,14 @@ TYPE
 		END RestoreRegisters;
 
 		PROCEDURE CheckRegistersFree;
+		VAR r: RegisterEntry;
 		BEGIN
 			IF usedRegisters # NIL THEN
+				r := usedRegisters;
+				WHILE r # NIL DO
+					Error(r.register,"not released register");
+					r := r .next;
+				END;
 				Error(position,"register not released");
 			END;
 		END CheckRegistersFree;
@@ -2519,8 +2532,8 @@ TYPE
 							(* first index = 0: nothing to do *)
 						ELSE
 							(* targetLength := targetLength - firstIndex *)
-							Reuse1(targetLength, targetLength);
 							ReleaseIntermediateOperand(targetLength);
+							Reuse1(targetLength, targetLength);
 							Emit(Sub(targetLength, targetLength, firstIndex))
 						END;
 						(* 3. incorporate index step size: *)
@@ -2549,8 +2562,8 @@ TYPE
 							tmp := 	IntermediateCode.Register(addressType, AcquireRegister(addressType));
 							Emit(Mod(tmp, targetLength, stepSize));
 							BrneL(skipLabel1, tmp, IntermediateCode.Immediate(addressType, 0));
-							Reuse1(targetLength, targetLength);
 							ReleaseIntermediateOperand(targetLength);
+							Reuse1(targetLength, targetLength);
 							Emit(Div(targetLength, targetLength, stepSize));
 							BrL(skipLabel2);
 							SetLabel(skipLabel1);
