@@ -95,17 +95,17 @@ VAR
 	
 	PROCEDURE InitPrelinkedModules;
 	TYPE Body = PROCEDURE;
-	VAR m: Modules.Module;  body: Body; traceEnabled: BOOLEAN;
+	VAR m: Modules.Module;  body: Body;  trace: BOOLEAN;
 	BEGIN
-		m := Modules.root;  traceEnabled := FALSE;
+		m := Modules.root;  trace := FALSE;
 		LOOP
 			IF m.name = "BootConsole" THEN  EXIT   END;   (* initialize modules belonging to bootfile only *)
-			IF (Glue.debug # {}) & traceEnabled THEN
+			IF trace THEN
 				Trace.String( "Initializing " );  Trace.StringLn( m.name )
 			END;
 			body := S.VAL( Body, S.ADR( m.code[0] ) );
 			body;	
-			IF m.name = "Glue" THEN  traceEnabled := TRUE  END;
+			IF m.name = "Glue" THEN  trace := Glue.debug # {}  END;
 			m := m.next
 		END
 	END InitPrelinkedModules;

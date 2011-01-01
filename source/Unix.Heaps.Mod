@@ -37,7 +37,6 @@ CONST
 VAR
 
 	debug: SET;
-	useRootObjects-: BOOLEAN;
 
 	(* ----------------- object finalization ------------------------------*)
 
@@ -95,9 +94,6 @@ VAR
 
 	traceGC, traceNEW: BOOLEAN;
 	
-	findRootsInStacks*: PROCEDURE;
-	findRootsInModules*: PROCEDURE;
-
 	(** Statistics. Will only be maintained if Stats = TRUE *)
 
 	(** Memory allocation statistics *)
@@ -252,7 +248,7 @@ VAR
 		IF ~(MarkBit IN hval) THEN
 			S.PUT( haddr, hval + {MarkBit} );   (* mark this block *)  INC( marks );
 			IF ~sysblock THEN  
-				IF useRootObjects & (ptr IS RootObject) THEN  ptr(RootObject).FindRoots  END;	
+				IF ptr IS RootObject THEN  ptr(RootObject).FindRoots  END;	
 				RETURN TRUE  
 			END
 		END;
@@ -907,7 +903,6 @@ VAR
 		END;
 
 		GC := EmptyProc;
-		findRootsInModules := EmptyProc;
 		nofcand := 0; marks := 0;
 
 		debug := Glue.debug;
@@ -921,6 +916,5 @@ VAR
 
 
 BEGIN
-	useRootObjects := TRUE;
 	Init;
 END Heaps.

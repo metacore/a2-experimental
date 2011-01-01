@@ -126,7 +126,7 @@ TYPE
 							INC( sp, AdrSize )  
 						END;
 					END;
-					IF Heaps.useRootObjects THEN  Heaps.Mark( processLink )  END
+					Heaps.Mark( processLink ) 
 				END FindRoots;
 				
 				PROCEDURE Cancel*;
@@ -752,9 +752,7 @@ VAR
 		
 		
 		Machine.saveSP := SaveSP;
-		
-		Heaps.findRootsInStacks := FindRootsInStacks;
-			
+					
 		traceGC := 1 IN Glue.debug;
 		traceThreads := 2 IN Glue.debug;
 		

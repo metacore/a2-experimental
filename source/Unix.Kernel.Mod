@@ -182,20 +182,6 @@ VAR
 	
 	traceGC: BOOLEAN;
 
-(** -- Garbage collection -- *)
-
-
-	PROCEDURE MarkModules;
-	VAR m: Modules.Module;  i: LONGINT;  ptr: ANY;
-	BEGIN
-		IF traceGC  THEN  Trace.String( "mark modules: " )  END;	
-		m := Modules.root;
-		WHILE m # NIL DO
-			m.FindRoots;
-			m := m.next;
-		END;
-		IF traceGC  THEN  Trace.Ln  END	
-	END MarkModules;
 
 (** Activate the garbage collector immediately. *)
 PROCEDURE GC*;
@@ -259,7 +245,6 @@ BEGIN
 	NEW(finalizer);	(* activate finalizer object *)
 	
 	traceGC := 1 IN Glue.debug;
-	Heaps.findRootsInModules := MarkModules;
 	Heaps.GC := GC;	(* switch to GC procedure with finalization *)
 	
 	Machine.Acquire(Machine.TraceOutput);
