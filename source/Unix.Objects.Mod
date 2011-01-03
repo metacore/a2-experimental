@@ -34,7 +34,7 @@ CONST
 
 	Second* = 1000;	(* frequency of ticks increments in Hz *)
 
-	DefaultStacksize = 128*1024;
+	DefaultStacksize = 256*1024;
 	
 	AdrSize = S.SIZEOF( S.ADDRESS );
 
@@ -354,7 +354,6 @@ VAR
 			END;
 		mtxUnlock( start1 );
 		conSignal( childrunning );
-	(*	Machine.Release( Machine.Objects ); *)
 		SetPriority( p.priority );
 		IF Restart IN p.flags THEN
 			res := Unix.sigsetjmp( S.ADR( p.state0[0] ), 1 );
@@ -684,7 +683,7 @@ VAR
 	PROCEDURE GetStacksize;
 	VAR str: ARRAY  32 OF  CHAR;  i: LONGINT;
 	BEGIN
-		Machine.GetConfig( "Stacksize", str );
+		Machine.GetConfig( "StackSize", str );
 		IF str = "" THEN  stacksize := DefaultStacksize
 		ELSE
 			i := 0;  stacksize := Machine.StrToInt( i, str );
