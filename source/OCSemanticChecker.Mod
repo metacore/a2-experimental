@@ -3868,7 +3868,7 @@ TYPE
 					END
 				END;
 
-				FinalizeIndexDesignator;
+				IF type # SyntaxTree.invalidType THEN FinalizeIndexDesignator END;
 				resolvedExpression := designator
 			END
 		END VisitBracketDesignator;
