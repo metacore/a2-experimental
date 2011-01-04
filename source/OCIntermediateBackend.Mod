@@ -2777,11 +2777,19 @@ TYPE
 					Emit(Mul(res,res,length));
 				END;
 			END;
-			IF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).form # SyntaxTree.Static) THEN
-				size := StaticSize(type);
-				IF size # 1 THEN
-					length := IntermediateCode.Immediate(addressType,size);
-					Emit(Mul(res,res,length));
+			IF (type IS SyntaxTree.ArrayType) THEN
+				IF (type(SyntaxTree.ArrayType).form # SyntaxTree.Static) THEN
+					size := StaticSize(type);
+					IF size # 1 THEN
+						length := IntermediateCode.Immediate(addressType,size);
+						Emit(Mul(res,res,length));
+					END;
+				ELSE
+					size := StaticSize(type(SyntaxTree.ArrayType).arrayBase);
+					IF size # 1 THEN
+						length := IntermediateCode.Immediate(addressType,size);
+						Emit(Mul(res,res,length));
+					END;
 				END;
 			END;
 			Emit(Add(res,res,array.op));
