@@ -2587,7 +2587,7 @@ BEGIN
 		ASSERT(res = PCI.Done);
 		ASSERT(~ODD(base)); (* Operational registers mapped correctly in main memory memory space *)
 		DEC(base, base MOD 16);
-		Machine.MapPhysical(base,800H,base);
+		Machine.MapPhysical(base,800H,SYSTEM.VAL(SYSTEM.ADDRESS,base));
 		res := PCI.ReadConfigByte(bus,dev,fct,PCI.IntlReg,irq);
 		(* KernelLog.Int(irq,2);
 		KernelLog.Ln; *)

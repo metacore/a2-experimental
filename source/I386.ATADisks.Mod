@@ -255,7 +255,7 @@ TYPE
 				(*IF dma THEN
 					StopDMA();
 				END;*)
-				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ch));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
 				IF TraceVerbose & (trace * TraceErrors # {}) THEN
 					KernelLog.String(Name); KernelLog.Int(ctrlID*MaxDevicesC + command.dev, 1);
 					KernelLog.String(" Error (issue): Command "); KernelLog.Hex(command.cmd, -2);
@@ -293,7 +293,7 @@ TYPE
 				HALT(Disks.Unsupported);
 			END;
 			IF res # Res_OK THEN
-				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ch));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
 				IF TraceVerbose & (trace * TraceErrors # {}) THEN
 					KernelLog.String(Name); KernelLog.Int(ctrlID*MaxDevicesC + command.dev, 1);
 					KernelLog.String(" Error (protocol): Command "); KernelLog.Hex(command.cmd, -2);
@@ -418,7 +418,7 @@ TYPE
 		BEGIN
 			(* START DMA *)
 			Machine.Portin8(bmbase + Ofs_BMCmd, ch);
-			s := SYSTEM.VAL(SET, LONG(ch));
+			s := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
 			INCL(s, DMA_Start);
 			Machine.Portout8(bmbase + Ofs_BMCmd, CHR(SYSTEM.VAL(LONGINT, s)));
 		END StartDMA;
@@ -428,7 +428,7 @@ TYPE
 		BEGIN
 			(* Stop DMA *)
 			Machine.Portin8(bmbase + Ofs_BMCmd, ch);
-			s := SYSTEM.VAL(SET, LONG(ch));
+			s := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
 			EXCL(s, DMA_Start);
 			Machine.Portout8(bmbase + Ofs_BMCmd, CHR(SYSTEM.VAL(LONGINT, s)));
 
@@ -495,7 +495,7 @@ TYPE
 			IF cmd.dev = 1 THEN devReg := {Device_DEV} ELSE devReg := {}; END;
 			Machine.Portin8(cmdbase+Ofs_Device, ch);
 			(* Change device? *)
-			IF ((SYSTEM.VAL(SET, LONG(ch)) * {Device_DEV}) # devReg)
+			IF ((SYSTEM.VAL(SET, LONGINT(ORD(ch))) * {Device_DEV}) # devReg)
 			(* OR (Status_BSY IN status)*) THEN
 				IF TraceVerbose & (trace * TraceCommands # {}) THEN
 					KernelLog.String(Name); KernelLog.Int(ctrlID*MaxDevicesC + cmd.dev, 1);
@@ -679,7 +679,7 @@ TYPE
 				IF nIEN = 0 THEN
 					IF ~interrupt.Wait(ms) THEN (*RETURN Res_Timeout;*) END;
 				END;
-				Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONG(ch));
+				Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
 			(*UNTIL (s * {DMA_ERR, DMA_IRQ} # {}) OR Kernel.Expired(t);*)
 			UNTIL ~(DMA_Busy IN s) OR Kernel.Expired(t);
 			IF DMA_ERR IN s THEN RETURN Res_Err; END;
@@ -766,7 +766,7 @@ TYPE
 				Kernel.SetTimer(t, ms+2);
 				REPEAT
 					IF ~interrupt.Wait(ms) THEN (*KernelLog.String("***");*) (*RETURN Res_Timeout;*) END;
-					Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONG(ch));
+					Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
 				UNTIL (s * {DMA_ERR, DMA_IRQ} # {}) OR Kernel.Expired(t);
 				(* UNTIL ~(DMA_Busy IN s) OR Kernel.Expired(t); *)
 				IF DMA_ERR IN s THEN RETURN Res_Err; END;

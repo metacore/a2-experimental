@@ -64,7 +64,7 @@ BEGIN
 		mem := 512*1024;
 		WHILE w*h*f >= mem DO mem := mem*2 END
 	END;
-	Machine.GetInit(1, padr);	(* DX:CX from Init code *)
+	Machine.GetInit(1, SYSTEM.VAL(LONGINT,padr));	(* DX:CX from Init code *)
 	ASSERT((padr # 0) & (padr MOD 4096 = 0));
 	IF GetVal("DCache", 1) = 1 THEN
 		MemCache.GlobalSetCacheProperties(padr, mem, MemCache.WC, res);

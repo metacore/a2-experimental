@@ -395,7 +395,7 @@ TYPE
 			scbArea: LONGINT;	(* virtual address of the hardware scb buffer, shared with the sequencer *)
 			queueArea: LONGINT;	(*virtual address of the queue buffers, shared with the sequencer *)
 			in, out: LONGINT;	(*pointer to next scb*)
-			base: LONGINT;	(*virtual address for memory mapped IO / port address for port based IO *)
+			base: SYSTEM.ADDRESS;	(*virtual address for memory mapped IO / port address for port based IO *)
 			Put1: PROCEDURE (d: Bus; offset: LONGINT; val: CHAR);
 			Get1: PROCEDURE (d: Bus; offset: LONGINT): CHAR;
 
