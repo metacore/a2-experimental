@@ -2533,7 +2533,7 @@ TYPE
 						ELSE
 							(* targetLength := targetLength - firstIndex *)
 							ReleaseIntermediateOperand(targetLength);
-							Reuse1(targetLength, targetLength);
+							ReuseCopy(targetLength, targetLength);
 							Emit(Sub(targetLength, targetLength, firstIndex))
 						END;
 						(* 3. incorporate index step size: *)
@@ -2563,7 +2563,7 @@ TYPE
 							Emit(Mod(tmp, targetLength, stepSize));
 							BrneL(skipLabel1, tmp, IntermediateCode.Immediate(addressType, 0));
 							ReleaseIntermediateOperand(targetLength);
-							Reuse1(targetLength, targetLength);
+							ReuseCopy(targetLength, targetLength);
 							Emit(Div(targetLength, targetLength, stepSize));
 							BrL(skipLabel2);
 							SetLabel(skipLabel1);

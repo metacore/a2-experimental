@@ -766,3 +766,55 @@ positive: correct use of SYSTEM.ADR and SYSTEM.VAL for tensors and open math arr
 		NEW(a,1,2,3);
 		P(a); Q(a);
 	END Test.
+	
+positive: Test of Min and Max
+
+	MODULE Test;
+
+	TYPE B= ARRAY [*,*] OF REAL;
+	CONST a = [[1,2,3],
+				[4,5,6],
+				[7,8,9]];
+
+
+	PROCEDURE Min;
+	VAR b:B;
+	BEGIN
+		b:=a;
+		ASSERT(a=b);
+
+		ASSERT(MIN(a)=1);
+		ASSERT(MIN(a[1..])=4);
+		ASSERT(MIN(a[..1])=1);
+		ASSERT(MIN(a[..,1..])=2);
+		ASSERT(MIN(a[..,..1])=1);
+
+		ASSERT(MIN(b)=1);
+
+		ASSERT(MIN(b[1..,*])=4);
+		ASSERT(MIN(b[..1,*])=1);
+		ASSERT(MIN(b[*,1..])=2);
+		ASSERT(MIN(b[*,..1])=1);
+	END Min;
+
+	PROCEDURE Max;
+	VAR b: B;
+	BEGIN
+		b:=a;
+		ASSERT(a=b);
+
+		ASSERT(MAX(a)=9);
+		ASSERT(MAX(a[1..])=9);
+		ASSERT(MAX(a[..1])=6);
+		ASSERT(MAX(a[..,1..])=9);
+		ASSERT(MAX(a[..,..1])=8);
+
+		ASSERT(MAX(b)=9);
+		ASSERT(MAX(b[1..])=9);
+		ASSERT(MAX(b[..1])=6);
+		ASSERT(MAX(b[..,1..])=9);
+		ASSERT(MAX(b[..,..1])=8);
+	END Max;
+
+	BEGIN Min; Max;
+	END Test.
