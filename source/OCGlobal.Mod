@@ -496,7 +496,6 @@ TYPE
 			ELSIF type IS SyntaxTree.PointerType THEN
 				size := addressSize
 			ELSIF type IS SyntaxTree.ProcedureType THEN
-
 				IF type(SyntaxTree.ProcedureType).isDelegate THEN
 					size := 2*addressSize
 				ELSE
@@ -506,13 +505,16 @@ TYPE
 				(* do not treat a record type like a pointer even if the Pointer field is set, this leads to problems in object files
 					rather make sure that each reference type is a POINTER TO at least behind the secenes!
 				*)
-				ASSERT(SyntaxTree.Resolved IN type.state);
-				size :=type(SyntaxTree.RecordType).sizeInBits;
-				IF size < 0 THEN
-					IF GenerateRecordOffsets(type(SyntaxTree.RecordType)) THEN
-						size :=type(SyntaxTree.RecordType).sizeInBits;
-					ELSE
-						size := -1
+				IF ~(SyntaxTree.Resolved IN type.state) THEN
+					size := -1
+				ELSE
+					size :=type(SyntaxTree.RecordType).sizeInBits;
+					IF size < 0 THEN
+						IF GenerateRecordOffsets(type(SyntaxTree.RecordType)) THEN
+							size :=type(SyntaxTree.RecordType).sizeInBits;
+						ELSE
+							size := -1
+						END;
 					END;
 				END;
 				(*
@@ -535,8 +537,9 @@ TYPE
 				END;
 				*)
 			ELSIF type IS SyntaxTree.ArrayType THEN
-				ASSERT(SyntaxTree.Resolved IN type.state);
-				IF type(SyntaxTree.ArrayType).form = SyntaxTree.Static THEN
+				IF ~(SyntaxTree.Resolved IN type.state) THEN
+					size := -1
+				ELSIF type(SyntaxTree.ArrayType).form = SyntaxTree.Static THEN
 					size := SizeOf(type(SyntaxTree.ArrayType).arrayBase.resolved)*type(SyntaxTree.ArrayType).staticLength
 				ELSE
 					size := 0;
@@ -547,8 +550,9 @@ TYPE
 					size := size*addressSize+addressSize
 				END;
 			ELSIF type IS SyntaxTree.MathArrayType THEN
-				ASSERT(SyntaxTree.Resolved IN type.state);
-				IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
+				IF ~(SyntaxTree.Resolved IN type.state) THEN
+					size := -1
+				ELSIF type(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
 					size := SizeOf(type(SyntaxTree.MathArrayType).arrayBase.resolved)*type(SyntaxTree.MathArrayType).staticLength
 				ELSIF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
 					size := addressSize (* pointer to geometry descriptor *)
