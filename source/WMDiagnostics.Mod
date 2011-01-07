@@ -164,11 +164,11 @@ TYPE
 			Add(TypeInformation, source, position, errorCode, message, nofInformations);
 		END Information;
 
-		PROCEDURE Exists(type, position, errorCode : LONGINT) : BOOLEAN;
+		PROCEDURE Exists(type, position, errorCode : LONGINT; CONST message: ARRAY OF CHAR) : BOOLEAN;
 		VAR i : LONGINT;
 		BEGIN
 			i := 0;
-			WHILE (i < nofEntries) & ((entries[i].type # type) OR (entries[i].position # position) OR (entries[i].errorCode # errorCode)) DO
+			WHILE (i < nofEntries) & ((entries[i].type # type) OR (entries[i].position # position) OR (entries[i].errorCode # errorCode) OR (entries[i].message # message)) DO
 				INC(i);
 			END;
 			RETURN (nofEntries > 0) & (i < nofEntries);
@@ -177,7 +177,7 @@ TYPE
 		PROCEDURE Add(type: LONGINT; CONST source : ARRAY OF CHAR; position, errorCode : LONGINT; CONST message : ARRAY OF CHAR; VAR counter: LONGINT);
 		BEGIN
 			AcquireWrite;
-			IF ~Exists(type, position, errorCode) THEN
+			IF ~Exists(type, position, errorCode,message) THEN
 				CheckEntriesSize;
 				entries[nofEntries].type := type;
 				COPY(source, entries[nofEntries].source);
