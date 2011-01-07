@@ -557,12 +557,12 @@ TYPE
 				diagnostics.Information("",Diagnostics.Invalid, Diagnostics.Invalid,msg);
 			ELSE
 				msg := "could not link ";
-				Strings.Append(msg,linkRoot); 
+				Strings.Append(msg,linkRoot);
 				 FOR i := 0 TO modules.Length()-1 DO
 				 	module := modules.GetModule(i);
-				 	msg.Append(" "); msg.Append(module.name);
-				 END;				 
-				 diagnostics.Error("",Diagnostics.Invalid, Diagnostics.Invalid, msg); 
+				 	Strings.Append(msg," "); Strings.Append(msg,module.name);
+				 END;
+				 diagnostics.Error("",Diagnostics.Invalid, Diagnostics.Invalid, msg);
 			END;
 			RETURN ~linker.error
 		END LinkType;
