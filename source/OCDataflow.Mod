@@ -556,11 +556,13 @@ TYPE
 				GetFullName(msg,NIL); Strings.Append(msg," successfully linked");
 				diagnostics.Information("",Diagnostics.Invalid, Diagnostics.Invalid,msg);
 			ELSE
-				 D.String("problem linking "); D.String(linkRoot);
+				msg := "could not link ";
+				Strings.Append(msg,linkRoot); 
 				 FOR i := 0 TO modules.Length()-1 DO
 				 	module := modules.GetModule(i);
-				 	D.String(module.name); D.Ln;
-				 END;
+				 	msg.Append(" "); msg.Append(module.name);
+				 END;				 
+				 diagnostics.Error("",Diagnostics.Invalid, Diagnostics.Invalid, msg); 
 			END;
 			RETURN ~linker.error
 		END LinkType;
