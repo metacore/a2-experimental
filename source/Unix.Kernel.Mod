@@ -113,8 +113,8 @@ TYPE
 				IF cont THEN fn := next ELSE fn := NIL END
 			END
 		END Enumerate;
+		
 		(** Enumerate all objects in the collection not being finalized (Enumerator may not call Remove, Add, Enumerate or Clear). *)
-
 		PROCEDURE EnumerateN*( enum: Enumerator );
 		VAR fn, next: FinalizerNode; cont: BOOLEAN; obj: ANY;
 		BEGIN {EXCLUSIVE}
@@ -180,8 +180,6 @@ VAR
 	second*: LONGINT;	(** number of timer counts per second (Hz) *)
 	finalizer: FinalizerCaller;
 	
-	traceGC: BOOLEAN;
-
 
 (** Activate the garbage collector immediately. *)
 PROCEDURE GC*;
@@ -189,11 +187,11 @@ BEGIN
 	Machine.Acquire( Machine.GC );		(* released by FinalizerCaller *)
 	Machine.Acquire( Machine.X11 );	(* disable polling for input *)
 	Machine.Acquire( Machine.Heaps );
-		Objects.SuspendActivities;
+	Objects.SuspendActivities;
 
 		Heaps.Collect( Modules.root );
 		
-		Objects.ResumeActivities;
+	Objects.ResumeActivities;
 	Machine.Release( Machine.Heaps );
 	Machine.Release( Machine.X11 );
 	
@@ -244,7 +242,6 @@ BEGIN
 	second := Second;
 	NEW(finalizer);	(* activate finalizer object *)
 	
-	traceGC := 1 IN Glue.debug;
 	Heaps.GC := GC;	(* switch to GC procedure with finalization *)
 	
 	Machine.Acquire(Machine.TraceOutput);
