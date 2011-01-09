@@ -358,7 +358,8 @@ VAR
 		IF Restart IN p.flags THEN
 			res := Unix.sigsetjmp( S.ADR( p.state0[0] ), 1 );
 		END;
-		IF p.obj # NIL THEN  S.GET( S.VAL( Address, p.obj ) - AdrSize, type )  ELSE type := 0  END;
+		IF p.obj # NIL THEN  S.GET( S.VAL( Address, p.obj ) - AdrSize, type )  ELSE  type := 0  END;
+		p.mode := Running;
 		proc( type, p.obj );
 		p.mode := Terminated;
 		Exit
