@@ -20,44 +20,41 @@ CONST
 
 VAR
 	(* the first variable ("AA...") gets initialized by the bootfile loader *)
-	AAgetadr-	: PROCEDURE {C} ( handle: LONGINT;  symbol,  adr: LONGINT );
+	AAgetadr	: Address;	(* address of procedure dlsym *)
 
 	dlsym-		: PROCEDURE {C} ( handle: Address;  name: Address; adr: Address );
 	dlopen-		: PROCEDURE {C} ( pathname: Address;  mode: LONGINT ): Address;
 	dlclose-		: PROCEDURE {C} ( handle: Address );
-	cout		: PROCEDURE {C} ( c: CHAR );
+	cout		: PROCEDURE {C} ( c: CHAR );	(* output to Unix stdout *)
 
 	debug-		: SET;	(* value of environment variable  OBERON_DEBUG  *)
 
 
-	stackBottom-	: Address;
+	stackBottom-	: Address;	(* of main thread *)
 
 
-	PROCEDURE Char (c: CHAR );
+	PROCEDURE Char ( c: CHAR );
 	BEGIN
 		cout( c )
 	END Char;
 
 
-	PROCEDURE GetStackBottom;
-	VAR i: LONGINT;
-	BEGIN
-		stackBottom := S.ADR( i ) + 2*AdrSize;
-	END GetStackBottom;
-
-
 
 	PROCEDURE Init;
+	VAR i: LONGINT;
 	BEGIN
 		S.MOVE( S.ADR( AAgetadr ), S.ADR( dlsym ), AdrSize );
 		dlsym( 0, S.ADR( "dlopen" ), S.ADR( dlopen ) );
 		dlsym( 0, S.ADR( "dlclose" ), S.ADR( dlclose ) );
+		
 		dlsym( 0, S.ADR( "debug" ), S.ADR( debug ) );
 		dlsym( 0, S.ADR( "cout" ), S.ADR( cout ) );
+		
+		stackBottom := S.ADR( i ) + 2*AdrSize;
+		
 		Trace.Char := Char;
 	END Init;
 
 BEGIN
 	Init;
-	GetStackBottom;
 END Glue.

@@ -6,7 +6,7 @@ MODULE Loader; (** AUTHOR "pjm"; PURPOSE "Active Oberon module loader plugin"; *
 
 (* cf. Linker *)
 
-IMPORT SYSTEM, Unix, KernelLog, Commands, Heaps, Modules, Streams, Files;	(* ==Unix== *)
+IMPORT SYSTEM, KernelLog, Commands, Heaps, Modules, Streams, Files;	
 
 CONST
 	Ok = 0;
@@ -834,7 +834,6 @@ BEGIN
 		ReadHeader(r, h, res, msg);
 		IF res = Ok THEN
 			IF h.name = name THEN
-				Heaps.GCBarrier( 500 );				(* ==Unix== *)
 				NEW(m); 
 				i := 0;  WHILE h.name[i] # 0X DO m.name[i] := h.name[i];  INC(i) END;
 				m.name[i] := 0X;

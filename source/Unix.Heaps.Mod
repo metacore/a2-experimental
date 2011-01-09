@@ -87,7 +87,7 @@ VAR
 
 	heapSize: Size;
 
-	throuput, gcBarrier:  LONGINT;
+	throuput:  LONGINT;
 	GCEnabled: BOOLEAN;
 	GC*: PROCEDURE;
 	collecting-: BOOLEAN;
@@ -516,14 +516,11 @@ VAR
 		collecting := TRUE;
 		
 		Mark( root );
-
-		CheckCandidates;
-		CheckFinalizedObjects;
+		CheckCandidates;  CheckFinalizedObjects;
 		Sweep;
 
 		marks := 0;
 		collecting := FALSE;  throuput := 0;
-		gcBarrier := Machine.Ticks( ) + 100;
 
 		IF traceGC  THEN  Trace.String( "Heaps.Collect done " );  Trace.Ln;  Trace.Ln  END;
 		IF Stats THEN
@@ -548,7 +545,7 @@ VAR
 			HALT( 99 )
 		END;
 
-		IF GCEnabled &  (throuput > 4*1024*1024) & (Machine.Ticks() > gcBarrier)  THEN
+		IF GCEnabled &  (throuput > 8*1024*1024) THEN
 			throuput := 0;
 			Machine.Release( Machine.Heaps );
 			GC;
@@ -849,16 +846,6 @@ VAR
 	END LargestAvailable;
 
 
-	PROCEDURE GCBarrier*( ms: LONGINT );
-	VAR new: LONGINT;
-	BEGIN
-		Machine.Acquire( Machine.Heaps );
-		new := Machine.Ticks() + ms;
-		IF new > gcBarrier THEN  gcBarrier := new  END;
-		Machine.Release( Machine.Heaps );
-	END GCBarrier;
-
-
 
 	(*------------------ Initialization --------------------------------------------------*)
 
@@ -902,14 +889,13 @@ VAR
 			NgcCyclesMark := 0; NgcCyclesLastRun := 0; NgcCyclesMax := 0; NgcCyclesAllRuns := 0;
 		END;
 
-		GC := EmptyProc;
+		GC := EmptyProc;	(* no GC until EmptyProc gets replaced (in module Kernel) *)
 		nofcand := 0; marks := 0;
 
 		debug := Glue.debug;
 		GCEnabled :=  ~(6 IN debug);
 		traceGC := 1 IN debug;
 		traceNEW := 4 IN debug;
-		gcBarrier := Machine.Ticks( ) + 2000;
 
 		InitHeap;
 	END Init;
