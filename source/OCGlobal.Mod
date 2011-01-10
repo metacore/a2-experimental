@@ -22,6 +22,7 @@ CONST
 	StringPriority* = "PRIORITY";
 	StringSafe* = "SAFE";
 	StringRealtime*= "REALTIME";
+	StringMemorySize*= "MEMORYSIZE";
 
 	(* traps *)
 	WithTrap* = 1;
@@ -89,7 +90,7 @@ VAR
 	SelfParameterName-,ReturnParameterName-,SystemName-,systemName-,PointerReturnName-, ResultName-,
 	A2Name-,OberonName-,ArrayBaseName-,RecordBodyName-,ModuleBodyName-,
 	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-,NameNoPAF-,NameFixed-,NameAligned-,NameStackAligned-,
-	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-: SyntaxTree.Identifier;
+	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-,NameMemorySize-: SyntaxTree.Identifier;
 
 	identifiers: ARRAY 2 OF ARRAY end OF SyntaxTree.Identifier;
 
@@ -759,7 +760,7 @@ TYPE
 		NewBuiltin(Short,"SHORT",system.globalScope,TRUE);
 		NewBuiltin(Sum,"SUM",system.globalScope,TRUE);
 		NewBuiltin(Dim,"DIM",system.globalScope,TRUE);
-		
+
 		NewBuiltin(First,"FIRST",system.globalScope,TRUE);
 		NewBuiltin(Last,"LAST",system.globalScope,TRUE);
 		NewBuiltin(Step,"STEP",system.globalScope,TRUE);
@@ -1233,7 +1234,7 @@ TYPE
 		NamePriority := SyntaxTree.NewIdentifier(-1, StringPriority);
 		NameSafe := SyntaxTree.NewIdentifier(-1, StringSafe);
 		NameRealtime := SyntaxTree.NewIdentifier(-1, StringRealtime);
-
+		NameMemorySize := SyntaxTree.NewIdentifier(-1, StringMemorySize);
 
 		(* types *)
 		Boolean8 := SyntaxTree.NewBooleanType(8);

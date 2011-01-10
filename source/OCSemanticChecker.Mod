@@ -633,7 +633,7 @@ TYPE
 			IF TypeNeedsResolution(x) THEN
 				modifiers := x.modifiers;
 				x.SetRealtime(HasFlag(modifiers,Global.NameRealtime, position));
-				CheckEmpty(modifiers);
+				CheckModifiers(modifiers);
 				(* inheritance cycle check
 					example:
 					A=POINTER TO RECORD(B) END;
@@ -780,15 +780,14 @@ TYPE
 				IF this.expression # NIL THEN
 					Error(this.identifier.position,Diagnostics.Invalid,"unexpected expression");
 				END;
-				IF prev = NIL THEN modifiers := this.nextModifier ELSE prev.SetNext(this.nextModifier) END;
-				position := this.identifier.position;
+				this.Resolved;
 				RETURN TRUE
 			ELSE
 				RETURN FALSE
 			END;
 		END HasFlag;
 
-		PROCEDURE HasValue(VAR modifiers: SyntaxTree.Modifier; name: SyntaxTree.Identifier; VAR position: LONGINT; VAR value: LONGINT): BOOLEAN;
+		PROCEDURE HasValue(modifiers: SyntaxTree.Modifier; name: SyntaxTree.Identifier; VAR position: LONGINT; VAR value: LONGINT): BOOLEAN;
 		VAR prev,this: SyntaxTree.Modifier;
 		BEGIN
 			this := modifiers;prev := NIL;
@@ -800,20 +799,24 @@ TYPE
 					Error(this.identifier.position,Diagnostics.Invalid,"expected expression value");
 				ELSIF CheckIntegerValue(this.expression,value) THEN
 				END;
+				this.Resolved;
 				position := this.identifier.position;
-				IF prev = NIL THEN modifiers := this.nextModifier ELSE prev.SetNext(this.nextModifier) END;
 				RETURN TRUE
 			ELSE RETURN FALSE
 			END;
 		END HasValue;
 
-		PROCEDURE CheckEmpty(modifiers: SyntaxTree.Modifier);
+		PROCEDURE CheckModifiers(modifiers: SyntaxTree.Modifier);
+		VAR this: SyntaxTree.Modifier;
 		BEGIN
-			WHILE modifiers # NIL DO
-				Error(modifiers.identifier.position,Diagnostics.Invalid,"unexpected modifier");
-				modifiers := modifiers.nextModifier
+			this := modifiers;
+			WHILE this # NIL DO
+				IF ~this.resolved THEN
+					Error(this.identifier.position,Diagnostics.Invalid,"unexpected modifier");
+				END;
+				this := this.nextModifier
 			END;
-		END CheckEmpty;
+		END CheckModifiers;
 
 
 		(**
@@ -831,7 +834,7 @@ TYPE
 				IF HasValue(modifiers,Global.NameStackAligned,position,value) THEN procedureType.SetStackAlignment(value) END;
 				IF HasFlag(modifiers, Global.NameDelegate,position) THEN procedureType.SetDelegate(TRUE) END;
 				IF HasFlag(modifiers, Global.NameRealtime,position) THEN procedureType.SetRealtime(TRUE) END;
-				CheckEmpty(modifiers);
+				CheckModifiers(modifiers);
 				typeFixes.Add(procedureType,currentScope);
 				procedureType.SetState(SyntaxTree.Resolved);
 			END;
@@ -969,17 +972,13 @@ TYPE
 		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
 		VAR
 			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter; type: SyntaxTree.Type; len: LONGINT;
-			modifier: SyntaxTree.Modifier; expression: SyntaxTree.Expression;
+			modifier: SyntaxTree.Modifier; expression: SyntaxTree.Expression; position,value: LONGINT;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 
 				modifier := x.modifiers;
-				WHILE (modifier # NIL) DO
-					IF modifier.expression # NIL THEN
-						expression := ConstantExpression(modifier.expression);
-					END;
-					modifier := modifier.nextModifier;
-				END;
+				IF HasValue(modifier,Global.NameMemorySize,position,value) THEN END;
+				CheckModifiers(modifier);
 
 				(* process parameters *)
 				parameter :=x.firstParameter;
@@ -1037,7 +1036,7 @@ TYPE
 				(* the object is an ASOT *)
 
 				isTensor := recordType.arrayStructure.form = SyntaxTree.Tensor;
-				
+
 				(* reset array access operators *)
 				arrayAccessOperators.len := NIL;
 				arrayAccessOperators.generalRead := NIL;
@@ -1055,7 +1054,7 @@ TYPE
 					arrayAccessOperators.read[i] := NIL;
 					arrayAccessOperators.write[i] := NIL
 				END;
-				
+
 				(* collect access operators in the record scope *)
 				CollectArrayAccessOperators(recordType.recordScope, recordType.arrayStructure, arrayAccessOperators);
 
@@ -1068,12 +1067,12 @@ TYPE
 				IF isTensor THEN
 					(* require ARRAY [*] OF RANGE *)
 					IF arrayAccessOperators.generalRead = NIL THEN Error(recordType.position, Diagnostics.Invalid, "general read operator missing") END;
-					IF arrayAccessOperators.generalWrite = NIL THEN Error(recordType.position, Diagnostics.Invalid, "general write operator missing") END;	
+					IF arrayAccessOperators.generalWrite = NIL THEN Error(recordType.position, Diagnostics.Invalid, "general write operator missing") END;
 				ELSE
 					(* forbid ARRAY [*] OF RANGE *)
 					IF arrayAccessOperators.generalRead # NIL THEN Error(recordType.position, Diagnostics.Invalid, "general read operator not applicable") END;
-					IF arrayAccessOperators.generalWrite # NIL THEN Error(recordType.position, Diagnostics.Invalid, "general write operator not applicable") END;	
-					(* require RANGE, RANGE, ... RANGE *)	
+					IF arrayAccessOperators.generalWrite # NIL THEN Error(recordType.position, Diagnostics.Invalid, "general write operator not applicable") END;
+					(* require RANGE, RANGE, ... RANGE *)
 					IF arrayAccessOperators.read[indexOperatorCount - 1] = NIL THEN Error(recordType.position, Diagnostics.Invalid, "read operator on ranges missing") END;
 					IF arrayAccessOperators.write[indexOperatorCount - 1] = NIL THEN Error(recordType.position, Diagnostics.Invalid, "write operator on ranges missing") END;
 				END;
@@ -1110,11 +1109,11 @@ TYPE
 			WHILE operator # NIL DO
 				IF operator.name.Equals(SyntaxTree.NewIdentifier(InvalidPosition, "LEN")) THEN
 					IF CheckLenOperator(operator, arrayStructure) THEN arrayAccessOperators.len := operator END
-				
-				ELSIF operator.name.Equals(SyntaxTree.NewIdentifier(InvalidPosition, "[]")) THEN	
+
+				ELSIF operator.name.Equals(SyntaxTree.NewIdentifier(InvalidPosition, "[]")) THEN
 					IF CheckIndexOperator(operator, arrayStructure, isReadOperator, isGeneralOperator, indexListSize, indexListKind) THEN
 						IF isGeneralOperator THEN
-							IF isReadOperator THEN							
+							IF isReadOperator THEN
 								arrayAccessOperators.generalRead := operator
 							ELSE
 								arrayAccessOperators.generalWrite := operator
@@ -1122,11 +1121,11 @@ TYPE
 						ELSE
 							hashValue := IndexOperatorHash(indexListSize, indexListKind, arrayStructure.form = SyntaxTree.Tensor);
 							IF isReadOperator THEN
-								arrayAccessOperators.read[hashValue] := operator			
+								arrayAccessOperators.read[hashValue] := operator
 							ELSE
 								arrayAccessOperators.write[hashValue] := operator
 							END
-						END	
+						END
 					END
 				ELSE
 					Error(operator.position, Diagnostics.Invalid, 'invalid operator')
@@ -1136,7 +1135,7 @@ TYPE
 			END
 		END CollectArrayAccessOperators;
 
-		(** the hash value of an index operator **)	
+		(** the hash value of an index operator **)
 		PROCEDURE IndexOperatorHash(indexListSize, indexListKind: LONGINT; isTensor: BOOLEAN): LONGINT;
 		VAR result: LONGINT;
 		BEGIN
@@ -1151,7 +1150,7 @@ TYPE
 			END;
 			RETURN result
 		END IndexOperatorHash;
-		
+
 		(** 2 to the power of exponent **)
 		PROCEDURE TwoToThePowerOf(exponent: LONGINT): LONGINT;
 		VAR result, i: LONGINT;
@@ -1165,7 +1164,7 @@ TYPE
 
 		(** check if a LEN operator has a correct signature. i.e.
 		for non-tensors: 'OPERATOR "LEN"(): ARRAY [<Dimensionality>] OF LONGINT;'
-		for tensors (or non-tensors): 'OPERATOR "LEN"(): ARRAY [*] OF LONGINT;'		
+		for tensors (or non-tensors): 'OPERATOR "LEN"(): ARRAY [*] OF LONGINT;'
 		**)
 		PROCEDURE CheckLenOperator(operator: SyntaxTree.Operator; arrayStructure: SyntaxTree.MathArrayType): BOOLEAN;
 		VAR
@@ -1203,7 +1202,7 @@ TYPE
 		(** check if an index operator has a correct signature. i.e.
 			- for read operators: 'OPERATOR "[]"(<IndexParameters>): <DataType>;'
 			- for write operators: 'OPERATOR "[]"(<IndexParameters>; rhs: <DataType>);'
-			
+
 			- for general operators: <IndexParameters> = ARRAY [*] OF RANGE
 			- for fixed-dim. operators: <IndexParameters> = i0: <LONGINT/RANGE>; i1: <LONGINT/RANGE>; ...; in: <LONGINT/RANGE>
 
@@ -1236,44 +1235,44 @@ TYPE
 		BEGIN
 			procedureType := operator.type.resolved(SyntaxTree.ProcedureType);
 			parameterCount := procedureType.numberParameters - procedureType.numberHiddenParameters; (* true parameter count *)
-			
+
 			(* determine if it is a read or write operator *)
 			isReadOperator := (procedureType.returnType # NIL);
-			
+
 			IF isReadOperator THEN
 				indexListSize := parameterCount;
 			ELSE
 				indexListSize := parameterCount - 1;
 			END;
-			
+
 			IF indexListSize < 1 THEN
 				Error(operator.position, Diagnostics.Invalid, "index operator with too few parameters");
 				RETURN FALSE
 			END;
-			
+
 			IF procedureType.firstParameter.type.resolved IS SyntaxTree.MathArrayType THEN
 				(* general operator *)
-				
+
 				isGeneralOperator := TRUE;
-				
+
 				IF indexListSize > 1 THEN
 					Error(operator.position, Diagnostics.Invalid, "index operator with too many parameters");
 					RETURN FALSE
 				END;
-				
+
 				(* ARRAY [*] OF RANGE*)
 				mathArrayType := procedureType.firstParameter.type.resolved(SyntaxTree.MathArrayType);
 				IF ~((mathArrayType.arrayBase.resolved IS SyntaxTree.RangeType) & (mathArrayType.form = SyntaxTree.Open)) THEN
 					Error(operator.position, Diagnostics.Invalid, "index parameter not dynamic math array of range");
 					RETURN FALSE
 				END;
-				
+
 				parameter := procedureType.firstParameter.nextParameter
 			ELSE
 				(* fixed-dim. operator *)
-				
+
 				isGeneralOperator := FALSE;
-				
+
 				(* check number of index parameters *)
 				IF arrayStructure.form = SyntaxTree.Tensor THEN
 					(* for tensors, limited to a certain size *)
@@ -1288,7 +1287,7 @@ TYPE
 						RETURN FALSE
 					END
 				END;
-				
+
 				(* go through all index parameters
 				- count the number of ranges
 				- determine the index list kind number
@@ -1307,20 +1306,20 @@ TYPE
 						RETURN FALSE
 					END;
 					parameter := parameter.nextParameter
-				END;	
+				END;
 			END;
-			
+
 			(*
 			- for read operators: check type of last parameter
 			- for write operators: check return type
 			*)
-			
+
 			IF isReadOperator THEN
 				dataType := procedureType.returnType (* the return type *)
 			ELSE
 				dataType := parameter.type (* the type of the last non-hidden parameter *)
 			END;
-			
+
 			elementType := arrayStructure.ElementType();
 			hasTypeError := FALSE;
 			IF isGeneralOperator THEN
@@ -1356,7 +1355,7 @@ TYPE
 					END
 				END
 			END;
-			
+
 			IF hasTypeError THEN
 				IF isReadOperator THEN
 					Error(operator.position, Diagnostics.Invalid, "return type does not match")
@@ -1365,13 +1364,13 @@ TYPE
 				END;
 				RETURN FALSE
 			END;
-			
+
 			(* export symbol automatically *)
 			operator.SetAccess(SyntaxTree.Public + SyntaxTree.Protected + SyntaxTree.Internal);
-			
+
 			RETURN TRUE
 		END CheckIndexOperator;
-		
+
 		(** resolve all pending types (late resolving).
 			- type fixes are resolved at the end of the declaration phase
 			- type fixes may imply new type fixes that are also entered at the end of the list
@@ -2843,7 +2842,7 @@ TYPE
 					- replace missing upper bound with MAX(LONGINT)
 					- replace missing step size with 1
 				SetElement:
-					- components must be integers 
+					- components must be integers
 					- replace missing lower bound with 0
 					- replace missing upper bound with MAX(SET)
 					- must not have step size
@@ -2865,7 +2864,7 @@ TYPE
 			first := x.first;
 			last := x.last;
 			step := x.step;
-			
+
 			(* check lower bound *)
 			IF x.context = SyntaxTree.CaseGuard THEN
 				IF first = NIL THEN
@@ -2889,7 +2888,7 @@ TYPE
 						hasError := TRUE
 					END
 				END
-				
+
 			ELSE (* ArrayIndex, SetElement *)
 				IF first = NIL THEN
 					first := SyntaxTree.NewIntegerValue(x.position, 0);
@@ -2902,7 +2901,7 @@ TYPE
 					hasError := TRUE
 				END
 			END;
-			
+
 			(* check upper bound *)
 			IF x.context = SyntaxTree.CaseGuard THEN
 				IF last = NIL THEN
@@ -2919,7 +2918,7 @@ TYPE
 							last := ConvertValue(last.position, last(SyntaxTree.Value), system.characterType)
 						END
 					END;
-					
+
 					(* check if expression is constant *)
 					IF ConstantExpression(last) = SyntaxTree.invalidExpression THEN
 						(* error already reported *)
@@ -2933,12 +2932,12 @@ TYPE
 						END
 					END
 				END
-			
+
 			ELSE (* ArrayIndex, SetElement *)
 				IF last = NIL THEN
 					IF x.context = SyntaxTree.ArrayIndex THEN
 						last := SyntaxTree.NewIntegerValue(x.position, MAX(LONGINT))
-					ELSE	
+					ELSE
 						last := SyntaxTree.NewIntegerValue(x.position, MAX(SET))
 					END
 				END;
@@ -2950,7 +2949,7 @@ TYPE
 					hasError := TRUE
 				END
 			END;
-			
+
 			(* check step size *)
 			IF x.context = SyntaxTree.ArrayIndex THEN
 				IF step = NIL THEN
@@ -2969,7 +2968,7 @@ TYPE
 					hasError := TRUE
 				END
 			END;
-			
+
 			IF hasError THEN
 				resolvedExpression := SyntaxTree.invalidExpression
 			ELSE
@@ -2978,7 +2977,7 @@ TYPE
 				x.SetStep(step);
 				x.SetType(system.rangeType);
 				resolvedExpression := x;
-				resolvedExpression.SetAssignable(FALSE) (* range expressions may never be assigned to *)	
+				resolvedExpression.SetAssignable(FALSE) (* range expressions may never be assigned to *)
 			END
 		END VisitRangeExpression;
 
@@ -3460,7 +3459,7 @@ TYPE
 			ASSERT(IsArrayStructuredObjectType(left.type));
 			ASSERT(left.type.resolved IS SyntaxTree.PointerType);
 			recordType := left.type.resolved(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
-			
+
 			(* determine hash value of optimal index operator and if index list contains non-range item *)
 			indexListSize := indexList.Length();
 			indexListKind := 0;
@@ -3475,7 +3474,7 @@ TYPE
 				END
 			END;
 			hashValue := IndexOperatorHash(indexListSize, indexListKind, recordType.arrayStructure.form = SyntaxTree.Tensor);
-					
+
 			(* select applicable index operator
 				- try to look up optimal index operator
 				- if not present, use operator on ranges
@@ -3518,14 +3517,14 @@ TYPE
 					END
 				END
 			END;
-			
+
 			IF operator = NIL THEN
 				Error(position, Diagnostics.Invalid, "call of undeclared [] operator");
 				result := SyntaxTree.invalidDesignator;
 			ELSE
 				(* determine if reshaping is needed *)
 				needsReshaping := containsNonRange & usesPureRangeOperator;
-				
+
 				(* import OCArrayBase if reshaping is needed *)
 				IF needsReshaping & ~arrayBaseImported THEN
 					ImportModule(Global.ArrayBaseName, InvalidPosition);
@@ -3779,7 +3778,7 @@ TYPE
 
 							ASSERT(type IS SyntaxTree.PointerType);
 							recordType := type(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
-							
+
 							(*
 							- collect index list items from bracket designator that belong to ASOT
 							- check for errors
@@ -3788,8 +3787,8 @@ TYPE
 							hasError := FALSE;
 							IF recordType.arrayStructure.form = SyntaxTree.Tensor THEN
 								(* indexing over tensor ASOT:
-									- stop at index list end or separator 
-									- dimensionality is given by number of index list items 
+									- stop at index list end or separator
+									- dimensionality is given by number of index list items
 								*)
 								done := FALSE;
 								WHILE ~done DO
@@ -3837,7 +3836,7 @@ TYPE
 									INC(i)
 								END;
 							END;
-														
+
 							IF hasError THEN
 								designator := SyntaxTree.invalidDesignator;
 								type := SyntaxTree.invalidType;
@@ -4614,7 +4613,7 @@ TYPE
 					type := system.longintType;
 					IF CheckRangeType(parameter0) THEN END;
 					result.SetAssignable(parameter0.assignable)
-					
+
 				(* ---- STEP ---- *)
 				ELSIF (id = Global.Step) & Parameters(1,1) THEN
 					type := system.longintType;
@@ -5594,7 +5593,7 @@ TYPE
 					END;
 					variable.SetAlignment(TRUE, value);
 				END;
-				CheckEmpty(modifiers);
+				CheckModifiers(modifiers);
 				variable.SetState(SyntaxTree.Resolved);
 			END;
 		END VisitVariable;
@@ -5667,7 +5666,7 @@ TYPE
 					END;
 				END;
 				IF HasFlag(modifiers,Global.NameRealtime,position) THEN procedureType.SetRealtime(TRUE) END;
-				CheckEmpty(modifiers);
+				CheckModifiers(modifiers);
 				FixProcedureType(procedureType);
 				currentIsRealtime := procedureType.isRealtime;
 				currentIsBodyProcedure := procedure.isBodyProcedure;
@@ -6179,12 +6178,12 @@ TYPE
 			FOR i := 0 TO casePart.elements.Length() - 1 DO
 				expression := casePart.elements.GetExpression(i);
 				position := expression.position;
-			
+
 				(* set context of range *)
 				IF expression IS SyntaxTree.RangeExpression THEN
 					expression(SyntaxTree.RangeExpression).SetContext(SyntaxTree.CaseGuard)
 				END;
-				
+
 				expression := ResolveExpression(expression);
 
 				IF expression = SyntaxTree.invalidExpression THEN
@@ -7397,7 +7396,7 @@ TYPE
 		END;
 
 		i := Infinity;
-		
+
 		IF from = to THEN
 			i := 0
 		ELSIF (from IS SyntaxTree.NilType) OR (to IS SyntaxTree.NilType) THEN

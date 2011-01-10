@@ -7,7 +7,7 @@ CONST
 	defaultInstructionMemorySize*=0;
 	defaultDataMemorySize *=2;
 	defaultPortWidth *=32; (* bits *)
-	defaultFifoSize *=16; (* "words" of port width size *)
+	defaultFifoSize *=32; (* "words" of port width size *)
 	defaultChannelWidth* = 32;
 	CodeFileExtension*="code";
 	DataFileExtension*="data";

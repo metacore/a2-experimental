@@ -169,7 +169,7 @@ TYPE
 			prevDataflowScope := currentDataflowScope;
 			x.typeDeclaration.name.GetString(componentName);
 			instanceType := currentDataflowScope.NewType(componentName); (*backend.dataflowSpecification.NewType(componentName);*)
-			IF HasValue(x.modifiers,"DataMemorySize",dataMemorySize) THEN
+			IF HasValue(x.modifiers,Global.StringMemorySize,dataMemorySize) THEN
 				instanceType.SetDataMemorySize(dataMemorySize);
 			END;
 

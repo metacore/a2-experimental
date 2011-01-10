@@ -51,7 +51,7 @@ CONST
 	ArrayIndex* = 0;
 	SetElement* = 1;
 	CaseGuard* = 2;
-	
+
 VAR
 	(** debugging / counters *)
 
@@ -328,7 +328,7 @@ TYPE
 		BEGIN HALT(100) (* abstract *) END VisitCode;
 
 	END Visitor;
-	
+
 	ArrayAccessOperators* = RECORD
 		len*: Operator; (* length operator *)
 		generalRead*, generalWrite*: Operator; (* operators on ARRAY [*] RANGE, for tensors *)
@@ -1726,7 +1726,7 @@ TYPE
 		first-, last-, step-: Expression;
 		missingFirst-, missingLast-, missingStep-: BOOLEAN; (* only for printout*)
 		context-: SHORTINT; (* one of ArrayIndex, SetElement or CaseGuard *)
-		
+
 		PROCEDURE &InitRangeExpression(position: LONGINT; first, last, step: Expression);
 		BEGIN
 			context := ArrayIndex; (* by default, a range represents array indices *)
@@ -3190,12 +3190,19 @@ TYPE
 
 	(* << Identifier ( Expression) >> *)
 	Modifier*= OBJECT
-	VAR identifier-: Identifier; expression-: Expression; nextModifier-: Modifier;
+	VAR
+		identifier-: Identifier; expression-: Expression;
+		resolved-: BOOLEAN;
+		nextModifier-: Modifier;
 
 		PROCEDURE & InitModifier(identifier: Identifier; expression: Expression);
 		BEGIN
-			SELF.identifier := identifier; SELF.expression := expression; nextModifier := NIL;
+			SELF.identifier := identifier; SELF.expression := expression; nextModifier := NIL; resolved := FALSE;
 		END InitModifier;
+
+		PROCEDURE Resolved*;
+		BEGIN resolved := TRUE
+		END Resolved;
 
 		PROCEDURE SetNext*(modifier: Modifier);
 		BEGIN	nextModifier := modifier
