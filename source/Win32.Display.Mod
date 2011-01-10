@@ -767,7 +767,9 @@ VAR
 				| User32.WMSetFocus, User32.WMKillFocus:
 						HandleFocus( win, uMsg, wParam )
 				| User32.WMClose:
-						Machine.Shutdown( TRUE );   (*Modules.Shutdown(0);*) User32.PostQuitMessage( 0 ) (*ALEX 2005.12.13 added this line*)
+						(*Machine.Shutdown( TRUE ); *)  Modules.Shutdown(Modules.PowerDown);
+						User32.PostQuitMessage( 0 ) (*ALEX 2005.12.13 added this line*)
+
 				ELSE handled := FALSE
 				END
 			ELSIF (User32.WMKeyFirst <= uMsg) & (uMsg <= User32.WMKeyLast) THEN
@@ -1064,9 +1066,9 @@ VAR
 	VAR ts: ARRAY 16 OF CHAR;
 		res: LONGINT;  create: CreateStruct;  win: Window;  hMenu: User32.HMenu;  x, y: LONGINT;
 	VAR border: LONGINT;  rect: User32.Rect;   (*ALEX 2005.11.30*)
-	
+
 		hDC: User32.HDC;
-		
+
 	CONST SMCYMaximized = 62;  SMCXMaximized = 61;
 	BEGIN
 		IF disp = NIL THEN
@@ -1139,7 +1141,7 @@ VAR
 
 			User32.BringWindowToTop( root.hWnd );  User32.SetForegroundWindow( root.hWnd );
 		END;
-		
+
 		hDC := User32.GetDC(0);
 		disp.unit := GDI32.GetDeviceCaps(hDC,GDI32.LogPixelsX);
 		disp.unit := ENTIER((36000.0*disp.unit)/25.4);
