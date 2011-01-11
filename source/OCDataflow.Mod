@@ -899,7 +899,7 @@ TYPE
 
 		PROCEDURE GetPortAddress*(number: LONGINT): LONGINT;
 		BEGIN
-			RETURN 0FF10H+2*number;
+			RETURN LONGINT(0FFFFFFD0H)+2*number;
 		END GetPortAddress;
 
 		PROCEDURE Emit*(): BOOLEAN; (* to be overwritten by implementers *)
