@@ -6797,7 +6797,7 @@ TYPE
 
 		PROCEDURE &InitIntermediateBackend*;
 		BEGIN
-			InitBackend;
+			InitBackend;SetRuntimeModuleName(DefaultRuntimeModuleName)
 		END InitIntermediateBackend;
 
 		PROCEDURE Supported*(CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
@@ -6892,8 +6892,8 @@ TYPE
 			GetOptions^(options);
 			trace := options.GetString("trace",traceString);
 			newObjectFile := options.GetFlag("newObjectFile");
-			IF ~options.GetString("runtime",runtimeModuleName) THEN
-				runtimeModuleName := DefaultRuntimeModuleName;
+			IF options.GetString("runtime",name) THEN
+				COPY(name, runtimeModuleName);
 			END;
 			IF ~options.GetString("traceModule",traceModuleName) THEN
 				traceModuleName := DefaultTraceModuleName;
