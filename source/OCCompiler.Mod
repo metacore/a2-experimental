@@ -5,7 +5,7 @@ IMPORT
 	Scanner := OCScanner, Parser := OCParser,
 	SemanticChecker := OCSemanticChecker, SyntaxTree := OCSyntaxTree, Formats := OCFormats,  WMUtilities, D := Debugging,
 	Streams, TextUtilities, Commands,Diagnostics, Options, Kernel, Printout := OCPrintout, Backend := OCBackend,Strings, Global := OCGlobal
-	,Texts,CompilerInterface, Dataflow := OCDataflow;
+	,Texts,CompilerInterface, Dataflow := OCDataflow, UTF8Strings;
 
 CONST
 	(* flags *)
@@ -464,26 +464,46 @@ TYPE
 		RETURN result
 	END GetOptions;
 
+	PROCEDURE UTF8Size(text : Texts.Text; startPos, len : LONGINT): LONGINT;
+	VAR i, length, pos,size : LONGINT; r : Texts.TextReader; ch : Texts.Char32; ok : BOOLEAN;
+		string: ARRAY 16 OF CHAR;
+	BEGIN
+		text.AcquireRead;
+		NEW(r, text);
+		r.SetPosition(startPos);
+		size := 0;i := 0; length := len; ok := TRUE;
+		WHILE (i < length) & ok DO
+			r.ReadCh(ch);
+			IF (ch > 0) THEN
+				pos := 0;
+				ok := UTF8Strings.EncodeChar(ch, string, pos);
+				INC(size,pos);
+			END;
+			INC(i);
+		END;
+		text.ReleaseRead;
+		RETURN size
+	END UTF8Size;
+
 	PROCEDURE GetClipboardReader(): Streams.Reader;
-	VAR a, b : LONGINT;
+	VAR size : LONGINT;
 		selectionText: Texts.Text;
 		pcStr: POINTER TO ARRAY OF CHAR;
 		stringReader: Streams.StringReader;
 	BEGIN
 		selectionText := Texts.clipboard;
 		selectionText.AcquireRead;
-		a := 0;
-		b := selectionText.GetLength();
-		NEW(pcStr,b-a+1);
-		TextUtilities.SubTextToStr(selectionText,0,b-a+1,pcStr^);
+		size := UTF8Size(selectionText,0,selectionText.GetLength())+1;
+		NEW(pcStr,size);
+		TextUtilities.SubTextToStr(selectionText,0,size,pcStr^);
 		selectionText.ReleaseRead;
-		NEW(stringReader,b-a+1);
+		NEW(stringReader,size);
 		stringReader.Set(pcStr^);
 		RETURN stringReader;
 	END GetClipboardReader;
 
 	PROCEDURE GetSelectionReader(): Streams.Reader;
-	VAR a, b : LONGINT;
+	VAR a, b, size : LONGINT;
 		selectionText: Texts.Text;
 		from, to: Texts.TextPosition;
 		pcStr: POINTER TO ARRAY OF CHAR;
@@ -493,7 +513,8 @@ TYPE
 			selectionText.AcquireRead;
 			a := Strings.Min(from.GetPosition(), to.GetPosition());
 			b := Strings.Max(from.GetPosition(), to.GetPosition());
-			NEW(pcStr,b-a+1);
+			size := UTF8Size(selectionText,a,b-a+1)+1;
+			NEW(pcStr,size);
 			TextUtilities.SubTextToStr(selectionText, a, b - a+1, pcStr^);
 			selectionText.ReleaseRead;
 			NEW(stringReader,b-a+1);
@@ -505,17 +526,16 @@ TYPE
 	END GetSelectionReader;
 
 	PROCEDURE GetTextReader(text: Texts.Text; position: LONGINT): Streams.Reader;
-	VAR a, b : LONGINT;
+	VAR size : LONGINT;
 		pcStr: POINTER TO ARRAY OF CHAR;
 		stringReader: Streams.StringReader;
 	BEGIN
 		text.AcquireRead;
-		a := position;
-		b := text.GetLength();
-		NEW(pcStr,b-a+1);
-		TextUtilities.SubTextToStr(text,0,b-a+1,pcStr^);
+		size := UTF8Size(text,0,text.GetLength())+1;
+		NEW(pcStr,size);
+		TextUtilities.SubTextToStr(text,0,size,pcStr^);
 		text.ReleaseRead;
-		NEW(stringReader,b-a+1);
+		NEW(stringReader,size);
 		stringReader.Set(pcStr^);
 		RETURN stringReader;
 	END GetTextReader;
