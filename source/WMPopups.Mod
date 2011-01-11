@@ -1,77 +1,162 @@
-MODULE WMPopups;	(** AUTHOR "BF"; PURPOSE ""; *)
+MODULE WMPopups;	(** AUTHOR "BF"; PURPOSE "Popup Windows"; *)
 
 IMPORT
-	Standard := WMStandardComponents, WMEvents, WM := WMWindowManager, WMComponents,
-	WMGraphics, Strings, WMRectangles;
+	Strings, WMRectangles, WMGraphics, WMEvents, WMWindowManager, WMComponents, WMStandardComponents;
+
+CONST
+
+	LineHeight = 20;
 
 TYPE
-(* Open a Popup *)
-	Popup* = OBJECT (WMComponents.FormWindow)
-	VAR
-		panel : Standard.Panel;
-		count : LONGINT;
-		width : LONGINT;
 
-		PROCEDURE&New*;
+	Entry = OBJECT
+	VAR
+		caption : Strings.String; (* {caption # NIL} *)
+		onClickHandler : WMEvents.EventListener; (* {onClickHandler # NIL} *)
+		parameter : ANY;
+		next : Entry;
+
+		PROCEDURE &Init(caption : Strings.String; onClickHandler : WMEvents.EventListener; parameter : ANY);
 		BEGIN
-			NEW(panel);
-			panel.fillColor.Set(WMGraphics.RGBAToColor(255, 255, 255, 255));
-			count := 0;
-			width := 100
+			ASSERT((caption # NIL) & (onClickHandler # NIL));
+			SELF.caption := caption;
+			SELF.onClickHandler := onClickHandler;
+			SELF.parameter := parameter;
+			next := NIL;
+		END Init;
+
+	END Entry;
+
+TYPE
+
+	PopupWindow = OBJECT(WMComponents.FormWindow)
+	VAR
+		isClosed : BOOLEAN;
+
+		PROCEDURE &New(entries : Entry);
+		VAR vc : WMComponents.VisualComponent;
+		BEGIN
+			ASSERT(entries # NIL);
+			vc := CreateForm(entries);
+			Init(vc.bounds.GetWidth(), vc.bounds.GetHeight(), FALSE);
+			SetContent(vc);
+			isClosed := FALSE;
 		END New;
 
-		PROCEDURE Add* (CONST caption : ARRAY OF CHAR; onClickHandler : WMEvents.EventListener);
-		VAR b : Standard.Button;
-			f : WMGraphics.Font;
-			dw, dh : LONGINT;
+		PROCEDURE CreateForm(entries : Entry) : WMComponents.VisualComponent;
+		VAR
+			panel : WMStandardComponents.Panel;
+			button : WMStandardComponents.Button;
+			font : WMGraphics.Font;
+			entry : Entry;
+			width, height, w, h : LONGINT;
 		BEGIN
-			NEW(b); b.bounds.SetHeight(20); b.caption.SetAOC(caption);
-			b.alignment.Set(WMComponents.AlignTop);
-			b.onClick.Add(onClickHandler);
-			b.onClick.Add(Clicked);
-			panel.AddContent(b);
-			f := b.GetFont(); f.GetStringSize(caption, dw, dh); width := Strings.Min(Strings.Max(width, dw + 10), 1024);
-			INC(count)
-		END Add;
+			NEW(panel);
+			panel.fillColor.Set(WMGraphics.White);
 
-		PROCEDURE AddParButton* (CONST caption : ARRAY OF CHAR; onClickHandler : WMEvents.EventListener; par : ANY);
-		VAR b : Standard.Button;
-			f : WMGraphics.Font;
-			dw, dh : LONGINT;
-		BEGIN
-			NEW(b); b.bounds.SetHeight(20); b.caption.SetAOC(caption); b.userData := par;
-			b.alignment.Set(WMComponents.AlignTop);
-			b.onClick.Add(onClickHandler);
-			b.onClick.Add(Clicked);
-			panel.AddContent(b);
-			f := b.GetFont(); f.GetStringSize(caption, dw, dh); width := Strings.Min(Strings.Max(width, dw + 10), 1024);
-			INC(count)
-		END AddParButton;
+			width := 100; height := 0;
 
-		PROCEDURE Popup* (x, y : LONGINT);
-		BEGIN
-			panel.bounds.SetWidth(width); panel.bounds.SetHeight(count*20);
-			Init(panel.bounds.GetWidth(), panel.bounds.GetHeight(), FALSE);
-			SetContent(panel);
-			manager := WM.GetDefaultManager();
-			manager.Add(x, y, SELF, {WM.FlagStayOnTop, WM.FlagHidden});
-			manager.SetFocus(SELF);
-		END Popup;
+			entry := entries;
+			WHILE (entry # NIL) DO
+				NEW(button);
+				button.alignment.Set(WMComponents.AlignTop);
+				button.bounds.SetExtents(width, LineHeight);
+				button.caption.Set(entry.caption);
+				button.onClick.Add(entry.onClickHandler);
+				button.onClick.Add(Clicked);
+				button.userData := entry.parameter;
+				panel.AddInternalComponent(button);
+
+				font := button.GetFont();
+				font.GetStringSize(entry.caption^, w, h);
+				IF (w + 10 > width) THEN
+					width := w + 10;
+				END;
+				height := height + LineHeight;
+
+				entry := entry.next;
+			END;
+
+			width := Strings.Min(width, 1024);
+
+			panel.bounds.SetExtents(width, height);
+
+			RETURN panel;
+		END CreateForm;
 
 		PROCEDURE Clicked(sender, data : ANY);
 		BEGIN
-			Close
+			Close;
 		END Clicked;
 
 		PROCEDURE FocusLost;
 		BEGIN
-			Close
+			Close;
 		END FocusLost;
+
+		PROCEDURE Close;
+		BEGIN {EXCLUSIVE}
+			IF isClosed THEN RETURN; END;
+			Close^;
+			isClosed := TRUE;
+		END Close;
 
 		PROCEDURE FocusGot;
 		BEGIN
 			manager.SetFocus(SELF)
 		END FocusGot;
+
+	END PopupWindow;
+
+
+	(* Open a Popup *)
+	Popup* = OBJECT
+	VAR
+		first, last : Entry;
+
+		window : PopupWindow;
+
+		PROCEDURE &New*;
+		BEGIN
+			first := NIL; last := NIL;
+			window := NIL;
+		END New;
+
+		PROCEDURE Add*(CONST caption : ARRAY OF CHAR; onClickHandler : WMEvents.EventListener);
+		BEGIN
+			AddParButton(caption, onClickHandler, NIL);
+		END Add;
+
+		PROCEDURE AddParButton*(CONST caption : ARRAY OF CHAR; onClickHandler : WMEvents.EventListener; par : ANY);
+		VAR entry : Entry;
+		BEGIN {EXCLUSIVE}
+			NEW(entry, Strings.NewString(caption), onClickHandler, par);
+			IF (first = NIL) THEN
+				first := entry; last := entry;
+			ELSE
+				last.next := entry; last := entry;
+			END;
+		END AddParButton;
+
+		PROCEDURE Close*;
+		BEGIN {EXCLUSIVE}
+			IF (window # NIL) THEN
+				window.Close;
+				window := NIL;
+			END;
+		END Close;
+
+		PROCEDURE Popup* (x, y : LONGINT);
+		VAR manager : WMWindowManager.WindowManager;
+		BEGIN {EXCLUSIVE}
+			IF (first # NIL) THEN
+				IF (window # NIL) THEN window.Close; END;
+				NEW(window, first);
+				manager := WMWindowManager.GetDefaultManager();
+				manager.Add(x, y, window, {WMWindowManager.FlagStayOnTop, WMWindowManager.FlagHidden});
+				manager.SetFocus(window);
+			END;
+		END Popup;
 
 	END Popup;
 
@@ -97,8 +182,8 @@ TYPE
 
 		PROCEDURE Popup*(x, y : LONGINT);
 		BEGIN
-			manager := WM.GetDefaultManager();
-			manager.Add(x, y, SELF, {WM.FlagStayOnTop, WM.FlagHidden});
+			manager := WMWindowManager.GetDefaultManager();
+			manager.Add(x, y, SELF, {WMWindowManager.FlagStayOnTop, WMWindowManager.FlagHidden});
 			manager.SetFocus(SELF);
 		END Popup;
 
