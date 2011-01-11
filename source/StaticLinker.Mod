@@ -92,6 +92,7 @@ BEGIN
 		END;
 		writer.Ln;
 	END;
+	lines := ((end DIV lines)+1)*lines; (* round up to next multiple of lines *)
 	FOR i := end+1 TO lines -1 DO
 		FOR j := bitsPerLine DIV 4 -1 TO 0 BY -1 DO
 			writer.Char('f');
@@ -101,11 +102,11 @@ BEGIN
 END WriteTRMFile;
 
 PROCEDURE WriteTRMCodeFile* (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
-BEGIN WriteTRMFile (arrangement, writer, 36,2048);
+BEGIN WriteTRMFile (arrangement, writer, 36,1024);
 END WriteTRMCodeFile;
 
 PROCEDURE WriteTRMDataFile* (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
-BEGIN WriteTRMFile (arrangement, writer, 32,2048);
+BEGIN WriteTRMFile (arrangement, writer, 32,1024);
 END WriteTRMDataFile;
 
 PROCEDURE WritePEFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer; bitmode, subSystem: INTEGER);
