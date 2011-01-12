@@ -1058,6 +1058,8 @@ TYPE
 			oldChannel := scope.channels.GetChannel(i);
 			name := "channel"; Basic.AppendNumber(name,i);
 			NEW(channel,name,scope,oldChannel.in.instance,oldChannel.in.port, oldChannel.out.instance,oldChannel.out.port);
+			channel.SetFifoSize(oldChannel.fifoSize);
+			channel.SetWidth(oldChannel.fifoSize);
 			channels.AddChannel(channel);
 		END;
 		FOR i := 0 TO scope.instances.Length()-1 DO
@@ -1073,6 +1075,8 @@ TYPE
 					oldChannel := instance.type.channels.GetChannel(j);
 					name := "channel"; Basic.AppendNumber(name,channels.Length());
 					NEW(channel,name,scope,oldChannel.in.instance,oldChannel.in.port, oldChannel.out.instance,oldChannel.out.port);
+					channel.SetFifoSize(oldChannel.fifoSize);
+					channel.SetWidth(oldChannel.fifoSize);
 					channel.in.instance := EmbedInstance(instance, channel.in.instance);
 					channel.out.instance := EmbedInstance(instance, channel.out.instance);
 					channels.AddChannel(channel);
