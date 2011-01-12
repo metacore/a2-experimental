@@ -396,8 +396,12 @@ VAR
 	BEGIN
 		IF adr # 0 THEN
 			SYSTEM.GET (adr + Heaps.TypeDescOffset, adr);
-			t := SYSTEM.VAL(Modules.TypeDesc, adr);
-			m := t.mod;
+			IF CheckHeapAddress(adr) THEN
+				t := SYSTEM.VAL(Modules.TypeDesc, adr);
+				m := t.mod;
+			ELSE
+				m := NIL; t := NIL
+			END
 		ELSE
 			m := NIL; t := NIL
 		END
@@ -411,7 +415,7 @@ VAR
 			IF module # NIL THEN
 				w.String(module.name);
 			ELSE
-				w.String("NIL");
+				w.String("NIL");  RETURN
 			END;
 			w.String(".");
 			IF typeDesc # NIL THEN
