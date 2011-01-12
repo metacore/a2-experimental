@@ -811,6 +811,8 @@ TYPE
 			NEW(device,"LED",SELF,0); supportedDevices.AddDevice(device);
 			NEW(device,"TIMER",SELF,0FFC6H); supportedDevices.AddDevice(device);
 			NEW(device,"PORT",SELF,0FF10H); supportedDevices.AddDevice(device);
+			NEW(device,"Switch",SELF,0FFFFH); supportedDevices.AddDevice(device);
+			NEW(device,"Motor",SELF,LONGINT(0FFFFFFCEH)); supportedDevices.AddDevice(device);
 			NEW(imports);
 		END Init;
 
