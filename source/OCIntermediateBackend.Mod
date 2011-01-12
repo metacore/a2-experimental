@@ -1599,6 +1599,20 @@ TYPE
 			END;
 		END GetDynamicSize;
 
+		(*
+		to find imported symbol. not needed ?
+		PROCEDURE SymbolByName(CONST moduleName, symbolName: ARRAY OF CHAR): SyntaxTree.Symbol;
+		VAR importedModule: SyntaxTree.Module; symbol: SyntaxTree.Symbol;
+		BEGIN
+			IF AddImport(moduleName,importedModule,FALSE) THEN
+				symbol := importedModule.moduleScope.FindSymbol(SyntaxTree.NewIdentifier(-1,symbolName));
+				RETURN symbol
+			ELSE
+				RETURN NIL
+			END
+		END SymbolByName;
+		*)
+
 		PROCEDURE GetRuntimeProcedure(CONST moduleName, procedureName: ARRAY OF CHAR; VAR procedure: SyntaxTree.Procedure; force: BOOLEAN): BOOLEAN;
 		VAR runtimeModule: SyntaxTree.Module; s: Scanner.StringType;
 		BEGIN
@@ -8687,6 +8701,8 @@ TYPE
 		emptyArraySectionOffset, pointerSectionOffset, numberPointers, exportDescArrayOffset, exportDescSize,
 		exceptionSectionOffset, commandsSectionOffset, typeInfoSectionOffset, procTableSectionOffset, ptrTableSectionOffset, maxPointers, numberProcs,temp,
 		referenceSectionOffset	: LONGINT;
+
+
 
 		PROCEDURE HeapBlock(CONST mName, typeName, suffix: ARRAY OF CHAR; VAR offset: LONGINT): IntermediateCode.Section;
 		VAR name: ARRAY 128 OF CHAR; section: IntermediateCode.Section;

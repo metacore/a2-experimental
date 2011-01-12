@@ -173,6 +173,36 @@ TYPE
 			*)
 		END VisitBasicType;
 
+		PROCEDURE VisitAllType(x: SyntaxTree.AllType);
+		VAR fingerprint: Fingerprint;
+		BEGIN
+			fingerprint := x.fingerprint;
+			IF ~fingerprint.shallowAvailable THEN
+				fingerprint.shallow := fpTypeAll;
+				fingerprint.public := fingerprint.shallow;
+				fingerprint.private := fingerprint.shallow;
+				fingerprint.shallowAvailable := TRUE;
+				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
+				x.SetFingerprint(fingerprint);
+			END;
+			SELF.fingerprint := fingerprint;
+		END VisitAllType;
+
+		PROCEDURE VisitRangeType(x: SyntaxTree.RangeType);
+		VAR fingerprint: Fingerprint;
+		BEGIN
+			fingerprint := x.fingerprint;
+			IF ~fingerprint.shallowAvailable THEN
+				fingerprint.shallow := fpTypeRange;
+				fingerprint.public := fingerprint.shallow;
+				fingerprint.private := fingerprint.shallow;
+				fingerprint.shallowAvailable := TRUE;
+				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
+				x.SetFingerprint(fingerprint);
+			END;
+			SELF.fingerprint := fingerprint;
+		END VisitRangeType;
+
 		PROCEDURE VisitBooleanType(x: SyntaxTree.BooleanType);
 		VAR fingerprint: Fingerprint;
 		BEGIN
@@ -814,8 +844,10 @@ TYPE
 				FPSet(fingerprint.public, flags);
 				IF Trace THEN TraceIndent; D.Str("RecordType Exit Deep "); TraceFP(fingerprint); D.Ln;  END;
 
+				(*
 				ASSERT(fingerprint.private # 0,100);
 				ASSERT(fingerprint.public # 0,101);
+				*)
 				fingerprint.deepAvailable := TRUE;
 				x.SetFingerprint(fingerprint);
 			END;
@@ -973,12 +1005,12 @@ TYPE
 					self := self.nextParameter;
 				END;
 				IF self # NIL THEN FPPar(fp,self) END; (* self parameter *)
-				
+
 				(*
 				IF t.selfParameter # NIL THEN FPPar(fp,t.selfParameter) END; (* self parameter *)
 				self := NIL;
 				*)
-				
+
 				IF Trace THEN
 					TraceIndent; D.Str("FPSignature after self "); D.Hex(fp,-8); D.Ln;
 				END;
