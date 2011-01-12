@@ -335,13 +335,15 @@ VAR
 
 
 	PROCEDURE BodyStarter;
-	VAR p{UNTRACED}: Process;  proc: Body;  id: cThread; res: LONGINT; type: Address;
+	VAR p{UNTRACED}: Process;  proc: Body;  id: cThread; res: LONGINT; prevBP, type: Address;
 	BEGIN
 		mtxLock( start1 );
 			id := thrThis(0);  
 			newProcess.id := id;
 			newProcess.SP := Machine.CurrentSP(  );  
 			newProcess.stackBottom := Machine.CurrentBP( );
+			S.GET( newProcess.stackBottom, prevBP );
+			S.PUT( prevBP, S.VAL( Address, 0 ) );	(* for terminating Reflection.StackTraceBack *)
 			proc := newProcess.proc; 
 			Machine.Acquire( Machine.Heaps );
 			(* processes # NIL *)
