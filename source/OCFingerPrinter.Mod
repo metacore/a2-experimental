@@ -298,7 +298,14 @@ TYPE
 		BEGIN
 			fingerprint := x.fingerprint;
 			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypePointer;
+
+				(* compatibility with binary symbol file : *)
+				IF x.sizeInBits=8 THEN fingerprint.shallow := fpTypeShortint
+				ELSIF x.sizeInBits = 16 THEN fingerprint.shallow := fpTypeInteger
+				ELSIF x.sizeInBits = 32 THEN fingerprint.shallow := fpTypeLongint
+				ELSIF x.sizeInBits = 64 THEN fingerprint.shallow := fpTypeHugeint
+				END;
+
 				fingerprint.public := fingerprint.shallow;
 				fingerprint.private := fingerprint.shallow;
 				fingerprint.shallowAvailable := TRUE;
