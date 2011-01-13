@@ -871,6 +871,7 @@ BEGIN
 	ELSE
 		res := FileNotFound;  COPY(fileName, msg);  Modules.Append(" not found", msg)
 	END;
+	ASSERT(res = Ok);
 	IF res # Ok THEN m := NIL END;
 	RETURN m
 END LoadObj;
