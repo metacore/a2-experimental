@@ -465,7 +465,7 @@ positive: procedure type with value parameter INTEGER
 
 	BEGIN FOR i := 0 TO 4 DO a[i] := i END; r := 0; Iterate (a, Accummulate); ASSERT (r = 10);
 	END Test.
-	
+
 positive: procedure type with value parameter REAL
 
 	MODULE Test;
@@ -494,7 +494,7 @@ positive: procedure type with var parameter INTEGER
 
 	BEGIN k := 0; p := Accummulate; FOR i := 0 TO 4 DO p (k, i) END; ASSERT (k = 10);
 	END Test.
-	
+
 positive: procedure type with var parameter REAL
 
 	MODULE Test;
@@ -542,7 +542,7 @@ positive: procedure type with result type in record INTEGER
 
 	BEGIN p.p := Add; r := p.p (3, 4); ASSERT (r = 7);
 	END Test.
-	
+
 positive: procedure type with result type in record REAL
 
 	MODULE Test;
@@ -2209,6 +2209,18 @@ positive: type guard on pointer to record
 	BEGIN NEW (p1); p1.b := TRUE; p0 := p1; ASSERT (p0(P1).b); ASSERT (p0^(R1).b);
 	END Test.
 
+positive: type guard on returned pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0
+	TYPE R1 = RECORD (R0) b: BOOLEAN END; P1 = POINTER TO R1;
+	VAR p1: P1;
+	PROCEDURE Function (): P0;
+	BEGIN NEW (p1); p1.b := TRUE; RETURN p1;
+	END Function;
+	BEGIN ASSERT (Function ()(P1).b); ASSERT (Function ()^(R1).b);
+	END Test.
+
 negative: unsatisfied type guard on pointer to record
 
 	MODULE Test;
@@ -2218,6 +2230,14 @@ negative: unsatisfied type guard on pointer to record
 	BEGIN NEW (p0); p1 := p0(P1);
 	END Test.
 
+negative: type guard on nil pointer to same record
+
+	MODULE Test;
+	TYPE R = RECORD END; P = POINTER TO R;
+	VAR p: P;
+	BEGIN p := NIL; p := p(P);
+	END Test.
+
 negative: type guard on nil pointer to record
 
 	MODULE Test;
@@ -2225,6 +2245,18 @@ negative: type guard on nil pointer to record
 	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
 	VAR p0: P0; p1: P1;
 	BEGIN p0 := NIL; p1 := p0(P1);
+	END Test.
+
+negative: type guard on returned nil pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR p1: P1;
+	PROCEDURE Function (): P0;
+	BEGIN RETURN NIL;
+	END Function;
+	BEGIN p1 := Function ()(P1);
 	END Test.
 
 positive: type guard on same object
@@ -2244,6 +2276,18 @@ positive: type guard on object
 	BEGIN NEW (o1); o1.b := TRUE; o0 := o1; ASSERT (o0(O1).b);
 	END Test.
 
+positive: type guard on returned object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) VAR b: BOOLEAN END O1;
+	VAR o1: O1;
+	PROCEDURE Function (): O0;
+	BEGIN NEW (o1); o1.b := TRUE; RETURN o1;
+	END Function;
+	BEGIN ASSERT (Function ()(O1).b);
+	END Test.
+
 negative: unsatisfied type guard on object
 
 	MODULE Test;
@@ -2251,6 +2295,14 @@ negative: unsatisfied type guard on object
 	TYPE O1 = OBJECT (O0) END O1;
 	VAR o0: O0; o1: O1;
 	BEGIN NEW (o0); o1 := o0(O1);
+	END Test.
+
+negative: type guard on same nil object
+
+	MODULE Test;
+	TYPE O = OBJECT END O;
+	VAR o: O;
+	BEGIN o := NIL; o := o(O);
 	END Test.
 
 negative: type guard on nil object
@@ -2262,6 +2314,18 @@ negative: type guard on nil object
 	BEGIN o0 := NIL; o1 := o0(O1);
 	END Test.
 
+negative: type guard on returned nil object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o1: O1;
+	PROCEDURE Function (): O0;
+	BEGIN RETURN NIL;
+	END Function;
+	BEGIN o1 := Function ()(O1);
+	END Test.
+
 positive: type guard on base object
 
 	MODULE Test;
@@ -2271,6 +2335,18 @@ positive: type guard on base object
 	BEGIN NEW (o1); o1.b := TRUE; o0 := o1; ASSERT (o0(O1).b);
 	END Test.
 
+positive: type guard on returned base object
+
+	MODULE Test;
+	TYPE O0 = OBJECT;
+	TYPE O1 = OBJECT (O0) VAR b: BOOLEAN END O1;
+	VAR o1: O1;
+	PROCEDURE Function (): O0;
+	BEGIN NEW (o1); o1.b := TRUE; RETURN o1;
+	END Function;
+	BEGIN ASSERT (Function ()(O1).b);
+	END Test.
+
 negative: type guard on nil base object
 
 	MODULE Test;
@@ -2278,6 +2354,18 @@ negative: type guard on nil base object
 	TYPE O1 = OBJECT (O0) END O1;
 	VAR o0: O0; o1: O1;
 	BEGIN o0 := NIL; o1 := o0(O1);
+	END Test.
+
+negative: type guard on returned nil base object
+
+	MODULE Test;
+	TYPE O0 = OBJECT;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o1: O1;
+	PROCEDURE Function (): O0;
+	BEGIN RETURN NIL;
+	END Function;
+	BEGIN o1 := Function ()(O1);
 	END Test.
 
 
@@ -2382,6 +2470,18 @@ positive: type test on pointer to record
 	BEGIN NEW (p1); p0 := p1; ASSERT (p0 IS P1); ASSERT (p0^ IS R1);
 	END Test.
 
+positive: type test on returned pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR p1: P1;
+	PROCEDURE Function (): P0;
+	BEGIN NEW (p1); RETURN p1;
+	END Function;
+	BEGIN ASSERT (Function () IS P1); ASSERT (Function ()^ IS R1);
+	END Test.
+
 positive: unsatisfied type test on pointer to record
 
 	MODULE Test;
@@ -2391,13 +2491,45 @@ positive: unsatisfied type test on pointer to record
 	BEGIN NEW (p0); ASSERT (~(p0 IS P1)); ASSERT (~(p0^ IS R1));
 	END Test.
 
+positive: unsatisfied type test on returned pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR p0: P0;
+	PROCEDURE Function (): P0;
+	BEGIN NEW (p0); RETURN p0;
+	END Function;
+	BEGIN ASSERT (~(Function () IS P1)); ASSERT (~(Function ()^ IS R1));
+	END Test.
+
+negative: type test on nil pointer to same record
+
+	MODULE Test;
+	TYPE R = RECORD END; P = POINTER TO R;
+	VAR p: P; result: BOOLEAN
+	BEGIN p := NIL; result := p IS P;
+	END Test.
+
 negative: type test on nil pointer to record
 
 	MODULE Test;
 	TYPE R0 = RECORD END; P0 = POINTER TO R0;
 	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
-	VAR p0: P0;
-	BEGIN p0 := NIL; ASSERT (~(p0 IS P1));
+	VAR p0: P0; result: BOOLEAN
+	BEGIN p0 := NIL; result := p0 IS P1;
+	END Test.
+
+negative: type test on returned nil pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0;
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR result: BOOLEAN
+	PROCEDURE Function (): P0;
+	BEGIN RETURN NIL;
+	END Function;
+	BEGIN result := Function () IS P1;
 	END Test.
 
 positive: type test on same object
@@ -2417,6 +2549,18 @@ positive: type test on object
 	BEGIN NEW (o1); o0 := o1; ASSERT (o0 IS O1);
 	END Test.
 
+positive: type test on returned object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o1: O1;
+	PROCEDURE Function (): O0;
+	BEGIN NEW (o1); RETURN o1;
+	END Function;
+	BEGIN ASSERT (Function () IS O1);
+	END Test.
+
 positive: unsatisfied type test on object
 
 	MODULE Test;
@@ -2426,13 +2570,45 @@ positive: unsatisfied type test on object
 	BEGIN NEW (o0); ASSERT (~(o0 IS O1));
 	END Test.
 
-negative: type test on nil object
+positive: unsatisfied type test on returned object
 
 	MODULE Test;
 	TYPE O0 = OBJECT END O0;
 	TYPE O1 = OBJECT (O0) END O1;
 	VAR o0: O0;
-	BEGIN o0 := NIL; ASSERT (~(o0 IS O1));
+	PROCEDURE Function (): O0;
+	BEGIN NEW (o0); RETURN o0;
+	END Function;
+	BEGIN ASSERT (~(Function () IS O1));
+	END Test.
+
+negative: type test on same nil object
+
+	MODULE Test;
+	TYPE O = OBJECT END O;
+	VAR o: O; result: BOOLEAN;
+	BEGIN o := NIL; result := o IS O;
+	END Test.
+
+negative: type test on nil object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0; result: BOOLEAN;
+	BEGIN o0 := NIL; result := o0 IS O1;
+	END Test.
+
+negative: type test on returned nil object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR result: BOOLEAN;
+	PROCEDURE Function (): O0;
+	BEGIN RETURN NIL;
+	END Function;
+	BEGIN result := Function () IS O1;
 	END Test.
 
 positive: type test on base object
@@ -2444,13 +2620,37 @@ positive: type test on base object
 	BEGIN NEW (o1); o0 := o1; ASSERT (o0 IS O1);
 	END Test.
 
+positive: type test on returned base object
+
+	MODULE Test;
+	TYPE O0 = OBJECT;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o1: O1;
+	PROCEDURE Function (): O0;
+	BEGIN NEW (o1); RETURN o1;
+	END Function;
+	BEGIN ASSERT (Function () IS O1);
+	END Test.
+
 negative: type test on nil base object
 
 	MODULE Test;
 	TYPE O0 = OBJECT;
 	TYPE O1 = OBJECT (O0) END O1;
-	VAR o0: O0;
-	BEGIN o0 := NIL; ASSERT (~(o0 IS O1));
+	VAR o0: O0; result: BOOLEAN;
+	BEGIN o0 := NIL; result := o0 IS O1;
+	END Test.
+
+negative: type test on returned nil base object
+
+	MODULE Test;
+	TYPE O0 = OBJECT;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR result: BOOLEAN;
+	PROCEDURE Function (): O0;
+	BEGIN RETURN NIL;
+	END Function;
+	BEGIN result := Function () IS O1;
 	END Test.
 
 
@@ -4111,11 +4311,25 @@ positive: case statement with character value
 		ASSERT (Case ('o') = 1); ASSERT (Case ('r') = 2); ASSERT (Case ('t') = 0); ASSERT (Case ('z') = 3); ASSERT (Case (10X) = 2);
 	END Test.
 
+negative: case statement with too low character value
+
+	MODULE Test;
+	VAR c: CHAR;
+	BEGIN c := 'a'; CASE c OF | 'b'..'g': | 's', 'r': | 'u', 'v': END;
+	END Test.
+
+negative: case statement with too high character value
+
+	MODULE Test;
+	VAR c: CHAR;
+	BEGIN c := 'w'; CASE c OF | 'b'..'g': | 's', 'r': | 'u', 'v': END;
+	END Test.
+
 negative: case statement with unmatched character value
 
 	MODULE Test;
 	VAR c: CHAR;
-	BEGIN c := 't'; CASE c OF | 'a'..'g': | 's', 'r': | 'u', 'v': END;
+	BEGIN c := 't'; CASE c OF | 'b'..'g': | 's', 'r': | 'u', 'v': END;
 	END Test.
 
 positive: case statement with integer value
@@ -4126,6 +4340,20 @@ positive: case statement with integer value
 	END Case;
 	BEGIN ASSERT (Case (0) = 3); ASSERT (Case (1) = 0); ASSERT (Case (2) = 2); ASSERT (Case (3) = 0); ASSERT (Case (4) = 1);
 		ASSERT (Case (5) = 1); ASSERT (Case (6) = 1); ASSERT (Case (7) = 3); ASSERT (Case (8) = 2); ASSERT (Case (9) = 0);
+	END Test.
+
+negative: case statement with too low integer value
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN i := 0; CASE i OF | 1, 3, 9: | 4..6: | 8, 2: END;
+	END Test.
+
+negative: case statement with too high integer value
+
+	MODULE Test;
+	VAR i: INTEGER;
+	BEGIN i := 10; CASE i OF | 1, 3, 9: | 4..6: | 8, 2: END;
 	END Test.
 
 negative: case statement with unmatched integer value
@@ -4174,6 +4402,13 @@ positive: modifying end counter in for statement
 	MODULE Test;
 	VAR i, steps, end: INTEGER;
 	BEGIN steps := 0; end := 10; FOR i := 0 TO end DO end := i; INC (steps) END; ASSERT (steps = 11);
+	END Test.
+
+positive: using counter as end counter for statement
+
+	MODULE Test;
+	VAR i, steps: INTEGER;
+	BEGIN steps := 0; i := 10; FOR i := 0 TO i DO INC (steps) END; ASSERT (steps = 1);
 	END Test.
 
 
@@ -4351,6 +4586,16 @@ positive: with statement with pointer to record
 	BEGIN NEW (p1); p1.b := TRUE; p0 := p1; WITH p0 : P1 DO ASSERT (p0.b); END;
 	END Test.
 
+negative: with statement with reassigned pointer to record
+
+	MODULE Test;
+	TYPE R0 = RECORD END; P0 = POINTER TO R0
+	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
+	VAR p0: P0; p1: P1;
+	PROCEDURE Reassign; BEGIN NEW (p0); END Reassign;
+	BEGIN NEW (p1); p0 := p1; WITH p0 : P1 DO Reassign; p1 := p0; END;
+	END Test.
+
 negative: unsatisfied with statement with pointer to record
 
 	MODULE Test;
@@ -4358,6 +4603,14 @@ negative: unsatisfied with statement with pointer to record
 	TYPE R1 = RECORD (R0) END; P1 = POINTER TO R1;
 	VAR p0: P0;
 	BEGIN NEW (p0); WITH p0 : P1 DO END;
+	END Test.
+
+negative: with statement with nil pointer to same record
+
+	MODULE Test;
+	TYPE R = RECORD END; P = POINTER TO R;
+	VAR p: P;
+	BEGIN p := NIL; WITH p : P DO END;
 	END Test.
 
 negative: with statement with nil pointer to record
@@ -4386,6 +4639,16 @@ positive: with statement with object
 	BEGIN NEW (o1); o1.b := TRUE; o0 := o1; WITH o0 : O1 DO ASSERT (o0.b); END;
 	END Test.
 
+negative: with statement with reassigned object
+
+	MODULE Test;
+	TYPE O0 = OBJECT END O0;
+	TYPE O1 = OBJECT (O0) END O1;
+	VAR o0: O0; o1: O1;
+	PROCEDURE Reassign; BEGIN NEW (o0); END Reassign;
+	BEGIN NEW (o1); o0 := o1; WITH o0 : O1 DO Reassign; o1 := o0; END;
+	END Test.
+
 negative: unsatisfied with statement with object
 
 	MODULE Test;
@@ -4393,6 +4656,14 @@ negative: unsatisfied with statement with object
 	TYPE O1 = OBJECT (O0) END O1;
 	VAR o0: O0;
 	BEGIN NEW (o0); WITH o0 : O1 DO END;
+	END Test.
+
+negative: with statement with same nil object
+
+	MODULE Test;
+	TYPE O = OBJECT END O;
+	VAR o: O;
+	BEGIN o := NIL; WITH o : O DO END;
 	END Test.
 
 negative: with statement with nil object
@@ -4752,6 +5023,14 @@ positive: copy statement on string and longer array of character
 	BEGIN COPY (Source, dest); ASSERT (dest = Source);
 	END Test.
 
+positive: copy statement on empty string and array of character
+
+	MODULE Test;
+	CONST Source = "";
+	VAR dest: ARRAY 20 OF CHAR;
+	BEGIN COPY (Source, dest); ASSERT (dest = Source); ASSERT (dest[0] = 0X);
+	END Test.
+
 positive: copy statement with array of character parameter as source
 
 	MODULE Test;
@@ -4918,6 +5197,16 @@ positive: copy statement with string as source and array of character parameter 
 	BEGIN Procedure ("destination");
 	END Test.
 
+positive: copy statement with empty string as source and array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "";
+	PROCEDURE Procedure (dest: ARRAY 20 OF CHAR);
+	BEGIN COPY (Source, dest); ASSERT (dest = Source); ASSERT (dest[0] = 0X);
+	END Procedure;
+	BEGIN Procedure ("destination");
+	END Test.
+
 positive: copy statement with string as source and variable array of character parameter as destination
 
 	MODULE Test;
@@ -4929,12 +5218,33 @@ positive: copy statement with string as source and variable array of character p
 	BEGIN Procedure (dest); ASSERT (dest = Source);
 	END Test.
 
+positive: copy statement with empty string as source and variable array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "";
+	VAR dest: ARRAY 20 OF CHAR;
+	PROCEDURE Procedure (VAR dest: ARRAY 20 OF CHAR);
+	BEGIN COPY (Source, dest);
+	END Procedure;
+	BEGIN Procedure (dest); ASSERT (dest = Source); ASSERT (dest[0] = 0X);
+	END Test.
+
 positive: copy statement with string as source and open array of character parameter as destination
 
 	MODULE Test;
 	CONST Source = "source";
 	PROCEDURE Procedure (dest: ARRAY OF CHAR);
 	BEGIN COPY (Source, dest); ASSERT (dest = Source);
+	END Procedure;
+	BEGIN Procedure ("destination");
+	END Test.
+
+positive: copy statement with empty string as source and open array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "";
+	PROCEDURE Procedure (dest: ARRAY OF CHAR);
+	BEGIN COPY (Source, dest); ASSERT (dest = Source); ASSERT (dest[0] = 0X);
 	END Procedure;
 	BEGIN Procedure ("destination");
 	END Test.
@@ -4958,6 +5268,17 @@ positive: copy statement with string as source and open variable array of charac
 	BEGIN COPY (Source, dest);
 	END Procedure;
 	BEGIN Procedure (dest); ASSERT (dest = Source);
+	END Test.
+
+positive: copy statement with empty string as source and open variable array of character parameter as destination
+
+	MODULE Test;
+	CONST Source = "";
+	VAR dest: ARRAY 20 OF CHAR;
+	PROCEDURE Procedure (VAR dest: ARRAY OF CHAR);
+	BEGIN COPY (Source, dest);
+	END Procedure;
+	BEGIN Procedure (dest); ASSERT (dest = Source); ASSERT (dest[0] = 0X);
 	END Test.
 
 negative: copy statement with string as source and too short open variable array of character parameter as destination
@@ -5370,6 +5691,23 @@ negative: await statement in non-exclusive block
 	BEGIN condition := FALSE; Await;
 	END Test.
 
+positive: await statement satisfied by active object
+
+	MODULE Test;
+	VAR done: BOOLEAN;
+	VAR o: OBJECT BEGIN{ACTIVE} Done; END;
+	PROCEDURE Done; BEGIN{EXCLUSIVE} done := TRUE; END Done;
+	PROCEDURE P; BEGIN{EXCLUSIVE} AWAIT(done) END P;
+	BEGIN done := FALSE; NEW(o); P;
+	END Test.
+
+negative: await statement after exit statement in exclusive block
+
+	MODULE Test;
+	VAR condition: BOOLEAN;
+	BEGIN condition := FALSE; LOOP BEGIN {EXCLUSIVE} EXIT; END; END; AWAIT (condition);
+	END Test.
+
 
 # procedure variables
 
@@ -5659,7 +5997,7 @@ negative: natural sum with several asynchronous concurrent accumulators
 		VAR i: INTEGER; done: BOOLEAN;
 		PROCEDURE &Init; BEGIN done := FALSE; END Init;
 		PROCEDURE Await; BEGIN {EXCLUSIVE} AWAIT (done); END Await;
-	BEGIN {ACTIVE, EXCLUSIVE} FOR i := 1 TO 100 DO Add END; done := TRUE;
+		BEGIN {ACTIVE, EXCLUSIVE} FOR i := 1 TO 100 DO Add END; done := TRUE;
 	END Accumulator;
 	VAR acc0, acc1, acc2: Accumulator; sum: INTEGER;
 	PROCEDURE Busy; VAR i: INTEGER; BEGIN FOR i := 1 TO 100 DO END; END Busy;
