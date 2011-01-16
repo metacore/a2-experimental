@@ -201,7 +201,8 @@ VAR
 		n := checkRoot;
 		WHILE n # NIL DO  (* iterate over checked list *)
 			t := n;  n := n.nextFin;
-			IF (codeAdr <= S.VAL( Address, t.finalizer )) & (S.VAL( Address, t.finalizer ) <= codeEnd) THEN
+			IF Machine.LessOrEqual( codeAdr, S.VAL( Address, t.finalizer ) ) & 
+			    Machine.LessOrEqual( S.VAL( Address, t.finalizer ), codeEnd ) THEN
 				IF t = checkRoot THEN  checkRoot := t.nextFin  ELSE  p.nextFin := t.nextFin  END;
 				IF Stats THEN DEC(NfinalizeAlive) END;
 			ELSE  p := t
@@ -211,7 +212,8 @@ VAR
 		n := finalizeRoot;
 		WHILE n # NIL DO  (* iterate over finalized list *)
 			t := n;  n := n.nextFin;
-			IF (codeAdr <= S.VAL( Address, t.finalizer )) & (S.VAL( Address, t.finalizer ) <= codeEnd) THEN
+			IF Machine.LessOrEqual( codeAdr, S.VAL( Address, t.finalizer ) ) & 
+			    Machine.LessOrEqual( S.VAL( Address, t.finalizer ), codeEnd ) THEN
 				IF t = finalizeRoot THEN  finalizeRoot := t.nextFin  ELSE  p.nextFin := t.nextFin  END;
 				IF Stats THEN DEC(NfinalizeDead) END;
 			ELSE  p := t
@@ -417,7 +419,9 @@ VAR
 			h := h DIV 3;  i := h;
 			WHILE i < nofcand DO
 				p := candidates[i];  j := i;
-				WHILE (j >= h) & (candidates[j - h] > p) DO  candidates[j] := candidates[j - h];  j := j - h  END;
+				WHILE (j >= h) & Machine.GreaterThan(candidates[j - h], p) DO  
+					candidates[j] := candidates[j - h];  j := j - h  
+				END;
 				candidates[j] := p;  INC( i )
 			END
 		UNTIL h = 1;
@@ -432,7 +436,7 @@ VAR
 			block := sb.beginBlockAdr;  sbEnd := sb.endBlockAdr;
 
 			LOOP
-				IF p <= block + AdrSize THEN
+				IF Machine.LessOrEqual( p, block + AdrSize ) THEN
 					IF p = block + AdrSize THEN
 						S.GET( block, tag1 );
 						IF tag1 # p THEN  Mark( S.VAL( ANY, p ) )  END
@@ -469,7 +473,7 @@ VAR
 					INC( block, blockSize );
 					(* end of next block calc *)
 
-					IF block >= sbEnd THEN  EXIT   END;
+					IF Machine.GreaterOrEqual( block, sbEnd ) THEN  EXIT   END;
 				END
 			END;
 
@@ -481,7 +485,7 @@ VAR
 
 
 	PROCEDURE AddCandidate*( p: Address );
-	VAR tag0Addr, tag0, tag: Address;
+	VAR tag0Addr, tag0: Address;  tag: SET;
 	BEGIN
 		IF p MOD 32 = 0 THEN
 			tag0Addr := p - AdrSize (* RecBlk, ArrBlk *)
@@ -495,7 +499,7 @@ VAR
 			S.GET( tag0Addr, tag0 );
 			IF ODD( tag0 ) THEN  RETURN  END;  (* already marked *)
 			S.GET ( p - AdrSize, tag );
-			IF ValidAddress( tag DIV 4 * 4 ) THEN
+			IF ValidAddress( S.VAL( Address, tag - {ArrayBit, MarkBit} ) ) THEN
 				candidates[nofcand] := p;  INC( nofcand );
 				IF nofcand = LEN( candidates ) THEN  CheckCandidates  END
 			END;
@@ -604,7 +608,7 @@ VAR
 		RETURN ptr
 	END GetBlock;
 
-	PROCEDURE ClearMem*( a, len: LONGINT );
+	PROCEDURE ClearMem*( a: Address; len: LONGINT );
 	BEGIN
 		Machine.Fill32( a, len, 0 )
 	END ClearMem;
@@ -756,7 +760,8 @@ VAR
 		IF (p # 0 ) & (p MOD 4 = 0) THEN
 			sb := Machine.memBlockHead;
 			WHILE sb # NIL DO
-				IF (p >= sb.beginBlockAdr) & (p <= sb.endBlockAdr) THEN  RETURN TRUE  END;
+				IF Machine.LessOrEqual( sb.beginBlockAdr, p ) & 
+				    Machine.LessOrEqual( p, sb.endBlockAdr ) THEN  RETURN TRUE  END;
 				sb := sb.next;
 			END
 		END;
@@ -764,19 +769,21 @@ VAR
 	END ValidAddress;
 
 	PROCEDURE ValidPointer( p: Address ): BOOLEAN;   (* check if p is a valid pointer into the Heap *)
-	VAR tag: Address;  ok: BOOLEAN;
+	VAR tag: SET;  ok: BOOLEAN;
 	BEGIN
-		ok := FALSE;  tag := 0;
+		ok := FALSE;  tag := {};
 		IF ValidAddress( p ) THEN
 			IF p MOD 16 = 8 THEN  ok := TRUE (* subobject or sysblock *)
 			ELSE
 				S.GET( p - AdrSize, tag );
-				ok := ValidAddress( tag DIV 4 * 4 )
+				ok := ValidAddress( S.VAL( Address, tag - {ArrayBit, MarkBit} ) )
 			END
 		END;
 		IF ~ok THEN
 			Trace.String( "illegal pointer value: " ); Trace.Hex( p, -8 );
-			IF tag # 0 THEN  Trace.String( " (bad tag: " );  Trace.Hex( tag, -8 );  Trace.Char( ')' )  END;
+			IF tag # {} THEN  
+				Trace.String( " (bad tag: " );  Trace.Hex( S.VAL( Address, tag ), -8 );  Trace.Char( ')' )  
+			END;
 			Trace.Ln
 		END;
 		RETURN ok
