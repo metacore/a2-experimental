@@ -216,10 +216,6 @@ TYPE
 	END TimerActivity;
 
 
-CONST
-	(* host system values *)
-	Solaris = 1;  Linux = 2;  Darwin = 3;
-
 VAR
 	timers: Timer;  
 	timerActivity: TimerActivity;
@@ -289,9 +285,7 @@ VAR
 		mtxLock( hdr.mtx );
 		WHILE hdr.locked DO
 			(* wait until thread with satisfied AWAIT condition has left the monitor *)
-			mtxUnlock( hdr.mtx );
-			IF hostSystem = Darwin THEN  Yield  END;
-			mtxLock( hdr.mtx )
+			mtxUnlock( hdr.mtx );  Yield;  mtxLock( hdr.mtx )
 		END;
 		p.mode := Running;
 	END Lock;
@@ -318,13 +312,13 @@ VAR
 	VAR hdr: ObjectHeader;  c: Process;
 	BEGIN
 		hdr := S.VAL( ObjectHeader, S.VAL( Address, obj ) - Heaps.ProtOfs );
-		c := NIL;
 		IF hdr.awaitingCond.head # NIL THEN
 			c := FindCondition( hdr.awaitingCond );
-			IF c # NIL THEN  hdr.locked := TRUE  END;
+			IF c # NIL THEN  
+				hdr.locked := TRUE;  conSignal( c.cond )
+			END;
 		END;
 		mtxUnlock( hdr.mtx );
-		IF c # NIL THEN  conSignal( c.cond )  END;
 	END Unlock;
 
 	PROCEDURE RegisterFinalizer( obj: ANY;  fin: Heaps.Finalizer );
@@ -698,15 +692,6 @@ VAR
 		END;
 	END GetStacksize;
 
-	PROCEDURE GetHostSystem;
-	BEGIN
-		IF Unix.version = "Solaris" THEN  hostSystem := Solaris
-		ELSIF Unix.version = "Linux" THEN  hostSystem := Linux
-		ELSIF Unix.version = "Darwin"  THEN  hostSystem := Darwin
-		ELSE  hostSystem := Unknown
-		END
-	END GetHostSystem;
-
 	
 	PROCEDURE Convert;
 	VAR p: Process;
@@ -758,7 +743,7 @@ VAR
 		traceGC := 1 IN Glue.debug;
 		traceThreads := 2 IN Glue.debug;
 		
-		GetHostSystem;  GetStacksize;  
+		GetStacksize;  
 		
 		Convert;
 		StartTimer;
