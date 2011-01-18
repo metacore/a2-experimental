@@ -37,7 +37,7 @@ CONST
 	GC* = 8;
 	MaxLocks = 9;   (* { <= 32 } *)
 
-	StrongChecks = TRUE;
+	StrongChecks = FALSE;
 
 	HeaderSize = 40H; (* cf. Linker0 *)
 	EndBlockOfs = 38H;	(* cf. Linker0 *)
@@ -543,6 +543,8 @@ END Init;
 		Kernel32.EnterCriticalSection( cs[level] );
 		IF StrongChecks THEN
 			ASSERT ( lock[level] = "N", 1001 );
+		ELSIF lock[level] # "N" THEN
+			Trace.String("warning: reentered non-reentrant lock"); Trace.Ln;
 		END;
 		lock[level] := "Y";
 	END Acquire;
@@ -552,8 +554,10 @@ END Init;
 	BEGIN
 		IF StrongChecks THEN
 			ASSERT ( lock[level] ="Y", 1002 );
-	  END;
-	  lock[level] := "N";
+		ELSIF lock[level] # "Y" THEN
+			Trace.String("warning: reentered non-reentrant lock"); Trace.Ln;
+		END;
+		lock[level] := "N";
 		Kernel32.LeaveCriticalSection( cs[level] )
 	END Release;
 
