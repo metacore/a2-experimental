@@ -614,7 +614,7 @@ TYPE
 			implementationVisitor.moduleScope := x.moduleScope;
 			implementationVisitor.moduleSelf := moduleSelf;
 
-			IF forceModuleBody OR ScopeNeedsInitialization(x.moduleScope) THEN
+			IF forceModuleBody OR implementationVisitor.newObjectFile OR ScopeNeedsInitialization(x.moduleScope) THEN
 				EnsureBodyProcedure; (* currently needed in Oberon, remove ? *)
 			END;
 
@@ -8203,7 +8203,7 @@ TYPE
 				ELSIF type IS SyntaxTree.ObjectType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.PointerType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.ProcedureType THEN char := rfDelegate
-				ELSE ASSERT(arrayOf); char := rfPointer; (*RETURN (* ARRAY OF unknown (record): do not write anything *)*)
+				ELSE (*ASSERT(arrayOf);*) char := rfPointer; (*RETURN (* ARRAY OF unknown (record): do not write anything *)*)
 				END;
 				IF arrayOf THEN
 					MetaChar(module,section,CHR(ORD(char)+ORD(rfArrayFlag)));
