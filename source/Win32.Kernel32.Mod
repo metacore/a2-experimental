@@ -609,6 +609,11 @@ VAR
 	(** The QueryPerformanceFrequency function retrieves the frequency of the high-resolution
 			performance counter, if one exists. *)
 	QueryPerformanceFrequency-: PROCEDURE {WINAPI} ( VAR lpFrequency: LargeInteger ): BOOL;
+
+	(** Retrieves the cycle time for the specified thread (both user and kernel mode, Windows Vista and newer) *)
+	QueryThreadCycleTime- : PROCEDURE {WINAPI} (hThread : HANDLE; VAR cycleTime : HUGEINT) : BOOL;
+
+
 	(** The ReadFile function reads data from a file, starting at the position indicated by the file pointer. *)
 	ReadFile-: PROCEDURE {WINAPI} ( hFile: HANDLE;
 															  VAR lpBuffer: ARRAY   OF SYSTEM.BYTE;
@@ -868,6 +873,7 @@ VAR
 		GetProcAddress(mod, "QueryDosDeviceA",SYSTEM.VAL(ADDRESS,QueryDosDevice));
 		GetProcAddress(mod, "QueryPerformanceCounter",SYSTEM.VAL(ADDRESS,QueryPerformanceCounter));
 		GetProcAddress(mod, "QueryPerformanceFrequency",SYSTEM.VAL(ADDRESS,QueryPerformanceFrequency));
+		GetProcAddress(mod, "QueryThreadCycleTime", SYSTEM.VAL(ADDRESS, QueryThreadCycleTime));
 		GetProcAddress(mod, "ReadFile",SYSTEM.VAL(ADDRESS,ReadFile));
 		GetProcAddress(mod, "ReadProcessMemory",SYSTEM.VAL(ADDRESS,ReadProcessMemory));
 		GetProcAddress(mod, "RemoveDirectoryA",SYSTEM.VAL(ADDRESS,RemoveDirectory));
