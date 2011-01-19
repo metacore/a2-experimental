@@ -1245,33 +1245,21 @@ BEGIN
 	RETURN n
 END NumReady;
 
-(** Return number of CPU cycles consumed by the specified process for each processor. If all is TRUE,
+(** Return number of CPU cycles consumed by the specified process. If all is TRUE,
 	return the number of cycles since the process has been created. If FALSE, return the number of cycles
 	consumed since the last time asked. *)
 PROCEDURE GetCpuCycles*(process : Process; VAR cpuCycles : CpuCyclesArray; all : BOOLEAN);
-VAR
-	creationTime, kernelTime, userTime, exitTime: Kernel32.FileTime;
-	ret, t : HUGEINT;
-	res : Kernel32.BOOL;
+VAR res : Kernel32.BOOL; temp : HUGEINT; i : LONGINT;
 BEGIN
 	ASSERT(process # NIL);
-	res := Kernel32.GetThreadTimes( process.handle, creationTime, exitTime, kernelTime, userTime );
-	IF (res = Kernel32.False) THEN RETURN; END;
-	t := kernelTime.dwHighDateTime;  t := Machine.MulH( t, 2147483648 );
-	t := Machine.MulH( t, 2 );
-	ret := t + kernelTime.dwLowDateTime + userTime.dwLowDateTime;
-
-	t := userTime.dwHighDateTime;  t := Machine.MulH( t, 2147483648 );
-	t := Machine.MulH( t, 2 );
-	ret := ret + t;
-
-	IF ~all THEN
-		t := ret - process.lastThreadTimes;
-		process.lastThreadTimes := ret;
-	ELSE
-		t := ret;
+	IF (Kernel32.QueryThreadCycleTime # NIL) THEN
+		res := Kernel32.QueryThreadCycleTime(process.handle, cpuCycles[0]);
+		IF ~all & (res = Kernel32.True) THEN
+			temp := process.lastThreadTimes;
+			process.lastThreadTimes := cpuCycles[0];
+			cpuCycles[0] := cpuCycles[0] - temp;
+		END;
 	END;
-	cpuCycles[0] := Machine.MulH(t, 100);
 END GetCpuCycles;
 
 BEGIN
