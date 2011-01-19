@@ -118,6 +118,154 @@ TYPE
 
 	ConditionalBranch = PROCEDURE {DELEGATE}(label: Label; op1,op2: IntermediateCode.Operand);
 
+
+	ProfilerVisitor=OBJECT(SyntaxTree.Visitor)
+	VAR
+		module: Sections.Module;
+		moduleScope: SyntaxTree.ModuleScope;
+		profileId: SyntaxTree.Variable;
+		system: Global.System;
+		checker: SemanticChecker.Checker;
+		setupProcedure: SyntaxTree.Procedure;
+		procedureNumber: LONGINT;
+		implementationVisitor: ImplementationVisitor;
+
+		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; checker: SemanticChecker.Checker);
+		BEGIN
+			SELF.system := system;
+			SELF.checker := checker;
+			SELF.implementationVisitor := implementationVisitor;
+		END Init;
+
+		PROCEDURE GetCall(procedure: SyntaxTree.Procedure; p0,p1,p2: SyntaxTree.Expression): SyntaxTree.ProcedureCallStatement;
+		VAR
+			symbolDesignator: SyntaxTree.Expression;
+			procedureDesignator: SyntaxTree.Designator;
+			parameters: SyntaxTree.ExpressionList
+		BEGIN
+			parameters := SyntaxTree.NewExpressionList();
+			IF p0 # NIL THEN parameters.AddExpression(p0) END;
+			IF p1 # NIL THEN parameters.AddExpression(p1) END;
+			IF p2 # NIL THEN parameters.AddExpression(p2) END;
+			symbolDesignator := checker.NewSymbolDesignator(0,NIL,procedure);
+			procedureDesignator:= checker.ResolveDesignator(SyntaxTree.NewParameterDesignator(0, symbolDesignator(SyntaxTree.Designator), parameters));
+			RETURN SyntaxTree.NewProcedureCallStatement(0,procedureDesignator,setupProcedure.procedureScope.body);
+		END GetCall;
+
+		PROCEDURE GetProcedureCall(CONST moduleName, procedureName: ARRAY OF CHAR; p0,p1,p2: SyntaxTree.Expression): SyntaxTree.ProcedureCallStatement;
+		VAR
+			call: SyntaxTree.ProcedureCallStatement;
+			procedure: SyntaxTree.Procedure;
+		BEGIN
+			call := NIL;
+			IF implementationVisitor.GetRuntimeProcedure(moduleName, procedureName, procedure, TRUE) THEN
+				call := GetCall(procedure,p0,p1,p2);
+			END;
+			RETURN call;
+		END GetProcedureCall;
+
+		PROCEDURE VisitProcedure(x: SyntaxTree.Procedure);
+		VAR call: SyntaxTree.ProcedureCallStatement; p0,p1: SyntaxTree.Expression;
+			name: SyntaxTree.String;
+		BEGIN
+			IF (x # moduleScope.bodyProcedure) & (x.procedureScope.body.statements # NIL) & (x.procedureScope.body # NIL) THEN
+				checker.SetCurrentScope(x.procedureScope);
+				p0 := checker.NewSymbolDesignator(0,NIL,profileId);
+				p1 := Global.NewIntegerValue(system,1,procedureNumber);
+
+				call := GetProcedureCall("OCProfiler","EnterProcedure",p0,p1,NIL);
+				IF call # NIL THEN
+					x.procedureScope.body.statements.PrependStatement(call);
+				END;
+
+				Global.GetSymbolName(x,name);
+				call := GetProcedureCall("OCProfiler","AddProcedure",p0,p1,SyntaxTree.NewStringValue(2,name));
+				IF call # NIL THEN
+					setupProcedure.procedureScope.body.statements.AddStatement(call);
+				END;
+
+				call := GetProcedureCall("OCProfiler","ExitProcedure",p0,p1,NIL);
+				IF call # NIL THEN
+					x.procedureScope.body.statements.AddStatement(call);
+				END;
+				INC(procedureNumber);
+			END;
+		END VisitProcedure;
+
+		PROCEDURE Scope(x: SyntaxTree.Scope);
+		VAR procedure: SyntaxTree.Procedure;
+		BEGIN
+			procedure := x.firstProcedure;
+			WHILE procedure # NIL DO
+				VisitProcedure(procedure);
+				procedure := procedure.nextProcedure;
+			END;
+		END Scope;
+
+		(** entry function to visit a complete module *)
+		PROCEDURE Module(x: SyntaxTree.Module; module: Sections.Module);
+		VAR b: BOOLEAN;
+			procedureScope: SyntaxTree.ProcedureScope;
+			procedureType: SyntaxTree.ProcedureType;
+			procedure: SyntaxTree.Procedure;
+			call: SyntaxTree.ProcedureCallStatement;
+			name: SyntaxTree.String;
+			p0,p1,p2: SyntaxTree.Expression;
+		BEGIN
+			SELF.module := module;
+			SELF.moduleScope := x.moduleScope;
+			procedureNumber := 0;
+
+			profileId := SyntaxTree.NewVariable(0,SyntaxTree.NewIdentifier(-1,"@moduleId"));
+			profileId.SetType(system.longintType);
+			x.moduleScope.AddVariable(profileId);
+			b := system.GenerateVariableOffsets(x.moduleScope);
+			ASSERT(b);
+			checker.Register(profileId,x.moduleScope,FALSE);
+			implementationVisitor.moduleScope := moduleScope;
+			implementationVisitor.module := module;
+
+			procedureScope := SyntaxTree.NewProcedureScope(x.moduleScope);
+			setupProcedure := SyntaxTree.NewProcedure(0,SyntaxTree.NewIdentifier(-1,"@InitProfile"),procedureScope);
+			procedureScope.SetBody(SyntaxTree.NewBody(0,procedureScope));
+			procedureType := SyntaxTree.NewProcedureType(0,procedureScope);
+			setupProcedure.SetType(procedureType);
+			procedureScope.body.SetStatementSequence(SyntaxTree.NewStatementSequence());
+
+			Scope(x.moduleScope);
+
+			x.moduleScope.AddProcedure(setupProcedure);
+			(*setupProcedure.SetScope(x.moduleScope);*)
+			checker.Register(setupProcedure,x.moduleScope,FALSE);
+			checker.VisitProcedure(setupProcedure);
+
+			EnsureBodyProcedure(moduleScope);
+			IF moduleScope.bodyProcedure.procedureScope.body.statements = NIL THEN
+				moduleScope.bodyProcedure.procedureScope.body.SetStatementSequence(SyntaxTree.NewStatementSequence());
+			END;
+
+			procedure := setupProcedure;
+			checker.SetCurrentScope(moduleScope.bodyProcedure.procedureScope);
+			call := GetCall(procedure,NIL,NIL,NIL);
+			moduleScope.bodyProcedure.procedureScope.body.statements.PrependStatement(call);
+
+			p0 := checker.NewSymbolDesignator(0,NIL,profileId);
+			p1 := Global.NewIntegerValue(system,1,procedureNumber);
+			Global.GetSymbolName(x,name);
+			p2 := SyntaxTree.NewStringValue(2,name);
+			call := GetProcedureCall("OCProfiler","AddModule",p0, p1,p2);
+			IF call # NIL THEN
+				IF setupProcedure.procedureScope.body.statements = NIL THEN
+					setupProcedure.procedureScope.body.SetStatementSequence(SyntaxTree.NewStatementSequence());
+				END;
+				setupProcedure.procedureScope.body.statements.PrependStatement(call);
+			END;
+
+		END Module;
+
+	END ProfilerVisitor;
+
+
 	DeclarationVisitor =OBJECT(SyntaxTree.Visitor)
 	VAR
 		backend: IntermediateBackend;
@@ -128,6 +276,9 @@ TYPE
 		moduleSelf: SyntaxTree.Variable;
 		dump: BOOLEAN;
 		forceModuleBody: BOOLEAN;
+		(*
+		profileId, profileInit: IntermediateCode.Section;
+		*)
 
 		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; backend: IntermediateBackend; forceModuleBody, dump: BOOLEAN);
 		BEGIN
@@ -340,14 +491,11 @@ TYPE
 			prevScope: SyntaxTree.Scope;
 			inline: BOOLEAN;
 			procedureType: SyntaxTree.ProcedureType;
-			procedure: SyntaxTree.Procedure;
 			pc: LONGINT;
 			stackSize: LONGINT;
 			parSize: LONGINT;
 			name: SyntaxTree.String; ir: IntermediateCode.Section;
 			null,size,fp: IntermediateCode.Operand;
-			result: Operand;
-			alignment : LONGINT;
 			cc: LONGINT;
 			actorType: SyntaxTree.ActorType;
 
@@ -545,22 +693,6 @@ TYPE
 		VAR
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand; name: SyntaxTree.String;
 
-			PROCEDURE EnsureBodyProcedure;
-			VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope;
-			BEGIN
-				procedure := x.moduleScope.bodyProcedure;
-				IF procedure = NIL THEN (* artificially add body procedure if not existing. Really needed? *)
-					procedureScope := SyntaxTree.NewProcedureScope(module.module.moduleScope);
-					procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,"$$BODY"), procedureScope);
-					procedure.SetScope(module.module.moduleScope);
-					procedure.SetType(SyntaxTree.NewProcedureType(-1,module.module.moduleScope));
-					procedure.SetAccess(SyntaxTree.Hidden);
-					module.module.moduleScope.SetBodyProcedure(procedure);
-					module.module.moduleScope.AddProcedure(procedure);
-					procedureScope.SetBody(SyntaxTree.NewBody(-1,procedureScope)); (* empty body *)
-				END;
-			END EnsureBodyProcedure;
-
 			PROCEDURE TypeNeedsInitialization(type: SyntaxTree.Type): BOOLEAN;
 			BEGIN
 				type := type.resolved;
@@ -609,17 +741,44 @@ TYPE
 				ir.Emit(Data(op));
 			END;
 
-
 			implementationVisitor.module := module;
 			implementationVisitor.moduleScope := x.moduleScope;
 			implementationVisitor.moduleSelf := moduleSelf;
 
 			IF forceModuleBody OR implementationVisitor.newObjectFile OR ScopeNeedsInitialization(x.moduleScope) THEN
-				EnsureBodyProcedure; (* currently needed in Oberon, remove ? *)
+				EnsureBodyProcedure(x.moduleScope); (* currently needed in Oberon, remove ? *)
 			END;
 
+			(*
+			IF backend.profile THEN
+				EnsureBodyProcedure;
+				Global.GetModuleName(module.module,name); Strings.Append(name,"."); Strings.Append(name,"@ModuleId");
+				profileId := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,NIL,dump);
+				profileId.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(system.longintType))));
+				Global.GetModuleName(module.module, name); Strings.Append(name,"."); Strings.Append(name,"@InitProfiler");
+				profileInit := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,NIL,dump);
+				profileInit.Emit(Enter(0,0));
+				IF implementationVisitor.GetRuntimeProcedure("OCProfiler","AddModule",procedure,TRUE) THEN
+					profileInit.Emit(Push());
+					profileInit.Emit(Push());
+					profileInit.Emit(Push());
+
+					implementationVisitor.StaticCallOperand(result,procedure);
+					profileInit.Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
+					implementationVisitor.ReleaseOperand(result);
+				END;
+			END;
+			*)
 
 			Scope(x.moduleScope);
+
+			(*
+			IF backend.profile THEN
+				(* patch number procedures *)
+				profileInit.Emit(Leave(0));
+				profileInit.Emit(Exit(0));
+			END;
+			*)
 		END Module;
 
 	END DeclarationVisitor;
@@ -1001,13 +1160,6 @@ TYPE
 			UnuseRegister(op.tag.register);
 			UnuseRegister(op.extra.register);
 		END ReleaseOperand;
-
-		PROCEDURE UseOperand(CONST op: Operand);
-		BEGIN
-			UseIntermediateOperand(op.op);
-			UseIntermediateOperand(op.tag);
-			UseIntermediateOperand(op.extra);
-		END UseOperand;
 
 		(* save registers marked in array "markedRegisters" to the stack
 			remove entries from array "markedRegisters" and save to array "saved" (=> recursion possible)
@@ -6808,6 +6960,7 @@ TYPE
 		runtimeModuleName-: SyntaxTree.String;
 		traceModuleName-: SyntaxTree.String;
 		newObjectFile-: BOOLEAN;
+		profile-: BOOLEAN;
 
 		PROCEDURE &InitIntermediateBackend*;
 		BEGIN
@@ -6823,6 +6976,7 @@ TYPE
 		PROCEDURE GenerateIntermediate*(x: SyntaxTree.Module): Sections.Module;
 		VAR
 			declarationVisitor: DeclarationVisitor;
+			profilerVisitor: ProfilerVisitor;
 			implementationVisitor: ImplementationVisitor;
 			module: Sections.Module;
 			name, instructionSet: SyntaxTree.String;
@@ -6835,9 +6989,16 @@ TYPE
 				dataflowSpecification.SetInstructionSet(instructionSet)
 			END;
 
+
 			NEW(module,x,system); (* backend structures *)
 			NEW(implementationVisitor,system,checker,Supported,Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
 			NEW(declarationVisitor,system,implementationVisitor,SELF,Compiler.ForceModuleBodies IN flags,trace);
+
+			IF profile THEN
+				NEW(profilerVisitor,system,implementationVisitor,checker);
+				profilerVisitor.Module(x,module);
+			END;
+
 			declarationVisitor.Module(x,module);
 
 
@@ -6853,8 +7014,6 @@ TYPE
 			dump: WMUtilities.WindowWriter;
 			module: Sections.Module;
 			traceName: SyntaxTree.String;
-			codeGenerator: GenericCodeGenerator;
-			in: Sections.Section; out: BinaryCode.Section;
 		BEGIN
 			module := GenerateIntermediate(x);
 
@@ -6898,6 +7057,7 @@ TYPE
 			options.Add(0X,"runtime",Options.String);
 			options.Add(0X,"newObjectFile",Options.Flag);
 			options.Add(0X,"traceModule",Options.String);
+			options.Add(0X,"profile",Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -6906,6 +7066,7 @@ TYPE
 			GetOptions^(options);
 			trace := options.GetString("trace",traceString);
 			newObjectFile := options.GetFlag("newObjectFile");
+			profile := options.GetFlag("profile");
 			IF options.GetString("runtime",name) THEN
 				COPY(name, runtimeModuleName);
 			END;
@@ -7881,6 +8042,22 @@ TYPE
 	BEGIN
 		RETURN (op.mode = IntermediateCode.ModeRegister) & (op.register > 0) & (op.offset = 0);
 	END ReusableRegister;
+
+	PROCEDURE EnsureBodyProcedure(moduleScope: SyntaxTree.ModuleScope);
+	VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope;
+	BEGIN
+		procedure := moduleScope.bodyProcedure;
+		IF procedure = NIL THEN (* artificially add body procedure if not existing. Really needed? *)
+			procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
+			procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,"$$BODY"), procedureScope);
+			procedure.SetScope(moduleScope);
+			procedure.SetType(SyntaxTree.NewProcedureType(-1,moduleScope));
+			procedure.SetAccess(SyntaxTree.Hidden);
+			moduleScope.SetBodyProcedure(procedure);
+			moduleScope.AddProcedure(procedure);
+			procedureScope.SetBody(SyntaxTree.NewBody(-1,procedureScope)); (* empty body *)
+		END;
+	END EnsureBodyProcedure;
 
 	PROCEDURE MetaHeapBlock(implementationVisitor: ImplementationVisitor; CONST moduleName, typeName: ARRAY OF CHAR; module: Sections.Module; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
 	VAR moduleTD: IntermediateCode.Section; offset: LONGINT;

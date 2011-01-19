@@ -6662,7 +6662,7 @@ TYPE
 		(*** scopes ***)
 
 		(** Register a symbol in a scope. Check for duplicate symbols and collision with globally defined symbols. **)
-		PROCEDURE Register(symbol: SyntaxTree.Symbol; scope: SyntaxTree.Scope; allowDuplicate: BOOLEAN);
+		PROCEDURE Register*(symbol: SyntaxTree.Symbol; scope: SyntaxTree.Scope; allowDuplicate: BOOLEAN);
 		VAR duplicateSymbol: BOOLEAN;
 		BEGIN
 			ASSERT(symbol.name # NIL);
