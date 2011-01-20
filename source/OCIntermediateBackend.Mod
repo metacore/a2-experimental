@@ -168,7 +168,7 @@ TYPE
 		VAR call: SyntaxTree.ProcedureCallStatement; p0,p1: SyntaxTree.Expression;
 			name: SyntaxTree.String;
 		BEGIN
-			IF (x # moduleScope.bodyProcedure) & (x.procedureScope.body.statements # NIL) & (x.procedureScope.body # NIL) THEN
+			IF (x # moduleScope.bodyProcedure) & (x.procedureScope # NIL)  & (x.procedureScope.body # NIL) & (x.procedureScope.body.statements # NIL) THEN
 				checker.SetCurrentScope(x.procedureScope);
 				p0 := checker.NewSymbolDesignator(0,NIL,profileId);
 				p1 := Global.NewIntegerValue(system,1,procedureNumber);
@@ -192,14 +192,38 @@ TYPE
 			END;
 		END VisitProcedure;
 
+		PROCEDURE Type(x: SyntaxTree.Type);
+		BEGIN
+			IF x IS SyntaxTree.RecordType THEN
+				Scope(x(SyntaxTree.RecordType).recordScope);
+			END;
+		END Type;
+
+		PROCEDURE VisitTypeDeclaration(x: SyntaxTree.TypeDeclaration);
+		BEGIN
+			Type(x.declaredType); (* => code in objects *)
+			IF ~(x.declaredType IS SyntaxTree.QualifiedType) & (x.declaredType.resolved IS SyntaxTree.PointerType) THEN
+				Type(x.declaredType.resolved(SyntaxTree.PointerType).pointerBase);
+			END;
+		END VisitTypeDeclaration;
+
+
 		PROCEDURE Scope(x: SyntaxTree.Scope);
-		VAR procedure: SyntaxTree.Procedure;
+		VAR procedure: SyntaxTree.Procedure; typeDeclaration: SyntaxTree.TypeDeclaration;
 		BEGIN
 			procedure := x.firstProcedure;
 			WHILE procedure # NIL DO
 				VisitProcedure(procedure);
 				procedure := procedure.nextProcedure;
 			END;
+
+			typeDeclaration := x.firstTypeDeclaration;
+			WHILE typeDeclaration # NIL DO
+				VisitTypeDeclaration(typeDeclaration);
+				typeDeclaration := typeDeclaration.nextTypeDeclaration;
+			END;
+
+
 		END Scope;
 
 		(** entry function to visit a complete module *)
@@ -216,8 +240,9 @@ TYPE
 			SELF.moduleScope := x.moduleScope;
 			procedureNumber := 0;
 
-			profileId := SyntaxTree.NewVariable(0,SyntaxTree.NewIdentifier(-1,"@moduleId"));
+			profileId := SyntaxTree.NewVariable(0,SyntaxTree.NewIdentifier(-1,"@profileId"));
 			profileId.SetType(system.longintType);
+			profileId.SetAccess(SyntaxTree.Internal); (* make it writable for the checker *)
 			x.moduleScope.AddVariable(profileId);
 			b := system.GenerateVariableOffsets(x.moduleScope);
 			ASSERT(b);
@@ -227,6 +252,7 @@ TYPE
 
 			procedureScope := SyntaxTree.NewProcedureScope(x.moduleScope);
 			setupProcedure := SyntaxTree.NewProcedure(0,SyntaxTree.NewIdentifier(-1,"@InitProfile"),procedureScope);
+			setupProcedure.SetAccess(SyntaxTree.Hidden);
 			procedureScope.SetBody(SyntaxTree.NewBody(0,procedureScope));
 			procedureType := SyntaxTree.NewProcedureType(0,procedureScope);
 			setupProcedure.SetType(procedureType);
@@ -260,6 +286,8 @@ TYPE
 				END;
 				setupProcedure.procedureScope.body.statements.PrependStatement(call);
 			END;
+
+			profileId.SetAccess(SyntaxTree.Hidden); (* hide variable in symbol file *)
 
 		END Module;
 
