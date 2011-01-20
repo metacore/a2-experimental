@@ -118,7 +118,7 @@ TYPE
 
 	ConditionalBranch = PROCEDURE {DELEGATE}(label: Label; op1,op2: IntermediateCode.Operand);
 
-
+	(*
 	ProfilerVisitor=OBJECT(SyntaxTree.Visitor)
 	VAR
 		module: Sections.Module;
@@ -292,7 +292,7 @@ TYPE
 		END Module;
 
 	END ProfilerVisitor;
-
+	*)
 
 	DeclarationVisitor =OBJECT(SyntaxTree.Visitor)
 	VAR
@@ -304,9 +304,7 @@ TYPE
 		moduleSelf: SyntaxTree.Variable;
 		dump: BOOLEAN;
 		forceModuleBody: BOOLEAN;
-		(*
-		profileId, profileInit: IntermediateCode.Section;
-		*)
+
 
 		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; backend: IntermediateBackend; forceModuleBody, dump: BOOLEAN);
 		BEGIN
@@ -777,36 +775,29 @@ TYPE
 				EnsureBodyProcedure(x.moduleScope); (* currently needed in Oberon, remove ? *)
 			END;
 
-			(*
-			IF backend.profile THEN
-				EnsureBodyProcedure;
-				Global.GetModuleName(module.module,name); Strings.Append(name,"."); Strings.Append(name,"@ModuleId");
-				profileId := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,NIL,dump);
-				profileId.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(system.longintType))));
-				Global.GetModuleName(module.module, name); Strings.Append(name,"."); Strings.Append(name,"@InitProfiler");
-				profileInit := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,NIL,dump);
-				profileInit.Emit(Enter(0,0));
-				IF implementationVisitor.GetRuntimeProcedure("OCProfiler","AddModule",procedure,TRUE) THEN
-					profileInit.Emit(Push());
-					profileInit.Emit(Push());
-					profileInit.Emit(Push());
 
-					implementationVisitor.StaticCallOperand(result,procedure);
-					profileInit.Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
-					implementationVisitor.ReleaseOperand(result);
-				END;
+			IF backend.profile THEN
+				EnsureBodyProcedure(x.moduleScope);
+				Global.GetModuleName(module.module,name); Strings.Append(name,"."); Strings.Append(name,"@ModuleId");
+				implementationVisitor.profileId := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,NIL,dump);
+				implementationVisitor.profileId.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(system.longintType))));
+				Global.GetModuleName(module.module, name); Strings.Append(name,"."); Strings.Append(name,"@InitProfiler");
+				implementationVisitor.profileInit := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,NIL,dump);
+				implementationVisitor.profileInit.Emit(Enter(0,0));
+
+				Global.GetModuleName(module.module,name);
+				implementationVisitor.ProfilerAddModule(name);
+				implementationVisitor.numberProcedures := 0;
 			END;
-			*)
+			implementationVisitor.profile := backend.profile;
 
 			Scope(x.moduleScope);
 
-			(*
+
 			IF backend.profile THEN
-				(* patch number procedures *)
-				profileInit.Emit(Leave(0));
-				profileInit.Emit(Exit(0));
+				implementationVisitor.ProfilerPatchInit;
 			END;
-			*)
+
 		END Module;
 
 	END DeclarationVisitor;
@@ -936,6 +927,11 @@ TYPE
 		newObjectFile: BOOLEAN;
 		currentActorScope: SyntaxTree.ActorScope;
 		indexCounter: LONGINT;
+
+		profile: BOOLEAN;
+		profileId, profileInit: IntermediateCode.Section;
+		profileInitPatchPosition: LONGINT;
+		numberProcedures: LONGINT;
 
 		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
@@ -4057,6 +4053,80 @@ TYPE
 		END MakeTypeTag;
 		*)
 
+		PROCEDURE ProfilerInit;
+		VAR reg: IntermediateCode.Operand;
+		BEGIN
+			IntermediateCode.InitAddress(reg, addressType, profileInit , 0);
+			Emit(Call(reg,0));
+		END ProfilerInit;
+
+		PROCEDURE ProfilerEnterExit(procedureNumber: LONGINT; enter: BOOLEAN);
+		VAR reg: IntermediateCode.Operand; result: Operand; procedure: SyntaxTree.Procedure;
+		BEGIN
+			IF enter & GetRuntimeProcedure("OCProfiler","EnterProcedure",procedure,TRUE)
+			OR ~enter & GetRuntimeProcedure("OCProfiler","ExitProcedure",procedure,TRUE)
+			THEN
+				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
+				IntermediateCode.MakeMemory(reg, GetType(system,system.longintType));
+				Emit(Push(reg));
+				IntermediateCode.InitImmediate(reg, GetType(system,system.longintType), procedureNumber);
+				Emit(Push(reg));
+				StaticCallOperand(result,procedure);
+				Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
+				ReleaseOperand(result);
+			END;
+		END ProfilerEnterExit;
+
+		PROCEDURE ProfilerAddProcedure(procedureNumber: LONGINT; CONST name: ARRAY OF CHAR);
+		VAR reg: IntermediateCode.Operand; result: Operand; procedure: SyntaxTree.Procedure; sv: SyntaxTree.StringValue;type: SyntaxTree.Type;
+		BEGIN
+			IF GetRuntimeProcedure("OCProfiler","AddProcedure",procedure,TRUE) THEN
+				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
+				IntermediateCode.MakeMemory(reg, GetType(system,system.longintType));
+				profileInit.Emit(Push(reg));
+				profileInitPatchPosition := profileInit.pc;
+				profileInit.Emit(Nop()); (* placeholder, will be patched by number of procedures *)
+				sv := SyntaxTree.NewStringValue(-1,name);
+				type := SyntaxTree.NewStringType(-1,system.characterType,Strings.Length(name));
+				sv.SetType(type);
+				Designate(sv,result);
+				profileInit.Emit(Push(result.tag));
+				profileInit.Emit(Push(result.op));
+				StaticCallOperand(result,procedure);
+				profileInit.Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
+				ReleaseOperand(result);
+			END;
+		END ProfilerAddProcedure;
+
+		PROCEDURE ProfilerAddModule(CONST name: ARRAY OF CHAR);
+		VAR sv: SyntaxTree.StringValue; type: SyntaxTree.Type; result: Operand;  reg: IntermediateCode.Operand; procedure: SyntaxTree.Procedure;
+		BEGIN
+			IF GetRuntimeProcedure("OCProfiler","AddModule",procedure,TRUE) THEN
+				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
+				profileInit.Emit(Push(reg));
+				profileInitPatchPosition := profileInit.pc;
+				profileInit.Emit(Nop()); (* placeholder, will be patched by number of procedures *)
+				sv := SyntaxTree.NewStringValue(-1,name);
+				type := SyntaxTree.NewStringType(-1,system.characterType,Strings.Length(name));
+				sv.SetType(type);
+				Designate(sv,result);
+				profileInit.Emit(Push(result.tag));
+				profileInit.Emit(Push(result.op));
+				StaticCallOperand(result,procedure);
+				profileInit.Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
+				ReleaseOperand(result);
+			END;
+		END ProfilerAddModule;
+
+		PROCEDURE ProfilerPatchInit;
+		VAR reg: IntermediateCode.Operand;
+		BEGIN
+			IntermediateCode.InitImmediate(reg, GetType(system,system.longintType), numberProcedures);
+			profileInit.EmitAt(profileInitPatchPosition,Push(reg));
+			profileInit.Emit(Leave(0));
+			profileInit.Emit(Exit(0));
+		END ProfilerPatchInit;
+
 		PROCEDURE SystemTrace(x: SyntaxTree.ExpressionList);
 		VAR
 			traceModule: SyntaxTree.Module;
@@ -6912,6 +6982,15 @@ TYPE
 				ReleaseIntermediateOperand(res);
 			END;
 			IF x # NIL THEN
+				IF profile & (x.code = NIL) THEN (* do not profile assembler code sections *)
+					IF moduleBody THEN
+						ProfilerInit();
+					ELSE
+						ProfilerAddProcedure(numberProcedures,ir.name);
+						ProfilerEnterExit(numberProcedures,TRUE);
+					END;
+				END;
+
 				section.SetAlignment(procedure.fixed, procedure.alignment);
 				IF moduleBody THEN
 					InitVariables(moduleScope)
@@ -6927,6 +7006,10 @@ TYPE
 					ir.SetFinally(ir.pc);
 					StatementSequence(x.finally)
 				END;
+				IF profile & (x.code = NIL) & ~moduleBody THEN (* do not profile assembler code sections *)
+					ProfilerEnterExit(numberProcedures,FALSE);
+				END;
+
 			END;
 			IF newObjectFile & moduleBody  & ~suppressModuleRegistration THEN
 				PushSelfPointer();
@@ -7004,7 +7087,9 @@ TYPE
 		PROCEDURE GenerateIntermediate*(x: SyntaxTree.Module): Sections.Module;
 		VAR
 			declarationVisitor: DeclarationVisitor;
+			(*
 			profilerVisitor: ProfilerVisitor;
+			*)
 			implementationVisitor: ImplementationVisitor;
 			module: Sections.Module;
 			name, instructionSet: SyntaxTree.String;
@@ -7022,10 +7107,12 @@ TYPE
 			NEW(implementationVisitor,system,checker,Supported,Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
 			NEW(declarationVisitor,system,implementationVisitor,SELF,Compiler.ForceModuleBodies IN flags,trace);
 
+			(*
 			IF profile THEN
 				NEW(profilerVisitor,system,implementationVisitor,checker);
 				profilerVisitor.Module(x,module);
 			END;
+			*)
 
 			declarationVisitor.Module(x,module);
 
