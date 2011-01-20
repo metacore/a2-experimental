@@ -4084,8 +4084,8 @@ TYPE
 				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
 				IntermediateCode.MakeMemory(reg, GetType(system,system.longintType));
 				profileInit.Emit(Push(reg));
-				profileInitPatchPosition := profileInit.pc;
-				profileInit.Emit(Nop()); (* placeholder, will be patched by number of procedures *)
+				IntermediateCode.InitImmediate(reg, GetType(system,system.longintType), procedureNumber);
+				profileInit.Emit(Push(reg));
 				sv := SyntaxTree.NewStringValue(-1,name);
 				type := SyntaxTree.NewStringType(-1,system.characterType,Strings.Length(name));
 				sv.SetType(type);
@@ -6634,45 +6634,25 @@ TYPE
 				procedureType := currentScope(SyntaxTree.ProcedureScope).ownerProcedure.type(SyntaxTree.ProcedureType);
 				type := expression.type.resolved;
 				IF (expression IS SyntaxTree.SymbolDesignator) & (expression(SyntaxTree.SymbolDesignator).symbol = procedureType.returnParameter) THEN
+					IF locked THEN Lock(FALSE) END;
+					IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 					(* "RETURN RESULT" -> no assignment, it is assumed that result has been written to return parameter via structured return type *)
-				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.RangeType) (*OR
-						(type IS SyntaxTree.ProcedureType) & ~type(SyntaxTree.ProcedureType).isDelegate OR*) OR  (type IS SyntaxTree.PointerType) THEN
+				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.RangeType) OR (type IS SyntaxTree.PointerType) THEN
 					(* return without structured return parameter *)
 					Evaluate(expression,res);
 					delegate := (type IS SyntaxTree.ProcedureType) & (type(SyntaxTree.ProcedureType).isDelegate);
-					IF locked THEN
+					IF locked OR profile THEN
 						Emit(Push(res.op));
-						IF delegate THEN HALT(200); Emit(Push(res.tag)) END;
+						IF delegate THEN HALT(200) END;
 						ReleaseOperand(res);
-						Lock(FALSE);
-						(*
-						IF delegate THEN
-							AcquireThisRegister(GetType(system,type),IntermediateCode.Result2);
-							Emit(Pop(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result2)));
-							registers.Unuse(IntermediateCode.Result2);
-						END;
-						*)
+						IF locked THEN Lock(FALSE) END;
+						IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 						reg := NewRegisterOperand(res.op.type);
 						Emit(Pop(reg));
 						Emit(Return(reg));
 						ReleaseIntermediateOperand(reg);
-						(*
-						AcquireThisRegister(GetType(system,type),IntermediateCode.Result);
-						Emit(Pop(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result)));
-						registers.Unuse(IntermediateCode.Result);
-						*)
 					ELSE
 						Emit(Return(res.op));
-						(*
-						AcquireThisRegister(GetType(system,type),IntermediateCode.Result);
-						Emit(Mov(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result),res.op));
-						registers.Unuse(IntermediateCode.Result);
-						IF delegate THEN
-							AcquireThisRegister(GetType(system,type),IntermediateCode.Result2);
-							Emit(Mov(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result2),res.tag));
-							registers.Unuse(IntermediateCode.Result2);
-						END;
-						*)
 						ReleaseOperand(res);
 					END;
 				ELSIF (type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.RangeType)
@@ -6714,8 +6694,8 @@ TYPE
 						ReleaseOperand(right)
 					END;
 					ReleaseIntermediateOperand(left);
-					IF locked THEN Lock(FALSE) END
-
+					IF locked THEN Lock(FALSE) END;
+					IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 				ELSIF (type IS SyntaxTree.MathArrayType) OR (type IS SyntaxTree.ProcedureType) THEN
 					parameter := procedureType.returnParameter;
 					checker.SetCurrentScope(currentScope);
@@ -6726,29 +6706,20 @@ TYPE
 						parameterDesignator := checker.NewSymbolDesignator(expression.position,NIL,parameter);
 						Assign(parameterDesignator,expression);
 					END;
-					(*
-					operatorCall := checker.NewOperatorCall(expression.position,Scanner.Becomes,parameterDesignator,expression,NIL);
-					Expression(operatorCall);
-					*)
-					IF locked THEN Lock(FALSE) END
+					IF locked THEN Lock(FALSE) END;
+					IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 				ELSE
 					HALT(200);
 				END;
-			ELSIF locked THEN Lock(FALSE)
+			ELSE
+				IF locked THEN Lock(FALSE) END;
+				IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 			END;
 			procedure := currentScope(SyntaxTree.ProcedureScope).ownerProcedure;
 			parSize := ProcedureParametersSize(system,procedure);
 
-			(*
-			IF SyntaxTree.WinAPIFlag IN procedure.type(SyntaxTree.ProcedureType).flags THEN cc := SyntaxTree.WinAPIFlag
-			ELSIF SyntaxTree.CFlag IN procedure.type(SyntaxTree.ProcedureType).flags THEN cc := SyntaxTree.CFlag
-			ELSE cc := 0
-			END;
-			*)
-
 			Emit(Leave(procedure.type(SyntaxTree.ProcedureType).callingConvention));
 			Emit(Exit(parSize));
-			(*Emit(Return(parSize));*)
 			IF Trace THEN TraceExit("VisitReturnStatement") END;
 		END VisitReturnStatement;
 
@@ -7008,6 +6979,7 @@ TYPE
 				END;
 				IF profile & (x.code = NIL) & ~moduleBody THEN (* do not profile assembler code sections *)
 					ProfilerEnterExit(numberProcedures,FALSE);
+					INC(numberProcedures);
 				END;
 
 			END;
