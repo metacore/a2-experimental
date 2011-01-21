@@ -336,11 +336,11 @@ BEGIN
 Streams.OpenWriter( log, KernelLog.Send ); *) Calibrate;  Init;
 END OCProfiler.
 
-OCProfiler.Report ~
-OCProfiler.Report time ~
-OCProfiler.Report calls ~
-OCProfiler.Report name ~
-OCProfiler.Report brut ~
+WMUtilities.Call --font=Courier OCProfiler.Report ~
+WMUtilities.Call --font=Courier OCProfiler.Report time ~
+WMUtilities.Call --font=Courier OCProfiler.Report calls ~
+WMUtilities.Call --font=Courier OCProfiler.Report name ~
+WMUtilities.Call --font=Courier OCProfiler.Report brut ~
 
 
 

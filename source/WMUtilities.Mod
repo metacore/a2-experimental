@@ -73,6 +73,7 @@ TYPE
 		PROCEDURE &New*(CONST title : ARRAY OF CHAR; width, height : LONGINT; alpha : BOOLEAN);
 		BEGIN
 			NEW(window, title, width, height, alpha);
+
 			Init(window.editor.editor.text);
 		END New;
 
@@ -90,12 +91,15 @@ VAR
 	options : Options.Options;
 	newContext : Commands.Context;
 	res : LONGINT;
+	fontName: ARRAY 128 OF CHAR;
 BEGIN
 	NEW(options);
 	options.Add("b", "blocking", Options.Flag);
+	options.Add("f","font",Options.String);
 	IF options.Parse(context.arg, context.out) THEN
 		context.arg.SkipWhitespace; context.arg.String(command);
 		NEW(writer, command, 700, 480, FALSE);
+		IF options.GetString("font",fontName) THEN writer.SetFontName(fontName) END;
 		NEW(newContext, context.in, context.arg, writer, writer, context.caller);
 		IF options.GetFlag("blocking") THEN flags := {Commands.Wait}; ELSE flags := {}; END;
 		Commands.Activate(command, newContext, flags, res, msg);
