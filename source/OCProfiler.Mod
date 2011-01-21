@@ -4,7 +4,6 @@ IMPORT KernelLog,Objects,Machine,SYSTEM,Streams,Kernel,Commands;
 
 CONST
 	Trace=FALSE;
-
 	MaxModules=256;
 	MaxProcedures=256;
 	MaxProcesses=256;
@@ -205,10 +204,11 @@ VAR
 		END;
 		Records=POINTER TO ARRAY OF Record;
 	VAR
-		i,j,k: LONGINT; records: Records; time: HUGEINT; calls: LONGINT; numberRecords: LONGINT;
+		i,j,k: LONGINT; records: Records; time: HUGEINT; calls: LONGINT; recordNumber: LONGINT;
 		option: ARRAY 32 OF CHAR;
 
 		PROCEDURE Sort(id: LONGINT);
+		(* stupid bubblesort *)
 			PROCEDURE Swap;
 			VAR temp: Record;
 			BEGIN
@@ -227,12 +227,12 @@ VAR
 		END Sort;
 
 	BEGIN
-		numberRecords := 0;
+		recordNumber := 0;
 		FOR i := 0 TO numberModules-1 DO
-			INC(numberRecords, LEN(modules[i]));
+			INC(recordNumber, LEN(modules[i]));
 		END;
-		NEW(records,numberProcesses);
-		numberProcesses := 0;
+		NEW(records,recordNumber);
+		recordNumber := 0;
 		FOR i := 0 TO numberModules-1 DO
 			FOR j := 0 TO LEN(modules[i])-1 DO
 				time := 0; calls := 0;
@@ -240,10 +240,10 @@ VAR
 					INC(time, processes[k].modules[i,j].time);
 					INC(calls, processes[k].modules[i,j].calls);
 				END;
-				records[numberRecords].calls := calls;
-				records[numberRecords].time := time;
-				COPY(modules[i,j],records[numberRecords].name);
-				INC(numberProcesses)
+				records[recordNumber].calls := calls;
+				records[recordNumber].time := time;
+				COPY(modules[i,j],records[recordNumber].name);
+				INC(recordNumber)
 			END;
 		END;
 
@@ -254,16 +254,23 @@ VAR
 			END;
 		END;
 
+		log.String("---  OCProfiler timing report ----"); log.Ln;
 		FOR i := 0 TO LEN(records)-1 DO
-		log.String(records[i].name);
-		log.String(" calls="); log.Int(records[i].calls,1);
-		log.String(", time(s)="); log.Float(SHORT(records[i].time / frequency ),20);
-		log.Ln;
+			log.String(records[i].name);
+			log.String(" calls="); log.Int(records[i].calls,1);
+			log.String(", time(s)="); log.Float(records[i].time / frequency,20);
+			log.Ln;
 		END;
+		log.String("---------------------------"); log.Ln;
 		log.Update;
 	END Report;
 
 BEGIN Streams.OpenWriter( log, KernelLog.Send ); Calibrate;  Init;
 END OCProfiler.
+
+OCProfiler.Report ~
+OCProfiler.Report time ~
+OCProfiler.Report calls ~
+OCProfiler.Report name ~
 
 
