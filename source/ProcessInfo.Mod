@@ -26,10 +26,8 @@ BEGIN
 	FOR i := 0 TO length - 1 DO
 		to[i] := from[i];
 	END;
-	IF (toLength > fromLength) THEN
-		FOR i := fromLength TO toLength DO
-			to[i] := from[i];
-		END;
+	FOR i := length - 1 TO toLength - 1 DO
+		to[i] := NIL;
 	END;
 END Copy;
 
