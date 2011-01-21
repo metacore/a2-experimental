@@ -16,7 +16,7 @@ TYPE
 
 	ProcedureTime= RECORD
 		calls:LONGINT;
-		time: HUGEINT;
+		time,brut: HUGEINT;
 	END;
 	ProcedureTimes= ARRAY MaxProcedures OF ProcedureTime;
 
@@ -57,6 +57,7 @@ TYPE
 			IF stackPosition < MaxStackSize THEN
 				IF (moduleId < MaxModules) & (procedureId < MaxProcedures) THEN
 					INC(modules[moduleId,procedureId].time,enterTime-startTime[stackPosition]-correcture[stackPosition]);
+					INC(modules[moduleId,procedureId].brut,enterTime-startTime[stackPosition]);
 				END;
 				IF stackPosition > 0 THEN
 					INC(correcture[stackPosition-1], Machine.GetTimer()-startTime[stackPosition]);
@@ -188,11 +189,11 @@ VAR
 	TYPE
 		Record=RECORD
 			name: ARRAY 64 OF CHAR;
-			calls:LONGINT; time: HUGEINT
+			calls:LONGINT; time,brut: HUGEINT
 		END;
 		Records=POINTER TO ARRAY OF Record;
 	VAR
-		i,j,k: LONGINT; records: Records; time: HUGEINT; calls: LONGINT; recordNumber: LONGINT;
+		i,j,k: LONGINT; records: Records; time,brut: HUGEINT; calls: LONGINT; recordNumber: LONGINT;
 		option: ARRAY 32 OF CHAR;
 
 		PROCEDURE Sort(id: LONGINT);
@@ -209,10 +210,24 @@ VAR
 					IF (id=0) & (records[j].name < records[i].name) THEN Swap
 					ELSIF (id=1) & (records[j].calls < records[i].calls) THEN Swap
 					ELSIF (id=2) & (records[j].time < records[i].time) THEN Swap
+					ELSIF (id=3) & (records[j].brut < records[i].brut) THEN Swap
 					END;
 				END;
 			END;
 		END Sort;
+
+		PROCEDURE String(chars: LONGINT; CONST string: ARRAY OF CHAR);
+		VAR i: LONGINT;
+		BEGIN
+			i := 0;
+			WHILE (i<chars) & (string[i] # 0X) DO
+				log.Char(string[i]);INC(i);
+			END;
+			WHILE(i<chars) DO
+				log.Char(" "); INC(i);
+			END;
+		END String;
+
 
 	BEGIN
 		recordNumber := 0;
@@ -223,13 +238,15 @@ VAR
 		recordNumber := 0;
 		FOR i := 0 TO numberModules-1 DO
 			FOR j := 0 TO LEN(modules[i])-1 DO
-				time := 0; calls := 0;
+				time := 0; calls := 0; brut := 0;
 				FOR k := 0 TO numberProcesses-1 DO
 					INC(time, processes[k].modules[i,j].time);
 					INC(calls, processes[k].modules[i,j].calls);
+					INC(brut, processes[k].modules[i,j].brut);
 				END;
 				records[recordNumber].calls := calls;
 				records[recordNumber].time := time;
+				records[recordNumber].brut := brut;
 				COPY(modules[i,j],records[recordNumber].name);
 				INC(recordNumber)
 			END;
@@ -239,14 +256,23 @@ VAR
 			IF option = "name" THEN Sort(0)
 			ELSIF option = "calls" THEN Sort(1)
 			ELSIF option = "time" THEN Sort(2)
+			ELSIF option = "brut" THEN Sort(3)
 			END;
 		END;
+		log.Char(0EX);
 		log.String("---  OCProfiler timing report ----"); log.Ln;
 		log.String("processes= "); log.Int(numberProcesses,1); log.Ln;
+		String(50,"name"); log.Char(9X);
+		String(10,"calls"); log.Char(9X);
+		String(20,"time"); log.Char(9X);
+		String(20,"brut"); log.Char(9X);
+		String(20,"brut/call"); log.Ln;
 		FOR i := 0 TO LEN(records)-1 DO
-			log.String(records[i].name);
-			log.String(" calls="); log.Int(records[i].calls,1);
-			log.String(", time(s)="); log.Float(records[i].time / frequency,20);
+			String(50,records[i].name);
+			log.Int(records[i].calls,10); log.Char(9X);
+			log.Float(records[i].time / frequency,20); log.Char(9X);
+			log.Float(records[i].brut / frequency,20); log.Char(9X);
+			log.Float(records[i].brut / frequency / records[i].calls,20); log.Char(9X);
 			log.Ln;
 		END;
 		FOR k := 0 TO numberProcesses-1 DO
@@ -255,6 +281,7 @@ VAR
 			END;
 		END;
 		log.String("---------------------------"); log.Ln;
+		log.Char(0FX);
 		log.Update;
 	END Report;
 
