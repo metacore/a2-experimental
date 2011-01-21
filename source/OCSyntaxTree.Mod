@@ -20,6 +20,7 @@ CONST
 	OberonCallingConvention* =0;
 	CCallingConvention* =1;
 	WinAPICallingConvention* =2;
+	DarwinCCallingConvention*=3;
 
 	(** Access Flags *)
 	InternalRead* = 0;			(** can read symbol in same module *)
