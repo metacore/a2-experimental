@@ -4,13 +4,13 @@ IMPORT KernelLog,Objects,Machine,SYSTEM,Streams,Kernel,Commands;
 
 CONST
 	Trace=FALSE;
-	MaxModules=256;
-	MaxProcedures=256;
-	MaxProcesses=256;
-	MaxStackSize=256;
+	MaxModules=1024;
+	MaxProcedures=1024;
+	MaxProcesses=1024;
+	MaxStackSize=1024;
 
 TYPE
-	Name = ARRAY 64 OF CHAR;
+	Name = ARRAY 128 OF CHAR;
 	Procedures = POINTER TO ARRAY OF Name;
 	Modules= ARRAY MaxModules OF Procedures;
 
@@ -192,25 +192,28 @@ VAR
 			calls:LONGINT; time,brut: HUGEINT
 		END;
 		Records=POINTER TO ARRAY OF Record;
+
 	VAR
 		i,j,k: LONGINT; records: Records; time,brut: HUGEINT; calls: LONGINT; recordNumber: LONGINT;
 		option: ARRAY 32 OF CHAR;
+		log: Streams.Writer;
 
 		PROCEDURE Sort(id: LONGINT);
+		VAR i,j: LONGINT;
 		(* stupid bubblesort *)
-			PROCEDURE Swap;
+			PROCEDURE Swap(VAR l,r: Record);
 			VAR temp: Record;
 			BEGIN
-				temp := records[i]; records[i] := records[j]; records[j] := temp
+				temp := l; l := r; r := temp
 			END Swap;
 
 		BEGIN
 			FOR i := 0 TO LEN(records)-1 DO
 				FOR j := i TO LEN(records)-1 DO
-					IF (id=0) & (records[j].name < records[i].name) THEN Swap
-					ELSIF (id=1) & (records[j].calls < records[i].calls) THEN Swap
-					ELSIF (id=2) & (records[j].time < records[i].time) THEN Swap
-					ELSIF (id=3) & (records[j].brut < records[i].brut) THEN Swap
+					IF (id=0) & (records[j].name < records[i].name) THEN Swap(records[i],records[j])
+					ELSIF (id=1) & (records[j].calls > records[i].calls) THEN Swap(records[i],records[j])
+					ELSIF (id=2) & (records[j].time >records[i].time) THEN Swap(records[i],records[j])
+					ELSIF (id=3) & (records[j].brut > records[i].brut) THEN Swap(records[i],records[j])
 					END;
 				END;
 			END;
@@ -226,10 +229,12 @@ VAR
 			WHILE(i<chars) DO
 				log.Char(" "); INC(i);
 			END;
+			log.Update;
 		END String;
 
 
 	BEGIN
+		log := context.out;
 		recordNumber := 0;
 		FOR i := 0 TO numberModules-1 DO
 			INC(recordNumber, LEN(modules[i]));
@@ -239,10 +244,13 @@ VAR
 		FOR i := 0 TO numberModules-1 DO
 			FOR j := 0 TO LEN(modules[i])-1 DO
 				time := 0; calls := 0; brut := 0;
-				FOR k := 0 TO numberProcesses-1 DO
-					INC(time, processes[k].modules[i,j].time);
-					INC(calls, processes[k].modules[i,j].calls);
-					INC(brut, processes[k].modules[i,j].brut);
+				IF (i< LEN(processes[k].modules)) & (j<LEN(processes[k].modules[i])) THEN
+					FOR k := 0 TO numberProcesses-1 DO
+						INC(time, processes[k].modules[i,j].time);
+						INC(calls, processes[k].modules[i,j].calls);
+						INC(brut, processes[k].modules[i,j].brut);
+					END;
+				ELSE calls := -9999999
 				END;
 				records[recordNumber].calls := calls;
 				records[recordNumber].time := time;
@@ -262,24 +270,41 @@ VAR
 		log.Char(0EX);
 		log.String("---  OCProfiler timing report ----"); log.Ln;
 		log.String("processes= "); log.Int(numberProcesses,1); log.Ln;
-		String(50,"name"); log.Char(9X);
+		String(80,"name"); log.Char(9X);
 		String(10,"calls"); log.Char(9X);
 		String(20,"time"); log.Char(9X);
 		String(20,"brut"); log.Char(9X);
 		String(20,"brut/call"); log.Ln;
+		time := 0;
+		brut := 0;
+		calls := 0;
+
 		FOR i := 0 TO LEN(records)-1 DO
-			String(50,records[i].name);
+			String(80,records[i].name);
 			log.Int(records[i].calls,10); log.Char(9X);
 			log.Float(records[i].time / frequency,20); log.Char(9X);
 			log.Float(records[i].brut / frequency,20); log.Char(9X);
-			log.Float(records[i].brut / frequency / records[i].calls,20); log.Char(9X);
-			log.Ln;
+			log.Float(records[i].brut / frequency / records[i].calls,20);
+			log.Ln; log.Update;
+			INC(time, records[i].time);
+			INC(brut, records[i].brut);
+			INC(calls, records[i].calls);
 		END;
+
+
+
 		FOR k := 0 TO numberProcesses-1 DO
 			IF processes[k].stackPosition # 0 THEN
 				log.String("warning: process "); log.Int(k,1); log.String(" still running with a stack of "); log.Int(processes[k].stackPosition,1); log.Ln;
 			END;
 		END;
+		log.String("---------------------------"); log.Ln;
+			String(80,"SUM");
+			log.Int(calls,10); log.Char(9X);
+			log.Float(time / frequency,20); log.Char(9X);
+			log.Float(brut / frequency,20); log.Char(9X);
+			log.Float(brut / frequency / calls,20);
+			log.Ln; log.Update;
 		log.String("---------------------------"); log.Ln;
 		log.Char(0FX);
 		log.Update;
@@ -305,14 +330,17 @@ VAR
 		numberProcesses := 0;
 	END Init;
 
-BEGIN Streams.OpenWriter( log, KernelLog.Send ); Calibrate;  Init;
+BEGIN
+	NEW(log,KernelLog.Send,1024*1024);
+		(*
+Streams.OpenWriter( log, KernelLog.Send ); *) Calibrate;  Init;
 END OCProfiler.
 
 OCProfiler.Report ~
 OCProfiler.Report time ~
 OCProfiler.Report calls ~
 OCProfiler.Report name ~
-
+OCProfiler.Report brut ~
 
 
 
