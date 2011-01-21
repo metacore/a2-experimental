@@ -1,9 +1,14 @@
 MODULE ComponentViewer;	(** AUTHOR "TF"; PURPOSE "Testbed for the component system"; *)
 
 IMPORT
-	Modules, Commands, XML, Repositories, WMMessages, WMGraphics, WMWindowManager, WMComponents;
+	Modules, Commands, Options, XML, Repositories, WMMessages, WMGraphics, WMWindowManager, WMComponents;
+
+CONST
+	DefaultWidth = 320;
+	DefaultHeight = 240;
 
 TYPE
+
 	KillerMsg = OBJECT
 	END KillerMsg;
 
@@ -33,43 +38,77 @@ TYPE
 VAR
 	nofWindows : LONGINT;
 
-PROCEDURE Open*(context : Commands.Context);
+PROCEDURE Open*(context : Commands.Context); (** [Options] <RepositoryName:ComponentName:ID> | <ModuleName.ProcedureName> | <Filename> ~ *)
 VAR
+	options : Options.Options;
 	filename, repositoryName, componentName : ARRAY 128 OF CHAR;
 	window : Window;
+	moduleName, procedureName : Modules.Name;
+	ignoreMsg : ARRAY 1 OF CHAR;
+	generatorProc : XML.GeneratorProcedure;
 	c : XML.Content; component : Repositories.Component; string : XML.String;
+	vc : WMComponents.VisualComponent;
 	width, height, id, res : LONGINT;
 BEGIN
-	context.arg.SkipWhitespace; context.arg.String(filename);
-	IF Repositories.SplitName(filename, repositoryName, componentName, id) THEN
-		Repositories.GetComponentByString(filename, component, res);
-		IF (res = Repositories.Ok) THEN
-			c := component;
+	NEW(options);
+	options.Add("h", "height", Options.Integer);
+	options.Add("w", "width", Options.Integer);
+	options.Add("c", "client", Options.Flag);
+	IF options.Parse(context.arg, context.error) & context.arg.GetString(filename) THEN
+		IF Repositories.SplitName(filename, repositoryName, componentName, id) & (repositoryName # "") THEN
+			(* Retrieve component from repository *)
+			Repositories.GetComponentByString(filename, component, res);
+			IF (res = Repositories.Ok) THEN
+				c := component;
+			ELSE
+				context.error.String("Could not load "); context.error.String(filename);
+				context.error.String(" from repository, res: "); context.error.Int(res, 0); context.error.Ln;
+			END;
 		ELSE
-			context.error.String("Could not load "); context.error.String(filename);
-			context.error.String(", res: "); context.error.Int(res, 0); context.error.Ln;
+			Commands.Split(filename, moduleName, procedureName, res, ignoreMsg);
+			IF (res = Commands.Ok) THEN
+				(* Assume argument is a generator procedure *)
+				GETPROCEDURE(moduleName, procedureName, generatorProc);
+				IF (generatorProc # NIL) THEN
+					c := generatorProc();
+				ELSE
+					(* Maybe argument is a filename *)
+					c := WMComponents.Load(filename);
+				END;
+			ELSE
+				(* Load component from XML file *)
+				c := WMComponents.Load(filename);
+			END;
+		END;
+		IF (c # NIL) & (c IS WMComponents.VisualComponent) THEN
+			vc := c (WMComponents.VisualComponent);
+			IF options.GetInteger("width", width) THEN
+				vc.bounds.SetWidth(width);
+			ELSE
+				width := vc.bounds.GetWidth();
+				IF (width <= 0) THEN width := DefaultWidth; END;
+			END;
+			IF options.GetInteger("height", height) THEN
+				vc.bounds.SetHeight(height);
+			ELSE
+				height := vc.bounds.GetHeight();
+				IF (height <= 0) THEN height := DefaultHeight; END;
+			END;
+			IF options.GetFlag("client") THEN
+				vc.alignment.Set(WMComponents.AlignClient);
+			END;
+			NEW(window, width, height, TRUE);
+			window.SetTitle(vc.GetName());
+			window.SetContent(c);
+			WMWindowManager.DefaultAddWindow(window);
+		ELSE
+			IF (c = NIL) THEN context.error.String("Could not load/generate component "); context.error.String(filename);
+			ELSE context.error.String(filename); context.error.String(" is not a VisualComponent.");
+			END;
+			context.error.Ln;
 		END;
 	ELSE
-		c := WMComponents.Load(filename);
-	END;
-	IF (c # NIL) & (c IS XML.Element) THEN
-		width := 320; height := 240;
-		IF (c IS WMComponents.VisualComponent) THEN
-			width := c(WMComponents.VisualComponent).bounds.GetWidth();
-			height := c(WMComponents.VisualComponent).bounds.GetHeight();
-			IF width <= 0 THEN width := 10 END; IF height <= 0 THEN height := 10 END
-		END;
-		NEW(window, width, height, TRUE);
-		WMWindowManager.DefaultAddWindow(window);
-		window.SetTitle(c(XML.Element).GetAttributeValue("caption"));
-		string := c(XML.Element).GetAttributeValue("icon");
-		IF (string # NIL) THEN
-			window.SetIcon(WMGraphics.LoadImage(string^, TRUE));
-		END;
-		window.SetContent(c);
-		context.out.String(filename); context.out.String(" loaded."); context.out.Ln;
-	ELSE
-		context.out.String(filename); context.out.String(" not correctly loaded."); context.out.Ln
+		context.error.String("Usage: ComponentViewer.Open [Options] <string> ~"); context.error.Ln;
 	END;
 END Open;
 
@@ -105,4 +144,4 @@ END ComponentViewer.
 SystemTools.Free ComponentViewer ~
 ComponentViewer.Open FractalDemo.XML ~
 
-
+ComponentViewer.Open --width=128 --height=64 --client WMStandardComponents.GenButton ~
