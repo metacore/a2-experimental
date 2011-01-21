@@ -16,14 +16,14 @@ TYPE
 
 	ProcedureTime= RECORD
 		calls:LONGINT;
-		time: HUGEINT
+		time: HUGEINT;
 	END;
 	ProcedureTimes= ARRAY MaxProcedures OF ProcedureTime;
 
 	Process= OBJECT
 	VAR
 		stackPosition: LONGINT;
-		time, correcture: ARRAY MaxStackSize OF HUGEINT;
+		startTime, correcture: ARRAY MaxStackSize OF HUGEINT;
 		modules: ARRAY MaxModules OF ProcedureTimes;
 
 		PROCEDURE &Init;
@@ -33,14 +33,16 @@ TYPE
 			FOR i := 0 TO LEN(modules)-1 DO
 				FOR j := 0 TO LEN(modules[i])-1 DO
 					modules[i,j].calls := 0;
+					modules[i,j].time := 0;
 				END;
 			END;
 		END Init;
 
 		PROCEDURE Enter(moduleId, procedureId: LONGINT; enterTime: HUGEINT);
 		BEGIN
+			IF Trace THEN log.String("stack position "); log.Int(stackPosition,1); log.Ln; END;
 			IF stackPosition < MaxStackSize THEN
-				time[stackPosition] := enterTime;
+				startTime[stackPosition] := enterTime;
 				correcture[stackPosition] := Machine.GetTimer()-enterTime;
 			END;
 			IF (moduleId < MaxModules) & (procedureId < MaxProcedures) THEN
@@ -53,14 +55,14 @@ TYPE
 		BEGIN
 			DEC(stackPosition);
 			IF stackPosition < MaxStackSize THEN
-				INC(correcture[stackPosition], Machine.GetTimer()-enterTime);
 				IF (moduleId < MaxModules) & (procedureId < MaxProcedures) THEN
-					INC(modules[moduleId,procedureId].time,Machine.GetTimer()-time[stackPosition]-correcture[stackPosition]);
+					INC(modules[moduleId,procedureId].time,enterTime-startTime[stackPosition]-correcture[stackPosition]);
 				END;
 				IF stackPosition > 0 THEN
-					INC(correcture[stackPosition-1], correcture[stackPosition]);
+					INC(correcture[stackPosition-1], Machine.GetTimer()-startTime[stackPosition]);
 				END;
 			END;
+			IF Trace THEN log.String("stack position "); log.Int(stackPosition,1); log.Ln; END;
 		END Exit;
 
 	END Process;
@@ -89,13 +91,12 @@ VAR
 	BEGIN
 		ASSERT(numberProcesses < LEN(table),5000);
 		hash := HashValue(key);
-		IF ~table[hash].used THEN
-			INC(numberProcesses, 1);
-		ELSE
+		IF table[hash].used THEN
 			ASSERT(table[hash].key = key,5001);
 		END;
 		table[hash].key := key;
 		table[hash].value := value;
+		table[hash].used := TRUE;
 	END Put;
 
 	PROCEDURE Get*(key: LONGINT):LONGINT;
@@ -105,7 +106,7 @@ VAR
 
 	PROCEDURE Has*(key: LONGINT):BOOLEAN;
 	BEGIN
-		RETURN table[HashValue(key)].key = key;
+		RETURN table[HashValue(key)].used;
 	END Has;
 
 	PROCEDURE HashValue(key: LONGINT):LONGINT;
@@ -129,10 +130,10 @@ VAR
 		process := Objects.CurrentProcess();
 		key := SYSTEM.VAL(SYSTEM.ADDRESS,process) DIV SYSTEM.SIZEOF(SYSTEM.ADDRESS);
 		IF Has(key) THEN
-			value := Get(key)
+			value := Get(key);
 		ELSE
 			BEGIN{EXCLUSIVE}
-				value := numberProcesses;
+				value := numberProcesses; INC(numberProcesses);
 				NEW(processes[value]);
 				Put(key,value);
 			END;
@@ -141,7 +142,7 @@ VAR
 	END GetProcess;
 
 	PROCEDURE AddModule*(VAR moduleId: LONGINT; procedures: LONGINT; CONST name: ARRAY OF CHAR);
-	BEGIN
+	BEGIN{EXCLUSIVE}
 		IF Trace THEN
 			log.String("Add Module: "); log.String(name); log.String(", #procs: "); log.Int(procedures,1);
 			log.String(", id: "); log.Int(numberModules,1); log.Ln; log.Update;
@@ -176,25 +177,12 @@ VAR
 		p.Exit(moduleId, procedureId, time);
 	END ExitProcedure;
 
-	PROCEDURE Init*;
+	PROCEDURE Initialize*;
 	VAR i: LONGINT;
 	BEGIN
-		FOR i := 0 TO LEN(modules)-1 DO	modules[i] := NIL	END;
 		FOR i := 0 TO LEN(table)-1 DO table[i].used := FALSE END;
-		numberModules := 0;
 		numberProcesses := 0;
-	END Init;
-
-	PROCEDURE Calibrate;
-	VAR timer: Kernel.MilliTimer;  t: HUGEINT;
-	BEGIN
-		INC( n );  Kernel.SetTimer( timer, 1000 );  t := Machine.GetTimer();
-		WHILE ~Kernel.Expired( timer ) DO END;
-		t := Machine.GetTimer() - t;
-		log.Ln;  log.String( "Timing reported MHz : " ); log.FloatFix( t / 1000 / 1000, 5, 1,0 );
-		log.Ln;  frequency := (frequency * (n - 1) + t) / n;  log.String( "Updated value: " );  log.FloatFix( frequency / 1000 / 1000, 5, 1,0 );
-		log.Ln;  log.Update;
-	END Calibrate;
+	END Initialize;
 
 	PROCEDURE Report*(context: Commands.Context);
 	TYPE
@@ -253,17 +241,42 @@ VAR
 			ELSIF option = "time" THEN Sort(2)
 			END;
 		END;
-
 		log.String("---  OCProfiler timing report ----"); log.Ln;
+		log.String("processes= "); log.Int(numberProcesses,1); log.Ln;
 		FOR i := 0 TO LEN(records)-1 DO
 			log.String(records[i].name);
 			log.String(" calls="); log.Int(records[i].calls,1);
 			log.String(", time(s)="); log.Float(records[i].time / frequency,20);
 			log.Ln;
 		END;
+		FOR k := 0 TO numberProcesses-1 DO
+			IF processes[k].stackPosition # 0 THEN
+				log.String("warning: process "); log.Int(k,1); log.String(" still running with a stack of "); log.Int(processes[k].stackPosition,1); log.Ln;
+			END;
+		END;
 		log.String("---------------------------"); log.Ln;
 		log.Update;
 	END Report;
+
+	PROCEDURE Calibrate;
+	VAR timer: Kernel.MilliTimer;  t: HUGEINT;
+	BEGIN
+		INC( n );  Kernel.SetTimer( timer, 1000 );  t := Machine.GetTimer();
+		WHILE ~Kernel.Expired( timer ) DO END;
+		t := Machine.GetTimer() - t;
+		log.Ln;  log.String( "Timing reported MHz : " ); log.FloatFix( t / 1000 / 1000, 5, 1,0 );
+		log.Ln;  frequency := (frequency * (n - 1) + t) / n;  log.String( "Updated value: " );  log.FloatFix( frequency / 1000 / 1000, 5, 1,0 );
+		log.Ln;  log.Update;
+	END Calibrate;
+
+	PROCEDURE Init;
+	VAR i: LONGINT;
+	BEGIN
+		FOR i := 0 TO LEN(modules)-1 DO	modules[i] := NIL	END;
+		FOR i := 0 TO LEN(table)-1 DO table[i].used := FALSE END;
+		numberModules := 0;
+		numberProcesses := 0;
+	END Init;
 
 BEGIN Streams.OpenWriter( log, KernelLog.Send ); Calibrate;  Init;
 END OCProfiler.
@@ -272,5 +285,7 @@ OCProfiler.Report ~
 OCProfiler.Report time ~
 OCProfiler.Report calls ~
 OCProfiler.Report name ~
+
+
 
 
