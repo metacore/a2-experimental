@@ -237,7 +237,7 @@ TYPE
 			(* OLIVIER *)
 			(* TODO: how to get: diagnostics, symbolFileFormat, dataflowSpecification and importCache *)
 			NEW(streamDiagnostics, D.Log);
-			checker := SemanticChecker.NewChecker(streamDiagnostics,FALSE,system,symbolFile,NIL,importCache);
+			checker := SemanticChecker.NewChecker(streamDiagnostics,FALSE,FALSE,system,symbolFile,NIL,importCache);
 		END Init;
 
 		(* types that do not refer to other types *)

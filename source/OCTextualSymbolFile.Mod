@@ -28,7 +28,7 @@ TYPE
 
 			IF (module # NIL) & ~(SyntaxTree.Resolved IN module.state) THEN
 				(*! should rather be done by importer *)
-				checker := SemanticChecker.NewChecker(NIL,FALSE,system,SELF,NIL,importCache);
+				checker := SemanticChecker.NewChecker(NIL,FALSE,FALSE,system,SELF,NIL,importCache);
 				checker.Module(module); (* semantic check *)
 				IF checker.error THEN module := NIL END;
 			END;

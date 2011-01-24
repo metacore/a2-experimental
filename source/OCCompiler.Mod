@@ -18,6 +18,7 @@ CONST
 	DataFlow*=6;
 	Warnings*=7;
 	ForceModuleBodies*=8;
+	UseDarwinCCalls*=9;	(* use Darwin stack alignment for ext. C procedures *)	(*fld*)
 
 	Name = "OC";
 	Description = "Oberon Compiler";
@@ -267,7 +268,7 @@ TYPE
 				IF (symbolFileFormat # NIL) THEN
 					symbolFileFormat.Initialize(diagnostics,system);
 				END;
-				checker := SemanticChecker.NewChecker(diagnostics,Info IN flags,system,symbolFileFormat,dataflowSpecification,importCache);
+				checker := SemanticChecker.NewChecker(diagnostics,Info IN flags,UseDarwinCCalls IN flags,system,symbolFileFormat,dataflowSpecification,importCache);
 				checker.Module(module);
 				IF checker.error THEN
 					FinalMessage(TRUE," could not be compiled (checker errors).");
@@ -390,6 +391,7 @@ TYPE
 		options.Add(0X, "objectFile", Options.String);
 		options.Add("d","dataflow", Options.Flag);
 		options.Add("w","warnings", Options.Flag);
+		options.Add(0X,"darwinHost", Options.Flag);
 		options.Add(0X,"dataflowSpecification", Options.String);
 
 		position := input.Pos();
@@ -456,6 +458,7 @@ TYPE
 			IF options.GetFlag("info") THEN INCL(flags,Info) END;
 			IF options.GetString("findPC",findPC) THEN INCL(flags,FindPC) END;
 			IF options.GetFlag("warnings") THEN INCL(flags, Warnings) END;
+			IF options.GetFlag("darwinHost") THEN INCL(flags,UseDarwinCCalls) END;	(*fld*)
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
 			IF objectFile # NIL THEN objectFile.GetOptions(options) END;

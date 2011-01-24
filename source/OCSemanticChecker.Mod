@@ -1,7 +1,7 @@
 MODULE OCSemanticChecker; (* AUTHOR "fof & fn"; PURPOSE "Oberon Compiler: Semantic Checker"; *)
 (* (c) fof ETHZ 2009 *)
 
-IMPORT D := Debugging, Basic := OCBasic, Scanner := OCScanner, SyntaxTree := OCSyntaxTree,
+IMPORT D := Debugging, Basic := OCBasic, Scanner := OCScanner, SyntaxTree := OCSyntaxTree, 
 Diagnostics, Global := OCGlobal, Printout:= OCPrintout, Formats := OCFormats, Dataflow := OCDataflow, SYSTEM, Machine,Strings;
 
 CONST
@@ -68,6 +68,7 @@ TYPE
 	VAR
 		module: SyntaxTree.Module;
 		diagnostics: Diagnostics.Diagnostics;
+		useDarwinCCalls: BOOLEAN;
 		error-: BOOLEAN;
 		VerboseErrorMessage: BOOLEAN;
 		typeFixes, pointerFixes: LateFixList;
@@ -98,9 +99,10 @@ TYPE
 		dataflowSpecification: Dataflow.Specification;
 		indexCounter : LONGINT;
 
-		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope);
+		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage,useDarwinCCalls: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope);
 		BEGIN
 			SELF.diagnostics := diagnostics;
+			SELF.useDarwinCCalls := useDarwinCCalls;
 			SELF.system := system;
 			SELF.symbolFileFormat := symbolFileFormat;
 			SELF.dataflowSpecification := dataflowSpecification;
@@ -829,7 +831,12 @@ TYPE
 			IF TypeNeedsResolution(procedureType) THEN
 				modifiers := procedureType.modifiers;
 				IF HasFlag(modifiers, Global.NameWinAPI,position) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
-				ELSIF HasFlag(modifiers,Global.NameC,position) THEN procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
+				ELSIF HasFlag(modifiers,Global.NameC,position) THEN 
+					IF useDarwinCCalls THEN	(*fld*)
+						procedureType.SetCallingConvention(SyntaxTree.DarwinCCallingConvention)
+					ELSE
+						procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
+					END
 				END;
 				IF HasValue(modifiers,Global.NameStackAligned,position,value) THEN procedureType.SetStackAlignment(value) END;
 				IF HasFlag(modifiers, Global.NameDelegate,position) THEN procedureType.SetDelegate(TRUE) END;
@@ -5651,7 +5658,12 @@ TYPE
 				*)
 				modifiers := procedureType.modifiers;
 				IF HasFlag(modifiers, Global.NameWinAPI,position) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
-				ELSIF HasFlag(modifiers, Global.NameC,position) THEN procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
+				ELSIF HasFlag(modifiers, Global.NameC,position) THEN 
+					IF useDarwinCCalls THEN	(*fld*)
+						procedureType.SetCallingConvention(SyntaxTree.DarwinCCallingConvention)
+					ELSE
+						procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
+					END
 				END;
 				IF HasFlag(modifiers,Global.NameInterrupt,position) THEN procedureType.SetInterrupt(TRUE) END;
 				IF HasFlag(modifiers,Global.NameNoPAF,position) THEN procedureType.SetNoPAF(TRUE) END;
@@ -6662,7 +6674,7 @@ TYPE
 		(*** scopes ***)
 
 		(** Register a symbol in a scope. Check for duplicate symbols and collision with globally defined symbols. **)
-		PROCEDURE Register*(symbol: SyntaxTree.Symbol; scope: SyntaxTree.Scope; allowDuplicate: BOOLEAN);
+		PROCEDURE Register(symbol: SyntaxTree.Symbol; scope: SyntaxTree.Scope; allowDuplicate: BOOLEAN);
 		VAR duplicateSymbol: BOOLEAN;
 		BEGIN
 			ASSERT(symbol.name # NIL);
@@ -7876,10 +7888,10 @@ TYPE
 	END EnterCase;
 
 	(** generate and return a new checker object, errors are entered into diagnostics **)
-	PROCEDURE NewChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope): Checker;
+	PROCEDURE NewChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage,useDarwinCCalls: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope): Checker;
 	VAR checker: Checker;
 	BEGIN
-		NEW(checker, diagnostics,verboseErrorMessage,system,symbolFileFormat,dataflowSpecification, importCache);
+		NEW(checker, diagnostics,verboseErrorMessage,useDarwinCCalls,system,symbolFileFormat,dataflowSpecification, importCache);
 		RETURN checker
 	END NewChecker;
 
