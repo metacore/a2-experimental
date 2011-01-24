@@ -143,6 +143,11 @@ TYPE
 			backend.Error(module.module.sourceName, position, Diagnostics.Invalid, s);
 		END Error;
 
+		PROCEDURE Warning(position: LONGINT; CONST s: ARRAY OF CHAR);
+		BEGIN
+			backend.Error(module.module.sourceName, position, Diagnostics.Invalid, s);
+		END Warning;
+
 		PROCEDURE Type(x: SyntaxTree.Type);
 		BEGIN
 			x.Accept(SELF);
@@ -3558,14 +3563,14 @@ TYPE
 				Emit(Mov(mem,reg));
 				ReleaseIntermediateOperand(reg);
 			END;
-			
+
 			IF procedureType.callingConvention = SyntaxTree.DarwinCCallingConvention THEN	(*fld*)
 				IntermediateCode.InitImmediate(mask,addressType,-16);
 				Emit(And(sp, sp, mask));
 				gap := (-ParametersSize( system, procedureType, FALSE )) MOD 16;
-				IF gap # 0 THEN  
+				IF gap # 0 THEN
 					IntermediateCode.InitImmediate(size,addressType,gap);
-					Emit(Sub(sp,sp,size)) 
+					Emit(Sub(sp,sp,size))
 				END;
 			END;
 
@@ -6225,6 +6230,9 @@ TYPE
 		BEGIN
 			(*! split case statement into if-elsif statements for large case label lists *)
 			IF Trace THEN TraceEnter("VisitCaseStatement") END;
+			size := x.max-x.min+1;
+			IF (size<0) OR (size > 1024*1024) THEN Error(x.position,"implementation restriction: case table size too large"); RETURN
+			END;
 			Evaluate(x.variable,var);
 			ReuseCopy(tmp,var.op);
 			ReleaseIntermediateOperand(var.op);
@@ -7257,6 +7265,7 @@ TYPE
 			END;
 			error := TRUE;
 		END Error;
+
 
 		(* generic *)
 		PROCEDURE Section*(in: IntermediateCode.Section; out: BinaryCode.Section);
