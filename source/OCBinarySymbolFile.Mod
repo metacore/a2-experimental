@@ -55,7 +55,7 @@ IMPORT
 	                 sfEnd.
 
 	ParameterList = {
-	                [sfObjflag ( sfCParam | sfWinAPIParam )]
+	                [sfObjflag ( sfCParam | sfDarwinCParam | sfWinAPIParam )]
 	                [sfVar] [sfReadOnly] Type name:RawString
 	                } sfEnd.
 
@@ -143,6 +143,7 @@ CONST
 		sfUntraced = 4;
 		sfWinAPIParam = 13; (* ejz *)
 		sfCParam= 14; (* fof for linux *)
+		sfDarwinCParam= 15; (* fld for darwin *)
 		sfRealtime= 21;
 
 		Undef=MIN(LONGINT);
@@ -805,7 +806,7 @@ TYPE
 			END EnumerationList;
 
 
-			(* ParameterList = { [sfObjflag ( sfCParam | sfWinAPIParam )] [sfVar] [sfReadOnly] Type name:RawString } sfEnd *)
+			(* ParameterList = { [sfObjflag ( sfCParam | sfDarwinCParam | sfWinAPIParam )] [sfVar] [sfReadOnly] Type name:RawString } sfEnd *)
 			PROCEDURE ParameterList(VAR callingConvention: LONGINT; parentScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType);
 			VAR name: Scanner.StringType; type: SyntaxTree.Type; f: LONGINT;
 				kind: LONGINT;
@@ -825,6 +826,8 @@ TYPE
 						R.RawNum(f);
 						IF f = sfCParam THEN (* fof for Linux *)
 							callingConvention := SyntaxTree.CCallingConvention
+						ELSIF f = sfDarwinCParam THEN (* fld for darwin *)
+							callingConvention := SyntaxTree.DarwinCCallingConvention
 						ELSIF f=sfWinAPIParam THEN
 							callingConvention := SyntaxTree.WinAPICallingConvention
 						ELSE HALT(100)
@@ -1257,6 +1260,7 @@ TYPE
 							R.RawNum(SYSTEM.VAL(LONGINT,flags));
 							IF sfWinAPIParam IN flags THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
 							ELSIF sfCParam IN flags THEN procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
+							ELSIF sfDarwinCParam IN flags THEN procedureType.SetCallingConvention(SyntaxTree.DarwinCCallingConvention)
 							END;
 							IF sfRealtime IN flags THEN procedureType.SetRealtime(TRUE) END;
 
@@ -1970,6 +1974,8 @@ TYPE
 									INCL(flags,sfWinAPIParam);
 								ELSIF  type.callingConvention =  SyntaxTree.CCallingConvention  THEN
 									INCL(flags,sfCParam);
+								ELSIF  type.callingConvention =  SyntaxTree.DarwinCCallingConvention  THEN
+									INCL(flags,sfDarwinCParam);
 								END;
 								IF type.isRealtime THEN
 									INCL(flags,sfRealtime)
@@ -2013,7 +2019,7 @@ TYPE
 			END EnumerationList;
 
 			(* ParameterList =
-				{ [sfObjFlag sfWinAPIParam | sfObjFlag sfCParam] [sfVar] [sfReadOnly] Type name:RawString } sfEnd
+				{ [sfObjFlag sfWinAPIParam | sfObjFlag sfCParam | sfObjFlag sfDarwinCParam] [sfVar] [sfReadOnly] Type name:RawString } sfEnd
 			*)
 			PROCEDURE ParameterList(procedureType: SyntaxTree.ProcedureType);
 			VAR flags: SET; name: Scanner.StringType;
@@ -2027,6 +2033,8 @@ TYPE
 							w.RawNum(sfObjFlag); w.RawNum(sfWinAPIParam);
 						ELSIF procedureType.callingConvention = SyntaxTree.CCallingConvention THEN
 							w.RawNum(sfObjFlag); w.RawNum(sfCParam);
+						ELSIF procedureType.callingConvention = SyntaxTree.DarwinCCallingConvention THEN
+							w.RawNum(sfObjFlag); w.RawNum(sfDarwinCParam);
 						END;
 
 						IF parameter.kind = SyntaxTree.VarParameter THEN
