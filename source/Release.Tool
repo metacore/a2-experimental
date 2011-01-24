@@ -88,9 +88,9 @@ END
 BUILDS
 	A2 {
 		INCLUDE "NATIVE I386"
-		COMPILER "PC.Compile"
+		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
-		TARGET "386"
+		TARGET "AMD"
 		EXTENSION "Obx"
 		PATH "AOS:"
 		EXCLUDEPACKAGES ""
@@ -98,9 +98,9 @@ BUILDS
 	}
 	A2_64 {
 		INCLUDE "NATIVE AMD64"
-		COMPILER "PC.Compile"
+		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
-		TARGET "386"
+		TARGET "AMD"
 		EXTENSION "Abx"
 		PATH "AOS:"
 		EXCLUDEPACKAGES "Contributions Oberon OberonGadgets OberonApplications OberonDocumentation OberonVoyager OberonAnts"
@@ -108,9 +108,9 @@ BUILDS
 	}
 	A2mini {
 		INCLUDE "NATIVE I386"
-		COMPILER "PC.Compile"
+		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
-		TARGET "386"
+		TARGET "AMD"
 		EXTENSION "Obx"
 		PATH "AOS:"
 		EXCLUDEPACKAGES "Applications GuiApplications Fun Testing Education Contributions Oberon OberonGadgets OberonApplications OberonDocumentation OberonVoyager OberonAnts"
@@ -118,9 +118,9 @@ BUILDS
 	}
 	WinAos {
 		INCLUDE "WIN iWIN"
-		COMPILER "PC.Compile"
+		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
-		TARGET "386"
+		TARGET "AMD"
 		EXTENSION "Obw"
 		PATH "../obj/"
 		EXCLUDEPACKAGES ""
@@ -128,9 +128,9 @@ BUILDS
 	}
 	eWinAos {
 		INCLUDE "WIN eWIN"
-		COMPILER "PC.Compile"
+		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
-		TARGET "386"
+		TARGET "AMD"
 		EXTENSION "Obw"
 		PATH "../ObjE/"
 		EXCLUDEPACKAGES ""
@@ -139,9 +139,9 @@ BUILDS
 
 	LinuxAos {
 		INCLUDE "UNIX LINUX"
-		COMPILER "PC.Compile"
+		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
-		TARGET "386"
+		TARGET "AMD"
 		EXTENSION "Obj"
 		PATH "./"
 		EXCLUDEPACKAGES "OberonVoyager OberonAnts"
@@ -149,9 +149,9 @@ BUILDS
 	}
 	DarwinAos {
 		INCLUDE "UNIX DARWIN"
-		COMPILER "PC.Compile"
-		COMPILEOPTIONS "\As"
-		TARGET "386"
+		COMPILER "Compiler.Compile"
+		COMPILEOPTIONS "--darwinHost"
+		TARGET "AMD"
 		EXTENSION "Obj"
 		PATH "./"
 		EXCLUDEPACKAGES "OberonVoyager OberonAnts"
@@ -159,9 +159,9 @@ BUILDS
 	}
 	SolarisAos {
 		INCLUDE "UNIX SOLARIS"
-		COMPILER "PC.Compile"
+		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
-		TARGET "386"
+		TARGET "AMD"
 		EXTENSION "Obj"
 		PATH "./"
 		EXCLUDEPACKAGES "OberonVoyager OberonAnts"

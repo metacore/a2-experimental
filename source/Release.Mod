@@ -1,8 +1,5 @@
 MODULE Release; (** AUTHOR "staubesv"; PURPOSE "Release build tool"; *)
 (**
- * WORKAROUND: FOR NOW, SUPPORT BOTH PACO AND OC. SUPPORT FOR PACO WILL BE REMOVED ONCE OC WORKS STABLE!
- *
- * OC is used as default compiler. If the option -y is set, PACO is used.
  *
  * Usage:
  *
@@ -64,7 +61,7 @@ MODULE Release; (** AUTHOR "staubesv"; PURPOSE "Release build tool"; *)
 IMPORT
 	SYSTEM,
 	Modules, Streams, Commands, Options, Files, Dates, Strings, Texts, TextUtilities, ReleaseThreadPool, Diagnostics, WMGraphics, Zip,
-	CompilerInterface, Compiler, SyntaxTree := OCSyntaxTree, Formats := OCFormats, Backend := OCBackend, Dataflow := OCDataflow, PC, PCS;
+	CompilerInterface, Compiler, SyntaxTree := OCSyntaxTree, Formats := OCFormats, Backend := OCBackend, Dataflow := OCDataflow;
 
 CONST
 	VersionMajor = 1;
@@ -75,7 +72,7 @@ CONST
 	(* Default build settings *)
 	DefaultCompiler = "Compiler.Compile";
 	DefaultCompileOptions = "";
-	DefaultTarget = "AMD64";
+	DefaultTarget = "AMD";
 	DefaultExtension = "Obx";
 	DefaultPath = "";
 	DefaultDisabled = FALSE;
@@ -505,7 +502,6 @@ TYPE
 		extension : ARRAY 8 OF CHAR;
 		path : Files.FileName;
 		disabled : BOOLEAN;
-		usePACO : BOOLEAN;
 
 		(* Used for dependencies analysis *)
 		modules : POINTER TO ARRAY OF File;
@@ -536,7 +532,6 @@ TYPE
 			COPY(DefaultExtension, extension);
 			COPY(DefaultPath, path);
 			disabled := DefaultDisabled;
-			usePACO := TRUE;
 			modules := NIL; bitmap := NIL;
 			marked := FALSE;
 			files := NIL;
@@ -545,22 +540,6 @@ TYPE
 			include := {};
 			position := -1;
 		END Init;
-
-		(* HACK: there are some files that cannot be compiled using PACO *)
-		PROCEDURE ExcludeFiles(diagnostics : Diagnostics.Diagnostics);
-		VAR file : File; message : ARRAY 512 OF CHAR;
-		BEGIN
-			ASSERT(usePACO);
-			file := files;
-			WHILE (file # NIL) DO
-				IF (file.name = "OCArrayBase.Mod") THEN
-					MakeMessage(message, "File # cannot be compiled using PACO", file.name, "");
-					IF diagnostics # NIL THEN diagnostics.Warning(builds.source, file.pos, Diagnostics.Invalid, message); END;
-					file.doCompile := FALSE;
-				END;
-				file := file.next;
-			END;
-		END ExcludeFiles;
 
 		PROCEDURE PackageIsExcluded(package : Package) : BOOLEAN;
 		VAR i : LONGINT;
@@ -590,7 +569,6 @@ TYPE
 					Strings.TrimWS(string);
 					excludedPackages := Strings.Split(string, " ");
 				END;
-				usePACO := options.GetFlag("y");
 			END;
 		END SetOptions;
 
@@ -599,7 +577,6 @@ TYPE
 		VAR file : File; color : LONGINT; characterCount : LONGINT;
 		BEGIN
 			characterCount := 0;
-			IF usePACO THEN ExcludeFiles(NIL); END;
 			file := files;
 			WHILE (file # NIL) DO
 				IF file.IsSourceCode() & file.IsInRelease(include) & ~PackageIsExcluded(file.package) & file.doCompile THEN
@@ -648,11 +625,7 @@ TYPE
 			tw.String("SystemTools.DoCommands"); tw.Ln;
 			tw.SetFontStyle({});
 			tw.String("SystemTools.Timer start ~"); tw.Ln;
-			IF (usePACO) OR (compiler  # "PC.Compile") THEN (* temporary hack for new compiler *)
-				tw.String(compiler);
-			ELSE
-				tw.String("Compiler.Compile");
-			END;
+			tw.String(compiler);
 			tw.String(" "); GetCompilerOptions(temp); tw.String(temp); tw.Ln;
 			ToStream(tw, 80); (* file list *) tw.Ln; tw.String("~"); tw.Ln;
 			tw.String("SystemTools.Show Time elapsed: ~ SystemTools.Ln ~"); tw.Ln;
@@ -828,13 +801,9 @@ TYPE
 							ELSE
 								IF file.IsSourceCode() THEN
 
-									IF (~usePACO OR (file.name # "OCArrayBase.Mod")) THEN
-										GetObjectFileName(file, path, source); GetObjectFileName(file, "", dest);
-										AddFile(archive, source, dest, res);
-										INC(nofFilesAdded);
-									ELSE
-										res := Zip.Ok;
-									END;
+									GetObjectFileName(file, path, source); GetObjectFileName(file, "", dest);
+									AddFile(archive, source, dest, res);
+									INC(nofFilesAdded);
 
 									IF (res = Zip.Ok) & (package.source = "") THEN (* Also add source code since no source code package is defined *)
 										AddFile(archive, file.name, file.name, res);
@@ -1185,24 +1154,16 @@ TYPE
 		PROCEDURE GetCompilerOptions(VAR options: ARRAY OF CHAR);
 		BEGIN
 			COPY(compileOptions, options);
-			IF usePACO THEN
-				Strings.Append(options, " \s");
-				IF target # "" THEN 	Strings.Append(options, " \d"); Strings.Append(options, target) END;
-				IF extension # "" THEN Strings.Append(options, " \."); Strings.Append(options, extension) END;
-				IF path # "" THEN Strings.Append(options, " \P"); Strings.Append(options, path) END;
-			ELSE
-				IF target # "" THEN
-					IF (target = "386") THEN target := "AMD"; END;
-					Strings.Append(options, " -b="); Strings.Append(options, target);
-				END;
-				IF extension # "" THEN
-					Strings.Append(options, " --objectFileExtension="); Strings.Append(options, "."); Strings.Append(options, extension);
-					Strings.Append(options, " --symbolFileExtension="); Strings.Append(options, "."); Strings.Append(options, extension);
-				 END;
-				IF path # "" THEN
-					Strings.Append(options, " --objectFilePrefix="); Strings.Append(options, path);
-					Strings.Append(options, " --symbolFilePrefix="); Strings.Append(options, path);
-				END;
+			IF target # "" THEN
+				Strings.Append(options, " -b="); Strings.Append(options, target);
+			END;
+			IF extension # "" THEN
+				Strings.Append(options, " --objectFileExtension="); Strings.Append(options, "."); Strings.Append(options, extension);
+				Strings.Append(options, " --symbolFileExtension="); Strings.Append(options, "."); Strings.Append(options, extension);
+			 END;
+			IF path # "" THEN
+				Strings.Append(options, " --objectFilePrefix="); Strings.Append(options, path);
+				Strings.Append(options, " --symbolFilePrefix="); Strings.Append(options, path);
 			END;
 		END GetCompilerOptions;
 
@@ -1250,40 +1211,24 @@ TYPE
 			options : ARRAY 1024 OF CHAR;
 			optionsReader : Streams.StringReader;
 			message : ARRAY 512 OF CHAR;
-			scanner : PCS.Scanner;
 		BEGIN
 			ASSERT((file # NIL) & (diagnostics # NIL) & (importCache # NIL));
-			IF usePACO THEN
-				scanner := GetScanner(file, diagnostics);
-				IF ~KeepFilesOpen THEN
-					file.file := NIL;
-				END;
-				IF (scanner # NIL) THEN
-					GetCompilerOptions(options);
-					PC.Module(scanner, file.name, options, 0, log, diagnostics, error);
-				ELSE
-					MakeMessage(message, "File # not found", file.name, "");
-					diagnostics.Error("", file.pos, Diagnostics.Invalid, message);
-					error := TRUE;
+			reader := GetReader(file, diagnostics);
+			IF ~KeepFilesOpen THEN
+				file.file := NIL;
+			END;
+			IF (reader # NIL) THEN
+				GetCompilerOptions(options);
+				NEW(optionsReader, LEN(options));
+				optionsReader.Set(options);
+				error := ~Compiler.GetOptions(optionsReader, log, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, dataflowSpecification, findPC);
+				IF ~error THEN
+					error := ~Compiler.Module(file.name, reader, 0, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, dataflowSpecification, log, importCache, findPC);
 				END;
 			ELSE
-				reader := GetReader(file, diagnostics);
-				IF ~KeepFilesOpen THEN
-					file.file := NIL;
-				END;
-				IF (reader # NIL) THEN
-					GetCompilerOptions(options);
-					NEW(optionsReader, LEN(options));
-					optionsReader.Set(options);
-					error := ~Compiler.GetOptions(optionsReader, log, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, dataflowSpecification, findPC);
-					IF ~error THEN
-						error := ~Compiler.Module(file.name, reader, 0, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, dataflowSpecification, log, importCache, findPC);
-					END;
-				ELSE
-					MakeMessage(message, "File # not found", file.name, "");
-					diagnostics.Error("", file.pos, Diagnostics.Invalid, message);
-					error := TRUE;
-				END;
+				MakeMessage(message, "File # not found", file.name, "");
+				diagnostics.Error("", file.pos, Diagnostics.Invalid, message);
+				error := TRUE;
 			END;
 		END CompileFile;
 
@@ -1330,9 +1275,6 @@ TYPE
 			threadpool : ReleaseThreadPool.ThreadPool;
 		BEGIN
 			ASSERT(nofWorkers >= 0);
-			IF usePACO THEN
-				out.String("Using PArallel COmpiler."); out.Ln; out.Update;
-			END;
 			nofSources := GetNofSources(nofMarked);
 			IF (nofWorkers > 0) THEN
 				AnalyzeDependencies(out);
@@ -1361,7 +1303,6 @@ TYPE
 
 			importCache := SyntaxTree.NewModuleScope();
 			nofFiles := 0; err := FALSE;
-			IF usePACO THEN ExcludeFiles(diagnostics); END;
 			file := files;
 			WHILE (file # NIL) DO
 				IF file.IsSourceCode() & file.IsInRelease(include) & ~PackageIsExcluded(file.package) & file.doCompile THEN
@@ -2285,48 +2226,6 @@ TYPE
 
 	END Parser;
 
-PROCEDURE GetScanner(file : File; diagnostics : Diagnostics.Diagnostics) : PCS.Scanner;
-VAR
-	scanner : PCS.Scanner;
-	reader : Files.Reader; ch1, ch2 : CHAR; offset : LONGINT;
-	text : Texts.Text; format, res : LONGINT;
-	message : ARRAY 256 OF CHAR;
-BEGIN
-	ASSERT((file # NIL) & (diagnostics # NIL));
-	scanner := NIL;
-	IF OptimizedLoads THEN
-		IF (file.file = NIL) THEN file.file := Files.Old(file.name); END;
-		IF (file.file # NIL) THEN
-			Files.OpenReader(reader, file.file, 0);
-			reader.Char(ch1);
-			reader.Char(ch2);
-			IF (ch1= 0F0X) & (ch2 = 01X) THEN
-				reader.RawLInt(offset);
-				reader.SetPos(offset);
-				scanner := PCS.InitWithReader(reader, file.file.Length(), 0);
-			ELSE
-				scanner := NIL;
-			END;
-		ELSE
-			MakeMessage(message, "Could not open file #", file.name, "");
-			diagnostics.Error(file.name, file.pos, Diagnostics.Invalid, message);
-			RETURN NIL;
-		END;
-	END;
-	IF (scanner = NIL) THEN
-		NEW(text);
-		TextUtilities.LoadAuto(text, file.name, format, res);
-		IF (res = 0) THEN
-			scanner := PCS.InitWithText(text, 0);
-		ELSE
-			MakeMessage(message, "Could not open file # (Package = )", file.name, "");
-			diagnostics.Error(file.name, file.pos, Diagnostics.Invalid, message);
-			RETURN NIL;
-		END;
-	END;
-	RETURN scanner;
-END GetScanner;
-
 PROCEDURE GetModuleInfo(
 					in : Streams.Reader;
 					VAR mi : ModuleInfo;
@@ -2672,7 +2571,7 @@ PROCEDURE ParseText(
 	text : Texts.Text;
 	CONST source: ARRAY OF CHAR;
 	pos: LONGINT; (* ignore *)
-	CONST pc,opt: ARRAY OF CHAR;
+	CONST pc, opt: ARRAY OF CHAR;
 	log: Streams.Writer; diagnostics : Diagnostics.Diagnostics; VAR error: BOOLEAN);
 VAR
 	options : POINTER TO  ARRAY OF CHAR;
