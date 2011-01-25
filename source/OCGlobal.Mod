@@ -793,6 +793,7 @@ TYPE
 			OperatorDefined(system,i,TRUE);
 		END;
 		OperatorDefined(system,Scanner.Transpose,TRUE);
+		OperatorDefined(system,Scanner.Becomes,TRUE);
 		OperatorDefined(system,Dec,TRUE);
 		OperatorDefined(system,Excl,TRUE);
 		OperatorDefined(system,Inc,TRUE);
@@ -1154,6 +1155,17 @@ TYPE
 		END;
 	END GetIdentifier;
 
+	PROCEDURE GetSymbol*(case: LONGINT; id: SyntaxTree.Identifier): LONGINT;
+	VAR i: LONGINT;
+	BEGIN
+		(*! quick and dirty implementation, optimize ! *)
+		FOR i := 0 TO LEN(identifiers,1)-1 DO
+			IF id.Equals(identifiers[case,i]) THEN RETURN i END;
+		END;
+		RETURN -1
+	END GetSymbol;
+
+
 	PROCEDURE InitIdentifiers;
 	VAR i: LONGINT;
 
@@ -1205,6 +1217,7 @@ TYPE
 
 		identifiers[Scanner.Lowercase,Conversion] := SyntaxTree.NewIdentifier(-1,"@Convert");
 		identifiers[Scanner.Uppercase,Conversion] := SyntaxTree.NewIdentifier(-1,"@Convert");
+
 	END InitIdentifiers;
 
 	(** initialize the global namespace *)

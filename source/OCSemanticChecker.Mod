@@ -1,7 +1,7 @@
 MODULE OCSemanticChecker; (* AUTHOR "fof & fn"; PURPOSE "Oberon Compiler: Semantic Checker"; *)
 (* (c) fof ETHZ 2009 *)
 
-IMPORT D := Debugging, Basic := OCBasic, Scanner := OCScanner, SyntaxTree := OCSyntaxTree, 
+IMPORT D := Debugging, Basic := OCBasic, Scanner := OCScanner, SyntaxTree := OCSyntaxTree,
 Diagnostics, Global := OCGlobal, Printout:= OCPrintout, Formats := OCFormats, Dataflow := OCDataflow, SYSTEM, Machine,Strings;
 
 CONST
@@ -831,7 +831,7 @@ TYPE
 			IF TypeNeedsResolution(procedureType) THEN
 				modifiers := procedureType.modifiers;
 				IF HasFlag(modifiers, Global.NameWinAPI,position) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
-				ELSIF HasFlag(modifiers,Global.NameC,position) THEN 
+				ELSIF HasFlag(modifiers,Global.NameC,position) THEN
 					IF useDarwinCCalls THEN	(*fld*)
 						procedureType.SetCallingConvention(SyntaxTree.DarwinCCallingConvention)
 					ELSE
@@ -5658,7 +5658,7 @@ TYPE
 				*)
 				modifiers := procedureType.modifiers;
 				IF HasFlag(modifiers, Global.NameWinAPI,position) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
-				ELSIF HasFlag(modifiers, Global.NameC,position) THEN 
+				ELSIF HasFlag(modifiers, Global.NameC,position) THEN
 					IF useDarwinCCalls THEN	(*fld*)
 						procedureType.SetCallingConvention(SyntaxTree.DarwinCCallingConvention)
 					ELSE
@@ -5795,8 +5795,18 @@ TYPE
 
 		(** check and resolve operator **)
 		PROCEDURE VisitOperator(operator: SyntaxTree.Operator);
+		VAR name: Scanner.StringType; token: LONGINT;
 		BEGIN
 			VisitProcedure(operator);
+			(*
+			token := Global.GetSymbol(currentScope.ownerModule.case,operator.name);
+			operator.name.GetString(name);
+			IF (token<0) THEN
+				Error(operator.position,Diagnostics.Invalid,"this operator symbol does not exist");
+			ELSIF (~system.operatorDefined[token]) THEN
+				Error(operator.position,Diagnostics.Invalid,"this operator cannot be overloaded");
+			END;
+			*)
 			(*! check operator (number of parameters etc.) *)
 		END VisitOperator;
 
