@@ -7647,6 +7647,7 @@ Sufficient (but not necessary) conditions:
 			PutInc( dest, 1, GetIncr( left, 0 ) );  PutInc( dest, 0, GetIncr( left, 1 ) );
 		ELSE
 			len0 := GetLen( left, 0 );  len1 := GetLen( left, 1 );
+			p := AllocateSame(dest,left,Size);
 			IF (len0 # GetLen( dest, 1 )) OR (len1 # GetLen( dest, 0 )) THEN
 				Halt( GeometryMismatch, left, 0, dest )
 			END;

@@ -789,6 +789,7 @@ TYPE
 		FOR i := Scanner.Equal TO Scanner.Not DO
 			OperatorDefined(system,i,TRUE);
 		END;
+		OperatorDefined(system,Scanner.Transpose,TRUE);
 		OperatorDefined(system,Dec,TRUE);
 		OperatorDefined(system,Excl,TRUE);
 		OperatorDefined(system,Inc,TRUE);
