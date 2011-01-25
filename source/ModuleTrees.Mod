@@ -1,10 +1,10 @@
 MODULE ModuleTrees; (** AUTHOR "?"; PURPOSE "Visualize module structure as tree"; *)
 
 IMPORT
-	Commands, WMStandardComponents, WMGraphics, WMProperties, WMComponents,
-	WMTextView, WMEditors, Strings, Texts, KernelLog,
+	Streams, Commands, Diagnostics, WMStandardComponents, WMGraphics, WMProperties, WMComponents,
+	WMTextView, WMEditors, Strings, Texts, TextUtilities, KernelLog,
 	WMTrees, WMEvents,
-	PCS, ModuleParser;
+	OCScanner, ModuleParser;
 
 CONST
 	TreeLabelCaption = " Program Structure";
@@ -86,12 +86,17 @@ TYPE
 		onGoToExternalModule- : WMEvents.EventSource;
 
 		module : ModuleParser.Module;
+		diagnostics : Diagnostics.StreamDiagnostics;
+		writer : Streams.Writer;
 
 		PROCEDURE & Init*;
 		BEGIN
 			Init^;
 			showPublicOnly := FALSE;
 			module := NIL;
+
+			NEW(writer, KernelLog.Send, 256);
+			NEW(diagnostics, writer);
 
 			NEW(showTypeHierarchy, PrototypeShowTypeHierarchy, NIL, NIL); properties.Add(showTypeHierarchy);
 			NEW(onGoToExternalModule, NIL, NIL, NIL, NIL); events.Add(onGoToExternalModule);
@@ -213,7 +218,8 @@ TYPE
 
 		VAR
 			module: ModuleParser.Module;
-			scanner: PCS.Scanner;
+			scanner: OCScanner.Scanner;
+			reader : TextUtilities.TextReader;
 			rootNode: WMTrees.TreeNode;
 			nofOpenNodes : LONGINT;
 			openNodes : StringList;
@@ -299,7 +305,8 @@ TYPE
 			IF ~IsCallFromSequencer() THEN
 				sequencer.ScheduleEvent(SELF.RefreshHandler, sender, data);
 			ELSE
-				scanner := PCS.InitWithText(editor.text, 0);
+				NEW(reader, editor.text);
+				scanner := OCScanner.NewScanner("ModuleTrees", reader, 0, diagnostics);
 				ModuleParser.Parse(scanner, module);
 				SELF.module := module;
 				IF module # NIL THEN
