@@ -590,6 +590,9 @@ TYPE
 			IF (par.type.resolved IS SyntaxTree.ArrayType) OR (par.type.resolved IS SyntaxTree.MathArrayType) THEN
 				IF (par.type.resolved IS SyntaxTree.ArrayType) & (par.type.resolved(SyntaxTree.ArrayType).form = SyntaxTree.Static) &
 					(par.kind IN {SyntaxTree.ConstParameter,SyntaxTree.VarParameter})
+					OR
+					(par.type.resolved IS SyntaxTree.MathArrayType) & (par.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static) &
+					(par.kind IN {SyntaxTree.ConstParameter,SyntaxTree.VarParameter})
 					OR (par.type.resolved IS SyntaxTree.MathArrayType) & (par.kind = SyntaxTree.VarParameter)
 				THEN
 					RETURN addressSize
