@@ -1414,14 +1414,13 @@ VAR
 	text : Texts.Text; reader : TextUtilities.TextReader;
 	format, res : LONGINT;
 BEGIN
-	ASSERT(diagnostics # NIL);
 	NEW(text);
 	TextUtilities.LoadAuto(text, filename, format, res);
 	IF (res = 0) THEN
 		NEW(reader, text);
 		scanner := OCScanner.NewScanner(filename, reader, 0, diagnostics);
 		Parse(scanner, module);
-	ELSE
+	ELSIF (diagnostics # NIL) THEN
 		diagnostics.Error("ModuleParser", Diagnostics.Invalid, Diagnostics.Invalid, "File not found");
 	END;
 	RETURN module
