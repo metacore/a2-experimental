@@ -7,7 +7,7 @@ CONST
 	Trace = FALSE;
 
 	(** the parser reflects the following EBNF:
-	
+
 		Module               = 'module' Identifier ['in' Identifier]';' [ImportList] DeclarationSequence [Body]
 		                       'end' Identifier '.'.
 
@@ -328,7 +328,7 @@ TYPE
 		(** Check if current symbol is an identifier and if the name matches. If yes then get next symbol, report error otherwise. returns success value*)
 		PROCEDURE ExpectThisString( CONST name: ARRAY OF CHAR ): BOOLEAN;
 		BEGIN
-			IF Peek(Scanner.String) OR Peek(Scanner.Character) OR Peek(Scanner.Identifier) & (symbol.string = name) THEN
+			IF (Peek(Scanner.String) OR Peek(Scanner.Character) OR Peek(Scanner.Identifier)) & (symbol.string = name) THEN
 				NextSymbol;
 				RETURN TRUE
 			ELSE
@@ -1149,12 +1149,12 @@ TYPE
 			actorType.IsAssembly(isAssembly);
 			actorScope.SetOwnerActor(actorType);
 
-			
+
 			IF Optional(Scanner.LeftBrace) THEN
 				modifiers := Flags();
 				actorType.SetModifiers(modifiers);
 			END;
-			
+
 
 			IF Optional( Scanner.LeftParenthesis ) THEN
 				PortList(actorType,actorScope);
@@ -1595,10 +1595,10 @@ TYPE
 			parentScope.AddProcedure(operator);
 			IF parentScope IS SyntaxTree.ModuleScope THEN
 				parentScope(SyntaxTree.ModuleScope).AddOperator(operator);
-			
+
 			ELSIF parentScope IS SyntaxTree.RecordScope THEN
 				parentScope(SyntaxTree.RecordScope).AddOperator(operator);
-			
+
 			ELSE
 				Error(position,Diagnostics.Invalid,"Operators only allowed in module scope");
 			END;
