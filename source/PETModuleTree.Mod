@@ -41,11 +41,12 @@ CONST
 
 TYPE
 
+	Name = ARRAY 32 OF CHAR;
+
 	Info = OBJECT(PETTrees.Info);
 	VAR
 		name : Strings.String;
-		node : ModuleParser.Node;
-		modulename : ARRAY 32 OF CHAR;
+		modulename : Name;
 		sortHint : LONGINT;
 		flags : SET;
 		position : LONGINT;
@@ -53,7 +54,6 @@ TYPE
 		PROCEDURE &Init;
 		BEGIN
 			name := NIL;
-			node := NIL;
 			modulename := "";
 			sortHint := SortIgnore;
 			flags := {};
@@ -66,7 +66,7 @@ TYPE
 	VAR
 		showTypeHierarchy-, showImportedModules- : WMProperties.BooleanProperty;
 
-		module : ModuleParser.Module;
+		moduleName : Name;
 
 		detailsBtn, publicBtn: WMStandardComponents.Button;
 		showPublicOnly : BOOLEAN;
@@ -76,7 +76,7 @@ TYPE
 			Init^;
 			NEW(showTypeHierarchy, PrototypeShowTypeHierarchy, NIL, NIL); properties.Add(showTypeHierarchy);
 			NEW(showImportedModules, PrototypeShowImportedModules, NIL, NIL); properties.Add(showImportedModules);
-			module := NIL;
+			moduleName := "NONE";
 			showPublicOnly := FALSE;
 
 			NEW(detailsBtn); detailsBtn.alignment.Set(WMComponents.AlignLeft);
@@ -179,8 +179,12 @@ TYPE
 			NEW(reader, editor.text);
 			scanner := OCScanner.NewScanner("PETModuleTree", reader, 0, diagnostics);
 			ModuleParser.Parse(scanner, module);
-			SELF.module := module;
-			IF module # NIL THEN
+			IF (module # NIL) THEN
+				IF (module.ident # NIL) & (module.ident.name # NIL) THEN
+					COPY(module.ident.name^, moduleName);
+				ELSE
+					moduleName := "UNKOWN";
+				END;
 				IF showTypeHierarchy.Get() THEN
 					ModuleParser.SetSuperTypes(module);
 				END;
@@ -188,6 +192,8 @@ TYPE
 				IF module.hasError THEN SetTitle(TitleError);
 				ELSE SetTitle(Title);
 				END;
+			ELSE
+				moduleName := "UNKNOWN";
 			END;
 		END AddNodes;
 
@@ -211,10 +217,9 @@ TYPE
 				END;
 				tree.Release;
 
-				IF (d # NIL) & (d IS Info) & (d(Info).node # NIL) THEN
+				IF (d # NIL) & (d IS Info) THEN
 					textInfo := d(Info);
-					moduleNode := GetModuleNode(textInfo.node);
-					IF (moduleNode = module) THEN
+					IF (textInfo.modulename = moduleName) THEN
 						IF (textInfo.pos # NIL) THEN
 							SetEditorPosition(textInfo.pos.GetPosition(), TRUE);
 						ELSE
@@ -235,10 +240,8 @@ TYPE
 				tree.Acquire;
 				d := tree.GetNodeData(data(WMTrees.TreeNode));
 				tree.Release;
-				IF (d # NIL) & (d IS Info) & (CanExecute IN d(Info).flags) & (d(Info).name # NIL) &
-					(module # NIL) & (module.ident # NIL) & (module.ident.name # NIL)
-				THEN
-					COPY(module.ident.name^, commandStr);
+				IF (d # NIL) & (d IS Info) & (CanExecute IN d(Info).flags) & (d(Info).name # NIL) & (d(Info).modulename # "") THEN
+					COPY(d(Info).modulename, commandStr);
 					Strings.Append(commandStr, Commands.Delimiter);
 					Strings.Append(commandStr, d(Info).name^);
 					len := Strings.Length(commandStr);
@@ -252,7 +255,6 @@ TYPE
 		VAR newInfo: Info; moduleNode : ModuleParser.Module; font: WMGraphics.Font;
 		BEGIN
 			NEW(newInfo);
-			newInfo.node := node;
 			newInfo.flags := {};
 			IF ~isPublic THEN INCL(newInfo.flags, NotPublic); END;
 			newInfo.sortHint := sortHint;
@@ -277,9 +279,9 @@ TYPE
 				newInfo.name := infoItem.name;
 				newInfo.position := infoItem.pos;
 				INCL(newInfo.flags, PosValid);
-				IF (moduleNode = NIL) OR (moduleNode = module) THEN
+				IF (moduleNode = NIL) OR ((moduleNode.ident # NIL) & (moduleNode.ident.name # NIL) & (moduleNode.ident.name^ = moduleName)) THEN
 					newInfo.external := FALSE;
-					newInfo.modulename := "";
+					newInfo.modulename := moduleName;
 					NEW(newInfo.pos, editor.text);
 					newInfo.pos.SetPosition(infoItem.pos);
 				ELSE
@@ -371,8 +373,14 @@ TYPE
 		VAR type : LONGINT;
 
 			PROCEDURE InModuleScope(procHead : ModuleParser.ProcHead) : BOOLEAN;
+			VAR module : ModuleParser.Module;
 			BEGIN
-				RETURN (procHead # NIL) & (procHead.parent.parent.parent = module);
+				IF (procHead # NIL) & (procHead.parent.parent.parent # NIL) & (procHead.parent.parent.parent IS ModuleParser.Module) THEN
+					module := procHead.parent.parent.parent (ModuleParser.Module);
+					RETURN (module.ident # NIL) & (module.ident.name # NIL) & (module.ident.name^ = moduleName);
+				ELSE
+					RETURN FALSE;
+				END;
 			END InModuleScope;
 
 			PROCEDURE IsCommandProc(procHead : ModuleParser.ProcHead) : BOOLEAN;
@@ -792,10 +800,11 @@ TYPE
 				NEW(newNode);
 				info := GetInfo(superRecord, NIL, TRUE, SortNo, WMGraphics.Black, {WMGraphics.FontItalic});
 				tree.SetNodeData(newNode, info);
-				caption := "";
 				moduleNode := GetModuleNode(superRecord);
-				IF (moduleNode # module) THEN
-					Strings.Append(caption, moduleNode.ident.name^); Strings.Append(caption, ".");
+				IF (moduleNode # NIL) & (moduleNode.ident # NIL) & (moduleNode.ident.name # NIL) & (moduleNode.ident.name^ # moduleName) THEN
+					COPY(moduleNode.ident.name^, caption); Strings.Append(caption, ".");
+				ELSE
+					caption := "";
 				END;
 				node := superRecord.parent.parent;
 				WHILE (node # NIL) & ~(node IS ModuleParser.TypeDecl) DO node := node.parent; END;
@@ -828,10 +837,11 @@ TYPE
 				NEW(newNode);
 				info := GetInfo(superClass, NIL, TRUE, SortNo, WMGraphics.Black, {WMGraphics.FontItalic});
 				tree.SetNodeData(newNode, info);
-				caption := "";
 				moduleNode := GetModuleNode(superClass);
-				IF (moduleNode # module) THEN
-					Strings.Append(caption, moduleNode.ident.name^); Strings.Append(caption, ".");
+				IF (moduleNode # NIL) & (moduleNode.ident # NIL) & (moduleNode.ident.name # NIL) & (moduleNode.ident.name^ # moduleName) THEN
+					COPY(moduleNode.ident.name^, caption); Strings.Append(caption, ".");
+				ELSE
+					caption := "";
 				END;
 				typeDecl := superClass.parent.parent (ModuleParser.TypeDecl);
 				Strings.Append(caption, typeDecl.identDef.ident.name^);
