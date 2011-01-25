@@ -395,7 +395,8 @@ TYPE
 					ELSE AppendLast(module.definitions, definition)
 					END;
 				END;
-				IF (symbol.token = OCScanner.Const) OR (symbol.token = OCScanner.Type) OR (symbol.token = OCScanner.Var) OR (symbol.token = OCScanner.Procedure) THEN
+				IF 	(symbol.token = OCScanner.Const) OR (symbol.token = OCScanner.Type) OR
+					(symbol.token = OCScanner.Var) OR (symbol.token = OCScanner.Procedure) OR (symbol.token = OCScanner.Operator) THEN
 					NEW(module.declSeq, module);
 					DeclSeqP(module.declSeq);
 				END;
@@ -475,7 +476,7 @@ TYPE
 					NEW(definition.refines, definition);
 					QualidentP(definition.refines);
 				END; *)
-				WHILE symbol.token = OCScanner.Procedure DO
+				WHILE (symbol.token = OCScanner.Procedure) OR (symbol.token = OCScanner.Operator) DO
 					NEW(procHead, definition);
 					NextSymbol;
 					ProcHeadP(procHead);
@@ -540,8 +541,8 @@ TYPE
 						CheckEndOrSemicolon;
 						(*Check(OCScanner.Semicolon);*)
 					END;
-				| OCScanner.Procedure:
-					WHILE symbol.token = OCScanner.Procedure DO
+				| OCScanner.Procedure, OCScanner.Operator:
+					WHILE (symbol.token = OCScanner.Procedure) OR (symbol.token = OCScanner.Operator) DO
 						NextSymbol;
 						NEW(procDecl, declSeq);
 						ProcDeclP(procDecl);
@@ -613,7 +614,8 @@ TYPE
 			ProcHeadP(proc.head);
 			IF proc.head.identDef = NIL THEN proc.head := NIL; RETURN END;
 			Check(OCScanner.Semicolon);
-			IF (symbol.token = OCScanner.Const) OR (symbol.token = OCScanner.Var) OR (symbol.token = OCScanner.Type) OR (symbol.token = OCScanner.Procedure) THEN
+			IF 	(symbol.token = OCScanner.Const) OR (symbol.token = OCScanner.Var) OR
+				(symbol.token = OCScanner.Type) OR (symbol.token = OCScanner.Procedure) OR (symbol.token = OCScanner.Operator) THEN
 				NEW(declSeq, proc);
 				DeclSeqP(declSeq);
 				IF proc.declSeq = NIL THEN proc.declSeq := declSeq;
@@ -770,7 +772,7 @@ TYPE
 			| OCScanner.Record: NextSymbol; NEW(type.record, type); RecordP(type.record);
 			| OCScanner.Pointer: NextSymbol; NEW(type.pointer, type); PointerP(type.pointer);
 			| OCScanner.Object: NextSymbol; NEW(type.object, type); ObjectP(type.object);
-			| OCScanner.Procedure: NextSymbol; NEW(type.procedure, type); ProcedureP(type.procedure);
+			| OCScanner.Procedure, OCScanner.Operator: NextSymbol; NEW(type.procedure, type); ProcedureP(type.procedure);
 			| OCScanner.Identifier: NEW(type.qualident, type); QualidentP(type.qualident);
 			ELSE
 				(* Error *)
