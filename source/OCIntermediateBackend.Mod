@@ -143,11 +143,6 @@ TYPE
 			backend.Error(module.module.sourceName, position, Diagnostics.Invalid, s);
 		END Error;
 
-		PROCEDURE Warning(position: LONGINT; CONST s: ARRAY OF CHAR);
-		BEGIN
-			backend.Error(module.module.sourceName, position, Diagnostics.Invalid, s);
-		END Warning;
-
 		PROCEDURE Type(x: SyntaxTree.Type);
 		BEGIN
 			x.Accept(SELF);
@@ -550,22 +545,6 @@ TYPE
 		VAR
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand; name: SyntaxTree.String;
 
-			PROCEDURE EnsureBodyProcedure;
-			VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope;
-			BEGIN
-				procedure := x.moduleScope.bodyProcedure;
-				IF procedure = NIL THEN (* artificially add body procedure if not existing. Really needed? *)
-					procedureScope := SyntaxTree.NewProcedureScope(module.module.moduleScope);
-					procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,"$$BODY"), procedureScope);
-					procedure.SetScope(module.module.moduleScope);
-					procedure.SetType(SyntaxTree.NewProcedureType(-1,module.module.moduleScope));
-					procedure.SetAccess(SyntaxTree.Hidden);
-					module.module.moduleScope.SetBodyProcedure(procedure);
-					module.module.moduleScope.AddProcedure(procedure);
-					procedureScope.SetBody(SyntaxTree.NewBody(-1,procedureScope)); (* empty body *)
-				END;
-			END EnsureBodyProcedure;
-
 			PROCEDURE TypeNeedsInitialization(type: SyntaxTree.Type): BOOLEAN;
 			BEGIN
 				type := type.resolved;
@@ -620,11 +599,32 @@ TYPE
 			implementationVisitor.moduleSelf := moduleSelf;
 
 			IF forceModuleBody OR implementationVisitor.newObjectFile OR ScopeNeedsInitialization(x.moduleScope) THEN
-				EnsureBodyProcedure; (* currently needed in Oberon, remove ? *)
+				EnsureBodyProcedure(x.moduleScope); (* currently needed in Oberon, remove ? *)
 			END;
 
 
+			IF backend.profile THEN
+				EnsureBodyProcedure(x.moduleScope);
+				Global.GetModuleName(module.module,name); Strings.Append(name,"."); Strings.Append(name,"@ModuleId");
+				implementationVisitor.profileId := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,NIL,dump);
+				implementationVisitor.profileId.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(system.longintType))));
+				Global.GetModuleName(module.module, name); Strings.Append(name,"."); Strings.Append(name,"@InitProfiler");
+				implementationVisitor.profileInit := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,NIL,dump);
+				implementationVisitor.profileInit.Emit(Enter(0,0));
+
+				Global.GetModuleName(module.module,name);
+				implementationVisitor.ProfilerAddModule(name);
+				implementationVisitor.numberProcedures := 0;
+			END;
+			implementationVisitor.profile := backend.profile;
+
 			Scope(x.moduleScope);
+
+
+			IF backend.profile THEN
+				implementationVisitor.ProfilerPatchInit;
+			END;
+
 		END Module;
 
 	END DeclarationVisitor;
@@ -754,6 +754,11 @@ TYPE
 		newObjectFile: BOOLEAN;
 		currentActorScope: SyntaxTree.ActorScope;
 		indexCounter: LONGINT;
+
+		profile: BOOLEAN;
+		profileId, profileInit: IntermediateCode.Section;
+		profileInitPatchPosition: LONGINT;
+		numberProcedures: LONGINT;
 
 		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
@@ -1006,13 +1011,6 @@ TYPE
 			UnuseRegister(op.tag.register);
 			UnuseRegister(op.extra.register);
 		END ReleaseOperand;
-
-		PROCEDURE UseOperand(CONST op: Operand);
-		BEGIN
-			UseIntermediateOperand(op.op);
-			UseIntermediateOperand(op.tag);
-			UseIntermediateOperand(op.extra);
-		END UseOperand;
 
 		(* save registers marked in array "markedRegisters" to the stack
 			remove entries from array "markedRegisters" and save to array "saved" (=> recursion possible)
@@ -3020,12 +3018,14 @@ TYPE
 						END;
 						dimOp := IntermediateCode.Immediate(addressType,dim);
 						PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
+						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset);
 					(* case 1d *)
 					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
 						Designate(expression,operand);
 						Dereference(operand,type.resolved);
 						DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
 						Emit(Copy(sp(*arrayDestinationTag*),operand.tag,IntermediateCode.Immediate(addressType,size)));
+						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset);
 					(* case 1f *)
 					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
 						Designate(expression,operand);
@@ -3893,6 +3893,80 @@ TYPE
 		END MakeTypeTag;
 		*)
 
+		PROCEDURE ProfilerInit;
+		VAR reg: IntermediateCode.Operand;
+		BEGIN
+			IntermediateCode.InitAddress(reg, addressType, profileInit , 0);
+			Emit(Call(reg,0));
+		END ProfilerInit;
+
+		PROCEDURE ProfilerEnterExit(procedureNumber: LONGINT; enter: BOOLEAN);
+		VAR reg: IntermediateCode.Operand; result: Operand; procedure: SyntaxTree.Procedure;
+		BEGIN
+			IF enter & GetRuntimeProcedure("OCProfiler","EnterProcedure",procedure,TRUE)
+			OR ~enter & GetRuntimeProcedure("OCProfiler","ExitProcedure",procedure,TRUE)
+			THEN
+				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
+				IntermediateCode.MakeMemory(reg, GetType(system,system.longintType));
+				Emit(Push(reg));
+				IntermediateCode.InitImmediate(reg, GetType(system,system.longintType), procedureNumber);
+				Emit(Push(reg));
+				StaticCallOperand(result,procedure);
+				Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
+				ReleaseOperand(result);
+			END;
+		END ProfilerEnterExit;
+
+		PROCEDURE ProfilerAddProcedure(procedureNumber: LONGINT; CONST name: ARRAY OF CHAR);
+		VAR reg: IntermediateCode.Operand; result: Operand; procedure: SyntaxTree.Procedure; sv: SyntaxTree.StringValue;type: SyntaxTree.Type;
+		BEGIN
+			IF GetRuntimeProcedure("OCProfiler","AddProcedure",procedure,TRUE) THEN
+				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
+				IntermediateCode.MakeMemory(reg, GetType(system,system.longintType));
+				profileInit.Emit(Push(reg));
+				IntermediateCode.InitImmediate(reg, GetType(system,system.longintType), procedureNumber);
+				profileInit.Emit(Push(reg));
+				sv := SyntaxTree.NewStringValue(-1,name);
+				type := SyntaxTree.NewStringType(-1,system.characterType,Strings.Length(name));
+				sv.SetType(type);
+				Designate(sv,result);
+				profileInit.Emit(Push(result.tag));
+				profileInit.Emit(Push(result.op));
+				StaticCallOperand(result,procedure);
+				profileInit.Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
+				ReleaseOperand(result);
+			END;
+		END ProfilerAddProcedure;
+
+		PROCEDURE ProfilerAddModule(CONST name: ARRAY OF CHAR);
+		VAR sv: SyntaxTree.StringValue; type: SyntaxTree.Type; result: Operand;  reg: IntermediateCode.Operand; procedure: SyntaxTree.Procedure;
+		BEGIN
+			IF GetRuntimeProcedure("OCProfiler","AddModule",procedure,TRUE) THEN
+				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
+				profileInit.Emit(Push(reg));
+				profileInitPatchPosition := profileInit.pc;
+				profileInit.Emit(Nop()); (* placeholder, will be patched by number of procedures *)
+				sv := SyntaxTree.NewStringValue(-1,name);
+				type := SyntaxTree.NewStringType(-1,system.characterType,Strings.Length(name));
+				sv.SetType(type);
+				Designate(sv,result);
+				profileInit.Emit(Push(result.tag));
+				profileInit.Emit(Push(result.op));
+				StaticCallOperand(result,procedure);
+				profileInit.Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
+				ReleaseOperand(result);
+			END;
+		END ProfilerAddModule;
+
+		PROCEDURE ProfilerPatchInit;
+		VAR reg: IntermediateCode.Operand;
+		BEGIN
+			IntermediateCode.InitImmediate(reg, GetType(system,system.longintType), numberProcedures);
+			profileInit.EmitAt(profileInitPatchPosition,Push(reg));
+			profileInit.Emit(Leave(0));
+			profileInit.Emit(Exit(0));
+		END ProfilerPatchInit;
+
 		PROCEDURE SystemTrace(x: SyntaxTree.ExpressionList);
 		VAR
 			traceModule: SyntaxTree.Module;
@@ -4086,6 +4160,12 @@ TYPE
 			type := type.resolved;
 			IF type IS SyntaxTree.RecordType THEN
 				WITH type: SyntaxTree.RecordType DO
+					baseType := type.baseType;
+					IF baseType # NIL THEN
+						baseType := baseType.resolved;
+						IF baseType IS SyntaxTree.PointerType THEN baseType := baseType(SyntaxTree.PointerType).pointerBase END;
+						InitFields(baseType,adr,offset);
+					END;
 					variable := type.recordScope.firstVariable;
 					WHILE variable # NIL DO
 						InitFields(variable.type, adr, offset+ ToMemoryUnits(system,variable.offsetInBits));
@@ -6403,45 +6483,25 @@ TYPE
 				procedureType := currentScope(SyntaxTree.ProcedureScope).ownerProcedure.type(SyntaxTree.ProcedureType);
 				type := expression.type.resolved;
 				IF (expression IS SyntaxTree.SymbolDesignator) & (expression(SyntaxTree.SymbolDesignator).symbol = procedureType.returnParameter) THEN
+					IF locked THEN Lock(FALSE) END;
+					IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 					(* "RETURN RESULT" -> no assignment, it is assumed that result has been written to return parameter via structured return type *)
-				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.RangeType) (*OR
-						(type IS SyntaxTree.ProcedureType) & ~type(SyntaxTree.ProcedureType).isDelegate OR*) OR  (type IS SyntaxTree.PointerType) THEN
+				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.RangeType) OR (type IS SyntaxTree.PointerType) THEN
 					(* return without structured return parameter *)
 					Evaluate(expression,res);
 					delegate := (type IS SyntaxTree.ProcedureType) & (type(SyntaxTree.ProcedureType).isDelegate);
-					IF locked THEN
+					IF locked OR profile THEN
 						Emit(Push(res.op));
-						IF delegate THEN HALT(200); Emit(Push(res.tag)) END;
+						IF delegate THEN HALT(200) END;
 						ReleaseOperand(res);
-						Lock(FALSE);
-						(*
-						IF delegate THEN
-							AcquireThisRegister(GetType(system,type),IntermediateCode.Result2);
-							Emit(Pop(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result2)));
-							registers.Unuse(IntermediateCode.Result2);
-						END;
-						*)
+						IF locked THEN Lock(FALSE) END;
+						IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 						reg := NewRegisterOperand(res.op.type);
 						Emit(Pop(reg));
 						Emit(Return(reg));
 						ReleaseIntermediateOperand(reg);
-						(*
-						AcquireThisRegister(GetType(system,type),IntermediateCode.Result);
-						Emit(Pop(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result)));
-						registers.Unuse(IntermediateCode.Result);
-						*)
 					ELSE
 						Emit(Return(res.op));
-						(*
-						AcquireThisRegister(GetType(system,type),IntermediateCode.Result);
-						Emit(Mov(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result),res.op));
-						registers.Unuse(IntermediateCode.Result);
-						IF delegate THEN
-							AcquireThisRegister(GetType(system,type),IntermediateCode.Result2);
-							Emit(Mov(IntermediateCode.Register(GetType(system,type),IntermediateCode.Result2),res.tag));
-							registers.Unuse(IntermediateCode.Result2);
-						END;
-						*)
 						ReleaseOperand(res);
 					END;
 				ELSIF (type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.RangeType)
@@ -6483,8 +6543,8 @@ TYPE
 						ReleaseOperand(right)
 					END;
 					ReleaseIntermediateOperand(left);
-					IF locked THEN Lock(FALSE) END
-
+					IF locked THEN Lock(FALSE) END;
+					IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 				ELSIF (type IS SyntaxTree.MathArrayType) OR (type IS SyntaxTree.ProcedureType) THEN
 					parameter := procedureType.returnParameter;
 					checker.SetCurrentScope(currentScope);
@@ -6495,29 +6555,20 @@ TYPE
 						parameterDesignator := checker.NewSymbolDesignator(expression.position,NIL,parameter);
 						Assign(parameterDesignator,expression);
 					END;
-					(*
-					operatorCall := checker.NewOperatorCall(expression.position,Scanner.Becomes,parameterDesignator,expression,NIL);
-					Expression(operatorCall);
-					*)
-					IF locked THEN Lock(FALSE) END
+					IF locked THEN Lock(FALSE) END;
+					IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 				ELSE
 					HALT(200);
 				END;
-			ELSIF locked THEN Lock(FALSE)
+			ELSE
+				IF locked THEN Lock(FALSE) END;
+				IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 			END;
 			procedure := currentScope(SyntaxTree.ProcedureScope).ownerProcedure;
 			parSize := ProcedureParametersSize(system,procedure);
 
-			(*
-			IF SyntaxTree.WinAPIFlag IN procedure.type(SyntaxTree.ProcedureType).flags THEN cc := SyntaxTree.WinAPIFlag
-			ELSIF SyntaxTree.CFlag IN procedure.type(SyntaxTree.ProcedureType).flags THEN cc := SyntaxTree.CFlag
-			ELSE cc := 0
-			END;
-			*)
-
 			Emit(Leave(procedure.type(SyntaxTree.ProcedureType).callingConvention));
 			Emit(Exit(parSize));
-			(*Emit(Return(parSize));*)
 			IF Trace THEN TraceExit("VisitReturnStatement") END;
 		END VisitReturnStatement;
 
@@ -6751,6 +6802,15 @@ TYPE
 				ReleaseIntermediateOperand(res);
 			END;
 			IF x # NIL THEN
+				IF profile & (x.code = NIL) THEN (* do not profile assembler code sections *)
+					IF moduleBody THEN
+						ProfilerInit();
+					ELSE
+						ProfilerAddProcedure(numberProcedures,ir.name);
+						ProfilerEnterExit(numberProcedures,TRUE);
+					END;
+				END;
+
 				section.SetAlignment(procedure.fixed, procedure.alignment);
 				IF moduleBody THEN
 					InitVariables(moduleScope)
@@ -6766,6 +6826,11 @@ TYPE
 					ir.SetFinally(ir.pc);
 					StatementSequence(x.finally)
 				END;
+				IF profile & (x.code = NIL) & ~moduleBody THEN (* do not profile assembler code sections *)
+					ProfilerEnterExit(numberProcedures,FALSE);
+					INC(numberProcedures);
+				END;
+
 			END;
 			IF newObjectFile & moduleBody  & ~suppressModuleRegistration THEN
 				PushSelfPointer();
@@ -6827,6 +6892,7 @@ TYPE
 		runtimeModuleName-: SyntaxTree.String;
 		traceModuleName-: SyntaxTree.String;
 		newObjectFile-: BOOLEAN;
+		profile-: BOOLEAN;
 
 		PROCEDURE &InitIntermediateBackend*;
 		BEGIN
@@ -6872,8 +6938,6 @@ TYPE
 			dump: WMUtilities.WindowWriter;
 			module: Sections.Module;
 			traceName: SyntaxTree.String;
-			codeGenerator: GenericCodeGenerator;
-			in: Sections.Section; out: BinaryCode.Section;
 		BEGIN
 			module := GenerateIntermediate(x);
 
@@ -6917,6 +6981,7 @@ TYPE
 			options.Add(0X,"runtime",Options.String);
 			options.Add(0X,"newObjectFile",Options.Flag);
 			options.Add(0X,"traceModule",Options.String);
+			options.Add(0X,"profile",Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -6925,6 +6990,7 @@ TYPE
 			GetOptions^(options);
 			trace := options.GetString("trace",traceString);
 			newObjectFile := options.GetFlag("newObjectFile");
+			profile := options.GetFlag("profile");
 			IF options.GetString("runtime",name) THEN
 				COPY(name, runtimeModuleName);
 			END;
@@ -7901,6 +7967,22 @@ TYPE
 	BEGIN
 		RETURN (op.mode = IntermediateCode.ModeRegister) & (op.register > 0) & (op.offset = 0);
 	END ReusableRegister;
+
+	PROCEDURE EnsureBodyProcedure(moduleScope: SyntaxTree.ModuleScope);
+	VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope;
+	BEGIN
+		procedure := moduleScope.bodyProcedure;
+		IF procedure = NIL THEN (* artificially add body procedure if not existing. Really needed? *)
+			procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
+			procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,"$$BODY"), procedureScope);
+			procedure.SetScope(moduleScope);
+			procedure.SetType(SyntaxTree.NewProcedureType(-1,moduleScope));
+			procedure.SetAccess(SyntaxTree.Hidden);
+			moduleScope.SetBodyProcedure(procedure);
+			moduleScope.AddProcedure(procedure);
+			procedureScope.SetBody(SyntaxTree.NewBody(-1,procedureScope)); (* empty body *)
+		END;
+	END EnsureBodyProcedure;
 
 	PROCEDURE MetaHeapBlock(implementationVisitor: ImplementationVisitor; CONST moduleName, typeName: ARRAY OF CHAR; module: Sections.Module; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
 	VAR moduleTD: IntermediateCode.Section; offset: LONGINT;
