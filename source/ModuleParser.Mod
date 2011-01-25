@@ -4,7 +4,8 @@ MODULE ModuleParser;	(** AUTHOR "mb"; PURPOSE "Active Oberon parser for use with
  *	- The Module node's parent is the module node itself
  *)
 
-IMPORT Streams, Strings, StringPool, Files, PCS, KernelLog, Texts, TextUtilities;
+IMPORT
+	Strings, Files, Diagnostics, OCScanner, KernelLog, Texts, TextUtilities;
 
 CONST
 	(* visibilities *)
@@ -29,7 +30,6 @@ CONST
 	PriorityStr = "PRIORITY";
 
 VAR
-	delegate: StringPool.Index;
 	name: ARRAY 1024 OF CHAR;
 
 TYPE
@@ -337,157 +337,156 @@ TYPE
 
 	Parser = OBJECT
 	VAR
-		sym: PCS.Token;
-		scanner: PCS.Scanner;
+		symbol : OCScanner.Symbol;
+		scanner: OCScanner.Scanner;
 		hasError: BOOLEAN;
 
-		PROCEDURE & Init*(scanner: PCS.Scanner);
+		PROCEDURE & Init*(scanner: OCScanner.Scanner);
 		BEGIN
+			ASSERT(scanner # NIL);
 			SELF.scanner := scanner;
 			hasError := FALSE;
 		END Init;
 
+		PROCEDURE NextSymbol;
+		VAR ignore : BOOLEAN;
+		BEGIN
+			ignore := scanner.GetNextSymbol(symbol);
+			WHILE (symbol.token = OCScanner.Comment) DO ignore := scanner.GetNextSymbol(symbol); END;
+		END NextSymbol;
+
 		PROCEDURE ModuleP(VAR module: Module);
 		VAR
-			name: ARRAY 64 OF CHAR;
-			modName: PCS.Name;
+			modName: OCScanner.StringType;
 			definition: Definition;
 		BEGIN
-			scanner.Get(sym);
-			IF sym = PCS.module THEN
+			NextSymbol;
+			IF symbol.token = OCScanner.Module THEN
 				NEW(module, NIL); module.parent := module;
-				scanner.Get(sym);
-				IF sym = PCS.ident THEN
-					modName := scanner.name;
-					StringPool.GetString(scanner.name, name);
+				NextSymbol;
+				IF symbol.token = OCScanner.Identifier THEN
 					NEW(module.ident);
-					module.ident.name := Strings.NewString(name);
-					module.ident.pos := scanner.errpos;
+					COPY(symbol.string, modName);
+					module.ident.name := Strings.NewString(symbol.string);
+					module.ident.pos := symbol.start;
 				END;
-				scanner.Get(sym);
-				IF sym = PCS.in THEN
-					scanner.Get(sym);
-					IF sym = PCS.ident THEN
-						StringPool.GetString(scanner.name, name);
+				NextSymbol;
+				IF symbol.token = OCScanner.In THEN
+					NextSymbol;
+					IF symbol.token = OCScanner.Identifier THEN
 						NEW(module.context);
-						module.context.name := Strings.NewString(name);
-						module.context.pos := scanner.errpos;
+						module.context.name := Strings.NewString(symbol.string);
+						module.context.pos := symbol.start;
 					END;
-					Check (PCS.ident);
+					Check (OCScanner.Identifier);
 				END;
-				IF sym = PCS.lbrace THEN
-					WHILE (sym # PCS.semicolon) & (sym # PCS.eof) DO scanner.Get(sym) END;
+				IF symbol.token = OCScanner.LeftBrace THEN
+					WHILE (symbol.token # OCScanner.Semicolon) & (symbol.token # OCScanner.EndOfText) DO NextSymbol END;
 				END;
-				Check(PCS.semicolon);
-				IF sym = PCS.import THEN
+				Check(OCScanner.Semicolon);
+				IF symbol.token = OCScanner.Import THEN
 					NEW(module.importList, module);
 					ImportListP(module.importList);
 				END;
-				WHILE sym = PCS.definition DO
+				WHILE symbol.token = OCScanner.Definition DO
 					NEW(definition, module);
 					DefinitionP(definition);
 					IF module.definitions = NIL THEN module.definitions := definition
 					ELSE AppendLast(module.definitions, definition)
 					END;
 				END;
-				IF (sym = PCS.const) OR (sym = PCS.type) OR (sym = PCS.var) OR (sym = PCS.procedure) THEN
+				IF (symbol.token = OCScanner.Const) OR (symbol.token = OCScanner.Type) OR (symbol.token = OCScanner.Var) OR (symbol.token = OCScanner.Procedure) THEN
 					NEW(module.declSeq, module);
 					DeclSeqP(module.declSeq);
 				END;
-				IF (sym = PCS.begin) THEN
-					module.bodyPos := scanner.errpos;
+				IF (symbol.token = OCScanner.Begin) THEN
+					module.bodyPos := symbol.start;
 				ELSE
 					module.bodyPos := 0;
 				END;
 				BodyP(FALSE, module.modifiers);
-				IF (sym = PCS.ident) & (scanner.name = modName) THEN
+				IF (symbol.token = OCScanner.Identifier) & (symbol.string = modName) THEN
 					(* correct *)
 				ELSE
 					(* maybe missing END or wrong module name *)
 					hasError := TRUE;
-					KernelLog.String("err3: "); KernelLog.Int(scanner.errpos, 0); KernelLog.Ln;
+					KernelLog.String("err3: "); KernelLog.Int(symbol.start, 0); KernelLog.Ln;
 				END;
 				module.hasError := hasError;
 			END;
 		END ModuleP;
 
 		PROCEDURE ImportListP(import: Import);
-		VAR
-			name: ARRAY 64 OF CHAR;
-			newImport: Import;
+		VAR newImport: Import;
 		BEGIN
-			scanner.Get(sym);
-			WHILE sym = PCS.ident DO
-				StringPool.GetString(scanner.name, name);
+			NextSymbol;
+			WHILE symbol.token = OCScanner.Identifier DO
 				NEW(import.ident);
-				import.ident.name := Strings.NewString(name);
-				import.ident.pos := scanner.errpos;
-				scanner.Get(sym);	(* avoids endless loop *)
-				IF sym = PCS.becomes THEN
-					scanner.Get(sym);
-					IF sym = PCS.ident THEN
-						StringPool.GetString(scanner.name, name);
+				import.ident.name := Strings.NewString(symbol.string);
+				import.ident.pos := symbol.start;
+				NextSymbol;	(* avoids endless loop *)
+				IF symbol.token = OCScanner.Becomes THEN
+					NextSymbol;
+					IF symbol.token = OCScanner.Identifier THEN
 						NEW(import.alias);
-						import.alias.name := Strings.NewString(name);
-						import.alias.pos := scanner.errpos;
-						scanner.Get(sym);
+						import.alias.name := Strings.NewString(symbol.string);
+						import.alias.pos := symbol.start;
+						NextSymbol;
 					ELSE
 						(* Error *)
 						hasError := TRUE;
-						KernelLog.String("err2: "); KernelLog.Int(scanner.errpos, 0); KernelLog.Ln;
+						KernelLog.String("err2: "); KernelLog.Int(symbol.start, 0); KernelLog.Ln;
 					END;
 				END;
-				IF sym = PCS.in THEN
-					scanner.Get(sym);
-					IF sym = PCS.ident THEN
-						StringPool.GetString(scanner.name, name);
+				IF symbol.token = OCScanner.In THEN
+					NextSymbol;
+					IF symbol.token = OCScanner.Identifier THEN
 						NEW(import.context);
-						import.context.name := Strings.NewString(name);
-						import.context.pos := scanner.errpos;
+						import.context.name := Strings.NewString(symbol.string);
+						import.context.pos := symbol.start;
 					END;
-					Check (PCS.ident);
+					Check (OCScanner.Identifier);
 				END;
-				IF sym = PCS.comma THEN
-					scanner.Get(sym);
+				IF symbol.token = OCScanner.Comma THEN
+					NextSymbol;
 				END;
 				NEW(newImport, import.parent);
 				import.next := newImport;
 				import := newImport;
 			END;
-			Check(PCS.semicolon);
+			Check(OCScanner.Semicolon);
 		END ImportListP;
 
 		PROCEDURE DefinitionP(definition: Definition);
 		VAR
 			procHead: ProcHead;
 		BEGIN
-			IF sym = PCS.definition THEN
-				scanner.Get(sym);
-				IF sym = PCS.ident THEN
-					StringPool.GetString(scanner.name, name);
+			IF symbol.token = OCScanner.Definition THEN
+				NextSymbol;
+				IF symbol.token = OCScanner.Identifier THEN
 					NEW(definition.ident);
-					definition.ident.name := Strings.NewString(name);
-					definition.ident.pos := scanner.errpos;
-					scanner.Get(sym);
+					definition.ident.name := Strings.NewString(symbol.string);
+					definition.ident.pos := symbol.start;
+					NextSymbol;
 				END;
-				WHILE sym = PCS.semicolon DO scanner.Get(sym) END;
-				IF sym = PCS.refines THEN
-					scanner.Get(sym);
+				WHILE symbol.token = OCScanner.Semicolon DO NextSymbol END;
+		(*?		IF symbol.token = OCScanner.Refines THEN
+					NextSymbol;
 					NEW(definition.refines, definition);
 					QualidentP(definition.refines);
-				END;
-				WHILE sym = PCS.procedure DO
+				END; *)
+				WHILE symbol.token = OCScanner.Procedure DO
 					NEW(procHead, definition);
-					scanner.Get(sym);
+					NextSymbol;
 					ProcHeadP(procHead);
 					IF definition.procs = NIL THEN definition.procs := procHead
 					ELSE AppendLast(definition.procs, procHead)
 					END;
-					Check(PCS.semicolon);
+					Check(OCScanner.Semicolon);
 				END;
-				Check(PCS.end);
-				Check(PCS.ident);
-				WHILE sym = PCS.semicolon DO scanner.Get(sym) END;
+				Check(OCScanner.End);
+				Check(OCScanner.Identifier);
+				WHILE symbol.token = OCScanner.Semicolon DO NextSymbol END;
 			END;
 		END DefinitionP;
 
@@ -500,50 +499,50 @@ TYPE
 
 			PROCEDURE CheckEndOrSemicolon;
 			BEGIN
-				IF sym # PCS.end THEN
-					REPEAT Check(PCS.semicolon) UNTIL sym # PCS.semicolon
+				IF symbol.token # OCScanner.End THEN
+					REPEAT Check(OCScanner.Semicolon) UNTIL symbol.token # OCScanner.Semicolon
 				END;
 			END CheckEndOrSemicolon;
 
 		BEGIN
 			LOOP
-				CASE sym OF
-				| PCS.const:
-					scanner.Get(sym);
-					WHILE sym = PCS.ident DO
+				CASE symbol.token OF
+				| OCScanner.Const:
+					NextSymbol;
+					WHILE symbol.token = OCScanner.Identifier DO
 						NEW(constDecl, declSeq);
 						ConstDeclP(constDecl);
 						IF declSeq.constDecl = NIL THEN declSeq.constDecl := constDecl;
 						ELSE AppendLast(declSeq.constDecl, constDecl);
 						END;
 						CheckEndOrSemicolon;
-						(*Check(PCS.semicolon);*)
+						(*Check(OCScanner.Semicolon);*)
 					END;
-				| PCS.type:
-					scanner.Get(sym);
-					WHILE sym = PCS.ident DO
+				| OCScanner.Type:
+					NextSymbol;
+					WHILE symbol.token = OCScanner.Identifier DO
 						NEW(typeDecl, declSeq);
 						TypeDeclP(typeDecl);
 						IF declSeq.typeDecl = NIL THEN declSeq.typeDecl := typeDecl;
 						ELSE AppendLast(declSeq.typeDecl, typeDecl);
 						END;
 						CheckEndOrSemicolon;
-						(*Check(PCS.semicolon);*)
+						(*Check(OCScanner.Semicolon);*)
 					END;
-				| PCS.var:
-					scanner.Get(sym);
-					WHILE sym = PCS.ident DO
+				| OCScanner.Var:
+					NextSymbol;
+					WHILE symbol.token = OCScanner.Identifier DO
 						NEW(varDecl, declSeq);
 						VarDeclP(varDecl);
 						IF declSeq.varDecl = NIL THEN declSeq.varDecl := varDecl;
 						ELSE AppendLast(declSeq.varDecl, varDecl);
 						END;
 						CheckEndOrSemicolon;
-						(*Check(PCS.semicolon);*)
+						(*Check(OCScanner.Semicolon);*)
 					END;
-				| PCS.procedure:
-					WHILE sym = PCS.procedure DO
-						scanner.Get(sym);
+				| OCScanner.Procedure:
+					WHILE symbol.token = OCScanner.Procedure DO
+						NextSymbol;
 						NEW(procDecl, declSeq);
 						ProcDeclP(procDecl);
 						IF procDecl.head = NIL THEN
@@ -554,7 +553,7 @@ TYPE
 							END;
 						END;
 						CheckEndOrSemicolon;
-						(*Check(PCS.semicolon);*)
+						(*Check(OCScanner.Semicolon);*)
 					END;
 				ELSE
 					EXIT;
@@ -566,18 +565,18 @@ TYPE
 		BEGIN
 			NEW(const.identDef);
 			IdentDefP(const.identDef);
-			Check(PCS.eql);
+			Check(OCScanner.Equal);
 			(* NEW(const.constExpr);
 			ExprP(const.constExpr); *)
 			NEW(const.expr);
-			ConstExprP(PCS.semicolon, -1, const.expr);
+			ConstExprP(OCScanner.Semicolon, -1, const.expr);
 		END ConstDeclP;
 
 		PROCEDURE TypeDeclP(type: TypeDecl);
 		BEGIN
 			NEW(type.identDef);
 			IdentDefP(type.identDef);
-			Check(PCS.eql);
+			Check(OCScanner.Equal);
 			NEW(type.type, type);
 			TypeP(type.type);
 		END TypeDeclP;
@@ -592,8 +591,8 @@ TYPE
 			NEW(var.identList.identDef);
 			IdentDefP(var.identList.identDef);
 			SysFlag;
-			WHILE sym = PCS.comma DO
-				scanner.Get(sym);	(* avoids endless loop *)
+			WHILE symbol.token = OCScanner.Comma DO
+				NextSymbol;	(* avoids endless loop *)
 				NEW(identDef);
 				IdentDefP(identDef);
 				SysFlag;
@@ -601,7 +600,7 @@ TYPE
 				identList.identDef := identDef;
 				AppendLast(var.identList, identList);
 			END;
-			Check(PCS.colon);
+			Check(OCScanner.Colon);
 			NEW(var.type, var);
 			TypeP(var.type);
 		END VarDeclP;
@@ -613,40 +612,40 @@ TYPE
 			NEW(proc.head, proc);
 			ProcHeadP(proc.head);
 			IF proc.head.identDef = NIL THEN proc.head := NIL; RETURN END;
-			Check(PCS.semicolon);
-			IF (sym = PCS.const) OR (sym = PCS.var) OR (sym = PCS.type) OR (sym = PCS.procedure) THEN
+			Check(OCScanner.Semicolon);
+			IF (symbol.token = OCScanner.Const) OR (symbol.token = OCScanner.Var) OR (symbol.token = OCScanner.Type) OR (symbol.token = OCScanner.Procedure) THEN
 				NEW(declSeq, proc);
 				DeclSeqP(declSeq);
 				IF proc.declSeq = NIL THEN proc.declSeq := declSeq;
 				ELSE AppendLast(proc.declSeq, declSeq);
 				END;
 			END;
-			IF (sym = PCS.begin) THEN
-				proc.bodyPos := scanner.errpos;
+			IF (symbol.token = OCScanner.Begin) THEN
+				proc.bodyPos := symbol.start;
 			ELSE
 				proc.bodyPos := 0;
 			END;
 			BodyP(FALSE, proc.head.modifiers);
-			scanner.Get(sym);	(* skip ident *)
+			NextSymbol;	(* skip ident *)
 		END ProcDeclP;
 
 		PROCEDURE ProcHeadP(head: ProcHead);
 		VAR forward: BOOLEAN;
 		BEGIN
 			SysFlag;
-			CASE sym OF
-			| PCS.minus: head.inline := TRUE; scanner.Get(sym);
-			| PCS.and: head.constructor := TRUE; scanner.Get(sym);
-			| PCS.times: (* ignore *) scanner.Get(sym);
-			| PCS.arrow: (* ignore *) scanner.Get(sym); forward := TRUE;
-			| PCS.string: head.operator := TRUE;
-			| PCS.number: IF scanner.numtyp = PCS.char THEN head.operator := TRUE END;
+			CASE symbol.token OF
+			| OCScanner.Minus: head.inline := TRUE; NextSymbol;
+			| OCScanner.And: head.constructor := TRUE; NextSymbol;
+			| OCScanner.Times: (* ignore *) NextSymbol;
+			| OCScanner.Arrow: (* ignore *) NextSymbol; forward := TRUE;
+			| OCScanner.String: head.operator := TRUE;
+			| OCScanner.Number: IF symbol.numberType = OCScanner.Character THEN head.operator := TRUE END;
 			ELSE
 			END;
 			NEW(head.identDef);
 			IdentDefP(head.identDef);
 			OSAIrq;		(* tk: Compatibility to OSACompiler*)
-			IF sym = PCS. lparen THEN
+			IF symbol.token = OCScanner.LeftParenthesis THEN
 				NEW(head.formalPars, head);
 				FormalParsP(head.formalPars);
 			END;
@@ -658,24 +657,24 @@ TYPE
 
 		PROCEDURE SysFlag;
 		BEGIN
-			IF sym = PCS.lbrace THEN
-				scanner.Get(sym);
-				Check(PCS.ident);
-				IF sym = PCS.comma THEN
-					scanner.Get(sym);
-					Check(PCS.ident)
+			IF symbol.token = OCScanner.LeftBrace THEN
+				NextSymbol;
+				Check(OCScanner.Identifier);
+				IF symbol.token = OCScanner.Comma THEN
+					NextSymbol;
+					Check(OCScanner.Identifier)
 				END;
-				Check(PCS.rbrace);
+				Check(OCScanner.RightBrace);
 			END;
 		END SysFlag;
 
 		(* tk: For OSA Compatibility *)
 		PROCEDURE OSAIrq;
 		BEGIN
-			IF sym = PCS.lbrak THEN
-				scanner.Get(sym);
-				Check(PCS.number);
-				Check(PCS.rbrak);
+			IF symbol.token = OCScanner.LeftBracket THEN
+				NextSymbol;
+				Check(OCScanner.Number);
+				Check(OCScanner.RightBracket);
 			END;
 		END OSAIrq;
 
@@ -683,35 +682,35 @@ TYPE
 		VAR
 			fpSection: FPSection;
 		BEGIN
-			scanner.Get(sym);
-			IF (sym = PCS.var) OR (sym = PCS.const) OR (sym = PCS.ident) THEN
+			NextSymbol;
+			IF (symbol.token = OCScanner.Var) OR (symbol.token = OCScanner.Const) OR (symbol.token = OCScanner.Identifier) THEN
 				NEW(pars.fpSectionList, pars);
 				FPSectionP(pars.fpSectionList);
-				WHILE sym = PCS.semicolon DO
-					scanner.Get(sym);	(* avoids endless loop *)
+				WHILE symbol.token = OCScanner.Semicolon DO
+					NextSymbol;	(* avoids endless loop *)
 					NEW(fpSection, pars.fpSectionList);
 					FPSectionP(fpSection);
 					AppendLast(pars.fpSectionList, fpSection);
 				END;
 			END;
-			Check(PCS.rparen);
-			IF sym = PCS.colon THEN
-				scanner.Get(sym);
-				IF sym = PCS.object THEN
+			Check(OCScanner.RightParenthesis);
+			IF symbol.token = OCScanner.Colon THEN
+				NextSymbol;
+				IF symbol.token = OCScanner.Object THEN
 					NEW(pars.returnTypeObj);
 					pars.returnTypeObj.name := Strings.NewString("OBJECT");
-					pars.returnTypeObj.pos := scanner.errpos;
-					scanner.Get(sym);
-				ELSIF sym = PCS.array THEN
+					pars.returnTypeObj.pos := symbol.start;
+					NextSymbol;
+				ELSIF symbol.token = OCScanner.Array THEN
 					NEW(pars.returnTypeAry, pars);
-					scanner.Get(sym);
+					NextSymbol;
 					ArrayP(pars.returnTypeAry);
 
 					(*
 					NEW(pars.returnType.ident);
 					pars.returnType.ident.name := Strings.NewString("ARRAY OF ???");
-					pars.returnType.ident.pos := scanner.errpos;
-					SkipTo(PCS.semicolon);
+					pars.returnType.ident.pos := bol.start;
+					SkipTo(OCScanner.Semicolon);
 					*)
 				ELSE
 					NEW(pars.returnType, pars);
@@ -723,42 +722,42 @@ TYPE
 		PROCEDURE FPSectionP(fpSection: FPSection);
 		VAR identList: IdentList;
 		BEGIN
-			IF sym = PCS.var THEN
+			IF symbol.token = OCScanner.Var THEN
 				fpSection.var := TRUE;
-				scanner.Get(sym);
-			ELSIF sym = PCS.const THEN
+				NextSymbol;
+			ELSIF symbol.token = OCScanner.Const THEN
 				fpSection.const := TRUE;
-				scanner.Get(sym);
+				NextSymbol;
 			END;
-			IF sym = PCS.ident THEN
+			IF symbol.token = OCScanner.Identifier THEN
 				(*StringPool.GetString(scanner.name, name);*)
 				NEW(fpSection.identList, fpSection);
 				NEW(fpSection.identList.identDef);
 				IdentDefP(fpSection.identList.identDef);
 				(*
 				fpSection.identList.ident.name := Strings.NewString(name);
-				fpSection.identList.ident.pos := scanner.errpos;
-				scanner.Get(sym);
+				fpSection.identList.ident.pos := symbol.start;
+				NextSymbol;
 				*)
-				WHILE sym = PCS.comma DO
+				WHILE symbol.token = OCScanner.Comma DO
 					NEW(identList, fpSection.identList);
-					scanner.Get(sym);
+					NextSymbol;
 					NEW(identList.identDef);
 					IdentDefP(identList.identDef);
 					AppendLast(fpSection.identList, identList);
 					(*
-					IF sym = PCS.ident THEN
+					IF symbol.token = OCScanner.Identifier THEN
 						StringPool.GetString(scanner.name, name);
 						NEW(identDef);
 						NEW(identDef.ident);
 						identDef.ident.name := Strings.NewString(name);
-						identDef.ident.pos := scanner.errpos;
+						identDef.ident.pos := symbol.start;
 						AppendLast(fpSection.identlist, identDef);
-						scanner.Get(sym);
+						NextSymbol;
 					END;
 					*)
 				END;
-				Check(PCS.colon);
+				Check(OCScanner.Colon);
 				NEW(fpSection.type, fpSection);
 				TypeP(fpSection.type);
 			END;
@@ -766,47 +765,47 @@ TYPE
 
 		PROCEDURE TypeP(type: Type);
 		BEGIN
-			CASE sym OF
-			| PCS.array: scanner.Get(sym); NEW(type.array, type); ArrayP(type.array);
-			| PCS.record: scanner.Get(sym); NEW(type.record, type); RecordP(type.record);
-			| PCS.pointer: scanner.Get(sym); NEW(type.pointer, type); PointerP(type.pointer);
-			| PCS.object: scanner.Get(sym); NEW(type.object, type); ObjectP(type.object);
-			| PCS.procedure: scanner.Get(sym); NEW(type.procedure, type); ProcedureP(type.procedure);
-			| PCS.ident: NEW(type.qualident, type); QualidentP(type.qualident);
+			CASE symbol.token OF
+			| OCScanner.Array: NextSymbol; NEW(type.array, type); ArrayP(type.array);
+			| OCScanner.Record: NextSymbol; NEW(type.record, type); RecordP(type.record);
+			| OCScanner.Pointer: NextSymbol; NEW(type.pointer, type); PointerP(type.pointer);
+			| OCScanner.Object: NextSymbol; NEW(type.object, type); ObjectP(type.object);
+			| OCScanner.Procedure: NextSymbol; NEW(type.procedure, type); ProcedureP(type.procedure);
+			| OCScanner.Identifier: NEW(type.qualident, type); QualidentP(type.qualident);
 			ELSE
 				(* Error *)
-				hasError := TRUE; KernelLog.String("err4: "); KernelLog.Int(scanner.errpos, 0); KernelLog.Ln;
-				scanner.Get(sym);	(* ??? *)
+				hasError := TRUE; KernelLog.String("err4: "); KernelLog.Int(symbol.start, 0); KernelLog.Ln;
+				NextSymbol;	(* ??? *)
 			END;
 		END TypeP;
 
 		PROCEDURE ArrayP(array: Array);
 		BEGIN
 			SysFlag;
-			IF sym = PCS.of THEN
+			IF symbol.token = OCScanner.Of THEN
 				array.open := TRUE;
 				NEW(array.base, array);
-				scanner.Get(sym);
+				NextSymbol;
 				TypeP(array.base);
 			ELSE
 				NEW(array.len);
-				ConstExprP(PCS.of, PCS.comma, array.len);
+				ConstExprP(OCScanner.Of, OCScanner.Comma, array.len);
 				(*
 				SimpleExprP(array.len);
 				*)
-				IF sym = PCS.of THEN
+				IF symbol.token = OCScanner.Of THEN
 					NEW(array.base, array);
-					scanner.Get(sym);
+					NextSymbol;
 					TypeP(array.base);
-				ELSIF sym = PCS.comma THEN
+				ELSIF symbol.token = OCScanner.Comma THEN
 					NEW(array.base, array);
 					NEW(array.base.array, array);
-					scanner.Get(sym);
+					NextSymbol;
 					ArrayP(array.base.array)
 				ELSE
 					(* Error *)
 					hasError := TRUE;
-					KernelLog.String("err1: "); KernelLog.Int(scanner.errpos, 0); KernelLog.Ln;
+					KernelLog.String("err1: "); KernelLog.Int(symbol.start, 0); KernelLog.Ln;
 				END;
 			END;
 		END ArrayP;
@@ -814,26 +813,26 @@ TYPE
 		PROCEDURE RecordP(record: Record);
 		BEGIN
 			SysFlag;
-			IF sym = PCS.lparen THEN
-				scanner.Get(sym);
+			IF symbol.token = OCScanner.LeftParenthesis THEN
+				NextSymbol;
 				NEW(record.super, record);
 				QualidentP(record.super);
-				Check(PCS.rparen);
+				Check(OCScanner.RightParenthesis);
 			END;
-			WHILE sym = PCS.semicolon DO scanner.Get(sym) END;
-			IF sym = PCS.ident THEN
+			WHILE symbol.token = OCScanner.Semicolon DO NextSymbol END;
+			IF symbol.token = OCScanner.Identifier THEN
 				NEW(record.fieldList, record);
 				FieldListP(record.fieldList);
 			END;
-			Check(PCS.end);
+			Check(OCScanner.End);
 		END RecordP;
 
 		PROCEDURE FieldListP(fieldList: FieldDecl);
 		VAR fieldDecl: FieldDecl;
 		BEGIN
 			FieldDeclP(fieldList);
-			WHILE sym = PCS.semicolon DO
-				scanner.Get(sym);
+			WHILE symbol.token = OCScanner.Semicolon DO
+				NextSymbol;
 				NEW(fieldDecl, fieldList);
 				FieldDeclP(fieldDecl);
 				AppendLast(fieldList, fieldDecl);
@@ -845,13 +844,13 @@ TYPE
 			identDef: IdentDef;
 			identList: IdentList;
 		BEGIN
-			IF sym = PCS.ident THEN
+			IF symbol.token = OCScanner.Identifier THEN
 				NEW(fieldDecl.identList, fieldDecl);
 				NEW(fieldDecl.identList.identDef);
 				IdentDefP(fieldDecl.identList.identDef);
 				SysFlag;
-				WHILE sym = PCS.comma DO
-					scanner.Get(sym);
+				WHILE symbol.token = OCScanner.Comma DO
+					NextSymbol;
 					NEW(identDef);
 					IdentDefP(identDef);
 					SysFlag;
@@ -859,7 +858,7 @@ TYPE
 					identList.identDef := identDef;
 					AppendLast(fieldDecl.identList, identList);
 				END;
-				Check(PCS.colon);
+				Check(OCScanner.Colon);
 				NEW(fieldDecl.type, fieldDecl);
 				TypeP(fieldDecl.type);
 			END;
@@ -868,7 +867,7 @@ TYPE
 		PROCEDURE PointerP(pointer: Pointer);
 		BEGIN
 			SysFlag;
-			Check(PCS.to);
+			Check(OCScanner.To);
 			NEW(pointer.type, pointer);
 			TypeP(pointer.type);
 		END PointerP;
@@ -876,67 +875,67 @@ TYPE
 		PROCEDURE ObjectP(object: Object);
 		VAR declSeq: DeclSeq;
 			pos: LONGINT;
-			qualident: Qualident;
+		(*?	qualident: Qualident; *)
 		BEGIN
-			IF (sym = PCS.semicolon) OR (sym = PCS.rparen) THEN RETURN END;
+			IF (symbol.token = OCScanner.Semicolon) OR (symbol.token = OCScanner.RightParenthesis) THEN RETURN END;
 			SysFlag;
-			IF sym = PCS.lparen THEN
+			IF symbol.token = OCScanner.LeftParenthesis THEN
 				NEW(object.super, object);
-				scanner.Get(sym);
+				NextSymbol;
 				QualidentP(object.super);
-				Check(PCS.rparen);
+				Check(OCScanner.RightParenthesis);
 			END;
-			IF sym = PCS.implements THEN
+		(*?	IF symbol.token = OCScanner.Implements THEN
 				NEW(object.implements, object);
-				scanner.Get(sym);
+				NextSymbol;
 				QualidentP(object.implements);
-				WHILE sym = PCS.comma DO
+				WHILE symbol.token = OCScanner.Comma DO
 					NEW(qualident, object.implements);
-					scanner.Get(sym);
+					NextSymbol;
 					QualidentP(qualident);
 					AppendLast(object.implements, qualident);
 				END;
-			END;
+			END; *)
 			pos := -1;
-			WHILE (sym # PCS.begin) & (sym # PCS.end) & (sym # PCS.eof) DO
+			WHILE (symbol.token # OCScanner.Begin) & (symbol.token # OCScanner.End) & (symbol.token # OCScanner.EndOfText) DO
 					(* avoid endless-loop *)
-				IF pos = scanner.errpos THEN scanner.Get(sym) END;
-				pos := scanner.errpos;
+				IF pos = symbol.start THEN NextSymbol END;
+				pos := symbol.start;
 				NEW(declSeq, object);
 				DeclSeqP(declSeq);
 				IF object.declSeq = NIL THEN object.declSeq := declSeq;
 				ELSE AppendLast(object.declSeq, declSeq);
 				END;
 			END;
-			IF (sym = PCS.begin) THEN
-				object.bodyPos := scanner.errpos;
+			IF (symbol.token = OCScanner.Begin) THEN
+				object.bodyPos := symbol.start;
 			ELSE
 				object.bodyPos := 0;
 			END;
 			BodyP(TRUE, object.modifiers);
-			IF sym = PCS.ident THEN scanner.Get(sym) END;
+			IF symbol.token = OCScanner.Identifier THEN NextSymbol END;
 		END ObjectP;
 
 		PROCEDURE ProcedureP(proc: Procedure);
 		BEGIN
 			SysFlag;
-			IF sym = PCS.lbrace THEN
-				scanner.Get(sym);
-				IF sym # PCS.ident THEN
+			IF symbol.token = OCScanner.LeftBrace THEN
+				NextSymbol;
+				IF symbol.token # OCScanner.Identifier THEN
 					(* Error *)
-				ELSIF scanner.name = delegate THEN
+				ELSIF symbol.string = "DELEGATE" THEN
 					proc.delegate := TRUE;
 				END;
-				scanner.Get(sym);
-				Check(PCS.rbrace);
+				NextSymbol;
+				Check(OCScanner.RightBrace);
 			END;
-			IF sym = PCS.lparen THEN
+			IF symbol.token = OCScanner.LeftParenthesis THEN
 				NEW(proc.formalPars, proc);
 				FormalParsP(proc.formalPars);
 			END;
 		END ProcedureP;
 
-		PROCEDURE ConstExprP(delimiter1, delimiter2: PCS.Token; expr: InfoItem);
+		PROCEDURE ConstExprP(delimiter1, delimiter2: OCScanner.Token; expr: InfoItem);
 		VAR
 			exprStr, name: ARRAY 1024 OF CHAR;
 			longExprStr : Strings.String; (* for exprStr content lengths > LEN(exprStr) *)
@@ -962,50 +961,50 @@ TYPE
 			END Add;
 
 		BEGIN
-			expr.pos := scanner.errpos;
-			IF (sym = delimiter1) OR (sym = delimiter2) THEN RETURN END;
+			expr.pos := symbol.start;
+			IF (symbol.token = delimiter1) OR (symbol.token = delimiter2) THEN RETURN END;
 			REPEAT
-				CASE sym OF
-				| PCS.lparen: INC(paren); Add("(");
-				| PCS.rparen: DEC(paren); Add(")");
-				| PCS.lbrace: INC(brace); Add("{");
-				| PCS.rbrace: DEC(brace); Add("}");
-				| PCS.lbrak: INC(brak); Add("[");
-				| PCS.rbrak: DEC(brak); Add("]");
-				| PCS.number: scanner.GetNumAsString(name); Add(name);
-				| PCS.nil: Add("NIL");
-				| PCS.true: Add("TRUE");
-				| PCS.false: Add("FALSE");
-				| PCS.not: Add("~");
-				| PCS.period: Add(".");
-				| PCS.ident: StringPool.GetString(scanner.name, name); Add(name);
-				| PCS.comma: Add(", ");
-				| PCS.plus: Add(" + ");
-				| PCS.minus: Add(" - ");
-				| PCS.times: Add(" * ");
-				| PCS.upto: Add(" .. ");
-				| PCS.eql: Add(" = ");
-				| PCS.neq: Add(" # ");
-				| PCS.lss: Add(" < ");
-				| PCS.leq: Add(" <= ");
-				| PCS.gtr: Add(" > ");
-				| PCS.geq: Add(" >= ");
-				| PCS.in: Add(" IN ");
-				| PCS.is: Add(" IS ");
-				| PCS.div: Add(" DIV ");
-				| PCS.mod: Add(" MOD ");
-				| PCS.slash: Add(" / ");
-				| PCS.and: Add(" & ");
-				| PCS.or: Add(" OR ");
-				| PCS.string: name[0] := '"'; name[1] := 0X; Add(name); Add(scanner.str); Add(name);
-				| PCS.arrow: Add("^");
+				CASE symbol.token OF
+				| OCScanner.LeftParenthesis: INC(paren); Add("(");
+				| OCScanner.RightParenthesis: DEC(paren); Add(")");
+				| OCScanner.LeftBrace: INC(brace); Add("{");
+				| OCScanner.RightBrace: DEC(brace); Add("}");
+				| OCScanner.LeftBracket: INC(brak); Add("[");
+				| OCScanner.RightBracket: DEC(brak); Add("]");
+				| OCScanner.Number: Add(symbol.string);
+				| OCScanner.Nil: Add("NIL");
+				| OCScanner.True: Add("TRUE");
+				| OCScanner.False: Add("FALSE");
+				| OCScanner.Not: Add("~");
+				| OCScanner.Period: Add(".");
+				| OCScanner.Identifier: Add(symbol.string);
+				| OCScanner.Comma: Add(", ");
+				| OCScanner.Plus: Add(" + ");
+				| OCScanner.Minus: Add(" - ");
+				| OCScanner.Times: Add(" * ");
+				| OCScanner.Upto: Add(" .. ");
+				| OCScanner.Equal: Add(" = ");
+				| OCScanner.Unequal: Add(" # ");
+				| OCScanner.Less: Add(" < ");
+				| OCScanner.LessEqual: Add(" <= ");
+				| OCScanner.Greater: Add(" > ");
+				| OCScanner.GreaterEqual: Add(" >= ");
+				| OCScanner.In: Add(" IN ");
+				| OCScanner.Is: Add(" IS ");
+				| OCScanner.Div: Add(" DIV ");
+				| OCScanner.Mod: Add(" MOD ");
+				| OCScanner.Slash: Add(" / ");
+				| OCScanner.And: Add(" & ");
+				| OCScanner.Or: Add(" OR ");
+				| OCScanner.String: name[0] := '"'; name[1] := 0X; Add(name); Add(symbol.string); Add(name);
+				| OCScanner.Arrow: Add("^");
 				ELSE
 					(* error *)
 					hasError := TRUE;
 				END;
-				scanner.Get(sym);
+				NextSymbol;
 				(* urgh, what an ugly condition ... *)
-			UNTIL (((sym = delimiter1) OR (sym = delimiter2)) & (paren = 0) & (brace = 0) & (brak = 0)) OR (sym = PCS.eof);
+			UNTIL (((symbol.token = delimiter1) OR (symbol.token = delimiter2)) & (paren = 0) & (brace = 0) & (brak = 0)) OR (symbol.token = OCScanner.EndOfText);
 			IF (longExprStr = NIL) THEN
 				expr.name := Strings.NewString(exprStr);
 			ELSE
@@ -1014,54 +1013,54 @@ TYPE
 		END ConstExprP;
 
 		PROCEDURE BlockModifierP(allowBody : BOOLEAN; VAR modifiers : SET);
-		VAR name : ARRAY 64 OF CHAR; ignore : InfoItem;
+		VAR ignore : InfoItem;
 		BEGIN
 			modifiers := {};
-			IF sym = PCS.lbrace THEN
-				scanner.Get(sym);
+			IF symbol.token = OCScanner.LeftBrace THEN
+				NextSymbol;
 				LOOP
-					IF sym = PCS.ident THEN
-						StringPool.GetString(scanner.name, name);
-						IF name = ExclusiveStr  THEN
+					IF symbol.token = OCScanner.Identifier THEN
+						IF symbol.string = ExclusiveStr  THEN
 							modifiers := modifiers + {Exclusive};
-							scanner.Get(sym);
+							NextSymbol;
 						ELSIF allowBody & (name = ActiveStr)  THEN
 							modifiers := modifiers + {Active};
-							scanner.Get(sym)
+							NextSymbol
 						ELSIF allowBody & (name = RealtimeStr) THEN
-							scanner.Get(sym);
+							NextSymbol;
 						ELSIF allowBody & (name = SafeStr)  THEN
 							modifiers := modifiers + {Safe};
-							scanner.Get(sym)
+							NextSymbol
 						ELSIF allowBody & (name = PriorityStr)  THEN
 							modifiers := modifiers + {Priority};
-							scanner.Get(sym);
-							IF sym = PCS.lparen THEN
-								scanner.Get(sym);
+							NextSymbol;
+							IF symbol.token = OCScanner.LeftParenthesis THEN
+								NextSymbol;
 								NEW(ignore);
-								ConstExprP(PCS.rparen, -1, ignore);
-								Check(PCS.rparen);
+								ConstExprP(OCScanner.RightParenthesis, -1, ignore);
+								Check(OCScanner.RightParenthesis);
 							END;
-						ELSE  Error(scanner.errpos); scanner.Get(sym) (* skip the ident, probably a typo *)
+						ELSE
+							Error(symbol.start); NextSymbol (* skip the ident, probably a typo *)
 						END;
 					END;
-					IF sym # PCS.comma THEN EXIT END;
-					scanner.Get(sym)
+					IF symbol.token # OCScanner.Comma THEN EXIT END;
+					NextSymbol
 				END;
-				Check(PCS.rbrace);
+				Check(OCScanner.RightBrace);
 			END;
 		END BlockModifierP;
 
 		PROCEDURE BodyP(allowBody : BOOLEAN; VAR modifiers : SET);
-		VAR end, lastSym: LONGINT; m : SET; first : BOOLEAN;
+		VAR end, lastToken: LONGINT; m : SET; first : BOOLEAN;
 		BEGIN
-			IF sym = PCS.begin THEN
+			IF symbol.token = OCScanner.Begin THEN
 				end := 1;
 				first := TRUE;
 				REPEAT
-					lastSym := sym;
-					scanner.Get(sym);
-					IF (lastSym = PCS.begin) & (sym = PCS.lbrace) THEN
+					lastToken := symbol.token;
+					NextSymbol;
+					IF (lastToken = OCScanner.Begin) & (symbol.token = OCScanner.LeftBrace) THEN
 						BlockModifierP(allowBody, m);
 						IF first THEN
 							allowBody := FALSE;
@@ -1073,35 +1072,34 @@ TYPE
 						END;
 					END;
 					first := FALSE;
-					CASE sym OF
-					| PCS.begin: INC(end);
-					| PCS.if, PCS.case, PCS.while, PCS.for, PCS.loop, PCS.with: INC(end);
-					| PCS.end: DEC(end);
+					CASE symbol.token OF
+					| OCScanner.Begin: INC(end);
+					| OCScanner.If, OCScanner.Case, OCScanner.While, OCScanner.For, OCScanner.Loop, OCScanner.With: INC(end);
+					| OCScanner.End: DEC(end);
 					ELSE
 					END;
-				UNTIL (end = 0) OR (sym = PCS.eof);
-			ELSIF sym = PCS.code THEN
-				REPEAT scanner.Get(sym) UNTIL (sym = PCS.end) OR (sym = PCS.eof);
+				UNTIL (end = 0) OR (symbol.token = OCScanner.EndOfText);
+			ELSIF symbol.token = OCScanner.Code THEN
+				REPEAT NextSymbol UNTIL (symbol.token = OCScanner.End) OR (symbol.token = OCScanner.EndOfText);
 			END;
-			scanner.Get(sym);
+			NextSymbol;
 		END BodyP;
 
 		PROCEDURE QualidentP(qualident: Qualident);
 		VAR
-			name, name2: ARRAY 64 OF CHAR;
+			name : ARRAY 64 OF CHAR;
 			pos: LONGINT;
 		BEGIN
-			IF sym = PCS.ident THEN
-				StringPool.GetString(scanner.name, name);
-				pos := scanner.errpos;
-				scanner.Get(sym);
-				IF sym = PCS.period THEN
-					scanner.Get(sym);
-					IF sym = PCS.ident THEN
-						StringPool.GetString(scanner.name, name2);
+			IF symbol.token = OCScanner.Identifier THEN
+				COPY(symbol.string, name);
+				pos := symbol.start;
+				NextSymbol;
+				IF symbol.token = OCScanner.Period THEN
+					NextSymbol;
+					IF symbol.token = OCScanner.Identifier THEN
 						Strings.Append(name, ".");
-						Strings.Concat(name, name2, name);
-						scanner.Get(sym);
+						Strings.Concat(name, symbol.string, name);
+						NextSymbol;
 					END;
 				END;
 				NEW(qualident.ident);
@@ -1111,46 +1109,43 @@ TYPE
 		END QualidentP;
 
 		PROCEDURE IdentDefP(identDef: IdentDef);
-		VAR
-			name: ARRAY 64 OF CHAR;
 		BEGIN
-			IF sym = PCS.ident THEN
-				StringPool.GetString(scanner.name, name);
+			IF symbol.token = OCScanner.Identifier THEN
 				NEW(identDef.ident);
-				identDef.ident.name := Strings.NewString(name);
-				identDef.ident.pos := scanner.errpos;
-			ELSIF (sym = PCS.string) OR (sym = PCS.number) & (scanner.numtyp = PCS.char) THEN
+				identDef.ident.name := Strings.NewString(symbol.string);
+				identDef.ident.pos := symbol.start;
+			ELSIF (symbol.token = OCScanner.String) OR (symbol.token = OCScanner.Number) & (symbol.numberType = OCScanner.Character) THEN
 				NEW(identDef.ident);
-				identDef.ident.name := Strings.NewString(scanner.str);
-				identDef.ident.pos := scanner.errpos;
+				identDef.ident.name := Strings.NewString(symbol.string);
+				identDef.ident.pos := symbol.start;
 			END;
-			scanner.Get(sym);
-			IF sym = PCS.times THEN
+			NextSymbol;
+			IF symbol.token = OCScanner.Times THEN
 				identDef.vis := Public;
-				scanner.Get(sym);
-			ELSIF sym = PCS.minus THEN
+				NextSymbol;
+			ELSIF symbol.token = OCScanner.Minus THEN
 				identDef.vis := PublicRO;
-				scanner.Get(sym);
+				NextSymbol;
 			ELSE
 				identDef.vis := Private;
 			END;
 		END IdentDefP;
 
-		PROCEDURE Check(token: PCS.Token);
+		PROCEDURE Check(token: OCScanner.Token);
 		BEGIN
-			IF sym = token THEN
+			IF symbol.token = token THEN
 				(* correct *)
 			ELSE
 				(* error *)
 
 				KernelLog.String("******* Check error **********  ");
-				KernelLog.Int(scanner.errpos, 0);
+				KernelLog.Int(symbol.start, 0);
 				KernelLog.Ln;
 
 				hasError := TRUE;
 				(*HALT(33);*)
 			END;
-			scanner.Get(sym);
+			NextSymbol;
 		END Check;
 
 		PROCEDURE Error(pos : LONGINT);
@@ -1410,18 +1405,22 @@ BEGIN
 	END;
 END ResolveMethodOverwrites;
 
-PROCEDURE ParseFile*(CONST filename : ARRAY OF CHAR; out : Streams.Writer) : Module;
+PROCEDURE ParseFile*(CONST filename : ARRAY OF CHAR; diagnostics : Diagnostics.Diagnostics) : Module;
 VAR
-	module : Module; text : Texts.Text; scanner : PCS.Scanner;
+	module : Module;
+	scanner : OCScanner.Scanner;
+	text : Texts.Text; reader : TextUtilities.TextReader;
 	format, res : LONGINT;
 BEGIN
+	ASSERT(diagnostics # NIL);
 	NEW(text);
 	TextUtilities.LoadAuto(text, filename, format, res);
 	IF (res = 0) THEN
-		scanner := PCS.InitWithText(text, 0);
+		NEW(reader, text);
+		scanner := OCScanner.NewScanner(filename, reader, 0, diagnostics);
 		Parse(scanner, module);
 	ELSE
-		IF out # NIL THEN out.String("Could not open file "); out.String(filename); out.String(", res: "); out.Int(res, 0); out.Ln; END
+		diagnostics.Error("ModuleParser", Diagnostics.Invalid, Diagnostics.Invalid, "File not found");
 	END;
 	RETURN module
 END ParseFile;
@@ -1442,20 +1441,13 @@ BEGIN
 	cache.Enumerate(ResolveMethodOverwrites);
 END SetSuperTypes;
 
-PROCEDURE Parse*(scanner: PCS.Scanner; VAR module: Module);
+PROCEDURE Parse*(scanner: OCScanner.Scanner; VAR module: Module);
 VAR parser: Parser;
 BEGIN
 	NEW(parser, scanner);
 	parser.ModuleP(module);
 END Parse;
 
-PROCEDURE CreateString(VAR idx: StringPool.Index; CONST str: ARRAY OF CHAR);
-BEGIN
-	StringPool.GetIndex(str, idx);
-END CreateString;
-
-BEGIN
-	CreateString(delegate, "DELEGATE");
 END ModuleParser.
 
 PC.Compile \s ModuleParser.Mod ~

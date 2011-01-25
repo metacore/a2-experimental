@@ -1,8 +1,8 @@
 MODULE PETModuleTree; (** AUTHOR "?"; PURPOSE "Visualize module structure as tree"; *)
 
 IMPORT
-	Commands, Diagnostics, Streams,  Files,  WMStandardComponents, WMGraphics, WMProperties, WMComponents,
-	Strings, KernelLog, WMTrees, PCS, ModuleParser, PETTrees;
+	Commands, Diagnostics, Streams, Files, TextUtilities, WMStandardComponents, WMGraphics, WMProperties, WMComponents,
+	Strings, KernelLog, WMTrees, OCScanner, ModuleParser, PETTrees;
 
 CONST
 	Title = " Program Structure";
@@ -172,10 +172,12 @@ TYPE
 		END AddModule;
 
 		PROCEDURE AddNodes(parent : WMTrees.TreeNode; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer);
-		VAR module : ModuleParser.Module; scanner : PCS.Scanner;
+		VAR module : ModuleParser.Module; scanner : OCScanner.Scanner; reader : TextUtilities.TextReader;
 		BEGIN
+			ASSERT(diagnostics # NIL);
 			AddNodes^(parent, diagnostics, log);
-			scanner := PCS.InitWithText(editor.text, 0);
+			NEW(reader, editor.text);
+			scanner := OCScanner.NewScanner("PETModuleTree", reader, 0, diagnostics);
 			ModuleParser.Parse(scanner, module);
 			SELF.module := module;
 			IF module # NIL THEN

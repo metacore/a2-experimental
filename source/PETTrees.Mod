@@ -1,6 +1,7 @@
 MODULE PETTrees; (** AUTHOR "?/staubesv"; PURPOSE "Interface for PET sidepanel trees"; *)
 
 IMPORT
+	KernelLog,
 	Streams, Diagnostics, Strings, Texts, WMStandardComponents, WMGraphics, WMComponents,
 	WMTextView, WMEditors, WMTrees, WMEvents;
 
@@ -170,7 +171,8 @@ TYPE
 			StringList = POINTER TO ARRAY OF Strings.String;
 		VAR
 			rootNode: WMTrees.TreeNode;
-			diagnostics : Diagnostics.Diagnostics; log : Streams.Writer;
+			diagnostics : Diagnostics.Diagnostics;
+			streamDiagnostics : Diagnostics.StreamDiagnostics; log, writer : Streams.Writer;
 			dummyLog : Streams.StringWriter;
 			nofOpenNodes : LONGINT;
 			openNodes : StringList;
@@ -259,8 +261,10 @@ TYPE
 				IF (data # NIL) & (data IS RefreshParameters) THEN
 					diagnostics := data(RefreshParameters).diagnostics;
 					log := data(RefreshParameters).log;
+					writer := NIL;
 				ELSE
-					NEW(diagnostics);
+					NEW(writer, KernelLog.Send, 256);
+					NEW(streamDiagnostics, writer); diagnostics := streamDiagnostics;
 					NEW(dummyLog, 32); log := dummyLog;
 				END;
 				tree.Acquire;
@@ -275,6 +279,9 @@ TYPE
 					Expand(openNodes[i]^); INC(i)
 				END;
 				tree.Release;
+				IF (writer # NIL) THEN
+					writer.Update;
+				END;
 				treeView.SetFirstLine(0, TRUE);
 				treeView.TreeChanged(SELF, NIL);
 				onRefresh.Call(NIL);
