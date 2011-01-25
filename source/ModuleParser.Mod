@@ -1004,8 +1004,8 @@ TYPE
 					hasError := TRUE;
 				END;
 				scanner.Get(sym);
-					(* urgh, what an ugly condition ... *)
-			UNTIL ((sym = delimiter1) OR (sym = delimiter2)) & (paren = 0) & (brace = 0) & (brak = 0) & (sym # PCS.eof);
+				(* urgh, what an ugly condition ... *)
+			UNTIL (((sym = delimiter1) OR (sym = delimiter2)) & (paren = 0) & (brace = 0) & (brak = 0)) OR (sym = PCS.eof);
 			IF (longExprStr = NIL) THEN
 				expr.name := Strings.NewString(exprStr);
 			ELSE
