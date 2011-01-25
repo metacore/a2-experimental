@@ -3528,7 +3528,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END EEqlAISILoop;
 
-	OPERATOR ".="*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF INTEGER;
+	OPERATOR ".="*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF BOOLEAN;
 	BEGIN
 		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
 										  SYSTEM.SIZEOF( BOOLEAN ), EEqlAISILoop );
@@ -3784,7 +3784,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END ENeqAISILoop;
 
-	OPERATOR ".#"*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF INTEGER;
+	OPERATOR ".#"*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF BOOLEAN;
 	BEGIN
 		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
 										  SYSTEM.SIZEOF( BOOLEAN ), ENeqAISILoop );
@@ -3999,7 +3999,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END EGtrAISILoop;
 
-	OPERATOR ".>"*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF INTEGER;
+	OPERATOR ".>"*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF BOOLEAN;
 	BEGIN
 		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
 										  SYSTEM.SIZEOF( BOOLEAN ), EGtrAISILoop );
@@ -4214,7 +4214,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END EGeqAISILoop;
 
-	OPERATOR ".>="*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF INTEGER;
+	OPERATOR ".>="*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF BOOLEAN;
 	BEGIN
 		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
 										  SYSTEM.SIZEOF( BOOLEAN ), EGeqAISILoop );
@@ -4428,7 +4428,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END ELssAISILoop;
 
-	OPERATOR ".<"*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF INTEGER;
+	OPERATOR ".<"*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF BOOLEAN;
 	BEGIN
 		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
 										  SYSTEM.SIZEOF( BOOLEAN ), ELssAISILoop );
@@ -4643,7 +4643,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END ELeqAISILoop;
 
-	OPERATOR ".<="*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF INTEGER;
+	OPERATOR ".<="*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF BOOLEAN;
 	BEGIN
 		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
 										  SYSTEM.SIZEOF( BOOLEAN ), ELeqAISILoop );
