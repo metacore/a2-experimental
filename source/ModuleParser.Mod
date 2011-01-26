@@ -29,9 +29,6 @@ CONST
 	SafeStr = "SAFE";
 	PriorityStr = "PRIORITY";
 
-VAR
-	name: ARRAY 1024 OF CHAR;
-
 TYPE
 	InfoItem* = OBJECT
 	VAR
@@ -1025,15 +1022,15 @@ TYPE
 						IF symbol.string = ExclusiveStr  THEN
 							modifiers := modifiers + {Exclusive};
 							NextSymbol;
-						ELSIF allowBody & (name = ActiveStr)  THEN
+						ELSIF allowBody & (symbol.string = ActiveStr)  THEN
 							modifiers := modifiers + {Active};
 							NextSymbol
-						ELSIF allowBody & (name = RealtimeStr) THEN
+						ELSIF allowBody & (symbol.string = RealtimeStr) THEN
 							NextSymbol;
-						ELSIF allowBody & (name = SafeStr)  THEN
+						ELSIF allowBody & (symbol.string = SafeStr)  THEN
 							modifiers := modifiers + {Safe};
 							NextSymbol
-						ELSIF allowBody & (name = PriorityStr)  THEN
+						ELSIF allowBody & (symbol.string = PriorityStr)  THEN
 							modifiers := modifiers + {Priority};
 							NextSymbol;
 							IF symbol.token = OCScanner.LeftParenthesis THEN
