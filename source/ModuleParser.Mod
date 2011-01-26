@@ -5,7 +5,7 @@ MODULE ModuleParser;	(** AUTHOR "mb"; PURPOSE "Active Oberon parser for use with
  *)
 
 IMPORT
-	Strings, Files, Diagnostics, OCScanner, KernelLog, Texts, TextUtilities;
+	Strings, Files, Diagnostics, FoxScanner, KernelLog, Texts, TextUtilities;
 
 CONST
 	(* visibilities *)
@@ -334,11 +334,11 @@ TYPE
 
 	Parser = OBJECT
 	VAR
-		symbol : OCScanner.Symbol;
-		scanner: OCScanner.Scanner;
+		symbol : FoxScanner.Symbol;
+		scanner: FoxScanner.Scanner;
 		hasError: BOOLEAN;
 
-		PROCEDURE & Init*(scanner: OCScanner.Scanner);
+		PROCEDURE & Init*(scanner: FoxScanner.Scanner);
 		BEGIN
 			ASSERT(scanner # NIL);
 			SELF.scanner := scanner;
@@ -349,61 +349,61 @@ TYPE
 		VAR ignore : BOOLEAN;
 		BEGIN
 			ignore := scanner.GetNextSymbol(symbol);
-			WHILE (symbol.token = OCScanner.Comment) DO ignore := scanner.GetNextSymbol(symbol); END;
+			WHILE (symbol.token = FoxScanner.Comment) DO ignore := scanner.GetNextSymbol(symbol); END;
 		END NextSymbol;
 
 		PROCEDURE ModuleP(VAR module: Module);
 		VAR
-			modName: OCScanner.StringType;
+			modName: FoxScanner.StringType;
 			definition: Definition;
 		BEGIN
 			NextSymbol;
-			IF symbol.token = OCScanner.Module THEN
+			IF symbol.token = FoxScanner.Module THEN
 				NEW(module, NIL); module.parent := module;
 				NextSymbol;
-				IF symbol.token = OCScanner.Identifier THEN
+				IF symbol.token = FoxScanner.Identifier THEN
 					NEW(module.ident);
 					COPY(symbol.string, modName);
 					module.ident.name := Strings.NewString(symbol.string);
 					module.ident.pos := symbol.start;
 				END;
 				NextSymbol;
-				IF symbol.token = OCScanner.In THEN
+				IF symbol.token = FoxScanner.In THEN
 					NextSymbol;
-					IF symbol.token = OCScanner.Identifier THEN
+					IF symbol.token = FoxScanner.Identifier THEN
 						NEW(module.context);
 						module.context.name := Strings.NewString(symbol.string);
 						module.context.pos := symbol.start;
 					END;
-					Check (OCScanner.Identifier);
+					Check (FoxScanner.Identifier);
 				END;
-				IF symbol.token = OCScanner.LeftBrace THEN
-					WHILE (symbol.token # OCScanner.Semicolon) & (symbol.token # OCScanner.EndOfText) DO NextSymbol END;
+				IF symbol.token = FoxScanner.LeftBrace THEN
+					WHILE (symbol.token # FoxScanner.Semicolon) & (symbol.token # FoxScanner.EndOfText) DO NextSymbol END;
 				END;
-				Check(OCScanner.Semicolon);
-				IF symbol.token = OCScanner.Import THEN
+				Check(FoxScanner.Semicolon);
+				IF symbol.token = FoxScanner.Import THEN
 					NEW(module.importList, module);
 					ImportListP(module.importList);
 				END;
-				WHILE symbol.token = OCScanner.Definition DO
+				WHILE symbol.token = FoxScanner.Definition DO
 					NEW(definition, module);
 					DefinitionP(definition);
 					IF module.definitions = NIL THEN module.definitions := definition
 					ELSE AppendLast(module.definitions, definition)
 					END;
 				END;
-				IF 	(symbol.token = OCScanner.Const) OR (symbol.token = OCScanner.Type) OR
-					(symbol.token = OCScanner.Var) OR (symbol.token = OCScanner.Procedure) OR (symbol.token = OCScanner.Operator) THEN
+				IF 	(symbol.token = FoxScanner.Const) OR (symbol.token = FoxScanner.Type) OR
+					(symbol.token = FoxScanner.Var) OR (symbol.token = FoxScanner.Procedure) OR (symbol.token = FoxScanner.Operator) THEN
 					NEW(module.declSeq, module);
 					DeclSeqP(module.declSeq);
 				END;
-				IF (symbol.token = OCScanner.Begin) THEN
+				IF (symbol.token = FoxScanner.Begin) THEN
 					module.bodyPos := symbol.start;
 				ELSE
 					module.bodyPos := 0;
 				END;
 				BodyP(FALSE, module.modifiers);
-				IF (symbol.token = OCScanner.Identifier) & (symbol.string = modName) THEN
+				IF (symbol.token = FoxScanner.Identifier) & (symbol.string = modName) THEN
 					(* correct *)
 				ELSE
 					(* maybe missing END or wrong module name *)
@@ -418,14 +418,14 @@ TYPE
 		VAR newImport: Import;
 		BEGIN
 			NextSymbol;
-			WHILE symbol.token = OCScanner.Identifier DO
+			WHILE symbol.token = FoxScanner.Identifier DO
 				NEW(import.ident);
 				import.ident.name := Strings.NewString(symbol.string);
 				import.ident.pos := symbol.start;
 				NextSymbol;	(* avoids endless loop *)
-				IF symbol.token = OCScanner.Becomes THEN
+				IF symbol.token = FoxScanner.Becomes THEN
 					NextSymbol;
-					IF symbol.token = OCScanner.Identifier THEN
+					IF symbol.token = FoxScanner.Identifier THEN
 						NEW(import.alias);
 						import.alias.name := Strings.NewString(symbol.string);
 						import.alias.pos := symbol.start;
@@ -436,55 +436,55 @@ TYPE
 						KernelLog.String("err2: "); KernelLog.Int(symbol.start, 0); KernelLog.Ln;
 					END;
 				END;
-				IF symbol.token = OCScanner.In THEN
+				IF symbol.token = FoxScanner.In THEN
 					NextSymbol;
-					IF symbol.token = OCScanner.Identifier THEN
+					IF symbol.token = FoxScanner.Identifier THEN
 						NEW(import.context);
 						import.context.name := Strings.NewString(symbol.string);
 						import.context.pos := symbol.start;
 					END;
-					Check (OCScanner.Identifier);
+					Check (FoxScanner.Identifier);
 				END;
-				IF symbol.token = OCScanner.Comma THEN
+				IF symbol.token = FoxScanner.Comma THEN
 					NextSymbol;
 				END;
 				NEW(newImport, import.parent);
 				import.next := newImport;
 				import := newImport;
 			END;
-			Check(OCScanner.Semicolon);
+			Check(FoxScanner.Semicolon);
 		END ImportListP;
 
 		PROCEDURE DefinitionP(definition: Definition);
 		VAR
 			procHead: ProcHead;
 		BEGIN
-			IF symbol.token = OCScanner.Definition THEN
+			IF symbol.token = FoxScanner.Definition THEN
 				NextSymbol;
-				IF symbol.token = OCScanner.Identifier THEN
+				IF symbol.token = FoxScanner.Identifier THEN
 					NEW(definition.ident);
 					definition.ident.name := Strings.NewString(symbol.string);
 					definition.ident.pos := symbol.start;
 					NextSymbol;
 				END;
-				WHILE symbol.token = OCScanner.Semicolon DO NextSymbol END;
-		(*?		IF symbol.token = OCScanner.Refines THEN
+				WHILE symbol.token = FoxScanner.Semicolon DO NextSymbol END;
+		(*?		IF symbol.token = FoxScanner.Refines THEN
 					NextSymbol;
 					NEW(definition.refines, definition);
 					QualidentP(definition.refines);
 				END; *)
-				WHILE (symbol.token = OCScanner.Procedure) OR (symbol.token = OCScanner.Operator) DO
+				WHILE (symbol.token = FoxScanner.Procedure) OR (symbol.token = FoxScanner.Operator) DO
 					NEW(procHead, definition);
 					NextSymbol;
 					ProcHeadP(procHead);
 					IF definition.procs = NIL THEN definition.procs := procHead
 					ELSE AppendLast(definition.procs, procHead)
 					END;
-					Check(OCScanner.Semicolon);
+					Check(FoxScanner.Semicolon);
 				END;
-				Check(OCScanner.End);
-				Check(OCScanner.Identifier);
-				WHILE symbol.token = OCScanner.Semicolon DO NextSymbol END;
+				Check(FoxScanner.End);
+				Check(FoxScanner.Identifier);
+				WHILE symbol.token = FoxScanner.Semicolon DO NextSymbol END;
 			END;
 		END DefinitionP;
 
@@ -497,49 +497,49 @@ TYPE
 
 			PROCEDURE CheckEndOrSemicolon;
 			BEGIN
-				IF symbol.token # OCScanner.End THEN
-					REPEAT Check(OCScanner.Semicolon) UNTIL symbol.token # OCScanner.Semicolon
+				IF symbol.token # FoxScanner.End THEN
+					REPEAT Check(FoxScanner.Semicolon) UNTIL symbol.token # FoxScanner.Semicolon
 				END;
 			END CheckEndOrSemicolon;
 
 		BEGIN
 			LOOP
 				CASE symbol.token OF
-				| OCScanner.Const:
+				| FoxScanner.Const:
 					NextSymbol;
-					WHILE symbol.token = OCScanner.Identifier DO
+					WHILE symbol.token = FoxScanner.Identifier DO
 						NEW(constDecl, declSeq);
 						ConstDeclP(constDecl);
 						IF declSeq.constDecl = NIL THEN declSeq.constDecl := constDecl;
 						ELSE AppendLast(declSeq.constDecl, constDecl);
 						END;
 						CheckEndOrSemicolon;
-						(*Check(OCScanner.Semicolon);*)
+						(*Check(FoxScanner.Semicolon);*)
 					END;
-				| OCScanner.Type:
+				| FoxScanner.Type:
 					NextSymbol;
-					WHILE symbol.token = OCScanner.Identifier DO
+					WHILE symbol.token = FoxScanner.Identifier DO
 						NEW(typeDecl, declSeq);
 						TypeDeclP(typeDecl);
 						IF declSeq.typeDecl = NIL THEN declSeq.typeDecl := typeDecl;
 						ELSE AppendLast(declSeq.typeDecl, typeDecl);
 						END;
 						CheckEndOrSemicolon;
-						(*Check(OCScanner.Semicolon);*)
+						(*Check(FoxScanner.Semicolon);*)
 					END;
-				| OCScanner.Var:
+				| FoxScanner.Var:
 					NextSymbol;
-					WHILE symbol.token = OCScanner.Identifier DO
+					WHILE symbol.token = FoxScanner.Identifier DO
 						NEW(varDecl, declSeq);
 						VarDeclP(varDecl);
 						IF declSeq.varDecl = NIL THEN declSeq.varDecl := varDecl;
 						ELSE AppendLast(declSeq.varDecl, varDecl);
 						END;
 						CheckEndOrSemicolon;
-						(*Check(OCScanner.Semicolon);*)
+						(*Check(FoxScanner.Semicolon);*)
 					END;
-				| OCScanner.Procedure, OCScanner.Operator:
-					WHILE (symbol.token = OCScanner.Procedure) OR (symbol.token = OCScanner.Operator) DO
+				| FoxScanner.Procedure, FoxScanner.Operator:
+					WHILE (symbol.token = FoxScanner.Procedure) OR (symbol.token = FoxScanner.Operator) DO
 						NextSymbol;
 						NEW(procDecl, declSeq);
 						ProcDeclP(procDecl);
@@ -551,7 +551,7 @@ TYPE
 							END;
 						END;
 						CheckEndOrSemicolon;
-						(*Check(OCScanner.Semicolon);*)
+						(*Check(FoxScanner.Semicolon);*)
 					END;
 				ELSE
 					EXIT;
@@ -563,18 +563,18 @@ TYPE
 		BEGIN
 			NEW(const.identDef);
 			IdentDefP(const.identDef);
-			Check(OCScanner.Equal);
+			Check(FoxScanner.Equal);
 			(* NEW(const.constExpr);
 			ExprP(const.constExpr); *)
 			NEW(const.expr);
-			ConstExprP(OCScanner.Semicolon, -1, const.expr);
+			ConstExprP(FoxScanner.Semicolon, -1, const.expr);
 		END ConstDeclP;
 
 		PROCEDURE TypeDeclP(type: TypeDecl);
 		BEGIN
 			NEW(type.identDef);
 			IdentDefP(type.identDef);
-			Check(OCScanner.Equal);
+			Check(FoxScanner.Equal);
 			NEW(type.type, type);
 			TypeP(type.type);
 		END TypeDeclP;
@@ -589,7 +589,7 @@ TYPE
 			NEW(var.identList.identDef);
 			IdentDefP(var.identList.identDef);
 			SysFlag;
-			WHILE symbol.token = OCScanner.Comma DO
+			WHILE symbol.token = FoxScanner.Comma DO
 				NextSymbol;	(* avoids endless loop *)
 				NEW(identDef);
 				IdentDefP(identDef);
@@ -598,7 +598,7 @@ TYPE
 				identList.identDef := identDef;
 				AppendLast(var.identList, identList);
 			END;
-			Check(OCScanner.Colon);
+			Check(FoxScanner.Colon);
 			NEW(var.type, var);
 			TypeP(var.type);
 		END VarDeclP;
@@ -610,16 +610,16 @@ TYPE
 			NEW(proc.head, proc);
 			ProcHeadP(proc.head);
 			IF proc.head.identDef = NIL THEN proc.head := NIL; RETURN END;
-			Check(OCScanner.Semicolon);
-			IF 	(symbol.token = OCScanner.Const) OR (symbol.token = OCScanner.Var) OR
-				(symbol.token = OCScanner.Type) OR (symbol.token = OCScanner.Procedure) OR (symbol.token = OCScanner.Operator) THEN
+			Check(FoxScanner.Semicolon);
+			IF 	(symbol.token = FoxScanner.Const) OR (symbol.token = FoxScanner.Var) OR
+				(symbol.token = FoxScanner.Type) OR (symbol.token = FoxScanner.Procedure) OR (symbol.token = FoxScanner.Operator) THEN
 				NEW(declSeq, proc);
 				DeclSeqP(declSeq);
 				IF proc.declSeq = NIL THEN proc.declSeq := declSeq;
 				ELSE AppendLast(proc.declSeq, declSeq);
 				END;
 			END;
-			IF (symbol.token = OCScanner.Begin) THEN
+			IF (symbol.token = FoxScanner.Begin) THEN
 				proc.bodyPos := symbol.start;
 			ELSE
 				proc.bodyPos := 0;
@@ -633,18 +633,18 @@ TYPE
 		BEGIN
 			SysFlag;
 			CASE symbol.token OF
-			| OCScanner.Minus: head.inline := TRUE; NextSymbol;
-			| OCScanner.And: head.constructor := TRUE; NextSymbol;
-			| OCScanner.Times: (* ignore *) NextSymbol;
-			| OCScanner.Arrow: (* ignore *) NextSymbol; forward := TRUE;
-			| OCScanner.String: head.operator := TRUE;
-			| OCScanner.Number: IF symbol.numberType = OCScanner.Character THEN head.operator := TRUE END;
+			| FoxScanner.Minus: head.inline := TRUE; NextSymbol;
+			| FoxScanner.And: head.constructor := TRUE; NextSymbol;
+			| FoxScanner.Times: (* ignore *) NextSymbol;
+			| FoxScanner.Arrow: (* ignore *) NextSymbol; forward := TRUE;
+			| FoxScanner.String: head.operator := TRUE;
+			| FoxScanner.Number: IF symbol.numberType = FoxScanner.Character THEN head.operator := TRUE END;
 			ELSE
 			END;
 			NEW(head.identDef);
 			IdentDefP(head.identDef);
 			OSAIrq;		(* tk: Compatibility to OSACompiler*)
-			IF symbol.token = OCScanner.LeftParenthesis THEN
+			IF symbol.token = FoxScanner.LeftParenthesis THEN
 				NEW(head.formalPars, head);
 				FormalParsP(head.formalPars);
 			END;
@@ -656,24 +656,24 @@ TYPE
 
 		PROCEDURE SysFlag;
 		BEGIN
-			IF symbol.token = OCScanner.LeftBrace THEN
+			IF symbol.token = FoxScanner.LeftBrace THEN
 				NextSymbol;
-				Check(OCScanner.Identifier);
-				IF symbol.token = OCScanner.Comma THEN
+				Check(FoxScanner.Identifier);
+				IF symbol.token = FoxScanner.Comma THEN
 					NextSymbol;
-					Check(OCScanner.Identifier)
+					Check(FoxScanner.Identifier)
 				END;
-				Check(OCScanner.RightBrace);
+				Check(FoxScanner.RightBrace);
 			END;
 		END SysFlag;
 
 		(* tk: For OSA Compatibility *)
 		PROCEDURE OSAIrq;
 		BEGIN
-			IF symbol.token = OCScanner.LeftBracket THEN
+			IF symbol.token = FoxScanner.LeftBracket THEN
 				NextSymbol;
-				Check(OCScanner.Number);
-				Check(OCScanner.RightBracket);
+				Check(FoxScanner.Number);
+				Check(FoxScanner.RightBracket);
 			END;
 		END OSAIrq;
 
@@ -682,25 +682,25 @@ TYPE
 			fpSection: FPSection;
 		BEGIN
 			NextSymbol;
-			IF (symbol.token = OCScanner.Var) OR (symbol.token = OCScanner.Const) OR (symbol.token = OCScanner.Identifier) THEN
+			IF (symbol.token = FoxScanner.Var) OR (symbol.token = FoxScanner.Const) OR (symbol.token = FoxScanner.Identifier) THEN
 				NEW(pars.fpSectionList, pars);
 				FPSectionP(pars.fpSectionList);
-				WHILE symbol.token = OCScanner.Semicolon DO
+				WHILE symbol.token = FoxScanner.Semicolon DO
 					NextSymbol;	(* avoids endless loop *)
 					NEW(fpSection, pars.fpSectionList);
 					FPSectionP(fpSection);
 					AppendLast(pars.fpSectionList, fpSection);
 				END;
 			END;
-			Check(OCScanner.RightParenthesis);
-			IF symbol.token = OCScanner.Colon THEN
+			Check(FoxScanner.RightParenthesis);
+			IF symbol.token = FoxScanner.Colon THEN
 				NextSymbol;
-				IF symbol.token = OCScanner.Object THEN
+				IF symbol.token = FoxScanner.Object THEN
 					NEW(pars.returnTypeObj);
 					pars.returnTypeObj.name := Strings.NewString("OBJECT");
 					pars.returnTypeObj.pos := symbol.start;
 					NextSymbol;
-				ELSIF symbol.token = OCScanner.Array THEN
+				ELSIF symbol.token = FoxScanner.Array THEN
 					NEW(pars.returnTypeAry, pars);
 					NextSymbol;
 					ArrayP(pars.returnTypeAry);
@@ -709,7 +709,7 @@ TYPE
 					NEW(pars.returnType.ident);
 					pars.returnType.ident.name := Strings.NewString("ARRAY OF ???");
 					pars.returnType.ident.pos := bol.start;
-					SkipTo(OCScanner.Semicolon);
+					SkipTo(FoxScanner.Semicolon);
 					*)
 				ELSE
 					NEW(pars.returnType, pars);
@@ -721,14 +721,14 @@ TYPE
 		PROCEDURE FPSectionP(fpSection: FPSection);
 		VAR identList: IdentList;
 		BEGIN
-			IF symbol.token = OCScanner.Var THEN
+			IF symbol.token = FoxScanner.Var THEN
 				fpSection.var := TRUE;
 				NextSymbol;
-			ELSIF symbol.token = OCScanner.Const THEN
+			ELSIF symbol.token = FoxScanner.Const THEN
 				fpSection.const := TRUE;
 				NextSymbol;
 			END;
-			IF symbol.token = OCScanner.Identifier THEN
+			IF symbol.token = FoxScanner.Identifier THEN
 				(*StringPool.GetString(scanner.name, name);*)
 				NEW(fpSection.identList, fpSection);
 				NEW(fpSection.identList.identDef);
@@ -738,14 +738,14 @@ TYPE
 				fpSection.identList.ident.pos := symbol.start;
 				NextSymbol;
 				*)
-				WHILE symbol.token = OCScanner.Comma DO
+				WHILE symbol.token = FoxScanner.Comma DO
 					NEW(identList, fpSection.identList);
 					NextSymbol;
 					NEW(identList.identDef);
 					IdentDefP(identList.identDef);
 					AppendLast(fpSection.identList, identList);
 					(*
-					IF symbol.token = OCScanner.Identifier THEN
+					IF symbol.token = FoxScanner.Identifier THEN
 						StringPool.GetString(scanner.name, name);
 						NEW(identDef);
 						NEW(identDef.ident);
@@ -756,7 +756,7 @@ TYPE
 					END;
 					*)
 				END;
-				Check(OCScanner.Colon);
+				Check(FoxScanner.Colon);
 				NEW(fpSection.type, fpSection);
 				TypeP(fpSection.type);
 			END;
@@ -765,12 +765,12 @@ TYPE
 		PROCEDURE TypeP(type: Type);
 		BEGIN
 			CASE symbol.token OF
-			| OCScanner.Array: NextSymbol; NEW(type.array, type); ArrayP(type.array);
-			| OCScanner.Record: NextSymbol; NEW(type.record, type); RecordP(type.record);
-			| OCScanner.Pointer: NextSymbol; NEW(type.pointer, type); PointerP(type.pointer);
-			| OCScanner.Object: NextSymbol; NEW(type.object, type); ObjectP(type.object);
-			| OCScanner.Procedure, OCScanner.Operator: NextSymbol; NEW(type.procedure, type); ProcedureP(type.procedure);
-			| OCScanner.Identifier: NEW(type.qualident, type); QualidentP(type.qualident);
+			| FoxScanner.Array: NextSymbol; NEW(type.array, type); ArrayP(type.array);
+			| FoxScanner.Record: NextSymbol; NEW(type.record, type); RecordP(type.record);
+			| FoxScanner.Pointer: NextSymbol; NEW(type.pointer, type); PointerP(type.pointer);
+			| FoxScanner.Object: NextSymbol; NEW(type.object, type); ObjectP(type.object);
+			| FoxScanner.Procedure, FoxScanner.Operator: NextSymbol; NEW(type.procedure, type); ProcedureP(type.procedure);
+			| FoxScanner.Identifier: NEW(type.qualident, type); QualidentP(type.qualident);
 			ELSE
 				(* Error *)
 				hasError := TRUE; KernelLog.String("err4: "); KernelLog.Int(symbol.start, 0); KernelLog.Ln;
@@ -781,22 +781,22 @@ TYPE
 		PROCEDURE ArrayP(array: Array);
 		BEGIN
 			SysFlag;
-			IF symbol.token = OCScanner.Of THEN
+			IF symbol.token = FoxScanner.Of THEN
 				array.open := TRUE;
 				NEW(array.base, array);
 				NextSymbol;
 				TypeP(array.base);
 			ELSE
 				NEW(array.len);
-				ConstExprP(OCScanner.Of, OCScanner.Comma, array.len);
+				ConstExprP(FoxScanner.Of, FoxScanner.Comma, array.len);
 				(*
 				SimpleExprP(array.len);
 				*)
-				IF symbol.token = OCScanner.Of THEN
+				IF symbol.token = FoxScanner.Of THEN
 					NEW(array.base, array);
 					NextSymbol;
 					TypeP(array.base);
-				ELSIF symbol.token = OCScanner.Comma THEN
+				ELSIF symbol.token = FoxScanner.Comma THEN
 					NEW(array.base, array);
 					NEW(array.base.array, array);
 					NextSymbol;
@@ -812,25 +812,25 @@ TYPE
 		PROCEDURE RecordP(record: Record);
 		BEGIN
 			SysFlag;
-			IF symbol.token = OCScanner.LeftParenthesis THEN
+			IF symbol.token = FoxScanner.LeftParenthesis THEN
 				NextSymbol;
 				NEW(record.super, record);
 				QualidentP(record.super);
-				Check(OCScanner.RightParenthesis);
+				Check(FoxScanner.RightParenthesis);
 			END;
-			WHILE symbol.token = OCScanner.Semicolon DO NextSymbol END;
-			IF symbol.token = OCScanner.Identifier THEN
+			WHILE symbol.token = FoxScanner.Semicolon DO NextSymbol END;
+			IF symbol.token = FoxScanner.Identifier THEN
 				NEW(record.fieldList, record);
 				FieldListP(record.fieldList);
 			END;
-			Check(OCScanner.End);
+			Check(FoxScanner.End);
 		END RecordP;
 
 		PROCEDURE FieldListP(fieldList: FieldDecl);
 		VAR fieldDecl: FieldDecl;
 		BEGIN
 			FieldDeclP(fieldList);
-			WHILE symbol.token = OCScanner.Semicolon DO
+			WHILE symbol.token = FoxScanner.Semicolon DO
 				NextSymbol;
 				NEW(fieldDecl, fieldList);
 				FieldDeclP(fieldDecl);
@@ -843,12 +843,12 @@ TYPE
 			identDef: IdentDef;
 			identList: IdentList;
 		BEGIN
-			IF symbol.token = OCScanner.Identifier THEN
+			IF symbol.token = FoxScanner.Identifier THEN
 				NEW(fieldDecl.identList, fieldDecl);
 				NEW(fieldDecl.identList.identDef);
 				IdentDefP(fieldDecl.identList.identDef);
 				SysFlag;
-				WHILE symbol.token = OCScanner.Comma DO
+				WHILE symbol.token = FoxScanner.Comma DO
 					NextSymbol;
 					NEW(identDef);
 					IdentDefP(identDef);
@@ -857,7 +857,7 @@ TYPE
 					identList.identDef := identDef;
 					AppendLast(fieldDecl.identList, identList);
 				END;
-				Check(OCScanner.Colon);
+				Check(FoxScanner.Colon);
 				NEW(fieldDecl.type, fieldDecl);
 				TypeP(fieldDecl.type);
 			END;
@@ -866,7 +866,7 @@ TYPE
 		PROCEDURE PointerP(pointer: Pointer);
 		BEGIN
 			SysFlag;
-			Check(OCScanner.To);
+			Check(FoxScanner.To);
 			NEW(pointer.type, pointer);
 			TypeP(pointer.type);
 		END PointerP;
@@ -876,19 +876,19 @@ TYPE
 			pos: LONGINT;
 		(*?	qualident: Qualident; *)
 		BEGIN
-			IF (symbol.token = OCScanner.Semicolon) OR (symbol.token = OCScanner.RightParenthesis) THEN RETURN END;
+			IF (symbol.token = FoxScanner.Semicolon) OR (symbol.token = FoxScanner.RightParenthesis) THEN RETURN END;
 			SysFlag;
-			IF symbol.token = OCScanner.LeftParenthesis THEN
+			IF symbol.token = FoxScanner.LeftParenthesis THEN
 				NEW(object.super, object);
 				NextSymbol;
 				QualidentP(object.super);
-				Check(OCScanner.RightParenthesis);
+				Check(FoxScanner.RightParenthesis);
 			END;
-		(*?	IF symbol.token = OCScanner.Implements THEN
+		(*?	IF symbol.token = FoxScanner.Implements THEN
 				NEW(object.implements, object);
 				NextSymbol;
 				QualidentP(object.implements);
-				WHILE symbol.token = OCScanner.Comma DO
+				WHILE symbol.token = FoxScanner.Comma DO
 					NEW(qualident, object.implements);
 					NextSymbol;
 					QualidentP(qualident);
@@ -896,7 +896,7 @@ TYPE
 				END;
 			END; *)
 			pos := -1;
-			WHILE (symbol.token # OCScanner.Begin) & (symbol.token # OCScanner.End) & (symbol.token # OCScanner.EndOfText) DO
+			WHILE (symbol.token # FoxScanner.Begin) & (symbol.token # FoxScanner.End) & (symbol.token # FoxScanner.EndOfText) DO
 					(* avoid endless-loop *)
 				IF pos = symbol.start THEN NextSymbol END;
 				pos := symbol.start;
@@ -906,35 +906,35 @@ TYPE
 				ELSE AppendLast(object.declSeq, declSeq);
 				END;
 			END;
-			IF (symbol.token = OCScanner.Begin) THEN
+			IF (symbol.token = FoxScanner.Begin) THEN
 				object.bodyPos := symbol.start;
 			ELSE
 				object.bodyPos := 0;
 			END;
 			BodyP(TRUE, object.modifiers);
-			IF symbol.token = OCScanner.Identifier THEN NextSymbol END;
+			IF symbol.token = FoxScanner.Identifier THEN NextSymbol END;
 		END ObjectP;
 
 		PROCEDURE ProcedureP(proc: Procedure);
 		BEGIN
 			SysFlag;
-			IF symbol.token = OCScanner.LeftBrace THEN
+			IF symbol.token = FoxScanner.LeftBrace THEN
 				NextSymbol;
-				IF symbol.token # OCScanner.Identifier THEN
+				IF symbol.token # FoxScanner.Identifier THEN
 					(* Error *)
 				ELSIF symbol.string = "DELEGATE" THEN
 					proc.delegate := TRUE;
 				END;
 				NextSymbol;
-				Check(OCScanner.RightBrace);
+				Check(FoxScanner.RightBrace);
 			END;
-			IF symbol.token = OCScanner.LeftParenthesis THEN
+			IF symbol.token = FoxScanner.LeftParenthesis THEN
 				NEW(proc.formalPars, proc);
 				FormalParsP(proc.formalPars);
 			END;
 		END ProcedureP;
 
-		PROCEDURE ConstExprP(delimiter1, delimiter2: OCScanner.Token; expr: InfoItem);
+		PROCEDURE ConstExprP(delimiter1, delimiter2: FoxScanner.Token; expr: InfoItem);
 		VAR
 			exprStr, name: ARRAY 1024 OF CHAR;
 			longExprStr : Strings.String; (* for exprStr content lengths > LEN(exprStr) *)
@@ -964,46 +964,46 @@ TYPE
 			IF (symbol.token = delimiter1) OR (symbol.token = delimiter2) THEN RETURN END;
 			REPEAT
 				CASE symbol.token OF
-				| OCScanner.LeftParenthesis: INC(paren); Add("(");
-				| OCScanner.RightParenthesis: DEC(paren); Add(")");
-				| OCScanner.LeftBrace: INC(brace); Add("{");
-				| OCScanner.RightBrace: DEC(brace); Add("}");
-				| OCScanner.LeftBracket: INC(brak); Add("[");
-				| OCScanner.RightBracket: DEC(brak); Add("]");
-				| OCScanner.Number: Add(symbol.string);
-				| OCScanner.Nil: Add("NIL");
-				| OCScanner.True: Add("TRUE");
-				| OCScanner.False: Add("FALSE");
-				| OCScanner.Not: Add("~");
-				| OCScanner.Period: Add(".");
-				| OCScanner.Identifier: Add(symbol.string);
-				| OCScanner.Comma: Add(", ");
-				| OCScanner.Plus: Add(" + ");
-				| OCScanner.Minus: Add(" - ");
-				| OCScanner.Times: Add(" * ");
-				| OCScanner.Upto: Add(" .. ");
-				| OCScanner.Equal: Add(" = ");
-				| OCScanner.Unequal: Add(" # ");
-				| OCScanner.Less: Add(" < ");
-				| OCScanner.LessEqual: Add(" <= ");
-				| OCScanner.Greater: Add(" > ");
-				| OCScanner.GreaterEqual: Add(" >= ");
-				| OCScanner.In: Add(" IN ");
-				| OCScanner.Is: Add(" IS ");
-				| OCScanner.Div: Add(" DIV ");
-				| OCScanner.Mod: Add(" MOD ");
-				| OCScanner.Slash: Add(" / ");
-				| OCScanner.And: Add(" & ");
-				| OCScanner.Or: Add(" OR ");
-				| OCScanner.String: name[0] := '"'; name[1] := 0X; Add(name); Add(symbol.string); Add(name);
-				| OCScanner.Arrow: Add("^");
+				| FoxScanner.LeftParenthesis: INC(paren); Add("(");
+				| FoxScanner.RightParenthesis: DEC(paren); Add(")");
+				| FoxScanner.LeftBrace: INC(brace); Add("{");
+				| FoxScanner.RightBrace: DEC(brace); Add("}");
+				| FoxScanner.LeftBracket: INC(brak); Add("[");
+				| FoxScanner.RightBracket: DEC(brak); Add("]");
+				| FoxScanner.Number: Add(symbol.string);
+				| FoxScanner.Nil: Add("NIL");
+				| FoxScanner.True: Add("TRUE");
+				| FoxScanner.False: Add("FALSE");
+				| FoxScanner.Not: Add("~");
+				| FoxScanner.Period: Add(".");
+				| FoxScanner.Identifier: Add(symbol.string);
+				| FoxScanner.Comma: Add(", ");
+				| FoxScanner.Plus: Add(" + ");
+				| FoxScanner.Minus: Add(" - ");
+				| FoxScanner.Times: Add(" * ");
+				| FoxScanner.Upto: Add(" .. ");
+				| FoxScanner.Equal: Add(" = ");
+				| FoxScanner.Unequal: Add(" # ");
+				| FoxScanner.Less: Add(" < ");
+				| FoxScanner.LessEqual: Add(" <= ");
+				| FoxScanner.Greater: Add(" > ");
+				| FoxScanner.GreaterEqual: Add(" >= ");
+				| FoxScanner.In: Add(" IN ");
+				| FoxScanner.Is: Add(" IS ");
+				| FoxScanner.Div: Add(" DIV ");
+				| FoxScanner.Mod: Add(" MOD ");
+				| FoxScanner.Slash: Add(" / ");
+				| FoxScanner.And: Add(" & ");
+				| FoxScanner.Or: Add(" OR ");
+				| FoxScanner.String: name[0] := '"'; name[1] := 0X; Add(name); Add(symbol.string); Add(name);
+				| FoxScanner.Arrow: Add("^");
 				ELSE
 					(* error *)
 					hasError := TRUE;
 				END;
 				NextSymbol;
 				(* urgh, what an ugly condition ... *)
-			UNTIL (((symbol.token = delimiter1) OR (symbol.token = delimiter2)) & (paren = 0) & (brace = 0) & (brak = 0)) OR (symbol.token = OCScanner.EndOfText);
+			UNTIL (((symbol.token = delimiter1) OR (symbol.token = delimiter2)) & (paren = 0) & (brace = 0) & (brak = 0)) OR (symbol.token = FoxScanner.EndOfText);
 			IF (longExprStr = NIL) THEN
 				expr.name := Strings.NewString(exprStr);
 			ELSE
@@ -1015,10 +1015,10 @@ TYPE
 		VAR ignore : InfoItem;
 		BEGIN
 			modifiers := {};
-			IF symbol.token = OCScanner.LeftBrace THEN
+			IF symbol.token = FoxScanner.LeftBrace THEN
 				NextSymbol;
 				LOOP
-					IF symbol.token = OCScanner.Identifier THEN
+					IF symbol.token = FoxScanner.Identifier THEN
 						IF symbol.string = ExclusiveStr  THEN
 							modifiers := modifiers + {Exclusive};
 							NextSymbol;
@@ -1033,33 +1033,33 @@ TYPE
 						ELSIF allowBody & (symbol.string = PriorityStr)  THEN
 							modifiers := modifiers + {Priority};
 							NextSymbol;
-							IF symbol.token = OCScanner.LeftParenthesis THEN
+							IF symbol.token = FoxScanner.LeftParenthesis THEN
 								NextSymbol;
 								NEW(ignore);
-								ConstExprP(OCScanner.RightParenthesis, -1, ignore);
-								Check(OCScanner.RightParenthesis);
+								ConstExprP(FoxScanner.RightParenthesis, -1, ignore);
+								Check(FoxScanner.RightParenthesis);
 							END;
 						ELSE
 							Error(symbol.start); NextSymbol (* skip the ident, probably a typo *)
 						END;
 					END;
-					IF symbol.token # OCScanner.Comma THEN EXIT END;
+					IF symbol.token # FoxScanner.Comma THEN EXIT END;
 					NextSymbol
 				END;
-				Check(OCScanner.RightBrace);
+				Check(FoxScanner.RightBrace);
 			END;
 		END BlockModifierP;
 
 		PROCEDURE BodyP(allowBody : BOOLEAN; VAR modifiers : SET);
 		VAR end, lastToken: LONGINT; m : SET; first : BOOLEAN;
 		BEGIN
-			IF symbol.token = OCScanner.Begin THEN
+			IF symbol.token = FoxScanner.Begin THEN
 				end := 1;
 				first := TRUE;
 				REPEAT
 					lastToken := symbol.token;
 					NextSymbol;
-					IF (lastToken = OCScanner.Begin) & (symbol.token = OCScanner.LeftBrace) THEN
+					IF (lastToken = FoxScanner.Begin) & (symbol.token = FoxScanner.LeftBrace) THEN
 						BlockModifierP(allowBody, m);
 						IF first THEN
 							allowBody := FALSE;
@@ -1072,14 +1072,14 @@ TYPE
 					END;
 					first := FALSE;
 					CASE symbol.token OF
-					| OCScanner.Begin: INC(end);
-					| OCScanner.If, OCScanner.Case, OCScanner.While, OCScanner.For, OCScanner.Loop, OCScanner.With: INC(end);
-					| OCScanner.End: DEC(end);
+					| FoxScanner.Begin: INC(end);
+					| FoxScanner.If, FoxScanner.Case, FoxScanner.While, FoxScanner.For, FoxScanner.Loop, FoxScanner.With: INC(end);
+					| FoxScanner.End: DEC(end);
 					ELSE
 					END;
-				UNTIL (end = 0) OR (symbol.token = OCScanner.EndOfText);
-			ELSIF symbol.token = OCScanner.Code THEN
-				REPEAT NextSymbol UNTIL (symbol.token = OCScanner.End) OR (symbol.token = OCScanner.EndOfText);
+				UNTIL (end = 0) OR (symbol.token = FoxScanner.EndOfText);
+			ELSIF symbol.token = FoxScanner.Code THEN
+				REPEAT NextSymbol UNTIL (symbol.token = FoxScanner.End) OR (symbol.token = FoxScanner.EndOfText);
 			END;
 			NextSymbol;
 		END BodyP;
@@ -1089,13 +1089,13 @@ TYPE
 			name : ARRAY 64 OF CHAR;
 			pos: LONGINT;
 		BEGIN
-			IF symbol.token = OCScanner.Identifier THEN
+			IF symbol.token = FoxScanner.Identifier THEN
 				COPY(symbol.string, name);
 				pos := symbol.start;
 				NextSymbol;
-				IF symbol.token = OCScanner.Period THEN
+				IF symbol.token = FoxScanner.Period THEN
 					NextSymbol;
-					IF symbol.token = OCScanner.Identifier THEN
+					IF symbol.token = FoxScanner.Identifier THEN
 						Strings.Append(name, ".");
 						Strings.Concat(name, symbol.string, name);
 						NextSymbol;
@@ -1109,20 +1109,20 @@ TYPE
 
 		PROCEDURE IdentDefP(identDef: IdentDef);
 		BEGIN
-			IF symbol.token = OCScanner.Identifier THEN
+			IF symbol.token = FoxScanner.Identifier THEN
 				NEW(identDef.ident);
 				identDef.ident.name := Strings.NewString(symbol.string);
 				identDef.ident.pos := symbol.start;
-			ELSIF (symbol.token = OCScanner.String) OR (symbol.token = OCScanner.Number) & (symbol.numberType = OCScanner.Character) THEN
+			ELSIF (symbol.token = FoxScanner.String) OR (symbol.token = FoxScanner.Number) & (symbol.numberType = FoxScanner.Character) THEN
 				NEW(identDef.ident);
 				identDef.ident.name := Strings.NewString(symbol.string);
 				identDef.ident.pos := symbol.start;
 			END;
 			NextSymbol;
-			IF symbol.token = OCScanner.Times THEN
+			IF symbol.token = FoxScanner.Times THEN
 				identDef.vis := Public;
 				NextSymbol;
-			ELSIF symbol.token = OCScanner.Minus THEN
+			ELSIF symbol.token = FoxScanner.Minus THEN
 				identDef.vis := PublicRO;
 				NextSymbol;
 			ELSE
@@ -1130,7 +1130,7 @@ TYPE
 			END;
 		END IdentDefP;
 
-		PROCEDURE Check(token: OCScanner.Token);
+		PROCEDURE Check(token: FoxScanner.Token);
 		BEGIN
 			IF symbol.token = token THEN
 				(* correct *)
@@ -1407,7 +1407,7 @@ END ResolveMethodOverwrites;
 PROCEDURE ParseFile*(CONST filename : ARRAY OF CHAR; diagnostics : Diagnostics.Diagnostics) : Module;
 VAR
 	module : Module;
-	scanner : OCScanner.Scanner;
+	scanner : FoxScanner.Scanner;
 	text : Texts.Text; reader : TextUtilities.TextReader;
 	format, res : LONGINT;
 BEGIN
@@ -1415,7 +1415,7 @@ BEGIN
 	TextUtilities.LoadAuto(text, filename, format, res);
 	IF (res = 0) THEN
 		NEW(reader, text);
-		scanner := OCScanner.NewScanner(filename, reader, 0, diagnostics);
+		scanner := FoxScanner.NewScanner(filename, reader, 0, diagnostics);
 		Parse(scanner, module);
 	ELSIF (diagnostics # NIL) THEN
 		diagnostics.Error("ModuleParser", Diagnostics.Invalid, Diagnostics.Invalid, "File not found");
@@ -1439,7 +1439,7 @@ BEGIN
 	cache.Enumerate(ResolveMethodOverwrites);
 END SetSuperTypes;
 
-PROCEDURE Parse*(scanner: OCScanner.Scanner; VAR module: Module);
+PROCEDURE Parse*(scanner: FoxScanner.Scanner; VAR module: Module);
 VAR parser: Parser;
 BEGIN
 	NEW(parser, scanner);

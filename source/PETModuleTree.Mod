@@ -2,7 +2,7 @@ MODULE PETModuleTree; (** AUTHOR "?"; PURPOSE "Visualize module structure as tre
 
 IMPORT
 	Commands, Diagnostics, Streams, Files, TextUtilities, WMStandardComponents, WMGraphics, WMProperties, WMComponents,
-	Strings, WMTrees, OCScanner, ModuleParser, PETTrees;
+	Strings, WMTrees, FoxScanner, ModuleParser, PETTrees;
 
 CONST
 	Title = " Program Structure";
@@ -182,12 +182,12 @@ TYPE
 		END GetNewNode;
 
 		PROCEDURE AddNodes(parent : PETTrees.TreeNode; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer);
-		VAR module : ModuleParser.Module; scanner : OCScanner.Scanner; reader : TextUtilities.TextReader;
+		VAR module : ModuleParser.Module; scanner : FoxScanner.Scanner; reader : TextUtilities.TextReader;
 		BEGIN
 			ASSERT(diagnostics # NIL);
 			AddNodes^(parent, diagnostics, log);
 			NEW(reader, editor.text);
-			scanner := OCScanner.NewScanner("PETModuleTree", reader, 0, diagnostics);
+			scanner := FoxScanner.NewScanner("PETModuleTree", reader, 0, diagnostics);
 			ModuleParser.Parse(scanner, module);
 			IF (module # NIL) THEN
 				IF (module.ident # NIL) & (module.ident.name # NIL) THEN

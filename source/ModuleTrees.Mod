@@ -4,7 +4,7 @@ IMPORT
 	Streams, Commands, Diagnostics, WMStandardComponents, WMGraphics, WMProperties, WMComponents,
 	WMTextView, WMEditors, Strings, Texts, TextUtilities, KernelLog,
 	WMTrees, WMEvents,
-	OCScanner, ModuleParser;
+	FoxScanner, ModuleParser;
 
 CONST
 	TreeLabelCaption = " Program Structure";
@@ -218,7 +218,7 @@ TYPE
 
 		VAR
 			module: ModuleParser.Module;
-			scanner: OCScanner.Scanner;
+			scanner: FoxScanner.Scanner;
 			reader : TextUtilities.TextReader;
 			rootNode: WMTrees.TreeNode;
 			nofOpenNodes : LONGINT;
@@ -306,7 +306,7 @@ TYPE
 				sequencer.ScheduleEvent(SELF.RefreshHandler, sender, data);
 			ELSE
 				NEW(reader, editor.text);
-				scanner := OCScanner.NewScanner("ModuleTrees", reader, 0, diagnostics);
+				scanner := FoxScanner.NewScanner("ModuleTrees", reader, 0, diagnostics);
 				ModuleParser.Parse(scanner, module);
 				SELF.module := module;
 				IF module # NIL THEN

@@ -61,7 +61,7 @@ MODULE Release; (** AUTHOR "staubesv"; PURPOSE "Release build tool"; *)
 IMPORT
 	SYSTEM,
 	Modules, Streams, Commands, Options, Files, Dates, Strings, Texts, TextUtilities, ReleaseThreadPool, Diagnostics, WMGraphics, Zip,
-	CompilerInterface, Compiler, SyntaxTree := OCSyntaxTree, Formats := OCFormats, Backend := OCBackend, Dataflow := OCDataflow;
+	CompilerInterface, Compiler, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, Backend := FoxBackend, Dataflow := FoxDataflow;
 
 CONST
 	VersionMajor = 1;
