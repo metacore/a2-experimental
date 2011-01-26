@@ -449,12 +449,9 @@ TYPE
 
 		PROCEDURE ClickNode*(sender, node : ANY);
 		BEGIN
-			IF (node # NIL) & (node IS TreeNode) THEN
-				IF (node(TreeNode).pos # NIL) THEN
-					SetEditorPosition(node(TreeNode).pos.GetPosition(), TRUE);
-				ELSE
-					SetEditorPosition(InvalidPosition, FALSE);
-				END;
+			IF (node # NIL) & (node IS TreeNode) & (node(TreeNode).pos # NIL) THEN
+				KernelLog.String("POS");
+				SetEditorPosition(node(TreeNode).pos.GetPosition(), TRUE);
 			ELSE
 				SetEditorPosition(InvalidPosition, FALSE);
 			END;

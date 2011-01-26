@@ -2,7 +2,7 @@ MODULE PETModuleTree; (** AUTHOR "?"; PURPOSE "Visualize module structure as tre
 
 IMPORT
 	Commands, Diagnostics, Streams, Files, TextUtilities, WMStandardComponents, WMGraphics, WMProperties, WMComponents,
-	Strings, KernelLog, WMTrees, OCScanner, ModuleParser, PETTrees;
+	Strings, WMTrees, OCScanner, ModuleParser, PETTrees;
 
 CONST
 	Title = " Program Structure";
@@ -31,8 +31,7 @@ CONST
 
 	(* Info.flags *)
 	NotPublic = 0;
-	PosValid = 1;
-	CanExecute = 2;
+	CanExecute = 1;
 
 	(* Special procedure types *)
 	Other = 0;
@@ -214,7 +213,7 @@ TYPE
 			IF (data # NIL) & (data IS WMTrees.TreeNode) THEN
 				tree.Acquire;
 				node := data(WMTrees.TreeNode);
-				IF (node IS TreeNode) & (node(TreeNode).flags * {PosValid} = {}) THEN
+				IF (node IS TreeNode) & (node(TreeNode).pos = NIL) THEN
 					(* Use pos of child (for VAR, CONST and IMPORT) *)
 					node := tree.GetChildren(node);
 				END;
@@ -224,8 +223,6 @@ TYPE
 					IF (node(TreeNode).modulename = moduleName) THEN
 						IF (node(TreeNode).pos # NIL) THEN
 							SetEditorPosition(node(TreeNode).pos.GetPosition(), TRUE);
-						ELSE
-							KernelLog.String("ModuleTrees.ModuleTree.ClickNode: Expected Info.pos # NIL"); KernelLog.Ln;
 						END;
 					ELSE
 						NEW(extInfo, node(TreeNode).modulename, node(TreeNode).position);
@@ -266,15 +263,14 @@ TYPE
 				font := PETTrees.FontOberon10Plain;
 			END;
 			node.font := font;
-			IF (mnode # NIL) THEN
-				moduleNode := GetModuleNode(mnode);
-			ELSE
-				moduleNode := NIL;
-			END;
 			IF (infoItem # NIL) THEN
+				IF (mnode # NIL) THEN
+					moduleNode := GetModuleNode(mnode);
+				ELSE
+					moduleNode := NIL;
+				END;
 				node.name := infoItem.name;
 				node.position := infoItem.pos;
-				INCL(node.flags, PosValid);
 				IF (moduleNode = NIL) OR ((moduleNode.ident # NIL) & (moduleNode.ident.name # NIL) & (moduleNode.ident.name^ = moduleName)) THEN
 					node.external := FALSE;
 					node.modulename := moduleName;
@@ -285,6 +281,8 @@ TYPE
 					node.pos := NIL;
 					COPY(moduleNode.ident.name^, node.modulename);
 				END;
+			ELSE
+				node.modulename := moduleName;
 			END;
 		END SetNodeInfo;
 
@@ -405,7 +403,6 @@ TYPE
 			SetNodeInfo(node, pnode, NIL, FALSE, SortBody, GetColor(modifiers, treeView.clTextDefault.Get()), {});
 			NEW(node.pos, editor.text);
 			node.pos.SetPosition(pos);
-			INCL(node.flags, PosValid);
 		END AddBody;
 
 		PROCEDURE AddImportList(parent: WMTrees.TreeNode; importList: ModuleParser.Import; showImportedModules : BOOLEAN);
