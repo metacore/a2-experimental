@@ -2363,11 +2363,12 @@ TYPE
 			expression: SyntaxTree.Expression;
 			resultingType, leftType, baseType: SyntaxTree.Type;
 			skipLabel1, skipLabel2: Label;
-			i, indexListSize, indexDim, rangeCount, srcDimOffset, destDimOffset, targetArrayDimensionality: LONGINT;
+			i, indexListSize, indexDim, rangeCount, indexCount, srcDimOffset, destDimOffset, targetArrayDimensionality: LONGINT;
 			staticSourceLength, staticSourceIncrement, staticIndex, staticFirstIndex, staticLastIndex, staticStepSize, staticTargetLength: LONGINT;
 			lastIndexIsMax: BOOLEAN;
 			variableOp: Operand;
 			variable: SyntaxTree.Variable;
+			hasTensorRange: BOOLEAN;
 		BEGIN
 			ASSERT(tagsAvailable);
 
@@ -2392,24 +2393,28 @@ TYPE
 				END
 			END;
 
+			indexListSize := x.parameters.Length();
+
+			(* count the number of ranges in the index list *)
+			rangeCount := 0; hasTensorRange := FALSE; indexCount := 0;
+			FOR i := 0 TO indexListSize - 1 DO
+				expression := x.parameters.GetExpression(i);
+				IF expression IS SyntaxTree.TensorRangeExpression THEN hasTensorRange := TRUE
+				ELSIF (expression.type # NIL) & (expression.type.resolved IS SyntaxTree.RangeType) THEN INC(rangeCount)
+				ELSE INC(indexCount)
+				END
+			END;
+
 			(* designate the array  to be indexed over *)
 			Designate(x.left, array);
 
 			IF leftType(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
 				Dereference(array, leftType);
-				IF targetArrayDimensionality # 0 THEN
-					DimensionCheck(array.tag, IntermediateCode.Immediate(int32, targetArrayDimensionality), BreqL)
+				IF ~hasTensorRange THEN
+					DimensionCheck(array.tag, IntermediateCode.Immediate(int32, rangeCount+indexCount), BreqL)
 				END
 			END;
 
-			indexListSize := x.parameters.Length();
-
-			(* count the number of ranges in the index list *)
-			rangeCount := 0;
-			FOR i := 0 TO indexListSize - 1 DO
-				expression := x.parameters.GetExpression(i);
-				IF (expression.type # NIL) & (expression.type.resolved IS SyntaxTree.RangeType) THEN INC(rangeCount) END
-			END;
 
 			(* determine source and destination dimension offsets; this depends on if the list starts with a '?' *)
 			IF x.parameters.GetExpression(0) IS SyntaxTree.TensorRangeExpression THEN
