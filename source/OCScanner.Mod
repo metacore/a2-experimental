@@ -1,7 +1,7 @@
 MODULE OCScanner;   (**  AUTHOR "fof & fn"; PURPOSE "Oberon Compiler: Scanner";  **)
 (* (c) fof ETH Zürich, 2009 *)
 
-IMPORT Streams, Strings, Diagnostics, Basic := OCBasic, D := Debugging, Commands, TextUtilities, StringPool;
+IMPORT Streams, Strings, Diagnostics, Basic := OCBasic, D := Debugging, Commands, StringPool;
 
 CONST
 	Trace = FALSE;   (* debugging output *)
@@ -1088,6 +1088,7 @@ TYPE
 		END;
 	END ReportKeywords;
 
+	(*
 	PROCEDURE TestScanner*(context: Commands.Context);
 	VAR filename: ARRAY 256 OF CHAR; reader: Streams.Reader; scanner: Scanner;sym: Symbol;
 	BEGIN
@@ -1100,7 +1101,7 @@ TYPE
 			END;
 		UNTIL scanner.error OR (sym.token=EndOfText)
 	END TestScanner;
-
+	*)
 BEGIN
 	InitReservedCharacters;   InitTokens; InitKeywords
 END OCScanner.

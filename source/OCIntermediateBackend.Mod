@@ -1,7 +1,7 @@
 MODULE OCIntermediateBackend; (** AUTHOR ""; PURPOSE ""; *)
 
 IMPORT Basic := OCBasic, SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend := OCBackend, Global := OCGlobal,
-	WMUtilities,Scanner := OCScanner, IntermediateCode := OCIntermediateCode, Sections := OCSections, Printout := OCPrintout,
+	Scanner := OCScanner, IntermediateCode := OCIntermediateCode, Sections := OCSections, Printout := OCPrintout,
 	SYSTEM, Diagnostics, Strings, Options, Streams, Compiler, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile, D := Debugging,
 	Fingerprinter := OCFingerprinter, BinaryCode := OCBinaryCode;
 
@@ -6940,7 +6940,7 @@ TYPE
 		(* Work on a module *)
 		PROCEDURE Module(x: SyntaxTree.Module): Formats.GeneratedModule;
 		VAR
-			dump: WMUtilities.WindowWriter;
+			dump: Basic.Writer;
 			module: Sections.Module;
 			traceName: SyntaxTree.String;
 		BEGIN
@@ -6949,7 +6949,7 @@ TYPE
 			IF trace THEN
 				traceName := "intermediate code trace: ";
 				Strings.Append(traceName,traceString);
-				NEW(dump,traceName,600,400,FALSE);
+				dump := Basic.GetDebugWriter(traceName);
 				IF (traceString="") OR (traceString="*") THEN
 					module.Dump(dump);
 					dump.Update

@@ -1,10 +1,10 @@
 MODULE OCAMDBackend; (** AUTHOR ""; PURPOSE ""; *)
 
 IMPORT
-	Scanner := OCScanner, SyntaxTree := OCSyntaxTree, Global := OCGlobal, Backend := OCBackend, Sections := OCSections,
+	Basic := OCBasic, Scanner := OCScanner, SyntaxTree := OCSyntaxTree, Global := OCGlobal, Backend := OCBackend, Sections := OCSections,
 	IntermediateCode := OCIntermediateCode, IntermediateBackend := OCIntermediateBackend, BinaryCode := OCBinaryCode,
 	InstructionSet := OCAMD64InstructionSet, Assembler := OCAMD64Assembler, SemanticChecker := OCSemanticChecker, Formats := OCFormats,
-	Diagnostics, Streams, Options, WMUtilities, Strings, ObjectFileFormat := OCBinaryObjectFile, Dataflow := OCDataflow
+	Diagnostics, Streams, Options, Strings, ObjectFileFormat := OCBinaryObjectFile, Dataflow := OCDataflow
 	, Machine, D := Debugging;
 
 CONST
@@ -2647,7 +2647,7 @@ TYPE
 
 		PROCEDURE Module(x: SyntaxTree.Module): Formats.GeneratedModule;
 		VAR
-			dump: WMUtilities.WindowWriter;
+			dump: Basic.Writer;
 			intermediateModule: Formats.GeneratedModule;
 			dumpName: SyntaxTree.String;
 		BEGIN
@@ -2656,7 +2656,7 @@ TYPE
 			IF trace THEN
 				dumpName := "AMD64 code trace: ";
 				Strings.Append(dumpName,traceString);
-				NEW(dump,dumpName,600,400,FALSE);
+				dump := Basic.GetDebugWriter(dumpName);
 				dump.String("---------------- intermediate code -----------------"); dump.Ln;
 				IF (traceString="") OR (traceString="*") THEN
 					intermediateModule.Dump(dump);

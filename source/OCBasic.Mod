@@ -2,7 +2,7 @@ MODULE OCBasic;   (**  AUTHOR "fof"; PURPOSE "Oberon Compiler: basic helpers: st
 (* (c) fof ETH Zürich, 2009 *)
 
 
-IMPORT StringPool, Strings, Streams, Diagnostics, Files, TextUtilities, WMGraphics, SYSTEM;
+IMPORT KernelLog, StringPool, Strings, Streams, Diagnostics, Files, SYSTEM;
 
 CONST
 	(* error numbers *)
@@ -1258,13 +1258,12 @@ TYPE
 	VAR
 		indent-: LONGINT;
 		doindent: BOOLEAN;
-		w: Streams.Writer;
-		alertCount, commentCount : LONGINT;
+		w-: Streams.Writer;
 
-		PROCEDURE & InitWriterX*( w: Streams.Writer );
+		PROCEDURE & InitBasicWriter*( w: Streams.Writer );
 		BEGIN
-			SELF.w := w; indent := 0; doindent := TRUE; alertCount := 0; commentCount := 0;
-		END InitWriterX;
+			SELF.w := w; indent := 0; doindent := TRUE;
+		END InitBasicWriter;
 
 		PROCEDURE Reset*;
 		BEGIN w.Reset;
@@ -1410,37 +1409,24 @@ TYPE
 		BEGIN DEC(indent)
 		END DecIndent;
 
-		PROCEDURE SetFontStyle*(style: SET);
-		BEGIN
-			IF w IS TextUtilities.TextWriter THEN
-				w(TextUtilities.TextWriter).SetFontStyle(style);
-			END;
-		END SetFontStyle;
-
-		PROCEDURE SetStyle;
-		BEGIN
-			IF w IS TextUtilities.TextWriter THEN
-				IF alertCount > 0 THEN w(TextUtilities.TextWriter).SetFontColor(WMGraphics.Red);
-				ELSIF commentCount > 0 THEN w(TextUtilities.TextWriter).SetFontColor(SHORT(0999999FFH));
-				ELSE w(TextUtilities.TextWriter).SetFontColor(WMGraphics.Black);
-				END;
-			END;
-		END SetStyle;
-
 		PROCEDURE BeginAlert*;
-		BEGIN INC(alertCount); SetStyle
 		END BeginAlert;
 
 		PROCEDURE EndAlert*;
-		BEGIN DEC(alertCount); SetStyle
 		END EndAlert;
 
+		PROCEDURE BeginKeyword*;
+		BEGIN
+		END BeginKeyword;
+
+		PROCEDURE EndKeyword*;
+		BEGIN
+		END EndKeyword;
+
 		PROCEDURE BeginComment*;
-		BEGIN INC(commentCount); SetStyle;
 		END BeginComment;
 
 		PROCEDURE EndComment*;
-		BEGIN DEC(commentCount); SetStyle
 		END EndComment;
 
 		PROCEDURE AlertString*(CONST s: ARRAY OF CHAR);
@@ -1450,11 +1436,16 @@ TYPE
 
 	END Writer;
 
+	DebugWriterFactory*= PROCEDURE (CONST title: ARRAY OF CHAR): Streams.Writer;
+	WriterFactory*=PROCEDURE (w: Streams.Writer): Writer;
+
 VAR
 	lists-: LONGINT;  enlarged-: LONGINT;  strings-: LONGINT; integerObjects: HashTableInt;
 	errMsg: ErrorMsgs;	(*error messages*)
 	emptyString-: String;
 	debug: BOOLEAN;
+	getDebugWriter: DebugWriterFactory;
+	getWriter: WriterFactory;
 
 	(* Make a string out of a series of characters. *)
 	PROCEDURE MakeString*( CONST s: ARRAY OF CHAR ): String;
@@ -1624,9 +1615,42 @@ VAR
 		HALT(100);
 	END Test;
 
+	PROCEDURE GetWriter*(w: Streams.Writer): Writer;
+	VAR writer: Writer;
+	BEGIN
+		ASSERT(w # NIL);
+		IF w IS Writer THEN RETURN w(Writer)
+		ELSIF getWriter = NIL THEN
+			NEW(writer,w); RETURN writer
+		ELSE RETURN getWriter(w)
+		END;
+	END GetWriter;
+
+	PROCEDURE GetDebugWriter*(CONST title: ARRAY OF CHAR): Writer;
+	VAR w: Streams.Writer;
+	BEGIN
+		IF getDebugWriter # NIL THEN  w:= getDebugWriter(title)
+		ELSE NEW(w, KernelLog.Send,1024)
+		END;
+		RETURN GetWriter(w);
+	END GetDebugWriter;
+
+	PROCEDURE InitWindowWriter;
+	VAR install: PROCEDURE;
+	BEGIN
+		getDebugWriter := NIL; getWriter := NIL;
+		GETPROCEDURE("OCA2Interface","Install",install);
+		IF install # NIL THEN install END;
+	END InitWindowWriter;
+
+	PROCEDURE InstallWriterFactory*(writer: WriterFactory; debug: DebugWriterFactory);
+	BEGIN
+		getDebugWriter := debug; getWriter := writer;
+	END InstallWriterFactory;
 
 BEGIN
 	InitErrorMessages;
+	InitWindowWriter;
 	lists := 0;  enlarged := 0;  strings := 0;
 	emptyString := MakeString("");
 	debug := FALSE;

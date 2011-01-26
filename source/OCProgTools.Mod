@@ -1,10 +1,10 @@
 MODULE OCProgTools;   (**  AUTHOR "fof"; PURPOSE "Oberon Compiler: Programming Tools";  **)
 (* (c) fof ETH Zürich, 2009 *)
 
-IMPORT WMUtilities,Options,Commands,Files,Strings;
+IMPORT Streams,Options,Commands,Files,Strings;
 
 	PROCEDURE Enum*(context: Commands.Context);
-	VAR w: WMUtilities.WindowWriter; nr: LONGINT; options: Options.Options; export,incremental,hex: BOOLEAN; start: LONGINT;
+	VAR w: Streams.Writer; nr: LONGINT; options: Options.Options; export,incremental,hex: BOOLEAN; start: LONGINT;
 		name,oldname: ARRAY 256 OF CHAR; lf: LONGINT;
 
 		(** get next symbol **)
@@ -56,10 +56,8 @@ IMPORT WMUtilities,Options,Commands,Files,Strings;
 					IF ch = "*" THEN
 						ch := context.arg.Get();
 						IF (nr-start) MOD lf # 0 (* avoid two linefeeds *)  THEN w.Ln END;
-						w.SetFontColor(SHORT(808080FFH));
 						w.String("(*");
 						Comment();
-						w.SetFontColor(000000FFH);
 						w.Ln; start := nr;
 						SkipBlanks;
 					ELSE s[i] := "("; INC(i);
@@ -81,8 +79,7 @@ IMPORT WMUtilities,Options,Commands,Files,Strings;
 		options.Add("l","linefeed",Options.Integer);
 
 		IF options.Parse(context.arg,context.error) THEN
-			NEW(w,"ProgTools",600,400,TRUE);
-			w.SetFontSize(12);
+			w := context.out;
 			IF ~options.GetInteger("s",start) THEN start := 0 END;
 			export := options.GetFlag("e");
 			incremental := options.GetFlag("i");
@@ -165,7 +162,7 @@ IMPORT WMUtilities,Options,Commands,Files,Strings;
 
 
 
-	VAR fileName,instr: ARRAY 256 OF CHAR; w: WMUtilities.WindowWriter; reader: Files.Reader; file: Files.File; ch: CHAR;
+	VAR fileName,instr: ARRAY 256 OF CHAR; w: Streams.Writer; reader: Files.Reader; file: Files.File; ch: CHAR;
 		line: ARRAY 1024 OF CHAR;
 
 		firstMnemonic,prevmnemonic,mnemonic : Mnemonic;
@@ -618,7 +615,7 @@ IMPORT WMUtilities,Options,Commands,Files,Strings;
 				ParseLine(line);
 			END;
 
-			NEW(w,fileName,500,400,TRUE);
+			w := context.out;
 			numberMnemonics := 0;
 			numberInstructions := 0;
 			maxMnemonicNameLength := 0;

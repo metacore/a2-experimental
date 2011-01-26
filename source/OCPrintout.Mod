@@ -2,8 +2,7 @@ MODULE OCPrintout; (** AUTHOR "fof & fn"; PURPOSE "Oberon Compiler Module Output
 (* (c) fof ETHZ 2009 *)
 
 IMPORT
-	Scanner := OCScanner, SyntaxTree := OCSyntaxTree, Global := OCGlobal, Basic := OCBasic,
-	Streams,  D:=Debugging, WMGraphics, Runtime, SYSTEM;
+	Scanner := OCScanner, SyntaxTree := OCSyntaxTree, Global := OCGlobal, Basic := OCBasic, Streams, D:=Debugging, Runtime, SYSTEM;
 
 CONST
 	(* print modes *)
@@ -36,9 +35,9 @@ TYPE
 		VAR str: ARRAY 64 OF CHAR;
 		BEGIN
 			IF case= Scanner.Lowercase THEN Small(a,str) ELSE COPY(a,str) END;
-			w.SetFontStyle({WMGraphics.FontBold});
+			w.BeginKeyword;
 			w.String(a);
-			w.SetFontStyle({});
+			w.EndKeyword;
 		END Keyword;
 
 		PROCEDURE BeginComment;
@@ -502,7 +501,7 @@ TYPE
 		BEGIN
 			IF x.missingFirst & x.missingLast & x.missingStep THEN
 				(* open range expression *)
-				(* the surrounding spaces prevent the asterisk from being next to a parenthesis, 
+				(* the surrounding spaces prevent the asterisk from being next to a parenthesis,
 				which could be confused with the beginning or end of a comment *)
 				w.String(" * ")
 
@@ -1122,7 +1121,7 @@ TYPE
 		BEGIN
 			IF Visible(x) THEN
 				Indent;
-				
+
 				(* mark array access operators for array-structured object types *)
 				IF info THEN
 					IF (x.scope # NIL) & (x.scope IS SyntaxTree.RecordScope) THEN

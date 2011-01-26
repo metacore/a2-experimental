@@ -1,7 +1,7 @@
 MODULE OCTest;	(** AUTHOR "negelef"; PURPOSE "OC tester"; *)
 (* (c) fof ETH Zürich, 2008 *)
 
-IMPORT TestSuite, Diagnostics, Streams, Compiler, Commands, WMUtilities, Shell, Options, Backend := OCBackend, SyntaxTree := OCSyntaxTree, Formats := OCFormats, Dataflow := OCDataflow;
+IMPORT Basic := OCBasic, TestSuite, Diagnostics, Streams, Compiler, Commands, Shell, Options, Backend := OCBackend, SyntaxTree := OCSyntaxTree, Formats := OCFormats, Dataflow := OCDataflow;
 
 TYPE
 	Command = ARRAY 256 OF CHAR;
@@ -58,7 +58,7 @@ TYPE
 	PROCEDURE DriveTest (context: Commands.Context);
 	VAR
 		diagnostics: Diagnostics.StreamDiagnostics; tester: Tester; writer: Streams.Writer; command: Command;
-		windowWriter: WMUtilities.WindowWriter; report: TestSuite.StreamReport; options: Options.Options;
+		report: TestSuite.StreamReport; options: Options.Options;
 		optionsString: ARRAY 256 OF CHAR; arg: Streams.StringReader; flags: SET; verbose, execute: BOOLEAN; backend: Backend.Backend;
 		symbolFile: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
@@ -68,8 +68,7 @@ TYPE
 		IF (context.caller # NIL) & (context.caller IS Shell.Shell) THEN
 			writer := context.out
 		ELSE
-			NEW (windowWriter, "Oberon Compiler test results", 700, 480, FALSE);
-			writer := windowWriter
+			writer := Basic.GetDebugWriter("Oberon Compiler Test Results")
 		END;
 		NEW(options);
 		options.Add("o","options",Options.String);

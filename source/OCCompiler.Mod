@@ -2,10 +2,10 @@ MODULE Compiler;   (**  AUTHOR "fof & fn"; PURPOSE "Oberon Compiler Command Inte
 (* (c) fof ETH Zürich, 2008 *)
 
 IMPORT
-	Scanner := OCScanner, Parser := OCParser,
-	SemanticChecker := OCSemanticChecker, SyntaxTree := OCSyntaxTree, Formats := OCFormats,  WMUtilities, D := Debugging,
-	Streams, TextUtilities, Commands,Diagnostics, Options, Kernel, Printout := OCPrintout, Backend := OCBackend,Strings, Global := OCGlobal
-	,Texts,CompilerInterface, Dataflow := OCDataflow, UTF8Strings;
+	Basic := OCBasic, Scanner := OCScanner, Parser := OCParser,
+	SemanticChecker := OCSemanticChecker, SyntaxTree := OCSyntaxTree, Formats := OCFormats,  D := Debugging,
+	Streams, Commands,Diagnostics, Options, Kernel, Printout := OCPrintout, Backend := OCBackend,Strings, Global := OCGlobal
+	, Dataflow := OCDataflow, Files;
 
 CONST
 	(* flags *)
@@ -20,9 +20,6 @@ CONST
 	ForceModuleBodies*=8;
 	UseDarwinCCalls*=9;	(* use Darwin stack alignment for ext. C procedures *)	(*fld*)
 
-	Name = "OC";
-	Description = "Oberon Compiler";
-	FileExtension = "MOD"; (*! temporary *)
 	DefaultBackend = "AMD";
 
 
@@ -467,87 +464,27 @@ TYPE
 		RETURN result
 	END GetOptions;
 
-	PROCEDURE UTF8Size(text : Texts.Text; startPos, len : LONGINT): LONGINT;
-	VAR i, length, pos,size : LONGINT; r : Texts.TextReader; ch : Texts.Char32; ok : BOOLEAN;
-		string: ARRAY 16 OF CHAR;
+	PROCEDURE GetReader(CONST filename: ARRAY OF CHAR): Streams.Reader;
+	VAR
+		file: Files.File; fileReader: Files.Reader; offset: LONGINT;
 	BEGIN
-		text.AcquireRead;
-		NEW(r, text);
-		r.SetPosition(startPos);
-		size := 0;i := 0; length := len; ok := TRUE;
-		WHILE (i < length) & ok DO
-			r.ReadCh(ch);
-			IF (ch > 0) THEN
-				pos := 0;
-				ok := UTF8Strings.EncodeChar(ch, string, pos);
-				INC(size,pos);
-			END;
-			INC(i);
+		(* Optimisation: skip header of oberon files and return a file reader instead of default text reader*)
+		file := Files.Old (filename);
+		IF file = NIL THEN RETURN NIL END;
+		NEW (fileReader, file, 0);
+		IF (fileReader.Get () = 0F0X) & (fileReader.Get () = 001X) THEN
+			offset := ORD (fileReader.Get ());
+			INC (offset, LONG (ORD (fileReader.Get ())) * 0100H);
+			fileReader.SetPos(offset);
+		ELSE fileReader.SetPos(0)
 		END;
-		text.ReleaseRead;
-		RETURN size
-	END UTF8Size;
-
-	PROCEDURE GetClipboardReader(): Streams.Reader;
-	VAR size : LONGINT;
-		selectionText: Texts.Text;
-		pcStr: POINTER TO ARRAY OF CHAR;
-		stringReader: Streams.StringReader;
-	BEGIN
-		selectionText := Texts.clipboard;
-		selectionText.AcquireRead;
-		size := UTF8Size(selectionText,0,selectionText.GetLength())+1;
-		NEW(pcStr,size);
-		TextUtilities.SubTextToStr(selectionText,0,size,pcStr^);
-		selectionText.ReleaseRead;
-		NEW(stringReader,size);
-		stringReader.Set(pcStr^);
-		RETURN stringReader;
-	END GetClipboardReader;
-
-	PROCEDURE GetSelectionReader(): Streams.Reader;
-	VAR a, b, size : LONGINT;
-		selectionText: Texts.Text;
-		from, to: Texts.TextPosition;
-		pcStr: POINTER TO ARRAY OF CHAR;
-		stringReader: Streams.StringReader;
-	BEGIN
-		IF Texts.GetLastSelection(selectionText, from, to) THEN
-			selectionText.AcquireRead;
-			a := Strings.Min(from.GetPosition(), to.GetPosition());
-			b := Strings.Max(from.GetPosition(), to.GetPosition());
-			size := UTF8Size(selectionText,a,b-a+1)+1;
-			NEW(pcStr,size);
-			TextUtilities.SubTextToStr(selectionText, a, b - a+1, pcStr^);
-			selectionText.ReleaseRead;
-			NEW(stringReader,b-a+1);
-			stringReader.Set(pcStr^);
-		ELSE
-			stringReader  := NIL;
-		END;
-		RETURN stringReader;
-	END GetSelectionReader;
-
-	PROCEDURE GetTextReader(text: Texts.Text; position: LONGINT): Streams.Reader;
-	VAR size : LONGINT;
-		pcStr: POINTER TO ARRAY OF CHAR;
-		stringReader: Streams.StringReader;
-	BEGIN
-		text.AcquireRead;
-		size := UTF8Size(text,0,text.GetLength())+1;
-		NEW(pcStr,size);
-		TextUtilities.SubTextToStr(text,0,size,pcStr^);
-		text.ReleaseRead;
-		NEW(stringReader,size);
-		stringReader.Set(pcStr^);
-		RETURN stringReader;
-	END GetTextReader;
-
+		RETURN fileReader
+	END GetReader;
 
 	PROCEDURE Compile*(context : Commands.Context);
 	VAR
 		filename: ARRAY 256 OF CHAR;
-		error: BOOLEAN; log: WMUtilities.WindowWriter;
+		error: BOOLEAN; log: Basic.Writer;
 		diagnostics: Diagnostics.StreamDiagnostics;
 		time: LONGINT; reader: Streams.Reader;
 		flags: SET;
@@ -564,20 +501,14 @@ TYPE
 		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,dataflowSpecification,findPC) THEN
 
 			IF (Print IN flags) THEN
-				NEW(log,"Compiler",600,800,TRUE); log.SetFontSize(10);
+				log := Basic.GetDebugWriter("Compiler Debug Output");
 			ELSE
 				log := NIL;
 			END;
 
 			time := Kernel.GetTicks();
 			WHILE context.arg.GetString(filename) & (filename # ";") & ~error DO
-				IF filename = "@Selection" THEN
-					reader := GetSelectionReader();
-				ELSIF filename = "@Clipboard" THEN
-					reader := GetClipboardReader();
-				ELSE
-					reader := TextUtilities.GetTextReader(filename);
-				END;
+				reader := GetReader(filename);
 				IF reader = NIL THEN
 					diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 				ELSE
@@ -592,39 +523,38 @@ TYPE
 		END;
 	END Compile;
 
-
-	PROCEDURE CompileText*(t: Texts.Text; CONST source: ARRAY OF CHAR; pos: LONGINT; CONST pc,opt: ARRAY OF CHAR; log: Streams.Writer;
-	diagnostics : Diagnostics.Diagnostics; VAR error: BOOLEAN);
-	VAR stringReader: Streams.StringReader;
+	PROCEDURE CompileReader*(context: Commands.Context; reader: Streams.Reader);
+	VAR
+		filename: ARRAY 256 OF CHAR;
+		error: BOOLEAN; log: Basic.Writer;
+		diagnostics: Diagnostics.StreamDiagnostics;
+		time: LONGINT;
+		flags: SET;
 		backend: Backend.Backend;
 		importCache: SyntaxTree.ModuleScope;
-		symbolFile: Formats.SymbolFileFormat;
+		symbolFileFormat: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
 		dataflowSpecification: Dataflow.Specification;
-		findPC: SyntaxTree.String; flags: SET;
-		reader: Streams.Reader;
+		findPC: SyntaxTree.String;
 	BEGIN
-		IF t = NIL THEN
-			log.String ("No text available"); log.Ln; log.Update;
-			error := TRUE; RETURN
-		END;
-		NEW(stringReader,LEN(opt));
-		stringReader.Set(opt);
-		IF GetOptions(stringReader,log,diagnostics,flags,backend,symbolFile,objectFile,dataflowSpecification, findPC) THEN
-			reader := GetTextReader(t,pos);
-			IF pc # "" THEN INCL(flags,FindPC); COPY(pc, findPC);
-			ELSIF findPC # "" THEN INCL(flags,FindPC)
+		error := FALSE; log := NIL;
+		NEW(diagnostics, context.out);
+		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,dataflowSpecification,findPC) THEN
+			IF (Print IN flags) THEN log := Basic.GetDebugWriter("Compiler Debug Output") END;
+			time := Kernel.GetTicks();
+			IF reader = NIL THEN
+				diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
+			ELSE
+				error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,dataflowSpecification, log, importCache,findPC);
 			END;
-			error := ~Module(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,dataflowSpecification, log,importCache,findPC)
+			context.out.Update;
 		END;
-	END CompileText;
+	END CompileReader;
 
 	PROCEDURE Assert(b: BOOLEAN; CONST reason: ARRAY OF CHAR);
 	BEGIN
 		ASSERT(b);
 	END Assert;
 
-BEGIN
-	CompilerInterface.Register(Name, Description, FileExtension, CompileText);
 END Compiler.
 
