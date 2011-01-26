@@ -44,7 +44,7 @@ MODULE Visualizer; (** AUTHOR "staubesv"; PURPOSE "Generate class diagrams that 
  *)
 
 IMPORT
-	Streams, KernelLog, Commands, Options, Strings, Files, Texts, TextUtilities, Diagnostics, OCScanner, ModuleParser;
+	Streams, KernelLog, Commands, Options, Strings, Files, Texts, TextUtilities, Diagnostics, FoxScanner, ModuleParser;
 
 CONST
 	None = 0;
@@ -1422,7 +1422,7 @@ END GetSizeString;
 
 PROCEDURE ParseFile(CONST filename : ARRAY OF CHAR; VAR module : ModuleParser.Module);
 VAR
-	scanner : OCScanner.Scanner;
+	scanner : FoxScanner.Scanner;
 	text :  Texts.Text;
 	reader : TextUtilities.TextReader;
 	diagnostics : Diagnostics.StreamDiagnostics;
@@ -1436,7 +1436,7 @@ BEGIN
 		NEW(writer, KernelLog.Send, 256);
 		NEW(diagnostics, writer);
 		NEW(reader, text);
-		scanner := OCScanner.NewScanner(filename, reader, 0, diagnostics);
+		scanner := FoxScanner.NewScanner(filename, reader, 0, diagnostics);
 		ModuleParser.Parse(scanner, module);
 		IF (module # NIL) THEN
 			ModuleParser.SetSuperTypes(module);
