@@ -43,7 +43,9 @@ TYPE
 
 	Name = ARRAY 32 OF CHAR;
 
-	Info = OBJECT(PETTrees.Info);
+TYPE
+
+	TreeNode = OBJECT(PETTrees.TreeNode);
 	VAR
 		name : Strings.String;
 		modulename : Name;
@@ -53,6 +55,7 @@ TYPE
 
 		PROCEDURE &Init;
 		BEGIN
+			Init^;
 			name := NIL;
 			modulename := "";
 			sortHint := SortIgnore;
@@ -60,7 +63,9 @@ TYPE
 			position := 0;
 		END Init;
 
-	END Info;
+	END TreeNode;
+
+TYPE
 
 	ModuleTree* = OBJECT (PETTrees.Tree)
 	VAR
@@ -131,16 +136,14 @@ TYPE
 		END ShowPublicHandler;
 
 		PROCEDURE SetNodeVisibilities(parent : WMTrees.TreeNode; showPublicOnly : BOOLEAN);
-		VAR n : WMTrees.TreeNode; state : SET; info : Info; ptr : ANY;
+		VAR n : WMTrees.TreeNode; state : SET;
 		BEGIN
 			n := tree.GetChildren(parent);
 			WHILE n # NIL DO
 				SetNodeVisibilities(n, showPublicOnly);
 				state := tree.GetNodeState(n);
-				ptr := tree.GetNodeData(n);
-				IF (ptr # NIL) & (ptr IS Info) THEN
-					info := ptr (Info);
-					IF NotPublic IN info.flags THEN
+				IF (n IS TreeNode) THEN
+					IF NotPublic IN n(TreeNode).flags THEN
 						IF showPublicOnly THEN INCL(state, WMTrees.NodeHidden) ELSE EXCL(state, WMTrees.NodeHidden); END;
 					END;
 				END;
@@ -151,7 +154,9 @@ TYPE
 
 		PROCEDURE AddModule(node : WMTrees.TreeNode; module : ModuleParser.Module; expand, showPublicOnly, showTypeHierarchy, showImportedModules : BOOLEAN);
 		BEGIN (* tree must be locked!!! *)
-			tree.SetNodeData(node, GetInfo(module, module.ident, TRUE, SortIgnore, treeView.clTextDefault.Get(), {}));
+			IF (node IS TreeNode) THEN
+				SetNodeInfo(node(TreeNode), module, module.ident, TRUE, SortIgnore, treeView.clTextDefault.Get(), {});
+			END;
 			IF (module.ident # NIL) & (module.ident.name # NIL) THEN
 				tree.SetNodeCaption(node, module.ident.name);
 			ELSE
@@ -171,7 +176,13 @@ TYPE
 			SetNodeVisibilities(node, showPublicOnly);
 		END AddModule;
 
-		PROCEDURE AddNodes(parent : WMTrees.TreeNode; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer);
+		PROCEDURE GetNewNode() : PETTrees.TreeNode; (* overwrite *)
+		VAR node : TreeNode;
+		BEGIN
+			NEW(node); RETURN node;
+		END GetNewNode;
+
+		PROCEDURE AddNodes(parent : PETTrees.TreeNode; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer);
 		VAR module : ModuleParser.Module; scanner : OCScanner.Scanner; reader : TextUtilities.TextReader;
 		BEGIN
 			ASSERT(diagnostics # NIL);
@@ -198,35 +209,26 @@ TYPE
 		END AddNodes;
 
 		PROCEDURE ClickNode*(sender, data : ANY);
-		VAR
-			d: ANY;
-			node : WMTrees.TreeNode;
-			textInfo: Info;
-			moduleNode : ModuleParser.Module;
-			extInfo : PETTrees.ExternalInfo;
+		VAR node : WMTrees.TreeNode; extInfo : PETTrees.ExternalInfo;
 		BEGIN
 			IF (data # NIL) & (data IS WMTrees.TreeNode) THEN
 				tree.Acquire;
-				d := tree.GetNodeData(data(WMTrees.TreeNode));
-				IF (d = NIL) OR ((d # NIL) & (d IS Info) & (d(Info).flags * {PosValid} = {})) THEN
+				node := data(WMTrees.TreeNode);
+				IF (node IS TreeNode) & (node(TreeNode).flags * {PosValid} = {}) THEN
 					(* Use pos of child (for VAR, CONST and IMPORT) *)
-					node := tree.GetChildren(data(WMTrees.TreeNode));
-					IF (node # NIL) THEN
-						d := tree.GetNodeData(node);
-					END;
+					node := tree.GetChildren(node);
 				END;
 				tree.Release;
 
-				IF (d # NIL) & (d IS Info) THEN
-					textInfo := d(Info);
-					IF (textInfo.modulename = moduleName) THEN
-						IF (textInfo.pos # NIL) THEN
-							SetEditorPosition(textInfo.pos.GetPosition(), TRUE);
+				IF (node # NIL) & (node IS TreeNode) THEN
+					IF (node(TreeNode).modulename = moduleName) THEN
+						IF (node(TreeNode).pos # NIL) THEN
+							SetEditorPosition(node(TreeNode).pos.GetPosition(), TRUE);
 						ELSE
 							KernelLog.String("ModuleTrees.ModuleTree.ClickNode: Expected Info.pos # NIL"); KernelLog.Ln;
 						END;
 					ELSE
-						NEW(extInfo, textInfo.modulename, textInfo.position);
+						NEW(extInfo, node(TreeNode).modulename, node(TreeNode).position);
 						onGoToFile.Call(extInfo);
 					END;
 				END
@@ -234,31 +236,25 @@ TYPE
 		END ClickNode;
 
 		PROCEDURE MiddleClickNode*(sender, data : ANY);
-		VAR d : ANY; commandStr, ignoreMsg : ARRAY 128 OF CHAR; len, ignore : LONGINT;
+		VAR commandStr, ignoreMsg : ARRAY 128 OF CHAR; len, ignore : LONGINT;
 		BEGIN
-			IF (data # NIL) & (data IS WMTrees.TreeNode) THEN
-				tree.Acquire;
-				d := tree.GetNodeData(data(WMTrees.TreeNode));
-				tree.Release;
-				IF (d # NIL) & (d IS Info) & (CanExecute IN d(Info).flags) & (d(Info).name # NIL) & (d(Info).modulename # "") THEN
-					COPY(d(Info).modulename, commandStr);
-					Strings.Append(commandStr, Commands.Delimiter);
-					Strings.Append(commandStr, d(Info).name^);
-					len := Strings.Length(commandStr);
-					IF (commandStr[len-1] = "*") THEN commandStr[len-1] := 0X; END;
-					Commands.Activate(commandStr, NIL, {}, ignore, ignoreMsg);
-				END;
+			IF (data # NIL) & (data IS TreeNode) & (CanExecute IN data(TreeNode).flags) & (data(TreeNode).name # NIL) & (data(TreeNode).modulename # "") THEN
+				COPY(data(TreeNode).modulename, commandStr);
+				Strings.Append(commandStr, Commands.Delimiter);
+				Strings.Append(commandStr, data(TreeNode).name^);
+				len := Strings.Length(commandStr);
+				IF (commandStr[len-1] = "*") THEN commandStr[len-1] := 0X; END;
+				Commands.Activate(commandStr, NIL, {}, ignore, ignoreMsg);
 			END;
 		END MiddleClickNode;
 
-		PROCEDURE GetInfo(node : ModuleParser.Node; infoItem: ModuleParser.InfoItem; isPublic : BOOLEAN; sortHint, color: LONGINT; style: SET): Info;
-		VAR newInfo: Info; moduleNode : ModuleParser.Module; font: WMGraphics.Font;
+		PROCEDURE SetNodeInfo(node : TreeNode; mnode : ModuleParser.Node; infoItem: ModuleParser.InfoItem; isPublic : BOOLEAN; sortHint, color: LONGINT; style: SET);
+		VAR moduleNode : ModuleParser.Module; font: WMGraphics.Font;
 		BEGIN
-			NEW(newInfo);
-			newInfo.flags := {};
-			IF ~isPublic THEN INCL(newInfo.flags, NotPublic); END;
-			newInfo.sortHint := sortHint;
-			newInfo.color := color;
+			node.flags := {};
+			IF ~isPublic THEN INCL(node.flags, NotPublic); END;
+			node.sortHint := sortHint;
+			node.color := color;
 			IF style = {} THEN
 				font := PETTrees.FontOberon10Plain;
 			ELSIF style = {WMGraphics.FontBold} THEN
@@ -269,29 +265,28 @@ TYPE
 				(* unknown style *)
 				font := PETTrees.FontOberon10Plain;
 			END;
-			IF (node # NIL) THEN
-				moduleNode := GetModuleNode(node);
+			node.font := font;
+			IF (mnode # NIL) THEN
+				moduleNode := GetModuleNode(mnode);
 			ELSE
 				moduleNode := NIL;
 			END;
-			newInfo.font := font;
 			IF (infoItem # NIL) THEN
-				newInfo.name := infoItem.name;
-				newInfo.position := infoItem.pos;
-				INCL(newInfo.flags, PosValid);
+				node.name := infoItem.name;
+				node.position := infoItem.pos;
+				INCL(node.flags, PosValid);
 				IF (moduleNode = NIL) OR ((moduleNode.ident # NIL) & (moduleNode.ident.name # NIL) & (moduleNode.ident.name^ = moduleName)) THEN
-					newInfo.external := FALSE;
-					newInfo.modulename := moduleName;
-					NEW(newInfo.pos, editor.text);
-					newInfo.pos.SetPosition(infoItem.pos);
+					node.external := FALSE;
+					node.modulename := moduleName;
+					NEW(node.pos, editor.text);
+					node.pos.SetPosition(infoItem.pos);
 				ELSE
-					newInfo.external := TRUE;
-					newInfo.pos := NIL;
-					COPY(moduleNode.ident.name^, newInfo.modulename);
+					node.external := TRUE;
+					node.pos := NIL;
+					COPY(moduleNode.ident.name^, node.modulename);
 				END;
 			END;
-			RETURN newInfo;
-		END GetInfo;
+		END SetNodeInfo;
 
 		PROCEDURE IsPublic(identDef : ModuleParser.IdentDef) : BOOLEAN;
 		BEGIN
@@ -299,18 +294,13 @@ TYPE
 		END IsPublic;
 
 		PROCEDURE IsNodeGreater*(left, right: WMTrees.TreeNode): BOOLEAN;
-		VAR
-			leftCaption, rightCaption, leftTmp, rightTmp: Strings.String;
-			leftData, rightData: ANY;
+		VAR leftCaption, rightCaption, leftTmp, rightTmp: Strings.String;
 		BEGIN
-			leftData := tree.GetNodeData(left);
-			rightData := tree.GetNodeData(right);
-			IF (leftData # NIL) & (rightData # NIL) &
-				(leftData IS Info) & (rightData IS Info) &
-				(leftData(Info).sortHint >= rightData(Info).sortHint) &
-				(leftData(Info).font = rightData(Info).font) &
-				(leftData(Info).sortHint # SortNo) &
-				(rightData(Info).sortHint # SortNo) THEN
+			IF (left IS TreeNode) & (right IS TreeNode) &
+				(left(TreeNode).sortHint >= right(TreeNode).sortHint) &
+				(left(TreeNode).font = right(TreeNode).font) &
+				(left(TreeNode).sortHint # SortNo) &
+				(right(TreeNode).sortHint # SortNo) THEN
 					(* continue *)
 			ELSE
 				RETURN FALSE;
@@ -409,30 +399,27 @@ TYPE
 		END GetProcedureType;
 
 		PROCEDURE AddBody (root: WMTrees.TreeNode; pnode : ModuleParser.Node; modifiers: SET; pos: LONGINT);
-		VAR node: WMTrees.TreeNode; info: Info;
+		VAR node: TreeNode;
 		BEGIN
 			node := NewNode(root, Strings.NewString("BODY"));
-			info := GetInfo(pnode, NIL, FALSE, SortBody, GetColor(modifiers, treeView.clTextDefault.Get()), {});
-			NEW(info.pos, editor.text);
-			info.pos.SetPosition(pos);
-			INCL(info.flags, PosValid);
-			tree.SetNodeData(node, info);
+			SetNodeInfo(node, pnode, NIL, FALSE, SortBody, GetColor(modifiers, treeView.clTextDefault.Get()), {});
+			NEW(node.pos, editor.text);
+			node.pos.SetPosition(pos);
+			INCL(node.flags, PosValid);
 		END AddBody;
 
 		PROCEDURE AddImportList(parent: WMTrees.TreeNode; importList: ModuleParser.Import; showImportedModules : BOOLEAN);
 		VAR
 			module : ModuleParser.Module; filename : Files.FileName;
 			n: ModuleParser.NodeList;
-			newNode, importNode: WMTrees.TreeNode;
-			info : Info;
+			newNode, importNode: TreeNode;
 			import: ModuleParser.Import;
 			nofImports : LONGINT;
 		BEGIN
 			n := importList;
 			IF n # NIL THEN
 				NEW(importNode);
-				info := GetInfo(importList, NIL, FALSE, SortIgnore, treeView.clTextDefault.Get(), {});
-				tree.SetNodeData(importNode, info);
+				SetNodeInfo(importNode, importList, NIL, FALSE, SortIgnore, treeView.clTextDefault.Get(), {});
 				tree.SetNodeCaption(importNode, Strings.NewString("IMPORT"));
 				tree.AddChildNode(parent, importNode);
 			ELSE
@@ -491,15 +478,14 @@ TYPE
 		END AddDefinitions;
 
 		PROCEDURE AddDeclSeq(parent: WMTrees.TreeNode; declSeq: ModuleParser.DeclSeq);
-		VAR n: ModuleParser.NodeList; newNode: WMTrees.TreeNode; info : Info;
+		VAR n: ModuleParser.NodeList; newNode: TreeNode;
 		BEGIN
 			n := declSeq;
 			WHILE n # NIL DO
 				declSeq := n(ModuleParser.DeclSeq);
 				IF (declSeq.constDecl # NIL) THEN
 					NEW(newNode);
-					info := GetInfo(declSeq.constDecl, NIL, HasPublicConsts(declSeq.constDecl), SortIgnore, treeView.clTextDefault.Get(), {});
-					tree.SetNodeData(newNode, info);
+					SetNodeInfo(newNode, declSeq.constDecl, NIL, HasPublicConsts(declSeq.constDecl), SortIgnore, treeView.clTextDefault.Get(), {});
 					tree.SetNodeCaption(newNode, Strings.NewString("CONST"));
 					tree.AddChildNode(parent, newNode);
 					AddConstDecl(newNode, declSeq.constDecl);
@@ -509,8 +495,7 @@ TYPE
 				END;
 				IF (declSeq.varDecl # NIL) THEN
 					NEW(newNode);
-					info := GetInfo(declSeq.varDecl, NIL, HasPublicVars(declSeq.varDecl), SortIgnore, treeView.clTextDefault.Get(), {});
-					tree.SetNodeData(newNode, info);
+					SetNodeInfo(newNode, declSeq.varDecl, NIL, HasPublicVars(declSeq.varDecl), SortIgnore, treeView.clTextDefault.Get(), {});
 					tree.SetNodeCaption(newNode, Strings.NewString("VAR"));
 					tree.AddChildNode(parent, newNode);
 					AddVarDecl(newNode, declSeq.varDecl);
@@ -541,8 +526,8 @@ TYPE
 
 		PROCEDURE AddProcHead(treeNode: WMTrees.TreeNode; procHead: ModuleParser.ProcHead): WMTrees.TreeNode;
 		VAR
-			newNode: WMTrees.TreeNode; caption: Strings.String;
-			color : LONGINT; image : WMGraphics.Image; type : LONGINT; d : ANY;
+			newNode: TreeNode; caption: Strings.String;
+			color : LONGINT; image : WMGraphics.Image; type : LONGINT;
 		BEGIN
 			IF (procHead # NIL) THEN
 				color := GetColor(procHead.modifiers, ColorProcedure);
@@ -569,10 +554,7 @@ TYPE
 
 				type := GetProcedureType(procHead);
 				IF (type = CommandProc) OR (type = ContextProc) THEN
-					tree.Acquire;
-					d := tree.GetNodeData(newNode);
-					IF (d # NIL) & (d IS Info) THEN INCL(d(Info).flags, CanExecute); END;
-					tree.Release;
+					INCL(newNode.flags, CanExecute);
 				END;
 
 				IF ShowImages THEN
@@ -626,7 +608,7 @@ TYPE
 		END AddFormalPars;
 
 		PROCEDURE AddFPSection(parent: WMTrees.TreeNode; fpSection: ModuleParser.FPSection);
-		VAR newNode: WMTrees.TreeNode; n, l: ModuleParser.NodeList; ptr : ANY;
+		VAR newNode: TreeNode; n, l: ModuleParser.NodeList;
 		BEGIN
 			n := fpSection;
 			WHILE n # NIL DO
@@ -634,10 +616,7 @@ TYPE
 				WHILE l # NIL DO
 					newNode := AddIdentDef(parent, l, l(ModuleParser.IdentList).identDef, SortIgnore, treeView.clTextDefault.Get(), {});
 					(* Make parameters always visible *)
-					ptr := tree.GetNodeData(newNode);
-					IF (ptr # NIL) & (ptr IS Info) THEN
-						EXCL(ptr(Info).flags, NotPublic);
-					END;
+					EXCL(newNode.flags, NotPublic);
 					IF n(ModuleParser.FPSection).var THEN
 						AddPostfixToCaption(newNode, Strings.NewString(" (VAR)"));
 					ELSIF n(ModuleParser.FPSection).const THEN
@@ -756,8 +735,8 @@ TYPE
 			END;
 		END AddArray;
 
-		PROCEDURE NewNode(parent: WMTrees.TreeNode; caption: Strings.String): WMTrees.TreeNode;
-		VAR newNode: WMTrees.TreeNode;
+		PROCEDURE NewNode(parent: WMTrees.TreeNode; caption: Strings.String): TreeNode;
+		VAR newNode: TreeNode;
 		BEGIN
 			IF parent # NIL THEN
 				NEW(newNode);
@@ -786,20 +765,18 @@ TYPE
 
 		PROCEDURE AddSuperRecords(parent : WMTrees.TreeNode; record : ModuleParser.Record);
 		VAR
-			newNode : WMTrees.TreeNode;
+			newNode : TreeNode;
 			superRecord : ModuleParser.Record;
 			moduleNode : ModuleParser.Module;
 			node : ModuleParser.Node;
 			typeDecl : ModuleParser.TypeDecl;
 			caption : ARRAY 256 OF CHAR;
-			info : Info;
 		BEGIN
 			ASSERT(record # NIL);
 			superRecord := record.superPtr;
 			WHILE (superRecord # NIL) DO
 				NEW(newNode);
-				info := GetInfo(superRecord, NIL, TRUE, SortNo, WMGraphics.Black, {WMGraphics.FontItalic});
-				tree.SetNodeData(newNode, info);
+				SetNodeInfo(newNode, superRecord, NIL, TRUE, SortNo, WMGraphics.Black, {WMGraphics.FontItalic});
 				moduleNode := GetModuleNode(superRecord);
 				IF (moduleNode # NIL) & (moduleNode.ident # NIL) & (moduleNode.ident.name # NIL) & (moduleNode.ident.name^ # moduleName) THEN
 					COPY(moduleNode.ident.name^, caption); Strings.Append(caption, ".");
@@ -817,26 +794,24 @@ TYPE
 				tree.SetNodeCaption(newNode, Strings.NewString(caption));
 				tree.AddChildNode(parent, newNode);
 				AddRecord(newNode, superRecord, FALSE, FALSE);
-				info.color := WMGraphics.Black;
+				newNode.color := WMGraphics.Black;
 				superRecord := superRecord.superPtr;
 			END;
 		END AddSuperRecords;
 
 		PROCEDURE AddSuperClasses(parent : WMTrees.TreeNode; object : ModuleParser.Object);
 		VAR
-			newNode : WMTrees.TreeNode;
+			newNode : TreeNode;
 			superClass : ModuleParser.Object;
 			moduleNode : ModuleParser.Module;
 			typeDecl : ModuleParser.TypeDecl;
 			caption : ARRAY 256 OF CHAR;
-			info : Info;
 		BEGIN
 			ASSERT(object # NIL);
 			superClass := object.superPtr;
 			WHILE (superClass # NIL) DO
 				NEW(newNode);
-				info := GetInfo(superClass, NIL, TRUE, SortNo, WMGraphics.Black, {WMGraphics.FontItalic});
-				tree.SetNodeData(newNode, info);
+				SetNodeInfo(newNode, superClass, NIL, TRUE, SortNo, WMGraphics.Black, {WMGraphics.FontItalic});
 				moduleNode := GetModuleNode(superClass);
 				IF (moduleNode # NIL) & (moduleNode.ident # NIL) & (moduleNode.ident.name # NIL) & (moduleNode.ident.name^ # moduleName) THEN
 					COPY(moduleNode.ident.name^, caption); Strings.Append(caption, ".");
@@ -848,27 +823,24 @@ TYPE
 				tree.SetNodeCaption(newNode, Strings.NewString(caption));
 				tree.AddChildNode(parent, newNode);
 				AddObject(newNode, superClass, FALSE, FALSE);
-				info.color := WMGraphics.Black;
+				newNode.color := WMGraphics.Black;
 				superClass := superClass.superPtr;
 			END;
 		END AddSuperClasses;
 
 		PROCEDURE AddObject(parent: WMTrees.TreeNode; object: ModuleParser.Object; anonymous, addSuperClasses: BOOLEAN);
-		VAR newNode, p: WMTrees.TreeNode; ptr : ANY; ti : Info; image : WMGraphics.Image;
+		VAR newNode, p: WMTrees.TreeNode; image : WMGraphics.Image;
 		BEGIN
 			IF object # NIL THEN
 				IF anonymous THEN p := NewNode(parent, Strings.NewString("OBJECT"));
 				ELSE p := parent;
 				END;
-				ptr := tree.GetNodeData(p);
-				IF (ptr # NIL) & (ptr IS Info) THEN
-					ti := ptr (Info);
-					ti.color := ColorObjects;
-				ELSE ti := NIL;
+				IF (p IS TreeNode) THEN
+					p(TreeNode).color := ColorObjects;
 				END;
 				IF ModuleParser.Active IN object.modifiers THEN
-					IF (ti # NIL)  THEN
-						ti.color := ColorActiveObjects;
+					IF (p IS TreeNode)  THEN
+						p(TreeNode).color := ColorActiveObjects;
 					END;
 					IF ShowImages THEN
 						image := WMGraphics.LoadImage(ImageActive, TRUE);
@@ -938,9 +910,12 @@ TYPE
 			AddNumberPostfixToCaption(parent, nofConstants);
 		END AddConstDecl;
 
-		PROCEDURE AddIdentDef(parent: WMTrees.TreeNode; node : ModuleParser.Node; identDef: ModuleParser.IdentDef; sortHint, color: LONGINT; style: SET):
-			WMTrees.TreeNode;
-		VAR newNode: WMTrees.TreeNode;
+		PROCEDURE AddIdentDef(
+			parent: WMTrees.TreeNode;
+			node : ModuleParser.Node; identDef: ModuleParser.IdentDef;
+			sortHint, color: LONGINT; style: SET) : TreeNode;
+		VAR
+			newNode: TreeNode;
 		BEGIN
 			IF identDef # NIL THEN
 				newNode := AddInfoItem(parent, node, identDef.ident, IsPublic(identDef), sortHint, color, style);
@@ -955,13 +930,16 @@ TYPE
 			END
 		END AddIdentDef;
 
-		PROCEDURE AddInfoItem(parent: WMTrees.TreeNode; node : ModuleParser.Node; infoItem: ModuleParser.InfoItem; isPublic : BOOLEAN; sortHint, color : LONGINT; style: SET):
-			WMTrees.TreeNode;
-		VAR newNode: WMTrees.TreeNode;
+		PROCEDURE AddInfoItem(
+			parent: WMTrees.TreeNode;
+			node : ModuleParser.Node; infoItem: ModuleParser.InfoItem;
+			isPublic : BOOLEAN; sortHint, color : LONGINT; style: SET) : TreeNode;
+		VAR
+			newNode: TreeNode;
 		BEGIN
 			IF (infoItem # NIL) & (parent # NIL) THEN
 				NEW(newNode);
-				tree.SetNodeData(newNode, GetInfo(node, infoItem, isPublic, sortHint, color, style));
+				SetNodeInfo(newNode, node, infoItem, isPublic, sortHint, color, style);
 				tree.SetNodeCaption(newNode, infoItem.name);
 				tree.AddChildNode(parent, newNode);
 			END;

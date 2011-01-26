@@ -10,41 +10,24 @@ CONST
 TYPE
 	String = ARRAY 128 OF CHAR;
 
-	Info = OBJECT(PETTrees.Info)
-	VAR
-		package : Build.Package;
-
-		PROCEDURE &Init;
-		BEGIN
-			Init^;
-			package := NIL;
-		END Init;
-
-	END Info;
-
 	Tree* = OBJECT (PETTrees.Tree)
-	VAR
-		builds : Build.Builds;
 
 		PROCEDURE & Init*;
 		BEGIN
 			Init^;
-			builds := NIL;
 			SetTitle(Title);
 		END Init;
 
-		PROCEDURE AddNodes(parent : WMTrees.TreeNode; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer);
-		VAR info : PETTrees.Info; succeeded : BOOLEAN;
+		PROCEDURE AddNodes(parent : PETTrees.TreeNode; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer);
+		VAR builds : Build.Builds; succeeded : BOOLEAN;
 		BEGIN
 			AddNodes^(parent, diagnostics, log);
 			succeeded := Build.ParseBuildDescription(editor.text, "ReleaseTree", builds, diagnostics);
 			IF succeeded THEN
 				tree.SetNodeCaption(parent, Strings.NewString("Packages"));
 				tree.SetNodeState(parent, {WMTrees.NodeAlwaysExpanded});
-				NEW(info);
-				NEW(info.pos, editor.text);
-				info.pos.SetPosition(0);
-				tree.SetNodeData(parent, info);
+				NEW(parent.pos, editor.text);
+				parent.pos.SetPosition(0);
 				AddBuilds(parent, builds);
 				AddPackages(parent, builds.packages.GetAll());
 				SetTitle(Title);
@@ -54,14 +37,14 @@ TYPE
 		END AddNodes;
 
 		PROCEDURE AddBuilds(parent : WMTrees.TreeNode; builds : Build.Builds);
-		VAR node : WMTrees.TreeNode; nofBuilds, i : LONGINT;
+		VAR node : PETTrees.TreeNode; nofBuilds, i : LONGINT;
 		BEGIN
 			nofBuilds := 0;
-			node := GetNewNode(parent, "BUILDS");
+			node := NewNode(parent, "BUILDS");
 			FOR i := 0 TO LEN(builds.builds)-1 DO
 				IF (builds.builds[i] # NIL) THEN
 					IF (nofBuilds = 0) THEN
-						tree.SetNodeData(node, GetInfo(NIL, builds.builds[i].position));
+						SetNodeInfo(node, builds.builds[i].position);
 					END;
 					INC(nofBuilds);
 					AddBuild(node, builds.builds[i]);
@@ -71,27 +54,27 @@ TYPE
 		END AddBuilds;
 
 		PROCEDURE AddBuild(parent : WMTrees.TreeNode; build : Build.BuildObj);
-		VAR buildNode, node : WMTrees.TreeNode; nofSources, nofFiles : LONGINT;
+		VAR buildNode, node : PETTrees.TreeNode; nofSources, nofFiles : LONGINT;
 		BEGIN
 			ASSERT(build # NIL);
-			buildNode := GetNewNode(parent, build.name);
-			tree.SetNodeData(buildNode, GetInfo(NIL, build.position));
+			buildNode := NewNode(parent, build.name);
+			SetNodeInfo(buildNode, build.position);
 			build.GetInfo(nofSources, nofFiles);
-			node := GetNewNode(buildNode, GetNumberCaption("Sources: ", nofSources));
-			node := GetNewNode(buildNode, GetNumberCaption("Files: ", nofFiles));
+			node := NewNode(buildNode, GetNumberCaption("Sources: ", nofSources));
+			node := NewNode(buildNode, GetNumberCaption("Files: ", nofFiles));
 		END AddBuild;
 
 		PROCEDURE AddPackages(parent : WMTrees.TreeNode; packages : Build.PackageArray);
-		VAR node : WMTrees.TreeNode; nofPackages, i : LONGINT;
+		VAR node : PETTrees.TreeNode; nofPackages, i : LONGINT;
 		BEGIN
 			nofPackages := 0;
-			node := GetNewNode(parent, "PACKAGES");
+			node := NewNode(parent, "PACKAGES");
 			tree.SetNodeState(node, {WMTrees.NodeExpanded});
 			IF (packages # NIL) THEN
 				FOR i := 0 TO LEN(packages)-1 DO
 					IF (packages[i] # NIL) THEN
 						IF (nofPackages = 0) THEN
-							tree.SetNodeData(node, GetInfo(NIL, packages[i].position));
+							SetNodeInfo(node, packages[i].position);
 						END;
 						INC(nofPackages);
 						AddPackage(node, packages[i]);
@@ -102,34 +85,31 @@ TYPE
 		END AddPackages;
 
 		PROCEDURE AddPackage(parent : WMTrees.TreeNode; package : Build.Package);
-		VAR node, packageNode : WMTrees.TreeNode;
+		VAR node, packageNode : PETTrees.TreeNode;
 		BEGIN
 			ASSERT((parent # NIL) & (package # NIL));
-			packageNode := GetNewNode(parent, package.name);
-			tree.SetNodeData(packageNode, GetInfo(package, package.position));
+			packageNode := NewNode(parent, package.name);
+			SetNodeInfo(packageNode, package.position);
 
-			node := GetNewNode(packageNode, GetNumberCaption("Sources: ", package.nofSources));
-			node := GetNewNode(packageNode, GetNumberCaption("Files: ", package.nofFiles));
-			node := GetNewNode(packageNode, GetCaption("Archive: ", package.archive));
-			node := GetNewNode(packageNode, GetCaption("ArchiveSrc: ", package.source));
+			node := NewNode(packageNode, GetNumberCaption("Sources: ", package.nofSources));
+			node := NewNode(packageNode, GetNumberCaption("Files: ", package.nofFiles));
+			node := NewNode(packageNode, GetCaption("Archive: ", package.archive));
+			node := NewNode(packageNode, GetCaption("ArchiveSrc: ", package.source));
 		END AddPackage;
 
-		PROCEDURE GetInfo(package : Build.Package;  position : LONGINT): Info;
-		VAR info: Info;
+		PROCEDURE SetNodeInfo(node : PETTrees.TreeNode; position : LONGINT);
 		BEGIN
-			NEW(info);
-			info.package := package;
+			ASSERT(node # NIL);
 			IF (position >= 0) THEN
-				NEW(info.pos, editor.text);
-				info.pos.SetPosition(position);
+				NEW(node.pos, editor.text);
+				node.pos.SetPosition(position);
 			ELSE
-				info.pos := NIL;
+				node.pos := NIL;
 			END;
-			RETURN info;
-		END GetInfo;
+		END SetNodeInfo;
 
-		PROCEDURE GetNewNode(parent: WMTrees.TreeNode; CONST caption: ARRAY OF CHAR): WMTrees.TreeNode;
-		VAR node: WMTrees.TreeNode;
+		PROCEDURE NewNode(parent: WMTrees.TreeNode; CONST caption: ARRAY OF CHAR): PETTrees.TreeNode;
+		VAR node: PETTrees.TreeNode;
 		BEGIN
 			ASSERT(parent # NIL);
 			NEW(node);
@@ -137,7 +117,7 @@ TYPE
 			tree.AddChildNode(parent, node);
 			ASSERT(node # NIL);
 			RETURN node;
-		END GetNewNode;
+		END NewNode;
 
 	END Tree;
 

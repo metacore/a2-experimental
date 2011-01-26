@@ -6,18 +6,6 @@ IMPORT
 
 TYPE
 
-	Info = OBJECT(PETTrees.Info)
-	VAR
-		element : XML.Element;
-
-		PROCEDURE &Init;
-		BEGIN
-			Init^;
-			element := NIL;
-		END Init;
-
-	END Info;
-
 	Tree* = OBJECT(PETTrees.Tree)
 	VAR
 		diagnostics : Diagnostics.Diagnostics;
@@ -32,14 +20,14 @@ TYPE
 			hasErrors := FALSE;
 		END Init;
 
-		PROCEDURE AddSubNode(node : WMTrees.TreeNode; xml : XML.Element );
+		PROCEDURE AddSubNode(node : PETTrees.TreeNode; xml : XML.Element );
 		VAR
-			en : XMLObjects.Enumerator; newNode : WMTrees.TreeNode;
+			en : XMLObjects.Enumerator; newNode : PETTrees.TreeNode;
 			p : ANY; s, t, c : Strings.String;
 		BEGIN
 			NEW(newNode);
 			tree.AddChildNode(node, newNode);
-			tree.SetNodeData(newNode, GetInfo(xml, xml.GetPos()));
+			SetNodeInfo(newNode, xml.GetPos());
 
 			s := xml.GetName();
 			t := xml.GetAttributeValue("name");
@@ -69,7 +57,7 @@ TYPE
 		END AddSubNode;
 
 		PROCEDURE SetDocument(xml : XML.Element);
-		VAR en : XMLObjects.Enumerator; p : ANY; string : Strings.String; node : WMTrees.TreeNode;
+		VAR en : XMLObjects.Enumerator; p : ANY; string : Strings.String; node : PETTrees.TreeNode;
 		BEGIN
 			NEW(node);
 			tree.Acquire;
@@ -83,7 +71,7 @@ TYPE
 				ELSE
 					tree.SetNodeCaption(node, string);
 				END;
-				tree.SetNodeData(node, GetInfo(xml, xml.GetPos()));
+				SetNodeInfo(node, xml.GetPos());
 				en := xml.GetContents();
 
 				WHILE en.HasMoreElements() DO
@@ -106,7 +94,7 @@ TYPE
 			hasErrors := TRUE;
 		END Error;
 
-		PROCEDURE AddNodes(parent : WMTrees.TreeNode; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer);
+		PROCEDURE AddNodes(parent : PETTrees.TreeNode; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer);
 		VAR r : Streams.StringReader;
 			scanner : XMLScanner.Scanner;
 			parser : XMLParser.Parser;
@@ -145,19 +133,15 @@ TYPE
 			END;
 		END AddNodes;
 
-		PROCEDURE GetInfo(element : XML.Element; position : LONGINT) : Info;
-		VAR info : Info;
+		PROCEDURE SetNodeInfo(node : PETTrees.TreeNode; position : LONGINT);
 		BEGIN
-			NEW(info);
-			info.element := element;
 			IF (position >= 0) THEN
-				NEW(info.pos, editor.text);
-				info.pos.SetPosition(position);
+				NEW(node.pos, editor.text);
+				node.pos.SetPosition(position);
 			ELSE
-				info.pos := NIL;
+				node.pos := NIL;
 			END;
-			RETURN info;
-		END GetInfo;
+		END SetNodeInfo;
 
 	END Tree;
 

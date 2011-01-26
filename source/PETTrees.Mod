@@ -10,24 +10,6 @@ CONST
 
 TYPE
 
-	(** Information about tree nodes that is set as tree node data *)
-	Info* = OBJECT
-	VAR
-		pos* : Texts.TextPosition;
-		color* : LONGINT;
-		font* : WMGraphics.Font;
-		external* : BOOLEAN;
-
-		PROCEDURE &Init*;
-		BEGIN
-			pos := NIL;
-			color := WMGraphics.Black;
-			font := FontOberon10Plain;
-			external := FALSE;
-		END Init;
-
-	END Info;
-
 	(** data parameter for onGoToExternalModule event *)
 	ExternalInfo* = OBJECT
 	VAR
@@ -66,6 +48,26 @@ TYPE
 		END Init;
 
 	END RefreshParameters;
+
+TYPE
+
+	TreeNode* = OBJECT(WMTrees.TreeNode)
+	VAR
+		pos* : Texts.TextPosition;
+		color* : LONGINT;
+		font* : WMGraphics.Font;
+		external* : BOOLEAN;
+
+		PROCEDURE &Init*;
+		BEGIN
+			Init^;
+			pos := NIL;
+			color := WMGraphics.Black;
+			font := FontOberon10Plain;
+			external := FALSE;
+		END Init;
+
+	END TreeNode;
 
 TYPE
 
@@ -170,7 +172,7 @@ TYPE
 		TYPE
 			StringList = POINTER TO ARRAY OF Strings.String;
 		VAR
-			rootNode: WMTrees.TreeNode;
+			rootNode: TreeNode;
 			diagnostics : Diagnostics.Diagnostics;
 			streamDiagnostics : Diagnostics.StreamDiagnostics; log, writer : Streams.Writer;
 			dummyLog : Streams.StringWriter;
@@ -270,7 +272,7 @@ TYPE
 				tree.Acquire;
 				Store;
 				editor.text.AcquireRead;
-				NEW(rootNode);
+				rootNode := GetNewNode();
 				tree.SetRoot(rootNode);
 				AddNodes(rootNode, diagnostics, log);
 				editor.text.ReleaseRead;
@@ -288,7 +290,13 @@ TYPE
 			END;
 		END RefreshHandler;
 
-		PROCEDURE AddNodes*(parent : WMTrees.TreeNode; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer);
+		PROCEDURE GetNewNode*() : TreeNode;
+		VAR node : TreeNode;
+		BEGIN
+			NEW(node); RETURN node;
+		END GetNewNode;
+
+		PROCEDURE AddNodes*(parent : TreeNode; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer);
 		BEGIN
 			ASSERT((parent # NIL) & (diagnostics # NIL) & (log # NIL));
 			(* abstract *)
@@ -302,20 +310,18 @@ TYPE
 		END SortHandler;
 
 		PROCEDURE SelectNodeByPos* (pos: LONGINT);
-		VAR root, node: WMTrees.TreeNode; data : ANY;
+		VAR root, node: WMTrees.TreeNode;
 
 			PROCEDURE FindNearestNode (node: WMTrees.TreeNode; pos: LONGINT): WMTrees.TreeNode;
 			VAR nearestNode: WMTrees.TreeNode; distance, nearestDistance: LONGINT;
 
 				PROCEDURE GetDistance (node: WMTrees.TreeNode; pos: LONGINT): LONGINT;
-				VAR data: ANY;
 				BEGIN
-					data := tree.GetNodeData (node);
-					WHILE (node # NIL) & ((data = NIL) OR ~(data IS Info) OR (data(Info).pos = NIL)) DO
-						node := tree.GetChildren (node); data := tree.GetNodeData (node);
+					WHILE (node # NIL) & (~(node IS TreeNode) OR (node(TreeNode).pos = NIL)) DO
+						node := tree.GetChildren(node);
 					END;
-					IF (data # NIL) & (data IS Info) & (data(Info).pos # NIL) & (pos >= data(Info).pos.GetPosition ()) THEN
-						RETURN pos - data(Info).pos.GetPosition ()
+					IF (node # NIL) & (node IS TreeNode) & (node(TreeNode).pos # NIL) & (pos >= node(TreeNode).pos.GetPosition()) THEN
+						RETURN pos - node(TreeNode).pos.GetPosition()
 					ELSE
 						RETURN MAX(LONGINT)
 					END
@@ -324,8 +330,7 @@ TYPE
 			BEGIN
 				nearestNode := NIL; nearestDistance := MAX (LONGINT);
 				WHILE node # NIL DO
-					data := tree.GetNodeData(node);
-					IF (data # NIL) & (data IS Info) & (data(Info).external = FALSE) THEN
+					IF (node IS TreeNode) & (node(TreeNode).external = FALSE) THEN
 						distance := GetDistance (node, pos);
 						IF distance < nearestDistance THEN nearestNode := node; nearestDistance := distance END;
 					END;
@@ -393,26 +398,23 @@ TYPE
 		END SwapSiblings;
 
 		PROCEDURE DrawNode(canvas: WMGraphics.Canvas; w, h: LONGINT; node: WMTrees.TreeNode; state: SET);
-		VAR dx, tdx, tdy : LONGINT; f : WMGraphics.Font; image : WMGraphics.Image;
-			caption: Strings.String;
-			ptr: ANY;
+		VAR dx, tdx, tdy : LONGINT; f : WMGraphics.Font; image : WMGraphics.Image; caption: Strings.String;
 		BEGIN
 			dx := 0;
-			f := treeView.GetFont();
 
 			image := tree.GetNodeImage(node);
 			IF image # NIL THEN
 				canvas.DrawImage(0, 0, image, WMGraphics.ModeSrcOverDst); dx := image.width + 5;
 			END;
 
-			ptr := tree.GetNodeData(node);
-			IF (ptr # NIL) & (ptr IS Info) THEN
-				canvas.SetColor(ptr(Info).color);
-				f := ptr(Info).font;
+			IF (node IS TreeNode) THEN
+				canvas.SetColor(node(TreeNode).color);
+				f := node(TreeNode).font;
 				canvas.SetFont(f);
 			ELSE
 				canvas.SetColor(treeView.clTextDefault.Get());
 				canvas.SetFont(treeView.GetFont());
+				f := treeView.GetFont();
 			END;
 			caption := tree.GetNodeCaption(node);
 			f.GetStringSize(caption^, tdx, tdy);
@@ -446,14 +448,10 @@ TYPE
 		END SetEditorPosition;
 
 		PROCEDURE ClickNode*(sender, node : ANY);
-		VAR data : ANY;
 		BEGIN
-			IF (node # NIL) & (node IS WMTrees.TreeNode) THEN
-				tree.Acquire;
-				data := tree.GetNodeData(node(WMTrees.TreeNode));
-				tree.Release;
-				IF (data # NIL) & (data IS Info) & (data(Info).pos # NIL) THEN
-					SetEditorPosition(data(Info).pos.GetPosition(), TRUE);
+			IF (node # NIL) & (node IS TreeNode) THEN
+				IF (node(TreeNode).pos # NIL) THEN
+					SetEditorPosition(node(TreeNode).pos.GetPosition(), TRUE);
 				ELSE
 					SetEditorPosition(InvalidPosition, FALSE);
 				END;
