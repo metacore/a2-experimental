@@ -70,10 +70,10 @@ CONST
 	DefaultCurrentLineColor = 0;
 
 	(* Compiler *)
-	DefaultCompilerName = "PACO";
+	DefaultCompilerName = "OC";
 	DefaultCompilerCaption = "Compile";
-	DefaultCompilerOptions = "\Ws";
-	DefaultCompilerLoadModule = "PC";
+	DefaultCompilerOptions = "-b=AMD --warnings";
+	DefaultCompilerLoadModule = "Compiler";
 	DefaultCompilerFileExtension = "MOD";
 	DefaultCompilerFindPC = TRUE;
 
@@ -104,7 +104,7 @@ CONST
 
 	WindowTitle = "Programmer's Editing Tool v2.1";
 
-	DefaultTextFormat = "Oberon";
+	DefaultTextFormat = "UTF-8";
 
 	EditorFocus = 1;
 	SplitEditorFocus = 2;
