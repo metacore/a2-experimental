@@ -426,7 +426,7 @@ To update: Configuration.Init ~
 					<Setting name="caption" value="Compile"/>
 					<Setting name="options" value="-b=AMD --warnings"/>
 					<Setting name="fileExtension" value="MOD"/>
-					<Setting name="loadmodule" value="Compiler"/>
+					<Setting name="loadmodule" value="TextCompiler"/>
 					<Setting name="genTree" value="PETModuleTree.GenModuleTree"/>
 					<Setting name="findPC" value="TRUE"/>
 				</Section>
@@ -434,7 +434,7 @@ To update: Configuration.Init ~
 					<Setting name="caption" value="Compile"/>
 					<Setting name="options" value="--dataflow -b=TRM"/>
 					<Setting name="fileExtension" value="MDF"/>
-					<Setting name="loadmodule" value="Compiler"/>
+					<Setting name="loadmodule" value="TextCompiler"/>
 					<Setting name="genTree" value="PETModuleTree.GenModuleTree"/>
 					<Setting name="findPC" value="TRUE"/>
 				</Section>
