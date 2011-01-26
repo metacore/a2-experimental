@@ -196,8 +196,7 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	NATIVE,WIN { Heaps.Mod }
 	UNIX { Unix.Heaps.Mod }
 
-	NATIVE,WIN { Modules.Mod }
-	UNIX { Modules.Mod }
+	Modules.Mod
 
 	NATIVE { Objects.Mod Kernel.Mod }
 	WIN { Win32.Objects.Mod Win32.Kernel.Mod }
@@ -529,7 +528,6 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 	OPA.Data
 	Errors.XML cnErrors.XML	# Error messages
 
-	ModuleParser.Mod
 	WhitespaceRemover.Mod
 
 	# Interface to host system clipboard
@@ -583,8 +581,6 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 	CryptoHMAC.Mod CryptoIDEA.Mod CryptoMD5.Mod
 	CryptoRSA.Mod
 END
-
-
 
 PACKAGE Applications ARCHIVE "Applications.zip" SOURCE "ApplicationsSrc.zip" DESCRIPTION "Applications"
 
@@ -807,13 +803,7 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	# Partition Editor
 	PartitionEditorComponents.Mod PartitionEditor.Mod
 
-	MultiLogger.Mod ModuleTrees.Mod ModuleTreesIcons.tar
-	WMXMLTree.Mod
-
-	WMDiagnostics.Mod
-
-	PETTrees.Mod PETModuleTree.Mod PETXMLTree.Mod
-	PET.Mod PETIcons.tar
+	MultiLogger.Mod
 
 	I386, WIN, UNIX {
 		MemoryReader.Mod Decoder.Mod I386Decoder.Mod	# GUI decoder
@@ -873,9 +863,9 @@ END
 PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Active Oberon Compiler"
 	# this package should be moved before any GUI part (dependencies must be removed in Backend)
 	OC.Tool
-	BitSets.Mod ObjectFile.Mod Runtime.Mod GenericLinker.Mod StaticLinker.Mod 
+	BitSets.Mod ObjectFile.Mod Runtime.Mod GenericLinker.Mod StaticLinker.Mod
 	OCProgTools.Mod OCBasic.Mod  OCScanner.Mod OCSyntaxTree.Mod OCDataflow.Mod OCGlobal.Mod OCFormats.Mod OCPrintout.Mod
-	OCParser.Mod  OCSemanticChecker.Mod 
+	OCParser.Mod  OCSemanticChecker.Mod
 	OCBackend.Mod OCCompiler.Mod
 	OCFingerPrint.Mod  OCInterfaceComparison.Mod OCTextualSymbolFile.Mod OCBinarySymbolFile.Mod
 	OCSections.Mod OCBinaryCode.Mod
@@ -885,6 +875,19 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 	OCInstructionSetAMD64TabSeperated.txt
 
 	OCArrayBase.Mod # Runtime support for math oberon (Move to runtime package? *)
+END
+
+PACKAGE PET ARCHIVE "PET.zip" SOURCE "PETSrc.zip" DESCRIPTION "PET"
+
+	# Temporary package
+	ModuleParser.Mod
+ 	ModuleTrees.Mod ModuleTreesIcons.tar
+	WMXMLTree.Mod
+
+	WMDiagnostics.Mod
+
+	PETTrees.Mod PETModuleTree.Mod PETXMLTree.Mod
+	PET.Mod PETIcons.tar
 END
 
 PACKAGE GuiApplications ARCHIVE "GuiApplications.zip" SOURCE "GuiApplicationsSrc.zip" DESCRIPTION "Window Manager and Graphical Applications"
@@ -987,8 +990,6 @@ PACKAGE GuiApplications ARCHIVE "GuiApplications.zip" SOURCE "GuiApplicationsSrc
 	MailStorage.Mod BimboMail.Mod
 
 	DebugLog.Mod	# Multiprocess Log
-
-	OCProgTools.Mod # Helpers for Oberon Compiler
 
 	WMJoysticks.Mod # Joystick tools
 END
