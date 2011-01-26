@@ -3,7 +3,7 @@ MODULE OCIntermediateBackend; (** AUTHOR ""; PURPOSE ""; *)
 IMPORT Basic := OCBasic, SyntaxTree := OCSyntaxTree, SemanticChecker := OCSemanticChecker, Backend := OCBackend, Global := OCGlobal,
 	Scanner := OCScanner, IntermediateCode := OCIntermediateCode, Sections := OCSections, Printout := OCPrintout,
 	SYSTEM, Diagnostics, Strings, Options, Streams, Compiler, Formats := OCFormats, SymbolFileFormat := OCTextualSymbolFile, D := Debugging,
-	Fingerprinter := OCFingerprinter, BinaryCode := OCBinaryCode;
+	FingerPrinter := OCFingerPrinter, BinaryCode := OCBinaryCode;
 
 CONST
 		(* operand modes *)
@@ -8194,14 +8194,14 @@ TYPE
 	END MetaPointers;
 
 	PROCEDURE MetaExportDesc(module: Sections.Module; source: IntermediateCode.Section;
-		fingerprinter: Fingerprinter.Fingerprinter; symbol: Sections.Section): BOOLEAN;
-	VAR fingerprint: SyntaxTree.Fingerprint;
+		fingerPrinter: FingerPrinter.FingerPrinter; symbol: Sections.Section): BOOLEAN;
+	VAR fingerPrint: SyntaxTree.FingerPrint;
 	BEGIN
 		IF (symbol # NIL) & (symbol.symbol # NIL) & (symbol.type # Sections.InitCodeSection)
 			& (symbol.type # Sections.InlineCodeSection)
 		THEN
-			fingerprint := fingerprinter.SymbolFP(symbol.symbol);
-			MetaLongint(module,source,fingerprint.shallow);
+			fingerPrint := fingerPrinter.SymbolFP(symbol.symbol);
+			MetaLongint(module,source,fingerPrint.shallow);
 			MetaSymbol(module,source,symbol,0,0);
 			MetaAddress(module,source,0);
 			MetaAddress(module,source,0);
@@ -8222,15 +8222,15 @@ TYPE
 	END MetaArray;
 
 	PROCEDURE MetaExportDescArray(module: Sections.Module; source: IntermediateCode.Section; VAR size: LONGINT);
-	VAR sizePC: LONGINT; section: Sections.Section;		fingerprinter : Fingerprinter.Fingerprinter;
+	VAR sizePC: LONGINT; section: Sections.Section;		fingerPrinter : FingerPrinter.FingerPrinter;
 	BEGIN
-		NEW(fingerprinter, module.system);
+		NEW(fingerPrinter, module.system);
 		size := 0;
 		MetaArray(module,source,sizePC);
 
 		section := module.sections.first;
 		WHILE section # NIL DO
-			IF MetaExportDesc(module,source,fingerprinter,section) THEN INC(size) END;
+			IF MetaExportDesc(module,source,fingerPrinter,section) THEN INC(size) END;
 			section := section.nextSection;
 		END;
 		PatchLongint(module,source,sizePC,size);

@@ -464,22 +464,6 @@ TYPE
 		RETURN result
 	END GetOptions;
 
-	PROCEDURE GetReader(CONST filename: ARRAY OF CHAR): Streams.Reader;
-	VAR
-		file: Files.File; fileReader: Files.Reader; offset: LONGINT;
-	BEGIN
-		(* Optimisation: skip header of oberon files and return a file reader instead of default text reader*)
-		file := Files.Old (filename);
-		IF file = NIL THEN RETURN NIL END;
-		NEW (fileReader, file, 0);
-		IF (fileReader.Get () = 0F0X) & (fileReader.Get () = 001X) THEN
-			offset := ORD (fileReader.Get ());
-			INC (offset, LONG (ORD (fileReader.Get ())) * 0100H);
-			fileReader.SetPos(offset);
-		ELSE fileReader.SetPos(0)
-		END;
-		RETURN fileReader
-	END GetReader;
 
 	PROCEDURE Compile*(context : Commands.Context);
 	VAR
@@ -508,7 +492,7 @@ TYPE
 
 			time := Kernel.GetTicks();
 			WHILE context.arg.GetString(filename) & (filename # ";") & ~error DO
-				reader := GetReader(filename);
+				reader := Basic.GetFileReader(filename);
 				IF reader = NIL THEN
 					diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 				ELSE

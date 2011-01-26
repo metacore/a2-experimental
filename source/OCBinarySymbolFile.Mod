@@ -3,7 +3,7 @@ MODULE OCBinarySymbolFile; (** AUTHOR "fof"; PURPOSE "Symbol File - Binary Forma
 IMPORT
 	 Basic := OCBasic,  Scanner := OCScanner, SyntaxTree := OCSyntaxTree, Global := OCGlobal,
 	 Files,Streams, Kernel, SYSTEM, D := Debugging,  Diagnostics, Options, Formats := OCFormats, InterfaceComparison := OCInterfaceComparison
-	 ,Commands, WMUtilities, Printout := OCPrintout, SemanticChecker := OCSemanticChecker, (* OLIVIER *)
+	 ,Commands, Printout := OCPrintout, SemanticChecker := OCSemanticChecker, (* OLIVIER *)
 	 Machine
 	 ;
 
@@ -2336,7 +2336,7 @@ TYPE
 
 		PROCEDURE GetOptions*(options: Options.Options);
 		BEGIN
-			IF ~options.GetString("symbolFileExtension",extension) THEN 
+			IF ~options.GetString("symbolFileExtension",extension) THEN
 				extension := Machine.DefaultObjectFileExtension
 			END;
 			IF ~options.GetString("symbolFilePrefix",prefix) THEN prefix := "" END;
@@ -2401,7 +2401,7 @@ END Get;
 
 PROCEDURE Test*(context: Commands.Context);
 VAR moduleName: Scanner.StringType; module: SyntaxTree.Module;
-		log2: WMUtilities.WindowWriter; time: LONGINT;
+		log2: Basic.Writer; time: LONGINT;
 		p: Printout.Printer;
 		symbolFileFormat: BinarySymbolFile;
 		options: Options.Options;
@@ -2420,7 +2420,7 @@ BEGIN
 		D.Str("importer elapsed ms: "); D.Int(time,10); D.Ln;
 		D.Update;
 
-		NEW(log2,"SymbolFile",800,600,TRUE); (* log2.SetFontName("Courier"); *) log2.SetFontSize(10);
+		log2 := Basic.GetDebugWriter("SymbolFile");
 		p := Printout.NewPrinter(log2,Printout.SymbolFile,FALSE);
 		log2.String("Interface of "); log2.String(moduleName); log2.Ln;
 		log2.Ln;

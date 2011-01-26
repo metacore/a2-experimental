@@ -1615,6 +1615,23 @@ VAR
 		HALT(100);
 	END Test;
 
+	PROCEDURE GetFileReader*(CONST filename: ARRAY OF CHAR): Streams.Reader;
+	VAR
+		file: Files.File; fileReader: Files.Reader; offset: LONGINT;
+	BEGIN
+		(* Optimisation: skip header of oberon files and return a file reader instead of default text reader*)
+		file := Files.Old (filename);
+		IF file = NIL THEN RETURN NIL END;
+		NEW (fileReader, file, 0);
+		IF (fileReader.Get () = 0F0X) & (fileReader.Get () = 001X) THEN
+			offset := ORD (fileReader.Get ());
+			INC (offset, LONG (ORD (fileReader.Get ())) * 0100H);
+			fileReader.SetPos(offset);
+		ELSE fileReader.SetPos(0)
+		END;
+		RETURN fileReader
+	END GetFileReader;
+
 	PROCEDURE GetWriter*(w: Streams.Writer): Writer;
 	VAR writer: Writer;
 	BEGIN

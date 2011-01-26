@@ -3,7 +3,7 @@ MODULE OCTextualSymbolFile; (** AUTHOR "fof & fn"; PURPOSE "Oberon Compiler: Sym
 
 IMPORT
 	D := Debugging, Basic := OCBasic,  Scanner := OCScanner, SyntaxTree := OCSyntaxTree, Global := OCGlobal, Formats := OCFormats, Files,Streams,
-	Printout := OCPrintout,Texts, TextUtilities, Parser:= OCParser , SemanticChecker := OCSemanticChecker, InterfaceComparison := OCInterfaceComparison, Options, Diagnostics;
+	Printout := OCPrintout,Parser:= OCParser , SemanticChecker := OCSemanticChecker, InterfaceComparison := OCInterfaceComparison, Options, Diagnostics;
 
 CONST Trace = FALSE;
 
@@ -18,7 +18,7 @@ TYPE
 			module := NIL;
 			Basic.Concat(fileName,"",moduleFileName,".Sym");
 			IF Trace THEN D.Ln; D.Str("importing "); D.Str(fileName); D.Ln; D.Update;  END;
-			reader := GetIOReader(fileName);
+			reader := Basic.GetFileReader(fileName);
 			scanner := Scanner.NewScanner(moduleFileName, reader, 0, diagnostics);
 			IF ~scanner.error THEN
 				parser := Parser.NewParser(scanner,NIL);
@@ -93,15 +93,6 @@ TYPE
 		END GetOptions;
 
 	END TextualSymbolFile;
-
-	PROCEDURE GetIOReader(CONST filename: ARRAY OF CHAR): Streams.Reader;
-	VAR text: Texts.Text; format, res: LONGINT; reader: TextUtilities.TextReader;
-	BEGIN
-		NEW(text);
-		TextUtilities.LoadAuto(text, filename, format, res);
-		NEW(reader,text);
-		RETURN reader
-	END GetIOReader;
 
 	PROCEDURE Get*(): Formats.SymbolFileFormat;
 	VAR symbolFile: TextualSymbolFile;

@@ -3,13 +3,13 @@ MODULE OCGenericObjectFile; (** AUTHOR "negelef"; PURPOSE "Generic Object File W
 IMPORT
 	Formats := OCFormats, Sections := OCSections, IntermediateCode := OCIntermediateCode,
 	Global := OCGlobal, SyntaxTree := OCSyntaxTree, BinaryCode := OCBinaryCode,
-	Fingerprinter := OCFingerprinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := OCTextualSymbolFile, KernelLog;
+	FingerPrinter := OCFingerPrinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := OCTextualSymbolFile, KernelLog;
 
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	VAR path, extension: Files.FileName;
 
 		PROCEDURE Export* (module: Formats.GeneratedModule; symbolFileFormat: Formats.SymbolFileFormat): BOOLEAN;
-		VAR moduleName: SyntaxTree.String; fileName: Files.FileName; file: Files.File; writer: Files.Writer; fingerprinter: Fingerprinter.Fingerprinter;
+		VAR moduleName: SyntaxTree.String; fileName: Files.FileName; file: Files.File; writer: Files.Writer; fingerPrinter: FingerPrinter.FingerPrinter;
 
 			PROCEDURE ExportSection (section: IntermediateCode.Section);
 			VAR name: ARRAY 128 OF CHAR; (* debugging *)
@@ -18,8 +18,8 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				IF (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
 					RETURN
 				END;
-				section.resolved.identifier.fingerprint := GetFingerprint (section, fingerprinter);
-				UpdateFixups (section.resolved, fingerprinter);
+				section.resolved.identifier.fingerprint := GetFingerPrint (section, fingerPrinter);
+				UpdateFixups (section.resolved, fingerPrinter);
 				ObjectFile.WriteSection (writer, section.resolved^);
 			END ExportSection;
 
@@ -33,7 +33,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 						test := sections.first;
 						WHILE test # section DO
 							IF test(IntermediateCode.Section).resolved.identifier.fingerprint = section(IntermediateCode.Section).resolved.identifier.fingerprint THEN
-								diagnostics.Error(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid,"duplicate fingerprints");
+								diagnostics.Error(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid,"duplicate fingerPrints");
 								KernelLog.String(section(IntermediateCode.Section).resolved.identifier.name); KernelLog.String(",");
 								KernelLog.String(test(IntermediateCode.Section).resolved.identifier.name); KernelLog.Ln;
 								RETURN FALSE
@@ -68,7 +68,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				RETURN FALSE;
 			END;
 
-			NEW (fingerprinter, module.system);
+			NEW (fingerPrinter, module.system);
 			Files.OpenWriter (writer, file, 0);
 			IF ExportModule (module(Sections.Module)) THEN
 				writer.Update;
@@ -97,23 +97,23 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 
 END ObjectFileFormat;
 
-PROCEDURE GetFingerprint (section: Sections.Section; fingerprinter: Fingerprinter.Fingerprinter): LONGINT;
-VAR fingerprint: SyntaxTree.Fingerprint;
+PROCEDURE GetFingerPrint (section: Sections.Section; fingerPrinter: FingerPrinter.FingerPrinter): LONGINT;
+VAR fingerPrint: SyntaxTree.FingerPrint;
 BEGIN
 	IF (section.symbol = NIL) OR (section.symbol.scope = NIL) THEN
 		RETURN 0
 	ELSE
-		fingerprint := fingerprinter.SymbolFP (section.symbol);
-		RETURN fingerprint.shallow;
+		fingerPrint := fingerPrinter.SymbolFP (section.symbol);
+		RETURN fingerPrint.shallow;
 	END
-END GetFingerprint;
+END GetFingerPrint;
 
-PROCEDURE UpdateFixups (section: BinaryCode.Section;  fingerprinter: Fingerprinter.Fingerprinter);
+PROCEDURE UpdateFixups (section: BinaryCode.Section;  fingerPrinter: FingerPrinter.FingerPrinter);
 VAR fixup: BinaryCode.Fixup; i: INTEGER; fixupList: ObjectFile.Fixups; fixups: LONGINT;
 BEGIN
 	fixup := section.fixupList.firstFixup; i := 0; fixups := 0; fixupList := NIL;
 	WHILE fixup # NIL DO
-		ObjectFile.AddFixup(fixups, fixupList, fixup.symbol.name, GetFingerprint(fixup.symbol, fingerprinter), fixup.mode, fixup.displacement, fixup.scale, fixup.patterns, fixup.pattern, fixup.offset);
+		ObjectFile.AddFixup(fixups, fixupList, fixup.symbol.name, GetFingerPrint(fixup.symbol, fingerPrinter), fixup.mode, fixup.displacement, fixup.scale, fixup.patterns, fixup.pattern, fixup.offset);
 		fixup := fixup.nextFixup; INC (i);
 	END;
 	ObjectFile.SetFixups(section^, fixups, fixupList);

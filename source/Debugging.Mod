@@ -1,6 +1,6 @@
 MODULE Debugging;   (**  AUTHOR "fof"; PURPOSE "Debugging facilities";  **)
 
-IMPORT SYSTEM, Streams, KernelLog, Files, StringPool,  Modules, Objects, Reflection, ProcessInfo, Machine, Commands, Locks;
+IMPORT SYSTEM, Streams, KernelLog, Files, StringPool,  Modules, Objects, Reflection, Machine, Commands, Locks;
 
 VAR
 	DefaultLog, Log-: Streams.Writer;  f: Files.File;  lock: Locks.RWLock;
@@ -65,15 +65,7 @@ VAR
 		TraceBackThis( Machine.CurrentPC(), Machine.CurrentBP() );
 	END TraceBack;
 
-	PROCEDURE TraceBackAll*;   (* do a stack trace back over all threads, this snapshot is not necessarily fully consistent but can give good hints  *)
-	VAR processes : ARRAY ProcessInfo.MaxNofProcesses OF Objects.Process; i, nofProcesses : LONGINT;
-	BEGIN
-		TraceBackThis( Machine.CurrentPC(), Machine.CurrentBP() );
-		ProcessInfo.GetProcesses(processes, nofProcesses);
-		FOR i := 0 TO nofProcesses - 1 DO
-			IF Modules.ThisModuleByAdr( processes[i].state.PC ) # NIL THEN TraceBackThis( processes[i].state.PC, processes[i].state.BP );  END;
-		END;
-	END TraceBackAll;
+	(* TraceBackAll implemented in SystemTools.ShowStacks *)
 
 	PROCEDURE FileStart*(context: Commands.Context);   (* start writing to a the file Debugging.Text *)
 	VAR w: Files.Writer;  filename: ARRAY 256 OF CHAR;
