@@ -433,6 +433,26 @@ PACKAGE Drivers ARCHIVE "Drivers.zip" SOURCE "DriversSrc.zip" DESCRIPTION "Devic
 	}
 END
 
+PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Active Oberon Compiler"
+	# this package should be moved before any GUI part (dependencies must be removed in Backend)
+
+	StringPool.Mod Diagnostics.Mod Debugging.Mod
+
+	Fox.Tool
+	BitSets.Mod ObjectFile.Mod GenericLinker.Mod StaticLinker.Mod
+	FoxProgTools.Mod FoxBasic.Mod  FoxScanner.Mod FoxSyntaxTree.Mod FoxDataflow.Mod FoxGlobal.Mod FoxFormats.Mod FoxPrintout.Mod
+	FoxParser.Mod  FoxSemanticChecker.Mod
+	FoxBackend.Mod FoxCompiler.Mod
+	FoxFingerPrint.Mod  FoxInterfaceComparison.Mod FoxTextualSymbolFile.Mod FoxBinarySymbolFile.Mod
+	FoxSections.Mod FoxBinaryCode.Mod
+	FoxIntermediateCode.Mod FoxFingerPrinter.Mod FoxDataflowBackend.Mod FoxIntermediateBackend.Mod
+	FoxBinaryObjectFile.Mod FoxGenericObjectFile.Mod
+	FoxAMD64InstructionSet.Mod FoxAMD64Assembler.Mod FoxAMDBackend.Mod
+	FoxInstructionSetAMD64TabSeperated.txt
+
+	FoxArrayBase.Mod # Runtime support for math oberon (Move to runtime package? *)
+END
+
 PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMiniSrc.zip" DESCRIPTION "Minimal applications set"
 
 	# Error API and error codes definition
@@ -514,10 +534,10 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 
 	KernelLogger.Mod
 
+	# Compiler interfaces
+	CompilerInterface.Mod FoxTextCompiler.Mod
+
 	# PC - Parallel Compiler (self-compile only)
-	Diagnostics.Mod CompilerInterface.Mod
-	StringPool.Mod
-	Debugging.Mod
 	PCDebug.Mod PCM.Mod PCS.Mod PCT.Mod PCBT.Mod 	# prk
 	PCLIR.Mod PCO.Mod PCG386.Mod PCC.Mod PCV.Mod PCArrays.Mod
 	PCB.Mod PCP.Mod PCA386.Mod PCOM.Mod PCOF.Mod PCOFPE.Mod PC.Mod
@@ -748,6 +768,16 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 
 	Standard.rep Models.rep Shapes.rep Colors.rep System.rep
 
+# Programmer's Editing Tool
+	ModuleParser.Mod
+ 	ModuleTrees.Mod ModuleTreesIcons.tar
+	WMXMLTree.Mod
+
+	WMDiagnostics.Mod
+
+	PETTrees.Mod PETModuleTree.Mod PETXMLTree.Mod
+	PET.Mod PETIcons.tar
+
 # Input Method Editors
 	WMArabicIME.Mod											# Arabic IME
 	WMArmenianIME.Mod										# Armenian IME
@@ -759,6 +789,7 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	WMInputMethodTool.Mod
 
 	WMUtilities.Mod WMTrapWriter.Mod							# Window Manager Utilities
+	FoxA2Interface.Mod												# Compiler Debug Windows
 
 	WMMenus.Mod 												# menu support
 	WMDiagramComponents.Mod
@@ -813,6 +844,8 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	Tutorial.Text Quickstart.Text cn.PrgInOberon.txt	# documentation
 	WMTextTool.Mod
 
+
+
 # Performance monitor framework
 
 	WMPerfMonPlugins.Mod
@@ -858,36 +891,6 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	SSH.Configuration.Text
 	SSHGlobals.Mod SSHKeys.Mod SSHTransport.Mod SSHAuthorize.Mod
 	SSH.Mod SSHClient.Mod
-END
-
-PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Active Oberon Compiler"
-	# this package should be moved before any GUI part (dependencies must be removed in Backend)
-	OC.Tool
-	BitSets.Mod ObjectFile.Mod Runtime.Mod GenericLinker.Mod StaticLinker.Mod
-	OCProgTools.Mod OCBasic.Mod  OCScanner.Mod OCSyntaxTree.Mod OCDataflow.Mod OCGlobal.Mod OCFormats.Mod OCPrintout.Mod
-	OCParser.Mod  OCSemanticChecker.Mod
-	OCBackend.Mod OCCompiler.Mod
-	OCFingerPrint.Mod  OCInterfaceComparison.Mod OCTextualSymbolFile.Mod OCBinarySymbolFile.Mod
-	OCSections.Mod OCBinaryCode.Mod
-	OCIntermediateCode.Mod OCFingerPrinter.Mod OCDataflowBackend.Mod OCIntermediateBackend.Mod
-	OCBinaryObjectFile.Mod OCGenericObjectFile.Mod
-	OCAMD64InstructionSet.Mod OCAMD64Assembler.Mod OCAMDBackend.Mod
-	OCInstructionSetAMD64TabSeperated.txt
-
-	OCArrayBase.Mod # Runtime support for math oberon (Move to runtime package? *)
-END
-
-PACKAGE PET ARCHIVE "PET.zip" SOURCE "PETSrc.zip" DESCRIPTION "PET"
-
-	# Temporary package
-	ModuleParser.Mod
- 	ModuleTrees.Mod ModuleTreesIcons.tar
-	WMXMLTree.Mod
-
-	WMDiagnostics.Mod
-
-	PETTrees.Mod PETModuleTree.Mod PETXMLTree.Mod
-	PET.Mod PETIcons.tar
 END
 
 PACKAGE GuiApplications ARCHIVE "GuiApplications.zip" SOURCE "GuiApplicationsSrc.zip" DESCRIPTION "Window Manager and Graphical Applications"
@@ -1037,7 +1040,7 @@ END
 PACKAGE Testing ARCHIVE "Testing.zip" SOURCE "TestingSrc.zip" DESCRIPTION "Tests and benchmarks"
 
 	# Compiler Testsuite
-	TestSuite.Mod  PCTest.Mod OCTest.Mod
+	TestSuite.Mod  PCTest.Mod FoxTest.Mod
 
 	Oberon.Compilation.Test Oberon.Execution.Test
 	MathArrays.Compilation.Test MathArrays.Execution.Test

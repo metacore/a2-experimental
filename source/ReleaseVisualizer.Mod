@@ -777,11 +777,11 @@ TYPE
 			DEC(j); DEC(i);
 				AddSubSystem(i, "Bluetooth", "A2", 0000080FFH, j, TRUE);
 			DEC(j); DEC(i);
-				AddSubSystem(i, "OCBasic", "A2", 06060FFFFH, j, TRUE);
+				AddSubSystem(i, "FoxBasic", "A2", 06060FFFFH, j, TRUE);
 				AddSubSystem(i, "BitSets", "A2", 06060FFFFH, j, TRUE);
 				AddSubSystem(i, "Runtime", "A2", 06060FFFFH, j, TRUE);
 				AddSubSystem(i, "ObjectFile", "A2", 06060FFFFH, j, TRUE);
-				AddSubSystem(i, "OCProgTools", "A2", 06060FFFFH, j, TRUE);
+				AddSubSystem(i, "FoxProgTools", "A2", 06060FFFFH, j, TRUE);
 			DEC(j); DEC(i);
 				AddSubSystem(i, "StringPool", "A2", 0008000FFH, j, TRUE);
 				AddSubSystem(i, "PCDebug", "A2", 0008000FFH, j, TRUE);

@@ -1,0 +1,795 @@
+MODULE FoxIntermediateCode; (** AUTHOR "fof"; PURPOSE "Oberon Compiler Abstract Intermediate Code"; *)
+(* Active Oberon Compiler, (c) 2009 Felix Friedrich *)
+IMPORT
+	Sections := FoxSections, Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
+	SYSTEM, Streams;
+
+CONST
+	(* operand modes *)
+	Undefined*=0;
+	ModeRegister*=1; (* register operand *)
+	ModeMemory*=2; (* memory operand, may be memory on register or immediate *)
+	ModeImmediate*=3; (* immediate number with type, may include section implying a fixup of the immediate *)
+	ModeNumber*=4; (* immediate integer number without any type, typically used as meta-information for instructions *)
+	ModeString*=5; (* for inline code *)
+
+	(* operand classes *)
+	Undef* = {Undefined};
+	Imm*={ModeImmediate};
+	Reg*={ModeRegister};
+	RegMem* = {ModeRegister,ModeMemory};
+	RegMemImm* = {ModeRegister,ModeMemory,ModeImmediate};
+	UndefReg*={Undefined,ModeRegister};
+	UndefRegMem*={Undefined, ModeRegister, ModeMemory};
+	Num* = {ModeNumber};
+	Str*= {ModeString};
+
+	(* operand types *)
+	SignedInteger* = 1;
+	UnsignedInteger* = 2;
+	Integer*= {SignedInteger,UnsignedInteger};
+	Float* = 3;
+
+	(* instruction format flags *)
+	SameType12*=0; (* type of first operand must match type of second operand *)
+	SameType23*=1; (* type of second operand must match type of third operand *)
+	Op1IsDestination*=2; (* first operand is a destination operand (=>may not be register with offset) *)
+	Commute23*=3; (* second and third operand can be exchanged *)
+	SameSize12*=4;
+
+	(* operand sizes in bits *)
+	Bits8*=8; Bits16*=16; Bits32*=32; Bits64*=64; Bits128*=128;
+
+	(* special registers *)
+	HwRegister*=-8; (* any value below (or equal) hwreg is a user defined hardware register *)
+	(*! alternative: generate inline assembler *)
+	(*
+		Result2*=31; (* used for tags such as for variables with delegate procedure type *)
+	*)
+	(*! result2 should be removed ASAP. Can be removed once delegate return types are represented as structured return type
+		we have it here for compatibility with old compiler
+	*)
+	(*Result*=30; (* result register *)*)
+	None*=-1; (* no register assigned *)
+	SP*=-2; (* stack pointer *)
+	FP*=-3; (* frame pointer *)
+
+	(* FoxProgTools.Enum -e -l=8
+		nop mov conv call enter exit leave return result trap
+		br breq brne brge brlt
+		pop push neg not abs
+		mul div  mod sub add and or xor shl shr rol ror
+		copy fill asm data reserve label NofOpcodes~
+	*)
+	nop*= 0; mov*= 1; conv*= 2; call*= 3; enter*= 4; exit*= 5; leave*= 6; return*= 7;
+	result*= 8; trap*= 9; br*= 10; breq*= 11; brne*= 12; brge*= 13; brlt*= 14; pop*= 15;
+	push*= 16; neg*= 17; not*= 18; abs*= 19; mul*= 20; div*= 21; mod*= 22; sub*= 23;
+	add*= 24; and*= 25; or*= 26; xor*= 27; shl*= 28; shr*= 29; rol*= 30; ror*= 31;
+	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; NofOpcodes*= 38;
+
+TYPE
+	Type*=RECORD
+		form-: SHORTINT; (* SignedInteger, UnsignedInteger or Float *)
+		sizeInBits-: INTEGER; (* size in bits *)
+	END;
+
+	Operand* = RECORD
+		mode-: SHORTINT; (* Undefined, ModeRegister, ModeImmediate, ModeMemory, ModeNumber or ModeString *)
+		type-: Type; (* size and form *)
+		register-: LONGINT; (* (virtual) register number, equals None if no register *)
+		offset-: LONGINT; (* offset on register or immediate symbol, in units *)
+		intValue-: HUGEINT; (* integer value, if mode = ModeImmediate and type.form IN Integer *)
+		floatValue-: LONGREAL; (* real value, if mode = ModeImmediate and type.form = Float *)
+		(*
+		symbol-: Sections.Identifier; (* referenced symbol *)
+		*)
+		symbol-: Sections.Section; (* referenced symbol, only valid for Mode = ModeImmediate *)
+
+		symbolOffset-: LONGINT; (* offset in IntermediateCode section, the difference to offset is that symbolOffset needs a resolving to real address offset *)
+		string-: SyntaxTree.SourceCode; (* string, if Mode = ModeString *)
+	END;
+
+	(*
+		OperandMode			Used Fields
+
+		ModeRegister			mode, type, register & offset
+		ModeImmediate		mode, type, intValue or floatValue or symbol & offset
+		ModeMemory			mode, type, register, offset, intValue or symbol & offset
+		ModeNumber			mode, intValue
+		ModeString			mode, string
+	*)
+
+	Instruction* = RECORD
+		opcode-: SHORTINT; (* instruction opcode *)
+		pc-: LONGINT; (* backend program counter (in bits) for debugging and for label fixups in backend *)
+		op1*,op2*,op3*: Operand; (* first operand typically provides the result, if any *)
+	END;
+
+	InstructionFormat* = RECORD
+		name-: ARRAY 16 OF CHAR; (* name, for assemby and disassembly *)
+		op1-,op2-,op3-: SET; (* permitted modes for this kind of instruction *)
+		flags-: SET; (* more flags determining restrictions (such as operand type matching etc.) *)
+	END;
+
+	Instructions*=POINTER TO ARRAY OF Instruction;
+
+
+	(** code object *)
+	Section*= OBJECT (Sections.Section)
+	VAR
+		instructions-: Instructions; (* array of instructions *)
+		pc-: LONGINT; (* points to next instruction = len *)
+		finally-: LONGINT; (* finally section starts at, -1 if none *)
+		resolved-: BinaryCode.Section; (* reference to section containing compiled byte array *)
+		comments-: Sections.CommentWriter;
+		validPAFEnter-,validPAFExit-: LONGINT; (* begin and end of code section where current PAF (procedure activation frame) is considered valid *)
+
+		PROCEDURE GetPC(): LONGINT;
+		BEGIN RETURN pc
+		END GetPC;
+
+
+		PROCEDURE & InitIntermediateSection*(type: SHORTINT; CONST n: ARRAY OF CHAR; symbol: SyntaxTree.Symbol; comment: BOOLEAN);
+		BEGIN
+			InitSection(type,n,symbol); InitArray;resolved := NIL;
+			IF comment THEN NEW(comments,GetPC) ELSE comments := NIL END;
+			finally := -1;
+			validPAFEnter := 0; validPAFExit := 0;
+		END InitIntermediateSection;
+
+		PROCEDURE EnterValidPAF*;
+		BEGIN validPAFEnter := pc
+		END EnterValidPAF;
+
+		PROCEDURE ExitValidPAF*;
+		BEGIN validPAFExit := pc
+		END ExitValidPAF;
+
+		PROCEDURE SetResolved*(section: BinaryCode.Section);
+		BEGIN resolved := section
+		END SetResolved;
+
+		PROCEDURE SetFinally*(atPc: LONGINT);
+		BEGIN finally := atPc
+		END SetFinally;
+
+		PROCEDURE InitArray;
+		CONST MinInstructions = 128;
+		BEGIN
+			IF instructions = NIL THEN NEW(instructions, MinInstructions); END;
+			pc := 0;
+		END InitArray;
+
+
+		(* very useful for debugging:
+		PROCEDURE Assert*(b: BOOLEAN; CONST s: ARRAY OF CHAR);
+		BEGIN
+			IF ~b THEN commentWriter.String("ASSERT FAILED: "); commentWriter.String(s); commentWriter.Ln END;
+		END Assert;
+		*)
+
+		PROCEDURE Emit*(instruction: Instruction);
+		VAR new: Instructions;
+			op1size,op2size,op3size,op1form,op2form,op3form: LONGINT;
+		BEGIN
+			op1size := instruction.op1.type.sizeInBits;
+			op2size := instruction.op2.type.sizeInBits;
+			op3size := instruction.op3.type.sizeInBits;
+			op1form := instruction.op1.type.form;
+			op2form := instruction.op2.type.form;
+			op3form := instruction.op3.type.form;
+
+			IF SameType12 IN instructionFormat[instruction.opcode].flags THEN
+				Assert(TypeEquals(instruction.op1.type,instruction.op2.type),"operands 1 and 2 not of same type");
+			END;
+			IF SameSize12 IN instructionFormat[instruction.opcode].flags THEN
+				Assert(instruction.op1.type.sizeInBits = instruction.op2.type.sizeInBits, "operands 1 and 2 not of same size");
+			END;
+			IF SameType23 IN instructionFormat[instruction.opcode].flags THEN
+				Assert(TypeEquals(instruction.op2.type,instruction.op3.type),"operands 2 and 3 not of  same type");
+			END;
+			IF Op1IsDestination IN instructionFormat[instruction.opcode].flags THEN
+				Assert((instruction.op1.mode # ModeRegister) OR (instruction.op1.offset = 0),"destination operand may not be register with nonzero offset");
+			END;
+			IF pc = LEN(instructions) THEN
+				NEW(new,2*LEN(instructions));
+				SYSTEM.MOVE(SYSTEM.ADR(instructions[0]), SYSTEM.ADR(new[0]), LEN(instructions)*SYSTEM.SIZEOF(Instruction));
+				instructions := new;
+			END;
+			instruction.pc := pc;
+			instructions[pc] := instruction;
+			INC(pc);
+		END Emit;
+
+		PROCEDURE EmitAt*(at: LONGINT; instruction: Instruction);
+		VAR oldpc: LONGINT;
+		BEGIN
+			oldpc := pc;
+			pc := at; Assert(pc < LEN(instructions),"EmitAt only in existing code");
+			Emit(instruction);
+			pc := oldpc;
+		END EmitAt;
+
+		PROCEDURE PatchOperands*(pc: LONGINT; op1,op2,op3: Operand);
+		BEGIN instructions[pc].op1 := op1; instructions[pc].op2 := op2; instructions[pc].op3 := op3;
+		END PatchOperands;
+
+		PROCEDURE PatchAddress*(pc: LONGINT; symbolOffset: LONGINT);
+		BEGIN
+			ASSERT((br <= instructions[pc].opcode) & (instructions[pc].opcode <= brlt));
+			ASSERT(instructions[pc].op1.symbol = SELF);
+			(*
+			ASSERT(instr[pc].op1.symbol = SELF);
+			*)
+			instructions[pc].op1.symbolOffset := symbolOffset;
+		END PatchAddress;
+
+		PROCEDURE SetPC*(at: LONGINT; pc: LONGINT);
+		BEGIN instructions[at].pc := pc;
+		END SetPC;
+
+		PROCEDURE DumpCode*(w: Streams.Writer; from,to: LONGINT);
+		VAR i: LONGINT; c: Sections.Comment;
+		BEGIN
+			IF comments # NIL THEN
+				c := comments.firstComment;
+				WHILE(c # NIL) & (c.pos <from) DO
+					c := c.nextComment;
+				END;
+				i := from;
+				WHILE(i<=to) DO
+					IF (c # NIL) & (c.pos = i) THEN
+						c.Dump(w); w.Ln;
+						c := c.nextComment;
+					END;
+					w.Int(i,1); w.String(":"); w.Char(09X);
+					DumpInstruction(w,instructions[i]); w.Ln;
+					INC(i);
+				END;
+				IF (c#NIL) & (c.pos = to) THEN
+					c.Dump(w); w.Ln;
+				END;
+			ELSE
+				i := from;
+				WHILE(i<=to) DO
+					w.Int(i,1); w.String(":"); w.Char(09X);
+					DumpInstruction(w,instructions[i]); w.Ln;
+					INC(i);
+				END;
+			END;
+		END DumpCode;
+
+		(* inherited method *)
+		PROCEDURE Dump(w: Streams.Writer);
+		VAR ww: Basic.Writer;
+		BEGIN
+			IF resolved # NIL THEN
+				Dump^(w);
+				resolved.Dump(w)
+			ELSE
+				Dump^(w);
+				NEW(ww,w);
+				ww.IncIndent;
+				ww.Ln;
+				DumpCode(ww,0,pc-1);
+			END;
+		END Dump;
+
+	END Section;
+
+	VAR
+		instructionFormat-: ARRAY NofOpcodes OF InstructionFormat;
+		int8-, int16-, int32-, int64-, uint8-, uint16-, uint32-, uint64-, float32-, float64-, undef-: Type;
+
+	PROCEDURE Assert(condition: BOOLEAN; CONST reason: ARRAY OF CHAR);
+	BEGIN ASSERT(condition);
+	END Assert;
+
+	PROCEDURE Halt(CONST reason: ARRAY OF CHAR);
+	BEGIN
+		HALT(100);
+	END Halt;
+
+	PROCEDURE NewSection*(list: Sections.SectionList; type: SHORTINT; CONST name: ARRAY OF CHAR; x: SyntaxTree.Symbol; dump: BOOLEAN): Section;
+	VAR res: Sections.Section; section: Section;
+	BEGIN{EXCLUSIVE}
+		(* if section list for symbol or namel is already present then return this section, otherwise enter new one *)
+		IF x # NIL THEN
+			res := list.FindBySymbol(x);
+			IF res # NIL THEN
+				ASSERT((res.type = type) OR (type=Sections.VarSection) & (res.type = Sections.ConstSection) (* exception for module self pointer constant => old object file format *));
+				RETURN res(Section)
+			END;
+		ELSE
+			ASSERT(name # "");
+			res := list.FindByName(name);
+			IF res # NIL THEN
+				ASSERT(res.type = type);
+				RETURN res(Section)
+			END;
+		END;
+		NEW(section,type, name,x, dump);
+		list.Add(section);
+		RETURN section
+	END NewSection;
+
+	PROCEDURE SameOperand*(CONST left, right: Operand): BOOLEAN;
+	VAR mode: LONGINT;
+	BEGIN
+		mode := left.mode;
+		IF (left.type.form =right.type.form) & (left.type.sizeInBits=right.type.sizeInBits) & (mode = right.mode) THEN
+			CASE mode OF
+			ModeRegister: RETURN (left.register = right.register) & (left.offset = right.offset)
+			|ModeMemory: RETURN (left.register = right.register) &(left.offset = right.offset) & (left.symbol = right.symbol) & (left.symbolOffset = right.symbolOffset);
+			|ModeImmediate:
+				IF left.type.form = Float THEN
+					RETURN (left.floatValue = right.floatValue) & (left.symbol = right.symbol) & (left.symbolOffset = right.symbolOffset)
+				ELSE
+					RETURN (left.intValue = right.intValue) & (left.symbol = right.symbol) & (left.symbolOffset = right.symbolOffset)
+				END;
+			|ModeNumber:
+				RETURN left.intValue = right.intValue
+			|ModeString:
+				RETURN left.string = right.string
+			|Undefined: (* nothing *) RETURN TRUE
+			END;
+		ELSE RETURN FALSE
+		END;
+	END SameOperand;
+
+
+	PROCEDURE CheckOperand(CONST operand: Operand(*; VAR msg: ARRAY OF CHAR*));
+	BEGIN
+		CASE operand.mode OF
+		Undefined:
+		|ModeNumber:
+		|ModeMemory:
+			Assert(operand.type.form # Undefined,"memory type form undefined"); Assert(operand.type.sizeInBits # 0,"memory type size undefined");
+			IF operand.register # None THEN
+				Assert(operand.symbol = NIL,"symbol and register cannot be both set in a memory operand");
+			ELSIF operand.symbol # NIL THEN
+				Assert(operand.intValue = 0,"memory operand on non zero immediate with symbol # NIL");
+			ELSE
+				Assert(operand.intValue # 0,"memory operand on address 0 zero without register and symbol");
+			END;
+		|ModeRegister:
+			Assert(operand.type.form # Undefined,"register type form undefined"); Assert(operand.type.sizeInBits # 0,"register type size undefined");
+			Assert(operand.register # None,"register undefined in register operand");
+		|ModeImmediate:
+			IF operand.symbol # NIL THEN
+				Assert(operand.intValue = 0,"forbidden immediate with symbol and intValue # 0");
+				Assert(operand.floatValue = 0,"forbidden immediate with symbol and floatValue # 0");
+			END;
+		|ModeString:
+			Assert(operand.string # NIL,"nil string in string operand");
+		END;
+	END CheckOperand;
+
+	PROCEDURE DumpRegister*(w: Streams.Writer; reg: LONGINT);
+	BEGIN
+		IF reg = SP THEN
+			w.String("$SP")
+		ELSIF reg = FP THEN
+			w.String("$FP")
+		(*
+		ELSIF reg = Result THEN
+			w.String("$Res")
+		ELSIF reg = Result2 THEN
+			w.String("$Res2")
+		*)
+		ELSIF reg > None THEN
+			w.String("$");
+			w.Int(reg,1);
+		ELSIF reg <= HwRegister THEN
+			w.String("$R#");
+			w.Int(HwRegister-reg,1);
+		ELSE Halt("unsupported register number");
+		END;
+	END DumpRegister;
+
+	PROCEDURE DumpType*(w: Streams.Writer; type: Type);
+	BEGIN
+		CASE type.form OF
+			Undefined:
+			|UnsignedInteger: w.String("u");w.Int(type.sizeInBits,1);
+			|SignedInteger: w.String("s");w.Int(type.sizeInBits,1);
+			|Float: w.String("f");w.Int(type.sizeInBits,1);
+		END;
+	END DumpType;
+
+	PROCEDURE DumpOperand*(w: Streams.Writer; CONST operand: Operand; size: BOOLEAN);
+
+		PROCEDURE DumpString(CONST str: ARRAY OF CHAR);
+		VAR i: LONGINT; ch: CHAR; newln,multiline: BOOLEAN;
+		BEGIN
+			i := 0; ch := str[i];
+			WHILE (ch # 0X) & (ch # 0DX) & (ch # 0AX) DO INC(i); ch := str[i]; END;
+			multiline := ch # 0X;
+			IF multiline THEN
+				w.String(">"); w.Ln;
+				IF w IS Basic.Writer THEN w(Basic.Writer).IncIndent END;
+				w.String("> ");
+			ELSE
+				w.String('"');
+			END;
+			i := 0;  ch := str[i]; newln := FALSE;
+			WHILE(ch#0X) DO
+				IF (ch = 0DX) OR (ch = 0AX) THEN newln := TRUE
+				ELSIF newln & (ch <= " ") THEN (* skip leading spaces *)
+				ELSE
+					IF newln THEN w.Ln; w.String("> "); newln := FALSE;  END;
+				 	w.Char(ch);
+				 END;
+				INC(i); ch := str[i];
+			END;
+			IF multiline THEN
+				IF w IS Basic.Writer THEN w(Basic.Writer).DecIndent END;
+			ELSE
+				w.String('"');
+			END;
+		END DumpString;
+
+
+	BEGIN
+		IF size THEN
+			DumpType(w,operand.type); w.String(" ");
+		END;
+
+		CASE operand.mode OF
+		Undefined: w.String("!Undefined");
+		|ModeMemory:
+				w.String("[");
+				IF operand.register # None THEN
+					DumpRegister(w,operand.register);
+					IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset,1);
+					ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset,1);
+					END;
+				ELSIF operand.symbol # NIL THEN
+					operand.symbol.DumpName(w); w.String(":"); w.Int(operand.symbolOffset,1);
+					IF operand.offset # 0 THEN w.String("(@"); w.Int(operand.offset,1); w.String(")"); END;
+				ELSE w.Int(SHORT(operand.intValue),1);
+				END;
+				w.String("]");
+		|ModeRegister:
+			DumpRegister(w,operand.register);
+			IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset,1);
+			ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset,1);
+			END;
+		|ModeImmediate:
+			IF operand.symbol # NIL THEN
+				operand.symbol.DumpName(w); w.String(":"); w.Int(operand.symbolOffset,1);
+				IF operand.offset # 0 THEN w.String("(@"); w.Int(operand.offset,1); w.String(")") END;
+			ELSE
+				IF operand.type.form IN Integer THEN
+					IF (operand.intValue > MAX(LONGINT)) OR (operand.intValue < MIN(LONGINT)) THEN
+						w.Hex(operand.intValue,1); w.String("H");
+					ELSE
+						w.Int(SHORT(operand.intValue),1);
+					END
+				ELSE
+					w.Float(operand.floatValue,24);
+				END;
+			END;
+		|ModeString:
+			DumpString(operand.string^);
+		|ModeNumber: w.Int(SHORT(operand.intValue),1);
+		END;
+		w.Update();
+		CheckOperand(operand);
+	END DumpOperand;
+
+	PROCEDURE TypeEquals*(CONST s1,s2: Type): BOOLEAN;
+	BEGIN RETURN (s1.form = s2.form) & (s1.sizeInBits = s2.sizeInBits);
+	END TypeEquals;
+
+	PROCEDURE OperandEquals*(CONST s1,s2: Operand) : BOOLEAN;
+	BEGIN
+		RETURN (s1.mode = s2.mode) & (s1.register = s2.register) & (s1.offset = s2.offset) & (s1.intValue = s2.intValue) & (s1.floatValue = s2.floatValue)
+		& (s1.symbol = s2.symbol) & (s1.string = s2.string) & (s1.symbolOffset = s2.symbolOffset) & TypeEquals(s1.type,s2.type);
+	END OperandEquals;
+
+
+	PROCEDURE DumpInstruction*(w: Streams.Writer; CONST instr: Instruction);
+	BEGIN
+		w.String(instructionFormat[instr.opcode].name);
+		IF instr.op1.mode # Undefined THEN w.String(" "); DumpOperand(w,instr.op1,TRUE) END;
+		IF instr.op2.mode # Undefined THEN w.String(", "); DumpOperand(w,instr.op2,~TypeEquals(instr.op2.type,instr.op1.type)) END;
+		IF instr.op3.mode # Undefined THEN w.String(", "); DumpOperand(w,instr.op3,~TypeEquals(instr.op3.type,instr.op2.type)) END;
+	END DumpInstruction;
+
+	PROCEDURE InitInstructions;
+
+		PROCEDURE AddFormat(opcode: SHORTINT; CONST name: ARRAY OF CHAR; op1,op2,op3: SET; flags: SET);
+		BEGIN
+			COPY(name,instructionFormat[opcode].name);
+			instructionFormat[opcode].op1 := op1;
+			instructionFormat[opcode].op2 := op2;
+			instructionFormat[opcode].op3 := op3;
+			instructionFormat[opcode].flags := flags
+		END AddFormat;
+
+	BEGIN
+		(* nop - no operation, may be used for optimisations *)
+		AddFormat(nop, "nop", Undef, Undef, Undef, {});
+		(* mov dest src - mov content of src to dest, if a third parameter is provided (set to a register),
+			it has no meaning for interpreters or execution but provides a "reuse" hint for register allocators *)
+		AddFormat(mov, "mov", RegMem, RegMemImm, UndefReg, {SameSize12,Op1IsDestination});
+		(* conv dest src - convert src to dest,  type of conversion derived from type of operands *)
+		AddFormat(conv, "conv", RegMem, RegMemImm, Undef, {Op1IsDestination});
+		(* call adr parSize - procedure call, second operand contains parameter size *)
+		AddFormat(call, "call", RegMemImm, Num, Undef,{});
+		(* enter cc pafSize - set up procedure activation frame;  op1 = calling convention, op2 = paf size *)
+		AddFormat(enter, "enter", Num, Num, Undef ,{});
+		(* leave cc - remove paf, does not imply return, op1= calling convention, does not imply exit from procedure *)
+		AddFormat(leave, "leave", Num, Undef, Undef ,{});
+		(* return value : return value, op1= returned value, if any, does not imply exit from procedure *)
+		AddFormat(return,"return",RegMemImm, Undef, Undef,{});
+		(* exit parSize - exit from procedure *)
+		AddFormat(exit, "exit", Num, Undef, Undef ,{});
+		(* result, store result to operand op1 *)
+		AddFormat(result,"result",RegMem,Undef,Undef,{Op1IsDestination});
+		(* trap num- interrupt*)
+		AddFormat(trap, "trap", Num, Undef, Undef,{});
+		(* br op1 - unconditional branch to op1 *)
+		AddFormat(br, "br", RegMemImm, Undef, Undef,{});
+		(* breq op1 op2 op3- branch to op1 if op2 = op3 *)
+		AddFormat(breq, "breq", RegMemImm, RegMemImm, RegMemImm, {SameType23});
+		(* brne op1 op2 op3 -  branch to op2 if op2 # op3 *)
+		AddFormat(brne, "brne", RegMemImm, RegMemImm, RegMemImm, {SameType23});
+		(* brlt op1 op2 op3 - branch to op1 if op2 < op3 , information about sign is derived from operands *)
+		AddFormat(brlt, "brlt", RegMemImm, RegMemImm, RegMemImm, {SameType23}); (* sign of comparison is derived from types of op1 and op2 *)
+		(* brge op1 op2 op3 - branch to op1 if op2 >= op3 , information about sign is derived from operands *)
+		AddFormat(brge, "brge", RegMemImm, RegMemImm, RegMemImm, {SameType23});
+		(* pop op1 - pop op1 from stack *)
+		AddFormat(pop, "pop", RegMem, Undef, Undef,{Op1IsDestination});
+		(* push op1 - push op1 to stack *)
+		AddFormat(push, "push", RegMemImm, Undef, Undef,{});
+		(* not dest src - invert bit mask *)
+		AddFormat(not, "not", RegMem, RegMemImm, Undef,{SameType12,Op1IsDestination});
+		(* neg dest src - negate (arithmetic) *)
+		AddFormat(neg, "neg", RegMem, RegMemImm, Undef,{SameType12,Op1IsDestination});
+		(* abs dest src - absolute value (arithmetic) *)
+		AddFormat(abs, "abs", RegMem, RegMemImm, Undef,{SameType12,Op1IsDestination});
+		(* mul dest left right - multiply, information about sign and form (integer/float) in operands *)
+		AddFormat(mul, "mul", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination,Commute23});
+		(* div dest left right - divide, information about sign and form (integer/float) in operands *)
+		AddFormat(div, "div", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination});
+		(* mod dest left right - modulus, information about sign and form (integer/float) in operands *)
+		AddFormat(mod, "mod", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination});
+		(* sub dest left right - subtract, information about sign and form (integer/float) in operands *)
+		AddFormat(sub, "sub", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination});
+		(* add dest left right - add, information about sign and form (integer/float) in operands *)
+		AddFormat(add, "add", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination,Commute23});
+		(* and dest left right - bitwise and *)
+		AddFormat(and, "and", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination,Commute23});
+		(* or dest left right - bitwise or *)
+		AddFormat(or, "or", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination,Commute23});
+		(* xor dest left right - bitwise xor *)
+		AddFormat(xor, "xor", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination,Commute23});
+		(* shl dest left right - shift left (arithmetic or logical, derived from sign of operands) *)
+		AddFormat(shl, "shl", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination}); (* logical or arithemtic shift, derived from type of operands *)
+		(* shr dest left right - shift right (arithmetic or logical, derived from sign of operands)*)
+		AddFormat(shr, "shr", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination});
+		(* rol dest left right - rotate left *)
+		AddFormat(rol, "rol", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination});
+		(* ror dest left right - rotate right *)
+		AddFormat(ror, "ror", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination});
+		(* copy dest src size - move a block of size op3 units of memory from [op2] to [op1] *)
+		AddFormat(copy, "copy", RegMemImm, RegMemImm, RegMemImm,{SameType12,SameType23});
+		(* fill dest val size - fill a block of size op2 units of memory from [op1] with value in op3 *)
+		AddFormat(fill, "fill", RegMemImm, RegMemImm, RegMemImm,{SameType12});
+		(* asm attribute - asm code contained in attribute *)
+		AddFormat(asm, "asm", Str, Undef, Undef,{});
+		(* data imm - instruction to build up constants or (global) variables *)
+		AddFormat(data, "data", Imm, Undef, Undef,{});
+		(* reserve number - instruction to build (global) variables *)
+		AddFormat(reserve, "reserve",Num,Undef,Undef,{});
+		(* label - pseudo-instruction to reference back to source code positions *)
+		AddFormat(label, "label",Num,Undef,Undef,{});
+	END InitInstructions;
+
+	PROCEDURE InitInstruction*(VAR instr: Instruction; opcode: SHORTINT; op1,op2,op3: Operand);
+	VAR format: InstructionFormat; mode1, mode2, mode3: LONGINT; (* debugging *)
+	BEGIN
+		format := instructionFormat[opcode];
+		mode1 := op1.mode;
+		mode2 := op2.mode;
+		mode3 := op3.mode;
+		Assert(op1.mode IN format.op1,"first operand mode mismatch");
+		Assert(op2.mode IN format.op2,"second operand mode mismatch");
+		Assert(op3.mode IN format.op3,"third operand mode mismatch");
+		instr.opcode := opcode;
+		instr.op1 := op1;
+		instr.op2 := op2;
+		instr.op3 := op3;
+	END InitInstruction;
+
+	PROCEDURE InitOperand*(VAR op: Operand);
+	BEGIN
+		op.mode := Undefined; op.type.form := Undefined; op.type.sizeInBits := Undefined;
+		op.register := None; op.offset := 0;
+		op.intValue := 0;
+		op.floatValue := 0;
+		op.symbol := NIL;
+		op.symbolOffset := 0;
+	END InitOperand;
+
+	PROCEDURE InitRegister*(VAR op: Operand; type: Type; register: LONGINT);
+	BEGIN
+		Assert((register >0) OR (register = SP) OR (register = FP) (* OR (register = Result) OR (register = Result2) *) ,"unmapped register number");
+		InitOperand(op);
+		op.mode := ModeRegister;
+		op.type := type;
+		op.register := register;
+	END InitRegister;
+
+	PROCEDURE Register*(type: Type; register: LONGINT): Operand;
+	VAR op: Operand;
+	BEGIN InitRegister(op,type,register); RETURN op
+	END Register;
+
+	PROCEDURE AddOffset*(VAR op: Operand; offset: LONGINT);
+	BEGIN
+		Assert((op.mode = ModeRegister) OR (op.mode = ModeImmediate) & (op.type.form IN {SignedInteger, UnsignedInteger}),"offset not on register or integer immediate");
+		IF (op.mode = ModeImmediate) & (op.symbol = NIL) THEN
+			INC(op.intValue,offset)
+		ELSE
+			INC(op.offset,offset)
+		END
+	END AddOffset;
+
+	PROCEDURE SetOffset*(VAR op: Operand; offset: LONGINT);
+	BEGIN
+		Assert((op.mode = ModeRegister) OR (op.mode = ModeImmediate) & (op.type.form IN {SignedInteger, UnsignedInteger}),"offset not on register or integer immediate");
+		op.offset := offset
+	END SetOffset;
+
+	PROCEDURE SetIntValue*(VAR op: Operand; intValue: HUGEINT);
+	BEGIN op.intValue := intValue
+	END SetIntValue;
+
+	PROCEDURE MakeMemory*(VAR op: Operand; type: Type);
+	BEGIN
+		Assert((op.mode = ModeRegister) OR (op.mode = ModeMemory) OR (op.mode = ModeImmediate) & (op.type.form = UnsignedInteger) ,"operand mode not of register or unsigned integer immediate");
+		op.type := type;
+		op.mode := ModeMemory;
+		ASSERT(op.register # 0);
+	END MakeMemory;
+
+	PROCEDURE InitAddress*(VAR op: Operand; type: Type; symbol: Sections.Section; symbolOffset: LONGINT);
+	BEGIN
+		Assert(symbol # NIL,"forbidden nil symbol");
+		InitImmediate(op,type,0); op.symbol := symbol; op.type := type; op.symbolOffset := symbolOffset
+	END InitAddress;
+
+	PROCEDURE Address*(type: Type; symbol: Sections.Section; offset: LONGINT): Operand;
+	VAR op: Operand;
+	BEGIN InitAddress(op,type,symbol,offset); RETURN op
+	END Address;
+
+	PROCEDURE InitMemory*(VAR op:Operand; type: Type; base: Operand; offset: LONGINT);
+	BEGIN
+		Assert((base.mode = ModeRegister) OR (base.mode = ModeImmediate) & ((offset=0) OR (base.symbol#NIL)),"base operand must be register");
+		op := base; INC(op.offset,offset); MakeMemory(op,type);
+	END InitMemory;
+
+	PROCEDURE Memory*(type: Type; base: Operand; offset: LONGINT): Operand;
+	VAR op: Operand;
+	BEGIN InitMemory(op,type,base,offset); RETURN op
+	END Memory;
+
+	PROCEDURE InitImmediate*(VAR op: Operand; type: Type; value: HUGEINT);
+	BEGIN
+		Assert(type.form IN Integer,"operand type does not match value type");
+		InitOperand(op); op.mode := ModeImmediate; op.type := type; op.intValue := value;
+	END InitImmediate;
+
+	PROCEDURE Immediate*(type: Type; value: LONGINT): Operand;
+	VAR op: Operand;
+	BEGIN InitImmediate(op,type,value); RETURN op
+	END Immediate;
+
+	PROCEDURE InitFloatImmediate*(VAR op: Operand; type: Type; value: LONGREAL);
+	BEGIN
+		Assert(type.form = Float,"operand type does not match value type");
+		InitOperand(op); op.mode := ModeImmediate; op.type := type; op.floatValue := value;
+	END InitFloatImmediate;
+
+	PROCEDURE FloatImmediate*(type: Type; value: LONGREAL): Operand;
+	VAR op: Operand;
+	BEGIN InitFloatImmediate(op,type,value); RETURN op
+	END FloatImmediate;
+
+	PROCEDURE InitNumber*(VAR op: Operand; value: HUGEINT);
+	BEGIN InitOperand(op); op.mode := ModeNumber; op.intValue := value;
+	END InitNumber;
+
+	PROCEDURE Number*(value: HUGEINT): Operand;
+	VAR op: Operand;
+	BEGIN InitNumber(op,value); RETURN op
+	END Number;
+
+	PROCEDURE InitString*(VAR op: Operand; string: SyntaxTree.SourceCode);
+	BEGIN InitOperand(op); op.mode := ModeString; op.string := string;
+	END InitString;
+
+	PROCEDURE String*(string: SyntaxTree.SourceCode): Operand;
+	VAR op: Operand;
+	BEGIN InitString(op,string); RETURN op
+	END String;
+
+	PROCEDURE InitType*(VAR type: Type; form: SHORTINT; sizeInBits: INTEGER);
+	BEGIN type.form := form; type.sizeInBits := sizeInBits;
+	END InitType;
+
+	PROCEDURE NewType*(form: SHORTINT; sizeInBits: INTEGER): Type;
+	VAR type: Type;
+	BEGIN InitType(type,form,sizeInBits); RETURN type
+	END NewType;
+
+	PROCEDURE SetType*(VAR op: Operand; CONST type: Type);
+	BEGIN op.type := type
+	END SetType;
+
+
+	PROCEDURE FindMnemonic*(CONST name: ARRAY OF CHAR): LONGINT;
+	VAR i: LONGINT;
+	BEGIN
+		FOR i := 0 TO NofOpcodes-1 DO
+			IF name = instructionFormat[i].name THEN
+				RETURN i
+			END;
+		END;
+		RETURN None;
+	END FindMnemonic;
+
+	PROCEDURE SetRegister*(VAR op: Operand; reg: LONGINT);
+	BEGIN
+		op.register := reg; ASSERT(reg # 0);
+	END SetRegister;
+
+
+	PROCEDURE FindRegister*(CONST name: ARRAY OF CHAR): LONGINT;
+	VAR i,nr: LONGINT;
+		PROCEDURE Number(ch: CHAR): BOOLEAN;
+		BEGIN
+			IF (ch < "0") OR (ch > "9") THEN RETURN FALSE
+			ELSE
+				nr := nr *10;
+				INC(nr,ORD(ch)-ORD("0"));
+				RETURN TRUE
+			END;
+		END Number;
+
+	BEGIN
+		IF name = "SP" THEN RETURN SP
+		ELSIF name = "FP" THEN RETURN FP
+		(*
+		ELSIF name ="Res" THEN RETURN Result
+		ELSIF name ="Res2" THEN RETURN Result2
+		*)
+		ELSIF name[0] = "$" THEN
+			nr := 0; i := 1;
+			WHILE (i < LEN(name)) & (name[i]#0X) & Number(name[i]) DO
+				INC(i);
+			END;
+			IF (i=1) OR (i=LEN(name)) OR (name[i] # 0X) THEN nr := None END;
+		END;
+	END FindRegister;
+
+
+
+BEGIN
+	InitInstructions;
+	InitType(int8, SignedInteger,8);
+	InitType(int16, SignedInteger,16);
+	InitType(int32, SignedInteger,32);
+	InitType(int64, SignedInteger,64);
+	InitType(uint8, UnsignedInteger,8);
+	InitType(uint16, UnsignedInteger,16);
+	InitType(uint32, UnsignedInteger,32);
+	InitType(uint64, UnsignedInteger,64);
+	InitType(float32, Float,32);
+	InitType(float64, Float,64);
+	InitType(undef, Undefined,0);
+END FoxIntermediateCode.

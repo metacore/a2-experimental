@@ -70,7 +70,7 @@ CONST
 	DefaultCurrentLineColor = 0;
 
 	(* Compiler *)
-	DefaultCompilerName = "OC";
+	DefaultCompilerName = "Fox";
 	DefaultCompilerCaption = "Compile";
 	DefaultCompilerOptions = "-b=AMD --warnings";
 	DefaultCompilerLoadModule = "Compiler";
