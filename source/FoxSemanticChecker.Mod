@@ -6800,6 +6800,7 @@ TYPE
 				WHILE(import # NIL) DO
 					IF import.context = NIL THEN import.SetContext(scope.ownerModule.context) END;
 					Register(import, currentScope, FALSE); import := import.nextImport;
+					ResolveSymbol(import);
 				END;
 			ELSIF scope IS SyntaxTree.ProcedureScope THEN
 				(* enter parameters for a procedure scope *)
@@ -6818,6 +6819,8 @@ TYPE
 				END;
 				ImportModule(SyntaxTree.NewIdentifier(-1,"Dataflow"),module.position);
 			END;
+			IF error THEN RETURN END;
+
 			(* constants *)
 			constant := scope.firstConstant;
 			WHILE (constant # NIL) DO
@@ -6839,8 +6842,8 @@ TYPE
 				Register(procedure, currentScope, procedure IS SyntaxTree.Operator); procedure := procedure.nextProcedure;
 			END;
 
-			(* now process all symbols without any presumption on the order *)
 
+			(* now process all symbols without any presumption on the order *)
 			symbol := scope.firstSymbol;
 			WHILE(symbol # NIL) DO
 				IF ~(symbol IS SyntaxTree.Parameter) OR (symbol(SyntaxTree.Parameter).ownerType IS SyntaxTree.ActorType) THEN
@@ -8027,4 +8030,3 @@ TYPE
 	END StaticMathArrayLengths;
 
 END FoxSemanticChecker.
-
