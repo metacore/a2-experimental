@@ -31,7 +31,6 @@ CONST
 
 	(* Info.flags *)
 	NotPublic = 0;
-	CanExecute = 1;
 
 	(* Special procedure types *)
 	Other = 0;
@@ -46,7 +45,7 @@ TYPE
 
 	TreeNode = OBJECT(PETTrees.TreeNode);
 	VAR
-		name : Strings.String;
+		commandName : Strings.String; (* name of command procedure if node represent an executable command *)
 		modulename : Name;
 		sortHint : LONGINT;
 		flags : SET;
@@ -55,7 +54,7 @@ TYPE
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
-			name := NIL;
+			commandName := NIL;
 			modulename := "";
 			sortHint := SortIgnore;
 			flags := {};
@@ -235,10 +234,10 @@ TYPE
 		PROCEDURE MiddleClickNode*(sender, data : ANY);
 		VAR commandStr, ignoreMsg : ARRAY 128 OF CHAR; len, ignore : LONGINT;
 		BEGIN
-			IF (data # NIL) & (data IS TreeNode) & (CanExecute IN data(TreeNode).flags) & (data(TreeNode).name # NIL) & (data(TreeNode).modulename # "") THEN
+			IF (data # NIL) & (data IS TreeNode) & (data(TreeNode).commandName # NIL) & (data(TreeNode).modulename # "") THEN
 				COPY(data(TreeNode).modulename, commandStr);
 				Strings.Append(commandStr, Commands.Delimiter);
-				Strings.Append(commandStr, data(TreeNode).name^);
+				Strings.Append(commandStr, data(TreeNode).commandName^);
 				len := Strings.Length(commandStr);
 				IF (commandStr[len-1] = "*") THEN commandStr[len-1] := 0X; END;
 				Commands.Activate(commandStr, NIL, {}, ignore, ignoreMsg);
@@ -269,7 +268,6 @@ TYPE
 				ELSE
 					moduleNode := NIL;
 				END;
-				node.name := infoItem.name;
 				node.position := infoItem.pos;
 				IF (moduleNode = NIL) OR ((moduleNode.ident # NIL) & (moduleNode.ident.name # NIL) & (moduleNode.ident.name^ = moduleName)) THEN
 					node.external := FALSE;
@@ -550,8 +548,9 @@ TYPE
 				END;
 
 				type := GetProcedureType(procHead);
-				IF (type = CommandProc) OR (type = ContextProc) THEN
-					INCL(newNode.flags, CanExecute);
+				IF 	(type = CommandProc) OR (type = ContextProc) &
+					(procHead.identDef # NIL) & (procHead.identDef.ident # NIL) & (procHead.identDef.ident.name # NIL) THEN
+					newNode.commandName := procHead.identDef.ident.name;
 				END;
 
 				IF ShowImages THEN
