@@ -101,10 +101,9 @@ TYPE
 							nid := thrStart( BodyStarter, stacksize );
 							conWait( childrunning, start1 );
 						mtxUnlock( start1 );
+						Machine.Release( Machine.Objects);
 						ASSERT( id = nid );					
 						RegisterFinalizer( SELF, FinalizeProcess );
-						Machine.Release( Machine.Objects);
-						Sleep( 5 ) (* give the child time to do get a llttle further, needed for paco *) 
 					ELSE 
 						stackBottom := Glue.stackBottom;  
 						SP := Machine.CurrentSP( );
@@ -345,11 +344,11 @@ VAR
 			p := newProcess;  
 			INC( noThreads );
 			Machine.Release( Machine.Heaps );
-			IF traceThreads  THEN
-				Trace.Ln;  Trace.String( "starting thread " ); Trace.Int( noThreads, 1 ); Trace.Ln
-			END;
+			conSignal( childrunning );
 		mtxUnlock( start1 );
-		conSignal( childrunning );
+		IF traceThreads  THEN
+			Trace.Ln;  Trace.String( "starting thread " ); Trace.Int( noThreads, 1 ); Trace.Ln
+		END;
 		SetPriority( p.priority );
 		IF Restart IN p.flags THEN
 			res := Unix.sigsetjmp( S.ADR( p.state0[0] ), 1 );
@@ -641,17 +640,6 @@ VAR
 		IF traceGC THEN  Trace.Ln  END;
 	END ResumeActivities;
 	
-	PROCEDURE FindRootsInStacks;
-	VAR p: Process;  
-	BEGIN
-		IF traceGC  THEN  Trace.String( "mark stacks:  " )  END;
-		p := processes;  
-		WHILE p # NIL DO 
-			p.FindRoots;
-			p := p.processLink
-		END;
-		IF traceGC  THEN  Trace.String( " done" );  Trace.Ln  END;
-	END FindRootsInStacks;
 
 	PROCEDURE SaveSP;   (* save current SP for usage by the GC *)
 	VAR me: cThread;  t: Process;
