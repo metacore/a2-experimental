@@ -6799,8 +6799,13 @@ TYPE
 				import := scope(SyntaxTree.ModuleScope).firstImport;
 				WHILE(import # NIL) DO
 					IF import.context = NIL THEN import.SetContext(scope.ownerModule.context) END;
-					Register(import, currentScope, FALSE); import := import.nextImport;
+					Register(import, currentScope, FALSE);
+					import := import.nextImport;
+				END;
+				import := scope(SyntaxTree.ModuleScope).firstImport;
+				WHILE(import # NIL) DO (* 2nd stage to avoid duplicate symbol *)
 					ResolveSymbol(import);
+					import := import.nextImport;
 				END;
 			ELSIF scope IS SyntaxTree.ProcedureScope THEN
 				(* enter parameters for a procedure scope *)
