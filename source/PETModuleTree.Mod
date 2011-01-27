@@ -158,10 +158,10 @@ TYPE
 			IF (module.ident # NIL) & (module.ident.name # NIL) THEN
 				tree.SetNodeCaption(node, module.ident.name);
 			ELSE
-				tree.SetNodeCaption(node, Strings.NewString("!UNKNOWN!"));
+				tree.SetNodeCaption(node, StrUNKNOWN);
 			END;
 			IF (module.context # NIL) & (module.context.name # NIL) THEN
-				AddPostfixToCaption(node, Strings.NewString(" IN "));
+				AddPostfixToCaption(node, StrIN);
 				AddPostfixToCaption(node, module.context.name);
 			END;
 			AddImportList(node, module.importList, showImportedModules);
@@ -397,7 +397,7 @@ TYPE
 		PROCEDURE AddBody (root: WMTrees.TreeNode; pnode : ModuleParser.Node; modifiers: SET; pos: LONGINT);
 		VAR node: TreeNode;
 		BEGIN
-			node := NewNode(root, Strings.NewString("BODY"));
+			node := NewNode(root, StrBODY);
 			SetNodeInfo(node, pnode, NIL, FALSE, SortBody, GetColor(modifiers, treeView.clTextDefault.Get()), {});
 			NEW(node.pos, editor.text);
 			node.pos.SetPosition(pos);
@@ -415,7 +415,7 @@ TYPE
 			IF n # NIL THEN
 				NEW(importNode);
 				SetNodeInfo(importNode, importList, NIL, FALSE, SortIgnore, treeView.clTextDefault.Get(), {});
-				tree.SetNodeCaption(importNode, Strings.NewString("IMPORT"));
+				tree.SetNodeCaption(importNode, StrIMPORT);
 				tree.AddChildNode(parent, importNode);
 			ELSE
 				importNode := NIL;
@@ -425,11 +425,11 @@ TYPE
 				import := n(ModuleParser.Import);
 				newNode := AddInfoItem(importNode, import, import.ident, TRUE, SortIgnore, treeView.clTextDefault.Get(), {});
 				IF import.alias # NIL THEN
-					AddPostfixToCaption(newNode, Strings.NewString(" := "));
+					AddPostfixToCaption(newNode, StrBecomes);
 					AddPostfixToCaption(newNode, import.alias.name);
 				END;
 				IF import.context # NIL THEN
-					AddPostfixToCaption(newNode, Strings.NewString(" IN "));
+					AddPostfixToCaption(newNode, StrIN);
 					AddPostfixToCaption(newNode, import.context.name);
 				END;
 				IF (newNode # NIL) THEN INC(nofImports); END;
@@ -481,7 +481,7 @@ TYPE
 				IF (declSeq.constDecl # NIL) THEN
 					NEW(newNode);
 					SetNodeInfo(newNode, declSeq.constDecl, NIL, HasPublicConsts(declSeq.constDecl), SortIgnore, treeView.clTextDefault.Get(), {});
-					tree.SetNodeCaption(newNode, Strings.NewString("CONST"));
+					tree.SetNodeCaption(newNode, StrCONST);
 					tree.AddChildNode(parent, newNode);
 					AddConstDecl(newNode, declSeq.constDecl);
 				END;
@@ -491,7 +491,7 @@ TYPE
 				IF (declSeq.varDecl # NIL) THEN
 					NEW(newNode);
 					SetNodeInfo(newNode, declSeq.varDecl, NIL, HasPublicVars(declSeq.varDecl), SortIgnore, treeView.clTextDefault.Get(), {});
-					tree.SetNodeCaption(newNode, Strings.NewString("VAR"));
+					tree.SetNodeCaption(newNode, StrVAR);
 					tree.AddChildNode(parent, newNode);
 					AddVarDecl(newNode, declSeq.varDecl);
 				END;
@@ -533,18 +533,18 @@ TYPE
 						caption := tree.GetNodeCaption(newNode);
 						Strings.TrimRight(caption^, '*');
 					END;
-					AddPrefixToCaption(newNode, Strings.NewString('"'));
-					AddPostfixToCaption(newNode, Strings.NewString('"'));
+					AddPrefixToCaption(newNode, StrQuote);
+					AddPostfixToCaption(newNode, StrQuote);
 					IF procHead.identDef.vis = ModuleParser.Public THEN
 							(* add visibility sign (still ugly) *)
-						AddPostfixToCaption(newNode, Strings.NewString("*"));
+						AddPostfixToCaption(newNode, StrStar);
 					END;
 				END;
 				IF procHead.constructor THEN
-					AddPrefixToCaption(newNode, Strings.NewString("& "));
+					AddPrefixToCaption(newNode, StrAmpersand);
 				END;
 				IF procHead.inline THEN
-					AddPrefixToCaption(newNode, Strings.NewString("-"));
+					AddPrefixToCaption(newNode, StrMinus);
 				END;
 
 				type := GetProcedureType(procHead);
@@ -566,11 +566,11 @@ TYPE
 				END;
 
 				IF (ModuleParser.Overwrite IN procHead.modifiers) THEN
-					AddPostfixToCaption(newNode, Strings.NewString(" [overwrite]"));
+					AddPostfixToCaption(newNode, StrOverwrite);
 				END;
 
 				IF (ModuleParser.Overwritten IN procHead.modifiers) THEN
-					AddPostfixToCaption(newNode, Strings.NewString(" [overwritten]"));
+					AddPostfixToCaption(newNode, StrOverwritten);
 				END;
 
 				AddFormalPars(newNode, procHead.formalPars);
@@ -586,7 +586,7 @@ TYPE
 			IF formalPars # NIL THEN
 				AddFPSection(parent, formalPars.fpSectionList);
 				NEW(newNode);
-				tree.SetNodeCaption(newNode, Strings.NewString("RETURN"));
+				tree.SetNodeCaption(newNode, StrRETURN);
 				IF formalPars.returnType # NIL THEN
 					dummy := AddQualident(newNode, formalPars.returnType, treeView.clTextDefault.Get(), {});
 					add := TRUE;
@@ -719,14 +719,14 @@ TYPE
 		VAR newNode: WMTrees.TreeNode;
 		BEGIN
 			IF array # NIL THEN
-				newNode := NewNode(parent, Strings.NewString("ARRAY "));
+				newNode := NewNode(parent, StrARRAY);
 				IF ~array.open THEN
 					IF (array.len # NIL) & (array.len.name # NIL) THEN
 						AddPostfixToCaption(newNode, array.len.name);
 						AddPostfixToCaption(newNode, Strings.NewString(" "));
 					END;
 				END;
-				AddPostfixToCaption(newNode, Strings.NewString("OF"));
+				AddPostfixToCaption(newNode, StrOF);
 				AddType(newNode, array.base, TRUE);
 			END;
 		END AddArray;
@@ -916,9 +916,9 @@ TYPE
 			IF identDef # NIL THEN
 				newNode := AddInfoItem(parent, node, identDef.ident, IsPublic(identDef), sortHint, color, style);
 				IF identDef.vis = ModuleParser.Public THEN
-					AddPostfixToCaption(newNode, Strings.NewString("*"));
+					AddPostfixToCaption(newNode, StrStar);
 				ELSIF identDef.vis = ModuleParser.PublicRO THEN
-					AddPostfixToCaption(newNode, Strings.NewString("-"));
+					AddPostfixToCaption(newNode, StrMinus);
 				END;
 				RETURN newNode;
 			ELSE
@@ -946,6 +946,8 @@ TYPE
 
 VAR
 	PrototypeShowTypeHierarchy, PrototypeShowImportedModules : WMProperties.BooleanProperty;
+	StrUNKNOWN, StrVAR, StrCONST, StrIMPORT, StrIN, StrBODY, StrRETURN, StrARRAY, StrOF,
+	StrBecomes, StrAmpersand, StrMinus, StrStar, StrQuote, StrOverwritten, StrOverwrite : Strings.String;
 
 PROCEDURE GetColor(modifiers : SET; defaultColor : LONGINT) : LONGINT;
 VAR color : LONGINT;
@@ -964,7 +966,28 @@ BEGIN
 	NEW(tree); RETURN tree;
 END GenModuleTree;
 
+PROCEDURE InitStrings;
 BEGIN
+	StrUNKNOWN := Strings.NewString("UNKNOWN");
+	StrVAR := Strings.NewString("VAR");
+	StrCONST := Strings.NewString("CONST");
+	StrIMPORT := Strings.NewString("IMPORT");
+	StrIN := Strings.NewString(" IN ");
+	StrBODY := Strings.NewString("BODY");
+	StrRETURN := Strings.NewString("RETURN");
+	StrARRAY := Strings.NewString("ARRAY ");
+	StrOF := Strings.NewString("OF");
+	StrBecomes := Strings.NewString(" := ");
+	StrAmpersand := Strings.NewString("& ");
+	StrMinus := Strings.NewString("-");
+	StrStar := Strings.NewString("*");
+	StrQuote := Strings.NewString('"');
+	StrOverwritten := Strings.NewString(" [overwritten]");
+	StrOverwrite := Strings.NewString(" [overwrite]");
+END InitStrings;
+
+BEGIN
+	InitStrings;
 	NEW(PrototypeShowTypeHierarchy, NIL, Strings.NewString("ShowTypeHierarchy"), Strings.NewString("Show type hierarchy?"));
 	PrototypeShowTypeHierarchy.Set(FALSE);
 	NEW(PrototypeShowImportedModules, NIL, Strings.NewString("ShowImportedModules"), Strings.NewString("Show imported modules details?"));
