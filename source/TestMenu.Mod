@@ -175,6 +175,25 @@ TYPE
 
 	END Window;
 
+TYPE
+
+	Command = OBJECT
+	VAR
+		commandString : ARRAY 256 OF CHAR;
+
+		PROCEDURE &Init(CONST commandString : ARRAY OF CHAR);
+		BEGIN
+			COPY(commandString, SELF.commandString);
+		END Init;
+
+		PROCEDURE Execute;
+		VAR ignoreRes : LONGINT; ignoreMsg : ARRAY 1 OF CHAR;
+		BEGIN
+			Commands.Call(commandString, {}, ignoreRes, ignoreMsg);
+		END Execute;
+
+	END Command;
+
 VAR
 	nofWindows : LONGINT;
 	lastMenu : WMTrees.Tree; (* not thread-safe *)
@@ -189,27 +208,42 @@ END Open;
 PROCEDURE HandleItemSelected(sender, data : ANY);
 VAR caption : Strings.String; menu : WMTrees.Tree;
 BEGIN
-	menu := lastMenu;
-	IF (menu # NIL) THEN
-		caption := WMMenus.GetCaption(data, menu);
-		KernelLog.String("Selected node: ");
-		IF (caption # NIL) THEN
-			KernelLog.String(caption^);
+	IF (data # NIL) THEN
+		IF (data IS Command) THEN
+			data(Command).Execute;
 		ELSE
-			KernelLog.String("NIL");
+			menu := lastMenu;
+			IF (menu # NIL) THEN
+				caption := WMMenus.GetCaption(data, menu);
+				KernelLog.String("Selected node: ");
+				IF (caption # NIL) THEN
+					KernelLog.String(caption^);
+				ELSE
+					KernelLog.String("NIL");
+				END;
+				KernelLog.Ln;
+			ELSE
+				KernelLog.String("Test error: Menu not available"); KernelLog.Ln;
+			END;
 		END;
-		KernelLog.Ln;
-	ELSE
-		KernelLog.String("Test error: Menu not available"); KernelLog.Ln;
 	END;
 END HandleItemSelected;
 
 PROCEDURE OpenPopup*(context : Commands.Context);
-VAR path : ARRAY 256 OF CHAR; menu : WMTrees.Tree;
+VAR
+	path, commandString : ARRAY 256 OF CHAR;
+	menu : WMTrees.Tree; node : WMTrees.TreeNode;
+	command : Command;
 BEGIN
 	NEW(menu); lastMenu := menu;
 	WHILE context.arg.GetString(path) DO
-		WMMenus.AddItem(path, menu);
+		IF context.arg.GetString(commandString) THEN
+			NEW(command, commandString);
+			node := WMMenus.AddItemNode(path, menu);
+			menu.Acquire;
+			menu.SetNodeData(node, command);
+			menu.Release;
+		END;
 	END;
 	WMMenus.Show(menu, 100, 100, HandleItemSelected);
 END OpenPopup;
@@ -245,10 +279,18 @@ SystemTools.Free TestMenu WMMenus ~
 TestMenu.Open ~
 
 TestMenu.OpenPopup
-	Entry1
-	Entry2.SubEntry1
-	Entry2.---
-	Entry2.SubEntry2
-	Entry3.SubEntry1.SubSubEntry1.SubSubSubEntry1
-	Entry4
-~
+	Inspect.Performance WMPerfMon.Open
+	Inspect.Profiler WMProfiler.Open
+	Inspect.Events WMEvents.Open
+	Inspect.Components WMInspector.Open
+	--- NoCommand
+	Tools.Search WMSearchTool.Open
+	Tools.Archiver WMArchives.Open
+	Tools.Console WMShell.Open
+	"Tools.Partition Manager" WMPartitions.Open
+	"Tools.Partition Editor" WMPartitionEditor.Open
+	--- NoCommand
+	Commands.Files.ShowFS FSTools.Watch
+	Commands.Files.Directory "FSTools.Directory *"
+	Commands.Partitions.Show Partitions.Show
+~~

@@ -349,10 +349,18 @@ TYPE
 		END PointerMove;
 
 		PROCEDURE LeafSelect(item : WMTrees.TreeNode);
+		VAR data : ANY;
 		BEGIN
 			IF parentMenuPanel = NIL THEN
 				IF subMenu # NIL THEN subMenu.CloseMenu(SELF, NIL); subMenu := NIL; END;
-				onSelect.Call(item);
+				menu.Acquire;
+				data := menu.GetNodeData(item);
+				menu.Release;
+				IF (data # NIL) THEN
+					onSelect.Call(data);
+				ELSE
+					onSelect.Call(item);
+				END;
 				IF (parentWindow # NIL) THEN
 					parentWindow.CloseMenu(SELF, NIL); parentWindow := NIL;
 				END;
