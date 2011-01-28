@@ -61,7 +61,7 @@
 
 		<Standard:Button>
 			<Properties>
-				<Caption></Caption>
+				<Caption>Navigate</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
@@ -69,7 +69,7 @@
 			<Standard:SystemCommand>
 				<Properties>
 					<ID>X</ID>
-					<CommandString></CommandString>
+					<CommandString>WMNavigate.Open -vs 1 0 0 Navigation:TaskList </CommandString>
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
