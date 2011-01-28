@@ -2302,9 +2302,7 @@ TYPE
 			END Module;
 
 		BEGIN
-			IF file = NIL THEN
-				file := Files.New("");
-			END;
+			file := Files.New("");
 
 			IF ~noInterfaceCheck THEN
 				InterfaceComparison.CompareThis(module,SELF,diagnostics,importCache,flags);
