@@ -134,6 +134,11 @@ TYPE
 			IF haschanged THEN onChanged.Call(NIL) END
 		END Release;
 
+		PROCEDURE HasLock*() : BOOLEAN;
+		BEGIN {EXCLUSIVE}
+			RETURN lockedBy = Objects.ActiveObject();
+		END HasLock;
+
 		(** Set the root node of the tree. All this reinitializes the tree.*)
 		PROCEDURE SetRoot*(x : TreeNode);
 		BEGIN
