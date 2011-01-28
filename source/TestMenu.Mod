@@ -1,7 +1,8 @@
 MODULE TestMenu;
 
 IMPORT
-	WMMenus, WMTrees, WMStandardComponents, Strings,
+	Commands,
+	WMGraphics, WMMenus, WMTrees, WMStandardComponents, Strings,
 	Files, WMComponents, KernelLog, Modules, WMMessages,
 	XML, XMLObjects, XMLParser, XMLScanner,
 	WM := WMWindowManager;
@@ -13,7 +14,8 @@ TYPE
 	END KillerMsg;
 
 	Window* = OBJECT (WMComponents.FormWindow)
-	VAR menu : WMTrees.Tree;
+	VAR
+		menu : WMTrees.Tree;
 		menuPanel : WMMenus.MenuPanel;
 		hasErrors : BOOLEAN;
 
@@ -30,13 +32,13 @@ TYPE
 			NEW(menu); NEW(root);
 
 			NEW(menuPanel);
-			menuPanel.fillColor.Set(SHORT(08080FFFFH));
+			menuPanel.fillColor.Set(SHORT(WMGraphics.White));
 			menuPanel.bounds.SetHeight(20);
 			menuPanel.alignment.Set(WMComponents.AlignTop);
 			menuPanel.horizontal.Set(TRUE);
 			menuPanel.openDirection.Set(WMMenus.OpenDownRight);
 			menuPanel.SetMenu(menu, root);
-			menuPanel.menuSelectEvent.Add(Selected);
+			menuPanel.onSelect.Add(Selected);
 			panel.AddContent(menuPanel);
 
 			RETURN panel
@@ -189,6 +191,7 @@ TYPE
 
 VAR
 	nofWindows : LONGINT;
+	lastMenu : WMTrees.Tree; (* not thread-safe *)
 
 PROCEDURE Open*;
 VAR winstance : Window;
@@ -196,6 +199,34 @@ BEGIN
 	NEW(winstance);
 	winstance.Read("Menu.XML");
 END Open;
+
+PROCEDURE HandleItemSelected(sender, data : ANY);
+VAR caption : Strings.String; menu : WMTrees.Tree;
+BEGIN
+	menu := lastMenu;
+	IF (menu # NIL) THEN
+		caption := WMMenus.GetCaption(data, menu);
+		KernelLog.String("Selected node: ");
+		IF (caption # NIL) THEN
+			KernelLog.String(caption^);
+		ELSE
+			KernelLog.String("NIL");
+		END;
+		KernelLog.Ln;
+	ELSE
+		KernelLog.String("Test error: Menu not available"); KernelLog.Ln;
+	END;
+END HandleItemSelected;
+
+PROCEDURE OpenPopup*(context : Commands.Context);
+VAR path : ARRAY 256 OF CHAR; menu : WMTrees.Tree; root : WMTrees.TreeNode;
+BEGIN
+	NEW(menu); lastMenu := menu;
+	WHILE context.arg.GetString(path) DO
+		WMMenus.AddItem(path, menu);
+	END;
+	WMMenus.Show(menu, 100, 100, HandleItemSelected);
+END OpenPopup;
 
 PROCEDURE IncCount;
 BEGIN {EXCLUSIVE}
@@ -226,3 +257,11 @@ END TestMenu.
 
 SystemTools.Free TestMenu WMMenus ~
 TestMenu.Open ~
+
+TestMenu.OpenPopup
+	Entry1
+	Entry2.SubEntry1
+	Entry2.SubEntry2
+	Entry3.SubEntry1.SubSubEntry1.SubSubSubEntry1
+	Entry4
+~
