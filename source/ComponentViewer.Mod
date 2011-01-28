@@ -54,6 +54,7 @@ BEGIN
 	options.Add("h", "height", Options.Integer);
 	options.Add("w", "width", Options.Integer);
 	options.Add("c", "client", Options.Flag);
+	options.Add("a","alpha", Options.Flag);
 	IF options.Parse(context.arg, context.error) & context.arg.GetString(filename) THEN
 		IF Repositories.SplitName(filename, repositoryName, componentName, id) & (repositoryName # "") THEN
 			(* Retrieve component from repository *)
@@ -97,7 +98,7 @@ BEGIN
 			IF options.GetFlag("client") THEN
 				vc.alignment.Set(WMComponents.AlignClient);
 			END;
-			NEW(window, width, height, TRUE);
+			NEW(window, width, height, options.GetFlag("alpha"));
 			window.SetTitle(vc.GetName());
 			window.SetContent(c);
 			WMWindowManager.DefaultAddWindow(window);
