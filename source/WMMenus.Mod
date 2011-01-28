@@ -1,7 +1,7 @@
 MODULE WMMenus;	(** AUTHOR "TF"; PURPOSE "Menu support"; *)
 
 IMPORT
-	Strings, Raster, WMRectangles, WMGraphics, WMComponents,
+	Strings, Raster, WMRectangles, WMGraphics, WMGraphicUtilities, WMComponents,
 	WMWindowManager, WMProperties, WMEvents, WMTrees, KernelLog;
 
 CONST
@@ -13,9 +13,20 @@ CONST
 	OpenDownLeft* = 3;
 	OpenDownRight* = 4;
 
+	(* ShadowWindow.type *)
+	Right = 0;
+	Bottom = 1;
+
+	ShadowWidth = 5;
+	ShadowHeight = 5;
+	ShadowOffsetVertical = 5;
+	ShadowOffsetHorizontal = 5;
+
 TYPE
+
 	MenuPanel*= OBJECT(WMComponents.VisualComponent)
-	VAR menu : WMTrees.Tree;
+	VAR
+		menu : WMTrees.Tree;
 		root : WMTrees.TreeNode;
 		selection, hover : WMTrees.TreeNode;
 		horizontal- : WMProperties.BooleanProperty;
@@ -78,18 +89,19 @@ TYPE
 		END Measure;
 
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
-		VAR a : WMTrees.TreeNode;
+		VAR
+			a : WMTrees.TreeNode;
 			h, w, dx, dy, t : LONGINT;
 			f : WMGraphics.Font;
 			s : Strings.String;
 			img : Raster.Image;
 		BEGIN
+			ASSERT((menu # NIL) & (root # NIL));
 			DrawBackground^(canvas);
 			f := GetFont();
 			canvas.SetFont(f);
 			canvas.SetColor(0FFH);
 			w := 0; h := 0;
-			ASSERT((menu # NIL) & (root # NIL));
 			IF horizontal.Get() THEN
 				menu.Acquire;
 				a :=menu.GetChildren(root);
@@ -142,7 +154,8 @@ TYPE
 					a := menu.GetNextSibling(a)
 				END;
 				menu.Release;
-			END
+			END;
+			WMGraphicUtilities.DrawRect(canvas, bounds.Get(), WMGraphics.Black, WMGraphics.ModeCopy);
 		END DrawBackground;
 
 		(* caller must hold tree lock *)
@@ -301,6 +314,29 @@ TYPE
 
 	END MenuPanel;
 
+TYPE
+
+	ShadowWindow = OBJECT(WMWindowManager.Window)
+	VAR
+		type, color : LONGINT;
+
+		PROCEDURE &New(type : LONGINT);
+		BEGIN
+			ASSERT((type = Right) OR (type = Bottom));
+			SELF.type := type;
+			Init(0, 0, TRUE);
+			color := 04FH;
+		END New;
+
+		PROCEDURE Draw*(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
+		BEGIN
+			canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), color, WMGraphics.ModeSrcOverDst);
+		END Draw;
+
+	END ShadowWindow;
+
+TYPE
+
 	MenuWindow= OBJECT(WMComponents.FormWindow)
 	VAR menuPanel : MenuPanel;
 
@@ -309,7 +345,7 @@ TYPE
 		BEGIN
 			NEW(menuPanel);
 			menuPanel.SetParent(parent);
-			menuPanel.fillColor.Set(080808080);
+			menuPanel.fillColor.Set(WMGraphics.White);
 			menuPanel.SetMenu(menu, root);
 			menuPanel.Measure(w, h);
 			IF h < 5 THEN h := 5 END; IF w < 5 THEN w := 5 END;
@@ -321,10 +357,9 @@ TYPE
 			ELSE dx := 0; dy :=0
 			END;
 			menuPanel.openDirection.Set(openDirection);
-			Init(menuPanel.bounds.GetWidth(), menuPanel.bounds.GetHeight(), TRUE);
+			Init(menuPanel.bounds.GetWidth(), menuPanel.bounds.GetHeight(), FALSE);
 			SetContent(menuPanel);
-			manager := WMWindowManager.GetDefaultManager();
-			manager.Add(x + dx, y + dy, SELF, {WMWindowManager.FlagStayOnTop, WMWindowManager.FlagNoFocus});
+			AddWindow(SELF, x + dx, y + dy, {WMWindowManager.FlagNoFocus, WMWindowManager.FlagFrame, WMWindowManager.FlagHidden});
 			IF manager.TransferPointer(SELF) THEN KernelLog.String("Pointer transferred "); KernelLog.Ln;  END;
 		END Open;
 
@@ -340,6 +375,65 @@ TYPE
 
 VAR
 	StrMenuPanel : Strings.String;
+
+PROCEDURE AddWindow(window : WMWindowManager.Window; x, y : LONGINT; flags : SET);
+VAR
+	manager : WMWindowManager.WindowManager;
+	view : WMWindowManager.ViewPort;
+	oldDecorator : WMWindowManager.Decorator;
+BEGIN
+	ASSERT(window # NIL);
+	manager := WMWindowManager.GetDefaultManager();
+	view := WMWindowManager.GetDefaultView();
+	ASSERT((manager # NIL) & (view # NIL));
+	manager.lock.AcquireWrite;
+	oldDecorator := manager.decorate;
+	manager.decorate := ShadowDecorator;
+	manager.Add(ENTIER(view.range.l) + x, ENTIER(view.range.t) + y, window, flags);
+	manager.decorate := oldDecorator;
+	manager.lock.ReleaseWrite;
+END AddWindow;
+
+PROCEDURE ShadowDecorator(window : WMWindowManager.Window);
+VAR shadow : ShadowWindow; l, r, t, b : LONGINT;
+
+	PROCEDURE InsertAfter(old, new : WMWindowManager.Window);
+	BEGIN
+		new.next := old.next;
+		new.prev := old;
+		old.next := new;
+		new.next.prev := new
+	END InsertAfter;
+
+	PROCEDURE InitShadow(shadow : ShadowWindow);
+	BEGIN
+		shadow.manager := window.manager;
+		shadow.flags := {WMWindowManager.FlagNoFocus, WMWindowManager.FlagHidden};
+		IF WMWindowManager.FlagStayOnBottom IN window.flags THEN INCL(shadow.flags, WMWindowManager.FlagStayOnBottom); END;
+		IF WMWindowManager.FlagNoResizing IN window.flags THEN INCL(shadow.flags, WMWindowManager.FlagNoResizing); END;
+		IF WMWindowManager.FlagNavigation IN window.flags THEN
+			shadow.view := window.view;
+			INCL(shadow.flags, WMWindowManager.FlagNavigation);
+		END;
+		InsertAfter(window, shadow);
+
+		shadow.manager.AddDecorWindow(window, shadow);
+		shadow.manager.AddVisibleDirty(shadow, shadow.bounds);
+	END InitShadow;
+
+BEGIN
+	KernelLog.String("Decorate");
+	ASSERT((window.manager # NIL) & (window.manager.lock.HasWriteLock()));
+	l := window.bounds.l; r := window.bounds.r; t := window.bounds.t; b := window.bounds.b;
+
+	NEW(shadow, Right); window.rightW := shadow;
+	shadow.bounds := WMRectangles.MakeRect(r, t + ShadowOffsetVertical, r + ShadowWidth, b + ShadowHeight);
+	InitShadow(shadow);
+
+	NEW(shadow, Bottom); window.bottomW := shadow;
+	shadow.bounds := WMRectangles.MakeRect(l + ShadowOffsetHorizontal, b, r, b + ShadowHeight);
+	InitShadow(shadow);
+END ShadowDecorator;
 
 BEGIN
 	StrMenuPanel := Strings.NewString("MenuPanel");
