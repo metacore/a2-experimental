@@ -42,6 +42,8 @@ TYPE
 		borders- : WMProperties.RectangleProperty;
 		bordersI : WMRectangles.Rectangle;
 
+		clSelected : WMProperties.ColorProperty;
+
 		onSelect- : WMEvents.EventSource;
 
 		menu : WMTrees.Tree;
@@ -60,6 +62,8 @@ TYPE
 			NEW(horizontal, NIL, NIL, NIL); properties.Add(horizontal);
 			NEW(openDirection, NIL, NIL, NIL); properties.Add(openDirection);
 			NEW(borders, NIL, NIL, NIL); properties.Add(borders);
+			NEW(clSelected, NIL, NIL, NIL); properties.Add(clSelected);
+			clSelected.Set(WMGraphics.Blue);
 			NEW(onSelect, SELF, NIL, NIL, NIL);
 			bordersI := WMRectangles.MakeRect(15, 5, 5, 5);
 			borders.Set(bordersI);
@@ -75,6 +79,8 @@ TYPE
 		BEGIN
 			IF (property = borders) THEN
 				bordersI := borders.Get(); Invalidate;
+			ELSIF (property = clSelected) THEN
+				Invalidate;
 			ELSE
 				PropertyChanged^(sender, property);
 			END;
@@ -96,7 +102,7 @@ TYPE
 		BEGIN
 			ASSERT((menu # NIL) & (root # NIL));
 			Acquire;
-			SELF.menu := menu; SELF.root := root; selection := NIL; hover := NIL;
+			SELF.menu := menu; SELF.root := root; hover := NIL;
 			Invalidate;
 			Release
 		END SetMenu;
@@ -148,6 +154,8 @@ TYPE
 					IF ~(child IS Separator) THEN
 						IF (child = hover) THEN
 							canvas.Fill(WMRectangles.MakeRect(x, 0, x + ItemWidth(child), bounds.GetHeight()), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
+						ELSIF (child = selection) THEN
+							canvas.Fill(WMRectangles.MakeRect(x, 0, x + ItemWidth(child), bounds.GetHeight()), clSelected.Get(), WMGraphics.ModeCopy);
 						END;
 						image := menu.GetNodeImage(child);
 						IF (image # NIL) THEN
@@ -175,6 +183,8 @@ TYPE
 					IF ~(child IS Separator) THEN
 						IF (child = hover) THEN
 							canvas.Fill(WMRectangles.MakeRect(0, y, bounds.GetWidth(), y + ItemHeight(child)), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
+						ELSIF (child = selection) THEN
+							canvas.Fill(WMRectangles.MakeRect(0, y, bounds.GetWidth(), y + ItemHeight(child)), clSelected.Get(), WMGraphics.ModeCopy);
 						END;
 
 						dy := 0;
@@ -341,6 +351,15 @@ TYPE
 			END
 		END LeafSelect;
 
+		PROCEDURE SetSelection(node : WMTrees.TreeNode);
+		BEGIN
+			IF (selection # node) THEN
+				KernelLog.String("SELECXTION");
+				selection := node;
+				Invalidate;
+			END;
+		END SetSelection;
+
 		PROCEDURE PointerDown(x, y : LONGINT; keys : SET);
 		VAR node, child : WMTrees.TreeNode; r : WMRectangles.Rectangle;
 		BEGIN
@@ -369,6 +388,7 @@ TYPE
 						END;
 					END;
 					IF subMenu # NIL THEN subMenu.CloseMenu(SELF, NIL); subMenu := NIL; END;
+					SetSelection(node);
 					NEW(subMenu, x, y, openDirection.Get(), menu, node, SELF);
 					PointerLeave;
 				ELSE
