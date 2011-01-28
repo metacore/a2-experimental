@@ -28,6 +28,10 @@ TYPE
 	VAR
 		horizontal- : WMProperties.BooleanProperty;
 		openDirection- : WMProperties.Int32Property;
+
+		borders- : WMProperties.RectangleProperty;
+		bordersI : WMRectangles.Rectangle;
+
 		onSelect- : WMEvents.EventSource;
 
 		menu : WMTrees.Tree;
@@ -45,7 +49,10 @@ TYPE
 			SetNameAsString(StrMenuPanel);
 			NEW(horizontal, NIL, NIL, NIL); properties.Add(horizontal);
 			NEW(openDirection, NIL, NIL, NIL); properties.Add(openDirection);
+			NEW(borders, NIL, NIL, NIL); properties.Add(borders);
 			NEW(onSelect, SELF, NIL, NIL, NIL);
+			bordersI := WMRectangles.MakeRect(15, 5, 5, 5);
+			borders.Set(bordersI);
 			menu := NIL;
 			root := NIL; selection := NIL; hover := NIL;
 			subMenuIndicatorImg := NIL;
@@ -53,6 +60,22 @@ TYPE
 			parentMenuPanel := NIL;
 			takesFocus.Set(TRUE);
 		END Init;
+
+		PROCEDURE PropertyChanged(sender, property : ANY);
+		BEGIN
+			IF (property = borders) THEN
+				bordersI := borders.Get(); Invalidate;
+			ELSE
+				PropertyChanged^(sender, property);
+			END;
+		END PropertyChanged;
+
+		PROCEDURE RecacheProperties;
+		BEGIN
+			RecacheProperties^;
+			bordersI := borders.Get();
+			Invalidate;
+		END RecacheProperties;
 
 		PROCEDURE SetParent(parentMenuPanel : MenuPanel);
 		BEGIN
@@ -72,7 +95,8 @@ TYPE
 		VAR child : WMTrees.TreeNode;
 		BEGIN
 			ASSERT((menu # NIL) & (root # NIL));
-			width := 0; height := 0;
+			width := bordersI.l + bordersI.r;
+			height := bordersI.t + bordersI.b;
 			IF horizontal.Get() THEN
 				menu.Acquire;
 				child := menu.GetChildren(root);
@@ -86,7 +110,7 @@ TYPE
 				child := menu.GetChildren(root);
 				WHILE (child # NIL) DO
 					height := height + ItemHeight(child);
-					width := Strings.Max(width, ItemWidth(child));
+					width := Strings.Max(width, ItemWidth(child) + bordersI.l + bordersI.r);
 					child := menu.GetNextSibling(child);
 				END;
 				menu.Release;
@@ -106,7 +130,7 @@ TYPE
 			font := GetFont();
 			canvas.SetFont(font);
 			canvas.SetColor(WMGraphics.Black);
-			x := 0; y := 0;
+			x := bordersI.l; y := bordersI.t;
 			IF horizontal.Get() THEN
 				menu.Acquire;
 				child := menu.GetChildren(root);
@@ -118,13 +142,13 @@ TYPE
 					image := menu.GetNodeImage(child);
 					IF (image # NIL) THEN
 						canvas.DrawImage(HMenuDistance DIV 2 + x, 0, image, WMGraphics.ModeSrcOverDst);
-						x := x + image.width
+						x := x + image.width;
 					END;
 
 					caption := menu.GetNodeCaption(child);
 					IF (caption # NIL) THEN
 						font.GetStringSize(caption^, dx, dy); canvas.DrawString(HMenuDistance DIV 2 + x, dy, caption^);
-						x := x + dx
+						x := x + dx;
 					END;
 					INC(x, HMenuDistance);
 					child := menu.GetNextSibling(child)
@@ -147,7 +171,7 @@ TYPE
 
 					caption := menu.GetNodeCaption(child);
 					IF (caption # NIL) THEN
-						font.GetStringSize(caption^, dx, t); canvas.DrawString(0, y + font.ascent + VMenuDistance DIV 2, caption^);
+						font.GetStringSize(caption^, dx, t); canvas.DrawString(x, y + font.ascent + VMenuDistance DIV 2, caption^);
 						INC(t, VMenuDistance);
 						IF t > dy THEN dy := t END
 					END;
@@ -160,7 +184,6 @@ TYPE
 						END
 					END;
 					y := y + dy;
-					INC(x, HMenuDistance);
 					child := menu.GetNextSibling(child)
 				END;
 				menu.Release;
@@ -218,7 +241,7 @@ TYPE
 		PROCEDURE FindHorizontal(x : LONGINT) : WMTrees.TreeNode;
 		VAR p : LONGINT; child : WMTrees.TreeNode;
 		BEGIN
-			p := 0;
+			p := bordersI.l;
 			menu.Acquire;
 			child := menu.GetChildren(root);
 			IF (child # NIL) THEN
@@ -234,7 +257,7 @@ TYPE
 		PROCEDURE FindVertical(y : LONGINT) : WMTrees.TreeNode;
 		VAR p : LONGINT; child : WMTrees.TreeNode;
 		BEGIN
-			p := 0;
+			p := bordersI.t;
 			menu.Acquire;
 			child := menu.GetChildren(root);
 			IF (child # NIL) THEN
@@ -369,23 +392,27 @@ TYPE
 		menuPanel : MenuPanel;
 
 		PROCEDURE &Open*(x, y : LONGINT; openDirection : LONGINT; menu : WMTrees.Tree; root : WMTrees.TreeNode; parent : MenuPanel);
-		VAR w, h, dx, dy : LONGINT;
+		VAR width, height, dx, dy : LONGINT;
 		BEGIN
 			NEW(menuPanel);
-			menuPanel.SetParent(parent);
-			menuPanel.fillColor.Set(WMGraphics.White);
 			menuPanel.SetMenu(menu, root);
-			menuPanel.Measure(w, h);
-			IF h < 5 THEN h := 5 END; IF w < 5 THEN w := 5 END;
-			menuPanel.bounds.SetExtents(w, h);
+			menuPanel.SetParent(parent);
+
+			menuPanel.Measure(width, height);
+			IF (height < 5) THEN height := 5; END;
+			IF (width < 5) THEN width := 5; END;
+
 			CASE openDirection OF
-				|OpenUpLeft : dx := -w; dy := -h
-				|OpenUpRight : dy := -h
-				|OpenDownLeft : dx := -w
+				|OpenUpLeft : dx := -width; dy := -height;
+				|OpenUpRight : dy := -height;
+				|OpenDownLeft : dx := -width;
 			ELSE
 				dx := 0; dy := 0;
 			END;
 			menuPanel.openDirection.Set(openDirection);
+			menuPanel.bounds.SetExtents(width, height);
+			menuPanel.fillColor.Set(WMGraphics.White);
+
 			Init(menuPanel.bounds.GetWidth(), menuPanel.bounds.GetHeight(), FALSE);
 			SetContent(menuPanel);
 			AddWindow(SELF, x + dx, y + dy, {WMWindowManager.FlagNoFocus, WMWindowManager.FlagFrame, WMWindowManager.FlagHidden});
