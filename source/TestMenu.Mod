@@ -1,14 +1,12 @@
-MODULE TestMenu;
+MODULE TestMenu; (** AUTHOR "TF/staubesv" PURPOSE "Testbed for WMMenus.Mod" *)
 
 IMPORT
-	Commands,
-	WMGraphics, WMMenus, WMTrees, WMStandardComponents, Strings,
-	Files, WMComponents, KernelLog, Modules, WMMessages,
-	XML, XMLObjects, XMLParser, XMLScanner,
-	WM := WMWindowManager;
+	KernelLog,
+	Modules, Commands,Strings, Files, XML, XMLObjects, XMLScanner, XMLParser,
+	WMGraphics, WMMessages, WM := WMWindowManager,
+	WMComponents, WMStandardComponents, WMTrees, WMMenus;
 
 TYPE
-	String = Strings.String;
 
 	KillerMsg = OBJECT
 	END KillerMsg;
@@ -68,18 +66,6 @@ TYPE
 			menu.SetNodeCaption(newNode, xml.GetAttributeValue("caption"));
 		END AddMenuItem;
 
-(*		PROCEDURE GetString(xml : XML.Element) : String;
-		VAR en : XMLObjects.Enumerator;
-			p : ANY;
-		BEGIN
-			en := xml.GetContents();
-			p := en.GetNext();
-			IF p # NIL THEN RETURN p(XML.Chars).GetStr()
-			ELSE RETURN NIL
-			END
-		END GetString;
-*)
-
 		PROCEDURE Selected(sender, data : ANY);
 		VAR s : Strings.String;
 		BEGIN
@@ -97,7 +83,7 @@ TYPE
 
 		PROCEDURE AddSubMenu(node : WMTrees.TreeNode; xml : XML.Element );
 		VAR en : XMLObjects.Enumerator;
-			p : ANY; s : String;
+			p : ANY; s : Strings.String;
 			newNode : WMTrees.TreeNode;
 		BEGIN
 			NEW(newNode);
@@ -121,7 +107,7 @@ TYPE
 
 		PROCEDURE SetDocument(xml : XML.Element);
 		VAR en : XMLObjects.Enumerator;
-			p : ANY; s : String;
+			p : ANY; s : Strings.String;
 			node : WMTrees.TreeNode;
 		BEGIN
 			NEW(node);
@@ -219,7 +205,7 @@ BEGIN
 END HandleItemSelected;
 
 PROCEDURE OpenPopup*(context : Commands.Context);
-VAR path : ARRAY 256 OF CHAR; menu : WMTrees.Tree; root : WMTrees.TreeNode;
+VAR path : ARRAY 256 OF CHAR; menu : WMTrees.Tree;
 BEGIN
 	NEW(menu); lastMenu := menu;
 	WHILE context.arg.GetString(path) DO
@@ -261,6 +247,7 @@ TestMenu.Open ~
 TestMenu.OpenPopup
 	Entry1
 	Entry2.SubEntry1
+	Entry2.---
 	Entry2.SubEntry2
 	Entry3.SubEntry1.SubSubEntry1.SubSubSubEntry1
 	Entry4

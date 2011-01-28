@@ -1,8 +1,8 @@
-MODULE WMMenus;	(** AUTHOR "TF"; PURPOSE "Menu support"; *)
+MODULE WMMenus;	(** AUTHOR "TF/staubesv"; PURPOSE "Menu support"; *)
 
 IMPORT
 	Strings, Raster, WMRectangles, WMGraphics, WMGraphicUtilities, WMComponents,
-	WMWindowManager, WMProperties, WMEvents, WMTrees, KernelLog;
+	WMWindowManager, WMProperties, WMEvents, WMTrees;
 
 CONST
 	OpenDefault* = 0;
@@ -51,7 +51,7 @@ TYPE
 
 		subMenuIndicatorImg : WMGraphics.Image;
 
-		subMenu : MenuWindow;
+		subMenu, parentWindow : MenuWindow;
 
 		parentMenuPanel : MenuPanel;
 
@@ -70,7 +70,7 @@ TYPE
 			menu := NIL;
 			root := NIL; selection := NIL; hover := NIL;
 			subMenuIndicatorImg := NIL;
-			subMenu := NIL;
+			subMenu := NIL; parentWindow := NIL;
 			parentMenuPanel := NIL;
 			takesFocus.Set(TRUE);
 		END Init;
@@ -97,6 +97,13 @@ TYPE
 		BEGIN
 			SELF.parentMenuPanel := parentMenuPanel;
 		END SetParent;
+
+		(* If menus are used as popup menus, the initial window most be registered here so it can be closed when an item has been selected *)
+		PROCEDURE SetParentWindow(parentWindow : MenuWindow);
+		BEGIN
+			ASSERT(parentWindow # NIL);
+			SELF.parentWindow := parentWindow;
+		END SetParentWindow;
 
 		PROCEDURE SetMenu*(menu : WMTrees.Tree; root : WMTrees.TreeNode);
 		BEGIN
@@ -346,6 +353,9 @@ TYPE
 			IF parentMenuPanel = NIL THEN
 				IF subMenu # NIL THEN subMenu.CloseMenu(SELF, NIL); subMenu := NIL; END;
 				onSelect.Call(item);
+				IF (parentWindow # NIL) THEN
+					parentWindow.CloseMenu(SELF, NIL); parentWindow := NIL;
+				END;
 			ELSE
 				parentMenuPanel.LeafSelect(item);
 			END
@@ -354,7 +364,6 @@ TYPE
 		PROCEDURE SetSelection(node : WMTrees.TreeNode);
 		BEGIN
 			IF (selection # node) THEN
-				KernelLog.String("SELECXTION");
 				selection := node;
 				Invalidate;
 			END;
@@ -444,7 +453,7 @@ TYPE
 		menuPanel : MenuPanel;
 
 		PROCEDURE &Open*(x, y : LONGINT; openDirection : LONGINT; menu : WMTrees.Tree; root : WMTrees.TreeNode; parent : MenuPanel);
-		VAR width, height, dx, dy : LONGINT;
+		VAR width, height, dx, dy : LONGINT; ignore : BOOLEAN;
 		BEGIN
 			NEW(menuPanel);
 			menuPanel.SetMenu(menu, root);
@@ -468,7 +477,7 @@ TYPE
 			Init(menuPanel.bounds.GetWidth(), menuPanel.bounds.GetHeight(), FALSE);
 			SetContent(menuPanel);
 			AddWindow(SELF, x + dx, y + dy, {WMWindowManager.FlagNoFocus, WMWindowManager.FlagFrame, WMWindowManager.FlagHidden});
-			IF manager.TransferPointer(SELF) THEN KernelLog.String("Pointer transferred "); KernelLog.Ln;  END;
+			ignore := manager.TransferPointer(SELF);
 		END Open;
 
 		PROCEDURE CloseMenu(sender, data : ANY);
@@ -631,7 +640,7 @@ BEGIN
 	RETURN node;
 END Find;
 
-PROCEDURE AddItem*(CONST path : ARRAY OF CHAR; menu : WMTrees.Tree);
+PROCEDURE AddItemNode*(CONST path : ARRAY OF CHAR; menu : WMTrees.Tree) : WMTrees.TreeNode;
 VAR caption : ARRAY 256 OF CHAR; node, parent : WMTrees.TreeNode; i, j : LONGINT;
 BEGIN
 	ASSERT(menu # NIL);
@@ -660,6 +669,14 @@ BEGIN
 		INC(i);
 	END;
 	menu.Release;
+	ASSERT(node # NIL);
+	RETURN node;
+END AddItemNode;
+
+PROCEDURE AddItem*(CONST path : ARRAY OF CHAR; menu : WMTrees.Tree);
+VAR ignore : WMTrees.TreeNode;
+BEGIN
+	ignore := AddItemNode(path, menu);
 END AddItem;
 
 PROCEDURE Show*(menu : WMTrees.Tree; x, y : LONGINT; handler : WMEvents.EventListener);
@@ -671,6 +688,7 @@ BEGIN
 	menu.Release;
 	IF (root # NIL) THEN
 		NEW(window, x, y, OpenDefault, menu, root, NIL);
+		window.menuPanel.SetParentWindow(window);
 		window.menuPanel.onSelect.Add(handler);
 	END;
 END Show;
