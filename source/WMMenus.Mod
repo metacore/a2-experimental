@@ -5,8 +5,6 @@ IMPORT
 	WMWindowManager, WMProperties, WMEvents, WMTrees, KernelLog;
 
 CONST
-	HMenuDistance = 10;
-	VMenuDistance = 4;
 	OpenDefault* = 0;
 	OpenUpLeft* = 1;
 	OpenUpRight* = 2;
@@ -21,6 +19,18 @@ CONST
 	ShadowHeight = 5;
 	ShadowOffsetVertical = 5;
 	ShadowOffsetHorizontal = 5;
+
+	HMenuDistance = 10;
+	VMenuDistance = 4;
+
+	SeparatorCaption = "---";
+	SeparatorWidth = 9;
+	SeparatorHeight = 9;
+
+TYPE
+
+	Separator* = OBJECT(WMTrees.TreeNode)
+	END Separator;
 
 TYPE
 
@@ -135,22 +145,26 @@ TYPE
 				menu.Acquire;
 				child := menu.GetChildren(root);
 				WHILE (child # NIL) DO
-					IF (child = hover) THEN
-						canvas.Fill(WMRectangles.MakeRect(x, 0, x + ItemWidth(child), bounds.GetHeight()), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
-					END;
+					IF ~(child IS Separator) THEN
+						IF (child = hover) THEN
+							canvas.Fill(WMRectangles.MakeRect(x, 0, x + ItemWidth(child), bounds.GetHeight()), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
+						END;
+						image := menu.GetNodeImage(child);
+						IF (image # NIL) THEN
+							canvas.DrawImage(HMenuDistance DIV 2 + x, 0, image, WMGraphics.ModeSrcOverDst);
+							x := x + image.width;
+						END;
 
-					image := menu.GetNodeImage(child);
-					IF (image # NIL) THEN
-						canvas.DrawImage(HMenuDistance DIV 2 + x, 0, image, WMGraphics.ModeSrcOverDst);
-						x := x + image.width;
+						caption := menu.GetNodeCaption(child);
+						IF (caption # NIL) THEN
+							font.GetStringSize(caption^, dx, dy); canvas.DrawString(HMenuDistance DIV 2 + x, dy, caption^);
+							x := x + dx;
+						END;
+						INC(x, HMenuDistance);
+					ELSE
+						canvas.Line(x + (SeparatorWidth DIV 2) + 1, 2, x + (SeparatorWidth DIV 2) + 1, bounds.GetHeight() - 2, WMGraphics.Black, WMGraphics.ModeCopy);
+						x := x + SeparatorWidth;
 					END;
-
-					caption := menu.GetNodeCaption(child);
-					IF (caption # NIL) THEN
-						font.GetStringSize(caption^, dx, dy); canvas.DrawString(HMenuDistance DIV 2 + x, dy, caption^);
-						x := x + dx;
-					END;
-					INC(x, HMenuDistance);
 					child := menu.GetNextSibling(child)
 				END;
 				menu.Release;
@@ -158,32 +172,37 @@ TYPE
 				menu.Acquire;
 				child := menu.GetChildren(root);
 				WHILE (child # NIL) DO
-					IF (child = hover) THEN
-						canvas.Fill(WMRectangles.MakeRect(0, y, bounds.GetWidth(), y + ItemHeight(child)), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
-					END;
+					IF ~(child IS Separator) THEN
+						IF (child = hover) THEN
+							canvas.Fill(WMRectangles.MakeRect(0, y, bounds.GetWidth(), y + ItemHeight(child)), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
+						END;
 
-					dy := 0;
-					image := menu.GetNodeImage(child);
-					IF (image # NIL) THEN
-						canvas.DrawImage(0, y, image, WMGraphics.ModeSrcOverDst);
-						dy := image.width + VMenuDistance;
-					END;
+						dy := 0;
+						image := menu.GetNodeImage(child);
+						IF (image # NIL) THEN
+							canvas.DrawImage(0, y, image, WMGraphics.ModeSrcOverDst);
+							dy := image.width + VMenuDistance;
+						END;
 
-					caption := menu.GetNodeCaption(child);
-					IF (caption # NIL) THEN
-						font.GetStringSize(caption^, dx, t); canvas.DrawString(x, y + font.ascent + VMenuDistance DIV 2, caption^);
-						INC(t, VMenuDistance);
-						IF t > dy THEN dy := t END
-					END;
+						caption := menu.GetNodeCaption(child);
+						IF (caption # NIL) THEN
+							font.GetStringSize(caption^, dx, t); canvas.DrawString(x, y + font.ascent + VMenuDistance DIV 2, caption^);
+							INC(t, VMenuDistance);
+							IF t > dy THEN dy := t END
+						END;
 
-					IF menu.GetChildren(child) # NIL THEN
-						IF subMenuIndicatorImg # NIL THEN
-							canvas.DrawImage(bounds.GetWidth() - subMenuIndicatorImg.width, 0, subMenuIndicatorImg, WMGraphics.ModeSrcOverDst)
-						ELSE
-							canvas.DrawString(bounds.GetWidth() - 10, y + font.ascent, "...")
-						END
+						IF menu.GetChildren(child) # NIL THEN
+							IF subMenuIndicatorImg # NIL THEN
+								canvas.DrawImage(bounds.GetWidth() - subMenuIndicatorImg.width, 0, subMenuIndicatorImg, WMGraphics.ModeSrcOverDst)
+							ELSE
+								canvas.DrawString(bounds.GetWidth() - 10, y + font.ascent, "...")
+							END
+						END;
+						y := y + dy;
+					ELSE
+						canvas.Line(x + 2, y + (SeparatorHeight DIV 2) + 1, bounds.GetWidth(), y + (SeparatorHeight DIV 2) + 1, WMGraphics.Black, WMGraphics.ModeCopy);
+						y := y + SeparatorHeight;
 					END;
-					y := y + dy;
 					child := menu.GetNextSibling(child)
 				END;
 				menu.Release;
@@ -198,17 +217,20 @@ TYPE
 			caption : Strings.String;
 			image : Raster.Image;
 		BEGIN
-			width := HMenuDistance;
+			IF ~(item IS Separator) THEN
+				width := HMenuDistance;
 
-			caption := menu.GetNodeCaption(item);
-			IF (caption # NIL) THEN
-				font := GetFont(); font.GetStringSize(caption^, dx, dy);
-				width := width + dx;
+				caption := menu.GetNodeCaption(item);
+				IF (caption # NIL) THEN
+					font := GetFont(); font.GetStringSize(caption^, dx, dy);
+					width := width + dx;
+				END;
+
+				image := menu.GetNodeImage(item);
+				IF (image # NIL) THEN width := width + image.width; END;
+			ELSE
+				width := SeparatorWidth;
 			END;
-
-			image := menu.GetNodeImage(item);
-			IF (image # NIL) THEN width := width + image.width; END;
-
 			RETURN width;
 		END ItemWidth;
 
@@ -220,23 +242,32 @@ TYPE
 			caption : Strings.String;
 			image : Raster.Image;
 		BEGIN
-			height := VMenuDistance;
+			IF ~(item IS Separator) THEN
+				height := VMenuDistance;
 
-			caption := menu.GetNodeCaption(item);
-			IF (caption # NIL) THEN
-				font := GetFont(); font.GetStringSize(caption^, dx, dy);
-				height := height + dy;
-			END;
-
-			image := menu.GetNodeImage(item);
-			IF (image # NIL) THEN
-				IF (image.height + VMenuDistance > height) THEN
-					height := image.height + VMenuDistance;
+				caption := menu.GetNodeCaption(item);
+				IF (caption # NIL) THEN
+					font := GetFont(); font.GetStringSize(caption^, dx, dy);
+					height := height + dy;
 				END;
-			END;
 
+				image := menu.GetNodeImage(item);
+				IF (image # NIL) THEN
+					IF (image.height + VMenuDistance > height) THEN
+						height := image.height + VMenuDistance;
+					END;
+				END;
+			ELSE
+				height := SeparatorHeight;
+			END;
 			RETURN height
 		END ItemHeight;
+
+		PROCEDURE IsSelectable(node : WMTrees.TreeNode) : BOOLEAN;
+		BEGIN
+			ASSERT(node # NIL);
+			RETURN ~(node IS Separator);
+		END IsSelectable;
 
 		PROCEDURE FindHorizontal(x : LONGINT) : WMTrees.TreeNode;
 		VAR p : LONGINT; child : WMTrees.TreeNode;
@@ -296,6 +327,7 @@ TYPE
 			ELSE
 				node := FindVertical(y);
 			END;
+			IF (node # NIL) & ~IsSelectable(node) THEN node := NIL; END;
 			IF (node # hover) THEN hover := node; Invalidate; END;
 		END PointerMove;
 
@@ -317,7 +349,7 @@ TYPE
 			ELSE
 				node := FindVertical(y);
 			END;
-			IF (node # NIL) THEN
+			IF (node # NIL) & IsSelectable(node) THEN
 				menu.Acquire;
 				child := menu.GetChildren(node);
 				IF (child # NIL) THEN
@@ -528,11 +560,16 @@ BEGIN
 END FindChild;
 
 PROCEDURE AddChild*(CONST caption : ARRAY OF CHAR; parent : WMTrees.TreeNode; tree : WMTrees.Tree) : WMTrees.TreeNode;
-VAR node : WMTrees.TreeNode;
+VAR node : WMTrees.TreeNode; separator : Separator;
 BEGIN
 	ASSERT((parent # NIL) & (tree # NIL) & (tree.HasLock()));
-	NEW(node);
-	tree.SetNodeCaption(node, Strings.NewString(caption));
+	IF (caption # SeparatorCaption) THEN
+		NEW(node);
+		tree.SetNodeCaption(node, Strings.NewString(caption));
+	ELSE
+		NEW(separator);
+		node := separator;
+	END;
 	tree.AddChildNode(parent, node);
 	RETURN node;
 END AddChild;
