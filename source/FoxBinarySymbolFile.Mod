@@ -1173,8 +1173,8 @@ TYPE
 							END;
 							ASSERT(baseType # NIL);
 							arrayType := SyntaxTree.NewArrayType(-1,moduleScope,SyntaxTree.Open);
-							type := arrayType;
 							arrayType.SetArrayBase(baseType);
+							type := arrayType;
 							R.RawNum(SYSTEM.VAL(LONGINT,flags));
 							IF sfRealtime IN flags THEN type.SetRealtime(TRUE) END;
 					| sfTypeStaticArray:
@@ -1184,8 +1184,8 @@ TYPE
 							END;
 							ASSERT(baseType # NIL);
 							arrayType :=SyntaxTree.NewArrayType(-1,moduleScope,SyntaxTree.Static);
-							type := arrayType;
 							arrayType.SetArrayBase(baseType);
+							type := arrayType;
 							R.RawNum(SYSTEM.VAL(LONGINT,flags));
 							IF sfRealtime IN flags THEN type.SetRealtime(TRUE) END;
 							R.RawNum(len);
@@ -1197,30 +1197,36 @@ TYPE
 							arrayType.SetLength(size);
 					| sfTypeOpenMathArray:
 							IF TraceImport IN Trace THEN
-								D.Str("Type / User / OpenArr "); D.Str(name); D.Ln
+								D.Str("Type / User / MathArray (open) "); D.Str(name); D.Ln
 							END;
 							ASSERT(baseType # NIL);
 							mathArrayType := SyntaxTree.NewMathArrayType(-1,moduleScope,SyntaxTree.Open);
-							type := mathArrayType;
 							mathArrayType.SetArrayBase(baseType);
+							type := mathArrayType;
+							R.RawNum(SYSTEM.VAL(LONGINT,flags));
+							IF sfRealtime IN flags THEN type.SetRealtime(TRUE) END;
 					| sfTypeTensor:
 							IF TraceImport IN Trace THEN
-								D.Str("Type / User / OpenArr "); D.Str(name); D.Ln
+								D.Str("Type / User / Tensor "); D.Str(name); D.Ln
 							END;
 							ASSERT(baseType # NIL);
 							mathArrayType := SyntaxTree.NewMathArrayType(-1,moduleScope,SyntaxTree.Tensor);
-							type := mathArrayType;
 							mathArrayType.SetArrayBase(baseType);
+							type := mathArrayType;
+							R.RawNum(SYSTEM.VAL(LONGINT,flags));
+							IF sfRealtime IN flags THEN type.SetRealtime(TRUE) END;
 					| sfTypeStaticMathArray:
 							IF TraceImport IN Trace THEN
-								D.Str("Type / User / Array ");
+								D.Str("Type / User / MathArray (Static) ");
 								D.Int(len,1); D.Str(name); D.Ln
 							END;
 							ASSERT(baseType # NIL);
 							mathArrayType :=SyntaxTree.NewMathArrayType(-1,moduleScope,SyntaxTree.Static);
-							type := mathArrayType;
-							R.RawNum(len);
 							mathArrayType.SetArrayBase(baseType);
+							type := mathArrayType;
+							R.RawNum(SYSTEM.VAL(LONGINT,flags));
+							IF sfRealtime IN flags THEN type.SetRealtime(TRUE) END;
+							R.RawNum(len);
 							size := SyntaxTree.NewIntegerValue(-1,len);
 							size.SetType(system.longintType);
 							(*
@@ -1528,7 +1534,7 @@ TYPE
 				IF TraceImport IN Trace THEN  D.Str("importing type declaration"); D.Ln; END;
 				IF	tag=sfType	THEN
 					R.RawNum(tag);
-					WHILE	tag < sfEnd	DO
+					WHILE	tag # sfEnd	DO
 						type := Type();
 						R.RawNum(tag)
 					END
@@ -1927,7 +1933,7 @@ TYPE
 							IF type.isRealtime THEN INCL(flags,sfRealtime) END;
 							w.RawNum(SYSTEM.VAL(LONGINT,flags));
 						ELSIF type IS SyntaxTree.ArrayType THEN
-							IF TraceExport IN Trace THEN D.Str("Type / UserType / ArrayType"); D.Str(name); D.Ln END;
+							IF TraceExport IN Trace THEN D.Str("Type / UserType / ArrayType "); D.Str(name); D.Ln END;
 							WITH type: SyntaxTree.ArrayType DO
 								IF type.form = SyntaxTree.Open THEN
 									w.RawNum(sfTypeOpenArray)
@@ -1944,7 +1950,7 @@ TYPE
 								END;
 							END;
 						ELSIF type IS SyntaxTree.MathArrayType THEN
-							IF TraceExport IN Trace THEN D.Str("Type / UserType / ArrayType"); D.Str(name); D.Ln END;
+							IF TraceExport IN Trace THEN D.Str("Type / UserType / MathArrayType "); D.Str(name); D.Ln END;
 							WITH type: SyntaxTree.MathArrayType DO
 								IF type.form = SyntaxTree.Open THEN
 									w.RawNum(sfTypeOpenMathArray)
@@ -1956,6 +1962,8 @@ TYPE
 								END;
 								Type(type.arrayBase);
 								w.RawString(name);
+								IF type.isRealtime THEN INCL(flags,sfRealtime) END;
+								w.RawNum(SYSTEM.VAL(LONGINT,flags));
 								IF type.form = SyntaxTree.Static THEN
 									w.RawNum(type.staticLength);
 								END;
