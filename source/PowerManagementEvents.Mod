@@ -10,17 +10,14 @@ MODULE PowerManagementEvents; (** AUTHOR "Patrick Hunziker"; PURPOSE "Wake-On-LA
 
 IMPORT UDP, DNS, IP,  Commands;
 
-CONST WOLport=7; (*usually sent to port 7 or 9, but any port can be used in principle.*)
-
-TYPE Name* = ARRAY 128 OF CHAR; (* domain or host name type *)
+CONST WOLport*=7; (*usually sent to port 7 or 9, but any port can be used in principle.*)
 
 (** usage: PowerManagementEvents.Wake host MAC ~  *)
 PROCEDURE Wake*(context : Commands.Context);
-CONST X=4;
 VAR
 	i, j, res, hex, pos: LONGINT;
 	c: CHAR;
-	hostname: Name;
+	hostname: ARRAY 128 OF CHAR;
 	fip: IP.Adr;
 	data: ARRAY 6 + 16*6 OF CHAR;
 	mac: ARRAY 6 OF CHAR;
@@ -46,9 +43,9 @@ BEGIN
 			FOR i:=0 TO 15 DO
 				FOR j:=0 TO 5 DO data[pos]:= mac[j]; INC(pos) END;
 			END;
-			socket.Send( fip, WOLport,  data,  0, 6+16*X, res);
-			IF res=UDP.Ok THEN context.out.String("Wake: Sending wakeup signal to "); context.out.Int(fip.ipv4Adr,8); context.out.Ln;
-			ELSE 				   context.out.String("Wake: Failed sending wakeup signal to "); context.out.Int(fip.ipv4Adr,8); context.out.Ln;
+			socket.Send( fip, WOLport,  data,  0, 6+16*6, res);
+			IF res=UDP.Ok THEN context.out.String("Wake: Sending wakeup signal"); context.out.Ln;
+			ELSE 				   context.out.String("Wake: Failed sending wakeup signal to ");  context.out.Int(fip.ipv4Adr,8); context.out.Ln;
 			END;
 		ELSE					   context.error.String("Wake: Couldn't resolve host name: "); context.error.String(hostname); context.error.Ln;
 		END;
