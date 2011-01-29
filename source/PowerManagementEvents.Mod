@@ -1,4 +1,4 @@
-MODULE PowerManagementEvents; (** AUTHOR "Patrick Hunziker"; PURPOSE "Wake-On-LAN - triggering boot by sending aa magic string accross the network"; *)
+MODULE PowerManagementEvents; (** AUTHOR "Patrick Hunziker"; PURPOSE "Wake-On-LAN - trigger computer booting by sending a magic network packet"; *)
 (**  see http://en.wikipedia.org/wiki/Wake-on-LAN or BIOS "PME = Power Management Events". 
    	for details , and how to use it in wired and wireless networks depending on the hardware used.
   	BIOS settings of the computer need to have PME events or 'wake-on-lan' or similar  setting activated.
