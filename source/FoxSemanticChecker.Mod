@@ -6022,6 +6022,7 @@ TYPE
 			procedureType: SyntaxTree.ProcedureType;
 			mathArrayType: SyntaxTree.MathArrayType;
 			dimensionality: LONGINT;
+
 		BEGIN
 			right := ResolveExpression(assignment.right);
 			assignment.left.SetRelatedRhs(right); (* store a reference to the RHS in the assignement's LHS*)
@@ -6044,12 +6045,14 @@ TYPE
 				expression := NewOperatorCall(assignment.position, Scanner.Becomes, left, right, NIL);
 				IF (expression # NIL) & (expression IS SyntaxTree.ProcedureCallDesignator) THEN
 					procedureCallDesignator := expression(SyntaxTree.ProcedureCallDesignator);
+					(* conversion done by procedure call 
+					(* try to convert to left argument *)
 					IF (left.type.resolved IS SyntaxTree.MathArrayType) & (right.type.resolved IS SyntaxTree.MathArrayType) & AssignmentCompatible(left, right) THEN
 						right := NewConversion(right.position, right, left.type.resolved, NIL);
 						procedureCallDesignator.parameters.SetExpression(1, right);
 					END;
+					*)
 					resolvedStatement := SyntaxTree.NewProcedureCallStatement(assignment.position, procedureCallDesignator, assignment.outer);
-
 				ELSIF AssignmentCompatible(left, right) THEN
 					IF IsArrayStructuredObjectType(left.type) & (left.type.resolved # right.type.resolved) THEN
 						mathArrayType := MathArrayStructureOfType(left.type);
