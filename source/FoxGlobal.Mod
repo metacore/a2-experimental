@@ -709,7 +709,7 @@ TYPE
 		NewBuiltin(systemMove,"MOVE",system.systemScope,TRUE);
 		NewBuiltin(systemNew,"NEW",system.systemScope,FALSE);
 		NewBuiltin(Reshape,"RESHAPE",system.globalScope,TRUE);
-		NewBuiltin(systemZeroCopy,"ZEROCOPY",system.systemScope,TRUE);
+		NewBuiltin(systemZeroCopy,"ZEROCOPY",system.globalScope,TRUE);
 		NewBuiltin(systemHalt,"HALT",system.systemScope,TRUE);
 		NewBuiltin(systemPut64,"PUT64",system.systemScope,TRUE);
 		NewBuiltin(systemPut32,"PUT32",system.systemScope,TRUE);

@@ -5018,7 +5018,13 @@ TYPE
 					END;
 				(* ---- SYSTEM.ZEROCOPY----- *)
 				ELSIF (id = Global.systemZeroCopy) & Parameters(2,2) THEN
-					(*! implement *)
+					IF (type0 IS SyntaxTree.MathArrayType) & (type1 IS SyntaxTree.MathArrayType) THEN
+						IF ~CompatibleTo(system,type1,type0) THEN
+							Error(parameter0.position,Diagnostics.Invalid,"incompatible parameter in reshape");
+							result := SyntaxTree.invalidExpression;
+						END;
+					ELSE Error(position, Diagnostics.Invalid,"zerocopy on non math array type");
+					END;
 				(* ---- SYSTEM.TYPECODE ----- *)
 				ELSIF (id = Global.systemTypeCode) & Parameters(1,1) THEN
 					IF (parameter0.type = SyntaxTree.typeDeclarationType) THEN
@@ -6045,7 +6051,7 @@ TYPE
 				expression := NewOperatorCall(assignment.position, Scanner.Becomes, left, right, NIL);
 				IF (expression # NIL) & (expression IS SyntaxTree.ProcedureCallDesignator) THEN
 					procedureCallDesignator := expression(SyntaxTree.ProcedureCallDesignator);
-					(* conversion done by procedure call 
+					(* conversion done by procedure call
 					(* try to convert to left argument *)
 					IF (left.type.resolved IS SyntaxTree.MathArrayType) & (right.type.resolved IS SyntaxTree.MathArrayType) & AssignmentCompatible(left, right) THEN
 						right := NewConversion(right.position, right, left.type.resolved, NIL);

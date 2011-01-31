@@ -5490,7 +5490,12 @@ TYPE
 				END;
 			(* ---- SYSTEM.ZEROCOPY----- *)
 			|Global.systemZeroCopy:
-				Error(position,"not yet implemented");
+				IF GetRuntimeProcedure("FoxArrayBase","ZeroCopy",procedure,TRUE) THEN
+					left := SyntaxTree.NewSymbolDesignator(Diagnostics.Invalid, NIL, procedure);
+					left.SetType(procedure.type);
+					call := SyntaxTree.NewProcedureCallDesignator(position,left(SyntaxTree.Designator),x.parameters);
+					VisitProcedureCallDesignator(call(SyntaxTree.ProcedureCallDesignator));
+				END;
 			(* ---- SYSTEM.TYPECODE ----- *)
 			|Global.systemTypeCode:
 				type := p0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;

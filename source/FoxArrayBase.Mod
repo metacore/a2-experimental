@@ -1218,6 +1218,27 @@ Sufficient (but not necessary) conditions:
 		SYSTEM.MOVE( src + MathLenOffset, dest + MathLenOffset, SYSTEM.SIZEOF(ADDRESS) *  GetDim( src ) *2 );   (* lens and increments *)
 	END DescriptorCopy;
 
+	PROCEDURE ZeroCopy*(CONST src: ARRAY [?] OF SYSTEM.ALL; VAR dest: ARRAY [?] OF SYSTEM.ALL);
+	VAR s,d: LONGINT;
+	BEGIN
+		s := SYSTEM.VAL(LONGINT,src); d := SYSTEM.VAL(LONGINT,dest);
+		ShallowCopy(d,s);
+		SYSTEM.PUT(SYSTEM.ADR(dest),d);
+	END ZeroCopy;
+
+	PROCEDURE SameShape( l, r: LONGINT ): BOOLEAN;
+	VAR dim: LONGINT;
+	BEGIN
+		dim := GetDim( l );
+		IF dim # GetDim( r ) THEN RETURN FALSE END;
+		WHILE (dim > 0) DO
+			DEC( dim );
+			IF GetLen( l, dim ) # GetLen( r, dim ) THEN RETURN FALSE END;
+		END;
+		RETURN TRUE;
+	END SameShape;
+
+	(*
 	PROCEDURE ZeroCopyArray*( dest: ADDRESS;  src: ADDRESS; elementsize: LONGINT );
 	(*
 		called as ZeroCopy(A,B,Size) with enhanced arrays A,B
@@ -1272,17 +1293,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END ZeroCopyTensor;
 
-	PROCEDURE SameShape( l, r: LONGINT ): BOOLEAN;
-	VAR dim: LONGINT;
-	BEGIN
-		dim := GetDim( l );
-		IF dim # GetDim( r ) THEN RETURN FALSE END;
-		WHILE (dim > 0) DO
-			DEC( dim );
-			IF GetLen( l, dim ) # GetLen( r, dim ) THEN RETURN FALSE END;
-		END;
-		RETURN TRUE;
-	END SameShape;
+
 
 	PROCEDURE ZeroCopy*( left, elementSize, dest, dim: LONGINT );   (**! optimize *)
 	VAR i: LONGINT;
@@ -1300,7 +1311,7 @@ Sufficient (but not necessary) conditions:
 			END;
 		END;
 	END ZeroCopy;
-
+	*)
 	(*** conversions ****)
 
 (** SHORTINT -> INTEGER *)
