@@ -11,6 +11,7 @@ CONST
 	TypeUser* = 4;
 	TypeInt32* = 5;
 	TypeString* = 6;
+	TypeObject* = 7;
 
 	Ok* = 0;
 	Failed* = -1;
@@ -79,5 +80,12 @@ TYPE
 		END MakeDir;
 
 	END DropFiles;
+
+	DropObject* = OBJECT(DropInterface)
+
+		PROCEDURE Set*(object : ANY; VAR res : LONGINT);
+		END Set;
+
+	END DropObject;
 
 END WMDropTarget.
