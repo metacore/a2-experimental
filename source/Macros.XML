@@ -10,15 +10,11 @@
 <Macros> <!-- WMMacros.ReadMacros Macros.XML ~ -->
 
 	<!-- Keysym of key that invokes macros (in hex). Use WMKeyCode.Open ~ to find out the keysym value of keys
-		The specified key cannot be used for other purposes! 
+		The specified key cannot be used for other purposes!
 		Tips: Paragraph key (60)
 		-->
 	<MacroKey keysym="FF63"/>
 
-	<!-- Mail -->
-	<Macro key="dk"><String>daniel.keller@inf.ethz.ch</String></Macro>
-	<Macro key="jg"><String>gutknecht@inf.ethz.ch</String></Macro>
-	<Macro key="sst"><String>sven.stauber@inf.ethz.ch</String></Macro>
 	<!-- XML -->
 	<Macro key="t">
 		<LT/><Arg nr="0"/><GT/><Cursor/>
@@ -94,47 +90,47 @@
 		<Indent/><String>VAR </String><Cursor/><CR/>
 		<Indent/><Indent/><CR/>
 		<Indent/><String>END </String><Arg nr="0"/><String>;</String><CR/>
-	</Macro>	
+	</Macro>
 	<Macro key="di">
 		<String>KernelLog.String(</String><Quote/><Arg nr="0"/><String> = </String>
 		<Quote/><String>); KernelLog.Int(</String><Arg nr="0"/><String>, 0); </String>
 	</Macro>
 	<Macro key="dr">
 		<String>KernelLog.String(</String><Quote/><Arg nr="0"/><String> = (</String><Quote/><String>); </String>
-		<String>KernelLog.Int(</String><Arg nr="0"/><String>.l, 0); </String> 
+		<String>KernelLog.Int(</String><Arg nr="0"/><String>.l, 0); </String>
 		<String>KernelLog.String(</String><Quote/><String>, </String><Quote/><String>); </String>
-		<String>KernelLog.Int(</String><Arg nr="0"/><String>.t, 0); </String> 
+		<String>KernelLog.Int(</String><Arg nr="0"/><String>.t, 0); </String>
 		<String>KernelLog.String(</String><Quote/><String>, </String><Quote/><String>); </String>
 		<CR/>
-		<String>KernelLog.Int(</String><Arg nr="0"/><String>.r, 0); </String> 
+		<String>KernelLog.Int(</String><Arg nr="0"/><String>.r, 0); </String>
 		<String>KernelLog.String(</String><Quote/><String>, </String><Quote/><String>); </String>
-		<String>KernelLog.Int(</String><Arg nr="0"/><String>.b, 0); </String> 
+		<String>KernelLog.Int(</String><Arg nr="0"/><String>.b, 0); </String>
 		<String>KernelLog.String(</String><Quote/><String>) </String><Quote/><String>); </String>
 	</Macro>
 	<Macro key="ds">
 		<String>KernelLog.String(</String><Quote/><Arg nr="0"/><String> = </String>
 		<Quote/><String>); KernelLog.String(</String><Arg nr="0"/><String>); </String>
-	</Macro>	
+	</Macro>
 	<Macro key="dc">
 		<String>KernelLog.String(</String><Quote/><Arg nr="0"/><String> = </String>
 		<Quote/><String>); KernelLog.Char(</String><Arg nr="0"/><String>); </String>
-	</Macro>	
+	</Macro>
 	<Macro key="oi">
 		<String>KernelLog.Int(</String><Arg nr="0"/><String>, 0); </String>
 	</Macro>
 	<Macro key="os">
 		<String>KernelLog.String(</String><Arg nr="0"/><String>); </String>
-	</Macro>	
+	</Macro>
 	<Macro key="oc">
 		<String>KernelLog.Char(</String><Arg nr="0"/><String>); </String>
-	</Macro>	
+	</Macro>
 	<Macro key="ol">
 		<String>KernelLog.Ln; </String>
-	</Macro>	
+	</Macro>
 	<!-- Greek -->
-	<Macro key="alpha"><String>α</String></Macro>	
-	<Macro key="beta"><String>β</String></Macro>	
-	<Macro key="gamma"><String>γ</String></Macro>	
+	<Macro key="alpha"><String>α</String></Macro>
+	<Macro key="beta"><String>β</String></Macro>
+	<Macro key="gamma"><String>γ</String></Macro>
 	<Macro key="delta"><String>δ</String></Macro>
 	<Macro key="epsilon"><String>ε</String></Macro>
 	<Macro key="zeta"><String>ζ</String></Macro>
@@ -156,9 +152,9 @@
 	<Macro key="chi"><String>χ</String></Macro>
 	<Macro key="psi"><String>ψ</String></Macro>
 	<Macro key="omega"><String>ω</String></Macro>
-	<Macro key="Alpha"><String>Α</String></Macro>	
-	<Macro key="Beta"><String>Β</String></Macro>	
-	<Macro key="Gamma"><String>Γ</String></Macro>	
+	<Macro key="Alpha"><String>Α</String></Macro>
+	<Macro key="Beta"><String>Β</String></Macro>
+	<Macro key="Gamma"><String>Γ</String></Macro>
 	<Macro key="Delta"><String>Δ</String></Macro>
 	<Macro key="Epsilon"><String>Ε</String></Macro>
 	<Macro key="Zeta"><String>Ζ</String></Macro>
