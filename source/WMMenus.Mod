@@ -8,7 +8,7 @@ MODULE WMMenus;	(** AUTHOR "TF/staubesv"; PURPOSE "Menu support"; *)
 *)
 IMPORT
 	Inputs, Strings, Raster, WMRectangles, WMGraphics, WMGraphicUtilities, WMComponents,
-	WMWindowManager, WMProperties, WMEvents, WMTrees;
+	WMWindowManager, WMProperties, WMEvents, WMDropTarget, WMTrees;
 
 CONST
 	OpenDefault* = OpenDownRight;
@@ -36,7 +36,7 @@ CONST
 
 	SeparatorCaption = "---";
 	SeparatorWidth = 9;
-	SeparatorHeight = 9;
+	SeparatorHeight = 5;
 
 	DragDist = 10;
 
@@ -47,7 +47,23 @@ TYPE
 
 TYPE
 
-	DragDataGenerator = PROCEDURE {DELEGATE} (node : WMTrees.TreeNode) : ANY;
+	DragWrapper* = OBJECT
+	VAR
+		object : ANY;
+
+		PROCEDURE &Init*(object : ANY);
+		BEGIN
+			ASSERT(object # NIL);
+			SELF.object := object;
+		END Init;
+
+		PROCEDURE GetObject*() : ANY;
+		BEGIN
+			ASSERT(object # NIL);
+			RETURN object;
+		END GetObject;
+
+	END DragWrapper;
 
 TYPE
 
@@ -74,8 +90,8 @@ TYPE
 
 		greyBoxWidth : LONGINT;
 
-		dragDataGenerator : DragDataGenerator;
-		draggedNode : WMTrees.TreeNode;
+		dragNode : WMTrees.TreeNode;
+		dragObject : ANY;
 
 		(* pointer handling *)
 		leftClick, dragPossible : BOOLEAN;
@@ -98,8 +114,7 @@ TYPE
 			subMenuIndicatorImg := NIL;
 			subMenu := NIL; parentWindow := NIL;
 			greyBoxWidth := 2 * HMenuDistance + MinImageWidth;
-			draggedNode := NIL;
-			dragDataGenerator := NIL;
+			dragObject := NIL;
 			parentMenuPanel := NIL; focusPanel := SELF; rootMenuPanel := SELF;
 			takesFocus.Set(TRUE);
 		END Init;
@@ -271,6 +286,7 @@ TYPE
 						END;
 						y := y + dy + VMenuDistance;
 					ELSE
+						y := y + VMenuDistance;
 						canvas.Line(greyBoxWidth + 4, y + (SeparatorHeight DIV 2) + 1, bounds.GetWidth(), y + (SeparatorHeight DIV 2) + 1, LightGrey, WMGraphics.ModeCopy);
 						y := y + SeparatorHeight + VMenuDistance;
 					END;
@@ -500,8 +516,11 @@ TYPE
 			END;
 			leftClick := (0 IN keys);
 			IF leftClick & (node # NIL) & IsSelectable(node) THEN
-				dragPossible := leftClick & (dragDataGenerator # NIL);
-				IF dragPossible THEN draggedNode := node; END;
+				dragObject := GetDragData(node, menu);
+				IF (dragObject # NIL) THEN
+					dragPossible := TRUE;
+					dragNode := node;
+				END;
 			ELSE
 				CloseSubMenu(FALSE);
 			END;
@@ -525,22 +544,19 @@ TYPE
 				END;
 			END;
 			dragPossible := FALSE;
-			draggedNode := NIL;
+			dragNode := NIL;
+			dragObject := NIL;
 		END PointerUp;
 
 		PROCEDURE PointerMove(x, y : LONGINT; keys : SET);
-		VAR node : WMTrees.TreeNode; data : ANY;
+		VAR node : WMTrees.TreeNode;
 		BEGIN
 			IF dragPossible THEN
 				IF (ABS(x - downX) > DragDist) OR (ABS(y - downY) > DragDist) THEN
 					dragPossible := FALSE;
-					IF (dragDataGenerator # NIL) THEN
-						ASSERT(draggedNode # NIL);
-						data := dragDataGenerator(draggedNode);
-						IF (data # NIL) THEN
-							leftClick := FALSE;
-							MyStartDrag(draggedNode, data);
-						END;
+					IF (dragObject # NIL) THEN
+						leftClick := FALSE;
+						MyStartDrag(dragNode, dragObject);
 					END;
 				END;
 			ELSE
@@ -559,10 +575,47 @@ TYPE
 			IF hover # NIL THEN hover := NIL; Invalidate; END;
 		END PointerLeave;
 
-		PROCEDURE MyStartDrag(node : WMTrees.TreeNode; data : ANY);
+		PROCEDURE MyStartDrag(node : WMTrees.TreeNode; object : ANY);
+		VAR
+			image, canvasImage : WMGraphics.Image; VAR caption : Strings.String;
+			canvas : WMGraphics.BufferCanvas;
+			width, height, x : LONGINT;
 		BEGIN
-
+			ASSERT((node # NIL) & (object # NIL));
+			menu.Acquire;
+			image := menu.GetNodeImage(node);
+			caption := menu.GetNodeCaption(node);
+			width := ItemWidth(node, horizontalI);
+			height := ItemHeight(node);
+			menu.Release;
+			NEW(canvasImage); Raster.Create(canvasImage, width, height, Raster.BGRA8888);
+			NEW(canvas, image);
+			(* actually should factor out node rendering code in DrawBackground and re-use it here... *)
+			x := HMenuDistance;
+			canvas.Fill(WMRectangles.MakeRect(0, 0, greyBoxWidth, height), LightGrey, WMGraphics.ModeCopy);
+			IF (image # NIL) THEN
+				canvas.DrawImage(x, 0, image, WMGraphics.ModeSrcOverDst);
+				x := x + image.width + HMenuDistance + TextImageDistance;
+			END;
+			IF (caption # NIL) THEN
+				WMGraphics.DrawStringInRect(canvas, WMRectangles.MakeRect(x, 0, width, height), FALSE, WMGraphics.AlignLeft, WMGraphics.AlignCenter, caption^);
+			END;
+			IF ~StartDrag(object, image, DragWasAccepted, NIL) THEN dragNode := NIL; dragObject := NIL; END;
 		END MyStartDrag;
+
+		PROCEDURE DragWasAccepted(sender, data : ANY);
+		VAR di : WMWindowManager.DragInfo; itf : WMDropTarget.DropInterface; ignoreRes : LONGINT;
+		BEGIN
+			IF (data # NIL) & (data IS WMWindowManager.DragInfo) THEN
+				di := data(WMWindowManager.DragInfo);
+				IF (di.data # NIL) & (di.data IS WMDropTarget.DropTarget) THEN
+					itf := di.data(WMDropTarget.DropTarget).GetInterface(WMDropTarget.TypeObject);
+					IF (itf # NIL) & (itf IS WMDropTarget.DropObject) THEN
+						itf(WMDropTarget.DropObject).Set(dragObject, ignoreRes);
+					END;
+				END;
+			END;
+		END DragWasAccepted;
 
 		PROCEDURE CursorUp;
 		BEGIN
@@ -890,6 +943,27 @@ BEGIN
 	END;
 	RETURN caption;
 END GetCaption;
+
+PROCEDURE GetDragData*(node : WMTrees.TreeNode; menu : WMTrees.Tree) : ANY;
+VAR data : ANY
+BEGIN
+	ASSERT(menu # NIL);
+	IF (node # NIL) THEN
+		menu.Acquire;
+		data := menu.GetNodeData(node);
+		menu.Release;
+		IF (data # NIL) THEN
+			IF (data IS DragWrapper) THEN
+				data := data(DragWrapper).GetObject();
+			ELSE
+				data := NIL;
+			END;
+		END;
+	ELSE
+		data := NIL;
+	END;
+	RETURN data;
+END GetDragData;
 
 PROCEDURE FindChild(CONST caption : ARRAY OF CHAR; parent : WMTrees.TreeNode; tree : WMTrees.Tree) : WMTrees.TreeNode;
 VAR child : WMTrees.TreeNode; string : Strings.String; found : BOOLEAN;
