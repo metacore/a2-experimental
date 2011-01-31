@@ -1,5 +1,11 @@
 MODULE WMMenus;	(** AUTHOR "TF/staubesv"; PURPOSE "Menu support"; *)
+(*
 
+	Vertical menu entry layout:
+
+	| HMenuDistance | image.width OR MinImageWidth | HMenuDistance | TextImageDistance | TextWidth | HMenuDistance |
+
+*)
 IMPORT
 	Inputs, Strings, Raster, WMRectangles, WMGraphics, WMGraphicUtilities, WMComponents,
 	WMWindowManager, WMProperties, WMEvents, WMTrees;
@@ -20,12 +26,19 @@ CONST
 	ShadowOffsetVertical = 5;
 	ShadowOffsetHorizontal = 5;
 
-	HMenuDistance = 10;
+	LightGrey = SHORT(0C0C0C0FFH);
+
+	TextImageDistance = 4;
+	MinImageWidth = 4;
+
+	HMenuDistance = 8;
 	VMenuDistance = 4;
 
 	SeparatorCaption = "---";
 	SeparatorWidth = 9;
 	SeparatorHeight = 9;
+
+	DragDist = 10;
 
 TYPE
 
@@ -34,13 +47,17 @@ TYPE
 
 TYPE
 
+	DragDataGenerator = PROCEDURE {DELEGATE} (node : WMTrees.TreeNode) : ANY;
+
+TYPE
+
 	MenuPanel*= OBJECT(WMComponents.VisualComponent)
 	VAR
 		horizontal- : WMProperties.BooleanProperty;
-		openDirection- : WMProperties.Int32Property;
+		horizontalI : BOOLEAN;
 
-		borders- : WMProperties.RectangleProperty;
-		bordersI : WMRectangles.Rectangle;
+		openDirection- : WMProperties.Int32Property;
+		openDirectionI : LONGINT;
 
 		clSelected : WMProperties.ColorProperty;
 
@@ -55,31 +72,47 @@ TYPE
 
 		parentMenuPanel, focusPanel, rootMenuPanel : MenuPanel;
 
+		greyBoxWidth : LONGINT;
+
+		dragDataGenerator : DragDataGenerator;
+		draggedNode : WMTrees.TreeNode;
+
+		(* pointer handling *)
+		leftClick, dragPossible : BOOLEAN;
+		downX, downY : LONGINT;
+
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
 			SetNameAsString(StrMenuPanel);
 			NEW(horizontal, NIL, NIL, NIL); properties.Add(horizontal);
+			horizontalI := horizontal.Get();
 			NEW(openDirection, NIL, NIL, NIL); properties.Add(openDirection);
-			NEW(borders, NIL, NIL, NIL); properties.Add(borders);
 			NEW(clSelected, NIL, NIL, NIL); properties.Add(clSelected);
 			clSelected.Set(WMGraphics.Blue);
 			NEW(onSelect, SELF, NIL, NIL, NIL);
-			bordersI := WMRectangles.MakeRect(15, 5, 5, 5);
-			borders.Set(bordersI);
+			openDirectionI := OpenDefault;
+			openDirection.Set(openDirectionI);
 			menu := NIL;
 			root := NIL; selection := NIL; hover := NIL;
 			subMenuIndicatorImg := NIL;
 			subMenu := NIL; parentWindow := NIL;
+			greyBoxWidth := 2 * HMenuDistance + MinImageWidth;
+			draggedNode := NIL;
+			dragDataGenerator := NIL;
 			parentMenuPanel := NIL; focusPanel := SELF; rootMenuPanel := SELF;
 			takesFocus.Set(TRUE);
 		END Init;
 
 		PROCEDURE PropertyChanged(sender, property : ANY);
 		BEGIN
-			IF (property = borders) THEN
-				bordersI := borders.Get(); Invalidate;
-			ELSIF (property = clSelected) THEN
+			IF (property = clSelected) THEN
+				Invalidate;
+			ELSIF (property = horizontal) THEN
+				horizontalI := horizontal.Get();
+				Invalidate;
+			ELSIF (property = openDirection) THEN
+				openDirectionI := openDirection.Get();
 				Invalidate;
 			ELSE
 				PropertyChanged^(sender, property);
@@ -89,7 +122,8 @@ TYPE
 		PROCEDURE RecacheProperties;
 		BEGIN
 			RecacheProperties^;
-			bordersI := borders.Get();
+			horizontalI := horizontal.Get();
+			openDirectionI := openDirection.Get();
 			Invalidate;
 		END RecacheProperties;
 
@@ -113,6 +147,7 @@ TYPE
 			ASSERT((menu # NIL) & (root # NIL));
 			Acquire;
 			SELF.menu := menu; SELF.root := root; hover := NIL;
+			greyBoxWidth := Strings.Max(MinImageWidth + 2 * HMenuDistance , MaxImageWidth() + 2 * HMenuDistance);
 			Invalidate;
 			Release
 		END SetMenu;
@@ -121,13 +156,12 @@ TYPE
 		VAR child : WMTrees.TreeNode;
 		BEGIN
 			ASSERT((menu # NIL) & (root # NIL));
-			width := bordersI.l + bordersI.r;
-			height := bordersI.t + bordersI.b;
+			width := 0; height := 0;
 			IF horizontal.Get() THEN
 				menu.Acquire;
 				child := menu.GetChildren(root);
 				WHILE (child # NIL) DO
-					width := width + ItemWidth(child);
+					width := width + ItemWidth(child, TRUE);
 					child := menu.GetNextSibling(child);
 				END;
 				menu.Release;
@@ -136,7 +170,7 @@ TYPE
 				child := menu.GetChildren(root);
 				WHILE (child # NIL) DO
 					height := height + ItemHeight(child);
-					width := Strings.Max(width, ItemWidth(child) + bordersI.l + bordersI.r);
+					width := Strings.Max(width, ItemWidth(child, FALSE));
 					child := menu.GetNextSibling(child);
 				END;
 				menu.Release;
@@ -146,7 +180,7 @@ TYPE
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
 		VAR
 			child : WMTrees.TreeNode;
-			x, y, dx, dy, t : LONGINT;
+			x, y, dx, dy, t, textY : LONGINT;
 			font : WMGraphics.Font;
 			caption : Strings.String;
 			image : Raster.Image;
@@ -156,72 +190,89 @@ TYPE
 			font := GetFont();
 			canvas.SetFont(font);
 			canvas.SetColor(WMGraphics.Black);
-			x := bordersI.l; y := bordersI.t;
-			IF horizontal.Get() THEN
+			IF horizontalI THEN
+				x := 0;
 				menu.Acquire;
 				child := menu.GetChildren(root);
 				WHILE (child # NIL) DO
 					IF ~(child IS Separator) THEN
 						IF (child = hover) THEN
-							canvas.Fill(WMRectangles.MakeRect(x, 0, x + ItemWidth(child), bounds.GetHeight()), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
+							canvas.Fill(WMRectangles.MakeRect(x, 0, x + ItemWidth(child, horizontalI), bounds.GetHeight()), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
 						ELSIF (child = selection) THEN
-							canvas.Fill(WMRectangles.MakeRect(x, 0, x + ItemWidth(child), bounds.GetHeight()), clSelected.Get(), WMGraphics.ModeCopy);
+							canvas.Fill(WMRectangles.MakeRect(x, 0, x + ItemWidth(child, horizontalI), bounds.GetHeight()), clSelected.Get(), WMGraphics.ModeCopy);
 						END;
+						x := x + HMenuDistance;
 						image := menu.GetNodeImage(child);
 						IF (image # NIL) THEN
-							canvas.DrawImage(HMenuDistance DIV 2 + x, 0, image, WMGraphics.ModeSrcOverDst);
-							x := x + image.width;
+							canvas.DrawImage(x, 0, image, WMGraphics.ModeSrcOverDst);
+							x := x + image.width + HMenuDistance + TextImageDistance;
 						END;
 
 						caption := menu.GetNodeCaption(child);
 						IF (caption # NIL) THEN
-							font.GetStringSize(caption^, dx, dy); canvas.DrawString(HMenuDistance DIV 2 + x, dy, caption^);
+							font.GetStringSize(caption^, dx, dy); canvas.DrawString(x, dy, caption^);
 							x := x + dx;
 						END;
 						INC(x, HMenuDistance);
 					ELSE
+						INC(x, HMenuDistance);
 						canvas.Line(x + (SeparatorWidth DIV 2) + 1, 2, x + (SeparatorWidth DIV 2) + 1, bounds.GetHeight() - 2, WMGraphics.Black, WMGraphics.ModeCopy);
-						x := x + SeparatorWidth;
+						x := x + SeparatorWidth + HMenuDistance;
 					END;
 					child := menu.GetNextSibling(child)
 				END;
 				menu.Release;
 			ELSE
+				y := 0;
 				menu.Acquire;
+				IF (openDirectionI = OpenDownLeft) OR (openDirectionI = OpenUpLeft) THEN
+					canvas.Fill(WMRectangles.MakeRect(bounds.GetWidth() - greyBoxWidth, 0, bounds.GetWidth() - greyBoxWidth, bounds.GetHeight()), LightGrey, WMGraphics.ModeCopy);
+				ELSE
+					canvas.Fill(WMRectangles.MakeRect(0, 0, greyBoxWidth, bounds.GetHeight()), LightGrey, WMGraphics.ModeCopy);
+				END;
 				child := menu.GetChildren(root);
 				WHILE (child # NIL) DO
+					x := HMenuDistance;
 					IF ~(child IS Separator) THEN
 						IF (child = hover) THEN
 							canvas.Fill(WMRectangles.MakeRect(0, y, bounds.GetWidth(), y + ItemHeight(child)), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
 						ELSIF (child = selection) THEN
 							canvas.Fill(WMRectangles.MakeRect(0, y, bounds.GetWidth(), y + ItemHeight(child)), clSelected.Get(), WMGraphics.ModeCopy);
 						END;
-
+						INC(y, VMenuDistance);
 						dy := 0;
 						image := menu.GetNodeImage(child);
 						IF (image # NIL) THEN
-							canvas.DrawImage(0, y, image, WMGraphics.ModeSrcOverDst);
-							dy := image.width + VMenuDistance;
+							canvas.DrawImage(x, y, image, WMGraphics.ModeSrcOverDst);
+							x := x + image.width + HMenuDistance + TextImageDistance;
+							dy := image.height;
+						ELSE
+							x := x + MinImageWidth + HMenuDistance + TextImageDistance;
 						END;
 
 						caption := menu.GetNodeCaption(child);
 						IF (caption # NIL) THEN
-							font.GetStringSize(caption^, dx, t); canvas.DrawString(x, y + font.ascent + VMenuDistance DIV 2, caption^);
-							INC(t, VMenuDistance);
-							IF t > dy THEN dy := t END
+							font.GetStringSize(caption^, dx, t);
+							IF (image # NIL) & (image.height > t) THEN
+								textY := y + ((image.height + t - font.GetDescent()) DIV 2);
+							ELSE
+								textY := y + font.ascent;
+								dy := t;
+							END;
+							canvas.DrawString(x, textY, caption^);
 						END;
 
 						IF menu.GetChildren(child) # NIL THEN
 							IF subMenuIndicatorImg # NIL THEN
 								canvas.DrawImage(bounds.GetWidth() - subMenuIndicatorImg.width, 0, subMenuIndicatorImg, WMGraphics.ModeSrcOverDst)
 							ELSE
-								canvas.DrawString(bounds.GetWidth() - 10, y + font.ascent, "...")
+								canvas.DrawString(bounds.GetWidth() - 10, textY, "...")
 							END
 						END;
-						y := y + dy;
+						y := y + dy + VMenuDistance;
 					ELSE
-						canvas.Line(x + 2, y + (SeparatorHeight DIV 2) + 1, bounds.GetWidth(), y + (SeparatorHeight DIV 2) + 1, WMGraphics.Black, WMGraphics.ModeCopy);
-						y := y + SeparatorHeight;
+						canvas.Line(greyBoxWidth + 4, y + (SeparatorHeight DIV 2) + 1, bounds.GetWidth(), y + (SeparatorHeight DIV 2) + 1, LightGrey, WMGraphics.ModeCopy);
+						y := y + SeparatorHeight + VMenuDistance;
 					END;
 					child := menu.GetNextSibling(child)
 				END;
@@ -230,15 +281,23 @@ TYPE
 		END DrawBackground;
 
 		(* caller must hold tree lock *)
-		PROCEDURE ItemWidth(item : WMTrees.TreeNode) : LONGINT;
+		PROCEDURE ItemWidth(item : WMTrees.TreeNode; isHorizontal : BOOLEAN) : LONGINT;
 		VAR
 			width, dx, dy : LONGINT;
 			font : WMGraphics.Font;
 			caption : Strings.String;
 			image : Raster.Image;
 		BEGIN
+			ASSERT(menu.HasLock());
+			width := 0;
 			IF ~(item IS Separator) THEN
-				width := HMenuDistance;
+
+				image := menu.GetNodeImage(item);
+				IF (image # NIL) THEN
+					width := image.width + HMenuDistance + TextImageDistance;
+				ELSIF ~(isHorizontal) THEN
+					width := width + MinImageWidth + HMenuDistance + TextImageDistance;
+				END;
 
 				caption := menu.GetNodeCaption(item);
 				IF (caption # NIL) THEN
@@ -246,11 +305,10 @@ TYPE
 					width := width + dx;
 				END;
 
-				image := menu.GetNodeImage(item);
-				IF (image # NIL) THEN width := width + image.width; END;
 			ELSE
 				width := SeparatorWidth;
 			END;
+			width := width + 2*HMenuDistance;
 			RETURN width;
 		END ItemWidth;
 
@@ -262,26 +320,44 @@ TYPE
 			caption : Strings.String;
 			image : Raster.Image;
 		BEGIN
+			height := 0;
 			IF ~(item IS Separator) THEN
-				height := VMenuDistance;
 
 				caption := menu.GetNodeCaption(item);
 				IF (caption # NIL) THEN
 					font := GetFont(); font.GetStringSize(caption^, dx, dy);
-					height := height + dy;
+					height := dy;
 				END;
 
 				image := menu.GetNodeImage(item);
 				IF (image # NIL) THEN
-					IF (image.height + VMenuDistance > height) THEN
-						height := image.height + VMenuDistance;
+					IF (image.height  > height) THEN
+						height := image.height;
 					END;
 				END;
 			ELSE
 				height := SeparatorHeight;
 			END;
+			height := height + 2 * VMenuDistance;
 			RETURN height
 		END ItemHeight;
+
+		PROCEDURE MaxImageWidth() : LONGINT;
+		VAR child : WMTrees.TreeNode; image : WMGraphics.Image; maxWidth : LONGINT;
+		BEGIN
+			maxWidth := 0;
+			menu.Acquire;
+			child := menu.GetChildren(root);
+			WHILE (child # NIL) DO
+				image := menu.GetNodeImage(child);
+				IF (image # NIL) & (image.width > maxWidth) THEN
+					maxWidth := image.width;
+				END;
+				child := menu.GetNextSibling(child);
+			END;
+			menu.Release;
+			RETURN maxWidth;
+		END MaxImageWidth;
 
 		PROCEDURE IsSelectable(node : WMTrees.TreeNode) : BOOLEAN;
 		BEGIN
@@ -292,12 +368,12 @@ TYPE
 		PROCEDURE FindHorizontal(x : LONGINT) : WMTrees.TreeNode;
 		VAR p : LONGINT; child : WMTrees.TreeNode;
 		BEGIN
-			p := bordersI.l;
+			p := 0;
 			menu.Acquire;
 			child := menu.GetChildren(root);
 			IF (child # NIL) THEN
 				REPEAT
-					p := p + ItemWidth(child);
+					p := p + ItemWidth(child, horizontalI);
 					IF p < x THEN child := menu.GetNextSibling(child); END;
 				UNTIL (child = NIL) OR (p >= x);
 			END;
@@ -308,7 +384,7 @@ TYPE
 		PROCEDURE FindVertical(y : LONGINT) : WMTrees.TreeNode;
 		VAR p : LONGINT; child : WMTrees.TreeNode;
 		BEGIN
-			p := bordersI.t;
+			p := 0;
 			menu.Acquire;
 			child := menu.GetChildren(root);
 			IF (child # NIL) THEN
@@ -329,27 +405,15 @@ TYPE
 			child := menu.GetChildren(root);
 			WHILE (child # NIL) & (child # i) DO
 				IF horizontal.Get() THEN
-					INC(r.l, ItemWidth(child))
+					INC(r.l, ItemWidth(child, horizontalI));
 				ELSE
-					INC(r.t, ItemHeight(child))
+					INC(r.t, ItemHeight(child));
 				END;
 				child := menu.GetNextSibling(child);
 			END;
-			IF (child # NIL) THEN r.r := r.l + ItemWidth(child); r.b := r.t + ItemHeight(child) END;
+			IF (child # NIL) THEN r.r := r.l + ItemWidth(child, horizontalI); r.b := r.t + ItemHeight(child) END;
 			menu.Release
 		END GetItemRect;
-
-		PROCEDURE PointerMove(x, y : LONGINT; keys : SET);
-		VAR node : WMTrees.TreeNode;
-		BEGIN
-			IF horizontal.Get() THEN
-				node := FindHorizontal(x);
-			ELSE
-				node := FindVertical(y);
-			END;
-			IF (node # NIL) & ~IsSelectable(node) THEN node := NIL; END;
-			IF (node # hover) THEN hover := node; Invalidate; END;
-		END PointerMove;
 
 		PROCEDURE LeafSelect(item : WMTrees.TreeNode);
 		VAR data : ANY;
@@ -434,24 +498,76 @@ TYPE
 			ELSE
 				node := FindVertical(y);
 			END;
-			IF (node # NIL) THEN
-				IF IsSelectable(node) THEN SelectNode(node, FALSE); END;
+			leftClick := (0 IN keys);
+			IF leftClick & (node # NIL) & IsSelectable(node) THEN
+				dragPossible := leftClick & (dragDataGenerator # NIL);
+				IF dragPossible THEN draggedNode := node; END;
 			ELSE
 				CloseSubMenu(FALSE);
 			END;
 		END PointerDown;
+
+		PROCEDURE PointerUp(x, y : LONGINT; keys : SET);
+		VAR node : WMTrees.TreeNode;
+		BEGIN
+			IF leftClick THEN
+				IF horizontal.Get() THEN
+					node := FindHorizontal(x);
+				ELSE
+					node := FindVertical(y);
+				END;
+				IF (node # NIL) THEN
+					IF IsSelectable(node) THEN
+						SelectNode(node, FALSE);
+					END;
+				ELSE
+					CloseSubMenu(FALSE);
+				END;
+			END;
+			dragPossible := FALSE;
+			draggedNode := NIL;
+		END PointerUp;
+
+		PROCEDURE PointerMove(x, y : LONGINT; keys : SET);
+		VAR node : WMTrees.TreeNode; data : ANY;
+		BEGIN
+			IF dragPossible THEN
+				IF (ABS(x - downX) > DragDist) OR (ABS(y - downY) > DragDist) THEN
+					dragPossible := FALSE;
+					IF (dragDataGenerator # NIL) THEN
+						ASSERT(draggedNode # NIL);
+						data := dragDataGenerator(draggedNode);
+						IF (data # NIL) THEN
+							leftClick := FALSE;
+							MyStartDrag(draggedNode, data);
+						END;
+					END;
+				END;
+			ELSE
+				IF horizontal.Get() THEN
+					node := FindHorizontal(x);
+				ELSE
+					node := FindVertical(y);
+				END;
+				IF (node # NIL) & ~IsSelectable(node) THEN node := NIL; END;
+				IF (node # hover) THEN hover := node; Invalidate; END;
+			END;
+		END PointerMove;
 
 		PROCEDURE PointerLeave;
 		BEGIN
 			IF hover # NIL THEN hover := NIL; Invalidate; END;
 		END PointerLeave;
 
+		PROCEDURE MyStartDrag(node : WMTrees.TreeNode; data : ANY);
+		BEGIN
+
+		END MyStartDrag;
+
 		PROCEDURE CursorUp;
-		VAR dir : LONGINT;
 		BEGIN
 			IF horizontal.Get() THEN
-				dir := openDirection.Get();
-				IF (dir = OpenUpLeft) OR (dir = OpenUpRight) THEN
+				IF (openDirectionI = OpenUpLeft) OR (openDirectionI = OpenUpRight) THEN
 					IF (hover # NIL) & HasChildren(hover, menu) THEN
 						SelectNode(hover, TRUE);
 					END;
@@ -462,11 +578,9 @@ TYPE
 		END CursorUp;
 
 		PROCEDURE CursorDown;
-		VAR dir : LONGINT;
 		BEGIN
 			IF horizontal.Get() THEN
-				dir := openDirection.Get();
-				IF (dir = OpenDownLeft) OR (dir = OpenDownRight) THEN
+				IF (openDirectionI = OpenDownLeft) OR (openDirectionI = OpenDownRight) THEN
 					IF (hover # NIL) & HasChildren(hover, menu) THEN
 						SelectNode(hover, TRUE);
 					END;
@@ -477,13 +591,11 @@ TYPE
 		END CursorDown;
 
 		PROCEDURE CursorLeft;
-		VAR dir : LONGINT;
 		BEGIN
 			IF horizontal.Get() THEN
 				MoveToPrevious;
 			ELSE
-				dir := openDirection.Get();
-				IF (dir = OpenUpLeft) OR (dir = OpenDownLeft) THEN
+				IF (openDirectionI = OpenUpLeft) OR (openDirectionI = OpenDownLeft) THEN
 					Acquire;
 					IF (hover # NIL) & HasChildren(hover, menu) THEN
 						SelectNode(hover, TRUE);
@@ -498,13 +610,11 @@ TYPE
 		END CursorLeft;
 
 		PROCEDURE CursorRight;
-		VAR dir : LONGINT;
 		BEGIN
 			IF horizontal.Get() THEN
 				MoveToNext;
 			ELSE
-				dir := openDirection.Get();
-				IF (dir = OpenUpRight) OR (dir = OpenDownRight) THEN
+				IF (openDirectionI = OpenUpRight) OR (openDirectionI = OpenDownRight) THEN
 					Acquire;
 					IF (hover # NIL) & HasChildren(hover, menu) THEN
 						SelectNode(hover, TRUE);
@@ -634,6 +744,7 @@ TYPE
 		VAR width, height, dx, dy : LONGINT; ignore : BOOLEAN; flags : SET;
 		BEGIN
 			NEW(menuPanel);
+			menuPanel.openDirection.Set(openDirection);
 			menuPanel.SetMenu(menu, root);
 			menuPanel.SetParent(parent);
 			IF (indicate) THEN
@@ -654,7 +765,6 @@ TYPE
 			ELSE
 				dx := 0; dy := 0;
 			END;
-			menuPanel.openDirection.Set(openDirection);
 			menuPanel.bounds.SetExtents(width, height);
 			menuPanel.fillColor.Set(WMGraphics.White);
 
