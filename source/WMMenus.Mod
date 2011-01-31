@@ -5,7 +5,7 @@ IMPORT
 	WMWindowManager, WMProperties, WMEvents, WMTrees;
 
 CONST
-	OpenDefault* = 0;
+	OpenDefault* = OpenDownRight;
 	OpenUpLeft* = 1;
 	OpenUpRight* = 2;
 	OpenDownLeft* = 3;
@@ -447,34 +447,74 @@ TYPE
 		END PointerLeave;
 
 		PROCEDURE CursorUp;
+		VAR dir : LONGINT;
 		BEGIN
 			IF horizontal.Get() THEN
+				dir := openDirection.Get();
+				IF (dir = OpenUpLeft) OR (dir = OpenUpRight) THEN
+					IF (hover # NIL) & HasChildren(hover, menu) THEN
+						SelectNode(hover, TRUE);
+					END;
+				END;
 			ELSE
 				MoveToPrevious;
 			END;
 		END CursorUp;
 
 		PROCEDURE CursorDown;
+		VAR dir : LONGINT;
 		BEGIN
 			IF horizontal.Get() THEN
+				dir := openDirection.Get();
+				IF (dir = OpenDownLeft) OR (dir = OpenDownRight) THEN
+					IF (hover # NIL) & HasChildren(hover, menu) THEN
+						SelectNode(hover, TRUE);
+					END;
+				END;
 			ELSE
 				MoveToNext;
 			END;
 		END CursorDown;
 
 		PROCEDURE CursorLeft;
+		VAR dir : LONGINT;
 		BEGIN
 			IF horizontal.Get() THEN
 				MoveToPrevious;
 			ELSE
+				dir := openDirection.Get();
+				IF (dir = OpenUpLeft) OR (dir = OpenDownLeft) THEN
+					Acquire;
+					IF (hover # NIL) & HasChildren(hover, menu) THEN
+						SelectNode(hover, TRUE);
+					END;
+					Release;
+				ELSE
+					IF (parentMenuPanel # NIL) THEN
+						parentMenuPanel.CloseSubMenu(TRUE);
+					END;
+				END;
 			END;
 		END CursorLeft;
 
 		PROCEDURE CursorRight;
+		VAR dir : LONGINT;
 		BEGIN
 			IF horizontal.Get() THEN
 				MoveToNext;
 			ELSE
+				dir := openDirection.Get();
+				IF (dir = OpenUpRight) OR (dir = OpenDownRight) THEN
+					Acquire;
+					IF (hover # NIL) & HasChildren(hover, menu) THEN
+						SelectNode(hover, TRUE);
+					END;
+					Release;
+				ELSE
+					IF (parentMenuPanel # NIL) THEN
+						parentMenuPanel.CloseSubMenu(TRUE);
+					END;
+				END;
 			END;
 		END CursorRight;
 
@@ -712,6 +752,20 @@ BEGIN
 	shadow.bounds := WMRectangles.MakeRect(l + ShadowOffsetHorizontal, b, r, b + ShadowHeight);
 	InitShadow(shadow);
 END ShadowDecorator;
+
+PROCEDURE HasChildren(parent : WMTrees.TreeNode; tree : WMTrees.Tree) : BOOLEAN;
+VAR hasChildren : BOOLEAN;
+BEGIN
+	ASSERT(tree # NIL);
+	IF (parent # NIL) THEN
+		tree.Acquire;
+		hasChildren := tree.GetChildren(parent) # NIL;
+		tree.Release;
+	ELSE
+		hasChildren := FALSE;
+	END;
+	RETURN hasChildren;
+END HasChildren;
 
 PROCEDURE GetCaption*(data : ANY; menu : WMTrees.Tree) : Strings.String;
 VAR caption : Strings.String;
