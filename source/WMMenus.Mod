@@ -1,7 +1,6 @@
 MODULE WMMenus;	(** AUTHOR "TF/staubesv"; PURPOSE "Menu support"; *)
 
 IMPORT
-	KernelLog,
 	Inputs, Strings, Raster, WMRectangles, WMGraphics, WMGraphicUtilities, WMComponents,
 	WMWindowManager, WMProperties, WMEvents, WMTrees;
 
@@ -406,11 +405,7 @@ TYPE
 				CloseSubMenu(indicateLast);
 				SetSelection(node);
 				NEW(subMenu, x, y, openDirection.Get(), menu, node, SELF, FALSE, TRUE);
-				IF (rootMenuPanel # NIL) THEN
-					rootMenuPanel.focusPanel := subMenu.menuPanel;
-				ELSE
-					KernelLog.String("ROOTMENUPANEL IS NIL"); KernelLog.Ln;
-				END;
+				rootMenuPanel.focusPanel := subMenu.menuPanel;
 				PointerLeave;
 			ELSE
 				LeafSelect(node)
@@ -427,11 +422,7 @@ TYPE
 					selection := NIL;
 					Invalidate;
 				END;
-				IF (rootMenuPanel # NIL) THEN
-					rootMenuPanel.focusPanel := SELF;
-				ELSE
-					KernelLog.String("rootMenuPanel IS NIL"); KernelLog.Ln;
-				END;
+				rootMenuPanel.focusPanel := SELF;
 			END;
 		END CloseSubMenu;
 
