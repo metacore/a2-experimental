@@ -1,7 +1,8 @@
 MODULE WMMenus;	(** AUTHOR "TF/staubesv"; PURPOSE "Menu support"; *)
 
 IMPORT
-	Strings, Raster, WMRectangles, WMGraphics, WMGraphicUtilities, WMComponents,
+	KernelLog,
+	Inputs, Strings, Raster, WMRectangles, WMGraphics, WMGraphicUtilities, WMComponents,
 	WMWindowManager, WMProperties, WMEvents, WMTrees;
 
 CONST
@@ -53,7 +54,7 @@ TYPE
 
 		subMenu, parentWindow : MenuWindow;
 
-		parentMenuPanel : MenuPanel;
+		parentMenuPanel, focusPanel, rootMenuPanel : MenuPanel;
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -71,7 +72,7 @@ TYPE
 			root := NIL; selection := NIL; hover := NIL;
 			subMenuIndicatorImg := NIL;
 			subMenu := NIL; parentWindow := NIL;
-			parentMenuPanel := NIL;
+			parentMenuPanel := NIL; focusPanel := SELF; rootMenuPanel := SELF;
 			takesFocus.Set(TRUE);
 		END Init;
 
@@ -96,6 +97,9 @@ TYPE
 		PROCEDURE SetParent(parentMenuPanel : MenuPanel);
 		BEGIN
 			SELF.parentMenuPanel := parentMenuPanel;
+			IF (parentMenuPanel # NIL) THEN
+				rootMenuPanel := parentMenuPanel.rootMenuPanel;
+			END;
 		END SetParent;
 
 		(* If menus are used as popup menus, the initial window most be registered here so it can be closed when an item has been selected *)
@@ -352,7 +356,7 @@ TYPE
 		VAR data : ANY;
 		BEGIN
 			IF parentMenuPanel = NIL THEN
-				IF subMenu # NIL THEN subMenu.CloseMenu(SELF, NIL); subMenu := NIL; END;
+				CloseSubMenu(FALSE);
 				menu.Acquire;
 				data := menu.GetNodeData(item);
 				menu.Release;
@@ -377,41 +381,72 @@ TYPE
 			END;
 		END SetSelection;
 
+		PROCEDURE SelectNode(node : WMTrees.TreeNode; indicateLast : BOOLEAN);
+		VAR child : WMTrees.TreeNode; r : WMRectangles.Rectangle; x, y : LONGINT;
+		BEGIN
+			ASSERT(node # NIL);
+			menu.Acquire;
+			child := menu.GetChildren(node);
+			IF (child # NIL) THEN
+				GetItemRect(node, r);
+				IF horizontal.Get() THEN
+					IF openDirection.Get() IN {OpenUpLeft, OpenUpRight} THEN ToWMCoordinates(r.l, r.t, x, y);
+					ELSE ToWMCoordinates(r.l, r.b, x, y);
+					END
+				ELSE
+					CASE openDirection.Get() OF
+						|OpenUpLeft : ToWMCoordinates(r.l, r.b, x, y);
+						|OpenUpRight : ToWMCoordinates(r.r, r.b, x, y);
+						|OpenDownLeft : ToWMCoordinates(r.l, r.t, x, y);
+						|OpenDownRight : ToWMCoordinates(r.r, r.t, x, y);
+					ELSE
+						ToWMCoordinates(r.r, r.t, x, y);
+					END;
+				END;
+				CloseSubMenu(indicateLast);
+				SetSelection(node);
+				NEW(subMenu, x, y, openDirection.Get(), menu, node, SELF, FALSE, TRUE);
+				IF (rootMenuPanel # NIL) THEN
+					rootMenuPanel.focusPanel := subMenu.menuPanel;
+				ELSE
+					KernelLog.String("ROOTMENUPANEL IS NIL"); KernelLog.Ln;
+				END;
+				PointerLeave;
+			ELSE
+				LeafSelect(node)
+			END;
+			menu.Release;
+		END SelectNode;
+
+		PROCEDURE CloseSubMenu(indicateLast : BOOLEAN);
+		BEGIN
+			IF (subMenu # NIL) THEN
+				subMenu.CloseMenu(NIL, NIL); subMenu := NIL;
+				IF (selection # NIL) THEN
+					IF indicateLast THEN hover := selection; END;
+					selection := NIL;
+					Invalidate;
+				END;
+				IF (rootMenuPanel # NIL) THEN
+					rootMenuPanel.focusPanel := SELF;
+				ELSE
+					KernelLog.String("rootMenuPanel IS NIL"); KernelLog.Ln;
+				END;
+			END;
+		END CloseSubMenu;
+
 		PROCEDURE PointerDown(x, y : LONGINT; keys : SET);
-		VAR node, child : WMTrees.TreeNode; r : WMRectangles.Rectangle;
+		VAR node : WMTrees.TreeNode;
 		BEGIN
 			IF horizontal.Get() THEN
 				node := FindHorizontal(x);
 			ELSE
 				node := FindVertical(y);
 			END;
-			IF (node # NIL) & IsSelectable(node) THEN
-				menu.Acquire;
-				child := menu.GetChildren(node);
-				IF (child # NIL) THEN
-					GetItemRect(node, r);
-					IF horizontal.Get() THEN
-						IF openDirection.Get() IN {OpenUpLeft, OpenUpRight} THEN ToWMCoordinates(r.l, r.t, x, y);
-						ELSE ToWMCoordinates(r.l, r.b, x, y);
-						END
-					ELSE
-						CASE openDirection.Get() OF
-							|OpenUpLeft : ToWMCoordinates(r.l, r.b, x, y);
-							|OpenUpRight : ToWMCoordinates(r.r, r.b, x, y);
-							|OpenDownLeft : ToWMCoordinates(r.l, r.t, x, y);
-							|OpenDownRight : ToWMCoordinates(r.r, r.t, x, y);
-						ELSE
-							ToWMCoordinates(r.r, r.t, x, y);
-						END;
-					END;
-					IF subMenu # NIL THEN subMenu.CloseMenu(SELF, NIL); subMenu := NIL; END;
-					SetSelection(node);
-					NEW(subMenu, x, y, openDirection.Get(), menu, node, SELF);
-					PointerLeave;
-				ELSE
-					LeafSelect(node)
-				END;
-				menu.Release;
+			IF (node # NIL) THEN
+				IF IsSelectable(node) THEN SelectNode(node, FALSE); END;
+			ELSE
+				CloseSubMenu(FALSE);
 			END;
 		END PointerDown;
 
@@ -420,16 +455,119 @@ TYPE
 			IF hover # NIL THEN hover := NIL; Invalidate; END;
 		END PointerLeave;
 
-		PROCEDURE Finalize;
+		PROCEDURE CursorUp;
 		BEGIN
-			Finalize^;
-			IF subMenu # NIL THEN subMenu.Close; subMenu := NIL; END;
-		END Finalize;
+			IF horizontal.Get() THEN
+			ELSE
+				MoveToPrevious;
+			END;
+		END CursorUp;
+
+		PROCEDURE CursorDown;
+		BEGIN
+			IF horizontal.Get() THEN
+			ELSE
+				MoveToNext;
+			END;
+		END CursorDown;
+
+		PROCEDURE CursorLeft;
+		BEGIN
+			IF horizontal.Get() THEN
+				MoveToPrevious;
+			ELSE
+			END;
+		END CursorLeft;
+
+		PROCEDURE CursorRight;
+		BEGIN
+			IF horizontal.Get() THEN
+				MoveToNext;
+			ELSE
+			END;
+		END CursorRight;
+
+		PROCEDURE MoveToPrevious;
+		BEGIN
+			Acquire;
+			menu.Acquire;
+			IF (hover # NIL) THEN
+				hover := menu.GetPrevSibling(hover);
+				IF (hover = NIL) THEN
+					hover := menu.GetLastChild(root);
+				END;
+			ELSE
+				hover := menu.GetLastChild(root);
+			END;
+			menu.Release;
+			Release;
+			Invalidate;
+		END MoveToPrevious;
+
+		PROCEDURE MoveToNext;
+		BEGIN
+			Acquire;
+			menu.Acquire;
+			IF (hover # NIL) THEN
+				hover := menu.GetNextSibling(hover);
+				IF (hover = NIL) THEN
+					hover := menu.GetChildren(root);
+				END;
+			ELSE
+				hover := menu.GetChildren(root);
+			END;
+			menu.Release;
+			Release;
+			Invalidate;
+		END MoveToNext;
+
+		PROCEDURE SelectCurrent;
+		BEGIN
+			Acquire;
+			IF (hover # NIL) THEN
+				SelectNode(hover, TRUE);
+			END;
+			Release;
+		END SelectCurrent;
+
+		PROCEDURE KeyEvent*(ucs : LONGINT; flags: SET; VAR keySym: LONGINT); (** PROTECTED *)
+		VAR focusPanel : MenuPanel;
+		BEGIN
+			ASSERT(IsCallFromSequencer());
+			IF (Inputs.Release IN flags) THEN RETURN; END;
+			focusPanel := rootMenuPanel.focusPanel;
+			IF (focusPanel # NIL) THEN
+				IF (keySym = Inputs.KsUp) THEN focusPanel.CursorUp;
+				ELSIF (keySym = Inputs.KsDown) THEN focusPanel.CursorDown;
+				ELSIF (keySym = Inputs.KsLeft) THEN focusPanel.CursorLeft;
+				ELSIF (keySym = Inputs.KsRight) THEN focusPanel.CursorRight;
+				ELSIF (ucs = 20H) OR (keySym = Inputs.KsReturn) THEN focusPanel.SelectCurrent;
+				ELSIF (keySym = Inputs.KsEscape) THEN
+					IF (focusPanel.parentMenuPanel # NIL) THEN
+						focusPanel.parentMenuPanel.CloseSubMenu(TRUE);
+					ELSIF (focusPanel.parentWindow # NIL) THEN
+						focusPanel.parentWindow.CloseMenu(NIL, NIL);
+					END;
+				ELSE
+				END;
+			END;
+		END KeyEvent;
 
 		PROCEDURE FocusLost;
 		BEGIN
-			IF subMenu # NIL THEN subMenu.Close; subMenu := NIL; END;
+			FocusLost^;
+			CloseSubMenu(FALSE);
+			IF (selection # NIL) OR (hover # NIL) THEN
+				selection := NIL; hover := NIL;
+				Invalidate;
+			END;
 		END FocusLost;
+
+		PROCEDURE Finalize;
+		BEGIN
+			Finalize^;
+			CloseSubMenu(FALSE);
+		END Finalize;
 
 	END MenuPanel;
 
@@ -459,13 +597,20 @@ TYPE
 	MenuWindow= OBJECT(WMComponents.FormWindow)
 	VAR
 		menuPanel : MenuPanel;
+		takesFocus : BOOLEAN;
 
-		PROCEDURE &Open*(x, y : LONGINT; openDirection : LONGINT; menu : WMTrees.Tree; root : WMTrees.TreeNode; parent : MenuPanel);
-		VAR width, height, dx, dy : LONGINT; ignore : BOOLEAN;
+		PROCEDURE &Open*(x, y : LONGINT; openDirection : LONGINT; menu : WMTrees.Tree; root : WMTrees.TreeNode; parent : MenuPanel; takesFocus, indicate : BOOLEAN);
+		VAR width, height, dx, dy : LONGINT; ignore : BOOLEAN; flags : SET;
 		BEGIN
 			NEW(menuPanel);
 			menuPanel.SetMenu(menu, root);
 			menuPanel.SetParent(parent);
+			IF (indicate) THEN
+				menu.Acquire;
+				menuPanel.hover := menu.GetChildren(root);
+				menu.Release;
+			END;
+			SELF.takesFocus := takesFocus;
 
 			menuPanel.Measure(width, height);
 			IF (height < 5) THEN height := 5; END;
@@ -484,8 +629,11 @@ TYPE
 
 			Init(menuPanel.bounds.GetWidth(), menuPanel.bounds.GetHeight(), FALSE);
 			SetContent(menuPanel);
-			AddWindow(SELF, x + dx, y + dy, {WMWindowManager.FlagNoFocus, WMWindowManager.FlagFrame, WMWindowManager.FlagHidden});
+			flags := {WMWindowManager.FlagFrame, WMWindowManager.FlagHidden};
+			IF ~takesFocus THEN flags := flags + {WMWindowManager.FlagNoFocus}; END;
+			AddWindow(SELF, x + dx, y + dy, flags);
 			ignore := manager.TransferPointer(SELF);
+			manager.SetFocus(SELF);
 		END Open;
 
 		PROCEDURE CloseMenu(sender, data : ANY);
@@ -496,6 +644,14 @@ TYPE
 				Close;
 			END
 		END CloseMenu;
+
+		PROCEDURE FocusLost;
+		BEGIN
+			FocusLost^;
+			IF takesFocus THEN
+				Close;
+			END;
+		END FocusLost;
 
 		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h, q : LONGINT); (** override *)
 		BEGIN
@@ -695,7 +851,7 @@ BEGIN
 	root := menu.GetRoot();
 	menu.Release;
 	IF (root # NIL) THEN
-		NEW(window, x, y, OpenDefault, menu, root, NIL);
+		NEW(window, x, y, OpenDefault, menu, root, NIL, TRUE, FALSE);
 		window.menuPanel.SetParentWindow(window);
 		window.menuPanel.onSelect.Add(handler);
 	END;
@@ -704,4 +860,3 @@ END Show;
 BEGIN
 	StrMenuPanel := Strings.NewString("MenuPanel");
 END WMMenus.
-
