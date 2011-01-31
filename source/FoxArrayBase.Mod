@@ -7943,8 +7943,8 @@ Sufficient (but not necessary) conditions:
 		END;
 	END DoReshape;
 
-	PROCEDURE AllocateTensorX*( VAR dest: LONGINT; CONST a: ARRAY [ * ] OF LONGINT;  Size: LONGINT );
-	VAR descr, data: ANY;  same: BOOLEAN;  i: LONGINT;  dim: LONGINT;
+	PROCEDURE AllocateTensorX*( VAR destA: ARRAY [?] OF SYSTEM.ALL; CONST a: ARRAY [ * ] OF LONGINT;  Size: LONGINT );
+	VAR descr, data: ANY;  same: BOOLEAN;  i: LONGINT;  dim: LONGINT; dest: ADDRESS;
 
 		PROCEDURE NewData;
 		VAR len, size, i: LONGINT;
@@ -7968,6 +7968,7 @@ Sufficient (but not necessary) conditions:
 
 	BEGIN
 		dim := LEN( a,0 );
+		dest := SYSTEM.VAL(ADDRESS,destA);
 
 		(*! check range flag! *)
 
@@ -7989,6 +7990,7 @@ Sufficient (but not necessary) conditions:
 			ELSE ClearData
 			END;
 		END;
+		SYSTEM.PUT(SYSTEM.ADR(destA),dest);
 	END AllocateTensorX;
 
 	PROCEDURE LenA*( VAR dest: ARRAY [ * ] OF LONGINT;  src: ADDRESS );

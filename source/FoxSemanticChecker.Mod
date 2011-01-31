@@ -516,6 +516,57 @@ TYPE
 			END;
 		END ImportModule;
 
+		PROCEDURE ImportThis(position: LONGINT; moduleName: SyntaxTree.Identifier; VAR m: SyntaxTree.Module; force: BOOLEAN): BOOLEAN;
+		VAR import: SyntaxTree.Import;
+			s,name: Scanner.StringType;
+			selfName, selfContext: SyntaxTree.String;
+		BEGIN
+			module.context.GetString(selfContext);
+			IF (moduleName = module.name) & (selfContext = "A2") THEN
+				m := module
+			ELSE
+				import := module.moduleScope.ImportByModuleName(moduleName,SyntaxTree.NewIdentifier(-1,"A2"));
+				IF import = NIL THEN
+					import := SyntaxTree.NewImport(-1,moduleName,moduleName,TRUE);
+					import.SetContext(SyntaxTree.NewIdentifier(-1,"A2"));
+					IF ~AddImport(module,import) OR (import.module = NIL) THEN
+						IF force THEN
+							s := "Module ";
+							moduleName.GetString(name);
+							Strings.Append(s,name);
+							Strings.Append(s," cannot be imported.");
+							Error(position,Diagnostics.Invalid,s);
+						END;
+						RETURN FALSE
+					END;
+				ELSIF import.module = NIL THEN (* already tried *)
+					RETURN FALSE
+				END;
+				m := import.module;
+			END;
+			RETURN TRUE
+		END ImportThis;
+
+		PROCEDURE GetRuntimeProcedure(position: LONGINT;  moduleName: SyntaxTree.Identifier; CONST  procedureName: ARRAY OF CHAR; VAR procedure: SyntaxTree.Procedure; force: BOOLEAN): BOOLEAN;
+		VAR runtimeModule: SyntaxTree.Module; s,name: Scanner.StringType;
+		BEGIN
+			IF ImportThis(position, moduleName,runtimeModule,force) THEN
+				procedure := runtimeModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(-1,procedureName));
+				IF procedure = NIL THEN
+					s := "Procedure ";
+					moduleName.GetString(name);
+					Strings.Append(s,name);
+					Strings.Append(s,".");
+					Strings.Append(s,procedureName);
+					Strings.Append(s," not present");
+					Error(position,Diagnostics.Invalid,s);
+					RETURN FALSE
+				ELSE
+					RETURN TRUE
+				END;
+			ELSE RETURN FALSE
+			END;
+		END GetRuntimeProcedure;
 		(**
 			resolve math array type
 			- check base type
@@ -1779,7 +1830,7 @@ TYPE
 				expression := x.elements.GetExpression(i);
 				position := expression.position;
 				expression := ResolveExpression(x.elements.GetExpression(i));
-				x.elements.SetExpression(i,expression);
+				x.elements.SetExpression(i,de);
 				IF type = NIL THEN
 					type := expression.type;
 				ELSIF CompatibleTo(system,expression.type,type) THEN
@@ -3604,7 +3655,7 @@ TYPE
 							castReturnType.SetArrayBase(ArrayBase(rhs.type.resolved,MAX(LONGINT)));
 							expression.SetType(castReturnType);
 						ELSE
-							Error(expression.position, Diagnostics.Invalid, "problem with resolving OCArrayBase.ExpandDimensions");
+							Error(expression.position, Diagnostics.Invalid, "problem with resolving ArrayBase.ExpandDimensions");
 						END;
 
 						actualParameters.AddExpression(expression)
@@ -4244,7 +4295,8 @@ TYPE
 			formalParameter: SyntaxTree.Parameter;
 			actualParameter: SyntaxTree.Expression;
 			procedureType: SyntaxTree.ProcedureType;
-			parameter0, parameter1, parameter2, result: SyntaxTree.Expression;
+			parameter0, parameter1, parameter2, result, expression: SyntaxTree.Expression;
+			designator : SyntaxTree.Designator;
 			inPort, outPort: SyntaxTree.PortType;
 			constructor: SyntaxTree.Procedure;
 			type0,type1,type2: SyntaxTree.Type;
@@ -4299,6 +4351,9 @@ TYPE
 			id := builtin.id;
 			IF system.operatorDefined[id] THEN (* try to find overloaded operator *)
 				result := NewOperatorCall(position,builtin.id,parameter0,parameter1,system.allType);
+				IF result = NIL THEN
+					result := NewOperatorCall(position,builtin.id,parameter0,parameter1,NIL);
+				END;
 			END;
 
 			IF result = SyntaxTree.invalidExpression THEN (* error already handled *)
@@ -4444,16 +4499,38 @@ TYPE
 									i1 := i0;
 								ELSE HALT(100);
 								END;
-								IF Parameters(i0,i1) & (numberActualParameters >1) THEN
-									i := 1;
-									REPEAT
-										actualParameter := actualParameters.GetExpression(i);
-										IF CheckIntegerType(actualParameter) THEN
-											actualParameter := NewConversion(0,actualParameter,system.sizeType,NIL);
-											actualParameters.SetExpression(i,actualParameter);
+								IF type1 IS SyntaxTree.MathArrayType THEN (* NEW(a, array) *)
+									IF  ~arrayBaseImported THEN
+										ImportModule(Global.ArrayBaseName, InvalidPosition);
+										arrayBaseImported := TRUE
+									END;
+									IF GetRuntimeProcedure(position, Global.ArrayBaseName,"AllocateTensorX",procedure,TRUE) THEN
+										expression := NewSymbolDesignator(position, NIL, procedure);
+										designator := expression(SyntaxTree.Designator);
+										base := type0;
+										WHILE (base IS SyntaxTree.MathArrayType) & (base(SyntaxTree.MathArrayType).form # SyntaxTree.Static) DO
+											base := base(SyntaxTree.MathArrayType).arrayBase.resolved;
 										END;
-										INC(i);
-									UNTIL ~CheckIntegerType(actualParameter) OR (actualParameter.resolved # NIL) & ~CheckPositiveIntegerValue(actualParameter,i0,TRUE) OR (i=numberActualParameters);
+										actualParameters.AddExpression(Global.NewIntegerValue(system,0, ToMemoryUnits(system, system.SizeOf(base))));
+										result := NewProcedureCallDesignator(position,designator,actualParameters);
+									END;
+									(*
+									designator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
+									designator := SyntaxTree.NewSelectorDesignator(InvalidPosition, designator, SyntaxTree.NewIdentifier(InvalidPosition, "AllocateTensorX"));
+									result := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, designator, actualParameters));
+									*)
+								ELSE
+									IF Parameters(i0,i1) & (numberActualParameters >1) THEN
+										i := 1;
+										REPEAT
+											actualParameter := actualParameters.GetExpression(i);
+											IF CheckIntegerType(actualParameter) THEN
+												actualParameter := NewConversion(0,actualParameter,system.sizeType,NIL);
+												actualParameters.SetExpression(i,actualParameter);
+											END;
+											INC(i);
+										UNTIL ~CheckIntegerType(actualParameter) OR (actualParameter.resolved # NIL) & ~CheckPositiveIntegerValue(actualParameter,i0,TRUE) OR (i=numberActualParameters);
+									END;
 								END;
 							END;
 						ELSIF type0 IS SyntaxTree.ActorType THEN
@@ -5815,6 +5892,8 @@ TYPE
 			*)
 			(*! check operator (number of parameters etc.) *)
 		END VisitOperator;
+
+
 
 		PROCEDURE AddImport*(module: SyntaxTree.Module; x: SyntaxTree.Import): BOOLEAN;
 		VAR prevScope: SyntaxTree.Scope; prevDiagnostics: Diagnostics.Diagnostics;
