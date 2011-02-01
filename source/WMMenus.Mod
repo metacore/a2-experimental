@@ -27,6 +27,8 @@ CONST
 	ShadowOffsetHorizontal = 5;
 
 	LightGrey = SHORT(0C0C0C0FFH);
+	LightGreyDrag = SHORT(0C0C0C0C0H);
+	WhiteDrag = SHORT(0FFFFFFC0H);
 
 	TextImageDistance = 4;
 	MinImageWidth = 4;
@@ -529,8 +531,6 @@ TYPE
 				END;
 			END;
 			dragPossible := FALSE;
-			dragNode := NIL;
-			dragObject := NIL;
 		END PointerUp;
 
 		PROCEDURE PointerMove(x, y : LONGINT; keys : SET);
@@ -570,22 +570,24 @@ TYPE
 			menu.Acquire;
 			image := menu.GetNodeImage(node);
 			caption := menu.GetNodeCaption(node);
-			width := ItemWidth(node, horizontalI);
 			height := ItemHeight(node);
 			menu.Release;
+			width := bounds.GetWidth();
 			NEW(canvasImage); Raster.Create(canvasImage, width, height, Raster.BGRA8888);
-			NEW(canvas, image);
+			NEW(canvas, canvasImage);
 			(* actually should factor out node rendering code in DrawBackground and re-use it here... *)
 			x := HMenuDistance;
-			canvas.Fill(WMRectangles.MakeRect(0, 0, greyBoxWidth, height), LightGrey, WMGraphics.ModeCopy);
+			canvas.Fill(WMRectangles.MakeRect(0, 0, greyBoxWidth, height), LightGreyDrag, WMGraphics.ModeSrcOverDst);
+			canvas.Fill(WMRectangles.MakeRect(greyBoxWidth, 0, width, height), WhiteDrag, WMGraphics.ModeSrcOverDst);
 			IF (image # NIL) THEN
-				canvas.DrawImage(x, 0, image, WMGraphics.ModeSrcOverDst);
+				canvas.DrawImage(x, VMenuDistance, image, WMGraphics.ModeSrcOverDst);
 				x := x + image.width + HMenuDistance + TextImageDistance;
 			END;
 			IF (caption # NIL) THEN
+				canvas.SetColor(WMGraphics.Black);
 				WMGraphics.DrawStringInRect(canvas, WMRectangles.MakeRect(x, 0, width, height), FALSE, WMGraphics.AlignLeft, WMGraphics.AlignCenter, caption^);
 			END;
-			IF ~StartDrag(object, image, DragWasAccepted, NIL) THEN dragNode := NIL; dragObject := NIL; END;
+			IF ~StartDrag(object, canvasImage, DragWasAccepted, NIL) THEN dragNode := NIL; dragObject := NIL; END;
 		END MyStartDrag;
 
 		PROCEDURE DragWasAccepted(sender, data : ANY);
@@ -599,6 +601,11 @@ TYPE
 						itf(WMDropTarget.DropObject).Set(dragObject, ignoreRes);
 					END;
 				END;
+			END;
+			IF (rootMenuPanel.parentWindow # NIL) THEN
+				rootMenuPanel.parentWindow.Close;
+			ELSE
+				rootMenuPanel.CloseSubMenu(FALSE);
 			END;
 		END DragWasAccepted;
 
