@@ -48,21 +48,6 @@ TYPE
 TYPE
 
 	DragWrapper* = OBJECT
-	VAR
-		object : ANY;
-
-		PROCEDURE &Init*(object : ANY);
-		BEGIN
-			ASSERT(object # NIL);
-			SELF.object := object;
-		END Init;
-
-		PROCEDURE GetObject*() : ANY;
-		BEGIN
-			ASSERT(object # NIL);
-			RETURN object;
-		END GetObject;
-
 	END DragWrapper;
 
 TYPE
@@ -516,7 +501,7 @@ TYPE
 			END;
 			leftClick := (0 IN keys);
 			IF leftClick & (node # NIL) & IsSelectable(node) THEN
-				dragObject := GetDragData(node, menu);
+				dragObject := GetDragWrapper(node, menu);
 				IF (dragObject # NIL) THEN
 					dragPossible := TRUE;
 					dragNode := node;
@@ -944,26 +929,21 @@ BEGIN
 	RETURN caption;
 END GetCaption;
 
-PROCEDURE GetDragData*(node : WMTrees.TreeNode; menu : WMTrees.Tree) : ANY;
-VAR data : ANY
+PROCEDURE GetDragWrapper*(node : WMTrees.TreeNode; menu : WMTrees.Tree) : DragWrapper;
+VAR data: ANY; drag : DragWrapper
 BEGIN
 	ASSERT(menu # NIL);
+	drag := NIL;
 	IF (node # NIL) THEN
 		menu.Acquire;
 		data := menu.GetNodeData(node);
 		menu.Release;
-		IF (data # NIL) THEN
-			IF (data IS DragWrapper) THEN
-				data := data(DragWrapper).GetObject();
-			ELSE
-				data := NIL;
-			END;
+		IF (data # NIL) & (data IS DragWrapper) THEN
+			drag := data(DragWrapper);
 		END;
-	ELSE
-		data := NIL;
 	END;
-	RETURN data;
-END GetDragData;
+	RETURN drag;
+END GetDragWrapper;
 
 PROCEDURE FindChild(CONST caption : ARRAY OF CHAR; parent : WMTrees.TreeNode; tree : WMTrees.Tree) : WMTrees.TreeNode;
 VAR child : WMTrees.TreeNode; string : Strings.String; found : BOOLEAN;
