@@ -607,17 +607,20 @@ TYPE
 				ELSE
 					RETURN SizeOf(rangeType) (* array range components are materialized on stack for both value and const parameters *)
 				END
-
-			ELSIF (par.kind IN {SyntaxTree.ConstParameter,SyntaxTree.VarParameter}) THEN
-				IF (par.type.resolved IS SyntaxTree.RecordType) THEN
+			ELSIF par.type.resolved IS SyntaxTree.RecordType THEN
+				IF (par.kind IN {SyntaxTree.ConstParameter,SyntaxTree.VarParameter}) THEN
 					IF IsOberonProcedure(par.ownerType) THEN
 						RETURN 2*addressSize
 					ELSE
 						RETURN addressSize
 					END
 				ELSE
-					RETURN addressSize
+					RETURN SizeOf(par.type);
 				END;
+			ELSIF par.kind = SyntaxTree.VarParameter THEN
+				RETURN addressSize
+			ELSIF par.kind = SyntaxTree.ConstParameter THEN
+				RETURN SizeOf(par.type)
 			ELSE
 				RETURN SizeOf(par.type);
 			END;
