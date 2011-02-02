@@ -1643,13 +1643,13 @@ VAR
 		END;
 	END GetWriter;
 
-	PROCEDURE GetDebugWriter*(CONST title: ARRAY OF CHAR): Writer;
+	PROCEDURE GetDebugWriter*(CONST title: ARRAY OF CHAR): Streams.Writer;
 	VAR w: Streams.Writer;
 	BEGIN
 		IF getDebugWriter # NIL THEN  w:= getDebugWriter(title)
 		ELSE NEW(w, KernelLog.Send,1024)
 		END;
-		RETURN GetWriter(w);
+		RETURN w;
 	END GetDebugWriter;
 
 	PROCEDURE InitWindowWriter;

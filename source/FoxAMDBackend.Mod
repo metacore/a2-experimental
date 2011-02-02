@@ -2656,7 +2656,7 @@ TYPE
 			IF trace THEN
 				dumpName := "AMD64 code trace: ";
 				Strings.Append(dumpName,traceString);
-				dump := Basic.GetDebugWriter(dumpName);
+				dump := Basic.GetWriter(Basic.GetDebugWriter(dumpName));
 				dump.String("---------------- intermediate code -----------------"); dump.Ln;
 				IF (traceString="") OR (traceString="*") THEN
 					intermediateModule.Dump(dump);

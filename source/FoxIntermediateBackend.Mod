@@ -6954,7 +6954,7 @@ TYPE
 			IF trace THEN
 				traceName := "intermediate code trace: ";
 				Strings.Append(traceName,traceString);
-				dump := Basic.GetDebugWriter(traceName);
+				dump := Basic.GetWriter(Basic.GetDebugWriter(traceName));
 				IF (traceString="") OR (traceString="*") THEN
 					module.Dump(dump);
 					dump.Update

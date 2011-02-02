@@ -2426,7 +2426,7 @@ BEGIN
 		D.Str("importer elapsed ms: "); D.Int(time,10); D.Ln;
 		D.Update;
 
-		log2 := Basic.GetDebugWriter("SymbolFile");
+		log2 := Basic.GetWriter(Basic.GetDebugWriter("SymbolFile"));
 		p := Printout.NewPrinter(log2,Printout.SymbolFile,FALSE);
 		log2.String("Interface of "); log2.String(moduleName); log2.Ln;
 		log2.Ln;

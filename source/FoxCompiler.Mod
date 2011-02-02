@@ -485,7 +485,7 @@ TYPE
 		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,dataflowSpecification,findPC) THEN
 
 			IF (Print IN flags) THEN
-				log := Basic.GetDebugWriter("Compiler Debug Output");
+				log := Basic.GetWriter(Basic.GetDebugWriter("Compiler Debug Output"));
 			ELSE
 				log := NIL;
 			END;
@@ -524,7 +524,7 @@ TYPE
 		error := FALSE; log := NIL;
 		NEW(diagnostics, context.out);
 		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,dataflowSpecification,findPC) THEN
-			IF (Print IN flags) THEN log := Basic.GetDebugWriter("Compiler Debug Output") END;
+			IF (Print IN flags) THEN log := Basic.GetWriter(Basic.GetDebugWriter("Compiler Debug Output")) END;
 			time := Kernel.GetTicks();
 			IF reader = NIL THEN
 				diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
