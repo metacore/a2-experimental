@@ -209,3 +209,18 @@ negative: comparison of incompatible array types
 	BEGIN 
 		ASSERT(a=b);
 	END Test.
+	
+negative: incompatible actual parameter type for static formal type
+
+	MODULE Test;
+	
+	PROCEDURE P(a: ARRAY [3,3] OF REAL);
+	VAR b: ARRAY [*,*] OF REAL;
+	BEGIN
+		P(b);
+	END P;
+
+	END Test.
+
+
+

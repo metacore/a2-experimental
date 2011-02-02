@@ -1553,6 +1553,9 @@ TYPE
 						actualType := MathArrayStructureOfType(actualType)
 					END;
 					result := MathArrayCompatible(formalType(SyntaxTree.MathArrayType),actualType);
+					IF result & (formalType(SyntaxTree.MathArrayType).form = SyntaxTree.Static) & (actualType(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
+						Error(actual.position,Diagnostics.Invalid,"incompatible non-static actual type");
+					END;
 					IF result & (actualType(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (formalType(SyntaxTree.MathArrayType).form # SyntaxTree.Tensor) THEN
 						Error(actual.position,Diagnostics.Invalid,"incompatible tensor (use a range expression)");
 					END;
@@ -1568,7 +1571,10 @@ TYPE
 				ELSIF (formalType IS SyntaxTree.ArrayType) & (formalType(SyntaxTree.ArrayType).form = SyntaxTree.Open) THEN
 					result := OpenArrayCompatible(formalType(SyntaxTree.ArrayType),actualType);
 				ELSE
-					result := CompatibleTo(system,actualType,formalType)
+					result := CompatibleTo(system,actualType,formalType);
+					IF result & (formalType IS SyntaxTree.MathArrayType) & (formalType(SyntaxTree.MathArrayType).form = SyntaxTree.Static) & (actualType(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
+						Error(actual.position,Diagnostics.Invalid,"incompatible non-static actual type");
+					END;
 				END;
 			END;
 			IF ~result & ~error THEN
