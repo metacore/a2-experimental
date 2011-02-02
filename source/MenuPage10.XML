@@ -41,7 +41,46 @@
 		</Standard:Button>
 	</Standard:Panel>
 
-<!-- Second column -->
+	<Standard:Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>
+				<Width>120</Width>
+			</Bounds>
+		</Properties>
+
+		<Standard:Button>
+			<Properties>
+				<Caption>Macros</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+
+			<Standard:SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>PET.Open Macros.XML</CommandString>
+				</Properties>
+			</Standard:SystemCommand>
+		</Standard:Button>
+
+		<Standard:Button>
+			<Properties>
+				<Caption>HotKeys</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+
+			<Standard:SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>PET.Open HotKeys.XML</CommandString>
+				</Properties>
+			</Standard:SystemCommand>
+		</Standard:Button>
+
+	</Standard:Panel>
+
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
@@ -82,7 +121,6 @@
 
 	</Standard:Panel>
 
-<!-- Third column -->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
@@ -122,7 +160,6 @@
 
 	</Standard:Panel>
 
-<!-- Reboot Shutdown-->
 	<Standard:Panel>
 		<Properties>
 			<Alignment>1</Alignment>
