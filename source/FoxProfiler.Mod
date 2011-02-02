@@ -232,6 +232,10 @@ VAR
 			log.Update;
 		END String;
 
+		PROCEDURE Percent(x: LONGREAL);
+		BEGIN
+			log.String("["); log.Int(ENTIER(x*100),2); log.String("."); log.Int(ENTIER(x*1000 +0.5) MOD 10, 1); log.String("]");
+		END Percent;
 
 	BEGIN
 		log := context.out;
@@ -272,23 +276,30 @@ VAR
 		log.String("processes= "); log.Int(numberProcesses,1); log.Ln;
 		String(80,"name"); log.Char(9X);
 		String(10,"calls"); log.Char(9X);
-		String(20,"time"); log.Char(9X);
-		String(20,"brut"); log.Char(9X);
-		String(20,"brut/call"); log.Ln;
+		String(18,"time [%]"); log.Char(9X);
+		String(18,"brut [%]"); log.Char(9X);
+		String(10,"brut/call"); log.Ln;
 		time := 0;
 		brut := 0;
 		calls := 0;
 
 		FOR i := 0 TO LEN(records)-1 DO
-			String(80,records[i].name);
-			log.Int(records[i].calls,10); log.Char(9X);
-			log.Float(records[i].time / frequency,20); log.Char(9X);
-			log.Float(records[i].brut / frequency,20); log.Char(9X);
-			log.Float(records[i].brut / frequency / records[i].calls,20);
-			log.Ln; log.Update;
 			INC(time, records[i].time);
 			INC(brut, records[i].brut);
 			INC(calls, records[i].calls);
+		END;
+
+		FOR i := 0 TO LEN(records)-1 DO
+			String(80,records[i].name);
+			log.Int(records[i].calls,10); log.Char(9X);
+			log.Float(records[i].time / frequency,12);
+			Percent(records[i].time / time);
+			log.Char(9X);
+			log.Float(records[i].brut / frequency,12); 
+			Percent(records[i].brut / brut);
+			log.Char(9X);
+			log.Float(records[i].brut / frequency / records[i].calls,10);
+			log.Ln; log.Update;
 		END;
 
 
@@ -298,13 +309,15 @@ VAR
 				log.String("warning: process "); log.Int(k,1); log.String(" still running with a stack of "); log.Int(processes[k].stackPosition,1); log.Ln;
 			END;
 		END;
+		(*
 		log.String("---------------------------"); log.Ln;
 			String(80,"SUM");
 			log.Int(calls,10); log.Char(9X);
-			log.Float(time / frequency,20); log.Char(9X);
-			log.Float(brut / frequency,20); log.Char(9X);
+			log.Float(time / frequency,10); log.Char(9X);
+			log.Float(brut / frequency,10); log.Char(9X);
 			log.Float(brut / frequency / calls,20);
 			log.Ln; log.Update;
+		*)
 		log.String("---------------------------"); log.Ln;
 		log.Char(0FX);
 		log.Update;
@@ -342,5 +355,7 @@ WMUtilities.Call --font=Courier FoxProfiler.Report calls ~
 WMUtilities.Call --font=Courier FoxProfiler.Report name ~
 WMUtilities.Call --font=Courier FoxProfiler.Report brut ~
 
+Compiler.Compile --profile TuringCoatWnd.Mod ~
+TuringCoatWnd.Open
 
-
+SystemTools.Free TuringCoatWnd FoxProfiler ~ 
