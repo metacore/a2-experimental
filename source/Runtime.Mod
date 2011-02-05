@@ -13,19 +13,18 @@ BEGIN
 END InsertModule;
 
 
-PROCEDURE DivH*(l,r: HUGEINT): HUGEINT;
-(*! check behaviour for negative dividend (l) *)
+PROCEDURE DivHA(l,r: HUGEINT): HUGEINT;
 CODE{SYSTEM.i386}
 	; taken from "Software Optimization Guide for AMD64 Processors"
 	; divides two signed 64-bit numbers and delivers the quotient
 	;
-	; In: [EBP+12]:[EBP+8] = dividend (l)
-	; [EBP+20]:[EBP+16] = divisor (r)
+	; In: [EBP+20]:[EBP+16] = dividend (l)
+	; [EBP+12]:[EBP+8] = divisor (r)
 	; Out: EDX:EAX = quotient of division
-	MOV ECX, [EBP+20] 	    ; divisor_hi
-	MOV EBX, [EBP+16] 	    ; divisor_lo
-	MOV EDX, [EBP+12] 	    ; dividend_hi
-	MOV EAX, [EBP+8] 		; dividend_lo
+	MOV EDX, [EBP+20] 	    ; dividend_hi
+	MOV EAX, [EBP+16] 		; dividend_lo
+	MOV ECX, [EBP+12] 	    ; divisor_hi
+	MOV EBX, [EBP+8] 	    ; divisor_lo
 	MOV ESI, ECX 			; divisor_hi
 	XOR ESI, EDX 			; divisor_hi ^ dividend_hi
 	SAR ESI, 31 				; (quotient < 0) ? -1 : 0
@@ -94,6 +93,18 @@ CODE{SYSTEM.i386}
 	SUB EAX, ESI 			; If (quotient < 0),
 	SBB EDX, ESI 			; compute 2's complement of result.
 	DONE:
+END DivHA;
+
+PROCEDURE DivH*(l,r: HUGEINT): HUGEINT;
+VAR result: HUGEINT;
+BEGIN
+	IF l > 0 THEN RETURN DivHA(l,r)
+	ELSIF l< 0 THEN
+		result :=  -DivHA(-l,r);
+		IF result * r # l THEN DEC(result) END; (* mathematical definition of DIV and MOD, to be optimized in DivHA *)
+		RETURN result
+	ELSE RETURN 0
+	END;
 END DivH;
 
 PROCEDURE MulH*(l,r: HUGEINT): HUGEINT;
@@ -102,8 +113,8 @@ CODE{SYSTEM.i386}
 	; computes the low-order half of the product of its
 	; arguments, two 64-bit integers.
 	;
-	; In: [EBP+12]:[EBP+8] = multiplicand (l)
-	; [EBP+20]:[EBP+16] = multiplier (r)
+	; In: [EBP+20]:[EBP+16] = multiplicand (l)
+	; [EBP+12]:[EBP+8] = multiplier (r)
 	; Out: EDX:EAX = (multiplicand * multiplier) % 2^64
 	; Destroys: EAX, ECX, EDX, EFlags
 	MOV EDX, [EBP+12] 		; multiplicand_hi
@@ -123,22 +134,21 @@ CODE{SYSTEM.i386}
 	done:
 END MulH;
 
-PROCEDURE ModH*(l,r: HUGEINT): HUGEINT;
-(*! check behaviour for negative dividend (l) *)
+PROCEDURE ModHA(l,r: HUGEINT): HUGEINT;
 CODE{SYSTEM.i386}
 	; taken from "Software Optimization Guide for AMD64 Processors"
 	; DIVIDES TWO SIGNED 64-BIT NUMBERS AND RETURNS THE REMAINDER.
 	;
-	; IN: [EBP+12]:[EBP+8] = DIVIDEND
-	; [EBP+20]:[EBP+16] = DIVISOR
+	; IN: [EBP+20]:[EBP+16] = DIVIDEND
+	; [EBP+12]:[EBP+8] = DIVISOR
 	;
 	; OUT: EDX:EAX = REMAINDER OF DIVISION
 	;
 	; DESTROYS: EAX, ECX, EDX, EFLAGS
-	MOV ECX, [EBP+20]           	; DIVISOR-HI
-	MOV EBX, [EBP+16]           	; DIVISOR-LO
-	MOV EDX, [EBP+12]           	; DIVIDEND-HI
-	MOV EAX, [EBP+8]            	; DIVIDEND-LO
+	MOV EDX, [EBP+20]           	; DIVIDEND-HI
+	MOV EAX, [EBP+16]            	; DIVIDEND-LO
+	MOV ECX, [EBP+12]           	; DIVISOR-HI
+	MOV EBX, [EBP+8]           	; DIVISOR-LO
 	MOV ESI, EDX	                	; SIGN(REMAINDER) == SIGN(DIVIDEND)
 	SAR ESI, 31 		               	; (REMAINDER < 0) ? -1 : 0
 	MOV EDI, EDX	                	; DIVIDEND-HI
@@ -212,6 +222,14 @@ CODE{SYSTEM.i386}
 	SUB EAX, ESI 				; IF (REMAINDER < 0),
 	SBB EDX, ESI 				; COMPUTE 2'S COMPLEMENT OF RESULT.
 	done:
+END ModHA;
+
+PROCEDURE ModH*(l,r: HUGEINT): HUGEINT;
+BEGIN
+	IF l< 0 THEN RETURN r - ModHA(-l,r)
+	ELSIF l> 0 THEN RETURN ModHA(l,r)
+	ELSE RETURN 0
+	END;
 END ModH;
 
 PROCEDURE AbsH*(l: HUGEINT): HUGEINT;
