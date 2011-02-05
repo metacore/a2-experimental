@@ -4512,6 +4512,8 @@ TYPE
 						ELSIF IsRealValue(parameter0,r) THEN
 							result.SetResolved(SyntaxTree.NewRealValue(position,ABS(r)));
 						END;
+					ELSE
+						type := SyntaxTree.invalidType;
 					END;
 				(* ---- ASH ----- *)
 				ELSIF (id = Global.Ash) & Parameters(2,2) THEN
@@ -4686,6 +4688,7 @@ TYPE
 							END;
 						END;
 						type := parameter0.type;
+					ELSE type := SyntaxTree.invalidType;
 					END;
 				(* ---- MIN ----- *)
 				ELSIF (id = Global.Min) & Parameters(1,2) THEN
@@ -4715,6 +4718,7 @@ TYPE
 							END;
 						END;
 						type := parameter0.type;
+					ELSE type := SyntaxTree.invalidType;
 					END;
 				(* ---- ODD ----- *)
 				ELSIF (id = Global.Odd) & Parameters(1,1) THEN
@@ -7386,9 +7390,11 @@ TYPE
 			(*! taken from paco, seems to not be 100% correct, check (in particular array part -> length of arrays??) *)
 			WHILE (formalParameter # NIL) & (result # Infinity) DO
 				actualParameter := actualParameters.GetExpression(i);
-				ASSERT(actualParameter.type # NIL);
 				ASSERT(formalParameter.type # NIL);
-				distance := TypeDistance(system,actualParameter.type.resolved,formalParameter.type.resolved,formalParameter.kind = SyntaxTree.VarParameter);
+				IF (actualParameter.type = NIL) THEN distance := Infinity
+				ELSE
+					distance := TypeDistance(system,actualParameter.type.resolved,formalParameter.type.resolved,formalParameter.kind = SyntaxTree.VarParameter);
+				END;
 				IF distance = Infinity THEN
 					result := Infinity;
 				ELSE
