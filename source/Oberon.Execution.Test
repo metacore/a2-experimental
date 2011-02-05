@@ -7502,3 +7502,204 @@ positive: correct use of indexers for (static) array of array
 	BEGIN P
 	END Test.
 
+positive: testing calling convention, in particular return of complex types
+	MODULE Test;
+
+	TYPE
+		Object = OBJECT VAR a,b,c: INTEGER END Object;
+		Record = RECORD a,b,c: INTEGER END;
+		StaticArray=ARRAY 6 OF INTEGER;
+		DynamicArray = POINTER TO ARRAY OF INTEGER;
+		StaticMathArray= ARRAY [7] OF INTEGER;
+		DynamicMathArray= ARRAY [*] OF INTEGER;
+		TensorMathArray = ARRAY [?] OF INTEGER;
+
+		PROCEDURE O(a,b,c: INTEGER): Object;
+		VAR o: Object;
+		BEGIN
+			NEW(o); o.a := a; o.b := b; o.c := c;
+			RETURN o;
+		END O;
+
+		PROCEDURE RO(a,b,c: INTEGER): Object;
+		BEGIN
+			IF RESULT = NIL THEN NEW(RESULT) END;
+			RESULT.a := a; RESULT.b := b; RESULT.c := c;
+			RETURN RESULT;
+		END RO;
+
+		PROCEDURE R(a,b,c: INTEGER): Record;
+		VAR r: Record
+		BEGIN
+			r.a := a; r.b := b; r.c := c;
+			RETURN r
+		END R;
+
+		PROCEDURE A(x,y,z: INTEGER): StaticArray;
+		VAR a: StaticArray;
+		BEGIN
+			a[0] := x; a[1] := y; a[2] := z;
+			RETURN a;
+		END A;
+
+		PROCEDURE RA(x,y,z: INTEGER): StaticArray;
+		BEGIN
+			RESULT[0] := x; RESULT[1] := y; RESULT[2] := z;
+			RETURN RESULT;
+		END RA;
+
+		PROCEDURE DA(x,y,z: INTEGER): DynamicArray;
+		VAR a: DynamicArray;
+		BEGIN
+			NEW(a,3);
+			a[0] := x; a[1] := y; a[2] := z;
+			RETURN a
+		END DA;
+
+		PROCEDURE RDA(x,y,z: INTEGER): DynamicArray;
+		BEGIN
+			IF RESULT = NIL THEN NEW(RESULT,3) END;
+			RESULT[0] := x; RESULT[1] := y; RESULT[2] := z;
+			RETURN RESULT
+		END RDA;
+
+		PROCEDURE MA(x,y,z: INTEGER): StaticMathArray;
+		VAR a: StaticMathArray;
+		BEGIN
+			a[0] := x; a[1] := y; a[2] := z;
+			RETURN a;
+		END MA;
+
+		PROCEDURE RMA(x,y,z: INTEGER): StaticMathArray;
+		BEGIN
+			RESULT[0] := x; RESULT[1] := y; RESULT[2] := z;
+			RETURN RESULT;
+		END RMA;
+
+		PROCEDURE DMA(x,y,z: INTEGER): DynamicMathArray;
+		VAR a: DynamicMathArray;
+		BEGIN
+			NEW(a,3);
+			a[0] := x; a[1] := y; a[2] := z;
+			RETURN a;
+		END DMA;
+
+		PROCEDURE RDMA(x,y,z: INTEGER): DynamicMathArray;
+		BEGIN
+			IF LEN(RESULT) < 3 THEN NEW(RESULT,3) END;
+			RESULT[0] := x; RESULT[1] := y; RESULT[2] := z;
+			RETURN RESULT;
+		END RDMA;
+
+		PROCEDURE TA(x,y,z: INTEGER): TensorMathArray;
+		VAR a: TensorMathArray;
+		BEGIN
+			NEW(a,3);
+			a[0] := x; a[1] := y; a[2] := z;
+			RETURN a;
+		END TA;
+
+		PROCEDURE RTA(x,y,z: INTEGER): TensorMathArray;
+		BEGIN
+			IF (DIM(RESULT)# 1) OR (LEN(RESULT,0) < 3) THEN NEW(RESULT,3) END;
+			RESULT[0] := x; RESULT[1] := y; RESULT[2] := z;
+			RETURN RESULT;
+		END RTA;
+
+
+
+		PROCEDURE S(r: Record; a,b,c: INTEGER);
+		BEGIN
+			ASSERT(r.a=a); ASSERT(r.b = b); ASSERT(r.c = c);
+		END S;
+
+		PROCEDURE T(CONST r: Record; a,b,c: INTEGER);
+		BEGIN
+			ASSERT(r.a=a); ASSERT(r.b = b); ASSERT(r.c = c);
+		END T;
+
+		PROCEDURE U(o: Object; a,b,c: INTEGER);
+		BEGIN
+			ASSERT(o.a=a); ASSERT(o.b = b); ASSERT(o.c = c);
+		END U;
+
+		PROCEDURE V(a: StaticArray; x,y,z: INTEGER);
+		BEGIN
+			ASSERT(a[0]=x); ASSERT(a[1] = y); ASSERT(a[2] =z);
+		END V;
+
+		PROCEDURE W(CONST a: StaticArray; x,y,z: INTEGER);
+		BEGIN
+			ASSERT(a[0]=x); ASSERT(a[1] = y); ASSERT(a[2] =z);
+		END W;
+
+		PROCEDURE WM(CONST a: StaticMathArray; x,y,z: INTEGER);
+		BEGIN
+			ASSERT(a[0]=x); ASSERT(a[1] = y); ASSERT(a[2] =z);
+		END WM;
+
+		PROCEDURE WVM(a: StaticMathArray; x,y,z: INTEGER);
+		BEGIN
+			ASSERT(a[0]=x); ASSERT(a[1] = y); ASSERT(a[2] =z);
+		END WVM;
+
+		PROCEDURE WDM(CONST a: DynamicMathArray; x,y,z: INTEGER);
+		BEGIN
+			ASSERT(a[0]=x); ASSERT(a[1] = y); ASSERT(a[2] =z);
+		END WDM;
+
+		PROCEDURE WDVM(a: DynamicMathArray; x,y,z: INTEGER);
+		BEGIN
+			ASSERT(a[0]=x); ASSERT(a[1] = y); ASSERT(a[2] =z);
+		END WDVM;
+
+		PROCEDURE WTM(CONST a: TensorMathArray; x,y,z: INTEGER);
+		BEGIN
+			ASSERT(a[0]=x); ASSERT(a[1] = y); ASSERT(a[2] =z);
+		END WTM;
+
+		PROCEDURE WTVM(a: TensorMathArray; x,y,z: INTEGER);
+		BEGIN
+			ASSERT(a[0]=x); ASSERT(a[1] = y); ASSERT(a[2] =z);
+		END WTVM;
+
+
+
+		PROCEDURE P;
+		VAR o: Object; r: Record; a: StaticArray; d: DynamicArray; ma: StaticMathArray; dma: DynamicMathArray; tma: TensorMathArray;
+		BEGIN
+			o := O(1,2,3); U(o,1,2,3);
+			o := RO(10,20,30); U(o,10,20,30);
+			o := NIL;
+			o := RO(11,22,33); U(o,11,22,33);
+
+			r := R(10,20,30);
+			ASSERT(r.a = 10); ASSERT(r.b = 20); ASSERT(r.c = 30);
+			S(R(10,20,30),10,20,30);
+			T(R(10,20,30),10,20,30);
+			U(O(10,20,30),10,20,30);
+			a := A(10,20,30);
+			V(a,10,20,30);
+			V(A(10,20,30),10,20,30);
+			W(A(10,20,30),10,20,30);
+			ma := MA(10,20,30); 
+			WM(ma,10,20,30);
+			WM(MA(1,2,3),1,2,3);
+			WVM(MA(2,3,4),2,3,4);
+			dma := DMA(10,20,30); WDM(dma,10,20,30);
+			WDM(DMA(1,2,3),1,2,3);
+			WDVM(DMA(1,2,3),1,2,3);
+			dma := RDMA(10,20,30); WDM(dma,10,20,30);
+			WDM(RDMA(1,2,3),1,2,3);
+			WDVM(RDMA(1,2,3),1,2,3);
+			tma := TA(4,5,6); WTM(tma,4,5,6);
+			WTM(TA(2,3,4),2,3,4);
+			WTVM(TA(3,4,5),3,4,5);
+			tma := RTA(4,5,6); WTM(tma,4,5,6);
+			WTM(RTA(2,3,4),2,3,4);
+			WTVM(RTA(3,4,5),3,4,5);
+		END P;
+	BEGIN P;	
+	END Test.
+
+
