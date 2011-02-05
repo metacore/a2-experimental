@@ -915,12 +915,12 @@ TYPE
 		firstInstruction-, lastInstruction-: LONGINT;
 	END;
 
-	CPUType* = RECORD;
+	CPUType* = RECORD
 		name-: Name;
 		cpuOptions-: SET;
 	END;
 
-	Register*  = RECORD;
+	Register*  = RECORD
 		name-: Name; (* name for debug output and for an assembler *)
 		type-: OperandType; (* can be one of reg8, reg16, reg32, reg64, CRn, DRn, segReg, mmx, xmm, sti
 								the particular value of reg8 ... sti does not have a meaning *)

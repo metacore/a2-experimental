@@ -23,7 +23,7 @@ TYPE Arrangement* = OBJECT
 
 END Arrangement;
 
-TYPE Block* = POINTER TO RECORD (ObjectFile.Section);
+TYPE Block* = POINTER TO RECORD (ObjectFile.Section)
 	next: Block;
 	address*: Address;
 	referenced, used: BOOLEAN;
