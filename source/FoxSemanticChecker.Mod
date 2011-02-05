@@ -2625,14 +2625,16 @@ TYPE
 						Printout.Info("right",right);
 					END;
 				ELSIF IsIntegerType(leftType) THEN
-					IF IsIntegerValue(right,ir) & (right.type.sizeInBits < 64) THEN
-						IF (ir=0) & ((operator = Scanner.Mod) OR (operator = Scanner.Div) OR (operator = Scanner.Slash)) THEN
+					IF IsIntegerValue(right,ir) (* & (right.type.sizeInBits < 64) *) THEN
+						hr := right.resolved(SyntaxTree.IntegerValue).hvalue;
+						IF (hr=0) & ((operator = Scanner.Mod) OR (operator = Scanner.Div) OR (operator = Scanner.Slash)) THEN
 							Error(binaryExpression.position,Diagnostics.Invalid,"division by zero");
-						ELSIF (ir<0) & ((operator = Scanner.Mod) OR (operator = Scanner.Div))THEN
+						ELSIF (hr<0) & ((operator = Scanner.Mod) OR (operator = Scanner.Div))THEN
 							Error(binaryExpression.position,Diagnostics.Invalid,"integer division by negative number");
 						END;
 					END;
 					(* constant folding *)
+					(* bootstrap64
 					IF IsIntegerValue(left,il) & IsIntegerValue(right,ir)  & (type.sizeInBits < 64) THEN
 						CASE operator OF
 						|Scanner.Plus: NewInteger(il+ir,left.type);
@@ -2658,7 +2660,8 @@ TYPE
 						|Scanner.GreaterEqual: NewBool(il>=ir);
 						ELSE Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 7");
 						END;
-					ELSIF IsIntegerValue(left,il) & IsIntegerValue(right,ir) & (type.sizeInBits = 64) THEN
+					ELS*)
+					IF IsIntegerValue(left,il) & IsIntegerValue(right,ir) (* bootstrap64 & (type.sizeInBits = 64)*) THEN
 						hl := left.resolved(SyntaxTree.IntegerValue).hvalue;
 						hr := right.resolved(SyntaxTree.IntegerValue).hvalue;
 						CASE operator OF
@@ -2676,13 +2679,19 @@ TYPE
 							IF hr = 0 THEN
 								Error(binaryExpression.position,Diagnostics.Invalid,"division by zero");
 							ELSE
+								NewInteger(hl MOD hr, left.type);
+								(* bootstrap64
 								NewInteger(hl - Machine.DivH(hl,hr)*hr,left.type);
+								*)
 							END;
 						|Scanner.Div:
 							IF hr = 0 THEN
 								Error(binaryExpression.position,Diagnostics.Invalid,"division by zero");
 							ELSE
+								NewInteger(hl DIV hr, left.type);
+								(* bootstrap64
 								NewInteger(Machine.DivH(hl,hr),left.type);
+								*)
 							END;
 						(* *)
 						|Scanner.Equal: NewBool(hl=hr);
