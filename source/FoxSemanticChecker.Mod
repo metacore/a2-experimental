@@ -6751,6 +6751,9 @@ TYPE
 				THEN
 					currentIsAssembly := TRUE
 				END;
+				IF procedure.isInline & ((scope(SyntaxTree.ProcedureScope).body = NIL) OR (scope(SyntaxTree.ProcedureScope).body # NIL) & (scope(SyntaxTree.ProcedureScope).body.code = NIL)) THEN
+					Error(procedure.position,Diagnostics.Invalid,"unsupported inline procedure - must be assembler code")
+				END;
 			END;
 			IF (scope IS SyntaxTree.ProcedureScope) & (scope(SyntaxTree.ProcedureScope).body # NIL) (* & ~(scope IS SyntaxTree.RecordScope) *) THEN
 				(* module body, record bodies are wrapped into an artifical procedure *)
