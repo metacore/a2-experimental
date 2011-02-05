@@ -1502,7 +1502,7 @@ TYPE
 			ELSIF this IS ProcedureType THEN
 				recursion := TRUE;
 				WITH this: ProcedureType DO
-					result := (returnType = NIL) & (this.returnType = NIL) OR (returnType # NIL) & returnType.SameType(this.returnType.resolved);
+					result := (returnType = NIL) & (this.returnType = NIL) OR (returnType # NIL) & (this.returnType # NIL) & returnType.SameType(this.returnType.resolved);
 					result := result & (callingConvention = this.callingConvention);
 					IF result THEN
 						p1 := firstParameter; p2 := this.firstParameter;
