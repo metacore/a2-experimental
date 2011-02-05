@@ -53,23 +53,6 @@ CONST
 	SetElement* = 1;
 	CaseGuard* = 2;
 
-VAR
-	(** debugging / counters *)
-
-	nodeCount, listCount, identifierCount, qualifiedIdentifierCount, typeCount, basicTypeCount, typeDeclarationCount, arrayTypeCount, pointerTypeCount,
-	portTypeCount, recordTypeCount, actorTypeCount,
-	defintionTypeCount, procedureTypeCount, qualifiedTypeCount, typeDeclarationListCount, definitionCount, definitionTypeCount, expressionCount,
-	expressionListCount, selectorCount,
-	identifierDesignatorCount, indexDesignatorCount, parameterDesignatorCount, dereferenceDesignatorCount,
-	bracketDesignatorCount, symbolDesignatorCount, supercallDesignatorCount, selfDesignatorCount,
-	designatorCount, elementCount, setCount, mathArrayExpressionCount, mathArrayValueCount,
-	binaryExpressionCount, unaryExpressionCount, valueCount, booleanValueCount, integerValueCount, setValueCount, realValueCount, hugeintValueCount, stringValueCount,
-	nilValueCount, enumeratorValueCount, callerCount, assignmentCount, ifStatementCount, withStatementCount, casePartCount, ifPartCount, caseStatementCount, whileStatementCount, repeatStatementCount,
-	forStatementCount, loopStatementCount, exitStatementCount, returnStatementCount, awaitStatementCount, definitionListCount, constantCount,
-	constantListCount, variableCount, variableListCount, procedureCount, methodCount, procedureListCount, operatorCount, operatorListCount, parameterCount,
-	parameterListCount, importCount, importListCount, statementSequenceCount, declarationSequenceCount, statementBlockCount, bodyCount,
-	moduleCount: LONGINT;
-
 TYPE
 	SourceCode*= Scanner.SourceString;
 	BinaryCode*= BitSets.BitSet;
@@ -222,6 +205,9 @@ TYPE
 
 		PROCEDURE VisitSelfDesignator*(x: SelfDesignator);
 		BEGIN HALT(100) (* abstract *) END VisitSelfDesignator;
+
+		PROCEDURE VisitResultDesignator*(x: ResultDesignator);
+		BEGIN HALT(100) (* abstract *) END VisitResultDesignator;
 
 		(** values *)
 		PROCEDURE VisitValue*(x: Value);
@@ -393,7 +379,6 @@ TYPE
 
 			sizeInBits-: LONGINT; (* allocation size of this type in bits *)
 
-
 		PROCEDURE & InitType*( position: LONGINT);
 		BEGIN
 			SELF.position := position; state := Undefined;
@@ -426,7 +411,6 @@ TYPE
 		PROCEDURE RemoveState*(state: LONGINT);
 		BEGIN EXCL(SELF.state,state)
 		END RemoveState;
-
 
 		PROCEDURE SetTypeDeclaration*(typeDeclaration: TypeDeclaration);
 		BEGIN SELF.typeDeclaration := typeDeclaration
@@ -1419,9 +1403,8 @@ TYPE
 		VAR
 			modifiers-: Modifier; (* set by the parser *)
 			returnType-: Type;
-			returnParameter-: Parameter; (* not encoded in list of parameters as backend can decide about implementation *)
-			selfParameter-: Parameter; (* not encoded in list of parameters as backend can decide about implementation *)
-			firstParameter-,lastParameter-: Parameter; numberParameters-, numberHiddenParameters-: LONGINT;  (* parameters *)
+			firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters *)
+			returnParameter-: Parameter; (* not really necessary in syntax tree but very handy for backends *)
 
 			isDelegate-,isInterrupt-,noPAF-: BOOLEAN;
 			callingConvention-: LONGINT;
@@ -1433,8 +1416,8 @@ TYPE
 			InitType( position);
 			SELF.scope := scope;
 			modifiers := NIL;
-			firstParameter := NIL; lastParameter := NIL; numberParameters := 0; numberHiddenParameters := 0;
-			returnType := NIL; returnParameter := NIL; selfParameter := NIL;
+			firstParameter := NIL; lastParameter := NIL; numberParameters := 0; returnParameter := NIL;
+			returnType := NIL;
 			stackAlignment := 1;
 			isDelegate := FALSE; isInterrupt := FALSE; noPAF := FALSE;
 			callingConvention := OberonCallingConvention;
@@ -1466,6 +1449,11 @@ TYPE
 		BEGIN parameterOffset := ofs
 		END SetParameterOffset;
 
+		PROCEDURE SetReturnParameter*(parameter: Parameter);
+		BEGIN returnParameter := parameter
+		END SetReturnParameter;
+
+
 		PROCEDURE SetCallingConvention*(cc: LONGINT);
 		BEGIN callingConvention := cc
 		END SetCallingConvention;
@@ -1476,7 +1464,7 @@ TYPE
 			IF lastParameter= NIL THEN firstParameter := p ELSE lastParameter.nextParameter := p; p.prevParameter := lastParameter; END;
 			lastParameter := p;
 			INC(numberParameters);
-			IF p.access = {} THEN INC(numberHiddenParameters) ELSE ASSERT(numberHiddenParameters = 0) (* hidden parameters must occur at the end *) END;
+			ASSERT(p.access # {}); (* no hidden parameters ! *)
 		END AddParameter;
 
 		PROCEDURE RevertParameters*;
@@ -1502,14 +1490,6 @@ TYPE
 		BEGIN
 			returnType := type;
 		END SetReturnType;
-
-		PROCEDURE SetReturnParameter*(parameter: Parameter);
-		BEGIN returnParameter := parameter
-		END SetReturnParameter;
-
-		PROCEDURE SetSelfParameter*(parameter: Parameter);
-		BEGIN selfParameter := parameter
-		END SetSelfParameter;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
 		VAR result: BOOLEAN; p1,p2: Parameter;
@@ -2019,16 +1999,11 @@ TYPE
 		VAR
 			id-: LONGINT;
 			parameters-: ExpressionList;
-			hiddenVariable-: Designator; (* trick for new statement *)
 
 		PROCEDURE & InitBuiltinCallDesignator(position: LONGINT; id: LONGINT; parameters: ExpressionList);
 		BEGIN
-			InitDesignator(position); SELF.parameters := parameters; SELF.id := id;hiddenVariable := NIL;
+			InitDesignator(position); SELF.parameters := parameters; SELF.id := id
 		END InitBuiltinCallDesignator;
-
-		PROCEDURE SetHiddenVariable*(hidden: Designator);
-		BEGIN SELF.hiddenVariable := hidden
-		END SetHiddenVariable;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -2100,6 +2075,20 @@ TYPE
 		END Accept;
 
 	END SelfDesignator;
+
+	(** <<RESULT>> **)
+		ResultDesignator*= OBJECT (Designator)
+
+		PROCEDURE &InitResultDesignator(position: LONGINT);
+		BEGIN InitDesignator(position);
+		END InitResultDesignator;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitResultDesignator(SELF)
+		END Accept;
+
+	END ResultDesignator;
 
 	(**** values ****)
 
@@ -3075,13 +3064,13 @@ TYPE
 	(** << FOR variable := from TO to BY by DO statements END >> **)
 	ForStatement* = OBJECT (Statement)
 		VAR
-			variable-,temporary-: Designator;
+			variable-: Designator;
 			from-, to-, by-: Expression;
 			statements-: StatementSequence;
 
 		PROCEDURE & InitForStatement( position: LONGINT; outer: Statement );
 		BEGIN
-			InitStatement( position,outer );  variable := NIL; temporary := NIL;  from := NIL;  to := NIL;  by := NIL; statements := NIL;
+			InitStatement( position,outer );  variable := NIL;from := NIL;  to := NIL;  by := NIL; statements := NIL;
 		END InitForStatement;
 
 		PROCEDURE SetVariable*( variable: Designator);
@@ -3098,11 +3087,6 @@ TYPE
 		BEGIN
 			SELF.to := to
 		END SetTo;
-
-		PROCEDURE SetTemporary*(temporary: Designator);
-		BEGIN SELF.temporary := temporary;
-		END SetTemporary;
-
 
 		PROCEDURE SetBy*( by: Expression );
 		BEGIN SELF.by := by
@@ -3948,7 +3932,7 @@ VAR
 	PROCEDURE NewModule*( CONST sourceName: ARRAY OF CHAR; position: LONGINT;  name: Identifier;scope: ModuleScope; case: LONGINT ): Module;
 	VAR module: Module;
 	BEGIN
-		INC( moduleCount );  NEW( module, sourceName, position, name, scope, case);  RETURN module;
+		NEW( module, sourceName, position, name, scope, case);  RETURN module;
 	END NewModule;
 
 	PROCEDURE NewComment*(position: LONGINT; scope: Scope; CONST source: ARRAY OF CHAR; length: LONGINT): Comment;
@@ -3960,19 +3944,19 @@ VAR
 	PROCEDURE NewImport*( position: LONGINT;  alias, name: Identifier; direct: BOOLEAN): Import;
 	VAR import: Import;
 	BEGIN
-		INC( importCount );  NEW( import, position, alias, name, direct );  RETURN import
+		NEW( import, position, alias, name, direct );  RETURN import
 	END NewImport;
 
 	PROCEDURE NewConstant*( position: LONGINT;  name: Identifier ): Constant;
 	VAR constant: Constant;
 	BEGIN
-		INC( constantCount );  NEW( constant, position, name );  RETURN constant
+		NEW( constant, position, name );  RETURN constant
 	END NewConstant;
 
 	PROCEDURE NewProcedure*( position: LONGINT;  name: Identifier; scope: ProcedureScope ): Procedure;
 	VAR procedure: Procedure;
 	BEGIN
-		INC( procedureCount );  NEW( procedure, position, name, scope);  RETURN procedure
+		NEW( procedure, position, name, scope);  RETURN procedure
 	END NewProcedure;
 
 	PROCEDURE NewBuiltin*(position: LONGINT; name: Identifier; id: LONGINT): Builtin;
@@ -3984,13 +3968,13 @@ VAR
 	PROCEDURE NewOperator*( position: LONGINT;  name: Identifier; scope: ProcedureScope): Operator;
 	VAR operator: Operator;
 	BEGIN
-		INC( operatorCount );  NEW( operator, position, name, scope);  RETURN operator
+		NEW( operator, position, name, scope);  RETURN operator
 	END NewOperator;
 
 	PROCEDURE NewType*(): Type;  (* for error handling: invalid Type, is realtime type *)
 	VAR type: Type;
 	BEGIN
-		INC( typeCount );  NEW( type, -1);
+		NEW( type, -1);
 		type.SetRealtime(TRUE);
 		RETURN type
 	END NewType;
@@ -3998,86 +3982,86 @@ VAR
 	PROCEDURE NewByteType*(sizeInBits: LONGINT): ByteType;
 	VAR basicType: ByteType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewByteType;
 
 	PROCEDURE NewAnyType*(sizeInBits: LONGINT): AnyType;
 	VAR basicType: AnyType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewAnyType;
 
 	PROCEDURE NewObjectType*(sizeInBits: LONGINT): ObjectType;
 	VAR basicType: ObjectType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewObjectType;
 
 	PROCEDURE NewNilType*(sizeInBits: LONGINT): NilType;
 	VAR basicType: NilType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType,  sizeInBits); RETURN basicType;
+		NEW(basicType,  sizeInBits); RETURN basicType;
 	END NewNilType;
 
 	PROCEDURE NewAddressType*(sizeInBits: LONGINT): AddressType;
 	VAR basicType: AddressType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewAddressType;
 
 	PROCEDURE NewSizeType*(sizeInBits: LONGINT): SizeType;
 	VAR basicType: SizeType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewSizeType;
 
 	PROCEDURE NewAllType*(sizeInBits: LONGINT): AllType;
 	VAR basicType: AllType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewAllType;
 
 	PROCEDURE NewBooleanType*(sizeInBits: LONGINT): BooleanType;
 	VAR basicType: BooleanType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewBooleanType;
 
 	PROCEDURE NewSetType*(sizeInBits: LONGINT): SetType;
 	VAR basicType: SetType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewSetType;
 
 	PROCEDURE NewCharacterType*(sizeInBits: LONGINT): CharacterType;
 	VAR basicType: CharacterType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewCharacterType;
 
 	PROCEDURE NewRangeType*(sizeInBits: LONGINT): RangeType;
 	VAR basicType: RangeType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewRangeType;
 
 	PROCEDURE NewIntegerType*(size: LONGINT; signed: BOOLEAN): IntegerType;
 	VAR basicType: IntegerType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, size, signed); RETURN basicType;
+		NEW(basicType, size, signed); RETURN basicType;
 	END NewIntegerType;
 
 	PROCEDURE NewFloatType*(sizeInBits: LONGINT): FloatType;
 	VAR basicType: FloatType;
 	BEGIN
-		INC(basicTypeCount); NEW(basicType, sizeInBits); RETURN basicType;
+		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewFloatType;
 
 	PROCEDURE NewTypeDeclaration*(position: LONGINT; name: Identifier): TypeDeclaration;
 	VAR typeDeclaration: TypeDeclaration;
 	BEGIN
 		ASSERT(~name.Equals(NewIdentifier(-1,"")));
-		INC(typeDeclarationCount); NEW(typeDeclaration,position,name); RETURN typeDeclaration
+		NEW(typeDeclaration,position,name); RETURN typeDeclaration
 	END NewTypeDeclaration;
 
 	PROCEDURE NewStringType*( position: LONGINT; baseType: Type; length: LONGINT): StringType;
@@ -4095,31 +4079,31 @@ VAR
 	PROCEDURE NewArrayType*( position: LONGINT; scope: Scope; form: LONGINT): ArrayType;
 	VAR arrayType: ArrayType;
 	BEGIN
-		INC( arrayTypeCount );  NEW( arrayType, position,scope, form);  RETURN arrayType;
+		NEW( arrayType, position,scope, form);  RETURN arrayType;
 	END NewArrayType;
 
 	PROCEDURE NewMathArrayType*( position: LONGINT; scope: Scope; form: LONGINT): MathArrayType;
 	VAR mathArrayType: MathArrayType;
 	BEGIN
-		INC( arrayTypeCount );  NEW( mathArrayType,  position,scope,form);  RETURN mathArrayType;
+		NEW( mathArrayType,  position,scope,form);  RETURN mathArrayType;
 	END NewMathArrayType;
 
 	PROCEDURE NewPointerType*( position: LONGINT; scope: Scope): PointerType;
 	VAR pointerType: PointerType;
 	BEGIN
-		INC( pointerTypeCount );  NEW( pointerType, position,scope);  RETURN pointerType;
+		NEW( pointerType, position,scope);  RETURN pointerType;
 	END NewPointerType;
 
 	PROCEDURE NewPortType*( position: LONGINT; direction: LONGINT; channelType: Type; scope: Scope): PortType;
 	VAR portType: PortType;
 	BEGIN
-		INC( portTypeCount );  NEW( portType, position, direction, channelType, scope);  RETURN portType;
+		NEW( portType, position, direction, channelType, scope);  RETURN portType;
 	END NewPortType;
 
 	PROCEDURE NewRecordType*( position: LONGINT; scope: Scope; recordScope: RecordScope): RecordType;
 	VAR recordType: RecordType;
 	BEGIN
-		INC( recordTypeCount );  NEW( recordType, position, scope, recordScope);  RETURN recordType
+		NEW( recordType, position, scope, recordScope);  RETURN recordType
 	END NewRecordType;
 
 	PROCEDURE NewActorType*(position: LONGINT; scope:Scope; actorScope: ActorScope): ActorType;
@@ -4131,13 +4115,13 @@ VAR
 	PROCEDURE NewProcedureType*( position: LONGINT; scope: Scope): ProcedureType;
 	VAR procedureType: ProcedureType;
 	BEGIN
-		INC( procedureTypeCount );  NEW( procedureType, position,scope);  RETURN procedureType;
+		NEW( procedureType, position,scope);  RETURN procedureType;
 	END NewProcedureType;
 
 	PROCEDURE NewQualifiedType*( position: LONGINT;   scope: Scope; qualifiedIdentifier: QualifiedIdentifier): QualifiedType;
 	VAR qualifiedType: QualifiedType;
 	BEGIN
-		INC( qualifiedTypeCount );  NEW( qualifiedType, position,scope,qualifiedIdentifier );  RETURN qualifiedType
+		NEW( qualifiedType, position,scope,qualifiedIdentifier );  RETURN qualifiedType
 	END NewQualifiedType;
 
 	PROCEDURE NewSymbol*(name: Identifier): Symbol; (* for error handling: invalid Symbol *)
@@ -4149,33 +4133,33 @@ VAR
 	PROCEDURE NewVariable*( position: LONGINT;  name: Identifier): Variable;
 	VAR variable: Variable;
 	BEGIN
-		INC( variableCount );  NEW( variable, position, name );  RETURN variable
+		NEW( variable, position, name );  RETURN variable
 	END NewVariable;
 
 	PROCEDURE NewQualifiedIdentifier*( position: LONGINT;  prefix, suffix: Identifier ): QualifiedIdentifier;
 	VAR qualifiedIdentifier: QualifiedIdentifier;
 	BEGIN
 		ASSERT(suffix # NIL);
-		INC( qualifiedIdentifierCount );  NEW( qualifiedIdentifier, position, prefix, suffix );  RETURN qualifiedIdentifier
+		NEW( qualifiedIdentifier, position, prefix, suffix );  RETURN qualifiedIdentifier
 	END NewQualifiedIdentifier;
 
 	PROCEDURE NewIdentifier*( position: LONGINT;  CONST name: ARRAY OF CHAR): Identifier;
 	VAR identifier: Identifier;
 	BEGIN
-		INC( identifierCount );  NEW( identifier, position, name);
+		NEW( identifier, position, name);
 		RETURN identifier
 	END NewIdentifier;
 
 	PROCEDURE NewParameter*( position: LONGINT; ownerType:Type ;  name: Identifier; passAs: LONGINT): Parameter;
 	VAR parameter: Parameter;
 	BEGIN
-		INC( parameterCount );  NEW( parameter, position, ownerType, name, passAs);  RETURN parameter;
+		NEW( parameter, position, ownerType, name, passAs);  RETURN parameter;
 	END NewParameter;
 
 	PROCEDURE NewExpressionList*(): ExpressionList;
 	VAR expressionList: ExpressionList;
 	BEGIN
-		INC( expressionListCount );  NEW(expressionList);  RETURN expressionList
+		NEW(expressionList);  RETURN expressionList
 	END NewExpressionList;
 
 	PROCEDURE NewDesignator*(): Designator; (* for error handling: invalid Designator *)
@@ -4187,43 +4171,43 @@ VAR
 	PROCEDURE NewIdentifierDesignator*( position: LONGINT; identifier: Identifier): IdentifierDesignator;
 	VAR identifierDesignator: IdentifierDesignator;
 	BEGIN
-		INC( identifierDesignatorCount);  NEW( identifierDesignator, position, identifier );  RETURN identifierDesignator
+		NEW( identifierDesignator, position, identifier );  RETURN identifierDesignator
 	END NewIdentifierDesignator;
 
 	PROCEDURE NewSelectorDesignator*( position: LONGINT;  left: Designator; name: Identifier ): SelectorDesignator;
 	VAR selectorDesignator: SelectorDesignator;
 	BEGIN
-		INC( selectorCount );  NEW( selectorDesignator, position, left, name );  RETURN selectorDesignator
+		NEW( selectorDesignator, position, left, name );  RETURN selectorDesignator
 	END NewSelectorDesignator;
 
 	PROCEDURE NewParameterDesignator*( position: LONGINT; left: Designator; expressionList: ExpressionList ): ParameterDesignator;
 	VAR parameterDesignator: ParameterDesignator;
 	BEGIN
-		INC( parameterDesignatorCount );  NEW( parameterDesignator,position, left, expressionList );  RETURN parameterDesignator
+		NEW( parameterDesignator,position, left, expressionList );  RETURN parameterDesignator
 	END NewParameterDesignator;
 
 	PROCEDURE NewArrowDesignator*( position: LONGINT; left: Designator ): ArrowDesignator;
 	VAR dereferenceDesignator: ArrowDesignator;
 	BEGIN
-		INC( dereferenceDesignatorCount );  NEW( dereferenceDesignator, position, left );  RETURN dereferenceDesignator;
+		NEW( dereferenceDesignator, position, left );  RETURN dereferenceDesignator;
 	END NewArrowDesignator;
 
 	PROCEDURE NewBracketDesignator*( position: LONGINT; left: Designator; expressionList: ExpressionList ): BracketDesignator;
 	VAR bracketDesignator: BracketDesignator;
 	BEGIN
-		INC( bracketDesignatorCount );  NEW( bracketDesignator, position, left, expressionList );  RETURN bracketDesignator
+		NEW( bracketDesignator, position, left, expressionList );  RETURN bracketDesignator
 	END NewBracketDesignator;
 
 	PROCEDURE NewSymbolDesignator*( position: LONGINT; left: Designator; symbol: Symbol ): SymbolDesignator;
 	VAR symbolDesignator: SymbolDesignator;
 	BEGIN
-		INC( symbolDesignatorCount );  NEW( symbolDesignator, position, left, symbol); RETURN symbolDesignator
+		NEW( symbolDesignator, position, left, symbol); RETURN symbolDesignator
 	END NewSymbolDesignator;
 
 	PROCEDURE NewIndexDesignator*( position: LONGINT; left: Designator): IndexDesignator;
 	VAR indexDesignator: IndexDesignator;
 	BEGIN
-		INC( indexDesignatorCount );  NEW( indexDesignator, position, left);  RETURN indexDesignator
+		NEW( indexDesignator, position, left);  RETURN indexDesignator
 	END NewIndexDesignator;
 
 	PROCEDURE NewProcedureCallDesignator*(position: LONGINT; left: Designator; parameters: ExpressionList): ProcedureCallDesignator;
@@ -4247,20 +4231,26 @@ VAR
 	PROCEDURE NewDereferenceDesignator*( position: LONGINT; left: Designator): DereferenceDesignator;
 	VAR dereferenceDesignator: DereferenceDesignator;
 	BEGIN
-		INC( dereferenceDesignatorCount );  NEW( dereferenceDesignator, position, left);  RETURN dereferenceDesignator
+		NEW( dereferenceDesignator, position, left);  RETURN dereferenceDesignator
 	END NewDereferenceDesignator;
 
 	PROCEDURE NewSupercallDesignator*( position: LONGINT; left: Designator): SupercallDesignator;
 	VAR supercallDesignator: SupercallDesignator;
 	BEGIN
-		INC( supercallDesignatorCount );  NEW( supercallDesignator, position, left);  RETURN supercallDesignator
+		NEW( supercallDesignator, position, left);  RETURN supercallDesignator
 	END NewSupercallDesignator;
 
 	PROCEDURE NewSelfDesignator*( position: LONGINT): SelfDesignator;
 	VAR selfDesignator: SelfDesignator;
 	BEGIN
-		INC( selfDesignatorCount );  NEW( selfDesignator, position);  RETURN selfDesignator
+		NEW( selfDesignator, position);  RETURN selfDesignator
 	END NewSelfDesignator;
+
+	PROCEDURE NewResultDesignator*( position: LONGINT): ResultDesignator;
+	VAR resultDesignator: ResultDesignator;
+	BEGIN
+		NEW( resultDesignator, position);  RETURN resultDesignator
+	END NewResultDesignator;
 
 	PROCEDURE NewExpression*(): Expression; (* for error handling: invalid Expression *)
 	VAR expression: Expression;
@@ -4277,18 +4267,18 @@ VAR
 
 	PROCEDURE NewSet*( position: LONGINT ): Set;
 	VAR set: Set;
-	BEGIN INC( setCount );  NEW( set, position );  RETURN set
+	BEGIN NEW( set, position );  RETURN set
 	END NewSet;
 
 	PROCEDURE NewMathArrayExpression*( position: LONGINT ): MathArrayExpression;
 	VAR mathArrayExpression: MathArrayExpression;
-	BEGIN INC( mathArrayExpressionCount );  NEW( mathArrayExpression, position );  RETURN mathArrayExpression
+	BEGIN NEW( mathArrayExpression, position );  RETURN mathArrayExpression
 	END NewMathArrayExpression;
 
 	PROCEDURE NewBinaryExpression*( position: LONGINT;  left, right: Expression;  operator: LONGINT ): BinaryExpression;
 	VAR binaryExpression: BinaryExpression;
 	BEGIN
-		INC( binaryExpressionCount );  NEW( binaryExpression, position, left, right, operator );  RETURN binaryExpression;
+		NEW( binaryExpression, position, left, right, operator );  RETURN binaryExpression;
 	END NewBinaryExpression;
 
 	PROCEDURE NewRangeExpression*(position: LONGINT; first, last, step: Expression): RangeExpression;
@@ -4306,7 +4296,7 @@ VAR
 	PROCEDURE NewUnaryExpression*( position: LONGINT;  operand: Expression;  operator: LONGINT ): UnaryExpression;
 	VAR unaryExpression: UnaryExpression;
 	BEGIN
-		INC( unaryExpressionCount );  NEW( unaryExpression, position, operand, operator );  RETURN unaryExpression;
+		NEW( unaryExpression, position, operand, operator );  RETURN unaryExpression;
 	END NewUnaryExpression;
 
 	PROCEDURE NewConversion*( position: LONGINT;  expression: Expression; type: Type; typeExpression: Expression): Conversion;
@@ -4325,54 +4315,54 @@ VAR
 	PROCEDURE NewIntegerValue*( position: LONGINT;  value: HUGEINT): IntegerValue;
 	VAR integerValue: IntegerValue;
 	BEGIN
-		INC( integerValueCount );  NEW( integerValue, position, value);  RETURN integerValue;
+		NEW( integerValue, position, value);  RETURN integerValue;
 	END NewIntegerValue;
 
 	PROCEDURE NewCharacterValue*( position: LONGINT;  value: CHAR): CharacterValue;
 	VAR characterValue: CharacterValue;
 	BEGIN
-		INC( integerValueCount );  NEW( characterValue, position, value);  RETURN characterValue;
+		NEW( characterValue, position, value);  RETURN characterValue;
 	END NewCharacterValue;
 
 	PROCEDURE NewSetValue*(position: LONGINT; value: SET): SetValue;
 	VAR setValue: SetValue;
 	BEGIN
-		INC(setValueCount); NEW(setValue, position, value); RETURN setValue
+		NEW(setValue, position, value); RETURN setValue
 	END NewSetValue;
 
 	PROCEDURE NewMathArrayValue*( position: LONGINT ): MathArrayValue;
 	VAR mathArrayValue: MathArrayValue;
-	BEGIN INC( mathArrayValueCount );  NEW( mathArrayValue, position );  RETURN mathArrayValue
+	BEGIN NEW( mathArrayValue, position );  RETURN mathArrayValue
 	END NewMathArrayValue;
 
 	PROCEDURE NewRealValue*( position: LONGINT;  value: LONGREAL): RealValue;
 	VAR realValue: RealValue;
 	BEGIN
-		INC( realValueCount );  NEW( realValue, position, value);  RETURN realValue
+		NEW( realValue, position, value);  RETURN realValue
 	END NewRealValue;
 
 	PROCEDURE NewStringValue*( position: LONGINT;  CONST value: ARRAY OF CHAR): StringValue;
 	VAR stringValue: StringValue;
 	BEGIN
-		INC( stringValueCount );  NEW( stringValue, position, value );  RETURN stringValue
+		NEW( stringValue, position, value );  RETURN stringValue
 	END NewStringValue;
 
 	PROCEDURE NewBooleanValue*( position: LONGINT;  value: BOOLEAN): BooleanValue;
 	VAR booleanValue: BooleanValue;
 	BEGIN
-		INC( booleanValueCount );  NEW( booleanValue, position, value );  RETURN booleanValue;
+		NEW( booleanValue, position, value );  RETURN booleanValue;
 	END NewBooleanValue;
 
 	PROCEDURE NewNilValue*( position: LONGINT ): NilValue;
 	VAR nilValue: NilValue;
 	BEGIN
-		INC( nilValueCount );  NEW( nilValue, position );  RETURN nilValue
+		NEW( nilValue, position );  RETURN nilValue
 	END NewNilValue;
 
 	PROCEDURE NewEnumerationValue*( position: LONGINT; value: LONGINT ): EnumerationValue;
 	VAR enumeratorValue: EnumerationValue;
 	BEGIN
-		INC( enumeratorValueCount );  NEW( enumeratorValue, position, value );  RETURN enumeratorValue
+		NEW( enumeratorValue, position, value );  RETURN enumeratorValue
 	END NewEnumerationValue;
 
 	PROCEDURE NewStatement*(outer: Statement): Statement; (* for error handling: invalid Statement *)
@@ -4383,7 +4373,7 @@ VAR
 	PROCEDURE NewStatementSequence*(): StatementSequence;
 	VAR statementSequence: StatementSequence;
 	BEGIN
-		INC( statementSequenceCount );  NEW( statementSequence);  RETURN statementSequence
+		NEW( statementSequence);  RETURN statementSequence
 	END NewStatementSequence;
 
 	PROCEDURE NewModifier*(identifier: Identifier; expression: Expression): Modifier;
@@ -4395,97 +4385,97 @@ VAR
 	PROCEDURE NewStatementBlock*( position: LONGINT ; outer: Statement): StatementBlock;
 	VAR statementBlock: StatementBlock;
 	BEGIN
-		INC( statementBlockCount );  NEW( statementBlock, position, outer );  RETURN statementBlock
+		NEW( statementBlock, position, outer );  RETURN statementBlock
 	END NewStatementBlock;
 
 	PROCEDURE NewBody*( position: LONGINT ; scope: ProcedureScope): Body;
 	VAR body: Body;
 	BEGIN
-		INC( bodyCount );  NEW( body, position,scope );  RETURN body
+		NEW( body, position,scope );  RETURN body
 	END NewBody;
 
 	PROCEDURE NewIfPart*(): IfPart;
 	VAR ifPart: IfPart;
 	BEGIN
-		INC( ifPartCount );  NEW( ifPart);  RETURN ifPart
+		NEW( ifPart);  RETURN ifPart
 	END NewIfPart;
 
 	PROCEDURE NewIfStatement*( position: LONGINT ; outer: Statement): IfStatement;
 	VAR ifStatement: IfStatement;
 	BEGIN
-		INC( ifStatementCount );   NEW( ifStatement, position,outer );  RETURN ifStatement
+		NEW( ifStatement, position,outer );  RETURN ifStatement
 	END NewIfStatement;
 
 	PROCEDURE NewAssignment*( position: LONGINT;  left: Designator; right: Expression; outer: Statement): Assignment;
 	VAR assignment: Assignment;
 	BEGIN
-		INC( assignmentCount );  NEW( assignment, position, left, right,outer );  RETURN assignment
+		NEW( assignment, position, left, right,outer );  RETURN assignment
 	END NewAssignment;
 
 	PROCEDURE NewProcedureCallStatement*(position: LONGINT; call: Designator; outer: Statement): ProcedureCallStatement;
 	VAR caller: ProcedureCallStatement;
 	BEGIN
-		INC(callerCount); NEW(caller,position,call,outer); RETURN caller
+		NEW(caller,position,call,outer); RETURN caller
 	END NewProcedureCallStatement;
 
 	PROCEDURE NewCaseStatement*( position: LONGINT ; outer: Statement): CaseStatement;
 	VAR caseStatement: CaseStatement;
 	BEGIN
-		INC( caseStatementCount );  NEW( caseStatement, position,outer );  RETURN caseStatement
+		NEW( caseStatement, position,outer );  RETURN caseStatement
 	END NewCaseStatement;
 
 	PROCEDURE NewCasePart*(): CasePart;
 	VAR casePart: CasePart;
 	BEGIN
-		INC( casePartCount );  NEW( casePart);  RETURN casePart
+		NEW( casePart);  RETURN casePart
 	END NewCasePart;
 
 	PROCEDURE NewWithStatement*( position: LONGINT; outer: Statement): WithStatement;
 	VAR withStatement: WithStatement;
 	BEGIN
-		INC( withStatementCount );  NEW( withStatement, position, outer );  RETURN withStatement
+		NEW( withStatement, position, outer );  RETURN withStatement
 	END NewWithStatement;
 
 	PROCEDURE NewWhileStatement*( position: LONGINT ; outer: Statement): WhileStatement;
 	VAR whileStatement: WhileStatement;
 	BEGIN
-		INC( whileStatementCount );  NEW( whileStatement, position,outer );  RETURN whileStatement
+		NEW( whileStatement, position,outer );  RETURN whileStatement
 	END NewWhileStatement;
 
 	PROCEDURE NewRepeatStatement*( position: LONGINT ; outer: Statement): RepeatStatement;
 	VAR repeatStatement: RepeatStatement;
 	BEGIN
-		INC( repeatStatementCount );  NEW( repeatStatement, position ,outer);  RETURN repeatStatement
+		NEW( repeatStatement, position ,outer);  RETURN repeatStatement
 	END NewRepeatStatement;
 
 	PROCEDURE NewForStatement*( position: LONGINT; outer: Statement ): ForStatement;
 	VAR forStatement: ForStatement;
 	BEGIN
-		INC( forStatementCount );  NEW( forStatement, position,outer );  RETURN forStatement
+		NEW( forStatement, position,outer );  RETURN forStatement
 	END NewForStatement;
 
 	PROCEDURE NewLoopStatement*( position: LONGINT ; outer: Statement): LoopStatement;
 	VAR loopStatement: LoopStatement;
 	BEGIN
-		INC( loopStatementCount );  NEW( loopStatement, position ,outer);  RETURN loopStatement
+		NEW( loopStatement, position ,outer);  RETURN loopStatement
 	END NewLoopStatement;
 
 	PROCEDURE NewExitStatement*( position: LONGINT ; outer: Statement): ExitStatement;
 	VAR exitStatement: ExitStatement;
 	BEGIN
-		INC( exitStatementCount );  NEW( exitStatement, position, outer);  RETURN exitStatement
+		NEW( exitStatement, position, outer);  RETURN exitStatement
 	END NewExitStatement;
 
 	PROCEDURE NewReturnStatement*( position: LONGINT; outer: Statement ): ReturnStatement;
 	VAR returnStatement: ReturnStatement;
 	BEGIN
-		INC( returnStatementCount );  NEW( returnStatement, position,outer );  RETURN returnStatement
+		NEW( returnStatement, position,outer );  RETURN returnStatement
 	END NewReturnStatement;
 
 	PROCEDURE NewAwaitStatement*( position: LONGINT; outer: Statement ): AwaitStatement;
 	VAR awaitStatement: AwaitStatement;
 	BEGIN
-		INC( awaitStatementCount );  NEW( awaitStatement, position, outer );  RETURN awaitStatement
+		NEW( awaitStatement, position, outer );  RETURN awaitStatement
 	END NewAwaitStatement;
 
 	PROCEDURE NewCode*(position: LONGINT; outer: Statement): Code;
@@ -4519,105 +4509,8 @@ VAR
 	BEGIN NEW(scope,outer); RETURN scope
 	END NewEnumerationScope;
 
-	PROCEDURE LogCounters*(context: Commands.Context);
-
-		PROCEDURE FixedStringInt(CONST s: ARRAY OF CHAR; int: LONGINT);
-		VAR i: LONGINT;
-		BEGIN
-			context.out.String(s);
-			i := 0;
-			WHILE s[i] # 0X DO
-				INC(i);
-			END;
-			WHILE(i<20) DO
-				context.out.Char(" ");
-				INC(i);
-			END;
-			context.out.Int(int,10);
-			context.out.Ln;
-		END FixedStringInt;
-
-	BEGIN
-		FixedStringInt("nodeCount ", nodeCount );
-		FixedStringInt("listCount ",listCount  );
-		FixedStringInt("identifierCount ",identifierCount  );
-		FixedStringInt("qualifiedIdentifierCount ", qualifiedIdentifierCount );
-		FixedStringInt("typeCount ", typeCount );
-		FixedStringInt("basicTypeCount ", basicTypeCount );
-		FixedStringInt("arrayTypeCount ", arrayTypeCount );
-		FixedStringInt("pointerTypeCount ", pointerTypeCount );
-		FixedStringInt("portTypeCount ", portTypeCount );
-		FixedStringInt("recordTypeCount ",recordTypeCount  );
-		FixedStringInt("actorTypeCount ",actorTypeCount  );
-		FixedStringInt("defintionTypeCount ",defintionTypeCount  );
-		FixedStringInt("procedureTypeCount ", procedureTypeCount );
-		FixedStringInt("qualifiedTypeCount ",qualifiedTypeCount  );
-		FixedStringInt("typeDeclarationListCount ",typeDeclarationListCount  );
-		FixedStringInt("definitionCount ",definitionCount  );
-		FixedStringInt("definitionTypeCount ",definitionTypeCount  );
-		FixedStringInt("expressionCount ", expressionCount );
-		FixedStringInt("expressionListCount ", expressionListCount );
-		FixedStringInt("selectorCount ",selectorCount  );
-		FixedStringInt("indexDesignatorCount ",indexDesignatorCount  );
-		FixedStringInt("parameterDesignatorCount ",parameterDesignatorCount  );
-		FixedStringInt("dereferenceDesignatorCount ",dereferenceDesignatorCount  );
-		FixedStringInt("supercallDesignatorCount ",supercallDesignatorCount  );
-		FixedStringInt("selfDesignatorCount ",selfDesignatorCount  );
-		FixedStringInt("designatorCount ",designatorCount  );
-		FixedStringInt("elementCount ", elementCount );
-		FixedStringInt("setCount ",setCount  );
-		FixedStringInt("mathArrayExpressionCount ",mathArrayExpressionCount  );
-		FixedStringInt("mathArrayValueCount ",mathArrayValueCount  );
-		FixedStringInt("binaryExpressionCount ", binaryExpressionCount );
-		FixedStringInt("unaryExpressionCount ",unaryExpressionCount  );
-		FixedStringInt("valueCount ",valueCount  );
-		FixedStringInt("booleanValueCount ",booleanValueCount  );
-		FixedStringInt("integerValueCount ", integerValueCount );
-		FixedStringInt("setValueCount", setValueCount);
-		FixedStringInt("realValueCount ", realValueCount );
-		FixedStringInt("hugeintValueCount ",hugeintValueCount  );
-		FixedStringInt("stringValueCount ",stringValueCount  );
-		FixedStringInt("nilValueCount ",nilValueCount  );
-		FixedStringInt("enumeratorValueCount ",enumeratorValueCount  );
-		FixedStringInt("callerCount",callerCount);
-		FixedStringInt("assignmentCount ",assignmentCount  );
-		FixedStringInt("ifStatementCount ",ifStatementCount  );
-		FixedStringInt("withStatementCount ",withStatementCount  );
-		FixedStringInt("ifPartCount ",ifPartCount  );
-		FixedStringInt("casePartCount ",casePartCount  );
-		FixedStringInt("caseStatementCount ",caseStatementCount  );
-		FixedStringInt("whileStatementCount ",whileStatementCount  );
-		FixedStringInt("repeatStatementCount ",repeatStatementCount  );
-		FixedStringInt("forStatementCount ",forStatementCount  );
-		FixedStringInt("loopStatementCount ",loopStatementCount  );
-		FixedStringInt("exitStatementCount ",exitStatementCount  );
-		FixedStringInt("returnStatementCount ", returnStatementCount );
-		FixedStringInt("awaitStatementCount ",awaitStatementCount  );
-		FixedStringInt("typeDeclarationCount", typeDeclarationCount);
-		FixedStringInt("definitionListCount ", definitionListCount );
-		FixedStringInt("constantCount ",constantCount  );
-		FixedStringInt("constantListCount ",constantListCount  );
-		FixedStringInt("variableCount ",variableCount  );
-		FixedStringInt("variableListCount ",variableListCount  );
-		FixedStringInt("procedureCount ",procedureCount  );
-		FixedStringInt("methodCount ",methodCount  );
-		FixedStringInt("procedureListCount ", procedureListCount );
-		FixedStringInt("operatorCount ", operatorCount );
-		FixedStringInt("operatorListCount ",operatorListCount  );
-		FixedStringInt("parameterCount ", parameterCount );
-		FixedStringInt("parameterListCount ",parameterListCount  );
-		FixedStringInt("importCount ",importCount  );
-		FixedStringInt("importListCount ",importListCount  );
-		FixedStringInt("statementSequenceCount ",statementSequenceCount  );
-		FixedStringInt("declarationSequenceCount ",declarationSequenceCount  );
-		FixedStringInt("statementBlockCount ",statementBlockCount );
-		FixedStringInt("bodyCount ", bodyCount );
-		FixedStringInt("moduleCount ", moduleCount );
-	END LogCounters;
-
 	PROCEDURE Init;
 	BEGIN
-
 		invalidString := Basic.MakeString("@invalidString");
 		invalidIdentifier := NewIdentifier(-1,"@invalidString");
 		invalidQualifiedIdentifier := NewQualifiedIdentifier(-1,NIL,invalidIdentifier);
@@ -4641,29 +4534,10 @@ VAR
 		indexListSeparator := NewDesignator();
 		indexListSeparator.SetType(invalidType);
 
-		(* debugging *)
-		nodeCount := 0;  listCount := 0;  identifierCount := 0;  qualifiedIdentifierCount := 0;
-		typeCount := 0; basicTypeCount := 0;  typeDeclarationCount := 0;  arrayTypeCount := 0;  pointerTypeCount := 0; portTypeCount := 0;
-		recordTypeCount := 0; actorTypeCount := 0;
-		defintionTypeCount := 0;  procedureTypeCount := 0;
-		qualifiedTypeCount := 0;  typeDeclarationListCount := 0;  definitionCount := 0;  definitionTypeCount := 0;  expressionCount := 0;
-		expressionListCount := 0;  selectorCount := 0;  indexDesignatorCount := 0;  parameterDesignatorCount := 0;
-		dereferenceDesignatorCount := 0;  supercallDesignatorCount := 0; selfDesignatorCount := 0;
-		designatorCount := 0;  elementCount := 0;  setCount := 0; mathArrayExpressionCount := 0; mathArrayValueCount := 0;   binaryExpressionCount := 0;
-		unaryExpressionCount := 0;  valueCount := 0;  booleanValueCount := 0;  integerValueCount := 0;  setValueCount := 0; realValueCount := 0;
-		hugeintValueCount := 0;  stringValueCount := 0;  nilValueCount := 0; enumeratorValueCount := 0;  callerCount := 0; assignmentCount := 0;  ifStatementCount := 0;
-		withStatementCount := 0;  casePartCount := 0; ifPartCount := 0;  caseStatementCount := 0;  whileStatementCount := 0;  repeatStatementCount := 0;
-		forStatementCount := 0;  loopStatementCount := 0;  exitStatementCount := 0;  returnStatementCount := 0;
-		awaitStatementCount := 0;  definitionListCount := 0;  constantCount := 0;  constantListCount := 0;  variableCount := 0;
-		variableListCount := 0;  procedureCount := 0; methodCount := 0;   procedureListCount := 0;  operatorCount := 0;  operatorListCount := 0;
-		parameterCount := 0;  parameterListCount := 0;  importCount := 0;  importListCount := 0;  statementSequenceCount := 0;
-		declarationSequenceCount := 0;  statementBlockCount := 0;  bodyCount := 0;  moduleCount := 0;
-
 	END Init;
 
 
 BEGIN
 	Init;
-
 END FoxSyntaxTree.
 

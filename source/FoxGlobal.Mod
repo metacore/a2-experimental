@@ -350,7 +350,7 @@ TYPE
 		END GenerateParameterOffsets;
 		*)
 
-				PROCEDURE GenerateParameterOffsets*(procedure : SyntaxTree.Procedure; nestedProcedure: BOOLEAN): BOOLEAN;
+		PROCEDURE GenerateParameterOffsets*(procedure : SyntaxTree.Procedure; nestedProcedure: BOOLEAN): BOOLEAN;
 		VAR offset,size: LONGINT;parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType;
 		BEGIN
 			procedureType := procedure.type(SyntaxTree.ProcedureType);
@@ -359,9 +359,10 @@ TYPE
 			ELSE
 				offset := SELF.offsetFirstParameter;
 			END;
-			IF nestedProcedure THEN
+			IF nestedProcedure OR (procedureType.isDelegate) THEN
 				INC(offset,addressSize); (* parameter offset of static link *) (*! check alternative: add hidden parameter *)
 			END;
+			
 			IF procedureType.callingConvention = SyntaxTree.OberonCallingConvention THEN
 				parameter := procedureType.lastParameter;
 				WHILE (parameter # NIL) DO
@@ -372,9 +373,13 @@ TYPE
 					INC(offset,SizeOfParameter(parameter));
 					parameter := parameter.prevParameter;
 				END;
-				IF procedureType.returnParameter # NIL THEN
+				parameter := procedureType.returnParameter;
+				IF parameter # NIL THEN
 					Basic.Align(offset,addressSize);
-					procedureType.returnParameter.SetOffset(offset);
+					parameter.SetOffset(offset);
+					size := SizeOfParameter(parameter);
+					IF size < 0 THEN RETURN FALSE END;
+					INC(offset,SizeOfParameter(parameter));
 				END;
 			ELSE
 				parameter := procedureType.firstParameter;

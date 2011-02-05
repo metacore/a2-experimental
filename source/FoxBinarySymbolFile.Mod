@@ -474,7 +474,7 @@ TYPE
 
 
 		PROCEDURE FixProcedureType(procedureType: SyntaxTree.ProcedureType);
-		VAR parameter: SyntaxTree.Parameter;
+		VAR parameter: SyntaxTree.Parameter; returnType: SyntaxTree.Type;
 		BEGIN
 			(* parameter list *)
 			parameter := procedureType.firstParameter;
@@ -483,9 +483,13 @@ TYPE
 				parameter := parameter.nextParameter;
 			END;
 			(* return type *)
-			procedureType.SetReturnType(ResolveType(procedureType.returnType));
-			IF procedureType.returnParameter # NIL THEN
-				procedureType.returnParameter.SetType(ResolveType(procedureType.returnParameter.type));
+			returnType := ResolveType(procedureType.returnType);
+			procedureType.SetReturnType(ResolveType(returnType));
+			IF returnType# NIL THEN
+				parameter := SyntaxTree.NewParameter(-1,procedureType,Global.ReturnParameterName,SyntaxTree.VarParameter);
+				parameter.SetType(returnType);
+				parameter.SetState(SyntaxTree.Resolved);
+				procedureType.SetReturnParameter(parameter);
 			END;
 			(*
 			IF procedureType.selfParameter # NIL THEN
@@ -810,14 +814,11 @@ TYPE
 			PROCEDURE ParameterList(VAR callingConvention: LONGINT; parentScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType);
 			VAR name: Scanner.StringType; type: SyntaxTree.Type; f: LONGINT;
 				kind: LONGINT;
-				parameter, sparameter, rparameter: SyntaxTree.Parameter;
-				rparametername: SyntaxTree.String;
+				parameter: SyntaxTree.Parameter;
 			BEGIN
 				IF TraceImport IN Trace THEN
 					D.Str("ParameterList "); D.Ln
 				END;
-				sparameter := NIL;
-				rparameter := NIL;
 				callingConvention := SyntaxTree.OberonCallingConvention;
 
 				R.RawNum(tag);
@@ -848,43 +849,25 @@ TYPE
 					type := Type();
 
 					R.RawString(name);
+
 					parameter := SyntaxTree.NewParameter(-1,procedureType,SyntaxTree.NewIdentifier(-1,name),kind);
 					parameter.SetType(type);
 					parameter.SetState(SyntaxTree.Resolved);
-
-					IF parameter.name.Equals( Global.SelfParameterName) THEN	(*move SELF to list of hidden parameters *)
-						(*
-						procedureType.SetSelfParameter(parameter);
-						*)
-						sparameter := parameter;
-					ELSIF parameter.name.Equals( Global.ReturnParameterName) OR parameter.name.Equals(Global.PointerReturnName) (* compatibility with paco *) THEN
-						(* move return parameter to list of hidden parameters *)
-						rparameter := parameter
-					ELSIF parameter.name.Equals(Global.ResultName) THEN
-						procedureType.SetReturnParameter(parameter);
+					(*! remove this after a rebuild of the release - for compatibility only *)
+					IF parameter.name.Equals( Global.SelfParameterName) 
+						OR parameter.name.Equals( Global.ReturnParameterName) 
+						OR parameter.name.Equals(Global.PointerReturnName) 
+						OR parameter.name.Equals(Global.ResultName) THEN (* ignore *)
 					ELSE
-						procedureType.AddParameter(parameter);
+					procedureType.AddParameter(parameter);
 					END;
+					
 					R.RawNum(tag)
 				END;
 
 				IF callingConvention # SyntaxTree.OberonCallingConvention THEN
-					procedureType.RevertParameters; (*! compatibility to PACO *)
-					ASSERT(sparameter = NIL);
-					(* ASSERT(rparameter = NIL);*)
-					(*! in later versions of this compiler, WinAPI procedures should not be stored with hiddenparameters (compatibility with paco) *)
-				ELSE
-					IF rparameter # NIL THEN
-						rparameter.name.GetString(rparametername);
-						rparameter.SetAccess(SyntaxTree.Hidden);
-						procedureType.AddParameter(rparameter);
-					END;
-					IF sparameter # NIL THEN
-						sparameter.SetAccess(SyntaxTree.Hidden);
-						procedureType.AddParameter(sparameter);
-					END;
+					procedureType.RevertParameters;
 				END;
-
 			END ParameterList;
 
 			(* returns the index of module importedModule in the list of module module *)
@@ -2066,11 +2049,14 @@ TYPE
 
 			BEGIN
 				IF procedureType.callingConvention # SyntaxTree.OberonCallingConvention  THEN
+					(*! if a procedure has a return type, then it has a return parameter (new)
 					ASSERT(procedureType.returnParameter = NIL);
-					ASSERT(procedureType.selfParameter = NIL);
+					*)
 					Parameters(procedureType.lastParameter,TRUE);
 				ELSE
+					(*
 					Parameters(procedureType.returnParameter,FALSE);
+					*)
 					(*
 					Parameters(procedureType.selfParameter,FALSE);
 					*)

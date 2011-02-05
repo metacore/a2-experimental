@@ -531,6 +531,8 @@ TYPE
 			position := symbol.start;
 			IF Optional(Scanner.Self) THEN
 				designator := SyntaxTree.NewSelfDesignator(position);
+			ELSIF Optional(Scanner.Result) THEN
+				designator := SyntaxTree.NewResultDesignator(position);
 			ELSE
 				identifier := Identifier();
 				designator := SyntaxTree.NewIdentifierDesignator(identifier.position,identifier);
@@ -651,7 +653,7 @@ TYPE
 					factor := Factor();
 					factor := SyntaxTree.NewUnaryExpression( position, factor, Scanner.Not );
 					factor.End( symbol.end );
-			| Scanner.Self, Scanner.Identifier:
+			| Scanner.Self, Scanner.Result, Scanner.Identifier:
 					factor := Designator();
 					factor.End( symbol.end );
 			| Scanner.LeftBracket:
@@ -794,7 +796,7 @@ TYPE
 		BEGIN
 			IF Trace THEN S( "Statement" ) END;
 			CASE symbol.token OF
-			| Scanner.Identifier, Scanner.Self:
+			| Scanner.Identifier, Scanner.Self, Scanner.Result:
 					designator := Designator();
 					position := symbol.start;
 					IF Optional( Scanner.Becomes ) THEN

@@ -645,6 +645,19 @@ TYPE
 			END;
 
 		END VisitSelfDesignator;
+		
+		PROCEDURE VisitResultDesignator(x: SyntaxTree.ResultDesignator);
+		BEGIN
+			ASSERT(x.left = NIL);
+			w.String("RESULT");
+			IF info THEN
+				BeginComment;
+				w.String("<ResultDesignator:");
+				ShortType(x.type);
+				w.String(">");
+				EndComment
+			END;
+		END VisitResultDesignator;
 
 		PROCEDURE VisitDereferenceDesignator(x: SyntaxTree.DereferenceDesignator);
 		BEGIN
@@ -1097,12 +1110,6 @@ TYPE
 					BeginComment;
 					w.String("retPar = ");
 					VisitParameter(type.returnParameter);
-					EndComment;
-				END;
-				IF info & (type.selfParameter # NIL) THEN
-					BeginComment;
-					w.String("selfPar = ");
-					VisitParameter(type.selfParameter);
 					EndComment;
 				END;
 				w.String( ";" );

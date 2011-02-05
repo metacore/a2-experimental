@@ -171,7 +171,7 @@ TYPE
 
 		PROCEDURE GetOptions*(options: Options.Options);
 		BEGIN
-			IF ~options.GetString("objectFileExtension",extension) THEN 
+			IF ~options.GetString("objectFileExtension",extension) THEN
 				extension := Machine.DefaultObjectFileExtension
 			END;
 			IF ~options.GetString("objectFilePrefix",prefix) THEN prefix := "" END
@@ -542,7 +542,7 @@ TYPE
 				END TypeAllowed;
 
 			BEGIN
-				numberParameters := procedureType.numberParameters - procedureType.numberHiddenParameters;
+				numberParameters := procedureType.numberParameters;
 				RETURN
 					(numberParameters = 0) & TypeAllowed(procedureType.returnType) OR
 					(numberParameters = 1) & TypeAllowed(procedureType.firstParameter.type) & TypeAllowed(procedureType.returnType) OR
@@ -590,7 +590,7 @@ TYPE
 						IF Trace THEN
 							D.Str("Command : "); D.Str(name); D.Str(" @ "); D.Int(p.offset ,1);
 						END;
-						numberParameters := procedureType.numberParameters-procedureType.numberHiddenParameters;
+						numberParameters := procedureType.numberParameters;
 						(* offset of type of first parameter *)
 						IF (numberParameters = 0 ) THEN WriteType(NIL)
 						ELSE WriteType(procedureType.firstParameter.type)
@@ -1701,7 +1701,7 @@ TYPE
 					length := 1+SemanticChecker.Dimension(type,{SyntaxTree.Open});
 					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
 					w.RawNum(length)
-				END;					
+				END;
 			END ArrayType;
 
 			PROCEDURE StaticMathArrayLength(type: SyntaxTree.MathArrayType; VAR baseType: SyntaxTree.Type): LONGINT;
@@ -1733,7 +1733,7 @@ TYPE
 					w.Char(CHR(ORD(char)));
 				ELSE
 					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
-					w.RawNum(length)					
+					w.RawNum(length)
 				END;
 			END MathArrayType;
 

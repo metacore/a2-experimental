@@ -725,23 +725,19 @@ TYPE
 		**)
 		PROCEDURE FixProcedureType(procedureType: SyntaxTree.ProcedureType);
 		VAR resolved: SyntaxTree.Type; returnParameter,parameter (*,selfParameter*): SyntaxTree.Parameter;
-
 		BEGIN
 				resolved := ResolveType(procedureType.returnType);
-
 				IF (resolved # NIL) & (resolved.resolved IS SyntaxTree.ArrayType) & (resolved.resolved(SyntaxTree.ArrayType).length = NIL) THEN
 					Error(procedureType.position,Diagnostics.Invalid,"forbidden open array return type");
 				END;
 
 				procedureType.SetReturnType(resolved);
-
-				(* OLVIER *)
-				IF (resolved # NIL) & ((resolved.resolved IS SyntaxTree.MathArrayType) OR (resolved.resolved IS SyntaxTree.ProcedureType)) THEN
+				IF (resolved # NIL) THEN
 					parameter := SyntaxTree.NewParameter(procedureType.position,procedureType,Global.ResultName, SyntaxTree.VarParameter);
 					parameter.SetType(procedureType.returnType);
 					parameter.SetAccess(SyntaxTree.Internal);
 					VisitParameter(parameter);
-					procedureType.SetReturnParameter(parameter);
+					procedureType.SetReturnParameter(parameter); (* return parameter serves as a cache only *)
 				END;
 
 				(* process parameters *)
@@ -750,77 +746,7 @@ TYPE
 					VisitParameter(parameter);
 					parameter := parameter.nextParameter;
 				END;
-
-				IF (procedureType.callingConvention = SyntaxTree.OberonCallingConvention) & IsPointerType (procedureType.returnType)
-				THEN (*! needed for compatibility with paco *)
-					returnParameter := SyntaxTree.NewParameter(procedureType.position,procedureType,Global.PointerReturnName,SyntaxTree.VarParameter);
-					returnParameter.SetType(procedureType.returnType);
-					returnParameter.SetAccess(SyntaxTree.Hidden);
-					procedureType.AddParameter(returnParameter);
-				END;
-
-				(*
-				IF ~system.GenerateParameterOffsets(procedureType,FALSE) THEN
-					Error(procedureType.position, Diagnostics.Invalid, "problems during parameter offset generation");
-				END
-				*)
 		END FixProcedureType;
-
-		(*
-
-		PROCEDURE GetFlag(modifier: SyntaxTree.Modifier): LONGINT;
-		VAR name: Scanner.StringType; expressionExpected: BOOLEAN; flag: LONGINT;
-		BEGIN
-			expressionExpected := FALSE; flag := MIN(LONGINT);
-			IF modifier.identifier # NIL THEN
-				modifier.identifier.GetString(name);
-				Basic.Uppercase(name,name);
-				IF (name = Global.StringWinAPI) THEN flag := SyntaxTree.WinAPIFlag
-				ELSIF (name = Global.StringC)  THEN flag :=   SyntaxTree.CFlag
-				ELSIF (name = Global.StringUntraced) THEN flag :=  SyntaxTree.UntracedFlag
-				ELSIF (name = Global.StringDelegate) THEN flag :=   SyntaxTree.DelegateFlag
-				ELSIF (name = Global.StringRealtime) THEN flag :=  SyntaxTree.RealtimeFlag
-				ELSIF (name = Global.StringInterrupt) THEN flag :=  SyntaxTree.InterruptFlag
-				ELSIF (name = Global.StringNoPAF) THEN flag :=  SyntaxTree.NoPAFFlag;
-				ELSIF (name = Global.StringAligned) THEN flag := SyntaxTree.AlignedFlag; expressionExpected := TRUE;
-				ELSIF (name = Global.StringAlignStack) THEN flag := SyntaxTree.StackAlignFlag; expressionExpected := TRUE;
-				ELSIF (name = Global.StringFixed) THEN flag :=  SyntaxTree.FixedFlag; expressionExpected := TRUE;
-				ELSE Error(modifier.identifier.position,Diagnostics.Invalid,"Unknown Flag"); flag :=  MIN(LONGINT);
-				END;
-			END;
-			IF ~expressionExpected & (modifier.expression # NIL) THEN
-				Error(modifier.expression.position,Diagnostics.Invalid,"Unexpected expression");
-			ELSIF (expressionExpected) & (modifier.expression = NIL) THEN
-				Error(modifier.identifier.position, Diagnostics.Invalid, "Missing expression");
-			END;
-			IF (flag # MIN(LONGINT)) & (modifier.expression # NIL) THEN
-				flagExpressions[flag] := ResolveExpression(modifier.expression)
-			END;
-			RETURN flag
-		END GetFlag;
-
-
-		PROCEDURE Flags(modifiers: SyntaxTree.Modifier; allowedFlags: SET): SET;
-		VAR flags: SET; flag: LONGINT;
-		BEGIN
-			flags := {};
-			WHILE modifiers # NIL DO
-				flag := GetFlag(modifiers);
-				IF flag > 0 THEN
-					IF  ~(flag IN allowedFlags) THEN Error(modifiers.identifier.position,Basic.IllegalyMarkedIdentifier,"")
-					ELSE
-						INCL(flags,flag);
-						IF flag = SyntaxTree.WinAPIFlag THEN allowedFlags := allowedFlags - {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag}
-						ELSIF flag = SyntaxTree.CFlag THEN allowedFlags := allowedFlags - {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag}
-						ELSIF flag = SyntaxTree.DelegateFlag THEN allowedFlags := allowedFlags - {SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag}
-						END;
-					END;
-				END;
-				modifiers := modifiers.nextModifier;
-			END;
-			RETURN flags;
-		END Flags;
-		*)
 
 		PROCEDURE HasFlag(VAR modifiers: SyntaxTree.Modifier; name: SyntaxTree.Identifier; VAR position: LONGINT): BOOLEAN;
 		VAR prev,this: SyntaxTree.Modifier;
@@ -1232,7 +1158,7 @@ TYPE
 		BEGIN
 			result := FALSE;
 			procedureType := operator.type.resolved(SyntaxTree.ProcedureType);
-			IF (procedureType.numberParameters - procedureType.numberHiddenParameters = 0) THEN
+			IF (procedureType.numberParameters = 0) THEN
 				IF (procedureType.returnType # NIL) & (procedureType.returnType.resolved IS SyntaxTree.MathArrayType) THEN
 					returnedArrayType := procedureType.returnType.resolved(SyntaxTree.MathArrayType);
 					IF system.longintType.SameType(returnedArrayType.arrayBase.resolved) THEN
@@ -1292,7 +1218,7 @@ TYPE
 
 		BEGIN
 			procedureType := operator.type.resolved(SyntaxTree.ProcedureType);
-			parameterCount := procedureType.numberParameters - procedureType.numberHiddenParameters; (* true parameter count *)
+			parameterCount := procedureType.numberParameters; (* true parameter count *)
 
 			(* determine if it is a read or write operator *)
 			isReadOperator := (procedureType.returnType # NIL);
@@ -2223,6 +2149,7 @@ TYPE
 			ELSIF expression.type = NIL THEN
 				Error(position,Diagnostics.Invalid,"expression of type NIL cannot be converted");
 			ELSIF expression.type.SameType(type) THEN (* nothing to be done ! *)
+			ELSIF IsPointerType(expression.type) & IsPointerType(type) THEN (* nothing to be done *)
 			ELSIF (expression.type.resolved IS SyntaxTree.AnyType) THEN (*! binary symbol file problem: ANY and OBJECT cannot be distinguished  *)
 			ELSIF (expression.type.resolved IS SyntaxTree.ObjectType) & (type IS SyntaxTree.AnyType) THEN (*! binary symbol file problem *)
 			ELSIF expression.resolved # NIL THEN (* value *)
@@ -3109,6 +3036,30 @@ TYPE
 			resolvedExpression := x;
 		END VisitSelfDesignator;
 
+		PROCEDURE VisitResultDesignator(x: SyntaxTree.ResultDesignator);
+		VAR scope: SyntaxTree.Scope; procedure: SyntaxTree.Procedure; procedureType: SyntaxTree.ProcedureType; returnType: SyntaxTree.Type;
+		BEGIN
+			scope := currentScope;
+			IF (scope # NIL) & (scope IS SyntaxTree.ProcedureScope) THEN
+				procedure := scope(SyntaxTree.ProcedureScope).ownerProcedure;
+				procedureType := procedure.type(SyntaxTree.ProcedureType);
+				returnType := procedureType.returnType;
+				IF IsPointerType(returnType) OR IsArrayType(returnType) OR IsMathArrayType(returnType)
+				THEN
+					x.SetType(returnType);
+				ELSE
+					Error(x.position,Diagnostics.Invalid,"forbidden access to result designator (only pointer, array and math array)");
+					x.SetType(SyntaxTree.invalidType);
+				END;
+			ELSE
+				Error(x.position,Diagnostics.Invalid,"forbidden access to result designator");
+				x.SetType(SyntaxTree.invalidType);
+			END;
+			x.SetAssignable(TRUE);
+			resolvedExpression := x;
+		END VisitResultDesignator;
+
+
 		(**
 			return symbol designator as an expression
 			- if symbol is a constant then return the constant value expression
@@ -3971,7 +3922,7 @@ TYPE
 			IF Trace THEN D.Str("ProcedureCallDesignator"); D.Ln; END;
 			result := SyntaxTree.invalidDesignator;
 			formalType := left.type.resolved(SyntaxTree.ProcedureType); (* type checked in VisitParameterDesignator *)
-			numberFormalParameters := formalType.numberParameters-formalType.numberHiddenParameters;
+			numberFormalParameters := formalType.numberParameters;
 			numberActualParameters := actualParameters.Length();
 
 			IF (currentIsRealtime) & ~(formalType.isRealtime) THEN
@@ -4007,11 +3958,6 @@ TYPE
 					Error(position,Diagnostics.Invalid,"less actual than formal parameters")
 				END;
 
-				(*! do this in backend? *)
-				IF IsPointerType(formalType.returnType) & (formalType.callingConvention = SyntaxTree.OberonCallingConvention )THEN
-					hiddenPointerDesignator := GetTemporaryVariable(formalType.returnType); (*! try to make reuse of pointers *)
-					actualParameters.AddExpression(hiddenPointerDesignator);
-				END;
 
 			END;
 
@@ -4469,7 +4415,7 @@ TYPE
 									Error(position,Diagnostics.Invalid,"new on object with hidden constructor");
 								ELSE
 									procedureType := constructor.type(SyntaxTree.ProcedureType);
-									numberFormalParameters := procedureType.numberParameters-procedureType.numberHiddenParameters;
+									numberFormalParameters := procedureType.numberParameters;
 									DEC(numberActualParameters);
 									IF numberActualParameters = numberFormalParameters THEN
 										formalParameter := procedureType.firstParameter;
@@ -4485,7 +4431,6 @@ TYPE
 											END;
 											formalParameter := formalParameter.nextParameter;
 										END;
-										result(SyntaxTree.BuiltinCallDesignator).SetHiddenVariable(GetTemporaryVariable(type0));
 									ELSIF numberActualParameters > numberFormalParameters THEN
 										Error(position,Diagnostics.Invalid,"more actual than formal parameters")
 									ELSE
@@ -5811,7 +5756,9 @@ TYPE
 					(*
 					procedureType.SetSelfParameter(selfParameter);
 					*)
+					(*
 					procedureType.AddParameter(selfParameter);
+					*)
 
 					(*! constructor information is redundant, we can remove "isConstructor" and repplace by constructor procedure reference *)
 					IF procedure.isConstructor THEN
@@ -6444,42 +6391,6 @@ TYPE
 			END;
 		END GetGuard;
 
-		(**
-			create a temporary variable in current scope
-		**)
-		PROCEDURE GetTemporaryVariable(type: SyntaxTree.Type): SyntaxTree.Designator;
-		VAR name: SyntaxTree.Identifier; string: Scanner.StringType ; var: SyntaxTree.Expression; variable: SyntaxTree.Symbol;
-		scope: SyntaxTree.Scope; duplicate: BOOLEAN; offset,index: LONGINT;
-		BEGIN
-			COPY("@hiddenVar",string);
-			Basic.AppendNumber(string,GetIndex());
-			name := SyntaxTree.NewIdentifier(index,string);
-			scope := currentScope;
-			variable := Find(scope, name,FALSE);
-			IF variable = NIL THEN
-				variable := SyntaxTree.NewVariable(index,name);
-				variable.SetType(type);
-				variable.SetAccess(SyntaxTree.Hidden);
-
-				IF scope.lastVariable # NIL THEN
-					offset := scope.lastVariable.offsetInBits;
-				ELSE
-					offset := 0;
-				END;
-				DEC(offset,system.SizeOf(variable.type));
-				Basic.Align(offset,-system.AlignmentOf(system.variableAlignment,variable.type));
-				variable(SyntaxTree.Variable).SetOffset(offset);
-
-				scope.AddVariable(variable(SyntaxTree.Variable));
-				scope.EnterSymbol(variable, duplicate);
-				ASSERT(~duplicate);
-			ELSE
-				ASSERT(variable.type.resolved = type.resolved)
-			END;
-			var := NewSymbolDesignator(index,NIL,variable);
-			RETURN var(SyntaxTree.Designator)
-		END GetTemporaryVariable;
-
 		(** check and resolve for statement FOR variable := from TO to BY by DO StatementSequence END;
 			- check that variable is an integer variable
 			- check that from is integer typed with compatible type
@@ -6498,7 +6409,6 @@ TYPE
 				designator := SyntaxTree.invalidDesignator;
 			ELSIF CheckVariable(designator) THEN
 				type := designator.type;
-				forStatement.SetTemporary(GetTemporaryVariable(type));
 			END;
 			forStatement.SetVariable(designator);
 
@@ -6908,9 +6818,7 @@ TYPE
 					Register(parameter,currentScope, FALSE); parameter := parameter.nextParameter;
 				END;
 				parameter := scope(SyntaxTree.ProcedureScope).ownerProcedure.type.resolved(SyntaxTree.ProcedureType).returnParameter;
-				IF parameter # NIL THEN
-					Register(parameter,currentScope, FALSE);
-				END;
+				IF parameter # NIL THEN Register(parameter, currentScope, FALSE); END;
 			ELSIF scope IS SyntaxTree.ActorScope THEN
 				parameter := scope(SyntaxTree.ActorScope).ownerActor.firstParameter;
 				WHILE(parameter # NIL) DO
@@ -7176,7 +7084,7 @@ TYPE
 			RETURN FALSE
 		ELSE
 			procedureType := type(SyntaxTree.ProcedureType);
-			numberParameters := procedureType.numberParameters-procedureType.numberHiddenParameters;
+			numberParameters := procedureType.numberParameters;
 			RETURN
 				(numberParameters = 0) & TypeAllowed(procedureType.returnType) OR
 				(numberParameters = 1) & TypeAllowed(procedureType.firstParameter.type) & TypeAllowed(procedureType.returnType) OR
@@ -7469,14 +7377,14 @@ TYPE
 	VAR result: LONGINT; formalParameter: SyntaxTree.Parameter; actualParameter: SyntaxTree.Expression;
 	distance: LONGINT; baseFormal,baseActual: SyntaxTree.Type; i: LONGINT;
 	BEGIN
-		IF actualParameters.Length() # (procedureType.numberParameters-procedureType.numberHiddenParameters) THEN
+		IF actualParameters.Length() # (procedureType.numberParameters) THEN
 			result := Infinity
 		ELSE
 			formalParameter := procedureType.firstParameter;
 			i := 0;
 			result := 0;
 			(*! taken from paco, seems to not be 100% correct, check (in particular array part -> length of arrays??) *)
-			WHILE (formalParameter # NIL) & (formalParameter.access # SyntaxTree.Hidden) & (result # Infinity) DO
+			WHILE (formalParameter # NIL) & (result # Infinity) DO
 				actualParameter := actualParameters.GetExpression(i);
 				ASSERT(actualParameter.type # NIL);
 				ASSERT(formalParameter.type # NIL);
@@ -7712,7 +7620,7 @@ TYPE
 		RETURN expression.assignable;
 	END IsVariable;
 
-	PROCEDURE IsPointerType(type: SyntaxTree.Type): BOOLEAN;
+	PROCEDURE IsPointerType*(type: SyntaxTree.Type): BOOLEAN;
 	VAR result: BOOLEAN;
 	BEGIN
 		IF type = NIL THEN result := FALSE
@@ -8020,6 +7928,10 @@ TYPE
 	PROCEDURE IsMathArrayType(type: SyntaxTree.Type): BOOLEAN;
 	BEGIN RETURN (type # NIL) & (type.resolved IS SyntaxTree.MathArrayType);
 	END IsMathArrayType;
+
+	PROCEDURE IsArrayType(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN RETURN (type # NIL) & (type.resolved IS SyntaxTree.ArrayType);
+	END IsArrayType;
 
 	(** if a type is an array-structured object type *)
 	PROCEDURE IsArrayStructuredObjectType*(type: SyntaxTree.Type): BOOLEAN;
