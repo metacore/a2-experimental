@@ -39416,3 +39416,18 @@ positive: long jumps (backend test for TRM)
 	END LongJumpForwards;
 
 	END Test.
+
+#positive: expressions of type real with longint divisions
+
+	MODULE Test;
+
+	    PROCEDURE Do*(x: REAL): REAL;
+	    VAR v: REAL;   
+	    BEGIN
+	        v := x * (x * (x * (x * ((11 / 11520) - x * (1 / 14400)) - 583 / 69120) + 14597 / 276480) - 156409 / 737280) + 381773117 / 928972800;
+	        RETURN v;
+	    END Do;
+	    
+	END Test. 
+
+

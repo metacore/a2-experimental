@@ -2672,7 +2672,11 @@ TYPE
 							IF hr = 0 THEN
 								Error(binaryExpression.position,Diagnostics.Invalid,"division by zero");
 							ELSE
-								NewReal(hl/hr,system.longrealType);
+								IF type.sizeInBits = 64 THEN
+									NewReal(hl/hr,system.longrealType);
+								ELSE
+									NewReal(hl/hr,system.realType)
+								END
 							END;
 						(* do the bootstrapping for this kind of expression on hugeint values , then enable: *)
 						|Scanner.Mod:
