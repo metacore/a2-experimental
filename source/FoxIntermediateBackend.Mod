@@ -5437,7 +5437,7 @@ TYPE
 				END;
 			(* ---- SYSTEM.ZEROCOPY----- *)
 			|Global.systemZeroCopy:
-				IF GetRuntimeProcedure("FoxArrayBase","ZeroCopy",procedure,TRUE) THEN
+				IF GetRuntimeProcedure("FoxArrayBase","",procedure,TRUE) THEN
 					left := SyntaxTree.NewSymbolDesignator(Diagnostics.Invalid, NIL, procedure);
 					left.SetType(procedure.type);
 					call := SyntaxTree.NewProcedureCallDesignator(position,left(SyntaxTree.Designator),x.parameters);
@@ -6127,13 +6127,29 @@ TYPE
 			mem: IntermediateCode.Operand;
 			leftType, rightType: SyntaxTree.Type;
 			size: LONGINT;
+
+			PROCEDURE CanPassAsResultParameter(right: SyntaxTree.Expression): BOOLEAN;
+			BEGIN
+				IF ReturnedAsParameter(right.type) THEN
+					IF right IS SyntaxTree.ProcedureCallDesignator THEN RETURN TRUE
+					ELSIF right IS SyntaxTree.BuiltinCallDesignator THEN
+						WITH right: SyntaxTree.BuiltinCallDesignator DO
+							IF right.id = Global.Reshape THEN RETURN TRUE
+							ELSIF right.id = Global.systemZeroCopy THEN RETURN TRUE
+							END;
+						END;
+					END;
+				END;
+				RETURN FALSE
+			END CanPassAsResultParameter;
+
 		BEGIN
 			ASSERT(left.type # NIL); ASSERT(right.type # NIL);
 			leftType := left.type.resolved; rightType:= right.type.resolved;
 
-			IF (right IS SyntaxTree.ProcedureCallDesignator) & (ReturnedAsParameter(right.type)) THEN
+			IF CanPassAsResultParameter(right) THEN
 				procedureResultDesignator := left(SyntaxTree.Designator);
-				VisitProcedureCallDesignator(right(SyntaxTree.ProcedureCallDesignator));
+				Expression(right);
 			ELSIF leftType IS SyntaxTree.RangeType THEN
 				(* LHS is of array range type *)
 				ASSERT(rightType IS SyntaxTree.RangeType); (* ensured by the checker *)
