@@ -267,9 +267,6 @@ TYPE
 		PROCEDURE VisitAnyType(x: SyntaxTree.AnyType);
 		BEGIN END VisitAnyType;
 
-		PROCEDURE VisitAllType(x: SyntaxTree.AllType);
-		BEGIN END VisitAllType;
-
 		PROCEDURE VisitObjectType(x: SyntaxTree.ObjectType);
 		BEGIN END VisitObjectType;
 
@@ -854,14 +851,14 @@ TYPE
 					parameter.SetType(type);
 					parameter.SetState(SyntaxTree.Resolved);
 					(*! remove this after a rebuild of the release - for compatibility only *)
-					IF parameter.name.Equals( Global.SelfParameterName) 
-						OR parameter.name.Equals( Global.ReturnParameterName) 
-						OR parameter.name.Equals(Global.PointerReturnName) 
+					IF parameter.name.Equals( Global.SelfParameterName)
+						OR parameter.name.Equals( Global.ReturnParameterName)
+						OR parameter.name.Equals(Global.PointerReturnName)
 						OR parameter.name.Equals(Global.ResultName) THEN (* ignore *)
 					ELSE
 					procedureType.AddParameter(parameter);
 					END;
-					
+
 					R.RawNum(tag)
 				END;
 
@@ -1082,8 +1079,6 @@ TYPE
 					IF TraceImport IN Trace THEN
 						D.Str("Type / Basic "); D.Int(tag,1); D.Ln
 					END
-				ELSIF tag = sfTypeAll THEN
-					type := system.allType
 				ELSIF tag = sfTypeRange THEN
 					type := system.rangeType;
 				ELSIF tag <= sfModOther THEN
@@ -1192,7 +1187,6 @@ TYPE
 							IF TraceImport IN Trace THEN
 								D.Str("Type / User / Tensor "); D.Str(name); D.Ln
 							END;
-							ASSERT(baseType # NIL);
 							mathArrayType := SyntaxTree.NewMathArrayType(-1,moduleScope,SyntaxTree.Tensor);
 							mathArrayType.SetArrayBase(baseType);
 							type := mathArrayType;
@@ -1829,10 +1823,6 @@ TYPE
 						w.RawNum(sfTypeByte);
 						IF TraceExport IN Trace THEN
 							D.Str("Type / Basic / Byte"); D.Ln
-						END;
-					ELSIF type IS SyntaxTree.AllType THEN w.RawNum(sfTypeAll);
-						IF TraceExport IN Trace THEN
-							D.Str("Type / Basic / All"); D.Ln
 						END;
 					ELSIF type IS SyntaxTree.RangeType THEN w.RawNum(sfTypeRange);
 						IF TraceExport IN Trace THEN

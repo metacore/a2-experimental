@@ -1620,7 +1620,8 @@ TYPE
 			PROCEDURE BaseType(type: SyntaxTree.Type): CHAR;
 			VAR char: CHAR;
 			BEGIN
-				IF type  IS SyntaxTree.ByteType THEN char := rfByte
+				IF type = NIL THEN char := rfLongint
+				ELSIF type  IS SyntaxTree.ByteType THEN char := rfByte
 				ELSIF type IS SyntaxTree.BooleanType THEN char := rfBoolean
 				ELSIF type IS SyntaxTree.CharacterType THEN
 					IF type.sizeInBits = 8 THEN char := rfChar8
@@ -1706,9 +1707,12 @@ TYPE
 
 			PROCEDURE StaticMathArrayLength(type: SyntaxTree.MathArrayType; VAR baseType: SyntaxTree.Type): LONGINT;
 			BEGIN
-				baseType := type.arrayBase.resolved;
+				baseType := type.arrayBase;
+				IF baseType # NIL THEN
+					baseType := baseType.resolved;
+				END;
 				IF type.form = SyntaxTree.Static THEN
-					IF baseType IS SyntaxTree.MathArrayType THEN
+					IF (baseType # NIL) & (baseType IS SyntaxTree.MathArrayType) THEN
 						RETURN type.staticLength * StaticMathArrayLength(baseType(SyntaxTree.MathArrayType),baseType)
 					ELSE
 						RETURN type.staticLength

@@ -330,11 +330,6 @@ TYPE
 			VisitBasicType(x);
 		END VisitSizeType;
 
-		PROCEDURE VisitAllType(x: SyntaxTree.AllType);
-		BEGIN
-			VisitBasicType(x);
-		END VisitAllType;
-
 		PROCEDURE VisitAnyType(x: SyntaxTree.AnyType);
 		BEGIN
 			VisitBasicType(x);
@@ -579,24 +574,26 @@ TYPE
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 				x.SetArrayBase(ResolveType(x.arrayBase));
-				ASSERT(x.arrayBase # NIL); (* must be guaranteed by parser *)
 				IF x.length # NIL THEN
 					x.SetLength(ConstantIntegerGeq0(x.length));
 				END;
-				arrayBase := x.arrayBase.resolved;
-				IF arrayBase = SyntaxTree.invalidType THEN
-					(* error already handled *)
-				ELSIF arrayBase IS SyntaxTree.ArrayType THEN
-					Error(x.position,Diagnostics.Invalid,"forbidden array mixed form");
-				ELSIF arrayBase IS SyntaxTree.MathArrayType THEN
-					IF (x.form = SyntaxTree.Tensor) OR (arrayBase(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) THEN
-						Error(x.position,Diagnostics.Invalid,"forbidden Tensor Array mix")
-					ELSIF (x.form=SyntaxTree.Static) & (arrayBase(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
-						Error(x.position,Diagnostics.Invalid,"forbidden static array of dynamic array")
+				arrayBase := x.arrayBase;
+				IF arrayBase # NIL THEN
+					arrayBase := arrayBase.resolved;
+					IF arrayBase = SyntaxTree.invalidType THEN
+						(* error already handled *)
+					ELSIF arrayBase IS SyntaxTree.ArrayType THEN
+						Error(x.position,Diagnostics.Invalid,"forbidden array mixed form");
+					ELSIF arrayBase IS SyntaxTree.MathArrayType THEN
+						IF (x.form = SyntaxTree.Tensor) OR (arrayBase(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) THEN
+							Error(x.position,Diagnostics.Invalid,"forbidden Tensor Array mix")
+						ELSIF (x.form=SyntaxTree.Static) & (arrayBase(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
+							Error(x.position,Diagnostics.Invalid,"forbidden static array of dynamic array")
+						END;
 					END;
-				END;
-				IF x.form = SyntaxTree.Static THEN
-					x.SetIncrement(system.SizeOf(arrayBase));
+					IF x.form = SyntaxTree.Static THEN
+						x.SetIncrement(system.SizeOf(arrayBase));
+					END;
 				END;
 				x.SetState(SyntaxTree.Resolved);
 			END;
@@ -1910,7 +1907,7 @@ TYPE
 				RETURN
 			END;
 			IF  ~(left.type.resolved IS SyntaxTree.BasicType) THEN
-				operatorCall := NewOperatorCall(unaryExpression.position, operator,left,NIL,system.allType);
+				operatorCall := NewOperatorCall(unaryExpression.position, operator,left,NIL,NIL);
 			END;
 			IF operatorCall # NIL THEN
 				result := operatorCall;
@@ -1987,15 +1984,15 @@ TYPE
 			PROCEDURE BaseType(type: SyntaxTree.Type): SyntaxTree.Type;
 			BEGIN
 				type := type.resolved;
-				WHILE(type IS SyntaxTree.MathArrayType) DO
-					type := type(SyntaxTree.MathArrayType).arrayBase.resolved;
+				WHILE (type # NIL) & (type IS SyntaxTree.MathArrayType) DO
+					type := Resolved(type(SyntaxTree.MathArrayType).arrayBase);
 				END;
 				RETURN type
 			END BaseType;
 
 		BEGIN
 			result := SyntaxTree.invalidExpression;
-			IF (BaseType(expression.type.resolved) = BaseType(type)) OR (BaseType(type) IS SyntaxTree.AllType) THEN
+			IF (BaseType(type)=NIL) OR (BaseType(expression.type.resolved) = BaseType(type))  THEN
 				result := expression (* do not convert *)
 			ELSE (* should the search for operators be restricted to the ArrayBase module here ? *)
 				result := NewOperatorCall(expression.position,Global.Conversion,expression,NIL,type);
@@ -2244,8 +2241,6 @@ TYPE
 									i := TypeDistance(system,returnType,procedureType.returnType,TRUE);
 									IF i = Infinity THEN distance := Infinity ELSE INC(distance,i) END;
 								END;
-							ELSIF procedureType.returnType # NIL THEN
-								distance := Infinity
 							END;
 						END;
 
@@ -2468,7 +2463,7 @@ TYPE
 			END;
 			leftType := left.type.resolved; rightType := right.type.resolved;
 			IF (~(leftType IS SyntaxTree.BasicType) OR ~(rightType IS SyntaxTree.BasicType)) THEN
-				operatorCall := NewOperatorCall(binaryExpression.position,operator,left,right,system.allType);
+				operatorCall := NewOperatorCall(binaryExpression.position,operator,left,right,NIL);
 			END;
 
 			IF operatorCall # NIL THEN
@@ -4315,10 +4310,7 @@ TYPE
 
 			id := builtin.id;
 			IF system.operatorDefined[id] THEN (* try to find overloaded operator *)
-				result := NewOperatorCall(position,builtin.id,parameter0,parameter1,system.allType);
-				IF result = NIL THEN
-					result := NewOperatorCall(position,builtin.id,parameter0,parameter1,NIL);
-				END;
+				result := NewOperatorCall(position,builtin.id,parameter0,parameter1,NIL);
 			END;
 
 			IF result = SyntaxTree.invalidExpression THEN (* error already handled *)
@@ -7068,6 +7060,12 @@ TYPE
 
 	END Warnings;
 
+	PROCEDURE Resolved(x: SyntaxTree.Type): SyntaxTree.Type;
+	BEGIN
+		IF x = NIL THEN RETURN NIL ELSE RETURN x.resolved END;
+	END Resolved;
+
+
 	PROCEDURE PowerOf2(x: LONGINT): BOOLEAN;
 	VAR i: LONGINT;
 	BEGIN
@@ -7184,8 +7182,10 @@ TYPE
 				END;
 			ELSIF to IS SyntaxTree.MathArrayType THEN
 				IF this IS SyntaxTree.MathArrayType THEN
-					IF to(SyntaxTree.MathArrayType).arrayBase.resolved IS SyntaxTree.AllType THEN
+					IF to(SyntaxTree.MathArrayType).arrayBase= NIL THEN
 						IF to(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
+							result := TRUE;
+						ELSIF this(SyntaxTree.MathArrayType).arrayBase = NIL THEN
 							result := TRUE;
 						ELSE
 							result := ~(this(SyntaxTree.MathArrayType).arrayBase.resolved IS SyntaxTree.MathArrayType);
@@ -7266,13 +7266,13 @@ TYPE
 				*)
 				actualBase := ArrayBase(actualType,Infinity);
 				formalBase := ArrayBase(formalType,Infinity);
-				result := SameType(formalBase,actualBase) OR (formalBase IS SyntaxTree.AllType);
+				result := (formalBase = NIL) OR SameType(formalBase,actualBase);
 			ELSE
 				(*
 					ARRAY [*|k] OF -> ARRAY [*|n] OF
 				*)
-				formalBase := formalType.arrayBase.resolved;
-				actualBase := actualArray.arrayBase.resolved;
+				formalBase := Resolved(formalType.arrayBase);
+				actualBase := Resolved(actualArray.arrayBase);
 				IF (formalType.form = SyntaxTree.Static) & (actualArray.form = SyntaxTree.Static) THEN
 					(*
 						ARRAY [k] -> ARRAY [n]
@@ -7282,10 +7282,10 @@ TYPE
 					result := TRUE
 				END;
 				IF ~result THEN
+				ELSIF formalBase = NIL THEN result := (actualBase = NIL) OR ~(actualBase IS SyntaxTree.MathArrayType);
+				ELSIF actualBase = NIL THEN result := FALSE
 				ELSIF formalBase IS SyntaxTree.MathArrayType THEN
 					result := MathArrayCompatible(formalBase(SyntaxTree.MathArrayType),actualBase)
-				ELSIF formalBase IS SyntaxTree.AllType THEN
-					result := ~(actualBase IS SyntaxTree.MathArrayType);
 				ELSE
 					result := SameType(formalBase,actualBase)
 				END;
@@ -7319,8 +7319,8 @@ TYPE
 	PROCEDURE MathArrayTypeDistance(system: Global.System; from,to: SyntaxTree.MathArrayType; varpar:BOOLEAN): LONGINT;
 	VAR i: LONGINT; fromBase, toBase: SyntaxTree.Type;
 	BEGIN
-		fromBase := from.arrayBase.resolved;
-		toBase := to.arrayBase.resolved;
+		fromBase := Resolved(from.arrayBase);
+		toBase := Resolved(to.arrayBase);
 		i := Infinity;
 		IF from = to THEN
 			i := 0;
@@ -7328,7 +7328,7 @@ TYPE
 			(* static -> static, open -> open, tensor -> tensor *)
 			IF (from.form # SyntaxTree.Static) OR (from.staticLength = to.staticLength) THEN
 				IF fromBase = toBase THEN i := 0
-				ELSIF toBase IS SyntaxTree.AllType THEN i := 1
+				ELSIF toBase = NIL THEN i := 1
 				ELSIF (fromBase IS SyntaxTree.MathArrayType) & (toBase IS SyntaxTree.MathArrayType) THEN
 					i := MathArrayTypeDistance(system,fromBase(SyntaxTree.MathArrayType),toBase(SyntaxTree.MathArrayType),varpar);
 				ELSE
@@ -7340,15 +7340,19 @@ TYPE
 		ELSIF (from.form = SyntaxTree.Tensor) OR (to.form = SyntaxTree.Tensor) THEN
 			(* static -> tensor, open -> tensor, tensor -> open *)
 			IF toBase=fromBase THEN i := 0;
-			ELSIF toBase IS SyntaxTree.AllType THEN i := 1;
+			ELSIF toBase = NIL THEN i := 1;
 			ELSIF (toBase IS SyntaxTree.MathArrayType) THEN
 				toBase := ArrayBase(toBase,Infinity);
-				IF fromBase=toBase THEN i := 0
+				IF (fromBase=toBase) THEN i := 0
+				ELSIF (toBase = NIL) THEN i:= 1
+				ELSIF (fromBase = NIL) THEN i := Infinity;
 				ELSE i := TypeDistance(system,fromBase,toBase,varpar);
 				END;
 			ELSIF (fromBase IS SyntaxTree.MathArrayType) THEN
 				fromBase := ArrayBase(fromBase,Infinity);
-				IF fromBase=toBase THEN i := 0
+				IF (fromBase=toBase) THEN i := 0
+				ELSIF (toBase = NIL) THEN i := 1
+				ELSIF (fromBase = NIL) THEN i := Infinity;
 				ELSE i := TypeDistance(system,fromBase,toBase,varpar);
 				END;
 			ELSE i := TypeDistance(system, fromBase, toBase, varpar);
@@ -7357,7 +7361,8 @@ TYPE
 		ELSIF (from.form = SyntaxTree.Static) THEN
 			(* static -> open *)
 			IF toBase=fromBase THEN i := 0
-			ELSIF toBase IS SyntaxTree.AllType THEN i := 1
+			ELSIF toBase = NIL THEN i := 1
+			ELSIF fromBase = NIL THEN i := Infinity
 			ELSIF (toBase IS SyntaxTree.MathArrayType) & (fromBase IS SyntaxTree.MathArrayType) THEN
 				i := MathArrayTypeDistance(system,fromBase(SyntaxTree.MathArrayType),toBase(SyntaxTree.MathArrayType),varpar);
 			ELSE i := TypeDistance(system,fromBase, toBase, varpar);
@@ -7454,12 +7459,9 @@ TYPE
 
 		IF from = to THEN
 			i := 0
+		ELSIF (to = NIL) OR (from=NIL) THEN HALT(100); (* was: SYSTEM.ALL type, removed *)
 		ELSIF (from IS SyntaxTree.NilType) OR (to IS SyntaxTree.NilType) THEN
 			i := Infinity;
-		ELSIF to IS SyntaxTree.AllType THEN
-			i := 1;
-		ELSIF from IS SyntaxTree.AllType THEN
-			i := 1;
 		ELSIF (to IS SyntaxTree.ArrayType) & (to(SyntaxTree.ArrayType).length = NIL) & (to(SyntaxTree.ArrayType).arrayBase.resolved IS SyntaxTree.ByteType) THEN
 			i := 1
 		ELSIF (from IS SyntaxTree.StringType) THEN
@@ -7594,9 +7596,9 @@ TYPE
 	PROCEDURE ArrayBase*(t: SyntaxTree.Type; max: LONGINT): SyntaxTree.Type;
 	BEGIN
 		IF t IS SyntaxTree.MathArrayType THEN
-			WHILE (t IS SyntaxTree.MathArrayType) & ((t(SyntaxTree.MathArrayType).form # SyntaxTree.Tensor) OR (max = Infinity)) & (max > 0) DO
-				t := t(SyntaxTree.MathArrayType).arrayBase.resolved;
-				IF (t IS SyntaxTree.PointerType) & (t(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.MathArrayType) THEN t := t(SyntaxTree.PointerType).pointerBase.resolved END;
+			WHILE (t # NIL) & (t IS SyntaxTree.MathArrayType) & ((t(SyntaxTree.MathArrayType).form # SyntaxTree.Tensor) OR (max = Infinity)) & (max > 0) DO
+				t := Resolved(t(SyntaxTree.MathArrayType).arrayBase);
+				IF (t # NIL) & (t IS SyntaxTree.PointerType) & (t(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.MathArrayType) THEN t := t(SyntaxTree.PointerType).pointerBase.resolved END;
 				DEC(max);
 			END;
 		ELSIF t IS SyntaxTree.ArrayType THEN
@@ -7627,8 +7629,8 @@ TYPE
 		i := 0;
 		t := t.resolved;
 		IF t IS SyntaxTree.MathArrayType THEN
-			WHILE(t IS SyntaxTree.MathArrayType) & (t(SyntaxTree.MathArrayType).form IN form)  DO
-				t := t(SyntaxTree.MathArrayType).arrayBase.resolved; INC(i);
+			WHILE (t # NIL) & (t IS SyntaxTree.MathArrayType) & (t(SyntaxTree.MathArrayType).form IN form)  DO
+				t := Resolved(t(SyntaxTree.MathArrayType).arrayBase); INC(i);
 			END;
 		ELSIF t IS SyntaxTree.ArrayType THEN
 			WHILE(t IS SyntaxTree.ArrayType) & (t(SyntaxTree.ArrayType).form IN form) DO

@@ -204,11 +204,6 @@ TYPE
 			VisitBasicType(x);
 		END VisitAnyType;
 
-		PROCEDURE VisitAllType(x: SyntaxTree.AllType);
-		BEGIN
-			w.String("SYSTEM.ALL");
-		END VisitAllType;
-
 
 		PROCEDURE VisitMathArrayType(x: SyntaxTree.MathArrayType);
 		BEGIN
@@ -232,8 +227,10 @@ TYPE
 				END;
 				w.String("] ");
 			END;
-			Keyword("OF " );
-			Type(x.arrayBase);
+			IF x.arrayBase # NIL THEN
+				Keyword("OF " );
+				Type(x.arrayBase);
+			END;
 		END VisitMathArrayType;
 
 		PROCEDURE PointerFlags(x: SyntaxTree.PointerType);

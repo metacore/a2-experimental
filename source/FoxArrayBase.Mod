@@ -15,7 +15,7 @@ TYPE
 	BinaryAABLoop = PROCEDURE ( ladr, radr, linc, rinc, len: ADDRESS ): BOOLEAN;
 	BinaryASBLoop = PROCEDURE ( ladr, radr, linc, len: ADDRESS ): BOOLEAN;
 CONST
-	debug = TRUE;   (* warning: debug=true -> a lot of output is generated -> traps are not displayed in Oberon (Kernel overflow) *)
+	debug = FALSE;   (* warning: debug=true -> a lot of output is generated -> traps are not displayed in Oberon (Kernel overflow) *)
 	statistics= FALSE;
 	conservative=TRUE;
 
@@ -1218,7 +1218,7 @@ Sufficient (but not necessary) conditions:
 		SYSTEM.MOVE( src + MathLenOffset, dest + MathLenOffset, SYSTEM.SIZEOF(ADDRESS) *  GetDim( src ) *2 );   (* lens and increments *)
 	END DescriptorCopy;
 
-	PROCEDURE ZeroCopy*(CONST src: ARRAY [?] OF SYSTEM.ALL; VAR dest: ARRAY [?] OF SYSTEM.ALL);
+	PROCEDURE ZeroCopy*(CONST src: ARRAY [?]; VAR dest: ARRAY [?]);
 	VAR s,d: LONGINT;
 	BEGIN
 		s := SYSTEM.VAL(LONGINT,src); d := SYSTEM.VAL(LONGINT,dest);
@@ -6220,7 +6220,7 @@ Sufficient (but not necessary) conditions:
 
 	(*** LEN: array -> array **)
 
-	OPERATOR "LEN"*(CONST left: ARRAY [?] OF SYSTEM.ALL): ARRAY [*] OF LONGINT;
+	OPERATOR "LEN"*(CONST left: ARRAY [?]): ARRAY [*] OF LONGINT;
 	VAR src,dim,i: LONGINT;
 	BEGIN
 		src := SYSTEM.VAL(LONGINT,left);
@@ -7943,7 +7943,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END DoReshape;
 
-	PROCEDURE AllocateTensorX*( VAR destA: ARRAY [?] OF SYSTEM.ALL; CONST a: ARRAY [ * ] OF LONGINT;  Size: LONGINT );
+	PROCEDURE AllocateTensorX*( VAR destA: ARRAY [?]; CONST a: ARRAY [ * ] OF LONGINT;  Size: LONGINT );
 	VAR descr, data: ANY;  same: BOOLEAN;  i: LONGINT;  dim: LONGINT; dest: ADDRESS;
 
 		PROCEDURE NewData;
@@ -8260,7 +8260,7 @@ Sufficient (but not necessary) conditions:
 		CONST src: ARRAY [?] OF basetype
 		CONST shape: ARRAY [*] OF LONGINT
 	*)
-	PROCEDURE Reshape*(CONST left: ARRAY [?] OF SYSTEM.ALL; CONST right: ARRAY [*] OF LONGINT): ARRAY [?] OF SYSTEM.ALL;
+	PROCEDURE Reshape*(CONST left: ARRAY [?]; CONST right: ARRAY [*] OF LONGINT): ARRAY [?];
 	BEGIN
 		DoReshape(SYSTEM.VAL(LONGINT,RESULT), SYSTEM.VAL(LONGINT,left), right);
 		RETURN RESULT
@@ -8287,7 +8287,7 @@ Sufficient (but not necessary) conditions:
 			ARRAY [10, 20] OF REAL -> ARRAY [1, 10, 1, 1, 20] OF REAL
 
 	**)
-	PROCEDURE ExpandDimensions*(CONST sourceArray: ARRAY [?] OF SYSTEM.ALL; CONST keptDimensions: ARRAY [*] OF BOOLEAN): ARRAY [?] OF SYSTEM.ALL;
+	PROCEDURE ExpandDimensions*(CONST sourceArray: ARRAY [?]; CONST keptDimensions: ARRAY [*] OF BOOLEAN): ARRAY [?];
 	VAR
 		targetDimensionality, sourceIndex, targetIndex: LONGINT;
 		sourceAddress, targetAddress: LONGINT;

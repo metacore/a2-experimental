@@ -1225,7 +1225,7 @@ TYPE
 			RETURN recordType
 		END RecordType;
 
-		(** ArrayType     = 'array' [Expression {',' Expression} | '[' MathArraySize {',' MathArraySize} ']' ] 'of' Type.
+		(** ArrayType     = 'array' 'of' Type | 'array' Expression {',' Expression}] 'of' Type | '[' MathArraySize {',' MathArraySize} ']' ['of' Type].
 	  		 MathArraySize = Expression | '*' | '?'.
 		**)
 		PROCEDURE ArrayType(position: LONGINT;   parentScope: SyntaxTree.Scope ): SyntaxTree.Type;
@@ -1249,8 +1249,10 @@ TYPE
 				END;
 				IF Optional(Scanner.Comma) THEN
 					base := MathArray()
-				ELSIF Mandatory(Scanner.RightBracket) & Mandatory( Scanner.Of ) THEN
-					base := Type(NIL , parentScope );   (* base type *)
+				ELSIF Mandatory(Scanner.RightBracket) THEN
+					IF Optional( Scanner.Of ) THEN
+						base := Type(NIL , parentScope );   (* base type *)
+					END;
 				END;
 				mathType.SetArrayBase(base);
 				RETURN mathType;

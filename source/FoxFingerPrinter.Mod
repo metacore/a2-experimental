@@ -173,21 +173,6 @@ TYPE
 			*)
 		END VisitBasicType;
 
-		PROCEDURE VisitAllType(x: SyntaxTree.AllType);
-		VAR fingerprint: FingerPrint;
-		BEGIN
-			fingerprint := x.fingerprint;
-			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypeAll;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
-			END;
-			SELF.fingerprint := fingerprint;
-		END VisitAllType;
-
 		PROCEDURE VisitRangeType(x: SyntaxTree.RangeType);
 		VAR fingerprint: FingerPrint;
 		BEGIN

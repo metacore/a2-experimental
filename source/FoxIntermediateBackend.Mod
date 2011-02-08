@@ -4104,8 +4104,8 @@ TYPE
 		END SystemTrace;
 
 		PROCEDURE InitFields(type: SyntaxTree.Type; CONST adr: IntermediateCode.Operand; offset: LONGINT);
-		VAR baseType: SyntaxTree.Type; imm: IntermediateCode.Operand; dim: LONGINT;
-			variable: SyntaxTree.Variable; i,size: LONGINT;
+		VAR baseType: SyntaxTree.Type; imm: IntermediateCode.Operand; dim,size: LONGINT;
+			variable: SyntaxTree.Variable; i: LONGINT;
 		BEGIN
 			type := type.resolved;
 			IF type IS SyntaxTree.RecordType THEN
@@ -4139,7 +4139,8 @@ TYPE
 						imm := IntermediateCode.Immediate(addressType,dim);
 						PutMathArrayFieldOffset(adr,imm,MathDimOffset,offset);
 						baseType := SemanticChecker.ArrayBase(type,dim);
-						imm := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+						IF baseType = NIL THEN size := 0 ELSE size := system.SizeOf(baseType) END;
+						imm := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,size));
 						PutMathArrayFieldOffset(adr,imm,MathElementSizeOffset,offset);
 						ReleaseIntermediateOperand(imm);
 						(* flags remain empty (=0) for open array *)
@@ -9267,9 +9268,10 @@ TYPE
 			INC(i);
 			type := type(SyntaxTree.ArrayType).arrayBase.resolved;
 		END;
-		WHILE(type IS SyntaxTree.MathArrayType) & (type(SyntaxTree.MathArrayType).form # SyntaxTree.Static) DO
+		WHILE(type # NIL) & (type IS SyntaxTree.MathArrayType) & (type(SyntaxTree.MathArrayType).form # SyntaxTree.Static) DO
 			INC(i);
-			type := type(SyntaxTree.MathArrayType).arrayBase.resolved;
+			type := type(SyntaxTree.MathArrayType).arrayBase;
+			IF type # NIL THEN type := type.resolved END;
 		END;
 		RETURN i
 	END DynamicDim;

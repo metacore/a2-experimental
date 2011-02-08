@@ -87,9 +87,6 @@ TYPE
 		PROCEDURE VisitSizeType*(x: SizeType);
 		BEGIN HALT(100) (* abstract *) END VisitSizeType;
 
-		PROCEDURE VisitAllType*(x: AllType);
-		BEGIN HALT(100) (* abstract *) END VisitAllType;
-
 		PROCEDURE VisitBooleanType*(x: BooleanType);
 		BEGIN HALT(100) (* abstract *) END VisitBooleanType;
 
@@ -614,30 +611,6 @@ TYPE
 		END Accept;
 	END SizeType;
 
-		(** <<SYSTEM.ALL>>
-		all type for array base library
-	**)
-	AllType*=OBJECT(BasicType)
-
-		PROCEDURE & InitAllType(sizeInBits: LONGINT);
-		BEGIN
-			InitBasicType("@All",sizeInBits);
-			SetRealtime(TRUE);
-		END InitAllType;
-
-		PROCEDURE SameType*(this: Type): BOOLEAN;
-		BEGIN RETURN this IS AllType
-		END SameType;
-
-		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
-		BEGIN RETURN (to IS AllType)
-		END CompatibleTo;
-
-		PROCEDURE Accept*(v: Visitor);
-		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitAllType(SELF)
-		END Accept;
-	END AllType;
 
 	(** <<BOOLEAN>>
 		boolean type
@@ -1054,7 +1027,9 @@ TYPE
 			ELSIF this IS MathArrayType THEN
 				recursion := TRUE;
 				WITH this: MathArrayType DO
-					result := (this.form = form) & (this.staticLength = staticLength) & arrayBase.SameType(this.arrayBase.resolved);
+					result := (this.form = form) & (this.staticLength = staticLength) &
+					((arrayBase = NIL) & (this.arrayBase = NIL) OR (arrayBase # NIL) & (this.arrayBase # NIL) &
+					arrayBase.SameType(this.arrayBase.resolved));
 				END;
 			END;
 			recursion := FALSE;
@@ -4014,12 +3989,6 @@ VAR
 	BEGIN
 		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewSizeType;
-
-	PROCEDURE NewAllType*(sizeInBits: LONGINT): AllType;
-	VAR basicType: AllType;
-	BEGIN
-		NEW(basicType, sizeInBits); RETURN basicType;
-	END NewAllType;
 
 	PROCEDURE NewBooleanType*(sizeInBits: LONGINT): BooleanType;
 	VAR basicType: BooleanType;

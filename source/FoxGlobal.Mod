@@ -133,7 +133,7 @@ TYPE
 		*)
 
 		addressType-, sizeType-, shortintType-, integerType-, longintType-, hugeintType-, characterType-, setType-, booleanType-, anyType-,byteType-,
-		realType-, longrealType-, allType-, objectType-, nilType-, rangeType-: SyntaxTree.Type;
+		realType-, longrealType-, objectType-, nilType-, rangeType-: SyntaxTree.Type;
 
 		PROCEDURE &InitSystem*(dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar: LONGINT);
 		VAR i: LONGINT;
@@ -362,7 +362,7 @@ TYPE
 			IF nestedProcedure OR (procedureType.isDelegate) THEN
 				INC(offset,addressSize); (* parameter offset of static link *) (*! check alternative: add hidden parameter *)
 			END;
-			
+
 			IF procedureType.callingConvention = SyntaxTree.OberonCallingConvention THEN
 				parameter := procedureType.lastParameter;
 				WHILE (parameter # NIL) DO
@@ -564,8 +564,9 @@ TYPE
 					size := addressSize (* pointer to geometry descriptor *)
 				ELSE
 					size := 0;
-					WHILE(type IS SyntaxTree.MathArrayType) DO
-						type := type(SyntaxTree.MathArrayType).arrayBase.resolved;
+					WHILE(type # NIL) & (type IS SyntaxTree.MathArrayType) DO
+						type := type(SyntaxTree.MathArrayType).arrayBase;
+						IF type # NIL THEN type := type.resolved END;
 						INC(size);
 					END;
 					size := size*2*addressSize (* length and increments *) +5*addressSize (* data ptr, adr ptr, flags, dim and elementsize *);
@@ -696,7 +697,6 @@ TYPE
 			system.characterType := Character8;
 		END;
 
-		system.allType := SyntaxTree.NewAllType(system.addressSize);
 		system.anyType := SyntaxTree.NewAnyType(system.addressSize);
 		system.objectType := SyntaxTree.NewObjectType(system.addressSize);
 		system.nilType := SyntaxTree.NewNilType(system.addressSize);
@@ -708,7 +708,6 @@ TYPE
 		DeclareType(system.byteType,"BYTE",system.systemScope);
 		DeclareType(system.addressType,"ADDRESS",system.systemScope); (* mapped to longint *)
 		DeclareType(system.sizeType,"SIZE",system.systemScope); (* mapped to longint *)
-		DeclareType(system.allType,"ALL",system.systemScope);
 		(*DeclareType(Same,"SAME",system.systemScope);*)
 
 		(* system builtin procedures *)

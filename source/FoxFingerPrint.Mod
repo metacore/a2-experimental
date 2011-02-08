@@ -336,19 +336,6 @@ TYPE
 			SELF.fingerPrint := fingerPrint;
 		END VisitObjectType;
 
-		PROCEDURE VisitAllType(x: SyntaxTree.AllType);
-		VAR fingerPrint: FingerPrint;
-		BEGIN
-			fingerPrint := GetFingerPrint(x);
-			IF ~fingerPrint.doneFP THEN
-				fingerPrint.FP := fpTypeAll; fingerPrint.privateFP := fpTypeAll;
-				fingerPrint.publicFP := fingerPrint.FP;
-				fingerPrint.doneFP := TRUE;
-				fingerPrint.doneAll := TRUE;
-			END;
-			SELF.fingerPrint := fingerPrint;
-		END VisitAllType;
-
 		PROCEDURE VisitBooleanType(x: SyntaxTree.BooleanType);
 		VAR fingerPrint: FingerPrint;
 		BEGIN
@@ -570,7 +557,9 @@ TYPE
 				ELSE HALT(200)
 				END;
 				TypeName(fp,x);
-				FPType(fp,x.arrayBase.resolved);
+				IF x.arrayBase # NIL THEN
+					FPType(fp,x.arrayBase.resolved);
+				END;
 				IF x.form = SyntaxTree.Static THEN FPNumber(fp,x.staticLength) END;
 				fingerPrint.FP := fp;
 				fingerPrint.doneFP := TRUE;
@@ -1063,18 +1052,18 @@ TYPE
 			IF IsOberonProcedure(t) THEN
 
 
-				
+
 				self := t.firstParameter;
 				WHILE (self # NIL) & (~self.name.Equals(Global.SelfParameterName)) DO
 					self := self.nextParameter;
 				END;
 				IF self # NIL THEN FPPar(fp,self) END; (* self parameter *)
-				
+
 				(*
 				IF t.selfParameter # NIL THEN FPPar(fp,t.selfParameter) END;
 				self := NIL;
 				*)
-				
+
 				IF Trace THEN
 					TraceIndent; D.Str("FPSignature after self "); D.Hex(fp,-8); D.Ln;
 				END;
