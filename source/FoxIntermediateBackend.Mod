@@ -5437,7 +5437,7 @@ TYPE
 				END;
 			(* ---- SYSTEM.ZEROCOPY----- *)
 			|Global.systemZeroCopy:
-				IF GetRuntimeProcedure("FoxArrayBase","",procedure,TRUE) THEN
+				IF GetRuntimeProcedure("FoxArrayBase","ZeroCopy",procedure,TRUE) THEN
 					left := SyntaxTree.NewSymbolDesignator(Diagnostics.Invalid, NIL, procedure);
 					left.SetType(procedure.type);
 					call := SyntaxTree.NewProcedureCallDesignator(position,left(SyntaxTree.Designator),x.parameters);
