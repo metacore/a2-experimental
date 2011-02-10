@@ -5,7 +5,7 @@ MODULE Traps;   (** AUTHOR "pjm"; PURPOSE "Trap handling and symbolic debugging"
 IMPORT SYSTEM, Kernel32, Machine, KernelLog, Streams, Modules, Objects, Kernel,  Reflection;
 
 CONST
-	RecursiveLimit = 2;   (* normally 1 or 2 - how many recursive traps to display before stopping *)
+	RecursiveLimit = 16;   (* normally 1 or 2 - how many recursive traps to display before stopping *)
 	TraceVerbose = FALSE;  TestTrap = TRUE;
 	TrapMaxCharacters = 32*1024;
 	(* Process termination halt codes *)
@@ -162,7 +162,8 @@ VAR
 		w.Char( 1X );   (* "start of trap" *)
 
 		INC( trapState );
-		IF trapState > RecursiveLimit THEN w.String( " [Recursive TRAP]" )
+		IF trapState > RecursiveLimit THEN w.String( " [Recursive TRAP]" );
+			trapState := 0;
 		ELSE
 			(* output first line *)
 			SYSTEM.GET( int.SP, code );
@@ -250,6 +251,7 @@ VAR
 		w.Char(02X);	(* "end of trap" *)
 		w.Update;
 		IF trapWriter # NIL THEN trapWriter.Trapped END;
+	FINALLY
 		Machine.Release( Machine.KernelLog );   (* like KernelLog.Exit, but without output *)
 		trapState := 0
 	END Show;
