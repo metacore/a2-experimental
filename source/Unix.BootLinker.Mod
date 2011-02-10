@@ -474,6 +474,59 @@ VAR
 	END ProcByName;
 
 
+	PROCEDURE FindInsertionPos(VAR entry: ProcTableEntry; VAR pos: LONGINT): BOOLEAN;
+	VAR l, r, x: LONGINT; success, isHit: BOOLEAN;
+	BEGIN
+		pos := -1;
+		success := FALSE;
+		IF numProcs = 0 THEN (* empty table *)
+			pos := 0; success := TRUE
+		ELSE
+			l := 0; r := numProcs - 1;
+			REPEAT
+				x := (l + r) DIV 2;
+				IF entry.pcLimit < procOffsets[x].data.pcFrom THEN r := x - 1 ELSE l := x + 1 END;
+				isHit := ((x = 0) OR (procOffsets[x - 1].data.pcLimit <= entry.pcFrom)) & 
+								   (entry.pcLimit <= procOffsets[x].data.pcFrom);
+			UNTIL isHit OR (l > r);
+			IF isHit THEN
+				pos := x; success := TRUE
+			ELSE
+				IF (x = numProcs - 1) & (procOffsets[x].data.pcLimit <= entry.pcFrom) THEN
+					pos := x + 1; success := TRUE
+				END
+			END
+		END;
+		RETURN success
+	END FindInsertionPos;
+	
+	(* insert the procedure code offsets and pointer offsets of a single module into the global table *)
+	PROCEDURE InsertProcOffsets(procTable: ProcTable; ptrTable: PtrTable; maxPtr: LONGINT);
+	VAR success: BOOLEAN; i, pos, poslast: LONGINT; 
+	BEGIN
+		(* this procedure is called by procedure Publish only and is protected by the Machine.Modules lock *)
+		IF LEN(procTable) > 0 THEN
+			ASSERT( numProcs + LEN(procTable) <= LEN(procOffsets) );
+			
+			(* ptrTabe ignored in UnixAos *)
+			
+			success := FindInsertionPos(procTable[0], pos); 
+			success := success & FindInsertionPos(procTable[LEN(procTable) - 1], poslast);
+
+			IF success THEN
+				FOR i := numProcs - 1 TO pos BY -1 DO 
+					procOffsets[i + LEN(procTable)] := procOffsets[i] 
+				END;
+				FOR i := 0 TO LEN(procTable) - 1 DO
+					procTable[i].noPtr := 0;	(* ignore the pointers *)
+					procOffsets[pos + i].data := procTable[i];
+					procOffsets[pos + i].startIndex := 0; 
+				END;
+				numProcs := numProcs + LEN(procTable);
+			END
+		END
+	END InsertProcOffsets;
+	
 	(* ----------------------------------------------------------*)
 
 
@@ -1090,7 +1143,7 @@ VAR
 			FOR i := 0 TO m.noProcs - 2 DO  procTable[i].pcLimit := procTable[i + 1].pcFrom  END;
 			procTable[m.noProcs - 1].pcLimit := S.ADR( m.code[0] ) + LEN( m.code ) + 1;
 					(* last element ùerved for end of code segment, allow 1 byte extra, cf. Modules.ThisModuleByAdr *)
-			(*Modules.InsertProcOffsets(procTable, ptrTable, m.maxPtrs);*)
+			InsertProcOffsets(procTable, ptrTable, m.maxPtrs);
 			procTable := NIL;  ptrTable := NIL;
 			RETURN TRUE
 		ELSE
@@ -1624,10 +1677,23 @@ VAR
 		Str( "  file: " );  Int( f.Length( ) )
 	END OutBootfile;
 
-	PROCEDURE RelocateProcOffsets;
+	PROCEDURE RelocateProcOffsets;	
+	VAR i, j: LONGINT; a: Address;
+	BEGIN
+		FOR i := 0 TO numProcs - 1 DO
+			a := S.ADR( procOffsets[i].data.pcFrom );  j := 0;
+			REPEAT
+				Relocate( a );  INC( a, AdrSize );  INC( j )
+			UNTIL j = 4
+		END
 	END RelocateProcOffsets;
 
 	PROCEDURE RelocatePtrOffsets;
+		(*	
+			pointer offsets are not used by the GC of UnixAos because
+			I found no way to obtain the state (PC, SP, BP) of the
+			active Objects (POSIX threads).
+		*)
 	END RelocatePtrOffsets;
 
 	PROCEDURE Link*( context: Commands.Context );
