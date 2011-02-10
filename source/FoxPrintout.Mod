@@ -642,7 +642,7 @@ TYPE
 			END;
 
 		END VisitSelfDesignator;
-		
+
 		PROCEDURE VisitResultDesignator(x: SyntaxTree.ResultDesignator);
 		BEGIN
 			ASSERT(x.left = NIL);
@@ -1354,7 +1354,7 @@ TYPE
 			Keyword("WITH " );
 			Expression(x.variable);
 			w.String(" : ");
-			Expression(x.type);
+			QualifiedIdentifier(x.qualifiedIdentifier);
 			Keyword(" DO " );
 			w.IncIndent;  StatementSequence(x.statements);  w.DecIndent;
 			Indent; Keyword("END" );

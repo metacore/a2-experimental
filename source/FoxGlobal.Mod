@@ -962,8 +962,10 @@ TYPE
 	VAR n: SyntaxTree.String;
 	BEGIN
 		name := "";
-		module.context.GetString(n);
-		IF n# "A2" THEN Strings.Append(name,n);Strings.Append(name,"-") END;
+		IF module.context # NIL THEN
+			module.context.GetString(n);
+			IF n# "A2" THEN Strings.Append(name,n);Strings.Append(name,"-") END;
+		END;
 		module.name.GetString(n);
 		Strings.Append(name,n);
 	END GetModuleName;

@@ -53,7 +53,6 @@ TYPE
 		previous: WithEntry;
 		symbol: SyntaxTree.Symbol;
 		type: SyntaxTree.Type;
-		typeExpression: SyntaxTree.Expression;
 	END;
 
 	(** checker object: used to check and resolve a module
@@ -2133,7 +2132,7 @@ TYPE
 				- if expression is already of same type then return expression
 				- if incompatible conversion then report error and return invalidExpression
 		**)
-		PROCEDURE NewConversion*(position: LONGINT; expression: SyntaxTree.Expression; type: SyntaxTree.Type; typeExpression: SyntaxTree.Expression): SyntaxTree.Expression;
+		PROCEDURE NewConversion*(position: LONGINT; expression: SyntaxTree.Expression; type: SyntaxTree.Type; reference: SyntaxTree.Expression): SyntaxTree.Expression;
 		VAR result: SyntaxTree.Expression; value: SyntaxTree.Expression; expressionList: SyntaxTree.ExpressionList; typeDeclaration: SyntaxTree.TypeDeclaration; typeSymbol: SyntaxTree.Designator;
 		BEGIN
 			type := type.resolved;
@@ -2151,8 +2150,8 @@ TYPE
 			ELSIF (expression.type.resolved IS SyntaxTree.ObjectType) & (type IS SyntaxTree.AnyType) THEN (*! binary symbol file problem *)
 			ELSIF expression.resolved # NIL THEN (* value *)
 				value := ConvertValue(position,expression.resolved(SyntaxTree.Value),type);
-				(* result := SyntaxTree.NewConversion(expression.position,expression,type,typeExpression);*)
 				IF value IS SyntaxTree.Value THEN
+					result := SyntaxTree.NewConversion(expression.position,expression,type,reference);
 					result.SetResolved(value(SyntaxTree.Value));
 					result.SetType(value.type);
 				ELSE
@@ -2189,7 +2188,7 @@ TYPE
 				(* skip, no conversion *)
 			ELSE
 				ASSERT(~(type IS SyntaxTree.RangeType));
-				result := SyntaxTree.NewConversion(expression.position,expression,type,typeExpression);
+				result := SyntaxTree.NewConversion(expression.position,expression,type,reference);
 				ASSERT(type # NIL);
 			END;
 			RETURN result
@@ -3078,7 +3077,7 @@ TYPE
 		**)
 		PROCEDURE NewSymbolDesignator*(position: LONGINT; left: SyntaxTree.Designator; symbol: SyntaxTree.Symbol): SyntaxTree.Expression;
 		VAR result: SyntaxTree.Expression; assignable: BOOLEAN; scope: SyntaxTree.Scope;
-		guardType: SyntaxTree.Type; typeExpression: SyntaxTree.Expression;
+		guardType: SyntaxTree.Type;
 		BEGIN
 			IF Trace THEN D.Str("NewSymbolDesignator "); D.Ln; END;
 			result := SyntaxTree.invalidExpression;
@@ -3132,9 +3131,8 @@ TYPE
 			END;
 
 			IF (left = NIL) OR (left IS SyntaxTree.SelfDesignator) OR (left IS SyntaxTree.DereferenceDesignator) & (left(SyntaxTree.DereferenceDesignator).left IS SyntaxTree.SelfDesignator) THEN
-				IF GetGuard(symbol,guardType,typeExpression) THEN
-					ASSERT(typeExpression # NIL);
-					result := NewTypeGuardDesignator(position,result(SyntaxTree.SymbolDesignator),guardType,typeExpression);
+				IF GetGuard(symbol,guardType) THEN
+					result := NewTypeGuardDesignator(position,result(SyntaxTree.SymbolDesignator),guardType);
 				END;
 			END;
 
@@ -5223,7 +5221,7 @@ TYPE
 			- returns new type guard designator
 			returns invalidDesignator = invalidExpression if error
 		**)
-		PROCEDURE NewTypeGuardDesignator(position: LONGINT; left: SyntaxTree.Designator; type: SyntaxTree.Type; typeExpression: SyntaxTree.Expression): SyntaxTree.Designator;
+		PROCEDURE NewTypeGuardDesignator(position: LONGINT; left: SyntaxTree.Designator; type: SyntaxTree.Type): SyntaxTree.Designator;
 		VAR result: SyntaxTree.Designator;
 		BEGIN
 			result := SyntaxTree.invalidDesignator;
@@ -5238,7 +5236,6 @@ TYPE
 				Error(position,Diagnostics.Invalid,"variable cannot be extended");
 			ELSE
 				result := SyntaxTree.NewTypeGuardDesignator(position,left,type);
-				result(SyntaxTree.TypeGuardDesignator).SetTypeExpression(typeExpression);
 				result.SetType(type);
 				result.SetAssignable(left.assignable);
 			END;
@@ -5267,9 +5264,9 @@ TYPE
 				parameters := designator.parameters;
 				IF ExpressionList(parameters) THEN
 					IF IsExtensibleDesignator(left) & (parameters.Length()=1) & IsTypeDesignator(parameters.GetExpression(0),typeDeclaration) THEN
-						result := NewTypeGuardDesignator(designator.position,left,typeDeclaration.declaredType,parameters.GetExpression(0))
+						result := NewTypeGuardDesignator(designator.position,left,typeDeclaration.declaredType)
 					ELSIF IsUnextensibleRecord(left) & (parameters.Length()=1) & IsTypeDesignator(parameters.GetExpression(0),typeDeclaration) & (typeDeclaration.declaredType.resolved = left.type.resolved) THEN
-						result := NewTypeGuardDesignator(designator.position,left,typeDeclaration.declaredType,parameters.GetExpression(0))
+						result := NewTypeGuardDesignator(designator.position,left,typeDeclaration.declaredType)
 					ELSIF (left.type.resolved IS SyntaxTree.ProcedureType) THEN
 						IF (left IS SyntaxTree.SymbolDesignator) & (left(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Builtin) THEN
 							result := NewBuiltinCallDesignator(designator.position,left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Builtin),parameters,left);
@@ -6181,20 +6178,27 @@ TYPE
 			position: LONGINT;
 			prevScope : SyntaxTree.Scope;
 			withEntry: WithEntry;
+			typeDeclaration: SyntaxTree.TypeDeclaration;
 		BEGIN
 			prevScope := currentScope;
 			position := withStatement.position;
 			variable := ResolveDesignator(withStatement.variable);
 			withStatement.SetVariable(variable);
+			type := ResolveNamedType(withStatement.qualifiedIdentifier, typeDeclaration);
+			(*
+			declaration := Find(withStatement.qualifiedIdentifier);
+			type := FindType(withStatement.qualifiedIdentifier);
 			typeDesignator := ResolveDesignator(withStatement.type);
-			withStatement.SetType(typeDesignator);
+			*)
+			withStatement.SetType(type);
+			(*
 			IF ~(typeDesignator IS SyntaxTree.SymbolDesignator) OR ~(typeDesignator.type.resolved = SyntaxTree.typeDeclarationType) THEN
 				Error(typeDesignator.position,Diagnostics.Invalid,"is not a type");
 				type := SyntaxTree.invalidType;
 			ELSE
 				type := typeDesignator(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
 			END;
-
+			*)
 			variableType := variable.type.resolved;
 
 			WHILE variable IS SyntaxTree.TypeGuardDesignator DO
@@ -6226,7 +6230,6 @@ TYPE
 				NEW(withEntry);
 				withEntry.previous := withEntries;
 				withEntry.symbol := variable(SyntaxTree.SymbolDesignator).symbol;
-				withEntry.typeExpression := withStatement.type;
 				withEntry.type := type;
 				withEntries := withEntry;
 				StatementSequence(withStatement.statements);
@@ -6234,8 +6237,6 @@ TYPE
 			END;
 
 			currentScope := prevScope;
-			(*! removed code for translation WITH ... => IF a IS ... THEN ELSE ... ; should be emitted by backend *)
-
 		END VisitWithStatement;
 
 		(** check and resolve case part <<a, b, c..d: StatementSequence>>
@@ -6392,7 +6393,7 @@ TYPE
 		 END VisitRepeatStatement;
 
 
-		PROCEDURE GetGuard(symbol: SyntaxTree.Symbol; VAR type: SyntaxTree.Type; VAR typeExpression: SyntaxTree.Expression): BOOLEAN;
+		PROCEDURE GetGuard(symbol: SyntaxTree.Symbol; VAR type: SyntaxTree.Type): BOOLEAN;
 		VAR withEntry: WithEntry;
 		BEGIN
 			withEntry := withEntries;
@@ -6402,7 +6403,6 @@ TYPE
 			IF withEntry = NIL THEN RETURN FALSE
 			ELSE
 				type := withEntry.type;
-				typeExpression := withEntry.typeExpression;
 				RETURN TRUE
 			END;
 		END GetGuard;

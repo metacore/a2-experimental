@@ -840,13 +840,7 @@ TYPE
 					withStatement.SetVariable( designator );
 					Check( Scanner.Colon );
 					qualifiedIdentifier := QualifiedIdentifier();
-					IF qualifiedIdentifier.prefix # NIL THEN
-						designator := SyntaxTree.NewIdentifierDesignator(qualifiedIdentifier.prefix.position,qualifiedIdentifier.prefix);
-						designator := SyntaxTree.NewSelectorDesignator(qualifiedIdentifier.suffix.position,designator,qualifiedIdentifier.suffix);
-					ELSE
-						designator := SyntaxTree.NewIdentifierDesignator(qualifiedIdentifier.suffix.position,qualifiedIdentifier.suffix);
-					END;
-					withStatement.SetType(designator);
+					withStatement.SetQualifiedIdentifier(qualifiedIdentifier);
 					Check( Scanner.Do );
 					statementSequence := StatementSequence(withStatement);
 					withStatement.SetStatements( statementSequence );

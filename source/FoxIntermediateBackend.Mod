@@ -2468,7 +2468,7 @@ TYPE
 						ELSE
 							TrapC(BrgeL, index.op, IntermediateCode.Immediate(sizeType, 0), IndexCheckTrap)
 						END;
-						
+
 						(* upper bound check *)
 						IF IsIntegerImmediate(index.op, staticIndex) & IsIntegerImmediate(sourceLength.op, staticSourceLength) THEN
 							ASSERT(staticIndex < staticSourceLength)
@@ -2511,14 +2511,14 @@ TYPE
 						ELSE
 							TrapC(BrgeL, stepSize, IntermediateCode.Immediate(sizeType, 1), IndexCheckTrap)
 						END;
-						
+
 						(* check lower bound check *)
 						IF IsIntegerImmediate(firstIndex, staticFirstIndex) THEN
 							ASSERT(staticFirstIndex >= 0) (* ensured by the checker *)
 						ELSE
 							TrapC(BrgeL, firstIndex, IntermediateCode.Immediate(sizeType, 0), IndexCheckTrap)
 						END;
-						
+
 						(* check upper bound check *)
 						IF IsIntegerImmediate(lastIndex, staticLastIndex) & (staticLastIndex = MAX(LONGINT)) THEN
 							(* statically open range: nothing to do *)
@@ -2527,7 +2527,7 @@ TYPE
 						ELSE
 							TrapC(BrltL, lastIndex, sourceLength.op, IndexCheckTrap)
 						END;
-						
+
 						(* determine length of target array for current dimension *)
 						(* 1. incorporate last index: *)
 						IF IsIntegerImmediate(lastIndex, staticLastIndex) THEN
@@ -2557,7 +2557,7 @@ TYPE
 							ReuseCopy(targetLength, targetLength);
 							Emit(Sub(targetLength, targetLength, firstIndex))
 						END;
-						
+
 						(* clip negative lengths to 0 *)
 						IF IsIntegerImmediate(targetLength, staticTargetLength) THEN
 							IF staticTargetLength < 0 THEN
@@ -2569,7 +2569,7 @@ TYPE
 							Emit(Mov(targetLength, IntermediateCode.Immediate(sizeType, 0)));
 							SetLabel(skipLabel1)
 						END;
-						
+
 						(* 3. incorporate index step size: *)
 						IF IsIntegerImmediate(stepSize, staticStepSize) & IsIntegerImmediate(targetLength, staticTargetLength) THEN
 							(* step size and current target length are static *)
@@ -6285,7 +6285,7 @@ TYPE
 		VAR trueL,falseL: Label; res: Operand; recordType: SyntaxTree.RecordType;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitWithStatement") END;
-			IF x.variable.type.resolved = x.type(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType.resolved THEN
+			IF x.variable.type.resolved = x.type.resolved THEN
 				(* always true, do nothing *)
 			ELSE
 				Designate(x.variable,res);
@@ -6294,7 +6294,7 @@ TYPE
 				IF IsPointerToRecord(x.variable.type,recordType) THEN
 					Dereference(res,recordType)
 				END;
-				TypeTest(res.tag,x.type(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType,trueL,falseL);
+				TypeTest(res.tag,x.type,trueL,falseL);
 				SetLabel(falseL);
 				Emit(Trap(WithTrap));
 				SetLabel(trueL);

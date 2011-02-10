@@ -2858,12 +2858,14 @@ TYPE
 	WithStatement* = OBJECT (Statement)
 		VAR
 			variable-: Designator;
-			type-: Designator;
+			qualifiedIdentifier-: QualifiedIdentifier;
+			type-: Type;
 			statements-: StatementSequence;
 
 		PROCEDURE & InitWithStatement( position: LONGINT; outer: Statement );
 		BEGIN
 			InitStatement( position,outer );
+			variable := NIL; qualifiedIdentifier := NIL; statements := NIL;
 		END InitWithStatement;
 
 		PROCEDURE SetVariable*( variable: Designator);
@@ -2871,7 +2873,13 @@ TYPE
 			SELF.variable := variable
 		END SetVariable;
 
-		PROCEDURE SetType*( type: Designator );
+		PROCEDURE SetQualifiedIdentifier*(id: QualifiedIdentifier);
+		BEGIN
+			SELF.qualifiedIdentifier := id;
+		END SetQualifiedIdentifier;
+
+
+		PROCEDURE SetType*( type: Type );
 		BEGIN
 			SELF.type := type
 		END SetType;
