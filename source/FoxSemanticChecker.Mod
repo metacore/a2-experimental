@@ -3334,13 +3334,15 @@ TYPE
 					step := rangeExpression.step;
 
 					(* perform static checks on range components *)
-					IndexCheck(first, sourceArray.length);
-					IF ~(IsIntegerValue(last, lastValue) & (lastValue = MAX(LONGINT))) THEN
-						IndexCheck(last, sourceArray.length)
+
+					IF IsIntegerValue(first, firstValue) & (firstValue < 0) THEN
+						Error(indexListItem.position, Diagnostics.Invalid,"lower bound of array range too small")
 					END;
-					IF IsIntegerValue(first, firstValue) & IsIntegerValue(last, lastValue) & (firstValue > lastValue ) THEN
-						Error(indexListItem.position, Diagnostics.Invalid,"upper bound of array range smaller than lower bound")
-					END;
+					IF IsIntegerValue(last, lastValue) & (lastValue # MAX(LONGINT)) THEN					
+						IF (sourceArray.length # NIL) & IsIntegerValue(sourceArray.length, length) & (lastValue >= (length - 1)) THEN
+							Error(indexListItem.position, Diagnostics.Invalid,"upper bound of array range too large")
+						END
+					END;			
 					IF IsIntegerValue(step, stepValue) & (stepValue < 1) THEN
 						Error(indexListItem.position, Diagnostics.Invalid,"invalid step size")
 					END;
@@ -3376,15 +3378,19 @@ TYPE
 										isStaticTargetArrayLength := FALSE
 									END
 								ELSE
-									isStaticTargetArrayLength := TRUE;
+									isStaticTargetArrayLength := TRUE
 								END;
 								IF isStaticTargetArrayLength THEN
 									(* calculate static target array length *)
-									length := 1 + lastValue - firstValue;
-									IF length MOD stepValue = 0 THEN
-										length := length DIV stepValue
+									IF firstValue > lastValue THEN
+										length := 0
 									ELSE
-										length := length DIV stepValue + 1
+										length := 1 + lastValue - firstValue;
+										IF length MOD stepValue = 0 THEN
+											length := length DIV stepValue
+										ELSE
+											length := length DIV stepValue + 1
+										END
 									END;
 									targetArray.SetLength(Global.NewIntegerValue(system, position, length));
 									targetArray.SetIncrement(sourceArray.staticIncrementInBits * stepValue);

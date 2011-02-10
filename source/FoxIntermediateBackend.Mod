@@ -743,7 +743,7 @@ TYPE
 
 		(* useful operands and types *)
 		nil,fp,sp,true,false: IntermediateCode.Operand;
-		bool,addressType,setType: IntermediateCode.Type;
+		bool,addressType,setType, longintType: IntermediateCode.Type;
 
 		commentPrintout: Printout.Printer;
 		dump: Streams.Writer;
@@ -781,6 +781,7 @@ TYPE
 			InitOperand(result,ModeUndefined);
 			addressType := GetType(system,system.addressType);
 			setType := GetType(system,system.setType);
+			longintType := GetType(system, system.longintType);
 			fp := IntermediateCode.Register(addressType,IntermediateCode.FP);
 			sp := IntermediateCode.Register(addressType,IntermediateCode.SP);
 			nil := IntermediateCode.Immediate(addressType,0);
@@ -2367,7 +2368,6 @@ TYPE
 			skipLabel1, skipLabel2: Label;
 			i, indexListSize, indexDim, rangeCount, indexCount, srcDimOffset, destDimOffset, targetArrayDimensionality: LONGINT;
 			staticSourceLength, staticSourceIncrement, staticIndex, staticFirstIndex, staticLastIndex, staticStepSize, staticTargetLength: LONGINT;
-			lastIndexIsMax: BOOLEAN;
 			variableOp: Operand;
 			variable: SyntaxTree.Variable;
 			hasTensorRange: BOOLEAN;
@@ -2452,24 +2452,32 @@ TYPE
 
 					(* get length and increment of source array for current dimension *)
 					GetMathArrayLength(leftType(SyntaxTree.MathArrayType), array, srcDim, FALSE, sourceLength);
-					Convert(sourceLength.op, addressType);
+					Convert(sourceLength.op, longintType);
 					GetMathArrayIncrement(leftType(SyntaxTree.MathArrayType), array, srcDim, FALSE, sourceIncrement);
-					Convert(sourceIncrement.op, addressType);
+					Convert(sourceIncrement.op, longintType);
 					ReleaseIntermediateOperand(srcDim);
 
 					IF SemanticChecker.IsIntegerType(expression.type.resolved) THEN
 						(* SINGLE INDEX *)
 						Evaluate(expression, index);
-						Convert(index.op, addressType);
+						Convert(index.op, longintType);
 
-						(* perform bound check *)
-						IF IsIntegerImmediate(sourceLength.op, staticSourceLength) & IsIntegerImmediate(index.op, staticIndex) THEN
+						(* lower bound check *)
+						IF IsIntegerImmediate(index.op, staticIndex) THEN
+							ASSERT(staticIndex >= 0) (* ensured by the checker *)
+						ELSE
+							TrapC(BrgeL, index.op, IntermediateCode.Immediate(longintType, 0), IndexCheckTrap)
+						END;
+						
+						(* upper bound check *)
+						IF IsIntegerImmediate(index.op, staticIndex) & IsIntegerImmediate(sourceLength.op, staticSourceLength) THEN
 							ASSERT(staticIndex < staticSourceLength)
 						ELSE
-							BoundCheck(index.op, sourceLength.op)
+							TrapC(BrltL, index.op, sourceLength.op, IndexCheckTrap)
 						END;
-						ReleaseOperand(sourceLength);
 
+						ReleaseOperand(sourceLength);
+						Convert(index.op, addressType);
 						ReuseCopy(summand, index.op);
 						ReleaseOperand(index)
 
@@ -2481,11 +2489,9 @@ TYPE
 						stepSize := range.extra; UseIntermediateOperand(stepSize);
 						ReleaseOperand(range);
 
-						Convert(firstIndex, addressType);
-						Convert(lastIndex, addressType);
-						Convert(stepSize, addressType);
-
-						lastIndexIsMax := IsIntegerImmediate(lastIndex, staticLastIndex) & (staticLastIndex = MAX(LONGINT));
+						Convert(firstIndex, longintType);
+						Convert(lastIndex, longintType);
+						Convert(stepSize, longintType);
 
 						(* for dynamic upper bounds: add a runtime check, which repaces the upper bound with the largest valid index
 						if it is 'MAX(LONGINT)' *)
@@ -2493,9 +2499,9 @@ TYPE
 							ReuseCopy(lastIndex, lastIndex);
 							ReleaseIntermediateOperand(lastIndex);
 							skipLabel1 := NewLabel();
-							BrneL(skipLabel1, lastIndex, IntermediateCode.Immediate(addressType, MAX(LONGINT)));
+							BrneL(skipLabel1, lastIndex, IntermediateCode.Immediate(longintType, MAX(LONGINT)));
 							Emit(MovReplace(lastIndex, sourceLength.op)); (* make sure that no new register is allocated *)
-							Emit(Sub(lastIndex, lastIndex, IntermediateCode.Immediate(addressType, 1)));
+							Emit(Sub(lastIndex, lastIndex, IntermediateCode.Immediate(longintType, 1)));
 							SetLabel(skipLabel1)
 						END;
 
@@ -2503,55 +2509,46 @@ TYPE
 						IF IsIntegerImmediate(stepSize, staticStepSize) THEN
 							ASSERT(staticStepSize >= 1) (* ensured by the checker *)
 						ELSE
-							TrapC(BrgeL, stepSize, IntermediateCode.Immediate(addressType, 1), IndexCheckTrap)
+							TrapC(BrgeL, stepSize, IntermediateCode.Immediate(longintType, 1), IndexCheckTrap)
 						END;
-
-						(* check if upper bound conforms to the lower bound *)
-						IF lastIndexIsMax OR IsIntegerImmediate(firstIndex, staticFirstIndex) & (staticFirstIndex = 0) THEN
-							(* must be the case *)
-						ELSIF IsIntegerImmediate(firstIndex, staticFirstIndex) & IsIntegerImmediate(lastIndex, staticLastIndex) THEN
-							ASSERT(staticFirstIndex <= staticLastIndex) (* ensured by the checker *)
+						
+						(* check lower bound check *)
+						IF IsIntegerImmediate(firstIndex, staticFirstIndex) THEN
+							ASSERT(staticFirstIndex >= 0) (* ensured by the checker *)
 						ELSE
-							TrapC(BrgeL, lastIndex, firstIndex, IndexCheckTrap)
+							TrapC(BrgeL, firstIndex, IntermediateCode.Immediate(longintType, 0), IndexCheckTrap)
 						END;
-
-						(* check index of lower bound *)
-						IF IsIntegerImmediate(firstIndex, staticFirstIndex) & (staticFirstIndex = 0) THEN
-						ELSIF IsIntegerImmediate(firstIndex, staticFirstIndex) & IsIntegerImmediate(sourceLength.op, staticSourceLength) THEN
-							ASSERT(staticFirstIndex < staticSourceLength) (* ensured by the checker *)
+						
+						(* check upper bound check *)
+						IF IsIntegerImmediate(lastIndex, staticLastIndex) & (staticLastIndex = MAX(LONGINT)) THEN
+							(* statically open range: nothing to do *)
+						ELSIF IsIntegerImmediate(lastIndex, staticLastIndex) & IsIntegerImmediate(sourceLength.op, staticSourceLength) THEN
+							ASSERT(staticLastIndex < staticSourceLength)
 						ELSE
-							BoundCheck(firstIndex, sourceLength.op)
+							TrapC(BrltL, lastIndex, sourceLength.op, IndexCheckTrap)
 						END;
-
-						(* check index of upper bound *)
-						IF lastIndexIsMax THEN
-						ELSIF IsIntegerImmediate(sourceLength.op, staticSourceLength) & IsIntegerImmediate(lastIndex, staticLastIndex) THEN
-							ASSERT(staticLastIndex < staticSourceLength) (* ensured by the checker *)
-						ELSE
-							BoundCheck(lastIndex, sourceLength.op)
-						END;
-
+						
 						(* determine length of target array for current dimension *)
 						(* 1. incorporate last index: *)
 						IF IsIntegerImmediate(lastIndex, staticLastIndex) THEN
 							(* last index is static *)
-							IF lastIndexIsMax THEN
+							IF IsIntegerImmediate(lastIndex, staticLastIndex) & (staticLastIndex = MAX(LONGINT)) THEN
 								targetLength := sourceLength.op
 							ELSE
-								targetLength := IntermediateCode.Immediate(addressType, staticLastIndex + 1)
+								targetLength := IntermediateCode.Immediate(longintType, staticLastIndex + 1)
 							END;
 							UseIntermediateOperand(targetLength);
 						ELSE
 							(* targetLength := lastIndex + 1 *)
 							Reuse1(targetLength, lastIndex);
-							Emit(Add(targetLength, lastIndex, IntermediateCode.Immediate(addressType, 1)));
+							Emit(Add(targetLength, lastIndex, IntermediateCode.Immediate(longintType, 1)));
 						END;
 						ReleaseOperand(sourceLength);
 						ReleaseIntermediateOperand(lastIndex);
 						(* 2. incorporate first index: *)
 						IF IsIntegerImmediate(firstIndex, staticFirstIndex) & IsIntegerImmediate(targetLength, staticTargetLength) THEN
 							(* first index and current target length are static *)
-							targetLength := IntermediateCode.Immediate(addressType, staticTargetLength - staticFirstIndex)
+							targetLength := IntermediateCode.Immediate(longintType, staticTargetLength - staticFirstIndex)
 						ELSIF IsIntegerImmediate(firstIndex, staticFirstIndex) & (staticFirstIndex = 0) THEN
 							(* first index = 0: nothing to do *)
 						ELSE
@@ -2560,6 +2557,19 @@ TYPE
 							ReuseCopy(targetLength, targetLength);
 							Emit(Sub(targetLength, targetLength, firstIndex))
 						END;
+						
+						(* clip negative lengths to 0 *)
+						IF IsIntegerImmediate(targetLength, staticTargetLength) THEN
+							IF staticTargetLength < 0 THEN
+								targetLength := IntermediateCode.Immediate(longintType, 0)
+							END
+						ELSE
+							skipLabel1 := NewLabel();
+							BrgeL(skipLabel1, targetLength, IntermediateCode.Immediate(longintType, 0));
+							Emit(Mov(targetLength, IntermediateCode.Immediate(longintType, 0)));
+							SetLabel(skipLabel1)
+						END;
+						
 						(* 3. incorporate index step size: *)
 						IF IsIntegerImmediate(stepSize, staticStepSize) & IsIntegerImmediate(targetLength, staticTargetLength) THEN
 							(* step size and current target length are static *)
@@ -2568,7 +2578,7 @@ TYPE
 							ELSE
 								staticTargetLength := 1 + staticTargetLength DIV staticStepSize
 							END;
-							targetLength := IntermediateCode.Immediate(addressType, staticTargetLength)
+							targetLength := IntermediateCode.Immediate(longintType, staticTargetLength)
 						ELSIF IsIntegerImmediate(stepSize, staticStepSize) & (staticStepSize = 1) THEN
 							(* step size = 1: nothing to do *)
 						ELSE
@@ -2583,23 +2593,23 @@ TYPE
 							*)
 							skipLabel1 := NewLabel();
 							skipLabel2 := NewLabel();
-							tmp := 	IntermediateCode.Register(addressType, AcquireRegister(addressType));
+							tmp := 	IntermediateCode.Register(longintType, AcquireRegister(longintType));
 							Emit(Mod(tmp, targetLength, stepSize));
-							BrneL(skipLabel1, tmp, IntermediateCode.Immediate(addressType, 0));
+							BrneL(skipLabel1, tmp, IntermediateCode.Immediate(longintType, 0));
 							ReleaseIntermediateOperand(targetLength);
 							ReuseCopy(targetLength, targetLength);
 							Emit(Div(targetLength, targetLength, stepSize));
 							BrL(skipLabel2);
 							SetLabel(skipLabel1);
 							Emit(Div(targetLength, targetLength, stepSize));
-							Emit(Add(targetLength, targetLength, IntermediateCode.Immediate(addressType, 1)));
+							Emit(Add(targetLength, targetLength, IntermediateCode.Immediate(longintType, 1)));
 							SetLabel(skipLabel2);
 							ReleaseIntermediateOperand(tmp);
 						END;
 
 						(* determine increment of target array for current dimension *)
 						IF IsIntegerImmediate(sourceIncrement.op, staticSourceIncrement) & IsIntegerImmediate(stepSize, staticStepSize) THEN
-							targetIncrement := IntermediateCode.Immediate(addressType, staticSourceIncrement * staticStepSize);
+							targetIncrement := IntermediateCode.Immediate(longintType, staticSourceIncrement * staticStepSize);
 							UseIntermediateOperand(targetIncrement) (* actually not needed *)
 						ELSIF IsIntegerImmediate(stepSize, staticStepSize) & (staticStepSize = 1) THEN
 							(* step size = 1 *)
@@ -2619,7 +2629,7 @@ TYPE
 							GetMathArrayField(tmp, array.tag, MathDimOffset);
 							ReuseCopy(destDim, tmp);
 							ReleaseIntermediateOperand(tmp);
-							Emit(Add(destDim, destDim, IntermediateCode.Immediate(addressType, indexDim + destDimOffset)));
+							Emit(Add(destDim, destDim, IntermediateCode.Immediate(longintType, indexDim + destDimOffset)));
 
 							PutMathArrayLenOrIncr(localResult.tag, targetLength, destDim, FALSE);
 							PutMathArrayLenOrIncr(localResult.tag, targetIncrement, destDim, TRUE);
@@ -2634,12 +2644,15 @@ TYPE
 
 						INC(indexDim);
 
+						Convert(firstIndex, addressType);
 						ReuseCopy(summand, firstIndex);
 						ReleaseIntermediateOperand(firstIndex)
 					ELSE HALT(100);
 					END;
 
 					ASSERT((summand.mode # IntermediateCode.ModeImmediate) OR (sourceIncrement.op.mode # IntermediateCode.ModeImmediate));
+					Convert(sourceIncrement.op, addressType);
+					Convert(summand, addressType);
 					Emit(Mul(summand, summand, sourceIncrement.op));
 
 					ReleaseOperand(sourceIncrement);
@@ -6158,17 +6171,17 @@ TYPE
 				Designate(left, leftO);(* The order is crucial. Do not reorder emission of left and right *)
 
 				(* first *)
-				MakeMemory(mem, leftO.op, GetType(system, system.longintType), 0);
+				MakeMemory(mem, leftO.op, longintType, 0);
 				Emit(Mov(mem, rightO.op));
 				ReleaseIntermediateOperand(mem);
 
 				(* last *)
-				MakeMemory(mem, leftO.op, GetType(system, system.longintType), ToMemoryUnits(system, system.SizeOf(system.longintType)));
+				MakeMemory(mem, leftO.op, longintType, ToMemoryUnits(system, system.SizeOf(system.longintType)));
 				Emit(Mov(mem, rightO.tag));
 				ReleaseIntermediateOperand(mem);
 
 				(* step *)
-				MakeMemory(mem, leftO.op, GetType(system, system.longintType), 2 * ToMemoryUnits(system, system.SizeOf(system.longintType)));
+				MakeMemory(mem, leftO.op, longintType, 2 * ToMemoryUnits(system, system.SizeOf(system.longintType)));
 				Emit(Mov(mem, rightO.extra));
 				ReleaseIntermediateOperand(mem);
 
