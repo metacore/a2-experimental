@@ -732,7 +732,7 @@ TYPE
 				IF (resolved # NIL) THEN
 					parameter := SyntaxTree.NewParameter(procedureType.position,procedureType,Global.ResultName, SyntaxTree.VarParameter);
 					parameter.SetType(procedureType.returnType);
-					parameter.SetAccess(SyntaxTree.Internal);
+					parameter.SetAccess(SyntaxTree.Hidden);
 					VisitParameter(parameter);
 					procedureType.SetReturnParameter(parameter); (* return parameter serves as a cache only *)
 				END;
