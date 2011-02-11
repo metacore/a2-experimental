@@ -1348,15 +1348,29 @@ TYPE
 			END;
 			Indent;  Keyword("END" );
 		END VisitIfStatement;
-
-		PROCEDURE VisitWithStatement(x: SyntaxTree.WithStatement);
+		
+		PROCEDURE WithPart(x: SyntaxTree.WithPart);
 		BEGIN
-			Keyword("WITH " );
 			Expression(x.variable);
 			w.String(" : ");
-			QualifiedIdentifier(x.qualifiedIdentifier);
+			Type(x.type);
 			Keyword(" DO " );
-			w.IncIndent;  StatementSequence(x.statements);  w.DecIndent;
+			w.IncIndent;  StatementSequence(x.statements);  w.DecIndent;			
+		END WithPart;
+
+		PROCEDURE VisitWithStatement(x: SyntaxTree.WithStatement);
+		VAR i: LONGINT;
+		BEGIN
+			Indent; Keyword("WITH " );
+			WithPart(x.GetWithPart(0));
+			FOR i := 1 TO x.WithParts()-1 DO
+				Indent; w.String("| ");
+				WithPart(x.GetWithPart(i));
+			END;
+			IF x.elsePart # NIL THEN
+				Indent; w.String("ELSE ");
+				w.IncIndent;  StatementSequence(x.elsePart);  w.DecIndent;
+			END;
 			Indent; Keyword("END" );
 		END VisitWithStatement;
 

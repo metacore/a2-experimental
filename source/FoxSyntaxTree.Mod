@@ -2854,30 +2854,21 @@ TYPE
 
 	END IfStatement;
 
-	(** << WITH variable : type DO statements END >> **)
-	WithStatement* = OBJECT (Statement)
-		VAR
-			variable-: Designator;
-			qualifiedIdentifier-: QualifiedIdentifier;
-			type-: Type;
-			statements-: StatementSequence;
+	WithPart*= OBJECT
+	VAR
+		variable-: Designator;
+		type-: Type; (* initially is qualified type *)
+		statements-: StatementSequence;
 
-		PROCEDURE & InitWithStatement( position: LONGINT; outer: Statement );
+		PROCEDURE &InitWithPart();
 		BEGIN
-			InitStatement( position,outer );
-			variable := NIL; qualifiedIdentifier := NIL; statements := NIL;
-		END InitWithStatement;
+			type := NIL; variable := NIL; statements := NIL;
+		END InitWithPart;
 
 		PROCEDURE SetVariable*( variable: Designator);
 		BEGIN
 			SELF.variable := variable
 		END SetVariable;
-
-		PROCEDURE SetQualifiedIdentifier*(id: QualifiedIdentifier);
-		BEGIN
-			SELF.qualifiedIdentifier := id;
-		END SetQualifiedIdentifier;
-
 
 		PROCEDURE SetType*( type: Type );
 		BEGIN
@@ -2888,6 +2879,41 @@ TYPE
 		BEGIN
 			SELF.statements := statements;
 		END SetStatements;
+
+	END WithPart;
+
+	(** << WITH variable : type DO statements END >> **)
+	WithStatement* = OBJECT (Statement)
+		VAR
+			withParts-: Basic.List;
+			elsePart-: StatementSequence;
+
+		PROCEDURE & InitWithStatement( position: LONGINT; outer: Statement );
+		BEGIN
+			InitStatement( position,outer );
+			NEW(withParts); elsePart := NIL;
+		END InitWithStatement;
+
+
+		PROCEDURE AddWithPart*( withPart: WithPart );
+		BEGIN withParts.Add( withPart );
+		END AddWithPart;
+
+		PROCEDURE GetWithPart*( i: LONGINT ): WithPart;
+		VAR a: ANY;
+		BEGIN a := withParts.Get( i );  RETURN a( WithPart )
+		END GetWithPart;
+
+		PROCEDURE WithParts*( ): LONGINT;
+		BEGIN
+			IF withParts = NIL THEN RETURN 0 ELSE RETURN withParts.Length();  END;
+		END WithParts;
+
+		PROCEDURE SetElsePart*( elsePart: StatementSequence );
+		BEGIN
+			SELF.elsePart := elsePart;
+		END SetElsePart;
+
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -4406,6 +4432,12 @@ VAR
 	BEGIN
 		NEW( casePart);  RETURN casePart
 	END NewCasePart;
+
+	PROCEDURE NewWithPart*(): WithPart;
+	VAR withPart: WithPart;
+	BEGIN
+		NEW( withPart);  RETURN withPart
+	END NewWithPart;
 
 	PROCEDURE NewWithStatement*( position: LONGINT; outer: Statement): WithStatement;
 	VAR withStatement: WithStatement;

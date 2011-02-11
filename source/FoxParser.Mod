@@ -789,10 +789,11 @@ TYPE
 		**)
 		PROCEDURE Statement( statements: SyntaxTree.StatementSequence; outer: SyntaxTree.Statement);
 		VAR qualifiedIdentifier: SyntaxTree.QualifiedIdentifier;  expression: SyntaxTree.Expression; designator: SyntaxTree.Designator;  statement: SyntaxTree.Statement;
-			ifStatement: SyntaxTree.IfStatement; elsifPart: SyntaxTree.IfPart;   statementSequence: SyntaxTree.StatementSequence;  withStatement: SyntaxTree.WithStatement;  caller: SyntaxTree.ProcedureCallStatement;
+			ifStatement: SyntaxTree.IfStatement; elsifPart: SyntaxTree.IfPart;   statementSequence: SyntaxTree.StatementSequence;  withStatement: SyntaxTree.WithStatement;
+			withPart: SyntaxTree.WithPart; caller: SyntaxTree.ProcedureCallStatement;
 			caseStatement: SyntaxTree.CaseStatement;  whileStatement: SyntaxTree.WhileStatement;  repeatStatement: SyntaxTree.RepeatStatement;  forStatement: SyntaxTree.ForStatement;
 			identifier: SyntaxTree.Identifier;  loopStatement: SyntaxTree.LoopStatement;  returnStatement: SyntaxTree.ReturnStatement;  awaitStatement: SyntaxTree.AwaitStatement;
-			(* qualifiedType: SyntaxTree.QualifiedType; *) code : SyntaxTree.Code; position: LONGINT;
+			qualifiedType: SyntaxTree.QualifiedType; code : SyntaxTree.Code; position: LONGINT;
 		BEGIN
 			IF Trace THEN S( "Statement" ) END;
 			CASE symbol.token OF
@@ -832,18 +833,27 @@ TYPE
 			| Scanner.With:
 					withStatement := SyntaxTree.NewWithStatement( symbol.start ,outer);
 					NextSymbol;
-					identifier := Identifier();
-					IF Optional(Scanner.Period) & Optional(Scanner.Identifier) THEN
-						Error(identifier.position,Diagnostics.Invalid,"forbidden qualified identifier in with statement");
+					REPEAT
+						identifier := Identifier();
+						IF Optional(Scanner.Period) & Optional(Scanner.Identifier) THEN
+							Error(identifier.position,Diagnostics.Invalid,"forbidden qualified identifier in with statement");
+						END;
+						withPart := SyntaxTree.NewWithPart();
+						withStatement.AddWithPart(withPart);
+						designator := SyntaxTree.NewIdentifierDesignator(identifier.position,identifier);
+						withPart.SetVariable( designator );
+						Check( Scanner.Colon );
+						qualifiedIdentifier := QualifiedIdentifier();
+						qualifiedType := SyntaxTree.NewQualifiedType(qualifiedIdentifier.suffix.position, currentScope, qualifiedIdentifier);
+						withPart.SetType(qualifiedType);
+						Check( Scanner.Do );
+						statementSequence := StatementSequence(withStatement);
+						withPart.SetStatements( statementSequence );
+					UNTIL ~Optional(Scanner.Bar);
+					IF Optional(Scanner.Else) THEN
+						statementSequence := StatementSequence(withStatement);
+						withStatement.SetElsePart(statementSequence);
 					END;
-					designator := SyntaxTree.NewIdentifierDesignator(identifier.position,identifier);
-					withStatement.SetVariable( designator );
-					Check( Scanner.Colon );
-					qualifiedIdentifier := QualifiedIdentifier();
-					withStatement.SetQualifiedIdentifier(qualifiedIdentifier);
-					Check( Scanner.Do );
-					statementSequence := StatementSequence(withStatement);
-					withStatement.SetStatements( statementSequence );
 					Check( Scanner.End );
 					statements.AddStatement( withStatement )
 			| Scanner.Case:

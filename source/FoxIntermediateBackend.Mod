@@ -6280,27 +6280,41 @@ TYPE
 			IF Trace THEN TraceExit("VisitIfStatement") END;
 		END VisitIfStatement;
 
+		PROCEDURE WithPart(x: SyntaxTree.WithPart; VAR falseL, endL: Label);
+		VAR trueL: Label; res: Operand; recordType: SyntaxTree.RecordType;
+		BEGIN
+			(*IF x.variable.type.resolved = x.type.resolved THEN
+				(* always true, do nothing *)
+			ELSE*)
+			Designate(x.variable,res);
+			IF IsPointerToRecord(x.variable.type,recordType) THEN
+				Dereference(res,recordType)
+			END;
+			trueL := NewLabel();
+			TypeTest(res.tag,x.type,trueL,falseL);
+			ReleaseOperand(res);
+			SetLabel(trueL);
+			StatementSequence(x.statements);
+			BrL(endL);
+		END WithPart;
 
 		PROCEDURE VisitWithStatement(x: SyntaxTree.WithStatement);
-		VAR trueL,falseL: Label; res: Operand; recordType: SyntaxTree.RecordType;
+		VAR endL,falseL: Label;i: LONGINT;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitWithStatement") END;
-			IF x.variable.type.resolved = x.type.resolved THEN
-				(* always true, do nothing *)
-			ELSE
-				Designate(x.variable,res);
-				trueL := NewLabel();
+
+			endL := NewLabel();
+			FOR i := 0 TO x.WithParts()-1 DO
 				falseL := NewLabel();
-				IF IsPointerToRecord(x.variable.type,recordType) THEN
-					Dereference(res,recordType)
-				END;
-				TypeTest(res.tag,x.type,trueL,falseL);
+				WithPart(x.GetWithPart(i),falseL,endL);
 				SetLabel(falseL);
-				Emit(Trap(WithTrap));
-				SetLabel(trueL);
-				ReleaseOperand(res);
 			END;
-			StatementSequence(x.statements);
+			IF x.elsePart = NIL THEN
+				Emit(Trap(WithTrap));
+			ELSE
+				StatementSequence(x.elsePart)
+			END;
+			SetLabel(endL);
 			IF Trace THEN TraceExit("VisitWithStatement") END;
 		END VisitWithStatement;
 

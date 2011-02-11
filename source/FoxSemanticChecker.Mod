@@ -3336,11 +3336,11 @@ TYPE
 					IF IsIntegerValue(first, firstValue) & (firstValue < 0) THEN
 						Error(indexListItem.position, Diagnostics.Invalid,"lower bound of array range too small")
 					END;
-					IF IsIntegerValue(last, lastValue) & (lastValue # MAX(LONGINT)) THEN					
+					IF IsIntegerValue(last, lastValue) & (lastValue # MAX(LONGINT)) THEN
 						IF (sourceArray.length # NIL) & IsIntegerValue(sourceArray.length, length) & (lastValue >= (length - 1)) THEN
 							Error(indexListItem.position, Diagnostics.Invalid,"upper bound of array range too large")
 						END
-					END;			
+					END;
 					IF IsIntegerValue(step, stepValue) & (stepValue < 1) THEN
 						Error(indexListItem.position, Diagnostics.Invalid,"invalid step size")
 					END;
@@ -6162,44 +6162,18 @@ TYPE
 			currentIsUnreachable := prevUnreachable;
 		END VisitIfStatement;
 
-
-
-		(** check and resolve with statement WITH variable: type DO ... END;
-			- check type and variable
-			- check that variable type is type extension of type
-			- check that variable is a variable
-			- enter new with scope and enter guardedVariable with same name and reference to variable
-			- create if statement:
-				WITH variable: type DO ... END; 	--> IF ~(variable IS type) THEN HALT(withTrap) ELSE ... END;
-		**)
-		PROCEDURE VisitWithStatement(withStatement: SyntaxTree.WithStatement);
+		PROCEDURE WithPart(withPart: SyntaxTree.WithPart; VAR symbol: SyntaxTree.Symbol);
 		VAR variable,typeDesignator: SyntaxTree.Designator;
 			type,variableType: SyntaxTree.Type;
-			position: LONGINT;
 			prevScope : SyntaxTree.Scope;
 			withEntry: WithEntry;
 			typeDeclaration: SyntaxTree.TypeDeclaration;
 		BEGIN
-			prevScope := currentScope;
-			position := withStatement.position;
-			variable := ResolveDesignator(withStatement.variable);
-			withStatement.SetVariable(variable);
-			type := ResolveNamedType(withStatement.qualifiedIdentifier, typeDeclaration);
-			(*
-			declaration := Find(withStatement.qualifiedIdentifier);
-			type := FindType(withStatement.qualifiedIdentifier);
-			typeDesignator := ResolveDesignator(withStatement.type);
-			*)
-			withStatement.SetType(type);
-			(*
-			IF ~(typeDesignator IS SyntaxTree.SymbolDesignator) OR ~(typeDesignator.type.resolved = SyntaxTree.typeDeclarationType) THEN
-				Error(typeDesignator.position,Diagnostics.Invalid,"is not a type");
-				type := SyntaxTree.invalidType;
-			ELSE
-				type := typeDesignator(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
-			END;
-			*)
+			variable := ResolveDesignator(withPart.variable);
 			variableType := variable.type.resolved;
+			withPart.SetVariable(variable);
+			type := ResolveType(withPart.type);
+			withPart.SetType(type);
 
 			WHILE variable IS SyntaxTree.TypeGuardDesignator DO
 				variable := variable(SyntaxTree.TypeGuardDesignator).left(SyntaxTree.Designator);
@@ -6226,16 +6200,40 @@ TYPE
 					Printout.Info("variable",variable);
 					Printout.Info("type",type);
 				END;
+			ELSIF (symbol # NIL) & (symbol # variable(SyntaxTree.SymbolDesignator).symbol) THEN
+				Error(variable.position,Diagnostics.Invalid,"invalid change of withguarded symbol");
 			ELSE
+				symbol := variable(SyntaxTree.SymbolDesignator).symbol;
 				NEW(withEntry);
 				withEntry.previous := withEntries;
 				withEntry.symbol := variable(SyntaxTree.SymbolDesignator).symbol;
 				withEntry.type := type;
 				withEntries := withEntry;
-				StatementSequence(withStatement.statements);
+				StatementSequence(withPart.statements);
 				withEntries := withEntries.previous;
 			END;
 
+		END WithPart;
+
+
+		(** check and resolve with statement WITH variable: type DO ... END;
+			- check type and variable
+			- check that variable type is type extension of type
+			- check that variable is a variable
+			- enter new with scope and enter guardedVariable with same name and reference to variable
+			- create if statement:
+				WITH variable: type DO ... END; 	--> IF ~(variable IS type) THEN HALT(withTrap) ELSE ... END;
+		**)
+		PROCEDURE VisitWithStatement(withStatement: SyntaxTree.WithStatement);
+		VAR i: LONGINT; prevScope: SyntaxTree.Scope; symbol: SyntaxTree.Symbol;
+		BEGIN
+			prevScope := currentScope; symbol := NIL;
+			FOR i := 0 TO withStatement.WithParts()-1 DO
+				WithPart(withStatement.GetWithPart(i),symbol);
+			END;
+			IF withStatement.elsePart # NIL THEN
+				StatementSequence(withStatement.elsePart)
+			END;
 			currentScope := prevScope;
 		END VisitWithStatement;
 
