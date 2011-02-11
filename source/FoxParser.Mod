@@ -5,6 +5,7 @@ IMPORT Basic := FoxBasic, Scanner := FoxScanner, D := Debugging, SyntaxTree := F
 
 CONST
 	Trace = FALSE;
+	CascadedWithSupport = FALSE;
 
 	(** the parser reflects the following EBNF:
 
@@ -849,8 +850,8 @@ TYPE
 						Check( Scanner.Do );
 						statementSequence := StatementSequence(withStatement);
 						withPart.SetStatements( statementSequence );
-					UNTIL ~Optional(Scanner.Bar);
-					IF Optional(Scanner.Else) THEN
+					UNTIL ~Optional(Scanner.Bar) OR ~CascadedWithSupport;
+					IF CascadedWithSupport & Optional(Scanner.Else) THEN
 						statementSequence := StatementSequence(withStatement);
 						withStatement.SetElsePart(statementSequence);
 					END;
