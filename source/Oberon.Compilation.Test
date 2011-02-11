@@ -4130,8 +4130,8 @@ positive: multiplication on constant integers
 positive: integer division on constant integers
 
 	MODULE Test;
-	CONST Result = 93 DIV 6
-	BEGIN ASSERT (Result = 15);
+	CONST Divisor = -2147483648; Dividend = 131072; Result = Divisor DIV Dividend;
+	BEGIN ASSERT (Result = -16384);
 	END Test.
 
 negative: integer division on constant integers by zero
@@ -4156,8 +4156,8 @@ negative: real division on constant integers by zero
 positive: modulo on constant integers
 
 	MODULE Test;
-	CONST Result = 21 MOD 4
-	BEGIN ASSERT (Result = 1);
+	CONST Divisor = -2147483648; Dividend = 131072; Result = Divisor MOD Dividend;
+	BEGIN ASSERT (Result = 0);
 	END Test.
 
 negative: modulo on constant integers by zero
