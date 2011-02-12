@@ -6,6 +6,7 @@ IMPORT Basic := FoxBasic, Scanner := FoxScanner, D := Debugging, SyntaxTree := F
 CONST
 	Trace = FALSE;
 	CascadedWithSupport = FALSE;
+	Lax=FALSE;
 
 	(** the parser reflects the following EBNF:
 
@@ -16,7 +17,8 @@ CONST
 
 		Import               = Identifier [':=' Identifier] ['in' Identifier].
 
-		DeclarationSequence  =  { 'const' [ConstDeclaration] {';' [ConstDeclaration]}
+		DeclarationSequence  =
+		                        { 'const' [ConstDeclaration] {';' [ConstDeclaration]}
 		                         |'type'  [TypeDeclaration] {';' [TypeDeclaration]}
 		                         |'var'   [VariableDeclaration] {';' [VariableDeclaration]}
 		                        }
@@ -349,6 +351,11 @@ TYPE
 				RETURN FALSE
 			END
 		END Optional;
+
+		(* ignore one ore more symbols of type token *)
+		PROCEDURE Ignore(token: Scanner.Token);
+		BEGIN WHILE Optional(token) DO END;
+		END Ignore;
 
 		(** Parsing according to the EBNF **)
 
@@ -788,13 +795,13 @@ TYPE
                      | 'code' {any} 'end'
                      ].
 		**)
-		PROCEDURE Statement( statements: SyntaxTree.StatementSequence; outer: SyntaxTree.Statement);
+		PROCEDURE Statement( statements: SyntaxTree.StatementSequence; outer: SyntaxTree.Statement): BOOLEAN;
 		VAR qualifiedIdentifier: SyntaxTree.QualifiedIdentifier;  expression: SyntaxTree.Expression; designator: SyntaxTree.Designator;  statement: SyntaxTree.Statement;
 			ifStatement: SyntaxTree.IfStatement; elsifPart: SyntaxTree.IfPart;   statementSequence: SyntaxTree.StatementSequence;  withStatement: SyntaxTree.WithStatement;
 			withPart: SyntaxTree.WithPart; caller: SyntaxTree.ProcedureCallStatement;
 			caseStatement: SyntaxTree.CaseStatement;  whileStatement: SyntaxTree.WhileStatement;  repeatStatement: SyntaxTree.RepeatStatement;  forStatement: SyntaxTree.ForStatement;
 			identifier: SyntaxTree.Identifier;  loopStatement: SyntaxTree.LoopStatement;  returnStatement: SyntaxTree.ReturnStatement;  awaitStatement: SyntaxTree.AwaitStatement;
-			qualifiedType: SyntaxTree.QualifiedType; code : SyntaxTree.Code; position: LONGINT;
+			qualifiedType: SyntaxTree.QualifiedType; code : SyntaxTree.Code; position: LONGINT; result: BOOLEAN;
 		BEGIN
 			IF Trace THEN S( "Statement" ) END;
 			CASE symbol.token OF
@@ -809,6 +816,7 @@ TYPE
 						statement := caller;
 					END;
 					statements.AddStatement( statement );
+					result := TRUE
 			| Scanner.If:
 					NextSymbol;
 					ifStatement := SyntaxTree.NewIfStatement( symbol.start ,outer);
@@ -830,7 +838,8 @@ TYPE
 						statementSequence := StatementSequence(ifStatement);
 						ifStatement.SetElsePart( statementSequence );
 					END;
-					Check( Scanner.End );  statements.AddStatement( ifStatement )
+					Check( Scanner.End );  statements.AddStatement( ifStatement );
+					result := TRUE
 			| Scanner.With:
 					withStatement := SyntaxTree.NewWithStatement( symbol.start ,outer);
 					NextSymbol;
@@ -856,7 +865,8 @@ TYPE
 						withStatement.SetElsePart(statementSequence);
 					END;
 					Check( Scanner.End );
-					statements.AddStatement( withStatement )
+					statements.AddStatement( withStatement );
+					result := TRUE
 			| Scanner.Case:
 					caseStatement := SyntaxTree.NewCaseStatement( symbol.start,outer );
 					NextSymbol;
@@ -872,7 +882,8 @@ TYPE
 						caseStatement.SetElsePart( statementSequence );
 					END;
 					Check( Scanner.End );
-					statements.AddStatement( caseStatement )
+					statements.AddStatement( caseStatement );
+					result := TRUE
 			| Scanner.While:
 					NextSymbol;
 					whileStatement := SyntaxTree.NewWhileStatement( symbol.start, outer );
@@ -882,7 +893,8 @@ TYPE
 					statementSequence := StatementSequence(whileStatement);
 					whileStatement.SetStatements( statementSequence );
 					Check( Scanner.End );
-					statements.AddStatement( whileStatement )
+					statements.AddStatement( whileStatement );
+					result := TRUE
 			| Scanner.Repeat:
 					NextSymbol;
 					repeatStatement := SyntaxTree.NewRepeatStatement( symbol.start, outer );
@@ -891,7 +903,8 @@ TYPE
 					Check( Scanner.Until );
 					expression := Expression();
 					repeatStatement.SetCondition( expression );
-					statements.AddStatement( repeatStatement )
+					statements.AddStatement( repeatStatement );
+					result := TRUE
 			| Scanner.For:
 					NextSymbol;
 					forStatement := SyntaxTree.NewForStatement( symbol.start, outer);
@@ -916,6 +929,7 @@ TYPE
 					forStatement.SetStatements( statementSequence );
 					Check( Scanner.End );
 					statements.AddStatement( forStatement );
+					result := TRUE
 			| Scanner.Loop:
 					NextSymbol;
 					loopStatement := SyntaxTree.NewLoopStatement( symbol.start ,outer);
@@ -923,10 +937,12 @@ TYPE
 					loopStatement.SetStatements( statementSequence );
 					Check( Scanner.End );
 					statements.AddStatement( loopStatement );
+					result := TRUE;
 			| Scanner.Exit:
 					NextSymbol;
 					statement := SyntaxTree.NewExitStatement( symbol.start, outer);
 					statements.AddStatement( statement );
+					result := TRUE;
 			| Scanner.Return:
 					NextSymbol;
 					returnStatement := SyntaxTree.NewReturnStatement( symbol.start, outer);
@@ -935,41 +951,50 @@ TYPE
 						returnStatement.SetReturnValue( expression );
 					END;
 					statements.AddStatement( returnStatement );
+					result := TRUE;
 			| Scanner.Begin:
 					NextSymbol;  statement := StatementBlock(outer);  statements.AddStatement( statement );  Check( Scanner.End );
+					result := TRUE;
 			| Scanner.Await:
 					awaitStatement := SyntaxTree.NewAwaitStatement( symbol.start, outer );
 					NextSymbol;
 					expression := Expression();
 					awaitStatement.SetCondition( expression );
 					statements.AddStatement( awaitStatement );
+					result := TRUE
 			| Scanner.Code:
 				(* assemble *)
 				code := Code(outer);
 				Check(Scanner.End);
 				statements.AddStatement( code );
-			| Scanner.End:  (* end of if, with, case, while, for, loop, or statement sequence *)
-			| Scanner.Until:  (* end of repeat *)
-			| Scanner.Else:  (* else of if or case *)
-			| Scanner.Elsif:  (* elsif of if *)
-			| Scanner.Bar:  (* next case *)
-			| Scanner.Finally:  (* end block by finally statement *)
-			| Scanner.Semicolon:  (* allow the empty statement *)
+				result := TRUE
+			| Scanner.End:  result := FALSE (* end of if, with, case, while, for, loop, or statement sequence *)
+			| Scanner.Until: result := FALSE  (* end of repeat *)
+			| Scanner.Else:  result := FALSE (* else of if or case *)
+			| Scanner.Elsif:  result := FALSE (* elsif of if *)
+			| Scanner.Bar:  result := FALSE (* next case *)
+			| Scanner.Finally: result := FALSE  (* end block by finally statement *)
+			| Scanner.Semicolon: result := FALSE (* allow the empty statement *)
 			(* builtin pseudo procedures are resolved by checker *)
-			ELSE Error( symbol.start, Scanner.Semicolon, "" );
+			ELSE Error( symbol.start, Scanner.Semicolon, "" ); result := FALSE;
 			END;
 			IF Trace THEN E( "Statement" ) END;
+			RETURN result
 		END Statement;
 
 		(** StatementSequence = Statement {';' Statement}. **)
 		PROCEDURE StatementSequence(outer: SyntaxTree.Statement ): SyntaxTree.StatementSequence;
-		VAR statements: SyntaxTree.StatementSequence;
+		VAR statements: SyntaxTree.StatementSequence; b: BOOLEAN;
 		BEGIN
 			IF Trace THEN S( "StatementSequence" ) END;
 			statements := SyntaxTree.NewStatementSequence();
-			REPEAT
-				Statement( statements,outer )
-			UNTIL ~Optional( Scanner.Semicolon );
+			IF Lax THEN
+				WHILE Statement(statements,outer) DO Ignore(Scanner.Semicolon) END;
+			ELSE
+				REPEAT
+					b := Statement( statements,outer )
+				UNTIL ~Optional( Scanner.Semicolon );
+			END;
 			IF Trace THEN E( "StatementSequence" ) END;
 			RETURN statements
 		END StatementSequence;
@@ -1222,9 +1247,13 @@ TYPE
 				recordType.SetBaseType( qualifiedType );
 				Check( Scanner.RightParenthesis )
 			END;
-			REPEAT
-				IF Peek(Scanner.Identifier) THEN VariableDeclaration( recordScope ) END;
-			UNTIL ~Optional( Scanner.Semicolon );
+			IF Lax THEN
+				WHILE Peek(Scanner.Identifier) DO VariableDeclaration(recordScope); Ignore(Scanner.Semicolon) END;
+			ELSE
+				REPEAT
+					IF Peek(Scanner.Identifier) THEN VariableDeclaration( recordScope ) END;
+				UNTIL ~Optional( Scanner.Semicolon );
+			END;
 			Check( Scanner.End );
 			IF Trace THEN E( "RecordType" ) END;
 			RETURN recordType
@@ -1395,7 +1424,11 @@ TYPE
 			IF Trace THEN S( "PortList" ) END;
 			(* left parenthesis already consumed *)
 			IF ~Optional( Scanner.RightParenthesis ) THEN
-				REPEAT PortDeclaration( actor, parentScope );  UNTIL ~Optional( Scanner.Semicolon );
+				IF Lax THEN
+					WHILE Peek(Scanner.Identifier) OR Peek(Scanner.Var) OR Peek(Scanner.Const) DO PortDeclaration( actor, parentScope ); Ignore(Scanner.Semicolon) END;
+				ELSE
+					REPEAT PortDeclaration( actor, parentScope );  UNTIL ~Optional( Scanner.Semicolon );
+				END;
 				Check( Scanner.RightParenthesis );
 			END;
 			IF Trace THEN E( "PortList" ) END;
@@ -1442,7 +1475,13 @@ TYPE
 			IF Trace THEN S( "FormalParameters" ) END;
 			(* left parenthesis already consumed *)
 			IF ~Optional( Scanner.RightParenthesis ) THEN
-				REPEAT ParameterDeclaration( procedureType, parentScope );  UNTIL ~Optional( Scanner.Semicolon );
+				IF Lax THEN
+					WHILE Peek(Scanner.Identifier) OR Peek(Scanner.Const) OR Peek(Scanner.Var) DO 
+						ParameterDeclaration(procedureType, parentScope); Ignore(Scanner.Semicolon) 
+					END;
+				ELSE
+					REPEAT ParameterDeclaration( procedureType, parentScope );  UNTIL ~Optional( Scanner.Semicolon );
+				END;
 				Check( Scanner.RightParenthesis );
 			END;
 			IF Optional( Scanner.Colon ) THEN
@@ -1541,8 +1580,7 @@ TYPE
 			procedureType.SetModifiers(modifiers);
 			procedure.SetType(procedureType);
 			IF Optional(Scanner.LeftParenthesis) THEN FormalParameters( procedureType, procedureScope) END;
-			Check( Scanner.Semicolon );
-
+			IF Lax THEN Ignore(Scanner.Semicolon) ELSE Check( Scanner.Semicolon ) END;
 			DeclarationSequence( procedureScope);
 			IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
 				procedureScope.SetBody(Body(procedureScope));
@@ -1595,7 +1633,7 @@ TYPE
 			procedureType := SyntaxTree.NewProcedureType(symbol.start,parentScope);
 			IF Mandatory(Scanner.LeftParenthesis) THEN FormalParameters( procedureType, procedureScope ) END;
 			operator.SetType( procedureType );
-			Check( Scanner.Semicolon );
+			IF Lax THEN Ignore(Scanner.Semicolon) ELSE Check( Scanner.Semicolon ) END;
 			DeclarationSequence( procedureScope );
 			IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
 				procedureScope.SetBody(Body(procedureScope));
@@ -1604,10 +1642,8 @@ TYPE
 			parentScope.AddProcedure(operator);
 			IF parentScope IS SyntaxTree.ModuleScope THEN
 				parentScope(SyntaxTree.ModuleScope).AddOperator(operator);
-
 			ELSIF parentScope IS SyntaxTree.RecordScope THEN
 				parentScope(SyntaxTree.RecordScope).AddOperator(operator);
-
 			ELSE
 				Error(position,Diagnostics.Invalid,"Operators only allowed in module scope");
 			END;
@@ -1703,30 +1739,49 @@ TYPE
 			previousScope := currentScope;
 			currentScope := parentScope;
 			IF Trace THEN S( "DeclarationSequence" ) END;
-			LOOP
-				IF Optional( Scanner.Const ) THEN
-					REPEAT
-						IF Peek(Scanner.Identifier) THEN ConstDeclaration( parentScope ) END
-					UNTIL ~Optional( Scanner.Semicolon )
-				ELSIF Optional( Scanner.Type ) THEN
-					REPEAT
-						IF Peek(Scanner.Identifier) THEN TypeDeclaration( parentScope) END
-					UNTIL ~Optional( Scanner.Semicolon )
-				ELSIF Optional( Scanner.Var ) THEN
-					REPEAT
-						IF Peek(Scanner.Identifier) THEN VariableDeclaration( parentScope ) END
-					UNTIL ~Optional( Scanner.Semicolon )
-				ELSE EXIT
+			IF Lax THEN
+				LOOP
+					Ignore(Scanner.Semicolon);
+					IF Optional(Scanner.Const) THEN
+						WHILE Peek(Scanner.Identifier) DO ConstDeclaration(parentScope); Ignore(Scanner.Semicolon) END;
+					ELSIF Optional(Scanner.Type) THEN
+						WHILE Peek(Scanner.Identifier) DO TypeDeclaration(parentScope); Ignore(Scanner.Semicolon) END;
+					ELSIF Optional(Scanner.Var) THEN
+						WHILE Peek(Scanner.Identifier) DO VariableDeclaration(parentScope); Ignore(Scanner.Semicolon); END;
+					ELSIF Optional(Scanner.Procedure) THEN
+						ProcedureDeclaration(parentScope); Ignore(Scanner.Semicolon)
+					ELSIF Optional(Scanner.Operator) THEN
+						OperatorDeclaration(parentScope); Ignore(Scanner.Semicolon);
+					ELSE
+						EXIT
+					END;
 				END;
-				WHILE Optional(Scanner.Semicolon) DO END;
+			ELSE
+				LOOP
+					IF Optional( Scanner.Const ) THEN
+						REPEAT
+							IF Peek(Scanner.Identifier) THEN ConstDeclaration( parentScope ) END
+						UNTIL ~Optional( Scanner.Semicolon )
+					ELSIF Optional( Scanner.Type ) THEN
+						REPEAT
+							IF Peek(Scanner.Identifier) THEN TypeDeclaration( parentScope) END
+						UNTIL ~Optional( Scanner.Semicolon )
+					ELSIF Optional( Scanner.Var ) THEN
+						REPEAT
+							IF Peek(Scanner.Identifier) THEN VariableDeclaration( parentScope ) END
+						UNTIL ~Optional( Scanner.Semicolon )
+					ELSE EXIT
+					END;
+					Ignore(Scanner.Semicolon)
+				END;
+				REPEAT
+					IF Optional( Scanner.Operator ) THEN
+						OperatorDeclaration( parentScope);
+					ELSIF Optional( Scanner.Procedure ) THEN
+						ProcedureDeclaration( parentScope );
+					END;
+				UNTIL ~Optional( Scanner.Semicolon );
 			END;
-			REPEAT
-				IF Optional( Scanner.Operator ) THEN
-					OperatorDeclaration( parentScope);
-				ELSIF Optional( Scanner.Procedure ) THEN
-					ProcedureDeclaration( parentScope );
-				END;
-			UNTIL ~Optional( Scanner.Semicolon );
 			currentScope := previousScope;
 			IF Trace THEN E( "DeclarationSequence" ) END;
 		END DeclarationSequence;
@@ -1755,7 +1810,7 @@ TYPE
 					moduleScope.AddImport( import );
 				END;
 			UNTIL ~Optional( Scanner.Comma );
-			Check( Scanner.Semicolon );
+			IF Lax THEN Ignore(Scanner.Semicolon) ELSE Check( Scanner.Semicolon ) END;
 			IF Trace THEN E( "ImportList" );  END;
 		END ImportList;
 
@@ -1781,7 +1836,7 @@ TYPE
 					context := Identifier();
 					module.SetContext(context);
 				END;
-				Check(Scanner.Semicolon);
+				IF Lax THEN Ignore(Scanner.Semicolon) ELSE	Check(Scanner.Semicolon) END;
 				IF Optional(Scanner.Import) THEN ImportList(moduleScope) END;
 				DeclarationSequence( moduleScope);
 				IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
