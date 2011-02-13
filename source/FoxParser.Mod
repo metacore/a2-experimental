@@ -989,7 +989,8 @@ TYPE
 			IF Trace THEN S( "StatementSequence" ) END;
 			statements := SyntaxTree.NewStatementSequence();
 			IF Lax THEN
-				WHILE Statement(statements,outer) DO Ignore(Scanner.Semicolon) END;
+				WHILE ~Peek(Scanner.Return) & Statement(statements,outer) DO Ignore(Scanner.Semicolon) END;
+				IF Peek(Scanner.Return) & Statement(statements,outer) THEN Ignore(Scanner.Semicolon) END; (* return bound to end of statement sequence *)
 			ELSE
 				REPEAT
 					b := Statement( statements,outer )
@@ -1476,8 +1477,8 @@ TYPE
 			(* left parenthesis already consumed *)
 			IF ~Optional( Scanner.RightParenthesis ) THEN
 				IF Lax THEN
-					WHILE Peek(Scanner.Identifier) OR Peek(Scanner.Const) OR Peek(Scanner.Var) DO 
-						ParameterDeclaration(procedureType, parentScope); Ignore(Scanner.Semicolon) 
+					WHILE Peek(Scanner.Identifier) OR Peek(Scanner.Const) OR Peek(Scanner.Var) DO
+						ParameterDeclaration(procedureType, parentScope); Ignore(Scanner.Semicolon)
 					END;
 				ELSE
 					REPEAT ParameterDeclaration( procedureType, parentScope );  UNTIL ~Optional( Scanner.Semicolon );
