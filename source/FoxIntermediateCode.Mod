@@ -67,8 +67,8 @@ CONST
 	add*= 24; and*= 25; or*= 26; xor*= 27; shl*= 28; shr*= 29; rol*= 30; ror*= 31;
 	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; NofOpcodes*= 38;
 
-	LINE_NR_COMMENT_OFFSET = 64;
-	LINE_COMMENT_START*    = ";";
+	LineNrCommentOffset = 64;
+	LineCommentStart = ";";
 
 TYPE
 	Type*=RECORD
@@ -250,7 +250,7 @@ TYPE
 					END;
 					start	:= w.Pos();
 					DumpInstruction(w,instructions[i]);
-					PrepareCommentOffset( w, start, LINE_NR_COMMENT_OFFSET );
+					PrepareCommentOffset( w, start, LineNrCommentOffset );
 					w.Int(i,1);
 					w.Ln;
 					INC(i);
@@ -263,7 +263,7 @@ TYPE
 				WHILE(i<=to) DO
 					start	:= w.Pos();
 					DumpInstruction(w,instructions[i]);
-					PrepareCommentOffset( w, start, LINE_NR_COMMENT_OFFSET );
+					PrepareCommentOffset( w, start, LineNrCommentOffset );
 					w.Int(i,1);
 					w.Ln;
 					INC(i);
@@ -472,7 +472,7 @@ TYPE
 				IF operand.type.form IN Integer THEN
 					IF (operand.intValue > MAX(LONGINT)) OR (operand.intValue < MIN(LONGINT)) THEN
 						w.String("0");
-						w.Hex(operand.intValue,0); 
+						w.Hex(operand.intValue,0);
 						w.String("H");
 					ELSE
 						w.Int(SHORT(operand.intValue),1);
@@ -501,7 +501,7 @@ TYPE
 
 	PROCEDURE PrepareComment*( w: Streams.Writer );
 	BEGIN
-		w.String( LINE_COMMENT_START );
+		w.String( LineCommentStart );
 		w.Char( " " );
 	END PrepareComment;
 
