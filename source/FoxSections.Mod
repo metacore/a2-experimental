@@ -64,20 +64,21 @@ TYPE
 		PROCEDURE Dump*(w: Streams.Writer);
 		BEGIN
 			CASE type OF
-				|CodeSection:w.String(".code ")
-				|BodyCodeSection:w.String(".bodycode ")
-				|InlineCodeSection:w.String(".inlinecode ")
-				|VarSection:w.String(".var ");
-				|ConstSection:w.String(".const ");
-				|InitCodeSection: w.String(".initcode ");
-				|InitCode2Section: w.String(".initcode2 ");
+				|CodeSection:w.String("code ")
+				|BodyCodeSection:w.String("bodycode ")
+				|InlineCodeSection:w.String("inlinecode ")
+				|VarSection:w.String("var ");
+				|ConstSection:w.String("const ");
+				|InitCodeSection: w.String("initcode ");
+				|InitCode2Section: w.String("initcode2 ");
 			END;
 			DumpName(w);
 			w.String(" offset="); w.Int(offset,1);
 		END Dump;
 
 		PROCEDURE DumpName*(w: Streams.Writer);
-		BEGIN w.String(name);
+		BEGIN
+			w.String(name);
 		END DumpName;
 
 	END Section;
@@ -303,11 +304,15 @@ TYPE
 		VAR name: SyntaxTree.String; import: SyntaxTree.Import; first: BOOLEAN;
 
 		BEGIN
-			w.String(".module "); Global.ModuleFileName(module.name,module.context,name); w.String(name); w.Ln; w.Ln;
+			w.String("module ");
+			Global.ModuleFileName(module.name,module.context,name);
+			w.String(name);
+			w.Ln;
+			w.Ln;
 
 			import := module.moduleScope.firstImport;
 			IF import # NIL THEN
-				w.String(".imports "); first := TRUE;
+				w.String("imports "); first := TRUE;
 				WHILE import # NIL DO
 					IF first THEN first := FALSE ELSE w.String(", ") END;
 					IF import.module # NIL THEN

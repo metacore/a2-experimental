@@ -3,7 +3,7 @@ MODULE FoxIntermediateBackend; (** AUTHOR ""; PURPOSE ""; *)
 IMPORT Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, SemanticChecker := FoxSemanticChecker, Backend := FoxBackend, Global := FoxGlobal,
 	Scanner := FoxScanner, IntermediateCode := FoxIntermediateCode, Sections := FoxSections, Printout := FoxPrintout,
 	SYSTEM, Diagnostics, Strings, Options, Streams, Compiler, Formats := FoxFormats, SymbolFileFormat := FoxTextualSymbolFile, D := Debugging,
-	FingerPrinter := FoxFingerPrinter, BinaryCode := FoxBinaryCode;
+	FingerPrinter := FoxFingerPrinter, BinaryCode := FoxBinaryCode, Files;
 
 CONST
 		(* operand modes *)
@@ -2739,13 +2739,13 @@ TYPE
 		PROCEDURE DumpOperand(operand: Operand);
 		BEGIN
 			D.Log.String("    op = ");
-			IntermediateCode.DumpOperand(D.Log, operand.op, TRUE);
+			IntermediateCode.DumpOperand(D.Log, operand.op );
 			D.Log.Ln;
 			D.Log.String("    tag = ");
-			IntermediateCode.DumpOperand(D.Log, operand.tag, TRUE);
+			IntermediateCode.DumpOperand(D.Log, operand.tag );
 			D.Log.Ln;
 			D.Log.String("    extra = ");
-			IntermediateCode.DumpOperand(D.Log, operand.extra, TRUE);
+			IntermediateCode.DumpOperand(D.Log, operand.extra );
 			D.Log.Ln;
 			D.Log.Update
 		END DumpOperand;
@@ -6969,12 +6969,27 @@ TYPE
 			RETURN module
 		END GenerateIntermediate;
 
+		PROCEDURE GenerateFile(module: Sections.Module; dump: Streams.Writer; fname: ARRAY OF CHAR );
+		VAR
+			file : Files.File;
+			writer	: Files.Writer;
+		BEGIN
+			file := Files.New( fname );
+			Files.OpenWriter( writer, file, 0 );
+			module.Dump(writer);
+			writer.Update;
+			file.Update;
+			Files.Register( file );
+		END GenerateFile;
+
 		(* Work on a module *)
 		PROCEDURE Module(x: SyntaxTree.Module): Formats.GeneratedModule;
 		VAR
 			dump: Basic.Writer;
 			module: Sections.Module;
 			traceName: SyntaxTree.String;
+			name: SyntaxTree.String;
+			fname	: ARRAY 256 OF CHAR;
 		BEGIN
 			module := GenerateIntermediate(x);
 
@@ -6988,6 +7003,29 @@ TYPE
 				ELSE
 					Sections.DumpFiltered(dump,module,traceString);
 				END
+			END;
+			IF ~error THEN
+				Global.GetSymbolName(x,name);
+				Files.JoinExtension( name, "ir", fname );
+				IF dump # NIL THEN
+					dump.String( "generate file: " );
+					dump.String( fname );
+					dump.Ln;
+					dump.Update;
+				END;
+				GenerateFile(module,dump,fname);
+(*				IF dump # NIL THEN
+					dump.Ln; dump.Ln;
+					IntermediateCode.PrepareComment( dump );
+					dump.String("------------------ binary code -------------------"); dump.Ln;
+					IF (traceString="") OR (traceString="*") THEN
+						intermediateModule.Dump(dump);
+						dump.Update
+					ELSE
+						Sections.DumpFiltered(dump,intermediateModule(Sections.Module),traceString);
+						dump.Update;
+					END
+				END;*)
 			END;
 
 			(*

@@ -67,6 +67,9 @@ CONST
 	add*= 24; and*= 25; or*= 26; xor*= 27; shl*= 28; shr*= 29; rol*= 30; ror*= 31;
 	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; NofOpcodes*= 38;
 
+	LINE_NR_COMMENT_OFFSET = 64;
+	LINE_COMMENT_START*    = ";";
+
 TYPE
 	Type*=RECORD
 		form-: SHORTINT; (* SignedInteger, UnsignedInteger or Float *)
@@ -229,7 +232,10 @@ TYPE
 		END SetPC;
 
 		PROCEDURE DumpCode*(w: Streams.Writer; from,to: LONGINT);
-		VAR i: LONGINT; c: Sections.Comment;
+		VAR
+			i		: LONGINT;
+			c		: Sections.Comment;
+			start	: LONGINT;
 		BEGIN
 			IF comments # NIL THEN
 				c := comments.firstComment;
@@ -242,8 +248,11 @@ TYPE
 						c.Dump(w); w.Ln;
 						c := c.nextComment;
 					END;
-					w.Int(i,1); w.String(":"); w.Char(09X);
-					DumpInstruction(w,instructions[i]); w.Ln;
+					start	:= w.Pos();
+					DumpInstruction(w,instructions[i]);
+					PrepareCommentOffset( w, start, LINE_NR_COMMENT_OFFSET );
+					w.Int(i,1);
+					w.Ln;
 					INC(i);
 				END;
 				IF (c#NIL) & (c.pos = to) THEN
@@ -252,8 +261,11 @@ TYPE
 			ELSE
 				i := from;
 				WHILE(i<=to) DO
-					w.Int(i,1); w.String(":"); w.Char(09X);
-					DumpInstruction(w,instructions[i]); w.Ln;
+					start	:= w.Pos();
+					DumpInstruction(w,instructions[i]);
+					PrepareCommentOffset( w, start, LINE_NR_COMMENT_OFFSET );
+					w.Int(i,1);
+					w.Ln;
 					INC(i);
 				END;
 			END;
@@ -397,43 +409,40 @@ TYPE
 		END;
 	END DumpType;
 
-	PROCEDURE DumpOperand*(w: Streams.Writer; CONST operand: Operand; size: BOOLEAN);
+	PROCEDURE DumpOperand*(w: Streams.Writer; CONST operand: Operand );
 
 		PROCEDURE DumpString(CONST str: ARRAY OF CHAR);
-		VAR i: LONGINT; ch: CHAR; newln,multiline: BOOLEAN;
+		VAR
+			i: LONGINT;
+			ch: CHAR;
+			newln: BOOLEAN;
 		BEGIN
-			i := 0; ch := str[i];
-			WHILE (ch # 0X) & (ch # 0DX) & (ch # 0AX) DO INC(i); ch := str[i]; END;
-			multiline := ch # 0X;
-			IF multiline THEN
-				w.String(">"); w.Ln;
-				IF w IS Basic.Writer THEN w(Basic.Writer).IncIndent END;
-				w.String("> ");
-			ELSE
-				w.String('"');
-			END;
-			i := 0;  ch := str[i]; newln := FALSE;
-			WHILE(ch#0X) DO
-				IF (ch = 0DX) OR (ch = 0AX) THEN newln := TRUE
-				ELSIF newln & (ch <= " ") THEN (* skip leading spaces *)
+			w.String('"');
+			i := 0;
+			ch := str[i];
+			WHILE ch # 0X DO
+				IF (ch = 0DX) OR (ch = 0AX) THEN
+					newln := TRUE
 				ELSE
-					IF newln THEN w.Ln; w.String("> "); newln := FALSE;  END;
-				 	w.Char(ch);
+					IF newln THEN
+						w.Ln;
+						newln := FALSE;
+					END;
+					IF (ch = '"') OR (ch = "\") THEN
+					 	w.Char( '\' );
+					 	w.Char(ch);
+					ELSE
+					 	w.Char(ch);
+					 END
 				 END;
-				INC(i); ch := str[i];
+				INC(i);
+				ch := str[i];
 			END;
-			IF multiline THEN
-				IF w IS Basic.Writer THEN w(Basic.Writer).DecIndent END;
-			ELSE
-				w.String('"');
-			END;
+			w.String('"');
 		END DumpString;
 
-
 	BEGIN
-		IF size THEN
-			DumpType(w,operand.type); w.String(" ");
-		END;
+		DumpType(w,operand.type); w.String(" ");
 
 		CASE operand.mode OF
 		Undefined: w.String("!Undefined");
@@ -462,7 +471,9 @@ TYPE
 			ELSE
 				IF operand.type.form IN Integer THEN
 					IF (operand.intValue > MAX(LONGINT)) OR (operand.intValue < MIN(LONGINT)) THEN
-						w.Hex(operand.intValue,1); w.String("H");
+						w.String("0");
+						w.Hex(operand.intValue,0); 
+						w.String("H");
 					ELSE
 						w.Int(SHORT(operand.intValue),1);
 					END
@@ -488,13 +499,31 @@ TYPE
 		& (s1.symbol = s2.symbol) & (s1.string = s2.string) & (s1.symbolOffset = s2.symbolOffset) & TypeEquals(s1.type,s2.type);
 	END OperandEquals;
 
+	PROCEDURE PrepareComment*( w: Streams.Writer );
+	BEGIN
+		w.String( LINE_COMMENT_START );
+		w.Char( " " );
+	END PrepareComment;
+
+	PROCEDURE PrepareCommentOffset*( w: Streams.Writer; lineOffset, commentOffset: LONGINT );
+	VAR
+		pos		: LONGINT;
+	BEGIN
+		pos		:= w.Pos();
+		pos		:= pos - lineOffset;
+		WHILE pos < commentOffset DO
+			w.Char( " " );
+			INC( pos );
+		END;
+		PrepareComment( w );
+	END PrepareCommentOffset;
 
 	PROCEDURE DumpInstruction*(w: Streams.Writer; CONST instr: Instruction);
 	BEGIN
 		w.String(instructionFormat[instr.opcode].name);
-		IF instr.op1.mode # Undefined THEN w.String(" "); DumpOperand(w,instr.op1,TRUE) END;
-		IF instr.op2.mode # Undefined THEN w.String(", "); DumpOperand(w,instr.op2,~TypeEquals(instr.op2.type,instr.op1.type)) END;
-		IF instr.op3.mode # Undefined THEN w.String(", "); DumpOperand(w,instr.op3,~TypeEquals(instr.op3.type,instr.op2.type)) END;
+		IF instr.op1.mode # Undefined THEN w.String(" "); DumpOperand(w,instr.op1) END;
+		IF instr.op2.mode # Undefined THEN w.String(", "); DumpOperand(w,instr.op2) END;
+		IF instr.op3.mode # Undefined THEN w.String(", "); DumpOperand(w,instr.op3) END;
 	END DumpInstruction;
 
 	PROCEDURE InitInstructions;
