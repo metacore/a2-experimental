@@ -16,7 +16,7 @@ CONST
 	MaxLongrealExponent* = 308;   (* maximal longreal exponent *)
 
 	(* scanner constants *)
-	EOT* = 0X; LF = 0AX; CR = 0DX;
+	EOT* = 0X; LF* = 0AX; CR* = 0DX;
 
 TYPE
 	StringType* = ARRAY MaxStringLength OF CHAR;
@@ -93,7 +93,7 @@ CONST
 	Shortint*= 96; Integer*= 97; Longint*= 98; Hugeint*= 99; Real*= 100; Longreal*= 101; 
 	Comment*= 102; EndOfText*= 103; 
 
-	SingleQuote = 27X;  DoubleQuote = 22X;
+	SingleQuote = 27X;  DoubleQuote* = 22X;
 	Ellipsis = 7FX;   (* used in Scanner.GetNumber to return with ".." when reading an interval like 3..5 *)
 
 	Uppercase*=0;
@@ -103,18 +103,18 @@ CONST
 
 TYPE
 	(* keywords  book keeping *)
-	Keyword = ARRAY 32 OF CHAR;
+	Keyword* = ARRAY 32 OF CHAR;
 
-	KeywordTable = OBJECT(Basic.HashTableInt); (* string -> index *)
+	KeywordTable* = OBJECT(Basic.HashTableInt); (* string -> index *)
 	VAR table: POINTER TO ARRAY OF LONGINT;
 
-		PROCEDURE &InitTable(size: LONGINT);
+		PROCEDURE &InitTable*(size: LONGINT);
 		VAR i: LONGINT;
 		BEGIN
 			Init(size); NEW(table,size); FOR i := 0 TO size-1 DO table[i] := -1; END;
 		END InitTable;
 
-		PROCEDURE IndexByString(CONST name: ARRAY OF CHAR): LONGINT;
+		PROCEDURE IndexByString*(CONST name: ARRAY OF CHAR): LONGINT;
 		VAR stringPoolIndex: LONGINT;
 		BEGIN
 			StringPool.GetIndex(name,stringPoolIndex);
@@ -125,7 +125,7 @@ TYPE
 			END;
 		END IndexByString;
 
-		PROCEDURE StringByIndex(index: LONGINT; VAR name: ARRAY OF CHAR);
+		PROCEDURE StringByIndex*(index: LONGINT; VAR name: ARRAY OF CHAR);
 		VAR stringPoolIndex: LONGINT;
 		BEGIN
 			stringPoolIndex := table[index];
@@ -136,7 +136,7 @@ TYPE
 			END;
 		END StringByIndex;
 
-		PROCEDURE PutString(CONST name: ARRAY OF CHAR; index: LONGINT);
+		PROCEDURE PutString*(CONST name: ARRAY OF CHAR; index: LONGINT);
 		VAR stringPoolIndex: LONGINT;
 		BEGIN
 			StringPool.GetIndex(name,stringPoolIndex);
@@ -153,29 +153,29 @@ TYPE
 		symbol: data structure for the data transfer of the last read input from the scanner to the parser
 	**)
 	Symbol*= RECORD
-		start-,end-: LONGINT; (* start and end position of symbol *)
-		token-: Token; (* token of symbol *)
-		string-: StringType;  (* string or identifier *)
-		stringLength-: LONGINT; (* length of string, if stringLength = 2 then this may be interpreted as character and integer = ORD(ch) *)
-		numberType-: LONGINT;  (* Integer, HugeInteger, Real or Longreal *)
-		integer-: LONGINT;
-		hugeint-: HUGEINT;  (*! unify longint and hugeint *)
-		character-: CHAR;
-		real-: LONGREAL;
-		source-: SourceString; (* for comments and inline assembly *)
+		start*,end*: LONGINT; (* start and end position of symbol *)
+		token*: Token; (* token of symbol *)
+		string*: StringType;  (* string or identifier *)
+		stringLength*: LONGINT; (* length of string, if stringLength = 2 then this may be interpreted as character and integer = ORD(ch) *)
+		numberType*: LONGINT;  (* Integer, HugeInteger, Real or Longreal *)
+		integer*: LONGINT;
+		hugeint*: HUGEINT;  (*! unify longint and hugeint *)
+		character*: CHAR;
+		real*: LONGREAL;
+		source*: SourceString; (* for comments and inline assembly *)
 	END;
 
-	StringMaker = OBJECT (* taken from TF's scanner *)
+	StringMaker* = OBJECT (* taken from TF's scanner *)
 	VAR length : LONGINT;
 		data : SourceString;
 
-		PROCEDURE &Init(initialSize : LONGINT);
+		PROCEDURE &Init*(initialSize : LONGINT);
 		BEGIN
 			IF initialSize < 256 THEN initialSize := 256 END;
 			NEW(data, initialSize); length := 0;
 		END Init;
 
-		PROCEDURE Add(CONST buf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
+		PROCEDURE Add*(CONST buf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
 		VAR i : LONGINT; n: SourceString;
 		BEGIN
 			IF length + len + 1 >= LEN(data) THEN
@@ -190,33 +190,33 @@ TYPE
 		END Add;
 
 		(* remove last n characters *)
-		PROCEDURE Shorten(n : LONGINT);
+		PROCEDURE Shorten*(n : LONGINT);
 		BEGIN
 			DEC(length, n);
 			IF length < 0 THEN length := 0 END;
 			IF length > 0 THEN data[length - 1] := 0X ELSE data[length] := 0X END
 		END Shorten;
 
-		PROCEDURE Clear;
+		PROCEDURE Clear*;
 		BEGIN
 			data[0] := 0X;
 			length := 0
 		END Clear;
 
-		PROCEDURE GetWriter() : Streams.Writer;
+		PROCEDURE GetWriter*() : Streams.Writer;
 		VAR w : Streams.Writer;
 		BEGIN
 			NEW(w, SELF.Add, 256);
 			RETURN w
 		END GetWriter;
 
-		PROCEDURE GetString(VAR len: LONGINT) : SourceString;
+		PROCEDURE GetString*(VAR len: LONGINT) : SourceString;
 		BEGIN
 			len := length;
 			RETURN data
 		END GetString;
 
-		PROCEDURE GetStringCopy(VAR len: LONGINT): SourceString;
+		PROCEDURE GetStringCopy*(VAR len: LONGINT): SourceString;
 		VAR new: SourceString;
 		BEGIN
 			len := length;
