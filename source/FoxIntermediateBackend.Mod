@@ -6143,9 +6143,12 @@ TYPE
 			size: LONGINT;
 
 			PROCEDURE CanPassAsResultParameter(right: SyntaxTree.Expression): BOOLEAN;
+			VAR procedureType: SyntaxTree.ProcedureType;
 			BEGIN
 				IF ReturnedAsParameter(right.type) THEN
-					IF right IS SyntaxTree.ProcedureCallDesignator THEN RETURN TRUE
+					IF right IS SyntaxTree.ProcedureCallDesignator THEN
+						procedureType := right(SyntaxTree.ProcedureCallDesignator).left.type.resolved(SyntaxTree.ProcedureType);
+						RETURN procedureType.callingConvention = SyntaxTree.OberonCallingConvention
 					ELSIF right IS SyntaxTree.BuiltinCallDesignator THEN
 						WITH right: SyntaxTree.BuiltinCallDesignator DO
 							IF right.id = Global.Reshape THEN RETURN TRUE
@@ -6502,14 +6505,15 @@ TYPE
 		BEGIN
 			IF Trace THEN TraceEnter("VisitReturnStatement") END;
 			expression := x.returnValue;
+			procedure := currentScope(SyntaxTree.ProcedureScope).ownerProcedure;
+			procedureType := procedure.type(SyntaxTree.ProcedureType);
 			IF expression # NIL THEN
-				procedureType := currentScope(SyntaxTree.ProcedureScope).ownerProcedure.type(SyntaxTree.ProcedureType);
 				type := expression.type.resolved;
 				IF (expression IS SyntaxTree.ResultDesignator) THEN
 					IF locked THEN Lock(FALSE) END;
 					IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 					(* "RETURN RESULT" -> no assignment, it is assumed that result has been written to return parameter via structured return type *)
-				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.RangeType) & ~SemanticChecker.IsPointerType(type)THEN
+				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.RangeType) & ~SemanticChecker.IsPointerType(type) OR (procedureType.callingConvention # SyntaxTree.OberonCallingConvention) THEN
 					(* return without structured return parameter *)
 					Evaluate(expression,res);
 					delegate := (type IS SyntaxTree.ProcedureType) & (type(SyntaxTree.ProcedureType).isDelegate);
@@ -6601,8 +6605,9 @@ TYPE
 				IF locked THEN Lock(FALSE) END;
 				IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 			END;
-			procedure := currentScope(SyntaxTree.ProcedureScope).ownerProcedure;
-			parSize := ProcedureParametersSize(system,procedure);
+			IF procedureType.callingConvention = SyntaxTree.CCallingConvention THEN parSize := 0
+			ELSE parSize := ProcedureParametersSize(system,procedure);
+			END;
 
 			Emit(Leave(procedure.type(SyntaxTree.ProcedureType).callingConvention));
 			Emit(Exit(parSize));
@@ -9413,7 +9418,7 @@ TYPE
 
 	PROCEDURE StructuredReturnType(procedureType: SyntaxTree.ProcedureType): BOOLEAN;
 	BEGIN
-		RETURN (procedureType # NIL) & ReturnedAsParameter(procedureType.returnType);
+		RETURN (procedureType # NIL) & (procedureType.callingConvention=SyntaxTree.OberonCallingConvention) & ReturnedAsParameter(procedureType.returnType);
 	END StructuredReturnType;
 
 	PROCEDURE IsNested(procedure: SyntaxTree.Procedure): BOOLEAN;

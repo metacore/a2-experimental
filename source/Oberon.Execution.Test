@@ -7703,3 +7703,53 @@ positive: testing calling convention, in particular return of complex types
 	END Test.
 
 
+positive: simple calling convention test (c and winapi returning pointer)
+
+	MODULE Test; 
+
+	TYPE
+
+		Pointer = POINTER TO RECORD x,y: LONGINT END;
+
+		PROCEDURE {C} P(x,y: LONGINT): Pointer;
+		VAR p: Pointer;
+		BEGIN
+			NEW(p);
+			p.x := x;
+			p.y := y;
+			RETURN p
+		END P;
+
+		PROCEDURE {WINAPI} Q(x,y: LONGINT): Pointer;
+		VAR p: Pointer;
+		BEGIN
+			NEW(p);
+			p.x := x;
+			p.y := y;
+			RETURN p
+		END Q;
+
+		PROCEDURE R(x,y: LONGINT): Pointer;
+		VAR p: Pointer;
+		BEGIN
+			NEW(p);
+			p.x := x;
+			p.y := y;
+			RETURN p
+		END R;
+
+
+		PROCEDURE Test*;
+		VAR p,q,r: Pointer;
+		BEGIN
+			p := P(1,2);
+			ASSERT(p.x = 1); ASSERT(p.y = 2);
+			q := Q(1,2);
+			ASSERT(q.x = 1); ASSERT(q.y = 2);
+			r := R(1,2);
+			ASSERT(r.x = 1); ASSERT(r.y = 2);
+		END Test;
+
+	BEGIN
+		Test
+	END Test.
