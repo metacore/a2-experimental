@@ -10,9 +10,11 @@ IMPORT
 
 CONST
   Trace = TRUE;
-  
+
+  TAB   = 09X;
+
   TK_None*              =   0;
-  
+
   TK_Module*            =   1;
   TK_Imports*           =   2;
   TK_Bodycode*          =   3;
@@ -74,7 +76,7 @@ CONST
   TK_Colon*             =  55;
   TK_Dollar*            =  56;
   TK_At*                =  57;
-  
+
   TK_Comment*           =  58;
   TK_String*            =  59;
   TK_Ln*                =  60;
@@ -86,7 +88,7 @@ CONST
   TK_Plus*              =  66;
 
   TK_EndOfText*         =  67;
-  
+
   NumberOfToken         =  68;
 
 TYPE
@@ -173,21 +175,46 @@ TYPE
   END GetNextCharacter;
 
   (** get a string starting at current position
-    string = '"' {Character} '"' | "'" {Character} "'".
+    string = '"' {(Character-'"') | '\"'} '"'.
   **)
   PROCEDURE GetString(VAR symbol: Fs.Symbol);
   VAR
-    i: INTEGER;  och: CHAR;
+    i       : INTEGER;
   BEGIN
-    i := 0;  och := ch;
+    i       := 0;
     LOOP
       GetNextCharacter;
-      IF ch = och THEN EXIT END;
-      IF ch < " " THEN Error( Basic.StringIllegalCharacter );  EXIT END;
-      IF i = Fs.MaxStringLength - 1 THEN Error( Basic.StringTooLong );  EXIT END;
-      symbol.string[i] := ch;  INC( i )
+      IF ch = '\' THEN
+        GetNextCharacter;
+        CASE ch OF
+        | '"':
+          ch := '"';
+        | '\':
+          ch := '\';
+        | 'n':
+          ch := Fs.LF;
+        | 't':
+          ch := TAB;
+        ELSE
+          Error( Basic.StringIllegalCharacter );
+          EXIT;
+        END;
+      ELSE
+        IF ch = '"' THEN
+          EXIT;
+        END;
+      END;
+      IF i = Fs.MaxStringLength - 1 THEN    (*TODO: length 256 is not enough*)
+        Error( Basic.StringTooLong );
+        EXIT;
+      END;
+      symbol.string[i] := ch;
+      INC( i );
     END;
-    GetNextCharacter;  symbol.string[i] := 0X;  symbol.character := symbol.string[0];  symbol.stringLength := i + 1;
+    GetNextCharacter;
+    symbol.string[i]    := 0X;
+    symbol.character    := symbol.string[0];
+    symbol.stringLength := i + 1;
   END GetString;
 
   (**
@@ -357,79 +384,16 @@ TYPE
     RETURN result;
   END GetNumber;
 
-  (** read / skip a comment **)
-  PROCEDURE ReadComment(VAR symbol: Fs.Symbol);
-  VAR level: LONGINT;
-  BEGIN
-    sourceString.Clear;
-    level := 1;
-    WHILE (level > 0) & (ch # Fs.EOT) DO
-      IF ch = "(" THEN
-        sourceWriter.Char(ch);
-        GetNextCharacter;
-        IF ch = "*" THEN INC(level); sourceWriter.Char(ch); GetNextCharacter;  END;
-      ELSIF ch = "*" THEN
-        sourceWriter.Char(ch);
-        GetNextCharacter;
-        IF ch =")" THEN DEC(level); sourceWriter.Char(ch); GetNextCharacter;  END;
-      ELSE
-        sourceWriter.Char(ch);
-        GetNextCharacter;
-      END;
-    END;
-
-    IF level > 0 THEN
-      Error(Basic.CommentNotClosed)
-    END;
-
-    sourceWriter.Char(0X);
-    sourceWriter.Update;
-    sourceString.Shorten(2); (* remove comment closing *)
-    symbol.token := TK_Comment;
-    symbol.source := sourceString.GetString(symbol.stringLength);
-  END ReadComment;
-  
-  PROCEDURE SkipToNextEnd(VAR startPos,endPos: LONGINT; VAR symbol: Fs.Symbol): BOOLEAN;
-  VAR s: LONGINT;
-
-  BEGIN
-    sourceString.Clear;
-    startPos := symbol.end;
-    s := symbol.token;
-    WHILE (s # TK_EndOfText) & (s # TK_End) DO
-      symbol.start := position;
-      endPos := position;
-      CASE ch OF
-      'A' .. 'Z','a'..'z': s := TK_Identifier;
-        GetIdentifier(symbol);
-          sourceWriter.String(symbol.string);
-      ELSE
-        sourceWriter.Char(ch);
-        GetNextCharacter;
-      END;
-      symbol.end := position;
-    END;
-    sourceWriter.Update;
-    symbol.source := sourceString.GetStringCopy(symbol.stringLength);
-    symbol.token := s;
-
-    IF Trace THEN
-      D.String("skip to END: "); D.Int(startPos,1); D.String(","); D.Int(endPos,1); D.Ln;
-      OutSymbol(D.Log,symbol); D.Ln;
-    END;
-    RETURN s=TK_End
-  END SkipToNextEnd;
-
   PROCEDURE SkipBlanks;
   BEGIN
-    WHILE (ch <= " ") & (ch # Fs.CR) & (ch # Fs.LF) & (ch # Fs.EOT) DO  (* ignore control characters except line feeds *)
+    WHILE (ch <= " ") & (ch # Fs.EOT) DO
       GetNextCharacter
     END;
   END SkipBlanks;
 
   PROCEDURE GetNextSymbol*(VAR symbol: Fs.Symbol ): BOOLEAN;
   VAR
-    s: LONGINT;
+    s, token: LONGINT;
   BEGIN
     REPEAT
       SkipBlanks;
@@ -448,17 +412,6 @@ TYPE
       | ")":
           GetNextCharacter;
           s := TK_RightParenthesis;
-      | Fs.CR:
-          GetNextCharacter;
-          s := TK_Ln;
-          symbol.string := "";
-          IF ch = Fs.LF THEN
-            GetNextCharacter;
-          END;
-      | Fs.LF:
-          GetNextCharacter;
-          s := TK_Ln;
-          symbol.string := "";
       | ",":
           GetNextCharacter;
           s := TK_Comma;
@@ -479,9 +432,6 @@ TYPE
       | "]":
           GetNextCharacter;
           s := TK_RightBracket;
-      | "a".."z", "A".."Z":
-          GetIdentifier( symbol );
-          s := TK_Identifier;
       | '$':
           GetNextCharacter;
           s := TK_Dollar;
@@ -494,6 +444,13 @@ TYPE
       | '+':
           GetNextCharacter;
           s := TK_Plus;
+      | "a".."z", "A".."Z":
+          GetIdentifier( symbol);
+          s := TK_Identifier;
+          token := keywords.IndexByString(symbol.string);
+          IF token >= 0 THEN
+            s := token
+          END;
       ELSE
         s := TK_None;
         GetNextCharacter;
@@ -514,23 +471,23 @@ TYPE
     RETURN ~error
   END GetNextSymbol;
 
-	PROCEDURE OutSymbol*(w: Streams.Writer; CONST symbol: Fs.Symbol);
-	BEGIN
-		w.Int(symbol.start,1);
-		w.String("-");
-		w.Int(symbol.end,1);
-		w.String(":");
-		w.String(tokens[symbol.token]);
-		IF symbol.token= Fs.Number THEN
-			CASE symbol.numberType OF
-				Fs.Integer: w.String("(integer)")
-				|Fs.Hugeint: w.String("(hugeint)")
-				|Fs.Real: w.String("(real)")
-				|Fs.Longreal: w.String("(longreal)")
-			END;
-		END;
-		IF symbol.string # "" THEN w.String(": "); w.String('"'); w.String(symbol.string); w.String('"') END;
-	END OutSymbol;
+  PROCEDURE OutSymbol*(w: Streams.Writer; CONST symbol: Fs.Symbol);
+  BEGIN
+    w.Int(symbol.start,1);
+    w.String("-");
+    w.Int(symbol.end,1);
+    w.String(":");
+    w.String(tokens[symbol.token]);
+    IF symbol.token= Fs.Number THEN
+      CASE symbol.numberType OF
+        Fs.Integer: w.String("(integer)")
+        |Fs.Hugeint: w.String("(hugeint)")
+        |Fs.Real: w.String("(real)")
+        |Fs.Longreal: w.String("(longreal)")
+      END;
+    END;
+    IF symbol.string # "" THEN w.String(": "); w.String('"'); w.String(symbol.string); w.String('"') END;
+  END OutSymbol;
 
 
   (** reserved characters are the characters that may not occur within an identifier **)
@@ -571,9 +528,9 @@ TYPE
     tokens[TK_Const]       := "Const";
     tokens[TK_Code]        := "Code";
     tokens[TK_Offset]      := "Offset";
-    
+
     tokens[TK_Reserve]     := "Reserve";
-    
+
     tokens[TK_Data]        := "Data";
 
     tokens[TK_Nop]         := "Nop";
@@ -610,10 +567,10 @@ TYPE
     tokens[TK_Copy]        := "Copy";
     tokens[TK_Fill]        := "Fill";
     tokens[TK_Asm]         := "Asm";
-    
+
     tokens[TK_Sp]          := "Sp";
     tokens[TK_Fp]          := "Fp";
- 
+
     tokens[TK_Comma]            := "Comma";
     tokens[TK_Becomes]          := "Becomes";
     tokens[TK_LeftBracket]      := "LeftBracket";
@@ -668,15 +625,15 @@ TYPE
     Enter( "var",         TK_Var );
     Enter( "const",       TK_Const );
     Enter( "code",        TK_Code );
-    
+
     Enter( "offset",      TK_Offset );
-    
+
     (* var section *)
     Enter( "reserve",     TK_Reserve );
-    
+
     (* const section *)
     Enter( "data",        TK_Data );
-    
+
     (* code section *)
     Enter( "nop",         TK_Nop );
     Enter( "mov",         TK_Mov );
@@ -712,7 +669,7 @@ TYPE
     Enter( "copy",        TK_Copy );
     Enter( "fill",        TK_Fill );
     Enter( "asm",         TK_Asm );
-    
+
     (* register *)
     Enter( "SP",          TK_Sp );
     Enter( "FP",          TK_Fp );
@@ -731,10 +688,10 @@ TYPE
     EnterSymbol( "-", TK_Minus );
     EnterSymbol( "+", TK_Plus );
 
-(*    Basic.SetErrorMessage(Number,"missing number");
-    Basic.SetErrorMessage(String,"missing string");
-    Basic.SetErrorMessage(Character,"missing character");
-    Basic.SetErrorMessage(Identifier,"missing identifier");*)
+    Basic.SetErrorMessage(TK_Number,"missing number");
+    Basic.SetErrorMessage(TK_String,"missing string");
+    Basic.SetErrorMessage(TK_Character,"missing character");
+    Basic.SetErrorMessage(TK_Identifier,"missing identifier");
     END InitKeywords;
 
 
