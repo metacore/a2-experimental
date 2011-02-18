@@ -378,7 +378,7 @@ VAR
 	intHandler: ARRAY IDTSize, MaxNumHandlers OF HandlerRec; (* array of handlers for interrupts, the table is only filled up to MaxNumHandlers - 1, the last element in each row acts as a sentinel *)
 	stateTag: SYSTEM.ADDRESS;
 	default: HandlerRec;
-	i, j, ticks*: LONGINT;	(** timer ticks. Use Kernel.GetTicks() to read, don't write *)
+	ticks*: LONGINT;	(** timer ticks. Use Kernel.GetTicks() to read, don't write *)
 
 VAR
 	ipcBusy, ipcFlags, ipcFrontBarrier, ipcBackBarrier: SET;
@@ -1876,10 +1876,11 @@ END NewStack;
 PROCEDURE  -GetProcessPtr* (): ANY;
 CONST Mask = -MaxUserStackSize; Ofs = MaxUserStackSize-4;
 CODE {SYSTEM.i386}
-	POP EAX
 	MOV EAX, Mask
 	AND EAX, ESP
 	MOV EAX, [EAX+Ofs]
+	POP EBX; pointer returned via stack!
+	MOV [EBX], EAX
 END GetProcessPtr;
 
 (** True iff current process works on a kernel stack *)
@@ -3736,11 +3737,35 @@ BEGIN
 	traceColor := 7; Trace.Char := TraceChar; Trace.Color := TraceColor;
 END InitTrace;
 
+PROCEDURE InitHandlers;
+VAR i,j: LONGINT;
+BEGIN
+	FOR i := 0 TO IDTSize - 1 DO
+		FOR j := 0 TO MaxNumHandlers - 1 DO
+			intHandler[i, j].valid := FALSE;
+			intHandler[i, j].handler := NIL
+		END
+	END;
+END InitHandlers;
+
+PROCEDURE - PushBootValues;
+CODE{SYSTEM.i386}
+	PUSH EDI
+	PUSH ESI
+	PUSH EAX
+END PushBootValues;
+
+PROCEDURE - GetBootValue(): LONGINT;
+CODE{SYSTEM.i386}
+	POP EAX
+END GetBootValue;
+
 (* Init code called from OBL. EAX = boot table offset. ESI, EDI=initRegs. 2k stack is available. No trap handling. *)
 BEGIN
-	bootFlag := GetEAX();
-	initRegs[0] := GetESI();
-	initRegs[1] := GetEDI();
+	PushBootValues;
+	bootFlag := GetBootValue();
+	initRegs[0] := GetBootValue();
+	initRegs[1] := GetBootValue();
 	(* registers 6 and 7 get converted to 32 bit, cf. PCB.Assigne
 	SYSTEM.GETREG(6, initRegs[0]); SYSTEM.GETREG(7, initRegs[1]);	(* initRegs0 & initRegs1 *)
 	*)
@@ -3764,13 +3789,7 @@ BEGIN
 	InitPages;	(* create page tables *)
 	InitMemory;	(* switch on segmentation, paging and switch stack *)
 	Trace.Green; Trace.StringLn("Ok"); Trace.Default;
-
-	FOR i := 0 TO IDTSize - 1 DO
-		FOR j := 0 TO MaxNumHandlers - 1 DO
-			intHandler[i, j].valid := FALSE;
-			intHandler[i, j].handler := NIL
-		END
-	END;
+	InitHandlers; (* no FOR loops here as they create local variables, collision with GetEAX in first statement *)
 	default.valid := FALSE;	(* initialized later *)
 END Machine.
 

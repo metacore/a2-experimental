@@ -1838,6 +1838,8 @@ CODE {SYSTEM.AMD64}
 	MOV RAX, -MaxUserStackSize
 	AND RAX, RSP
 	MOV RAX, [RAX + MaxUserStackSize - 8]
+	POP RBX; pointer return passed via stack
+	MOV [RBX], RAX
 END GetProcessPtr;
 
 (** True iff current process works on a kernel stack *)
