@@ -190,6 +190,7 @@ PROCEDURE Default*;
 BEGIN Color (7);
 END Default;
 
+
 PROCEDURE NullChar(c: CHAR);
 BEGIN
 END NullChar;
@@ -198,8 +199,17 @@ PROCEDURE NullColor(c: SHORTINT);
 BEGIN
 END NullColor;
 
+PROCEDURE Init*;
+BEGIN
+	Char := NullChar;
+	Color := NullColor;	
+END Init;
+
+
+(*
 BEGIN
 	Char := NullChar;
 	Color := NullColor;
+	*)
 END Trace.
 
