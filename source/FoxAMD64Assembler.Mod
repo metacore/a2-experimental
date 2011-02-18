@@ -286,6 +286,7 @@ TYPE
 			pc0: LONGINT;
 
 			debug,temp: LONGINT;
+			taken: SET;
 
 			PROCEDURE FindInstruction(mnem: LONGINT; CONST operands: ARRAY OF Operand): LONGINT;
 			VAR instr: LONGINT;
@@ -328,43 +329,53 @@ TYPE
 				code.fixupList.AddFixup(fixup);
 			END AddFixup;
 
-			PROCEDURE GetRegOperand (): LONGINT;
+			PROCEDURE GetRegOperand (VAR taken: SET): LONGINT;
 			VAR i: LONGINT;
 			BEGIN
 				FOR i := 0 TO maxNumberOperands -1 DO
-					CASE InstructionSet.instructions[instr].operands[i] OF
-					InstructionSet.reg8, InstructionSet.reg16, InstructionSet.reg32, InstructionSet.reg64, InstructionSet.xmm, InstructionSet.mmx: RETURN i;
-					ELSE
+					IF ~(i IN taken) THEN
+						CASE InstructionSet.instructions[instr].operands[i] OF
+						InstructionSet.reg8, InstructionSet.reg16, InstructionSet.reg32, InstructionSet.reg64, InstructionSet.xmm, InstructionSet.mmx:
+							INCL(taken,i);
+							RETURN i;
+						ELSE
+						END;
 					END;
 				END;
 				RETURN none;
 			END GetRegOperand;
 
-			PROCEDURE GetAddressOperand (): LONGINT;
+			PROCEDURE GetAddressOperand (VAR taken: SET): LONGINT;
 			VAR i: LONGINT;
 			BEGIN
 				FOR i := 0 TO maxNumberOperands -1 DO
-					CASE InstructionSet.instructions[instr].operands[i] OF
-					InstructionSet.mem,
-					InstructionSet.mem8, InstructionSet.mem16, InstructionSet.mem32, InstructionSet.mem64, InstructionSet.mem128,
-					InstructionSet.regmem8, InstructionSet.regmem16, InstructionSet.regmem32, InstructionSet.regmem64,
-					InstructionSet.mmxmem32, InstructionSet.mmxmem64,
-					InstructionSet.xmmmem32, InstructionSet.xmmmem64, InstructionSet.xmmmem128:
-						RETURN i;
-					ELSE
+					IF ~(i IN taken) THEN
+						CASE InstructionSet.instructions[instr].operands[i] OF
+						InstructionSet.mem,
+						InstructionSet.mem8, InstructionSet.mem16, InstructionSet.mem32, InstructionSet.mem64, InstructionSet.mem128,
+						InstructionSet.regmem8, InstructionSet.regmem16, InstructionSet.regmem32, InstructionSet.regmem64,
+						InstructionSet.mmxmem32, InstructionSet.mmxmem64,
+						InstructionSet.xmmmem32, InstructionSet.xmmmem64, InstructionSet.xmmmem128:
+							INCL(taken,i);
+							RETURN i;
+						ELSE
+						END;
 					END;
 				END;
 				RETURN none;
 			END GetAddressOperand;
 
-			PROCEDURE GetSpecialOperand (): LONGINT;
+			PROCEDURE GetSpecialOperand (VAR taken: SET): LONGINT;
 			VAR i: LONGINT;
 			BEGIN
 				FOR i := 0 TO maxNumberOperands -1 DO
-					CASE InstructionSet.instructions[instr].operands[i] OF
-					InstructionSet.segReg, InstructionSet.mmx, InstructionSet.xmm, InstructionSet.CRn, InstructionSet.DRn:
-						RETURN i;
-					ELSE
+					IF ~(i IN taken) THEN
+						CASE InstructionSet.instructions[instr].operands[i] OF
+						InstructionSet.segReg, InstructionSet.mmx, InstructionSet.xmm, InstructionSet.CRn, InstructionSet.DRn:
+							INCL(taken,i);
+							RETURN i;
+						ELSE
+						END;
 					END;
 				END;
 				RETURN none;
@@ -426,14 +437,14 @@ TYPE
 				IF Trace THEN KernelLog.String(" optPOP   "); KernelLog.Ln;  END;
 				opPrefix := TRUE;
 			END;
-
-			regOperand := GetSpecialOperand ();
-			addressOperand := GetAddressOperand ();
+			taken := {};
+			regOperand := GetSpecialOperand (taken);
+			addressOperand := GetAddressOperand (taken);
 			IF regOperand = none THEN
-				regOperand := GetRegOperand ();
+				regOperand := GetRegOperand (taken);
 			END;
 			IF addressOperand = none THEN
-				addressOperand := GetRegOperand ();
+				addressOperand := GetRegOperand (taken);
 				IF regOperand # none THEN
 					temp := InstructionSet.instructions[instr].operands[regOperand];
 					IF (temp = xmm) OR (temp = mmx) THEN (* patch case such as PEXTRW EDX, XMM3, 0 *)
@@ -442,6 +453,7 @@ TYPE
 				ELSE
 				END;
 			END;
+			taken := {};
 
 			(* KernelLog.String (InstructionSet.mnemonics[mnem].name); KernelLog.Int (regOperand, 10); KernelLog.Int (addressOperand, 10); KernelLog.Ln; *)
 
@@ -912,7 +924,7 @@ TYPE
 						END;
 					| rb, rw, rd, rq:
 						IF Trace THEN KernelLog.String(" r* "); END;
-						regOperand := GetRegOperand ();
+						regOperand := GetRegOperand (taken);
 						val := val + InstructionSet.RegisterIndex(operands[regOperand].register) MOD 8;
 						code.PutByte (val); val := -1;
 						free[regOperand] := FALSE;
@@ -2572,7 +2584,7 @@ TYPE
 	PROCEDURE SetSize*(VAR operand: Operand;sizeInBytes: Size);
 	BEGIN operand.sizeInBytes := sizeInBytes
 	END SetSize;
-	
+
 	PROCEDURE SameOperand*(CONST left,right: Operand): BOOLEAN;
 	BEGIN
 		IF (left.type # right.type) OR (left.sizeInBytes # right.sizeInBytes) OR (left.symbol # right.symbol) THEN RETURN FALSE END;
