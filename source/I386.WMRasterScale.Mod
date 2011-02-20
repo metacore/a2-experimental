@@ -236,7 +236,7 @@ innerloop:
 	MOV	EDI, EAX
 	MOV	[EBP+yadr], EAX
 
-	DEC	[EBP+db]
+	DEC	DWORD [EBP+db]
 	JNLE	outerloop
 END XQ0BGR565BGR565;
 
@@ -372,7 +372,7 @@ outside2:
 	MOV		EDI, EAX
 	MOV		[EBP+yadr], EAX
 
-	DEC		[EBP+db]
+	DEC		DWORD [EBP+db]
 	JNLE		outerloop
 
 endyloop:
@@ -486,7 +486,7 @@ CODE {SYSTEM.i386, SYSTEM.MMX, SYSTEM.SSE, SYSTEM.SSE2}
 
 	; sx := sx - 8000H;
 
-	SUB		[EBP+sx], 8000H ;edx = sx-8000H
+	SUB		DWORD [EBP+sx], 8000H ;edx = sx-8000H
 
 	;FOR y := dt TO db - 1 DO
 	MOV		ECX, [EBP+db]
@@ -683,7 +683,7 @@ endaddx:
 
 	ADD		EDI, 2				; inc adr
 
-	SUB		[EBP+x], 1
+	SUB		DWORD [EBP+x], 1
 	JNZ			innerloop
 
 endxloop:
@@ -696,7 +696,7 @@ endxloop:
 	MOV		EDI, EAX
 	MOV		[EBP+yadr], EAX
 
-	SUB		[EBP+y], 1
+	SUB		DWORD [EBP+y], 1
 	JNZ			outerloop
 
 endyloop:
@@ -922,7 +922,7 @@ alleightpixels:
 
 	PXOR		XMM5, XMM5
 	PXOR 		XMM2,XMM2
-	MOV		[EBP+z], 4
+	MOV		DWORD [EBP+z], 4
 
 loop03:
 	; shift everything left
@@ -1093,11 +1093,11 @@ alphazero03: ; set mask is done later
 	ADD		ECX, [EBP+sdx]
 	MOV		[EBP+fx],ECX
 
-	SUB 		[EBP+z], 1
+	SUB 		DWORD [EBP+z], 1
 	JNZ 		loop03
 
 endofloop03:
-	MOV		[EBP+z], 4
+	MOV		DWORD [EBP+z], 4
 
 loop47:
 	; shift everything left
@@ -1267,7 +1267,7 @@ alphazero47: ; set mask is done later
 	ADD		ECX, [EBP+sdx]
 	MOV		[EBP+fx],ECX
 
-	SUB		 [EBP+z], 1
+	SUB		 DWORD [EBP+z], 1
 	JNZ 		loop47
 
 endofloop47:
@@ -1529,7 +1529,7 @@ endloop:
 	;fx already inc  ; by sdx
 	ADD 		EDI, 16
 	MOV 		[EBP+adr],EDI
-	SUB 		[EBP+x], 8
+	SUB 		DWORD [EBP+x], 8
 	JNZ 		innerloop 					; x>=0
 	JZ 			endxloop
 
@@ -1780,7 +1780,7 @@ alphazero: 									; alpha = 0, no writeback
 	MOV		[EBP+adr],EDI
 
 
-	SUB		[EBP+x], 1
+	SUB		DWORD [EBP+x], 1
 	JNZ			innerloop
 
 endxloop:
@@ -1793,7 +1793,7 @@ endxloop:
 	;MOV	EDI, EAX
 	MOV		[EBP+yadr], EAX
 
-	SUB		[EBP+y], 1
+	SUB		DWORD [EBP+y], 1
 	JNZ			outerloop
 
 endyloop:
@@ -2471,7 +2471,7 @@ endloop:
 	;fx already inc  ; by sdx
 	ADD 		EDI, 16
 	MOV 		[EBP+adr],EDI
-	SUB 		[EBP+x], 8
+	SUB 		DWORD [EBP+x], 8
 	JNZ 		innerloop 				; x>=0
 	JZ 			endxloop
 
@@ -2587,7 +2587,7 @@ empty:
 	ADD		EDI, 2					; inc adr
 	MOV		[EBP+adr],EDI
 
-	SUB		[EBP+x], 1
+	SUB		DWORD [EBP+x], 1
 	JNZ			innerloop
 
 endxloop:
@@ -2600,7 +2600,7 @@ endxloop:
 	MOV		EDI, EAX
 	MOV		[EBP+yadr], EAX
 
-	SUB		[EBP+y], 1
+	SUB		DWORD [EBP+y], 1
 	JNZ			outerloop
 
 endyloop:
