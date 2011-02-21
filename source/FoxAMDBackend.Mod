@@ -686,9 +686,9 @@ TYPE
 		PROCEDURE GetSpillOperand(ticket: Ticket; VAR op: Assembler.Operand);
 		BEGIN
 			IF FrameSpillStack THEN
-				op := Assembler.NewMem(SHORT(ticket.type.sizeInBits DIV 8), BP , -(spillStackStart + 4 + ticket.offset*4));
+				op := Assembler.NewMem(SHORT(ticket.type.sizeInBits DIV 8), BP , -(spillStackStart + cpuBits DIV 8 + ticket.offset*cpuBits DIV 8));
 			ELSE
-				op := Assembler.NewMem(SHORT(ticket.type.sizeInBits DIV 8),SP , (spillStack.Size()-ticket.offset)*4);
+				op := Assembler.NewMem(SHORT(ticket.type.sizeInBits DIV 8),SP , (spillStack.Size()-ticket.offset)*cpuBits DIV 8);
 			END;
 		END GetSpillOperand;
 
@@ -1084,7 +1084,7 @@ TYPE
 					END;
 				END;
 				IF spillStack.MaxSize()>0 THEN (* register spill stack, does not have to be initialized *)
-					op1 := Assembler.NewImm32(spillStack.MaxSize()*4);
+					op1 := Assembler.NewImm32(spillStack.MaxSize()*cpuBits DIV 8);
 					emitter.Emit2(InstructionSet.opSUB,opSP,op1);
 				END;
 			ELSE
