@@ -21,7 +21,7 @@ MODULE PartitionsLib; (** AUTHOR "staubesv"; PURPOSE "Partitioning and formattin
  *	15.12.2005	DiskModel.Update now also calls DiskModel.OnChanged (staubesv)
  *	16.12.2005	Operation.state.min/cur/max type change to HUGEINT to prevent overflows (staubesv)
  *	19.12.2005	Fixed DeletePartition/CreatePartition (staubesv)
- *	06.01.2006	Fixed FormatPartition fsRes handling (staubesv)
+ *	06.01.2006	Fixed nn fsRes handling (staubesv)
  *	17.01.2006	Made output more appropriate for Partitions front-end, fixed Configuration.ParseConfig (staubesv)
  *	24.02.2006	PartitionToFile & FileToPartition not dependent on device blocksize anymore (staubesv)
  *	09.03.2006	Improved DiskModel.GetFS and renamed it to DiskModel.AssignFileSystems (staubesv)
@@ -124,10 +124,9 @@ CONST
 
 	DateTimeFormat = "yyyy.mm.dd hh:nn:ss";
 
-	(* Default names  for boot loader and boot file *)
-	BootLoaderName = "OBL.Bin";
-	BootLoaderSize = 4; (* size of OBL.Bin in blocks *)
+	(* Default name  for  boot file *)
 	BootFileName = "IDE.Bin";
+	MaxBootLoaderSize=10; (* blocks *)
 
 	BS* = 512;
 	MinPartSize = 64; (* absolute minimum number of sectors in Oberon partition *)
@@ -2015,17 +2014,16 @@ TYPE
 
 		(* Write the OBL boot loader and an empty config table to disk. *)
 		PROCEDURE InitOBL(flag: LONGINT; VAR res: LONGINT);
-		CONST Size = BootLoaderSize*BS;
 		VAR
-			buf: ARRAY Size OF CHAR; i, tsize, rsize, lsize, len : LONGINT;
+			buf: ARRAY 10*BS OF CHAR; i, tsize, rsize, lsize, len : LONGINT;
 			f: Files.File; r: Files.Reader;
 		BEGIN
 			ASSERT(dev.blockSize = BS);
 			IF disk.gres = AosDisks.Ok THEN
 				f := Files.Old(BootLoaderName);  NEW(r, f, 0);
-				ASSERT((f # NIL) & (f.Length() <= Size));	(* assume boot file is present and small enough *)
+				ASSERT((f # NIL) & (f.Length() <= BootLoaderSize*BS));	(* assume boot file is present and small enough *)
 				len := f.Length();
-				r.Bytes(buf, 0, Size, len);
+				r.Bytes(buf, 0, BootLoaderSize*BS, len);
 				ASSERT(r.res = 0);
 				ASSERT(Get4(buf, 1F8H) = FSIDOBL); (* new OBL.Bin *)
 				(* get parameters from boot loader *)
@@ -2226,15 +2224,15 @@ TYPE
 
 		(* Overwrite the existing boot loader with the new one, leaving critical data untouched. *)
 		PROCEDURE UpdateOBL(f: Files.File; VAR res: LONGINT);
-		CONST Size = BootLoaderSize*BS;
+		CONST MaxSize = MaxBootLoaderSize*BS;
 		VAR
-			b, bnew: ARRAY Size OF CHAR; i, tsize, rsize, lsize, len: LONGINT;
+			b, bnew: ARRAY MaxSize OF CHAR; i, tsize, rsize, lsize, len: LONGINT;
 			r: Files.Reader;
 		BEGIN
 			ASSERT(disk.device.blockSize = BS);
 			IF res = AosDisks.Ok THEN
 				NEW(r, f, 0);
-				ASSERT((f # NIL) & (f.Length() <= Size)); (* assume boot file is present and small enough *)
+				ASSERT((f # NIL) & (f.Length() <= BootLoaderSize*BS)); (* assume boot file is present and small enough *)
 				r.Bytes(bnew, 0, f.Length(), len);
 				ASSERT(r.res = 0);
 				lsize := f.Length() DIV BS;
@@ -2252,7 +2250,7 @@ TYPE
 				FOR i := 25H TO 1EFH DO b[i] := bnew[i] END;
 				(* Leave the data from 1F0H to 1FFH untouched: info on the file sytem
 					see comments "AosFS Table Format" *)
-				FOR i := 200H TO Size-1 DO b[i] := bnew[i] END;
+				FOR i := 200H TO BootLoaderSize*BS-1 DO b[i] := bnew[i] END;
 				(* now write the boot loader back to disk *)
 				disk.device.Transfer(AosDisks.Write, disk.device.table[partition].start, lsize, b, 0, res);
 				(* The configuration table is left as is. It is up to the user to specify
@@ -3632,6 +3630,8 @@ VAR
 	diskModel- : DisksModel;
 	operations- : OperationManager;
 	infobus- : CompletionNotification;
+	BootLoaderName: ARRAY 64 OF CHAR;
+	BootLoaderSize: LONGINT;
 
 PROCEDURE WritePart*(w: Streams.Writer; dev: AosDisks.Device; part: LONGINT);
 BEGIN
@@ -4102,6 +4102,25 @@ BEGIN
 	w.Int(k, 0); w.Char(suffix); w.Char("B");
 END WriteK;
 
+PROCEDURE SetBootLoaderFile*(context: Commands.Context);
+VAR file: Files.File;fileName: Files.FileName;
+BEGIN
+	IF context.arg.GetString(fileName) THEN
+		file := Files.Old(fileName);
+		IF file # NIL THEN
+			BootLoaderSize := (file.Length()-1) DIV BS + 1;
+			COPY(fileName, BootLoaderName);
+			context.out.String("PartitionsLib.BootLoaderName = "); context.out.String(BootLoaderName); context.out.Ln;
+			context.out.String("PartitionsLib.BootLoaderSize ="); context.out.Int(BootLoaderSize,1);context.out.Ln;
+		ELSE
+			context.error.String("File not present:"); context.error.String(fileName); context.error.Ln;
+		END;
+	ELSE
+		context.error.String("No file name specified.");  context.error.Ln;
+	END;
+END SetBootLoaderFile;
+
+
 PROCEDURE Cleanup;
 BEGIN {EXCLUSIVE}
 	operations.Finalize; operations := NIL;
@@ -4112,6 +4131,8 @@ BEGIN
 	safe := TRUE;
 	NEW(diskModel); NEW(operations); NEW(infobus);
 	Modules.InstallTermHandler(Cleanup);
+	BootLoaderSize := 4;
+	BootLoaderName := "OBL.Bin";
 END PartitionsLib.
 
 SystemTools.Free PartitionsLib ~
