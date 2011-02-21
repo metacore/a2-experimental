@@ -496,6 +496,7 @@ TYPE
 		PROCEDURE SizeOf*(type: SyntaxTree.Type): LONGINT;
 		VAR size: LONGINT;
 		BEGIN
+			IF type = NIL THEN RETURN -1 END;
 			type := type.resolved;
 			IF type IS SyntaxTree.BasicType THEN
 				size := type.sizeInBits
