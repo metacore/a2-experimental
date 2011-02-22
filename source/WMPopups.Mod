@@ -95,10 +95,13 @@ TYPE
 		END FocusLost;
 
 		PROCEDURE Close;
-		BEGIN {EXCLUSIVE}
-			IF isClosed THEN RETURN; END;
+		BEGIN
+			BEGIN {EXCLUSIVE}
+				IF isClosed THEN RETURN; END;
+				isClosed := TRUE;
+			END;
+
 			Close^;
-			isClosed := TRUE;
 		END Close;
 
 		PROCEDURE FocusGot;
