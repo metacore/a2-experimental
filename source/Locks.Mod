@@ -21,7 +21,7 @@ TYPE
 		PROCEDURE Acquire*;
 		VAR me : ANY;
 		BEGIN {EXCLUSIVE}
-			me := Objects.ActiveObject();
+			me := Objects.CurrentProcess();
 			ASSERT(lockedBy # me, 3005);
 			AWAIT(lockedBy = NIL);
 			lockedBy := me;
@@ -35,7 +35,7 @@ TYPE
 
 		PROCEDURE HasLock*() : BOOLEAN;
 		BEGIN
-			RETURN lockedBy = Objects.ActiveObject();
+			RETURN lockedBy = Objects.CurrentProcess();
 		END HasLock;
 
 	END Lock;
@@ -57,7 +57,7 @@ TYPE
 		PROCEDURE Acquire*;
 		VAR me : ANY;
 		BEGIN {EXCLUSIVE}
-			me := Objects.ActiveObject();
+			me := Objects.CurrentProcess();
 			IF lockedBy = me THEN
 				ASSERT(lockLevel # -1, 3015); (* overflow *)
 				INC(lockLevel);
@@ -78,7 +78,7 @@ TYPE
 
 		PROCEDURE HasLock*() : BOOLEAN;
 		BEGIN
-			RETURN lockedBy = Objects.ActiveObject();
+			RETURN lockedBy = Objects.CurrentProcess();
 		END HasLock;
 
 	END RecursiveLock;
@@ -125,15 +125,19 @@ TYPE
 
 		(** acquire a write-lock on the object *)
 		PROCEDURE AcquireWrite*;
-		VAR me : ANY;
+		VAR me : ANY; lockedById, currentId: LONGINT;
 		BEGIN
 			IF Statistics THEN INC(nofWriteLocks); END;
-			me := Objects.ActiveObject();
+			me := Objects.CurrentProcess();
 			IF lockedBy = me THEN (* recursive use *)
 				INC(lockLevel);
 				ASSERT(lockLevel # -1, 3015)	(* overflow *)
 			ELSE
 				BEGIN {EXCLUSIVE}
+					IF lockedBy # NIL THEN
+						lockedById := lockedBy(Objects.Process).id;
+					END;
+					currentId := me(Objects.Process).id;
 					(* wait until no other writer and no reader has the lock *)
 					ASSERT(~(lockedBy = me) & ~InternalHasReadLock(), 3020);
 					AWAIT(DEADLOCK OR (lockedBy = NIL) & (nofReaders = 0));
@@ -160,7 +164,7 @@ TYPE
 		(** Make sure, the calling process has this write-lock *)
 		PROCEDURE HasWriteLock*(): BOOLEAN;
 		BEGIN
-			RETURN lockedBy = Objects.ActiveObject()
+			RETURN lockedBy = Objects.CurrentProcess()
 		END HasWriteLock;
 
 		(** Returns the locklevel of the write lock. [Must hold write lock] *)
@@ -180,7 +184,7 @@ TYPE
 		VAR me : ANY; i : LONGINT; found : BOOLEAN; t : ReaderLockList;
 		BEGIN {EXCLUSIVE}
 			IF Statistics THEN INC(nofReadLocks); END;
-			me := Objects.ActiveObject();
+			me := Objects.CurrentProcess();
 			AWAIT(DEADLOCK OR (lockedBy = NIL) OR (lockedBy = me));  (* write owner may acquire a read *)
 			IF DEADLOCK THEN HALT(3099) END;
 			lastReader := me;
@@ -202,7 +206,7 @@ TYPE
 		PROCEDURE ReleaseRead*;
 		VAR me : ANY; i : LONGINT; found : BOOLEAN;
 		BEGIN {EXCLUSIVE}
-			me := Objects.ActiveObject();
+			me := Objects.CurrentProcess();
 			found := FALSE;
 			i := 0; WHILE (i < nofReaders) & ~found DO
 				IF readers[i].owner = me THEN found := TRUE; DEC(readers[i].lockLevel);
@@ -222,7 +226,7 @@ TYPE
 		PROCEDURE HasReadLock*() : BOOLEAN;
 		VAR me : ANY;
 		BEGIN
-			me := Objects.ActiveObject();
+			me := Objects.CurrentProcess();
 			IF (lockedBy = me) OR (lastReader = me) THEN RETURN TRUE END; (* WriteLock has implicit ReadLock *)
 			BEGIN {EXCLUSIVE}
 				RETURN InternalHasReadLock()
@@ -232,7 +236,7 @@ TYPE
 		PROCEDURE InternalHasReadLock(): BOOLEAN;
 		VAR me : ANY; i : LONGINT;
 		BEGIN
-			me := Objects.ActiveObject();
+			me := Objects.CurrentProcess();
 			i := 0; WHILE (i < nofReaders) DO
 				IF readers[i].owner = me THEN RETURN TRUE END;
 				INC(i)
@@ -244,7 +248,7 @@ TYPE
 		PROCEDURE Reset*;
 		VAR i, j : LONGINT;me : ANY;
 		BEGIN {EXCLUSIVE}
-			me := Objects.ActiveObject();
+			me := Objects.CurrentProcess();
 			KernelLog.String("!!! LOCK RESET !!!");
 			IF lockedBy = me THEN
 				FOR i := 0 TO nofReaders - 1 DO readers[i].owner := NIL END; nofReaders := 0;
@@ -272,13 +276,18 @@ TYPE
 			KernelLog.String("Lock held by : ");
 			IF lockedBy = NIL THEN KernelLog.String("nobody")
 			ELSE
+				KernelLog.String("locked by = "); KernelLog.Int(lockedBy(Objects.Process).id,1); KernelLog.Ln;
+				KernelLog.String("me = "); KernelLog.Int(Objects.CurrentProcess().id,1); KernelLog.Ln;
+				(*
+
 				Streams.OpenWriter(w, KernelLog.Send);
 				SYSTEM.GET (SYSTEM.VAL (SYSTEM.ADDRESS, lockedBy) - SYSTEM.SIZEOF (SYSTEM.ADDRESS), tag);
 				Reflection.WriteType(w, tag);
 				w.String(" New Acquire by : ");
-				SYSTEM.GET (SYSTEM.VAL (SYSTEM.ADDRESS, Objects.ActiveObject()) - SYSTEM.SIZEOF (SYSTEM.ADDRESS), tag);
+				SYSTEM.GET (SYSTEM.VAL (SYSTEM.ADDRESS, Objects.CurrentProcess()) - SYSTEM.SIZEOF (SYSTEM.ADDRESS), tag);
 				Reflection.WriteType(w, tag);
 				w.Update
+				*)
 			END;
 			KernelLog.Ln;
 		END WriteLock;
