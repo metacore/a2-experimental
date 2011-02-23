@@ -1224,6 +1224,7 @@ TYPE
 		PROCEDURE CheckSetElement(o: IntermediateCode.Operand);
 		VAR max: IntermediateCode.Operand;
 		BEGIN
+			IF backend.noRuntimeChecks THEN RETURN END;
 			IF o.mode # IntermediateCode.ModeImmediate THEN (* otherwise it's the job of the checker *)
 				IntermediateCode.InitImmediate(max, setType, setType.sizeInBits (* number of bits in set *) -1);
 				TrapC(BrgeL, max, o, SetElementTrap);
@@ -1893,11 +1894,13 @@ TYPE
 					Emit(Shr(result.op,left.op,right.op));
 				ELSE
 					IF (x.type.resolved IS SyntaxTree.IntegerType) & (x.right.resolved = NIL) THEN (* divisor negative check *)
-						exit := NewLabel();
 						IntermediateCode.InitImmediate(zero,GetType(system,rightType),0);
-						BrltL(exit,zero,right.op);
-						Emit(Trap(NegativeDivisorTrap));
-						SetLabel(exit);
+						IF ~backend.noRuntimeChecks THEN
+							exit := NewLabel();
+							BrltL(exit,zero,right.op);
+							Emit(Trap(NegativeDivisorTrap));
+							SetLabel(exit);
+						END;
 					END;
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
@@ -1914,11 +1917,13 @@ TYPE
 					Emit(And(result.op,left.op,right.op));
 				ELSE
 					IF (x.type.resolved IS SyntaxTree.IntegerType) & (x.right.resolved = NIL) THEN (* divisor negative check *)
-						exit := NewLabel();
 						IntermediateCode.InitImmediate(zero,GetType(system,rightType),0);
-						BrltL(exit,zero,right.op);
-						Emit(Trap(NegativeDivisorTrap));
-						SetLabel(exit);
+						IF ~backend.noRuntimeChecks THEN
+							exit := NewLabel();
+							BrltL(exit,zero,right.op);
+							Emit(Trap(NegativeDivisorTrap));
+							SetLabel(exit);
+						END;
 					END;
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
@@ -2157,6 +2162,7 @@ TYPE
 
 		PROCEDURE BoundCheck(index,length: IntermediateCode.Operand);
 		BEGIN
+			IF backend.noRuntimeChecks THEN RETURN END;
 			IF tagsAvailable THEN
 				TrapC(BrltL,index,length,IndexCheckTrap);
 			END;
@@ -2165,6 +2171,7 @@ TYPE
 		PROCEDURE DimensionCheck(base,dim: IntermediateCode.Operand; op: ConditionalBranch );
 		VAR d: IntermediateCode.Operand;
 		BEGIN
+			IF backend.noRuntimeChecks THEN RETURN END;
 			MakeMemory(d,base,dim.type,ToMemoryUnits(system,MathDimOffset * addressType.sizeInBits));
 			TrapC(op,dim,d,ArraySizeTrap);
 			ReleaseIntermediateOperand(d);
@@ -2465,6 +2472,7 @@ TYPE
 						(* lower bound check *)
 						IF IsIntegerImmediate(index.op, staticIndex) THEN
 							ASSERT(staticIndex >= 0) (* ensured by the checker *)
+						ELSIF backend.noRuntimeChecks THEN (* do nothing *)
 						ELSE
 							TrapC(BrgeL, index.op, IntermediateCode.Immediate(sizeType, 0), IndexCheckTrap)
 						END;
@@ -2472,6 +2480,7 @@ TYPE
 						(* upper bound check *)
 						IF IsIntegerImmediate(index.op, staticIndex) & IsIntegerImmediate(sourceLength.op, staticSourceLength) THEN
 							ASSERT(staticIndex < staticSourceLength)
+						ELSIF backend.noRuntimeChecks THEN (* do nothing *)
 						ELSE
 							TrapC(BrltL, index.op, sourceLength.op, IndexCheckTrap)
 						END;
@@ -2508,6 +2517,7 @@ TYPE
 						(* check if step size is valid *)
 						IF IsIntegerImmediate(stepSize, staticStepSize) THEN
 							ASSERT(staticStepSize >= 1) (* ensured by the checker *)
+						ELSIF backend.noRuntimeChecks THEN (* do nothing *)
 						ELSE
 							TrapC(BrgeL, stepSize, IntermediateCode.Immediate(sizeType, 1), IndexCheckTrap)
 						END;
@@ -2515,6 +2525,7 @@ TYPE
 						(* check lower bound check *)
 						IF IsIntegerImmediate(firstIndex, staticFirstIndex) THEN
 							ASSERT(staticFirstIndex >= 0) (* ensured by the checker *)
+						ELSIF backend.noRuntimeChecks THEN (* do nothing *)
 						ELSE
 							TrapC(BrgeL, firstIndex, IntermediateCode.Immediate(sizeType, 0), IndexCheckTrap)
 						END;
@@ -2524,6 +2535,7 @@ TYPE
 							(* statically open range: nothing to do *)
 						ELSIF IsIntegerImmediate(lastIndex, staticLastIndex) & IsIntegerImmediate(sourceLength.op, staticSourceLength) THEN
 							ASSERT(staticLastIndex < staticSourceLength)
+						ELSIF backend.noRuntimeChecks THEN (* do nothing *)
 						ELSE
 							TrapC(BrltL, lastIndex, sourceLength.op, IndexCheckTrap)
 						END;
@@ -2785,18 +2797,66 @@ TYPE
 				RETURN ToMemoryUnits(system,system.SizeOf(type));
 			END StaticSize;
 
+			PROCEDURE IsImmediate(x: IntermediateCode.Operand): BOOLEAN;
+			BEGIN
+				RETURN (x.mode = IntermediateCode.ModeImmediate) & (x.symbol = NIL);
+			END IsImmediate;
+
+
+			PROCEDURE AddInt(VAR res: IntermediateCode.Operand; x,y: IntermediateCode.Operand);
+			BEGIN
+				IF IsImmediate(x) & IsImmediate(y) THEN
+					IntermediateCode.InitImmediate(res,x.type,x.intValue+y.intValue);
+				ELSE
+					IF res.mode # IntermediateCode.ModeRegister THEN
+						IntermediateCode.InitRegister(res,x.type,AcquireRegister(x.type));
+					END;
+					IF IsImmediate(x) & (x.intValue = 0) THEN
+						Emit(Mov(res,y))
+					ELSIF IsImmediate(y) & (y.intValue=0) THEN
+						Emit(Mov(res,x))
+					ELSE
+						Emit(Add(res, x, y));
+					END;
+				END;
+			END AddInt;
+
+			PROCEDURE MulInt(VAR res: IntermediateCode.Operand; x,y: IntermediateCode.Operand);
+			BEGIN
+				IF IsImmediate(x) & IsImmediate(y) THEN
+					IntermediateCode.InitImmediate(res,x.type,x.intValue*y.intValue);
+				ELSE
+					IF res.mode # IntermediateCode.ModeRegister THEN
+						IntermediateCode.InitRegister(res,x.type,AcquireRegister(x.type));
+					END;
+					IF IsImmediate(x) & (x.intValue = 1) THEN
+						Emit(Mov(res,y))
+					ELSIF IsImmediate(y) & (y.intValue=1) THEN
+						Emit(Mov(res,x))
+					ELSE
+						Emit(Mul(res, x, y));
+					END;
+				END;
+			END MulInt;
+
+
 		BEGIN
 			type := x.left.type.resolved;
 			maxDim := x.parameters.Length()-1;
+			IntermediateCode.InitImmediate(res,addressType,0);
 			FOR i := 0 TO maxDim DO
 				e := x.parameters.GetExpression(i);
 				Evaluate(e,index);
 				Convert(index.op,addressType);
+				(*
 				IF i = 0 THEN
 					ReuseCopy(res,index.op);
 				ELSE
-					Emit(Add(res,res,index.op));
+				*)
+					AddInt(res,res,index.op);
+				(*
 				END;
+				*)
 
 				IF i = 0 THEN
 					Designate(x.left,array);
@@ -2811,7 +2871,7 @@ TYPE
 				type := type(SyntaxTree.ArrayType).arrayBase.resolved;
 				length := Length(type,array.dimOffset+i-1,array.tag);
 				IF (length.mode # IntermediateCode.ModeImmediate) OR (length.intValue # 1) THEN
-					Emit(Mul(res,res,length));
+					MulInt(res,res,length);
 				END;
 			END;
 			IF (type IS SyntaxTree.ArrayType) THEN
@@ -2819,17 +2879,17 @@ TYPE
 					size := StaticSize(type);
 					IF size # 1 THEN
 						length := IntermediateCode.Immediate(addressType,size);
-						Emit(Mul(res,res,length));
+						MulInt(res,res,length);
 					END;
 				ELSE
 					size := StaticSize(type(SyntaxTree.ArrayType).arrayBase);
 					IF size # 1 THEN
 						length := IntermediateCode.Immediate(addressType,size);
-						Emit(Mul(res,res,length));
+						MulInt(res,res,length);
 					END;
 				END;
 			END;
-			Emit(Add(res,res,array.op));
+			AddInt(res,res,array.op);
 			InitOperand(result,ModeReference);
 			result.op := res;
 
@@ -4279,7 +4339,7 @@ TYPE
 				offset := MathLenOffset;
 			END;
 			INC(offset,operand.dimOffset*2);
-			IF check & (type.form = SyntaxTree.Tensor) THEN
+			IF check & (type.form = SyntaxTree.Tensor) &  ~backend.noRuntimeChecks THEN
 				TrapC(BrneL,operand.tag,IntermediateCode.Immediate(addressType,0),IndexCheckTrap);
 			END;
 			IF  dim.mode = IntermediateCode.ModeImmediate THEN
@@ -4313,6 +4373,7 @@ TYPE
 				IF check THEN
 					IF type.form = SyntaxTree.Tensor THEN
 						DimensionCheck(operand.tag,dim,BrltL);
+					ELSIF backend.noRuntimeChecks THEN (* do nothing *)
 					ELSE
 						TrapC(BrltL,dim,IntermediateCode.Immediate(addressType,SemanticChecker.Dimension(type,{SyntaxTree.Open,SyntaxTree.Static})), IndexCheckTrap);
 					END;
@@ -4384,7 +4445,9 @@ TYPE
 				result.op := res;
 			ELSE
 				Convert(dim,addressType);
-				TrapC(BrltL,dim,IntermediateCode.Immediate(addressType,SemanticChecker.Dimension(type,{SyntaxTree.Open,SyntaxTree.Static})), IndexCheckTrap);
+				IF ~backend.noRuntimeChecks THEN
+					TrapC(BrltL,dim,IntermediateCode.Immediate(addressType,SemanticChecker.Dimension(type,{SyntaxTree.Open,SyntaxTree.Static})), IndexCheckTrap);
+				END;
 
 				end := NewLabel(); next := NIL;
 
@@ -4650,7 +4713,7 @@ TYPE
 				Evaluate(p0,s0);
 				Evaluate(p1,s1);
 				Convert(s1.op,setType);
-				IF (s1.op.mode # IntermediateCode.ModeImmediate) THEN
+				IF (s1.op.mode # IntermediateCode.ModeImmediate) & ~backend.noRuntimeChecks THEN
 					TrapC(BrltL,s1.op,IntermediateCode.Immediate(setType,setType.sizeInBits),IndexCheckTrap);
 				END;
 				ReuseCopy(res,s0.op);
@@ -4818,17 +4881,19 @@ TYPE
 				Emit(Trap(SHORT(result.op.intValue)));
 			(* ---- ASSERT ----- *)
 			|Global.Assert:
-				trueL := NewLabel();
-				falseL := NewLabel();
-				Condition(p0,trueL,falseL);
+				IF ~backend.noRuntimeChecks THEN
+					trueL := NewLabel();
+					falseL := NewLabel();
+					Condition(p0,trueL,falseL);
 
-				IF p1 = NIL THEN val := AssertTrap
-				ELSE val := p1.resolved(SyntaxTree.IntegerValue).value;
+					IF p1 = NIL THEN val := AssertTrap
+					ELSE val := p1.resolved(SyntaxTree.IntegerValue).value;
+					END;
+
+					SetLabel(falseL);
+					Emit(Trap(val));
+					SetLabel(trueL);
 				END;
-
-				SetLabel(falseL);
-				Emit(Trap(val));
-				SetLabel(trueL);
 
 				(*
 				Emit(TrapC(result.op,val);
@@ -5025,7 +5090,7 @@ TYPE
 							type := type(SyntaxTree.ArrayType).arrayBase.resolved;
 							parameter := x.parameters.GetExpression(i);
 							Evaluate(parameter,r);
-							IF r.op.mode # IntermediateCode.ModeImmediate THEN
+							IF (r.op.mode # IntermediateCode.ModeImmediate) & ~backend.noRuntimeChecks THEN
 								IntermediateCode.InitImmediate(tmp,GetType(system,parameter.type),0);
 								TrapC(BrgeL,r.op,tmp,ArraySizeTrap);
 							END;
@@ -5158,7 +5223,7 @@ TYPE
 						END;
 						parameter := x.parameters.GetExpression(i);
 						Evaluate(parameter,r);
-						IF r.op.mode # IntermediateCode.ModeImmediate THEN
+						IF (r.op.mode # IntermediateCode.ModeImmediate) & ~(backend.noRuntimeChecks) THEN
 							IntermediateCode.InitImmediate(tmp,GetType(system,parameter.type),0);
 							TrapC(BrgeL,r.op,tmp,ArraySizeTrap);
 						END;
@@ -5528,6 +5593,7 @@ TYPE
 			dest := destination; destination := emptyOperand;
 
 			IF x.left.type.resolved = x.type.resolved THEN (* always true: do nothing *)
+			ELSIF backend.noRuntimeChecks THEN (* no check *)
 			ELSE
 				trueL := NewLabel();
 				falseL := NewLabel();
@@ -6313,7 +6379,9 @@ TYPE
 				SetLabel(falseL);
 			END;
 			IF x.elsePart = NIL THEN
-				Emit(Trap(WithTrap));
+				IF ~backend.noRuntimeChecks THEN
+					Emit(Trap(WithTrap));
+				END;
 			ELSE
 				StatementSequence(x.elsePart)
 			END;
@@ -6375,7 +6443,7 @@ TYPE
 			END;
 			IF x.elsePart # NIL THEN
 				StatementSequence(x.elsePart);
-			ELSE
+			ELSIF ~backend.noRuntimeChecks THEN
 				Emit(Trap(CaseTrap));
 			END;
 			SetLabel(out);
@@ -6935,6 +7003,7 @@ TYPE
 		traceModuleName-: SyntaxTree.String;
 		newObjectFile-: BOOLEAN;
 		profile-: BOOLEAN;
+		noRuntimeChecks: BOOLEAN;
 
 		PROCEDURE &InitIntermediateBackend*;
 		BEGIN
@@ -7062,6 +7131,7 @@ TYPE
 			options.Add(0X,"newObjectFile",Options.Flag);
 			options.Add(0X,"traceModule",Options.String);
 			options.Add(0X,"profile",Options.Flag);
+			options.Add(0X,"noRuntimeChecks",Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -7071,12 +7141,14 @@ TYPE
 			trace := options.GetString("trace",traceString);
 			newObjectFile := options.GetFlag("newObjectFile");
 			profile := options.GetFlag("profile");
+			noRuntimeChecks := options.GetFlag("noRuntimeChecks");
 			IF options.GetString("runtime",name) THEN
 				COPY(name, runtimeModuleName);
 			END;
 			IF ~options.GetString("traceModule",traceModuleName) THEN
 				traceModuleName := DefaultTraceModuleName;
 			END;
+
 		END GetOptions;
 
 		PROCEDURE SetRuntimeModuleName*(CONST name: ARRAY OF CHAR);
