@@ -453,6 +453,7 @@ VAR options: Options.Options;
 	codeDisplacement, dataDisplacement: GenericLinker.Address;
 	path, extension, codeFileName, dataFileName, moduleName: Files.FileName;
 	diagnostics: Diagnostics.StreamDiagnostics; code, data: Arrangement; linker: GenericLinker.Linker;
+	linkRoot: ARRAY 256 OF CHAR;
 BEGIN
 	NEW (options);
 	options.Add ('v', "verbose", Options.Flag);
@@ -462,6 +463,7 @@ BEGIN
 	options.Add (0X, "fileName", Options.String); options.Add (0X, "dataFileName", Options.String);
 	options.Add (0X, "displacement", Options.Integer); options.Add (0X, "dataDisplacement", Options.Integer);
 	options.Add (0X, "fileFormat", Options.String); options.Add (0X, "dataFileFormat", Options.String);
+	options.Add(0X,"linkRoot", Options.String);
 	IF ~options.Parse (context.arg, context.error) THEN context.result := Commands.CommandParseError; RETURN; END;
 	verbose := options.GetFlag ("verbose");
 	useAll := options.GetFlag ("useAll");
@@ -478,6 +480,8 @@ BEGIN
 	NEW (code, codeDisplacement);
 	IF codeFileName # dataFileName THEN NEW (data, dataDisplacement); ELSE data := code; END;
 	NEW (diagnostics, context.error); NEW (linker, diagnostics, verbose, useAll, FALSE, code, data);
+
+	IF options.GetString("linkRoot",linkRoot) THEN linker.SetLinkRoot(linkRoot) END;
 
 	WHILE ~linker.error & context.arg.GetString (moduleName) DO
 		ReadObjectFile (moduleName, path, extension, linker);
