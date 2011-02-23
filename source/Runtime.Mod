@@ -378,7 +378,7 @@ BEGIN
 	l2 := LEN(src);
 	IF l2 < l1 THEN l1 := l2 END;
 	SYSTEM.MOVE(SYSTEM.ADR(src[0]),SYSTEM.ADR(dest[0]),l1);
-	dest[l1-1] := 0X;
+	(* dest[l1-1] := 0X; *) (* for the time being do not 0x-terminate as strings cannot be distinguished from ARRAY OF CHAR *)
 END CopyString;
 
 PROCEDURE EnsureAllocatedStack*(size: SYSTEM.SIZE);
