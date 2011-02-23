@@ -4881,7 +4881,7 @@ TYPE
 				Emit(Trap(SHORT(result.op.intValue)));
 			(* ---- ASSERT ----- *)
 			|Global.Assert:
-				IF ~backend.noRuntimeChecks THEN
+				IF ~backend.noAsserts THEN
 					trueL := NewLabel();
 					falseL := NewLabel();
 					Condition(p0,trueL,falseL);
@@ -7004,6 +7004,7 @@ TYPE
 		newObjectFile-: BOOLEAN;
 		profile-: BOOLEAN;
 		noRuntimeChecks: BOOLEAN;
+		noAsserts: BOOLEAN;
 
 		PROCEDURE &InitIntermediateBackend*;
 		BEGIN
@@ -7132,6 +7133,7 @@ TYPE
 			options.Add(0X,"traceModule",Options.String);
 			options.Add(0X,"profile",Options.Flag);
 			options.Add(0X,"noRuntimeChecks",Options.Flag);
+			options.Add(0X,"noAsserts",Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -7142,6 +7144,7 @@ TYPE
 			newObjectFile := options.GetFlag("newObjectFile");
 			profile := options.GetFlag("profile");
 			noRuntimeChecks := options.GetFlag("noRuntimeChecks");
+			noAsserts := options.GetFlag("noAsserts");
 			IF options.GetString("runtime",name) THEN
 				COPY(name, runtimeModuleName);
 			END;
