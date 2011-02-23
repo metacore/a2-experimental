@@ -229,7 +229,7 @@ TYPE
 			dma: BOOLEAN;
 		BEGIN {EXCLUSIVE}
 			IF state = 1 THEN
-				SYSTEM.PORTIN(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ORD(ch)));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ORD(ch)));
 				IF ~(Status_BSY IN status) THEN
 					state := 0;
 				ELSE
@@ -255,7 +255,7 @@ TYPE
 				(*IF dma THEN
 					StopDMA();
 				END;*)
-				SYSTEM.PORTIN(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ch));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, ORD(ch));
 				IF TraceVerbose & (trace * TraceErrors # {}) THEN
 					KernelLog.String(Name); KernelLog.Int(ctrlID*MaxDevicesC + command.dev, 1);
 					KernelLog.String(" Error (issue): Command "); KernelLog.Hex(command.cmd, -2);
@@ -293,7 +293,7 @@ TYPE
 				HALT(Disks.Unsupported);
 			END;
 			IF res # Res_OK THEN
-				SYSTEM.PORTIN(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ch));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, ORD(ch));
 				IF TraceVerbose & (trace * TraceErrors # {}) THEN
 					KernelLog.String(Name); KernelLog.Int(ctrlID*MaxDevicesC + command.dev, 1);
 					KernelLog.String(" Error (protocol): Command "); KernelLog.Hex(command.cmd, -2);
@@ -304,7 +304,7 @@ TYPE
 					KernelLog.String(", Result = ");KernelLog.Int(res, 0);
 					KernelLog.String(", Status = "); KernelLog.Hex(ORD(ch), -2);
 					IF Status_ERR IN status THEN
-						SYSTEM.PORTIN(cmdbase+Ofs_Error, ch);
+						Machine.Portin8(cmdbase+Ofs_Error, ch);
 						KernelLog.String(", Error = "); KernelLog.Hex(ORD(ch), -2);
 					END;
 					KernelLog.Ln;
@@ -393,15 +393,15 @@ TYPE
 			res: LONGINT;
 		BEGIN
 			(* Clear Interrupt & Errror *)
-			SYSTEM.PORTIN(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONG(ORD(ch)));
+			Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONG(ORD(ch)));
 			s := s * {1..7};
-			SYSTEM.PORTOUT(bmbase + Ofs_BMStatus, CHR(SYSTEM.VAL(LONGINT, s)));
+			Machine.Portout8(bmbase + Ofs_BMStatus, CHR(SYSTEM.VAL(LONGINT, s)));
 
 			res := SetupPRD(command);
 			IF res # Res_OK THEN RETURN res; END;
 
 			(* Write address of PRDT *)
-			SYSTEM.PORTOUT(bmbase + Ofs_BMPRDT, command.prdtPhysAdr);
+			Machine.Portout32(bmbase + Ofs_BMPRDT, command.prdtPhysAdr);
 
 			(* Set direction *)
 			IF command.read THEN
@@ -409,7 +409,7 @@ TYPE
 			ELSE
 				ch := 0X;
 			END;
-			SYSTEM.PORTOUT(bmbase + Ofs_BMCmd, ch);
+			Machine.Portout8(bmbase + Ofs_BMCmd, ch);
 			RETURN Res_OK;
 		END SetupDMA;
 
@@ -417,25 +417,25 @@ TYPE
 		VAR ch: CHAR; s: SET;
 		BEGIN
 			(* START DMA *)
-			SYSTEM.PORTIN(bmbase + Ofs_BMCmd, ch);
-			s := SYSTEM.VAL(SET, LONG(ch));
+			Machine.Portin8(bmbase + Ofs_BMCmd, ch);
+			s := SYSTEM.VAL(SET, ORD(ch));
 			INCL(s, DMA_Start);
-			SYSTEM.PORTOUT(bmbase + Ofs_BMCmd, CHR(SYSTEM.VAL(LONGINT, s)));
+			Machine.Portout8(bmbase + Ofs_BMCmd, CHR(SYSTEM.VAL(LONGINT, s)));
 		END StartDMA;
 
 		PROCEDURE StopDMA;
 		VAR ch: CHAR; s: SET;
 		BEGIN
 			(* Stop DMA *)
-			SYSTEM.PORTIN(bmbase + Ofs_BMCmd, ch);
-			s := SYSTEM.VAL(SET, LONG(ch));
+			Machine.Portin8(bmbase + Ofs_BMCmd, ch);
+			s := SYSTEM.VAL(SET, ORD(ch));
 			EXCL(s, DMA_Start);
-			SYSTEM.PORTOUT(bmbase + Ofs_BMCmd, CHR(SYSTEM.VAL(LONGINT, s)));
+			Machine.Portout8(bmbase + Ofs_BMCmd, CHR(SYSTEM.VAL(LONGINT, s)));
 
 			(* Clear Interrupt & Errror *)
-			SYSTEM.PORTIN(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONG(ORD(ch)));
+			Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONG(ORD(ch)));
 			s := s * {1..7};
-			SYSTEM.PORTOUT(bmbase + Ofs_BMStatus, CHR(SYSTEM.VAL(LONGINT, s)));
+			Machine.Portout8(bmbase + Ofs_BMStatus, CHR(SYSTEM.VAL(LONGINT, s)));
 		END StopDMA;
 
 		PROCEDURE WaitStatus(mask, expect, bad: SET; ms: LONGINT; VAR status: SET): LONGINT;
@@ -444,7 +444,7 @@ TYPE
 			ASSERT(Status_BSY IN mask);
 			Kernel.SetTimer(t, ms);
 			LOOP
-				SYSTEM.PORTIN(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ORD(ch)));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ORD(ch)));
 				IF ~(Status_BSY IN status) THEN
 					IF status * mask = expect THEN EXIT; END;
 				END;
@@ -464,10 +464,10 @@ TYPE
 		BEGIN
 			IF state = 1 THEN RETURN Res_Err; END;
 			(* HSR0 *)
-			SYSTEM.PORTOUT(cnlbase+Ofs_Control, CHR(ASH(1, Control_SRST))); (* reset controller *)
+			Machine.Portout8(cnlbase+Ofs_Control, CHR(ASH(1, Control_SRST))); (* reset controller *)
 			Kernel.SetTimer(t, 1); REPEAT UNTIL Kernel.Expired(t);	(* wait > 4.8us *)
 			(* HSR1 *)
-			SYSTEM.PORTOUT(cnlbase+Ofs_Control, 0);
+			Machine.Portout8(cnlbase+Ofs_Control, 0X);
 			Kernel.SetTimer(t, 3); REPEAT UNTIL Kernel.Expired(t);	(* wait ~2ms *)
 			(* HSR0 *)
 			res := WaitStatus({Status_BSY}, {}, {Status_ERR}, ms, status);
@@ -493,9 +493,9 @@ TYPE
 			(*IF res # Res_OK THEN RETURN res; END;*)
 			res := Res_OK;
 			IF cmd.dev = 1 THEN devReg := {Device_DEV} ELSE devReg := {}; END;
-			SYSTEM.PORTIN(cmdbase+Ofs_Device, ch);
+			Machine.Portin8(cmdbase+Ofs_Device, ch);
 			(* Change device? *)
-			IF ((SYSTEM.VAL(SET, LONG(ch)) * {Device_DEV}) # devReg)
+			IF ((SYSTEM.VAL(SET, ORD(ch)) * {Device_DEV}) # devReg)
 			(* OR (Status_BSY IN status)*) THEN
 				IF TraceVerbose & (trace * TraceCommands # {}) THEN
 					KernelLog.String(Name); KernelLog.Int(ctrlID*MaxDevicesC + cmd.dev, 1);
@@ -503,7 +503,7 @@ TYPE
 				END;
 				SetInterrupt(FALSE);
 				(* HI2 *)
-				SYSTEM.PORTOUT(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
+				Machine.Portout8(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
 				(* HI1 *)
 				res := WaitStatus({Status_BSY, Status_DRQ}, {}, {}, SelectTimeout, status);
 				IF res # Res_OK THEN RETURN res; END;
@@ -512,48 +512,48 @@ TYPE
 			(* HI3 *)
 			IF cmd IS CommandCHS THEN
 				cmdCHS := cmd(CommandCHS);
-				SYSTEM.PORTOUT(cmdbase+Ofs_Features, CHR(cmdCHS.features));
-				SYSTEM.PORTOUT(cmdbase+Ofs_SectorCount, CHR(cmdCHS.count));
-				SYSTEM.PORTOUT(cmdbase+Ofs_SectorNumber, CHR(cmdCHS.sector));
-				SYSTEM.PORTOUT(cmdbase+Ofs_CylinderLow, CHR(cmdCHS.cylinder MOD 100H));
-				SYSTEM.PORTOUT(cmdbase+Ofs_CylinderHigh, CHR(cmdCHS.cylinder DIV 100H));
+				Machine.Portout8(cmdbase+Ofs_Features, CHR(cmdCHS.features));
+				Machine.Portout8(cmdbase+Ofs_SectorCount, CHR(cmdCHS.count));
+				Machine.Portout8(cmdbase+Ofs_SectorNumber, CHR(cmdCHS.sector));
+				Machine.Portout8(cmdbase+Ofs_CylinderLow, CHR(cmdCHS.cylinder MOD 100H));
+				Machine.Portout8(cmdbase+Ofs_CylinderHigh, CHR(cmdCHS.cylinder DIV 100H));
 				devReg := devReg + SYSTEM.VAL(SET, cmdCHS.head MOD 10H);
-				SYSTEM.PORTOUT(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
+				Machine.Portout8(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
 			ELSIF cmd IS CommandLBA THEN
 				cmdLBA := cmd(CommandLBA);
-				SYSTEM.PORTOUT(cmdbase+Ofs_Features, CHR(cmdLBA.features));
-				SYSTEM.PORTOUT(cmdbase+Ofs_SectorCount, CHR(cmdLBA.count));
-				SYSTEM.PORTOUT(cmdbase+Ofs_LBALow, CHR(cmdLBA.lba MOD 100H));
-				SYSTEM.PORTOUT(cmdbase+Ofs_LBAMid, CHR((ASH(cmdLBA.lba, -8) MOD 100H)));
-				SYSTEM.PORTOUT(cmdbase+Ofs_LBAHigh, CHR((ASH(cmdLBA.lba, -16) MOD 100H)));
+				Machine.Portout8(cmdbase+Ofs_Features, CHR(cmdLBA.features));
+				Machine.Portout8(cmdbase+Ofs_SectorCount, CHR(cmdLBA.count));
+				Machine.Portout8(cmdbase+Ofs_LBALow, CHR(cmdLBA.lba MOD 100H));
+				Machine.Portout8(cmdbase+Ofs_LBAMid, CHR((ASH(cmdLBA.lba, -8) MOD 100H)));
+				Machine.Portout8(cmdbase+Ofs_LBAHigh, CHR((ASH(cmdLBA.lba, -16) MOD 100H)));
 				INCL(devReg, Device_LBA);
 				devReg := devReg + SYSTEM.VAL(SET, ASH(cmdLBA.lba, -24) MOD 10H);
-				SYSTEM.PORTOUT(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
+				Machine.Portout8(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
 			ELSIF cmd IS CommandLBA48 THEN
 				cmdLBA48 := cmd(CommandLBA48);
 				(* Previous *)
-				SYSTEM.PORTOUT(cmdbase+Ofs_SectorCount, CHR(ASH(cmdLBA48.count, -8) MOD 100H));
-				SYSTEM.PORTOUT(cmdbase+Ofs_LBALow, CHR((ASH(cmdLBA48.lbaLow, -24) MOD 100H)));
-				SYSTEM.PORTOUT(cmdbase+Ofs_LBAMid, CHR((cmdLBA48.lbaHigh MOD 100H)));
-				SYSTEM.PORTOUT(cmdbase+Ofs_LBAHigh, CHR((ASH(cmdLBA48.lbaHigh, -8) MOD 100H)));
+				Machine.Portout8(cmdbase+Ofs_SectorCount, CHR(ASH(cmdLBA48.count, -8) MOD 100H));
+				Machine.Portout8(cmdbase+Ofs_LBALow, CHR((ASH(cmdLBA48.lbaLow, -24) MOD 100H)));
+				Machine.Portout8(cmdbase+Ofs_LBAMid, CHR((cmdLBA48.lbaHigh MOD 100H)));
+				Machine.Portout8(cmdbase+Ofs_LBAHigh, CHR((ASH(cmdLBA48.lbaHigh, -8) MOD 100H)));
 				(* Current *)
-				SYSTEM.PORTOUT(cmdbase+Ofs_SectorCount, CHR(cmdLBA48.count));
-				SYSTEM.PORTOUT(cmdbase+Ofs_LBALow, CHR(cmdLBA48.lbaLow MOD 100H));
-				SYSTEM.PORTOUT(cmdbase+Ofs_LBAMid, CHR((ASH(cmdLBA48.lbaLow, -8) MOD 100H)));
-				SYSTEM.PORTOUT(cmdbase+Ofs_LBAHigh, CHR((ASH(cmdLBA48.lbaLow, -16) MOD 100H)));
+				Machine.Portout8(cmdbase+Ofs_SectorCount, CHR(cmdLBA48.count));
+				Machine.Portout8(cmdbase+Ofs_LBALow, CHR(cmdLBA48.lbaLow MOD 100H));
+				Machine.Portout8(cmdbase+Ofs_LBAMid, CHR((ASH(cmdLBA48.lbaLow, -8) MOD 100H)));
+				Machine.Portout8(cmdbase+Ofs_LBAHigh, CHR((ASH(cmdLBA48.lbaLow, -16) MOD 100H)));
 				INCL(devReg, Device_LBA);
-				SYSTEM.PORTOUT(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
+				Machine.Portout8(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
 			ELSIF cmd IS CommandPacket THEN
 				cmdPacket := cmd(CommandPacket);
-				SYSTEM.PORTOUT(cmdbase+Ofs_Features, CHR(SYSTEM.VAL(LONGINT, cmdPacket.features)));	(* OVL, DMA *)
-				SYSTEM.PORTOUT(cmdbase+Ofs_SectorCount, 0X);	(* tag 0 *)
-				SYSTEM.PORTOUT(cmdbase+Ofs_CountLow, 0FEX);	(* byte count limit *)
-				SYSTEM.PORTOUT(cmdbase+Ofs_CountHigh, 0FFX);
-				SYSTEM.PORTOUT(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
+				Machine.Portout8(cmdbase+Ofs_Features, CHR(SYSTEM.VAL(LONGINT, cmdPacket.features)));	(* OVL, DMA *)
+				Machine.Portout8(cmdbase+Ofs_SectorCount, 0X);	(* tag 0 *)
+				Machine.Portout8(cmdbase+Ofs_CountLow, 0FEX);	(* byte count limit *)
+				Machine.Portout8(cmdbase+Ofs_CountHigh, 0FFX);
+				Machine.Portout8(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
 			END;
 
 			(* HI4 *)
-			SYSTEM.PORTOUT(cmdbase+Ofs_Cmd, CHR(cmd.cmd));
+			Machine.Portout8(cmdbase+Ofs_Cmd, CHR(cmd.cmd));
 			RETURN res;
 		END ProtIssueCommand;
 
@@ -606,7 +606,7 @@ TYPE
 						RepInWord(cmdbase, bufAdr, BS DIV 2);
 						INC(bufAdr, BS); DEC(num);
 						IF num <= 0 THEN
-							SYSTEM.PORTIN(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ORD(ch)));
+							Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ORD(ch)));
 							IF Status_ERR IN status THEN res := Res_Err; END;
 							state := -1;
 						ELSIF nIEN = 0 THEN
@@ -614,7 +614,7 @@ TYPE
 						ELSE
 							state := 1;
 							(* Wait 1 PIO transfer cycle when entering HPIOI1 from HPIOI2 *)
-							SYSTEM.PORTIN(cnlbase+Ofs_AltStatus, ch);
+							Machine.Portin8(cnlbase+Ofs_AltStatus, ch);
 						END;
 					END;
 				END;
@@ -651,7 +651,7 @@ TYPE
 						ELSE
 							state := 0;
 							(* Wait 1 PIO transfer cycle when entering HPIOI1 from HPIOI2 *)
-							SYSTEM.PORTIN(cnlbase+Ofs_AltStatus, ch);
+							Machine.Portin8(cnlbase+Ofs_AltStatus, ch);
 						END;
 					END;
 				(* HPIOO2 *)
@@ -679,19 +679,19 @@ TYPE
 				IF nIEN = 0 THEN
 					IF ~interrupt.Wait(ms) THEN (*RETURN Res_Timeout;*) END;
 				END;
-				SYSTEM.PORTIN(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONG(ch));
+				Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, ORD(ch));
 			(*UNTIL (s * {DMA_ERR, DMA_IRQ} # {}) OR Kernel.Expired(t);*)
 			UNTIL ~(DMA_Busy IN s) OR Kernel.Expired(t);
 			IF DMA_ERR IN s THEN RETURN Res_Err; END;
 			(*IF Kernel.Expired(t) THEN RETURN Res_Timeout; END;*)
 			REPEAT
-				SYSTEM.PORTIN(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ORD(ch)));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, ORD(ch));
 				IF ~(Status_BSY IN status) THEN
 					IF Status_ERR IN status THEN RETURN Res_Err; END;
 					IF ~(Status_DRQ IN status) THEN RETURN Res_OK; END;
 				END;
 				(* Wait 1 PIO transfer cycle when entering HDMA0 *)
-				SYSTEM.PORTIN(cnlbase+Ofs_AltStatus, ch);
+				Machine.Portin8(cnlbase+Ofs_AltStatus, ch);
 			UNTIL Kernel.Expired(t);
 			RETURN Res_Timeout;
 		END ProtDMA;
@@ -715,7 +715,7 @@ TYPE
 				(*IF ~interrupt.Wait(ms) THEN RETURN Res_Timeout; END;*)
 			ELSE
 				(* Wait 1 PIO transfer cycle when entering HP2 from HP1 *)
-				SYSTEM.PORTIN(cnlbase+Ofs_AltStatus, ch);
+				Machine.Portin8(cnlbase+Ofs_AltStatus, ch);
 			END;
 			LOOP
 				(* HP2 *)
@@ -724,9 +724,9 @@ TYPE
 				IF ~(Status_DRQ IN status) THEN EXIT; END;
 				IF size = 0 THEN EXIT; END;
 				(* HP4 *)
-				SYSTEM.PORTIN(cmdbase+Ofs_CountLow, ch);
+				Machine.Portin8(cmdbase+Ofs_CountLow, ch);
 				count := ORD(ch);
-				SYSTEM.PORTIN(cmdbase+Ofs_CountHigh, ch);
+				Machine.Portin8(cmdbase+Ofs_CountHigh, ch);
 				INC(count, ASH(ORD(ch), 8));
 				IF count > size THEN count := size END;
 				(* IF count <= 0 THEN KernelLog.String("count <= 0, size = "); KernelLog.Int(size, 0); KernelLog.Ln; EXIT; END; *)
@@ -766,14 +766,14 @@ TYPE
 				Kernel.SetTimer(t, ms+2);
 				REPEAT
 					IF ~interrupt.Wait(ms) THEN (*KernelLog.String("***");*) (*RETURN Res_Timeout;*) END;
-					SYSTEM.PORTIN(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONG(ch));
+					Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, ORD(ch));
 				UNTIL (s * {DMA_ERR, DMA_IRQ} # {}) OR Kernel.Expired(t);
 				(* UNTIL ~(DMA_Busy IN s) OR Kernel.Expired(t); *)
 				IF DMA_ERR IN s THEN RETURN Res_Err; END;
 				IF Kernel.Expired(t) THEN RETURN Res_Timeout; END;
 			ELSE
 				(* Wait 1 PIO transfer cycle when entering HPD2 from HPD1 *)
-				SYSTEM.PORTIN(cnlbase+Ofs_AltStatus, ch);
+				Machine.Portin8(cnlbase+Ofs_AltStatus, ch);
 			END;
 			(* HPD2 *)
 			res := WaitStatus({Status_BSY, Status_DRQ}, {}, {Status_ERR}, ms, status);
@@ -796,7 +796,7 @@ TYPE
 			(* Set nIEN *)
 			IF enable & (interrupt # NIL) THEN nIEN := 0; ELSE nIEN := 1; END;
 			i := ASH(nIEN, Control_nIEN);
-			SYSTEM.PORTOUT(cnlbase+Ofs_Control, CHR(i));
+			Machine.Portout8(cnlbase+Ofs_Control, CHR(i));
 		END SetInterrupt;
 
 		PROCEDURE CreateDevice(devNum: LONGINT): LONGINT;
@@ -809,19 +809,19 @@ TYPE
 		BEGIN
 			(* Select device *)
 			IF devNum = 1 THEN devReg := {Device_DEV} ELSE devReg := {}; END;
-			SYSTEM.PORTOUT(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
+			Machine.Portout8(cmdbase+Ofs_Device, CHR(SYSTEM.VAL(LONGINT, devReg)));
 			res := WaitStatus({Status_BSY, Status_DRQ}, {}, {}, SelectTimeout, status);
 			IF res # Res_OK THEN
 				(* Most likely, there is no device .... Show("Could not select device"); KernelLog.Ln; *)
 			END;
 
 			(* Check if registers are valid. FAST DETECTION  *)
-			SYSTEM.PORTOUT(cmdbase+Ofs_CountLow, 055X);
+			Machine.Portout8(cmdbase+Ofs_CountLow, 055X);
 			NanoDelay(400);
-			SYSTEM.PORTIN(cmdbase+Ofs_CountLow, c1);
-			SYSTEM.PORTOUT(cmdbase+Ofs_CountLow, 0AAX);
+			Machine.Portin8(cmdbase+Ofs_CountLow, c1);
+			Machine.Portout8(cmdbase+Ofs_CountLow, 0AAX);
 			NanoDelay(400);
-			SYSTEM.PORTIN(cmdbase+Ofs_CountLow, c2);
+			Machine.Portin8(cmdbase+Ofs_CountLow, c2);
 			IF (c1 # 055X) OR (c2 # 0AAX) THEN
 				IF TraceVerbose & (trace * (TraceErrors + TraceInit) # {})  THEN
 					KernelLog.String(", device "); KernelLog.Int(devNum, 0); KernelLog.String(" not present");
@@ -852,7 +852,7 @@ TYPE
 				NEW(devATA, SELF, devNum, buf);
 				dev := devATA;
 			ELSE
-				SYSTEM.PORTIN(cmdbase+Ofs_LBAHigh, ch);	(* signature byte *)
+				Machine.Portin8(cmdbase+Ofs_LBAHigh, ch);	(* signature byte *)
 				IF ch # ATAPISig THEN RETURN Res_Err; END;
 				(* ATAPI device *)
 				NEW(command);
@@ -896,7 +896,7 @@ TYPE
 					KernelLog.String(".."); KernelLog.Int((ctrlID+1)*MaxDevicesC-1, 1);
 					KernelLog.String(" Select device 0"); KernelLog.Ln;
 				END;
-				SYSTEM.PORTOUT(cmdbase+Ofs_Device, 0X);
+				Machine.Portout8(cmdbase+Ofs_Device, 0X);
 				res := WaitStatus({Status_BSY, Status_DRQ}, {}, {}, SelectTimeout, status);
 				IF res # Res_OK THEN KernelLog.String("Select device 0 failed"); KernelLog.Ln; END;
 				SetInterrupt(TRUE);
