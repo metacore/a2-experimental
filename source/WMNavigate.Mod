@@ -1632,18 +1632,20 @@ VAR window : WMWindowManager.Window; newWidth, newHeight : LONGINT;
 BEGIN {EXCLUSIVE}
 	manager.lock.AcquireWrite;
 	window := manager.GetFocusOwner();
-	IF (window.GetWidth() = width) & (window.GetHeight() = height) THEN
-		manager.SetWindowPos(window, window.normalBounds.l, window.normalBounds.t);
-		newWidth := window.normalBounds.r - window.normalBounds.l;
-		newHeight := window.normalBounds.b - window.normalBounds.t;
-	ELSE
-		window.normalBounds := window.bounds;
-		manager.SetWindowPos(window, ENTIER(viewport.range.l), ENTIER(viewport.range.t));
-		newWidth := width;
-		newHeight := height;
+	IF (window.flags * {WMWindowManager.FlagNavigation, WMWindowManager.FlagHidden, WMWindowManager.FlagNoResizing} = {}) THEN
+		IF (window.GetWidth() = width) & (window.GetHeight() = height) THEN
+			manager.SetWindowPos(window, window.normalBounds.l, window.normalBounds.t);
+			newWidth := window.normalBounds.r - window.normalBounds.l;
+			newHeight := window.normalBounds.b - window.normalBounds.t;
+		ELSE
+			window.normalBounds := window.bounds;
+			manager.SetWindowPos(window, ENTIER(viewport.range.l), ENTIER(viewport.range.t));
+			newWidth := width;
+			newHeight := height;
+		END;
+		manager.SetWindowSize(window, newWidth, newHeight);
+		window.Resized(newWidth, newHeight);
 	END;
-	manager.SetWindowSize(window, newWidth, newHeight);
-	window.Resized(newWidth, newHeight);
 	manager.lock.ReleaseWrite;
 END ToggleFullscreen;
 
