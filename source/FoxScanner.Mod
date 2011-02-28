@@ -59,39 +59,39 @@ CONST
 	~
 	*)
 
-	None*= 0; 
+	None*= 0;
 	(* RelationOps: Equal ... Is *)
-	Equal*= 1; DotEqual*= 2; Unequal*= 3; DotUnequal*= 4; Less*= 5; DotLess*= 6; 
-	LessEqual*= 7; DotLessEqual*= 8; Greater*= 9; DotGreater*= 10; GreaterEqual*= 11; DotGreaterEqual*= 12; 
-	In*= 13; Is*= 14; 
+	Equal*= 1; DotEqual*= 2; Unequal*= 3; DotUnequal*= 4; Less*= 5; DotLess*= 6;
+	LessEqual*= 7; DotLessEqual*= 8; Greater*= 9; DotGreater*= 10; GreaterEqual*= 11; DotGreaterEqual*= 12;
+	In*= 13; Is*= 14;
 	(* MulOps: Times ... And *)
-	Times*= 15; TimesTimes*= 16; DotTimes*= 17; PlusTimes*= 18; Slash*= 19; Backslash*= 20; 
-	DotSlash*= 21; Div*= 22; Mod*= 23; And*= 24; 
+	Times*= 15; TimesTimes*= 16; DotTimes*= 17; PlusTimes*= 18; Slash*= 19; Backslash*= 20;
+	DotSlash*= 21; Div*= 22; Mod*= 23; And*= 24;
 	(* AddOps: Or ... Minus *)
-	Or*= 25; Plus*= 26; Minus*= 27; 
+	Or*= 25; Plus*= 26; Minus*= 27;
 	(* Prefix Unary Operators Plus ... Not *)
-	Not*= 28; 
+	Not*= 28;
 	(* expressions may start with Plus ... Identifier *)
-	LeftParenthesis*= 29; LeftBracket*= 30; LeftBrace*= 31; Number*= 32; Character*= 33; String*= 34; 
-	Nil*= 35; True*= 36; False*= 37; Self*= 38; Result*= 39; Identifier*= 40; 
+	LeftParenthesis*= 29; LeftBracket*= 30; LeftBrace*= 31; Number*= 32; Character*= 33; String*= 34;
+	Nil*= 35; True*= 36; False*= 37; Self*= 38; Result*= 39; Identifier*= 40;
 	(* statementy may start with Self ... Begin *)
-	If*= 41; Case*= 42; While*= 43; Repeat*= 44; For*= 45; Loop*= 46; 
-	With*= 47; Exit*= 48; Await*= 49; Return*= 50; Begin*= 51; 
+	If*= 41; Case*= 42; While*= 43; Repeat*= 44; For*= 45; Loop*= 46;
+	With*= 47; Exit*= 48; Await*= 49; Return*= 50; Begin*= 51;
 	(* symbols, expressions and statements cannot start with *)
-	Semicolon*= 52; Transpose*= 53; RightBrace*= 54; RightBracket*= 55; RightParenthesis*= 56; Questionmark*= 57; 
-	Upto*= 58; Arrow*= 59; Period*= 60; Comma*= 61; Colon*= 62; Of*= 63; 
-	Then*= 64; Do*= 65; To*= 66; By*= 67; Becomes*= 68; Bar*= 69; 
-	End*= 70; Else*= 71; Elsif*= 72; Until*= 73; Finally*= 74; 
+	Semicolon*= 52; Transpose*= 53; RightBrace*= 54; RightBracket*= 55; RightParenthesis*= 56; Questionmark*= 57;
+	Upto*= 58; Arrow*= 59; Period*= 60; Comma*= 61; Colon*= 62; Of*= 63;
+	Then*= 64; Do*= 65; To*= 66; By*= 67; Becomes*= 68; Bar*= 69;
+	End*= 70; Else*= 71; Elsif*= 72; Until*= 73; Finally*= 74;
 	(* declaration elements *)
-	Code*= 75; Const*= 76; Type*= 77; Var*= 78; Out*= 79; Procedure*= 80; 
-	Operator*= 81; Import*= 82; Definition*= 83; Module*= 84; Actor*= 85; Assembly*= 86; 
+	Code*= 75; Const*= 76; Type*= 77; Var*= 78; Out*= 79; Procedure*= 80;
+	Operator*= 81; Import*= 82; Definition*= 83; Module*= 84; Actor*= 85; Assembly*= 86;
 	(* composite type symbols *)
-	Array*= 87; Object*= 88; Record*= 89; Pointer*= 90; Enum*= 91; Stream*= 92; 
+	Array*= 87; Object*= 88; Record*= 89; Pointer*= 90; Enum*= 91; Stream*= 92;
 	(* assembler constants *)
-	Ln*= 93; PC*= 94; PCOffset*= 95; 
+	Ln*= 93; PC*= 94; PCOffset*= 95;
 	(* number types *)
-	Shortint*= 96; Integer*= 97; Longint*= 98; Hugeint*= 99; Real*= 100; Longreal*= 101; 
-	Comment*= 102; EndOfText*= 103; 
+	Shortint*= 96; Integer*= 97; Longint*= 98; Hugeint*= 99; Real*= 100; Longreal*= 101;
+	Comment*= 102; EndOfText*= 103;
 
 	SingleQuote = 27X;  DoubleQuote* = 22X;
 	Ellipsis = 7FX;   (* used in Scanner.GetNumber to return with ".." when reading an interval like 3..5 *)
@@ -669,26 +669,34 @@ TYPE
 
 	END Scanner;
 
-
+	Context*=RECORD
+		position, readerPosition : LONGINT;
+	END;
 
 	AssemblerScanner* = OBJECT (Scanner) (*!  move to different module? unify with compiler scanner? *)
 	VAR
-		readerOrgPos: LONGINT;
-		startPosition: LONGINT;
+		startContext-: Context;
 
 		PROCEDURE &InitAssemblerScanner*( CONST source: ARRAY OF CHAR; reader: Streams.Reader; position: LONGINT; diagnostics: Diagnostics.Diagnostics );
 		BEGIN
-			SELF.startPosition := position;
-			SELF.readerOrgPos := reader.Pos();
+			SELF.reader := reader;
+			SELF.position := position;
+			GetContext(startContext);
 			InitializeScanner(source,reader,position,diagnostics);
 		END InitAssemblerScanner;
 
-		PROCEDURE Reset*;
+		PROCEDURE GetContext*(VAR context: Context);
 		BEGIN
-			reader.SetPos(readerOrgPos);
+			context.position := position;
+			context.readerPosition := reader.Pos();
+		END GetContext;
+
+		PROCEDURE Reset*(CONST context: Context);
+		BEGIN
+			reader.SetPos(context.readerPosition);
 			ch := " ";
 			IF reader = NIL THEN ch := EOT ELSE 	GetNextCharacter END;
-			position := startPosition;
+			position := context.position;
 		END Reset;
 
 		PROCEDURE SkipToEndOfLine*;
