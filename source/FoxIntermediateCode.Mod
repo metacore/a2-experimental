@@ -369,20 +369,14 @@ TYPE
 	PROCEDURE DumpRegister*(w: Streams.Writer; reg: LONGINT);
 	BEGIN
 		IF reg = SP THEN
-			w.String("$SP")
+			w.String("sp")
 		ELSIF reg = FP THEN
-			w.String("$FP")
-		(*
-		ELSIF reg = Result THEN
-			w.String("$Res")
-		ELSIF reg = Result2 THEN
-			w.String("$Res2")
-		*)
+			w.String("fp")
 		ELSIF reg > None THEN
-			w.String("$");
+			w.String("r");
 			w.Int(reg,1);
 		ELSIF reg <= HwRegister THEN
-			w.String("$R#");
+			w.String("h");
 			w.Int(HwRegister-reg,1);
 		ELSE Halt("unsupported register number");
 		END;
