@@ -518,7 +518,7 @@ TYPE
 						w.String(" ");
 						INC(i); INC(nr);
 					END;
-					IF i < to THEN
+					IF i <= to THEN
 						w.Ln;
 					END;
 				END;

@@ -229,7 +229,6 @@ TYPE
 		VAR
 			i		: LONGINT;
 			c		: Sections.Comment;
-			start	: LONGINT;
 		BEGIN
 			IF comments # NIL THEN
 				c := comments.firstComment;
@@ -242,22 +241,19 @@ TYPE
 						c.Dump(w); w.Ln;
 						c := c.nextComment;
 					END;
-					start	:= w.Pos();
 					w.Int(i,2); w.String(": ");
 					DumpInstruction(w,instructions[i]);
 					w.Ln;
 					INC(i);
 				END;
 				IF (c#NIL) & (c.pos = to) THEN
-					IF w IS Basic.Writer THEN w(Basic.Writer).BeginComment END;
 					c.Dump(w); w.Ln;
-					IF w IS Basic.Writer THEN w(Basic.Writer).EndComment END;
 				END;
 			ELSE
 				i := from;
 				WHILE(i<=to) DO
-					start	:= w.Pos();
-					DumpInstruction(w,instructions[i]);
+					w.Int(i,2); w.String(": ");
+					DumpInstruction(w,instructions[i]); w.Ln;
 					INC(i);
 				END;
 			END;
@@ -491,11 +487,6 @@ TYPE
 		RETURN (s1.mode = s2.mode) & (s1.register = s2.register) & (s1.offset = s2.offset) & (s1.intValue = s2.intValue) & (s1.floatValue = s2.floatValue)
 		& (s1.symbol = s2.symbol) & (s1.string = s2.string) & (s1.symbolOffset = s2.symbolOffset) & TypeEquals(s1.type,s2.type);
 	END OperandEquals;
-
-	PROCEDURE PrepareComment*( w: Streams.Writer );
-	BEGIN
-		w.String( LineCommentStart );
-	END PrepareComment;
 
 	PROCEDURE DumpInstruction*(w: Streams.Writer; CONST instr: Instruction);
 	BEGIN

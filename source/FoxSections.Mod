@@ -302,40 +302,39 @@ TYPE
 		END Init;
 
 		PROCEDURE Dump*(w: Streams.Writer);
-		VAR name: SyntaxTree.String; import: SyntaxTree.Import; first: BOOLEAN;
-
+		VAR name: SyntaxTree.String; import: SyntaxTree.Import; first: BOOLEAN; dump: Basic.Writer;
 		BEGIN
-			w.String("module ");
+			dump := Basic.GetWriter(w);
+			dump.String("module ");
 			Global.ModuleFileName(module.name,module.context,name);
-			w.String(name);
-			w.Ln;
-			w.Ln;
+			dump.String(name);
+			dump.Ln;
+			dump.Ln;
 
 			import := module.moduleScope.firstImport;
 			IF import # NIL THEN
-				w.String("imports "); first := TRUE;
+				dump.String("imports "); first := TRUE;
 				WHILE import # NIL DO
-					IF first THEN first := FALSE ELSE w.String(", ") END;
+					IF first THEN first := FALSE ELSE dump.String(", ") END;
 					IF import.module # NIL THEN
 						Global.ModuleFileName(import.module.name,import.module.context,name);
 					ELSE
 						name := "<import failed>";
 					END;
-					w.String(name);
+					dump.String(name);
 					import := import.nextImport;
 				END;
-				w.Ln; w.Ln;
+				dump.Ln; dump.Ln;
 			END;
 
 			sections.Dump(w);
-			w.Ln; w.String("; case tables"); w.Ln;
+			dump.Ln; dump.BeginComment; dump.String("; case tables"); dump.EndComment; dump.Ln;
 			caseTables.Dump(w);
-			w.Ln; w.String("; imported symbols"); w.Ln;
+			dump.Ln; dump.BeginComment; dump.String("; imported symbols"); dump.EndComment; dump.Ln;
 			importedSymbols.Dump(w);
-			w.Ln; w.String("; system calls"); w.Ln;
+			dump.Ln; dump.BeginComment; dump.String("; system calls"); dump.EndComment; dump.Ln;
 			systemCalls.Dump(w);
 		END Dump;
-
 
 	END Module;
 

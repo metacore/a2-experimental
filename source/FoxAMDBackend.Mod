@@ -266,8 +266,7 @@ TYPE
 		PROCEDURE Dump(w: Streams.Writer);
 		VAR i: LONGINT; virtual: Ticket;
 		BEGIN
-			IntermediateCode.PrepareComment( w );
-			w.String("---- registers ----"); w.Ln;
+			w.String("; ---- registers ----"); w.Ln;
 			FOR i := 0 TO LEN(toVirtual)-1 DO
 				virtual := toVirtual[i];
 				IF virtual # unusable THEN
@@ -2689,8 +2688,7 @@ TYPE
 		FINALLY
 			IF dump # NIL THEN
 				dump.Ln; dump.Ln;
-				IntermediateCode.PrepareComment( dump );
-				dump.String("------------------ rescued code (code generation trapped) -------------------"); dump.Ln;
+				dump.String("; ------------------ rescued code (code generation trapped) -------------------"); dump.Ln;
 				IF (traceString="") OR (traceString="*") THEN
 					intermediateModule.Dump(dump);
 					dump.Update
