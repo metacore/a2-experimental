@@ -552,7 +552,7 @@ TYPE
 		VAR ww: Basic.Writer;
 		BEGIN
 			IF comments # NIL THEN comments.Update END;
-			NEW(ww,w);
+			ww := Basic.GetWriter(w);
 			ww.String(" unit="); ww.Int(unit,1);
 			IF fixed THEN w.String(" fixed") ELSE w.String(" relocatable") END;
 			w.String(" align="); w.Int(alignment,1);
@@ -562,6 +562,7 @@ TYPE
 			ww.IncIndent;
 			fixupList.Dump(ww);
 			DumpCode(ww,0,SELF.pc-1);
+			ww.DecIndent;
 		END Dump;
 
 	END Section;

@@ -12,6 +12,8 @@ CONST
 	ConstSection*=ObjectFile.Const;
 	InlineCodeSection*=10;
 
+	LineCommentStart*="; ";
+
 
 
 TYPE
@@ -118,22 +120,21 @@ TYPE
 			str[strLen] := 0X;
 		END Append;
 
-
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR i: LONGINT;ch: CHAR; newln: BOOLEAN;
 		BEGIN
-			IF w IS Basic.Writer THEN w(Basic.Writer).BeginComment END;
+			IF w IS Basic.Writer THEN w(Basic.Writer).BeginComment; w(Basic.Writer).IncIndent; END;
 			w.String("; ");
 			i := 0; ch := str[i]; newln := FALSE;
 			WHILE(ch#0X) DO
 				IF (ch = 0DX) OR (ch = 0AX) THEN newln := TRUE
 				ELSE
-					IF newln THEN w.Ln; w.String("; "); newln := FALSE;  END;
+					IF newln THEN w.Ln; w.String(LineCommentStart); newln := FALSE;  END;
 				 	w.Char(ch);
 				 END;
 				INC(i); ch := str[i];
 			END;
-			IF w IS Basic.Writer THEN w(Basic.Writer).EndComment END;
+			IF w IS Basic.Writer THEN w(Basic.Writer).EndComment; w(Basic.Writer).DecIndent;END;
 			w.Update;
 		END Dump;
 
@@ -165,13 +166,13 @@ TYPE
 			Ln^;
 			Update;
 		END Ln;
-		
+
 		PROCEDURE Reset*;
 		BEGIN
 			firstComment := NIL; lastComment := NIL; comments := 0;
 			Reset^;
 		END Reset;
-		
+
 
 		PROCEDURE & InitCommentWriter*(getPC: GetPCProcedure);
 		BEGIN

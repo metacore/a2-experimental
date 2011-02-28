@@ -43,12 +43,7 @@ CONST
 	(* special registers *)
 	HwRegister*=-8; (* any value below (or equal) hwreg is a user defined hardware register *)
 	(*! alternative: generate inline assembler *)
-	(*
-		Result2*=31; (* used for tags such as for variables with delegate procedure type *)
-	*)
-	(*! result2 should be removed ASAP. Can be removed once delegate return types are represented as structured return type
-		we have it here for compatibility with old compiler
-	*)
+
 	(*Result*=30; (* result register *)*)
 	None*=-1; (* no register assigned *)
 	SP*=-2; (* stack pointer *)
@@ -68,7 +63,7 @@ CONST
 	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; NofOpcodes*= 38;
 
 	LineNrCommentOffset = 64;
-	LineCommentStart = ";";
+	LineCommentStart = Sections.LineCommentStart;
 
 TYPE
 	Type*=RECORD
@@ -130,7 +125,6 @@ TYPE
 		PROCEDURE GetPC(): LONGINT;
 		BEGIN RETURN pc
 		END GetPC;
-
 
 		PROCEDURE & InitIntermediateSection*(type: SHORTINT; CONST n: ARRAY OF CHAR; symbol: SyntaxTree.Symbol; comment: BOOLEAN);
 		BEGIN
@@ -249,23 +243,21 @@ TYPE
 						c := c.nextComment;
 					END;
 					start	:= w.Pos();
+					w.Int(i,2); w.String(": ");
 					DumpInstruction(w,instructions[i]);
-					PrepareCommentOffset( w, start, LineNrCommentOffset );
-					w.Int(i,1);
 					w.Ln;
 					INC(i);
 				END;
 				IF (c#NIL) & (c.pos = to) THEN
+					IF w IS Basic.Writer THEN w(Basic.Writer).BeginComment END;
 					c.Dump(w); w.Ln;
+					IF w IS Basic.Writer THEN w(Basic.Writer).EndComment END;
 				END;
 			ELSE
 				i := from;
 				WHILE(i<=to) DO
 					start	:= w.Pos();
 					DumpInstruction(w,instructions[i]);
-					PrepareCommentOffset( w, start, LineNrCommentOffset );
-					w.Int(i,1);
-					w.Ln;
 					INC(i);
 				END;
 			END;
@@ -280,10 +272,11 @@ TYPE
 				resolved.Dump(w)
 			ELSE
 				Dump^(w);
-				NEW(ww,w);
+				ww := Basic.GetWriter(w);
 				ww.IncIndent;
 				ww.Ln;
 				DumpCode(ww,0,pc-1);
+				ww.DecIndent;
 			END;
 		END Dump;
 
@@ -502,21 +495,7 @@ TYPE
 	PROCEDURE PrepareComment*( w: Streams.Writer );
 	BEGIN
 		w.String( LineCommentStart );
-		w.Char( " " );
 	END PrepareComment;
-
-	PROCEDURE PrepareCommentOffset*( w: Streams.Writer; lineOffset, commentOffset: LONGINT );
-	VAR
-		pos		: LONGINT;
-	BEGIN
-		pos		:= w.Pos();
-		pos		:= pos - lineOffset;
-		WHILE pos < commentOffset DO
-			w.Char( " " );
-			INC( pos );
-		END;
-		PrepareComment( w );
-	END PrepareCommentOffset;
 
 	PROCEDURE DumpInstruction*(w: Streams.Writer; CONST instr: Instruction);
 	BEGIN

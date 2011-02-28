@@ -168,7 +168,7 @@ TYPE
 				e := e.nextConstant;
 			END;
 
-			Keyword(" END");
+			Keyword("END");
 		END VisitEnumerationType;
 
 		PROCEDURE VisitRangeType(x: SyntaxTree.RangeType);
@@ -1348,14 +1348,14 @@ TYPE
 			END;
 			Indent;  Keyword("END" );
 		END VisitIfStatement;
-		
+
 		PROCEDURE WithPart(x: SyntaxTree.WithPart);
 		BEGIN
 			Expression(x.variable);
 			w.String(" : ");
 			Type(x.type);
 			Keyword(" DO " );
-			w.IncIndent;  StatementSequence(x.statements);  w.DecIndent;			
+			w.IncIndent;  StatementSequence(x.statements);  w.DecIndent;
 		END WithPart;
 
 		PROCEDURE VisitWithStatement(x: SyntaxTree.WithStatement);
@@ -1416,7 +1416,7 @@ TYPE
 
 		PROCEDURE VisitWhileStatement(x: SyntaxTree.WhileStatement);
 		BEGIN
-			Keyword(" WHILE " );
+			Keyword("WHILE " );
 			Expression(x.condition);
 			Keyword(" DO " );
 			w.IncIndent;
@@ -1428,7 +1428,7 @@ TYPE
 
 		PROCEDURE VisitRepeatStatement(x: SyntaxTree.RepeatStatement);
 		BEGIN
-			Keyword(" REPEAT " );
+			Keyword("REPEAT " );
 			w.IncIndent;
 			StatementSequence(x.statements);
 			w.DecIndent;
@@ -1438,7 +1438,7 @@ TYPE
 
 		PROCEDURE VisitForStatement(x: SyntaxTree.ForStatement);
 		BEGIN
-			Keyword(" FOR " );
+			Keyword("FOR " );
 			Expression(x.variable);
 			w.String( " := " );
 			Expression(x.from);
@@ -1458,7 +1458,7 @@ TYPE
 
 		PROCEDURE VisitLoopStatement(x: SyntaxTree.LoopStatement);
 		BEGIN
-			Keyword(" LOOP " );
+			Keyword("LOOP " );
 			w.IncIndent;  StatementSequence(x.statements);  w.DecIndent;
 			Indent;  Keyword("END" );
 		END VisitLoopStatement;
@@ -1647,7 +1647,7 @@ TYPE
 
 		PROCEDURE &Init*(w: Streams.Writer; mode: LONGINT; info: BOOLEAN);
 		BEGIN
-			NEW(SELF.w,w);
+			SELF.w := Basic.GetWriter(w);
 			SELF.mode := mode; NEW(ws,128); SELF.info := info; case := Scanner.Uppercase;
 			commentCount := 0; alertCount := 0; singleStatement := FALSE;
 		END Init;
@@ -1669,7 +1669,7 @@ VAR
 	PROCEDURE Info*(CONST info: ARRAY OF CHAR; a: ANY);
 	VAR symbol: SyntaxTree.Symbol; scope: SyntaxTree.Scope;
 	BEGIN
-		NEW(debug.w,D.Log);
+		debug.w := Basic.GetWriter(D.Log);
 		D.Ln;
 		D.Str(" --------> ");
 		D.Str(info);

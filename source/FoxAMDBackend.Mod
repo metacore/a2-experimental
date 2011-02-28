@@ -2658,8 +2658,9 @@ TYPE
 				dumpName := "AMD64 code trace: ";
 				Strings.Append(dumpName,traceString);
 				dump := Basic.GetWriter(Basic.GetDebugWriter(dumpName));
-				IntermediateCode.PrepareComment( dump );
-				dump.String("---------------- intermediate code -----------------"); dump.Ln;
+				dump.BeginComment;
+				dump.String(";---------------- intermediate code -----------------"); dump.Ln;
+				dump.EndComment;
 				IF (traceString="") OR (traceString="*") THEN
 					intermediateModule.Dump(dump);
 					dump.Update
@@ -2672,8 +2673,9 @@ TYPE
 				GenerateBinary(intermediateModule(Sections.Module),dump);
 				IF dump # NIL THEN
 					dump.Ln; dump.Ln;
-					IntermediateCode.PrepareComment( dump );
-					dump.String("------------------ binary code -------------------"); dump.Ln;
+					dump.BeginComment;
+					dump.String(";------------------ binary code -------------------"); dump.Ln;
+					dump.EndComment;
 					IF (traceString="") OR (traceString="*") THEN
 						intermediateModule.Dump(dump);
 						dump.Update

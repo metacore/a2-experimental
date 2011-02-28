@@ -1260,10 +1260,14 @@ TYPE
 		doindent: BOOLEAN;
 		w-: Streams.Writer;
 
-		PROCEDURE & InitBasicWriter*( w: Streams.Writer );
+		PROCEDURE InitBasicWriter*( w: Streams.Writer );
 		BEGIN
 			SELF.w := w; indent := 0; doindent := TRUE;
 		END InitBasicWriter;
+
+		PROCEDURE & InitW(w: Streams.Writer); (* protect against use of NEW *)
+		BEGIN InitBasicWriter(w);
+		END InitW;
 
 		PROCEDURE Reset*;
 		BEGIN w.Reset;
@@ -1662,7 +1666,8 @@ VAR
 
 	PROCEDURE InstallWriterFactory*(writer: WriterFactory; debug: DebugWriterFactory);
 	BEGIN
-		getDebugWriter := debug; getWriter := writer;
+		 getWriter := writer;
+		 getDebugWriter := debug;
 	END InstallWriterFactory;
 
 BEGIN
