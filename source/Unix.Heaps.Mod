@@ -87,10 +87,11 @@ VAR
 
 	heapSize: Size;
 
-	throuput:  LONGINT;
+	throuput:  Size;
 	GCEnabled: BOOLEAN;
 	GC*: PROCEDURE;
 	collecting-: BOOLEAN;
+	getBlockActive: BOOLEAN;
 
 	traceGC, traceNEW: BOOLEAN;
 	
@@ -509,7 +510,7 @@ VAR
 
 
 	PROCEDURE Collect*( root: RootObject );
-	VAR time1, time2 : HUGEINT;
+	VAR time1, time2 : HUGEINT; 
 	BEGIN
 		IF traceGC  THEN  Trace.String( "Heaps.Collect ... " );  Trace.Ln  END;
 		IF Stats THEN
@@ -534,6 +535,7 @@ VAR
 			INC(NgcCyclesAllRuns, NgcCyclesLastRun);
 			NgcCyclesMark := NgcCyclesLastRun
 		END;
+		throuput := 0;
 	END Collect;
 
 
@@ -541,30 +543,35 @@ VAR
 	(* -------------------------- memory allocation ----------------------- *)
 
 
+	PROCEDURE AwaitGetBlockFinish;
+	BEGIN
+		REPEAT
+			Machine.Release( Machine.Heaps );
+			Machine.thrSleep( 1 );
+			Machine.Acquire( Machine.Heaps )
+		UNTIL ~getBlockActive
+	END AwaitGetBlockFinish;
+	
 	PROCEDURE GetBlock( size: Size ): Address;   (* size MOD B = 0 *)
-	VAR i, try: LONGINT;  restSize, fbsize: Size;  adr1, adr2, ptr, restPtr: Address;
+	VAR i: LONGINT;  restSize, fbsize: Size;  adr1, adr2, ptr, restPtr: Address;
+		freeSize: Size;
 	BEGIN
 		IF (size < 0) OR (size > MaxHeapBlockSize)  THEN
 			Machine.Release( Machine.Heaps );
 			HALT( 99 )
 		END;
+		
+		IF getBlockActive THEN  AwaitGetBlockFinish  END;
+		getBlockActive := TRUE;
 
-		IF GCEnabled &  (throuput > 8*1024*1024) THEN
-			throuput := 0;
+		IF GCEnabled &  (throuput  > 64*1024*1024) THEN
 			Machine.Release( Machine.Heaps );
 			GC;
 			Machine.Acquire( Machine.Heaps )
 		 END;
 
 
-		try := 0;
 		REPEAT
-			INC( try );
-
-			IF try > 2 THEN
-				Trace.Ln;  Trace.String( "Heapspace exhaustet" ); Trace.Ln;  HALT( 99 )
-			END;
-
 			i := size DIV BlockSize;
 			IF i > N THEN  i := N  END;
 
@@ -573,10 +580,20 @@ VAR
 				IF i = N  THEN
 					LOOP
 						IF ptr = NilVal THEN
-							Machine.ExpandHeap( 0, size, adr1, adr2 );
-							IF adr1 # 0  THEN
-								S.PUT( adr1 + 2*AdrSize, A[N] );  A[N] := adr1;
-								heapSize := GetHeapSize();
+							IF GCEnabled & (throuput > 0) THEN
+								Machine.Release( Machine.Heaps );
+								GC;
+								Machine.Acquire( Machine.Heaps )
+							ELSE
+								Machine.ExpandHeap( 0, size, adr1, adr2 );
+								IF adr1 # 0  THEN
+									S.PUT( adr1 + 2*AdrSize, A[N] );  A[N] := adr1;
+									heapSize := GetHeapSize()
+								ELSE
+									Trace.Ln;  
+									Trace.String( "Heapspace exhaustet" ); Trace.Ln;  
+									HALT( 99 )
+								END
 							END;
 							EXIT
 						END;
@@ -605,6 +622,7 @@ VAR
 		END;
 		INC( throuput, size );
 		IF Stats THEN INC(Nnew); INC(NnewBytes, size) END;
+		getBlockActive := FALSE;
 		RETURN ptr
 	END GetBlock;
 
@@ -790,12 +808,11 @@ VAR
 	END ValidPointer;
 
 
-	(** Returns the size in bytes of the remaining free heap *)
-	PROCEDURE Available*( ): LONGINT;
-	VAR i, avail: LONGINT;  ptr: FreeBlk;
+	(* Returns the size in bytes of the remaining free heap *)
+	PROCEDURE Available( ): Size;
+	VAR i: LONGINT;  avail: Size;  ptr: FreeBlk;
 	BEGIN
 		avail := 0;  i := 0;
-		Machine.Acquire( Machine.Heaps );
 		WHILE i <= N DO
 			ptr := S.VAL( FreeBlk, A[i] );
 			WHILE ptr # NIL  DO
@@ -803,7 +820,6 @@ VAR
 			END;
 			INC( i )
 		END;
-		Machine.Release( Machine.Heaps );
 		RETURN avail
 	END Available;
 
@@ -857,7 +873,7 @@ VAR
 	(*------------------ Initialization --------------------------------------------------*)
 
 	PROCEDURE InitHeap;
-	VAR i: LONGINT;
+	VAR i: LONGINT; adr1, adr2: Address;
 		recSize, size: Size;
 		tag: SET;
 		block, lastElem: Address;
@@ -885,6 +901,11 @@ VAR
 		i := 0;
 		WHILE i < N DO  A[i] := NilVal;  INC( i )  END;
 		A[N] := block;
+		Machine.ExpandHeap( 0, 128*1024*1024, adr1, adr2 );
+		IF adr1 # 0  THEN
+			S.PUT( adr1 + 2*AdrSize, A[N] );  A[N] := adr1;
+			heapSize := GetHeapSize();
+		END;
 	END InitHeap;
 
 
