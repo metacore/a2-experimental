@@ -449,6 +449,11 @@ TYPE
 			SetSize(sizeInBits);
 			SELF.name := name
 		END InitBasicType;
+		
+		PROCEDURE SetName*(CONST id: ARRAY OF CHAR);
+		BEGIN
+			name := NewIdentifier(-1,id);
+		END SetName;
 
 		PROCEDURE SetTypeDeclaration*(typeDeclaration: TypeDeclaration);
 		BEGIN HALT(100);
