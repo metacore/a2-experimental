@@ -243,6 +243,7 @@ TYPE
 
 	Scanner* = OBJECT
 	VAR
+
 		(* helper state information *)
 		source-: StringType;
 		reader: Streams.Reader;   (* source *)
@@ -671,6 +672,7 @@ TYPE
 
 	Context*=RECORD
 		position, readerPosition : LONGINT;
+		ch: CHAR;
 	END;
 
 	AssemblerScanner* = OBJECT (Scanner) (*!  move to different module? unify with compiler scanner? *)
@@ -679,25 +681,24 @@ TYPE
 
 		PROCEDURE &InitAssemblerScanner*( CONST source: ARRAY OF CHAR; reader: Streams.Reader; position: LONGINT; diagnostics: Diagnostics.Diagnostics );
 		BEGIN
-			SELF.reader := reader;
-			SELF.position := position;
-			GetContext(startContext);
 			InitializeScanner(source,reader,position,diagnostics);
+			GetContext(startContext);
 		END InitAssemblerScanner;
 
 		PROCEDURE GetContext*(VAR context: Context);
 		BEGIN
+			context.ch := ch;
 			context.position := position;
 			context.readerPosition := reader.Pos();
 		END GetContext;
 
-		PROCEDURE Reset*(CONST context: Context);
+		PROCEDURE SetContext*(CONST context: Context);
 		BEGIN
 			reader.SetPos(context.readerPosition);
-			ch := " ";
-			IF reader = NIL THEN ch := EOT ELSE 	GetNextCharacter END;
+			ch := context.ch;
 			position := context.position;
-		END Reset;
+		END SetContext;
+
 
 		PROCEDURE SkipToEndOfLine*;
 		BEGIN
