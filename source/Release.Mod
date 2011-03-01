@@ -61,7 +61,7 @@ MODULE Release; (** AUTHOR "staubesv"; PURPOSE "Release build tool"; *)
 IMPORT
 	SYSTEM,
 	Modules, Streams, Commands, Options, Files, Dates, Strings, Texts, TextUtilities, ReleaseThreadPool, Diagnostics, WMGraphics, Zip,
-	CompilerInterface, Compiler, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, Backend := FoxBackend, Dataflow := FoxDataflow;
+	CompilerInterface, Compiler, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, Backend := FoxBackend, ActiveCells := FoxActiveCells;
 
 CONST
 	VersionMajor = 1;
@@ -1205,7 +1205,7 @@ TYPE
 			backend : Backend.Backend;
 			symbolFileFormat : Formats.SymbolFileFormat;
 			objectFileFormat : Formats.ObjectFileFormat;
-			dataflowSpecification: Dataflow.Specification;
+			dataflowSpecification: ActiveCells.Specification;
 			flags : SET;
 			findPC : ARRAY 256 OF CHAR;
 			options : ARRAY 1024 OF CHAR;
