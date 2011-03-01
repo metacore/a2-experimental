@@ -58,6 +58,7 @@ CONST
 
 		DefaultRuntimeModuleName ="Runtime";
 		DefaultTraceModuleName ="KernelLog";
+		ChannelModuleName = "Channels";
 
 		suppressModuleRegistration=FALSE;
 
@@ -209,7 +210,7 @@ TYPE
 			Scope(x.recordScope);
 		END VisitRecordType;
 
-		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
+		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration; type: SyntaxTree.Type; len,port,adr: LONGINT;
 			parameter: SyntaxTree.Parameter; symbol: IntermediateCode.Section; op: IntermediateCode.Operand;
 		BEGIN
@@ -230,7 +231,7 @@ TYPE
 					Global.GetSymbolName(parameter,name);
 					symbol := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,parameter,dump);
 					WHILE len > 0 DO
-						adr := backend.dataflowSpecification.GetPortAddress(port);
+						adr := backend.activeCellsSpecification.GetPortAddress(port);
 						IntermediateCode.InitImmediate(op,GetType(system,system.addressType),adr);
 						symbol.Emit(Data(op));
 						DEC(len); INC(port);
@@ -242,7 +243,7 @@ TYPE
 			END;
 
 			Scope(x.actorScope);
-		END VisitActorType;
+		END VisitCellType;
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
 		BEGIN (* no code emission *)   END VisitProcedureType;
@@ -266,7 +267,7 @@ TYPE
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
 		VAR name: SyntaxTree.String; irv: IntermediateCode.Section;
 		BEGIN
-			IF (currentScope IS SyntaxTree.ModuleScope) OR (currentScope IS SyntaxTree.ActorScope) THEN
+			IF (currentScope IS SyntaxTree.ModuleScope) OR (currentScope IS SyntaxTree.CellScope) THEN
 				(* code section for variable *)
 				Global.GetSymbolName(x,name);
 				irv := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,dump);
@@ -302,7 +303,7 @@ TYPE
 			variable: SyntaxTree.Variable;
 			prevScope: SyntaxTree.Scope;  typeDeclaration: SyntaxTree.TypeDeclaration;
 		BEGIN
-			IF x IS SyntaxTree.ActorScope THEN implementationVisitor.currentActorScope := x(SyntaxTree.ActorScope) END;
+			IF x IS SyntaxTree.CellScope THEN implementationVisitor.currentCellScope := x(SyntaxTree.CellScope) END;
 			prevScope := currentScope;
 			currentScope := x;
 			(* constants treated in implementation visitor  *)
@@ -331,7 +332,7 @@ TYPE
 				constant := constant.nextConstant;
 			END;
 
-			IF x IS SyntaxTree.ActorScope THEN implementationVisitor.currentActorScope := NIL END;
+			IF x IS SyntaxTree.CellScope THEN implementationVisitor.currentCellScope := NIL END;
 			currentScope := prevScope;
 		END Scope;
 
@@ -349,7 +350,7 @@ TYPE
 			result: Operand;
 			alignment : LONGINT;
 			cc: LONGINT;
-			actorType: SyntaxTree.ActorType;
+			actorType: SyntaxTree.CellType;
 
 			PROCEDURE Signature;
 			VAR parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType; returnType : SyntaxTree.Type;
@@ -409,17 +410,17 @@ TYPE
 			IF (scope.body # NIL) & (x.isInline) THEN
 				inline := TRUE;
 				ir := IntermediateCode.NewSection(module.sections,Sections.InlineCodeSection,name,x,dump);
-			ELSIF (x.scope # NIL) & (x.scope IS SyntaxTree.ActorScope) & (x.scope(SyntaxTree.ActorScope).ownerActor.isAssembly)
-				OR (x.scope # NIL) & (x.scope IS SyntaxTree.ModuleScope) & (x.scope(SyntaxTree.ModuleScope).ownerModule.isAssembly) THEN
+			ELSIF (x.scope # NIL) & (x.scope IS SyntaxTree.CellScope) & (x.scope(SyntaxTree.CellScope).ownerCell.isCellNet)
+				OR (x.scope # NIL) & (x.scope IS SyntaxTree.ModuleScope) & (x.scope(SyntaxTree.ModuleScope).ownerModule.isCellNet) THEN
 					(* assembly *)
 				RETURN
 			ELSIF x = module.module.moduleScope.bodyProcedure THEN
 				inline := FALSE;
 				AddBodyCallStub(x,Sections.InitCodeSection,0);
 				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
-			ELSIF (scope.outerScope IS SyntaxTree.ActorScope) & (x = scope.outerScope(SyntaxTree.ActorScope).bodyProcedure) THEN
+			ELSIF (scope.outerScope IS SyntaxTree.CellScope) & (x = scope.outerScope(SyntaxTree.CellScope).bodyProcedure) THEN
 				inline := FALSE;
-				actorType := scope.outerScope(SyntaxTree.ActorScope).ownerActor;
+				actorType := scope.outerScope(SyntaxTree.CellScope).ownerCell;
 				IF HasValue(actorType.modifiers,Global.StringMemorySize,stackSize) THEN stackSize := stackSize*1024 ELSE stackSize := 1024 END;
 				AddBodyCallStub(x,Sections.InitCode2Section,stackSize);
 				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
@@ -752,7 +753,7 @@ TYPE
 		emitLabels: BOOLEAN;
 		runtimeModuleName : SyntaxTree.String;
 		newObjectFile: BOOLEAN;
-		currentActorScope: SyntaxTree.ActorScope;
+		currentCellScope: SyntaxTree.CellScope;
 		indexCounter: LONGINT;
 
 		profile: BOOLEAN;
@@ -797,7 +798,7 @@ TYPE
 			IntermediateCode.InitImmediate(true,bool,1);
 
 			SELF.newObjectFile := newObjectFile;
-			currentActorScope := NIL;
+			currentCellScope := NIL;
 			indexCounter := 0;
 			NEW(registerUsage);
 			usedRegisters := NIL;
@@ -1662,8 +1663,8 @@ TYPE
 			IF importedModule = moduleScope.ownerModule THEN
 				source := IntermediateCode.NewSection(module.sections, Sections.ConstSection, name, symbol, commentPrintout # NIL);
 			ELSE
-				IF currentActorScope # NIL THEN
-					currentActorScope.AddImport(importedModule);
+				IF currentCellScope # NIL THEN
+					currentCellScope.AddImport(importedModule);
 				END;
 				source := IntermediateCode.NewSection(module.importedSymbols, Sections.ConstSection, name, symbol, commentPrintout # NIL);
 			END;
@@ -1682,9 +1683,9 @@ TYPE
 			ELSE (* only static linking possible *)
 				COPY(moduleName, name); Strings.Append(name,"."); Strings.Append(name,procedureName);
 
-				IF currentActorScope # NIL THEN
+				IF currentCellScope # NIL THEN
 					(*
-					currentActorScope.AddImport(importedModule);
+					currentCellScope.AddImport(importedModule);
 					*)
 				END;
 
@@ -1705,8 +1706,8 @@ TYPE
 				ReleaseOperand(result);
 			ELSE (* only static linking possible *)
 				COPY(altModuleName, name); Strings.Append(name,"."); Strings.Append(name,altProcedureName);
-				IF currentActorScope # NIL THEN
-					(* currentActorScope.AddImport(importedModule);*)
+				IF currentCellScope # NIL THEN
+					(* currentCellScope.AddImport(importedModule);*)
 				END;
 				source := IntermediateCode.NewSection(module.importedSymbols, Sections.CodeSection,name, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(address, addressType, source , 0);
@@ -3855,8 +3856,8 @@ TYPE
 						CheckTypeDeclaration(SELF, module,x,commentPrintout # NIL, newObjectFile);
 						source := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,td,commentPrintout # NIL);
 					ELSE
-						IF currentActorScope # NIL THEN
-							currentActorScope.AddImport(td.scope.ownerModule);
+						IF currentCellScope # NIL THEN
+							currentCellScope.AddImport(td.scope.ownerModule);
 						END;
 
 						source := IntermediateCode.NewSection(module.importedSymbols,Sections.ConstSection,name,td,commentPrintout # NIL);
@@ -5042,8 +5043,8 @@ TYPE
 						Global.GetSymbolName(constructor,name);
 						ASSERT(~constructor.isInline);
 						IF constructor.scope.ownerModule # module.module THEN
-							IF currentActorScope # NIL THEN
-								currentActorScope.AddImport(constructor.scope.ownerModule);
+							IF currentCellScope # NIL THEN
+								currentCellScope.AddImport(constructor.scope.ownerModule);
 							END;
 							symbol := IntermediateCode.NewSection(module.importedSymbols,Sections.CodeSection,name,constructor,commentPrintout # NIL);
 						ELSE
@@ -5363,7 +5364,7 @@ TYPE
 					Emit(Add(sp,sp,tmp));
 
 					SetLabel(exit);
-				ELSIF type IS SyntaxTree.ActorType THEN
+				ELSIF type IS SyntaxTree.CellType THEN
 					Error(p0.position,"cannot be allocated in runtime yet");
 				ELSE (* no pointer to record, no pointer to array *)
 					HALT(200);
@@ -5553,7 +5554,7 @@ TYPE
 				IF size # 1 THEN Error(p1.position,"send not implemented for complex data types") END;
 				ReleaseOperand(s0);
 				ReleaseOperand(s1);
-				CallThis("Dataflow","Send");
+				CallThis(ChannelModuleName,"Send");
 			(* ----- RECEIVE ------*)
 			|Global.Receive:
 				Evaluate(p0,s0);
@@ -5575,9 +5576,9 @@ TYPE
 				ReleaseOperand(s1);
 				ReleaseOperand(s2);
 				IF p2 = NIL THEN
-					CallThis("Dataflow","Receive")
+					CallThis(ChannelModuleName,"Receive")
 				ELSE
-					CallThis("Dataflow","ReceiveNonBlocking")
+					CallThis(ChannelModuleName,"ReceiveNonBlocking")
 				END;
 			ELSE (* function not yet implemented *)
 				Error(position,"not yet implemented");
@@ -5874,7 +5875,7 @@ TYPE
 				InitOperand(result,ModeReference);
 				GetBaseRegister(result.op,currentScope,x.scope);
 				IntermediateCode.AddOffset(result.op,ToMemoryUnits(system,x.offsetInBits));
-			ELSIF (x.scope = moduleScope) OR (x.scope IS SyntaxTree.ActorScope) THEN (* global variable *)
+			ELSIF (x.scope = moduleScope) OR (x.scope IS SyntaxTree.CellScope) THEN (* global variable *)
 				InitOperand(result,ModeReference);
 				Global.GetSymbolName(x,name);
 				symbol := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,commentPrintout # NIL);
@@ -5883,8 +5884,8 @@ TYPE
 				InitOperand(result,ModeReference);
 				Global.GetSymbolName(x,name);
 				(*! check for new object file, correct? *)
-				IF currentActorScope # NIL THEN
-					currentActorScope.AddImport(x.scope.ownerModule);
+				IF currentCellScope # NIL THEN
+					currentCellScope.AddImport(x.scope.ownerModule);
 				END;
 				symbol := IntermediateCode.NewSection(module.importedSymbols,Sections.VarSection,name,x,commentPrintout # NIL);
 				IntermediateCode.InitAddress(result.op, addressType, symbol, 0)
@@ -5938,7 +5939,7 @@ TYPE
 			type := x.type.resolved;
 			IF Trace THEN TraceEnter("VisitParameter") END;
 
-			IF x.ownerType IS SyntaxTree.ActorType THEN
+			IF x.ownerType IS SyntaxTree.CellType THEN
 				IF ~(x.type.resolved IS SyntaxTree.PortType) THEN
 					InitOperand(result,ModeReference);
 					Global.GetSymbolName(x,name);
@@ -5947,14 +5948,14 @@ TYPE
 					RETURN
 				ELSE
 					InitOperand(result, ModeValue);
-					parameter := x.ownerType(SyntaxTree.ActorType).firstParameter;
+					parameter := x.ownerType(SyntaxTree.CellType).firstParameter;
 					adr := 0;
 					WHILE parameter # x DO
 						parameterType := parameter.type;
 						IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN INC(adr,len) ELSE INC(adr) END;
 						parameter := parameter.nextParameter
 					END;
-					adr := backend.dataflowSpecification.GetPortAddress(adr);
+					adr := backend.activeCellsSpecification.GetPortAddress(adr);
 					IntermediateCode.InitImmediate(result.op,addressType,adr);
 					RETURN
 				END;
@@ -6094,8 +6095,8 @@ TYPE
 					source.Emit(Asm(x.procedureScope.body.code.sourceCode,x.position));
 				END;
 			ELSE
-				IF currentActorScope # NIL THEN
-					currentActorScope.AddImport(x.scope.ownerModule);
+				IF currentCellScope # NIL THEN
+					currentCellScope.AddImport(x.scope.ownerModule);
 				END;
 				source := IntermediateCode.NewSection(module.importedSymbols,sectionType,name,x,commentPrintout # NIL);
 			END;
@@ -6815,7 +6816,7 @@ TYPE
 		END VisitStatementBlock;
 
 		PROCEDURE VisitCode(x: SyntaxTree.Code);
-		VAR (*  inline: Sections.Assembly; symbol: SyntaxTree.Symbol; *)
+		VAR (*  inline: Sections.CellNet; symbol: SyntaxTree.Symbol; *)
 		BEGIN
 			IF Trace THEN TraceEnter("VisitCode") END;
 			Emit(Asm(x.sourceCode,x.position));
@@ -7027,9 +7028,9 @@ TYPE
 			ResetError;
 			Global.GetSymbolName(x,name);
 
-			IF dataflowSpecification # NIL THEN
+			IF activeCellsSpecification # NIL THEN
 				GetDescription(instructionSet);
-				dataflowSpecification.SetInstructionSet(instructionSet)
+				activeCellsSpecification.SetInstructionSet(instructionSet)
 			END;
 
 			NEW(module,x,system); (* backend structures *)

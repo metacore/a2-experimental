@@ -2,7 +2,7 @@ MODULE FoxSemanticChecker; (* AUTHOR "fof & fn"; PURPOSE "Oberon Compiler: Seman
 (* (c) fof ETHZ 2009 *)
 
 IMPORT D := Debugging, Basic := FoxBasic, Scanner := FoxScanner, SyntaxTree := FoxSyntaxTree,
-Diagnostics, Global := FoxGlobal, Printout:= FoxPrintout, Formats := FoxFormats, Dataflow := FoxDataflow, SYSTEM, Machine,Strings;
+Diagnostics, Global := FoxGlobal, Printout:= FoxPrintout, Formats := FoxFormats, ActiveCells := FoxActiveCells, SYSTEM, Machine,Strings;
 
 CONST
 	Trace = FALSE;
@@ -88,23 +88,23 @@ TYPE
 		currentScope-: SyntaxTree.Scope;
 		currentIsRealtime: BOOLEAN;
 		currentIsUnreachable: BOOLEAN;
-		currentIsAssembly: BOOLEAN;
+		currentIsCellNet: BOOLEAN;
 		currentIsBodyProcedure: BOOLEAN;
 		currentIsExclusive: BOOLEAN;
 		global: SyntaxTree.ModuleScope;
 		withEntries: WithEntry;
 		flagExpressions: ARRAY 32 OF SyntaxTree.Expression;
-		dataflowStatement: BOOLEAN;
-		dataflowSpecification: Dataflow.Specification;
+		activeCellsStatement: BOOLEAN;
+		activeCellsSpecification: ActiveCells.Specification;
 		indexCounter : LONGINT;
 
-		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage,useDarwinCCalls: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope);
+		PROCEDURE &InitChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage,useDarwinCCalls: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; activeCellsSpecification: ActiveCells.Specification; VAR importCache: SyntaxTree.ModuleScope);
 		BEGIN
 			SELF.diagnostics := diagnostics;
 			SELF.useDarwinCCalls := useDarwinCCalls;
 			SELF.system := system;
 			SELF.symbolFileFormat := symbolFileFormat;
-			SELF.dataflowSpecification := dataflowSpecification;
+			SELF.activeCellsSpecification := activeCellsSpecification;
 			error := FALSE;
 			NEW(typeFixes);
 			NEW(pointerFixes);
@@ -120,7 +120,7 @@ TYPE
 			phase := UndefinedPhase;
 			currentIsRealtime := FALSE;
 			currentIsUnreachable := FALSE;
-			currentIsAssembly := FALSE;
+			currentIsCellNet := FALSE;
 			currentIsBodyProcedure := FALSE;
 			currentIsExclusive := FALSE;
 			withEntries := NIL;
@@ -949,7 +949,7 @@ TYPE
 			- check declarations
 			- every actor type is guaranteed to have a type declaration in the module scope (anonymous or not)
 		**)
-		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
+		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		VAR
 			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter; type: SyntaxTree.Type; len: LONGINT;
 			modifier: SyntaxTree.Modifier; expression: SyntaxTree.Expression; position,value: LONGINT;
@@ -990,7 +990,7 @@ TYPE
 				x.SetState(SyntaxTree.Resolved);
 			END;
 			resolvedType := ResolvedType(x);
-		END VisitActorType;
+		END VisitCellType;
 
 		(* check if an object is an array-structured object type
 			- determine the array structure
@@ -3213,8 +3213,8 @@ TYPE
 						Error(selectorDesignator.position,Diagnostics.Invalid,"field on non-enumeration type declaration");
 						IF VerboseErrorMessage THEN Printout.Info("non-record type designator",left) END;
 					END;
-				ELSIF left.type.resolved IS SyntaxTree.ActorType THEN
-					scope := left.type.resolved(SyntaxTree.ActorType).actorScope;
+				ELSIF left.type.resolved IS SyntaxTree.CellType THEN
+					scope := left.type.resolved(SyntaxTree.CellType).actorScope;
 				ELSE
 					Error(selectorDesignator.position,Diagnostics.Invalid,"field on non-record type designator");
 					IF VerboseErrorMessage THEN Printout.Info("non-record type designator",left) END;
@@ -4276,7 +4276,7 @@ TYPE
 			name: SyntaxTree.String;
 
 			mathArrayType: SyntaxTree.MathArrayType;
-			device: Dataflow.Device;
+			device: ActiveCells.Device;
 
 			PROCEDURE Parameters(from,to: LONGINT): BOOLEAN;
 			VAR resultB: BOOLEAN;
@@ -4493,11 +4493,11 @@ TYPE
 									END;
 								END;
 							END;
-						ELSIF type0 IS SyntaxTree.ActorType THEN
-							IF Parameters(1,1) & ~(currentIsAssembly) THEN
-								Error(position,Diagnostics.Invalid,"actor allocation outside dataflow ");
+						ELSIF type0 IS SyntaxTree.CellType THEN
+							IF Parameters(1,1) & ~(currentIsCellNet) THEN
+								Error(position,Diagnostics.Invalid,"actor allocation outside activeCells ");
 							END;
-							dataflowStatement := TRUE;
+							activeCellsStatement := TRUE;
 						ELSE
 							Error(position,Diagnostics.Invalid,"cannot be allocated");
 						END;
@@ -5129,8 +5129,8 @@ TYPE
 					type := type0;
 				(* ------- CONNECT -------*)
 				ELSIF (id = Global.Connect) & (Parameters(2,3)) THEN
-					IF 	~(currentIsAssembly) THEN
-						Error(position,Diagnostics.Invalid,"connection outside dataflow body block");
+					IF 	~(currentIsCellNet) THEN
+						Error(position,Diagnostics.Invalid,"connection outside activeCells body block");
 					END;
 					IF ~CheckPortType(parameter1, inPort) OR (inPort.direction # SyntaxTree.InPort) THEN
 						Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
@@ -5146,11 +5146,11 @@ TYPE
 							Error(position,Diagnostics.Invalid,"incompatible channel size parameter");
 						END;
 					END;
-					dataflowStatement := TRUE;
+					activeCellsStatement := TRUE;
 				(* ---------- DELEGATE --------*)
 				ELSIF (id = Global.Delegate) & (Parameters(2,2)) THEN
-					IF 	~(currentIsAssembly) THEN
-						Error(position,Diagnostics.Invalid,"connection delegation outside dataflow body block");
+					IF 	~(currentIsCellNet) THEN
+						Error(position,Diagnostics.Invalid,"connection delegation outside activeCells body block");
 					END;
 					IF ~CheckPortType(parameter1, inPort) THEN
 						Error(parameter0.position,Diagnostics.Invalid,"not a port")
@@ -5161,7 +5161,7 @@ TYPE
 					ELSIF ~SameType(inPort.channelType, outPort.channelType) THEN
 						Error(position,Diagnostics.Invalid,"incompatible port types");
 					END;
-					dataflowStatement := TRUE;
+					activeCellsStatement := TRUE;
 				(* --------- RECEIVE ---------*)
 				ELSIF (id = Global.Receive) & Parameters(2,3) THEN
 					IF CheckPortType(parameter0,inPort) & CheckVariable(parameter1) THEN
@@ -5191,7 +5191,7 @@ TYPE
 				(* --------- HWADR --------- *)
 				ELSIF (id = Global.systemHardwareAddress) & (Parameters(1,1)) THEN
 					IF CheckStringValue(parameter0,name) THEN
-						device := dataflowSpecification.supportedDevices.ByName(name);
+						device := activeCellsSpecification.supportedDevices.ByName(name);
 						IF device = NIL THEN
 							Error(parameter0.position,Diagnostics.Invalid,"unsupported device");
 							result := SyntaxTree.invalidExpression;
@@ -5664,7 +5664,7 @@ TYPE
 				ASSERT(parameter.type.resolved # NIL);
 				CheckSymbol(parameter);
 				IF parameter.kind = SyntaxTree.ConstParameter THEN parameter.SetAccess(parameter.access * SyntaxTree.ReadOnly) END;
-				IF parameter.ownerType IS SyntaxTree.ActorType THEN
+				IF parameter.ownerType IS SyntaxTree.CellType THEN
 					parameter.SetAccess(SyntaxTree.ReadOnly);
 				END;
 				parameter.SetState(SyntaxTree.Resolved);
@@ -5996,11 +5996,11 @@ TYPE
 			prev := resolvedStatement;
 			resolvedStatement := x;
 			IF currentIsUnreachable THEN x.SetUnreachable(TRUE) END;
-			dataflowStatement := FALSE;
+			activeCellsStatement := FALSE;
 			x.Accept(SELF);
 			(* removed this, implementation restriction should be resolved by backend
-			IF (inAssemblyBody) & (dataflowStatement = FALSE) THEN
-				Error(x.position, Diagnostics.Invalid, "non-dataflow statement in dataflow block - not yet implemented");
+			IF (inCellNetBody) & (activeCellsStatement = FALSE) THEN
+				Error(x.position, Diagnostics.Invalid, "non-activeCells statement in activeCells block - not yet implemented");
 			END;
 			*)
 			resolved := resolvedStatement;
@@ -6728,11 +6728,11 @@ TYPE
 		(*!	can in principle be done in parallel on different checkers: implementations do only depend on declarations)
 		 move implementation checker to a separate object ? *)
 		PROCEDURE Implementation(scope: SyntaxTree.Scope);
-		VAR prevScope: SyntaxTree.Scope; procedure: SyntaxTree.Procedure; prevIsRealtime, prevIsBodyProcedure, prevIsAssembly: BOOLEAN;
+		VAR prevScope: SyntaxTree.Scope; procedure: SyntaxTree.Procedure; prevIsRealtime, prevIsBodyProcedure, prevIsCellNet: BOOLEAN;
 		BEGIN
 			prevIsRealtime := currentIsRealtime;
 			prevIsBodyProcedure := currentIsBodyProcedure;
-			prevIsAssembly := currentIsAssembly;
+			prevIsCellNet := currentIsCellNet;
 			prevScope := currentScope;
 			currentScope := scope;
 			IF (scope IS SyntaxTree.ProcedureScope) THEN
@@ -6742,14 +6742,14 @@ TYPE
 				IF (procedure.scope # NIL) &
 					((procedure.scope IS SyntaxTree.ModuleScope)
 					& (procedure.scope(SyntaxTree.ModuleScope).bodyProcedure = procedure)
-					& (procedure.scope(SyntaxTree.ModuleScope).ownerModule.isAssembly)
+					& (procedure.scope(SyntaxTree.ModuleScope).ownerModule.isCellNet)
 					OR
-					 (procedure.scope IS SyntaxTree.ActorScope)
-					 & (procedure.scope(SyntaxTree.ActorScope).bodyProcedure = procedure)
-					 & (procedure.scope(SyntaxTree.ActorScope).ownerActor.isAssembly)
+					 (procedure.scope IS SyntaxTree.CellScope)
+					 & (procedure.scope(SyntaxTree.CellScope).bodyProcedure = procedure)
+					 & (procedure.scope(SyntaxTree.CellScope).ownerCell.isCellNet)
 					 )
 				THEN
-					currentIsAssembly := TRUE
+					currentIsCellNet := TRUE
 				END;
 				IF procedure.isInline & ((scope(SyntaxTree.ProcedureScope).body = NIL) OR (scope(SyntaxTree.ProcedureScope).body # NIL) & (scope(SyntaxTree.ProcedureScope).body.code = NIL)) THEN
 					Error(procedure.position,Diagnostics.Invalid,"unsupported inline procedure - must be assembler code")
@@ -6762,7 +6762,7 @@ TYPE
 			currentScope := prevScope;
 			currentIsRealtime := prevIsRealtime;
 			currentIsBodyProcedure := prevIsBodyProcedure;
-			currentIsAssembly := prevIsAssembly;
+			currentIsCellNet := prevIsCellNet;
 		END Implementation;
 
 		(** implementation phase:
@@ -6836,12 +6836,12 @@ TYPE
 				END;
 				parameter := scope(SyntaxTree.ProcedureScope).ownerProcedure.type.resolved(SyntaxTree.ProcedureType).returnParameter;
 				IF parameter # NIL THEN Register(parameter, currentScope, FALSE); END;
-			ELSIF scope IS SyntaxTree.ActorScope THEN
-				parameter := scope(SyntaxTree.ActorScope).ownerActor.firstParameter;
+			ELSIF scope IS SyntaxTree.CellScope THEN
+				parameter := scope(SyntaxTree.CellScope).ownerCell.firstParameter;
 				WHILE(parameter # NIL) DO
 					Register(parameter,scope, FALSE); parameter := parameter.nextParameter;
 				END;
-				ImportModule(SyntaxTree.NewIdentifier(-1,"Dataflow"),module.position);
+				ImportModule(SyntaxTree.NewIdentifier(-1,"ActiveCells"),module.position);
 			END;
 			IF error THEN RETURN END;
 
@@ -6870,7 +6870,7 @@ TYPE
 			(* now process all symbols without any presumption on the order *)
 			symbol := scope.firstSymbol;
 			WHILE(symbol # NIL) DO
-				IF ~(symbol IS SyntaxTree.Parameter) OR (symbol(SyntaxTree.Parameter).ownerType IS SyntaxTree.ActorType) THEN
+				IF ~(symbol IS SyntaxTree.Parameter) OR (symbol(SyntaxTree.Parameter).ownerType IS SyntaxTree.CellType) THEN
 					ResolveSymbol(symbol);
 				END;
 				symbol := symbol.nextSymbol;
@@ -6997,8 +6997,8 @@ TYPE
 		PROCEDURE VisitRecordType*(x: SyntaxTree.RecordType);
 		BEGIN Scope(x.recordScope) END VisitRecordType;
 
-		PROCEDURE VisitActorType*(x: SyntaxTree.ActorType);
-		BEGIN  Scope(x.actorScope) END VisitActorType;
+		PROCEDURE VisitCellType*(x: SyntaxTree.CellType);
+		BEGIN  Scope(x.actorScope) END VisitCellType;
 
 		PROCEDURE VisitProcedureType*(x: SyntaxTree.ProcedureType);
 		BEGIN  END VisitProcedureType;
@@ -7937,10 +7937,10 @@ TYPE
 	END EnterCase;
 
 	(** generate and return a new checker object, errors are entered into diagnostics **)
-	PROCEDURE NewChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage,useDarwinCCalls: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; dataflowSpecification: Dataflow.Specification; VAR importCache: SyntaxTree.ModuleScope): Checker;
+	PROCEDURE NewChecker*(diagnostics: Diagnostics.Diagnostics; verboseErrorMessage,useDarwinCCalls: BOOLEAN; system: Global.System; symbolFileFormat: Formats.SymbolFileFormat; activeCellsSpecification: ActiveCells.Specification; VAR importCache: SyntaxTree.ModuleScope): Checker;
 	VAR checker: Checker;
 	BEGIN
-		NEW(checker, diagnostics,verboseErrorMessage,useDarwinCCalls,system,symbolFileFormat,dataflowSpecification, importCache);
+		NEW(checker, diagnostics,verboseErrorMessage,useDarwinCCalls,system,symbolFileFormat,activeCellsSpecification, importCache);
 		RETURN checker
 	END NewChecker;
 

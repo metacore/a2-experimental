@@ -48,7 +48,7 @@ CONST
 	Semicolon Transpose RightBrace RightBracket RightParenthesis Questionmark Upto
     	Arrow Period Comma Colon Of Then Do To By Becomes Bar End Else Elsif Until Finally
 	(* declaration elements *)
-	Code Const Type Var Out Procedure Operator Import Definition Module Actor Assembly
+	Code Const Type Var Out Procedure Operator Import Definition Module Cell CellNet
 	(* composite type symbols *)
 	Array Object Record Pointer Enum Stream
 	(* assembler constants *)
@@ -84,7 +84,7 @@ CONST
 	End*= 70; Else*= 71; Elsif*= 72; Until*= 73; Finally*= 74;
 	(* declaration elements *)
 	Code*= 75; Const*= 76; Type*= 77; Var*= 78; Out*= 79; Procedure*= 80;
-	Operator*= 81; Import*= 82; Definition*= 83; Module*= 84; Actor*= 85; Assembly*= 86;
+	Operator*= 81; Import*= 82; Definition*= 83; Module*= 84; Cell*= 85; CellNet*= 86;
 	(* composite type symbols *)
 	Array*= 87; Object*= 88; Record*= 89; Pointer*= 90; Enum*= 91; Stream*= 92;
 	(* assembler constants *)
@@ -646,13 +646,13 @@ TYPE
 						IF (case=Uppercase) OR (case=Unknown) THEN
 							token := keywordsUpper.IndexByString(symbol.string);
 							IF  (token >= 0) THEN s := token END;
-							IF (s = Module) OR (s=Assembly) THEN case := Uppercase END;
+							IF (s = Module) OR (s=CellNet) THEN case := Uppercase END;
 						END;
 				| "a".."z": s := Identifier; GetIdentifier( symbol);
 						IF (case = Lowercase) OR (case=Unknown) THEN
 							token := keywordsLower.IndexByString(symbol.string);
 							IF  (token >= 0) THEN s := token END;
-							IF (s = Module) OR (s=Assembly) THEN case := Lowercase END;
+							IF (s = Module) OR (s=CellNet) THEN case := Lowercase END;
 						END;
 						IF firstIdentifier & (s # Module) THEN case := Uppercase; s := Identifier END;
 				ELSE s := Identifier;  GetIdentifier( symbol );
@@ -920,8 +920,8 @@ TYPE
 		tokens[Import] := "Import";
 		tokens[Definition] := "Definition";
 		tokens[Module] := "Module";
-		tokens[Actor] := "Actor";
-		tokens[Assembly] := "Assembly";
+		tokens[Cell] := "Cell";
+		tokens[CellNet] := "CellNet";
 		tokens[Array] := "Array";
 		tokens[Object] := "Object";
 		tokens[Record] := "Record";
@@ -981,8 +981,8 @@ TYPE
 		NEW(keywordsLower,EndOfText+1);
 
 		(* constructs and statements *)
-		Enter( "actor", Actor );
-		Enter( "assembly", Assembly);
+		Enter( "cell", Cell );
+		Enter( "cellnet", CellNet);
 		Enter( "await" , Await);
 		Enter( "begin" , Begin);
 		Enter( "by" , By);

@@ -1,7 +1,7 @@
 MODULE FoxTest;	(** AUTHOR "fof"; PURPOSE "Fox tester"; *)
 (* (c) fof ETH Zürich, 2008 *)
 
-IMPORT Basic := FoxBasic, TestSuite, Diagnostics, Streams, Compiler, Commands, Shell, Options, Backend := FoxBackend, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, Dataflow := FoxDataflow;
+IMPORT Basic := FoxBasic, TestSuite, Diagnostics, Streams, Compiler, Commands, Shell, Options, Backend := FoxBackend, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, ActiveCells := FoxActiveCells;
 
 TYPE
 	Command = ARRAY 256 OF CHAR;
@@ -62,7 +62,7 @@ TYPE
 		optionsString: ARRAY 256 OF CHAR; arg: Streams.StringReader; flags: SET; verbose, execute: BOOLEAN; backend: Backend.Backend;
 		symbolFile: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
-		dataflowSpecification: Dataflow.Specification;
+		activeCellsSpecification: ActiveCells.Specification;
 		findPC: SyntaxTree.String;
 	BEGIN
 		IF (context.caller # NIL) & (context.caller IS Shell.Shell) THEN
@@ -81,7 +81,7 @@ TYPE
 			IF options.GetString("o",optionsString) THEN
 				NEW(arg,256);
 				arg.Set(optionsString);
-				ASSERT (Compiler.GetOptions(arg, context.error, diagnostics, flags, backend,symbolFile,objectFile,dataflowSpecification, findPC));
+				ASSERT (Compiler.GetOptions(arg, context.error, diagnostics, flags, backend,symbolFile,objectFile,activeCellsSpecification, findPC));
 			END;
 			IF options.GetString ("c", command) THEN END;
 		END;

@@ -1,8 +1,8 @@
-MODULE FoxDataflowBackend; (** AUTHOR ""; PURPOSE ""; *)
+MODULE FoxActiveCellsBackend; (** AUTHOR ""; PURPOSE ""; *)
 
 IMPORT SyntaxTree := FoxSyntaxTree, SemanticChecker := FoxSemanticChecker, Backend := FoxBackend, Global := FoxGlobal,
  	Diagnostics, Strings, Options, Formats := FoxFormats, SymbolFileFormat := FoxTextualSymbolFile,
-	Dataflow := FoxDataflow, Basic := FoxBasic, Scanner := FoxScanner, Streams, Printout := FoxPrintout;
+	ActiveCells := FoxActiveCells, Basic := FoxBasic, Scanner := FoxScanner, Streams, Printout := FoxPrintout;
 
 CONST
 	NotYetImplemented = "not yet implemented";
@@ -75,7 +75,7 @@ TYPE
 		implementationVisitor: ImplementationVisitor;
 		system: Global.System;
 		currentScope: SyntaxTree.Scope;
-		currentDataflowScope: Dataflow.Scope;
+		currentActiveCellsScope: ActiveCells.Scope;
 		module: SyntaxTree.Module;
 
 		PROCEDURE & Init*(system: Global.System; implementationVisitor: ImplementationVisitor; backend: Backend.Backend);
@@ -83,7 +83,7 @@ TYPE
 			currentScope := NIL;
 			SELF.system := system; SELF.implementationVisitor := implementationVisitor;
 			SELF.backend := backend;
-			currentDataflowScope := backend.dataflowSpecification;
+			currentActiveCellsScope := backend.activeCellsSpecification;
 		END Init;
 
 		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
@@ -159,21 +159,21 @@ TYPE
 			END;
 		END HasValue;
 
-		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
-		VAR componentName, parameterName, name: SyntaxTree.String; instanceType: Dataflow.Type;
+		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
+		VAR componentName, parameterName, name: SyntaxTree.String; instanceType: ActiveCells.Type;
 			parameter: SyntaxTree.Parameter; parameterType: SyntaxTree.Type; portIndex,i,direction,len: LONGINT;
-			port: Dataflow.Port;
-			prevDataflowScope : Dataflow.Scope;
+			port: ActiveCells.Port;
+			prevActiveCellsScope : ActiveCells.Scope;
 			dataMemorySize: LONGINT;
 		BEGIN
-			prevDataflowScope := currentDataflowScope;
+			prevActiveCellsScope := currentActiveCellsScope;
 			x.typeDeclaration.name.GetString(componentName);
-			instanceType := currentDataflowScope.NewType(componentName); (*backend.dataflowSpecification.NewType(componentName);*)
+			instanceType := currentActiveCellsScope.NewType(componentName); (*backend.activeCellsSpecification.NewType(componentName);*)
 			IF HasValue(x.modifiers,Global.StringMemorySize,dataMemorySize) THEN
 				instanceType.SetDataMemorySize(dataMemorySize);
 			END;
 
-			currentDataflowScope := instanceType;
+			currentActiveCellsScope := instanceType;
 			parameter := x.firstParameter;
 			portIndex := 0;
 			WHILE parameter # NIL DO
@@ -184,22 +184,22 @@ TYPE
 					FOR i := 0 TO len-1 DO
 						COPY(parameterName,name);
 						AppendIndex(name,i);
-						port := instanceType.NewPort(name,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+						port := instanceType.NewPort(name,direction,backend.activeCellsSpecification.GetPortAddress(portIndex));
 						port.SetWidth(system.SizeOf(parameterType(SyntaxTree.PortType).channelType));
 						INC(portIndex);
 					END;
 				ELSE
 					direction := Direction(parameterType(SyntaxTree.PortType).direction);
-					port := instanceType.NewPort(parameterName,direction,backend.dataflowSpecification.GetPortAddress(portIndex));
+					port := instanceType.NewPort(parameterName,direction,backend.activeCellsSpecification.GetPortAddress(portIndex));
 					port.SetWidth(system.SizeOf(parameterType(SyntaxTree.PortType).channelType));
 					INC(portIndex);
 				END;
 				parameter := parameter.nextParameter;
 			END;
 			Scope(x.actorScope);
-			currentDataflowScope := prevDataflowScope;
+			currentActiveCellsScope := prevActiveCellsScope;
 			AddModules(instanceType,x.actorScope);
-		END VisitActorType;
+		END VisitCellType;
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
 		BEGIN (* no code emission *)   END VisitProcedureType;
@@ -213,7 +213,7 @@ TYPE
 		VAR name: SyntaxTree.String;
 		BEGIN
 			x.module.name.GetString(name);
-			backend.dataflowSpecification.AddImport(name);
+			backend.activeCellsSpecification.AddImport(name);
 		END VisitImport;
 
 		PROCEDURE VisitProcedure(x: SyntaxTree.Procedure);
@@ -245,7 +245,7 @@ TYPE
 			import: SyntaxTree.Import;
 			prevScope: SyntaxTree.Scope;  typeDeclaration: SyntaxTree.TypeDeclaration;
 		BEGIN
-			IF x IS SyntaxTree.ActorScope THEN implementationVisitor.currentActorScope := x(SyntaxTree.ActorScope) END;
+			IF x IS SyntaxTree.CellScope THEN implementationVisitor.currentCellScope := x(SyntaxTree.CellScope) END;
 			prevScope := currentScope;
 			currentScope := x;
 			(* constants treated in implementation visitor  *)
@@ -281,16 +281,16 @@ TYPE
 				constant := constant.nextConstant;
 			END;
 
-			IF x IS SyntaxTree.ActorScope THEN implementationVisitor.currentActorScope := NIL END;
+			IF x IS SyntaxTree.CellScope THEN implementationVisitor.currentCellScope := NIL END;
 			currentScope := prevScope;
 		END Scope;
 
-		PROCEDURE AssemblyBody(x: SyntaxTree.Body);
+		PROCEDURE CellNetBody(x: SyntaxTree.Body);
 		BEGIN
 			implementationVisitor.currentScope := currentScope;
-			implementationVisitor.currentDataflowScope := currentDataflowScope;
+			implementationVisitor.currentActiveCellsScope := currentActiveCellsScope;
 			implementationVisitor.VisitStatementBlock(x);
-		END AssemblyBody;
+		END CellNetBody;
 
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
 		VAR
@@ -307,14 +307,14 @@ TYPE
 
 			IF  (x.scope IS SyntaxTree.ModuleScope)
 				&  (x= x.scope(SyntaxTree.ModuleScope).bodyProcedure)
-				& (module.isAssembly)
+				& (module.isCellNet)
 				OR
-				(x.scope IS SyntaxTree.ActorScope)
-				& (x= x.scope(SyntaxTree.ActorScope).bodyProcedure)
-				& (x.scope(SyntaxTree.ActorScope).ownerActor.isAssembly)
+				(x.scope IS SyntaxTree.CellScope)
+				& (x= x.scope(SyntaxTree.CellScope).bodyProcedure)
+				& (x.scope(SyntaxTree.CellScope).ownerCell.isCellNet)
 			THEN
 				IF scope.body # NIL THEN
-					AssemblyBody(scope.body);
+					CellNetBody(scope.body);
 				END;
 			END;
 			currentScope := prevScope;
@@ -324,7 +324,7 @@ TYPE
 		PROCEDURE Module*(x: SyntaxTree.Module);
 		BEGIN
 			ASSERT(x # NIL); module := x;
-			currentDataflowScope := backend.dataflowSpecification;
+			currentActiveCellsScope := backend.activeCellsSpecification;
 			implementationVisitor.moduleScope := x.moduleScope;
 			Scope(x.moduleScope);
 		END Module;
@@ -343,8 +343,8 @@ TYPE
 
 		(* variables for hand over of variables /  temporary state *)
 		currentScope: SyntaxTree.Scope;
-		currentActorScope: SyntaxTree.ActorScope;
-		currentDataflowScope: Dataflow.Scope;
+		currentCellScope: SyntaxTree.CellScope;
+		currentActiveCellsScope: ActiveCells.Scope;
 
 		scopes: Scopes;
 
@@ -360,7 +360,7 @@ TYPE
 			SELF.backend := backend;
 
 			currentScope := NIL;
-			currentActorScope := NIL;
+			currentCellScope := NIL;
 			NEW(scopes);
 			error := FALSE;
 		END Init;
@@ -538,14 +538,14 @@ TYPE
 
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR p0,p1,p2: SyntaxTree.Expression;
-		instanceType: Dataflow.Type;
-		port1,port2: Dataflow.Port;
-		channel: Dataflow.Channel;
+		instanceType: ActiveCells.Type;
+		port1,port2: ActiveCells.Port;
+		channel: ActiveCells.Channel;
 		type,t0,t1,t2: SyntaxTree.Type;
 		instanceName, typeName, portName: SyntaxTree.String;
 		len: LONGINT;
-		instance,instance1,instance2: Dataflow.Instance;
-		symbol: Dataflow.Symbol;
+		instance,instance1,instance2: ActiveCells.Instance;
+		symbol: ActiveCells.Symbol;
 		value: LONGINT;
 
 			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
@@ -584,13 +584,13 @@ TYPE
 				RETURN TRUE
 			END GetInstanceName;
 
-			PROCEDURE GetPort(p: SyntaxTree.Expression; VAR instance: Dataflow.Instance; VAR port: Dataflow.Port): BOOLEAN;
+			PROCEDURE GetPort(p: SyntaxTree.Expression; VAR instance: ActiveCells.Instance; VAR port: ActiveCells.Port): BOOLEAN;
 			VAR name, instanceName, typeName: SyntaxTree.String; suffix: SyntaxTree.String;
 			BEGIN
 				Index(p, suffix);
 				port := NIL;
 				IF GetInstanceName(p(SyntaxTree.SymbolDesignator).left, instanceName, typeName) THEN
-					instance := currentDataflowScope.instances.ByName(instanceName);
+					instance := currentActiveCellsScope.instances.ByName(instanceName);
 					IF instance = NIL THEN Error(p.position,"not allocated"); RETURN FALSE END;
 					instanceType := instance.type;
 					p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
@@ -607,13 +607,13 @@ TYPE
 				END;
 			END GetPort;
 
-			PROCEDURE GetDelegatePort(p: SyntaxTree.Expression; VAR port: Dataflow.Port): BOOLEAN;
+			PROCEDURE GetDelegatePort(p: SyntaxTree.Expression; VAR port: ActiveCells.Port): BOOLEAN;
 			VAR portName, suffix: SyntaxTree.String;
 			BEGIN
 				Index(p,suffix);
 				p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
 				Strings.Append(portName,suffix);
-				port := currentDataflowScope.ports.ByName(portName);
+				port := currentActiveCellsScope.ports.ByName(portName);
 				IF port = NIL THEN Error(p.position,"port not available") END;
 				RETURN port # NIL
 			END GetDelegatePort;
@@ -628,17 +628,17 @@ TYPE
 			CASE x.id OF
 			|Global.New:
 				type := p0.type.resolved;
-				IF type IS SyntaxTree.ActorType THEN
-					(* generate actor by calling method on dataflow specification *)
+				IF type IS SyntaxTree.CellType THEN
+					(* generate actor by calling method on activeCells specification *)
 					IF GetInstanceName(p0,instanceName, typeName) THEN
-						symbol := Dataflow.GetSymbol(currentDataflowScope,typeName);
-						IF (symbol = NIL) OR ~(symbol IS Dataflow.Type) THEN
+						symbol := ActiveCells.GetSymbol(currentActiveCellsScope,typeName);
+						IF (symbol = NIL) OR ~(symbol IS ActiveCells.Type) THEN
 							Error(p0.position,"could not find type");
 							Error(p0.position,typeName);
 						ELSE
-							instanceType := symbol(Dataflow.Type);
+							instanceType := symbol(ActiveCells.Type);
 						END;
-						instance := currentDataflowScope.NewInstance(instanceName, instanceType);
+						instance := currentActiveCellsScope.NewInstance(instanceName, instanceType);
 					END;
 
 				ELSE
@@ -648,7 +648,7 @@ TYPE
 			|Global.Connect:
 				IF GetPort(p0,instance1,port1) & GetPort(p1,instance2,port2) THEN
 					ASSERT(instance1 # NIL); ASSERT(instance2 # NIL); ASSERT(port1 # NIL); ASSERT(port2 # NIL);
-					channel := currentDataflowScope.NewChannel(instance1,port1,instance2,port2);
+					channel := currentActiveCellsScope.NewChannel(instance1,port1,instance2,port2);
 					IF (p2 # NIL) THEN
 						value := p2.resolved(SyntaxTree.IntegerValue).value;
 						channel.SetFifoSize(value);
@@ -964,13 +964,13 @@ TYPE
 
 	END ImplementationVisitor;
 
-	DataflowBackend*= OBJECT (Backend.Backend)
+	ActiveCellsBackend*= OBJECT (Backend.Backend)
 	VAR
 
-		PROCEDURE &InitDataflowBackend*;
+		PROCEDURE &InitActiveCellsBackend*;
 		BEGIN
 			InitBackend;
-		END InitDataflowBackend;
+		END InitActiveCellsBackend;
 
 		(* Work on a module *)
 		PROCEDURE Module(x: SyntaxTree.Module): Formats.GeneratedModule;
@@ -982,7 +982,7 @@ TYPE
 			ResetError;
 			Global.GetSymbolName(x,name);
 			GetDescription(instructionSet);
-			ASSERT(dataflowSpecification # NIL); (* must be set by compiler driver *)
+			ASSERT(activeCellsSpecification # NIL); (* must be set by compiler driver *)
 			NEW(implementationVisitor,system,checker,SELF);
 			NEW(declarationVisitor,system,implementationVisitor,SELF);
 			declarationVisitor.Module(x);
@@ -1004,7 +1004,7 @@ TYPE
 		BEGIN RETURN SymbolFileFormat.Get()
 		END DefaultSymbolFileFormat;
 
-	END DataflowBackend;
+	END ActiveCellsBackend;
 
 	PROCEDURE AppendIndex(VAR name: ARRAY OF CHAR; index: LONGINT);
 	BEGIN
@@ -1013,18 +1013,18 @@ TYPE
 
 	PROCEDURE Direction(direction: LONGINT): LONGINT;
 	BEGIN
-		IF direction = SyntaxTree.OutPort THEN RETURN Dataflow.Out
-		ELSIF direction = SyntaxTree.InPort THEN RETURN Dataflow.In
+		IF direction = SyntaxTree.OutPort THEN RETURN ActiveCells.Out
+		ELSIF direction = SyntaxTree.InPort THEN RETURN ActiveCells.In
 		ELSE HALT(100);
 		END;
 	END Direction;
 
-	PROCEDURE AddModules(instanceType: Dataflow.Type; scope: SyntaxTree.ActorScope);
+	PROCEDURE AddModules(instanceType: ActiveCells.Type; scope: SyntaxTree.CellScope);
 	VAR import: SyntaxTree.Import;
 		local: BOOLEAN;
 
 		PROCEDURE AddImport(x: SyntaxTree.Module);
-		VAR module: Dataflow.Module; VAR name: SyntaxTree.String; device: Dataflow.Device;
+		VAR module: ActiveCells.Module; VAR name: SyntaxTree.String; device: ActiveCells.Device;
 		BEGIN
 			IF ~Global.IsSystemModule(x) THEN
 				x.name.GetString(name);
@@ -1065,7 +1065,7 @@ TYPE
 	END AddModules;
 
 	PROCEDURE Get*(): Backend.Backend;
-	VAR backend: DataflowBackend;
+	VAR backend: ActiveCellsBackend;
 	BEGIN NEW(backend); RETURN backend
 	END Get;
 
@@ -1075,6 +1075,6 @@ TYPE
 
 BEGIN
 	Init;
-END FoxDataflowBackend.
+END FoxActiveCellsBackend.
 
 

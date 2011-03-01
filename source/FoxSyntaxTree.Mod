@@ -129,8 +129,8 @@ TYPE
 		PROCEDURE VisitRecordType*(x: RecordType);
 		BEGIN HALT(100) (* abstract *) END VisitRecordType;
 
-		PROCEDURE VisitActorType*(x: ActorType);
-		BEGIN HALT(100) (* abstract *) END VisitActorType;
+		PROCEDURE VisitCellType*(x: CellType);
+		BEGIN HALT(100) (* abstract *) END VisitCellType;
 
 		PROCEDURE VisitProcedureType*(x: ProcedureType);
 		BEGIN HALT(100) (* abstract *) END VisitProcedureType;
@@ -449,7 +449,7 @@ TYPE
 			SetSize(sizeInBits);
 			SELF.name := name
 		END InitBasicType;
-		
+
 		PROCEDURE SetName*(CONST id: ARRAY OF CHAR);
 		BEGIN
 			name := NewIdentifier(-1,id);
@@ -1322,20 +1322,20 @@ TYPE
 
 	END RecordType;
 
-	ActorType*=OBJECT (Type)
+	CellType*=OBJECT (Type)
 	VAR
 		firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters *)
-		actorScope-: ActorScope;
-		isAssembly-: BOOLEAN;
+		actorScope-: CellScope;
+		isCellNet-: BOOLEAN;
 		modifiers-: Modifier;
 
-		PROCEDURE &InitActorType(position: LONGINT; scope: Scope;  actorScope: ActorScope);
+		PROCEDURE &InitCellType(position: LONGINT; scope: Scope;  actorScope: CellScope);
 		BEGIN
 			InitType(position);
 			SELF.scope := scope;
 			numberParameters := 0; firstParameter := NIL; lastParameter := NIL;
 			SELF.actorScope := actorScope;
-		END InitActorType;
+		END InitCellType;
 
 		PROCEDURE AddParameter*(p: Parameter);
 		BEGIN
@@ -1357,9 +1357,9 @@ TYPE
 		BEGIN SELF.modifiers := flag;
 		END SetModifiers;
 
-		PROCEDURE IsAssembly*(t: BOOLEAN);
-		BEGIN isAssembly := t
-		END IsAssembly;
+		PROCEDURE IsCellNet*(t: BOOLEAN);
+		BEGIN isCellNet := t
+		END IsCellNet;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
 		BEGIN RETURN this = SELF
@@ -1371,10 +1371,10 @@ TYPE
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitActorType(SELF)
+		BEGIN position := SELF.position; v.VisitCellType(SELF)
 		END Accept;
 
-	END ActorType;
+	END CellType;
 
 	(** <<procedureType = PROCEDURE [{DELEGATE}] (firstParameter .. lastParameter): returnType>>
 		also used as type for procedures
@@ -3567,7 +3567,7 @@ TYPE
 			bodyProcedure-: Procedure;
 			constructor-: Procedure;
 			numberMethods-: LONGINT;
-			firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters for dataflow programming*)
+			firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters for Active Cells programming*)
 			firstOperator-, lastOperator-: Operator; numberOperators: LONGINT; (* defined operators *)
 
 		PROCEDURE & InitRecordScope(outer: Scope);
@@ -3681,25 +3681,25 @@ TYPE
 
 	END RecordScope;
 
-	ActorScope*=OBJECT (Scope)
+	CellScope*=OBJECT (Scope)
 		VAR
-		ownerActor-: ActorType;
+		ownerCell-: CellType;
 		bodyProcedure-: Procedure;
 		firstImport-, lastImport-: Import; numberImports-: LONGINT;
 
-		PROCEDURE & InitActorScope(outer: Scope);
+		PROCEDURE & InitCellScope(outer: Scope);
 		BEGIN
 			InitScope(outer);
-			ownerActor := NIL;
+			ownerCell := NIL;
 			bodyProcedure := NIL;
 			numberImports := 0;
 			firstImport := NIL; lastImport := NIL;
-		END InitActorScope;
+		END InitCellScope;
 
-		PROCEDURE SetOwnerActor*(owner: ActorType);
+		PROCEDURE SetOwnerCell*(owner: CellType);
 		BEGIN
-			ownerActor := owner
-		END SetOwnerActor;
+			ownerCell := owner
+		END SetOwnerCell;
 
 		PROCEDURE SetBodyProcedure*(bodyProcedure: Procedure);
 		BEGIN
@@ -3726,7 +3726,7 @@ TYPE
 			INC(numberImports);
 		END AddImport;
 
-	END ActorScope;
+	END CellScope;
 
 
 	(**
@@ -3877,7 +3877,7 @@ TYPE
 			moduleScope-: ModuleScope;
 			context-:Identifier; (* modules context *)
 			case-: LONGINT; (* module notation in lower or upper case, important for printout and operators *)
-			isAssembly-: BOOLEAN;
+			isCellNet-: BOOLEAN;
 			firstScope-,lastScope-: Scope; numberScopes-: LONGINT; (* list of all scopes for checker / backend traversal etc. *)
 
 		PROCEDURE & InitModule( CONST sourceName: ARRAY OF CHAR; position: LONGINT; name: Identifier; scope: ModuleScope; case: LONGINT);
@@ -3893,9 +3893,9 @@ TYPE
 			SetType(moduleType);
 		END InitModule;
 
-		PROCEDURE SetAssembly*(isAssembly: BOOLEAN);
-		BEGIN SELF.isAssembly := isAssembly
-		END SetAssembly;
+		PROCEDURE SetCellNet*(isCellNet: BOOLEAN);
+		BEGIN SELF.isCellNet := isCellNet
+		END SetCellNet;
 
 
 		PROCEDURE SetContext*(context: Identifier);
@@ -4114,11 +4114,11 @@ VAR
 		NEW( recordType, position, scope, recordScope);  RETURN recordType
 	END NewRecordType;
 
-	PROCEDURE NewActorType*(position: LONGINT; scope:Scope; actorScope: ActorScope): ActorType;
-	VAR actorType: ActorType;
+	PROCEDURE NewCellType*(position: LONGINT; scope:Scope; actorScope: CellScope): CellType;
+	VAR actorType: CellType;
 	BEGIN
 		NEW(actorType, position, scope, actorScope); RETURN actorType;
-	END NewActorType;
+	END NewCellType;
 
 	PROCEDURE NewProcedureType*( position: LONGINT; scope: Scope): ProcedureType;
 	VAR procedureType: ProcedureType;
@@ -4513,10 +4513,10 @@ VAR
 	BEGIN	NEW(scope,outer); RETURN scope
 	END NewRecordScope;
 
-	PROCEDURE NewActorScope*(outer: Scope): ActorScope;
-	VAR scope: ActorScope;
+	PROCEDURE NewCellScope*(outer: Scope): CellScope;
+	VAR scope: CellScope;
 	BEGIN	NEW(scope,outer); RETURN scope
-	END NewActorScope;
+	END NewCellScope;
 
 	PROCEDURE NewEnumerationScope*(outer: Scope): EnumerationScope;
 	VAR scope: EnumerationScope;

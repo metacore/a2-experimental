@@ -1151,7 +1151,7 @@ TYPE
 
 
 
-		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
+		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		BEGIN
 			fingerPrint := GetFingerPrint(x);
 
@@ -1166,7 +1166,7 @@ TYPE
 			END;
 			SELF.fingerPrint := fingerPrint
 
-		END VisitActorType;
+		END VisitCellType;
 
 		(*
 			FP(VariableDeclaration)    = 0 <*> fpModePar -> Name -> Visibility <*> FP(Type).

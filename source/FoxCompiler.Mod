@@ -5,7 +5,7 @@ IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,  D := Debugging,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal
-	, Dataflow := FoxDataflow, Files;
+	, ActiveCells := FoxActiveCells, Files;
 
 CONST
 	(* flags *)
@@ -134,11 +134,11 @@ TYPE
 		RETURN backend
 	END GetBackend;
 
-	PROCEDURE GetDataflowSpecification(CONST name: ARRAY OF CHAR): Dataflow.Specification;
+	PROCEDURE GetActiveCellsSpecification(CONST name: ARRAY OF CHAR): ActiveCells.Specification;
 	VAR
 		procname: ARRAY 256 OF CHAR;
-		factory: PROCEDURE (): Dataflow.Specification;
-		specification: Dataflow.Specification;
+		factory: PROCEDURE (): ActiveCells.Specification;
+		specification: ActiveCells.Specification;
 	BEGIN
 		specification := NIL;
 		IF Strings.Length(name) > 0 THEN
@@ -154,7 +154,7 @@ TYPE
 			END;
 		END;
 		RETURN specification
-	END GetDataflowSpecification;
+	END GetActiveCellsSpecification;
 
 	PROCEDURE Module*(	CONST source: ARRAY OF CHAR; (* source file name, for debugging and better error reports *)
 								reader: Streams.Reader; (* reader to read from *)
@@ -164,7 +164,7 @@ TYPE
 								backend: Backend.Backend; (* backend: code generator *)
 								symbolFileFormat: Formats.SymbolFileFormat;
 								objectFileFormat: Formats.ObjectFileFormat;
-								dataflowSpecification: Dataflow.Specification;
+								activeCellsSpecification: ActiveCells.Specification;
 								log: Streams.Writer;
 								VAR importCache: SyntaxTree.ModuleScope;
 								CONST findPC: ARRAY OF CHAR (* locate a source code position providing a binary module offset *)
@@ -179,7 +179,7 @@ TYPE
 		system: Global.System;
 		generatedModule: Formats.GeneratedModule;
 		name: SyntaxTree.String;
-		dataflowBackend: Backend.Backend;
+		activeCellsBackend: Backend.Backend;
 		split: Strings.StringArray;
 		sectionOffset: LONGINT;
 		traceDiagnostics : TracingDiagnostics;
@@ -244,12 +244,12 @@ TYPE
 			Global.NewBuiltin(Global.Send,"SEND",system.globalScope,FALSE);
 			Global.NewBuiltin(Global.Delegate,"DELEGATE",system.globalScope,FALSE);
 			Global.NewBuiltin(Global.systemHardwareAddress,"HWADR",system.systemScope,FALSE);
-			dataflowBackend := GetBackend("FoxDataflowBackend");
-			IF dataflowBackend = NIL THEN FinalMessage(TRUE,"could not install dataflow backend"); RETURN FALSE END;
+			activeCellsBackend := GetBackend("FoxActiveCellsBackend");
+			IF activeCellsBackend = NIL THEN FinalMessage(TRUE,"could not install activeCells backend"); RETURN FALSE END;
 		END;
 		parser := Parser.NewParser( scanner, diagnostics );
 		IF DataFlow IN flags THEN
-			parser.DataflowSupport
+			parser.ActiveCellsSupport
 		END;
 		REPEAT
 			(** first phase: scan and parse **)
@@ -265,7 +265,7 @@ TYPE
 				IF (symbolFileFormat # NIL) THEN
 					symbolFileFormat.Initialize(diagnostics,system);
 				END;
-				checker := SemanticChecker.NewChecker(diagnostics,Info IN flags,UseDarwinCCalls IN flags,system,symbolFileFormat,dataflowSpecification,importCache);
+				checker := SemanticChecker.NewChecker(diagnostics,Info IN flags,UseDarwinCCalls IN flags,system,symbolFileFormat,activeCellsSpecification,importCache);
 				checker.Module(module);
 				IF checker.error THEN
 					FinalMessage(TRUE," could not be compiled (checker errors).");
@@ -277,14 +277,14 @@ TYPE
 
 				Log;
 
-				IF dataflowSpecification # NIL THEN
+				IF activeCellsSpecification # NIL THEN
 					Global.GetSymbolName(module,name);
-					dataflowSpecification.Init(name,diagnostics)
+					activeCellsSpecification.Init(name,diagnostics)
 				END;
 
 				(** third phase: generate code, can consist of sub-phases (such as intermediate backend / hardware backend) **)
 				IF backend # NIL THEN
-					backend.Initialize(diagnostics, flags, checker, system, dataflowSpecification);
+					backend.Initialize(diagnostics, flags, checker, system, activeCellsSpecification);
 					IF findPC # "" THEN
 						split := Strings.Split(findPC,":");
 						IF LEN(split)>1 THEN
@@ -330,20 +330,20 @@ TYPE
 					END;
 				END;
 
-				IF dataflowSpecification # NIL THEN
-					dataflowBackend.Initialize(diagnostics,flags,checker,system,dataflowSpecification);
-					generatedModule := dataflowBackend.Module(module);
-					IF dataflowBackend.error THEN
-						FinalMessage(TRUE, " could not be compiled (dataflow backend errors)");
+				IF activeCellsSpecification # NIL THEN
+					activeCellsBackend.Initialize(diagnostics,flags,checker,system,activeCellsSpecification);
+					generatedModule := activeCellsBackend.Module(module);
+					IF activeCellsBackend.error THEN
+						FinalMessage(TRUE, " could not be compiled (activeCells backend errors)");
 						RETURN FALSE
 					END;
 				END;
 
-				IF dataflowSpecification = NIL THEN (* no dataflow *)
-				ELSIF (dataflowSpecification.types.Length() = 0) & (dataflowSpecification.instances.Length()=0) THEN (* nothing defined *)
-				ELSIF ~dataflowSpecification.Link(diagnostics,Info IN flags) THEN
+				IF activeCellsSpecification = NIL THEN (* no activeCells *)
+				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
+				ELSIF ~activeCellsSpecification.Link(diagnostics,Info IN flags) THEN
 					FinalMessage(TRUE, " could not link"); RETURN FALSE
-				ELSIF ~dataflowSpecification.Emit() THEN
+				ELSIF ~activeCellsSpecification.Emit() THEN
 					FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;
 				END;
 
@@ -360,7 +360,7 @@ TYPE
 		VAR backend: Backend.Backend;
 		VAR symbolFile: Formats.SymbolFileFormat;
 		VAR objectFile: Formats.ObjectFileFormat;
-		VAR dataflowSpecification: Dataflow.Specification;
+		VAR activeCellsSpecification: ActiveCells.Specification;
 		VAR findPC: ARRAY OF CHAR
 		): BOOLEAN;
 	VAR options: Options.Options;  name: ARRAY 256 OF CHAR; result: BOOLEAN; position: LONGINT;
@@ -386,10 +386,10 @@ TYPE
 		options.Add("f","findPC",Options.String);
 		options.Add(0X, "symbolFile", Options.String);
 		options.Add(0X, "objectFile", Options.String);
-		options.Add("d","dataflow", Options.Flag);
+		options.Add("d","activeCells", Options.Flag);
 		options.Add("w","warnings", Options.Flag);
 		options.Add(0X,"darwinHost", Options.Flag);
-		options.Add(0X,"dataflowSpecification", Options.String);
+		options.Add(0X,"activeCellsSpecification", Options.String);
 
 		position := input.Pos();
 		parsed := options.Parse(input,NIL);
@@ -431,10 +431,10 @@ TYPE
 			symbolFile := objectFile.DefaultSymbolFileFormat();
 		END;
 
-		IF options.GetString("dataflowSpecification",name) THEN
-			dataflowSpecification := GetDataflowSpecification(name);
-		ELSIF options.GetFlag("dataflow") THEN
-			NEW(dataflowSpecification,"",diagnostics);
+		IF options.GetString("activeCellsSpecification",name) THEN
+			activeCellsSpecification := GetActiveCellsSpecification(name);
+		ELSIF options.GetFlag("activeCells") THEN
+			NEW(activeCellsSpecification,"",diagnostics);
 		END;
 
 		IF backend # NIL THEN backend.DefineOptions (options); INCL(flags,Check); END;
@@ -459,7 +459,7 @@ TYPE
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
 			IF objectFile # NIL THEN objectFile.GetOptions(options) END;
-			IF dataflowSpecification # NIL THEN INCL(flags, DataFlow) END;
+			IF activeCellsSpecification # NIL THEN INCL(flags, DataFlow) END;
 		END;
 		RETURN result
 	END GetOptions;
@@ -476,13 +476,13 @@ TYPE
 		importCache: SyntaxTree.ModuleScope;
 		symbolFileFormat: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
-		dataflowSpecification: Dataflow.Specification;
+		activeCellsSpecification: ActiveCells.Specification;
 		findPC: SyntaxTree.String;
 	BEGIN
 		error := FALSE;
 
 		NEW(diagnostics, context.out);
-		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,dataflowSpecification,findPC) THEN
+		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,activeCellsSpecification,findPC) THEN
 
 			IF (Print IN flags) THEN
 				log := Basic.GetWriter(Basic.GetDebugWriter("Compiler Debug Output"));
@@ -496,7 +496,7 @@ TYPE
 				IF reader = NIL THEN
 					diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 				ELSE
-					error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,dataflowSpecification, log, importCache,findPC);
+					error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, log, importCache,findPC);
 				END;
 				context.out.Update;
 			END;
@@ -518,18 +518,18 @@ TYPE
 		importCache: SyntaxTree.ModuleScope;
 		symbolFileFormat: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
-		dataflowSpecification: Dataflow.Specification;
+		activeCellsSpecification: ActiveCells.Specification;
 		findPC: SyntaxTree.String;
 	BEGIN
 		error := FALSE; log := NIL;
 		NEW(diagnostics, context.out);
-		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,dataflowSpecification,findPC) THEN
+		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,activeCellsSpecification,findPC) THEN
 			IF (Print IN flags) THEN log := Basic.GetWriter(Basic.GetDebugWriter("Compiler Debug Output")) END;
 			time := Kernel.GetTicks();
 			IF reader = NIL THEN
 				diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 			ELSE
-				error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,dataflowSpecification, log, importCache,findPC);
+				error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, log, importCache,findPC);
 			END;
 			context.out.Update;
 		END;

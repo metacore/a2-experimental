@@ -246,7 +246,7 @@ TYPE
 			IF scope IS SyntaxTree.RecordScope THEN (* increasing indices *)
 				error := ~GenerateRecordOffsets(scope(SyntaxTree.RecordScope).ownerRecord)
 			ELSE (* module scope or procedure scope: decreasing indices *)
-				ASSERT((scope IS SyntaxTree.ModuleScope) OR (scope IS SyntaxTree.ProcedureScope) OR (scope IS SyntaxTree.ActorScope)
+				ASSERT((scope IS SyntaxTree.ModuleScope) OR (scope IS SyntaxTree.ProcedureScope) OR (scope IS SyntaxTree.CellScope)
 				);
 				offset := 0;
 				IF scope IS SyntaxTree.ProcedureScope THEN
@@ -272,7 +272,7 @@ TYPE
 			IF scope IS SyntaxTree.RecordScope THEN (* increasing indices *)
 				RETURN GenerateRecordOffsets(scope(SyntaxTree.RecordScope).ownerRecord)
 			ELSE (* module scope or procedure scope: decreasing indices *)
-				ASSERT((scope IS SyntaxTree.ModuleScope) OR (scope IS SyntaxTree.ProcedureScope) OR (scope IS SyntaxTree.ActorScope)
+				ASSERT((scope IS SyntaxTree.ModuleScope) OR (scope IS SyntaxTree.ProcedureScope) OR (scope IS SyntaxTree.CellScope)
 				);
 				offset := 0;
 				IF scope IS SyntaxTree.ProcedureScope THEN
@@ -428,18 +428,18 @@ TYPE
 					END;
 				END;
 				(*
-			ELSIF type IS SyntaxTree.ActorType THEN
+			ELSIF type IS SyntaxTree.CellType THEN
 				(* do not treat a record type like a pointer even if the Pointer field is set, this leads to problems in object files
 					rather make sure that each reference type is a POINTER TO at least behind the secenes!
 				*)
 				ASSERT(SyntaxTree.Resolved IN type.state);
-				size :=type(SyntaxTree.ActorType).sizeInBits;
+				size :=type(SyntaxTree.CellType).sizeInBits;
 				IF size < 0 THEN
-					IF GenerateVariableOffsets(type(SyntaxTree.ActorType).actorScope) THEN
-						IF type(SyntaxTree.ActorType).actorScope.lastVariable = NIL THEN
+					IF GenerateVariableOffsets(type(SyntaxTree.CellType).actorScope) THEN
+						IF type(SyntaxTree.CellType).actorScope.lastVariable = NIL THEN
 							size := 0
 						ELSE
-							size := ABS(type(SyntaxTree.ActorType).actorScope.lastVariable.offsetInBits);
+							size := ABS(type(SyntaxTree.CellType).actorScope.lastVariable.offsetInBits);
 						END;
 					ELSE
 						size := -1
@@ -482,7 +482,7 @@ TYPE
 				HALT(101); (* hint that unresolved type has been taken for type size computation *)
 			ELSIF type IS SyntaxTree.PortType THEN
 				size := addressSize
-			ELSIF type IS SyntaxTree.ActorType THEN
+			ELSIF type IS SyntaxTree.CellType THEN
 				size := 0;
 			ELSIF type IS SyntaxTree.RangeType THEN
 				size := 3 * SizeOf(longintType);
@@ -525,18 +525,18 @@ TYPE
 					END;
 				END;
 				(*
-			ELSIF type IS SyntaxTree.ActorType THEN
+			ELSIF type IS SyntaxTree.CellType THEN
 				(* do not treat a record type like a pointer even if the Pointer field is set, this leads to problems in object files
 					rather make sure that each reference type is a POINTER TO at least behind the secenes!
 				*)
 				ASSERT(SyntaxTree.Resolved IN type.state);
-				size :=type(SyntaxTree.ActorType).sizeInBits;
+				size :=type(SyntaxTree.CellType).sizeInBits;
 				IF size < 0 THEN
-					IF GenerateVariableOffsets(type(SyntaxTree.ActorType).actorScope) THEN
-						IF type(SyntaxTree.ActorType).actorScope.lastVariable = NIL THEN
+					IF GenerateVariableOffsets(type(SyntaxTree.CellType).actorScope) THEN
+						IF type(SyntaxTree.CellType).actorScope.lastVariable = NIL THEN
 							size := 0
 						ELSE
-							size := ABS(type(SyntaxTree.ActorType).actorScope.lastVariable.offsetInBits);
+							size := ABS(type(SyntaxTree.CellType).actorScope.lastVariable.offsetInBits);
 						END;
 					ELSE
 						size := -1
@@ -582,7 +582,7 @@ TYPE
 				HALT(101); (* hint that unresolved type has been taken for type size computation *)
 			ELSIF type IS SyntaxTree.PortType THEN
 				size := addressSize
-			ELSIF type IS SyntaxTree.ActorType THEN
+			ELSIF type IS SyntaxTree.CellType THEN
 				size := 0;
 			ELSIF type IS SyntaxTree.RangeType THEN
 				size := 3 * SizeOf(longintType);
@@ -992,9 +992,9 @@ TYPE
 				Scope(scope.outerScope);
 				scope(SyntaxTree.ProcedureScope).ownerProcedure.name.GetString(n);
 				Strings.Append(name,n); Strings.Append(name,".")
-			ELSIF scope IS SyntaxTree.ActorScope THEN
+			ELSIF scope IS SyntaxTree.CellScope THEN
 				Scope(scope.outerScope);
-				td := scope(SyntaxTree.ActorScope).ownerActor.typeDeclaration;
+				td := scope(SyntaxTree.CellScope).ownerCell.typeDeclaration;
 				td.name.GetString(n);
 				Strings.Append(name,n); Strings.Append(name,".")
 			END;

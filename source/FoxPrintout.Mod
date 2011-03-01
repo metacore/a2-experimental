@@ -269,21 +269,21 @@ TYPE
 			Type(x.channelType);
 		END VisitPortType;
 
-		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
+		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		BEGIN
-			Keyword("ACTOR ");
+			Keyword("CELL ");
 			IF x.firstParameter # NIL THEN ParameterList(x.firstParameter) END;
 			Scope(x.actorScope);
 
-			IF (x.actorScope IS SyntaxTree.ActorScope) & (x.actorScope(SyntaxTree.ActorScope).bodyProcedure # NIL) THEN
-				Body(x.actorScope(SyntaxTree.ActorScope).bodyProcedure.procedureScope.body)
+			IF (x.actorScope IS SyntaxTree.CellScope) & (x.actorScope(SyntaxTree.CellScope).bodyProcedure # NIL) THEN
+				Body(x.actorScope(SyntaxTree.CellScope).bodyProcedure.procedureScope.body)
 			END;
 
 			Indent; Keyword("END ");
 			IF (x.typeDeclaration # NIL) THEN
 				Identifier(x.typeDeclaration.name);
 			END;
-		END VisitActorType;
+		END VisitCellType;
 
 		PROCEDURE VisitRecordType(x: SyntaxTree.RecordType);
 		VAR prevScope: SyntaxTree.Scope;
@@ -1616,8 +1616,8 @@ TYPE
 					Identifier(x.context)
 				END;
 
-				IF (x.type IS SyntaxTree.ActorType) & (x.type(SyntaxTree.ActorType).firstParameter # NIL) THEN (* for actors *)
-					ParameterList(x.type(SyntaxTree.ActorType).firstParameter);
+				IF (x.type IS SyntaxTree.CellType) & (x.type(SyntaxTree.CellType).firstParameter # NIL) THEN (* for actors *)
+					ParameterList(x.type(SyntaxTree.CellType).firstParameter);
 				END;
 
 				w.String(";");

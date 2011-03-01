@@ -236,7 +236,7 @@ TYPE
 		BEGIN
 			typeList := NIL; SELF.system := system; NEW(typeFixes);
 			(* OLIVIER *)
-			(* TODO: how to get: diagnostics, symbolFileFormat, dataflowSpecification and importCache *)
+			(* TODO: how to get: diagnostics, symbolFileFormat, activeCellsSpecification and importCache *)
 			NEW(streamDiagnostics, D.Log);
 			checker := SemanticChecker.NewChecker(streamDiagnostics,FALSE,FALSE,system,symbolFile,NIL,importCache);
 		END Init;

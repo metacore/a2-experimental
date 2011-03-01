@@ -1,4 +1,4 @@
-MODULE FoxDataflow; (** AUTHOR "fof"; PURPOSE "hardware library for the dataflow compiler"; *)
+MODULE FoxActiveCells; (** AUTHOR "fof"; PURPOSE "hardware library for the ActiveCells compiler"; *)
 
 IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Files, Streams, D := Debugging, Diagnostics, Strings, Commands, GenericLinker, StaticLinker;
 
@@ -918,7 +918,7 @@ TYPE
 				w.Update;
 				Files.Register(f);
 
-				msg := "Wrote dataflow specification to file "; Strings.Append(msg, fileName);
+				msg := "Wrote Active Cells specification to file "; Strings.Append(msg, fileName);
 				diagnostics.Information("",Diagnostics.Invalid, Diagnostics.Invalid, msg);
 				RETURN TRUE
 			ELSE
@@ -1101,6 +1101,6 @@ TYPE
 	END FlattenNetwork;
 
 
-END FoxDataflow.
+END FoxActiveCells.
 
-FoxDataflow.ReadSpecification Test.spec ~
+FoxActiveCells.ReadSpecification Test.spec ~

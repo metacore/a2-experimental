@@ -162,7 +162,7 @@ TYPE
 		recentComment: SyntaxTree.Comment;
 		moduleScope: SyntaxTree.ModuleScope;
 		error-: BOOLEAN;
-		dataflowSupport: BOOLEAN;
+		activeCellsSupport: BOOLEAN;
 
 		indent: LONGINT;   (* for debugging purposes only *)
 
@@ -199,12 +199,12 @@ TYPE
 			recentSymbol := NIL; recentComment := NIL;
 			(* debugging *)
 			indent := 0;
-			dataflowSupport := FALSE;
+			activeCellsSupport := FALSE;
 		END Init;
 
-		PROCEDURE DataflowSupport*;
-		BEGIN dataflowSupport := TRUE
-		END DataflowSupport;
+		PROCEDURE ActiveCellsSupport*;
+		BEGIN activeCellsSupport := TRUE
+		END ActiveCellsSupport;
 
 		(** output error message and / or given code *)
 		PROCEDURE Error(position: LONGINT; code: LONGINT; CONST message: ARRAY OF CHAR);
@@ -1166,21 +1166,21 @@ TYPE
 		END ObjectType;
 
 
-		(** ActorType = 'actor' [ParameterList] DeclarationSequence [Body] 'end' [Identifier]
+		(** CellType = 'actor' [ParameterList] DeclarationSequence [Body] 'end' [Identifier]
               | 'object'. **)
-		PROCEDURE ActorType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope; isAssembly: BOOLEAN): SyntaxTree.Type;
+		PROCEDURE CellType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope; isCellNet: BOOLEAN): SyntaxTree.Type;
 		VAR
-			actorType: SyntaxTree.ActorType;
-			actorScope: SyntaxTree.ActorScope;
+			actorType: SyntaxTree.CellType;
+			actorScope: SyntaxTree.CellScope;
 			modifiers: SyntaxTree.Modifier;
 		BEGIN
-			IF Trace THEN S( "ActorType" ) END;
+			IF Trace THEN S( "CellType" ) END;
 			(* symbol actor already consumed *)
 
-			actorScope := SyntaxTree.NewActorScope(parentScope);
-			actorType := SyntaxTree.NewActorType( position, parentScope,actorScope);
-			actorType.IsAssembly(isAssembly);
-			actorScope.SetOwnerActor(actorType);
+			actorScope := SyntaxTree.NewCellScope(parentScope);
+			actorType := SyntaxTree.NewCellType( position, parentScope,actorScope);
+			actorType.IsCellNet(isCellNet);
+			actorScope.SetOwnerCell(actorType);
 
 
 			IF Optional(Scanner.LeftBrace) THEN
@@ -1202,9 +1202,9 @@ TYPE
 			IF ExpectThisIdentifier( name ) THEN
 				(* check name not always, reflect in EBNF? *)
 			END;
-			IF Trace THEN E( "ActorType" ) END;
+			IF Trace THEN E( "CellType" ) END;
 			RETURN actorType
-		END ActorType;
+		END CellType;
 
 		(** PointerType = 'pointer' 'to' Type. **)
 		PROCEDURE PointerType( position: LONGINT; parentScope: SyntaxTree.Scope ): SyntaxTree.PointerType;
@@ -1382,8 +1382,8 @@ TYPE
 			ELSIF Optional( Scanner.Record ) THEN type := RecordType( position,parentScope );
 			ELSIF Optional( Scanner.Pointer ) THEN type := PointerType( position,parentScope );
 			ELSIF Optional( Scanner.Object ) THEN type := ObjectType( position,name,parentScope );
-			ELSIF Optional( Scanner.Actor) THEN type := ActorType( position, name, parentScope,FALSE);
-			ELSIF Optional( Scanner.Assembly) THEN type := ActorType( position, name, parentScope, TRUE);
+			ELSIF Optional( Scanner.Cell) THEN type := CellType( position, name, parentScope,FALSE);
+			ELSIF Optional( Scanner.CellNet) THEN type := CellType( position, name, parentScope, TRUE);
 			ELSIF Optional( Scanner.Stream) THEN type := PortType( position, parentScope)
 			ELSIF Optional( Scanner.Procedure ) THEN type := ProcedureType( position,parentScope);
 			ELSIF Optional( Scanner.Enum ) THEN type := EnumerationType( position,parentScope);
@@ -1395,7 +1395,7 @@ TYPE
 		END Type;
 
 		(** PortDeclaration = ('out' | 'in') Identifier {',' Identifier}':' Type. **)
-		PROCEDURE PortDeclaration(actor: SyntaxTree.ActorType; parentScope: SyntaxTree.Scope);
+		PROCEDURE PortDeclaration(actor: SyntaxTree.CellType; parentScope: SyntaxTree.Scope);
 		VAR
 			type: SyntaxTree.Type; name: SyntaxTree.Identifier;
 			firstParameter, parameter: SyntaxTree.Parameter;
@@ -1420,7 +1420,7 @@ TYPE
 		END PortDeclaration;
 
 		(** PortList = '('[ParameterDeclaration {';' ParameterDeclaration}]')' [':' Type]. **)
-		PROCEDURE PortList( actor: SyntaxTree.ActorType ; parentScope: SyntaxTree.Scope);
+		PROCEDURE PortList( actor: SyntaxTree.CellType ; parentScope: SyntaxTree.Scope);
 		BEGIN
 			IF Trace THEN S( "PortList" ) END;
 			(* left parenthesis already consumed *)
@@ -1818,17 +1818,17 @@ TYPE
 		(** Module = 'module' Identifier ['in' Identifier]';' [ImportList] DeclarationSequence [Body]
 			         'end' Identifier '.'. **)
 		PROCEDURE Module*(): SyntaxTree.Module;
-		VAR moduleName, context: SyntaxTree.Identifier;  module: SyntaxTree.Module;  position: LONGINT; isAssembly: BOOLEAN;
+		VAR moduleName, context: SyntaxTree.Identifier;  module: SyntaxTree.Module;  position: LONGINT; isCellNet: BOOLEAN;
 		BEGIN
 			IF Trace THEN S( "Module" ) END;
 			position := symbol.start;
 			moduleScope := SyntaxTree.NewModuleScope(); (* needed to feed in comment already before module starts *)
 			currentScope := moduleScope;
-			isAssembly := Optional(Scanner.Assembly);
-			IF isAssembly OR Mandatory( Scanner.Module ) THEN
+			isCellNet := Optional(Scanner.CellNet);
+			IF isCellNet OR Mandatory( Scanner.Module ) THEN
 				moduleName :=  Identifier();
 				module := SyntaxTree.NewModule( scanner.source, moduleName.position, moduleName, moduleScope, scanner.case );
-				IF isAssembly THEN module.SetAssembly(TRUE) END;
+				IF isCellNet THEN module.SetCellNet(TRUE) END;
 
 				module.SetType(SyntaxTree.moduleType);
 				CommentSymbol(module);
@@ -1858,7 +1858,7 @@ TYPE
 		PROCEDURE NextModule*(): BOOLEAN;
 		BEGIN
 			scanner.ResetCase;
-			NextSymbol; RETURN Peek(Scanner.Module) OR Peek(Scanner.Assembly);
+			NextSymbol; RETURN Peek(Scanner.Module) OR Peek(Scanner.CellNet);
 		END NextModule;
 
 	END Parser;

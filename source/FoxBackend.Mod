@@ -1,7 +1,7 @@
 MODULE FoxBackend; (**  AUTHOR "kaeserm,fof"; PURPOSE "Oberon Compiler: Common backend module";  **)
 
 IMPORT
-	Diagnostics, Global := FoxGlobal, Formats := FoxFormats, SyntaxTree := FoxSyntaxTree, SemanticChecker := FoxSemanticChecker, Dataflow := FoxDataflow, Options;
+	Diagnostics, Global := FoxGlobal, Formats := FoxFormats, SyntaxTree := FoxSyntaxTree, SemanticChecker := FoxSemanticChecker, ActiveCells := FoxActiveCells, Options;
 
 
 TYPE
@@ -13,7 +13,7 @@ TYPE
 		error-: BOOLEAN;
 		checker-: SemanticChecker.Checker;
 		source-: SyntaxTree.String;
-		dataflowSpecification-: Dataflow.Specification;
+		activeCellsSpecification-: ActiveCells.Specification;
 		findSectionName-: SyntaxTree.String;
 		findSectionOffset-: LONGINT;
 
@@ -33,16 +33,16 @@ TYPE
 		END ResetError;
 
 		(* initialize backend for usage *)
-		PROCEDURE Initialize*(diagnostics: Diagnostics.Diagnostics; flags: SET; checker: SemanticChecker.Checker; system: Global.System; dataflowSpecification: Dataflow.Specification);
+		PROCEDURE Initialize*(diagnostics: Diagnostics.Diagnostics; flags: SET; checker: SemanticChecker.Checker; system: Global.System; activeCellsSpecification: ActiveCells.Specification);
 		BEGIN
 			error := FALSE;
 			SELF.diagnostics := diagnostics;
 			SELF.flags := flags;
 			SELF.checker := checker;
 			SELF.system := system;
-			SELF.dataflowSpecification := dataflowSpecification;
+			SELF.activeCellsSpecification := activeCellsSpecification;
 		END Initialize;
-		
+
 
 		(* Get the system used by this backend (singleton) *)
 		PROCEDURE GetSystem*():Global.System;
@@ -64,7 +64,7 @@ TYPE
 			ASSERT(x # NIL);
 			RETURN NIL;
 		END Module;
-		
+
 		PROCEDURE FindPC*(x: SyntaxTree.Module; CONST sectionName: ARRAY OF CHAR; sectionOffset: LONGINT);
 		BEGIN
 		END FindPC;

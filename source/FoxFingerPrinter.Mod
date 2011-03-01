@@ -702,7 +702,7 @@ TYPE
 			TraceExit("Method",fingerprint) END;
 		END FPrintMethod;
 
-		PROCEDURE VisitActorType(x: SyntaxTree.ActorType);
+		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		VAR fingerprint: FingerPrint; fp:LONGINT; name: SyntaxTree.String;
 		BEGIN
 			fingerprint := x.fingerprint;
@@ -718,7 +718,7 @@ TYPE
 				x.SetFingerPrint(fingerprint);
 			END;
 			SELF.fingerprint := fingerprint
-		END VisitActorType;
+		END VisitCellType;
 
 		(*
 		FP(RecordType)             = fpTypeComposite <*> fptypeRecord
