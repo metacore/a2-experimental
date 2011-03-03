@@ -339,6 +339,11 @@ TYPE
 			VisitBasicType(x);
 		END VisitObjectType;
 
+		PROCEDURE VisitChannelType(x: SyntaxTree.ChannelType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitChannelType;
+
 		PROCEDURE VisitNilType(x: SyntaxTree.NilType);
 		BEGIN
 			VisitBasicType(x);
@@ -4496,6 +4501,11 @@ TYPE
 						ELSIF type0 IS SyntaxTree.CellType THEN
 							IF Parameters(1,1) & ~(currentIsCellNet) THEN
 								Error(position,Diagnostics.Invalid,"actor allocation outside activeCells ");
+							END;
+							activeCellsStatement := TRUE;
+						ELSIF type0 IS SyntaxTree.ChannelType THEN
+							IF Parameters(1,1) & ~(currentIsCellNet) THEN
+								Error(position,Diagnostics.Invalid,"channel allocation outside activeCells ");
 							END;
 							activeCellsStatement := TRUE;
 						ELSE

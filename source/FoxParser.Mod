@@ -107,19 +107,19 @@ CONST
 
 		AddOp                = '+' | '-' | 'or'.
 
-		Term                 = Factor {MulOp Factor}.
+		Term                 = Fcell {MulOp Fcell}.
 
 		MulOp                = '*' | '**' | '.*' | '+*' | '/' | './' | 'div' | 'mod' | '&'.
 
-		Factor               = Number | Character | String | 'nil' | 'true' | 'false' | Set |
-		                       '(' Expression ')' | '~' Factor | Factor '`' | Designator | MathArray.
+		Fcell               = Number | Character | String | 'nil' | 'true' | 'false' | Set |
+		                       '(' Expression ')' | '~' Fcell | Fcell '`' | Designator | MathArray.
 
 		MathArray            = '[' Expression {',' Expression} ']'.
 
 		Set                  = '{' [ RangeExpression {',' RangeExpression} ] '}'.
 
 		Designator           = ('self' | Identifier)
-		                       {'.' Identifier | '[' IndexList ']' | '(' [ExpressionList] ')' | '^'}.
+		                       {'.' Identifier | '[' IndexList ']' | [Flags] '(' [ExpressionList] ')' | '^'}.
 
 		IndexList            = '?' [',' ExpressionList ] | ExpressionList [',' '?'].
 
@@ -142,9 +142,9 @@ CONST
 
 		Integer              = Digit {Digit} | Digit {HexDigit} 'H'.
 
-		Real                 = Digit {Digit} '.' {Digit} [ScaleFactor].
+		Real                 = Digit {Digit} '.' {Digit} [ScaleFcell].
 
-		ScaleFactor          = ('E' | 'D') ['+' | '-'] digit {digit}.
+		ScaleFcell          = ('E' | 'D') ['+' | '-'] digit {digit}.
 
 		HexDigit             = Digit | 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
 
@@ -527,13 +527,14 @@ TYPE
 			RETURN expression
 		END RangeExpression;
 
-		(** Designator  = ('self' | Identifier)
-		                  {'.' Identifier | '[' IndexList ']' | '(' [ExpressionList] ')' | '^'}.
+		(** Designator  = ('self' | 'result' | Identifier [Flags])
+		                  {'.' Identifier  [Flags] | '[' IndexList ']' | '(' [ExpressionList] ')' | '^'}.
 		**)
 		PROCEDURE Designator( ): SyntaxTree.Designator;
 		VAR
 			designator: SyntaxTree.Designator;  expressionList: SyntaxTree.ExpressionList;
 			identifier: SyntaxTree.Identifier; position: LONGINT;
+			modifier: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "Designator" ) END;
 			position := symbol.start;
@@ -543,25 +544,32 @@ TYPE
 				designator := SyntaxTree.NewResultDesignator(position);
 			ELSE
 				identifier := Identifier();
+				IF Optional( Scanner.LeftBrace) THEN
+					modifier := Flags();
+				END;
 				designator := SyntaxTree.NewIdentifierDesignator(identifier.position,identifier);
 			END;
+
 			LOOP
 				position := symbol.start;
-				IF Optional( Scanner.Period ) THEN
-					identifier := Identifier();
-					designator := SyntaxTree.NewSelectorDesignator(identifier.position,designator,identifier);
-				ELSIF Optional( Scanner.LeftBracket ) THEN
-					expressionList := SyntaxTree.NewExpressionList();
-					IndexList( expressionList );
-					Check( Scanner.RightBracket );
-					designator:= SyntaxTree.NewBracketDesignator( position,designator,expressionList );
-				ELSIF Optional( Scanner.LeftParenthesis ) THEN
+				IF Optional( Scanner.LeftParenthesis ) THEN
 					expressionList := SyntaxTree.NewExpressionList();
 					IF ~Optional( Scanner.RightParenthesis ) THEN
 						ExpressionList( expressionList );
 						Check( Scanner.RightParenthesis )
 					END;
 					designator := SyntaxTree.NewParameterDesignator( position,designator,expressionList);
+				ELSIF Optional( Scanner.Period ) THEN
+					identifier := Identifier();
+					designator := SyntaxTree.NewSelectorDesignator(identifier.position,designator,identifier);
+					IF Optional( Scanner.LeftBrace) THEN
+						modifier := Flags();
+					END;
+				ELSIF Optional( Scanner.LeftBracket ) THEN
+					expressionList := SyntaxTree.NewExpressionList();
+					IndexList( expressionList );
+					Check( Scanner.RightBracket );
+					designator:= SyntaxTree.NewBracketDesignator( position,designator,expressionList );
 				ELSIF Optional( Scanner.Arrow ) THEN
 					designator:= SyntaxTree.NewArrowDesignator( position,designator );
 				ELSE EXIT
@@ -607,100 +615,100 @@ TYPE
 			RETURN array
 		END MathArray;
 
-		(** Factor = Number | Character | String | 'nil' | 'true' | 'false' | Set
-			 			  | '(' Expression ')' | '~' Factor | Factor '`' | Designator | MathArray.**)
-		PROCEDURE Factor( ): SyntaxTree.Expression;
-		VAR factor: SyntaxTree.Expression; position: LONGINT;
+		(** Fcell = Number | Character | String | 'nil' | 'true' | 'false' | Set
+			 			  | '(' Expression ')' | '~' Fcell | Fcell '`' | Designator | MathArray.**)
+		PROCEDURE Fcell( ): SyntaxTree.Expression;
+		VAR fcell: SyntaxTree.Expression; position: LONGINT;
 		BEGIN
-			IF Trace THEN S( "Factor" ) END;
+			IF Trace THEN S( "Fcell" ) END;
 			position := symbol.start;
 			CASE symbol.token OF
 			| Scanner.Number:
 					IF (symbol.numberType = Scanner.Integer) THEN
-						factor := SyntaxTree.NewIntegerValue( position, symbol.integer);
-						factor.End( symbol.end );
+						fcell := SyntaxTree.NewIntegerValue( position, symbol.integer);
+						fcell.End( symbol.end );
 					ELSIF (symbol.numberType = Scanner.Hugeint) THEN
-						factor := SyntaxTree.NewIntegerValue(position, symbol.hugeint);
-						factor.End( symbol.end );
+						fcell := SyntaxTree.NewIntegerValue(position, symbol.hugeint);
+						fcell.End( symbol.end );
 					ELSIF (symbol.numberType = Scanner.Real) OR (symbol.numberType = Scanner.Longreal) THEN
-						factor := SyntaxTree.NewRealValue( position, symbol.real);
-						factor(SyntaxTree.RealValue).SetSubtype(symbol.numberType);
-						factor.End( symbol.end );
+						fcell := SyntaxTree.NewRealValue( position, symbol.real);
+						fcell(SyntaxTree.RealValue).SetSubtype(symbol.numberType);
+						fcell.End( symbol.end );
 					ELSE HALT( 100 )
 					END;
 					NextSymbol;
 			| Scanner.Character:
-					factor := SyntaxTree.NewCharacterValue(position,symbol.character);
-					factor.End(symbol.end);
+					fcell := SyntaxTree.NewCharacterValue(position,symbol.character);
+					fcell.End(symbol.end);
 					NextSymbol;
 			| Scanner.String:
-					factor := SyntaxTree.NewStringValue( position, symbol.string );
-					factor.End( symbol.end );
+					fcell := SyntaxTree.NewStringValue( position, symbol.string );
+					fcell.End( symbol.end );
 					NextSymbol;
 			| Scanner.Nil:
-					factor := SyntaxTree.NewNilValue( position );
-					factor.End( symbol.end );
+					fcell := SyntaxTree.NewNilValue( position );
+					fcell.End( symbol.end );
 					NextSymbol;
 			| Scanner.True:
-					factor := SyntaxTree.NewBooleanValue( position, TRUE );
-					factor.End( symbol.end );
+					fcell := SyntaxTree.NewBooleanValue( position, TRUE );
+					fcell.End( symbol.end );
 					NextSymbol;
 			| Scanner.False:
-					factor := SyntaxTree.NewBooleanValue( position, FALSE );
-					factor.End( symbol.end );
+					fcell := SyntaxTree.NewBooleanValue( position, FALSE );
+					fcell.End( symbol.end );
 					NextSymbol;
 			| Scanner.LeftBrace:
-					factor := Set();
+					fcell := Set();
 			| Scanner.LeftParenthesis:
 					NextSymbol;
-					factor := Expression();
+					fcell := Expression();
 					Check( Scanner.RightParenthesis );
-					factor.End( symbol.end );
+					fcell.End( symbol.end );
 			| Scanner.Not:
 					NextSymbol;
-					factor := Factor();
-					factor := SyntaxTree.NewUnaryExpression( position, factor, Scanner.Not );
-					factor.End( symbol.end );
+					fcell := Fcell();
+					fcell := SyntaxTree.NewUnaryExpression( position, fcell, Scanner.Not );
+					fcell.End( symbol.end );
 			| Scanner.Self, Scanner.Result, Scanner.Identifier:
-					factor := Designator();
-					factor.End( symbol.end );
+					fcell := Designator();
+					fcell.End( symbol.end );
 			| Scanner.LeftBracket:
 					NextSymbol;
-					factor := MathArray();
-					factor.End(symbol.end);
+					fcell := MathArray();
+					fcell.End(symbol.end);
 			ELSE
 				Error( position, Basic.ValueStartIncorrectSymbol, "" );
-				NextSymbol;  factor := SyntaxTree.invalidExpression;
+				NextSymbol;  fcell := SyntaxTree.invalidExpression;
 			END;
 			(* suffix *)
 			IF Optional(Scanner.Transpose) THEN
-				IF (factor IS SyntaxTree.UnaryExpression) & (factor(SyntaxTree.UnaryExpression).operator = Scanner.Transpose) THEN
+				IF (fcell IS SyntaxTree.UnaryExpression) & (fcell(SyntaxTree.UnaryExpression).operator = Scanner.Transpose) THEN
 					(* transpose operator has higher precedence than not, reevaluate expression: *)
-					factor := factor(SyntaxTree.UnaryExpression).left;
-					factor := SyntaxTree.NewUnaryExpression(position,factor,Scanner.Transpose);
-					factor := SyntaxTree.NewUnaryExpression(position,factor,Scanner.Not);
+					fcell := fcell(SyntaxTree.UnaryExpression).left;
+					fcell := SyntaxTree.NewUnaryExpression(position,fcell,Scanner.Transpose);
+					fcell := SyntaxTree.NewUnaryExpression(position,fcell,Scanner.Not);
 				ELSE
-					factor := SyntaxTree.NewUnaryExpression(position,factor,Scanner.Transpose);
+					fcell := SyntaxTree.NewUnaryExpression(position,fcell,Scanner.Transpose);
 				END;
 			END;
-			IF Trace THEN E( "Factor" ) END;
-			RETURN factor
-		END Factor;
+			IF Trace THEN E( "Fcell" ) END;
+			RETURN fcell
+		END Fcell;
 
-		(** Term = Factor {MulOp Factor}.
+		(** Term = Fcell {MulOp Fcell}.
 		   MulOp = '*' | '**' | '.*' | '+*' | '/' | './' | 'div' | 'mod' | '&'.
 		**)
 		PROCEDURE Term( ): SyntaxTree.Expression;
-		VAR term, factor: SyntaxTree.Expression;  operator: LONGINT; position: LONGINT;
+		VAR term, fcell: SyntaxTree.Expression;  operator: LONGINT; position: LONGINT;
 		BEGIN
 			IF Trace THEN S( "Term" ) END;
 			position := symbol.start;
-			term := Factor();
+			term := Fcell();
 			WHILE (symbol.token >= Scanner.Times) & (symbol.token <= Scanner.And) DO
 				operator := symbol.token;
 				NextSymbol;
-				factor := Factor();
-				term := SyntaxTree.NewBinaryExpression( position, term, factor, operator );
+				fcell := Fcell();
+				term := SyntaxTree.NewBinaryExpression( position, term, fcell, operator );
 			END;
 			term.End( symbol.end );
 			IF Trace THEN E( "Term" ) END;
@@ -715,7 +723,7 @@ TYPE
 		BEGIN
 			IF Trace THEN S( "SimpleExpression" ) END;
 			position := symbol.start;
-			IF Peek(Scanner.Plus) OR Peek(Scanner.Minus) THEN (* sign should be part of the factor *)
+			IF Peek(Scanner.Plus) OR Peek(Scanner.Minus) THEN (* sign should be part of the fcell *)
 				operator := symbol.token;
 				NextSymbol;
 				term := Term();
@@ -802,6 +810,7 @@ TYPE
 			caseStatement: SyntaxTree.CaseStatement;  whileStatement: SyntaxTree.WhileStatement;  repeatStatement: SyntaxTree.RepeatStatement;  forStatement: SyntaxTree.ForStatement;
 			identifier: SyntaxTree.Identifier;  loopStatement: SyntaxTree.LoopStatement;  returnStatement: SyntaxTree.ReturnStatement;  awaitStatement: SyntaxTree.AwaitStatement;
 			qualifiedType: SyntaxTree.QualifiedType; code : SyntaxTree.Code; position: LONGINT; result: BOOLEAN;
+			modifier: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "Statement" ) END;
 			CASE symbol.token OF
@@ -1166,36 +1175,36 @@ TYPE
 		END ObjectType;
 
 
-		(** CellType = 'actor' [ParameterList] DeclarationSequence [Body] 'end' [Identifier]
+		(** CellType = 'cell' [ParameterList] DeclarationSequence [Body] 'end' [Identifier]
               | 'object'. **)
 		PROCEDURE CellType(position: LONGINT;  name: SyntaxTree.Identifier; parentScope: SyntaxTree.Scope; isCellNet: BOOLEAN): SyntaxTree.Type;
 		VAR
-			actorType: SyntaxTree.CellType;
-			actorScope: SyntaxTree.CellScope;
+			cellType: SyntaxTree.CellType;
+			cellScope: SyntaxTree.CellScope;
 			modifiers: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "CellType" ) END;
-			(* symbol actor already consumed *)
+			(* symbol cell already consumed *)
 
-			actorScope := SyntaxTree.NewCellScope(parentScope);
-			actorType := SyntaxTree.NewCellType( position, parentScope,actorScope);
-			actorType.IsCellNet(isCellNet);
-			actorScope.SetOwnerCell(actorType);
+			cellScope := SyntaxTree.NewCellScope(parentScope);
+			cellType := SyntaxTree.NewCellType( position, parentScope,cellScope);
+			cellType.IsCellNet(isCellNet);
+			cellScope.SetOwnerCell(cellType);
 
 
 			IF Optional(Scanner.LeftBrace) THEN
 				modifiers := Flags();
-				actorType.SetModifiers(modifiers);
+				cellType.SetModifiers(modifiers);
 			END;
 
 
 			IF Optional( Scanner.LeftParenthesis ) THEN
-				PortList(actorType,actorScope);
+				PortList(cellType,cellScope);
 			END;
 
-			DeclarationSequence( actorScope);
+			DeclarationSequence( cellScope);
 			IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
-				actorScope.SetBodyProcedure(BodyProcedure(actorScope));
+				cellScope.SetBodyProcedure(BodyProcedure(cellScope));
 			END;
 			Check(Scanner.End);
 
@@ -1203,7 +1212,7 @@ TYPE
 				(* check name not always, reflect in EBNF? *)
 			END;
 			IF Trace THEN E( "CellType" ) END;
-			RETURN actorType
+			RETURN cellType
 		END CellType;
 
 		(** PointerType = 'pointer' 'to' Type. **)
@@ -1395,22 +1404,22 @@ TYPE
 		END Type;
 
 		(** PortDeclaration = ('out' | 'in') Identifier {',' Identifier}':' Type. **)
-		PROCEDURE PortDeclaration(actor: SyntaxTree.CellType; parentScope: SyntaxTree.Scope);
+		PROCEDURE PortDeclaration(cell: SyntaxTree.CellType; parentScope: SyntaxTree.Scope);
 		VAR
 			type: SyntaxTree.Type; name: SyntaxTree.Identifier;
 			firstParameter, parameter: SyntaxTree.Parameter;
 		BEGIN
 			IF Trace THEN S( "PortDeclaration" ) END;
-			firstParameter := actor.lastParameter;
+			firstParameter := cell.lastParameter;
 			REPEAT
 				name := Identifier();
-				parameter := SyntaxTree.NewParameter(name.position,actor,name,SyntaxTree.ValueParameter);
-				actor.AddParameter(parameter);
+				parameter := SyntaxTree.NewParameter(name.position,cell,name,SyntaxTree.ValueParameter);
+				cell.AddParameter(parameter);
 			UNTIL ~Optional( Scanner.Comma );
 			Check( Scanner.Colon );
 			type := Type( NIL, parentScope);
 			ASSERT(type # NIL);
-			IF firstParameter # NIL THEN parameter := firstParameter.nextParameter ELSE parameter := actor.firstParameter END;
+			IF firstParameter # NIL THEN parameter := firstParameter.nextParameter ELSE parameter := cell.firstParameter END;
 			WHILE parameter # NIL DO
 				parameter.SetType( type );
 				parameter := parameter.nextParameter;
@@ -1420,15 +1429,15 @@ TYPE
 		END PortDeclaration;
 
 		(** PortList = '('[ParameterDeclaration {';' ParameterDeclaration}]')' [':' Type]. **)
-		PROCEDURE PortList( actor: SyntaxTree.CellType ; parentScope: SyntaxTree.Scope);
+		PROCEDURE PortList( cell: SyntaxTree.CellType ; parentScope: SyntaxTree.Scope);
 		BEGIN
 			IF Trace THEN S( "PortList" ) END;
 			(* left parenthesis already consumed *)
 			IF ~Optional( Scanner.RightParenthesis ) THEN
 				IF Lax THEN
-					WHILE Peek(Scanner.Identifier) OR Peek(Scanner.Var) OR Peek(Scanner.Const) DO PortDeclaration( actor, parentScope ); Ignore(Scanner.Semicolon) END;
+					WHILE Peek(Scanner.Identifier) OR Peek(Scanner.Var) OR Peek(Scanner.Const) DO PortDeclaration( cell, parentScope ); Ignore(Scanner.Semicolon) END;
 				ELSE
-					REPEAT PortDeclaration( actor, parentScope );  UNTIL ~Optional( Scanner.Semicolon );
+					REPEAT PortDeclaration( cell, parentScope );  UNTIL ~Optional( Scanner.Semicolon );
 				END;
 				Check( Scanner.RightParenthesis );
 			END;
@@ -1510,12 +1519,14 @@ TYPE
 					IF Optional(Scanner.LeftParenthesis) THEN
 						expression := Expression();
 						Check(Scanner.RightParenthesis)
+					ELSIF Optional(Scanner.Equal) THEN
+						expression := Expression();
 					ELSE
 						expression := NIL
 					END;
 					modifier := SyntaxTree.NewModifier(identifier,expression);
 					AppendModifier(list,modifier);
-				UNTIL ~Optional( Scanner.Comma );
+				UNTIL ~Optional( Scanner.Comma ) & ~Optional(Scanner.Semicolon);
 			END;
 			Check(Scanner.RightBrace);
 			IF Trace THEN E( "Flags" ) END;

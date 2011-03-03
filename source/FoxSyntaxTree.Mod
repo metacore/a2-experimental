@@ -78,6 +78,9 @@ TYPE
 		PROCEDURE VisitObjectType*(x: ObjectType);
 		BEGIN HALT(100) (* abstract *) END VisitObjectType;
 
+		PROCEDURE VisitChannelType*(x: ChannelType);
+		BEGIN HALT(100) (* abstract *) END VisitChannelType;
+
 		PROCEDURE VisitNilType*(x: NilType);
 		BEGIN HALT(100) (* abstract *) END VisitNilType;
 
@@ -1322,6 +1325,29 @@ TYPE
 
 	END RecordType;
 
+	ChannelType*= OBJECT (BasicType)
+
+		PROCEDURE &InitChannelType(sizeInBits: LONGINT);
+		BEGIN
+			InitBasicType("@Channel",sizeInBits);
+		END InitChannelType;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN (this IS ChannelType)
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS ChannelType)
+		END CompatibleTo;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitChannelType(SELF)
+		END Accept;
+
+	END ChannelType;
+
+
 	CellType*=OBJECT (Type)
 	VAR
 		firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters *)
@@ -1375,6 +1401,7 @@ TYPE
 		END Accept;
 
 	END CellType;
+
 
 	(** <<procedureType = PROCEDURE [{DELEGATE}] (firstParameter .. lastParameter): returnType>>
 		also used as type for procedures
@@ -4010,6 +4037,12 @@ VAR
 	BEGIN
 		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewObjectType;
+
+	PROCEDURE NewChannelType*(sizeInBits: LONGINT): ChannelType;
+	VAR basicType: ChannelType;
+	BEGIN
+		NEW(basicType, sizeInBits); RETURN basicType;
+	END NewChannelType;
 
 	PROCEDURE NewNilType*(sizeInBits: LONGINT): NilType;
 	VAR basicType: NilType;
