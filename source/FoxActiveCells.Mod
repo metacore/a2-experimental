@@ -726,13 +726,13 @@ TYPE
 			IF ~r.GetInteger(i,FALSE) OR (i#index) OR
 			~CheckItem(r,"name") OR ~GetString(r,name) OR
 			~CheckItem(r,"outInstance") OR ~ GetString(r,s) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
-			out.instance := scope.instances.ByName(s);
+			IF s#"NIL" THEN out.instance := scope.instances.ByName(s) END;
 			IF ~CheckItem(r,"outPort") OR ~GetString(r,s) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
-			out.port := out.instance.type.ports.ByName(s);
+			IF s#"NIL" THEN out.port := out.instance.type.ports.ByName(s) END;
 			IF ~CheckItem(r,"inInstance") OR ~ GetString(r,s) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
-			in.instance := scope.instances.ByName(s);
+			IF s#"NIL" THEN in.instance := scope.instances.ByName(s) END;
 			IF ~CheckItem(r,"inPort")OR ~GetString(r,s) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
-			in.port := in.instance.type.ports.ByName(s);
+			IF s#"NIL" THEN	in.port := in.instance.type.ports.ByName(s) END;
 			IF ~CheckItem(r,"size")OR ~r.GetInteger(i,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			fifoSize := i;
 			IF ~CheckItem(r,"width")OR ~r.GetInteger(i,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
@@ -745,10 +745,10 @@ TYPE
 			Indent(w,indent);
 			w.Int(index,1);
 			w.String(" name="); w.String(name);
-			w.String(" outInstance="); w.String(out.instance.name);
-			w.String(" outPort="); w.String(out.port.name);
-			w.String(" inInstance="); w.String(in.instance.name);
-			w.String(" inPort="); w.String(in.port.name);
+			w.String(" outInstance="); IF out.instance = NIL THEN w.String("NIL") ELSE w.String(out.instance.name) END;
+			w.String(" outPort="); IF out.port = NIL THEN w.String("NIL") ELSE w.String(out.port.name) END;
+			w.String(" inInstance="); IF in.instance = NIL THEN w.String("NIL") ELSE w.String(in.instance.name) END;
+			w.String(" inPort="); IF in.port = NIL THEN w.String("NIL") ELSE w.String(in.port.name) END;
 			w.String(" size="); w.Int(fifoSize,1);
 			w.String(" width="); w.Int(widthInBits,1);
 			w.Ln;w.Update;
