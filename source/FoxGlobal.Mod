@@ -22,7 +22,12 @@ CONST
 	StringPriority* = "PRIORITY";
 	StringSafe* = "SAFE";
 	StringRealtime*= "REALTIME";
-	StringMemorySize*= "MEMORYSIZE";
+
+	StringDataMemorySize*= "DataMemorySize";
+	StringCodeMemorySize*= "CodeMemorySize";
+	StringChannelWidth*= "ChannelWidth";
+	StringChannelDepth*= "ChannelDepth";
+	StringChannelModule*= "Channels";
 
 	(* traps *)
 	WithTrap* = 1;
@@ -90,7 +95,8 @@ VAR
 	SelfParameterName-,ReturnParameterName-,SystemName-,systemName-,PointerReturnName-, ResultName-,
 	A2Name-,OberonName-,ArrayBaseName-,RecordBodyName-,ModuleBodyName-,
 	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-,NameNoPAF-,NameFixed-,NameAligned-,NameStackAligned-,
-	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-,NameMemorySize-: SyntaxTree.Identifier;
+	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-,NameDataMemorySize-, NameCodeMemorySize-
+	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-: SyntaxTree.Identifier;
 
 	identifiers: ARRAY 2 OF ARRAY end OF SyntaxTree.Identifier;
 
@@ -133,7 +139,7 @@ TYPE
 		*)
 
 		addressType-, sizeType-, shortintType-, integerType-, longintType-, hugeintType-, characterType-, setType-, booleanType-, anyType-,byteType-,
-		realType-, longrealType-, objectType-, nilType-, rangeType-: SyntaxTree.Type;
+		realType-, longrealType-, objectType-, nilType-, rangeType-, channelType-: SyntaxTree.Type;
 
 		PROCEDURE &InitSystem*(dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar: LONGINT);
 		VAR i: LONGINT;
@@ -705,6 +711,7 @@ TYPE
 		system.sizeType := SyntaxTree.NewSizeType(system.addressSize);
 		system.rangeType := SyntaxTree.NewRangeType(3 * system.SizeOf(system.longintType));
 		system.setType := SyntaxTree.NewSetType(system.addressSize);
+		system.channelType := SyntaxTree.NewChannelType(system.addressSize);
 		(* type declarations *)
 		DeclareType(system.byteType,"BYTE",system.systemScope);
 		DeclareType(system.addressType,"ADDRESS",system.systemScope); (* mapped to longint *)
@@ -754,6 +761,7 @@ TYPE
 		DeclareType(system.setType,"SET",system.globalScope);
 		DeclareType(system.anyType,"ANY",system.globalScope);
 		DeclareType(system.objectType,"OBJECT",system.globalScope);
+		DeclareType(system.channelType,"CHANNEL",system.globalScope);
 
 		(* global functions *)
 		NewBuiltin(Abs,"ABS",system.globalScope,TRUE);
@@ -1261,7 +1269,11 @@ TYPE
 		NamePriority := SyntaxTree.NewIdentifier(-1, StringPriority);
 		NameSafe := SyntaxTree.NewIdentifier(-1, StringSafe);
 		NameRealtime := SyntaxTree.NewIdentifier(-1, StringRealtime);
-		NameMemorySize := SyntaxTree.NewIdentifier(-1, StringMemorySize);
+		NameDataMemorySize := SyntaxTree.NewIdentifier(-1, StringDataMemorySize);
+		NameCodeMemorySize := SyntaxTree.NewIdentifier(-1, StringCodeMemorySize);
+		NameChannelWidth := SyntaxTree.NewIdentifier(-1, StringChannelWidth);
+		NameChannelDepth := SyntaxTree.NewIdentifier(-1, StringChannelDepth);
+		NameChannelModule := SyntaxTree.NewIdentifier(-1, StringChannelModule);
 
 		(* types *)
 		Boolean8 := SyntaxTree.NewBooleanType(8);

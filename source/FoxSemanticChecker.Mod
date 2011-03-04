@@ -709,11 +709,14 @@ TYPE
 			- enter port type to list of deferred fixes (to avoid infinite loops in the declaration phase)
 		**)
 		PROCEDURE VisitPortType(x: SyntaxTree.PortType);
-		VAR channelType: SyntaxTree.Type;
+		VAR channelType: SyntaxTree.Type; value: LONGINT;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
-				channelType := ResolveType(x.channelType);
-				x.SetChannelType(channelType);
+				IF (x.sizeExpression # NIL) & CheckPositiveIntegerValue(x.sizeExpression,value,FALSE) THEN
+					x.SetSize(value)
+				ELSE
+					x.SetSize(system.SizeOf(system.integerType));
+				END;
 				x.SetState(SyntaxTree.Resolved);
 			END;
 			resolvedType := ResolvedType(x)
@@ -962,7 +965,8 @@ TYPE
 			IF TypeNeedsResolution(x) THEN
 
 				modifier := x.modifiers;
-				IF HasValue(modifier,Global.NameMemorySize,position,value) THEN END;
+				IF HasValue(modifier,Global.NameDataMemorySize,position,value) THEN END;
+				IF HasValue(modifier,Global.NameCodeMemorySize,position,value) THEN END;
 				CheckModifiers(modifier);
 
 				(* process parameters *)
@@ -2045,7 +2049,7 @@ TYPE
 					result := SyntaxTree.NewEnumerationValue(expression.position,SHORT(int));
 					result.SetType(type);
 				ELSIF (type IS SyntaxTree.PortType) THEN
-					result := ConvertValue(position, expression, type(SyntaxTree.PortType).channelType);
+					result := ConvertValue(position, expression, system.integerType);
 				ELSE
 					Error(position,Diagnostics.Invalid,"integer value cannot be converted");
 					result := SyntaxTree.invalidExpression;
@@ -4238,6 +4242,7 @@ TYPE
 			RETURN result;
 		END CheckPositiveIntegerValue;
 
+
 		PROCEDURE CheckPortType(x: SyntaxTree.Expression; VAR portType: SyntaxTree.PortType): BOOLEAN;
 		VAR type: SyntaxTree.Type; result: BOOLEAN;
 		BEGIN
@@ -4245,15 +4250,43 @@ TYPE
 			IF x = SyntaxTree.invalidExpression THEN
 			ELSE
 				type := x.type.resolved;
-				IF (type = NIL) OR ~(type IS SyntaxTree.PortType) THEN
-					Error(x.position,Diagnostics.Invalid,"no port type");
+				IF (type # NIL) & (type IS SyntaxTree.PortType) THEN
+					portType := type(SyntaxTree.PortType);
+					result := TRUE
 				ELSE
+					Error(x.position,Diagnostics.Invalid,"no port type");
+				END;
+			END;
+			RETURN result
+		END CheckPortType;
+
+		PROCEDURE IsPortType(x: SyntaxTree.Expression; VAR portType: SyntaxTree.PortType): BOOLEAN;
+		VAR type: SyntaxTree.Type; result: BOOLEAN;
+		BEGIN
+			result := FALSE;
+			IF x = SyntaxTree.invalidExpression THEN
+			ELSE
+				type := x.type.resolved;
+				IF (type # NIL) & (type IS SyntaxTree.PortType) THEN
 					portType := type(SyntaxTree.PortType);
 					result := TRUE
 				END;
 			END;
 			RETURN result
-		END CheckPortType;
+		END IsPortType;
+
+		PROCEDURE IsChannelType(x: SyntaxTree.Expression): BOOLEAN;
+		VAR type: SyntaxTree.Type;
+		BEGIN
+			IF (x = SyntaxTree.invalidExpression) THEN RETURN FALSE
+			ELSE
+				type := x.type.resolved;
+				IF (type # NIL) & (type IS SyntaxTree.ChannelType) THEN
+					RETURN TRUE
+				END;
+			END;
+			RETURN FALSE
+		END IsChannelType;
 
 		(* move to builtin procedure call statement ?
 			remove builtin procedure call designator ?
@@ -5142,19 +5175,25 @@ TYPE
 					IF 	~(currentIsCellNet) THEN
 						Error(position,Diagnostics.Invalid,"connection outside activeCells body block");
 					END;
-					IF ~CheckPortType(parameter1, inPort) OR (inPort.direction # SyntaxTree.InPort) THEN
-						Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
-					ELSIF ~CheckPortType(parameter0, outPort) OR (outPort.direction # SyntaxTree.OutPort) THEN
-						Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
-					ELSIF ~SameType(inPort.channelType, outPort.channelType) THEN
-						Error(position,Diagnostics.Invalid,"incompatible port types");
-					END;
-					IF numberActualParameters = 3 THEN
-						IF IsIntegerValue(parameter2,i0) & (i0>=0) THEN
-							parameter2.SetResolved(SyntaxTree.NewIntegerValue(position,ABS(i0)));
-						ELSE
-							Error(position,Diagnostics.Invalid,"incompatible channel size parameter");
-						END;
+					IF IsPortType(parameter0, outPort) THEN
+						IF (outPort.direction # SyntaxTree.OutPort) THEN Error(parameter0.position,Diagnostics.Invalid,"not an out-port") END;
+						IF IsChannelType(parameter1) THEN
+							IF numberActualParameters=3 THEN Error(parameter2.position,Diagnostics.Invalid,"invalid third parameter") END;
+						ELSIF IsPortType(parameter1, inPort) THEN
+							IF (inPort.direction # SyntaxTree.InPort) THEN Error(parameter0.position,Diagnostics.Invalid,"not an in-port") END;
+							IF numberActualParameters=2 THEN Error(position,Diagnostics.Invalid,"no channel parameter")
+							ELSIF ~IsChannelType(parameter2) THEN Error(parameter2.position,Diagnostics.Invalid,"no channel parameter")
+							END;
+						ELSE Error(parameter1.position,Diagnostics.Invalid,"no inport or channel parameter")
+						END
+					ELSIF IsChannelType(parameter0) THEN
+						IF IsPortType(parameter1, inPort) THEN
+							IF (inPort.direction # SyntaxTree.InPort) THEN Error(parameter0.position,Diagnostics.Invalid,"not an in-port") END;
+							IF numberActualParameters=3 THEN Error(parameter2.position,Diagnostics.Invalid,"invalid third parameter") END;
+						ELSE Error(parameter1.position,Diagnostics.Invalid,"no outport parameter")
+						END
+					ELSE
+						 Error(parameter1.position,Diagnostics.Invalid,"no outport or channel parameter")
 					END;
 					activeCellsStatement := TRUE;
 				(* ---------- DELEGATE --------*)
@@ -5168,16 +5207,17 @@ TYPE
 						Error(parameter1.position,Diagnostics.Invalid,"not a port")
 					ELSIF (outPort.direction # inPort.direction) THEN
 						Error(parameter0.position,Diagnostics.Invalid,"invalid port direction");
-					ELSIF ~SameType(inPort.channelType, outPort.channelType) THEN
-						Error(position,Diagnostics.Invalid,"incompatible port types");
+					ELSIF outPort.sizeInBits # inPort.sizeInBits THEN
+						Error(position,Diagnostics.Invalid,"incompatible port sizes");
 					END;
 					activeCellsStatement := TRUE;
 				(* --------- RECEIVE ---------*)
 				ELSIF (id = Global.Receive) & Parameters(2,3) THEN
+					ImportModule(Global.NameChannelModule,position);
 					IF CheckPortType(parameter0,inPort) & CheckVariable(parameter1) THEN
 						IF inPort.direction # SyntaxTree.InPort THEN
 							Error(parameter0.position,Diagnostics.Invalid,"not an in-port")
-						ELSIF ~SameType(inPort.channelType,parameter1.type) THEN
+						ELSIF inPort.sizeInBits # system.SizeOf(parameter1.type) THEN
 							Error(parameter1.position,Diagnostics.Invalid,"incompatible to port type");
 						END;
 						IF (numberActualParameters=3) & CheckVariable(parameter2) THEN
@@ -5188,10 +5228,11 @@ TYPE
 					END;
 				(* --------- SEND ---------*)
 				ELSIF (id = Global.Send) & Parameters(2,2) THEN
+					ImportModule(Global.NameChannelModule,position);
 					IF CheckPortType(parameter0,outPort)  THEN
 						IF outPort.direction # SyntaxTree.OutPort THEN
 							Error(parameter1.position,Diagnostics.Invalid,"not an out-port")
-						ELSIF ~CompatibleTo(system,outPort.channelType,parameter1.type) THEN
+						ELSIF outPort.sizeInBits # system.SizeOf(parameter1.type) THEN
 							Error(parameter1.position,Diagnostics.Invalid,"incompatible to port type");
 						ELSE
 							parameter1 := NewConversion(position,parameter1,parameter0.type.resolved,NIL);
@@ -5655,6 +5696,13 @@ TYPE
 						Error(position,Diagnostics.Invalid,"fixed position not possible in procedure");
 					END;
 					variable.SetAlignment(TRUE, value);
+				END;
+				IF variable.type.resolved IS SyntaxTree.ChannelType THEN
+					IF HasValue(modifiers, Global.NameChannelWidth, position, value) THEN END;
+					IF HasValue(modifiers, Global.NameChannelDepth, position, value) THEN END;
+				ELSIF variable.type.resolved IS SyntaxTree.CellType THEN
+					IF HasValue(modifiers, Global.NameCodeMemorySize, position, value) THEN END;
+					IF HasValue(modifiers, Global.NameDataMemorySize, position, value) THEN END;
 				END;
 				CheckModifiers(modifiers);
 				variable.SetState(SyntaxTree.Resolved);
@@ -6851,7 +6899,6 @@ TYPE
 				WHILE(parameter # NIL) DO
 					Register(parameter,scope, FALSE); parameter := parameter.nextParameter;
 				END;
-				ImportModule(SyntaxTree.NewIdentifier(-1,"ActiveCells"),module.position);
 			END;
 			IF error THEN RETURN END;
 

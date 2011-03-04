@@ -164,13 +164,16 @@ TYPE
 			parameter: SyntaxTree.Parameter; parameterType: SyntaxTree.Type; portIndex,i,direction,len: LONGINT;
 			port: ActiveCells.Port;
 			prevActiveCellsScope : ActiveCells.Scope;
-			dataMemorySize: LONGINT;
+			dataMemorySize, codeMemorySize: LONGINT;
 		BEGIN
 			prevActiveCellsScope := currentActiveCellsScope;
 			x.typeDeclaration.name.GetString(componentName);
 			instanceType := currentActiveCellsScope.NewType(componentName); (*backend.activeCellsSpecification.NewType(componentName);*)
-			IF HasValue(x.modifiers,Global.StringMemorySize,dataMemorySize) THEN
+			IF HasValue(x.modifiers,Global.StringDataMemorySize,dataMemorySize) THEN
 				instanceType.SetDataMemorySize(dataMemorySize);
+			END;
+			IF HasValue(x.modifiers,Global.StringCodeMemorySize,codeMemorySize) THEN
+				instanceType.SetInstructionMemorySize(codeMemorySize)
 			END;
 
 			currentActiveCellsScope := instanceType;
@@ -185,13 +188,13 @@ TYPE
 						COPY(parameterName,name);
 						AppendIndex(name,i);
 						port := instanceType.NewPort(name,direction,backend.activeCellsSpecification.GetPortAddress(portIndex));
-						port.SetWidth(system.SizeOf(parameterType(SyntaxTree.PortType).channelType));
+						port.SetWidth(parameterType(SyntaxTree.PortType).sizeInBits);
 						INC(portIndex);
 					END;
 				ELSE
 					direction := Direction(parameterType(SyntaxTree.PortType).direction);
 					port := instanceType.NewPort(parameterName,direction,backend.activeCellsSpecification.GetPortAddress(portIndex));
-					port.SetWidth(system.SizeOf(parameterType(SyntaxTree.PortType).channelType));
+					port.SetWidth(parameterType(SyntaxTree.PortType).sizeInBits);
 					INC(portIndex);
 				END;
 				parameter := parameter.nextParameter;
@@ -539,12 +542,12 @@ TYPE
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR p0,p1,p2: SyntaxTree.Expression;
 		instanceType: ActiveCells.Type;
-		port1,port2: ActiveCells.Port;
+		port0,port1: ActiveCells.Port;
 		channel: ActiveCells.Channel;
 		type,t0,t1,t2: SyntaxTree.Type;
 		instanceName, typeName, portName: SyntaxTree.String;
 		len: LONGINT;
-		instance,instance1,instance2: ActiveCells.Instance;
+		instance,instance0,instance1: ActiveCells.Instance;
 		symbol: ActiveCells.Symbol;
 		value: LONGINT;
 
@@ -577,9 +580,10 @@ TYPE
 					e := e(SyntaxTree.SymbolDesignator).left
 				END;
 				Strings.Append(instanceName, suffix);
-				IF type.typeDeclaration.scope.ownerModule # moduleScope.ownerModule THEN Global.GetSymbolName(type.typeDeclaration,typeName)
-				ELSE
+				IF (type.typeDeclaration # NIL) & (type.typeDeclaration.scope.ownerModule # moduleScope.ownerModule) THEN Global.GetSymbolName(type.typeDeclaration,typeName)
+				ELSIF (type.typeDeclaration # NIL) THEN
 					type.typeDeclaration.name.GetString(typeName);
+				ELSE typeName := ""
 				END;
 				RETURN TRUE
 			END GetInstanceName;
@@ -589,13 +593,13 @@ TYPE
 			BEGIN
 				Index(p, suffix);
 				port := NIL;
-				IF GetInstanceName(p(SyntaxTree.SymbolDesignator).left, instanceName, typeName) THEN
+				IF (p.type.resolved IS SyntaxTree.PortType) & GetInstanceName(p(SyntaxTree.SymbolDesignator).left, instanceName, typeName) THEN
 					instance := currentActiveCellsScope.instances.ByName(instanceName);
 					IF instance = NIL THEN Error(p.position,"not allocated"); RETURN FALSE END;
 					instanceType := instance.type;
 					p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
 					IF instanceType = NIL THEN
-						Error(p.position,"component type could not be derived"); RETURN FALSE
+						Error(p.position,"cell type could not be derived"); RETURN FALSE
 					ELSE
 						COPY(portName, name); Strings.Append(name,suffix);
 						port := instanceType.ports.ByName(name);
@@ -606,6 +610,18 @@ TYPE
 					RETURN FALSE
 				END;
 			END GetPort;
+
+			PROCEDURE GetChannel(p: SyntaxTree.Expression; VAR channel: ActiveCells.Channel): BOOLEAN;
+			VAR name, instanceName: SyntaxTree.String; suffix: SyntaxTree.String;
+			BEGIN
+				Index(p,suffix);
+				channel := NIL;
+				IF (p.type.resolved IS SyntaxTree.ChannelType) & GetInstanceName(p, instanceName, typeName) THEN
+					channel := currentActiveCellsScope.channels.ByName(instanceName);
+				END;
+				RETURN channel # NIL
+			END GetChannel;
+
 
 			PROCEDURE GetDelegatePort(p: SyntaxTree.Expression; VAR port: ActiveCells.Port): BOOLEAN;
 			VAR portName, suffix: SyntaxTree.String;
@@ -626,6 +642,7 @@ TYPE
 			IF len > 2 THEN p2 := x.parameters.GetExpression(2); t2 := p2.type.resolved END;
 
 			CASE x.id OF
+			(* ----- NEW -----*)
 			|Global.New:
 				type := p0.type.resolved;
 				IF type IS SyntaxTree.CellType THEN
@@ -640,12 +657,30 @@ TYPE
 						END;
 						instance := currentActiveCellsScope.NewInstance(instanceName, instanceType);
 					END;
-
+				ELSIF type IS SyntaxTree.ChannelType THEN
+					IF GetInstanceName(p0,instanceName,typeName) THEN
+						channel := currentActiveCellsScope.NewChannel(instanceName);
+					END;
 				ELSE
 					Error(x.position,NotYetImplemented)
 				END;
 			(* ----- CONNECT ------*)
 			|Global.Connect:
+				IF GetPort(p0,instance0,port0) THEN
+					IF GetPort(p1,instance1,port1) THEN
+						IF GetChannel(p2,channel) THEN
+							channel.ConnectIn(instance0,port0);
+							channel.ConnectOut(instance1,port1);
+						END
+					ELSIF GetChannel(p1,channel) THEN
+						channel.ConnectIn(instance0,port0)
+					END;
+				ELSIF GetChannel(p0,channel) THEN
+					IF GetPort(p1,instance1,port1) THEN
+						channel.ConnectOut(instance1,port1)
+					END
+				END;
+				(*
 				IF GetPort(p0,instance1,port1) & GetPort(p1,instance2,port2) THEN
 					ASSERT(instance1 # NIL); ASSERT(instance2 # NIL); ASSERT(port1 # NIL); ASSERT(port2 # NIL);
 					channel := currentActiveCellsScope.NewChannel(instance1,port1,instance2,port2);
@@ -655,9 +690,10 @@ TYPE
 					END;
 					channel.SetWidth(port1.width);
 				END
+				*)
 			|Global.Delegate:
-				IF GetDelegatePort(p0,port1) & GetPort(p1,instance2,port2) THEN
-					port1.Delegate(instance2,port2)
+				IF GetDelegatePort(p0,port0) & GetPort(p1,instance1,port1) THEN
+					port0.Delegate(instance1,port1)
 				END;
 			|Global.systemTrace:
 				SystemTrace(x.parameters);

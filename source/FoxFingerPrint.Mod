@@ -119,6 +119,7 @@ CONST
 	fpTypeRange = 21;
 	fpTypeEnum = 22;
 	fpTypePort= 23;
+	fpTypeChannel=24;
 
 	fpTypeBasic=1;
 	fpTypeStaticArray=2;
@@ -335,6 +336,20 @@ TYPE
 			END;
 			SELF.fingerPrint := fingerPrint;
 		END VisitObjectType;
+
+
+		PROCEDURE VisitChannelType(x: SyntaxTree.ChannelType);
+		VAR fingerPrint: FingerPrint;
+		BEGIN
+			fingerPrint := GetFingerPrint(x);
+			IF ~fingerPrint.doneFP THEN
+				fingerPrint.FP := fpTypeChannel; fingerPrint.privateFP := sfTypeSptr;
+				fingerPrint.publicFP := fingerPrint.FP;
+				fingerPrint.doneFP := TRUE;
+				fingerPrint.doneAll := TRUE;
+			END;
+			SELF.fingerPrint := fingerPrint;
+		END VisitChannelType;
 
 		PROCEDURE VisitBooleanType(x: SyntaxTree.BooleanType);
 		VAR fingerPrint: FingerPrint;
@@ -664,7 +679,7 @@ TYPE
 				fp := 0;
 				FPNumber(fp, fpTypePort); FPNumber(fp, fpTypeBasic);
 				TypeName(fp,x);
-				FPType(fp,x.channelType);
+				FPNumber(fp,x.sizeInBits);
 				fingerPrint.FP := fp;
 				fingerPrint.doneFP := TRUE;
 				SELF.deep := deep;

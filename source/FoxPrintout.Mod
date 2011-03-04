@@ -258,15 +258,16 @@ TYPE
 
 		PROCEDURE VisitPortType(x: SyntaxTree.PortType);
 		BEGIN
-			Keyword("STREAM ");
+			Keyword("PORT ");
 			IF x.direction = SyntaxTree.OutPort THEN
-				Keyword("{OUT} ")
+				Keyword("OUT")
 			ELSE
 				ASSERT(x.direction = SyntaxTree.InPort);
-				Keyword("{IN} ");
+				Keyword("IN");
 			END;
-			Keyword("OF ");
-			Type(x.channelType);
+			IF x.sizeExpression # NIL THEN
+				w.String(" ("); Expression(x.sizeExpression); w.String(")");
+			END;
 		END VisitPortType;
 
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);

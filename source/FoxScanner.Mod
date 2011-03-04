@@ -50,7 +50,7 @@ CONST
 	(* declaration elements *)
 	Code Const Type Var Out Procedure Operator Import Definition Module Cell CellNet
 	(* composite type symbols *)
-	Array Object Record Pointer Enum Stream
+	Array Object Record Pointer Enum Port
 	(* assembler constants *)
 	Ln PC PCOffset
 	(* number types *)
@@ -86,7 +86,7 @@ CONST
 	Code*= 75; Const*= 76; Type*= 77; Var*= 78; Out*= 79; Procedure*= 80;
 	Operator*= 81; Import*= 82; Definition*= 83; Module*= 84; Cell*= 85; CellNet*= 86;
 	(* composite type symbols *)
-	Array*= 87; Object*= 88; Record*= 89; Pointer*= 90; Enum*= 91; Stream*= 92;
+	Array*= 87; Object*= 88; Record*= 89; Pointer*= 90; Enum*= 91; Port*= 92;
 	(* assembler constants *)
 	Ln*= 93; PC*= 94; PCOffset*= 95;
 	(* number types *)
@@ -927,7 +927,7 @@ TYPE
 		tokens[Record] := "Record";
 		tokens[Pointer] := "Pointer";
 		tokens[Enum] := "Enum";
-		tokens[Stream] := "Stream";
+		tokens[Port] := "Port";
 		tokens[Ln] := "Ln";
 		tokens[PC] := "PC";
 		tokens[PCOffset] := "PCOffset";
@@ -1013,7 +1013,7 @@ TYPE
 		Enter( "out", Out);
 		Enter( "operator" , Operator);
 		Enter( "procedure" , Procedure);
-		Enter( "stream", Stream);
+		Enter( "port", Port);
 		Enter( "repeat" , Repeat);
 		Enter( "return" , Return);
 		Enter( "self", Self);

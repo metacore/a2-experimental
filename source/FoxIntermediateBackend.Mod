@@ -421,7 +421,7 @@ TYPE
 			ELSIF (scope.outerScope IS SyntaxTree.CellScope) & (x = scope.outerScope(SyntaxTree.CellScope).bodyProcedure) THEN
 				inline := FALSE;
 				actorType := scope.outerScope(SyntaxTree.CellScope).ownerCell;
-				IF HasValue(actorType.modifiers,Global.StringMemorySize,stackSize) THEN stackSize := stackSize*1024 ELSE stackSize := 1024 END;
+				IF ~HasValue(actorType.modifiers,Global.StringDataMemorySize,stackSize) THEN stackSize := 1024 END;
 				AddBodyCallStub(x,Sections.InitCode2Section,stackSize);
 				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
 			ELSE

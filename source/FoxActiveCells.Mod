@@ -405,12 +405,10 @@ TYPE
 		END NewInstance;
 
 		(* generate a new channel, may be overwritten by implementations if a non-default channel object has to be installed *)
-		PROCEDURE NewChannel*(inInstance: Instance; inPort: Port; outInstance: Instance; outPort: Port): Channel;
-		VAR channel: Channel; name: SyntaxTree.String;
+		PROCEDURE NewChannel*(CONST name: ARRAY OF CHAR): Channel;
+		VAR channel: Channel;
 		BEGIN
-			name := "channel"; Basic.AppendNumber(name,channels.Length());
-			NEW(channel, name, SELF, inInstance, inPort, outInstance, outPort);
-			(*inPort.channel := channel; outPort.channel := channel;*)
+			NEW(channel,name,SELF);
 			channels.AddChannel(channel);
 			symbols.AddSymbol(channel);
 			RETURN channel;
@@ -604,7 +602,7 @@ TYPE
 			END;
 			IF ~CheckItem(r,"channels")OR ~ r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			FOR i := 0 TO number-1 DO
-				channel := NewChannel(NIL,NIL,NIL,NIL);
+				channel := NewChannel("");
 				IF ~channel.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			END;
 			RETURN TRUE
@@ -696,15 +694,23 @@ TYPE
 		widthInBits-: LONGINT;
 		index-: LONGINT; (* useful for implementations that emulate channels (simulator) *)
 
-		PROCEDURE & InitChannel(CONST name: ARRAY OF CHAR; scope: Scope; inInstance: Instance; inPort: Port; outInstance: Instance; outPort: Port);
+		PROCEDURE & InitChannel(CONST name: ARRAY OF CHAR; scope: Scope);
 		BEGIN
 			InitSymbol(name,scope);
 			fifoSize := defaultFifoSize;
 			widthInBits := defaultChannelWidth;
-			in.port := inPort; in.instance := inInstance;
-			out.port := outPort; out.instance := outInstance;
+			in.port := NIL; in.instance := NIL;
+			out.port := NIL; out.instance := NIL;
 			SELF.index := -1;
 		END InitChannel;
+
+		PROCEDURE ConnectIn*(instance: Instance; port: Port);
+		BEGIN in.port := port; in.instance := instance;
+		END ConnectIn;
+
+		PROCEDURE ConnectOut*(instance: Instance; port: Port);
+		BEGIN out.port := port; out.instance := instance;
+		END ConnectOut;
 
 		PROCEDURE SetFifoSize*(size: LONGINT);
 		BEGIN fifoSize := size
@@ -893,7 +899,7 @@ TYPE
 			END;
 			IF ~CheckItem(r,"channels") OR ~r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			FOR i := 0 TO number-1 DO
-				channel := NewChannel(NIL,NIL,NIL,NIL);
+				channel := NewChannel("");
 				IF ~channel.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			END;
 			RETURN TRUE
@@ -1058,8 +1064,10 @@ TYPE
 		NEW(instances); NEW(channels);
 		FOR i := 0 TO scope.channels.Length()-1 DO
 			oldChannel := scope.channels.GetChannel(i);
-			name := "channel"; Basic.AppendNumber(name,i);
-			NEW(channel,name,scope,oldChannel.in.instance,oldChannel.in.port, oldChannel.out.instance,oldChannel.out.port);
+			COPY(oldChannel.name, name);
+			NEW(channel,name,scope);
+			channel.ConnectIn(oldChannel.in.instance, oldChannel.in.port);
+			channel.ConnectOut(oldChannel.out.instance, oldChannel.out.port);
 			channel.SetFifoSize(oldChannel.fifoSize);
 			channel.SetWidth(oldChannel.fifoSize);
 			channels.AddChannel(channel);
@@ -1075,8 +1083,11 @@ TYPE
 				END;
 				FOR j := 0 TO instance.type.channels.Length()-1 DO
 					oldChannel := instance.type.channels.GetChannel(j);
-					name := "channel"; Basic.AppendNumber(name,channels.Length());
-					NEW(channel,name,scope,oldChannel.in.instance,oldChannel.in.port, oldChannel.out.instance,oldChannel.out.port);
+					COPY(oldChannel.name,name);
+					NEW(channel,name,scope);
+					channel.ConnectIn(oldChannel.in.instance, oldChannel.in.port);
+					channel.ConnectOut(oldChannel.out.instance, oldChannel.out.port);
+
 					channel.SetFifoSize(oldChannel.fifoSize);
 					channel.SetWidth(oldChannel.fifoSize);
 					channel.in.instance := EmbedInstance(instance, channel.in.instance);

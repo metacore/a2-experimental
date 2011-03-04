@@ -544,9 +544,6 @@ TYPE
 				designator := SyntaxTree.NewResultDesignator(position);
 			ELSE
 				identifier := Identifier();
-				IF Optional( Scanner.LeftBrace) THEN
-					modifier := Flags();
-				END;
 				designator := SyntaxTree.NewIdentifierDesignator(identifier.position,identifier);
 			END;
 
@@ -562,9 +559,6 @@ TYPE
 				ELSIF Optional( Scanner.Period ) THEN
 					identifier := Identifier();
 					designator := SyntaxTree.NewSelectorDesignator(identifier.position,designator,identifier);
-					IF Optional( Scanner.LeftBrace) THEN
-						modifier := Flags();
-					END;
 				ELSIF Optional( Scanner.LeftBracket ) THEN
 					expressionList := SyntaxTree.NewExpressionList();
 					IndexList( expressionList );
@@ -1362,9 +1356,9 @@ TYPE
 
 		(** PortType = (sender|receiver) 'of' Type. *)
 		PROCEDURE PortType(position: LONGINT; parentScope: SyntaxTree.Scope): SyntaxTree.Type;
-		VAR type: SyntaxTree.Type; direction: LONGINT;
+		VAR type: SyntaxTree.Type; direction: LONGINT; sizeExpression: SyntaxTree.Expression;
 		BEGIN
-			Check(Scanner.LeftBrace);
+			Check(Scanner.Period);
 			IF Optional(Scanner.In) THEN
 				direction := SyntaxTree.InPort
 			ELSIF Optional(Scanner.Out) THEN
@@ -1372,11 +1366,12 @@ TYPE
 			ELSE
 				Error(position,Diagnostics.Invalid,"invalid direction, expected IN or OUT");
 			END;
-			Check(Scanner.RightBrace);
-			Check(Scanner.Of);
 
-			type := Type(NIL, parentScope);
-			type := SyntaxTree.NewPortType(position, direction, type, parentScope);
+			IF Optional(Scanner.LeftParenthesis) THEN
+				sizeExpression := Expression();
+				IF Mandatory(Scanner.RightParenthesis )THEN END;
+			END;
+			type := SyntaxTree.NewPortType(position, direction, sizeExpression, parentScope);
 			RETURN type
 		END PortType;
 
@@ -1393,7 +1388,7 @@ TYPE
 			ELSIF Optional( Scanner.Object ) THEN type := ObjectType( position,name,parentScope );
 			ELSIF Optional( Scanner.Cell) THEN type := CellType( position, name, parentScope,FALSE);
 			ELSIF Optional( Scanner.CellNet) THEN type := CellType( position, name, parentScope, TRUE);
-			ELSIF Optional( Scanner.Stream) THEN type := PortType( position, parentScope)
+			ELSIF Optional( Scanner.Port) THEN type := PortType( position, parentScope)
 			ELSIF Optional( Scanner.Procedure ) THEN type := ProcedureType( position,parentScope);
 			ELSIF Optional( Scanner.Enum ) THEN type := EnumerationType( position,parentScope);
 			ELSE qualifiedIdentifier := QualifiedIdentifier();

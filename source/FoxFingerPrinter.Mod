@@ -97,6 +97,7 @@ CONST
 	fpTypeRange = 21;
 	fpTypeEnum = 22;
 	fpTypePort = 23;
+	fpTypeChannel = 23;
 
 	fpTypeBasic=1;
 	fpTypeStaticArray=2;
@@ -314,6 +315,21 @@ TYPE
 			END;
 			SELF.fingerprint := fingerprint;
 		END VisitObjectType;
+
+		PROCEDURE VisitChannelType(x: SyntaxTree.ChannelType);
+		VAR fingerprint: FingerPrint;
+		BEGIN
+			fingerprint := x.fingerprint;
+			IF ~fingerprint.shallowAvailable THEN
+				fingerprint.shallow := fpTypeChannel;
+				fingerprint.public := fingerprint.shallow;
+				fingerprint.private := fingerprint.shallow;
+				fingerprint.shallowAvailable := TRUE;
+				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
+				x.SetFingerPrint(fingerprint);
+			END;
+			SELF.fingerprint := fingerprint;
+		END VisitChannelType;
 
 		(*
 		FP(BasicType)        = fpTypeChar8 | fpTypeChar16 | fpTypeChar32
@@ -655,7 +671,7 @@ TYPE
 				fp := 0;
 				FPNumber(fp, fpTypePort); FPNumber(fp, fpTypeBasic);
 				TypeName(fp,x);
-				FPType(fp,x.channelType);
+				FPNumber(fp,x.sizeInBits);
 				fingerprint.shallow := fp;
 				fingerprint.private := fp;
 				fingerprint.public := fp;
