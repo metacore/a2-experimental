@@ -8,13 +8,14 @@ IMPORT S := SYSTEM, Trace, Unix, Machine, Files, X11, Displays;
 CONST
 	IconNameStr = "UnixAos";
 
-	BG* = 0;  FG* = 15;   (** Background, foreground colors.*)
+	BG = 0;  FG = 15;   (* Background, foreground colors.*)
+	
 
 CONST
-	(** formats for Transfer.  value DIV 8 = bytes per pixel. *)
+	(* formats for Transfer.  value DIV 8 = bytes per pixel. *)
 	unknown* = 0;
-	index8* = 8;  color555* = 16;  color565* = 17;  color664* = 18;
-	color888* = 24;  color8888* = 32;
+	index8 = 8;  color555 = 16;  color565 = 17;  color664 = 18;
+	color888 = 24;  color8888* = 32;
 
 	(* Drawing operation modes. *)
 	replace = 0;   (* destcolor := sourcecolor. *)
@@ -138,6 +139,7 @@ TYPE
 				rgb-, defPal-		: ARRAY 256 OF RGB;
 				pixel-				: ARRAY 256 OF LONGINT;   (* pixel values for Oberon colors *)
 
+				xformat				: LONGINT;
 				currcol, currmode	: LONGINT;
 				xfunc				: ARRAY 3 OF LONGINT;
 
@@ -273,13 +275,13 @@ TYPE
 					X11.Unlock
 				END Update;
 
-				(** Map a color value to an 8-bit CLUT index.  Only used if format = index8. *)
+				(** Map a color value to an 8-bit CLUT index.  Only used if xformat = index8. *)
 				PROCEDURE ColorToIndex*( col: LONGINT ): LONGINT;
 				BEGIN
 					RETURN ColorToIndex0( SELF, col )
 				END ColorToIndex;
 
-				(** Map an 8-bit CLUT index to a color value.  Only used if format = index8. *)
+				(** Map an 8-bit CLUT index to a color value.  Only used if xformat = index8. *)
 				PROCEDURE IndexToColor*( n: LONGINT ): LONGINT;
 				VAR r, g, b: LONGINT;
 				BEGIN
@@ -326,7 +328,7 @@ TYPE
 				VAR r, g, b, i, ii, x, y, z, m, min: LONGINT;  rc: RGB;
 				BEGIN
 					r := S.LSH( col, -16 ) MOD 256;  g := S.LSH( col, -8 ) MOD 256;  b := col MOD 256;
-					CASE format OF
+					CASE xformat OF
 					color8888, color888:
 								IF bigEndian THEN  RETURN ASH( b, 16 ) + ASH( g, 8 ) + r
 								ELSE  RETURN ASH( r, 16 ) + ASH( g, 8 ) + b
@@ -461,11 +463,11 @@ VAR
 	END ColorToIndex0;
 
 
-	PROCEDURE PutLine( format, width: LONGINT;  VAR ip, bp: LONGINT );
+	PROCEDURE PutLine( xformat, width: LONGINT;  VAR ip, bp: LONGINT );
 	VAR colum: LONGINT;  byte: CHAR;
 	BEGIN
 		FOR colum := 0 TO width - 1 DO
-			CASE format OF
+			CASE xformat OF
 			| index8:
 						S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
 			| color565, color555, color664:
@@ -487,11 +489,11 @@ VAR
 
 
 
-	PROCEDURE GetLine( format, width: LONGINT;  VAR ip, bp: LONGINT );
+	PROCEDURE GetLine( xformat, width: LONGINT;  VAR ip, bp: LONGINT );
 	VAR colum: LONGINT;  byte: CHAR;
 	BEGIN
 		FOR colum := 0 TO width - 1 DO
-			CASE format OF
+			CASE xformat OF
 			| index8:
 						S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
 			| color565, color555, color664:
@@ -512,11 +514,11 @@ VAR
 	END GetLine;
 
 
-	PROCEDURE PutLineBE( format, width: LONGINT;  VAR ip, bp: LONGINT );
+	PROCEDURE PutLineBE( xformat, width: LONGINT;  VAR ip, bp: LONGINT );
 	VAR colum: LONGINT;  byte: CHAR;
 	BEGIN
 		FOR colum := 0 TO width - 1 DO
-			CASE format OF
+			CASE xformat OF
 			index8:
 						S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
 			| color565, color555, color664:
@@ -539,11 +541,11 @@ VAR
 		END;
 	END PutLineBE;
 
-	PROCEDURE GetLineBE( format, width: LONGINT;  VAR ip, bp: LONGINT );
+	PROCEDURE GetLineBE( xformat, width: LONGINT;  VAR ip, bp: LONGINT );
 	VAR colum: LONGINT;  byte: CHAR;
 	BEGIN
 		FOR colum := 0 TO width - 1 DO
-			CASE format OF
+			CASE xformat OF
 			| index8:
 						S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
 			| color565, color555, color664:
@@ -574,7 +576,7 @@ VAR
 		bp, bp0, ip, line, ll: LONGINT;
 		xd: X11.DisplayPtr;
 	BEGIN
-		xd := d.xdisp;  ll := w*(d.format DIV 8);
+		xd := d.xdisp;  ll := w*(d.xformat DIV 8);
 		IF (ofs + (h - 1)*stride + ll > LEN( buf )) OR (ofs + (h - 1)*stride < 0) THEN  HALT( 99 )  END;
 		NEW( imgBuffer, 4*w*h );	(* create buffer outside lock to avoid deadlock *)
 
@@ -586,8 +588,8 @@ VAR
 		IF mode = set THEN
 			FOR line := 0 TO h - 1  DO
 				bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
-				IF imp.byteOrder = 0 THEN  PutLine( d.format, w, ip, bp )
-				ELSE  PutLineBE( d.format, w, ip, bp )
+				IF imp.byteOrder = 0 THEN  PutLine( d.xformat, w, ip, bp )
+				ELSE  PutLineBE( d.xformat, w, ip, bp )
 				END;
 				bp0 := bp0 + stride;
 			END;
@@ -598,8 +600,8 @@ VAR
 			imp := S.VAL( X11.ImagePtr, image );
 			FOR line := 0 TO h - 1 DO
 				bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
-				IF imp.byteOrder = 0 THEN  GetLine( d.format, w, ip, bp )
-				ELSE  GetLineBE( d.format, w, ip, bp )
+				IF imp.byteOrder = 0 THEN  GetLine( d.xformat, w, ip, bp )
+				ELSE  GetLineBE( d.xformat, w, ip, bp )
 				END;
 				bp0 := bp0 + stride
 			END;
@@ -608,8 +610,8 @@ VAR
 			(* set in reverse (Oberon) y-direction *)
 			FOR line :=  h - 1 TO 0 BY -1 DO
 				bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
-				IF imp.byteOrder = 0 THEN  PutLine( d.format, w, ip, bp )
-				ELSE  PutLineBE( d.format, w, ip, bp )
+				IF imp.byteOrder = 0 THEN  PutLine( d.xformat, w, ip, bp )
+				ELSE  PutLineBE( d.xformat, w, ip, bp )
 				END;
 				bp0 := bp0 + stride;
 			END;
@@ -621,8 +623,8 @@ VAR
 			imp := S.VAL( X11.ImagePtr, image );
 			FOR line := h - 1 TO 0 BY -1 DO
 				bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
-				IF imp.byteOrder = 0 THEN  GetLine( d.format, w, ip, bp )
-				ELSE  GetLineBE( d.format, w, ip, bp )
+				IF imp.byteOrder = 0 THEN  GetLine( d.xformat, w, ip, bp )
+				ELSE  GetLineBE( d.xformat, w, ip, bp )
 				END;
 				bp0 := bp0 + stride
 			END;
@@ -808,17 +810,28 @@ VAR
 	VAR visual: X11.VisualPtr;
 	BEGIN
 		visual := S.VAL( X11.VisualPtr, d.visual );
-		IF d.depth = 8 THEN  d.format := index8
-		ELSIF d.depth = 15 THEN  d.format := color555
+		IF d.depth = 8 THEN  
+			d.format := Displays.index8;
+			d.xformat := index8
+		ELSIF d.depth = 15 THEN  
+			d.format := Displays.color565;
+			d.xformat := color555
 		ELSIF d.depth = 16 THEN
-			IF visual.blueMask = 0FH THEN  d.format := color664
-			ELSIF visual.greenMask = 07E0H THEN  d.format := color565
-			ELSE  d.format := color555
+			d.format := Displays.color565;
+			IF visual.blueMask = 0FH THEN  
+				d.xformat := color664
+			ELSE  
+				d.xformat := color565
 			END
-		ELSIF d.depth = 24 THEN  d.format := color888
-		ELSIF d.depth = 32 THEN  d.format := color8888
-		ELSE  d.format := unknown
-		END  ;
+		ELSIF d.depth = 24 THEN  
+			d.format := Displays.color888;
+			d.xformat := color888
+		ELSIF d.depth = 32 THEN  
+			d.format := Displays.color8888;
+			d.xformat := color8888
+		ELSE  
+			d.format := unknown
+		END;
 		Trace.String( "X11 Display depth = " ); Trace.Int( d.depth, 1 ); Trace.Ln
 	END InitFormat;
 

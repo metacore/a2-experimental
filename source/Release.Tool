@@ -272,8 +272,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	NATIVE,WIN { BootConsole.Mod }
 	UNIX { Unix.BootConsole.Mod }
 
-	NATIVE,WIN { Displays.Mod }
-	UNIX { Unix.Displays.Mod }
+	Displays.Mod 
 
 	 # input drivers
  	Inputs.Mod
