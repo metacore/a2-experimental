@@ -1267,8 +1267,7 @@ PACKAGE Oberon ARCHIVE "Oberon.zip" SOURCE "OberonSrc.zip"  DESCRIPTION "Oberon 
 	OberonInput.Mod 	# WM-less Oberon I/O
 
 	NATIVE,iWIN, UNIX { OberonDisplay.Mod }
-	NATIVE,iWIN { Oberon.Display.Mod }
-	UNIX { Unix.Oberon.Display.Mod }
+	NATIVE,iWIN, UNIX { Oberon.Display.Mod }
 	NATIVE,iWIN, UNIX {
 		Oberon.Input.Mod 	# WM-based Display & Input
 		Oberon.Viewers.Mod Oberon.Fonts.Mod
