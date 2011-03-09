@@ -119,8 +119,8 @@ TYPE
 		END
 	END;
 
-	Command = OBJECT
-	VAR
+	Command = POINTER TO CommandDesc;
+	CommandDesc = RECORD
 		dev, cmd, count*, size*, features: LONGINT;
 		bufAdr*: SYSTEM.ADDRESS;
 		read*, buffered: BOOLEAN;
@@ -128,29 +128,29 @@ TYPE
 		prdtPhysAdr: LONGINT;
 		prdt: PRDT;
 		getResult: BOOLEAN;
-	END Command;
+	END;
 
-	CommandCHS = OBJECT(Command)
-	VAR
+	CommandCHS = POINTER TO CommandCHSDesc;
+	CommandCHSDesc = RECORD (CommandDesc)
 		sector, head, cylinder: LONGINT;
-	END CommandCHS;
+	END;
 
-	CommandLBA = OBJECT(Command)
-	VAR
+	CommandLBA = POINTER TO CommandLBADesc;
+	CommandLBADesc = RECORD (CommandDesc)
 		lba: LONGINT;
-	END CommandLBA;
+	END;
 
-	CommandLBA48 = OBJECT(Command)
-	VAR
+	CommandLBA48 = POINTER TO CommandLBA48Desc;
+	CommandLBA48Desc = RECORD (CommandDesc)
 		lbaHigh, lbaLow: LONGINT;
-	END CommandLBA48;
+	END;
 
-	CommandPacket* = OBJECT(Command)
-	VAR
+	CommandPacket = POINTER TO CommandPacketDesc;
+	CommandPacketDesc = RECORD (CommandDesc)
 		packet*: Packet;
 		features*: SET;
 		sense, packetLen: LONGINT;
-	END CommandPacket;
+	END;
 
 	Packet = ARRAY 16 OF CHAR;
 
@@ -229,7 +229,7 @@ TYPE
 			dma: BOOLEAN;
 		BEGIN {EXCLUSIVE}
 			IF state = 1 THEN
-				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ORD(ch)));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, ORD(ch));
 				IF ~(Status_BSY IN status) THEN
 					state := 0;
 				ELSE
@@ -255,7 +255,7 @@ TYPE
 				(*IF dma THEN
 					StopDMA();
 				END;*)
-				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, ORD(ch));
 				IF TraceVerbose & (trace * TraceErrors # {}) THEN
 					KernelLog.String(Name); KernelLog.Int(ctrlID*MaxDevicesC + command.dev, 1);
 					KernelLog.String(" Error (issue): Command "); KernelLog.Hex(command.cmd, -2);
@@ -293,7 +293,7 @@ TYPE
 				HALT(Disks.Unsupported);
 			END;
 			IF res # Res_OK THEN
-				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, ORD(ch));
 				IF TraceVerbose & (trace * TraceErrors # {}) THEN
 					KernelLog.String(Name); KernelLog.Int(ctrlID*MaxDevicesC + command.dev, 1);
 					KernelLog.String(" Error (protocol): Command "); KernelLog.Hex(command.cmd, -2);
@@ -393,7 +393,7 @@ TYPE
 			res: LONGINT;
 		BEGIN
 			(* Clear Interrupt & Errror *)
-			Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONG(ORD(ch)));
+			Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, ORD(ch));
 			s := s * {1..7};
 			Machine.Portout8(bmbase + Ofs_BMStatus, CHR(SYSTEM.VAL(LONGINT, s)));
 
@@ -418,7 +418,7 @@ TYPE
 		BEGIN
 			(* START DMA *)
 			Machine.Portin8(bmbase + Ofs_BMCmd, ch);
-			s := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
+			s := SYSTEM.VAL(SET, ORD(ch));
 			INCL(s, DMA_Start);
 			Machine.Portout8(bmbase + Ofs_BMCmd, CHR(SYSTEM.VAL(LONGINT, s)));
 		END StartDMA;
@@ -428,12 +428,12 @@ TYPE
 		BEGIN
 			(* Stop DMA *)
 			Machine.Portin8(bmbase + Ofs_BMCmd, ch);
-			s := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
+			s := SYSTEM.VAL(SET, ORD(ch));
 			EXCL(s, DMA_Start);
 			Machine.Portout8(bmbase + Ofs_BMCmd, CHR(SYSTEM.VAL(LONGINT, s)));
 
 			(* Clear Interrupt & Errror *)
-			Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONG(ORD(ch)));
+			Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, ORD(ch));
 			s := s * {1..7};
 			Machine.Portout8(bmbase + Ofs_BMStatus, CHR(SYSTEM.VAL(LONGINT, s)));
 		END StopDMA;
@@ -444,7 +444,7 @@ TYPE
 			ASSERT(Status_BSY IN mask);
 			Kernel.SetTimer(t, ms);
 			LOOP
-				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ORD(ch)));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, ORD(ch));
 				IF ~(Status_BSY IN status) THEN
 					IF status * mask = expect THEN EXIT; END;
 				END;
@@ -495,7 +495,7 @@ TYPE
 			IF cmd.dev = 1 THEN devReg := {Device_DEV} ELSE devReg := {}; END;
 			Machine.Portin8(cmdbase+Ofs_Device, ch);
 			(* Change device? *)
-			IF ((SYSTEM.VAL(SET, LONGINT(ORD(ch))) * {Device_DEV}) # devReg)
+			IF ((SYSTEM.VAL(SET, ORD(ch)) * {Device_DEV}) # devReg)
 			(* OR (Status_BSY IN status)*) THEN
 				IF TraceVerbose & (trace * TraceCommands # {}) THEN
 					KernelLog.String(Name); KernelLog.Int(ctrlID*MaxDevicesC + cmd.dev, 1);
@@ -606,7 +606,7 @@ TYPE
 						RepInWord(cmdbase, bufAdr, BS DIV 2);
 						INC(bufAdr, BS); DEC(num);
 						IF num <= 0 THEN
-							Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ORD(ch)));
+							Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, ORD(ch));
 							IF Status_ERR IN status THEN res := Res_Err; END;
 							state := -1;
 						ELSIF nIEN = 0 THEN
@@ -679,13 +679,13 @@ TYPE
 				IF nIEN = 0 THEN
 					IF ~interrupt.Wait(ms) THEN (*RETURN Res_Timeout;*) END;
 				END;
-				Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
+				Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, ORD(ch));
 			(*UNTIL (s * {DMA_ERR, DMA_IRQ} # {}) OR Kernel.Expired(t);*)
 			UNTIL ~(DMA_Busy IN s) OR Kernel.Expired(t);
 			IF DMA_ERR IN s THEN RETURN Res_Err; END;
 			(*IF Kernel.Expired(t) THEN RETURN Res_Timeout; END;*)
 			REPEAT
-				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, LONG(ORD(ch)));
+				Machine.Portin8(cmdbase+Ofs_Status, ch); status := SYSTEM.VAL(SET, ORD(ch));
 				IF ~(Status_BSY IN status) THEN
 					IF Status_ERR IN status THEN RETURN Res_Err; END;
 					IF ~(Status_DRQ IN status) THEN RETURN Res_OK; END;
@@ -766,7 +766,7 @@ TYPE
 				Kernel.SetTimer(t, ms+2);
 				REPEAT
 					IF ~interrupt.Wait(ms) THEN (*KernelLog.String("***");*) (*RETURN Res_Timeout;*) END;
-					Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, LONGINT(ORD(ch)));
+					Machine.Portin8(bmbase + Ofs_BMStatus, ch); s := SYSTEM.VAL(SET, ORD(ch));
 				UNTIL (s * {DMA_ERR, DMA_IRQ} # {}) OR Kernel.Expired(t);
 				(* UNTIL ~(DMA_Busy IN s) OR Kernel.Expired(t); *)
 				IF DMA_ERR IN s THEN RETURN Res_Err; END;
@@ -1160,7 +1160,7 @@ TYPE
 		VAR command: Command;
 		BEGIN
 			command := cmdLBA;
-			ResetCommand(command);
+			ResetCommand(command, SYSTEM.SIZEOF(CommandDesc));
 			command.dev := dev; command.cmd := cmd; command.protocol := protocol;
 			RETURN command;
 		END NewCommand;
@@ -1211,7 +1211,7 @@ TYPE
 		VAR x: LONGINT; command: CommandCHS;
 		BEGIN
 			command := cmdCHS;
-			ResetCommand(command);
+			ResetCommand(command, SYSTEM.SIZEOF(CommandCHSDesc));
 			command.dev := dev; command.cmd := cmd;
 			command.count := count;
 			command.sector := lba MOD chs.spt + 1; x := lba DIV chs.spt;
@@ -1224,7 +1224,7 @@ TYPE
 		VAR command: CommandLBA;
 		BEGIN
 			command := cmdLBA;
-			ResetCommand(command);
+			ResetCommand(command, SYSTEM.SIZEOF(CommandLBADesc));
 			command.dev := dev; command.cmd := cmd;
 			command.lba := lba; command.count := count;
 			RETURN command;
@@ -1234,7 +1234,7 @@ TYPE
 		VAR command: CommandLBA48;
 		BEGIN
 			command := cmdLBA48;
-			ResetCommand(command);
+			ResetCommand(command, SYSTEM.SIZEOF(CommandLBA48Desc));
 			command.dev := dev; command.cmd := cmd;
 			command.lbaHigh := SHORT(Machine.ASHH(lba, -32));command.lbaLow := SHORT(lba); command.count := count;
 			RETURN command;
@@ -1738,7 +1738,7 @@ TYPE
 			i, lbaLow, lbaHigh: LONGINT;
 		BEGIN
 			command := cmdPacket;
-			ResetCommand(command);
+			ResetCommand(command, SYSTEM.SIZEOF(CommandPacketDesc));
 			FOR i:= 0 TO LEN(command.packet)-1 DO
 				command.packet[i] := 0X;
 			END;
@@ -1789,7 +1789,7 @@ TYPE
 			i: LONGINT;
 		BEGIN
 			command := cmdPacket;
-			ResetCommand(command);
+			ResetCommand(command, SYSTEM.SIZEOF(CommandPacketDesc));
 			FOR i:= 0 TO LEN(command.packet)-1 DO
 				command.packet[i] := 0X;
 			END;
@@ -1932,21 +1932,11 @@ CODE {SYSTEM.i386}
 	REP OUTSW
 END RepOutWord;
 
-PROCEDURE -SIZEOF(o: ANY): LONGINT;
-CODE {SYSTEM.i386}
-	POP	EAX
-	MOV	EAX, [EAX-4]
-	MOV	EAX, [EAX]
-END SIZEOF;
-
-PROCEDURE ResetCommand(cmd: Command);
-VAR
-	s: LONGINT;
+PROCEDURE ResetCommand(cmd: Command; size: SYSTEM.SIZE);
 BEGIN
 	ASSERT(cmd # NIL);
-	s := SIZEOF(cmd);
-	ASSERT(s MOD 4 = 0);
-	Machine.Fill32(SYSTEM.VAL(LONGINT, cmd), s, 0);
+	ASSERT(size MOD 4 = 0);
+	Machine.Fill32(SYSTEM.VAL(SYSTEM.ADDRESS, cmd), size, 0);
 END ResetCommand;
 
 PROCEDURE GetPhysAdr(bufAdr: SYSTEM.ADDRESS; size: LONGINT; VAR physAdr: SYSTEM.ADDRESS): BOOLEAN;
