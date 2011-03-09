@@ -258,12 +258,12 @@ TYPE
 
 		PROCEDURE VisitPortType(x: SyntaxTree.PortType);
 		BEGIN
-			Keyword("PORT ");
+			Keyword("PORT");
 			IF x.direction = SyntaxTree.OutPort THEN
-				Keyword("OUT")
+				Keyword(" OUT")
 			ELSE
 				ASSERT(x.direction = SyntaxTree.InPort);
-				Keyword("IN");
+				Keyword(" IN");
 			END;
 			IF x.sizeExpression # NIL THEN
 				w.String(" ("); Expression(x.sizeExpression); w.String(")");
@@ -274,10 +274,10 @@ TYPE
 		BEGIN
 			Keyword("CELL ");
 			IF x.firstParameter # NIL THEN ParameterList(x.firstParameter) END;
-			Scope(x.actorScope);
+			Scope(x.cellScope);
 
-			IF (x.actorScope IS SyntaxTree.CellScope) & (x.actorScope(SyntaxTree.CellScope).bodyProcedure # NIL) THEN
-				Body(x.actorScope(SyntaxTree.CellScope).bodyProcedure.procedureScope.body)
+			IF (x.cellScope IS SyntaxTree.CellScope) & (x.cellScope(SyntaxTree.CellScope).bodyProcedure # NIL) THEN
+				Body(x.cellScope(SyntaxTree.CellScope).bodyProcedure.procedureScope.body)
 			END;
 
 			Indent; Keyword("END ");
@@ -1017,6 +1017,9 @@ TYPE
 				ELSIF x.kind = SyntaxTree.ConstParameter THEN Keyword("CONST " );
 				END;
 				PrintSymbol(x);
+				IF x.defaultValue # NIL THEN
+					w.String("= "); Expression(x.defaultValue);
+				END;
 				w.String( ": " );
 				Type(x.type);
 			ELSIF (mode > SourceCode) THEN
@@ -1038,8 +1041,16 @@ TYPE
 					ELSIF x.kind = SyntaxTree.ConstParameter THEN Keyword("CONST " );
 					END;
 					PrintSymbol(x);
+					IF x.defaultValue # NIL THEN
+						w.String("= "); Expression(x.defaultValue);
+					END;
+					
 					WHILE (next # NIL) & (next.type = x.type) & (next.kind = x.kind) & ((next.access # SyntaxTree.Hidden) OR (mode > SourceCode)) DO
-						w.String(", "); PrintSymbol(next);
+						w.String(", "); 
+						PrintSymbol(next);
+						IF next.defaultValue # NIL THEN
+							w.String("= "); Expression(next.defaultValue);
+						END;
 						next := next.nextParameter;
 					END;
 					IF x.access # SyntaxTree.Hidden THEN

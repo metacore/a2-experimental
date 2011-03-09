@@ -215,7 +215,7 @@ TYPE
 			parameter: SyntaxTree.Parameter; symbol: IntermediateCode.Section; op: IntermediateCode.Operand;
 		BEGIN
 			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
-			IF (x.actorScope.ownerModule = module.module)  THEN
+			IF (x.cellScope.ownerModule = module.module)  THEN
 				td := x.typeDeclaration;
 				Global.GetSymbolName(td,name);
 				(* code section for object *)
@@ -242,7 +242,7 @@ TYPE
 				parameter := parameter.nextParameter;
 			END;
 
-			Scope(x.actorScope);
+			Scope(x.cellScope);
 		END VisitCellType;
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);

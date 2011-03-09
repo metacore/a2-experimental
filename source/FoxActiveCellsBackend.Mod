@@ -199,9 +199,9 @@ TYPE
 				END;
 				parameter := parameter.nextParameter;
 			END;
-			Scope(x.actorScope);
+			Scope(x.cellScope);
 			currentActiveCellsScope := prevActiveCellsScope;
-			AddModules(instanceType,x.actorScope);
+			AddModules(instanceType,x.cellScope);
 		END VisitCellType;
 
 		PROCEDURE VisitProcedureType(x: SyntaxTree.ProcedureType);
@@ -668,23 +668,29 @@ TYPE
 			|Global.Connect:
 				IF GetPort(p0,instance0,port0) THEN
 					IF GetPort(p1,instance1,port1) THEN
+						(* generate new connection here between instances *)
+						(*
 						IF GetChannel(p2,channel) THEN
 							channel.ConnectIn(instance0,port0);
 							channel.ConnectOut(instance1,port1);
 						ELSE
 							Error(p2.position,"unallocated");
 						END
-					ELSIF GetChannel(p1,channel) THEN
+						*)
+					(*ELSIF GetChannel(p1,channel) THEN
 						channel.ConnectIn(instance0,port0)
+					*)
 					ELSE
 						Error(p1.position,"unallocated");
 					END;
+				(*
 				ELSIF GetChannel(p0,channel) THEN
 					IF GetPort(p1,instance1,port1) THEN
 						channel.ConnectOut(instance1,port1)
 					ELSE
 						Error(p1.position,"uncallocated");
 					END
+				*)
 				ELSE
 					Error(p0.position,"unallocated");
 				END;

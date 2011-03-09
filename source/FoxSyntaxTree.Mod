@@ -1185,6 +1185,11 @@ TYPE
 		BEGIN sizeInBits := size
 		END SetSize;
 
+		PROCEDURE SetSizeExpression*(sizeExpression: Expression);
+		BEGIN SELF.sizeExpression := sizeExpression
+		END SetSizeExpression;
+
+
 		PROCEDURE SameType*(this: Type): BOOLEAN;
 		BEGIN RETURN (this IS PortType) & (this(PortType).direction = direction) & (this(PortType).sizeInBits = sizeInBits)
 		END SameType;
@@ -1352,16 +1357,16 @@ TYPE
 	CellType*=OBJECT (Type)
 	VAR
 		firstParameter-,lastParameter-: Parameter; numberParameters-: LONGINT;  (* parameters *)
-		actorScope-: CellScope;
+		cellScope-: CellScope;
 		isCellNet-: BOOLEAN;
 		modifiers-: Modifier;
 
-		PROCEDURE &InitCellType(position: LONGINT; scope: Scope;  actorScope: CellScope);
+		PROCEDURE &InitCellType(position: LONGINT; scope: Scope;  cellScope: CellScope);
 		BEGIN
 			InitType(position);
 			SELF.scope := scope;
 			numberParameters := 0; firstParameter := NIL; lastParameter := NIL;
-			SELF.actorScope := actorScope;
+			SELF.cellScope := cellScope;
 		END InitCellType;
 
 		PROCEDURE AddParameter*(p: Parameter);
@@ -2532,6 +2537,7 @@ TYPE
 	VAR
 		nextParameter-, prevParameter-: Parameter;
 		modifiers-: Modifier;
+		defaultValue-: Expression;
 
 		kind-: LONGINT;   (* ValueParameter, ConstParameter, VarParameter *)
 		ownerType-: Type;
@@ -2546,6 +2552,7 @@ TYPE
 			SELF.ownerType := ownerType;
 			modifiers := NIL;
 			untraced := FALSE;
+			defaultValue := NIL;
 		END InitParameter;
 
 		PROCEDURE SetModifiers*(flag: Modifier);
@@ -2555,6 +2562,10 @@ TYPE
 		PROCEDURE SetUntraced*(untraced: BOOLEAN);
 		BEGIN SELF.untraced := untraced
 		END SetUntraced;
+
+		PROCEDURE SetDefaultValue*(e: Expression);
+		BEGIN defaultValue := e
+		END SetDefaultValue;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -3713,6 +3724,7 @@ TYPE
 		VAR
 		ownerCell-: CellType;
 		bodyProcedure-: Procedure;
+		constructor-: Procedure;
 		firstImport-, lastImport-: Import; numberImports-: LONGINT;
 
 		PROCEDURE & InitCellScope(outer: Scope);
@@ -3721,7 +3733,7 @@ TYPE
 			ownerCell := NIL;
 			bodyProcedure := NIL;
 			numberImports := 0;
-			firstImport := NIL; lastImport := NIL;
+			firstImport := NIL; lastImport := NIL; constructor := NIL;
 		END InitCellScope;
 
 		PROCEDURE SetOwnerCell*(owner: CellType);
@@ -3733,6 +3745,10 @@ TYPE
 		BEGIN
 			SELF.bodyProcedure := bodyProcedure;
 		END SetBodyProcedure;
+
+		PROCEDURE SetConstructor*(p: Procedure);
+		BEGIN constructor := p
+		END SetConstructor;
 
 		PROCEDURE FindImport*(identifier: Identifier): Import;
 		VAR p: Import;
@@ -4148,10 +4164,10 @@ VAR
 		NEW( recordType, position, scope, recordScope);  RETURN recordType
 	END NewRecordType;
 
-	PROCEDURE NewCellType*(position: LONGINT; scope:Scope; actorScope: CellScope): CellType;
+	PROCEDURE NewCellType*(position: LONGINT; scope:Scope; cellScope: CellScope): CellType;
 	VAR actorType: CellType;
 	BEGIN
-		NEW(actorType, position, scope, actorScope); RETURN actorType;
+		NEW(actorType, position, scope, cellScope); RETURN actorType;
 	END NewCellType;
 
 	PROCEDURE NewProcedureType*( position: LONGINT; scope: Scope): ProcedureType;

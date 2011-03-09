@@ -712,6 +712,7 @@ TYPE
 		VAR channelType: SyntaxTree.Type; value: LONGINT;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
+				x.SetSizeExpression(ResolveExpression(x.sizeExpression));
 				IF (x.sizeExpression # NIL) & CheckPositiveIntegerValue(x.sizeExpression,value,FALSE) THEN
 					x.SetSize(value)
 				ELSE
@@ -982,9 +983,9 @@ TYPE
 					parameter := parameter.nextParameter;
 				END;
 
-				Declarations(x.actorScope);
+				Declarations(x.cellScope);
 
-				symbol := x.actorScope.firstSymbol; (* sorted symbols, important to go through procedures in a sorted way here !*)
+				symbol := x.cellScope.firstSymbol; (* sorted symbols, important to go through procedures in a sorted way here !*)
 				WHILE symbol # NIL DO
 					IF symbol IS SyntaxTree.Variable THEN
 						isRealtime := isRealtime & symbol.type.resolved.isRealtime;
@@ -3223,7 +3224,7 @@ TYPE
 						IF VerboseErrorMessage THEN Printout.Info("non-record type designator",left) END;
 					END;
 				ELSIF left.type.resolved IS SyntaxTree.CellType THEN
-					scope := left.type.resolved(SyntaxTree.CellType).actorScope;
+					scope := left.type.resolved(SyntaxTree.CellType).cellScope;
 				ELSE
 					Error(selectorDesignator.position,Diagnostics.Invalid,"field on non-record type designator");
 					IF VerboseErrorMessage THEN Printout.Info("non-record type designator",left) END;
@@ -3957,7 +3958,7 @@ TYPE
 				result.SetAssignable(FALSE);
 				result.SetType(left.type.resolved(SyntaxTree.ProcedureType).returnType);
 
-				IF numberActualParameters = numberFormalParameters THEN
+				IF numberActualParameters <= numberFormalParameters THEN
 					formalParameter := formalType.firstParameter;
 					FOR i := 0 TO numberActualParameters-1 DO
 						actualParameter := actualParameters.GetExpression(i);
@@ -3973,10 +3974,17 @@ TYPE
 						END;
 						formalParameter := formalParameter.nextParameter;
 					END;
-				ELSIF numberActualParameters > numberFormalParameters THEN
-					Error(position,Diagnostics.Invalid,"more actual than formal parameters")
+					WHILE (formalParameter # NIL) DO
+						IF formalParameter.defaultValue # NIL THEN
+							actualParameters.AddExpression(formalParameter.defaultValue);
+							formalParameter := formalParameter.nextParameter
+						ELSE
+							Error(position,Diagnostics.Invalid,"less actual than formal parameters");
+							formalParameter := NIL;
+						END;
+					END;
 				ELSE
-					Error(position,Diagnostics.Invalid,"less actual than formal parameters")
+					Error(position,Diagnostics.Invalid,"more actual than formal parameters")
 				END;
 
 
@@ -4464,7 +4472,7 @@ TYPE
 									procedureType := constructor.type(SyntaxTree.ProcedureType);
 									numberFormalParameters := procedureType.numberParameters;
 									DEC(numberActualParameters);
-									IF numberActualParameters = numberFormalParameters THEN
+									IF numberActualParameters <= numberFormalParameters THEN
 										formalParameter := procedureType.firstParameter;
 										FOR i := 1 TO numberActualParameters DO
 											actualParameter := actualParameters.GetExpression(i);
@@ -4478,10 +4486,17 @@ TYPE
 											END;
 											formalParameter := formalParameter.nextParameter;
 										END;
-									ELSIF numberActualParameters > numberFormalParameters THEN
-										Error(position,Diagnostics.Invalid,"more actual than formal parameters")
+										WHILE (formalParameter # NIL) DO
+											IF formalParameter.defaultValue # NIL THEN
+												actualParameters.AddExpression(formalParameter.defaultValue);
+												formalParameter := formalParameter.nextParameter
+											ELSE
+												Error(position,Diagnostics.Invalid,"less actual than formal parameters");
+												formalParameter := NIL;
+											END;
+										END;
 									ELSE
-										Error(position,Diagnostics.Invalid,"less actual than formal parameters")
+										Error(position,Diagnostics.Invalid,"more actual than formal parameters")
 									END;
 								END;
 							END;
@@ -4532,8 +4547,43 @@ TYPE
 								END;
 							END;
 						ELSIF type0 IS SyntaxTree.CellType THEN
-							IF Parameters(1,1) & ~(currentIsCellNet) THEN
+							IF ~(currentIsCellNet) THEN
 								Error(position,Diagnostics.Invalid,"actor allocation outside activeCells ");
+							ELSE
+								constructor := type0(SyntaxTree.CellType).cellScope.constructor;
+								IF (constructor = NIL) & Parameters(1,1) THEN
+									(* ok *)
+								ELSE
+									procedureType := constructor.type(SyntaxTree.ProcedureType);
+									numberFormalParameters := procedureType.numberParameters;
+									DEC(numberActualParameters);
+									IF numberActualParameters <= numberFormalParameters THEN
+										formalParameter := procedureType.firstParameter;
+										FOR i := 1 TO numberActualParameters DO
+											actualParameter := actualParameters.GetExpression(i);
+											IF (actualParameter = SyntaxTree.invalidExpression) THEN
+											ELSIF ~ParameterCompatible(formalParameter,actualParameter) THEN
+											ELSE
+												IF formalParameter.type.resolved # actualParameter.type.resolved THEN
+													actualParameter := NewConversion(actualParameter.position,actualParameter,formalParameter.type,NIL);
+												END;
+												actualParameters.SetExpression(i,actualParameter);
+											END;
+											formalParameter := formalParameter.nextParameter;
+										END;
+										WHILE (formalParameter # NIL) DO
+											IF formalParameter.defaultValue # NIL THEN
+												actualParameters.AddExpression(formalParameter.defaultValue);
+												formalParameter := formalParameter.nextParameter
+											ELSE
+												Error(position,Diagnostics.Invalid,"less actual than formal parameters");
+												formalParameter := NIL;
+											END;
+										END;
+									ELSE
+										Error(position,Diagnostics.Invalid,"more actual than formal parameters")
+									END;
+								END;
 							END;
 							activeCellsStatement := TRUE;
 						ELSIF type0 IS SyntaxTree.ChannelType THEN
@@ -5171,10 +5221,17 @@ TYPE
 					END;
 					type := type0;
 				(* ------- CONNECT -------*)
-				ELSIF (id = Global.Connect) & (Parameters(2,3)) THEN
+				ELSIF (id = Global.Connect) & (Parameters(2,2)) THEN
 					IF 	~(currentIsCellNet) THEN
 						Error(position,Diagnostics.Invalid,"connection outside activeCells body block");
 					END;
+
+					IF CheckPortType(parameter0, outPort) & CheckPortType(parameter1, inPort) THEN
+						IF (outPort.direction # SyntaxTree.OutPort) THEN Error(parameter0.position,Diagnostics.Invalid,"not an out-port") END;
+						IF (inPort.direction # SyntaxTree.InPort) THEN Error(parameter0.position,Diagnostics.Invalid,"not an in-port") END;
+					END;
+
+					(*
 					IF IsPortType(parameter0, outPort) THEN
 						IF (outPort.direction # SyntaxTree.OutPort) THEN Error(parameter0.position,Diagnostics.Invalid,"not an out-port") END;
 						IF IsChannelType(parameter1) THEN
@@ -5195,6 +5252,7 @@ TYPE
 					ELSE
 						 Error(parameter1.position,Diagnostics.Invalid,"no outport or channel parameter")
 					END;
+					*)
 					activeCellsStatement := TRUE;
 				(* ---------- DELEGATE --------*)
 				ELSIF (id = Global.Delegate) & (Parameters(2,2)) THEN
@@ -5440,7 +5498,8 @@ TYPE
 		PROCEDURE ResolveExpression(expression: SyntaxTree.Expression): SyntaxTree.Expression;
 		VAR result,prev: SyntaxTree.Expression;
 		BEGIN
-			IF (expression.type = NIL) THEN
+			IF expression = NIL THEN result := NIL
+			ELSIF (expression.type = NIL) THEN
 				prev := resolvedExpression;
 				resolvedExpression := SyntaxTree.invalidExpression;
 				expression.SetType(SyntaxTree.invalidType);
@@ -5715,6 +5774,7 @@ TYPE
 			- check parameter kind and set read-only flags if appropriate
 		**)
 		PROCEDURE VisitParameter(parameter: SyntaxTree.Parameter);
+		VAR expression: SyntaxTree.Expression;
 		BEGIN
 			IF Trace THEN D.Str("VisitParameter "); D.Str0(parameter.name.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(parameter) THEN
@@ -5724,6 +5784,17 @@ TYPE
 				IF parameter.kind = SyntaxTree.ConstParameter THEN parameter.SetAccess(parameter.access * SyntaxTree.ReadOnly) END;
 				IF parameter.ownerType IS SyntaxTree.CellType THEN
 					parameter.SetAccess(SyntaxTree.ReadOnly);
+				END;
+				IF parameter.defaultValue # NIL THEN
+					IF parameter.kind # SyntaxTree.ValueParameter THEN
+						Error(parameter.position,Diagnostics.Invalid,"forbidden default value on non-value parameter");
+					ELSE
+						expression := ConstantExpression(parameter.defaultValue);
+						IF CompatibleTo(system,expression.type, parameter.type) THEN
+							expression := NewConversion(expression.position, expression, parameter.type, NIL);
+							parameter.SetDefaultValue(expression);
+						END;
+					END;
 				END;
 				parameter.SetState(SyntaxTree.Resolved);
 			END;
@@ -5876,6 +5947,10 @@ TYPE
 					IF  ~system.GenerateParameterOffsets(procedure,FALSE) (* assume that this is no nested procedure, is fixed later otherwise *)
 					THEN
 						Error(procedure.position,Diagnostics.Invalid,"problems during parameter offset computation");
+					END;
+				ELSIF procedure.scope IS SyntaxTree.CellScope THEN (* allowed to be constructor *)
+					IF procedure.isConstructor THEN
+						procedure.scope(SyntaxTree.CellScope).SetConstructor(procedure);
 					END;
 				ELSIF procedure.isConstructor THEN
 					Error(procedure.position,Diagnostics.Invalid,"procedure illegaly marked as initializer - not in object scope");
@@ -7055,7 +7130,7 @@ TYPE
 		BEGIN Scope(x.recordScope) END VisitRecordType;
 
 		PROCEDURE VisitCellType*(x: SyntaxTree.CellType);
-		BEGIN  Scope(x.actorScope) END VisitCellType;
+		BEGIN  Scope(x.cellScope) END VisitCellType;
 
 		PROCEDURE VisitProcedureType*(x: SyntaxTree.ProcedureType);
 		BEGIN  END VisitProcedureType;

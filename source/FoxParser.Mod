@@ -1358,7 +1358,6 @@ TYPE
 		PROCEDURE PortType(position: LONGINT; parentScope: SyntaxTree.Scope): SyntaxTree.Type;
 		VAR type: SyntaxTree.Type; direction: LONGINT; sizeExpression: SyntaxTree.Expression;
 		BEGIN
-			Check(Scanner.Period);
 			IF Optional(Scanner.In) THEN
 				direction := SyntaxTree.InPort
 			ELSIF Optional(Scanner.Out) THEN
@@ -1460,6 +1459,9 @@ TYPE
 				name := Identifier();
 				parameter := SyntaxTree.NewParameter(name.position,procedureType,name,kind);
 				procedureType.AddParameter(parameter);
+				IF Optional(Scanner.Equal) THEN
+					parameter.SetDefaultValue(Expression());
+				END
 			UNTIL ~Optional( Scanner.Comma );
 			Check( Scanner.Colon );
 			type := Type( NIL, parentScope);
