@@ -672,8 +672,8 @@ TYPE
 				IF GetPort(p0,instance0,port0) THEN
 					IF GetPort(p1,instance1,port1) THEN
 						connection := currentActiveCellsScope.NewConnection();
-						connection.ConnectIn(instance0,port0);
-						connection.ConnectOut(instance1,port1);
+						connection.ConnectOut(instance0,port0);
+						connection.ConnectIn(instance1,port1);
 						(* generate new connection here between instances *)
 						(*
 						IF GetChannel(p2,channel) THEN

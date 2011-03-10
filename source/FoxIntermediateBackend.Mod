@@ -5959,6 +5959,8 @@ TYPE
 					IntermediateCode.InitImmediate(result.op,addressType,adr);
 					RETURN
 				END;
+			ELSIF (currentScope IS SyntaxTree.ProcedureScope) & (currentScope(SyntaxTree.ProcedureScope).ownerProcedure.isConstructor) & (currentScope.outerScope IS SyntaxTree.CellScope) THEN
+				HALT(200);
 			ELSE
 				GetBaseRegister(basereg,currentScope,x.scope);
 				InitOperand(result,ModeReference);
