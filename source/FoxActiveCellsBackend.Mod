@@ -543,7 +543,7 @@ TYPE
 		VAR p0,p1,p2: SyntaxTree.Expression;
 		instanceType: ActiveCells.Type;
 		port0,port1: ActiveCells.Port;
-		channel: ActiveCells.Channel;
+		connection: ActiveCells.Connection;
 		type,t0,t1,t2: SyntaxTree.Type;
 		instanceName, typeName, portName: SyntaxTree.String;
 		len: LONGINT;
@@ -611,6 +611,7 @@ TYPE
 				END;
 			END GetPort;
 
+			(*
 			PROCEDURE GetChannel(p: SyntaxTree.Expression; VAR channel: ActiveCells.Channel): BOOLEAN;
 			VAR name, instanceName: SyntaxTree.String; suffix: SyntaxTree.String;
 			BEGIN
@@ -621,7 +622,7 @@ TYPE
 				END;
 				RETURN channel # NIL
 			END GetChannel;
-
+			*)
 
 			PROCEDURE GetDelegatePort(p: SyntaxTree.Expression; VAR port: ActiveCells.Port): BOOLEAN;
 			VAR portName, suffix: SyntaxTree.String;
@@ -657,10 +658,12 @@ TYPE
 						END;
 						instance := currentActiveCellsScope.NewInstance(instanceName, instanceType);
 					END;
+				(*
 				ELSIF type IS SyntaxTree.ChannelType THEN
 					IF GetInstanceName(p0,instanceName,typeName) THEN
 						channel := currentActiveCellsScope.NewChannel(instanceName);
 					END;
+				*)
 				ELSE
 					Error(x.position,NotYetImplemented)
 				END;
@@ -668,6 +671,9 @@ TYPE
 			|Global.Connect:
 				IF GetPort(p0,instance0,port0) THEN
 					IF GetPort(p1,instance1,port1) THEN
+						connection := currentActiveCellsScope.NewConnection();
+						connection.ConnectIn(instance0,port0);
+						connection.ConnectOut(instance1,port1);
 						(* generate new connection here between instances *)
 						(*
 						IF GetChannel(p2,channel) THEN
