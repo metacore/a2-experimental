@@ -130,6 +130,7 @@ VAR
 	i, j, x: LONGINT;
 	adr: ARRAY 4 OF CHAR;
 	ok: BOOLEAN;
+	ip: Adr;
 BEGIN
 	i := 0; j := 0; x := -1; ok := FALSE;
 	LOOP
@@ -147,7 +148,9 @@ BEGIN
 		END
 	END;
 	IF ok THEN
-		RETURN SYSTEM.VAL(Adr, adr);
+		ip.ipv4Adr := SYSTEM.VAL(LONGINT,adr);
+		ip.usedProtocol := IPv4;
+		RETURN ip;
 	ELSE
 		RETURN NilAdr;
 	END
