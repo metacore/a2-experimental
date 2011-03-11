@@ -281,6 +281,27 @@ TYPE
 			(* do not call Type(x.type) here as this must already performed in the type declaration section ! *)
 		END VisitVariable;
 
+		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
+		VAR name: SyntaxTree.String; irv: IntermediateCode.Section; op: Operand;
+		BEGIN
+			ASSERT(currentScope.outerScope IS SyntaxTree.CellScope);
+			(* code section for variable *)
+			Global.GetSymbolName(x,name);
+			irv := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,dump);
+			irv.SetAlignment(x.fixed, x.alignment);
+			(*
+			irv.SetOffset(ToMemoryUnits(system,x.offsetInBits));
+			*)
+			IF x.defaultValue = NIL THEN
+				irv.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(x.type))))
+			ELSE
+				implementationVisitor.Evaluate(x.defaultValue, op);
+				irv.Emit(Data(op.op));
+			END;
+			CheckTypeDeclaration(implementationVisitor, module,x.type,dump,implementationVisitor.newObjectFile);
+		END VisitParameter;
+
+
 		PROCEDURE VisitTypeDeclaration(x: SyntaxTree.TypeDeclaration);
 		BEGIN
 			Type(x.declaredType); (* => code in objects *)
@@ -336,12 +357,22 @@ TYPE
 			currentScope := prevScope;
 		END Scope;
 
+		PROCEDURE Parameters(first: SyntaxTree.Parameter);
+		VAR parameter: SyntaxTree.Parameter;
+		BEGIN
+			parameter := first;
+			WHILE parameter # NIL DO
+				VisitParameter(parameter);
+				parameter := parameter.nextParameter;
+			END;
+		END Parameters;
+
+
 		PROCEDURE Procedure(x: SyntaxTree.Procedure);
 		VAR scope: SyntaxTree.ProcedureScope;
 			prevScope: SyntaxTree.Scope;
 			inline: BOOLEAN;
 			procedureType: SyntaxTree.ProcedureType;
-			procedure: SyntaxTree.Procedure;
 			pc: LONGINT;
 			stackSize: LONGINT;
 			parSize: LONGINT;
@@ -394,8 +425,7 @@ TYPE
 					RETURN TRUE
 				ELSE RETURN FALSE
 				END;
-			END HasValue;
-
+			END HasValue
 
 		BEGIN
 			(*
@@ -405,6 +435,7 @@ TYPE
 			scope := x.procedureScope;
 			prevScope := currentScope;
 			currentScope := scope;
+			procedureType := x.type(SyntaxTree.ProcedureType);
 
 			Global.GetSymbolName(x,name);
 			IF (scope.body # NIL) & (x.isInline) THEN
@@ -424,12 +455,15 @@ TYPE
 				IF ~HasValue(actorType.modifiers,Global.StringDataMemorySize,stackSize) THEN stackSize := 1024 END;
 				AddBodyCallStub(x,Sections.InitCode2Section,stackSize);
 				ir := IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,x,dump);
+			ELSIF (scope.outerScope IS SyntaxTree.CellScope) & (x.isConstructor) THEN
+				inline := FALSE;
+				Parameters(procedureType.firstParameter);
+				ir := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,x,dump);
 			ELSE
 				inline := FALSE;
 				ir := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,x,dump);
 			END;
 
-			procedureType := x.type(SyntaxTree.ProcedureType);
 			cc := procedureType.callingConvention;
 
 			IF scope.body # NIL THEN
@@ -5960,7 +5994,11 @@ TYPE
 					RETURN
 				END;
 			ELSIF (currentScope IS SyntaxTree.ProcedureScope) & (currentScope(SyntaxTree.ProcedureScope).ownerProcedure.isConstructor) & (currentScope.outerScope IS SyntaxTree.CellScope) THEN
-				HALT(200);
+				InitOperand(result,ModeReference);
+				Global.GetSymbolName(x,name);
+				symbol := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,commentPrintout # NIL);
+				IntermediateCode.InitAddress(result.op, addressType, symbol, 0);
+				RETURN
 			ELSE
 				GetBaseRegister(basereg,currentScope,x.scope);
 				InitOperand(result,ModeReference);
@@ -6880,7 +6918,7 @@ TYPE
 
 		PROCEDURE Body(x: SyntaxTree.Body; scope: SyntaxTree.Scope; ir: IntermediateCode.Section; moduleBody: BOOLEAN);
 		VAR prevScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType; procedure: SyntaxTree.Procedure;
-			end: Label;res: IntermediateCode.Operand;
+			end: Label;res: IntermediateCode.Operand; cellScope: SyntaxTree.CellScope; op: Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("Body") END;
 			section := ir;
@@ -6928,6 +6966,16 @@ TYPE
 				IF moduleBody THEN
 					InitVariables(moduleScope)
 				END;
+				IF (scope.outerScope # NIL) & (scope.outerScope IS SyntaxTree.CellScope) THEN
+					cellScope := scope.outerScope(SyntaxTree.CellScope);
+					IF procedure = cellScope.bodyProcedure THEN
+						IF cellScope.constructor # NIL THEN
+							StaticCallOperand(op, cellScope.constructor);
+							Emit(Call(op.op,0));
+						END;
+					END;
+				END;
+
 				ParameterCopies(procedureType);
 				InitVariables(scope);
 				IF x.code = NIL THEN
@@ -9506,7 +9554,11 @@ TYPE
 
 	PROCEDURE ProcedureParametersSize(system: Global.System; procedure: SyntaxTree.Procedure): LONGINT;
 	BEGIN
-		RETURN ParametersSize(system,procedure.type(SyntaxTree.ProcedureType),IsNested(procedure));
+		IF (procedure.scope IS SyntaxTree.CellScope) & (procedure = procedure.scope(SyntaxTree.CellScope).constructor) THEN
+			RETURN 0
+		ELSE
+			RETURN ParametersSize(system,procedure.type(SyntaxTree.ProcedureType),IsNested(procedure));
+		END;
 	END ProcedureParametersSize;
 
 	PROCEDURE ToMemoryUnits(system: Global.System; size: LONGINT): LONGINT;
