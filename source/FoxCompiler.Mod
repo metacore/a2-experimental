@@ -341,7 +341,7 @@ TYPE
 
 				IF activeCellsSpecification = NIL THEN (* no activeCells *)
 				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
-				ELSIF ~activeCellsSpecification.Link(diagnostics,system.codeUnit, Info IN flags) THEN
+				ELSIF ~activeCellsSpecification.Link(diagnostics,system.codeUnit, system.dataUnit, Info IN flags) THEN
 					FinalMessage(TRUE, " could not link"); RETURN FALSE
 				ELSIF ~activeCellsSpecification.Emit() THEN
 					FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;

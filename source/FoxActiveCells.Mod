@@ -434,17 +434,17 @@ TYPE
 			 RETURN type
 		END NewType;
 
-		PROCEDURE Link*(diagnostics: Diagnostics.Diagnostics; codeUnit: LONGINT; verbose: BOOLEAN): BOOLEAN;
+		PROCEDURE Link*(diagnostics: Diagnostics.Diagnostics; codeUnit, dataUnit: LONGINT; verbose: BOOLEAN): BOOLEAN;
 		VAR type: Type; i: LONGINT;
 		BEGIN
 			FOR i := 0 TO types.Length()-1 DO
 				type := types.GetType(i);
 				IF type.instances.Length()=0 THEN
-					IF ~type.LinkType(diagnostics, codeUnit, verbose) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+					IF ~type.LinkType(diagnostics, codeUnit, dataUnit, verbose) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 				ELSE
 					type.SetDataMemorySize(0);
 				END;
-				IF ~type.Link(diagnostics, codeUnit, verbose) THEN RETURN FALSE END; (* subtypes ? *)
+				IF ~type.Link(diagnostics, codeUnit, dataUnit, verbose) THEN RETURN FALSE END; (* subtypes ? *)
 			END;
 			RETURN TRUE
 		END Link;
@@ -518,7 +518,7 @@ TYPE
 		END ThisPort;
 		*)
 
-		PROCEDURE LinkType*(diagnostics: Diagnostics.Diagnostics; codeUnit: LONGINT; verbose: BOOLEAN): BOOLEAN;
+		PROCEDURE LinkType*(diagnostics: Diagnostics.Diagnostics; codeUnit, dataUnit: LONGINT; verbose: BOOLEAN): BOOLEAN;
 		VAR
 			fileName, codeFileName, dataFileName: Files.FileName;
 			code, data: StaticLinker.Arrangement; linker: GenericLinker.Linker;
@@ -542,6 +542,7 @@ TYPE
 			IF ~linker.error THEN linker.Link; END;
 
 			instructionMemorySize := MAX(code.SizeInBits() DIV codeUnit, instructionMemorySize);
+			dataMemorySize := MAX(data.SizeInBits() DIV dataUnit, dataMemorySize);
 
 			GetFullName(fileName,NIL);
 			Files.JoinExtension(fileName,CodeFileExtension,codeFileName);
