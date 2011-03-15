@@ -83,7 +83,6 @@ TYPE
 		BEGIN width := widthInBits
 		END SetWidth;
 
-
 		PROCEDURE Delegate*(instance: Instance; port: Port);
 		BEGIN
 			delegate.instance := instance; delegate.port := port
@@ -1070,7 +1069,7 @@ TYPE
 			channel.ConnectIn(oldChannel.in.instance, oldChannel.in.port);
 			channel.ConnectOut(oldChannel.out.instance, oldChannel.out.port);
 			channel.SetFifoSize(oldChannel.fifoSize);
-			channel.SetWidth(oldChannel.fifoSize);
+			channel.SetWidth(oldChannel.widthInBits);
 			channels.AddChannel(channel);
 		END;
 		FOR i := 0 TO scope.instances.Length()-1 DO
@@ -1090,7 +1089,7 @@ TYPE
 					channel.ConnectOut(oldChannel.out.instance, oldChannel.out.port);
 
 					channel.SetFifoSize(oldChannel.fifoSize);
-					channel.SetWidth(oldChannel.fifoSize);
+					channel.SetWidth(oldChannel.widthInBits);
 					channel.in.instance := EmbedInstance(instance, channel.in.instance);
 					channel.out.instance := EmbedInstance(instance, channel.out.instance);
 					channels.AddChannel(channel);
