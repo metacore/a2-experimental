@@ -57,8 +57,8 @@ TYPE
 		END ByName;
 	END SymbolList;
 
-	(* representation of a channel point
-		- represented as STREAM parameter in the language
+	(* representation of a channel end point
+		- represented as PORT parameter in the language
 		- endpoint of FIFOs in hardware
 	*)
 	Port*= OBJECT (Symbol)
@@ -280,22 +280,31 @@ TYPE
 	END ModuleList;
 
 	(*
-		instances are variables in networks pointing to a type
-		- represented as VAR ... in assemblies (networks)
-		- when instantiated the instance represents the instance of a processor in hardware
+		parameters are used for setting up initial values on instances
 	*)
-	Instance*=OBJECT (Symbol)
+	Parameter*=OBJECT (Symbol)
+	CONST
+		Boolean=0;Integer=1;
 	VAR
-		type-: Type; (* instance type *)
 		index-: LONGINT;
+		type-: SHORTINT; (* Integer or Boolean, for the time being *)
+		integer-: LONGINT;
+		boolean-: BOOLEAN;
 
-		PROCEDURE &Init(CONST name: ARRAY OF CHAR; scope: Scope; c: Type);
+		PROCEDURE &Init(CONST name: ARRAY OF CHAR; scope: Scope);
 		BEGIN
 			InitSymbol(name,scope);
-			type := c;
-			index := -1; SELF.scope := scope;
-			ASSERT(scope # NIL);
 		END Init;
+
+		PROCEDURE SetBoolean*(b: BOOLEAN);
+		BEGIN
+			type := Boolean; boolean := b
+		END SetBoolean;
+
+		PROCEDURE SetInteger*(i: LONGINT);
+		BEGIN
+			type := Integer; integer := i
+		END SetInteger;
 
 		PROCEDURE Write(w: Streams.Writer; indent: LONGINT);
 		VAR typeName: SyntaxTree.String;
@@ -303,19 +312,116 @@ TYPE
 			Indent(w,indent);
 			w.Int(index,1);
 			w.String(" name="); w.String(name);
-			type.GetFullName(typeName,scope);
-
-			w.String(" type="); w.String(typeName); w.Ln;
+			w.String(" type=");
+			IF type = Integer THEN w.String("INTEGER")
+			ELSIF type=Boolean THEN w.String("BOOLEAN")
+			END;
+			w.String(" value=");
+			IF type = Integer THEN w.Int(integer,1)
+			ELSIF type=Boolean THEN
+				IF boolean THEN w.String("TRUE") ELSE w.String("FALSE") END
+			END;
+			w.Ln;
+			w.Update;
 		END Write;
 
 		PROCEDURE Read(r: Streams.Reader): BOOLEAN;
-		VAR index: LONGINT; s: SyntaxTree.String; symbol: Symbol;
+		VAR index: LONGINT; s: SyntaxTree.String;
+		BEGIN
+			IF r.GetInteger(index,FALSE) & CheckItem(r,"name") & GetString(r,name)
+				&CheckItem(r,"type") & GetString(r,s) & CheckItem(r,"value") THEN
+					IF s= "INTEGER" THEN type := Integer
+					ELSIF s = "BOOLEAN" THEN type := Boolean
+					END;
+					IF (type = Integer) & r.GetInteger(integer,FALSE) THEN
+					ELSIF (type=Boolean) & GetString(r,s) THEN
+						IF s="TRUE" THEN boolean := TRUE ELSE boolean := FALSE END;
+					END;
+			END;
+		END Read;
+
+	END Parameter;
+
+	ParameterList*= OBJECT(Basic.List)
+
+		PROCEDURE GetParameter*(i: LONGINT): Parameter;
+		VAR a: ANY;
+		BEGIN
+			a := Get(i); IF a = NIL THEN RETURN NIL ELSE RETURN a(Parameter) END
+		END GetParameter;
+
+		PROCEDURE AddParameter(a: Parameter);
+		BEGIN a.index := Length(); Add(a);
+		END AddParameter;
+
+		PROCEDURE ByName*(CONST name: ARRAY OF CHAR): Parameter;
+		VAR a: Parameter; i: LONGINT;
+		BEGIN
+			FOR i := 0 TO Length()-1 DO
+				a := GetParameter(i);
+				IF (a # NIL) & (a.name = name) THEN RETURN a END;
+			END;
+			RETURN NIL
+		END ByName;
+	END ParameterList;
+
+
+	(*
+		instances are variables in networks pointing to a type
+		- represented as VAR ... in assemblies (networks)
+		- when instantiated the instance represents the instance of a processor in hardware
+	*)
+	Instance*=OBJECT (Symbol)
+	VAR
+		type-: Type; (* instance type *)
+		parameters-: ParameterList;
+		index-: LONGINT;
+
+		PROCEDURE &Init(CONST name: ARRAY OF CHAR; scope: Scope; c: Type);
+		BEGIN
+			InitSymbol(name,scope);
+			type := c;
+			index := -1; SELF.scope := scope; NEW(parameters);
+			ASSERT(scope # NIL);
+		END Init;
+
+		PROCEDURE AddParameter*(CONST name: ARRAY OF CHAR): Parameter;
+		VAR parameter: Parameter;
+		BEGIN
+			NEW(parameter,name,NIL); parameters.Add(parameter);
+			RETURN parameter
+		END AddParameter;
+
+		PROCEDURE Write(w: Streams.Writer; indent: LONGINT);
+		VAR typeName: SyntaxTree.String; parameter: Parameter; i: LONGINT;
+		BEGIN
+			Indent(w,indent); INC(indent);
+			w.Int(index,1);
+			w.String(" name="); w.String(name);
+			type.GetFullName(typeName,scope);
+			w.String(" type="); w.String(typeName); w.Ln;
+			Indent(w,indent);
+			w.String("parameters=");w.Int(parameters.Length(),1); w.Ln;
+			FOR i := 0 TO parameters.Length()-1 DO
+				parameter := parameters.GetParameter(i);
+				parameter.Write(w,indent+1);
+			END;
+			w.Update;
+		END Write;
+
+		PROCEDURE Read(r: Streams.Reader): BOOLEAN;
+		VAR index: LONGINT; s: SyntaxTree.String; symbol: Symbol; i,number: LONGINT; parameter: Parameter;
 		BEGIN
 			IF r.GetInteger(index,FALSE) & CheckItem(r,"name") & GetString(r,name) &
 			CheckItem(r,"type") & GetString(r,s)
 			THEN
 				symbol := GetSymbol(scope,s);
 				type := symbol(Type);
+				IF ~CheckItem(r,"parameters") OR ~r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+				FOR i := 0 TO number-1 DO
+					parameter := AddParameter("");
+					IF ~parameter.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+				END;
 				RETURN TRUE
 			ELSE IF TraceError THEN HALT(100) ELSE RETURN FALSE END
 			END;

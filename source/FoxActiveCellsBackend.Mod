@@ -540,16 +540,19 @@ TYPE
 		END VisitProcedureCallDesignator;
 
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
-		VAR p0,p1,p2: SyntaxTree.Expression;
-		instanceType: ActiveCells.Type;
-		port0,port1: ActiveCells.Port;
-		channel: ActiveCells.Channel;
-		type,t0,t1,t2: SyntaxTree.Type;
-		instanceName, typeName, portName: SyntaxTree.String;
-		len: LONGINT;
-		instance,instance0,instance1: ActiveCells.Instance;
-		symbol: ActiveCells.Symbol;
-		value: LONGINT;
+		VAR p,p0,p1,p2: SyntaxTree.Expression;
+			instanceType: ActiveCells.Type;
+			port0,port1: ActiveCells.Port;
+			channel: ActiveCells.Channel;
+			type,t0,t1,t2: SyntaxTree.Type;
+			instanceName, typeName, portName: SyntaxTree.String;
+			len: LONGINT;
+			instance,instance0,instance1: ActiveCells.Instance;
+			symbol: ActiveCells.Symbol;
+			i: LONGINT; value: Value; par: ActiveCells.Parameter;
+			constructor: SyntaxTree.Procedure;
+			parameter: SyntaxTree.Parameter;
+			name: SyntaxTree.String;
 
 			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
 			BEGIN
@@ -658,12 +661,26 @@ TYPE
 						END;
 						instance := currentActiveCellsScope.NewInstance(instanceName, instanceType);
 					END;
-				(*
-				ELSIF type IS SyntaxTree.ChannelType THEN
-					IF GetInstanceName(p0,instanceName,typeName) THEN
-						channel := currentActiveCellsScope.NewChannel(instanceName);
+					constructor := type(SyntaxTree.CellType).cellScope.constructor;
+					IF constructor # NIL THEN
+						parameter := constructor.type(SyntaxTree.ProcedureType).firstParameter;
+						FOR i := 1 TO x.parameters.Length()-1 DO
+
+							p := x.parameters.GetExpression(i);
+							Global.GetSymbolName(parameter,name);
+							Evaluate(p, value);
+							ASSERT(value.type # NIL);
+							IF value.type.resolved IS SyntaxTree.IntegerType THEN
+								par := instance.AddParameter(name);
+								par.SetInteger(value.integer);
+							ELSIF value.type.resolved IS SyntaxTree.BooleanType THEN
+								par := instance.AddParameter(name);
+								par.SetBoolean(value.boolean);
+							ELSE Error(x.position,NotYetImplemented)
+							END;
+							parameter := parameter.nextParameter
+						END;
 					END;
-				*)
 				ELSE
 					Error(x.position,NotYetImplemented)
 				END;
@@ -676,8 +693,8 @@ TYPE
 						channel.ConnectOut(instance0,port0);
 						channel.ConnectIn(instance1,port1);
 						IF (p2 # NIL) THEN
-							value := p2.resolved(SyntaxTree.IntegerValue).value;
-							channel.SetFifoSize(value);
+							Evaluate(p2,value);
+							channel.SetFifoSize(value.integer);
 						END;
 						channel.SetWidth(port1.width);
 					ELSE
