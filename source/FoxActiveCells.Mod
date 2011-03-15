@@ -1,11 +1,11 @@
 MODULE FoxActiveCells; (** AUTHOR "fof"; PURPOSE "hardware library for the ActiveCells compiler"; *)
 
-IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Files, Streams, D := Debugging, Diagnostics, Strings, Commands, GenericLinker, StaticLinker;
+IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Global := FoxGlobal, Files, Streams, D := Debugging, Diagnostics, Strings, Commands, GenericLinker, StaticLinker;
 
 CONST
 	In*= SyntaxTree.InPort; Out*= SyntaxTree.OutPort;
-	defaultInstructionMemorySize*=0;
-	defaultDataMemorySize *=2;
+	defaultInstructionMemorySize*=0; (* in code units *)
+	defaultDataMemorySize *=2048; (* in data units *)
 	defaultPortWidth *=32; (* bits *)
 	defaultFifoSize *=32; (* "words" of port width size *)
 	defaultChannelWidth* = 32;
@@ -434,17 +434,17 @@ TYPE
 			 RETURN type
 		END NewType;
 
-		PROCEDURE Link*(diagnostics: Diagnostics.Diagnostics; verbose: BOOLEAN): BOOLEAN;
+		PROCEDURE Link*(diagnostics: Diagnostics.Diagnostics; codeUnit: LONGINT; verbose: BOOLEAN): BOOLEAN;
 		VAR type: Type; i: LONGINT;
 		BEGIN
 			FOR i := 0 TO types.Length()-1 DO
 				type := types.GetType(i);
 				IF type.instances.Length()=0 THEN
-					IF ~type.LinkType(diagnostics,verbose) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+					IF ~type.LinkType(diagnostics, codeUnit, verbose) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 				ELSE
 					type.SetDataMemorySize(0);
 				END;
-				IF ~type.Link(diagnostics, verbose) THEN RETURN FALSE END; (* subtypes ? *)
+				IF ~type.Link(diagnostics, codeUnit, verbose) THEN RETURN FALSE END; (* subtypes ? *)
 			END;
 			RETURN TRUE
 		END Link;
@@ -462,8 +462,7 @@ TYPE
 
 		devices-: DeviceList;
 		modules-: ModuleList; (* for linking / compiling *)
-		instructionMemorySize-, dataMemorySize-: LONGINT;
-
+		instructionMemorySize-, dataMemorySize-: LONGINT; (* sizes in units *)
 
 		PROCEDURE & InitType*(CONST name: ARRAY OF CHAR; scope: Scope);
 		BEGIN
@@ -519,7 +518,7 @@ TYPE
 		END ThisPort;
 		*)
 
-		PROCEDURE LinkType*(diagnostics: Diagnostics.Diagnostics; verbose: BOOLEAN): BOOLEAN;
+		PROCEDURE LinkType*(diagnostics: Diagnostics.Diagnostics; codeUnit: LONGINT; verbose: BOOLEAN): BOOLEAN;
 		VAR
 			fileName, codeFileName, dataFileName: Files.FileName;
 			code, data: StaticLinker.Arrangement; linker: GenericLinker.Linker;
@@ -542,7 +541,7 @@ TYPE
 			(* do linking after having read in all blocks to account for potential constraints *)
 			IF ~linker.error THEN linker.Link; END;
 
-			instructionMemorySize := 1+ code.SizeInBits() DIV 36 DIV 1024 ;
+			instructionMemorySize := MAX(code.SizeInBits() DIV codeUnit, instructionMemorySize);
 
 			GetFullName(fileName,NIL);
 			Files.JoinExtension(fileName,CodeFileExtension,codeFileName);
@@ -614,8 +613,8 @@ TYPE
 			Indent(w,indent); INC(indent);
 			w.Int(index,1);
 			w.String(" name="); w.String(name);
-			w.String(" instructionMemorySize="); w.Int(instructionMemorySize,1);
-			w.String(" dataMemorySize="); w.Int(dataMemorySize,1);
+			w.String(" instructionMemorySize="); WriteHugeint(w,instructionMemorySize);
+			w.String(" dataMemorySize="); WriteHugeint(w,dataMemorySize);
 			w.Ln;
 			(* sub types first because of potential delegates on ports *)
 			Indent(w,indent); w.String("types=");w.Int(types.Length(),1); w.Ln;
@@ -933,9 +932,28 @@ TYPE
 			END;
 		END Emit;
 
-
-
 	END Specification;
+
+	PROCEDURE ReadHugeint(r: Streams.Reader; VAR x: HUGEINT): BOOLEAN;
+	VAR low, high: LONGINT;
+	BEGIN
+		IF r.GetInteger(high, FALSE) & r.GetInteger(low, FALSE) THEN
+			x := high * 100000000H + low;
+			RETURN TRUE
+		ELSE
+			RETURN FALSE
+		END
+	END ReadHugeint;
+
+	PROCEDURE WriteHugeint(r: Streams.Writer; x: HUGEINT);
+	VAR low, high: LONGINT;
+	BEGIN
+		low := SHORT(x); high := SHORT(x DIV 100000000H);
+		r.Int(high,1); r.String(" "); r.Int(low,1);
+	END WriteHugeint;
+
+
+
 
 	PROCEDURE Indent(w: Streams.Writer; indent: LONGINT);
 	BEGIN

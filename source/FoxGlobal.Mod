@@ -119,7 +119,8 @@ TYPE
 		systemScope-, globalScope-: ARRAY 2 OF SyntaxTree.ModuleScope;
 		systemModule-,globalModule-: ARRAY 2 OF SyntaxTree.Module;
 
-		(* addressing granularity in data memory *)
+		(* addressing granularity in code and data memory *)
+		codeUnit-: LONGINT;
 		dataUnit-: LONGINT;
 		(* alignment (variables, record entries) *)
 		(* alignment (parameters & stack frames) *)
@@ -141,7 +142,7 @@ TYPE
 		addressType-, sizeType-, shortintType-, integerType-, longintType-, hugeintType-, characterType-, setType-, booleanType-, anyType-,byteType-,
 		realType-, longrealType-, objectType-, nilType-, rangeType-, channelType-: SyntaxTree.Type;
 
-		PROCEDURE &InitSystem*(dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar: LONGINT);
+		PROCEDURE &InitSystem*(codeUnit, dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar: LONGINT);
 		VAR i: LONGINT;
 		BEGIN
 			ASSERT(dataUnit > 0);
@@ -150,6 +151,7 @@ TYPE
 			ASSERT(minParAlign > 0);
 			ASSERT(maxParAlign > 0);
 			SELF.dataUnit := dataUnit;
+			SELF.codeUnit := codeUnit;
 			SELF.addressSize := addressSize;
 			SELF.variableAlignment.min := minVarAlign;
 			SELF.variableAlignment.max := maxVarAlign;
@@ -833,7 +835,7 @@ TYPE
 	PROCEDURE DefaultSystem*(): System;
 	VAR system: System;
 	BEGIN
-		NEW(system,8,32, 8,32,32,32,64);
+		NEW(system,8,8,32, 8,32,32,32,64);
 		SetDefaultDeclarations(system,8);
 		SetDefaultOperators(system);
 		RETURN system
