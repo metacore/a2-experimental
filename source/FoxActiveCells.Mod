@@ -57,7 +57,7 @@ TYPE
 		END ByName;
 	END SymbolList;
 
-	(* representation of a connection point
+	(* representation of a channel point
 		- represented as STREAM parameter in the language
 		- endpoint of FIFOs in hardware
 	*)
@@ -351,7 +351,7 @@ TYPE
 	VAR
 		symbols-: SymbolList;
 		instances-: InstanceList;
-		connections-: ConnectionList;
+		channels-: ChannelList;
 		types-: TypeList;
 		ports-: PortList;
 		index-: LONGINT;
@@ -360,7 +360,7 @@ TYPE
 		PROCEDURE &InitScope(CONST name: ARRAY OF CHAR; scope: Scope; specification: Specification);
 		BEGIN
 			COPY(name,SELF.name); SELF.specification := specification;
-			NEW(instances); NEW(connections);
+			NEW(instances); NEW(channels);
 			NEW(ports); NEW(types);
 			NEW(symbols);
 			index := -1;
@@ -404,16 +404,16 @@ TYPE
 			RETURN instance
 		END NewInstance;
 
-		(* generate a new connection, may be overwritten by implementations if a non-default connection object has to be installed *)
-		PROCEDURE NewConnection*(): Connection;
-		VAR connection: Connection; name: SyntaxTree.String;
+		(* generate a new channel, may be overwritten by implementations if a non-default channel object has to be installed *)
+		PROCEDURE NewChannel*(): Channel;
+		VAR channel: Channel; name: SyntaxTree.String;
 		BEGIN
-			name := "@Connection"; Basic.AppendNumber(name,connections.Length());
-			NEW(connection,name,SELF);
-			connections.AddConnection(connection);
-			symbols.AddSymbol(connection);
-			RETURN connection;
-		END NewConnection;
+			name := "@Channel"; Basic.AppendNumber(name,channels.Length());
+			NEW(channel,name,SELF);
+			channels.AddChannel(channel);
+			symbols.AddSymbol(channel);
+			RETURN channel;
+		END NewChannel;
 
 		(* generate a new port, may be overwritten by implementations if a non-default port object has to be installed *)
 		PROCEDURE NewPort*(CONST name: ARRAY OF CHAR; direction: LONGINT; adr: LONGINT): Port;
@@ -568,7 +568,7 @@ TYPE
 
 		PROCEDURE Read(r: Streams.Reader): BOOLEAN;
 		VAR port: Port; module: Module; device: Device; i,number: LONGINT;
-			connection: Connection; instance: Instance; type: Type;
+			channel: Channel; instance: Instance; type: Type;
 		BEGIN
 			IF ~r.GetInteger(i,FALSE) OR (index # i) OR
 				~CheckItem(r,"name") OR  ~GetString(r,name) OR
@@ -601,16 +601,16 @@ TYPE
 				device := NewDevice("",0);
 				IF ~device.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			END;
-			IF ~CheckItem(r,"connections")OR ~ r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+			IF ~CheckItem(r,"channels")OR ~ r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			FOR i := 0 TO number-1 DO
-				connection := NewConnection();
-				IF ~connection.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+				channel := NewChannel();
+				IF ~channel.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			END;
 			RETURN TRUE
 		END Read;
 
 		PROCEDURE Write*(w: Streams.Writer; indent: LONGINT);
-		VAR port: Port; device: Device; module: Module; instance: Instance; connection: Connection; type: Type; i: LONGINT;
+		VAR port: Port; device: Device; module: Module; instance: Instance; channel: Channel; type: Type; i: LONGINT;
 		BEGIN
 			Indent(w,indent); INC(indent);
 			w.Int(index,1);
@@ -649,10 +649,10 @@ TYPE
 				device.Write(w,indent+1);
 			END;
 			Indent(w,indent);
-			w.String("connections=");w.Int(connections.Length(),1); w.Ln;
-			FOR i := 0 TO connections.Length()-1 DO
-				connection := connections.GetConnection(i);
-				connection.Write(w,indent+1);
+			w.String("channels=");w.Int(channels.Length(),1); w.Ln;
+			FOR i := 0 TO channels.Length()-1 DO
+				channel := channels.GetChannel(i);
+				channel.Write(w,indent+1);
 			END;
 			w.Update;
 		END Write;
@@ -684,18 +684,18 @@ TYPE
 	END TypeList;
 
 	(*
-		connection defines the connection between ports
+		channel defines the channel between ports
 		- defined by CONNECT in source code
 		- represented as FIFO in hardware
 	*)
-	Connection*=OBJECT (Symbol)
+	Channel*=OBJECT (Symbol)
 	VAR
 		in-, out-: PortInstance;
 		fifoSize-: LONGINT;
 		widthInBits-: LONGINT;
-		index-: LONGINT; (* useful for implementations that emulate connections (simulator) *)
+		index-: LONGINT; (* useful for implementations that emulate channels (simulator) *)
 
-		PROCEDURE & InitConnection(CONST name: ARRAY OF CHAR; scope: Scope);
+		PROCEDURE & InitChannel(CONST name: ARRAY OF CHAR; scope: Scope);
 		BEGIN
 			InitSymbol(name,scope);
 			fifoSize := defaultFifoSize;
@@ -703,7 +703,7 @@ TYPE
 			in.port := NIL; in.instance := NIL;
 			out.port := NIL; out.instance := NIL;
 			SELF.index := -1;
-		END InitConnection;
+		END InitChannel;
 
 		PROCEDURE ConnectIn*(instance: Instance; port: Port);
 		BEGIN in.port := port; in.instance := instance;
@@ -755,41 +755,41 @@ TYPE
 			w.Ln;w.Update;
 		END Write;
 
-	END Connection;
+	END Channel;
 
-	ConnectionList*= OBJECT(Basic.List)
+	ChannelList*= OBJECT(Basic.List)
 
-		PROCEDURE GetConnection*(i: LONGINT): Connection;
+		PROCEDURE GetChannel*(i: LONGINT): Channel;
 		VAR a: ANY;
 		BEGIN
-			a := Get(i); IF a = NIL THEN RETURN NIL ELSE RETURN a(Connection) END
-		END GetConnection;
+			a := Get(i); IF a = NIL THEN RETURN NIL ELSE RETURN a(Channel) END
+		END GetChannel;
 
-		PROCEDURE AddConnection*(a: Connection);
+		PROCEDURE AddChannel*(a: Channel);
 		BEGIN a.index := Length(); Add(a);
-		END AddConnection;
+		END AddChannel;
 
-		PROCEDURE ByName*(CONST name: ARRAY OF CHAR): Connection;
-		VAR a: Connection; i: LONGINT;
+		PROCEDURE ByName*(CONST name: ARRAY OF CHAR): Channel;
+		VAR a: Channel; i: LONGINT;
 		BEGIN
 			FOR i := 0 TO Length()-1 DO
-				a := GetConnection(i);
+				a := GetChannel(i);
 				IF (a # NIL) & (a.name = name)  THEN RETURN a END;
 			END;
 			RETURN NIL
 		END ByName;
 
-		PROCEDURE ByPort*(port: Port): Connection;
-		VAR a: Connection; i: LONGINT;
+		PROCEDURE ByPort*(port: Port): Channel;
+		VAR a: Channel; i: LONGINT;
 		BEGIN
 			FOR i := 0 TO Length()-1 DO
-				a := GetConnection(i);
+				a := GetChannel(i);
 				IF (a # NIL) & (a.in.port = port) OR (a.out.port=port) THEN RETURN a END;
 			END;
 			RETURN NIL
 		END ByPort;
 
-	END ConnectionList;
+	END ChannelList;
 
 	(*
 		a specification is a collection of actors together with factory procedures to build hardware
@@ -838,7 +838,7 @@ TYPE
 		END SetInstructionSet;
 
 		PROCEDURE Write*(w: Streams.Writer; indent: LONGINT);
-		VAR type: Type; connection: Connection; i: LONGINT; instance: Instance;port: Port; import: Symbol;
+		VAR type: Type; channel: Channel; i: LONGINT; instance: Instance;port: Port; import: Symbol;
 		BEGIN
 			Indent(w,indent);w.String("name="); w.String(name); w.Ln;
 			INC(indent);
@@ -864,17 +864,17 @@ TYPE
 				port := ports.GetPort(i);
 				port.Write(w,indent+1);
 			END;
-			Indent(w,indent); w.String("connections=");w.Int(connections.Length(),1); w.Ln;
-			FOR i := 0 TO connections.Length()-1 DO
-				connection := connections.GetConnection(i);
-				connection.Write(w,indent+1);
+			Indent(w,indent); w.String("channels=");w.Int(channels.Length(),1); w.Ln;
+			FOR i := 0 TO channels.Length()-1 DO
+				channel := channels.GetChannel(i);
+				channel.Write(w,indent+1);
 			END;
 			w.Update;
 		END Write;
 
 		PROCEDURE Read*(r: Streams.Reader): BOOLEAN;
 		VAR i, number: LONGINT; type: Type;
-			instance: Instance; port: Port; connection: Connection; importName: SyntaxTree.String;
+			instance: Instance; port: Port; channel: Channel; importName: SyntaxTree.String;
 		BEGIN
 			IF ~	CheckItem(r,"name") OR ~GetString(r,name) OR
 			~CheckItem(r,"instructionSet") OR ~GetString(r,instructionSet) OR
@@ -898,10 +898,10 @@ TYPE
 				port := NewPort("",0,0);
 				IF ~port.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			END;
-			IF ~CheckItem(r,"connections") OR ~r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+			IF ~CheckItem(r,"channels") OR ~r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			FOR i := 0 TO number-1 DO
-				connection := NewConnection();
-				IF ~connection.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+				channel := NewChannel();
+				IF ~channel.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			END;
 			RETURN TRUE
 		END Read;
@@ -1017,8 +1017,8 @@ TYPE
 
 
 	PROCEDURE FlattenNetwork*(scope: Scope);
-	VAR instance,subInstance,newInstance: Instance; oldConnection,connection: Connection;
-		 instances: InstanceList; connections: ConnectionList;
+	VAR instance,subInstance,newInstance: Instance; oldChannel,channel: Channel;
+		 instances: InstanceList; channels: ChannelList;
 		 i,j: LONGINT; name: SyntaxTree.String;
 		 port: Port;
 
@@ -1062,16 +1062,16 @@ TYPE
 
 	BEGIN
 		IF scope.instances.Length()=0 THEN RETURN END;
-		NEW(instances); NEW(connections);
-		FOR i := 0 TO scope.connections.Length()-1 DO
-			oldConnection := scope.connections.GetConnection(i);
-			COPY(oldConnection.name, name);
-			NEW(connection,name,scope);
-			connection.ConnectIn(oldConnection.in.instance, oldConnection.in.port);
-			connection.ConnectOut(oldConnection.out.instance, oldConnection.out.port);
-			connection.SetFifoSize(oldConnection.fifoSize);
-			connection.SetWidth(oldConnection.fifoSize);
-			connections.AddConnection(connection);
+		NEW(instances); NEW(channels);
+		FOR i := 0 TO scope.channels.Length()-1 DO
+			oldChannel := scope.channels.GetChannel(i);
+			COPY(oldChannel.name, name);
+			NEW(channel,name,scope);
+			channel.ConnectIn(oldChannel.in.instance, oldChannel.in.port);
+			channel.ConnectOut(oldChannel.out.instance, oldChannel.out.port);
+			channel.SetFifoSize(oldChannel.fifoSize);
+			channel.SetWidth(oldChannel.fifoSize);
+			channels.AddChannel(channel);
 		END;
 		FOR i := 0 TO scope.instances.Length()-1 DO
 			instance := scope.instances.GetInstance(i);
@@ -1082,34 +1082,34 @@ TYPE
 					newInstance := EmbedInstance(instance, subInstance);
 					instances.AddInstance(newInstance)
 				END;
-				FOR j := 0 TO instance.type.connections.Length()-1 DO
-					oldConnection := instance.type.connections.GetConnection(j);
-					COPY(oldConnection.name,name);
-					NEW(connection,name,scope);
-					connection.ConnectIn(oldConnection.in.instance, oldConnection.in.port);
-					connection.ConnectOut(oldConnection.out.instance, oldConnection.out.port);
+				FOR j := 0 TO instance.type.channels.Length()-1 DO
+					oldChannel := instance.type.channels.GetChannel(j);
+					COPY(oldChannel.name,name);
+					NEW(channel,name,scope);
+					channel.ConnectIn(oldChannel.in.instance, oldChannel.in.port);
+					channel.ConnectOut(oldChannel.out.instance, oldChannel.out.port);
 
-					connection.SetFifoSize(oldConnection.fifoSize);
-					connection.SetWidth(oldConnection.fifoSize);
-					connection.in.instance := EmbedInstance(instance, connection.in.instance);
-					connection.out.instance := EmbedInstance(instance, connection.out.instance);
-					connections.AddConnection(connection);
+					channel.SetFifoSize(oldChannel.fifoSize);
+					channel.SetWidth(oldChannel.fifoSize);
+					channel.in.instance := EmbedInstance(instance, channel.in.instance);
+					channel.out.instance := EmbedInstance(instance, channel.out.instance);
+					channels.AddChannel(channel);
 				END;
 			ELSE
 				instances.AddInstance(instance);
 			END;
 		END;
-		FOR i := 0 TO connections.Length()-1 DO
-			connection := connections.GetConnection(i);
-			FlattenPortInstance(connection.in);
-			FlattenPortInstance(connection.out);
+		FOR i := 0 TO channels.Length()-1 DO
+			channel := channels.GetChannel(i);
+			FlattenPortInstance(channel.in);
+			FlattenPortInstance(channel.out);
 		END;
 		FOR i := 0 TO scope.ports.Length()-1 DO
 			port := scope.ports.GetPort(i);
 			FlattenPortInstance(port.delegate);
 		END;
 		scope.instances := instances;
-		scope.connections := connections;
+		scope.channels := channels;
 	END FlattenNetwork;
 
 

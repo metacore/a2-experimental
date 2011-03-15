@@ -5231,28 +5231,14 @@ TYPE
 						IF (inPort.direction # SyntaxTree.InPort) THEN Error(parameter0.position,Diagnostics.Invalid,"not an in-port") END;
 					END;
 
-					(*
-					IF IsPortType(parameter0, outPort) THEN
-						IF (outPort.direction # SyntaxTree.OutPort) THEN Error(parameter0.position,Diagnostics.Invalid,"not an out-port") END;
-						IF IsChannelType(parameter1) THEN
-							IF numberActualParameters=3 THEN Error(parameter2.position,Diagnostics.Invalid,"invalid third parameter") END;
-						ELSIF IsPortType(parameter1, inPort) THEN
-							IF (inPort.direction # SyntaxTree.InPort) THEN Error(parameter0.position,Diagnostics.Invalid,"not an in-port") END;
-							IF numberActualParameters=2 THEN Error(position,Diagnostics.Invalid,"no channel parameter")
-							ELSIF ~IsChannelType(parameter2) THEN Error(parameter2.position,Diagnostics.Invalid,"no channel parameter")
-							END;
-						ELSE Error(parameter1.position,Diagnostics.Invalid,"no inport or channel parameter")
-						END
-					ELSIF IsChannelType(parameter0) THEN
-						IF IsPortType(parameter1, inPort) THEN
-							IF (inPort.direction # SyntaxTree.InPort) THEN Error(parameter0.position,Diagnostics.Invalid,"not an in-port") END;
-							IF numberActualParameters=3 THEN Error(parameter2.position,Diagnostics.Invalid,"invalid third parameter") END;
-						ELSE Error(parameter1.position,Diagnostics.Invalid,"no outport parameter")
-						END
-					ELSE
-						 Error(parameter1.position,Diagnostics.Invalid,"no outport or channel parameter")
+					IF numberActualParameters = 3 THEN
+						IF IsIntegerValue(parameter2,i0) & (i0>=0) THEN
+							parameter2.SetResolved(SyntaxTree.NewIntegerValue(position,ABS(i0)));
+						ELSE
+							Error(position,Diagnostics.Invalid,"incompatible channel size parameter");
+						END;
 					END;
-					*)
+
 					activeCellsStatement := TRUE;
 				(* ---------- DELEGATE --------*)
 				ELSIF (id = Global.Delegate) & (Parameters(2,2)) THEN

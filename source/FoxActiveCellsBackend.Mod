@@ -543,7 +543,7 @@ TYPE
 		VAR p0,p1,p2: SyntaxTree.Expression;
 		instanceType: ActiveCells.Type;
 		port0,port1: ActiveCells.Port;
-		connection: ActiveCells.Connection;
+		channel: ActiveCells.Channel;
 		type,t0,t1,t2: SyntaxTree.Type;
 		instanceName, typeName, portName: SyntaxTree.String;
 		len: LONGINT;
@@ -671,46 +671,21 @@ TYPE
 			|Global.Connect:
 				IF GetPort(p0,instance0,port0) THEN
 					IF GetPort(p1,instance1,port1) THEN
-						connection := currentActiveCellsScope.NewConnection();
-						connection.ConnectOut(instance0,port0);
-						connection.ConnectIn(instance1,port1);
-						(* generate new connection here between instances *)
-						(*
-						IF GetChannel(p2,channel) THEN
-							channel.ConnectIn(instance0,port0);
-							channel.ConnectOut(instance1,port1);
-						ELSE
-							Error(p2.position,"unallocated");
-						END
-						*)
-					(*ELSIF GetChannel(p1,channel) THEN
-						channel.ConnectIn(instance0,port0)
-					*)
+						ASSERT(instance0 # NIL); ASSERT(instance1 # NIL); ASSERT(port0 # NIL); ASSERT(port1 # NIL);
+						channel := currentActiveCellsScope.NewChannel();
+						channel.ConnectOut(instance0,port0);
+						channel.ConnectIn(instance1,port1);
+						IF (p2 # NIL) THEN
+							value := p2.resolved(SyntaxTree.IntegerValue).value;
+							channel.SetFifoSize(value);
+						END;
+						channel.SetWidth(port1.width);
 					ELSE
 						Error(p1.position,"unallocated");
 					END;
-				(*
-				ELSIF GetChannel(p0,channel) THEN
-					IF GetPort(p1,instance1,port1) THEN
-						channel.ConnectOut(instance1,port1)
-					ELSE
-						Error(p1.position,"uncallocated");
-					END
-				*)
 				ELSE
 					Error(p0.position,"unallocated");
 				END;
-				(*
-				IF GetPort(p0,instance1,port1) & GetPort(p1,instance2,port2) THEN
-					ASSERT(instance1 # NIL); ASSERT(instance2 # NIL); ASSERT(port1 # NIL); ASSERT(port2 # NIL);
-					channel := currentActiveCellsScope.NewChannel(instance1,port1,instance2,port2);
-					IF (p2 # NIL) THEN
-						value := p2.resolved(SyntaxTree.IntegerValue).value;
-						channel.SetFifoSize(value);
-					END;
-					channel.SetWidth(port1.width);
-				END
-				*)
 			|Global.Delegate:
 				IF GetDelegatePort(p0,port0) & GetPort(p1,instance1,port1) THEN
 					port0.Delegate(instance1,port1)
