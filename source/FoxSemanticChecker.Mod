@@ -5221,7 +5221,7 @@ TYPE
 					END;
 					type := type0;
 				(* ------- CONNECT -------*)
-				ELSIF (id = Global.Connect) & (Parameters(2,2)) THEN
+				ELSIF (id = Global.Connect) & (Parameters(2,3)) THEN
 					IF 	~(currentIsCellNet) THEN
 						Error(position,Diagnostics.Invalid,"connection outside activeCells body block");
 					END;
