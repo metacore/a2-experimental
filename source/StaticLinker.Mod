@@ -85,15 +85,15 @@ VAR i,j,size,end: LONGINT;
 BEGIN
 	ASSERT (bitsPerLine MOD 4 = 0);
 	size := arrangement.bits.GetSize();
-	end := size DIV bitsPerLine + 1;
-	FOR i := 0 TO end DO
+	end := (size-1) DIV bitsPerLine + 1;
+	FOR i := 0 TO end-1 DO
 		FOR j := bitsPerLine DIV 4 -1 TO 0 BY -1 DO
 			writer.Char(ObjectFile.NibbleToCharacter(GetBits(i*bitsPerLine+j*4)));
 		END;
 		writer.Ln;
 	END;
-	lines := ((end DIV lines)+1)*lines; (* round up to next multiple of lines *)
-	FOR i := end+1 TO lines -1 DO
+	lines := (((end-1) DIV lines)+1)*lines; (* round up to next multiple of lines *)
+	FOR i := end TO lines -1 DO
 		FOR j := bitsPerLine DIV 4 -1 TO 0 BY -1 DO
 			writer.Char('f');
 		END;

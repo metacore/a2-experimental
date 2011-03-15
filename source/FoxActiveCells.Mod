@@ -613,8 +613,8 @@ TYPE
 			Indent(w,indent); INC(indent);
 			w.Int(index,1);
 			w.String(" name="); w.String(name);
-			w.String(" instructionMemorySize="); WriteHugeint(w,instructionMemorySize);
-			w.String(" dataMemorySize="); WriteHugeint(w,dataMemorySize);
+			w.String(" instructionMemorySize="); w.Int(instructionMemorySize,1);
+			w.String(" dataMemorySize="); w.Int(dataMemorySize,1);
 			w.Ln;
 			(* sub types first because of potential delegates on ports *)
 			Indent(w,indent); w.String("types=");w.Int(types.Length(),1); w.Ln;
@@ -934,6 +934,7 @@ TYPE
 
 	END Specification;
 
+	(*
 	PROCEDURE ReadHugeint(r: Streams.Reader; VAR x: HUGEINT): BOOLEAN;
 	VAR low, high: LONGINT;
 	BEGIN
@@ -951,7 +952,7 @@ TYPE
 		low := SHORT(x); high := SHORT(x DIV 100000000H);
 		r.Int(high,1); r.String(" "); r.Int(low,1);
 	END WriteHugeint;
-
+	*)
 
 
 
