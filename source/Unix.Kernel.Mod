@@ -1,6 +1,6 @@
 MODULE Kernel;	(** AUTHOR "pjm"; PURPOSE "Implementation-independent kernel interface"; *)
 
-IMPORT SYSTEM, Trace, Glue, Machine, Heaps, Modules, Objects;
+IMPORT Trace, Machine, Heaps, Modules, Objects;
 
 CONST
 	TimerFree = 0; TimerSleeping = 1; TimerWoken = 2; TimerExpired = 3;	(* Timer state *)
