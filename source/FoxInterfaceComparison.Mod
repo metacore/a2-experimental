@@ -1,16 +1,16 @@
 MODULE FoxInterfaceComparison; (** AUTHOR "fof"; PURPOSE "compare interfaces / check symbol file compliances"; *)
 
-IMPORT SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, FingerPrint := FoxFingerPrint, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker, Diagnostics, Strings;
+IMPORT SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, FingerPrinter := FoxFingerPrinter, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker, Diagnostics, Strings;
 
 CONST
 	Redefined*=0;
 	Extended*=1;
 
 	PROCEDURE CompareThis*(module: SyntaxTree.Module; symbolFileFormat: Formats.SymbolFileFormat; diagnostics: Diagnostics.Diagnostics; importCache: SyntaxTree.ModuleScope;  VAR flags: SET);
-	VAR fname: SyntaxTree.String; importedModule: SyntaxTree.Module; fingerprinterOld,fingerprinterNew: FingerPrint.FingerPrinter;
+	VAR fname: SyntaxTree.String; importedModule: SyntaxTree.Module; fingerprinter: FingerPrinter.FingerPrinter;
 
 	PROCEDURE SameType(new,old: SyntaxTree.Type): BOOLEAN;
-	VAR fpNew,fpOld: FingerPrint.FingerPrint;
+	VAR fpNew,fpOld: SyntaxTree.FingerPrint;
 	BEGIN
 		old := old.resolved; new := new.resolved;
 
@@ -20,18 +20,18 @@ CONST
 		IF new IS SyntaxTree.PointerType THEN
 			new := new(SyntaxTree.PointerType).pointerBase;
 		END;
-		fpNew := fingerprinterNew.TypeFP(new);
-		fpOld := fingerprinterOld.TypeFP(old);
-		RETURN (fpNew.privateFP = fpOld.privateFP) & (fpNew.publicFP = fpOld.publicFP) & (fpNew.FP = fpOld.FP);
+		fpNew := fingerprinter.TypeFP(new);
+		fpOld := fingerprinter.TypeFP(old);
+		RETURN (fpNew.private = fpOld.private) & (fpNew.public = fpOld.public) & (fpNew.shallow = fpOld.shallow);
 	END SameType;
 
 	PROCEDURE CompareSymbols(new,old: SyntaxTree.Symbol): BOOLEAN;
-	VAR fpNew,fpOld: FingerPrint.FingerPrint; oldType, newType: SyntaxTree.Type;
+	VAR fpNew,fpOld: SyntaxTree.FingerPrint; oldType, newType: SyntaxTree.Type;
 	BEGIN
-		fpNew := fingerprinterNew.SymbolFP(new);
-		fpOld := fingerprinterOld.SymbolFP(old);
+		fpNew := fingerprinter.SymbolFP(new);
+		fpOld := fingerprinter.SymbolFP(old);
 
-		IF (fpNew.FP # fpOld.FP) THEN
+		IF (fpNew.shallow # fpOld.shallow) THEN
 			RETURN FALSE
 		ELSIF (new IS SyntaxTree.TypeDeclaration) & (old IS SyntaxTree.TypeDeclaration) THEN
 			oldType := old(SyntaxTree.TypeDeclaration).declaredType;
@@ -129,8 +129,8 @@ CONST
 	BEGIN
 		Global.ModuleFileName(module.name,module.context,fname);
 		importedModule := symbolFileFormat.Import(fname,importCache);
-		NEW(fingerprinterOld,importedModule,symbolFileFormat.system);
-		NEW(fingerprinterNew,module,symbolFileFormat.system);
+
+		NEW(fingerprinter,symbolFileFormat.system);
 		IF importedModule # NIL THEN
 			CompareScopes(module.moduleScope,importedModule.moduleScope);
 			IF importCache # NIL THEN SemanticChecker.RemoveModuleFromCache(importCache, importedModule) END;
