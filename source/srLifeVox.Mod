@@ -148,7 +148,7 @@ VAR
 		gen: INTEGER;
 		i:LONGINT;
 		BLUE, RED: Voxel;
-		CELL: srM5Space.cell;
+		Cell: srM5Space.cell;
 
 PROCEDURE &init*;
 BEGIN

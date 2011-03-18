@@ -6,7 +6,7 @@ IMPORT
 CONST
 	DEBUG = TRUE;
 	CR = 0DX; LF = 0AX;
-	PORT = 25;
+	Port = 25;
 
 	OK* = 0;
 	CONNECTIONERROR* = 1;
@@ -50,7 +50,7 @@ VAR
 BEGIN
 	(* start communication with server *)
 	NEW(smtp);
-	smtp.Open(server, thisHost, PORT, res);
+	smtp.Open(server, thisHost, Port, res);
 	IF res # SMTPClient.Ok THEN
 		KernelLog.String("Failure: it wasn't possible to connect to server: ");	KernelLog.String(server); KernelLog.Ln();
 		RETURN CONNECTIONERROR;

@@ -8,7 +8,7 @@ CONST
 
 	KEEPALIVE =   20 * 1000 * 1; 	(* ms *)
 
-	PORT = 143;
+	Port = 143;
 
 	(* Return value of Procecures *)
 	OK* = 0;
@@ -204,7 +204,7 @@ TYPE
 			preferences.UserName := IMAPUtilities.NewString(user);
 
 			r := 0;
-			NEW(c, host, PORT, r);
+			NEW(c, host, Port, r);
 
 			IF r # IMAP.OK THEN
 				NEW(buffer, 16);
