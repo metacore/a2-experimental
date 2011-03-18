@@ -1061,7 +1061,7 @@ TYPE
 				callingConvention: LONGINT;
 
 			BEGIN
-				visibility := SyntaxTree.Public+SyntaxTree.Protected+SyntaxTree.Internal; flags := {};
+				visibility := SyntaxTree.ReadOnly; flags := {};
 
 				IF tag <= 0 THEN (* TypeReference = number:RawNum(<0) *)
 					type := NewTypeReference(-tag);

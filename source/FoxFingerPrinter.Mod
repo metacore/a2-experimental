@@ -547,7 +547,9 @@ TYPE
 				ELSE HALT(200)
 				END;
 				TypeName(fp,x);
-				FPType(fp,x.arrayBase.resolved);
+				IF x.arrayBase # NIL THEN
+					FPType(fp,x.arrayBase.resolved);
+				END;
 				IF x.form = SyntaxTree.Static THEN FPNumber(fp,x.staticLength) END;
 				fingerprint.shallow := fp;
 				fingerprint.shallowAvailable := TRUE;
@@ -1057,18 +1059,22 @@ TYPE
 			fingerprint := x.fingerprint;
 
 			IF ~fingerprint.shallowAvailable THEN
+				IF Trace THEN TraceEnter("TypeDeclaration") END;
 				deep := SELF.deep;
 				SELF.deep := FALSE;
 				fp := 0;
 				FPNumber(fp, fpModeType);
 				FPName(fp,x.name);
+				IF Trace THEN TraceIndent; D.String("access="); D.Set(x.access); D.Ln;  END;
 				FPVisibility(fp, x.access);
+				
 				x.declaredType.Accept(SELF);
 				FPNumber(fp, SELF.fingerprint.shallow);
 				fingerprint.shallow := fp;
 				fingerprint.shallowAvailable := TRUE;
 				x.SetFingerPrint(fingerprint);
 				SELF.deep := deep;
+				IF Trace THEN TraceExit("TypeDeclaration",fingerprint) END;
 			END;
 			SELF.fingerprint := fingerprint
 		END VisitTypeDeclaration;

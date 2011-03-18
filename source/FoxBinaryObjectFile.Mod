@@ -1,7 +1,7 @@
 MODULE FoxBinaryObjectFile; (** AUTHOR "fof"; PURPOSE "Oberon Compiler Object File Writer"; *)
 
 IMPORT
-	Scanner := FoxScanner, SyntaxTree := FoxSyntaxTree, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker, FingerPrint := FoxFingerPrint, Sections := FoxSections,
+	Scanner := FoxScanner, SyntaxTree := FoxSyntaxTree, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker, FingerPrinter := FoxFingerPrinter, Sections := FoxSections,
 	Streams, D := Debugging, Files, SYSTEM,Strings, BinaryCode := FoxBinaryCode, KernelLog, Diagnostics, SymbolFileFormat := FoxBinarySymbolFile, Basic := FoxBasic, Options,
 	Formats := FoxFormats, IntermediateCode := FoxIntermediateCode, Machine
 	;
@@ -388,7 +388,7 @@ TYPE
 		numberVarConstLinks,numberLinks: LONGINT;
 		dataSize,constSize,codeSize,caseTableSize: LONGINT;
 		exTableLen,numberProcs,maxPtrs,typeDescSize: LONGINT; headerPos,endPos: LONGINT;
-		moduleScope: SyntaxTree.ModuleScope; fingerprinters: FingerPrint.FingerPrinterLookup;
+		moduleScope: SyntaxTree.ModuleScope; fingerprinter: FingerPrinter.FingerPrinter;
 		const, code: ByteArray; procedureFixupOffset : LONGINT;
 
 		PROCEDURE RawLIntAt(at: LONGINT; val: LONGINT);
@@ -941,11 +941,10 @@ TYPE
 		VAR numberExports,numberExportsPosition: LONGINT; constant: SyntaxTree.Constant;
 			variable: SyntaxTree.Variable; procedure : SyntaxTree.Procedure; typeDeclaration : SyntaxTree.TypeDeclaration;
 			typeNumber: LONGINT; name: ARRAY 256 OF CHAR;
-			fingerprinter: FingerPrint.FingerPrinter;
 
 			PROCEDURE ExportType(type: SyntaxTree.Type);
 			VAR destination: Sections.Section; ref: LONGINT; count: LONGINT; countPos: LONGINT;
-				variable: SyntaxTree.Variable; procedure: SyntaxTree.Procedure; fingerPrint: FingerPrint.FingerPrint; fingerprinter: FingerPrint.FingerPrinter;
+				variable: SyntaxTree.Variable; procedure: SyntaxTree.Procedure; fingerPrint: SyntaxTree.FingerPrint;
 				initialType: SyntaxTree.Type;
 			BEGIN
 				IF type = NIL THEN RETURN END; (* no type *)
@@ -964,7 +963,6 @@ TYPE
 				END;
 
 				IF (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).recordScope.ownerModule = module.module)  THEN
-					fingerprinter := fingerprinters.GetFingerPrinter(type.scope.ownerModule);
 					w.Char(ofEURecord);
 					destination := module.sections.FindBySymbol(type.typeDeclaration);
 
@@ -991,13 +989,13 @@ TYPE
 						ASSERT(fingerPrint.privateFP # 0); (* may not be zero by object file format: would be interpreted as end of section *)
 						ASSERT(fingerPrint.publicFP # 0); (* ^ ^ *)
 						*)
-						IF Trace THEN D.Str("export type fp "); D.Int(fingerPrint.privateFP,1); D.Str(","); D.Int(fingerPrint.publicFP,1); D.Ln END;
-						w.RawNum(fingerPrint.privateFP); w.RawNum(fingerPrint.publicFP);
+						IF Trace THEN D.Str("export type fp "); D.Int(fingerPrint.private,1); D.Str(","); D.Int(fingerPrint.public,1); D.Ln END;
+						w.RawNum(fingerPrint.private); w.RawNum(fingerPrint.public);
 						variable := type(SyntaxTree.RecordType).recordScope.firstVariable;
 						WHILE variable # NIL DO
 							IF variable.access * SyntaxTree.Public # {} THEN
 								fingerPrint := fingerprinter.SymbolFP(variable);
-								w.RawNum(fingerPrint.FP);
+								w.RawNum(fingerPrint.shallow);
 								ExportType(variable.type);
 								INC(count);
 							END;
@@ -1007,7 +1005,7 @@ TYPE
 						WHILE procedure # NIL DO
 							IF (procedure.access * SyntaxTree.Public # {}) & ~(procedure.isInline) THEN
 								fingerPrint := fingerprinter.SymbolFP(procedure);
-								w.RawNum(fingerPrint.FP);
+								w.RawNum(fingerPrint.shallow);
 								INC(count);
 							END;
 							procedure := procedure.nextProcedure;
@@ -1030,16 +1028,18 @@ TYPE
 				RETURN (s.offset);
 			END SymbolOffset;
 
-			PROCEDURE ExportSymbol(symbol: SyntaxTree.Symbol; offset: LONGINT;CONST prefix: ARRAY OF CHAR; fingerprinter: FingerPrint.FingerPrinter);
-			VAR fingerPrint: FingerPrint.FingerPrint; fp: LONGINT;
+			PROCEDURE ExportSymbol(symbol: SyntaxTree.Symbol; offset: LONGINT;CONST prefix: ARRAY OF CHAR);
+			VAR fingerPrint: SyntaxTree.FingerPrint; fp: LONGINT;
 			BEGIN
 
 				fingerPrint := fingerprinter.SymbolFP(symbol);
-				fp := fingerPrint.FP;
+				fp := fingerPrint.shallow;
 
+				(*
 				IF prefix # "" THEN (* make unique by object name prefix *)
 					FingerPrint.FPString(fp,prefix)
 				END;
+				*)
 
 				w.RawNum(fp);
 				(*! check for duplicate fingerprint *)
@@ -1057,7 +1057,7 @@ TYPE
 			END ExportSymbol;
 
 			PROCEDURE ExportMethods(typeDeclaration: SyntaxTree.TypeDeclaration);
-			VAR name: Scanner.StringType; type: SyntaxTree.Type;  fingerPrint: FingerPrint.FingerPrint; fingerprinter: FingerPrint.FingerPrinter;
+			VAR name: Scanner.StringType; type: SyntaxTree.Type;  fingerPrint: SyntaxTree.FingerPrint;
 			BEGIN
 				type := typeDeclaration.declaredType;
 				typeDeclaration.name.GetString(name);
@@ -1072,12 +1072,11 @@ TYPE
 					END;
 				END;
 				IF (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).recordScope.ownerModule = module.module)  THEN
-					fingerprinter := fingerprinters.GetFingerPrinter(type.scope.ownerModule);
 					fingerPrint := fingerprinter.TypeFP(type); (* make sure that fingerprint has traversed all methods ... *)
 					procedure := type(SyntaxTree.RecordType).recordScope.firstProcedure;
 					WHILE procedure # NIL DO
 						IF (procedure.access * SyntaxTree.Public # {}) THEN
-							ExportSymbol(procedure,SymbolOffset(procedure),name,fingerprinter);
+							ExportSymbol(procedure,SymbolOffset(procedure),name);
 							INC(numberExports);
 						END;
 						procedure := procedure.nextProcedure;
@@ -1087,7 +1086,6 @@ TYPE
 
 		BEGIN
 			w.Char(88X);
-			fingerprinter := fingerprinters.GetFingerPrinter(module.module);
 			numberExports := 0; typeNumber := 0;
 			numberExportsPosition := w.Pos();
 			w.RawLInt(numberExports);
@@ -1102,9 +1100,9 @@ TYPE
 						D.String("Constant:"); D.String(name); D.Ln;
 					END;
 					IF (~(constant.type IS SyntaxTree.BasicType)) THEN
-						ExportSymbol(constant,SymbolOffset(constant),"",fingerprinter);
+						ExportSymbol(constant,SymbolOffset(constant),"");
 					ELSE
-						ExportSymbol(constant,0,"",fingerprinter)
+						ExportSymbol(constant,0,"")
 					END;
 					INC(numberExports);
 				END;
@@ -1118,7 +1116,7 @@ TYPE
 						variable.name.GetString(name);
 						D.String("Variable:"); D.String(name); D.Ln;
 					END;
-					ExportSymbol(variable,SymbolOffset(variable),"",fingerprinter);
+					ExportSymbol(variable,SymbolOffset(variable),"");
 					ExportType(variable.type);
 					INC(numberExports);
 				END;
@@ -1132,7 +1130,7 @@ TYPE
 						typeDeclaration.name.GetString(name);
 						D.String("TypeDeclaration:"); D.String(name); D.Ln;
 					END;
-					ExportSymbol(typeDeclaration,0,"",fingerprinter);
+					ExportSymbol(typeDeclaration,0,"");
 					ExportType(typeDeclaration.declaredType);
 					INC(numberExports);
 				END;
@@ -1146,7 +1144,7 @@ TYPE
 						procedure.name.GetString(name);
 						D.String("Procedure:"); D.String(name); D.Ln;
 					END;
-					ExportSymbol(procedure,SymbolOffset(procedure),"",fingerprinter);
+					ExportSymbol(procedure,SymbolOffset(procedure),"");
 					INC(numberExports);
 				END;
 				procedure := procedure.nextProcedure;
@@ -1187,10 +1185,10 @@ TYPE
 		PROCEDURE Use;
 		VAR import: SyntaxTree.Import; name: Scanner.StringType; importedModule: SyntaxTree.Module; s: Sections.Section;
 			constant: SyntaxTree.Constant; variable: SyntaxTree.Variable; typeDeclaration: SyntaxTree.TypeDeclaration; procedure: SyntaxTree.Procedure;
-			type: SyntaxTree.Type; fingerprinter: FingerPrint.FingerPrinter; fixup: Fixup; fixups: LONGINT;
+			type: SyntaxTree.Type;fixup: Fixup; fixups: LONGINT;
 
 			PROCEDURE UseEntry(module: SyntaxTree.Module; symbol: SyntaxTree.Symbol; offsetInBytes: LONGINT; CONST prefix: ARRAY OF CHAR);
-			VAR name,suffix: Scanner.StringType; fingerPrint: FingerPrint.FingerPrint; fp: LONGINT;
+			VAR name,suffix: Scanner.StringType; fingerPrint: SyntaxTree.FingerPrint; fp: LONGINT;
 			BEGIN
 				symbol.name.GetString(suffix);
 				IF prefix # "" THEN
@@ -1199,14 +1197,16 @@ TYPE
 					name := suffix;
 				END;
 				fingerPrint := fingerprinter.SymbolFP(symbol);
-				fp := fingerPrint.FP;
+				fp := fingerPrint.shallow;
 
+				(*
 				IF prefix # "" THEN FingerPrint.FPString(fp,prefix) END;
+				*)
 
 				w.RawNum(fp);
 				IF Trace THEN
 					D.Str("FoxObjectFile.Use ");
-					D.Str(name);
+					D.Str(suffix);
 					D.Str(" : "); D.Hex(SYSTEM.VAL(LONGINT,symbol),-8); D.Str(" : ");
 					D.Hex(fp,-8);
 					D.String(" @ ");
@@ -1219,7 +1219,7 @@ TYPE
 			END UseEntry;
 
 			PROCEDURE UseType(type: SyntaxTree.Type);
-			VAR t: Sections.Section; fingerPrint: FingerPrint.FingerPrint; name: SyntaxTree.String;
+			VAR t: Sections.Section; fingerPrint: SyntaxTree.FingerPrint; name: SyntaxTree.String;
 			BEGIN
 				type := type.resolved;
 				LOOP
@@ -1242,8 +1242,8 @@ TYPE
 								(* privateFP never set in old compiler *)
 								(*! publicFP used ?? *)
 
-								IF Trace THEN D.Str("UseTypeFP:"); D.Str(name); D.Str(":"); D.Int(fingerPrint.publicFP,1); D.Ln END;
-								w.RawNum(fingerPrint.publicFP);
+								IF Trace THEN D.Str("UseTypeFP:"); D.Str(name); D.Str(":"); D.Int(fingerPrint.public,1); D.Ln END;
+								w.RawNum(fingerPrint.public);
 								w.RawString("@");
 
 								w.Char(ofEUEnd);
@@ -1257,7 +1257,7 @@ TYPE
 			END UseType;
 
 			PROCEDURE UseMethods(typeDeclaration: SyntaxTree.TypeDeclaration);
-			VAR procedure: SyntaxTree.Procedure; s: Sections.Section; prefix: Scanner.StringType; fingerPrint: FingerPrint.FingerPrint; type: SyntaxTree.Type;
+			VAR procedure: SyntaxTree.Procedure; s: Sections.Section; prefix: Scanner.StringType; fingerPrint: SyntaxTree.FingerPrint; type: SyntaxTree.Type;
 				fixup: Fixup; fixups: LONGINT;
 			BEGIN
 				typeDeclaration.name.GetString(prefix);
@@ -1299,7 +1299,6 @@ TYPE
 					ASSERT(importedModule # module.system.systemModule[0]);
 					ASSERT(importedModule # module.system.systemModule[1]);
 
-					fingerprinter := fingerprinters.GetFingerPrinter(importedModule);
 					Global.ModuleFileName(import.module.name,import.module.context,name);
 					w.RawString(name);
 					IF Trace THEN
@@ -1377,11 +1376,10 @@ TYPE
 			numberPointers: LONGINT;
 			destination: Sections.Section;
 			procedure: Sections.Section;
-			fp: FingerPrint.FingerPrint;
+			fp: SyntaxTree.FingerPrint;
 			m: SyntaxTree.Procedure;
 			i: LONGINT;
 			typeDeclaration: SyntaxTree.TypeDeclaration;
-			fingerprinter: FingerPrint.FingerPrinter;
 
 		BEGIN
 			name := "@@";
@@ -1409,9 +1407,8 @@ TYPE
 					destination := module.sections.FindBySymbol(base.typeDeclaration);
 					baseEntry := (destination.offset );  (* destination must be non-nil *)
 				ELSIF (typeDeclaration # NIL) THEN
-					fingerprinter := fingerprinters.GetFingerPrinter(typeDeclaration.scope.ownerModule);
 					fp := fingerprinter.SymbolFP(typeDeclaration);
-					baseEntry := fp.FP;
+					baseEntry := fp.shallow;
 				ELSE
 					HALT(100);
 				(* ELSE
@@ -2011,7 +2008,7 @@ TYPE
 
 		IF Trace THEN module.Dump(D.Log);D.Ln; D.Update; END;
 
-		NEW(fingerprinters,module.system);
+		NEW(fingerprinter,module.system);
 		(* module.module.name.GetString(moduleName);*)
 		Global.ModuleFileName(module.module.name,module.module.context,moduleName);
 
