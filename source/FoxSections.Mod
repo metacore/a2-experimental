@@ -135,7 +135,7 @@ TYPE
 				INC(i); ch := str[i];
 			END;
 			IF w IS Basic.Writer THEN w(Basic.Writer).EndComment; w(Basic.Writer).DecIndent;END;
-			w.Update;
+			(*w.Update;*)
 		END Dump;
 
 	END Comment;
@@ -164,7 +164,7 @@ TYPE
 		PROCEDURE Ln;
 		BEGIN
 			Ln^;
-			Update;
+			(*Update;*)
 		END Ln;
 
 		PROCEDURE Reset*;

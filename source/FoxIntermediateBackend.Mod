@@ -912,7 +912,7 @@ TYPE
 			IF commentPrintout # NIL THEN
 				commentPrintout.Statement(x);
 				dump.Ln;
-				dump.Update;
+				(*dump.Update;*)
 			END;
 			x.Accept(SELF);
 			CheckRegistersFree();
@@ -7553,7 +7553,7 @@ TYPE
 					IF (fixup.symbol = in) & (fixup.mode = BinaryCode.Relative) THEN (* local relative fixup *)
 						IF dump # NIL THEN
 							dump.String("local fixup "); dump.Int(fixup.offset,1); dump.String(" <-- ");
-							fixup.Dump(dump); dump.Ln; dump.Update;
+							fixup.Dump(dump); dump.Ln; (*dump.Update;*)
 						END;
 						IF fixup.symbolOffset # 0 THEN
 							dest := fixup.symbolOffset;
@@ -7565,7 +7565,7 @@ TYPE
 						IF dump # NIL THEN
 							dump.String("local fixup resolved: ");
 							dump.Int(fixup.offset,1); dump.String(" <-- ");
-							fixup.Dump(dump); dump.Ln; dump.Update;
+							fixup.Dump(dump); dump.Ln; (*dump.Update;*)
 						END;
 						IF ~out.ApplyFixup(fixup) THEN
 							COPY("fixup out of range: ", msg);
@@ -7651,7 +7651,7 @@ TYPE
 			(* CheckRegistersFree();*)
 			ResolveLocalFixups;
 			IF dump # NIL THEN
-				dump.Update
+				(*dump.Update*)
 			END;
 			IF allocateData & (in.type IN {Sections.VarSection, Sections.ConstSection}) THEN
 				INC(dataAddress, out.pc);
@@ -7805,6 +7805,7 @@ TYPE
 					~ticket.spilled & (ticket.register # None)
 					& ((ticket.type.form = IntermediateCode.Float) = (type.form = IntermediateCode.Float)) (* don't spill float when int is needed *)
 					& (~best OR (ticket.type.sizeInBits = type.sizeInBits))
+					& (~physicalRegisters.Reserved(ticket.register))
 					(*! check that register is not in use in current instruction*)
 			END Spillable;
 		BEGIN
@@ -8487,7 +8488,8 @@ TYPE
 			PROCEDURE BaseType(arrayOf: BOOLEAN; type: SyntaxTree.Type);
 			VAR char: CHAR;
 			BEGIN
-				IF type  IS SyntaxTree.ByteType THEN char := rfByte
+				IF type = NIL THEN char := rfLongint
+				ELSIF type  IS SyntaxTree.ByteType THEN char := rfByte
 				ELSIF type IS SyntaxTree.BooleanType THEN char := rfBoolean
 				ELSIF type IS SyntaxTree.CharacterType THEN
 					IF type.sizeInBits = 8 THEN char := rfChar8
@@ -8566,7 +8568,8 @@ TYPE
 
 			PROCEDURE MathArrayType(type: SyntaxTree.MathArrayType);
 			BEGIN
-				IF type.arrayBase.resolved IS SyntaxTree.MathArrayType THEN
+				IF type.arrayBase = NIL THEN BaseType(TRUE,NIL)
+				ELSIF type.arrayBase.resolved IS SyntaxTree.MathArrayType THEN
 					MetaChar(module,section,CHR(ORD(rfPointer)+ORD(rfArrayFlag)));
 					INC(size);
 				ELSE BaseType(TRUE,type.arrayBase.resolved)

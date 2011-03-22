@@ -33,10 +33,10 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 						test := sections.first;
 						WHILE test # section DO
 							IF test(IntermediateCode.Section).resolved.identifier.fingerprint = section(IntermediateCode.Section).resolved.identifier.fingerprint THEN
-								diagnostics.Error(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid,"duplicate fingerPrints");
+								diagnostics.Warning(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid,"duplicate fingerPrints");
 								KernelLog.String(section(IntermediateCode.Section).resolved.identifier.name); KernelLog.String(",");
 								KernelLog.String(test(IntermediateCode.Section).resolved.identifier.name); KernelLog.Ln;
-								RETURN FALSE
+								(*RETURN FALSE*)
 							END;
 							test := test.nextSection;
 						END;

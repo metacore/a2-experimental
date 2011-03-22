@@ -468,7 +468,9 @@ TYPE
 			DumpString(operand.string^);
 		|ModeNumber: w.Int(SHORT(operand.intValue),1);
 		END;
+		(*
 		w.Update();
+		*)
 		CheckOperand(operand);
 	END DumpOperand;
 
