@@ -98,14 +98,18 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 END ObjectFileFormat;
 
 PROCEDURE GetFingerPrint (section: Sections.Section; fingerPrinter: FingerPrinter.FingerPrinter): LONGINT;
-VAR fingerPrint: SyntaxTree.FingerPrint;
+VAR fingerPrint: SyntaxTree.FingerPrint; fp: LONGINT;
 BEGIN
 	IF (section.symbol = NIL) OR (section.symbol.scope = NIL) THEN
-		RETURN 0
+		fp := 0;
+		IF (section(IntermediateCode.Section).resolved # NIL) THEN
+			FingerPrinter.FPString(fp, section(IntermediateCode.Section).resolved.identifier.name);
+		END;
 	ELSE
 		fingerPrint := fingerPrinter.SymbolFP (section.symbol);
-		RETURN fingerPrint.shallow;
-	END
+		fp := fingerPrint.shallow;
+	END;
+	RETURN fp
 END GetFingerPrint;
 
 PROCEDURE UpdateFixups (section: BinaryCode.Section;  fingerPrinter: FingerPrinter.FingerPrinter);
