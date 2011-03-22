@@ -1595,6 +1595,7 @@ TYPE
 
 		PROCEDURE PrepareOp3(CONST instruction: IntermediateCode.Instruction;part: LONGINT; VAR left, right: Assembler.Operand; VAR ticket: Ticket);
 		VAR vop1,vop2, vop3: IntermediateCode.Operand; op1,op2,op3,temp: Assembler.Operand; type: IntermediateCode.Type;
+			t: Ticket;
 		BEGIN
 			ticket := NIL;
 			vop1 := instruction.op1; vop2 := instruction.op2; vop3 := instruction.op3;
@@ -1607,13 +1608,22 @@ TYPE
 					(* same register *)
 					MakeOperand(vop1,part, op1,NIL);
 				ELSE
+				
 					MakeOperand(vop2,part, op2,NIL);
 					(*
 					ReleaseHint(op2.register);
 					*)
+					
 					MakeOperand(vop1,part, op1,NIL);
-
+										
+					
 					Mov(InstructionSet.opMOV,op1,op2);
+
+					t := virtualRegisters.Mapped(vop1.register,part);
+					IF (t # NIL) & (t.spilled) THEN
+						UnSpill(t); (* make sure this has not spilled *)
+						MakeOperand(vop1,part, op1,NIL);
+					END;
 				END;
 				left := op1; right := op3;
 			ELSIF IntermediateCode.OperandEquals(vop1,vop2) & (~IsMemoryOperand(vop1,part) OR ~IsMemoryOperand(vop3,part)) THEN
