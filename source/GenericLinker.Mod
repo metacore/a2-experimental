@@ -69,6 +69,11 @@ VAR
 		RETURN NIL
 	END ImportBlock;
 
+	PROCEDURE ExportBlock*(block: Block);
+	BEGIN
+		(* can be overwritten by implementers, for example for hashing the block *)
+	END ExportBlock;
+
 	PROCEDURE GetArrangement (block: Block): Arrangement;
 	BEGIN  IF ObjectFile.IsCode (block.type) THEN RETURN code; ELSE RETURN data; END;
 	END GetArrangement;
@@ -81,6 +86,7 @@ VAR
 		priority := GetPriority (block); current := firstBlock; previous := NIL;
 		WHILE (current # NIL) & (GetPriority (current) <= priority) DO previous := current; current := current.next; END;
 		IF previous # NIL THEN previous.next := block; ELSE firstBlock := block; END; block.next := current;
+		ExportBlock(block);
 	END AddSection;
 
 	PROCEDURE Resolve*;
