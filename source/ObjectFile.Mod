@@ -167,7 +167,7 @@ BEGIN
 	END;
 END CharacterToNibble;
 
-PROCEDURE WriteSection* (writer: Streams.Writer; CONST section: Section);
+PROCEDURE WriteSectionTextual (writer: Streams.Writer; CONST section: Section);
 CONST Separator = ' '; Tab = 09X;
 VAR i: LONGINT; size: Bits; bits: LONGINT;
 
@@ -259,9 +259,9 @@ BEGIN
 		END;
 	END;
 	writer.Ln;
-END WriteSection;
+END WriteSectionTextual;
 
-PROCEDURE ReadSection* (reader: Streams.Reader; VAR section: Section);
+PROCEDURE ReadSectionTextual (reader: Streams.Reader; VAR section: Section);
 VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
 
 	PROCEDURE ReadValueIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
@@ -351,7 +351,192 @@ BEGIN
 		END;
 		section.bits.SetBits (i, MIN (4, size - i), CharacterToNibble (char));
 	END;
+END ReadSectionTextual;
+
+PROCEDURE WriteSectionBinary (writer: Streams.Writer; CONST section: Section);
+VAR i: LONGINT; size: Bits; bits: LONGINT;
+
+	PROCEDURE WriteValueIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
+	BEGIN
+		writer.RawString (identifiers[value]);
+	END WriteValueIdentifier;
+
+	PROCEDURE WritePattern (CONST pattern: FixupPattern);
+	BEGIN
+		writer.RawLInt (pattern.offset);
+		writer.RawLInt (pattern.bits);
+	END WritePattern;
+
+	PROCEDURE WriteIdentifier(CONST identifier: Identifier);
+	BEGIN
+		writer.RawString (identifier.name);
+		writer.RawLInt (identifier.fingerprint);
+	END WriteIdentifier;
+
+	PROCEDURE WritePatch(CONST patch: Patch);
+	VAR i: LONGINT;
+	BEGIN
+		WriteValueIdentifier (patch.mode, modes);
+		writer.RawLInt (patch.displacement);
+		writer.RawLInt (patch.scale);
+		writer.RawLInt (patch.patterns);
+		FOR i := 0 TO patch.patterns - 1 DO
+			WritePattern (patch.pattern[i]);
+		END;
+		writer.RawLInt (patch.offsets);
+		FOR i := 0 TO patch.offsets - 1 DO
+			writer.RawLInt (patch.offset[i]);
+		END;
+	END WritePatch;
+
+	PROCEDURE WriteFixup (CONST fixup: Fixup);
+	VAR i: LONGINT;
+	BEGIN
+		WriteIdentifier(fixup.identifier);
+		writer.RawLInt(fixup.patches);
+		FOR i := 0 TO fixup.patches-1 DO
+			WritePatch(fixup.patch[i]);
+		END;
+	END WriteFixup;
+
+BEGIN
+	IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
+	WriteValueIdentifier (section.type, types);
+	WriteIdentifier(section.identifier);
+	writer.RawLInt (section.unit);
+	IF section.fixed THEN WriteValueIdentifier(Fixed,relocatabilities) ELSE WriteValueIdentifier(Aligned,relocatabilities) END;
+	writer.RawLInt (section.alignment);
+	writer.RawLInt (section.fixups);
+	size := section.bits.GetSize ();
+	writer.RawLInt (size DIV section.unit);
+	ASSERT(size MOD section.unit = 0);
+	FOR i := 0 TO section.fixups - 1 DO
+		WriteFixup (section.fixup[i]);
+	END;
+	i := 0; bits := 0;
+	WHILE (i < size) & (bits = 0) DO
+		bits := section.bits.GetBits(i, MIN(32, size-i));
+		INC(i,32);
+	END;
+	IF (bits = 0) & (size > 0) THEN
+		writer.Char('Z');
+	ELSE
+		writer.Char('N');
+		FOR i := 0 TO size - 1 BY 32 DO
+			writer.RawLInt (section.bits.GetBits (i, MIN (32, size - i)));
+		END;
+	END;
+	writer.Ln;
+END WriteSectionBinary;
+
+PROCEDURE ReadSectionBinary (reader: Streams.Reader; VAR section: Section);
+VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER; num: LONGINT;
+
+	PROCEDURE ReadValueIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
+	VAR identifier: ARRAY 10 OF CHAR;
+	BEGIN
+		value := 0;
+		reader.RawString (identifier);
+		WHILE (value # LEN (identifiers)) & (identifier # identifiers[value]) DO INC (value); END;
+		IF value = LEN (identifiers) THEN reader.res := Streams.FormatError; END;
+	END ReadValueIdentifier;
+
+	PROCEDURE ReadPattern (VAR pattern: FixupPattern);
+	BEGIN
+		reader.RawLInt (pattern.offset);
+		reader.RawLInt (pattern.bits);
+	END ReadPattern;
+
+	PROCEDURE ReadIdentifier(VAR identifier: Identifier);
+	BEGIN
+		 reader.RawString (identifier.name);
+		 reader.RawLInt (identifier.fingerprint);
+	END ReadIdentifier;
+
+	PROCEDURE ReadPatch(VAR patch: Patch);
+	VAR i: LONGINT;
+	BEGIN
+		ReadValueIdentifier (patch.mode, modes);
+		reader.RawLInt (patch.displacement);
+		reader.RawLInt (patch.scale);
+		reader.RawLInt (patch.patterns);
+
+		IF (patch.pattern = NIL) OR (LEN (patch.pattern) < patch.patterns) THEN
+			NEW (patch.pattern, patch.patterns);
+		END;
+		FOR i := 0 TO patch.patterns - 1 DO
+			ReadPattern (patch.pattern[i]);
+		END;
+		reader.RawLInt(patch.offsets);
+		IF (patch.offset = NIL) OR (LEN(patch.offset) < patch.offsets) THEN
+			NEW(patch.offset, patch.offsets);
+		END;
+		FOR i := 0 TO patch.offsets-1 DO
+			 reader.RawLInt (patch.offset[i]);
+		END;
+	END ReadPatch;
+
+	PROCEDURE ReadFixup (VAR fixup: Fixup);
+	VAR i: LONGINT;
+	BEGIN
+		ReadIdentifier (fixup.identifier);
+		reader.RawLInt (fixup.patches);
+		IF (fixup.patch = NIL) OR (LEN (fixup.patch) < fixup.patches) THEN
+			NEW (fixup.patch, fixup.patches);
+		END;
+		FOR i := 0 TO fixup.patches - 1 DO
+			ReadPatch (fixup.patch[i]);
+		END;
+	END ReadFixup;
+
+BEGIN
+	ReadValueIdentifier (section.type, types);
+	ReadIdentifier (section.identifier);
+	reader.RawLInt (section.unit);
+	ReadValueIdentifier(relocatibility, relocatabilities);
+	section.fixed := relocatibility = Fixed;
+	reader.RawLInt (section.alignment);
+	reader.RawLInt (section.fixups);
+	reader.RawLInt (size); size := size * section.unit;
+	IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
+		NEW (section.fixup, section.fixups);
+	END;
+	FOR i := 0 TO section.fixups - 1 DO
+		ReadFixup (section.fixup[i]);
+	END;
+	IF section.bits # NIL THEN
+		section.bits.Resize (size);
+	ELSE
+		NEW (section.bits, size);
+	END;
+	reader.Char (char);
+	IF char = 'Z' THEN section.bits.Zero
+	ELSE
+		ASSERT(char ='N');
+		FOR i := 0 TO size - 1 BY 32 DO
+			reader.RawLInt (num);
+			section.bits.SetBits (i, MIN (32, size - i), num);
+		END;
+	END;
+END ReadSectionBinary;
+
+PROCEDURE ReadSection*(reader: Streams.Reader; VAR section: Section; binary: BOOLEAN);
+BEGIN
+	IF binary THEN
+		ReadSectionBinary(reader,section)
+	ELSE
+		ReadSectionTextual(reader,section);
+	END
 END ReadSection;
+
+PROCEDURE WriteSection*(writer: Streams.Writer; CONST section: Section; binary: BOOLEAN);
+BEGIN
+	IF binary THEN
+		WriteSectionBinary(writer,section)
+	ELSE
+		WriteSectionTextual(writer,section)
+	END
+END WriteSection;
 
 PROCEDURE SetFixups*(VAR section: Section; fixups: LONGINT; fixup: Fixups);
 BEGIN

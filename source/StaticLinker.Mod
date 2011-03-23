@@ -50,7 +50,7 @@ BEGIN
 	file := Files.Old (fileName);
 	IF file = NIL THEN linker.Error (fileName, "failed to open file"); RETURN; END;
 	Files.OpenReader (reader, file, 0);
-	GenericLinker.Process (reader, linker);
+	GenericLinker.Process (reader, linker) ;
 	IF reader.res # Files.Ok THEN linker.Error (fileName, "failed to parse"); END;
 END ReadObjectFile;
 

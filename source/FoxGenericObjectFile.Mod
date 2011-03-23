@@ -4,9 +4,10 @@ IMPORT
 	Formats := FoxFormats, Sections := FoxSections, IntermediateCode := FoxIntermediateCode,
 	Global := FoxGlobal, SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
 	FingerPrinter := FoxFingerPrinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := FoxTextualSymbolFile, KernelLog;
+CONST version=0;
 
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
-	VAR path, extension: Files.FileName;
+	VAR path, extension: Files.FileName; binary: BOOLEAN;
 
 		PROCEDURE Export* (module: Formats.GeneratedModule; symbolFileFormat: Formats.SymbolFileFormat): BOOLEAN;
 		VAR moduleName: SyntaxTree.String; fileName: Files.FileName; file: Files.File; writer: Files.Writer; fingerPrinter: FingerPrinter.FingerPrinter;
@@ -20,7 +21,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				END;
 				section.resolved.identifier.fingerprint := GetFingerPrint (section, fingerPrinter);
 				UpdateFixups (section.resolved, fingerPrinter);
-				ObjectFile.WriteSection (writer, section.resolved^);
+				ObjectFile.WriteSection(writer,section.resolved^,binary)
 			END ExportSection;
 
 			PROCEDURE ExportSections (sections: Sections.SectionList): BOOLEAN;
@@ -46,8 +47,18 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 					RETURN TRUE
 			END ExportSections;
 
+			PROCEDURE WriteHeader;
+			BEGIN
+				IF binary THEN writer.String("FoxOFB");
+				ELSE writer.String("FoxOFT");
+				END;
+				writer.Char(' ');
+				writer.Char('v'); writer.Int(version,0); writer.Char("."); writer.Char(0DX);
+			END WriteHeader;
+
 			PROCEDURE ExportModule (module: Sections.Module): BOOLEAN;
 			BEGIN
+				WriteHeader();
 				RETURN ExportSections (module.sections) &
 				ExportSections (module.caseTables) &
 				ExportSections (module.systemCalls);
@@ -83,12 +94,14 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		BEGIN
 			options.Add(0X,"path",Options.String);
 			options.Add(0X,"objectFileExtension",Options.String);
+			options.Add(0X,"binaryObjectFile",Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions* (options: Options.Options);
 		BEGIN
 			IF ~options.GetString("path",extension) THEN path := ""; END;
 			IF ~options.GetString("objectFileExtension",extension) THEN extension := ObjectFile.DefaultExtension; END;
+			binary := options.GetFlag("binaryObjectFile");
 		END GetOptions;
 
 		PROCEDURE DefaultSymbolFileFormat(): Formats.SymbolFileFormat;

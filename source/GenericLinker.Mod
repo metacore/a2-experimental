@@ -247,10 +247,25 @@ BEGIN
 END GetPriority;
 
 PROCEDURE Process* (reader: Streams.Reader; linker: Linker);
-VAR section: ObjectFile.Section;
+VAR section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOOLEAN;
+
+	PROCEDURE Header;
+	VAR ch: CHAR; version: LONGINT;
+	BEGIN
+		reader.String(string);
+		binary := string="FoxOFB";
+		IF ~binary THEN ASSERT(string="FoxOFT") END;
+		reader.SkipWhitespace;
+		reader.Char(ch); ASSERT(ch='v');
+		reader.Int(version,FALSE);
+		reader.Char(ch); ASSERT(ch='.');
+		reader.Char(ch);
+	END Header;
+
 BEGIN
+	Header;
 	WHILE reader.Peek () # 0X DO
-		ObjectFile.ReadSection (reader, section);
+		ObjectFile.ReadSection (reader, section,binary);
 		reader.SkipWhitespace;
 		IF reader.res = Streams.Ok THEN linker.AddSection (section); END;
 	END;
