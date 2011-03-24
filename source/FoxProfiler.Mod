@@ -3,7 +3,8 @@ MODULE FoxProfiler; (** AUTHOR "fof"; PURPOSE "minimal implementation of a compi
 IMPORT KernelLog,Objects,Machine,SYSTEM,Streams,Kernel,Commands;
 
 CONST
-	Trace=FALSE;
+	TraceAdd=FALSE;
+	TraceEnter=FALSE;
 	MaxModules=1024;
 	MaxProcedures=1024;
 	MaxProcesses=1024;
@@ -40,7 +41,7 @@ TYPE
 
 		PROCEDURE Enter(moduleId, procedureId: LONGINT; enterTime: HUGEINT);
 		BEGIN
-			IF Trace THEN log.String("stack position "); log.Int(stackPosition,1); log.Ln; END;
+			IF TraceEnter THEN log.String("stack position "); log.Int(stackPosition,1); log.Ln; END;
 			IF stackPosition < MaxStackSize THEN
 				startTime[stackPosition] := enterTime;
 				correcture[stackPosition] := Machine.GetTimer()-enterTime;
@@ -63,7 +64,7 @@ TYPE
 					INC(correcture[stackPosition-1], Machine.GetTimer()-startTime[stackPosition]);
 				END;
 			END;
-			IF Trace THEN log.String("stack position "); log.Int(stackPosition,1); log.Ln; END;
+			IF TraceEnter THEN log.String("stack position "); log.Int(stackPosition,1); log.Ln; END;
 		END Exit;
 
 	END Process;
@@ -144,7 +145,7 @@ VAR
 
 	PROCEDURE AddModule*(VAR moduleId: LONGINT; procedures: LONGINT; CONST name: ARRAY OF CHAR);
 	BEGIN{EXCLUSIVE}
-		IF Trace THEN
+		IF TraceAdd THEN
 			log.String("Add Module: "); log.String(name); log.String(", #procs: "); log.Int(procedures,1);
 			log.String(", id: "); log.Int(numberModules,1); log.Ln; log.Update;
 		END;
@@ -154,7 +155,7 @@ VAR
 
 	PROCEDURE AddProcedure*(moduleId, procedureId: LONGINT; CONST name: ARRAY OF CHAR);
 	BEGIN
-		IF Trace THEN
+		IF TraceAdd THEN
 			log.String("Add procedure: "); log.String(name); log.String(": "); log.Int(moduleId,1); log.String(","); log.Int(procedureId,1); log.Ln; log.Update;
 		END;
 		COPY(name,modules[moduleId,procedureId]);
@@ -164,7 +165,7 @@ VAR
 	VAR time: HUGEINT; p: Process;
 	BEGIN
 		time:= Machine.GetTimer();
-		IF Trace THEN log.String("Enter procedure: "); log.Int(moduleId,1); log.String(", "); log.Int(procedureId,1); log.Ln; log.Update 	END;
+		IF TraceEnter THEN log.String("Enter procedure: "); log.Int(moduleId,1); log.String(", "); log.Int(procedureId,1); log.Ln; log.Update 	END;
 		p := GetProcess();
 		p.Enter(moduleId,procedureId,time);
 	END EnterProcedure;
@@ -173,7 +174,7 @@ VAR
 	VAR time: HUGEINT; p: Process;
 	BEGIN
 		time:= Machine.GetTimer();
-		IF Trace THEN log.String("Exit procedure: "); log.Int(moduleId,1); log.String(", "); log.Int(procedureId,1); log.Ln; log.Update END;
+		IF TraceEnter THEN log.String("Exit procedure: "); log.Int(moduleId,1); log.String(", "); log.Int(procedureId,1); log.Ln; log.Update END;
 		p := GetProcess();
 		p.Exit(moduleId, procedureId, time);
 	END ExitProcedure;
@@ -223,7 +224,7 @@ VAR
 		VAR i: LONGINT;
 		BEGIN
 			i := 0;
-			WHILE (i<chars) & (string[i] # 0X) DO
+			WHILE (i<LEN(string)) & (i<chars) & (string[i] # 0X) DO
 				log.Char(string[i]);INC(i);
 			END;
 			WHILE(i<chars) DO
@@ -295,7 +296,7 @@ VAR
 			log.Float(records[i].time / frequency,12);
 			Percent(records[i].time / time);
 			log.Char(9X);
-			log.Float(records[i].brut / frequency,12); 
+			log.Float(records[i].brut / frequency,12);
 			Percent(records[i].brut / brut);
 			log.Char(9X);
 			log.Float(records[i].brut / frequency / records[i].calls,10);
@@ -336,7 +337,7 @@ VAR
 
 	PROCEDURE Init;
 	VAR i: LONGINT;
-	BEGIN
+	BEGIN{EXCLUSIVE}
 		FOR i := 0 TO LEN(modules)-1 DO	modules[i] := NIL	END;
 		FOR i := 0 TO LEN(table)-1 DO table[i].used := FALSE END;
 		numberModules := 0;
@@ -346,7 +347,7 @@ VAR
 BEGIN
 	NEW(log,KernelLog.Send,1024*1024);
 		(*
-Streams.OpenWriter( log, KernelLog.Send ); *) Calibrate;  Init;
+Streams.OpenWriter( log, KernelLog.Send ); *) Init; Calibrate;
 END FoxProfiler.
 
 WMUtilities.Call --font=Courier FoxProfiler.Report ~
@@ -358,4 +359,4 @@ WMUtilities.Call --font=Courier FoxProfiler.Report brut ~
 Compiler.Compile --profile TuringCoatWnd.Mod ~
 TuringCoatWnd.Open
 
-SystemTools.Free TuringCoatWnd FoxProfiler ~ 
+SystemTools.Free TuringCoatWnd FoxProfiler ~
