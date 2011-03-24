@@ -151,7 +151,7 @@ TYPE
 		END SetFinally;
 
 		PROCEDURE InitArray;
-		CONST MinInstructions = 128;
+		CONST MinInstructions = 256;
 		BEGIN
 			IF instructions = NIL THEN NEW(instructions, MinInstructions); END;
 			pc := 0;

@@ -616,14 +616,14 @@ PROCEDURE AddFixup*(VAR fixups: LONGINT; VAR fixup: Fixups; CONST name: ARRAY OF
 VAR i: LONGINT; newFixups: LONGINT; newFixup: Fixups;
 BEGIN
 	FOR i := 0 TO fixups-1 DO
-		IF (name = fixup[i].identifier.name) & (fixup[i].identifier.fingerprint = fingerprint) THEN
+		IF (fixup[i].identifier.fingerprint = fingerprint) & (name = fixup[i].identifier.name) THEN
 			AddPatch(fixup[i].patches, fixup[i].patch, mode, displacement, scale, patterns, pattern, offset);
 			RETURN
 		END;
 	END;
 	newFixups := fixups+1;
 	IF (fixup = NIL) OR (LEN(fixup) < newFixups) THEN
-		NEW(newFixup, 2*newFixups);
+		NEW(newFixup, MAX(2*newFixups,32));
 		FOR i := 0 TO fixups-1 DO
 			newFixup[i] := fixup[i];
 			(*CopyFixup(fixup[i], newFixup[i]);*)

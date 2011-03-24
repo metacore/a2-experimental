@@ -1034,13 +1034,14 @@ TYPE
 				UnmapTicket(ticket);
 				ticket := tickets.live
 			END;
-
+			(*
 			FOR i := 0 TO physicalRegisters.NumberRegisters()-1 DO
 				IF physicalRegisters.Reserved(i) THEN
 					Error("register still reserved") ;
 					physicalRegisters.SetReserved(i,FALSE);
 				END;
 			END;
+			*)
 		END Generate;
 
 		(* enter procedure: generate PAF and clear stack *)

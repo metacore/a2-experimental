@@ -273,7 +273,7 @@ VAR
 			END;
 		END;
 		log.Char(0EX);
-		log.String("---  OCProfiler timing report ----"); log.Ln;
+		log.String("---  FoxProfiler timing report ----"); log.Ln;
 		log.String("processes= "); log.Int(numberProcesses,1); log.Ln;
 		String(80,"name"); log.Char(9X);
 		String(10,"calls"); log.Char(9X);
@@ -300,9 +300,9 @@ VAR
 			Percent(records[i].brut / brut);
 			log.Char(9X);
 			log.Float(records[i].brut / frequency / records[i].calls,10);
-			log.Ln; log.Update;
+			log.Ln; 
 		END;
-
+		log.Update;
 
 
 		FOR k := 0 TO numberProcesses-1 DO
