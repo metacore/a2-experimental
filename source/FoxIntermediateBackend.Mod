@@ -2540,8 +2540,9 @@ TYPE
 						(* for dynamic upper bounds: add a runtime check, which repaces the upper bound with the largest valid index
 						if it is 'MAX(LONGINT)' *)
 						IF ~IsIntegerImmediate(lastIndex, staticLastIndex) THEN
-							ReuseCopy(lastIndex, lastIndex);
-							ReleaseIntermediateOperand(lastIndex);
+							tmp := lastIndex;
+							ReuseCopy(lastIndex, tmp);
+							ReleaseIntermediateOperand(tmp);
 							skipLabel1 := NewLabel();
 							BrneL(skipLabel1, lastIndex, IntermediateCode.Immediate(sizeType, MAX(LONGINT)));
 							Emit(MovReplace(lastIndex, sourceLength.op)); (* make sure that no new register is allocated *)
