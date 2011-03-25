@@ -151,7 +151,7 @@ TYPE
 		END SetFinally;
 
 		PROCEDURE InitArray;
-		CONST MinInstructions = 256;
+		CONST MinInstructions = 8;
 		BEGIN
 			IF instructions = NIL THEN NEW(instructions, MinInstructions); END;
 			pc := 0;
@@ -189,7 +189,7 @@ TYPE
 				Assert((instruction.op1.mode # ModeRegister) OR (instruction.op1.offset = 0),"destination operand may not be register with nonzero offset");
 			END;
 			IF pc = LEN(instructions) THEN
-				NEW(new,2*LEN(instructions));
+				NEW(new,4*LEN(instructions));
 				SYSTEM.MOVE(SYSTEM.ADR(instructions[0]), SYSTEM.ADR(new[0]), LEN(instructions)*SYSTEM.SIZEOF(Instruction));
 				instructions := new;
 			END;
