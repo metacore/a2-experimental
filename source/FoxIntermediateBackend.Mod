@@ -414,7 +414,7 @@ TYPE
 			VAR this: SyntaxTree.Modifier; id: SyntaxTree.Identifier;
 			BEGIN
 				this := modifiers; id := SyntaxTree.NewIdentifier(name);
-				WHILE (this # NIL) & (this.identifier.name # id.name) DO
+				WHILE (this # NIL) & (this.identifier # id) DO
 					this := this.nextModifier;
 				END;
 				IF this # NIL THEN
@@ -1484,8 +1484,8 @@ TYPE
 			s: Scanner.StringType;
 			selfName, selfContext: SyntaxTree.String;
 		BEGIN
-			moduleScope.ownerModule.name.GetString(selfName);
-			moduleScope.ownerModule.context.GetString(selfContext);
+			moduleScope.ownerModule.GetName(selfName);
+			Basic.GetString(moduleScope.ownerModule.context,selfContext);
 			IF (moduleName = selfName) & (selfContext = "A2") THEN
 				module := moduleScope.ownerModule
 			ELSE
@@ -1572,7 +1572,7 @@ TYPE
 		PROCEDURE SysCall(nr: LONGINT);
 		VAR op: IntermediateCode.Operand; name: SyntaxTree.String; section: IntermediateCode.Section;
 		BEGIN
-			systemCalls[nr].name.GetString(name);
+			Basic.GetString(systemCalls[nr].name,name);
 			section := IntermediateCode.NewSection(module.systemCalls,Sections.CodeSection,name,systemCalls[nr],commentPrintout # NIL);
 			section.SetEntryNumber(nr);
 			IntermediateCode.InitAddress(op,addressType,section,0);
@@ -8535,7 +8535,7 @@ TYPE
 					(* imported unused record type *)
 					MetaChar(module,section,0X); (* nil type *)
 					INC(size);
-					type.typeDeclaration.name.GetString(name);
+					type.typeDeclaration.GetName(name);
 					(*
 					this happens when a symbol from a different module is used but the type desciptor is not necessary to be present in the current module
 					D.Str("Warning: Unreferenced record type encountered: "); D.String(name); D.String(" unused? "); D.Ln;
@@ -8614,7 +8614,7 @@ TYPE
 			BEGIN
 				IF indirect THEN MetaChar(module,section,rfIndirect) ELSE MetaChar(module,section,rfDirect) END;
 				INC(size);
-				variable.name.GetString(name);
+				variable.GetName(name);
 				Type(variable.type);
 				MetaLongint(module,section,(variable.offsetInBits DIV 8));
 				INC(size,4);
@@ -8627,11 +8627,11 @@ TYPE
 			BEGIN
 				IF indirect THEN MetaChar(module,section,rfIndirect) ELSE MetaChar(module,section,rfDirect) END;
 				INC(size);
-				variable.name.GetString(name);
+				variable.GetName(name);
 				Type(variable.type);
 				MetaLongint(module,section,(variable.offsetInBits DIV 8));
 				INC(size,4);
-				variable.name.GetString(name);
+				variable.GetName(name);
 				MetaString(module,section,name);
 				INC(size,Strings.Length(name)+1);
 			END WriteParameter;
@@ -8665,7 +8665,7 @@ TYPE
 			PROCEDURE DeclarationName(typeDeclaration: SyntaxTree.TypeDeclaration; VAR name: ARRAY OF CHAR);
 			BEGIN
 				IF typeDeclaration = NIL THEN COPY("@ANONYMOUS",name)
-				ELSE typeDeclaration.name.GetString(name)
+				ELSE typeDeclaration.GetName(name)
 				END;
 			END DeclarationName;
 
@@ -8677,7 +8677,7 @@ TYPE
 				 record: SyntaxTree.RecordType;  i: LONGINT;
 			BEGIN
 				procedure := s.symbol(SyntaxTree.Procedure); (*! check for variable or type symbol for object body *)
-				procedure.name.GetString(name);
+				procedure.GetName(name);
 				procedureType := procedure.type(SyntaxTree.ProcedureType);
 
 				MetaChar(module,section,0F9X);
@@ -8818,7 +8818,7 @@ TYPE
 					END;
 					typeDeclaration := type.typeDeclaration; (* must be non-nil *)
 					IF (typeDeclaration.scope = NIL) OR (typeDeclaration.scope.ownerModule = module.module) THEN
-						typeDeclaration.name.GetString(name);
+						typeDeclaration.GetName(name);
 						section := module.sections.FindBySymbol(type.typeDeclaration);
 					ELSE
 						Global.GetSymbolName(typeDeclaration,name);
@@ -8840,7 +8840,7 @@ TYPE
 				procedure := p.symbol(SyntaxTree.Procedure);
 				procedureType := procedure.type(SyntaxTree.ProcedureType);
 				IF (SyntaxTree.PublicRead IN procedure.access) & ~(procedure.isInline) & ~(procedureType.isDelegate) & GetProcedureAllowed() THEN
-					procedure.name.GetString(name);
+					procedure.GetName(name);
 					MetaName(module,source,name);
 					numberParameters := procedureType.numberParameters;
 					(* offset of type of first parameter *)

@@ -313,7 +313,7 @@ TYPE
 				binarySection := section(IntermediateCode.Section).resolved;
 				symbol := section.symbol;
 				IF symbol # NIL THEN
-					symbol.name.GetString(symbolName);
+					symbol.GetName(symbolName);
 					IF section.symbol = module.module.moduleScope.bodyProcedure THEN
 						section.SetOffset(0); INC(codeSize,binarySection.pc);
 					ELSIF symbolName = "@moduleSelf" THEN
@@ -330,7 +330,7 @@ TYPE
 				binarySection := section(IntermediateCode.Section).resolved;
 				symbol := section.symbol;
 				IF symbol # NIL THEN
-					symbol.name.GetString(symbolName);
+					symbol.GetName(symbolName);
 				ELSE symbolName := "";
 				END;
 
@@ -499,7 +499,7 @@ TYPE
 			WHILE p # NIL DO
 				IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).isInline THEN
 					fixups :=  GetFixups(module,p,fixup);
-					p.symbol.name.GetString(name); (*debugging*)
+					p.symbol.GetName(name); (*debugging*)
 					procedure := p.symbol(SyntaxTree.Procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
 					(* entry for public procedures and all methods *)
@@ -569,7 +569,7 @@ TYPE
 						type := type(SyntaxTree.PointerType).pointerBase.resolved;
 					END;
 					typeDeclaration := type.typeDeclaration; (* must be non-nil *)
-					typeDeclaration.name.GetString(name);
+					typeDeclaration.GetName(name);
 					section := module.sections.FindBySymbol(type.typeDeclaration);
 					w.RawNum((section.offset )); (* type descriptor section offset *)
 						IF Trace THEN
@@ -586,7 +586,7 @@ TYPE
 					procedure := p.symbol(SyntaxTree.Procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
 					IF (SyntaxTree.PublicRead IN procedure.access) & ~(procedure.isInline) & ~(procedureType.isDelegate) & GetProcedureAllowed() THEN
-						procedure.name.GetString(name);
+						procedure.GetName(name);
 						IF Trace THEN
 							D.Str("Command : "); D.Str(name); D.Str(" @ "); D.Int(p.offset ,1);
 						END;
@@ -820,9 +820,9 @@ TYPE
 				IF (fixup # NIL) THEN
 					IF Trace THEN
 						D.Str("Symbol:");
-						D.Str0(s.symbol.scope.ownerModule.name.name);
+						D.Str0(s.symbol.scope.ownerModule.name);
 						D.Str(".");
-						D.Str0(s.symbol.name.name); D.Ln;
+						D.Str0(s.symbol.name); D.Ln;
 					END;
 
 					s.SetEntryNumber(numberVarConstLinks);
@@ -1022,7 +1022,7 @@ TYPE
 				IF (symbol IS SyntaxTree.Procedure) & (symbol(SyntaxTree.Procedure).isInline) THEN
 					RETURN 0
 				END;
-				symbol.name.GetString(name); (* debugging *)
+				symbol.GetName(name); (* debugging *)
 				s := module.sections.FindBySymbol(symbol);
 				ASSERT(s#NIL);
 				RETURN (s.offset);
@@ -1046,7 +1046,7 @@ TYPE
 				w.RawNum(offset );
 
 				IF Trace THEN
-					symbol.name.GetString(name);
+					symbol.GetName(name);
 					D.Str("FoxObjectFile.Exports.ExportSymbol ");
 					IF prefix # "" THEN D.Str(prefix); D.Str(".") END;
 					D.Str(name);
@@ -1060,7 +1060,7 @@ TYPE
 			VAR name: Scanner.StringType; type: SyntaxTree.Type;  fingerPrint: SyntaxTree.FingerPrint;
 			BEGIN
 				type := typeDeclaration.declaredType;
-				typeDeclaration.name.GetString(name);
+				typeDeclaration.GetName(name);
 				type := type.resolved;
 				WHILE (type IS SyntaxTree.PointerType) OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.MathArrayType) DO
 					IF type IS SyntaxTree.PointerType THEN
@@ -1096,7 +1096,7 @@ TYPE
 			WHILE constant # NIL DO
 				IF (constant.access * SyntaxTree.Public # {})  THEN
 					IF Trace THEN
-						constant.name.GetString(name);
+						constant.GetName(name);
 						D.String("Constant:"); D.String(name); D.Ln;
 					END;
 					IF (~(constant.type IS SyntaxTree.BasicType)) THEN
@@ -1113,7 +1113,7 @@ TYPE
 			WHILE variable # NIL DO
 				IF variable.access * SyntaxTree.Public # {} THEN
 					IF Trace THEN
-						variable.name.GetString(name);
+						variable.GetName(name);
 						D.String("Variable:"); D.String(name); D.Ln;
 					END;
 					ExportSymbol(variable,SymbolOffset(variable),"");
@@ -1127,7 +1127,7 @@ TYPE
 			WHILE typeDeclaration # NIL DO
 				IF TRUE (* typeDeclaration.access * SyntaxTree.Public # {} *) THEN
 					IF Trace THEN
-						typeDeclaration.name.GetString(name);
+						typeDeclaration.GetName(name);
 						D.String("TypeDeclaration:"); D.String(name); D.Ln;
 					END;
 					ExportSymbol(typeDeclaration,0,"");
@@ -1141,7 +1141,7 @@ TYPE
 			WHILE procedure # NIL DO
 				IF (procedure.access* SyntaxTree.Public # {}) THEN
 					IF Trace THEN
-						procedure.name.GetString(name);
+						procedure.GetName(name);
 						D.String("Procedure:"); D.String(name); D.Ln;
 					END;
 					ExportSymbol(procedure,SymbolOffset(procedure),"");
@@ -1190,7 +1190,7 @@ TYPE
 			PROCEDURE UseEntry(module: SyntaxTree.Module; symbol: SyntaxTree.Symbol; offsetInBytes: LONGINT; CONST prefix: ARRAY OF CHAR);
 			VAR name,suffix: Scanner.StringType; fingerPrint: SyntaxTree.FingerPrint; fp: LONGINT;
 			BEGIN
-				symbol.name.GetString(suffix);
+				symbol.GetName(suffix);
 				IF prefix # "" THEN
 					COPY(prefix,name); Strings.Append(name,"."); Strings.Append(name,suffix);
 				ELSE
@@ -1232,7 +1232,7 @@ TYPE
 
 				IF type IS SyntaxTree.RecordType THEN
 					WITH type: SyntaxTree.RecordType DO
-						type.typeDeclaration.name.GetString(name); (* debugging *)
+						type.typeDeclaration.GetName(name); (* debugging *)
 						IF type.recordScope.ownerModule = importedModule THEN (* type belongs to currently processed module *)
 							t := module.sections.FindBySymbol(type.typeDeclaration);
 							IF (t # NIL) & (t.referenced) THEN
@@ -1260,7 +1260,7 @@ TYPE
 			VAR procedure: SyntaxTree.Procedure; s: Sections.Section; prefix: Scanner.StringType; fingerPrint: SyntaxTree.FingerPrint; type: SyntaxTree.Type;
 				fixup: Fixup; fixups: LONGINT;
 			BEGIN
-				typeDeclaration.name.GetString(prefix);
+				typeDeclaration.GetName(prefix);
 				type := typeDeclaration.declaredType.resolved;
 				LOOP
 					IF type IS SyntaxTree.PointerType THEN type := type(SyntaxTree.PointerType).pointerBase.resolved;
@@ -1384,7 +1384,7 @@ TYPE
 		BEGIN
 			name := "@@";
 			ASSERT(type.typeDeclaration # NIL);
-			type.typeDeclaration.name.GetString(name);
+			type.typeDeclaration.GetName(name);
 			size := module.system.SizeOf(type) DIV 8;
 			w.RawNum(size );
 			w.RawNum((d.offset )); (* type descriptor pointer address, patched by loader to type desciptor address *)
@@ -1448,7 +1448,7 @@ TYPE
 				IF ~(m.isInline) THEN
 					procedure := module.sections.FindBySymbol(m);
 
-					m.name.GetString(name);
+					m.GetName(name);
 
 					w.RawNum(procedure.symbol(SyntaxTree.Procedure).methodNumber);
 					w.RawNum(procedure.entryNumber);
@@ -1483,7 +1483,7 @@ TYPE
 				IF (t.symbol # NIL) & (t.symbol IS SyntaxTree.TypeDeclaration) THEN
 					typeDeclaration := t.symbol(SyntaxTree.TypeDeclaration);
 					type := typeDeclaration.declaredType;
-					typeDeclaration.name.GetString(name);
+					typeDeclaration.GetName(name);
 					IF type IS SyntaxTree.PointerType THEN
 						IF type(SyntaxTree.PointerType).pointerBase.resolved.typeDeclaration = typeDeclaration THEN (* avoid duplicate declarations *)
 							 type := type(SyntaxTree.PointerType).pointerBase.resolved;
@@ -1657,7 +1657,7 @@ TYPE
 				IF destination = NIL THEN
 					(* imported unused record type *)
 					w.Char(0X); (* nil type *)
-					type.typeDeclaration.name.GetString(name);
+					type.typeDeclaration.GetName(name);
 					(*
 					this happens when a symbol from a different module is used but the type desciptor is not necessary to be present in the current module
 					D.Str("Warning: Unreferenced record type encountered: "); D.String(name); D.String(" unused? "); D.Ln;
@@ -1768,7 +1768,7 @@ TYPE
 				VAR name: ARRAY 256 OF CHAR;
 			BEGIN
 				IF indirect THEN w.Char(rfIndirect) ELSE w.Char(rfDirect) END;
-				variable.name.GetString(name);
+				variable.GetName(name);
 				Type(variable.type);
 				w.RawNum((variable.offsetInBits DIV 8));
 				w.RawString(name);
@@ -1778,10 +1778,10 @@ TYPE
 			VAR name: ARRAY 256 OF CHAR;
 			BEGIN
 				IF indirect THEN w.Char(rfIndirect) ELSE w.Char(rfDirect) END;
-				variable.name.GetString(name);
+				variable.GetName(name);
 				Type(variable.type);
 				w.RawNum((variable.offsetInBits DIV 8));
-				variable.name.GetString(name);
+				variable.GetName(name);
 				w.RawString(name);
 			END WriteParameter;
 
@@ -1811,7 +1811,7 @@ TYPE
 			PROCEDURE DeclarationName(typeDeclaration: SyntaxTree.TypeDeclaration; VAR name: ARRAY OF CHAR);
 			BEGIN
 				IF typeDeclaration = NIL THEN COPY("@ANONYMOUS",name)
-				ELSE typeDeclaration.name.GetString(name)
+				ELSE typeDeclaration.GetName(name)
 				END;
 			END DeclarationName;
 
@@ -1825,7 +1825,7 @@ TYPE
 
 			BEGIN
 				procedure := s.symbol(SyntaxTree.Procedure); (*! check for variable or type symbol for object body *)
-				(*procedure.name.GetString(name);*)
+				(*procedure.name,name);*)
 				Global.GetSymbolNameInScope(procedure,moduleScope,name);
 				procedureType := procedure.type(SyntaxTree.ProcedureType);
 
@@ -1954,7 +1954,7 @@ TYPE
 			WHILE section # NIL DO
 				symbol := section.symbol;
 				IF (symbol # NIL) & (symbol IS SyntaxTree.Procedure) THEN
-					IF Trace THEN D.Str("Procedure:"); D.Str0(symbol.scope.ownerModule.name.name); D.Str("."); D.Str0(symbol.name.name); D.Ln; END;
+					IF Trace THEN D.Str("Procedure:"); D.Str0(symbol.scope.ownerModule.name); D.Str("."); D.Str0(symbol.name); D.Ln; END;
 					fixups := GetFixups(module,section,fixup);
 					IF fixup # NIL THEN Link(fixup) END;
 				END;
@@ -1965,7 +1965,7 @@ TYPE
 			WHILE section # NIL DO
 				symbol := section.symbol;
 				IF (symbol # NIL) & (symbol IS SyntaxTree.Procedure) THEN
-					IF Trace THEN D.Str("CaseTableProc:"); D.Str0(symbol.scope.ownerModule.name.name); D.Str("."); D.Str0(symbol.name.name); D.Ln; END;
+					IF Trace THEN D.Str("CaseTableProc:"); D.Str0(symbol.scope.ownerModule.name); D.Str("."); D.Str0(symbol.name); D.Ln; END;
 					fixups := GetFixups(module,section,fixup);
 					IF fixup # NIL THEN Link(fixup) END;
 				END;
@@ -2009,7 +2009,7 @@ TYPE
 		IF Trace THEN module.Dump(D.Log);D.Ln; D.Update; END;
 
 		NEW(fingerprinter,module.system);
-		(* module.module.name.GetString(moduleName);*)
+		(* module.module.name,moduleName);*)
 		Global.ModuleFileName(module.module.name,module.module.context,moduleName);
 
 		IF Trace THEN D.Str("module: "); D.Str(moduleName); D.Ln END;

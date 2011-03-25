@@ -146,7 +146,7 @@ TYPE
 		VAR this: SyntaxTree.Modifier; id: SyntaxTree.Identifier;
 		BEGIN
 			this := modifiers; id := SyntaxTree.NewIdentifier(name);
-			WHILE (this # NIL) & (this.identifier.name # id.name) DO
+			WHILE (this # NIL) & (this.identifier# id) DO
 				this := this.nextModifier;
 			END;
 			IF this # NIL THEN
@@ -167,7 +167,7 @@ TYPE
 			dataMemorySize, codeMemorySize: LONGINT;
 		BEGIN
 			prevActiveCellsScope := currentActiveCellsScope;
-			x.typeDeclaration.name.GetString(componentName);
+			x.typeDeclaration.GetName(componentName);
 			instanceType := currentActiveCellsScope.NewType(componentName); (*backend.activeCellsSpecification.NewType(componentName);*)
 			IF HasValue(x.modifiers,Global.StringDataMemorySize,dataMemorySize) THEN
 				instanceType.SetDataMemorySize(dataMemorySize);
@@ -180,7 +180,7 @@ TYPE
 			parameter := x.firstParameter;
 			portIndex := 0;
 			WHILE parameter # NIL DO
-				parameter.name.GetString(parameterName);
+				parameter.GetName(parameterName);
 				parameterType := parameter.type.resolved;
 				IF SemanticChecker.IsStaticArray(parameterType,parameterType,len) THEN
 					direction := Direction(parameterType(SyntaxTree.PortType).direction);
@@ -215,7 +215,7 @@ TYPE
 		PROCEDURE VisitImport(x: SyntaxTree.Import);
 		VAR name: SyntaxTree.String;
 		BEGIN
-			x.module.name.GetString(name);
+			x.module.GetName(name);
 			backend.activeCellsSpecification.AddImport(name);
 		END VisitImport;
 
@@ -574,7 +574,7 @@ TYPE
 				END;
 
 				WHILE (e # NIL) & (e IS SyntaxTree.SymbolDesignator) DO
-					e(SyntaxTree.SymbolDesignator).symbol.name.GetString(name);
+					e(SyntaxTree.SymbolDesignator).symbol.GetName(name);
 					IF instanceName # "" THEN
 						Strings.Append(name,".");
 						Strings.Append(name, instanceName);
@@ -585,7 +585,7 @@ TYPE
 				Strings.Append(instanceName, suffix);
 				IF (type.typeDeclaration # NIL) & (type.typeDeclaration.scope.ownerModule # moduleScope.ownerModule) THEN Global.GetSymbolName(type.typeDeclaration,typeName)
 				ELSIF (type.typeDeclaration # NIL) THEN
-					type.typeDeclaration.name.GetString(typeName);
+					type.typeDeclaration.GetName(typeName);
 				ELSE typeName := ""
 				END;
 				RETURN TRUE
@@ -600,7 +600,7 @@ TYPE
 					instance := currentActiveCellsScope.instances.ByName(instanceName);
 					IF instance = NIL THEN Error(p.position,"not allocated"); RETURN FALSE END;
 					instanceType := instance.type;
-					p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
+					p(SyntaxTree.SymbolDesignator).symbol.GetName(portName);
 					IF instanceType = NIL THEN
 						Error(p.position,"cell type could not be derived"); RETURN FALSE
 					ELSE
@@ -631,7 +631,7 @@ TYPE
 			VAR portName, suffix: SyntaxTree.String;
 			BEGIN
 				Index(p,suffix);
-				p(SyntaxTree.SymbolDesignator).symbol.name.GetString(portName);
+				p(SyntaxTree.SymbolDesignator).symbol.GetName(portName);
 				Strings.Append(portName,suffix);
 				port := currentActiveCellsScope.ports.ByName(portName);
 				IF port = NIL THEN Error(p.position,"port not available") END;
@@ -1075,7 +1075,7 @@ TYPE
 		VAR module: ActiveCells.Module; VAR name: SyntaxTree.String; device: ActiveCells.Device;
 		BEGIN
 			IF ~Global.IsSystemModule(x) THEN
-				x.name.GetString(name);
+				x.GetName(name);
 				IF local THEN
 					device := instanceType.specification.supportedDevices.ByName(name);
 					IF device # NIL THEN
@@ -1097,7 +1097,7 @@ TYPE
 				TraverseImports(import.module);
 				import := import.nextImport;
 			END;
-			x.name.GetString(name);
+			x.GetName(name);
 			AddImport(x);
 		END TraverseImports;
 

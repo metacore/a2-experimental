@@ -857,7 +857,7 @@ TYPE
 
 	(* returns if a module is the system module *)
 	PROCEDURE IsSystemModule*(module: SyntaxTree.Module): BOOLEAN;
-	BEGIN RETURN module.name.Equals(systemName) OR module.name.Equals(SystemName)
+	BEGIN RETURN (module.name=systemName) OR (module.name=SystemName)
 	END IsSystemModule;
 
 	(** Various factories *)
@@ -934,12 +934,12 @@ TYPE
 	PROCEDURE ModuleFileName*(moduleName,context: SyntaxTree.Identifier; VAR fileName: ARRAY OF CHAR);
 	VAR prefix,name: Scanner.StringType;
 	BEGIN
-		moduleName.GetString(name);
-		IF (context = NIL) OR context.Equals(A2Name) THEN
+		Basic.GetString(moduleName,name);
+		IF (context = SyntaxTree.invalidIdentifier) OR (context = A2Name) THEN
 			COPY(name,fileName);
 		ELSE
-			ASSERT(context.Equals(OberonName));
-			context.GetString(prefix);
+			ASSERT(context=OberonName);
+			Basic.GetString(context,prefix);
 			Basic.Concat(fileName,prefix,"-",name);
 		END;
 	END ModuleFileName;
@@ -973,11 +973,11 @@ TYPE
 	VAR n: SyntaxTree.String;
 	BEGIN
 		name := "";
-		IF module.context # NIL THEN
-			module.context.GetString(n);
+		IF module.context # SyntaxTree.invalidIdentifier THEN
+			Basic.GetString(module.context,n);
 			IF n# "A2" THEN Strings.Append(name,n);Strings.Append(name,"-") END;
 		END;
-		module.name.GetString(n);
+		module.GetName(n);
 		Strings.Append(name,n);
 	END GetModuleName;
 
@@ -996,16 +996,16 @@ TYPE
 				IF td = NIL THEN
 					td := scope(SyntaxTree.RecordScope).ownerRecord.pointerType.typeDeclaration;
 				END;
-				td.name.GetString(n);
+				td.GetName(n);
 				Strings.Append(name,n); Strings.Append(name,".")
 			ELSIF scope IS SyntaxTree.ProcedureScope THEN
 				Scope(scope.outerScope);
-				scope(SyntaxTree.ProcedureScope).ownerProcedure.name.GetString(n);
+				scope(SyntaxTree.ProcedureScope).ownerProcedure.GetName(n);
 				Strings.Append(name,n); Strings.Append(name,".")
 			ELSIF scope IS SyntaxTree.CellScope THEN
 				Scope(scope.outerScope);
 				td := scope(SyntaxTree.CellScope).ownerCell.typeDeclaration;
-				td.name.GetString(n);
+				td.GetName(n);
 				Strings.Append(name,n); Strings.Append(name,".")
 			END;
 		END Scope;
@@ -1013,7 +1013,7 @@ TYPE
 	BEGIN
 		name := "";
 		Scope(symbol.scope);
-		symbol.name.GetString(n);
+		symbol.GetName(n);
 		IF symbol IS SyntaxTree.Operator THEN (*! append some more bits to make discrimintation possible *)
 		END;
 		Strings.Append(name,n);
@@ -1171,7 +1171,7 @@ TYPE
 		IF (symbol >= 0) & (symbol < LEN(identifiers,1)) THEN
 			RETURN identifiers[case,symbol]
 		ELSE
-			RETURN NIL
+			RETURN SyntaxTree.invalidIdentifier
 		END;
 	END GetIdentifier;
 
@@ -1180,7 +1180,7 @@ TYPE
 	BEGIN
 		(*! quick and dirty implementation, optimize ! *)
 		FOR i := 0 TO LEN(identifiers,1)-1 DO
-			IF id.Equals(identifiers[case,i]) THEN RETURN i END;
+			IF id=identifiers[case,i] THEN RETURN i END;
 		END;
 		RETURN -1
 	END GetSymbol;
@@ -1210,7 +1210,7 @@ TYPE
 
 	BEGIN
 		FOR i := 0 TO LEN(identifiers,1)-1 DO
-			identifiers[Scanner.Uppercase,i] := NIL; identifiers[Scanner.Lowercase,i] := NIL;
+			identifiers[Scanner.Uppercase,i] := SyntaxTree.invalidIdentifier; identifiers[Scanner.Lowercase,i] := SyntaxTree.invalidIdentifier;
 		END;
 		FOR i := 0 TO Scanner.EndOfText-1 DO
 			NewKeywordIdentifier(i);

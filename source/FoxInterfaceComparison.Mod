@@ -1,6 +1,6 @@
 MODULE FoxInterfaceComparison; (** AUTHOR "fof"; PURPOSE "compare interfaces / check symbol file compliances"; *)
 
-IMPORT SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, FingerPrinter := FoxFingerPrinter, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker, Diagnostics, Strings;
+IMPORT Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, FingerPrinter := FoxFingerPrinter, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker, Diagnostics, Strings;
 
 CONST
 	Redefined*=0;
@@ -106,7 +106,7 @@ CONST
 		END;
 
 		WHILE (oldSymbol # NIL) DO
-			oldSymbol.name.GetString(oldName);
+			oldSymbol.GetName(oldName);
 			oldPublic := oldSymbol.access * SyntaxTree.Public # {};
 			IF oldSymbol.access * SyntaxTree.Public # {} THEN
 				ErrorSS(Diagnostics.Invalid,oldName," is no longer visible");
@@ -116,7 +116,7 @@ CONST
 		END;
 
 		WHILE (newSymbol # NIL) DO
-			newSymbol.name.GetString(newName);
+			newSymbol.GetName(newName);
 			newPublic := newSymbol.access * SyntaxTree.Public # {};
 			IF newPublic THEN
 				ErrorSS(newSymbol.position,newName," is new");

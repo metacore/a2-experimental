@@ -189,14 +189,14 @@ TYPE
 		BEGIN
 			IF diagnostics # NIL THEN
 				message := "";
-				IF (module # NIL) & (module.context # NIL) THEN
-					module.context.GetString(message);
+				IF (module # NIL) & (module.context # SyntaxTree.invalidIdentifier) THEN
+					Basic.GetString(module.context,message);
 					Strings.Append (message, ".");
 				ELSE
 					message := "";
 				END;
-				IF (module # NIL) & (module.name # NIL) THEN
-					module.name.GetString(name);
+				IF (module # NIL) & (module.name # SyntaxTree.invalidIdentifier) THEN
+					Basic.GetString(module.name,name);
 					Strings.Append (message, name);
 				END;
 				Strings.Append (message, msg);

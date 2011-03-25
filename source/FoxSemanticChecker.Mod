@@ -208,7 +208,7 @@ TYPE
 		BEGIN
 			result := NIL;
 			prevScope := currentScope;
-			IF (qualifiedIdentifier.prefix) # NIL THEN
+			IF (qualifiedIdentifier.prefix # SyntaxTree.invalidIdentifier) THEN
 				symbol := Find(currentScope,qualifiedIdentifier.prefix,TRUE);
 				IF (symbol # NIL) & (symbol IS SyntaxTree.Import) THEN
 					IF symbol(SyntaxTree.Import).module = NIL THEN
@@ -497,7 +497,7 @@ TYPE
 		VAR module: SyntaxTree.Module; import: SyntaxTree.Import; moduleScope: SyntaxTree.ModuleScope;
 		BEGIN
 			module := currentScope.ownerModule;
-			IF module.name.Equals(name) THEN
+			IF module.name=name THEN
 				(* do nothing *)
 			ELSE
 				moduleScope := module.moduleScope;
@@ -506,7 +506,7 @@ TYPE
 					import := SyntaxTree.NewImport(position,name,name,TRUE);
 					moduleScope.AddImport(import);
 					Register(import,moduleScope,FALSE);
-					IF import.context = NIL THEN import.SetContext(SELF.module.context) END;
+					IF import.context = SyntaxTree.invalidIdentifier THEN import.SetContext(SELF.module.context) END;
 					VisitImport(import);
 				ELSIF import.direct=FALSE THEN
 					import.SetScope(module.moduleScope);
@@ -520,7 +520,7 @@ TYPE
 			s,name: Scanner.StringType;
 			selfName, selfContext: SyntaxTree.String;
 		BEGIN
-			module.context.GetString(selfContext);
+			Basic.GetString(module.context,selfContext);
 			IF (moduleName = module.name) & (selfContext = "A2") THEN
 				m := module
 			ELSE
@@ -531,7 +531,7 @@ TYPE
 					IF ~AddImport(module,import) OR (import.module = NIL) THEN
 						IF force THEN
 							s := "Module ";
-							moduleName.GetString(name);
+							Basic.GetString(moduleName,name);
 							Strings.Append(s,name);
 							Strings.Append(s," cannot be imported.");
 							Error(position,Diagnostics.Invalid,s);
@@ -553,7 +553,7 @@ TYPE
 				procedure := runtimeModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "Procedure ";
-					moduleName.GetString(name);
+					Basic.GetString(moduleName,name);
 					Strings.Append(s,name);
 					Strings.Append(s,".");
 					Strings.Append(s,procedureName);
@@ -757,7 +757,7 @@ TYPE
 		VAR prev,this: SyntaxTree.Modifier;
 		BEGIN
 			this := modifiers;prev := NIL;
-			WHILE (this # NIL) & (this.identifier.name # name.name) DO
+			WHILE (this # NIL) & (this.identifier # name) DO
 			prev := this; this := this.nextModifier;
 			END;
 			IF this # NIL THEN
@@ -775,7 +775,7 @@ TYPE
 		VAR prev,this: SyntaxTree.Modifier;
 		BEGIN
 			this := modifiers;prev := NIL;
-			WHILE (this # NIL) & (this.identifier.name # name.name) DO
+			WHILE (this # NIL) & (this.identifier # name) DO
 				prev := this; this := this.nextModifier;
 			END;
 			IF this # NIL THEN
@@ -1097,10 +1097,10 @@ TYPE
 			(* go through all operators in the current record scope *)
 			operator := recordScope.firstOperator;
 			WHILE operator # NIL DO
-				IF operator.name.Equals(SyntaxTree.NewIdentifier("LEN")) THEN
+				IF operator.name=SyntaxTree.NewIdentifier("LEN") THEN
 					IF CheckLenOperator(operator, arrayStructure) THEN arrayAccessOperators.len := operator END
 
-				ELSIF operator.name.Equals(SyntaxTree.NewIdentifier("[]")) THEN
+				ELSIF operator.name = SyntaxTree.NewIdentifier("[]") THEN
 					IF CheckIndexOperator(operator, arrayStructure, isReadOperator, isGeneralOperator, indexListSize, indexListKind) THEN
 						IF isGeneralOperator THEN
 							IF isReadOperator THEN
@@ -2239,7 +2239,7 @@ TYPE
 			BEGIN
 				operator := scope.firstOperator;
 				WHILE(operator # NIL) DO
-					IF (operator.name.Equals(identifier)) & (operator.access * access # {}) THEN
+					IF (operator.name=identifier) & (operator.access * access # {}) THEN
 						procedureType := operator.type(SyntaxTree.ProcedureType);
 						distance := Distance(system, procedureType,actualParameters);
 						IF (distance < Infinity) THEN
@@ -5639,7 +5639,7 @@ TYPE
 		**)
 		PROCEDURE VisitTypeDeclaration(typeDeclaration: SyntaxTree.TypeDeclaration);
 		BEGIN
-			IF Trace THEN D.Str("VisitTypeDeclaration "); D.Str0(typeDeclaration.name.name);  D.Ln;  END;
+			IF Trace THEN D.Str("VisitTypeDeclaration "); D.Str0(typeDeclaration.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(typeDeclaration) THEN
 				typeDeclaration.SetType(SyntaxTree.typeDeclarationType);
 				typeDeclaration.SetDeclaredType(ResolveType(typeDeclaration.declaredType));
@@ -5658,7 +5658,7 @@ TYPE
 			expression: SyntaxTree.Expression;
 			type: SyntaxTree.Type;
 		BEGIN
-			IF Trace THEN D.Str("VisitConstant "); D.Str0(constant.name.name);  D.Ln;  END;
+			IF Trace THEN D.Str("VisitConstant "); D.Str0(constant.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(constant) THEN
 				constant.SetType(SyntaxTree.invalidType);
 				expression := ConstantExpression(constant.value);
@@ -5706,7 +5706,7 @@ TYPE
 		PROCEDURE VisitVariable(variable: SyntaxTree.Variable);
 		VAR modifiers: SyntaxTree.Modifier; value,position: LONGINT;
 		BEGIN
-			IF Trace THEN D.Str("VisitVariable "); D.Str0(variable.name.name);  D.Ln;  END;
+			IF Trace THEN D.Str("VisitVariable "); D.Str0(variable.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(variable) THEN
 				modifiers := variable.modifiers;
 				(*
@@ -5762,7 +5762,7 @@ TYPE
 		PROCEDURE VisitParameter(parameter: SyntaxTree.Parameter);
 		VAR expression: SyntaxTree.Expression;
 		BEGIN
-			IF Trace THEN D.Str("VisitParameter "); D.Str0(parameter.name.name);  D.Ln;  END;
+			IF Trace THEN D.Str("VisitParameter "); D.Str0(parameter.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(parameter) THEN
 				parameter.SetType(ResolveType(parameter.type));
 				ASSERT(parameter.type.resolved # NIL);
@@ -5804,7 +5804,7 @@ TYPE
 			modifiers: SyntaxTree.Modifier; recentIsRealtime, recentIsBodyProcedure: BOOLEAN;
 			position: LONGINT;
 		BEGIN
-			IF Trace THEN D.Str("VisitProcedure "); D.Str0(procedure.name.name);  D.Ln;  END;
+			IF Trace THEN D.Str("VisitProcedure "); D.Str0(procedure.name);  D.Ln;  END;
 			IF SymbolNeedsResolution(procedure) THEN
 				recentIsRealtime := currentIsRealtime;
 				recentIsBodyProcedure := currentIsBodyProcedure;
@@ -5874,7 +5874,7 @@ TYPE
 					IF record.pointerType.typeDeclaration = NIL THEN
 						selfParameter.SetType(record.pointerType);
 					ELSE
-						qualifiedIdentifier := SyntaxTree.NewQualifiedIdentifier(procedure.position,NIL,record.pointerType.typeDeclaration.name);
+						qualifiedIdentifier := SyntaxTree.NewQualifiedIdentifier(procedure.position,SyntaxTree.invalidIdentifier,record.pointerType.typeDeclaration.name);
 						qualifiedType := SyntaxTree.NewQualifiedType(procedure.position,procedure.scope,qualifiedIdentifier);
 						qualifiedType.SetResolved(record.pointerType);
 						selfParameter.SetType(qualifiedType);
@@ -6018,9 +6018,9 @@ TYPE
 				x.SetType(SyntaxTree.importType);
 				moduleScope := currentScope.ownerModule.moduleScope;
 
-				IF x.moduleName.Equals(Global.SystemName) THEN x.SetModule(system.systemModule[Scanner.Uppercase])
-				ELSIF x.moduleName.Equals(Global.systemName) THEN x.SetModule(system.systemModule[Scanner.Lowercase])
-				ELSIF x.moduleName.Equals(currentScope.ownerModule.name) & x.context.Equals(currentScope.ownerModule.context) THEN
+				IF (x.moduleName=Global.SystemName) THEN x.SetModule(system.systemModule[Scanner.Uppercase])
+				ELSIF (x.moduleName=Global.systemName) THEN x.SetModule(system.systemModule[Scanner.Lowercase])
+				ELSIF (x.moduleName=currentScope.ownerModule.name) & (x.context=currentScope.ownerModule.context) THEN
 					Error(x.position,Diagnostics.Invalid,"forbidden self import");
 				ELSE
 
@@ -6077,15 +6077,15 @@ TYPE
 						END;
 						import := module.moduleScope.firstImport;
 						WHILE(import # NIL) DO
-							ASSERT(import.moduleName # NIL);
+							ASSERT(import.moduleName # SyntaxTree.invalidIdentifier);
 							ASSERT(currentScope # NIL);
 							ASSERT(currentScope.ownerModule # NIL);
-							ASSERT(import.context # NIL);
+							ASSERT(import.context # SyntaxTree.invalidIdentifier);
 
-							IF import.moduleName.Equals(currentScope.ownerModule.name) & import.context.Equals(currentScope.ownerModule.context) THEN
+							IF (import.moduleName=currentScope.ownerModule.name) & (import.context=currentScope.ownerModule.context) THEN
 								Error(x.position,Diagnostics.Invalid,"recursive import");
 							ELSE
-								IF import.context = NIL THEN import.SetContext(x.context) END;
+								IF import.context = SyntaxTree.invalidIdentifier THEN import.SetContext(x.context) END;
 								reimport := moduleScope.ImportByModuleName(import.moduleName,import.context);
 								IF reimport = NIL THEN  (* indirect import *)
 									reimport := SyntaxTree.NewImport(InvalidPosition,import.moduleName,import.moduleName,FALSE);
@@ -6719,7 +6719,7 @@ TYPE
 				expression := blockModifier.expression;
 				position := blockModifier.position;
 				flag := -1;
-				IF name.Equals(Global.NamePriority) THEN
+				IF name=Global.NamePriority THEN
 					IF expression = NIL THEN
 						Error(position,Diagnostics.Invalid,"missing priority expression");
 					ELSIF recordBody = NIL THEN
@@ -6731,12 +6731,12 @@ TYPE
 					END;
 				ELSIF expression # NIL THEN
 					Error(expression.position,Diagnostics.Invalid,"expression not in connection with priority")
-				ELSIF name.Equals(Global.NameExclusive) THEN
+				ELSIF name=Global.NameExclusive THEN
 					IF block.isExclusive THEN
 						Error(position,Diagnostics.Invalid,"duplicate exclusive flag")
 					END;
 					block.SetExclusive(TRUE); SetProtectedRecord;
-				ELSIF name.Equals(Global.NameActive) THEN
+				ELSIF name=Global.NameActive THEN
 					IF recordBody = NIL THEN
 						Error(position,Diagnostics.Invalid,"active not in record body");
 					ELSIF recordBody.isActive THEN
@@ -6744,7 +6744,7 @@ TYPE
 					ELSE
 						recordBody.SetActive(TRUE); SetProtectedRecord;
 					END;
-				ELSIF name.Equals(Global.NameSafe) THEN
+				ELSIF name=Global.NameSafe THEN
 					IF recordBody = NIL THEN
 						Error(position,Diagnostics.Invalid,"safe not in record body");
 					ELSIF recordBody.isSafe THEN
@@ -6753,7 +6753,7 @@ TYPE
 						recordBody.SetSafe(TRUE);
 						SetProtectedRecord;
 					END;
-				ELSIF name.Equals(Global.NameRealtime) THEN
+				ELSIF name=Global.NameRealtime THEN
 					IF recordBody = NIL THEN
 						Error(position,Diagnostics.Invalid,"realtime not in record body");
 					ELSIF recordBody.isRealtime THEN
@@ -6824,8 +6824,7 @@ TYPE
 		PROCEDURE Register(symbol: SyntaxTree.Symbol; scope: SyntaxTree.Scope; allowDuplicate: BOOLEAN);
 		VAR duplicateSymbol: BOOLEAN;
 		BEGIN
-			ASSERT(symbol.name # NIL);
-			ASSERT(symbol.name.name # Basic.MakeString(""));
+			ASSERT(symbol.name # SyntaxTree.invalidIdentifier);
 			IF ~allowDuplicate & (global.FindSymbol(symbol.name)#NIL) THEN
 				Error(symbol.position,Diagnostics.Invalid,"globally defined keyword")
 			END;
@@ -6835,7 +6834,6 @@ TYPE
 				Error(symbol.position,Basic.MultiplyDefinedIdentifier,"");
 				IF VerboseErrorMessage THEN
 					Printout.Info("multiply defined identifier",symbol);
-					Printout.Info("with name", symbol.name);
 					Printout.Info("in scope",scope);
 				END;
 			END;
@@ -6938,7 +6936,7 @@ TYPE
 				(* treat imports first for a module scope, , set default context if necessary *)
 				import := scope(SyntaxTree.ModuleScope).firstImport;
 				WHILE(import # NIL) DO
-					IF import.context = NIL THEN import.SetContext(scope.ownerModule.context) END;
+					IF import.context = SyntaxTree.invalidIdentifier THEN import.SetContext(scope.ownerModule.context) END;
 					Register(import, currentScope, FALSE);
 					import := import.nextImport;
 				END;
@@ -7036,8 +7034,8 @@ TYPE
 			ASSERT(x # NIL);
 			global := system.globalScope[x.case];
 			x.moduleScope.SetGlobalScope(global);
-			IF x.name.Equals(Global.SystemName) OR x.name.Equals(Global.systemName) THEN Error(x.position,Diagnostics.Invalid,"name reserved") END;
-			IF x.context = NIL THEN x.SetContext(Global.A2Name) END;
+			IF (x.name=Global.SystemName) OR (x.name=Global.systemName) THEN Error(x.position,Diagnostics.Invalid,"name reserved") END;
+			IF (x.context =SyntaxTree.invalidIdentifier) THEN x.SetContext(Global.A2Name) END;
 			RemoveModuleFromCache(importCache,x);
 			Declarations(x.moduleScope);
 			FixTypes();

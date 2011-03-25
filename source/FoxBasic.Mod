@@ -43,6 +43,8 @@ CONST
 	MaxInt* = 7FFFH;
 	MaxLInt* = 7FFFFFFFH;   (* i386: 2147483647*)
 	MaxSet* = 31;   (* must be >= 15, else the bootstraped compiler cannot run (IN-tests) *)
+	
+	invalidString*=-1;
 
 TYPE
 	(*

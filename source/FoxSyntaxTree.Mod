@@ -328,35 +328,17 @@ TYPE
 	END;
 
 	(** identifiers in a program text **)
-	Identifier* = OBJECT
-		VAR
-			name-: Basic.String;
-
-		PROCEDURE & InitIdentifier(CONST id: ARRAY OF CHAR);
-		BEGIN
-			name := Basic.MakeString( id );
-		END InitIdentifier;
-
-		PROCEDURE Equals*(this: Identifier): BOOLEAN;
-		BEGIN	RETURN (this # NIL) & Basic.StringEqual(this.name,name)
-		END Equals;
-
-		PROCEDURE GetString*(VAR name: ARRAY OF CHAR);
-		BEGIN
-			Basic.GetString(SELF.name,name);
-		END GetString;
-
-	END Identifier;
+	Identifier* = Basic.String;
 
 	(** qualified identifiers << Identifier.Identifier >> **)
 	QualifiedIdentifier* = OBJECT
 		VAR
 			prefix-, suffix-: Identifier;   (* use string index instead ? *)
-			position-: LONGINT; 
-			
+			position-: LONGINT;
+
 		PROCEDURE & InitQualifiedIdentifier( position: LONGINT;  prefix, suffix: Identifier);
 		BEGIN
-			ASSERT(suffix # NIL);
+			ASSERT(suffix # invalidIdentifier);
 			SELF.position := position;
 			SELF.prefix := prefix; SELF.suffix := suffix;
 		END InitQualifiedIdentifier;
@@ -1381,7 +1363,7 @@ TYPE
 		VAR p: Parameter;
 		BEGIN
 			p := firstParameter;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextParameter END;
+			WHILE(p#NIL) & (p.name # identifier) DO p := p.nextParameter END;
 			RETURN p;
 		END FindParameter;
 
@@ -2419,6 +2401,10 @@ TYPE
 		BEGIN written := TRUE
 		END MarkWritten;
 
+		PROCEDURE GetName*(VAR str: ARRAY OF CHAR);
+		BEGIN Basic.GetString(name, str);
+		END GetName;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitSymbol(SELF)
@@ -2686,7 +2672,7 @@ TYPE
 			InitSymbol(position,name);
 			SELF.direct := direct;
 			module := NIL;
-			context := NIL;
+			context := invalidIdentifier;
 			SELF.moduleName := moduleName;
 			type := importType;
 		END InitImport;
@@ -3432,11 +3418,11 @@ TYPE
 		BEGIN
 			ASSERT(symbol.nextSymbol = NIL,101); (* symbol may only be present in one scope at a time ! *)
 			ASSERT(symbol.scope = NIL,102);
-			ASSERT(symbol.name # NIL,103);
+			ASSERT(symbol.name # invalidIdentifier,103);
 
 			p := firstSymbol; q := NIL;
-			WHILE (p # NIL) & (StringPool.CompareString(p.name.name,symbol.name.name)<0) DO q := p; p := p.nextSymbol END;
-			IF (p#NIL) & (symbol.name.name = p.name.name) THEN
+			WHILE (p # NIL) & (StringPool.CompareString(p.name,symbol.name)<0) DO q := p; p := p.nextSymbol END;
+			IF (p#NIL) & (symbol.name = p.name) THEN
 				duplicate := TRUE;
 			ELSE
 				duplicate := FALSE
@@ -3447,8 +3433,8 @@ TYPE
 
 			p := firstSymbol;
 			WHILE(p.nextSymbol # NIL) DO
-				p.nextSymbol.name.GetString(nextname);
-				p.name.GetString(name);
+				Basic.GetString(p.nextSymbol.name,nextname);
+				Basic.GetString(p.name,name);
 				ASSERT(nextname >= name);
 				p := p.nextSymbol;
 			END;
@@ -3460,9 +3446,9 @@ TYPE
 		PROCEDURE FindSymbol*(identifier: Identifier): Symbol;
 		VAR p: Symbol;
 		BEGIN
-			IF identifier # NIL THEN
+			IF identifier # invalidIdentifier THEN
 				p := firstSymbol;
-				WHILE(p#NIL) & ((p.name.name # identifier.name) OR (p IS Operator)) DO p := p.nextSymbol END;
+				WHILE(p#NIL) & ((p.name # identifier) OR (p IS Operator)) DO p := p.nextSymbol END;
 			END;
 			RETURN p;
 		END FindSymbol;
@@ -3479,7 +3465,7 @@ TYPE
 		VAR p: Constant;
 		BEGIN
 			p := firstConstant;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextConstant END;
+			WHILE(p#NIL) & (p.name # identifier) DO p := p.nextConstant END;
 			RETURN p;
 		END FindConstant;
 
@@ -3495,7 +3481,7 @@ TYPE
 		VAR p: TypeDeclaration;
 		BEGIN
 			p := firstTypeDeclaration;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextTypeDeclaration END;
+			WHILE(p#NIL) & (p.name # identifier) DO p := p.nextTypeDeclaration END;
 			RETURN p;
 		END FindTypeDeclaration;
 
@@ -3511,7 +3497,7 @@ TYPE
 		VAR p: Variable;
 		BEGIN
 			p := firstVariable;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextVariable END;
+			WHILE(p#NIL) & (p.name # identifier) DO p := p.nextVariable END;
 			RETURN p;
 		END FindVariable;
 
@@ -3527,7 +3513,7 @@ TYPE
 		VAR p: Procedure;
 		BEGIN
 			p := firstProcedure;
-			WHILE (p#NIL) & ((p.name.name # identifier.name) OR (p IS Operator)) DO p := p.nextProcedure END;
+			WHILE (p#NIL) & ((p.name # identifier) OR (p IS Operator)) DO p := p.nextProcedure END;
 			RETURN p;
 		END FindProcedure;
 
@@ -3756,7 +3742,7 @@ TYPE
 		VAR p: Import;
 		BEGIN
 			p := firstImport;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextImport END; (* finds imports and re-imports! *)
+			WHILE(p#NIL) & (p.name # identifier) DO p := p.nextImport END; (* finds imports and re-imports! *)
 			RETURN p;
 		END FindImport;
 
@@ -3830,7 +3816,7 @@ TYPE
 		VAR p: Operator;
 		BEGIN
 			p := firstOperator;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextOperator END;
+			WHILE(p#NIL) & (p.name # identifier) DO p := p.nextOperator END;
 			RETURN p;
 		END FindOperator;
 
@@ -3847,7 +3833,7 @@ TYPE
 		VAR p: Import;
 		BEGIN
 			p := firstImport;
-			WHILE(p#NIL) & (p.name.name # identifier.name) DO p := p.nextImport END; (* finds imports and re-imports! *)
+			WHILE(p#NIL) & (p.name # identifier) DO p := p.nextImport END; (* finds imports and re-imports! *)
 			RETURN p;
 		END FindImport;
 
@@ -3874,7 +3860,7 @@ TYPE
 		VAR p: Import;
 		BEGIN
 			p := firstImport;
-			WHILE(p#NIL) & ~(moduleName.Equals(p.moduleName) & context.Equals(p.context)) DO p := p.nextImport END;
+			WHILE(p#NIL) & ~((moduleName = p.moduleName) & (context = p.context)) DO p := p.nextImport END;
 			RETURN p;
 		END ImportByModuleName;
 
@@ -3884,7 +3870,7 @@ TYPE
 			PROCEDURE Check(p: Import): BOOLEAN;
 			VAR result: BOOLEAN;
 			BEGIN
-				IF moduleName.Equals(p.moduleName) & context.Equals(p.context) THEN
+				IF (moduleName = p.moduleName) & (context = p.context) THEN
 					result := TRUE
 				ELSE
 					result := p.module.moduleScope.ImportByModuleName(moduleName,context) # NIL;
@@ -3933,7 +3919,7 @@ TYPE
 			moduleScope := scope;
 			ASSERT(scope.ownerModule = NIL); (* cannot register twice ! *)
 			scope.ownerModule := SELF;
-			context := NIL;
+			context := invalidIdentifier;
 			SELF.case := case;
 			firstScope := NIL; lastScope := NIL; numberScopes := 0;
 			SetType(moduleType);
@@ -3963,7 +3949,6 @@ TYPE
 
 VAR
 	(* invalid items used, for example, by parser and checker *)
-	invalidString-: Basic.String;
 	invalidIdentifier-: Identifier;
 	invalidQualifiedIdentifier-: QualifiedIdentifier;
 	invalidType-: Type;
@@ -3972,7 +3957,6 @@ VAR
 	invalidValue-: Value;
 	invalidSymbol-: Symbol;
 
-	anonymous-: Basic.String;
 	anonymousIdentifier-: Identifier;
 	importType-: Type;
 	typeDeclarationType-: Type;
@@ -4120,7 +4104,7 @@ VAR
 	PROCEDURE NewTypeDeclaration*(position: LONGINT; name: Identifier): TypeDeclaration;
 	VAR typeDeclaration: TypeDeclaration;
 	BEGIN
-		ASSERT(~name.Equals(NewIdentifier("")));
+		ASSERT(name # invalidIdentifier);
 		NEW(typeDeclaration,position,name); RETURN typeDeclaration
 	END NewTypeDeclaration;
 
@@ -4199,15 +4183,12 @@ VAR
 	PROCEDURE NewQualifiedIdentifier*( position: LONGINT;  prefix, suffix: Identifier ): QualifiedIdentifier;
 	VAR qualifiedIdentifier: QualifiedIdentifier;
 	BEGIN
-		ASSERT(suffix # NIL);
 		NEW( qualifiedIdentifier, position, prefix, suffix );  RETURN qualifiedIdentifier
 	END NewQualifiedIdentifier;
 
 	PROCEDURE NewIdentifier*(CONST name: ARRAY OF CHAR): Identifier;
-	VAR identifier: Identifier;
 	BEGIN
-		NEW( identifier, name);
-		RETURN identifier
+		RETURN Basic.MakeString(name);
 	END NewIdentifier;
 
 	PROCEDURE NewParameter*( position: LONGINT; ownerType:Type ;  name: Identifier; passAs: LONGINT): Parameter;
@@ -4576,10 +4557,9 @@ VAR
 	END NewEnumerationScope;
 
 	PROCEDURE Init;
-	BEGIN
-		invalidString := Basic.MakeString("@invalidString");
-		invalidIdentifier := NewIdentifier("@invalidString");
-		invalidQualifiedIdentifier := NewQualifiedIdentifier(-1,NIL,invalidIdentifier);
+	BEGIN;
+		invalidIdentifier := Basic.invalidString;
+		invalidQualifiedIdentifier := NewQualifiedIdentifier(-1,invalidIdentifier,Basic.emptyString);
 		invalidType := NewType();
 		invalidDesignator := NewDesignator();
 		invalidDesignator.SetType(invalidType);
@@ -4594,7 +4574,6 @@ VAR
 		typeDeclarationType.SetState(Resolved);
 		moduleType := NewType();
 		moduleType.SetState(Resolved);
-		anonymous := Basic.MakeString("");
 		anonymousIdentifier := NewIdentifier("");
 
 		indexListSeparator := NewDesignator();

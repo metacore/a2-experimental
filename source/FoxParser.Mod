@@ -316,10 +316,10 @@ TYPE
 		PROCEDURE ExpectThisIdentifier( name: SyntaxTree.Identifier ): BOOLEAN;
 		VAR string: ARRAY 64 OF CHAR;
 		BEGIN
-			IF name = NIL THEN (* nothing to be expected *)
+			IF name = SyntaxTree.invalidIdentifier THEN (* nothing to be expected *)
 				RETURN TRUE
-			ELSIF (symbol.token # Scanner.Identifier) OR (Basic.MakeString(symbol.string) #  name.name) THEN
-				Basic.GetString(name.name,string);
+			ELSIF (symbol.token # Scanner.Identifier) OR (Basic.MakeString(symbol.string) # name) THEN
+				Basic.GetString(name,string);
 				Error( symbol.start, Scanner.Identifier, string );
 				RETURN FALSE
 			ELSE
@@ -367,7 +367,7 @@ TYPE
 			prefix := Identifier(position0);
 			IF prefix # SyntaxTree.invalidIdentifier THEN
 				IF ~Optional( Scanner.Period )THEN
-					suffix := prefix;  prefix := NIL;   (* empty *)
+					suffix := prefix;  prefix := SyntaxTree.invalidIdentifier;   (* empty *)
 				ELSE
 					 suffix := Identifier(position1);
 				END;
@@ -1116,7 +1116,7 @@ TYPE
 			IF Peek(Scanner.Semicolon) OR Peek(Scanner.RightParenthesis) THEN
 				Scanner.GetKeyword(scanner.case,Scanner.Object,str);
 				identifier := SyntaxTree.NewIdentifier(str);
-	      		qualifiedIdentifier := SyntaxTree.NewQualifiedIdentifier(position,NIL,identifier);
+	      		qualifiedIdentifier := SyntaxTree.NewQualifiedIdentifier(position,SyntaxTree.invalidIdentifier,identifier);
 				type := SyntaxTree.NewQualifiedType( position, parentScope, qualifiedIdentifier );
 				RETURN type
 			END;
@@ -1221,7 +1221,7 @@ TYPE
 				pointerType.SetModifiers(modifiers)
 			END;
 			Check( Scanner.To );
-			base := Type(NIL, parentScope);
+			base := Type(SyntaxTree.invalidIdentifier, parentScope);
 			pointerType.SetPointerBase( base );
 			IF base IS SyntaxTree.RecordType THEN
 				base(SyntaxTree.RecordType).SetPointerType(pointerType);
@@ -1289,7 +1289,7 @@ TYPE
 					base := MathArray()
 				ELSIF Mandatory(Scanner.RightBracket) THEN
 					IF Optional( Scanner.Of ) THEN
-						base := Type(NIL , parentScope );   (* base type *)
+						base := Type(SyntaxTree.invalidIdentifier , parentScope );   (* base type *)
 					END;
 				END;
 				mathType.SetArrayBase(base);
@@ -1304,7 +1304,7 @@ TYPE
 			ELSIF Optional( Scanner.Of ) THEN  (* open array *)
 				arrayType := SyntaxTree.NewArrayType(position,parentScope, SyntaxTree.Open);
 				type := arrayType;
-				base := Type( NIL ,parentScope);
+				base := Type( SyntaxTree.invalidIdentifier ,parentScope);
 				arrayType.SetArrayBase( base )
 			ELSE (* static array *)
 				arrayType := SyntaxTree.NewArrayType(position,parentScope, SyntaxTree.Static);
@@ -1316,7 +1316,7 @@ TYPE
 					base := ArrayType( position,parentScope);
 					arrayType.SetArrayBase( base )
 				ELSIF Mandatory( Scanner.Of ) THEN
-					base := Type(NIL , parentScope );   (* base type *)
+					base := Type(SyntaxTree.invalidIdentifier , parentScope );   (* base type *)
 					arrayType.SetArrayBase( base );
 				END;
 			END;
@@ -1412,7 +1412,7 @@ TYPE
 				cell.AddParameter(parameter);
 			UNTIL ~Optional( Scanner.Comma );
 			Check( Scanner.Colon );
-			type := Type( NIL, parentScope);
+			type := Type( SyntaxTree.invalidIdentifier, parentScope);
 			ASSERT(type # NIL);
 			IF firstParameter # NIL THEN parameter := firstParameter.nextParameter ELSE parameter := cell.firstParameter END;
 			WHILE parameter # NIL DO
@@ -1465,7 +1465,7 @@ TYPE
 				END
 			UNTIL ~Optional( Scanner.Comma );
 			Check( Scanner.Colon );
-			type := Type( NIL, parentScope);
+			type := Type( SyntaxTree.invalidIdentifier, parentScope);
 			ASSERT(type # NIL);
 			IF firstParameter # NIL THEN parameter := firstParameter.nextParameter ELSE parameter := procedureType.firstParameter END;
 			WHILE parameter # NIL DO
@@ -1494,7 +1494,7 @@ TYPE
 			END;
 			IF Optional( Scanner.Colon ) THEN
 				position:= symbol.start;
-				type := Type(NIL,parentScope);
+				type := Type(SyntaxTree.invalidIdentifier,parentScope);
 				(* formally, any type is permitted as return type. Actually some of them might simply not be usable *)
 				procedureType.SetReturnType(type);
 			END;
@@ -1686,7 +1686,7 @@ TYPE
 			firstVariable := parentScope.lastVariable;
 			VariableNameList( parentScope );
 			Check( Scanner.Colon );
-			type := Type( NIL, parentScope );
+			type := Type( SyntaxTree.invalidIdentifier, parentScope );
 
 			variable := firstVariable;
 			IF firstVariable #  NIL THEN variable := firstVariable.nextVariable ELSE variable := parentScope.firstVariable END;

@@ -1,7 +1,7 @@
 MODULE FoxFingerPrinter; (** AUTHOR "fof"; PURPOSE "FingerPrinting"; *)
 (* literature for the fingerprinting: Dissertation Crelier *)
 
-IMPORT SyntaxTree := FoxSyntaxTree, SYSTEM, Global := FoxGlobal,Scanner := FoxScanner,
+IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, SYSTEM, Global := FoxGlobal,Scanner := FoxScanner,
 		D := Debugging;
 
 (** FingerPrinting
@@ -590,7 +590,7 @@ TYPE
 				IF Trace THEN
 					TraceIndent;
 					D.Str("TypeName  ");
-					D.Str0(x.scope.ownerModule.name.name);
+					D.Str0(x.scope.ownerModule.name);
 				END;
 				FPName(fp,x.scope.ownerModule.name);
 				typeDeclaration := x.typeDeclaration;
@@ -602,10 +602,10 @@ TYPE
 					FPName(fp,typeDeclaration.name);
 					IF Trace THEN
 						D.Str(".");
-						D.Str0(typeDeclaration.name.name);
+						D.Str0(typeDeclaration.name);
 					END;
 				ELSIF (typeDeclaration # NIL) & (typeDeclaration.scope = NIL) THEN
-					D.Str("typedeclaration without scope: "); D.Str0(x.typeDeclaration.name.name); D.Int(x.typeDeclaration.position,5); D.Ln;
+					D.Str("typedeclaration without scope: "); D.Str0(x.typeDeclaration.name); D.Int(x.typeDeclaration.position,5); D.Ln;
 					D.Update;
 				ELSE
 					FPNumber(fp,0);
@@ -693,7 +693,7 @@ TYPE
 		VAR fingerprint: FingerPrint; fp: LONGINT; name: ARRAY 256 OF CHAR;
 		BEGIN
 			IF Trace THEN TraceEnter("Method");
-				procedure.name.GetString(name);
+				procedure.GetName(name);
 				TraceIndent; D.Str("name = "); D.Str(name); D.Ln;
 			END;
 			ASSERT(deep);
@@ -830,7 +830,7 @@ TYPE
 						FPNumber(fingerprint.public,variableTypeFingerPrint.public);
 						FPNumber(fingerprint.public,SHORT(variable.offsetInBits DIV 8));
 						FPNumber(fingerprint.public,fp);
-						IF Trace THEN TraceIndent; D.Str("RecordType Field "); D.Str0(variable.name.name); D.Str(" "); TraceFP(fingerprint); D.Ln; END;
+						IF Trace THEN TraceIndent; D.Str("RecordType Field "); D.Str0(variable.name); D.Str(" "); TraceFP(fingerprint); D.Ln; END;
 					ELSE
 						fp := 0;
 						IF variable.untraced THEN FPNumber(fp,fpUntraced) END;
@@ -1011,7 +1011,7 @@ TYPE
 
 			IF IsOberonProcedure(t) THEN
 				self := t.firstParameter;
-				WHILE (self # NIL) & (~self.name.Equals(Global.SelfParameterName)) DO
+				WHILE (self # NIL) & (self.name#Global.SelfParameterName) DO
 					self := self.nextParameter;
 				END;
 				IF self # NIL THEN FPPar(fp,self) END; (* self parameter *)
@@ -1067,7 +1067,7 @@ TYPE
 				FPName(fp,x.name);
 				IF Trace THEN TraceIndent; D.String("access="); D.Set(x.access); D.Ln;  END;
 				FPVisibility(fp, x.access);
-				
+
 				x.declaredType.Accept(SELF);
 				FPNumber(fp, SELF.fingerprint.shallow);
 				fingerprint.shallow := fp;
@@ -1266,15 +1266,14 @@ TYPE
 
 		(* returns the finger print (object) of a symbol *)
 		PROCEDURE SymbolFP*(this: SyntaxTree.Symbol): FingerPrint;
-		VAR name: ARRAY 256 OF CHAR; deep: BOOLEAN;
+		VAR deep: BOOLEAN;
 		BEGIN
 			deep := SELF.deep;
 			SELF.deep := TRUE;
 			IF Trace THEN TraceEnter("SymbolFP");
 				TraceIndent;
-				this.name.GetString(name);
 				D.Str("name: ");
-				D.Str(name); D.Ln;
+				D.Str0(this.name); D.Ln;
 			END;
 			this.Accept(SELF);
 			SELF.deep := deep;
@@ -1327,7 +1326,7 @@ TYPE
 	PROCEDURE FPName*(VAR fp: LONGINT; x: SyntaxTree.Identifier);
 	VAR name: Scanner.StringType;
 	BEGIN
-		x.GetString(name);
+		Basic.GetString(x,name);
 		FPString(fp,name);
 	END FPName;
 

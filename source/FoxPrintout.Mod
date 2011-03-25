@@ -62,12 +62,12 @@ TYPE
 		PROCEDURE Identifier*(x: SyntaxTree.Identifier);
 		VAR str: Scanner.StringType;
 		BEGIN
-			x.GetString(str); w.String(str);
+			Basic.GetString(x,str); w.String(str);
 		END Identifier;
 
 		PROCEDURE QualifiedIdentifier*(x: SyntaxTree.QualifiedIdentifier);
 		BEGIN
-			IF x.prefix # NIL THEN Identifier(x.prefix); w.String("."); END;
+			IF x.prefix # SyntaxTree.invalidIdentifier THEN Identifier(x.prefix); w.String("."); END;
 			Identifier(x.suffix);
 		END QualifiedIdentifier;
 
@@ -376,7 +376,7 @@ TYPE
 		BEGIN
 			IF first THEN w.String("{") ELSE w.String(", ") END;
 			first := FALSE;
-			identifier.GetString(name);
+			Basic.GetString(identifier,name);
 			w.String(name);
 		END Flag;
 
@@ -1044,9 +1044,9 @@ TYPE
 					IF x.defaultValue # NIL THEN
 						w.String("= "); Expression(x.defaultValue);
 					END;
-					
+
 					WHILE (next # NIL) & (next.type = x.type) & (next.kind = x.kind) & ((next.access # SyntaxTree.Hidden) OR (mode > SourceCode)) DO
-						w.String(", "); 
+						w.String(", ");
 						PrintSymbol(next);
 						IF next.defaultValue # NIL THEN
 							w.String("= "); Expression(next.defaultValue);
@@ -1204,9 +1204,9 @@ TYPE
 			IF x.moduleName # x.name THEN Identifier(x.name);  w.String( " := " );  END;
 			IF x.module = NIL THEN AlertString("(*module = NIL*)");
 			END;
-			IF (x.scope = NIL) OR (x.scope.ownerModule = NIL) THEN context := NIL ELSE context := x.scope.ownerModule.context END;
+			IF (x.scope = NIL) OR (x.scope.ownerModule = NIL) THEN context := SyntaxTree.invalidIdentifier ELSE context := x.scope.ownerModule.context END;
 			Identifier(x.moduleName);
-			IF (x.context # NIL) & ~x.context.Equals(context) THEN
+			IF (x.context # SyntaxTree.invalidIdentifier) & (x.context#context) THEN
 				w.String(" IN ");
 				Identifier(x.context)
 			END;
@@ -1495,7 +1495,7 @@ TYPE
 			first := TRUE;
 			WHILE x # NIL DO
 				IF first THEN w.String("{"); first := FALSE ELSE w.String(", ") END;
-				x.identifier.GetString(name);
+				Basic.GetString(x.identifier,name);
 				w.String(name);
 				IF x.expression # NIL THEN
 					w.String("(");
@@ -1623,7 +1623,7 @@ TYPE
 				currentScope := x.moduleScope.outerScope;
 				Keyword("MODULE ");
 				Identifier(x.name);
-				IF (x.context # NIL) & (~x.context.Equals(Global.A2Name)) THEN
+				IF (x.context # SyntaxTree.invalidIdentifier) & (x.context#Global.A2Name) THEN
 					w.String(" IN ");
 					Identifier(x.context)
 				END;
@@ -1719,8 +1719,10 @@ VAR
 				END;
 				scope := scope.outerScope;
 			END;
+		(*
 		ELSIF a IS SyntaxTree.Identifier THEN
 			debug.Identifier(a(SyntaxTree.Identifier));
+		*)
 		ELSIF a IS SyntaxTree.QualifiedIdentifier THEN
 			debug.QualifiedIdentifier(a(SyntaxTree.QualifiedIdentifier));
 		ELSIF a IS SyntaxTree.Module THEN

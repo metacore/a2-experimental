@@ -851,10 +851,10 @@ TYPE
 					parameter.SetType(type);
 					parameter.SetState(SyntaxTree.Resolved);
 					(*! remove this after a rebuild of the release - for compatibility only *)
-					IF parameter.name.Equals( Global.SelfParameterName)
-						OR parameter.name.Equals( Global.ReturnParameterName)
-						OR parameter.name.Equals(Global.PointerReturnName)
-						OR parameter.name.Equals(Global.ResultName) THEN (* ignore *)
+					IF (parameter.name=Global.SelfParameterName)
+						OR (parameter.name=Global.ReturnParameterName)
+						OR (parameter.name=Global.PointerReturnName)
+						OR (parameter.name=Global.ResultName) THEN (* ignore *)
 					ELSE
 					procedureType.AddParameter(parameter);
 					END;
@@ -983,7 +983,7 @@ TYPE
 							*)
 							R.RawNum(tag)
 						END;
-						IF procedure.name.Equals(Global.RecordBodyName) THEN
+						IF (procedure.name=Global.RecordBodyName) THEN
 							recordScope.SetBodyProcedure(procedure);
 							recordBody := SyntaxTree.NewBody(-1,procedureScope);
 							recordBody.SetSafe(safe);
@@ -1118,13 +1118,13 @@ TYPE
 						attribute.indexToType.PutType(attribute.numberTypes,type);
 						INC(attribute.numberTypes);
 						IF TraceImport IN Trace THEN
-							D.Str("Type / Reimport "); D.Str(typeName); D.Str(" in "); D.Str0(importedModule.name.name); D.Str(":"); D.Int(tag,1-sfMod1);  D.Ln;
+							D.Str("Type / Reimport "); D.Str(typeName); D.Str(" in "); D.Str0(importedModule.name); D.Str(":"); D.Int(tag,1-sfMod1);  D.Ln;
 						END;
 					ELSE
 						R.RawNum(typeAdr);
 						type := attribute.indexToType.GetType(typeAdr);
 						IF TraceImport IN Trace THEN
-							D.Str("Type / Reimport "); D.Int(typeAdr,1); D.Str(" in "); D.Str0(importedModule.name.name); D.Str(":"); D.Int(tag,1-sfMod1);  D.Ln;
+							D.Str("Type / Reimport "); D.Int(typeAdr,1); D.Str(" in "); D.Str0(importedModule.name); D.Str(":"); D.Int(tag,1-sfMod1);  D.Ln;
 						END;
 					END;
 				ELSE (* UserType = [sfInvisible] [sfSysFlag flag] UserType2 *)
@@ -1270,7 +1270,7 @@ TYPE
 						type.SetTypeDeclaration(typeDeclaration);
 						typeDeclaration.SetAccess(visibility);
 						typeDeclaration.SetState(SyntaxTree.Resolved);
-						qualifiedType := SyntaxTree.NewQualifiedType(-1,moduleScope, SyntaxTree.NewQualifiedIdentifier(-1,NIL,typeDeclaration.name));
+						qualifiedType := SyntaxTree.NewQualifiedType(-1,moduleScope, SyntaxTree.NewQualifiedIdentifier(-1,SyntaxTree.invalidIdentifier,typeDeclaration.name));
 						qualifiedType.SetResolved(type);
 						(*
 						qualifiedType.SetState(SyntaxTree.Resolved);
@@ -1668,7 +1668,7 @@ TYPE
 						procedureType := procedure.type(SyntaxTree.ProcedureType);
 						IF (procedure.access * SyntaxTree.Internal = procedure.access) THEN  (* not exported method *)
 							Symbol(procedureType.returnType,procedure.name,procedure.access,FALSE, procedureType.isRealtime,procedure.isConstructor,procedure IS SyntaxTree.Operator);
-							procedure.name.GetString(name);
+							procedure.GetName(name);
 							w.RawString(name);
 						ELSE (* exported method *)
 							Symbol(procedureType.returnType,procedure.name,SyntaxTree.Public (*! for compatiblity should be procedure.access *),
@@ -1842,7 +1842,7 @@ TYPE
 						ImportedType = ModuleNumber (structName:RawString | 0X typeIndex:RawNum)
 						ModuleNumber = sfMod1 | .. | sfModOther-1 | sfModOther moduleNumber:RawNum
 					*)
-					typeDeclaration.name.GetString(name);
+					typeDeclaration.GetName(name);
 
 					importedModule := typeDeclaration.scope.ownerModule;
 					moduleIndex := ModuleIndex(module,importedModule);
@@ -1855,10 +1855,10 @@ TYPE
 					typeIndex := attribute.typeToIndex.GetIndex(type);
 
 					IF TraceExport IN Trace THEN
-						D.Str("Type / Reexport "); D.Str(name); D.Str(":"); D.Int(typeIndex,1); D.String(" in "); D.Str0(importedModule.name.name); D.String(":"); D.Int(moduleIndex,1);D.Ln
+						D.Str("Type / Reexport "); D.Str(name); D.Str(":"); D.Int(typeIndex,1); D.String(" in "); D.Str0(importedModule.name); D.String(":"); D.Int(moduleIndex,1);D.Ln
 					END;
 					IF typeIndex = Undef THEN (* not yet written import: structName:RawString *)
-						type.typeDeclaration.name.GetString(name);
+						type.typeDeclaration.GetName(name);
 						w.RawString(name);
 						attribute.typeToIndex.PutIndex(type,attribute.numberTypes); INC(attribute.numberTypes);
 					ELSE (* previously written import: 0X typeIndex:RawNum *)
@@ -1880,7 +1880,7 @@ TYPE
 						lookup.PutIndex(type,numberType); INC(numberType);
 
 						name:="";
-						IF  typeDeclaration#NIL THEN typeDeclaration.name.GetString(name);
+						IF  typeDeclaration#NIL THEN typeDeclaration.GetName(name);
 							IF typeDeclaration.access* SyntaxTree.Public={} THEN
 								w.RawNum(sfInvisible);
 							END;
@@ -1987,7 +1987,7 @@ TYPE
 			BEGIN
 				enumerator := enumerationScope.firstConstant;
 				WHILE enumerator # NIL DO
-					enumerator.name.GetString(name);
+					enumerator.GetName(name);
 					IF enumerator.access * SyntaxTree.Public = {} THEN
 						w.RawString("@");
 					ELSE
@@ -2027,7 +2027,7 @@ TYPE
 							w.RawNum(sfReadOnly);
 						END;
 						Type(parameter.type);
-						parameter.name.GetString(name);
+						parameter.GetName(name);
 						w.RawString(name);
 						IF reverse THEN
 							parameter := parameter.prevParameter
@@ -2058,7 +2058,7 @@ TYPE
 			PROCEDURE Inline(procedureScope: SyntaxTree.ProcedureScope);
 			VAR len,count,pos: LONGINT; code: SyntaxTree.Code; name: ARRAY 256 OF CHAR; ch: CHAR;
 			BEGIN
-				procedureScope.ownerProcedure.name.GetString(name);
+				procedureScope.ownerProcedure.GetName(name);
 				code := procedureScope.body.code;
 				IF code.inlineCode # NIL THEN
 					len := code.inlineCode.GetSize() DIV 8;
@@ -2091,7 +2091,7 @@ TYPE
 			VAR string,string2: Scanner.StringType;
 			BEGIN
 				IF TraceExport IN Trace THEN
-					name.GetString(string);
+					Basic.GetString(name,string);
 					D.Str("Symbol "); D.Str(string); D.Ln;
 				END;
 				IF untraced THEN w.RawNum(sfObjFlag); w.RawNum(sfUntraced)
@@ -2105,7 +2105,7 @@ TYPE
 				IF visibility * SyntaxTree.Internal = visibility THEN
 					string2 := "";
 					IF constructor THEN string2 := "&" END;
-				ELSE name.GetString(string);
+				ELSE Basic.GetString(name,string);
 					IF constructor THEN
 						Basic.Concat(string2,"&",string,"");
 					ELSE
@@ -2135,7 +2135,7 @@ TYPE
 				procedureType: SyntaxTree.ProcedureType;
 			BEGIN
 				IF TraceExport IN Trace THEN
-					module.name.GetString(name);
+					module.GetName(name);
 					D.Str("BINARY SYMBOL FILE EXPORT "); D.Str(name); D.Ln;
 				END;
 
@@ -2156,7 +2156,7 @@ TYPE
 					IF constant.access * SyntaxTree.Public # {} THEN
 						IF first THEN w.RawNum(sfConst); first := FALSE END;
 						Symbol(constant.type,constant.name,SyntaxTree.Public (*! for compatiblity should be constant.access *) ,FALSE,FALSE,FALSE,FALSE);
-						constant.name.GetString(name);
+						constant.GetName(name);
 						Value(constant.value.resolved(SyntaxTree.Value))
 					END;
 					constant := constant.nextConstant;
@@ -2246,7 +2246,7 @@ TYPE
 						IF typeDeclaration.declaredType IS SyntaxTree.QualifiedType THEN
 							IF first THEN w.RawNum(sfAlias); first := FALSE END;
 							Type(typeDeclaration.declaredType);
-							typeDeclaration.name.GetString(name);
+							typeDeclaration.GetName(name);
 							w.RawString(name);
 						END;
 					END;
@@ -2270,7 +2270,7 @@ TYPE
 				END;
 
 				IF TraceExport IN Trace THEN
-					module.name.GetString(name);
+					module.GetName(name);
 					D.Str("BINARY SYMBOL FILE EXPORT DONE "); D.Str(name); D.Ln;
 				END;
 
