@@ -1,10 +1,11 @@
 MODULE FoxInterfaceComparison; (** AUTHOR "fof"; PURPOSE "compare interfaces / check symbol file compliances"; *)
 
-IMPORT Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, FingerPrinter := FoxFingerPrinter, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker, Diagnostics, Strings;
+IMPORT Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, FingerPrinter := FoxFingerPrinter, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker, Diagnostics, Strings, D := Debugging;
 
 CONST
 	Redefined*=0;
 	Extended*=1;
+	Trace=FALSE;
 
 	PROCEDURE CompareThis*(module: SyntaxTree.Module; symbolFileFormat: Formats.SymbolFileFormat; diagnostics: Diagnostics.Diagnostics; importCache: SyntaxTree.ModuleScope;  VAR flags: SET);
 	VAR fname: SyntaxTree.String; importedModule: SyntaxTree.Module; fingerprinter: FingerPrinter.FingerPrinter;
@@ -22,6 +23,9 @@ CONST
 		END;
 		fpNew := fingerprinter.TypeFP(new);
 		fpOld := fingerprinter.TypeFP(old);
+		D.String("-->"); D.Ln;
+		D.String("fpOld "); FingerPrinter.DumpFingerPrint(D.Log,fpOld); D.Ln;
+		D.String("fpNew "); FingerPrinter.DumpFingerPrint(D.Log,fpNew); D.Ln;
 		RETURN (fpNew.private = fpOld.private) & (fpNew.public = fpOld.public) & (fpNew.shallow = fpOld.shallow);
 	END SameType;
 
@@ -31,12 +35,23 @@ CONST
 		fpNew := fingerprinter.SymbolFP(new);
 		fpOld := fingerprinter.SymbolFP(old);
 
+		ASSERT(new.name=old.name);
+
 		IF (fpNew.shallow # fpOld.shallow) THEN
+			IF Trace THEN
+				D.String("fp of "); D.Str0(new.name); D.Ln;
+				D.String("fpOld "); FingerPrinter.DumpFingerPrint(D.Log,fpOld); D.Ln;
+				D.String("fpNew "); FingerPrinter.DumpFingerPrint(D.Log,fpNew); D.Ln;
+			END;
 			RETURN FALSE
 		ELSIF (new IS SyntaxTree.TypeDeclaration) & (old IS SyntaxTree.TypeDeclaration) THEN
 			oldType := old(SyntaxTree.TypeDeclaration).declaredType;
 			newType := new(SyntaxTree.TypeDeclaration).declaredType;
+
 			IF ~SameType(newType,oldType) THEN
+				IF Trace THEN
+					D.String("<-- type fp of "); D.Str0(new.name); D.Ln;
+				END;
 				RETURN FALSE
 			END;
 		END;
@@ -79,6 +94,7 @@ CONST
 				IF oldPublic = newPublic THEN
 					IF ~CompareSymbols(newSymbol, oldSymbol) THEN
 						ErrorSS(newSymbol.position,newName," is redefined");
+
 						INCL(flags,Redefined);
 					END;
 				ELSIF oldPublic THEN

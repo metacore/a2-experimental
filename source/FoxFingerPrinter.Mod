@@ -2,7 +2,7 @@ MODULE FoxFingerPrinter; (** AUTHOR "fof"; PURPOSE "FingerPrinting"; *)
 (* literature for the fingerprinting: Dissertation Crelier *)
 
 IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, SYSTEM, Global := FoxGlobal,Scanner := FoxScanner,
-		D := Debugging;
+		D := Debugging, Streams;
 
 (** FingerPrinting
 
@@ -1346,5 +1346,15 @@ TYPE
 			FPNumber(fp, fpOther + SYSTEM.VAL(LONGINT, vis))
 		END
 	END FPVisibility;
+
+	PROCEDURE DumpFingerPrint*(w: Streams.Writer; fp: FingerPrint);
+	BEGIN
+		w.String("fingerprint: ");
+		w.String("shallow = "); w.Hex(fp.shallow,8);
+		w.String(", private = "); w.Hex(fp.private,8);
+		w.String(", public = "); w.Hex(fp.public,8);
+		w.Ln;
+	END DumpFingerPrint;
+
 
 END FoxFingerPrinter.
