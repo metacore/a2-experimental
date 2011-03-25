@@ -413,13 +413,13 @@ TYPE
 			PROCEDURE HasValue(modifiers: SyntaxTree.Modifier; CONST name: ARRAY OF CHAR; VAR value: LONGINT): BOOLEAN;
 			VAR this: SyntaxTree.Modifier; id: SyntaxTree.Identifier;
 			BEGIN
-				this := modifiers; id := SyntaxTree.NewIdentifier(-1,name);
+				this := modifiers; id := SyntaxTree.NewIdentifier(name);
 				WHILE (this # NIL) & (this.identifier.name # id.name) DO
 					this := this.nextModifier;
 				END;
 				IF this # NIL THEN
 					IF this.expression = NIL THEN
-						Error(this.identifier.position,"expected expression value");
+						Error(this.position,"expected expression value");
 					ELSIF CheckIntegerValue(this.expression,value) THEN
 					END;
 					RETURN TRUE
@@ -558,7 +558,7 @@ TYPE
 		BEGIN
 			ASSERT (bodyProcedure # NIL);
 			procedureScope := SyntaxTree.NewProcedureScope(bodyProcedure.scope);
-			procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,"$$BODYSTUB"), procedureScope);
+			procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier("$$BODYSTUB"), procedureScope);
 			procedure.SetScope(bodyProcedure.scope);
 			procedure.SetType(SyntaxTree.NewProcedureType(-1,bodyProcedure.scope));
 			procedure.SetAccess(SyntaxTree.Hidden);
@@ -619,7 +619,7 @@ TYPE
 
 			IF ~implementationVisitor.newObjectFile THEN
 				Global.GetModuleName(module.module,name); Strings.Append(name,"."); Strings.Append(name,"@moduleSelf");
-				moduleSelf := SyntaxTree.NewVariable(0,SyntaxTree.NewIdentifier(-1,"@moduleSelf"));
+				moduleSelf := SyntaxTree.NewVariable(0,SyntaxTree.NewIdentifier("@moduleSelf"));
 				moduleSelf.SetType(system.anyType);
 				moduleSelf.SetScope(x.moduleScope);
 				moduleSelf.SetUntraced(TRUE);
@@ -1489,10 +1489,10 @@ TYPE
 			IF (moduleName = selfName) & (selfContext = "A2") THEN
 				module := moduleScope.ownerModule
 			ELSE
-				import := moduleScope.ImportByModuleName(SyntaxTree.NewIdentifier(-1,moduleName),SyntaxTree.NewIdentifier(-1,"A2"));
+				import := moduleScope.ImportByModuleName(SyntaxTree.NewIdentifier(moduleName),SyntaxTree.NewIdentifier("A2"));
 				IF import = NIL THEN
-					import := SyntaxTree.NewImport(-1,SyntaxTree.NewIdentifier(-1,moduleName),SyntaxTree.NewIdentifier(-1,moduleName),TRUE);
-					import.SetContext(SyntaxTree.NewIdentifier(-1,"A2"));
+					import := SyntaxTree.NewImport(-1,SyntaxTree.NewIdentifier(moduleName),SyntaxTree.NewIdentifier(moduleName),TRUE);
+					import.SetContext(SyntaxTree.NewIdentifier("A2"));
 					IF ~checker.AddImport(moduleScope.ownerModule,import) OR (import.module = NIL) THEN
 						IF force THEN
 							s := "Module ";
@@ -1524,7 +1524,7 @@ TYPE
 					registers.Unuse(x.op1.register); (* avoid push on acquired but not yet set destination register *)
 				END;*)
 				IF x.op1.register >0 THEN RemoveRegisterEntry(usedRegisters,x.op1.register) END;
-				procedure := machine.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(-1,procedureName));
+				procedure := machine.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "Instruction not supported on target, emulation procedure ";
 					Strings.Append(s,moduleName);
@@ -1647,7 +1647,7 @@ TYPE
 		VAR importedModule: SyntaxTree.Module; symbol: SyntaxTree.Symbol;
 		BEGIN
 			IF AddImport(moduleName,importedModule,FALSE) THEN
-				symbol := importedModule.moduleScope.FindSymbol(SyntaxTree.NewIdentifier(-1,symbolName));
+				symbol := importedModule.moduleScope.FindSymbol(SyntaxTree.NewIdentifier(symbolName));
 				RETURN symbol
 			ELSE
 				RETURN NIL
@@ -1659,7 +1659,7 @@ TYPE
 		VAR runtimeModule: SyntaxTree.Module; s: Scanner.StringType;
 		BEGIN
 			IF AddImport(moduleName,runtimeModule,force) THEN
-				procedure := runtimeModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(-1,procedureName));
+				procedure := runtimeModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "Procedure ";
 					Strings.Append(s,moduleName);
@@ -1683,7 +1683,7 @@ TYPE
 			Strings.Append(name,".");
 			Strings.Append(name,typeName);
 			IF AddImport(moduleName,importedModule, FALSE) THEN
-				symbol := importedModule.moduleScope.FindTypeDeclaration(SyntaxTree.NewIdentifier(-1,typeName));
+				symbol := importedModule.moduleScope.FindTypeDeclaration(SyntaxTree.NewIdentifier(typeName));
 				IF symbol = NIL THEN
 					s := "type  ";
 					Strings.Append(s,moduleName);
@@ -2981,7 +2981,7 @@ TYPE
 			procedureName := "CopyDescriptor";
 			IF AddImport(moduleName,arrayBase,TRUE) THEN
 				SaveRegisters();ReleaseUsedRegisters(saved);
-				procedure := arrayBase.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(-1,procedureName));
+				procedure := arrayBase.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "procedure ";
 					Strings.Append(s,moduleName);
@@ -3824,11 +3824,11 @@ TYPE
 			BEGIN
 				IF (hiddenPointerType = NIL) OR (hiddenPointerType.typeDeclaration.scope.ownerModule # module.module) THEN
 					scope := SyntaxTree.NewRecordScope(module.module.moduleScope);
-					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,"@Any"));
+					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier("@Any"));
 					variable.SetType(system.anyType);
 					scope.AddVariable(variable);
 					hiddenPointerType := SyntaxTree.NewRecordType(-1,NIL,scope);
-					typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(-1,"@HdPtrDesc"));
+					typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier("@HdPtrDesc"));
 					typeDeclaration.SetDeclaredType(hiddenPointerType);
 					typeDeclaration.SetScope(module.module.moduleScope);
 					hiddenPointerType.SetTypeDeclaration(typeDeclaration);
@@ -3842,14 +3842,14 @@ TYPE
 			BEGIN
 				IF (delegatePointerType = NIL) OR (delegatePointerType.typeDeclaration.scope.ownerModule # module.module) THEN
 					scope := SyntaxTree.NewRecordScope(module.module.moduleScope);
-					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,"@Procedure"));
+					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier("@Procedure"));
 					variable.SetType(SyntaxTree.NewProcedureType(-1,NIL));
 					scope.AddVariable(variable);
-					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,"@Any"));
+					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier("@Any"));
 					variable.SetType(system.anyType);
 					scope.AddVariable(variable);
 					delegatePointerType := SyntaxTree.NewRecordType(-1,NIL,scope);
-					typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(-1,"@Delegate"));
+					typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier("@Delegate"));
 					typeDeclaration.SetDeclaredType(delegatePointerType);
 					typeDeclaration.SetScope(module.module.moduleScope);
 					delegatePointerType.SetTypeDeclaration(typeDeclaration);
@@ -4042,7 +4042,7 @@ TYPE
 
 			PROCEDURE GetProcedure(CONST procedureName: ARRAY OF CHAR): BOOLEAN;
 			BEGIN
-				procedure := traceModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(-1,procedureName));
+				procedure := traceModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "procedure ";
 					Strings.Append(s,backend.traceModuleName);
@@ -4536,7 +4536,7 @@ TYPE
 		BEGIN
 			COPY("@hiddenIRVar",string);
 			Basic.AppendNumber(string,GetIndex());
-			name := SyntaxTree.NewIdentifier(Diagnostics.Invalid,string);
+			name := SyntaxTree.NewIdentifier(string);
 			scope := currentScope;
 			variable := currentScope.FindVariable(name);
 			IF variable = NIL THEN
@@ -4572,7 +4572,7 @@ TYPE
 			PROCEDURE AddVariable(CONST name: ARRAY OF CHAR; type: SyntaxTree.Type);
 			VAR variable: SyntaxTree.Variable;
 			BEGIN
-				variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,name));
+				variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(name));
 				variable.SetType(type);
 				recordScope.AddVariable(variable);
 			END AddVariable;
@@ -4581,14 +4581,14 @@ TYPE
 		BEGIN
 			name := "@ArrayDescriptor";
 			Basic.AppendNumber(name,dimensions);
-			identifier := SyntaxTree.NewIdentifier(-1,name);
+			identifier := SyntaxTree.NewIdentifier(name);
 			parentScope := module.module.moduleScope;
 			symbol := parentScope.FindSymbol(identifier);
 			IF symbol # NIL THEN
 				typeDeclaration := symbol(SyntaxTree.TypeDeclaration);
 				type := typeDeclaration.declaredType;
 			ELSE
-				typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(-1,name));
+				typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(name));
 				recordScope := SyntaxTree.NewRecordScope(parentScope);
 				recordType := SyntaxTree.NewRecordType( -1, parentScope, recordScope);
 				recordType.SetTypeDeclaration(typeDeclaration);
@@ -6217,7 +6217,7 @@ TYPE
 					leftType := OpenArray(leftType); (* necessary since copy procedure presumes an open array *)
 				END;
 
-				procedure := arrayBase.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(-1,procedureName));
+				procedure := arrayBase.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "Instruction not supported on target, emulation procedure ";
 					Strings.Append(s,moduleName);
@@ -6226,7 +6226,7 @@ TYPE
 					Strings.Append(s," not present");
 					Error(position,s);
 				ELSE
-					parameter := SyntaxTree.NewParameter(left.position,procedure.type(SyntaxTree.ProcedureType),SyntaxTree.NewIdentifier(0,"temp"), SyntaxTree.VarParameter);
+					parameter := SyntaxTree.NewParameter(left.position,procedure.type(SyntaxTree.ProcedureType),SyntaxTree.NewIdentifier("temp"), SyntaxTree.VarParameter);
 					parameter.SetType(leftType);
 					parameter.SetAccess(SyntaxTree.Internal);
 					PushParameter(left,parameter,SyntaxTree.OberonCallingConvention);
@@ -6452,7 +6452,7 @@ TYPE
 			BrgeL(else,var.op,IntermediateCode.Immediate(addressType,size));
 			UniqueId(name,module.module,"case",caseId);
 			NEW(fixups,size); FOR i := 0 TO size-1 DO fixups[i] := NIL END;
-			NEW(section,Sections.ConstSection,name,SyntaxTree.NewSymbol(SyntaxTree.NewIdentifier(-1,name)),commentPrintout # NIL);
+			NEW(section,Sections.ConstSection,name,SyntaxTree.NewSymbol(SyntaxTree.NewIdentifier(name)),commentPrintout # NIL);
 			module.caseTables.Add(section);
 			IntermediateCode.InitAddress(jmp, addressType, section,0);
 			ReuseCopy(res,var.op);
@@ -6732,7 +6732,7 @@ TYPE
 		BEGIN
 			Strings.IntToStr(awaitProcCounter,suffix);
 			Strings.Concat("@AwaitProcedure",suffix,name);
-			identifier := SyntaxTree.NewIdentifier(x.position,name);
+			identifier := SyntaxTree.NewIdentifier(name);
 			INC(awaitProcCounter);
 			ASSERT(currentScope IS SyntaxTree.ProcedureScope);
 			procedureScope := SyntaxTree.NewProcedureScope(currentScope);
@@ -8182,7 +8182,7 @@ TYPE
 		procedure := moduleScope.bodyProcedure;
 		IF procedure = NIL THEN (* artificially add body procedure if not existing. Really needed? *)
 			procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
-			procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,"$$BODY"), procedureScope);
+			procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier("$$BODY"), procedureScope);
 			procedure.SetScope(moduleScope);
 			procedure.SetType(SyntaxTree.NewProcedureType(-1,moduleScope));
 			procedure.SetAccess(SyntaxTree.Hidden);
@@ -9362,7 +9362,7 @@ TYPE
 	BEGIN
 		name := "const";
 		UniqueId(name,module,name,adr);
-		constant := SyntaxTree.NewConstant(-1,SyntaxTree.NewIdentifier(-1,name));
+		constant := SyntaxTree.NewConstant(-1,SyntaxTree.NewIdentifier(name));
 		constant.SetValue(value);
 		RETURN constant
 	END BuildConstant;
@@ -9919,7 +9919,7 @@ TYPE
 		FOR i := 0 TO NumberSystemCalls-1 DO
 			name := "$SystemCall";
 			Basic.AppendNumber(name,i);
-			systemCalls[i] := SyntaxTree.NewSymbol(SyntaxTree.NewIdentifier(-1,name));
+			systemCalls[i] := SyntaxTree.NewSymbol(SyntaxTree.NewIdentifier(name));
 		END;
 	END Init;
 

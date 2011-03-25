@@ -1486,7 +1486,7 @@ TYPE
 			VAR sym: SyntaxTree.Symbol; localScope: SyntaxTree.Scope;  identifier: SyntaxTree.Identifier;
 			BEGIN
 				localScope := scope;
-				identifier := SyntaxTree.NewIdentifier(-1,ident);
+				identifier := SyntaxTree.NewIdentifier(ident);
 				IF Trace THEN KernelLog.String("GetScopeSymbol:"); KernelLog.String(ident); KernelLog.Ln; END;
 				WHILE (sym = NIL) & (localScope # NIL) DO
 					sym := localScope.FindSymbol(identifier);
@@ -1496,7 +1496,7 @@ TYPE
 				IF (sym # NIL) & (sym IS SyntaxTree.Import)  THEN
 					NextSymbol;
 					IF Ensure(symPeriod,0) & (symbol = symIdent) THEN
-						identifier := SyntaxTree.NewIdentifier(-1,idents);
+						identifier := SyntaxTree.NewIdentifier(idents);
 						IF Trace THEN KernelLog.String("GetScopeSymbol  :"); KernelLog.String(idents); KernelLog.Ln; END;
 						localScope := sym(SyntaxTree.Import).module.moduleScope;
 						sym := NIL;

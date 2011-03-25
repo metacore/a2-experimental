@@ -145,13 +145,13 @@ TYPE
 		PROCEDURE HasValue(modifiers: SyntaxTree.Modifier; CONST name: ARRAY OF CHAR; VAR value: LONGINT): BOOLEAN;
 		VAR this: SyntaxTree.Modifier; id: SyntaxTree.Identifier;
 		BEGIN
-			this := modifiers; id := SyntaxTree.NewIdentifier(-1,name);
+			this := modifiers; id := SyntaxTree.NewIdentifier(name);
 			WHILE (this # NIL) & (this.identifier.name # id.name) DO
 				this := this.nextModifier;
 			END;
 			IF this # NIL THEN
 				IF this.expression = NIL THEN
-					Error(this.identifier.position,"expected expression value");
+					Error(this.position,"expected expression value");
 				ELSIF CheckIntegerValue(this.expression,value) THEN
 				END;
 				RETURN TRUE

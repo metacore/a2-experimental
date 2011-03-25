@@ -281,12 +281,12 @@ TYPE
 		END MandatoryIdentifier;
 
 		(** Expect an identifier (using MandatoryIdentifier) and return identifier object **)
-		PROCEDURE Identifier(): SyntaxTree.Identifier;
-		VAR position: LONGINT; name: Scanner.StringType; identifier: SyntaxTree.Identifier;
+		PROCEDURE Identifier(VAR position: LONGINT): SyntaxTree.Identifier;
+		VAR name: Scanner.StringType; identifier: SyntaxTree.Identifier;
 		BEGIN
 			position := symbol.start;
 			IF MandatoryIdentifier(name) THEN
-				identifier := SyntaxTree.NewIdentifier(position,name);
+				identifier := SyntaxTree.NewIdentifier(name);
 			ELSE
 				identifier := SyntaxTree.invalidIdentifier;
 			END;
@@ -361,18 +361,17 @@ TYPE
 
 		(** QualifiedIdentifier = Identifier ['.' Identifier]. **)
 		PROCEDURE QualifiedIdentifier( ): SyntaxTree.QualifiedIdentifier;
-		VAR prefix,suffix: SyntaxTree.Identifier; qualifiedIdentifier: SyntaxTree.QualifiedIdentifier;  position: LONGINT;
+		VAR prefix,suffix: SyntaxTree.Identifier; qualifiedIdentifier: SyntaxTree.QualifiedIdentifier;  position0,position1: LONGINT;
 		BEGIN
 			IF Trace THEN S( "QualifiedIdentifier" ) END;
-			position:= symbol.start;
-			prefix := Identifier();
+			prefix := Identifier(position0);
 			IF prefix # SyntaxTree.invalidIdentifier THEN
 				IF ~Optional( Scanner.Period )THEN
 					suffix := prefix;  prefix := NIL;   (* empty *)
 				ELSE
-					 suffix := Identifier();
+					 suffix := Identifier(position1);
 				END;
-				qualifiedIdentifier := SyntaxTree.NewQualifiedIdentifier( position, prefix,suffix);
+				qualifiedIdentifier := SyntaxTree.NewQualifiedIdentifier( position0, prefix,suffix);
 			ELSE
 				qualifiedIdentifier := SyntaxTree.invalidQualifiedIdentifier;
 			END;
@@ -382,9 +381,10 @@ TYPE
 
 		(** IdentifierDefinition = Identifier [ '*' | '-' ].  **)
 		PROCEDURE IdentifierDefinition( VAR name: SyntaxTree.Identifier;  VAR access: SET; allowedReadOnly: BOOLEAN);
+		VAR position: LONGINT;
 		BEGIN
 			IF Trace THEN S( "IdentifierDefinition" ) END;
-			name := Identifier();
+			name := Identifier(position);
 
 			IF Optional( Scanner.Times ) THEN
 				access := SyntaxTree.Public + SyntaxTree.Protected + SyntaxTree.Internal;
@@ -543,8 +543,8 @@ TYPE
 			ELSIF Optional(Scanner.Result) THEN
 				designator := SyntaxTree.NewResultDesignator(position);
 			ELSE
-				identifier := Identifier();
-				designator := SyntaxTree.NewIdentifierDesignator(identifier.position,identifier);
+				identifier := Identifier(position);
+				designator := SyntaxTree.NewIdentifierDesignator(position,identifier);
 			END;
 
 			LOOP
@@ -557,8 +557,8 @@ TYPE
 					END;
 					designator := SyntaxTree.NewParameterDesignator( position,designator,expressionList);
 				ELSIF Optional( Scanner.Period ) THEN
-					identifier := Identifier();
-					designator := SyntaxTree.NewSelectorDesignator(identifier.position,designator,identifier);
+					identifier := Identifier(position);
+					designator := SyntaxTree.NewSelectorDesignator(position,designator,identifier);
 				ELSIF Optional( Scanner.LeftBracket ) THEN
 					expressionList := SyntaxTree.NewExpressionList();
 					IndexList( expressionList );
@@ -847,17 +847,17 @@ TYPE
 					withStatement := SyntaxTree.NewWithStatement( symbol.start ,outer);
 					NextSymbol;
 					REPEAT
-						identifier := Identifier();
+						identifier := Identifier(position);
 						IF Optional(Scanner.Period) & Optional(Scanner.Identifier) THEN
-							Error(identifier.position,Diagnostics.Invalid,"forbidden qualified identifier in with statement");
+							Error(position,Diagnostics.Invalid,"forbidden qualified identifier in with statement");
 						END;
 						withPart := SyntaxTree.NewWithPart();
 						withStatement.AddWithPart(withPart);
-						designator := SyntaxTree.NewIdentifierDesignator(identifier.position,identifier);
+						designator := SyntaxTree.NewIdentifierDesignator(position,identifier);
 						withPart.SetVariable( designator );
 						Check( Scanner.Colon );
 						qualifiedIdentifier := QualifiedIdentifier();
-						qualifiedType := SyntaxTree.NewQualifiedType(qualifiedIdentifier.suffix.position, currentScope, qualifiedIdentifier);
+						qualifiedType := SyntaxTree.NewQualifiedType(qualifiedIdentifier.position, currentScope, qualifiedIdentifier);
 						withPart.SetType(qualifiedType);
 						Check( Scanner.Do );
 						statementSequence := StatementSequence(withStatement);
@@ -911,11 +911,11 @@ TYPE
 			| Scanner.For:
 					NextSymbol;
 					forStatement := SyntaxTree.NewForStatement( symbol.start, outer);
-					identifier := Identifier();
+					identifier := Identifier(position);
 					IF Optional(Scanner.Period) & Optional(Scanner.Identifier) THEN
-						Error(identifier.position,Diagnostics.Invalid,"forbidden non-local counter variable");
+						Error(position,Diagnostics.Invalid,"forbidden non-local counter variable");
 					END;
-					designator := SyntaxTree.NewIdentifierDesignator(identifier.position,identifier);
+					designator := SyntaxTree.NewIdentifierDesignator(position,identifier);
 					forStatement.SetVariable( designator );
 					Check( Scanner.Becomes );
 					expression := Expression();
@@ -1115,7 +1115,7 @@ TYPE
 			(* generic empty OBJECT type *)
 			IF Peek(Scanner.Semicolon) OR Peek(Scanner.RightParenthesis) THEN
 				Scanner.GetKeyword(scanner.case,Scanner.Object,str);
-				identifier := SyntaxTree.NewIdentifier(position,str);
+				identifier := SyntaxTree.NewIdentifier(str);
 	      		qualifiedIdentifier := SyntaxTree.NewQualifiedIdentifier(position,NIL,identifier);
 				type := SyntaxTree.NewQualifiedType( position, parentScope, qualifiedIdentifier );
 				RETURN type
@@ -1138,7 +1138,7 @@ TYPE
 					baseType := ArrayType(position, parentScope) (* TODO: correct position? *)
 				ELSE
 					qualifiedIdentifier := QualifiedIdentifier();
-					baseType := SyntaxTree.NewQualifiedType(qualifiedIdentifier.suffix.position, parentScope, qualifiedIdentifier)
+					baseType := SyntaxTree.NewQualifiedType(qualifiedIdentifier.position, parentScope, qualifiedIdentifier)
 				END;
 				objectType.SetBaseType(baseType);
 				Check( Scanner.RightParenthesis )
@@ -1247,7 +1247,7 @@ TYPE
 			recordType := SyntaxTree.NewRecordType( position, parentScope, recordScope);
 			IF Optional( Scanner.LeftParenthesis ) THEN
 				qualifiedIdentifier := QualifiedIdentifier();
-				qualifiedType := SyntaxTree.NewQualifiedType(qualifiedIdentifier.suffix.position, parentScope, qualifiedIdentifier );
+				qualifiedType := SyntaxTree.NewQualifiedType(qualifiedIdentifier.position, parentScope, qualifiedIdentifier );
 				recordType.SetBaseType( qualifiedType );
 				Check( Scanner.RightParenthesis )
 			END;
@@ -1334,7 +1334,7 @@ TYPE
 			type := SyntaxTree.NewEnumerationType(position,parentScope, scope);
 			IF Optional( Scanner.LeftParenthesis ) THEN
 				qualifiedIdentifier := QualifiedIdentifier();
-				qualifiedType := SyntaxTree.NewQualifiedType(qualifiedIdentifier.suffix.position, parentScope, qualifiedIdentifier );
+				qualifiedType := SyntaxTree.NewQualifiedType(qualifiedIdentifier.position, parentScope, qualifiedIdentifier );
 				type.SetEnumerationBase( qualifiedType );
 				Check( Scanner.RightParenthesis )
 			END;
@@ -1391,7 +1391,7 @@ TYPE
 			ELSIF Optional( Scanner.Procedure ) THEN type := ProcedureType( position,parentScope);
 			ELSIF Optional( Scanner.Enum ) THEN type := EnumerationType( position,parentScope);
 			ELSE qualifiedIdentifier := QualifiedIdentifier();
-				type := SyntaxTree.NewQualifiedType( qualifiedIdentifier.suffix.position, parentScope, qualifiedIdentifier );
+				type := SyntaxTree.NewQualifiedType( qualifiedIdentifier.position, parentScope, qualifiedIdentifier );
 			END;
 			IF Trace THEN E( "Type" ) END;
 			RETURN type
@@ -1402,12 +1402,13 @@ TYPE
 		VAR
 			type: SyntaxTree.Type; name: SyntaxTree.Identifier;
 			firstParameter, parameter: SyntaxTree.Parameter;
+			position: LONGINT;
 		BEGIN
 			IF Trace THEN S( "PortDeclaration" ) END;
 			firstParameter := cell.lastParameter;
 			REPEAT
-				name := Identifier();
-				parameter := SyntaxTree.NewParameter(name.position,cell,name,SyntaxTree.ValueParameter);
+				name := Identifier(position);
+				parameter := SyntaxTree.NewParameter(position,cell,name,SyntaxTree.ValueParameter);
 				cell.AddParameter(parameter);
 			UNTIL ~Optional( Scanner.Comma );
 			Check( Scanner.Colon );
@@ -1442,7 +1443,7 @@ TYPE
 		PROCEDURE ParameterDeclaration( procedureType: SyntaxTree.ProcedureType ; parentScope: SyntaxTree.Scope);
 		VAR
 			type: SyntaxTree.Type; name: SyntaxTree.Identifier;
-			firstParameter, parameter: SyntaxTree.Parameter;   kind: LONGINT;
+			firstParameter, parameter: SyntaxTree.Parameter;   kind,position: LONGINT;
 		BEGIN
 			IF Trace THEN S( "ParameterDeclaration" ) END;
 			IF Optional( Scanner.Var ) THEN (* var parameter *)
@@ -1456,8 +1457,8 @@ TYPE
 			END;
 			firstParameter := procedureType.lastParameter;
 			REPEAT
-				name := Identifier();
-				parameter := SyntaxTree.NewParameter(name.position,procedureType,name,kind);
+				name := Identifier(position);
+				parameter := SyntaxTree.NewParameter(position,procedureType,name,kind);
 				procedureType.AddParameter(parameter);
 				IF Optional(Scanner.Equal) THEN
 					parameter.SetDefaultValue(Expression());
@@ -1512,16 +1513,15 @@ TYPE
 			ELSE
 				REPEAT
 					position := symbol.start;
-					identifier := Identifier();
+					identifier := Identifier(position);
 					IF Optional(Scanner.LeftParenthesis) THEN
 						expression := Expression();
 						Check(Scanner.RightParenthesis)
 					ELSIF Optional(Scanner.Equal) THEN
 						expression := Expression();
-					ELSE
 						expression := NIL
 					END;
-					modifier := SyntaxTree.NewModifier(identifier,expression);
+					modifier := SyntaxTree.NewModifier(position,identifier,expression);
 					AppendModifier(list,modifier);
 				UNTIL ~Optional( Scanner.Comma ) & ~Optional(Scanner.Semicolon);
 			END;
@@ -1636,7 +1636,7 @@ TYPE
 			ELSE access := SyntaxTree.Internal;
 			END;
 			procedureScope := SyntaxTree.NewProcedureScope(parentScope);
-			operator := SyntaxTree.NewOperator( symbol.start, SyntaxTree.NewIdentifier(position,name), procedureScope);
+			operator := SyntaxTree.NewOperator( symbol.start, SyntaxTree.NewIdentifier(name), procedureScope);
 			CommentSymbol(operator);
 			operator.SetAccess(access * SyntaxTree.ReadOnly);
 			procedureType := SyntaxTree.NewProcedureType(symbol.start,parentScope);
@@ -1800,20 +1800,20 @@ TYPE
 			Import     = Identifier [':=' Identifier] ['in' Identifier].
 		**)
 		PROCEDURE ImportList( moduleScope: SyntaxTree.ModuleScope );
-		VAR alias, name, context: SyntaxTree.Identifier;  import: SyntaxTree.Import; position: LONGINT;
+		VAR alias, name, context: SyntaxTree.Identifier;  import: SyntaxTree.Import; position,idPosition: LONGINT;
 		BEGIN
 			IF Trace THEN S( "ImportList" ) END;
 			(* import symbol already consumed *)
 			REPEAT
 				position := symbol.start;
-				alias := Identifier();
+				alias := Identifier(idPosition);
 				IF alias # SyntaxTree.invalidIdentifier THEN
-					IF Optional( Scanner.Becomes ) THEN name := Identifier() ELSE name := alias;  END;
+					IF Optional( Scanner.Becomes ) THEN name := Identifier(idPosition) ELSE name := alias;  END;
 					import := SyntaxTree.NewImport( position, alias, name, TRUE );
 					CommentSymbol(import);
 					IF Optional(Scanner.In) THEN
 						position := symbol.start;
-						context := Identifier();
+						context := Identifier(idPosition);
 						IF context # SyntaxTree.invalidIdentifier THEN  import.SetContext(context) END;
 					END;
 					moduleScope.AddImport( import );
@@ -1834,15 +1834,15 @@ TYPE
 			currentScope := moduleScope;
 			isCellNet := Optional(Scanner.CellNet);
 			IF isCellNet OR Mandatory( Scanner.Module ) THEN
-				moduleName :=  Identifier();
-				module := SyntaxTree.NewModule( scanner.source, moduleName.position, moduleName, moduleScope, scanner.case );
+				moduleName :=  Identifier(position);
+				module := SyntaxTree.NewModule( scanner.source, position, moduleName, moduleScope, scanner.case );
 				IF isCellNet THEN module.SetCellNet(TRUE) END;
 
 				module.SetType(SyntaxTree.moduleType);
 				CommentSymbol(module);
 				IF Optional(Scanner.In) THEN
 					position := symbol.start;
-					context := Identifier();
+					context := Identifier(position);
 					module.SetContext(context);
 				END;
 				IF Lax THEN Ignore(Scanner.Semicolon) ELSE	Check(Scanner.Semicolon) END;

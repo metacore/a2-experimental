@@ -674,8 +674,8 @@ TYPE
 		END;
 		system.globalScope[Scanner.Uppercase] := SyntaxTree.NewModuleScope();
 		system.globalScope[Scanner.Lowercase] := SyntaxTree.NewModuleScope();
-		system.globalModule[Scanner.Uppercase] := SyntaxTree.NewModule("",-1,SyntaxTree.NewIdentifier(-1,"@GLOBAL"),system.globalScope[Scanner.Uppercase],Scanner.Uppercase);
-		system.globalModule[Scanner.Lowercase] := SyntaxTree.NewModule("",-1,SyntaxTree.NewIdentifier(-1,"@global"),system.globalScope[Scanner.Lowercase],Scanner.Lowercase);
+		system.globalModule[Scanner.Uppercase] := SyntaxTree.NewModule("",-1,SyntaxTree.NewIdentifier("@GLOBAL"),system.globalScope[Scanner.Uppercase],Scanner.Uppercase);
+		system.globalModule[Scanner.Lowercase] := SyntaxTree.NewModule("",-1,SyntaxTree.NewIdentifier("@global"),system.globalScope[Scanner.Lowercase],Scanner.Lowercase);
 		system.systemScope[Scanner.Uppercase] := SyntaxTree.NewModuleScope();
 		system.systemScope[Scanner.Lowercase] := SyntaxTree.NewModuleScope();
 		system.systemModule[Scanner.Uppercase] := SyntaxTree.NewModule("",-1,SystemName,system.systemScope[Scanner.Uppercase],Scanner.Uppercase);
@@ -864,7 +864,7 @@ TYPE
 	PROCEDURE DeclareType0(type: SyntaxTree.Type; CONST name: Scanner.StringType; in: SyntaxTree.Scope);
 	VAR basic: SyntaxTree.TypeDeclaration; duplicate: BOOLEAN;
 	BEGIN
-		basic := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(-1,name));
+		basic := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(name));
 		basic.SetDeclaredType(type);
 		basic.SetState(SyntaxTree.Resolved);
 		basic.SetAccess(SyntaxTree.ReadOnly);
@@ -888,7 +888,7 @@ TYPE
 	BEGIN
 		value := SyntaxTree.NewIntegerValue(-1,int);
 		value.SetType(type);
-		constant := SyntaxTree.NewConstant(-1,SyntaxTree.NewIdentifier(-1,name));
+		constant := SyntaxTree.NewConstant(-1,SyntaxTree.NewIdentifier(name));
 		constant.SetValue(value);
 		constant.SetType(value.type);
 		constant.SetAccess(SyntaxTree.ReadOnly);
@@ -910,7 +910,7 @@ TYPE
 	PROCEDURE NewBuiltin0( id: LONGINT; CONST name: Scanner.StringType; in:  SyntaxTree.ModuleScope; realtime: BOOLEAN);
 	VAR basic: SyntaxTree.Builtin; duplicate: BOOLEAN; type: SyntaxTree.ProcedureType;
 	BEGIN
-		basic := SyntaxTree.NewBuiltin(-1,SyntaxTree.NewIdentifier(-1,name),id);
+		basic := SyntaxTree.NewBuiltin(-1,SyntaxTree.NewIdentifier(name),id);
 		basic.SetAccess(SyntaxTree.ReadOnly);
 		type := SyntaxTree.NewProcedureType(-1,in);
 		type.SetRealtime(realtime);
@@ -965,8 +965,8 @@ TYPE
 			moduleName := contextName;
 			contextName := "A2";
 		END;
-		module := SyntaxTree.NewIdentifier(-1,moduleName);
-		context := SyntaxTree.NewIdentifier(-1,contextName);
+		module := SyntaxTree.NewIdentifier(moduleName);
+		context := SyntaxTree.NewIdentifier(contextName);
 	END ContextFromName;
 
 	PROCEDURE GetModuleName*(module: SyntaxTree.Module; VAR name: ARRAY OF CHAR);
@@ -1193,9 +1193,9 @@ TYPE
 		VAR str: Scanner.StringType;
 		BEGIN
 			Scanner.GetKeyword(Scanner.Uppercase,op,str);
-			identifiers[Scanner.Uppercase,op] := SyntaxTree.NewIdentifier(-1,str);
+			identifiers[Scanner.Uppercase,op] := SyntaxTree.NewIdentifier(str);
 			Scanner.GetKeyword(Scanner.Lowercase,op,str);
-			identifiers[Scanner.Lowercase,op] := SyntaxTree.NewIdentifier(-1,str);
+			identifiers[Scanner.Lowercase,op] := SyntaxTree.NewIdentifier(str);
 		END NewKeywordIdentifier;
 
 		PROCEDURE NewBuiltinIdentifier(op: LONGINT; CONST name: Scanner.StringType);
@@ -1204,8 +1204,8 @@ TYPE
 			ASSERT(op < LEN(identifiers[0]));
 			Basic.Lowercase(name,nameL);
 			Basic.Uppercase(name,nameU);
-			identifiers[Scanner.Lowercase,op] := SyntaxTree.NewIdentifier(-1,nameL);
-			identifiers[Scanner.Uppercase,op] := SyntaxTree.NewIdentifier(-1,nameU);
+			identifiers[Scanner.Lowercase,op] := SyntaxTree.NewIdentifier(nameL);
+			identifiers[Scanner.Uppercase,op] := SyntaxTree.NewIdentifier(nameU);
 		END NewBuiltinIdentifier;
 
 	BEGIN
@@ -1235,8 +1235,8 @@ TYPE
 		NewBuiltinIdentifier(Inc,"INC");
 		NewBuiltinIdentifier(Incl,"INCL");
 
-		identifiers[Scanner.Lowercase,Conversion] := SyntaxTree.NewIdentifier(-1,"@Convert");
-		identifiers[Scanner.Uppercase,Conversion] := SyntaxTree.NewIdentifier(-1,"@Convert");
+		identifiers[Scanner.Lowercase,Conversion] := SyntaxTree.NewIdentifier("@Convert");
+		identifiers[Scanner.Uppercase,Conversion] := SyntaxTree.NewIdentifier("@Convert");
 
 	END InitIdentifiers;
 
@@ -1245,37 +1245,37 @@ TYPE
 	BEGIN
 		InitIdentifiers;
 		(* names are not arbitrary, do not change unless you know what you do (compatibilty with paco!) *)
-		SystemName := SyntaxTree.NewIdentifier(-1,"SYSTEM");
-		systemName := SyntaxTree.NewIdentifier(-1,"system");
-		SelfParameterName := SyntaxTree.NewIdentifier(-1,"@Self");
-		ReturnParameterName := SyntaxTree.NewIdentifier(-1,"@ReturnParameter");
-		PointerReturnName := SyntaxTree.NewIdentifier(-1,"@PtrReturnType");
-		ResultName := SyntaxTree.NewIdentifier(-1,"RESULT");
-		A2Name := SyntaxTree.NewIdentifier(-1,"A2");
-		OberonName := SyntaxTree.NewIdentifier(-1,"Oberon");
-		ArrayBaseName := SyntaxTree.NewIdentifier(-1,"FoxArrayBase");
-		RecordBodyName := SyntaxTree.NewIdentifier(-1,"@Body");
-		ModuleBodyName := SyntaxTree.NewIdentifier(-1,"$$Body");
+		SystemName := SyntaxTree.NewIdentifier("SYSTEM");
+		systemName := SyntaxTree.NewIdentifier("system");
+		SelfParameterName := SyntaxTree.NewIdentifier("@Self");
+		ReturnParameterName := SyntaxTree.NewIdentifier("@ReturnParameter");
+		PointerReturnName := SyntaxTree.NewIdentifier("@PtrReturnType");
+		ResultName := SyntaxTree.NewIdentifier("RESULT");
+		A2Name := SyntaxTree.NewIdentifier("A2");
+		OberonName := SyntaxTree.NewIdentifier("Oberon");
+		ArrayBaseName := SyntaxTree.NewIdentifier("FoxArrayBase");
+		RecordBodyName := SyntaxTree.NewIdentifier("@Body");
+		ModuleBodyName := SyntaxTree.NewIdentifier("$$Body");
 
-		NameWinAPI := SyntaxTree.NewIdentifier(-1, StringWinAPI);
-		NameC := SyntaxTree.NewIdentifier(-1, StringC);
-		NameUntraced := SyntaxTree.NewIdentifier(-1, StringUntraced);
-		NameDelegate := SyntaxTree.NewIdentifier(-1, StringDelegate);
-		NameInterrupt := SyntaxTree.NewIdentifier(-1, StringInterrupt);
-		NameNoPAF := SyntaxTree.NewIdentifier(-1, StringNoPAF);
-		NameFixed := SyntaxTree.NewIdentifier(-1, StringFixed);
-		NameAligned := SyntaxTree.NewIdentifier(-1, StringAligned);
-		NameStackAligned := SyntaxTree.NewIdentifier(-1, StringAlignStack);
-		NameExclusive := SyntaxTree.NewIdentifier(-1, StringExclusive);
-		NameActive := SyntaxTree.NewIdentifier(-1, StringActive);
-		NamePriority := SyntaxTree.NewIdentifier(-1, StringPriority);
-		NameSafe := SyntaxTree.NewIdentifier(-1, StringSafe);
-		NameRealtime := SyntaxTree.NewIdentifier(-1, StringRealtime);
-		NameDataMemorySize := SyntaxTree.NewIdentifier(-1, StringDataMemorySize);
-		NameCodeMemorySize := SyntaxTree.NewIdentifier(-1, StringCodeMemorySize);
-		NameChannelWidth := SyntaxTree.NewIdentifier(-1, StringChannelWidth);
-		NameChannelDepth := SyntaxTree.NewIdentifier(-1, StringChannelDepth);
-		NameChannelModule := SyntaxTree.NewIdentifier(-1, StringChannelModule);
+		NameWinAPI := SyntaxTree.NewIdentifier( StringWinAPI);
+		NameC := SyntaxTree.NewIdentifier( StringC);
+		NameUntraced := SyntaxTree.NewIdentifier( StringUntraced);
+		NameDelegate := SyntaxTree.NewIdentifier( StringDelegate);
+		NameInterrupt := SyntaxTree.NewIdentifier( StringInterrupt);
+		NameNoPAF := SyntaxTree.NewIdentifier( StringNoPAF);
+		NameFixed := SyntaxTree.NewIdentifier( StringFixed);
+		NameAligned := SyntaxTree.NewIdentifier( StringAligned);
+		NameStackAligned := SyntaxTree.NewIdentifier( StringAlignStack);
+		NameExclusive := SyntaxTree.NewIdentifier( StringExclusive);
+		NameActive := SyntaxTree.NewIdentifier( StringActive);
+		NamePriority := SyntaxTree.NewIdentifier( StringPriority);
+		NameSafe := SyntaxTree.NewIdentifier( StringSafe);
+		NameRealtime := SyntaxTree.NewIdentifier( StringRealtime);
+		NameDataMemorySize := SyntaxTree.NewIdentifier( StringDataMemorySize);
+		NameCodeMemorySize := SyntaxTree.NewIdentifier( StringCodeMemorySize);
+		NameChannelWidth := SyntaxTree.NewIdentifier( StringChannelWidth);
+		NameChannelDepth := SyntaxTree.NewIdentifier( StringChannelDepth);
+		NameChannelModule := SyntaxTree.NewIdentifier( StringChannelModule);
 
 		(* types *)
 		Boolean8 := SyntaxTree.NewBooleanType(8);

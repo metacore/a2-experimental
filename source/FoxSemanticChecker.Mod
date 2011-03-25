@@ -212,22 +212,22 @@ TYPE
 				symbol := Find(currentScope,qualifiedIdentifier.prefix,TRUE);
 				IF (symbol # NIL) & (symbol IS SyntaxTree.Import) THEN
 					IF symbol(SyntaxTree.Import).module = NIL THEN
-						Error(qualifiedIdentifier.suffix.position,Diagnostics.Invalid,"module not loaded");
+						Error(qualifiedIdentifier.position,Diagnostics.Invalid,"module not loaded");
 						result := SyntaxTree.invalidType;
 						symbol := NIL;
 					ELSE
 						currentScope := symbol(SyntaxTree.Import).module.moduleScope;
 						symbol := Find(currentScope,qualifiedIdentifier.suffix,FALSE);
-						IF (symbol = NIL) OR (symbol.access * SyntaxTree.Public = {}) THEN Error(qualifiedIdentifier.suffix.position,Diagnostics.Invalid,"undeclared identifier (prefix-suffix)") END;
+						IF (symbol = NIL) OR (symbol.access * SyntaxTree.Public = {}) THEN Error(qualifiedIdentifier.position,Diagnostics.Invalid,"undeclared identifier (prefix-suffix)") END;
 					END;
 				ELSE
-					Error(qualifiedIdentifier.suffix.position,Diagnostics.Invalid,"prefix does not denote a module name");
+					Error(qualifiedIdentifier.position,Diagnostics.Invalid,"prefix does not denote a module name");
 					symbol := NIL;
 				END;
 			ELSE
 				symbol := Find(currentScope,qualifiedIdentifier.suffix,TRUE);
 				IF symbol = NIL THEN
-					Error(qualifiedIdentifier.suffix.position,Diagnostics.Invalid,"undeclared identifier (qualident suffix)");
+					Error(qualifiedIdentifier.position,Diagnostics.Invalid,"undeclared identifier (qualident suffix)");
 					IF VerboseErrorMessage THEN
 						Printout.Info("Qualident",qualifiedIdentifier);
 						Printout.Info("in scope",currentScope) ;
@@ -239,7 +239,7 @@ TYPE
 				typeDeclaration := NIL;
 				result := SyntaxTree.invalidType;
 			ELSIF ~(symbol IS SyntaxTree.TypeDeclaration) THEN
-				Error(qualifiedIdentifier.suffix.position,Diagnostics.Invalid,"symbol does not denote a type");
+				Error(qualifiedIdentifier.position,Diagnostics.Invalid,"symbol does not denote a type");
 				typeDeclaration := NIL;
 				result := SyntaxTree.invalidType;
 			ELSE
@@ -524,10 +524,10 @@ TYPE
 			IF (moduleName = module.name) & (selfContext = "A2") THEN
 				m := module
 			ELSE
-				import := module.moduleScope.ImportByModuleName(moduleName,SyntaxTree.NewIdentifier(-1,"A2"));
+				import := module.moduleScope.ImportByModuleName(moduleName,SyntaxTree.NewIdentifier("A2"));
 				IF import = NIL THEN
 					import := SyntaxTree.NewImport(-1,moduleName,moduleName,TRUE);
-					import.SetContext(SyntaxTree.NewIdentifier(-1,"A2"));
+					import.SetContext(SyntaxTree.NewIdentifier("A2"));
 					IF ~AddImport(module,import) OR (import.module = NIL) THEN
 						IF force THEN
 							s := "Module ";
@@ -550,7 +550,7 @@ TYPE
 		VAR runtimeModule: SyntaxTree.Module; s,name: Scanner.StringType;
 		BEGIN
 			IF ImportThis(position, moduleName,runtimeModule,force) THEN
-				procedure := runtimeModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(-1,procedureName));
+				procedure := runtimeModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "Procedure ";
 					moduleName.GetString(name);
@@ -626,7 +626,7 @@ TYPE
 			COPY(prefix,name);
 			Strings.Append(name,"@");
 			Strings.Append(name,number);
-			typeDeclaration := SyntaxTree.NewTypeDeclaration(x.position,SyntaxTree.NewIdentifier(InvalidPosition,name));
+			typeDeclaration := SyntaxTree.NewTypeDeclaration(x.position,SyntaxTree.NewIdentifier(name));
 			typeDeclaration.SetDeclaredType(x);
 			typeDeclaration.SetAccess(SyntaxTree.Hidden);
 			x.SetTypeDeclaration(typeDeclaration);
@@ -762,7 +762,7 @@ TYPE
 			END;
 			IF this # NIL THEN
 				IF this.expression # NIL THEN
-					Error(this.identifier.position,Diagnostics.Invalid,"unexpected expression");
+					Error(this.position,Diagnostics.Invalid,"unexpected expression");
 				END;
 				this.Resolved;
 				RETURN TRUE
@@ -780,11 +780,11 @@ TYPE
 			END;
 			IF this # NIL THEN
 				IF this.expression = NIL THEN
-					Error(this.identifier.position,Diagnostics.Invalid,"expected expression value");
+					Error(this.position,Diagnostics.Invalid,"expected expression value");
 				ELSIF CheckIntegerValue(this.expression,value) THEN
 				END;
 				this.Resolved;
-				position := this.identifier.position;
+				position := this.position;
 				RETURN TRUE
 			ELSE RETURN FALSE
 			END;
@@ -796,7 +796,7 @@ TYPE
 			this := modifiers;
 			WHILE this # NIL DO
 				IF ~this.resolved THEN
-					Error(this.identifier.position,Diagnostics.Invalid,"unexpected modifier");
+					Error(this.position,Diagnostics.Invalid,"unexpected modifier");
 				END;
 				this := this.nextModifier
 			END;
@@ -1097,10 +1097,10 @@ TYPE
 			(* go through all operators in the current record scope *)
 			operator := recordScope.firstOperator;
 			WHILE operator # NIL DO
-				IF operator.name.Equals(SyntaxTree.NewIdentifier(InvalidPosition, "LEN")) THEN
+				IF operator.name.Equals(SyntaxTree.NewIdentifier("LEN")) THEN
 					IF CheckLenOperator(operator, arrayStructure) THEN arrayAccessOperators.len := operator END
 
-				ELSIF operator.name.Equals(SyntaxTree.NewIdentifier(InvalidPosition, "[]")) THEN
+				ELSIF operator.name.Equals(SyntaxTree.NewIdentifier("[]")) THEN
 					IF CheckIndexOperator(operator, arrayStructure, isReadOperator, isGeneralOperator, indexListSize, indexListKind) THEN
 						IF isGeneralOperator THEN
 							IF isReadOperator THEN
@@ -2169,7 +2169,7 @@ TYPE
 				END;
 			ELSIF (type IS SyntaxTree.ByteType) THEN (* do not convert *)
 				expressionList := SyntaxTree.NewExpressionList();
-				typeDeclaration := SyntaxTree.NewTypeDeclaration(expression.position,SyntaxTree.NewIdentifier(InvalidPosition,"@byte"));
+				typeDeclaration := SyntaxTree.NewTypeDeclaration(expression.position,SyntaxTree.NewIdentifier("@byte"));
 				typeDeclaration.SetDeclaredType(type);
 				typeSymbol := SyntaxTree.NewSymbolDesignator(InvalidPosition,NIL,typeDeclaration);
 				typeSymbol.SetType(typeDeclaration.type);
@@ -3583,7 +3583,7 @@ TYPE
 						tempList := SyntaxTree.NewExpressionList();
 						tempList.AddExpression(expression);
 						tempDesignator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
-						tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier(InvalidPosition, "RangeFromInteger"));
+						tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier("RangeFromInteger"));
 						expression := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, tempDesignator, tempList));
 					END;
 					IF usesGeneralOperator THEN
@@ -3625,7 +3625,7 @@ TYPE
 						END;
 						tempList.AddExpression(tempMathArrayExpression);
 						tempDesignator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
-						tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier(InvalidPosition, "ExpandDimensions"));
+						tempDesignator := SyntaxTree.NewSelectorDesignator(InvalidPosition, tempDesignator, SyntaxTree.NewIdentifier("ExpandDimensions"));
 						expression := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, tempDesignator, tempList));
 
 						IF expression.type.resolved IS SyntaxTree.MathArrayType THEN
@@ -6717,7 +6717,7 @@ TYPE
 			WHILE(blockModifier # NIL) DO
 				name := blockModifier.identifier;
 				expression := blockModifier.expression;
-				position := blockModifier.identifier.position;
+				position := blockModifier.position;
 				flag := -1;
 				IF name.Equals(Global.NamePriority) THEN
 					IF expression = NIL THEN

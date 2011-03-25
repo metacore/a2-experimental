@@ -789,7 +789,7 @@ TYPE
 			BEGIN
 				R.RawString(name);
 				WHILE name # "" DO
-					identifier := SyntaxTree.NewIdentifier(-1,name);
+					identifier := SyntaxTree.NewIdentifier(name);
 					enumerator := SyntaxTree.NewConstant(-1,identifier);
 					enumerationScope.AddConstant(enumerator);
 					enumerationScope.EnterSymbol(enumerator,b);
@@ -847,7 +847,7 @@ TYPE
 
 					R.RawString(name);
 
-					parameter := SyntaxTree.NewParameter(-1,procedureType,SyntaxTree.NewIdentifier(-1,name),kind);
+					parameter := SyntaxTree.NewParameter(-1,procedureType,SyntaxTree.NewIdentifier(name),kind);
 					parameter.SetType(type);
 					parameter.SetState(SyntaxTree.Resolved);
 					(*! remove this after a rebuild of the release - for compatibility only *)
@@ -927,7 +927,7 @@ TYPE
 					Symbol(recordScope,type,name,visibility,untraced, realtime, constructor, isOperator);
 					ASSERT(type # NIL);
 					IF  name = "" THEN visibility := SyntaxTree.Internal END;
-					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,name));
+					variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(name));
 					variable.SetType(type);
 					variable.SetUntraced(untraced);
 					variable.SetAccess(visibility);
@@ -946,10 +946,10 @@ TYPE
 
 						procedureScope := SyntaxTree.NewProcedureScope(recordScope);
 						IF isOperator THEN
-							operator := SyntaxTree.NewOperator(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
+							operator := SyntaxTree.NewOperator(-1,SyntaxTree.NewIdentifier(name),procedureScope);
 							procedure := operator
 						ELSE
-							procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
+							procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(name),procedureScope);
 						END;
 						procedureType := SyntaxTree.NewProcedureType(-1,recordScope);
 						procedureType.SetReturnType(type);
@@ -1103,7 +1103,7 @@ TYPE
 					attribute := indexToAttribute.GetAttribute(tag);
 
 					IF typeName # "" THEN (* first import of struct *)
-						identifier := SyntaxTree.NewIdentifier(-1,typeName);
+						identifier := SyntaxTree.NewIdentifier(typeName);
 						typeDeclaration := importedModule.moduleScope.FindTypeDeclaration(identifier); (* find type in module *)
 						IF (typeDeclaration # NIL) THEN
 							qualifiedType := SyntaxTree.NewQualifiedType(-1,moduleScope,SyntaxTree.NewQualifiedIdentifier(-1,importedModule.name,identifier));
@@ -1265,7 +1265,7 @@ TYPE
 
 
 					IF name # "" THEN
-						typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(-1,name));
+						typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(name));
 						typeDeclaration.SetDeclaredType(type);
 						type.SetTypeDeclaration(typeDeclaration);
 						typeDeclaration.SetAccess(visibility);
@@ -1392,7 +1392,7 @@ TYPE
 						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,operator);
 						ASSERT(type # NIL);
 						value := Value(type);
-						constant := SyntaxTree.NewConstant(-1,SyntaxTree.NewIdentifier(-1,name));
+						constant := SyntaxTree.NewConstant(-1,SyntaxTree.NewIdentifier(name));
 						constant.SetValue(value);
 						constant.SetType(value.type);
 						constant.SetAccess(visibility);
@@ -1409,7 +1409,7 @@ TYPE
 						operator := FALSE;
 						Symbol(moduleScope,type,name, visibility,untraced,realtime,constructor,operator);
 						ASSERT(type # NIL);
-						variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(-1,name));
+						variable := SyntaxTree.NewVariable(-1,SyntaxTree.NewIdentifier(name));
 						variable.SetType(type);
 						variable.SetAccess(visibility);
 						variable.SetState(SyntaxTree.Resolved);
@@ -1428,7 +1428,7 @@ TYPE
 						procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
 						procedureType := SyntaxTree.NewProcedureType(-1,moduleScope);
 						procedureType.SetReturnType(type);
-						procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
+						procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(name),procedureScope);
 						procedure.SetType(procedureType);
 						procedure.SetAccess(visibility);
 						ParameterList(callingConvention,procedureScope,procedureType);
@@ -1451,7 +1451,7 @@ TYPE
 						procedureType := SyntaxTree.NewProcedureType(-1,moduleScope);
 						procedureType.SetReturnType(type);
 						procedureType.SetRealtime(realtime);
-						procedure := SyntaxTree.NewOperator(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
+						procedure := SyntaxTree.NewOperator(-1,SyntaxTree.NewIdentifier(name),procedureScope);
 						procedure.SetType(procedureType);
 						procedure.SetAccess(visibility);
 						ParameterList(callingConvention,procedureScope,procedureType);
@@ -1476,7 +1476,7 @@ TYPE
 						ASSERT(~(constructor));
 						procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
 						procedureType := SyntaxTree.NewProcedureType(-1,moduleScope);
-						procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(-1,name),procedureScope);
+						procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier(name),procedureScope);
 						procedureType.SetReturnType(type);
 						procedure.SetInline(TRUE);
 						procedure.SetType(procedureType);
@@ -1495,7 +1495,7 @@ TYPE
 						type := Type();
 						R.RawString(name);
 						IF TraceImport IN Trace  THEN  D.Str("alias:"); D.Str(name); D.Ln  END;
-						typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(-1,name));
+						typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(name));
 						typeDeclaration.SetDeclaredType(type);
 						visibility := SyntaxTree.Public+SyntaxTree.Protected+SyntaxTree.Internal;
 						typeDeclaration.SetAccess(visibility);

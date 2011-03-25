@@ -331,12 +331,10 @@ TYPE
 	Identifier* = OBJECT
 		VAR
 			name-: Basic.String;
-			position-: LONGINT;
 
-		PROCEDURE & InitIdentifier( position: LONGINT;  CONST id: ARRAY OF CHAR);
+		PROCEDURE & InitIdentifier(CONST id: ARRAY OF CHAR);
 		BEGIN
 			name := Basic.MakeString( id );
-			SELF.position := position;
 		END InitIdentifier;
 
 		PROCEDURE Equals*(this: Identifier): BOOLEAN;
@@ -354,10 +352,12 @@ TYPE
 	QualifiedIdentifier* = OBJECT
 		VAR
 			prefix-, suffix-: Identifier;   (* use string index instead ? *)
-
+			position-: LONGINT; 
+			
 		PROCEDURE & InitQualifiedIdentifier( position: LONGINT;  prefix, suffix: Identifier);
 		BEGIN
 			ASSERT(suffix # NIL);
+			SELF.position := position;
 			SELF.prefix := prefix; SELF.suffix := suffix;
 		END InitQualifiedIdentifier;
 
@@ -447,7 +447,7 @@ TYPE
 		PROCEDURE & InitBasicType(CONST id: ARRAY OF CHAR; sizeInBits: LONGINT);
 		VAR str: String;
 		BEGIN
-			COPY(id, str);Basic.AppendNumber(str,sizeInBits); name := NewIdentifier(-1,str);
+			COPY(id, str);Basic.AppendNumber(str,sizeInBits); name := NewIdentifier(str);
 			InitType(-1);
 			SetSize(sizeInBits);
 			SELF.name := name
@@ -455,7 +455,7 @@ TYPE
 
 		PROCEDURE SetName*(CONST id: ARRAY OF CHAR);
 		BEGIN
-			name := NewIdentifier(-1,id);
+			name := NewIdentifier(id);
 		END SetName;
 
 		PROCEDURE SetTypeDeclaration*(typeDeclaration: TypeDeclaration);
@@ -3232,9 +3232,11 @@ TYPE
 		identifier-: Identifier; expression-: Expression;
 		resolved-: BOOLEAN;
 		nextModifier-: Modifier;
+		position-: LONGINT;
 
-		PROCEDURE & InitModifier(identifier: Identifier; expression: Expression);
+		PROCEDURE & InitModifier(position: LONGINT; identifier: Identifier; expression: Expression);
 		BEGIN
+			SELF.position := position;
 			SELF.identifier := identifier; SELF.expression := expression; nextModifier := NIL; resolved := FALSE;
 		END InitModifier;
 
@@ -4118,7 +4120,7 @@ VAR
 	PROCEDURE NewTypeDeclaration*(position: LONGINT; name: Identifier): TypeDeclaration;
 	VAR typeDeclaration: TypeDeclaration;
 	BEGIN
-		ASSERT(~name.Equals(NewIdentifier(-1,"")));
+		ASSERT(~name.Equals(NewIdentifier("")));
 		NEW(typeDeclaration,position,name); RETURN typeDeclaration
 	END NewTypeDeclaration;
 
@@ -4201,10 +4203,10 @@ VAR
 		NEW( qualifiedIdentifier, position, prefix, suffix );  RETURN qualifiedIdentifier
 	END NewQualifiedIdentifier;
 
-	PROCEDURE NewIdentifier*( position: LONGINT;  CONST name: ARRAY OF CHAR): Identifier;
+	PROCEDURE NewIdentifier*(CONST name: ARRAY OF CHAR): Identifier;
 	VAR identifier: Identifier;
 	BEGIN
-		NEW( identifier, position, name);
+		NEW( identifier, name);
 		RETURN identifier
 	END NewIdentifier;
 
@@ -4434,10 +4436,10 @@ VAR
 		NEW( statementSequence);  RETURN statementSequence
 	END NewStatementSequence;
 
-	PROCEDURE NewModifier*(identifier: Identifier; expression: Expression): Modifier;
+	PROCEDURE NewModifier*(position: LONGINT; identifier: Identifier; expression: Expression): Modifier;
 	VAR blockModifier: Modifier;
 	BEGIN
-		NEW(blockModifier,identifier,expression); RETURN blockModifier
+		NEW(blockModifier,position,identifier,expression); RETURN blockModifier
 	END NewModifier;
 
 	PROCEDURE NewStatementBlock*( position: LONGINT ; outer: Statement): StatementBlock;
@@ -4576,14 +4578,14 @@ VAR
 	PROCEDURE Init;
 	BEGIN
 		invalidString := Basic.MakeString("@invalidString");
-		invalidIdentifier := NewIdentifier(-1,"@invalidString");
+		invalidIdentifier := NewIdentifier("@invalidString");
 		invalidQualifiedIdentifier := NewQualifiedIdentifier(-1,NIL,invalidIdentifier);
 		invalidType := NewType();
 		invalidDesignator := NewDesignator();
 		invalidDesignator.SetType(invalidType);
 		invalidExpression := invalidDesignator;
 		invalidValue := NewValue();
-		invalidSymbol := NewSymbol(NewIdentifier(-1,""));
+		invalidSymbol := NewSymbol(NewIdentifier(""));
 		invalidSymbol.SetType(invalidType);
 
 		importType := NewType();
@@ -4593,7 +4595,7 @@ VAR
 		moduleType := NewType();
 		moduleType.SetState(Resolved);
 		anonymous := Basic.MakeString("");
-		anonymousIdentifier := NewIdentifier(-1,"");
+		anonymousIdentifier := NewIdentifier("");
 
 		indexListSeparator := NewDesignator();
 		indexListSeparator.SetType(invalidType);
