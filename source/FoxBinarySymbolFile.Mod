@@ -1497,7 +1497,7 @@ TYPE
 						IF TraceImport IN Trace  THEN  D.Str("alias:"); D.Str(name); D.Ln  END;
 						typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(name));
 						typeDeclaration.SetDeclaredType(type);
-						visibility := SyntaxTree.Public+SyntaxTree.Protected+SyntaxTree.Internal;
+						visibility := SyntaxTree.ReadOnly; (*SyntaxTree.Public+SyntaxTree.Protected+SyntaxTree.Internal;*)
 						typeDeclaration.SetAccess(visibility);
 						typeDeclaration.SetState(SyntaxTree.Resolved);
 						IF ~(type IS SyntaxTree.BasicType) THEN

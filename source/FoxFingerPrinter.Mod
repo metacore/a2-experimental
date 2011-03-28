@@ -697,20 +697,20 @@ TYPE
 				TraceIndent; D.Str("name = "); D.Str(name); D.Ln;
 			END;
 			ASSERT(deep);
+			fingerprint := procedure.fingerprint;
+			IF ~fingerprint.shallowAvailable THEN
+				fp := 0;
+				FPNumber(fp,fpModeMethod);
+				Global.GetSymbolName(procedure,name);
+				FPString(fp,name);
+				FPSignature(fp,procedure.type(SyntaxTree.ProcedureType),procedure IS SyntaxTree.Operator );
+				fingerprint.shallow := fp;
+				fingerprint.shallowAvailable := TRUE;
+				procedure.SetFingerPrint(fingerprint)
+			ELSE
+				fp := fingerprint.shallow;
+			END;
 			IF procedure.access * SyntaxTree.Public # {} THEN (* visible method or visible supermethod *)
-				fingerprint := procedure.fingerprint;
-				IF ~fingerprint.shallowAvailable THEN
-					fp := 0;
-					FPNumber(fp,fpModeMethod);
-					Global.GetSymbolName(procedure,name);
-					FPString(fp,name);
-					FPSignature(fp,procedure.type(SyntaxTree.ProcedureType),procedure IS SyntaxTree.Operator );
-					fingerprint.shallow := fp;
-					fingerprint.shallowAvailable := TRUE;
-					procedure.SetFingerPrint(fingerprint)
-				ELSE
-					fp := fingerprint.shallow;
-				END;
 				FPNumber(fp,procedure.methodNumber);
 				IF procedure # body THEN
 					FPNumber(private,fp); FPNumber(public,fp);
