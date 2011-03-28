@@ -23,9 +23,11 @@ CONST
 		END;
 		fpNew := fingerprinter.TypeFP(new);
 		fpOld := fingerprinter.TypeFP(old);
-		D.String("-->"); D.Ln;
-		D.String("fpOld "); FingerPrinter.DumpFingerPrint(D.Log,fpOld); D.Ln;
-		D.String("fpNew "); FingerPrinter.DumpFingerPrint(D.Log,fpNew); D.Ln;
+		IF Trace THEN
+			D.String("-->"); D.Ln;
+			D.String("fpOld "); FingerPrinter.DumpFingerPrint(D.Log,fpOld); D.Ln;
+			D.String("fpNew "); FingerPrinter.DumpFingerPrint(D.Log,fpNew); D.Ln;
+		END;
 		RETURN (fpNew.private = fpOld.private) & (fpNew.public = fpOld.public) & (fpNew.shallow = fpOld.shallow);
 	END SameType;
 

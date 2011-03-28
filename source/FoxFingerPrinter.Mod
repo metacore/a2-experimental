@@ -707,6 +707,7 @@ TYPE
 					FPSignature(fp,procedure.type(SyntaxTree.ProcedureType),procedure IS SyntaxTree.Operator );
 					fingerprint.shallow := fp;
 					fingerprint.shallowAvailable := TRUE;
+					procedure.SetFingerPrint(fingerprint)
 				ELSE
 					fp := fingerprint.shallow;
 				END;
@@ -1170,44 +1171,47 @@ TYPE
 		VAR fp: LONGINT; access: SET; fingerprint: FingerPrint; deep: BOOLEAN; code: SyntaxTree.Code; i: LONGINT;
 			size,value: LONGINT; name: ARRAY 256 OF CHAR;
 		BEGIN
-			(*! missing: inline procedures *)
-			fingerprint := x.fingerprint;
-
-			IF ~fingerprint.shallowAvailable THEN
-				deep := SELF.deep;
-				SELF.deep := FALSE;
-				(* for compatibility with old compiler: *)
-				access := x.access; IF SyntaxTree.PublicRead IN access THEN INCL(access,SyntaxTree.PublicWrite) END;
-				fp := 0;
-				IF x.isInline THEN
-					FPNumber(fp, fpModeInlineProcedure);
-					FPName(fp,x.name);
-					FPVisibility(fp, access);
-					FPSignature(fp,x.type(SyntaxTree.ProcedureType),x IS SyntaxTree.Operator);
-					IF (x.procedureScope.body # NIL) & (x.procedureScope.body.code # NIL) THEN
-						code := x.procedureScope.body.code;
-						IF code.inlineCode = NIL THEN
-							size := 0
-						ELSE
-							size := code.inlineCode.GetSize() DIV 8;
+			IF x.scope IS SyntaxTree.RecordScope THEN (* method *)
+				FPrintMethod(fp,fp,x,NIL);
+				fingerprint := x.fingerprint;					
+			ELSE
+				fingerprint := x.fingerprint;
+				IF ~fingerprint.shallowAvailable THEN
+					deep := SELF.deep;
+					SELF.deep := FALSE;
+					(* for compatibility with old compiler: *)
+					access := x.access; IF SyntaxTree.PublicRead IN access THEN INCL(access,SyntaxTree.PublicWrite) END;
+					fp := 0;
+					IF x.isInline THEN
+						FPNumber(fp, fpModeInlineProcedure);
+						FPName(fp,x.name);
+						FPVisibility(fp, access);
+						FPSignature(fp,x.type(SyntaxTree.ProcedureType),x IS SyntaxTree.Operator);
+						IF (x.procedureScope.body # NIL) & (x.procedureScope.body.code # NIL) THEN
+							code := x.procedureScope.body.code;
+							IF code.inlineCode = NIL THEN
+								size := 0
+							ELSE
+								size := code.inlineCode.GetSize() DIV 8;
+							END;
+							FPNumber(fp,size);
+							FOR i := 0 TO size-1 DO
+								value := code.inlineCode.GetBits(i*8,8);
+								FPNumber(fp,value);
+							END;
 						END;
-						FPNumber(fp,size);
-						FOR i := 0 TO size-1 DO
-							value := code.inlineCode.GetBits(i*8,8);
-							FPNumber(fp,value);
-						END;
+					ELSE
+						FPNumber(fp, fpModeExportedProcedure);
+						Global.GetSymbolName(x,name);
+						FPString(fp,name);
+						FPVisibility(fp, access);
+						FPSignature(fp,x.type(SyntaxTree.ProcedureType),x IS SyntaxTree.Operator);
 					END;
-				ELSE
-					FPNumber(fp, fpModeExportedProcedure);
-					Global.GetSymbolName(x,name);
-					FPString(fp,name);
-					FPVisibility(fp, access);
-					FPSignature(fp,x.type(SyntaxTree.ProcedureType),x IS SyntaxTree.Operator);
+					fingerprint.shallow := fp;
+					fingerprint.shallowAvailable := TRUE;
+					x.SetFingerPrint(fingerprint);
+					SELF.deep := deep;
 				END;
-				fingerprint.shallow := fp;
-				fingerprint.shallowAvailable := TRUE;
-				x.SetFingerPrint(fingerprint);
-				SELF.deep := deep;
 			END;
 			SELF.fingerprint := fingerprint
 		END VisitProcedure;
