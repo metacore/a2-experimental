@@ -61,7 +61,7 @@ TYPE
 				awaitingCond: ProcessQueue;   (* processes blocked awaiting condition *)
 			END;
 
-	Body = PROCEDURE ( typetag: Address;  self: ProtectedObject );
+	Body = PROCEDURE ( self: ProtectedObject );
 	Condition = PROCEDURE ( slink: Address ): BOOLEAN;
 	
 	Process* = OBJECT (Heaps.RootObject)
@@ -328,7 +328,7 @@ VAR
 
 
 	PROCEDURE BodyStarter;
-	VAR p{UNTRACED}: Process;  proc: Body;  id: cThread; res: LONGINT; prevBP, type: Address;
+	VAR p{UNTRACED}: Process;  proc: Body;  id: cThread; res: LONGINT; prevBP: Address;
 	BEGIN
 		mtxLock( start1 );
 			id := thrThis(0);  
@@ -353,9 +353,8 @@ VAR
 		IF Restart IN p.flags THEN
 			res := Unix.sigsetjmp( S.ADR( p.state0[0] ), 1 );
 		END;
-		IF p.obj # NIL THEN  S.GET( S.VAL( Address, p.obj ) - AdrSize, type )  ELSE  type := 0  END;
 		p.mode := Running;
-		proc( type, p.obj );
+		proc( p.obj );
 		p.mode := Terminated;
 		Exit
 	END BodyStarter;

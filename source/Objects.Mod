@@ -58,7 +58,7 @@ TYPE
 
 	ProcessQueue = Heaps.ProcessQueue;
 
-	Body = PROCEDURE (typetag: SYSTEM.ADDRESS; self: ProtectedObject);
+	Body = PROCEDURE (self: ProtectedObject);
 	Condition = PROCEDURE (slink: SYSTEM.ADDRESS): BOOLEAN;
 
 	InterruptList = POINTER TO RECORD
@@ -358,6 +358,7 @@ TYPE
 	END FinalizerCaller;
 
 	Interrupter = OBJECT (ProtectedObject)	(* to do: like Timer *)
+	VAR interruptNumber: LONGINT;
 	END Interrupter;
 
 VAR
@@ -848,10 +849,11 @@ BEGIN
 	Machine.Release(Machine.Objects)
 END FieldIRQ;
 
-(* Process scheduled to handle an interrupt. First parameter is usually the type, but is used as int index here. *)
-PROCEDURE InterruptProcess(int: SYSTEM.ADDRESS; self: ProtectedObject);
-VAR h: InterruptList; t: Process;
+(* Process scheduled to handle an interrupt. *)
+PROCEDURE InterruptProcess(self: ProtectedObject);
+VAR h: InterruptList; t: Process; int: LONGINT;
 BEGIN
+	int := self(Interrupter).interruptNumber;
 	t := interrupt[int-MinIRQ].process;
 	LOOP
 		h := interrupt[int-MinIRQ].root;	(* concurrent updates allowed in InstallHandler and RemoveHandler *)
@@ -859,7 +861,7 @@ BEGIN
 		Machine.Acquire(Machine.Objects);
 		ASSERT(running[Machine.ID ()] = t); (* strong check *)
 		t.mode := AwaitingEvent;
-		Machine.EnableIRQ(SYSTEM.VAL (LONGINT, int));
+		Machine.EnableIRQ(int);
 		SwitchToNew
 	END
 END InterruptProcess;
@@ -872,8 +874,8 @@ BEGIN
 	IF interrupt[int-MinIRQ].process = NIL THEN	(* first handler for this irq *)
 		(* allocate process outside lock region, to avoid GC lock problems. *)
 		(* hack: use type parameter to pass int index & set obj to h, for System.ShowProcesses *)
-		NEW(ih); (* temp *)
-		NewProcess(InterruptProcess, int, {Resistant}, ih, t);
+		NEW(ih); ih.interruptNumber := int;
+		NewProcess(InterruptProcess, {Resistant}, ih, t);
 		t.priority := High;  (* second-level interrupt handling processes have high priority, handlers may allocate memory, use exclusive locks and awaits *)
 		t.staticPriority := t.priority;
 		FOR i := 0 TO LEN(t.prioRequests) - 1 DO t.prioRequests[i] := 0 END;
@@ -1117,7 +1119,7 @@ BEGIN
 END FinalizeProcess;
 
 (* Allocate a new process associated with "obj". Must be outside lock region, because of potential GC. *)
-PROCEDURE NewProcess(body: Body; type: SYSTEM.ADDRESS; flags: SET; obj: ProtectedObject; VAR new: Process);
+PROCEDURE NewProcess(body: Body; flags: SET; obj: ProtectedObject; VAR new: Process);
 VAR t: Process; sp: SYSTEM.ADDRESS; id: LONGINT; fn: Heaps.FinalizerNode;
 BEGIN
 	NEW(t); NEW(fn); (* implicit call Heaps.NewRec *)
@@ -1129,25 +1131,24 @@ BEGIN
 	IF VeryConservative THEN
 		Machine.Fill32(t.stack.adr, sp-t.stack.adr, SHORT(0D0D0DEADH))
 	END;
-	SYSTEM.PUT (sp-1*AddressSize, type);	(* typetag parameter for body *)
-	SYSTEM.PUT (sp-2*AddressSize, obj); (* self parameter for body *)
-	SYSTEM.PUT (sp-3*AddressSize, terminate); (* return address for body *)
+	SYSTEM.PUT (sp-1*AddressSize, obj); (* self parameter for body *)
+	SYSTEM.PUT (sp-2*AddressSize, terminate); (* return address for body *)
 		(* the following will be popped by SwitchTo exit code or Machine.JumpToUserLevel *)
-	(*SYSTEM.PUT (sp-4*AddressSize, NIL);*)	(* parameter for SwitchTo (ADR(running)) *)
-	(*SYSTEM.PUT (sp-5*AddressSize, NIL);*)	(* parameter for SwitchTo (new) *)
-	SYSTEM.PUT (sp-6*AddressSize, body); (* return address for SwitchTo (body entry point) *)
-	SYSTEM.PUT (sp-7*AddressSize, NIL);	(* end of dynamic link list (FP value at entry to body) *)
+	(*SYSTEM.PUT (sp-3*AddressSize, NIL);*)	(* parameter for SwitchTo (ADR(running)) *)
+	(*SYSTEM.PUT (sp-4*AddressSize, NIL);*)	(* parameter for SwitchTo (new) *)
+	SYSTEM.PUT (sp-5*AddressSize, body); (* return address for SwitchTo (body entry point) *)
+	SYSTEM.PUT (sp-6*AddressSize, NIL);	(* end of dynamic link list (FP value at entry to body) *)
 	t.sseAdr := SYSTEM.ADR(t.sse) + ((-SYSTEM.ADR(t.sse)) MOD 16);
 	IF Machine.SSESupport THEN Machine.SSESaveMin(t.sseAdr)
 	ELSE Machine.FPUSaveMin(t.sse)	(* inherit FPU state of caller *)
 	END;
-	t.state.BP := sp-7*AddressSize;
+	t.state.BP := sp-6*AddressSize;
 	t.state.SP := t.state.BP;
 	t.state.PC := 0; (* indicating that process is not running yet *)
 	(* set up exception handling *)
 	IF Restart IN flags THEN	(* restart object body *)
 		t.restartPC := SYSTEM.VAL (SYSTEM.ADDRESS, body);
-		t.restartSP := sp-3*AddressSize	(* 2 parameters and return address of body *)
+		t.restartSP := sp-2*AddressSize	(* 1 parameter and return address of body *)
 	ELSE (* terminate process *)
 		t.restartPC := SYSTEM.VAL (SYSTEM.ADDRESS, terminate);
 		t.restartSP := sp
@@ -1170,7 +1171,7 @@ BEGIN
 
 	SYSTEM.GET (SYSTEM.VAL (SYSTEM.ADDRESS, obj) + Heaps.TypeDescOffset, type); (* type tag *)
 	IF Restart IN flags THEN INCL(flags, Resistant) END; (* SAFE => Restart & Resistant *)
-	NewProcess(body, type, flags, obj, t);
+	NewProcess(body, flags, obj, t);
 	Machine.Acquire(Machine.Objects);
 	t.id := nextProcessID; INC(nextProcessID);
 	IF priority = 0 THEN	(* no priority specified *)
@@ -1759,7 +1760,7 @@ BEGIN
 	(* create a process for rest of init code, which runs at user level *)
 	entry := Machine.CurrentBP ();
 	SYSTEM.GET (entry+AddressSize, entry);	(* return address into linker-generated call table *)
-	NewProcess(SYSTEM.VAL (Body, entry), 0, {Resistant}, NIL, init); (* create init process *)
+	NewProcess(SYSTEM.VAL (Body, entry), {Resistant}, NIL, init); (* create init process *)
 	init.priority := High;
 	init.staticPriority := init.priority;
 	(* initialize prioRequests for init process *)

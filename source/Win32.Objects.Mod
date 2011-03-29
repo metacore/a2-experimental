@@ -48,7 +48,7 @@ TYPE
 
 	ProcessQueue = Heaps.ProcessQueue;
 
-	Body = PROCEDURE (typetag: SYSTEM.ADDRESS; self: ProtectedObject);
+	Body = PROCEDURE (self: ProtectedObject);
 	Condition = PROCEDURE (slink: SYSTEM.ADDRESS): BOOLEAN;
 
 	EventHandler* = PROCEDURE {DELEGATE};
@@ -737,7 +737,7 @@ BEGIN
 END terminate;
 
 PROCEDURE {WINAPI} Wrapper( lpParameter: ANY ): LONGINT;
-VAR t: Process;  obj: ProtectedObject; type: LONGINT; res: Kernel32.BOOL; bp,sp: LONGINT;
+VAR t: Process;  obj: ProtectedObject; res: Kernel32.BOOL; bp,sp: LONGINT;
 	excpfrm: Kernel32.ExcpFrm;
 BEGIN
 	(* it may happen that the garbage collector runs right here and ignores this procedure.
@@ -747,7 +747,6 @@ BEGIN
 
 	res := Kernel32.TlsSetValue(tlsIndex, SYSTEM.VAL(LONGINT, lpParameter));
 	t := lpParameter(Process);  obj := t.obj;
-	SYSTEM.GET(SYSTEM.VAL(SYSTEM.ADDRESS, obj) + Heaps.TypeDescOffset, type);   (* type tag *)
 	ASSERT(res # 0);
 	InstallExcpFrm(excpfrm);
 	SetPriority(t.priority);
@@ -769,7 +768,7 @@ BEGIN
 	t.mode := Running;
 	(* now gc is enabled for this process stack *)
 	Machine.Release(Machine.Objects);
-	t.body(type, obj);
+	t.body(obj);
 	terminate(t);
 	RemoveExcpFrm(excpfrm);
 	RETURN 0
