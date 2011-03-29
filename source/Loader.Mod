@@ -4,7 +4,7 @@ MODULE Loader; (** AUTHOR "pjm"; PURPOSE "Active Oberon module loader plugin"; *
 
 (* cf. Linker *)
 
-IMPORT SYSTEM, KernelLog, Commands, Heaps, Modules, Streams, Files;
+IMPORT SYSTEM, KernelLog, Commands, Heaps, Modules, Machine, Streams, Files;
 
 CONST
 	Ok = 0;
@@ -880,7 +880,8 @@ BEGIN
 END Trace;
 
 BEGIN
-	trace := FALSE
+	trace := FALSE;
+	Modules.AddLoader (Machine.DefaultObjectFileExtension, LoadObj);
 END Loader.
 
 (*

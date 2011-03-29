@@ -822,9 +822,11 @@ TYPE
 										AddFile(archive, file.name, file.name, res);
 									END;
 
-									GetSymbolFileName(file, path, source); GetSymbolFileName(file, "", dest);
-									AddFile(archive, source, dest, res);
-									INC(nofFilesAdded);
+									IF symbolFileExtension # extension THEN
+										GetSymbolFileName(file, path, source); GetSymbolFileName(file, "", dest);
+										AddFile(archive, source, dest, res);
+										INC(nofFilesAdded);
+									END
 
 								ELSE
 									AddFile(archive, file.name, file.name, res);

@@ -96,6 +96,18 @@ BUILDS
 		EXCLUDEPACKAGES ""
 		DISABLED "FALSE"
 	}
+	A2NewObjectFile
+	{
+		INCLUDE "NATIVE I386"
+		COMPILER "Compiler.Compile"
+		COMPILEOPTIONS "--objectFile=Generic --newObjectFile"
+		TARGET "AMD"
+		EXTENSION "Gof"
+		SYMBOLEXTENSION "Sym"
+		PATH "AOS:"
+		EXCLUDEPACKAGES ""
+		DISABLED "FALSE"
+	}
 	A2_64 {
 		INCLUDE "NATIVE AMD64"
 		COMPILER "Compiler.Compile"
@@ -197,7 +209,7 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	UNIX { Unix.Heaps.Mod }
 
 	Modules.Mod
-
+	
 	NATIVE { Objects.Mod Kernel.Mod }
 	WIN { Win32.Objects.Mod Win32.Kernel.Mod }
 	UNIX { Unix.Objects.Mod Unix.Kernel.Mod }
