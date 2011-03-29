@@ -17,15 +17,16 @@ MODULE Release; (** AUTHOR "staubesv"; PURPOSE "Release build tool"; *)
  *
  *	Release.Build [Options] BuildName ~
  *
- *		Option f, file		: Specify the package description file [default: Release.Tool]
  *		Option b, build		: Compile the specified build (otherwise, open Notepad with compile command)
  *		Option c,compiler 	: Override compiler specified in the package description file
- *		Option t, target 	: Override the target option specified in the package description file
  *		Option exclude		: Exclude packages (specified as space separated list of package names)
  *		Option e, extension	: Override the extension option specified in the package description file
+ *		Option f, file		: Specify the package description file [default: Release.Tool]
  *		Option n, nocheck	: Skip file existence and import order checks
  *		Option o, options	: Override the compiler options specified in the package description file
  *		Option p, path		: Override the path option specified in the package description file
+ *		Option s, symbolFileExtension : Ovveride the symbolFileExtension option specified in the package description file
+ *		Option t, target 	: Override the target option specified in the package description file
  *		Option v, verbose	: Show compiler output (only useful in combination with option --build)
  *		Option w, workers	: Number of worker threads for parallel compilation
  *		Option x, xml		: Generate XML package description file needed by WMInstaller.Mod
@@ -74,6 +75,7 @@ CONST
 	DefaultCompileOptions = "";
 	DefaultTarget = "AMD";
 	DefaultExtension = "Obx";
+	DefaultSymbolFileExtension = "Obx"; (* no separate symbol files *)
 	DefaultPath = "";
 	DefaultDisabled = FALSE;
 
@@ -500,6 +502,7 @@ TYPE
 		compiler, compileOptions : ARRAY 64 OF CHAR;
 		target : ARRAY 8 OF CHAR;
 		extension : ARRAY 8 OF CHAR;
+		symbolFileExtension : ARRAY 8 OF CHAR;
 		path : Files.FileName;
 		disabled : BOOLEAN;
 
@@ -530,6 +533,7 @@ TYPE
 			COPY(DefaultCompileOptions, compileOptions);
 			COPY(DefaultTarget, target);
 			COPY(DefaultExtension, extension);
+			COPY(DefaultSymbolFileExtension, symbolFileExtension);
 			COPY(DefaultPath, path);
 			disabled := DefaultDisabled;
 			modules := NIL; bitmap := NIL;
@@ -564,6 +568,7 @@ TYPE
 				IF options.GetString("options", compileOptions) THEN END;
 				IF options.GetString("target", target) THEN END;
 				IF options.GetString("extension", extension) THEN END;
+				IF options.GetString("symbolFileExtension", symbolFileExtension) THEN END;
 				IF options.GetString("path", path) THEN END;
 				IF options.GetString("exclude", string) THEN
 					Strings.TrimWS(string);
@@ -741,6 +746,14 @@ TYPE
 				Strings.Append(fileName, extension);
 			END GetObjectFileName;
 
+			PROCEDURE GetSymbolFileName(file : File; CONST prefix : ARRAY OF CHAR; VAR fileName : ARRAY OF CHAR);
+			BEGIN
+				COPY(prefix, fileName);
+				Strings.Append(fileName, file.module.name);
+				Strings.Append(fileName, ".");
+				Strings.Append(fileName, symbolFileExtension);
+			END GetSymbolFileName;
+
 			PROCEDURE GetPackageFileName(package : Package; sourceCode : BOOLEAN; VAR filename : ARRAY OF CHAR) : BOOLEAN;
 			BEGIN
 				ASSERT(package # NIL);
@@ -808,6 +821,11 @@ TYPE
 									IF (res = Zip.Ok) & (package.source = "") THEN (* Also add source code since no source code package is defined *)
 										AddFile(archive, file.name, file.name, res);
 									END;
+
+									GetSymbolFileName(file, path, source); GetSymbolFileName(file, "", dest);
+									AddFile(archive, source, dest, res);
+									INC(nofFilesAdded);
+
 								ELSE
 									AddFile(archive, file.name, file.name, res);
 									INC(nofFilesAdded);
@@ -1159,7 +1177,7 @@ TYPE
 			END;
 			IF extension # "" THEN
 				Strings.Append(options, " --objectFileExtension="); Strings.Append(options, "."); Strings.Append(options, extension);
-				Strings.Append(options, " --symbolFileExtension="); Strings.Append(options, "."); Strings.Append(options, extension);
+				Strings.Append(options, " --symbolFileExtension="); Strings.Append(options, "."); Strings.Append(options, symbolFileExtension);
 			 END;
 			IF path # "" THEN
 				Strings.Append(options, " --objectFilePrefix="); Strings.Append(options, path);
@@ -1708,6 +1726,7 @@ CONST
 	COMPILEOPTIONS = "COMPILEOPTIONS";
 	TARGET = "TARGET";
 	EXTENSION="EXTENSION";
+	SYMBOLEXTENSION="SYMBOLEXTENSION";
 	PATH="PATH";
 	EXCLUDEPACKAGES = "EXCLUDEPACKAGES";
 	DISABLED = "DISABLED";
@@ -1755,7 +1774,7 @@ TYPE
 				(token # PACKAGE) & (token # ARCHIVE) & (token # SOURCE) & (token # DESCRIPTION) &
 			   	(token # OPENSECTION) & (token # CLOSESECTION) & (token # ENDSECTION) &
 			   	(token # SEPARATOR) & (token # BUILDS) & (token # HEADER) & (token # VERSION) &
-			   	(token # INCLUDE) & (token # COMPILER) & (token # COMPILEOPTIONS) & (token # TARGET) & (token # EXTENSION) &
+			   	(token # INCLUDE) & (token # COMPILER) & (token # COMPILEOPTIONS) & (token # TARGET) & (token # EXTENSION) & (token # SYMBOLEXTENSION) &
 			   	(token # PATH) & (token # EXCLUDEPACKAGES);
 		END IsIdentifier;
 
@@ -2012,7 +2031,7 @@ TYPE
 		VAR
 			token : Token; prefix : LONGINT;
 			string : ARRAY 256 OF CHAR; stringArray : Strings.StringArray;
-			compilerSet, compileOptionsSet, targetSet, includeSet, excludePackagesSet, extensionSet, pathSet, disabledSet  : BOOLEAN;
+			compilerSet, compileOptionsSet, targetSet, includeSet, excludePackagesSet, extensionSet, symbolsSet, pathSet, disabledSet  : BOOLEAN;
 			build : BuildObj;
 
 			PROCEDURE CheckOptions;
@@ -2022,6 +2041,7 @@ TYPE
 				IF ~compileOptionsSet THEN Warning(scanner.pos, "# not set in build #", COMPILEOPTIONS, build.name); END;
 				IF ~targetSet THEN Warning(scanner.pos, "# not set in build #", TARGET, build.name); END;
 				IF ~extensionSet THEN Warning(scanner.pos, "# not set in build #", EXTENSION, build.name); END;
+				IF ~symbolsSet THEN (* no warning since optional *) END;
 				IF ~pathSet THEN Warning(scanner.pos, "# not set in build #", PATH, build.name); END;
 				IF ~disabledSet THEN Warning(scanner.pos, "# not set in build #", DISABLED, build.name); END;
 			END CheckOptions;
@@ -2029,7 +2049,7 @@ TYPE
 		BEGIN
 			NEW(build);
 			compilerSet := FALSE; compileOptionsSet := FALSE; targetSet := FALSE; includeSet := FALSE;
-			extensionSet := FALSE; pathSet := FALSE; excludePackagesSet := FALSE; disabledSet := FALSE;
+			extensionSet := FALSE; symbolsSet := FALSE; pathSet := FALSE; excludePackagesSet := FALSE; disabledSet := FALSE;
 			IF scanner.GetIdentifier(build.name) THEN
 				build.position := scanner.pos;
 				IF scanner.Check(OPENSECTION) THEN
@@ -2056,6 +2076,11 @@ TYPE
 							ELSIF (token = EXTENSION) THEN
 								IF extensionSet THEN Error(scanner.pos, "# already set in build #", EXTENSION, build.name); ELSE extensionSet := TRUE; END;
 								IF ~scanner.GetIdentifier(build.extension) THEN
+									(* continue *)
+								END;
+							ELSIF (token = SYMBOLEXTENSION) THEN
+								IF symbolsSet THEN Error(scanner.pos, "# already set in build #", SYMBOLEXTENSION, build.name); ELSE symbolsSet := TRUE; END;
+								IF ~scanner.GetIdentifier(build.symbolFileExtension) THEN
 									(* continue *)
 								END;
 							ELSIF (token = PATH) THEN
@@ -3054,6 +3079,7 @@ BEGIN
 	options.Add("n", "nocheck", Options.Flag);
 	options.Add("o", "options", Options.String);
 	options.Add("p", "path", Options.String);
+	options.Add("s", "symbolFileExtension", Options.String);
 	options.Add("t", "target", Options.String);
 	options.Add("v", "verbose", Options.Flag);
 	options.Add("w", "workers", Options.Integer);
