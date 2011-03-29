@@ -1,13 +1,13 @@
 MODULE FoxGenericObjectFile; (** AUTHOR "negelef"; PURPOSE "Generic Object File Writer"; *)
 
 IMPORT
-	Formats := FoxFormats, Sections := FoxSections, IntermediateCode := FoxIntermediateCode,
+	Basic := FoxBasic, Formats := FoxFormats, Sections := FoxSections, IntermediateCode := FoxIntermediateCode,
 	Global := FoxGlobal, SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
 	FingerPrinter := FoxFingerPrinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := FoxTextualSymbolFile, KernelLog;
 CONST version=0;
 
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
-	VAR path, extension: Files.FileName; binary: BOOLEAN;
+	VAR prefix, extension: Files.FileName; binary: BOOLEAN;
 
 		PROCEDURE Export* (module: Formats.GeneratedModule; symbolFileFormat: Formats.SymbolFileFormat): BOOLEAN;
 		VAR moduleName: SyntaxTree.String; fileName: Files.FileName; file: Files.File; writer: Files.Writer; fingerPrinter: FingerPrinter.FingerPrinter;
@@ -71,8 +71,8 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			END;
 
 			Global.ModuleFileName (module.module.name, module.module.context, moduleName);
-			IF path # "" THEN Files.JoinPath (path, moduleName, fileName); ELSE COPY (moduleName, fileName); END;
-			Files.JoinExtension (fileName, extension, fileName);
+			Basic.Concat(fileName,prefix,moduleName,extension);
+
 			file := Files.New (fileName);
 			IF file = NIL THEN
 				diagnostics.Error(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid,"failed to open object file");
@@ -92,15 +92,15 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 
 		PROCEDURE DefineOptions* (options: Options.Options);
 		BEGIN
-			options.Add(0X,"path",Options.String);
 			options.Add(0X,"objectFileExtension",Options.String);
+			options.Add(0X,"objectFilePrefix",Options.String);
 			options.Add(0X,"binaryObjectFile",Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions* (options: Options.Options);
 		BEGIN
-			IF ~options.GetString("path",extension) THEN path := ""; END;
 			IF ~options.GetString("objectFileExtension",extension) THEN extension := ObjectFile.DefaultExtension; END;
+			IF ~options.GetString("objectFilePrefix",prefix) THEN prefix := ""; END;
 			binary := options.GetFlag("binaryObjectFile");
 		END GetOptions;
 
