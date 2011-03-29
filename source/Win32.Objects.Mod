@@ -756,7 +756,7 @@ BEGIN
 	t.restartSP := sp;
 	t.stackBottom := bp;
 	IF t.restartPC = SYSTEM.VAL(SYSTEM.ADDRESS, terminateProc) THEN DEC(t.restartSP, 4)
-	ELSE DEC(t.restartSP, 12)
+	ELSE DEC(t.restartSP, 8)
 	END;
 	IF TraceVerbose THEN
 		Machine.Acquire(Machine.TraceOutput);
