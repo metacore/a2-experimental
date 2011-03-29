@@ -17,7 +17,7 @@ Examples:
 *)
 
 IMPORT
-	Machine, KernelLog, Modules, Streams, Files, Loader, Commands;
+	Machine, KernelLog, Modules, Streams, Files, Commands;
 
 CONST
 	ModuleName = "Console";
@@ -155,7 +155,6 @@ BEGIN
 END OpenVolumes;
 
 BEGIN
-	Modules.AddLoader (Machine.DefaultObjectFileExtension, Loader.LoadObj);
 	OpenVolumes;
 	BootCommand("Boot", {Commands.Wait});
 	BootCommand("BootSystem", {});
