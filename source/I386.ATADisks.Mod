@@ -145,7 +145,7 @@ TYPE
 		lbaHigh, lbaLow: LONGINT;
 	END;
 
-	CommandPacket = POINTER TO CommandPacketDesc;
+	CommandPacket* = POINTER TO CommandPacketDesc;
 	CommandPacketDesc = RECORD (CommandDesc)
 		packet*: Packet;
 		features*: SET;
