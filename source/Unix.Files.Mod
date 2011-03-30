@@ -595,7 +595,7 @@ VAR
 		len := LEN( filename ) - 1;  i := 0;
 		WHILE (i < len) & (name[i] # 0X) DO  filename[i] := name[i];  INC( i )  END;
 		IF ((i = 0) OR (filename[i - 1] # ".")) & (i < len) THEN  filename[i] := ".";  INC( i )  END;
-		j := 0;
+		j := 0;  IF extension[0] = "." THEN  INC( j )  END;
 		WHILE (i < len) & (extension[j] # 0X) DO  filename[i] := extension[j];  INC( i );  INC( j )  END;
 		filename[i] := 0X
 	END JoinExtension;
