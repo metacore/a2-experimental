@@ -18,7 +18,7 @@ CONST
 	Aligned=0;
 	Fixed=1;
 
-	DefaultExtension* = "Gof";
+	DefaultExtension* = ".Gof";
 
 TYPE
 	Unit* = LONGINT;
