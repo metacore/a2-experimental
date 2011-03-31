@@ -563,6 +563,9 @@ TYPE
 			END;
 			Scope(scope);
 			Signature;
+			
+			IF x IS SyntaxTree.Operator THEN implementationVisitor.RegisterDynamicOperator(x(SyntaxTree.Operator)) END; (* nopov *)
+			
 			currentScope := prevScope;
 		END Procedure;
 
