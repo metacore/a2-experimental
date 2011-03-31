@@ -138,6 +138,9 @@ TYPE
 		res := l;  res := res + r;  RETURN res;
 	END "+";
 
+	(* nopov *)
+	(* the following procedures (operators) are not conforming to the new rules:
+	
 	PROCEDURE "+"*( l, r: ARRAY OF CHAR ): String;
 	VAR res: String;
 	BEGIN
@@ -156,6 +159,7 @@ TYPE
 	BEGIN
 		res := l;  res := res + r;  RETURN res;
 	END "+";
+	*)
 
 (** However, do not mix Nbr and string types.  This would yield non-associative addition, e.g.,
 	"Number = " + "10" + "20"  would yield "Number = 1020" instead of "Number = 30"

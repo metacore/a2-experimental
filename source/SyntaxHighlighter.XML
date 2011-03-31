@@ -84,7 +84,7 @@
 					FOR TO WHILE DO REPEAT UNTIL IF THEN ELSE ELSIF
 					LOOP CASE BY
 					BEGIN END CODE FINALLY
-					OF
+					OF WITH
 				</Group>
 				<Group style="Green">
 					RETURN EXIT
@@ -125,7 +125,7 @@
 					ACTIVE SHARED PRIORITY AWAIT EXCLUSIVE
 				</Group>
 				<Group style="Structure">
-					MODULE IMPORT TYPE DEFINITION REFINES IMPLEMENTS PROCEDURE
+					MODULE IMPORT TYPE DEFINITION REFINES IMPLEMENTS PROCEDURE OPERATOR
 					OBJECT RECORD
 				</Group>
 				<Group style="Values">
@@ -138,6 +138,7 @@
 					SET
 					CHAR
 					ANY
+					RANGE
 				</Group>
 				<Group style="Dangerous">
 					SYSTEM.GET SYSTEM.GET8 SYSTEM.GET16 SYSTEM.GET32 SYSTEM.GET64

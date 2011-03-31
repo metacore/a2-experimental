@@ -35,11 +35,11 @@ TYPE
 			IF module # NIL THEN
 				type := Modules.ThisType( module, typeName );
 				IF type = NIL THEN
-					string := "Type " + moduleName;  string := string + ".";  string := string + typeName;  string := string + " does not exist on your computer.";
+					string := "Type "; string := string + moduleName;  string := string + ".";  string := string + typeName;  string := string + " does not exist on your computer.";
 					DataErrors.Error( string^ )
 				END
 			ELSE
-				string := "Module " + moduleName;  string := string + " does not exist on your computer.";
+				string := "Module "; string := string + moduleName;  string := string + " does not exist on your computer.";
 				DataErrors.Error( string^ );  HALT( 1000 );   (* Must halt here, further reading is catastrophic. *)
 			END
 		END Read;

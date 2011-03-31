@@ -87,9 +87,14 @@ CONST
 	(* from ERA *)
 	systemNull*=systemMsk+1; systemXOR*=systemNull+1; systemROR*=systemXOR+1; systemProc*=systemROR+1; systemStop* = systemProc + 1; LSL*=systemStop+1; LSR*=LSL+1; ASR*=LSR+1; Flt*=ASR+1; Floor*=Flt+1; Phi*=Floor+1;
 
-	end= Floor+1;
-
-
+	(* nopov *)
+	DotTimesPlus* = Phi + 1;
+	AtMulDec* = DotTimesPlus + 1;
+	AtMulInc* = AtMulDec + 1;
+	DecMul* = AtMulInc + 1;
+	IncMul* = DecMul + 1;
+	end = IncMul + 1;
+	
 VAR
 	(* names *)
 	SelfParameterName-,ReturnParameterName-,SystemName-,systemName-,PointerReturnName-, ResultName-,
@@ -810,6 +815,15 @@ TYPE
 		FOR i := Scanner.Equal TO Scanner.Not DO
 			OperatorDefined(system,i,TRUE);
 		END;
+		
+		(* nopov *)
+		OperatorDefined(system, Conversion, TRUE);
+		OperatorDefined(system, DotTimesPlus, TRUE);
+		OperatorDefined(system, AtMulDec, TRUE);
+		OperatorDefined(system, AtMulInc, TRUE);
+		OperatorDefined(system, DecMul, TRUE);
+		OperatorDefined(system, IncMul, TRUE);		
+		
 		OperatorDefined(system,Scanner.Transpose,TRUE);
 		OperatorDefined(system,Scanner.Becomes,TRUE);
 		OperatorDefined(system,Dec,TRUE);
@@ -1234,6 +1248,24 @@ TYPE
 		NewBuiltinIdentifier(Excl,"EXCL");
 		NewBuiltinIdentifier(Inc,"INC");
 		NewBuiltinIdentifier(Incl,"INCL");
+
+		(* nopov *)
+		(* TODO: check if ok. The operators defined in FoxArrayBase require the following identifiers *)
+		(* TODO: ".*+" should preferably be added as a new token in the scanner *)
+		identifiers[Scanner.Lowercase, Scanner.Becomes] := SyntaxTree.NewIdentifier(":=");
+		identifiers[Scanner.Uppercase, Scanner.Becomes] := SyntaxTree.NewIdentifier(":=");
+		identifiers[Scanner.Lowercase, Scanner.Transpose] := SyntaxTree.NewIdentifier("`");
+		identifiers[Scanner.Uppercase, Scanner.Transpose] := SyntaxTree.NewIdentifier("`");
+		identifiers[Scanner.Lowercase, DotTimesPlus] := SyntaxTree.NewIdentifier(".*+");
+		identifiers[Scanner.Uppercase, DotTimesPlus] := SyntaxTree.NewIdentifier(".*+");
+		identifiers[Scanner.Lowercase, AtMulDec] := SyntaxTree.NewIdentifier("@MulDec");
+		identifiers[Scanner.Uppercase, AtMulDec] := SyntaxTree.NewIdentifier("@MulDec");
+		identifiers[Scanner.Lowercase, AtMulInc] := SyntaxTree.NewIdentifier("@MulInc");
+		identifiers[Scanner.Uppercase, AtMulInc] := SyntaxTree.NewIdentifier("@MulInc");
+		identifiers[Scanner.Lowercase, DecMul] := SyntaxTree.NewIdentifier("DecMul");
+		identifiers[Scanner.Uppercase, DecMul] := SyntaxTree.NewIdentifier("DecMul");
+		identifiers[Scanner.Lowercase, IncMul] := SyntaxTree.NewIdentifier("IncMul");
+		identifiers[Scanner.Uppercase, IncMul] := SyntaxTree.NewIdentifier("IncMul");
 
 		identifiers[Scanner.Lowercase,Conversion] := SyntaxTree.NewIdentifier("@Convert");
 		identifiers[Scanner.Uppercase,Conversion] := SyntaxTree.NewIdentifier("@Convert");

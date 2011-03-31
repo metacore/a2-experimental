@@ -63,6 +63,20 @@ CONST
 		suppressModuleRegistration=FALSE;
 
 		None=-1;
+		
+		(* nopov *)
+		(* special pointer values *)
+		NonPointer = -1;
+		(* NilValue = 0; *)
+		
+		(* nopov *)
+		(* special type info values *)
+		NoType = 0;
+		
+		(* nopov *)
+		(* for the operator kind *)
+		LhsIsPointer = 0;
+		RhsIsPointer = 1;
 
 TYPE
 	SupportedProcedure= PROCEDURE {DELEGATE} (CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
@@ -258,7 +272,7 @@ TYPE
 		BEGIN
 			Procedure(x);
 		END VisitProcedure;
-
+		
 		PROCEDURE VisitOperator(x: SyntaxTree.Operator);
 		BEGIN
 			Procedure(x);
@@ -574,11 +588,12 @@ TYPE
 			IntermediateCode.InitAddress(op, GetType(system,system.addressType), IntermediateCode.NewSection(module.sections,Sections.BodyCodeSection,name,bodyProcedure,dump) , 0);
 			ir.Emit(Call(op, 0));
 		END AddBodyCallStub;
-
+		
 		(** entry function to visit a complete module *)
 		PROCEDURE Module(x: SyntaxTree.Module; module: Sections.Module);
 		VAR
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand; name: SyntaxTree.String;
+			typeDeclaration: SyntaxTree.TypeDeclaration; (* nopov *)
 
 			PROCEDURE TypeNeedsInitialization(type: SyntaxTree.Type): BOOLEAN;
 			BEGIN
@@ -652,9 +667,21 @@ TYPE
 				implementationVisitor.numberProcedures := 0;
 			END;
 			implementationVisitor.profile := backend.profile;
+			
+			(* add operator initialization code section *)
+			IF TRUE THEN (* TODO: only if required *)
+				EnsureBodyProcedure(x.moduleScope);
+				Global.GetModuleName(module.module, name); Strings.Append(name, "."); Strings.Append(name ,"@OperatorInitialization");
+				implementationVisitor.operatorInitializationCodeSection := IntermediateCode.NewSection(module.sections, Sections.CodeSection, name, NIL, dump);
+				implementationVisitor.operatorInitializationCodeSection.Emit(Enter(0,0));
+			END;
 
 			Scope(x.moduleScope);
-
+			
+			IF TRUE THEN (* TODO: only if required *)
+				implementationVisitor.operatorInitializationCodeSection.Emit(Leave(0));
+				implementationVisitor.operatorInitializationCodeSection.Emit(Exit(0));
+			END;
 
 			IF backend.profile THEN
 				implementationVisitor.ProfilerPatchInit;
@@ -795,6 +822,9 @@ TYPE
 		profileInitPatchPosition: LONGINT;
 		numberProcedures: LONGINT;
 		procedureResultDesignator : SyntaxTree.Designator;
+		(* nopov *)
+		operatorInitializationCodeSection: IntermediateCode.Section;
+		fingerPrinter: FingerPrinter.FingerPrinter;
 
 		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
@@ -837,6 +867,7 @@ TYPE
 			NEW(registerUsage);
 			usedRegisters := NIL;
 			procedureResultDesignator := NIL;
+			NEW(fingerPrinter, system) (* nopov *)
 		END Init;
 
 		PROCEDURE AcquireRegister(CONST type: IntermediateCode.Type): LONGINT;
@@ -851,6 +882,25 @@ TYPE
 		BEGIN
 			INC(indexCounter); RETURN indexCounter
 		END GetIndex;
+		
+		(* nopov *)
+		(** get the name for the code section that represens a certain symbol
+		(essentially the same as Global.GetSymbolName, apart from operators) **)
+		PROCEDURE GetCodeSectionNameForSymbol(symbol: SyntaxTree.Symbol; VAR name: ARRAY OF CHAR);
+		VAR
+			operatorFingerPrint: SyntaxTree.FingerPrint;
+			operatorFingerPrintString: ARRAY 16 OF CHAR;
+		BEGIN
+			Global.GetSymbolName(symbol, name);
+			(* if the symbol is an operator, then append the fingerprint to the name *)
+			IF symbol IS SyntaxTree.Operator THEN
+				operatorFingerPrint := fingerPrinter.SymbolFP(symbol);
+				Strings.Append(name, "[");
+				Strings.IntToHexStr(operatorFingerPrint.shallow, 8, operatorFingerPrintString);
+				Strings.Append(name, operatorFingerPrintString);
+				Strings.Append(name, "]");
+			END
+		END GetCodeSectionNameForSymbol;
 
 		PROCEDURE TraceEnter(CONST s: ARRAY OF CHAR);
 		BEGIN
@@ -2410,6 +2460,7 @@ TYPE
 			skipLabel1, skipLabel2: Label;
 			i, indexListSize, indexDim, rangeCount, indexCount, srcDimOffset, destDimOffset, targetArrayDimensionality: LONGINT;
 			staticSourceLength, staticSourceIncrement, staticIndex, staticFirstIndex, staticLastIndex, staticStepSize, staticTargetLength: LONGINT;
+			lastIndexIsMax: BOOLEAN;
 			variableOp: Operand;
 			variable: SyntaxTree.Variable;
 			hasTensorRange: BOOLEAN;
@@ -3030,7 +3081,8 @@ TYPE
 
 		END PrepareTensorDescriptor;
 
-		PROCEDURE PushParameter(expression: SyntaxTree.Expression; parameter: SyntaxTree.Parameter; callingConvention: LONGINT);
+		(* nopov *)
+		PROCEDURE PushParameter(expression: SyntaxTree.Expression; parameter: SyntaxTree.Parameter; callingConvention: LONGINT; needsParameterBackup: BOOLEAN; VAR parameterBackup: IntermediateCode.Operand);
 		VAR
 			type, descriptorType, baseType: SyntaxTree.Type;
 			operand, tmpOperand, variableOp: Operand;
@@ -3530,6 +3582,12 @@ TYPE
 			(* TODO: needed? *)
 			arrayDestinationTag := oldArrayDestinationTag;
 			arrayDestinationDimension := oldArrayDestinationDimension;
+			
+			(* nopov *)
+			IF needsParameterBackup THEN
+				(* IF dump # NIL THEN dump.String("backup parameter"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+				ReuseCopy(parameterBackup, operand.op)
+			END;
 
 			ReleaseOperand(operand);
 			IF Trace THEN TraceExit("PushParameter") END;
@@ -3569,6 +3627,17 @@ TYPE
 			usedRegisters,oldUsedRegisters: RegisterEntry;
 
 			return: IntermediateCode.Operand;
+			
+			(* nopov *)
+			parameterBackups: ARRAY 2 OF IntermediateCode.Operand;
+			arg: IntermediateCode.Operand;
+			dummy: IntermediateCode.Operand;
+			recordType: SyntaxTree.RecordType;
+			operatorSelectionProcedureOperand: Operand;
+			operatorSelectionProcedure: SyntaxTree.Procedure;
+			fingerPrint: SyntaxTree.FingerPrint;
+			isOperatorCall, isDynamicOperatorCall: BOOLEAN;
+			identifierNumber: LONGINT;
 
 			PROCEDURE BackupGlobalState;
 			BEGIN
@@ -3602,22 +3671,23 @@ TYPE
 				usedRegisters := oldUsedRegisters
 			END RestoreGlobalState;
 
-			(** if array-structured object type is passed as VAR parameter:
+			(* nopov *)
+			(** do preparations before parameter push for array-structured object types (ASOTs):
+				if ASOT is passed as VAR parameter:
 				- allocate temporary variable of math array type
 				- copy contents of ASOT to be passed to temporary variable
 				- use temporary variable as the actual parameter instead
 				- create and store a write-back call in a list (an index operator call that writes the contents of the temp. variable back into the ASOT)
-			otherwise: nothing to do
 			**)
 			PROCEDURE PrepareParameter(VAR actualParameter: SyntaxTree.Expression; formalParameter: SyntaxTree.Parameter);
 			VAR
 				expression: SyntaxTree.Expression;
 			BEGIN
-				(* handle ASOT VAR parameters *)
 				IF actualParameter IS SyntaxTree.Designator THEN
 					designator := actualParameter(SyntaxTree.Designator);
 					IF (formalParameter.kind = SyntaxTree.VarParameter) & (designator.relatedAsot # NIL) THEN
 						(* actual parameter is an index read operator call on ASOT and formal parameter is of VAR kind *)
+						(* IF dump # NIL THEN dump.String("!!! BEGIN ASOT VAR parameter preparation"); dump.Ln; dump.Update END; *) (* TENTATIVE*)
 						ASSERT(checker # NIL);
 						checker.SetCurrentScope(currentScope);
 
@@ -3655,7 +3725,7 @@ TYPE
 					END
 				END
 			END PrepareParameter;
-
+			
 		BEGIN
 			IF Trace THEN TraceEnter("VisitProcedureCallDesignator") END;
 			resultDesignator := procedureResultDesignator; procedureResultDesignator := NIL;
@@ -3665,6 +3735,16 @@ TYPE
 			procedureType := x.left.type.resolved(SyntaxTree.ProcedureType);
 			parameters := x.parameters;
 
+			(* nopov *)
+			isDynamicOperatorCall := FALSE; (* default *)
+			IF (x.left IS SyntaxTree.SymbolDesignator) & (x.left(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Operator) THEN
+				(* IF dump # NIL THEN dump.String("*** begin of operator call ***"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+				isOperatorCall := TRUE;
+				ASSERT(procedureType.callingConvention = SyntaxTree.OberonCallingConvention)
+			ELSE
+				isOperatorCall := FALSE
+			END;
+			
 			IF procedureType.stackAlignment > 1 THEN
 				IntermediateCode.InitRegister(reg,addressType,AcquireRegister(addressType));
 				Emit(Mov(reg, sp));
@@ -3711,7 +3791,7 @@ TYPE
 			 		Emit(Push(operand.op));
 			 		ReleaseOperand(operand);
 				ELSE
-					PushParameter(d,procedureType.returnParameter,procedureType.callingConvention)
+					PushParameter(d,procedureType.returnParameter,procedureType.callingConvention, FALSE, dummy)
 		 		END;
 		 	END;
 
@@ -3722,16 +3802,28 @@ TYPE
 				FOR i := parameters.Length() - 1 TO 0 BY -1 DO
 					actualParameter := parameters.GetExpression(i);
 					PrepareParameter(actualParameter, formalParameter);
-					PushParameter(actualParameter, formalParameter, procedureType.callingConvention);
+					PushParameter(actualParameter, formalParameter, procedureType.callingConvention, FALSE, dummy);
 					formalParameter := formalParameter.prevParameter;
 				END;
 			ELSE
 				formalParameter := procedureType.firstParameter;
 				FOR i := 0 TO parameters.Length() - 1 DO
 					actualParameter := parameters.GetExpression(i);
-					PrepareParameter(actualParameter, formalParameter);
-					PushParameter(actualParameter, formalParameter, procedureType.callingConvention);
-					formalParameter := formalParameter.nextParameter;
+					
+					IF formalParameter # NIL THEN (* TENTATIVE *)
+						PrepareParameter(actualParameter, formalParameter);
+						
+						(* nopov *)
+						IF isOperatorCall & IsStrictlyPointerToRecord(formalParameter.type) & (formalParameter.access # SyntaxTree.Hidden) THEN
+							isDynamicOperatorCall := TRUE; (* an operator call with at least one pointer to record makes the call dynamic *)
+							ASSERT(i < 2);
+							PushParameter(actualParameter, formalParameter, procedureType.callingConvention, TRUE, parameterBackups[i])
+						ELSE
+							PushParameter(actualParameter, formalParameter, procedureType.callingConvention, FALSE, dummy)
+						END;
+
+						formalParameter := formalParameter.nextParameter;
+					END; (* TENTATIVE *)
 				END;
 			END;
 
@@ -3742,8 +3834,79 @@ TYPE
 			ELSE
 				symbol := x.left(SyntaxTree.SymbolDesignator).symbol;
 			END;
-
-			Evaluate(x.left,operand);
+			
+			(* nopov *)
+			IF isDynamicOperatorCall THEN
+				(* push ID *)
+				(* IF dump # NIL THEN dump.String("push ID"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+				ASSERT(x.left IS SyntaxTree.SymbolDesignator);
+				identifierNumber := Global.GetSymbol(module.module.case, x.left(SyntaxTree.SymbolDesignator).symbol.name);
+				Emit(Push(IntermediateCode.Immediate(GetType(system, system.longintType), identifierNumber)));
+				
+				formalParameter := procedureType.firstParameter;
+				FOR i := 0 TO parameters.Length() - 1 DO
+					IF formalParameter.access # SyntaxTree.Hidden THEN
+						ASSERT(i < 2);
+						IF IsStrictlyPointerToRecord(formalParameter.type) THEN
+							(* push pointer *)
+							(* IF dump # NIL THEN dump.String("push pointer"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+							IF formalParameter.kind = SyntaxTree.VarParameter THEN
+								(* add dereference *)
+								(* IF dump # NIL THEN dump.String("dereference pointer"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+								ReleaseIntermediateOperand(parameterBackups[i]);
+								MakeMemory(parameterBackups[i], parameterBackups[i], addressType, 0)
+							END;
+							Emit(Push(parameterBackups[i]));
+							ReleaseIntermediateOperand(parameterBackups[i]);
+						
+							(* push typetag *)
+							(* IF dump # NIL THEN dump.String("push typetag"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+							recordType := formalParameter.type.resolved(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
+							arg := TypeDescriptorAdr(recordType);
+							IF ~newObjectFile THEN IntermediateCode.MakeMemory(arg, addressType) END;
+							Emit(Push(arg));
+						ELSE
+							(* push 'NonPointer' *)
+							(* IF dump # NIL THEN dump.String("push 'NonPointer'"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+							Emit(Push(IntermediateCode.Immediate(GetType(system, system.longintType), NonPointer)));
+							
+							(* push fingerprint *)
+							(* IF dump # NIL THEN dump.String("push fingerprint"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+							fingerPrint := fingerPrinter.TypeFP(formalParameter.type.resolved);
+							Emit(Push(IntermediateCode.Immediate(GetType(system, system.longintType), fingerPrint.shallow))) (* TODO: push the type's fingerprint *)
+						END
+					END;
+					formalParameter := formalParameter.nextParameter
+				END;
+				
+				(* for unary operators: complete the information for the second parameter *)
+				IF procedureType.numberParameters < 2 THEN
+					(* push 'NonPointer' *)
+					(* IF dump # NIL THEN dump.String("push 'NonPointer'"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+					Emit(Push(IntermediateCode.Immediate(GetType(system, system.longintType), NonPointer)));
+					
+					(* push 'NoType' *)
+					(* IF dump # NIL THEN dump.String("push 'NoType'"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+					Emit(Push(IntermediateCode.Immediate(GetType(system, system.longintType), NoType)));
+				END;
+				
+				(* call operator selection procedure *)
+				IF GetRuntimeProcedure("FoxOperatorRuntime", "SelectOperator", operatorSelectionProcedure, TRUE) THEN
+					StaticCallOperand(operatorSelectionProcedureOperand, operatorSelectionProcedure);
+					Emit(Call(operatorSelectionProcedureOperand.op, ProcedureParametersSize(system, operatorSelectionProcedure)));
+					ReleaseOperand(operatorSelectionProcedureOperand);
+					
+					(* use the address that the operator selection procedure returned as the target address of the call *)
+					InitOperand(operand, ModeValue);
+					operand.op := IntermediateCode.Register(addressType, AcquireRegister(addressType));
+					Emit(Result(operand.op))
+				ELSE
+					HALT(200)
+				END
+			ELSE
+				Evaluate(x.left, operand)
+			END;
+			
 			IF symbol IS SyntaxTree.Procedure THEN
 				IF (symbol.scope IS SyntaxTree.ProcedureScope) THEN (* nested procedure *)
 					GetBaseRegister(reg,currentScope,symbol.scope); (* static link, may be fp or [fp+8] (if nested proc calls itself) *)
@@ -3810,6 +3973,14 @@ TYPE
 				currentWriteBackCall := currentWriteBackCall.next
 			END;
 			RestoreGlobalState;
+			
+			(* nopov *)
+			(* TENATIVE *)
+			(*
+			IF isOperatorCall THEN
+				IF dump # NIL THEN dump.String("*** end of operator call ***"); dump.Ln; dump.Update END
+			END;
+			*)
 
 			IF Trace THEN TraceExit("VisitProcedureCallDesignator") END;
 		END VisitProcedureCallDesignator;
@@ -4025,7 +4196,102 @@ TYPE
 			profileInit.Emit(Leave(0));
 			profileInit.Emit(Exit(0));
 		END ProfilerPatchInit;
+		
+		(* nopov *)
+		(** if operator can be overloaded dynamically, emit code that registers it in the runtime **)
+		PROCEDURE RegisterDynamicOperator(operator: SyntaxTree.Operator);
+		VAR
+			id: LONGINT;
+			leftType, rightType: SyntaxTree.Type;
+			procedureType: SyntaxTree.ProcedureType;
+			runtimeProcedure: SyntaxTree.Procedure;
+			runtimeProcedureOperand, operatorOperand: Operand;
+			kind: SET;
+			
+			PROCEDURE PushTypeInfo(type: SyntaxTree.Type);
+			VAR
+				arg: IntermediateCode.Operand;
+				recordType: SyntaxTree.RecordType;
+				fingerPrint: SyntaxTree.FingerPrint;
+			BEGIN
+				IF type = NIL THEN
+					(* no type: push 'NoType' *)
+					(* IF dump # NIL THEN dump.String("push 'NoType'"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+					arg := IntermediateCode.Immediate(GetType(system, system.longintType), NoType)
+				ELSIF IsStrictlyPointerToRecord(type) THEN
+					(* pointer to record type: push typetag *)
+					(* IF dump # NIL THEN dump.String("push typetag"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+					recordType := type.resolved(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
+					arg := TypeDescriptorAdr(recordType);
+					IF ~newObjectFile THEN IntermediateCode.MakeMemory(arg, addressType) END;
+				ELSE
+					(* non-pointer to record type: push fingerprint *)
+					(* IF dump # NIL THEN dump.String("push fingerprint"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+					fingerPrint := fingerPrinter.TypeFP(type.resolved);
+					arg := IntermediateCode.Immediate(GetType(system, system.longintType), fingerPrint.shallow)
+				END;
+				operatorInitializationCodeSection.Emit(Push(arg))
+			END PushTypeInfo;
+		BEGIN
+			ASSERT(operator.type IS SyntaxTree.ProcedureType);
+			procedureType := operator.type(SyntaxTree.ProcedureType);
+			
+			(* determine types *)
+			leftType := procedureType.firstParameter.type;
+			IF procedureType.numberParameters = 2 THEN
+				ASSERT(procedureType.firstParameter.nextParameter # NIL);
+				rightType := procedureType.firstParameter.nextParameter.type;
+			ELSE
+				rightType := NIL
+			END;
+			
+			(* determine operator kind *)
+			IF IsStrictlyPointerToRecord(leftType) THEN
+				kind := {LhsIsPointer}
+			ELSE
+				kind := {}
+			END;
+			IF IsStrictlyPointerToRecord(rightType) THEN
+				kind := kind + {RhsIsPointer}
+			END;
+			
+			IF kind # {} THEN (* TODO: to be removed later on *)
+				(* at least one of the types is a pointer to record *)		
 
+				(* emit a code that registers this specific operator in the runtime *)
+				dump := operatorInitializationCodeSection.comments;
+				
+				(* IF dump # NIL THEN dump.String("*** begin of operator registration ***"); dump.Ln; dump.Update END; *) (* TENTATIVE *)					
+				IF GetRuntimeProcedure("FoxOperatorRuntime", "RegisterOperator", runtimeProcedure, TRUE) THEN
+					(* push ID *)
+					(* IF dump # NIL THEN dump.String("push ID"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+					id := Global.GetSymbol(module.module.case, operator.name);
+					operatorInitializationCodeSection.Emit(Push(IntermediateCode.Immediate(GetType(system, system.longintType), id)));
+					
+					(* push kind *)
+					(* IF dump # NIL THEN dump.String("push kind"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+					operatorInitializationCodeSection.Emit(Push(IntermediateCode.Immediate(setType, SYSTEM.VAL(LONGINT, kind))));
+					
+					(* push type infos *)
+					PushTypeInfo(leftType);
+					PushTypeInfo(rightType);
+					
+					(* push operator address *)
+					(* IF dump # NIL THEN dump.String("push operator address"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
+					StaticCallOperand(operatorOperand, operator);
+					operatorInitializationCodeSection.Emit(Push(operatorOperand.op));
+					ReleaseOperand(operatorOperand);
+					
+					StaticCallOperand(runtimeProcedureOperand, runtimeProcedure);
+					operatorInitializationCodeSection.Emit(Call(runtimeProcedureOperand.op, ProcedureParametersSize(system, runtimeProcedure)));
+					ReleaseOperand(runtimeProcedureOperand)
+				ELSE
+					HALT(100)
+				END
+				(* IF dump # NIL THEN dump.String("*** end of operator registration ***"); dump.Ln; dump.Update END *) (* TENTATIVE *)
+			END
+		END RegisterDynamicOperator;
+		
 		PROCEDURE SystemTrace(x: SyntaxTree.ExpressionList);
 		VAR
 			traceModule: SyntaxTree.Module;
@@ -4635,21 +4901,23 @@ TYPE
 		END NewMathArrayDescriptor;
 
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
-		VAR p0,p1,p2,parameter: SyntaxTree.Expression; len,val: LONGINT; l,r: Operand; res,adr,reg: IntermediateCode.Operand; type: SyntaxTree.Type;
-		constructor: SyntaxTree.Procedure; s0,s1,s2: Operand; hint: HUGEINT;
-		i: LONGINT; formalParameter: SyntaxTree.Parameter;
-		tmp:IntermediateCode.Operand;
-		size: LONGINT; dim,openDim: LONGINT; pointer: IntermediateCode.Operand; t,t0,t1,t2: SyntaxTree.Type; trueL,falseL,ignore: Label;
-		exit,else,end: Label; procedureType: SyntaxTree.ProcedureType;
-		name: SyntaxTree.String; symbol: Sections.Section; operand: Operand;
-		dest: IntermediateCode.Operand;
-		staticLength: LONGINT; itype: IntermediateCode.Type;
-		convert,isTensor: BOOLEAN;
-		flags: SET;
-		left: SyntaxTree.Expression;
-		call: SyntaxTree.Designator;
-		procedure: SyntaxTree.Procedure;
-		temporaryVariable: SyntaxTree.Variable;
+		VAR
+			p0,p1,p2,parameter: SyntaxTree.Expression; len,val: LONGINT; l,r: Operand; res,adr,reg: IntermediateCode.Operand; type: SyntaxTree.Type;
+			constructor: SyntaxTree.Procedure; s0,s1,s2: Operand; hint: HUGEINT;
+			i: LONGINT; formalParameter: SyntaxTree.Parameter;
+			tmp:IntermediateCode.Operand;
+			size: LONGINT; dim,openDim: LONGINT; pointer: IntermediateCode.Operand; t,t0,t1,t2: SyntaxTree.Type; trueL,falseL,ignore: Label;
+			exit,else,end: Label; procedureType: SyntaxTree.ProcedureType;
+			name: SyntaxTree.String; symbol: Sections.Section; operand: Operand;
+			dest: IntermediateCode.Operand;
+			staticLength: LONGINT; itype: IntermediateCode.Type;
+			convert,isTensor: BOOLEAN;
+			flags: SET;
+			left: SyntaxTree.Expression;
+			call: SyntaxTree.Designator;
+			procedure: SyntaxTree.Procedure;
+			temporaryVariable: SyntaxTree.Variable;
+			dummy: IntermediateCode.Operand; (* nopov *)
 
 			PROCEDURE CallBodies(self: IntermediateCode.Operand; type: SyntaxTree.Type);
 			VAR recordScope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure; body: SyntaxTree.Body; flags: LONGINT;
@@ -5069,7 +5337,7 @@ TYPE
 						(*! should be unified with ProcedureCallDesignator *)
 						formalParameter := constructor.type(SyntaxTree.ProcedureType).firstParameter;
 						FOR i := 1 TO x.parameters.Length()-1 DO
-							PushParameter(x.parameters.GetExpression(i), formalParameter,SyntaxTree.OberonCallingConvention);
+							PushParameter(x.parameters.GetExpression(i), formalParameter,SyntaxTree.OberonCallingConvention, FALSE, dummy);
 							formalParameter := formalParameter.nextParameter;
 						END;
 						(* static call of the constructor *)
@@ -6122,7 +6390,7 @@ TYPE
 		BEGIN
 			IF Trace THEN TraceEnter("StaticCallOperand") END;
 			tag := nil;
-			Global.GetSymbolName(x,name);
+			GetCodeSectionNameForSymbol(x, name); (* nopov *)
 			IF x.isInline THEN
 				sectionType := Sections.InlineCodeSection;
 			ELSE
@@ -6161,7 +6429,7 @@ TYPE
 			END;
 			IF Trace THEN TraceExit("VisitProcedure") END;
 		END VisitProcedure;
-
+		
 		PROCEDURE VisitOperator(x: SyntaxTree.Operator);
 		BEGIN
 			VisitProcedure(x);
@@ -6185,6 +6453,8 @@ TYPE
 			procedureName,s: SyntaxTree.String;
 			arrayBase: SyntaxTree.Module; saved: RegisterEntry;  procedure: SyntaxTree.Procedure; parameter: SyntaxTree.Parameter;
 			size: LONGINT; rightKind: LONGINT;
+			dummy: IntermediateCode.Operand; (* nopov *)
+			
 		CONST moduleName = "FoxArrayBase";
 
 			PROCEDURE OpenArray(from: SyntaxTree.MathArrayType): SyntaxTree.MathArrayType;
@@ -6229,9 +6499,9 @@ TYPE
 					parameter := SyntaxTree.NewParameter(left.position,procedure.type(SyntaxTree.ProcedureType),SyntaxTree.NewIdentifier("temp"), SyntaxTree.VarParameter);
 					parameter.SetType(leftType);
 					parameter.SetAccess(SyntaxTree.Internal);
-					PushParameter(left,parameter,SyntaxTree.OberonCallingConvention);
+					PushParameter(left,parameter,SyntaxTree.OberonCallingConvention, FALSE, dummy); (* nopov *)
 					parameter.SetKind(rightKind);
-					PushParameter(right,parameter,SyntaxTree.OberonCallingConvention);
+					PushParameter(right,parameter,SyntaxTree.OberonCallingConvention, FALSE, dummy); (* nopov *)
 					size := ToMemoryUnits(system,system.SizeOf(rightBase));
 					Emit(Push(IntermediateCode.Immediate(int32,size)));
 					StaticCallOperand(result,procedure);
@@ -6961,6 +7231,13 @@ TYPE
 						ProfilerAddProcedure(numberProcedures,ir.name);
 						ProfilerEnterExit(numberProcedures,TRUE);
 					END;
+				END;
+				
+				(* nopov *)
+				IF moduleBody THEN
+					IF TRUE THEN (* TODO: only if required *)
+						Emit(Call(IntermediateCode.Address(addressType, operatorInitializationCodeSection, 0), 0))
+					END
 				END;
 
 				section.SetAlignment(procedure.fixed, procedure.alignment);
@@ -9408,6 +9685,20 @@ TYPE
 		value := SHORT(op.intValue);
 		RETURN op.mode = IntermediateCode.ModeImmediate;
 	END IsIntegerImmediate;
+
+	(* nopov *)	
+	(** whether a type strictily is a pointer to record or object type
+	(however, the basic type <<OBJECT>> is explicitly excluded) **)
+	PROCEDURE IsStrictlyPointerToRecord(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN
+		IF type = NIL THEN
+			RETURN FALSE
+		ELSIF type.resolved IS SyntaxTree.PointerType THEN
+			RETURN type.resolved(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.RecordType
+		ELSE
+			RETURN FALSE
+		END
+	END IsStrictlyPointerToRecord;
 
 	PROCEDURE IsPointerToRecord(type: SyntaxTree.Type; VAR recordType: SyntaxTree.RecordType): BOOLEAN;
 	BEGIN type := type.resolved;

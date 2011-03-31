@@ -594,6 +594,7 @@ VAR c: CHAR;
 BEGIN
 	IF (width <= 0) THEN width := 8 END;
 
+	DEC(width); (* opov *)
 	s[width+1] := 0X;
 	WHILE (width >= 0) DO
 		c := CHR(h MOD 10H + ORD("0"));

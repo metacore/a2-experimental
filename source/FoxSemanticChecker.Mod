@@ -5960,21 +5960,154 @@ TYPE
 			type := ResolveType(builtinProcedure.type);
 		END VisitBuiltin;
 
-		(** check and resolve operator **)
+		(* nopov *)
+		(** check and resolve operator
+			- operators are first checked as procedures
+			- then additional operator-specific checks are done
+			- note that only module-scope operators are checked here
+				(operators in a record scope are only allowed in the context of 
+				array-structured object types and checked in 'ResolveArrayStructure')
+			- also note that inter-operator conformity is not checked here
+		**)
 		PROCEDURE VisitOperator(operator: SyntaxTree.Operator);
-		VAR name: Scanner.StringType; token: LONGINT;
+		VAR
+			procedureType: SyntaxTree.ProcedureType;
+			leftType, rightType: SyntaxTree.Type;
+			identifierNumber, realParameterCount, i: LONGINT;
+			hasReturnType, mustBeUnary, mustBeBinary, mustReturnBoolean, mustReturnInteger, mustHaveEquitypedOperands: BOOLEAN;
+			
+			PROCEDURE IsLocallyDefined(type: SyntaxTree.Type): BOOLEAN;
+			BEGIN
+				IF type = NIL THEN
+					RETURN FALSE
+				ELSE
+					RETURN (type.typeDeclaration # NIL) & (type.typeDeclaration.scope.ownerModule = currentScope.ownerModule);
+				END
+			END IsLocallyDefined;
 		BEGIN
 			VisitProcedure(operator);
-			(*
-			token := Global.GetSymbol(currentScope.ownerModule.case,operator.name);
-			operator.name.GetString(name);
-			IF (token<0) THEN
-				Error(operator.position,Diagnostics.Invalid,"this operator symbol does not exist");
-			ELSIF (~system.operatorDefined[token]) THEN
-				Error(operator.position,Diagnostics.Invalid,"this operator cannot be overloaded");
-			END;
-			*)
-			(*! check operator (number of parameters etc.) *)
+			
+			IF operator.scope IS SyntaxTree.ModuleScope THEN
+				identifierNumber := Global.GetSymbol(operator.scope.ownerModule.case, operator.name);
+				
+				IF identifierNumber = -1 THEN
+					Error(operator.position, Diagnostics.Invalid, "operator with unknown identifier")
+				ELSIF ~system.operatorDefined[identifierNumber] THEN
+					Error(operator.position, Diagnostics.Invalid, "identifier may not be used for operator")
+				ELSE
+					ASSERT(operator.type IS SyntaxTree.ProcedureType);
+					procedureType := operator.type(SyntaxTree.ProcedureType);
+					
+					realParameterCount := procedureType.numberParameters;
+					IF realParameterCount < 1 THEN
+						Error(operator.position, Diagnostics.Invalid, "operator without operand");
+					ELSIF realParameterCount > 2 THEN
+						Error(operator.position, Diagnostics.Invalid, "operator with more than two operands");
+					ELSE
+						(* determine operand types *)
+						leftType := procedureType.firstParameter.type;
+						IF procedureType.numberParameters > 1 THEN
+							rightType := procedureType.firstParameter.nextParameter.type
+						ELSE
+							rightType := NIL
+						END;
+						
+						(* check whether at least one of the operand types is declared in the current module (this check is skipped for the module FoxArrayBase) *)
+						IF currentScope.ownerModule.name # Global.ArrayBaseName THEN
+							IF ~(IsLocallyDefined(leftType) OR IsLocallyDefined(rightType)) THEN
+								Error(operator.position, Diagnostics.Invalid, "no operand is not declared in the same module")
+							END
+						END;
+						
+						(* TODO: refine the checks, think about how restrictive the checks should be
+						requiring operators such as "&", "OR", "~" to return Booleans, makes overloading for them almost pointless.
+						They might be used for intersection, union, complement of custom object types *)
+						
+						(* defaults *)
+						hasReturnType := TRUE;
+						mustBeUnary := FALSE;	
+						mustBeBinary := FALSE;
+						mustReturnBoolean := FALSE;
+						mustReturnInteger := FALSE;
+						mustHaveEquitypedOperands := FALSE;
+						
+						(* operator-specific exceptions *)
+						CASE identifierNumber OF	
+						| Scanner.Equal, Scanner.Unequal, Scanner.Less, Scanner.LessEqual, Scanner.Greater, Scanner.GreaterEqual:
+							mustBeBinary := TRUE; mustReturnBoolean := TRUE;
+						| Scanner.DotEqual, Scanner.DotUnequal, Scanner.DotLess, Scanner.DotLessEqual, Scanner.DotGreater, Scanner.DotGreaterEqual:
+							mustBeBinary := TRUE
+						| Scanner.In: mustBeBinary := TRUE; mustReturnBoolean := TRUE
+						| Scanner.Is: mustBeBinary := TRUE; mustReturnBoolean := TRUE
+						| Scanner.Times: mustBeBinary := TRUE
+						| Scanner.TimesTimes: mustBeBinary := TRUE
+						| Scanner.DotTimes: mustBeBinary := TRUE
+						| Scanner.PlusTimes: mustBeBinary := TRUE
+						| Scanner.Slash: mustBeBinary := TRUE
+						| Scanner.Backslash: mustBeBinary := TRUE
+						| Scanner.DotSlash: mustBeBinary := TRUE
+						| Scanner.Div, Scanner.Mod: mustBeBinary := TRUE;
+						| Scanner.And, Scanner.Or: 	mustBeBinary := TRUE;
+						| Scanner.Not: mustBeUnary := TRUE
+						| Scanner.Plus, Scanner.Minus: (* unary and binary *)
+						| Scanner.Becomes: mustBeBinary := TRUE; hasReturnType := FALSE;
+						| Scanner.Transpose: mustBeUnary := TRUE;
+						| Global.Conversion: mustBeUnary := TRUE; (* TODO: get rid of return type? *)
+						| Global.DotTimesPlus: mustBeBinary := TRUE;
+						| Global.AtMulDec, Global.AtMulInc: mustBeBinary := TRUE;
+						| Global.DecMul, Global.IncMul: mustBeBinary := TRUE;
+						| Global.Dec, Global.Inc: hasReturnType := FALSE; (* unary and binary *)
+						| Global.Excl, Global.Incl: (* TODO: arity? *)
+						| Global.Abs: mustBeUnary := TRUE;
+						| Global.Ash: (* TODO: arity? *)
+						| Global.Cap: (* TODO: arity? *)
+						| Global.Chr: mustBeUnary := TRUE;
+						| Global.Entier: (* TODO: arity? *)
+						| Global.EntierH: (* TODO: arity? *)
+						| Global.Len: (* unary and binary *)
+						| Global.Short, Global.Long: mustBeUnary := TRUE;
+						| Global.Max, Global.Min: (* unary and binary *)
+						| Global.Odd: (* TODO: arity? *)
+						| Global.Sum: (* TODO: arity? *)
+						| Global.Dim: mustBeUnary := TRUE; mustReturnInteger := TRUE;
+						END;
+						
+						(* check parameter count *)
+						IF mustBeUnary & (realParameterCount # 1) THEN
+							Error(operator.position, Diagnostics.Invalid,"operator is not unary")
+						ELSIF mustBeBinary & (realParameterCount # 2) THEN
+							Error(operator.position, Diagnostics.Invalid,"operator is not binary")
+						END;
+						
+						(* check parameter types *)
+						(* TODO: is this used at all? *)
+						IF mustHaveEquitypedOperands & (realParameterCount = 2) THEN
+							leftType := procedureType.firstParameter.type;
+							rightType := procedureType.firstParameter.nextParameter.type;
+							IF ~leftType.resolved.SameType(rightType.resolved) THEN
+								Error(operator.position,Diagnostics.Invalid, "the two operands are not of the same type")
+							END
+						END;
+						
+						(* check return type *)
+						IF hasReturnType THEN
+							IF procedureType.returnType = NIL THEN
+								Error(operator.position, Diagnostics.Invalid, "return type required")
+							ELSIF mustReturnBoolean THEN
+								IF ~(procedureType.returnType.resolved IS SyntaxTree.BooleanType) THEN
+									Error(operator.position, Diagnostics.Invalid,"return type is not Boolean")
+								END
+							ELSIF mustReturnInteger THEN
+								IF ~(procedureType.returnType.resolved IS SyntaxTree.IntegerType) THEN
+									Error(operator.position, Diagnostics.Invalid,"return type is not integer")
+								END
+							END
+						ELSIF procedureType.returnType # NIL THEN
+							Error(operator.position, Diagnostics.Invalid, "return type not allowed")
+						END
+					END
+				END
+			END
 		END VisitOperator;
 
 
@@ -7020,6 +7153,84 @@ TYPE
 			currentScope := prevScope;
 		END Declarations;
 
+		(* nopov *)
+		(** check if all operators from one module are compatible to the ones in the other module
+		- check if there are not multiple operators with the same signature
+			(apart from the conversion operator "@Convert": it is the only operator that may be defined multiple times with the same signature)
+		- check for all operators whose signatures are compatible, whether the return types are compatible
+		note that:
+			- the return type is not considered to be part of the signature
+			- two signatures are considered compatible, if all of the operands are compatible
+		**)
+		PROCEDURE CheckInterOperatorConformity(thisModuleScope, thatModuleScope: SyntaxTree.ModuleScope);
+		VAR
+			thisOperator, thatOperator: SyntaxTree.Operator;
+			thisProcedureType, thatProcedureType: SyntaxTree.ProcedureType;
+			thisParameter, thatParameter: SyntaxTree.Parameter;
+			operandsAreEqual, operandsAreCompatible, hasError: BOOLEAN;
+			thisRealParameterCount, thatRealParameterCount, i: LONGINT;
+		BEGIN
+			currentScope := thisModuleScope;
+			hasError := FALSE;
+			
+			(* go through all operators in the other module *)
+			thatOperator := thatModuleScope.firstOperator;
+			WHILE (thatOperator # NIL) & ~hasError DO
+				IF (thisModuleScope = thatModuleScope) OR (SyntaxTree.PublicRead IN thatOperator.access) THEN
+					(* the other operator is accessible *)
+					IF thatOperator.name # Global.GetIdentifier(Global.Conversion, thatModuleScope.ownerModule.case) THEN
+						(* the other operator is not the conversion operator *)
+
+						(* go through all operators in this module *)
+						thisOperator := thisModuleScope.firstOperator;
+						WHILE (thisOperator # NIL) & ~hasError DO					
+							IF thisOperator # thatOperator THEN
+							(* the operators are not the same *)
+								IF thisOperator.name = thatOperator.name THEN
+									(* the operators share the same identifier *)
+									
+									ASSERT(thisOperator.type IS SyntaxTree.ProcedureType);
+									ASSERT(thatOperator.type IS SyntaxTree.ProcedureType);
+									thisProcedureType := thisOperator.type(SyntaxTree.ProcedureType);
+									thatProcedureType := thatOperator.type(SyntaxTree.ProcedureType);
+									thisRealParameterCount := thisProcedureType.numberParameters;
+									thatRealParameterCount := thatProcedureType.numberParameters;							
+									IF thisRealParameterCount = thatRealParameterCount THEN						
+										(* both operators have the same paramter count *)
+										thisParameter := thisProcedureType.firstParameter;
+										thatParameter := thatProcedureType.firstParameter;
+										operandsAreEqual := TRUE;
+										operandsAreCompatible := TRUE;
+										(* go through all parameters *)
+										FOR i := 1 TO thisRealParameterCount DO
+											ASSERT(thatParameter # NIL);
+											IF ~SameType(thisParameter.type, thatParameter.type) THEN
+												operandsAreEqual := FALSE;
+												IF ~CompatibleTo(system, thisParameter.type, thatParameter.type) THEN
+													operandsAreCompatible := FALSE
+												END
+											END;
+											thisParameter := thisParameter.nextParameter;
+											thatParameter := thatParameter.nextParameter
+										END;
+										IF operandsAreEqual THEN
+											Error(thisOperator.position, Diagnostics.Invalid, "operator has the same identifier and operand types as other one");
+											hasError := TRUE
+										ELSIF operandsAreCompatible & ~CompatibleTo(system, thisProcedureType.returnType, thatProcedureType.returnType) THEN									
+											Error(thisOperator.position, Diagnostics.Invalid, "operator's return type is not compatible to the one of a more generic operator");
+											hasError := TRUE
+										END
+									END
+								END
+							END;
+							thisOperator := thisOperator.nextOperator
+						END
+					END
+			 	END;
+			 	thatOperator := thatOperator.nextOperator
+			 END
+		END CheckInterOperatorConformity;
+
 		(** check module:
 			- check module declaration
 			- add context, if necessary
@@ -7029,16 +7240,35 @@ TYPE
 			- check implementation (bodies)
 		**)
 		PROCEDURE Module*(x: SyntaxTree.Module);
+		VAR (* nopov *)
+			import: SyntaxTree.Import;
 		BEGIN
 			module := x;
 			ASSERT(x # NIL);
 			global := system.globalScope[x.case];
 			x.moduleScope.SetGlobalScope(global);
-			IF (x.name=Global.SystemName) OR (x.name=Global.systemName) THEN Error(x.position,Diagnostics.Invalid,"name reserved") END;
-			IF (x.context =SyntaxTree.invalidIdentifier) THEN x.SetContext(Global.A2Name) END;
+			IF (x.name = Global.SystemName) OR (x.name = Global.systemName) THEN Error(x.position,Diagnostics.Invalid,"name reserved") END;
+			IF x.context = SyntaxTree.invalidIdentifier THEN x.SetContext(Global.A2Name) END;
 			RemoveModuleFromCache(importCache,x);
 			Declarations(x.moduleScope);
 			FixTypes();
+			
+			(* nopov *)
+			IF ~error THEN
+				(* check if operators conform to each other within this module *)
+				CheckInterOperatorConformity(x.moduleScope, x.moduleScope);
+				
+				(* go through all imports *)
+				import := x.moduleScope.firstImport;
+				WHILE import # NIL DO
+					IF (import.module # NIL) & ~Global.IsSystemModule(import.module) THEN (* ignore SYSTEM-module *)
+						(* check if all operators in this module conform to the ones of the imported module *)		
+						CheckInterOperatorConformity(x.moduleScope, import.module.moduleScope)
+					END;
+					import := import.nextImport
+				END;
+			END;
+			
 			Implementations(x);
 			module := NIL;
 		END Module;
@@ -7774,6 +8004,20 @@ TYPE
 		END;
 		RETURN result
 	END IsPointerType;
+	
+	(* nopov *)	
+	(** whether a type strictily is a pointer to record or object type
+	(however, the basic type <<OBJECT>> is explicitly excluded) **)
+	PROCEDURE IsStrictlyPointerToRecord(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN
+		IF type = NIL THEN
+			RETURN FALSE
+		ELSIF type.resolved IS SyntaxTree.PointerType THEN
+			RETURN type.resolved(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.RecordType
+		ELSE
+			RETURN FALSE
+		END
+	END IsStrictlyPointerToRecord;
 
 	PROCEDURE IsPointerToRecord(type: SyntaxTree.Type): BOOLEAN;
 	VAR result: BOOLEAN;

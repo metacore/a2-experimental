@@ -3,7 +3,7 @@ MODULE FoxBinarySymbolFile; (** AUTHOR "fof"; PURPOSE "Symbol File - Binary Form
 IMPORT
 	 Basic := FoxBasic,  Scanner := FoxScanner, SyntaxTree := FoxSyntaxTree, Global := FoxGlobal,
 	 Files,Streams, Kernel, SYSTEM, D := Debugging,  Diagnostics, Options, Formats := FoxFormats, InterfaceComparison := FoxInterfaceComparison
-	 ,Commands, Printout := FoxPrintout, SemanticChecker := FoxSemanticChecker, (* OLIVIER *)
+	 ,Commands, Printout := FoxPrintout, SemanticChecker := FoxSemanticChecker,
 	 Machine
 	 ;
 
@@ -228,15 +228,12 @@ TYPE
 	Resolver=OBJECT (SyntaxTree.Visitor)
 	VAR typeList: IndexToType; system: Global.System; typeFixes: LateFixList;
 
-		(* OLIVIER *)
 		checker: SemanticChecker.Checker;
 
 		PROCEDURE & Init(system: Global.System; symbolFile: BinarySymbolFile; importCache: SyntaxTree.ModuleScope);
 		VAR streamDiagnostics: Diagnostics.StreamDiagnostics;
 		BEGIN
 			typeList := NIL; SELF.system := system; NEW(typeFixes);
-			(* OLIVIER *)
-			(* TODO: how to get: diagnostics, symbolFileFormat, activeCellsSpecification and importCache *)
 			NEW(streamDiagnostics, D.Log);
 			checker := SemanticChecker.NewChecker(streamDiagnostics,FALSE,FALSE,system,symbolFile,NIL,importCache);
 		END Init;
@@ -383,8 +380,6 @@ TYPE
 
 		END FixPointerType;
 
-
-		(* OLIVIER: changes *)
 		PROCEDURE VisitRecordType(recordType: SyntaxTree.RecordType);
 		VAR recordBase: SyntaxTree.RecordType; numberMethods: LONGINT; procedure,super,testsuper: SyntaxTree.Procedure; recordScope: SyntaxTree.RecordScope;
 			pointerType: SyntaxTree.Type; typeDeclaration: SyntaxTree.TypeDeclaration; symbol: SyntaxTree.Symbol; size: HUGEINT;
@@ -445,7 +440,6 @@ TYPE
 			Printout.Info("RecordScope ",recordType.recordScope);
 			*)
 
-			(* OLIVIER *)
 			checker.SetCurrentScope(recordType.recordScope);
 			checker.ResolveArrayStructure(recordType);
 

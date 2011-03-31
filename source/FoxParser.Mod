@@ -107,19 +107,19 @@ CONST
 
 		AddOp                = '+' | '-' | 'or'.
 
-		Term                 = Fcell {MulOp Fcell}.
+		Term                 = Factor {MulOp Factor}.
 
 		MulOp                = '*' | '**' | '.*' | '+*' | '/' | './' | 'div' | 'mod' | '&'.
 
-		Fcell               = Number | Character | String | 'nil' | 'true' | 'false' | Set |
-		                       '(' Expression ')' | '~' Fcell | Fcell '`' | Designator | MathArray.
+		Factor               = Number | Character | String | 'nil' | 'true' | 'false' | Set |
+		                       '(' Expression ')' | '~' Factor | Factor '`' | Designator | MathArray.
 
 		MathArray            = '[' Expression {',' Expression} ']'.
 
 		Set                  = '{' [ RangeExpression {',' RangeExpression} ] '}'.
 
 		Designator           = ('self' | Identifier)
-		                       {'.' Identifier | '[' IndexList ']' | [Flags] '(' [ExpressionList] ')' | '^'}.
+		                       {'.' Identifier | '[' IndexList ']' | '(' [ExpressionList] ')' | '^'}.
 
 		IndexList            = '?' [',' ExpressionList ] | ExpressionList [',' '?'].
 
@@ -142,9 +142,9 @@ CONST
 
 		Integer              = Digit {Digit} | Digit {HexDigit} 'H'.
 
-		Real                 = Digit {Digit} '.' {Digit} [ScaleFcell].
+		Real                 = Digit {Digit} '.' {Digit} [ScaleFactor].
 
-		ScaleFcell          = ('E' | 'D') ['+' | '-'] digit {digit}.
+		ScaleFactor          = ('E' | 'D') ['+' | '-'] digit {digit}.
 
 		HexDigit             = Digit | 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
 
@@ -609,100 +609,100 @@ TYPE
 			RETURN array
 		END MathArray;
 
-		(** Fcell = Number | Character | String | 'nil' | 'true' | 'false' | Set
-			 			  | '(' Expression ')' | '~' Fcell | Fcell '`' | Designator | MathArray.**)
-		PROCEDURE Fcell( ): SyntaxTree.Expression;
-		VAR fcell: SyntaxTree.Expression; position: LONGINT;
+		(** Factor = Number | Character | String | 'nil' | 'true' | 'false' | Set
+			 			  | '(' Expression ')' | '~' Factor | Factor '`' | Designator | MathArray.**)
+		PROCEDURE Factor( ): SyntaxTree.Expression;
+		VAR factor: SyntaxTree.Expression; position: LONGINT;
 		BEGIN
-			IF Trace THEN S( "Fcell" ) END;
+			IF Trace THEN S( "Factor" ) END;
 			position := symbol.start;
 			CASE symbol.token OF
 			| Scanner.Number:
 					IF (symbol.numberType = Scanner.Integer) THEN
-						fcell := SyntaxTree.NewIntegerValue( position, symbol.integer);
-						fcell.End( symbol.end );
+						factor := SyntaxTree.NewIntegerValue( position, symbol.integer);
+						factor.End( symbol.end );
 					ELSIF (symbol.numberType = Scanner.Hugeint) THEN
-						fcell := SyntaxTree.NewIntegerValue(position, symbol.hugeint);
-						fcell.End( symbol.end );
+						factor := SyntaxTree.NewIntegerValue(position, symbol.hugeint);
+						factor.End( symbol.end );
 					ELSIF (symbol.numberType = Scanner.Real) OR (symbol.numberType = Scanner.Longreal) THEN
-						fcell := SyntaxTree.NewRealValue( position, symbol.real);
-						fcell(SyntaxTree.RealValue).SetSubtype(symbol.numberType);
-						fcell.End( symbol.end );
+						factor := SyntaxTree.NewRealValue( position, symbol.real);
+						factor(SyntaxTree.RealValue).SetSubtype(symbol.numberType);
+						factor.End( symbol.end );
 					ELSE HALT( 100 )
 					END;
 					NextSymbol;
 			| Scanner.Character:
-					fcell := SyntaxTree.NewCharacterValue(position,symbol.character);
-					fcell.End(symbol.end);
+					factor := SyntaxTree.NewCharacterValue(position,symbol.character);
+					factor.End(symbol.end);
 					NextSymbol;
 			| Scanner.String:
-					fcell := SyntaxTree.NewStringValue( position, symbol.string );
-					fcell.End( symbol.end );
+					factor := SyntaxTree.NewStringValue( position, symbol.string );
+					factor.End( symbol.end );
 					NextSymbol;
 			| Scanner.Nil:
-					fcell := SyntaxTree.NewNilValue( position );
-					fcell.End( symbol.end );
+					factor := SyntaxTree.NewNilValue( position );
+					factor.End( symbol.end );
 					NextSymbol;
 			| Scanner.True:
-					fcell := SyntaxTree.NewBooleanValue( position, TRUE );
-					fcell.End( symbol.end );
+					factor := SyntaxTree.NewBooleanValue( position, TRUE );
+					factor.End( symbol.end );
 					NextSymbol;
 			| Scanner.False:
-					fcell := SyntaxTree.NewBooleanValue( position, FALSE );
-					fcell.End( symbol.end );
+					factor := SyntaxTree.NewBooleanValue( position, FALSE );
+					factor.End( symbol.end );
 					NextSymbol;
 			| Scanner.LeftBrace:
-					fcell := Set();
+					factor := Set();
 			| Scanner.LeftParenthesis:
 					NextSymbol;
-					fcell := Expression();
+					factor := Expression();
 					Check( Scanner.RightParenthesis );
-					fcell.End( symbol.end );
+					factor.End( symbol.end );
 			| Scanner.Not:
 					NextSymbol;
-					fcell := Fcell();
-					fcell := SyntaxTree.NewUnaryExpression( position, fcell, Scanner.Not );
-					fcell.End( symbol.end );
+					factor := Factor();
+					factor := SyntaxTree.NewUnaryExpression( position, factor, Scanner.Not );
+					factor.End( symbol.end );
 			| Scanner.Self, Scanner.Result, Scanner.Identifier:
-					fcell := Designator();
-					fcell.End( symbol.end );
+					factor := Designator();
+					factor.End( symbol.end );
 			| Scanner.LeftBracket:
 					NextSymbol;
-					fcell := MathArray();
-					fcell.End(symbol.end);
+					factor := MathArray();
+					factor.End(symbol.end);
 			ELSE
 				Error( position, Basic.ValueStartIncorrectSymbol, "" );
-				NextSymbol;  fcell := SyntaxTree.invalidExpression;
+				NextSymbol;  factor := SyntaxTree.invalidExpression;
 			END;
 			(* suffix *)
 			IF Optional(Scanner.Transpose) THEN
-				IF (fcell IS SyntaxTree.UnaryExpression) & (fcell(SyntaxTree.UnaryExpression).operator = Scanner.Transpose) THEN
+				IF (factor IS SyntaxTree.UnaryExpression) & (factor(SyntaxTree.UnaryExpression).operator = Scanner.Transpose) THEN
 					(* transpose operator has higher precedence than not, reevaluate expression: *)
-					fcell := fcell(SyntaxTree.UnaryExpression).left;
-					fcell := SyntaxTree.NewUnaryExpression(position,fcell,Scanner.Transpose);
-					fcell := SyntaxTree.NewUnaryExpression(position,fcell,Scanner.Not);
+					factor := factor(SyntaxTree.UnaryExpression).left;
+					factor := SyntaxTree.NewUnaryExpression(position,factor,Scanner.Transpose);
+					factor := SyntaxTree.NewUnaryExpression(position,factor,Scanner.Not);
 				ELSE
-					fcell := SyntaxTree.NewUnaryExpression(position,fcell,Scanner.Transpose);
+					factor := SyntaxTree.NewUnaryExpression(position,factor,Scanner.Transpose);
 				END;
 			END;
-			IF Trace THEN E( "Fcell" ) END;
-			RETURN fcell
-		END Fcell;
+			IF Trace THEN E( "Factor" ) END;
+			RETURN factor
+		END Factor;
 
-		(** Term = Fcell {MulOp Fcell}.
+		(** Term = Factor {MulOp Factor}.
 		   MulOp = '*' | '**' | '.*' | '+*' | '/' | './' | 'div' | 'mod' | '&'.
 		**)
 		PROCEDURE Term( ): SyntaxTree.Expression;
-		VAR term, fcell: SyntaxTree.Expression;  operator: LONGINT; position: LONGINT;
+		VAR term, factor: SyntaxTree.Expression;  operator: LONGINT; position: LONGINT;
 		BEGIN
 			IF Trace THEN S( "Term" ) END;
 			position := symbol.start;
-			term := Fcell();
+			term := Factor();
 			WHILE (symbol.token >= Scanner.Times) & (symbol.token <= Scanner.And) DO
 				operator := symbol.token;
 				NextSymbol;
-				fcell := Fcell();
-				term := SyntaxTree.NewBinaryExpression( position, term, fcell, operator );
+				factor := Factor();
+				term := SyntaxTree.NewBinaryExpression( position, term, factor, operator );
 			END;
 			term.End( symbol.end );
 			IF Trace THEN E( "Term" ) END;
@@ -717,7 +717,7 @@ TYPE
 		BEGIN
 			IF Trace THEN S( "SimpleExpression" ) END;
 			position := symbol.start;
-			IF Peek(Scanner.Plus) OR Peek(Scanner.Minus) THEN (* sign should be part of the fcell *)
+			IF Peek(Scanner.Plus) OR Peek(Scanner.Minus) THEN (* sign should be part of the factor *)
 				operator := symbol.token;
 				NextSymbol;
 				term := Term();
@@ -1654,7 +1654,7 @@ TYPE
 			ELSIF parentScope IS SyntaxTree.RecordScope THEN
 				parentScope(SyntaxTree.RecordScope).AddOperator(operator);
 			ELSE
-				Error(position,Diagnostics.Invalid,"Operators only allowed in module scope");
+				Error(position,Diagnostics.Invalid,"Operators only allowed in module or record scope"); (* nopov *)
 			END;
 			IF Trace THEN EE( "Operator", name ) END;
 		END OperatorDeclaration;
