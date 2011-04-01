@@ -448,15 +448,15 @@ END GetFileFormat;
 
 PROCEDURE Link* (context: Commands.Context);
 VAR options: Options.Options;
-	verbose, useAll, strict: BOOLEAN;
+	silent, useAll, strict: BOOLEAN;
 	codeFileFormat, dataFileFormat: FileFormat;
 	codeDisplacement, dataDisplacement: GenericLinker.Address;
 	path, extension, codeFileName, dataFileName, moduleName: Files.FileName;
 	diagnostics: Diagnostics.StreamDiagnostics; code, data: Arrangement; linker: GenericLinker.Linker;
-	linkRoot: ARRAY 256 OF CHAR;
+	linkRoot: ARRAY 256 OF CHAR; logFile: Files.File; log: Files.Writer;
 BEGIN
 	NEW (options);
-	options.Add ('v', "verbose", Options.Flag);
+	options.Add (0X, "silent", Options.Flag);
 	options.Add ('a', "useAll", Options.Flag);
 	options.Add ('s', "strict", Options.Flag);
 	options.Add (0X, "path", Options.String); options.Add (0X, "extension", Options.String);
@@ -465,7 +465,7 @@ BEGIN
 	options.Add (0X, "fileFormat", Options.String); options.Add (0X, "dataFileFormat", Options.String);
 	options.Add(0X,"linkRoot", Options.String);
 	IF ~options.Parse (context.arg, context.error) THEN context.result := Commands.CommandParseError; RETURN; END;
-	verbose := options.GetFlag ("verbose");
+	silent := options.GetFlag ("silent");
 	useAll := options.GetFlag ("useAll");
 	strict := options.GetFlag ("strict");
 	IF ~options.GetString ("path", path) THEN path := ""; END;
@@ -479,7 +479,10 @@ BEGIN
 
 	NEW (code, codeDisplacement);
 	IF codeFileName # dataFileName THEN NEW (data, dataDisplacement); ELSE data := code; END;
-	NEW (diagnostics, context.error); NEW (linker, diagnostics, verbose, useAll, FALSE, code, data);
+	NEW (diagnostics, context.error);
+	logFile := Files.New("LinkerLog.txt");
+	IF logFile # NIL THEN NEW(log, logFile,0) ELSE log := NIL END;
+	NEW (linker, diagnostics, log, useAll, FALSE, code, data);
 
 	IF options.GetString("linkRoot",linkRoot) THEN linker.SetLinkRoot(linkRoot) END;
 
@@ -493,6 +496,16 @@ BEGIN
 	IF ~linker.error THEN
 		WriteOutputFile (code, codeFileName, linker, codeFileFormat);
 		IF data # code THEN WriteOutputFile (data, dataFileName, linker, dataFileFormat); END;
+		IF ~silent THEN
+			context.out.String("Link successful. Written files: ");
+			context.out.String(codeFileName);
+			IF data # code THEN context.out.String(", "); context.out.String(dataFileName) END;
+			context.out.String(", LinkerLog.txt");
+			context.out.Ln
+		END;
+		IF log # NIL THEN
+			log.Update; Files.Register(logFile);
+		END;
 	END;
 
 	IF linker.error THEN context.result := Commands.CommandError; END;

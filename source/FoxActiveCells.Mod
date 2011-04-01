@@ -540,17 +540,17 @@ TYPE
 			 RETURN type
 		END NewType;
 
-		PROCEDURE Link*(diagnostics: Diagnostics.Diagnostics; codeUnit, dataUnit: LONGINT; verbose: BOOLEAN): BOOLEAN;
+		PROCEDURE Link*(diagnostics: Diagnostics.Diagnostics; log: Streams.Writer; codeUnit, dataUnit: LONGINT): BOOLEAN;
 		VAR type: Type; i: LONGINT;
 		BEGIN
 			FOR i := 0 TO types.Length()-1 DO
 				type := types.GetType(i);
 				IF type.instances.Length()=0 THEN
-					IF ~type.LinkType(diagnostics, codeUnit, dataUnit, verbose) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+					IF ~type.LinkType(diagnostics, log, codeUnit, dataUnit) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 				ELSE
 					type.SetDataMemorySize(0);
 				END;
-				IF ~type.Link(diagnostics, codeUnit, dataUnit, verbose) THEN RETURN FALSE END; (* subtypes ? *)
+				IF ~type.Link(diagnostics, log,  codeUnit, dataUnit) THEN RETURN FALSE END; (* subtypes ? *)
 			END;
 			RETURN TRUE
 		END Link;
@@ -624,7 +624,7 @@ TYPE
 		END ThisPort;
 		*)
 
-		PROCEDURE LinkType*(diagnostics: Diagnostics.Diagnostics; codeUnit, dataUnit: LONGINT; verbose: BOOLEAN): BOOLEAN;
+		PROCEDURE LinkType*(diagnostics: Diagnostics.Diagnostics; log: Streams.Writer; codeUnit, dataUnit: LONGINT): BOOLEAN;
 		VAR
 			fileName, codeFileName, dataFileName: Files.FileName;
 			code, data: StaticLinker.Arrangement; linker: GenericLinker.Linker;
@@ -635,7 +635,7 @@ TYPE
 		BEGIN
 			NEW (code, 0);
 			NEW (data, 0);
-			NEW (linker, diagnostics, verbose, FALSE (* useAll *), FALSE (* stripInitCodes *), code, data);
+			NEW (linker, diagnostics, log, FALSE (* useAll *), FALSE (* stripInitCodes *), code, data);
 			GetFullName(linkRoot,NIL);
 			Strings.Append(linkRoot,".$$BODYSTUB");
 			linker.SetLinkRoot(linkRoot);

@@ -32,14 +32,15 @@ END;
 TYPE Linker* = OBJECT
 VAR
 	diagnostics: Diagnostics.Diagnostics;
-	verbose, useAll, stripInitCodes, error-: BOOLEAN;
+	useAll, stripInitCodes, error-: BOOLEAN;
+	log: Streams.Writer;
 	code, data: Arrangement;
 	firstBlock, firstLinkedBlock: Block;
 	linkRoot: ObjectFile.SectionName;
 
-	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; verbose, useAll, stripInitCodes: BOOLEAN; code, data: Arrangement);
+	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; log: Streams.Writer; useAll, stripInitCodes: BOOLEAN; code, data: Arrangement);
 	BEGIN
-		SELF.diagnostics := diagnostics; SELF.verbose := verbose; SELF.useAll := useAll; SELF.stripInitCodes := stripInitCodes;
+		SELF.diagnostics := diagnostics; SELF.log := log; SELF.useAll := useAll; SELF.stripInitCodes := stripInitCodes;
 		error := FALSE; SELF.code := code; SELF.data := data; firstBlock := NIL; firstLinkedBlock := NIL;
 		linkRoot := "";
 	END InitLinker;
@@ -53,7 +54,7 @@ VAR
 	END Error;
 
 	PROCEDURE Information* (CONST source, message: ARRAY OF CHAR);
-	BEGIN IF verbose THEN diagnostics.Information (source, Diagnostics.Invalid, Diagnostics.Invalid, message); END;
+	BEGIN IF log#NIL  THEN log.String(source); log.String(":"); log.String(message); log.Ln END;
 	END Information;
 
 	PROCEDURE FindBlock* (CONST identifier: ObjectFile.Identifier): Block;
@@ -110,7 +111,7 @@ VAR
 		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO IF block.used THEN Arrange (block); END; block := block.next; END; END;
 		IF ~error THEN block := firstBlock; WHILE block # firstLinkedBlock DO IF block.used THEN Patch (block); END; block := block.next; END; END;
 		IF ~error THEN firstLinkedBlock := firstBlock; END;
-		IF ~error & verbose THEN block := firstBlock; WHILE block # NIL DO Diagnose (block); block := block.next; END; END;
+		IF ~error & (log # NIL) THEN block := firstBlock; WHILE block # NIL DO Diagnose (block); block := block.next; END; END;
 	END Link;
 
 	PROCEDURE Reference (block: Block; used: BOOLEAN);
