@@ -187,42 +187,41 @@ TYPE
 		PROCEDURE FinalMessage(error: BOOLEAN; CONST msg: ARRAY OF CHAR);
 		VAR message,name: ARRAY 256 OF CHAR;
 		BEGIN
-			IF diagnostics # NIL THEN
+			message := "";
+			IF (module # NIL) & (module.context # SyntaxTree.invalidIdentifier) THEN
+				Basic.GetString(module.context,message);
+				Strings.Append (message, ".");
+			ELSE
 				message := "";
-				IF (module # NIL) & (module.context # SyntaxTree.invalidIdentifier) THEN
-					Basic.GetString(module.context,message);
-					Strings.Append (message, ".");
-				ELSE
-					message := "";
-				END;
-				IF (module # NIL) & (module.name # SyntaxTree.invalidIdentifier) THEN
-					Basic.GetString(module.name,name);
-					Strings.Append (message, name);
-				END;
-				Strings.Append (message, msg);
-				IF error THEN
+			END;
+			IF (module # NIL) & (module.name # SyntaxTree.invalidIdentifier) THEN
+				Basic.GetString(module.name,name);
+				Strings.Append (message, name);
+			END;
+			Strings.Append (message, msg);
+			IF error THEN
+				IF diagnostics # NIL THEN
 					diagnostics.Error (source, Diagnostics.Invalid, Diagnostics.Invalid, message);
-				ELSE
-					diagnostics.Information (source, Diagnostics.Invalid, Diagnostics.Invalid, message);
 				END;
-			END
-		END FinalMessage;
-
-		PROCEDURE Log;
-		BEGIN
-			(** logging and tracing **)
-			IF (log # NIL) THEN
-				IF Print IN flags THEN
-					IF Info IN flags THEN
-						printer := Printout.NewPrinter(log,Printout.All,Info IN flags);
-					ELSE
-						printer := Printout.NewPrinter(log,Printout.SourceCode,Info IN flags);
-					END;
-					log.Ln; printer.Module(module); log.Ln;
-					log.Update;
+			ELSE
+				IF log # NIL THEN
+					log.String(source); log.String(message); log.Ln;
 				END;
 			END;
-		END Log;
+		END FinalMessage;
+
+		PROCEDURE PrintModule;
+		VAR print: Streams.Writer;
+		BEGIN
+			print := Basic.GetWriter(Basic.GetDebugWriter("Compiler Debug Output"));
+			IF Info IN flags THEN
+				printer := Printout.NewPrinter(print,Printout.All,Info IN flags);
+			ELSE
+				printer := Printout.NewPrinter(print,Printout.SourceCode,Info IN flags);
+			END;
+			print.Ln; printer.Module(module); print.Ln;
+			print.Update;
+		END PrintModule;
 
 
 	BEGIN
@@ -275,7 +274,7 @@ TYPE
 					warnings.Module(module);
 				END;
 
-				Log;
+				IF Print IN flags THEN PrintModule END;
 
 				IF activeCellsSpecification # NIL THEN
 					Global.GetSymbolName(module,name);
@@ -341,13 +340,15 @@ TYPE
 
 				IF activeCellsSpecification = NIL THEN (* no activeCells *)
 				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
-				ELSIF ~activeCellsSpecification.Link(diagnostics,log,system.codeUnit, system.dataUnit) THEN
-					FinalMessage(TRUE, " could not link"); RETURN FALSE
-				ELSIF ~activeCellsSpecification.Emit() THEN
-					FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;
+				ELSE
+					IF ~activeCellsSpecification.Link(diagnostics,NIL,system.codeUnit, system.dataUnit) THEN
+						FinalMessage(TRUE, " could not link"); RETURN FALSE
+					ELSIF ~activeCellsSpecification.Emit() THEN
+						FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;
+					END;
 				END;
 
-			ELSE Log;
+			ELSIF Print IN flags THEN PrintModule
 			END;
 			IF ~(Silent IN flags) & ~(FindPC IN flags) THEN
 				FinalMessage(FALSE, " successfully compiled.")
@@ -468,7 +469,7 @@ TYPE
 	PROCEDURE Compile*(context : Commands.Context);
 	VAR
 		filename: ARRAY 256 OF CHAR;
-		error: BOOLEAN; log: Basic.Writer;
+		error: BOOLEAN;
 		diagnostics: Diagnostics.StreamDiagnostics;
 		time: LONGINT; reader: Streams.Reader;
 		flags: SET;
@@ -481,14 +482,8 @@ TYPE
 	BEGIN
 		error := FALSE;
 
-		NEW(diagnostics, context.out);
+		NEW(diagnostics, context.error);
 		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,activeCellsSpecification,findPC) THEN
-
-			IF (Print IN flags) THEN
-				log := Basic.GetWriter(Basic.GetDebugWriter("Compiler Debug Output"));
-			ELSE
-				log := NIL;
-			END;
 
 			time := Kernel.GetTicks();
 			WHILE context.arg.GetString(filename) & (filename # ";") & ~error DO
@@ -496,7 +491,7 @@ TYPE
 				IF reader = NIL THEN
 					diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 				ELSE
-					error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, log, importCache,findPC);
+					error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC);
 				END;
 				context.out.Update;
 			END;
@@ -510,7 +505,7 @@ TYPE
 	PROCEDURE CompileReader*(context: Commands.Context; reader: Streams.Reader);
 	VAR
 		filename: ARRAY 256 OF CHAR;
-		error: BOOLEAN; log: Basic.Writer;
+		error: BOOLEAN;
 		diagnostics: Diagnostics.StreamDiagnostics;
 		time: LONGINT;
 		flags: SET;
@@ -521,15 +516,15 @@ TYPE
 		activeCellsSpecification: ActiveCells.Specification;
 		findPC: SyntaxTree.String;
 	BEGIN
-		error := FALSE; log := NIL;
-		NEW(diagnostics, context.out);
+		error := FALSE;
+		NEW(diagnostics, context.error);
 		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,activeCellsSpecification,findPC) THEN
-			IF (Print IN flags) THEN log := Basic.GetWriter(Basic.GetDebugWriter("Compiler Debug Output")) END;
+
 			time := Kernel.GetTicks();
 			IF reader = NIL THEN
 				diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 			ELSE
-				error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, log, importCache,findPC);
+				error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC);
 			END;
 			context.out.Update;
 		END;
