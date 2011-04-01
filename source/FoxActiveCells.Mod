@@ -540,17 +540,17 @@ TYPE
 			 RETURN type
 		END NewType;
 
-		PROCEDURE Link*(diagnostics: Diagnostics.Diagnostics; log: Streams.Writer; codeUnit, dataUnit: LONGINT): BOOLEAN;
+		PROCEDURE Link*(diagnostics: Diagnostics.Diagnostics; codeUnit, dataUnit: LONGINT): BOOLEAN;
 		VAR type: Type; i: LONGINT;
 		BEGIN
 			FOR i := 0 TO types.Length()-1 DO
 				type := types.GetType(i);
 				IF type.instances.Length()=0 THEN
-					IF ~type.LinkType(diagnostics, log, codeUnit, dataUnit) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+					IF ~type.LinkType(diagnostics, codeUnit, dataUnit) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 				ELSE
 					type.SetDataMemorySize(0);
 				END;
-				IF ~type.Link(diagnostics, log,  codeUnit, dataUnit) THEN RETURN FALSE END; (* subtypes ? *)
+				IF ~type.Link(diagnostics, codeUnit, dataUnit) THEN RETURN FALSE END; (* subtypes ? *)
 			END;
 			RETURN TRUE
 		END Link;
@@ -624,18 +624,22 @@ TYPE
 		END ThisPort;
 		*)
 
-		PROCEDURE LinkType*(diagnostics: Diagnostics.Diagnostics; log: Streams.Writer; codeUnit, dataUnit: LONGINT): BOOLEAN;
+		PROCEDURE LinkType*(diagnostics: Diagnostics.Diagnostics; codeUnit, dataUnit: LONGINT): BOOLEAN;
 		VAR
 			fileName, codeFileName, dataFileName: Files.FileName;
 			code, data: StaticLinker.Arrangement; linker: GenericLinker.Linker;
 			module: Module;
-			msg: ARRAY 256 OF CHAR;
-			linkRoot: SyntaxTree.String;
+			linkRoot,msg: SyntaxTree.String;
 			i: LONGINT;
+			logFile: Files.File; linkerLog: Files.Writer;
 		BEGIN
 			NEW (code, 0);
 			NEW (data, 0);
-			NEW (linker, diagnostics, log, FALSE (* useAll *), FALSE (* stripInitCodes *), code, data);
+			NEW (linker, diagnostics, linkerLog, FALSE (* useAll *), FALSE (* stripInitCodes *), code, data);
+			GetFullName(msg,NIL);
+			Strings.Append(msg,".log");
+			logFile := Files.New(msg);
+			IF logFile # NIL THEN NEW(linkerLog,logFile,0) ELSE logFile := NIL END;
 			GetFullName(linkRoot,NIL);
 			Strings.Append(linkRoot,".$$BODYSTUB");
 			linker.SetLinkRoot(linkRoot);
@@ -658,7 +662,8 @@ TYPE
 				StaticLinker.WriteOutputFile (code, codeFileName, linker, StaticLinker.WriteTRMCodeFile);
 				StaticLinker.WriteOutputFile (data, dataFileName, linker, StaticLinker.WriteTRMDataFile);
 				GetFullName(msg,NIL); Strings.Append(msg," successfully linked");
-				diagnostics.Information("",Diagnostics.Invalid, Diagnostics.Invalid,msg);
+				IF linkerLog # NIL THEN linkerLog.Update; Files.Register(logFile) END;
+				IF specification.log # NIL THEN specification.log.String(msg); specification.log.Ln END;
 			ELSE
 				msg := "could not link ";
 				Strings.Append(msg,linkRoot);
@@ -906,16 +911,18 @@ TYPE
 		instructionSet-: SyntaxTree.String;
 
 		diagnostics-: Diagnostics.Diagnostics;
+		log-: Streams.Writer;
 		supportedDevices-: DeviceList;
 		imports-: SymbolList;
 
-		PROCEDURE & Init*(CONST name: ARRAY OF CHAR; diagnostics: Diagnostics.Diagnostics);
+		PROCEDURE & Init*(CONST name: ARRAY OF CHAR; diagnostics: Diagnostics.Diagnostics; log: Streams.Writer);
 		VAR device: Device;
 		BEGIN
 			InitScope(name,NIL,SELF);
 			instructionSet := "UNDEFINED";
 			NEW(supportedDevices);
 			SELF.diagnostics := diagnostics;
+			SELF.log := log;
 			NEW(device,"DDR",SELF, 0FFCAH); supportedDevices.AddDevice(device);
 			NEW(device,"RS232",SELF,LONGINT(0FFFFFFC4H)); supportedDevices.AddDevice(device);
 			NEW(device,"LCD",SELF,0FFC9H); supportedDevices.AddDevice(device);
@@ -1031,7 +1038,7 @@ TYPE
 				Files.Register(f);
 
 				msg := "Wrote Active Cells specification to file "; Strings.Append(msg, fileName);
-				diagnostics.Information("",Diagnostics.Invalid, Diagnostics.Invalid, msg);
+				IF log # NIL THEN log.String(msg); log.Ln; END;
 				RETURN TRUE
 			ELSE
 				diagnostics.Error(fileName,Diagnostics.Invalid, Diagnostics.Invalid,"could not generate file");
@@ -1097,7 +1104,7 @@ TYPE
 	VAR fileName: Files.FileName; r: Files.Reader; specification: Specification;f : Files.File; b: BOOLEAN;
 	BEGIN
 		b := context.arg.GetString(fileName);
-		NEW(specification,"",NIL);
+		NEW(specification,"",NIL,NIL);
 		f := Files.Old(fileName);
 		NEW(r,f,0);
 		IF specification.Read(r) THEN
@@ -1111,7 +1118,7 @@ TYPE
 		specification := NIL;
 		COPY(name,fileName); Strings.Append(fileName,".spec");
 		f := Files.Old(fileName);
-		IF f # NIL THEN NEW(r,f,0); NEW(specification,"",NIL);
+		IF f # NIL THEN NEW(r,f,0); NEW(specification,"",NIL,NIL);
 			IF ~specification.Read(r) THEN specification := NIL END;
 		END;
 		RETURN specification

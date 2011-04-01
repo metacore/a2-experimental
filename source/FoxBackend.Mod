@@ -1,13 +1,14 @@
 MODULE FoxBackend; (**  AUTHOR "kaeserm,fof"; PURPOSE "Oberon Compiler: Common backend module";  **)
 
 IMPORT
-	Diagnostics, Global := FoxGlobal, Formats := FoxFormats, SyntaxTree := FoxSyntaxTree, SemanticChecker := FoxSemanticChecker, ActiveCells := FoxActiveCells, Options;
+	Streams, Diagnostics, Global := FoxGlobal, Formats := FoxFormats, SyntaxTree := FoxSyntaxTree, SemanticChecker := FoxSemanticChecker, ActiveCells := FoxActiveCells, Options;
 
 
 TYPE
 	Backend* = OBJECT
 	VAR
 		diagnostics-: Diagnostics.Diagnostics;
+		log-: Streams.Writer;
 		flags*: SET;
 		system-: Global.System;
 		error-: BOOLEAN;
@@ -33,10 +34,11 @@ TYPE
 		END ResetError;
 
 		(* initialize backend for usage *)
-		PROCEDURE Initialize*(diagnostics: Diagnostics.Diagnostics; flags: SET; checker: SemanticChecker.Checker; system: Global.System; activeCellsSpecification: ActiveCells.Specification);
+		PROCEDURE Initialize*(diagnostics: Diagnostics.Diagnostics; log: Streams.Writer; flags: SET; checker: SemanticChecker.Checker; system: Global.System; activeCellsSpecification: ActiveCells.Specification);
 		BEGIN
 			error := FALSE;
 			SELF.diagnostics := diagnostics;
+			SELF.log := log;
 			SELF.flags := flags;
 			SELF.checker := checker;
 			SELF.system := system;

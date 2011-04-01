@@ -2492,9 +2492,9 @@ TYPE
 			bits := 32;
 		END InitBackendAMD64;
 
-		PROCEDURE Initialize(diagnostics: Diagnostics.Diagnostics; flags: SET; checker: SemanticChecker.Checker; system: Global.System; activeCells: ActiveCells.Specification);
+		PROCEDURE Initialize(diagnostics: Diagnostics.Diagnostics; log: Streams.Writer; flags: SET; checker: SemanticChecker.Checker; system: Global.System; activeCells: ActiveCells.Specification);
 		BEGIN
-			Initialize^(diagnostics,flags,checker,system,activeCells); NEW(cg, runtimeModuleName, diagnostics, bits);
+			Initialize^(diagnostics,log, flags,checker,system,activeCells); NEW(cg, runtimeModuleName, diagnostics, bits);
 		END Initialize;
 
 		PROCEDURE GetSystem(): Global.System;

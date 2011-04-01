@@ -451,7 +451,7 @@ VAR options: Options.Options;
 	silent, useAll, strict: BOOLEAN;
 	codeFileFormat, dataFileFormat: FileFormat;
 	codeDisplacement, dataDisplacement: GenericLinker.Address;
-	path, extension, codeFileName, dataFileName, moduleName: Files.FileName;
+	path, extension, codeFileName, dataFileName, moduleName, logFileName: Files.FileName;
 	diagnostics: Diagnostics.StreamDiagnostics; code, data: Arrangement; linker: GenericLinker.Linker;
 	linkRoot: ARRAY 256 OF CHAR; logFile: Files.File; log: Files.Writer;
 BEGIN
@@ -472,6 +472,7 @@ BEGIN
 	IF ~options.GetString ("extension", extension) THEN extension := ObjectFile.DefaultExtension; END;
 	IF ~options.GetString ("fileName", codeFileName) THEN codeFileName := "linker.bin"; END;
 	IF ~options.GetString ("dataFileName", dataFileName) THEN dataFileName := codeFileName; END;
+	IF ~options.GetString ("logFileName", logFileName) THEN logFileName := "linker.log" END;
 	IF ~options.GetInteger ("displacement", codeDisplacement) THEN codeDisplacement := 0; END;
 	IF ~options.GetInteger ("dataDisplacement", codeDisplacement) THEN dataDisplacement := codeDisplacement; END;
 	codeFileFormat := GetFileFormat (options, "fileFormat", WriteBinaryFile);
@@ -480,7 +481,7 @@ BEGIN
 	NEW (code, codeDisplacement);
 	IF codeFileName # dataFileName THEN NEW (data, dataDisplacement); ELSE data := code; END;
 	NEW (diagnostics, context.error);
-	logFile := Files.New("LinkerLog.txt");
+	logFile := Files.New(logFileName);
 	IF logFile # NIL THEN NEW(log, logFile,0) ELSE log := NIL END;
 	NEW (linker, diagnostics, log, useAll, FALSE, code, data);
 
@@ -500,7 +501,8 @@ BEGIN
 			context.out.String("Link successful. Written files: ");
 			context.out.String(codeFileName);
 			IF data # code THEN context.out.String(", "); context.out.String(dataFileName) END;
-			context.out.String(", LinkerLog.txt");
+			IF logFile # NIL THEN context.out.String(", "); context.out.String(logFileName); END;
+
 			context.out.Ln
 		END;
 		IF log # NIL THEN

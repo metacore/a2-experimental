@@ -19,6 +19,7 @@ CONST
 	Warnings*=7;
 	ForceModuleBodies*=8;
 	UseDarwinCCalls*=9;	(* use Darwin stack alignment for ext. C procedures *)	(*fld*)
+	Multiple*=10;
 
 	DefaultBackend = "AMD";
 
@@ -204,8 +205,10 @@ TYPE
 					diagnostics.Error (source, Diagnostics.Invalid, Diagnostics.Invalid, message);
 				END;
 			ELSE
-				IF log # NIL THEN
-					log.String(source); log.String(message); log.Ln;
+				IF (log # NIL) & ~(Silent IN flags) & ~(FindPC IN flags) THEN
+					log.String("compiling ");
+					IF source # "" THEN 	log.String(source); log.String(" => ");	END;
+					log.String(message); log.Ln;
 				END;
 			END;
 		END FinalMessage;
@@ -247,9 +250,7 @@ TYPE
 			IF activeCellsBackend = NIL THEN FinalMessage(TRUE,"could not install activeCells backend"); RETURN FALSE END;
 		END;
 		parser := Parser.NewParser( scanner, diagnostics );
-		IF DataFlow IN flags THEN
-			parser.ActiveCellsSupport
-		END;
+		IF DataFlow IN flags THEN parser.ActiveCellsSupport END;
 		REPEAT
 			(** first phase: scan and parse **)
 			module := parser.Module();
@@ -278,12 +279,12 @@ TYPE
 
 				IF activeCellsSpecification # NIL THEN
 					Global.GetSymbolName(module,name);
-					activeCellsSpecification.Init(name,diagnostics)
+					activeCellsSpecification.Init(name,diagnostics,log)
 				END;
 
 				(** third phase: generate code, can consist of sub-phases (such as intermediate backend / hardware backend) **)
 				IF backend # NIL THEN
-					backend.Initialize(diagnostics, flags, checker, system, activeCellsSpecification);
+					backend.Initialize(diagnostics, log, flags, checker, system, activeCellsSpecification);
 					IF findPC # "" THEN
 						split := Strings.Split(findPC,":");
 						IF LEN(split)>1 THEN
@@ -318,42 +319,40 @@ TYPE
 					objectFileFormat.Initialize(diagnostics);
 					IF generatedModule = NIL THEN
 						FinalMessage(TRUE, " could not write object file (nothing generated).");
-					ELSE
-						(*
-						IF FindPC IN flags THEN generatedModule.SetFindPC(findPC) END;
-						*)
-						IF ~objectFileFormat.Export(generatedModule,symbolFileFormat) THEN
-							FinalMessage(TRUE, " could not be compiled (object file errors).");
-							RETURN FALSE
-						END;
+						RETURN FALSE
+					ELSIF ~objectFileFormat.Export(generatedModule,symbolFileFormat) THEN
+						FinalMessage(TRUE, " could not be compiled (object file errors).");
+						RETURN FALSE
 					END;
 				END;
 
 				IF activeCellsSpecification # NIL THEN
-					activeCellsBackend.Initialize(diagnostics,flags,checker,system,activeCellsSpecification);
+					activeCellsBackend.Initialize(diagnostics,log, flags,checker,system,activeCellsSpecification);
 					generatedModule := activeCellsBackend.Module(module);
 					IF activeCellsBackend.error THEN
 						FinalMessage(TRUE, " could not be compiled (activeCells backend errors)");
 						RETURN FALSE
 					END;
 				END;
+				FinalMessage(FALSE, " done.");
 
 				IF activeCellsSpecification = NIL THEN (* no activeCells *)
 				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
 				ELSE
-					IF ~activeCellsSpecification.Link(diagnostics,NIL,system.codeUnit, system.dataUnit) THEN
+					IF ~activeCellsSpecification.Link(diagnostics,system.codeUnit, system.dataUnit) THEN
 						FinalMessage(TRUE, " could not link"); RETURN FALSE
 					ELSIF ~activeCellsSpecification.Emit() THEN
 						FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;
 					END;
 				END;
+			ELSIF Print IN flags THEN
+				PrintModule;
+				FinalMessage(FALSE, " done.")
+			ELSE
+				FinalMessage(FALSE, " done.");
+			END;
+		UNTIL ~(Multiple IN flags) OR ~parser.NextModule();
 
-			ELSIF Print IN flags THEN PrintModule
-			END;
-			IF ~(Silent IN flags) & ~(FindPC IN flags) THEN
-				FinalMessage(FALSE, " successfully compiled.")
-			END;
-		UNTIL ~parser.NextModule();
 		RETURN TRUE;
 	END Module;
 
@@ -385,12 +384,14 @@ TYPE
 		options.Add("i","info",Options.Flag);
 		options.Add("b","backend",Options.String);
 		options.Add("f","findPC",Options.String);
+		options.Add("m","multiple",Options.Flag);
 		options.Add(0X, "symbolFile", Options.String);
 		options.Add(0X, "objectFile", Options.String);
 		options.Add("d","activeCells", Options.Flag);
 		options.Add("w","warnings", Options.Flag);
 		options.Add(0X,"darwinHost", Options.Flag);
 		options.Add(0X,"activeCellsSpecification", Options.String);
+
 
 		position := input.Pos();
 		parsed := options.Parse(input,NIL);
@@ -435,7 +436,7 @@ TYPE
 		IF options.GetString("activeCellsSpecification",name) THEN
 			activeCellsSpecification := GetActiveCellsSpecification(name);
 		ELSIF options.GetFlag("activeCells") THEN
-			NEW(activeCellsSpecification,"",diagnostics);
+			NEW(activeCellsSpecification,"",diagnostics,NIL);
 		END;
 
 		IF backend # NIL THEN backend.DefineOptions (options); INCL(flags,Check); END;
@@ -457,6 +458,7 @@ TYPE
 			IF options.GetString("findPC",findPC) THEN INCL(flags,FindPC) END;
 			IF options.GetFlag("warnings") THEN INCL(flags, Warnings) END;
 			IF options.GetFlag("darwinHost") THEN INCL(flags,UseDarwinCCalls) END;	(*fld*)
+			IF options.GetFlag("multiple") THEN INCL(flags,Multiple) END;
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
 			IF objectFile # NIL THEN objectFile.GetOptions(options) END;

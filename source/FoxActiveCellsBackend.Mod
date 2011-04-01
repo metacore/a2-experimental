@@ -762,7 +762,11 @@ TYPE
 			END;
 			stringWriter.Get(s);
 			expression := x.GetExpression(0);
-			backend.diagnostics.Information(moduleScope.ownerModule.sourceName,expression.position, Diagnostics.Invalid,s);
+			IF backend.log # NIL THEN
+				backend.log.String(moduleScope.ownerModule.sourceName);
+				backend.log.String("@"); backend.log.Int(expression.position,1);
+				backend.log.String(" "); backend.log.String(s); backend.log.Ln;
+			END;
 		END SystemTrace;
 
 		PROCEDURE VisitTypeGuardDesignator(x: SyntaxTree.TypeGuardDesignator);
