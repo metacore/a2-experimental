@@ -563,8 +563,7 @@ TYPE
 			END;
 			Scope(scope);
 			Signature;
-
-			IF x IS SyntaxTree.Operator THEN implementationVisitor.RegisterDynamicOperator(x(SyntaxTree.Operator)) END; (* nopov *)
+			IF backend.dynamicOverloading & (x IS SyntaxTree.Operator) THEN implementationVisitor.RegisterDynamicOperator(x(SyntaxTree.Operator)) END; (* nopov *)
 
 			currentScope := prevScope;
 		END Procedure;
@@ -4248,16 +4247,15 @@ TYPE
 				rightType := NIL
 			END;
 
-			IF backend.dynamicOverloading THEN
-				(* determine operator kind *)
-				IF IsStrictlyPointerToRecord(leftType) THEN
-					kind := {LhsIsPointer}
-				ELSE
-					kind := {}
-				END;
-				IF IsStrictlyPointerToRecord(rightType) THEN
-					kind := kind + {RhsIsPointer}
-				END;
+
+			(* determine operator kind *)
+			IF IsStrictlyPointerToRecord(leftType) THEN
+				kind := {LhsIsPointer}
+			ELSE
+				kind := {}
+			END;
+			IF IsStrictlyPointerToRecord(rightType) THEN
+				kind := kind + {RhsIsPointer}
 			END;
 
 			IF kind # {} THEN (* TODO: to be removed later on *)
@@ -5896,27 +5894,36 @@ TYPE
 		END VisitBuiltinCallDesignator;
 
 		PROCEDURE VisitTypeGuardDesignator(x: SyntaxTree.TypeGuardDesignator);
-		VAR trueL,falseL: Label; recordType: SyntaxTree.RecordType; dest: IntermediateCode.Operand;
+		VAR trueL,falseL: Label; recordType: SyntaxTree.RecordType; dest,tag,ptr: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitTypeGuardDesignator") END;
 			dest := destination; destination := emptyOperand;
 
+			Expression(x.left);
 			IF x.left.type.resolved = x.type.resolved THEN (* always true: do nothing *)
 			ELSIF backend.noRuntimeChecks THEN (* no check *)
 			ELSE
 				trueL := NewLabel();
 				falseL := NewLabel();
-				Expression(x.left);
 				IF IsPointerToRecord(x.left.type,recordType) THEN
-					Dereference(result,recordType);
+					IntermediateCode.InitRegister(tag,addressType,AcquireRegister(addressType));
+					Emit(Mov(tag, result.op));
+					IF result.mode # ModeValue THEN
+						ptr := tag;
+						IntermediateCode.MakeMemory(ptr,addressType);
+						Emit(Mov(tag, ptr));
+					END;
+					IntermediateCode.AddOffset(tag,ToMemoryUnits(system,-addressType.sizeInBits));
+					IntermediateCode.MakeMemory(tag,addressType);
+				ELSE
+					tag := result.tag;
 				END;
-				TypeTest(result.tag,x.type,trueL,falseL);
+				TypeTest(tag,x.type,trueL,falseL);
+				ReleaseIntermediateOperand(tag);
 				SetLabel(falseL);
 				Emit(Trap(TypeCheckTrap));
 				SetLabel(trueL);
-				ReleaseOperand(result);
 			END;
-			Expression(x.left);
 			destination := dest;
 			IF Trace THEN TraceExit("VisitTypeGuardDesignator") END;
 		END VisitTypeGuardDesignator;

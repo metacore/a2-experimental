@@ -1237,6 +1237,7 @@ TYPE
 
 		PROCEDURE EmitMov(CONST vdest,vsrc: IntermediateCode.Operand; part: LONGINT);
 		VAR op1,op2: Assembler.Operand; tmp: IntermediateCode.Operand; srcType, destType: IntermediateCode.Type; sameType: BOOLEAN;
+			t: IntermediateBackend.Ticket;
 		BEGIN
 			IF (vdest.mode = IntermediateCode.ModeRegister) & (vsrc.mode = IntermediateCode.ModeRegister) & (vsrc.offset # 0) THEN
 				(* MOV R1, R2+offset => LEA EAX, [EBX+offset] *)
@@ -1247,12 +1248,16 @@ TYPE
 				ReleaseHint(op2.register);
 				*)
 				MakeOperand(vdest,part,op1,NIL);
+
+				t := virtualRegisters.Mapped(vdest.register,part);
+				IF (t # NIL) & (t.spilled) THEN
+					UnSpill(t); (* make sure this has not spilled *)
+					MakeOperand(vdest,part, op1,NIL);
+				END;
+
 				emitter.Emit2(InstructionSet.opLEA,op1,op2);
 			ELSE
 				MakeOperand(vsrc,part,op2,NIL);
-				(*
-				ReleaseHint(op2.register);
-				*)
 				MakeOperand(vdest,part,op1,NIL);
 				Mov(InstructionSet.opMOV,op1,op2);
 			END;
@@ -1609,15 +1614,15 @@ TYPE
 					(* same register *)
 					MakeOperand(vop1,part, op1,NIL);
 				ELSE
-				
+
 					MakeOperand(vop2,part, op2,NIL);
 					(*
 					ReleaseHint(op2.register);
 					*)
-					
+
 					MakeOperand(vop1,part, op1,NIL);
-										
-					
+
+
 					Mov(InstructionSet.opMOV,op1,op2);
 
 					t := virtualRegisters.Mapped(vop1.register,part);
