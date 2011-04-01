@@ -5973,8 +5973,9 @@ TYPE
 		VAR
 			procedureType: SyntaxTree.ProcedureType;
 			leftType, rightType: SyntaxTree.Type;
-			identifierNumber, realParameterCount, i: LONGINT;
+			identifierNumber, position, i: LONGINT;
 			hasReturnType, mustBeUnary, mustBeBinary, mustReturnBoolean, mustReturnInteger, mustHaveEquitypedOperands: BOOLEAN;
+			modifiers: SyntaxTree.Modifier;
 			
 			PROCEDURE IsLocallyDefined(type: SyntaxTree.Type): BOOLEAN;
 			BEGIN
@@ -5985,6 +5986,13 @@ TYPE
 				END
 			END IsLocallyDefined;
 		BEGIN
+			ASSERT(operator.type IS SyntaxTree.ProcedureType);
+			procedureType := operator.type(SyntaxTree.ProcedureType);
+
+			modifiers := procedureType.modifiers;			
+			IF HasFlag(modifiers, Global.NameDynamic, position) THEN operator.SetDynamic(TRUE) END;
+			CheckModifiers(modifiers);
+			
 			VisitProcedure(operator);
 			
 			IF operator.scope IS SyntaxTree.ModuleScope THEN
@@ -5995,13 +6003,9 @@ TYPE
 				ELSIF ~system.operatorDefined[identifierNumber] THEN
 					Error(operator.position, Diagnostics.Invalid, "identifier may not be used for operator")
 				ELSE
-					ASSERT(operator.type IS SyntaxTree.ProcedureType);
-					procedureType := operator.type(SyntaxTree.ProcedureType);
-					
-					realParameterCount := procedureType.numberParameters;
-					IF realParameterCount < 1 THEN
+					IF procedureType.numberParameters < 1 THEN
 						Error(operator.position, Diagnostics.Invalid, "operator without operand");
-					ELSIF realParameterCount > 2 THEN
+					ELSIF procedureType.numberParameters > 2 THEN
 						Error(operator.position, Diagnostics.Invalid, "operator with more than two operands");
 					ELSE
 						(* determine operand types *)
@@ -6047,7 +6051,7 @@ TYPE
 						| Scanner.Backslash: mustBeBinary := TRUE
 						| Scanner.DotSlash: mustBeBinary := TRUE
 						| Scanner.Div, Scanner.Mod: mustBeBinary := TRUE;
-						| Scanner.And, Scanner.Or: 	mustBeBinary := TRUE;
+						| Scanner.And, Scanner.Or: mustBeBinary := TRUE;
 						| Scanner.Not: mustBeUnary := TRUE
 						| Scanner.Plus, Scanner.Minus: (* unary and binary *)
 						| Scanner.Becomes: mustBeBinary := TRUE; hasReturnType := FALSE;
@@ -6073,15 +6077,15 @@ TYPE
 						END;
 						
 						(* check parameter count *)
-						IF mustBeUnary & (realParameterCount # 1) THEN
+						IF mustBeUnary & (procedureType.numberParameters # 1) THEN
 							Error(operator.position, Diagnostics.Invalid,"operator is not unary")
-						ELSIF mustBeBinary & (realParameterCount # 2) THEN
+						ELSIF mustBeBinary & (procedureType.numberParameters # 2) THEN
 							Error(operator.position, Diagnostics.Invalid,"operator is not binary")
 						END;
 						
 						(* check parameter types *)
 						(* TODO: is this used at all? *)
-						IF mustHaveEquitypedOperands & (realParameterCount = 2) THEN
+						IF mustHaveEquitypedOperands & (procedureType.numberParameters = 2) THEN
 							leftType := procedureType.firstParameter.type;
 							rightType := procedureType.firstParameter.nextParameter.type;
 							IF ~leftType.resolved.SameType(rightType.resolved) THEN
@@ -7168,7 +7172,7 @@ TYPE
 			thisProcedureType, thatProcedureType: SyntaxTree.ProcedureType;
 			thisParameter, thatParameter: SyntaxTree.Parameter;
 			operandsAreEqual, operandsAreCompatible, hasError: BOOLEAN;
-			thisRealParameterCount, thatRealParameterCount, i: LONGINT;
+			i: LONGINT;
 		BEGIN
 			currentScope := thisModuleScope;
 			hasError := FALSE;
@@ -7185,7 +7189,7 @@ TYPE
 						thisOperator := thisModuleScope.firstOperator;
 						WHILE (thisOperator # NIL) & ~hasError DO					
 							IF thisOperator # thatOperator THEN
-							(* the operators are not the same *)
+								(* the operators are not the same *)
 								IF thisOperator.name = thatOperator.name THEN
 									(* the operators share the same identifier *)
 									
@@ -7193,16 +7197,14 @@ TYPE
 									ASSERT(thatOperator.type IS SyntaxTree.ProcedureType);
 									thisProcedureType := thisOperator.type(SyntaxTree.ProcedureType);
 									thatProcedureType := thatOperator.type(SyntaxTree.ProcedureType);
-									thisRealParameterCount := thisProcedureType.numberParameters;
-									thatRealParameterCount := thatProcedureType.numberParameters;							
-									IF thisRealParameterCount = thatRealParameterCount THEN						
+									IF thisProcedureType.numberParameters = thatProcedureType.numberParameters THEN						
 										(* both operators have the same paramter count *)
 										thisParameter := thisProcedureType.firstParameter;
 										thatParameter := thatProcedureType.firstParameter;
 										operandsAreEqual := TRUE;
 										operandsAreCompatible := TRUE;
 										(* go through all parameters *)
-										FOR i := 1 TO thisRealParameterCount DO
+										FOR i := 1 TO thisProcedureType.numberParameters DO
 											ASSERT(thatParameter # NIL);
 											IF ~SameType(thisParameter.type, thatParameter.type) THEN
 												operandsAreEqual := FALSE;
@@ -7216,9 +7218,14 @@ TYPE
 										IF operandsAreEqual THEN
 											Error(thisOperator.position, Diagnostics.Invalid, "operator has the same identifier and operand types as other one");
 											hasError := TRUE
-										ELSIF operandsAreCompatible & ~CompatibleTo(system, thisProcedureType.returnType, thatProcedureType.returnType) THEN									
-											Error(thisOperator.position, Diagnostics.Invalid, "operator's return type is not compatible to the one of a more generic operator");
-											hasError := TRUE
+										ELSIF operandsAreCompatible THEN
+											IF ~CompatibleTo(system, thisProcedureType.returnType, thatProcedureType.returnType) THEN									
+												Error(thisOperator.position, Diagnostics.Invalid, "operator's return type is not compatible to the one of a more generic operator");
+												hasError := TRUE
+											ELSIF ~thisOperator.isDynamic & thatOperator.isDynamic THEN
+												Error(thisOperator.position, Diagnostics.Invalid, "operator must be dynamic because it is signature-compatible to a dynamic one");
+												hasError := TRUE
+											END
 										END
 									END
 								END

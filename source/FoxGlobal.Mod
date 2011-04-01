@@ -21,7 +21,8 @@ CONST
 	StringActive* = "ACTIVE";
 	StringPriority* = "PRIORITY";
 	StringSafe* = "SAFE";
-	StringRealtime*= "REALTIME";
+	StringRealtime* = "REALTIME";
+	StringDynamic* = "DYNAMIC"; (* nopov *)
 
 	StringDataMemorySize*= "DataMemorySize";
 	StringCodeMemorySize*= "CodeMemorySize";
@@ -100,7 +101,7 @@ VAR
 	SelfParameterName-,ReturnParameterName-,SystemName-,systemName-,PointerReturnName-, ResultName-,
 	A2Name-,OberonName-,ArrayBaseName-,RecordBodyName-,ModuleBodyName-,
 	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-,NameNoPAF-,NameFixed-,NameAligned-,NameStackAligned-,
-	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-,NameDataMemorySize-, NameCodeMemorySize-
+	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-, NameDynamic-, NameDataMemorySize-, NameCodeMemorySize-
 	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-: SyntaxTree.Identifier;
 
 	identifiers: ARRAY 2 OF ARRAY end OF SyntaxTree.Identifier;
@@ -1289,25 +1290,26 @@ TYPE
 		RecordBodyName := SyntaxTree.NewIdentifier("@Body");
 		ModuleBodyName := SyntaxTree.NewIdentifier("$$Body");
 
-		NameWinAPI := SyntaxTree.NewIdentifier( StringWinAPI);
-		NameC := SyntaxTree.NewIdentifier( StringC);
-		NameUntraced := SyntaxTree.NewIdentifier( StringUntraced);
-		NameDelegate := SyntaxTree.NewIdentifier( StringDelegate);
-		NameInterrupt := SyntaxTree.NewIdentifier( StringInterrupt);
-		NameNoPAF := SyntaxTree.NewIdentifier( StringNoPAF);
-		NameFixed := SyntaxTree.NewIdentifier( StringFixed);
-		NameAligned := SyntaxTree.NewIdentifier( StringAligned);
-		NameStackAligned := SyntaxTree.NewIdentifier( StringAlignStack);
-		NameExclusive := SyntaxTree.NewIdentifier( StringExclusive);
-		NameActive := SyntaxTree.NewIdentifier( StringActive);
-		NamePriority := SyntaxTree.NewIdentifier( StringPriority);
-		NameSafe := SyntaxTree.NewIdentifier( StringSafe);
-		NameRealtime := SyntaxTree.NewIdentifier( StringRealtime);
-		NameDataMemorySize := SyntaxTree.NewIdentifier( StringDataMemorySize);
-		NameCodeMemorySize := SyntaxTree.NewIdentifier( StringCodeMemorySize);
-		NameChannelWidth := SyntaxTree.NewIdentifier( StringChannelWidth);
-		NameChannelDepth := SyntaxTree.NewIdentifier( StringChannelDepth);
-		NameChannelModule := SyntaxTree.NewIdentifier( StringChannelModule);
+		NameWinAPI := SyntaxTree.NewIdentifier(StringWinAPI);
+		NameC := SyntaxTree.NewIdentifier(StringC);
+		NameUntraced := SyntaxTree.NewIdentifier(StringUntraced);
+		NameDelegate := SyntaxTree.NewIdentifier(StringDelegate);
+		NameInterrupt := SyntaxTree.NewIdentifier(StringInterrupt);
+		NameNoPAF := SyntaxTree.NewIdentifier(StringNoPAF);
+		NameFixed := SyntaxTree.NewIdentifier(StringFixed);
+		NameAligned := SyntaxTree.NewIdentifier(StringAligned);
+		NameStackAligned := SyntaxTree.NewIdentifier(StringAlignStack);
+		NameExclusive := SyntaxTree.NewIdentifier(StringExclusive);
+		NameActive := SyntaxTree.NewIdentifier(StringActive);
+		NamePriority := SyntaxTree.NewIdentifier(StringPriority);
+		NameSafe := SyntaxTree.NewIdentifier(StringSafe);
+		NameRealtime := SyntaxTree.NewIdentifier(StringRealtime);
+		NameDynamic := SyntaxTree.NewIdentifier(StringDynamic); (* nopov *)
+		NameDataMemorySize := SyntaxTree.NewIdentifier(StringDataMemorySize);
+		NameCodeMemorySize := SyntaxTree.NewIdentifier(StringCodeMemorySize);
+		NameChannelWidth := SyntaxTree.NewIdentifier(StringChannelWidth);
+		NameChannelDepth := SyntaxTree.NewIdentifier(StringChannelDepth);
+		NameChannelModule := SyntaxTree.NewIdentifier(StringChannelModule);
 
 		(* types *)
 		Boolean8 := SyntaxTree.NewBooleanType(8);

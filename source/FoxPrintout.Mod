@@ -1095,7 +1095,7 @@ TYPE
 
 				first := TRUE;
 				IF type.stackAlignment > 1 THEN Value(Global.NameStackAligned,type.stackAlignment,first) END;
-				IF (type.isRealtime) & (type.modifiers = NIL)  THEN Flag(Global.NameRealtime,first) END;
+				IF (type.isRealtime) THEN Flag(Global.NameRealtime,first) END;
 				IF (x.fixed) THEN Value(Global.NameFixed, x.alignment,first)
 				ELSIF (x.alignment >1) THEN Value(Global.NameAligned, x.alignment, first)
 				END;
@@ -1133,7 +1133,7 @@ TYPE
 		VAR type: SyntaxTree.ProcedureType;
 			recordType: SyntaxTree.RecordType;
 			i: LONGINT;
-			valid: BOOLEAN;
+			valid, first: BOOLEAN;
 		BEGIN
 			IF Visible(x) THEN
 				Indent;
@@ -1162,8 +1162,15 @@ TYPE
 					END
 				END;
 				Keyword("OPERATOR ");
+				
+				first := TRUE;
+				IF x.isDynamic THEN Flag(Global.NameDynamic, first) END;
+				IF ~first THEN w.String("}") END;
+				
 				type := x.type(SyntaxTree.ProcedureType);
 				PrintSymbol(x);
+				
+				
 				ParameterList(type.firstParameter);
 				IF type.returnType # NIL THEN
 					w.String( ": " );

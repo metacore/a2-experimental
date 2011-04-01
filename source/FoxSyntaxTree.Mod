@@ -2645,12 +2645,19 @@ TYPE
 	Operator* = OBJECT (Procedure)
 	VAR
 		nextOperator-: Operator;
+		isDynamic-: BOOLEAN; (* nopov *)
 
 		PROCEDURE & InitOperator(position: LONGINT; name: Identifier; scope: ProcedureScope);
 		BEGIN
 			InitProcedure(position,name,scope);
 			nextOperator := NIL;
+			isDynamic := FALSE
 		END InitOperator;
+
+		(* nopov *)
+		PROCEDURE SetDynamic*(isDynamic: BOOLEAN);
+		BEGIN SELF.isDynamic := isDynamic
+		END SetDynamic;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;

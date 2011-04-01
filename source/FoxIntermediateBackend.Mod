@@ -563,7 +563,7 @@ TYPE
 			END;
 			Scope(scope);
 			Signature;
-			IF backend.dynamicOverloading & (x IS SyntaxTree.Operator) THEN implementationVisitor.RegisterDynamicOperator(x(SyntaxTree.Operator)) END; (* nopov *)
+			IF (x IS SyntaxTree.Operator) & x(SyntaxTree.Operator).isDynamic THEN implementationVisitor.RegisterDynamicOperator(x(SyntaxTree.Operator)) END; (* nopov *)
 
 			currentScope := prevScope;
 		END Procedure;
@@ -595,7 +595,8 @@ TYPE
 		PROCEDURE Module(x: SyntaxTree.Module; module: Sections.Module);
 		VAR
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand; name: SyntaxTree.String;
-			typeDeclaration: SyntaxTree.TypeDeclaration; (* nopov *)
+			typeDeclaration: SyntaxTree.TypeDeclaration; hasDynamicOperatorDeclarations: BOOLEAN; (* nopov *)
+			operator: SyntaxTree.Operator;
 
 			PROCEDURE TypeNeedsInitialization(type: SyntaxTree.Type): BOOLEAN;
 			BEGIN
@@ -669,9 +670,17 @@ TYPE
 				implementationVisitor.numberProcedures := 0;
 			END;
 			implementationVisitor.profile := backend.profile;
+			
+			(* check if there is at least one dynamic operator locally defined *)
+			hasDynamicOperatorDeclarations := FALSE;			
+			operator := x.moduleScope.firstOperator;
+			WHILE operator # NIL DO
+				IF operator.isDynamic THEN hasDynamicOperatorDeclarations := TRUE END;
+				operator := operator.nextOperator
+			END;
 
 			(* add operator initialization code section *)
-			IF TRUE THEN (* TODO: only if required *)
+			IF hasDynamicOperatorDeclarations THEN
 				EnsureBodyProcedure(x.moduleScope);
 				Global.GetModuleName(module.module, name); Strings.Append(name, "."); Strings.Append(name ,"@OperatorInitialization");
 				implementationVisitor.operatorInitializationCodeSection := IntermediateCode.NewSection(module.sections, Sections.CodeSection, name, NIL, dump);
@@ -680,7 +689,7 @@ TYPE
 
 			Scope(x.moduleScope);
 
-			IF TRUE THEN (* TODO: only if required *)
+			IF hasDynamicOperatorDeclarations THEN
 				implementationVisitor.operatorInitializationCodeSection.Emit(Leave(0));
 				implementationVisitor.operatorInitializationCodeSection.Emit(Exit(0));
 			END;
@@ -3638,7 +3647,7 @@ TYPE
 			operatorSelectionProcedureOperand: Operand;
 			operatorSelectionProcedure: SyntaxTree.Procedure;
 			fingerPrint: SyntaxTree.FingerPrint;
-			isOperatorCall, isDynamicOperatorCall: BOOLEAN;
+			isCallOfDynamicOperator, hasDynamicOperands: BOOLEAN;
 			identifierNumber: LONGINT;
 
 			PROCEDURE BackupGlobalState;
@@ -3738,13 +3747,15 @@ TYPE
 			parameters := x.parameters;
 
 			(* nopov *)
-			isDynamicOperatorCall := FALSE; (* default *)
 			IF (x.left IS SyntaxTree.SymbolDesignator) & (x.left(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Operator) THEN
+				(* an operator is called *)
 				(* IF dump # NIL THEN dump.String("*** begin of operator call ***"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
-				isOperatorCall := TRUE;
-				ASSERT(procedureType.callingConvention = SyntaxTree.OberonCallingConvention)
+				ASSERT(procedureType.callingConvention = SyntaxTree.OberonCallingConvention);
+				
+				(* check if a dynamic operator call should be performed *)
+				isCallOfDynamicOperator := x.left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Operator).isDynamic
 			ELSE
-				isOperatorCall := FALSE
+				isCallOfDynamicOperator := FALSE
 			END;
 
 			IF procedureType.stackAlignment > 1 THEN
@@ -3808,6 +3819,7 @@ TYPE
 					formalParameter := formalParameter.prevParameter;
 				END;
 			ELSE
+				hasDynamicOperands := FALSE; (* nopov *)
 				formalParameter := procedureType.firstParameter;
 				FOR i := 0 TO parameters.Length() - 1 DO
 					actualParameter := parameters.GetExpression(i);
@@ -3816,16 +3828,16 @@ TYPE
 						PrepareParameter(actualParameter, formalParameter);
 
 						(* nopov *)
-						IF backend.dynamicOverloading & isOperatorCall & IsStrictlyPointerToRecord(formalParameter.type) & (formalParameter.access # SyntaxTree.Hidden) THEN
-							isDynamicOperatorCall := TRUE; (* an operator call with at least one pointer to record makes the call dynamic *)
+						IF isCallOfDynamicOperator  & IsStrictlyPointerToRecord(formalParameter.type) & (formalParameter.access # SyntaxTree.Hidden) THEN (* TODO: remove hidden parameters *)
 							ASSERT(i < 2);
+							hasDynamicOperands := TRUE;
 							PushParameter(actualParameter, formalParameter, procedureType.callingConvention, TRUE, parameterBackups[i])
-						ELSE
+						ELSE						
 							PushParameter(actualParameter, formalParameter, procedureType.callingConvention, FALSE, dummy)
 						END;
 
 						formalParameter := formalParameter.nextParameter;
-					END; (* TENTATIVE *)
+					END;
 				END;
 			END;
 
@@ -3838,7 +3850,8 @@ TYPE
 			END;
 
 			(* nopov *)
-			IF isDynamicOperatorCall THEN
+			IF isCallOfDynamicOperator & hasDynamicOperands THEN
+				IF dump # NIL THEN dump.String("++++++++++ dynamic operator call ++++++++++"); dump.Ln; dump.Update END; (* TENTATIVE *)
 				(* push ID *)
 				(* IF dump # NIL THEN dump.String("push ID"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
 				ASSERT(x.left IS SyntaxTree.SymbolDesignator);
@@ -3902,8 +3915,6 @@ TYPE
 					InitOperand(operand, ModeValue);
 					operand.op := IntermediateCode.Register(addressType, AcquireRegister(addressType));
 					Emit(Result(operand.op))
-				ELSE
-					HALT(200)
 				END
 			ELSE
 				Evaluate(x.left, operand)
@@ -4235,6 +4246,8 @@ TYPE
 				operatorInitializationCodeSection.Emit(Push(arg))
 			END PushTypeInfo;
 		BEGIN
+			ASSERT(operatorInitializationCodeSection # NIL);
+			
 			ASSERT(operator.type IS SyntaxTree.ProcedureType);
 			procedureType := operator.type(SyntaxTree.ProcedureType);
 
@@ -4288,8 +4301,6 @@ TYPE
 					StaticCallOperand(runtimeProcedureOperand, runtimeProcedure);
 					operatorInitializationCodeSection.Emit(Call(runtimeProcedureOperand.op, ProcedureParametersSize(system, runtimeProcedure)));
 					ReleaseOperand(runtimeProcedureOperand)
-				ELSE
-					HALT(100)
 				END
 				(* IF dump # NIL THEN dump.String("*** end of operator registration ***"); dump.Ln; dump.Update END *) (* TENTATIVE *)
 			END
@@ -7246,10 +7257,8 @@ TYPE
 				END;
 
 				(* nopov *)
-				IF moduleBody THEN
-					IF TRUE THEN (* TODO: only if required *)
-						Emit(Call(IntermediateCode.Address(addressType, operatorInitializationCodeSection, 0), 0))
-					END
+				IF moduleBody & (operatorInitializationCodeSection # NIL) THEN
+					Emit(Call(IntermediateCode.Address(addressType, operatorInitializationCodeSection, 0), 0))
 				END;
 
 				section.SetAlignment(procedure.fixed, procedure.alignment);
@@ -7346,7 +7355,6 @@ TYPE
 		profile-: BOOLEAN;
 		noRuntimeChecks: BOOLEAN;
 		noAsserts: BOOLEAN;
-		dynamicOverloading: BOOLEAN;
 
 		PROCEDURE &InitIntermediateBackend*;
 		BEGIN
@@ -7431,37 +7439,7 @@ TYPE
 					dump.Update;
 				END;
 				GenerateFile(module,dump,fname);
-(*				IF dump # NIL THEN
-					dump.Ln; dump.Ln;
-					IntermediateCode.PrepareComment( dump );
-					dump.String("------------------ binary code -------------------"); dump.Ln;
-					IF (traceString="") OR (traceString="*") THEN
-						intermediateModule.Dump(dump);
-						dump.Update
-					ELSE
-						Sections.DumpFiltered(dump,intermediateModule(Sections.Module),traceString);
-						dump.Update;
-					END
-				END;*)
 			END;
-
-			(*
-			NEW(codeGenerator,diagnostics,FALSE);
-			in := module.sections.first;
-			WHILE in # NIL DO
-				out := ResolvedSection(in(IntermediateCode.Section));
-				codeGenerator.Section(in(IntermediateCode.Section),out);
-				in := in.nextSection;
-			END;
-			IF trace THEN
-				IF (traceString="") OR (traceString="*") THEN
-					module.Dump(dump);
-					dump.Update
-				ELSE
-					Sections.DumpFiltered(dump,module,traceString);
-				END
-			END;
-			*)
 
 			RETURN module
 		END Module;
@@ -7476,7 +7454,6 @@ TYPE
 			options.Add(0X,"profile",Options.Flag);
 			options.Add(0X,"noRuntimeChecks",Options.Flag);
 			options.Add(0X,"noAsserts",Options.Flag);
-			options.Add(0X,"dynamicOverloading",Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -7494,7 +7471,6 @@ TYPE
 			IF ~options.GetString("traceModule",traceModuleName) THEN
 				traceModuleName := DefaultTraceModuleName;
 			END;
-			dynamicOverloading := options.GetFlag("dynamicOverloading");
 		END GetOptions;
 
 		PROCEDURE SetRuntimeModuleName*(CONST name: ARRAY OF CHAR);

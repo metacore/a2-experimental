@@ -34,7 +34,8 @@ CONST
 		ProcedureDeclaration = 'procedure' ['&'|'-'|Flags ['-']] IdentifierDefinition [FormalParameters]';'
 		                       DeclarationSequence  [Body] 'end' Identifier.
 
-		OperatorDeclaration  = 'operator' String ['*'|'-'] FormalParameters ';'
+		(nopov)
+		OperatorDeclaration  = 'operator' [Flags] String  ['*'|'-'] FormalParameters ';'
 		                       DeclarationSequence [Body] 'end' String.
 
 		Flags           		=  '{' [Identifier ['(' Expression ')'] {',' Identifier ['(' Expression ')'] }] '}'
@@ -1601,7 +1602,7 @@ TYPE
 			IF Trace THEN E( "Procedure") END;
 		END ProcedureDeclaration;
 
-		(** OperatorDeclaration  = 'operator' String ['*'|'-'] FormalParameters ';'
+		(** OperatorDeclaration  = 'operator' [Flags] String ['*'|'-'] FormalParameters ';'
 			                       DeclarationSequence [Body] 'end' String.
 		**)
 		PROCEDURE OperatorDeclaration(parentScope: SyntaxTree.Scope );
@@ -1612,10 +1613,14 @@ TYPE
 			operator: SyntaxTree.Operator;
 			access: SET;
 			i: LONGINT; ch: CHAR; position: LONGINT;
+			modifiers: SyntaxTree.Modifier; (* nopov *)
 		BEGIN
 			IF Trace THEN S( "Operator" ) END;
 			(* symbol operator already consumed *)
 			position := symbol.start;
+			
+			IF Optional(Scanner.LeftBrace) THEN modifiers := Flags() END; (* nopov *)
+			
 			IF MandatoryString( string ) THEN
 				(* copy string to name and check for length. LEN(name)>0, LEN(string)>0 can be presumed  *)
 				i := 0;
@@ -1631,6 +1636,7 @@ TYPE
 			ELSE
 				name := "";
 			END;
+			
 			IF Optional( Scanner.Times ) THEN access := SyntaxTree.ReadOnly;
 			ELSIF Optional( Scanner.Minus ) THEN access := SyntaxTree.ReadOnly;
 			ELSE access := SyntaxTree.Internal;
@@ -1638,9 +1644,10 @@ TYPE
 			procedureScope := SyntaxTree.NewProcedureScope(parentScope);
 			operator := SyntaxTree.NewOperator( symbol.start, SyntaxTree.NewIdentifier(name), procedureScope);
 			CommentSymbol(operator);
-			operator.SetAccess(access * SyntaxTree.ReadOnly);
+			operator.SetAccess(access * SyntaxTree.ReadOnly);			
 			procedureType := SyntaxTree.NewProcedureType(symbol.start,parentScope);
 			IF Mandatory(Scanner.LeftParenthesis) THEN FormalParameters( procedureType, procedureScope ) END;
+			procedureType.SetModifiers(modifiers); (* nopov *)
 			operator.SetType( procedureType );
 			IF Lax THEN Ignore(Scanner.Semicolon) ELSE Check( Scanner.Semicolon ) END;
 			DeclarationSequence( procedureScope );
