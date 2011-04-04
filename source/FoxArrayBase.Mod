@@ -7658,7 +7658,7 @@ Sufficient (but not necessary) conditions:
 			PutInc( dest, 1, GetIncr( left, 0 ) );  PutInc( dest, 0, GetIncr( left, 1 ) );
 		ELSE
 			len0 := GetLen( left, 0 );  len1 := GetLen( left, 1 );
-			
+
 			IF (len0 # GetLen( dest, 1 )) OR (len1 # GetLen( dest, 0 )) THEN
 				Halt( GeometryMismatch, left, 0, dest )
 			END;
@@ -7750,6 +7750,8 @@ Sufficient (but not necessary) conditions:
 
 		oldSize, newSize: LONGINT;  oldDim, newDim: LONGINT;
 
+		squeezingReshape: BOOLEAN;
+
 		PROCEDURE NewDescriptor;
 		BEGIN
 			ptr := GetArrayDesc( newDim );  new := SYSTEM.VAL( LONGINT, ptr );
@@ -7771,11 +7773,34 @@ Sufficient (but not necessary) conditions:
 				END;
 				WHILE (i < oldDim) & (GetLen(src,i) = 1) DO INC(i); END; (* account for a trailing sequence of 1 *)
 			ELSE
-				RETURN FALSE;
+				squeezingReshape := FALSE;
 			END;
 
-			RETURN (i = oldDim) & (j = newDim);
+			squeezingReshape := (i = oldDim) & (j = newDim);
+
+			RETURN squeezingReshape;
 		END SqueezingReshape;
+
+		(* returns TRUE if reshape preserves contiguity pattern and thus is valid even for subranged arrays *)
+		PROCEDURE PreservesContiguity(): BOOLEAN;
+		VAR
+			i, n: LONGINT;
+			continue: BOOLEAN;
+		BEGIN
+			i := oldDim-1; n := GetIncr(src,i);
+			continue := TRUE;
+			WHILE (i > 0) & continue DO
+				n := n * GetLen(src,i);
+				DEC(i);
+				continue := GetIncr(src,i) = n;
+			END;
+
+			IF (i = 0) & continue THEN (* array can be fully linearized and, therefore, can be reshaped to any size *)
+				RETURN TRUE;
+			ELSE Err("Not yet implemented!"); 
+			END;
+		END PreservesContiguity;
+
 
 		(* Added by Alexey *)
 		PROCEDURE NewDescriptorForSameData;
@@ -7783,7 +7808,7 @@ Sufficient (but not necessary) conditions:
 		BEGIN
 			ptr := GetArrayDesc( newDim );  new := SYSTEM.VAL( LONGINT, ptr );
 
-			IF ~(RangeFlag IN GetFlags(src)) THEN
+			IF ~squeezingReshape THEN
 				size := Size;
 				FOR i := newDim - 1 TO 0 BY -1 DO
 					len := shape[i];  PutInc( new, i, size );  PutLen( new, i, len );
@@ -7798,6 +7823,10 @@ Sufficient (but not necessary) conditions:
 						IF j < newDim THEN len := shape[j]; END;
 					END;
 				END;
+			END;
+
+			IF RangeFlag IN GetFlags(src) THEN (* keep range awareness for case of squeezing reshape and preservation of contiguity *)
+				PutFlags(new,GetFlags(new)+{RangeFlag});
 			END;
 
 			PutAdr( new, GetAdr(src) );
@@ -7917,7 +7946,7 @@ Sufficient (but not necessary) conditions:
 		ASSERT( (Size > 0) & (Size < 128) );   (*! heuristic, remove upper bound *)
 
 		IF dest = src THEN (* added by Alexey *)
-			IF ~(RangeFlag IN GetFlags(dest)) OR SqueezingReshape() THEN
+			IF ~(RangeFlag IN GetFlags(dest)) OR PreservesContiguity() OR SqueezingReshape() THEN
 				NewDescriptorForSameData;
 				dest := new;
 			ELSIF ((newDim = oldDim) & ~ShapeDiffers()) THEN
