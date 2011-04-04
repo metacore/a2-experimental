@@ -5977,10 +5977,16 @@ TYPE
 			hasReturnType, mustBeUnary, mustBeBinary, mustReturnBoolean, mustReturnInteger, mustHaveEquitypedOperands: BOOLEAN;
 			modifiers: SyntaxTree.Modifier;
 			
+			(** whether a type is locally defined in the current module scope 
+			for arrays, the base type must be locally defined **)
 			PROCEDURE IsLocallyDefined(type: SyntaxTree.Type): BOOLEAN;
 			BEGIN
 				IF type = NIL THEN
 					RETURN FALSE
+				ELSIF (type.resolved IS SyntaxTree.ArrayType) THEN
+					RETURN IsLocallyDefined(type.resolved(SyntaxTree.ArrayType).arrayBase)
+				ELSIF (type.resolved IS SyntaxTree.MathArrayType) THEN
+					RETURN IsLocallyDefined(type.resolved(SyntaxTree.MathArrayType).arrayBase)					
 				ELSE
 					RETURN (type.typeDeclaration # NIL) & (type.typeDeclaration.scope.ownerModule = currentScope.ownerModule);
 				END
@@ -6019,7 +6025,7 @@ TYPE
 						(* check whether at least one of the operand types is declared in the current module (this check is skipped for the module FoxArrayBase) *)
 						IF currentScope.ownerModule.name # Global.ArrayBaseName THEN
 							IF ~(IsLocallyDefined(leftType) OR IsLocallyDefined(rightType)) THEN
-								Error(operator.position, Diagnostics.Invalid, "no operand is not declared in the same module")
+								Error(operator.position, Diagnostics.Invalid, "none of the operands is declared in the same module")
 							END
 						END;
 						
