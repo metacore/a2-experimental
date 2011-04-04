@@ -136,8 +136,7 @@ TYPE
 		traceLevel: LONGINT;
 
 		PROCEDURE & InitFingerPrinter*(system: Global.System);
-		BEGIN fp:= 0; SELF.system := system; deep := FALSE;
-				traceLevel := 0;
+		BEGIN fp:= 0; SELF.system := system; deep := FALSE; traceLevel := 0;
 		END InitFingerPrinter;
 		(** types *)
 
@@ -148,187 +147,78 @@ TYPE
 		PrivateFP(BasicType) = sizeof(basicType).
 		*)
 		PROCEDURE VisitBasicType(x: SyntaxTree.BasicType);
+		BEGIN
+		END VisitBasicType;
+
+		PROCEDURE SetTypeFingerprint(x: SyntaxTree.Type; fp: LONGINT);
 		VAR fingerprint: FingerPrint;
 		BEGIN
-			(*
 			fingerprint := x.fingerprint;
-
 			IF ~fingerprint.shallowAvailable THEN
-				IF x =Global.Byte THEN fingerprint.shallow := fpTypeByte
-				ELSIF x = Global.RangeType THEN fingerprint.shallow := fpTypeRange
-				ELSIF x = Global.Boolean THEN fingerprint.shallow := fpTypeBoolean
-				ELSIF x = Global.Set THEN fingerprint.shallow := fpTypeSet
-				ELSIF x = Global.Nil THEN fingerprint.shallow := fpTypePointer
-				ELSIF x = Global.Any THEN fingerprint.shallow := fpTypePointer
-				ELSIF x = Global.Object THEN fingerprint.shallow := fpTypePointer
-				ELSE HALT(100)
-				END;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
+				fingerprint.shallow := fp;
+				fingerprint.public := fp;
+				fingerprint.private := fp;
 				fingerprint.shallowAvailable := TRUE;
 				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
 				x.SetFingerPrint(fingerprint);
 			END;
-
 			SELF.fingerprint := fingerprint;
-			*)
-		END VisitBasicType;
+		END SetTypeFingerprint;
 
 		PROCEDURE VisitRangeType(x: SyntaxTree.RangeType);
 		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypeRange;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
-			END;
-			SELF.fingerprint := fingerprint;
+			SetTypeFingerprint(x,fpTypeRange);
 		END VisitRangeType;
 
 		PROCEDURE VisitBooleanType(x: SyntaxTree.BooleanType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypeBoolean;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
-			END;
-			SELF.fingerprint := fingerprint;
+			SetTypeFingerprint(x,fpTypeBoolean);
 		END VisitBooleanType;
 
 		PROCEDURE VisitByteType(x: SyntaxTree.ByteType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypeByte;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
-			END;
-			SELF.fingerprint := fingerprint;
+			SetTypeFingerprint(x,fpTypeByte)
 		END VisitByteType;
 
 		PROCEDURE VisitSetType(x: SyntaxTree.SetType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypeSet;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
-			END;
-			SELF.fingerprint := fingerprint;
+			SetTypeFingerprint(x,fpTypeSet)
 		END VisitSetType;
 
 		PROCEDURE VisitNilType(x: SyntaxTree.NilType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypePointer;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
-			END;
-			SELF.fingerprint := fingerprint;
+			SetTypeFingerprint(x,fpTypePointer)
 		END VisitNilType;
 
 		PROCEDURE VisitAnyType(x: SyntaxTree.AnyType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypePointer;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
-			END;
-			SELF.fingerprint := fingerprint;
+			SetTypeFingerprint(x,fpTypePointer)
 		END VisitAnyType;
 
 		PROCEDURE VisitAddressType(x: SyntaxTree.AddressType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypePointer;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
-			END;
-			SELF.fingerprint := fingerprint;
+			SetTypeFingerprint(x,fpTypePointer)
 		END VisitAddressType;
 
 		PROCEDURE VisitSizeType(x: SyntaxTree.SizeType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-			IF ~fingerprint.shallowAvailable THEN
-
-				(* compatibility with binary symbol file : *)
-				IF x.sizeInBits=8 THEN fingerprint.shallow := fpTypeShortint
-				ELSIF x.sizeInBits = 16 THEN fingerprint.shallow := fpTypeInteger
-				ELSIF x.sizeInBits = 32 THEN fingerprint.shallow := fpTypeLongint
-				ELSIF x.sizeInBits = 64 THEN fingerprint.shallow := fpTypeHugeint
-				END;
-
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
+			IF x.sizeInBits=8 THEN SetTypeFingerprint(x,fpTypeShortint)
+			ELSIF x.sizeInBits = 16 THEN SetTypeFingerprint(x,fpTypeInteger)
+			ELSIF x.sizeInBits = 32 THEN SetTypeFingerprint(x,fpTypeLongint)
+			ELSIF x.sizeInBits = 64 THEN SetTypeFingerprint(x,fpTypeHugeint)
+			ELSE HALT(100)
 			END;
-			SELF.fingerprint := fingerprint;
 		END VisitSizeType;
 
 		PROCEDURE VisitObjectType(x: SyntaxTree.ObjectType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypePointer;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
-			END;
-			SELF.fingerprint := fingerprint;
+			SetTypeFingerprint(x,fpTypePointer)
 		END VisitObjectType;
 
 		PROCEDURE VisitChannelType(x: SyntaxTree.ChannelType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypeChannel;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
-			END;
-			SELF.fingerprint := fingerprint;
+			SetTypeFingerprint(x,fpTypeChannel)
 		END VisitChannelType;
 
 		(*
@@ -337,23 +227,12 @@ TYPE
 		PrivateFP(BasicType) = sizeof(basicType).
 		*)
 		PROCEDURE VisitCharacterType(x: SyntaxTree.CharacterType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-
-			IF ~fingerprint.shallowAvailable THEN
-				IF x.sizeInBits = 8 THEN fingerprint.shallow := fpTypeChar8
-				ELSIF x.sizeInBits = 16 THEN fingerprint.shallow := fpTypeChar16
-				ELSIF x.sizeInBits =32 THEN fingerprint.shallow := fpTypeChar32
-				END;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
+			IF x.sizeInBits = 8 THEN SetTypeFingerprint(x,fpTypeChar8)
+			ELSIF x.sizeInBits = 16 THEN SetTypeFingerprint(x,fpTypeChar16)
+			ELSIF x.sizeInBits =32 THEN SetTypeFingerprint(x,fpTypeChar32)
+			ELSE HALT(100)
 			END;
-
-			SELF.fingerprint := fingerprint
 		END VisitCharacterType;
 
 		(*
@@ -362,24 +241,13 @@ TYPE
 		PrivateFP(BasicType) = sizeof(basicType).
 		*)
 		PROCEDURE VisitIntegerType(x: SyntaxTree.IntegerType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-
-			IF ~fingerprint.shallowAvailable THEN
-				IF x.sizeInBits=8 THEN fingerprint.shallow := fpTypeShortint
-				ELSIF x.sizeInBits = 16 THEN fingerprint.shallow := fpTypeInteger
-				ELSIF x.sizeInBits = 32 THEN fingerprint.shallow := fpTypeLongint
-				ELSIF x.sizeInBits = 64 THEN fingerprint.shallow := fpTypeHugeint
-				END;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
+			IF x.sizeInBits=8 THEN SetTypeFingerprint(x,fpTypeShortint)
+			ELSIF x.sizeInBits = 16 THEN SetTypeFingerprint(x,fpTypeInteger)
+			ELSIF x.sizeInBits = 32 THEN SetTypeFingerprint(x,fpTypeLongint)
+			ELSIF x.sizeInBits = 64 THEN SetTypeFingerprint(x,fpTypeHugeint)
+			ELSE HALT(100)
 			END;
-
-			SELF.fingerprint := fingerprint
 		END VisitIntegerType;
 
 		(*
@@ -388,23 +256,22 @@ TYPE
 		PrivateFP(BasicType) = sizeof(basicType).
 		*)
 		PROCEDURE VisitFloatType(x: SyntaxTree.FloatType);
-		VAR fingerprint: FingerPrint;
 		BEGIN
-			fingerprint := x.fingerprint;
-
-			IF ~fingerprint.shallowAvailable THEN
-				IF x.sizeInBits = 32 THEN fingerprint.shallow := fpTypeReal
-				ELSIF x.sizeInBits = 64 THEN fingerprint.shallow := fpTypeLongreal
-				END;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
+			IF x.sizeInBits = 32 THEN SetTypeFingerprint(x,fpTypeReal)
+			ELSIF x.sizeInBits = 64 THEN SetTypeFingerprint(x,fpTypeLongreal)
+			ELSE HALT(100)
 			END;
-
-			SELF.fingerprint := fingerprint
 		END VisitFloatType;
+
+		(*
+		FP(BasicType)        = fpStringType
+		PublicFP(BasicType)  = FP(basicType).
+		PrivateFP(BasicType) = sizeof(basicType).
+		*)
+		PROCEDURE VisitStringType(x: SyntaxTree.StringType);
+		BEGIN
+			SetTypeFingerprint(x,fpTypeString);
+		END VisitStringType;
 
 		(**
 			fp enumeration type
@@ -456,28 +323,6 @@ TYPE
 		BEGIN
 			x.resolved.Accept(SELF);
 		END VisitQualifiedType;
-
-		(*
-		FP(BasicType)        = fpStringType
-		PublicFP(BasicType)  = FP(basicType).
-		PrivateFP(BasicType) = sizeof(basicType).
-		*)
-		PROCEDURE VisitStringType(x: SyntaxTree.StringType);
-		VAR fingerprint: FingerPrint;
-		BEGIN
-			fingerprint := x.fingerprint;
-
-			IF ~fingerprint.shallowAvailable THEN
-				fingerprint.shallow := fpTypeString;
-				fingerprint.public := fingerprint.shallow;
-				fingerprint.private := SHORT(system.SizeOf(x));
-				fingerprint.shallowAvailable := TRUE;
-				fingerprint.deepAvailable := TRUE; (* no distinction between deep and shallow fp necessary *)
-				x.SetFingerPrint(fingerprint);
-			END;
-
-			SELF.fingerprint := fingerprint
-		END VisitStringType;
 
 		(*
 		FP(ArrayType)              = fpTypeComposite <*> (fpTypeOpenArray | fpTypeStaticArray)
@@ -717,8 +562,9 @@ TYPE
 				END;
 			END;
 			IF Trace THEN
-			TraceIndent; D.Str("Method, fp = "); D.Hex(private,-8); D.Str(" "); D.Hex(public,-8); D.Ln;
-			TraceExit("Method",fingerprint) END;
+				TraceIndent; D.Str("Method, fp = "); D.Hex(private,-8); D.Str(" "); D.Hex(public,-8); D.Ln;
+				TraceExit("Method",fingerprint) 
+			END;
 		END FPrintMethod;
 
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
@@ -1173,7 +1019,7 @@ TYPE
 		BEGIN
 			IF x.scope IS SyntaxTree.RecordScope THEN (* method *)
 				FPrintMethod(fp,fp,x,NIL);
-				fingerprint := x.fingerprint;					
+				fingerprint := x.fingerprint;
 			ELSE
 				fingerprint := x.fingerprint;
 				IF ~fingerprint.shallowAvailable THEN

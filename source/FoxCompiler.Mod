@@ -496,6 +496,7 @@ TYPE
 					error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC);
 				END;
 				context.out.Update;
+				context.error.Update;
 			END;
 			IF Silent IN flags THEN
 				time := Kernel.GetTicks()-time;
