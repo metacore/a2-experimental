@@ -19,7 +19,7 @@ CONST
 	Warnings*=7;
 	ForceModuleBodies*=8;
 	UseDarwinCCalls*=9;	(* use Darwin stack alignment for ext. C procedures *)	(*fld*)
-	Multiple*=10;
+	SingleModule*=10;
 
 	DefaultBackend = "AMD";
 
@@ -351,7 +351,7 @@ TYPE
 			ELSE
 				FinalMessage(FALSE, " done.");
 			END;
-		UNTIL ~(Multiple IN flags) OR ~parser.NextModule();
+		UNTIL (SingleModule IN flags) OR ~parser.NextModule();
 
 		RETURN TRUE;
 	END Module;
@@ -384,7 +384,7 @@ TYPE
 		options.Add("i","info",Options.Flag);
 		options.Add("b","backend",Options.String);
 		options.Add("f","findPC",Options.String);
-		options.Add("m","multiple",Options.Flag);
+		options.Add(0X,"singleModule",Options.Flag);
 		options.Add(0X, "symbolFile", Options.String);
 		options.Add(0X, "objectFile", Options.String);
 		options.Add("d","activeCells", Options.Flag);
@@ -458,7 +458,7 @@ TYPE
 			IF options.GetString("findPC",findPC) THEN INCL(flags,FindPC) END;
 			IF options.GetFlag("warnings") THEN INCL(flags, Warnings) END;
 			IF options.GetFlag("darwinHost") THEN INCL(flags,UseDarwinCCalls) END;	(*fld*)
-			IF options.GetFlag("multiple") THEN INCL(flags,Multiple) END;
+			IF options.GetFlag("singleModule") THEN INCL(flags,SingleModule) END;
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
 			IF objectFile # NIL THEN objectFile.GetOptions(options) END;
