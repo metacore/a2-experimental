@@ -87,7 +87,7 @@ END
 
 BUILDS
 	A2 {
-		INCLUDE "NATIVE I386"
+		INCLUDE "NATIVE NATIVEORIG I386 I386ORIG"
 		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
 		TARGET "AMD"
@@ -99,7 +99,19 @@ BUILDS
 	}
 	A2NewObjectFile
 	{
-		INCLUDE "NATIVE I386"
+		INCLUDE "NATIVE NATIVEGEN I386 I386GEN"
+		COMPILER "Compiler.Compile"
+		COMPILEOPTIONS "--objectFile=Generic --newObjectFile"
+		TARGET "AMD"
+		EXTENSION "Gof"
+		SYMBOLEXTENSION "Sym"
+		PATH "AOS:"
+		EXCLUDEPACKAGES "Applications GuiApplications Fun Testing Education Contributions Oberon OberonGadgets OberonApplications OberonDocumentation OberonVoyager OberonAnts"
+		DISABLED "FALSE"
+	}
+	WinAosNewObjectFile
+	{
+		INCLUDE "WIN iWIN WINGEN"
 		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS "--objectFile=Generic --newObjectFile"
 		TARGET "AMD"
@@ -109,8 +121,9 @@ BUILDS
 		EXCLUDEPACKAGES ""
 		DISABLED "FALSE"
 	}
+
 	A2_64 {
-		INCLUDE "NATIVE AMD64"
+		INCLUDE "NATIVE NATIVEORIG AMD64"
 		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
 		TARGET "AMD"
@@ -121,7 +134,7 @@ BUILDS
 		DISABLED "TRUE"
 	}
 	A2mini {
-		INCLUDE "NATIVE I386"
+		INCLUDE "NATIVE NATIVEORIG I386 I386ORIG"
 		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
 		TARGET "AMD"
@@ -132,7 +145,7 @@ BUILDS
 		DISABLED "FALSE"
 	}
 	WinAos {
-		INCLUDE "WIN iWIN"
+		INCLUDE "WIN WINORIG iWIN"
 		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
 		TARGET "AMD"
@@ -143,7 +156,7 @@ BUILDS
 		DISABLED "FALSE"
 	}
 	eWinAos {
-		INCLUDE "WIN eWIN"
+		INCLUDE "WIN WINORIG eWIN"
 		COMPILER "Compiler.Compile"
 		COMPILEOPTIONS ""
 		TARGET "AMD"
@@ -208,15 +221,21 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	UNIX { Unix.Glue.Mod }
 	DARWIN { Darwin.Unix.Mod } LINUX { Linux.Unix.Mod } SOLARIS { Solaris.Unix.Mod }
 
-	I386 { I386.Machine.Mod }
+	I386ORIG { I386.Machine.Mod }
+	I386GEN {oc/I386.Machine.Mod}
 	AMD64 { AMD64.Machine.Mod }
-	WIN { Win32.Kernel32.Mod Win32.Machine.Mod }
+	WINORIG { Win32.Kernel32.Mod}
+	WINGEN {oc/Win32.Kernel32.Mod}
+	WIN {Win32.Machine.Mod }
+
 	UNIX { Unix.I386.Machine.Mod }
 
-	NATIVE,WIN { Heaps.Mod }
+	NATIVEORIG,WINORIG { Heaps.Mod }
+	NATIVEGEN, WINGEN { Heaps.Mod}
 	UNIX { Unix.Heaps.Mod }
 
-	Modules.Mod
+	NATIVEORIG, WINORIG, UNIX {Modules.Mod}
+	NATIVEGEN, WINGEN { oc/Modules.Mod}
 	
 	NATIVE { Objects.Mod Kernel.Mod }
 	WIN { Win32.Objects.Mod Win32.Kernel.Mod }
@@ -286,10 +305,12 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	NATIVE,WIN { RelativeFileSystem.Mod } # file system relative to path
 
 	NATIVE,WIN { Loader.Mod }
+	NATIVEGEN, WINGEN {BitSets.Mod Diagnostics.Mod ObjectFile.Mod GenericLinker.Mod StringPool.Mod oc/GenericLoader.Mod}
 	UNIX { Unix.Loader.Mod }
 
 	# binding modules
-	NATIVE,WIN { BootConsole.Mod }
+	NATIVEORIG,WINORIG { BootConsole.Mod }
+	NATIVEGEN, WINGEN {oc/BootConsole.Mod}
 	UNIX { Unix.BootConsole.Mod }
 
 	Displays.Mod 
