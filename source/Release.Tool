@@ -222,10 +222,10 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	DARWIN { Darwin.Unix.Mod } LINUX { Linux.Unix.Mod } SOLARIS { Solaris.Unix.Mod }
 
 	WINORIG { Win32.Kernel32.Mod}
-	WINGEN {oc/Win32.Kernel32.Mod}
+	WINGEN {oc/Generic.Win32.Kernel32.Mod}
 
 	I386ORIG { I386.Machine.Mod }
-	I386GEN { oc/I386.Machine.Mod }
+	I386GEN { oc/Generic.I386.Machine.Mod }
 	AMD64 { AMD64.Machine.Mod }
 	WIN {Win32.Machine.Mod }
 
@@ -235,7 +235,7 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	UNIX { Unix.Heaps.Mod }
 
 	NATIVEORIG, WINORIG, UNIX {Modules.Mod}
-	NATIVEGEN, WINGEN { oc/Modules.Mod}
+	NATIVEGEN, WINGEN { oc/Generic.Modules.Mod}
 	
 	NATIVE { Objects.Mod Kernel.Mod }
 	WIN { Win32.Objects.Mod Win32.Kernel.Mod }
@@ -309,8 +309,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	UNIX { Unix.Loader.Mod }
 
 	# binding modules
-	NATIVEORIG,WINORIG { BootConsole.Mod }
-	NATIVEGEN, WINGEN {oc/BootConsole.Mod}
+	NATIVE,WIN { BootConsole.Mod }
 	UNIX { Unix.BootConsole.Mod }
 
 	Displays.Mod 
