@@ -1324,7 +1324,7 @@ TYPE
 				IF TraceImport IN Trace THEN
 					D.Str("Symbol: --> "); D.Ln
 				END;
-				untraced := FALSE; realtime := FALSE; constructor := FALSE;
+				untraced := FALSE; realtime := FALSE; constructor := FALSE; isDynamic := FALSE;
 				visibility:=SyntaxTree.Public+SyntaxTree.Protected+SyntaxTree.Internal;
 				WHILE tag=sfObjFlag DO
 					R.RawNum(f);
