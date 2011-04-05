@@ -92,7 +92,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		BEGIN
 			IF ~options.GetString("objectFileExtension",extension) THEN extension := ObjectFile.DefaultExtension; END;
 			IF ~options.GetString("objectFilePrefix",prefix) THEN prefix := ""; END;
-			binary := options.GetFlag("textualObjectFile");
+			binary := ~options.GetFlag("textualObjectFile");
 		END GetOptions;
 
 		PROCEDURE DefaultSymbolFileFormat(): Formats.SymbolFileFormat;
