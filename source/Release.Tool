@@ -221,17 +221,17 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	UNIX { Unix.Glue.Mod }
 	DARWIN { Darwin.Unix.Mod } LINUX { Linux.Unix.Mod } SOLARIS { Solaris.Unix.Mod }
 
-	I386ORIG { I386.Machine.Mod }
-	I386GEN {oc/I386.Machine.Mod}
-	AMD64 { AMD64.Machine.Mod }
 	WINORIG { Win32.Kernel32.Mod}
 	WINGEN {oc/Win32.Kernel32.Mod}
+
+	I386ORIG { I386.Machine.Mod }
+	I386GEN { oc/I386.Machine.Mod }
+	AMD64 { AMD64.Machine.Mod }
 	WIN {Win32.Machine.Mod }
 
 	UNIX { Unix.I386.Machine.Mod }
 
-	NATIVEORIG,WINORIG { Heaps.Mod }
-	NATIVEGEN, WINGEN { Heaps.Mod}
+	NATIVE, WIN { Heaps.Mod }
 	UNIX { Unix.Heaps.Mod }
 
 	NATIVEORIG, WINORIG, UNIX {Modules.Mod}
