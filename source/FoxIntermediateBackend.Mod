@@ -670,9 +670,9 @@ TYPE
 				implementationVisitor.numberProcedures := 0;
 			END;
 			implementationVisitor.profile := backend.profile;
-			
+
 			(* check if there is at least one dynamic operator locally defined *)
-			hasDynamicOperatorDeclarations := FALSE;			
+			hasDynamicOperatorDeclarations := FALSE;
 			operator := x.moduleScope.firstOperator;
 			WHILE operator # NIL DO
 				IF operator.isDynamic THEN hasDynamicOperatorDeclarations := TRUE END;
@@ -3751,7 +3751,7 @@ TYPE
 				(* an operator is called *)
 				(* IF dump # NIL THEN dump.String("*** begin of operator call ***"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
 				ASSERT(procedureType.callingConvention = SyntaxTree.OberonCallingConvention);
-				
+
 				(* check if a dynamic operator call should be performed *)
 				isCallOfDynamicOperator := x.left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Operator).isDynamic
 			ELSE
@@ -3832,7 +3832,7 @@ TYPE
 							ASSERT(i < 2);
 							hasDynamicOperands := TRUE;
 							PushParameter(actualParameter, formalParameter, procedureType.callingConvention, TRUE, parameterBackups[i])
-						ELSE						
+						ELSE
 							PushParameter(actualParameter, formalParameter, procedureType.callingConvention, FALSE, dummy)
 						END;
 
@@ -4247,7 +4247,7 @@ TYPE
 			END PushTypeInfo;
 		BEGIN
 			ASSERT(operatorInitializationCodeSection # NIL);
-			
+
 			ASSERT(operator.type IS SyntaxTree.ProcedureType);
 			procedureType := operator.type(SyntaxTree.ProcedureType);
 
@@ -7120,7 +7120,7 @@ TYPE
 			CheckRegistersFree(); (* no register may be in use as operands should not be preserved over the lock / unlock boundary *)
 			IF dump # NIL THEN
 				IF lock THEN dump.String("lock") ELSE dump.String("unlock") END;
-				dump.Ln;
+				dump.Ln;dump.Update;
 			END;
 			PushSelfPointer;
 			Emit(Push(true));
@@ -7801,7 +7801,7 @@ TYPE
 				diagnostics.Error(in.name, inPC, Diagnostics.Invalid, message)
 			END;
 			IF dump # NIL THEN (* to see error in trace output also *)
-				dump.String("Error: "); dump.String(message); dump.Ln;
+				dump.String("Error: "); dump.String(message); dump.Ln; dump.Update;
 			END;
 			error := TRUE;
 		END Error;
@@ -8509,7 +8509,7 @@ TYPE
 
 	PROCEDURE MetaInfo(section: IntermediateCode.Section; CONST s: ARRAY OF CHAR);
 	BEGIN
-		IF section.comments # NIL THEN section.comments.String(s); section.comments.Ln END;
+		IF section.comments # NIL THEN section.comments.String(s); section.comments.Ln; section.comments.Update END;
 	END MetaInfo;
 
 	PROCEDURE MetaAddress(module: Sections.Module; section: IntermediateCode.Section; value: LONGINT);
@@ -9535,8 +9535,10 @@ TYPE
 				MetaInfo(source, "pointer offsets pointer");
 				padding := 1- source.pc MOD 2;
 				MetaSymbol(module,source, source, source.pc+1+padding,0);
-				MetaInfo(source, "padding");
-				FOR i := 1 TO padding DO MetaAddress(module,source,0) END;
+				IF padding >0 THEN
+					MetaInfo(source, "padding");
+					FOR i := 1 TO padding DO MetaAddress(module,source,0) END;
+				END;
 				MetaPointerArray(module,source, recordType.recordScope, numberPointers);
 				source.SetReferenced(FALSE);
 		END NewTypeDescriptor;
