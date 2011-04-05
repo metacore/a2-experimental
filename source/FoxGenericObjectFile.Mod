@@ -1,7 +1,7 @@
 MODULE FoxGenericObjectFile; (** AUTHOR "negelef"; PURPOSE "Generic Object File Writer"; *)
 
 IMPORT
-	Basic := FoxBasic, Formats := FoxFormats, Sections := FoxSections, IntermediateCode := FoxIntermediateCode,
+	Streams, Commands, Basic := FoxBasic, Formats := FoxFormats, Sections := FoxSections, IntermediateCode := FoxIntermediateCode,
 	Global := FoxGlobal, SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
 	FingerPrinter := FoxFingerPrinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := FoxTextualSymbolFile, KernelLog;
 CONST version=0;
@@ -47,18 +47,9 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 					RETURN TRUE
 			END ExportSections;
 
-			PROCEDURE WriteHeader;
-			BEGIN
-				IF binary THEN writer.String("FoxOFB");
-				ELSE writer.String("FoxOFT");
-				END;
-				writer.Char(' ');
-				writer.Char('v'); writer.Int(version,0); writer.Char("."); writer.Char(0DX);
-			END WriteHeader;
-
 			PROCEDURE ExportModule (module: Sections.Module): BOOLEAN;
 			BEGIN
-				WriteHeader();
+				WriteHeader(writer,binary);
 				RETURN ExportSections (module.sections) &
 				ExportSections (module.caseTables) &
 				ExportSections (module.systemCalls);
@@ -94,14 +85,14 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		BEGIN
 			options.Add(0X,"objectFileExtension",Options.String);
 			options.Add(0X,"objectFilePrefix",Options.String);
-			options.Add(0X,"binaryObjectFile",Options.Flag);
+			options.Add(0X,"textualObjectFile",Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions* (options: Options.Options);
 		BEGIN
 			IF ~options.GetString("objectFileExtension",extension) THEN extension := ObjectFile.DefaultExtension; END;
 			IF ~options.GetString("objectFilePrefix",prefix) THEN prefix := ""; END;
-			binary := options.GetFlag("binaryObjectFile");
+			binary := options.GetFlag("textualObjectFile");
 		END GetOptions;
 
 		PROCEDURE DefaultSymbolFileFormat(): Formats.SymbolFileFormat;
@@ -140,5 +131,55 @@ PROCEDURE Get*(): Formats.ObjectFileFormat;
 VAR objectFileFormat: ObjectFileFormat;
 BEGIN NEW(objectFileFormat); RETURN objectFileFormat
 END Get;
+
+PROCEDURE ReadHeader(reader: Streams.Reader; VAR binary: BOOLEAN);
+VAR ch: CHAR; version: LONGINT; string: ARRAY 32 OF CHAR;
+BEGIN
+	reader.String(string);
+	binary := string="FoxOFB";
+	IF ~binary THEN ASSERT(string="FoxOFT") END;
+	reader.SkipWhitespace;
+	reader.Char(ch); ASSERT(ch='v');
+	reader.Int(version,FALSE);
+	reader.Char(ch); ASSERT(ch='.');
+	IF ~binary THEN reader.SkipWhitespace END;
+END ReadHeader;
+
+PROCEDURE WriteHeader(writer: Streams.Writer; binary: BOOLEAN);
+BEGIN
+	IF binary THEN writer.String("FoxOFB");
+	ELSE writer.String("FoxOFT");
+	END;
+	writer.Char(' ');
+	writer.Char('v'); writer.Int(version,0); writer.Char(".");
+	IF ~binary THEN writer.Ln END;
+END WriteHeader;
+
+PROCEDURE Show*(context: Commands.Context);
+VAR
+	fileName: Files.FileName; file: Files.File; reader: Files.Reader; writer: Streams.Writer;
+	section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOOLEAN;
+BEGIN
+	IF context.arg.GetString(fileName) THEN
+		file := Files.Old(fileName);
+		IF file # NIL THEN
+			NEW(reader,file,0);
+			writer := Basic.GetWriter(Basic.GetDebugWriter(fileName));
+			ReadHeader(reader, binary);
+			WriteHeader(writer, FALSE);
+			WHILE reader.Peek () # 0X DO
+				ObjectFile.ReadSection (reader, section,binary);
+				ObjectFile.WriteSection(writer, section, FALSE); (* textual *)
+				reader.SkipWhitespace;
+			END;
+			writer.Update;
+		ELSE
+			context.error.String("file not found "); context.error.String(fileName); context.error.Ln
+		END;
+	ELSE
+		context.error.String("no file specificed"); context.error.Ln
+	END;
+END Show;
+
 
 END FoxGenericObjectFile.

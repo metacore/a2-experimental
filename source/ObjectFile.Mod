@@ -544,8 +544,6 @@ BEGIN
 	section.fixup := fixup;
 END SetFixups;
 
-
-
 PROCEDURE AddOffset(VAR offsets: LONGINT; VAR offset: Offsets; ofs: LONGINT);
 VAR newOffset: Offsets; newOffsets:LONGINT; i: LONGINT;
 BEGIN

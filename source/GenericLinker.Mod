@@ -260,7 +260,7 @@ VAR section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOO
 		reader.Char(ch); ASSERT(ch='v');
 		reader.Int(version,FALSE);
 		reader.Char(ch); ASSERT(ch='.');
-		reader.Char(ch);
+		IF ~binary THEN reader.SkipWhitespace END;
 	END Header;
 
 BEGIN
