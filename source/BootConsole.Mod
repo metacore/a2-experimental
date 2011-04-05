@@ -33,7 +33,7 @@ BEGIN
 		IF s # "" THEN
 			IF TraceBoot THEN Trace.String("Bootconsole:Commands.Call: "); Trace.String(s); Trace.Ln END;
 			Commands.Call(s, flags, res, s);
-			IF (res # Commands.Ok) THEN Trace.String(s); END
+			IF (res # Commands.Ok) THEN KernelLog.Enter; KernelLog.String(s); KernelLog.Exit END
 		END;
 		INC(i);
 		IF i = 10 THEN EXIT END;
