@@ -17,11 +17,11 @@ Examples:
 *)
 
 IMPORT
-	Machine, KernelLog, Modules, Streams, Files, Commands;
+	Machine, Trace, KernelLog, Modules, Streams, Objects, Files, Commands;
 
 CONST
 	ModuleName = "Console";
-	Trace = FALSE;
+	TraceBoot = FALSE;
 
 PROCEDURE BootCommand(CONST config: ARRAY OF CHAR; flags: SET);
 VAR i, j, res: LONGINT; par: ARRAY 32 OF CHAR; s: ARRAY 256 OF CHAR;
@@ -31,8 +31,9 @@ BEGIN
 	LOOP
 		Machine.GetConfig(par, s);
 		IF s # "" THEN
+			IF TraceBoot THEN Trace.String("Bootconsole:Commands.Call: "); Trace.String(s); Trace.Ln END;
 			Commands.Call(s, flags, res, s);
-			IF (res # Commands.Ok) THEN KernelLog.Enter; KernelLog.String(s); KernelLog.Exit END
+			IF (res # Commands.Ok) THEN Trace.String(s); END
 		END;
 		INC(i);
 		IF i = 10 THEN EXIT END;
@@ -46,7 +47,7 @@ BEGIN
 	WHILE r[i] = " " DO INC(i) END;
 	j := 0; WHILE r[i] > " " DO s[j] := r[i]; INC(j); INC(i) END;
 	s[j] := 0X;
-	IF Trace THEN KernelLog.String("GetString: "); KernelLog.String(s); KernelLog.Ln END;
+	IF TraceBoot THEN Trace.String("GetString: "); Trace.String(s); Trace.Ln END;
 	RETURN j # 0
 END GetString;
 
@@ -158,4 +159,5 @@ BEGIN
 	OpenVolumes;
 	BootCommand("Boot", {Commands.Wait});
 	BootCommand("BootSystem", {});
+	Objects.Terminate();
 END BootConsole.
