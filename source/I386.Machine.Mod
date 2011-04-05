@@ -2231,10 +2231,10 @@ BEGIN
 END GetStaticHeap;
 
 (* returns if an address is a currently allocated heap address *)
-PROCEDURE ValidAddress*(p: SYSTEM.ADDRESS): BOOLEAN;
+PROCEDURE ValidHeapAddress*(p: SYSTEM.ADDRESS): BOOLEAN;
 BEGIN
 	RETURN GreaterOrEqual(p,memBlockHead.beginBlockAdr) & LessOrEqual(p,memBlockTail.endBlockAdr)
-END ValidAddress;
+END ValidHeapAddress;
 
 (** Jump from kernel to user mode. Every processor calls this during initialization. *)
 PROCEDURE JumpToUserLevel*(userEBP: SYSTEM.ADDRESS);

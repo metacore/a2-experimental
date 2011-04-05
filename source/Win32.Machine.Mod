@@ -696,7 +696,9 @@ END GetStaticHeap;
 PROCEDURE ValidAddress*(p: SYSTEM.ADDRESS): BOOLEAN;
 BEGIN
 	RETURN GreaterOrEqual(p,memBlockHead.beginBlockAdr) & LessOrEqual(p,memBlockTail.endBlockAdr)
+		(*
 		OR (p>=401000H) & (p<=500000H) (*! guess until kernel size known *)
+		*)
 END ValidAddress;
 
 

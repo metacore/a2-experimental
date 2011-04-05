@@ -115,12 +115,8 @@ TYPE
 					SYSTEM.GET (ptrAdr[i], ptr);
 					IF ptr # NIL THEN Heaps.Mark(ptr) END
 				END;
-				Heaps.Mark(next);
-				Heaps.Mark(entry);
-				Heaps.Mark(command);
-				Heaps.Mark(ptrAdr);
-				Heaps.Mark(typeInfo);
-				Heaps.Mark(module);
+				Heaps.AddRootObject(next);
+				(* all other fields are being traversed by Mark of the Garbage Collector *)
 			END;
 		END FindRoots;
 

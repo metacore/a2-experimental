@@ -246,6 +246,7 @@ TYPE
 		PROCEDURE FindRoots; (* override *)
 		VAR i: LONGINT;
 		BEGIN
+			Trace.String("ready processes: find roots"); Trace.Ln;
 			(* only mark queues of user processes since these will not change during GC *)
 			FOR i := Low TO High DO
 				Heaps.Mark(q[i].head);
@@ -309,6 +310,9 @@ TYPE
 			SwitchToNew; (* SwitchTo called by SwitchToNew will release the lock Machine.Objects *)
 
 			(* process is scheduled -> gcProcess = NIL set by scheduler (Timeslice), perform garbage collection now *)
+
+			Trace.String("collecting garbage"); Trace.Ln;
+			
 			Heaps.CollectGarbage(Modules.root);
 			Machine.Acquire(Machine.Objects);
 			IF finalizerProcess # NIL THEN
@@ -642,7 +646,6 @@ BEGIN
 						Enter(running[id]);
 						running[id] := new;
 						new.mode := Running; new.procID := id;
-
 						IF Preempted IN new.flags THEN
 							EXCL(new.flags, Preempted);
 							Machine.CopyState(new.state, state);

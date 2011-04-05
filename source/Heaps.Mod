@@ -182,9 +182,9 @@ PROCEDURE CheckPointer(p: SYSTEM.ADDRESS): BOOLEAN;
 VAR ret: BOOLEAN; heapBlockAdr, tdAdr: SYSTEM.ADDRESS;
 BEGIN
 	ret := FALSE;
-	IF Machine.ValidAddress(p)THEN
+	IF Machine.ValidHeapAddress(p)THEN
 		SYSTEM.GET(p + HeapBlockOffset, heapBlockAdr);
-		IF Machine.ValidAddress(heapBlockAdr + TypeDescOffset) THEN
+		IF Machine.ValidHeapAddress(heapBlockAdr + TypeDescOffset) THEN
 			SYSTEM.GET(heapBlockAdr + TypeDescOffset, tdAdr);
 			IF (tdAdr = systemBlockTag) OR (tdAdr = recordBlockTag) OR (tdAdr = protRecBlockTag) OR (tdAdr = arrayBlockTag) THEN
 				ret := TRUE
@@ -728,8 +728,21 @@ BEGIN
 	END
 END CleanupModuleFinalizers;
 
+(* Add a root object to the set of traversable objects. If in allocated heap then mark and traverse, if in Module Heap (Bootfile) then only traverse. *)
+PROCEDURE AddRootObject*(rootObject: RootObject);
+BEGIN
+	IF rootObject = NIL THEN (* nothing *)
+	ELSIF CheckPointer(SYSTEM.VAL(SYSTEM.ADDRESS,rootObject)) THEN
+		(* object in heap, must be fully marked and traversed *)
+		Mark(rootObject)
+	ELSE
+		(* object in bootfile, traverse as root object only *)
+		rootObject.nextRoot := rootList; rootList := rootObject;	(* link root list *)
+	END;
+END AddRootObject;
+
 (* interruptible garbage collector for native A2 *)
-PROCEDURE CollectGarbage*(root : ANY);
+PROCEDURE CollectGarbage*(root : RootObject);
 VAR
 	obj: RootObject;
 	time1, time2: HUGEINT;
@@ -747,7 +760,8 @@ BEGIN
 		numCandidates := 0;
 		rootList := NIL;
 		INC(currentMarkValue);
-		Mark(root);
+		AddRootObject(root);
+
 
 		IF GCType = HeuristicStackInspectionGC THEN
 
@@ -1159,6 +1173,7 @@ BEGIN
 		ASSERT(freeBlock.size MOD BlockSize  =  0)
 	END;
 
+	currentMarkValue := 1;
 	(* extend the heap for one block such that module initialization can continue as long as Heaps.GC is not set validly *)
 	Machine.ExpandHeap(1, 1, memBlock, beginBlockAdr, endBlockAdr);	(* try = 1, size = 1 -> the minimal heap block expansion is performed *)
 	IF Machine.GreaterThan(endBlockAdr, beginBlockAdr) THEN

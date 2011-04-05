@@ -63,7 +63,7 @@ VAR
 	PROCEDURE CheckHeapAddress(address: SYSTEM.ADDRESS): BOOLEAN;
 	VAR i: LONGINT; block{UNTRACED}: Machine.MemoryBlock; hit: BOOLEAN;
 	BEGIN
-		RETURN Machine.ValidAddress(address);
+		RETURN Machine.ValidHeapAddress(address);
 	END CheckHeapAddress;
 
 	(* Get a compressed refblk number. *)
