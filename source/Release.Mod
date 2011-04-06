@@ -713,14 +713,15 @@ TYPE
 		VAR packageArray : PackageArray; i, res : LONGINT;
 
 			PROCEDURE AddFile(archive: Zip.Archive; CONST srcname,  dstname: ARRAY OF CHAR; VAR res: LONGINT);
-			VAR f: Files.File; r: Files.Rider;
+			VAR f: Files.File; r: Files.Rider; pathName, fileName: Files.FileName;
 			BEGIN
 				f := Files.Old(srcname);
 				IF f = NIL THEN
 					res := Zip.BadName
 				ELSE
 					f.Set(r, 0);
-					Zip.AddEntry(archive, dstname, r, f.Length(), 9, 2, res);
+					Files.SplitPath(dstname, pathName, fileName);
+					Zip.AddEntry(archive, fileName, r, f.Length(), 9, 2, res);
 				END;
 			END AddFile;
 
