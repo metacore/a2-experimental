@@ -222,6 +222,25 @@ VAR
 		END;
 		Machine.Release( Machine.Heaps );
 	END CleanupModuleFinalizers;
+	
+	
+	
+	(* Add a root object to the set of traversable objects. If in allocated heap then mark and traverse, if in Module Heap (Bootfile) then only traverse. *)
+	PROCEDURE AddRootObject*( rootObject: RootObject );
+	BEGIN
+		IF rootObject = NIL THEN (* nothing *)
+		(*
+		ELSIF CheckPointer(SYSTEM.VAL(SYSTEM.ADDRESS,rootObject)) THEN
+			(* object in heap, must be fully marked and traversed *)
+			Mark(rootObject)
+		ELSE
+			(* object in bootfile, traverse as root object only *)
+			rootObject.nextRoot := rootList; rootList := rootObject;	(* link root list *)
+		*)
+		ELSE
+			Mark( rootObject )
+		END;
+	END AddRootObject;
 
 
 
