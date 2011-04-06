@@ -693,13 +693,13 @@ BEGIN
 END GetStaticHeap;
 
 (* returns if an address is a currently allocated heap address *)
-PROCEDURE ValidAddress*(p: SYSTEM.ADDRESS): BOOLEAN;
+PROCEDURE ValidHeapAddress*(p: SYSTEM.ADDRESS): BOOLEAN;
 BEGIN
 	RETURN GreaterOrEqual(p,memBlockHead.beginBlockAdr) & LessOrEqual(p,memBlockTail.endBlockAdr)
 		(*
 		OR (p>=401000H) & (p<=500000H) (*! guess until kernel size known *)
 		*)
-END ValidAddress;
+END ValidHeapAddress;
 
 
 PROCEDURE GetFreeK* (VAR total, lowFree, highFree: SYSTEM.SIZE);
