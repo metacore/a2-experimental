@@ -463,6 +463,7 @@ BEGIN
 	options.Add (0X, "fileName", Options.String); options.Add (0X, "dataFileName", Options.String);
 	options.Add (0X, "displacement", Options.Integer); options.Add (0X, "dataDisplacement", Options.Integer);
 	options.Add (0X, "fileFormat", Options.String); options.Add (0X, "dataFileFormat", Options.String);
+	options.Add (0X, "logFileName", Options.String);
 	options.Add(0X,"linkRoot", Options.String);
 	IF ~options.Parse (context.arg, context.error) THEN context.result := Commands.CommandParseError; RETURN; END;
 	silent := options.GetFlag ("silent");
