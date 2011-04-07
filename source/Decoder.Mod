@@ -608,7 +608,7 @@ TYPE
 				reader.RawNum(ofs);
 				reader.RawString(name);
 				ASSERT(name = "$$");
-				name := "$$BODY";
+				name := "@Body";
 				NEW(procInfo, name, 0, header.entries); (* indexes below this are reserved by procedures/methods part of entries *)
 				AddProcedure(procInfo);
 				fldInfo := DecodeField(reader);
