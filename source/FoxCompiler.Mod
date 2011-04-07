@@ -5,7 +5,7 @@ IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,  D := Debugging,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal
-	, ActiveCells := FoxActiveCells, Files;
+	, ActiveCells := FoxActiveCells, Files, IntermediateCodeAssembler := FoxIntermediateCodeAssembler;
 
 CONST
 	(* flags *)
@@ -110,30 +110,7 @@ TYPE
 		RETURN objectFileFormat
 	END GetObjectFileFormat;
 
-	PROCEDURE GetBackend*(CONST name: ARRAY OF CHAR):Backend.Backend;
-	VAR
-		procname: ARRAY 256 OF CHAR;
-		factory: PROCEDURE (): Backend.Backend;
-		backend: Backend.Backend;
-	BEGIN
-		backend := NIL;
-		IF Strings.Length(name) > 0 THEN
-			GETPROCEDURE(name,"Get", factory); (* try long name for example -G=OCERABackend *)
 
-			IF factory = NIL THEN (* try short name for example -G=ERA*)
-				procname := "Fox";
-				Strings.Append(procname, name);
-				Strings.Append(procname, "Backend");
-				GETPROCEDURE(procname,"Get", factory);
-			END;
-
-			IF factory # NIL THEN
-				backend := factory();
-				Assert(backend # NIL,"backend factory returned NIL backend");
-			END;
-		END;
-		RETURN backend
-	END GetBackend;
 
 	PROCEDURE GetActiveCellsSpecification(CONST name: ARRAY OF CHAR): ActiveCells.Specification;
 	VAR
@@ -157,19 +134,19 @@ TYPE
 		RETURN specification
 	END GetActiveCellsSpecification;
 
-	PROCEDURE Module*(	CONST source: ARRAY OF CHAR; (* source file name, for debugging and better error reports *)
-								reader: Streams.Reader; (* reader to read from *)
-								position: LONGINT; (* starting position in reader *)
-								diagnostics: Diagnostics.Diagnostics; (* error output and status report *)
-								flags: SET; (* general flags, special options are handled by components *)
-								backend: Backend.Backend; (* backend: code generator *)
-								symbolFileFormat: Formats.SymbolFileFormat;
-								objectFileFormat: Formats.ObjectFileFormat;
-								activeCellsSpecification: ActiveCells.Specification;
-								log: Streams.Writer;
-								VAR importCache: SyntaxTree.ModuleScope;
-								CONST findPC: ARRAY OF CHAR (* locate a source code position providing a binary module offset *)
-								): BOOLEAN;
+	PROCEDURE Modules*(CONST source: ARRAY OF CHAR; (* source file name, for debugging and better error reports *)
+			reader: Streams.Reader; (* reader to read from *)
+			position: LONGINT; (* starting position in reader *)
+			diagnostics: Diagnostics.Diagnostics; (* error output and status report *)
+			flags: SET; (* general flags, special options are handled by components *)
+			backend: Backend.Backend; (* backend: code generator *)
+			symbolFileFormat: Formats.SymbolFileFormat;
+			objectFileFormat: Formats.ObjectFileFormat;
+			activeCellsSpecification: ActiveCells.Specification;
+			log: Streams.Writer;
+			VAR importCache: SyntaxTree.ModuleScope;
+			CONST findPC: ARRAY OF CHAR (* locate a source code position providing a binary module offset *)
+			): BOOLEAN;
 	VAR
 		module: SyntaxTree.Module;
 		scanner: Scanner.Scanner;
@@ -246,7 +223,7 @@ TYPE
 			Global.NewBuiltin(Global.Send,"SEND",system.globalScope,FALSE);
 			Global.NewBuiltin(Global.Delegate,"DELEGATE",system.globalScope,FALSE);
 			Global.NewBuiltin(Global.systemHardwareAddress,"HWADR",system.systemScope,FALSE);
-			activeCellsBackend := GetBackend("FoxActiveCellsBackend");
+			activeCellsBackend := Backend.GetBackendByName("FoxActiveCellsBackend");
 			IF activeCellsBackend = NIL THEN FinalMessage(TRUE,"could not install activeCells backend"); RETURN FALSE END;
 		END;
 		parser := Parser.NewParser( scanner, diagnostics );
@@ -300,7 +277,7 @@ TYPE
 							RETURN TRUE
 						END;
 					END;
-					generatedModule := backend.Module(module);
+					generatedModule := backend.ProcessSyntaxTreeModule(module);
 					IF backend.error THEN
 						FinalMessage(TRUE, " could not be compiled (backend errors).");
 						RETURN FALSE
@@ -328,7 +305,7 @@ TYPE
 
 				IF activeCellsSpecification # NIL THEN
 					activeCellsBackend.Initialize(diagnostics,log, flags,checker,system,activeCellsSpecification);
-					generatedModule := activeCellsBackend.Module(module);
+					generatedModule := activeCellsBackend.ProcessSyntaxTreeModule(module);
 					IF activeCellsBackend.error THEN
 						FinalMessage(TRUE, " could not be compiled (activeCells backend errors)");
 						RETURN FALSE
@@ -354,7 +331,7 @@ TYPE
 		UNTIL (SingleModule IN flags) OR ~parser.NextModule();
 
 		RETURN TRUE;
-	END Module;
+	END Modules;
 
 	PROCEDURE GetOptions*(input: Streams.Reader; error:Streams.Writer; diagnostics: Diagnostics.Diagnostics; VAR flags: SET;
 		VAR backend: Backend.Backend;
@@ -399,12 +376,12 @@ TYPE
 		IF options.GetString("b", name) THEN
 			IF name = "" THEN backend := NIL
 			ELSE
-				backend := GetBackend(name);
+				backend := Backend.GetBackendByName(name);
 				IF (backend = NIL)  THEN
 					Error("backend could not be installed"); result := FALSE;
 				END;
 			END;
-		ELSE backend := GetBackend(DefaultBackend);
+		ELSE backend := Backend.GetBackendByName(DefaultBackend);
 			IF backend = NIL THEN Error("default backend could not be installed"); result := FALSE END;
 		END;
 
@@ -438,7 +415,7 @@ TYPE
 		ELSIF options.GetFlag("activeCells") THEN
 			NEW(activeCellsSpecification,"",diagnostics,NIL);
 		END;
-
+		
 		IF backend # NIL THEN backend.DefineOptions (options); INCL(flags,Check); END;
 		IF symbolFile # NIL THEN symbolFile.DefineOptions(options); INCL(flags,Check) END;
 		IF objectFile # NIL THEN objectFile.DefineOptions(options); INCL(flags,Check) END;
@@ -493,7 +470,7 @@ TYPE
 				IF reader = NIL THEN
 					diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 				ELSE
-					error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC);
+					error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC);
 				END;
 				context.out.Update;
 				context.error.Update;
@@ -504,7 +481,36 @@ TYPE
 			END;
 		END;
 	END Compile;
-
+	
+	PROCEDURE Assemblink*(context: Commands.Context);
+	VAR
+		rootModuleName: ARRAY 256 OF CHAR;				
+		diagnostics: Diagnostics.StreamDiagnostics;	
+		flags: SET;
+		checker: SemanticChecker.Checker;
+		backend: Backend.Backend;
+		objectFile: Formats.ObjectFileFormat;
+		dummySymbolFileFormat: Formats.SymbolFileFormat;
+		dummyDataflowSpecification: ActiveCells.Specification;
+		dummyImportCache: SyntaxTree.ModuleScope;
+		dummyString: SyntaxTree.String;
+	BEGIN	
+		NEW(diagnostics, context.out);
+		IF GetOptions(context.arg, context.error, diagnostics, flags, backend, dummySymbolFileFormat, objectFile, dummyDataflowSpecification, dummyString) THEN
+			(* TODO: handle flags, such as 'Print', 'Silent' and 'TraceError'? *)
+			(* TODO: handle multiple module names? *)				
+			IF context.arg.GetString(rootModuleName) THEN			
+				(* note: even though assembling and linking doesn't involve a semantic check, the backend still requires an instance of the semantic checker *)
+				(*checker := SemanticChecker.NewChecker(diagnostics, FALSE, FALSE, backend.GetSystem(), NIL, NIL, dummyImportCache);*)
+				
+				IntermediateCodeAssembler.Assemblink(rootModuleName, diagnostics, context.out, flags, NIL, backend, objectFile);
+			ELSE
+				diagnostics.Error("", Diagnostics.Invalid, Diagnostics.Invalid, "root module name not specified");
+				context.out.Update
+			END	
+	 	END
+	END Assemblink;
+	
 	PROCEDURE CompileReader*(context: Commands.Context; reader: Streams.Reader);
 	VAR
 		filename: ARRAY 256 OF CHAR;
@@ -527,7 +533,7 @@ TYPE
 			IF reader = NIL THEN
 				diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 			ELSE
-				error := ~Module(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC);
+				error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC);
 			END;
 			context.out.Update;
 		END;

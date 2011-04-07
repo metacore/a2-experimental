@@ -641,7 +641,7 @@ TYPE
 			logFile := Files.New(msg);
 			IF logFile # NIL THEN NEW(linkerLog,logFile,0) ELSE logFile := NIL END;
 			GetFullName(linkRoot,NIL);
-			Strings.Append(linkRoot,".$$BODYSTUB");
+			Strings.Append(linkRoot,".@BodyStub");
 			linker.SetLinkRoot(linkRoot);
 			FOR i := 0 TO modules.Length()-1 DO
 				module := modules.GetModule(i);

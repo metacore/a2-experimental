@@ -2573,6 +2573,7 @@ TYPE
 			out: BinaryCode.Section;
 			name: SyntaxTree.String;
 			procedure: SyntaxTree.Procedure;
+			i, initialSectionCount: LONGINT;
 
 		 	(* recompute fixup positions and assign binary sections *)
 		 	PROCEDURE PatchFixups(section: BinaryCode.Section);
@@ -2600,22 +2601,22 @@ TYPE
 
 		BEGIN
 		 	cg.SetModule(module);
-		 	in := module.sections.first;
-		 	WHILE in # NIL DO
+		 
+		 	FOR i := 0 TO module.sections.Length() - 1 DO
+			 	in := module.sections.GetSection(i);
 		 		IF in.type = Sections.InlineCodeSection THEN
 			 		COPY(in.name,name);
 			 		out := ResolvedSection(in(IntermediateCode.Section));
 			 		cg.Section(in(IntermediateCode.Section),out);
 			 		procedure := in.symbol(SyntaxTree.Procedure);
 			 		procedure.procedureScope.body.code.SetBinaryCode(out.bits);
-			 	END;
-		 		in := in.nextSection;
+			 	END
 		 	END;
-
+			
 		 	REPEAT
-			 	in := module.sections.first;
-		 	 	last := module.sections.last;
-			 	WHILE (in # NIL) DO
+		 	 	initialSectionCount := module.sections.Length();
+			 	FOR i := 0 TO module.sections.Length() - 1 DO
+			 		in := module.sections.GetSection(i);
 			 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
 				 		COPY(in.name,name);
 				 		out := ResolvedSection(in(IntermediateCode.Section));
@@ -2628,47 +2629,42 @@ TYPE
 				 		ELSIF out.type = Sections.ConstSection THEN
 				 			out.SetAlignment(FALSE,4);
 				 		END;
-			 		END;
-			 		IF in = last THEN
-			 			in := NIL
-			 		ELSE
-				 		in := in.nextSection;
-				 	END;
-			 	END;
-			UNTIL last = module.sections.last; (* process remaining sections that have been added during traversal of sections *)
+			 		END
+			 	END
+			UNTIL initialSectionCount = module.sections.Length(); (* process remaining sections that have been added during traversal of sections *)
 
-		 	in := module.caseTables.first;
-		 	WHILE in # NIL DO
+
+			FOR i := 0 TO module.caseTables.Length() - 1 DO
+				in := module.caseTables.GetSection(i);
 		 		IF in(IntermediateCode.Section).resolved = NIL THEN
 			 		out := ResolvedSection(in(IntermediateCode.Section));
 			 		cg.Section(in(IntermediateCode.Section),out);
-			 	END;
-		 		in := in.nextSection;
+			 	END
 		 	END;
 
-		 	in := module.sections.first;
-		 	WHILE in # NIL DO
-		 		PatchFixups(in(IntermediateCode.Section).resolved);
-		 		in := in.nextSection;
+			FOR i := 0 TO module.sections.Length() - 1 DO
+				in := module.sections.GetSection(i);
+		 		PatchFixups(in(IntermediateCode.Section).resolved)
 		 	END;
 
-		 	in := module.caseTables.first;
-		 	WHILE in # NIL DO
-		 		PatchFixups(in(IntermediateCode.Section).resolved);
-		 		in := in.nextSection;
+			FOR i := 0 TO module.caseTables.Length() - 1 DO
+				in := module.caseTables.GetSection(i);
+		 		PatchFixups(in(IntermediateCode.Section).resolved)
 		 	END;
 
 			IF cg.error THEN Error("",Diagnostics.Invalid, Diagnostics.Invalid,"") END;
 		END GenerateBinary;
-
-		PROCEDURE Module(x: SyntaxTree.Module): Formats.GeneratedModule;
+		
+		(* genasm *)
+		PROCEDURE ProcessIntermediateCodeModule*(intermediateCodeModule: Formats.GeneratedModule): Formats.GeneratedModule;
 		VAR
 			dump: Basic.Writer;
-			intermediateModule: Formats.GeneratedModule;
 			dumpName: SyntaxTree.String;
+			result: Formats.GeneratedModule;
 		BEGIN
-			intermediateModule := GenerateIntermediate(x);
-
+			ASSERT(intermediateCodeModule IS Sections.Module);
+			result := intermediateCodeModule;
+			
 			IF trace THEN
 				dumpName := "AMD64 code trace: ";
 				Strings.Append(dumpName,traceString);
@@ -2677,55 +2673,60 @@ TYPE
 				dump.String(";---------------- intermediate code -----------------"); dump.Ln;
 				dump.EndComment;
 				IF (traceString="") OR (traceString="*") THEN
-					intermediateModule.Dump(dump);
+					result.Dump(dump);
 					dump.Update
 				ELSE
-					Sections.DumpFiltered(dump,intermediateModule(Sections.Module),traceString);
+					Sections.DumpFiltered(dump, result(Sections.Module), traceString);
 				END
 			END;
 
 			IF ~error THEN
-				GenerateBinary(intermediateModule(Sections.Module),dump);
+				GenerateBinary(result(Sections.Module),dump);
 				IF dump # NIL THEN
 					dump.Ln; dump.Ln;
 					dump.BeginComment;
 					dump.String(";------------------ binary code -------------------"); dump.Ln;
 					dump.EndComment;
 					IF (traceString="") OR (traceString="*") THEN
-						intermediateModule.Dump(dump);
+						result.Dump(dump);
 						dump.Update
 					ELSE
-						Sections.DumpFiltered(dump,intermediateModule(Sections.Module),traceString);
+						Sections.DumpFiltered(dump, result(Sections.Module), traceString);
 						dump.Update;
 					END
 				END;
 			END;
-			RETURN intermediateModule
+			RETURN result
 		FINALLY
 			IF dump # NIL THEN
 				dump.Ln; dump.Ln;
 				dump.String("; ------------------ rescued code (code generation trapped) -------------------"); dump.Ln;
 				IF (traceString="") OR (traceString="*") THEN
-					intermediateModule.Dump(dump);
+					result.Dump(dump);
 					dump.Update
 				ELSE
-					Sections.DumpFiltered(dump,intermediateModule(Sections.Module),traceString);
+					Sections.DumpFiltered(dump, result(Sections.Module), traceString);
 					dump.Update;
 				END
 			END;
 			HALT(100); (* do not continue compiling after trap *)
-			RETURN intermediateModule
-		END Module;
-
+			RETURN result
+		END ProcessIntermediateCodeModule;
+		
 		PROCEDURE FindPC(x: SyntaxTree.Module; CONST sectionName: ARRAY OF CHAR; sectionOffset: LONGINT);
-		VAR section:Sections.Section; binarySection: BinaryCode.Section; label: BinaryCode.LabelList; module: Formats.GeneratedModule;
+		VAR
+			section: Sections.Section; binarySection: BinaryCode.Section; label: BinaryCode.LabelList; module: Formats.GeneratedModule;
+			i: LONGINT;
 		BEGIN
-			module := Module(x);
-			section := module(Sections.Module).sections.first;
-			WHILE (section # NIL) & (section.name # sectionName) DO
-				section := section.nextSection
-			END;
-			IF section = NIL THEN
+			module := ProcessSyntaxTreeModule(x);
+			
+			i := 0;
+			REPEAT
+				section := module(Sections.Module).sections.GetSection(i);
+				INC(i);
+			UNTIL (i = module(Sections.Module).sections.Length()) OR (section.name = sectionName);
+			
+			IF section.name # sectionName THEN
 				diagnostics.Error(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid," could not locate pc");
 			ELSE
 				binarySection := section(IntermediateCode.Section).resolved;
@@ -2740,6 +2741,10 @@ TYPE
 				END;
 			END;
 		END FindPC;
+
+		PROCEDURE GetDescription*(VAR instructionSet: ARRAY OF CHAR);
+		BEGIN instructionSet := "AMD";
+		END GetDescription;
 
 		PROCEDURE DefineOptions(options: Options.Options);
 		BEGIN
@@ -2779,7 +2784,7 @@ TYPE
 	BEGIN
 		IF in.resolved = NIL THEN
 			NEW(section,in.type, 8, in.name,in.comments # NIL,FALSE);
-			section.SetAlignment(in.fixed, in.alignment);
+			section.SetAlignment(in.fixed, in.positionOrAlignment);
 			in.SetResolved(section);
 		ELSE
 			section := in.resolved

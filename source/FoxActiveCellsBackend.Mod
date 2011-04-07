@@ -1041,6 +1041,10 @@ TYPE
 
 			RETURN NIL
 		END Module;
+		
+		PROCEDURE GetDescription*(VAR instructionSet: ARRAY OF CHAR);
+		BEGIN instructionSet := "ActiveCells";
+		END GetDescription;
 
 		PROCEDURE DefineOptions(options: Options.Options);
 		BEGIN

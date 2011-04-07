@@ -707,6 +707,36 @@ TYPE
 			END;
 		END SkipToEndOfLine;
 
+		(**
+			note: in contrast to a regular identifier, an assembler scanner identifier may also contain periods and the '@'-symbol
+			
+			Identifier = '@' | Letter {'@' | '.' | Letter | Digit | '_'} .
+			Letter = 'A' | 'B' | .. |  'Z' | 'a' | 'b' |  .. | 'z' .
+			Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'.
+
+			'_' is the underscore character
+		**)
+		PROCEDURE GetIdentifier( VAR symbol: Symbol );
+		VAR
+			i: LONGINT;
+			
+			PROCEDURE CharacterIsAllowed(character: CHAR): BOOLEAN;
+			BEGIN
+				CASE character OF
+				| 'a' .. 'z', 'A' .. 'Z', '0' .. '9', '@', '.': RETURN TRUE
+				ELSE RETURN FALSE
+				END;
+			END CharacterIsAllowed;
+		BEGIN
+			i := 0;
+			REPEAT
+				symbol.string[i] := ch; INC( i );  GetNextCharacter
+			UNTIL ~CharacterIsAllowed(ch) OR (i = MaxIdentifierLength);
+			
+			IF i = MaxIdentifierLength THEN Error( Basic.IdentifierTooLong );  DEC( i ) END;
+			symbol.string[i] := 0X;
+		END GetIdentifier;
+
 		(** get next symbol **)
 		PROCEDURE GetNextSymbol*(VAR symbol: Symbol ): BOOLEAN;
 		VAR s: LONGINT;
@@ -756,6 +786,7 @@ TYPE
 				| "}":     s := RightBrace;  GetNextCharacter
 				| "A".."Z": s := Identifier; GetIdentifier( symbol );
 				| "a".."z": s := Identifier; GetIdentifier( symbol);
+				| "@":     s := Identifier; GetIdentifier( symbol); (* the '@'-symbol initiates an assembly scanner identifier *) (* genasm *)
 				| '$': GetNextCharacter;
 					IF ch = '$' THEN s := PCOffset; GetNextCharacter ELSE s := PC; END
 				ELSE s := None; GetNextCharacter;

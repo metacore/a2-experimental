@@ -1288,7 +1288,7 @@ TYPE
 		OberonName := SyntaxTree.NewIdentifier("Oberon");
 		ArrayBaseName := SyntaxTree.NewIdentifier("FoxArrayBase");
 		RecordBodyName := SyntaxTree.NewIdentifier("@Body");
-		ModuleBodyName := SyntaxTree.NewIdentifier("$$Body");
+		ModuleBodyName := SyntaxTree.NewIdentifier("@Body");
 
 		NameWinAPI := SyntaxTree.NewIdentifier(StringWinAPI);
 		NameC := SyntaxTree.NewIdentifier(StringC);

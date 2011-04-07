@@ -56,8 +56,11 @@ TYPE
 
 	ErrorMsgs = POINTER TO ARRAY OF StringPool.Index;
 
+	ComparisonFunction = PROCEDURE {DELEGATE} (object1, object2: ANY): BOOLEAN;
+
 	List* = OBJECT  (* by Luc Bläser *)
-	VAR list: ObjectArray;
+	VAR
+		list: ObjectArray;
 		count-: LONGINT;
 		multipleAllowed*: BOOLEAN;
 		nilAllowed*: BOOLEAN;
@@ -202,7 +205,36 @@ TYPE
 			list[i] := x;
 			INC(i); IF count < i THEN count := i END;
 		END GrowAndSet;
+		
+		PROCEDURE Sort*(comparisonFunction: ComparisonFunction);
+		BEGIN
+			QuickSort(comparisonFunction, 0, count - 1)
+		END Sort;
+		
+		PROCEDURE QuickSort(comparisonFunction: ComparisonFunction; lo, hi: LONGINT);
+		VAR
+			i, j: LONGINT;
+			x, t: ANY;
+		BEGIN
+			i := lo; j := hi;
+			x := list[(lo + hi) DIV 2];
 
+			WHILE i <= j DO
+				WHILE comparisonFunction(list[i], x) DO INC(i) END;
+				WHILE comparisonFunction(x, list[j]) DO DEC(j) END;
+				
+				IF i <= j THEN
+					(*IF (i < j) & comparisonFunction(list[j], list[i]) THEN*)
+						t := list[i]; list[i] := list[j]; list[j] := t; (* swap i and j *)
+					(*END;*)
+
+					INC(i); DEC(j)
+				END
+			END;
+
+			IF lo < j THEN QuickSort(comparisonFunction, lo, j) END;
+			IF i < hi THEN QuickSort(comparisonFunction, i, hi) END
+		END QuickSort;
 	END List;
 
 	IntegerList* = OBJECT

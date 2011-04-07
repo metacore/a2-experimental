@@ -8,24 +8,30 @@ CONST
 TYPE
 	(* container for generated code (intermediate code - binary code) *)
 	GeneratedModule*=OBJECT
-		VAR
-		(* input for (intermediate) code generation *)
-		module-: SyntaxTree.Module;
-		system-: Global.System;
-		findPC-: LONGINT;
+		VAR			
+			(* input for (intermediate) code generation *)
+			module-: SyntaxTree.Module;
+			system-: Global.System;
+			findPC-: LONGINT;
+			moduleName-: SyntaxTree.String; (* genasm *)
 
 		PROCEDURE SetFindPC*(findPC: LONGINT);
 		BEGIN SELF.findPC := findPC
 		END SetFindPC;
-
+		
 		PROCEDURE & Init*(module: SyntaxTree.Module; system: Global.System);
 		BEGIN SELF.module := module; SELF.system := system; findPC := NoFindPC
 		END Init;
 
+		PROCEDURE SetModuleName*(moduleName: SyntaxTree.String);
+		BEGIN SELF.moduleName := moduleName
+		END SetModuleName;
+
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR name: SyntaxTree.String;
 		BEGIN
-			w.String(".module "); Global.ModuleFileName(module.name,module.context,name); w.String(name); w.Ln; w.Ln;
+			w.String(".module "); w.String(moduleName); w.Ln;
+			w.Ln;
 		END Dump;
 
 	END GeneratedModule;

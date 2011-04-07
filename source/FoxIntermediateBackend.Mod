@@ -284,8 +284,8 @@ TYPE
 			IF (currentScope IS SyntaxTree.ModuleScope) OR (currentScope IS SyntaxTree.CellScope) THEN
 				(* code section for variable *)
 				Global.GetSymbolName(x,name);
-				irv := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,dump);
-				irv.SetAlignment(x.fixed, x.alignment);
+				irv := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,dump);				
+				irv.SetPositionOrAlignment(x.fixed, x.alignment);				
 				irv.SetOffset(ToMemoryUnits(system,x.offsetInBits));
 				irv.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(x.type))));
 				CheckTypeDeclaration(implementationVisitor, module,x.type,dump,implementationVisitor.newObjectFile);
@@ -302,7 +302,7 @@ TYPE
 			(* code section for variable *)
 			Global.GetSymbolName(x,name);
 			irv := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,dump);
-			irv.SetAlignment(x.fixed, x.alignment);
+			irv.SetPositionOrAlignment(x.fixed, x.alignment);
 			(*
 			irv.SetOffset(ToMemoryUnits(system,x.offsetInBits));
 			*)
@@ -574,7 +574,7 @@ TYPE
 		BEGIN
 			ASSERT (bodyProcedure # NIL);
 			procedureScope := SyntaxTree.NewProcedureScope(bodyProcedure.scope);
-			procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier("$$BODYSTUB"), procedureScope);
+			procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier("@BodyStub"), procedureScope);
 			procedure.SetScope(bodyProcedure.scope);
 			procedure.SetType(SyntaxTree.NewProcedureType(-1,bodyProcedure.scope));
 			procedure.SetAccess(SyntaxTree.Hidden);
@@ -597,6 +597,7 @@ TYPE
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand; name: SyntaxTree.String;
 			typeDeclaration: SyntaxTree.TypeDeclaration; hasDynamicOperatorDeclarations: BOOLEAN; (* nopov *)
 			operator: SyntaxTree.Operator;
+			import: SyntaxTree.Import;
 
 			PROCEDURE TypeNeedsInitialization(type: SyntaxTree.Type): BOOLEAN;
 			BEGIN
@@ -634,7 +635,15 @@ TYPE
 		BEGIN
 			ASSERT(x # NIL); ASSERT(module # NIL);
 			SELF.module := module;
-
+			
+			(* add import names to the generated Sections.Module *) 
+			import := x.moduleScope.firstImport;
+			WHILE import # NIL DO
+				import.GetName(name);
+				module.imports.AddName(name);
+				import := import.nextImport
+			END;
+			
 			IF ~implementationVisitor.newObjectFile THEN
 				Global.GetModuleName(module.module,name); Strings.Append(name,"."); Strings.Append(name,"@moduleSelf");
 				moduleSelf := SyntaxTree.NewVariable(0,SyntaxTree.NewIdentifier("@moduleSelf"));
@@ -1543,7 +1552,7 @@ TYPE
 		PROCEDURE AddImport(CONST moduleName: ARRAY OF CHAR; VAR module: SyntaxTree.Module; force: BOOLEAN): BOOLEAN;
 		VAR import: SyntaxTree.Import;
 			s: Scanner.StringType;
-			selfName, selfContext: SyntaxTree.String;
+			selfName, selfContext, name: SyntaxTree.String;
 		BEGIN
 			moduleScope.ownerModule.GetName(selfName);
 			Basic.GetString(moduleScope.ownerModule.context,selfContext);
@@ -1553,6 +1562,10 @@ TYPE
 				import := moduleScope.ImportByModuleName(SyntaxTree.NewIdentifier(moduleName),SyntaxTree.NewIdentifier("A2"));
 				IF import = NIL THEN
 					import := SyntaxTree.NewImport(-1,SyntaxTree.NewIdentifier(moduleName),SyntaxTree.NewIdentifier(moduleName),TRUE);
+					
+					COPY(moduleName, name);
+					SELF.module.imports.AddName(name); (* genasm *)
+					
 					import.SetContext(SyntaxTree.NewIdentifier("A2"));
 					IF ~checker.AddImport(moduleScope.ownerModule,import) OR (import.module = NIL) THEN
 						IF force THEN
@@ -7261,7 +7274,7 @@ TYPE
 					Emit(Call(IntermediateCode.Address(addressType, operatorInitializationCodeSection, 0), 0))
 				END;
 
-				section.SetAlignment(procedure.fixed, procedure.alignment);
+				section.SetPositionOrAlignment(procedure.fixed, procedure.alignment);
 				IF moduleBody THEN
 					InitVariables(moduleScope)
 				END;
@@ -7355,6 +7368,7 @@ TYPE
 		profile-: BOOLEAN;
 		noRuntimeChecks: BOOLEAN;
 		noAsserts: BOOLEAN;
+		intermediateDump: BOOLEAN;
 
 		PROCEDURE &InitIntermediateBackend*;
 		BEGIN
@@ -7372,7 +7386,7 @@ TYPE
 			declarationVisitor: DeclarationVisitor;
 			implementationVisitor: ImplementationVisitor;
 			module: Sections.Module;
-			name, instructionSet: SyntaxTree.String;
+			name, instructionSet, filename, platformName: SyntaxTree.String; (* genasm *)
 		BEGIN
 			ResetError;
 			Global.GetSymbolName(x,name);
@@ -7383,66 +7397,91 @@ TYPE
 			END;
 
 			NEW(module,x,system); (* backend structures *)
+			
+			(* genasm *)
+			Global.GetModuleName(x, name);
+			module.SetModuleName(name);
+			
 			NEW(implementationVisitor,system,checker,Supported,Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
 			NEW(declarationVisitor,system,implementationVisitor,SELF,Compiler.ForceModuleBodies IN flags,trace & (Compiler.Info IN flags));
 			declarationVisitor.Module(x,module);
 
-
 			IF newObjectFile THEN
 				MetaModule(implementationVisitor,module);
 			END;
+			
+			(* genasm *)
+			GetDescription(platformName);
+			module.SetPlatformName(platformName);
+			
+			(* genasm *)
+			(* dump the generated Sections.Module into a IR-file *)
+			IF intermediateDump THEN
+				Files.JoinExtension(module.moduleName, "ir", filename);
+				DumpSectionsModuleIntoFile(module, filename)
+			END;
+			
 			RETURN module
 		END GenerateIntermediate;
 
-		PROCEDURE GenerateFile(module: Sections.Module; dump: Streams.Writer; fname: ARRAY OF CHAR );
+		(* genasm *)
+		PROCEDURE DumpSectionsModuleIntoFile(module: Sections.Module; filename: ARRAY OF CHAR);
 		VAR
-			file : Files.File;
-			writer	: Files.Writer;
+			file: Files.File;
+			writer: Files.Writer;
 		BEGIN
-			file := Files.New( fname );
-			Files.OpenWriter( writer, file, 0 );
+			D.String("DumpSectionsModuleIntoFile"); D.Ln; (* TENTATIVE *)
+			
+			file := Files.New(filename);
+			Files.OpenWriter(writer, file, 0);
+
+			writer.String("; This Intermediate Code assembly was generated by the Intermediate Backend of the Fox Compiler Suite");writer.Ln;
+			writer.Ln;
+
 			module.Dump(writer);
 			writer.Update;
 			file.Update;
-			Files.Register( file );
-		END GenerateFile;
+			Files.Register(file)
+		END DumpSectionsModuleIntoFile;
 
-		(* Work on a module *)
-		PROCEDURE Module(x: SyntaxTree.Module): Formats.GeneratedModule;
+		(* genasm *)
+		PROCEDURE ProcessSyntaxTreeModule(syntaxTreeModule: SyntaxTree.Module): Formats.GeneratedModule;
+		BEGIN
+			RETURN ProcessIntermediateCodeModule(GenerateIntermediate(syntaxTreeModule))
+		END ProcessSyntaxTreeModule;
+
+		(* genasm *)
+		PROCEDURE ProcessIntermediateCodeModule(intermediateCodeModule: Formats.GeneratedModule): Formats.GeneratedModule;
 		VAR
 			dump: Basic.Writer;
-			module: Sections.Module;
+			result: Sections.Module;
 			traceName: SyntaxTree.String;
 			name: SyntaxTree.String;
-			fname	: ARRAY 256 OF CHAR;
+			fname: ARRAY 256 OF CHAR;
 		BEGIN
-			module := GenerateIntermediate(x);
-
+			intermediateDump := TRUE; (* the intermediate backend was selected as the target, therefore the intermediate code is dumped regardless of the command line options *) (* genasm *)			
+		
+			ASSERT(intermediateCodeModule IS Sections.Module);			
+			result := intermediateCodeModule(Sections.Module);
+			
 			IF trace THEN
 				traceName := "intermediate code trace: ";
 				Strings.Append(traceName,traceString);
 				dump := Basic.GetWriter(Basic.GetDebugWriter(traceName));
 				IF (traceString="") OR (traceString="*") THEN
-					module.Dump(dump);
+					result.Dump(dump);
 					dump.Update
 				ELSE
-					Sections.DumpFiltered(dump,module,traceString);
+					Sections.DumpFiltered(dump, result, traceString);
 				END
 			END;
-			IF ~error THEN
-				Global.GetSymbolName(x,name);
-				Files.JoinExtension( name, "ir", fname );
-				IF dump # NIL THEN
-					dump.String( "generate file: " );
-					dump.String( fname );
-					dump.Ln;
-					dump.Update;
-				END;
-				GenerateFile(module,dump,fname);
-			END;
-
-			RETURN module
-		END Module;
+			RETURN result
+		END ProcessIntermediateCodeModule;
+		
+		(* genasm *)
+		PROCEDURE GetDescription*(VAR instructionSet: ARRAY OF CHAR);
+		BEGIN instructionSet := "Intermediate";
+		END GetDescription;
 
 		PROCEDURE DefineOptions(options: Options.Options);
 		BEGIN
@@ -7454,6 +7493,7 @@ TYPE
 			options.Add(0X,"profile",Options.Flag);
 			options.Add(0X,"noRuntimeChecks",Options.Flag);
 			options.Add(0X,"noAsserts",Options.Flag);
+			options.Add(0X,"intermediateDump",Options.Flag) (* genasm *)
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -7471,6 +7511,7 @@ TYPE
 			IF ~options.GetString("traceModule",traceModuleName) THEN
 				traceModuleName := DefaultTraceModuleName;
 			END;
+			intermediateDump := options.GetFlag("intermediateDump") (* genasm *)
 		END GetOptions;
 
 		PROCEDURE SetRuntimeModuleName*(CONST name: ARRAY OF CHAR);
@@ -8692,39 +8733,37 @@ TYPE
 	END MetaArray;
 
 	PROCEDURE MetaExportDescArray(module: Sections.Module; source: IntermediateCode.Section; VAR size: LONGINT);
-	VAR sizePC: LONGINT; section: Sections.Section;		fingerPrinter : FingerPrinter.FingerPrinter;
+	VAR
+		sizePC, i: LONGINT; section: Sections.Section; fingerPrinter : FingerPrinter.FingerPrinter;
 	BEGIN
 		NEW(fingerPrinter, module.system);
 		size := 0;
 		MetaArray(module,source,sizePC);
-
-		section := module.sections.first;
-		WHILE section # NIL DO
-			IF MetaExportDesc(module,source,fingerPrinter,section) THEN INC(size) END;
-			section := section.nextSection;
+		FOR i := 0 TO  module.sections.Length() - 1 DO
+			IF MetaExportDesc(module, source, fingerPrinter, module.sections.GetSection(i)) THEN INC(size) END
 		END;
 		PatchLongint(module,source,sizePC,size);
 	END MetaExportDescArray;
 
 	PROCEDURE MetaExceptionArray(module: Sections.Module; source: IntermediateCode.Section);
-	VAR p: Sections.Section; finallyPC, sizePC, size: LONGINT;
+	VAR
+		p: Sections.Section; finallyPC, sizePC, size, i: LONGINT;
 	BEGIN
 		MetaInfo(source, "exception table offsets array descriptor");
 		size := 0;
 		MetaArray(module,source,sizePC);
 		MetaInfo(source, "exception table content");
-		p := module.sections.first;
-		WHILE p # NIL DO
+		FOR i := 0 TO module.sections.Length() - 1 DO
+			p := module.sections.GetSection(i);
 			IF p.type = Sections.CodeSection THEN
 				finallyPC := p(IntermediateCode.Section).finally;
 				IF finallyPC>=0 THEN
 					MetaSymbol(module, source, p, 0,0);
 					MetaSymbol(module, source, p, finallyPC, 0);
-					MetaSymbol(module, source,p, finallyPC,0);
+					MetaSymbol(module, source, p, finallyPC,0);
 					INC(size);
 				END;
-			END;
-			p := p.nextSection
+			END
 		END;
 		PatchLongint(module,source,sizePC,size);
 		END MetaExceptionArray;
@@ -8751,7 +8790,8 @@ TYPE
 			rfChar16=11X; rfChar32=12X; rfAll=13X; rfSame=14X; rfRange=15X; rfRecord=16X; rfRecordPointer=1DX;
 			rfArrayFlag = 80X;
 
-		VAR size: LONGINT; s: Sections.Section; sizePC: LONGINT;
+		VAR
+			size: LONGINT; s: Sections.Section; sizePC, i: LONGINT;
 
 			PROCEDURE BaseType(arrayOf: BOOLEAN; type: SyntaxTree.Type);
 			VAR char: CHAR;
@@ -9017,21 +9057,19 @@ TYPE
 			MetaChar(module,section,0FFX); (* sign for trap writer *)
 			INC(size);
 
-			s := module.sections.first;
-			WHILE s # NIL DO
+			FOR i := 0 TO module.sections.Length() - 1 DO
+				s := module.sections.GetSection(i);
 				IF (s.type # Sections.InitCodeSection) & (s.symbol = module.module.moduleScope.bodyProcedure) THEN
 					Scope(s) (*! must be first procedure in ref section *)
-				END;
-				s := s.nextSection;
+				END
 			END;
 
-			s := module.sections.first;
-			WHILE s # NIL DO
+			FOR i := 0 TO module.sections.Length() - 1 DO
+				s := module.sections.GetSection(i);
 				IF (s.symbol = module.module.moduleScope.bodyProcedure) THEN (* already done, see above *)
 				ELSIF (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Procedure) & ~s.symbol(SyntaxTree.Procedure).isInline THEN
 					Procedure(s)
-				END;
-				s := s.nextSection;
+				END
 			END;
 
 			PatchLongint(module,section,sizePC,size);
@@ -9047,9 +9085,10 @@ TYPE
 	END;
 	*)
 	PROCEDURE MetaCommandArray(module: Sections.Module; source: IntermediateCode.Section);
-	VAR p: Sections.Section;  sizePC, numberCommands: LONGINT;
+	VAR
+		p: Sections.Section;  sizePC, numberCommands: LONGINT;
 		procedure : SyntaxTree.Procedure; procedureType: SyntaxTree.ProcedureType;
-		name: ARRAY 32 OF CHAR; numberParameters: LONGINT;
+		name: ARRAY 32 OF CHAR; numberParameters, i: LONGINT;
 
 			(* Returns TRUE if the built-in function GETPROCEDURE can be used with this procedure type *)
 			PROCEDURE GetProcedureAllowed() : BOOLEAN;
@@ -9101,8 +9140,9 @@ TYPE
 		MetaArray(module,source,sizePC);
 		numberCommands := 0;
 		MetaInfo(source, "command array content");
-		p := module.sections.first;
-		WHILE(p # NIL) DO
+		
+		FOR i := 0 TO module.sections.Length() - 1 DO		
+			p := module.sections.GetSection(i);
 			IF (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure)  THEN
 				procedure := p.symbol(SyntaxTree.Procedure);
 				procedureType := procedure.type(SyntaxTree.ProcedureType);
@@ -9124,27 +9164,26 @@ TYPE
 						D.Ln;
 					END;
 				END;
-			END;
-			p := p.nextSection;
+			END
 		END;
 		PatchLongint(module,source,sizePC,numberCommands);
 	END MetaCommandArray;
 
 	PROCEDURE MetaTypeInfoSection(module: Sections.Module; source: IntermediateCode.Section);
-	VAR p: Sections.Section; sizePC, size: LONGINT;
+	VAR
+		p: Sections.Section; sizePC, size, i: LONGINT;
 	BEGIN
 		MetaInfo(source, "command array descriptor");
 		size := 0;
 		MetaArray(module,source,sizePC);
-		p := module.sections.first;
-		WHILE p # NIL DO
+		FOR i := 0 TO module.sections.Length() - 1 DO
+			p := module.sections.GetSection(i);
 			WITH p: IntermediateCode.Section DO
 				IF Strings.EndsWith("@Info",p.name) THEN
 					MetaSymbol(module,source,p,0,0);
 					INC(size);
 				END;
-			END;
-			p := p.nextSection;
+			END
 		END;
 		PatchLongint(module,source,sizePC,size);
 	END MetaTypeInfoSection;
@@ -9161,8 +9200,9 @@ TYPE
 	*)
 
 	PROCEDURE MetaPointersInProcTables(module: Sections.Module; procArray, pointerArray: IntermediateCode.Section; VAR procArraySize, maxPointers: LONGINT);
-	VAR destination: Sections.Section;
-		pointerArraySizePC, procArraySizePC, pointerArraySize: LONGINT;
+	VAR
+		destination: Sections.Section;
+		pointerArraySizePC, procArraySizePC, pointerArraySize, i: LONGINT;
 
 		PROCEDURE PointerOffsets(destination : IntermediateCode.Section);
 		VAR numberPointers: LONGINT; procedure: SyntaxTree.Procedure; procedureType: SyntaxTree.ProcedureType;
@@ -9215,14 +9255,13 @@ TYPE
 		pointerArraySizePC := pointerArray.pc;
 		MetaAddress(module,pointerArray,0);
 		pointerArraySize := 0;
-
-		destination := module.sections.first; procArraySize := 0;
-		WHILE(destination # NIL) DO
+		procArraySize := 0;
+		FOR i := 0 TO module.sections.Length() - 1 DO
+			destination := module.sections.GetSection(i);
 			IF (destination.type IN {Sections.CodeSection, Sections.BodyCodeSection}) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).isInline THEN
 				PointerOffsets(destination(IntermediateCode.Section));
 				INC(procArraySize);
-			END;
-			destination := destination.nextSection;
+			END
 		END;
 
 		PatchLongint(module,procArray,procArraySizePC,procArraySize);
@@ -10200,7 +10239,7 @@ TYPE
 		IntermediateCode.InitOperand(emptyOperand);
 
 		FOR i := 0 TO NumberSystemCalls-1 DO
-			name := "$SystemCall";
+			name := "@SystemCall";
 			Basic.AppendNumber(name,i);
 			systemCalls[i] := SyntaxTree.NewSymbol(SyntaxTree.NewIdentifier(name));
 		END;

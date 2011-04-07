@@ -2,7 +2,7 @@ MODULE FoxIntermediateCode; (** AUTHOR "fof"; PURPOSE "Oberon Compiler Abstract 
 (* Active Oberon Compiler, (c) 2009 Felix Friedrich *)
 IMPORT
 	Sections := FoxSections, Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
-	SYSTEM, Streams;
+	SYSTEM, Streams, D := Debugging;
 
 CONST
 	(* operand modes *)
@@ -65,6 +65,8 @@ CONST
 	LineNrCommentOffset = 64;
 	LineCommentStart = Sections.LineCommentStart;
 
+	NotYetCalculatedSize = -2; (* genasm *)
+	
 TYPE
 	Type*=RECORD
 		form-: SHORTINT; (* SignedInteger, UnsignedInteger or Float *)
@@ -76,7 +78,7 @@ TYPE
 		type-: Type; (* size and form *)
 		register-: LONGINT; (* (virtual) register number, equals None if no register *)
 		offset-: LONGINT; (* offset on register or immediate symbol, in units *)
-		intValue-: HUGEINT; (* integer value, if mode = ModeImmediate and type.form IN Integer *)
+		intValue-: HUGEINT; (* integer value, if mode = ModeImmediate and type.form IN Integer or ModeNumber *)
 		floatValue-: LONGREAL; (* real value, if mode = ModeImmediate and type.form = Float *)
 		(*
 		symbol-: Sections.Identifier; (* referenced symbol *)
@@ -118,10 +120,11 @@ TYPE
 		instructions-: Instructions; (* array of instructions *)
 		pc-: LONGINT; (* points to next instruction = len *)
 		finally-: LONGINT; (* finally section starts at, -1 if none *)
-		resolved-: BinaryCode.Section; (* reference to section containing compiled byte array *)
+		resolved-: BinaryCode.Section; (* reference to section containing compiled byte array *) (* TODO: ret rid of that? *)
 		comments-: Sections.CommentWriter;
-		validPAFEnter-,validPAFExit-: LONGINT; (* begin and end of code section where current PAF (procedure activation frame) is considered valid *)
-
+		validPAFEnter-,validPAFExit-: LONGINT; (* begin and end of code section where current PAF (procedure activation frame) is considered valid *)		
+		sizeInUnits: LONGINT; (* genasm *)
+		
 		PROCEDURE GetPC(): LONGINT;
 		BEGIN RETURN pc
 		END GetPC;
@@ -131,7 +134,8 @@ TYPE
 			InitSection(type,n,symbol); InitArray;resolved := NIL;
 			IF comment THEN NEW(comments,GetPC) ELSE comments := NIL END;
 			finally := -1;
-			validPAFEnter := 0; validPAFExit := 0;
+			validPAFEnter := 0; validPAFExit := 0;			
+			sizeInUnits := NotYetCalculatedSize; (* genasm *)
 		END InitIntermediateSection;
 
 		PROCEDURE EnterValidPAF*;
@@ -149,7 +153,41 @@ TYPE
 		PROCEDURE SetFinally*(atPc: LONGINT);
 		BEGIN finally := atPc
 		END SetFinally;
-
+		
+		(* genasm *)
+		PROCEDURE GetSize*(): LONGINT;
+		VAR
+			result, i: LONGINT;
+			instruction: Instruction;
+		BEGIN
+			IF sizeInUnits = NotYetCalculatedSize THEN
+				IF (type = Sections.VarSection) OR (type = Sections.ConstSection) THEN
+					sizeInUnits := 0;
+					(* go through all instructions *)
+					FOR i := 0 TO pc - 1 DO
+						instruction := instructions[i];
+						CASE instruction.opcode OF 
+						| data:
+							(* TODO: correct? *)
+							ASSERT((instruction.op1.mode = ModeImmediate) OR (instruction.op1.mode = ModeMemory));
+							ASSERT((instruction.op1.type.sizeInBits MOD bitsPerUnit) = 0);
+							INC(sizeInUnits, instruction.op1.type.sizeInBits DIV bitsPerUnit); (* TODO: correct conversion from bits to units? *)
+							
+						| reserve:
+							ASSERT(instruction.op1.mode = ModeNumber);
+							INC(sizeInUnits, LONGINT(instruction.op1.intValue))
+							
+						ELSE
+							HALT(100); (* a var/const section may not contain any other type of instruction *)
+						END
+					END
+				ELSE
+					sizeInUnits := Sections.UnknownSize
+				END
+			END;
+			RETURN sizeInUnits
+		END GetSize;
+		
 		PROCEDURE InitArray;
 		CONST MinInstructions = 8;
 		BEGIN
@@ -302,15 +340,23 @@ TYPE
 				RETURN res(Section)
 			END;
 		ELSE
+			(* search by name *)
 			ASSERT(name # "");
 			res := list.FindByName(name);
 			IF res # NIL THEN
-				ASSERT(res.type = type);
+				(* section was found under the name *)
+				
+				(* set the section type if it is now known *)
+				IF (type # Sections.UnknownSection) & (res.type = Sections.UnknownSection) THEN
+					res.SetType(type)
+				END;
+				
+				ASSERT((res.type = type) OR (type = Sections.UnknownSection));
 				RETURN res(Section)
 			END;
 		END;
 		NEW(section,type, name,x, dump);
-		list.Add(section);
+		list.AddSection(section);
 		RETURN section
 	END NewSection;
 
@@ -425,7 +471,9 @@ TYPE
 		END DumpString;
 
 	BEGIN
-		DumpType(w,operand.type); w.String(" ");
+		IF operand.type.form # Undefined THEN
+			DumpType(w,operand.type); w.String(" ");
+		END;
 
 		CASE operand.mode OF
 		Undefined: w.String("!Undefined");
@@ -438,7 +486,10 @@ TYPE
 					END;
 				ELSIF operand.symbol # NIL THEN
 					operand.symbol.DumpName(w); w.String(":"); w.Int(operand.symbolOffset,1);
-					IF operand.offset # 0 THEN w.String("(@"); w.Int(operand.offset,1); w.String(")"); END;
+					(* genasm *)
+					IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset, 1);
+					ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset, 1);
+					END;
 				ELSE w.Int(SHORT(operand.intValue),1);
 				END;
 				w.String("]");
@@ -450,7 +501,10 @@ TYPE
 		|ModeImmediate:
 			IF operand.symbol # NIL THEN
 				operand.symbol.DumpName(w); w.String(":"); w.Int(operand.symbolOffset,1);
-				IF operand.offset # 0 THEN w.String("(@"); w.Int(operand.offset,1); w.String(")") END;
+				(* genasm *)
+				IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset, 1);
+				ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset, 1);
+				END
 			ELSE
 				IF operand.type.form IN Integer THEN
 					IF (operand.intValue > MAX(LONGINT)) OR (operand.intValue < MIN(LONGINT)) THEN
@@ -727,8 +781,8 @@ TYPE
 	END SetType;
 
 
-	PROCEDURE FindMnemonic*(CONST name: ARRAY OF CHAR): LONGINT;
-	VAR i: LONGINT;
+	PROCEDURE FindMnemonic*(CONST name: ARRAY OF CHAR): SHORTINT;
+	VAR i: SHORTINT;
 	BEGIN
 		FOR i := 0 TO NofOpcodes-1 DO
 			IF name = instructionFormat[i].name THEN
@@ -744,6 +798,7 @@ TYPE
 	END SetRegister;
 
 
+	(* TODO: probably not needed anymore? *)
 	PROCEDURE FindRegister*(CONST name: ARRAY OF CHAR): LONGINT;
 	VAR i,nr: LONGINT;
 		PROCEDURE Number(ch: CHAR): BOOLEAN;
@@ -763,7 +818,7 @@ TYPE
 		ELSIF name ="Res" THEN RETURN Result
 		ELSIF name ="Res2" THEN RETURN Result2
 		*)
-		ELSIF name[0] = "$" THEN
+		ELSIF name[0] = "r" THEN
 			nr := 0; i := 1;
 			WHILE (i < LEN(name)) & (name[i]#0X) & Number(name[i]) DO
 				INC(i);

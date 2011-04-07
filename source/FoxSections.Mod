@@ -1,6 +1,6 @@
 MODULE FoxSections; (** AUTHOR "fof"; PURPOSE "support for code sections and references"; *)
 
-IMPORT SyntaxTree := FoxSyntaxTree,Streams,Global := FoxGlobal,Formats := FoxFormats, Basic := FoxBasic, Strings, ObjectFile, StringPool;
+IMPORT SyntaxTree := FoxSyntaxTree,Streams,Global := FoxGlobal,Formats := FoxFormats, Basic := FoxBasic, Strings, ObjectFile, StringPool, D := Debugging;
 
 CONST
 	(* section types *)
@@ -11,11 +11,14 @@ CONST
 	VarSection*=ObjectFile.Data;
 	ConstSection*=ObjectFile.Const;
 	InlineCodeSection*=10;
+	UnknownSection *= 11; (* type for sections whose actual type is still unknown *) (* genasm *)
 
 	LineCommentStart*="; ";
-
-
-
+	
+	(* gensam *)
+	UnknownSize* = -1;
+	UndefinedFinalPosition* = -1;
+	
 TYPE
 	Identifier*=ObjectFile.Identifier;
 
@@ -24,13 +27,20 @@ TYPE
 		name-: SyntaxTree.String; (* name of this section (globally unique-name derived from symbol name) *)
 		type-: SHORTINT; (* CodeSection, InlineCodeSection, VarSection or ConstSection *)
 		symbol-: SyntaxTree.Symbol; (* corresponding symbol in AST *)
+		
 		offset-: LONGINT; (* mainly for compatibility with old object file format *)
 		entryNumber-: LONGINT; (* needed for old object file format, will be removed *)
+		
 		referenced-: BOOLEAN;
-		nextSection-: Section;
-		fixed-: BOOLEAN; alignment-: LONGINT;
-
-		PROCEDURE &InitSection*(type: SHORTINT; CONST n: ARRAY OF CHAR; symbol: SyntaxTree.Symbol);
+		
+		(* gensam *)
+		fixed-: BOOLEAN; (* whether the position of the section is fixed, as opposed to being restricted by an alignment *)
+		positionOrAlignment-: LONGINT; (* the alignment OR the position *)
+		fingerprint-: LONGINT; (* fingerprint of the corresponding syntax tree node *)
+		bitsPerUnit-: LONGINT; (* the unit size given in bits *)		
+		isReachable-: BOOLEAN; 
+		
+		PROCEDURE & InitSection*(type: SHORTINT; CONST n: ARRAY OF CHAR; symbol: SyntaxTree.Symbol);
 		BEGIN
 			COPY(n,name);
 			SELF.symbol := symbol;
@@ -40,9 +50,12 @@ TYPE
 			entryNumber := 0;
 			referenced := TRUE;
 			fixed := FALSE;
-			alignment := 0;
+			positionOrAlignment := 0;
+			
+			(* genasm *)
+			fingerprint := 0;
+			bitsPerUnit := UnknownSize
 		END InitSection;
-
 
 		PROCEDURE SetReferenced*(ref: BOOLEAN);
 		BEGIN referenced := ref;
@@ -52,30 +65,89 @@ TYPE
 		BEGIN SELF.offset := offset;
 		END SetOffset;
 
-		PROCEDURE SetAlignment*(fix: BOOLEAN; value: LONGINT);
+		(* genasm *)
+		PROCEDURE SetReachability*(isReachable: BOOLEAN);
+		BEGIN SELF.isReachable := isReachable
+		END SetReachability;
+
+		(* genasm *)
+		PROCEDURE SetBitsPerUnit*(bitsPerUnit: LONGINT);
+		BEGIN SELF.bitsPerUnit := bitsPerUnit
+		END SetBitsPerUnit;
+
+		(* genasm *)
+		PROCEDURE IsAligned*(): BOOLEAN;
+		BEGIN RETURN ~fixed & (positionOrAlignment # 0)
+		END IsAligned;
+
+		(* genasm *)
+		PROCEDURE SetPositionOrAlignment*(isFixed: BOOLEAN; positionOrAlignment: LONGINT);
 		BEGIN
-			fixed := fix; alignment := value
-		END SetAlignment;
-
-
+			SELF.fixed := isFixed;
+			SELF.positionOrAlignment := positionOrAlignment
+		END SetPositionOrAlignment;
+		
+		(* genasm *)
+		PROCEDURE GetSize*(): LONGINT;
+		BEGIN RETURN UnknownSize
+		END GetSize;
+		
+		(* genasm *)
+		PROCEDURE SetFingerprint*(fingerprint: LONGINT);
+		BEGIN SELF.fingerprint := fingerprint
+		END SetFingerprint;
+		
+		(** change the type of a section **)
+		PROCEDURE SetType*(type: SHORTINT);
+		BEGIN
+			ASSERT((type # UnknownSection) & (SELF.type = UnknownSection));
+			SELF.type := type
+		END SetType;
+		
 		(* needed for old object file format, will be removed *)
 		PROCEDURE SetEntryNumber*(nr: LONGINT);
 		BEGIN entryNumber := nr;
 		END SetEntryNumber;
 
 		PROCEDURE Dump*(w: Streams.Writer);
-		BEGIN
+		BEGIN	
+			w.String(".");
 			CASE type OF
-				|CodeSection:w.String("code ")
-				|BodyCodeSection:w.String("bodycode ")
-				|InlineCodeSection:w.String("inlinecode ")
-				|VarSection:w.String("var ");
-				|ConstSection:w.String("const ");
-				|InitCodeSection: w.String("initcode ");
-				|InitCode2Section: w.String("initcode2 ");
+			| CodeSection: w.String("code")
+			| BodyCodeSection: w.String("bodycode")
+			| InlineCodeSection: w.String("inlinecode")
+			| VarSection: w.String("var");
+			| ConstSection: w.String("const");
+			| InitCodeSection: w.String("initcode");
+			| InitCode2Section: w.String("initcode2");
+			| UnknownSection: w.String("unknown");
 			END;
+			w.String(" ");
 			DumpName(w);
-			w.String(" offset="); w.Int(offset,1);
+			
+			(* genasm *)
+			
+			IF offset # 0 THEN
+				w.String(" offset="); w.Int(offset, 0)
+			END;
+			
+			(* positional restrictions *)
+			IF fixed THEN
+				w.String(" fixed="); w.Int(positionOrAlignment, 0)
+			ELSIF positionOrAlignment # 0 THEN
+				w.String(" aligned="); w.Int(positionOrAlignment, 0)
+			END;
+	
+			IF fingerprint # 0 THEN
+				w.String(" fingerprint="); w.Int(fingerprint, 0)
+			END;
+
+			w.String(" unit="); w.Int(bitsPerUnit, 0);
+
+			(* note: this information is actually redundant *)
+			IF GetSize() # UnknownSize THEN
+				w.String(" size="); w.Int(GetSize(), 0);
+			END
 		END Dump;
 
 		PROCEDURE DumpName*(w: Streams.Writer);
@@ -147,7 +219,7 @@ TYPE
 		firstComment-,lastComment-: Comment; comments-: LONGINT;
 		getPC: GetPCProcedure;
 
-		PROCEDURE AppendToLine*( CONST buf: ARRAY OF CHAR;  ofs, len: LONGINT;  propagate: BOOLEAN;  VAR res: LONGINT );
+		PROCEDURE AppendToLine*( CONST buf: ARRAY OF CHAR;  ofs, len: LONGINT; propagate: BOOLEAN;  VAR res: LONGINT );
 		VAR pos: LONGINT;
 		BEGIN
 			IF len = 0 THEN RETURN END;
@@ -172,7 +244,6 @@ TYPE
 			firstComment := NIL; lastComment := NIL; comments := 0;
 			Reset^;
 		END Reset;
-
 
 		PROCEDURE & InitCommentWriter*(getPC: GetPCProcedure);
 		BEGIN
@@ -229,29 +300,63 @@ TYPE
 
 	END SectionNameLookup;
 
-
-	SectionList*=OBJECT
-	VAR first-,last-: Section; number-: LONGINT;
+	(** a list of sections
+	note: a section may be part of multiple lists in this implementation
+	**)
+	SectionList* = OBJECT(Basic.List)
+	VAR
 		lookup: SectionLookup;
 		lookupName: SectionNameLookup;
-
-		PROCEDURE & InitSectionList*;
-		BEGIN first := NIL; last := NIL; number := 0; NEW(lookup,100); NEW(lookupName,100);
-		END InitSectionList;
-
-		PROCEDURE Add*(n: Section);
+	
+		PROCEDURE & InitListOfSections*;
 		BEGIN
-			n.nextSection := NIL;
-			IF first = NIL THEN first := n ELSE last.nextSection := n END; last := n; INC(number);
-			IF n.symbol # NIL THEN (* special case, may not be added to lookup list *)
-				lookup.PutSection(n.symbol,n)
-			END;
-			IF n.name # "" THEN
-				lookupName.PutSection(n.name,n);
-			END;
-		END Add;
+			NEW(lookup, 100);
+			NEW(lookupName, 100);
+			InitList (* initializer of general list *)
+		END InitListOfSections;
+		
+		PROCEDURE GetSection*(index: LONGINT): Section;
+		VAR
+			any: ANY;
+		BEGIN
+			any := Get(index);
+			ASSERT(any IS Section);
+			RETURN any(Section)
+		END GetSection;
 
-		PROCEDURE FindBySymbol*(symbol: SyntaxTree.Symbol): Section;
+		PROCEDURE SetSection*(index: LONGINT; section: Section);
+		BEGIN	
+			Set(index, section)
+		END SetSection;
+		
+		(* note: this procedure cannot be called "Add" as it was the case in the old section list implementation *)
+		PROCEDURE AddSection*(section: Section);
+		BEGIN	
+			IF section.symbol # NIL THEN (* special case, may not be added to lookup list *)
+				lookup.PutSection(section.symbol, section)
+			END;
+			IF section.name # "" THEN
+				lookupName.PutSection(section.name, section);
+			END;	
+			Add(section)
+		END AddSection;
+		
+		(*
+		(* TODO: remove later on *)
+		PROCEDURE GetIndexOfSectionByName*(sectionName: SyntaxTree.String): LONGINT;
+		VAR
+			i: LONGINT;
+			section: Section;
+		BEGIN
+			FOR i := 0 TO Length() - 1 DO
+				section := GetSection(i);
+				IF section.name = sectionName THEN RETURN i END
+			END;
+			RETURN -1
+		END GetIndexOfSectionByName;
+		*)
+		
+		PROCEDURE FindBySymbol*(CONST symbol: SyntaxTree.Symbol): Section;
 		BEGIN
 			IF symbol = NIL THEN
 				RETURN NIL
@@ -259,7 +364,7 @@ TYPE
 				RETURN lookup.GetSection(symbol)
 			END
 		END FindBySymbol;
-
+		
 		PROCEDURE FindByName*(CONST name: ARRAY OF CHAR): Section;
 		BEGIN
 			IF name = "" THEN
@@ -268,20 +373,53 @@ TYPE
 				RETURN lookupName.GetSection(name)
 			END
 		END FindByName;
-
-
-		PROCEDURE Dump*( w: Streams.Writer);
-		VAR n: Section;
+		
+		PROCEDURE Dump*(w: Streams.Writer);
+		VAR
+			i: LONGINT;
+			section: Section;
 		BEGIN
-			n := first;
-			WHILE n # NIL DO
-				n.Dump(w); w.Ln;
-				n := n.nextSection;
-			END;
+			FOR i := 0 TO Length() - 1 DO
+				section := GetSection(i);				
+				section.Dump(w); w.Ln;
+			END
 		END Dump;
-
 	END SectionList;
 
+	(* genasm *)
+	NameEntry = POINTER TO RECORD
+		name: SyntaxTree.String;
+	END;
+
+	(* genasm *)
+	(* TODO: efficient implementation using hash table *)	
+	NameList* = OBJECT(Basic.List)
+		PROCEDURE AddName*(moduleName: SyntaxTree.String);
+		VAR entry: NameEntry;
+		BEGIN	
+			NEW(entry);
+			entry.name := moduleName;
+			Add(entry)
+		END AddName;
+		
+		PROCEDURE GetName*(index: LONGINT): SyntaxTree.String;
+		VAR any: ANY;
+		BEGIN
+			any := Get(index);
+			ASSERT(any IS NameEntry);
+			RETURN any(NameEntry).name
+		END GetName;
+		
+		PROCEDURE ContainsName*(name: SyntaxTree.String): BOOLEAN;
+		VAR i: LONGINT;
+		BEGIN	
+			FOR i := 0 TO Length() - 1 DO
+				IF name = GetName(i) THEN RETURN TRUE END
+			END;
+			RETURN FALSE
+		END ContainsName;
+	END NameList;
+	
 	Module* = OBJECT (Formats.GeneratedModule)
 		VAR
 			(* output of (intermediate) code generation *)
@@ -291,67 +429,109 @@ TYPE
 			caseTables-: SectionList;
 			importedSymbols-: SectionList;
 			systemCalls-: SectionList;
-
+			
+			(* genasm *)
+			platformName-: SyntaxTree.String;
+			imports-: NameList;
+			
 		PROCEDURE & Init*(module: SyntaxTree.Module; system: Global.System);
 		BEGIN
 			Init^(module,system);
 			NEW(sections);
 			NEW(importedSymbols);
 			NEW(systemCalls);
-			NEW(caseTables);
+			NEW(caseTables);			
+			NEW(imports); (* genasm *)
 		END Init;
+		
+		(* genasm *)
+		PROCEDURE SetSections*(sections: SectionList);
+		BEGIN SELF.sections := sections
+		END SetSections;
 
+		(* genasm *)
+		PROCEDURE SetImports*(imports: NameList);
+		BEGIN SELF.imports := imports
+		END SetImports;
+		
+		(* genasm *)
+		PROCEDURE SetPlatformName*(platformName: SyntaxTree.String);
+		BEGIN SELF.platformName := platformName
+		END SetPlatformName;
+
+		(* genasm *)
 		PROCEDURE Dump*(w: Streams.Writer);
-		VAR name: SyntaxTree.String; import: SyntaxTree.Import; first: BOOLEAN; dump: Basic.Writer;
+		VAR
+			dump: Basic.Writer;
+			name: SyntaxTree.String;
+			i: LONGINT;
 		BEGIN
 			dump := Basic.GetWriter(w);
-			dump.String("module ");
-			Global.ModuleFileName(module.name,module.context,name);
-			dump.String(name);
+			
+			(* dump module directive *)
+			dump.String(".module ");
+			dump.String(moduleName);
 			dump.Ln;
 			dump.Ln;
-
-			import := module.moduleScope.firstImport;
-			IF import # NIL THEN
-				dump.String("imports "); first := TRUE;
-				WHILE import # NIL DO
-					IF first THEN first := FALSE ELSE dump.String(", ") END;
-					IF import.module # NIL THEN
-						Global.ModuleFileName(import.module.name,import.module.context,name);
-					ELSE
-						name := "<import failed>";
-					END;
-					dump.String(name);
-					import := import.nextImport;
-				END;
-				dump.Ln; dump.Ln;
+			
+			(* dump platform directive *)
+			IF platformName # "" THEN
+				dump.String(".platform ");
+				dump.String(platformName);
+				dump.Ln;
+				dump.Ln
 			END;
-
+			
+			(* dump imports directive *)			
+			IF imports.Length() > 0 THEN
+				dump.String(".imports ");			
+				FOR i := 0 TO imports.Length() - 1 DO				
+					IF i # 0 THEN dump.String(", ") END;	
+					name := imports.GetName(i);
+					IF name = "" THEN
+						dump.String("<import failed>")
+					ELSE
+						dump.String(name)
+					END
+				END;
+				dump.Ln; dump.Ln
+			END;
+			
 			sections.Dump(w);
-			dump.Ln; dump.BeginComment; dump.String("; case tables"); dump.EndComment; dump.Ln;
-			caseTables.Dump(w);
-			dump.Ln; dump.BeginComment; dump.String("; imported symbols"); dump.EndComment; dump.Ln;
-			importedSymbols.Dump(w);
-			dump.Ln; dump.BeginComment; dump.String("; system calls"); dump.EndComment; dump.Ln;
-			systemCalls.Dump(w);
+			
+			IF caseTables.Length() # 0 THEN
+				dump.Ln; dump.BeginComment; dump.String("; case tables"); dump.EndComment; dump.Ln;
+				caseTables.Dump(w)
+			END;
+			IF importedSymbols.Length() # 0 THEN
+				dump.Ln; dump.BeginComment; dump.String("; imported symbols"); dump.EndComment; dump.Ln;
+				importedSymbols.Dump(w)
+			END;
+			IF systemCalls.Length() # 0 THEN
+				dump.Ln; dump.BeginComment; dump.String("; system calls"); dump.EndComment; dump.Ln;
+				systemCalls.Dump(w)
+			END
 		END Dump;
 
 	END Module;
 
 	PROCEDURE DumpFiltered*(w: Streams.Writer; module: Module; CONST filter: ARRAY OF CHAR);
-		PROCEDURE FilterSections(section: Section);
+		PROCEDURE FilterSections(sectionList: SectionList);
+		VAR
+			i: LONGINT;
+			section: Section;
 		BEGIN
-			WHILE(section # NIL) DO
-				IF Strings.Match(filter,section.name) THEN section.Dump(w); w.Ln; END;
-				section := section.nextSection;
-			END;
+			FOR i := 0 TO sectionList.Length() - 1 DO
+				section := sectionList.GetSection(i);			
+				IF Strings.Match(filter, section.name) THEN section.Dump(w); w.Ln; END
+			END
 		END FilterSections;
 
 	BEGIN
-		FilterSections(module.sections.first);
-		FilterSections(module.caseTables.first);
-		FilterSections(module.importedSymbols.first);
-		FilterSections(module.systemCalls.first);
+		FilterSections(module.sections);
+		FilterSections(module.caseTables);
+		FilterSections(module.importedSymbols);
+		FilterSections(module.systemCalls);
 	END DumpFiltered;
 
 	PROCEDURE NewCommentWriter*(getPC: GetPCProcedure): CommentWriter;
