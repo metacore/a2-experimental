@@ -157,33 +157,36 @@ TYPE
 		(* genasm *)
 		PROCEDURE GetSize*(): LONGINT;
 		VAR
-			result, i: LONGINT;
+			i: LONGINT;
 			instruction: Instruction;
 		BEGIN
 			IF sizeInUnits = NotYetCalculatedSize THEN
-				IF (type = Sections.VarSection) OR (type = Sections.ConstSection) THEN
-					sizeInUnits := 0;
-					(* go through all instructions *)
-					FOR i := 0 TO pc - 1 DO
-						instruction := instructions[i];
-						CASE instruction.opcode OF 
-						| data:
-							(* TODO: correct? *)
-							ASSERT((instruction.op1.mode = ModeImmediate) OR (instruction.op1.mode = ModeMemory));
-							ASSERT((instruction.op1.type.sizeInBits MOD bitsPerUnit) = 0);
-							INC(sizeInUnits, instruction.op1.type.sizeInBits DIV bitsPerUnit); (* TODO: correct conversion from bits to units? *)
-							
-						| reserve:
-							ASSERT(instruction.op1.mode = ModeNumber);
-							INC(sizeInUnits, LONGINT(instruction.op1.intValue))
-							
-						ELSE
-							HALT(100); (* a var/const section may not contain any other type of instruction *)
+				sizeInUnits := Sections.UnknownSize; (* default value *)
+				
+				IF bitsPerUnit # Sections.UnknownSize THEN (* only calculate the size if the unit size is known *)
+					IF (type = Sections.VarSection) OR (type = Sections.ConstSection) THEN
+						sizeInUnits := 0;
+						(* go through all instructions *)
+						FOR i := 0 TO pc - 1 DO
+							instruction := instructions[i];
+							CASE instruction.opcode OF 
+							| data:
+								(* TODO: correct? *)
+								ASSERT((instruction.op1.mode = ModeImmediate) OR (instruction.op1.mode = ModeMemory));
+								ASSERT((instruction.op1.type.sizeInBits MOD bitsPerUnit) = 0);
+								INC(sizeInUnits, instruction.op1.type.sizeInBits DIV bitsPerUnit); (* TODO: correct conversion from bits to units? *)
+								
+							| reserve:
+								ASSERT(instruction.op1.mode = ModeNumber);
+								INC(sizeInUnits, LONGINT(instruction.op1.intValue))
+								
+							ELSE
+								HALT(100); (* a var/const section may not contain any other type of instruction *)
+							END
 						END
 					END
-				ELSE
-					sizeInUnits := Sections.UnknownSize
 				END
+				
 			END;
 			RETURN sizeInUnits
 		END GetSize;

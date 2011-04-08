@@ -34,6 +34,13 @@ TYPE
 			WMWindowManager.DefaultAddWindow(SELF);
 		END New;
 
+		PROCEDURE Handle(VAR x : WMMessages.Message);
+		BEGIN
+			IF (x.msgType = WMMessages.MsgExt) & (x.ext # NIL) & (x.ext IS KillerMsg) THEN Close
+			ELSE Handle^(x)
+			END
+		END Handle;
+
 		PROCEDURE Close;
 		BEGIN
 			visible := FALSE;
@@ -137,13 +144,15 @@ VAR
 	die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WMWindowManager.WindowManager;
-BEGIN {EXCLUSIVE}
+BEGIN
 	NEW(die);
 	msg.ext := die;
 	msg.msgType := WMMessages.MsgExt;
 	m := WMWindowManager.GetDefaultManager();
 	m.Broadcast(msg);
-	AWAIT(nofWindows = 0)
+	BEGIN {EXCLUSIVE}
+		AWAIT(nofWindows = 0)
+	END
 END Cleanup;
 
 BEGIN

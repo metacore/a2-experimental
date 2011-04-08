@@ -142,7 +142,9 @@ TYPE
 				w.String(" fingerprint="); w.Int(fingerprint, 0)
 			END;
 
-			w.String(" unit="); w.Int(bitsPerUnit, 0);
+			IF bitsPerUnit # UnknownSize THEN
+				w.String(" unit="); w.Int(bitsPerUnit, 0);
+			END;
 
 			(* note: this information is actually redundant *)
 			IF GetSize() # UnknownSize THEN

@@ -118,13 +118,16 @@ VAR
 	VAR i: LONGINT;
 
 		PROCEDURE ReferenceFixup (CONST fixup: ObjectFile.Fixup);
-		VAR reference: Block;
+		VAR reference: Block; str: ARRAY 256 OF CHAR;
 		BEGIN
 			reference := FindBlock (fixup.identifier);
 			IF reference = NIL THEN reference := ImportBlock(fixup.identifier) END;
 
-			IF reference = NIL THEN Error (fixup.identifier.name, "unresolved");
-			ELSIF (reference.identifier.fingerprint # 0) & (block.fixup[i].identifier.fingerprint # 0) & (reference.identifier.fingerprint # block.fixup[i].identifier.fingerprint) THEN Error (fixup.identifier.name, "incompatible");
+			IF reference = NIL THEN
+				 Error (fixup.identifier.name, "unresolved");
+			ELSIF (reference.identifier.fingerprint # 0) & (block.fixup[i].identifier.fingerprint # 0) & (reference.identifier.fingerprint # block.fixup[i].identifier.fingerprint) THEN
+				COPY(fixup.identifier.name,str); Strings.Append(str," in " ); Strings.Append(str,  block.identifier.name);
+				Error (str, "incompatible");
 			ELSE Reference (reference, block.used); END;
 		END ReferenceFixup;
 

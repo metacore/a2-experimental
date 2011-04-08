@@ -41,13 +41,12 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 					section := sections.GetSection(i);
 					ExportSection (section(IntermediateCode.Section));
 					IF section(IntermediateCode.Section).resolved.identifier.fingerprint # 0 THEN
-						FOR j := 0 TO sections.Length() - 1 DO
+						FOR j := 0 TO i - 1 DO
 							test := sections.GetSection(j);
 							IF test(IntermediateCode.Section).resolved.identifier.fingerprint = section(IntermediateCode.Section).resolved.identifier.fingerprint THEN
-								diagnostics.Error(module.moduleName,Diagnostics.Invalid,Diagnostics.Invalid,"duplicate fingerPrints");
+								diagnostics.Warning(module.moduleName,Diagnostics.Invalid,Diagnostics.Invalid,"duplicate fingerPrints");
 								KernelLog.String(section(IntermediateCode.Section).resolved.identifier.name); KernelLog.String(",");
 								KernelLog.String(test(IntermediateCode.Section).resolved.identifier.name); KernelLog.Ln;
-								RETURN FALSE
 							END
 						END
 					END
@@ -120,7 +119,9 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			fp := section.fingerprint
 		ELSIF (section.symbol = NIL) OR (section.symbol.scope = NIL) THEN
 			fp := 0;
-			FingerPrinter.FPString(fp, section.name)
+			IF (section(IntermediateCode.Section).resolved # NIL) THEN
+				FingerPrinter.FPString(fp, section.name)
+			END
 		ELSE
 			fingerPrint := fingerPrinter.SymbolFP (section.symbol);
 			fp := fingerPrint.shallow;

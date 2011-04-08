@@ -830,7 +830,7 @@ TYPE
 			END;
 			
 			(* create the combined intermediate code module *)
-			NEW(ICModuleOfCell, NIL, NIL); (* note: there is no syntax tree node *) (* TODO: where to get "Global.System"? *)
+			NEW(ICModuleOfCell, NIL, backend.GetSystem()); (* note: there is no syntax tree node *)
 			ICModuleOfCell.SetModuleName(cellName);
 			ICModuleOfCell.SetPlatformName(platformName);
 			ICModuleOfCell.SetSections(allSectionsOfCell);
