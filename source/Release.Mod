@@ -1244,7 +1244,7 @@ TYPE
 				optionsReader.Set(options);
 				error := ~Compiler.GetOptions(optionsReader, log, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, dataflowSpecification, findPC);
 				IF ~error THEN
-					error := ~Compiler.Module(file.name, reader, 0, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, dataflowSpecification, log, importCache, findPC);
+					error := ~Compiler.Modules(file.name, reader, 0, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, dataflowSpecification, log, importCache, findPC);
 				END;
 			ELSE
 				MakeMessage(message, "File # not found", file.name, "");
