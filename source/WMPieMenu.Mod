@@ -365,7 +365,7 @@ TYPE
 				nm.msgSubType := WMMessages.MsgSubPointerMove;
 				nm.x := 100; nm.y := 100;
 				Handle(nm);
-				manager.Add(x - piemenu.bounds.GetWidth() DIV 2, y - piemenu.bounds.GetWidth() DIV 2, SELF, {WMWindowManager.FlagHidden});
+				manager.Add(x - piemenu.bounds.GetWidth() DIV 2, y - piemenu.bounds.GetWidth() DIV 2, SELF, {WMWindowManager.FlagHidden, WMWindowManager.FlagStayOnTop});
 				IF manager.TransferPointer(SELF) THEN END;
 				manager.SetFocus(SELF)
 			END;
