@@ -25,6 +25,8 @@ VAR
 	update: LONGINT;
 
 	MMseen, MRseen: BOOLEAN;
+	
+	noEventCount: LONGINT;
 
 TYPE
 	Poll = OBJECT
@@ -36,6 +38,8 @@ TYPE
 
 VAR
 	poll: Poll; keySymbol: ARRAY 256 OF LONGINT;
+	
+	currX, currY: LONGINT;
 
 
 	PROCEDURE CheckAlternateKeys( VAR mb: SET );
@@ -56,6 +60,7 @@ VAR
 		IF Button3Bit IN xbuttons THEN  INCL( mm.keys, MR );  MRseen := TRUE  END;
 		IF ~(MMseen & MRseen) THEN  CheckAlternateKeys( mm.keys )  END;
 		Inputs.mouse.Handle( mm );
+		currX := x; currY := y;
 		X11.Lock
 	END SendMouseMsg;
 
@@ -78,6 +83,7 @@ VAR
 		X11.Lock;
 		eventcount := X11.EventsQueued( xd, X11.QueuedAfterReading );
 		IF eventcount > 0 THEN
+			noEventCount := 0;
 			REPEAT
 				X11.NextEvent( xd, event );
 				CASE event.typ OF
@@ -170,6 +176,14 @@ VAR
 				END;
 				DEC( eventcount );
 			UNTIL eventcount = 0
+		ELSE
+			INC( noEventCount );
+			IF (noEventCount = 20) & (xbuttons = {}) THEN  
+				(* pseudo input to make text input marker flashing *)
+				SendMouseMsg( currX+1, currY, 0, xbuttons );
+				SendMouseMsg( currX-1, currY, 0, xbuttons );
+				noEventCount := 0
+			END
 		END;
 		X11.Unlock;
 	END PollXQueue;
