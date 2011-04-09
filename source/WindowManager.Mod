@@ -1473,8 +1473,8 @@ TYPE
 
 		PROCEDURE Cleanup;
 		BEGIN {EXCLUSIVE}
-			timer.Wakeup;
 			alive := FALSE;
+			timer.Wakeup;
 			AWAIT(done)
 		END Cleanup;
 
@@ -1514,6 +1514,7 @@ VAR
 	defaultKeyboard : KeyboardObj;
 	defaultMouse : MouseObj;
 	CharToUnicode: ARRAY 256 OF LONGINT; (** mapping from Oberon character codes to Unicodes **)
+	t : Kernel.Timer;
 
 PROCEDURE Min(a, b:LONGINT):LONGINT;
 BEGIN
@@ -1608,12 +1609,11 @@ BEGIN
 END InitCharMaps;
 
 PROCEDURE CleanUp;
-VAR t : Kernel.Timer;
 BEGIN
 	IF session # NIL THEN
 		IF toucher # NIL THEN toucher.alive := FALSE; toucher.timer.Wakeup END;
 		session.ShutDown;
-		NEW(t); t.Sleep(100)
+		t.Sleep(100)
 	 END
 END CleanUp;
 
@@ -1625,6 +1625,7 @@ BEGIN
 	Replace;
 	InitCharMaps;
 	Modules.InstallTermHandler(CleanUp);
+	NEW(t);
 END WindowManager.
 
 
