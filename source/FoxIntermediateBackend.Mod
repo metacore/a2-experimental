@@ -284,8 +284,8 @@ TYPE
 			IF (currentScope IS SyntaxTree.ModuleScope) OR (currentScope IS SyntaxTree.CellScope) THEN
 				(* code section for variable *)
 				Global.GetSymbolName(x,name);
-				irv := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,dump);				
-				irv.SetPositionOrAlignment(x.fixed, x.alignment);				
+				irv := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,x,dump);
+				irv.SetPositionOrAlignment(x.fixed, x.alignment);
 				irv.SetOffset(ToMemoryUnits(system,x.offsetInBits));
 				irv.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(x.type))));
 				CheckTypeDeclaration(implementationVisitor, module,x.type,dump,implementationVisitor.newObjectFile);
@@ -635,15 +635,15 @@ TYPE
 		BEGIN
 			ASSERT(x # NIL); ASSERT(module # NIL);
 			SELF.module := module;
-			
-			(* add import names to the generated Sections.Module *) 
+
+			(* add import names to the generated Sections.Module *)
 			import := x.moduleScope.firstImport;
 			WHILE import # NIL DO
 				import.GetName(name);
 				module.imports.AddName(name);
 				import := import.nextImport
 			END;
-			
+
 			IF ~implementationVisitor.newObjectFile THEN
 				Global.GetModuleName(module.module,name); Strings.Append(name,"."); Strings.Append(name,"@moduleSelf");
 				moduleSelf := SyntaxTree.NewVariable(0,SyntaxTree.NewIdentifier("@moduleSelf"));
@@ -655,7 +655,6 @@ TYPE
 				ir.Emit(Data(op));
 			END;
 
-
 			implementationVisitor.module := module;
 			implementationVisitor.moduleScope := x.moduleScope;
 			implementationVisitor.moduleSelf := moduleSelf;
@@ -663,7 +662,6 @@ TYPE
 			IF forceModuleBody OR implementationVisitor.newObjectFile OR ScopeNeedsInitialization(x.moduleScope) THEN
 				EnsureBodyProcedure(x.moduleScope); (* currently needed in Oberon, remove ? *)
 			END;
-
 
 			IF backend.profile THEN
 				EnsureBodyProcedure(x.moduleScope);
@@ -1552,7 +1550,7 @@ TYPE
 		PROCEDURE AddImport(CONST moduleName: ARRAY OF CHAR; VAR module: SyntaxTree.Module; force: BOOLEAN): BOOLEAN;
 		VAR import: SyntaxTree.Import;
 			s: Scanner.StringType;
-			selfName, selfContext, name: SyntaxTree.String;
+			selfName, selfContext: SyntaxTree.String;
 		BEGIN
 			moduleScope.ownerModule.GetName(selfName);
 			Basic.GetString(moduleScope.ownerModule.context,selfContext);
@@ -1562,10 +1560,9 @@ TYPE
 				import := moduleScope.ImportByModuleName(SyntaxTree.NewIdentifier(moduleName),SyntaxTree.NewIdentifier("A2"));
 				IF import = NIL THEN
 					import := SyntaxTree.NewImport(-1,SyntaxTree.NewIdentifier(moduleName),SyntaxTree.NewIdentifier(moduleName),TRUE);
-					
-					COPY(moduleName, name);
-					SELF.module.imports.AddName(name); (* genasm *)
-					
+
+					SELF.module.imports.AddName(moduleName); (* genasm *)
+
 					import.SetContext(SyntaxTree.NewIdentifier("A2"));
 					IF ~checker.AddImport(moduleScope.ownerModule,import) OR (import.module = NIL) THEN
 						IF force THEN
@@ -1573,6 +1570,8 @@ TYPE
 							Strings.Append(s,moduleName);
 							Strings.Append(s," cannot be imported.");
 							Error(position,s);
+						ELSE (* import could not be resolved, is (allowed) upcall. For low level modules. *)
+							moduleScope.AddImport(import);
 						END;
 						RETURN FALSE
 					END;
@@ -7397,11 +7396,11 @@ TYPE
 			END;
 
 			NEW(module,x,system); (* backend structures *)
-			
+
 			(* genasm *)
 			Global.GetModuleName(x, name);
 			module.SetModuleName(name);
-			
+
 			NEW(implementationVisitor,system,checker,Supported,Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
 			NEW(declarationVisitor,system,implementationVisitor,SELF,Compiler.ForceModuleBodies IN flags,trace & (Compiler.Info IN flags));
 			declarationVisitor.Module(x,module);
@@ -7409,18 +7408,18 @@ TYPE
 			IF newObjectFile THEN
 				MetaModule(implementationVisitor,module);
 			END;
-			
+
 			(* genasm *)
 			GetDescription(platformName);
 			module.SetPlatformName(platformName);
-			
+
 			(* genasm *)
 			(* dump the generated Sections.Module into a IR-file *)
 			IF intermediateDump THEN
 				Files.JoinExtension(module.moduleName, "ir", filename);
 				DumpSectionsModuleIntoFile(module, filename)
 			END;
-			
+
 			RETURN module
 		END GenerateIntermediate;
 
@@ -7431,7 +7430,7 @@ TYPE
 			writer: Files.Writer;
 		BEGIN
 			D.String("DumpSectionsModuleIntoFile"); D.Ln; (* TENTATIVE *)
-			
+
 			file := Files.New(filename);
 			Files.OpenWriter(writer, file, 0);
 
@@ -7459,11 +7458,11 @@ TYPE
 			name: SyntaxTree.String;
 			fname: ARRAY 256 OF CHAR;
 		BEGIN
-			intermediateDump := TRUE; (* the intermediate backend was selected as the target, therefore the intermediate code is dumped regardless of the command line options *) (* genasm *)			
-		
-			ASSERT(intermediateCodeModule IS Sections.Module);			
+			intermediateDump := TRUE; (* the intermediate backend was selected as the target, therefore the intermediate code is dumped regardless of the command line options *) (* genasm *)
+
+			ASSERT(intermediateCodeModule IS Sections.Module);
 			result := intermediateCodeModule(Sections.Module);
-			
+
 			IF trace THEN
 				traceName := "intermediate code trace: ";
 				Strings.Append(traceName,traceString);
@@ -7477,7 +7476,7 @@ TYPE
 			END;
 			RETURN result
 		END ProcessIntermediateCodeModule;
-		
+
 		(* genasm *)
 		PROCEDURE GetDescription*(VAR instructionSet: ARRAY OF CHAR);
 		BEGIN instructionSet := "Intermediate";
@@ -9140,8 +9139,8 @@ TYPE
 		MetaArray(module,source,sizePC);
 		numberCommands := 0;
 		MetaInfo(source, "command array content");
-		
-		FOR i := 0 TO module.sections.Length() - 1 DO		
+
+		FOR i := 0 TO module.sections.Length() - 1 DO
 			p := module.sections.GetSection(i);
 			IF (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure)  THEN
 				procedure := p.symbol(SyntaxTree.Procedure);
