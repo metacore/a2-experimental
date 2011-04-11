@@ -5,7 +5,7 @@ IMPORT
 CONST
 	Trace* = TRUE; (* debugging output *)
 	ParserTrace* = FALSE;
-	IgnoreImports=TRUE;
+	IgnoreImports=FALSE;
 TYPE
 	ArrangementRestriction = RECORD
 		fixed: BOOLEAN;
