@@ -8489,7 +8489,7 @@ TYPE
 		procedure := moduleScope.bodyProcedure;
 		IF procedure = NIL THEN (* artificially add body procedure if not existing. Really needed? *)
 			procedureScope := SyntaxTree.NewProcedureScope(moduleScope);
-			procedure := SyntaxTree.NewProcedure(-1,SyntaxTree.NewIdentifier("$$BODY"), procedureScope);
+			procedure := SyntaxTree.NewProcedure(-1,Global.ModuleBodyName, procedureScope);
 			procedure.SetScope(moduleScope);
 			procedure.SetType(SyntaxTree.NewProcedureType(-1,moduleScope));
 			procedure.SetAccess(SyntaxTree.Hidden);

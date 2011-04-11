@@ -1,16 +1,17 @@
 MODULE FoxIntermediateCodeAssembler;
 IMPORT
-	Strings, Diagnostics, D := Debugging, SyntaxTree := FoxSyntaxTree, Scanner := FoxScanner, Sections := FoxSections, 
+	Strings, Diagnostics, D := Debugging, SyntaxTree := FoxSyntaxTree, Scanner := FoxScanner, Sections := FoxSections,
 	IntermediateCode := FoxIntermediateCode, Basic := FoxBasic, Streams, Files, Backend := FoxBackend, Formats := FoxFormats, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker;
 CONST
 	Trace* = TRUE; (* debugging output *)
 	ParserTrace* = FALSE;
+	IgnoreImports=TRUE;
 TYPE
 	ArrangementRestriction = RECORD
 		fixed: BOOLEAN;
 		positionOrAlignment: LONGINT;
 	END;
-	
+
 	(** the intermediate code parser **)
 	IntermediateCodeParser* = OBJECT
 	VAR
@@ -97,7 +98,7 @@ TYPE
 
 		PROCEDURE RegisterNumberFromIdentifier(VAR registerNumber: LONGINT; identifier: Scanner.StringType): BOOLEAN;
 		VAR
-			number, digit, position: LONGINT;			
+			number, digit, position: LONGINT;
 		BEGIN
 			registerNumber := IntermediateCode.None; (* default *)
 			IF identifier = "sp" THEN
@@ -133,13 +134,13 @@ TYPE
 					END
 				ELSIF identifier[0] = 'h' THEN
 					(* hardware register *)
-					IF number < 0 THEN 
-						RETURN FALSE					
+					IF number < 0 THEN
+						RETURN FALSE
 					ELSE
 						registerNumber := IntermediateCode.HwRegister - number;
 						RETURN TRUE
 					END
-				END				
+				END
 			ELSE
 				RETURN FALSE
 			END
@@ -161,7 +162,7 @@ TYPE
 			ELSE
 				RETURN FALSE
 			END;
-			
+
 			(* read bit size *)
 			position := 1;
 			sizeInBits := 0;
@@ -173,21 +174,21 @@ TYPE
 				ELSE
 					RETURN FALSE
 				END;
-				position := position + 1		
+				position := position + 1
 			END;
-			
+
 			IF (sizeInBits < 1) OR (sizeInBits > 64) THEN RETURN FALSE END;
 			IntermediateCode.InitType(type, form, sizeInBits);
 
 			RETURN TRUE
 		END TypeFromIdentifier;
-		
+
 		(*
 		(* whether an symbol name is prefixed with a certain module name*)
 		PROCEDURE HasModulePrefix(moduleName, symbolName: Scanner.StringType): BOOLEAN;
 		VAR
 			localPrefix: Scanner.StringType;
-		BEGIN		
+		BEGIN
 			localPrefix := moduleName;
 			Strings.Append(localPrefix, ".");
 			RETURN Strings.StartsWith(localPrefix, 0, symbolName)
@@ -209,7 +210,7 @@ TYPE
 			lastWasIdentifier, hasTypeDescriptor, isMemoryOperand, isNegated: BOOLEAN;
 			someHugeint: HUGEINT;
 			someLongreal: LONGREAL;
-			opCode: SHORTINT;					
+			opCode: SHORTINT;
 		BEGIN
 			IF ParserTrace THEN D.Ln; D.String(">>> AssembleSectionContent"); D.Ln END;
 			SELF.scanner := scanner;
@@ -242,7 +243,7 @@ TYPE
 						IntermediateCode.InitType(type, IntermediateCode.SignedInteger, 32); (* defaults *)
 						IntermediateCode.InitOperand(operands[0]);
 						IntermediateCode.InitOperand(operands[1]);
-						IntermediateCode.InitOperand(operands[2]);	
+						IntermediateCode.InitOperand(operands[2]);
 						operandNumber := 0;
 						IF ~ThisToken(Scanner.Ln) & ~ThisToken(Scanner.EndOfText) THEN
 							REPEAT
@@ -251,33 +252,33 @@ TYPE
 								ELSE
 									(* consume a single operand *)
 									IF ParserTrace THEN D.String(">>> read operand #"); D.Int(operandNumber, 0); D.Ln END;
-									
+
 									(* defaults *)
 									hasTypeDescriptor := FALSE;
 									isMemoryOperand := FALSE;
-									
+
 									(* consume optional type description *)
 									lastWasIdentifier := GetIdentifier(pos, identifier);
 									IF lastWasIdentifier & TypeFromIdentifier(type, identifier) THEN
 										hasTypeDescriptor := TRUE;
 										lastWasIdentifier := GetIdentifier(pos, identifier)
 									END;
-									
+
 									IF ~lastWasIdentifier THEN
 										isMemoryOperand := ThisToken(Scanner.LeftBracket);
 										lastWasIdentifier := GetIdentifier(pos, identifier)
-									END;	
-								
+									END;
+
 									IF lastWasIdentifier THEN
 										IF RegisterNumberFromIdentifier(registerNumber, identifier) THEN
 											(* register *)
 											IntermediateCode.InitRegister(operand, type, registerNumber);
 										ELSE
 											(* TODO: handle assembly constants *)
-										
+
 											(* symbol name *)
 											symbolOffset := 0;
-											
+
 											(* consume optional symbol offset *)
 											IF ThisToken(Scanner.Colon) THEN
 												(* TODO: ok, if negative values and hugeints are ignored?*)
@@ -287,16 +288,16 @@ TYPE
 													Error(symbol.start, "invalid symbol offset")
 												END
 											END;
-											
+
 											IF ParserTrace THEN D.String(">>> symbol detected"); D.Ln END;
 											symbolSection := IntermediateCode.NewSection(sectionList, Sections.UnknownSection, identifier, NIL, TRUE);
-											
+
 											IntermediateCode.InitAddress(operand, type, symbolSection, symbolOffset)
 										END
 									ELSIF symbol.token = Scanner.String THEN
 										IntermediateCode.InitString(operand, Strings.NewString(symbol.string));
 										NextSymbol
-									
+
 									ELSE
 										(* immediate values/numbers *)
 										isNegated := ThisToken(Scanner.Minus);
@@ -355,7 +356,7 @@ TYPE
 											Error(pos, "invalid operand")
 										END
 									END;
-									
+
 									(* consume optional system units offset *)
 									IF ThisToken(Scanner.Plus) THEN
 										IF ThisToken(Scanner.Number) & (symbol.numberType = Scanner.Integer) THEN
@@ -370,11 +371,11 @@ TYPE
 											Error(symbol.start, "invalid offset")
 										END
 									END;
-									
+
 									IF isMemoryOperand & ExpectToken(Scanner.RightBracket) THEN
 										IntermediateCode.InitMemory(operand, type, operand, 0) (* TODO: add offset *)
 									END;
-									
+
 									IF ~error THEN
 										IF ParserTrace THEN IntermediateCode.DumpOperand(D.Log, operand); D.Ln; END;
 										operands[operandNumber] := operand;
@@ -384,11 +385,11 @@ TYPE
 							UNTIL error OR ~ThisToken(Scanner.Comma);
 							IF ~error & ExpectLineDelimiter() THEN END
 						END;
-						
+
 						(* create and emit instruction into assembly section *)
 						IntermediateCode.InitInstruction(instruction, opCode, operands[0], operands[1], operands[2]);
 						assemblySection.Emit(instruction);
-						
+
 						lineNumber := lineNumber + 1
 					END
 				END;
@@ -415,7 +416,7 @@ TYPE
 			ASSERT(scanner # NIL);
 			SELF.scanner := scanner;
 			NextSymbol; (* read first symbol *)
-			
+
 			(* go through directives *)
 			afterModuleDirective := FALSE;
 			afterImportsDirective := FALSE;
@@ -478,11 +479,11 @@ TYPE
 						ELSE
 							Error(pos, "invalid directive")
 						END;
-						
+
 						IF ~error & ~afterModuleDirective THEN
 							Error(pos, "module directive expected first")
 						END;
-						
+
 						IF ~error THEN
 							IF ExpectAnyIdentifier(pos, identifier) THEN
 								(* old code:
@@ -493,13 +494,13 @@ TYPE
 								END;
 								*)
 								assemblySection := IntermediateCode.NewSection(sectionList, sectionType, identifier, NIL, TRUE);
-								
+
 								(* TODO: set default unit size for the platform *)
-								
+
 								(* consume optional section properties *)
 								WHILE ~error & (symbol.token # Scanner.EndOfText) & (symbol.token # Scanner.Ln) DO
 									(* consume optional offset specification *)
-									
+
 									(* offset *)
 									IF ThisIdentifier("offset") & ExpectToken(Scanner.Equal) THEN
 										isNegated := ThisToken(Scanner.Minus);
@@ -525,7 +526,7 @@ TYPE
 										ELSE
 											Error(symbol.start, "invalid fingerprint")
 										END
-									
+
 									(* alignment *)
 									ELSIF ThisIdentifier("aligned") & ExpectToken(Scanner.Equal) THEN
 										IF ExpectToken(Scanner.Number) & (symbol.numberType = Scanner.Integer) THEN
@@ -533,7 +534,7 @@ TYPE
 										ELSE
 											Error(symbol.start, "invalid alignment")
 										END
-									
+
 									(* fixed position *)
 									ELSIF ThisIdentifier("fixed") & ExpectToken(Scanner.Equal) THEN
 										IF ExpectToken(Scanner.Number) & (symbol.numberType = Scanner.Integer) THEN
@@ -541,7 +542,7 @@ TYPE
 										ELSE
 											Error(symbol.start, "invalid fixed postion")
 										END
-									
+
 									(* unit size *)
 									ELSIF ThisIdentifier("unit") & ExpectToken(Scanner.Equal) THEN
 										IF ExpectToken(Scanner.Number) & (symbol.numberType = Scanner.Integer) THEN
@@ -550,20 +551,20 @@ TYPE
 										ELSE
 											Error(symbol.start, "invalid unit size")
 										END
-									
+
 									(* relocatability *)
 									ELSIF ThisIdentifier("relocatable") THEN
 										(* TODO *)
-									
+
 									ELSIF ThisIdentifier("size") THEN
 										(* ignore *)
 										(* note: the size is never set but calculated from the section content *)
-										
+
 									ELSIF ThisIdentifier("fixups") THEN
 										(* ignore *)
 
 									ELSE
-										Error(symbol.start, "invalid property")	
+										Error(symbol.start, "invalid property")
 									END
 								END;
 								IF ~error & ExpectLineDelimiter() THEN
@@ -574,10 +575,10 @@ TYPE
 						END
 					END
 				END
-			END;			
-			RETURN ~error						
+			END;
+			RETURN ~error
 		END ParseModuleContent;
-		
+
 		PROCEDURE ParseModule*(scanner: Scanner.AssemblerScanner): Sections.Module;
 		VAR
 			result: Sections.Module;
@@ -589,9 +590,9 @@ TYPE
 				result.SetModuleName(moduleName);
 				result.SetPlatformName(platformName);
 				result.SetImports(imports);
-				
+
 				IF ParserTrace THEN
-					D.String("++++++++++ PARSED MODULE '"); D.String(result.moduleName); D.String("' ++++++++++"); D.Ln;					
+					D.String("++++++++++ PARSED MODULE '"); D.String(result.moduleName); D.String("' ++++++++++"); D.Ln;
 					result.Dump(D.Log)
 				END
 			ELSE
@@ -621,16 +622,16 @@ TYPE
 		assemblerScanner: Scanner.AssemblerScanner;
 		intermediateCodeParser: IntermediateCodeParser;
 		imports: Sections.NameList;
-	BEGIN	
+	BEGIN
 		IF Trace THEN D.String(">>> collect sections from module "); D.String(moduleName); D.Ln END;
-		
-		(* check if the module has already been incorporated *)		
-		IF incorporatedModules.ContainsName(moduleName) THEN				
+
+		(* check if the module has already been incorporated *)
+		IF incorporatedModules.ContainsName(moduleName) THEN
 			IF Trace THEN D.String(">>> module "); D.String(moduleName); D.String(" has already been incorporated"); D.Ln END;
 			RETURN TRUE
 		ELSE
 			incorporatedModules.AddName(moduleName);
-			
+
 			(* determine filename of corresponding IR file *)
 			filename := moduleName; Files.JoinExtension(filename, "ir", filename);
 
@@ -641,17 +642,17 @@ TYPE
 				RETURN FALSE
 			ELSE
 				IF Trace THEN D.String(">>> IR file successfully opened: "); D.String(filename); D.Ln END;
-				
+
 				(* parse IR file *)
 				NEW(assemblerScanner, filename, reader, 0, diagnostics);
 				NEW(intermediateCodeParser, diagnostics);
-				
+
 				IF intermediateCodeParser.ParseModuleContent(assemblerScanner, cumulativeSectionList, dummyString, platformName, imports) THEN
 					IF Trace THEN D.String(">>> IR file successfully parsed: "); D.String(filename); D.Ln END;
-					
+
 					(* parsing has been successful: go through all imports and collect their sections *)
-					error := FALSE;					
-					FOR i := 0 TO imports.Length() - 1 DO					
+					error := FALSE;
+					FOR i := 0 TO imports.Length() - 1 DO
 						IF ~CollectSectionsOfModule(imports.GetName(i), diagnostics, cumulativeSectionList, incorporatedModules, dummyString) THEN RETURN FALSE END
 					END;
 					RETURN TRUE
@@ -662,7 +663,7 @@ TYPE
 			END
 		END
 	END CollectSectionsOfModule;
-	
+
 	(** mark a section as reachable and do the same recursively for all referenced sections **)
 	PROCEDURE MarkAsReachable(section: Sections.Section);
 	VAR
@@ -702,16 +703,16 @@ TYPE
 		arrangementRestrictions: POINTER TO ARRAY OF ArrangementRestriction;
 		i, j, fixedDataSectionIndex, flexibleDataSectionIndex, currentAddress, startAddress, endAddress, nextOccupiedAddress: LONGINT;
 		done: BOOLEAN;
-		
-		PROCEDURE ProcessCell(cellName: SyntaxTree.String; cellInitializationSection: Sections.Section);		
+
+		PROCEDURE ProcessCell(cellName: SyntaxTree.String; cellInitializationSection: Sections.Section);
 		BEGIN
-			IF Trace THEN D.String(">>>>>> processing active cell '"); D.String(cellName); D.String("':"); D.Ln END;						
-			
+			IF Trace THEN D.String(">>>>>> processing active cell '"); D.String(cellName); D.String("':"); D.Ln END;
+
 			(* TODO: use this?
 			tempString := "processing active cell "; Strings.Append(tempString, cellName);
 			diagnostics.Information(rootModuleName, Diagnostics.Invalid, Diagnostics.Invalid, tempString);
 			*)
-			
+
 			(* for all sections:
 				- restore the original arrangment restrictions
 				- mark them as unreachable
@@ -723,14 +724,14 @@ TYPE
 				section.SetReachability(FALSE);
 				ASSERT(section IS IntermediateCode.Section); section(IntermediateCode.Section).SetResolved(NIL)
 			END;
-			
+
 			MarkAsReachable(cellInitializationSection); (* mark the cell initialization section as reachable *)
-			
+
 			(* create lists of sections for different categories *)
 			NEW(fixedDataSectionsOfCell);
 			NEW(flexibleDataSectionsOfCell);
 			NEW(codeSectionsOfCell);
-			
+
 			(* go through all reachable sections, and put them into the list of the corresponding category *)
 			FOR j := 0 TO allSections.Length() - 1 DO
 				section := allSections.GetSection(j);
@@ -749,7 +750,7 @@ TYPE
 					END
 				END
 			END;
-			
+
 			(*
 			IF Trace THEN
 				D.Ln;
@@ -765,7 +766,7 @@ TYPE
 				codeSectionsOfCell.Dump(D.Log)
 			END;
 			*)
-			
+
 			(* combine the sections from the different lists into a single one.
 			arrange the sections such that the fixed-positions and alignments are respected
 			*)
@@ -776,32 +777,32 @@ TYPE
 			FOR fixedDataSectionIndex := 0 TO fixedDataSectionsOfCell.Length() DO (* note: the index may be out-of-bounds! *)
 				IF fixedDataSectionIndex < fixedDataSectionsOfCell.Length() THEN
 					fixedDataSection := fixedDataSectionsOfCell.GetSection(fixedDataSectionIndex);
-					ASSERT(fixedDataSection.fixed);							
+					ASSERT(fixedDataSection.fixed);
 					nextOccupiedAddress := fixedDataSection.positionOrAlignment
 				ELSE
 					(* there is no more fixed data section *)
 					nextOccupiedAddress := MAX(LONGINT)
 				END;
-				
+
 				done := FALSE;
 				WHILE ~done DO
 					IF flexibleDataSectionIndex < flexibleDataSectionsOfCell.Length() THEN
 						flexibleDataSection := flexibleDataSectionsOfCell.GetSection(flexibleDataSectionIndex);
-						
-						(* determine start-address of the next section (respect alignment) *)								
+
+						(* determine start-address of the next section (respect alignment) *)
 						IF flexibleDataSection.IsAligned() & ((currentAddress MOD flexibleDataSection.positionOrAlignment) # 0) THEN
 							startAddress := currentAddress + flexibleDataSection.positionOrAlignment - (currentAddress MOD flexibleDataSection.positionOrAlignment)
 						ELSE
 							startAddress := currentAddress
 						END;
-						
+
 						(* determine end-address fo the next section *)
 						endAddress := startAddress + flexibleDataSection.GetSize();
 
 						IF endAddress <= nextOccupiedAddress THEN
 							(* there is enough space for the section *)
 							flexibleDataSection.SetPositionOrAlignment(TRUE, startAddress);
-							allSectionsOfCell.AddSection(flexibleDataSection);						
+							allSectionsOfCell.AddSection(flexibleDataSection);
 							INC(flexibleDataSectionIndex);
 							currentAddress := endAddress
 						ELSE
@@ -813,36 +814,36 @@ TYPE
 						done := TRUE
 					END
 				END;
-									
+
 				IF fixedDataSectionIndex < fixedDataSectionsOfCell.Length() THEN
 					allSectionsOfCell.AddSection(fixedDataSection);
 					ASSERT(fixedDataSection.GetSize() # Sections.UnknownSize);
 					currentAddress := fixedDataSection.positionOrAlignment + fixedDataSection.GetSize()
 				END
 			END;
-			
+
 			(* add cell initialization section *)
 			allSectionsOfCell.AddSection(cellInitializationSection);
-			
+
 			(* add code sections *)
 			FOR j := 0 TO codeSectionsOfCell.Length() - 1 DO
 				allSectionsOfCell.AddSection(codeSectionsOfCell.GetSection(j));
 			END;
-			
+
 			(* create the combined intermediate code module *)
 			NEW(ICModuleOfCell, NIL, backend.GetSystem()); (* note: there is no syntax tree node *)
 			ICModuleOfCell.SetModuleName(cellName);
 			ICModuleOfCell.SetPlatformName(platformName);
 			ICModuleOfCell.SetSections(allSectionsOfCell);
-			
+
 			IF Trace THEN
 				D.Ln;
 				D.String("++++++++++ FINAL INTERMEDIATE CODE MODULE FOR CELL '"); D.String(cellName); D.String("' ++++++++++"); D.Ln;
 				ICModuleOfCell.Dump(D.Log);
 				D.Ln
 			END;
-			
-			(*  apply the backend on the list of sections *)						
+
+			(*  apply the backend on the list of sections *)
 			binaryModuleOfCell := backend.ProcessIntermediateCodeModule(ICModuleOfCell);
 			IF backend.error OR (binaryModuleOfCell # NIL) THEN
 				diagnostics.Error(ICModuleOfCell.moduleName, Diagnostics.Invalid, Diagnostics.Invalid, "binary code could not be generated (backend error)");
@@ -853,24 +854,24 @@ TYPE
 				IF objectFileFormat.Export(binaryModuleOfCell, NIL) THEN
 					(* TODO: respect 'Silent' flag? *)
 					diagnostics.Information(ICModuleOfCell.moduleName, Diagnostics.Invalid, Diagnostics.Invalid, "successfully assembled and linked.");
-				ELSE							
+				ELSE
 					diagnostics.Error(ICModuleOfCell.moduleName, Diagnostics.Invalid, Diagnostics.Invalid, "object file could not be written");
 				END
 			END
 		END ProcessCell;
-		
+
 	BEGIN
 		NEW(allSections);
 		NEW(importList);
 
 		(* collect all sections contained in the module and its imports *)
-		IF CollectSectionsOfModule(rootModuleName, diagnostics, allSections, importList, platformName) THEN
-		
+		IF IgnoreImports OR CollectSectionsOfModule(rootModuleName, diagnostics, allSections, importList, platformName) THEN
+
 			(* determine backend to be used *)
 			IF platformName # "" THEN
 				(* use the backend specified by in the IR file *)
 				backend := Backend.GetBackendByName(platformName);
-				IF backend = NIL THEN				
+				IF backend = NIL THEN
 					diagnostics.Error(rootModuleName, Diagnostics.Invalid, Diagnostics.Invalid, "backend specified in intermediate code file could not be installed");
 				END
 			ELSE
@@ -882,31 +883,31 @@ TYPE
 				backend.GetDescription(tempString); D.String(tempString);
 				D.Ln
 			END;
-		
+
 			IF backend # NIL THEN
 				system := backend.GetSystem();
 				IF Trace THEN
 					D.String(">>> platform unit size in bits: "); D.Int(system.dataUnit, 0); D.Ln;
 					D.Ln
 				END;
-				
+
 				(* go through all sections that have unkown unit sizes and set the unit size (in bits) of the platform *)
 				FOR i := 0 TO allSections.Length() - 1 DO
-					section := allSections.GetSection(i);					
+					section := allSections.GetSection(i);
 					IF section.bitsPerUnit = Sections.UnknownSize THEN
 						section.SetBitsPerUnit(system.dataUnit)
 					END
 				END;
-				
+
 				(* sort all sections *)
 				allSections.Sort(CombinedSectionComparisonFunction);
-				
+
 				IF Trace THEN
 					D.String("++++++++++ SORTED CUMULATIVE SECTION LIST ++++++++++"); D.Ln;
 					allSections.Dump(D.Log);
 					D.Ln
 				END;
-				
+
 				(* store the original arrangment restrictions of the sections *)
 				NEW(arrangementRestrictions, allSections.Length());
 				FOR i := 0 TO allSections.Length() - 1 DO
@@ -914,7 +915,7 @@ TYPE
 					arrangementRestrictions[i].fixed := section.fixed;
 					arrangementRestrictions[i].positionOrAlignment := section.positionOrAlignment
 				END;
-				
+
 				(* initialize backend *)
 				backend.Initialize(diagnostics, log, flags, semanticChecker, system, NIL);
 
@@ -922,7 +923,7 @@ TYPE
 				FOR i := 0 TO allSections.Length() - 1 DO
 					section := allSections.GetSection(i);
 					IF section.type = Sections.InitCode2Section THEN
-						ProcessCell(section.name, section)						
+						ProcessCell(section.name, section)
 					END
 				END
 			END
@@ -930,12 +931,12 @@ TYPE
 			IF Trace THEN D.String(">>> AN ERROR OCCURED"); D.Ln END
 		END
 	END Assemblink;
-	
+
 	(** whether a section should appear before another one in an assembly
 		- 1st priority: when sections have fixed positions, the ones with smaller addresses come first
 		- 2nd priority: smaller sections come first
 	**)
-	PROCEDURE CombinedSectionComparisonFunction(leftObject, rightObject: ANY): BOOLEAN;	
+	PROCEDURE CombinedSectionComparisonFunction(leftObject, rightObject: ANY): BOOLEAN;
 	VAR
 		leftSection, rightSection: Sections.Section;
 		leftPosition, rightPosition, leftSize, rightSize: LONGINT;
@@ -943,7 +944,7 @@ TYPE
 		ASSERT((leftObject IS Sections.Section) & (rightObject IS Sections.Section));
 		leftSection := leftObject(Sections.Section);
 		rightSection := rightObject(Sections.Section);
-		
+
 		IF leftSection.fixed THEN
 			leftPosition := leftSection.positionOrAlignment
 		ELSE
@@ -964,8 +965,8 @@ TYPE
 			leftSize := leftSection.GetSize();
 			rightSize := rightSection.GetSize();
 			IF leftSize = Sections.UnknownSize THEN leftSize := MAX(LONGINT) END;
-			IF rightSize = Sections.UnknownSize THEN rightSize := MAX(LONGINT) END;			
-			RETURN leftSize < rightSize				
+			IF rightSize = Sections.UnknownSize THEN rightSize := MAX(LONGINT) END;
+			RETURN leftSize < rightSize
 		END
 	END CombinedSectionComparisonFunction;
 
@@ -1125,6 +1126,6 @@ FoxIntermediateCodeAssembler.Test
 	 3: leave  0
 	 4: exit  4
 	 5: trap  3
-	 
-	 
-	 
+
+
+

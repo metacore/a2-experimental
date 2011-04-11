@@ -43,7 +43,7 @@ CONST
 	MaxInt* = 7FFFH;
 	MaxLInt* = 7FFFFFFFH;   (* i386: 2147483647*)
 	MaxSet* = 31;   (* must be >= 15, else the bootstraped compiler cannot run (IN-tests) *)
-	
+
 	invalidString*=-1;
 
 TYPE
@@ -205,12 +205,14 @@ TYPE
 			list[i] := x;
 			INC(i); IF count < i THEN count := i END;
 		END GrowAndSet;
-		
+
 		PROCEDURE Sort*(comparisonFunction: ComparisonFunction);
 		BEGIN
-			QuickSort(comparisonFunction, 0, count - 1)
+			IF count > 0 THEN
+				QuickSort(comparisonFunction, 0, count - 1)
+			END
 		END Sort;
-		
+
 		PROCEDURE QuickSort(comparisonFunction: ComparisonFunction; lo, hi: LONGINT);
 		VAR
 			i, j: LONGINT;
@@ -222,7 +224,7 @@ TYPE
 			WHILE i <= j DO
 				WHILE comparisonFunction(list[i], x) DO INC(i) END;
 				WHILE comparisonFunction(x, list[j]) DO DEC(j) END;
-				
+
 				IF i <= j THEN
 					(*IF (i < j) & comparisonFunction(list[j], list[i]) THEN*)
 						t := list[i]; list[i] := list[j]; list[j] := t; (* swap i and j *)
