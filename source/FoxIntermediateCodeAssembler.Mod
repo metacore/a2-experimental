@@ -3,7 +3,7 @@ IMPORT
 	Strings, Diagnostics, D := Debugging, SyntaxTree := FoxSyntaxTree, Scanner := FoxScanner, Sections := FoxSections,
 	IntermediateCode := FoxIntermediateCode, Basic := FoxBasic, Streams, Files, Backend := FoxBackend, Formats := FoxFormats, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker;
 CONST
-	Trace* = TRUE; (* debugging output *)
+	Trace* = FALSE; (* debugging output *)
 	ParserTrace* = FALSE;
 	IgnoreImports=FALSE;
 TYPE
@@ -19,10 +19,12 @@ TYPE
 		error: BOOLEAN;
 		symbol: Scanner.Symbol;
 		scanner: Scanner.AssemblerScanner;
+		system: Global.System;
 
-		PROCEDURE &Init*(diagnostics: Diagnostics.Diagnostics);
+		PROCEDURE &Init*(diagnostics: Diagnostics.Diagnostics; system: Global.System);
 		BEGIN
 			SELF.diagnostics := diagnostics;
+			SELF.system := system;
 			error := FALSE
 		END Init;
 
@@ -292,7 +294,7 @@ TYPE
 											IF ParserTrace THEN D.String(">>> symbol detected"); D.Ln END;
 											symbolSection := IntermediateCode.NewSection(sectionList, Sections.UnknownSection, identifier, NIL, TRUE);
 
-											IntermediateCode.InitAddress(operand, type, symbolSection, symbolOffset)
+											IntermediateCode.InitAddress(operand, IntermediateCode.UnsignedIntegerType(system.dataUnit), symbolSection, symbolOffset)
 										END
 									ELSIF symbol.token = Scanner.String THEN
 										IntermediateCode.InitString(operand, Strings.NewString(symbol.string));
@@ -610,6 +612,7 @@ TYPE
 	*)
 	PROCEDURE CollectSectionsOfModule(
 			moduleName: SyntaxTree.String;
+			system: Global.System;
 			diagnostics: Diagnostics.StreamDiagnostics;
 			cumulativeSectionList: Sections.SectionList;
 			incorporatedModules: Sections.NameList;
@@ -624,6 +627,7 @@ TYPE
 		imports: Sections.NameList;
 	BEGIN
 		IF Trace THEN D.String(">>> collect sections from module "); D.String(moduleName); D.Ln END;
+		IF moduleName = "SYSTEM" THEN RETURN TRUE END;
 
 		(* check if the module has already been incorporated *)
 		IF incorporatedModules.ContainsName(moduleName) THEN
@@ -645,7 +649,7 @@ TYPE
 
 				(* parse IR file *)
 				NEW(assemblerScanner, filename, reader, 0, diagnostics);
-				NEW(intermediateCodeParser, diagnostics);
+				NEW(intermediateCodeParser, diagnostics, system);
 
 				IF intermediateCodeParser.ParseModuleContent(assemblerScanner, cumulativeSectionList, dummyString, platformName, imports) THEN
 					IF Trace THEN D.String(">>> IR file successfully parsed: "); D.String(filename); D.Ln END;
@@ -653,7 +657,7 @@ TYPE
 					(* parsing has been successful: go through all imports and collect their sections *)
 					error := FALSE;
 					FOR i := 0 TO imports.Length() - 1 DO
-						IF ~CollectSectionsOfModule(imports.GetName(i), diagnostics, cumulativeSectionList, incorporatedModules, dummyString) THEN RETURN FALSE END
+						IF ~CollectSectionsOfModule(imports.GetName(i), system, diagnostics, cumulativeSectionList, incorporatedModules, dummyString) THEN RETURN FALSE END
 					END;
 					RETURN TRUE
 				ELSE
@@ -845,8 +849,10 @@ TYPE
 
 			(*  apply the backend on the list of sections *)
 			binaryModuleOfCell := backend.ProcessIntermediateCodeModule(ICModuleOfCell);
-			IF backend.error OR (binaryModuleOfCell # NIL) THEN
-				diagnostics.Error(ICModuleOfCell.moduleName, Diagnostics.Invalid, Diagnostics.Invalid, "binary code could not be generated (backend error)");
+			IF (binaryModuleOfCell = NIL) THEN
+				diagnostics.Error(ICModuleOfCell.moduleName, Diagnostics.Invalid, Diagnostics.Invalid, "binary code could not be generated (backend error 1)");
+			ELSIF backend.error THEN
+				diagnostics.Error(ICModuleOfCell.moduleName, Diagnostics.Invalid, Diagnostics.Invalid, "binary code could not be generated (backend error 2)");
 			ELSE
 				(* write the generated code to a generic object file *)
 				ASSERT(objectFileFormat # NIL) ;
@@ -864,8 +870,10 @@ TYPE
 		NEW(allSections);
 		NEW(importList,8);
 
+		system := backend.GetSystem();
+
 		(* collect all sections contained in the module and its imports *)
-		IF IgnoreImports OR CollectSectionsOfModule(rootModuleName, diagnostics, allSections, importList, platformName) THEN
+		IF IgnoreImports OR CollectSectionsOfModule(rootModuleName, system, diagnostics, allSections, importList, platformName) THEN
 
 			(* determine backend to be used *)
 			IF platformName # "" THEN
@@ -916,13 +924,14 @@ TYPE
 					arrangementRestrictions[i].positionOrAlignment := section.positionOrAlignment
 				END;
 
-				(* initialize backend *)
-				backend.Initialize(diagnostics, log, flags, semanticChecker, system, NIL);
 
 				(* go through all cell initialization sections (i.e. 'initcode2'-sections) *)
 				FOR i := 0 TO allSections.Length() - 1 DO
 					section := allSections.GetSection(i);
 					IF section.type = Sections.InitCode2Section THEN
+						(* initialize backend *)
+						backend.Initialize(diagnostics, log, flags, semanticChecker, system, NIL);
+
 						ProcessCell(section.name, section)
 					END
 				END

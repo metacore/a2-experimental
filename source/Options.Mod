@@ -51,7 +51,7 @@ CONST
 
 	Unknown = -1;
 
-	MaxOptions = 32;
+	MaxOptions = 64;
 
 	OptionDelimiter = "-";
 	Assignment = "=";

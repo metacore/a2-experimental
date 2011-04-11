@@ -66,7 +66,7 @@ CONST
 	LineCommentStart = Sections.LineCommentStart;
 
 	NotYetCalculatedSize = -2; (* genasm *)
-	
+
 TYPE
 	Type*=RECORD
 		form-: SHORTINT; (* SignedInteger, UnsignedInteger or Float *)
@@ -122,9 +122,9 @@ TYPE
 		finally-: LONGINT; (* finally section starts at, -1 if none *)
 		resolved-: BinaryCode.Section; (* reference to section containing compiled byte array *) (* TODO: ret rid of that? *)
 		comments-: Sections.CommentWriter;
-		validPAFEnter-,validPAFExit-: LONGINT; (* begin and end of code section where current PAF (procedure activation frame) is considered valid *)		
+		validPAFEnter-,validPAFExit-: LONGINT; (* begin and end of code section where current PAF (procedure activation frame) is considered valid *)
 		sizeInUnits: LONGINT; (* genasm *)
-		
+
 		PROCEDURE GetPC(): LONGINT;
 		BEGIN RETURN pc
 		END GetPC;
@@ -134,7 +134,7 @@ TYPE
 			InitSection(type,n,symbol); InitArray;resolved := NIL;
 			IF comment THEN NEW(comments,GetPC) ELSE comments := NIL END;
 			finally := -1;
-			validPAFEnter := 0; validPAFExit := 0;			
+			validPAFEnter := 0; validPAFExit := 0;
 			sizeInUnits := NotYetCalculatedSize; (* genasm *)
 		END InitIntermediateSection;
 
@@ -153,7 +153,7 @@ TYPE
 		PROCEDURE SetFinally*(atPc: LONGINT);
 		BEGIN finally := atPc
 		END SetFinally;
-		
+
 		(* genasm *)
 		PROCEDURE GetSize*(): LONGINT;
 		VAR
@@ -162,35 +162,35 @@ TYPE
 		BEGIN
 			IF sizeInUnits = NotYetCalculatedSize THEN
 				sizeInUnits := Sections.UnknownSize; (* default value *)
-				
+
 				IF bitsPerUnit # Sections.UnknownSize THEN (* only calculate the size if the unit size is known *)
 					IF (type = Sections.VarSection) OR (type = Sections.ConstSection) THEN
 						sizeInUnits := 0;
 						(* go through all instructions *)
 						FOR i := 0 TO pc - 1 DO
 							instruction := instructions[i];
-							CASE instruction.opcode OF 
+							CASE instruction.opcode OF
 							| data:
 								(* TODO: correct? *)
 								ASSERT((instruction.op1.mode = ModeImmediate) OR (instruction.op1.mode = ModeMemory));
 								ASSERT((instruction.op1.type.sizeInBits MOD bitsPerUnit) = 0);
 								INC(sizeInUnits, instruction.op1.type.sizeInBits DIV bitsPerUnit); (* TODO: correct conversion from bits to units? *)
-								
+
 							| reserve:
 								ASSERT(instruction.op1.mode = ModeNumber);
 								INC(sizeInUnits, LONGINT(instruction.op1.intValue))
-								
+
 							ELSE
 								HALT(100); (* a var/const section may not contain any other type of instruction *)
 							END
 						END
 					END
 				END
-				
+
 			END;
 			RETURN sizeInUnits
 		END GetSize;
-		
+
 		PROCEDURE InitArray;
 		CONST MinInstructions = 8;
 		BEGIN
@@ -348,12 +348,12 @@ TYPE
 			res := list.FindByName(name);
 			IF res # NIL THEN
 				(* section was found under the name *)
-				
+
 				(* set the section type if it is now known *)
 				IF (type # Sections.UnknownSection) & (res.type = Sections.UnknownSection) THEN
 					res.SetType(type)
 				END;
-				
+
 				ASSERT((res.type = type) OR (type = Sections.UnknownSection));
 				RETURN res(Section)
 			END;
@@ -831,6 +831,33 @@ TYPE
 	END FindRegister;
 
 
+	PROCEDURE UnsignedIntegerType*(bits: LONGINT): Type;
+	BEGIN
+		IF bits = 8 THEN RETURN uint8
+		ELSIF bits=16 THEN RETURN uint16
+		ELSIF bits=32 THEN RETURN uint32
+		ELSIF bits=64 THEN RETURN uint64
+		ELSE HALT(200)
+		END;
+	END UnsignedIntegerType;
+
+	PROCEDURE SignedIntegerType*(bits: LONGINT): Type;
+	BEGIN
+		IF bits = 8 THEN RETURN int8
+		ELSIF bits=16 THEN RETURN int16
+		ELSIF bits=32 THEN RETURN int32
+		ELSIF bits=64 THEN RETURN int64
+		ELSE HALT(200)
+		END;
+	END SignedIntegerType;
+
+	PROCEDURE FloatType*(bits: LONGINT): Type;
+	BEGIN
+		IF bits=32 THEN RETURN float32
+		ELSIF bits=64 THEN RETURN float64
+		ELSE HALT(200)
+		END;
+	END FloatType;
 
 BEGIN
 	InitInstructions;

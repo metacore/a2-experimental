@@ -8450,33 +8450,6 @@ TYPE
 	BEGIN ASSERT(cond);
 	END Assert;
 
-	PROCEDURE UnsignedIntegerType(bits: LONGINT): IntermediateCode.Type;
-	BEGIN
-		IF bits = 8 THEN RETURN uint8
-		ELSIF bits=16 THEN RETURN uint16
-		ELSIF bits=32 THEN RETURN uint32
-		ELSIF bits=64 THEN RETURN uint64
-		ELSE HALT(200)
-		END;
-	END UnsignedIntegerType;
-
-	PROCEDURE SignedIntegerType(bits: LONGINT): IntermediateCode.Type;
-	BEGIN
-		IF bits = 8 THEN RETURN int8
-		ELSIF bits=16 THEN RETURN int16
-		ELSIF bits=32 THEN RETURN int32
-		ELSIF bits=64 THEN RETURN int64
-		ELSE HALT(200)
-		END;
-	END SignedIntegerType;
-
-	PROCEDURE FloatType(bits: LONGINT): IntermediateCode.Type;
-	BEGIN
-		IF bits=32 THEN RETURN float32
-		ELSIF bits=64 THEN RETURN float64
-		ELSE HALT(200)
-		END;
-	END FloatType;
 
 	PROCEDURE ReusableRegister(op: IntermediateCode.Operand): BOOLEAN;
 	BEGIN
@@ -9624,17 +9597,17 @@ TYPE
 	BEGIN
 		type := type.resolved;
 		IF type IS SyntaxTree.CharacterType THEN
-			RETURN UnsignedIntegerType(system.SizeOf(type))
+			RETURN IntermediateCode.UnsignedIntegerType(system.SizeOf(type))
 		ELSIF type IS SyntaxTree.IntegerType THEN
-			RETURN SignedIntegerType(system.SizeOf(type))
+			RETURN  IntermediateCode.SignedIntegerType(system.SizeOf(type))
 		ELSIF type IS SyntaxTree.FloatType THEN
-			RETURN FloatType(system.SizeOf(type))
+			RETURN  IntermediateCode.FloatType(system.SizeOf(type))
 		ELSIF type IS SyntaxTree.RangeType THEN
 			RETURN GetType(system,system.addressType)
 		ELSIF type IS SyntaxTree.BasicType THEN
-			IF type IS SyntaxTree.SizeType THEN RETURN SignedIntegerType(system.SizeOf(type))
+			IF type IS SyntaxTree.SizeType THEN RETURN  IntermediateCode.SignedIntegerType(system.SizeOf(type))
 			ELSE
-				RETURN UnsignedIntegerType(system.SizeOf(type))
+				RETURN  IntermediateCode.UnsignedIntegerType(system.SizeOf(type))
 			END;
 		ELSIF type IS SyntaxTree.PointerType THEN
 			RETURN GetType(system,system.addressType)
