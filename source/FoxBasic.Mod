@@ -65,9 +65,9 @@ TYPE
 		multipleAllowed*: BOOLEAN;
 		nilAllowed*: BOOLEAN;
 
-		PROCEDURE & InitList* ;
+		PROCEDURE & InitList*(initialSize: LONGINT) ;
 		BEGIN
-			INC( lists );  NEW( list, InitListSize );  count := 0;  multipleAllowed := FALSE;  nilAllowed := FALSE
+			INC( lists );  NEW( list, initialSize );  count := 0;  multipleAllowed := FALSE;  nilAllowed := FALSE
 		END InitList;
 
 		PROCEDURE Length*( ): LONGINT;
@@ -78,7 +78,7 @@ TYPE
 		PROCEDURE Grow;
 		VAR old: ObjectArray;  i: LONGINT;
 		BEGIN
-			INC( enlarged );  old := list;  NEW( list, LEN( list ) * 2 );
+			INC( enlarged );  old := list;  NEW( list, LEN( list ) * 4 );
 			FOR i := 0 TO count - 1 DO list[i] := old[i] END
 		END Grow;
 
@@ -243,9 +243,9 @@ TYPE
 	VAR list: IntegerArray;
 		count-: LONGINT;
 
-		PROCEDURE & InitList* ;
+		PROCEDURE & InitList*(initialSize: LONGINT) ;
 		BEGIN
-			INC( lists );  NEW( list, InitListSize );  count := 0;
+			INC( lists );  NEW( list, initialSize );  count := 0;
 		END InitList;
 
 		PROCEDURE Length*( ): LONGINT;
@@ -254,7 +254,7 @@ TYPE
 		PROCEDURE Grow;
 		VAR old: IntegerArray;  i: LONGINT;
 		BEGIN
-			INC( enlarged );  old := list;  NEW( list, LEN( list ) * 2 );
+			INC( enlarged );  old := list;  NEW( list, LEN( list ) * 4 );
 			FOR i := 0 TO count - 1 DO list[i] := old[i] END
 		END Grow;
 
@@ -400,7 +400,7 @@ TYPE
 		PROCEDURE Clear*;
 		BEGIN
 			count := 0;
-			NEW(list);
+			NEW(list,InitListSize);
 			list.multipleAllowed := TRUE; list.nilAllowed := TRUE;
 		END Clear;
 
@@ -453,7 +453,7 @@ TYPE
 		PROCEDURE Clear*;
 		BEGIN
 			count := 0;
-			NEW(list);
+			NEW(list,InitListSize);
 		END Clear;
 
 	END IntegerBag;
@@ -741,7 +741,7 @@ TYPE
 		list: List;
 
 		PROCEDURE & Init*;
-		BEGIN NEW(list); END Init;
+		BEGIN NEW(list,InitListSize); END Init;
 
 		(* Push on top of stack *)
 		PROCEDURE Push*(x: ANY);
@@ -779,7 +779,7 @@ TYPE
 		list: IntegerList;
 
 		PROCEDURE & Init*;
-		BEGIN NEW(list); END Init;
+		BEGIN NEW(list,InitListSize); END Init;
 
 		(* Push on top of stack *)
 		PROCEDURE Push*(x: LONGINT);
@@ -978,8 +978,8 @@ TYPE
 
 		PROCEDURE & Init *;
 		BEGIN
-			NEW(blocks);
-			NEW(edges);
+			NEW(blocks,InitListSize);
+			NEW(edges,InitListSize);
 			NEW(edgesLookup, 1024);
 		END Init;
 
@@ -1032,13 +1032,13 @@ TYPE
 				new.Add(b);
 			END Work;
 		BEGIN
-			NEW(new);
+			NEW(new,InitListSize);
 			NEW(done, blocks.Length());
 			i := 0;
 
 			Work(blocks.GetBlock(0));
 
-			NEW(blocks);
+			NEW(blocks,InitListSize);
 			FOR i := new.Length() - 1 TO 0 BY -1 DO
 				b := new.GetBlock(i);
 				b.index := blocks.Length();
@@ -1164,9 +1164,9 @@ TYPE
 
 		PROCEDURE & Init*;
 		BEGIN
-			NEW(predecessors);
-			NEW(successors);
-			NEW(dominanceFrontier);
+			NEW(predecessors,InitListSize);
+			NEW(successors,InitListSize);
+			NEW(dominanceFrontier,InitListSize);
 		END Init;
 
 		PROCEDURE Accept(v: GraphVisitor);

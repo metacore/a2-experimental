@@ -411,7 +411,7 @@ TYPE
 
 			moduleName := "";
 			platformName := "";
-			NEW(imports);
+			NEW(imports,8);
 
 			ASSERT(scanner # NIL);
 			SELF.scanner := scanner;
@@ -862,7 +862,7 @@ TYPE
 
 	BEGIN
 		NEW(allSections);
-		NEW(importList);
+		NEW(importList,8);
 
 		(* collect all sections contained in the module and its imports *)
 		IF IgnoreImports OR CollectSectionsOfModule(rootModuleName, diagnostics, allSections, importList, platformName) THEN

@@ -381,7 +381,7 @@ TYPE
 		BEGIN
 			InitSymbol(name,scope);
 			type := c;
-			index := -1; SELF.scope := scope; NEW(parameters);
+			index := -1; SELF.scope := scope; NEW(parameters,4);
 			ASSERT(scope # NIL);
 		END Init;
 
@@ -465,9 +465,9 @@ TYPE
 		PROCEDURE &InitScope(CONST name: ARRAY OF CHAR; scope: Scope; specification: Specification);
 		BEGIN
 			COPY(name,SELF.name); SELF.specification := specification;
-			NEW(instances); NEW(channels);
-			NEW(ports); NEW(types);
-			NEW(symbols);
+			NEW(instances,4); NEW(channels,4);
+			NEW(ports,4); NEW(types,4);
+			NEW(symbols,4);
 			index := -1;
 		END InitScope;
 
@@ -576,8 +576,8 @@ TYPE
 			ASSERT(specification # NIL);
 			instructionMemorySize := defaultInstructionMemorySize;
 			dataMemorySize := defaultDataMemorySize;
-			NEW(devices);
-			NEW(modules);
+			NEW(devices,4);
+			NEW(modules,4);
 			SELF.scope := scope
 		END InitType;
 
@@ -920,7 +920,7 @@ TYPE
 		BEGIN
 			InitScope(name,NIL,SELF);
 			instructionSet := "UNDEFINED";
-			NEW(supportedDevices);
+			NEW(supportedDevices,4);
 			SELF.diagnostics := diagnostics;
 			SELF.log := log;
 			NEW(device,"DDR",SELF, 0FFCAH); supportedDevices.AddDevice(device);
@@ -932,7 +932,7 @@ TYPE
 			NEW(device,"PORT",SELF,0FF10H); supportedDevices.AddDevice(device);
 			NEW(device,"Switch",SELF,0FFFFH); supportedDevices.AddDevice(device);
 			NEW(device,"Motor",SELF,LONGINT(0FFFFFFCEH)); supportedDevices.AddDevice(device);
-			NEW(imports);
+			NEW(imports,4);
 		END Init;
 
 		PROCEDURE AddImport*(CONST name: ARRAY OF CHAR);
@@ -1194,7 +1194,7 @@ TYPE
 
 	BEGIN
 		IF scope.instances.Length()=0 THEN RETURN END;
-		NEW(instances); NEW(channels);
+		NEW(instances,4); NEW(channels,4);
 		FOR i := 0 TO scope.channels.Length()-1 DO
 			oldChannel := scope.channels.GetChannel(i);
 			COPY(oldChannel.name, name);

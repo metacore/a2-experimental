@@ -314,7 +314,7 @@ TYPE
 		BEGIN
 			NEW(lookup, 100);
 			NEW(lookupName, 100);
-			InitList (* initializer of general list *)
+			InitList(32) (* initializer of general list *)
 		END InitListOfSections;
 
 		PROCEDURE GetSection*(index: LONGINT): Section;
@@ -443,7 +443,7 @@ TYPE
 			NEW(importedSymbols);
 			NEW(systemCalls);
 			NEW(caseTables);
-			NEW(imports); (* genasm *)
+			NEW(imports,8); (* genasm *)
 		END Init;
 
 		(* genasm *)

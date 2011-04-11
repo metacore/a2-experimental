@@ -1572,7 +1572,7 @@ TYPE
 		VAR list: Basic.List;
 
 		PROCEDURE & InitList;
-		BEGIN NEW( list );
+		BEGIN NEW( list,8 );
 		END InitList;
 
 		PROCEDURE Length*( ): LONGINT;
@@ -2721,7 +2721,7 @@ TYPE
 			list: Basic.List;
 
 		PROCEDURE & InitList;
-		BEGIN NEW( list );
+		BEGIN NEW( list,32 );
 		END InitList;
 
 		PROCEDURE Length*( ): LONGINT;
@@ -2870,7 +2870,7 @@ TYPE
 
 		PROCEDURE AddElsifPart*( elsifPart: IfPart );
 		BEGIN
-			IF elsifParts = NIL THEN NEW(elsifParts);  END;
+			IF elsifParts = NIL THEN NEW(elsifParts,4);  END;
 			elsifParts.Add( elsifPart );
 		END AddElsifPart;
 
@@ -2928,7 +2928,7 @@ TYPE
 		PROCEDURE & InitWithStatement( position: LONGINT; outer: Statement );
 		BEGIN
 			InitStatement( position,outer );
-			NEW(withParts); elsePart := NIL;
+			NEW(withParts,4); elsePart := NIL;
 		END InitWithStatement;
 
 
@@ -3009,7 +3009,7 @@ TYPE
 
 		PROCEDURE AddCasePart*( casePart: CasePart );
 		BEGIN
-			IF caseParts = NIL THEN NEW(caseParts);  END;
+			IF caseParts = NIL THEN NEW(caseParts,4);  END;
 			caseParts.Add( casePart );
 		END AddCasePart;
 

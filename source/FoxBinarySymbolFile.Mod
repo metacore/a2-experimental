@@ -146,7 +146,7 @@ CONST
 		sfDarwinCParam= 15; (* fld for darwin *)
 		sfRealtime= 21;
 		sfDynamic = 22;
-		
+
 		Undef=MIN(LONGINT);
 
 CONST
@@ -604,7 +604,7 @@ TYPE
 		typeToIndex: TypeToIndex;
 
 		PROCEDURE &Init;
-		BEGIN numberTypes := 0; NEW(indexToType); NEW(typeToIndex,100);
+		BEGIN numberTypes := 0; NEW(indexToType,16); NEW(typeToIndex,100);
 		END Init;
 	END Attribute;
 
@@ -1547,7 +1547,7 @@ TYPE
 			Init;
 			i := 0; numberTypes := 0; numberReimports := 0;
 			COPY(moduleName,fileName);
-			NEW(allTypes); NEW(indexToAttribute);
+			NEW(allTypes,32); NEW(indexToAttribute,32);
 			ASSERT(fileName # "SYSTEM");
 
 			IF ~OpenSymFile(fileName, prefix, extension, R) THEN (*! reintroduce flexible extension *)
@@ -2296,7 +2296,7 @@ TYPE
 			END;
 
 			NEW(w,file,0);
-			NEW(lookup,100); NEW(indexToAttribute);
+			NEW(lookup,100); NEW(indexToAttribute,16);
 			numberType := 0;
 			Module(module);
 			w.Update();
