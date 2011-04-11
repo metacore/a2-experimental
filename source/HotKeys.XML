@@ -101,4 +101,6 @@
 	<HotKey name="DOWN" keys="CTRL+K" command="REMAP DOWN"/>
 	<HotKey name="RIGHT" keys="CTRL+L" command="REMAP RIGHT"/>
 	
+	<HotKey name="BOLD" keys="CTRL+B" command="WMTextStyleTool.SetFontStyle BOLD"/>
+	
 </HotKeys>
