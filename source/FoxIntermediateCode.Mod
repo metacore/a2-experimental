@@ -44,7 +44,6 @@ CONST
 	HwRegister*=-8; (* any value below (or equal) hwreg is a user defined hardware register *)
 	(*! alternative: generate inline assembler *)
 
-	(*Result*=30; (* result register *)*)
 	None*=-1; (* no register assigned *)
 	SP*=-2; (* stack pointer *)
 	FP*=-3; (* frame pointer *)
@@ -783,6 +782,7 @@ TYPE
 	BEGIN op.type := type
 	END SetType;
 
+	(** assembler related part *)
 
 	PROCEDURE FindMnemonic*(CONST name: ARRAY OF CHAR): SHORTINT;
 	VAR i: SHORTINT;
@@ -800,36 +800,32 @@ TYPE
 		op.register := reg; ASSERT(reg # 0);
 	END SetRegister;
 
-
-	(* TODO: probably not needed anymore? *)
-	PROCEDURE FindRegister*(CONST name: ARRAY OF CHAR): LONGINT;
-	VAR i,nr: LONGINT;
-		PROCEDURE Number(ch: CHAR): BOOLEAN;
-		BEGIN
-			IF (ch < "0") OR (ch > "9") THEN RETURN FALSE
-			ELSE
-				nr := nr *10;
-				INC(nr,ORD(ch)-ORD("0"));
-				RETURN TRUE
-			END;
-		END Number;
-
+	PROCEDURE DecimalNumber(ch: CHAR; VAR nr: LONGINT): BOOLEAN;
 	BEGIN
-		IF name = "SP" THEN RETURN SP
-		ELSIF name = "FP" THEN RETURN FP
-		(*
-		ELSIF name ="Res" THEN RETURN Result
-		ELSIF name ="Res2" THEN RETURN Result2
-		*)
-		ELSIF name[0] = "r" THEN
-			nr := 0; i := 1;
-			WHILE (i < LEN(name)) & (name[i]#0X) & Number(name[i]) DO
-				INC(i);
-			END;
-			IF (i=1) OR (i=LEN(name)) OR (name[i] # 0X) THEN nr := None END;
+		IF (ch < "0") OR (ch > "9") THEN RETURN FALSE
+		ELSE
+			nr := nr *10;
+			INC(nr,ORD(ch)-ORD("0"));
+			RETURN TRUE
 		END;
-	END FindRegister;
+	END DecimalNumber;
 
+	PROCEDURE Numbers(CONST name: ARRAY OF CHAR; VAR number: LONGINT): BOOLEAN;
+	VAR i: LONGINT;
+	BEGIN
+		i := 1; number := 0; WHILE (i<LEN(name)) & DecimalNumber(name[i], number) DO INC(i) END;
+		RETURN name[i] = 0X
+	END Numbers;
+
+	PROCEDURE DenotesRegister*(CONST name: ARRAY OF CHAR; VAR register: LONGINT): BOOLEAN;
+	BEGIN
+		IF (name[0]='r') & Numbers(name,register) THEN RETURN TRUE
+		ELSIF (name[0]='h') & Numbers(name,register) THEN register := HwRegister - register; RETURN TRUE
+		ELSIF name = "sp" THEN register := SP; RETURN TRUE
+		ELSIF name = "fp" THEN register := FP ; RETURN TRUE
+		ELSE RETURN FALSE
+		END;
+	END DenotesRegister;
 
 	PROCEDURE UnsignedIntegerType*(bits: LONGINT): Type;
 	BEGIN
@@ -837,7 +833,7 @@ TYPE
 		ELSIF bits=16 THEN RETURN uint16
 		ELSIF bits=32 THEN RETURN uint32
 		ELSIF bits=64 THEN RETURN uint64
-		ELSE HALT(200)
+		ELSE RETURN NewType(UnsignedInteger, SHORTINT(bits))
 		END;
 	END UnsignedIntegerType;
 
@@ -847,7 +843,7 @@ TYPE
 		ELSIF bits=16 THEN RETURN int16
 		ELSIF bits=32 THEN RETURN int32
 		ELSIF bits=64 THEN RETURN int64
-		ELSE HALT(200)
+		ELSE RETURN NewType(SignedInteger, SHORTINT(bits))
 		END;
 	END SignedIntegerType;
 
@@ -855,9 +851,19 @@ TYPE
 	BEGIN
 		IF bits=32 THEN RETURN float32
 		ELSIF bits=64 THEN RETURN float64
-		ELSE HALT(200)
+		ELSE  RETURN NewType(Float, SHORTINT(bits))
 		END;
 	END FloatType;
+
+	PROCEDURE DenotesType*(CONST name: ARRAY OF CHAR; VAR type: Type): BOOLEAN;
+	VAR sizeInBits,form: LONGINT;
+	BEGIN
+		IF (name[0] = 's') & Numbers(name, sizeInBits) & (sizeInBits >0) THEN type := SignedIntegerType(sizeInBits); RETURN TRUE
+		ELSIF (name[0] = 'u') & Numbers(name, sizeInBits) & (sizeInBits >0) THEN type := UnsignedIntegerType(sizeInBits); RETURN TRUE
+		ELSIF (name[0] = 'f') & Numbers(name, sizeInBits) & (sizeInBits >0) THEN type := FloatType(sizeInBits); RETURN TRUE
+		ELSE RETURN FALSE
+		END;
+	END DenotesType;
 
 BEGIN
 	InitInstructions;

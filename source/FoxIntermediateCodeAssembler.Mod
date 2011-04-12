@@ -98,93 +98,6 @@ TYPE
 			END;
 		END ExpectLineDelimiter;
 
-		PROCEDURE RegisterNumberFromIdentifier(VAR registerNumber: LONGINT; identifier: Scanner.StringType): BOOLEAN;
-		VAR
-			number, digit, position: LONGINT;
-		BEGIN
-			registerNumber := IntermediateCode.None; (* default *)
-			IF identifier = "sp" THEN
-				(* stack pointer register *)
-				registerNumber := IntermediateCode.SP;
-				RETURN TRUE
-			ELSIF identifier = "fp" THEN
-				(* frame pointer register *)
-				registerNumber := IntermediateCode.FP;
-				RETURN TRUE
-			ELSIF (identifier[0] = 'r') OR (identifier[0] = 'h') THEN
-				(* TODO: is support for hardware registers needed? *)
-				(* read number *)
-				position := 1;
-				number := 0;
-				WHILE identifier[position] # 0X DO
-					number := number * 10;
-					digit := ORD(identifier[position]) - ORD('0');
-					IF (digit >= 0) & (digit <= 9) THEN
-						number := number + INTEGER(digit)
-					ELSE
-						RETURN FALSE
-					END;
-					position := position + 1
-				END;
-				IF identifier[0] = 'r' THEN
-					(* virtual register *)
-					IF number < 1 THEN
-						RETURN FALSE
-					ELSE
-						registerNumber := number;
-						RETURN TRUE
-					END
-				ELSIF identifier[0] = 'h' THEN
-					(* hardware register *)
-					IF number < 0 THEN
-						RETURN FALSE
-					ELSE
-						registerNumber := IntermediateCode.HwRegister - number;
-						RETURN TRUE
-					END
-				END
-			ELSE
-				RETURN FALSE
-			END
-		END RegisterNumberFromIdentifier;
-
-		PROCEDURE TypeFromIdentifier(VAR type: IntermediateCode.Type; identifier: Scanner.StringType): BOOLEAN;
-		VAR
-			sizeInBits: INTEGER;
-			form: SHORTINT;
-			digit, position: LONGINT;
-		BEGIN
-			(* read form *)
-			IF identifier[0] = 's' THEN
-				form := IntermediateCode.SignedInteger
-			ELSIF identifier[0] = 'u' THEN
-				form := IntermediateCode.UnsignedInteger
-			ELSIF identifier[0] = 'f' THEN
-				form := IntermediateCode.Float
-			ELSE
-				RETURN FALSE
-			END;
-
-			(* read bit size *)
-			position := 1;
-			sizeInBits := 0;
-			WHILE identifier[position] # 0X DO
-				sizeInBits := sizeInBits * 10;
-				digit := ORD(identifier[position]) - ORD('0');
-				IF (digit >= 0) & (digit <= 9) THEN
-					sizeInBits := sizeInBits + INTEGER(digit)
-				ELSE
-					RETURN FALSE
-				END;
-				position := position + 1
-			END;
-
-			IF (sizeInBits < 1) OR (sizeInBits > 64) THEN RETURN FALSE END;
-			IntermediateCode.InitType(type, form, sizeInBits);
-
-			RETURN TRUE
-		END TypeFromIdentifier;
-
 		(*
 		(* whether an symbol name is prefixed with a certain module name*)
 		PROCEDURE HasModulePrefix(moduleName, symbolName: Scanner.StringType): BOOLEAN;
@@ -261,7 +174,7 @@ TYPE
 
 									(* consume optional type description *)
 									lastWasIdentifier := GetIdentifier(pos, identifier);
-									IF lastWasIdentifier & TypeFromIdentifier(type, identifier) THEN
+									IF lastWasIdentifier & IntermediateCode.DenotesType(identifier,type) THEN
 										hasTypeDescriptor := TRUE;
 										lastWasIdentifier := GetIdentifier(pos, identifier)
 									END;
@@ -272,7 +185,7 @@ TYPE
 									END;
 
 									IF lastWasIdentifier THEN
-										IF RegisterNumberFromIdentifier(registerNumber, identifier) THEN
+										IF IntermediateCode.DenotesRegister(identifier, registerNumber) THEN
 											(* register *)
 											IntermediateCode.InitRegister(operand, type, registerNumber);
 										ELSE
