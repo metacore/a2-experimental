@@ -1162,15 +1162,15 @@ TYPE
 					END
 				END;
 				Keyword("OPERATOR ");
-				
+
 				first := TRUE;
 				IF x.isDynamic THEN Flag(Global.NameDynamic, first) END;
 				IF ~first THEN w.String("}") END;
-				
+
 				type := x.type(SyntaxTree.ProcedureType);
 				PrintSymbol(x);
-				
-				
+
+
 				ParameterList(type.firstParameter);
 				IF type.returnType # NIL THEN
 					w.String( ": " );
@@ -1209,8 +1209,6 @@ TYPE
 		VAR context: SyntaxTree.Identifier;
 		BEGIN
 			IF x.moduleName # x.name THEN Identifier(x.name);  w.String( " := " );  END;
-			IF x.module = NIL THEN AlertString("(*module = NIL*)");
-			END;
 			IF (x.scope = NIL) OR (x.scope.ownerModule = NIL) THEN context := SyntaxTree.invalidIdentifier ELSE context := x.scope.ownerModule.context END;
 			Identifier(x.moduleName);
 			IF (x.context # SyntaxTree.invalidIdentifier) & (x.context#context) THEN
@@ -1225,7 +1223,7 @@ TYPE
 			Indent;  Keyword("IMPORT " );
 			first := TRUE;
 			WHILE(x # NIL) DO
-				IF x.direct OR (mode > SymbolFile) THEN
+				IF x.direct & (x.module # NIL) OR (mode > SymbolFile) THEN
 					IF ~first THEN w.String(", ") ELSE first := FALSE END;
 					VisitImport(x);
 				END;
