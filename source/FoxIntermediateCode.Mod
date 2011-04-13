@@ -216,6 +216,7 @@ TYPE
 			op2form := instruction.op2.type.form;
 			op3form := instruction.op3.type.form;
 
+			(*
 			IF SameType12 IN instructionFormat[instruction.opcode].flags THEN
 				Assert(TypeEquals(instruction.op1.type,instruction.op2.type),"operands 1 and 2 not of same type");
 			END;
@@ -228,6 +229,7 @@ TYPE
 			IF Op1IsDestination IN instructionFormat[instruction.opcode].flags THEN
 				Assert((instruction.op1.mode # ModeRegister) OR (instruction.op1.offset = 0),"destination operand may not be register with nonzero offset");
 			END;
+			*)
 			IF pc = LEN(instructions) THEN
 				NEW(new,4*LEN(instructions));
 				SYSTEM.MOVE(SYSTEM.ADR(instructions[0]), SYSTEM.ADR(new[0]), LEN(instructions)*SYSTEM.SIZEOF(Instruction));
@@ -386,33 +388,72 @@ TYPE
 		END;
 	END SameOperand;
 
-
-	PROCEDURE CheckOperand(CONST operand: Operand(*; VAR msg: ARRAY OF CHAR*));
+	(** check if an operand is valid at a certain location for a given instruction opcode **)
+	PROCEDURE CheckOperand*(operand: Operand; opCode, location: LONGINT; VAR message: ARRAY OF CHAR): BOOLEAN;
+	VAR
+		validOperandModes: SET;
 	BEGIN
-		CASE operand.mode OF
-		Undefined:
-		|ModeNumber:
-		|ModeMemory:
-			Assert(operand.type.form # Undefined,"memory type form undefined"); Assert(operand.type.sizeInBits # 0,"memory type size undefined");
-			IF operand.register # None THEN
-				Assert(operand.symbol = NIL,"symbol and register cannot be both set in a memory operand");
-			ELSIF operand.symbol # NIL THEN
-				Assert(operand.intValue = 0,"memory operand on non zero immediate with symbol # NIL");
-			ELSE
-				Assert(operand.intValue # 0,"memory operand on address 0 zero without register and symbol");
-			END;
-		|ModeRegister:
-			Assert(operand.type.form # Undefined,"register type form undefined"); Assert(operand.type.sizeInBits # 0,"register type size undefined");
-			Assert(operand.register # None,"register undefined in register operand");
-		|ModeImmediate:
-			IF operand.symbol # NIL THEN
-				Assert(operand.intValue = 0,"forbidden immediate with symbol and intValue # 0");
-				Assert(operand.floatValue = 0,"forbidden immediate with symbol and floatValue # 0");
-			END;
-		|ModeString:
-			Assert(operand.string # NIL,"nil string in string operand");
+		validOperandModes := {};
+		CASE location OF
+		| 0: validOperandModes := instructionFormat[opCode].op1
+		| 1: validOperandModes := instructionFormat[opCode].op2
+		| 2: validOperandModes := instructionFormat[opCode].op3			
 		END;
+		IF ~(operand.mode IN validOperandModes) THEN
+			message := "operand mode mismatch"; RETURN FALSE
+		END;
+		
+		(* the following code was taken from the previous version of 'PROCEDURE CheckOperand' and adapted: *)
+		CASE operand.mode OF
+		| Undefined:
+		| ModeNumber:
+		| ModeMemory:
+			IF operand.type.form = Undefined THEN message := "memory type form undefined"; RETURN FALSE END;
+			IF operand.type.sizeInBits = 0 THEN message :="memory type size undefined"; RETURN FALSE END;
+			IF operand.register # None THEN
+				IF operand.symbol # NIL THEN message :="symbol and register cannot be both set in a memory operand"; RETURN FALSE END
+			ELSIF operand.symbol # NIL THEN
+				IF operand.intValue # 0 THEN message :="memory operand on non zero immediate with symbol # NIL"; RETURN FALSE END
+			ELSE
+				IF operand.intValue = 0 THEN message :="memory operand on address 0 zero without register and symbol"; RETURN FALSE END
+			END
+		| ModeRegister:
+			IF operand.type.form = Undefined THEN message :="register type form undefined"; RETURN FALSE END;
+			IF operand.type.sizeInBits = 0 THEN message :="register type size undefined"; RETURN FALSE END;
+			IF operand.register = None THEN message :="register undefined in register operand"; RETURN FALSE END
+		| ModeImmediate:
+			IF operand.symbol # NIL THEN
+				IF operand.intValue # 0 THEN message :="forbidden immediate with symbol and intValue # 0"; RETURN FALSE END;
+				IF operand.floatValue # 0 THEN message :="forbidden immediate with symbol and floatValue # 0"; RETURN FALSE END
+			END
+		| ModeString:
+			IF operand.string = NIL THEN message :="nil string in string operand"; RETURN FALSE END
+		END;
+		
+		RETURN TRUE	
 	END CheckOperand;
+
+	(** check if an instruction is valid **)
+	PROCEDURE CheckInstruction*(instruction: Instruction; VAR message: ARRAY OF CHAR): BOOLEAN;
+	BEGIN	
+		IF (SameType12 IN instructionFormat[instruction.opcode].flags) & ~TypeEquals(instruction.op1.type, instruction.op2.type) THEN
+			message := "operands 1 and 2 not of same type";
+			RETURN FALSE
+		END;
+		IF (SameSize12 IN instructionFormat[instruction.opcode].flags) & (instruction.op1.type.sizeInBits # instruction.op2.type.sizeInBits) THEN
+			message := "operands 1 and 2 not of same size";
+			RETURN FALSE
+		END;
+		IF (SameType23 IN instructionFormat[instruction.opcode].flags) & ~TypeEquals(instruction.op2.type, instruction.op3.type) THEN
+			message := "operands 2 and 3 not of  same type";
+			RETURN FALSE
+		END;
+		IF (Op1IsDestination IN instructionFormat[instruction.opcode].flags) & (instruction.op1.mode = ModeRegister) & (instruction.op1.offset # 0) THEN
+			message := "destination operand may not be register with nonzero offset";
+			RETURN FALSE
+		END;
+		RETURN TRUE
+	END CheckInstruction;
 
 	PROCEDURE DumpRegister*(w: Streams.Writer; reg: LONGINT);
 	BEGIN
@@ -502,8 +543,7 @@ TYPE
 			END;
 		|ModeImmediate:
 			IF operand.symbol # NIL THEN
-				operand.symbol.DumpName(w); w.String(":"); w.Int(operand.symbolOffset,1);
-				(* genasm *)
+				operand.symbol.DumpName(w); w.String(":"); w.Int(operand.symbolOffset,1);				
 				IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset, 1);
 				ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset, 1);
 				END
@@ -526,8 +566,8 @@ TYPE
 		END;
 		(*
 		w.Update();
-		*)
 		CheckOperand(operand);
+		*)
 	END DumpOperand;
 
 	PROCEDURE TypeEquals*(CONST s1,s2: Type): BOOLEAN;
@@ -646,9 +686,11 @@ TYPE
 		mode1 := op1.mode;
 		mode2 := op2.mode;
 		mode3 := op3.mode;
+		(*
 		Assert(op1.mode IN format.op1,"first operand mode mismatch");
 		Assert(op2.mode IN format.op2,"second operand mode mismatch");
 		Assert(op3.mode IN format.op3,"third operand mode mismatch");
+		*)
 		instr.opcode := opcode;
 		instr.op1 := op1;
 		instr.op2 := op2;

@@ -11,7 +11,7 @@ CONST
 	VarSection*=ObjectFile.Data;
 	ConstSection*=ObjectFile.Const;
 	InlineCodeSection*=10;
-	UnknownSection *= 11; (* type for sections whose actual type is still unknown *) (* genasm *)
+	UnknownSection *= 11; (* type for sections whose actual type is still unknown *)
 
 	LineCommentStart*="; ";
 
@@ -51,8 +51,6 @@ TYPE
 			referenced := TRUE;
 			fixed := FALSE;
 			positionOrAlignment := 0;
-
-			(* genasm *)
 			fingerprint := 0;
 			bitsPerUnit := UnknownSize
 		END InitSection;
@@ -65,34 +63,28 @@ TYPE
 		BEGIN SELF.offset := offset;
 		END SetOffset;
 
-		(* genasm *)
 		PROCEDURE SetReachability*(isReachable: BOOLEAN);
 		BEGIN SELF.isReachable := isReachable
 		END SetReachability;
 
-		(* genasm *)
 		PROCEDURE SetBitsPerUnit*(bitsPerUnit: LONGINT);
 		BEGIN SELF.bitsPerUnit := bitsPerUnit
 		END SetBitsPerUnit;
 
-		(* genasm *)
 		PROCEDURE IsAligned*(): BOOLEAN;
 		BEGIN RETURN ~fixed & (positionOrAlignment # 0)
 		END IsAligned;
 
-		(* genasm *)
 		PROCEDURE SetPositionOrAlignment*(isFixed: BOOLEAN; positionOrAlignment: LONGINT);
 		BEGIN
 			SELF.fixed := isFixed;
 			SELF.positionOrAlignment := positionOrAlignment
 		END SetPositionOrAlignment;
 
-		(* genasm *)
 		PROCEDURE GetSize*(): LONGINT;
 		BEGIN RETURN UnknownSize
 		END GetSize;
 
-		(* genasm *)
 		PROCEDURE SetFingerprint*(fingerprint: LONGINT);
 		BEGIN SELF.fingerprint := fingerprint
 		END SetFingerprint;
@@ -124,8 +116,6 @@ TYPE
 			END;
 			w.String(" ");
 			DumpName(w);
-
-			(* genasm *)
 
 			IF offset # 0 THEN
 				w.String(" offset="); w.Int(offset, 0)
@@ -312,9 +302,9 @@ TYPE
 
 		PROCEDURE & InitListOfSections*;
 		BEGIN
-			NEW(lookup, 100);
-			NEW(lookupName, 100);
-			InitList(32) (* initializer of general list *)
+			NEW(lookup, 128);
+			NEW(lookupName, 128);
+			InitList(128) (* initializer of general list *)
 		END InitListOfSections;
 
 		PROCEDURE GetSection*(index: LONGINT): Section;
@@ -388,12 +378,10 @@ TYPE
 		END Dump;
 	END SectionList;
 
-	(* genasm *)
 	NameEntry = POINTER TO RECORD
 		name: SyntaxTree.String;
 	END;
 
-	(* genasm *)
 	(* TODO: efficient implementation using hash table *)
 	NameList* = OBJECT(Basic.List)
 		PROCEDURE AddName*(CONST moduleName: ARRAY OF CHAR);
@@ -432,7 +420,7 @@ TYPE
 			importedSymbols-: SectionList;
 			systemCalls-: SectionList;
 
-			(* genasm *)
+			
 			platformName-: SyntaxTree.String;
 			imports-: NameList;
 
@@ -443,25 +431,21 @@ TYPE
 			NEW(importedSymbols);
 			NEW(systemCalls);
 			NEW(caseTables);
-			NEW(imports,8); (* genasm *)
+			NEW(imports, 128);
 		END Init;
 
-		(* genasm *)
 		PROCEDURE SetSections*(sections: SectionList);
 		BEGIN SELF.sections := sections
 		END SetSections;
 
-		(* genasm *)
 		PROCEDURE SetImports*(imports: NameList);
 		BEGIN SELF.imports := imports
 		END SetImports;
 
-		(* genasm *)
 		PROCEDURE SetPlatformName*(platformName: SyntaxTree.String);
 		BEGIN SELF.platformName := platformName
 		END SetPlatformName;
 
-		(* genasm *)
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR
 			dump: Basic.Writer;

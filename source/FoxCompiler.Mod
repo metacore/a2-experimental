@@ -5,7 +5,7 @@ IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,  D := Debugging,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal
-	, ActiveCells := FoxActiveCells, Files, IntermediateCodeAssembler := FoxIntermediateCodeAssembler;
+	, ActiveCells := FoxActiveCells, IntermediateCodeAssembler := FoxIntermediateCodeAssembler;
 
 CONST
 	(* flags *)
@@ -482,34 +482,33 @@ TYPE
 		END;
 	END Compile;
 	
-	PROCEDURE Assemblink*(context: Commands.Context);
+	PROCEDURE Assemble*(context: Commands.Context);
 	VAR
-		rootModuleName: ARRAY 256 OF CHAR;				
 		diagnostics: Diagnostics.StreamDiagnostics;	
 		flags: SET;
-		checker: SemanticChecker.Checker;
-		backend: Backend.Backend;
-		objectFile: Formats.ObjectFileFormat;
+		defaultBackend: Backend.Backend;
+		objectFileFormat: Formats.ObjectFileFormat;
 		dummySymbolFileFormat: Formats.SymbolFileFormat;
 		dummyDataflowSpecification: ActiveCells.Specification;
-		dummyImportCache: SyntaxTree.ModuleScope;
-		dummyString: SyntaxTree.String;
+		rootModuleName, dummyString: SyntaxTree.String;
+		assemblinker: IntermediateCodeAssembler.Assemblinker;
 	BEGIN	
 		NEW(diagnostics, context.out);
-		IF GetOptions(context.arg, context.error, diagnostics, flags, backend, dummySymbolFileFormat, objectFile, dummyDataflowSpecification, dummyString) THEN
+		IF GetOptions(context.arg, context.error, diagnostics, flags, defaultBackend, dummySymbolFileFormat, objectFileFormat, dummyDataflowSpecification, dummyString) THEN
 			(* TODO: handle flags, such as 'Print', 'Silent' and 'TraceError'? *)
-			(* TODO: handle multiple module names? *)				
-			IF context.arg.GetString(rootModuleName) THEN			
-				(* note: even though assembling and linking doesn't involve a semantic check, the backend still requires an instance of the semantic checker *)
-				(*checker := SemanticChecker.NewChecker(diagnostics, FALSE, FALSE, backend.GetSystem(), NIL, NIL, dummyImportCache);*)
-				
-				IntermediateCodeAssembler.Assemblink(rootModuleName, diagnostics, context.out, flags, NIL, backend, objectFile);
+
+			(* TODO: handle multiple module names? *)
+			IF context.arg.GetString(rootModuleName) THEN	
+				NEW(assemblinker, diagnostics, defaultBackend);
+				IF assemblinker.LoadModule(rootModuleName, FALSE) & assemblinker.GenerateObjectFile(objectFileFormat) THEN
+					diagnostics.Information(rootModuleName, Diagnostics.Invalid, Diagnostics.Invalid, "done.");
+				END
 			ELSE
 				diagnostics.Error("", Diagnostics.Invalid, Diagnostics.Invalid, "root module name not specified");
 				context.out.Update
 			END	
 	 	END
-	END Assemblink;
+	END Assemble;
 	
 	PROCEDURE CompileReader*(context: Commands.Context; reader: Streams.Reader);
 	VAR
