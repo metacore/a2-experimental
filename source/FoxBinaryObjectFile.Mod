@@ -1700,7 +1700,8 @@ TYPE
 					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
 					w.RawNum(length)
 				ELSE
-					length := 1+SemanticChecker.Dimension(type,{SyntaxTree.Open});
+					length :=0;
+					(*length := 1+SemanticChecker.Dimension(type,{SyntaxTree.Open});*)
 					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
 					w.RawNum(length)
 				END;
