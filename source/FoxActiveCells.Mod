@@ -14,7 +14,7 @@ CONST
 	SpecificationFileExtension*="spec";
 	ObjectFileExtension*="Gof";
 
-	TraceError=FALSE;
+	TraceError=TRUE;
 
 TYPE
 
@@ -711,7 +711,7 @@ TYPE
 				device := NewDevice("",0);
 				IF ~device.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			END;
-			IF ~CheckItem(r,"channels")OR ~ r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+			IF ~CheckItem(r,"channels") OR ~ r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			FOR i := 0 TO number-1 DO
 				channel := NewChannel();
 				IF ~channel.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
@@ -1101,10 +1101,11 @@ TYPE
 	END GetString;
 
 	PROCEDURE ReadSpecification*(context: Commands.Context);
-	VAR fileName: Files.FileName; r: Files.Reader; specification: Specification;f : Files.File; b: BOOLEAN;
+	VAR fileName: Files.FileName; r: Files.Reader; specification: Specification;f : Files.File; b: BOOLEAN; diagnostics: Diagnostics.StreamDiagnostics;
 	BEGIN
 		b := context.arg.GetString(fileName);
-		NEW(specification,"",NIL,NIL);
+		NEW(diagnostics, context.error);
+		NEW(specification,"",diagnostics,context.out);
 		f := Files.Old(fileName);
 		NEW(r,f,0);
 		IF specification.Read(r) THEN

@@ -1025,7 +1025,7 @@ TYPE
 		END InitActiveCellsBackend;
 
 		(* Work on a module *)
-		PROCEDURE Module(x: SyntaxTree.Module): Formats.GeneratedModule;
+		PROCEDURE ProcessSyntaxTreeModule(x: SyntaxTree.Module): Formats.GeneratedModule;
 		VAR
 			declarationVisitor: DeclarationVisitor;
 			implementationVisitor: ImplementationVisitor;
@@ -1040,8 +1040,8 @@ TYPE
 			declarationVisitor.Module(x);
 
 			RETURN NIL
-		END Module;
-		
+		END ProcessSyntaxTreeModule;
+
 		PROCEDURE GetDescription*(VAR instructionSet: ARRAY OF CHAR);
 		BEGIN instructionSet := "ActiveCells";
 		END GetDescription;
