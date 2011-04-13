@@ -1561,8 +1561,6 @@ TYPE
 				IF import = NIL THEN
 					import := SyntaxTree.NewImport(-1,SyntaxTree.NewIdentifier(moduleName),SyntaxTree.NewIdentifier(moduleName),TRUE);
 
-					SELF.module.imports.AddName(moduleName); (* genasm *)
-
 					import.SetContext(SyntaxTree.NewIdentifier("A2"));
 					IF ~checker.AddImport(moduleScope.ownerModule,import) OR (import.module = NIL) THEN
 						IF force THEN
@@ -1570,10 +1568,12 @@ TYPE
 							Strings.Append(s,moduleName);
 							Strings.Append(s," cannot be imported.");
 							Error(position,s);
-						ELSE (* import could not be resolved, is (allowed) upcall. For low level modules. *)
-							moduleScope.AddImport(import);
+						(* ELSE import could not be resolved, is (allowed) upcall. For low level modules. *)
 						END;
 						RETURN FALSE
+					ELSE
+						SELF.module.imports.AddName(moduleName); (* genasm *)
+						moduleScope.AddImport(import);
 					END;
 				ELSIF import.module = NIL THEN (* already tried *)
 					RETURN FALSE
