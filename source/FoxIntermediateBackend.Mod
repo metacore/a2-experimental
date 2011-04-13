@@ -1562,7 +1562,7 @@ TYPE
 					import := SyntaxTree.NewImport(-1,SyntaxTree.NewIdentifier(moduleName),SyntaxTree.NewIdentifier(moduleName),TRUE);
 
 					import.SetContext(SyntaxTree.NewIdentifier("A2"));
-					IF ~checker.AddImport(moduleScope.ownerModule,import) OR (import.module = NIL) THEN
+					IF ~checker.AddImport(moduleScope.ownerModule,import) THEN
 						IF force THEN
 							s := "Module ";
 							Strings.Append(s,moduleName);
@@ -1573,7 +1573,6 @@ TYPE
 						RETURN FALSE
 					ELSE
 						SELF.module.imports.AddName(moduleName); (* genasm *)
-						moduleScope.AddImport(import);
 					END;
 				ELSIF import.module = NIL THEN (* already tried *)
 					RETURN FALSE
