@@ -192,7 +192,7 @@ TYPE
 
 	PROCEDURE GetFixups(module: Sections.Module; symbol: Sections.Section; VAR first: Fixup): LONGINT;
 	VAR temp: Fixup; fixup: BinaryCode.Fixup; nr :LONGINT;
-	
+
 		PROCEDURE DoSections(sectionList: Sections.SectionList);
 		VAR
 			i: LONGINT;
@@ -262,7 +262,7 @@ TYPE
 			END;
 			FOR i := 0 TO module.caseTables.Length() - 1 DO
 				IF module.caseTables.GetSection(i) = s THEN RETURN TRUE END
-			END;			
+			END;
 			RETURN FALSE
 		END InModule;
 
@@ -335,7 +335,7 @@ TYPE
 			i: LONGINT;
 		BEGIN
 			FOR i := 0 TO sectionList.Length() - 1 DO
-				section := sectionList.GetSection(i);			
+				section := sectionList.GetSection(i);
 				binarySection := section(IntermediateCode.Section).resolved;
 				symbol := section.symbol;
 				IF symbol # NIL THEN
@@ -779,7 +779,7 @@ TYPE
 		VAR
 			fixups: LONGINT; fixupsPosition: LONGINT;
 			s: Sections.Section; fixup: Fixup; temp, i: LONGINT;
-			
+
 			PROCEDURE Fixups(f: Fixup);
 			BEGIN
 				WHILE f # NIL DO
@@ -790,7 +790,7 @@ TYPE
 					f := f.nextFixup;
 				END;
 			END Fixups;
-			
+
 		BEGIN
 			w.Char(8DX);
 			numberVarConstLinks := 0;
@@ -812,7 +812,7 @@ TYPE
 			END;
 
 			IF Trace THEN D.Str("VarConstLinks:CaseTables"); D.Ln; END;
-			
+
 			FOR i := 0 TO module.caseTables.Length() - 1 DO
 				s := module.caseTables.GetSection(i);
 				IF (s.symbol # NIL) & ~(s.symbol IS SyntaxTree.Procedure) THEN (* includes case symbol! *)
@@ -827,7 +827,7 @@ TYPE
 
 			IF Trace THEN D.Str("VarConstLinks:ImportedSymbols"); D.Ln; END;
 			(* imported global variables and constants *)
-			
+
 			FOR i := 0 TO module.importedSymbols.Length() - 1 DO
 				s := module.importedSymbols.GetSection(i);
 				temp := GetFixups(module,s,fixup);
@@ -863,7 +863,7 @@ TYPE
 			FixupSentinel = SHORT(0FFFFFFFFH);
 
 			(* Insert fixup list into code *)
-			PROCEDURE FixupList(l: Fixup): LONGINT;			
+			PROCEDURE FixupList(l: Fixup): LONGINT;
 			VAR
 				offset,first: LONGINT;
 
@@ -915,7 +915,7 @@ TYPE
 				*)
 			END;
 
-			counter := 0;			
+			counter := 0;
 			(* cf. Entries *)
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				p := module.sections.GetSection(i);
@@ -932,7 +932,7 @@ TYPE
 			ASSERT(counter = numberEntries);
 			w.RawNum((caseTableSize ));
 		END Links;
-		
+
 		(* Constants = 87X {character:1} *)
 		PROCEDURE Constants;
 		VAR i: LONGINT;
@@ -1595,7 +1595,7 @@ TYPE
 			w.Char(08FX);
 			IF Trace THEN D.Str("FoxObjectFile.PtrsInProcBlock"); D.Ln; END;
 			maxPtrs := 0;
-			counter := 0;			
+			counter := 0;
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				destination := module.sections.GetSection(i);
 				IF (destination.type # Sections.InitCodeSection) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).isInline THEN
@@ -1647,7 +1647,7 @@ TYPE
 				ELSIF type IS SyntaxTree.PointerType THEN char := rfPointer
 				ELSIF type IS SyntaxTree.ProcedureType THEN char := rfDelegate
 				ELSIF type IS SyntaxTree.RangeType THEN char := rfRange
-				ELSE char := rfPointer; (*RETURN (* ARRAY OF unknown (record): do not write anything *)*)
+				ELSE char := rfShortint; (*RETURN (* ARRAY OF unknown (record): do not write anything *)*)
 				END;
 				RETURN char
 			END BaseType;
@@ -1700,7 +1700,6 @@ TYPE
 					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
 					w.RawNum(length)
 				ELSE
-					char := BaseType(module.system.longintType);
 					length := 1+SemanticChecker.Dimension(type,{SyntaxTree.Open});
 					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
 					w.RawNum(length)
@@ -1893,7 +1892,7 @@ TYPE
 		BEGIN
 			start := w.Pos();
 			w.Char(08CX);
-			
+
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				s := module.sections.GetSection(i);
 				IF (s.type # Sections.InitCodeSection) & (s.symbol = moduleScope.bodyProcedure) THEN
