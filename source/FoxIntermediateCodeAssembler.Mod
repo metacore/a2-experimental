@@ -829,6 +829,35 @@ TYPE
 			IF Trace THEN D.String("after prearrangement"); D.Ln; DumpAllSections(D.Log); D.Ln END;
 		END PrearrangeReachableDataSections;
 
+		PROCEDURE PatchValueInSection*(CONST sectionName: ARRAY OF CHAR; syntaxTreeValue: SyntaxTree.Value);
+		VAR
+			section: Sections.Section;
+			emptyOperand, dataOperand: IntermediateCode.Operand;
+			dataInstruction: IntermediateCode.Instruction;
+			hugeintValue: HUGEINT;
+		BEGIN
+			section := allSections.FindByName(sectionName);
+			ASSERT(section # NIL);			
+			
+			IF syntaxTreeValue IS SyntaxTree.BooleanValue THEN
+				(* BOOLEAN *)
+				IF syntaxTreeValue(SyntaxTree.BooleanValue).value THEN hugeintValue := 1 ELSE hugeintValue := 0
+				END
+			ELSIF syntaxTreeValue IS SyntaxTree.IntegerValue THEN
+				(* INTEGER *)
+				hugeintValue := syntaxTreeValue(SyntaxTree.IntegerValue).hvalue;
+			ELSE
+				HALT(100)
+			END;
+			
+			IntermediateCode.InitImmediate(dataOperand, IntermediateCode.GetType(backend.GetSystem(), syntaxTreeValue.type.resolved), hugeintValue);
+			IntermediateCode.InitOperand(emptyOperand);
+			IntermediateCode.InitInstruction(dataInstruction, IntermediateCode.data, dataOperand, emptyOperand, emptyOperand);
+
+			ASSERT(section IS IntermediateCode.Section);
+			section(IntermediateCode.Section).EmitAt(0, dataInstruction)
+		END PatchValueInSection;
+		
 		(** get all reachable sections in the form of an intermediate code module **)
 		PROCEDURE ExtractModule*(): Sections.Module;
 		BEGIN RETURN ExtractModuleWithName(rootModuleName)

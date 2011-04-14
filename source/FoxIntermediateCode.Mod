@@ -2,7 +2,7 @@ MODULE FoxIntermediateCode; (** AUTHOR "fof"; PURPOSE "Oberon Compiler Abstract 
 (* Active Oberon Compiler, (c) 2009 Felix Friedrich *)
 IMPORT
 	Sections := FoxSections, Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
-	SYSTEM, Streams, D := Debugging;
+	SYSTEM, Streams, D := Debugging, Global := FoxGlobal;
 
 CONST
 	(* operand modes *)
@@ -904,6 +904,41 @@ TYPE
 		ELSE RETURN FALSE
 		END;
 	END DenotesType;
+
+	PROCEDURE GetType*(system: Global.System; type: SyntaxTree.Type): Type;
+	BEGIN
+		type := type.resolved;
+		IF type IS SyntaxTree.CharacterType THEN
+			RETURN UnsignedIntegerType(system.SizeOf(type))
+		ELSIF type IS SyntaxTree.IntegerType THEN
+			RETURN  SignedIntegerType(system.SizeOf(type))
+		ELSIF type IS SyntaxTree.FloatType THEN
+			RETURN  FloatType(system.SizeOf(type))
+		ELSIF type IS SyntaxTree.RangeType THEN
+			RETURN GetType(system,system.addressType)
+		ELSIF type IS SyntaxTree.BasicType THEN
+			IF type IS SyntaxTree.SizeType THEN RETURN  SignedIntegerType(system.SizeOf(type))
+			ELSE
+				RETURN  UnsignedIntegerType(system.SizeOf(type))
+			END;
+		ELSIF type IS SyntaxTree.PointerType THEN
+			RETURN GetType(system,system.addressType)
+		ELSIF type IS SyntaxTree.EnumerationType THEN
+			RETURN int32
+		ELSIF type IS SyntaxTree.ProcedureType THEN
+			RETURN GetType(system,system.addressType)
+		ELSIF type IS SyntaxTree.MathArrayType THEN
+
+			(* TODO: ok to comment out the following assertion?:
+			ASSERT(type(SyntaxTree.MathArrayType).form IN {SyntaxTree.Static, SyntaxTree.Tensor}); *)
+
+			RETURN GetType(system,system.addressType);
+		ELSIF type IS SyntaxTree.PortType THEN
+			RETURN GetType(system, system.addressType);
+		ELSE
+ 			HALT(100);
+		END;
+	END GetType;
 
 BEGIN
 	InitInstructions;
