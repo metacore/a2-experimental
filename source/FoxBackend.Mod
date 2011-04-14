@@ -60,19 +60,14 @@ TYPE
 			error := TRUE;
 		END Error;
 
-
 		PROCEDURE ProcessSyntaxTreeModule*(syntaxTreeModule: SyntaxTree.Module): Formats.GeneratedModule;
-		BEGIN
-			RETURN NIL
+		BEGIN RETURN NIL
 		END ProcessSyntaxTreeModule;
-	
-		(* genasm *)
-		(* only applicable for backends that use an intermediate backend *)
-		PROCEDURE ProcessIntermediateCodeModule*(intermediateCodeModule: Formats.GeneratedModule): Formats.GeneratedModule;
-		BEGIN
-			HALT(100)
-		END ProcessIntermediateCodeModule;
 
+		PROCEDURE ProcessIntermediateCodeModule*(intermediateCodeModule: Formats.GeneratedModule): Formats.GeneratedModule;
+		BEGIN RETURN NIL (* only applicable for backends that use an intermediate backend *)
+		END ProcessIntermediateCodeModule;
+		
 		PROCEDURE FindPC*(x: SyntaxTree.Module; CONST sectionName: ARRAY OF CHAR; sectionOffset: LONGINT);
 		BEGIN
 		END FindPC;

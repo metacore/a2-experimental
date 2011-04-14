@@ -11,7 +11,7 @@ CONST
 	VarSection*=ObjectFile.Data;
 	ConstSection*=ObjectFile.Const;
 	InlineCodeSection*=10;
-	UnknownSection *= 11; (* type for sections whose actual type is still unknown *)
+	UnknownSection *= 11; (* a type for referenced sections whose actual type is not yet known *)
 
 	LineCommentStart*="; ";
 
@@ -50,7 +50,7 @@ TYPE
 			entryNumber := 0;
 			referenced := TRUE;
 			fixed := FALSE;
-			positionOrAlignment := 0;
+			positionOrAlignment := 1;
 			fingerprint := 0;
 			bitsPerUnit := UnknownSize
 		END InitSection;
@@ -72,7 +72,7 @@ TYPE
 		END SetBitsPerUnit;
 
 		PROCEDURE IsAligned*(): BOOLEAN;
-		BEGIN RETURN ~fixed & (positionOrAlignment # 0)
+		BEGIN RETURN ~fixed & (positionOrAlignment > 1)
 		END IsAligned;
 
 		PROCEDURE SetPositionOrAlignment*(isFixed: BOOLEAN; positionOrAlignment: LONGINT);
@@ -124,7 +124,7 @@ TYPE
 			(* positional restrictions *)
 			IF fixed THEN
 				w.String(" fixed="); w.Int(positionOrAlignment, 0)
-			ELSIF positionOrAlignment # 0 THEN
+			ELSIF positionOrAlignment > 1 THEN
 				w.String(" aligned="); w.Int(positionOrAlignment, 0)
 			END;
 
@@ -489,6 +489,8 @@ TYPE
 				dump.Ln; dump.BeginComment; dump.String("; case tables"); dump.EndComment; dump.Ln;
 				caseTables.Dump(w)
 			END;
+			
+			(*
 			IF importedSymbols.Length() # 0 THEN
 				dump.Ln; dump.BeginComment; dump.String("; imported symbols"); dump.EndComment; dump.Ln;
 				importedSymbols.Dump(w)
@@ -497,6 +499,7 @@ TYPE
 				dump.Ln; dump.BeginComment; dump.String("; system calls"); dump.EndComment; dump.Ln;
 				systemCalls.Dump(w)
 			END
+			*)
 		END Dump;
 
 	END Module;

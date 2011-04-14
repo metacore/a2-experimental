@@ -15,21 +15,23 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		PROCEDURE Export* (module: Formats.GeneratedModule; symbolFileFormat: Formats.SymbolFileFormat): BOOLEAN;
 		VAR moduleName: SyntaxTree.String; fileName: Files.FileName; file: Files.File; writer: Files.Writer; fingerPrinter: FingerPrinter.FingerPrinter;
 
-			PROCEDURE ExportSection (section: IntermediateCode.Section);
+			PROCEDURE ExportSection (section: IntermediateCode.Section): BOOLEAN;
 			VAR name: ARRAY 128 OF CHAR; (* debugging *)
 			BEGIN
-				COPY(section.name,name);
-				IF (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
-					RETURN
-				END;
-				
+				COPY(section.name,name);				
 				IF section.resolved = NIL THEN
-					D.String('"section.resolved = NIL" for '); D.String(section.name); D.Ln
+					D.String('"section.resolved = NIL" for '); D.String(section.name); D.Ln;
+					RETURN FALSE
+				ELSE				
+					IF (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
+						(* nothing to do *)
+					ELSE
+						section.resolved.identifier.fingerprint := GetFingerPrint (section, fingerPrinter);
+						UpdateFixups (section.resolved, fingerPrinter);
+						ObjectFile.WriteSection(writer,section.resolved^,binary)
+					END					
 				END;
-				
-				section.resolved.identifier.fingerprint := GetFingerPrint (section, fingerPrinter);
-				UpdateFixups (section.resolved, fingerPrinter);
-				ObjectFile.WriteSection(writer,section.resolved^,binary)
+				RETURN TRUE
 			END ExportSection;
 
 			PROCEDURE ExportSections (sections: Sections.SectionList): BOOLEAN;
@@ -39,7 +41,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			BEGIN
 				FOR i := 0 TO sections.Length() - 1 DO
 					section := sections.GetSection(i);
-					ExportSection (section(IntermediateCode.Section));
+					IF ~ExportSection(section(IntermediateCode.Section)) THEN RETURN FALSE END;
 					IF section(IntermediateCode.Section).resolved.identifier.fingerprint # 0 THEN
 						FOR j := 0 TO i - 1 DO
 							test := sections.GetSection(j);

@@ -63,8 +63,7 @@ CONST
 
 	LineNrCommentOffset = 64;
 	LineCommentStart = Sections.LineCommentStart;
-
-	NotYetCalculatedSize = -2; (* genasm *)
+	NotYetCalculatedSize = -2;
 
 TYPE
 	Type*=RECORD
@@ -122,7 +121,7 @@ TYPE
 		resolved-: BinaryCode.Section; (* reference to section containing compiled byte array *) (* TODO: ret rid of that? *)
 		comments-: Sections.CommentWriter;
 		validPAFEnter-,validPAFExit-: LONGINT; (* begin and end of code section where current PAF (procedure activation frame) is considered valid *)
-		sizeInUnits: LONGINT; (* genasm *)
+		sizeInUnits: LONGINT;
 
 		PROCEDURE GetPC(): LONGINT;
 		BEGIN RETURN pc
@@ -134,7 +133,7 @@ TYPE
 			IF comment THEN NEW(comments,GetPC) ELSE comments := NIL END;
 			finally := -1;
 			validPAFEnter := 0; validPAFExit := 0;
-			sizeInUnits := NotYetCalculatedSize; (* genasm *)
+			sizeInUnits := NotYetCalculatedSize
 		END InitIntermediateSection;
 
 		PROCEDURE EnterValidPAF*;
@@ -153,7 +152,6 @@ TYPE
 		BEGIN finally := atPc
 		END SetFinally;
 
-		(* genasm *)
 		PROCEDURE GetSize*(): LONGINT;
 		VAR
 			i: LONGINT;
@@ -224,7 +222,7 @@ TYPE
 				Assert(instruction.op1.type.sizeInBits = instruction.op2.type.sizeInBits, "operands 1 and 2 not of same size");
 			END;
 			IF SameType23 IN instructionFormat[instruction.opcode].flags THEN
-				Assert(TypeEquals(instruction.op2.type,instruction.op3.type),"operands 2 and 3 not of  same type");
+				Assert(TypeEquals(instruction.op2.type,instruction.op3.type),"operands 2 and 3 not of same type");
 			END;
 			IF Op1IsDestination IN instructionFormat[instruction.opcode].flags THEN
 				Assert((instruction.op1.mode # ModeRegister) OR (instruction.op1.offset = 0),"destination operand may not be register with nonzero offset");
@@ -269,8 +267,8 @@ TYPE
 
 		PROCEDURE DumpCode*(w: Streams.Writer; from,to: LONGINT);
 		VAR
-			i		: LONGINT;
-			c		: Sections.Comment;
+			i: LONGINT;
+			c: Sections.Comment;
 		BEGIN
 			IF comments # NIL THEN
 				c := comments.firstComment;
@@ -445,7 +443,7 @@ TYPE
 			RETURN FALSE
 		END;
 		IF (SameType23 IN instructionFormat[instruction.opcode].flags) & ~TypeEquals(instruction.op2.type, instruction.op3.type) THEN
-			message := "operands 2 and 3 not of  same type";
+			message := "operands 2 and 3 not of same type";
 			RETURN FALSE
 		END;
 		IF (Op1IsDestination IN instructionFormat[instruction.opcode].flags) & (instruction.op1.mode = ModeRegister) & (instruction.op1.offset # 0) THEN
@@ -529,7 +527,6 @@ TYPE
 					END;
 				ELSIF operand.symbol # NIL THEN
 					operand.symbol.DumpName(w); w.String(":"); w.Int(operand.symbolOffset,1);
-					(* genasm *)
 					IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset, 1);
 					ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset, 1);
 					END;
@@ -898,7 +895,8 @@ TYPE
 	END FloatType;
 
 	PROCEDURE DenotesType*(CONST name: ARRAY OF CHAR; VAR type: Type): BOOLEAN;
-	VAR sizeInBits,form: LONGINT;
+	VAR
+		sizeInBits: LONGINT;
 	BEGIN
 		IF (name[0] = 's') & Numbers(name, sizeInBits) & (sizeInBits >0) THEN type := SignedIntegerType(sizeInBits); RETURN TRUE
 		ELSIF (name[0] = 'u') & Numbers(name, sizeInBits) & (sizeInBits >0) THEN type := UnsignedIntegerType(sizeInBits); RETURN TRUE

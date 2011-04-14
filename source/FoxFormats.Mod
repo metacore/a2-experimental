@@ -27,6 +27,10 @@ TYPE
 		BEGIN SELF.moduleName := moduleName
 		END SetModuleName;
 
+		PROCEDURE SetSystem*(system: Global.System);
+		BEGIN SELF.system := system
+		END SetSystem;
+
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR name: SyntaxTree.String;
 		BEGIN

@@ -498,10 +498,13 @@ TYPE
 			(* TODO: handle flags, such as 'Print', 'Silent' and 'TraceError'? *)
 
 			(* TODO: handle multiple module names? *)
-			IF context.arg.GetString(rootModuleName) THEN	
+			IF context.arg.GetString(rootModuleName) THEN
 				NEW(assemblinker, diagnostics, defaultBackend);
-				IF assemblinker.LoadModule(rootModuleName, FALSE) & assemblinker.GenerateObjectFile(objectFileFormat) THEN
-					diagnostics.Information(rootModuleName, Diagnostics.Invalid, Diagnostics.Invalid, "done.");
+				IF assemblinker.LoadModule(rootModuleName, FALSE) THEN
+					assemblinker.MarkReachabilityOfAll(TRUE);
+				 	IF assemblinker.GenerateObjectFile(objectFileFormat, context.out, flags, NIL, NIL) THEN
+						diagnostics.Information(rootModuleName, Diagnostics.Invalid, Diagnostics.Invalid, "done.");
+					END
 				END
 			ELSE
 				diagnostics.Error("", Diagnostics.Invalid, Diagnostics.Invalid, "root module name not specified");
