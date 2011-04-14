@@ -184,19 +184,24 @@ VAR
 (** Activate the garbage collector immediately. *)
 PROCEDURE GC*;
 BEGIN
+	Heaps.InvokeGC
+END GC;
+
+PROCEDURE DoGC;
+BEGIN
 	Machine.Acquire( Machine.GC );		(* released by FinalizerCaller *)
 	Machine.Acquire( Machine.X11 );	(* disable polling for input *)
 	Machine.Acquire( Machine.Heaps );
 	Objects.SuspendActivities;
 
-		Heaps.Collect( Modules.root );
+		Heaps.CollectGarbage( Modules.root );
 		
 	Objects.ResumeActivities;
 	Machine.Release( Machine.Heaps );
 	Machine.Release( Machine.X11 );
 	
 	finalizer.Activate  (* finalizers will be called by seperate process *)
-END GC;
+END DoGC;
 
 (** -- Timers -- *)
 
@@ -242,7 +247,8 @@ BEGIN
 	second := Second;
 	NEW(finalizer);	(* activate finalizer object *)
 	
-	Heaps.GC := GC;	(* switch to GC procedure with finalization *)
+	Machine.collectGarbage := DoGC;
+	Heaps.GC := Heaps.InvokeGC;	(* switch to GC procedure with finalization *)
 	
 	Machine.Acquire(Machine.TraceOutput);
 	Trace.String("Kernel: Initialized and started."); Trace.Ln;

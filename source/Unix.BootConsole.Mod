@@ -139,7 +139,7 @@ VAR
 
 BEGIN
 	InitPrelinkedModules;
-	Modules.AddLoader( Machine.DefaultObjectFileExtension, Loader.LoadObj );
+(*	Modules.AddLoader( Machine.DefaultObjectFileExtension, Loader.LoadObj );	*)
 	Execute( "UnixFiles",  "Install" );
 	StartSystem;
 	Machine.AwaitShutdown;

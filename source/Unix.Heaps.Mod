@@ -79,11 +79,18 @@ TYPE
 		BEGIN HALT( 301 ) END FindRoots;
 	END RootObject;
 
+	StaticTypeBlock*= POINTER TO StaticTypeDesc;
+	StaticTypeDesc = RECORD
+		recSize: Size;
+		pointerOffsets* {UNTRACED}: PointerOffsets;
+	END;
 
+	PointerOffsets = POINTER TO ARRAY OF Size;
+	
 VAR
 	A: ARRAY N + 1 OF  (*FreeBlk*) Address;
 	candidates: ARRAY 1024 OF  Address;
-	nofcand, marks: LONGINT;
+	nofcand: LONGINT;
 
 	heapSize: Size;
 
@@ -252,7 +259,7 @@ VAR
 	BEGIN
 		IF ptr = NIL THEN  RETURN FALSE  END;
 		block := S.VAL( Address, ptr );
-		IF ~ValidPointer( block ) THEN  RETURN FALSE  END;
+	(*	IF ~ValidPointer( block ) THEN  RETURN FALSE  END;	(* temp. strong check *)*)
 		sysblock := FALSE;  taddr := block - AdrSize;
 		IF SubObjBit IN S.VAL( SET, block ) THEN
 			(* Subobject or sysblock *)
@@ -268,7 +275,7 @@ VAR
 
 		S.GET( haddr, hval );
 		IF ~(MarkBit IN hval) THEN
-			S.PUT( haddr, hval + {MarkBit} );   (* mark this block *)  INC( marks );
+			S.PUT( haddr, hval + {MarkBit} );   (* mark this block *)  INC( Nmarked );
 			IF ~sysblock THEN  
 				IF ptr IS RootObject THEN  ptr(RootObject).FindRoots  END;	
 				RETURN TRUE  
@@ -277,85 +284,47 @@ VAR
 		RETURN FALSE
 	END UnmarkedObject;
 
-	PROCEDURE InitMarkState( blk: Address; VAR curr, tag: Address; VAR arr: BOOLEAN );
-	VAR stag: SET;
+	PROCEDURE MarkRecordFields( rec: Address; sTB: StaticTypeBlock );
+	VAR ptr: ANY; i, n: Size;  adr: Address; offset: Size;
 	BEGIN
-		S.GET( blk - AdrSize, stag );
-		arr := ArrayBit IN stag;
-		tag := S.VAL( Address, stag - {ArrayBit, MarkBit} );
-		IF arr THEN  S.GET( blk + 2*AdrSize, curr )  ELSE  curr := blk  END
-	END InitMarkState;
-
-	PROCEDURE RestoreMarkState( blk: Address; VAR curr, tag: Address; VAR arr: BOOLEAN );
-	VAR stag: SET;
-	BEGIN
-		S.GET( blk - AdrSize, stag );
-		arr := ArrayBit IN stag;
-		tag := S.VAL( Address, stag - {ArrayBit, MarkBit} );
-		IF arr THEN  S.GET( blk + AdrSize, curr )  ELSE  curr := blk  END
-	END RestoreMarkState;
-
-	PROCEDURE SaveMarkState( blk: Address; curr, tag: Address; arr: BOOLEAN );
-	VAR stag: SET;
-	BEGIN
-		stag := S.VAL( SET, tag ) + {MarkBit};
-		IF arr THEN  INCL( stag, ArrayBit )  END;
-		S.PUT( blk - AdrSize, stag );
-		IF arr THEN  S.PUT( blk + AdrSize, curr ) END
-	END SaveMarkState;
-
-
-
+		IF ValidAddress( S.VAL( Address, sTB.pointerOffsets) ) THEN
+			(* new static type block *)
+			n := LEN( sTB.pointerOffsets ); i := 0;
+			WHILE i < n DO
+				S.GET( rec + sTB.pointerOffsets[i], ptr );
+				Mark( ptr );
+				INC( i )
+			END
+		ELSE
+			(* old static type block, temp. *)
+			adr := S.ADR( sTB.pointerOffsets );  S.GET( adr, offset );  
+			WHILE offset >= 0 DO
+				S.GET( rec + offset, ptr );  Mark( ptr );
+				INC( adr, AdrSize );  S.GET( adr, offset )
+			END
+		END
+	END MarkRecordFields;
+	
 	PROCEDURE Mark*( ptr: ANY );
 	VAR 
-		block: Address;
-		field, father, tmp: Address; cur, lastElem: Address;
-		offset, elsize: LONGINT;  tag: Address;  arr: BOOLEAN;  stag: SET;
+		block, cur, lastElem: Address;  
+		tag: SET;  sTB{UNTRACED}: StaticTypeBlock;
 	BEGIN
-		IF Stats THEN INC(Nmark); END;
+		IF Stats THEN  INC(Nmark)  END;
 		IF UnmarkedObject( ptr ) THEN
 			block := S.VAL( Address, ptr );
-			InitMarkState( block, cur, tag, arr );
-			father := 0;
-
-			LOOP
-				INC( tag, AdrSize );
-				S.GET( tag, offset );   (* array: 0 or -8, record: ptr offset or -AdrSize(n+1) *)
-				IF offset >= 0 THEN
-					S.GET( cur + offset, field );
-					IF UnmarkedObject( S.VAL( ANY, field ) ) THEN
-						(* down *)
-						SaveMarkState( block, cur, tag, arr );
-						S.PUT( cur + offset, father );
-						father := block;
-						block := field;
-						InitMarkState( block, cur, tag, arr );
-					END
-				ELSE  (* offset < 0 *)
-					INC( tag, offset );	(* back to starting point *)
-					S.GET( block, lastElem );
-					IF arr & (cur < lastElem) THEN
-						S.GET( tag, elsize );
-						INC( cur, elsize );
-					ELSE
-						(* up *)
-						stag := S.VAL( SET, tag ) + {MarkBit};
-						IF arr THEN  INCL( stag, ArrayBit )  END;
-						IF ProtObjBit IN S.VAL( SET, block )  THEN  EXCL( stag, MarkBit )  END;
-						S.PUT( block - AdrSize, stag );
-
-						IF father = 0 THEN  EXIT  END;
-
-						RestoreMarkState( father, cur, tag, arr );
-						S.GET( tag, offset );
-						S.GET( cur + offset, tmp );
-						S.PUT( cur + offset, block );
-						block := father;
-						father := tmp;
-					END
-				END
-			END  (* loop *)
-
+			S.GET( block - AdrSize, tag );
+			sTB := S.VAL( StaticTypeBlock, tag - {ArrayBit, MarkBit} );
+			IF ArrayBit IN tag THEN
+				 S.GET( block, lastElem );
+				 S.GET( block + 2*AdrSize, cur );   
+				 REPEAT
+					MarkRecordFields( cur, sTB );						
+					INC( cur, sTB.recSize );
+				UNTIL Machine.GreaterThan( cur, lastElem );
+			ELSE  
+				MarkRecordFields( block, sTB );	
+			END;			
 		END
 	END Mark;
 
@@ -528,7 +497,7 @@ VAR
 
 
 
-	PROCEDURE Collect*( root: RootObject );
+	PROCEDURE CollectGarbage*( root: RootObject );
 	VAR time1, time2 : HUGEINT; 
 	BEGIN
 		IF traceGC  THEN  Trace.String( "Heaps.Collect ... " );  Trace.Ln  END;
@@ -537,13 +506,13 @@ VAR
 			INC(Ngc);
 			time1 := Machine.GetTimer ();
 		END;
-		collecting := TRUE;
+		collecting := TRUE; 
 		
 		Mark( root );
 		CheckCandidates;  CheckFinalizedObjects;
 		Sweep;
 
-		marks := 0;
+		
 		collecting := FALSE;  throuput := 0;
 
 		IF traceGC  THEN  Trace.String( "Heaps.Collect done " );  Trace.Ln;  Trace.Ln  END;
@@ -555,7 +524,12 @@ VAR
 			NgcCyclesMark := NgcCyclesLastRun
 		END;
 		throuput := 0;
-	END Collect;
+	END CollectGarbage;
+	
+	PROCEDURE InvokeGC*;
+	BEGIN
+		Machine.InvokeGC
+	END InvokeGC;
 
 
 
@@ -573,7 +547,6 @@ VAR
 	
 	PROCEDURE GetBlock( size: Size ): Address;   (* size MOD B = 0 *)
 	VAR i: LONGINT;  restSize, fbsize: Size;  adr1, adr2, ptr, restPtr: Address;
-		freeSize: Size;
 	BEGIN
 		IF (size < 0) OR (size > MaxHeapBlockSize)  THEN
 			Machine.Release( Machine.Heaps );
@@ -741,28 +714,36 @@ VAR
 		END;
 	END NewArr;
 
-	PROCEDURE FillStaticType* ( VAR p: Address;
+	PROCEDURE FillStaticType* ( VAR staticTypeAddr: Address;
 								   startAddr, typeInfoAdr: Address;
 								   size, recSize: Size;
 								   numPtrs, numSlots: LONGINT );
-	VAR staticTypeAdr, offset: Address;
+	VAR 
+		p, offset: Address;  sTB {UNTRACED}: StaticTypeBlock;
 	BEGIN
 		Machine.Acquire( Machine.Heaps );
+		
 		Machine.Fill32( startAddr, size, 0 );	(* clear whole static type, size MOD AdrSize = 0 implicitly, see WriteType in PCOF.Mod *)
 		S.PUT( startAddr, S.VAL( Address, -AdrSize ) );	(* sentinel *)
 
 		(* methods and tags filled in later *)
 
 		offset := AdrSize*(numSlots + 1 + 1);  (* #methods, max. no. of tags, method end marker (sentinel), pointer to type information*)
-		staticTypeAdr := startAddr + offset;
-		S.PUT( staticTypeAdr - AdrSize, typeInfoAdr ); 	(* pointer to typeInfo *)
-		S.PUT( staticTypeAdr, recSize );					(* recSize *)
-
+		p := startAddr + offset;
+		S.PUT( p - AdrSize, typeInfoAdr ); 	(* pointer to typeInfo *)
+		sTB := S.VAL( StaticTypeBlock, p );
+		sTB.recSize := recSize;
+		staticTypeAddr := p;
+		
+		(* create the pointer for the dynamic array of pointer offsets, the dynamic array of pointer offsets 
+		    is stored in the static type descriptor, it has no header part *)
+		INC( p, S.SIZEOF(StaticTypeDesc) );
+		IF p MOD (2 * AdrSize) # 0 THEN  INC( p, AdrSize )  END;
+		S.PUT( p + 3 * AdrSize, numPtrs ); (* internal structure of dynamic array without pointers: the first 3 fields are unused *)
+		sTB.pointerOffsets := S.VAL( PointerOffsets, p ); (* the fourth field contains the dimension of the array *)
 
 		(* ptrOfs filled in later *)
 
-		S.PUT( staticTypeAdr + (numPtrs + 1)*AdrSize,  -(numPtrs + 1)*AdrSize );	(* sentinel *)
-		p := staticTypeAdr;
 		Machine.Release( Machine.Heaps )
 	END FillStaticType;
 
@@ -937,7 +918,7 @@ VAR
 		END;
 
 		GC := EmptyProc;	(* no GC until EmptyProc gets replaced (in module Kernel) *)
-		nofcand := 0; marks := 0;
+		nofcand := 0; 
 
 		debug := Glue.debug;
 		GCEnabled :=  ~(6 IN debug);
