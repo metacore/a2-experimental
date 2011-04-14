@@ -292,14 +292,15 @@ VAR
 			n := LEN( sTB.pointerOffsets ); i := 0;
 			WHILE i < n DO
 				S.GET( rec + sTB.pointerOffsets[i], ptr );
-				Mark( ptr );
+				IF ptr # NIL THEN  Mark( ptr )  END;
 				INC( i )
 			END
 		ELSE
 			(* old static type block, temp. *)
 			adr := S.ADR( sTB.pointerOffsets );  S.GET( adr, offset );  
 			WHILE offset >= 0 DO
-				S.GET( rec + offset, ptr );  Mark( ptr );
+				S.GET( rec + offset, ptr );  
+				IF ptr # NIL THEN  Mark( ptr )  END;
 				INC( adr, AdrSize );  S.GET( adr, offset )
 			END
 		END
