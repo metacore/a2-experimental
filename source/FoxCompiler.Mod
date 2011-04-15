@@ -355,7 +355,7 @@ TYPE
 				SELF.backend := b;
 				SELF.diagnostics := specification.diagnostics;
 				SELF.objectFileFormat := objectFileFormat;
-				NEW(assembler, specification.diagnostics, backend);
+				NEW(assembler, specification.diagnostics, backend, ""); (* TODO: pass an optional path as third parameter *)
 				IF ~assembler.LoadModule(specification.name,TRUE) THEN
 					error := TRUE;
 					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "could not load ir file");
@@ -630,7 +630,7 @@ TYPE
 
 			(* TODO: handle multiple module names? *)
 			IF context.arg.GetString(rootModuleName) THEN
-				NEW(assemblinker, diagnostics, defaultBackend);
+				NEW(assemblinker, diagnostics, defaultBackend, "");
 				IF assemblinker.LoadModule(rootModuleName, FALSE) THEN
 					assemblinker.MarkReachabilityOfAll(TRUE);
 				 	IF assemblinker.GenerateObjectFile(objectFileFormat, context.out, flags, NIL, NIL) THEN
@@ -638,7 +638,7 @@ TYPE
 					END
 				END
 			ELSE
-				diagnostics.Error("", Diagnostics.Invalid, Diagnostics.Invalid, "root module name not specified");
+				diagnostics.Error("", Diagnostics.Invalid, Diagnostics.Invalid, "module name not specified");
 				context.out.Update
 			END
 	 	END
