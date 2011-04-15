@@ -185,6 +185,11 @@ TYPE
 		BEGIN RETURN TRUE
 		END ForceModuleBodies;
 
+		PROCEDURE GetExtension(VAR ext: ARRAY OF CHAR);
+		BEGIN COPY(extension, ext)
+		END GetExtension;
+
+
 
 	END ObjectFileFormat;
 

@@ -5,7 +5,8 @@ IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,  D := Debugging,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal
-	, ActiveCells := FoxActiveCells, IntermediateCodeAssembler := FoxIntermediateCodeAssembler;
+	, ActiveCells := FoxActiveCells, IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
+	Files, StaticLinker, GenericLinker;
 
 CONST
 	(* flags *)
@@ -316,8 +317,9 @@ TYPE
 				IF activeCellsSpecification = NIL THEN (* no activeCells *)
 				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
 				ELSE
-					IF ~activeCellsSpecification.Link(diagnostics,system.codeUnit, system.dataUnit) THEN
-						FinalMessage(TRUE, " could not link"); RETURN FALSE
+					IF ~AssembleActiveCells(activeCellsSpecification,backend,objectFileFormat) THEN
+						(*activeCellsSpecification.Link(diagnostics,system.codeUnit, system.dataUnit) *)
+						FinalMessage(TRUE, " could not assemble"); RETURN FALSE
 					ELSIF ~activeCellsSpecification.Emit() THEN
 						FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;
 					END;
@@ -332,6 +334,135 @@ TYPE
 
 		RETURN TRUE;
 	END Modules;
+
+	PROCEDURE AssembleActiveCells(activeCellsSpecification: ActiveCells.Specification; backend: Backend.Backend; objectFileFormat: Formats.ObjectFileFormat): BOOLEAN;
+	TYPE
+		AssemblerObject= OBJECT
+		VAR
+			specification: ActiveCells.Specification;
+			backend: Backend.Backend;
+			diagnostics: Diagnostics.Diagnostics;
+			assembler: IntermediateCodeAssembler.Assemblinker;
+			objectFileFormat: Formats.ObjectFileFormat;
+			flags: SET;
+			error: BOOLEAN;
+			system: Global.System;
+
+			PROCEDURE &Init(activeCellsSpecification: ActiveCells.Specification; b: Backend.Backend; objectFileFormat: Formats.ObjectFileFormat);
+			BEGIN
+				error := FALSE;
+				SELF.specification := activeCellsSpecification;
+				SELF.backend := b;
+				SELF.diagnostics := specification.diagnostics;
+				SELF.objectFileFormat := objectFileFormat;
+				NEW(assembler, specification.diagnostics, backend);
+				IF ~assembler.LoadModule(specification.name,TRUE) THEN
+					error := TRUE;
+					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "could not load ir file");
+				END;
+				backend := assembler.backend;
+				system := backend.system;
+			END Init;
+
+			PROCEDURE LinkInstance(instance: ActiveCells.Instance): BOOLEAN;
+			VAR
+				fileName, codeFileName, dataFileName: Files.FileName;
+				code, data: StaticLinker.Arrangement; linker: GenericLinker.Linker;
+				module: ActiveCells.Module;
+				linkRoot,msg: SyntaxTree.String;
+				i: LONGINT;
+				logFile: Files.File; linkerLog: Files.Writer;
+				type: ActiveCells.Type;
+
+				typeName, instanceName: SyntaxTree.String;
+				extension: ARRAY 32 OF CHAR;
+				instructionMemorySize, dataMemorySize: LONGINT;
+				parameter: ActiveCells.Parameter;
+				value: SyntaxTree.Value;
+
+			BEGIN
+
+				type := instance.type;
+				type.GetFullName(typeName,NIL);
+				instance.GetFullName(instanceName,NIL);
+
+				D.String("assembling instance "); D.String(instance.name); D.String(" of type "); D.String(type.name); D.Ln;
+
+				D.String("assembling instance "); D.String(instanceName); D.String(" of type "); D.String(typeName); D.Ln;
+
+				assembler.MarkReachabilityOfAll(FALSE);
+				COPY(typeName, linkRoot);
+				Strings.Append(linkRoot,".@BodyStub");
+				assembler.MarkAsReachableByName(linkRoot);
+
+				FOR i := 0 TO instance.parameters.Length()-1 DO
+					parameter := instance.parameters.GetParameter(i);
+					IF parameter.type = 0 THEN (* Boolean *)
+						value := SyntaxTree.NewBooleanValue(-1, parameter.boolean); value.SetType(system.booleanType);
+					ELSE
+						value := SyntaxTree.NewIntegerValue(-1, parameter.integer); value.SetType(system.integerType);
+					END;
+					assembler.PatchValueInSection(parameter.name,value);
+				END;
+
+				assembler.PrearrangeReachableDataSections;
+
+				IF ~assembler.GenerateObjectFileWithName(objectFileFormat, specification.log, {}, NIL, NIL, instanceName) THEN
+					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "could not generate object file");
+					RETURN FALSE
+				END;
+
+				D.String("assembling instance done. "); D.Ln;
+
+
+				NEW (code, 0); NEW (data, 0);
+				COPY(instanceName, msg); Strings.Append(msg,".log");	logFile := Files.New(msg);
+				IF logFile # NIL THEN NEW(linkerLog,logFile,0) ELSE logFile := NIL END;
+				NEW (linker, specification.diagnostics, linkerLog, FALSE (* useAll *), FALSE (* stripInitCodes *), code, data);
+
+
+				objectFileFormat.GetExtension(extension);
+				linker.SetLinkRoot(linkRoot);
+				StaticLinker.ReadObjectFile(instanceName, "",extension,linker);
+
+				(* do linking after having read in all blocks to account for potential constraints *)
+				IF ~linker.error THEN linker.Link; END;
+
+				system := backend.GetSystem();
+
+				instructionMemorySize := type.instructionMemorySize;
+				dataMemorySize := type.dataMemorySize;
+				instructionMemorySize := MAX(code.SizeInBits() DIV system.codeUnit, instructionMemorySize);
+				dataMemorySize := MAX(data.SizeInBits() DIV system.dataUnit, dataMemorySize);
+				type.SetInstructionMemorySize(instructionMemorySize);
+				type.SetDataMemorySize(dataMemorySize);
+
+				Files.JoinExtension(instanceName,ActiveCells.CodeFileExtension,codeFileName);
+				Files.JoinExtension(instanceName,ActiveCells.DataFileExtension,dataFileName);
+
+				IF ~linker.error THEN
+					StaticLinker.WriteOutputFile (code, codeFileName, linker, StaticLinker.WriteTRMCodeFile);
+					StaticLinker.WriteOutputFile (data, dataFileName, linker, StaticLinker.WriteTRMDataFile);
+					IF linkerLog # NIL THEN linkerLog.Update; Files.Register(logFile) END;
+					IF specification.log # NIL THEN specification.log.String(instanceName); specification.log.String(" successfully linked."); specification.log.Ln END;
+				ELSE
+					msg := "could not link ";
+					Strings.Append(msg,linkRoot);
+					diagnostics.Error("",Diagnostics.Invalid, Diagnostics.Invalid, msg);
+				END;
+				RETURN ~linker.error
+			END LinkInstance;
+
+		END AssemblerObject;
+
+	VAR obj: AssemblerObject;
+	BEGIN
+		ActiveCells.FlattenNetwork(activeCellsSpecification);
+		NEW(obj,activeCellsSpecification,backend,objectFileFormat);
+		IF obj.error THEN RETURN FALSE END;
+		RETURN activeCellsSpecification.ForEachInstanceDo(obj.LinkInstance);
+	END AssembleActiveCells;
+
 
 	PROCEDURE GetOptions*(input: Streams.Reader; error:Streams.Writer; diagnostics: Diagnostics.Diagnostics; VAR flags: SET;
 		VAR backend: Backend.Backend;
@@ -415,7 +546,7 @@ TYPE
 		ELSIF options.GetFlag("activeCells") THEN
 			NEW(activeCellsSpecification,"",diagnostics,NIL);
 		END;
-		
+
 		IF backend # NIL THEN backend.DefineOptions (options); INCL(flags,Check); END;
 		IF symbolFile # NIL THEN symbolFile.DefineOptions(options); INCL(flags,Check) END;
 		IF objectFile # NIL THEN objectFile.DefineOptions(options); INCL(flags,Check) END;
@@ -481,10 +612,10 @@ TYPE
 			END;
 		END;
 	END Compile;
-	
+
 	PROCEDURE Assemble*(context: Commands.Context);
 	VAR
-		diagnostics: Diagnostics.StreamDiagnostics;	
+		diagnostics: Diagnostics.StreamDiagnostics;
 		flags: SET;
 		defaultBackend: Backend.Backend;
 		objectFileFormat: Formats.ObjectFileFormat;
@@ -492,7 +623,7 @@ TYPE
 		dummyDataflowSpecification: ActiveCells.Specification;
 		rootModuleName, dummyString: SyntaxTree.String;
 		assemblinker: IntermediateCodeAssembler.Assemblinker;
-	BEGIN	
+	BEGIN
 		NEW(diagnostics, context.out);
 		IF GetOptions(context.arg, context.error, diagnostics, flags, defaultBackend, dummySymbolFileFormat, objectFileFormat, dummyDataflowSpecification, dummyString) THEN
 			(* TODO: handle flags, such as 'Print', 'Silent' and 'TraceError'? *)
@@ -509,10 +640,10 @@ TYPE
 			ELSE
 				diagnostics.Error("", Diagnostics.Invalid, Diagnostics.Invalid, "root module name not specified");
 				context.out.Update
-			END	
+			END
 	 	END
 	END Assemble;
-	
+
 	PROCEDURE CompileReader*(context: Commands.Context; reader: Streams.Reader);
 	VAR
 		filename: ARRAY 256 OF CHAR;

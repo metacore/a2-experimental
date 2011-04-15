@@ -18,18 +18,18 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			PROCEDURE ExportSection (section: IntermediateCode.Section): BOOLEAN;
 			VAR name: ARRAY 128 OF CHAR; (* debugging *)
 			BEGIN
-				COPY(section.name,name);				
+				COPY(section.name,name);
 				IF section.resolved = NIL THEN
 					D.String('"section.resolved = NIL" for '); D.String(section.name); D.Ln;
 					RETURN FALSE
-				ELSE				
+				ELSE
 					IF (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
 						(* nothing to do *)
 					ELSE
 						section.resolved.identifier.fingerprint := GetFingerPrint (section, fingerPrinter);
 						UpdateFixups (section.resolved, fingerPrinter);
 						ObjectFile.WriteSection(writer,section.resolved^,binary)
-					END					
+					END
 				END;
 				RETURN TRUE
 			END ExportSection;
@@ -66,7 +66,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 
 		BEGIN
 			IF Trace THEN D.String(">>> export generic object file"); D.Ln END;
-		
+
 			IF ~(module IS Sections.Module) THEN
 				diagnostics.Error (module.moduleName, Diagnostics.Invalid, Diagnostics.Invalid, "generated module format does not match object file format");
 				RETURN FALSE;
@@ -74,9 +74,9 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 
 			IF prefix # "" THEN Files.JoinPath (prefix, module.moduleName, fileName); ELSE COPY (module.moduleName, fileName); END;
 			Files.JoinExtension (fileName, extension, fileName);
-			
+
 			IF Trace THEN D.String(">>> filename: "); D.String(fileName); D.Ln END;
-			
+
 			file := Files.New (fileName);
 			IF file = NIL THEN
 				diagnostics.Error(module.moduleName,Diagnostics.Invalid,Diagnostics.Invalid,"failed to open object file");
@@ -112,8 +112,13 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		BEGIN RETURN SymbolFileFormat.Get();
 		END DefaultSymbolFileFormat;
 
+		PROCEDURE GetExtension(VAR ext: ARRAY OF CHAR);
+		BEGIN COPY(extension, ext)
+		END GetExtension;
+
+
 	END ObjectFileFormat;
-	
+
 	PROCEDURE GetFingerPrint (section: Sections.Section; fingerPrinter: FingerPrinter.FingerPrinter): LONGINT;
 	VAR fingerPrint: SyntaxTree.FingerPrint; fp: LONGINT;
 	BEGIN
@@ -130,7 +135,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		END;
 		RETURN fp
 	END GetFingerPrint;
-	
+
 	PROCEDURE UpdateFixups (section: BinaryCode.Section;  fingerPrinter: FingerPrinter.FingerPrinter);
 	VAR fixup: BinaryCode.Fixup; i: INTEGER; fixupList: ObjectFile.Fixups; fixups: LONGINT;
 	BEGIN
@@ -141,12 +146,12 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		END;
 		ObjectFile.SetFixups(section^, fixups, fixupList);
 	END UpdateFixups;
-	
+
 	PROCEDURE Get*(): Formats.ObjectFileFormat;
 	VAR objectFileFormat: ObjectFileFormat;
 	BEGIN NEW(objectFileFormat); RETURN objectFileFormat
 	END Get;
-	
+
 	PROCEDURE ReadHeader(reader: Streams.Reader; VAR binary: BOOLEAN);
 	VAR ch: CHAR; version: LONGINT; string: ARRAY 32 OF CHAR;
 	BEGIN
@@ -159,7 +164,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		reader.Char(ch); ASSERT(ch='.');
 		IF ~binary THEN reader.SkipWhitespace END;
 	END ReadHeader;
-	
+
 	PROCEDURE WriteHeader(writer: Streams.Writer; binary: BOOLEAN);
 	BEGIN
 		IF binary THEN writer.String("FoxOFB");
@@ -169,7 +174,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		writer.Char('v'); writer.Int(version,0); writer.Char(".");
 		IF ~binary THEN writer.Ln END;
 	END WriteHeader;
-	
+
 	PROCEDURE Show*(context: Commands.Context);
 	VAR
 		fileName: Files.FileName; file: Files.File; reader: Files.Reader; writer: Streams.Writer;
@@ -195,6 +200,6 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			context.error.String("no file specificed"); context.error.Ln
 		END;
 	END Show;
-	
-	
+
+
 END FoxGenericObjectFile.

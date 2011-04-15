@@ -27,6 +27,27 @@ TYPE
 	VAR name-: SyntaxTree.String;
 		scope-: Scope;
 
+
+		PROCEDURE GetFullName*(VAR name: ARRAY OF CHAR; in: Scope);
+
+			PROCEDURE InScope(this,in : Scope): BOOLEAN;
+			BEGIN
+				WHILE (this # NIL) & (this # in) DO
+					this := this.scope;
+				END;
+				RETURN this # NIL
+			END InScope;
+
+		BEGIN
+			IF (SELF.scope # NIL) & ~InScope(in,SELF.scope) THEN
+				SELF.scope.GetFullName(name,in);
+				Strings.Append(name,".");
+				Strings.Append(name,SELF.name);
+			ELSE
+				COPY(SELF.name,name)
+			END;
+		END GetFullName;
+
 		PROCEDURE InitSymbol(CONST name: ARRAY OF CHAR; scope: Scope);
 		BEGIN
 			COPY(name,SELF.name);
@@ -332,12 +353,16 @@ TYPE
 				&CheckItem(r,"type") & GetString(r,s) & CheckItem(r,"value") THEN
 					IF s= "INTEGER" THEN type := Integer
 					ELSIF s = "BOOLEAN" THEN type := Boolean
+					ELSE RETURN FALSE
 					END;
 					IF (type = Integer) & r.GetInteger(integer,FALSE) THEN
 					ELSIF (type=Boolean) & GetString(r,s) THEN
 						IF s="TRUE" THEN boolean := TRUE ELSE boolean := FALSE END;
+					ELSE RETURN FALSE
 					END;
+			ELSE RETURN FALSE
 			END;
+			RETURN TRUE
 		END Read;
 
 	END Parameter;
@@ -452,6 +477,9 @@ TYPE
 		END ByName;
 	END InstanceList;
 
+	InstanceMethod*= PROCEDURE {DELEGATE} (instance: Instance): BOOLEAN;
+	TypeMethod*= PROCEDURE {DELEGATE} (type: Type): BOOLEAN;
+
 	Scope*=OBJECT (Symbol)
 	VAR
 		symbols-: SymbolList;
@@ -479,26 +507,6 @@ TYPE
 			ELSE RETURN symbol;
 			END;
 		END FindSymbol;
-
-		PROCEDURE GetFullName*(VAR name: ARRAY OF CHAR; in: Scope);
-
-			PROCEDURE InScope(this,in : Scope): BOOLEAN;
-			BEGIN
-				WHILE (this # NIL) & (this # in) DO
-					this := this.scope;
-				END;
-				RETURN this # NIL
-			END InScope;
-
-		BEGIN
-			IF (SELF.scope # NIL) & ~InScope(in,SELF.scope) THEN
-				SELF.scope.GetFullName(name,in);
-				Strings.Append(name,".");
-				Strings.Append(name,SELF.name);
-			ELSE
-				COPY(SELF.name,name)
-			END;
-		END GetFullName;
 
 		PROCEDURE NewInstance*(CONST name: ARRAY OF CHAR; type: Type): Instance;
 		VAR instance: Instance;
@@ -540,6 +548,35 @@ TYPE
 			 RETURN type
 		END NewType;
 
+		PROCEDURE ForEachInstanceDo*(method: InstanceMethod): BOOLEAN;
+		VAR i: LONGINT; instance: Instance; type: Type;
+		BEGIN
+			FOR i := 0 TO instances.Length()-1 DO
+				instance := instances.GetInstance(i);
+				IF ~method(instance) THEN RETURN FALSE END;
+			END;
+			(*
+			FOR i := 0 TO types.Length()-1 DO
+				type := types.GetType(i);
+				IF ~type.ForEachInstanceDo(method) THEN RETURN FALSE END
+			END;
+			*)
+			RETURN TRUE
+		END ForEachInstanceDo;
+
+
+		PROCEDURE ForEachTypeDo*(method: TypeMethod): BOOLEAN; (* used for linking *)
+		VAR type: Type; i: LONGINT;
+		BEGIN
+			FOR i := 0 TO types.Length()-1 DO
+				type := types.GetType(i);
+				IF ~method(type) THEN RETURN FALSE END;
+				IF ~type.ForEachTypeDo(method) THEN RETURN FALSE END; (* subtypes *)
+			END;
+			RETURN TRUE
+		END ForEachTypeDo;
+
+		(*
 		PROCEDURE Link*(diagnostics: Diagnostics.Diagnostics; codeUnit, dataUnit: LONGINT): BOOLEAN;
 		VAR type: Type; i: LONGINT;
 		BEGIN
@@ -554,6 +591,7 @@ TYPE
 			END;
 			RETURN TRUE
 		END Link;
+		*)
 
 	END Scope;
 
@@ -1026,9 +1064,7 @@ TYPE
 		PROCEDURE Emit*(): BOOLEAN; (* to be overwritten by implementers *)
 		VAR w: Files.Writer; f: Files.File; fileName: Files.FileName; msg: SyntaxTree.String;
 		BEGIN
-			(* D.Ln; D.String("before resolving ");Write(D.Log,1); D.Update;*)
 			FlattenNetwork(SELF);
-			(* D.Ln; D.String("after resolving "); Write(D.Log,1); D.Update; *)
 			Files.JoinExtension(SELF.name,SpecificationFileExtension,fileName);
 			f := Files.New(fileName);
 			IF f # NIL THEN
@@ -1183,12 +1219,20 @@ TYPE
 		 END FlattenPortInstance;
 
 		 PROCEDURE EmbedInstance(instance: Instance; VAR subInstance: Instance): Instance;
-		 VAR name: SyntaxTree.String; newInstance: Instance;
+		 VAR name: SyntaxTree.String; newInstance: Instance; i: LONGINT; parameter,newParameter: Parameter;
 		 BEGIN
 		 	COPY(instance.name, name); Strings.Append(name,"."); Strings.Append(name,subInstance.name);
 		 	newInstance := instances.ByName(name);
 		 	IF newInstance = NIL THEN
 		 		NEW(newInstance, name, scope, subInstance.type);
+		 		FOR i := 0 TO subInstance.parameters.Length()-1 DO
+		 			parameter := subInstance.parameters.GetParameter(i);
+		 			newParameter := newInstance.AddParameter(parameter.name);
+		 			newParameter.index := parameter.index;
+		 			newParameter.type := parameter.type;
+		 			newParameter.integer := parameter.integer;
+		 			newParameter.boolean := parameter.boolean;
+		 		END;
 		 	END;
 		 	RETURN newInstance
 		 END EmbedInstance;

@@ -8,7 +8,7 @@ CONST
 TYPE
 	(* container for generated code (intermediate code - binary code) *)
 	GeneratedModule*=OBJECT
-		VAR			
+		VAR
 			(* input for (intermediate) code generation *)
 			module-: SyntaxTree.Module;
 			system-: Global.System;
@@ -18,7 +18,7 @@ TYPE
 		PROCEDURE SetFindPC*(findPC: LONGINT);
 		BEGIN SELF.findPC := findPC
 		END SetFindPC;
-		
+
 		PROCEDURE & Init*(module: SyntaxTree.Module; system: Global.System);
 		BEGIN SELF.module := module; SELF.system := system; findPC := NoFindPC
 		END Init;
@@ -64,7 +64,11 @@ TYPE
 
 		PROCEDURE GetOptions*(options: Options.Options);
 		BEGIN
-	END GetOptions;
+		END GetOptions;
+
+		PROCEDURE GetExtension*(VAR ext: ARRAY OF CHAR);
+		BEGIN HALT(100); (* abstract *)
+		END GetExtension;
 
 	END SymbolFileFormat;
 
@@ -99,6 +103,10 @@ TYPE
 		PROCEDURE ForceModuleBodies*(): BOOLEAN;
 		BEGIN RETURN FALSE
 		END ForceModuleBodies;
+
+		PROCEDURE GetExtension*(VAR ext: ARRAY OF CHAR);
+		BEGIN HALT(100); (* abstract *)
+		END GetExtension;
 
 	END ObjectFileFormat;
 
