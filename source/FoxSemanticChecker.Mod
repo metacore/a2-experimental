@@ -6008,12 +6008,14 @@ TYPE
 			BEGIN
 				IF type = NIL THEN
 					RETURN FALSE
+				ELSIF (type.typeDeclaration # NIL) & (type.typeDeclaration.scope.ownerModule = currentScope.ownerModule) THEN
+					RETURN TRUE
 				ELSIF (type.resolved IS SyntaxTree.ArrayType) THEN
 					RETURN IsLocallyDefined(type.resolved(SyntaxTree.ArrayType).arrayBase)
 				ELSIF (type.resolved IS SyntaxTree.MathArrayType) THEN
 					RETURN IsLocallyDefined(type.resolved(SyntaxTree.MathArrayType).arrayBase)
 				ELSE
-					RETURN (type.typeDeclaration # NIL) & (type.typeDeclaration.scope.ownerModule = currentScope.ownerModule);
+					RETURN FALSE
 				END
 			END IsLocallyDefined;
 		BEGIN
