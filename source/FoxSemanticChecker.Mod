@@ -4513,6 +4513,30 @@ TYPE
 								ELSE HALT(100);
 								END;
 								IF type1 IS SyntaxTree.MathArrayType THEN (* NEW(a, array) *)
+
+									(* use type checking facilities of procedure calls: artificially build parameters here and call checker *)
+									base := ArrayBase(type0,MAX(LONGINT));
+
+									parameterType := SyntaxTree.NewMathArrayType(Diagnostics.Invalid,currentScope,SyntaxTree.Tensor);
+									parameterType(SyntaxTree.MathArrayType).SetArrayBase(base);
+									IF ~CompatibleTo(system,type0,parameterType) THEN
+										Error(parameter0.position,Diagnostics.Invalid,"incompatible parameter in new");
+										result := SyntaxTree.invalidExpression;
+									ELSE
+										parameter0 := NewConversion(Diagnostics.Invalid,parameter0,parameterType,NIL); actualParameters.SetExpression(0,parameter0);
+									END;
+
+									parameterType := SyntaxTree.NewMathArrayType(Diagnostics.Invalid,currentScope,SyntaxTree.Open);
+									parameterType(SyntaxTree.MathArrayType).SetArrayBase(system.longintType);
+									IF ~CompatibleTo(system,type1,parameterType) THEN
+										Error(parameter1.position,Diagnostics.Invalid,"parameter incompatible to math array of longint");
+										result := SyntaxTree.invalidExpression;
+									ELSE
+										parameter1 := NewConversion(Diagnostics.Invalid,parameter1,parameterType,NIL); actualParameters.SetExpression(1,parameter1);
+									END;
+
+
+									(* old code
 									IF  ~arrayBaseImported THEN
 										ImportModule(Global.ArrayBaseName, InvalidPosition);
 										arrayBaseImported := TRUE
@@ -4531,6 +4555,7 @@ TYPE
 									designator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
 									designator := SyntaxTree.NewSelectorDesignator(InvalidPosition, designator, SyntaxTree.NewIdentifier(InvalidPosition, "AllocateTensorX"));
 									result := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, designator, actualParameters));
+									*)
 									*)
 								ELSE
 									IF Parameters(i0,i1) & (numberActualParameters >1) THEN
@@ -5965,7 +5990,7 @@ TYPE
 			- operators are first checked as procedures
 			- then additional operator-specific checks are done
 			- note that only module-scope operators are checked here
-				(operators in a record scope are only allowed in the context of 
+				(operators in a record scope are only allowed in the context of
 				array-structured object types and checked in 'ResolveArrayStructure')
 			- also note that inter-operator conformity is not checked here
 		**)
@@ -5976,8 +6001,8 @@ TYPE
 			identifierNumber, position, i: LONGINT;
 			hasReturnType, mustBeUnary, mustBeBinary, mustReturnBoolean, mustReturnInteger, mustHaveEquitypedOperands: BOOLEAN;
 			modifiers: SyntaxTree.Modifier;
-			
-			(** whether a type is locally defined in the current module scope 
+
+			(** whether a type is locally defined in the current module scope
 			for arrays, the base type must be locally defined **)
 			PROCEDURE IsLocallyDefined(type: SyntaxTree.Type): BOOLEAN;
 			BEGIN
@@ -5986,7 +6011,7 @@ TYPE
 				ELSIF (type.resolved IS SyntaxTree.ArrayType) THEN
 					RETURN IsLocallyDefined(type.resolved(SyntaxTree.ArrayType).arrayBase)
 				ELSIF (type.resolved IS SyntaxTree.MathArrayType) THEN
-					RETURN IsLocallyDefined(type.resolved(SyntaxTree.MathArrayType).arrayBase)					
+					RETURN IsLocallyDefined(type.resolved(SyntaxTree.MathArrayType).arrayBase)
 				ELSE
 					RETURN (type.typeDeclaration # NIL) & (type.typeDeclaration.scope.ownerModule = currentScope.ownerModule);
 				END
@@ -5995,15 +6020,15 @@ TYPE
 			ASSERT(operator.type IS SyntaxTree.ProcedureType);
 			procedureType := operator.type(SyntaxTree.ProcedureType);
 
-			modifiers := procedureType.modifiers;			
+			modifiers := procedureType.modifiers;
 			IF HasFlag(modifiers, Global.NameDynamic, position) THEN operator.SetDynamic(TRUE) END;
 			CheckModifiers(modifiers);
-			
+
 			VisitProcedure(operator);
-			
+
 			IF operator.scope IS SyntaxTree.ModuleScope THEN
 				identifierNumber := Global.GetSymbol(operator.scope.ownerModule.case, operator.name);
-				
+
 				IF identifierNumber = -1 THEN
 					Error(operator.position, Diagnostics.Invalid, "operator with unknown identifier")
 				ELSIF ~system.operatorDefined[identifierNumber] THEN
@@ -6021,28 +6046,28 @@ TYPE
 						ELSE
 							rightType := NIL
 						END;
-						
+
 						(* check whether at least one of the operand types is declared in the current module (this check is skipped for the module FoxArrayBase) *)
 						IF currentScope.ownerModule.name # Global.ArrayBaseName THEN
 							IF ~(IsLocallyDefined(leftType) OR IsLocallyDefined(rightType)) THEN
 								Error(operator.position, Diagnostics.Invalid, "none of the operands is declared in the same module")
 							END
 						END;
-						
+
 						(* TODO: refine the checks, think about how restrictive the checks should be
 						requiring operators such as "&", "OR", "~" to return Booleans, makes overloading for them almost pointless.
 						They might be used for intersection, union, complement of custom object types *)
-						
+
 						(* defaults *)
 						hasReturnType := TRUE;
-						mustBeUnary := FALSE;	
+						mustBeUnary := FALSE;
 						mustBeBinary := FALSE;
 						mustReturnBoolean := FALSE;
 						mustReturnInteger := FALSE;
 						mustHaveEquitypedOperands := FALSE;
-						
+
 						(* operator-specific exceptions *)
-						CASE identifierNumber OF	
+						CASE identifierNumber OF
 						| Scanner.Equal, Scanner.Unequal, Scanner.Less, Scanner.LessEqual, Scanner.Greater, Scanner.GreaterEqual:
 							mustBeBinary := TRUE; mustReturnBoolean := TRUE;
 						| Scanner.DotEqual, Scanner.DotUnequal, Scanner.DotLess, Scanner.DotLessEqual, Scanner.DotGreater, Scanner.DotGreaterEqual:
@@ -6081,14 +6106,14 @@ TYPE
 						| Global.Sum: (* TODO: arity? *)
 						| Global.Dim: mustBeUnary := TRUE; mustReturnInteger := TRUE;
 						END;
-						
+
 						(* check parameter count *)
 						IF mustBeUnary & (procedureType.numberParameters # 1) THEN
 							Error(operator.position, Diagnostics.Invalid,"operator is not unary")
 						ELSIF mustBeBinary & (procedureType.numberParameters # 2) THEN
 							Error(operator.position, Diagnostics.Invalid,"operator is not binary")
 						END;
-						
+
 						(* check parameter types *)
 						(* TODO: is this used at all? *)
 						IF mustHaveEquitypedOperands & (procedureType.numberParameters = 2) THEN
@@ -6098,7 +6123,7 @@ TYPE
 								Error(operator.position,Diagnostics.Invalid, "the two operands are not of the same type")
 							END
 						END;
-						
+
 						(* check return type *)
 						IF hasReturnType THEN
 							IF procedureType.returnType = NIL THEN
@@ -7182,7 +7207,7 @@ TYPE
 		BEGIN
 			currentScope := thisModuleScope;
 			hasError := FALSE;
-			
+
 			(* go through all operators in the other module *)
 			thatOperator := thatModuleScope.firstOperator;
 			WHILE (thatOperator # NIL) & ~hasError DO
@@ -7193,17 +7218,17 @@ TYPE
 
 						(* go through all operators in this module *)
 						thisOperator := thisModuleScope.firstOperator;
-						WHILE (thisOperator # NIL) & ~hasError DO					
+						WHILE (thisOperator # NIL) & ~hasError DO
 							IF thisOperator # thatOperator THEN
 								(* the operators are not the same *)
 								IF thisOperator.name = thatOperator.name THEN
 									(* the operators share the same identifier *)
-									
+
 									ASSERT(thisOperator.type IS SyntaxTree.ProcedureType);
 									ASSERT(thatOperator.type IS SyntaxTree.ProcedureType);
 									thisProcedureType := thisOperator.type(SyntaxTree.ProcedureType);
 									thatProcedureType := thatOperator.type(SyntaxTree.ProcedureType);
-									IF thisProcedureType.numberParameters = thatProcedureType.numberParameters THEN						
+									IF thisProcedureType.numberParameters = thatProcedureType.numberParameters THEN
 										(* both operators have the same paramter count *)
 										thisParameter := thisProcedureType.firstParameter;
 										thatParameter := thatProcedureType.firstParameter;
@@ -7225,7 +7250,7 @@ TYPE
 											Error(thisOperator.position, Diagnostics.Invalid, "operator has the same identifier and operand types as other one");
 											hasError := TRUE
 										ELSIF operandsAreCompatible THEN
-											IF ~CompatibleTo(system, thisProcedureType.returnType, thatProcedureType.returnType) THEN									
+											IF ~CompatibleTo(system, thisProcedureType.returnType, thatProcedureType.returnType) THEN
 												Error(thisOperator.position, Diagnostics.Invalid, "operator's return type is not compatible to the one of a more generic operator");
 												hasError := TRUE
 											ELSIF ~thisOperator.isDynamic & thatOperator.isDynamic THEN
@@ -7265,23 +7290,23 @@ TYPE
 			RemoveModuleFromCache(importCache,x);
 			Declarations(x.moduleScope);
 			FixTypes();
-			
+
 			(* nopov *)
 			IF ~error THEN
 				(* check if operators conform to each other within this module *)
 				CheckInterOperatorConformity(x.moduleScope, x.moduleScope);
-				
+
 				(* go through all imports *)
 				import := x.moduleScope.firstImport;
 				WHILE import # NIL DO
 					IF (import.module # NIL) & ~Global.IsSystemModule(import.module) THEN (* ignore SYSTEM-module *)
-						(* check if all operators in this module conform to the ones of the imported module *)		
+						(* check if all operators in this module conform to the ones of the imported module *)
 						CheckInterOperatorConformity(x.moduleScope, import.module.moduleScope)
 					END;
 					import := import.nextImport
 				END;
 			END;
-			
+
 			Implementations(x);
 			module := NIL;
 		END Module;
@@ -8017,8 +8042,8 @@ TYPE
 		END;
 		RETURN result
 	END IsPointerType;
-	
-	(* nopov *)	
+
+	(* nopov *)
 	(** whether a type strictily is a pointer to record or object type
 	(however, the basic type <<OBJECT>> is explicitly excluded) **)
 	PROCEDURE IsStrictlyPointerToRecord(type: SyntaxTree.Type): BOOLEAN;

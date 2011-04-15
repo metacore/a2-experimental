@@ -1735,12 +1735,12 @@ TYPE
 				length := StaticMathArrayLength(type, baseType);
 				char :=  BaseType(baseType);
 				IF type.form = SyntaxTree.Open THEN
-					char := BaseType(module.system.longintType);
+					char := BaseType(module.system.addressType);
 					length := 5+2*SemanticChecker.Dimension(type,{SyntaxTree.Open});
 					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));
 					w.RawNum(length)
 				ELSIF type.form=SyntaxTree.Tensor THEN
-					char := rfPointer;
+					char := BaseType(module.system.addressType);
 					w.Char(CHR(ORD(char)));
 				ELSE
 					w.Char(CHR(ORD(char)+ORD(rfArrayFlag)));

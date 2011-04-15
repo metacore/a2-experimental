@@ -19,6 +19,8 @@ CONST
 	statistics= FALSE;
 	conservative=TRUE;
 
+	ArrDataArrayOffset=16; (* offset of data in array with pointers *)
+
 	AddressSize=SYSTEM.SIZEOF(ADDRESS);
 	MathPtrOffset=0*AddressSize;
 	MathAdrOffset=1*AddressSize;
@@ -7797,7 +7799,7 @@ Sufficient (but not necessary) conditions:
 
 			IF (i = 0) & continue THEN (* array can be fully linearized and, therefore, can be reshaped to any size *)
 				RETURN TRUE;
-			ELSE Err("Not yet implemented!"); 
+			ELSE Err("Not yet implemented!");
 			END;
 		END PreservesContiguity;
 
@@ -7972,7 +7974,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END DoReshape;
 
-	PROCEDURE AllocateTensorX*( VAR destA: ARRAY [?]; CONST a: ARRAY [ * ] OF LONGINT;  Size: LONGINT );
+	PROCEDURE AllocateTensorX*( VAR destA: ARRAY [?]; CONST a: ARRAY [ * ] OF LONGINT;  Size: LONGINT; tag: LONGINT );
 	VAR descr, data: ANY;  same: BOOLEAN;  i: LONGINT;  dim: LONGINT; dest: ADDRESS;
 
 		PROCEDURE NewData;
@@ -7986,8 +7988,13 @@ Sufficient (but not necessary) conditions:
 				*)
 				PutInc( dest, i, size );  PutLen( dest, i, len );  size := size * len;
 			END;
-			SYSTEM.NEW( data, size );   (* Zero(data,size*Size); *)
-			PutAdr( dest, SYSTEM.VAL( LONGINT, data ) );
+			IF tag = 0 THEN
+				SYSTEM.NEW( data, size );   (* Zero(data,size*Size); *)
+				PutAdr( dest, SYSTEM.VAL( LONGINT, data ) );
+			ELSE
+				Heaps.NewArr(data, tag, size DIV Size,1,FALSE);
+				PutAdr( dest, SYSTEM.VAL( LONGINT, data ) + ArrDataArrayOffset );
+			END;
 			PutPtr( dest, SYSTEM.VAL( LONGINT, data ) );  PutSize( dest, Size );
 		END NewData;
 
