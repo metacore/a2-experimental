@@ -359,7 +359,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 
 	UNIX {
 		Unix.IP.Mod
-		Unix.NetBase.Mod
+		Unix.Sockets.Mod
 		Unix.TCP.Mod Unix.UDP.Mod Unix.DNS.Mod
 	}
 
