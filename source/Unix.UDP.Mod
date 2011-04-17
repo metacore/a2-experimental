@@ -25,7 +25,7 @@ MODULE UDP;   (** AUTHOR "pjm, mvt"; PURPOSE "UDP protocol"; *)
 	o Always access fields as 8-, 16- or 32-bit values and use DIV, MOD, ASH, ODD for bit access.
 *)
 
-IMPORT IP, B := NetBase, Unix;
+IMPORT IP, Sockets, Unix;
 
 CONST
 	(** Error codes *)
@@ -50,15 +50,19 @@ TYPE
 
 				(** Constructor *)
 				PROCEDURE & Open*( lport: LONGINT;  VAR res: LONGINT );
-				VAR laddr: B.SocketAdr;
+				VAR laddr: Sockets.SocketAdr;
 				BEGIN
 					ASSERT( (lport >= 0) & (lport < 10000H) );
 					SELF.lport := lport;  res := Error;
-					socket := B.Socket( Unix.AFINET, Unix.SockDGram, Unix.IpProtoUDP );
+					socket := Sockets.Socket( Unix.AFINET, Unix.SockDGram, Unix.IpProtoUDP );
 					IF socket # 0 THEN
 						IF lport # anyport THEN
-							laddr := B.NewSocketAdr( anyIP, lport );
-							IF B.Bind( socket, laddr ) THEN  res := Ok;  open := TRUE  ELSE  B.Close( socket )  END
+							laddr := Sockets.NewSocketAdr( anyIP, lport );
+							IF Sockets.Bind( socket, laddr ) THEN  
+								res := Ok;  open := TRUE  
+							ELSE  
+								Sockets.Close( socket )  
+							END
 						END
 					END
 				END Open;
@@ -71,12 +75,12 @@ TYPE
 								   fport: LONGINT;  
 								   CONST data: ARRAY OF CHAR;  ofs, len: LONGINT;
 								   VAR res: LONGINT );
-				VAR addr: B.SocketAdr;
+				VAR addr: Sockets.SocketAdr;
 				BEGIN {EXCLUSIVE}
 					ASSERT( (fport >= 0) & (fport < 10000H) );  
 					ASSERT( (len >= 0) & (len <= MaxUDPDataLen) );
-					addr := B.NewSocketAdr( fip, fport );
-					IF B.SendTo( socket, addr, data, ofs, len ) THEN  res := Ok  ELSE  res := Error  END
+					addr := Sockets.NewSocketAdr( fip, fport );
+					IF Sockets.SendTo( socket, addr, data, ofs, len ) THEN  res := Ok  ELSE  res := Error  END
 				END Send;
 
 
@@ -102,18 +106,18 @@ TYPE
 				PROCEDURE Receive*( VAR data: ARRAY OF CHAR;  ofs, size, ms: LONGINT;  
 									 VAR fip: IP.Adr;  VAR fport, len, res: LONGINT );
 				VAR 
-					addr: B.SocketAdr; i: LONGINT;
+					addr: Sockets.SocketAdr; i: LONGINT;
 				BEGIN {EXCLUSIVE}
 					IF ~open THEN  res := Closed;  RETURN   END;
-					IF B.RecvFrom( socket, addr, data, ofs, len ) THEN
-						fport := B.NetToInt( addr.port );
-						IF addr IS B.SocketAdrV4 THEN
+					IF Sockets.RecvFrom( socket, addr, data, ofs, len ) THEN
+						fport := Sockets.NetToInt( addr.port );
+						IF addr IS Sockets.SocketAdrV4 THEN
 							fip.usedProtocol := IP.IPv4;
-							fip.ipv4Adr := addr(B.SocketAdrV4).v4Adr;
+							fip.ipv4Adr := addr(Sockets.SocketAdrV4).v4Adr;
 						ELSE
 							fip.usedProtocol := IP.IPv6;
 							FOR i := 0 TO 15 DO  
-								fip.ipv6Adr[i] := addr(B.SocketAdrV6).v6Adr[i]
+								fip.ipv6Adr[i] := addr(Sockets.SocketAdrV6).v6Adr[i]
 							END
 						END;
 						res := Ok;
@@ -127,7 +131,7 @@ TYPE
 				(** Close the Socket, freeing its address for re-use. *)
 				PROCEDURE Close*;
 				BEGIN {EXCLUSIVE}
-					B.Close( socket )
+					Sockets.Close( socket )
 				END Close;
 
 			END Socket;

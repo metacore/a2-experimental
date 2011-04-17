@@ -3,7 +3,7 @@
 MODULE TCP;   (** AUTHOR "pjm, mvt"; PURPOSE "TCP protocol"; *)
 
 
-IMPORT Out := KernelLog, IP, Streams,  Glue, Unix, B := NetBase, Objects;
+IMPORT Out := KernelLog, IP, Streams,  Glue, Unix, Sockets, Objects;
 
 CONST
 	NilPort* = 0;
@@ -43,15 +43,14 @@ TYPE
 
 	Connection* = OBJECT (Streams.Connection)
 			VAR
-				int-: IP.Interface;	(* Unix port: dummy, only 'int.localAdr' contains valid data *)
+				int-	: IP.Interface;	(* Unix port: dummy, only 'int.localAdr' contains valid data *)
 				
-				lport-: LONGINT;
-				fip-: IP.Adr;  (* foreign protocol address *)
-				fport-: LONGINT;
-				state*: SHORTINT;   (* TCP state *)
+				lport-	: LONGINT;
+				fip-		: IP.Adr;  (* foreign protocol address *)
+				fport-	: LONGINT;
+				state*	: SHORTINT;   (* TCP state *)
 
-				socket: LONGINT;
-				localAdr, foreignAdr: B.SocketAdr;
+				socket	: LONGINT;  localAdr, foreignAdr: Sockets.SocketAdr;
 				
 				(* Initialization for internal use only. *)
 
@@ -65,40 +64,41 @@ TYPE
 				(** Open a TCP connection (only use once per Connection instance).
 					Use TCP.NilPort for lport to automatically assign an unused local port.*)
 				PROCEDURE Open*( lport: LONGINT;  fip: IP.Adr;  fport: LONGINT;  VAR res: LONGINT );
+				VAR ignore: BOOLEAN;
 				BEGIN {EXCLUSIVE}
 					ASSERT( (state = Unused) & (lport >= 0) & (lport < 10000H) & (fport >= 0) & (fport < 10000H) );
 					IF trace THEN  Out.String( "Open connection " )  END;
-					socket := B.Socket( Unix.AFINET, Unix.SockStream, Unix.IpProtoTCP );
+					socket := Sockets.Socket( Unix.AFINET, Unix.SockStream, Unix.IpProtoTCP );
 					IF socket # 0 THEN
 						IF (~IP.IsNilAdr( fip )) & (fport # NilPort) THEN
 							IF trace THEN  Out.String( "(inout) " )  END;
 							(* active open (connect) *)
-							foreignAdr := B.NewSocketAdr( fip, fport );
-							IF B.Connect( socket, foreignAdr ) THEN
-								IF B.SetLinger( socket ) THEN  END;
+							foreignAdr := Sockets.NewSocketAdr( fip, fport );
+							IF Sockets.Connect( socket, foreignAdr ) THEN
+								ignore := Sockets.SetLinger( socket );
 								SELF.fip := fip;  SELF.fport := fport;
-								localAdr := B.GetSockName( socket );
-								SELF.lport := B.PortNumberOf( localAdr );
+								localAdr := Sockets.GetSockName( socket );
+								SELF.lport := Sockets.GetPortNumber( localAdr );
 								state := Established;  res := Ok
 							ELSE  
 								Out.String( "connect failed" ); Out.Ln;
-								B.Close( socket );  res := ConnectionRefused
+								Sockets.Close( socket );  res := ConnectionRefused
 							END
 						ELSE
 							IF trace THEN  Out.String( "(listen) " )  END;
 							(* passive open (listen) *)
 							ASSERT( (fport = NilPort) & (IP.IsNilAdr( fip )) );
-							localAdr := B.NewSocketAdr( IP.NilAdr, lport );
-							IF B.Bind( socket, localAdr ) THEN
-								localAdr := B.GetSockName( socket );
-								SELF.lport := B.PortNumberOf( localAdr );
-								IF B.Listen( socket ) THEN
-									IF B.SetLinger( socket ) THEN  END;
+							localAdr := Sockets.NewSocketAdr( IP.NilAdr, lport );
+							IF Sockets.Bind( socket, localAdr ) THEN
+								localAdr := Sockets.GetSockName( socket );
+								SELF.lport := Sockets.GetPortNumber( localAdr );
+								IF Sockets.Listen( socket ) THEN
+									ignore := Sockets.SetLinger( socket );
 									SELF.fip := IP.NilAdr;
 									state := Listen;  res := Ok
-								ELSE  B.Close( socket );  res := NotConnected
+								ELSE  Sockets.Close( socket );  res := NotConnected
 								END
-							ELSE  B.Close( socket );  res := NotConnected
+							ELSE  Sockets.Close( socket );  res := NotConnected
 							END
 						END
 					ELSE  
@@ -107,7 +107,7 @@ TYPE
 					END;
 					IF res = Ok THEN
 						(* create a dummy interface with correct local IP-adr *)
-						NEW( int, B.SockAdrToIPAdr( localAdr ) )
+						NEW( int, Sockets.SockAdrToIPAdr( localAdr ) )
 					END;
 					IF trace THEN
 						IF res = Ok THEN
@@ -125,12 +125,12 @@ TYPE
 				(** Send data on a TCP connection. *)
 				PROCEDURE Send*( CONST data: ARRAY OF CHAR;  ofs, len: LONGINT;  propagate: BOOLEAN;  VAR res: LONGINT );
 				VAR n: LONGINT;
-				BEGIN (*{EXCLUSIVE}*)
+				BEGIN {EXCLUSIVE}
 					IF trace THEN  Out.String( "Send: socket=" );  Out.Int( socket, 0 );  ShowBuffer( data, ofs, len )  END;
 					IF state = Established THEN
 						WHILE len > 0 DO
 							n := len;
-							IF B.Send( socket, data, ofs, n ) THEN  
+							IF Sockets.Send( socket, data, ofs, n ) THEN  
 								res := Ok;  DEC( len, n );  INC( ofs, n )
 							ELSE  
 								res := ConnectionReset;  len := 0
@@ -152,7 +152,7 @@ TYPE
 				
 				PROCEDURE Receive*( VAR data: ARRAY OF CHAR;  ofs, size, min: LONGINT;  VAR len, res: LONGINT );
 				VAR p, x: LONGINT;
-				BEGIN (*{EXCLUSIVE}*)
+				BEGIN {EXCLUSIVE}
 					ASSERT( (ofs >= 0) & (ofs + size <= LEN( data )) & (min <= size) );   (* parameter consistency check *)
 					IF trace THEN
 						Out.String( "Receive: socket=" );  Out.Int( socket, 0 );
@@ -164,7 +164,7 @@ TYPE
 					IF state IN {Listen, Established} THEN
 						LOOP
 							x := size;
-							IF B.Recv( socket, data, ofs, x, 0 ) THEN
+							IF Sockets.Recv( socket, data, ofs, x, 0 ) THEN
 								IF x > 0 THEN
 									DEC( size, x );  INC( len, x );  INC( ofs, x );
 									IF len >= min THEN  
@@ -173,11 +173,11 @@ TYPE
 									END
 								ELSE
 									(* x = 0: closed by peer *)
-									B.Close( socket );  state := Closed;
+									Sockets.Close( socket );  state := Closed;
 									res := NotConnected;  RETURN
 								END
 							ELSE
-								B.Close( socket );  state := Closed;
+								Sockets.Close( socket );  state := Closed;
 								res := NotConnected;  RETURN
 							END
 						END; (* loop *)
@@ -200,9 +200,9 @@ TYPE
 
 				(** Enable or disable keep-alive. (default: disabled) *)
 				PROCEDURE KeepAlive*( enable: BOOLEAN );
-				VAR dum: BOOLEAN;
+				VAR ignore: BOOLEAN;
 				BEGIN
-					dum := B.KeepAlive( socket, enable )
+					ignore := Sockets.KeepAlive( socket, enable )
 				END KeepAlive;
 
 
@@ -211,8 +211,8 @@ TYPE
 				VAR available: LONGINT; 
 				BEGIN {EXCLUSIVE}
 					IF state IN {Established, Listen} THEN
-						IF B.Requested( socket ) THEN 
-							available := B.Available( socket ); 
+						IF Sockets.Requested( socket ) THEN 
+							available := Sockets.Available( socket ); 
 							IF available >= 0 THEN  
 								RETURN available  
 							END;
@@ -236,33 +236,33 @@ TYPE
 				(** Close a TCP connection (half-close). *)
 				PROCEDURE Close*;
 				BEGIN {EXCLUSIVE}
-					B.Close( socket );  state := Closed;
+					Sockets.Close( socket );  state := Closed;
 				END Close;
 
 				(** Discard a TCP connection (shutdown). *)
 				PROCEDURE Discard*;
 				BEGIN {EXCLUSIVE}
-					B.Close( socket );  state := Closed;
+					Sockets.Close( socket );  state := Closed;
 				END Discard;
 
 				(** Accept a client waiting on a listening connection. Blocks until a client is available or the
 					  connection is closed. *)
 				PROCEDURE Accept*( VAR client: Connection;  VAR res: LONGINT );
-				VAR newsocket: LONGINT;  peerAdr: B.SocketAdr;
+				VAR newsocket: LONGINT;  peerAdr: Sockets.SocketAdr;
 				BEGIN {EXCLUSIVE}
 					IF trace THEN
 						Out.String( "Accept: socket=" ); Out.Int( socket, 0 );  Out.String( " ... " )
 					END;
 					IF state = Listen THEN
-						newsocket := B.Accept( socket );
+						newsocket := Sockets.Accept( socket );
 						IF newsocket > 0 THEN
-							peerAdr := B.GetPeerName( newsocket );
+							peerAdr := Sockets.GetPeerName( newsocket );
 							NEW( client );
 							client.int := int;
 							client.socket := newsocket;
 							client.state := Established;
-							client.fip := B.SockAdrToIPAdr( peerAdr );
-							client.fport := B.PortNumberOf( peerAdr );
+							client.fip := Sockets.SockAdrToIPAdr( peerAdr );
+							client.fport := Sockets.GetPortNumber( peerAdr );
 							IF trace THEN
 								Out.String( "Accept done, client socket=" );  Out.Int( newsocket, 0 );  Out.Ln
 							END;
@@ -280,7 +280,7 @@ TYPE
 				(** Return TRUE iff a listening connection has clients waiting to be accepted. *)
 				PROCEDURE Requested*( ): BOOLEAN;
 				BEGIN {EXCLUSIVE}
-					RETURN (state = Listen) & B.Requested( socket ) 
+					RETURN (state = Listen) & Sockets.Requested( socket ) 
 				END Requested;
 
 
