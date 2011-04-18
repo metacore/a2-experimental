@@ -95,7 +95,7 @@ CONST
 	DecMul* = AtMulInc + 1;
 	IncMul* = DecMul + 1;
 	end = IncMul + 1;
-	
+
 VAR
 	(* names *)
 	SelfParameterName-,ReturnParameterName-,SystemName-,systemName-,PointerReturnName-, ResultName-,
@@ -816,15 +816,15 @@ TYPE
 		FOR i := Scanner.Equal TO Scanner.Not DO
 			OperatorDefined(system,i,TRUE);
 		END;
-		
+
 		(* nopov *)
 		OperatorDefined(system, Conversion, TRUE);
 		OperatorDefined(system, DotTimesPlus, TRUE);
 		OperatorDefined(system, AtMulDec, TRUE);
 		OperatorDefined(system, AtMulInc, TRUE);
 		OperatorDefined(system, DecMul, TRUE);
-		OperatorDefined(system, IncMul, TRUE);		
-		
+		OperatorDefined(system, IncMul, TRUE);
+
 		OperatorDefined(system,Scanner.Transpose,TRUE);
 		OperatorDefined(system,Scanner.Becomes,TRUE);
 		OperatorDefined(system,Dec,TRUE);
@@ -955,7 +955,7 @@ TYPE
 		ELSE
 			ASSERT(context=OberonName);
 			Basic.GetString(context,prefix);
-			Basic.Concat(fileName,prefix,"-",name);
+			Basic.Concat(fileName,prefix,".",name);
 		END;
 	END ModuleFileName;
 
@@ -963,21 +963,20 @@ TYPE
 	VAR moduleName, contextName: Scanner.StringType; i,j: LONGINT;
 	BEGIN
 		i := 0; j := 0;
-		WHILE (fileName[i] # 0X) & (fileName[i] # "-") DO
-			contextName[i] := fileName[i];
+		WHILE (fileName[i] # 0X) & (fileName[i] # ".") DO
+			moduleName[i] := fileName[i];
 			INC(i);
 		END;
-		contextName[i] := 0X;
+		moduleName[i] := 0X;
 		IF fileName[i] # 0X THEN
+			COPY(moduleName, contextName);
 			INC(i);
 			WHILE(fileName[i] # 0X) DO
 				moduleName[j] := fileName[i];
 				INC(i); INC(j);
 			END;
-		END;
-		moduleName[j] := 0X;
-		IF j = 0 THEN
-			moduleName := contextName;
+			moduleName[j] := 0X;
+		ELSE
 			contextName := "A2";
 		END;
 		module := SyntaxTree.NewIdentifier(moduleName);
@@ -990,7 +989,7 @@ TYPE
 		name := "";
 		IF module.context # SyntaxTree.invalidIdentifier THEN
 			Basic.GetString(module.context,n);
-			IF n# "A2" THEN Strings.Append(name,n);Strings.Append(name,"-") END;
+			IF n# "A2" THEN Strings.Append(name,n);Strings.Append(name,".") END;
 		END;
 		module.GetName(n);
 		Strings.Append(name,n);
