@@ -317,7 +317,7 @@ TYPE
 				IF activeCellsSpecification = NIL THEN (* no activeCells *)
 				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
 				ELSE
-					IF ~AssembleActiveCells(activeCellsSpecification,backend,objectFileFormat) THEN
+					IF ~AssembleActiveCells(activeCellsSpecification,backend) THEN
 						(*activeCellsSpecification.Link(diagnostics,system.codeUnit, system.dataUnit) *)
 						FinalMessage(TRUE, " could not assemble"); RETURN FALSE
 					ELSIF ~activeCellsSpecification.Emit() THEN
@@ -335,7 +335,7 @@ TYPE
 		RETURN TRUE;
 	END Modules;
 
-	PROCEDURE AssembleActiveCells(activeCellsSpecification: ActiveCells.Specification; backend: Backend.Backend; objectFileFormat: Formats.ObjectFileFormat): BOOLEAN;
+	PROCEDURE AssembleActiveCells(activeCellsSpecification: ActiveCells.Specification; backend: Backend.Backend): BOOLEAN;
 	TYPE
 		AssemblerObject= OBJECT
 		VAR
@@ -458,11 +458,10 @@ TYPE
 	VAR obj: AssemblerObject;
 	BEGIN
 		ActiveCells.FlattenNetwork(activeCellsSpecification);
-		NEW(obj,activeCellsSpecification,backend,objectFileFormat);
+		NEW(obj,activeCellsSpecification,backend,GetObjectFileFormat("Generic"));
 		IF obj.error THEN RETURN FALSE END;
 		RETURN activeCellsSpecification.ForEachInstanceDo(obj.LinkInstance);
 	END AssembleActiveCells;
-
 
 	PROCEDURE GetOptions*(input: Streams.Reader; error:Streams.Writer; diagnostics: Diagnostics.Diagnostics; VAR flags: SET;
 		VAR backend: Backend.Backend;

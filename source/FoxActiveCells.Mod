@@ -271,7 +271,7 @@ TYPE
 		VAR i: LONGINT;
 		BEGIN
 			RETURN r.GetInteger(i,FALSE) & (i=index) & CheckItem(r,"name") & GetString(r,name)
-				&CheckItem(r,"filename") & GetString(r,name);
+				&CheckItem(r,"filename") & GetString(r,fileName);
 		END Read;
 
 	END Module;
@@ -1145,7 +1145,7 @@ TYPE
 		f := Files.Old(fileName);
 		NEW(r,f,0);
 		IF specification.Read(r) THEN
-			specification.Write(D.Log,0);
+			specification.Write(context.out,0);
 		END;
 	END ReadSpecification;
 
@@ -1242,8 +1242,11 @@ TYPE
 		NEW(instances,4); NEW(channels,4);
 		FOR i := 0 TO scope.channels.Length()-1 DO
 			oldChannel := scope.channels.GetChannel(i);
+			(* do not copy name: duplicates!
 			COPY(oldChannel.name, name);
 			NEW(channel,name,scope);
+			*)
+			channel := scope.NewChannel();
 			channel.ConnectIn(oldChannel.in.instance, oldChannel.in.port);
 			channel.ConnectOut(oldChannel.out.instance, oldChannel.out.port);
 			channel.SetFifoSize(oldChannel.fifoSize);
@@ -1261,8 +1264,11 @@ TYPE
 				END;
 				FOR j := 0 TO instance.type.channels.Length()-1 DO
 					oldChannel := instance.type.channels.GetChannel(j);
+					(* do not copy name: duplicates!
 					COPY(oldChannel.name,name);
 					NEW(channel,name,scope);
+					*)
+					channel := scope.NewChannel();
 					channel.ConnectIn(oldChannel.in.instance, oldChannel.in.port);
 					channel.ConnectOut(oldChannel.out.instance, oldChannel.out.port);
 
