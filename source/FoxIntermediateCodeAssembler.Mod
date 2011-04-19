@@ -81,9 +81,9 @@ TYPE
 		PROCEDURE ExpectIntegerWithSign(VAR integer: LONGINT): BOOLEAN;
 		VAR
 			result, isNegated: BOOLEAN;
-		BEGIN	
-			isNegated := ThisToken(Scanner.Minus);		
-			IF ExpectToken(Scanner.Number) & (symbol.numberType = Scanner.Integer) THEN				
+		BEGIN
+			isNegated := ThisToken(Scanner.Minus);
+			IF ExpectToken(Scanner.Number) & (symbol.numberType = Scanner.Integer) THEN
 				IF isNegated THEN
 					integer := -symbol.integer
 				ELSE
@@ -108,7 +108,7 @@ TYPE
 			END;
 			RETURN result
 		END ExpectIntegerWithoutSign;
-		
+
 		PROCEDURE IgnoreNewLines;
 		BEGIN
 			WHILE ThisToken(Scanner.Ln) DO END;
@@ -175,7 +175,7 @@ TYPE
 				hasTypeDescriptor := TRUE;
 				lastWasIdentifier := GetIdentifier(pos, identifier)
 			END;
-			
+
 			(* consume optional memory operand bracket *)
 			IF ~lastWasIdentifier THEN
 				isMemoryOperand := ThisToken(Scanner.LeftBracket);
@@ -193,7 +193,7 @@ TYPE
 					symbolOffset := 0;
 
 					(* consume optional symbol offset *)
-					IF ThisToken(Scanner.Colon) THEN					
+					IF ThisToken(Scanner.Colon) THEN
 						IF ExpectIntegerWithSign(integer) THEN
 							symbolOffset := integer
 						ELSE
@@ -205,7 +205,7 @@ TYPE
 					sectionOfSymbol := IntermediateCode.NewSection(sectionList, Sections.UnknownSection, identifier, NIL, TRUE);
 					IntermediateCode.InitAddress(operand, IntermediateCode.UnsignedIntegerType(system.addressSize), sectionOfSymbol, symbolOffset)
 				END
-				
+
 			ELSIF symbol.token = Scanner.String THEN
 				(* string constant *)
 				IntermediateCode.InitString(operand, Strings.NewString(symbol.string));
@@ -275,11 +275,11 @@ TYPE
 
 			(* wrap memory operand around current operand if necessary *)
 			IF isMemoryOperand & ExpectToken(Scanner.RightBracket) THEN
-				IntermediateCode.SetType(operand, IntermediateCode.UnsignedIntegerType(system.addressSize)); (* set the type of the inner operand to the platform's address type *)				
+				IntermediateCode.SetType(operand, IntermediateCode.UnsignedIntegerType(system.addressSize)); (* set the type of the inner operand to the platform's address type *)
 				IF ~hasTypeDescriptor THEN
 					IntermediateCode.InitType(type, IntermediateCode.SignedInteger, INTEGER(system.addressSize)) (* default: signed integer type of address size *)
 				END;
-				IntermediateCode.InitMemory(operand, type, operand, 0) (* TODO: add offset? *)				
+				IntermediateCode.InitMemory(operand, type, operand, 0) (* TODO: add offset? *)
 			END
 		END ParseOperand;
 
@@ -299,7 +299,7 @@ TYPE
 			IF ExpectAnyIdentifier(positionOfInstruction, identifier) THEN
 				(* TODO: detect labels of the form << labelName: >> *)
 				opCode := IntermediateCode.FindMnemonic(identifier);
-				
+
 				IF opCode = IntermediateCode.None THEN
 					Error(positionOfInstruction, "unknown mnemonic")
 				ELSE
@@ -333,7 +333,7 @@ TYPE
 
 					IF ~error THEN
 						IntermediateCode.InitInstruction(instruction, opCode, operands[0], operands[1], operands[2]);
-						IF Strict & ~IntermediateCode.CheckInstruction(instruction, message) THEN							
+						IF Strict & ~IntermediateCode.CheckInstruction(instruction, message) THEN
 							Error(positionOfInstruction, message)
 						END
 					END
@@ -368,18 +368,18 @@ TYPE
 				IgnoreNewLines
 			END
 		END ParseSectionContent;
-		
+
 		(** parse an intermediate code section property **)
 		PROCEDURE ParseSectionProperty(VAR section: IntermediateCode.Section);
 		VAR
-			positionOfProperty, integer: LONGINT;			
+			positionOfProperty, integer: LONGINT;
 		BEGIN
 			IF Trace THEN D.Ln; D.String(">>> ParseSectionProperty"); D.Ln END;
-			
-			positionOfProperty := symbol.start;							
+
+			positionOfProperty := symbol.start;
 
 			(* offset *)
-			IF ThisIdentifier("offset") & ExpectToken(Scanner.Equal) THEN									
+			IF ThisIdentifier("offset") & ExpectToken(Scanner.Equal) THEN
 				IF ExpectIntegerWithSign(integer) THEN
 					 section.SetOffset(integer)
 				ELSE
@@ -387,8 +387,8 @@ TYPE
 				END
 
 			(* fingerprint *)
-			ELSIF ThisIdentifier("fingerprint") & ExpectToken(Scanner.Equal) THEN									
-				IF ExpectIntegerWithSign(integer) THEN	
+			ELSIF ThisIdentifier("fingerprint") & ExpectToken(Scanner.Equal) THEN
+				IF ExpectIntegerWithSign(integer) THEN
 					section.SetFingerprint(integer)
 				ELSE
 					Error(positionOfProperty, "invalid fingerprint")
@@ -396,7 +396,7 @@ TYPE
 
 			(* alignment *)
 			ELSIF ThisIdentifier("aligned") & ExpectToken(Scanner.Equal) THEN
-				IF ExpectIntegerWithSign(integer) THEN	
+				IF ExpectIntegerWithSign(integer) THEN
 					section.SetPositionOrAlignment(FALSE, integer)
 				ELSE
 					Error(positionOfProperty, "invalid alignment")
@@ -404,14 +404,14 @@ TYPE
 
 			(* fixed position *)
 			ELSIF ThisIdentifier("fixed") & ExpectToken(Scanner.Equal) THEN
-				IF ExpectIntegerWithSign(integer) THEN	
+				IF ExpectIntegerWithSign(integer) THEN
 					section.SetPositionOrAlignment(TRUE, integer)
 				ELSE
 					Error(positionOfProperty, "invalid fixed postion")
 				END
 
 			(* unit size of the section in bits *)
-			ELSIF ThisIdentifier("unit") & ExpectToken(Scanner.Equal) THEN										
+			ELSIF ThisIdentifier("unit") & ExpectToken(Scanner.Equal) THEN
 				IF ExpectIntegerWithSign(integer) THEN
 					section.SetBitsPerUnit(integer) (* overwrite default unit size *)
 				ELSE
@@ -425,12 +425,12 @@ TYPE
 				ELSE
 					Error(positionOfProperty, "invalid size")
 				END
-				
+
 			ELSE
 				Error(positionOfProperty, "invalid property")
 			END
 		END ParseSectionProperty;
-		
+
 		(** parse the content of an intermediate code module **)
 		PROCEDURE ParseModuleContent*(scanner: Scanner.AssemblerScanner; sectionList: Sections.SectionList; VAR moduleName: SyntaxTree.String; VAR backend: Backend.Backend; VAR imports: Sections.NameList): BOOLEAN;
 		VAR
@@ -454,7 +454,7 @@ TYPE
 			afterImportsDirective := FALSE;
 			afterFirstSection := FALSE;
 			WHILE ~error & (symbol.token # Scanner.EndOfText) DO
-				IgnoreNewLines;				
+				IgnoreNewLines;
 				positionOfDirective := symbol.start;
 				IF ExpectToken(Scanner.Period) & ExpectAnyIdentifier(pos, identifier) THEN
 					(* module directive *)
@@ -531,7 +531,7 @@ TYPE
 
 								(* consume optional section properties *)
 								WHILE ~error & (symbol.token # Scanner.EndOfText) & (symbol.token # Scanner.Ln) DO
-									ParseSectionProperty(section)			
+									ParseSectionProperty(section)
 								END;
 								IF ~error & ExpectLineDelimiter() THEN
 									ParseSectionContent(scanner, section, sectionList);
@@ -592,7 +592,7 @@ TYPE
 		originalRestrictions: POINTER TO ARRAY OF ArrangementRestriction;
 
 		PROCEDURE & Init*(diagnostics: Diagnostics.Diagnostics; defaultBackend: Backend.Backend; irFilePath: SyntaxTree.String);
-		BEGIN			
+		BEGIN
 			SELF.diagnostics := diagnostics;
 			SELF.irFilePath := irFilePath;
 			backend := defaultBackend;
@@ -633,7 +633,7 @@ TYPE
 					(* nothing to do *)
 				ELSE
 					(* open corresponding IR file *)
-					filename := moduleName; Files.JoinExtension(filename, "ir", filename);
+					filename := moduleName; Files.JoinExtension(filename, "Fil", filename); (*! global constant !! *)
 					IF irFilePath # "" THEN Files.JoinPath(irFilePath, filename, filename) END;
 					reader := Basic.GetFileReader(filename);
 
@@ -937,9 +937,9 @@ TYPE
 					result.sections.AddSection(section)
 				END
 			END;
-			
+
 			IF RequireSortedSections THEN result.sections.Sort(SectionPositionComparison) END;
-			
+
 			IF Trace THEN D.String("+++++++++ intermediate code module ++++++++++"); D.Ln; result.Dump(D.Log); D.Ln; END;
 
 			RETURN result

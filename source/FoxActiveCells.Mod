@@ -15,6 +15,7 @@ CONST
 	ObjectFileExtension*="Gof";
 
 	TraceError=TRUE;
+	BasePortAddress=LONGINT(0FFFFFFD0H);
 
 TYPE
 
@@ -1058,7 +1059,7 @@ TYPE
 
 		PROCEDURE GetPortAddress*(number: LONGINT): LONGINT;
 		BEGIN
-			RETURN LONGINT(0FFFFFFD0H)+2*number;
+			RETURN BasePortAddress+2*number;
 		END GetPortAddress;
 
 		PROCEDURE Emit*(): BOOLEAN; (* to be overwritten by implementers *)
