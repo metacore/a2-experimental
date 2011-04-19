@@ -690,8 +690,8 @@ TYPE
 					IF GetPort(p1,instance1,port1) THEN
 						ASSERT(instance0 # NIL); ASSERT(instance1 # NIL); ASSERT(port0 # NIL); ASSERT(port1 # NIL);
 						channel := currentActiveCellsScope.NewChannel();
-						channel.ConnectOut(instance0,port0);
-						channel.ConnectIn(instance1,port1);
+						channel.ConnectIn(instance0,port0);
+						channel.ConnectOut(instance1,port1);
 						IF (p2 # NIL) THEN
 							Evaluate(p2,value);
 							channel.SetFifoSize(value.integer);
