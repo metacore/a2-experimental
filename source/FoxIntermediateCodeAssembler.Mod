@@ -371,7 +371,7 @@ TYPE
 		END ParseSectionContent;
 
 		(** parse an intermediate code section property **)
-		PROCEDURE ParseSectionProperty(VAR section: IntermediateCode.Section; expectedFingerprint: LONGINT);
+		PROCEDURE ParseSectionProperty(VAR section: IntermediateCode.Section);
 		VAR
 			positionOfProperty, integer: LONGINT;
 		BEGIN
@@ -390,10 +390,14 @@ TYPE
 			(* fingerprint *)
 			ELSIF ThisIdentifier("fingerprint") & ExpectToken(Scanner.Equal) THEN
 				IF ExpectIntegerWithSign(integer) THEN													
-					IF (expectedFingerprint # 0) & (expectedFingerprint # integer) THEN
-						Error(positionOfProperty, "incompatible fingerprint")
+					IF (section.fingerprint # 0) & (section.fingerprint # integer) THEN
+						IF section.type = Sections.PrototypeSection THEN
+							Error(positionOfProperty, "incompatible fingerprint")
+						ELSE
+							Error(positionOfProperty, "dependend module uses different fingerprint")
+						END
 					ELSE
-						section.SetFingerprint(integer)
+						section.SetFingerprint(integer);
 					END
 				ELSE
 					Error(positionOfProperty, "invalid fingerprint")
@@ -439,11 +443,10 @@ TYPE
 		(** parse the content of an intermediate code module **)
 		PROCEDURE ParseModuleContent*(scanner: Scanner.AssemblerScanner; sectionList: Sections.SectionList; VAR moduleName: SyntaxTree.String; VAR backend: Backend.Backend; VAR imports: Sections.NameList): BOOLEAN;
 		VAR
-			pos, positionOfDirective, expectedFingerprint: LONGINT;
+			pos, positionOfDirective: LONGINT;
 			identifier: Scanner.StringType;
 			afterModuleDirective, afterImportsDirective, afterFirstSection: BOOLEAN;
 			sectionType: SHORTINT;
-			searchedSection: Sections.Section;
 			section: IntermediateCode.Section;
 		BEGIN
 			IF Trace THEN D.Ln; D.String(">>> ParseModuleContent"); D.Ln END;
@@ -525,16 +528,8 @@ TYPE
 						END;
 
 						IF ~error THEN
-							IF ExpectAnyIdentifier(pos, identifier) THEN							
-								(* if a section under the name is already in the list, keep track of its fingerprint *)
-								searchedSection := sectionList.FindByName(identifier);
-								IF searchedSection # NIL THEN
-									expectedFingerprint := searchedSection.fingerprint
-								ELSE
-									expectedFingerprint := 0
-								END;
-					
-								section := IntermediateCode.NewSection(sectionList, sectionType, identifier, NIL, TRUE);
+							IF ExpectAnyIdentifier(pos, identifier) THEN
+								section := IntermediateCode.NewSection(sectionList, sectionType, identifier, NIL, TRUE); (* keeps section if already present *)
 
 								(* set default unit size for the platform, which depends on the section type *)
 								IF (sectionType = Sections.VarSection) OR (sectionType = Sections.ConstSection) THEN
@@ -546,7 +541,7 @@ TYPE
 
 								(* consume optional section properties *)
 								WHILE ~error & (symbol.token # Scanner.EndOfText) & (symbol.token # Scanner.Ln) DO
-									ParseSectionProperty(section, expectedFingerprint)
+									ParseSectionProperty(section)
 								END;
 								
 								IF ~error & ExpectLineDelimiter() THEN

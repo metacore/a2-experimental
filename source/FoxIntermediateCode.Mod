@@ -337,7 +337,7 @@ TYPE
 	VAR
 		searchedSection: Sections.Section;
 		result: Section;
-	BEGIN {EXCLUSIVE}
+	BEGIN
 		(* try to find section in section list *)
 		searchedSection := NIL;
 		IF syntaxTreeSymbol # NIL THEN searchedSection := sectionList.FindBySymbol(syntaxTreeSymbol) (* search by syntax tree symbol *)
@@ -364,7 +364,7 @@ TYPE
 		END;
 		
 		(* assert type consistency (note: there is an exception for the module self pointer constant => old object file format) *)
-		ASSERT((result.type = type) OR (result.type = Sections.PrototypeSection) OR ((type = Sections.VarSection) & (result.type = Sections.ConstSection)), 103);
+		ASSERT((result.type = type) OR (result.type = Sections.PrototypeSection) OR (type = Sections.PrototypeSection) OR ((type = Sections.VarSection) & (result.type = Sections.ConstSection)), 103);
 		RETURN result
 	END NewSection;
 
