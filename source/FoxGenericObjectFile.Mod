@@ -124,7 +124,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			fp := section.fingerprint
 		ELSIF (section.symbol = NIL) OR (section.symbol.scope = NIL) THEN
 			fp := 0;
-			IF (section(IntermediateCode.Section).resolved # NIL) THEN
+			IF (section(IntermediateCode.Section).resolved # NIL) & (section.type # Sections.PrototypeSection) THEN
 				FingerPrinter.FPString(fp, section.name)
 			END
 		ELSE

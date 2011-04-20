@@ -344,13 +344,15 @@ TYPE
 		ELSIF name # "" THEN searchedSection := sectionList.FindByName(name) (* search by name *)
 		ELSE HALT(100) (* should not occur *)
 		END;
-		
+
 		IF searchedSection # NIL THEN
 			(* section was found *)
 			ASSERT(searchedSection IS Section, 101);
 			result := searchedSection(Section);
 			IF (result.type = Sections.PrototypeSection) & (type # Sections.PrototypeSection) THEN result.SetType(type) END; (* refine the section type *)
+			(*
 			IF syntaxTreeSymbol # NIL THEN ASSERT(result.fingerprint = syntaxTreeSymbol.fingerprint.shallow, 102) END (* assert fingerprint consistency *)
+			*)
 		ELSE
 			(* section was not found: create a new one *)
 			NEW(result, type, name, syntaxTreeSymbol, dump);
@@ -362,7 +364,7 @@ TYPE
 			END; (* reuse fingerprint from syntax tree symbol in section *)
 			sectionList.AddSection(result)
 		END;
-		
+
 		(* assert type consistency (note: there is an exception for the module self pointer constant => old object file format) *)
 		ASSERT((result.type = type) OR (result.type = Sections.PrototypeSection) OR (type = Sections.PrototypeSection) OR ((type = Sections.VarSection) & (result.type = Sections.ConstSection)), 103);
 		RETURN result
@@ -401,12 +403,12 @@ TYPE
 		CASE location OF
 		| 0: validOperandModes := instructionFormat[opCode].op1
 		| 1: validOperandModes := instructionFormat[opCode].op2
-		| 2: validOperandModes := instructionFormat[opCode].op3			
+		| 2: validOperandModes := instructionFormat[opCode].op3
 		END;
 		IF ~(operand.mode IN validOperandModes) THEN
 			message := "operand mode mismatch"; RETURN FALSE
 		END;
-		
+
 		(* the following code was taken from the previous version of 'PROCEDURE CheckOperand' and adapted: *)
 		CASE operand.mode OF
 		| Undefined:
@@ -433,13 +435,13 @@ TYPE
 		| ModeString:
 			IF operand.string = NIL THEN message :="nil string in string operand"; RETURN FALSE END
 		END;
-		
-		RETURN TRUE	
+
+		RETURN TRUE
 	END CheckOperand;
 
 	(** check if an instruction is valid **)
 	PROCEDURE CheckInstruction*(instruction: Instruction; VAR message: ARRAY OF CHAR): BOOLEAN;
-	BEGIN	
+	BEGIN
 		IF (SameType12 IN instructionFormat[instruction.opcode].flags) & ~TypeEquals(instruction.op1.type, instruction.op2.type) THEN
 			message := "operands 1 and 2 not of same type";
 			RETURN FALSE
@@ -545,7 +547,7 @@ TYPE
 			END;
 		|ModeImmediate:
 			IF operand.symbol # NIL THEN
-				operand.symbol.DumpName(w); w.String(":"); w.Int(operand.symbolOffset,1);				
+				operand.symbol.DumpName(w); w.String(":"); w.Int(operand.symbolOffset,1);
 				IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset, 1);
 				ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset, 1);
 				END
