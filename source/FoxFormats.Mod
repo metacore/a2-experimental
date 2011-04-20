@@ -32,7 +32,6 @@ TYPE
 		END SetSystem;
 
 		PROCEDURE Dump*(w: Streams.Writer);
-		VAR name: SyntaxTree.String;
 		BEGIN
 			w.String(".module "); w.String(moduleName); w.Ln;
 			w.Ln;

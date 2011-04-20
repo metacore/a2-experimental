@@ -2,7 +2,7 @@ MODULE FoxIntermediateCode; (** AUTHOR "fof"; PURPOSE "Oberon Compiler Abstract 
 (* Active Oberon Compiler, (c) 2009 Felix Friedrich *)
 IMPORT
 	Sections := FoxSections, Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
-	SYSTEM, Streams, D := Debugging, Global := FoxGlobal;
+	SYSTEM, Streams, Global := FoxGlobal, D := Debugging;
 
 CONST
 	(* operand modes *)
@@ -61,8 +61,10 @@ CONST
 	add*= 24; and*= 25; or*= 26; xor*= 27; shl*= 28; shr*= 29; rol*= 30; ror*= 31;
 	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; NofOpcodes*= 38;
 
+	(*
 	LineNrCommentOffset = 64;
 	LineCommentStart = Sections.LineCommentStart;
+	*)
 	NotYetCalculatedSize = -2;
 
 TYPE
@@ -143,6 +145,10 @@ TYPE
 		PROCEDURE ExitValidPAF*;
 		BEGIN validPAFExit := pc
 		END ExitValidPAF;
+
+		PROCEDURE DeleteComments*;
+		BEGIN comments := NIL
+		END DeleteComments;
 
 		PROCEDURE SetResolved*(section: BinaryCode.Section);
 		BEGIN resolved := section
@@ -326,40 +332,40 @@ TYPE
 	BEGIN ASSERT(condition);
 	END Assert;
 
-	PROCEDURE Halt(CONST reason: ARRAY OF CHAR);
-	BEGIN
-		HALT(100);
-	END Halt;
-
-	PROCEDURE NewSection*(list: Sections.SectionList; type: SHORTINT; CONST name: ARRAY OF CHAR; x: SyntaxTree.Symbol; dump: BOOLEAN): Section;
-	VAR res: Sections.Section; section: Section;
-	BEGIN{EXCLUSIVE}
-		(* if section list for symbol or namel is already present then return this section, otherwise enter new one *)
-		IF x # NIL THEN
-			res := list.FindBySymbol(x);
-			IF res # NIL THEN
-				ASSERT((res.type = type) OR (type=Sections.VarSection) & (res.type = Sections.ConstSection) (* exception for module self pointer constant => old object file format *));
-				RETURN res(Section)
-			END;
-		ELSE
-			(* search by name *)
-			ASSERT(name # "");
-			res := list.FindByName(name);
-			IF res # NIL THEN
-				(* section was found under the name *)
-
-				(* set the section type if it is now known *)
-				IF (type # Sections.UnknownSection) & (res.type = Sections.UnknownSection) THEN
-					res.SetType(type)
-				END;
-
-				ASSERT((res.type = type) OR (type = Sections.UnknownSection));
-				RETURN res(Section)
-			END;
+	(** create a new intermediate code section (if the section already exists in the section list, return the existing one **)
+	PROCEDURE NewSection*(sectionList: Sections.SectionList; type: SHORTINT; CONST name: ARRAY OF CHAR; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): Section;
+	VAR
+		searchedSection: Sections.Section;
+		result: Section;
+	BEGIN {EXCLUSIVE}
+		(* try to find section in section list *)
+		searchedSection := NIL;
+		IF syntaxTreeSymbol # NIL THEN searchedSection := sectionList.FindBySymbol(syntaxTreeSymbol) (* search by syntax tree symbol *)
+		ELSIF name # "" THEN searchedSection := sectionList.FindByName(name) (* search by name *)
+		ELSE HALT(100) (* should not occur *)
 		END;
-		NEW(section,type, name,x, dump);
-		list.AddSection(section);
-		RETURN section
+		
+		IF searchedSection # NIL THEN
+			(* section was found *)
+			ASSERT(searchedSection IS Section, 101);
+			result := searchedSection(Section);
+			IF (result.type = Sections.PrototypeSection) & (type # Sections.PrototypeSection) THEN result.SetType(type) END; (* refine the section type *)
+			IF syntaxTreeSymbol # NIL THEN ASSERT(result.fingerprint = syntaxTreeSymbol.fingerprint.shallow, 102) END (* assert fingerprint consistency *)
+		ELSE
+			(* section was not found: create a new one *)
+			NEW(result, type, name, syntaxTreeSymbol, dump);
+			IF syntaxTreeSymbol # NIL THEN
+				result.SetFingerprint(syntaxTreeSymbol.fingerprint.shallow)
+				(*
+				; D.String("section with fingerprint "); D.Int(result.fingerprint, 0); D.Ln; (* TENTATIVE *)
+				*)
+			END; (* reuse fingerprint from syntax tree symbol in section *)
+			sectionList.AddSection(result)
+		END;
+		
+		(* assert type consistency (note: there is an exception for the module self pointer constant => old object file format) *)
+		ASSERT((result.type = type) OR (result.type = Sections.PrototypeSection) OR ((type = Sections.VarSection) & (result.type = Sections.ConstSection)), 103);
+		RETURN result
 	END NewSection;
 
 	PROCEDURE SameOperand*(CONST left, right: Operand): BOOLEAN;
@@ -453,30 +459,29 @@ TYPE
 		RETURN TRUE
 	END CheckInstruction;
 
-	PROCEDURE DumpRegister*(w: Streams.Writer; reg: LONGINT);
+	PROCEDURE DumpRegister*(w: Streams.Writer; registerNumber: LONGINT);
 	BEGIN
-		IF reg = SP THEN
+		IF registerNumber = SP THEN
 			w.String("sp")
-		ELSIF reg = FP THEN
+		ELSIF registerNumber = FP THEN
 			w.String("fp")
-		ELSIF reg > None THEN
-			w.String("r");
-			w.Int(reg,1);
-		ELSIF reg <= HwRegister THEN
-			w.String("h");
-			w.Int(HwRegister-reg,1);
-		ELSE Halt("unsupported register number");
-		END;
+		ELSIF registerNumber > None THEN
+			w.String("r"); w.Int(registerNumber, 0)
+		ELSIF registerNumber <= HwRegister THEN
+			w.String("h"); w.Int(HwRegister - registerNumber, 0)
+		ELSE
+			w.String("(invalid register)")
+		END
 	END DumpRegister;
 
 	PROCEDURE DumpType*(w: Streams.Writer; type: Type);
 	BEGIN
 		CASE type.form OF
-			Undefined:
-			|UnsignedInteger: w.String("u");w.Int(type.sizeInBits,1);
-			|SignedInteger: w.String("s");w.Int(type.sizeInBits,1);
-			|Float: w.String("f");w.Int(type.sizeInBits,1);
-		END;
+			| Undefined: w.String("(invalid type)")
+			| UnsignedInteger: w.String("u"); w.Int(type.sizeInBits, 0)
+			| SignedInteger: w.String("s"); w.Int(type.sizeInBits, 0)
+			| Float: w.String("f"); w.Int(type.sizeInBits, 0)
+		END
 	END DumpType;
 
 	PROCEDURE DumpOperand*(w: Streams.Writer; CONST operand: Operand );

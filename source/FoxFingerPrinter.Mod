@@ -563,7 +563,7 @@ TYPE
 			END;
 			IF Trace THEN
 				TraceIndent; D.Str("Method, fp = "); D.Hex(private,-8); D.Str(" "); D.Hex(public,-8); D.Ln;
-				TraceExit("Method",fingerprint) 
+				TraceExit("Method",fingerprint)
 			END;
 		END FPrintMethod;
 
@@ -1067,6 +1067,14 @@ TYPE
 		BEGIN
 			VisitProcedure(x) (* same finger print as a procedure *)
 		END VisitOperator;
+
+		PROCEDURE VisitSymbol(x: SyntaxTree.Symbol);
+		BEGIN
+			fingerprint.shallow := 0;
+			fingerprint.shallowAvailable := TRUE;
+			x.SetFingerPrint(fingerprint);
+		END VisitSymbol;
+
 
 		PROCEDURE TraceIndent;
 		VAR i: LONGINT;

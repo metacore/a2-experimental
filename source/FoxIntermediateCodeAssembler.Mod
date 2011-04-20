@@ -202,7 +202,8 @@ TYPE
 					END;
 
 					IF Trace THEN D.String(">>> symbol detected"); D.Ln END;
-					sectionOfSymbol := IntermediateCode.NewSection(sectionList, Sections.UnknownSection, identifier, NIL, TRUE);
+									
+					sectionOfSymbol := IntermediateCode.NewSection(sectionList, Sections.PrototypeSection, identifier, NIL, TRUE);
 					IntermediateCode.InitAddress(operand, IntermediateCode.UnsignedIntegerType(system.addressSize), sectionOfSymbol, symbolOffset)
 				END
 
@@ -370,7 +371,7 @@ TYPE
 		END ParseSectionContent;
 
 		(** parse an intermediate code section property **)
-		PROCEDURE ParseSectionProperty(VAR section: IntermediateCode.Section);
+		PROCEDURE ParseSectionProperty(VAR section: IntermediateCode.Section; expectedFingerprint: LONGINT);
 		VAR
 			positionOfProperty, integer: LONGINT;
 		BEGIN
@@ -388,8 +389,12 @@ TYPE
 
 			(* fingerprint *)
 			ELSIF ThisIdentifier("fingerprint") & ExpectToken(Scanner.Equal) THEN
-				IF ExpectIntegerWithSign(integer) THEN
-					section.SetFingerprint(integer)
+				IF ExpectIntegerWithSign(integer) THEN													
+					IF (expectedFingerprint # 0) & (expectedFingerprint # integer) THEN
+						Error(positionOfProperty, "incompatible fingerprint")
+					ELSE
+						section.SetFingerprint(integer)
+					END
 				ELSE
 					Error(positionOfProperty, "invalid fingerprint")
 				END
@@ -434,10 +439,11 @@ TYPE
 		(** parse the content of an intermediate code module **)
 		PROCEDURE ParseModuleContent*(scanner: Scanner.AssemblerScanner; sectionList: Sections.SectionList; VAR moduleName: SyntaxTree.String; VAR backend: Backend.Backend; VAR imports: Sections.NameList): BOOLEAN;
 		VAR
-			pos, positionOfDirective: LONGINT;
+			pos, positionOfDirective, expectedFingerprint: LONGINT;
 			identifier: Scanner.StringType;
 			afterModuleDirective, afterImportsDirective, afterFirstSection: BOOLEAN;
 			sectionType: SHORTINT;
+			searchedSection: Sections.Section;
 			section: IntermediateCode.Section;
 		BEGIN
 			IF Trace THEN D.Ln; D.String(">>> ParseModuleContent"); D.Ln END;
@@ -510,6 +516,7 @@ TYPE
 						ELSIF identifier = "inlinecode" THEN sectionType := Sections.InlineCodeSection
 						ELSIF identifier = "initcode" THEN sectionType := Sections.InitCodeSection
 						ELSIF identifier = "initcode2" THEN sectionType := Sections.InitCode2Section
+						ELSIF identifier = "prototype" THEN sectionType := Sections.PrototypeSection
 						ELSE Error(positionOfDirective, "invalid directive")
 						END;
 
@@ -518,7 +525,15 @@ TYPE
 						END;
 
 						IF ~error THEN
-							IF ExpectAnyIdentifier(pos, identifier) THEN
+							IF ExpectAnyIdentifier(pos, identifier) THEN							
+								(* if a section under the name is already in the list, keep track of its fingerprint *)
+								searchedSection := sectionList.FindByName(identifier);
+								IF searchedSection # NIL THEN
+									expectedFingerprint := searchedSection.fingerprint
+								ELSE
+									expectedFingerprint := 0
+								END;
+					
 								section := IntermediateCode.NewSection(sectionList, sectionType, identifier, NIL, TRUE);
 
 								(* set default unit size for the platform, which depends on the section type *)
@@ -531,8 +546,9 @@ TYPE
 
 								(* consume optional section properties *)
 								WHILE ~error & (symbol.token # Scanner.EndOfText) & (symbol.token # Scanner.Ln) DO
-									ParseSectionProperty(section)
+									ParseSectionProperty(section, expectedFingerprint)
 								END;
+								
 								IF ~error & ExpectLineDelimiter() THEN
 									ParseSectionContent(scanner, section, sectionList);
 									afterFirstSection := TRUE
@@ -632,7 +648,7 @@ TYPE
 				IF moduleName = "SYSTEM" THEN
 					(* nothing to do *)
 				ELSE
-					(* open corresponding IR file *)
+					(* open corresponding intermediate code file *)
 					filename := moduleName; Files.JoinExtension(filename, "Fil", filename); (*! global constant !! *)
 					IF irFilePath # "" THEN Files.JoinPath(irFilePath, filename, filename) END;
 					reader := Basic.GetFileReader(filename);
@@ -933,8 +949,10 @@ TYPE
 				ASSERT(section IS IntermediateCode.Section);
 				section(IntermediateCode.Section).SetResolved(NIL);
 
-				IF section.isReachable & (section.type # Sections.UnknownSection) THEN (* note: sections of unknown type are also excluded *)
-					result.sections.AddSection(section)
+				IF section.isReachable THEN
+					(* IF section.type # Sections.UnknownSection THEN *)
+						result.sections.AddSection(section)
+					(* END *)
 				END
 			END;
 

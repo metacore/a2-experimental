@@ -11,7 +11,7 @@ CONST
 	VarSection*=ObjectFile.Data;
 	ConstSection*=ObjectFile.Const;
 	InlineCodeSection*=10;
-	UnknownSection *= 11; (* a type for referenced sections whose actual type is not yet known *)
+	PrototypeSection *= 11; (* a type for referenced sections whose actual type is not yet known *)
 
 	LineCommentStart*="; ";
 
@@ -28,12 +28,12 @@ TYPE
 		type-: SHORTINT; (* CodeSection, InlineCodeSection, VarSection or ConstSection *)
 		symbol-: SyntaxTree.Symbol; (* corresponding symbol in AST *)
 
-		offset-: LONGINT; (* mainly for compatibility with old object file format *)
+		offset-: LONGINT; (* for compatibility with old object file format *)
 		entryNumber-: LONGINT; (* needed for old object file format, will be removed *)
+		isCaseTable-, isSystemCall-: BOOLEAN;
 
 		referenced-: BOOLEAN;
 
-		(* gensam *)
 		fixed-: BOOLEAN; (* whether the position of the section is fixed, as opposed to being restricted by an alignment *)
 		positionOrAlignment-: LONGINT; (* the alignment OR the position *)
 		fingerprint-: LONGINT; (* fingerprint of the corresponding syntax tree node *)
@@ -52,8 +52,19 @@ TYPE
 			fixed := FALSE;
 			positionOrAlignment := 1;
 			fingerprint := 0;
-			bitsPerUnit := UnknownSize
+			bitsPerUnit := UnknownSize;
+			isCaseTable := FALSE;
+			isSystemCall := FALSE
 		END InitSection;
+
+
+		PROCEDURE IsCaseTable*;
+		BEGIN SELF.isCaseTable := TRUE
+		END IsCaseTable;
+		
+		PROCEDURE IsSystemCall*;
+		BEGIN SELF.isSystemCall := TRUE
+		END IsSystemCall;
 
 		PROCEDURE SetReferenced*(ref: BOOLEAN);
 		BEGIN referenced := ref;
@@ -92,7 +103,7 @@ TYPE
 		(** change the type of a section **)
 		PROCEDURE SetType*(type: SHORTINT);
 		BEGIN
-			ASSERT((type # UnknownSection) & (SELF.type = UnknownSection));
+			ASSERT((type # PrototypeSection) & (SELF.type = PrototypeSection));
 			SELF.type := type
 		END SetType;
 
@@ -112,7 +123,7 @@ TYPE
 			| ConstSection: w.String("const");
 			| InitCodeSection: w.String("initcode");
 			| InitCode2Section: w.String("initcode2");
-			| UnknownSection: w.String("unknown");
+			| PrototypeSection: w.String("prototype");
 			END;
 			w.String(" ");
 			DumpName(w);

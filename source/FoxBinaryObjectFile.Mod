@@ -205,7 +205,7 @@ TYPE
 		BEGIN
 			FOR i := 0 TO sectionList.Length() - 1 DO
 				section := sectionList.GetSection(i);
-				IF (section.type # Sections.InlineCodeSection) & (section.type # Sections.InitCodeSection) THEN
+				IF IsRegularSection(section) & (section.type # Sections.InlineCodeSection) & (section.type # Sections.InitCodeSection) THEN
 					fixup := section(IntermediateCode.Section).resolved.fixupList.firstFixup;
 					WHILE (fixup # NIL) DO
 						IF (fixup.symbol = symbol) THEN
@@ -225,9 +225,12 @@ TYPE
 	BEGIN
 		first := NIL; nr := 0;
 		DoSections(module.sections);
-		(* Sections(module.caseTables.first); *)
 		RETURN nr
 	END GetFixups;
+
+	PROCEDURE IsRegularSection(section: Sections.Section): BOOLEAN;
+	BEGIN RETURN (section.type # Sections.PrototypeSection) & ~section.isSystemCall & ~section.isCaseTable
+	END IsRegularSection;
 
 	PROCEDURE FindPC(pc: LONGINT; module: Sections.Module; diagnostics: Diagnostics.Diagnostics): BOOLEAN;
 	VAR
@@ -236,16 +239,18 @@ TYPE
 	BEGIN
 		FOR i := 0 TO module.sections.Length() - 1 DO
 			section := module.sections.GetSection(i);
-			binarySection := section(IntermediateCode.Section).resolved;
-			IF ((section.offset ) <= pc) & (pc < (section.offset +binarySection.pc )) THEN
-				label := binarySection.labels;
-				WHILE (label # NIL) & ((label.offset  + section.offset ) > pc) DO
-					label := label.prev;
-				END;
-				IF label # NIL THEN
-					diagnostics.Information(module.module.sourceName,label.position,Diagnostics.Invalid," pc position");
-					RETURN TRUE
-				END;
+			IF IsRegularSection(section) THEN
+				binarySection := section(IntermediateCode.Section).resolved;
+				IF ((section.offset ) <= pc) & (pc < (section.offset +binarySection.pc )) THEN
+					label := binarySection.labels;
+					WHILE (label # NIL) & ((label.offset  + section.offset ) > pc) DO
+						label := label.prev;
+					END;
+					IF label # NIL THEN
+						diagnostics.Information(module.module.sourceName,label.position,Diagnostics.Invalid," pc position");
+						RETURN TRUE
+					END;
+				END
 			END
 		END;
 		diagnostics.Error(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid," could not locate pc");
@@ -262,11 +267,9 @@ TYPE
 			section: Sections.Section;
 			i: LONGINT;
 		BEGIN
+			IF ~IsRegularSection(s) THEN RETURN FALSE END;
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				IF module.sections.GetSection(i) = s THEN RETURN TRUE END
-			END;
-			FOR i := 0 TO module.caseTables.Length() - 1 DO
-				IF module.caseTables.GetSection(i) = s THEN RETURN TRUE END
 			END;
 			RETURN FALSE
 		END InModule;
@@ -277,30 +280,32 @@ TYPE
 		BEGIN
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				section := module.sections.GetSection(i);
-				binarySection := section(IntermediateCode.Section).resolved;
-				fixup := binarySection.fixupList.firstFixup;
-				binarySection.fixupList.InitFixupList; (* remove all fixups from list *)
-				WHILE fixup # NIL DO
-					next := fixup.nextFixup;
-					IF fixup.symbol # NIL THEN
-						fixup.symbol.SetReferenced(TRUE);
-					END;
-					IF (fixup.mode = BinaryCode.Relative) & InModule(fixup.symbol) THEN
-						dest := (fixup.symbol.offset + fixup.displacement) - (section.offset + fixup.offset);
-						ASSERT(fixup.symbolOffset = 0);
-						binarySection.PutDWordAt(fixup.offset, dest);
-						(* fixup done, does not need to be put back to list *)
-					ELSIF (fixup.mode = BinaryCode.Absolute) & InModule(fixup.symbol) THEN
-						dest := fixup.symbol.offset + fixup.displacement;
-						binarySection.PutDWordAt(fixup.offset, dest);
-						binarySection.fixupList.AddFixup(fixup); (* (re-)insert fixup into fixup list *)
-					ELSIF (fixup.mode = BinaryCode.Absolute) THEN
-						dest := fixup.symbol.offset + fixup.displacement;
-						binarySection.PutDWordAt(fixup.offset, dest);
-						binarySection.fixupList.AddFixup(fixup); (* (re-)insert fixup into fixup list *)
-					ELSE binarySection.fixupList.AddFixup(fixup); (* keep fixup as is *)
-					END;
-					fixup := next;
+				IF IsRegularSection(section) THEN
+					binarySection := section(IntermediateCode.Section).resolved;
+					fixup := binarySection.fixupList.firstFixup;
+					binarySection.fixupList.InitFixupList; (* remove all fixups from list *)
+					WHILE fixup # NIL DO
+						next := fixup.nextFixup;
+						IF fixup.symbol # NIL THEN
+							fixup.symbol.SetReferenced(TRUE);
+						END;
+						IF (fixup.mode = BinaryCode.Relative) & InModule(fixup.symbol) THEN
+							dest := (fixup.symbol.offset + fixup.displacement) - (section.offset + fixup.offset);
+							ASSERT(fixup.symbolOffset = 0);
+							binarySection.PutDWordAt(fixup.offset, dest);
+							(* fixup done, does not need to be put back to list *)
+						ELSIF (fixup.mode = BinaryCode.Absolute) & InModule(fixup.symbol) THEN
+							dest := fixup.symbol.offset + fixup.displacement;
+							binarySection.PutDWordAt(fixup.offset, dest);
+							binarySection.fixupList.AddFixup(fixup); (* (re-)insert fixup into fixup list *)
+						ELSIF (fixup.mode = BinaryCode.Absolute) THEN
+							dest := fixup.symbol.offset + fixup.displacement;
+							binarySection.PutDWordAt(fixup.offset, dest);
+							binarySection.fixupList.AddFixup(fixup); (* (re-)insert fixup into fixup list *)
+						ELSE binarySection.fixupList.AddFixup(fixup); (* keep fixup as is *)
+						END;
+						fixup := next;
+					END
 				END
 			END;
 		END FixupSections;
@@ -321,65 +326,71 @@ TYPE
 		BEGIN
 			FOR i := 0 TO sectionList.Length() - 1 DO
 				section := sectionList.GetSection(i);
-				binarySection := section(IntermediateCode.Section).resolved;
-				symbol := section.symbol;
-				IF symbol # NIL THEN
-					symbol.GetName(symbolName);
-					IF section.symbol = module.module.moduleScope.bodyProcedure THEN
-						section.SetOffset(0); INC(codeSize,binarySection.pc);
-					ELSIF symbolName = "@moduleSelf" THEN
-						section.SetOffset(0); INC(constSize,binarySection.pc);
-					END;
+				IF IsRegularSection(section) THEN
+					binarySection := section(IntermediateCode.Section).resolved;
+					symbol := section.symbol;
+					IF symbol # NIL THEN
+						symbol.GetName(symbolName);
+						IF section.symbol = module.module.moduleScope.bodyProcedure THEN
+							section.SetOffset(0); INC(codeSize,binarySection.pc);
+						ELSIF symbolName = "@moduleSelf" THEN
+							section.SetOffset(0); INC(constSize,binarySection.pc);
+						END;
+					END
 				END
 			END;
 		END FirstOffsets;
 
-		PROCEDURE SetOffsets(sectionList: Sections.SectionList);
+		PROCEDURE SetOffsets(sectionList: Sections.SectionList; caseTable: BOOLEAN);
 		VAR
 			section: Sections.Section;
 			i: LONGINT;
 		BEGIN
 			FOR i := 0 TO sectionList.Length() - 1 DO
 				section := sectionList.GetSection(i);
-				binarySection := section(IntermediateCode.Section).resolved;
-				symbol := section.symbol;
-				IF symbol # NIL THEN
-					symbol.GetName(symbolName);
-				ELSE symbolName := "";
-				END;
+				IF caseTable & section.isCaseTable OR ~caseTable & IsRegularSection(section) THEN
+					binarySection := section(IntermediateCode.Section).resolved;
+					symbol := section.symbol;
+					IF symbol # NIL THEN
+						symbol.GetName(symbolName);
+					ELSE symbolName := "";
+					END;
 
-				IF section.symbol = module.module.moduleScope.bodyProcedure THEN
-				ELSIF symbolName = "@moduleSelf" THEN
-				ELSIF section.type = Sections.ConstSection THEN
-					 IF binarySection.alignment # 0 THEN
-					 	INC(constSize,(-constSize) MOD binarySection.alignment);
-					 END;
-					  section.SetOffset(constSize); INC(constSize,binarySection.pc); (* global constants: positive offset *)
-				ELSIF (section.type = Sections.CodeSection) OR (section.type = Sections.BodyCodeSection) THEN
-					section.SetOffset(codeSize); INC(codeSize, binarySection.pc);
-				ELSIF section.type = Sections.VarSection THEN
-					 INC(varSize, binarySection.pc);
-					 IF binarySection.alignment # 0 THEN
-					 	INC(varSize,(-varSize) MOD binarySection.alignment);
-					 END;
-					 section.SetOffset(-varSize); (* global variables: negative offset *)
-				END
+					IF section.symbol = module.module.moduleScope.bodyProcedure THEN
+					ELSIF symbolName = "@moduleSelf" THEN
+					ELSIF section.type = Sections.ConstSection THEN
+						 IF binarySection.alignment # 0 THEN
+						 	INC(constSize,(-constSize) MOD binarySection.alignment);
+						 END;
+						  section.SetOffset(constSize); INC(constSize,binarySection.pc); (* global constants: positive offset *)
+					ELSIF (section.type = Sections.CodeSection) OR (section.type = Sections.BodyCodeSection) THEN
+						section.SetOffset(codeSize); INC(codeSize, binarySection.pc);
+					ELSIF section.type = Sections.VarSection THEN
+						 INC(varSize, binarySection.pc);
+						 IF binarySection.alignment # 0 THEN
+						 	INC(varSize,(-varSize) MOD binarySection.alignment);
+						 END;
+						 section.SetOffset(-varSize); (* global variables: negative offset *)
+					END
+				END;
 			END;
 		END SetOffsets;
 
-		PROCEDURE CopySections(sectionList: Sections.SectionList);
+		PROCEDURE CopySections(sectionList: Sections.SectionList; caseTable: BOOLEAN);
 		VAR
 			section: Sections.Section;
 			i: LONGINT;
 		BEGIN
 			FOR i := 0 TO sectionList.Length() - 1 DO
 				section := sectionList.GetSection(i);
-				binarySection := section(IntermediateCode.Section).resolved;
-				IF section.type = Sections.ConstSection THEN
-					Copy(binarySection,const,section.offset);
-				ELSIF (section.type = Sections.CodeSection) OR (section.type = Sections.BodyCodeSection) THEN
-					Copy(binarySection,code,section.offset);
-				END
+				IF caseTable & section.isCaseTable OR ~caseTable & IsRegularSection(section) THEN
+					binarySection := section(IntermediateCode.Section).resolved;
+					IF section.type = Sections.ConstSection THEN
+						Copy(binarySection,const,section.offset);
+					ELSIF (section.type = Sections.CodeSection) OR (section.type = Sections.BodyCodeSection) THEN
+						Copy(binarySection,code,section.offset);
+					END
+				END;
 			END;
 		END CopySections;
 
@@ -387,15 +398,15 @@ TYPE
 
 	BEGIN
 		FirstOffsets(module.sections);
-		SetOffsets(module.sections);
+		SetOffsets(module.sections,FALSE);
 		pc := constSize;
-		SetOffsets(module.caseTables);
+		SetOffsets(module.sections,TRUE);
 		caseTableSize := (constSize -pc) DIV 4 ;
 		FixupSections;
 
 		NEW(const,constSize ); NEW(code,codeSize );
-		CopySections(module.sections);
-		CopySections(module.caseTables);
+		CopySections(module.sections,FALSE);
+		CopySections(module.sections,TRUE);
 
 	END MakeSectionOffsets;
 
@@ -514,25 +525,27 @@ TYPE
 			numberEntries := 0; tail := NIL; prev := NIL; firstOffset := -1;
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				p := module.sections.GetSection(i);
-				IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).isInline THEN
-					fixups :=  GetFixups(module,p,fixup);
-					p.symbol.GetName(name); (*debugging*)
-					procedure := p.symbol(SyntaxTree.Procedure);
-					procedureType := procedure.type(SyntaxTree.ProcedureType);
-					(* entry for public procedures and all methods *)
-					IF (procedure.access*SyntaxTree.Public # {}) OR (procedureType.isDelegate) OR (fixup # NIL) 	THEN
-						p(IntermediateCode.Section).SetEntryNumber(numberEntries);
-						w.RawNum((p.offset )); INC(numberEntries);
+				IF IsRegularSection(p) THEN
+					IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).isInline THEN
+						fixups :=  GetFixups(module,p,fixup);
+						p.symbol.GetName(name); (*debugging*)
+						procedure := p.symbol(SyntaxTree.Procedure);
+						procedureType := procedure.type(SyntaxTree.ProcedureType);
+						(* entry for public procedures and all methods *)
+						IF (procedure.access*SyntaxTree.Public # {}) OR (procedureType.isDelegate) OR (fixup # NIL) 	THEN
+							p(IntermediateCode.Section).SetEntryNumber(numberEntries);
+							w.RawNum((p.offset )); INC(numberEntries);
 
-						FixupList(fixup, prev, tail); (* absolute fixups, relative procedure fixups have already been done during code generation *)
-						IF tail # NIL THEN
-							prev := tail
-						END;
-						IF (fixup # NIL) & (firstOffset = -1) THEN
-							firstOffset := (fixup.fixupSection.offset + fixup.fixup.offset );
-						END;
+							FixupList(fixup, prev, tail); (* absolute fixups, relative procedure fixups have already been done during code generation *)
+							IF tail # NIL THEN
+								prev := tail
+							END;
+							IF (fixup # NIL) & (firstOffset = -1) THEN
+								firstOffset := (fixup.fixupSection.offset + fixup.fixup.offset );
+							END;
 
-					END;
+						END;
+					END
 				END
 			END;
 			procedureFixupOffset := firstOffset;
@@ -587,11 +600,13 @@ TYPE
 					END;
 					typeDeclaration := type.typeDeclaration; (* must be non-nil *)
 					typeDeclaration.GetName(name);
+					
 					section := module.sections.FindBySymbol(type.typeDeclaration);
+					ASSERT(IsRegularSection(section));
 					w.RawNum((section.offset )); (* type descriptor section offset *)
-						IF Trace THEN
-							D.String(", t="); D.Int(section.offset ,1);
-						END;
+					IF Trace THEN
+						D.String(", t="); D.Int(section.offset ,1);
+					END;
 				END;
 			END WriteType;
 
@@ -599,7 +614,7 @@ TYPE
 			w.Char(83X);
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				p := module.sections.GetSection(i);
-				IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure)  THEN
+				IF IsRegularSection(p) & (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure)  THEN
 					procedure := p.symbol(SyntaxTree.Procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
 					IF (SyntaxTree.PublicRead IN procedure.access) & ~(procedure.isInline) & ~(procedureType.isDelegate) & GetProcedureAllowed() THEN
@@ -720,7 +735,7 @@ TYPE
 			IF Trace THEN D.Str("Global Pointers: "); D.Ln; END;
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				s := module.sections.GetSection(i);
-				IF (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Variable) THEN
+				IF IsRegularSection(s) & (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Variable) THEN
 					variable := s.symbol(SyntaxTree.Variable);
 					IF ~(variable.untraced) THEN
 						OutPointers(s.offset, variable.type, numberPointers);
@@ -810,19 +825,23 @@ TYPE
 
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				s := module.sections.GetSection(i);
-				IF (s.type # Sections.InitCodeSection) & (s.symbol=NIL) OR (s.symbol # NIL) & ~(s.symbol IS SyntaxTree.Procedure) THEN
-					temp := GetFixups(module,s,fixup);
-					Fixups(fixup);
+				IF IsRegularSection(s) & (s.type # Sections.InitCodeSection) THEN
+					IF (s.symbol=NIL) OR (s.symbol # NIL) & ~(s.symbol IS SyntaxTree.Procedure) THEN
+						temp := GetFixups(module,s,fixup);
+						Fixups(fixup);
+					END
 				END
 			END;
 
 			IF Trace THEN D.Str("VarConstLinks:CaseTables"); D.Ln; END;
 
-			FOR i := 0 TO module.caseTables.Length() - 1 DO
-				s := module.caseTables.GetSection(i);
-				IF (s.symbol # NIL) & ~(s.symbol IS SyntaxTree.Procedure) THEN (* includes case symbol! *)
-					temp := GetFixups(module,s,fixup);
-					Fixups(fixup);
+			FOR i := 0 TO module.sections.Length() - 1 DO
+				s := module.sections.GetSection(i);
+				IF s.isCaseTable THEN
+					IF (s.symbol # NIL) & ~(s.symbol IS SyntaxTree.Procedure) THEN (* includes case symbol! *)
+						temp := GetFixups(module,s,fixup);
+						Fixups(fixup);
+					END
 				END
 			END;
 
@@ -833,25 +852,27 @@ TYPE
 			IF Trace THEN D.Str("VarConstLinks:ImportedSymbols"); D.Ln; END;
 			(* imported global variables and constants *)
 
-			FOR i := 0 TO module.importedSymbols.Length() - 1 DO
-				s := module.importedSymbols.GetSection(i);
-				temp := GetFixups(module,s,fixup);
-				IF (fixup # NIL) THEN
-					IF Trace THEN
-						D.Str("Symbol:");
-						D.Str0(s.symbol.scope.ownerModule.name);
-						D.Str(".");
-						D.Str0(s.symbol.name); D.Ln;
-					END;
+			FOR i := 0 TO module.sections.Length() - 1 DO
+				s := module.sections.GetSection(i);
+				IF s.type = Sections.PrototypeSection THEN
+					temp := GetFixups(module,s,fixup);
+					IF (fixup # NIL) THEN
+						IF Trace THEN
+							D.Str("Symbol:");
+							D.Str0(s.symbol.scope.ownerModule.name);
+							D.Str(".");
+							D.Str0(s.symbol.name); D.Ln;
+						END;
 
-					s.SetEntryNumber(numberVarConstLinks);
-					INC(numberVarConstLinks);
-					w.Char(CHR(ModuleNumber(s.symbol.scope.ownerModule))); (* index of importing module *)
-					w.RawNum(0); (* entry = 0 =>  importing module *)
-					fixupsPosition := w.Pos(); fixups := 0;
-					w.RawLInt(fixups); (* number of fixups, to be patched *)
-					Fixups(fixup);
-					RawLIntAt(fixupsPosition,fixups); (* patch of the fixup *)
+						s.SetEntryNumber(numberVarConstLinks);
+						INC(numberVarConstLinks);
+						w.Char(CHR(ModuleNumber(s.symbol.scope.ownerModule))); (* index of importing module *)
+						w.RawNum(0); (* entry = 0 =>  importing module *)
+						fixupsPosition := w.Pos(); fixups := 0;
+						w.RawLInt(fixups); (* number of fixups, to be patched *)
+						Fixups(fixup);
+						RawLIntAt(fixupsPosition,fixups); (* patch of the fixup *)
+					END
 				END
 			END
 		END VarConstLinks;
@@ -899,13 +920,15 @@ TYPE
 			w.Char(86X);
 			numberLinks := 0;
 
-			FOR i := 0 TO module.systemCalls.Length() - 1 DO
-				p := module.systemCalls.GetSection(i);
-				temp := GetFixups(module,p,fixup);
-				IF  (fixup # NIL) THEN
-					w.Char(0X); w.Char(SysCallMap[p.entryNumber]);
-					w.RawNum(FixupList(fixup));
-					INC(numberLinks);
+			FOR i := 0 TO module.sections.Length() - 1 DO
+				p := module.sections.GetSection(i);
+				IF p.isSystemCall THEN
+					temp := GetFixups(module,p,fixup);
+					IF  (fixup # NIL) THEN
+						w.Char(0X); w.Char(SysCallMap[p.entryNumber]);
+						w.RawNum(FixupList(fixup));
+						INC(numberLinks);
+					END
 				END
 			END;
 			IF procedureFixupOffset #-1 THEN
@@ -924,7 +947,7 @@ TYPE
 			(* cf. Entries *)
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				p := module.sections.GetSection(i);
-				IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).isInline THEN
+				IF IsRegularSection(p) & (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).isInline THEN
 					fixups := GetFixups(module,p,fixup);
 					procedure := p.symbol(SyntaxTree.Procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
@@ -977,7 +1000,7 @@ TYPE
 				IF (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).recordScope.ownerModule = module.module)  THEN
 					w.Char(ofEURecord);
 					destination := module.sections.FindBySymbol(type.typeDeclaration);
-
+					ASSERT(IsRegularSection(destination));
 					(*
 					IF (destination = NIL) THEN
 						destination := module.types.FindBySymbol(type(SyntaxTree.RecordType).pointerType.resolved);
@@ -1036,6 +1059,7 @@ TYPE
 				END;
 				symbol.GetName(name); (* debugging *)
 				s := module.sections.FindBySymbol(symbol);
+				ASSERT(IsRegularSection(s));
 				ASSERT(s#NIL);
 				RETURN (s.offset);
 			END SymbolOffset;
@@ -1246,8 +1270,9 @@ TYPE
 					WITH type: SyntaxTree.RecordType DO
 						type.typeDeclaration.GetName(name); (* debugging *)
 						IF type.recordScope.ownerModule = importedModule THEN (* type belongs to currently processed module *)
-							t := module.sections.FindBySymbol(type.typeDeclaration);
+							t := module.sections.FindBySymbol(type.typeDeclaration);							
 							IF (t # NIL) & (t.referenced) THEN
+								ASSERT(IsRegularSection(t));
 								fingerPrint := fingerprinter.TypeFP(type);
 								w.Char(ofEURecord);
 								w.RawNum(-(t.offset ));
@@ -1290,8 +1315,9 @@ TYPE
 
 					procedure := type(SyntaxTree.RecordType).recordScope.firstProcedure;
 					WHILE procedure # NIL DO
-						s := module.importedSymbols.FindBySymbol(procedure);
+						s := module.sections.FindBySymbol(procedure);						
 						IF (s # NIL) THEN
+							ASSERT(s.type = Sections.PrototypeSection);
 							fixups := GetFixups(module,s,fixup);
 							ASSERT(fixup # NIL);
 							UseEntry(importedModule,procedure,(fixup.fixupSection.offset + fixup.fixup.offset )+ofEUProcFlag,prefix);
@@ -1319,14 +1345,16 @@ TYPE
 
 					constant := importedModule.moduleScope.firstConstant;
 					WHILE constant # NIL DO
-						s := module.importedSymbols.FindBySymbol(constant);
-						IF s # NIL THEN UseEntry(importedModule,constant,0,"") END;
+						s := module.sections.FindBySymbol(constant);
+						IF (s # NIL) & (s.type = Sections.PrototypeSection) THEN
+							UseEntry(importedModule,constant,0,"")
+						END;
 						constant := constant.nextConstant
 					END;
 					variable := importedModule.moduleScope.firstVariable;
 					WHILE variable # NIL DO
-						s := module.importedSymbols.FindBySymbol(variable);
-						IF s # NIL THEN
+						s := module.sections.FindBySymbol(variable);
+						IF (s # NIL) & (s.type = Sections.PrototypeSection) THEN
 							UseEntry(importedModule,variable,s.entryNumber,"");
 							UseType(variable.type);
 						END;
@@ -1338,6 +1366,7 @@ TYPE
 						IF type IS SyntaxTree.PointerType THEN type := type(SyntaxTree.PointerType).pointerBase END;
 						s := module.sections.FindBySymbol(typeDeclaration);
 						IF s # NIL THEN
+							ASSERT(IsRegularSection(s));
 							IF s.referenced THEN (* only if type has been used *)
 								UseEntry(importedModule,typeDeclaration,0,"");
 								UseType(typeDeclaration.declaredType);
@@ -1349,8 +1378,9 @@ TYPE
 					procedure := importedModule.moduleScope.firstProcedure;
 					WHILE procedure # NIL DO
 						IF ~procedure.isInline THEN
-							s := module.importedSymbols.FindBySymbol(procedure);
+							s := module.sections.FindBySymbol(procedure);
 							IF (s # NIL) THEN
+								ASSERT(s.type = Sections.PrototypeSection);
 								fixups := GetFixups(module,s,fixup);
 								ASSERT(fixup # NIL);
 								UseEntry(importedModule,procedure,(fixup.fixupSection.offset + fixup.fixup.offset )+ofEUProcFlag,"");
@@ -1417,6 +1447,7 @@ TYPE
 				END;
 				IF baseModule = 0 THEN
 					destination := module.sections.FindBySymbol(base.typeDeclaration);
+					ASSERT(IsRegularSection(destination));
 					baseEntry := (destination.offset );  (* destination must be non-nil *)
 				ELSIF (typeDeclaration # NIL) THEN
 					fp := fingerprinter.SymbolFP(typeDeclaration);
@@ -1459,7 +1490,7 @@ TYPE
 			WHILE (m#NIL) DO
 				IF ~(m.isInline) THEN
 					procedure := module.sections.FindBySymbol(m);
-
+					ASSERT(IsRegularSection(procedure));
 					m.GetName(name);
 
 					w.RawNum(procedure.symbol(SyntaxTree.Procedure).methodNumber);
@@ -1494,7 +1525,7 @@ TYPE
 
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				t := module.sections.GetSection(i);
-				IF (t.symbol # NIL) & (t.symbol IS SyntaxTree.TypeDeclaration) THEN
+				IF IsRegularSection(t) & (t.symbol # NIL) & (t.symbol IS SyntaxTree.TypeDeclaration) THEN (* TODO *)
 					typeDeclaration := t.symbol(SyntaxTree.TypeDeclaration);
 					type := typeDeclaration.declaredType;
 					typeDeclaration.GetName(name);
@@ -1506,6 +1537,7 @@ TYPE
 					IF Trace THEN D.Str("FoxObjectFile.Types: "); D.String(name); D.Ln; END;
 					IF (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).recordScope.ownerModule = moduleScope.ownerModule) OR (type(SyntaxTree.RecordType).recordScope.ownerModule = NIL) THEN
 						t := module.sections.FindBySymbol(type.typeDeclaration);
+						ASSERT(IsRegularSection(t));
 						WriteType(t,type(SyntaxTree.RecordType),tdSize);
 						INC(typeDescSize,tdSize);
 						INC(numberTypes);
@@ -1603,7 +1635,7 @@ TYPE
 			counter := 0;
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				destination := module.sections.GetSection(i);
-				IF (destination.type # Sections.InitCodeSection) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).isInline THEN
+				IF IsRegularSection(destination) & (destination.type # Sections.InitCodeSection) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).isInline THEN
 					IF Trace THEN D.Str("pointers in "); D.Str(destination.name); D.Ln END;
 					PointerOffsets(destination);
 					INC(counter);
@@ -1661,9 +1693,6 @@ TYPE
 			VAR destination: Sections.Section; name: SyntaxTree.String;
 			BEGIN
 				destination := module.sections.FindBySymbol(type.typeDeclaration);
-				IF destination = NIL THEN
-					destination := module.importedSymbols.FindBySymbol(type.typeDeclaration)
-				END;
 				IF destination = NIL THEN
 					(* imported unused record type *)
 					w.Char(0X); (* nil type *)
@@ -1901,16 +1930,18 @@ TYPE
 
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				s := module.sections.GetSection(i);
-				IF (s.type # Sections.InitCodeSection) & (s.symbol = moduleScope.bodyProcedure) THEN
+				IF IsRegularSection(s) & (s.type # Sections.InitCodeSection) & (s.symbol = moduleScope.bodyProcedure) THEN
 					Scope(s) (*! must be first procedure in ref section *)
 				END
 			END;
 
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				s := module.sections.GetSection(i);
-				IF (s.symbol = moduleScope.bodyProcedure) THEN (* already done, see above *)
-				ELSIF (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Procedure) & ~s.symbol(SyntaxTree.Procedure).isInline THEN
-					Procedure(s)
+				IF IsRegularSection(s) THEN
+					IF (s.symbol = moduleScope.bodyProcedure) THEN (* already done, see above *)
+					ELSIF (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Procedure) & ~s.symbol(SyntaxTree.Procedure).isInline THEN
+						Procedure(s)
+					END
 				END
 			END;
 			refSize := w.Pos()-start;
@@ -1959,33 +1990,39 @@ TYPE
 
 		BEGIN
 			IF Trace THEN D.Str("LinkFixups"); D.Ln; END;
-			FOR i := 0 TO module.importedSymbols.Length() - 1 DO
-				section := module.importedSymbols.GetSection(i);
-				symbol := section.symbol;
-				IF (symbol # NIL) & (symbol IS SyntaxTree.Procedure) THEN
-					IF Trace THEN D.Str("Procedure:"); D.Str0(symbol.scope.ownerModule.name); D.Str("."); D.Str0(symbol.name); D.Ln; END;
-					fixups := GetFixups(module,section,fixup);
-					IF fixup # NIL THEN Link(fixup) END;
+			FOR i := 0 TO module.sections.Length() - 1 DO
+				section := module.sections.GetSection(i);
+				IF section.type = Sections.PrototypeSection THEN
+					symbol := section.symbol;
+					IF (symbol # NIL) & (symbol IS SyntaxTree.Procedure) THEN
+						IF Trace THEN D.Str("Procedure:"); D.Str0(symbol.scope.ownerModule.name); D.Str("."); D.Str0(symbol.name); D.Ln; END;
+						fixups := GetFixups(module,section,fixup);
+						IF fixup # NIL THEN Link(fixup) END;
+					END
 				END
 			END;
 
 			(*! ??????????? *)
-			FOR i := 0 TO module.caseTables.Length() - 1 DO
-				section := module.caseTables.GetSection(i);
-				symbol := section.symbol;
-				IF (symbol # NIL) & (symbol IS SyntaxTree.Procedure) THEN
-					IF Trace THEN D.Str("CaseTableProc:"); D.Str0(symbol.scope.ownerModule.name); D.Str("."); D.Str0(symbol.name); D.Ln; END;
-					fixups := GetFixups(module,section,fixup);
-					IF fixup # NIL THEN Link(fixup) END;
+			FOR i := 0 TO module.sections.Length() - 1 DO
+				section := module.sections.GetSection(i);
+				IF section.isCaseTable THEN
+					symbol := section.symbol;
+					IF (symbol # NIL) & (symbol IS SyntaxTree.Procedure) THEN
+						IF Trace THEN D.Str("CaseTableProc:"); D.Str0(symbol.scope.ownerModule.name); D.Str("."); D.Str0(symbol.name); D.Ln; END;
+						fixups := GetFixups(module,section,fixup);
+						IF fixup # NIL THEN Link(fixup) END;
+					END
 				END
 			END;
 
-			FOR i := 0 TO module.caseTables.Length() - 1 DO
-				section := module.caseTables.GetSection(i);
-				bfixup := section(IntermediateCode.Section).resolved.fixupList.firstFixup;
-				WHILE bfixup # NIL DO
-					Put32(const,(section.offset +bfixup.offset ),(bfixup.displacement +bfixup.symbol.offset ));
-					bfixup := bfixup.nextFixup;
+			FOR i := 0 TO module.sections.Length() - 1 DO
+				section := module.sections.GetSection(i);
+				IF section.isCaseTable THEN
+					bfixup := section(IntermediateCode.Section).resolved.fixupList.firstFixup;
+					WHILE bfixup # NIL DO
+						Put32(const,(section.offset +bfixup.offset ),(bfixup.displacement +bfixup.symbol.offset ));
+						bfixup := bfixup.nextFixup;
+					END
 				END
 			END;
 		END LinkFixups;
