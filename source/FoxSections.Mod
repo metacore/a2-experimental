@@ -425,13 +425,6 @@ TYPE
 		VAR
 			(* output of (intermediate) code generation *)
 			sections-: SectionList;
-			(*! separation of imported symbols, system calls and case tables for the old object file format,
-				can be unified later on *)
-			caseTables-: SectionList;
-			importedSymbols-: SectionList;
-			systemCalls-: SectionList;
-
-			
 			platformName-: SyntaxTree.String;
 			imports-: NameList;
 
@@ -439,9 +432,6 @@ TYPE
 		BEGIN
 			Init^(module,system);
 			NEW(sections);
-			NEW(importedSymbols);
-			NEW(systemCalls);
-			NEW(caseTables);
 			NEW(imports, 128);
 		END Init;
 
@@ -495,43 +485,19 @@ TYPE
 			END;
 
 			sections.Dump(w);
-
-			IF caseTables.Length() # 0 THEN
-				dump.Ln; dump.BeginComment; dump.String("; case tables"); dump.EndComment; dump.Ln;
-				caseTables.Dump(w)
-			END;
-			
-			(*
-			IF importedSymbols.Length() # 0 THEN
-				dump.Ln; dump.BeginComment; dump.String("; imported symbols"); dump.EndComment; dump.Ln;
-				importedSymbols.Dump(w)
-			END;
-			IF systemCalls.Length() # 0 THEN
-				dump.Ln; dump.BeginComment; dump.String("; system calls"); dump.EndComment; dump.Ln;
-				systemCalls.Dump(w)
-			END
-			*)
 		END Dump;
 
 	END Module;
 
 	PROCEDURE DumpFiltered*(w: Streams.Writer; module: Module; CONST filter: ARRAY OF CHAR);
-		PROCEDURE FilterSections(sectionList: SectionList);
-		VAR
-			i: LONGINT;
-			section: Section;
-		BEGIN
-			FOR i := 0 TO sectionList.Length() - 1 DO
-				section := sectionList.GetSection(i);
-				IF Strings.Match(filter, section.name) THEN section.Dump(w); w.Ln; END
-			END
-		END FilterSections;
-
-	BEGIN
-		FilterSections(module.sections);
-		FilterSections(module.caseTables);
-		FilterSections(module.importedSymbols);
-		FilterSections(module.systemCalls);
+	VAR
+		i: LONGINT;
+		section: Section;
+	BEGIN	
+		FOR i := 0 TO module.sections.Length() - 1 DO
+			section := module.sections.GetSection(i);
+			IF Strings.Match(filter, section.name) THEN section.Dump(w); w.Ln; END
+		END
 	END DumpFiltered;
 
 	PROCEDURE NewCommentWriter*(getPC: GetPCProcedure): CommentWriter;

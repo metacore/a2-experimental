@@ -2,7 +2,7 @@ MODULE FoxGenericObjectFile; (** AUTHOR "negelef"; PURPOSE "Generic Object File 
 
 IMPORT
 	Streams, Commands, Basic := FoxBasic, Formats := FoxFormats, Sections := FoxSections, IntermediateCode := FoxIntermediateCode,
-	Global := FoxGlobal, SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
+	SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
 	FingerPrinter := FoxFingerPrinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := FoxTextualSymbolFile, KernelLog, D := Debugging;
 
 CONST
@@ -13,7 +13,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	VAR prefix, extension: Files.FileName; binary: BOOLEAN;
 
 		PROCEDURE Export* (module: Formats.GeneratedModule; symbolFileFormat: Formats.SymbolFileFormat): BOOLEAN;
-		VAR moduleName: SyntaxTree.String; fileName: Files.FileName; file: Files.File; writer: Files.Writer; fingerPrinter: FingerPrinter.FingerPrinter;
+		VAR fileName: Files.FileName; file: Files.File; writer: Files.Writer; fingerPrinter: FingerPrinter.FingerPrinter;
 
 			PROCEDURE ExportSection (section: IntermediateCode.Section): BOOLEAN;
 			VAR name: ARRAY 128 OF CHAR; (* debugging *)
@@ -59,9 +59,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			PROCEDURE ExportModule (module: Sections.Module): BOOLEAN;
 			BEGIN
 				WriteHeader(writer,binary);
-				RETURN ExportSections (module.sections) &
-				ExportSections (module.caseTables) &
-				ExportSections (module.systemCalls);
+				RETURN ExportSections (module.sections)
 			END ExportModule;
 
 		BEGIN
@@ -178,7 +176,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	PROCEDURE Show*(context: Commands.Context);
 	VAR
 		fileName: Files.FileName; file: Files.File; reader: Files.Reader; writer: Streams.Writer;
-		section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOOLEAN;
+		section: ObjectFile.Section; binary: BOOLEAN;
 	BEGIN
 		IF context.arg.GetString(fileName) THEN
 			file := Files.Old(fileName);

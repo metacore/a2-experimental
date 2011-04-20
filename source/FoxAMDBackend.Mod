@@ -31,7 +31,6 @@ CONST
 	AH=InstructionSet.regAH;	CH=InstructionSet.regCH;	DH=InstructionSet.regDH;	BH=InstructionSet.regBH;
 	ST0=InstructionSet.regST0;
 
-	MaxSpilledRegisters=64;
 	Low=0; High=1;
 
 	FrameSpillStack=TRUE;
@@ -915,7 +914,7 @@ TYPE
 		END IsComplex;
 
 		PROCEDURE Generate(CONST instruction: IntermediateCode.Instruction);
-		VAR opcode: SHORTINT; ticket: Ticket; i:LONGINT;
+		VAR opcode: SHORTINT; ticket: Ticket;
 		BEGIN
 			ReserveOperandRegisters(instruction.op1,TRUE); ReserveOperandRegisters(instruction.op2,TRUE);ReserveOperandRegisters(instruction.op3,TRUE);
 			(*TryAllocate(instruction.op1,Low);
@@ -1236,7 +1235,7 @@ TYPE
 		END EmitMovFPU;
 
 		PROCEDURE EmitMov(CONST vdest,vsrc: IntermediateCode.Operand; part: LONGINT);
-		VAR op1,op2: Assembler.Operand; tmp: IntermediateCode.Operand; srcType, destType: IntermediateCode.Type; sameType: BOOLEAN;
+		VAR op1,op2: Assembler.Operand; tmp: IntermediateCode.Operand;
 			t: IntermediateBackend.Ticket;
 		BEGIN
 			IF (vdest.mode = IntermediateCode.ModeRegister) & (vsrc.mode = IntermediateCode.ModeRegister) & (vsrc.offset # 0) THEN
@@ -1362,7 +1361,7 @@ TYPE
 
 		PROCEDURE EmitConvert(CONST vdest, vsrc: IntermediateCode.Operand; part: LONGINT);
 		VAR destType, srcType: IntermediateCode.Type; op1,op2: Assembler.Operand; index: LONGINT; nul: Assembler.Operand;
-		temp: Assembler.Operand; ticket: Ticket; vop: IntermediateCode.Operand; ediReserved, esiReserved: BOOLEAN;
+		ticket: Ticket; vop: IntermediateCode.Operand; ediReserved, esiReserved: BOOLEAN;
 			eax, edx: Ticket; symbol: Sections.Section; offset: LONGINT;
 		BEGIN
 			GetPartType(vdest.type,part, destType);
@@ -1476,8 +1475,8 @@ TYPE
 		END EmitConvert;
 
 		PROCEDURE EmitResult(CONST instruction: IntermediateCode.Instruction; part: LONGINT);
-		VAR register: LONGINT; ticket:Ticket; result,op: Assembler.Operand; type: IntermediateCode.Type;
-		BEGIN
+		VAR register: LONGINT; result,op: Assembler.Operand;
+	BEGIN
 			register := ResultRegister(instruction.op1.type,part);
 			(*
 			ticket := ReservePhysicalRegister(type,register);
@@ -1492,15 +1491,9 @@ TYPE
 		END EmitResult;
 
 		PROCEDURE EmitResultFPU(CONST instruction: IntermediateCode.Instruction);
-		VAR result,op: Assembler.Operand; ticket:Ticket;
+		VAR op: Assembler.Operand;
 		BEGIN
-			(*result := registerOperands[ST0];
-			(*
-			ticket := ReservePhysicalRegister(instruction.op1.type,ST0);
-			TicketToOperand(ticket,result);
-			*)
-			emitter.Emit1(InstructionSet.opFLD,result);
-			*)
+
 			INC(fpStackPointer); (* callee has left the result on top of stack, don't have to allocate here *)
 			MakeOperand(instruction.op1,Low,op,NIL);
 			emitter.Emit1(InstructionSet.opFSTP,op);
@@ -2569,7 +2562,7 @@ TYPE
 
 		PROCEDURE GenerateBinary(module: Sections.Module; dump: Streams.Writer);
 		VAR
-			in,last: Sections.Section;
+			in: Sections.Section;
 			out: BinaryCode.Section;
 			name: SyntaxTree.String;
 			procedure: SyntaxTree.Procedure;
@@ -2633,22 +2626,8 @@ TYPE
 			 	END
 			UNTIL initialSectionCount = module.sections.Length(); (* process remaining sections that have been added during traversal of sections *)
 
-
-			FOR i := 0 TO module.caseTables.Length() - 1 DO
-				in := module.caseTables.GetSection(i);
-		 		IF in(IntermediateCode.Section).resolved = NIL THEN
-			 		out := ResolvedSection(in(IntermediateCode.Section));
-			 		cg.Section(in(IntermediateCode.Section),out);
-			 	END
-		 	END;
-
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				in := module.sections.GetSection(i);
-		 		PatchFixups(in(IntermediateCode.Section).resolved)
-		 	END;
-
-			FOR i := 0 TO module.caseTables.Length() - 1 DO
-				in := module.caseTables.GetSection(i);
 		 		PatchFixups(in(IntermediateCode.Section).resolved)
 		 	END;
 
