@@ -1779,7 +1779,7 @@ TYPE
 			ELSE
 				IF currentCellScope # NIL THEN
 					currentCellScope.AddImport(importedModule);
-				END;				
+				END;
 				source := NewSection(module.sections, Sections.PrototypeSection, name, symbol, commentPrintout # NIL);
 				(* old code:
 				source := NewSection(module.importedSymbols, Sections.ConstSection, name, symbol, commentPrintout # NIL);
@@ -6828,10 +6828,10 @@ TYPE
 			UniqueId(name,module.module,"case",caseId);
 			NEW(fixups,size); FOR i := 0 TO size-1 DO fixups[i] := NIL END;
 			NEW(section,Sections.ConstSection,name,SyntaxTree.NewSymbol(SyntaxTree.NewIdentifier(name)),commentPrintout # NIL);
-			
+
 			section.IsCaseTable;
-			module.sections.Add(section);			
-			
+			module.sections.Add(section);
+
 			IntermediateCode.InitAddress(jmp, addressType, section,0);
 			ReuseCopy(res,var.op);
 			ReleaseOperand(var);
@@ -7860,8 +7860,6 @@ TYPE
 		inPC-, outPC-: LONGINT;
 
 		error* : BOOLEAN;
-		allocateData-: BOOLEAN;
-		dataAddress*: LONGINT;
 		allocation: RegisterAllocation;
 
 		physicalRegisters-: PhysicalRegisters; (* physical registers <-> tickets *)
@@ -7870,10 +7868,8 @@ TYPE
 		spillStack-: SpillStack; (* spill stack offset <-> ticket *)
 
 		(* generic *)
-		PROCEDURE & InitGenerator*(diagnostics: Diagnostics.Diagnostics; allocateData: BOOLEAN; numberRegisterParts: LONGINT; physicalRegisters: PhysicalRegisters);
+		PROCEDURE & InitGenerator*(diagnostics: Diagnostics.Diagnostics; numberRegisterParts: LONGINT; physicalRegisters: PhysicalRegisters);
 		BEGIN
-			dataAddress := 0;
-			SELF.allocateData := allocateData;
 			SELF.module := NIL;
 			SELF.diagnostics := diagnostics;
 			error := FALSE;
@@ -7988,9 +7984,6 @@ TYPE
 			name := in.name; (*debugging*)
 			SELF.in := in; SELF.out := out;
 			dump := out.comments;
-			IF allocateData & (in.type IN {Sections.VarSection, Sections.ConstSection}) THEN
-				out.SetAlignment(TRUE, dataAddress);
-			END;
 
 			GetRegisterAllocation;
 			Prepare;
@@ -8014,9 +8007,6 @@ TYPE
 			ResolveLocalFixups;
 			IF dump # NIL THEN
 				(*dump.Update*)
-			END;
-			IF allocateData & (in.type IN {Sections.VarSection, Sections.ConstSection}) THEN
-				INC(dataAddress, out.pc);
 			END;
 		END Section;
 
@@ -9595,7 +9585,7 @@ TYPE
 					Global.GetSymbolName(baseTD,name);
 					IF (baseTD.scope = NIL) OR (baseTD.scope.ownerModule = module.module) THEN
 						tir := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,baseTD,dump);
-					ELSE					
+					ELSE
 						(* TODO: ok? *)
 						tir := IntermediateCode.NewSection(module.sections, Sections.PrototypeSection, name, baseTD, dump);
 						(* old code:
@@ -9641,7 +9631,7 @@ TYPE
 					END;
 				ELSE
 					(* data section in intermediate code *)
-					Global.GetSymbolName(td,name);										
+					Global.GetSymbolName(td,name);
 					tir := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,td,dump);
 					IntermediateCode.InitImmediate(op,IntermediateCode.GetType(module.system, module.system.addressType),0);
 					tir.Emit(Data(op));

@@ -502,7 +502,7 @@ TYPE
 			END;
 			SELF.cpuBits := bits;
 			fpStackPointer := 0;
-			InitGenerator(diagnostics,FALSE,2,physicalRegisters);
+			InitGenerator(diagnostics,2,physicalRegisters);
 		END InitGeneratorAMD64;
 
 		(*------------------- overwritten methods ----------------------*)
@@ -2594,7 +2594,7 @@ TYPE
 
 		BEGIN
 		 	cg.SetModule(module);
-		 
+
 		 	FOR i := 0 TO module.sections.Length() - 1 DO
 			 	in := module.sections.GetSection(i);
 		 		IF in.type = Sections.InlineCodeSection THEN
@@ -2605,7 +2605,7 @@ TYPE
 			 		procedure.procedureScope.body.code.SetBinaryCode(out.bits);
 			 	END
 		 	END;
-			
+
 		 	REPEAT
 		 	 	initialSectionCount := module.sections.Length();
 			 	FOR i := 0 TO module.sections.Length() - 1 DO
@@ -2633,7 +2633,7 @@ TYPE
 
 			IF cg.error THEN Error("",Diagnostics.Invalid, Diagnostics.Invalid,"") END;
 		END GenerateBinary;
-		
+
 		(* genasm *)
 		PROCEDURE ProcessIntermediateCodeModule*(intermediateCodeModule: Formats.GeneratedModule): Formats.GeneratedModule;
 		VAR
@@ -2643,7 +2643,7 @@ TYPE
 		BEGIN
 			ASSERT(intermediateCodeModule IS Sections.Module);
 			result := intermediateCodeModule;
-			
+
 			IF trace THEN
 				dumpName := "AMD64 code trace: ";
 				Strings.Append(dumpName,traceString);
@@ -2691,20 +2691,20 @@ TYPE
 			HALT(100); (* do not continue compiling after trap *)
 			RETURN result
 		END ProcessIntermediateCodeModule;
-		
+
 		PROCEDURE FindPC(x: SyntaxTree.Module; CONST sectionName: ARRAY OF CHAR; sectionOffset: LONGINT);
 		VAR
 			section: Sections.Section; binarySection: BinaryCode.Section; label: BinaryCode.LabelList; module: Formats.GeneratedModule;
 			i: LONGINT;
 		BEGIN
 			module := ProcessSyntaxTreeModule(x);
-			
+
 			i := 0;
 			REPEAT
 				section := module(Sections.Module).sections.GetSection(i);
 				INC(i);
 			UNTIL (i = module(Sections.Module).sections.Length()) OR (section.name = sectionName);
-			
+
 			IF section.name # sectionName THEN
 				diagnostics.Error(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid," could not locate pc");
 			ELSE
