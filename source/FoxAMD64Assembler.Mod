@@ -6,7 +6,7 @@ MODULE FoxAMD64Assembler; (**  AUTHOR "fn & fof"; PURPOSE "Oberon Compiler:AMD 6
 
 IMPORT
 	Scanner := FoxScanner, SyntaxTree := FoxSyntaxTree, Global := FoxGlobal, InstructionSet := FoxAMD64InstructionSet, Sections := FoxSections,
-	BinaryCode := FoxBinaryCode,	SYSTEM, Streams, Strings, Commands, KernelLog, Diagnostics, IntermediateCode := FoxIntermediateCode
+	BinaryCode := FoxBinaryCode,	SYSTEM, Streams, Strings, Commands, KernelLog, Diagnostics, IntermediateCode := FoxIntermediateCode, ObjectFile
 	;
 
 CONST
@@ -236,11 +236,12 @@ TYPE
 		END SetBits;
 
 		PROCEDURE Error(CONST message: ARRAY OF CHAR);
-		VAR msg: ARRAY 256 OF CHAR;
+		VAR msg,name: ARRAY 256 OF CHAR;
 		BEGIN
 			COPY(message,msg);
 			Strings.Append(msg," in ");
-			Strings.Append(msg, code.identifier.name);
+			ObjectFile.FromPooledName(code.identifier.name,name);
+			Strings.Append(msg, name);
 			IF diagnostics # NIL THEN
 				diagnostics.Error("",Diagnostics.Invalid,Diagnostics.Invalid,msg);
 			END;
@@ -1058,13 +1059,14 @@ TYPE
 		END InitAssembly;
 
 		PROCEDURE Error( CONST message: ARRAY OF CHAR);
-		VAR pos: LONGINT; msg: ARRAY 256 OF CHAR;
+		VAR pos: LONGINT; msg,name: ARRAY 256 OF CHAR;
 		BEGIN
 			pos := errPos;
 			IF (pos = Diagnostics.Invalid) OR (sourceName = "") THEN
 				COPY(message,msg);
 				Strings.Append(msg," in ");
-				Strings.Append(msg, emitter.code.identifier.name);
+				ObjectFile.FromPooledName(emitter.code.identifier.name, name);
+				Strings.Append(msg, name);
 				diagnostics.Error(sourceName,errPos,Diagnostics.Invalid,msg);
 			ELSE
 				diagnostics.Error(sourceName,errPos,Diagnostics.Invalid,message);

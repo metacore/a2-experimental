@@ -145,7 +145,8 @@ TYPE
 			ASSERT(unit > 0);
 			ASSERT(unit <= 32); (* implementation restriction *)
 			SELF.type := type;
-			COPY(name,SELF.identifier.name);
+			ObjectFile.ToPooledName(name, SELF.identifier.name);
+			(*COPY(name,SELF.identifier.name);*)
 			NEW(bits,0);
 			SELF.unit := unit;
 			IF dump THEN

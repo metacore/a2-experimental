@@ -1,6 +1,6 @@
 MODULE ObjectFile;	(* AUTHOR "negelef"; PURPOSE "Generic Object File Representation"; *)
 
-IMPORT Streams, BitSets;
+IMPORT Streams, BitSets, StringPool;
 
 CONST
 	(* Fixup modes *)
@@ -26,6 +26,7 @@ TYPE
 
 	SectionType = INTEGER;
 
+	PooledName*= ARRAY 4 OF StringPool.Index;
 	SectionName* = ARRAY 128 OF CHAR;
 
 	(* FixupPattern = size (+|-) bits {size (+|-) bits}
@@ -47,7 +48,7 @@ TYPE
 	FixupPatterns*= POINTER TO ARRAY OF FixupPattern;
 
 	Identifier*= RECORD
-		name*: SectionName;
+		name*: PooledName;
 		fingerprint*: LONGINT;
 	END;
 
@@ -89,6 +90,7 @@ VAR
 	modes: ARRAY 2 OF ARRAY 4 OF CHAR;
 	relocatabilities: ARRAY 2 OF ARRAY 8 OF CHAR;
 
+
 PROCEDURE IsCode* (type: SectionType): BOOLEAN;
 BEGIN RETURN (type >= Code) & (type <=  BodyCode);
 END IsCode;
@@ -96,7 +98,7 @@ END IsCode;
 PROCEDURE Matches*(CONST this, that: Identifier): BOOLEAN;
 BEGIN
 	IF (this.fingerprint # 0) & (this.fingerprint = that.fingerprint) THEN RETURN TRUE
-	ELSE RETURN this.name = that.name
+	ELSE RETURN (this.name = that.name)
 	END;
 END Matches;
 
@@ -123,7 +125,10 @@ END CopyPatch;
 PROCEDURE CopyFixup*(CONST source: Fixup; VAR dest: Fixup);
 VAR i: LONGINT;
 BEGIN
+	dest.identifier.name := source.identifier.name;
+	(*
 	COPY(source.identifier.name, dest.identifier.name);
+	*)
 	dest.identifier.fingerprint := source.identifier.fingerprint;
 	dest.patches := source.patches;
 	NEW(dest.patch, dest.patches);
@@ -185,8 +190,10 @@ VAR i: LONGINT; size: Bits; bits: LONGINT;
 	END WritePattern;
 
 	PROCEDURE WriteIdentifier(CONST identifier: Identifier);
+	VAR name: SectionName;
 	BEGIN
-		writer.String (identifier.name);
+		FromPooledName(identifier.name, name);
+		writer.String (name);
 		writer.Char (Separator);
 		writer.Int (identifier.fingerprint, 0);
 	END WriteIdentifier;
@@ -280,8 +287,11 @@ VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
 	END ReadPattern;
 
 	PROCEDURE ReadIdentifier(VAR identifier: Identifier);
+	VAR name: SectionName;
 	BEGIN
-		reader.SkipWhitespace; reader.String (identifier.name);
+		reader.SkipWhitespace;
+		reader.String(name);
+		ToPooledName(name,identifier.name);
 		reader.SkipWhitespace; reader.Int (identifier.fingerprint,FALSE);
 	END ReadIdentifier;
 
@@ -368,8 +378,10 @@ VAR i: LONGINT; size: Bits; bits: LONGINT;
 	END WritePattern;
 
 	PROCEDURE WriteIdentifier(CONST identifier: Identifier);
+	VAR name: SectionName;
 	BEGIN
-		writer.RawString (identifier.name);
+		FromPooledName(identifier.name, name);
+		writer.RawString (name);
 		writer.RawLInt (identifier.fingerprint);
 	END WriteIdentifier;
 
@@ -448,8 +460,10 @@ VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER; num: LONGINT;
 	END ReadPattern;
 
 	PROCEDURE ReadIdentifier(VAR identifier: Identifier);
+	VAR name: SectionName;
 	BEGIN
-		 reader.RawString (identifier.name);
+		 reader.RawString(name);
+		 ToPooledName(name, identifier.name);
 		 reader.RawLInt (identifier.fingerprint);
 	END ReadIdentifier;
 
@@ -611,10 +625,11 @@ END AddPatch;
 
 
 PROCEDURE AddFixup*(VAR fixups: LONGINT; VAR fixup: Fixups; CONST name: ARRAY OF CHAR; fingerprint: LONGINT; mode: INTEGER; displacement, scale: LONGINT; patterns: LONGINT; pattern: FixupPatterns; offset: LONGINT);
-VAR i: LONGINT; newFixups: LONGINT; newFixup: Fixups;
+VAR i: LONGINT; newFixups: LONGINT; newFixup: Fixups; pooledName: PooledName;
 BEGIN
+	ToPooledName(name, pooledName);
 	FOR i := 0 TO fixups-1 DO
-		IF (fixup[i].identifier.fingerprint = fingerprint) & (name = fixup[i].identifier.name) THEN
+		IF (fixup[i].identifier.fingerprint = fingerprint) & (pooledName =fixup[i].identifier.name) THEN
 			AddPatch(fixup[i].patches, fixup[i].patch, mode, displacement, scale, patterns, pattern, offset);
 			RETURN
 		END;
@@ -628,7 +643,10 @@ BEGIN
 		END;
 		fixup := newFixup;
 	END;
+	fixup[fixups].identifier.name := pooledName;
+	(*
 	COPY(name, fixup[fixups].identifier.name);
+	*)
 	fixup[fixups].identifier.fingerprint := fingerprint;
 	fixup[fixups].patches := 0;
 	fixup[fixups].patch := NIL;
@@ -636,6 +654,57 @@ BEGIN
 	fixups := newFixups;
 	(* increase size and add *)
 END AddFixup;
+
+PROCEDURE ToPooledName*(CONST name: ARRAY OF CHAR; VAR pooledName: PooledName);
+VAR i,j,index: LONGINT; n: SectionName;
+BEGIN
+	(* convert a string of the form A.B.C.suffix to [S(A), S(B), S(C), S(suffix)] *)
+	index := 0; i := 0;
+	WHILE (index < LEN(pooledName)) DO
+		j := 0;
+		WHILE (name[i] # 0X) & (name[i] # ".") DO
+			n[j] := name[i]; INC(i); INC(j);
+		END;
+		IF j > 0 THEN
+			IF index = LEN(pooledName)-1 THEN
+				WHILE (name[i] # 0X)  DO n[j] := name[i]; INC(i); INC(j); END;
+			END;
+			n[j] := 0X; StringPool.GetIndex(n,pooledName[index]);
+		ELSE
+			pooledName[index] := -1
+		END;
+		IF name[i] = "." THEN INC(i) END;
+		INC(index);
+	END;
+END ToPooledName;
+
+PROCEDURE FromPooledName*(CONST pooledName: PooledName; VAR name: ARRAY OF CHAR);
+VAR i,j, index: LONGINT; n: SectionName;
+BEGIN
+	i := 0; index := 0;
+	WHILE (index < LEN(pooledName)) DO
+		IF pooledName[index] >= 0 THEN
+			IF index > 0 THEN name[i] := "."; INC(i) END;
+			StringPool.GetString(pooledName[index],n);
+			j := 0;
+			WHILE n[j] # 0X DO
+				name[i] := n[j]; INC(i); INC(j);
+			END;
+		END;
+		INC(index);
+	END;
+	name[i] := 0X;
+END FromPooledName;
+
+OPERATOR "="*(CONST l,r: PooledName): BOOLEAN;
+BEGIN
+	RETURN (l[0]=r[0]) & (l[1]=r[1]) & (l[2]=r[2]) & (l[3]=r[3])
+END "=";
+
+OPERATOR "#"*(CONST l,r: PooledName): BOOLEAN;
+BEGIN
+	RETURN (l[0]#r[0]) OR (l[1]#r[1]) OR (l[2]#r[2]) OR (l[3]#r[3])
+END "#";
 
 BEGIN
 	types[Code] := "code";

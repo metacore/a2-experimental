@@ -23,7 +23,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 					D.String('"section.resolved = NIL" for '); D.String(section.name); D.Ln;
 					RETURN FALSE
 				ELSE
-					IF (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
+					IF (section.type = Sections.PrototypeSection) OR (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
 						(* nothing to do *)
 					ELSE
 						section.resolved.identifier.fingerprint := GetFingerPrint (section, fingerPrinter);
@@ -38,6 +38,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			VAR
 				section, test: Sections.Section;
 				i, j: LONGINT;
+				name: ObjectFile.SectionName;
 			BEGIN
 				FOR i := 0 TO sections.Length() - 1 DO
 					section := sections.GetSection(i);
@@ -47,8 +48,14 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 							test := sections.GetSection(j);
 							IF test(IntermediateCode.Section).resolved.identifier.fingerprint = section(IntermediateCode.Section).resolved.identifier.fingerprint THEN
 								diagnostics.Warning(module.moduleName,Diagnostics.Invalid,Diagnostics.Invalid,"duplicate fingerPrints");
-								KernelLog.String(section(IntermediateCode.Section).resolved.identifier.name); KernelLog.String(",");
-								KernelLog.String(test(IntermediateCode.Section).resolved.identifier.name); KernelLog.Ln;
+								ObjectFile.FromPooledName(section(IntermediateCode.Section).resolved.identifier.name,name); D.String(name);
+								(* KernelLog.String(section(IntermediateCode.Section).resolved.identifier.name); *)
+								KernelLog.String(",");
+								ObjectFile.FromPooledName(test(IntermediateCode.Section).resolved.identifier.name,name); D.String(name);
+								(*
+								KernelLog.String(test(IntermediateCode.Section).resolved.identifier.name);
+								*)
+								KernelLog.Ln;
 							END
 						END
 					END

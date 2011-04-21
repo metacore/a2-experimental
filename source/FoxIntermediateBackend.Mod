@@ -451,7 +451,9 @@ TYPE
 			currentScope := scope;
 			procedureType := x.type(SyntaxTree.ProcedureType);
 
-			Global.GetSymbolName(x,name);
+			implementationVisitor.GetCodeSectionNameForSymbol(x, name); (* nopov *)
+
+			(*Global.GetSymbolName(x,name);*)
 			IF (scope.body # NIL) & (x.isInline) THEN
 				inline := TRUE;
 				ir := implementationVisitor.NewSection(module.sections,Sections.InlineCodeSection,name,x,dump);

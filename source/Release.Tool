@@ -305,7 +305,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	NATIVE,WIN { RelativeFileSystem.Mod } # file system relative to path
 
 	NATIVE,WIN,UNIX { Loader.Mod }
-	NATIVEGEN, WINGEN {BitSets.Mod Diagnostics.Mod ObjectFile.Mod GenericLinker.Mod StringPool.Mod oc/GenericLoader.Mod}
+	NATIVEGEN, WINGEN {BitSets.Mod Diagnostics.Mod StringPool.Mod ObjectFile.Mod GenericLinker.Mod  oc/GenericLoader.Mod}
 
 	# binding modules
 	NATIVE,WIN { BootConsole.Mod }
