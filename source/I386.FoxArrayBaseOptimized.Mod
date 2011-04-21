@@ -6431,7 +6431,7 @@ VAR
 	END MatVecMulR2x2;
 	
 	(* PH *)
-	(* FIXME: use MOVAPS when Felix fixes issues with alignment!!! *)
+	(* to do: use MOVAPS when Felix fixes issues with alignment *)
 	PROCEDURE MatVecMulR4x4(dadr, ladr, radr: LONGINT);
 	CODE{SYSTEM.i386, SYSTEM.SSE3}
 		MOV EBX, [EBP+radr] ; EBX := ADDR(right)
@@ -6542,10 +6542,20 @@ VAR
 		END;
 	END InstallSSE2;
 
+	(*! to do: at current, this only works for Win, not for native because SSE3Support is not yet implemented in I386.Machine.Mod*)
+	PROCEDURE InstallSSE3*;   (* extra for testing, will be merged with Install in later versions *)
+	BEGIN
+		IF Machine.SSE3Support THEN
+			KernelLog.String( "SSE3 " );
+			(* optimizations for small matrices  *)
+			ArrayBase.matVecMulR4x4 := MatVecMulR4x4;
+		END;
+	END InstallSSE3;
+	
 	PROCEDURE Install*;
 	BEGIN
 		KernelLog.String( "ArrayBaseOptimized: installing runtime library optimizations:" );
-		InstallAsm;  InstallSSE;  InstallSSE2;
+		InstallAsm;  InstallSSE;  InstallSSE2; InstallSSE3;
 		KernelLog.String( " done." );  KernelLog.Ln;
 	END Install;
 
