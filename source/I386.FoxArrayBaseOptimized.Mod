@@ -6429,7 +6429,34 @@ VAR
 
 		MOVLPS [ECX], XMM0
 	END MatVecMulR2x2;
+	
+	(* PH *)
+	(* FIXME: use MOVAPS when Felix fixes issues with alignment!!! *)
+	PROCEDURE MatVecMulR4x4(dadr, ladr, radr: LONGINT);
+	CODE{SYSTEM.i386, SYSTEM.SSE3}
+		MOV EBX, [EBP+radr] ; EBX := ADDR(right)
+		MOV EAX, [EBP+ladr] ; EAX := ADDR(left)
+		MOV ECX, [EBP+dadr] ; ECX := ADDR(dest)
 
+		MOVUPS XMM0, [EBX] ; XMM0 := [b0,b1,b2,b3]
+		
+		MOVUPS XMM1, [EAX] ; XMM1 := [a00,a01,a02,a03]
+		MULPS XMM1, XMM0 
+		
+		MOVUPS XMM2, [EAX+16] ; XMM2 := [a10,a11,a12,a13]
+		MULPS XMM2, XMM0 
+		
+		MOVUPS XMM3, [EAX+32] ; XMM3 := [a20,a21,a22,a23]
+		MULPS XMM3, XMM0 
+		
+		MOVUPS XMM4, [EAX+48] ; XMM4 := [a30,a31,a32,a33]
+		MULPS XMM4, XMM0 
+
+		HADDPS XMM1, XMM2	; adjacent pairs are horizontally  added  
+		HADDPS XMM3, XMM4	; adjacent pairs are horizontally  added  
+		HADDPS XMM1, XMM3	; adjacent pairs are horizontally  added 
+		MOVUPS [ECX], XMM1
+	END MatVecMulR4x4;
 
 	PROCEDURE InstallMatMul*(context: Commands.Context);
 	VAR type: LONGINT;  string: ARRAY 32 OF CHAR;
@@ -6493,6 +6520,7 @@ VAR
 			ArrayBase.matMulR4x4 := MatMulR4x4;
 
 			ArrayBase.matVecMulR2x2 := MatVecMulR2x2;
+
 		END;
 	END InstallSSE;
 
@@ -6509,6 +6537,8 @@ VAR
 			ArrayBase.loopMatMulIncAXAX :=
 				MatMulIncAXAXLoopSSE;
 			ArrayBase.matMulIncX := MatMulIncX;
+			(* optimizations for small matrices  *)(*! CAVE this is SSE3*)
+			ArrayBase.matVecMulR4x4 := MatVecMulR4x4;
 		END;
 	END InstallSSE2;
 
