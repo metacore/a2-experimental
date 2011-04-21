@@ -4,6 +4,9 @@ IMPORT
 	IntermediateCode := FoxIntermediateCode, Basic := FoxBasic, Streams, Files, Backend := FoxBackend,
 	Global := FoxGlobal, Formats := FoxFormats, SemanticChecker := FoxSemanticChecker, ActiveCells := FoxActiveCells;
 
+CONST
+	IntermediateCodeExtension = "Fil"; (* TODO: move to a better place *)
+
 TYPE
 	(** the intermediate code parser **)
 	IntermediateCodeParser* = OBJECT
@@ -370,75 +373,77 @@ TYPE
 			END
 		END ParseSectionContent;
 
-		(** parse an intermediate code section property **)
-		PROCEDURE ParseSectionProperty(VAR section: IntermediateCode.Section);
+		(** parse a list of section properties **)
+		PROCEDURE ParseSectionProperties(VAR section: IntermediateCode.Section);
 		VAR
 			positionOfProperty, integer: LONGINT;
 		BEGIN
-			IF Trace THEN D.Ln; D.String(">>> ParseSectionProperty"); D.Ln END;
+			IF Trace THEN D.Ln; D.String(">>> ParseSectionProperties"); D.Ln END;
+			
+			WHILE ~error & (symbol.token # Scanner.EndOfText) & (symbol.token # Scanner.Ln) DO		
+				positionOfProperty := symbol.start;
 
-			positionOfProperty := symbol.start;
+				(* offset *)
+				IF ThisIdentifier("offset") & ExpectToken(Scanner.Equal) THEN
+					IF ExpectIntegerWithSign(integer) THEN
+						 section.SetOffset(integer)
+					ELSE
+						Error(positionOfProperty, "invalid offset")
+					END
 
-			(* offset *)
-			IF ThisIdentifier("offset") & ExpectToken(Scanner.Equal) THEN
-				IF ExpectIntegerWithSign(integer) THEN
-					 section.SetOffset(integer)
-				ELSE
-					Error(positionOfProperty, "invalid offset")
-				END
-
-			(* fingerprint *)
-			ELSIF ThisIdentifier("fingerprint") & ExpectToken(Scanner.Equal) THEN
-				IF ExpectIntegerWithSign(integer) THEN													
-					IF (section.fingerprint # 0) & (section.fingerprint # integer) THEN
-						IF section.type = Sections.PrototypeSection THEN
-							Error(positionOfProperty, "incompatible fingerprint")
+				(* fingerprint *)
+				ELSIF ThisIdentifier("fingerprint") & ExpectToken(Scanner.Equal) THEN
+					IF ExpectIntegerWithSign(integer) THEN													
+						IF (section.fingerprint # 0) & (section.fingerprint # integer) THEN
+							IF section.type = Sections.PrototypeSection THEN
+								Error(positionOfProperty, "incompatible fingerprint")
+							ELSE
+								Error(positionOfProperty, "dependend module uses different fingerprint")
+							END
 						ELSE
-							Error(positionOfProperty, "dependend module uses different fingerprint")
+							section.SetFingerprint(integer);
 						END
 					ELSE
-						section.SetFingerprint(integer);
+						Error(positionOfProperty, "invalid fingerprint")
 					END
-				ELSE
-					Error(positionOfProperty, "invalid fingerprint")
-				END
 
-			(* alignment *)
-			ELSIF ThisIdentifier("aligned") & ExpectToken(Scanner.Equal) THEN
-				IF ExpectIntegerWithSign(integer) THEN
-					section.SetPositionOrAlignment(FALSE, integer)
-				ELSE
-					Error(positionOfProperty, "invalid alignment")
-				END
+				(* alignment *)
+				ELSIF ThisIdentifier("aligned") & ExpectToken(Scanner.Equal) THEN
+					IF ExpectIntegerWithSign(integer) THEN
+						section.SetPositionOrAlignment(FALSE, integer)
+					ELSE
+						Error(positionOfProperty, "invalid alignment")
+					END
 
-			(* fixed position *)
-			ELSIF ThisIdentifier("fixed") & ExpectToken(Scanner.Equal) THEN
-				IF ExpectIntegerWithSign(integer) THEN
-					section.SetPositionOrAlignment(TRUE, integer)
-				ELSE
-					Error(positionOfProperty, "invalid fixed postion")
-				END
+				(* fixed position *)
+				ELSIF ThisIdentifier("fixed") & ExpectToken(Scanner.Equal) THEN
+					IF ExpectIntegerWithSign(integer) THEN
+						section.SetPositionOrAlignment(TRUE, integer)
+					ELSE
+						Error(positionOfProperty, "invalid fixed postion")
+					END
 
-			(* unit size of the section in bits *)
-			ELSIF ThisIdentifier("unit") & ExpectToken(Scanner.Equal) THEN
-				IF ExpectIntegerWithSign(integer) THEN
-					section.SetBitsPerUnit(integer) (* overwrite default unit size *)
-				ELSE
-					Error(positionOfProperty, "invalid unit size")
-				END
+				(* unit size of the section in bits *)
+				ELSIF ThisIdentifier("unit") & ExpectToken(Scanner.Equal) THEN
+					IF ExpectIntegerWithSign(integer) THEN
+						section.SetBitsPerUnit(integer) (* overwrite default unit size *)
+					ELSE
+						Error(positionOfProperty, "invalid unit size")
+					END
 
-			(* total size of the section in units *)
-			ELSIF ThisIdentifier("size") & ExpectToken(Scanner.Equal) THEN
-				IF ExpectIntegerWithSign(integer) THEN
-					 (* nothing to do (this property is ignored, since the size is calculated from the actual content) *)
-				ELSE
-					Error(positionOfProperty, "invalid size")
-				END
+				(* total size of the section in units *)
+				ELSIF ThisIdentifier("size") & ExpectToken(Scanner.Equal) THEN
+					IF ExpectIntegerWithSign(integer) THEN
+						 (* nothing to do (this property is ignored, since the size is calculated from the actual content) *)
+					ELSE
+						Error(positionOfProperty, "invalid size")
+					END
 
-			ELSE
-				Error(positionOfProperty, "invalid property")
+				ELSE
+					Error(positionOfProperty, "invalid property")
+				END
 			END
-		END ParseSectionProperty;
+		END ParseSectionProperties;
 
 		(** parse the content of an intermediate code module **)
 		PROCEDURE ParseModuleContent*(scanner: Scanner.AssemblerScanner; sectionList: Sections.SectionList; VAR moduleName: SyntaxTree.String; VAR backend: Backend.Backend; VAR imports: Sections.NameList): BOOLEAN;
@@ -540,9 +545,7 @@ TYPE
 								ASSERT(section.bitsPerUnit # Sections.UnknownSize);
 
 								(* consume optional section properties *)
-								WHILE ~error & (symbol.token # Scanner.EndOfText) & (symbol.token # Scanner.Ln) DO
-									ParseSectionProperty(section)
-								END;
+								ParseSectionProperties(section);
 								
 								IF ~error & ExpectLineDelimiter() THEN
 									ParseSectionContent(scanner, section, sectionList);
@@ -615,11 +618,19 @@ TYPE
 			isSorted := FALSE
 		END Init;
 
+		PROCEDURE RemoveFileExtension(VAR filename: ARRAY OF CHAR);
+		VAR
+			name, extension: SyntaxTree.String;
+		BEGIN	
+			Files.SplitExtension(filename, name, extension);
+			COPY(name, filename)
+		END RemoveFileExtension;
+		
 		(** load a module given by its name from an IR-file
 			- if 'resursive' is TRUE: also load the referenced modules from their corresponding files
 			- return TRUE if operation was successful
 		**)
-		PROCEDURE LoadModule*(moduleName: SyntaxTree.String; isRecursive: BOOLEAN): BOOLEAN;
+		PROCEDURE LoadModule*(moduleName: SyntaxTree.String; isRecursive: BOOLEAN): BOOLEAN;		
 		BEGIN RETURN LoadModule2(moduleName, isRecursive, TRUE)
 		END LoadModule;
 
@@ -635,6 +646,8 @@ TYPE
 		BEGIN
 			IF Trace THEN D.String(">>> LoadModule "); D.String(moduleName); D.Ln END;
 
+			RemoveFileExtension(moduleName);
+
 			(* check if the module has already been incorporated *)
 			IF loadedModules.ContainsName(moduleName) THEN
 				IF Trace THEN D.String(">>> module "); D.String(moduleName); D.String(" has already been loaded"); D.Ln END;
@@ -644,7 +657,7 @@ TYPE
 					(* nothing to do *)
 				ELSE
 					(* open corresponding intermediate code file *)
-					filename := moduleName; Files.JoinExtension(filename, "Fil", filename); (*! global constant !! *)
+					filename := moduleName; Files.JoinExtension(filename, IntermediateCodeExtension, filename); 
 					IF irFilePath # "" THEN Files.JoinPath(irFilePath, filename, filename) END;
 					reader := Basic.GetFileReader(filename);
 

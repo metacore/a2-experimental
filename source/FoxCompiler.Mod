@@ -620,25 +620,27 @@ TYPE
 		objectFileFormat: Formats.ObjectFileFormat;
 		dummySymbolFileFormat: Formats.SymbolFileFormat;
 		dummyDataflowSpecification: ActiveCells.Specification;
-		rootModuleName, dummyString: SyntaxTree.String;
-		assemblinker: IntermediateCodeAssembler.Assemblinker;
+		filename, dummyString: SyntaxTree.String;
+		assemblinker: IntermediateCodeAssembler.Assemblinker;	
+		error: BOOLEAN;
 	BEGIN
 		NEW(diagnostics, context.out);
 		IF GetOptions(context.arg, context.error, diagnostics, flags, defaultBackend, dummySymbolFileFormat, objectFileFormat, dummyDataflowSpecification, dummyString) THEN
 			(* TODO: handle flags, such as 'Print', 'Silent' and 'TraceError'? *)
 
-			(* TODO: handle multiple module names? *)
-			IF context.arg.GetString(rootModuleName) THEN
+			error := FALSE;
+			WHILE context.arg.GetString(filename) & (filename # ";") & ~error DO			
 				NEW(assemblinker, diagnostics, defaultBackend, "");
-				IF assemblinker.LoadModule(rootModuleName, FALSE) THEN
+				IF assemblinker.LoadModule(filename, FALSE) THEN
 					assemblinker.MarkReachabilityOfAll(TRUE);
-				 	IF assemblinker.GenerateObjectFile(objectFileFormat, context.out, flags, NIL, NIL) THEN
-						diagnostics.Information(rootModuleName, Diagnostics.Invalid, Diagnostics.Invalid, "done.");
+					IF assemblinker.GenerateObjectFile(objectFileFormat, context.out, flags, NIL, NIL) THEN
+						diagnostics.Information(filename, Diagnostics.Invalid, Diagnostics.Invalid, "done.")
+					ELSE
+						error := TRUE
 					END
+				ELSE
+					error := TRUE
 				END
-			ELSE
-				diagnostics.Error("", Diagnostics.Invalid, Diagnostics.Invalid, "module name not specified");
-				context.out.Update
 			END
 	 	END
 	END Assemble;
