@@ -78,11 +78,19 @@ TYPE
 	END;
 
 VAR
-	SSE3Support*: BOOLEAN;
-	SSE2Support*: BOOLEAN;
-	SSESupport*: BOOLEAN;
-	MMXSupport*: BOOLEAN;
 
+
+
+	MMXSupport*: BOOLEAN;
+	SSESupport*: BOOLEAN;
+	SSE2Support*: BOOLEAN;
+	SSE3Support-: BOOLEAN; (* PH 04/11*)
+	SSSE3Support-: BOOLEAN;
+	SSE41Support-: BOOLEAN;
+	SSE42Support-: BOOLEAN;
+	SSE5Support-: BOOLEAN;
+	AVXSupport-: BOOLEAN;	
+	
 	(* windows *)
 	hInstance-: Kernel32.HINSTANCE;   (* init by linker/loader *)
 	isEXE-: BOOLEAN;  locks*: LONGINT;
@@ -484,20 +492,30 @@ BEGIN
 	RETURN 0
 END ID;
 
-(* setup MMX, SSE and SSE2 and SSE3 extension *)
+(* setup MMX, SSE and SSE2..SSE5 and AVX extension *)
 
 PROCEDURE SetupSSE2Ext;
 CONST
-	MMXFlag=23;
+	MMXFlag=23;(*IN features from EBX*)
 	FXSRFlag = 24;
 	SSEFlag = 25;
 	SSE2Flag = 26;
-	SSE3Flag = 0;
+	SSE3Flag = 0; (*IN features2 from ECX*) (*PH 04/11*)
+	SSSE3Flag =9;
+	SSE41Flag =19; 
+	SSE42Flag =20;
+	SSE5Flag = 11; 
+	AVXFlag = 28;
 BEGIN
 	MMXSupport := MMXFlag IN features;
 	SSESupport := SSEFlag IN features;
 	SSE2Support := SSESupport & (SSE2Flag IN features);
 	SSE3Support := SSE2Support & (SSE3Flag IN features2);
+	SSSE3Support := SSE3Support & (SSSE3Flag IN features2); (* PH 04/11*)
+	SSE41Support := SSE3Support & (SSE41Flag IN features2);
+	SSE42Support := SSE3Support & (SSE42Flag IN features2);
+	SSE5Support := SSE3Support & (SSE5Flag IN features2);
+	AVXSupport := SSE3Support & (AVXFlag IN features2);
 
 	IF SSESupport & (FXSRFlag IN features) THEN
 		(* InitSSE(); *) (*! not privileged mode in Windows not allowed *)
