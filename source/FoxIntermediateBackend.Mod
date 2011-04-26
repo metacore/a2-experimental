@@ -893,7 +893,7 @@ TYPE
 		PROCEDURE NewSection(list: Sections.SectionList; type: SHORTINT; CONST name: ARRAY OF CHAR; x: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
 		VAR fp: SyntaxTree.FingerPrint;
 		BEGIN
-			IF x # NIL THEN fp := fingerPrinter.SymbolFP(x) END;
+			IF (x # NIL) & ~((x IS SyntaxTree.Procedure) & (x(SyntaxTree.Procedure).isInline)) THEN fp := fingerPrinter.SymbolFP(x) END;
 			RETURN IntermediateCode.NewSection(list, type, name, x, dump);
 		END NewSection;
 
