@@ -91,620 +91,619 @@ VAR
 	relocatabilities: ARRAY 2 OF ARRAY 8 OF CHAR;
 
 
-PROCEDURE IsCode* (type: SectionType): BOOLEAN;
-BEGIN RETURN (type >= Code) & (type <=  BodyCode);
-END IsCode;
+	PROCEDURE IsCode* (type: SectionType): BOOLEAN;
+	BEGIN RETURN (type >= Code) & (type <=  BodyCode);
+	END IsCode;
 
-PROCEDURE Matches*(CONST this, that: Identifier): BOOLEAN;
-BEGIN
-	IF (this.fingerprint # 0) & (this.fingerprint = that.fingerprint) THEN RETURN TRUE
-	ELSE RETURN (this.name = that.name)
-	END;
-END Matches;
-
-PROCEDURE CopyPatch*(CONST source: Patch; VAR dest: Patch);
-VAR i: LONGINT;
+	PROCEDURE Matches*(CONST this, that: Identifier): BOOLEAN;
 	BEGIN
-	dest.mode := source.mode;
-	dest.displacement := source.displacement;
-	dest.scale := source.scale;
-	dest.patterns := source.patterns;
-	dest.offsets := source.offsets;
+		IF (this.fingerprint # 0) & (this.fingerprint = that.fingerprint) THEN RETURN TRUE
+		ELSE RETURN (this.name = that.name)
+		END;
+	END Matches;
 
-	NEW(dest.offset, dest.offsets);
-	FOR i := 0 TO source.offsets-1 DO
-		dest.offset[i] := source.offset[i]
-	END;
+	PROCEDURE CopyPatch*(CONST source: Patch; VAR dest: Patch);
+	VAR i: LONGINT;
+		BEGIN
+		dest.mode := source.mode;
+		dest.displacement := source.displacement;
+		dest.scale := source.scale;
+		dest.patterns := source.patterns;
+		dest.offsets := source.offsets;
 
-	NEW(dest.pattern, dest.patterns);
-	FOR i := 0 TO source.patterns-1 DO
-		dest.pattern[i] := source.pattern[i]
-	END;
-END CopyPatch;
+		NEW(dest.offset, dest.offsets);
+		FOR i := 0 TO source.offsets-1 DO
+			dest.offset[i] := source.offset[i]
+		END;
 
-PROCEDURE CopyFixup*(CONST source: Fixup; VAR dest: Fixup);
-VAR i: LONGINT;
-BEGIN
-	dest.identifier.name := source.identifier.name;
-	(*
-	COPY(source.identifier.name, dest.identifier.name);
-	*)
-	dest.identifier.fingerprint := source.identifier.fingerprint;
-	dest.patches := source.patches;
-	NEW(dest.patch, dest.patches);
-	FOR i := 0 TO source.patches-1 DO
-		CopyPatch(source.patch[i], dest.patch[i]);
-	END;
-END CopyFixup;
+		NEW(dest.pattern, dest.patterns);
+		FOR i := 0 TO source.patterns-1 DO
+			dest.pattern[i] := source.pattern[i]
+		END;
+	END CopyPatch;
 
-PROCEDURE CopySection* (CONST source: Section; VAR dest: Section);
-VAR i: LONGINT;
-BEGIN
-	dest.type := source.type;
-	dest.identifier := source.identifier;
-	dest.unit := source.unit;
-	dest.fixed := source.fixed;
-	dest.alignment := source.alignment;
-	dest.fixups:= source.fixups;
-	NEW (dest.fixup, dest.fixups);
-	FOR i := 0 TO dest.fixups - 1 DO
-		CopyFixup(source.fixup[i], dest.fixup[i]);
-	END;
-	NEW (dest.bits, source.bits.GetSize ());
-	BitSets.CopyBits (source.bits, 0, dest.bits, 0, source.bits.GetSize ());
-END CopySection;
-
-PROCEDURE NibbleToCharacter* (value: LONGINT): CHAR;
-BEGIN
-	IF value >= 10 THEN
-		RETURN CHR ((ORD ('A') - 10) + value);
-	ELSE
-		RETURN CHR (ORD ('0') + value);
-	END;
-END NibbleToCharacter;
-
-PROCEDURE CharacterToNibble* (char: CHAR): LONGINT;
-BEGIN
-	IF ORD (char) >= ORD ('A') THEN
-		RETURN ORD (char) - (ORD ('A') - 10);
-	ELSE
-		RETURN ORD (char) - ORD ('0');
-	END;
-END CharacterToNibble;
-
-PROCEDURE WriteSectionTextual (writer: Streams.Writer; CONST section: Section);
-CONST Separator = ' '; Tab = 09X;
-VAR i: LONGINT; size: Bits; bits: LONGINT;
-
-	PROCEDURE WriteValueIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
-	BEGIN
-		writer.String (identifiers[value]);
-	END WriteValueIdentifier;
-
-	PROCEDURE WritePattern (CONST pattern: FixupPattern);
-	BEGIN
-		writer.Int (pattern.offset, 0);
-		writer.Char (Separator);
-		writer.Int (pattern.bits, 0);
-		writer.Char (Separator);
-	END WritePattern;
-
-	PROCEDURE WriteIdentifier(CONST identifier: Identifier);
-	VAR name: SectionName;
-	BEGIN
-		FromPooledName(identifier.name, name);
-		writer.String (name);
-		writer.Char (Separator);
-		writer.Int (identifier.fingerprint, 0);
-	END WriteIdentifier;
-
-	PROCEDURE WritePatch(CONST patch: Patch);
+	PROCEDURE CopyFixup*(CONST source: Fixup; VAR dest: Fixup);
 	VAR i: LONGINT;
 	BEGIN
-		WriteValueIdentifier (patch.mode, modes);
-		writer.Char (Separator);
-		writer.Int (patch.displacement, 0);
-		writer.Char (Separator);
-		writer.Int (patch.scale, 0);
-		writer.Char (Separator);
-		writer.Int (patch.patterns, 0);
-		writer.Char (Separator);
-		FOR i := 0 TO patch.patterns - 1 DO
-			WritePattern (patch.pattern[i]);
+		dest.identifier.name := source.identifier.name;
+		(*
+		COPY(source.identifier.name, dest.identifier.name);
+		*)
+		dest.identifier.fingerprint := source.identifier.fingerprint;
+		dest.patches := source.patches;
+		NEW(dest.patch, dest.patches);
+		FOR i := 0 TO source.patches-1 DO
+			CopyPatch(source.patch[i], dest.patch[i]);
 		END;
-		writer.Int (patch.offsets, 0);
-		writer.Char (Separator);
-		FOR i := 0 TO patch.offsets - 1 DO
-			writer.Int (patch.offset[i], 0);
-			writer.Char (Separator);
-		END;
-	END WritePatch;
+	END CopyFixup;
 
-	PROCEDURE WriteFixup (CONST fixup: Fixup);
+	PROCEDURE CopySection* (CONST source: Section; VAR dest: Section);
 	VAR i: LONGINT;
 	BEGIN
-		WriteIdentifier(fixup.identifier);
-		writer.Char (Separator);
-		writer.Int(fixup.patches,1);
-		writer.Char(Separator);
-		FOR i := 0 TO fixup.patches-1 DO
-			WritePatch(fixup.patch[i]);
+		dest.type := source.type;
+		dest.identifier := source.identifier;
+		dest.unit := source.unit;
+		dest.fixed := source.fixed;
+		dest.alignment := source.alignment;
+		dest.fixups:= source.fixups;
+		NEW (dest.fixup, dest.fixups);
+		FOR i := 0 TO dest.fixups - 1 DO
+			CopyFixup(source.fixup[i], dest.fixup[i]);
 		END;
-	END WriteFixup;
+		NEW (dest.bits, source.bits.GetSize ());
+		BitSets.CopyBits (source.bits, 0, dest.bits, 0, source.bits.GetSize ());
+	END CopySection;
 
-BEGIN
-	IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
-	WriteValueIdentifier (section.type, types);
-	writer.Char (Separator);
-	WriteIdentifier(section.identifier);
-	writer.Char (Separator);
-	writer.Int (section.unit, 0);
-	writer.Char (Separator);
-	IF section.fixed THEN WriteValueIdentifier(Fixed,relocatabilities) ELSE WriteValueIdentifier(Aligned,relocatabilities) END;
-	writer.Char (Separator);
-	writer.Int (section.alignment, 0);
-	writer.Char (Separator);
-	writer.Int (section.fixups, 0);
-	writer.Char (Separator);
-	size := section.bits.GetSize ();
-	writer.Int (size DIV section.unit, 0);
-	ASSERT(size MOD section.unit = 0);
-	FOR i := 0 TO section.fixups - 1 DO
-		writer.Ln; writer.Char (Tab); WriteFixup (section.fixup[i]);
-	END;
-	i := 0; bits := 0;
-	WHILE (i < size) & (bits = 0) DO
-		bits := section.bits.GetBits(i, MIN(4, size-i));
-		INC(i,4);
-	END;
-	IF (bits = 0) & (size > 0) THEN
-		writer.Ln; writer.Char(Tab); writer.Char('N')
-	ELSE
-		FOR i := 0 TO size - 1 BY 4 DO
-			IF i MOD (32 * 8) = 0 THEN writer.Ln; writer.Char (Tab); END;
-			writer.Char (NibbleToCharacter (section.bits.GetBits (i, MIN (4, size - i))));
-		END;
-	END;
-	writer.Ln;
-END WriteSectionTextual;
-
-PROCEDURE ReadSectionTextual (reader: Streams.Reader; VAR section: Section);
-VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
-
-	PROCEDURE ReadValueIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
-	VAR identifier: ARRAY 10 OF CHAR;
+	PROCEDURE NibbleToCharacter* (value: LONGINT): CHAR;
 	BEGIN
-		value := 0;
-		reader.SkipWhitespace; reader.String (identifier);
-		WHILE (value # LEN (identifiers)) & (identifier # identifiers[value]) DO INC (value); END;
-		IF value = LEN (identifiers) THEN reader.res := Streams.FormatError; END;
-	END ReadValueIdentifier;
-
-	PROCEDURE ReadPattern (VAR pattern: FixupPattern);
-	BEGIN
-		reader.SkipWhitespace; reader.Int (pattern.offset, FALSE);
-		reader.SkipWhitespace; reader.Int (pattern.bits, FALSE);
-	END ReadPattern;
-
-	PROCEDURE ReadIdentifier(VAR identifier: Identifier);
-	VAR name: SectionName;
-	BEGIN
-		reader.SkipWhitespace;
-		reader.String(name);
-		ToPooledName(name,identifier.name);
-		reader.SkipWhitespace; reader.Int (identifier.fingerprint,FALSE);
-	END ReadIdentifier;
-
-	PROCEDURE ReadPatch(VAR patch: Patch);
-	VAR i: LONGINT;
-	BEGIN
-		reader.SkipWhitespace;
-		ReadValueIdentifier (patch.mode, modes);
-		reader.SkipWhitespace; reader.Int (patch.displacement, FALSE);
-		reader.SkipWhitespace; reader.Int (patch.scale, FALSE);
-		reader.SkipWhitespace; reader.Int (patch.patterns, FALSE);
-
-		IF (patch.pattern = NIL) OR (LEN (patch.pattern) < patch.patterns) THEN
-			NEW (patch.pattern, patch.patterns);
-		END;
-		FOR i := 0 TO patch.patterns - 1 DO
-			ReadPattern (patch.pattern[i]);
-		END;
-		reader.SkipWhitespace; reader.Int(patch.offsets, FALSE);
-		IF (patch.offset = NIL) OR (LEN(patch.offset) < patch.offsets) THEN
-			NEW(patch.offset, patch.offsets);
-		END;
-		FOR i := 0 TO patch.offsets-1 DO
-			reader.SkipWhitespace; reader.Int (patch.offset[i], FALSE);
-		END;
-	END ReadPatch;
-
-	PROCEDURE ReadFixup (VAR fixup: Fixup);
-	VAR i: LONGINT;
-	BEGIN
-		reader.SkipWhitespace; ReadIdentifier (fixup.identifier);
-		reader.SkipWhitespace; reader.Int (fixup.patches, FALSE);
-		IF (fixup.patch = NIL) OR (LEN (fixup.patch) < fixup.patches) THEN
-			NEW (fixup.patch, fixup.patches);
-		END;
-		FOR i := 0 TO fixup.patches - 1 DO
-			ReadPatch (fixup.patch[i]);
-		END;
-	END ReadFixup;
-
-BEGIN
-	ReadValueIdentifier (section.type, types);
-	ReadIdentifier (section.identifier);
-	reader.SkipWhitespace; reader.Int (section.unit, FALSE);
-	ReadValueIdentifier(relocatibility, relocatabilities);
-	section.fixed := relocatibility = Fixed;
-	reader.SkipWhitespace; reader.Int (section.alignment, FALSE);
-	reader.SkipWhitespace; reader.Int (section.fixups, FALSE);
-	reader.SkipWhitespace; reader.Int (size, FALSE); size := size * section.unit;
-	IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
-		NEW (section.fixup, section.fixups);
-	END;
-	FOR i := 0 TO section.fixups - 1 DO
-		ReadFixup (section.fixup[i]);
-	END;
-	IF section.bits # NIL THEN
-		section.bits.Resize (size);
-	ELSE
-		NEW (section.bits, size);
-	END;
-	FOR i := 0 TO size - 1 BY 4 DO
-		reader.SkipWhitespace; reader.Char (char);
-		IF char = 'N' THEN
-			ASSERT(i=0);
-			section.bits.Zero;
-		(* skip rest of section *) RETURN
-		END;
-		section.bits.SetBits (i, MIN (4, size - i), CharacterToNibble (char));
-	END;
-END ReadSectionTextual;
-
-PROCEDURE WriteSectionBinary (writer: Streams.Writer; CONST section: Section);
-VAR i: LONGINT; size: Bits; bits: LONGINT;
-
-	PROCEDURE WriteValueIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
-	BEGIN
-		writer.RawString (identifiers[value]);
-	END WriteValueIdentifier;
-
-	PROCEDURE WritePattern (CONST pattern: FixupPattern);
-	BEGIN
-		writer.RawLInt (pattern.offset);
-		writer.RawLInt (pattern.bits);
-	END WritePattern;
-
-	PROCEDURE WriteIdentifier(CONST identifier: Identifier);
-	VAR name: SectionName;
-	BEGIN
-		FromPooledName(identifier.name, name);
-		writer.RawString (name);
-		writer.RawLInt (identifier.fingerprint);
-	END WriteIdentifier;
-
-	PROCEDURE WritePatch(CONST patch: Patch);
-	VAR i: LONGINT;
-	BEGIN
-		WriteValueIdentifier (patch.mode, modes);
-		writer.RawLInt (patch.displacement);
-		writer.RawLInt (patch.scale);
-		writer.RawLInt (patch.patterns);
-		FOR i := 0 TO patch.patterns - 1 DO
-			WritePattern (patch.pattern[i]);
-		END;
-		writer.RawLInt (patch.offsets);
-		FOR i := 0 TO patch.offsets - 1 DO
-			writer.RawLInt (patch.offset[i]);
-		END;
-	END WritePatch;
-
-	PROCEDURE WriteFixup (CONST fixup: Fixup);
-	VAR i: LONGINT;
-	BEGIN
-		WriteIdentifier(fixup.identifier);
-		writer.RawLInt(fixup.patches);
-		FOR i := 0 TO fixup.patches-1 DO
-			WritePatch(fixup.patch[i]);
-		END;
-	END WriteFixup;
-
-BEGIN
-	IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
-	WriteValueIdentifier (section.type, types);
-	WriteIdentifier(section.identifier);
-	writer.RawLInt (section.unit);
-	IF section.fixed THEN WriteValueIdentifier(Fixed,relocatabilities) ELSE WriteValueIdentifier(Aligned,relocatabilities) END;
-	writer.RawLInt (section.alignment);
-	writer.RawLInt (section.fixups);
-	size := section.bits.GetSize ();
-	writer.RawLInt (size DIV section.unit);
-	ASSERT(size MOD section.unit = 0);
-	FOR i := 0 TO section.fixups - 1 DO
-		WriteFixup (section.fixup[i]);
-	END;
-	i := 0; bits := 0;
-	WHILE (i < size) & (bits = 0) DO
-		bits := section.bits.GetBits(i, MIN(32, size-i));
-		INC(i,32);
-	END;
-	IF (bits = 0) & (size > 0) THEN
-		writer.Char('Z');
-	ELSE
-		writer.Char('N');
-		FOR i := 0 TO size - 1 BY 32 DO
-			writer.RawLInt (section.bits.GetBits (i, MIN (32, size - i)));
-		END;
-	END;
-	writer.Ln;
-END WriteSectionBinary;
-
-PROCEDURE ReadSectionBinary (reader: Streams.Reader; VAR section: Section);
-VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER; num: LONGINT;
-
-	PROCEDURE ReadValueIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
-	VAR identifier: ARRAY 10 OF CHAR;
-	BEGIN
-		value := 0;
-		reader.RawString (identifier);
-		WHILE (value # LEN (identifiers)) & (identifier # identifiers[value]) DO INC (value); END;
-		IF value = LEN (identifiers) THEN reader.res := Streams.FormatError; END;
-	END ReadValueIdentifier;
-
-	PROCEDURE ReadPattern (VAR pattern: FixupPattern);
-	BEGIN
-		reader.RawLInt (pattern.offset);
-		reader.RawLInt (pattern.bits);
-	END ReadPattern;
-
-	PROCEDURE ReadIdentifier(VAR identifier: Identifier);
-	VAR name: SectionName;
-	BEGIN
-		 reader.RawString(name);
-		 ToPooledName(name, identifier.name);
-		 reader.RawLInt (identifier.fingerprint);
-	END ReadIdentifier;
-
-	PROCEDURE ReadPatch(VAR patch: Patch);
-	VAR i: LONGINT;
-	BEGIN
-		ReadValueIdentifier (patch.mode, modes);
-		reader.RawLInt (patch.displacement);
-		reader.RawLInt (patch.scale);
-		reader.RawLInt (patch.patterns);
-
-		IF (patch.pattern = NIL) OR (LEN (patch.pattern) < patch.patterns) THEN
-			NEW (patch.pattern, patch.patterns);
-		END;
-		FOR i := 0 TO patch.patterns - 1 DO
-			ReadPattern (patch.pattern[i]);
-		END;
-		reader.RawLInt(patch.offsets);
-		IF (patch.offset = NIL) OR (LEN(patch.offset) < patch.offsets) THEN
-			NEW(patch.offset, patch.offsets);
-		END;
-		FOR i := 0 TO patch.offsets-1 DO
-			 reader.RawLInt (patch.offset[i]);
-		END;
-	END ReadPatch;
-
-	PROCEDURE ReadFixup (VAR fixup: Fixup);
-	VAR i: LONGINT;
-	BEGIN
-		ReadIdentifier (fixup.identifier);
-		reader.RawLInt (fixup.patches);
-		IF (fixup.patch = NIL) OR (LEN (fixup.patch) < fixup.patches) THEN
-			NEW (fixup.patch, fixup.patches);
-		END;
-		FOR i := 0 TO fixup.patches - 1 DO
-			ReadPatch (fixup.patch[i]);
-		END;
-	END ReadFixup;
-
-BEGIN
-	ReadValueIdentifier (section.type, types);
-	ReadIdentifier (section.identifier);
-	reader.RawLInt (section.unit);
-	ReadValueIdentifier(relocatibility, relocatabilities);
-	section.fixed := relocatibility = Fixed;
-	reader.RawLInt (section.alignment);
-	reader.RawLInt (section.fixups);
-	reader.RawLInt (size); size := size * section.unit;
-	IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
-		NEW (section.fixup, section.fixups);
-	END;
-	FOR i := 0 TO section.fixups - 1 DO
-		ReadFixup (section.fixup[i]);
-	END;
-	IF section.bits # NIL THEN
-		section.bits.Resize (size);
-	ELSE
-		NEW (section.bits, size);
-	END;
-	reader.Char (char);
-	IF char = 'Z' THEN section.bits.Zero
-	ELSE
-		ASSERT(char ='N');
-		FOR i := 0 TO size - 1 BY 32 DO
-			reader.RawLInt (num);
-			section.bits.SetBits (i, MIN (32, size - i), num);
-		END;
-	END;
-END ReadSectionBinary;
-
-PROCEDURE ReadSection*(reader: Streams.Reader; VAR section: Section; binary: BOOLEAN);
-BEGIN
-	IF binary THEN
-		ReadSectionBinary(reader,section)
-	ELSE
-		ReadSectionTextual(reader,section);
-	END
-END ReadSection;
-
-PROCEDURE WriteSection*(writer: Streams.Writer; CONST section: Section; binary: BOOLEAN);
-BEGIN
-	IF binary THEN
-		WriteSectionBinary(writer,section)
-	ELSE
-		WriteSectionTextual(writer,section)
-	END
-END WriteSection;
-
-PROCEDURE SetFixups*(VAR section: Section; fixups: LONGINT; fixup: Fixups);
-BEGIN
-	section.fixups := fixups;
-	section.fixup := fixup;
-END SetFixups;
-
-PROCEDURE AddOffset(VAR offsets: LONGINT; VAR offset: Offsets; ofs: LONGINT);
-VAR newOffset: Offsets; newOffsets:LONGINT; i: LONGINT;
-BEGIN
-	FOR i := 0 TO offsets-1 DO
-		ASSERT(offset[i] # ofs);
-	END;
-	newOffsets := offsets+1;
-	IF (offset = NIL) OR (LEN(offset) < newOffsets) THEN
-		NEW(newOffset, 2*newOffsets);
-		FOR i := 0 TO offsets-1 DO
-			newOffset[i] := offset[i];
-		END;
-		offset := newOffset;
-	END;
-	offset[offsets] := ofs;
-	offsets := newOffsets;
-END AddOffset;
-
-
-PROCEDURE SamePattern(patterns: LONGINT; left, right: FixupPatterns): BOOLEAN;
-VAR i: LONGINT;
-BEGIN
-	FOR i := 0 TO patterns-1 DO
-		IF (left[i].offset # right[i].offset) OR (left[i].bits # right[i].bits) THEN RETURN FALSE END;
-	END;
-	RETURN TRUE
-END SamePattern;
-
-
-PROCEDURE AddPatch(VAR patches: LONGINT; VAR patch: Patches; mode: INTEGER; displacement, scale: LONGINT; patterns: LONGINT; pattern: FixupPatterns; offset: LONGINT);
-VAR i: LONGINT; newPatches: LONGINT; newPatch: Patches; len: LONGINT;
-BEGIN
-	FOR i := 0 TO patches-1 DO
-		len := LEN(patch);
-		ASSERT(patch # NIL,101);
-		ASSERT(LEN(patch) > i,102);
-		IF (patch[i].mode = mode) & (patch[i].displacement = displacement) & (patch[i].scale = scale) &  (patch[i].patterns = patterns) & SamePattern(patterns, patch[i].pattern, pattern) THEN
-			AddOffset(patch[i].offsets, patch[i].offset, offset);
-			RETURN
-		END;
-	END;
-	newPatches := patches+1;
-	IF (patch = NIL) OR (LEN(patch) < newPatches) THEN
-		ASSERT(newPatches > 0);
-		NEW(newPatch, 2*newPatches);
-		FOR i := 0 TO patches-1 DO
-			newPatch[i] := patch[i];
-			(*
-			CopyPatch(patch[i], newPatch[i]);
-			*)
-		END;
-		patch := newPatch;
-	END;
-	ASSERT(LEN(patch) > patches);
-	patch[patches].mode := mode;
-	patch[patches].displacement := displacement;
-	patch[patches].patterns := patterns;
-	patch[patches].pattern := pattern;
-	patch[patches].offsets := 0;
-	patch[patches].offset := NIL;
-	AddOffset(patch[patches].offsets, patch[patches].offset, offset);
-	patches := newPatches;
-	(* increase size and add *)
-END AddPatch;
-
-
-PROCEDURE AddFixup*(VAR fixups: LONGINT; VAR fixup: Fixups; CONST name: ARRAY OF CHAR; fingerprint: LONGINT; mode: INTEGER; displacement, scale: LONGINT; patterns: LONGINT; pattern: FixupPatterns; offset: LONGINT);
-VAR i: LONGINT; newFixups: LONGINT; newFixup: Fixups; pooledName: PooledName;
-BEGIN
-	ToPooledName(name, pooledName);
-	FOR i := 0 TO fixups-1 DO
-		IF (fixup[i].identifier.fingerprint = fingerprint) & (pooledName =fixup[i].identifier.name) THEN
-			AddPatch(fixup[i].patches, fixup[i].patch, mode, displacement, scale, patterns, pattern, offset);
-			RETURN
-		END;
-	END;
-	newFixups := fixups+1;
-	IF (fixup = NIL) OR (LEN(fixup) < newFixups) THEN
-		NEW(newFixup, MAX(2*newFixups,32));
-		FOR i := 0 TO fixups-1 DO
-			newFixup[i] := fixup[i];
-			(*CopyFixup(fixup[i], newFixup[i]);*)
-		END;
-		fixup := newFixup;
-	END;
-	fixup[fixups].identifier.name := pooledName;
-	(*
-	COPY(name, fixup[fixups].identifier.name);
-	*)
-	fixup[fixups].identifier.fingerprint := fingerprint;
-	fixup[fixups].patches := 0;
-	fixup[fixups].patch := NIL;
-	AddPatch(fixup[fixups].patches, fixup[fixups].patch, mode, displacement, scale, patterns, pattern, offset);
-	fixups := newFixups;
-	(* increase size and add *)
-END AddFixup;
-
-PROCEDURE ToPooledName*(CONST name: ARRAY OF CHAR; VAR pooledName: PooledName);
-VAR i,j,index: LONGINT; n: SectionName;
-BEGIN
-	(* convert a string of the form A.B.C.suffix to [S(A), S(B), S(C), S(suffix)] *)
-	index := 0; i := 0;
-	WHILE (index < LEN(pooledName)) DO
-		j := 0;
-		WHILE (name[i] # 0X) & (name[i] # ".") DO
-			n[j] := name[i]; INC(i); INC(j);
-		END;
-		IF j > 0 THEN
-			IF index = LEN(pooledName)-1 THEN
-				WHILE (name[i] # 0X)  DO n[j] := name[i]; INC(i); INC(j); END;
-			END;
-			n[j] := 0X; StringPool.GetIndex(n,pooledName[index]);
+		IF value >= 10 THEN
+			RETURN CHR ((ORD ('A') - 10) + value);
 		ELSE
-			pooledName[index] := -1
+			RETURN CHR (ORD ('0') + value);
 		END;
-		IF name[i] = "." THEN INC(i) END;
-		INC(index);
-	END;
-END ToPooledName;
+	END NibbleToCharacter;
 
-PROCEDURE FromPooledName*(CONST pooledName: PooledName; VAR name: ARRAY OF CHAR);
-VAR i,j, index: LONGINT; n: SectionName;
-BEGIN
-	i := 0; index := 0;
-	WHILE (index < LEN(pooledName)) DO
-		IF pooledName[index] >= 0 THEN
-			IF index > 0 THEN name[i] := "."; INC(i) END;
-			StringPool.GetString(pooledName[index],n);
-			j := 0;
-			WHILE n[j] # 0X DO
-				name[i] := n[j]; INC(i); INC(j);
+	PROCEDURE CharacterToNibble* (char: CHAR): LONGINT;
+	BEGIN
+		IF ORD (char) >= ORD ('A') THEN
+			RETURN ORD (char) - (ORD ('A') - 10);
+		ELSE
+			RETURN ORD (char) - ORD ('0');
+		END;
+	END CharacterToNibble;
+
+	PROCEDURE WriteSectionTextual (writer: Streams.Writer; CONST section: Section);
+	CONST Separator = ' '; Tab = 09X;
+	VAR i: LONGINT; size: Bits; bits: LONGINT;
+
+		PROCEDURE WriteValueIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
+		BEGIN
+			writer.String (identifiers[value]);
+		END WriteValueIdentifier;
+
+		PROCEDURE WritePattern (CONST pattern: FixupPattern);
+		BEGIN
+			writer.Int (pattern.offset, 0);
+			writer.Char (Separator);
+			writer.Int (pattern.bits, 0);
+			writer.Char (Separator);
+		END WritePattern;
+
+		PROCEDURE WriteIdentifier(CONST identifier: Identifier);
+		VAR name: SectionName;
+		BEGIN
+			FromPooledName(identifier.name, name);
+			writer.String (name);
+			writer.Char (Separator);
+			writer.Int (identifier.fingerprint, 0);
+		END WriteIdentifier;
+
+		PROCEDURE WritePatch(CONST patch: Patch);
+		VAR i: LONGINT;
+		BEGIN
+			WriteValueIdentifier (patch.mode, modes);
+			writer.Char (Separator);
+			writer.Int (patch.displacement, 0);
+			writer.Char (Separator);
+			writer.Int (patch.scale, 0);
+			writer.Char (Separator);
+			writer.Int (patch.patterns, 0);
+			writer.Char (Separator);
+			FOR i := 0 TO patch.patterns - 1 DO
+				WritePattern (patch.pattern[i]);
+			END;
+			writer.Int (patch.offsets, 0);
+			writer.Char (Separator);
+			FOR i := 0 TO patch.offsets - 1 DO
+				writer.Int (patch.offset[i], 0);
+				writer.Char (Separator);
+			END;
+		END WritePatch;
+
+		PROCEDURE WriteFixup (CONST fixup: Fixup);
+		VAR i: LONGINT;
+		BEGIN
+			WriteIdentifier(fixup.identifier);
+			writer.Char (Separator);
+			writer.Int(fixup.patches,1);
+			writer.Char(Separator);
+			FOR i := 0 TO fixup.patches-1 DO
+				WritePatch(fixup.patch[i]);
+			END;
+		END WriteFixup;
+
+	BEGIN
+		IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
+		WriteValueIdentifier (section.type, types);
+		writer.Char (Separator);
+		WriteIdentifier(section.identifier);
+		writer.Char (Separator);
+		writer.Int (section.unit, 0);
+		writer.Char (Separator);
+		IF section.fixed THEN WriteValueIdentifier(Fixed,relocatabilities) ELSE WriteValueIdentifier(Aligned,relocatabilities) END;
+		writer.Char (Separator);
+		writer.Int (section.alignment, 0);
+		writer.Char (Separator);
+		writer.Int (section.fixups, 0);
+		writer.Char (Separator);
+		size := section.bits.GetSize ();
+		writer.Int (size DIV section.unit, 0);
+		ASSERT(size MOD section.unit = 0);
+		FOR i := 0 TO section.fixups - 1 DO
+			writer.Ln; writer.Char (Tab); WriteFixup (section.fixup[i]);
+		END;
+		i := 0; bits := 0;
+		WHILE (i < size) & (bits = 0) DO
+			bits := section.bits.GetBits(i, MIN(4, size-i));
+			INC(i,4);
+		END;
+		IF (bits = 0) & (size > 0) THEN
+			writer.Ln; writer.Char(Tab); writer.Char('N')
+		ELSE
+			FOR i := 0 TO size - 1 BY 4 DO
+				IF i MOD (32 * 8) = 0 THEN writer.Ln; writer.Char (Tab); END;
+				writer.Char (NibbleToCharacter (section.bits.GetBits (i, MIN (4, size - i))));
 			END;
 		END;
-		INC(index);
-	END;
-	name[i] := 0X;
-END FromPooledName;
+		writer.Ln;
+	END WriteSectionTextual;
 
-OPERATOR "="*(CONST l,r: PooledName): BOOLEAN;
-BEGIN
-	RETURN (l[0]=r[0]) & (l[1]=r[1]) & (l[2]=r[2]) & (l[3]=r[3])
-END "=";
+	PROCEDURE ReadSectionTextual (reader: Streams.Reader; VAR section: Section);
+	VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER;
 
-OPERATOR "#"*(CONST l,r: PooledName): BOOLEAN;
-BEGIN
-	RETURN (l[0]#r[0]) OR (l[1]#r[1]) OR (l[2]#r[2]) OR (l[3]#r[3])
-END "#";
+		PROCEDURE ReadValueIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
+		VAR identifier: ARRAY 10 OF CHAR;
+		BEGIN
+			value := 0;
+			reader.SkipWhitespace; reader.String (identifier);
+			WHILE (value # LEN (identifiers)) & (identifier # identifiers[value]) DO INC (value); END;
+			IF value = LEN (identifiers) THEN reader.res := Streams.FormatError; END;
+		END ReadValueIdentifier;
+
+		PROCEDURE ReadPattern (VAR pattern: FixupPattern);
+		BEGIN
+			reader.SkipWhitespace; reader.Int (pattern.offset, FALSE);
+			reader.SkipWhitespace; reader.Int (pattern.bits, FALSE);
+		END ReadPattern;
+
+		PROCEDURE ReadIdentifier(VAR identifier: Identifier);
+		VAR name: SectionName;
+		BEGIN
+			reader.SkipWhitespace;
+			reader.String(name);
+			ToPooledName(name,identifier.name);
+			reader.SkipWhitespace; reader.Int (identifier.fingerprint,FALSE);
+		END ReadIdentifier;
+
+		PROCEDURE ReadPatch(VAR patch: Patch);
+		VAR i: LONGINT;
+		BEGIN
+			reader.SkipWhitespace;
+			ReadValueIdentifier (patch.mode, modes);
+			reader.SkipWhitespace; reader.Int (patch.displacement, FALSE);
+			reader.SkipWhitespace; reader.Int (patch.scale, FALSE);
+			reader.SkipWhitespace; reader.Int (patch.patterns, FALSE);
+
+			IF (patch.pattern = NIL) OR (LEN (patch.pattern) < patch.patterns) THEN
+				NEW (patch.pattern, patch.patterns);
+			END;
+			FOR i := 0 TO patch.patterns - 1 DO
+				ReadPattern (patch.pattern[i]);
+			END;
+			reader.SkipWhitespace; reader.Int(patch.offsets, FALSE);
+			IF (patch.offset = NIL) OR (LEN(patch.offset) < patch.offsets) THEN
+				NEW(patch.offset, patch.offsets);
+			END;
+			FOR i := 0 TO patch.offsets-1 DO
+				reader.SkipWhitespace; reader.Int (patch.offset[i], FALSE);
+			END;
+		END ReadPatch;
+
+		PROCEDURE ReadFixup (VAR fixup: Fixup);
+		VAR i: LONGINT;
+		BEGIN
+			reader.SkipWhitespace; ReadIdentifier (fixup.identifier);
+			reader.SkipWhitespace; reader.Int (fixup.patches, FALSE);
+			IF (fixup.patch = NIL) OR (LEN (fixup.patch) < fixup.patches) THEN
+				NEW (fixup.patch, fixup.patches);
+			END;
+			FOR i := 0 TO fixup.patches - 1 DO
+				ReadPatch (fixup.patch[i]);
+			END;
+		END ReadFixup;
+
+	BEGIN
+		ReadValueIdentifier (section.type, types);
+		ReadIdentifier (section.identifier);
+		reader.SkipWhitespace; reader.Int (section.unit, FALSE);
+		ReadValueIdentifier(relocatibility, relocatabilities);
+		section.fixed := relocatibility = Fixed;
+		reader.SkipWhitespace; reader.Int (section.alignment, FALSE);
+		reader.SkipWhitespace; reader.Int (section.fixups, FALSE);
+		reader.SkipWhitespace; reader.Int (size, FALSE); size := size * section.unit;
+		IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
+			NEW (section.fixup, section.fixups);
+		END;
+		FOR i := 0 TO section.fixups - 1 DO
+			ReadFixup (section.fixup[i]);
+		END;
+		IF section.bits # NIL THEN
+			section.bits.Resize (size);
+		ELSE
+			NEW (section.bits, size);
+		END;
+		FOR i := 0 TO size - 1 BY 4 DO
+			reader.SkipWhitespace; reader.Char (char);
+			IF char = 'N' THEN
+				ASSERT(i=0);
+				section.bits.Zero;
+			(* skip rest of section *) RETURN
+			END;
+			section.bits.SetBits (i, MIN (4, size - i), CharacterToNibble (char));
+		END;
+	END ReadSectionTextual;
+
+	PROCEDURE WriteSectionBinary (writer: Streams.Writer; CONST section: Section);
+	VAR i: LONGINT; size: Bits; bits: LONGINT;
+
+		PROCEDURE WriteValueIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
+		BEGIN
+			writer.RawString (identifiers[value]);
+		END WriteValueIdentifier;
+
+		PROCEDURE WritePattern (CONST pattern: FixupPattern);
+		BEGIN
+			writer.RawLInt (pattern.offset);
+			writer.RawLInt (pattern.bits);
+		END WritePattern;
+
+		PROCEDURE WriteIdentifier(CONST identifier: Identifier);
+		VAR name: SectionName;
+		BEGIN
+			FromPooledName(identifier.name, name);
+			writer.RawString (name);
+			writer.RawLInt (identifier.fingerprint);
+		END WriteIdentifier;
+
+		PROCEDURE WritePatch(CONST patch: Patch);
+		VAR i: LONGINT;
+		BEGIN
+			WriteValueIdentifier (patch.mode, modes);
+			writer.RawLInt (patch.displacement);
+			writer.RawLInt (patch.scale);
+			writer.RawLInt (patch.patterns);
+			FOR i := 0 TO patch.patterns - 1 DO
+				WritePattern (patch.pattern[i]);
+			END;
+			writer.RawLInt (patch.offsets);
+			FOR i := 0 TO patch.offsets - 1 DO
+				writer.RawLInt (patch.offset[i]);
+			END;
+		END WritePatch;
+
+		PROCEDURE WriteFixup (CONST fixup: Fixup);
+		VAR i: LONGINT;
+		BEGIN
+			WriteIdentifier(fixup.identifier);
+			writer.RawLInt(fixup.patches);
+			FOR i := 0 TO fixup.patches-1 DO
+				WritePatch(fixup.patch[i]);
+			END;
+		END WriteFixup;
+
+	BEGIN
+		IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
+		WriteValueIdentifier (section.type, types);
+		WriteIdentifier(section.identifier);
+		writer.RawLInt (section.unit);
+		IF section.fixed THEN WriteValueIdentifier(Fixed,relocatabilities) ELSE WriteValueIdentifier(Aligned,relocatabilities) END;
+		writer.RawLInt (section.alignment);
+		writer.RawLInt (section.fixups);
+		size := section.bits.GetSize ();
+		writer.RawLInt (size DIV section.unit);
+		ASSERT(size MOD section.unit = 0);
+		FOR i := 0 TO section.fixups - 1 DO
+			WriteFixup (section.fixup[i]);
+		END;
+		i := 0; bits := 0;
+		WHILE (i < size) & (bits = 0) DO
+			bits := section.bits.GetBits(i, MIN(32, size-i));
+			INC(i,32);
+		END;
+		IF (bits = 0) & (size > 0) THEN
+			writer.Char('Z');
+		ELSE
+			writer.Char('N');
+			FOR i := 0 TO size - 1 BY 32 DO
+				writer.RawLInt (section.bits.GetBits (i, MIN (32, size - i)));
+			END;
+		END;
+		writer.Ln;
+	END WriteSectionBinary;
+
+	PROCEDURE ReadSectionBinary (reader: Streams.Reader; VAR section: Section);
+	VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER; num: LONGINT;
+
+		PROCEDURE ReadValueIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
+		VAR identifier: ARRAY 10 OF CHAR;
+		BEGIN
+			value := 0;
+			reader.RawString (identifier);
+			WHILE (value # LEN (identifiers)) & (identifier # identifiers[value]) DO INC (value); END;
+			IF value = LEN (identifiers) THEN reader.res := Streams.FormatError; END;
+		END ReadValueIdentifier;
+
+		PROCEDURE ReadPattern (VAR pattern: FixupPattern);
+		BEGIN
+			reader.RawLInt (pattern.offset);
+			reader.RawLInt (pattern.bits);
+		END ReadPattern;
+
+		PROCEDURE ReadIdentifier(VAR identifier: Identifier);
+		VAR name: SectionName;
+		BEGIN
+			 reader.RawString(name);
+			 ToPooledName(name, identifier.name);
+			 reader.RawLInt (identifier.fingerprint);
+		END ReadIdentifier;
+
+		PROCEDURE ReadPatch(VAR patch: Patch);
+		VAR i: LONGINT;
+		BEGIN
+			ReadValueIdentifier (patch.mode, modes);
+			reader.RawLInt (patch.displacement);
+			reader.RawLInt (patch.scale);
+			reader.RawLInt (patch.patterns);
+
+			IF (patch.pattern = NIL) OR (LEN (patch.pattern) < patch.patterns) THEN
+				NEW (patch.pattern, patch.patterns);
+			END;
+			FOR i := 0 TO patch.patterns - 1 DO
+				ReadPattern (patch.pattern[i]);
+			END;
+			reader.RawLInt(patch.offsets);
+			IF (patch.offset = NIL) OR (LEN(patch.offset) < patch.offsets) THEN
+				NEW(patch.offset, patch.offsets);
+			END;
+			FOR i := 0 TO patch.offsets-1 DO
+				 reader.RawLInt (patch.offset[i]);
+			END;
+		END ReadPatch;
+
+		PROCEDURE ReadFixup (VAR fixup: Fixup);
+		VAR i: LONGINT;
+		BEGIN
+			ReadIdentifier (fixup.identifier);
+			reader.RawLInt (fixup.patches);
+			IF (fixup.patch = NIL) OR (LEN (fixup.patch) < fixup.patches) THEN
+				NEW (fixup.patch, fixup.patches);
+			END;
+			FOR i := 0 TO fixup.patches - 1 DO
+				ReadPatch (fixup.patch[i]);
+			END;
+		END ReadFixup;
+
+	BEGIN
+		ReadValueIdentifier (section.type, types);
+		ReadIdentifier (section.identifier);
+		reader.RawLInt (section.unit);
+		ReadValueIdentifier(relocatibility, relocatabilities);
+		section.fixed := relocatibility = Fixed;
+		reader.RawLInt (section.alignment);
+		reader.RawLInt (section.fixups);
+		reader.RawLInt (size); size := size * section.unit;
+		IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
+			NEW (section.fixup, section.fixups);
+		END;
+		FOR i := 0 TO section.fixups - 1 DO
+			ReadFixup (section.fixup[i]);
+		END;
+		IF section.bits # NIL THEN
+			section.bits.Resize (size);
+		ELSE
+			NEW (section.bits, size);
+		END;
+		reader.Char (char);
+		IF char = 'Z' THEN section.bits.Zero
+		ELSE
+			ASSERT(char ='N');
+			FOR i := 0 TO size - 1 BY 32 DO
+				reader.RawLInt (num);
+				section.bits.SetBits (i, MIN (32, size - i), num);
+			END;
+		END;
+	END ReadSectionBinary;
+
+	PROCEDURE ReadSection*(reader: Streams.Reader; VAR section: Section; binary: BOOLEAN);
+	BEGIN
+		IF binary THEN
+			ReadSectionBinary(reader,section)
+		ELSE
+			ReadSectionTextual(reader,section);
+		END
+	END ReadSection;
+
+	PROCEDURE WriteSection*(writer: Streams.Writer; CONST section: Section; binary: BOOLEAN);
+	BEGIN
+		IF binary THEN
+			WriteSectionBinary(writer,section)
+		ELSE
+			WriteSectionTextual(writer,section)
+		END
+	END WriteSection;
+
+	PROCEDURE SetFixups*(VAR section: Section; fixups: LONGINT; fixup: Fixups);
+	BEGIN
+		section.fixups := fixups;
+		section.fixup := fixup;
+	END SetFixups;
+
+	PROCEDURE AddOffset(VAR offsets: LONGINT; VAR offset: Offsets; ofs: LONGINT);
+	VAR newOffset: Offsets; newOffsets:LONGINT; i: LONGINT;
+	BEGIN
+		FOR i := 0 TO offsets-1 DO
+			ASSERT(offset[i] # ofs);
+		END;
+		newOffsets := offsets+1;
+		IF (offset = NIL) OR (LEN(offset) < newOffsets) THEN
+			NEW(newOffset, 2*newOffsets);
+			FOR i := 0 TO offsets-1 DO
+				newOffset[i] := offset[i];
+			END;
+			offset := newOffset;
+		END;
+		offset[offsets] := ofs;
+		offsets := newOffsets;
+	END AddOffset;
+
+
+	PROCEDURE SamePattern(patterns: LONGINT; left, right: FixupPatterns): BOOLEAN;
+	VAR i: LONGINT;
+	BEGIN
+		FOR i := 0 TO patterns-1 DO
+			IF (left[i].offset # right[i].offset) OR (left[i].bits # right[i].bits) THEN RETURN FALSE END;
+		END;
+		RETURN TRUE
+	END SamePattern;
+
+
+	PROCEDURE AddPatch(VAR patches: LONGINT; VAR patch: Patches; mode: INTEGER; displacement, scale: LONGINT; patterns: LONGINT; pattern: FixupPatterns; offset: LONGINT);
+	VAR i: LONGINT; newPatches: LONGINT; newPatch: Patches; len: LONGINT;
+	BEGIN
+		FOR i := 0 TO patches-1 DO
+			len := LEN(patch);
+			ASSERT(patch # NIL,101);
+			ASSERT(LEN(patch) > i,102);
+			IF (patch[i].mode = mode) & (patch[i].displacement = displacement) & (patch[i].scale = scale) &  (patch[i].patterns = patterns) & SamePattern(patterns, patch[i].pattern, pattern) THEN
+				AddOffset(patch[i].offsets, patch[i].offset, offset);
+				RETURN
+			END;
+		END;
+		newPatches := patches+1;
+		IF (patch = NIL) OR (LEN(patch) < newPatches) THEN
+			ASSERT(newPatches > 0);
+			NEW(newPatch, 2*newPatches);
+			FOR i := 0 TO patches-1 DO
+				newPatch[i] := patch[i];
+				(*
+				CopyPatch(patch[i], newPatch[i]);
+				*)
+			END;
+			patch := newPatch;
+		END;
+		ASSERT(LEN(patch) > patches);
+		patch[patches].mode := mode;
+		patch[patches].displacement := displacement;
+		patch[patches].patterns := patterns;
+		patch[patches].pattern := pattern;
+		patch[patches].offsets := 0;
+		patch[patches].offset := NIL;
+		AddOffset(patch[patches].offsets, patch[patches].offset, offset);
+		patches := newPatches;
+		(* increase size and add *)
+	END AddPatch;
+
+
+	PROCEDURE AddFixup*(VAR fixups: LONGINT; VAR fixup: Fixups; CONST name: PooledName; fingerprint: LONGINT; mode: INTEGER; displacement, scale: LONGINT; patterns: LONGINT; pattern: FixupPatterns; offset: LONGINT);
+	VAR i: LONGINT; newFixups: LONGINT; newFixup: Fixups;
+	BEGIN
+		FOR i := 0 TO fixups-1 DO
+			IF (fixup[i].identifier.fingerprint = fingerprint) & (name =fixup[i].identifier.name) THEN
+				AddPatch(fixup[i].patches, fixup[i].patch, mode, displacement, scale, patterns, pattern, offset);
+				RETURN
+			END;
+		END;
+		newFixups := fixups+1;
+		IF (fixup = NIL) OR (LEN(fixup) < newFixups) THEN
+			NEW(newFixup, MAX(2*newFixups,32));
+			FOR i := 0 TO fixups-1 DO
+				newFixup[i] := fixup[i];
+				(*CopyFixup(fixup[i], newFixup[i]);*)
+			END;
+			fixup := newFixup;
+		END;
+		fixup[fixups].identifier.name := name;
+		(*
+		COPY(name, fixup[fixups].identifier.name);
+		*)
+		fixup[fixups].identifier.fingerprint := fingerprint;
+		fixup[fixups].patches := 0;
+		fixup[fixups].patch := NIL;
+		AddPatch(fixup[fixups].patches, fixup[fixups].patch, mode, displacement, scale, patterns, pattern, offset);
+		fixups := newFixups;
+		(* increase size and add *)
+	END AddFixup;
+
+	PROCEDURE ToPooledName*(CONST name: ARRAY OF CHAR; VAR pooledName: PooledName);
+	VAR i,j,index: LONGINT; n: SectionName;
+	BEGIN
+		(* convert a string of the form A.B.C.suffix to [S(A), S(B), S(C), S(suffix)] *)
+		index := 0; i := 0;
+		WHILE (index < LEN(pooledName)) DO
+			j := 0;
+			WHILE (name[i] # 0X) & (name[i] # ".") DO
+				n[j] := name[i]; INC(i); INC(j);
+			END;
+			IF j > 0 THEN
+				IF index = LEN(pooledName)-1 THEN
+					WHILE (name[i] # 0X)  DO n[j] := name[i]; INC(i); INC(j); END;
+				END;
+				n[j] := 0X; StringPool.GetIndex(n,pooledName[index]);
+			ELSE
+				pooledName[index] := -1
+			END;
+			IF name[i] = "." THEN INC(i) END;
+			INC(index);
+		END;
+	END ToPooledName;
+
+	PROCEDURE FromPooledName*(CONST pooledName: PooledName; VAR name: ARRAY OF CHAR);
+	VAR i,j, index: LONGINT; n: SectionName;
+	BEGIN
+		i := 0; index := 0;
+		WHILE (index < LEN(pooledName)) DO
+			IF pooledName[index] >= 0 THEN
+				IF index > 0 THEN name[i] := "."; INC(i) END;
+				StringPool.GetString(pooledName[index],n);
+				j := 0;
+				WHILE n[j] # 0X DO
+					name[i] := n[j]; INC(i); INC(j);
+				END;
+			END;
+			INC(index);
+		END;
+		name[i] := 0X;
+	END FromPooledName;
+
+	OPERATOR "="*(CONST l,r: PooledName): BOOLEAN;
+	BEGIN
+		RETURN (l[0]=r[0]) & (l[1]=r[1]) & (l[2]=r[2]) & (l[3]=r[3])
+	END "=";
+
+	OPERATOR "#"*(CONST l,r: PooledName): BOOLEAN;
+	BEGIN
+		RETURN (l[0]#r[0]) OR (l[1]#r[1]) OR (l[2]#r[2]) OR (l[3]#r[3])
+	END "#";
 
 BEGIN
 	types[Code] := "code";

@@ -216,7 +216,9 @@ VAR
 	PROCEDURE DumpPool*;
 		VAR i: LONGINT; ch: CHAR;
 	BEGIN
-		KernelLog.String("StringPool.Dump:"); KernelLog.Ln;
+		KernelLog.String("StringPool.Dump:");
+		KernelLog.String("size = "); KernelLog.Int(poolLen,1);
+		KernelLog.Ln;
 		KernelLog.Int(0, 4); KernelLog.String(": ");
 		i := 0;
 		WHILE i < poolLen DO

@@ -2,7 +2,7 @@ MODULE FoxBasic;   (**  AUTHOR "fof"; PURPOSE "Oberon Compiler: basic helpers: s
 (* (c) fof ETH Zürich, 2009 *)
 
 
-IMPORT KernelLog, StringPool, Strings, Streams, Diagnostics, Files, SYSTEM;
+IMPORT KernelLog, StringPool, Strings, Streams, Diagnostics, Files, SYSTEM, ObjectFile;
 
 CONST
 	(* error numbers *)
@@ -51,6 +51,7 @@ TYPE
 	String* = POINTER TO ARRAY OF CHAR;
 	*)
 	String* = StringPool.Index;
+	PooledName*= ObjectFile.PooledName;
 	ObjectArray = POINTER TO ARRAY OF ANY;
 	IntegerArray = POINTER TO ARRAY OF LONGINT;
 
@@ -468,6 +469,7 @@ TYPE
 		value: ANY;
 	END;
 
+
 	HashAnyArray = POINTER TO ARRAY OF HashEntryAny;
 	HashIntArray = POINTER TO ARRAY OF HashEntryInt;
 
@@ -683,6 +685,107 @@ TYPE
 		END Grow;
 
 	END HashTableInt;
+
+	HashEntryPooledName = RECORD
+		key: ObjectFile.PooledName; (* key[0]= MIN(LONGINT) <=> empty *)
+		value: ANY;
+	END;
+	HashPooledNameArray = POINTER TO ARRAY OF HashEntryPooledName;
+
+	HashTablePooledName* = OBJECT
+	VAR
+		table: HashPooledNameArray;
+		size: LONGINT;
+		used-: LONGINT;
+		maxLoadFactor: REAL;
+
+		(* Interface *)
+
+		PROCEDURE & Init* (initialSize: LONGINT);
+		BEGIN
+			ASSERT(initialSize > 2);
+			NEW(table, initialSize);
+			size := initialSize;
+			used := 0;
+			maxLoadFactor := 0.75;
+			Clear;
+		END Init;
+
+		PROCEDURE Put*(CONST key: PooledName; value: ANY);
+		VAR hash: LONGINT;
+		BEGIN
+			ASSERT(key[0] # -1);
+			ASSERT(used < size);
+			hash := HashValue(key);
+			IF table[hash].key[0] = MIN(LONGINT) THEN
+				INC(used, 1);
+			END;
+			table[hash].key := key;
+			table[hash].value := value;
+			IF (used / size) > maxLoadFactor THEN Grow END;
+		END Put;
+
+		PROCEDURE Get*(CONST key: PooledName):ANY;
+		BEGIN
+			RETURN table[HashValue(key)].value;
+		END Get;
+
+		PROCEDURE Has*(CONST key: PooledName):BOOLEAN;
+		BEGIN
+			RETURN table[HashValue(key)].key = key;
+		END Has;
+
+		PROCEDURE Length*():LONGINT;
+		BEGIN RETURN used; END Length;
+
+		PROCEDURE Clear*;
+		VAR i: LONGINT;
+		BEGIN FOR i := 0 TO size - 1 DO table[i].key[0] := MIN(LONGINT); END; END Clear;
+
+		(* Internals *)
+		PROCEDURE Hash*(CONST name: PooledName): LONGINT;
+		VAR fp,i: LONGINT;
+		BEGIN
+			fp := name[0]; i := 1;
+			WHILE (i<LEN(name)) & (name[i] >= 0) DO
+				fp:=SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, SYSTEM.ROT(fp, 7)) / SYSTEM.VAL(SET, name[i]));
+				INC(i);
+			END;
+			RETURN fp
+		END Hash;
+
+		PROCEDURE HashValue(CONST key: PooledName):LONGINT;
+		VAR value, h,i: LONGINT;
+		BEGIN
+			ASSERT(key[0] # MIN(LONGINT));
+			h := Hash(key);
+			i := 0;
+			REPEAT
+				value := (h + i) MOD size;
+				INC(i);
+			UNTIL((table[value].key[0] = MIN(LONGINT)) OR (table[value].key = key) OR (i > size));
+			ASSERT((table[value].key[0] = MIN(LONGINT)) OR (table[value].key = key));
+			RETURN value;
+		END HashValue;
+
+		PROCEDURE Grow;
+		VAR oldTable: HashPooledNameArray; oldSize, i: LONGINT; key: PooledName;
+		BEGIN
+			oldSize := size;
+			oldTable := table;
+			Init(size*2);
+			FOR i := 0 TO oldSize-1 DO
+				key := oldTable[i].key;
+				IF key[0] # MIN(LONGINT) THEN
+					IF oldTable[i].value # NIL THEN
+						Put(key, oldTable[i].value);
+					END;
+				END;
+			END;
+		END Grow;
+
+	END HashTablePooledName;
+
 
 	(* Hash table supporting 2 keys *)
 	HashTable2D* = OBJECT(HashTable);
@@ -1549,6 +1652,57 @@ VAR
 		Strings.IntToStr(num,nums);
 		Strings.Append(s,nums);
 	END AppendNumber;
+
+	PROCEDURE ToPooledName*(CONST name: ARRAY OF CHAR; VAR pooledName: PooledName);
+	BEGIN
+		ObjectFile.ToPooledName(name, pooledName);
+	END ToPooledName;
+
+	PROCEDURE FromPooledName*(CONST pooledName: PooledName; VAR name: ARRAY OF CHAR);
+	BEGIN
+		ObjectFile.FromPooledName(pooledName, name);
+	END FromPooledName;
+
+	PROCEDURE WritePooledName*(w: Streams.Writer; name: PooledName);
+	VAR sectionName: ObjectFile.SectionName;
+	BEGIN
+		FromPooledName(name, sectionName);
+		w.String(sectionName);
+	END WritePooledName;
+
+	PROCEDURE AppendToPooledName*(VAR name: PooledName; CONST this: ARRAY OF CHAR);
+	VAR i,j: LONGINT; string: ObjectFile.SectionName;
+	BEGIN
+		i := LEN(name)-1;
+		WHILE name[i] < 0 DO
+			DEC(i);
+		END;
+		IF (this[0] = ".") & (i < LEN(name)-1) THEN (* suffix *)
+			j := 0;
+			WHILE this[j+1] # 0X DO
+				string[j] := this[j+1];
+				INC(j);
+			END;
+			string[j] := 0X;
+			name[i+1] := StringPool.GetIndex1(string);
+		ELSE
+			StringPool.GetString(name[i], string);
+			Strings.Append(string, this);
+			name[i] := StringPool.GetIndex1(string);
+		END;
+	END AppendToPooledName;
+
+	PROCEDURE PooledNameEndsWith*(CONST name: PooledName; CONST this: ARRAY OF CHAR): BOOLEAN;
+	VAR string: ObjectFile.SectionName; i: LONGINT;
+	BEGIN
+		i := LEN(name)-1;
+		WHILE name[i] < 0 DO
+			DEC(i);
+		END;
+		StringPool.GetString(name[i],string);
+		RETURN Strings.EndsWith(string, this);
+	END PooledNameEndsWith;
+
 
 	PROCEDURE Expand(VAR oldAry: ErrorMsgs);
 	VAR

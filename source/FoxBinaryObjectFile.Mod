@@ -600,7 +600,7 @@ TYPE
 					END;
 					typeDeclaration := type.typeDeclaration; (* must be non-nil *)
 					typeDeclaration.GetName(name);
-					
+
 					section := module.sections.FindBySymbol(type.typeDeclaration);
 					ASSERT(IsRegularSection(section));
 					w.RawNum((section.offset )); (* type descriptor section offset *)
@@ -1270,7 +1270,7 @@ TYPE
 					WITH type: SyntaxTree.RecordType DO
 						type.typeDeclaration.GetName(name); (* debugging *)
 						IF type.recordScope.ownerModule = importedModule THEN (* type belongs to currently processed module *)
-							t := module.sections.FindBySymbol(type.typeDeclaration);							
+							t := module.sections.FindBySymbol(type.typeDeclaration);
 							IF (t # NIL) & (t.referenced) THEN
 								ASSERT(IsRegularSection(t));
 								fingerPrint := fingerprinter.TypeFP(type);
@@ -1315,7 +1315,7 @@ TYPE
 
 					procedure := type(SyntaxTree.RecordType).recordScope.firstProcedure;
 					WHILE procedure # NIL DO
-						s := module.sections.FindBySymbol(procedure);						
+						s := module.sections.FindBySymbol(procedure);
 						IF (s # NIL) THEN
 							ASSERT(s.type = Sections.PrototypeSection);
 							fixups := GetFixups(module,s,fixup);
@@ -1636,7 +1636,7 @@ TYPE
 			FOR i := 0 TO module.sections.Length() - 1 DO
 				destination := module.sections.GetSection(i);
 				IF IsRegularSection(destination) & (destination.type # Sections.InitCodeSection) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).isInline THEN
-					IF Trace THEN D.Str("pointers in "); D.Str(destination.name); D.Ln END;
+					IF Trace THEN D.Str("pointers in "); Basic.WritePooledName(D.Log, destination.name); D.Ln END;
 					PointerOffsets(destination);
 					INC(counter);
 				END

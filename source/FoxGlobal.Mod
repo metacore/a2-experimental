@@ -1037,6 +1037,15 @@ TYPE
 	BEGIN GetSymbolNameInScope(symbol,NIL,name)
 	END GetSymbolName;
 
+	PROCEDURE GetSymbolPooledName*(symbol: SyntaxTree.Symbol; VAR pooledName: Basic.PooledName);
+	VAR name: SyntaxTree.String;
+	BEGIN
+		(*! OPTIMIZE ! *)
+		GetSymbolNameInScope(symbol,NIL,name);
+		Basic.ToPooledName(name, pooledName);
+	END GetSymbolPooledName;
+
+
 	PROCEDURE Level*(t: SyntaxTree.Type): LONGINT;
 	VAR level: LONGINT;
 	BEGIN

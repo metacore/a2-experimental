@@ -3,7 +3,7 @@ MODULE FoxIntermediateBackend; (** AUTHOR ""; PURPOSE ""; *)
 IMPORT Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, SemanticChecker := FoxSemanticChecker, Backend := FoxBackend, Global := FoxGlobal,
 	Scanner := FoxScanner, IntermediateCode := FoxIntermediateCode, Sections := FoxSections, Printout := FoxPrintout,
 	SYSTEM, Diagnostics, Strings, Options, Streams, Compiler, Formats := FoxFormats, SymbolFileFormat := FoxTextualSymbolFile, D := Debugging,
-	FingerPrinter := FoxFingerPrinter, BinaryCode := FoxBinaryCode, Files;
+	FingerPrinter := FoxFingerPrinter, BinaryCode := FoxBinaryCode, Files, StringPool;
 
 CONST
 		(* operand modes *)
@@ -891,10 +891,11 @@ TYPE
 		END Init;
 
 		PROCEDURE NewSection(list: Sections.SectionList; type: SHORTINT; CONST name: ARRAY OF CHAR; x: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
-		VAR fp: SyntaxTree.FingerPrint;
+		VAR fp: SyntaxTree.FingerPrint; pooledName: Basic.PooledName;
 		BEGIN
 			IF (x # NIL) & ~((x IS SyntaxTree.Procedure) & (x(SyntaxTree.Procedure).isInline)) THEN fp := fingerPrinter.SymbolFP(x) END;
-			RETURN IntermediateCode.NewSection(list, type, name, x, dump);
+			Basic.ToPooledName(name, pooledName);
+			RETURN IntermediateCode.NewSection(list, type, pooledName, x, dump);
 		END NewSection;
 
 		PROCEDURE AcquireRegister(CONST type: IntermediateCode.Type): LONGINT;
@@ -6812,6 +6813,7 @@ TYPE
 		VAR var: Operand; jmp,res,op,tmp: IntermediateCode.Operand; j,i,size: LONGINT; part: SyntaxTree.CasePart; constant: SyntaxTree.CaseConstant;
 			out,else: Label; label: Label;
 			fixups: POINTER TO ARRAY OF Label; section: IntermediateCode.Section; name: SyntaxTree.String;
+			symbol: SyntaxTree.Symbol;
 		BEGIN
 			(*! split case statement into if-elsif statements for large case label lists *)
 			IF Trace THEN TraceEnter("VisitCaseStatement") END;
@@ -6827,12 +6829,15 @@ TYPE
 			size := x.max-x.min+1;
 			else := NewLabel();
 			BrgeL(else,var.op,IntermediateCode.Immediate(addressType,size));
+			(*
 			UniqueId(name,module.module,"case",caseId);
+			*)
+			name := "@case"; Basic.AppendNumber(name, caseId); INC(caseId);
+			symbol := SyntaxTree.NewSymbol(SyntaxTree.NewIdentifier(name));
+			symbol.SetScope(moduleScope);
 			NEW(fixups,size); FOR i := 0 TO size-1 DO fixups[i] := NIL END;
-			NEW(section,Sections.ConstSection,name,SyntaxTree.NewSymbol(SyntaxTree.NewIdentifier(name)),commentPrintout # NIL);
-
+			section := NewSection(module.sections,Sections.ConstSection,name,symbol,commentPrintout # NIL);
 			section.IsCaseTable;
-			module.sections.Add(section);
 
 			IntermediateCode.InitAddress(jmp, addressType, section,0);
 			ReuseCopy(res,var.op);
@@ -7299,7 +7304,7 @@ TYPE
 
 		PROCEDURE Body(x: SyntaxTree.Body; scope: SyntaxTree.Scope; ir: IntermediateCode.Section; moduleBody: BOOLEAN);
 		VAR prevScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType; procedure: SyntaxTree.Procedure;
-			end: Label;res: IntermediateCode.Operand; cellScope: SyntaxTree.CellScope; op: Operand;
+			end: Label;res: IntermediateCode.Operand; cellScope: SyntaxTree.CellScope; op: Operand; string: SyntaxTree.String;
 		BEGIN
 			IF Trace THEN TraceEnter("Body") END;
 			section := ir;
@@ -7338,7 +7343,8 @@ TYPE
 					IF moduleBody THEN
 						ProfilerInit();
 					ELSE
-						ProfilerAddProcedure(numberProcedures,ir.name);
+						Basic.FromPooledName(ir.name, string);
+						ProfilerAddProcedure(numberProcedures,string);
 						ProfilerEnterExit(numberProcedures,TRUE);
 					END;
 				END;
@@ -7888,9 +7894,11 @@ TYPE
 		END SetModule;
 
 		PROCEDURE Error*(CONST message: ARRAY OF CHAR);
+		VAR string: SyntaxTree.String;
 		BEGIN
 			IF diagnostics # NIL THEN
-				diagnostics.Error(in.name, inPC, Diagnostics.Invalid, message)
+				Basic.FromPooledName(in.name, string);
+				diagnostics.Error(string, inPC, Diagnostics.Invalid, message)
 			END;
 			IF dump # NIL THEN (* to see error in trace output also *)
 				dump.String("Error: "); dump.String(message); dump.Ln; dump.Update;
@@ -7904,7 +7912,7 @@ TYPE
 		VAR pc: LONGINT; name: SyntaxTree.String; instruction: IntermediateCode.Instruction;
 
 			PROCEDURE ResolveLocalFixups;
-			VAR fixup, next: BinaryCode.Fixup; dest: LONGINT; msg: SyntaxTree.String; number: ARRAY 32 OF CHAR;
+			VAR fixup, next: BinaryCode.Fixup; dest: LONGINT; msg,string: SyntaxTree.String; number: ARRAY 32 OF CHAR;
 			BEGIN
 				fixup := out.fixupList.firstFixup;
 				out.fixupList.InitFixupList;
@@ -7929,7 +7937,8 @@ TYPE
 						END;
 						IF ~out.ApplyFixup(fixup) THEN
 							COPY("fixup out of range: ", msg);
-							Strings.Append(msg, fixup.symbol.name);
+							Basic.FromPooledName(fixup.symbol.name, string);
+							Strings.Append(msg, string);
 							Strings.Append(msg, ":");
 							Strings.IntToStr(fixup.offset, number);
 							Strings.Append(msg, number);
@@ -7982,8 +7991,7 @@ TYPE
 			END DumpInstruction;
 
 		BEGIN
-
-			name := in.name; (*debugging*)
+			Basic.FromPooledName(in.name, name);
 			SELF.in := in; SELF.out := out;
 			dump := out.comments;
 
@@ -8387,14 +8395,11 @@ TYPE
 
 
 		PROCEDURE GetDataSection*(): IntermediateCode.Section;
-		VAR name: SyntaxTree.String; section: IntermediateCode.Section;
+		VAR name: Basic.PooledName; section: IntermediateCode.Section;
 		BEGIN
-			name := module.moduleName; (* TODO: ok? *)
-			(* old code:
-			Global.GetModuleName(module.module,name);
-			*)
-			Strings.Append(name,".");
-			Strings.Append(name,"@Immediates");
+			name[0] := StringPool.GetIndex1(module.moduleName);
+			name[1] := StringPool.GetIndex1("@Immediates");
+			name[2] := -1;
 			section := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
 			RETURN section
 		END GetDataSection;
@@ -9135,7 +9140,7 @@ TYPE
 
 			PROCEDURE WriteType(type : SyntaxTree.Type);
 			VAR typeDeclaration: SyntaxTree.TypeDeclaration; section: Sections.Section;
-				name: SyntaxTree.String;
+				name: Basic.PooledName;
 			BEGIN
 				IF type = NIL THEN
 					MetaAddress(module,source,0);
@@ -9148,10 +9153,10 @@ TYPE
 					END;
 					typeDeclaration := type.typeDeclaration; (* must be non-nil *)
 					IF (typeDeclaration.scope = NIL) OR (typeDeclaration.scope.ownerModule = module.module) THEN
-						typeDeclaration.GetName(name);
+						name[0] := typeDeclaration.name; name[1] := -1;
 						section := module.sections.FindBySymbol(type.typeDeclaration);
 					ELSE
-						Global.GetSymbolName(typeDeclaration,name);
+						Global.GetSymbolPooledName(typeDeclaration,name);
 						section := IntermediateCode.NewSection(module.sections, Sections.PrototypeSection, name, typeDeclaration, source.comments # NIL);
 					END;
 					MetaSymbol(module,source,section, 0, ToMemoryUnits(module.system,(1 + type(SyntaxTree.RecordType).recordScope.numberMethods+16+1)*module.system.addressSize));
@@ -9202,7 +9207,7 @@ TYPE
 		FOR i := 0 TO module.sections.Length() - 1 DO
 			p := module.sections.GetSection(i);
 			WITH p: IntermediateCode.Section DO
-				IF Strings.EndsWith("@Info",p.name) THEN
+				IF Basic.PooledNameEndsWith(p.name,"@Info") THEN
 					MetaSymbol(module,source,p,0,0);
 					INC(size);
 				END;
@@ -9229,7 +9234,7 @@ TYPE
 
 		PROCEDURE PointerOffsets(destination : IntermediateCode.Section);
 		VAR numberPointers: LONGINT; procedure: SyntaxTree.Procedure; procedureType: SyntaxTree.ProcedureType;
-			variable: SyntaxTree.Variable; parameter: SyntaxTree.Parameter;
+			variable: SyntaxTree.Variable; parameter: SyntaxTree.Parameter; string: SyntaxTree.String;
 		BEGIN
 			MetaInfo(procArray,"pcFrom");
 			MetaSymbol(module,procArray,destination,0,0);
@@ -9239,7 +9244,8 @@ TYPE
 			MetaSymbol(module,procArray,destination,destination.validPAFEnter,0);
 			MetaInfo(procArray,"pcStatementEnd");
 			MetaSymbol(module,procArray,destination,destination.validPAFExit,0);
-			MetaInfo(pointerArray,destination.name);
+			Basic.FromPooledName(destination.name, string);
+			MetaInfo(pointerArray,string);
 			procedure := destination.symbol(SyntaxTree.Procedure);
 			procedureType := procedure.type(SyntaxTree.ProcedureType);
 			variable := procedure.procedureScope.firstVariable;
@@ -9317,11 +9323,12 @@ TYPE
 	*)
 
 	PROCEDURE MetaModuleSection(implementationVisitor: ImplementationVisitor; module: Sections.Module): IntermediateCode.Section;
-	VAR name: ARRAY 128 OF CHAR; moduleSection,moduleTD: IntermediateCode.Section; offset: LONGINT;
+	VAR name: ARRAY 128 OF CHAR; moduleSection,moduleTD: IntermediateCode.Section; offset: LONGINT; pooledName: Basic.PooledName;
 	BEGIN
 		Global.GetModuleName(module.module,name);
 		Strings.Append(name,".@Module");
-		moduleSection := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
+		Basic.ToPooledName(name,pooledName);
+		moduleSection := IntermediateCode.NewSection(module.sections,Sections.ConstSection,pooledName,NIL,TRUE);
 		IF moduleSection.pc = 0 THEN
 			MetaProtectedHeapBlock(implementationVisitor,"Heaps","ProtRecBlockDesc",module,moduleSection,2);
 			MetaInfo(moduleSection, "HeapBlock");
@@ -9346,11 +9353,12 @@ TYPE
 
 
 		PROCEDURE HeapBlock(CONST mName, typeName, suffix: ARRAY OF CHAR; VAR offset: LONGINT): IntermediateCode.Section;
-		VAR name: ARRAY 128 OF CHAR; section: IntermediateCode.Section;
+		VAR name: ARRAY 128 OF CHAR; section: IntermediateCode.Section; pooledName: Basic.PooledName;
 		BEGIN
 			COPY(moduleName,name);
 			Strings.Append(name,suffix);
-			section := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
+			Basic.ToPooledName(name, pooledName);
+			section := IntermediateCode.NewSection(module.sections,Sections.ConstSection,pooledName,NIL,TRUE);
 			MetaHeapBlock(implementationVisitor,mName,typeName,module,section,2);
 			MetaInfo(section, "HeapBlock");
 			(*
@@ -9460,11 +9468,11 @@ TYPE
 
 	PROCEDURE CheckTypeDeclaration(implementationVisitor: ImplementationVisitor; module: Sections.Module; x: SyntaxTree.Type; dump,newObjectFile: BOOLEAN);
 	VAR recordType: SyntaxTree.RecordType;
-		tir: IntermediateCode.Section; op: IntermediateCode.Operand; name: SyntaxTree.String; td: SyntaxTree.TypeDeclaration;
-		section: Sections.Section;
+		tir: IntermediateCode.Section; op: IntermediateCode.Operand; name: Basic.PooledName; td: SyntaxTree.TypeDeclaration;
+		section: Sections.Section; string: SyntaxTree.String;
 
 		PROCEDURE NewTypeDescriptorInfo(tag: Sections.Section; offset: LONGINT; isProtected: BOOLEAN): Sections.Section;
-		VAR name: SyntaxTree.String;source: IntermediateCode.Section;
+		VAR name: Basic.PooledName;source: IntermediateCode.Section;
 			moduleSection: IntermediateCode.Section; i: LONGINT; flags: SET;
 		CONST MPO=-40000000H;
 		BEGIN
@@ -9479,8 +9487,8 @@ TYPE
 					END;
 				*)
 				(* source := module.sections.FindByName(...) *)
-				Global.GetSymbolName(td,name);
-				Strings.Append(name,"@Info");
+				Global.GetSymbolPooledName(td,name);
+				Basic.AppendToPooledName(name,"@Info");
 				source := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,dump);
 				MetaInfo(source, "type info size");	MetaAddress(module,source, 3*module.system.addressSize DIV 8+32);
 				MetaAddress(module,source,MPO-4);
@@ -9495,16 +9503,17 @@ TYPE
 				MetaSymbol(module, source, moduleSection,moduleSection.pc,0);
 				MetaInfo(source, "type name");
 				i := 0;
-				Global.GetSymbolName(td,name);
-				MetaName(module,source,name);
+				Global.GetSymbolPooledName(td,name);
+				Basic.FromPooledName(name, string);
+				MetaName(module,source,string);
 				source.SetReferenced(FALSE);
 				RETURN source;
 		END NewTypeDescriptorInfo;
 
 		PROCEDURE GetSection(x: SyntaxTree.Procedure): Sections.Section;
-		VAR source: IntermediateCode.Section; sectionType: SHORTINT;
+		VAR source: IntermediateCode.Section; sectionType: SHORTINT; name: Basic.PooledName;
 		BEGIN
-			Global.GetSymbolName(x,name);
+			Global.GetSymbolPooledName(x,name);
 			IF x.isInline THEN
 				sectionType := Sections.InlineCodeSection;
 			ELSE
@@ -9525,14 +9534,14 @@ TYPE
 		END GetSection;
 
 		PROCEDURE NewTypeDescriptor;
-		VAR name: SyntaxTree.String; op: IntermediateCode.Operand; source: IntermediateCode.Section;
+		VAR name: Basic.PooledName; op: IntermediateCode.Operand; source: IntermediateCode.Section;
 			i,methods: LONGINT;
 			procedure: SyntaxTree.Procedure;
 			baseRecord: SyntaxTree.RecordType; baseTD: SyntaxTree.TypeDeclaration;
 			numberPointers: LONGINT;  padding,offset: LONGINT;
 		CONST MPO=-40000000H;
 		BEGIN
-				Global.GetSymbolName(td,name);
+				Global.GetSymbolPooledName(td,name);
 				source := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,td,dump);
 
 				(*
@@ -9584,7 +9593,7 @@ TYPE
 				baseRecord := recordType;
 				WHILE baseRecord # NIL DO
 					baseTD := baseRecord.typeDeclaration;
-					Global.GetSymbolName(baseTD,name);
+					Global.GetSymbolPooledName(baseTD,name);
 					IF (baseTD.scope = NIL) OR (baseTD.scope.ownerModule = module.module) THEN
 						tir := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,baseTD,dump);
 					ELSE
@@ -9633,7 +9642,7 @@ TYPE
 					END;
 				ELSE
 					(* data section in intermediate code *)
-					Global.GetSymbolName(td,name);
+					Global.GetSymbolPooledName(td,name);
 					tir := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,td,dump);
 					IntermediateCode.InitImmediate(op,IntermediateCode.GetType(module.system, module.system.addressType),0);
 					tir.Emit(Data(op));
@@ -9669,10 +9678,13 @@ TYPE
 	PROCEDURE BuildConstant(module: SyntaxTree.Module; value: SyntaxTree.Value; VAR adr: LONGINT): SyntaxTree.Constant;
 	VAR name: Scanner.StringType; constant: SyntaxTree.Constant;
 	BEGIN
-		name := "const";
+		name := "@const"; Basic.AppendNumber(name, adr); INC(adr);
+		(*
 		UniqueId(name,module,name,adr);
+		*)
 		constant := SyntaxTree.NewConstant(-1,SyntaxTree.NewIdentifier(name));
 		constant.SetValue(value);
+		module.moduleScope.AddConstant(constant);
 		RETURN constant
 	END BuildConstant;
 

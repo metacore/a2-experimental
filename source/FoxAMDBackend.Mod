@@ -2564,7 +2564,7 @@ TYPE
 		VAR
 			in: Sections.Section;
 			out: BinaryCode.Section;
-			name: SyntaxTree.String;
+			name: Basic.PooledName;
 			procedure: SyntaxTree.Procedure;
 			i, initialSectionCount: LONGINT;
 
@@ -2598,7 +2598,7 @@ TYPE
 		 	FOR i := 0 TO module.sections.Length() - 1 DO
 			 	in := module.sections.GetSection(i);
 		 		IF in.type = Sections.InlineCodeSection THEN
-			 		COPY(in.name,name);
+		 			name := in.name;
 			 		out := ResolvedSection(in(IntermediateCode.Section));
 			 		cg.Section(in(IntermediateCode.Section),out);
 			 		procedure := in.symbol(SyntaxTree.Procedure);
@@ -2611,7 +2611,7 @@ TYPE
 			 	FOR i := 0 TO module.sections.Length() - 1 DO
 			 		in := module.sections.GetSection(i);
 			 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
-				 		COPY(in.name,name);
+			 			name := in.name;
 				 		out := ResolvedSection(in(IntermediateCode.Section));
 				 		cg.Section(in(IntermediateCode.Section),out);
 				 		IF out.type = Sections.VarSection THEN
@@ -2695,17 +2695,17 @@ TYPE
 		PROCEDURE FindPC(x: SyntaxTree.Module; CONST sectionName: ARRAY OF CHAR; sectionOffset: LONGINT);
 		VAR
 			section: Sections.Section; binarySection: BinaryCode.Section; label: BinaryCode.LabelList; module: Formats.GeneratedModule;
-			i: LONGINT;
+			i: LONGINT; pooledName: Basic.PooledName;
 		BEGIN
 			module := ProcessSyntaxTreeModule(x);
-
+			Basic.ToPooledName(sectionName, pooledName);
 			i := 0;
 			REPEAT
 				section := module(Sections.Module).sections.GetSection(i);
 				INC(i);
-			UNTIL (i = module(Sections.Module).sections.Length()) OR (section.name = sectionName);
+			UNTIL (i = module(Sections.Module).sections.Length()) OR (section.name = pooledName);
 
-			IF section.name # sectionName THEN
+			IF section.name # pooledName THEN
 				diagnostics.Error(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid," could not locate pc");
 			ELSE
 				binarySection := section(IntermediateCode.Section).resolved;

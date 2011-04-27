@@ -5,7 +5,7 @@ MODULE FoxAMD64Assembler; (**  AUTHOR "fn & fof"; PURPOSE "Oberon Compiler:AMD 6
 *)
 
 IMPORT
-	Scanner := FoxScanner, SyntaxTree := FoxSyntaxTree, Global := FoxGlobal, InstructionSet := FoxAMD64InstructionSet, Sections := FoxSections,
+	Basic := FoxBasic, Scanner := FoxScanner, SyntaxTree := FoxSyntaxTree, Global := FoxGlobal, InstructionSet := FoxAMD64InstructionSet, Sections := FoxSections,
 	BinaryCode := FoxBinaryCode,	SYSTEM, Streams, Strings, Commands, KernelLog, Diagnostics, IntermediateCode := FoxIntermediateCode, ObjectFile
 	;
 
@@ -1560,7 +1560,7 @@ TYPE
 			END GetMemFixup;
 
 			PROCEDURE GetOffsetFixup (CONST ident: ARRAY OF CHAR; VAR operand: Operand);
-			VAR scopeSymbol: SyntaxTree.Symbol;name: SyntaxTree.String; symbol: IntermediateCode.Section;
+			VAR scopeSymbol: SyntaxTree.Symbol;name: Basic.PooledName; symbol: IntermediateCode.Section;
 			BEGIN
 				IF labels.Find(ident) # NIL THEN RETURN END;
 				scopeSymbol := GetScopeSymbol (ident);
@@ -1570,7 +1570,7 @@ TYPE
 					Error("no symbols may be accessed in exported and inlined procedures");
 				END;
 
-				Global.GetSymbolName(scopeSymbol,name);
+				Global.GetSymbolPooledName(scopeSymbol,name);
 				IF scopeSymbol.scope IS SyntaxTree.ModuleScope THEN
 					IF (scopeSymbol IS SyntaxTree.Variable) THEN
 						symbol := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,scopeSymbol,dump # NIL);
@@ -2597,6 +2597,7 @@ TYPE
 		op1,op2,op3: Operand;
 		diagnostics: Diagnostics.StreamDiagnostics;
 		code: Code;
+		pooledName: Basic.PooledName;
 		PROCEDURE Op(CONST name: ARRAY OF CHAR): LONGINT;
 		BEGIN
 			RETURN InstructionSet.FindMnemonic(name)
@@ -2605,7 +2606,8 @@ TYPE
 	BEGIN
 		InitOperand(op1); InitOperand(op2); InitOperand(op3);
 		NEW(diagnostics,context.error);
-		NEW(code,Sections.CodeSection,8,"test",TRUE,TRUE);
+		Basic.ToPooledName("test", pooledName);
+		NEW(code,Sections.CodeSection,8,pooledName,TRUE,TRUE);
 		NEW(assembly,diagnostics);
 		assembly.SetCode(code);
 		InitRegister(op1,InstructionSet.regEAX);

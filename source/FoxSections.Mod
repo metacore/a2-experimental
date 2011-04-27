@@ -24,7 +24,7 @@ TYPE
 
 	Section*=OBJECT
 	VAR
-		name-: SyntaxTree.String; (* name of this section (globally unique-name derived from symbol name) *)
+		name-: ObjectFile.PooledName; (* name of this section (globally unique-name derived from symbol name) *)
 		type-: SHORTINT; (* CodeSection, InlineCodeSection, VarSection or ConstSection *)
 		symbol-: SyntaxTree.Symbol; (* corresponding symbol in AST *)
 
@@ -40,9 +40,9 @@ TYPE
 		bitsPerUnit-: LONGINT; (* the unit size given in bits *)
 		isReachable-: BOOLEAN;
 
-		PROCEDURE & InitSection*(type: SHORTINT; CONST n: ARRAY OF CHAR; symbol: SyntaxTree.Symbol);
+		PROCEDURE & InitSection*(type: SHORTINT; CONST n: ObjectFile.PooledName; symbol: SyntaxTree.Symbol);
 		BEGIN
-			COPY(n,name);
+			name := n;
 			SELF.symbol := symbol;
 			SELF.type := type;
 			entryNumber := 0;
@@ -61,7 +61,7 @@ TYPE
 		PROCEDURE IsCaseTable*;
 		BEGIN SELF.isCaseTable := TRUE
 		END IsCaseTable;
-		
+
 		PROCEDURE IsSystemCall*;
 		BEGIN SELF.isSystemCall := TRUE
 		END IsSystemCall;
@@ -155,7 +155,7 @@ TYPE
 
 		PROCEDURE DumpName*(w: Streams.Writer);
 		BEGIN
-			w.String(name);
+			Basic.WritePooledName(w,name);
 		END DumpName;
 
 	END Section;
@@ -279,26 +279,18 @@ TYPE
 
 	END SectionLookup;
 
-	SectionNameLookup = OBJECT(Basic.HashTableInt); (* SyntaxTree.Symbol _> Symbol *)
+	SectionNameLookup = OBJECT(Basic.HashTablePooledName); (* SyntaxTree.Symbol _> Symbol *)
 
-		PROCEDURE GetSection(CONST name: ARRAY OF CHAR):Section;
-		VAR p: ANY; index: LONGINT;
+		PROCEDURE GetSection(CONST name: Basic.PooledName):Section;
+		VAR p: ANY;
 		BEGIN
-			index := StringPool.GetIndex1(name);
-			p := Get(index);
-			IF p # NIL THEN
-				ASSERT(StringPool.GetIndex1(p(Section).name)=index);
-				RETURN p(Section);
-			ELSE
-				RETURN NIL
-			END;
+			p := Get(name);
+			IF p # NIL THEN RETURN p(Section) ELSE RETURN NIL END;
 		END GetSection;
 
-		PROCEDURE PutSection(CONST name: ARRAY OF CHAR; section: Section);
-		VAR index: LONGINT;
+		PROCEDURE PutSection(CONST name:Basic.PooledName; section: Section);
 		BEGIN
-			index := StringPool.GetIndex1(name);
-			Put(index,section);
+			Put(name, section);
 		END PutSection;
 
 	END SectionNameLookup;
@@ -338,7 +330,7 @@ TYPE
 			IF section.symbol # NIL THEN (* special case, may not be added to lookup list *)
 				lookup.PutSection(section.symbol, section)
 			END;
-			IF section.name # "" THEN
+			IF section.name[0] # -1 THEN
 				lookupName.PutSection(section.name, section);
 			END;
 			Add(section)
@@ -368,13 +360,9 @@ TYPE
 			END
 		END FindBySymbol;
 
-		PROCEDURE FindByName*(CONST name: ARRAY OF CHAR): Section;
+		PROCEDURE FindByName*(CONST name: Basic.PooledName): Section;
 		BEGIN
-			IF name = "" THEN
-				RETURN NIL
-			ELSE
-				RETURN lookupName.GetSection(name)
-			END
+			RETURN lookupName.GetSection(name)
 		END FindByName;
 
 		PROCEDURE Dump*(w: Streams.Writer);
@@ -493,10 +481,12 @@ TYPE
 	VAR
 		i: LONGINT;
 		section: Section;
-	BEGIN	
+		name: ObjectFile.SectionName;
+	BEGIN
 		FOR i := 0 TO module.sections.Length() - 1 DO
 			section := module.sections.GetSection(i);
-			IF Strings.Match(filter, section.name) THEN section.Dump(w); w.Ln; END
+			ObjectFile.FromPooledName(section.name,name);
+			IF Strings.Match(filter, name) THEN section.Dump(w); w.Ln; END
 		END
 	END DumpFiltered;
 

@@ -18,9 +18,10 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			PROCEDURE ExportSection (section: IntermediateCode.Section): BOOLEAN;
 			VAR name: ARRAY 128 OF CHAR; (* debugging *)
 			BEGIN
-				COPY(section.name,name);
+
 				IF section.resolved = NIL THEN
-					D.String('"section.resolved = NIL" for '); D.String(section.name); D.Ln;
+					Basic.FromPooledName(section.name, name);
+					D.String('"section.resolved = NIL" for '); D.String(name); D.Ln;
 					RETURN FALSE
 				ELSE
 					IF (section.type = Sections.PrototypeSection) OR (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
@@ -125,14 +126,15 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	END ObjectFileFormat;
 
 	PROCEDURE GetFingerPrint (section: Sections.Section; fingerPrinter: FingerPrinter.FingerPrinter): LONGINT;
-	VAR fingerPrint: SyntaxTree.FingerPrint; fp: LONGINT;
+	VAR fingerPrint: SyntaxTree.FingerPrint; fp: LONGINT; string: SyntaxTree.String;
 	BEGIN
 		IF section.fingerprint # 0 THEN
 			fp := section.fingerprint
 		ELSIF (section.symbol = NIL) OR (section.symbol.scope = NIL) THEN
 			fp := 0;
 			IF (section(IntermediateCode.Section).resolved # NIL) & (section.type # Sections.PrototypeSection) THEN
-				FingerPrinter.FPString(fp, section.name)
+				Basic.FromPooledName(section.name, string);
+				FingerPrinter.FPString(fp, string)
 			END
 		ELSE
 			fingerPrint := fingerPrinter.SymbolFP (section.symbol);

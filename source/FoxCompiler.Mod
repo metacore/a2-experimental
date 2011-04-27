@@ -379,7 +379,7 @@ TYPE
 				instructionMemorySize, dataMemorySize: LONGINT;
 				parameter: ActiveCells.Parameter;
 				value: SyntaxTree.Value;
-
+				pooledName: Basic.PooledName;
 			BEGIN
 
 				type := instance.type;
@@ -402,7 +402,8 @@ TYPE
 					ELSE
 						value := SyntaxTree.NewIntegerValue(-1, parameter.integer); value.SetType(system.integerType);
 					END;
-					assembler.PatchValueInSection(parameter.name,value);
+					Basic.ToPooledName(parameter.name, pooledName);
+					assembler.PatchValueInSection(pooledName,value);
 				END;
 
 				assembler.PrearrangeReachableDataSections;
@@ -621,7 +622,7 @@ TYPE
 		dummySymbolFileFormat: Formats.SymbolFileFormat;
 		dummyDataflowSpecification: ActiveCells.Specification;
 		filename, dummyString: SyntaxTree.String;
-		assemblinker: IntermediateCodeAssembler.Assemblinker;	
+		assemblinker: IntermediateCodeAssembler.Assemblinker;
 		error: BOOLEAN;
 	BEGIN
 		NEW(diagnostics, context.out);
@@ -629,7 +630,7 @@ TYPE
 			(* TODO: handle flags, such as 'Print', 'Silent' and 'TraceError'? *)
 
 			error := FALSE;
-			WHILE context.arg.GetString(filename) & (filename # ";") & ~error DO			
+			WHILE context.arg.GetString(filename) & (filename # ";") & ~error DO
 				NEW(assemblinker, diagnostics, defaultBackend, "");
 				IF assemblinker.LoadModule(filename, FALSE) THEN
 					assemblinker.MarkReachabilityOfAll(TRUE);

@@ -129,7 +129,7 @@ TYPE
 		BEGIN RETURN pc
 		END GetPC;
 
-		PROCEDURE & InitIntermediateSection*(type: SHORTINT; CONST n: ARRAY OF CHAR; symbol: SyntaxTree.Symbol; comment: BOOLEAN);
+		PROCEDURE & InitIntermediateSection*(type: SHORTINT; CONST n: Basic.PooledName; symbol: SyntaxTree.Symbol; comment: BOOLEAN);
 		BEGIN
 			InitSection(type,n,symbol); InitArray;resolved := NIL;
 			IF comment THEN NEW(comments,GetPC) ELSE comments := NIL END;
@@ -333,7 +333,7 @@ TYPE
 	END Assert;
 
 	(** create a new intermediate code section (if the section already exists in the section list, return the existing one **)
-	PROCEDURE NewSection*(sectionList: Sections.SectionList; type: SHORTINT; CONST name: ARRAY OF CHAR; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): Section;
+	PROCEDURE NewSection*(sectionList: Sections.SectionList; type: SHORTINT; CONST name: Basic.PooledName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): Section;
 	VAR
 		searchedSection: Sections.Section;
 		result: Section;
@@ -341,7 +341,7 @@ TYPE
 		(* try to find section in section list *)
 		searchedSection := NIL;
 		IF syntaxTreeSymbol # NIL THEN searchedSection := sectionList.FindBySymbol(syntaxTreeSymbol) (* search by syntax tree symbol *)
-		ELSIF name # "" THEN searchedSection := sectionList.FindByName(name) (* search by name *)
+		ELSIF name[0] >= 0  THEN searchedSection := sectionList.FindByName(name) (* search by name *)
 		ELSE HALT(100) (* should not occur *)
 		END;
 

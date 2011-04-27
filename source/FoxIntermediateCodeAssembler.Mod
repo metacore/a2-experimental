@@ -2,7 +2,7 @@ MODULE FoxIntermediateCodeAssembler;
 IMPORT
 	Strings, Diagnostics, D := Debugging, SyntaxTree := FoxSyntaxTree, Scanner := FoxScanner, Sections := FoxSections,
 	IntermediateCode := FoxIntermediateCode, Basic := FoxBasic, Streams, Files, Backend := FoxBackend,
-	Global := FoxGlobal, Formats := FoxFormats, SemanticChecker := FoxSemanticChecker, ActiveCells := FoxActiveCells;
+	Global := FoxGlobal, Formats := FoxFormats, SemanticChecker := FoxSemanticChecker, ActiveCells := FoxActiveCells, ObjectFile;
 
 CONST
 	IntermediateCodeExtension = "Fil"; (* TODO: move to a better place *)
@@ -163,6 +163,7 @@ TYPE
 			identifier: SyntaxTree.String;
 			type: IntermediateCode.Type;
 			sectionOfSymbol: Sections.Section;
+			name: Basic.PooledName;
 		BEGIN
 			IF Trace THEN D.String(">>> ParseOperand"); D.Ln END;
 
@@ -205,8 +206,9 @@ TYPE
 					END;
 
 					IF Trace THEN D.String(">>> symbol detected"); D.Ln END;
-									
-					sectionOfSymbol := IntermediateCode.NewSection(sectionList, Sections.PrototypeSection, identifier, NIL, TRUE);
+
+					Basic.ToPooledName(identifier, name);
+					sectionOfSymbol := IntermediateCode.NewSection(sectionList, Sections.PrototypeSection, name, NIL, TRUE);
 					IntermediateCode.InitAddress(operand, IntermediateCode.UnsignedIntegerType(system.addressSize), sectionOfSymbol, symbolOffset)
 				END
 
@@ -379,8 +381,8 @@ TYPE
 			positionOfProperty, integer: LONGINT;
 		BEGIN
 			IF Trace THEN D.Ln; D.String(">>> ParseSectionProperties"); D.Ln END;
-			
-			WHILE ~error & (symbol.token # Scanner.EndOfText) & (symbol.token # Scanner.Ln) DO		
+
+			WHILE ~error & (symbol.token # Scanner.EndOfText) & (symbol.token # Scanner.Ln) DO
 				positionOfProperty := symbol.start;
 
 				(* offset *)
@@ -393,7 +395,7 @@ TYPE
 
 				(* fingerprint *)
 				ELSIF ThisIdentifier("fingerprint") & ExpectToken(Scanner.Equal) THEN
-					IF ExpectIntegerWithSign(integer) THEN													
+					IF ExpectIntegerWithSign(integer) THEN
 						IF (section.fingerprint # 0) & (section.fingerprint # integer) THEN
 							IF section.type = Sections.PrototypeSection THEN
 								Error(positionOfProperty, "incompatible fingerprint")
@@ -453,6 +455,7 @@ TYPE
 			afterModuleDirective, afterImportsDirective, afterFirstSection: BOOLEAN;
 			sectionType: SHORTINT;
 			section: IntermediateCode.Section;
+			name: Basic.PooledName;
 		BEGIN
 			IF Trace THEN D.Ln; D.String(">>> ParseModuleContent"); D.Ln END;
 
@@ -534,7 +537,8 @@ TYPE
 
 						IF ~error THEN
 							IF ExpectAnyIdentifier(pos, identifier) THEN
-								section := IntermediateCode.NewSection(sectionList, sectionType, identifier, NIL, TRUE); (* keeps section if already present *)
+								Basic.ToPooledName(identifier, name);
+								section := IntermediateCode.NewSection(sectionList, sectionType, name, NIL, TRUE); (* keeps section if already present *)
 
 								(* set default unit size for the platform, which depends on the section type *)
 								IF (sectionType = Sections.VarSection) OR (sectionType = Sections.ConstSection) THEN
@@ -546,7 +550,7 @@ TYPE
 
 								(* consume optional section properties *)
 								ParseSectionProperties(section);
-								
+
 								IF ~error & ExpectLineDelimiter() THEN
 									ParseSectionContent(scanner, section, sectionList);
 									afterFirstSection := TRUE
@@ -621,16 +625,16 @@ TYPE
 		PROCEDURE RemoveFileExtension(VAR filename: ARRAY OF CHAR);
 		VAR
 			name, extension: SyntaxTree.String;
-		BEGIN	
+		BEGIN
 			Files.SplitExtension(filename, name, extension);
 			COPY(name, filename)
 		END RemoveFileExtension;
-		
+
 		(** load a module given by its name from an IR-file
 			- if 'resursive' is TRUE: also load the referenced modules from their corresponding files
 			- return TRUE if operation was successful
 		**)
-		PROCEDURE LoadModule*(moduleName: SyntaxTree.String; isRecursive: BOOLEAN): BOOLEAN;		
+		PROCEDURE LoadModule*(moduleName: SyntaxTree.String; isRecursive: BOOLEAN): BOOLEAN;
 		BEGIN RETURN LoadModule2(moduleName, isRecursive, TRUE)
 		END LoadModule;
 
@@ -657,7 +661,7 @@ TYPE
 					(* nothing to do *)
 				ELSE
 					(* open corresponding intermediate code file *)
-					filename := moduleName; Files.JoinExtension(filename, IntermediateCodeExtension, filename); 
+					filename := moduleName; Files.JoinExtension(filename, IntermediateCodeExtension, filename);
 					IF irFilePath # "" THEN Files.JoinPath(irFilePath, filename, filename) END;
 					reader := Basic.GetFileReader(filename);
 
@@ -710,8 +714,10 @@ TYPE
 		PROCEDURE MarkAsReachableByName*(CONST name: ARRAY OF CHAR);
 		VAR
 			section: Sections.Section;
+			pooledName: Basic.PooledName;
 		BEGIN
-			section:= allSections.FindByName(name);
+			Basic.ToPooledName(name, pooledName);
+			section:= allSections.FindByName(pooledName);
 			ASSERT(section # NIL);
 			MarkAsReachable(section)
 		END MarkAsReachableByName;
@@ -720,13 +726,15 @@ TYPE
 		PROCEDURE MarkAsReachableStartingWith*(CONST prefix: ARRAY OF CHAR);
 		VAR
 			section: Sections.Section;
+			name: ObjectFile.SectionName;
 			i: LONGINT;
 		BEGIN
 			(* TODO: could or should one make this faster using a hash table? *)
 			(* go through all sections *)
 			FOR i := 0 TO allSections.Length() - 1 DO
 				section := allSections.GetSection(i);
-				IF Strings.StartsWith(prefix, 0, section.name) THEN MarkAsReachable(section) END
+				Basic.FromPooledName(section.name, name);
+				IF Strings.StartsWith(prefix, 0, name) THEN MarkAsReachable(section) END
 			END
 		END MarkAsReachableStartingWith;
 
@@ -737,7 +745,7 @@ TYPE
 			i: LONGINT;
 		BEGIN
 			IF ~section.isReachable THEN
-				IF Trace THEN D.String(">>> MarkAsReachable "); D.String(section.name); D.Ln END;
+				IF Trace THEN D.String(">>> MarkAsReachable "); Basic.WritePooledName(D.Log, section.name); D.Ln END;
 				section.SetReachability(TRUE);
 				ASSERT(section IS IntermediateCode.Section);
 				intermediateCodeSection := section(IntermediateCode.Section);
@@ -904,7 +912,7 @@ TYPE
 			IF Trace THEN D.String("after prearrangement"); D.Ln; DumpAllSections(D.Log); D.Ln END;
 		END PrearrangeReachableDataSections;
 
-		PROCEDURE PatchValueInSection*(CONST sectionName: ARRAY OF CHAR; syntaxTreeValue: SyntaxTree.Value);
+		PROCEDURE PatchValueInSection*(CONST sectionName: Basic.PooledName; syntaxTreeValue: SyntaxTree.Value);
 		VAR
 			section: Sections.Section;
 			emptyOperand, dataOperand: IntermediateCode.Operand;
