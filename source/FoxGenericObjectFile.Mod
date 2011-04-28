@@ -1,19 +1,19 @@
 MODULE FoxGenericObjectFile; (** AUTHOR "negelef"; PURPOSE "Generic Object File Writer"; *)
 
 IMPORT
-	Streams, Commands, Basic := FoxBasic, Formats := FoxFormats, Sections := FoxSections, IntermediateCode := FoxIntermediateCode,
+	StringPool, Streams, Commands, Basic := FoxBasic, Formats := FoxFormats, Sections := FoxSections, IntermediateCode := FoxIntermediateCode,
 	SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
 	FingerPrinter := FoxFingerPrinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := FoxTextualSymbolFile, KernelLog, D := Debugging;
 
 CONST
-	version = 0;
+	version = 1;
 	Trace = FALSE;
 
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	VAR prefix, extension: Files.FileName; binary: BOOLEAN;
 
 		PROCEDURE Export* (module: Formats.GeneratedModule; symbolFileFormat: Formats.SymbolFileFormat): BOOLEAN;
-		VAR fileName: Files.FileName; file: Files.File; writer: Files.Writer; fingerPrinter: FingerPrinter.FingerPrinter;
+		VAR fileName: Files.FileName; file: Files.File; writer: Files.Writer; fingerPrinter: FingerPrinter.FingerPrinter; poolMap: ObjectFile.PoolMap;
 
 			PROCEDURE ExportSection (section: IntermediateCode.Section): BOOLEAN;
 			VAR name: ARRAY 128 OF CHAR; (* debugging *)
@@ -29,7 +29,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 					ELSE
 						section.resolved.identifier.fingerprint := GetFingerPrint (section, fingerPrinter);
 						UpdateFixups (section.resolved, fingerPrinter);
-						ObjectFile.WriteSection(writer,section.resolved^,binary)
+						ObjectFile.WriteSection(writer,section.resolved^,binary, poolMap)
 					END
 				END;
 				RETURN TRUE
@@ -49,13 +49,10 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 							test := sections.GetSection(j);
 							IF test(IntermediateCode.Section).resolved.identifier.fingerprint = section(IntermediateCode.Section).resolved.identifier.fingerprint THEN
 								diagnostics.Warning(module.moduleName,Diagnostics.Invalid,Diagnostics.Invalid,"duplicate fingerPrints");
-								ObjectFile.FromPooledName(section(IntermediateCode.Section).resolved.identifier.name,name); D.String(name);
-								(* KernelLog.String(section(IntermediateCode.Section).resolved.identifier.name); *)
-								KernelLog.String(",");
-								ObjectFile.FromPooledName(test(IntermediateCode.Section).resolved.identifier.name,name); D.String(name);
-								(*
-								KernelLog.String(test(IntermediateCode.Section).resolved.identifier.name);
-								*)
+								ObjectFile.FromPooledName(section(IntermediateCode.Section).resolved.identifier.name,name);
+								KernelLog.String(name); KernelLog.String(",");
+								ObjectFile.FromPooledName(test(IntermediateCode.Section).resolved.identifier.name,name);
+								KernelLog.String(name);
 								KernelLog.Ln;
 							END
 						END
@@ -66,7 +63,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 
 			PROCEDURE ExportModule (module: Sections.Module): BOOLEAN;
 			BEGIN
-				WriteHeader(writer,binary);
+				WriteHeader(writer,binary,module.sections,poolMap);
 				RETURN ExportSections (module.sections)
 			END ExportModule;
 
@@ -159,8 +156,8 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	BEGIN NEW(objectFileFormat); RETURN objectFileFormat
 	END Get;
 
-	PROCEDURE ReadHeader(reader: Streams.Reader; VAR binary: BOOLEAN);
-	VAR ch: CHAR; version: LONGINT; string: ARRAY 32 OF CHAR;
+	PROCEDURE ReadHeader(reader: Streams.Reader; VAR binary: BOOLEAN; VAR poolMap: ObjectFile.PoolMap);
+	VAR ch: CHAR; version: LONGINT; string: ARRAY 32 OF CHAR; i,j,pos,size: LONGINT; name: ObjectFile.SectionName;
 	BEGIN
 		reader.String(string);
 		binary := string="FoxOFB";
@@ -169,34 +166,104 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		reader.Char(ch); ASSERT(ch='v');
 		reader.Int(version,FALSE);
 		reader.Char(ch); ASSERT(ch='.');
-		IF ~binary THEN reader.SkipWhitespace END;
+		IF ~binary THEN reader.SkipWhitespace
+		ELSE
+			NEW(poolMap,64);
+			reader.RawLInt(size);
+			pos := 0; j := 0;
+			FOR i := 0 TO size-1 DO
+				reader.Char(ch);
+				IF Trace THEN IF ch # 0X THEN D.Char(ch) ELSE D.Ln END END;
+				name[j] := ch; INC(j);
+				IF ch = 0X THEN
+					poolMap.Put(pos, StringPool.GetIndex1(name));
+					pos := i+1; j := 0;
+				END;
+			END;
+			IF Trace THEN D.String("pos "); D.Int(reader.Pos(),1); D.Ln END;
+			ASSERT(ch=0X);
+		END;
 	END ReadHeader;
 
-	PROCEDURE WriteHeader(writer: Streams.Writer; binary: BOOLEAN);
+	PROCEDURE WriteHeader(writer: Streams.Writer; binary: BOOLEAN; sections: Sections.SectionList; VAR poolMap: ObjectFile.PoolMap);
+	VAR p1,p2, size,i: LONGINT; section: Sections.Section;
+
+		PROCEDURE Identifier(id: LONGINT);
+		VAR i: LONGINT; name: ObjectFile.SectionName; ch: CHAR;
+		BEGIN
+			IF id >= 0 THEN
+				IF ~poolMap.Has(id) THEN
+					poolMap.Put(id, size);
+					StringPool.GetString(id, name);
+					i := 0;
+					REPEAT
+						ch := name[i];
+						INC(i); INC(size);
+						writer.Char(ch);
+						IF Trace THEN IF ch # 0X THEN D.Char(ch) ELSE D.Ln END; END;
+					UNTIL ch = 0X;
+				END;
+			END;
+		END Identifier;
+
+		PROCEDURE ProcessPooledName(CONST pooledName: ObjectFile.PooledName);
+		VAR i: LONGINT;
+		BEGIN
+			FOR i := 0 TO LEN(pooledName)-1 DO
+				IF pooledName[i] < 0 THEN RETURN END;
+				Identifier(pooledName[i]);
+			END;
+		END ProcessPooledName;
+
+		PROCEDURE ProcessSection(section: IntermediateCode.Section);
+		VAR i: LONGINT;
+		BEGIN
+			IF section.resolved # NIL THEN
+				ProcessPooledName(section.resolved.identifier.name);
+				FOR i := 0 TO section.resolved.fixups-1 DO
+					ProcessPooledName(section.resolved.fixup[i].identifier.name);
+				END;
+			END;
+		END ProcessSection;
+
 	BEGIN
 		IF binary THEN writer.String("FoxOFB");
 		ELSE writer.String("FoxOFT");
 		END;
 		writer.Char(' ');
 		writer.Char('v'); writer.Int(version,0); writer.Char(".");
-		IF ~binary THEN writer.Ln END;
+		IF ~binary THEN writer.Ln
+		ELSE
+			NEW(poolMap,64);
+			p1 := writer.Pos(); size := 0;
+			writer.RawLInt(0);
+			FOR i := 0 TO sections.Length()-1 DO
+				section := sections.GetSection(i);
+				ProcessSection(section(IntermediateCode.Section));
+			END;
+			p2 := writer.Pos();
+			writer.SetPos(p1);
+			writer.RawLInt(size);
+			writer.SetPos(p2);
+			IF Trace THEN D.String("pos "); D.Int(writer.Pos(),1); D.Ln END;
+		END;
 	END WriteHeader;
 
 	PROCEDURE Show*(context: Commands.Context);
 	VAR
 		fileName: Files.FileName; file: Files.File; reader: Files.Reader; writer: Streams.Writer;
-		section: ObjectFile.Section; binary: BOOLEAN;
+		section: ObjectFile.Section; binary: BOOLEAN; poolMap, poolMapDummy: ObjectFile.PoolMap;
 	BEGIN
 		IF context.arg.GetString(fileName) THEN
 			file := Files.Old(fileName);
 			IF file # NIL THEN
 				NEW(reader,file,0);
 				writer := Basic.GetWriter(Basic.GetDebugWriter(fileName));
-				ReadHeader(reader, binary);
-				WriteHeader(writer, FALSE);
+				ReadHeader(reader, binary, poolMap);
+				WriteHeader(writer, FALSE, NIL, poolMapDummy);
 				WHILE reader.Peek () # 0X DO
-					ObjectFile.ReadSection (reader, section,binary);
-					ObjectFile.WriteSection(writer, section, FALSE); (* textual *)
+					ObjectFile.ReadSection (reader, section,binary, poolMap);
+					ObjectFile.WriteSection(writer, section, FALSE, NIL); (* textual *)
 					reader.SkipWhitespace;
 				END;
 				writer.Update;

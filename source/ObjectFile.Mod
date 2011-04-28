@@ -85,6 +85,95 @@ TYPE
 		bits*: BitSets.BitSet;
 	END;
 
+	PoolMapItem= RECORD key, value: LONGINT END;
+	PoolMapArray*=POINTER TO ARRAY OF PoolMapItem;
+
+	PoolMap*=OBJECT
+	VAR
+		table: PoolMapArray;
+		size: LONGINT;
+		used-: LONGINT;
+		maxLoadFactor: REAL;
+		(* Interface *)
+
+		PROCEDURE & Init* (initialSize: LONGINT);
+		BEGIN
+			ASSERT(initialSize > 2);
+			NEW(table, initialSize);
+			size := initialSize;
+			used := 0;
+			maxLoadFactor := 0.75;
+			Clear;
+		END Init;
+
+		PROCEDURE Put*(key, value: LONGINT);
+		VAR hash: LONGINT;
+		BEGIN
+			ASSERT(used < size);
+			ASSERT(key >= 0);
+			hash := HashValue(key);
+			IF table[hash].key <0  THEN
+				INC(used, 1);
+			ELSE
+				ASSERT(table[hash].key = key);
+			END;
+			table[hash].key := key;
+			table[hash].value := value;
+
+			IF (used / size) > maxLoadFactor THEN Grow END;
+		END Put;
+
+		PROCEDURE Get*(key: LONGINT):LONGINT;
+		BEGIN
+			IF key = -1 THEN
+				RETURN -1
+			ELSE
+				RETURN table[HashValue(key)].value;
+			END
+		END Get;
+
+		PROCEDURE Has*(key: LONGINT):BOOLEAN;
+		BEGIN
+			RETURN table[HashValue(key)].key = key;
+		END Has;
+
+		PROCEDURE Clear*;
+		VAR i: LONGINT;
+		BEGIN FOR i := 0 TO size - 1 DO table[i].key := -1; END; END Clear;
+
+		(* Internals *)
+
+		(* only correctly working, if NIL key cannot be entered *)
+		PROCEDURE HashValue(key: LONGINT):LONGINT;
+		VAR value, h, i: LONGINT;
+		BEGIN
+			value := key;
+			i := 0;
+			h := value MOD size;
+			REPEAT
+				value := (h + i) MOD size;
+				INC(i);
+			UNTIL((table[value].key  < 0) OR (table[value].key = key) OR (i > size));
+			ASSERT((table[value].key <0)  OR (table[value].key = key));
+			RETURN value;
+		END HashValue;
+
+		PROCEDURE Grow;
+		VAR oldTable: PoolMapArray; oldSize, i: LONGINT; key: LONGINT;
+		BEGIN
+			oldSize := size;
+			oldTable := table;
+			Init(size*2);
+			FOR i := 0 TO oldSize-1 DO
+				key := oldTable[i].key;
+				IF key >=0 THEN
+					Put(key, oldTable[i].value);
+				END;
+			END;
+		END Grow;
+
+	END PoolMap;
+
 VAR
 	types: ARRAY 6 OF ARRAY 10 OF CHAR;
 	modes: ARRAY 2 OF ARRAY 4 OF CHAR;
@@ -363,41 +452,50 @@ VAR
 		END;
 	END ReadSectionTextual;
 
-	PROCEDURE WriteSectionBinary (writer: Streams.Writer; CONST section: Section);
+	PROCEDURE WriteSectionBinary (writer: Streams.Writer; CONST section: Section; poolMap: PoolMap);
 	VAR i: LONGINT; size: Bits; bits: LONGINT;
 
 		PROCEDURE WriteValueIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
 		BEGIN
+			writer.RawInt(value);
+			(*
 			writer.RawString (identifiers[value]);
+			*)
 		END WriteValueIdentifier;
 
 		PROCEDURE WritePattern (CONST pattern: FixupPattern);
 		BEGIN
-			writer.RawLInt (pattern.offset);
-			writer.RawLInt (pattern.bits);
+			writer.RawNum (pattern.offset);
+			writer.RawNum (pattern.bits);
 		END WritePattern;
 
 		PROCEDURE WriteIdentifier(CONST identifier: Identifier);
-		VAR name: SectionName;
+		(*VAR name: SectionName;*)
+		VAR i: LONGINT;
 		BEGIN
+			FOR i := 0 TO LEN(identifier.name)-1 DO
+				writer.RawNum(poolMap.Get(identifier.name[i]));
+			END;
+			(*
 			FromPooledName(identifier.name, name);
 			writer.RawString (name);
-			writer.RawLInt (identifier.fingerprint);
+			*)
+			writer.RawNum (identifier.fingerprint);
 		END WriteIdentifier;
 
 		PROCEDURE WritePatch(CONST patch: Patch);
 		VAR i: LONGINT;
 		BEGIN
 			WriteValueIdentifier (patch.mode, modes);
-			writer.RawLInt (patch.displacement);
-			writer.RawLInt (patch.scale);
-			writer.RawLInt (patch.patterns);
+			writer.RawNum (patch.displacement);
+			writer.RawNum (patch.scale);
+			writer.RawNum (patch.patterns);
 			FOR i := 0 TO patch.patterns - 1 DO
 				WritePattern (patch.pattern[i]);
 			END;
-			writer.RawLInt (patch.offsets);
+			writer.RawNum (patch.offsets);
 			FOR i := 0 TO patch.offsets - 1 DO
-				writer.RawLInt (patch.offset[i]);
+				writer.RawNum (patch.offset[i]);
 			END;
 		END WritePatch;
 
@@ -405,7 +503,7 @@ VAR
 		VAR i: LONGINT;
 		BEGIN
 			WriteIdentifier(fixup.identifier);
-			writer.RawLInt(fixup.patches);
+			writer.RawNum(fixup.patches);
 			FOR i := 0 TO fixup.patches-1 DO
 				WritePatch(fixup.patch[i]);
 			END;
@@ -413,14 +511,15 @@ VAR
 
 	BEGIN
 		IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
+		writer.Char(1X);
 		WriteValueIdentifier (section.type, types);
 		WriteIdentifier(section.identifier);
-		writer.RawLInt (section.unit);
+		writer.RawNum (section.unit);
 		IF section.fixed THEN WriteValueIdentifier(Fixed,relocatabilities) ELSE WriteValueIdentifier(Aligned,relocatabilities) END;
-		writer.RawLInt (section.alignment);
-		writer.RawLInt (section.fixups);
+		writer.RawNum (section.alignment);
+		writer.RawNum (section.fixups);
 		size := section.bits.GetSize ();
-		writer.RawLInt (size DIV section.unit);
+		writer.RawNum (size DIV section.unit);
 		ASSERT(size MOD section.unit = 0);
 		FOR i := 0 TO section.fixups - 1 DO
 			WriteFixup (section.fixup[i]);
@@ -435,45 +534,55 @@ VAR
 		ELSE
 			writer.Char('N');
 			FOR i := 0 TO size - 1 BY 32 DO
-				writer.RawLInt (section.bits.GetBits (i, MIN (32, size - i)));
+				writer.RawNum (section.bits.GetBits (i, MIN (32, size - i)));
 			END;
 		END;
 		writer.Ln;
 	END WriteSectionBinary;
 
-	PROCEDURE ReadSectionBinary (reader: Streams.Reader; VAR section: Section);
-	VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER; num: LONGINT;
+	PROCEDURE ReadSectionBinary (reader: Streams.Reader; VAR section: Section; poolMap: PoolMap);
+	VAR i, size: LONGINT; char: CHAR; relocatibility: INTEGER; num: LONGINT; ch: CHAR;
 
 		PROCEDURE ReadValueIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
-		VAR identifier: ARRAY 10 OF CHAR;
+		(* VAR identifier: ARRAY 10 OF CHAR; *)
 		BEGIN
+			reader.RawInt(value);
+			(*
 			value := 0;
 			reader.RawString (identifier);
 			WHILE (value # LEN (identifiers)) & (identifier # identifiers[value]) DO INC (value); END;
 			IF value = LEN (identifiers) THEN reader.res := Streams.FormatError; END;
+			*)
 		END ReadValueIdentifier;
 
 		PROCEDURE ReadPattern (VAR pattern: FixupPattern);
 		BEGIN
-			reader.RawLInt (pattern.offset);
-			reader.RawLInt (pattern.bits);
+			reader.RawNum (pattern.offset);
+			reader.RawNum (pattern.bits);
 		END ReadPattern;
 
 		PROCEDURE ReadIdentifier(VAR identifier: Identifier);
-		VAR name: SectionName;
+		(*VAR name: SectionName;*)
+		VAR i: LONGINT;
 		BEGIN
-			 reader.RawString(name);
-			 ToPooledName(name, identifier.name);
-			 reader.RawLInt (identifier.fingerprint);
+			FOR i := 0 TO LEN(identifier.name) -1 DO
+				reader.RawNum(num);
+				identifier.name[i] := poolMap.Get(num);
+			END;
+			(*
+			reader.RawString(name);
+			ToPooledName(name, identifier.name);
+			*)
+			 reader.RawNum (identifier.fingerprint);
 		END ReadIdentifier;
 
 		PROCEDURE ReadPatch(VAR patch: Patch);
 		VAR i: LONGINT;
 		BEGIN
 			ReadValueIdentifier (patch.mode, modes);
-			reader.RawLInt (patch.displacement);
-			reader.RawLInt (patch.scale);
-			reader.RawLInt (patch.patterns);
+			reader.RawNum (patch.displacement);
+			reader.RawNum (patch.scale);
+			reader.RawNum (patch.patterns);
 
 			IF (patch.pattern = NIL) OR (LEN (patch.pattern) < patch.patterns) THEN
 				NEW (patch.pattern, patch.patterns);
@@ -481,12 +590,12 @@ VAR
 			FOR i := 0 TO patch.patterns - 1 DO
 				ReadPattern (patch.pattern[i]);
 			END;
-			reader.RawLInt(patch.offsets);
+			reader.RawNum(patch.offsets);
 			IF (patch.offset = NIL) OR (LEN(patch.offset) < patch.offsets) THEN
 				NEW(patch.offset, patch.offsets);
 			END;
 			FOR i := 0 TO patch.offsets-1 DO
-				 reader.RawLInt (patch.offset[i]);
+				 reader.RawNum (patch.offset[i]);
 			END;
 		END ReadPatch;
 
@@ -494,7 +603,7 @@ VAR
 		VAR i: LONGINT;
 		BEGIN
 			ReadIdentifier (fixup.identifier);
-			reader.RawLInt (fixup.patches);
+			reader.RawNum (fixup.patches);
 			IF (fixup.patch = NIL) OR (LEN (fixup.patch) < fixup.patches) THEN
 				NEW (fixup.patch, fixup.patches);
 			END;
@@ -504,14 +613,15 @@ VAR
 		END ReadFixup;
 
 	BEGIN
+		reader.Char(ch); ASSERT(ch = 1X);
 		ReadValueIdentifier (section.type, types);
 		ReadIdentifier (section.identifier);
-		reader.RawLInt (section.unit);
+		reader.RawNum (section.unit);
 		ReadValueIdentifier(relocatibility, relocatabilities);
 		section.fixed := relocatibility = Fixed;
-		reader.RawLInt (section.alignment);
-		reader.RawLInt (section.fixups);
-		reader.RawLInt (size); size := size * section.unit;
+		reader.RawNum (section.alignment);
+		reader.RawNum (section.fixups);
+		reader.RawNum (size); size := size * section.unit;
 		IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
 			NEW (section.fixup, section.fixups);
 		END;
@@ -528,25 +638,25 @@ VAR
 		ELSE
 			ASSERT(char ='N');
 			FOR i := 0 TO size - 1 BY 32 DO
-				reader.RawLInt (num);
+				reader.RawNum (num);
 				section.bits.SetBits (i, MIN (32, size - i), num);
 			END;
 		END;
 	END ReadSectionBinary;
 
-	PROCEDURE ReadSection*(reader: Streams.Reader; VAR section: Section; binary: BOOLEAN);
+	PROCEDURE ReadSection*(reader: Streams.Reader; VAR section: Section; binary: BOOLEAN; poolMap: PoolMap);
 	BEGIN
 		IF binary THEN
-			ReadSectionBinary(reader,section)
+			ReadSectionBinary(reader,section,poolMap)
 		ELSE
 			ReadSectionTextual(reader,section);
 		END
 	END ReadSection;
 
-	PROCEDURE WriteSection*(writer: Streams.Writer; CONST section: Section; binary: BOOLEAN);
+	PROCEDURE WriteSection*(writer: Streams.Writer; CONST section: Section; binary: BOOLEAN; poolMap: PoolMap);
 	BEGIN
 		IF binary THEN
-			WriteSectionBinary(writer,section)
+			WriteSectionBinary(writer,section, poolMap)
 		ELSE
 			WriteSectionTextual(writer,section)
 		END

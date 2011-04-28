@@ -1,6 +1,6 @@
 MODULE GenericLinker;	(* AUTHOR "negelef"; PURPOSE "Generic Object File Linker"; *)
 
-IMPORT ObjectFile, Streams, Diagnostics, Strings;
+IMPORT ObjectFile, Streams, Diagnostics, Strings, StringPool;
 
 TYPE Address* = ObjectFile.Unit;
 
@@ -267,10 +267,10 @@ BEGIN
 END GetPriority;
 
 PROCEDURE Process* (reader: Streams.Reader; linker: Linker);
-VAR section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOOLEAN;
+VAR section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOOLEAN; poolMap: ObjectFile.PoolMap;
 
 	PROCEDURE Header;
-	VAR ch: CHAR; version: LONGINT;
+	VAR ch: CHAR; version: LONGINT; string: ARRAY 32 OF CHAR; i,j,pos,size: LONGINT; name: ObjectFile.SectionName;
 	BEGIN
 		reader.String(string);
 		binary := string="FoxOFB";
@@ -279,13 +279,27 @@ VAR section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOO
 		reader.Char(ch); ASSERT(ch='v');
 		reader.Int(version,FALSE);
 		reader.Char(ch); ASSERT(ch='.');
-		IF ~binary THEN reader.SkipWhitespace END;
+		IF ~binary THEN reader.SkipWhitespace
+		ELSE
+			NEW(poolMap,64);
+			reader.RawLInt(size);
+			pos := 0; j := 0;
+			FOR i := 0 TO size-1 DO
+				reader.Char(ch);
+				name[j] := ch; INC(j);
+				IF ch = 0X THEN
+					poolMap.Put(pos, StringPool.GetIndex1(name));
+					pos := i+1; j := 0;
+				END;
+			END;
+			ASSERT(ch=0X);
+		END;
 	END Header;
 
 BEGIN
 	Header;
 	WHILE reader.Peek () # 0X DO
-		ObjectFile.ReadSection (reader, section,binary);
+		ObjectFile.ReadSection (reader, section,binary,poolMap);
 		reader.SkipWhitespace;
 		IF reader.res = Streams.Ok THEN linker.AddSection (section); END;
 	END;
