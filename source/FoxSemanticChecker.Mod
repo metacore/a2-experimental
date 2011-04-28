@@ -2204,6 +2204,16 @@ TYPE
 			RETURN result
 		END NewConversion;
 
+		PROCEDURE CompatibleConversion(position: LONGINT; expression: SyntaxTree.Expression; type: SyntaxTree.Type): SyntaxTree.Expression;
+		BEGIN
+			IF CompatibleTo(system,expression.type, type) THEN
+				RETURN NewConversion(position, expression, type, NIL);
+			ELSE
+				Error(expression.position, Diagnostics.Invalid, "incompatible expression");
+				RETURN SyntaxTree.invalidExpression
+			END;
+		END CompatibleConversion;
+
 		(**
 			convert operands left and right to a type that both operands are compatible with, if no such type exists then report error
 		**)
@@ -4859,11 +4869,15 @@ TYPE
 				(* ---- ORD ----- *)
 				ELSIF (id = Global.Ord) & Parameters(1,1) THEN
 					type := system.integerType;
-					IF CheckCharacterType(parameter0) THEN
+					IF CompatibleTo(system, parameter0.type, system.characterType) THEN
+						parameter0 := NewConversion(parameter0.position, parameter0, system.characterType,NIL);
+						actualParameters.SetExpression(0,parameter0);
+						(* IF CheckCharacterType(parameter0) THEN*)
 						 IF IsCharacterValue(parameter0,c)THEN
 							result.SetResolved(Global.NewIntegerValue(system,position,ORD(c)));
 							type := Global.GetIntegerType(system,ORD(c));
 						END;
+					ELSE Error(parameter0.position, Diagnostics.Invalid, "incompatible parameter");
 					END;
 				(* ---- SHORT ----- *)
 				ELSIF (id = Global.Short) & Parameters(1,1) THEN
@@ -6561,21 +6575,26 @@ TYPE
 					(* read out 'first' and 'last' *)
 					left := expression(SyntaxTree.RangeExpression).first;
 					right := expression(SyntaxTree.RangeExpression).last;
-
 					(* guaranteed by VisitRangeExpression: *)
 					ASSERT((left # NIL) & (right # NIL));
 					ASSERT(left.type.resolved = right.type.resolved);
-
-					expressionType := RegularType(position, left.type);
-
+					left := CompatibleConversion(left.position, left, type);
+					right := CompatibleConversion(right.position, right, type);
+					expression(SyntaxTree.RangeExpression).SetFirst(left);
+					expression(SyntaxTree.RangeExpression).SetLast(right);
+					expressionType := RegularType(position,left.type);
 				ELSE
 					expression := ConstantExpression(expression);
-					IF IsStringType(expression.type) & IsCharacterValue(expression,cl) THEN
+					expression := CompatibleConversion(expression.position, expression, type);
+					(*
+					IF IsStringType(expression.type) (*& IsCharacterValue(expression,cl) *) THEN
 						left := Global.NewCharacterValue(system,expression.position,cl);
 						expression := casePart.elements.GetExpression(i);
 						expression.SetResolved(left(SyntaxTree.CharacterValue));
 						expression := left
 					END;
+					*)
+					casePart.elements.SetExpression(i,expression);
 					left := expression; right := expression;
 					expressionType := RegularType(position,expression.type)
 				END;
@@ -6625,8 +6644,11 @@ TYPE
 			IF type = SyntaxTree.invalidType THEN
 				expression := SyntaxTree.invalidExpression;
 			ELSIF IsIntegerType(type) THEN
-			ELSIF IsStringType(expression.type) & IsCharacterValue(expression,ch) THEN
+			ELSIF IsStringType(expression.type) (* & IsCharacterValue(expression,ch) *) THEN
+				expression := NewConversion(expression.position, expression, system.characterType,NIL);
+				(*
 				expression := Global.NewCharacterValue(system,expression.position,ch);
+				*)
 				type := expression.type;
 			ELSIF IsCharacterType(type) THEN
 			ELSE
@@ -7927,9 +7949,11 @@ TYPE
 		IF  (x.resolved # NIL) & (x.resolved IS SyntaxTree.CharacterValue) THEN
 			value :=  x.resolved(SyntaxTree.CharacterValue).value;
 			result := TRUE
+		(* not a good idea, must convert instead
 		ELSIF (x.resolved # NIL) & (x.resolved IS SyntaxTree.StringValue) & (x.resolved(SyntaxTree.StringValue).length =2) THEN
 			result := TRUE;
 			value := x.resolved(SyntaxTree.StringValue).value[0];
+		*)
 		ELSE
 			result := FALSE
 		END;
@@ -8114,7 +8138,7 @@ TYPE
 	BEGIN
 		IF type = NIL THEN RETURN FALSE END;
 		type := type.resolved;
-		RETURN (type IS SyntaxTree.CharacterType) OR (type IS SyntaxTree.StringType) & (type(SyntaxTree.StringType).length = 2)
+		RETURN (type IS SyntaxTree.CharacterType) OR (type IS SyntaxTree.ByteType) OR (type IS SyntaxTree.StringType) & (type(SyntaxTree.StringType).length = 2)
 	END IsCharacterType;
 
 
