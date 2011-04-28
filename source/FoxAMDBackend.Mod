@@ -446,7 +446,7 @@ TYPE
 
 	END PhysicalRegisters64;
 
-	CodeGeneratorAMD64 = OBJECT (IntermediateBackend.GenericCodeGenerator)
+	CodeGeneratorAMD64 = OBJECT (IntermediateBackend.GeneratorWithTickets)
 	VAR
 		(* static generator state variables, considered constant during generation *)
 		runtimeModuleName: SyntaxTree.String;
@@ -502,7 +502,7 @@ TYPE
 			END;
 			SELF.cpuBits := bits;
 			fpStackPointer := 0;
-			InitGenerator(diagnostics,2,physicalRegisters);
+			InitTicketGenerator(diagnostics,2,physicalRegisters);
 		END InitGeneratorAMD64;
 
 		(*------------------- overwritten methods ----------------------*)

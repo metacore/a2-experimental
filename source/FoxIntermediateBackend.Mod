@@ -392,8 +392,6 @@ TYPE
 			parSize: LONGINT;
 			name: SyntaxTree.String; ir: IntermediateCode.Section;
 			null,size,fp: IntermediateCode.Operand;
-			result: Operand;
-			alignment : LONGINT;
 			cc: LONGINT;
 			actorType: SyntaxTree.CellType;
 
@@ -597,7 +595,7 @@ TYPE
 		PROCEDURE Module(x: SyntaxTree.Module; module: Sections.Module);
 		VAR
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand; name: SyntaxTree.String;
-			typeDeclaration: SyntaxTree.TypeDeclaration; hasDynamicOperatorDeclarations: BOOLEAN; (* nopov *)
+			hasDynamicOperatorDeclarations: BOOLEAN; (* nopov *)
 			operator: SyntaxTree.Operator;
 			import: SyntaxTree.Import;
 
@@ -7870,22 +7868,13 @@ TYPE
 		error* : BOOLEAN;
 		allocation: RegisterAllocation;
 
-		physicalRegisters-: PhysicalRegisters; (* physical registers <-> tickets *)
-		virtualRegisters-: VirtualRegisters; (* virtual registers --> tickets *)
-		tickets-: Tickets;  (* tickets <-> physical registers *)
-		spillStack-: SpillStack; (* spill stack offset <-> ticket *)
-
 		(* generic *)
-		PROCEDURE & InitGenerator*(diagnostics: Diagnostics.Diagnostics; numberRegisterParts: LONGINT; physicalRegisters: PhysicalRegisters);
+		PROCEDURE & InitGenerator*(diagnostics: Diagnostics.Diagnostics);
 		BEGIN
 			SELF.module := NIL;
 			SELF.diagnostics := diagnostics;
 			error := FALSE;
 			NEW(allocation);
-			NEW(tickets);
-			NEW(virtualRegisters,numberRegisterParts);
-			NEW(spillStack);
-			SELF.physicalRegisters := physicalRegisters;
 		END InitGenerator;
 
 		PROCEDURE SetModule*(module: Sections.Module); (* needed for inline code for symbol reference *)
@@ -8037,6 +8026,87 @@ TYPE
 		PROCEDURE Generate*(CONST instr: IntermediateCode.Instruction);
 		BEGIN (*HALT(100); *) (* abstract *)
 		END Generate;
+
+
+		(* ---------------------- generically available code emission ------------------------- *)
+
+
+		PROCEDURE GetDataSection*(): IntermediateCode.Section;
+		VAR name: Basic.PooledName; section: IntermediateCode.Section;
+		BEGIN
+			name[0] := StringPool.GetIndex1(module.moduleName);
+			name[1] := StringPool.GetIndex1("@Immediates");
+			name[2] := -1;
+			section := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
+			RETURN section
+		END GetDataSection;
+
+		PROCEDURE EmitData(CONST instruction: IntermediateCode.Instruction);
+			VAR type: IntermediateCode.Type; fixup: BinaryCode.Fixup; pc: LONGINT;fixupFormat: BinaryCode.FixupPatterns;
+		BEGIN
+			type := instruction.op1.type;
+			pc := out.pc;
+			IF type.form IN IntermediateCode.Integer THEN
+				out.PutBytes(instruction.op1.intValue,SHORT(type.sizeInBits DIV 8));
+			ELSE
+				IF type.sizeInBits = IntermediateCode.Bits32 THEN
+					out.PutReal(SHORT(instruction.op1.floatValue));
+				ELSIF type.sizeInBits = IntermediateCode.Bits64 THEN
+					out.PutLongreal(instruction.op1.floatValue);
+				ELSE Assert(FALSE,"no floats other than 32 or 64 bit")
+				END;
+			END;
+			IF instruction.op1.symbol # NIL THEN
+				NEW(fixupFormat,1);
+				fixupFormat[0].offset := 0;
+				fixupFormat[0].bits := type.sizeInBits;
+				fixup := BinaryCode.NewFixup(BinaryCode.Absolute,pc,instruction.op1.symbol,instruction.op1.symbolOffset,instruction.op1.offset,0,fixupFormat);
+				out.fixupList.AddFixup(fixup);
+			END;
+		END EmitData;
+
+		PROCEDURE EmitReserve(CONST instruction: IntermediateCode.Instruction);
+		VAR sizeInUnits,i: LONGINT;
+		BEGIN
+			sizeInUnits := SHORT(instruction.op1.intValue);
+			ASSERT(sizeInUnits >= 0); (* size is initialized to MIN(LONGINT), this checks if size field has been visited *)
+			FOR i := 0 TO sizeInUnits-1 DO
+				out.PutBits(0,out.unit);
+			END;
+		END EmitReserve;
+
+		PROCEDURE EmitLabel(CONST instruction: IntermediateCode.Instruction);
+		VAR position: LONGINT;
+		BEGIN
+			position := SHORT(instruction.op1.intValue);
+			out.AddLabel(position);
+		END EmitLabel;
+
+		PROCEDURE Prepare*;
+		BEGIN
+
+		END Prepare;
+
+	END GenericCodeGenerator;
+
+	GeneratorWithTickets*= OBJECT (GenericCodeGenerator)
+	VAR
+		physicalRegisters-: PhysicalRegisters; (* physical registers <-> tickets *)
+		virtualRegisters-: VirtualRegisters; (* virtual registers --> tickets *)
+		tickets-: Tickets;  (* tickets <-> physical registers *)
+		spillStack-: SpillStack; (* spill stack offset <-> ticket *)
+
+		(* generic *)
+		PROCEDURE & InitTicketGenerator*(diagnostics: Diagnostics.Diagnostics; numberRegisterParts: LONGINT; physicalRegisters: PhysicalRegisters);
+		BEGIN
+			InitGenerator(diagnostics);
+			NEW(tickets);
+			NEW(virtualRegisters,numberRegisterParts);
+			NEW(spillStack);
+			SELF.physicalRegisters := physicalRegisters;
+		END InitTicketGenerator;
+
+		(*-------------------  procedures that must be overwritten by implementers  ----------------------*)
 
 		(* input: type (such as that of an intermediate operand), output: type part *)
 		PROCEDURE GetPartType*(CONST type: IntermediateCode.Type; part: LONGINT; VAR typePart: IntermediateCode.Type);
@@ -8391,66 +8461,7 @@ TYPE
 			END;
 		END ReserveOperandRegisters;
 
-		(* ---------------------- generically available code emission ------------------------- *)
-
-
-		PROCEDURE GetDataSection*(): IntermediateCode.Section;
-		VAR name: Basic.PooledName; section: IntermediateCode.Section;
-		BEGIN
-			name[0] := StringPool.GetIndex1(module.moduleName);
-			name[1] := StringPool.GetIndex1("@Immediates");
-			name[2] := -1;
-			section := IntermediateCode.NewSection(module.sections,Sections.ConstSection,name,NIL,TRUE);
-			RETURN section
-		END GetDataSection;
-
-		PROCEDURE EmitData(CONST instruction: IntermediateCode.Instruction);
-			VAR type: IntermediateCode.Type; fixup: BinaryCode.Fixup; pc: LONGINT;fixupFormat: BinaryCode.FixupPatterns;
-		BEGIN
-			type := instruction.op1.type;
-			pc := out.pc;
-			IF type.form IN IntermediateCode.Integer THEN
-				out.PutBytes(instruction.op1.intValue,SHORT(type.sizeInBits DIV 8));
-			ELSE
-				IF type.sizeInBits = IntermediateCode.Bits32 THEN
-					out.PutReal(SHORT(instruction.op1.floatValue));
-				ELSIF type.sizeInBits = IntermediateCode.Bits64 THEN
-					out.PutLongreal(instruction.op1.floatValue);
-				ELSE Assert(FALSE,"no floats other than 32 or 64 bit")
-				END;
-			END;
-			IF instruction.op1.symbol # NIL THEN
-				NEW(fixupFormat,1);
-				fixupFormat[0].offset := 0;
-				fixupFormat[0].bits := type.sizeInBits;
-				fixup := BinaryCode.NewFixup(BinaryCode.Absolute,pc,instruction.op1.symbol,instruction.op1.symbolOffset,instruction.op1.offset,0,fixupFormat);
-				out.fixupList.AddFixup(fixup);
-			END;
-		END EmitData;
-
-		PROCEDURE EmitReserve(CONST instruction: IntermediateCode.Instruction);
-		VAR sizeInUnits,i: LONGINT;
-		BEGIN
-			sizeInUnits := SHORT(instruction.op1.intValue);
-			ASSERT(sizeInUnits >= 0); (* size is initialized to MIN(LONGINT), this checks if size field has been visited *)
-			FOR i := 0 TO sizeInUnits-1 DO
-				out.PutBits(0,out.unit);
-			END;
-		END EmitReserve;
-
-		PROCEDURE EmitLabel(CONST instruction: IntermediateCode.Instruction);
-		VAR position: LONGINT;
-		BEGIN
-			position := SHORT(instruction.op1.intValue);
-			out.AddLabel(position);
-		END EmitLabel;
-
-		PROCEDURE Prepare*;
-		BEGIN
-
-		END Prepare;
-
-	END GenericCodeGenerator;
+	END GeneratorWithTickets;
 
 
 
