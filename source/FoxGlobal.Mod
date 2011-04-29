@@ -1002,6 +1002,7 @@ TYPE
 			IF scope = NIL THEN (* do nothing, locally declared temporary symbol *)
 			ELSIF scope = inScope THEN (* do not traverse further *)
 			ELSIF scope IS SyntaxTree.ModuleScope THEN
+
 				GetModuleName(scope.ownerModule, name);
 				Strings.Append(name,".");
 			ELSIF scope IS SyntaxTree.RecordScope THEN
@@ -1044,6 +1045,9 @@ TYPE
 			IF scope = NIL THEN (* do nothing, locally declared temporary symbol *)
 			ELSIF scope = inScope THEN (* do not traverse further *)
 			ELSIF scope IS SyntaxTree.ModuleScope THEN
+				IF scope(SyntaxTree.ModuleScope).ownerModule.context # A2Name THEN
+					Basic.SuffixPooledName(pooledName, scope(SyntaxTree.ModuleScope).ownerModule.context);
+				END;
 				Basic.SuffixPooledName(pooledName,scope.ownerModule.name);
 			ELSIF scope IS SyntaxTree.RecordScope THEN
 				Scope(scope.outerScope);

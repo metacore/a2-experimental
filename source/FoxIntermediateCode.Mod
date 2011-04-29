@@ -334,7 +334,7 @@ TYPE
 
 	PROCEDURE NewSection*(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.PooledName; x: SyntaxTree.Symbol; dump: BOOLEAN): Section;
 	VAR res: Sections.Section; section: Section;
-	BEGIN{EXCLUSIVE}
+	BEGIN
 		(* if section list for symbol or namel is already present then return this section, otherwise enter new one *)
 		IF x # NIL THEN
 			res := list.FindBySymbol(x);
@@ -344,7 +344,6 @@ TYPE
 				ASSERT((res.type = type) OR (type=Sections.VarSection) & (res.type = Sections.ConstSection) (* exception for module self pointer constant => old object file format *));
 				RETURN res(Section)
 			END;
-
 		ELSE
 			(* search by name *)
 			ASSERT(name[0] >=0);
