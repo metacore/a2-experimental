@@ -184,7 +184,8 @@ TYPE
 			| CaseTableKind: w.String("caseTable")
 			| ImportedSymbolKind: w.String("importedSymbol")
 			| SystemCallKind: w.String("systemCall")
-			END;			
+			END;
+			w.Update
 		END Dump;
 
 		PROCEDURE DumpName*(w: Streams.Writer);
@@ -533,7 +534,7 @@ TYPE
 			END;
 			
 			(* dump all sections *)
-			allSections.Dump(D.Log)
+			allSections.Dump(w)
 		END Dump;
 
 	END Module;

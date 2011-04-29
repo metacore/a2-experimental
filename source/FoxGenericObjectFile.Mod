@@ -24,7 +24,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 					D.String('"section.resolved = NIL" for '); D.String(name); D.Ln;
 					RETURN FALSE
 				ELSE
-					IF (section.isPrototype) OR (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN (* TODO *)
+					IF section.IsExternal() OR (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
 						(* nothing to do *)
 					ELSE
 						section.resolved.identifier.fingerprint := GetFingerPrint (section, fingerPrinter);
@@ -129,7 +129,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			fp := section.fingerprint
 		ELSIF (section.symbol = NIL) OR (section.symbol.scope = NIL) THEN
 			fp := 0;
-			IF (section(IntermediateCode.Section).resolved # NIL) & ~section.isPrototype THEN (* TODO *)
+			IF (section(IntermediateCode.Section).resolved # NIL) & ~section.IsExternal() THEN
 				Basic.FromPooledName(section.name, string);
 				FingerPrinter.FPString(fp, string)
 			END

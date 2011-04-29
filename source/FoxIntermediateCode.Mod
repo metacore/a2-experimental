@@ -339,7 +339,7 @@ TYPE
 		IF x # NIL THEN
 			res := list.FindBySymbol(x);
 			IF res # NIL THEN
-				ASSERT(res.kind = kind);
+				ASSERT((res.kind = kind) OR (res.kind = Sections.UnknownKind));
 				IF isDefinition & (kind = Sections.UnknownKind) THEN res.MarkAsNoPrototype END; (* TODO: is this necessary outside of the intermediate code assembler? *)
 				ASSERT((res.type = type) OR (type=Sections.VarSection) & (res.type = Sections.ConstSection) (* exception for module self pointer constant => old object file format *));
 				RETURN res(Section)
@@ -351,7 +351,7 @@ TYPE
 			res := list.FindByName(name);
 			IF res # NIL THEN
 				(* section was found under the name *)
-				ASSERT(res.kind = kind);
+				ASSERT((res.kind = kind) OR (res.kind = Sections.UnknownKind));
 				IF isDefinition & (kind = Sections.UnknownKind) THEN res.MarkAsNoPrototype END; (* TODO: is this necessary outside of the intermediate code assembler? *)
 				RETURN res(Section)
 			END;
