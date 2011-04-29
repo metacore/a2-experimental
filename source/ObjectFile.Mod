@@ -457,7 +457,7 @@ VAR
 
 		PROCEDURE WriteValueIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
 		BEGIN
-			writer.RawInt(value);
+			writer.RawNum(value);
 			(*
 			writer.RawString (identifiers[value]);
 			*)
@@ -471,15 +471,14 @@ VAR
 
 		PROCEDURE WriteIdentifier(CONST identifier: Identifier);
 		(*VAR name: SectionName;*)
-		VAR i: LONGINT;
+		VAR i,num: LONGINT;
 		BEGIN
-			FOR i := 0 TO LEN(identifier.name)-1 DO
-				writer.RawNum(poolMap.Get(identifier.name[i]));
-			END;
-			(*
-			FromPooledName(identifier.name, name);
-			writer.RawString (name);
-			*)
+			i := 0;
+			REPEAT
+				num := poolMap.Get(identifier.name[i])+1;
+				writer.RawNum(num); (* avoid to write -1 *)
+				INC(i);
+			UNTIL (i = LEN(identifier.name)) OR (num = 0);
 			writer.RawNum (identifier.fingerprint);
 		END WriteIdentifier;
 
@@ -545,8 +544,10 @@ VAR
 
 		PROCEDURE ReadValueIdentifier (VAR value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
 		(* VAR identifier: ARRAY 10 OF CHAR; *)
+		VAR num: LONGINT;
 		BEGIN
-			reader.RawInt(value);
+			reader.RawNum(num);
+			value := SHORT(num);
 			(*
 			value := 0;
 			reader.RawString (identifier);
@@ -563,16 +564,17 @@ VAR
 
 		PROCEDURE ReadIdentifier(VAR identifier: Identifier);
 		(*VAR name: SectionName;*)
-		VAR i: LONGINT;
+		VAR i,num: LONGINT;
 		BEGIN
-			FOR i := 0 TO LEN(identifier.name) -1 DO
+			i := 0;
+			REPEAT
 				reader.RawNum(num);
-				identifier.name[i] := poolMap.Get(num);
+				identifier.name[i] := poolMap.Get(num-1);
+				INC(i);
+			UNTIL (i = LEN(identifier.name)) OR (num = 0);
+			WHILE i < LEN(identifier.name) DO
+				identifier.name[i] := -1; INC(i);
 			END;
-			(*
-			reader.RawString(name);
-			ToPooledName(name, identifier.name);
-			*)
 			 reader.RawNum (identifier.fingerprint);
 		END ReadIdentifier;
 

@@ -11,8 +11,8 @@ IMPORT
 
 CONST
 	(* Module Configuration *)
-	StringPoolSize0 = 4096;	(* initial string pool size *)
-	HashTableSize0 = 128;	(* initial hash table size *)
+	StringPoolSize0 = 1024*256;	(* initial string pool size *)
+	HashTableSize0 = 1024;	(* initial hash table size *)
 
 
 TYPE

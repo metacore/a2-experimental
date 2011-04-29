@@ -234,7 +234,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		writer.Char('v'); writer.Int(version,0); writer.Char(".");
 		IF ~binary THEN writer.Ln
 		ELSE
-			NEW(poolMap,64);
+			NEW(poolMap,512);
 			p1 := writer.Pos(); size := 0;
 			writer.RawLInt(0);
 			FOR i := 0 TO sections.Length()-1 DO
