@@ -11,7 +11,14 @@ CONST
 	VarSection*=ObjectFile.Data;
 	ConstSection*=ObjectFile.Const;
 	InlineCodeSection*=10;
-	PrototypeSection *= 11; (* a type for referenced sections whose actual type is not yet known *)
+	AnySection *= 11; (* 'base type' of all section types *)
+
+	(* section kinds *)
+	UnknownKind* = -1;
+	RegularKind* = 1;
+	CaseTableKind* = 2;
+	ImportedSymbolKind* = 3;
+	SystemCallKind* = 4;
 
 	LineCommentStart*="; ";
 
@@ -28,9 +35,12 @@ TYPE
 		type-: SHORTINT; (* CodeSection, InlineCodeSection, VarSection or ConstSection *)
 		symbol-: SyntaxTree.Symbol; (* corresponding symbol in AST *)
 
-		offset-: LONGINT; (* for compatibility with old object file format *)
-		entryNumber-: LONGINT; (* needed for old object file format, will be removed *)
-		isCaseTable-, isSystemCall-: BOOLEAN;
+		isPrototype-: BOOLEAN; (* whether the section is a prototype, i.e., a section that has no content and acts as a placeholder for another one (this is only used if the kind is unknown) *)
+
+		(* for compatibility with old object file format *)
+		kind-: SHORTINT; (* UnknownKind, RegularKind, CaseTableKind, ImportedSymbolKind, SystemCallKind *)
+		offset-: LONGINT;
+		entryNumber-: LONGINT;
 
 		referenced-: BOOLEAN;
 
@@ -53,18 +63,17 @@ TYPE
 			positionOrAlignment := 1;
 			fingerprint := 0;
 			bitsPerUnit := UnknownSize;
-			isCaseTable := FALSE;
-			isSystemCall := FALSE
+			kind := UnknownKind;
+			isPrototype := TRUE; (* by default sections are prototypes (this fact is exploited by the intermediate code assembler) *)
 		END InitSection;
 
+		PROCEDURE SetPrototype*(isPrototype: BOOLEAN);
+		BEGIN SELF.isPrototype := isPrototype;
+		END SetPrototype;
 
-		PROCEDURE IsCaseTable*;
-		BEGIN SELF.isCaseTable := TRUE
-		END IsCaseTable;
-
-		PROCEDURE IsSystemCall*;
-		BEGIN SELF.isSystemCall := TRUE
-		END IsSystemCall;
+		PROCEDURE SetKind*(kind: SHORTINT);
+		BEGIN SELF.kind := kind
+		END SetKind;
 
 		PROCEDURE SetReferenced*(ref: BOOLEAN);
 		BEGIN referenced := ref;
@@ -102,9 +111,7 @@ TYPE
 
 		(** change the type of a section **)
 		PROCEDURE SetType*(type: SHORTINT);
-		BEGIN
-			ASSERT((type # PrototypeSection) & (SELF.type = PrototypeSection));
-			SELF.type := type
+		BEGIN SELF.type := type
 		END SetType;
 
 		(* needed for old object file format, will be removed *)
@@ -123,7 +130,6 @@ TYPE
 			| ConstSection: w.String("const");
 			| InitCodeSection: w.String("initcode");
 			| InitCode2Section: w.String("initcode2");
-			| PrototypeSection: w.String("prototype");
 			END;
 			w.String(" ");
 			DumpName(w);
@@ -150,7 +156,10 @@ TYPE
 			(* note: this information is actually redundant *)
 			IF GetSize() # UnknownSize THEN
 				w.String(" size="); w.Int(GetSize(), 0);
-			END
+			END;
+
+			w.String("; kind="); w.Int(kind, 0);
+			IF isPrototype THEN w.String(" (isPrototype) ") END;
 		END Dump;
 
 		PROCEDURE DumpName*(w: Streams.Writer);
@@ -273,7 +282,16 @@ TYPE
 		END GetSection;
 
 		PROCEDURE PutSection(symbol: SyntaxTree.Symbol; section: Section);
+		VAR
+			foundSection: Section;
 		BEGIN
+			IF section.kind = ImportedSymbolKind THEN
+				foundSection := GetSection(symbol);
+				IF (foundSection # NIL) THEN
+					ASSERT(foundSection.kind = RegularKind);
+					RETURN
+				END
+			END;
 			Put(symbol,section);
 		END PutSection;
 
@@ -327,6 +345,9 @@ TYPE
 		(* note: this procedure cannot be called "Add" as it was the case in the old section list implementation *)
 		PROCEDURE AddSection*(section: Section);
 		BEGIN
+			(* assert that the section is not already present *)
+			ASSERT((FindBySymbol(section.symbol) = NIL) & (FindByName(section.name) = NIL));
+
 			IF section.symbol # NIL THEN (* special case, may not be added to lookup list *)
 				lookup.PutSection(section.symbol, section)
 			END;
@@ -336,21 +357,7 @@ TYPE
 			Add(section)
 		END AddSection;
 
-		(*
-		(* TODO: remove later on *)
-		PROCEDURE GetIndexOfSectionByName*(sectionName: SyntaxTree.String): LONGINT;
-		VAR
-			i: LONGINT;
-			section: Section;
-		BEGIN
-			FOR i := 0 TO Length() - 1 DO
-				section := GetSection(i);
-				IF section.name = sectionName THEN RETURN i END
-			END;
-			RETURN -1
-		END GetIndexOfSectionByName;
-		*)
-
+		(** finds a section with a certain AST symbol **)
 		PROCEDURE FindBySymbol*(CONST symbol: SyntaxTree.Symbol): Section;
 		BEGIN
 			IF symbol = NIL THEN
@@ -360,10 +367,31 @@ TYPE
 			END
 		END FindBySymbol;
 
+		(** finds a section with a certain name **)
 		PROCEDURE FindByName*(CONST name: Basic.PooledName): Section;
 		BEGIN
 			RETURN lookupName.GetSection(name)
 		END FindByName;
+
+		(** finds a section with a certain AST symbol and kind (note: sections of unknown kind are also returned) **)
+		PROCEDURE FindBySymbolAndKind*(CONST symbol: SyntaxTree.Symbol; kind: SHORTINT): Section;
+		VAR
+			section: Section;
+		BEGIN
+			section := FindBySymbol(symbol); (* note: it is assumed that a symbol may only be present once in the list *)
+			IF (section # NIL) & (section.kind # UnknownKind) & (section.kind # kind) THEN section := NIL END;
+			RETURN section
+		END FindBySymbolAndKind;
+
+		(** finds a section with a certain name and kind (note: sections of unknown kind are also returned) **)
+		PROCEDURE FindByNameAndKind*(CONST name: Basic.PooledName; kind: SHORTINT): Section;
+		VAR
+			section: Section;
+		BEGIN
+			section := FindByName(name); (* note: it is assumed that a symbol may only be present once in the list *)
+			IF (section # NIL) & (section.kind # UnknownKind) & (section.kind # kind) THEN section := NIL END;
+			RETURN section
+		END FindByNameAndKind;
 
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR
@@ -412,20 +440,24 @@ TYPE
 	Module* = OBJECT (Formats.GeneratedModule)
 		VAR
 			(* output of (intermediate) code generation *)
-			sections-: SectionList;
+
+			allSections-: SectionList;
+
 			platformName-: SyntaxTree.String;
 			imports-: NameList;
 
 		PROCEDURE & Init*(module: SyntaxTree.Module; system: Global.System);
 		BEGIN
 			Init^(module,system);
-			NEW(sections);
+			NEW(allSections);
 			NEW(imports, 128);
 		END Init;
 
+		(*
 		PROCEDURE SetSections*(sections: SectionList);
-		BEGIN SELF.sections := sections
+		BEGIN SELF.allSections := sections
 		END SetSections;
+		*)
 
 		PROCEDURE SetImports*(imports: NameList);
 		BEGIN SELF.imports := imports
@@ -439,7 +471,18 @@ TYPE
 		VAR
 			dump: Basic.Writer;
 			name: SyntaxTree.String;
+			section: Section;
 			i: LONGINT;
+
+			PROCEDURE DumpKind(kind: LONGINT);
+			BEGIN
+				FOR i := 0 TO allSections.Length() - 1 DO
+					section := allSections.GetSection(i);
+					IF section.kind = kind THEN
+						section.Dump(w); w.Ln
+					END
+				END
+			END DumpKind;
 		BEGIN
 			dump := Basic.GetWriter(w);
 
@@ -472,7 +515,17 @@ TYPE
 				dump.Ln; dump.Ln
 			END;
 
-			sections.Dump(w);
+			DumpKind(RegularKind);
+
+			dump.Ln; dump.BeginComment; dump.String("; case tables"); dump.EndComment; dump.Ln;
+			DumpKind(CaseTableKind);
+
+			dump.Ln; dump.BeginComment; dump.String("; imported symbols"); dump.EndComment; dump.Ln;
+			DumpKind(ImportedSymbolKind);
+
+			dump.Ln; dump.BeginComment; dump.String("; system calls"); dump.EndComment; dump.Ln;
+			DumpKind(SystemCallKind);
+
 		END Dump;
 
 	END Module;
@@ -483,8 +536,8 @@ TYPE
 		section: Section;
 		name: ObjectFile.SectionName;
 	BEGIN
-		FOR i := 0 TO module.sections.Length() - 1 DO
-			section := module.sections.GetSection(i);
+		FOR i := 0 TO module.allSections.Length() - 1 DO
+			section := module.allSections.GetSection(i);
 			ObjectFile.FromPooledName(section.name,name);
 			IF Strings.Match(filter, name) THEN section.Dump(w); w.Ln; END
 		END

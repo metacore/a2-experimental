@@ -2595,8 +2595,9 @@ TYPE
 		BEGIN
 		 	cg.SetModule(module);
 
-		 	FOR i := 0 TO module.sections.Length() - 1 DO
-			 	in := module.sections.GetSection(i);
+		 	FOR i := 0 TO module.allSections.Length() - 1 DO
+			 	in := module.allSections.GetSection(i);
+			 	IF in.kind = Sections.RegularKind THEN
 		 		IF in.type = Sections.InlineCodeSection THEN
 		 			name := in.name;
 			 		out := ResolvedSection(in(IntermediateCode.Section));
@@ -2604,12 +2605,15 @@ TYPE
 			 		procedure := in.symbol(SyntaxTree.Procedure);
 			 		procedure.procedureScope.body.code.SetBinaryCode(out.bits);
 			 	END
+				 END
 		 	END;
 
 		 	REPEAT
-		 	 	initialSectionCount := module.sections.Length();
-			 	FOR i := 0 TO module.sections.Length() - 1 DO
-			 		in := module.sections.GetSection(i);
+		 	 	initialSectionCount := RegularSectionCount(module.allSections);
+		 	 	
+			 	FOR i := 0 TO module.allSections.Length() - 1 DO
+			 		in := module.allSections.GetSection(i);
+			 		IF in.kind = Sections.RegularKind THEN			 		
 			 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
 			 			name := in.name;
 				 		out := ResolvedSection(in(IntermediateCode.Section));
@@ -2624,11 +2628,32 @@ TYPE
 				 		END;
 			 		END
 			 	END
-			UNTIL initialSectionCount = module.sections.Length(); (* process remaining sections that have been added during traversal of sections *)
+			 	END
+			UNTIL initialSectionCount = RegularSectionCount(module.allSections); (* process remaining sections that have been added during traversal of sections *)
 
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				in := module.sections.GetSection(i);
+
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				in := module.allSections.GetSection(i);
+				IF in.kind = Sections.CaseTableKind THEN
+			 		IF in(IntermediateCode.Section).resolved = NIL THEN
+				 		out := ResolvedSection(in(IntermediateCode.Section));
+				 		cg.Section(in(IntermediateCode.Section),out);
+				 	END				 
+				 END
+		 	END;
+
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				in := module.allSections.GetSection(i);
+				IF in.kind = Sections.RegularKind THEN
 		 		PatchFixups(in(IntermediateCode.Section).resolved)
+			 	END
+		 	END;
+
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				in := module.allSections.GetSection(i);
+				IF in.kind = Sections.CaseTableKind THEN
+			 		PatchFixups(in(IntermediateCode.Section).resolved)
+			 	END
 		 	END;
 
 			IF cg.error THEN Error("",Diagnostics.Invalid, Diagnostics.Invalid,"") END;
@@ -2701,9 +2726,9 @@ TYPE
 			Basic.ToPooledName(sectionName, pooledName);
 			i := 0;
 			REPEAT
-				section := module(Sections.Module).sections.GetSection(i);
+				section := module(Sections.Module).allSections.GetSection(i);
 				INC(i);
-			UNTIL (i = module(Sections.Module).sections.Length()) OR (section.name = pooledName);
+			UNTIL (i = module(Sections.Module).allSections.Length()) OR (section.name = pooledName);
 
 			IF section.name # pooledName THEN
 				diagnostics.Error(module.module.sourceName,Diagnostics.Invalid,Diagnostics.Invalid," could not locate pc");
@@ -2747,6 +2772,20 @@ TYPE
 		END DefaultSymbolFileFormat;
 
 	END BackendAMD64;
+
+	(** the number of regular sections in a section list **)
+	PROCEDURE RegularSectionCount(sectionList: Sections.SectionList): LONGINT;
+	VAR
+		section: Sections.Section;
+		i, result: LONGINT;
+	BEGIN
+		result := 0;
+		FOR i := 0 TO sectionList.Length() - 1 DO
+			section := sectionList.GetSection(i);
+			IF section.kind = Sections.RegularKind THEN INC(result) END
+		END;
+		RETURN result
+	END RegularSectionCount;
 
 	PROCEDURE Assert(b: BOOLEAN; CONST s: ARRAY OF CHAR);
 	BEGIN

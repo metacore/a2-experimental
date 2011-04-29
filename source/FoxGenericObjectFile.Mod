@@ -24,7 +24,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 					D.String('"section.resolved = NIL" for '); D.String(name); D.Ln;
 					RETURN FALSE
 				ELSE
-					IF (section.type = Sections.PrototypeSection) OR (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
+					IF (section.isPrototype) OR (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN (* TODO *)
 						(* nothing to do *)
 					ELSE
 						section.resolved.identifier.fingerprint := GetFingerPrint (section, fingerPrinter);
@@ -63,8 +63,8 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 
 			PROCEDURE ExportModule (module: Sections.Module): BOOLEAN;
 			BEGIN
-				WriteHeader(writer,binary,module.sections,poolMap);
-				RETURN ExportSections (module.sections)
+				WriteHeader(writer,binary,module.allSections,poolMap);
+				RETURN ExportSections (module.allSections)
 			END ExportModule;
 
 		BEGIN
@@ -129,7 +129,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			fp := section.fingerprint
 		ELSIF (section.symbol = NIL) OR (section.symbol.scope = NIL) THEN
 			fp := 0;
-			IF (section(IntermediateCode.Section).resolved # NIL) & (section.type # Sections.PrototypeSection) THEN
+			IF (section(IntermediateCode.Section).resolved # NIL) & ~section.isPrototype THEN (* TODO *)
 				Basic.FromPooledName(section.name, string);
 				FingerPrinter.FPString(fp, string)
 			END

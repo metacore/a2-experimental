@@ -5,7 +5,7 @@ IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,  D := Debugging,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal
-	, ActiveCells := FoxActiveCells, IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
+	, ActiveCells := FoxActiveCells, (*IntermediateCodeAssembler := FoxIntermediateCodeAssembler,*)
 	Files, StaticLinker, GenericLinker;
 
 CONST
@@ -317,12 +317,14 @@ TYPE
 				IF activeCellsSpecification = NIL THEN (* no activeCells *)
 				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
 				ELSE
+					(*
 					IF ~AssembleActiveCells(activeCellsSpecification,backend) THEN
 						(*activeCellsSpecification.Link(diagnostics,system.codeUnit, system.dataUnit) *)
 						FinalMessage(TRUE, " could not assemble"); RETURN FALSE
 					ELSIF ~activeCellsSpecification.Emit() THEN
 						FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;
 					END;
+					*)
 				END;
 			ELSIF Print IN flags THEN
 				PrintModule;
@@ -335,6 +337,7 @@ TYPE
 		RETURN TRUE;
 	END Modules;
 
+	(*
 	PROCEDURE AssembleActiveCells(activeCellsSpecification: ActiveCells.Specification; backend: Backend.Backend): BOOLEAN;
 	TYPE
 		AssemblerObject= OBJECT
@@ -463,6 +466,7 @@ TYPE
 		IF obj.error THEN RETURN FALSE END;
 		RETURN activeCellsSpecification.ForEachInstanceDo(obj.LinkInstance);
 	END AssembleActiveCells;
+	*)
 
 	PROCEDURE GetOptions*(input: Streams.Reader; error:Streams.Writer; diagnostics: Diagnostics.Diagnostics; VAR flags: SET;
 		VAR backend: Backend.Backend;
@@ -613,6 +617,7 @@ TYPE
 		END;
 	END Compile;
 
+	(*
 	PROCEDURE Assemble*(context: Commands.Context);
 	VAR
 		diagnostics: Diagnostics.StreamDiagnostics;
@@ -645,6 +650,7 @@ TYPE
 			END
 	 	END
 	END Assemble;
+	*)
 
 	PROCEDURE CompileReader*(context: Commands.Context; reader: Streams.Reader);
 	VAR

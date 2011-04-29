@@ -198,6 +198,7 @@ TYPE
 	PROCEDURE GetFixups(module: Sections.Module; symbol: Sections.Section; VAR first: Fixup): LONGINT;
 	VAR temp: Fixup; fixup: BinaryCode.Fixup; nr :LONGINT;
 
+		(* only regular sections *)
 		PROCEDURE DoSections(sectionList: Sections.SectionList);
 		VAR
 			i: LONGINT;
@@ -205,7 +206,8 @@ TYPE
 		BEGIN
 			FOR i := 0 TO sectionList.Length() - 1 DO
 				section := sectionList.GetSection(i);
-				IF IsRegularSection(section) & (section.type # Sections.InlineCodeSection) & (section.type # Sections.InitCodeSection) THEN
+				IF section.kind = Sections.RegularKind THEN
+					IF (section.type # Sections.InlineCodeSection) & (section.type # Sections.InitCodeSection) THEN
 					fixup := section(IntermediateCode.Section).resolved.fixupList.firstFixup;
 					WHILE (fixup # NIL) DO
 						IF (fixup.symbol = symbol) THEN
@@ -219,27 +221,25 @@ TYPE
 						fixup := fixup.nextFixup;
 					END
 				END
+				END
 			END;
 		END DoSections;
 
 	BEGIN
 		first := NIL; nr := 0;
-		DoSections(module.sections);
+		DoSections(module.allSections); (* only regular sections *)
+		(* Sections(module.caseTables.first); *)
 		RETURN nr
 	END GetFixups;
-
-	PROCEDURE IsRegularSection(section: Sections.Section): BOOLEAN;
-	BEGIN RETURN (section.type # Sections.PrototypeSection) & ~section.isSystemCall & ~section.isCaseTable
-	END IsRegularSection;
 
 	PROCEDURE FindPC(pc: LONGINT; module: Sections.Module; diagnostics: Diagnostics.Diagnostics): BOOLEAN;
 	VAR
 		section:Sections.Section; binarySection: BinaryCode.Section; label: BinaryCode.LabelList;
 		i: LONGINT;
 	BEGIN
-		FOR i := 0 TO module.sections.Length() - 1 DO
-			section := module.sections.GetSection(i);
-			IF IsRegularSection(section) THEN
+		FOR i := 0 TO module.allSections.Length() - 1 DO
+			section := module.allSections.GetSection(i);
+			IF section.kind = Sections.RegularKind THEN
 				binarySection := section(IntermediateCode.Section).resolved;
 				IF ((section.offset ) <= pc) & (pc < (section.offset +binarySection.pc )) THEN
 					label := binarySection.labels;
@@ -267,9 +267,11 @@ TYPE
 			section: Sections.Section;
 			i: LONGINT;
 		BEGIN
-			IF ~IsRegularSection(s) THEN RETURN FALSE END;
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				IF module.sections.GetSection(i) = s THEN RETURN TRUE END
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				section := module.allSections.GetSection(i);
+				IF (section.kind = Sections.RegularKind) OR (section.kind = Sections.CaseTableKind) THEN
+					IF section = s THEN RETURN TRUE END
+				END
 			END;
 			RETURN FALSE
 		END InModule;
@@ -278,9 +280,9 @@ TYPE
 		VAR
 			section: Sections.Section; dest, i: LONGINT; fixup,next: BinaryCode.Fixup;
 		BEGIN
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				section := module.sections.GetSection(i);
-				IF IsRegularSection(section) THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				section := module.allSections.GetSection(i);
+				IF section.kind = Sections.RegularKind THEN
 					binarySection := section(IntermediateCode.Section).resolved;
 					fixup := binarySection.fixupList.firstFixup;
 					binarySection.fixupList.InitFixupList; (* remove all fixups from list *)
@@ -319,6 +321,7 @@ TYPE
 			END;
 		END Copy;
 
+		(* only regular sections *)
 		PROCEDURE FirstOffsets(sectionList: Sections.SectionList);
 		VAR
 			section: Sections.Section;
@@ -326,7 +329,7 @@ TYPE
 		BEGIN
 			FOR i := 0 TO sectionList.Length() - 1 DO
 				section := sectionList.GetSection(i);
-				IF IsRegularSection(section) THEN
+				IF section.kind = Sections.RegularKind THEN
 					binarySection := section(IntermediateCode.Section).resolved;
 					symbol := section.symbol;
 					IF symbol # NIL THEN
@@ -341,14 +344,16 @@ TYPE
 			END;
 		END FirstOffsets;
 
-		PROCEDURE SetOffsets(sectionList: Sections.SectionList; caseTable: BOOLEAN);
+		(* note: if 'caseSections' is TRUE, only case table sections are processed, otherwise only regular sections (imported symbol/system call sections are never processed) *)
+		PROCEDURE SetOffsets(sectionList: Sections.SectionList; handleCaseTables: BOOLEAN);
 		VAR
 			section: Sections.Section;
 			i: LONGINT;
 		BEGIN
 			FOR i := 0 TO sectionList.Length() - 1 DO
 				section := sectionList.GetSection(i);
-				IF caseTable & section.isCaseTable OR ~caseTable & IsRegularSection(section) THEN
+
+				IF (handleCaseTables & (section.kind = Sections.CaseTableKind)) OR (~handleCaseTables & (section.kind = Sections.RegularKind)) THEN
 					binarySection := section(IntermediateCode.Section).resolved;
 					symbol := section.symbol;
 					IF symbol # NIL THEN
@@ -372,41 +377,42 @@ TYPE
 						 END;
 						 section.SetOffset(-varSize); (* global variables: negative offset *)
 					END
-				END;
+				END
 			END;
 		END SetOffsets;
 
-		PROCEDURE CopySections(sectionList: Sections.SectionList; caseTable: BOOLEAN);
+		(* note: if 'caseSections' is TRUE, only case table sections are processed, otherwise only regular sections (imported symbol/system call sections are never processed) *)
+		PROCEDURE CopySections(sectionList: Sections.SectionList; handleCaseTables: BOOLEAN);
 		VAR
 			section: Sections.Section;
 			i: LONGINT;
 		BEGIN
 			FOR i := 0 TO sectionList.Length() - 1 DO
 				section := sectionList.GetSection(i);
-				IF caseTable & section.isCaseTable OR ~caseTable & IsRegularSection(section) THEN
+				IF (handleCaseTables & (section.kind = Sections.CaseTableKind)) OR (~handleCaseTables & (section.kind = Sections.RegularKind)) THEN
 					binarySection := section(IntermediateCode.Section).resolved;
 					IF section.type = Sections.ConstSection THEN
 						Copy(binarySection,const,section.offset);
 					ELSIF (section.type = Sections.CodeSection) OR (section.type = Sections.BodyCodeSection) THEN
 						Copy(binarySection,code,section.offset);
 					END
-				END;
+				END
 			END;
 		END CopySections;
 
 
 
 	BEGIN
-		FirstOffsets(module.sections);
-		SetOffsets(module.sections,FALSE);
+		FirstOffsets(module.allSections); (* regular sections *)
+		SetOffsets(module.allSections, FALSE); (* regular sections *)
 		pc := constSize;
-		SetOffsets(module.sections,TRUE);
+		SetOffsets(module.allSections, TRUE); (* case table sections *)
 		caseTableSize := (constSize -pc) DIV 4 ;
 		FixupSections;
 
 		NEW(const,constSize ); NEW(code,codeSize );
-		CopySections(module.sections,FALSE);
-		CopySections(module.sections,TRUE);
+		CopySections(module.allSections, FALSE); (* regular sections *)
+		CopySections(module.allSections, TRUE); (* case table sections *)
 
 	END MakeSectionOffsets;
 
@@ -523,9 +529,9 @@ TYPE
 		BEGIN
 			w.Char(82X);
 			numberEntries := 0; tail := NIL; prev := NIL; firstOffset := -1;
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				p := module.sections.GetSection(i);
-				IF IsRegularSection(p) THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				p := module.allSections.GetSection(i);
+				IF p.kind = Sections.RegularKind THEN
 					IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).isInline THEN
 						fixups :=  GetFixups(module,p,fixup);
 						p.symbol.GetName(name); (*debugging*)
@@ -542,9 +548,8 @@ TYPE
 							END;
 							IF (fixup # NIL) & (firstOffset = -1) THEN
 								firstOffset := (fixup.fixupSection.offset + fixup.fixup.offset );
-							END;
-
-						END;
+							END
+						END
 					END
 				END
 			END;
@@ -600,9 +605,9 @@ TYPE
 					END;
 					typeDeclaration := type.typeDeclaration; (* must be non-nil *)
 					typeDeclaration.GetName(name);
-
-					section := module.sections.FindBySymbol(type.typeDeclaration);
-					ASSERT(IsRegularSection(section));
+					section := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.RegularKind); (* TODO *)
+					ASSERT(section # NIL);
+					ASSERT(section.kind = Sections.RegularKind);
 					w.RawNum((section.offset )); (* type descriptor section offset *)
 					IF Trace THEN
 						D.String(", t="); D.Int(section.offset ,1);
@@ -612,9 +617,10 @@ TYPE
 
 		BEGIN
 			w.Char(83X);
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				p := module.sections.GetSection(i);
-				IF IsRegularSection(p) & (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure)  THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				p := module.allSections.GetSection(i);
+				IF p.kind = Sections.RegularKind THEN
+					IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure)  THEN
 					procedure := p.symbol(SyntaxTree.Procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
 					IF (SyntaxTree.PublicRead IN procedure.access) & ~(procedure.isInline) & ~(procedureType.isDelegate) & GetProcedureAllowed() THEN
@@ -635,11 +641,12 @@ TYPE
 						w.RawNum((p.offset ));
 						INC(numberCommands);
 						IF Trace THEN
-							D.Ln;
-						END;
-					END;
+								D.Ln
+							END
+						END
+					END
 				END
-			END;
+				END
 		END Commands;
 
 		(* OutPointers delivers
@@ -733,15 +740,17 @@ TYPE
 			w.Char(84X);
 			numberPointers := 0;
 			IF Trace THEN D.Str("Global Pointers: "); D.Ln; END;
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				s := module.sections.GetSection(i);
-				IF IsRegularSection(s) & (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Variable) THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				s := module.allSections.GetSection(i);
+				IF s.kind = Sections.RegularKind THEN
+					IF (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Variable) THEN
 					variable := s.symbol(SyntaxTree.Variable);
 					IF ~(variable.untraced) THEN
 						OutPointers(s.offset, variable.type, numberPointers);
-					END;
 				END
-			END;
+					END
+				END
+			END
 		END Pointers;
 
 		PROCEDURE IsFirstOccurence(import: SyntaxTree.Import): BOOLEAN; (*! inefficient *)
@@ -823,10 +832,10 @@ TYPE
 
 			IF Trace THEN D.Str("VarConstLinks:Procedures"); D.Ln; END;
 
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				s := module.sections.GetSection(i);
-				IF IsRegularSection(s) & (s.type # Sections.InitCodeSection) THEN
-					IF (s.symbol=NIL) OR (s.symbol # NIL) & ~(s.symbol IS SyntaxTree.Procedure) THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				s := module.allSections.GetSection(i);
+				IF s.kind = Sections.RegularKind THEN
+					IF (s.type # Sections.InitCodeSection) & (s.symbol=NIL) OR (s.symbol # NIL) & ~(s.symbol IS SyntaxTree.Procedure) THEN
 						temp := GetFixups(module,s,fixup);
 						Fixups(fixup);
 					END
@@ -835,9 +844,9 @@ TYPE
 
 			IF Trace THEN D.Str("VarConstLinks:CaseTables"); D.Ln; END;
 
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				s := module.sections.GetSection(i);
-				IF s.isCaseTable THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				s := module.allSections.GetSection(i);
+				IF s.kind = Sections.CaseTableKind THEN
 					IF (s.symbol # NIL) & ~(s.symbol IS SyntaxTree.Procedure) THEN (* includes case symbol! *)
 						temp := GetFixups(module,s,fixup);
 						Fixups(fixup);
@@ -852,9 +861,9 @@ TYPE
 			IF Trace THEN D.Str("VarConstLinks:ImportedSymbols"); D.Ln; END;
 			(* imported global variables and constants *)
 
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				s := module.sections.GetSection(i);
-				IF s.type = Sections.PrototypeSection THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				s := module.allSections.GetSection(i);
+				IF s.kind = Sections.ImportedSymbolKind THEN
 					temp := GetFixups(module,s,fixup);
 					IF (fixup # NIL) THEN
 						IF Trace THEN
@@ -919,10 +928,10 @@ TYPE
 		BEGIN
 			w.Char(86X);
 			numberLinks := 0;
-
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				p := module.sections.GetSection(i);
-				IF p.isSystemCall THEN
+			(* system call sections *)
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				p := module.allSections.GetSection(i);
+				IF p.kind = Sections.SystemCallKind THEN
 					temp := GetFixups(module,p,fixup);
 					IF  (fixup # NIL) THEN
 						w.Char(0X); w.Char(SysCallMap[p.entryNumber]);
@@ -931,6 +940,7 @@ TYPE
 					END
 				END
 			END;
+
 			IF procedureFixupOffset #-1 THEN
 				w.Char(0X); w.Char(SysCallMap[ProcAddr]); w.RawNum(procedureFixupOffset);
 				INC(numberLinks);
@@ -945,16 +955,18 @@ TYPE
 
 			counter := 0;
 			(* cf. Entries *)
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				p := module.sections.GetSection(i);
-				IF IsRegularSection(p) & (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).isInline THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				p := module.allSections.GetSection(i);
+				IF p.kind = Sections.RegularKind THEN
+					IF (p.type # Sections.InitCodeSection) & (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure) & ~p.symbol(SyntaxTree.Procedure).isInline THEN
 					fixups := GetFixups(module,p,fixup);
 					procedure := p.symbol(SyntaxTree.Procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
 					IF (procedure.access * SyntaxTree.Public # {}) OR (procedureType.isDelegate) OR (fixup # NIL) THEN
 						w.RawNum(fixups);
 						INC(counter);
-					END;
+						END
+					END
 				END
 			END;
 			ASSERT(counter = numberEntries);
@@ -999,11 +1011,12 @@ TYPE
 
 				IF (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).recordScope.ownerModule = module.module)  THEN
 					w.Char(ofEURecord);
-					destination := module.sections.FindBySymbol(type.typeDeclaration);
-					ASSERT(IsRegularSection(destination));
+					destination := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.RegularKind); (* TODO *)
+					ASSERT(destination # NIL);
+					ASSERT(destination.kind = Sections.RegularKind);
 					(*
 					IF (destination = NIL) THEN
-						destination := module.types.FindBySymbol(type(SyntaxTree.RecordType).pointerType.resolved);
+						destination := module.types.FindBySymbolAndKind(type(SyntaxTree.RecordType).pointerType.resolved);
 					END;
 					*)
 					ref := destination.entryNumber;
@@ -1058,9 +1071,9 @@ TYPE
 					RETURN 0
 				END;
 				symbol.GetName(name); (* debugging *)
-				s := module.sections.FindBySymbol(symbol);
-				ASSERT(IsRegularSection(s));
+				s := module.allSections.FindBySymbolAndKind(symbol, Sections.RegularKind); (* TODO *)
 				ASSERT(s#NIL);
+				ASSERT(s.kind = Sections.RegularKind);
 				RETURN (s.offset);
 			END SymbolOffset;
 
@@ -1270,9 +1283,10 @@ TYPE
 					WITH type: SyntaxTree.RecordType DO
 						type.typeDeclaration.GetName(name); (* debugging *)
 						IF type.recordScope.ownerModule = importedModule THEN (* type belongs to currently processed module *)
-							t := module.sections.FindBySymbol(type.typeDeclaration);
+							IF Trace THEN D.Str("UseTypeFP:"); D.Str(name); D.Str("?"); D.Ln END;
+							t := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.RegularKind); (* TODO *)
+							IF t # NIL THEN ASSERT(t.kind = Sections.RegularKind) END;
 							IF (t # NIL) & (t.referenced) THEN
-								ASSERT(IsRegularSection(t));
 								fingerPrint := fingerprinter.TypeFP(type);
 								w.Char(ofEURecord);
 								w.RawNum(-(t.offset ));
@@ -1315,9 +1329,9 @@ TYPE
 
 					procedure := type(SyntaxTree.RecordType).recordScope.firstProcedure;
 					WHILE procedure # NIL DO
-						s := module.sections.FindBySymbol(procedure);
-						IF (s # NIL) THEN
-							ASSERT(s.type = Sections.PrototypeSection);
+						s := module.allSections.FindBySymbolAndKind(procedure, Sections.ImportedSymbolKind); (*TODO*)
+						IF s # NIL THEN
+							ASSERT(s.kind = Sections.ImportedSymbolKind);
 							fixups := GetFixups(module,s,fixup);
 							ASSERT(fixup # NIL);
 							UseEntry(importedModule,procedure,(fixup.fixupSection.offset + fixup.fixup.offset )+ofEUProcFlag,prefix);
@@ -1345,16 +1359,15 @@ TYPE
 
 					constant := importedModule.moduleScope.firstConstant;
 					WHILE constant # NIL DO
-						s := module.sections.FindBySymbol(constant);
-						IF (s # NIL) & (s.type = Sections.PrototypeSection) THEN
-							UseEntry(importedModule,constant,0,"")
-						END;
+						s := module.allSections.FindBySymbolAndKind(constant, Sections.ImportedSymbolKind); (*TODO*)
+						IF s # NIL THEN ASSERT(s.kind = Sections.ImportedSymbolKind); UseEntry(importedModule,constant,0,"") END;
 						constant := constant.nextConstant
 					END;
 					variable := importedModule.moduleScope.firstVariable;
 					WHILE variable # NIL DO
-						s := module.sections.FindBySymbol(variable);
-						IF (s # NIL) & (s.type = Sections.PrototypeSection) THEN
+						s := module.allSections.FindBySymbolAndKind(variable, Sections.ImportedSymbolKind); (*TODO*)
+						IF s # NIL THEN
+							ASSERT(s.kind = Sections.ImportedSymbolKind);
 							UseEntry(importedModule,variable,s.entryNumber,"");
 							UseType(variable.type);
 						END;
@@ -1364,9 +1377,9 @@ TYPE
 					WHILE typeDeclaration # NIL DO
 						type := typeDeclaration.declaredType;
 						IF type IS SyntaxTree.PointerType THEN type := type(SyntaxTree.PointerType).pointerBase END;
-						s := module.sections.FindBySymbol(typeDeclaration);
-						IF s # NIL THEN
-							ASSERT(IsRegularSection(s));
+						s := module.allSections.FindBySymbolAndKind(typeDeclaration, Sections.RegularKind); (*TODO*)
+						IF (s # NIL) THEN
+							ASSERT(s.kind = Sections.RegularKind);
 							IF s.referenced THEN (* only if type has been used *)
 								UseEntry(importedModule,typeDeclaration,0,"");
 								UseType(typeDeclaration.declaredType);
@@ -1378,9 +1391,9 @@ TYPE
 					procedure := importedModule.moduleScope.firstProcedure;
 					WHILE procedure # NIL DO
 						IF ~procedure.isInline THEN
-							s := module.sections.FindBySymbol(procedure);
-							IF (s # NIL) THEN
-								ASSERT(s.type = Sections.PrototypeSection);
+							s := module.allSections.FindBySymbolAndKind(procedure, Sections.ImportedSymbolKind); (*TODO*)
+							IF s # NIL THEN
+								ASSERT(s.kind = Sections.ImportedSymbolKind);
 								fixups := GetFixups(module,s,fixup);
 								ASSERT(fixup # NIL);
 								UseEntry(importedModule,procedure,(fixup.fixupSection.offset + fixup.fixup.offset )+ofEUProcFlag,"");
@@ -1446,8 +1459,9 @@ TYPE
 					typeDeclaration := NIL;
 				END;
 				IF baseModule = 0 THEN
-					destination := module.sections.FindBySymbol(base.typeDeclaration);
-					ASSERT(IsRegularSection(destination));
+					destination := module.allSections.FindBySymbolAndKind(base.typeDeclaration, Sections.RegularKind); (*TODO*)
+					ASSERT(destination # NIL);
+					ASSERT(destination.kind = Sections.RegularKind);
 					baseEntry := (destination.offset );  (* destination must be non-nil *)
 				ELSIF (typeDeclaration # NIL) THEN
 					fp := fingerprinter.SymbolFP(typeDeclaration);
@@ -1489,8 +1503,10 @@ TYPE
 			m := type.recordScope.firstProcedure;
 			WHILE (m#NIL) DO
 				IF ~(m.isInline) THEN
-					procedure := module.sections.FindBySymbol(m);
-					ASSERT(IsRegularSection(procedure));
+					procedure := module.allSections.FindBySymbolAndKind(m, Sections.RegularKind); (*TODO*)
+					ASSERT(procedure # NIL);
+					ASSERT(procedure.kind = Sections.RegularKind);
+
 					m.GetName(name);
 
 					w.RawNum(procedure.symbol(SyntaxTree.Procedure).methodNumber);
@@ -1523,9 +1539,10 @@ TYPE
 			w.Char(08BX);
 			numberTypes := 0; typeDescSize := 0;
 
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				t := module.sections.GetSection(i);
-				IF IsRegularSection(t) & (t.symbol # NIL) & (t.symbol IS SyntaxTree.TypeDeclaration) THEN (* TODO *)
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				t := module.allSections.GetSection(i);
+				IF t.kind = Sections.RegularKind THEN
+					IF (t.symbol # NIL) & (t.symbol IS SyntaxTree.TypeDeclaration) THEN
 					typeDeclaration := t.symbol(SyntaxTree.TypeDeclaration);
 					type := typeDeclaration.declaredType;
 					typeDeclaration.GetName(name);
@@ -1536,13 +1553,15 @@ TYPE
 					END;
 					IF Trace THEN D.Str("FoxObjectFile.Types: "); D.String(name); D.Ln; END;
 					IF (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).recordScope.ownerModule = moduleScope.ownerModule) OR (type(SyntaxTree.RecordType).recordScope.ownerModule = NIL) THEN
-						t := module.sections.FindBySymbol(type.typeDeclaration);
-						ASSERT(IsRegularSection(t));
+							t := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.RegularKind); (*TODO*)
+							ASSERT(t # NIL);
+							ASSERT(t.kind = Sections.RegularKind);
 						WriteType(t,type(SyntaxTree.RecordType),tdSize);
 						INC(typeDescSize,tdSize);
 						INC(numberTypes);
 					END;
 				END
+			END
 			END
 		END Types;
 
@@ -1561,8 +1580,9 @@ TYPE
 			exTableLen := 0;
 			w.Char(08EX);
 
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				p := module.sections.GetSection(i);
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				p := module.allSections.GetSection(i);
+				IF p.kind = Sections.RegularKind THEN
 				IF (p.type = Sections.CodeSection) OR (p.type= Sections.BodyCodeSection) THEN
 					binarySection := p(IntermediateCode.Section).resolved;
 					IF binarySection.finally >= 0 THEN
@@ -1575,6 +1595,7 @@ TYPE
 						w.RawNum(pcHandler);
 						INC(exTableLen);
 					END;
+				END
 				END
 			END;
 
@@ -1633,12 +1654,14 @@ TYPE
 			IF Trace THEN D.Str("FoxObjectFile.PtrsInProcBlock"); D.Ln; END;
 			maxPtrs := 0;
 			counter := 0;
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				destination := module.sections.GetSection(i);
-				IF IsRegularSection(destination) & (destination.type # Sections.InitCodeSection) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).isInline THEN
-					IF Trace THEN D.Str("pointers in "); Basic.WritePooledName(D.Log, destination.name); D.Ln END;
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				destination := module.allSections.GetSection(i);
+				IF destination.kind = Sections.RegularKind THEN
+					IF (destination.type # Sections.InitCodeSection) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).isInline THEN
+						IF Trace THEN D.Str("pointers in "); Basic.WritePooledName(D.Log,destination.name); D.Ln END;
 					PointerOffsets(destination);
 					INC(counter);
+				END
 				END
 			END;
 			numberProcs := counter;
@@ -1692,7 +1715,10 @@ TYPE
 			PROCEDURE RecordType(type: SyntaxTree.RecordType);
 			VAR destination: Sections.Section; name: SyntaxTree.String;
 			BEGIN
-				destination := module.sections.FindBySymbol(type.typeDeclaration);
+				destination := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.RegularKind); (*TODO*)
+				IF destination = NIL THEN
+					destination := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.ImportedSymbolKind); (*TODO*)
+				END;
 				IF destination = NIL THEN
 					(* imported unused record type *)
 					w.Char(0X); (* nil type *)
@@ -1702,6 +1728,7 @@ TYPE
 					D.Str("Warning: Unreferenced record type encountered: "); D.String(name); D.String(" unused? "); D.Ln;
 					*)
 				ELSE
+					ASSERT((destination.kind = Sections.RegularKind) OR (destination.kind = Sections.ImportedSymbolKind));
 					IF type.pointerType # NIL THEN
 						w.Char(rfRecordPointer)
 					ELSE
@@ -1928,16 +1955,18 @@ TYPE
 			start := w.Pos();
 			w.Char(08CX);
 
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				s := module.sections.GetSection(i);
-				IF IsRegularSection(s) & (s.type # Sections.InitCodeSection) & (s.symbol = moduleScope.bodyProcedure) THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				s := module.allSections.GetSection(i);
+				IF s.kind = Sections.RegularKind THEN
+					IF (s.type # Sections.InitCodeSection) & (s.symbol = moduleScope.bodyProcedure) THEN
 					Scope(s) (*! must be first procedure in ref section *)
+				END
 				END
 			END;
 
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				s := module.sections.GetSection(i);
-				IF IsRegularSection(s) THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				s := module.allSections.GetSection(i);
+				IF s.kind = Sections.RegularKind THEN
 					IF (s.symbol = moduleScope.bodyProcedure) THEN (* already done, see above *)
 					ELSIF (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Procedure) & ~s.symbol(SyntaxTree.Procedure).isInline THEN
 						Procedure(s)
@@ -1990,9 +2019,9 @@ TYPE
 
 		BEGIN
 			IF Trace THEN D.Str("LinkFixups"); D.Ln; END;
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				section := module.sections.GetSection(i);
-				IF section.type = Sections.PrototypeSection THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				section := module.allSections.GetSection(i);
+				IF section.kind = Sections.ImportedSymbolKind THEN
 					symbol := section.symbol;
 					IF (symbol # NIL) & (symbol IS SyntaxTree.Procedure) THEN
 						IF Trace THEN D.Str("Procedure:"); D.Str0(symbol.scope.ownerModule.name); D.Str("."); D.Str0(symbol.name); D.Ln; END;
@@ -2003,9 +2032,9 @@ TYPE
 			END;
 
 			(*! ??????????? *)
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				section := module.sections.GetSection(i);
-				IF section.isCaseTable THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				section := module.allSections.GetSection(i);
+				IF section.kind = Sections.CaseTableKind THEN
 					symbol := section.symbol;
 					IF (symbol # NIL) & (symbol IS SyntaxTree.Procedure) THEN
 						IF Trace THEN D.Str("CaseTableProc:"); D.Str0(symbol.scope.ownerModule.name); D.Str("."); D.Str0(symbol.name); D.Ln; END;
@@ -2015,9 +2044,9 @@ TYPE
 				END
 			END;
 
-			FOR i := 0 TO module.sections.Length() - 1 DO
-				section := module.sections.GetSection(i);
-				IF section.isCaseTable THEN
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				section := module.allSections.GetSection(i);
+				IF section.kind = Sections.CaseTableKind THEN
 					bfixup := section(IntermediateCode.Section).resolved.fixupList.firstFixup;
 					WHILE bfixup # NIL DO
 						Put32(const,(section.offset +bfixup.offset ),(bfixup.displacement +bfixup.symbol.offset ));

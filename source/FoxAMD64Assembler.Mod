@@ -1573,17 +1573,17 @@ TYPE
 				Global.GetSymbolPooledName(scopeSymbol,name);
 				IF scopeSymbol.scope IS SyntaxTree.ModuleScope THEN
 					IF (scopeSymbol IS SyntaxTree.Variable) THEN
-						symbol := IntermediateCode.NewSection(module.sections,Sections.VarSection,name,scopeSymbol,dump # NIL);
+						symbol := IntermediateCode.NewSection(module.allSections, Sections.RegularKind, Sections.VarSection, TRUE, name,scopeSymbol,dump # NIL);
 						InitMem(operand,IntermediateCode.Bits32,none,0); (* or immediate ?? *)
 					ELSIF (scopeSymbol IS SyntaxTree.Procedure) & (scopeSymbol.scope = module.module.moduleScope) THEN
 						IF scopeSymbol(SyntaxTree.Procedure).isInline THEN
 							Error("fobidden reference to inline call");
 						ELSE
-							symbol := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,scopeSymbol,dump # NIL);
+							symbol := IntermediateCode.NewSection(module.allSections, Sections.RegularKind, Sections.CodeSection, TRUE, name,scopeSymbol,dump # NIL);
 							InitOffset32(operand,0); (* or immediate ?? *)
 						END;
 					ELSIF (scopeSymbol IS SyntaxTree.Procedure) THEN
-						symbol := IntermediateCode.NewSection(module.sections,Sections.CodeSection,name,scopeSymbol,dump # NIL);
+						symbol := IntermediateCode.NewSection(module.allSections, Sections.RegularKind, Sections.CodeSection, TRUE, name,scopeSymbol,dump # NIL);
 						InitOffset32(operand,0); (* or immediate ?? *)
 					END;
 					SetSymbol(operand,symbol,0,0);

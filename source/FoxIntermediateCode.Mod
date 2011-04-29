@@ -332,42 +332,37 @@ TYPE
 	BEGIN ASSERT(condition);
 	END Assert;
 
-	(** create a new intermediate code section (if the section already exists in the section list, return the existing one **)
-	PROCEDURE NewSection*(sectionList: Sections.SectionList; type: SHORTINT; CONST name: Basic.PooledName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): Section;
-	VAR
-		searchedSection: Sections.Section;
-		result: Section;
-	BEGIN
-		(* try to find section in section list *)
-		searchedSection := NIL;
-		IF syntaxTreeSymbol # NIL THEN searchedSection := sectionList.FindBySymbol(syntaxTreeSymbol) (* search by syntax tree symbol *)
-		ELSIF name[0] >= 0  THEN searchedSection := sectionList.FindByName(name) (* search by name *)
-		ELSE HALT(100) (* should not occur *)
-		END;
+	PROCEDURE NewSection*(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.PooledName; x: SyntaxTree.Symbol; dump: BOOLEAN): Section;
+	VAR res: Sections.Section; section: Section;
+	BEGIN{EXCLUSIVE}
+		(* if section list for symbol or namel is already present then return this section, otherwise enter new one *)
+		IF x # NIL THEN
+			res := list.FindBySymbol(x);
+			IF res # NIL THEN
+				ASSERT(res.kind = kind);
+				IF isDefinition THEN res.SetPrototype(FALSE) END;
+				ASSERT((res.type = type) OR (type=Sections.VarSection) & (res.type = Sections.ConstSection) (* exception for module self pointer constant => old object file format *));
+				RETURN res(Section)
+			END;
 
-		IF searchedSection # NIL THEN
-			(* section was found *)
-			ASSERT(searchedSection IS Section, 101);
-			result := searchedSection(Section);
-			IF (result.type = Sections.PrototypeSection) & (type # Sections.PrototypeSection) THEN result.SetType(type) END; (* refine the section type *)
-			(*
-			IF syntaxTreeSymbol # NIL THEN ASSERT(result.fingerprint = syntaxTreeSymbol.fingerprint.shallow, 102) END (* assert fingerprint consistency *)
-			*)
 		ELSE
-			(* section was not found: create a new one *)
-			NEW(result, type, name, syntaxTreeSymbol, dump);
-			IF syntaxTreeSymbol # NIL THEN
-				result.SetFingerprint(syntaxTreeSymbol.fingerprint.shallow)
-				(*
-				; D.String("section with fingerprint "); D.Int(result.fingerprint, 0); D.Ln; (* TENTATIVE *)
-				*)
-			END; (* reuse fingerprint from syntax tree symbol in section *)
-			sectionList.AddSection(result)
+			(* search by name *)
+			ASSERT(name[0] >=0);
+			res := list.FindByName(name);
+			IF res # NIL THEN
+				(* section was found under the name *)
+				ASSERT(res.kind = kind);
+				IF isDefinition THEN res.SetPrototype(FALSE) END;
+				RETURN res(Section)
+			END;
 		END;
 
-		(* assert type consistency (note: there is an exception for the module self pointer constant => old object file format) *)
-		ASSERT((result.type = type) OR (result.type = Sections.PrototypeSection) OR (type = Sections.PrototypeSection) OR ((type = Sections.VarSection) & (result.type = Sections.ConstSection)), 103);
-		RETURN result
+		(* a new section is created *)
+		NEW(section,type, name,x, dump);
+		section.SetKind(kind);
+		IF isDefinition THEN section.SetPrototype(FALSE) END;
+		list.AddSection(section);
+		RETURN section
 	END NewSection;
 
 	PROCEDURE SameOperand*(CONST left, right: Operand): BOOLEAN;
