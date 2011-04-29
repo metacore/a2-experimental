@@ -225,13 +225,13 @@ TYPE
 		END VisitRecordType;
 
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
-		VAR name: ARRAY 256 OF CHAR; td: SyntaxTree.TypeDeclaration; type: SyntaxTree.Type; len,port,adr: LONGINT;
+		VAR name:Basic.PooledName; td: SyntaxTree.TypeDeclaration; type: SyntaxTree.Type; len,port,adr: LONGINT;
 			parameter: SyntaxTree.Parameter; symbol: IntermediateCode.Section; op: IntermediateCode.Operand;
 		BEGIN
 			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
 			IF (x.cellScope.ownerModule = module.module)  THEN
 				td := x.typeDeclaration;
-				Global.GetSymbolName(td,name);
+				Global.GetSymbolPooledName(td,name);
 				(* code section for object *)
 			END;
 			port := 0;
@@ -242,7 +242,7 @@ TYPE
 					len := 1;
 					INC(port);
 				ELSIF SemanticChecker.IsStaticArray(type,type,len) THEN
-					Global.GetSymbolName(parameter,name);
+					Global.GetSymbolPooledName(parameter,name);
 					symbol := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,parameter,dump);
 					WHILE len > 0 DO
 						adr := backend.activeCellsSpecification.GetPortAddress(port);
@@ -279,11 +279,11 @@ TYPE
 		END VisitOperator;
 
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
-		VAR name: SyntaxTree.String; irv: IntermediateCode.Section;
+		VAR name: Basic.PooledName; irv: IntermediateCode.Section;
 		BEGIN
 			IF (currentScope IS SyntaxTree.ModuleScope) OR (currentScope IS SyntaxTree.CellScope) THEN
 				(* code section for variable *)
-				Global.GetSymbolName(x,name);
+				Global.GetSymbolPooledName(x,name);
 				irv := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.VarSection, TRUE, name,x,dump);
 				irv.SetPositionOrAlignment(x.fixed, x.alignment);
 				irv.SetOffset(ToMemoryUnits(system,x.offsetInBits));
@@ -296,11 +296,11 @@ TYPE
 		END VisitVariable;
 
 		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
-		VAR name: SyntaxTree.String; irv: IntermediateCode.Section; op: Operand;
+		VAR name: Basic.PooledName; irv: IntermediateCode.Section; op: Operand;
 		BEGIN
 			ASSERT(currentScope.outerScope IS SyntaxTree.CellScope);
 			(* code section for variable *)
-			Global.GetSymbolName(x,name);
+			Global.GetSymbolPooledName(x,name);
 			irv := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.VarSection, TRUE, name,x,dump);
 			irv.SetPositionOrAlignment(x.fixed, x.alignment);
 			(*
@@ -390,7 +390,7 @@ TYPE
 			pc: LONGINT;
 			stackSize: LONGINT;
 			parSize: LONGINT;
-			name: SyntaxTree.String; ir: IntermediateCode.Section;
+			name: Basic.PooledName; ir: IntermediateCode.Section;
 			null,size,fp: IntermediateCode.Operand;
 			cc: LONGINT;
 			actorType: SyntaxTree.CellType;
@@ -567,7 +567,7 @@ TYPE
 		END Procedure;
 
 		PROCEDURE AddBodyCallStub(bodyProcedure: SyntaxTree.Procedure; sectionType: SHORTINT; initStack: LONGINT); (* code that is only necessary for static linkers *)
-		VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope; name: SyntaxTree.String;
+		VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope; name: Basic.PooledName;
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand;
 		BEGIN
 			ASSERT (bodyProcedure # NIL);
@@ -576,7 +576,7 @@ TYPE
 			procedure.SetScope(bodyProcedure.scope);
 			procedure.SetType(SyntaxTree.NewProcedureType(-1,bodyProcedure.scope));
 			procedure.SetAccess(SyntaxTree.Hidden);
-			Global.GetSymbolName (procedure,name);
+			Global.GetSymbolPooledName (procedure,name);
 			ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,sectionType, TRUE, name,procedure,dump);
 
 			IF initStack # 0 THEN
@@ -584,7 +584,7 @@ TYPE
 				ir.Emit(Mov(implementationVisitor.sp,op));
 			END;
 
-			Global.GetSymbolName (bodyProcedure,name);
+			Global.GetSymbolPooledName (bodyProcedure,name);
 			IntermediateCode.InitAddress(op, IntermediateCode.GetType(system,system.addressType), implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.BodyCodeSection, TRUE, name,bodyProcedure,dump) , 0);
 			ir.Emit(Call(op, 0));
 		END AddBodyCallStub;
@@ -592,7 +592,7 @@ TYPE
 		(** entry function to visit a complete module *)
 		PROCEDURE Module(x: SyntaxTree.Module; module: Sections.Module);
 		VAR
-			ir: IntermediateCode.Section; op: IntermediateCode.Operand; name: SyntaxTree.String;
+			ir: IntermediateCode.Section; op: IntermediateCode.Operand; name: Basic.PooledName; str: SyntaxTree.String;
 			hasDynamicOperatorDeclarations: BOOLEAN; (* nopov *)
 			operator: SyntaxTree.Operator;
 			import: SyntaxTree.Import;
@@ -637,13 +637,13 @@ TYPE
 			(* add import names to the generated Sections.Module *)
 			import := x.moduleScope.firstImport;
 			WHILE import # NIL DO
-				import.GetName(name);
-				module.imports.AddName(name);
+				import.GetName(str);
+				module.imports.AddName(str);
 				import := import.nextImport
 			END;
 
 			IF ~implementationVisitor.newObjectFile THEN
-				Global.GetModuleName(module.module,name); Strings.Append(name,"."); Strings.Append(name,"@moduleSelf");
+				Global.GetModulePooledName(module.module,name); Basic.SuffixPooledName(name, Basic.MakeString("@moduleSelf"));
 				moduleSelf := SyntaxTree.NewVariable(0,SyntaxTree.NewIdentifier("@moduleSelf"));
 				moduleSelf.SetType(system.anyType);
 				moduleSelf.SetScope(x.moduleScope);
@@ -663,15 +663,15 @@ TYPE
 
 			IF backend.profile THEN
 				EnsureBodyProcedure(x.moduleScope);
-				Global.GetModuleName(module.module,name); Strings.Append(name,"."); Strings.Append(name,"@ModuleId");
+				Global.GetModulePooledName(module.module,name); Basic.SuffixPooledName(name, Basic.MakeString("@ModuleId"));
 				implementationVisitor.profileId := implementationVisitor.NewSection(module.allSections, Sections.RegularKind, Sections.VarSection, TRUE, name,NIL,dump);
 				implementationVisitor.profileId.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(system.longintType))));
-				Global.GetModuleName(module.module, name); Strings.Append(name,"."); Strings.Append(name,"@InitProfiler");
+				Global.GetModulePooledName(module.module,name); Basic.SuffixPooledName(name, Basic.MakeString("@InitProfiler"));
 				implementationVisitor.profileInit := implementationVisitor.NewSection(module.allSections, Sections.RegularKind, Sections.CodeSection, TRUE, name,NIL,dump);
 				implementationVisitor.profileInit.Emit(Enter(0,0));
 
-				Global.GetModuleName(module.module,name);
-				implementationVisitor.ProfilerAddModule(name);
+				Global.GetModuleName(module.module,str);
+				implementationVisitor.ProfilerAddModule(str);
 				implementationVisitor.numberProcedures := 0;
 			END;
 			implementationVisitor.profile := backend.profile;
@@ -687,7 +687,7 @@ TYPE
 			(* add operator initialization code section *)
 			IF hasDynamicOperatorDeclarations THEN
 				EnsureBodyProcedure(x.moduleScope);
-				Global.GetModuleName(module.module, name); Strings.Append(name, "."); Strings.Append(name ,"@OperatorInitialization");
+				Global.GetModulePooledName(module.module,name); Basic.SuffixPooledName(name, Basic.MakeString("@OperatorInitialization"));
 				implementationVisitor.operatorInitializationCodeSection := implementationVisitor.NewSection(module.allSections, Sections.RegularKind, Sections.CodeSection, TRUE, name, NIL, dump);
 				implementationVisitor.operatorInitializationCodeSection.Emit(Enter(0,0));
 			END;
@@ -886,12 +886,11 @@ TYPE
 			NEW(fingerPrinter, system) (* nopov *)
 		END Init;
 
-		PROCEDURE NewSection(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: ARRAY OF CHAR; x: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
-		VAR fp: SyntaxTree.FingerPrint; pooledName: Basic.PooledName;
+		PROCEDURE NewSection(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.PooledName; x: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
+		VAR fp: SyntaxTree.FingerPrint;
 		BEGIN
 			(*IF (x # NIL) & ~((x IS SyntaxTree.Procedure) & (x(SyntaxTree.Procedure).isInline)) THEN fp := fingerPrinter.SymbolFP(x) END;*)
-			Basic.ToPooledName(name, pooledName); 
-			RETURN IntermediateCode.NewSection(list, kind, type, isDefinition, pooledName, x, dump)
+			RETURN IntermediateCode.NewSection(list, kind, type, isDefinition, name, x, dump)
 		END NewSection;
 
 		PROCEDURE AcquireRegister(CONST type: IntermediateCode.Type): LONGINT;
@@ -910,19 +909,20 @@ TYPE
 		(* nopov *)
 		(** get the name for the code section that represens a certain symbol
 		(essentially the same as Global.GetSymbolName, apart from operators) **)
-		PROCEDURE GetCodeSectionNameForSymbol(symbol: SyntaxTree.Symbol; VAR name: ARRAY OF CHAR);
+		PROCEDURE GetCodeSectionNameForSymbol(symbol: SyntaxTree.Symbol; VAR name: Basic.PooledName);
 		VAR
 			operatorFingerPrint: SyntaxTree.FingerPrint;
-			operatorFingerPrintString: ARRAY 16 OF CHAR;
+			operatorFingerPrintString,string: ARRAY 32 OF CHAR;
 		BEGIN
-			Global.GetSymbolName(symbol, name);
+			Global.GetSymbolPooledName(symbol, name);
 			(* if the symbol is an operator, then append the fingerprint to the name *)
 			IF symbol IS SyntaxTree.Operator THEN
 				operatorFingerPrint := fingerPrinter.SymbolFP(symbol);
-				Strings.Append(name, "[");
+				string := "[";
 				Strings.IntToHexStr(operatorFingerPrint.shallow, 8, operatorFingerPrintString);
-				Strings.Append(name, operatorFingerPrintString);
-				Strings.Append(name, "]");
+				Strings.Append(string, operatorFingerPrintString);
+				Strings.Append(string, "]");
+				Basic.AppendToPooledName(name,string);
 			END
 		END GetCodeSectionNameForSymbol;
 
@@ -1556,11 +1556,10 @@ TYPE
 		PROCEDURE AddImport(CONST moduleName: ARRAY OF CHAR; VAR module: SyntaxTree.Module; force: BOOLEAN): BOOLEAN;
 		VAR import: SyntaxTree.Import;
 			s: Scanner.StringType;
-			selfName, selfContext: SyntaxTree.String;
+			selfName: SyntaxTree.String;
 		BEGIN
 			moduleScope.ownerModule.GetName(selfName);
-			Basic.GetString(moduleScope.ownerModule.context,selfContext);
-			IF (moduleName = selfName) & (selfContext = "A2") THEN
+			IF (moduleName = selfName) & (moduleScope.ownerModule.context = Global.A2Name) THEN
 				module := moduleScope.ownerModule
 			ELSE
 				import := moduleScope.ImportByModuleName(SyntaxTree.NewIdentifier(moduleName),SyntaxTree.NewIdentifier("A2"));
@@ -1648,10 +1647,11 @@ TYPE
 		END Emulate;
 
 		PROCEDURE SysCall(nr: LONGINT);
-		VAR op: IntermediateCode.Operand; name: SyntaxTree.String; section: IntermediateCode.Section;
+		VAR op: IntermediateCode.Operand; section: IntermediateCode.Section; pooledName: Basic.PooledName;
 		BEGIN
-			Basic.GetString(systemCalls[nr].name,name);
-			section := NewSection(module.allSections, Sections.SystemCallKind,Sections.CodeSection, FALSE, name,systemCalls[nr],commentPrintout # NIL); (* NOTE: by default no definition *)
+			pooledName[0] := systemCalls[nr].name;
+			pooledName[1] := -1;
+			section := NewSection(module.allSections, Sections.SystemCallKind,Sections.CodeSection, FALSE, pooledName,systemCalls[nr],commentPrintout # NIL); (* NOTE: by default no definition *)
 			section.SetEntryNumber(nr);
 			IntermediateCode.InitAddress(op,addressType,section,0);
 			Emit(Call(op,0)); (*! replace 0 by par size for other architectures ! *)
@@ -1754,12 +1754,13 @@ TYPE
 		END GetRuntimeProcedure;
 
 		PROCEDURE GetTypeDescriptor(CONST moduleName, typeName: ARRAY OF CHAR): IntermediateCode.Section;
-		VAR importedModule: SyntaxTree.Module; source: IntermediateCode.Section; symbol: SyntaxTree.Symbol; name: ARRAY 64 OF CHAR;
+		VAR importedModule: SyntaxTree.Module; source: IntermediateCode.Section; symbol: SyntaxTree.Symbol; pooledName: Basic.PooledName;
 			s: Scanner.StringType;
 		BEGIN
-			COPY(moduleName,name);
-			Strings.Append(name,".");
-			Strings.Append(name,typeName);
+			pooledName[0] := Basic.MakeString(moduleName);
+			pooledName[1] := Basic.MakeString(typeName);
+			pooledName[2] := Basic.invalidString;
+
 			IF AddImport(moduleName,importedModule, FALSE) THEN
 				symbol := importedModule.moduleScope.FindTypeDeclaration(SyntaxTree.NewIdentifier(typeName));
 				IF symbol = NIL THEN
@@ -1773,12 +1774,12 @@ TYPE
 			ELSE symbol := NIL;
 			END;
 			IF importedModule = moduleScope.ownerModule THEN
-				source := NewSection(module.allSections, Sections.RegularKind, Sections.ConstSection, TRUE, name, symbol, commentPrintout # NIL);
+				source := NewSection(module.allSections, Sections.RegularKind, Sections.ConstSection, TRUE, pooledName, symbol, commentPrintout # NIL);
 			ELSE
 				IF currentCellScope # NIL THEN
 					currentCellScope.AddImport(importedModule);
 				END;
-				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.ConstSection, FALSE, name, symbol, commentPrintout # NIL);
+				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.ConstSection, FALSE, pooledName, symbol, commentPrintout # NIL);
 			END;
 			RETURN source
 		END GetTypeDescriptor;
@@ -1786,22 +1787,22 @@ TYPE
 
 		PROCEDURE CallThis(CONST moduleName, procedureName: ARRAY OF CHAR);
 		VAR procedure: SyntaxTree.Procedure; result: Operand; reg: IntermediateCode.Operand; source: IntermediateCode.Section;
-			name: SyntaxTree.String;
+			pooledName: Basic.PooledName;
 		BEGIN
 			IF GetRuntimeProcedure(moduleName,procedureName,procedure,FALSE) THEN (* ready for dynamic linking *)
 				StaticCallOperand(result,procedure);
 				Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
 				ReleaseOperand(result);
 			ELSE (* only static linking possible *)
-				COPY(moduleName, name); Strings.Append(name,"."); Strings.Append(name,procedureName);
-
 				IF currentCellScope # NIL THEN
 					(*
 					currentCellScope.AddImport(importedModule);
 					*)
 				END;
-
-				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.CodeSection, FALSE, name, NIL,commentPrintout # NIL);
+				pooledName[0] := Basic.MakeString(moduleName);
+				pooledName[1] := Basic.MakeString(procedureName);
+				pooledName[2] := Basic.invalidString;
+				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(reg, addressType, source , 0);
 				Emit(Call(reg, 0));
 			END;
@@ -1809,7 +1810,7 @@ TYPE
 		(* call moduleName.procedureName if it can be imported, otherwise use altModuleName.altProcedureName  *)
 		PROCEDURE CallThis2(CONST moduleName, procedureName,altModuleName, altProcedureName: ARRAY OF CHAR; return: IntermediateCode.Operand);
 		VAR procedure: SyntaxTree.Procedure; result: Operand; address: IntermediateCode.Operand; source: IntermediateCode.Section;
-			name: SyntaxTree.String;
+			pooledName: Basic.PooledName;
 		BEGIN
 			IF GetRuntimeProcedure(moduleName,procedureName,procedure,FALSE) THEN (* ready for dynamic linking *)
 				StaticCallOperand(result,procedure);
@@ -1817,11 +1818,13 @@ TYPE
 				Emit(Result(return));
 				ReleaseOperand(result);
 			ELSE (* only static linking possible *)
-				COPY(altModuleName, name); Strings.Append(name,"."); Strings.Append(name,altProcedureName);
 				IF currentCellScope # NIL THEN
 					(* currentCellScope.AddImport(importedModule);*)
 				END;
-				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.CodeSection, FALSE, name, NIL,commentPrintout # NIL);
+				pooledName[0] := Basic.MakeString(altModuleName);
+				pooledName[1] := Basic.MakeString(altProcedureName);
+				pooledName[2] := Basic.invalidString;
+				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(address, addressType, source , 0);
 				Emit(Call(address, 0));
 
@@ -4067,7 +4070,7 @@ TYPE
 				and variables, constants and procedures the same mechanism can be used for fixups etc.
 			*)
 			VAR  source: Sections.Section;null: HUGEINT; td: SyntaxTree.TypeDeclaration;
-				name: SyntaxTree.String; op: IntermediateCode.Operand;
+				name: Basic.PooledName; op: IntermediateCode.Operand;
 			BEGIN (* no code emission *)
 				source := NIL;
 				x := x.resolved;
@@ -4087,7 +4090,7 @@ TYPE
 				END;
 
 				IF newObjectFile THEN
-					Global.GetSymbolName(td,name);
+					Global.GetSymbolPooledName(td,name);
 					IF (td.scope = NIL) OR (td.scope.ownerModule = module.module) THEN
 						CheckTypeDeclaration(SELF, module,x,commentPrintout # NIL, newObjectFile);
 						source := NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,td,commentPrintout # NIL);
@@ -4103,7 +4106,7 @@ TYPE
 					source := module.allSections.FindBySymbolAndKind(td, Sections.RegularKind); (*TODO*)
 					IF source = NIL THEN
 						null := 0;
-						Global.GetSymbolName(td,name);
+						Global.GetSymbolPooledName(td,name);
 						source := NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,td,commentPrintout # NIL);
 						IntermediateCode.InitImmediate(op,addressType,0);
 						source(IntermediateCode.Section).Emit(Data(op));
@@ -4941,7 +4944,7 @@ TYPE
 			tmp:IntermediateCode.Operand;
 			size: LONGINT; dim,openDim: LONGINT; pointer: IntermediateCode.Operand; t,t0,t1,t2: SyntaxTree.Type; trueL,falseL,ignore: Label;
 			exit,else,end: Label; procedureType: SyntaxTree.ProcedureType;
-			name: SyntaxTree.String; symbol: Sections.Section; operand: Operand;
+			name: Basic.PooledName; symbol: Sections.Section; operand: Operand;
 			dest: IntermediateCode.Operand;
 			staticLength: LONGINT; itype: IntermediateCode.Type;
 			convert,isTensor: BOOLEAN;
@@ -5376,7 +5379,7 @@ TYPE
 						(* static call of the constructor *)
 						Emit(Push(pointer));
 						ReleaseIntermediateOperand(pointer);
-						Global.GetSymbolName(constructor,name);
+						Global.GetSymbolPooledName(constructor,name);
 						ASSERT(~constructor.isInline);
 						IF constructor.scope.ownerModule # module.module THEN
 							IF currentCellScope # NIL THEN
@@ -6132,7 +6135,7 @@ TYPE
 		END VisitSetValue;
 
 		PROCEDURE VisitMathArrayValue(x: SyntaxTree.MathArrayValue);
-		VAR  irv: IntermediateCode.Section; name: SyntaxTree.String;
+		VAR  irv: IntermediateCode.Section; name:Basic.PooledName;
 
 			PROCEDURE RecursiveData(x: SyntaxTree.MathArrayExpression);
 			VAR numberElements,i: LONGINT; expression: SyntaxTree.Expression; op: Operand;
@@ -6154,7 +6157,7 @@ TYPE
 			IF Trace THEN TraceEnter("VisitMathArrayValue") END;
 			IF ~TryConstantDeclaration() THEN
 				IF constantDeclaration = NIL THEN constantDeclaration:=BuildConstant(module.module,x,constId) END;
-				Global.GetSymbolName(constantDeclaration,name);
+				Global.GetSymbolPooledName(constantDeclaration,name);
 				irv := NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,constantDeclaration,commentPrintout # NIL);
 				RecursiveData(x.array);
 				InitOperand(result,ModeReference);
@@ -6193,13 +6196,13 @@ TYPE
 		END VisitRealValue;
 
 		PROCEDURE VisitStringValue(x: SyntaxTree.StringValue);
-		VAR  i: LONGINT; name: SyntaxTree.String;
+		VAR  i: LONGINT; name: Basic.PooledName;
 			irv: IntermediateCode.Section; op: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitStringValue") END;
 			IF ~TryConstantDeclaration() THEN
 				IF constantDeclaration = NIL THEN constantDeclaration:=BuildConstant(module.module,x,constId) END;
-				Global.GetSymbolName(constantDeclaration,name);
+				Global.GetSymbolPooledName(constantDeclaration,name);
 				irv := NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,constantDeclaration,commentPrintout # NIL);
 				FOR i := 0 TO x.length-1 DO
 					IntermediateCode.InitImmediate(op,IntermediateCode.GetType(system,system.characterType),ORD(x.value[i]));
@@ -6255,9 +6258,9 @@ TYPE
 		END GetBaseRegister;
 
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
-		VAR symbol: Sections.Section;  type: SyntaxTree.Type; name: Scanner.StringType; temp: IntermediateCode.Operand;
+		VAR symbol: Sections.Section;  type: SyntaxTree.Type; name: Basic.PooledName; temp: IntermediateCode.Operand;
 		BEGIN
-			IF Trace THEN TraceEnter("VisitVariable"); IF dump # NIL THEN Global.GetSymbolName(x,name); dump.String(name) END;  END;
+			IF Trace THEN TraceEnter("VisitVariable");  END;
 			type := x.type.resolved;
 			IF (x.scope IS SyntaxTree.ProcedureScope) THEN (* local variable (potentially via nested procedure) *)
 				InitOperand(result,ModeReference);
@@ -6265,12 +6268,12 @@ TYPE
 				IntermediateCode.AddOffset(result.op,ToMemoryUnits(system,x.offsetInBits));
 			ELSIF (x.scope = moduleScope) OR (x.scope IS SyntaxTree.CellScope) THEN (* global variable *)
 				InitOperand(result,ModeReference);
-				Global.GetSymbolName(x,name);
+				Global.GetSymbolPooledName(x,name);
 				symbol := NewSection(module.allSections, Sections.RegularKind,Sections.VarSection, TRUE, name,x,commentPrintout # NIL);
 				IntermediateCode.InitAddress(result.op, addressType, symbol, 0);
 			ELSIF x.scope IS SyntaxTree.ModuleScope THEN (* global variable in imported module *)
 				InitOperand(result,ModeReference);
-				Global.GetSymbolName(x,name);
+				Global.GetSymbolPooledName(x,name);
 				(*! check for new object file, correct? *)
 				IF currentCellScope # NIL THEN
 					currentCellScope.AddImport(x.scope.ownerModule);
@@ -6322,7 +6325,7 @@ TYPE
 
 		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
 		VAR type: SyntaxTree.Type; basereg, mem: IntermediateCode.Operand; parameter: SyntaxTree.Parameter;adr: LONGINT; symbol: Sections.Section;
-			name: SyntaxTree.String; parameterType: SyntaxTree.Type; len: LONGINT;
+			name: Basic.PooledName; parameterType: SyntaxTree.Type; len: LONGINT;
 		BEGIN
 			type := x.type.resolved;
 			IF Trace THEN TraceEnter("VisitParameter") END;
@@ -6330,7 +6333,7 @@ TYPE
 			IF x.ownerType IS SyntaxTree.CellType THEN
 				IF ~(x.type.resolved IS SyntaxTree.PortType) THEN
 					InitOperand(result,ModeReference);
-					Global.GetSymbolName(x,name);
+					Global.GetSymbolPooledName(x,name);
 					symbol := NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,x,commentPrintout # NIL);
 					IntermediateCode.InitAddress(result.op, addressType, symbol, 0);
 					RETURN
@@ -6349,7 +6352,7 @@ TYPE
 				END;
 			ELSIF (currentScope IS SyntaxTree.ProcedureScope) & (currentScope(SyntaxTree.ProcedureScope).ownerProcedure.isConstructor) & (currentScope.outerScope IS SyntaxTree.CellScope) THEN
 				InitOperand(result,ModeReference);
-				Global.GetSymbolName(x,name);
+				Global.GetSymbolPooledName(x,name);
 				symbol := NewSection(module.allSections, Sections.RegularKind,Sections.VarSection, TRUE, name,x,commentPrintout # NIL);
 				IntermediateCode.InitAddress(result.op, addressType, symbol, 0);
 				RETURN
@@ -6471,7 +6474,7 @@ TYPE
 		END DynamicCallOperand;
 
 		PROCEDURE StaticCallOperand(VAR operand: Operand; x: SyntaxTree.Procedure);
-		VAR source: IntermediateCode.Section; tag,reg: IntermediateCode.Operand; name: SyntaxTree.String; sectionType: SHORTINT;
+		VAR source: IntermediateCode.Section; tag,reg: IntermediateCode.Operand; name:Basic.PooledName; sectionType: SHORTINT;
 		BEGIN
 			IF Trace THEN TraceEnter("StaticCallOperand") END;
 			tag := nil;
@@ -6789,7 +6792,7 @@ TYPE
 		PROCEDURE VisitCaseStatement(x: SyntaxTree.CaseStatement);
 		VAR var: Operand; jmp,res,op,tmp: IntermediateCode.Operand; j,i,size: LONGINT; part: SyntaxTree.CasePart; constant: SyntaxTree.CaseConstant;
 			out,else: Label; label: Label;
-			fixups: POINTER TO ARRAY OF Label; section: IntermediateCode.Section; name: SyntaxTree.String;
+			fixups: POINTER TO ARRAY OF Label; section: IntermediateCode.Section; name: Basic.PooledName; string: ARRAY 32 OF CHAR;
 			symbol: SyntaxTree.Symbol;
 		BEGIN
 			(*! split case statement into if-elsif statements for large case label lists *)
@@ -6809,11 +6812,14 @@ TYPE
 			(*
 			UniqueId(name,module.module,"case",caseId);
 			*)
-			name := "@case"; Basic.AppendNumber(name, caseId); INC(caseId);
-			symbol := SyntaxTree.NewSymbol(SyntaxTree.NewIdentifier(name));
+			string := "@case"; Basic.AppendNumber(string, caseId); INC(caseId);
+			name[0] := module.module.name;
+			name[1] := Basic.MakeString(string);
+			name[2] := Basic.invalidString;
+			symbol := SyntaxTree.NewSymbol(name[1]);
 			symbol.SetScope(moduleScope);
 			NEW(fixups,size); FOR i := 0 TO size-1 DO fixups[i] := NIL END;
-			section := NewSection(module.allSections,Sections.CaseTableKind, Sections.ConstSection,TRUE, name,SyntaxTree.NewSymbol(SyntaxTree.NewIdentifier(name)),commentPrintout # NIL);
+			section := NewSection(module.allSections,Sections.CaseTableKind, Sections.ConstSection,TRUE, name,SyntaxTree.NewSymbol(name[1]),commentPrintout # NIL);
 			IntermediateCode.InitAddress(jmp, addressType, section,0);
 			ReuseCopy(res,var.op);
 			ReleaseOperand(var);
@@ -7116,12 +7122,12 @@ TYPE
 
 		PROCEDURE VisitAwaitStatement(x: SyntaxTree.AwaitStatement);
 		VAR proc: SyntaxTree.Procedure; res: IntermediateCode.Operand; symbol: Sections.Section;
-			call: IntermediateCode.Operand; label: Label; name: SyntaxTree.String;
+			call: IntermediateCode.Operand; label: Label; name: Basic.PooledName;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitAwaitStatement") END;
 			proc := MakeAwaitProcedure(x);
 			Emit(Push(fp));
-			Global.GetSymbolName(proc,name);
+			Global.GetSymbolPooledName(proc,name);
 			symbol := NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, TRUE, name,proc,commentPrintout # NIL);
 			IntermediateCode.InitAddress(call,addressType,symbol,0);
 			res := NewRegisterOperand(IntermediateCode.GetType(system,system.booleanType));
