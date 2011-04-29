@@ -334,16 +334,17 @@ TYPE
 
 	PROCEDURE NewSection*(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.PooledName; x: SyntaxTree.Symbol; dump: BOOLEAN): Section;
 	VAR res: Sections.Section; section: Section;
-	BEGIN
+	BEGIN {EXCLUSIVE}
 		(* if section list for symbol or namel is already present then return this section, otherwise enter new one *)
 		IF x # NIL THEN
 			res := list.FindBySymbol(x);
 			IF res # NIL THEN
 				ASSERT(res.kind = kind);
-				IF isDefinition THEN res.SetPrototype(FALSE) END;
+				IF isDefinition & (kind = Sections.UnknownKind) THEN res.MarkAsNoPrototype END; (* TODO: is this necessary outside of the intermediate code assembler? *)
 				ASSERT((res.type = type) OR (type=Sections.VarSection) & (res.type = Sections.ConstSection) (* exception for module self pointer constant => old object file format *));
 				RETURN res(Section)
 			END;
+
 		ELSE
 			(* search by name *)
 			ASSERT(name[0] >=0);
@@ -351,7 +352,7 @@ TYPE
 			IF res # NIL THEN
 				(* section was found under the name *)
 				ASSERT(res.kind = kind);
-				IF isDefinition THEN res.SetPrototype(FALSE) END;
+				IF isDefinition & (kind = Sections.UnknownKind) THEN res.MarkAsNoPrototype END; (* TODO: is this necessary outside of the intermediate code assembler? *)
 				RETURN res(Section)
 			END;
 		END;
@@ -359,7 +360,7 @@ TYPE
 		(* a new section is created *)
 		NEW(section,type, name,x, dump);
 		section.SetKind(kind);
-		IF isDefinition THEN section.SetPrototype(FALSE) END;
+		IF isDefinition & (kind = Sections.UnknownKind) THEN section.MarkAsNoPrototype END; (* TODO: is this necessary outside of the intermediate code assembler? *)
 		list.AddSection(section);
 		RETURN section
 	END NewSection;

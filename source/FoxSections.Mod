@@ -35,7 +35,7 @@ TYPE
 		type-: SHORTINT; (* CodeSection, InlineCodeSection, VarSection or ConstSection *)
 		symbol-: SyntaxTree.Symbol; (* corresponding symbol in AST *)
 
-		isPrototype-: BOOLEAN; (* whether the section is a prototype, i.e., a section that has no content and acts as a placeholder for another one (this is only used if the kind is unknown) *)
+		isPrototype-: BOOLEAN; (* only applicable if kind=UnknownKind (used to determine whether a section is external or not) *)
 
 		(* for compatibility with old object file format *)
 		kind-: SHORTINT; (* UnknownKind, RegularKind, CaseTableKind, ImportedSymbolKind, SystemCallKind *)
@@ -63,16 +63,32 @@ TYPE
 			positionOrAlignment := 1;
 			fingerprint := 0;
 			bitsPerUnit := UnknownSize;
+			
 			kind := UnknownKind;
-			isPrototype := TRUE; (* by default sections are prototypes (this fact is exploited by the intermediate code assembler) *)
+			isPrototype := TRUE (* by default sections are prototypes (this fact is exploited by the intermediate code assembler) *)
 		END InitSection;
 
-		PROCEDURE SetPrototype*(isPrototype: BOOLEAN);
-		BEGIN SELF.isPrototype := isPrototype;
-		END SetPrototype;
+		(* whether the section acts as a placeholder for another one (sections that where not assigned a proper kind are external if they are still prototypes) *)
+		PROCEDURE IsExternal*(): BOOLEAN;
+		BEGIN
+			IF kind = UnknownKind THEN
+				RETURN isPrototype
+			ELSIF kind = ImportedSymbolKind THEN
+				RETURN TRUE
+			ELSE
+				RETURN FALSE
+			END
+		END IsExternal;
+		
+		PROCEDURE MarkAsNoPrototype*;
+		BEGIN
+			ASSERT(kind = UnknownKind);
+			isPrototype := FALSE
+		END MarkAsNoPrototype;
 
+		(** set the kind of a section this **)
 		PROCEDURE SetKind*(kind: SHORTINT);
-		BEGIN SELF.kind := kind
+		BEGIN	 SELF.kind := kind
 		END SetKind;
 
 		PROCEDURE SetReferenced*(ref: BOOLEAN);
@@ -133,11 +149,7 @@ TYPE
 			END;
 			w.String(" ");
 			DumpName(w);
-
-			IF offset # 0 THEN
-				w.String(" offset="); w.Int(offset, 0)
-			END;
-
+			
 			(* positional restrictions *)
 			IF fixed THEN
 				w.String(" fixed="); w.Int(positionOrAlignment, 0)
@@ -157,9 +169,22 @@ TYPE
 			IF GetSize() # UnknownSize THEN
 				w.String(" size="); w.Int(GetSize(), 0);
 			END;
-
-			w.String("; kind="); w.Int(kind, 0);
-			IF isPrototype THEN w.String(" (isPrototype) ") END;
+			
+			IF IsExternal() THEN w.String(" external") END;
+			
+			(* only for debugging of the binary object file format *)
+			w.String(";");
+			IF offset # 0 THEN
+				w.String(" offset="); w.Int(offset, 0)
+			END;
+			w.String(" kind=");
+			CASE kind OF
+			| UnknownKind: w.String("unknown")
+			| RegularKind: w.String("regular")
+			| CaseTableKind: w.String("caseTable")
+			| ImportedSymbolKind: w.String("importedSymbol")
+			| SystemCallKind: w.String("systemCall")
+			END;			
 		END Dump;
 
 		PROCEDURE DumpName*(w: Streams.Writer);
@@ -392,15 +417,22 @@ TYPE
 			IF (section # NIL) & (section.kind # UnknownKind) & (section.kind # kind) THEN section := NIL END;
 			RETURN section
 		END FindByNameAndKind;
-
+		
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR
 			i: LONGINT;
 			section: Section;
 		BEGIN
+			(* dump internal sections *)
 			FOR i := 0 TO Length() - 1 DO
 				section := GetSection(i);
-				section.Dump(w); w.Ln;
+				IF ~section.IsExternal() THEN section.Dump(w); w.Ln END
+			END;
+			
+			(* dump external sections *)
+			FOR i := 0 TO Length() - 1 DO			
+				section := GetSection(i);
+				IF section.IsExternal() THEN section.Dump(w); w.Ln END
 			END
 		END Dump;
 	END SectionList;
@@ -436,15 +468,13 @@ TYPE
 			RETURN FALSE
 		END ContainsName;
 	END NameList;
-
+	
+	(** output of (intermediate) code generation **)
 	Module* = OBJECT (Formats.GeneratedModule)
-		VAR
-			(* output of (intermediate) code generation *)
-
-			allSections-: SectionList;
-
-			platformName-: SyntaxTree.String;
-			imports-: NameList;
+	VAR
+		allSections-: SectionList;
+		platformName-: SyntaxTree.String;
+		imports-: NameList;
 
 		PROCEDURE & Init*(module: SyntaxTree.Module; system: Global.System);
 		BEGIN
@@ -471,32 +501,19 @@ TYPE
 		VAR
 			dump: Basic.Writer;
 			name: SyntaxTree.String;
-			section: Section;
 			i: LONGINT;
-
-			PROCEDURE DumpKind(kind: LONGINT);
-			BEGIN
-				FOR i := 0 TO allSections.Length() - 1 DO
-					section := allSections.GetSection(i);
-					IF section.kind = kind THEN
-						section.Dump(w); w.Ln
-					END
-				END
-			END DumpKind;
 		BEGIN
 			dump := Basic.GetWriter(w);
 
 			(* dump module directive *)
 			dump.String(".module ");
-			dump.String(moduleName);
-			dump.Ln;
+			dump.String(moduleName); dump.Ln;
 			dump.Ln;
 
 			(* dump platform directive *)
 			IF platformName # "" THEN
 				dump.String(".platform ");
-				dump.String(platformName);
-				dump.Ln;
+				dump.String(platformName); dump.Ln;
 				dump.Ln
 			END;
 
@@ -514,18 +531,9 @@ TYPE
 				END;
 				dump.Ln; dump.Ln
 			END;
-
-			DumpKind(RegularKind);
-
-			dump.Ln; dump.BeginComment; dump.String("; case tables"); dump.EndComment; dump.Ln;
-			DumpKind(CaseTableKind);
-
-			dump.Ln; dump.BeginComment; dump.String("; imported symbols"); dump.EndComment; dump.Ln;
-			DumpKind(ImportedSymbolKind);
-
-			dump.Ln; dump.BeginComment; dump.String("; system calls"); dump.EndComment; dump.Ln;
-			DumpKind(SystemCallKind);
-
+			
+			(* dump all sections *)
+			allSections.Dump(D.Log)
 		END Dump;
 
 	END Module;
