@@ -1674,7 +1674,7 @@ VAR
 	VAR i,j: LONGINT; string: ObjectFile.SectionName;
 	BEGIN
 		i := LEN(name)-1;
-		WHILE name[i] < 0 DO
+		WHILE (i>=0) & (name[i] < 0)  DO
 			DEC(i);
 		END;
 		IF (this[0] = ".") & (i < LEN(name)-1) THEN (* suffix *)
@@ -1691,6 +1691,25 @@ VAR
 			name[i] := StringPool.GetIndex1(string);
 		END;
 	END AppendToPooledName;
+
+	(* suffix using separation character "." *)
+	PROCEDURE SuffixPooledName*(VAR name: PooledName; this: StringPool.Index);
+	VAR string, suffix: ObjectFile.SectionName; i: LONGINT;
+	BEGIN
+		i := LEN(name)-1;
+		WHILE (i>=0) & (name[i] < 0) DO
+			DEC(i);
+		END;
+		IF (i < LEN(name)-1) THEN (* suffix *)
+			name[i+1] := this;
+		ELSE
+			StringPool.GetString(name[i], string);
+			StringPool.GetString(this, suffix);
+			Strings.Append(string,".");
+			Strings.Append(string, suffix);
+			name[i] := StringPool.GetIndex1(string);
+		END;
+	END SuffixPooledName;
 
 	PROCEDURE PooledNameEndsWith*(CONST name: PooledName; CONST this: ARRAY OF CHAR): BOOLEAN;
 	VAR string: ObjectFile.SectionName; i: LONGINT;

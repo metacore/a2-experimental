@@ -1037,12 +1037,41 @@ TYPE
 	BEGIN GetSymbolNameInScope(symbol,NIL,name)
 	END GetSymbolName;
 
-	PROCEDURE GetSymbolPooledName*(symbol: SyntaxTree.Symbol; VAR pooledName: Basic.PooledName);
-	VAR name: SyntaxTree.String;
+	PROCEDURE GetSymbolPooledNameInScope*(symbol: SyntaxTree.Symbol; inScope: SyntaxTree.Scope; VAR pooledName: Basic.PooledName);
+	VAR n: SyntaxTree.String; td: SyntaxTree.TypeDeclaration; i: LONGINT;
+		PROCEDURE Scope(scope: SyntaxTree.Scope);
+		BEGIN
+			IF scope = NIL THEN (* do nothing, locally declared temporary symbol *)
+			ELSIF scope = inScope THEN (* do not traverse further *)
+			ELSIF scope IS SyntaxTree.ModuleScope THEN
+				Basic.SuffixPooledName(pooledName,scope.ownerModule.name);
+			ELSIF scope IS SyntaxTree.RecordScope THEN
+				Scope(scope.outerScope);
+				td := scope(SyntaxTree.RecordScope).ownerRecord.typeDeclaration;
+				IF td = NIL THEN
+					td := scope(SyntaxTree.RecordScope).ownerRecord.pointerType.typeDeclaration;
+				END;
+				Basic.SuffixPooledName(pooledName,td.name);
+			ELSIF scope IS SyntaxTree.ProcedureScope THEN
+				Scope(scope.outerScope);
+				Basic.SuffixPooledName(pooledName,scope(SyntaxTree.ProcedureScope).ownerProcedure.name);
+			ELSIF scope IS SyntaxTree.CellScope THEN
+				Scope(scope.outerScope);
+				td := scope(SyntaxTree.CellScope).ownerCell.typeDeclaration;
+				Basic.SuffixPooledName(pooledName, td.name);
+			END;
+		END Scope;
+
 	BEGIN
-		(*! OPTIMIZE ! *)
-		GetSymbolNameInScope(symbol,NIL,name);
-		Basic.ToPooledName(name, pooledName);
+		FOR i := 0 TO LEN(pooledName)-1 DO pooledName[i] := -1 END;
+		Scope(symbol.scope);
+		Basic.SuffixPooledName(pooledName, symbol.name);
+	END GetSymbolPooledNameInScope;
+
+
+	PROCEDURE GetSymbolPooledName*(symbol: SyntaxTree.Symbol; VAR pooledName: Basic.PooledName);
+	BEGIN
+		GetSymbolPooledNameInScope(symbol,NIL,pooledName);
 	END GetSymbolPooledName;
 
 
