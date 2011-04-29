@@ -995,6 +995,15 @@ TYPE
 		Strings.Append(name,n);
 	END GetModuleName;
 
+	PROCEDURE GetModulePooledName*(module: SyntaxTree.Module; VAR name: Basic.PooledName);
+	BEGIN
+		IF (module.context # SyntaxTree.invalidIdentifier) & (module.context # A2Name) THEN
+			name[0] := module.context; name[1] := module.name; name[2] := -1;
+		ELSE name[0] :=module.name; name[1] := -1;
+		END;
+	END GetModulePooledName;
+
+
 	PROCEDURE GetSymbolNameInScope*(symbol: SyntaxTree.Symbol; inScope: SyntaxTree.Scope; VAR name: ARRAY OF CHAR);
 	VAR n: SyntaxTree.String; td: SyntaxTree.TypeDeclaration;
 		PROCEDURE Scope(scope: SyntaxTree.Scope);

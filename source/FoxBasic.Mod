@@ -1673,22 +1673,22 @@ VAR
 	PROCEDURE AppendToPooledName*(VAR name: PooledName; CONST this: ARRAY OF CHAR);
 	VAR i,j: LONGINT; string: ObjectFile.SectionName;
 	BEGIN
-		i := LEN(name)-1;
-		WHILE (i>=0) & (name[i] < 0)  DO
-			DEC(i);
+		i := 0;
+		WHILE (i<LEN(name)) & (name[i] >= 0)  DO
+			INC(i)
 		END;
-		IF (this[0] = ".") & (i < LEN(name)-1) THEN (* suffix *)
+		IF (this[0] = ".") & (i < LEN(name)) THEN (* suffix *)
 			j := 0;
 			WHILE this[j+1] # 0X DO
 				string[j] := this[j+1];
 				INC(j);
 			END;
 			string[j] := 0X;
-			name[i+1] := StringPool.GetIndex1(string);
-		ELSE
-			StringPool.GetString(name[i], string);
-			Strings.Append(string, this);
 			name[i] := StringPool.GetIndex1(string);
+		ELSE
+			StringPool.GetString(name[i-1], string);
+			Strings.Append(string, this);
+			name[i-1] := StringPool.GetIndex1(string);
 		END;
 	END AppendToPooledName;
 
@@ -1696,32 +1696,31 @@ VAR
 	PROCEDURE SuffixPooledName*(VAR name: PooledName; this: StringPool.Index);
 	VAR string, suffix: ObjectFile.SectionName; i: LONGINT;
 	BEGIN
-		i := LEN(name)-1;
-		WHILE (i>=0) & (name[i] < 0) DO
-			DEC(i);
+		i := 0;
+		WHILE (i < LEN(name)) & (name[i] >=0) DO
+			INC(i);
 		END;
-		IF (i < LEN(name)-1) THEN (* suffix *)
-			name[i+1] := this;
+		IF i < LEN(name) THEN (* suffix *)
+			name[i] := this;
 		ELSE
-			StringPool.GetString(name[i], string);
+			StringPool.GetString(name[i-1], string);
 			StringPool.GetString(this, suffix);
 			Strings.Append(string,".");
 			Strings.Append(string, suffix);
-			name[i] := StringPool.GetIndex1(string);
+			name[i-1] := StringPool.GetIndex1(string);
 		END;
 	END SuffixPooledName;
 
 	PROCEDURE PooledNameEndsWith*(CONST name: PooledName; CONST this: ARRAY OF CHAR): BOOLEAN;
 	VAR string: ObjectFile.SectionName; i: LONGINT;
 	BEGIN
-		i := LEN(name)-1;
-		WHILE name[i] < 0 DO
-			DEC(i);
+		i := 0;
+		WHILE (i< LEN(name)-1) & (name[i] >= 0) DO
+			INC(i);
 		END;
 		StringPool.GetString(name[i],string);
 		RETURN Strings.EndsWith(string, this);
 	END PooledNameEndsWith;
-
 
 	PROCEDURE Expand(VAR oldAry: ErrorMsgs);
 	VAR

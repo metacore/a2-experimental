@@ -2053,9 +2053,8 @@ TYPE
 			END ParameterList;
 
 			PROCEDURE Inline(procedureScope: SyntaxTree.ProcedureScope);
-			VAR len,count,pos: LONGINT; code: SyntaxTree.Code; name: ARRAY 256 OF CHAR; ch: CHAR;
+			VAR len,count,pos: LONGINT; code: SyntaxTree.Code; ch: CHAR;
 			BEGIN
-				procedureScope.ownerProcedure.GetName(name);
 				code := procedureScope.body.code;
 				IF code.inlineCode # NIL THEN
 					len := code.inlineCode.GetSize() DIV 8;

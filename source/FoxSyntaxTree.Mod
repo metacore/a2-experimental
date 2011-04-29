@@ -3437,15 +3437,7 @@ TYPE
 			symbol.nextSymbol := p;
 			IF q = NIL THEN firstSymbol := symbol ELSE q.nextSymbol := symbol END;
 			symbol.SetScope(SELF);
-
-			p := firstSymbol;
-			WHILE(p.nextSymbol # NIL) DO
-				Basic.GetString(p.nextSymbol.name,nextname);
-				Basic.GetString(p.name,name);
-				ASSERT(nextname >= name);
-				p := p.nextSymbol;
-			END;
-
+			
 			INC(numberSymbols);
 		END EnterSymbol;
 

@@ -518,10 +518,9 @@ TYPE
 		PROCEDURE ImportThis(position: LONGINT; moduleName: SyntaxTree.Identifier; VAR m: SyntaxTree.Module; force: BOOLEAN): BOOLEAN;
 		VAR import: SyntaxTree.Import;
 			s,name: Scanner.StringType;
-			selfName, selfContext: SyntaxTree.String;
+			selfName: SyntaxTree.String;
 		BEGIN
-			Basic.GetString(module.context,selfContext);
-			IF (moduleName = module.name) & (selfContext = "A2") THEN
+			IF (moduleName = module.name) & (module.context = Global.A2Name) THEN
 				m := module
 			ELSE
 				import := module.moduleScope.ImportByModuleName(moduleName,SyntaxTree.NewIdentifier("A2"));
