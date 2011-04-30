@@ -153,7 +153,7 @@ TYPE
 		symbol: data structure for the data transfer of the last read input from the scanner to the parser
 	**)
 	Symbol*= RECORD
-		start*,end*: LONGINT; (* start and end position of symbol *)
+		start*,end*,line-: LONGINT; (* start and end position of symbol *)
 		token*: Token; (* token of symbol *)
 		string*: StringType;  (* string or identifier *)
 		stringLength*: LONGINT; (* length of string, if stringLength = 2 then this may be interpreted as character and integer = ORD(ch) *)
@@ -251,6 +251,7 @@ TYPE
 
 		ch: CHAR;   (* look-ahead character *)
 		position: LONGINT;   (* current position *)
+		line-: LONGINT;
 
 		error-: BOOLEAN;   (* if error occured during scanning *)
 
@@ -279,6 +280,7 @@ TYPE
 			IF reader = NIL THEN ch := EOT ELSE 	GetNextCharacter END;
 			IF Trace THEN D.Str( "New scanner  " );   D.Ln;  END;
 			SELF.position := position;
+			line := 0;
 		END InitializeScanner;
 
 		PROCEDURE ResetCase*; (*! needs a better naming ! *)
@@ -302,6 +304,7 @@ TYPE
 		BEGIN
 			ASSERT(ch # EOT);
 			reader.Char(ch); INC(position);
+			IF ch = LF THEN INC(line) END;
 			(*
 			(* not necessary, as Streams returns 0X if reading failed, but in case Streams.Reader.Char is modified ...  *)
 			IF reader.res # Streams.Ok THEN ch := EOT END;
@@ -581,7 +584,7 @@ TYPE
 
 		BEGIN
 			SkipBlanks;
-			symbol.start := position;
+			symbol.start := position; symbol.line := line;
 			symbol.string[0] := ch;
 			symbol.string[1] := 0X;
 			IF s # EndOfText THEN
@@ -709,7 +712,7 @@ TYPE
 
 		(**
 			note: in contrast to a regular identifier, an assembler scanner identifier may also contain periods and the '@'-symbol
-			
+
 			Identifier = '@' | Letter {'@' | '.' | Letter | Digit | '_'} .
 			Letter = 'A' | 'B' | .. |  'Z' | 'a' | 'b' |  .. | 'z' .
 			Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'.
@@ -719,7 +722,7 @@ TYPE
 		PROCEDURE GetIdentifier( VAR symbol: Symbol );
 		VAR
 			i: LONGINT;
-			
+
 			PROCEDURE CharacterIsAllowed(character: CHAR): BOOLEAN;
 			BEGIN
 				CASE character OF
@@ -732,7 +735,7 @@ TYPE
 			REPEAT
 				symbol.string[i] := ch; INC( i );  GetNextCharacter
 			UNTIL ~CharacterIsAllowed(ch) OR (i = MaxIdentifierLength);
-			
+
 			IF i = MaxIdentifierLength THEN Error( Basic.IdentifierTooLong );  DEC( i ) END;
 			symbol.string[i] := 0X;
 		END GetIdentifier;
@@ -751,7 +754,7 @@ TYPE
 		BEGIN
 			REPEAT
 				SkipBlanks;
-				symbol.start := position;
+				symbol.start := position; symbol.line := line;
 				symbol.string[0] := ch;
 				symbol.string[1] := 0X;
 				CASE ch OF  (* ch > " " *)

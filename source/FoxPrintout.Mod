@@ -42,12 +42,12 @@ TYPE
 
 		PROCEDURE BeginComment;
 		BEGIN
-			w.BeginComment; w.String("(* ");
+			w.BeginComment; w.String("(*");
 		END BeginComment;
 
 		PROCEDURE EndComment;
 		BEGIN
-			w.String(" *)");w.EndComment
+			w.String("*)");w.EndComment
 		END EndComment;
 
 		PROCEDURE AlertString(CONST s: ARRAY OF CHAR);
@@ -850,7 +850,12 @@ TYPE
 			IF x = NIL THEN
 				AlertString("nil symbol");
 			ELSE
-				x.Accept(SELF)
+				IF (x IS SyntaxTree.Procedure) & Visible(x) THEN Indent END;
+				IF x.comment # NIL THEN
+					Comments(x.comment, x)
+				END;
+				x.Accept(SELF);
+				CommentsF(x.comment,x);
 			END
 		END Symbol;
 
@@ -917,7 +922,7 @@ TYPE
 			w.IncIndent;
 			WHILE(x # NIL) DO
 				Indent;
-				VisitTypeDeclaration(x);
+				Symbol(x);
 				w.String( "; " );
 				x := x.nextTypeDeclaration;
 				IF x # NIL THEN w.Ln END;
@@ -945,7 +950,7 @@ TYPE
 			w.IncIndent;
 			WHILE(x # NIL) DO
 				Indent;
-				VisitConstant(x);
+				Symbol(x);
 				w.String( "; " );
 				x := x.nextConstant;
 			END;
@@ -990,6 +995,9 @@ TYPE
 				next := x.nextVariable;
 				IF (x.access # SyntaxTree.Hidden) OR (mode > SourceCode) THEN
 					Indent;
+					IF x.comment # NIL THEN
+						Comments(x.comment, x)
+					END;
 					PrintSymbol(x); Flags(x);
 					WHILE(next # NIL) & (next.type = x.type) & ((next.access # SyntaxTree.Hidden) OR (mode > SourceCode)) DO
 
@@ -1004,6 +1012,7 @@ TYPE
 						ShortType(x.type);
 					END;
 					w.String("; ");
+					CommentsF(x.comment,x);
 				END;
 				x := next;
 			END;
@@ -1081,7 +1090,7 @@ TYPE
 		VAR type: SyntaxTree.ProcedureType;  flags: SET; first: BOOLEAN;
 		BEGIN
 			IF Visible(x) THEN
-				Indent;  Keyword("PROCEDURE " );
+				Keyword("PROCEDURE " );
 
 				(*
 				CallingConvention(x.type(SyntaxTree.ProcedureType).callingConvention);
@@ -1118,7 +1127,7 @@ TYPE
 				IF info & (type.returnParameter # NIL) THEN
 					BeginComment;
 					w.String("retPar = ");
-					VisitParameter(type.returnParameter);
+					Symbol(type.returnParameter);
 					EndComment;
 				END;
 				w.String( ";" );
@@ -1136,8 +1145,6 @@ TYPE
 			valid, first: BOOLEAN;
 		BEGIN
 			IF Visible(x) THEN
-				Indent;
-
 				(* mark array access operators for array-structured object types *)
 				IF info THEN
 					IF (x.scope # NIL) & (x.scope IS SyntaxTree.RecordScope) THEN
@@ -1178,7 +1185,7 @@ TYPE
 				END;
 				IF info & (type.returnParameter # NIL) THEN
 					BeginComment;
-					VisitParameter(type.returnParameter);
+					Symbol(type.returnParameter);
 					EndComment;
 				END;
 				w.String( ";" );
@@ -1225,7 +1232,7 @@ TYPE
 			WHILE(x # NIL) DO
 				IF x.direct & (x.module # NIL) OR (mode > SymbolFile) THEN
 					IF ~first THEN w.String(", ") ELSE first := FALSE END;
-					VisitImport(x);
+					Symbol(x);
 				END;
 				x := x.nextImport;
 			END;
@@ -1249,10 +1256,6 @@ TYPE
 		PROCEDURE Comment(x: SyntaxTree.Comment);
 		VAR i: LONGINT; ch: CHAR;
 		BEGIN
-			Indent;
-			IF x.prevSymbol # NIL THEN
-				Identifier(x.prevSymbol.name); w.String(" < ");
-			END;
 			BeginComment;
 			WHILE (i<LEN(x.source^)) & (x.source[i] #  0X) DO
 				ch := x.source[i];
@@ -1262,9 +1265,6 @@ TYPE
 				INC(i);
 			END;
 			EndComment;
-			IF x.nextSymbol # NIL THEN
-				w.String("< "); Identifier(x.nextSymbol.name);
-			END;
 		END Comment;
 
 		PROCEDURE CommentList(x: SyntaxTree.Comment);
@@ -1302,12 +1302,35 @@ TYPE
 		END ProcedureScope;
 
 
+		PROCEDURE Comments(c: SyntaxTree.Comment; x: ANY);
+		BEGIN
+			WHILE (c # NIL) & (c.next = x) DO
+				Comment(c);
+				Indent;
+				c := c.nextComment;
+			END;
+		END Comments;
+
+		PROCEDURE CommentsF(c: SyntaxTree.Comment; x: ANY);
+		BEGIN
+			WHILE (c # NIL) & (c.next = x) DO
+				c := c.nextComment;
+			END;
+			IF (c# NIL) & (c.prev = x) THEN
+				Comment(c)
+			END;
+		END CommentsF;
+
 		PROCEDURE Statement*(x: SyntaxTree.Statement);
 		BEGIN
 			IF x = NIL THEN
 				AlertString("nil statement")
 			ELSE
-				x.Accept(SELF)
+				IF x.comment # NIL THEN
+					Comments(x.comment, x)
+				END;
+				x.Accept(SELF);
+				CommentsF(x.comment,x);
 			END
 		END Statement;
 
@@ -1340,9 +1363,13 @@ TYPE
 
 		PROCEDURE IfPart(x: SyntaxTree.IfPart);
 		BEGIN
+			IF x.comment # NIL THEN
+				Comments(x.comment, x)
+			END;
 	 		Keyword("IF " );
 			Expression(x.condition);
 			Keyword(" THEN " );
+			CommentsF(x.comment,x);
 			w.IncIndent;
 			StatementSequence(x.statements);
 			w.DecIndent;
@@ -1368,10 +1395,14 @@ TYPE
 
 		PROCEDURE WithPart(x: SyntaxTree.WithPart);
 		BEGIN
+			IF x.comment # NIL THEN
+				Comments(x.comment, x)
+			END;
 			Expression(x.variable);
 			w.String(" : ");
 			Type(x.type);
 			Keyword(" DO " );
+			CommentsF(x.comment,x);
 			w.IncIndent;  StatementSequence(x.statements);  w.DecIndent;
 		END WithPart;
 
@@ -1394,6 +1425,9 @@ TYPE
 		PROCEDURE CasePart(x: SyntaxTree.CasePart);
 		VAR case: SyntaxTree.CaseConstant;
 		BEGIN
+			IF x.comment # NIL THEN
+				Comments(x.comment, x)
+			END;
 			ExpressionList(x.elements);
 			IF info THEN
 				w.BeginComment;
@@ -1405,7 +1439,8 @@ TYPE
 				END;
 				EndComment;
 			END;
-			w.String( ":" );  w.IncIndent; StatementSequence(x.statements);  w.DecIndent;
+			w.String( ":" ); CommentsF(x.comment,x);
+			w.IncIndent; StatementSequence(x.statements);  w.DecIndent;
 		END CasePart;
 
 		PROCEDURE VisitCaseStatement(x: SyntaxTree.CaseStatement);

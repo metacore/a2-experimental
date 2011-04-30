@@ -2338,6 +2338,8 @@ TYPE
 		position-: LONGINT; state-: SET;
 		fingerprint-: FingerPrint;
 
+		comment-: Comment;
+
 
 		PROCEDURE & InitSymbol(position: LONGINT; name:Identifier);
 		BEGIN
@@ -2352,6 +2354,7 @@ TYPE
 			alignment := 1; fixed := FALSE;
 			used := FALSE; written := FALSE;
 			InitFingerPrint(fingerprint);
+			comment := NIL;
 		END InitSymbol;
 
 		PROCEDURE SetAlignment*(fix: BOOLEAN; align: LONGINT);
@@ -2404,6 +2407,10 @@ TYPE
 		PROCEDURE GetName*(VAR str: ARRAY OF CHAR);
 		BEGIN Basic.GetString(name, str);
 		END GetName;
+
+		PROCEDURE SetComment*(comment: Comment);
+		BEGIN SELF.comment := comment
+		END SetComment;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -2769,11 +2776,14 @@ TYPE
 		position-: LONGINT;
 		isUnreachable-: BOOLEAN;
 
+		comment-: Comment;
+
 		PROCEDURE & InitStatement*(position: LONGINT; outer: Statement);
 		BEGIN
 			SELF.position := position;
 			SELF.outer := outer;
 			isUnreachable := FALSE;
+			comment := NIL;
 		END InitStatement;
 
 		PROCEDURE SetUnreachable*(unreachable: BOOLEAN);
@@ -2784,6 +2794,11 @@ TYPE
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitStatement(SELF)
 		END Accept;
+
+		PROCEDURE SetComment*(comment: Comment);
+		BEGIN SELF.comment := comment
+		END SetComment;
+
 
 	END Statement;
 
@@ -2836,9 +2851,11 @@ TYPE
 		condition-: Expression;
 	 	statements-: StatementSequence;
 
+	 	comment-: Comment;
+
 	 	PROCEDURE & InitIfPart;
 	 	BEGIN
-	 		statements := NIL; condition := NIL;
+	 		statements := NIL; condition := NIL; comment := NIL;
 	 	END InitIfPart;
 
 	 	PROCEDURE SetCondition*(condition: Expression);
@@ -2848,6 +2865,10 @@ TYPE
 	 	PROCEDURE SetStatements*(statements: StatementSequence);
 	 	BEGIN SELF.statements := statements
 	 	END SetStatements;
+
+	 	PROCEDURE SetComment*(comment: Comment);
+	 	BEGIN SELF.comment := comment
+	 	END SetComment;
 
 	 END IfPart;
 
@@ -2897,9 +2918,11 @@ TYPE
 		type-: Type; (* initially is qualified type *)
 		statements-: StatementSequence;
 
+		comment-: Comment;
+
 		PROCEDURE &InitWithPart();
 		BEGIN
-			type := NIL; variable := NIL; statements := NIL;
+			type := NIL; variable := NIL; statements := NIL; comment := NIL;
 		END InitWithPart;
 
 		PROCEDURE SetVariable*( variable: Designator);
@@ -2916,6 +2939,10 @@ TYPE
 		BEGIN
 			SELF.statements := statements;
 		END SetStatements;
+
+		PROCEDURE SetComment*(comment: Comment);
+		BEGIN SELF.comment := comment
+		END SetComment;
 
 	END WithPart;
 
@@ -2969,6 +2996,8 @@ TYPE
 			firstConstant-: CaseConstant; (* expression list resolved to int32s, inserted by checker *)
 			statements-: StatementSequence;
 
+			comment-: Comment;
+
 		PROCEDURE & InitCasePart;
 		BEGIN
 			elements := NewExpressionList(); firstConstant := NIL;
@@ -2982,6 +3011,11 @@ TYPE
 		PROCEDURE SetConstants*(firstConstant: CaseConstant);
 		BEGIN SELF.firstConstant := firstConstant
 		END SetConstants;
+
+		PROCEDURE SetComment*(comment: Comment);
+		BEGIN SELF.comment := comment
+		END SetComment;
+
 
 	END CasePart;
 
@@ -3356,7 +3390,7 @@ TYPE
 	VAR position-: LONGINT;
 		source-: Scanner.SourceString; (* currently: POINTER TO ARRAY OF CHAR *)
 		scope-: Scope;
-		prevSymbol-,nextSymbol-: Symbol;
+		prev-, next-: ANY;
 		nextComment-: Comment;
 
 		PROCEDURE & InitComment(pos: LONGINT; scope: Scope; CONST s: ARRAY OF CHAR; length: LONGINT);
@@ -3369,19 +3403,19 @@ TYPE
 			END;
 			SELF.position := pos;
 			nextComment := NIL;
-			prevSymbol := NIL;
-			nextSymbol := NIL;
+			prev := NIL;
+			next := NIL;
 		END InitComment;
 
-		PROCEDURE SetPreviousSymbol*(symbol: Symbol);
+		PROCEDURE SetPrevious*(p: ANY);
 		BEGIN
-			prevSymbol := symbol
-		END SetPreviousSymbol;
+			prev := p;
+		END SetPrevious;
 
-		PROCEDURE SetNextSymbol*(symbol: Symbol);
+		PROCEDURE SetNext*(p: ANY);
 		BEGIN
-			nextSymbol := symbol
-		END SetNextSymbol;
+			next := p
+		END SetNext;
 
 
 	END Comment;
@@ -3437,7 +3471,7 @@ TYPE
 			symbol.nextSymbol := p;
 			IF q = NIL THEN firstSymbol := symbol ELSE q.nextSymbol := symbol END;
 			symbol.SetScope(SELF);
-			
+
 			INC(numberSymbols);
 		END EnterSymbol;
 

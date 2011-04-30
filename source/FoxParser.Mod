@@ -159,7 +159,7 @@ TYPE
 		symbol-: Scanner.Symbol;
 		diagnostics: Diagnostics.Diagnostics;
 		currentScope: SyntaxTree.Scope;
-		recentSymbol: SyntaxTree.Symbol;
+		recentSymbol: ANY; recentLine: LONGINT;
 		recentComment: SyntaxTree.Comment;
 		moduleScope: SyntaxTree.ModuleScope;
 		error-: BOOLEAN;
@@ -228,7 +228,40 @@ TYPE
 			WHILE ~error & (symbol.token = Scanner.Comment) DO
 				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.source^,symbol.stringLength);
 				moduleScope.AddComment(comment);
-				recentComment := comment; comment.SetPreviousSymbol(recentSymbol);
+				IF recentComment = NIL THEN
+					recentComment := comment;
+					D.String("recentComment="); D.Int(symbol.line,1); D.String("=? "); D.Int(recentLine,1); D.Ln;
+					D.String(comment.source^); D.Ln;
+					IF symbol.line = recentLine THEN
+						IF recentSymbol # NIL THEN
+							D.String("found symbol "); D.Ln;
+							IF (recentSymbol IS SyntaxTree.Symbol) THEN
+								IF recentSymbol(SyntaxTree.Symbol).comment = NIL THEN
+									recentSymbol(SyntaxTree.Symbol).SetComment(comment)
+								END;
+							ELSIF (recentSymbol IS SyntaxTree.Statement) THEN
+								IF recentSymbol(SyntaxTree.Statement).comment = NIL THEN
+									recentSymbol(SyntaxTree.Statement).SetComment(comment)
+								END;
+							ELSIF (recentSymbol IS SyntaxTree.IfPart) THEN
+								IF recentSymbol(SyntaxTree.IfPart).comment = NIL THEN
+									recentSymbol(SyntaxTree.IfPart).SetComment(comment)
+								END;
+							ELSIF (recentSymbol IS SyntaxTree.CasePart) THEN
+								IF recentSymbol(SyntaxTree.CasePart).comment = NIL THEN
+									recentSymbol(SyntaxTree.CasePart).SetComment(comment)
+								END;
+							ELSIF (recentSymbol IS SyntaxTree.WithPart) THEN
+								IF recentSymbol(SyntaxTree.WithPart).comment = NIL THEN
+									recentSymbol(SyntaxTree.WithPart).SetComment(comment)
+								END;
+							END;
+							comment.SetPrevious(recentSymbol);
+							recentComment := NIL;
+							recentSymbol := NIL
+						END;
+					END;
+				END;
 				error := ~scanner.GetNextSymbol(symbol);
 			END;
 		END NextSymbol;
@@ -240,7 +273,7 @@ TYPE
 			WHILE ~error & (symbol.token = Scanner.Comment) DO
 				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.source^,symbol.stringLength);
 				moduleScope.AddComment(comment);
-				recentComment := comment; comment.SetPreviousSymbol(recentSymbol);
+				recentComment := comment; comment.SetPrevious(recentSymbol);
 				error := ~scanner.GetNextSymbol(symbol);
 			END;
 			RETURN symbol.token = token
@@ -535,7 +568,6 @@ TYPE
 		VAR
 			designator: SyntaxTree.Designator;  expressionList: SyntaxTree.ExpressionList;
 			identifier: SyntaxTree.Identifier; position: LONGINT;
-			modifier: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "Designator" ) END;
 			position := symbol.start;
@@ -766,6 +798,7 @@ TYPE
 		BEGIN
 			IF Trace THEN S( "Case" ) END;
 			casePart := SyntaxTree.NewCasePart();
+			CommentCasePart(casePart);
 			REPEAT
 				element := RangeExpression();
 				casePart.elements.AddExpression( element );
@@ -805,7 +838,6 @@ TYPE
 			caseStatement: SyntaxTree.CaseStatement;  whileStatement: SyntaxTree.WhileStatement;  repeatStatement: SyntaxTree.RepeatStatement;  forStatement: SyntaxTree.ForStatement;
 			identifier: SyntaxTree.Identifier;  loopStatement: SyntaxTree.LoopStatement;  returnStatement: SyntaxTree.ReturnStatement;  awaitStatement: SyntaxTree.AwaitStatement;
 			qualifiedType: SyntaxTree.QualifiedType; code : SyntaxTree.Code; position: LONGINT; result: BOOLEAN;
-			modifier: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "Statement" ) END;
 			CASE symbol.token OF
@@ -814,16 +846,19 @@ TYPE
 					position := symbol.start;
 					IF Optional( Scanner.Becomes ) THEN
 						expression := Expression();
-						statement := SyntaxTree.NewAssignment( position, designator, expression,outer )
+						statement := SyntaxTree.NewAssignment( position, designator, expression,outer );
+						CommentStatement(statement);
 					ELSE
 						caller := SyntaxTree.NewProcedureCallStatement(designator.position, designator,outer);
 						statement := caller;
+						CommentStatement(statement);
 					END;
 					statements.AddStatement( statement );
 					result := TRUE
 			| Scanner.If:
 					NextSymbol;
 					ifStatement := SyntaxTree.NewIfStatement( symbol.start ,outer);
+					CommentStatement(ifStatement);
 					expression := Expression();
 					ifStatement.ifPart.SetCondition( expression );
 					Check( Scanner.Then );
@@ -831,6 +866,7 @@ TYPE
 					ifStatement.ifPart.SetStatements( statementSequence );
 					WHILE Optional( Scanner.Elsif ) DO
 						elsifPart := SyntaxTree.NewIfPart();
+						CommentIfPart(elsifPart);
 						ifStatement.AddElsifPart( elsifPart);
 						expression := Expression();
 						elsifPart.SetCondition( expression );
@@ -846,6 +882,7 @@ TYPE
 					result := TRUE
 			| Scanner.With:
 					withStatement := SyntaxTree.NewWithStatement( symbol.start ,outer);
+					CommentStatement(withStatement);
 					NextSymbol;
 					REPEAT
 						identifier := Identifier(position);
@@ -853,6 +890,7 @@ TYPE
 							Error(position,Diagnostics.Invalid,"forbidden qualified identifier in with statement");
 						END;
 						withPart := SyntaxTree.NewWithPart();
+						CommentWithPart(withPart);
 						withStatement.AddWithPart(withPart);
 						designator := SyntaxTree.NewIdentifierDesignator(position,identifier);
 						withPart.SetVariable( designator );
@@ -873,6 +911,7 @@ TYPE
 					result := TRUE
 			| Scanner.Case:
 					caseStatement := SyntaxTree.NewCaseStatement( symbol.start,outer );
+					CommentStatement(caseStatement);
 					NextSymbol;
 					expression := Expression();
 					Check( Scanner.Of );
@@ -891,6 +930,7 @@ TYPE
 			| Scanner.While:
 					NextSymbol;
 					whileStatement := SyntaxTree.NewWhileStatement( symbol.start, outer );
+					CommentStatement(whileStatement);
 					expression := Expression();
 					Check( Scanner.Do );
 					whileStatement.SetCondition( expression );
@@ -902,6 +942,7 @@ TYPE
 			| Scanner.Repeat:
 					NextSymbol;
 					repeatStatement := SyntaxTree.NewRepeatStatement( symbol.start, outer );
+					CommentStatement(repeatStatement);
 					statementSequence := StatementSequence(repeatStatement);
 					repeatStatement.SetStatements( statementSequence );
 					Check( Scanner.Until );
@@ -912,6 +953,7 @@ TYPE
 			| Scanner.For:
 					NextSymbol;
 					forStatement := SyntaxTree.NewForStatement( symbol.start, outer);
+					CommentStatement(forStatement);
 					identifier := Identifier(position);
 					IF Optional(Scanner.Period) & Optional(Scanner.Identifier) THEN
 						Error(position,Diagnostics.Invalid,"forbidden non-local counter variable");
@@ -937,6 +979,7 @@ TYPE
 			| Scanner.Loop:
 					NextSymbol;
 					loopStatement := SyntaxTree.NewLoopStatement( symbol.start ,outer);
+					CommentStatement(loopStatement);
 					statementSequence := StatementSequence(loopStatement);
 					loopStatement.SetStatements( statementSequence );
 					Check( Scanner.End );
@@ -945,11 +988,13 @@ TYPE
 			| Scanner.Exit:
 					NextSymbol;
 					statement := SyntaxTree.NewExitStatement( symbol.start, outer);
+					CommentStatement(statement);
 					statements.AddStatement( statement );
 					result := TRUE;
 			| Scanner.Return:
 					NextSymbol;
 					returnStatement := SyntaxTree.NewReturnStatement( symbol.start, outer);
+					CommentStatement(returnStatement);
 					IF (symbol.token >= Scanner.Plus) & (symbol.token <= Scanner.Identifier) THEN
 						expression := Expression();
 						returnStatement.SetReturnValue( expression );
@@ -961,6 +1006,7 @@ TYPE
 					result := TRUE;
 			| Scanner.Await:
 					awaitStatement := SyntaxTree.NewAwaitStatement( symbol.start, outer );
+					CommentStatement(awaitStatement);
 					NextSymbol;
 					expression := Expression();
 					awaitStatement.SetCondition( expression );
@@ -1010,6 +1056,7 @@ TYPE
 		BEGIN
 			IF Trace THEN S( "StatementBlock" ) END;
 			block := SyntaxTree.NewStatementBlock( symbol.end, outer );
+			CommentStatement(block);
 			IF Optional( Scanner.LeftBrace ) THEN
 				block.SetModifier(Flags());
 			END;
@@ -1531,14 +1578,68 @@ TYPE
 			RETURN list;
 		END Flags;
 
+		PROCEDURE SetNextInComment(c: SyntaxTree.Comment; this: ANY);
+		BEGIN
+			WHILE c # NIL DO
+				c.SetNext(this);
+				c := c.nextComment
+			END;
+		END SetNextInComment;
+
 		PROCEDURE CommentSymbol(symbol: SyntaxTree.Symbol);
 		BEGIN
-			IF (recentComment # NIL) & (recentComment.nextSymbol = NIL) THEN
-				recentComment.SetNextSymbol(symbol);
+			IF (recentComment # NIL) (* & (recentComment.nextSymbol = NIL) *) THEN
+				symbol.SetComment(recentComment);
+				SetNextInComment(recentComment, symbol);
+				recentComment := NIL
 			END;
-			recentSymbol := symbol
+			recentLine := scanner.line;
+			recentSymbol := symbol;
 		END CommentSymbol;
 
+		PROCEDURE CommentStatement(symbol: SyntaxTree.Statement);
+		BEGIN
+			IF (recentComment # NIL) (* & (recentComment.nextSymbol = NIL) *) THEN
+				symbol.SetComment(recentComment);
+				SetNextInComment(recentComment, symbol);
+				recentComment := NIL
+			END;
+			recentLine := scanner.line;
+			recentSymbol := symbol
+		END CommentStatement;
+
+		PROCEDURE CommentCasePart(symbol: SyntaxTree.CasePart);
+		BEGIN
+			IF (recentComment # NIL) (* & (recentComment.nextSymbol = NIL) *) THEN
+				symbol.SetComment(recentComment);
+				SetNextInComment(recentComment, symbol);
+				recentComment := NIL
+			END;
+			recentLine := scanner.line;
+			recentSymbol := symbol
+		END CommentCasePart;
+
+		PROCEDURE CommentIfPart(symbol: SyntaxTree.IfPart);
+		BEGIN
+			IF (recentComment # NIL) (* & (recentComment.nextSymbol = NIL) *) THEN
+				symbol.SetComment(recentComment);
+				SetNextInComment(recentComment, symbol);
+				recentComment := NIL
+			END;
+			recentLine := scanner.line;
+			recentSymbol := symbol
+		END CommentIfPart;
+
+		PROCEDURE CommentWithPart(symbol: SyntaxTree.WithPart);
+		BEGIN
+			IF (recentComment # NIL) (* & (recentComment.nextSymbol = NIL) *) THEN
+				symbol.SetComment(recentComment);
+				SetNextInComment(recentComment, symbol);
+				recentComment := NIL
+			END;
+			recentLine := scanner.line;
+			recentSymbol := symbol
+		END CommentWithPart;
 
 		(** ProcedureDeclaration = 'procedure' ['&'|'-'|Flags ['-']] IdentifierDefinition [FormalParameters]';'
 			                       DeclarationSequence  [Body] 'end' Identifier.
@@ -1618,9 +1719,9 @@ TYPE
 			IF Trace THEN S( "Operator" ) END;
 			(* symbol operator already consumed *)
 			position := symbol.start;
-			
+
 			IF Optional(Scanner.LeftBrace) THEN modifiers := Flags() END; (* nopov *)
-			
+
 			IF MandatoryString( string ) THEN
 				(* copy string to name and check for length. LEN(name)>0, LEN(string)>0 can be presumed  *)
 				i := 0;
@@ -1636,7 +1737,7 @@ TYPE
 			ELSE
 				name := "";
 			END;
-			
+
 			IF Optional( Scanner.Times ) THEN access := SyntaxTree.ReadOnly;
 			ELSIF Optional( Scanner.Minus ) THEN access := SyntaxTree.ReadOnly;
 			ELSE access := SyntaxTree.Internal;
@@ -1644,7 +1745,7 @@ TYPE
 			procedureScope := SyntaxTree.NewProcedureScope(parentScope);
 			operator := SyntaxTree.NewOperator( symbol.start, SyntaxTree.NewIdentifier(name), procedureScope);
 			CommentSymbol(operator);
-			operator.SetAccess(access * SyntaxTree.ReadOnly);			
+			operator.SetAccess(access * SyntaxTree.ReadOnly);
 			procedureType := SyntaxTree.NewProcedureType(symbol.start,parentScope);
 			IF Mandatory(Scanner.LeftParenthesis) THEN FormalParameters( procedureType, procedureScope ) END;
 			procedureType.SetModifiers(modifiers); (* nopov *)
