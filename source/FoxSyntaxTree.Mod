@@ -3385,12 +3385,12 @@ TYPE
 
 	END Body;
 
-	(** (* comment *) **)
+	(** (* comment *)  *)
 	Comment*=OBJECT
 	VAR position-: LONGINT;
 		source-: Scanner.SourceString; (* currently: POINTER TO ARRAY OF CHAR *)
 		scope-: Scope;
-		prev-, next-: ANY;
+		item-: ANY; sameLine-: BOOLEAN;
 		nextComment-: Comment;
 
 		PROCEDURE & InitComment(pos: LONGINT; scope: Scope; CONST s: ARRAY OF CHAR; length: LONGINT);
@@ -3403,20 +3403,13 @@ TYPE
 			END;
 			SELF.position := pos;
 			nextComment := NIL;
-			prev := NIL;
-			next := NIL;
+			item := NIL; sameLine := FALSE;
 		END InitComment;
 
-		PROCEDURE SetPrevious*(p: ANY);
+		PROCEDURE SetItem*(p: ANY; sameLine: BOOLEAN);
 		BEGIN
-			prev := p;
-		END SetPrevious;
-
-		PROCEDURE SetNext*(p: ANY);
-		BEGIN
-			next := p
-		END SetNext;
-
+			item := p; SELF.sameLine := sameLine
+		END SetItem;
 
 	END Comment;
 

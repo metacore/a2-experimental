@@ -850,12 +850,7 @@ TYPE
 			IF x = NIL THEN
 				AlertString("nil symbol");
 			ELSE
-				IF (x IS SyntaxTree.Procedure) & Visible(x) THEN Indent END;
-				IF x.comment # NIL THEN
-					Comments(x.comment, x)
-				END;
 				x.Accept(SELF);
-				CommentsF(x.comment,x);
 			END
 		END Symbol;
 
@@ -905,12 +900,14 @@ TYPE
 		BEGIN
 			IF Visible(x) THEN
 				IF (x.access # SyntaxTree.Hidden) OR (mode > SourceCode) THEN
+					Comments(x.comment,x,FALSE);
 					PrintSymbol(x);
 					w.String(" = ");
 					IF x.access # SyntaxTree.Hidden THEN
 						Type(x.declaredType);
 					ELSE ShortType(x.declaredType)
 					END;
+					Comments(x.comment,x,TRUE);
 				END;
 			END;
 		END VisitTypeDeclaration;
@@ -934,12 +931,14 @@ TYPE
 		BEGIN
 			IF Visible(x) THEN
 				IF (mode > SourceCode) OR (x.access # SyntaxTree.Hidden) THEN
+					Comments(x.comment,x,FALSE);
 					PrintSymbol(x);
 					IF x.value # NIL THEN
 						w.String( " = " );  Expression(x.value);
 					END;
 					IF info THEN BeginComment; ShortType(x.type); EndComment; END;
 					IF info & (x.value.resolved = NIL) THEN AlertString("(*NOT A CONSTANT*)") END;
+					Comments(x.comment,x,TRUE);
 				END;
 			END;
 		END VisitConstant;
@@ -962,11 +961,15 @@ TYPE
 		BEGIN
 			IF Visible(x) THEN
 				IF (x.access # SyntaxTree.Hidden) THEN
+					Comments(x.comment,x,FALSE);
 					PrintSymbol(x);
 					w.String( ": " );
 					Type(x.type);
+					Comments(x.comment,x,TRUE);
 				ELSIF mode>SourceCode THEN
+					Comments(x.comment,x,FALSE);
 					PrintSymbol(x);
+					Comments(x.comment,x,TRUE);
 				END
 			END;
 		END VisitVariable;
@@ -995,9 +998,7 @@ TYPE
 				next := x.nextVariable;
 				IF (x.access # SyntaxTree.Hidden) OR (mode > SourceCode) THEN
 					Indent;
-					IF x.comment # NIL THEN
-						Comments(x.comment, x)
-					END;
+					Comments(x.comment, x, FALSE);
 					PrintSymbol(x); Flags(x);
 					WHILE(next # NIL) & (next.type = x.type) & ((next.access # SyntaxTree.Hidden) OR (mode > SourceCode)) DO
 
@@ -1012,7 +1013,7 @@ TYPE
 						ShortType(x.type);
 					END;
 					w.String("; ");
-					CommentsF(x.comment,x);
+					Comments(x.comment,x, TRUE);
 				END;
 				x := next;
 			END;
@@ -1022,6 +1023,7 @@ TYPE
 		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
 		BEGIN
 			IF (x.access # SyntaxTree.Hidden) THEN
+				Comments(x.comment,x,TRUE);
 				IF x.kind = SyntaxTree.VarParameter THEN Keyword("VAR " );
 				ELSIF x.kind = SyntaxTree.ConstParameter THEN Keyword("CONST " );
 				END;
@@ -1031,8 +1033,11 @@ TYPE
 				END;
 				w.String( ": " );
 				Type(x.type);
+				Comments(x.comment,x,TRUE);
 			ELSIF (mode > SourceCode) THEN
+				Comments(x.comment,x,FALSE);
 				PrintSymbol(x);
+				Comments(x.comment,x,TRUE);
 			END;
 		END VisitParameter;
 
@@ -1090,6 +1095,8 @@ TYPE
 		VAR type: SyntaxTree.ProcedureType;  flags: SET; first: BOOLEAN;
 		BEGIN
 			IF Visible(x) THEN
+				Indent;
+				Comments(x.comment,x,FALSE);
 				Keyword("PROCEDURE " );
 
 				(*
@@ -1131,6 +1138,7 @@ TYPE
 					EndComment;
 				END;
 				w.String( ";" );
+				Comments(x.comment,x,TRUE);
 				IF mode >= SymbolFile THEN
 					ProcedureScope(x.procedureScope);
 				END;
@@ -1145,6 +1153,8 @@ TYPE
 			valid, first: BOOLEAN;
 		BEGIN
 			IF Visible(x) THEN
+				Indent;
+				Comments(x.comment,x,FALSE);
 				(* mark array access operators for array-structured object types *)
 				IF info THEN
 					IF (x.scope # NIL) & (x.scope IS SyntaxTree.RecordScope) THEN
@@ -1189,6 +1199,7 @@ TYPE
 					EndComment;
 				END;
 				w.String( ";" );
+				Comments(x.comment,x,TRUE);
 				IF mode >= SymbolFile THEN
 				ProcedureScope(x.procedureScope);
 				END;
@@ -1269,9 +1280,16 @@ TYPE
 
 		PROCEDURE CommentList(x: SyntaxTree.Comment);
 		BEGIN
-			WHILE (x#NIL) DO
-				Comment(x);
-				x := x.nextComment;
+			IF info THEN
+				WHILE (x#NIL) DO
+					Indent;
+					w.String("comment at position "); w.Int(x.position,1);
+					IF x.sameLine THEN w.String("(in line with item)") END;
+					IF x.item = NIL THEN w.String("(no item)"); END;
+					w.String(":");
+					Comment(x);
+					x := x.nextComment;
+				END;
 			END;
 		END CommentList;
 
@@ -1302,35 +1320,29 @@ TYPE
 		END ProcedureScope;
 
 
-		PROCEDURE Comments(c: SyntaxTree.Comment; x: ANY);
+		PROCEDURE Comments(c: SyntaxTree.Comment; x: ANY; sameLine: BOOLEAN);
 		BEGIN
-			WHILE (c # NIL) & (c.next = x) DO
-				Comment(c);
-				Indent;
-				c := c.nextComment;
+			IF mode >= SourceCode THEN
+				WHILE (c # NIL) & (c.item = x) DO
+					IF c.sameLine = sameLine THEN
+						Comment(c);
+						IF ~sameLine THEN
+							Indent;
+						END;
+					END;
+					c := c.nextComment;
+				END;
 			END;
 		END Comments;
-
-		PROCEDURE CommentsF(c: SyntaxTree.Comment; x: ANY);
-		BEGIN
-			WHILE (c # NIL) & (c.next = x) DO
-				c := c.nextComment;
-			END;
-			IF (c# NIL) & (c.prev = x) THEN
-				Comment(c)
-			END;
-		END CommentsF;
 
 		PROCEDURE Statement*(x: SyntaxTree.Statement);
 		BEGIN
 			IF x = NIL THEN
 				AlertString("nil statement")
 			ELSE
-				IF x.comment # NIL THEN
-					Comments(x.comment, x)
-				END;
+				Comments(x.comment, x, FALSE);
 				x.Accept(SELF);
-				CommentsF(x.comment,x);
+				Comments(x.comment,x,TRUE);
 			END
 		END Statement;
 
@@ -1363,13 +1375,11 @@ TYPE
 
 		PROCEDURE IfPart(x: SyntaxTree.IfPart);
 		BEGIN
-			IF x.comment # NIL THEN
-				Comments(x.comment, x)
-			END;
+			Comments(x.comment, x, FALSE);
 	 		Keyword("IF " );
 			Expression(x.condition);
 			Keyword(" THEN " );
-			CommentsF(x.comment,x);
+			Comments(x.comment,x,TRUE);
 			w.IncIndent;
 			StatementSequence(x.statements);
 			w.DecIndent;
@@ -1395,14 +1405,12 @@ TYPE
 
 		PROCEDURE WithPart(x: SyntaxTree.WithPart);
 		BEGIN
-			IF x.comment # NIL THEN
-				Comments(x.comment, x)
-			END;
+			Comments(x.comment, x, FALSE);
 			Expression(x.variable);
 			w.String(" : ");
 			Type(x.type);
 			Keyword(" DO " );
-			CommentsF(x.comment,x);
+			Comments(x.comment,x, TRUE);
 			w.IncIndent;  StatementSequence(x.statements);  w.DecIndent;
 		END WithPart;
 
@@ -1425,9 +1433,7 @@ TYPE
 		PROCEDURE CasePart(x: SyntaxTree.CasePart);
 		VAR case: SyntaxTree.CaseConstant;
 		BEGIN
-			IF x.comment # NIL THEN
-				Comments(x.comment, x)
-			END;
+			Comments(x.comment, x, FALSE);
 			ExpressionList(x.elements);
 			IF info THEN
 				w.BeginComment;
@@ -1439,7 +1445,8 @@ TYPE
 				END;
 				EndComment;
 			END;
-			w.String( ":" ); CommentsF(x.comment,x);
+			w.String( ":" );
+			Comments(x.comment,x,TRUE);
 			w.IncIndent; StatementSequence(x.statements);  w.DecIndent;
 		END CasePart;
 

@@ -159,7 +159,7 @@ TYPE
 		symbol-: Scanner.Symbol;
 		diagnostics: Diagnostics.Diagnostics;
 		currentScope: SyntaxTree.Scope;
-		recentSymbol: ANY; recentLine: LONGINT;
+		recentCommentItem: ANY; recentLine: LONGINT;
 		recentComment: SyntaxTree.Comment;
 		moduleScope: SyntaxTree.ModuleScope;
 		error-: BOOLEAN;
@@ -197,7 +197,7 @@ TYPE
 			SELF.scanner := scanner;
 			SELF.diagnostics := diagnostics;
 			error := ~scanner.GetNextSymbol(symbol);
-			recentSymbol := NIL; recentComment := NIL;
+			recentCommentItem := NIL; recentComment := NIL;
 			(* debugging *)
 			indent := 0;
 			activeCellsSupport := FALSE;
@@ -230,35 +230,32 @@ TYPE
 				moduleScope.AddComment(comment);
 				IF recentComment = NIL THEN
 					recentComment := comment;
-					D.String("recentComment="); D.Int(symbol.line,1); D.String("=? "); D.Int(recentLine,1); D.Ln;
-					D.String(comment.source^); D.Ln;
 					IF symbol.line = recentLine THEN
-						IF recentSymbol # NIL THEN
-							D.String("found symbol "); D.Ln;
-							IF (recentSymbol IS SyntaxTree.Symbol) THEN
-								IF recentSymbol(SyntaxTree.Symbol).comment = NIL THEN
-									recentSymbol(SyntaxTree.Symbol).SetComment(comment)
+						IF recentCommentItem # NIL THEN
+							IF (recentCommentItem IS SyntaxTree.Symbol) THEN
+								IF recentCommentItem(SyntaxTree.Symbol).comment = NIL THEN
+									recentCommentItem(SyntaxTree.Symbol).SetComment(comment)
 								END;
-							ELSIF (recentSymbol IS SyntaxTree.Statement) THEN
-								IF recentSymbol(SyntaxTree.Statement).comment = NIL THEN
-									recentSymbol(SyntaxTree.Statement).SetComment(comment)
+							ELSIF (recentCommentItem IS SyntaxTree.Statement) THEN
+								IF recentCommentItem(SyntaxTree.Statement).comment = NIL THEN
+									recentCommentItem(SyntaxTree.Statement).SetComment(comment)
 								END;
-							ELSIF (recentSymbol IS SyntaxTree.IfPart) THEN
-								IF recentSymbol(SyntaxTree.IfPart).comment = NIL THEN
-									recentSymbol(SyntaxTree.IfPart).SetComment(comment)
+							ELSIF (recentCommentItem IS SyntaxTree.IfPart) THEN
+								IF recentCommentItem(SyntaxTree.IfPart).comment = NIL THEN
+									recentCommentItem(SyntaxTree.IfPart).SetComment(comment)
 								END;
-							ELSIF (recentSymbol IS SyntaxTree.CasePart) THEN
-								IF recentSymbol(SyntaxTree.CasePart).comment = NIL THEN
-									recentSymbol(SyntaxTree.CasePart).SetComment(comment)
+							ELSIF (recentCommentItem IS SyntaxTree.CasePart) THEN
+								IF recentCommentItem(SyntaxTree.CasePart).comment = NIL THEN
+									recentCommentItem(SyntaxTree.CasePart).SetComment(comment)
 								END;
-							ELSIF (recentSymbol IS SyntaxTree.WithPart) THEN
-								IF recentSymbol(SyntaxTree.WithPart).comment = NIL THEN
-									recentSymbol(SyntaxTree.WithPart).SetComment(comment)
+							ELSIF (recentCommentItem IS SyntaxTree.WithPart) THEN
+								IF recentCommentItem(SyntaxTree.WithPart).comment = NIL THEN
+									recentCommentItem(SyntaxTree.WithPart).SetComment(comment)
 								END;
 							END;
-							comment.SetPrevious(recentSymbol);
+							comment.SetItem(recentCommentItem,TRUE);
 							recentComment := NIL;
-							recentSymbol := NIL
+							recentCommentItem := NIL
 						END;
 					END;
 				END;
@@ -273,7 +270,7 @@ TYPE
 			WHILE ~error & (symbol.token = Scanner.Comment) DO
 				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.source^,symbol.stringLength);
 				moduleScope.AddComment(comment);
-				recentComment := comment; comment.SetPrevious(recentSymbol);
+				recentComment := comment;
 				error := ~scanner.GetNextSymbol(symbol);
 			END;
 			RETURN symbol.token = token
@@ -1581,7 +1578,7 @@ TYPE
 		PROCEDURE SetNextInComment(c: SyntaxTree.Comment; this: ANY);
 		BEGIN
 			WHILE c # NIL DO
-				c.SetNext(this);
+				c.SetItem(this,FALSE);
 				c := c.nextComment
 			END;
 		END SetNextInComment;
@@ -1594,7 +1591,7 @@ TYPE
 				recentComment := NIL
 			END;
 			recentLine := scanner.line;
-			recentSymbol := symbol;
+			recentCommentItem := symbol;
 		END CommentSymbol;
 
 		PROCEDURE CommentStatement(symbol: SyntaxTree.Statement);
@@ -1605,7 +1602,7 @@ TYPE
 				recentComment := NIL
 			END;
 			recentLine := scanner.line;
-			recentSymbol := symbol
+			recentCommentItem := symbol
 		END CommentStatement;
 
 		PROCEDURE CommentCasePart(symbol: SyntaxTree.CasePart);
@@ -1616,7 +1613,7 @@ TYPE
 				recentComment := NIL
 			END;
 			recentLine := scanner.line;
-			recentSymbol := symbol
+			recentCommentItem := symbol
 		END CommentCasePart;
 
 		PROCEDURE CommentIfPart(symbol: SyntaxTree.IfPart);
@@ -1627,7 +1624,7 @@ TYPE
 				recentComment := NIL
 			END;
 			recentLine := scanner.line;
-			recentSymbol := symbol
+			recentCommentItem := symbol
 		END CommentIfPart;
 
 		PROCEDURE CommentWithPart(symbol: SyntaxTree.WithPart);
@@ -1638,7 +1635,7 @@ TYPE
 				recentComment := NIL
 			END;
 			recentLine := scanner.line;
-			recentSymbol := symbol
+			recentCommentItem := symbol
 		END CommentWithPart;
 
 		(** ProcedureDeclaration = 'procedure' ['&'|'-'|Flags ['-']] IdentifierDefinition [FormalParameters]';'
