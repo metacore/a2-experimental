@@ -997,9 +997,10 @@ TYPE
 
 	PROCEDURE GetModulePooledName*(module: SyntaxTree.Module; VAR name: Basic.PooledName);
 	BEGIN
+		Basic.InitPooledName(name);
 		IF (module.context # SyntaxTree.invalidIdentifier) & (module.context # A2Name) THEN
-			name[0] := module.context; name[1] := module.name; name[2] := -1;
-		ELSE name[0] :=module.name; name[1] := -1;
+			name[0] := module.context; name[1] := module.name;
+		ELSE name[0] :=module.name;
 		END;
 	END GetModulePooledName;
 

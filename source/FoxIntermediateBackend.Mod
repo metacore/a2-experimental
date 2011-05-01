@@ -1649,8 +1649,8 @@ TYPE
 		PROCEDURE SysCall(nr: LONGINT);
 		VAR op: IntermediateCode.Operand; section: IntermediateCode.Section; pooledName: Basic.PooledName;
 		BEGIN
+			Basic.InitPooledName(pooledName);
 			pooledName[0] := systemCalls[nr].name;
-			pooledName[1] := -1;
 			section := NewSection(module.allSections, Sections.SystemCallKind,Sections.CodeSection, FALSE, pooledName,systemCalls[nr],commentPrintout # NIL); (* NOTE: by default no definition *)
 			section.SetEntryNumber(nr);
 			IntermediateCode.InitAddress(op,addressType,section,0);
@@ -1757,9 +1757,9 @@ TYPE
 		VAR importedModule: SyntaxTree.Module; source: IntermediateCode.Section; symbol: SyntaxTree.Symbol; pooledName: Basic.PooledName;
 			s: Scanner.StringType;
 		BEGIN
+			Basic.InitPooledName(pooledName);
 			pooledName[0] := Basic.MakeString(moduleName);
 			pooledName[1] := Basic.MakeString(typeName);
-			pooledName[2] := Basic.invalidString;
 
 			IF AddImport(moduleName,importedModule, FALSE) THEN
 				symbol := importedModule.moduleScope.FindTypeDeclaration(SyntaxTree.NewIdentifier(typeName));
@@ -1799,9 +1799,9 @@ TYPE
 					currentCellScope.AddImport(importedModule);
 					*)
 				END;
+				Basic.InitPooledName(pooledName);
 				pooledName[0] := Basic.MakeString(moduleName);
 				pooledName[1] := Basic.MakeString(procedureName);
-				pooledName[2] := Basic.invalidString;
 				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(reg, addressType, source , 0);
 				Emit(Call(reg, 0));
@@ -1821,9 +1821,9 @@ TYPE
 				IF currentCellScope # NIL THEN
 					(* currentCellScope.AddImport(importedModule);*)
 				END;
+				Basic.InitPooledName(pooledName);
 				pooledName[0] := Basic.MakeString(altModuleName);
 				pooledName[1] := Basic.MakeString(altProcedureName);
-				pooledName[2] := Basic.invalidString;
 				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(address, addressType, source , 0);
 				Emit(Call(address, 0));
@@ -6813,9 +6813,9 @@ TYPE
 			UniqueId(name,module.module,"case",caseId);
 			*)
 			string := "@case"; Basic.AppendNumber(string, caseId); INC(caseId);
+			Basic.InitPooledName(name);
 			name[0] := module.module.name;
 			name[1] := Basic.MakeString(string);
-			name[2] := Basic.invalidString;
 			symbol := SyntaxTree.NewSymbol(name[1]);
 			symbol.SetScope(moduleScope);
 			NEW(fixups,size); FOR i := 0 TO size-1 DO fixups[i] := NIL END;
@@ -8017,9 +8017,9 @@ TYPE
 		PROCEDURE GetDataSection*(): IntermediateCode.Section;
 		VAR name: Basic.PooledName; section: IntermediateCode.Section;
 		BEGIN
+			Basic.InitPooledName(name);
 			name[0] := StringPool.GetIndex1(module.moduleName);
 			name[1] := StringPool.GetIndex1("@Immediates");
-			name[2] := -1;
 			section := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,NIL,TRUE);
 			RETURN section
 		END GetDataSection;

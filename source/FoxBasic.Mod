@@ -1653,6 +1653,12 @@ VAR
 		Strings.Append(s,nums);
 	END AppendNumber;
 
+	PROCEDURE InitPooledName*(VAR name: PooledName);
+	VAR i: LONGINT;
+	BEGIN FOR i := 0 TO LEN(name)-1 DO name[i] := -1 END;
+	END InitPooledName;
+
+
 	PROCEDURE ToPooledName*(CONST name: ARRAY OF CHAR; VAR pooledName: PooledName);
 	BEGIN
 		ObjectFile.ToPooledName(name, pooledName);
@@ -1702,6 +1708,7 @@ VAR
 		END;
 		IF i < LEN(name) THEN (* suffix *)
 			name[i] := this;
+			IF i<LEN(name)-1 THEN name[i+1] := -1 END;
 		ELSE
 			StringPool.GetString(name[i-1], string);
 			StringPool.GetString(this, suffix);
@@ -1718,8 +1725,13 @@ VAR
 		WHILE (i< LEN(name)-1) & (name[i] >= 0) DO
 			INC(i);
 		END;
-		StringPool.GetString(name[i],string);
-		RETURN Strings.EndsWith(string, this);
+		DEC(i);
+		IF i < 0 THEN
+			RETURN FALSE
+		ELSE
+			StringPool.GetString(name[i],string);
+			RETURN Strings.EndsWith(string, this);
+		END
 	END PooledNameEndsWith;
 
 	PROCEDURE Expand(VAR oldAry: ErrorMsgs);

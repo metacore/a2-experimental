@@ -2597,7 +2597,7 @@ TYPE
 
 		 	FOR i := 0 TO module.allSections.Length() - 1 DO
 			 	in := module.allSections.GetSection(i);
-			 	IF in.kind = Sections.RegularKind THEN
+			 	IF ~in.IsExternal() THEN
 		 		IF in.type = Sections.InlineCodeSection THEN
 		 			name := in.name;
 			 		out := ResolvedSection(in(IntermediateCode.Section));
@@ -2610,10 +2610,10 @@ TYPE
 
 		 	REPEAT
 		 	 	initialSectionCount := RegularSectionCount(module.allSections);
-		 	 	
+
 			 	FOR i := 0 TO module.allSections.Length() - 1 DO
 			 		in := module.allSections.GetSection(i);
-			 		IF in.kind = Sections.RegularKind THEN			 		
+			 		IF ~in.IsExternal() THEN
 			 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
 			 			name := in.name;
 				 		out := ResolvedSection(in(IntermediateCode.Section));
@@ -2631,30 +2631,33 @@ TYPE
 			 	END
 			UNTIL initialSectionCount = RegularSectionCount(module.allSections); (* process remaining sections that have been added during traversal of sections *)
 
-
+			(*
 			FOR i := 0 TO module.allSections.Length() - 1 DO
 				in := module.allSections.GetSection(i);
 				IF in.kind = Sections.CaseTableKind THEN
 			 		IF in(IntermediateCode.Section).resolved = NIL THEN
 				 		out := ResolvedSection(in(IntermediateCode.Section));
 				 		cg.Section(in(IntermediateCode.Section),out);
-				 	END				 
+				 	END
 				 END
 		 	END;
+			*)
 
 			FOR i := 0 TO module.allSections.Length() - 1 DO
 				in := module.allSections.GetSection(i);
-				IF in.kind = Sections.RegularKind THEN
+				IF ~in.IsExternal() THEN
 		 		PatchFixups(in(IntermediateCode.Section).resolved)
 			 	END
 		 	END;
 
+			(*
 			FOR i := 0 TO module.allSections.Length() - 1 DO
 				in := module.allSections.GetSection(i);
 				IF in.kind = Sections.CaseTableKind THEN
 			 		PatchFixups(in(IntermediateCode.Section).resolved)
 			 	END
 		 	END;
+			*)
 
 			IF cg.error THEN Error("",Diagnostics.Invalid, Diagnostics.Invalid,"") END;
 		END GenerateBinary;

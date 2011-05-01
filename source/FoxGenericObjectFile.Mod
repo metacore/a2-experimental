@@ -18,19 +18,17 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			PROCEDURE ExportSection (section: IntermediateCode.Section): BOOLEAN;
 			VAR name: ARRAY 128 OF CHAR; (* debugging *)
 			BEGIN
-
-				IF section.resolved = NIL THEN
-					Basic.FromPooledName(section.name, name);
-					D.String('"section.resolved = NIL" for '); D.String(name); D.Ln;
-					RETURN FALSE
+				IF section.IsExternal() OR (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
+					(* nothing to do *)
 				ELSE
-					IF section.IsExternal() OR (section.symbol # NIL) & (section.symbol.scope # NIL) & (section.symbol.scope.ownerModule # module(Sections.Module).module) THEN
-						(* nothing to do *)
-					ELSE
-						section.resolved.identifier.fingerprint := GetFingerPrint (section, fingerPrinter);
-						UpdateFixups (section.resolved, fingerPrinter);
-						ObjectFile.WriteSection(writer,section.resolved^,binary, poolMap)
-					END
+					IF section.resolved = NIL THEN
+						Basic.FromPooledName(section.name, name);
+						D.String('"section.resolved = NIL" for '); D.String(name); D.Ln;
+						RETURN FALSE
+					END;
+					section.resolved.identifier.fingerprint := GetFingerPrint (section, fingerPrinter);
+					UpdateFixups (section.resolved, fingerPrinter);
+					ObjectFile.WriteSection(writer,section.resolved^,binary, poolMap)
 				END;
 				RETURN TRUE
 			END ExportSection;
@@ -44,10 +42,10 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				FOR i := 0 TO sections.Length() - 1 DO
 					section := sections.GetSection(i);
 					IF ~ExportSection(section(IntermediateCode.Section)) THEN RETURN FALSE END;
-					IF section(IntermediateCode.Section).resolved.identifier.fingerprint # 0 THEN
+					IF ~section.IsExternal() & (section(IntermediateCode.Section).resolved.identifier.fingerprint # 0) THEN
 						FOR j := 0 TO i - 1 DO
 							test := sections.GetSection(j);
-							IF test(IntermediateCode.Section).resolved.identifier.fingerprint = section(IntermediateCode.Section).resolved.identifier.fingerprint THEN
+							IF ~test.IsExternal() & (test(IntermediateCode.Section).resolved.identifier.fingerprint = section(IntermediateCode.Section).resolved.identifier.fingerprint) THEN
 								diagnostics.Warning(module.moduleName,Diagnostics.Invalid,Diagnostics.Invalid,"duplicate fingerPrints");
 								ObjectFile.FromPooledName(section(IntermediateCode.Section).resolved.identifier.name,name);
 								KernelLog.String(name); KernelLog.String(",");

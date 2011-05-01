@@ -40,16 +40,6 @@ TYPE
 			w.EndKeyword;
 		END Keyword;
 
-		PROCEDURE BeginComment;
-		BEGIN
-			w.BeginComment; w.String("(*");
-		END BeginComment;
-
-		PROCEDURE EndComment;
-		BEGIN
-			w.String("*)");w.EndComment
-		END EndComment;
-
 		PROCEDURE AlertString(CONST s: ARRAY OF CHAR);
 		BEGIN
 			w.BeginAlert; w.String(s); w.EndAlert;
@@ -1264,6 +1254,16 @@ TYPE
 			END;
 		END BuiltinList;
 
+		PROCEDURE BeginComment;
+		BEGIN
+			w.BeginComment; w.String("(*");
+		END BeginComment;
+
+		PROCEDURE EndComment;
+		BEGIN
+			w.String("*)");w.EndComment
+		END EndComment;
+
 		PROCEDURE Comment(x: SyntaxTree.Comment);
 		VAR i: LONGINT; ch: CHAR;
 		BEGIN
@@ -1277,6 +1277,21 @@ TYPE
 			END;
 			EndComment;
 		END Comment;
+
+		PROCEDURE Comments(c: SyntaxTree.Comment; x: ANY; sameLine: BOOLEAN);
+		BEGIN
+			IF mode >= SourceCode THEN
+				WHILE (c # NIL) & (c.item = x) DO
+					IF c.sameLine = sameLine THEN
+						Comment(c);
+						IF ~sameLine THEN
+							Indent;
+						END;
+					END;
+					c := c.nextComment;
+				END;
+			END;
+		END Comments;
 
 		PROCEDURE CommentList(x: SyntaxTree.Comment);
 		BEGIN
@@ -1318,22 +1333,6 @@ TYPE
 			END;
 			currentScope := prevScope;
 		END ProcedureScope;
-
-
-		PROCEDURE Comments(c: SyntaxTree.Comment; x: ANY; sameLine: BOOLEAN);
-		BEGIN
-			IF mode >= SourceCode THEN
-				WHILE (c # NIL) & (c.item = x) DO
-					IF c.sameLine = sameLine THEN
-						Comment(c);
-						IF ~sameLine THEN
-							Indent;
-						END;
-					END;
-					c := c.nextComment;
-				END;
-			END;
-		END Comments;
 
 		PROCEDURE Statement*(x: SyntaxTree.Statement);
 		BEGIN

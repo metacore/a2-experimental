@@ -334,7 +334,7 @@ TYPE
 
 	PROCEDURE NewSection*(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.PooledName; x: SyntaxTree.Symbol; dump: BOOLEAN): Section;
 	VAR res: Sections.Section; section: Section;
-	BEGIN {EXCLUSIVE}
+	BEGIN
 		(* if section list for symbol or namel is already present then return this section, otherwise enter new one *)
 		IF x # NIL THEN
 			res := list.FindBySymbol(x);
@@ -356,7 +356,11 @@ TYPE
 				RETURN res(Section)
 			END;
 		END;
-
+		ASSERT(name[0] # Basic.MakeString(""));
+		ASSERT(name[1] # Basic.MakeString(""));
+		ASSERT(name[2] # Basic.MakeString(""));
+		ASSERT(name[3] # Basic.MakeString(""));
+		
 		(* a new section is created *)
 		NEW(section,type, name,x, dump);
 		section.SetKind(kind);
