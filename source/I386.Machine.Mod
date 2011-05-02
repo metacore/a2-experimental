@@ -804,7 +804,7 @@ PROCEDURE -DisableMathTaskEx;
 CODE {SYSTEM.i386, SYSTEM.Privileged}
 	MOV EAX,CR0
 	AND AL, 0F5H
-	MOV CR0, EAXEND;
+	MOV CR0, EAX;
 END DisableMathTaskEx;
 
 (* Disable math emulation (1, p. 479) , bit 2 of CR0 *)
