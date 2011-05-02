@@ -214,12 +214,14 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		END ProcessPooledName;
 
 		PROCEDURE ProcessSection(section: IntermediateCode.Section);
-		VAR i: LONGINT;
+		VAR i: LONGINT; fixup: BinaryCode.Fixup;
 		BEGIN
 			IF section.resolved # NIL THEN
 				ProcessPooledName(section.resolved.identifier.name);
-				FOR i := 0 TO section.resolved.fixups-1 DO
-					ProcessPooledName(section.resolved.fixup[i].identifier.name);
+				fixup := section.resolved.fixupList.firstFixup; i := 0;
+				WHILE fixup # NIL DO
+					ProcessPooledName(fixup.symbol.name);
+					fixup := fixup.nextFixup;
 				END;
 			END;
 		END ProcessSection;

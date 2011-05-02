@@ -129,9 +129,9 @@ TYPE
 		BEGIN RETURN pc
 		END GetPC;
 
-		PROCEDURE & InitIntermediateSection*(type: SHORTINT; CONST n: Basic.PooledName; symbol: SyntaxTree.Symbol; comment: BOOLEAN);
+		PROCEDURE & InitIntermediateSection*(type: SHORTINT; kind: SHORTINT; isDefinition: BOOLEAN; CONST n: Basic.PooledName; symbol: SyntaxTree.Symbol; comment: BOOLEAN);
 		BEGIN
-			InitSection(type,n,symbol); InitArray;resolved := NIL;
+			InitSection(type,kind, isDefinition, n,symbol); InitArray;resolved := NIL;
 			IF comment THEN NEW(comments,GetPC) ELSE comments := NIL END;
 			finally := -1;
 			validPAFEnter := 0; validPAFExit := 0;
@@ -333,13 +333,15 @@ TYPE
 	END Assert;
 
 	PROCEDURE NewSection*(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.PooledName; x: SyntaxTree.Symbol; dump: BOOLEAN): Section;
-	VAR res: Sections.Section; section: Section;
+	VAR res: Sections.Section; section: Section; resKind: LONGINT;
 	BEGIN
+		ASSERT(kind # 0);
 		(* if section list for symbol or namel is already present then return this section, otherwise enter new one *)
 		IF x # NIL THEN
 			res := list.FindBySymbol(x);
 			IF res # NIL THEN
-				ASSERT((res.kind = kind) OR (res.kind = Sections.UnknownKind));
+				resKind := res.kind;
+				ASSERT((res.kind = kind) OR (res.kind = Sections.UnknownKind) OR (kind = Sections.UnknownKind));
 				IF isDefinition & (kind = Sections.UnknownKind) THEN res.MarkAsNoPrototype END; (* TODO: is this necessary outside of the intermediate code assembler? *)
 				ASSERT((res.type = type) OR (type=Sections.VarSection) & (res.type = Sections.ConstSection) (* exception for module self pointer constant => old object file format *));
 				RETURN res(Section)
@@ -350,8 +352,9 @@ TYPE
 			ASSERT(name[0] >=0);
 			res := list.FindByName(name);
 			IF res # NIL THEN
+				resKind := res.kind;
 				(* section was found under the name *)
-				ASSERT((res.kind = kind) OR (res.kind = Sections.UnknownKind));
+				ASSERT((res.kind = kind) OR (res.kind = Sections.UnknownKind) OR (kind = Sections.UnknownKind));
 				IF isDefinition & (kind = Sections.UnknownKind) THEN res.MarkAsNoPrototype END; (* TODO: is this necessary outside of the intermediate code assembler? *)
 				RETURN res(Section)
 			END;
@@ -360,11 +363,13 @@ TYPE
 		ASSERT(name[1] # Basic.MakeString(""));
 		ASSERT(name[2] # Basic.MakeString(""));
 		ASSERT(name[3] # Basic.MakeString(""));
-		
+
 		(* a new section is created *)
-		NEW(section,type, name,x, dump);
+		NEW(section,type, kind, isDefinition, name,x, dump);
+		(*
 		section.SetKind(kind);
 		IF isDefinition & (kind = Sections.UnknownKind) THEN section.MarkAsNoPrototype END; (* TODO: is this necessary outside of the intermediate code assembler? *)
+		*)
 		list.AddSection(section);
 		RETURN section
 	END NewSection;

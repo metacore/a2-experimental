@@ -1559,7 +1559,7 @@ TYPE
 			selfName: SyntaxTree.String;
 		BEGIN
 			moduleScope.ownerModule.GetName(selfName);
-			IF (moduleName = selfName) & (moduleScope.ownerModule.context = Global.A2Name) THEN
+			IF (moduleName = selfName) & ((moduleScope.ownerModule.context = Global.A2Name) OR (moduleScope.ownerModule.context = Basic.invalidString)) THEN
 				module := moduleScope.ownerModule
 			ELSE
 				import := moduleScope.ImportByModuleName(SyntaxTree.NewIdentifier(moduleName),SyntaxTree.NewIdentifier("A2"));
@@ -1736,7 +1736,7 @@ TYPE
 		PROCEDURE GetRuntimeProcedure(CONST moduleName, procedureName: ARRAY OF CHAR; VAR procedure: SyntaxTree.Procedure; force: BOOLEAN): BOOLEAN;
 		VAR runtimeModule: SyntaxTree.Module; s: Scanner.StringType;
 		BEGIN
-			IF AddImport(moduleName,runtimeModule,force) THEN
+			IF AddImport(moduleName,runtimeModule,force)  THEN
 				procedure := runtimeModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "Procedure ";
@@ -1802,7 +1802,7 @@ TYPE
 				Basic.InitPooledName(pooledName);
 				pooledName[0] := Basic.MakeString(moduleName);
 				pooledName[1] := Basic.MakeString(procedureName);
-				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
+				source := NewSection(module.allSections, Sections.UnknownKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(reg, addressType, source , 0);
 				Emit(Call(reg, 0));
 			END;
@@ -1824,7 +1824,7 @@ TYPE
 				Basic.InitPooledName(pooledName);
 				pooledName[0] := Basic.MakeString(altModuleName);
 				pooledName[1] := Basic.MakeString(altProcedureName);
-				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
+				source := NewSection(module.allSections,  Sections.UnknownKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(address, addressType, source , 0);
 				Emit(Call(address, 0));
 
@@ -9689,6 +9689,7 @@ TYPE
 		constant := SyntaxTree.NewConstant(-1,SyntaxTree.NewIdentifier(name));
 		constant.SetValue(value);
 		module.moduleScope.AddConstant(constant);
+		constant.SetScope(module.moduleScope);
 		RETURN constant
 	END BuildConstant;
 

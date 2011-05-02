@@ -50,11 +50,13 @@ TYPE
 		bitsPerUnit-: LONGINT; (* the unit size given in bits *)
 		isReachable-: BOOLEAN;
 
-		PROCEDURE & InitSection*(type: SHORTINT; CONST n: ObjectFile.PooledName; symbol: SyntaxTree.Symbol);
+		PROCEDURE & InitSection*(type: SHORTINT; kind: SHORTINT; isDefinition: BOOLEAN; CONST n: ObjectFile.PooledName; symbol: SyntaxTree.Symbol);
 		BEGIN
+			ASSERT(kind # 0);
 			name := n;
 			SELF.symbol := symbol;
 			SELF.type := type;
+			SELF.kind := kind;
 			entryNumber := 0;
 			offset := 0;
 			entryNumber := 0;
@@ -63,8 +65,8 @@ TYPE
 			positionOrAlignment := 1;
 			fingerprint := 0;
 			bitsPerUnit := UnknownSize;
-			
-			kind := UnknownKind;
+			IF isDefinition & (kind = UnknownKind) THEN isPrototype := FALSE END;
+
 			isPrototype := TRUE (* by default sections are prototypes (this fact is exploited by the intermediate code assembler) *)
 		END InitSection;
 
@@ -79,7 +81,7 @@ TYPE
 				RETURN FALSE
 			END
 		END IsExternal;
-		
+
 		PROCEDURE MarkAsNoPrototype*;
 		BEGIN
 			ASSERT(kind = UnknownKind);
@@ -149,7 +151,7 @@ TYPE
 			END;
 			w.String(" ");
 			DumpName(w);
-			
+
 			(* positional restrictions *)
 			IF fixed THEN
 				w.String(" fixed="); w.Int(positionOrAlignment, 0)
@@ -169,9 +171,9 @@ TYPE
 			IF GetSize() # UnknownSize THEN
 				w.String(" size="); w.Int(GetSize(), 0);
 			END;
-			
+
 			IF IsExternal() THEN w.String(" external") END;
-			
+
 			(* only for debugging of the binary object file format *)
 			w.String(";");
 			IF offset # 0 THEN
@@ -418,7 +420,7 @@ TYPE
 			IF (section # NIL) & (section.kind # UnknownKind) & (section.kind # kind) THEN section := NIL END;
 			RETURN section
 		END FindByNameAndKind;
-		
+
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR
 			i: LONGINT;
@@ -429,9 +431,9 @@ TYPE
 				section := GetSection(i);
 				IF ~section.IsExternal() THEN section.Dump(w); w.Ln END
 			END;
-			
+
 			(* dump external sections *)
-			FOR i := 0 TO Length() - 1 DO			
+			FOR i := 0 TO Length() - 1 DO
 				section := GetSection(i);
 				IF section.IsExternal() THEN section.Dump(w); w.Ln END
 			END
@@ -469,7 +471,7 @@ TYPE
 			RETURN FALSE
 		END ContainsName;
 	END NameList;
-	
+
 	(** output of (intermediate) code generation **)
 	Module* = OBJECT (Formats.GeneratedModule)
 	VAR
@@ -532,7 +534,7 @@ TYPE
 				END;
 				dump.Ln; dump.Ln
 			END;
-			
+
 			(* dump all sections *)
 			allSections.Dump(w)
 		END Dump;
