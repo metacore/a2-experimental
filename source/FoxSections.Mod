@@ -1,6 +1,6 @@
 MODULE FoxSections; (** AUTHOR "fof"; PURPOSE "support for code sections and references"; *)
 
-IMPORT SyntaxTree := FoxSyntaxTree,Streams,Global := FoxGlobal,Formats := FoxFormats, Basic := FoxBasic, Strings, ObjectFile, StringPool, D := Debugging;
+IMPORT SyntaxTree := FoxSyntaxTree,Streams,Global := FoxGlobal,Formats := FoxFormats, Basic := FoxBasic, Strings, ObjectFile;
 
 CONST
 	(* section types *)
@@ -11,7 +11,7 @@ CONST
 	VarSection*=ObjectFile.Data;
 	ConstSection*=ObjectFile.Const;
 	InlineCodeSection*=10;
-	AnySection *= 11; (* 'base type' of all section types *)
+	UnknownSectionType *= 11;
 
 	(* section kinds *)
 	UnknownKind* = -1;
@@ -50,13 +50,14 @@ TYPE
 		bitsPerUnit-: LONGINT; (* the unit size given in bits *)
 		isReachable-: BOOLEAN;
 
-		PROCEDURE & InitSection*(type: SHORTINT; kind: SHORTINT; isDefinition: BOOLEAN; CONST n: ObjectFile.PooledName; symbol: SyntaxTree.Symbol);
+		PROCEDURE & InitSection*(kind, type: SHORTINT; isDefinition: BOOLEAN; CONST n: ObjectFile.PooledName; symbol: SyntaxTree.Symbol);
 		BEGIN
 			ASSERT(kind # 0);
 			name := n;
 			SELF.symbol := symbol;
+			SELF.kind := kind;			
 			SELF.type := type;
-			SELF.kind := kind;
+			isPrototype := ~isDefinition;
 			entryNumber := 0;
 			offset := 0;
 			entryNumber := 0;
@@ -64,10 +65,7 @@ TYPE
 			fixed := FALSE;
 			positionOrAlignment := 1;
 			fingerprint := 0;
-			bitsPerUnit := UnknownSize;
-			IF isDefinition & (kind = UnknownKind) THEN isPrototype := FALSE END;
-
-			isPrototype := TRUE (* by default sections are prototypes (this fact is exploited by the intermediate code assembler) *)
+			bitsPerUnit := UnknownSize						
 		END InitSection;
 
 		(* whether the section acts as a placeholder for another one (sections that where not assigned a proper kind are external if they are still prototypes) *)
@@ -81,11 +79,9 @@ TYPE
 				RETURN FALSE
 			END
 		END IsExternal;
-
+		
 		PROCEDURE MarkAsNoPrototype*;
-		BEGIN
-			ASSERT(kind = UnknownKind);
-			isPrototype := FALSE
+		BEGIN isPrototype := FALSE
 		END MarkAsNoPrototype;
 
 		(** set the kind of a section this **)
@@ -138,7 +134,9 @@ TYPE
 		END SetEntryNumber;
 
 		PROCEDURE Dump*(w: Streams.Writer);
-		BEGIN
+		BEGIN		
+			IF IsExternal() THEN w.String(".external ") END;
+		
 			w.String(".");
 			CASE type OF
 			| CodeSection: w.String("code")
@@ -151,7 +149,7 @@ TYPE
 			END;
 			w.String(" ");
 			DumpName(w);
-
+			
 			(* positional restrictions *)
 			IF fixed THEN
 				w.String(" fixed="); w.Int(positionOrAlignment, 0)
@@ -159,34 +157,27 @@ TYPE
 				w.String(" aligned="); w.Int(positionOrAlignment, 0)
 			END;
 
-			IF fingerprint # 0 THEN
-				w.String(" fingerprint="); w.Int(fingerprint, 0)
-			END;
+			IF fingerprint # 0 THEN w.String(" fingerprint="); w.Int(fingerprint, 0) END;
 
-			IF bitsPerUnit # UnknownSize THEN
-				w.String(" unit="); w.Int(bitsPerUnit, 0);
-			END;
+			IF bitsPerUnit # UnknownSize THEN w.String(" unit="); w.Int(bitsPerUnit, 0) END;
 
 			(* note: this information is actually redundant *)
-			IF GetSize() # UnknownSize THEN
-				w.String(" size="); w.Int(GetSize(), 0);
-			END;
+			IF GetSize() # UnknownSize THEN w.String(" size="); w.Int(GetSize(), 0) END;
 
-			IF IsExternal() THEN w.String(" external") END;
-
+			(*
 			(* only for debugging of the binary object file format *)
-			w.String(";");
-			IF offset # 0 THEN
-				w.String(" offset="); w.Int(offset, 0)
-			END;
-			w.String(" kind=");
+			w.String(" "); w.String(LineCommentStart);	
+			w.String("kind=");
 			CASE kind OF
 			| UnknownKind: w.String("unknown")
 			| RegularKind: w.String("regular")
 			| CaseTableKind: w.String("caseTable")
 			| ImportedSymbolKind: w.String("importedSymbol")
 			| SystemCallKind: w.String("systemCall")
-			END;
+			END;			
+			IF offset # 0 THEN w.String(" offset="); w.Int(offset, 0) END;
+			*)
+			
 			w.Update
 		END Dump;
 
@@ -420,7 +411,7 @@ TYPE
 			IF (section # NIL) & (section.kind # UnknownKind) & (section.kind # kind) THEN section := NIL END;
 			RETURN section
 		END FindByNameAndKind;
-
+		
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR
 			i: LONGINT;
@@ -431,9 +422,9 @@ TYPE
 				section := GetSection(i);
 				IF ~section.IsExternal() THEN section.Dump(w); w.Ln END
 			END;
-
+			
 			(* dump external sections *)
-			FOR i := 0 TO Length() - 1 DO
+			FOR i := 0 TO Length() - 1 DO			
 				section := GetSection(i);
 				IF section.IsExternal() THEN section.Dump(w); w.Ln END
 			END
@@ -471,7 +462,7 @@ TYPE
 			RETURN FALSE
 		END ContainsName;
 	END NameList;
-
+	
 	(** output of (intermediate) code generation **)
 	Module* = OBJECT (Formats.GeneratedModule)
 	VAR
@@ -534,7 +525,7 @@ TYPE
 				END;
 				dump.Ln; dump.Ln
 			END;
-
+			
 			(* dump all sections *)
 			allSections.Dump(w)
 		END Dump;

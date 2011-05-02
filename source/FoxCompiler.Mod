@@ -4,8 +4,8 @@ MODULE Compiler;   (**  AUTHOR "fof & fn"; PURPOSE "Oberon Compiler Command Inte
 IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,  D := Debugging,
-	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal
-	, ActiveCells := FoxActiveCells, (*IntermediateCodeAssembler := FoxIntermediateCodeAssembler,*)
+	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal, 
+	ActiveCells := FoxActiveCells, IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
 	Files, StaticLinker, GenericLinker;
 
 CONST
@@ -337,7 +337,6 @@ TYPE
 		RETURN TRUE;
 	END Modules;
 
-	(*
 	PROCEDURE AssembleActiveCells(activeCellsSpecification: ActiveCells.Specification; backend: Backend.Backend): BOOLEAN;
 	TYPE
 		AssemblerObject= OBJECT
@@ -466,7 +465,6 @@ TYPE
 		IF obj.error THEN RETURN FALSE END;
 		RETURN activeCellsSpecification.ForEachInstanceDo(obj.LinkInstance);
 	END AssembleActiveCells;
-	*)
 
 	PROCEDURE GetOptions*(input: Streams.Reader; error:Streams.Writer; diagnostics: Diagnostics.Diagnostics; VAR flags: SET;
 		VAR backend: Backend.Backend;
@@ -617,7 +615,6 @@ TYPE
 		END;
 	END Compile;
 
-	(*
 	PROCEDURE Assemble*(context: Commands.Context);
 	VAR
 		diagnostics: Diagnostics.StreamDiagnostics;
@@ -650,7 +647,6 @@ TYPE
 			END
 	 	END
 	END Assemble;
-	*)
 
 	PROCEDURE CompileReader*(context: Commands.Context; reader: Streams.Reader);
 	VAR

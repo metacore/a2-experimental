@@ -886,11 +886,13 @@ TYPE
 			NEW(fingerPrinter, system) (* nopov *)
 		END Init;
 
-		PROCEDURE NewSection(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.PooledName; x: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
+		PROCEDURE NewSection(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.PooledName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
 		VAR fp: SyntaxTree.FingerPrint;
 		BEGIN
-			(*IF (x # NIL) & ~((x IS SyntaxTree.Procedure) & (x(SyntaxTree.Procedure).isInline)) THEN fp := fingerPrinter.SymbolFP(x) END;*)
-			RETURN IntermediateCode.NewSection(list, kind, type, isDefinition, name, x, dump)
+			IF (syntaxTreeSymbol # NIL) & ~((syntaxTreeSymbol IS SyntaxTree.Procedure) & (syntaxTreeSymbol(SyntaxTree.Procedure).isInline)) THEN
+				fp := fingerPrinter.SymbolFP(syntaxTreeSymbol)
+			END;
+			RETURN IntermediateCode.NewSection(list, kind, type, isDefinition, name, syntaxTreeSymbol, dump)
 		END NewSection;
 
 		PROCEDURE AcquireRegister(CONST type: IntermediateCode.Type): LONGINT;
@@ -1559,7 +1561,7 @@ TYPE
 			selfName: SyntaxTree.String;
 		BEGIN
 			moduleScope.ownerModule.GetName(selfName);
-			IF (moduleName = selfName) & ((moduleScope.ownerModule.context = Global.A2Name) OR (moduleScope.ownerModule.context = Basic.invalidString)) THEN
+			IF (moduleName = selfName) & (moduleScope.ownerModule.context = Global.A2Name) THEN
 				module := moduleScope.ownerModule
 			ELSE
 				import := moduleScope.ImportByModuleName(SyntaxTree.NewIdentifier(moduleName),SyntaxTree.NewIdentifier("A2"));
@@ -1736,7 +1738,7 @@ TYPE
 		PROCEDURE GetRuntimeProcedure(CONST moduleName, procedureName: ARRAY OF CHAR; VAR procedure: SyntaxTree.Procedure; force: BOOLEAN): BOOLEAN;
 		VAR runtimeModule: SyntaxTree.Module; s: Scanner.StringType;
 		BEGIN
-			IF AddImport(moduleName,runtimeModule,force)  THEN
+			IF AddImport(moduleName,runtimeModule,force) THEN
 				procedure := runtimeModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "Procedure ";

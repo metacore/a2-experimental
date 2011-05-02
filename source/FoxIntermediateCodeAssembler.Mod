@@ -36,9 +36,7 @@ TYPE
 			END;
 
 			D.Update;
-			(*
-			D.TraceBack;
-			*)
+			IF Trace THEN D.TraceBack END
 		END Error;
 
 		PROCEDURE NextSymbol;
@@ -208,7 +206,7 @@ TYPE
 					IF Trace THEN D.String(">>> symbol detected"); D.Ln END;
 
 					Basic.ToPooledName(identifier, name);
-					sectionOfSymbol := IntermediateCode.NewSection(sectionList, Sections.PrototypeSection, name, NIL, TRUE);
+					sectionOfSymbol := IntermediateCode.NewSection(sectionList, Sections.UnknownKind, Sections.UnknownSectionType, FALSE, name, NIL, TRUE); (* no definition: if section does not yet exist, a prototype section is created *)
 					IntermediateCode.InitAddress(operand, IntermediateCode.UnsignedIntegerType(system.addressSize), sectionOfSymbol, symbolOffset)
 				END
 
@@ -385,23 +383,11 @@ TYPE
 			WHILE ~error & (symbol.token # Scanner.EndOfText) & (symbol.token # Scanner.Ln) DO
 				positionOfProperty := symbol.start;
 
-				(* offset *)
-				IF ThisIdentifier("offset") & ExpectToken(Scanner.Equal) THEN
-					IF ExpectIntegerWithSign(integer) THEN
-						 section.SetOffset(integer)
-					ELSE
-						Error(positionOfProperty, "invalid offset")
-					END
-
 				(* fingerprint *)
-				ELSIF ThisIdentifier("fingerprint") & ExpectToken(Scanner.Equal) THEN
+				IF ThisIdentifier("fingerprint") & ExpectToken(Scanner.Equal) THEN
 					IF ExpectIntegerWithSign(integer) THEN
 						IF (section.fingerprint # 0) & (section.fingerprint # integer) THEN
-							IF section.type = Sections.PrototypeSection THEN
-								Error(positionOfProperty, "incompatible fingerprint")
-							ELSE
-								Error(positionOfProperty, "dependend module uses different fingerprint")
-							END
+							Error(positionOfProperty, "incompatible fingerprint");
 						ELSE
 							section.SetFingerprint(integer);
 						END
@@ -452,7 +438,7 @@ TYPE
 		VAR
 			pos, positionOfDirective: LONGINT;
 			identifier: Scanner.StringType;
-			afterModuleDirective, afterImportsDirective, afterFirstSection: BOOLEAN;
+			afterModuleDirective, afterImportsDirective, afterFirstSection, isExternalSection: BOOLEAN;
 			sectionType: SHORTINT;
 			section: IntermediateCode.Section;
 			name: Basic.PooledName;
@@ -474,7 +460,7 @@ TYPE
 				IgnoreNewLines;
 				positionOfDirective := symbol.start;
 				IF ExpectToken(Scanner.Period) & ExpectAnyIdentifier(pos, identifier) THEN
-					(* module directive *)
+					(* 'module' directive *)
 					IF identifier = "module" THEN
 						IF afterModuleDirective THEN
 							Error(positionOfDirective, "multiple module directives");
@@ -483,7 +469,7 @@ TYPE
 							afterModuleDirective := TRUE;
 						END
 
-					(* platform directive *)
+					(* 'platform' directive *)
 					ELSIF identifier = "platform" THEN
 						IF ~afterModuleDirective THEN
 							Error(positionOfDirective, "platform directive must be preceeded by module directive")
@@ -501,7 +487,7 @@ TYPE
 							Error(positionOfDirective, "platform directive not before all sections")
 						END
 
-					(* imports directive *)
+					(* 'imports' directive *)
 					ELSIF identifier = "imports" THEN
 						IF ~afterModuleDirective THEN
 							Error(positionOfDirective, "import directive must be preceeded by module directive")
@@ -520,43 +506,54 @@ TYPE
 
 					(* section *)
 					ELSE
-						IF identifier = "code" THEN sectionType := Sections.CodeSection
-						ELSIF identifier = "const" THEN sectionType := Sections.ConstSection
-						ELSIF identifier = "var" THEN sectionType := Sections.VarSection
-						ELSIF identifier = "bodycode" THEN sectionType := Sections.BodyCodeSection
-						ELSIF identifier = "inlinecode" THEN sectionType := Sections.InlineCodeSection
-						ELSIF identifier = "initcode" THEN sectionType := Sections.InitCodeSection
-						ELSIF identifier = "initcode2" THEN sectionType := Sections.InitCode2Section
-						ELSIF identifier = "prototype" THEN sectionType := Sections.PrototypeSection
-						ELSE Error(positionOfDirective, "invalid directive")
+						(* determine if section is external *)
+						IF identifier = "external" THEN
+							positionOfDirective := symbol.start;
+							IF ExpectToken(Scanner.Period) & ExpectAnyIdentifier(pos, identifier) THEN END;
+							isExternalSection := TRUE
+						ELSE
+							isExternalSection := FALSE
 						END;
+						
+						IF  ~error THEN
+							IF identifier = "code" THEN sectionType := Sections.CodeSection
+							ELSIF identifier = "const" THEN sectionType := Sections.ConstSection
+							ELSIF identifier = "var" THEN sectionType := Sections.VarSection
+							ELSIF identifier = "bodycode" THEN sectionType := Sections.BodyCodeSection
+							ELSIF identifier = "inlinecode" THEN sectionType := Sections.InlineCodeSection
+							ELSIF identifier = "initcode" THEN sectionType := Sections.InitCodeSection
+							ELSIF identifier = "initcode2" THEN sectionType := Sections.InitCode2Section
+							ELSE Error(positionOfDirective, "invalid directive or section type")
+							END;
 
-						IF ~error & ~afterModuleDirective THEN
-							Error(positionOfDirective, "module directive expected first")
-						END;
+							IF ~error & ~afterModuleDirective THEN
+								Error(positionOfDirective, "module directive expected first")
+							END;
 
-						IF ~error THEN
-							IF ExpectAnyIdentifier(pos, identifier) THEN
-								Basic.ToPooledName(identifier, name);
-								section := IntermediateCode.NewSection(sectionList, sectionType, name, NIL, TRUE); (* keeps section if already present *)
+							IF ~error THEN
+								IF ExpectAnyIdentifier(pos, identifier) THEN
+									Basic.ToPooledName(identifier, name);
+									section := IntermediateCode.NewSection(sectionList, Sections.UnknownKind, sectionType, ~isExternalSection, name, NIL, TRUE); (* keeps section if already present *)
 
-								(* set default unit size for the platform, which depends on the section type *)
-								IF (sectionType = Sections.VarSection) OR (sectionType = Sections.ConstSection) THEN
-									section.SetBitsPerUnit(system.dataUnit)
-								ELSE
-									section.SetBitsPerUnit(system.codeUnit)
-								END;
-								ASSERT(section.bitsPerUnit # Sections.UnknownSize);
+									(* set default unit size for the platform, which depends on the section type *)
+									IF (sectionType = Sections.VarSection) OR (sectionType = Sections.ConstSection) THEN
+										section.SetBitsPerUnit(system.dataUnit)
+									ELSE
+										section.SetBitsPerUnit(system.codeUnit)
+									END;
+									ASSERT(section.bitsPerUnit # Sections.UnknownSize);
 
-								(* consume optional section properties *)
-								ParseSectionProperties(section);
+									(* consume optional section properties *)
+									ParseSectionProperties(section);
 
-								IF ~error & ExpectLineDelimiter() THEN
-									ParseSectionContent(scanner, section, sectionList);
-									afterFirstSection := TRUE
+									IF ~error & ExpectLineDelimiter() THEN
+										ParseSectionContent(scanner, section, sectionList);
+										afterFirstSection := TRUE
+									END
 								END
 							END
-						END
+							
+						END				
 					END
 				END
 			END;
@@ -572,7 +569,7 @@ TYPE
 			imports: Sections.NameList;
 		BEGIN
 			NEW(result, NIL, NIL); (* note: 1. there is no syntax tree module, 2. the system object to be used is not yet known *)
-			IF ParseModuleContent(scanner, result.sections, moduleName, backend, imports) THEN
+			IF ParseModuleContent(scanner, result.allSections, moduleName, backend, imports) THEN
 				backend.GetDescription(platformName);
 
 				result.SetModuleName(moduleName);
@@ -965,14 +962,10 @@ TYPE
 				ASSERT(section IS IntermediateCode.Section);
 				section(IntermediateCode.Section).SetResolved(NIL);
 
-				IF section.isReachable THEN
-					(* IF section.type # Sections.UnknownSection THEN *)
-						result.sections.AddSection(section)
-					(* END *)
-				END
+				IF section.isReachable THEN result.allSections.AddSection(section) END
 			END;
 
-			IF RequireSortedSections THEN result.sections.Sort(SectionPositionComparison) END;
+			IF RequireSortedSections THEN result.allSections.Sort(SectionPositionComparison) END;
 
 			IF Trace THEN D.String("+++++++++ intermediate code module ++++++++++"); D.Ln; result.Dump(D.Log); D.Ln; END;
 
