@@ -317,14 +317,12 @@ TYPE
 				IF activeCellsSpecification = NIL THEN (* no activeCells *)
 				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
 				ELSE
-					(*
 					IF ~AssembleActiveCells(activeCellsSpecification,backend) THEN
 						(*activeCellsSpecification.Link(diagnostics,system.codeUnit, system.dataUnit) *)
 						FinalMessage(TRUE, " could not assemble"); RETURN FALSE
 					ELSIF ~activeCellsSpecification.Emit() THEN
 						FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;
 					END;
-					*)
 				END;
 			ELSIF Print IN flags THEN
 				PrintModule;
