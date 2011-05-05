@@ -1,6 +1,6 @@
 MODULE BootConsole;
 
-IMPORT S := SYSTEM, Trace, Glue, Unix, Machine, Modules, Loader, Commands;
+IMPORT S := SYSTEM, Trace, Glue, Unix, Machine, Modules, Commands;
 
 TYPE
 	Module = Modules.Module;
@@ -139,10 +139,9 @@ VAR
 
 BEGIN
 	InitPrelinkedModules;
-(*	Modules.AddLoader( Machine.DefaultObjectFileExtension, Loader.LoadObj );	*)
 	Execute( "UnixFiles",  "Install" );
 	StartSystem;
-	Machine.AwaitShutdown;
+	Machine.GCLoop;
 END BootConsole.
 
 
