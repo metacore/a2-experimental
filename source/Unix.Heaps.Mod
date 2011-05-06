@@ -662,7 +662,6 @@ VAR
 		IF restSize > 0 THEN  Recycle( blkAdr + size, restSize, FALSE )  END;
 		
 		INC( throuput, size );
-		DEC( heapAvailable, size );
 		IF Stats THEN  INC(Nnew); INC(NnewBytes, size)  END;
 		IF NgetBlock > 0 THEN 
 			DEC( NgetBlock );  
