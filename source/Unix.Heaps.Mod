@@ -298,26 +298,13 @@ VAR
 	END UnmarkedObject;
 
 	PROCEDURE MarkRecordFields( rec: Address; sTB: StaticTypeBlock );
-	VAR ptr: ANY; i, n: Size;  startAdr, offsAdr: Address; offset: Size;
+	VAR ptr: ANY; i, n: Size;  
 	BEGIN
-		startAdr := S.ADR( sTB^ ) + S.SIZEOF( StaticTypeDesc );
-		IF (S.VAL( Address, sTB.pointerOffsets ) = startAdr) OR  
-		    (S.VAL( Address, sTB.pointerOffsets ) = startAdr + AdrSize) THEN
-			(* new static type block *)
-			n := LEN( sTB.pointerOffsets ); i := 0;
-			WHILE i < n DO
-				S.GET( rec + sTB.pointerOffsets[i], ptr );
-				IF ptr # NIL THEN  Mark( ptr )  END;
-				INC( i )
-			END
-		ELSE
-			(* old static type block, (temp. until BootLinker got updated *)
-			offsAdr := S.ADR( sTB.pointerOffsets ); S.GET( offsAdr, offset );  
-			WHILE offset >= 0 DO
-				S.GET( rec + offset, ptr );  
-				IF ptr # NIL THEN  Mark( ptr )  END;
-				INC( offsAdr, AdrSize );  S.GET( offsAdr, offset )
-			END
+		n := LEN( sTB.pointerOffsets ); i := 0;
+		WHILE i < n DO
+			S.GET( rec + sTB.pointerOffsets[i], ptr );
+			IF ptr # NIL THEN  Mark( ptr )  END;
+			INC( i )
 		END
 	END MarkRecordFields;
 	
@@ -356,7 +343,7 @@ VAR
 		block.tag := blkAdr + AdrSize;
 		block.size := blkSize - AdrSize;
 		
-		IF i < N THEN	
+	(*	IF i < N THEN	*)
 			IF atEnd THEN
 				(* append to end of list *)
 				block.next := NIL;
@@ -367,6 +354,9 @@ VAR
 				block.next := S.VAL( FreeBlk, A[i] );
 				A[i] := blkAdr
 			END;
+	(*	this optimization has positive impact on heap utilization
+		130 MB vs. 240 MB heap for compiling and linking a new system
+		but it slows down heap allocation speed. 
 		ELSE
 			(* keep them ordered to avoid unnecessary splits *)
 			x := S.VAL( FreeBlk, A[N] );
@@ -378,7 +368,7 @@ VAR
 				block.next := x.next;
 				x.next := block 
 			END	
-		END;	
+		END;	*)
 		
 		INC( heapAvailable, blkSize );
 	END Recycle;
@@ -600,7 +590,7 @@ VAR
 		END;
 		INC( NgetBlock );
 		
-		IF GCEnabled &  (throuput  > 32*1024*1024) & (Machine.lock[Machine.GC] = 'N') THEN  
+		IF GCEnabled &  (throuput  > Machine.MemBlockSize DIV 2) & (Machine.lock[Machine.GC] = 'N') THEN  
 			Machine.Release( Machine.Heaps );
 			Machine.InvokeGC;
 			Machine.Acquire( Machine.Heaps );
@@ -680,7 +670,7 @@ VAR
 	PROCEDURE NewRec*( VAR p: ANY;  tag: Address; isRealtime: BOOLEAN );   (* implementation of NEW( ptr ) *)
 	VAR size, recSize: Size;  ptr: Address;  typeInfoAdr: Address;  flags: SET;
 	BEGIN
-		IF traceNEW  THEN  Trace.Char( 'r' )  END;
+		IF traceNEW  THEN  Trace.Char( 'r' ); Trace.Hex( tag, -8 )  END;
 		S.GET( tag - AdrSize, typeInfoAdr );   
 		S.GET( typeInfoAdr + FlagsOfs, flags );
 		IF ProtTypeBit IN flags THEN  (* protected record *)
@@ -950,7 +940,7 @@ VAR
 		WHILE i < N DO  A[i] := NilVal;  INC( i )  END;
 		A[N] := block;
 		
-		Machine.ExpandHeap( 0, 128*1024*1024, adr1, adr2 );
+		Machine.ExpandHeap( 0, 2*Machine.MemBlockSize - 2*BlockSize, adr1, adr2 );
 		IF adr1 # 0  THEN
 			S.PUT( adr1 + AdrSize + SizeSize, A[N] );  A[N] := adr1;
 			heapSize := GetHeapSize();

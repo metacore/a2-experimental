@@ -38,7 +38,14 @@ TYPE
 		PROCEDURE FindRoots*;	(** abstract *)
 		BEGIN HALT( 301 ) END FindRoots;
 	END RootObject;
-		
+	
+	StaticTypeBlock*= POINTER TO StaticTypeDesc;
+	StaticTypeDesc = RECORD
+		recSize: Size;
+		pointerOffsets* {UNTRACED}: PointerOffsets;
+	END;
+
+	PointerOffsets = POINTER TO ARRAY OF Size;
 		
 	(* ------------ Modules ------------------------------------------ *)
 
@@ -390,27 +397,35 @@ VAR
 	END NewArr;
 
 
-	PROCEDURE FillStaticType( VAR p: Address;
-							startAddr, typeInfoAdr: Address;
-							size, recSize: S.SIZE;
-							numPtrs, numSlots: LONGINT );
-	VAR staticTypeAdr, offset: Address;
+	PROCEDURE FillStaticType( VAR staticTypeAddr: Address;
+								startAddr, typeInfoAdr: Address;
+								size, recSize: S.SIZE;
+								numPtrs, numSlots: LONGINT );
+	VAR 
+		p, offset: Address;  sTB {UNTRACED}: StaticTypeBlock;
 	BEGIN
 		ClearMem( startAddr, size );	(* clear whole static type, size MOD AddressSize = 0 implicitly, see WriteType in PCOF.Mod *)
 		S.PUT( startAddr, S.VAL( Address, -AdrSize ) );	(* sentinel *)
 
 		(* methods and tags filled in later *)
-
+		
 		offset := AdrSize*(numSlots + 1 + 1);  (* #methods, max. no. of tags, method end marker (sentinel), pointer to type information*)
-		staticTypeAdr := startAddr + offset;
-		S.PUT( staticTypeAdr, recSize );					(* recSize *)
-		S.PUT( staticTypeAdr - AdrSize, typeInfoAdr );		(* pointer to typeInfo *)
-		Relocate( staticTypeAdr - AdrSize );
+		p := startAddr + offset;
+		S.PUT( p - AdrSize, typeInfoAdr ); 	(* pointer to typeInfo *) Relocate( p - AdrSize );
+		sTB := S.VAL( StaticTypeBlock, p );
+		sTB.recSize := recSize;
+		staticTypeAddr := p;
+		
+		(* create the pointer for the dynamic array of pointer offsets, the dynamic array of pointer offsets 
+		    is stored in the static type descriptor, it has no header part *)
+		INC( p, S.SIZEOF(StaticTypeDesc) );
+		IF p MOD (2 * AdrSize) # 0 THEN  INC( p, AdrSize )  END;
+		S.PUT( p + 3 * AdrSize, numPtrs ); (* internal structure of dynamic array without pointers: the first 3 fields are unused *)
+		sTB.pointerOffsets := S.VAL( PointerOffsets, p ); (* the fourth field contains the dimension of the array *)
+		Relocate( S.ADR( sTB.pointerOffsets ) )
 
 		(* ptrOfs filled in later *)
 
-		S.PUT( staticTypeAdr +  AdrSize*(numPtrs + 1), - AdrSize*(numPtrs + 1) );	(* sentinel *)
-		p := staticTypeAdr;
 	END FillStaticType;
 
 
@@ -741,6 +756,7 @@ VAR
 				r.RawLInt( h.maxPtrs );
 				r.RawLInt( h.staticTdSize ); (* ug *)
 				r.RawString( h.name );
+	INC( h.staticTdSize, 64 );
 				IF trace THEN
 					Out.String( "  name: ");  Out.String( h.name );
 					Out.String( "  symSize: ");  Out.Int( symSize, 1 );
@@ -981,12 +997,12 @@ VAR
 
 	PROCEDURE ReadTypeBlock( r: Streams.Reader;  m: Module; h: ObjHeader; VAR type: ARRAY OF TypeRec ): BOOLEAN;
 	VAR
-		tag: CHAR;
-		i, j, recSize, ofs, num: LONGINT;  newMethods, method, pointers, entry: LONGINT;
+		tag: CHAR;  i, j, num, newMethods, method, pointers, entry: LONGINT;
 		tdSize: LONGINT; (* ug *)
 		name: Name;  flags: SET;
-		totTdSize: LONGINT;
+		recSize, ofs, totTdSize: Size;
 		startAddr, tdAdr, base: Address;
+		sTB {UNTRACED}: StaticTypeBlock;
 	BEGIN
 		r.Char(tag);
 		IF tag = 8BX THEN	(* type tag *)
@@ -1023,14 +1039,22 @@ VAR
 					Relocate( base - AdrSize*method );
 				END;
 				(* other methods are left NIL *)
-				base := m.typeInfo[i].tag + Ptr0Ofs;   (* read pointers *)
+				sTB := S.VAL( StaticTypeBlock, tdAdr );
+				ASSERT( LEN( sTB.pointerOffsets ) = pointers );
 				FOR j := 0 TO pointers - 1 DO
-					r.RawNum( ofs );
+					r.RawNum( num );  ofs := num;
 					ASSERT( ofs MOD 4 = 0 );   (* no deep copy flag *)
-					S.PUT( base, ofs );  INC( base, AdrSize )
+					sTB.pointerOffsets[j] := ofs;
+					ASSERT( S.ADR( sTB.pointerOffsets[j] ) < startAddr + tdSize )
 				END;
+				
+				ASSERT( m.typeInfo[i].tag # 0 );
+				ASSERT( S.ADR( m.data[0] ) <=  m.sb + type[i].entry, 1001 );
+				ASSERT( m.sb + type[i].entry+4  <= S.ADR( m.data[LEN(m.data)-1])+1, 1002 );
+				
 				S.PUT( m.sb + type[i].entry, m.typeInfo[i].tag );    (* patch in constant area *)
 				Relocate( m.sb + type[i].entry );
+				
 				startAddr := startAddr + tdSize;
 				totTdSize := totTdSize + tdSize;
 			END;
