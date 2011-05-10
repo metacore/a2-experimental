@@ -241,7 +241,7 @@
 				<Group style="Bold">
 					VAR CONST
 					ARRAY POINTER
-					ACTOR ASSEMBLY STREAM
+					CELL CELLNET PORT
 				</Group>
 				<Group style="Bold">
 					NEW SELF CONNECT DELEGATE
