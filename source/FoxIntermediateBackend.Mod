@@ -6079,6 +6079,8 @@ TYPE
 					Symbol(moduleSelf,result);
 					IntermediateCode.MakeMemory(result.op,addressType);
 				END
+			ELSIF scope.outerScope IS SyntaxTree.CellScope THEN
+				(* no action necessary, just up to cell scope *)
 			ELSE
 				GetBaseRegister(basereg,currentScope,scope);
 				InitOperand(result,ModeReference);

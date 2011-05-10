@@ -1241,6 +1241,8 @@ TYPE
 				PortList(cellType,cellScope);
 			END;
 
+			IF Optional( Scanner.Semicolon ) THEN END;
+
 			DeclarationSequence( cellScope);
 			IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
 				cellScope.SetBodyProcedure(BodyProcedure(cellScope));

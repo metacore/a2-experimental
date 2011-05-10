@@ -3041,15 +3041,18 @@ TYPE
 			nothing to be resolved
 		**)
 		PROCEDURE VisitSelfDesignator(x: SyntaxTree.SelfDesignator);
-		VAR scope: SyntaxTree.Scope; record: SyntaxTree.RecordType; type: SyntaxTree.Type;
+		VAR scope: SyntaxTree.Scope; record: SyntaxTree.RecordType; type: SyntaxTree.Type; cell: SyntaxTree.CellType;
 		BEGIN
 			(* check if in record scope *)
 			scope := currentScope;
-			WHILE (scope # NIL) & ~(scope IS SyntaxTree.RecordScope) DO
+			WHILE (scope # NIL) & ~(scope IS SyntaxTree.RecordScope) &~(scope IS SyntaxTree.CellScope) DO
 				scope := scope.outerScope;
 			END;
 			IF scope = NIL THEN (* in module scope *)
 				x.SetType(system.anyType);
+			ELSIF scope IS SyntaxTree.CellScope THEN
+				cell := scope(SyntaxTree.CellScope).ownerCell;
+				x.SetType(cell);
 			ELSE (* in record scope *)
 				record := scope(SyntaxTree.RecordScope).ownerRecord;
 				IF (record # NIL) & (record.pointerType # NIL) THEN
@@ -3133,7 +3136,7 @@ TYPE
 				END;
 			END;
 
-			assignable := (left = NIL) OR left.assignable OR (left IS SyntaxTree.DereferenceDesignator);
+			assignable := (left = NIL) OR left.assignable OR (left IS SyntaxTree.DereferenceDesignator) OR (left IS SyntaxTree.SelfDesignator);
 
 			IF (currentScope # NIL) & (symbol.scope.ownerModule # currentScope.ownerModule) THEN
 				assignable := assignable & (SyntaxTree.PublicWrite IN symbol.access);
@@ -8063,7 +8066,8 @@ TYPE
 	BEGIN
 		IF type = NIL THEN result := FALSE
 		ELSE
-		type := type.resolved; result :=  (type IS SyntaxTree.AnyType) OR (type IS SyntaxTree.PointerType) OR (type IS SyntaxTree.NilType)  OR (type  IS SyntaxTree.ObjectType)
+		type := type.resolved;
+		result :=  (type IS SyntaxTree.AnyType) OR (type IS SyntaxTree.PointerType) OR (type IS SyntaxTree.NilType)  OR (type  IS SyntaxTree.ObjectType)
 		END;
 		RETURN result
 	END IsPointerType;

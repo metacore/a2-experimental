@@ -435,8 +435,8 @@ TYPE
 				dataMemorySize := type.dataMemorySize;
 				instructionMemorySize := MAX(code.SizeInBits() DIV system.codeUnit, instructionMemorySize);
 				dataMemorySize := MAX(data.SizeInBits() DIV system.dataUnit, dataMemorySize);
-				type.SetInstructionMemorySize(instructionMemorySize);
-				type.SetDataMemorySize(dataMemorySize);
+				instance.SetInstructionMemorySize(instructionMemorySize);
+				instance.SetDataMemorySize(dataMemorySize);
 
 				Files.JoinExtension(instanceName,ActiveCells.CodeFileExtension,codeFileName);
 				Files.JoinExtension(instanceName,ActiveCells.DataFileExtension,dataFileName);

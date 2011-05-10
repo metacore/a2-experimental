@@ -402,6 +402,7 @@ TYPE
 		type-: Type; (* instance type *)
 		parameters-: ParameterList;
 		index-: LONGINT;
+		instructionMemorySize-, dataMemorySize-: LONGINT;
 
 		PROCEDURE &Init(CONST name: ARRAY OF CHAR; scope: Scope; c: Type);
 		BEGIN
@@ -409,7 +410,17 @@ TYPE
 			type := c;
 			index := -1; SELF.scope := scope; NEW(parameters,4);
 			ASSERT(scope # NIL);
+			instructionMemorySize := defaultInstructionMemorySize;
+			dataMemorySize := defaultDataMemorySize;
 		END Init;
+
+		PROCEDURE SetInstructionMemorySize*(value: LONGINT);
+		BEGIN instructionMemorySize := value
+		END SetInstructionMemorySize;
+
+		PROCEDURE SetDataMemorySize*(value: LONGINT);
+		BEGIN dataMemorySize := value
+		END SetDataMemorySize;
 
 		PROCEDURE AddParameter*(CONST name: ARRAY OF CHAR): Parameter;
 		VAR parameter: Parameter;
@@ -425,8 +436,12 @@ TYPE
 			w.Int(index,1);
 			w.String(" name="); w.String(name);
 			type.GetFullName(typeName,scope);
-			w.String(" type="); w.String(typeName); w.Ln;
+			w.String(" type="); w.String(typeName);
+			w.String(" instructionMemorySize="); w.Int(instructionMemorySize,1);
+			w.String(" dataMemorySize="); w.Int(dataMemorySize,1);
+			w.Ln;
 			Indent(w,indent);
+
 			w.String("parameters=");w.Int(parameters.Length(),1); w.Ln;
 			FOR i := 0 TO parameters.Length()-1 DO
 				parameter := parameters.GetParameter(i);
@@ -439,11 +454,14 @@ TYPE
 		VAR index: LONGINT; s: SyntaxTree.String; symbol: Symbol; i,number: LONGINT; parameter: Parameter;
 		BEGIN
 			IF r.GetInteger(index,FALSE) & CheckItem(r,"name") & GetString(r,name) &
-			CheckItem(r,"type") & GetString(r,s)
+			CheckItem(r,"type") & GetString(r,s) &
+			CheckItem(r,"instructionMemorySize") & r.GetInteger(instructionMemorySize,FALSE) &
+			CheckItem(r,"dataMemorySize") & r.GetInteger(dataMemorySize,FALSE)
 			THEN
 				symbol := GetSymbol(scope,s);
 				type := symbol(Type);
-				IF ~CheckItem(r,"parameters") OR ~r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+				IF ~CheckItem(r,"parameters") OR ~r.GetInteger(number,FALSE)
+				THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 				FOR i := 0 TO number-1 DO
 					parameter := AddParameter("");
 					IF ~parameter.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
@@ -601,7 +619,6 @@ TYPE
 		- represented by ACTOR or ASSEMBLY (-> virtual) in source code
 		- represented as processor (if ACTOR) and as network or processors (if ASSEMBLY) in hardware
 	*)
-
 	Type*=OBJECT (Scope)
 	VAR
 
@@ -662,7 +679,7 @@ TYPE
 			RETURN NIL
 		END ThisPort;
 		*)
-
+		(* moved to compiler driver
 		PROCEDURE LinkType*(diagnostics: Diagnostics.Diagnostics; codeUnit, dataUnit: LONGINT): BOOLEAN;
 		VAR
 			fileName, codeFileName, dataFileName: Files.FileName;
@@ -714,6 +731,7 @@ TYPE
 			END;
 			RETURN ~linker.error
 		END LinkType;
+		*)
 
 		PROCEDURE Read(r: Streams.Reader): BOOLEAN;
 		VAR port: Port; module: Module; device: Device; i,number: LONGINT;
