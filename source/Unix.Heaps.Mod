@@ -435,7 +435,7 @@ VAR
 		InitFreeLists;
 		heapAvailable := 0; 
 
-		memBlock := Machine.memBlockHead;  prevMemBlock := NIL;
+		memBlock := Machine.memBlockHead;  prevMemBlock := memBlock;
 		WHILE memBlock # NIL DO
 			block := memBlock.beginBlockAdr;  endBlockAdr := memBlock.endBlockAdr;
 
