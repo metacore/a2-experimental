@@ -33,6 +33,8 @@ CONST
 	MethodEndMarker* = MinPtrOfs;   (* marks the end of the method addresses, used in Info.ModuleDetails *)
 
 	ArrayAlignment = 8;
+	
+	MaxMarkDepth = 10000;
 
 VAR
 
@@ -55,7 +57,6 @@ TYPE
 VAR
 	checkRoot: FinalizerNode;   (* list of checked objects (contains weak references to the checked objects) *)
 	finalizeRoot: FinalizerNode;   (* objects scheduled for finalization (contains references to scheduled objects) *)
-
 
 	(* ------------------------- Heap ------------------------------- *)
 CONST
@@ -92,6 +93,11 @@ VAR
 	lastA: ARRAY N + 1 OF Address;
 	candidates: ARRAY 1024 OF  Address;
 	nofcand: LONGINT;
+	
+	deferred: ARRAY 1000 OF Address;
+	noDeferred: LONGINT;
+	
+	fastNEW: BOOLEAN;	(* TRUE:  faster NEW is preferred over smaller heap *)
 
 	heapSize, heapAvailable: Size;
 
@@ -101,6 +107,7 @@ VAR
 	GCEnabled: BOOLEAN;
 	GC*: PROCEDURE;
 	collecting-: BOOLEAN;
+	markDepth: LONGINT;
 
 	traceGC, traceNEW: BOOLEAN;
 	
@@ -312,10 +319,47 @@ VAR
 	VAR 
 		block, cur, lastElem: Address;  
 		tag: SET;  sTB{UNTRACED}: StaticTypeBlock;
+		depth: LONGINT;
 	BEGIN
 		IF Stats THEN  INC(Nmark)  END;
+		INC( markDepth );  depth := markDepth;
+		
 		IF UnmarkedObject( ptr ) THEN
 			block := S.VAL( Address, ptr );
+			S.GET( block - AdrSize, tag );
+			sTB := S.VAL( StaticTypeBlock, tag - {ArrayBit, MarkBit} );
+			IF ArrayBit IN tag THEN
+				IF markDepth <= MaxMarkDepth - 10 THEN
+					 S.GET( block, lastElem );
+					 S.GET( block + 2*AdrSize, cur );   
+					 REPEAT
+						MarkRecordFields( cur, sTB );						
+						INC( cur, sTB.recSize );
+					UNTIL Machine.GreaterThan( cur, lastElem )
+				ELSE
+					deferred[noDeferred] := block;  INC( noDeferred );
+				END;
+			ELSE  
+				IF markDepth <= MaxMarkDepth THEN
+					MarkRecordFields( block, sTB )
+				ELSE
+					deferred[noDeferred] := block;  INC( noDeferred );
+				END;	
+			END;			
+		END;
+		DEC( markDepth );
+		IF (markDepth <= 0) & (noDeferred > 0) THEN  MarkDeferred  END
+	END Mark;
+
+	PROCEDURE MarkDeferred;
+	VAR 
+		block, cur, lastElem: Address;  
+		tag: SET;  sTB{UNTRACED}: StaticTypeBlock;
+	BEGIN
+		markDepth := 1;
+		WHILE noDeferred > 0 DO
+			DEC( noDeferred );  
+			block := deferred[noDeferred];  
 			S.GET( block - AdrSize, tag );
 			sTB := S.VAL( StaticTypeBlock, tag - {ArrayBit, MarkBit} );
 			IF ArrayBit IN tag THEN
@@ -324,12 +368,12 @@ VAR
 				 REPEAT
 					MarkRecordFields( cur, sTB );						
 					INC( cur, sTB.recSize );
-				UNTIL Machine.GreaterThan( cur, lastElem );
+				UNTIL Machine.GreaterThan( cur, lastElem )
 			ELSE  
-				MarkRecordFields( block, sTB );	
+				MarkRecordFields( block, sTB )
 			END;			
-		END
-	END Mark;
+		END;
+	END MarkDeferred;
 
 
 	
@@ -343,7 +387,7 @@ VAR
 		block.tag := blkAdr + AdrSize;
 		block.size := blkSize - AdrSize;
 		
-	(*	IF i < N THEN	*)
+		IF (i < N) OR fastNEW THEN	
 			IF atEnd THEN
 				(* append to end of list *)
 				block.next := NIL;
@@ -353,12 +397,12 @@ VAR
 				(* prepend to list *)
 				block.next := S.VAL( FreeBlk, A[i] );
 				A[i] := blkAdr
-			END;
-	(*	this optimization has positive impact on heap utilization
-		130 MB vs. 240 MB heap for compiling and linking a new system
-		but it slows down heap allocation speed. 
+			END;	
 		ELSE
 			(* keep them ordered to avoid unnecessary splits *)
+			(* this optimization has positive impact on heap utilization
+			    130 MB vs. 240 MB heap for compiling and linking a new system
+			    but it slows down heap allocation speed. 	*)
 			x := S.VAL( FreeBlk, A[N] );
 			IF (x = NIL) OR (x.size > blkSize - AdrSize) THEN 
 				block.next := x;
@@ -368,7 +412,7 @@ VAR
 				block.next := x.next;
 				x.next := block 
 			END	
-		END;	*)
+		END;	
 		
 		INC( heapAvailable, blkSize );
 	END Recycle;
@@ -385,15 +429,15 @@ VAR
 	VAR
 		block, freeBlock, endBlockAdr: Address;  tag: SET;  
 		size, freeSize: Size;
-		sb: Machine.MemoryBlock;
+		memBlock, prevMemBlock: Machine.MemoryBlock;
 	BEGIN
 		IF traceGC  THEN  Trace.String( "Sweep" );  Trace.Ln  END;
 		InitFreeLists;
 		heapAvailable := 0; 
 
-		sb := Machine.memBlockHead;
-		WHILE sb # NIL DO
-			block := sb.beginBlockAdr;  endBlockAdr := sb.endBlockAdr;
+		memBlock := Machine.memBlockHead;  prevMemBlock := NIL;
+		WHILE memBlock # NIL DO
+			block := memBlock.beginBlockAdr;  endBlockAdr := memBlock.endBlockAdr;
 
 			freeSize := 0;
 			WHILE Machine.LessThan( block, endBlockAdr ) DO
@@ -414,15 +458,17 @@ VAR
 			END;
 
 			(* last collected block: *)
-			IF (freeSize = endBlockAdr - sb.beginBlockAdr)  THEN
+			IF (freeSize = endBlockAdr - memBlock.beginBlockAdr)  THEN
 				(* whole block is free, unlink it*)
-				Machine.FreeMemBlock( S.VAL( Machine.MemoryBlock, sb ) );
+				Machine.FreeMemBlock( S.VAL( Machine.MemoryBlock, memBlock ) );
+				memBlock := prevMemBlock;
 				heapSize := GetHeapSize();
 			ELSIF freeSize > 0 THEN
 				Recycle( freeBlock, freeSize, TRUE ); (* last collected block: *)
 			END;
 			
-			sb := sb.next;
+			prevMemBlock := memBlock;
+			memBlock := memBlock.next;
 		END
 	END Sweep;
 
@@ -551,7 +597,7 @@ VAR
 			INC(Ngc);
 			time1 := Machine.GetTimer ();
 		END;
-		collecting := TRUE; 
+		collecting := TRUE;  markDepth := 0; noDeferred := 0;
 		
 		Mark( root );
 		CheckCandidates;  CheckFinalizedObjects;
@@ -950,6 +996,7 @@ VAR
 
 
 	PROCEDURE Init;
+	VAR s: ARRAY 8 OF CHAR;
 	BEGIN
 		IF Stats THEN
 			Ngc := 0;
@@ -968,6 +1015,9 @@ VAR
 		InitHeap;
 		NgetBlock := 0;
 		getBlockFinished := Machine.conInit( 0 );
+		
+		Machine.GetConfig( "FastNEW", s );
+		fastNEW := ( s[0] = "1" )
 	END Init;
 
 
