@@ -429,13 +429,13 @@ VAR
 	VAR
 		block, freeBlock, endBlockAdr: Address;  tag: SET;  
 		size, freeSize: Size;
-		memBlock, prevMemBlock: Machine.MemoryBlock;
+		memBlock, nextMemBlock: Machine.MemoryBlock;
 	BEGIN
 		IF traceGC  THEN  Trace.String( "Sweep" );  Trace.Ln  END;
 		InitFreeLists;
 		heapAvailable := 0; 
 
-		memBlock := Machine.memBlockHead;  prevMemBlock := memBlock;
+		memBlock := Machine.memBlockHead;  
 		WHILE memBlock # NIL DO
 			block := memBlock.beginBlockAdr;  endBlockAdr := memBlock.endBlockAdr;
 
@@ -458,17 +458,16 @@ VAR
 			END;
 
 			(* last collected block: *)
+			nextMemBlock := memBlock.next;
 			IF (freeSize = endBlockAdr - memBlock.beginBlockAdr)  THEN
 				(* whole block is free, unlink it*)
 				Machine.FreeMemBlock( S.VAL( Machine.MemoryBlock, memBlock ) );
-				memBlock := prevMemBlock;
 				heapSize := GetHeapSize();
 			ELSIF freeSize > 0 THEN
 				Recycle( freeBlock, freeSize, TRUE ); (* last collected block: *)
 			END;
 			
-			prevMemBlock := memBlock;
-			memBlock := memBlock.next;
+			memBlock := nextMemBlock;
 		END
 	END Sweep;
 
@@ -636,10 +635,8 @@ VAR
 		END;
 		INC( NgetBlock );
 		
-		IF GCEnabled &  (throuput  > Machine.MemBlockSize DIV 2) & (Machine.lock[Machine.GC] = 'N') THEN  
-			Machine.Release( Machine.Heaps );
+		IF GCEnabled &  (throuput  > Machine.MemBlockSize) & (Machine.lock[Machine.GC] = 'N') THEN  
 			Machine.InvokeGC;
-			Machine.Acquire( Machine.Heaps );
 			throuput := 0;
 		END;
 
@@ -653,9 +650,7 @@ VAR
 					LOOP
 						IF block = NIL THEN
 							IF GCEnabled & (throuput > 0) & (Machine.lock[Machine.GC] = 'N') THEN
-								Machine.Release( Machine.Heaps );
 								Machine.InvokeGC;
-								Machine.Acquire( Machine.Heaps );
 								throuput := 0;
 							ELSE
 								Machine.ExpandHeap( 0, size, S.VAL( Address, newBlock ), adr2 );

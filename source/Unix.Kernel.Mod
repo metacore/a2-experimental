@@ -184,21 +184,17 @@ VAR
 (** Activate the garbage collector immediately. *)
 PROCEDURE GC*;
 BEGIN
+	Machine.Acquire( Machine.Heaps );
 	Machine.InvokeGC;
+	Machine.Release( Machine.Heaps );
 END GC;
 
 PROCEDURE DoGC;
 BEGIN
-	Machine.Acquire( Machine.X11 );	
-	Machine.Acquire( Machine.Heaps );
-	
 	Objects.SuspendActivities;
 	Heaps.CollectGarbage( Modules.root );
 	Objects.ResumeActivities;
-	
-	Machine.Release( Machine.Heaps );
-	Machine.Release( Machine.X11 );	
-	
+		
 	finalizer.Activate  (* finalizers will be called by seperate process *)
 END DoGC;
 
