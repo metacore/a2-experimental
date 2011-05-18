@@ -1349,7 +1349,7 @@ TYPE
 				IF isReadOperator THEN
 					Error(operator.position, Diagnostics.Invalid, "return type does not match")
 				ELSE
-					Error(parameter.nextParameter.position, Diagnostics.Invalid, "type of last parameter does not match")
+					Error(parameter.position, Diagnostics.Invalid, "type of last parameter does not match")
 				END;
 				RETURN FALSE
 			END;
