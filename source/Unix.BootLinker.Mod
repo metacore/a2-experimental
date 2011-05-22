@@ -756,7 +756,6 @@ VAR
 				r.RawLInt( h.maxPtrs );
 				r.RawLInt( h.staticTdSize ); (* ug *)
 				r.RawString( h.name );
-	INC( h.staticTdSize, 64 );
 				IF trace THEN
 					Out.String( "  name: ");  Out.String( h.name );
 					Out.String( "  symSize: ");  Out.Int( symSize, 1 );

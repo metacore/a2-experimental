@@ -14,7 +14,7 @@ TYPE
 
 VAR
 	modName, cmdName: ARRAY 32 OF CHAR;
-	appl{UNTRACED}: CommandThread;
+	appl: CommandThread;
 
 
 	PROCEDURE LoadModule( CONST name: ARRAY OF CHAR );
@@ -63,10 +63,13 @@ VAR
 			cmd := ThisCommand( m, procName );
 			IF cmd # NIL THEN  cmd
 			ELSE
-				Trace.String( "Starter.Execute:  module " );  Trace.String( modName );
-				Trace.String( " has no command named " );  Trace.String( procName );  Trace.Ln;
+				Trace.String( "BootConsole.Execute:  module '" );  Trace.String( modName );
+				Trace.String( "' has no command '" );  Trace.String( procName );  Trace.Char( "'" );
+				Trace.Ln;
 			END
-		ELSE  Trace.String( "Starter.Execute:  could not load module " );  Trace.String( modName );  Trace.Ln
+		ELSE  
+			Trace.String( "BootConsole.Execute:  could not load module " );  Trace.String( modName );  
+			Trace.Ln
 		END
 	END Execute;
 

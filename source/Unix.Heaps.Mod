@@ -3,7 +3,7 @@ Refer to the "General ETH Oberon System Source License" contract available at: h
 
 MODULE Heaps;
 
-IMPORT S := SYSTEM, Glue, Trace, Machine;
+IMPORT S := SYSTEM, Trace, Machine;
 
 TYPE
 	Address = S.ADDRESS;
@@ -27,18 +27,13 @@ CONST
 	
 	NilVal* = 0;
 
-	MaxHeapBlockSize = 512*1024*1024;
-
 	MinPtrOfs = -40000000H;	(* sentinel offset for ptrOfs *)
 	MethodEndMarker* = MinPtrOfs;   (* marks the end of the method addresses, used in Info.ModuleDetails *)
 
 	ArrayAlignment = 8;
 	
-	MaxMarkDepth = 10000;
+	MaxMarkDepth = 8000;
 
-VAR
-
-	debug: SET;
 
 	(* ----------------- object finalization ------------------------------*)
 
@@ -102,14 +97,10 @@ VAR
 	heapSize, heapAvailable: Size;
 
 	throuput:  Size;
-	NgetBlock: LONGINT;
-	getBlockFinished: LONGINT;
-	GCEnabled: BOOLEAN;
 	GC*: PROCEDURE;
 	collecting-: BOOLEAN;
 	markDepth: LONGINT;
 
-	traceGC, traceNEW: BOOLEAN;
 	
 	(** Statistics. Will only be maintained if Stats = TRUE *)
 
@@ -148,7 +139,7 @@ VAR
 
 	(* Check reachability of finalized objects. *)
 	PROCEDURE CheckFinalizedObjects;
-	VAR n, p, t: FinalizerNode;  n1, n2: LONGINT;
+	VAR n, p, t: FinalizerNode;  
 
 		PROCEDURE MarkDelegate( p: Finalizer );
 		VAR pointer: ANY;
@@ -158,12 +149,9 @@ VAR
 		END MarkDelegate;
 
 	BEGIN
-		IF traceGC  THEN  n1 := 0;  n2 := 0;  Trace.String( "CheckFinalizedObjects: " )  END;
 		n := checkRoot;
 		WHILE n # NIL DO  (* move unmarked checked objects to finalize list *)
-			INC( n1 );
 			IF ~(MarkBit IN S.VAL( SET, S.GET32( n.markAdr ) )) THEN
-				INC( n2 );
 				IF n = checkRoot THEN  checkRoot := n.nextFin  ELSE  p.nextFin := n.nextFin  END;
 				n.objStrong := n.objWeak;		(* anchor the object for finalization *)
 				n.finalizerStrong := n.finalizer;	(* anchor the finalizer for finalization *)
@@ -185,10 +173,6 @@ VAR
 			(* we still have to mark the weak finalizers, as they might have not been marked before  *)
 			MarkDelegate( n.finalizer );  n := n.nextFin
 		END;
-		IF traceGC  THEN
-			Trace.String( "objects: " );  Trace.Int( n1, 1 );
-			Trace.String( ", objects to finalize: " );  Trace.Int( n2, 1 );  Trace.Ln
-		 END
 	END CheckFinalizedObjects;
 
 	(** Return the next scheduled finalizer or NIL if none available.  Called by finalizer object in AosKernel. *)
@@ -319,10 +303,9 @@ VAR
 	VAR 
 		block, cur, lastElem: Address;  
 		tag: SET;  sTB{UNTRACED}: StaticTypeBlock;
-		depth: LONGINT;
 	BEGIN
 		IF Stats THEN  INC(Nmark)  END;
-		INC( markDepth );  depth := markDepth;
+		INC( markDepth );  
 		
 		IF UnmarkedObject( ptr ) THEN
 			block := S.VAL( Address, ptr );
@@ -428,10 +411,9 @@ VAR
 	PROCEDURE Sweep;
 	VAR
 		block, freeBlock, endBlockAdr: Address;  tag: SET;  
-		size, freeSize: Size;
+		blockSize, freeSize: Size;
 		memBlock, nextMemBlock: Machine.MemoryBlock;
 	BEGIN
-		IF traceGC  THEN  Trace.String( "Sweep" );  Trace.Ln  END;
 		InitFreeLists;
 		heapAvailable := 0; 
 
@@ -441,12 +423,12 @@ VAR
 
 			freeSize := 0;
 			WHILE Machine.LessThan( block, endBlockAdr ) DO
-				size := SizeOf( block );
+				blockSize := SizeOf( block );
 				S.GET( block, tag );
 				IF ~(MarkBit IN tag) THEN
 					(* collect *)
 					IF freeSize = 0 THEN  freeBlock := block  END;
-					INC( freeSize, size );
+					INC( freeSize, blockSize );
 				ELSE
 					S.PUT( block, tag - {MarkBit} );	(* remove mark bit *)
 					IF freeSize > 0 THEN
@@ -454,11 +436,11 @@ VAR
 						freeSize := 0
 					END
 				END;
-				INC( block, size );
+				INC( block, blockSize );
 			END;
 
-			(* last collected block: *)
 			nextMemBlock := memBlock.next;
+			
 			IF (freeSize = endBlockAdr - memBlock.beginBlockAdr)  THEN
 				(* whole block is free, unlink it*)
 				Machine.FreeMemBlock( S.VAL( Machine.MemoryBlock, memBlock ) );
@@ -590,7 +572,6 @@ VAR
 	PROCEDURE CollectGarbage*( root: RootObject );
 	VAR time1, time2 : HUGEINT; 
 	BEGIN
-		IF traceGC  THEN  Trace.String( "Heaps.Collect ... " );  Trace.Ln  END;
 		IF Stats THEN
 			Nmark := 0; Nmarked := 0;
 			INC(Ngc);
@@ -603,7 +584,6 @@ VAR
 		Sweep;
 
 		collecting := FALSE;  throuput := 0;
-		IF traceGC  THEN  Trace.String( "Heaps.Collect done " );  Trace.Ln;  Trace.Ln  END;
 		IF Stats THEN
 			time2 := Machine.GetTimer ();
 			NgcCyclesLastRun := time2 - time1;
@@ -624,21 +604,6 @@ VAR
 		i: LONGINT;  adr2: Address;
 		block, prevBlock, newBlock: FreeBlk;  blkSize, restSize: Size;  blkAdr: Address;
 	BEGIN
-		IF (size < 0) OR (size > MaxHeapBlockSize)  THEN
-			Machine.Release( Machine.Heaps );
-			HALT( 99 )
-		END;
-		
-		IF NgetBlock > 0 THEN 
-			(* got here while "Heaps" was released for GC *)
-			Machine.conWait( getBlockFinished, Machine.mtx[Machine.Heaps] )
-		END;
-		INC( NgetBlock );
-		
-		IF GCEnabled &  (throuput  > Machine.MemBlockSize) & (Machine.lock[Machine.GC] = 'N') THEN  
-			Machine.InvokeGC;
-			throuput := 0;
-		END;
 
 		REPEAT
 			i := size DIV BlockSize;
@@ -649,7 +614,7 @@ VAR
 				IF i = N  THEN
 					LOOP
 						IF block = NIL THEN
-							IF GCEnabled & (throuput > 0) & (Machine.lock[Machine.GC] = 'N') THEN
+							IF (throuput > 0) & (Machine.lock[Machine.GC] = 'N') THEN
 								Machine.InvokeGC;
 								throuput := 0;
 							ELSE
@@ -674,10 +639,12 @@ VAR
 						prevBlock := block;
 						block := block.next
 					END  (* loop *)
+					
 				END;
 				IF block # NIL THEN  EXIT   END;
 				INC( i )
-			END;  (* loop *)
+			END  (* loop *)
+			
 		UNTIL block # NIL;
 
 		blkSize := block.size + AdrSize;
@@ -694,10 +661,6 @@ VAR
 		
 		INC( throuput, size );
 		IF Stats THEN  INC(Nnew); INC(NnewBytes, size)  END;
-		IF NgetBlock > 0 THEN 
-			DEC( NgetBlock );  
-			Machine.conSignal( getBlockFinished )
-		END;
 		RETURN blkAdr
 	END GetBlock;
 
@@ -711,7 +674,6 @@ VAR
 	PROCEDURE NewRec*( VAR p: ANY;  tag: Address; isRealtime: BOOLEAN );   (* implementation of NEW( ptr ) *)
 	VAR size, recSize: Size;  ptr: Address;  typeInfoAdr: Address;  flags: SET;
 	BEGIN
-		IF traceNEW  THEN  Trace.Char( 'r' ); Trace.Hex( tag, -8 )  END;
 		S.GET( tag - AdrSize, typeInfoAdr );   
 		S.GET( typeInfoAdr + FlagsOfs, flags );
 		IF ProtTypeBit IN flags THEN  (* protected record *)
@@ -730,7 +692,6 @@ VAR
 	PROCEDURE NewProtRec*( VAR p: ANY;  tag: Address; isRealtime: BOOLEAN );
 	VAR recSize, size: Size;  ptr: Address;
 	BEGIN
-		IF traceNEW  THEN  Trace.Char( 'p' )  END;
 		S.GET( tag, recSize );
 		(* add space for tag and header and round up to BlockSize *)
 		size := recSize + ProtOfs + AdrSize;  INC( size, (-size) MOD BlockSize );
@@ -754,7 +715,6 @@ VAR
 	PROCEDURE NewSys*( VAR p: ANY;  size: Size; isRealtime: BOOLEAN );   (* implementation of S.NEW(ptr, size) *)
 	VAR ptr: Address;
 	BEGIN
-		IF traceNEW  THEN  Trace.String( '[s' ); Trace.Int( size, 1)  END;
 		size := size + AdrSize + 24;  INC( size, (-size) MOD BlockSize );
 		Machine.Acquire( Machine.Heaps );
 		ptr := GetBlock( size ) + AdrSize;  ClearMem( ptr, size - AdrSize );
@@ -762,7 +722,6 @@ VAR
 		S.PUT( ptr + AdrSize, S.VAL( Address, -AdrSize ) );
 		S.PUT( ptr + 20, ptr );
 		p := S.VAL( ANY, ptr + 24 );
-		IF traceNEW  THEN  Trace.Char( ']' )  END;
 		Machine.Release( Machine.Heaps )
 	END NewSys;
 
@@ -950,23 +909,13 @@ VAR
 
 	PROCEDURE InitHeap;
 	VAR i: LONGINT; adr1, adr2: Address;
-		recSize, blkSize: Size;
 		tag: SET;
-		block, lastElem, a: Address;
+		block, a: Address;
 	BEGIN
 		block := Machine.memBlockHead.beginBlockAdr;
 		S.GET( block, tag );
 		WHILE tag # {} DO
-			S.GET( S.VAL( Address, tag - {ArrayBit, MarkBit} ), recSize );
-			IF ArrayBit IN tag THEN
-				S.GET( block + AdrSize, lastElem );
-				blkSize := lastElem + recSize - block
-			ELSE
-				blkSize := recSize + AdrSize
-			END;
-			INC( blkSize, (-blkSize) MOD BlockSize );
-
-			INC( block, blkSize );
+			INC( block, SizeOf( block ) );
 			S.GET( block, tag );
 		END;
 		S.PUT( block, block + AdrSize );
@@ -1002,14 +951,7 @@ VAR
 		GC := EmptyProc;	(* no GC until EmptyProc gets replaced (in module Kernel) *)
 		nofcand := 0; 
 
-		debug := Glue.debug;
-		GCEnabled :=  ~(6 IN debug);
-		traceGC := 1 IN debug;
-		traceNEW := 4 IN debug;
-
 		InitHeap;
-		NgetBlock := 0;
-		getBlockFinished := Machine.conInit( 0 );
 		
 		Machine.GetConfig( "FastNEW", s );
 		fastNEW := ( s[0] = "1" )
