@@ -740,6 +740,23 @@ TYPE
 			symbol.string[i] := 0X;
 		END GetIdentifier;
 
+		(** get a string starting at current position
+			string = '"' {Character} '"' | "'" {Character} "'".
+		**)
+		PROCEDURE GetString(VAR symbol: Symbol);
+		VAR i: INTEGER;  och: CHAR;
+		BEGIN
+			i := 0;  och := ch;
+			LOOP
+				GetNextCharacter;
+				IF ch = och THEN EXIT END;
+				(*IF ch < " " THEN Error( Basic.StringIllegalCharacter );  EXIT END;*)
+				IF i = MaxStringLength - 1 THEN Error( Basic.StringTooLong );  EXIT END;
+				symbol.string[i] := ch;  INC( i )
+			END;
+			GetNextCharacter;  symbol.string[i] := 0X;  symbol.character := symbol.string[0];  symbol.stringLength := i + 1;
+		END GetString;
+
 		(** get next symbol **)
 		PROCEDURE GetNextSymbol*(VAR symbol: Symbol ): BOOLEAN;
 		VAR s: LONGINT;

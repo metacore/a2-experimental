@@ -3347,6 +3347,10 @@ TYPE
 		BEGIN resolved := TRUE
 		END Resolved;
 
+		PROCEDURE SetExpression*(e: Expression);
+		BEGIN SELF.expression := e
+		END SetExpression;
+
 		PROCEDURE SetNext*(modifier: Modifier);
 		BEGIN	nextModifier := modifier
 		END SetNext;

@@ -385,9 +385,9 @@ TYPE
 				type := instance.type;
 				type.GetFullName(typeName,NIL);
 				instance.GetFullName(instanceName,NIL);
-
+				(*
 				D.String("assembling instance "); D.String(instance.name); D.String(" of type "); D.String(type.name); D.Ln;
-
+				*)
 				D.String("assembling instance "); D.String(instanceName); D.String(" of type "); D.String(typeName); D.Ln;
 
 				assembler.MarkReachabilityOfAll(FALSE);

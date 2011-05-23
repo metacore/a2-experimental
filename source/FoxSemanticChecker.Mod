@@ -786,7 +786,9 @@ TYPE
 			IF this # NIL THEN
 				IF this.expression = NIL THEN
 					Error(this.position,Diagnostics.Invalid,"expected expression value");
-				ELSIF CheckIntegerValue(this.expression,value) THEN
+				ELSE
+					this.SetExpression(ConstantExpression(this.expression));
+					IF CheckIntegerValue(this.expression,value) THEN END;
 				END;
 				this.Resolved;
 				position := this.position;
