@@ -118,6 +118,11 @@ TYPE
 			VisitBasicType(x);
 		END VisitFloatType;
 
+		PROCEDURE VisitComplexType(x: SyntaxTree.ComplexType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitComplexType;
+
 		PROCEDURE VisitByteType(x: SyntaxTree.ByteType);
 		BEGIN
 			VisitBasicType(x);
@@ -788,19 +793,19 @@ TYPE
 			VisitMathArrayExpression(x.array);
 		END VisitMathArrayValue;
 
-		PROCEDURE VisitRealValue(x: SyntaxTree.RealValue);
+		PROCEDURE FormatedFloat(value: LONGREAL; subtype: LONGINT);
 		VAR string: ARRAY 128 OF CHAR; i: LONGINT;
 		BEGIN
-			IF x.subtype = Scanner.Real THEN
-				ws.SetPos(0); ws.Float(x.value,11(*mantissa X.XXXXXXX *)+5(*exponent E+XXX *)); ws.Get(string);
+			IF subtype = Scanner.Real THEN
+				ws.SetPos(0); ws.Float(value,11(*mantissa X.XXXXXXX *)+5(*exponent E+XXX *)); ws.Get(string);
 				i := 0;
 				WHILE(i<LEN(string)) & (string[i] # 0X) DO
 					IF string[i] = "D" THEN string[i] := "E" END;
 					INC(i);
 				END;
 				w.String(string);
-			ELSIF x.subtype = Scanner.Longreal THEN
-				ws.SetPos(0); ws.Float(x.value,20(*mantissa X.X..(16)..X *)+5(*exponent E+XXX *) ); ws.Get(string);
+			ELSIF subtype = Scanner.Longreal THEN
+				ws.SetPos(0); ws.Float(value,20(*mantissa X.X..(16)..X *)+5(*exponent E+XXX *) ); ws.Get(string);
 				i := 0;
 				WHILE(i<LEN(string)) & (string[i] # 0X) DO
 					IF string[i] = "E" THEN string[i] := "D" END;
@@ -808,9 +813,27 @@ TYPE
 				END;
 				w.String(string);
 			ELSE
-				w.Float(x.value,64)
+				w.Float(value,64)
 			END;
+		END FormatedFloat;
+
+		PROCEDURE VisitRealValue(x: SyntaxTree.RealValue);
+		BEGIN FormatedFloat(x.value, x.subtype)
 		END VisitRealValue;
+
+		PROCEDURE VisitComplexValue(x: SyntaxTree.ComplexValue);
+		BEGIN		
+			IF (x.realValue = 0) & (x.imagValue = 1) THEN
+				w.String("IMAG")
+			ELSE
+				w.String("(");
+				FormatedFloat(x.realValue, x.subtype)	;
+				w.String(" ");
+				IF x.imagValue > 0 THEN w.String("+") END;
+				FormatedFloat(x.imagValue, x.subtype);
+				w.String("*IMAG)")
+			END
+		END VisitComplexValue;
 
 		PROCEDURE VisitStringValue(x: SyntaxTree.StringValue);
 		VAR i: LONGINT;

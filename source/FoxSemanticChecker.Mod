@@ -361,6 +361,12 @@ TYPE
 			VisitBasicType(x);
 		END VisitFloatType;
 
+		(** resolve complex type **)
+		PROCEDURE VisitComplexType(x: SyntaxTree.ComplexType);
+		BEGIN
+			VisitBasicType(x);
+		END VisitComplexType;
+
 		(**
 			resolve string type: nothing to be done
 		**)
@@ -1589,6 +1595,22 @@ TYPE
 			value.SetType(type);
 			resolvedExpression := value
 		END VisitRealValue;
+		
+		(** check and resolve complex value **)
+		PROCEDURE VisitComplexValue(value: SyntaxTree.ComplexValue);
+		VAR subtype: LONGINT; type: SyntaxTree.Type;
+		BEGIN
+			subtype := value(SyntaxTree.ComplexValue).subtype;
+			IF subtype = Scanner.Real THEN
+				type := system.complexType
+			ELSIF subtype = Scanner.Longreal THEN
+				type := system.longcomplexType
+			ELSE
+				HALT(100)
+			END;
+			value.SetType(type);
+			resolvedExpression := value
+		END VisitComplexValue;
 
 		(** check and resolve set value **)
 		PROCEDURE VisitSetValue(value: SyntaxTree.SetValue);
@@ -1894,7 +1916,7 @@ TYPE
 		PROCEDURE VisitUnaryExpression(unaryExpression: SyntaxTree.UnaryExpression);
 		VAR
 			left: SyntaxTree.Expression;
-			int: HUGEINT; real: LONGREAL; set: SET; operator: LONGINT;
+			int: HUGEINT; real, imaginary: LONGREAL; set: SET; operator: LONGINT;
 			bool: BOOLEAN;
 			result: SyntaxTree.Expression; type: SyntaxTree.Type; operatorCall: SyntaxTree.Expression;
 			value: SyntaxTree.Value;
@@ -1921,7 +1943,7 @@ TYPE
 				result := operatorCall;
 				type := operatorCall.type;
 				(* admissible operators
-					Minus		number, set
+					Minus			number, set
 					Not			boolean
 				*)
 			ELSE
@@ -1955,6 +1977,16 @@ TYPE
 						ELSE
 							type := left.type;
 						END;
+					ELSIF left.type.resolved IS SyntaxTree.ComplexType THEN
+						IF IsComplexValue(left, real, imaginary) THEN												
+							value := SyntaxTree.NewComplexValue(unaryExpression.position,-real, -imaginary);
+							result.SetResolved(value);
+							type := left.type;
+							value.SetType(type);							
+							value(SyntaxTree.ComplexValue).SetSubtype(left.resolved(SyntaxTree.ComplexValue).subtype) (* reuse subtype *)
+						ELSE
+							type := left.type;
+						END
 					ELSE
 						Error(left.position,Diagnostics.Invalid,"unary operator not applicable");
 					END;
@@ -2017,7 +2049,7 @@ TYPE
 		END MathArrayConversion;
 
 		PROCEDURE ConvertValue(position: LONGINT; expression: SyntaxTree.Value; type: SyntaxTree.Type): SyntaxTree.Expression;
-		VAR result: SyntaxTree.Expression; int: HUGEINT; real: LONGREAL; set: SET; char: CHAR; string: Scanner.StringType;
+		VAR result: SyntaxTree.Expression; int: HUGEINT; real, imaginary: LONGREAL; set: SET; char: CHAR; string: Scanner.StringType;
 		BEGIN
 			result := expression; type := type.resolved;
 			IF expression IS SyntaxTree.IntegerValue THEN
@@ -2035,7 +2067,10 @@ TYPE
 					result.SetType(type);
 				ELSIF (type IS SyntaxTree.FloatType) THEN
 					result := SyntaxTree.NewRealValue(expression.position,int);
-					result.SetType(type);
+					result.SetType(type);					
+				ELSIF (type IS SyntaxTree.ComplexType) THEN
+					result := SyntaxTree.NewComplexValue(expression.position, int, 0);
+					result.SetType(type);					
 				ELSIF (type IS SyntaxTree.SetType) THEN
 					result := SyntaxTree.NewSetValue(expression.position,SYSTEM.VAL(SET,int));
 					result.SetType(type);
@@ -2069,11 +2104,24 @@ TYPE
 					result.SetType(type);
 				ELSIF (type IS SyntaxTree.FloatType) THEN
 					result := SyntaxTree.NewRealValue(position,real);
+					result.SetType(type);					
+				ELSIF (type IS SyntaxTree.ComplexType) THEN
+					result := SyntaxTree.NewComplexValue(expression.position, real, 0);
 					result.SetType(type);
+					result(SyntaxTree.ComplexValue).SetSubtype(expression.resolved(SyntaxTree.RealValue).subtype) (* reuse subtype *)
 				ELSE
 					Error(position,Diagnostics.Invalid,"real value cannot be converted");
 					result := SyntaxTree.invalidExpression;
-				END;
+				END
+			ELSIF IsComplexValue(expression, real, imaginary) THEN
+				IF (type IS SyntaxTree.ComplexType) THEN
+					result := SyntaxTree.NewComplexValue(expression.position, real, imaginary);
+					result.SetType(type);
+					result(SyntaxTree.ComplexValue).SetSubtype(expression.resolved(SyntaxTree.ComplexValue).subtype) (* reuse subtype *)
+				ELSE
+					Error(position,Diagnostics.Invalid,"complex value cannot be converted");
+					result := SyntaxTree.invalidExpression;
+				END	
 			ELSIF IsSetValue(expression,set) THEN
 				IF (type IS SyntaxTree.IntegerType) THEN
 					result := SyntaxTree.NewIntegerValue(expression.position,SYSTEM.VAL(LONGINT,set));
@@ -2380,7 +2428,7 @@ TYPE
 						arrayBaseImported := TRUE;
 					END;
 				END;
-
+				
 				actualParameters := SyntaxTree.NewExpressionList();
 				actualParameters.AddExpression(leftExpression);
 				IF rightExpression # NIL THEN
@@ -2413,7 +2461,7 @@ TYPE
 		PROCEDURE VisitBinaryExpression(binaryExpression: SyntaxTree.BinaryExpression);
 		VAR left,right,result: SyntaxTree.Expression;
 			leftType, rightType: SyntaxTree.Type;
-			il,ir: LONGINT; rl,rr: LONGREAL; hl,hr: HUGEINT;bl,br: BOOLEAN; sl,sr: SET;  strl,strr: Scanner.StringType;
+			il,ir: LONGINT; rl,rr,a,b,c,d,divisor: LONGREAL; hl,hr: HUGEINT;bl,br: BOOLEAN; sl,sr: SET;  strl,strr: Scanner.StringType;
 			cl,cr: CHAR;
 			operator: LONGINT; operatorCall: SyntaxTree.Expression;
 			type: SyntaxTree.Type;
@@ -2454,6 +2502,14 @@ TYPE
 				type := t;
 			END NewReal;
 
+			PROCEDURE NewComplex(realValue, imagValue: LONGREAL; t: SyntaxTree.Type);
+			BEGIN
+				value := SyntaxTree.NewComplexValue(binaryExpression.position, realValue, imagValue);
+				value.SetType(t);
+				value(SyntaxTree.ComplexValue).UpdateSubtype;
+				result.SetResolved(value);
+				type := t;
+			END NewComplex;
 
 		BEGIN
 			type := SyntaxTree.invalidType;
@@ -2490,27 +2546,27 @@ TYPE
 
 			(* admissible operators:
 
-				Times, Plus, Minus			numeric		numeric		numeric
-											set			set			set
-				Slash 						numeric		numeric		real
-											set			set			set
-				Div , Mod					integer		integer		integer
-				And, Or						bool		bool		bool
-				Equal, Unequal 				basic		basic		bool
+				Times, Plus, Minus		numeric		numeric		numeric
+											set				set				set
+				Slash 						numeric		numeric		real	/complex
+											set				set				set
+				Div , Mod					integer			integer			integer
+				And, Or					bool			bool			bool
+				Equal, Unequal 			basic			basic			bool
 											pointer 		pointer 		bool
-											object		object		bool
-											record		record		bool
-											string		string		bool
-											enumerator enumerator	bool
-
-				Less, LessEqual,
-				Greater, GreaterEqual		numeric		numeric		bool
+											object			object			bool
+											record			record			bool
+											string			string			bool
 											enumerator	enumerator	bool
 
-				In							integer		set			bool
-				Is							pointer		type		bool
-				 							object		type		bool
-				 							record		type		bool
+				Less, LessEqual,
+				Greater, GreaterEqual		integer/real	integer/real	bool
+											enumerator	enumerator	bool
+	
+				In							integer			set				bool
+				Is							pointer			type			bool
+				 							object			type			bool
+				 							record			type			bool
 
 				 Upto: special abbreviation for a..b
 			*)
@@ -2766,6 +2822,38 @@ TYPE
 							Printout.Info("right",right);
 						END;
 					END;
+				ELSIF (leftType IS SyntaxTree.ComplexType) THEN
+					CASE operator OF
+					|Scanner.Plus, Scanner.Minus, Scanner.Times, Scanner.Slash: type := left.type
+					|Scanner.Equal, Scanner.Unequal: type := system.booleanType
+					ELSE
+						Error(binaryExpression.position, Diagnostics.Invalid,"operator not defined");
+						IF VerboseErrorMessage THEN
+							Printout.Info("left", left);
+							Printout.Info("right", right)
+						END;
+					END;
+					
+					(* try constant folding *)
+					
+					IF ~error THEN
+						IF (operator = Scanner.Slash) & IsComplexValue(right, c, d) & (c = 0) & (d = 0) THEN
+							Error(binaryExpression.position, Diagnostics.Invalid,"division by zero")
+						ELSIF IsComplexValue(left, a, b) & IsComplexValue(right, c, d) THEN
+							CASE operator OF
+							|Scanner.Plus: NewComplex(a + b, c + d, leftType)
+							|Scanner.Minus: NewComplex(a - b, c - d, leftType)
+							|Scanner.Times: NewComplex(a * c - b * d, b * c + a * d, leftType)
+							|Scanner.Slash:
+								divisor := c * c + d * d;
+								ASSERT(divisor # 0);
+								NewComplex((a * c + b * d) / divisor, (b * c - a * d) / divisor, leftType)
+							|Scanner.Equal: NewBool((a = c) & (b = d))
+							|Scanner.Unequal: NewBool((a # c) OR (b # d))
+							END
+						END
+					END
+
 				ELSIF (leftType IS SyntaxTree.BooleanType) THEN
 					IF IsBooleanValue(left,bl) & IsBooleanValue(right,br) THEN
 						CASE operator OF
@@ -4123,7 +4211,22 @@ TYPE
 			END;
 			RETURN result
 		END CheckRealType;
-
+		
+		(**
+			if expression x is of complex type then return true else report error and return false
+		**)
+		PROCEDURE CheckComplexType(x: SyntaxTree.Expression): BOOLEAN;
+		VAR result: BOOLEAN;
+		BEGIN
+			result := FALSE;
+			IF x = SyntaxTree.invalidExpression THEN
+			ELSIF ~(x.type.resolved IS SyntaxTree.ComplexType) THEN
+				Error(x.position,Diagnostics.Invalid,"is no complex type");
+			ELSE result := TRUE
+			END;
+			RETURN result
+		END CheckComplexType;
+		
 		(**
 			if expression x is of range type then return true else report error and return false
 		**)
@@ -4327,7 +4430,7 @@ TYPE
 			parameter: SyntaxTree.Parameter;
 			procedure: SyntaxTree.Procedure;
 			i,i0,i1: LONGINT;
-			r,r0,r1: LONGREAL;
+			r,r0,r1,im: LONGREAL;
 			c: CHAR;
 			id: LONGINT;
 			b: BOOLEAN;
@@ -4794,6 +4897,24 @@ TYPE
 				ELSIF (id = Global.Step) & Parameters(1,1) THEN
 					type := system.longintType;
 					IF CheckRangeType(parameter0) THEN END;
+					result.SetAssignable(parameter0.assignable)
+
+				(* ---- RE ---- *)
+				ELSIF (id = Global.Re) & Parameters(1,1) THEN
+					IF CheckComplexType(parameter0) THEN
+						ASSERT(parameter0.type.resolved IS SyntaxTree.ComplexType);
+						type := parameter0.type.resolved(SyntaxTree.ComplexType).componentType;
+						IF IsComplexValue(parameter0, r, im) THEN result.SetResolved(SyntaxTree.NewRealValue(parameter0.position, r)) END
+					END;
+					result.SetAssignable(parameter0.assignable)
+
+				(* ---- IM ---- *)
+				ELSIF (id = Global.Im) & Parameters(1,1) THEN
+					IF CheckComplexType(parameter0) THEN
+						ASSERT(parameter0.type.resolved IS SyntaxTree.ComplexType);
+						type := parameter0.type.resolved(SyntaxTree.ComplexType).componentType;
+						IF IsComplexValue(parameter0, r, im) THEN result.SetResolved(SyntaxTree.NewRealValue(parameter0.position, im)) END
+					END;
 					result.SetAssignable(parameter0.assignable)
 
 				(* ---- MAX ----- *)
@@ -7549,9 +7670,14 @@ TYPE
 			IF to=SyntaxTree.invalidType THEN result := FALSE
 			ELSIF to = this THEN
 				result := ~(to IS SyntaxTree.ArrayType) OR (to(SyntaxTree.ArrayType).form # SyntaxTree.Open);
+
 			ELSIF to IS SyntaxTree.BasicType THEN
 				IF (to IS SyntaxTree.NumberType) & (this IS SyntaxTree.NumberType) THEN
-					result := Global.BasicTypeDistance(system,this(SyntaxTree.BasicType),to(SyntaxTree.BasicType)) < Infinity;
+					IF to IS SyntaxTree.ComplexType THEN
+						result := this.CompatibleTo(to.resolved)
+					ELSE
+						result := Global.BasicTypeDistance(system,this(SyntaxTree.BasicType),to(SyntaxTree.BasicType)) < Infinity;
+					END
 				ELSIF (to IS SyntaxTree.SetType) & (this IS SyntaxTree.SetType) THEN
 					result := to.sizeInBits = this.sizeInBits;
 				ELSIF (to IS SyntaxTree.IntegerType) & (this IS SyntaxTree.AddressType) THEN
@@ -7944,6 +8070,19 @@ TYPE
 		END;
 		RETURN result
 	END IsRealValue;
+	
+	PROCEDURE IsComplexValue(x: SyntaxTree.Expression; VAR realValue, imagValue: LONGREAL): BOOLEAN;
+	VAR result: BOOLEAN;
+	BEGIN
+		IF  (x.resolved # NIL) & (x.resolved IS SyntaxTree.ComplexValue) THEN
+			realValue :=  x.resolved(SyntaxTree.ComplexValue).realValue;
+			imagValue :=  x.resolved(SyntaxTree.ComplexValue).imagValue;
+			result := TRUE
+		ELSE
+			result := FALSE
+		END;
+		RETURN result
+	END IsComplexValue;
 
 	PROCEDURE IsCharacterValue(x: SyntaxTree.Expression; VAR value: CHAR): BOOLEAN;
 	VAR result: BOOLEAN;

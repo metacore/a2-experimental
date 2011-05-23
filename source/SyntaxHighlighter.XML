@@ -100,6 +100,7 @@
 					ABS ASH CAP CHR ORD
 					COPY GETPROCEDURE LEN
 					MAX MIN ODD SIZEOF SHORT LONG ENTIER ENTIERH
+					RE IM
 					DIV MOD IN IS OR
 					INCL EXCL INC DEC
 					SEND RECEIVE
@@ -129,12 +130,13 @@
 					OBJECT RECORD
 				</Group>
 				<Group style="Values">
-					NIL TRUE FALSE
+					NIL TRUE FALSE IMAG
 				</Group>
 				<Group style="Bold">
 					BOOLEAN
 					SHORTINT INTEGER LONGINT HUGEINT
-					REAL LONGREAL
+					REAL LONGREAL					
+					COMPLEX LONGCOMPLEX
 					SET
 					CHAR
 					ANY

@@ -48,7 +48,7 @@ CONST
 		Read Write
 		(* global functions *)
 		Abs  Ash  Cap  Chr  Entier  EntierH  Len  Long  Max  Min Odd  Ord  Short  Size
-		Sum Dim First Last Step Lsl Lsr Asr
+		Sum Dim First Last Step Re Im Lsl Lsr Asr
 		(* system proper procedures *)
 		systemGet  systemPut  systemMove  systemNew
 		systemIncr Reshape
@@ -70,10 +70,10 @@ CONST
 	Abs*= Send+1; Ash*= Abs+1; Cap*= Ash+1; Chr*= Cap+1; Entier*= Chr+1;
 	EntierH*= Entier+1; Len*= EntierH+1; Long*= Len+1; Max*= Long+1; Min*= Max+1;
 	Odd*= Min+1; Ord*= Odd+1; Short*= Ord+1; systemSizeOf*= Short+1; Sum*= systemSizeOf+1;
-	Dim*= Sum+1; First*= Dim+1; Last*=First+1; Step*=Last+1;
+	Dim*= Sum+1; First*= Dim+1; Last*=First+1; Step*=Last+1; Re*=Step+1; Im*=Re+1;
 
 	(* system proper procedures *)
-	systemGet*= Step+1; systemPut*= systemGet+1; systemMove*= systemPut+1;
+	systemGet*= Im+1; systemPut*= systemGet+1; systemMove*= systemPut+1;
 	systemNew*= systemMove+1;
 	systemIncr*= systemNew+1; Reshape*= systemIncr+1; systemZeroCopy*= Reshape+1; systemTypeCode*= systemZeroCopy+1; systemHalt*= systemTypeCode+1;
 	systemPut8*= systemHalt+1; systemPut16*= systemPut8+1; systemPut32*= systemPut16+1; systemPut64*= systemPut32+1;
@@ -146,7 +146,7 @@ TYPE
 		*)
 
 		addressType-, sizeType-, shortintType-, integerType-, longintType-, hugeintType-, characterType-, setType-, booleanType-, anyType-,byteType-,
-		realType-, longrealType-, objectType-, nilType-, rangeType-, channelType-: SyntaxTree.Type;
+		realType-, longrealType-, complexType-, longcomplexType-, objectType-, nilType-, rangeType-, channelType-: SyntaxTree.Type;
 
 		PROCEDURE &InitSystem*(codeUnit, dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar: LONGINT);
 		VAR i: LONGINT;
@@ -696,7 +696,6 @@ TYPE
 		system.realType := Float32;
 		system.longrealType := Float64;
 
-
 		IF minBits = 32 THEN
 			system.shortintType := Integer32;
 			system.integerType := Integer32;
@@ -718,6 +717,8 @@ TYPE
 		system.addressType := SyntaxTree.NewAddressType(system.addressSize);
 		system.sizeType := SyntaxTree.NewSizeType(system.addressSize);
 		system.rangeType := SyntaxTree.NewRangeType(3 * system.SizeOf(system.longintType));
+		system.complexType := SyntaxTree.NewComplexType(system.realType); (* complex types are always based on a basic type *)
+		system.longcomplexType := SyntaxTree.NewComplexType(system.longrealType);
 		system.setType := SyntaxTree.NewSetType(system.addressSize);
 		system.channelType := SyntaxTree.NewChannelType(system.addressSize);
 		(* type declarations *)
@@ -765,6 +766,8 @@ TYPE
 		DeclareType(system.hugeintType,"HUGEINT",system.globalScope);
 		DeclareType(system.realType,"REAL",system.globalScope);
 		DeclareType(system.longrealType,"LONGREAL",system.globalScope);
+		DeclareType(system.complexType,"COMPLEX",system.globalScope);
+		DeclareType(system.longcomplexType,"LONGCOMPLEX",system.globalScope);
 		DeclareType(system.booleanType,"BOOLEAN",system.globalScope);
 		DeclareType(system.setType,"SET",system.globalScope);
 		DeclareType(system.anyType,"ANY",system.globalScope);
@@ -791,6 +794,9 @@ TYPE
 		NewBuiltin(First,"FIRST",system.globalScope,TRUE);
 		NewBuiltin(Last,"LAST",system.globalScope,TRUE);
 		NewBuiltin(Step,"STEP",system.globalScope,TRUE);
+
+		NewBuiltin(Re,"RE",system.globalScope,TRUE);
+		NewBuiltin(Im,"IM",system.globalScope,TRUE);
 
 		(* global proper procedures *)
 		NewBuiltin(Assert,"ASSERT",system.globalScope,TRUE);

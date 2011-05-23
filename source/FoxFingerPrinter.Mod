@@ -98,6 +98,8 @@ CONST
 	fpTypeEnum = 22;
 	fpTypePort = 23;
 	fpTypeChannel = 23;
+	fpTypeComplex = 24; 
+	fpTypeLongcomplex = 25;
 
 	fpTypeBasic=1;
 	fpTypeStaticArray=2;
@@ -263,6 +265,15 @@ TYPE
 			END;
 		END VisitFloatType;
 
+		PROCEDURE VisitComplexType(x: SyntaxTree.ComplexType);
+		BEGIN
+			ASSERT(x.componentType # NIL);
+			IF x.componentType.sizeInBits = 32 THEN SetTypeFingerprint(x,fpTypeComplex)
+			ELSIF x.componentType.sizeInBits = 64 THEN SetTypeFingerprint(x,fpTypeLongcomplex)
+			ELSE HALT(100)
+			END
+		END VisitComplexType;
+		
 		(*
 		FP(BasicType)        = fpStringType
 		PublicFP(BasicType)  = FP(basicType).

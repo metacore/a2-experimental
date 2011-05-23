@@ -64,18 +64,9 @@ CONST
 
 		None=-1;
 
-		(* nopov *)
-		(* special pointer values *)
-		NonPointer = -1;
-		(* NilValue = 0; *)
-
-		(* nopov *)
-		(* special type info values *)
-		NoType = 0;
-
-		(* nopov *)
-		(* for the operator kind *)
-		LhsIsPointer = 0;
+		NonPointer = -1; (* special pointer values *)
+		NoType = 0; (* special type info values *)
+		LhsIsPointer = 0; (* for the operator kind *)
 		RhsIsPointer = 1;
 
 TYPE
@@ -176,6 +167,9 @@ TYPE
 
 		PROCEDURE VisitFloatType(x: SyntaxTree.FloatType);
 		BEGIN (* no code emission *)  END VisitFloatType;
+
+		PROCEDURE VisitComplexType(x: SyntaxTree.ComplexType);
+		BEGIN (* no code emission *)  END VisitComplexType;
 
 		PROCEDURE VisitQualifiedType(x: SyntaxTree.QualifiedType);
 		VAR type: SyntaxTree.Type;
@@ -561,7 +555,7 @@ TYPE
 			END;
 			Scope(scope);
 			Signature;
-			IF (x IS SyntaxTree.Operator) & x(SyntaxTree.Operator).isDynamic THEN implementationVisitor.RegisterDynamicOperator(x(SyntaxTree.Operator)) END; (* nopov *)
+			IF (x IS SyntaxTree.Operator) & x(SyntaxTree.Operator).isDynamic THEN implementationVisitor.RegisterDynamicOperator(x(SyntaxTree.Operator)) END;
 
 			currentScope := prevScope;
 		END Procedure;
@@ -593,7 +587,7 @@ TYPE
 		PROCEDURE Module(x: SyntaxTree.Module; module: Sections.Module);
 		VAR
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand; name: Basic.PooledName; str: SyntaxTree.String;
-			hasDynamicOperatorDeclarations: BOOLEAN; (* nopov *)
+			hasDynamicOperatorDeclarations: BOOLEAN;
 			operator: SyntaxTree.Operator;
 			import: SyntaxTree.Import;
 
@@ -838,7 +832,6 @@ TYPE
 		profileInitPatchPosition: LONGINT;
 		numberProcedures: LONGINT;
 		procedureResultDesignator : SyntaxTree.Designator;
-		(* nopov *)
 		operatorInitializationCodeSection: IntermediateCode.Section;
 		fingerPrinter: FingerPrinter.FingerPrinter;
 
@@ -883,7 +876,7 @@ TYPE
 			NEW(registerUsage);
 			usedRegisters := NIL;
 			procedureResultDesignator := NIL;
-			NEW(fingerPrinter, system) (* nopov *)
+			NEW(fingerPrinter, system)
 		END Init;
 
 		PROCEDURE NewSection(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.PooledName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
@@ -907,8 +900,6 @@ TYPE
 		BEGIN
 			INC(indexCounter); RETURN indexCounter
 		END GetIndex;
-
-		(* nopov *)
 		(** get the name for the code section that represens a certain symbol
 		(essentially the same as Global.GetSymbolName, apart from operators) **)
 		PROCEDURE GetCodeSectionNameForSymbol(symbol: SyntaxTree.Symbol; VAR name: Basic.PooledName);
@@ -1022,6 +1013,7 @@ TYPE
 		PROCEDURE LoadValue(VAR operand: Operand; type: SyntaxTree.Type);
 		VAR mem: IntermediateCode.Operand;
 			firstOp, lastOp, stepOp: IntermediateCode.Operand;
+			componentType: SyntaxTree.Type;
 		BEGIN
 			type := type.resolved;
 			IF operand.mode = ModeReference THEN
@@ -1033,6 +1025,14 @@ TYPE
 					operand.op := firstOp;
 					operand.tag := lastOp;
 					operand.extra := stepOp;
+				ELSIF type IS SyntaxTree.ComplexType THEN
+					componentType := type(SyntaxTree.ComplexType).componentType;
+					ASSERT((componentType = system.realType) OR (componentType = system.longrealType));
+					MakeMemory(firstOp, operand.op, IntermediateCode.GetType(system, componentType), 0);
+					MakeMemory(lastOp, operand.op, IntermediateCode.GetType(system, componentType), ToMemoryUnits(system, system.SizeOf(componentType)));
+					ReleaseIntermediateOperand(operand.op);
+					operand.op := firstOp;
+					operand.tag := lastOp
 				ELSE
 					MakeMemory(mem,operand.op,IntermediateCode.GetType(system,type),0);
 					ReleaseIntermediateOperand(operand.op);
@@ -1509,6 +1509,10 @@ TYPE
 				type := x.left.type.resolved;
 				IF type IS SyntaxTree.SetType THEN
 					Emit(Not(result.op,operand.op));
+				ELSIF (type IS SyntaxTree.ComplexType) THEN
+					Reuse1(result.tag,operand.tag);
+					Emit(Neg(result.op,operand.op)); (* real part *)
+					Emit(Neg(result.tag,operand.tag)) (* imaginary part *)
 				ELSIF (type IS SyntaxTree.NumberType) OR (type IS SyntaxTree.SizeType) OR (type IS SyntaxTree.AddressType) THEN
 					Emit(Neg(result.op,operand.op));
 				ELSE HALT(200)
@@ -1913,9 +1917,10 @@ TYPE
 		END CopyString;
 
 		PROCEDURE VisitBinaryExpression(x: SyntaxTree.BinaryExpression);
-		VAR left,right: Operand; temp: Operand;  zero, one: IntermediateCode.Operand;
+		VAR left,right: Operand; temp: Operand;  zero, one, tempReg, tempReg2: IntermediateCode.Operand;
 			leftType,rightType: SyntaxTree.Type;
 			leftExpression,rightExpression : SyntaxTree.Expression;
+			componentType: IntermediateCode.Type;
 			value: HUGEINT; exp: LONGINT;next,exit: Label; recordType: SyntaxTree.RecordType; dest: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitBinaryExpression") END;
@@ -1962,6 +1967,12 @@ TYPE
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Or(result.op,left.op,right.op));
+				ELSIF leftType IS SyntaxTree.ComplexType THEN
+					InitOperand(result,ModeValue);
+					Reuse2a(result.op,left.op,right.op,dest); (* TODO: review this *)
+					Reuse2(result.tag,left.tag,right.tag);
+					Emit(Add(result.op,left.op,right.op));
+					Emit(Add(result.tag,left.tag,right.tag))
 				ELSE
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
@@ -1978,6 +1989,13 @@ TYPE
 					ReleaseOperand(right);
 					Emit(And(result.op,result.op,left.op));
 					ReleaseOperand(left);
+				ELSIF leftType IS SyntaxTree.ComplexType THEN
+					InitOperand(result,ModeValue);
+					Reuse2a(result.op,left.op,right.op,dest); (* TODO: review this *)
+					Reuse2(result.tag,left.tag,right.tag);
+					Emit(Sub(result.op,left.op,right.op));
+					Emit(Sub(result.tag,left.tag,right.tag));
+					ReleaseOperand(left); ReleaseOperand(right)
 				ELSE
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
@@ -1996,6 +2014,26 @@ TYPE
 					Reuse1a(result.op,left.op,dest);
 					IntermediateCode.InitImmediate(right.op,IntermediateCode.GetType(system,rightType),exp);
 					Emit(Shl(result.op,left.op,right.op));
+				ELSIF leftType IS SyntaxTree.ComplexType THEN
+					InitOperand(result, ModeValue);
+					componentType := left.op.type;
+					(* TODO: review this *)
+					(*
+					result.op = left.op * right.op - left.tag * right.tag
+					result.tag = left.tag * right.op + left.op * right.tag
+					*)
+					result.op := IntermediateCode.Register(componentType, AcquireRegister(componentType));
+					Emit(Mul(result.op, left.op, right.op));
+					tempReg := IntermediateCode.Register(componentType, AcquireRegister(componentType));
+					Emit(Mul(tempReg, left.tag, right.tag));
+					Emit(Sub(result.op, result.op, tempReg));
+					
+					Reuse2(result.tag, left.tag, right.op);
+					Emit(Mul(result.tag, left.tag, right.op));
+					Emit(Mul(tempReg, left.op, right.tag));
+					Emit(Add(result.tag, result.tag, tempReg));
+					
+					ReleaseIntermediateOperand(tempReg)
 				ELSE
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
@@ -2055,6 +2093,36 @@ TYPE
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
 					Emit(Xor(result.op,left.op,right.op));
+				ELSIF leftType IS SyntaxTree.ComplexType THEN
+					InitOperand(result,ModeValue);
+					componentType := left.op.type;
+					(* review this *)
+					(*
+					divisor = right.op * right.op + right.tag * right.tag
+					result.op = (left.op * right.op + left.tag * right.tag) / divisor
+					result.tag = (left.tag * right.op - left.op * right.tag) / divisor
+					*)
+					tempReg := IntermediateCode.Register(componentType, AcquireRegister(componentType));
+					tempReg2 := IntermediateCode.Register(componentType, AcquireRegister(componentType));
+					Emit(Mul(tempReg, right.op, right.op));
+					Emit(Mul(tempReg2, right.tag, right.tag));
+					Emit(Add(tempReg, tempReg, tempReg2));
+					
+					result.op := tempReg2;
+					Emit(Mul(result.op, left.op, right.op));
+					tempReg2 := IntermediateCode.Register(componentType, AcquireRegister(componentType));
+					Emit(Mul(tempReg2, left.tag, right.tag));
+					Emit(Add(result.op, result.op, tempReg2));
+					Emit(Div(result.op, result.op, tempReg));
+					
+					Reuse2(result.tag, left.tag, right.op);
+					Emit(Mul(result.tag, left.tag, right.op));					
+					Emit(Mul(tempReg2, left.op, right.tag));
+					Emit(Sub(result.tag, result.tag, tempReg2));
+					Emit(Div(result.tag, result.tag, tempReg));
+					
+					ReleaseIntermediateOperand(tempReg);
+					ReleaseIntermediateOperand(tempReg2)
 				ELSE
 					InitOperand(result,ModeValue);
 					Reuse2a(result.op,left.op,right.op,dest);
@@ -2073,6 +2141,12 @@ TYPE
 						BrneL(falseLabel, left.op, right.op); (* first *)
 						BrneL(falseLabel, left.tag, right.tag); (* last *)
 						BrneL(falseLabel, left.extra, right.extra); (* step *)
+						ReleaseOperand(left); ReleaseOperand(right);
+						BrL(trueLabel)
+					ELSIF leftType IS SyntaxTree.ComplexType THEN
+						(* TODO: review this *)
+						BrneL(falseLabel, left.op, right.op); (* real part *)
+						BrneL(falseLabel, left.tag, right.tag); (* imaginary part *)
 						ReleaseOperand(left); ReleaseOperand(right);
 						BrL(trueLabel)
 					ELSE
@@ -2173,6 +2247,12 @@ TYPE
 						BrneL(trueLabel, left.extra, right.extra); (* step *)
 						ReleaseOperand(left); ReleaseOperand(right);
 						BrL(falseLabel)
+					ELSIF leftType IS SyntaxTree.ComplexType THEN
+						(* TODO: review this *)
+						BrneL(trueLabel, left.op, right.op); (* real part *)
+						BrneL(trueLabel, left.tag, right.tag); (* imaginary part *)
+						ReleaseOperand(left); ReleaseOperand(right);
+						BrL(falseLabel)
 					ELSE
 						BreqL(falseLabel,left.op,right.op); (* inverse evaluation to optimize jumps for true case *)
 						ReleaseOperand(left); ReleaseOperand(right);
@@ -2242,20 +2322,43 @@ TYPE
 			HALT(100); (* should never be evaluated *)
 		END VisitTensorRangeExpression;
 
+
+
 		PROCEDURE VisitConversion(x: SyntaxTree.Conversion);
-		VAR old: Operand; dest: IntermediateCode.Operand;
+		VAR old: Operand; dest: IntermediateCode.Operand; componentType: SyntaxTree.Type;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitConversion") END;
+
 			ASSERT(~(x.expression.type.resolved IS SyntaxTree.RangeType));
 
 			dest := destination; destination := emptyOperand;
 			Evaluate(x.expression,old);
 			InitOperand(result,ModeValue);
+
 			result.op := old.op;
 			ASSERT(result.op.mode # 0);
-			Convert(result.op,IntermediateCode.GetType(system,x.type));
-			ASSERT(result.op.mode # 0);
-			result.tag := old.tag; (*! probably never used *)
+			IF x.type.resolved IS SyntaxTree.ComplexType THEN
+				(* convert TO a complex number *)
+				componentType := x.type.resolved(SyntaxTree.ComplexType).componentType;
+				Convert(result.op,IntermediateCode.GetType(system, componentType));
+				ASSERT(result.op.mode # 0);
+				IF x.expression.type.resolved IS SyntaxTree.ComplexType THEN
+					(* convert FROM a complex number TO a complex number*)
+					result.tag := old.tag;
+					ASSERT(result.tag.mode # 0);
+					Convert(result.tag,IntermediateCode.GetType(system, componentType));
+					ASSERT(result.tag.mode # 0)
+				ELSE
+					ASSERT(componentType IS SyntaxTree.FloatType); (* this excludes complex types based on integer types *)
+					result.tag := IntermediateCode.FloatImmediate(IntermediateCode.GetType(system, componentType), 0); (* the imaginary part is set to 0 *)
+				END
+			ELSE
+				Convert(result.op,IntermediateCode.GetType(system,x.type));
+				ASSERT(result.op.mode # 0);
+
+				result.tag := old.tag; (*! probably never used *)
+			END;
+
 			destination := dest;
 			IF Trace THEN TraceExit("VisitConversion") END;
 		END VisitConversion;
@@ -3114,7 +3217,6 @@ TYPE
 
 		END PrepareTensorDescriptor;
 
-		(* nopov *)
 		PROCEDURE PushParameter(expression: SyntaxTree.Expression; parameter: SyntaxTree.Parameter; callingConvention: LONGINT; needsParameterBackup: BOOLEAN; VAR parameterBackup: IntermediateCode.Operand);
 		VAR
 			type, descriptorType, baseType: SyntaxTree.Type;
@@ -3564,6 +3666,17 @@ TYPE
 					Emit(Push(operand.op)) (* first *)
 				END
 
+			ELSIF parameter.type.resolved IS SyntaxTree.ComplexType THEN
+				IF parameter.kind = SyntaxTree.VarParameter THEN
+					Designate(expression, operand);
+					Emit(Push(operand.op))
+				ELSE
+					ASSERT((parameter.kind = SyntaxTree.ValueParameter) OR (parameter.kind = SyntaxTree.ConstParameter));
+					Evaluate(expression, operand);
+					Emit(Push(operand.tag)); (* real part *)
+					Emit(Push(operand.op)) (* imaginary part *)
+				END
+
 			ELSE
 				IF (parameter.kind = SyntaxTree.ValueParameter) OR (parameter.kind = SyntaxTree.ConstParameter) & ~(parameter.type.resolved IS SyntaxTree.RecordType) & ~(parameter.type.resolved IS SyntaxTree.ArrayType) THEN
 					IF (type IS SyntaxTree.RecordType) OR IsStaticArray(parameter.type) THEN
@@ -3616,7 +3729,6 @@ TYPE
 			arrayDestinationTag := oldArrayDestinationTag;
 			arrayDestinationDimension := oldArrayDestinationDimension;
 
-			(* nopov *)
 			IF needsParameterBackup THEN
 				(* IF dump # NIL THEN dump.String("backup parameter"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
 				ReuseCopy(parameterBackup, operand.op)
@@ -3661,7 +3773,6 @@ TYPE
 
 			return: IntermediateCode.Operand;
 
-			(* nopov *)
 			parameterBackups: ARRAY 2 OF IntermediateCode.Operand;
 			arg: IntermediateCode.Operand;
 			dummy: IntermediateCode.Operand;
@@ -3704,7 +3815,6 @@ TYPE
 				usedRegisters := oldUsedRegisters
 			END RestoreGlobalState;
 
-			(* nopov *)
 			(** do preparations before parameter push for array-structured object types (ASOTs):
 				if ASOT is passed as VAR parameter:
 				- allocate temporary variable of math array type
@@ -3768,7 +3878,6 @@ TYPE
 			procedureType := x.left.type.resolved(SyntaxTree.ProcedureType);
 			parameters := x.parameters;
 
-			(* nopov *)
 			IF (x.left IS SyntaxTree.SymbolDesignator) & (x.left(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Operator) THEN
 				(* an operator is called *)
 				(* IF dump # NIL THEN dump.String("*** begin of operator call ***"); dump.Ln; dump.Update END; *) (* TENTATIVE *)
@@ -3841,7 +3950,7 @@ TYPE
 					formalParameter := formalParameter.prevParameter;
 				END;
 			ELSE
-				hasDynamicOperands := FALSE; (* nopov *)
+				hasDynamicOperands := FALSE;
 				formalParameter := procedureType.firstParameter;
 				FOR i := 0 TO parameters.Length() - 1 DO
 					actualParameter := parameters.GetExpression(i);
@@ -3849,7 +3958,6 @@ TYPE
 					IF formalParameter # NIL THEN (* TENTATIVE *)
 						PrepareParameter(actualParameter, formalParameter);
 
-						(* nopov *)
 						IF isCallOfDynamicOperator  & IsStrictlyPointerToRecord(formalParameter.type) & (formalParameter.access # SyntaxTree.Hidden) THEN (* TODO: remove hidden parameters *)
 							ASSERT(i < 2);
 							hasDynamicOperands := TRUE;
@@ -3871,7 +3979,6 @@ TYPE
 				symbol := x.left(SyntaxTree.SymbolDesignator).symbol;
 			END;
 
-			(* nopov *)
 			IF isCallOfDynamicOperator & hasDynamicOperands THEN
 				IF dump # NIL THEN dump.String("++++++++++ dynamic operator call ++++++++++"); dump.Ln; dump.Update END; (* TENTATIVE *)
 				(* push ID *)
@@ -4009,7 +4116,6 @@ TYPE
 			END;
 			RestoreGlobalState;
 
-			(* nopov *)
 			(* TENATIVE *)
 			(*
 			IF isOperatorCall THEN
@@ -4234,7 +4340,6 @@ TYPE
 			profileInit.Emit(Exit(0));
 		END ProfilerPatchInit;
 
-		(* nopov *)
 		(** if operator can be overloaded dynamically, emit code that registers it in the runtime **)
 		PROCEDURE RegisterDynamicOperator(operator: SyntaxTree.Operator);
 		VAR
@@ -4940,7 +5045,7 @@ TYPE
 
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
 		VAR
-			p0,p1,p2,parameter: SyntaxTree.Expression; len,val: LONGINT; l,r: Operand; res,adr,reg: IntermediateCode.Operand; type: SyntaxTree.Type;
+			p0,p1,p2,parameter: SyntaxTree.Expression; len,val: LONGINT; l,r: Operand; res,adr,reg: IntermediateCode.Operand; type, componentType: SyntaxTree.Type;
 			constructor: SyntaxTree.Procedure; s0,s1,s2: Operand; hint: HUGEINT;
 			i: LONGINT; formalParameter: SyntaxTree.Parameter;
 			tmp:IntermediateCode.Operand;
@@ -4955,7 +5060,7 @@ TYPE
 			call: SyntaxTree.Designator;
 			procedure: SyntaxTree.Procedure;
 			temporaryVariable: SyntaxTree.Variable;
-			dummy: IntermediateCode.Operand; (* nopov *)
+			dummy: IntermediateCode.Operand;
 
 			PROCEDURE CallBodies(self: IntermediateCode.Operand; type: SyntaxTree.Type);
 			VAR recordScope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure; body: SyntaxTree.Body; flags: LONGINT;
@@ -5313,6 +5418,24 @@ TYPE
 					(* add offset to result.op *)
 					IntermediateCode.AddOffset(result.op, 2 * ToMemoryUnits(system, system.SizeOf(system.longintType)))
 				END
+
+			(* ---- RE ---- *)
+			|Global.Re:
+				Designate(p0, result);
+
+			(* ---- IM ---- *)
+			|Global.Im:
+				ASSERT(p0.type.resolved IS SyntaxTree.ComplexType);
+				componentType := p0.type.resolved(SyntaxTree.ComplexType).componentType;
+
+				Designate(p0, result);
+
+				(* make sure result.op is a register *)
+				tmp := result.op;
+				ReuseCopy(result.op, result.op);
+				ReleaseIntermediateOperand(tmp);
+				(* add offset to result.op *)
+				IntermediateCode.AddOffset(result.op, ToMemoryUnits(system, system.SizeOf(componentType)));
 
 			(* ---- ABS ----- *)
 			|Global.Abs:
@@ -6199,6 +6322,18 @@ TYPE
 			IntermediateCode.InitFloatImmediate(result.op,IntermediateCode.GetType(system,x.type),x.value);
 		END VisitRealValue;
 
+		PROCEDURE VisitComplexValue(x: SyntaxTree.ComplexValue);
+		VAR
+			componentType: SyntaxTree.Type;
+		BEGIN
+			IF Trace THEN TraceEnter("VisitComplexValue") END;
+			ASSERT(x.type IS SyntaxTree.ComplexType);
+			componentType := x.type(SyntaxTree.ComplexType).componentType;
+			InitOperand(result,ModeValue);
+			IntermediateCode.InitFloatImmediate(result.op,IntermediateCode.GetType(system,componentType),x.realValue); (* real part *)
+			IntermediateCode.InitFloatImmediate(result.tag,IntermediateCode.GetType(system,componentType),x.imagValue); (* imaginary part *)
+		END VisitComplexValue;
+
 		PROCEDURE VisitStringValue(x: SyntaxTree.StringValue);
 		VAR  i: LONGINT; name: Basic.PooledName;
 			irv: IntermediateCode.Section; op: IntermediateCode.Operand;
@@ -6482,7 +6617,7 @@ TYPE
 		BEGIN
 			IF Trace THEN TraceEnter("StaticCallOperand") END;
 			tag := nil;
-			GetCodeSectionNameForSymbol(x, name); (* nopov *)
+			GetCodeSectionNameForSymbol(x, name);
 			IF x.isInline THEN
 				sectionType := Sections.InlineCodeSection;
 			ELSE
@@ -6545,7 +6680,7 @@ TYPE
 			procedureName,s: SyntaxTree.String;
 			arrayBase: SyntaxTree.Module; saved: RegisterEntry;  procedure: SyntaxTree.Procedure; parameter: SyntaxTree.Parameter;
 			size: LONGINT; rightKind: LONGINT;
-			dummy: IntermediateCode.Operand; (* nopov *)
+			dummy: IntermediateCode.Operand;
 
 		CONST moduleName = "FoxArrayBase";
 
@@ -6591,9 +6726,9 @@ TYPE
 					parameter := SyntaxTree.NewParameter(left.position,procedure.type(SyntaxTree.ProcedureType),SyntaxTree.NewIdentifier("temp"), SyntaxTree.VarParameter);
 					parameter.SetType(leftType);
 					parameter.SetAccess(SyntaxTree.Internal);
-					PushParameter(left,parameter,SyntaxTree.OberonCallingConvention, FALSE, dummy); (* nopov *)
+					PushParameter(left,parameter,SyntaxTree.OberonCallingConvention, FALSE, dummy);
 					parameter.SetKind(rightKind);
-					PushParameter(right,parameter,SyntaxTree.OberonCallingConvention, FALSE, dummy); (* nopov *)
+					PushParameter(right,parameter,SyntaxTree.OberonCallingConvention, FALSE, dummy);
 					size := ToMemoryUnits(system,system.SizeOf(rightBase));
 					Emit(Push(IntermediateCode.Immediate(int32,size)));
 					StaticCallOperand(result,procedure);
@@ -6609,7 +6744,7 @@ TYPE
 		VAR
 			leftO, rightO: Operand;
 			mem: IntermediateCode.Operand;
-			leftType, rightType: SyntaxTree.Type;
+			leftType, rightType, componentType: SyntaxTree.Type;
 			size: LONGINT;
 
 			PROCEDURE CanPassAsResultParameter(right: SyntaxTree.Expression): BOOLEAN;
@@ -6656,6 +6791,26 @@ TYPE
 				(* step *)
 				MakeMemory(mem, leftO.op, IntermediateCode.GetType(system, system.longintType), 2 * ToMemoryUnits(system, system.SizeOf(system.longintType)));
 				Emit(Mov(mem, rightO.extra));
+				ReleaseIntermediateOperand(mem);
+
+				ReleaseOperand(rightO);
+				ReleaseOperand(leftO)
+			ELSIF leftType IS SyntaxTree.ComplexType THEN
+				ASSERT(leftType.SameType(rightType)); (* ensured by the checker *)
+
+				Evaluate(right, rightO);
+				Designate(left, leftO); (* The order is crucial. Do not reorder emission of left and right *)
+
+				componentType := leftType(SyntaxTree.ComplexType).componentType;
+
+				(* real part *)
+				MakeMemory(mem, leftO.op, IntermediateCode.GetType(system, componentType), 0);
+				Emit(Mov(mem, rightO.op));
+				ReleaseIntermediateOperand(mem);
+
+				(* imaginary part *)
+				MakeMemory(mem, leftO.op, IntermediateCode.GetType(system, componentType), ToMemoryUnits(system, system.SizeOf(componentType)));
+				Emit(Mov(mem, rightO.tag));
 				ReleaseIntermediateOperand(mem);
 
 				ReleaseOperand(rightO);
@@ -6974,7 +7129,7 @@ TYPE
 		PROCEDURE VisitReturnStatement(x: SyntaxTree.ReturnStatement);
 		VAR
 			expression, parameterDesignator: SyntaxTree.Expression;
-			type: SyntaxTree.Type;
+			type, componentType: SyntaxTree.Type;
 			res, right: Operand;
 			left, size, mem, reg: IntermediateCode.Operand;
 			parameter: SyntaxTree.Parameter;
@@ -6993,7 +7148,7 @@ TYPE
 					IF locked THEN Lock(FALSE) END;
 					IF profile THEN ProfilerEnterExit(numberProcedures,FALSE) END;
 					(* "RETURN RESULT" -> no assignment, it is assumed that result has been written to return parameter via structured return type *)
-				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.RangeType) & ~SemanticChecker.IsPointerType(type) OR (procedureType.callingConvention # SyntaxTree.OberonCallingConvention) THEN
+				ELSIF (type IS SyntaxTree.BasicType) & ~(type IS SyntaxTree.RangeType) & ~(type IS SyntaxTree.ComplexType) & ~SemanticChecker.IsPointerType(type) OR (procedureType.callingConvention # SyntaxTree.OberonCallingConvention) THEN
 					(* return without structured return parameter *)
 					Evaluate(expression,res);
 					delegate := (type IS SyntaxTree.ProcedureType) & (type(SyntaxTree.ProcedureType).isDelegate);
@@ -7011,10 +7166,10 @@ TYPE
 						Emit(Return(res.op));
 						ReleaseOperand(res);
 					END;
-				ELSIF (type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.RangeType) OR SemanticChecker.IsPointerType(type)
+				ELSIF (type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.RangeType) OR (type IS SyntaxTree.ComplexType) OR SemanticChecker.IsPointerType(type)
 				THEN
 					(* return using structured return parameter *)
-					ASSERT((type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.RangeType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).form = SyntaxTree.Static)
+					ASSERT((type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.RangeType) OR (type IS SyntaxTree.ComplexType) OR (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).form = SyntaxTree.Static)
 						OR SemanticChecker.IsPointerType(type));
 					(* parameter := currentScope(SyntaxTree.ProcedureScope).FindParameter(Global.ReturnParameterName); *)
 					parameter :=procedureType.returnParameter;
@@ -7047,6 +7202,20 @@ TYPE
 						ReleaseIntermediateOperand(mem);
 
 						ReleaseOperand(right);
+					ELSIF type IS SyntaxTree.ComplexType THEN
+						Evaluate(expression, right);
+						componentType := type(SyntaxTree.ComplexType).componentType;
+
+						MakeMemory(mem, left, IntermediateCode.GetType(system, componentType), 0);
+						Emit(Mov(mem, right.op)); (* real part *)
+						ReleaseIntermediateOperand(mem);
+
+						MakeMemory(mem, left, IntermediateCode.GetType(system, componentType), ToMemoryUnits(system, system.SizeOf(componentType)));
+						Emit(Mov(mem, right.tag)); (* imaginary part *)
+						ReleaseIntermediateOperand(mem);
+
+						ReleaseOperand(right);
+
 					ELSIF SemanticChecker.IsPointerType(type) THEN
 						Evaluate(expression, right);
 						MakeMemory(mem, left, IntermediateCode.GetType(system, system.addressType), 0);
@@ -7334,7 +7503,6 @@ TYPE
 					END;
 				END;
 
-				(* nopov *)
 				IF moduleBody & (operatorInitializationCodeSection # NIL) THEN
 					Emit(Call(IntermediateCode.Address(addressType, operatorInitializationCodeSection, 0), 0))
 				END;
@@ -9739,7 +9907,6 @@ TYPE
 		RETURN op.mode = IntermediateCode.ModeImmediate;
 	END IsIntegerImmediate;
 
-	(* nopov *)
 	(** whether a type strictily is a pointer to record or object type
 	(however, the basic type <<OBJECT>> is explicitly excluded) **)
 	PROCEDURE IsStrictlyPointerToRecord(type: SyntaxTree.Type): BOOLEAN;
@@ -9885,7 +10052,7 @@ TYPE
 		IF type = NIL THEN RETURN FALSE
 		ELSE
 			type := type.resolved;
-			RETURN (type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.RangeType) OR (type IS SyntaxTree.ProcedureType) OR SemanticChecker.IsPointerType(type)
+			RETURN (type IS SyntaxTree.RecordType) OR (type IS SyntaxTree.RangeType) OR (type IS SyntaxTree.ComplexType) OR (type IS SyntaxTree.ProcedureType) OR SemanticChecker.IsPointerType(type)
 				OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.MathArrayType);
 		END
 	END ReturnedAsParameter;

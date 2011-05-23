@@ -105,6 +105,9 @@ TYPE
 		PROCEDURE VisitFloatType*(x: FloatType);
 		BEGIN HALT(100) END VisitFloatType;
 
+		PROCEDURE VisitComplexType*(x: ComplexType);
+		BEGIN HALT(100) END VisitComplexType;
+
 		PROCEDURE VisitQualifiedType*(x: QualifiedType);
 		BEGIN HALT(100) (* abstract *) END VisitQualifiedType;
 
@@ -231,12 +234,15 @@ TYPE
 		PROCEDURE VisitRealValue*(x: RealValue);
 		BEGIN HALT(100) (* abstract *) END VisitRealValue;
 
+		PROCEDURE VisitComplexValue*(x: ComplexValue);
+		BEGIN HALT(100) (* abstract *) END VisitComplexValue;
+
 		PROCEDURE VisitStringValue*(x: StringValue);
 		BEGIN HALT(100) (* abstract *) END VisitStringValue;
 
 		PROCEDURE VisitNilValue*(x: NilValue);
 		BEGIN HALT(100) (* abstract *) END VisitNilValue;
-
+		
 		PROCEDURE VisitEnumerationValue*(x: EnumerationValue);
 		BEGIN HALT(100) (* abstract *) END VisitEnumerationValue;
 
@@ -450,7 +456,6 @@ TYPE
 		END Accept;
 
 	END BasicType;
-
 
 	(** <<OBJECT>>
 		object type (base type of all objects)
@@ -734,6 +739,7 @@ TYPE
 
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
 		BEGIN RETURN ((to IS IntegerType) OR (to IS AddressType) OR (to IS SizeType) OR (to IS ByteType)) & (to.sizeInBits >= sizeInBits) OR (to IS FloatType)
+				OR (to IS ComplexType) & CompatibleTo((to(ComplexType).componentType))
 		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
@@ -758,7 +764,9 @@ TYPE
 		END SameType;
 
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
-		BEGIN RETURN (to IS FloatType) & (to.sizeInBits >= sizeInBits)
+		BEGIN
+			RETURN (to IS FloatType) & (to.sizeInBits >= sizeInBits)
+					OR (to IS ComplexType) & CompatibleTo((to(ComplexType).componentType))
 		END CompatibleTo;
 
 		PROCEDURE Accept*(v: Visitor);
@@ -768,6 +776,34 @@ TYPE
 
 	END FloatType;
 
+	(** <<COMPLEX,LONGCOMPLEX>>
+		complex types: COMPLEX, LONGCOMPLEX
+	**)
+	ComplexType*= OBJECT (NumberType)
+		VAR componentType-: Type; (* REAL or LONGREAL*)
+
+		PROCEDURE & InitComplexType(componentType: Type);
+		BEGIN
+			ASSERT(componentType # NIL);
+			SELF.componentType := componentType;
+			sizeInBits := 2 * componentType.sizeInBits;
+			InitNumberType("@Complex",sizeInBits);
+		END InitComplexType;
+
+		PROCEDURE SameType*(this: Type): BOOLEAN;
+		BEGIN RETURN (this = SELF) OR (this IS ComplexType) & (componentType.SameType(this(ComplexType).componentType))
+		END SameType;
+
+		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
+		BEGIN RETURN (to IS ComplexType) & (componentType.CompatibleTo(to(ComplexType).componentType))
+		END CompatibleTo;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitComplexType(SELF)
+		END Accept;
+
+	END ComplexType;
 
 	(** <<qualifiedIdentifier = resolved>>
 		named reference to a type
@@ -2252,6 +2288,46 @@ TYPE
 		BEGIN RETURN (v IS RealValue) & (v(RealValue).value = value); END Equals;
 
 	END RealValue;
+	
+	ComplexValue* = OBJECT (Value)
+		VAR
+			realValue-, imagValue-: LONGREAL;			
+			subtype-: LONGINT; (* accuracy information of components: REAL vs. LONGREAL *)
+
+		PROCEDURE & InitComplexValue(position: LONGINT; realValue, imagValue: LONGREAL);
+		BEGIN
+			InitValue(position); SELF.realValue := realValue; SELF.imagValue := imagValue; SELF.subtype := 0;
+		END InitComplexValue;
+
+		PROCEDURE SetValue*(realValue, imagValue: LONGREAL);
+		BEGIN	SELF.realValue := realValue; SELF.imagValue := imagValue;			
+		END SetValue;
+
+		PROCEDURE UpdateSubtype*;
+		BEGIN
+			ASSERT((type # NIL) & (type.resolved # NIL) & (type.resolved IS ComplexType) & (type.resolved(ComplexType).componentType IS FloatType));
+			CASE type.resolved(ComplexType).componentType(FloatType).sizeInBits OF
+			| 32: subtype := Scanner.Real
+			| 64: subtype := Scanner.Longreal
+			END
+		END UpdateSubtype;
+
+		PROCEDURE SetSubtype*(subtype: LONGINT);
+		BEGIN SELF.subtype := subtype;
+		END SetSubtype;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitComplexValue(SELF)
+		END Accept;
+
+		PROCEDURE Equals*(v: Value):BOOLEAN;
+		BEGIN RETURN (v IS ComplexValue) & (v(ComplexValue).realValue = realValue) & (v(ComplexValue).imagValue = imagValue);
+			(* TODO: append this?
+			OR (v IS RealValue) & (v(RealValue).value = realValue) & (imagValue := 0)
+			*)
+		END Equals;
+	END ComplexValue;
 
 	(** <<value = "string">> **)
 	StringValue* = OBJECT (Value)
@@ -2295,7 +2371,7 @@ TYPE
 		BEGIN RETURN (v IS NilValue); END Equals;
 
 	END NilValue;
-
+	
 	(** <<value = enum.x >> **)
 	EnumerationValue* = OBJECT (Value)
 	VAR
@@ -4115,6 +4191,12 @@ VAR
 		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewRangeType;
 
+	PROCEDURE NewComplexType*(base: Type): ComplexType;
+	VAR basicType: ComplexType;
+	BEGIN
+		NEW(basicType, base); RETURN basicType;
+	END NewComplexType;
+
 	PROCEDURE NewIntegerType*(size: LONGINT; signed: BOOLEAN): IntegerType;
 	VAR basicType: IntegerType;
 	BEGIN
@@ -4408,6 +4490,12 @@ VAR
 		NEW( realValue, position, value);  RETURN realValue
 	END NewRealValue;
 
+	PROCEDURE NewComplexValue*( position: LONGINT;  realValue, imagValue: LONGREAL): ComplexValue;
+	VAR complexValue: ComplexValue;
+	BEGIN
+		NEW( complexValue, position, realValue, imagValue);  RETURN complexValue
+	END NewComplexValue;
+
 	PROCEDURE NewStringValue*( position: LONGINT;  CONST value: ARRAY OF CHAR): StringValue;
 	VAR stringValue: StringValue;
 	BEGIN
@@ -4425,7 +4513,7 @@ VAR
 	BEGIN
 		NEW( nilValue, position );  RETURN nilValue
 	END NewNilValue;
-
+	
 	PROCEDURE NewEnumerationValue*( position: LONGINT; value: LONGINT ): EnumerationValue;
 	VAR enumeratorValue: EnumerationValue;
 	BEGIN

@@ -112,7 +112,7 @@ CONST
 
 		MulOp                = '*' | '**' | '.*' | '+*' | '/' | './' | 'div' | 'mod' | '&'.
 
-		Factor               = Number | Character | String | 'nil' | 'true' | 'false' | Set |
+		Factor               = Number | Character | String | 'nil' | 'imag' | 'true' | 'false' | Set |
 		                       '(' Expression ')' | '~' Factor | Factor '`' | Designator | MathArray.
 
 		MathArray            = '[' Expression {',' Expression} ']'.
@@ -639,7 +639,7 @@ TYPE
 			RETURN array
 		END MathArray;
 
-		(** Factor = Number | Character | String | 'nil' | 'true' | 'false' | Set
+		(** Factor = Number | Character | String | 'nil' | 'imag' | 'true' | 'false' | Set
 			 			  | '(' Expression ')' | '~' Factor | Factor '`' | Designator | MathArray.**)
 		PROCEDURE Factor( ): SyntaxTree.Expression;
 		VAR factor: SyntaxTree.Expression; position: LONGINT;
@@ -671,6 +671,11 @@ TYPE
 					NextSymbol;
 			| Scanner.Nil:
 					factor := SyntaxTree.NewNilValue( position );
+					factor.End( symbol.end );
+					NextSymbol;
+			| Scanner.Imag:
+					factor := SyntaxTree.NewComplexValue(position, 0, 1);
+					factor(SyntaxTree.ComplexValue).SetSubtype(Scanner.Real);
 					factor.End( symbol.end );
 					NextSymbol;
 			| Scanner.True:

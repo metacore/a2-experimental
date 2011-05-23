@@ -2566,7 +2566,7 @@ TYPE
 			out: BinaryCode.Section;
 			name: Basic.PooledName;
 			procedure: SyntaxTree.Procedure;
-			i, initialSectionCount: LONGINT;
+			i, j, initialSectionCount: LONGINT;
 
 		 	(* recompute fixup positions and assign binary sections *)
 		 	PROCEDURE PatchFixups(section: BinaryCode.Section);
@@ -2608,28 +2608,30 @@ TYPE
 				 END
 		 	END;
 
+			initialSectionCount := 0;
 		 	REPEAT
-		 	 	initialSectionCount := RegularSectionCount(module.allSections);
+		 		j := initialSectionCount;
+		 	 	initialSectionCount := module.allSections.Length() ;
 
-			 	FOR i := 0 TO module.allSections.Length() - 1 DO
+			 	FOR i := j TO initialSectionCount - 1 DO
 			 		in := module.allSections.GetSection(i);
 			 		IF ~in.IsExternal() THEN
-			 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
-			 			name := in.name;
-				 		out := ResolvedSection(in(IntermediateCode.Section));
-				 		cg.Section(in(IntermediateCode.Section),out);
-				 		IF out.type = Sections.VarSection THEN
-				 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
-				 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
-				 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
-				 			END;
-				 		ELSIF out.type = Sections.ConstSection THEN
-				 			out.SetAlignment(FALSE,4);
-				 		END;
-			 		END
+				 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
+				 			name := in.name;
+					 		out := ResolvedSection(in(IntermediateCode.Section));
+					 		cg.Section(in(IntermediateCode.Section),out);
+					 		IF out.type = Sections.VarSection THEN
+					 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
+					 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
+					 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
+					 			END;
+					 		ELSIF out.type = Sections.ConstSection THEN
+					 			out.SetAlignment(FALSE,4);
+					 		END;
+				 		END
+				 	END
 			 	END
-			 	END
-			UNTIL initialSectionCount = RegularSectionCount(module.allSections); (* process remaining sections that have been added during traversal of sections *)
+			UNTIL initialSectionCount = module.allSections.Length(); (* process remaining sections that have been added during traversal of sections *)
 
 			(*
 			FOR i := 0 TO module.allSections.Length() - 1 DO
