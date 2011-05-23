@@ -989,6 +989,7 @@ TYPE
 			NEW(device,"PORT",SELF,0FF10H); supportedDevices.AddDevice(device);
 			NEW(device,"Switch",SELF,0FFFFH); supportedDevices.AddDevice(device);
 			NEW(device,"Motor",SELF,LONGINT(0FFFFFFCEH)); supportedDevices.AddDevice(device);
+			NEW(device,"BraceletSPI",SELF,LONGINT(0FFFFFFD2H)); supportedDevices.AddDevice(device);
 			NEW(imports,4);
 		END Init;
 
