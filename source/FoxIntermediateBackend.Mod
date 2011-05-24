@@ -8164,14 +8164,14 @@ TYPE
 			END;
 		END Section;
 
-		PROCEDURE FirstUse*(register: LONGINT): LONGINT;
+		PROCEDURE FirstUse*(virtualRegister: LONGINT): LONGINT;
 		BEGIN
-			IF (register > 0)  THEN RETURN allocation.table[register].first ELSE RETURN None END;
+			IF (virtualRegister > 0)  THEN RETURN allocation.table[virtualRegister].first ELSE RETURN None END;
 		END FirstUse;
 
-		PROCEDURE LastUse*(register: LONGINT): LONGINT;
+		PROCEDURE LastUse*(virtualRegister: LONGINT): LONGINT;
 		BEGIN
-			IF (register > 0)  THEN RETURN allocation.table[register].last ELSE RETURN None END;
+			IF (virtualRegister > 0)  THEN RETURN allocation.table[virtualRegister].last ELSE RETURN None END;
 		END LastUse;
 
 
