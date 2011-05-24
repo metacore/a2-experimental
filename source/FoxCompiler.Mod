@@ -4,7 +4,7 @@ MODULE Compiler;   (**  AUTHOR "fof & fn"; PURPOSE "Oberon Compiler Command Inte
 IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,  D := Debugging,
-	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal, 
+	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal,
 	ActiveCells := FoxActiveCells, IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
 	Files, StaticLinker, GenericLinker;
 
@@ -24,6 +24,7 @@ CONST
 
 	DefaultBackend = "AMD";
 
+	TraceAssembling = FALSE;
 
 TYPE
 	TracingDiagnostics=OBJECT (Diagnostics.Diagnostics)
@@ -385,10 +386,9 @@ TYPE
 				type := instance.type;
 				type.GetFullName(typeName,NIL);
 				instance.GetFullName(instanceName,NIL);
-				(*
-				D.String("assembling instance "); D.String(instance.name); D.String(" of type "); D.String(type.name); D.Ln;
-				*)
-				D.String("assembling instance "); D.String(instanceName); D.String(" of type "); D.String(typeName); D.Ln;
+				IF TraceAssembling THEN
+					D.String("assembling instance "); D.String(instanceName); D.String(" of type "); D.String(typeName); D.Ln;
+				END;
 
 				assembler.MarkReachabilityOfAll(FALSE);
 				COPY(typeName, linkRoot);
@@ -413,14 +413,15 @@ TYPE
 					RETURN FALSE
 				END;
 
-				D.String("assembling instance done. "); D.Ln;
+				IF TraceAssembling THEN
+					D.String("assembling instance done. "); D.Ln;
+				END;
 
 
 				NEW (code, 0); NEW (data, 0);
 				COPY(instanceName, msg); Strings.Append(msg,".log");	logFile := Files.New(msg);
 				IF logFile # NIL THEN NEW(linkerLog,logFile,0) ELSE logFile := NIL END;
 				NEW (linker, specification.diagnostics, linkerLog, FALSE (* useAll *), FALSE (* stripInitCodes *), code, data);
-
 
 				objectFileFormat.GetExtension(extension);
 				linker.SetLinkRoot(linkRoot);
@@ -445,7 +446,12 @@ TYPE
 					StaticLinker.WriteOutputFile (code, codeFileName, linker, StaticLinker.WriteTRMCodeFile);
 					StaticLinker.WriteOutputFile (data, dataFileName, linker, StaticLinker.WriteTRMDataFile);
 					IF linkerLog # NIL THEN linkerLog.Update; Files.Register(logFile) END;
-					IF specification.log # NIL THEN specification.log.String(instanceName); specification.log.String(" successfully linked."); specification.log.Ln END;
+					IF specification.log # NIL THEN
+						specification.log.String(instanceName);
+						specification.log.String(" linked. IM = ");specification.log.Int(instructionMemorySize,1);
+						specification.log.String(", DM = "); specification.log.Int(dataMemorySize,1);
+						specification.log.Ln
+					END;
 				ELSE
 					msg := "could not link ";
 					Strings.Append(msg,linkRoot);
