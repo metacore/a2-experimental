@@ -592,11 +592,12 @@ TYPE
 			END GetInstanceName;
 
 			PROCEDURE GetPort(p: SyntaxTree.Expression; VAR instance: ActiveCells.Instance; VAR port: ActiveCells.Port): BOOLEAN;
-			VAR name, instanceName, typeName: SyntaxTree.String; suffix: SyntaxTree.String;
+			VAR name, instanceName, typeName: SyntaxTree.String; suffix: SyntaxTree.String; type: SyntaxTree.Type;
 			BEGIN
+				type := p.type;
 				Index(p, suffix);
 				port := NIL;
-				IF (p.type.resolved IS SyntaxTree.PortType) & GetInstanceName(p(SyntaxTree.SymbolDesignator).left, instanceName, typeName) THEN
+				IF (type IS SyntaxTree.PortType) & GetInstanceName(p(SyntaxTree.SymbolDesignator).left, instanceName, typeName) THEN
 					instance := currentActiveCellsScope.instances.ByName(instanceName);
 					IF instance = NIL THEN Error(p.position,"not allocated"); RETURN FALSE END;
 					instanceType := instance.type;

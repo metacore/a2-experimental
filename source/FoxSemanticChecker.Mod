@@ -518,6 +518,7 @@ TYPE
 					import.SetScope(module.moduleScope);
 					import.SetDirect(TRUE);
 				END;
+				import.MarkUsed
 			END;
 		END ImportModule;
 
@@ -1597,7 +1598,7 @@ TYPE
 			value.SetType(type);
 			resolvedExpression := value
 		END VisitRealValue;
-		
+
 		(** check and resolve complex value **)
 		PROCEDURE VisitComplexValue(value: SyntaxTree.ComplexValue);
 		VAR subtype: LONGINT; type: SyntaxTree.Type;
@@ -1980,11 +1981,11 @@ TYPE
 							type := left.type;
 						END;
 					ELSIF left.type.resolved IS SyntaxTree.ComplexType THEN
-						IF IsComplexValue(left, real, imaginary) THEN												
+						IF IsComplexValue(left, real, imaginary) THEN
 							value := SyntaxTree.NewComplexValue(unaryExpression.position,-real, -imaginary);
 							result.SetResolved(value);
 							type := left.type;
-							value.SetType(type);							
+							value.SetType(type);
 							value(SyntaxTree.ComplexValue).SetSubtype(left.resolved(SyntaxTree.ComplexValue).subtype) (* reuse subtype *)
 						ELSE
 							type := left.type;
@@ -2069,10 +2070,10 @@ TYPE
 					result.SetType(type);
 				ELSIF (type IS SyntaxTree.FloatType) THEN
 					result := SyntaxTree.NewRealValue(expression.position,int);
-					result.SetType(type);					
+					result.SetType(type);
 				ELSIF (type IS SyntaxTree.ComplexType) THEN
 					result := SyntaxTree.NewComplexValue(expression.position, int, 0);
-					result.SetType(type);					
+					result.SetType(type);
 				ELSIF (type IS SyntaxTree.SetType) THEN
 					result := SyntaxTree.NewSetValue(expression.position,SYSTEM.VAL(SET,int));
 					result.SetType(type);
@@ -2106,7 +2107,7 @@ TYPE
 					result.SetType(type);
 				ELSIF (type IS SyntaxTree.FloatType) THEN
 					result := SyntaxTree.NewRealValue(position,real);
-					result.SetType(type);					
+					result.SetType(type);
 				ELSIF (type IS SyntaxTree.ComplexType) THEN
 					result := SyntaxTree.NewComplexValue(expression.position, real, 0);
 					result.SetType(type);
@@ -2123,7 +2124,7 @@ TYPE
 				ELSE
 					Error(position,Diagnostics.Invalid,"complex value cannot be converted");
 					result := SyntaxTree.invalidExpression;
-				END	
+				END
 			ELSIF IsSetValue(expression,set) THEN
 				IF (type IS SyntaxTree.IntegerType) THEN
 					result := SyntaxTree.NewIntegerValue(expression.position,SYSTEM.VAL(LONGINT,set));
@@ -2430,7 +2431,7 @@ TYPE
 						arrayBaseImported := TRUE;
 					END;
 				END;
-				
+
 				actualParameters := SyntaxTree.NewExpressionList();
 				actualParameters.AddExpression(leftExpression);
 				IF rightExpression # NIL THEN
@@ -2564,7 +2565,7 @@ TYPE
 				Less, LessEqual,
 				Greater, GreaterEqual		integer/real	integer/real	bool
 											enumerator	enumerator	bool
-	
+
 				In							integer			set				bool
 				Is							pointer			type			bool
 				 							object			type			bool
@@ -2835,9 +2836,9 @@ TYPE
 							Printout.Info("right", right)
 						END;
 					END;
-					
+
 					(* try constant folding *)
-					
+
 					IF ~error THEN
 						IF (operator = Scanner.Slash) & IsComplexValue(right, c, d) & (c = 0) & (d = 0) THEN
 							Error(binaryExpression.position, Diagnostics.Invalid,"division by zero")
@@ -4213,7 +4214,7 @@ TYPE
 			END;
 			RETURN result
 		END CheckRealType;
-		
+
 		(**
 			if expression x is of complex type then return true else report error and return false
 		**)
@@ -4228,7 +4229,7 @@ TYPE
 			END;
 			RETURN result
 		END CheckComplexType;
-		
+
 		(**
 			if expression x is of range type then return true else report error and return false
 		**)
@@ -8072,7 +8073,7 @@ TYPE
 		END;
 		RETURN result
 	END IsRealValue;
-	
+
 	PROCEDURE IsComplexValue(x: SyntaxTree.Expression; VAR realValue, imagValue: LONGREAL): BOOLEAN;
 	VAR result: BOOLEAN;
 	BEGIN
