@@ -2027,12 +2027,12 @@ TYPE
 					tempReg := IntermediateCode.Register(componentType, AcquireRegister(componentType));
 					Emit(Mul(tempReg, left.tag, right.tag));
 					Emit(Sub(result.op, result.op, tempReg));
-					
+
 					Reuse2(result.tag, left.tag, right.op);
 					Emit(Mul(result.tag, left.tag, right.op));
 					Emit(Mul(tempReg, left.op, right.tag));
 					Emit(Add(result.tag, result.tag, tempReg));
-					
+
 					ReleaseIntermediateOperand(tempReg)
 				ELSE
 					InitOperand(result,ModeValue);
@@ -2107,20 +2107,20 @@ TYPE
 					Emit(Mul(tempReg, right.op, right.op));
 					Emit(Mul(tempReg2, right.tag, right.tag));
 					Emit(Add(tempReg, tempReg, tempReg2));
-					
+
 					result.op := tempReg2;
 					Emit(Mul(result.op, left.op, right.op));
 					tempReg2 := IntermediateCode.Register(componentType, AcquireRegister(componentType));
 					Emit(Mul(tempReg2, left.tag, right.tag));
 					Emit(Add(result.op, result.op, tempReg2));
 					Emit(Div(result.op, result.op, tempReg));
-					
+
 					Reuse2(result.tag, left.tag, right.op);
-					Emit(Mul(result.tag, left.tag, right.op));					
+					Emit(Mul(result.tag, left.tag, right.op));
 					Emit(Mul(tempReg2, left.op, right.tag));
 					Emit(Sub(result.tag, result.tag, tempReg2));
 					Emit(Div(result.tag, result.tag, tempReg));
-					
+
 					ReleaseIntermediateOperand(tempReg);
 					ReleaseIntermediateOperand(tempReg2)
 				ELSE
@@ -8441,6 +8441,7 @@ TYPE
 			IF type.form > IntermediateCode.Undefined THEN
 				register := ForceFreeRegister(type);
 				ticket := ReservePhysicalRegister(type,register);
+				ticket.parts := 1;
 			ELSE
 				ticket := NIL
 			END;
@@ -8581,7 +8582,7 @@ TYPE
 		BEGIN
 			IF register >=0 THEN
 				ticket := physicalRegisters.Mapped(register);
-				IF (ticket # NIL) & (ticket.lastuse = inPC) THEN
+				IF (ticket # NIL) & (ticket.lastuse <= inPC) THEN
 					DEC(ticket.parts); (* to avoid freeing a register that is used at several parts of an operand *)
 					IF ticket.parts=0 THEN
 						physicalRegisters.SetReserved(register,FALSE);
