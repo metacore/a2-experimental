@@ -514,7 +514,7 @@ TYPE
 						ELSE
 							isExternalSection := FALSE
 						END;
-						
+
 						IF  ~error THEN
 							IF identifier = "code" THEN sectionType := Sections.CodeSection
 							ELSIF identifier = "const" THEN sectionType := Sections.ConstSection
@@ -552,8 +552,8 @@ TYPE
 									END
 								END
 							END
-							
-						END				
+
+						END
 					END
 				END
 			END;
@@ -662,6 +662,8 @@ TYPE
 					IF irFilePath # "" THEN Files.JoinPath(irFilePath, filename, filename) END;
 					reader := Basic.GetFileReader(filename);
 
+					loadedModules.AddName(moduleName); (* to avoid recursive reloading this must be done before parsing *)
+
 					IF reader = NIL THEN
 						diagnostics.Error(filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open");
 						RETURN FALSE
@@ -702,7 +704,6 @@ TYPE
 						END
 					END
 				END;
-				loadedModules.AddName(moduleName);
 				RETURN TRUE
 			END
 		END LoadModule2;

@@ -55,7 +55,7 @@ TYPE
 			ASSERT(kind # 0);
 			name := n;
 			SELF.symbol := symbol;
-			SELF.kind := kind;			
+			SELF.kind := kind;
 			SELF.type := type;
 			isPrototype := ~isDefinition;
 			entryNumber := 0;
@@ -65,7 +65,7 @@ TYPE
 			fixed := FALSE;
 			positionOrAlignment := 1;
 			fingerprint := 0;
-			bitsPerUnit := UnknownSize						
+			bitsPerUnit := UnknownSize
 		END InitSection;
 
 		(* whether the section acts as a placeholder for another one (sections that where not assigned a proper kind are external if they are still prototypes) *)
@@ -79,7 +79,7 @@ TYPE
 				RETURN FALSE
 			END
 		END IsExternal;
-		
+
 		PROCEDURE MarkAsNoPrototype*;
 		BEGIN isPrototype := FALSE
 		END MarkAsNoPrototype;
@@ -134,9 +134,9 @@ TYPE
 		END SetEntryNumber;
 
 		PROCEDURE Dump*(w: Streams.Writer);
-		BEGIN		
+		BEGIN
 			IF IsExternal() THEN w.String(".external ") END;
-		
+
 			w.String(".");
 			CASE type OF
 			| CodeSection: w.String("code")
@@ -149,7 +149,7 @@ TYPE
 			END;
 			w.String(" ");
 			DumpName(w);
-			
+
 			(* positional restrictions *)
 			IF fixed THEN
 				w.String(" fixed="); w.Int(positionOrAlignment, 0)
@@ -166,7 +166,7 @@ TYPE
 
 			(*
 			(* only for debugging of the binary object file format *)
-			w.String(" "); w.String(LineCommentStart);	
+			w.String(" "); w.String(LineCommentStart);
 			w.String("kind=");
 			CASE kind OF
 			| UnknownKind: w.String("unknown")
@@ -174,10 +174,10 @@ TYPE
 			| CaseTableKind: w.String("caseTable")
 			| ImportedSymbolKind: w.String("importedSymbol")
 			| SystemCallKind: w.String("systemCall")
-			END;			
+			END;
 			IF offset # 0 THEN w.String(" offset="); w.Int(offset, 0) END;
 			*)
-			
+
 			w.Update
 		END Dump;
 
@@ -352,7 +352,6 @@ TYPE
 			any: ANY;
 		BEGIN
 			any := Get(index);
-			ASSERT(any IS Section);
 			RETURN any(Section)
 		END GetSection;
 
@@ -411,7 +410,7 @@ TYPE
 			IF (section # NIL) & (section.kind # UnknownKind) & (section.kind # kind) THEN section := NIL END;
 			RETURN section
 		END FindByNameAndKind;
-		
+
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR
 			i: LONGINT;
@@ -422,9 +421,9 @@ TYPE
 				section := GetSection(i);
 				IF ~section.IsExternal() THEN section.Dump(w); w.Ln END
 			END;
-			
+
 			(* dump external sections *)
-			FOR i := 0 TO Length() - 1 DO			
+			FOR i := 0 TO Length() - 1 DO
 				section := GetSection(i);
 				IF section.IsExternal() THEN section.Dump(w); w.Ln END
 			END
@@ -462,7 +461,7 @@ TYPE
 			RETURN FALSE
 		END ContainsName;
 	END NameList;
-	
+
 	(** output of (intermediate) code generation **)
 	Module* = OBJECT (Formats.GeneratedModule)
 	VAR
@@ -525,7 +524,7 @@ TYPE
 				END;
 				dump.Ln; dump.Ln
 			END;
-			
+
 			(* dump all sections *)
 			allSections.Dump(w)
 		END Dump;

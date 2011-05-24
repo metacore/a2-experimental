@@ -36,7 +36,7 @@ TYPE
 		BEGIN
 			IF case= Scanner.Lowercase THEN Small(a,str) ELSE COPY(a,str) END;
 			w.BeginKeyword;
-			w.String(a);
+			w.String(str);
 			w.EndKeyword;
 		END Keyword;
 
@@ -446,7 +446,7 @@ TYPE
 					BeginComment; w.String("value = "); Expression(x.resolved); EndComment;
 				END;
 			END;
-			w.Update;
+			(*w.Update;*)
 		END Expression;
 
 		PROCEDURE VisitExpression(x: SyntaxTree.Expression);
@@ -822,7 +822,7 @@ TYPE
 		END VisitRealValue;
 
 		PROCEDURE VisitComplexValue(x: SyntaxTree.ComplexValue);
-		BEGIN		
+		BEGIN
 			IF (x.realValue = 0) & (x.imagValue = 1) THEN
 				w.String("IMAG")
 			ELSE
