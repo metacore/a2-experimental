@@ -682,8 +682,8 @@ TYPE
 							isSorted := FALSE; (* sections are not sorted anymore *)
 							IF isRoot THEN
 								SELF.rootModuleName := moduleName;
-								(* if the root module specifies a platform/backend, the default backend is overwritten *)
-								IF parsedBackend # NIL THEN
+								(* if there is no backend specified and the root module specifies a platform/backend, then the parse backend is used *)
+								IF (backend = NIL) & (parsedBackend # NIL) THEN
 									backend := parsedBackend;
 									backend.GetDescription(platformName)
 								END
