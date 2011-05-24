@@ -446,7 +446,7 @@ TYPE
 					BeginComment; w.String("value = "); Expression(x.resolved); EndComment;
 				END;
 			END;
-			(*w.Update;*)
+			w.Update;
 		END Expression;
 
 		PROCEDURE VisitExpression(x: SyntaxTree.Expression);
