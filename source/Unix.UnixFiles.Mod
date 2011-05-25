@@ -2,7 +2,7 @@
 
 MODULE UnixFiles;   (** AUTHOR "gf"; PURPOSE "Unix file systems" *)
 
-IMPORT S := SYSTEM, UTF8Strings, FileDir IN Oberon, OFiles := Files IN Oberon, Files := Files IN A2;
+IMPORT S := SYSTEM, UTF8Strings, FileDir IN Oberon, OFiles := Files IN Oberon, Files;
 
 CONST
 	ErrFileReadOnly* = 2921;  ErrParentNotFound* = 2922;  ErrInvalidFilename* = 2923;
@@ -23,12 +23,6 @@ TYPE
 				BEGIN
 					prefix := "";  vol := NIL;  desc := "Unix"
 				END Init;
-
-				PROCEDURE SetRootDirectory*( name: ARRAY OF CHAR ): BOOLEAN;
-				VAR done: BOOLEAN;
-				BEGIN  {EXCLUSIVE}
-					FileDir.ChangeDirectory( name, done );  RETURN done
-				END SetRootDirectory;
 
 
 				PROCEDURE New0*( name: ARRAY OF CHAR ): Files.File;
@@ -225,7 +219,7 @@ VAR
 	currEnumerator: Files.Enumerator;
 
 	PROCEDURE EntryHandler( filename: ARRAY OF CHAR;  t, d, s: LONGINT;  VAR continue: BOOLEAN );
-	VAR flags: SET;  fn: Filename;
+	VAR  fn: Filename;
 	BEGIN
 	 	COPY( filename, fn );
 		currEnumerator.PutEntry( fn, {}, t, d, s );

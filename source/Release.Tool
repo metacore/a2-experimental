@@ -281,13 +281,10 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	I386 { I386.MemCache.Mod }
 	AMD64 { AMD64.MemCache.Mod }
 
-	UNIX { Unix.Oberon.FileDir.Mod Unix.Oberon.Files.Mod }
-
 	# Block device interface
 	Disks.Mod
 
-	NATIVE,WIN { Files.Mod }
-	UNIX { Unix.Files.Mod }
+	Files.Mod 
 
 	Dates.Mod Strings.Mod # low-level utility modules
 	UTF8Strings.Mod
@@ -295,12 +292,13 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	Caches.Mod DiskVolumes.Mod OldDiskVolumes.Mod RAMVolumes.Mod DiskFS.Mod OldDiskFS.Mod OberonFS.Mod 	# file systems
 	FATVolumes.Mod FATFiles.Mod
 	ISO9660Volumes.Mod ISO9660Files.Mod
+	
+	UNIX { Unix.Oberon.FileDir.Mod Unix.Oberon.Files.Mod Unix.UnixFiles.Mod }
 
 	WIN {
 		Win32.User32.Mod Win32.WinTrace.Mod Win32.ODBC.Mod Win32.Shell32.Mod Win32.SQL.Mod
 		Win32.WinFS.Mod
 	}
-	UNIX { Unix.UnixFiles.Mod }
 
 	NATIVE,WIN { RelativeFileSystem.Mod } # file system relative to path
 
