@@ -3,7 +3,7 @@ MODULE FoxIntermediateBackend; (** AUTHOR ""; PURPOSE ""; *)
 IMPORT Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, SemanticChecker := FoxSemanticChecker, Backend := FoxBackend, Global := FoxGlobal,
 	Scanner := FoxScanner, IntermediateCode := FoxIntermediateCode, Sections := FoxSections, Printout := FoxPrintout,
 	SYSTEM, Diagnostics, Strings, Options, Streams, Compiler, Formats := FoxFormats, SymbolFileFormat := FoxTextualSymbolFile, D := Debugging,
-	FingerPrinter := FoxFingerPrinter, BinaryCode := FoxBinaryCode, Files, StringPool;
+	FingerPrinter := FoxFingerPrinter, BinaryCode := FoxBinaryCode, Files, StringPool, ActiveCells := FoxActiveCells;
 
 CONST
 		(* operand modes *)
@@ -458,7 +458,7 @@ TYPE
 			ELSIF (scope.outerScope IS SyntaxTree.CellScope) & (x = scope.outerScope(SyntaxTree.CellScope).bodyProcedure) THEN
 				inline := FALSE;
 				actorType := scope.outerScope(SyntaxTree.CellScope).ownerCell;
-				IF ~HasValue(actorType.modifiers,Global.StringDataMemorySize,stackSize) THEN stackSize := 1024 END;
+				IF ~HasValue(actorType.modifiers,Global.StringDataMemorySize,stackSize) THEN stackSize := ActiveCells.defaultDataMemorySize END;
 				AddBodyCallStub(x,Sections.InitCode2Section,stackSize);
 				ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.BodyCodeSection, TRUE, name,x,dump);
 			ELSIF (scope.outerScope IS SyntaxTree.CellScope) & (x.isConstructor) THEN
@@ -559,6 +559,7 @@ TYPE
 
 			currentScope := prevScope;
 		END Procedure;
+
 
 		PROCEDURE AddBodyCallStub(bodyProcedure: SyntaxTree.Procedure; sectionType: SHORTINT; initStack: LONGINT); (* code that is only necessary for static linkers *)
 		VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope; name: Basic.PooledName;
