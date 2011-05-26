@@ -98,7 +98,7 @@ CONST
 	fpTypeEnum = 22;
 	fpTypePort = 23;
 	fpTypeChannel = 23;
-	fpTypeComplex = 24; 
+	fpTypeComplex = 24;
 	fpTypeLongcomplex = 25;
 
 	fpTypeBasic=1;
@@ -136,6 +136,8 @@ TYPE
 		system-: Global.System;
 		deep: BOOLEAN; (* public / private field of FP needed ? *)
 		traceLevel: LONGINT;
+
+		level: LONGINT;
 
 		PROCEDURE & InitFingerPrinter*(system: Global.System);
 		BEGIN fp:= 0; SELF.system := system; deep := FALSE; traceLevel := 0;
@@ -273,7 +275,7 @@ TYPE
 			ELSE HALT(100)
 			END
 		END VisitComplexType;
-		
+
 		(*
 		FP(BasicType)        = fpStringType
 		PublicFP(BasicType)  = FP(basicType).
@@ -358,7 +360,11 @@ TYPE
 				ELSE HALT(200)
 				END;
 				TypeName(fp,x);
-				FPType(fp,x.arrayBase.resolved);
+
+				IF ~(x.arrayBase IS SyntaxTree.PointerType) THEN
+					FPType(fp,x.arrayBase);
+				END;
+
 				IF x.form = SyntaxTree.Static THEN FPNumber(fp,x.staticLength) END;
 				fingerprint.shallow := fp;
 				x.SetFingerPrint(fingerprint);
@@ -366,9 +372,10 @@ TYPE
 			END;
 
 			IF deep & ~fingerprint.deepAvailable THEN
+				fp := fingerprint.shallow;
 				x.arrayBase.Accept(SELF); (* make sure that base pointer is also deeply fped *)
-				fingerprint.private := fingerprint.shallow;
-				fingerprint.public := fingerprint.shallow;
+				fingerprint.private := fp;
+				fingerprint.public := fp;
 				fingerprint.deepAvailable := TRUE;
 				x.SetFingerPrint(fingerprint);
 			END;
@@ -819,9 +826,11 @@ TYPE
 
 		PROCEDURE FPType(VAR fp: LONGINT; t: SyntaxTree.Type);
 		BEGIN
+			INC(level); ASSERT(level <= 5);
 			IF t = NIL THEN FPNumber(fp,fpTypeNone);
 			ELSE t.Accept(SELF); FPNumber(fp,SELF.fingerprint.shallow);
 			END;
+			DEC(level);
 		END FPType;
 
 		(* 	Signature(f)  = f <*> FP(returnType)
