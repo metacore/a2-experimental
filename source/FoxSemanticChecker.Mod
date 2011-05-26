@@ -2412,7 +2412,11 @@ TYPE
 			ELSE
 				(* import OCArrayBase if needed *)
 				IF ~arrayBaseImported THEN
-					IF (leftExpression # NIL) & IsMathArrayType(leftExpression.type) OR (rightExpression # NIL) & IsMathArrayType(rightExpression.type) THEN
+					IF (leftExpression # NIL) & (leftExpression.type.resolved IS SyntaxTree.ComplexType) THEN
+						(* operators on complex numbers *)
+						ImportModule(Global.ArrayBaseName,position);
+						arrayBaseImported := TRUE;											
+					ELSIF (leftExpression # NIL) & IsMathArrayType(leftExpression.type) OR (rightExpression # NIL) & IsMathArrayType(rightExpression.type) THEN
 						IF op = Global.Dim THEN
 							(* not existing in OCArrayBase *)
 						ELSIF (op = Global.Len) & (rightExpression # NIL) THEN
@@ -2539,7 +2543,7 @@ TYPE
 				RETURN;
 			END;
 			leftType := left.type.resolved; rightType := right.type.resolved;
-			IF (~(leftType IS SyntaxTree.BasicType) OR ~(rightType IS SyntaxTree.BasicType)) THEN
+			IF ~(leftType IS SyntaxTree.BasicType) OR ~(rightType IS SyntaxTree.BasicType) OR (leftType IS SyntaxTree.ComplexType) OR (rightType IS SyntaxTree.ComplexType) THEN
 				operatorCall := NewOperatorCall(binaryExpression.position,operator,left,right,NIL);
 			END;
 
@@ -2837,12 +2841,11 @@ TYPE
 						END;
 					END;
 
-					(* try constant folding *)
-
 					IF ~error THEN
 						IF (operator = Scanner.Slash) & IsComplexValue(right, c, d) & (c = 0) & (d = 0) THEN
-							Error(binaryExpression.position, Diagnostics.Invalid,"division by zero")
+							Error(binaryExpression.position, Diagnostics.Invalid,"division by zero")						
 						ELSIF IsComplexValue(left, a, b) & IsComplexValue(right, c, d) THEN
+							(* do constant folding *)
 							CASE operator OF
 							|Scanner.Plus: NewComplex(a + b, c + d, leftType)
 							|Scanner.Minus: NewComplex(a - b, c - d, leftType)
@@ -4169,7 +4172,24 @@ TYPE
 			END;
 			RETURN result
 		END CheckNumberType;
-
+		
+		(**
+			if expression x is of number type but not complex then return true else report error and return false
+		**)
+		PROCEDURE CheckNonComplexNumberType(x: SyntaxTree.Expression): BOOLEAN;
+		VAR result: BOOLEAN;
+		BEGIN
+			result := FALSE;
+			IF x = SyntaxTree.invalidExpression THEN
+			ELSIF x.type.resolved IS SyntaxTree.ComplexType THEN
+				Error(x.position,Diagnostics.Invalid,"is complex type");
+			ELSIF ~(x.type.resolved IS SyntaxTree.NumberType) THEN
+				Error(x.position,Diagnostics.Invalid,"is non number type");
+			ELSE result := TRUE
+			END;
+			RETURN result
+		END CheckNonComplexNumberType;
+		
 		(**
 			if expression x is of integer type then return true else report error and return false
 		**)
@@ -4749,7 +4769,8 @@ TYPE
 					END;
 				(* ---- ABS ----- *)
 				ELSIF (id = Global.Abs) & Parameters(1,1) THEN
-					IF CheckNumberType(parameter0) THEN
+					(* note: ABS on complex numbers is done using overloading *)
+					IF CheckNonComplexNumberType(parameter0) THEN 
 						type := type0;
 						IF IsIntegerValue(parameter0,i0) THEN
 							result.SetResolved(SyntaxTree.NewIntegerValue(position,ABS(i0)));
@@ -4937,7 +4958,7 @@ TYPE
 						ELSE
 							Error(parameter0.position,Diagnostics.Invalid,"is not a type symbol");
 						END
-					ELSIF CheckNumberType(parameter0) & CheckNumberType(parameter1) THEN
+					ELSIF CheckNonComplexNumberType(parameter0) & CheckNonComplexNumberType(parameter1) THEN
 						ConvertOperands(parameter0,parameter1);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
@@ -4967,7 +4988,7 @@ TYPE
 						ELSE
 							Error(parameter0.position,Diagnostics.Invalid,"is not a type symbol");
 						END
-					ELSIF CheckNumberType(parameter0) & CheckNumberType(parameter1) THEN
+					ELSIF CheckNonComplexNumberType(parameter0) & CheckNonComplexNumberType(parameter1) THEN
 						ConvertOperands(parameter0,parameter1);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
@@ -5021,6 +5042,10 @@ TYPE
 						IF type.sizeInBits = 32 THEN Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
 						ELSIF type.sizeInBits = 64 THEN type := Global.Float32
 						END;
+					ELSIF type IS SyntaxTree.ComplexType THEN
+						IF type.sizeInBits = 64 THEN Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
+						ELSIF type.sizeInBits = 128 THEN type := Global.Complex64
+						END;
 					ELSE
 						 Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
 					END;
@@ -5045,6 +5070,10 @@ TYPE
 					ELSIF type IS SyntaxTree.FloatType THEN
 						IF type.sizeInBits = 64 THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
 						ELSIF type.sizeInBits = 32 THEN type := Global.Float64
+						END;						
+					ELSIF type IS SyntaxTree.ComplexType THEN
+						IF type.sizeInBits = 128 THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
+						ELSIF type.sizeInBits = 64 THEN type := Global.Complex128
 						END;
 					ELSE
 						 Error(parameter0.position,Diagnostics.Invalid,"long not applicable")

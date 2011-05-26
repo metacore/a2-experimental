@@ -1,7 +1,7 @@
 MODULE FoxArrayBase; (* stubs for array base runtime - can only be compiled by oc compiler *)
 (* (c) fof, fn, ETH Zürich, 2008 *)
 
-IMPORT SYSTEM, KernelLog, Heaps;
+IMPORT SYSTEM, KernelLog, Heaps, Math, MathL;
 
 TYPE
 	ADDRESS = LONGINT;
@@ -8360,7 +8360,8 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END ExpandDimensions;
 
-	(* OLIVIER *)
+	(* index ranges *)
+	
 	(* the length of a range, i.e. the number of indices that it stands for *)
 	OPERATOR "LEN"*(CONST range: RANGE): LONGINT;
 	VAR
@@ -8381,6 +8382,39 @@ Sufficient (but not necessary) conditions:
 		END;
 		RETURN result
 	END "LEN";
+	
+	(* complex numbers *)
+	
+	OPERATOR "/"*(CONST left, right: COMPLEX): COMPLEX;
+	VAR result: COMPLEX; divisor: REAL;		
+	BEGIN
+		divisor := RE(right) * RE(right) + IM(right) * IM(right);	
+		RE(result) := (RE(left) * RE(right) + IM(left) * IM(right)) / divisor;
+		IM(result) := (IM(left) * RE(right) - RE(left) * IM(right)) / divisor;
+		RETURN result
+	END "/";
+	
+	OPERATOR "/"*(CONST left, right: LONGCOMPLEX): LONGCOMPLEX;
+	VAR result: LONGCOMPLEX; divisor: LONGREAL;		
+	BEGIN
+		divisor := RE(right) * RE(right) + IM(right) * IM(right);
+		RE(result) := (RE(left) * RE(right) + IM(left) * IM(right)) / divisor;
+		IM(result) := (IM(left) * RE(right) - RE(left) * IM(right)) / divisor;
+		RETURN result
+	END "/";
+		
+	OPERATOR "ABS"*(CONST arg: COMPLEX): REAL;
+	BEGIN RETURN Math.sqrt(RE(arg) * RE(arg) + IM(arg) * IM(arg))
+	END "ABS";
+
+	OPERATOR "ABS"*(CONST arg: LONGCOMPLEX): LONGREAL;
+	BEGIN RETURN MathL.sqrt(RE(arg) * RE(arg) + IM(arg) * IM(arg))
+	END "ABS";
+	
+	(* for testing purposes *)
+	OPERATOR "+"*(CONST x, y: ARRAY [?] OF COMPLEX): ARRAY [?] OF COMPLEX;
+	BEGIN       
+	END "+";
 
 BEGIN
 	alloc := 0;  SetDefaults();  InitOptimization();  (* CreateTypePool;  *)

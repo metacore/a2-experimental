@@ -84,7 +84,8 @@ IMPORT
 	                    | rfBoolean | rfChar8 | rfChar16 | rfChar32
 	                    | rfShortint | rfInteger | rfLongint | rfHugeint
 	                    | rfReal | rfLongreal |
-	                    | rfString | rfPointer | rfAll | rfSame | rfRange |
+	                    | rfString | rfPointer | rfAll | rfSame | rfRange
+	                    | rfComplex | rfLongcomplex
 	ArrayType         = 80H+BaseType:RawNum dim:RawNum
 	RecordType        = (rfRecord | rfRecordPointer) tdAdr:RawNum
 **)
@@ -1674,7 +1675,8 @@ TYPE
 			rfStaticArray= 12X; rfDynamicArray=14X; rfOpenArray=15X;
 			rfByte = 1X; rfBoolean = 2X; rfChar8=3X; rfShortint=04X; rfInteger = 05X; rfLongint = 06X;
 			rfReal = 07X; rfLongreal = 08X; rfSet = 09X; rfDelegate = 0EX;  rfString = 0FH; rfPointer = 0DX; rfHugeint = 10X;
-			rfChar16=11X; rfChar32=12X; rfAll=13X; rfSame=14X; rfRange=15X; rfRecord=16X; rfRecordPointer=1DX;
+			rfChar16=11X; rfChar32=12X; rfAll=13X; rfSame=14X; rfRange=15X; rfRecord=16X; rfComplex = 17X; rfLongcomplex = 18X;
+			rfRecordPointer=1DX;
 			rfArrayFlag = 80X;
 		VAR
 			start, i: LONGINT; s: Sections.Section;
@@ -1700,6 +1702,10 @@ TYPE
 				ELSIF type IS SyntaxTree.FloatType THEN
 					IF type.sizeInBits = 32 THEN char := rfReal
 					ELSIF type.sizeInBits = 64 THEN char := rfLongreal
+					END;
+				ELSIF type IS SyntaxTree.ComplexType THEN
+					IF type.sizeInBits = 64 THEN char := rfComplex
+					ELSIF type.sizeInBits = 128 THEN char := rfLongcomplex
 					END;
 				ELSIF type IS SyntaxTree.SetType THEN char := rfSet
 				ELSIF type IS SyntaxTree.AnyType THEN char := rfPointer

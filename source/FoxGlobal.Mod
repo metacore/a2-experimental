@@ -22,7 +22,7 @@ CONST
 	StringPriority* = "PRIORITY";
 	StringSafe* = "SAFE";
 	StringRealtime* = "REALTIME";
-	StringDynamic* = "DYNAMIC"; (* nopov *)
+	StringDynamic* = "DYNAMIC";
 
 	StringDataMemorySize*= "DataMemorySize";
 	StringCodeMemorySize*= "CodeMemorySize";
@@ -87,8 +87,7 @@ CONST
 
 	(* from ERA *)
 	systemNull*=systemMsk+1; systemXOR*=systemNull+1; systemROR*=systemXOR+1; systemProc*=systemROR+1; systemStop* = systemProc + 1; LSL*=systemStop+1; LSR*=LSL+1; ASR*=LSR+1; Flt*=ASR+1; Floor*=Flt+1; Phi*=Floor+1;
-
-	(* nopov *)
+	
 	DotTimesPlus* = Phi + 1;
 	AtMulDec* = DotTimesPlus + 1;
 	AtMulInc* = AtMulDec + 1;
@@ -111,6 +110,7 @@ VAR
 	Integer8-, Integer16-, Integer32-, Integer64-: SyntaxTree.IntegerType;
 	Character8-, Character16-, Character32-: SyntaxTree.CharacterType;
 	Float32-, Float64-: SyntaxTree.FloatType;
+	Complex64-, Complex128-: SyntaxTree.ComplexType;
 	Byte8: SyntaxTree.ByteType;
 	Byte32: SyntaxTree.ByteType;
 
@@ -717,8 +717,9 @@ TYPE
 		system.addressType := SyntaxTree.NewAddressType(system.addressSize);
 		system.sizeType := SyntaxTree.NewSizeType(system.addressSize);
 		system.rangeType := SyntaxTree.NewRangeType(3 * system.SizeOf(system.longintType));
-		system.complexType := SyntaxTree.NewComplexType(system.realType); (* complex types are always based on a basic type *)
-		system.longcomplexType := SyntaxTree.NewComplexType(system.longrealType);
+		
+		system.complexType := Complex64;
+		system.longcomplexType := Complex128;
 		system.setType := SyntaxTree.NewSetType(system.addressSize);
 		system.channelType := SyntaxTree.NewChannelType(system.addressSize);
 		(* type declarations *)
@@ -823,7 +824,6 @@ TYPE
 			OperatorDefined(system,i,TRUE);
 		END;
 
-		(* nopov *)
 		OperatorDefined(system, Conversion, TRUE);
 		OperatorDefined(system, DotTimesPlus, TRUE);
 		OperatorDefined(system, AtMulDec, TRUE);
@@ -1307,7 +1307,6 @@ TYPE
 		NewBuiltinIdentifier(Inc,"INC");
 		NewBuiltinIdentifier(Incl,"INCL");
 
-		(* nopov *)
 		(* TODO: check if ok. The operators defined in FoxArrayBase require the following identifiers *)
 		(* TODO: ".*+" should preferably be added as a new token in the scanner *)
 		identifiers[Scanner.Lowercase, Scanner.Becomes] := SyntaxTree.NewIdentifier(":=");
@@ -1361,7 +1360,7 @@ TYPE
 		NamePriority := SyntaxTree.NewIdentifier(StringPriority);
 		NameSafe := SyntaxTree.NewIdentifier(StringSafe);
 		NameRealtime := SyntaxTree.NewIdentifier(StringRealtime);
-		NameDynamic := SyntaxTree.NewIdentifier(StringDynamic); (* nopov *)
+		NameDynamic := SyntaxTree.NewIdentifier(StringDynamic);
 		NameDataMemorySize := SyntaxTree.NewIdentifier(StringDataMemorySize);
 		NameCodeMemorySize := SyntaxTree.NewIdentifier(StringCodeMemorySize);
 		NameChannelWidth := SyntaxTree.NewIdentifier(StringChannelWidth);
@@ -1377,6 +1376,8 @@ TYPE
 		Integer64 := SyntaxTree.NewIntegerType(64, TRUE);
 		Float32 := SyntaxTree.NewFloatType(32);
 		Float64 := SyntaxTree.NewFloatType(64);
+		Complex64 := SyntaxTree.NewComplexType(Float32);
+		Complex128 := SyntaxTree.NewComplexType(Float64);
 		Byte8 := SyntaxTree.NewByteType(8);
 		Byte32 := SyntaxTree.NewByteType(32);
 		Character8 := SyntaxTree.NewCharacterType(8);

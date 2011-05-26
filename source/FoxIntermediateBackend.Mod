@@ -5321,7 +5321,13 @@ TYPE
 			(* ---- SHORT, LONG ----- *)
 			|Global.Short, Global.Long:
 				Evaluate(p0,result);
-				Convert(result.op,IntermediateCode.GetType(system,x.type));
+				IF x.type IS SyntaxTree.ComplexType THEN
+					componentType := x.type(SyntaxTree.ComplexType).componentType;					
+					Convert(result.op, IntermediateCode.GetType(system, componentType));
+					Convert(result.tag, IntermediateCode.GetType(system, componentType));
+				ELSE					
+					Convert(result.op,IntermediateCode.GetType(system,x.type));
+				END
 			(* ---- HALT, SYSTEM.HALT----- *)
 			|Global.Halt, Global.systemHalt:
 				Evaluate(p0,result);

@@ -131,6 +131,8 @@ CONST
 		sfTypeStaticMathArray = 43H;
 		sfTypeAll = 44H;
 		sfTypeRange = 45H;
+		sfTypeComplex = 46H;
+		sfTypeLongcomplex = 47H;
 
 		(* workaround: handle inlined operators *)
 		sfInline = 0ABH;
@@ -279,6 +281,9 @@ TYPE
 
 		PROCEDURE VisitFloatType(x: SyntaxTree.FloatType);
 		BEGIN END VisitFloatType;
+
+		PROCEDURE VisitComplexType(x: SyntaxTree.ComplexType);
+		BEGIN END VisitComplexType;
 
 		PROCEDURE VisitQualifiedType(x: SyntaxTree.QualifiedType);
 		BEGIN
@@ -1076,6 +1081,10 @@ TYPE
 					END
 				ELSIF tag = sfTypeRange THEN
 					type := system.rangeType;
+				ELSIF tag = sfTypeComplex THEN
+					type := system.complexType;
+				ELSIF tag = sfTypeLongcomplex THEN
+					type := system.longcomplexType;
 				ELSIF tag <= sfModOther THEN
 					(* ImportedType = ModuleNumber (structName:RawString | 0X typeIndex:RawNum) *)
 					(* ModuleNumber = sfMod1 | .. | sfModOther-1 | sfModOther moduleNumber:RawNum *)
@@ -1798,6 +1807,20 @@ TYPE
 								D.Str("Type / Basic / Longreal"); D.Ln
 							END;
 						END;
+
+					ELSIF type IS SyntaxTree.ComplexType THEN
+						IF size = 64 THEN
+							w.RawNum(sfTypeComplex);
+							IF TraceExport IN Trace THEN
+								D.Str("Type / Basic / Complex"); D.Ln
+							END;
+						ELSIF size = 128 THEN
+							w.RawNum(sfTypeLongcomplex);
+							IF TraceExport IN Trace THEN
+								D.Str("Type / Basic / Longcomplex"); D.Ln
+							END;
+						END;
+
 					ELSIF type IS SyntaxTree.SetType THEN
 						w.RawNum(sfTypeSet);
 						IF TraceExport IN Trace THEN
@@ -1825,6 +1848,7 @@ TYPE
 						IF TraceExport IN Trace THEN
 							D.Str("Type / Basic / Range"); D.Ln
 						END;
+						
 					ELSIF type IS SyntaxTree.AddressType THEN w.RawNum(sfTypeAddress) (*! compatibility with PACO *)
 					ELSIF type IS SyntaxTree.SizeType THEN w.RawNum(sfTypeLongint)
 					ELSE HALT(100)
