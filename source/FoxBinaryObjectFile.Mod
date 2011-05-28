@@ -1107,11 +1107,11 @@ TYPE
 			END ExportSymbol;
 
 			PROCEDURE ExportMethods(typeDeclaration: SyntaxTree.TypeDeclaration);
-			VAR name: Scanner.StringType; type: SyntaxTree.Type;  fingerPrint: SyntaxTree.FingerPrint;
+			VAR name: Scanner.StringType; type: SyntaxTree.Type;  fingerPrint: SyntaxTree.FingerPrint; initialType: SyntaxTree.Type;
 			BEGIN
 				type := typeDeclaration.declaredType;
 				typeDeclaration.GetName(name);
-				type := type.resolved;
+				type := type.resolved; initialType := type;
 				WHILE (type IS SyntaxTree.PointerType) OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.MathArrayType) DO
 					IF type IS SyntaxTree.PointerType THEN
 						type := type(SyntaxTree.PointerType).pointerBase.resolved;
@@ -1120,6 +1120,7 @@ TYPE
 					ELSE
 						type := type(SyntaxTree.MathArrayType).arrayBase.resolved;
 					END;
+					IF type = initialType THEN RETURN END; (* avoid circles *)
 				END;
 				IF (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).recordScope.ownerModule = module.module)  THEN
 					fingerPrint := fingerprinter.TypeFP(type); (* make sure that fingerprint has traversed all methods ... *)

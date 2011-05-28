@@ -331,7 +331,7 @@ TYPE
 	PROCEDURE Assert(condition: BOOLEAN; CONST reason: ARRAY OF CHAR);
 	BEGIN ASSERT(condition);
 	END Assert;
-	
+
 	(** create a new section in a given section list
 		- if the section already exists, reuse the existing section
 		note: for compatibility with the old binary object file format, const sections can also be referred to as var sections
@@ -347,7 +347,7 @@ TYPE
 				(* section has been found by the AST symbol *)
 				ASSERT((result.kind = kind) OR (kind = Sections.UnknownKind) OR (result.kind = Sections.UnknownKind)); (* check kinds *)
 				ASSERT((type = Sections.UnknownSectionType) OR (result.type = type) OR (type = Sections.VarSection) & (result.type = Sections.ConstSection)); (* check types *)
-				IF result.type = Sections.UnknownSectionType THEN result.SetType(type) END; (* refine type *)				
+				IF result.type = Sections.UnknownSectionType THEN result.SetType(type) END; (* refine type *)
 				IF isDefinition THEN result.MarkAsNoPrototype END;
 				RETURN result(Section)
 			END
@@ -356,20 +356,20 @@ TYPE
 			result := list.FindByName(name);
 			IF result # NIL THEN
 				(* section has been found by the name *)
-				ASSERT((result.kind = kind) OR (kind = Sections.UnknownKind) OR (result.kind = Sections.UnknownKind)); (* check kinds *)				
+				ASSERT((result.kind = kind) OR (kind = Sections.UnknownKind) OR (result.kind = Sections.UnknownKind)); (* check kinds *)
 				ASSERT((result.type = type) OR (type = Sections.UnknownSectionType) OR (result.type = Sections.UnknownSectionType) OR (type = Sections.VarSection) & (result.type = Sections.ConstSection)); (* check types *)
 				IF result.type = Sections.UnknownSectionType THEN result.SetType(type) END; (* refine type *)
 				IF isDefinition THEN result.MarkAsNoPrototype END;
 				RETURN result(Section)
 			END
 		END;
-		
+
 		(* a valid name must be present *)
 		ASSERT(name[0] # Basic.MakeString(""));
 		ASSERT(name[1] # Basic.MakeString(""));
 		ASSERT(name[2] # Basic.MakeString(""));
 		ASSERT(name[3] # Basic.MakeString(""));
-		
+
 		(* create a new section and enter it *)
 		NEW(section, kind, type, isDefinition, name, syntaxTreeSymbol, dump);
 		IF syntaxTreeSymbol # NIL THEN section.SetFingerprint(syntaxTreeSymbol.fingerprint.shallow) END;
@@ -427,8 +427,9 @@ TYPE
 				IF operand.symbol # NIL THEN message :="symbol and register cannot be both set in a memory operand"; RETURN FALSE END
 			ELSIF operand.symbol # NIL THEN
 				IF operand.intValue # 0 THEN message :="memory operand on non zero immediate with symbol # NIL"; RETURN FALSE END
-			ELSE
+			(*ELSE
 				IF operand.intValue = 0 THEN message :="memory operand on address 0 zero without register and symbol"; RETURN FALSE END
+			*)
 			END
 		| ModeRegister:
 			IF operand.type.form = Undefined THEN message :="register type form undefined"; RETURN FALSE END;

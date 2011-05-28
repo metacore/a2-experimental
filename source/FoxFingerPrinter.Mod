@@ -360,10 +360,9 @@ TYPE
 				ELSE HALT(200)
 				END;
 				TypeName(fp,x);
-
-				IF ~(x.arrayBase IS SyntaxTree.PointerType) THEN
-					FPType(fp,x.arrayBase);
-				END;
+				fingerprint.shallow := fp;
+				x.SetFingerPrint(fingerprint);
+				FPType(fp,x.arrayBase.resolved);
 
 				IF x.form = SyntaxTree.Static THEN FPNumber(fp,x.staticLength) END;
 				fingerprint.shallow := fp;
@@ -372,12 +371,11 @@ TYPE
 			END;
 
 			IF deep & ~fingerprint.deepAvailable THEN
-				fp := fingerprint.shallow;
-				x.arrayBase.Accept(SELF); (* make sure that base pointer is also deeply fped *)
-				fingerprint.private := fp;
-				fingerprint.public := fp;
-				fingerprint.deepAvailable := TRUE;
+				fingerprint.private := fingerprint.shallow;
+				fingerprint.public := fingerprint.shallow;
+				fingerprint.deepAvailable := TRUE; (* to avoid circles during base finger printing *)
 				x.SetFingerPrint(fingerprint);
+				x.arrayBase.Accept(SELF); (* make sure that base pointer is also deeply fped *)
 			END;
 
 			IF Trace THEN TraceExit("ArrayType",fingerprint) END;
@@ -826,7 +824,7 @@ TYPE
 
 		PROCEDURE FPType(VAR fp: LONGINT; t: SyntaxTree.Type);
 		BEGIN
-			INC(level); ASSERT(level <= 5);
+			INC(level); ASSERT(level <= 100);
 			IF t = NIL THEN FPNumber(fp,fpTypeNone);
 			ELSE t.Accept(SELF); FPNumber(fp,SELF.fingerprint.shallow);
 			END;
