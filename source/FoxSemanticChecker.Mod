@@ -4807,7 +4807,9 @@ TYPE
 				(* ---- CAP ----- *)
 				ELSIF (id = Global.Cap) & Parameters(1,1) THEN
 					type := system.characterType;
-					IF CheckCharacterType (parameter0) THEN
+						IF CheckCharacterType (parameter0) THEN
+						parameter0 := NewConversion(parameter0.position,parameter0,type,NIL);
+						actualParameters.SetExpression(0,parameter0);
 						IF IsCharacterValue(parameter0,c) THEN
 							IF (c <= "z") & (c >= "a") THEN
 								result.SetResolved(SyntaxTree.NewCharacterValue(position,CAP(c)))
