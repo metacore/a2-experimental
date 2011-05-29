@@ -1533,23 +1533,29 @@ TYPE
 			IF type IS SyntaxTree.PointerType THEN
 				type := type(SyntaxTree.PointerType).pointerBase.resolved;
 			END;
-			ASSERT(type IS SyntaxTree.RecordType);
-			level := type(SyntaxTree.RecordType).Level();
-			(* get type desc tag of level relative to base tag *)
-			offset := addressType.sizeInBits*BaseTypesTable - addressType.sizeInBits * level;
-			(*
-			IntermediateCode.MakeMemory(tag,addressType); (*! already done during generation *)
-			*)
-			ReuseCopy(left,tag);
-			IntermediateCode.AddOffset(left,ToMemoryUnits(system,offset));
-			right := TypeDescriptorAdr(type);
-			IntermediateCode.MakeMemory(left,addressType);
-			IF ~newObjectFile THEN
-				IntermediateCode.MakeMemory(right,addressType);
+			IF type IS SyntaxTree.ObjectType THEN
+				BrL(trueL);
+			ELSE
+
+				ASSERT(type IS SyntaxTree.RecordType);
+
+				level := type(SyntaxTree.RecordType).Level();
+				(* get type desc tag of level relative to base tag *)
+				offset := addressType.sizeInBits*BaseTypesTable - addressType.sizeInBits * level;
+				(*
+				IntermediateCode.MakeMemory(tag,addressType); (*! already done during generation *)
+				*)
+				ReuseCopy(left,tag);
+				IntermediateCode.AddOffset(left,ToMemoryUnits(system,offset));
+				right := TypeDescriptorAdr(type);
+				IntermediateCode.MakeMemory(left,addressType);
+				IF ~newObjectFile THEN
+					IntermediateCode.MakeMemory(right,addressType);
+				END;
+				BreqL(trueL,left,right);
+				ReleaseIntermediateOperand(left); ReleaseIntermediateOperand(right);
+				BrL(falseL);
 			END;
-			BreqL(trueL,left,right);
-			ReleaseIntermediateOperand(left); ReleaseIntermediateOperand(right);
-			BrL(falseL);
 		END TypeTest;
 
 		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
@@ -5322,10 +5328,10 @@ TYPE
 			|Global.Short, Global.Long:
 				Evaluate(p0,result);
 				IF x.type IS SyntaxTree.ComplexType THEN
-					componentType := x.type(SyntaxTree.ComplexType).componentType;					
+					componentType := x.type(SyntaxTree.ComplexType).componentType;
 					Convert(result.op, IntermediateCode.GetType(system, componentType));
 					Convert(result.tag, IntermediateCode.GetType(system, componentType));
-				ELSE					
+				ELSE
 					Convert(result.op,IntermediateCode.GetType(system,x.type));
 				END
 			(* ---- HALT, SYSTEM.HALT----- *)
