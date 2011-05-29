@@ -485,7 +485,11 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 	FoxAMD64InstructionSet.Mod FoxAMD64Assembler.Mod FoxAMDBackend.Mod
 	FoxInstructionSetAMD64TabSeperated.txt
 
-	FoxArrayBase.Mod # Runtime support for math oberon (Move to runtime package? *)
+	# Runtime support for math oberon (Move to runtime package? *)
+	I386, WIN, UNIX { I386.Math.Mod I386.MathL.Mod }
+	AMD64 { AMD64.Math.Mod AMD64.MathL.Mod }
+	FoxArrayBase.Mod 
+	I386, WIN, UNIX { I386.FoxArrayBaseOptimized.Mod }
 END
 
 PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMiniSrc.zip" DESCRIPTION "Minimal applications set"
