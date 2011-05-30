@@ -2555,10 +2555,10 @@ TYPE
 			RETURN system
 		END GetSystem;
 
-		PROCEDURE Supported(CONST instruction: IntermediateCode.Instruction; VAR moduleName, procedureName: ARRAY OF CHAR): BOOLEAN;
+		PROCEDURE SupportedInstruction(CONST instruction: IntermediateCode.Instruction; VAR moduleName, procedureName: ARRAY OF CHAR): BOOLEAN;
 		BEGIN
 			RETURN cg.Supported(instruction,moduleName,procedureName);
-		END Supported;
+		END SupportedInstruction;
 
 		PROCEDURE GenerateBinary(module: Sections.Module; dump: Streams.Writer);
 		VAR

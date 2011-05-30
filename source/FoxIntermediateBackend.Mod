@@ -70,7 +70,8 @@ CONST
 		RhsIsPointer = 1;
 
 TYPE
-	SupportedProcedure= PROCEDURE {DELEGATE} (CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
+	SupportedInstructionProcedure* = PROCEDURE {DELEGATE} (CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
+	SupportedImmediateProcedure* = PROCEDURE {DELEGATE} (CONST op: IntermediateCode.Operand): BOOLEAN;
 
 	Operand = RECORD
 		mode: SHORTINT;
@@ -303,8 +304,10 @@ TYPE
 			IF x.defaultValue = NIL THEN
 				irv.Emit(Reserve(ToMemoryUnits(system,system.SizeOf(x.type))))
 			ELSE
+				implementationVisitor.inData := TRUE;
 				implementationVisitor.Evaluate(x.defaultValue, op);
 				irv.Emit(Data(op.op));
+				implementationVisitor.inData := FALSE;
 			END;
 			CheckTypeDeclaration(implementationVisitor, module,x.type,dump,implementationVisitor.newObjectFile);
 		END VisitParameter;
@@ -821,7 +824,9 @@ TYPE
 		commentPrintout: Printout.Printer;
 		dump: Streams.Writer;
 		tagsAvailable : BOOLEAN;
-		supported: SupportedProcedure;
+		supportedInstruction: SupportedInstructionProcedure;
+		supportedImmediate: SupportedImmediateProcedure;
+		inData: BOOLEAN;  (* to prevent indirect reference to data within data sections, cf. VisitIntegerValue *)
 		emitLabels: BOOLEAN;
 		runtimeModuleName : SyntaxTree.String;
 		newObjectFile: BOOLEAN;
@@ -836,7 +841,7 @@ TYPE
 		operatorInitializationCodeSection: IntermediateCode.Section;
 		fingerPrinter: FingerPrinter.FingerPrinter;
 
-		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedProcedure: SupportedProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; backend: IntermediateBackend;
+		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedInstructionProcedure: SupportedInstructionProcedure; supportedImmediateProcedure: SupportedImmediateProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
 		BEGIN
 			SELF.system := system;
@@ -863,7 +868,10 @@ TYPE
 
 			IntermediateCode.InitOperand(destination);
 			tagsAvailable := TRUE;
-			supported := supportedProcedure;
+			supportedInstruction := supportedInstructionProcedure;
+			supportedImmediate := supportedImmediateProcedure;
+			inData := FALSE;
+
 			SELF.emitLabels := emitLabels;
 			IntermediateCode.InitOperand(arrayDestinationTag);
 
@@ -947,7 +955,7 @@ TYPE
 			CheckRegister(instruction.op1);
 			CheckRegister(instruction.op2);
 			CheckRegister(instruction.op3);
-			IF supported(instruction,moduleName,procedureName) THEN section.Emit(instruction)
+			IF supportedInstruction(instruction,moduleName,procedureName) THEN section.Emit(instruction)
 			ELSE Emulate(instruction,moduleName,procedureName);
 			END;
 		END Emit;
@@ -6253,11 +6261,35 @@ TYPE
 			END;
 		END VisitBooleanValue;
 
+		PROCEDURE GetDataSection*(): IntermediateCode.Section;
+		VAR name: Basic.PooledName; section: IntermediateCode.Section;
+		BEGIN
+			Basic.InitPooledName(name);
+			name[0] := StringPool.GetIndex1(module.moduleName);
+			name[1] := StringPool.GetIndex1("@Immediates");
+			section := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,NIL,TRUE);
+			RETURN section
+		END GetDataSection;
+
+		PROCEDURE GetImmediateMem(VAR vop: IntermediateCode.Operand);
+		VAR data: IntermediateCode.Section;pc: LONGINT; op: IntermediateCode.Operand; type: IntermediateCode.Type;
+		BEGIN
+			type := vop.type;
+			data := GetDataSection();
+			pc := EnterImmediate(data,vop);
+			IntermediateCode.InitAddress(vop, addressType, data, pc);
+			IntermediateCode.MakeMemory(vop, type);
+		END GetImmediateMem;
+
 		PROCEDURE VisitIntegerValue(x: SyntaxTree.IntegerValue);
+		VAR section: IntermediateCode.Section;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitIntegerValue") END;
 			InitOperand(result,ModeValue);
 			IntermediateCode.InitImmediate(result.op,IntermediateCode.GetType(system,x.type),x.hvalue);
+			IF ~supportedImmediate(result.op)  &~inData THEN
+				GetImmediateMem(result.op)
+			END;
 		END VisitIntegerValue;
 
 		PROCEDURE VisitCharacterValue(x: SyntaxTree.CharacterValue);
@@ -6286,8 +6318,10 @@ TYPE
 					IF expression IS SyntaxTree.MathArrayExpression THEN
 						RecursiveData(expression(SyntaxTree.MathArrayExpression));
 					ELSE
+						inData := TRUE;
 						Evaluate(expression,op);
 						irv.Emit(Data(op.op));
+						inData := FALSE;
 						ReleaseOperand(op);
 					END;
 				END;
@@ -7620,13 +7654,7 @@ TYPE
 			InitBackend;SetRuntimeModuleName(DefaultRuntimeModuleName)
 		END InitIntermediateBackend;
 
-		PROCEDURE Supported*(CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
-		BEGIN
-			moduleName := ""; procedureName := "";
-			RETURN TRUE
-		END Supported;
-
-		PROCEDURE GenerateIntermediate*(x: SyntaxTree.Module): Sections.Module;
+		PROCEDURE GenerateIntermediate*(x: SyntaxTree.Module; supportedInstruction: SupportedInstructionProcedure; supportedImmediate: SupportedImmediateProcedure): Sections.Module;
 		VAR
 			declarationVisitor: DeclarationVisitor;
 			implementationVisitor: ImplementationVisitor;
@@ -7646,7 +7674,7 @@ TYPE
 			Global.GetModuleName(x, name);
 			module.SetModuleName(name);
 
-			NEW(implementationVisitor,system,checker,Supported,Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
+			NEW(implementationVisitor,system,checker,supportedInstruction, supportedImmediate, Compiler.FindPC IN flags, runtimeModuleName, SELF, newObjectFile);
 			NEW(declarationVisitor,system,implementationVisitor,SELF,Compiler.ForceModuleBodies IN flags,trace & (Compiler.Info IN flags));
 			declarationVisitor.Module(x,module);
 
@@ -7681,8 +7709,18 @@ TYPE
 			Files.Register(file)
 		END DumpSectionsModuleIntoFile;
 
+		PROCEDURE SupportedInstruction*(CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
+		BEGIN
+			moduleName := ""; procedureName := "";
+			RETURN TRUE
+		END SupportedInstruction;
+
+		PROCEDURE SupportedImmediate*(CONST op: IntermediateCode.Operand): BOOLEAN;
+		BEGIN RETURN TRUE
+		END SupportedImmediate;
+
 		PROCEDURE ProcessSyntaxTreeModule(syntaxTreeModule: SyntaxTree.Module): Formats.GeneratedModule;
-		BEGIN RETURN ProcessIntermediateCodeModule(GenerateIntermediate(syntaxTreeModule))
+		BEGIN RETURN ProcessIntermediateCodeModule(GenerateIntermediate(syntaxTreeModule, SupportedInstruction, SupportedImmediate))
 		END ProcessSyntaxTreeModule;
 
 		PROCEDURE ProcessIntermediateCodeModule(intermediateCodeModule: Formats.GeneratedModule): Formats.GeneratedModule;
