@@ -59,7 +59,7 @@ TYPE
 		ClearList (tests);
 		WHILE SkipComment (r) DO
 			IF ~ReadType (r, type) OR ~SkipWhitespace (r) OR ~ReadText (r, name) THEN
-				diagnostics.Error (name, Diagnostics.Invalid, Diagnostics.Invalid, "parse error"); RETURN;
+				diagnostics.Error (name, r.Pos(), Diagnostics.Invalid, "parse error"); RETURN;
 			END;
 			IF FindResult (tests, name) # NIL THEN
 				diagnostics.Error (name, Diagnostics.Invalid, Diagnostics.Invalid, "duplicated test"); RETURN;

@@ -8873,12 +8873,12 @@ positive: procedure type with intermixed parameters of anonymous procedure type
 # enumerations
 
 positive: simple enumeration
-	
+
 	MODULE Test;
 	TYPE Color=ENUM red, green, blue END;
 	VAR color: Color;
 	BEGIN color := Color.red END Test.
-	
+
 positive: enumeration type extension
 
 	MODULE Test;
@@ -8886,14 +8886,14 @@ positive: enumeration type extension
 		FineColor=ENUM (Color) black, white END;
 	VAR color: FineColor;
 	BEGIN color := Color.red; color := FineColor.white END Test.
-	
+
 positive: enumeration assignment compatibility
 
 	MODULE Test;
 	TYPE Color=ENUM red, green, blue END;
 		FineColor=ENUM(Color) black, white END;
 	VAR color,color2: Color; fineColor,fineColor2: FineColor;
-	BEGIN color := Color.blue; fineColor := Color.red; fineColor := FineColor.black; 
+	BEGIN color := Color.blue; fineColor := Color.red; fineColor := FineColor.black;
 		color2 := color; fineColor2 := fineColor;
 		fineColor := color;
 	END Test.
@@ -8913,7 +8913,7 @@ positive: enumeration comparison compatibility
 	TYPE Color=ENUM red, green, blue END;
 		FineColor=ENUM(Color) black, white END;
 	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
-	BEGIN 
+	BEGIN
 		b := color = color2;
 		b := color # color2;
 		b := fineColor = fineColor2;
@@ -8928,7 +8928,7 @@ positive: enumeration comparison with impossible value (extension)
 	TYPE Color=ENUM red, green, blue END;
 		FineColor=ENUM(Color) black, white END;
 	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
-	BEGIN 
+	BEGIN
 		b := color = FineColor.white;
 	END Test.
 
@@ -8938,35 +8938,35 @@ positive: passing enumeration as parameter
 	TYPE Color=ENUM red, green, blue END;
 		FineColor=ENUM(Color) black, white END;
 	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
-		
-		PROCEDURE P1(color: Color); 
+
+		PROCEDURE P1(color: Color);
 		BEGIN END P1;
-		PROCEDURE P2(color: FineColor); 
+		PROCEDURE P2(color: FineColor);
 		BEGIN END P2;
-		PROCEDURE P1V(VAR color: Color); 
+		PROCEDURE P1V(VAR color: Color);
 		BEGIN END P1V;
-		PROCEDURE P2V(VAR color: FineColor); 
+		PROCEDURE P2V(VAR color: FineColor);
 		BEGIN END P2V;
-	
-	BEGIN 
+
+	BEGIN
 		P1(color);
 		P2(fineColor);
 		P2(color);
 		P1V(color);
 		P2V(fineColor);
 	END Test.
-	
+
 negative: passing enumeration extension on base type
 
 	MODULE Test;
 	TYPE Color=ENUM red, green, blue END;
 		FineColor=ENUM(Color) black, white END;
 	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
-		
-		PROCEDURE P1(color: Color); 
+
+		PROCEDURE P1(color: Color);
 		BEGIN END P1;
-	
-	BEGIN 
+
+	BEGIN
 		P1(fineColor);
 	END Test.
 
@@ -8976,11 +8976,11 @@ negative: passing enumeration extension on extended type as var parameter
 	TYPE Color=ENUM red, green, blue END;
 		FineColor=ENUM(Color) black, white END;
 	VAR color,color2: Color; fineColor,fineColor2: FineColor; b: BOOLEAN;
-		
-		PROCEDURE P1(VAR color: Color); 
+
+		PROCEDURE P1(VAR color: Color);
 		BEGIN END P1;
-	
-	BEGIN 
+
+	BEGIN
 		P1(fineColor);
 	END Test.
 
@@ -26462,9 +26462,9 @@ positive: indirect binary array as size of another array
 
 positive: array length constants
 
-	MODULE Test; 
+	MODULE Test;
 
-	CONST 
+	CONST
 		ls1=LEN(s1,0);
 		ls20=LEN(s2,0);
 		ls21=LEN(s2,1);
@@ -26473,8 +26473,8 @@ positive: array length constants
 		lp21=LEN(p2,1);
 		lp31=LEN(p3,1);
 		lp32=LEN(p3,2);
-		
-	VAR 
+
+	VAR
 		s1: ARRAY 2 OF CHAR;
 		s2:  ARRAY 2 OF ARRAY 12 OF CHAR;
 		p1: POINTER TO ARRAY 2 OF CHAR;
@@ -26482,14 +26482,14 @@ positive: array length constants
 		p3: POINTER TO ARRAY OF ARRAY 2 OF ARRAY 12 OF CHAR;
 
 	BEGIN
-		ASSERT(ls1=2); 
-		ASSERT(ls20=2); 
-		ASSERT(ls21=12); 
+		ASSERT(ls1=2);
+		ASSERT(ls20=2);
+		ASSERT(ls21=12);
 		ASSERT(lp1=2);
-		ASSERT(lp20=2); 
-		ASSERT(lp21=12); 
-		ASSERT(lp31=2); 
-		ASSERT(lp32=12); 
+		ASSERT(lp20=2);
+		ASSERT(lp21=12);
+		ASSERT(lp31=2);
+		ASSERT(lp32=12);
 	END Test.
 
 positive: binary length of variable open array
@@ -37883,26 +37883,26 @@ positive: plain realtime object
 	MODULE Test;
 	TYPE A = OBJECT {REALTIME} END A;
 	END Test.
-	
+
 positive: realtime pointer to record
 
 	MODULE Test;
 	TYPE A = POINTER {REALTIME} TO RECORD END;
 	END Test.
-	
+
 positive: realtime pointer to array
 
 	MODULE Test;
 	TYPE A = POINTER {REALTIME} TO ARRAY OF CHAR;
 	END Test.
-	
+
 positive: realtime object containing basic type fields
 
 	MODULE Test;
 	IMPORT SYSTEM;
-	TYPE A = OBJECT {REALTIME} 
-		VAR a0: CHAR8; a1: CHAR16; a2: CHAR32; a3: SHORTINT; a4: INTEGER; a5: LONGINT; a6: HUGEINT; a7: REAL; 
-		a8: LONGREAL; a9: BOOLEAN; a10: SET; a11: SYSTEM.ADDRESS; a12:SYSTEM.SIZE; a13: SYSTEM.BYTE; 
+	TYPE A = OBJECT {REALTIME}
+		VAR a0: CHAR8; a1: CHAR16; a2: CHAR32; a3: SHORTINT; a4: INTEGER; a5: LONGINT; a6: HUGEINT; a7: REAL;
+		a8: LONGREAL; a9: BOOLEAN; a10: SET; a11: SYSTEM.ADDRESS; a12:SYSTEM.SIZE; a13: SYSTEM.BYTE;
 		END A;
 	END Test.
 
@@ -37910,24 +37910,24 @@ positive: realtime pointer to record that contains basic type fields
 
 	MODULE Test;
 	IMPORT SYSTEM;
-	TYPE A = POINTER {REALTIME} TO RECORD 
-			a0: CHAR8; a1: CHAR16; a2: CHAR32; a3: SHORTINT; a4: INTEGER; a5: LONGINT; a6: HUGEINT; a7: REAL; 
-			a8: LONGREAL; a9: BOOLEAN; a10: SET; a11: SYSTEM.ADDRESS; a12:SYSTEM.SIZE; a13: SYSTEM.BYTE; 
+	TYPE A = POINTER {REALTIME} TO RECORD
+			a0: CHAR8; a1: CHAR16; a2: CHAR32; a3: SHORTINT; a4: INTEGER; a5: LONGINT; a6: HUGEINT; a7: REAL;
+			a8: LONGREAL; a9: BOOLEAN; a10: SET; a11: SYSTEM.ADDRESS; a12:SYSTEM.SIZE; a13: SYSTEM.BYTE;
 			END;
 	END Test.
-	
+
 positive: realtime pointer to array where the elements contain basic type fields
 
 	MODULE Test;
 	IMPORT SYSTEM;
 	TYPE A0 = POINTER {REALTIME} TO ARRAY OF RECORD
-			a0: CHAR8; a1: CHAR16; a2: CHAR32; a3: SHORTINT; a4: INTEGER; a5: LONGINT; a6: HUGEINT; a7: REAL; 
-			a8: LONGREAL; a9: BOOLEAN; a10: SET; a11: SYSTEM.ADDRESS; a12:SYSTEM.SIZE; a13: SYSTEM.BYTE; 
+			a0: CHAR8; a1: CHAR16; a2: CHAR32; a3: SHORTINT; a4: INTEGER; a5: LONGINT; a6: HUGEINT; a7: REAL;
+			a8: LONGREAL; a9: BOOLEAN; a10: SET; a11: SYSTEM.ADDRESS; a12:SYSTEM.SIZE; a13: SYSTEM.BYTE;
 			END;
 	END Test.
-	
+
 positive: realtime object containing enumeration type field
-	
+
 	MODULE Test;
 	TYPE Color = ENUM red, green, blue END;
 		RTObject = OBJECT {REALTIME} VAR color: Color; END RTObject;
@@ -37939,65 +37939,65 @@ positive: realtime object containing non-basic type realtime fields
 	TYPE A = OBJECT {REALTIME} END A;
 	B = OBJECT {REALTIME} VAR a: A; b: B; END B;
 	END Test.
-	
+
 positive: realtime pointer to record that contains non-basic type fields
 
 	MODULE Test;
 	TYPE A = POINTER {REALTIME} TO RECORD END;
 	B = POINTER {REALTIME} TO RECORD a: A; b: B END;
 	END Test.
-	
+
 positive: realtime pointer to array where the elements contain non-basic realtime fields
 
 	MODULE Test;
 	TYPE A = POINTER {REALTIME} TO RECORD END;
 	B = POINTER {REALTIME} TO ARRAY OF RECORD a: A; b: B END;
 	END Test.
-	
+
 negative: realtime object containing non-realtime any pointer
 
 	MODULE Test;
 	TYPE A = OBJECT {REALTIME} VAR a0: ANY END A;
 	END Test;
-	
+
 negative: realtime object containing non-realtime pointer to record
 
 	MODULE Test;
 	TYPE A = OBJECT {REALTIME} VAR a0: POINTER TO RECORD END END A;
 	END Test;
-	
+
 negative: realtime object containing non-realtime pointer to array
 
 	MODULE Test;
 	TYPE A = OBJECT {REALTIME} VAR a0: POINTER TO ARRAY OF CHAR END A;
 	END Test;
-	
+
 negative: realtime object containing non-realtime object reference
 
 	MODULE Test;
 	TYPE A = OBJECT END A;
 		B = OBJECT {REALTIME} b: A END B;
 	END Test;
-	
+
 positive: realtime object containing record variable with realtime fields
 
 	MODULE Test;
 	TYPE A = OBJECT {REALTIME} VAR a: RECORD k: SHORTINT; l: INTEGER; m: A END END A;
 	END Test.
-	
+
 positive: realtime object containing record variable with realtime pointers
 
 	MODULE Test;
-	TYPE A = OBJECT {REALTIME} VAR a: RECORD p0: POINTER {REALTIME} TO RECORD END; 
+	TYPE A = OBJECT {REALTIME} VAR a: RECORD p0: POINTER {REALTIME} TO RECORD END;
 	p1: POINTER {REALTIME} TO ARRAY OF CHAR; END; END A;
 	END Test.
-	
+
 negative: realtime object containing record variable with a non-realtime any pointer
 
 	MODULE Test;
 	TYPE A = OBJECT {REALTIME} VAR a: RECORD p: ANY END; END A;
 	END Test.
-	
+
 negative: realtime object containing record variable with a non-realtime record pointer
 
 	MODULE Test;
@@ -38009,21 +38009,21 @@ negative: realtime object containing record variable with a non-realtime array p
 	MODULE Test;
 	TYPE A = OBJECT {REALTIME} VAR a: RECORD p: POINTER TO ARRAY OF CHAR END; END A;
 	END Test.
-	
+
 positive: non-realtime object containing reference to realtime object
 
 	MODULE Test;
 	TYPE A = OBJECT {REALTIME} VAR a0: LONGINT; a1: CHAR; END A;
 	B = OBJECT VAR a: A; END B;
 	END Test.
-	
+
 positive: extension of realtime object declared as realtime object
 
 	MODULE Test;
 	TYPE A = OBJECT {REALTIME} VAR a0: CHAR; a1: SET; END A;
 	B = OBJECT {REALTIME} (A) VAR b0: INTEGER; b1: LONGINT; END B;
 	END Test.
-	
+
 positive: variable of realtime pointer to record type
 
 	MODULE Test;
@@ -38034,8 +38034,8 @@ positive: variable of realtime pointer to array type
 
 	MODULE Test;
 	VAR p: POINTER {REALTIME} TO ARRAY OF BOOLEAN;
-	END Test. 	
-	
+	END Test.
+
 negative: realtime extension of non-realtime object
 
 	MODULE Test;
@@ -38049,7 +38049,7 @@ negative: non-realtime extension of realtime object
 	TYPE A = OBJECT {REALTIME} VAR a0: CHAR; a1: SET; END A;
 	B = OBJECT (A) VAR b0: INTEGER; b1: LONGINT; END B;
 	END Test.
-	
+
 positive: record extensions - both record types are implicit realtime objects
 
 	MODULE Test;
@@ -38058,7 +38058,7 @@ positive: record extensions - both record types are implicit realtime objects
 	AP = POINTER {REALTIME} TO A;
 	BP = POINTER {REALTIME} TO B;
 	END Test.
-	
+
 negative: record extensions - only base type is realtime object
 
 	MODULE Test;
@@ -38073,7 +38073,7 @@ positive: extension of realtime pointer
 	MODULE Test;
 	TYPE R = RECORD r0, r1: LONGINT; END;
 	P = POINTER {REALTIME} TO Q;
-	Q = RECORD (R) q0, q1: LONGINT; END;	
+	Q = RECORD (R) q0, q1: LONGINT; END;
 	S = OBJECT {REALTIME} (P) VAR s0, s1: LONGINT; END S;
 	END Test.
 
@@ -38093,56 +38093,56 @@ positive: realtime pointer to (realtime) record from imported module
 	IMPORT Dummy;
 	TYPE RTPtr = POINTER {REALTIME} TO Dummy.RTRec;
 	END Test.
-	
+
 positive: non-realtime pointer to (non-realtime) record from imported module
 
 	MODULE Test;
 	IMPORT Dummy;
 	TYPE NRTPtr = POINTER TO Dummy.NRTRec;
 	END Test.
-	
+
 positive: non-realtime pointer to (realtime) record from imported module
 
 	MODULE Test;
 	IMPORT Dummy;
 	TYPE NRTPtr = POINTER TO Dummy.RTRec;
 	END Test.
-	
+
 negative: realtime pointer to (non-realtime) record from imported module
 
 	MODULE Test;
 	IMPORT Dummy;
 	TYPE RTPtr = POINTER {REALTIME} TO Dummy.NRTRec;
 	END Test.
-	
+
 positive: realtime extension of imported realtime object
 
 	MODULE Test;
 	IMPORT Dummy;
 	TYPE RTE = OBJECT {REALTIME} (Dummy.RTO) VAR t0: POINTER {REALTIME} TO ARRAY OF CHAR; END RTE;
 	END Test.
-	
+
 negative: non-realtime extension of imported realtime object
 
 	MODULE Test;
 	IMPORT Dummy;
 	TYPE NRTE = OBJECT (Dummy.RTO) VAR k: LONGINT; END NRTE;
 	END Test.
-	
+
 positive: non-realtime extension of imported non-realtime object that contains non-realtime fields
 
 	MODULE Test;
 	IMPORT Dummy;
 	TYPE NRTE = OBJECT (Dummy.NRTO0) VAR c: CHAR; END NRTE;
 	END Test.
-	
+
 positive: non-realtime extension of imported non-realtime object that contains only realtime fields
 
 	MODULE Test;
 	IMPORT Dummy;
 	TYPE NRTE = OBJECT (Dummy.NRTO1) VAR c: CHAR; END NRTE;
 	END Test.
-	
+
 
 # realtime procedures
 
@@ -38358,7 +38358,7 @@ negative: using imported non-realtime procedure in realtime procedure
 	BEGIN Dummy.Q; Dummy.Pp(10)
 	END P;
 	END Test.
-	
+
 positive: use of basic type realtime variables and parameters in realtime procedure
 
 	MODULE Test;
@@ -38367,7 +38367,7 @@ positive: use of basic type realtime variables and parameters in realtime proced
 	BEGIN l:= {}; k:= 5;
 	END P;
 	END Test.
-	
+
 positive: use of structured realtime variables in realtime procedure
 
 	MODULE Test;
@@ -38376,7 +38376,7 @@ positive: use of structured realtime variables in realtime procedure
 	BEGIN a.k := 0; a.l := 0;
 	END P;
 	END Test.
-	
+
 negative: use of non-realtime variables in realtime procedure
 
 	MODULE Test;
@@ -38385,7 +38385,7 @@ negative: use of non-realtime variables in realtime procedure
 	BEGIN FOR i := 0 TO LEN(a) DO a[i] := '' END;
 	END P;
 	END Test.
-	
+
 positive: use of string constant (of implicit realtime type) in realtime procedure
 
 	MODULE Test;
@@ -38394,7 +38394,7 @@ positive: use of string constant (of implicit realtime type) in realtime procedu
 	BEGIN a := "AA";
 	END P;
 	END Test.
-	
+
 positive: module Dummy for realtime and non-realtime types and variables
 
 	MODULE Dummy;
@@ -38402,7 +38402,7 @@ positive: module Dummy for realtime and non-realtime types and variables
 	NRTRec* = RECORD p*: ANY; END;
 	RTO* = OBJECT {REALTIME} VAR s: SET; END RTO;
 	NRTO* = OBJECT VAR p: ANY; END NRTO;
-	VAR rtrec*: RTRec; 
+	VAR rtrec*: RTRec;
 	nrtrec*: NRTRec;
 	PROCEDURE {REALTIME} P*;
 	END P;
@@ -38417,7 +38417,7 @@ positive: use of imported realtime type in realtime procedure
 	PROCEDURE {REALTIME} P(VAR r: Dummy.RTO);
 	END P;
 	END Test.
-	
+
 negative: use of imported non-realtime type in realtime procedure
 
 	MODULE Test;
@@ -38425,7 +38425,7 @@ negative: use of imported non-realtime type in realtime procedure
 	PROCEDURE {REALTIME} P(VAR n: Dummy.NRTO);
 	END P;
 	END Test.
-	
+
 positive: use of imported realtime variable in realtime procedure
 
 	MODULE Test;
@@ -38434,7 +38434,7 @@ positive: use of imported realtime variable in realtime procedure
 	BEGIN Dummy.rtrec.i := 0;
 	END P;
 	END Test.
-	
+
 negative: use of imported non-realtime variable in realtime procedure
 
 	MODULE Test;
@@ -38443,7 +38443,7 @@ negative: use of imported non-realtime variable in realtime procedure
 	BEGIN Dummy.nrtrec.p := NIL;
 	END P;
 	END Test.
-	
+
 positive: use of imported realtime variable in non-realtime procedure
 
 	MODULE Test;
@@ -38452,16 +38452,16 @@ positive: use of imported realtime variable in non-realtime procedure
 	BEGIN Dummy.rtrec.i := 0;
 	END P;
 	END Test.
-	
+
 positive: use of imported non-realtime variable in non-realtime procedure
 
 	MODULE Test;
 	IMPORT Dummy;
 	PROCEDURE P;
 	BEGIN Dummy.nrtrec.p := NIL;
-	END P;	
+	END P;
 	END Test.
-	
+
 positive: realtime procedure used as parameter in realtime procedure
 
 	MODULE Test;
@@ -38869,7 +38869,7 @@ positive: assign a string of length zero to variable parameter
 
 	PROCEDURE P(VAR a: ARRAY OF CHAR);
 	BEGIN
-		a := ""; 
+		a := "";
 	END P;
 
 	END Test.
@@ -39214,7 +39214,7 @@ positive: use a value for a the address in SYSTEM.GET
 	END P;
 
 	END Test.
-	
+
 negative: use a non variable for destination in SYSTEM.GET
 
 	MODULE Test;
@@ -39234,7 +39234,7 @@ negative: negative values in address
 	MODULE Test;
 	IMPORT SYSTEM;
 	VAR a: SYSTEM.ADDRESS;
-	BEGIN 
+	BEGIN
 		a := -1;
 	END Test.
 
@@ -39243,7 +39243,7 @@ negative: negative values in address in SYSTEM.GET
 	MODULE Test;
 	IMPORT SYSTEM;
 	VAR a: LONGINT;
-	BEGIN 
+	BEGIN
 		SYSTEM.GET(-1,a)
 	END Test.
 
@@ -39268,7 +39268,7 @@ positive: ugly system.val with records
 	END Q;
 
 	END Test.
-	
+
 positive: call an empty inline code
 	MODULE Test;
 	IMPORT SYSTEM;
@@ -39290,20 +39290,20 @@ positive: export inline code with reference to (local) constant
 
 positive: export and import real number
 	MODULE A;
-	CONST 
+	CONST
 	e*=1.2345D0;
 	END A.
 
 	MODULE Test;
 	IMPORT A;
 	CONST e=1.2345D0;
-	BEGIN 
+	BEGIN
 		ASSERT(A.e = e);
 	END Test.
-	
+
 positive: addition of SYSTEM.ADDRESS and SYSTEM.SIZE
 	MODULE Test;
-	IMPORT SYSTEM; 
+	IMPORT SYSTEM;
 	VAR a: SYSTEM.ADDRESS; s: SYSTEM.SIZE;
 
 	BEGIN
@@ -39312,8 +39312,8 @@ positive: addition of SYSTEM.ADDRESS and SYSTEM.SIZE
 
 positive: implicit HUGEINT conversion in comparison
 	MODULE Test;
-	VAR h: HUGEINT; 
-	BEGIN 
+	VAR h: HUGEINT;
+	BEGIN
 		IF h < 0 THEN END
 	END Test.
 
@@ -39348,7 +39348,7 @@ positive: add negative value to SYSTEM.ADDRESS
 	IMPORT SYSTEM;
 	VAR a: SYSTEM.ADDRESS;
 	CONST const = -4;
-	BEGIN 
+	BEGIN
 		a := a + const;
 	END Test.
 
@@ -39382,9 +39382,7 @@ positive: use SYSTEM.ADDRESS as array index
 	END Test.
 
 positive: long jumps (backend test for TRM)
-
 	MODULE Test;
-
 	PROCEDURE LongJumpBackwards;
 	VAR a,b,c: LONGINT;
 	BEGIN
@@ -39399,7 +39397,6 @@ positive: long jumps (backend test for TRM)
 			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
 		UNTIL a<b
 	END LongJumpBackwards;
-
 	PROCEDURE LongJumpForwards;
 	VAR a,b,c: LONGINT;
 	BEGIN
@@ -39414,20 +39411,16 @@ positive: long jumps (backend test for TRM)
 			a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c; a := b + c; a := b + c;	a := b + c; a := b + c;	a := b + c;
 		END;
 	END LongJumpForwards;
-
 	END Test.
-
-#positive: expressions of type real with longint divisions
-
+	
+positive: expressions of type real with longint divisions
 	MODULE Test;
-
 	    PROCEDURE Do*(x: REAL): REAL;
-	    VAR v: REAL;   
+	    VAR v: REAL;
 	    BEGIN
 	        v := x * (x * (x * (x * ((11 / 11520) - x * (1 / 14400)) - 583 / 69120) + 14597 / 276480) - 156409 / 737280) + 381773117 / 928972800;
 	        RETURN v;
 	    END Do;
-	    
-	END Test. 
+	END Test.
 
 
