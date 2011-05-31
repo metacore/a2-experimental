@@ -802,8 +802,15 @@ TYPE
 		PROCEDURE VisitSetValue(x: SyntaxTree.SetValue);
 		BEGIN FPSet(SELF.fp,x.value) END VisitSetValue;
 
+		(* fp = fp {& Value} *)
 		PROCEDURE VisitMathArrayValue(x: SyntaxTree.MathArrayValue);
-		BEGIN HALT(200) (* not yet implemented *) END VisitMathArrayValue;
+		VAR element: SyntaxTree.Expression; i: LONGINT;
+		BEGIN
+			FOR i := 0 TO x.array.elements.Length()-1 DO
+				element := x.array.elements.GetExpression(i);
+				FPValue(fp, element);
+			END;
+		END VisitMathArrayValue;
 
 		(* fp = fp & (Real | LongReal) *)
 		PROCEDURE VisitRealValue(x: SyntaxTree.RealValue);
