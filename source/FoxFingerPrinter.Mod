@@ -802,14 +802,19 @@ TYPE
 		PROCEDURE VisitSetValue(x: SyntaxTree.SetValue);
 		BEGIN FPSet(SELF.fp,x.value) END VisitSetValue;
 
-		(* fp = fp {& Value} *)
-		PROCEDURE VisitMathArrayValue(x: SyntaxTree.MathArrayValue);
+		PROCEDURE VisitMathArrayExpression(x: SyntaxTree.MathArrayExpression);
 		VAR element: SyntaxTree.Expression; i: LONGINT;
 		BEGIN
-			FOR i := 0 TO x.array.elements.Length()-1 DO
-				element := x.array.elements.GetExpression(i);
+			FOR i := 0 TO x.elements.Length()-1 DO
+				element := x.elements.GetExpression(i);
 				FPValue(fp, element);
 			END;
+		END VisitMathArrayExpression;
+
+		(* fp = fp {& Value} *)
+		PROCEDURE VisitMathArrayValue(x: SyntaxTree.MathArrayValue);
+		BEGIN
+			VisitMathArrayExpression(x.array); (* do not call FPValue here, recursion possible because x.array.resolved = x  *)
 		END VisitMathArrayValue;
 
 		(* fp = fp & (Real | LongReal) *)
@@ -826,7 +831,14 @@ TYPE
 
 		(* fp = fp & FP(x) *)
 		PROCEDURE FPValue(VAR fp: LONGINT; x: SyntaxTree.Expression);
-		BEGIN SELF.fp := fp; x.resolved.Accept(SELF); fp := SELF.fp
+		BEGIN
+			SELF.fp := fp;
+			IF x.resolved # NIL THEN
+				x.resolved.Accept(SELF);
+			ELSE
+				x.Accept(SELF)
+			END;
+			fp := SELF.fp
 		END FPValue;
 
 		PROCEDURE FPType(VAR fp: LONGINT; t: SyntaxTree.Type);
