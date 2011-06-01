@@ -727,17 +727,16 @@ VAR
 
 	(** Private compiler interface. Do not use. *)
 	PROCEDURE NewArr*( VAR p: ANY;  eltag: Address;  nofelem, nofdim: Size; isRealtime: BOOLEAN );
-	VAR size, elSize, arrSize, dataOffset, ptrOfs0: Size;  ptr, firstElem: Address;
+	VAR size, arrSize, dataOffset: Size;  ptr, firstElem: Address; sTB: StaticTypeBlock;
 	BEGIN
-		S.GET( eltag, elSize );
-		arrSize := nofelem*elSize;
+		sTB := S.VAL( StaticTypeBlock, eltag );
+		arrSize := nofelem*sTB.recSize;
 		IF arrSize = 0 THEN
 			NewSys( p, nofdim*4 + 3*AdrSize, isRealtime );
 		ELSE
 			dataOffset := 3*AdrSize + nofdim*AdrSize;
 			INC( dataOffset, (-dataOffset) MOD ArrayAlignment );
-			S.GET( eltag + AdrSize, ptrOfs0 );
-			IF ptrOfs0 = -AdrSize THEN
+			IF LEN( sTB.pointerOffsets ) = 0 THEN
 				(* no pointers in element type *)
 				NewSys( p, dataOffset + arrSize, isRealtime );
 			ELSE
@@ -747,7 +746,7 @@ VAR
 				S.PUT( ptr - AdrSize, S.VAL( SET, eltag ) + {ArrayBit} );
 				ClearMem( ptr, size - AdrSize );
 				firstElem := ptr + dataOffset;
-				S.PUT( ptr, firstElem + arrSize - elSize );  (* last elem *)
+				S.PUT( ptr, firstElem + arrSize - sTB.recSize );  (* last elem *)
 				(* ptr + 4 is reserved for mark phase *)
 				S.PUT( ptr + 2*AdrSize, firstElem );
 				p := S.VAL( ANY, ptr );
