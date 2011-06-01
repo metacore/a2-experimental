@@ -82,23 +82,25 @@ TYPE
 			exception := TRUE; (* catch exceptions from now on *)
 			module := Modules.ThisModule(moduleName, res, msg);
 			IF (res = Ok) THEN
-				GETPROCEDURE(moduleName, commandName, proc);
-				IF (proc = NIL) THEN
-					GETPROCEDURE(moduleName, commandName, commandProc);
-				END;
-				IF (proc = NIL) & (commandProc = NIL) THEN
-					res := CommandNotFound;
-					msg := "Command ";
-					Modules.Append(moduleName, msg); Modules.Append(Delimiter, msg); Modules.Append(commandName, msg);
-					Modules.Append(" not found", msg);
+				IF commandName # "" THEN
+					GETPROCEDURE(moduleName, commandName, proc);
+					IF (proc = NIL) THEN
+						GETPROCEDURE(moduleName, commandName, commandProc);
+					END;
+					IF (proc = NIL) & (commandProc = NIL) THEN
+						res := CommandNotFound;
+						msg := "Command ";
+						Modules.Append(moduleName, msg); Modules.Append(Delimiter, msg); Modules.Append(commandName, msg);
+						Modules.Append(" not found", msg);
+					END;
 				END;
 			END;
 			BEGIN {EXCLUSIVE} state := Loaded; END;
 			IF (res = Ok) THEN
-				ASSERT((proc # NIL) OR (commandProc # NIL));
+				ASSERT((proc # NIL) OR (commandProc # NIL) OR (commandName = ""));
 				IF (proc # NIL) THEN
 					proc();
-				ELSE
+				ELSIF (commandProc # NIL) THEN
 					ASSERT(context # NIL);
 					commandProc(context);
 					context.out.Update; context.error.Update;
