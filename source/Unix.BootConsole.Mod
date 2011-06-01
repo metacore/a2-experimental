@@ -69,32 +69,63 @@ VAR
 			END
 		ELSE  
 			Trace.String( "BootConsole.Execute:  could not load module " );  Trace.String( modName );  
-			Trace.Ln
+			Trace.Ln;
+			Trace.String( msg );  Trace.Ln
 		END
 	END Execute;
 
 
-	PROCEDURE getCmd( ): BOOLEAN;
-	VAR cmd: ARRAY 64 OF CHAR;
+	PROCEDURE CommandError( CONST cmd, msg: ARRAY OF CHAR );
+	BEGIN
+		Trace.String( "bad command line parameter: -x " );  Trace.String( cmd );  Trace.Ln;
+		IF msg # "" THEN  Trace.String( msg );  Trace.Ln  END;
+		Unix.exit( 1 )
+	END CommandError;
+	
+	PROCEDURE GetCmd( ): BOOLEAN;
+	VAR cmd: ARRAY 65 OF CHAR; (* plus dot if available *)
 		i, j, k: INTEGER;  c: CHAR;
 	BEGIN
 		Unix.GetArgval( "-x", cmd );
-		IF cmd = "" THEN  RETURN FALSE
+		IF cmd = "" THEN  RETURN FALSE	
 		ELSE
-			i := 0;
-			REPEAT  c := cmd[i];  modName[i] := c;  INC( i )
-			UNTIL ~(("a" <= c) & (c <= "z") OR ("A" <= c) & (c <= "Z"));
+      			i := 0;
+         
+			c := cmd[0];
+			IF ~((('a' <= c) & (c <= 'z')) OR (( 'A' <= c) & (c <= 'Z'))) THEN
+				CommandError( cmd, "first character is not a character in module name" ); 
+			END;
+			modName[0] := c;
+			INC( i );
+         
+			REPEAT  c := cmd[i];  modName[i] := c;  INC( i );
+				IF i > 31 THEN
+					CommandError( cmd, "# of characters is > 31 in module name" )
+				END;
+			UNTIL ~( ("a" <= c) & (c <= "z") OR ("A" <= c) & (c <= "Z") OR ("0" <= c) & (c <= "9"));
 			IF (c = '.') & (i > 1) THEN
 				modName[i - 1] := 0X;  j := i;  k := 0;
-				REPEAT  c := cmd[j];  cmdName[k] := c;  INC( j );  INC( k )
-				UNTIL ~(("a" <= c) & (c <= "z") OR ("A" <= c) & (c <= "Z"));
+
+				c := cmd[j];
+				IF ~((('a' <= c) & (c <= 'z')) OR (( 'A' <= c) & (c <= 'Z'))) THEN
+					CommandError( cmd, "first character is not a character in command name" )
+				END;
+				cmdName[k] := c;
+				INC( j ); INC( k );
+            
+				REPEAT  c := cmd[j];  cmdName[k] := c;  INC( j );  INC( k );
+					IF k > 31 THEN
+						CommandError( cmd, "# of characters is > 31 in command name" )
+					END;
+				UNTIL ~(("a" <= c) & (c <= "z") OR ("A" <= c) & (c <= "Z") OR ("0" <= c) & (c <= "9"));
 				cmdName[k - 1] := 0X;
-				IF k > 1 THEN  RETURN TRUE  END
-			END  ;
-			Trace.String( "bad command line parameter: -x " );  Trace.String( cmd );  Trace.Ln;
-			RETURN FALSE
-		END;
-	END getCmd;
+				IF k < 2 THEN  CommandError( cmd, "invalid command name" )  END
+			ELSE
+				CommandError( cmd, "invalid module name" ); 
+			END;
+			RETURN TRUE
+		END
+	END GetCmd;
 	
 	PROCEDURE InitPrelinkedModules;
 	TYPE Body = PROCEDURE;
@@ -116,7 +147,7 @@ VAR
 
 	PROCEDURE StartSystem;
 	BEGIN
-		IF getCmd()  THEN
+		IF GetCmd()  THEN
 			(* start the procedure specified in the command line (aos  -x M.P) *)
 			IF Glue.debug # {} THEN
 				Trace.String( "Starting " );
