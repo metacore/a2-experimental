@@ -15,7 +15,7 @@ CONST
 	ObjectFileExtension*="Gof";
 
 	TraceError=TRUE;
-	BasePortAddress=LONGINT(0FFFFFFD0H);
+	BasePortAddress=LONGINT(0FFFFFFE0H);
 
 TYPE
 
@@ -982,12 +982,13 @@ TYPE
 			SELF.log := log;
 			NEW(device,"DDR",SELF, 0FFCAH); supportedDevices.AddDevice(device);
 			NEW(device,"RS232",SELF,LONGINT(0FFFFFFC4H)); supportedDevices.AddDevice(device);
-			NEW(device,"LCD",SELF,0FFC9H); supportedDevices.AddDevice(device);
-			NEW(device,"CF",SELF,0); supportedDevices.AddDevice(device);
-			NEW(device,"LED",SELF,0); supportedDevices.AddDevice(device);
-			NEW(device,"TIMER",SELF,0FFC6H); supportedDevices.AddDevice(device);
-			NEW(device,"PORT",SELF,0FF10H); supportedDevices.AddDevice(device);
-			NEW(device,"Switch",SELF,0FFFFH); supportedDevices.AddDevice(device);
+			NEW(device,"LCD",SELF, LONGINT(0FFFFFFC8H)); supportedDevices.AddDevice(device);
+			NEW(device,"CF",SELF, LONGINT(0FFFFFFCCH)); supportedDevices.AddDevice(device);
+			NEW(device,"LED",SELF, LONGINT(0FFFFFFC7H)); supportedDevices.AddDevice(device);
+			NEW(device,"TIMER",SELF, LONGINT(0FFFFFFC6H)); supportedDevices.AddDevice(device);
+			(*NEW(device,"PORT",SELF,0FF10H); supportedDevices.AddDevice(device);*)
+			NEW(device,"PORT",SELF, LONGINT(0FFFFFFE0H)); supportedDevices.AddDevice(device);
+			NEW(device,"Switch",SELF, LONGINT(0FFFFFFC7H)); supportedDevices.AddDevice(device);
 			NEW(device,"Motor",SELF,LONGINT(0FFFFFFCEH)); supportedDevices.AddDevice(device);
 			NEW(device,"BraceletSPI",SELF,LONGINT(0FFFFFFD2H)); supportedDevices.AddDevice(device);
 			NEW(imports,4);
