@@ -815,7 +815,7 @@ TYPE
 
 			Init(menuPanel.bounds.GetWidth(), menuPanel.bounds.GetHeight(), FALSE);
 			SetContent(menuPanel);
-			flags := {WMWindowManager.FlagFrame, WMWindowManager.FlagHidden};
+			flags := {WMWindowManager.FlagFrame, WMWindowManager.FlagHidden, WMWindowManager.FlagStayOnTop};
 			IF ~takesFocus THEN flags := flags + {WMWindowManager.FlagNoFocus}; END;
 			AddWindow(SELF, x + dx, y + dy, flags);
 			ignore := manager.TransferPointer(SELF);
@@ -863,7 +863,7 @@ BEGIN
 	manager.lock.AcquireWrite;
 	oldDecorator := manager.decorate;
 	manager.decorate := ShadowDecorator;
-	manager.Add(ENTIER(view.range.l) + x, ENTIER(view.range.t) + y, window, flags);
+	manager.Add((*ENTIER(view.range.l) +*) x, (*ENTIER(view.range.t) + *)y, window, flags);
 	manager.decorate := oldDecorator;
 	manager.lock.ReleaseWrite;
 END AddWindow;
