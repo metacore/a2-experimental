@@ -2466,7 +2466,7 @@ BEGIN
 	IF context # Modules.DefaultContext THEN
 		COPY (name, temp);
 		COPY (context, name);
-		Strings.Append (name, "-");
+		Strings.Append (name, ".");
 		Strings.Append (name, temp);
 	END;
 END CreateContext;
