@@ -1476,8 +1476,8 @@ TYPE
 			PROCEDURE Reserve (size: Size) : BOOLEAN;
 			VAR type : SHORTINT;
 			BEGIN
-				IF Expression (val2, TRUE,type) THEN
-					absoluteOffset := absoluteOffset + val * size;
+				IF Expression (val2, TRUE, type) THEN
+					absoluteOffset := absoluteOffset + val2 * size;
 					RETURN TRUE;
 				ELSE
 					RETURN FALSE;
