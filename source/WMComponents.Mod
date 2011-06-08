@@ -45,13 +45,15 @@ IMPORT
 	XML, XMLScanner, XMLParser, XMLObjects, Codecs, Localization, Repositories,
 	Messages := WMMessages, Rectangles := WMRectangles,
 	WMEvents, WMProperties, WMGraphics, Strings, WM := WMWindowManager, Raster,
-	Commands;
+	Commands, D := Debugging;
 
 CONST
 	Ok* = 0;
 	DuplicateNamespace* = 1;
 
 	AlignNone* = 0; AlignLeft* = 1; AlignTop* = 2; AlignRight* = 3; AlignBottom* = 4; AlignClient* = 5;
+
+	None=0; Left=1; Right=2; Lower=3; Upper=4; LowerRight=5; UpperRight=6; LowerLeft=7; UpperLeft=8; Inside = 9;
 
 	MaxComponentNameSize* = 64; (* including 0X *)
 
@@ -70,10 +72,10 @@ CONST
 	NamespaceCharacter = ":";
 
 	NoNamespace = "";
-	
+
 	(* Namespace used if no namespace is specified *)
 	DefaultNamespace = "system";
-	
+
 	(* Macros names of default macro handler *)
 	MacroSelection = "selection";
 	MacroClipboard = "clipboard";
@@ -596,10 +598,16 @@ TYPE
 		layoutManager : LayoutManager;
 		aligning* : BOOLEAN;
 		pointerInfo : WM.PointerInfo;
+		editMode: BOOLEAN;
+		editRegion: LONGINT;
+		editX, editY: LONGINT;
+		keyFlags: SET; (*! remove *)
+		oldPointerInfo : WM.PointerInfo;
 
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			editMode := FALSE;
 			SetNameAsString(StrVisualComponent);
 
 			NEW(bounds, PrototypeBounds, NIL, NIL); properties.Add(bounds);
@@ -1146,7 +1154,8 @@ TYPE
 		Components interested in this message can override this method instead of searching for the message in HandleInternal. *)
 		PROCEDURE PointerDown*(x, y: LONGINT; keys: SET); (** PROTECTED *)
 		BEGIN ASSERT(IsCallFromSequencer());
-			IF keys = {2} THEN ShowContextMenu(x, y) END;
+			IF keys = {2} THEN ShowContextMenu(x, y)
+			END;
 		END PointerDown;
 
 	(** Indicates the pointer was moved. keys is the set of buttons currently pressed. x, y is the position in component
@@ -1219,11 +1228,93 @@ TYPE
 			IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 		END CheckPointerEvent;
 
+		PROCEDURE InEditBounds(x,y: LONGINT): LONGINT;
+		CONST Border = 8;
+		VAR left, right, top, bottom: LONGINT;
+		BEGIN
+			left := bounds.GetLeft();
+			right := bounds.GetRight();
+			top := bounds.GetTop();
+			bottom := bounds.GetBottom();
+
+			INC(x,left); INC(y,top); (* relative -> absolute *)
+			D.String("l,r,t,b: "); D.Int(left,10); D.Int(right,10); D.Int(top,10); D.Int(bottom,10); D.Ln;
+			D.String("x,y: "); D.Int(x,10); D.Int(y,10); D.Ln;
+
+			IF  (ABS(left-x) <= Border) THEN
+				IF  (ABS(top-y) <= Border) THEN
+					RETURN UpperLeft
+				ELSIF (ABS(bottom-y) <= Border) THEN
+					RETURN LowerLeft
+				ELSE
+					RETURN Left
+				END
+			ELSIF (ABS(right-x) <= Border)  THEN
+				IF  (ABS(top-y) <= Border) THEN
+					RETURN UpperRight
+				ELSIF (ABS(bottom-y) <= Border) THEN
+					RETURN LowerRight
+				ELSE
+					RETURN Right
+				END
+			ELSIF  (ABS(y-top) <= Border) THEN
+				RETURN Upper
+			ELSIF (ABS(bottom-y) <= Border) THEN
+				RETURN Lower
+			ELSIF (x > top+Border) & (x < right-Border) & (y > top+Border) & (y< bottom-Border) THEN
+				RETURN Inside
+			ELSE
+				RETURN None
+			END;
+		END InEditBounds;
+
+		PROCEDURE Edit(VAR msg: Messages.Message);
+		VAR region: LONGINT; dx,dy: LONGINT; b: Rectangles.Rectangle; manager: WM.WindowManager;
+		BEGIN
+			IF msg.msgSubType = Messages.MsgSubPointerUp THEN
+				editMode := FALSE;
+				SetPointerInfo(oldPointerInfo);
+				RETURN
+			END;
+			dx := msg.x-editX; dy := msg.y-editY;
+			b := bounds.Get();
+			IF editRegion = Right THEN
+				b.r := b.r + dx
+			ELSIF editRegion = Left THEN
+				b.l := b.l + dx; dx := 0;
+			ELSIF editRegion = Lower THEN
+				b.b := b.b + dy
+			ELSIF editRegion = Upper THEN
+				b.t := b.t + dy; dy := 0;
+			ELSIF editRegion = LowerLeft THEN
+				b.b := b.b + dy;
+				b.l := b.l + dx; dx := 0;
+			ELSIF editRegion = LowerRight THEN
+				b.b := b.b + dy;
+				b.r := b.r + dx
+			ELSIF editRegion = UpperLeft THEN
+				b.t := b.t + dy; dy := 0;
+				b.l := b.l + dx; dx := 0;
+			ELSIF editRegion = UpperRight THEN
+				b.t := b.t + dy; dy := 0;
+				b.r := b.r + dx
+			ELSIF editRegion = Inside THEN
+				b.r := b.r + dx;
+				b.l := b.l + dx; dx := 0;
+				b.b := b.b + dy;
+				b.t := b.t + dy; dy := 0;
+			END;
+			bounds.Set(b);
+			editX := editX + dx; editY := editY + dy;
+		END Edit;
+
+
 		PROCEDURE HandleInternal*(VAR msg : Messages.Message); (** PROTECTED *)
 		VAR
 			po : VisualComponent; nm : Messages.Message; handled : BOOLEAN; b : Rectangles.Rectangle;
 			r, v : VisualComponent;
 			p : XML.Element;
+			keyFlags: SET; manager : WM.WindowManager;
 		BEGIN
 			ASSERT(IsCallFromSequencer());
 			handled := FALSE;
@@ -1246,24 +1337,59 @@ TYPE
 					END
 				END;
 				IF (fPointerOwner = SELF) THEN
-					IF msg.msgSubType = Messages.MsgSubPointerMove THEN
-						IF extPointerMove # NIL THEN extPointerMove(msg.x, msg.y, msg.flags, handled) END;
-						SetInternalPointerInfo(pointerInfo);
-						IF ~handled THEN PointerMove(msg.x, msg.y, msg.flags) END;
-						IF msg.dz # 0 THEN WheelMove(msg.dz) END
-					ELSIF msg.msgSubType = Messages.MsgSubPointerDown THEN
-						IF extPointerDown # NIL THEN extPointerDown(msg.x, msg.y, msg.flags, handled) END;
-						IF ~handled THEN PointerDown(msg.x, msg.y, msg.flags) END;
-						SetFocus
-					ELSIF msg.msgSubType = Messages.MsgSubPointerUp THEN
-						IF extPointerUp # NIL THEN extPointerUp(msg.x, msg.y, msg.flags, handled) END;
-						IF ~handled THEN PointerUp(msg.x, msg.y, msg.flags) END
-					ELSIF msg.msgSubType = Messages.MsgSubPointerLeave THEN
-						IF extPointerLeave # NIL THEN extPointerLeave(handled) END;
-						IF ~handled THEN PointerLeave END
-					END;
-					IF (msg.flags * {0, 1, 2} # {}) THEN
-						CheckPointerEvent(msg.x, msg.y, msg.z, msg.flags);
+					IF editMode THEN
+						Edit(msg);
+					ELSE
+						IF msg.msgSubType = Messages.MsgSubPointerMove THEN
+							(*
+							IF (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
+								manager := msg.originator(WM.ViewPort).manager;
+								msg.originator(WM.ViewPort).GetKeyState(keyFlags);
+								IF (keyFlags # {}) & (keyFlags <= Inputs.Ctrl) THEN editRegion := InEditBounds(msg.x, msg.y) ELSE editRegion := None END;
+								CASE editRegion OF
+									| Lower, Upper: SetPointerInfo(manager.pointerUpDown)
+									| Left, Right:SetPointerInfo(manager.pointerLeftRight)
+									| LowerLeft, UpperRight:SetPointerInfo(manager.pointerURDL)
+									| UpperLeft, LowerRight: SetPointerInfo(manager.pointerULDR)
+									| Inside: SetPointerInfo(manager.pointerMove)
+								ELSE
+									IF oldPointerInfo # NIL THEN
+										SetPointerInfo(oldPointerInfo); oldPointerInfo := NIL;
+									ELSE oldPointerInfo := GetPointerInfo();
+									END;
+								END;
+							END;
+							*)
+							IF extPointerMove # NIL THEN extPointerMove(msg.x, msg.y, msg.flags, handled) END;
+							SetInternalPointerInfo(pointerInfo);
+							IF ~handled THEN PointerMove(msg.x, msg.y, msg.flags) END;
+							IF msg.dz # 0 THEN WheelMove(msg.dz) END
+						ELSIF msg.msgSubType = Messages.MsgSubPointerDown THEN
+							IF (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
+								msg.originator(WM.ViewPort).GetKeyState(keyFlags);
+								IF (keyFlags # {}) & (keyFlags <= Inputs.Ctrl) THEN editRegion := InEditBounds(msg.x, msg.y) ELSE editRegion := None END;
+							ELSE
+								editRegion := None
+							END;
+							IF editRegion # None THEN
+								editMode := TRUE;
+								manager := msg.originator(WM.ViewPort).manager;
+								editX := msg.x; editY := msg.y;
+							ELSE
+								IF extPointerDown # NIL THEN extPointerDown(msg.x, msg.y, msg.flags, handled) END;
+								IF ~handled THEN PointerDown(msg.x, msg.y, msg.flags) END;
+								SetFocus
+							END;
+						ELSIF msg.msgSubType = Messages.MsgSubPointerUp THEN
+							IF extPointerUp # NIL THEN extPointerUp(msg.x, msg.y, msg.flags, handled) END;
+							IF ~handled THEN PointerUp(msg.x, msg.y, msg.flags) END
+						ELSIF msg.msgSubType = Messages.MsgSubPointerLeave THEN
+							IF extPointerLeave # NIL THEN extPointerLeave(handled) END;
+							IF ~handled THEN PointerLeave END
+						END;
+						IF (msg.flags * {0, 1, 2} # {}) THEN
+							CheckPointerEvent(msg.x, msg.y, msg.z, msg.flags);
+						END;
 					END;
 				ELSE
 					b := fPointerOwner.bounds.Get();
