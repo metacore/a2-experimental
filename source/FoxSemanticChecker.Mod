@@ -4927,19 +4927,28 @@ TYPE
 
 				(* ---- RE ---- *)
 				ELSIF (id = Global.Re) & Parameters(1,1) THEN
-					IF CheckComplexType(parameter0) THEN
-						ASSERT(parameter0.type.resolved IS SyntaxTree.ComplexType);
-						type := parameter0.type.resolved(SyntaxTree.ComplexType).componentType;
-						IF IsComplexValue(parameter0, r, im) THEN result.SetResolved(SyntaxTree.NewRealValue(parameter0.position, r)) END
+					IF CheckNumberType(parameter0) THEN					
+						IF parameter0.type.resolved IS SyntaxTree.ComplexType THEN
+							type := parameter0.type.resolved(SyntaxTree.ComplexType).componentType;
+							IF IsComplexValue(parameter0, r, im) THEN result.SetResolved(SyntaxTree.NewRealValue(parameter0.position, r)) END
+						ELSIF parameter0.type.resolved IS SyntaxTree.FloatType THEN
+							type := parameter0.type
+						ELSE
+							type := system.realType
+						END
 					END;
 					result.SetAssignable(parameter0.assignable)
 
 				(* ---- IM ---- *)
 				ELSIF (id = Global.Im) & Parameters(1,1) THEN
-					IF CheckComplexType(parameter0) THEN
-						ASSERT(parameter0.type.resolved IS SyntaxTree.ComplexType);
-						type := parameter0.type.resolved(SyntaxTree.ComplexType).componentType;
-						IF IsComplexValue(parameter0, r, im) THEN result.SetResolved(SyntaxTree.NewRealValue(parameter0.position, im)) END
+					IF CheckNumberType(parameter0) THEN
+						IF parameter0.type.resolved IS SyntaxTree.ComplexType THEN
+							type := parameter0.type.resolved(SyntaxTree.ComplexType).componentType;
+							IF IsComplexValue(parameter0, r, im) THEN result.SetResolved(SyntaxTree.NewRealValue(parameter0.position, im)) END
+						ELSE
+							type := system.realType;
+							result.SetResolved(SyntaxTree.NewRealValue(parameter0.position, 0))
+						END
 					END;
 					result.SetAssignable(parameter0.assignable)
 

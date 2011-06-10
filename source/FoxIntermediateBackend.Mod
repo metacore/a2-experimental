@@ -5442,7 +5442,11 @@ TYPE
 
 			(* ---- RE ---- *)
 			|Global.Re:
-				Designate(p0, result);
+				IF p0.type.resolved IS SyntaxTree.ComplexType THEN
+					Designate(p0, result)
+				ELSE
+					Evaluate(p0, result)
+				END
 
 			(* ---- IM ---- *)
 			|Global.Im:
