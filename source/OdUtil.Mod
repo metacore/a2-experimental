@@ -230,7 +230,7 @@ CONST
 TYPE
 	Link * = OBJECT (* POINTER TO RECORD *)
 		 VAR next * : Link;
-		PROCEDURE &link;
+		PROCEDURE &link*;
 			BEGIN next := NIL;
 			END link;
 		PROCEDURE add * (new: Link);
@@ -379,7 +379,7 @@ BEGIN
 	END;
 END unpadColl;
 (* don't write anything. Just for counting what's written to a writer. *)
-PROCEDURE Dev0 * (VAR buf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
+PROCEDURE Dev0 * (CONST buf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
 BEGIN END Dev0;
 
 

@@ -36,7 +36,7 @@ TYPE
 		status * : LONGINT;
 		short * : ARRAY MaxCond+1 OF ShortMsg;
 
-		PROCEDURE &Init;
+		PROCEDURE &Init*;
 		BEGIN
 			status := Ok;
 			short[Ok] 												   := "ok";

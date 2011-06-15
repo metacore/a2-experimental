@@ -147,7 +147,7 @@ VccList* = OBJECT (VcrList)
 		(* vcc itself *)
 		OdUtil.Msg4(indent, "vcc: ", path, version);
 		IF state = "thawed" THEN OdUtil.Msg1(" thawed"); END;
-		Strings.Append(indent, Indent);
+		Strings.AppendChar(indent, Indent);
 		IF vcrs # NIL THEN vcrs.show(indent); END;
 		vcc := vccs;
 		WHILE vcc # NIL DO
@@ -181,7 +181,7 @@ VcrDiff* = OBJECT (OdUtil.Link)
 	VAR vcr: VcrDiff;
 	BEGIN vcr := SELF;
 		LOOP
-			OdUtil.Msg6(indent, vcr.pathA, ': ', vcr.versionA, vcr.versionB, CR);
+			OdUtil.Msg6(indent, vcr.pathA, ': ', vcr.versionA, vcr.versionB, CRString);
 			IF vcr.next = NIL THEN EXIT; ELSE vcr := vcr.next(VcrDiff); END;
 		END;
 	END show;
@@ -301,7 +301,7 @@ VccDiff* = OBJECT (VcrDiff)
 	VAR indent1: OdUtil.Line;
 	BEGIN
 		OdUtil.Msg6(indent, "", "vccdiff:", pathA, versionA, versionB);
-		Strings.Append(indent, Indent); indent1 := indent; Strings.Append(indent1, Indent);
+		Strings.AppendChar(indent, Indent); indent1 := indent; Strings.AppendChar(indent1, Indent);
 		IF addedVcrs # NIL THEN OdUtil.Msg3(indent, "", "added VCRs"); addedVcrs.show(indent1); END;
 		IF deletedVcrs # NIL THEN OdUtil.Msg3(indent, "", "deleted VCRs"); deletedVcrs.show(indent1); END;
 		IF changedVcrs # NIL THEN OdUtil.Msg3(indent, "", "changed VCRs"); changedVcrs.show(indent1); END;
@@ -571,7 +571,7 @@ Server * = OBJECT
 				selectResource(conf, res, hist, ver);
 			ELSE
 				preCond := OdCond.ErrorMsg;
-				OdCond.SetError(WebHTTP.InternalServerError, OdVCSBase.errMsg, -1);
+				OdC.SetError(WebHTTP.InternalServerError, OdVCSBase.errMsg, -1);
 			END;
 		END freezeResource;
 	PROCEDURE freezeInitialResource*(conf, res: OdUtil.Line; log: OdVCSBase.TLog; flags: SET); (*  VERSION-CONTROL  *)
@@ -612,7 +612,7 @@ Server * = OBJECT
 				RETURN equal;
 			ELSE
 				preCond := OdCond.ErrorMsg;
-				OdCond.SetError(WebHTTP.InternalServerError, OdVCSBase.errMsg, -1);
+				OdC.SetError(WebHTTP.InternalServerError, OdVCSBase.errMsg, -1);
 				RETURN FALSE;
 			END;
 		END equalVersion;
@@ -764,7 +764,7 @@ Server * = OBJECT
 				END;
 			ELSE
 				preCond := OdCond.ErrorMsg;
-				OdCond.SetError(WebHTTP.InternalServerError, "Not all VCRs were frozen", -1);
+				OdC.SetError(WebHTTP.InternalServerError, "Not all VCRs were frozen", -1);
 			END;
 		END freezeConfiguration;
 
@@ -838,7 +838,7 @@ $END*)
 			IF erg < 0 THEN
 				preCond := OdCond.ErrorMsg;
 				Strings.Concat("DAVDeltavBasse.selectResource: ", OdVCSBase.errMsg, errMsg);
-				OdCond.SetError(WebHTTP.InternalServerError, errMsg, erg);
+				OdC.SetError(WebHTTP.InternalServerError, errMsg, erg);
 			ELSE
 				(* Show some version info *)
 				OdVCSBase.GetLog(historyName, version, log);
@@ -964,7 +964,7 @@ $END*)
 				IF dir = NIL THEN
 					preCond := OdCond.ErrorMsg;
 					Strings.Concat("SelectConfiguration: couldn't create directory ", absConf, errMsg);
-					OdCond.SetError(WebHTTP.InternalServerError, errMsg, status);
+					OdC.SetError(WebHTTP.InternalServerError, errMsg, status);
 					RETURN;
 				END;
 			END;
@@ -987,7 +987,7 @@ $END*)
 					END;
 				ELSE
 					preCond := OdCond.ErrorMsg;
-					OdCond.SetError(WebHTTP.InternalServerError, "SelectConfiguration: Unknown mode", 0);
+					OdC.SetError(WebHTTP.InternalServerError, "SelectConfiguration: Unknown mode", 0);
 					RETURN;
 				END;
 				NEW(confProps, "", ResFileName("", conf)); confProps.set("state", "thawed"); (* allow creation of resources *)
@@ -995,7 +995,7 @@ $END*)
 				f := Files.Old(confData);
 				IF f = NIL THEN
 					preCond := OdCond.ErrorMsg;
-					OdCond.SetError(WebHTTP.InternalServerError, "SelectConfiguration: couldn't open conf datafile", 0);
+					OdC.SetError(WebHTTP.InternalServerError, "SelectConfiguration: couldn't open conf datafile", 0);
 					RETURN;
 				END;
 				Files.OpenReader(r, f, 0);
@@ -1052,11 +1052,11 @@ $END*)
 			IF props.state = "" THEN
 				preCond := OdCond.ErrorMsg;
 				COPY(conf, errMsg); Strings.Append(errMsg, " not found");
-				OdCond.SetError(WebHTTP.InternalServerError, errMsg, -1);
+				OdC.SetError(WebHTTP.InternalServerError, errMsg, -1);
 			ELSIF props.state = "thawed" THEN
 				preCond := OdCond.ErrorMsg;
 				COPY(conf, errMsg); Strings.Append(errMsg, "must be checked-in for UPDATE");
-				OdCond.SetError(WebHTTP.InternalServerError, errMsg, -1);
+				OdC.SetError(WebHTTP.InternalServerError, errMsg, -1);
 			ELSE (* "frozen" *)
 				selectConfiguration("other", conf, ver);
 			END;
@@ -1114,7 +1114,7 @@ $END*)
 				IF PLog THEN OdUtil.Msg3("DAVDeltavBase.unThawConfiguration:", conf, "unthaw thawed VCRs"); END;
 				WHILE thawed # NIL DO OdUtil.Msg2(thawed.line, "thawed"); thawed := thawed.next; END;
 				preCond := OdCond.ErrorMsg;
-				OdCond.SetError(WebHTTP.Conflict, "vcc-has-checked-out-vcrs", 0);
+				OdC.SetError(WebHTTP.Conflict, "vcc-has-checked-out-vcrs", 0);
 			ELSE (* Restore old state from version URL *)
 				unThawResource("", conf);
 				(* Don't select other stuff. What's the UNCHECKOUT semantic for a baseline ?
@@ -1192,7 +1192,7 @@ $END*)
 		BEGIN
 			IF level > 9 THEN
 				statusCode := WebHTTP.InternalServerError; preCond := OdCond.ErrorMsg;
-				OdCond.SetError(WebHTTP.InternalServerError, "DAVDeltavBase.reportBaseline: too many nested baselines", 0);
+				OdC.SetError(WebHTTP.InternalServerError, "DAVDeltavBase.reportBaseline: too many nested baselines", 0);
 				RETURN;
 			END;
 			(*IF PLog THEN OdUtil.Msg4("DAVDeltavBase.rB:", confName, baselineUrl, OdUtil.I(level)); END;*)
@@ -1209,7 +1209,7 @@ $END*)
 			f := Files.Old(confDataFileName);
 			IF f = NIL THEN
 				statusCode := WebHTTP.InternalServerError; preCond := OdCond.ErrorMsg;
-				OdCond.SetError(WebHTTP.InternalServerError, "DAVDeltavBase.reportBaseline: couldn't open confDataFileName", 0);
+				OdC.SetError(WebHTTP.InternalServerError, "DAVDeltavBase.reportBaseline: couldn't open confDataFileName", 0);
 				RETURN;
 			END;
 			Files.OpenReader(r, f, 0);
@@ -1308,7 +1308,7 @@ $END*)
 			FOR version := 1 TO newestVersion DO
 				OdVCSBase.GetLog(historyName, version, log);
 				(* OdUtil.Msg3(I(log.versionID), log.date, log.author);  OdUtil.Msg1(log.logText); *)
-				OdUtil.I(log.versionID, temp); vtRes.addVersion(host, temp, log.author, log.date, log.logText);
+				temp:=OdUtil.I(log.versionID); vtRes.addVersion(host, temp, log.author, log.date, log.logText);
 			END;
 			xmlDoc := vtRes;
 		END reportVersionTree;
@@ -1355,8 +1355,8 @@ $END*)
 		propName, absName: OdUtil.Line; props: XMLObjects.Enumerator;
 	BEGIN
 		propfindRes.addResponse(href);
-		propEl := OdXml.GetFirstChild(propList.GetRoot());
-		absName := OdXml.AbsXmlName(propEl.GetName());
+		propEl := OdX.GetFirstChild(propList.GetRoot());
+		absName := OdX.AbsXmlName(propEl.GetName());
 		(** )  OdUtil.Msg2("DAVDeltavBase.doPropfindList: childName = ", absName);  ( **)
 		IF  absName = "DAV:propname" THEN
 			PropNames(href, propfindRes);
@@ -1366,7 +1366,7 @@ $END*)
 				p := props.GetNext();
 				IF p IS XML.Element THEN
 					prop :=  p(XML.Element);
-					propName  := OdXml.AbsXmlName(prop.GetName());
+					propName  := OdX.AbsXmlName(prop.GetName());
 					(** )  OdUtil.Msg2("DAVDeltavBase.doPropfindList: propName = ", propName);  ( **)
 					(* First care for some special properties *)
 					IF propName = "DAV:getcontentlength" THEN
@@ -1422,7 +1422,7 @@ $END*)
 			(*while*)END;
 		ELSE
 			(* TODO: Error handling. *)
-			(**)  OdUtil.Msg1("DAVDeltavBase.doPropfindList: no prop element found");  (**)
+			(* *)  OdUtil.Msg1("DAVDeltavBase.doPropfindList: no prop element found");  (* *)
 		END;
 	END doPropfindList;
 
@@ -1440,7 +1440,7 @@ $END*)
 			hostPrefix, parentColl, coll, absColl: ARRAY 64 OF CHAR;
 	BEGIN
 		IF host[0] = '*' THEN Strings.Delete(host, 0, 1); END;
-		IF host#"" THEN Strings.Concat("http://", host, hostPrefix); ELSE COPY(host,hostPrefix) END; (*PH XXX*)
+		IF host#"" THEN Strings.Concat("http://", host, hostPrefix); ELSE COPY(host,hostPrefix) END; (* PH XXX *)
 		padConfiguration(workMan.prefix); (* Just to be sure *)
 		name := ResFileName(conf, res); (* complete name with FAT:... *)
 		IF PLog THEN OdUtil.Msg6("host name depth = ", host, ",", name, ",", depth); END;
@@ -1557,18 +1557,18 @@ $END*)
 				IF PLog THEN OdUtil.Msg2("line = ", props.line); END;
 				IF props.line # key THEN
 					(* new key found *)
-					IF key # "" THEN versionProps.set(OdXml.AbsName(key), value); END;
+					IF key # "" THEN versionProps.set(OdX.AbsName(key), value); END;
 					COPY(props.line, key);
 					props := props.next;
 					COPY(props.line, value);
 				ELSE (* Additional value for existing key. *)
 					props := props.next;
-					Strings.Append(value, SplitChar);
+					Strings.AppendChar(value, SplitChar);
 					Strings.Append(value, props.line);
 				END;
 				props := props.next;
 			END;
-			IF key # "" THEN versionProps.set(OdXml.AbsName(key), value); END;
+			IF key # "" THEN versionProps.set(OdX.AbsName(key), value); END;
 		ELSIF patchMode = "DAV:add" THEN
 			(* Add a new value to a multivalue property. No test for duplicate entries yet. *)
 			key := "";
@@ -1578,23 +1578,23 @@ $END*)
 					(* new key found *)
 					IF key # "" THEN
 						versionProps.get(key, oldValue);
-						IF oldValue # "" THEN Strings.Append(oldValue, SplitChar); END;
+						IF oldValue # "" THEN Strings.AppendChar(oldValue, SplitChar); END;
 						Strings.Append(oldValue, value);
-						versionProps.set(OdXml.AbsName(key), oldValue);
+						versionProps.set(OdX.AbsName(key), oldValue);
 					END;
 					COPY(props.line, key);
 					props := props.next;
 					COPY(props.line, value);
 				ELSE (* Additional value for existing key. *)
 					props := props.next;
-					Strings.Append(value, SplitChar);
+					Strings.AppendChar(value, SplitChar);
 					Strings.Append(value, props.line);
 				END;
 				props := props.next;
 			END;
 			IF key # "" THEN
 				versionProps.get(key, oldValue);
-				IF oldValue # "" THEN Strings.Append(oldValue, SplitChar); END;
+				IF oldValue # "" THEN Strings.AppendChar(oldValue, SplitChar); END;
 				Strings.Append(oldValue, value);
 				versionProps.set(key, oldValue);
 			END;
@@ -1621,7 +1621,7 @@ $END*)
 					COPY(props.line, value);
 				ELSE (* Additional value for existing key. *)
 					props := props.next;
-					Strings.Append(value, SplitChar);
+					Strings.AppendChar(value, SplitChar);
 					Strings.Append(value, props.line);
 				END;
 				props := props.next;
@@ -1688,7 +1688,7 @@ $END*)
 			Files.RemoveDirectory(absName, TRUE (*force*), rc);
 			IF rc # 0 THEN
 				preCond := OdCond.ErrorMsg;
-				OdCond.SetError(WebHTTP.InternalServerError, "DAVDeltavBase.delete: collection", rc);
+				OdC.SetError(WebHTTP.InternalServerError, "DAVDeltavBase.delete: collection", rc);
 			ELSE
 				(* HACK: Delete again. Without that a following create sometimes seems doesn't work. *)
 				Files.RemoveDirectory(absName, TRUE (*force*), rc);
@@ -1718,7 +1718,7 @@ $END*)
 			Files.Delete(absName, rc);
 			IF rc # 0 THEN
 				preCond := OdCond.ErrorMsg;
-				OdCond.SetError(WebHTTP.InternalServerError, "DAVDeltavBase.delete: resource", rc);
+				OdC.SetError(WebHTTP.InternalServerError, "DAVDeltavBase.delete: resource", rc);
 			END;
 			(* Try to delete prop file in case it's version-controlled. *)
 			name := ResPropFileName("", absName);
@@ -1745,7 +1745,7 @@ $END*)
 			statusCode := WebHTTP.InternalServerError;
 			preCond := OdCond.ErrorMsg;
 			Strings.Concat("DAVDeltavBase.mkcol: ", absName, errMsg);
-			OdCond.SetError(WebHTTP.InternalServerError, errMsg, rc);
+			OdC.SetError(WebHTTP.InternalServerError, errMsg, rc);
 		END;
 	END mkcol;
 
@@ -1763,6 +1763,9 @@ VAR
 	workMan * : WorkspaceManager;
 	hostName * : ARRAY 64 OF CHAR;
 	localServer*: Server;
+	OdC:OdCond.OdCond;
+	OdX:OdXml.OdXml;
+	CRString:ARRAY 2 OF CHAR;
 
 
 (** Get the suffix of str. The suffix is started by the last dot in str. Copied from Strings.Mod*)
@@ -2267,7 +2270,7 @@ BEGIN
 	ELSE OdUtil.Msg2("unknown error: ", OdUtil.I(res))
 	END
 *********)
-	OdUtil.I(res, temp); OdUtil.Msg2("GetErrorMsg: error=", temp);
+	temp:=OdUtil.I(res); OdUtil.Msg2("GetErrorMsg: error=", temp);
 END GetErrorMsg;
 
 (** Create a FAT Directory: path. Includes prefix, e.g. "FTP:/New Folder/A/B/C" *)
@@ -2315,6 +2318,8 @@ BEGIN
 	NEW(repMan); NEW(workMan, Workspace);
 	NEW(localServer, repMan.prefix);
 	frozenDeleted := FALSE;
+	NEW(OdC); NEW(OdX);
+	Strings.AppendChar(CRString,CR);
 END OdDeltavBase.
 
 Builder.Compile * System.Free DAVDeltavBase VCS OdVCSBase ~

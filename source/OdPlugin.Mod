@@ -135,7 +135,7 @@ TYPE
 					Con2FileNew(in, len, f); (* Asynch with timeout *)
 				END;
 				response.statuscode := WebHTTP.Conflict;
-				NEW(xmlErr, OdCond.short[OdCond.MustBeCheckedOutVcr]); xmlDoc := xmlErr;
+				NEW(xmlErr, OdC.short[OdCond.MustBeCheckedOutVcr]); xmlDoc := xmlErr;
 			END;
 		END Put; (* Server *)
 
@@ -162,7 +162,7 @@ TYPE
 			END;
 			IF OdDeltavBase.preCond # OdCond.Ok THEN
 				response.statuscode := WebHTTP.Conflict;
-				NEW(xmlErr, OdCond.short[OdDeltavBase.preCond]); xmlDoc := xmlErr;
+				NEW(xmlErr, OdC.short[OdDeltavBase.preCond]); xmlDoc := xmlErr;
 			END;
 		END Checkout; (* Server *)
 
@@ -187,7 +187,7 @@ TYPE
 			END;
 			IF OdDeltavBase.preCond # OdCond.Ok THEN
 				response.statuscode := WebHTTP.Conflict;
-				NEW(xmlErr, OdCond.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
+				NEW(xmlErr, OdC.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
 			END;
 		END Uncheckout; (* Server *)
 
@@ -219,7 +219,7 @@ TYPE
 					*)
 					NEW(scanner, in);
 					NEW(parser, scanner); xmlDoc := parser.Parse();
-					e := xmlDoc.GetRoot(); propName := OdXml.AbsXmlName(e.GetName());
+					e := xmlDoc.GetRoot(); propName := OdX.AbsXmlName(e.GetName());
 					(** ) OdDeltavBase.Msg2("REPORT: element name = ", s^); ( **)
 					IF propName = "DAV:version-tree" THEN
 						COPY(request.uri, confRes); OdDeltavBase.splitConfRes(confRes, conf, res);
@@ -232,7 +232,7 @@ TYPE
 						OdDeltavBase.localServer.webReportBaseline(host.name, baseline0, xmlOut, response.statuscode);
 					ELSIF propName = "DAV:compare-baseline" THEN
 						COPY(request.uri, baseline0);
-						e := OdXml.FindElement(e, "DAV:href");
+						e := OdX.FindElement(e, "DAV:href");
 						IF e # NIL THEN
 							OdXml.GetCharData(e, baseline1);
 							OdDeltavBase.localServer.reportCompareBaseline(host.name, baseline0, baseline1,
@@ -256,7 +256,7 @@ TYPE
 				(* Set statuscode to a default error if not already done. *)
 				IF response.statuscode = WebHTTP.OK THEN response.statuscode := WebHTTP.Conflict; END;
 				(* Create error body. *)
-				NEW(xmlErr, OdCond.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
+				NEW(xmlErr, OdC.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
 			END;
 		END Report; (* Server *)
 
@@ -293,7 +293,7 @@ TYPE
 					NEW(scanner, in);
 					NEW(parser, scanner); xmlDoc := parser.Parse();
 					IF xmlDoc # NIL THEN
-						e := xmlDoc.GetRoot(); elName := OdXml.AbsXmlName(e.GetName());
+						e := xmlDoc.GetRoot(); elName := OdX.AbsXmlName(e.GetName());
 						(* cadaver example  *)
 						IF elName = "DAV:propfind" THEN
 							COPY(request.uri, confRes); OdDeltavBase.splitConfRes(confRes, conf, res);
@@ -317,7 +317,7 @@ TYPE
 			END;
 			IF OdDeltavBase.preCond # OdCond.Ok THEN
 				response.statuscode := WebHTTP.Conflict;
-				NEW(xmlErr, OdCond.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
+				NEW(xmlErr, OdC.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
 			END;
 		END Propfind; (* Server *)
 
@@ -351,14 +351,14 @@ TYPE
 				*)
 				NEW(scanner, in);
 				NEW(parser, scanner); xmlDoc := parser.Parse();
-				e := xmlDoc.GetRoot(); elName := OdXml.AbsXmlName(e.GetName());
+				e := xmlDoc.GetRoot(); elName := OdX.AbsXmlName(e.GetName());
 				(* OdDeltavBase.Msg2("REPORT: element name = ", s^); *)
 				IF elName = "DAV:propertyupdate" THEN
 					patches := e.GetContents();
 					WHILE patches.HasMoreElements() DO
 						p := patches.GetNext();
 						patch :=  p(XML.Element);
-						patchMode  := OdXml.AbsXmlName(patch.GetName());
+						patchMode  := OdX.AbsXmlName(patch.GetName());
 						(* OdDeltavBase.Msg2("patch.Name = ", s^);  *)
 						IF patchMode = "DAV:set" THEN
 							NEW(lines);
@@ -462,7 +462,7 @@ TYPE
 			END;
 			IF OdDeltavBase.preCond # OdCond.Ok THEN
 				response.statuscode := WebHTTP.Conflict;
-				NEW(xmlErr, OdCond.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
+				NEW(xmlErr, OdC.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
 			END;
 		END Proppatch; (* Server *)
 
@@ -498,9 +498,9 @@ TYPE
 				*)
 				NEW(scanner, in);
 				NEW(parser, scanner); xmlDoc := parser.Parse();
-				IF OdXml.FindElement(xmlDoc.GetRoot(), "DAV:version") # NIL THEN
+				IF OdX.FindElement(xmlDoc.GetRoot(), "DAV:version") # NIL THEN
 					(* xml:version-control.version.href *)
-					OdXml.GetVersionControlHref(xmlDoc, ver);
+					OdX.GetVersionControlHref(xmlDoc, ver);
 					(** )IF Log THEN OdDeltavBase.Msg2("VERSION-CONTROL: version = ", ver); END; ( **)
 					OdDeltavBase.localServer.selectInitialResource(conf, res, ver);
 				ELSE
@@ -515,7 +515,7 @@ TYPE
 			END;
 			IF OdDeltavBase.preCond # OdCond.Ok THEN
 				response.statuscode := WebHTTP.Conflict;
-				NEW(xmlErr, OdCond.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
+				NEW(xmlErr, OdC.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
 			END;
 		END VersionControl; (* Server *)
 
@@ -551,9 +551,9 @@ TYPE
 				*)
 				NEW(scanner, in);
 				NEW(parser, scanner); xmlDoc := parser.Parse();
-				IF OdXml.FindElement(xmlDoc.GetRoot(), "DAV:baseline") # NIL THEN
+				IF OdX.FindElement(xmlDoc.GetRoot(), "DAV:baseline") # NIL THEN
 					(* xml:baseline-control.baseline.href *)
-					href := OdXml.SplitElement(xmlDoc.GetRoot(), "DAV:baseline.DAV:href");
+					href := OdX.SplitElement(xmlDoc.GetRoot(), "DAV:baseline.DAV:href");
 					IF href # NIL THEN
 						OdXml.GetCharData(href, ver);
 						IF PLog THEN OdUtil.Msg2("BASELINE-CONTROL: baseline = ", ver); END;
@@ -574,7 +574,7 @@ TYPE
 			END;
 			IF OdDeltavBase.preCond # OdCond.Ok THEN
 				response.statuscode := WebHTTP.Conflict;
-				NEW(xmlErr, OdCond.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
+				NEW(xmlErr, OdC.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
 			END;
 		END BaselineControl; (* Server *)
 
@@ -608,7 +608,7 @@ TYPE
 				*)
 				NEW(scanner, in);
 				NEW(parser, scanner); xmlDoc := parser.Parse();
-				OdXml.GetAuthorDesc(xmlDoc, log.author, log.logText);
+				OdX.GetAuthorDesc(xmlDoc, log.author, log.logText);
 				IF PLog THEN OdUtil.Msg4("CHECKIN: url, author, desc = ", request.uri, log.author, log.logText); END;
 				COPY(request.uri, confRes);
 				IF OdDeltavBase.isConfiguration(confRes) THEN
@@ -631,7 +631,7 @@ TYPE
 			END;
 			IF OdDeltavBase.preCond # OdCond.Ok THEN
 				response.statuscode := WebHTTP.Conflict;
-				NEW(xmlErr, OdCond.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
+				NEW(xmlErr, OdC.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
 			END;
 		END Checkin; (* Server *)
 
@@ -649,7 +649,7 @@ TYPE
 			OdDeltavBase.localServer.delete(request.uri);
 			IF OdDeltavBase.preCond # OdCond.Ok THEN
 				response.statuscode := WebHTTP.Conflict;
-				NEW(xmlErr, OdCond.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
+				NEW(xmlErr, OdC.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
 			END;
 		END Delete; (* Server *)
 
@@ -690,7 +690,7 @@ TYPE
 			res.statuscode := WebHTTP.Created;
 			OdDeltavBase.localServer.mkcol(req.uri, res.statuscode); (* Sets preCond and statuscode. *)
 			IF OdDeltavBase.preCond # OdCond.Ok THEN
-					NEW(xmlErr, OdCond.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
+					NEW(xmlErr, OdC.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
 			END;
 		END Mkcol; (* Server *)
 
@@ -733,7 +733,7 @@ TYPE
 				*)
 				NEW(scanner, in);
 				NEW(parser, scanner); xmlDoc := parser.Parse();
-				OdXml.GetUpdateVersionName(xmlDoc, histVer);
+				OdX.GetUpdateVersionName(xmlDoc, histVer);
 				IF PLog THEN OdUtil.Msg4("UPDATE: conf, res, histVer = ", conf, res, histVer); END;
 				COPY(request.uri, confRes);
 				IF OdDeltavBase.isConfiguration(confRes) THEN
@@ -747,7 +747,7 @@ TYPE
 			END;
 			IF OdDeltavBase.preCond # OdCond.Ok THEN
 				response.statuscode := WebHTTP.Conflict;
-				NEW(xmlErr, OdCond.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
+				NEW(xmlErr, OdC.short[OdDeltavBase.preCond]); xmlOut := xmlErr;
 			END;
 		END Update; (* Server *)
 
@@ -894,6 +894,8 @@ VAR
 	day: ARRAY 8 OF CHAR; (* Day of week. *)
 VAR
 	deltav: DeltavPlugin;
+	OdX:OdXml.OdXml;
+	OdC:OdCond.OdCond;
 
 
 (** Sends all available data from a connection to a file. Perhaps more efficient with AosActive.TimeOut ?
@@ -1033,10 +1035,10 @@ END XmlSize;
 
 PROCEDURE Install*(context: Commands.Context); (** [{host}]. Host may include wildcards. *)
 VAR host: ARRAY 1024 OF CHAR;
-	hl: WebHTTPServer.HostList;
+	hl: WebHTTPServer.HostList; res:BOOLEAN;
 BEGIN
 	REPEAT
-		context.arg.GetString(host);
+		res:=context.arg.GetString(host);
 		Strings.Trim(host, " ");
 		(*IF host = "" THEN RETURN END;*) (*MODIFIED PH*)
 
@@ -1091,10 +1093,10 @@ END Uninstall0;
 
 PROCEDURE Uninstall*(context:Commands.Context); (** [{host}]. Host may include wildcards. *)
 VAR host: ARRAY 1024 OF CHAR;
-	hl: WebHTTPServer.HostList;
+	hl: WebHTTPServer.HostList; res:BOOLEAN;
 BEGIN
 	REPEAT
-		context.arg.GetString(host);
+		res:=context.arg.GetString(host);
 		Uninstall0(host);
 	UNTIL (context.arg.res # Streams.Ok);
 	RETURN
@@ -1136,10 +1138,10 @@ PROCEDURE CheckLog;
 	END CheckLog;
 
 PROCEDURE SetLog * (context:Commands.Context); (** <filename>("Mon"-"Sun")*)
-	VAR logFileName: ARRAY 128 OF CHAR;
+	VAR logFileName: ARRAY 128 OF CHAR; res:BOOLEAN;
 	BEGIN
 		IF l = NIL THEN
-			context.arg.GetString(logFileName);
+			res:=context.arg.GetString(logFileName);
 			Strings.Trim(logFileName," ");
 			IF logFileName # "" THEN
 				COPY(logFileName, logFileBase);
@@ -1188,6 +1190,7 @@ BEGIN
 	(**)logFileBase := "../httproot/WebDAVLog"; setLog();(**) (* Request, response log *)
 	(*logFileBase := "WebDAVLog"; setLog();*) (* Request, response log *)
 	Modules.InstallTermHandler(Cleanup);
+	NEW(OdC); NEW(OdX);
 END OdPlugin.
 
 WebHTTPServerTools.Start \r:../httproot \l:../httproot/HTTP.Log ~
