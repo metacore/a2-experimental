@@ -604,6 +604,10 @@ VAR
 		i: LONGINT;  adr2: Address;
 		block, prevBlock, newBlock: FreeBlk;  blkSize, restSize: Size;  blkAdr: Address;
 	BEGIN
+		IF (throuput > Machine.MemBlockSize) & (Machine.lock[Machine.GC] = 'N') THEN
+			Machine.InvokeGC;
+			throuput := 0;
+		END;
 
 		REPEAT
 			i := size DIV BlockSize;

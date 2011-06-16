@@ -84,6 +84,11 @@ CONST
 
 	(*--------------------------- Threads -------------------------------*)
 
+TYPE
+	Thread_t* = S.ADDRESS;
+	Mutex_t* = S.ADDRESS;
+	Condition_t* = S.ADDRESS;
+	
 CONST
 	(* Thread priorities *)
 	ThreadLow* = 15; ThreadNormal* = 20; ThreadHigh* = 47;	
@@ -211,7 +216,7 @@ TYPE
 				ecx-		: LONGINT;
 				edx-		: LONGINT;
 				edi-		: LONGINT;
-				esi-			: LONGINT;
+				esi-		: LONGINT;
 				ebp-		: LONGINT;
 				espatsig-	: LONGINT;
 				ss-			: LONGINT;
@@ -286,10 +291,10 @@ VAR
 	times-			: PROCEDURE {C} ( VAR tms: Tms ): LONGINT;
 
 	system-			: PROCEDURE {C} ( cmd: Address );
-	uname-			: PROCEDURE {C} ( utsname: Address ): LONGINT;
+	uname-		: PROCEDURE {C} ( utsname: Address ): LONGINT;
 
 	getcwd-		: PROCEDURE {C} ( buf: Address;  len: Size ): LONGINT;
-	getenv-			: PROCEDURE {C} ( name: Address ): LONGINT;
+	getenv-		: PROCEDURE {C} ( name: Address ): LONGINT;
 
 	opendir-		: PROCEDURE {C} ( name: Address ): Address;
 	readdir-		: PROCEDURE {C} ( dir: Address ): Dirent;
@@ -399,7 +404,7 @@ VAR
 	END getSysinfo;
 
 BEGIN
-	Dlsym( 0, "argc", aargc );  argc := aargc;
+	Dlsym( 0, "argc", aargc );  S.GET( aargc, argc );
 	Dlsym( 0, "argv", argv );
 
 	libraryPaths[0] := "/lib";
