@@ -87,7 +87,7 @@ CONST
 
 	(* from ERA *)
 	systemNull*=systemMsk+1; systemXOR*=systemNull+1; systemROR*=systemXOR+1; systemProc*=systemROR+1; systemStop* = systemProc + 1; LSL*=systemStop+1; LSR*=LSL+1; ASR*=LSR+1; Flt*=ASR+1; Floor*=Flt+1; Phi*=Floor+1;
-	
+
 	DotTimesPlus* = Phi + 1;
 	AtMulDec* = DotTimesPlus + 1;
 	AtMulInc* = AtMulDec + 1;
@@ -139,6 +139,8 @@ TYPE
 		(* type sizes defined by backend *)
 		addressSize-: LONGINT;
 
+		registerParameters-: LONGINT; (* how many parameters are passed via registers *)
+
 		(* system type mapping, in a later version only the global (unisgned) types should be used
 			the following two types are only there for compatibility with the system as is
 			problematic are mainly the conversions between (signed) Oberon types and (unsigned) addressType.
@@ -146,9 +148,9 @@ TYPE
 		*)
 
 		addressType-, sizeType-, shortintType-, integerType-, longintType-, hugeintType-, characterType-, setType-, booleanType-, anyType-,byteType-,
-		realType-, longrealType-, complexType-, longcomplexType-, objectType-, nilType-, rangeType-, channelType-: SyntaxTree.Type;
+		realType-, longrealType-, complexType-, longcomplexType-, objectType-, nilType-, rangeType-: SyntaxTree.Type;
 
-		PROCEDURE &InitSystem*(codeUnit, dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar: LONGINT);
+		PROCEDURE &InitSystem*(codeUnit, dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar, registerParameters: LONGINT);
 		VAR i: LONGINT;
 		BEGIN
 			ASSERT(dataUnit > 0);
@@ -164,6 +166,7 @@ TYPE
 			SELF.parameterAlignment.min := minParAlign;
 			SELF.parameterAlignment.max := maxParAlign;
 			SELF.offsetFirstParameter := offsetFirstPar;
+			SELF.registerParameters := registerParameters;
 			BuildScopes(SELF);
 			FOR i := 0 TO LEN(operatorDefined)-1 DO
 				operatorDefined[i] := FALSE;
@@ -717,11 +720,10 @@ TYPE
 		system.addressType := SyntaxTree.NewAddressType(system.addressSize);
 		system.sizeType := SyntaxTree.NewSizeType(system.addressSize);
 		system.rangeType := SyntaxTree.NewRangeType(3 * system.SizeOf(system.longintType));
-		
+
 		system.complexType := Complex64;
 		system.longcomplexType := Complex128;
 		system.setType := SyntaxTree.NewSetType(system.addressSize);
-		system.channelType := SyntaxTree.NewChannelType(system.addressSize);
 		(* type declarations *)
 		DeclareType(system.byteType,"BYTE",system.systemScope);
 		DeclareType(system.addressType,"ADDRESS",system.systemScope); (* mapped to longint *)
@@ -773,7 +775,6 @@ TYPE
 		DeclareType(system.setType,"SET",system.globalScope);
 		DeclareType(system.anyType,"ANY",system.globalScope);
 		DeclareType(system.objectType,"OBJECT",system.globalScope);
-		DeclareType(system.channelType,"CHANNEL",system.globalScope);
 
 		(* global functions *)
 		NewBuiltin(Abs,"ABS",system.globalScope,TRUE);
@@ -856,7 +857,7 @@ TYPE
 	PROCEDURE DefaultSystem*(): System;
 	VAR system: System;
 	BEGIN
-		NEW(system,8,8,32, 8,32,32,32,64);
+		NEW(system,8,8,32, 8,32,32,32,64,0);
 		SetDefaultDeclarations(system,8);
 		SetDefaultOperators(system);
 		RETURN system

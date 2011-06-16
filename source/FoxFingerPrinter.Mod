@@ -220,11 +220,6 @@ TYPE
 			SetTypeFingerprint(x,fpTypePointer)
 		END VisitObjectType;
 
-		PROCEDURE VisitChannelType(x: SyntaxTree.ChannelType);
-		BEGIN
-			SetTypeFingerprint(x,fpTypeChannel)
-		END VisitChannelType;
-
 		(*
 		FP(BasicType)        = fpTypeChar8 | fpTypeChar16 | fpTypeChar32
 		PublicFP(BasicType)  = FP(basicType).

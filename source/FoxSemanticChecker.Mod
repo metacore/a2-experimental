@@ -79,7 +79,7 @@ TYPE
 
 		(* temporary variables for the visitors
 		    they replace variables on a stack during use of the visitor pattern and may only be
-			- set and AcceptXXX procedures
+			- set in AcceptXXX procedures
 			- set and read in ResolveXXX procedures
 		*)
 		resolvedType: SyntaxTree.Type; (** temporary used for type resolution **)
@@ -338,11 +338,6 @@ TYPE
 		BEGIN
 			VisitBasicType(x);
 		END VisitObjectType;
-
-		PROCEDURE VisitChannelType(x: SyntaxTree.ChannelType);
-		BEGIN
-			VisitBasicType(x);
-		END VisitChannelType;
 
 		PROCEDURE VisitNilType(x: SyntaxTree.NilType);
 		BEGIN
@@ -961,10 +956,10 @@ TYPE
 			resolvedType := ResolvedType(x);
 		END VisitRecordType;
 
-		(** check and resolve actor type
-			- check base type: must be actor
+			(** check and resolve cell type
+			- check base type: must be cell
 			- check declarations
-			- every actor type is guaranteed to have a type declaration in the module scope (anonymous or not)
+			- every cell type is guaranteed to have a type declaration in the module scope (anonymous or not)
 		**)
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		VAR
@@ -2415,7 +2410,7 @@ TYPE
 					IF (leftExpression # NIL) & (leftExpression.type.resolved IS SyntaxTree.ComplexType) THEN
 						(* operators on complex numbers *)
 						ImportModule(Global.ArrayBaseName,position);
-						arrayBaseImported := TRUE;											
+						arrayBaseImported := TRUE;
 					ELSIF (leftExpression # NIL) & IsMathArrayType(leftExpression.type) OR (rightExpression # NIL) & IsMathArrayType(rightExpression.type) THEN
 						IF op = Global.Dim THEN
 							(* not existing in OCArrayBase *)
@@ -2843,7 +2838,7 @@ TYPE
 
 					IF ~error THEN
 						IF (operator = Scanner.Slash) & IsComplexValue(right, c, d) & (c = 0) & (d = 0) THEN
-							Error(binaryExpression.position, Diagnostics.Invalid,"division by zero")						
+							Error(binaryExpression.position, Diagnostics.Invalid,"division by zero")
 						ELSIF IsComplexValue(left, a, b) & IsComplexValue(right, c, d) THEN
 							(* do constant folding *)
 							CASE operator OF
@@ -4172,7 +4167,7 @@ TYPE
 			END;
 			RETURN result
 		END CheckNumberType;
-		
+
 		(**
 			if expression x is of number type but not complex then return true else report error and return false
 		**)
@@ -4189,7 +4184,7 @@ TYPE
 			END;
 			RETURN result
 		END CheckNonComplexNumberType;
-		
+
 		(**
 			if expression x is of integer type then return true else report error and return false
 		**)
@@ -4420,19 +4415,6 @@ TYPE
 			END;
 			RETURN result
 		END IsPortType;
-
-		PROCEDURE IsChannelType(x: SyntaxTree.Expression): BOOLEAN;
-		VAR type: SyntaxTree.Type;
-		BEGIN
-			IF (x = SyntaxTree.invalidExpression) THEN RETURN FALSE
-			ELSE
-				type := x.type.resolved;
-				IF (type # NIL) & (type IS SyntaxTree.ChannelType) THEN
-					RETURN TRUE
-				END;
-			END;
-			RETURN FALSE
-		END IsChannelType;
 
 		(* move to builtin procedure call statement ?
 			remove builtin procedure call designator ?
@@ -4672,29 +4654,6 @@ TYPE
 									ELSE
 										parameter1 := NewConversion(Diagnostics.Invalid,parameter1,parameterType,NIL); actualParameters.SetExpression(1,parameter1);
 									END;
-
-
-									(* old code
-									IF  ~arrayBaseImported THEN
-										ImportModule(Global.ArrayBaseName, InvalidPosition);
-										arrayBaseImported := TRUE
-									END;
-									IF GetRuntimeProcedure(position, Global.ArrayBaseName,"AllocateTensorX",procedure,TRUE) THEN
-										expression := NewSymbolDesignator(position, NIL, procedure);
-										designator := expression(SyntaxTree.Designator);
-										base := type0;
-										WHILE (base IS SyntaxTree.MathArrayType) & (base(SyntaxTree.MathArrayType).form # SyntaxTree.Static) DO
-											base := base(SyntaxTree.MathArrayType).arrayBase.resolved;
-										END;
-										actualParameters.AddExpression(Global.NewIntegerValue(system,0, ToMemoryUnits(system, system.SizeOf(base))));
-										result := NewProcedureCallDesignator(position,designator,actualParameters);
-									END;
-									(*
-									designator := SyntaxTree.NewIdentifierDesignator(InvalidPosition, Global.ArrayBaseName);
-									designator := SyntaxTree.NewSelectorDesignator(InvalidPosition, designator, SyntaxTree.NewIdentifier(InvalidPosition, "AllocateTensorX"));
-									result := ResolveExpression(SyntaxTree.NewParameterDesignator(InvalidPosition, designator, actualParameters));
-									*)
-									*)
 								ELSE
 									IF Parameters(i0,i1) & (numberActualParameters >1) THEN
 										i := 1;
@@ -4711,7 +4670,7 @@ TYPE
 							END;
 						ELSIF type0 IS SyntaxTree.CellType THEN
 							IF ~(currentIsCellNet) THEN
-								Error(position,Diagnostics.Invalid,"actor allocation outside activeCells ");
+								Error(position,Diagnostics.Invalid,"cell allocation outside activeCells ");
 							ELSE
 								constructor := type0(SyntaxTree.CellType).cellScope.constructor;
 								IF (constructor = NIL) & Parameters(1,1) THEN
@@ -4749,11 +4708,6 @@ TYPE
 								END;
 							END;
 							activeCellsStatement := TRUE;
-						ELSIF type0 IS SyntaxTree.ChannelType THEN
-							IF Parameters(1,1) & ~(currentIsCellNet) THEN
-								Error(position,Diagnostics.Invalid,"channel allocation outside activeCells ");
-							END;
-							activeCellsStatement := TRUE;
 						ELSE
 							Error(position,Diagnostics.Invalid,"cannot be allocated");
 						END;
@@ -4770,7 +4724,7 @@ TYPE
 				(* ---- ABS ----- *)
 				ELSIF (id = Global.Abs) & Parameters(1,1) THEN
 					(* note: ABS on complex numbers is done using overloading *)
-					IF CheckNonComplexNumberType(parameter0) THEN 
+					IF CheckNonComplexNumberType(parameter0) THEN
 						type := type0;
 						IF IsIntegerValue(parameter0,i0) THEN
 							result.SetResolved(SyntaxTree.NewIntegerValue(position,ABS(i0)));
@@ -4906,7 +4860,6 @@ TYPE
 					ELSE
 						type := system.longintType;
 					END;
-
 				(* ---- FIRST ---- *)
 				ELSIF (id = Global.First) & Parameters(1,1) THEN
 					type := system.longintType;
@@ -4927,7 +4880,7 @@ TYPE
 
 				(* ---- RE ---- *)
 				ELSIF (id = Global.Re) & Parameters(1,1) THEN
-					IF CheckNumberType(parameter0) THEN					
+					IF CheckNumberType(parameter0) THEN
 						IF parameter0.type.resolved IS SyntaxTree.ComplexType THEN
 							type := parameter0.type.resolved(SyntaxTree.ComplexType).componentType;
 							IF IsComplexValue(parameter0, r, im) THEN result.SetResolved(SyntaxTree.NewRealValue(parameter0.position, r)) END
@@ -5081,7 +5034,7 @@ TYPE
 					ELSIF type IS SyntaxTree.FloatType THEN
 						IF type.sizeInBits = 64 THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
 						ELSIF type.sizeInBits = 32 THEN type := Global.Float64
-						END;						
+						END;
 					ELSIF type IS SyntaxTree.ComplexType THEN
 						IF type.sizeInBits = 128 THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
 						ELSIF type.sizeInBits = 64 THEN type := Global.Complex128
@@ -5947,10 +5900,7 @@ TYPE
 					END;
 					variable.SetAlignment(TRUE, value);
 				END;
-				IF variable.type.resolved IS SyntaxTree.ChannelType THEN
-					IF HasValue(modifiers, Global.NameChannelWidth, position, value) THEN END;
-					IF HasValue(modifiers, Global.NameChannelDepth, position, value) THEN END;
-				ELSIF variable.type.resolved IS SyntaxTree.CellType THEN
+				IF variable.type.resolved IS SyntaxTree.CellType THEN
 					IF HasValue(modifiers, Global.NameCodeMemorySize, position, value) THEN END;
 					IF HasValue(modifiers, Global.NameDataMemorySize, position, value) THEN END;
 				END;
@@ -7643,7 +7593,6 @@ TYPE
 		IF x = NIL THEN RETURN NIL ELSE RETURN x.resolved END;
 	END Resolved;
 
-
 	PROCEDURE PowerOf2(x: LONGINT): BOOLEAN;
 	VAR i: LONGINT;
 	BEGIN
@@ -8133,11 +8082,6 @@ TYPE
 		IF  (x.resolved # NIL) & (x.resolved IS SyntaxTree.CharacterValue) THEN
 			value :=  x.resolved(SyntaxTree.CharacterValue).value;
 			result := TRUE
-		(* not a good idea, must convert instead
-		ELSIF (x.resolved # NIL) & (x.resolved IS SyntaxTree.StringValue) & (x.resolved(SyntaxTree.StringValue).length =2) THEN
-			result := TRUE;
-			value := x.resolved(SyntaxTree.StringValue).value[0];
-		*)
 		ELSE
 			result := FALSE
 		END;
@@ -8219,7 +8163,6 @@ TYPE
 			RETURN FALSE
 		END;
 	END IsStaticArray;
-
 
 	PROCEDURE Dimension*(t: SyntaxTree.Type; form: SET): LONGINT;
 	VAR i: LONGINT;

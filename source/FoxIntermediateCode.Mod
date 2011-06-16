@@ -41,8 +41,10 @@ CONST
 	Bits8*=8; Bits16*=16; Bits32*=32; Bits64*=64; Bits128*=128;
 
 	(* special registers *)
-	HwRegister*=-8; (* any value below (or equal) hwreg is a user defined hardware register *)
+	ParameterRegister*=-16; (* any value below or equal ParameterRegister is a parameter register *)
+	HwRegister*=-32; (* any value below or equal hwreg is a user defined hardware register *)
 	(*! alternative: generate inline assembler *)
+
 
 	None*=-1; (* no register assigned *)
 	SP*=-2; (* stack pointer *)
@@ -477,6 +479,8 @@ TYPE
 			w.String("fp")
 		ELSIF registerNumber > None THEN
 			w.String("r"); w.Int(registerNumber, 0)
+		ELSIF (registerNumber <= ParameterRegister) & (registerNumber > HwRegister) THEN
+			w.String("p"); w.Int(ParameterRegister - registerNumber, 0)
 		ELSIF registerNumber <= HwRegister THEN
 			w.String("h"); w.Int(HwRegister - registerNumber, 0)
 		ELSE
@@ -621,8 +625,8 @@ TYPE
 		AddFormat(conv, "conv", RegMem, RegMemImm, Undef, {Op1IsDestination});
 		(* call adr parSize - procedure call, second operand contains parameter size *)
 		AddFormat(call, "call", RegMemImm, Num, Undef,{});
-		(* enter cc pafSize - set up procedure activation frame;  op1 = calling convention, op2 = paf size *)
-		AddFormat(enter, "enter", Num, Num, Undef ,{});
+		(* enter cc pafSize regs - set up procedure activation frame;  op1 = calling convention, op2 = paf size, op3 = numberOfParameters in registers *)
+		AddFormat(enter, "enter", Num, Num, Num ,{});
 		(* leave cc - remove paf, does not imply return, op1= calling convention, does not imply exit from procedure *)
 		AddFormat(leave, "leave", Num, Undef, Undef ,{});
 		(* return value : return value, op1= returned value, if any, does not imply exit from procedure *)
@@ -721,7 +725,7 @@ TYPE
 
 	PROCEDURE InitRegister*(VAR op: Operand; type: Type; register: LONGINT);
 	BEGIN
-		Assert((register >0) OR (register = SP) OR (register = FP) (* OR (register = Result) OR (register = Result2) *) ,"unmapped register number");
+		Assert((register >0) OR (register = SP) OR (register = FP) OR (register <= ParameterRegister) ,"unmapped register number");
 		InitOperand(op);
 		op.mode := ModeRegister;
 		op.type := type;

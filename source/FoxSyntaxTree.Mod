@@ -78,9 +78,6 @@ TYPE
 		PROCEDURE VisitObjectType*(x: ObjectType);
 		BEGIN HALT(100) (* abstract *) END VisitObjectType;
 
-		PROCEDURE VisitChannelType*(x: ChannelType);
-		BEGIN HALT(100) (* abstract *) END VisitChannelType;
-
 		PROCEDURE VisitNilType*(x: NilType);
 		BEGIN HALT(100) (* abstract *) END VisitNilType;
 
@@ -242,7 +239,7 @@ TYPE
 
 		PROCEDURE VisitNilValue*(x: NilValue);
 		BEGIN HALT(100) (* abstract *) END VisitNilValue;
-		
+
 		PROCEDURE VisitEnumerationValue*(x: EnumerationValue);
 		BEGIN HALT(100) (* abstract *) END VisitEnumerationValue;
 
@@ -352,6 +349,34 @@ TYPE
 	END QualifiedIdentifier;
 
 	(**** types ****)
+	(**
+		Type
+			BasicType
+				ObjectType
+				NilType
+				AnyType
+				ByteType
+				AddressType
+				SizeType
+				BooleanType
+				SetType
+				CharacterType
+				RangeType
+				NumberType
+					IntegerType
+					FloatType
+					ComplexType
+			QualifiedType
+			StringType
+			EnumerationType
+			ArrayType
+			MathArrayType
+			PointerType
+			PortType
+			RecordType
+			CellType
+			ProcedureType
+	*)
 
 	Type* = OBJECT
 		VAR
@@ -408,11 +433,6 @@ TYPE
 		BEGIN SELF.scope := scope
 		END SetScope;
 
-		PROCEDURE Accept*(v: Visitor);
-		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitType(SELF)
-		END Accept;
-
 		PROCEDURE SetRealtime*(isRealtime: BOOLEAN);
 		BEGIN SELF.isRealtime := isRealtime
 		END SetRealtime;
@@ -421,10 +441,25 @@ TYPE
 		BEGIN RETURN FALSE
 		END SameType;
 
-		(* assignment compatibility of this := SELF *)
+		(** assignment compatibility of this := SELF *)
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
 		BEGIN RETURN FALSE
 		END CompatibleTo;
+
+		(** Returns if the type is a pointer  *)
+		PROCEDURE IsPointer*(): BOOLEAN;
+		BEGIN RETURN FALSE
+		END IsPointer;
+
+		(** Returns if the type consists of more than one parts. Implies that an instance of this type cannot be (easily) represented in one register. *)
+		PROCEDURE IsComposite*(): BOOLEAN;
+		BEGIN RETURN FALSE
+		END IsComposite;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitType(SELF)
+		END Accept;
 
 	END Type;
 
@@ -479,6 +514,11 @@ TYPE
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitObjectType(SELF)
 		END Accept;
+
+		PROCEDURE IsPointer(): BOOLEAN;
+		BEGIN RETURN TRUE
+		END IsPointer;
+
 	END ObjectType;
 
 	(** <<NIL>>
@@ -499,6 +539,10 @@ TYPE
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
 		BEGIN RETURN (to IS NilType) OR (to IS ObjectType) OR (to IS AnyType) OR (to IS PointerType) OR (to IS ProcedureType)
 		END CompatibleTo;
+
+		PROCEDURE IsPointer(): BOOLEAN;
+		BEGIN RETURN TRUE
+		END IsPointer;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -523,6 +567,10 @@ TYPE
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
 		BEGIN RETURN (to IS AnyType)
 		END CompatibleTo;
+
+		PROCEDURE IsPointer(): BOOLEAN;
+		BEGIN RETURN TRUE
+		END IsPointer;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -703,6 +751,10 @@ TYPE
 		BEGIN RETURN SameType(to)
 		END CompatibleTo;
 
+		PROCEDURE IsComposite(): BOOLEAN;
+		BEGIN RETURN TRUE
+		END IsComposite;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitRangeType(SELF)
@@ -798,6 +850,10 @@ TYPE
 		BEGIN RETURN (to IS ComplexType) & (componentType.CompatibleTo(to(ComplexType).componentType))
 		END CompatibleTo;
 
+		PROCEDURE IsComposite(): BOOLEAN;
+		BEGIN RETURN TRUE
+		END IsComposite;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitComplexType(SELF)
@@ -821,17 +877,25 @@ TYPE
 			resolved := NIL;
 		END InitQualifiedType;
 
+		PROCEDURE SetResolved*(resolved: Type);
+		BEGIN SELF.resolved := resolved
+		END SetResolved;
+
 		PROCEDURE SameType*(this: Type): BOOLEAN;
 		BEGIN RETURN (this = SELF) OR (resolved # NIL) & (this.resolved # NIL) & resolved.SameType(this.resolved)
 		END SameType;
 
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
-		BEGIN RETURN resolved.CompatibleTo(to)
+		BEGIN RETURN (resolved # NIL) & resolved.CompatibleTo(to)
 		END CompatibleTo;
 
-		PROCEDURE SetResolved*(resolved: Type);
-		BEGIN SELF.resolved := resolved
-		END SetResolved;
+		PROCEDURE IsPointer(): BOOLEAN;
+		BEGIN RETURN (resolved # NIL) & resolved.IsPointer()
+		END IsPointer;
+
+		PROCEDURE IsComposite(): BOOLEAN;
+		BEGIN RETURN (resolved # NIL) & resolved.IsComposite()
+		END IsComposite;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -873,6 +937,10 @@ TYPE
 			ELSE RETURN FALSE
 			END;
 		END CompatibleTo;
+
+		PROCEDURE IsComposite(): BOOLEAN;
+		BEGIN RETURN TRUE
+		END IsComposite;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -986,6 +1054,10 @@ TYPE
 		BEGIN
 			RETURN (form = Static) & SameType(to)
 		END CompatibleTo;
+
+		PROCEDURE IsComposite(): BOOLEAN;
+		BEGIN RETURN TRUE
+		END IsComposite;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -1119,6 +1191,10 @@ TYPE
 			RETURN result
 		END IsFullyDynamic;
 
+		PROCEDURE IsComposite(): BOOLEAN;
+		BEGIN RETURN TRUE
+		END IsComposite;
+
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
 		BEGIN position := SELF.position; v.VisitMathArrayType(SELF)
@@ -1176,6 +1252,10 @@ TYPE
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
 		BEGIN	RETURN SameType(to) OR ~(to IS RecordType) & SELF.Extends(to)
 		END CompatibleTo;
+
+		PROCEDURE IsPointer(): BOOLEAN;
+		BEGIN RETURN TRUE
+		END IsPointer;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -1340,7 +1420,11 @@ TYPE
 
 		PROCEDURE HasArrayStructure*(): BOOLEAN;
 		BEGIN RETURN (arrayStructure # NIL)
-		END HasArrayStructure;
+		END HasArrayStructure
+		;
+		PROCEDURE IsComposite(): BOOLEAN;
+		BEGIN RETURN TRUE
+		END IsComposite;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -1348,29 +1432,6 @@ TYPE
 		END Accept;
 
 	END RecordType;
-
-	ChannelType*= OBJECT (BasicType)
-
-		PROCEDURE &InitChannelType(sizeInBits: LONGINT);
-		BEGIN
-			InitBasicType("@Channel",sizeInBits);
-		END InitChannelType;
-
-		PROCEDURE SameType*(this: Type): BOOLEAN;
-		BEGIN RETURN (this IS ChannelType)
-		END SameType;
-
-		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
-		BEGIN RETURN (to IS ChannelType)
-		END CompatibleTo;
-
-		PROCEDURE Accept*(v: Visitor);
-		VAR position: LONGINT;
-		BEGIN position := SELF.position; v.VisitChannelType(SELF)
-		END Accept;
-
-	END ChannelType;
-
 
 	CellType*=OBJECT (Type)
 	VAR
@@ -1418,6 +1479,10 @@ TYPE
 		PROCEDURE CompatibleTo*(to: Type): BOOLEAN;
 		BEGIN RETURN SameType(to)
 		END CompatibleTo;
+
+		PROCEDURE IsComposite(): BOOLEAN;
+		BEGIN RETURN TRUE
+		END IsComposite;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -1483,7 +1548,6 @@ TYPE
 		PROCEDURE SetReturnParameter*(parameter: Parameter);
 		BEGIN returnParameter := parameter
 		END SetReturnParameter;
-
 
 		PROCEDURE SetCallingConvention*(cc: LONGINT);
 		BEGIN callingConvention := cc
@@ -1552,6 +1616,10 @@ TYPE
 		BEGIN
 			RETURN SameType(to) & (~isDelegate OR to(ProcedureType).isDelegate) & (~to.isRealtime OR isRealtime);
 		END CompatibleTo;
+
+		PROCEDURE IsComposite(): BOOLEAN;
+		BEGIN RETURN isDelegate
+		END IsComposite;
 
 		PROCEDURE Accept*(v: Visitor);
 		VAR position: LONGINT;
@@ -2288,10 +2356,10 @@ TYPE
 		BEGIN RETURN (v IS RealValue) & (v(RealValue).value = value); END Equals;
 
 	END RealValue;
-	
+
 	ComplexValue* = OBJECT (Value)
 		VAR
-			realValue-, imagValue-: LONGREAL;			
+			realValue-, imagValue-: LONGREAL;
 			subtype-: LONGINT; (* accuracy information of components: REAL vs. LONGREAL *)
 
 		PROCEDURE & InitComplexValue(position: LONGINT; realValue, imagValue: LONGREAL);
@@ -2300,7 +2368,7 @@ TYPE
 		END InitComplexValue;
 
 		PROCEDURE SetValue*(realValue, imagValue: LONGREAL);
-		BEGIN	SELF.realValue := realValue; SELF.imagValue := imagValue;			
+		BEGIN	SELF.realValue := realValue; SELF.imagValue := imagValue;
 		END SetValue;
 
 		PROCEDURE UpdateSubtype*;
@@ -2371,7 +2439,7 @@ TYPE
 		BEGIN RETURN (v IS NilValue); END Equals;
 
 	END NilValue;
-	
+
 	(** <<value = enum.x >> **)
 	EnumerationValue* = OBJECT (Value)
 	VAR
@@ -4147,12 +4215,6 @@ VAR
 		NEW(basicType, sizeInBits); RETURN basicType;
 	END NewObjectType;
 
-	PROCEDURE NewChannelType*(sizeInBits: LONGINT): ChannelType;
-	VAR basicType: ChannelType;
-	BEGIN
-		NEW(basicType, sizeInBits); RETURN basicType;
-	END NewChannelType;
-
 	PROCEDURE NewNilType*(sizeInBits: LONGINT): NilType;
 	VAR basicType: NilType;
 	BEGIN
@@ -4517,7 +4579,7 @@ VAR
 	BEGIN
 		NEW( nilValue, position );  RETURN nilValue
 	END NewNilValue;
-	
+
 	PROCEDURE NewEnumerationValue*( position: LONGINT; value: LONGINT ): EnumerationValue;
 	VAR enumeratorValue: EnumerationValue;
 	BEGIN
