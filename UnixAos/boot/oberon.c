@@ -156,7 +156,8 @@ void* o_dlopen(char *lib, int mode) {
 
     if (debug&1) printf("o_dlopen: %s\n", lib);
     if ((handle = dlopen(lib, mode)) == NULL) {
-        printf("o_dlopen: %s not loaded, error = %s\n", lib, dlerror());
+        if (debug&1)
+	    printf("o_dlopen: %s not loaded, error = %s\n", lib, dlerror());
     }
     if (debug&1) printf("o_dlopen: handle = %x\n", handle);
 
