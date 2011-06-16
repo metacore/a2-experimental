@@ -126,7 +126,7 @@ TYPE
 		PROCEDURE TryLoad(CONST name : ARRAY OF CHAR; pos : LONGINT);
 		VAR x : XML.Content;
 		BEGIN
-			IF (pos >= 0) & (pos < 99) THEN
+			IF (pos >= 0) & (pos <= 99) THEN
 				x := WMComponents.Load(name);
 				IF x # NIL THEN
 					IF x IS WMComponents.VisualComponent THEN
