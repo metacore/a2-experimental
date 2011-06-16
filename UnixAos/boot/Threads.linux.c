@@ -1,14 +1,6 @@
 
 /*--------- threads support ------------------------- g.f. -----*/
 /*--------- lower half of the Oberon Threads module             */
-/*
- * The PowerPC Oberon compiler follows the old MacOS ABI which
- * is different from the ABI used in Linux and MacOS X. Because of
- * this the interfacing between C and Oberon is a little bit
- * tricky and this module has to be compiled with
- *	-DPowerPC_Oberon_Compiler
- */
-
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -26,18 +18,10 @@ extern int debug;
 
 extern void SetSigaltstack();
 
-static _thr_ mainthread = 0;
-
-static int prio_high, prio_low;
-
-static pthread_mutex_t prio_mutex;
+static o_thr_t mainthread = 0;
 
 static struct sched_param oldparam;
 static int oldpolicy;
-
-#ifdef PowerPC_Oberon_Compiler
-    extern void CallOberon( int pc, int sb );
-#endif
 
 #define	T_SIGSUSPEND	SIGUSR1
 #define	T_SIGRESUME	SIGUSR2
@@ -48,7 +32,8 @@ static int suspend_done;
 static int resume_done;
 
 
-void _thr_sleep(int ms) {
+void 
+o_thrSleep(int ms) {
 
     struct timespec sltime, rem;
 
@@ -59,18 +44,19 @@ void _thr_sleep(int ms) {
 }
 
 
-_mut_
-_mtx_init(int dummy) {
-    _mut_ mtx;
+o_mtx_t 
+o_mtxInit(int dummy) {
+    o_mtx_t mtx;
 
-    mtx = (_mut_)malloc( sizeof(pthread_mutex_t) );
+    mtx = (o_mtx_t)malloc( sizeof(pthread_mutex_t) );
     pthread_mutex_init( mtx, NULL );
     return mtx;
 }
 
 
 
-void _mtx_destroy(_mut_ mtx) {
+void 
+o_mtxDestroy(o_mtx_t mtx) {
     
     (void)pthread_mutex_destroy( mtx );
     free( mtx );
@@ -78,64 +64,50 @@ void _mtx_destroy(_mut_ mtx) {
 
 
 
-void _mtx_lock(_mut_ mtx) {
+void 
+o_mtxLock(o_mtx_t mtx) {
     
     (void)pthread_mutex_lock( mtx );
 }
 
 
 
-void _mtx_unlock(_mut_ mtx) {
+void 
+o_mtxUnlock(o_mtx_t mtx) {
     
     (void)pthread_mutex_unlock( mtx );
 }
 
 
-_con_ _con_init(int dymmy) {
-    _con_	c;
+o_con_t 
+o_conInit(int dymmy) {
+    o_con_t	c;
 
-    c = (_con_)malloc( sizeof(pthread_cond_t) );
+    c = (o_con_t)malloc( sizeof(pthread_cond_t) );
     pthread_cond_init( c, NULL );
     return c;
 }
 
-void _con_destroy(_con_ c) {
+void 
+o_conDestroy(o_con_t c) {
     pthread_cond_destroy( c );
     free( c );
 }
 
-void _con_wait( _con_ c, _mut_ m ) {
+void 
+o_conWait( o_con_t c, o_mtx_t m ) {
     pthread_cond_wait( c, m );
 }
 
-void _con_signal( _con_ c ) {
+void 
+o_conSignal( o_con_t c ) {
     pthread_cond_signal( c );
 }
 
 
-static void suspend_handler(int sig) {
-    sigset_t block;
-
-    sigfillset( &block );
-    sigdelset( &block, T_SIGRESUME );
-    //if (debug&2) printf( "thread %8x suspended\n", pthread_self() );
-    suspend_done = 1;
-
-    sigsuspend( &block ); /* await T_SIGRESUME */
-
-    //if (debug&2) printf( "thread %8x resuming\n", pthread_self() );
-    resume_done = 1;
-}
-
-
-
-static  void resume_handler(int sig) {
-}
-
-
-
-static void *starter(void *p) {
-    _thr_ me = pthread_self();
+static void *
+starter(void *p) {
+    o_thr_t me = pthread_self();
     oberon_proc proc = (oberon_proc)p;
     sigset_t old, new;
     struct sched_param param;
@@ -154,125 +126,130 @@ static void *starter(void *p) {
 
     pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, NULL );
     pthread_setcanceltype( PTHREAD_CANCEL_ASYNCHRONOUS, NULL );
-    if ( suid_root != 0) {
-        param.sched_priority = 0;
-        pthread_setschedparam( me, SCHED_OTHER, &param );
-    }
+    param.sched_priority = 0;
+    pthread_setschedparam( me, SCHED_OTHER, &param );
 
-#ifdef PowerPC_Oberon_Compiler
-    CallOberon( proc->pc, proc->sb );
-#else
     proc();
-#endif
+
     pthread_exit( NULL );
     return NULL;
 }
 
 
 
-_thr_ 
-_thr_start( oberon_proc p, int len ) {
+o_thr_t 
+o_thrStart( oberon_proc p, int len ) {
     
-    _thr_ id;
+    o_thr_t id;
     pthread_attr_t attr;
      
     if (len < PTHREAD_STACK_MIN) len = PTHREAD_STACK_MIN;
     pthread_attr_init( &attr );
     pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
     pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
-    if ( suid_root ) {
-        pthread_attr_setstacksize( &attr, len );
-    }
+    pthread_attr_setstacksize( &attr, len );
     if (pthread_create( &id, &attr, starter, p ) != 0) return 0;
     return id;
 }
 
 
 
-_thr_ _thr_this(int dummy) {
+o_thr_t 
+o_thrThis(int dummy) {
 
     return pthread_self();
 }
 
 
 
-void _thr_pass(int dummy) {
+void 
+o_thrYield(int dummy) {
 
-    _thr_sleep( 10 );
+    o_thrSleep( 1 );
 }
 
 
 
-void _thr_exit(int dummy) {
+void 
+o_thrExit(int dummy) {
     
     pthread_exit( 0 );
 }
 
 
 
-void _thr_sendsig( _thr_ thr, int sig ) {
-
-    pthread_kill( thr, sig );
-}
-
-
-
-void _thr_suspend(_thr_ thr) {
+void 
+o_thrSuspend(o_thr_t thr) {
 
     pthread_mutex_lock( &suspend_mutex );
     suspend_done = 0;
     pthread_kill( thr, T_SIGSUSPEND );
-    while (suspend_done != 1) _thr_sleep( 1 );
+    while (suspend_done != 1) o_thrSleep( 1 );
     pthread_mutex_unlock( &suspend_mutex );
 }
 
 
+static void 
+suspend_handler(int sig) {
+    sigset_t block;
 
-void _thr_resume(_thr_ thr) {
+    sigfillset( &block );
+    sigdelset( &block, T_SIGRESUME );
+    suspend_done = 1;
+
+    sigsuspend( &block ); /* await T_SIGRESUME */
+
+    resume_done = 1;
+}
+
+
+
+static void 
+resume_handler(int sig) {
+}
+
+void 
+o_thrResume(o_thr_t thr) {
     int n;
 
     pthread_mutex_lock( &suspend_mutex );
     resume_done = 0; n = 1;
     pthread_kill( thr, T_SIGRESUME ); 
-    while (resume_done != 1 && n < 20) _thr_sleep( n++ );
+    while (resume_done != 1 && n < 50) { o_thrSleep( 1 ); n++; }
     pthread_mutex_unlock( &suspend_mutex );
 }
 
 
 
-void _thr_setprio(_thr_ thr, int prio) {
+void 
+o_thrSetprio(o_thr_t thr, int prio) {
 
     struct sched_param param;
     int policy;
 
-    if ( suid_root == 0) return;
 
-    pthread_mutex_lock( &prio_mutex );
-    seteuid(0);
     pthread_getschedparam( thr, &policy, &param );
     param.sched_priority = prio;
-    if (pthread_setschedparam( thr, SCHED_FIFO, &param ) != 0)
+    if (pthread_setschedparam( thr, SCHED_OTHER, &param ) != 0)
     	perror("pthread_setschedparam");
-    seteuid( getuid());
-    pthread_mutex_unlock( &prio_mutex );
 }
 
 
 
-int _thr_getprio(_thr_ thr) {
+int 
+o_thrGetprio(o_thr_t thr) {
 
     struct sched_param param;
     int policy;
 
-    pthread_mutex_lock( &prio_mutex );
     pthread_getschedparam( thr, &policy, &param );
-    pthread_mutex_unlock( &prio_mutex );
     return ( param.sched_priority );
 }
 
 
 
-void _thr_kill(_thr_ thr) {
+void 
+o_thrKill(o_thr_t thr) {
 
     if (thr != mainthread) {
     	pthread_detach( thr );
@@ -285,28 +262,17 @@ void _thr_kill(_thr_ thr) {
 }
 
 
-/* _thr_initialize returns 0 (FALSE) if no threads support is compiled in */
 
-int _thr_initialize( int *low, int* high ) {
+int 
+o_thrInitialize( int *low, int* high ) {
     struct sched_param param;
     
     pthread_mutex_init( &suspend_mutex, NULL );
     mainthread = pthread_self();
-    if ( suid_root == 0) {
-    	prio_high = sched_get_priority_max(SCHED_RR);
-    	prio_low = sched_get_priority_min(SCHED_RR);
-    	*low = prio_low;
-    	*high = prio_high;
-        param.sched_priority = prio_high;
-        pthread_setschedparam( mainthread, SCHED_RR, &param );
-    }else{
-    	prio_high = sched_get_priority_max(SCHED_FIFO);
-    	prio_low = sched_get_priority_min(SCHED_FIFO);
-    	*low = prio_low;
-    	*high = prio_high;	
-
-    	pthread_mutex_init( &prio_mutex, NULL );
-    }
+    *high = sched_get_priority_max(SCHED_OTHER);
+    *low = sched_get_priority_min(SCHED_OTHER);
+    param.sched_priority = *high;
+    pthread_setschedparam( mainthread, SCHED_OTHER, &param );
 
     sigemptyset( &sasuspend.sa_mask );
     sigaddset( &sasuspend.sa_mask, T_SIGRESUME );

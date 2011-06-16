@@ -1,57 +1,45 @@
 
-#include <stdio.h>
 
 #ifdef SOLARIS
-# define _REENTRANT
-# define __EXTENSIONS__  1
 # include <thread.h>
-# include <pthread.h>
-# include <synch.h>
-  typedef mutex_t *	_mut_;
-  typedef cond_t *	_con_;
-  typedef thread_t	_thr_;
-  typedef void* (*oberon_proc)(void *);
+  typedef mutex_t *	o_mtx_t;
+  typedef cond_t *	o_con_t;
+  typedef thread_t	o_thr_t;
+  typedef void (*oberon_proc)(void *);
 #else
-  /*** Linix | Darwin ***/
+  /*** Linux | Darwin ***/
 # include <pthread.h>
-  typedef pthread_mutex_t *	_mut_;
-  typedef pthread_cond_t *	_con_;
-  typedef pthread_t		_thr_;
-# ifdef PowerPC_Oberon_Compiler
-	typedef struct { int pc, sb; } *oberon_proc;
-# else
-	typedef	int (*oberon_proc)();
-# endif
+  typedef pthread_mutex_t *	o_mtx_t;
+  typedef pthread_cond_t *	o_con_t;
+  typedef pthread_t		o_thr_t;
+  typedef int (*oberon_proc)();
 #endif
 
 
-extern _mut_	_mtx_init( );
-extern void	_mtx_destroy( _mut_ mtx );
-extern void	_mtx_lock(    _mut_ mtx );
-extern void	_mtx_unlock(  _mut_ mtx );
+extern o_mtx_t	o_mtxInit( );
+extern void	o_mtxDestroy( o_mtx_t mtx );
+extern void	o_mtxLock(    o_mtx_t mtx );
+extern void	o_mtxUnlock(  o_mtx_t mtx );
 
-extern _con_	_con_init( );
-extern void	_con_destroy( _con_ con );
-extern void	_con_wait ( _con_ con, _mut_ mtx );
-extern void	_con_signal(  _con_ con );
+extern o_con_t	o_conInit( );
+extern void	o_conDestroy( o_con_t con );
+extern void	o_conWait(    o_con_t con, o_mtx_t mtx );
+extern void	o_conSignal(  o_con_t con );
 
-#ifdef PowerPC_Oberon_Compiler
-extern _thr_	_thr_start( int PC, int SB, int len );
-#else
-extern _thr_	_thr_start( oberon_proc p, int len );
-#endif
 
-extern _thr_	_thr_this( );
-extern void	_thr_sleep( int ms );
-extern void	_thr_pass( );
-extern void	_thr_exit( );
-extern void	_thr_sendsig( _thr_ thr, int sig );
-extern void	_thr_suspend( _thr_ thr );
-extern void	_thr_resume(  _thr_ thr );
-extern void	_thr_setprio( _thr_ thr, int prio );
-extern int 	_thr_getprio( _thr_ thr );
-extern void	_thr_kill( _thr_ thr );
 
-extern int 	_thr_initialize( int *low, int* high );
+extern o_thr_t	o_thrStart( oberon_proc p, int len );
+extern o_thr_t	o_thrThis( );
+extern void	o_thrSleep( int ms );
+extern void	o_thrYield( );
+extern void	o_thrExit( );
+extern void	o_thrSendsig( o_thr_t thr, int sig );
+extern void	o_thrSuspend( o_thr_t thr );
+extern void	o_thrResume(  o_thr_t thr );
+extern void	o_thrSetprio( o_thr_t thr, int prio );
+extern int 	o_thrGetprio( o_thr_t thr );
+extern void	o_thrKill(    o_thr_t thr );
+
+extern int 	o_thrInitialize( int* low, int* high );
 
 

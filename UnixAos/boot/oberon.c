@@ -30,22 +30,22 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <setjmp.h>		/* g.f. */
+#include <setjmp.h>	
 #ifdef MAC
 #  include <sys/ucontext.h>
 #  include <sys/_types.h>
 #endif
-#include <signal.h>		/* g.f. */
-#include <limits.h>		/* g.f. */
-#include "Threads.h"		/* g.f. */
+#include <signal.h>
+#include <limits.h>
+#include "Threads.h"
 #include <sys/mman.h>
 #include <X11/Xlib.h>
 
 
-typedef unsigned int	uint;
-typedef unsigned int	addr;
+typedef unsigned long	u_long;
+typedef void * 	Address;
 
-typedef void (*Proc)();
+typedef void (*OberonProc)();
 
 FILE *fd;
 char *OBERON;
@@ -63,9 +63,9 @@ char defaultpath[] = ".:/usr/aos/obj:/usr/aos/system";
 #ifdef MAC
   char bootname[64] = "MacOberonCore";
 #endif
-uint heapSize;
-uint codeSize;
-addr heapAdr;
+size_t heapSize;
+size_t codeSize;
+Address heapAdr;
 int Argc;
 char **Argv;
 int debug;
@@ -81,17 +81,13 @@ typedef	void(*trap_t)(long, void*, void*, int);
 static trap_t	AosTrap;
 
 
-static void sighandler(int sig, void *scp, void *ucp) {
+static void sighandler( int sig, void *scp, void *ucp ) {
 	
-	if ((debug!=0)|(AosTrap==NULL))
-	    printf("\nhandler for signal %d got called, ucp = %x\n", 
-			sig, ucp);
-	if (AosTrap!=NULL)
-	    AosTrap(0, ucp, scp, sig); /* rev. order: Oberon <--> C */
-	else
-	    exit(1);
-	// printf("returned fron Oberon Trap\n");
-	return;
+	if (debug | (AosTrap == NULL)) {
+	    printf("\nhandler for signal %d got called, ucp = %x\n", sig, ucp);
+	    if (AosTrap == NULL) exit(1);
+	}
+	AosTrap(0, ucp, scp, sig); /* rev. order: Oberon <--> C */
 }
 
 
@@ -154,37 +150,29 @@ static void CreateSignalstack() {
 }
 
 
-/*--------------------------------------------------- g.f. -----*/
 
+void* o_dlopen(char *lib, int mode) {
+    void* handle;
 
-int dl_open(char *lib, int mode)
-{
-  void *handle;
+    if (debug&1) printf("o_dlopen: %s\n", lib);
+    if ((handle = dlopen(lib, mode)) == NULL) {
+        printf("o_dlopen: %s not loaded, error = %s\n", lib, dlerror());
+    }
+    if (debug&1) printf("o_dlopen: handle = %x\n", handle);
 
-  if (debug&1) printf("dl_open: %s\n", lib);
-  if ((handle = dlopen(lib, mode)) == NULL) {
-    if (debug&1)
-      printf("dl_open: %s not loaded, error = %s\n", lib, dlerror());
-  }
-  if (debug&1) printf("dl_open: handle = %x\n", handle);
-
-  return (int)handle;
+    return handle;
 }
 
-void dl_close(int handle)	/* not necessary */
+void o_dlclose(void* handle)	/* not necessary */
 {
-  dlclose((void *)handle);
+  dlclose(handle);
 }
 
-static int o_errno()
-{
+static int o_errno() {
+
 	return errno;
 }
 
-static void o_printf(char *fs, int p1, int p2, int p3, int p4) {
-	printf(fs, p1, p2, p3, p4);
-	fflush(stdout);
-}
 
 int o_stat(char* name, void* buf) {
 	return stat(name, (struct stat *) buf);
@@ -214,7 +202,7 @@ void *o_calloc( long nelem, long elsize ) {
 	return calloc( nelem, elsize );
 }
 
-int o_mprotect( long addr, long len, int prot ) {
+int o_mprotect( void* addr, long len, int prot ) {
 	return mprotect( addr, len, prot );
 }
 
@@ -242,7 +230,7 @@ static int X11IOErrorHandler( Display *d ) {
 }
 
 
-void SetupXErrHandlers( long *XE, long *XIOE ) {
+void SetupXErrHandlers( void* XE, void* XIOE ) {
 	
 	if (debug)
 		printf( "Setup X11 ErrorHandlers\n" );
@@ -254,66 +242,60 @@ void SetupXErrHandlers( long *XE, long *XIOE ) {
 }
 
 
-void dl_sym(int handle, char *symbol, int *adr)
+void o_dlsym(void* handle, char* symbol, void** adr)
 {
-  void * a;
-
-  if (debug==(-1)) printf("dl_sym: %x %s\n", handle, symbol);
+  if (debug==(-1)) printf("o_dlsym: %x %s\n", handle, symbol);
   
-  if      (strcmp("dlopen",	symbol) == 0) *adr = (int)dl_open;
-  else if (strcmp("dlclose",	symbol) == 0) *adr = (int)dl_close;
-  else if (strcmp("debug",	symbol) == 0) *adr = debug;
-  else if (strcmp("heapAdr",	symbol) == 0) *adr = heapAdr;
-  else if (strcmp("heapSize",	symbol) == 0) *adr = heapSize;
-  else if (strcmp("argc",	symbol) == 0) *adr = Argc;
-  else if (strcmp("argv",	symbol) == 0) *adr = (int)Argv;
-  else if (strcmp("exit",	symbol) == 0) *adr = (int)exit;
-  else if (strcmp("errno",	symbol) == 0) *adr = (int)o_errno;
-  else if (strcmp("printf",	symbol) == 0) *adr = (int)o_printf;
+  if      (strcmp("dlopen",		symbol) == 0) *adr = o_dlopen;
+  else if (strcmp("dlclose",		symbol) == 0) *adr = o_dlclose;
+  else if (strcmp("debug",		symbol) == 0) *(int*)adr = debug;
+  else if (strcmp("heapAdr",		symbol) == 0) *adr = heapAdr;
+  else if (strcmp("heapSize",		symbol) == 0) *(size_t*)adr = heapSize;
+  else if (strcmp("argc",		symbol) == 0) *adr = &Argc;
+  else if (strcmp("argv",		symbol) == 0) *adr = Argv;
+  else if (strcmp("errno",		symbol) == 0) *adr = o_errno;
+  else if (strcmp("cout",		symbol) == 0) *adr = o_cout;
   
-  else if (strcmp("open",	symbol) == 0) *adr = (int)o_open;
-  else if (strcmp("stat",	symbol) == 0) *adr = (int)o_stat;
-  else if (strcmp("lstat",	symbol) == 0) *adr = (int)o_lstat;
-  else if (strcmp("fstat",	symbol) == 0) *adr = (int)o_fstat;
-  else if (strcmp("lseek",	symbol) == 0) *adr = (int)o_lseek;
+  else if (strcmp("open",		symbol) == 0) *adr = o_open;
+  else if (strcmp("stat",		symbol) == 0) *adr = o_stat;
+  else if (strcmp("lstat",		symbol) == 0) *adr = o_lstat;
+  else if (strcmp("fstat",		symbol) == 0) *adr = o_fstat;
+  else if (strcmp("lseek",		symbol) == 0) *adr = o_lseek;
 
-  else if (strcmp("malloc",	symbol) == 0) *adr = (int)o_malloc;
-  else if (strcmp("calloc",	symbol) == 0) *adr = (int)o_calloc;
-  else if (strcmp("memalign",	symbol) == 0) *adr = (int)o_memalign;
-  else if (strcmp("mprotect",	symbol) == 0) *adr = (int)o_mprotect;
+  else if (strcmp("malloc",		symbol) == 0) *adr = o_malloc;
+  else if (strcmp("calloc",		symbol) == 0) *adr = o_calloc;
+  else if (strcmp("memalign",		symbol) == 0) *adr = o_memalign;
+  else if (strcmp("mprotect",		symbol) == 0) *adr = o_mprotect;
 
-  else if (strcmp("cout",	symbol) == 0) *adr = (int)o_cout;
-  else if (strcmp("InstallTrap",symbol) == 0) *adr = (int)InstallTrap;
-  else if (strcmp("InitXErrH",  symbol) == 0) *adr = (int)SetupXErrHandlers;
+  else if (strcmp("InstallTrap",	symbol) == 0) *adr = InstallTrap;
+  else if (strcmp("InitXErrH", 		symbol) == 0) *adr = SetupXErrHandlers;
 #ifdef LINUX
-  else if (strcmp("sigsetjmp",	symbol) == 0) *adr = (int)__sigsetjmp;
-  else if (strcmp("setjmp",	symbol) == 0) *adr = (int)__sigsetjmp;
+  else if (strcmp("sigsetjmp",		symbol) == 0) *adr = __sigsetjmp;
+  else if (strcmp("setjmp",		symbol) == 0) *adr = __sigsetjmp;
 #endif
-
-  /* threads support */
-  else if (strcmp("mtxInit",   		symbol) == 0) *adr = (int)_mtx_init;
-  else if (strcmp("mtxDestroy", 	symbol) == 0) *adr = (int)_mtx_destroy;
-  else if (strcmp("mtxLock",    	symbol) == 0) *adr = (int)_mtx_lock;
-  else if (strcmp("mtxUnlock",  	symbol) == 0) *adr = (int)_mtx_unlock;
-  else if (strcmp("conInit",  		symbol) == 0) *adr = (int)_con_init;
-  else if (strcmp("conDestroy", 	symbol) == 0) *adr = (int)_con_destroy;
-  else if (strcmp("conWait",  		symbol) == 0) *adr = (int)_con_wait;
-  else if (strcmp("conSignal",  	symbol) == 0) *adr = (int)_con_signal;
-  else if (strcmp("thrStart",		symbol) == 0) *adr = (int)_thr_start;
-  else if (strcmp("thrThis",		symbol) == 0) *adr = (int)_thr_this;
-  else if (strcmp("thrSleep",		symbol) == 0) *adr = (int)_thr_sleep;
-  else if (strcmp("thrPass",		symbol) == 0) *adr = (int)_thr_pass;
-  else if (strcmp("thrExit",		symbol) == 0) *adr = (int)_thr_exit;
-  else if (strcmp("thrSuspend",		symbol) == 0) *adr = (int)_thr_suspend;
-  else if (strcmp("thrResume",		symbol) == 0) *adr = (int)_thr_resume;
-  else if (strcmp("thrGetPriority",	symbol) == 0) *adr = (int)_thr_getprio;
-  else if (strcmp("thrSetPriority",	symbol) == 0) *adr = (int)_thr_setprio;
-  else if (strcmp("thrKill",		symbol) == 0) *adr = (int)_thr_kill;
-  else if (strcmp("thrInitialize",	symbol) == 0) *adr = (int)_thr_initialize;
+  else if (strcmp("mtxInit",   		symbol) == 0) *adr = o_mtxInit;
+  else if (strcmp("mtxDestroy", 	symbol) == 0) *adr = o_mtxDestroy;
+  else if (strcmp("mtxLock",    	symbol) == 0) *adr = o_mtxLock;
+  else if (strcmp("mtxUnlock",  	symbol) == 0) *adr = o_mtxUnlock;
+  else if (strcmp("conInit",  		symbol) == 0) *adr = o_conInit;
+  else if (strcmp("conDestroy", 	symbol) == 0) *adr = o_conDestroy;
+  else if (strcmp("conWait",  		symbol) == 0) *adr = o_conWait;
+  else if (strcmp("conSignal",  	symbol) == 0) *adr = o_conSignal;
+  else if (strcmp("thrStart",		symbol) == 0) *adr = o_thrStart;
+  else if (strcmp("thrThis",		symbol) == 0) *adr = o_thrThis;
+  else if (strcmp("thrSleep",		symbol) == 0) *adr = o_thrSleep;
+  else if (strcmp("thrYield",		symbol) == 0) *adr = o_thrYield;
+  else if (strcmp("thrExit",		symbol) == 0) *adr = o_thrExit;
+  else if (strcmp("thrSuspend",		symbol) == 0) *adr = o_thrSuspend;
+  else if (strcmp("thrResume",		symbol) == 0) *adr = o_thrResume;
+  else if (strcmp("thrGetPriority",	symbol) == 0) *adr = o_thrGetprio;
+  else if (strcmp("thrSetPriority",	symbol) == 0) *adr = o_thrSetprio;
+  else if (strcmp("thrKill",		symbol) == 0) *adr = o_thrKill;
+  else if (strcmp("thrInitialize",	symbol) == 0) *adr = o_thrInitialize;
   else {
-    *adr = (int)dlsym((void *)handle, symbol);
+    *adr = dlsym(handle, symbol);
     if (*adr == 0) {
-      printf("dl_sym: symbol %s not found\n", symbol); 
+      printf("o_dlsym: symbol %s not found\n", symbol); 
     }
   }
 }
@@ -321,22 +303,20 @@ void dl_sym(int handle, char *symbol, int *adr)
 
 /*----- Files Reading primitives -----*/
 
-int Rint() 
-
-{
+int Rint() {
   unsigned char b[4];
-  /*
-     b[3] = fgetc(fd); b[2] = fgetc(fd); b[1] = fgetc(fd); b[0] = fgetc(fd);
-     */
+
+  /* b[3] = fgetc(fd); b[2] = fgetc(fd); b[1] = fgetc(fd); b[0] = fgetc(fd); */
+
   /* little endian machine reading little endian integer */
   b[0] = fgetc(fd); b[1] = fgetc(fd); b[2] = fgetc(fd); b[3] = fgetc(fd);
   return *((int *) b);
 }
 
-int RNum()
-{
+int RNum() {
   int n, shift;
   unsigned char x;
+
   shift = 0; n = 0; x = fgetc(fd);
   while (x >= 128) {
     n += (x & 0x7f) << shift;
@@ -346,14 +326,14 @@ int RNum()
   return n + (((x & 0x3f) - ((x >> 6) << 6)) << shift);
 }
 
-void Assert( uint x ) {
-  uint y;
+void Assert( caddr_t x ) {
+  caddr_t y;
 
   if((x < heapAdr) | (x >= heapAdr + heapSize)) {
     printf("bad reloc. pos %x [%x, %x]\n", x, heapAdr, heapAdr+heapSize);
   }
   if (x > heapAdr+codeSize) {
-    y = *(int*)x;
+    y = *(caddr_t*)x;
     if((y < heapAdr) | (y >= heapAdr+heapSize)) {
       printf("bad reloc. value %x [%x, %x]\n", y, heapAdr, heapAdr+heapSize);
     }
@@ -361,37 +341,25 @@ void Assert( uint x ) {
 }
 
 	
-void Relocate(uint heapAdr, int shift)
-{
-  int len; addr adr; 
+void Relocate(Address heapAdr, size_t shift) {
+  int len; Address adr; 
   
   len = RNum(); 
   while (len != 0) { 
     adr = RNum(); 
-    adr += heapAdr; 
-    *((int *)adr) += shift; 
+    adr += (u_long)heapAdr; 
+    *((Address*)adr) += shift; 
     Assert( adr );
     len--; 
   } 
 }
 
-void showProc(addr adr) {
-  int i;
-  
-  printf("Oberon code to be called:\n");
-  for (i=0; i<10; i++) {
-    printf("%8x: %8x\n", adr, *(int*)adr);
-    adr += 4;
-  }
-  printf("%8x: ...\n", adr);
-}
 
-void Boot()
-{
-  addr adr, fileHeapAdr, dlsymAdr;
-  uint len, d, fileHeapSize;
-  int shift, notfound;  
-  Proc body;
+void Boot() {
+  u_long adr, len, fileHeapAdr, dlsymAdr;
+  size_t shift, fileHeapSize;
+  int d, notfound;  
+  OberonProc body;
 
   d = 0; notfound = 1;
   while ((d < nofdir) && notfound) {
@@ -418,24 +386,21 @@ void Boot()
   while (len != 0) {
     adr += shift;
     len += adr;
-    codeSize = len - heapAdr;
+    codeSize = len - (u_long)heapAdr;
     while (adr != len) { *((int*)adr) = Rint(); adr += 4; }
     adr = Rint(); len = Rint();
   }
-  body = (Proc)(adr + shift);
+  body = (OberonProc)(adr + shift);
   Relocate(heapAdr, shift);
   dlsymAdr = Rint();
-  if (debug==(-1)) showProc((addr)body);
-  *((int *)(heapAdr + dlsymAdr)) = (int)dl_sym;
+  *((int *)(heapAdr + dlsymAdr)) = (int)o_dlsym;
   fclose(fd);
-  codeSize = (codeSize+4095)/4096*4096;
-  if(mprotect((void*)heapAdr, codeSize, PROT_READ|PROT_WRITE|PROT_EXEC) != 0)
+  if(mprotect((void*)heapAdr, heapSize, PROT_READ|PROT_WRITE|PROT_EXEC) != 0)
      perror("mprotect");
   (*body)();
 }
 
-void InitPath()
-{
+void InitPath() {
   int pos;
   char ch;
   
@@ -452,21 +417,15 @@ void InitPath()
   }
 }
 
-void doexit(int ret, void *arg)
-{
-  _exit(ret);
-}
 
 int main(int argc, char *argv[])
 {
   char* p;
   void *a, *h;
   
-/*  on_exit(doexit, NULL);	*/
-  
   Argc = argc; Argv = argv;
 
-  /* check if we have suid root previlliges */
+  /* check if we have suid root privileges */
   if (geteuid() == 0) {
      suid_root = 1;
      seteuid( getuid() );
@@ -476,18 +435,18 @@ int main(int argc, char *argv[])
 
   debug = 0;
   p = getenv("OBERON_DEBUG");
-  if (p != NULL)  debug = atoi(p);
+  if (p != NULL) debug = atoi(p);
 
   if (debug) {
-     printf("UnixAos Boot Loader 05.11.2010\n");
+     printf( "UnixAos Boot Loader 16.06.2011\n" );
      printf( "debug = %d\n", debug );
   }
 
   heapSize = 0x200000;
 #ifdef MAC
-  heapAdr = (addr)calloc(0x200, 0x1000);
+  heapAdr = (Address)calloc(0x200, 0x1000);
 #else
-  heapAdr = (addr)memalign(4096, heapSize);
+  heapAdr = (Address)memalign(4096, heapSize);
 #endif
   if (heapAdr == 0) {
     printf("oberon: cannot allocate initial heap space\n");  

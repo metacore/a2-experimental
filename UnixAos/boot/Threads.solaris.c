@@ -6,53 +6,57 @@
 #include <stdlib.h>
 #include <limits.h>
 #include "Threads.h"
+#define __EXTENSIONS__  1
+#include <pthread.h>
+#include <synch.h>
+#include <sched.h>
 
-static int suid_root;
-static _thr_ mainthread = 0;
+extern int suid_root;
+static o_thr_t mainthread = 0;
 
 extern void SetSigaltstack();
 
-_mut_ _mtx_init(int dummy) {
-    _mut_ mtx;
+o_mtx_t o_mtxInit(int dummy) {
+    o_mtx_t mtx;
 
-    mtx = (_mut_)malloc( sizeof(mutex_t) );
+    mtx = (o_mtx_t)malloc( sizeof(mutex_t) );
     mutex_init( mtx, USYNC_THREAD, NULL );
     return mtx;
 }
 
-void _mtx_destroy(_mut_ mtx) {
+void o_mtxDestroy(o_mtx_t mtx) {
     mutex_destroy( mtx );
     free( mtx );
 }
 
 
-void _mtx_lock(_mut_ mtx) {
+void o_mtxLock(o_mtx_t mtx) {
     mutex_lock( mtx );
 }
 
 
-void _mtx_unlock(_mut_ mtx) {
+void o_mtxUnlock(o_mtx_t mtx) {
     mutex_unlock( mtx );
 }
 
-_con_ _con_init(int dummy) {
-    _con_	c;
+o_con_t o_conInit(int dummy) {
+    o_con_t	c;
 
-    c = (_con_)malloc( sizeof(cond_t) );
+    c = (o_con_t)malloc( sizeof(cond_t) );
     cond_init( c, USYNC_THREAD, NULL );
     return c;
 }
 
-void _con_destroy(_con_ c) {
+void o_conDestroy(o_con_t c) {
     cond_destroy( c );
     free( c );
 }
 
-void _con_wait( _con_ c, _mut_ m ) {
+void o_conWait( o_con_t c, o_mtx_t m ) {
     cond_wait( c, m );
 }
 
-void _con_signal( _con_ c ) {
+void o_conSignal( o_con_t c ) {
    cond_signal( c );
 }
 
@@ -78,8 +82,8 @@ void starter( oberon_proc p ) {
 }
 
 
-_thr_ _thr_start( oberon_proc p, int len ) {
-    _thr_ id;
+o_thr_t o_thrStart( oberon_proc p, int len ) {
+    o_thr_t id;
     int	err;
 
     if ((len != 0) && (len < 16*1024)) {
@@ -93,12 +97,12 @@ _thr_ _thr_start( oberon_proc p, int len ) {
 }
 
 
-_thr_ _thr_this(int dummy) {
+o_thr_t o_thrThis(int dummy) {
     return thr_self();
 }
 
 
-void _thr_sleep(int ms) {
+void o_thrSleep(int ms) {
     struct timespec sltime, rem;
 
     sltime.tv_sec = ms/1000;
@@ -107,29 +111,29 @@ void _thr_sleep(int ms) {
 }
 
 
-void _thr_pass(int dummy) {
+void o_thrYield(int dummy) {
     thr_yield( );
 }
 
-void _thr_exit(int dummy) {
+void o_thrExit(int dummy) {
     thr_exit( 0 );
 }
 
 
-void _thr_suspend(_thr_ thr) {
+void o_thrSuspend(o_thr_t thr) {
     thr_suspend( thr );
 }
 
-void _thr_resume(_thr_ thr) {
+void o_thrResume(o_thr_t thr) {
     thr_continue( thr );
 }
 
 
-void _thr_setprio(_thr_ thr, int prio) {
+void o_thrSetprio(o_thr_t thr, int prio) {
     thr_setprio( thr, prio );
 }
 
-int _thr_getprio(_thr_ thr) {
+int o_thrGetprio(o_thr_t thr) {
     int prio;
 
     thr_getprio( thr, &prio );
@@ -137,7 +141,7 @@ int _thr_getprio(_thr_ thr) {
 }
 
 
-void _thr_kill(_thr_ thr) {
+void o_thrKill(o_thr_t thr) {
     if (thr != mainthread) {
         if (thr == thr_self())
             thr_exit( 0 );
@@ -152,7 +156,18 @@ void _thr_kill(_thr_ thr) {
    has no suid root privilleges, priorities are disabled
    and low and high both return 0. */
 
-int _thr_initialize( int *low, int* high ) {
+int o_thrInitialize( int *low, int* high ) {
+    int pl, ph, ret;
+    struct sched_param p;
+    pid_t pid;
+
+    pid = getpid();
+    sched_getparam( pid, &p );
+    ret = sched_setscheduler( pid, SCHED_OTHER, &p );
+    /*
+    pl = sched_get_priority_min( SCHED_OTHER );
+    ph = sched_get_priority_max( SCHED_OTHER );
+    */
     mainthread = thr_self();
     *low = 0;  *high = 100;
     return 1;
