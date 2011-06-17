@@ -5,7 +5,7 @@ MODULE Machine;	(** AUTHOR "pjm"; PURPOSE "Bootstrapping, configuration and mach
 IMPORT SYSTEM, Trace;
 
 CONST
-	Version = "A2 Revision 4096 (21.04.2011)";
+	Version = "A2 Revision 4186 (17.06.2011)";
 
 	MaxCPU* = 8;	(** maximum number of processors (up to 16) *)
 
