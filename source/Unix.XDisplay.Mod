@@ -3,7 +3,9 @@ Refer to the general ETH Oberon System license contract available at: http://www
 
 MODULE XDisplay;   (** X Windows display driver *)
 
-IMPORT S := SYSTEM, Trace, Unix, Machine, Files, X11, Displays;
+(*! uses XEvents from X11Api *)
+
+IMPORT S := SYSTEM, Trace, Unix, Machine, Files, X11, Api:=X11Api, Displays;
 
 CONST
 	IconNameStr = "UnixAos";
@@ -142,7 +144,8 @@ TYPE
 				xformat				: LONGINT;
 				currcol, currmode	: LONGINT;
 				xfunc				: ARRAY 3 OF LONGINT;
-
+				
+				wmDelete- : X11.Atom;
 
 				PROCEDURE SetModeL( col: LONGINT );
 				VAR mode: LONGINT;
@@ -380,7 +383,9 @@ TYPE
 
 
 				PROCEDURE  & Initialize( absWidth, absHeight, relWidth, relHeight: LONGINT );
-				VAR event: X11.Event;  root: X11.Window;  gRoot, gX, gY, gW, gH, gBW, gD: LONGINT;
+				VAR event: Api.XEvent;  root: X11.Window;  gRoot, gX, gY, gW, gH, gBW, gD: LONGINT;
+					
+					res: LONGINT;
 				BEGIN
 					(*OpenDisp( SELF, SHORT( width ), SHORT( height ) );*)
 					xdisp := X.display;  depth := X.depth;  cmap := X.defcmap;  screen := X.screen;
@@ -395,9 +400,15 @@ TYPE
 					X11.SetIconName( xdisp, primary, S.ADR( IconName ) );
 					X11.SetCommand( xdisp, primary, Unix.argv, Unix.argc );
 					X11.SelectInput( xdisp, primary, X11.ExposureMask );
+					
+					
+					(* set wm_delete_events if in windowed mode *)
+					wmDelete := Api.InternAtom(xdisp, "WM_DELETE_WINDOW", Api.True);   
+					res := Api.SetWMProtocols(xdisp, primary, S.ADR(wmDelete), 1);
+							
 					X11.MapRaised( xdisp, primary );
-					REPEAT  X11.NextEvent( xdisp, event )
-					UNTIL (event.typ = X11.Expose) & (event.window = primary);
+					REPEAT  Api.NextEvent( xdisp, event )
+					UNTIL (event.typ = Api.Expose) & (event.window = primary);
 					(* adjust to physical window size *)
 					X11.GetGeometry( xdisp, primary, gRoot, gX, gY, gW, gH, gBW, gD );
 					IF relWidth # -1 THEN
@@ -698,7 +709,7 @@ VAR
 			adr := Unix.getenv( S.ADR( "DISPLAY" ) );
 			IF adr # 0 THEN
 				i := 0;
-				REPEAT  S.GET( adr, ch );  INC( adr );  dispname[i] := ch;  INC( i );   UNTIL ch = 0X;
+				REPEAT  S.GET( adr, ch );  INC( adr );  dispname[i] := ch;  INC( i )   UNTIL ch = 0X;
 			ELSE  dispname := ":0"
 			END
 		END
@@ -708,7 +719,7 @@ VAR
 	VAR fd: LONGINT;
 	BEGIN
 		getDisplayName;
-		X.display := X11.OpenDisplay( S.ADR( dispname ) );
+		X.display := Api.OpenDisplay( dispname );
 		IF X.display = 0 THEN
 			Trace.String( "Cannot open X11 display " );  Trace.StringLn( dispname );  Unix.exit( 1 )
 		END;
