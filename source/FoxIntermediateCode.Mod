@@ -878,6 +878,7 @@ TYPE
 	PROCEDURE DenotesRegister*(CONST name: ARRAY OF CHAR; VAR register: LONGINT): BOOLEAN;
 	BEGIN
 		IF (name[0]='r') & Numbers(name,register) THEN RETURN TRUE
+		ELSIF (name[0]='p') & Numbers(name,register) THEN register := ParameterRegister - register; RETURN TRUE
 		ELSIF (name[0]='h') & Numbers(name,register) THEN register := HwRegister - register; RETURN TRUE
 		ELSIF name = "sp" THEN register := SP; RETURN TRUE
 		ELSIF name = "fp" THEN register := FP ; RETURN TRUE

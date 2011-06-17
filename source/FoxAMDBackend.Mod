@@ -451,7 +451,7 @@ TYPE
 		(* static generator state variables, considered constant during generation *)
 		runtimeModuleName: SyntaxTree.String;
 		cpuBits: LONGINT;
-		opBP, opSP, opRA, opRC, opRD, opRS: Assembler.Operand; (* base pointer, stack pointer, register A, depends on cpuBits*)
+		opBP, opSP, opRA, opRB, opRC, opRD, opRS, opR8, opR9: Assembler.Operand; (* base pointer, stack pointer, register A, depends on cpuBits*)
 		BP, SP, RA, RD, RS, RC: LONGINT; (* base pointer and stack pointer register index, depends on cpuBits *)
 
 		emitter: Assembler.Emitter; (* assembler generating and containing the machine code *)
@@ -487,14 +487,15 @@ TYPE
 			NEW(emitter,diagnostics);
 			IF bits=32 THEN
 				NEW(physicalRegisters32); physicalRegisters := physicalRegisters32; error := ~emitter.SetBits(32);
-				opBP := opEBP; opSP := opESP; opRA := opEAX; opRD := opEDI; opRS := opESI; opRC := opECX;
+				opBP := opEBP; opSP := opESP; opRA := opEAX; opRB := opEBX; opRD := opEDI; opRS := opESI; opRC := opECX;
 				SP := ESP; BP := EBP; RA := EAX;
 				RD := EDI; RS := ESI; RC := ECX;
 				ASSERT(~error);
 			ELSIF bits=64 THEN
 				NEW(physicalRegisters64); physicalRegisters := physicalRegisters64; error := ~emitter.SetBits(64);
-				opBP := opRBP; opSP := opRSP; opRA := registerOperands[RAX]; opRD := registerOperands[RDI];
+				opBP := opRBP; opSP := opRSP; opRA := registerOperands[RAX]; opRB := registerOperands[RBX]; opRD := registerOperands[RDI];
 				opRS := registerOperands[RSI]; opRC := registerOperands[RCX];
+				opR8 := registerOperands[R8]; opR9 := registerOperands[R9];
 				SP := RSP; BP := RBP; RA := RAX;
 				RD := RDI; RS := RSI; RC := RCX;
 				ASSERT(~error);
@@ -813,9 +814,49 @@ TYPE
 			END;
 		END GetMemory;
 
+		PROCEDURE HardwareIntegerRegister(index: LONGINT; sizeInBits: LONGINT): LONGINT;
+		BEGIN
+			index := index MOD 32;
+			sizeInBits := sizeInBits DIV 8;
+			WHILE sizeInBits > 1 DO (* jump to register section that corresponds to the number of bits *)
+				INC(index,32);
+				sizeInBits := sizeInBits DIV 2;
+			END;
+			RETURN index
+		END HardwareIntegerRegister;
+
+		PROCEDURE HardwareFloatRegister(index: LONGINT; sizeInBits: LONGINT): LONGINT;
+		BEGIN HALT(200); (* not yet implemented *)
+		END HardwareFloatRegister;
+
+		PROCEDURE GetTypedHardwareRegister(index: LONGINT; type: IntermediateCode.Type): LONGINT;
+		VAR size: LONGINT;
+		BEGIN
+			IF type.form IN IntermediateCode.Integer THEN
+				RETURN HardwareIntegerRegister(index, type.sizeInBits)
+			ELSIF type.form = IntermediateCode.Float THEN
+				RETURN HardwareFloatRegister(index, type.sizeInBits)
+			ELSE
+				HALT(100);
+			END;
+		END GetTypedHardwareRegister;
+
+		PROCEDURE ParameterRegister(index: LONGINT; type: IntermediateCode.Type): LONGINT;
+		VAR physical: LONGINT;
+		BEGIN
+			CASE index OF
+				0: RETURN GetTypedHardwareRegister(RCX,type)
+				|1: RETURN GetTypedHardwareRegister(RDX,type)
+				|2: RETURN GetTypedHardwareRegister(R8,type)
+				|3: RETURN GetTypedHardwareRegister(R9,type)
+			END;
+			RETURN physical;
+		END ParameterRegister;
+
+
 		PROCEDURE GetRegister(CONST virtual: IntermediateCode.Operand; part:LONGINT; VAR physical: Assembler.Operand; VAR ticket: Ticket);
 		VAR type: IntermediateCode.Type; virtualRegister, tempReg: LONGINT;
-			tmp,imm: Assembler.Operand;
+			tmp,imm: Assembler.Operand; index: LONGINT;
 		BEGIN
 			ASSERT(virtual.mode = IntermediateCode.ModeRegister);
 			GetPartType(virtual.type,part,type);
@@ -829,6 +870,9 @@ TYPE
 			ELSIF virtual.register = IntermediateCode.SP THEN
 				Assert(part=Low,"forbidden partitioned register on SP");
 				physical := opSP;
+			ELSIF virtual.register <= IntermediateCode.ParameterRegister THEN
+				index := IntermediateCode.ParameterRegister - virtualRegister;
+				physical := registerOperands[ParameterRegister(index, type)];
 			ELSE HALT(100);
 			END;
 
@@ -836,7 +880,7 @@ TYPE
 				Assert(type.form # IntermediateCode.Float,"forbidden offset on float");
 				IF ticket = NIL THEN
 					tempReg := ForceFreeRegister(type);
-					TicketToOperand(ReservePhysicalRegister(type,tempReg),tmp);
+					TicketToOperand(ReservePhysicalRegister(type,tempReg,inPC),tmp);
 				ELSE
 					TicketToOperand(ticket, tmp);
 					ticket := NIL;
@@ -914,8 +958,19 @@ TYPE
 		END IsComplex;
 
 		PROCEDURE Generate(CONST instruction: IntermediateCode.Instruction);
-		VAR opcode: SHORTINT; ticket: Ticket;
+		VAR opcode: SHORTINT; ticket: Ticket; hwreg, lastUse: LONGINT;
 		BEGIN
+			IF ((instruction.opcode = IntermediateCode.mov) OR (instruction.opcode = IntermediateCode.pop)) & (instruction.op1.register <= IntermediateCode.ParameterRegister) THEN
+				hwreg := ParameterRegister(IntermediateCode.ParameterRegister-instruction.op1.register, instruction.op1.type);
+				Spill(physicalRegisters.Mapped(hwreg));
+				lastUse := inPC+1;
+				WHILE (lastUse < in.pc) &
+					((in.instructions[lastUse].opcode # IntermediateCode.push) OR (in.instructions[lastUse].op1.register # instruction.op1.register)) & (in.instructions[lastUse].opcode # IntermediateCode.call) DO
+					INC(lastUse)
+				END;
+				ticket := ReservePhysicalRegister(instruction.op1.type,hwreg,lastUse);
+			END;
+
 			ReserveOperandRegisters(instruction.op1,TRUE); ReserveOperandRegisters(instruction.op2,TRUE);ReserveOperandRegisters(instruction.op3,TRUE);
 			(*TryAllocate(instruction.op1,Low);
 			IF IsComplex(instruction.op1) THEN TryAllocate(instruction.op1,High) END;
@@ -1065,9 +1120,15 @@ TYPE
 					END;
 					IF numberMachineWords >4 THEN
 						Assembler.InitImm(imm, 0, numberMachineWords DIV 4);
-						emitter.Emit2(InstructionSet.opMOV, opRC, imm);
-						destPC := out.pc;
-						emitter.Emit1(InstructionSet.opDEC, opRC);
+						IF instruction.op3.intValue > 0 THEN (* register C is blocked *)
+							emitter.Emit2(InstructionSet.opMOV, opRB, imm);
+							destPC := out.pc;
+							emitter.Emit1(InstructionSet.opDEC, opRB);
+						ELSE
+							emitter.Emit2(InstructionSet.opMOV, opRC, imm);
+							destPC := out.pc;
+							emitter.Emit1(InstructionSet.opDEC, opRC);
+						END;
 						emitter.Emit1(InstructionSet.opPUSH, opRA);
 						emitter.Emit1(InstructionSet.opPUSH, opRA);
 						emitter.Emit1(InstructionSet.opPUSH, opRA);
@@ -1157,7 +1218,7 @@ TYPE
 				GetPartType(instruction.op1.type,part, type);
 				MakeOperand(instruction.op1, part, operand,NIL);
 				Spill(physicalRegisters.Mapped(register));
-				ticket := ReservePhysicalRegister(type,register);
+				ticket := ReservePhysicalRegister(type,register,inPC);
 				TicketToOperand(ticket, return);
 				(* Mov takes care of potential register overlaps *)
 				emitter.Emit2(InstructionSet.opMOV,return, operand);
@@ -1412,9 +1473,9 @@ TYPE
 				IF part = High THEN
 					IF destType.form = IntermediateCode.SignedInteger THEN
 						Spill(physicalRegisters.Mapped(EAX));
-						eax := ReservePhysicalRegister(IntermediateCode.int32,EAX);
+						eax := ReservePhysicalRegister(IntermediateCode.int32,EAX,inPC);
 						Spill(physicalRegisters.Mapped(EDX));
-						edx := ReservePhysicalRegister(IntermediateCode.int32,EDX);
+						edx := ReservePhysicalRegister(IntermediateCode.int32,EDX,inPC);
 						IF vsrc.type.sizeInBits < 32 THEN
 							MakeOperand(vsrc,Low,op2,NIL);
 							Mov(InstructionSet.opMOVSX,opEAX,op2);
@@ -1733,8 +1794,8 @@ TYPE
 			IF (instruction.op1.type.sizeInBits = IntermediateCode.Bits8) THEN
 				Spill(physicalRegisters.Mapped(AL));
 				Spill(physicalRegisters.Mapped(AH));
-				ra := ReservePhysicalRegister(IntermediateCode.int8,AL);
-				rd := ReservePhysicalRegister(IntermediateCode.int8,AH);
+				ra := ReservePhysicalRegister(IntermediateCode.int8,AL,inPC);
+				rd := ReservePhysicalRegister(IntermediateCode.int8,AH,inPC);
 				MakeOperand(instruction.op1,Low,op1,NIL);
 				MakeOperand(instruction.op2,Low,op2,ra);
 				IF instruction.op3.mode = IntermediateCode.ModeImmediate THEN
@@ -1887,32 +1948,32 @@ TYPE
 			MakeOperand(instruction.op2,Low,op2,NIL);
 			CASE instruction.op1.type.sizeInBits OF
 			IntermediateCode.Bits8:
-				Spill(physicalRegisters.Mapped(AL)); ra := ReservePhysicalRegister(IntermediateCode.int8,AL);
+				Spill(physicalRegisters.Mapped(AL)); ra := ReservePhysicalRegister(IntermediateCode.int8,AL,inPC);
 				emitter.Emit2(InstructionSet.opMOV,opAL,op2);
 				dividend := opAX;
 				quotient := opAL;
 				remainder := opAH;
 				emitter.Emit0(InstructionSet.opCBW);
 			| IntermediateCode.Bits16:
-				Spill(physicalRegisters.Mapped(AX)); ra := ReservePhysicalRegister(IntermediateCode.int16,AX);
+				Spill(physicalRegisters.Mapped(AX)); ra := ReservePhysicalRegister(IntermediateCode.int16,AX,inPC);
 				emitter.Emit2(InstructionSet.opMOV,opAX,op2);
-				Spill(physicalRegisters.Mapped(DX)); rd := ReservePhysicalRegister(IntermediateCode.int16,DX);
+				Spill(physicalRegisters.Mapped(DX)); rd := ReservePhysicalRegister(IntermediateCode.int16,DX,inPC);
 				dividend := opAX;
 				quotient := dividend;
 				remainder := opDX;
 				emitter.Emit0(InstructionSet.opCWD);
 			| IntermediateCode.Bits32:
-				Spill(physicalRegisters.Mapped(EAX)); ra := ReservePhysicalRegister(IntermediateCode.int32,EAX);
+				Spill(physicalRegisters.Mapped(EAX)); ra := ReservePhysicalRegister(IntermediateCode.int32,EAX,inPC);
 				emitter.Emit2(InstructionSet.opMOV,opEAX,op2);
-				Spill(physicalRegisters.Mapped(EDX)); rd := ReservePhysicalRegister(IntermediateCode.int32,EDX);
+				Spill(physicalRegisters.Mapped(EDX)); rd := ReservePhysicalRegister(IntermediateCode.int32,EDX,inPC);
 				dividend := opEAX;
 				quotient := dividend;
 				remainder := opEDX;
 				emitter.Emit0(InstructionSet.opCDQ);
 			| IntermediateCode.Bits64:
-				Spill(physicalRegisters.Mapped(RAX)); ra := ReservePhysicalRegister(IntermediateCode.int64,RAX);
+				Spill(physicalRegisters.Mapped(RAX)); ra := ReservePhysicalRegister(IntermediateCode.int64,RAX,inPC);
 				emitter.Emit2(InstructionSet.opMOV,opRA,op2);
-				Spill(physicalRegisters.Mapped(RDX)); rd := ReservePhysicalRegister(IntermediateCode.int64,RDX);
+				Spill(physicalRegisters.Mapped(RDX)); rd := ReservePhysicalRegister(IntermediateCode.int64,RDX,inPC);
 				dividend := opRA;
 				quotient := dividend;
 				remainder := registerOperands[RDX];
@@ -1978,7 +2039,7 @@ TYPE
 			END;
 
 
-			Spill(physicalRegisters.Mapped(ECX)); ecx := ReservePhysicalRegister(IntermediateCode.int32,ECX);
+			Spill(physicalRegisters.Mapped(ECX)); ecx := ReservePhysicalRegister(IntermediateCode.int32,ECX,inPC);
 
 			(*GetTemporaryRegister(instruction.op2.type,dest);*)
 			MakeOperand(instruction.op1,Low,op1,NIL);
@@ -2067,9 +2128,9 @@ TYPE
 			Spill(physicalRegisters.Mapped(EDI));
 			Spill(physicalRegisters.Mapped(ECX));;
 
-			esi := ReservePhysicalRegister(IntermediateCode.int32,RS);
-			edi := ReservePhysicalRegister(IntermediateCode.int32,RD);
-			ecx := ReservePhysicalRegister(IntermediateCode.int32,RC);
+			esi := ReservePhysicalRegister(IntermediateCode.int32,RS,inPC);
+			edi := ReservePhysicalRegister(IntermediateCode.int32,RD,inPC);
+			ecx := ReservePhysicalRegister(IntermediateCode.int32,RC,inPC);
 
 			MakeOperand(instruction.op1,Low,op1,edi);
 			MakeOperand(instruction.op2,Low,op2,esi);
@@ -2118,8 +2179,8 @@ TYPE
 			ELSE
 				Spill(physicalRegisters.Mapped(EDI));
 				Spill(physicalRegisters.Mapped(ECX));
-				edi := ReservePhysicalRegister(IntermediateCode.int32,EDI);
-				ecx := ReservePhysicalRegister(IntermediateCode.int32,ECX);
+				edi := ReservePhysicalRegister(IntermediateCode.int32,EDI,inPC);
+				ecx := ReservePhysicalRegister(IntermediateCode.int32,ECX,inPC);
 
 				MakeOperand(instruction.op1,Low,op1,edi);
 				MakeOperand(instruction.op3,Low,op3,ecx);
@@ -2319,7 +2380,7 @@ TYPE
 				ELSE
 					WHILE physicalRegisters.Mapped(opRA.register) # free DO Spill(physicalRegisters.Mapped(opRA.register)) END;
 					IntermediateCode.InitType(cpuType,IntermediateCode.SignedInteger,SHORT(cpuBits));
-					ra := ReservePhysicalRegister(cpuType,opRA.register);
+					ra := ReservePhysicalRegister(cpuType,opRA.register,inPC);
 					CASE type.sizeInBits OF
 						8: index := AL
 						|16: index := AX
@@ -2351,7 +2412,7 @@ TYPE
 				ELSE
 					WHILE physicalRegisters.Mapped(opRA.register) # free DO Spill(physicalRegisters.Mapped(opRA.register)) END;
 					IntermediateCode.InitType(cpuType, IntermediateCode.SignedInteger, SHORT(cpuBits));
-					ra := ReservePhysicalRegister(cpuType,opRA.register);
+					ra := ReservePhysicalRegister(cpuType,opRA.register,inPC);
 					emitter.Emit1(InstructionSet.opPOP,opRA);
 					CASE type.sizeInBits OF
 						8: index := AL
@@ -2422,7 +2483,7 @@ TYPE
 			Assert(~IsComplex(instruction.op1),"complex Abs not supported");
 			IF instruction.op1.type.form  = IntermediateCode.SignedInteger THEN
 				Spill(physicalRegisters.Mapped(EAX));
-				eax := ReservePhysicalRegister(IntermediateCode.int32,EAX);
+				eax := ReservePhysicalRegister(IntermediateCode.int32,EAX,inPC);
 
 				MakeOperand(instruction.op1,Low,op1,NIL);
 				MakeOperand(instruction.op2,Low,op2,NIL);
@@ -2478,6 +2539,7 @@ TYPE
 	VAR
 		cg: CodeGeneratorAMD64;
 		bits: LONGINT;
+		registerParameters : LONGINT;
 
 		PROCEDURE &InitBackendAMD64;
 		BEGIN
@@ -2546,7 +2608,7 @@ TYPE
 					Global.SetDefaultDeclarations(system,8);
 					Global.SetDefaultOperators(system);
 				ELSE
-					NEW(system,8,8,64,8,32,64,64,128,0 (* parameter registers *));
+					NEW(system,8,8,64,8,32,64,64,128,registerParameters (* parameter registers *));
 					Global.SetDefaultDeclarations(system,8);
 					Global.SetDefaultOperators(system);
 				END;
@@ -2758,12 +2820,14 @@ TYPE
 		PROCEDURE DefineOptions(options: Options.Options);
 		BEGIN
 			options.Add(0X,"bits",Options.Integer);
+			options.Add(0X,"registerParameters",Options.Integer); (* temporary for testing *)
 			DefineOptions^(options);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
 		BEGIN
 			IF ~options.GetInteger("bits",bits) THEN bits := 32 END;
+			IF ~options.GetInteger("registerParameters",bits) THEN registerParameters := 0 END;
 			GetOptions^(options);
 		END GetOptions;
 

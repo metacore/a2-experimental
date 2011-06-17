@@ -8364,10 +8364,10 @@ TYPE
 			RETURN tempReg
 		END ForceFreeRegister;
 
-		PROCEDURE ReservePhysicalRegister*(CONST type: IntermediateCode.Type; register: LONGINT): Ticket;
+		PROCEDURE ReservePhysicalRegister*(CONST type: IntermediateCode.Type; register: LONGINT; lastUse: LONGINT): Ticket;
 		VAR ticket: Ticket;
 		BEGIN
-			ticket := tickets.Enter(type,register,FALSE,None,inPC);
+			ticket := tickets.Enter(type,register,FALSE,None,lastUse);
 			IF dump # NIL THEN
 				dump.String(" allocate register : index="); dump.Int(register,1); dump.Ln;
 			END;
@@ -8380,7 +8380,7 @@ TYPE
 		BEGIN
 			IF type.form > IntermediateCode.Undefined THEN
 				register := ForceFreeRegister(type);
-				ticket := ReservePhysicalRegister(type,register);
+				ticket := ReservePhysicalRegister(type,register,inPC);
 				ticket.parts := 1;
 			ELSE
 				ticket := NIL
