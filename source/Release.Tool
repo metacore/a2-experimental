@@ -760,7 +760,7 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	cjkfont.bfnt # since used as fallback
 
 	WindowManager.Mod
-	UNIX { Unix.X11.Mod Unix.XDisplay.Mod Unix.Beep.Mod Unix.KbdMouse.Mod }
+	UNIX { Unix.X11.Mod Unix.X11Api.Mod Unix.XDisplay.Mod Unix.Beep.Mod Unix.KbdMouse.Mod }
 
 	WMDropTarget.Mod
 
