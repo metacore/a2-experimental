@@ -56,7 +56,7 @@ TYPE
 			indicateTriggered := FALSE;
 			indicationValue := 256;
 			indicationStep := -256;
-			ASSERT(indicationValue MOD indicationStep = 0);
+			ASSERT(ABS(indicationValue) MOD ABS(indicationStep) = 0);
 			fillColor.Set(WMGraphics.White);
 			UpdateTaskInfo(TRUE);
 		END New;
@@ -412,7 +412,6 @@ TYPE
 
 		PROCEDURE GetTaskContent(VAR info : TaskScheduler.TaskInfo; VAR error : BOOLEAN);
 		VAR
-			image, temp : Strings.String;
 			entry : WMDropDownLists.Entry;
 
 			PROCEDURE GetNumbers(stringArray : Strings.StringArray; VAR nbrArray : ARRAY OF LONGINT) : BOOLEAN;
@@ -463,7 +462,6 @@ TYPE
 				string : ARRAY 32 OF CHAR;
 				date : ARRAY 3 OF LONGINT;
 				stringArray : Strings.StringArray;
-				entry : WMDropDownLists.Entry;
 				error : BOOLEAN;
 			BEGIN
 				error := FALSE;
