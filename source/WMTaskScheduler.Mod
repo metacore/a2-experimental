@@ -1,9 +1,10 @@
-MODULE WMTaskScheduler; (** AUTHOR "staubesv"; PURPOSE "GUI for TaskScheduler"; *)
+MODULE WMTaskScheduler; (** AUTHOR "staubesv; minor adaptation PH"; PURPOSE "GUI for TaskScheduler"; *)
 
 IMPORT
 	Modules, Kernel, Commands, Dates, Strings, Files, TaskScheduler,
 	WMRectangles, WMGraphics, WMGraphicUtilities, WMWindowManager, WMRestorable, WMMessages,
-	WMComponents, WMStandardComponents, WMEditors, WMDialogs, WMCalendar, WMDropDownLists;
+	WMComponents, WMStandardComponents, WMEditors, WMDialogs, WMCalendar, WMDropDownLists,
+	WMPopups;
 
 CONST
 
@@ -24,6 +25,11 @@ CONST
 	Select_Today = 0;
 	Select_ThisWeek = 1;
 	Select_All = 2;
+
+TYPE
+	ClickInfo = OBJECT
+	VAR cmd : Strings.String;
+	END ClickInfo;
 
 TYPE
 
@@ -56,7 +62,7 @@ TYPE
 			indicateTriggered := FALSE;
 			indicationValue := 256;
 			indicationStep := -256;
-			ASSERT(ABS(indicationValue) MOD ABS(indicationStep) = 0);
+			ASSERT(indicationValue MOD ABS(indicationStep) = 0); (*PH 20110616 fix MOD by neg number*)
 			fillColor.Set(WMGraphics.White);
 			UpdateTaskInfo(TRUE);
 		END New;
@@ -114,7 +120,7 @@ TYPE
 					seconds := ToSeconds(days, hours, minutes, seconds);
 					IF ~indicateTriggered & (seconds < 3600) THEN
 						newFillColor := GetFillColor(seconds);
-						IF (seconds = 0) THEN indicateTriggered := TRUE; END;
+						IF (seconds = 0) THEN task.TriggerNow; indicateTriggered:=TRUE END; (* what, if in this specific second, no Check was done ? *)
 					ELSIF indicateTriggered & (seconds = 0) THEN
 						newFillColor := GetIndicationColor();
 					ELSE
@@ -155,6 +161,43 @@ TYPE
 				indicationValue := 256;
 			END;
 		END PointerUp;
+		
+		PROCEDURE PointerDown(x, y : LONGINT; keys : SET);
+		VAR popup : WMPopups.Popup; str : ARRAY 256 OF CHAR; command, s : Strings.String; clickInfo:ClickInfo;
+		BEGIN
+			PointerDown^(x, y, keys);
+			IF 2 IN keys THEN
+				NEW(popup);
+
+				NEW(clickInfo);
+				clickInfo.cmd:=Strings.NewString("Edit"); (* call command cmd on Popup click *)
+				popup.AddParButton("Edit", RightClickAction, clickInfo);
+				
+				NEW(clickInfo);
+				clickInfo.cmd := Strings.NewString("Remove"); (* open file in cmdPar on Popup click *)
+				popup.AddParButton("Remove", RightClickAction, clickInfo);
+				
+				ToWMCoordinates(x,y,x,y);
+				popup.Popup(x, y); 
+			END
+		END PointerDown;
+		
+		PROCEDURE RightClickAction(sender, data: ANY);
+		VAR error : BOOLEAN; inputWindow:InputWindow;
+		BEGIN
+			IF (data # NIL) & (data IS ClickInfo) THEN
+				IF data(ClickInfo).cmd # NIL THEN
+					IF data(ClickInfo).cmd^="Edit" THEN
+						NEW(inputWindow, 100, 100, 420, 240);
+						inputWindow.SetTaskContent(task);
+						inputWindow.EditTask(task, error);
+						inputWindow.Close; 
+						UpdateTaskInfo(TRUE);
+					ELSIF data(ClickInfo).cmd^ = "Remove" THEN  task.list.Remove(task);
+					END;
+				END
+			END
+		END RightClickAction;
 
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
 		VAR
@@ -190,8 +233,7 @@ TYPE
 				font := canvas.GetFont();
 				font.GetStringSize(taskInfo.name, dx, dy);
 				canvas.SetColor(WMGraphics.Blue);
-				WMGraphics.DrawStringInRect(canvas,
-					WMRectangles.MakeRect(x, Border + 20, x + dx, Border + 40), FALSE, WMGraphics.AlignLeft, WMGraphics.AlignCenter, taskInfo.name);
+				WMGraphics.DrawStringInRect(canvas, WMRectangles.MakeRect(x, Border + 20, x + dx, Border + 40), FALSE, WMGraphics.AlignLeft, WMGraphics.AlignCenter, taskInfo.name);
 				canvas.SetColor(WMGraphics.Black);
 				x := x + dx + 5;
 			END;
@@ -407,11 +449,12 @@ TYPE
 					END;
 				END;
 			UNTIL (state = Ok) OR (state = Cancel);
-			IF ~error THEN task.SetInfo(info); END;
+			IF ~error THEN task.SetInfo(info) END;
 		END EditTask;
 
 		PROCEDURE GetTaskContent(VAR info : TaskScheduler.TaskInfo; VAR error : BOOLEAN);
 		VAR
+			image, temp : Strings.String;
 			entry : WMDropDownLists.Entry;
 
 			PROCEDURE GetNumbers(stringArray : Strings.StringArray; VAR nbrArray : ARRAY OF LONGINT) : BOOLEAN;
@@ -462,6 +505,7 @@ TYPE
 				string : ARRAY 32 OF CHAR;
 				date : ARRAY 3 OF LONGINT;
 				stringArray : Strings.StringArray;
+				entry : WMDropDownLists.Entry;
 				error : BOOLEAN;
 			BEGIN
 				error := FALSE;
@@ -997,4 +1041,5 @@ END WMTaskScheduler.
 
 WMTaskScheduler.Open ~
 
-SystemTools.Free WMTaskScheduler ~
+SystemTools.Free WMTaskScheduler WMTaskScheduler TaskScheduler 
+SystemTools.Free WMClock~
