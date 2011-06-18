@@ -1,4 +1,13 @@
 MODULE WMTaskScheduler; (** AUTHOR "staubesv; minor adaptation PH"; PURPOSE "GUI for TaskScheduler"; *)
+(**
+Usage:
+WMTaskScheduler.Open ~
+-load and store task lists from GUI
+-create new tasks in GUI
+-edit or remove task by right-mouse-click popup
+-at planned task trigger time, task signals optically and by activating icommand that was set in GUI
+*)
+
 
 IMPORT
 	Modules, Kernel, Commands, Dates, Strings, Files, TaskScheduler,

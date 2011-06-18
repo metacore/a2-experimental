@@ -42,7 +42,7 @@ TYPE
 
 		user* : ANY;
 
-		handled* : BOOLEAN;
+		handled : BOOLEAN;
 
 	  	week, weekDay : LONGINT;
 
@@ -66,7 +66,6 @@ TYPE
 		PROCEDURE SetInfo*(CONST info : TaskInfo);
 		BEGIN {EXCLUSIVE}
 			SELF.info := info;
-			handled:=FALSE;(*! added PH; can be improved*)
 			INC(timestamp);
 		END SetInfo;
 
@@ -177,16 +176,15 @@ TYPE
 		PROCEDURE TriggerNow*;
 		VAR msg: ARRAY 256 OF CHAR; res:LONGINT;
 		BEGIN
-				IF Strings.Length(info.command)>0 THEN	
-					Commands.Call(info.command, {}, res, msg);
-				END;
-			(*handled:=TRUE;*)
+			IF Strings.Length(info.command)>0 THEN	
+				Commands.Call(info.command, {}, res, msg);
+			END;
 		END TriggerNow;
 		
 
 		PROCEDURE Check(time : Dates.DateTime; VAR left : LONGINT);
 		BEGIN
-			IF (left (* <= *) = 0) & ~handled THEN
+			IF (left = 0) & ~handled THEN
 				IF (info.repeatType = Once) THEN
 				END;
 			END;
