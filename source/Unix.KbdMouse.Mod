@@ -149,12 +149,9 @@ VAR
 			| Api.Expose, Api.GraphicsExpose: 
 					em := S.VAL( Api.XExposeEvent, event );
 					IF em.count = 0 THEN (* wait until last message*)
-						km.ch := 0F9X;  km.flags := KeyState( );
-						km.keysym := keySymbol[ORD( km.ch )];
-						SendKeyboardMsg( km );
-						(*! simple trick, delete sended ù character *)
-						km.keysym:= Inputs.KsBackSpace;
-						SendKeyboardMsg( km );
+						(* Let DisplayRefresher handle this *)
+						km.keysym := 0FFC6H;
+						SendKeyboardMsg( km )
 					END;	
 			| Api.NoExpose:
 			| Api.MappingNotify:
