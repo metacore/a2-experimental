@@ -40,33 +40,30 @@ CONST
 	(* operand sizes in bits *)
 	Bits8*=8; Bits16*=16; Bits32*=32; Bits64*=64; Bits128*=128;
 
+	(* register classes *)
+	GeneralPurpose*=0;
+	Parameter*=1; (* *)
+
+
 	(* special registers *)
-	ParameterRegister*=-16; (* any value below or equal ParameterRegister is a parameter register *)
-	HwRegister*=-32; (* any value below or equal hwreg is a user defined hardware register *)
-	(*! alternative: generate inline assembler *)
-
-
 	None*=-1; (* no register assigned *)
 	SP*=-2; (* stack pointer *)
 	FP*=-3; (* frame pointer *)
+	HwRegister*=-32; (* any value below or equal hwreg is a user defined hardware register *)
 
 	(* FoxProgTools.Enum -e -l=8
 		nop mov conv call enter exit leave return result trap
 		br breq brne brge brlt
 		pop push neg not abs
 		mul div  mod sub add and or xor shl shr rol ror
-		copy fill asm data reserve label NofOpcodes~
+		copy fill asm data reserve label use NofOpcodes~
 	*)
 	nop*= 0; mov*= 1; conv*= 2; call*= 3; enter*= 4; exit*= 5; leave*= 6; return*= 7;
 	result*= 8; trap*= 9; br*= 10; breq*= 11; brne*= 12; brge*= 13; brlt*= 14; pop*= 15;
 	push*= 16; neg*= 17; not*= 18; abs*= 19; mul*= 20; div*= 21; mod*= 22; sub*= 23;
 	add*= 24; and*= 25; or*= 26; xor*= 27; shl*= 28; shr*= 29; rol*= 30; ror*= 31;
-	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; NofOpcodes*= 38;
+	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; use*=38; NofOpcodes*= 39;
 
-	(*
-	LineNrCommentOffset = 64;
-	LineCommentStart = Sections.LineCommentStart;
-	*)
 	NotYetCalculatedSize = -2;
 
 TYPE
@@ -75,17 +72,20 @@ TYPE
 		sizeInBits-: INTEGER; (* size in bits *)
 	END;
 
+	RegisterClass*=RECORD
+		class-: SHORTINT;
+		number-: INTEGER;
+	END;
+
 	Operand* = RECORD
 		mode-: SHORTINT; (* Undefined, ModeRegister, ModeImmediate, ModeMemory, ModeNumber or ModeString *)
 		type-: Type; (* size and form *)
 		register-: LONGINT; (* (virtual) register number, equals None if no register *)
+		registerClass-: RegisterClass; (* normal register vs. special registers such as parameter registers *)
 		offset-: LONGINT; (* offset on register or immediate symbol, in units *)
 		intValue-: HUGEINT; (* integer value, if mode = ModeImmediate and type.form IN Integer or ModeNumber *)
 		floatValue-: LONGREAL; (* real value, if mode = ModeImmediate and type.form = Float *)
-		(*
-		symbol-: Sections.Identifier; (* referenced symbol *)
-		*)
-		symbol-: Sections.Section; (* referenced symbol, only valid for Mode = ModeImmediate *)
+		symbol-: Sections.Section; (* referenced symbol, only valid for mode = ModeImmediate or mode = ModeMemory *)
 
 		symbolOffset-: LONGINT; (* offset in IntermediateCode section, the difference to offset is that symbolOffset needs a resolving to real address offset *)
 		string-: SyntaxTree.SourceCode; (* string, if Mode = ModeString *)
@@ -329,6 +329,7 @@ TYPE
 	VAR
 		instructionFormat-: ARRAY NofOpcodes OF InstructionFormat;
 		int8-, int16-, int32-, int64-, uint8-, uint16-, uint32-, uint64-, float32-, float64-, undef-: Type;
+		GeneralPurposeRegister-: RegisterClass;
 
 	PROCEDURE Assert(condition: BOOLEAN; CONST reason: ARRAY OF CHAR);
 	BEGIN ASSERT(condition);
@@ -471,16 +472,15 @@ TYPE
 		RETURN TRUE
 	END CheckInstruction;
 
-	PROCEDURE DumpRegister*(w: Streams.Writer; registerNumber: LONGINT);
+	PROCEDURE DumpRegister*(w: Streams.Writer; registerNumber: LONGINT; CONST registerClass: RegisterClass);
 	BEGIN
 		IF registerNumber = SP THEN
 			w.String("sp")
 		ELSIF registerNumber = FP THEN
 			w.String("fp")
 		ELSIF registerNumber > None THEN
-			w.String("r"); w.Int(registerNumber, 0)
-		ELSIF (registerNumber <= ParameterRegister) & (registerNumber > HwRegister) THEN
-			w.String("p"); w.Int(ParameterRegister - registerNumber, 0)
+			w.String("r"); w.Int(registerNumber, 0);
+			IF registerClass.class = Parameter THEN w.String(":p"); w.Int(registerClass.number,0) END;
 		ELSIF registerNumber <= HwRegister THEN
 			w.String("h"); w.Int(HwRegister - registerNumber, 0)
 		ELSE
@@ -540,7 +540,7 @@ TYPE
 		|ModeMemory:
 				w.String("[");
 				IF operand.register # None THEN
-					DumpRegister(w,operand.register);
+					DumpRegister(w,operand.register, operand.registerClass);
 					IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset,1);
 					ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset,1);
 					END;
@@ -553,7 +553,7 @@ TYPE
 				END;
 				w.String("]");
 		|ModeRegister:
-			DumpRegister(w,operand.register);
+			DumpRegister(w,operand.register, operand.registerClass);
 			IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset,1);
 			ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset,1);
 			END;
@@ -693,6 +693,8 @@ TYPE
 		AddFormat(reserve, "reserve",Num,Undef,Undef,{});
 		(* label - pseudo-instruction to reference back to source code positions *)
 		AddFormat(label, "label",Num,Undef,Undef,{});
+		(* use register - meta-instruction to give usage hint for register, e.g. for parameter registers *)
+		AddFormat(use,"use",Reg,Undef,Undef,{});
 	END InitInstructions;
 
 	PROCEDURE InitInstruction*(VAR instr: Instruction; opcode: SHORTINT; op1,op2,op3: Operand);
@@ -716,25 +718,26 @@ TYPE
 	PROCEDURE InitOperand*(VAR op: Operand);
 	BEGIN
 		op.mode := Undefined; op.type.form := Undefined; op.type.sizeInBits := Undefined;
-		op.register := None; op.offset := 0;
+		op.register := None; op.offset := 0; op.registerClass := GeneralPurposeRegister;
 		op.intValue := 0;
 		op.floatValue := 0;
 		op.symbol := NIL;
 		op.symbolOffset := 0;
 	END InitOperand;
 
-	PROCEDURE InitRegister*(VAR op: Operand; type: Type; register: LONGINT);
+	PROCEDURE InitRegister*(VAR op: Operand; type: Type; registerClass: RegisterClass;  register: LONGINT);
 	BEGIN
-		Assert((register >0) OR (register = SP) OR (register = FP) OR (register <= ParameterRegister) ,"unmapped register number");
+		Assert((register >0) OR (register = SP) OR (register = FP) OR (register <= HwRegister) ,"unmapped register number");
 		InitOperand(op);
 		op.mode := ModeRegister;
 		op.type := type;
+		op.registerClass := registerClass;
 		op.register := register;
 	END InitRegister;
 
-	PROCEDURE Register*(type: Type; register: LONGINT): Operand;
+	PROCEDURE Register*(type: Type; registerClass: RegisterClass; register: LONGINT): Operand;
 	VAR op: Operand;
-	BEGIN InitRegister(op,type,register); RETURN op
+	BEGIN InitRegister(op,type,registerClass, register); RETURN op
 	END Register;
 
 	PROCEDURE AddOffset*(VAR op: Operand; offset: LONGINT);
@@ -831,6 +834,10 @@ TYPE
 	BEGIN type.form := form; type.sizeInBits := sizeInBits;
 	END InitType;
 
+	PROCEDURE InitRegisterClass*(VAR registerClass: RegisterClass; class: SHORTINT; number: INTEGER);
+	BEGIN registerClass.class := class; registerClass.number := number
+	END InitRegisterClass;
+
 	PROCEDURE NewType*(form: SHORTINT; sizeInBits: INTEGER): Type;
 	VAR type: Type;
 	BEGIN InitType(type,form,sizeInBits); RETURN type
@@ -868,18 +875,39 @@ TYPE
 		END;
 	END DecimalNumber;
 
-	PROCEDURE Numbers(CONST name: ARRAY OF CHAR; VAR number: LONGINT): BOOLEAN;
-	VAR i: LONGINT;
+	PROCEDURE Numbers(CONST name: ARRAY OF CHAR; VAR pos: LONGINT; VAR number: LONGINT): BOOLEAN;
 	BEGIN
-		i := 1; number := 0; WHILE (i<LEN(name)) & DecimalNumber(name[i], number) DO INC(i) END;
-		RETURN name[i] = 0X
+		number := 0;
+		IF DecimalNumber(name[pos], number) THEN
+			INC(pos);
+			WHILE (pos<LEN(name)) & DecimalNumber(name[pos], number) DO INC(pos) END;
+			RETURN TRUE
+		ELSE
+			RETURN FALSE
+		END;
 	END Numbers;
 
-	PROCEDURE DenotesRegister*(CONST name: ARRAY OF CHAR; VAR register: LONGINT): BOOLEAN;
+	PROCEDURE Character(CONST name: ARRAY OF CHAR; VAR pos: LONGINT; char: CHAR): BOOLEAN;
 	BEGIN
-		IF (name[0]='r') & Numbers(name,register) THEN RETURN TRUE
-		ELSIF (name[0]='p') & Numbers(name,register) THEN register := ParameterRegister - register; RETURN TRUE
-		ELSIF (name[0]='h') & Numbers(name,register) THEN register := HwRegister - register; RETURN TRUE
+		IF name[pos] = char THEN INC(pos); RETURN TRUE ELSE RETURN FALSE END;
+	END Character;
+
+	PROCEDURE DenotesRegister*(CONST name: ARRAY OF CHAR; VAR registerClass: RegisterClass; VAR register: LONGINT): BOOLEAN;
+	VAR pos, registerNumber: LONGINT;
+	BEGIN
+		pos := 0;
+		IF Character(name,pos,'r') THEN
+			IF Numbers(name,pos,register) THEN
+				IF Character(name,pos,0X) THEN registerClass := GeneralPurposeRegister; RETURN TRUE
+				ELSIF Character(name,pos,':') & Character(name,pos,'p') & Numbers(name,pos,registerNumber) & Character(name,pos,0X) THEN
+					InitRegisterClass(registerClass, Parameter, SHORT(registerNumber));
+					RETURN TRUE
+				END
+			END;
+		ELSIF Character(name,pos,'h') THEN
+			IF Numbers(name,pos,register) & Character(name,pos,0X) THEN
+				register := HwRegister - register; RETURN TRUE
+			END;
 		ELSIF name = "sp" THEN register := SP; RETURN TRUE
 		ELSIF name = "fp" THEN register := FP ; RETURN TRUE
 		ELSE RETURN FALSE
@@ -916,11 +944,21 @@ TYPE
 
 	PROCEDURE DenotesType*(CONST name: ARRAY OF CHAR; VAR type: Type): BOOLEAN;
 	VAR
-		sizeInBits: LONGINT;
+		sizeInBits: LONGINT; pos: LONGINT;
 	BEGIN
-		IF (name[0] = 's') & Numbers(name, sizeInBits) & (sizeInBits >0) THEN type := SignedIntegerType(sizeInBits); RETURN TRUE
-		ELSIF (name[0] = 'u') & Numbers(name, sizeInBits) & (sizeInBits >0) THEN type := UnsignedIntegerType(sizeInBits); RETURN TRUE
-		ELSIF (name[0] = 'f') & Numbers(name, sizeInBits) & (sizeInBits >0) THEN type := FloatType(sizeInBits); RETURN TRUE
+		pos := 0;
+		IF Character(name,pos,'s') THEN
+			IF Numbers(name, pos, sizeInBits) & Character(name,pos,0X) & (sizeInBits >0) THEN
+				type := SignedIntegerType(sizeInBits); RETURN TRUE
+			END;
+		ELSIF Character(name,pos,'u') THEN
+			IF Numbers(name, pos, sizeInBits) & Character(name,pos,0X) & (sizeInBits >0) THEN
+				type := UnsignedIntegerType(sizeInBits); RETURN TRUE
+			END;
+		ELSIF Character(name,pos, 'f') THEN
+			IF Numbers(name, pos, sizeInBits) & Character(name,pos,0X) & (sizeInBits >0) THEN
+				type := FloatType(sizeInBits); RETURN TRUE
+			END;
 		ELSE RETURN FALSE
 		END;
 	END DenotesType;

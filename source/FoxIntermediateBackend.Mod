@@ -68,9 +68,6 @@ CONST
 		NoType = 0; (* special type info values *)
 		LhsIsPointer = 0; (* for the operator kind *)
 		RhsIsPointer = 1;
-
-		RegisterUsageOffset = 32; (* offset to enable negative values in register usage *)
-
 TYPE
 	SupportedInstructionProcedure* = PROCEDURE {DELEGATE} (CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
 	SupportedImmediateProcedure* = PROCEDURE {DELEGATE} (CONST op: IntermediateCode.Operand): BOOLEAN;
@@ -394,6 +391,8 @@ TYPE
 			cc: LONGINT;
 			actorType: SyntaxTree.CellType;
 			registerNumber: LONGINT;
+			registerClass: IntermediateCode.RegisterClass;
+			type: IntermediateCode.Type;
 			formalParameter: SyntaxTree.Parameter;
 
 			PROCEDURE Signature;
@@ -503,18 +502,24 @@ TYPE
 					IF procedureType.callingConvention # SyntaxTree.OberonCallingConvention THEN
 						formalParameter := procedureType.lastParameter;
 						WHILE (formalParameter # NIL) & (registerNumber < system.registerParameters) & PassInRegister(formalParameter) DO
-							src := IntermediateCode.Register(GetType(system,formalParameter.type), IntermediateCode.ParameterRegister-registerNumber);
+							IntermediateCode.InitRegisterClass(registerClass, IntermediateCode.Parameter, SHORT(registerNumber));
+							type := GetType(system, formalParameter.type);
+							src := IntermediateCode.Register(type, registerClass, implementationVisitor.AcquireRegister(type, registerClass));
 							IntermediateCode.InitMemory(dest,GetType(system,formalParameter.type),implementationVisitor.fp,ToMemoryUnits(system,formalParameter.offsetInBits));
 							ir.Emit(Mov(dest, src));
+							implementationVisitor.ReleaseIntermediateOperand(src);
 							INC(registerNumber);
 							formalParameter := formalParameter.prevParameter;
 						END;
 					ELSE
 						formalParameter := procedureType.firstParameter;
 						WHILE (formalParameter # NIL) & (registerNumber < system.registerParameters) & PassInRegister(formalParameter) DO
-							src := IntermediateCode.Register(GetType(system,formalParameter.type), IntermediateCode.ParameterRegister-registerNumber);
+							IntermediateCode.InitRegisterClass(registerClass, IntermediateCode.Parameter, SHORT(registerNumber));
+							type := GetType(system, formalParameter.type);
+							src := IntermediateCode.Register(type, registerClass, implementationVisitor.AcquireRegister(type, registerClass));
 							IntermediateCode.InitMemory(dest,GetType(system,formalParameter.type),implementationVisitor.fp,ToMemoryUnits(system,formalParameter.offsetInBits));
 							ir.Emit(Mov(dest, src));
+							implementationVisitor.ReleaseIntermediateOperand(src);
 							INC(registerNumber);
 							formalParameter := formalParameter.nextParameter;
 						END;
@@ -554,12 +559,12 @@ TYPE
 					IF stackSize > 0 THEN
 						IF (stackSize MOD system.addressSize = 0) THEN
 							null := IntermediateCode.Immediate(IntermediateCode.GetType(system,system.addressType),0);
-							fp := IntermediateCode.Register(IntermediateCode.GetType(system,system.addressType),IntermediateCode.FP);
+							fp := IntermediateCode.Register(IntermediateCode.GetType(system,system.addressType),IntermediateCode.GeneralPurposeRegister,IntermediateCode.FP);
 							IntermediateCode.AddOffset(fp,ToMemoryUnits(system,-system.addressSize));
 							size := IntermediateCode.Immediate(IntermediateCode.GetType(system,system.addressType),stackSize DIV system.addressSize);
 						ELSE
 							null := IntermediateCode.Immediate(int8,0);
-							fp := IntermediateCode.Register(IntermediateCode.GetType(system,system.addressType),IntermediateCode.FP);
+							fp := IntermediateCode.Register(IntermediateCode.GetType(system,system.addressType),IntermediateCode.GeneralPurposeRegister,IntermediateCode.FP);
 							IntermediateCode.AddOffset(fp,ToMemoryUnits(system,-null.type.sizeInBits));
 							size := IntermediateCode.Immediate(IntermediateCode.GetType(system,system.addressType),stackSize DIV null.type.sizeInBits);
 						END;
@@ -736,14 +741,14 @@ TYPE
 
 	END DeclarationVisitor;
 
-	UsedArray*=POINTER TO ARRAY OF RECORD count: LONGINT; map: LONGINT; type: IntermediateCode.Type END;
+	UsedArray*=POINTER TO ARRAY OF RECORD count: LONGINT; map: LONGINT; type: IntermediateCode.Type; class: IntermediateCode.RegisterClass END;
 	RegisterUsage*=OBJECT
 	VAR used: UsedArray; count: LONGINT;
 
 		PROCEDURE &Init;
 		VAR i: LONGINT;
 		BEGIN
-			count := RegisterUsageOffset;
+			count := 0;
 			IF used = NIL THEN NEW(used,64); END;
 			FOR i := 0 TO LEN(used)-1 DO used[i].count := 0 END;
 		END Init;
@@ -762,44 +767,45 @@ TYPE
 			used := new
 		END Grow;
 
-		PROCEDURE Next(type: IntermediateCode.Type): LONGINT;
+		PROCEDURE Next(type: IntermediateCode.Type; class: IntermediateCode.RegisterClass): LONGINT;
 		BEGIN
 			INC(count);
 			IF count = LEN(used) THEN Grow END;
 			used[count].type := type;
-			used[count].map := count-RegisterUsageOffset;
-			RETURN count-RegisterUsageOffset;
+			used[count].class := class;
+			used[count].map := count;
+			RETURN count;
 		END Next;
 
 		PROCEDURE IncUse(register: LONGINT);
 		BEGIN
-			INC(used[register+RegisterUsageOffset].count);
+			INC(used[register].count);
 		END IncUse;
 
 		PROCEDURE DecUse(register: LONGINT);
 		BEGIN
-			DEC(used[register+RegisterUsageOffset].count);
+			DEC(used[register].count);
 		END DecUse;
 
 		PROCEDURE Map(register: LONGINT): LONGINT;
 		VAR map : LONGINT;
 		BEGIN
 			IF register > 0 THEN
-				map := used[register+RegisterUsageOffset].map;
-				WHILE register # map DO register := map; map := used[register+RegisterUsageOffset].map END;
+				map := used[register].map;
+				WHILE register # map DO register := map; map := used[register].map END;
 			END;
 			RETURN register
 		END Map;
 
 		PROCEDURE Remap(register: LONGINT; to: LONGINT);
 		BEGIN
-			used[register+RegisterUsageOffset].map:= to
+			used[register].map:= to
 		END Remap;
 
 		PROCEDURE Use(register: LONGINT): LONGINT;
 		BEGIN
-			IF register+RegisterUsageOffset < LEN(used) THEN
-				RETURN used[register+RegisterUsageOffset].count
+			IF register< LEN(used) THEN
+				RETURN used[register].count
 			ELSE
 				RETURN 0
 			END
@@ -810,6 +816,7 @@ TYPE
 	RegisterEntry = POINTER TO RECORD
 		prev,next: RegisterEntry;
 		register: LONGINT;
+		registerClass: IntermediateCode.RegisterClass;
 		type: IntermediateCode.Type;
 	END;
 
@@ -893,8 +900,8 @@ TYPE
 			addressType := IntermediateCode.GetType(system,system.addressType);
 			setType := IntermediateCode.GetType(system,system.setType);
 			sizeType := IntermediateCode.GetType(system, system.sizeType);
-			fp := IntermediateCode.Register(addressType,IntermediateCode.FP);
-			sp := IntermediateCode.Register(addressType,IntermediateCode.SP);
+			fp := IntermediateCode.Register(addressType,IntermediateCode.GeneralPurposeRegister,IntermediateCode.FP);
+			sp := IntermediateCode.Register(addressType,IntermediateCode.GeneralPurposeRegister,IntermediateCode.SP);
 			nil := IntermediateCode.Immediate(addressType,0);
 
 			IntermediateCode.InitOperand(destination);
@@ -928,11 +935,11 @@ TYPE
 			RETURN IntermediateCode.NewSection(list, kind, type, isDefinition, name, syntaxTreeSymbol, dump)
 		END NewSection;
 
-		PROCEDURE AcquireRegister(CONST type: IntermediateCode.Type): LONGINT;
+		PROCEDURE AcquireRegister(CONST type: IntermediateCode.Type; class: IntermediateCode.RegisterClass): LONGINT;
 		VAR new: LONGINT;
 		BEGIN
-			new :=  registerUsage.Next(type);
-			UseRegister(new,type);
+			new :=  registerUsage.Next(type,class);
+			UseRegister(new);
 			RETURN new
 		END AcquireRegister;
 
@@ -1122,14 +1129,14 @@ TYPE
 		PROCEDURE NewRegisterOperand(type: IntermediateCode.Type): IntermediateCode.Operand;
 		VAR op: IntermediateCode.Operand; reg: LONGINT;
 		BEGIN
-			reg := AcquireRegister(type);
-			IntermediateCode.InitRegister(op, type, reg);
+			reg := AcquireRegister(type,IntermediateCode.GeneralPurposeRegister);
+			IntermediateCode.InitRegister(op, type, IntermediateCode.GeneralPurposeRegister,reg);
 			RETURN op
 		END NewRegisterOperand;
 
 		PROCEDURE UnuseRegister(register: LONGINT);
 		BEGIN
-			IF (register > 0) OR (register <= IntermediateCode.ParameterRegister) THEN
+			IF (register > 0) THEN
 				registerUsage.DecUse(register);
 				IF TraceRegisterUsage & (dump# NIL) THEN
 					dump.String("unuse register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln;
@@ -1138,16 +1145,15 @@ TYPE
 			END;
 		END UnuseRegister;
 
-		PROCEDURE UseRegister(register: LONGINT; type: IntermediateCode.Type);
+		PROCEDURE UseRegister(register: LONGINT);
 		BEGIN
-			IF (register > 0) OR (register <= IntermediateCode.ParameterRegister) THEN
+			IF (register > 0) THEN
 				registerUsage.IncUse(register);
 				IF TraceRegisterUsage & (dump# NIL) THEN
 					dump.String("use register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln;
 				END;
 				IF registerUsage.Use(register)=1 THEN
-					registerUsage.used[register +RegisterUsageOffset].type := type;
-					AddRegisterEntry(usedRegisters,register, type) END;
+					AddRegisterEntry(usedRegisters,register, registerUsage.used[register].class, registerUsage.used[register].type) END;
 			END;
 		END UseRegister;
 
@@ -1158,7 +1164,7 @@ TYPE
 
 		PROCEDURE UseIntermediateOperand(CONST op: IntermediateCode.Operand);
 		BEGIN
-			UseRegister(op.register, op.type)
+			UseRegister(op.register)
 		END UseIntermediateOperand;
 
 		PROCEDURE ReleaseOperand(CONST op: Operand);
@@ -1176,8 +1182,8 @@ TYPE
 		BEGIN
 			entry := usedRegisters;
 			WHILE entry # NIL DO
-				type := registerUsage.used[entry.register+RegisterUsageOffset].type;
-				IntermediateCode.InitRegister(op,entry.type,entry.register);
+				type := registerUsage.used[entry.register].type;
+				IntermediateCode.InitRegister(op,entry.type,entry.registerClass, entry.register);
 				Emit(Push(op));
 				entry := entry.next;
 			END;
@@ -1189,9 +1195,31 @@ TYPE
 			usedRegisters := NIL;
 		END ReleaseUsedRegisters;
 
+		(** emit use instruction for parameter registers and remove them from used queue *)
+		PROCEDURE UseParameterRegisters;
+		VAR op: IntermediateCode.Operand; entry,prev,next: RegisterEntry;
+		BEGIN
+			entry := usedRegisters; prev := NIL; usedRegisters := NIL;
+			WHILE entry # NIL DO
+				next := entry.next;
+				IF entry.registerClass.class = IntermediateCode.Parameter THEN
+					registerUsage.DecUse(entry.register);
+					ASSERT(registerUsage.Use(entry.register)=0);
+					IntermediateCode.InitRegister(op,entry.type,entry.registerClass, entry.register);
+					Emit(Use(op));
+				ELSIF prev = NIL THEN
+					usedRegisters := entry; entry.prev := NIL; entry.next := NIL; prev := entry;
+				ELSE
+					prev.next := entry; entry.prev := prev; entry.next := NIL; prev:= entry;
+				END;
+				entry := next;
+			END;
+		END UseParameterRegisters;
+
+
 		(* restore registers from array saved and re-enter into array markedRegisters (recursion possible) *)
 		PROCEDURE RestoreRegisters(CONST saved: RegisterEntry);
-		VAR op: IntermediateCode.Operand; entry,prev: RegisterEntry; type: IntermediateCode.Type;
+		VAR op: IntermediateCode.Operand; entry,prev: RegisterEntry; type: IntermediateCode.Type; class: IntermediateCode.RegisterClass;
 		BEGIN
 			entry := saved;
 			WHILE (entry # NIL) DO prev := entry; entry := entry.next END;
@@ -1199,10 +1227,11 @@ TYPE
 			WHILE entry # NIL DO
 				prev := entry.prev;
 				type := entry.type;
-				IntermediateCode.InitRegister(op,type,entry.register);
-				registerUsage.Remap(entry.register,registerUsage.Next(type));
+				class := entry.registerClass;
+				IntermediateCode.InitRegister(op,type,class,entry.register);
+				registerUsage.Remap(entry.register,registerUsage.Next(type,class));
 				Emit(Pop(op));
-				AddRegisterEntry(usedRegisters,entry.register,entry.type);
+				AddRegisterEntry(usedRegisters,entry.register,entry.registerClass, entry.type);
 				entry := prev;
 			END;
 			(*
@@ -1229,11 +1258,11 @@ TYPE
 			Does NOT necessarily keep the content of src1 or src2 in result! *)
 		PROCEDURE Reuse2(VAR result: IntermediateCode.Operand; src1,src2: IntermediateCode.Operand);
 		BEGIN
-			IF ReusableRegister(src1) THEN IntermediateCode.InitRegister(result,src1.type,src1.register);
+			IF ReusableRegister(src1) THEN IntermediateCode.InitRegister(result,src1.type,src1.registerClass, src1.register);
 				UseIntermediateOperand(result);
-			ELSIF ReusableRegister(src2) THEN IntermediateCode.InitRegister(result,src2.type,src2.register);
+			ELSIF ReusableRegister(src2) THEN IntermediateCode.InitRegister(result,src2.type,src2.registerClass, src2.register);
 				UseIntermediateOperand(result);
-			ELSE IntermediateCode.InitRegister(result,src1.type,AcquireRegister(src1.type));
+			ELSE IntermediateCode.InitRegister(result,src1.type,src1.registerClass,AcquireRegister(src1.type, src1.registerClass));
 			END;
 		END Reuse2;
 
@@ -1244,34 +1273,34 @@ TYPE
 		*)
 		PROCEDURE Reuse2a(VAR result: IntermediateCode.Operand; src1,src2: IntermediateCode.Operand; VAR alternative: IntermediateCode.Operand);
 		BEGIN
-			IF ReusableRegister(src1) THEN IntermediateCode.InitRegister(result,src1.type,src1.register);
+			IF ReusableRegister(src1) THEN IntermediateCode.InitRegister(result,src1.type,src1.registerClass, src1.register);
 				UseIntermediateOperand(result);
-			ELSIF ReusableRegister(src2) THEN IntermediateCode.InitRegister(result,src2.type,src2.register);
+			ELSIF ReusableRegister(src2) THEN IntermediateCode.InitRegister(result,src2.type,src2.registerClass, src2.register);
 				UseIntermediateOperand(result);
 			ELSIF alternative.mode # IntermediateCode.Undefined THEN
 				result := alternative; alternative := emptyOperand;
 				UseIntermediateOperand(result);
-			ELSE IntermediateCode.InitRegister(result,src1.type,AcquireRegister(src1.type));
+			ELSE IntermediateCode.InitRegister(result,src1.type,src1.registerClass, AcquireRegister(src1.type, src1.registerClass));
 			END;
 		END Reuse2a;
 
 		(* like reuse2 but only one source *)
 		PROCEDURE Reuse1(VAR result: IntermediateCode.Operand; src1: IntermediateCode.Operand);
 		BEGIN
-			IF ReusableRegister(src1) THEN IntermediateCode.InitRegister(result,src1.type,src1.register);
+			IF ReusableRegister(src1) THEN IntermediateCode.InitRegister(result,src1.type,src1.registerClass, src1.register);
 				UseIntermediateOperand(result);
-			ELSE IntermediateCode.InitRegister(result,src1.type,AcquireRegister(src1.type));
+			ELSE IntermediateCode.InitRegister(result,src1.type,src1.registerClass, AcquireRegister(src1.type, src1.registerClass));
 			END;
 		END Reuse1;
 
 		(* like reuse2a but only one source *)
 		PROCEDURE Reuse1a(VAR result: IntermediateCode.Operand; src1: IntermediateCode.Operand; VAR alternative: IntermediateCode.Operand);
 		BEGIN
-			IF ReusableRegister(src1) THEN IntermediateCode.InitRegister(result,src1.type,src1.register);
+			IF ReusableRegister(src1) THEN IntermediateCode.InitRegister(result,src1.type,src1.registerClass, src1.register);
 				UseIntermediateOperand(result);
 			ELSIF alternative.mode # IntermediateCode.Undefined THEN result := alternative; alternative := emptyOperand;
 				UseIntermediateOperand(result);
-			ELSE IntermediateCode.InitRegister(result,src1.type,AcquireRegister(src1.type));
+			ELSE IntermediateCode.InitRegister(result,src1.type,src1.registerClass, AcquireRegister(src1.type, src1.registerClass));
 			END;
 		END Reuse1a;
 
@@ -1279,13 +1308,13 @@ TYPE
 		PROCEDURE ReuseCopy(VAR result: IntermediateCode.Operand; src1: IntermediateCode.Operand);
 		BEGIN
 			IF ReusableRegister(src1) THEN
-				IntermediateCode.InitRegister(result,src1.type,src1.register);
+				IntermediateCode.InitRegister(result,src1.type,src1.registerClass, src1.register);
 				IF (src1.mode # IntermediateCode.ModeRegister) OR (src1.offset # 0) THEN
 					Emit(Mov(result,src1));
 				END;
 				UseIntermediateOperand(result);
 			ELSE
-				IntermediateCode.InitRegister(result,src1.type,AcquireRegister(src1.type));
+				IntermediateCode.InitRegister(result,src1.type,src1.registerClass, AcquireRegister(src1.type, src1.registerClass));
 				Emit(Mov(result,src1));
 			END
 		END ReuseCopy;
@@ -1343,10 +1372,10 @@ TYPE
 				IF (type.sizeInBits = operand.type.sizeInBits) & (type.form IN IntermediateCode.Integer) & (operand.type.form IN IntermediateCode.Integer)
 					& (operand.offset = 0)
 				THEN
-					IntermediateCode.InitRegister(new,type,operand.register);
+					IntermediateCode.InitRegister(new,type,IntermediateCode.GeneralPurposeRegister,operand.register);
 					Emit(Conv(new,operand));
 				ELSE
-					IntermediateCode.InitRegister(new,type,AcquireRegister(type));
+					IntermediateCode.InitRegister(new,type,IntermediateCode.GeneralPurposeRegister,AcquireRegister(type,IntermediateCode.GeneralPurposeRegister));
 					Emit(Conv(new,operand));
 					ReleaseIntermediateOperand(operand);
 				END;
@@ -1354,7 +1383,7 @@ TYPE
 			ELSIF (operand.mode = IntermediateCode.ModeImmediate) & (operand.symbol = NIL) & (operand.type.sizeInBits <= type.sizeInBits) & (operand.type.form IN IntermediateCode.Integer) & (type.form IN IntermediateCode.Integer) THEN
 				IntermediateCode.InitImmediate(operand,type,operand.intValue);
 			ELSE
-				IntermediateCode.InitRegister(new,type,AcquireRegister(type));
+				IntermediateCode.InitRegister(new,type,IntermediateCode.GeneralPurposeRegister,AcquireRegister(type,IntermediateCode.GeneralPurposeRegister));
 				Emit(Conv(new,operand));
 				ReleaseIntermediateOperand(operand);
 				operand := new;
@@ -1456,7 +1485,7 @@ TYPE
 
 			(* start off with the empty set *)
 			InitOperand(res, ModeValue);
-			IntermediateCode.InitRegister(res.op, setType, AcquireRegister(setType));
+			IntermediateCode.InitRegister(res.op, setType, IntermediateCode.GeneralPurposeRegister, AcquireRegister(setType, IntermediateCode.GeneralPurposeRegister));
 			Emit(Mov(res.op, noBits));
 
 			FOR i := 0 TO x.elements.Length() - 1 DO
@@ -1681,7 +1710,7 @@ TYPE
 					Emit(Result(x.op1));
 					result := prevResult;
 					RestoreRegisters(saved);
-					IF x.op1.register >0 THEN AddRegisterEntry(usedRegisters,x.op1.register, x.op1.type) END;
+					IF x.op1.register >0 THEN AddRegisterEntry(usedRegisters,x.op1.register, x.op1.registerClass, x.op1.type) END;
 				END;
 				(*
 				AcquireThisRegister(x.op1.type,IntermediateCode.Result);
@@ -1720,7 +1749,7 @@ TYPE
 			Condition(x,trueL,falseL);
 			InitOperand(result,ModeValue);
 			SetLabel(trueL);
-			IntermediateCode.InitRegister(result.op,IntermediateCode.GetType(system,x.type),AcquireRegister(IntermediateCode.GetType(system,x.type)));
+			IntermediateCode.InitRegister(result.op,IntermediateCode.GetType(system,x.type),IntermediateCode.GeneralPurposeRegister,AcquireRegister(IntermediateCode.GetType(system,x.type),IntermediateCode.GeneralPurposeRegister));
 			Emit(Mov(result.op,true));
 			BrL(exit);
 			SetLabel(falseL);
@@ -1914,7 +1943,7 @@ TYPE
 				ReleaseOperand(right);
 
 				StaticCallOperand(result,procedure);
-				IntermediateCode.InitRegister(reg,int8,AcquireRegister(int8));
+				IntermediateCode.InitRegister(reg,int8,IntermediateCode.GeneralPurposeRegister,AcquireRegister(int8,IntermediateCode.GeneralPurposeRegister));
 				Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
 				Emit(Result(reg));
 				ReleaseOperand(result);
@@ -2070,9 +2099,9 @@ TYPE
 					result.op = left.op * right.op - left.tag * right.tag
 					result.tag = left.tag * right.op + left.op * right.tag
 					*)
-					result.op := IntermediateCode.Register(componentType, AcquireRegister(componentType));
+					result.op := IntermediateCode.Register(componentType, IntermediateCode.GeneralPurposeRegister,AcquireRegister(componentType,IntermediateCode.GeneralPurposeRegister));
 					Emit(Mul(result.op, left.op, right.op));
-					tempReg := IntermediateCode.Register(componentType, AcquireRegister(componentType));
+					tempReg := IntermediateCode.Register(componentType, IntermediateCode.GeneralPurposeRegister,AcquireRegister(componentType,IntermediateCode.GeneralPurposeRegister));
 					Emit(Mul(tempReg, left.tag, right.tag));
 					Emit(Sub(result.op, result.op, tempReg));
 
@@ -2150,15 +2179,15 @@ TYPE
 					result.op = (left.op * right.op + left.tag * right.tag) / divisor
 					result.tag = (left.tag * right.op - left.op * right.tag) / divisor
 					*)
-					tempReg := IntermediateCode.Register(componentType, AcquireRegister(componentType));
-					tempReg2 := IntermediateCode.Register(componentType, AcquireRegister(componentType));
+					tempReg := IntermediateCode.Register(componentType, IntermediateCode.GeneralPurposeRegister,AcquireRegister(componentType,IntermediateCode.GeneralPurposeRegister));
+					tempReg2 := IntermediateCode.Register(componentType, IntermediateCode.GeneralPurposeRegister,AcquireRegister(componentType,IntermediateCode.GeneralPurposeRegister));
 					Emit(Mul(tempReg, right.op, right.op));
 					Emit(Mul(tempReg2, right.tag, right.tag));
 					Emit(Add(tempReg, tempReg, tempReg2));
 
 					result.op := tempReg2;
 					Emit(Mul(result.op, left.op, right.op));
-					tempReg2 := IntermediateCode.Register(componentType, AcquireRegister(componentType));
+					tempReg2 := IntermediateCode.Register(componentType, IntermediateCode.GeneralPurposeRegister, AcquireRegister(componentType,IntermediateCode.GeneralPurposeRegister));
 					Emit(Mul(tempReg2, left.tag, right.tag));
 					Emit(Add(result.op, result.op, tempReg2));
 					Emit(Div(result.op, result.op, tempReg));
@@ -2684,7 +2713,7 @@ TYPE
 							*)
 							skipLabel1 := NewLabel();
 							skipLabel2 := NewLabel();
-							tmp := 	IntermediateCode.Register(sizeType, AcquireRegister(sizeType));
+							tmp := 	IntermediateCode.Register(sizeType, IntermediateCode.GeneralPurposeRegister,AcquireRegister(sizeType,IntermediateCode.GeneralPurposeRegister));
 							Emit(Mod(tmp, targetLength, stepSize));
 							BrneL(skipLabel1, tmp, IntermediateCode.Immediate(sizeType, 0));
 							ReleaseIntermediateOperand(targetLength);
@@ -2888,7 +2917,7 @@ TYPE
 					IntermediateCode.InitImmediate(res,x.type,x.intValue+y.intValue);
 				ELSE
 					IF res.mode # IntermediateCode.ModeRegister THEN
-						IntermediateCode.InitRegister(res,x.type,AcquireRegister(x.type));
+						IntermediateCode.InitRegister(res,x.type,IntermediateCode.GeneralPurposeRegister,AcquireRegister(x.type,IntermediateCode.GeneralPurposeRegister));
 					END;
 					IF IsImmediate(x) & (x.intValue = 0) THEN
 						Emit(Mov(res,y))
@@ -2906,7 +2935,7 @@ TYPE
 					IntermediateCode.InitImmediate(res,x.type,x.intValue*y.intValue);
 				ELSE
 					IF res.mode # IntermediateCode.ModeRegister THEN
-						IntermediateCode.InitRegister(res,x.type,AcquireRegister(x.type));
+						IntermediateCode.InitRegister(res,x.type,IntermediateCode.GeneralPurposeRegister,AcquireRegister(x.type,IntermediateCode.GeneralPurposeRegister));
 					END;
 					IF IsImmediate(x) & (x.intValue = 1) THEN
 						Emit(Mov(res,y))
@@ -3086,10 +3115,12 @@ TYPE
 			oldArrayDestinationDimension: LONGINT;
 
 			PROCEDURE Pass(op: IntermediateCode.Operand);
+			VAR registerClass: IntermediateCode.RegisterClass;
 			BEGIN
+
 				IF numberRegister >= 0 THEN
-					Emit(Mov(IntermediateCode.Register(op.type,IntermediateCode.ParameterRegister-numberRegister), op));
-					UseRegister(IntermediateCode.ParameterRegister-numberRegister, op.type);
+					IntermediateCode.InitRegisterClass(registerClass, IntermediateCode.Parameter, SHORT(numberRegister));
+					Emit(Mov(IntermediateCode.Register(op.type, registerClass, AcquireRegister(op.type, registerClass)), op));
 				ELSE
 					Emit(Push(op))
 				END
@@ -3758,7 +3789,7 @@ TYPE
 			END;
 
 			IF procedureType.stackAlignment > 1 THEN
-				IntermediateCode.InitRegister(reg,addressType,AcquireRegister(addressType));
+				IntermediateCode.InitRegister(reg,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 				Emit(Mov(reg, sp));
 				Emit(Sub(sp, sp, IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.addressSize))));
 				IntermediateCode.InitImmediate(mask,addressType,-procedureType.stackAlignment);
@@ -3823,9 +3854,9 @@ TYPE
 						IF passByRegister & (registerNumber > 0) THEN
 							stackSize := ToMemoryUnits(system,registerNumber*addressType.sizeInBits);
 							Emit(Sub(sp,sp,IntermediateCode.Immediate(addressType,stackSize)));
-							FOR j := 0 TO registerNumber-1 DO
+							(*!FOR j := 0 TO registerNumber-1 DO
 								UnuseRegister(IntermediateCode.ParameterRegister-j);
-							END;
+							END;*)
 						END;
 						passByRegister := FALSE;
 						PushParameter(actualParameter, formalParameter, procedureType.callingConvention, FALSE, dummy,-1);
@@ -3852,9 +3883,9 @@ TYPE
 							IF passByRegister & (registerNumber > 0) THEN
 								stackSize := ToMemoryUnits(system,registerNumber*addressType.sizeInBits);
 								Emit(Sub(sp,sp,IntermediateCode.Immediate(addressType,stackSize)));
-								FOR j := 0 TO registerNumber-1 DO
+								(*!FOR j := 0 TO registerNumber-1 DO
 									UnuseRegister(IntermediateCode.ParameterRegister-j);
-								END;
+								END;*)
 							END;
 							passByRegister := FALSE;
 							PushParameter(actualParameter, formalParameter, procedureType.callingConvention, FALSE, dummy,-1);
@@ -3867,9 +3898,9 @@ TYPE
 			IF passByRegister & (registerNumber > 0) THEN
 				stackSize := ToMemoryUnits(system,registerNumber*addressType.sizeInBits);
 				Emit(Sub(sp,sp,IntermediateCode.Immediate(addressType,stackSize)));
-				FOR j := 0 TO registerNumber-1 DO
+				(*!FOR j := 0 TO registerNumber-1 DO
 					UnuseRegister(IntermediateCode.ParameterRegister-j);
-				END;
+				END;*)
 			END;
 
 			IF x.left IS SyntaxTree.SupercallDesignator THEN
@@ -3943,7 +3974,7 @@ TYPE
 
 					(* use the address that the operator selection procedure returned as the target address of the call *)
 					InitOperand(operand, ModeValue);
-					operand.op := IntermediateCode.Register(addressType, AcquireRegister(addressType));
+					operand.op := IntermediateCode.Register(addressType, IntermediateCode.GeneralPurposeRegister, AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 					Emit(Result(operand.op))
 				END
 			ELSE
@@ -3972,6 +4003,9 @@ TYPE
 				parametersSize := ParametersSize(system,procedureType,FALSE);
 			ELSE HALT(200);
 			END;
+
+			UseParameterRegisters();
+
 			Emit(Call(operand.op,parametersSize));
 			IF (procedureType.returnType # NIL) & ~structuredReturnType THEN
 				return := NewRegisterOperand(IntermediateCode.GetType(system,procedureType.returnType));
@@ -4644,7 +4678,7 @@ TYPE
 			IF dim.mode=IntermediateCode.ModeImmediate THEN
 				PutMathArrayField(base,value,offset + ToMemoryUnits(system,SHORT(dim.intValue) * 2 * addressType.sizeInBits));
 			ELSE
-				IntermediateCode.InitRegister(reg,addressType,AcquireRegister(addressType));
+				IntermediateCode.InitRegister(reg,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 				Emit(Mov(reg,dim));
 				Emit(Mul(reg,reg,IntermediateCode.Immediate(addressType,ToMemoryUnits(system,2*addressType.sizeInBits))));
 				Emit(Add(reg,reg,base));
@@ -4726,7 +4760,7 @@ TYPE
 				END;
 				end := NewLabel(); next := NIL;
 
-				IntermediateCode.InitRegister(res,addressType,AcquireRegister(addressType));
+				IntermediateCode.InitRegister(res,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 				Emit(Mov(res,dim));
 				Convert(res,int32);
 
@@ -4751,7 +4785,7 @@ TYPE
 					IF next # NIL THEN SetLabel(next) END;
 				END;
 				IF hasDynamicPart THEN
-					IntermediateCode.InitRegister(res2,addressType,AcquireRegister(addressType));
+					IntermediateCode.InitRegister(res2,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 					Emit(Mov(res2,dim));
 					Emit(Mul(res2,res2,IntermediateCode.Immediate(addressType,2*ToMemoryUnits(system,addressType.sizeInBits))));
 					imm := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,offset*addressType.sizeInBits));
@@ -4798,7 +4832,7 @@ TYPE
 				end := NewLabel(); next := NIL;
 
 				(* ReuseCopy(dim,res); *)
-				IntermediateCode.InitRegister(res,addressType,AcquireRegister(addressType));
+				IntermediateCode.InitRegister(res,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType, IntermediateCode.GeneralPurposeRegister));
 				Emit(Mov(res,dim));
 				Convert(res,int32);
 
@@ -5392,7 +5426,7 @@ TYPE
 						SysCall(SysNewRec);
 					END;
 					(* check allocation success, if not successful then do not call initializers and bodies *)
-					IntermediateCode.InitRegister(pointer,addressType,AcquireRegister(addressType));
+					IntermediateCode.InitRegister(pointer,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 					Emit(Pop(pointer));
 					MakeMemory(reg,pointer,addressType,0);
 					ReleaseIntermediateOperand(pointer); pointer := reg;
@@ -5430,7 +5464,7 @@ TYPE
 						ReleaseIntermediateOperand(pointer);
 					END;
 
-					IntermediateCode.InitRegister(pointer,addressType,AcquireRegister(addressType));
+					IntermediateCode.InitRegister(pointer,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 					Emit(Pop(pointer));
 
 					IF temporaryVariable # NIL THEN
@@ -5481,7 +5515,7 @@ TYPE
 						END;
 						Convert(reg,addressType);
 					ELSE
-						IntermediateCode.InitRegister(reg,addressType,AcquireRegister(addressType));
+						IntermediateCode.InitRegister(reg,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 						Emit(Mov(reg,IntermediateCode.Immediate(addressType,1)));
 					END;
 
@@ -5551,7 +5585,7 @@ TYPE
 					END;
 
 					IF openDim > 0 THEN
-						IntermediateCode.InitRegister(adr,addressType,AcquireRegister(addressType));
+						IntermediateCode.InitRegister(adr,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 						Emit(Pop(adr));
 						ToMemory(adr,addressType,0);
 						ReuseCopy(tmp,adr);
@@ -5562,7 +5596,7 @@ TYPE
 						BreqL(else,adr,IntermediateCode.Immediate(addressType,0));
 
 						i := openDim-1;
-						IntermediateCode.InitRegister(reg,addressType,AcquireRegister(addressType));
+						IntermediateCode.InitRegister(reg,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 						WHILE (i >= 0) DO
 							Emit(Pop(reg));
 							IntermediateCode.InitMemory(res,addressType,adr,ToMemoryUnits(system,ArrayDimTable* system.addressSize + system.addressSize*((openDim-1)-i)));
@@ -5692,10 +5726,10 @@ TYPE
 							(* push realtime flag: false by default *)
 							Emit(Push(false));
 							IF newObjectFile THEN CallThis("Heaps","NewArr") ELSE SysCall(SysNewArr) END;
-							IntermediateCode.InitRegister(adr,addressType,AcquireRegister(addressType));
+							IntermediateCode.InitRegister(adr,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 							Emit(Pop(adr));
 							GetMathArrayField(tmp,adr,MathPtrOffset);
-							IntermediateCode.InitRegister(reg,addressType,AcquireRegister(addressType));
+							IntermediateCode.InitRegister(reg,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 							Emit(Add(reg,tmp,IntermediateCode.Immediate(addressType,ToMemoryUnits(system,ArrDataArrayOffset))));
 							PutMathArrayField(adr,reg,MathAdrOffset);
 							ReleaseIntermediateOperand(tmp);
@@ -5728,10 +5762,10 @@ TYPE
 							IF newObjectFile THEN CallThis("Heaps","NewSys");
 							ELSE SysCall(SysNewSys)
 							END;
-							IntermediateCode.InitRegister(adr,addressType,AcquireRegister(addressType));
+							IntermediateCode.InitRegister(adr,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 							Emit(Pop(adr));
 							GetMathArrayField(tmp,adr,MathPtrOffset);
-							IntermediateCode.InitRegister(reg,addressType,AcquireRegister(addressType));
+							IntermediateCode.InitRegister(reg,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 							Emit(Add(reg,tmp,IntermediateCode.Immediate(addressType,ToMemoryUnits(system,SysDataArrayOffset))));
 							PutMathArrayField(adr,reg,MathAdrOffset);
 							ReleaseIntermediateOperand(tmp);
@@ -5749,7 +5783,7 @@ TYPE
 						BreqL(else,IntermediateCode.Memory(addressType,adr,0),IntermediateCode.Immediate(addressType,0));
 
 						i := openDim-1;
-						IntermediateCode.InitRegister(reg,addressType,AcquireRegister(addressType));
+						IntermediateCode.InitRegister(reg,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 						IF isTensor THEN
 							IntermediateCode.InitImmediate(tmp,addressType,ToMemoryUnits(system,system.SizeOf(SemanticChecker.ArrayBase(type,MAX(LONGINT)))));
 						ELSE
@@ -5852,7 +5886,7 @@ TYPE
 				ELSE (* copy over result to different type, may not use convert *)
 					itype := IntermediateCode.GetType(system,type);
 					IF itype.sizeInBits = s1.op.type.sizeInBits THEN
-						IntermediateCode.InitRegister(s0.op,itype,AcquireRegister(itype));
+						IntermediateCode.InitRegister(s0.op,itype,IntermediateCode.GeneralPurposeRegister,AcquireRegister(itype,IntermediateCode.GeneralPurposeRegister));
 						Emit(Mov(s0.op,s1.op));
 						ReleaseOperand(s1);
 						InitOperand(result,ModeValue);
@@ -6017,7 +6051,7 @@ TYPE
 				trueL := NewLabel();
 				falseL := NewLabel();
 				IF IsPointerToRecord(x.left.type,recordType) THEN
-					IntermediateCode.InitRegister(tag,addressType,AcquireRegister(addressType));
+					IntermediateCode.InitRegister(tag,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 					Emit(Mov(tag, result.op));
 					IF result.mode # ModeValue THEN
 						ptr := tag;
@@ -7694,6 +7728,7 @@ TYPE
 	Ticket*=POINTER TO RECORD
 		next-: Ticket;
 		type-: IntermediateCode.Type;
+		class-: IntermediateCode.RegisterClass;
 		lastuse-: LONGINT;
 		spilled*: BOOLEAN;
 		register*, offset*: LONGINT;
@@ -7711,14 +7746,14 @@ TYPE
 		END Init;
 
 		(* enter a new ticket into the list of live tickets, sorted by lastuse *)
-		PROCEDURE Enter*(CONST type: IntermediateCode.Type; register: LONGINT; spilled: BOOLEAN; offset: LONGINT; lastuse: LONGINT): Ticket;
+		PROCEDURE Enter*(CONST class: IntermediateCode.RegisterClass; CONST type: IntermediateCode.Type; register: LONGINT; spilled: BOOLEAN; offset: LONGINT; lastuse: LONGINT): Ticket;
 		VAR ticket,link: Ticket;
 		BEGIN
 			ASSERT(~spilled & (register # None) OR spilled & (offset # None));
 			IF free # NIL THEN ticket := free; free := free.next; ticket.next := NIL;
 			ELSE NEW(ticket)
 			END;
-			ticket.type := type;	ticket.register := register; ticket.spilled := spilled;	ticket.offset := offset; ticket.lastuse := lastuse; ticket.parts := 0;
+			ticket.type := type;	ticket.class := class; ticket.register := register; ticket.spilled := spilled;	ticket.offset := offset; ticket.lastuse := lastuse; ticket.parts := 0;
 			IF (live = NIL) OR (live.lastuse > ticket.lastuse) THEN
 				ticket.next := live; live := ticket
 			ELSE
@@ -7857,7 +7892,7 @@ TYPE
 		PROCEDURE Free*(index: LONGINT);
 		END Free;
 
-		PROCEDURE NextFree*(CONST type: IntermediateCode.Type): LONGINT;
+		PROCEDURE NextFree*(CONST class: IntermediateCode.RegisterClass; CONST type: IntermediateCode.Type): LONGINT;
 		END NextFree;
 
 		(* give a hint for the next register to return by NextFree *)
@@ -8061,10 +8096,10 @@ TYPE
 				PROCEDURE Use(CONST operand: IntermediateCode.Operand);
 				BEGIN
 					IF FirstUse(operand.register)=inPC THEN
-						dump.String(" ; +"); IntermediateCode.DumpRegister(dump,operand.register);
+						dump.String(" ; +"); IntermediateCode.DumpRegister(dump,operand.register,operand.registerClass);
 					END;
 					IF LastUse(operand.register)=inPC THEN
-						dump.String(" ; -"); IntermediateCode.DumpRegister(dump,operand.register);
+						dump.String(" ; -"); IntermediateCode.DumpRegister(dump,operand.register, operand.registerClass);
 					END;
 				END Use;
 			BEGIN
@@ -8300,13 +8335,13 @@ TYPE
 
 			register := ticket.register;
 			IF register = None THEN
-				register := physicalRegisters.NextFree(ticket.type);
+				register := physicalRegisters.NextFree(ticket.class, ticket.type);
 				IF register # None THEN (* free register found rightaway*)
 					SpillToRegister(ticket, register)
 				ELSE
 					mapped := GetPreferredSpill(ticket.type);
 					IF ~ExchangeSpill(mapped, ticket) THEN
-						register := ForceFreeRegister(ticket.type);
+						register := ForceFreeRegister(ticket.class, ticket.type);
 						SpillToRegister(ticket, register);
 					END;
 				END;
@@ -8352,22 +8387,22 @@ TYPE
 			RETURN spill
 		END GetPreferredSpill;
 
-		PROCEDURE ForceFreeRegister*(CONST type:IntermediateCode.Type): LONGINT;
+		PROCEDURE ForceFreeRegister*(CONST class: IntermediateCode.RegisterClass; CONST type:IntermediateCode.Type): LONGINT;
 		VAR tempReg: LONGINT; ticket: Ticket;
 		BEGIN
-			tempReg := physicalRegisters.NextFree(type);
+			tempReg := physicalRegisters.NextFree(class,type);
 			WHILE tempReg = None DO
 				ticket := GetPreferredSpill(type);
 				Spill(ticket);
-				tempReg := physicalRegisters.NextFree(type);
+				tempReg := physicalRegisters.NextFree(class,type);
 			END;
 			RETURN tempReg
 		END ForceFreeRegister;
 
-		PROCEDURE ReservePhysicalRegister*(CONST type: IntermediateCode.Type; register: LONGINT; lastUse: LONGINT): Ticket;
+		PROCEDURE ReservePhysicalRegister*(CONST class: IntermediateCode.RegisterClass; CONST type: IntermediateCode.Type; register: LONGINT; lastUse: LONGINT): Ticket;
 		VAR ticket: Ticket;
 		BEGIN
-			ticket := tickets.Enter(type,register,FALSE,None,lastUse);
+			ticket := tickets.Enter(class, type,register,FALSE,None,lastUse);
 			IF dump # NIL THEN
 				dump.String(" allocate register : index="); dump.Int(register,1); dump.Ln;
 			END;
@@ -8375,12 +8410,12 @@ TYPE
 			RETURN ticket
 		END ReservePhysicalRegister;
 
-		PROCEDURE TemporaryTicket*(CONST type: IntermediateCode.Type): Ticket;
+		PROCEDURE TemporaryTicket*(CONST class: IntermediateCode.RegisterClass; CONST type: IntermediateCode.Type): Ticket;
 		VAR register: LONGINT; ticket: Ticket;
 		BEGIN
 			IF type.form > IntermediateCode.Undefined THEN
-				register := ForceFreeRegister(type);
-				ticket := ReservePhysicalRegister(type,register,inPC);
+				register := ForceFreeRegister(IntermediateCode.GeneralPurposeRegister,type);
+				ticket := ReservePhysicalRegister(class,type,register,inPC);
 				ticket.parts := 1;
 			ELSE
 				ticket := NIL
@@ -8390,16 +8425,15 @@ TYPE
 
 		(*-------------------  register mapping  ----------------------*)
 
-		PROCEDURE MapVirtualRegister*(virtualRegister: LONGINT; type: IntermediateCode.Type; part: LONGINT);
+		PROCEDURE MapVirtualRegister*(virtualRegister: LONGINT; class: IntermediateCode.RegisterClass; type: IntermediateCode.Type; part: LONGINT);
 		VAR partType: IntermediateCode.Type; lastuse:LONGINT;
 
-			PROCEDURE MapTicket(virtualRegister: LONGINT; part: LONGINT; CONST type: IntermediateCode.Type; lastuse:LONGINT);
+			PROCEDURE MapTicket(CONST type: IntermediateCode.Type; lastuse:LONGINT);
 			VAR index,offset,size: LONGINT; ticket: Ticket;
 			BEGIN
-
-				index := physicalRegisters.NextFree(type);
+				index := physicalRegisters.NextFree(class,type);
 				IF index # None THEN
-					ticket := tickets.Enter(type,index,FALSE,0,lastuse);
+					ticket := tickets.Enter(class,type,index,FALSE,0,lastuse);
 					IF dump # NIL THEN
 						dump.String(" allocate register : index="); dump.Int(index,1); dump.Ln;
 					END;
@@ -8407,7 +8441,7 @@ TYPE
 					physicalRegisters.SetReserved(index,TRUE);
 				ELSE (* spill new ticket rightaway, no phyiscal register assigned yet *)
 					offset := spillStack.NextFree();
-					ticket := tickets.Enter(type,index,TRUE,offset,lastuse);
+					ticket := tickets.Enter(class,type,index,TRUE,offset,lastuse);
 					size := spillStack.Size();
 					ticket.offset := offset;
 					spillStack.Allocate(offset,ticket);
@@ -8423,7 +8457,7 @@ TYPE
 				lastuse := LastUse(virtualRegister);
 				GetPartType(type,part,partType);
 				IF partType.form # IntermediateCode.Undefined THEN
-					MapTicket(virtualRegister,part,partType,lastuse)
+					MapTicket(partType,lastuse)
 				END;
 			END;
 		END MapVirtualRegister;
@@ -8494,9 +8528,9 @@ TYPE
 				(*ASSERT(virtualRegisters.Mapped(operand.register,0)=NIL);
 				*)
 				IF operand.mode = IntermediateCode.ModeMemory THEN
-					MapVirtualRegister(operand.register,IntermediateCode.GetType(module.system,module.system.addressType),part);
+					MapVirtualRegister(operand.register,operand.registerClass,IntermediateCode.GetType(module.system,module.system.addressType),part);
 				ELSE
-					MapVirtualRegister(operand.register, operand.type,part);
+					MapVirtualRegister(operand.register,operand.registerClass, operand.type,part);
 				END;
 				ASSERT(virtualRegisters.Mapped(operand.register,part)#NIL);
 			END;
@@ -8580,10 +8614,10 @@ TYPE
 		RETURN  ~parameter.type.IsComposite() OR PassBySingleReference(parameter)
 	END PassInRegister;
 
-	PROCEDURE AddRegisterEntry(VAR queue: RegisterEntry; register: LONGINT; type: IntermediateCode.Type);
+	PROCEDURE AddRegisterEntry(VAR queue: RegisterEntry; register: LONGINT; class: IntermediateCode.RegisterClass; type: IntermediateCode.Type);
 	VAR new: RegisterEntry;
 	BEGIN
-		NEW(new); new.register := register; new.type := type; new.next := NIL; new.prev := NIL;
+		NEW(new); new.register := register; new.registerClass := class; new.type := type; new.next := NIL; new.prev := NIL;
 		IF queue = NIL THEN
 			queue := new
 		ELSE
@@ -8607,7 +8641,7 @@ TYPE
 
 	PROCEDURE DumpRegisterEntry(dump: Streams.Writer; entry: RegisterEntry);
 	BEGIN
-		IntermediateCode.DumpRegister(dump,entry.register);
+		IntermediateCode.DumpRegister(dump,entry.register,entry.registerClass);
 	END DumpRegisterEntry;
 
 	PROCEDURE DumpTicket*(w: Streams.Writer; ticket: Ticket);
@@ -10337,6 +10371,13 @@ TYPE
 		IntermediateCode.InitInstruction(instruction,IntermediateCode.label,op1,emptyOperand,emptyOperand);
 		RETURN instruction
 	END LabelInstruction;
+
+	PROCEDURE Use(op: IntermediateCode.Operand):IntermediateCode.Instruction;
+	VAR instruction: IntermediateCode.Instruction;
+	BEGIN
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.use,op,emptyOperand,emptyOperand);
+		RETURN instruction
+	END Use;
 
 	PROCEDURE EnterImmediate*(data: IntermediateCode.Section; CONST vop: IntermediateCode.Operand): LONGINT;
 	VAR pc: LONGINT;

@@ -162,6 +162,7 @@ TYPE
 			type: IntermediateCode.Type;
 			sectionOfSymbol: Sections.Section;
 			name: Basic.PooledName;
+			registerClass: IntermediateCode.RegisterClass;
 		BEGIN
 			IF Trace THEN D.String(">>> ParseOperand"); D.Ln END;
 
@@ -185,9 +186,9 @@ TYPE
 			END;
 
 			IF lastWasIdentifier THEN
-				IF IntermediateCode.DenotesRegister(identifier, registerNumber) THEN
+				IF IntermediateCode.DenotesRegister(identifier, registerClass, registerNumber) THEN
 					(* register *)
-					IntermediateCode.InitRegister(operand, type, registerNumber);
+					IntermediateCode.InitRegister(operand, type, registerClass, registerNumber);
 				ELSE
 					(* TODO: handle assembly constants *)
 
