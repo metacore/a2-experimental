@@ -39423,4 +39423,10 @@ positive: expressions of type real with longint divisions
 	    END Do;
 	END Test.
 
+negative: invalid arrow designator
 
+MODULE Test;
+VAR s: ARRAY 128 OF CHAR;
+BEGIN
+	COPY("WMClock.Open~", s)^; 
+END Test.

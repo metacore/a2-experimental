@@ -5626,7 +5626,9 @@ TYPE
 			IF Trace THEN D.Str("VisitArrowDesignator"); D.Ln; END;
 			left := ResolveDesignator(arrowDesignator.left);
 			IF left # NIL THEN
-				IF (left.type.resolved # NIL) & (left.type.resolved IS SyntaxTree.ProcedureType) THEN
+				IF (left.type = NIL) THEN
+					Error(arrowDesignator.position,Diagnostics.Invalid,"Invalid arrow designator");
+				ELSIF (left.type.resolved # NIL) & (left.type.resolved IS SyntaxTree.ProcedureType) THEN
 					resolvedExpression := NewSupercallDesignator(arrowDesignator.position,left);
 				ELSE
 					resolvedExpression := NewDereferenceDesignator(arrowDesignator.position,left)
