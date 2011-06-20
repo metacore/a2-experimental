@@ -62,7 +62,7 @@ CONST
 	result*= 8; trap*= 9; br*= 10; breq*= 11; brne*= 12; brge*= 13; brlt*= 14; pop*= 15;
 	push*= 16; neg*= 17; not*= 18; abs*= 19; mul*= 20; div*= 21; mod*= 22; sub*= 23;
 	add*= 24; and*= 25; or*= 26; xor*= 27; shl*= 28; shr*= 29; rol*= 30; ror*= 31;
-	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; use*=38; NofOpcodes*= 39;
+	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; NofOpcodes*= 38;
 
 	NotYetCalculatedSize = -2;
 
@@ -693,8 +693,6 @@ TYPE
 		AddFormat(reserve, "reserve",Num,Undef,Undef,{});
 		(* label - pseudo-instruction to reference back to source code positions *)
 		AddFormat(label, "label",Num,Undef,Undef,{});
-		(* use register - meta-instruction to give usage hint for register, e.g. for parameter registers *)
-		AddFormat(use,"use",Reg,Undef,Undef,{});
 	END InitInstructions;
 
 	PROCEDURE InitInstruction*(VAR instr: Instruction; opcode: SHORTINT; op1,op2,op3: Operand);

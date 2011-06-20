@@ -196,7 +196,7 @@ TYPE
 			END;
 		END Free;
 
-		PROCEDURE NextFree(CONST class: IntermediateCode.RegisterClass; CONST type: IntermediateCode.Type):LONGINT;
+		PROCEDURE NextFree(CONST type: IntermediateCode.Type):LONGINT;
 		VAR i,sizeInBits: LONGINT;
 
 			PROCEDURE GetHint(offset: LONGINT): LONGINT;
@@ -379,7 +379,7 @@ TYPE
 			END;
 		END Free;
 
-		PROCEDURE NextFree(CONST class: IntermediateCode.RegisterClass; CONST type: IntermediateCode.Type): LONGINT;
+		PROCEDURE NextFree(CONST type: IntermediateCode.Type): LONGINT;
 		VAR i: LONGINT;
 			PROCEDURE GetHint(offset: LONGINT): LONGINT;
 			VAR res: LONGINT;
@@ -841,7 +841,7 @@ TYPE
 			END;
 		END GetTypedHardwareRegister;
 
-		PROCEDURE ParameterRegister(index: LONGINT; type: IntermediateCode.Type): LONGINT;
+		PROCEDURE ParameterRegister(CONST type: IntermediateCode.Type; index: LONGINT): LONGINT;
 		VAR physical: LONGINT;
 		BEGIN
 			CASE index OF
@@ -852,7 +852,6 @@ TYPE
 			END;
 			RETURN physical;
 		END ParameterRegister;
-
 
 		PROCEDURE GetRegister(CONST virtual: IntermediateCode.Operand; part:LONGINT; VAR physical: Assembler.Operand; VAR ticket: Ticket);
 		VAR type: IntermediateCode.Type; virtualRegister, tempReg: LONGINT;
@@ -870,7 +869,8 @@ TYPE
 			ELSIF virtual.register = IntermediateCode.SP THEN
 				Assert(part=Low,"forbidden partitioned register on SP");
 				physical := opSP;
-			(*! ELSIF virtual.register <= IntermediateCode.ParameterRegister THEN
+			(*! done by generic part:
+				ELSIF virtual.register <= IntermediateCode.ParameterRegister THEN
 				index := IntermediateCode.ParameterRegister - virtualRegister;
 				physical := registerOperands[ParameterRegister(index, type)];
 			*)
@@ -880,7 +880,7 @@ TYPE
 			IF virtual.offset # 0 THEN
 				Assert(type.form # IntermediateCode.Float,"forbidden offset on float");
 				IF ticket = NIL THEN
-					tempReg := ForceFreeRegister(IntermediateCode.GeneralPurposeRegister,type);
+					tempReg := ForceFreeRegister(type);
 					TicketToOperand(ReservePhysicalRegister(IntermediateCode.GeneralPurposeRegister,type,tempReg,inPC),tmp);
 				ELSE
 					TicketToOperand(ticket, tmp);
@@ -1079,7 +1079,6 @@ TYPE
 			|IntermediateCode.copy: EmitCopy(instruction);
 			|IntermediateCode.fill: EmitFill(instruction,FALSE);
 			|IntermediateCode.asm: EmitAsm(instruction);
-			|IntermediateCode.use: EmitUse(instruction);
 			END;
 
 			ReserveOperandRegisters(instruction.op3,FALSE); ReserveOperandRegisters(instruction.op2,FALSE); ReserveOperandRegisters(instruction.op1,FALSE);
@@ -2506,16 +2505,6 @@ TYPE
 			ELSE Halt("Abs does not make sense on unsigned integer")
 			END;
 		END EmitAbs;
-
-		PROCEDURE EmitUse(CONST instruction: IntermediateCode.Instruction);
-		VAR t: Ticket;
-		BEGIN
-			ASSERT(instruction.op1.mode = IntermediateCode.ModeRegister);
-			t := virtualRegisters.Mapped(instruction.op1.register,Low);
-			IF (t # NIL) & (t.spilled) THEN
-				UnSpill(t); (* make sure this has not spilled *)
-			END;
-		END EmitUse;
 
 		PROCEDURE EmitTrap(CONST instruction: IntermediateCode.Instruction);
 		VAR operand: Assembler.Operand;

@@ -1195,8 +1195,8 @@ TYPE
 			usedRegisters := NIL;
 		END ReleaseUsedRegisters;
 
-		(** emit use instruction for parameter registers and remove them from used queue *)
-		PROCEDURE UseParameterRegisters;
+		(** remove parameter registers from used queue *)
+		PROCEDURE ReleaseParameterRegisters;
 		VAR op: IntermediateCode.Operand; entry,prev,next: RegisterEntry;
 		BEGIN
 			entry := usedRegisters; prev := NIL; usedRegisters := NIL;
@@ -1205,8 +1205,9 @@ TYPE
 				IF entry.registerClass.class = IntermediateCode.Parameter THEN
 					registerUsage.DecUse(entry.register);
 					ASSERT(registerUsage.Use(entry.register)=0);
-					IntermediateCode.InitRegister(op,entry.type,entry.registerClass, entry.register);
-					Emit(Use(op));
+					IF TraceRegisterUsage & (dump# NIL) THEN
+						dump.String("unuse register "); dump.Int(entry.register,1); dump.Ln;
+					END;
 				ELSIF prev = NIL THEN
 					usedRegisters := entry; entry.prev := NIL; entry.next := NIL; prev := entry;
 				ELSE
@@ -1214,8 +1215,7 @@ TYPE
 				END;
 				entry := next;
 			END;
-		END UseParameterRegisters;
-
+		END ReleaseParameterRegisters;
 
 		(* restore registers from array saved and re-enter into array markedRegisters (recursion possible) *)
 		PROCEDURE RestoreRegisters(CONST saved: RegisterEntry);
@@ -3115,12 +3115,12 @@ TYPE
 			oldArrayDestinationDimension: LONGINT;
 
 			PROCEDURE Pass(op: IntermediateCode.Operand);
-			VAR registerClass: IntermediateCode.RegisterClass;
+			VAR registerClass: IntermediateCode.RegisterClass; parameterRegister: IntermediateCode.Operand;
 			BEGIN
-
 				IF numberRegister >= 0 THEN
 					IntermediateCode.InitRegisterClass(registerClass, IntermediateCode.Parameter, SHORT(numberRegister));
-					Emit(Mov(IntermediateCode.Register(op.type, registerClass, AcquireRegister(op.type, registerClass)), op));
+					IntermediateCode.InitRegister(parameterRegister, op.type, registerClass, AcquireRegister(op.type, registerClass));
+					Emit(Mov(parameterRegister, op));
 				ELSE
 					Emit(Push(op))
 				END
@@ -4004,7 +4004,7 @@ TYPE
 			ELSE HALT(200);
 			END;
 
-			UseParameterRegisters();
+			ReleaseParameterRegisters();
 
 			Emit(Call(operand.op,parametersSize));
 			IF (procedureType.returnType # NIL) & ~structuredReturnType THEN
@@ -7892,7 +7892,7 @@ TYPE
 		PROCEDURE Free*(index: LONGINT);
 		END Free;
 
-		PROCEDURE NextFree*(CONST class: IntermediateCode.RegisterClass; CONST type: IntermediateCode.Type): LONGINT;
+		PROCEDURE NextFree*(CONST type: IntermediateCode.Type): LONGINT;
 		END NextFree;
 
 		(* give a hint for the next register to return by NextFree *)
@@ -8069,23 +8069,38 @@ TYPE
 					fixup := next;
 				END;
 			END ResolveLocalFixups;
-
 			PROCEDURE GetRegisterAllocation;
-			VAR pc: LONGINT;
+			CONST MaxParameterRegisters=8;
+			VAR pc,i: LONGINT; parameterRegisters: ARRAY MaxParameterRegisters OF IntermediateCode.Operand;
+
 				PROCEDURE RegisterUsage(CONST instruction: IntermediateCode.Instruction);
+				VAR i: LONGINT;
+
 					PROCEDURE Use(CONST operand: IntermediateCode.Operand);
 					BEGIN
 						IF operand.register > 0 THEN
 							allocation.Use(operand.register,inPC);
+							IF operand.registerClass.class = IntermediateCode.Parameter THEN (* store recent parameter registers *)
+								parameterRegisters[operand.registerClass.number] := operand;
+							END;
 						END;
 					END Use;
 				BEGIN
 					Use(instruction.op1);
 					Use(instruction.op2);
 					Use(instruction.op3);
+					IF instruction.opcode = IntermediateCode.call THEN (* mark all currently used parameter registers used in this instruction *)
+						FOR i := 0 TO MaxParameterRegisters-1 DO
+							Use(parameterRegisters[i]);
+							IntermediateCode.InitOperand(parameterRegisters[i]);
+						END;
+					END;
 				END RegisterUsage;
 			BEGIN
 				allocation.Init;
+				FOR i := 0 TO MaxParameterRegisters-1 DO
+					IntermediateCode.InitOperand(parameterRegisters[i]);
+				END;
 				FOR pc := 0 TO in.pc-1 DO
 					inPC := pc;
 					RegisterUsage(in.instructions[pc]);
@@ -8259,6 +8274,11 @@ TYPE
 		BEGIN HALT(100) (* abstract *)
 		END ExchangeTickets;
 
+		PROCEDURE ParameterRegister*(CONST type: IntermediateCode.Type; number: LONGINT): LONGINT;
+		BEGIN HALT(100) (* abstract *)
+		END ParameterRegister;
+
+
 
 		(*---------------------------- ticket handling and register allocation ----------------------------*)
 
@@ -8335,13 +8355,13 @@ TYPE
 
 			register := ticket.register;
 			IF register = None THEN
-				register := physicalRegisters.NextFree(ticket.class, ticket.type);
+				register := physicalRegisters.NextFree(ticket.type);
 				IF register # None THEN (* free register found rightaway*)
 					SpillToRegister(ticket, register)
 				ELSE
 					mapped := GetPreferredSpill(ticket.type);
 					IF ~ExchangeSpill(mapped, ticket) THEN
-						register := ForceFreeRegister(ticket.class, ticket.type);
+						register := ForceFreeRegister(ticket.type);
 						SpillToRegister(ticket, register);
 					END;
 				END;
@@ -8387,14 +8407,14 @@ TYPE
 			RETURN spill
 		END GetPreferredSpill;
 
-		PROCEDURE ForceFreeRegister*(CONST class: IntermediateCode.RegisterClass; CONST type:IntermediateCode.Type): LONGINT;
+		PROCEDURE ForceFreeRegister*(CONST type:IntermediateCode.Type): LONGINT;
 		VAR tempReg: LONGINT; ticket: Ticket;
 		BEGIN
-			tempReg := physicalRegisters.NextFree(class,type);
+			tempReg := physicalRegisters.NextFree(type);
 			WHILE tempReg = None DO
 				ticket := GetPreferredSpill(type);
 				Spill(ticket);
-				tempReg := physicalRegisters.NextFree(class,type);
+				tempReg := physicalRegisters.NextFree(type);
 			END;
 			RETURN tempReg
 		END ForceFreeRegister;
@@ -8414,7 +8434,7 @@ TYPE
 		VAR register: LONGINT; ticket: Ticket;
 		BEGIN
 			IF type.form > IntermediateCode.Undefined THEN
-				register := ForceFreeRegister(IntermediateCode.GeneralPurposeRegister,type);
+				register := ForceFreeRegister(type);
 				ticket := ReservePhysicalRegister(class,type,register,inPC);
 				ticket.parts := 1;
 			ELSE
@@ -8431,7 +8451,7 @@ TYPE
 			PROCEDURE MapTicket(CONST type: IntermediateCode.Type; lastuse:LONGINT);
 			VAR index,offset,size: LONGINT; ticket: Ticket;
 			BEGIN
-				index := physicalRegisters.NextFree(class,type);
+				index := physicalRegisters.NextFree(type);
 				IF index # None THEN
 					ticket := tickets.Enter(class,type,index,FALSE,0,lastuse);
 					IF dump # NIL THEN
@@ -8452,12 +8472,30 @@ TYPE
 				virtualRegisters.SetMapped(virtualRegister,part,ticket);
 			END MapTicket;
 
+			PROCEDURE AllocateThis(index: LONGINT);
+			VAR ticket: Ticket;
+			BEGIN
+				ticket :=  physicalRegisters.Mapped(index);
+				IF ticket # NIL THEN Spill(ticket) END;
+				ticket := tickets.Enter(class, type, index, FALSE,0,lastuse);
+				IF dump # NIL THEN
+					dump.String(" allocate register : index="); dump.Int(index,1); dump.Ln;
+				END;
+				physicalRegisters.Allocate(index,ticket);
+				physicalRegisters.SetReserved(index, TRUE);
+				virtualRegisters.SetMapped(virtualRegister,part,ticket);
+			END AllocateThis;
+
 		BEGIN
 			IF virtualRegisters.Mapped(virtualRegister,part)=NIL THEN
 				lastuse := LastUse(virtualRegister);
 				GetPartType(type,part,partType);
 				IF partType.form # IntermediateCode.Undefined THEN
-					MapTicket(partType,lastuse)
+					IF class.class = IntermediateCode.Parameter THEN
+						AllocateThis(ParameterRegister(partType, class.number));
+					ELSE
+						MapTicket(partType,lastuse)
+					END;
 				END;
 			END;
 		END MapVirtualRegister;
@@ -10371,13 +10409,6 @@ TYPE
 		IntermediateCode.InitInstruction(instruction,IntermediateCode.label,op1,emptyOperand,emptyOperand);
 		RETURN instruction
 	END LabelInstruction;
-
-	PROCEDURE Use(op: IntermediateCode.Operand):IntermediateCode.Instruction;
-	VAR instruction: IntermediateCode.Instruction;
-	BEGIN
-		IntermediateCode.InitInstruction(instruction,IntermediateCode.use,op,emptyOperand,emptyOperand);
-		RETURN instruction
-	END Use;
 
 	PROCEDURE EnterImmediate*(data: IntermediateCode.Section; CONST vop: IntermediateCode.Operand): LONGINT;
 	VAR pc: LONGINT;
