@@ -888,8 +888,11 @@ BEGIN  (* {called from user level} *)
 		hdr.count := -1; hdr.lockedBy := r;
 		Machine.Release(Machine.Objects)
 	ELSE  (* already locked *)
-		ASSERT(hdr.lockedBy # r, 2203); (* nested locks not allowed *)
-		ASSERT(r.waitingOn = NIL);
+		IF hdr.lockedBy = r THEN
+			Machine.Release(Machine.Objects);
+			HALT(2203) (* nested locks not allowed *)
+		END;
+		ASSERT(r.waitingOn = NIL); (* sanity check *)
 		Remove(ready, r);
 		IF r.event = 0 THEN
 			r.event := Kernel32.CreateEvent( NIL, Kernel32.True (* manual *), Kernel32.False, NIL );   (* manual set event with initial state = reset *)
