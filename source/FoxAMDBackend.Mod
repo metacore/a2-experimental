@@ -2540,7 +2540,6 @@ TYPE
 	VAR
 		cg: CodeGeneratorAMD64;
 		bits: LONGINT;
-		registerParameters : LONGINT;
 
 		PROCEDURE &InitBackendAMD64;
 		BEGIN
@@ -2609,7 +2608,7 @@ TYPE
 					Global.SetDefaultDeclarations(system,8);
 					Global.SetDefaultOperators(system);
 				ELSE
-					NEW(system,8,8,64,8,32,64,64,128,registerParameters (* parameter registers *));
+					NEW(system,8,8,64,8,32,64,64,128,4 (* parameter registers *));
 					Global.SetDefaultDeclarations(system,8);
 					Global.SetDefaultOperators(system);
 				END;
@@ -2821,14 +2820,12 @@ TYPE
 		PROCEDURE DefineOptions(options: Options.Options);
 		BEGIN
 			options.Add(0X,"bits",Options.Integer);
-			options.Add(0X,"registerParameters",Options.Integer); (* temporary for testing *)
 			DefineOptions^(options);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
 		BEGIN
 			IF ~options.GetInteger("bits",bits) THEN bits := 32 END;
-			IF ~options.GetInteger("registerParameters",registerParameters) THEN registerParameters := 0 END;
 			GetOptions^(options);
 		END GetOptions;
 
