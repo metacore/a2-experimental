@@ -44,7 +44,7 @@ CONST
 	(** builtin procedures **)
 	(* FoxProgTools.Enum -e -s=94
 		(* global proper procedures *)
-		Assert  Copy  Dec  Excl  Halt  Inc  Incl  New GetProcedure Connect Delegate
+		Assert  Copy  Dec  Excl  Halt  Inc  Incl  New Dispose GetProcedure Connect Delegate
 		Read Write
 		(* global functions *)
 		Abs  Ash  Cap  Chr  Entier  EntierH  Len  Long  Max  Min Odd  Ord  Short  Size
@@ -64,7 +64,7 @@ CONST
 	*)
 	(* global proper procedures *)
 	Assert*= Scanner.EndOfText+1; Copy*= Assert+1; Dec*= Copy+1; Excl*= Dec+1; Halt*= Excl+1;
-	Inc*= Halt+1; Incl*= Inc+1; New*= Incl+1; GetProcedure*= New+1; Connect*=GetProcedure+1; Delegate*=Connect+1;
+	Inc*= Halt+1; Incl*= Inc+1; New*= Incl+1; Dispose*= New+1; GetProcedure*= Dispose+1; Connect*=GetProcedure+1; Delegate*=Connect+1;
 	Receive*= Delegate+1; Send* = Receive+1;
 	(* global functions *)
 	Abs*= Send+1; Ash*= Abs+1; Cap*= Ash+1; Chr*= Cap+1; Entier*= Chr+1;
@@ -809,6 +809,7 @@ TYPE
 		NewBuiltin(Inc,"INC",system.globalScope,TRUE);
 		NewBuiltin(Incl,"INCL",system.globalScope,TRUE);
 		NewBuiltin(New,"NEW",system.globalScope,FALSE);
+		NewBuiltin(Dispose,"DISPOSE",system.globalScope, FALSE);
 		NewBuiltin(GetProcedure,"GETPROCEDURE",system.globalScope,TRUE);
 		NewBuiltin(systemTrace,"TRACE",system.globalScope,TRUE);
 	END SetDefaultDeclarations;

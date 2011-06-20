@@ -4712,6 +4712,12 @@ TYPE
 							Error(position,Diagnostics.Invalid,"cannot be allocated");
 						END;
 					END;
+				(* ---- DISPOSE ----- *)
+				ELSIF (id = Global.Dispose) & Parameters(1,1) THEN
+					IF ~IsPointerType(parameter0.type) THEN
+						Error(parameter0.position,Diagnostics.Invalid,"is not a pointer")
+					ELSIF CheckVariable(parameter0) THEN (* ok *)
+					END
 				(* ---- GETPROCEDURE ----- *)
 				ELSIF (id = Global.GetProcedure) & Parameters(3,3) THEN
 					IF CheckStringType(parameter0) & CheckStringType(parameter1) THEN
