@@ -37,9 +37,9 @@ VAR
 			depth:				INTEGER;
 		END;
 
-	FlushCache*: PROCEDURE;
-
 TYPE
+	Address = S.ADDRESS;
+	
 	RGB =	RECORD
 				r, g, b: INTEGER
 			END;
@@ -133,7 +133,6 @@ TYPE
 				basePixel-,
 				foreground-,
 				background-		: LONGINT;
-				arrow-, noCursor-	: X11.Cursor;
 				gc-					: X11.GC;
 				clip-				: Clip;
 
@@ -147,37 +146,22 @@ TYPE
 				
 				wmDelete- : X11.Atom;
 
-				PROCEDURE SetModeL( col: LONGINT );
+				PROCEDURE SetMode( col: LONGINT );
 				VAR mode: LONGINT;
 				BEGIN
 					mode :=  replace;
 					IF (col # -1) & (30 IN S.VAL( SET, col )) THEN  mode := invert;  EXCL( S.VAL( SET, col ), 30 )  END;
 					IF mode # currmode THEN  X11.SetFunction( xdisp, gc, xfunc[mode] );  currmode := mode  END;
 					IF col # currcol THEN  X11.SetForeground( xdisp, gc, ColorToPixel( col ) );  currcol := col  END;
-				END SetModeL;
-
-				PROCEDURE SetMode*( col: LONGINT );
-				VAR mode: LONGINT;
-				BEGIN
-					mode :=  replace;
-					Machine.Acquire( Machine.X11 );
-					IF (col # -1) & (30 IN S.VAL( SET, col )) THEN  mode := invert;  EXCL( S.VAL( SET, col ), 30 )  END;
-					IF mode # currmode THEN  X11.SetFunction( xdisp, gc, xfunc[mode] );  currmode := mode  END;
-					IF col # currcol THEN  X11.SetForeground( xdisp, gc, ColorToPixel( col ) );  currcol := col  END;
-					Machine.Release( Machine.X11 )
 				END SetMode;
 
-				PROCEDURE ClearMode*;
-				BEGIN
-					currmode := -1;  currcol := -1
-				END ClearMode;
 
 
 				PROCEDURE Dot*( col, x, y: LONGINT );
 				BEGIN
 					IF currwin = secondary THEN  DEC( y, height )  END;
 					Machine.Acquire( Machine.X11 );
-					SetModeL( col );
+					SetMode( col );
 					X11.DrawPoint( xdisp, currwin, gc, x, y );
 					Machine.Release( Machine.X11 )
 				END Dot;
@@ -187,7 +171,7 @@ TYPE
 					IF (h > 0) & (w > 0) THEN
 						IF currwin = secondary THEN  DEC( y, height )  END;
 						Machine.Acquire( Machine.X11 );
-						SetModeL( col );
+						SetMode( col );
 						X11.FillRectangle( xdisp, currwin, gc, x, y, w, h );
 						Machine.Release( Machine.X11 )
 					END
@@ -199,8 +183,50 @@ TYPE
 					be positive, negative or zero. *)
 
 				PROCEDURE Transfer*( VAR buf: ARRAY OF CHAR;  ofs, stride, x, y, w, h, op: LONGINT );
+				CONST  Get = 0;  Set = 1;
+				VAR image: X11.Image;
+					imp: X11.ImagePtr;
+					bp, bp0, ip: Address; 
+					line, ll: LONGINT;
 				BEGIN
-					TransferBlock( SELF, buf, ofs, stride, x, y, w, h, op )
+					ll := w*(xformat DIV 8);
+					IF (ofs + (h - 1)*stride + ll > LEN( buf )) OR (ofs + (h - 1)*stride < 0) THEN  HALT( 99 )  END;
+		
+					IF LEN( imgBuffer ) < 4*w*h THEN
+						NEW( imgBuffer, 4*w*h );	(* create buffer outside lock to avoid deadlock *)
+					END;
+
+					Machine.Acquire( Machine.X11 );
+					image := X11.CreateImage( xdisp, visual, depth, X11.ZPixmap, 0, 0, w, h, 32, 0 );
+					imp := S.VAL( X11.ImagePtr, image );
+					imp.data := S.ADR( imgBuffer[0] );
+					bp0 := S.ADR( buf[ofs] );
+					IF op = Set THEN
+						FOR line := 0 TO h - 1  DO
+							bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
+							IF imp.byteOrder = 0 THEN  PutLine( xformat, w, ip, bp )
+							ELSE  PutLineBE( xformat, w, ip, bp )
+							END;
+							bp0 := bp0 + stride;
+						END;
+						IF currmode # replace THEN  
+							X11.SetFunction( xdisp, gc, xfunc[replace] );  currmode := replace  
+						END;
+						X11.PutImage( xdisp, primary, gc, image, 0, 0, x, y, w, h );
+					ELSIF op = Get THEN
+						image := X11.GetImage( xdisp, primary, x, y, w, h, planesMask, X11.ZPixmap );
+						imp := S.VAL( X11.ImagePtr, image );
+						FOR line := 0 TO h - 1 DO
+							bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
+							IF imp.byteOrder = 0 THEN  GetLine( xformat, w, ip, bp )
+							ELSE  GetLineBE( xformat, w, ip, bp )
+							END;
+							bp0 := bp0 + stride
+						END;
+						X11.Free( imp.data )
+					END;
+					X11.Free( image );  imp := NIL;
+					Machine.Release( Machine.X11 )
 				END Transfer;
 
 
@@ -264,7 +290,7 @@ TYPE
 						IF sy  < height THEN  src := primary  ELSE  src := secondary;  DEC( sy, height )  END;
 						IF currwin = secondary THEN  DEC( sy, height )  END;
 						Machine.Acquire( Machine.X11 );
-						SetModeL( currcol );
+						SetMode( currcol );
 						X11.CopyArea( xdisp, src, currwin, gc, sx, sy, w, h, dx, dy  );
 						Machine.Release( Machine.X11 )
 					END;
@@ -274,7 +300,6 @@ TYPE
 				(** Update the visible display (if caching is used). *)
 				PROCEDURE Update*;
 				BEGIN
-					IF FlushCache # NIL THEN  FlushCache  END;
 					Machine.Acquire( Machine.X11 );
 					X11.Sync( xdisp, X11.False );
 					Machine.Release( Machine.X11 )
@@ -299,7 +324,7 @@ TYPE
 				END IndexToColor;
 
 				PROCEDURE SetColor*( col, red, green, blue: INTEGER );   (* 0 <= col, red, green, blue < 256 *)
-				VAR xcol, fg, bg: X11.Color;  res: LONGINT;
+				VAR xcol: X11.Color;  res: LONGINT;
 				BEGIN
 					IF (col < 0) OR (col > 255) THEN  RETURN   END;
 					rgb[col].r := red;  rgb[col].g := green;  rgb[col].b := blue;
@@ -311,11 +336,6 @@ TYPE
 					ELSE
 						xcol.flags := CHR( X11.DoAll );  xcol.pixel := pixel[col];
 						IF col < nofcol THEN  X11.StoreColor( xdisp, cmap, S.ADR( xcol ) )  END;
-						IF ((col = BG) OR (col = FG)) & (arrow # 0) THEN
-							fg.red := 256*rgb[FG].r;  fg.green := 256*rgb[FG].g;  fg.blue := 256*rgb[FG].b;
-							bg.red := 256*rgb[BG].r;  bg.green := 256*rgb[BG].g;  bg.blue := 256*rgb[BG].b;
-							X11.RecolorCursor( xdisp, arrow, S.ADR( fg ), S.ADR( bg ) )
-						END
 					END;
 					Machine.Release( Machine.X11 )
 				END SetColor;
@@ -367,19 +387,6 @@ TYPE
 					END
 				END ColorToPixel;
 
-				PROCEDURE  CursorOn*;
-				BEGIN
-					Machine.Acquire( Machine.X11 );
-					X11.DefineCursor( xdisp, primary, arrow );
-					Machine.Release( Machine.X11 )
-				END CursorOn;
-
-				PROCEDURE  CursorOff*;
-				BEGIN
-					Machine.Acquire( Machine.X11 );
-					X11.DefineCursor( xdisp, primary, noCursor );
-					Machine.Release( Machine.X11 )
-				END CursorOff;
 
 
 				PROCEDURE  & Initialize( absWidth, absHeight, relWidth, relHeight: LONGINT );
@@ -387,7 +394,6 @@ TYPE
 					
 					res: LONGINT;
 				BEGIN
-					(*OpenDisp( SELF, SHORT( width ), SHORT( height ) );*)
 					xdisp := X.display;  depth := X.depth;  cmap := X.defcmap;  screen := X.screen;
 					foreground := X11.BlackPixel( X.display, X.screen );
 					background := X11.WhitePixel( X.display, X.screen );
@@ -432,10 +438,8 @@ TYPE
 					secondary := X11.CreatePixmap( xdisp, primary, gW, gH, depth );
 					Machine.Release( Machine.X11 );
 
-					CreateColors( SELF );  InitPalette( SELF );  InitCursors( SELF );
+					CreateColors( SELF );  InitPalette( SELF );  SuppressX11Cursors( SELF ); 
 					InitFormat( SELF );  CreateGC( SELF );  InitFunctions( SELF );
-
-					CursorOff;
 
 					NEW( clip, SELF )
 				END Initialize;
@@ -453,10 +457,7 @@ TYPE
 			END Display;
 
 VAR
-	arrowSource, arrowMask, noCursorSource, noCursorMask: X11.Pattern;
-
 	dispname: ARRAY 64 OF CHAR;
-	
 	
 	imgBuffer: POINTER TO ARRAY OF CHAR;
 
@@ -478,7 +479,7 @@ VAR
 	END ColorToIndex0;
 
 
-	PROCEDURE PutLine( xformat, width: LONGINT;  VAR ip, bp: LONGINT );
+	PROCEDURE PutLine( xformat, width: LONGINT;  VAR ip, bp: Address );
 	VAR colum: LONGINT;  byte: CHAR;
 	BEGIN
 		FOR colum := 0 TO width - 1 DO
@@ -504,7 +505,7 @@ VAR
 
 
 
-	PROCEDURE GetLine( xformat, width: LONGINT;  VAR ip, bp: LONGINT );
+	PROCEDURE GetLine( xformat, width: LONGINT;  VAR ip, bp: Address );
 	VAR colum: LONGINT;  byte: CHAR;
 	BEGIN
 		FOR colum := 0 TO width - 1 DO
@@ -529,7 +530,7 @@ VAR
 	END GetLine;
 
 
-	PROCEDURE PutLineBE( xformat, width: LONGINT;  VAR ip, bp: LONGINT );
+	PROCEDURE PutLineBE( xformat, width: LONGINT;  VAR ip, bp: Address );
 	VAR colum: LONGINT;  byte: CHAR;
 	BEGIN
 		FOR colum := 0 TO width - 1 DO
@@ -556,7 +557,7 @@ VAR
 		END;
 	END PutLineBE;
 
-	PROCEDURE GetLineBE( xformat, width: LONGINT;  VAR ip, bp: LONGINT );
+	PROCEDURE GetLineBE( xformat, width: LONGINT;  VAR ip, bp: Address );
 	VAR colum: LONGINT;  byte: CHAR;
 	BEGIN
 		FOR colum := 0 TO width - 1 DO
@@ -583,79 +584,11 @@ VAR
 		END;
 	END GetLineBE;
 
-	PROCEDURE TransferBlock( d: Display;  VAR buf: ARRAY OF CHAR;  ofs, stride, x, y, w, h, mode: LONGINT );
-	CONST  get = 0;  set = 1;
-	VAR image: X11.Image;
-		imp: X11.ImagePtr;
-		bp, bp0, ip, line, ll: LONGINT;
-		xd: X11.DisplayPtr;
-	BEGIN
-		xd := d.xdisp;  ll := w*(d.xformat DIV 8);
-		IF (ofs + (h - 1)*stride + ll > LEN( buf )) OR (ofs + (h - 1)*stride < 0) THEN  HALT( 99 )  END;
-		
-		IF LEN( imgBuffer ) < 4*w*h THEN
-			NEW( imgBuffer, 4*w*h );	(* create buffer outside lock to avoid deadlock *)
-		END;
-
-		Machine.Acquire( Machine.X11 );
-		image := X11.CreateImage( xd, d.visual, d.depth, X11.ZPixmap, 0, 0, w, h, 32, 0 );
-		imp := S.VAL( X11.ImagePtr, image );
-		imp.data := S.ADR( imgBuffer[0] );
-		bp0 := S.ADR( buf[ofs] );
-		IF mode = set THEN
-			FOR line := 0 TO h - 1  DO
-				bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
-				IF imp.byteOrder = 0 THEN  PutLine( d.xformat, w, ip, bp )
-				ELSE  PutLineBE( d.xformat, w, ip, bp )
-				END;
-				bp0 := bp0 + stride;
-			END;
-			IF d.currmode # replace THEN  X11.SetFunction( xd, d.gc, d.xfunc[replace] );  d.currmode := replace  END;
-			X11.PutImage( xd, d.primary, d.gc, image, 0, 0, x, y, w, h );
-		ELSIF mode = get THEN
-			image := X11.GetImage( xd, d.primary, x, y, w, h, d.planesMask, X11.ZPixmap );
-			imp := S.VAL( X11.ImagePtr, image );
-			FOR line := 0 TO h - 1 DO
-				bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
-				IF imp.byteOrder = 0 THEN  GetLine( d.xformat, w, ip, bp )
-				ELSE  GetLineBE( d.xformat, w, ip, bp )
-				END;
-				bp0 := bp0 + stride
-			END;
-			X11.Free( imp.data )
-		ELSIF mode = 10 THEN
-			(* set in reverse (Oberon) y-direction *)
-			FOR line :=  h - 1 TO 0 BY -1 DO
-				bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
-				IF imp.byteOrder = 0 THEN  PutLine( d.xformat, w, ip, bp )
-				ELSE  PutLineBE( d.xformat, w, ip, bp )
-				END;
-				bp0 := bp0 + stride;
-			END;
-			IF d.currmode # replace THEN  X11.SetFunction( xd, d.gc, d.xfunc[replace] );  d.currmode := replace  END;
-			X11.PutImage( xd, d.primary, d.gc, image, 0, 0, x, d.height - y - h, w, h );
-		ELSIF mode = 11 THEN
-			(* get in reverse (Oberon) y-direction *)
-			image := X11.GetImage( xd, d.primary, x, d.height - y - h, w, h, d.planesMask, X11.ZPixmap );
-			imp := S.VAL( X11.ImagePtr, image );
-			FOR line := h - 1 TO 0 BY -1 DO
-				bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
-				IF imp.byteOrder = 0 THEN  GetLine( d.xformat, w, ip, bp )
-				ELSE  GetLineBE( d.xformat, w, ip, bp )
-				END;
-				bp0 := bp0 + stride
-			END;
-			X11.Free( imp.data )
-		ELSE  Machine.Release( Machine.X11 );  HALT( 99 )
-		END;
-		X11.Free( image );  imp := NIL;
-		Machine.Release( Machine.X11 )
-	END TransferBlock;
 
 
-	PROCEDURE NewPattern*( d: Display;
-							   CONST image: ARRAY OF SET;
-							  class: LONGINT;  width, height: INTEGER ): X11.Pattern;
+	PROCEDURE NewPattern( d: Display;
+							CONST image: ARRAY OF SET;  
+							width, height: INTEGER ): X11.Pattern;
 	VAR
 		pixmap: X11.Pixmap;  pat: X11.PatternPtr;
 		w, h, i, j, b, dest, srcw, destb, srci, desti: LONGINT;
@@ -784,44 +717,26 @@ VAR
 		d.defPal := d.rgb
 	END InitPalette;
 
-	PROCEDURE CreatePatterns( d: Display );
-	VAR image: ARRAY 17 OF SET;
-		i: INTEGER;
+
+	PROCEDURE SuppressX11Cursors( d: Display );
+	VAR 
+		fg, bg: X11.Color;  src, msk: X11.PatternPtr;
+		image: ARRAY 17 OF SET;  i: INTEGER;
+		noCursor: X11.Cursor;
 	BEGIN
-		image[1] := {};  image[2] := {13};  image[3] := {12..14};  image[4] := {11..13};  image[5] := {10..12};
-		image[6] := {9..11};  image[7] := {8..10};  image[8] := {1, 7..9};  image[9] := {1, 2, 6..8};
-		image[10] := {1..3, 5..7};  image[11] := {1..6};  image[12] := {1..5};  image[13] := {1..6};  image[14] := {1..7};
-		image[15] := {1..8};  image[16] := {};
-		arrowSource := NewPattern( d, image, X11.CursorShape, 16, 16 );
-
-		image[1] := {13};  image[2] := {12..14};  image[3] := {11..15};  image[4] := {10..14};  image[5] := {9..13};
-		image[6] := {8..12};  image[7] := {0..1, 7..11};  image[8] := {0..2, 6..10};  image[9] := {0..3, 5..9};
-		image[10] := {0..8};  image[11] := {0..7};  image[12] := {0..6};  image[13] := {0..7};  image[14] := {0..8};
-		image[15] := {0..9};  image[16] := {0..9};
-		arrowMask := NewPattern( d, image, X11.CursorShape, 16, 16 );
-
-		i := 1;
-		WHILE i < 17 DO  image[i] := {};  INC( i )  END;
-		noCursorSource := NewPattern( d, image, X11.CursorShape, 16, 16 );
-		noCursorMask := NewPattern( d, image, X11.CursorShape, 16, 16 );
-	END CreatePatterns;
-
-	PROCEDURE InitCursors( d: Display );
-	VAR fg, bg: X11.Color;  src, msk: X11.PatternPtr;
-	BEGIN
-		CreatePatterns( d );
 		fg.red := 256*d.rgb[FG].r;  fg.green := 256*d.rgb[FG].g;  fg.blue := 256*d.rgb[FG].b;
 		bg.red := 256*d.rgb[BG].r;  bg.green := 256*d.rgb[BG].g;  bg.blue := 256*d.rgb[BG].b;
+
+		FOR i := 1 TO 16 DO  image[i] := {}  END;
+		src := S.VAL( X11.PatternPtr, NewPattern( d, image, 16, 16 ) );  
+		msk := S.VAL( X11.PatternPtr, NewPattern( d, image, 16, 16 ) );
+		
 		Machine.Acquire( Machine.X11 );
-		src := S.VAL( X11.PatternPtr, arrowSource );  msk := S.VAL( X11.PatternPtr, arrowMask );
-		d.arrow := X11.CreatePixmapCursor( d.xdisp, src.pixmap, msk.pixmap, S.ADR( fg ), S.ADR( bg ), 1, 1 );
-
-		src := S.VAL( X11.PatternPtr, noCursorSource );  msk := S.VAL( X11.PatternPtr, noCursorMask );
-		d.noCursor := X11.CreatePixmapCursor( d.xdisp, src.pixmap, msk.pixmap, S.ADR( fg ), S.ADR( bg ), 1, 1 );
-
-		X11.DefineCursor( d.xdisp, d.primary, d.arrow );
+		noCursor := X11.CreatePixmapCursor( d.xdisp, src.pixmap, msk.pixmap, S.ADR( fg ), S.ADR( bg ), 1, 1 );
+		X11.DefineCursor( d.xdisp, d.primary, noCursor );
 		Machine.Release( Machine.X11 )
-	END InitCursors;
+	END SuppressX11Cursors;
+	
 
 	PROCEDURE InitFormat( d: Display );
 	VAR visual: X11.VisualPtr;
@@ -926,9 +841,8 @@ VAR
 	PROCEDURE Install*;
 	VAR disp: Display; res: LONGINT; s, w, h: LONGINT;
 	BEGIN
-		FlushCache := NIL;
 		InitNames; OpenX11Display;
-		s := GetDisplaySize(w, h);
+		s := GetDisplaySize( w, h );
 		NEW( disp, w, h, s, s );
 		disp.SetName( "XDisplay" );
 		disp.desc := "X11 display driver";
