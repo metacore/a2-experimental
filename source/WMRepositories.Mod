@@ -17,7 +17,7 @@ TYPE
 
 	(* Drag'n'Drop for components *)
 
-	AddComponentProcedure* = PROCEDURE {DELEGATE} (component : WMComponents.Component; VAR res : LONGINT);
+	AddComponentProcedure* = PROCEDURE {DELEGATE} (component : Repositories.Component; VAR res : LONGINT);
 
 	DropTarget* = OBJECT(WMDropTarget.DropTarget)
 	VAR
@@ -55,7 +55,7 @@ TYPE
 			SELF.addComponent := addComponent;
 		END Init;
 
-		PROCEDURE Set(component : WMComponents.Component; VAR res : LONGINT);
+		PROCEDURE Set(component : Repositories.Component; VAR res : LONGINT);
 		BEGIN
 			addComponent(component, res);
 		END Set;
@@ -334,7 +334,7 @@ TYPE
 			op : Texts.ObjectPiece;
 			res : LONGINT;
 		BEGIN
-			IF (draggedComponent = NIL) & (draggedComponent IS WMComponents.Component)  THEN RETURN; END;
+			IF (draggedComponent = NIL) THEN RETURN END;
 
 			IF (data # NIL) & (data IS WMWindowManager.DragInfo) THEN
 				di := data(WMWindowManager.DragInfo);
@@ -342,7 +342,7 @@ TYPE
 					dt := di.data(WMDropTarget.DropTarget);
 					itf := dt.GetInterface(WMDropTarget.TypeUser);
 					IF (itf # NIL) & (itf IS DropComponent) THEN
-						itf(DropComponent).Set(draggedComponent(WMComponents.Component), res);
+						itf(DropComponent).Set(draggedComponent(Repositories.Component), res);
 					ELSE
 						itf := dt.GetInterface(WMDropTarget.TypeText);
 						IF (itf # NIL) & (itf IS WMDropTarget.DropText) THEN

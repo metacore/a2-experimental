@@ -4,7 +4,7 @@ IMPORT
 	Modules, Kernel, KernelLog, Streams, Commands, Inputs, Strings, Files, XML, XMLObjects, XMLScanner, XMLParser,
 	Math, Repositories, WMRepositories, WMUtilities,
 	WMRectangles, WMGraphics, WMMessages, WMWindowManager, WMRestorable, WMProperties, WMComponents, WMStandardComponents, WMEditors,
-	WMTrees, WMInspectionComponents, WMDialogs;
+	WMTrees, WMInspectionComponents, WMDialogs, Models;
 
 CONST
 	WindowWidth = 128; WindowHeight = 320;
@@ -1498,6 +1498,7 @@ TYPE
 		BEGIN
 			ASSERT(c # NIL);
 			ASSERT(insertObjAt # NIL);
+			IF c IS Models.Model THEN HALT(100) END;
 			IF (c IS WMComponents.VisualComponent) THEN
 				vc := c (WMComponents.VisualComponent);
 				vc.alignment.Set(WMComponents.AlignNone);
@@ -2091,7 +2092,7 @@ TYPE
 			END;
 		END DragOver;
 
-		PROCEDURE DragAddComponent(component : WMComponents.Component; VAR res : LONGINT);
+		PROCEDURE DragAddComponent(component : Repositories.Component; VAR res : LONGINT);
 		VAR x, y : LONGINT;
 		BEGIN
 			ASSERT(component # NIL);
