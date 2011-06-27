@@ -1261,7 +1261,7 @@ TYPE
 				RETURN Upper
 			ELSIF (ABS(bottom-y) <= Border) THEN
 				RETURN Lower
-			ELSIF (x > top+Border) & (x < right-Border) & (y > top+Border) & (y< bottom-Border) THEN
+			ELSIF (x > left+Border) & (x < right-Border) & (y > top+Border) & (y< bottom-Border) THEN
 				RETURN Inside
 			ELSE
 				RETURN None
