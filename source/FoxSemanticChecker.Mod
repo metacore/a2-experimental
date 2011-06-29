@@ -4334,6 +4334,21 @@ TYPE
 			RETURN result;
 		END CheckIntegerValue;
 
+		PROCEDURE CheckEnumerationValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
+		VAR result: BOOLEAN;
+		BEGIN
+			result := FALSE;
+			IF x = SyntaxTree.invalidExpression THEN
+			ELSIF (x.resolved # NIL) & (x.resolved IS SyntaxTree.EnumerationValue) THEN
+				result := TRUE;
+				value := x.resolved(SyntaxTree.EnumerationValue).value;
+			ELSE
+				Error(x.position,Diagnostics.Invalid,"expression is not an integer constant");
+			END;
+			RETURN result;
+		END CheckEnumerationValue;
+
+
 		PROCEDURE CheckCharacterValue(x: SyntaxTree.Expression; VAR value: CHAR): BOOLEAN;
 		VAR result: BOOLEAN;
 		BEGIN
@@ -6732,6 +6747,7 @@ TYPE
 					IF IsIntegerValue(left,l) & CheckIntegerValue(right,r) THEN
 					ELSIF IsCharacterValue(left,cl) & CheckCharacterValue(right,cr) THEN
 						l := ORD(cl); r := ORD(cr);
+					ELSIF IsEnumerationValue(left,l) & CheckEnumerationValue(right,r) THEN
 					ELSE
 						expression := SyntaxTree.invalidExpression
 					END;
@@ -6775,6 +6791,7 @@ TYPE
 				*)
 				type := expression.type;
 			ELSIF IsCharacterType(type) THEN
+			ELSIF IsEnumerationType(type) THEN
 			ELSE
 				Error(caseStatement.variable.position,Diagnostics.Invalid,"variable must be integer or character type");
 				expression := SyntaxTree.invalidExpression;
@@ -8059,6 +8076,19 @@ TYPE
 		RETURN result
 	END IsIntegerValue;
 
+	PROCEDURE IsEnumerationValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
+	VAR result: BOOLEAN;
+	BEGIN
+		IF (x.resolved # NIL) & (x.resolved IS SyntaxTree.EnumerationValue) THEN
+			value :=  x.resolved(SyntaxTree.EnumerationValue).value;
+			result := TRUE
+		ELSE
+			result := FALSE
+		END;
+		RETURN result
+	END IsEnumerationValue;
+
+
 	PROCEDURE IsRealValue(x: SyntaxTree.Expression; VAR value: LONGREAL): BOOLEAN;
 	VAR result: BOOLEAN;
 	BEGIN
@@ -8276,6 +8306,13 @@ TYPE
 		type := type.resolved;
 		RETURN (type IS SyntaxTree.CharacterType) OR (type IS SyntaxTree.ByteType) OR (type IS SyntaxTree.StringType) & (type(SyntaxTree.StringType).length = 2)
 	END IsCharacterType;
+
+	PROCEDURE IsEnumerationType*(type: SyntaxTree.Type):BOOLEAN;
+	BEGIN
+		IF type = NIL THEN RETURN FALSE END;
+		type := type.resolved;
+		RETURN (type IS SyntaxTree.EnumerationType)
+	END IsEnumerationType;
 
 
 	(** cf. section "Type extension (base type)" in the language report **)
