@@ -45,7 +45,9 @@ TYPE
 						u := OFiles.Old( name );
 						IF u # NIL THEN
 							NEW( f, SELF );
-							f.unixfile := u;  f.key := S.VAL( LONGINT, u );  f.fs := SELF
+							f.unixfile := u;  f.key := S.VAL( LONGINT, u );  f.fs := SELF;
+							IF u.ro THEN  f.flags := {faReadOnly}  END;
+							IF FileDir.IsDirectory( name ) THEN INCL( f.attr, faDirectory )  END;
 						END;
 					END;
 					RETURN f
@@ -179,17 +181,11 @@ TYPE
 					RETURN attr
 				END GetAttributes;
 
-				PROCEDURE SetAttributes*( Attr: SET );
+				PROCEDURE SetAttributes*( attr: SET );
 				BEGIN {EXCLUSIVE}
+					SELF.attr := attr
 				END SetAttributes;
 
-				PROCEDURE InclAttribute*( Attr: LONGINT );
-				BEGIN {EXCLUSIVE}
-				END InclAttribute;
-
-				PROCEDURE ExclAttribute*( Attr: LONGINT );
-				BEGIN {EXCLUSIVE}
-				END ExclAttribute;
 
 				PROCEDURE Register0*( VAR res: LONGINT );
 				BEGIN {EXCLUSIVE}
@@ -206,10 +202,6 @@ TYPE
 					OFiles.GetName( unixfile, name );
 				END GetName;
 
-				PROCEDURE GetFullName*( VAR name: ARRAY OF CHAR;  WithPrefix: BOOLEAN );
-				BEGIN {EXCLUSIVE}
-					OFiles.GetName( unixfile, name );
-				END GetFullName;
 
 			END File;
 
