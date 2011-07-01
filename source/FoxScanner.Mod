@@ -288,8 +288,8 @@ TYPE
 			firstIdentifier := TRUE; case := Unknown;
 		END ResetCase;
 
-		 (** report an error occured during scanning **)
-		 PROCEDURE Error( code: INTEGER );
+		(** report an error occured during scanning **)
+		PROCEDURE Error( code: INTEGER );
 		VAR errorMessage: ARRAY 256 OF CHAR;
 		BEGIN
 			IF diagnostics # NIL THEN
@@ -670,6 +670,15 @@ TYPE
 
 			RETURN ~error
 		END GetNextSymbol;
+
+		(** set the diagnostics mode of the scanner (diagnostics = NIL ==> no report) and reset the error state
+			intended for silent symbol peeeking after the end of a module *)
+		PROCEDURE ResetErrorDiagnostics*(VAR diagnostics: Diagnostics.Diagnostics);
+		VAR b: BOOLEAN; d: Diagnostics.Diagnostics;
+		BEGIN
+			error := FALSE;
+			d := SELF.diagnostics; SELF.diagnostics := diagnostics; diagnostics := d;
+		END ResetErrorDiagnostics;
 
 	END Scanner;
 

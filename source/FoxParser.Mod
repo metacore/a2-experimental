@@ -1939,6 +1939,7 @@ TYPE
 			         'end' Identifier '.'. **)
 		PROCEDURE Module*(): SyntaxTree.Module;
 		VAR moduleName, context: SyntaxTree.Identifier;  module: SyntaxTree.Module;  position: LONGINT; isCellNet: BOOLEAN;
+			scannerDiagnostics: Diagnostics.Diagnostics;
 		BEGIN
 			IF Trace THEN S( "Module" ) END;
 			position := symbol.start;
@@ -1967,7 +1968,17 @@ TYPE
 				IF ExpectThisIdentifier( moduleName ) THEN
 					IF symbol.token # Scanner.Period THEN
 						Error(  symbol.start, Scanner.Period, "" )
-					END;   (* do not use Check for not reading after end of module *)
+					ELSIF ~error & ~scanner.error THEN (* read ahead to read comments and to check for next module *)
+						scanner.ResetCase;
+						scannerDiagnostics := NIL;
+						scanner.ResetErrorDiagnostics(scannerDiagnostics);
+						NextSymbol;
+						scanner.ResetErrorDiagnostics(scannerDiagnostics);
+					END;
+					(* do not use Check for not reading after end of module *)
+					IF ~Peek(Scanner.Module) & ~Peek(Scanner.CellNet) THEN
+						(* append comment to this module *)
+					END;
 				END;
 			END;
 			IF Trace THEN E( "Module" ) END;
@@ -1977,8 +1988,7 @@ TYPE
 		(** check if another module declaration is available after recent module parsing -> for parsing and compiling multiple modules within a single file **)
 		PROCEDURE NextModule*(): BOOLEAN;
 		BEGIN
-			scanner.ResetCase;
-			NextSymbol; RETURN Peek(Scanner.Module) OR Peek(Scanner.CellNet);
+			RETURN Peek(Scanner.Module) OR Peek(Scanner.CellNet);
 		END NextModule;
 
 	END Parser;
