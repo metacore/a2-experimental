@@ -270,7 +270,9 @@ TYPE
 			WHILE ~error & (symbol.token = Scanner.Comment) DO
 				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.source^,symbol.stringLength);
 				moduleScope.AddComment(comment);
-				recentComment := comment;
+				IF recentComment = NIL THEN
+					recentComment := comment;
+				END;
 				error := ~scanner.GetNextSymbol(symbol);
 			END;
 			RETURN symbol.token = token
@@ -1977,7 +1979,9 @@ TYPE
 					END;
 					(* do not use Check for not reading after end of module *)
 					IF ~Peek(Scanner.Module) & ~Peek(Scanner.CellNet) THEN
-						(* append comment to this module *)
+						SetNextInComment(recentComment,module);
+						module.SetClosingComment(recentComment);
+						recentComment := NIL;
 					END;
 				END;
 			END;

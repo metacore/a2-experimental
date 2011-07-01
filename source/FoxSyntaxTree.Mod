@@ -4085,6 +4085,7 @@ TYPE
 			case-: LONGINT; (* module notation in lower or upper case, important for printout and operators *)
 			isCellNet-: BOOLEAN;
 			firstScope-,lastScope-: Scope; numberScopes-: LONGINT; (* list of all scopes for checker / backend traversal etc. *)
+			closingComment-: Comment;
 
 		PROCEDURE & InitModule( CONST sourceName: ARRAY OF CHAR; position: LONGINT; name: Identifier; scope: ModuleScope; case: LONGINT);
 		BEGIN
@@ -4097,12 +4098,12 @@ TYPE
 			SELF.case := case;
 			firstScope := NIL; lastScope := NIL; numberScopes := 0;
 			SetType(moduleType);
+			closingComment := NIL;
 		END InitModule;
 
 		PROCEDURE SetCellNet*(isCellNet: BOOLEAN);
 		BEGIN SELF.isCellNet := isCellNet
 		END SetCellNet;
-
 
 		PROCEDURE SetContext*(context: Identifier);
 		BEGIN	SELF.context := context;
@@ -4111,6 +4112,10 @@ TYPE
 		PROCEDURE SetName*(name: Identifier);
 		BEGIN SELF.name := name
 		END SetName;
+
+		PROCEDURE SetClosingComment*(comment: Comment);
+		BEGIN SELF.closingComment := comment
+		END SetClosingComment;
 
 		PROCEDURE AddScope*(c: Scope);
 		BEGIN

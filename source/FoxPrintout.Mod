@@ -1690,6 +1690,7 @@ TYPE
 			ELSE
 				case := x.case;
 				currentScope := x.moduleScope.outerScope;
+				Comments(x.comment,x,FALSE);
 				Keyword("MODULE ");
 				Identifier(x.name);
 				IF (x.context # SyntaxTree.invalidIdentifier) & (x.context#Global.A2Name) THEN
@@ -1702,6 +1703,7 @@ TYPE
 				END;
 
 				w.String(";");
+				Comments(x.comment,x,TRUE);
 				w.IncIndent;
 				IF x.moduleScope.firstImport # NIL THEN
 					ImportList(x.moduleScope.firstImport)
@@ -1716,6 +1718,8 @@ TYPE
 					Body(x.moduleScope.bodyProcedure.procedureScope.body)
 				END;
 				Indent; Keyword("END "); Identifier(x.name); w.String( "." ); w.Ln;  w.Update;
+
+				Comments(x.closingComment,x, FALSE);
 
 				IF (mode > SourceCode) & (x.moduleScope.firstComment # NIL) THEN w.Ln; CommentList(x.moduleScope.firstComment) END;
 
