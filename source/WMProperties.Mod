@@ -190,6 +190,115 @@ TYPE
 
 	END BooleanProperty;
 
+
+TYPE
+
+	SetProperty* = OBJECT(Property)
+	VAR
+		value : SET;
+
+		PROCEDURE IntToSet(h:LONGINT):SET;
+		VAR i:LONGINT; set:SET; 
+		BEGIN
+			i:=0;
+			WHILE h#0 DO
+				IF h MOD 2=1 THEN INCL(set,i) END;
+				h:=h DIV 2;
+				INC(i);
+			END;
+			RETURN set;
+		END IntToSet;
+		
+		PROCEDURE SetToInt(set:SET):HUGEINT;
+		VAR i:LONGINT; int:HUGEINT; s: String;
+		BEGIN
+			NEW(s, 18);
+			FOR i:=31 TO 0 BY -1 DO
+				int:=int * 2;
+				IF i IN set THEN INC(int) END;
+			END;
+			RETURN int
+		END SetToInt;
+		
+		PROCEDURE FromStream*(r : Streams.Reader);
+		VAR token : ARRAY 10 OF CHAR; v : SET; i:LONGINT; res: LONGINT;
+		BEGIN
+			AcquireWrite;
+			NotDefault;
+			r.String(token); Strings.HexStrToInt(token,i,res);
+			IF res=Strings.Ok THEN
+				v:=IntToSet(i);
+				IF v # value THEN value := v; Changed END;
+			END;
+			ReleaseWrite
+		END FromStream;
+
+
+(*! to discuss: should a SET be written explicitely ? readability  vs overhead*)
+		PROCEDURE ToStream*(w : Streams.Writer);
+		VAR s:ARRAY 10 OF CHAR;
+		BEGIN
+			AcquireRead;
+			Strings.IntToHexStr(SetToInt(Get()),8,s);
+			Strings.AppendChar(s,"H");
+			w.String(s);
+			ReleaseRead
+		END ToStream;
+
+		PROCEDURE Get*() : SET;
+		VAR r : SET;
+		BEGIN
+			AcquireRead;
+			IF nonDefault OR (prototype = NIL) THEN r := value
+			ELSE r := prototype(SetProperty).Get()
+			END;
+			ReleaseRead;
+			RETURN r
+		END Get;
+
+		PROCEDURE Set*(value : SET);
+		BEGIN
+			AcquireWrite;
+			IF value # SELF.value THEN SELF.value := value; Changed
+			ELSIF ~ nonDefault THEN Changed END;
+			NotDefault;
+			ReleaseWrite;
+		END Set;
+
+(*! to discuss: should a SET be written explicitely - readability at cost of overhead*)
+		PROCEDURE FromXML*(xml : XML.Element);
+		VAR en : XMLObjects.Enumerator; p : ANY; s : String; i:LONGINT;
+		BEGIN
+			en := xml.GetContents();
+			p := en.GetNext();
+			NotDefault;
+			IF p IS XML.Chars THEN
+				s := p(XML.Chars).GetStr();
+				IF s # NIL THEN
+					Strings.Trim(s^, " "); 
+					Strings.StrToInt(s^,i);
+					Set(IntToSet(i))
+				END
+			END
+		END FromXML;
+
+		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		VAR name : String; s: ARRAY 10 OF CHAR;
+		BEGIN
+			name := GetName();
+			IF name = NIL THEN KernelLog.String("Nameless boolean property encountered. Ignored"); KernelLog.Ln; RETURN END;
+			IF nonDefault THEN
+				Indent(w, indent);
+				w.Char("<"); w.String(name^); w.Char(">");
+				Strings.IntToHexStr(SetToInt(value),8,s); Strings.AppendChar(s,"H");
+				w.String(s);
+				w.String("</"); w.String(name^); w.Char(">"); w.Ln;
+			END
+		END WriteXML;
+
+	END SetProperty;
+
+
 TYPE
 	(** Accessor property to an integer value. The range of possible values can be restricted. *)
 	Int32Property* = OBJECT(Property)
@@ -909,6 +1018,133 @@ TYPE
 		END WriteXML;
 
 	END FontProperty;
+
+
+
+TYPE
+	(** Accessor property to an Point (in integer  coordinates). *)
+	PointProperty*= OBJECT(Property)
+	VAR
+		value : WMGraphics.Point2d;
+
+		PROCEDURE FromStream*(r : Streams.Reader);
+		VAR new : WMGraphics.Point2d;
+		BEGIN
+			AcquireWrite;
+			r.SkipWhitespace; r.Int(new.x, FALSE);
+			r.SkipWhitespace; r.Int(new.y, FALSE);
+			NotDefault;
+			IF (new.x=value.x) & (new.y=value.y) THEN
+				value := new;
+				Changed;
+			END;
+			ReleaseWrite
+		END FromStream;
+
+		PROCEDURE ToStream*(w : Streams.Writer);
+		BEGIN
+			AcquireRead;
+			w.Int(value.x, 0); w.Char(" "); w.Int(value.x, 0); 
+			ReleaseRead
+		END ToStream;
+
+		PROCEDURE Get*() : WMGraphics.Point2d;
+		VAR r : WMGraphics.Point2d;
+		BEGIN
+			AcquireRead;
+			IF nonDefault OR (prototype = NIL) THEN r := value
+			ELSE r := prototype(PointProperty).Get()
+			END;
+			ReleaseRead;
+			RETURN r
+		END Get;
+
+		PROCEDURE Set*(value : WMGraphics.Point2d);
+		BEGIN
+			AcquireWrite;
+			IF (SELF.value.x#value.x) OR (SELF.value.y#value.y) THEN Changed
+			ELSIF ~nonDefault THEN Changed
+			END;
+			NotDefault;
+			ReleaseWrite
+		END Set;
+
+		PROCEDURE SetCoordinate*(x,y : LONGINT);
+		BEGIN
+			AcquireWrite;
+			IF (x#value.x) OR (y#value.y) THEN Changed END; 
+			NotDefault;
+			ReleaseWrite
+		END SetCoordinate;
+		
+		PROCEDURE GetCoordinate*(VAR x,y: LONGINT);
+		BEGIN
+			x:=value.x; y:=value.y
+		END GetCoordinate;
+		
+		
+		PROCEDURE SetX*(x : LONGINT);
+		BEGIN
+			AcquireWrite;
+			IF value.x # x THEN value.x := x; Changed END; NotDefault;
+			ReleaseWrite
+		END SetX;
+		
+		PROCEDURE SetY*(y : LONGINT);
+		BEGIN
+			AcquireWrite;
+			IF value.y # y THEN value.y := y; Changed END; NotDefault;
+			ReleaseWrite
+		END SetY;
+
+		PROCEDURE GetX*() : LONGINT;
+		BEGIN
+			RETURN value.x
+		END GetX;
+		
+		PROCEDURE GetY*(): LONGINT;
+		BEGIN
+			RETURN value.y
+		END GetY;
+
+		PROCEDURE FromXML*(xml : XML.Element);
+		VAR en : XMLObjects.Enumerator; p : ANY; s: String;
+		BEGIN
+			AcquireWrite;
+			en := xml.GetContents();
+			WHILE en.HasMoreElements() DO
+				IF en.HasMoreElements() THEN
+					p := en.GetNext();
+					IF (p IS XML.Element) THEN
+						s := p(XML.Element).GetName();
+						IF s # NIL THEN
+							IF s^ = "X" THEN SetX(ReadCharDataInt(p(XML.Element)))
+							ELSIF s^ = "Y" THEN SetY(ReadCharDataInt(p(XML.Element)))
+							END
+						END
+					END
+				END
+			END;
+			INC(timestamp);
+			ReleaseWrite
+		END FromXML;
+
+		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		VAR name : String; t : WMGraphics.Point2d;
+		BEGIN
+			name := GetName();
+			IF name = NIL THEN KernelLog.String("Nameless point property encountered. Ignored"); KernelLog.Ln; RETURN END;
+			IF nonDefault THEN
+				t := Get();
+				Indent(w, indent);w.Char("<"); w.String(name^); w.Char(">"); w.Ln;
+				Indent(w, indent + 1); w.String("<X>"); w.Int(t.x, 0); w.String("</X>"); w.Ln;
+				Indent(w, indent + 1); w.String("<Y>"); w.Int(t.y, 0); w.String("</Y>"); w.Ln;
+				Indent(w, indent); w.String("</"); w.String(name^); w.Char(">"); w.Ln;
+			END
+		END WriteXML;
+
+	END PointProperty;
+
 
 TYPE
 
