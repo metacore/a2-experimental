@@ -8658,7 +8658,7 @@ TYPE
 		ELSIF parameter.kind = SyntaxTree.ConstParameter THEN
 			RETURN (parameter.type.resolved IS SyntaxTree.RecordType) OR (parameter.type.resolved IS SyntaxTree.ArrayType) & (parameter.ownerType(SyntaxTree.ProcedureType).callingConvention = SyntaxTree.CCallingConvention)
 		ELSIF parameter.kind = SyntaxTree.VarParameter THEN
-			RETURN ~(parameter.type.resolved IS SyntaxTree.ArrayType) & ~(parameter.type.resolved IS SyntaxTree.MathArrayType)
+			RETURN ~(parameter.type.resolved IS SyntaxTree.ArrayType) & ~(parameter.type.resolved IS SyntaxTree.MathArrayType) OR (parameter.type.resolved IS SyntaxTree.ArrayType) & (parameter.ownerType(SyntaxTree.ProcedureType).callingConvention = SyntaxTree.CCallingConvention)
 		END
 	END PassBySingleReference;
 
