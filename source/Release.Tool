@@ -236,7 +236,7 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 
 	NATIVEORIG, WINORIG, UNIX {Modules.Mod}
 	NATIVEGEN, WINGEN { oc/Generic.Modules.Mod}
-	
+
 	NATIVE { Objects.Mod Kernel.Mod }
 	WIN { Win32.Objects.Mod Win32.Kernel.Mod }
 	UNIX { Unix.Objects.Mod Unix.Kernel.Mod }
@@ -284,7 +284,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	# Block device interface
 	Disks.Mod
 
-	Files.Mod 
+	Files.Mod
 
 	Dates.Mod Strings.Mod # low-level utility modules
 	UTF8Strings.Mod
@@ -292,7 +292,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	Caches.Mod DiskVolumes.Mod OldDiskVolumes.Mod RAMVolumes.Mod DiskFS.Mod OldDiskFS.Mod OberonFS.Mod 	# file systems
 	FATVolumes.Mod FATFiles.Mod
 	ISO9660Volumes.Mod ISO9660Files.Mod
-	
+
 	UNIX { Unix.Oberon.FileDir.Mod Unix.Oberon.Files.Mod Unix.UnixFiles.Mod }
 
 	WIN {
@@ -309,7 +309,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	NATIVE,WIN { BootConsole.Mod }
 	UNIX { Unix.BootConsole.Mod }
 
-	Displays.Mod 
+	Displays.Mod
 
 	 # input drivers
  	Inputs.Mod
@@ -488,7 +488,7 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 	# Runtime support for math oberon (Move to runtime package? *)
 	I386, WIN, UNIX { I386.Math.Mod I386.MathL.Mod }
 	AMD64 { AMD64.Math.Mod AMD64.MathL.Mod }
-	FoxArrayBase.Mod 
+	FoxArrayBase.Mod
 	I386, WIN, UNIX { I386.FoxArrayBaseOptimized.Mod }
 END
 
@@ -1169,6 +1169,9 @@ END
 
 PACKAGE EFI ARCHIVE "EFI.zip" SOURCE "EFISrc.zip" DESCRIPTION "EFI Boot Loader and API"
 	EFI.Tool EFI.Mod
+	I386, WIN, UNIX {I386.EFIMachine.Mod}
+	AMD64 { AMD64.EFIMachine.Mod }
+
 
 	EFIBlockIO.Mod EFIDiskIO.Mod
 	EFIFileProtocol.Mod EFISimpleFS.Mod

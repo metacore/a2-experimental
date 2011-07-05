@@ -292,13 +292,4 @@ VAR
 	imageHandle-: Handle;
 	table- {UNTRACED}: POINTER TO SystemTable;
 
-PROCEDURE -GetParameter (offset: LONGINT): LONGINT;
-CODE {SYSTEM.i386}
-	POP EAX
-	MOV EAX, [EBP+EAX]
-END GetParameter;
-
-BEGIN
-	SYSTEM.PUT32 (SYSTEM.ADR (imageHandle), GetParameter (12));
-	SYSTEM.PUT32 (SYSTEM.ADR (table), GetParameter (16));
 END EFI.

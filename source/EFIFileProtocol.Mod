@@ -30,7 +30,7 @@ TYPE Protocol*= POINTER TO ProtocolDescription;
 (* Open or create a new file. 'This' is a pointer to a protocol instance that is the file handle to the source location. This would
 typically be an open handle to a directory. A handle for the new file is returned to 'NewHandle'.  The filename may include
 the path modifiers '\', '.' and '..'. If the filename starts with a '\' the relative location is the root directory. *)
-TYPE FileOpen* = PROCEDURE{C}(This : Protocol; VAR NewHandle : Protocol; FileName : ARRAY OF EFI.Char16; OpenMode : EFI.Int64; Attributes : EFI.Int64) : EFI.Status;
+TYPE FileOpen* = PROCEDURE{C}(This : Protocol; VAR NewHandle : Protocol; CONST FileName : ARRAY OF EFI.Char16; OpenMode : EFI.Int64; Attributes : EFI.Int64) : EFI.Status;
 (* Close a specified handle. All dirty cached file data is flushed to the device, and the file is closed *)
 TYPE FileClose* = PROCEDURE{C}(This : Protocol) : EFI.Status;
 (* Close and delete a file *)

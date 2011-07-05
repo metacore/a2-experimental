@@ -1,7 +1,7 @@
 MODULE EFIA2Loader; (** AUTHOR "Matthias Frei"; PURPOSE "EFI A2 Boot Loader"; *)
 
 IMPORT
-	SYSTEM, EFI, EFILib, EFIFileProtocol, EFIGraphicsOutput, Trace;
+	SYSTEM, EFI, EFIMachine, EFILib, EFIFileProtocol, EFIGraphicsOutput, Trace;
 
 CONST
 	traceDebug = TRUE;
@@ -163,14 +163,14 @@ VAR
 
 	ramSize : EFI.Int64;
 
-	PROCEDURE ReportError(at : LONGINT);
+	PROCEDURE ReportError(at : SYSTEM.ADDRESS);
 	VAR status : EFI.Status;
 	BEGIN
 		parseError := TRUE;
 		Trace.String("Sytnax error in file ");
 		status := EFI.table.ConOut.OutputString(EFI.table.ConOut, configFileName); (* configFileName is a Unicode string *)
 		Trace.String(" at position ");
-		Trace.Int(at,0);
+		Trace.Address(at);
 		Trace.Ln;
 	END ReportError;
 
@@ -312,7 +312,7 @@ END AddConfig;
 if another entry is added. The lengths must not include a terminating 0. *)
 PROCEDURE AddConfigA(name : SYSTEM.ADDRESS; namelen : LONGINT; val : SYSTEM.ADDRESS; vallen : LONGINT);
 VAR btEnd : SYSTEM.ADDRESS;
-cfgStrSize : LONGINT;
+cfgStrSize : SYSTEM.SIZE;
 BEGIN
 	btEnd := bootTableEnd;
 	SYSTEM.MOVE(name,btEnd,namelen);
@@ -428,21 +428,6 @@ BEGIN
 	END;
 END LoadKernel;
 
-(*  I386.Machine.Mod uses following registers as arguments:
-	eax	: bootFlag (= address of boot table)
-	esi	: ?
-	edi	: address of frame buffer
-*)
-PROCEDURE JumpTo(adr : SYSTEM.ADDRESS; eax,esi,edi : LONGINT);
-CODE {SYSTEM.i386}
-	XOR ECX,ECX
-	XOR EDX,EDX
-	MOV EDI, [EBP+edi];
-	MOV ESI, [EBP+esi];
-	MOV EAX, [EBP+eax];
-	MOV EBX, [EBP+adr]
-	CALL EBX
-END JumpTo;
 
 PROCEDURE LoadA2;
 VAR
@@ -520,7 +505,7 @@ BEGIN
 					SYSTEM.MOVE(kernelAddr, kernelAddress, kernelSize);
 					kernelAddr := kernelAddress;
 				END;
-				JumpTo(kernelAddr, btAddr, 0, fbAddr);
+				EFIMachine.JumpTo(kernelAddr, btAddr, 0, fbAddr);
 			ELSE
 				Trace.String("Could not exit boot services"); Trace.Ln;
 			END;
@@ -548,12 +533,21 @@ END EFIA2Loader.
 
 SystemTools.DoCommands
 
-	Compiler.Compile  --objectFile=Generic --symbolFile=Textual
-		Runtime.Mod Trace.Mod EFI.Mod EFITrace.Mod EFIFileProtocol.Mod EFISimpleFS.Mod
+	Compiler.Compile  --objectFile=Generic --symbolFile=Textual --bits=32
+		Runtime.Mod Trace.Mod EFI.Mod I386.EFIMachine.Mod EFITrace.Mod EFIFileProtocol.Mod EFISimpleFS.Mod
 		EFILoadedImage.Mod EFIGraphicsOutput.Mod EFILib.Mod EFIA2Loader.Mod ~
 
 	StaticLinker.Link --fileName=..\a2loader.efi --fileFormat=EFI32 --displacement=401000H
-		Runtime Trace EFI EFITrace EFISimpleFS  EFIFileProtocol EFILoadedImage EFIGraphicsOutput EFILib EFIA2Loader ~
+		Runtime Trace EFI EFIMachine EFITrace EFISimpleFS  EFIFileProtocol EFILoadedImage EFIGraphicsOutput EFILib EFIA2Loader ~
+~
+SystemTools.DoCommands
+
+	Compiler.Compile  --objectFile=Generic --symbolFile=Textual --bits=64
+		Runtime.Mod Trace.Mod EFI.Mod AMD64.EFIMachine.Mod EFITrace.Mod EFIFileProtocol.Mod EFISimpleFS.Mod
+		EFILoadedImage.Mod EFIGraphicsOutput.Mod EFILib.Mod EFIA2Loader.Mod ~
+
+	StaticLinker.Link --fileName=..\a2loader.efi --fileFormat=EFI64 --displacement=401000H
+		Runtime Trace EFI EFIMachine EFITrace EFISimpleFS  EFIFileProtocol EFILoadedImage EFIGraphicsOutput EFILib EFIA2Loader ~
 
 	SystemTools.Show done ~
 ~
