@@ -18,7 +18,7 @@ SystemTools.DoCommands
 	VirtualDisks.Install VDISK0 ../Test/A2HDD.img ~
 
 	Linker.Link \P../Test/ \.Obx ../Test/IDE.Bin 0100000H 1000H Kernel Traps
-		ATADisks DiskVolumes DiskFS BootConsole ~
+		ATADisks DiskVolumes DiskFS Loader BootConsole ~
 
 	Partitions.WriteMBR VDISK0#0 OBEMBR.Bin ~
 	Partitions.InstallBootManager VDISK0#0 ~
