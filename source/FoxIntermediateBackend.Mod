@@ -7797,6 +7797,8 @@ TYPE
 		tickets: VirtualRegisterMappings;
 		parts: LONGINT;
 
+		firstMapped-, lastMapped-: LONGINT;
+
 		PROCEDURE &Init*(parts: LONGINT);
 		VAR i: LONGINT;
 		BEGIN
@@ -7805,6 +7807,7 @@ TYPE
 			FOR i := 0 TO LEN(tickets)-1 DO
 				tickets[i]:=NIL;
 			END;
+			firstMapped := MAX(LONGINT); lastMapped := -1;
 		END Init;
 
 		PROCEDURE Grow;
@@ -7828,6 +7831,9 @@ TYPE
 
 		PROCEDURE SetMapped*(register: LONGINT; part: LONGINT; ticket: Ticket);
 		BEGIN
+			IF lastMapped < register THEN lastMapped := register END;
+			IF firstMapped > register THEN firstMapped := register END;
+
 			ASSERT((part >=0) & (part < parts));
 			WHILE (register*parts >= LEN(tickets)) DO Grow END;
 			tickets[register*parts+part] := ticket;
@@ -7841,6 +7847,17 @@ TYPE
 				FOR i := 0 TO parts-1 DO
 					tickets[register*parts+i] := NIL;
 				END;
+				IF firstMapped = register THEN
+					WHILE (firstMapped * parts < LEN(tickets)) & (firstMapped <= lastMapped) & (Mapped(firstMapped,0)=NIL) DO
+						INC(firstMapped);
+					END;
+				END;
+				IF lastMapped = register THEN
+					WHILE (lastMapped >= 0) & (lastMapped >= firstMapped) & (Mapped(lastMapped,0) = NIL) DO
+						DEC(lastMapped)
+					END;
+				END;
+				IF lastMapped < firstMapped THEN firstMapped := MAX(LONGINT); lastMapped := -1 END;
 			END;
 		END Unmap;
 
@@ -8137,7 +8154,7 @@ TYPE
 				END;
 			END;
 
-			(* CheckRegistersFree();*)
+			(*CheckRegistersFree();*)
 			ResolveLocalFixups;
 			IF dump # NIL THEN
 				(*dump.Update*)
@@ -8240,6 +8257,14 @@ TYPE
 			NEW(spillStack);
 			SELF.physicalRegisters := physicalRegisters;
 		END InitTicketGenerator;
+
+		PROCEDURE Section*(in: IntermediateCode.Section; out: BinaryCode.Section);
+		VAR ticket: Ticket;
+		BEGIN
+			Section^(in,out);
+			ticket := tickets.live;
+			IF ticket # NIL THEN HALT(100) END;
+		END Section;
 
 		(*-------------------  procedures that must be overwritten by implementers  ----------------------*)
 
@@ -8631,7 +8656,7 @@ TYPE
 	BEGIN
 		IF parameter.kind = SyntaxTree.ValueParameter THEN RETURN FALSE
 		ELSIF parameter.kind = SyntaxTree.ConstParameter THEN
-			RETURN (parameter.type.resolved IS SyntaxTree.RecordType)
+			RETURN (parameter.type.resolved IS SyntaxTree.RecordType) OR (parameter.type.resolved IS SyntaxTree.ArrayType) & (parameter.ownerType(SyntaxTree.ProcedureType).callingConvention = SyntaxTree.CCallingConvention)
 		ELSIF parameter.kind = SyntaxTree.VarParameter THEN
 			RETURN ~(parameter.type.resolved IS SyntaxTree.ArrayType) & ~(parameter.type.resolved IS SyntaxTree.MathArrayType)
 		END

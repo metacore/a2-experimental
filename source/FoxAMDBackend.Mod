@@ -381,6 +381,7 @@ TYPE
 
 		PROCEDURE NextFree(CONST type: IntermediateCode.Type): LONGINT;
 		VAR i: LONGINT;
+
 			PROCEDURE GetHint(offset: LONGINT): LONGINT;
 			VAR res: LONGINT;
 			BEGIN
@@ -959,7 +960,7 @@ TYPE
 		END IsComplex;
 
 		PROCEDURE Generate(CONST instruction: IntermediateCode.Instruction);
-		VAR opcode: SHORTINT; ticket: Ticket; hwreg, lastUse: LONGINT;
+		VAR opcode: SHORTINT; ticket: Ticket; hwreg, lastUse, i, part: LONGINT;
 		BEGIN
 			(*!IF ((instruction.opcode = IntermediateCode.mov) OR (instruction.opcode = IntermediateCode.pop)) & (instruction.op1.register <= IntermediateCode.ParameterRegister) THEN
 				hwreg := ParameterRegister(IntermediateCode.ParameterRegister-instruction.op1.register, instruction.op1.type);
@@ -1083,12 +1084,27 @@ TYPE
 
 			ReserveOperandRegisters(instruction.op3,FALSE); ReserveOperandRegisters(instruction.op2,FALSE); ReserveOperandRegisters(instruction.op1,FALSE);
 			TryUnmap(instruction.op3); TryUnmap(instruction.op2); TryUnmap(instruction.op1);
+			
+			(* remove remaining virtual registers that are not directly referenced by this instruction *)
+			FOR i := virtualRegisters.firstMapped TO virtualRegisters.lastMapped DO
+				IF LastUse(i)=inPC THEN
+					part := 0;
+					WHILE (part<virtualRegisters.Parts()) DO
+						ticket := virtualRegisters.Mapped(i,part);
+						IF (ticket # NIL) THEN
+							virtualRegisters.Unmap(i)
+						END;
+						INC(part);
+					END;
+				END;
+			END;
 
 			ticket := tickets.live;
 			WHILE (ticket # NIL) & (ticket.lastuse = inPC) DO
 				UnmapTicket(ticket);
 				ticket := tickets.live
 			END;
+
 			(*
 			FOR i := 0 TO physicalRegisters.NumberRegisters()-1 DO
 				IF physicalRegisters.Reserved(i) THEN
