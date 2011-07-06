@@ -1639,7 +1639,7 @@ TYPE
 							dy := 0;
 						|Top:
 							dx := 0;
-							dy := -(selectionFrame.bounds.t MOD snapgrid.deltaY); IF (dy = 0) THEN dy := -snapgrid.deltaX; END;
+							dy := -(selectionFrame.bounds.t MOD snapgrid.deltaY); IF (dy = 0) THEN dy := -snapgrid.deltaY; END;
 						|Right:
 							dx := snapgrid.deltaX - (selectionFrame.bounds.r MOD snapgrid.deltaX); IF (dx = 0) THEN dx := snapgrid.deltaX; END;
 							dy := 0;
