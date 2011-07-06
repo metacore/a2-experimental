@@ -71,11 +71,12 @@ TYPE Int8* = SHORTINT; (* Int8, Int16, Int32, Int64 NOT architecture dependant *
 TYPE Int16* = INTEGER;
 TYPE Int32* = LONGINT;
 TYPE Int64* = HUGEINT;
+TYPE Address*= SYSTEM.ADDRESS;
 
 TYPE Status* = Int;
 TYPE TPL* = Int;
 TYPE LBA* = Int64;
-TYPE Pointer* = Int32;
+TYPE Pointer* = Address;
 TYPE VirtualAddress* = Int64; (* sic! *)
 TYPE PhysicalAddress* = Int64; (* sic! *)
 TYPE Handle* = Pointer;
@@ -113,12 +114,21 @@ TYPE Time* = RECORD
 	Pad2 : Int8;
 END;
 
+(* efi generic table header *)
+TYPE TableHeader* = RECORD
+	Signature-: Int64;
+	Revision-: Int32;
+	HeaderSize-: Int32;
+	CRC32-: Int32;
+	Reserved-: Int32;
+END;
+
 (* main EFI tables *)
 TYPE SystemTable* = RECORD
 	Hdr-: TableHeader;
 	FirmwareVendor-{UNTRACED}: POINTER TO ARRAY OF Char16;
 	FirmwareRevision-: Int32;
-	ConsoleInHandle-: Handle;
+	ConsoleInHandle- : Handle;
 	ConIn- {UNTRACED}: POINTER TO SimpleInputInterface;
 	ConsoleOutHandle-: Handle;
 	ConOut- {UNTRACED}: POINTER TO SimpleTextOutputInterface;
@@ -227,14 +237,6 @@ END;
 TYPE ConfigurationTableEntry* = RECORD
 	VendorGuid-: GUID;
 	VendorTable-: SYSTEM.ADDRESS; (* virtual OR physical address - see EFI spec. Chapter 4.6 *)
-END;
-
-TYPE TableHeader* = RECORD
-	Signature-: Int64;
-	Revision-: Int32;
-	HeaderSize-: Int32;
-	CRC32-: Int32;
-	Reserved-: Int32;
 END;
 
 (* basic EFI protocols ( = function tables to communicate with EFI services ) *)

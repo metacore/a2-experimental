@@ -531,23 +531,4 @@ BEGIN
 	LoadA2;
 END EFIA2Loader.
 
-SystemTools.DoCommands
-
-	Compiler.Compile  --objectFile=Generic --symbolFile=Textual --bits=32
-		Runtime.Mod Trace.Mod EFI.Mod I386.EFIMachine.Mod EFITrace.Mod EFIFileProtocol.Mod EFISimpleFS.Mod
-		EFILoadedImage.Mod EFIGraphicsOutput.Mod EFILib.Mod EFIA2Loader.Mod ~
-
-	StaticLinker.Link --fileName=..\a2loader.efi --fileFormat=EFI32 --displacement=401000H
-		Runtime Trace EFI EFIMachine EFITrace EFISimpleFS  EFIFileProtocol EFILoadedImage EFIGraphicsOutput EFILib EFIA2Loader ~
-~
-SystemTools.DoCommands
-
-	Compiler.Compile  --objectFile=Generic --symbolFile=Textual --bits=64
-		Runtime.Mod Trace.Mod EFI.Mod AMD64.EFIMachine.Mod EFITrace.Mod EFIFileProtocol.Mod EFISimpleFS.Mod
-		EFILoadedImage.Mod EFIGraphicsOutput.Mod EFILib.Mod EFIA2Loader.Mod ~
-
-	StaticLinker.Link --fileName=..\a2loader.efi --fileFormat=EFI64 --displacement=401000H
-		Runtime Trace EFI EFIMachine EFITrace EFISimpleFS  EFIFileProtocol EFILoadedImage EFIGraphicsOutput EFILib EFIA2Loader ~
-
-	SystemTools.Show done ~
-~
+PET.Open EFI.Tool ~
