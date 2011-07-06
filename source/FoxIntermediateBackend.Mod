@@ -3843,13 +3843,14 @@ TYPE
 				FOR i := parameters.Length() - 1 TO 0 BY -1 DO
 					actualParameter := parameters.GetExpression(i);
 					PrepareParameter(actualParameter, formalParameter);
-					IF passByRegister & (registerNumber < system.registerParameters) THEN
+					IF passByRegister & (i < system.registerParameters) THEN
 						IF ~PassInRegister(formalParameter) THEN
 							Error(actualParameter.position,"cannot be passed by register")
 						ELSE
-							PushParameter(actualParameter, formalParameter, procedureType.callingConvention, FALSE, dummy,registerNumber);
+							PushParameter(actualParameter, formalParameter, procedureType.callingConvention, FALSE, dummy,i);
 						END;
 						INC(registerNumber);
+					(*
 					ELSE
 						IF passByRegister & (registerNumber > 0) THEN
 							stackSize := ToMemoryUnits(system,system.registerParameters*addressType.sizeInBits);
@@ -3857,6 +3858,7 @@ TYPE
 						END;
 						passByRegister := FALSE;
 						PushParameter(actualParameter, formalParameter, procedureType.callingConvention, FALSE, dummy,-1);
+					*)
 					END;
 					formalParameter := formalParameter.prevParameter;
 				END;
