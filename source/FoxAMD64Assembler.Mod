@@ -1573,7 +1573,11 @@ TYPE
 				Global.GetSymbolPooledName(scopeSymbol,name);
 				IF scopeSymbol.scope IS SyntaxTree.ModuleScope THEN
 					IF (scopeSymbol IS SyntaxTree.Variable) THEN
-						symbol := IntermediateCode.NewSection(module.allSections, Sections.RegularKind, Sections.VarSection, TRUE, name,scopeSymbol,dump # NIL);
+						IF scopeSymbol.scope = module.module.moduleScope THEN
+							symbol := IntermediateCode.NewSection(module.allSections, Sections.RegularKind, Sections.VarSection, TRUE, name,scopeSymbol,dump # NIL);
+						ELSE
+							symbol := IntermediateCode.NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.VarSection, TRUE, name,scopeSymbol,dump # NIL);
+						END;
 						InitMem(operand,IntermediateCode.Bits32,none,0); (* or immediate ?? *)
 					ELSIF (scopeSymbol IS SyntaxTree.Procedure) & (scopeSymbol.scope = module.module.moduleScope) THEN
 						IF scopeSymbol(SyntaxTree.Procedure).isInline THEN
