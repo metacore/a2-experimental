@@ -2624,7 +2624,7 @@ TYPE
 					Global.SetDefaultDeclarations(system,8);
 					Global.SetDefaultOperators(system);
 				ELSE
-					NEW(system,8,8,64,8,32,64,64,128,4 (* parameter registers *));
+					NEW(system,8,8,64,8,64,64,64,128,4 (* parameter registers *));
 					Global.SetDefaultDeclarations(system,8);
 					Global.SetDefaultOperators(system);
 				END;

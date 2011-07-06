@@ -226,6 +226,11 @@ TYPE
 				IF size < 0 THEN RETURN FALSE END;
 				alignment := AlignmentOf(SELF.variableAlignment, variable.type.resolved);
 				Basic.Align(offset,alignment);
+
+				IF variable.alignment > 1 THEN
+					Basic.Align(offset, variable.alignment*dataUnit);
+				END;
+
 				variable.SetOffset(offset);
 				INC(offset,size);
 				variable := variable.nextVariable;
