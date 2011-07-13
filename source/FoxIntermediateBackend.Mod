@@ -3813,12 +3813,6 @@ TYPE
 					d := resultDesignator;
 				ELSE
 					variable := GetTemporaryVariable(procedureType.returnType);
-					(*
-					returnTypeOffset := variable.offsetInBits;
-					returnTypeSize := system.SizeOf(procedureType.returnType.resolved);
-					reg := fp; IntermediateCode.AddOffset(reg,ToMemoryUnits(system,returnTypeOffset));
-					size := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,returnTypeSize));
-					*)
 					d := SyntaxTree.NewSymbolDesignator(-1,NIL,variable);
 					d.SetType(variable.type);
 				END;
@@ -3850,15 +3844,8 @@ TYPE
 							PushParameter(actualParameter, formalParameter, procedureType.callingConvention, FALSE, dummy,i);
 						END;
 						INC(registerNumber);
-					(*
 					ELSE
-						IF passByRegister & (registerNumber > 0) THEN
-							stackSize := ToMemoryUnits(system,system.registerParameters*addressType.sizeInBits);
-							Emit(Sub(sp,sp,IntermediateCode.Immediate(addressType,stackSize)));
-						END;
-						passByRegister := FALSE;
 						PushParameter(actualParameter, formalParameter, procedureType.callingConvention, FALSE, dummy,-1);
-					*)
 					END;
 					formalParameter := formalParameter.prevParameter;
 				END;

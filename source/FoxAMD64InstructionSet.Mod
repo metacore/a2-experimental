@@ -231,7 +231,11 @@ CONST
 		regST0 regST1 regST2 regST3 regST4 regST5 regST6 regST7
 		regXMM0 regXMM1 regXMM2 regXMM3 regXMM4 regXMM5 regXMM6 regXMM7
 		regXMM8 regXMM9 regXMM10 regXMM11 regXMM12 regXMM13 regXMM14 regXMM15
-		regMMX0 regMMX1 regMMX2 regMMX3 regMMX4 regMMX5 regMMX6 regMMX7  numberRegisters
+		regMMX0 regMMX1 regMMX2 regMMX3 regMMX4 regMMX5 regMMX6 regMMX7  
+		regYMM0 regYMM1 regYMM2 regYMM3 regYMM4 regYMM5 regYMM6 regYMM7
+		regYMM8 regYMM9 regYMM10 regYMM11 regYMM12 regYMM13 regYMM14 regYMM15
+		
+		numberRegisters
 		~
 	*)
 
