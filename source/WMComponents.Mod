@@ -1272,7 +1272,6 @@ TYPE
 		VAR region: LONGINT; dx,dy: LONGINT; b: Rectangles.Rectangle; manager: WM.WindowManager;
 		BEGIN
 			IF msg.msgSubType = Messages.MsgSubPointerUp THEN
-				editMode := FALSE;
 				SetPointerInfo(oldPointerInfo);
 				RETURN
 			END;
@@ -1367,12 +1366,11 @@ TYPE
 						ELSIF msg.msgSubType = Messages.MsgSubPointerDown THEN
 							IF (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
 								msg.originator(WM.ViewPort).GetKeyState(keyFlags);
-								IF (keyFlags # {}) & (keyFlags <= Inputs.Ctrl) THEN editRegion := InEditBounds(msg.x, msg.y) ELSE editRegion := None END;
+								IF editMode THEN editRegion := InEditBounds(msg.x, msg.y) ELSE editRegion := None END;
 							ELSE
 								editRegion := None
 							END;
 							IF editRegion # None THEN
-								editMode := TRUE;
 								manager := msg.originator(WM.ViewPort).manager;
 								editX := msg.x; editY := msg.y;
 							ELSE
