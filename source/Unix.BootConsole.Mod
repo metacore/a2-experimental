@@ -173,7 +173,6 @@ VAR
 
 BEGIN
 	InitPrelinkedModules;
-	Execute( "UnixFiles",  "Install" );
 	StartSystem;
 	
 	Objects.SetPriority( Objects.GCPriority );
