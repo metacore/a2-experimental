@@ -1647,8 +1647,9 @@ TYPE
 			recentCommentItem := symbol
 		END CommentWithPart;
 
-		(** ProcedureDeclaration = 'procedure' ['&'|'-'|Flags ['-']] IdentifierDefinition [FormalParameters]';'
+		(** ProcedureDeclaration = 'procedure' ['^'|'&'|'-'|Flags ['-']] IdentifierDefinition [FormalParameters]';'
 			                       DeclarationSequence  [Body] 'end' Identifier.
+			Forward declarations ignored.
 		**)
 		PROCEDURE ProcedureDeclaration( parentScope: SyntaxTree.Scope);
 		VAR name: SyntaxTree.Identifier;
@@ -1660,6 +1661,7 @@ TYPE
 			isConstructor: BOOLEAN;
 			isInline: BOOLEAN;
 			modifiers: SyntaxTree.Modifier;
+			forwardDeclaration: BOOLEAN;
 		BEGIN
 			IF Trace THEN S( "Procedure" ) END;
 			(* symbol procedure has already been consumed *)
@@ -1669,6 +1671,13 @@ TYPE
 
 			procedureType := SyntaxTree.NewProcedureType(symbol.start, parentScope);
 			isConstructor := FALSE; isInline := FALSE;
+
+			IF Optional( Scanner.Arrow) THEN (* ignore forward declarations *)
+				forwardDeclaration := TRUE;
+				diagnostics.Warning(scanner.source, position, Diagnostics.Invalid,"Unsupported forward declaration. No semantic rules checked.");
+			ELSE forwardDeclaration := FALSE;
+			END;
+
 			IF Optional( Scanner.And ) THEN  (* constructor *)
 				isConstructor := TRUE
 			ELSIF Optional( Scanner.Minus ) THEN  (* inline *)
@@ -1697,14 +1706,16 @@ TYPE
 			procedureType.SetModifiers(modifiers);
 			procedure.SetType(procedureType);
 			IF Optional(Scanner.LeftParenthesis) THEN FormalParameters( procedureType, procedureScope) END;
-			IF Lax THEN Ignore(Scanner.Semicolon) ELSE Check( Scanner.Semicolon ) END;
-			DeclarationSequence( procedureScope);
-			IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
-				procedureScope.SetBody(Body(procedureScope));
+			IF ~forwardDeclaration THEN
+				IF Lax THEN Ignore(Scanner.Semicolon) ELSE Check( Scanner.Semicolon ) END;
+				DeclarationSequence( procedureScope);
+				IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
+					procedureScope.SetBody(Body(procedureScope));
+				END;
+				Check(Scanner.End);
+				IF ExpectThisIdentifier( name ) THEN END;
+				parentScope.AddProcedure( procedure )
 			END;
-			Check(Scanner.End);
-			IF ExpectThisIdentifier( name ) THEN END;
-			parentScope.AddProcedure( procedure );
 
 			IF Trace THEN E( "Procedure") END;
 		END ProcedureDeclaration;
