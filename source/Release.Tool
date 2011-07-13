@@ -293,7 +293,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	FATVolumes.Mod FATFiles.Mod
 	ISO9660Volumes.Mod ISO9660Files.Mod
 
-	UNIX { Unix.Oberon.FileDir.Mod Unix.Oberon.Files.Mod Unix.UnixFiles.Mod }
+	UNIX { Unix.UnixFiles.Mod }
 
 	WIN {
 		Win32.User32.Mod Win32.WinTrace.Mod Win32.ODBC.Mod Win32.Shell32.Mod Win32.SQL.Mod
@@ -1301,7 +1301,7 @@ PACKAGE Oberon ARCHIVE "Oberon.zip" SOURCE "OberonSrc.zip"  DESCRIPTION "Oberon 
 	NATIVE,WIN { Oberon.Types.Mod }
 	WIN { Win32.Oberon.Kernel.Mod }
 	Oberon.Modules.Mod
-	NATIVE { Oberon.FileDir.Mod Oberon.Files.Mod }
+	NATIVE,UNIX { Oberon.FileDir.Mod Oberon.Files.Mod }
 	WIN { Win32.Oberon.FileDir.Mod Win32.Oberon.Files.Mod }
 
 	Oberon.Disks.Mod
