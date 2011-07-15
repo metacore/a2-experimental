@@ -430,7 +430,11 @@ TYPE
 							IF fpos # org THEN  res := Unix.lseek( fd, org, 0 )  END;
 							IF res < 0 THEN  Halt( SELF, TRUE, "UnixFiles.File.Set: lseek failed" )  END;
 							n := Unix.read( fd, S.ADR( buf.data ), Bufsize );
-							IF n < 0 THEN  Halt( SELF, TRUE, "UnixFiles.File.Set: read failed" )  END;
+							IF n < 0 THEN  
+								IF p < fsize THEN  Halt( SELF, TRUE, "UnixFiles.File.Set: read failed" )  
+								ELSE n := 0
+								END
+							END;
 							fpos := org + n;  buf.size := n
 						END;
 						buf.org := org;  buf.chg := FALSE
@@ -616,7 +620,29 @@ TYPE
 
 			END File;
 
+(*===================================================================*)
 
+	(** Get the current directory. *)
+	PROCEDURE GetWorkingDirectory*( VAR path: ARRAY OF CHAR );
+	BEGIN
+		COPY( cwd, path )
+	END GetWorkingDirectory;
+	
+	(** Change to directory path. *)	
+	PROCEDURE ChangeDirectory*( CONST path: ARRAY OF CHAR;  VAR done: BOOLEAN );
+	VAR r: LONGINT;  epath: Filename;
+	BEGIN
+		IF path[0] # '/' THEN  
+			COPY( cwd, epath );  Append( epath, path );
+			CleanPath( epath )  
+		ELSE
+			COPY( path, epath );
+		END;
+		r := Unix.chdir( S.ADR( epath ) );
+		IF r = 0 THEN  COPY( epath, cwd );  done := TRUE   ELSE  done := FALSE   END
+	END ChangeDirectory;
+
+(*===================================================================*)
 	
 	PROCEDURE StripPath*( CONST path: ARRAY OF CHAR;  VAR name: ARRAY OF CHAR );
 	VAR i, p: INTEGER;  c: CHAR;
