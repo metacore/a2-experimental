@@ -129,6 +129,7 @@ TYPE
 					END;
 				END;
 			END;
+			c.next := NIL; c.previous := NIL;
 		END RemoveContent;
 
 		PROCEDURE GetContents*(): Objects.Enumerator;
