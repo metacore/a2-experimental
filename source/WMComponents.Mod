@@ -99,6 +99,8 @@ TYPE
 		languages* : Localization.Languages;
 	END;
 
+	ToggleEditMode* = POINTER TO RECORD END;
+
 	Event* = RECORD
 	END;
 
@@ -869,6 +871,11 @@ TYPE
 
 		(** Dropped is called via the message handler to indicate an item has been dropped. *)
 		PROCEDURE DragDropped*(x, y: LONGINT; dragInfo : WM.DragInfo);
+		BEGIN
+			IF dragInfo.data IS ToggleEditMode THEN
+				editMode := ~editMode;
+				D.String("edit mode : "); IF editMode THEN D.String("TRUE") ELSE D.String("FALSE"); END; D.Ln;
+			END;
 		END DragDropped;
 
 		(** Is called via the message handler to inform about the result of a recent drag operation *)
@@ -1272,7 +1279,11 @@ TYPE
 		VAR region: LONGINT; dx,dy: LONGINT; b: Rectangles.Rectangle; manager: WM.WindowManager;
 		BEGIN
 			IF msg.msgSubType = Messages.MsgSubPointerUp THEN
+				editRegion := None;
+				(*
+				editMode := FALSE;
 				SetPointerInfo(oldPointerInfo);
+				*)
 				RETURN
 			END;
 			dx := msg.x-editX; dy := msg.y-editY;
@@ -1336,7 +1347,7 @@ TYPE
 					END
 				END;
 				IF (fPointerOwner = SELF) THEN
-					IF editMode THEN
+					IF editMode & (editRegion # None) THEN
 						Edit(msg);
 					ELSE
 						IF msg.msgSubType = Messages.MsgSubPointerMove THEN
@@ -1364,12 +1375,15 @@ TYPE
 							IF ~handled THEN PointerMove(msg.x, msg.y, msg.flags) END;
 							IF msg.dz # 0 THEN WheelMove(msg.dz) END
 						ELSIF msg.msgSubType = Messages.MsgSubPointerDown THEN
+							IF editMode THEN editRegion := InEditBounds(msg.x, msg.y); END;
+							(*
 							IF (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
 								msg.originator(WM.ViewPort).GetKeyState(keyFlags);
-								IF editMode THEN editRegion := InEditBounds(msg.x, msg.y) ELSE editRegion := None END;
+								IF (keyFlags # {}) & (keyFlags <= Inputs.Ctrl) THEN editRegion := InEditBounds(msg.x, msg.y) ELSE editRegion := None END;
 							ELSE
 								editRegion := None
 							END;
+							*)
 							IF editRegion # None THEN
 								manager := msg.originator(WM.ViewPort).manager;
 								editX := msg.x; editY := msg.y;
