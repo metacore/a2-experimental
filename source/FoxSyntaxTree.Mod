@@ -341,7 +341,7 @@ TYPE
 
 		PROCEDURE & InitQualifiedIdentifier( position: LONGINT;  prefix, suffix: Identifier);
 		BEGIN
-			ASSERT(suffix # invalidIdentifier);
+			(* ASSERT(suffix # invalidIdentifier); can happen but should be catched by the parser with error report and not here with trap *)
 			SELF.position := position;
 			SELF.prefix := prefix; SELF.suffix := suffix;
 		END InitQualifiedIdentifier;
