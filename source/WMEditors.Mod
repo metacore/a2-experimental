@@ -110,7 +110,6 @@ TYPE
 
 		font- : WMProperties.FontProperty;
 
-		model- : WMProperties.ReferenceProperty;
 		modelI : Models.Model;
 
 		onEscape-, onEnter-, onChanged- : WMEvents.EventSource;
@@ -146,7 +145,6 @@ TYPE
 			NEW(readOnly, readOnlyProto, NIL, NIL); properties.Add(readOnly);
 			NEW(textColor, textColorProto, NIL, NIL); properties.Add(textColor);
 			NEW(font, WMStandardComponents.PrototypeFont, NIL, NIL); properties.Add(font);
-			NEW(model, NIL, GSModel, GSModelInfo); properties.Add(model);
 
 			NEW(onEscape, SELF, GSonEscape, GSonEscapeInfo, SELF.StringToCompCommand); events.Add(onEscape);
 			NEW(onEnter, SELF, GSonEnter, GSonEnterInfo, SELF.StringToCompCommand); events.Add(onEnter);
