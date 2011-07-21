@@ -875,10 +875,7 @@ TYPE
 		(** Dropped is called via the message handler to indicate an item has been dropped. *)
 		PROCEDURE DragDropped*(x, y: LONGINT; dragInfo : WM.DragInfo);
 		BEGIN
-			IF (dragInfo # NIL) & (dragInfo.data # NIL) & (dragInfo.data IS ToggleEditMode) THEN
-				editMode.Set(~editMode.Get());
-				Invalidate;
-			END;
+
 		END DragDropped;
 
 		(*
@@ -909,9 +906,18 @@ TYPE
 		BEGIN
 			data := dragInfo.data;
 			IF (data # NIL) & (data IS VisualComponent)  THEN
-				AddVisualComponent(data(VisualComponent),x,y);
+				IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF,dragInfo) END;
+				IF dragInfo.sender # SELF THEN
+					data(VisualComponent).bounds.Set(Rectangles.MakeRect(0, 0, data(VisualComponent).bounds.GetWidth()-1, data(VisualComponent).bounds.GetHeight()-1));
+					AddVisualComponent(data(VisualComponent),x,y);
+					Invalidate;
+				ELSE
+					data(VisualComponent).bounds.Set(Rectangles.MakeRect(x, y, data(VisualComponent).bounds.GetWidth()-1, data(VisualComponent).bounds.GetHeight()-1));
+					Invalidate;
+				END;
 				RETURN TRUE
 			ELSIF (data # NIL) & (data IS Repositories.Component) THEN
+				IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF,dragInfo) END;
 				model.Set(data(Repositories.Component));
 				RETURN TRUE
 			ELSE
@@ -1335,6 +1341,7 @@ TYPE
 
 		PROCEDURE Edit(VAR msg: Messages.Message);
 		VAR region: LONGINT; dx,dy: LONGINT; b: Rectangles.Rectangle; manager: WM.WindowManager;
+			w,h: LONGINT; img: WMGraphics.Image; canvas: WMGraphics.BufferCanvas;
 		BEGIN
 			IF msg.msgSubType = Messages.MsgSubPointerUp THEN
 				editRegion := None;
@@ -1364,14 +1371,27 @@ TYPE
 				b.t := b.t + dy; dy := 0;
 				b.r := b.r + dx
 			ELSIF editRegion = Inside THEN
-				b.r := b.r + dx;
-				b.l := b.l + dx; dx := 0;
-				b.b := b.b + dy;
-				b.t := b.t + dy; dy := 0;
+				NEW(img);
+				bounds.GetExtents(w,h);
+				Raster.Create(img, w,h, Raster.BGRA8888);
+				NEW(canvas,img);
+				Draw(canvas);
+				IF StartDrag(SELF,img,EditMoved,NIL) THEN END;
 			END;
 			bounds.Set(b);
 			editX := editX + dx; editY := editY + dy;
 		END Edit;
+
+		PROCEDURE EditMoved(sender, data: ANY);
+		VAR parent: XML.Element; ldata: ANY;
+		BEGIN
+			parent := GetParent();
+			IF (parent # NIL) & (parent IS VisualComponent) & (data # NIL) & (sender # SELF) THEN
+				ldata := data(WM.DragInfo).data;
+				parent.RemoveContent(ldata(XML.Element));
+				parent(VisualComponent).Invalidate;
+			END;
+		END EditMoved;
 
 
 		PROCEDURE HandleInternal*(VAR msg : Messages.Message); (** PROTECTED *)
@@ -1504,7 +1524,10 @@ TYPE
 						END
 					ELSIF msg.msgSubType = Messages.MsgDragDropped THEN
 						IF (msg.ext # NIL) THEN
-							IF editMode.Get() THEN
+							IF (msg.ext(WM.DragInfo).data # NIL) & (msg.ext(WM.DragInfo).data IS ToggleEditMode) THEN
+								editMode.Set(~editMode.Get());
+								Invalidate;
+							ELSIF editMode.Get() THEN
 								handled := EditDragDropped(msg.x,msg.y,msg.ext(WM.DragInfo));
 							ELSIF extDragDropped # NIL THEN
 								extDragDropped(msg.x, msg.y, msg.ext(WM.DragInfo), handled)
