@@ -321,7 +321,7 @@ TYPE
 						WMGraphics.DrawStringInRect(canvas, WMRectangles.MakeRect(0, 0, w, h), FALSE, WMGraphics.AlignCenter, WMGraphics.AlignCenter, name^)
 					END;
 				END;
-				IF ~StartDrag(component, image, DragWasAccepted, NIL) THEN component := NIL; END;
+				IF ~StartDrag(component, image, 0,0,DragWasAccepted, NIL) THEN component := NIL; END;
 			END;
 			draggedComponent := component;
 		END MyStartDrag;

@@ -587,7 +587,7 @@ TYPE
 				canvas.SetColor(WMGraphics.Black);
 				WMGraphics.DrawStringInRect(canvas, WMRectangles.MakeRect(x, 0, width, height), FALSE, WMGraphics.AlignLeft, WMGraphics.AlignCenter, caption^);
 			END;
-			IF ~StartDrag(object, canvasImage, DragWasAccepted, NIL) THEN dragNode := NIL; dragObject := NIL; END;
+			IF ~StartDrag(object, canvasImage, 0,0,DragWasAccepted, NIL) THEN dragNode := NIL; dragObject := NIL; END;
 		END MyStartDrag;
 
 		PROCEDURE DragWasAccepted(sender, data : ANY);

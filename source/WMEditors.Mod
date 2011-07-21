@@ -948,7 +948,7 @@ TYPE
 				ELSE
 					image := NIL;
 				END;
-				IF ~StartDrag(NIL, image, DragWasAccepted, NIL) THEN KernelLog.String("ERROR"); (* ignore *) END;
+				IF ~StartDrag(NIL, image, 0,0,DragWasAccepted, NIL) THEN KernelLog.String("ERROR"); (* ignore *) END;
 			END;
 		END AutoStartDrag;
 

@@ -2047,7 +2047,7 @@ TYPE
 				c.DrawString(3, top + 20, message.header.subject^);
 				INC(top, 25)
 			END;
-			IF messageGrid.StartDrag(list, img, DragArrivedList, NIL) THEN
+			IF messageGrid.StartDrag(list, img, 0,0,DragArrivedList, NIL) THEN
 				IF DEBUG THEN KernelLog.String("DraggingStarted"); KernelLog.Ln(); END;
 			ELSE
 				IF DEBUG THEN KernelLog.String("Drag could not be started"); KernelLog.Ln(); END;

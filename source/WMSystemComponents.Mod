@@ -745,7 +745,7 @@ TYPE
 					INC(top, 25)
 				END
 			END;
-			IF grid.StartDrag(NIL, img, DragArrived, NIL) THEN
+			IF grid.StartDrag(NIL, img, 0,0,DragArrived, NIL) THEN
 				IF TraceDragging IN Trace THEN KernelLog.String("WMSystemComponents: DraggingStarted"); END;
 			ELSE
 				IF TraceDragging IN Trace THEN KernelLog.String("WMSystemComponents: Drag could not be started"); END;

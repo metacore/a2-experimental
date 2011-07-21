@@ -1094,7 +1094,7 @@ TYPE
 					DragAbortMessage
 				ELSE DragMessage(Messages.MsgDragOver, GetPositionOwnerIntern(msg.x, msg.y, view))
 				END;
-				IF dragging THEN SetWindowPos(dragCursor, msg.x, msg.y)
+				IF dragging THEN SetWindowPos(dragCursor, msg.x+dragInfo.offsetX, msg.y+dragInfo.offsetY)
 				ELSE RemoveDragCursor
 				END;
 				pointerX := msg.x; pointerY := msg.y; CheckPointerImage;
@@ -1146,7 +1146,7 @@ TYPE
 			END
 		END HandleInternal;
 
-		PROCEDURE StartDrag*(w : Window; sender, data : ANY; img : Graphics.Image; onAccept, onReject : Messages.CompCommand) : BOOLEAN;
+		PROCEDURE StartDrag*(w : Window; sender, data : ANY; img : Graphics.Image; offsetX, offsetY: LONGINT; onAccept, onReject : Messages.CompCommand) : BOOLEAN;
 		VAR result : BOOLEAN;
 
 			PROCEDURE AddDragCursor;
@@ -1156,7 +1156,7 @@ TYPE
 				IF dragImage # NIL THEN
 					dragCursor.img := dragImage; w:= dragImage.width; h := dragImage.height
 				END;
-				Add(pointerX, pointerY, dragCursor, { WM.FlagStayOnTop, WM.FlagNonDispatched, WM.FlagHidden });
+				Add(pointerX+offsetX, pointerY+offsetY, dragCursor, { WM.FlagStayOnTop, WM.FlagNonDispatched, WM.FlagHidden });
 				SetWindowSize(dragCursor, w, h)
 			END AddDragCursor;
 
@@ -1170,6 +1170,7 @@ TYPE
 				NEW(dragInfo);
 				dragInfo.sender := sender; dragInfo.data := data;
 				dragInfo.onAccept := onAccept; dragInfo.onReject := onReject;
+				dragInfo.offsetX := offsetX; dragInfo.offsetY := offsetY;
 				AddDragCursor
 			END;
 			lock.ReleaseWrite;

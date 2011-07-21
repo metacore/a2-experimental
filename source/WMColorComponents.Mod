@@ -276,7 +276,7 @@ TYPE
 		BEGIN
 			NEW(img); Raster.Create(img, 15, 15, Raster.BGRA8888);
 			NEW(c, img); c.Fill(WMRectangles.MakeRect(0, 0, 15, 15), fillColor.Get(), WMGraphics.ModeCopy);
-			IF StartDrag(a, img, DragArrived, NIL) THEN KernelLog.String("DraggingStarted"); KernelLog.Ln
+			IF StartDrag(a, img, 0,0,DragArrived, NIL) THEN KernelLog.String("DraggingStarted"); KernelLog.Ln
 			ELSE KernelLog.String("Drag could not be started"); KernelLog.Ln
 			END
 		END MyStartDrag;

@@ -909,10 +909,10 @@ TYPE
 				IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF,dragInfo) END;
 				IF dragInfo.sender # SELF THEN
 					data(VisualComponent).bounds.Set(Rectangles.MakeRect(0, 0, data(VisualComponent).bounds.GetWidth()-1, data(VisualComponent).bounds.GetHeight()-1));
-					AddVisualComponent(data(VisualComponent),x,y);
+					AddVisualComponent(data(VisualComponent),x+dragInfo.offsetX,y+dragInfo.offsetY);
 					Invalidate;
 				ELSE
-					data(VisualComponent).bounds.Set(Rectangles.MakeRect(x, y, data(VisualComponent).bounds.GetWidth()-1, data(VisualComponent).bounds.GetHeight()-1));
+					data(VisualComponent).bounds.Set(Rectangles.MakeRect(x+dragInfo.offsetX, y+dragInfo.offsetY, data(VisualComponent).bounds.GetWidth()-1, data(VisualComponent).bounds.GetHeight()-1));
 					Invalidate;
 				END;
 				RETURN TRUE
@@ -930,12 +930,12 @@ TYPE
 		END DragResult;
 
 		(** Start a drag operation. *)
-		PROCEDURE StartDrag*(data : ANY; img : WMGraphics.Image; onAccept, onReject : Messages.CompCommand) : BOOLEAN;
+		PROCEDURE StartDrag*(data : ANY; img : WMGraphics.Image; offsetX, offsetY: LONGINT; onAccept, onReject : Messages.CompCommand) : BOOLEAN;
 		VAR rc : Component;
 		BEGIN
 			rc := GetVisualComponentRoot();
 			IF (rc # NIL) & (rc IS Form) THEN
-				RETURN rc(Form).window.StartDrag(SELF, data, img, onAccept, onReject)
+				RETURN rc(Form).window.StartDrag(SELF, data, img, offsetX, offsetY, onAccept, onReject)
 			ELSE
 				RETURN FALSE
 			END
@@ -1376,7 +1376,7 @@ TYPE
 				Raster.Create(img, w,h, Raster.BGRA8888);
 				NEW(canvas,img);
 				Draw(canvas);
-				IF StartDrag(SELF,img,EditMoved,NIL) THEN END;
+				IF StartDrag(SELF,img,-msg.x,-msg.y, EditMoved,NIL) THEN END;
 			END;
 			bounds.Set(b);
 			editX := editX + dx; editY := editY + dy;

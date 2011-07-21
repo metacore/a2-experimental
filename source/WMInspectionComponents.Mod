@@ -1076,7 +1076,7 @@ TYPE
 			Raster.Create(img, w,h, Raster.BGRA8888);
 			NEW(canvas,img);
 			adrLabel.Draw(canvas);
-			IF StartDrag(reference.Get(),img,NIL,NIL) THEN END;
+			IF StartDrag(reference.Get(),img,0,0,NIL,NIL) THEN END;
 		END MyStartDrag;
 
 		PROCEDURE HandleButton(sender, data : ANY);

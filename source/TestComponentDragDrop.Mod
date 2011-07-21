@@ -10,7 +10,7 @@ TYPE
 		PROCEDURE PointerDown(x, y : LONGINT; keys : SET);
 		BEGIN
 			IF 0 IN keys THEN
-				IF StartDrag(NIL, WMGraphics.LoadImage("Bart.Pict", TRUE), DragAccepted, DragRejected) THEN KernelLog.String("DraggingStarted")
+				IF StartDrag(NIL, WMGraphics.LoadImage("Bart.Pict", TRUE), 0,0,DragAccepted, DragRejected) THEN KernelLog.String("DraggingStarted")
 				ELSE KernelLog.String("Drag could not be started")
 				END;
 			ELSE

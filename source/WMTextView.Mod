@@ -3055,7 +3055,7 @@ TYPE
 			END;
 			text.ReleaseRead;
 
-			IF StartDrag(NIL, img, DragWasAccepted, NIL) THEN
+			IF StartDrag(NIL, img, 0,0,DragWasAccepted, NIL) THEN
 			ELSE KernelLog.String("WMTextView : Drag could not be started")
 			END;
 		END AutoStartDrag;

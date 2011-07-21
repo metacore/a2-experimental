@@ -646,7 +646,7 @@ TYPE
 					INC(top, 25)
 				END
 			END;
-			IF grid.StartDrag(NIL, img, DragArrivedList, NIL) THEN KernelLog.String("DraggingStarted")
+			IF grid.StartDrag(NIL, img, 0,0,DragArrivedList, NIL) THEN KernelLog.String("DraggingStarted")
 			ELSE KernelLog.String("Drag could not be started")
 			END;
 		END MyStartDrag;

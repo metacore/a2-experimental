@@ -178,7 +178,7 @@ TYPE
 				NEW(c, img); c.SetColor(SHORT(0FFFF00FFH));
 				c.Fill(WMRectangles.MakeRect(0, 0, w, 25), 0FF80H, WMGraphics.ModeCopy);
 				c.DrawString(3, 20, draggedString^);
-				IF treeView.StartDrag(a, img, DragArrived, NIL) THEN KernelLog.String("DraggingStarted"); KernelLog.Ln
+				IF treeView.StartDrag(a, img, 0,0, DragArrived, NIL) THEN KernelLog.String("DraggingStarted"); KernelLog.Ln
 				ELSE KernelLog.String("Drag could not be started"); KernelLog.Ln
 				END
 			END;
@@ -973,7 +973,7 @@ TYPE
 					INC(top, 25)
 				END
 			END;
-			IF list.StartDrag(NIL, img, ListDragArrived, NIL) THEN KernelLog.String("Dragging started")
+			IF list.StartDrag(NIL, img, 0,0,ListDragArrived, NIL) THEN KernelLog.String("Dragging started")
 			ELSE KernelLog.String("Drag could not be started")
 			END;
 		END MyStartDrag;

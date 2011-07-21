@@ -133,6 +133,7 @@ TYPE
 	VAR
 		data*, sender* : ANY;
 		onAccept*, onReject* : Messages.CompCommand;
+		offsetX*, offsetY*: LONGINT;
 	END DragInfo;
 
 	(** List of decoration - windows to a master window *)
@@ -371,9 +372,9 @@ TYPE
 		END ConfirmDrag;
 
 		(** Start a drag operation. *)
-		PROCEDURE StartDrag*(sender, data : ANY; img : Graphics.Image; onAccept, onReject : Messages.CompCommand) : BOOLEAN;
+		PROCEDURE StartDrag*(sender, data : ANY; img : Graphics.Image; offsetX, offsetY: LONGINT; onAccept, onReject : Messages.CompCommand) : BOOLEAN;
 		BEGIN
-			RETURN manager.StartDrag(SELF, sender, data, img, onAccept, onReject)
+			RETURN manager.StartDrag(SELF, sender, data, img, offsetX, offsetY, onAccept, onReject)
 		END StartDrag;
 
 (** Keyboard message *)
@@ -899,7 +900,7 @@ TYPE
 			lock.ReleaseWrite
 		END SetAcceptDrag;
 
-		PROCEDURE StartDrag*(w : Window; sender, data : ANY; img : Graphics.Image; onAccept, onReject : Messages.CompCommand) : BOOLEAN;
+		PROCEDURE StartDrag*(w : Window; sender, data : ANY; img : Graphics.Image; offsetX, offsetY: LONGINT; onAccept, onReject : Messages.CompCommand) : BOOLEAN;
 		END StartDrag;
 
 		(** a pointer button must be pressed *)
