@@ -30,7 +30,7 @@ IMPORT
 	Modules, Kernel, KernelLog, Strings, Inputs, Files, XML, XMLObjects, Repositories, Types, Models, WMDialogs, WMUtilities,
 	WMMessages, WMWindowManager,
 	WMRectangles, WMGraphics, WMEvents, WMProperties, WMComponents, WMStandardComponents,
-	WMEditors, WMColorComponents, WMDropDownLists, WMTabComponents, WMScrollableComponents;
+	WMEditors, WMColorComponents, WMDropDownLists, WMTabComponents, WMScrollableComponents, Raster;
 
 CONST
 	Ok = 0;
@@ -1040,24 +1040,44 @@ TYPE
 			ofsInfo := -1;
 			reference := NIL;
 			object := NIL;
+
+			NEW(adrLabel); adrLabel.alignment.Set(WMComponents.AlignLeft);
+			adrLabel.bounds.SetWidth(60);
+			adrLabel.fillColor.Set(0CCCCCCCH);
+			adrLabel.bearing.Set(WMRectangles.MakeRect(NameWidth, 0, 0, 0));
+			AddContent(adrLabel);
+			adrLabel.onStartDrag.Add(MyStartDrag);
+			adrLabel.SetExtPointerMoveHandler(AdrLabelMove);
 			NEW(button); button.alignment.Set(WMComponents.AlignRight);
 			button.bounds.SetWidth(60);
 			button.fillColor.Set(WMGraphics.Red);
 			button.enabled.Set(FALSE);
 			button.onClick.Add(HandleButton);
 			AddContent(button);
-			NEW(adrLabel); adrLabel.alignment.Set(WMComponents.AlignRight);
-			adrLabel.bounds.SetWidth(60);
-			adrLabel.fillColor.Set(0CCCCCCCH);
-			AddContent(adrLabel);
 			NEW(editor); editor.alignment.Set(WMComponents.AlignClient);
-			editor.bearing.Set(WMRectangles.MakeRect(NameWidth, 0, 0, 0));
 			editor.type.Set(WMEditors.Ascii);
 			editor.onEnter.Add(EnterPressed);
 			editor.onChanged.Add(EditorContentChanged);
 			AddContent(editor);
 			outOfDate := FALSE;
 		END Init;
+
+		PROCEDURE AdrLabelMove(x, y : LONGINT; keys : SET; VAR handled : BOOLEAN);
+		VAR dx, dy, dp, d : LONGINT; f : REAL; tmax, tmin : LONGINT;
+		BEGIN
+			IF keys = {0} THEN adrLabel.AutoStartDrag END;
+		END AdrLabelMove;
+
+		PROCEDURE MyStartDrag(sender, data: ANY);
+		VAR w,h: LONGINT; img: WMGraphics.Image; canvas: WMGraphics.BufferCanvas;
+		BEGIN
+			NEW(img);
+			adrLabel.bounds.GetExtents(w,h);
+			Raster.Create(img, w,h, Raster.BGRA8888);
+			NEW(canvas,img);
+			adrLabel.Draw(canvas);
+			IF StartDrag(reference.Get(),img,NIL,NIL) THEN END;
+		END MyStartDrag;
 
 		PROCEDURE HandleButton(sender, data : ANY);
 		VAR object : XML.Element; modelView : ModelView; window : Window;
