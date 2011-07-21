@@ -268,7 +268,6 @@ TYPE
 
 		onClickHandler- : WMProperties.StringProperty;
 
-		model- : WMProperties.ReferenceProperty;
 		modelI : Models.Model;
 
 		clDefault-, clHover-, clPressed-,
@@ -320,7 +319,6 @@ TYPE
 			NEW(isToggle, PrototypeBisToggle, NIL, NIL); properties.Add(isToggle);
 			NEW(indicateToggle, PrototypeBindicateToggle, NIL, NIL); properties.Add(indicateToggle);
 			NEW(onClickHandler, PrototypeBonClickHandler, NIL, NIL); properties.Add(onClickHandler);
-			NEW(model, NIL, StrModel, StrModelInfo); properties.Add(model);
 			modelI := NIL;
 			(* look *)
 			bounds.SetPrototype(PrototypeBBounds); (* override the defaults *)
@@ -887,7 +885,6 @@ TYPE
 	Scrollbar* = OBJECT (WMComponents.VisualComponent)
 	VAR
 		min-, max-, pos-, pageSize-, width- : WMProperties.Int32Property;
-		model- : WMProperties.ReferenceProperty;
 		modelI : Models.Model;
 
 		vertical- : WMProperties.BooleanProperty;
@@ -957,7 +954,6 @@ TYPE
 			NEW(max, PrototypeSmax,  NIL, NIL); properties.Add(max);
 			NEW(pos, PrototypeSpos, NIL, NIL); properties.Add(pos);
 			NEW(pageSize, PrototypeSpageSize, NIL, NIL); properties.Add(pageSize);
-			NEW(model, NIL, StrModel, StrModelInfo); properties.Add(model);
 			modelI := NIL;
 			NEW(vertical, PrototypeSvertical, NIL, NIL); properties.Add(vertical);
 			pos.SetBounds(min.Get(), max.Get());

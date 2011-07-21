@@ -580,8 +580,9 @@ TYPE
 		bounds-, bearing- : WMProperties.RectangleProperty;
 		alignment- : WMProperties.Int32Property;
 		fillColor- : WMProperties.ColorProperty;
-		visible-, takesFocus-, needsTab- : WMProperties.BooleanProperty;
+		visible-, takesFocus-, needsTab-, editMode- : WMProperties.BooleanProperty;
 		focusPrevious-, focusNext- : WMProperties.StringProperty;
+		model- : WMProperties.ReferenceProperty;
 		onStartDrag- : WMEvents.EventSource;
 		canvasState- : WMGraphics.CanvasState; (** PROTECTED *)
 		fPointerOwner : VisualComponent;
@@ -600,7 +601,6 @@ TYPE
 		layoutManager : LayoutManager;
 		aligning* : BOOLEAN;
 		pointerInfo : WM.PointerInfo;
-		editMode: BOOLEAN;
 		editRegion: LONGINT;
 		editX, editY: LONGINT;
 		keyFlags: SET; (*! remove *)
@@ -609,7 +609,6 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
-			editMode := FALSE;
 			SetNameAsString(StrVisualComponent);
 
 			NEW(bounds, PrototypeBounds, NIL, NIL); properties.Add(bounds);
@@ -621,6 +620,8 @@ TYPE
 			NEW(needsTab, PrototypeNeedsTab, NIL, NIL); properties.Add(needsTab);
 			NEW(focusPrevious, PrototypeFocusPrevious, NIL, NIL); properties.Add(focusPrevious);
 			NEW(focusNext, PrototypeFocusNext, NIL, NIL); properties.Add(focusNext);
+			NEW(editMode, PrototypeEditMode, NIL,NIL); properties.Add(editMode); editMode.Set(FALSE);
+			NEW(model, NIL, StrModel, StrModelInfo); properties.Add(model);
 
 			NEW(onStartDrag, SELF, GSonStartDrag,GSonStartDragInfo, SELF.StringToCompCommand);
 			events.Add(onStartDrag);
@@ -736,6 +737,8 @@ TYPE
 			ELSIF property = alignment THEN AlignmentChanged
 			ELSIF property = fillColor THEN Invalidate;
 			ELSIF property = bearing THEN Resized;
+			ELSIF property = editMode THEN Invalidate;
+			ELSIF property = model THEN Invalidate;
 			ELSE PropertyChanged^(sender, property)
 			END;
 		END PropertyChanged;
@@ -872,11 +875,49 @@ TYPE
 		(** Dropped is called via the message handler to indicate an item has been dropped. *)
 		PROCEDURE DragDropped*(x, y: LONGINT; dragInfo : WM.DragInfo);
 		BEGIN
-			IF dragInfo.data IS ToggleEditMode THEN
-				editMode := ~editMode;
-				D.String("edit mode : "); IF editMode THEN D.String("TRUE") ELSE D.String("FALSE"); END; D.Ln;
+			IF (dragInfo # NIL) & (dragInfo.data # NIL) & (dragInfo.data IS ToggleEditMode) THEN
+				editMode.Set(~editMode.Get());
+				Invalidate;
 			END;
 		END DragDropped;
+
+		(*
+		PROCEDURE EditDragOver(x,y: LONGINT; dragInfo: WMWindowManager.DragInfo);
+		BEGIN
+		END EditDragOver;
+		*)
+
+		PROCEDURE AddVisualComponent(c :VisualComponent; x, y : LONGINT);
+		VAR vc : VisualComponent; bounds : Rectangles.Rectangle;canvas: WMGraphics.BufferCanvas;
+		BEGIN
+			ASSERT(c # NIL);
+			vc := c (VisualComponent);
+			vc.alignment.Set(AlignNone);
+			IF (vc.bounds.GetWidth() < 10) OR (vc.bounds.GetHeight() < 10) THEN
+				vc.bounds.SetExtents(40, 20);
+			END;
+			bounds := vc.bounds.Get();
+			Rectangles.MoveRel(bounds, x, y);
+			vc.bounds.Set(bounds);
+			(*LabelComponent(vc);*)
+			AddContent(vc);
+			vc.Reset(NIL, NIL);
+		END AddVisualComponent;
+
+		PROCEDURE EditDragDropped(x,y: LONGINT; dragInfo: WM.DragInfo): BOOLEAN;
+		VAR data: ANY;
+		BEGIN
+			data := dragInfo.data;
+			IF (data # NIL) & (data IS VisualComponent)  THEN
+				AddVisualComponent(data(VisualComponent),x,y);
+				RETURN TRUE
+			ELSIF (data # NIL) & (data IS Repositories.Component) THEN
+				model.Set(data(Repositories.Component));
+				RETURN TRUE
+			ELSE
+				RETURN FALSE
+			END;
+		END EditDragDropped;
 
 		(** Is called via the message handler to inform about the result of a recent drag operation *)
 		PROCEDURE DragResult*(accepted : BOOLEAN; recipient : ANY; dragInfo : WM.DragInfo);
@@ -943,8 +984,27 @@ TYPE
 
 		(** Is called after all sub-components are drawn *)
 		PROCEDURE DrawForeground*(canvas : WMGraphics.Canvas);
+		VAR r,r0: Rectangles.Rectangle; x,y,x0,y0: LONGINT; color: LONGINT;
 		BEGIN
 			CheckReadLock;
+			IF editMode.Get() THEN
+				r := GetClientRect();
+				y := r.t;
+				y0 := 0;
+				WHILE y < r.b DO
+					r0.t := y; r0.b := y+10;
+					x := r.l;  x0 := 0;
+					WHILE x < r.r DO
+						r0.l := x; r0.r := x+10;
+						IF ODD(x0+y0) THEN color := 020H;
+						ELSE color := LONGINT(0FFFFFF20H);
+						END;
+						canvas.Fill(r0,color, WMGraphics.ModeSrcOverDst);
+						INC(x,10); INC(x0);
+					END;
+					INC(y,10);INC(y0);
+				END;
+			END;
 		END DrawForeground;
 
 		PROCEDURE DrawSubComponents*(canvas : WMGraphics.Canvas);
@@ -1245,8 +1305,6 @@ TYPE
 			bottom := bounds.GetBottom();
 
 			INC(x,left); INC(y,top); (* relative -> absolute *)
-			D.String("l,r,t,b: "); D.Int(left,10); D.Int(right,10); D.Int(top,10); D.Int(bottom,10); D.Ln;
-			D.String("x,y: "); D.Int(x,10); D.Int(y,10); D.Ln;
 
 			IF  (ABS(left-x) <= Border) THEN
 				IF  (ABS(top-y) <= Border) THEN
@@ -1280,10 +1338,7 @@ TYPE
 		BEGIN
 			IF msg.msgSubType = Messages.MsgSubPointerUp THEN
 				editRegion := None;
-				(*
-				editMode := FALSE;
 				SetPointerInfo(oldPointerInfo);
-				*)
 				RETURN
 			END;
 			dx := msg.x-editX; dy := msg.y-editY;
@@ -1325,6 +1380,9 @@ TYPE
 			r, v : VisualComponent;
 			p : XML.Element;
 			keyFlags: SET; manager : WM.WindowManager;
+			currentEditRegion: LONGINT;
+			parent: XML.Element;
+			parentEditMode: BOOLEAN;
 		BEGIN
 			ASSERT(IsCallFromSequencer());
 			handled := FALSE;
@@ -1347,16 +1405,23 @@ TYPE
 					END
 				END;
 				IF (fPointerOwner = SELF) THEN
-					IF editMode & (editRegion # None) THEN
+					parent := GetParent();
+					IF (parent # NIL) & (parent IS VisualComponent) & parent(VisualComponent).editMode.Get() THEN
+						parentEditMode := TRUE
+					ELSE
+						parentEditMode := FALSE
+					END;
+
+					IF parentEditMode & (editRegion # None) THEN
 						Edit(msg);
 					ELSE
 						IF msg.msgSubType = Messages.MsgSubPointerMove THEN
-							(*
-							IF (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
+
+							IF (parentEditMode) & (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
 								manager := msg.originator(WM.ViewPort).manager;
 								msg.originator(WM.ViewPort).GetKeyState(keyFlags);
-								IF (keyFlags # {}) & (keyFlags <= Inputs.Ctrl) THEN editRegion := InEditBounds(msg.x, msg.y) ELSE editRegion := None END;
-								CASE editRegion OF
+								currentEditRegion := InEditBounds(msg.x, msg.y);
+								CASE currentEditRegion OF
 									| Lower, Upper: SetPointerInfo(manager.pointerUpDown)
 									| Left, Right:SetPointerInfo(manager.pointerLeftRight)
 									| LowerLeft, UpperRight:SetPointerInfo(manager.pointerURDL)
@@ -1369,13 +1434,13 @@ TYPE
 									END;
 								END;
 							END;
-							*)
+
 							IF extPointerMove # NIL THEN extPointerMove(msg.x, msg.y, msg.flags, handled) END;
 							SetInternalPointerInfo(pointerInfo);
 							IF ~handled THEN PointerMove(msg.x, msg.y, msg.flags) END;
 							IF msg.dz # 0 THEN WheelMove(msg.dz) END
 						ELSIF msg.msgSubType = Messages.MsgSubPointerDown THEN
-							IF editMode THEN editRegion := InEditBounds(msg.x, msg.y); END;
+							IF parentEditMode THEN editRegion := InEditBounds(msg.x, msg.y); END;
 							(*
 							IF (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
 								msg.originator(WM.ViewPort).GetKeyState(keyFlags);
@@ -1439,7 +1504,11 @@ TYPE
 						END
 					ELSIF msg.msgSubType = Messages.MsgDragDropped THEN
 						IF (msg.ext # NIL) THEN
-							IF extDragDropped # NIL THEN extDragDropped(msg.x, msg.y, msg.ext(WM.DragInfo), handled) END;
+							IF editMode.Get() THEN
+								handled := EditDragDropped(msg.x,msg.y,msg.ext(WM.DragInfo));
+							ELSIF extDragDropped # NIL THEN
+								extDragDropped(msg.x, msg.y, msg.ext(WM.DragInfo), handled)
+							END;
 							IF ~handled THEN
 								po.DragDropped(msg.x, msg.y, msg.ext(WM.DragInfo))
 							END
@@ -1743,9 +1812,9 @@ VAR
 	PrototypeEnabled : WMProperties.BooleanProperty;
 	PrototypeFillColor : WMProperties.ColorProperty;
 	PrototypeAlignment : WMProperties.Int32Property;
-	PrototypeVisible, PrototypeTakesFocus, PrototypeNeedsTab : WMProperties.BooleanProperty;
+	PrototypeVisible, PrototypeTakesFocus, PrototypeNeedsTab, PrototypeEditMode: WMProperties.BooleanProperty;
 	PrototypeFocusPrevious, PrototypeFocusNext : WMProperties.StringProperty;
-	StrComponent, StrVisualComponent, StrForm : Strings.String;
+	StrComponent, StrVisualComponent, StrForm, StrModel, StrModelInfo : Strings.String;
 	GSonStartDrag, GSonStartDragInfo : Strings.String;
 
 	propertyListList- : PropertyListList;
@@ -2406,6 +2475,8 @@ BEGIN
 	StrForm := NewString("Form");
 	GSonStartDrag := NewString("onStartDrag");
 	GSonStartDragInfo := NewString("Event generated whenever a drag is started");
+	StrModel := NewString("Model");
+	StrModelInfo := NewString("Model used by component");
 END InitStrings;
 
 PROCEDURE InitPrototypes;
@@ -2441,6 +2512,8 @@ BEGIN
 	PrototypeFocusPrevious.Set(NIL);
 	NEW(PrototypeFocusNext, NIL, NewString("FocusNext"), NewString("Next focus component ID"));
 	PrototypeFocusNext.Set(NIL);
+	NEW(PrototypeEditMode, NIL, NewString("EditMode"), NewString("defines if the contents of the component can be edited"));
+	PrototypeEditMode.Set(FALSE);
 END InitPrototypes;
 
 PROCEDURE ShowComponent(component : Component);
