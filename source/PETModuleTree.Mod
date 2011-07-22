@@ -667,6 +667,10 @@ TYPE
 					AddProcedure(parent, type.procedure);
 				ELSIF type.enum # NIL THEN
 					AddEnum(parent, type.enum);
+				ELSIF type.cell # NIL THEN
+					AddCell(parent, type.cell, anonymous)
+				ELSIF type.port # NIL THEN
+					AddPort(parent, type.port);
 				END;
 			END;
 		END AddType;
@@ -875,6 +879,34 @@ TYPE
 				END;
 			END;
 		END AddObject;
+
+		PROCEDURE AddCell(parent: WMTrees.TreeNode; cell: ModuleParser.Cell; anonymous: BOOLEAN);
+		VAR newNode, p: WMTrees.TreeNode; image : WMGraphics.Image;
+		BEGIN
+			IF cell # NIL THEN
+				IF anonymous THEN p := NewNode(parent, Strings.NewString("CELL"));
+				ELSE p := parent;
+				END;
+				IF (p IS TreeNode) THEN
+					p(TreeNode).color := ColorObjects;
+				END;
+				IF cell.formalPars # NIL THEN
+					AddFormalPars(p, cell.formalPars);
+				END;
+				IF cell.declSeq # NIL THEN
+					AddDeclSeq(p, cell.declSeq);
+				END;
+				IF cell.bodyPos # 0 THEN
+					AddBody (p, cell, cell.modifiers, cell.bodyPos);
+				END;
+			END;
+		END AddCell;
+
+		PROCEDURE AddPort(parent: WMTrees.TreeNode; port:ModuleParser.Port);
+		VAR p: WMTrees.TreeNode;
+		BEGIN
+			p := NewNode(parent, Strings.NewString("PORT"));
+		END AddPort;
 
 		PROCEDURE AddProcedure(parent: WMTrees.TreeNode; proc: ModuleParser.Procedure);
 		VAR newNode: WMTrees.TreeNode;

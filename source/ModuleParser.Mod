@@ -85,6 +85,8 @@ TYPE
 		pointer*: Pointer;
 		object*: Object;
 		enum*: Enum;
+		cell*: Cell;
+		port*: Port;
 		procedure*: Procedure;
 	END Type;
 
@@ -116,6 +118,29 @@ TYPE
 	Enum* = OBJECT(Node)
 	VAR identList*: IdentList;
 	END Enum;
+
+	Port*= OBJECT(Node)
+	END Port;
+
+	Cell*= OBJECT(Node)
+	VAR
+		modifiers* : SET;
+		declSeq*: DeclSeq;
+		bodyPos- : LONGINT;
+		formalPars*: FormalPars;
+
+		PROCEDURE FindProcDecl*(CONST name : ARRAY OF CHAR) : ProcDecl;
+		VAR procDecl : ProcDecl;
+		BEGIN
+			IF (declSeq # NIL) THEN
+				procDecl := declSeq.FindProcDecl(name);
+			ELSE
+				procDecl := NIL;
+			END;
+			RETURN procDecl;
+		END FindProcDecl;
+
+	END Cell;
 
 	Object* = OBJECT(Node)
 	VAR
@@ -363,7 +388,7 @@ TYPE
 			definition: Definition;
 		BEGIN
 			NextSymbol;
-			IF symbol.token = FoxScanner.Module THEN
+			IF (symbol.token = FoxScanner.Module) OR (symbol.token = FoxScanner.CellNet) THEN
 				NEW(module, NIL); module.parent := module;
 				NextSymbol;
 				IF symbol.token = FoxScanner.Identifier THEN
@@ -774,6 +799,8 @@ TYPE
 			| FoxScanner.Record: NextSymbol; NEW(type.record, type); RecordP(type.record);
 			| FoxScanner.Pointer: NextSymbol; NEW(type.pointer, type); PointerP(type.pointer);
 			| FoxScanner.Object: NextSymbol; NEW(type.object, type); ObjectP(type.object);
+			| FoxScanner.Port: NextSymbol; NEW(type.port, type); PortP(type.port);
+			| FoxScanner.Cell, FoxScanner.CellNet: NextSymbol; NEW(type.cell, type); CellP(type.cell);
 			| FoxScanner.Enum: NextSymbol; NEW(type.enum, type); EnumP(type.enum);
 			| FoxScanner.Procedure, FoxScanner.Operator: NextSymbol; NEW(type.procedure, type); ProcedureP(type.procedure);
 			| FoxScanner.Identifier: NEW(type.qualident, type); QualidentP(type.qualident);
@@ -894,6 +921,14 @@ TYPE
 			END;
 		END EnumP;
 
+		PROCEDURE PortP(port: Port);
+		BEGIN
+			IF (symbol.token = FoxScanner.Out) OR (symbol.token = FoxScanner.In) THEN
+				NextSymbol
+			END;
+		END PortP;
+
+
 		PROCEDURE ObjectP(object: Object);
 		VAR declSeq: DeclSeq;
 			pos: LONGINT;
@@ -937,6 +972,36 @@ TYPE
 			BodyP(TRUE, object.modifiers);
 			IF symbol.token = FoxScanner.Identifier THEN NextSymbol END;
 		END ObjectP;
+
+		PROCEDURE CellP(cell: Cell);
+		VAR declSeq: DeclSeq;
+			pos: LONGINT;
+		(*?	qualident: Qualident; *)
+		BEGIN
+			SysFlag;
+			IF symbol.token = FoxScanner.LeftParenthesis THEN
+				NEW(cell.formalPars, cell);
+				FormalParsP(cell.formalPars);
+			END;
+			pos := -1;
+			WHILE (symbol.token # FoxScanner.Begin) & (symbol.token # FoxScanner.End) & (symbol.token # FoxScanner.EndOfText) DO
+					(* avoid endless-loop *)
+				IF pos = symbol.start THEN NextSymbol END;
+				pos := symbol.start;
+				NEW(declSeq, cell);
+				DeclSeqP(declSeq);
+				IF cell.declSeq = NIL THEN cell.declSeq := declSeq;
+				ELSE AppendLast(cell.declSeq, declSeq);
+				END;
+			END;
+			IF (symbol.token = FoxScanner.Begin) THEN
+				cell.bodyPos := symbol.start;
+			ELSE
+				cell.bodyPos := 0;
+			END;
+			BodyP(TRUE, cell.modifiers);
+			IF symbol.token = FoxScanner.Identifier THEN NextSymbol END;
+		END CellP;
 
 		PROCEDURE ProcedureP(proc: Procedure);
 		BEGIN
