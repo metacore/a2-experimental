@@ -84,6 +84,7 @@ TYPE
 		record*: Record;
 		pointer*: Pointer;
 		object*: Object;
+		enum*: Enum;
 		procedure*: Procedure;
 	END Type;
 
@@ -111,6 +112,10 @@ TYPE
 	VAR
 		type*: Type;
 	END Pointer;
+
+	Enum* = OBJECT(Node)
+	VAR identList*: IdentList;
+	END Enum;
 
 	Object* = OBJECT(Node)
 	VAR
@@ -769,6 +774,7 @@ TYPE
 			| FoxScanner.Record: NextSymbol; NEW(type.record, type); RecordP(type.record);
 			| FoxScanner.Pointer: NextSymbol; NEW(type.pointer, type); PointerP(type.pointer);
 			| FoxScanner.Object: NextSymbol; NEW(type.object, type); ObjectP(type.object);
+			| FoxScanner.Enum: NextSymbol; NEW(type.enum, type); EnumP(type.enum);
 			| FoxScanner.Procedure, FoxScanner.Operator: NextSymbol; NEW(type.procedure, type); ProcedureP(type.procedure);
 			| FoxScanner.Identifier: NEW(type.qualident, type); QualidentP(type.qualident);
 			ELSE
@@ -870,6 +876,23 @@ TYPE
 			NEW(pointer.type, pointer);
 			TypeP(pointer.type);
 		END PointerP;
+
+		PROCEDURE EnumP(enum: Enum);
+		VAR identDef: IdentDef; identList: IdentList;
+		BEGIN
+			NEW(enum.identList, enum);
+			NEW(enum.identList.identDef);
+			IdentDefP(enum.identList.identDef);
+			SysFlag;
+			WHILE symbol.token = FoxScanner.Comma DO
+				NextSymbol;	(* avoids endless loop *)
+				NEW(identDef);
+				IdentDefP(identDef);
+				NEW(identList, enum);
+				identList.identDef := identDef;
+				AppendLast(enum.identList, identList);
+			END;
+		END EnumP;
 
 		PROCEDURE ObjectP(object: Object);
 		VAR declSeq: DeclSeq;

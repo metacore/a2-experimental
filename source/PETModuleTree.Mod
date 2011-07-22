@@ -665,6 +665,8 @@ TYPE
 					AddObject(parent, type.object, anonymous, TRUE);
 				ELSIF type.procedure # NIL THEN
 					AddProcedure(parent, type.procedure);
+				ELSIF type.enum # NIL THEN
+					AddEnum(parent, type.enum);
 				END;
 			END;
 		END AddType;
@@ -685,6 +687,14 @@ TYPE
 				AddFieldDecl(p, record.fieldList);
 			END;
 		END AddRecord;
+
+		PROCEDURE AddEnum(parent: WMTrees.TreeNode; enum: ModuleParser.Enum);
+		VAR p: WMTrees.TreeNode; num: LONGINT;
+		BEGIN
+			IF enum # NIL THEN
+				AddIdentList(parent, enum.identList,num);
+			END;
+		END AddEnum;
 
 		PROCEDURE AddFieldDecl(parent: WMTrees.TreeNode; fieldDecl: ModuleParser.FieldDecl);
 		VAR newNode: WMTrees.TreeNode; n, l: ModuleParser.NodeList;
