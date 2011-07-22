@@ -994,22 +994,25 @@ TYPE
 		BEGIN
 			CheckReadLock;
 			IF editMode.Get() THEN
+
 				r := GetClientRect();
+
 				y := r.t;
 				y0 := 0;
 				WHILE y < r.b DO
-					r0.t := y; r0.b := y+10;
+					r0.t := y; r0.b := y+2;
 					x := r.l;  x0 := 0;
 					WHILE x < r.r DO
-						r0.l := x; r0.r := x+10;
+						r0.l := x; r0.r := x+2;
 						IF ODD(x0+y0) THEN color := 020H;
 						ELSE color := LONGINT(0FFFFFF20H);
 						END;
 						canvas.Fill(r0,color, WMGraphics.ModeSrcOverDst);
-						INC(x,10); INC(x0);
+						INC(x,8); INC(x0);
 					END;
-					INC(y,10);INC(y0);
+					INC(y,8);INC(y0);
 				END;
+
 			END;
 		END DrawForeground;
 
@@ -1371,12 +1374,20 @@ TYPE
 				b.t := b.t + dy; dy := 0;
 				b.r := b.r + dx
 			ELSIF editRegion = Inside THEN
+				(*
+				b.t := b.t+dy;
+				b.b := b.b+dy;
+				b.r := b.r+dx;
+				b.l := b.l+dx;
+				dx := 0; dy := 0;
+				*)
 				NEW(img);
 				bounds.GetExtents(w,h);
 				Raster.Create(img, w,h, Raster.BGRA8888);
 				NEW(canvas,img);
 				Draw(canvas);
 				IF StartDrag(SELF,img,-msg.x,-msg.y, EditMoved,NIL) THEN END;
+				RETURN
 			END;
 			bounds.Set(b);
 			editX := editX + dx; editY := editY + dy;
@@ -1386,13 +1397,14 @@ TYPE
 		VAR parent: XML.Element; ldata: ANY;
 		BEGIN
 			parent := GetParent();
-			IF (parent # NIL) & (parent IS VisualComponent) & (data # NIL) & (sender # SELF) THEN
+			IF (sender # SELF) & (parent # NIL) & (parent IS VisualComponent) & (data # NIL) THEN
 				ldata := data(WM.DragInfo).data;
-				parent.RemoveContent(ldata(XML.Element));
-				parent(VisualComponent).Invalidate;
+				IF (ldata # NIL) & (ldata IS XML.Element) THEN
+					parent.RemoveContent(ldata(XML.Element));
+					parent(VisualComponent).Invalidate;
+				END;
 			END;
 		END EditMoved;
-
 
 		PROCEDURE HandleInternal*(VAR msg : Messages.Message); (** PROTECTED *)
 		VAR
@@ -1512,7 +1524,8 @@ TYPE
 				ELSE
 					handled := FALSE;
 				END;
-				IF po # SELF THEN (* Let child handle the drag and drop message *)
+				IF editMode.Get() & (msg.ext # NIL) & (msg.ext(WM.DragInfo).data=po) THEN po := SELF END;
+				IF (po # SELF) THEN (* Let child handle the drag and drop message *)
 					b := po.bounds.Get();
 					msg.x := msg.x - b.l; msg.y := msg.y - b.t;
 					po.Handle(msg)
