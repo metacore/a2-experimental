@@ -55,6 +55,8 @@ CONST
 
 	None=0; Left=1; Right=2; Lower=3; Upper=4; LowerRight=5; UpperRight=6; LowerLeft=7; UpperLeft=8; Inside = 9;
 
+
+
 	MaxComponentNameSize* = 64; (* including 0X *)
 
 	TraceFocus = 0;
@@ -81,6 +83,7 @@ CONST
 	MacroClipboard = "clipboard";
 	MacroAttributePrefix = "attribute=";
 
+
 TYPE
 	(** Installable event preview handlers. Are called by the components sequencer thread *)
 	PointerHandler*  = PROCEDURE {DELEGATE} (x, y : LONGINT; keys : SET; VAR handled : BOOLEAN);
@@ -92,6 +95,7 @@ TYPE
 	ContextMenuHandler* = PROCEDURE {DELEGATE} (sender : ANY; x, y: LONGINT);
 	KeyEventHandler* = PROCEDURE {DELEGATE} (ucs : LONGINT; flags : SET; VAR keySym : LONGINT; VAR handled : BOOLEAN);
 	DrawHandler* = PROCEDURE {DELEGATE} (canvas : WMGraphics.Canvas);
+	Recursion*= ENUM None, FromComponent, FromBottom END;
 
 TYPE
 
@@ -99,7 +103,9 @@ TYPE
 		languages* : Localization.Languages;
 	END;
 
-	ToggleEditMode* = POINTER TO RECORD END;
+	ToggleEditMode* = POINTER TO RECORD
+		recursion*: Recursion;
+	END;
 
 	Event* = RECORD
 	END;
@@ -1393,11 +1399,29 @@ TYPE
 			editX := editX + dx; editY := editY + dy;
 		END Edit;
 
+		PROCEDURE SetEditMode*(mode: BOOLEAN; recurse: BOOLEAN);
+		VAR vc: VisualComponent; c: XML.Content;
+		BEGIN
+			Acquire;
+			editMode.Set(mode);
+			IF recurse THEN
+				c := GetFirst();
+				WHILE (c # NIL) DO
+					IF c IS VisualComponent THEN
+						vc := c(VisualComponent);
+						vc.SetEditMode(mode, TRUE);
+					END;
+					c := GetNext(c);
+				END;
+			END;
+			Release;
+		END SetEditMode;
+
 		PROCEDURE EditMoved(sender, data: ANY);
 		VAR parent: XML.Element; ldata: ANY;
 		BEGIN
 			parent := GetParent();
-			IF (sender # SELF) & (parent # NIL) & (parent IS VisualComponent) & (data # NIL) THEN
+			IF (sender # SELF) & (parent # NIL) & (parent IS VisualComponent) & (data # NIL) & (data IS WM.DragInfo) THEN
 				ldata := data(WM.DragInfo).data;
 				IF (ldata # NIL) & (ldata IS XML.Element) THEN
 					parent.RemoveContent(ldata(XML.Element));
@@ -1524,7 +1548,11 @@ TYPE
 				ELSE
 					handled := FALSE;
 				END;
-				IF editMode.Get() & (msg.ext # NIL) & (msg.ext(WM.DragInfo).data=po) THEN po := SELF END;
+				IF (po # SELF) & editMode.Get() & (~po.editMode.Get() OR (msg.ext # NIL) & (msg.ext(WM.DragInfo).data=po)) THEN
+					po := SELF
+				ELSIF (msg.ext # NIL) & (msg.ext(WM.DragInfo).data # NIL) & (msg.ext(WM.DragInfo).data IS ToggleEditMode) & (msg.ext(WM.DragInfo).data(ToggleEditMode).recursion = Recursion.FromBottom) THEN
+					po := SELF
+				END;
 				IF (po # SELF) THEN (* Let child handle the drag and drop message *)
 					b := po.bounds.Get();
 					msg.x := msg.x - b.l; msg.y := msg.y - b.t;
@@ -1538,7 +1566,7 @@ TYPE
 					ELSIF msg.msgSubType = Messages.MsgDragDropped THEN
 						IF (msg.ext # NIL) THEN
 							IF (msg.ext(WM.DragInfo).data # NIL) & (msg.ext(WM.DragInfo).data IS ToggleEditMode) THEN
-								editMode.Set(~editMode.Get());
+								SetEditMode(~editMode.Get(), msg.ext(WM.DragInfo).data(ToggleEditMode).recursion # Recursion.None);
 								Invalidate;
 							ELSIF editMode.Get() THEN
 								handled := EditDragDropped(msg.x,msg.y,msg.ext(WM.DragInfo));
