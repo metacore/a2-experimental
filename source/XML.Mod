@@ -94,7 +94,7 @@ TYPE
 
 		PROCEDURE AddContent*(c: Content);
 		BEGIN {EXCLUSIVE}
-			ASSERT((c # NIL) & (c.next = NIL));
+			ASSERT((c # NIL) & (c.next = NIL) & (c.previous = NIL)); (* may not be in more than one list! *)
 			IF (first = NIL) THEN
 				ASSERT(last = NIL);
 				first := c; last := c;
@@ -118,6 +118,7 @@ TYPE
 					first := first.next;
 					IF (last = c) THEN last := NIL; ASSERT(first = NIL); END;
 					DEC(nofContents);
+					c.next := NIL; c.previous := NIL;
 				ELSE
 					cur := first;
 					WHILE (cur.next # NIL) & (cur.next # c) DO cur := cur.next; END;
@@ -126,10 +127,10 @@ TYPE
 						cur.next := cur.next.next;
 						IF (last = c) THEN last := cur; ASSERT(cur.next = NIL); END;
 						DEC(nofContents);
+						c.next := NIL; c.previous := NIL;
 					END;
 				END;
 			END;
-			c.next := NIL; c.previous := NIL;
 		END RemoveContent;
 
 		PROCEDURE GetContents*(): Objects.Enumerator;
