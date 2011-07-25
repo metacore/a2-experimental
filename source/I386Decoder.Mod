@@ -3079,7 +3079,9 @@ TYPE
 			op := opcode(IA32Opcode);
 			DoPrefixes(op);
 			op.op := ORD(op.opcodeByte[0]);
+			(*
 			KernelLog.String("op.op = "); KernelLog.Hex(op.op, 0); KernelLog.Ln;
+			*)
 			CASE op.op OF
 				0..5:
 						Add(op);

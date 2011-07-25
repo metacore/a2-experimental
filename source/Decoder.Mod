@@ -691,7 +691,7 @@ TYPE
 			ELSIF (fieldInfo.type >= 81H) & (fieldInfo.type <= 90H) THEN
 				fieldInfo.kind := VarArray;
 				DEC(fieldInfo.type, 80H);
-				reader.RawNum(fieldInfo.dim)				
+				reader.RawNum(fieldInfo.dim)
 			ELSE
 				ASSERT((fieldInfo.type = 16H) OR (fieldInfo.type = 1DH));
 				fieldInfo.kind := VarRecord;
@@ -1441,6 +1441,8 @@ TYPE
 				IF type.name = "" THEN type.name := "[anonymous]" END;
 				types[i] := type;
 
+				KernelLog.Ln;
+				KernelLog.String(" - name = "); KernelLog.String(type.name); KernelLog.Ln;
 				KernelLog.String(" - size = "); KernelLog.Int(size, 0); KernelLog.Ln;
 				KernelLog.String(" - tdaddr = "); KernelLog.Int(tdaddr, 0); KernelLog.Ln;
 				KernelLog.String(" - moduleBase = "); KernelLog.Int(moduleBase, 0); KernelLog.Ln;
@@ -1463,12 +1465,13 @@ TYPE
 					type.procedures[j] := procInfo;
 				END;
 
-				KernelLog.String(" - PtrOfs: "); KernelLog.Ln;
+				KernelLog.String(" - PtrOfs: ");
 				(* read Pointers *)
 				FOR j := 0 TO nofPointers-1 DO
 					r.RawNum(ptrOfs);
 					KernelLog.Int(ptrOfs,1); KernelLog.String(" ");
-				END
+				END;
+				KernelLog.Ln;
 			END;
 		END DecodeTypes;
 
