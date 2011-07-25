@@ -66,7 +66,7 @@ TYPE Char8* = SHORTINT;
 TYPE Char16* = INTEGER;
 TYPE Boolean* = BOOLEAN;
 
-TYPE Int* = LONGINT; (* size of Int architecture dependant (e.g. 32bit on i386, 64bit on ia64) *)
+TYPE Int* = SYSTEM.SIZE; (* size of Int architecture dependant (e.g. 32bit on i386, 64bit on ia64) *)
 TYPE Int8* = SHORTINT; (* Int8, Int16, Int32, Int64 NOT architecture dependant *)
 TYPE Int16* = INTEGER;
 TYPE Int32* = LONGINT;
@@ -124,7 +124,8 @@ TYPE TableHeader* = RECORD
 END;
 
 (* main EFI tables *)
-TYPE SystemTable* = RECORD
+TYPE 
+SystemTable* = RECORD
 	Hdr-: TableHeader;
 	FirmwareVendor-{UNTRACED}: POINTER TO ARRAY OF Char16;
 	FirmwareRevision-: Int32;

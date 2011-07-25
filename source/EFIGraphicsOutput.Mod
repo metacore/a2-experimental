@@ -29,7 +29,7 @@ TYPE GraphicsModeInfoDescription* = RECORD
 	Version-: EFI.Int32; (* = 0 for the structure specified here. If > 0, structure extended backwards compatibly *)
 	HorizontalResolution-: EFI.Int32;
 	VerticalResolution-: EFI.Int32;
-	PixelFormat-: EFI.Int;
+	PixelFormat-: EFI.Int32; (* enum *)
 	PixelBitmask-: RECORD RedMask-,GreenMask-,BlueMask-,ReservedMask-:EFI.Int32; END;
 	PixelsPerScanline-: EFI.Int32;
 END;

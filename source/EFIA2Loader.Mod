@@ -49,11 +49,11 @@ BEGIN
 	RETURN -1;
 END SearchGraphicsMode;
 
-PROCEDURE GetFrameBuffer(prefWidth, prefHeight, prefDepth, prefFormat : LONGINT; VAR framebufAddr : SYSTEM.ADDRESS; VAR framebufSize : LONGINT): EFI.Status;
+PROCEDURE GetFrameBuffer(prefWidth, prefHeight, prefDepth, prefFormat : LONGINT; VAR framebufAddr : SYSTEM.ADDRESS; VAR framebufSize : SYSTEM.SIZE): EFI.Status;
 VAR
 	handle : EFI.Handle;
 	handleBuf : ARRAY 128 OF EFI.Handle;
-	handleBufSize, i : LONGINT;
+	handleBufSize, i : EFI.Int;
 	prot : EFI.Protocol; goProt : EFIGraphicsOutput.Protocol;
 	modeNumber : LONGINT;
 	framebufPhysAddr : EFI.PhysicalAddress;
@@ -90,7 +90,7 @@ PROCEDURE PrintGraphicsModes;
 VAR
 	handle : EFI.Handle;
 	handleBuf : ARRAY 512 OF EFI.Handle;
-	handleBufSize, i, j : LONGINT;
+	handleBufSize, i: EFI.Int;  j : LONGINT;
 	prot : EFI.Protocol; goProt : EFIGraphicsOutput.Protocol;
 	mode : EFIGraphicsOutput.GraphicsMode;
 	info : EFIGraphicsOutput.GraphicsModeInfo;
@@ -389,10 +389,12 @@ BEGIN
 		IF (kernelRelocAddress # -1) THEN
 			allocAddr := kernelRelocAddress;
 			status := EFILib.AllocateMemory(allocAddr, kernelPages);
+			TRACE(status);
 			(* try to make sure all pages are allocated somehow *)
 			IF (status # EFI.Success) THEN
 				FOR i := 0 TO kernelPages DO
 					status := EFILib.AllocateMemory(allocAddr, 1);
+					TRACE(status);
 					allocAddr := allocAddr + EFI.PageSize;
 				END;
 			END;
@@ -401,6 +403,7 @@ BEGIN
 		loadAddr := kernelAddress;
 		status := EFILib.LoadFile(kernelImageFile, loadAddr);
 		IF (status = EFI.Success ) THEN
+			TRACE("load success");
 			kernelAddr := loadAddr;
 			RETURN EFI.Success;
 		ELSE
@@ -408,11 +411,13 @@ BEGIN
 			allocAddr := kernelAddress;
 			FOR i := 0 TO kernelPages DO
 				status := EFILib.AllocateMemory(allocAddr, 1);
+				TRACE(status);
 				allocAddr := allocAddr + EFI.PageSize;
 			END;
 
 			loadAddr := -1;
 			status := EFILib.LoadFile(kernelImageFile, loadAddr);
+			TRACE(status);
 			IF (status = EFI.Success) THEN
 				kernelAddr := loadAddr;
 				RETURN EFI.WarnWriteFailure;
@@ -432,7 +437,8 @@ END LoadKernel;
 PROCEDURE LoadA2;
 VAR
 	kernelAddr, btAddr, fbAddr : SYSTEM.ADDRESS;
-	kernelSize, fbSize : LONGINT;
+	fbSize: EFI.Int;
+	kernelSize: LONGINT;
 	kernelStat, btStat, fbStat, status : EFI.Status;
 	kernelFileName, configFileName, arg : ARRAY 128 OF EFI.Char16;
 	val : ARRAY 100 OF CHAR;
@@ -494,6 +500,8 @@ BEGIN
 			Trace.String("Dry Run Complete"); Trace.Ln;
 			RETURN;
 		END;
+
+		Trace.Memory(kernelAddress, 100);
 
 		IF ((kernelStat = EFI.Success) OR (kernelStat = EFI.WarnWriteFailure)) & (btStat = EFI.Success) THEN
 			Trace.String("Shutting down Boot Services..."); Trace.Ln;

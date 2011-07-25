@@ -62,10 +62,10 @@ PROCEDURE GetMemorySize*(VAR memsize : EFI.Int64 ) : EFI.Status;
 CONST
 	approxMemMapSize = 2048; (* we actually can not resize the buffer. just hope its enough *)
 VAR
-	MemMapSize, MapKey, DescriptorSize, DescriptorVersion : EFI.Int;
+	MemMapSize, MapKey, DescriptorSize: EFI.Int;  DescriptorVersion : EFI.Int32;
 	status : EFI.Status;
 	MemMap : ARRAY approxMemMapSize OF EFI.MemoryDescriptor;
-	i, numEntries : LONGINT;
+	i, numEntries : EFI.Int;
 BEGIN
 	MemMapSize := LEN(MemMap)*SYSTEM.SIZEOF(EFI.MemoryDescriptor);
 	status := EFI.table.BS.GetMemoryMap(MemMapSize, MemMap, MapKey, DescriptorSize, DescriptorVersion);
@@ -93,7 +93,7 @@ PROCEDURE ExitBootServices*(): EFI.Status;
 CONST
 	approxMemMapSize = 2048; (* we actually can not resize the buffer. just hope its enough *)
 VAR
-	MemMapSize, MapKey, DescriptorSize, DescriptorVersion : EFI.Int;
+	MemMapSize, MapKey, DescriptorSize: EFI.Int; DescriptorVersion : EFI.Int32;
 	status : EFI.Status;
 	MemMap : ARRAY approxMemMapSize OF EFI.MemoryDescriptor;
 BEGIN
@@ -437,7 +437,7 @@ BEGIN
 		| EFI.ErrInvalidLanguage : Trace.String("Error : Invalid Language");
 	END;
 	*)
-	Trace.String("Error Code: "); Trace.Int(status - EFI.Error, 0);
+	Trace.String("Error Code: "); Trace.Int(LONGINT(status - EFI.Error), 0);
 	Trace.Ln;
 END ReportError;
 
