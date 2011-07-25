@@ -4519,9 +4519,11 @@ TYPE
 								Convert(res.op,float64);
 							END;
 							Float(res.op);
-						ELSIF expression.type.resolved = Global.Character8 THEN
+						ELSIF (expression.type.resolved IS SyntaxTree.CharacterType) & (expression.type.resolved.sizeInBits = 8) THEN
 							Char(res.op);
-						ELSIF expression.type.resolved = system.addressType THEN
+						ELSIF expression.type.resolved IS SyntaxTree.AddressType THEN
+							Address(res.op);String("H");
+						ELSIF expression.type.resolved IS SyntaxTree.SizeType THEN
 							Address(res.op);String("H");
 						ELSIF (expression.type.resolved IS SyntaxTree.PointerType) OR IsPointerToRecord(expression.type,recordType) THEN
 							Address(res.op);String("H");
