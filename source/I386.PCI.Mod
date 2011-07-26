@@ -6,7 +6,7 @@ MODULE PCI;	(** non-portable *)
 	IMPORT SYSTEM, Machine, KernelLog;
 
 	CONST
-		Trace = FALSE;
+		Trace = TRUE;
 
 		(* PCI Configuration Registers *)
 		DevReg* = 0H; CmdReg* = 4H; RevIdReg* = 8H; CLSReg* = 0CH;
@@ -128,6 +128,10 @@ MODULE PCI;	(** non-portable *)
 				KernelLog.String(", Checksum: "); KernelLog.Int(ORD(Bios32Def.chksum), 1);
 				KernelLog.Ln
 			END
+		ELSE
+			IF Trace THEN
+				KernelLog.String("No PCI BIOS32 detected"); KernelLog.Ln
+			END;
 		END
 	END DetectBios32;
 
