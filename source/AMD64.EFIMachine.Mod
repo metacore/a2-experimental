@@ -11,22 +11,19 @@ VAR p0, p1: SYSTEM.ADDRESS;
 *)
 PROCEDURE JumpTo*(adr : SYSTEM.ADDRESS; eax,esi,edi : HUGEINT);
 CODE {SYSTEM.AMD64}
-	XOR ECX,ECX
-	XOR EDX,EDX
-	MOV EDI, [EBP+edi];
-	MOV ESI, [EBP+esi];
-	MOV EAX, [EBP+eax];
-	MOV EBX, [EBP+adr]
-	CALL EBX
+	XOR RCX,RCX
+	XOR RDX,RDX
+	MOV RDI, [RBP+edi];
+	MOV RSI, [RBP+esi];
+	MOV RAX, [RBP+eax];
+	MOV RBX, [RBP+adr]
+	CALL RBX
 END JumpTo;
 
-PROCEDURE -GetParameters;
+PROCEDURE {NOPAF, FIXED(401000H)} EntryPoint;
 CODE {SYSTEM.AMD64}
-	MOV QWORD p0, RDX;
-	MOV QWORD p1, RCX
-END GetParameters;
+	MOV QWORD EFI.imageHandle, RCX;
+	MOV QWORD EFI.table, RDX
+END EntryPoint;
 
-BEGIN
-	SYSTEM.PUT64(SYSTEM.ADR(EFI.imageHandle), p0);
-	SYSTEM.PUT64(SYSTEM.ADR(EFI.table), p1);
 END EFIMachine.
