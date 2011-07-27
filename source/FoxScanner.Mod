@@ -792,6 +792,7 @@ TYPE
 						IF symbol.stringLength #2 THEN  (* stringlength = 1 for empty string '' *)
 							Error(Basic.IllegalCharacterValue)
 						END;
+				| "#":     s := Unequal;  GetNextCharacter; (* for the ARM assembler *)
 				| "(": GetNextCharacter;
 						IF ch = "*" THEN GetNextCharacter; ReadComment(symbol);  s := Comment; ELSE s := LeftParenthesis END
 				| ")":     s := RightParenthesis;  GetNextCharacter
