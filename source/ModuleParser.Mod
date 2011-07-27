@@ -919,6 +919,7 @@ TYPE
 				identList.identDef := identDef;
 				AppendLast(enum.identList, identList);
 			END;
+			Check(FoxScanner.End);
 		END EnumP;
 
 		PROCEDURE PortP(port: Port);
