@@ -95,7 +95,7 @@ TYPE
 	ContextMenuHandler* = PROCEDURE {DELEGATE} (sender : ANY; x, y: LONGINT);
 	KeyEventHandler* = PROCEDURE {DELEGATE} (ucs : LONGINT; flags : SET; VAR keySym : LONGINT; VAR handled : BOOLEAN);
 	DrawHandler* = PROCEDURE {DELEGATE} (canvas : WMGraphics.Canvas);
-	Recursion*= ENUM None, FromComponent, FromBottom END;
+	Recursion*= ENUM None*, FromComponent*, FromBottom* END;
 
 TYPE
 
