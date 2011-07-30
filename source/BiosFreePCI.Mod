@@ -38,6 +38,7 @@ MODULE PCI;	(** non-portable *)
 		getIrqRoutingOptions = 0EH; setPCIIrq = 0FH;
 
 	TYPE
+
 		RouteTable* = POINTER TO RouteTableDesc;
 		RouteTableDesc* = RECORD
 			busNr*, devNr*, slotNr*: LONGINT;
@@ -45,36 +46,34 @@ MODULE PCI;	(** non-portable *)
 			IrqBitmapA*, IrqBitmapB*, IrqBitmapC*, IrqBitmapD*: SET;
 			next*: RouteTable
 		END;
-
+		(*
 		RouteBuffer = RECORD
 			BufferSize, SegSelector: INTEGER;
 			DataBufferAdr: SYSTEM.ADDRESS
 		END;
+		*)
 
+		Pci = RECORD bus, device, function: LONGINT END;
 	VAR
-		pci: BOOLEAN;
+		pciEnabled: BOOLEAN;
+
 
 	PROCEDURE PCIPresent*(VAR version, lastPCIbus, hwMech: LONGINT): LONGINT;
-	VAR res, eax, ebx, ecx, edx, esi, edi: LONGINT; eflags, state: SET;
+	VAR res: LONGINT; pci: Pci; r0: LONGINT;
 	BEGIN {EXCLUSIVE}
-		IF pci THEN
-			(*!
-			eax := PCIFunctionId + PCIBiosPresent;
-			state := Machine.DisableInterrupts();
-			pcicall(pciEntry, eax, ebx, ecx, edx, esi, edi, eflags);
-			Machine.RestoreInterrupts(state);
-			res := (eax DIV 100H) MOD 100H;
-			IF (edx = PCIString) & ~(0 IN eflags) & (res = Done) THEN
-				version := ebx MOD 10000H;
-				lastPCIbus := ecx MOD 100H;
-				hwMech := eax MOD 100H
-			ELSIF res = 0 THEN res := NoPCI (* ; pci := FALSE (* <- hmm, not sure about that *) *)
-			END;
+		IF pciEnabled THEN
+			StartIterate(pci);
+			lastPCIbus := 0;
+			REPEAT
+				res := PCIReadConfig32(pci.bus, pci.device, pci.function, 0, r0);
+				IF r0 # LONGINT(0FFFFFFFFH) THEN
+					IF lastPCIbus < pci.bus THEN lastPCIbus := pci.bus END;
+				END;
+			UNTIL ~Iterate(pci);
+			res := Done;
 			IF debug THEN
-				KernelLog.String("PCIPresent:"); KernelLog.Ln;
-				OutRegs(eax, ebx, ecx, edx, esi, edi, eflags)
+				KernelLog.String("PCIPresent, lastbus ="); KernelLog.Int(lastPCIbus,1); KernelLog.Ln;
 			END
-			*)
 		ELSE
 			res := NoPCI
 		END;
@@ -82,26 +81,25 @@ MODULE PCI;	(** non-portable *)
 	END PCIPresent;
 
 	PROCEDURE FindPCIDevice*(devId, vendId, idx: LONGINT; VAR busNr, devNr, fktNr: LONGINT): LONGINT;
-	VAR res, eax, ebx, ecx, edx, esi, edi: LONGINT; eflags, state: SET;
+	VAR pci: Pci; r0, vendorId, deviceId, index,res: LONGINT;
 	BEGIN {EXCLUSIVE}
-		IF pci THEN
-			(*!
-			eax := PCIFunctionId + findPCIDevice;
-			ecx := devId; edx := vendId; esi := idx;
-			state := Machine.DisableInterrupts();
-			pcicall(pciEntry, eax, ebx, ecx, edx, esi, edi, eflags);
-			Machine.RestoreInterrupts(state);
-			res := (eax DIV 100H) MOD 100H;  ASSERT(~((0 IN eflags) & (res=0)));
-			IF ~(0 IN eflags) & (res = Done) THEN
-				busNr := (ebx DIV 100H) MOD 100H;
-				devNr := (ebx DIV 8) MOD 20H;
-				fktNr := ebx MOD 8
-			END;
-			IF debug THEN
-				KernelLog.String("FindPCIDevice:"); KernelLog.Ln;
-				OutRegs(eax, ebx, ecx, edx, esi, edi, eflags)
-			END
-			*)
+		IF pciEnabled THEN
+			StartIterate(pci); index := 0;
+			REPEAT
+				res := PCIReadConfig32(pci.bus, pci.device, pci.function, 0, r0);
+				IF r0 # LONGINT(0FFFFFFFFH) THEN
+					vendorId := r0 MOD 10000H;
+					deviceId := r0 DIV 10000H;
+					IF (devId = deviceId) & (vendId = vendorId) THEN
+						IF idx = index THEN
+							busNr := pci.bus; devNr := pci.device; fktNr := pci.function;
+							RETURN Done
+						ELSE INC(index)
+						END;
+					END;
+				END;
+			UNTIL ~Iterate(pci);
+			res := DeviceNotFound
 		ELSE
 			res := NoPCI
 		END;
@@ -109,26 +107,24 @@ MODULE PCI;	(** non-portable *)
 	END FindPCIDevice;
 
 	PROCEDURE FindPCIClassCode*(classCode, idx: LONGINT; VAR busNr, devNr, fktNr: LONGINT): LONGINT;
-	VAR res, eax, ebx, ecx, edx, esi, edi: LONGINT; eflags, state: SET;
+	VAR pci: Pci; r0, r8,  index,res: LONGINT;
 	BEGIN {EXCLUSIVE}
-		IF pci THEN
-			(*!
-			eax := PCIFunctionId + findPCIClassCode;
-			ecx := classCode; esi := idx;
-			state := Machine.DisableInterrupts();
-			pcicall(pciEntry, eax, ebx, ecx, edx, esi, edi, eflags);
-			Machine.RestoreInterrupts(state);
-			res := (eax DIV 100H) MOD 100H;  ASSERT(~((0 IN eflags) & (res=0)));
-			IF ~(0 IN eflags) & (res = Done) THEN
-				busNr := (ebx DIV 100H) MOD 100H;
-				devNr := (ebx DIV 8) MOD 20H;
-				fktNr := ebx MOD 8
-			END;
-			IF debug THEN
-				KernelLog.String("FindPCIClassCode:"); KernelLog.Ln;
-				OutRegs(eax, ebx, ecx, edx, esi, edi, eflags)
-			END
-				*)
+		IF pciEnabled THEN
+			StartIterate(pci);
+			REPEAT
+				res := PCIReadConfig32(pci.bus, pci.device, pci.function, 0, r0);
+				IF r0 # LONGINT(0FFFFFFFFH) THEN
+					res := PCIReadConfig32(pci.bus, pci.device, pci.function, 8, r8);
+					IF (classCode = r8 DIV 100H MOD 1000000) THEN
+						IF idx = index THEN
+							busNr := pci.bus; devNr := pci.device; fktNr := pci.function;
+							RETURN Done
+						ELSE INC(index)
+						END;
+					END;
+				END;
+			UNTIL ~Iterate(pci);
+			res := DeviceNotFound;
 		ELSE
 			res := NoPCI
 		END;
@@ -136,9 +132,9 @@ MODULE PCI;	(** non-portable *)
 	END FindPCIClassCode;
 
 	PROCEDURE GenerateSpecialCycle*(busNr, specCycleData: LONGINT): LONGINT;
-	VAR res, eax, ebx, ecx, edx, esi, edi: LONGINT; eflags, state: SET;
+	VAR res: LONGINT;
 	BEGIN {EXCLUSIVE}
-		IF pci THEN
+		IF pciEnabled THEN
 			(*
 			eax := PCIFunctionId + generateSpecialCycle;
 			ebx := busNr*100H; edx := specCycleData;
@@ -160,11 +156,13 @@ MODULE PCI;	(** non-portable *)
 	PROCEDURE GetIrqRoutingOptions*(VAR rt: RouteTable; VAR IrqBitmap: SET): LONGINT;
 	CONST dbN = 16*8;
 	VAR
-		res, eax, ebx, ecx, edx, esi, edi, i: LONGINT; eflags, state: SET;
+		res: LONGINT;
+		(*eflags, state: SET;
 		rb: RouteBuffer; db: ARRAY dbN OF CHAR;
 		last: RouteTable;
+		*)
 	BEGIN {EXCLUSIVE}
-		IF pci THEN
+		IF pciEnabled THEN
 			(*
 			eax := PCIFunctionId + getIrqRoutingOptions;
 			rb.BufferSize := dbN; rb.SegSelector := 0; rb.DataBufferAdr := SYSTEM.ADR(db[0]);
@@ -206,9 +204,9 @@ MODULE PCI;	(** non-portable *)
 	END GetIrqRoutingOptions;
 
 	PROCEDURE SetPCIIrq*(IntPin, IrqNum, busNr, devNr, fktNr: LONGINT): LONGINT;
-	VAR res, eax, ebx, ecx, edx, esi, edi: LONGINT; eflags, state: SET;
+	VAR res:LONGINT;
 	BEGIN {EXCLUSIVE}
-		IF pci THEN
+		IF pciEnabled THEN
 			(*
 			eax := PCIFunctionId + setPCIIrq;
 			ecx := IrqNum*100H + IntPin; ebx := busNr*100H+devNr*8+fktNr;
@@ -251,36 +249,36 @@ MODULE PCI;	(** non-portable *)
 
 	PROCEDURE ReadConfigByte*(busNr, devNr, fktNr, regNr: LONGINT; VAR regVal: LONGINT): LONGINT;
 	BEGIN
-		RETURN PCIReadConfig8(busNr, PciDevFn(devNr, fktNr), regNr, regVal)
+		RETURN PCIReadConfig8(busNr, devNr, fktNr, regNr, regVal)
 	END ReadConfigByte;
 
 	PROCEDURE ReadConfigWord*(busNr, devNr, fktNr, regNr: LONGINT; VAR regVal: LONGINT): LONGINT;
 	BEGIN
 		ASSERT(regNr MOD 2 = 0);
-		RETURN PCIReadConfig16(busNr, PciDevFn(devNr, fktNr), regNr, regVal)
+		RETURN PCIReadConfig16(busNr, devNr, fktNr, regNr, regVal)
 	END ReadConfigWord;
 
 	PROCEDURE ReadConfigDword*(busNr, devNr, fktNr, regNr: LONGINT; VAR regVal: LONGINT): LONGINT;
 	BEGIN
 		ASSERT(regNr MOD 4 = 0);
-		RETURN PCIReadConfig32(busNr, PciDevFn(devNr, fktNr), regNr, regVal)
+		RETURN PCIReadConfig32(busNr, devNr, fktNr, regNr, regVal)
 	END ReadConfigDword;
 
 	PROCEDURE WriteConfigByte*(busNr, devNr, fktNr, regNr, regVal: LONGINT): LONGINT;
 	BEGIN
-		RETURN PCIWriteConfig8(busNr, PciDevFn(devNr, fktNr), regNr, regVal)
+		RETURN PCIWriteConfig8(busNr, devNr, fktNr, regNr, regVal)
 	END WriteConfigByte;
 
 	PROCEDURE WriteConfigWord*(busNr, devNr, fktNr, regNr, regVal: LONGINT): LONGINT;
 	BEGIN
 		ASSERT(regNr MOD 2 = 0);
-		RETURN PCIWriteConfig16(busNr, PciDevFn(devNr, fktNr), regNr, regVal)
+		RETURN PCIWriteConfig16(busNr, devNr, fktNr, regNr, regVal)
 	END WriteConfigWord;
 
 	PROCEDURE WriteConfigDword*(busNr, devNr, fktNr, regNr, regVal: LONGINT): LONGINT;
 	BEGIN
 		ASSERT(regNr MOD 4 = 0);
-		RETURN PCIWriteConfig32(busNr, PciDevFn(devNr, fktNr), regNr, regVal)
+		RETURN PCIWriteConfig32(busNr, devNr, fktNr, regNr, regVal)
 	END WriteConfigDword;
 
 
@@ -302,22 +300,10 @@ MODULE PCI;	(** non-portable *)
 		END;
 	END Show;
 
-	PROCEDURE PciDevFn(dev, func: LONGINT): LONGINT;
+
+	PROCEDURE GetAdr1(pciBus, pciDev, pciFn, reg, len: LONGINT; VAR adr, dataAdr: LONGINT);
 	BEGIN
-		RETURN ASH(SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET,dev)*SYSTEM.VAL(SET,01FH)),3) + SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, func)*SYSTEM.VAL(SET, 7));
-	END PciDevFn;
-
-	PROCEDURE PciDev(pciDevFn: LONGINT): LONGINT;
-	BEGIN RETURN SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, ASH(pciDevFn,3)) * SYSTEM.VAL(SET, 1FH));
-	END PciDev;
-
-	PROCEDURE PciFn(pciDevFn: LONGINT): LONGINT;
-	BEGIN RETURN SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, pciDevFn) * SYSTEM.VAL(SET, 7));
-	END PciFn;
-
-	PROCEDURE GetAdr1(pciBus, pciDevFn, reg, len: LONGINT; VAR adr, dataAdr: LONGINT);
-	BEGIN
-		adr := LONGINT(80000000H) + ASH(pciBus,16) + ASH(pciDevFn, 8);
+		adr := LONGINT(80000000H) + ASH(pciBus,16) + ASH(pciDev, 11) + ASH(pciFn, 8);
 		adr := adr + SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET,reg) * SYSTEM.VAL(SET,0FCH));
 		adr := adr + ASH(SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET,reg) * SYSTEM.VAL(SET,0F00H)), 16);
 		CASE len OF
@@ -327,12 +313,12 @@ MODULE PCI;	(** non-portable *)
 		END;
 	END GetAdr1;
 
-	PROCEDURE PCIReadConfig32(pciBus, pciDevFn, reg: LONGINT; VAR val: LONGINT): LONGINT;
+	PROCEDURE PCIReadConfig32(pciBus, pciDev, pciFn, reg: LONGINT; VAR val: LONGINT): LONGINT;
 	VAR adr, dataAdr: LONGINT; state: SET; res: LONGINT;
 	BEGIN
-		IF pci THEN
+		IF pciEnabled THEN
 			state := Machine.DisableInterrupts();
-			GetAdr1(pciBus, pciDevFn, reg, 32, adr, dataAdr);
+			GetAdr1(pciBus, pciDev, pciFn, reg, 32, adr, dataAdr);
 			Machine.Portout32(PciAdrReg, adr);
 			Machine.Portin32(dataAdr, val);
 			Machine.RestoreInterrupts(state);
@@ -343,12 +329,12 @@ MODULE PCI;	(** non-portable *)
 		RETURN res
 	END PCIReadConfig32;
 
-	PROCEDURE PCIReadConfig16(pciBus, pciDevFn, reg: LONGINT; VAR val: LONGINT): LONGINT;
+	PROCEDURE PCIReadConfig16(pciBus, pciDev, pciFn, reg: LONGINT; VAR val: LONGINT): LONGINT;
 	VAR adr, dataAdr: LONGINT; state: SET;res: LONGINT; int: INTEGER;
 	BEGIN
-		IF pci THEN
+		IF pciEnabled THEN
 			state := Machine.DisableInterrupts();
-			GetAdr1(pciBus, pciDevFn, reg, 16, adr, dataAdr);
+			GetAdr1(pciBus, pciDev, pciFn, reg, 16, adr, dataAdr);
 			Machine.Portout32(PciAdrReg, adr);
 			Machine.Portin16(dataAdr, int);
 			val := int;
@@ -360,12 +346,12 @@ MODULE PCI;	(** non-portable *)
 		RETURN res
 	END PCIReadConfig16;
 
-	PROCEDURE PCIReadConfig8(pciBus, pciDevFn, reg: LONGINT; VAR val: LONGINT): LONGINT;
+	PROCEDURE PCIReadConfig8(pciBus, pciDev, pciFn, reg: LONGINT; VAR val: LONGINT): LONGINT;
 	VAR adr, dataAdr: LONGINT; state: SET;res: LONGINT; chr: CHAR;
 	BEGIN
-		IF pci THEN
+		IF pciEnabled THEN
 			state := Machine.DisableInterrupts();
-			GetAdr1(pciBus, pciDevFn, reg, 8, adr, dataAdr);
+			GetAdr1(pciBus, pciDev, pciFn, reg, 8, adr, dataAdr);
 			Machine.Portout32(PciAdrReg, adr);
 			Machine.Portin8(dataAdr, chr);
 			val := ORD(chr);
@@ -377,12 +363,12 @@ MODULE PCI;	(** non-portable *)
 		RETURN res
 	END PCIReadConfig8;
 
-	PROCEDURE PCIWriteConfig32(pciBus, pciDevFn: LONGINT; reg: LONGINT;  val: LONGINT): LONGINT;
+	PROCEDURE PCIWriteConfig32(pciBus, pciDev, pciFn: LONGINT; reg: LONGINT;  val: LONGINT): LONGINT;
 	VAR adr, dataAdr: LONGINT; state: SET;res: LONGINT;
 	BEGIN
-		IF pci THEN
+		IF pciEnabled THEN
 			state := Machine.DisableInterrupts();
-			GetAdr1(pciBus, pciDevFn, reg, 32, adr, dataAdr);
+			GetAdr1(pciBus, pciDev, pciFn, reg, 32, adr, dataAdr);
 			Machine.Portout32(PciAdrReg, adr);
 			Machine.Portout32(dataAdr, val);
 			Machine.RestoreInterrupts(state);
@@ -393,13 +379,12 @@ MODULE PCI;	(** non-portable *)
 		RETURN res
 	END PCIWriteConfig32;
 
-	PROCEDURE PCIWriteConfig16(pciBus, pciDevFn: LONGINT; reg: LONGINT;  val: LONGINT): LONGINT;
-
+	PROCEDURE PCIWriteConfig16(pciBus, pciDev, pciFn: LONGINT; reg: LONGINT;  val: LONGINT): LONGINT;
 	VAR adr, dataAdr: LONGINT; state: SET;res: LONGINT;
 	BEGIN
-		IF pci THEN
+		IF pciEnabled THEN
 			state := Machine.DisableInterrupts();
-			GetAdr1(pciBus, pciDevFn, reg, 16, adr, dataAdr);
+			GetAdr1(pciBus, pciDev, pciFn, reg, 16, adr, dataAdr);
 			Machine.Portout32(PciAdrReg, adr);
 			Machine.Portout16(dataAdr, SHORT(val));
 			Machine.RestoreInterrupts(state);
@@ -410,12 +395,12 @@ MODULE PCI;	(** non-portable *)
 		RETURN res
 	END PCIWriteConfig16;
 
-	PROCEDURE PCIWriteConfig8(pciBus, pciDevFn: LONGINT; reg: LONGINT;  val: LONGINT): LONGINT;
+	PROCEDURE PCIWriteConfig8(pciBus, pciDev, pciFn: LONGINT; reg: LONGINT;  val: LONGINT): LONGINT;
 	VAR adr, dataAdr: LONGINT; state: SET;res: LONGINT;
 	BEGIN
-		IF pci THEN
+		IF pciEnabled THEN
 			state := Machine.DisableInterrupts();
-			GetAdr1(pciBus, pciDevFn, reg, 8, adr, dataAdr);
+			GetAdr1(pciBus, pciDev, pciFn, reg, 8, adr, dataAdr);
 			Machine.Portout32(PciAdrReg, adr);
 			Machine.Portout8(dataAdr, CHR(val));
 			Machine.RestoreInterrupts(state);
@@ -455,31 +440,32 @@ MODULE PCI;	(** non-portable *)
 		RETURN works
 	END PCICheckType2;
 	*)
-	PROCEDURE PCIIterate(VAR pciBus, pciDev, pciFn: LONGINT): BOOLEAN;
+
+	PROCEDURE StartIterate(VAR pci: Pci);
+	BEGIN pci.bus := 0; pci.device := 0; pci.function := 0
+	END StartIterate;
+
+	PROCEDURE Iterate(VAR pci: Pci): BOOLEAN;
 	VAR hdrType,res: LONGINT;
 	BEGIN
-		IF pciFn = 0 THEN
+		IF pci.function = 0 THEN
 			(* check if multi-function device *)
-			res := PCIReadConfig8(pciBus, PciDevFn(pciDev, pciFn), 0EH, hdrType);
+			res := PCIReadConfig8(pci.bus, pci.device, pci.function, 0EH, hdrType);
 		END;
-		INC(pciFn);
-		IF (pciFn >= 8)  OR ~(7 IN SYSTEM.VAL(SET,hdrType)) THEN
-			pciFn := 0;
-			INC(pciDev);
-			IF pciDev >= 32 THEN
-				INC(pciBus);
-				IF pciBus >= 256 THEN RETURN FALSE END;
+		INC(pci.function);
+		IF (pci.function >= 8)  OR ~(7 IN SYSTEM.VAL(SET,hdrType)) THEN
+			pci.function := 0;
+			INC(pci.device);
+			IF pci.device >= 32 THEN
+				INC(pci.bus);
+				IF pci.bus >= 256 THEN RETURN FALSE END;
 			END;
 		END;
 		RETURN TRUE
-	END PCIIterate;
+	END Iterate;
 
-	PROCEDURE DisplayDeviceClass(class, subclass, api: LONGINT);
+	PROCEDURE DisplayDeviceClass(class, subclass: LONGINT);
 	BEGIN
-		KernelLog.String(" pci device class= "); KernelLog.Int(class,1);
-		KernelLog.String("; subclass = "); KernelLog.Int(subclass,1);
-		KernelLog.String("; api = "); KernelLog.Int(api,1);
-		KernelLog.String(": ");
 		CASE class OF
 		1:	KernelLog.String("disk controller:");
 			CASE subclass OF
@@ -589,23 +575,35 @@ MODULE PCI;	(** non-portable *)
 	END DisplayDeviceClass;
 
 	PROCEDURE TracePCIDevices;
-	VAR i: LONGINT; pciBus, pciDevFn, pciDev, pciFn, res: LONGINT;
+	VAR r0,r8 : LONGINT; pci: Pci; res, class, subclass, api, vendorId, deviceId: LONGINT;
 	BEGIN
-		IF pci THEN
+		IF pciEnabled THEN
 			KernelLog.String("PCI Devices"); KernelLog.Ln;
+			StartIterate(pci);
 			REPEAT
-				pciDevFn := PciDevFn(pciDev, pciFn);
-				res := PCIReadConfig32(pciBus, pciDevFn, 0, i);
-				IF i # LONGINT(0FFFFFFFFH) THEN
-					res := PCIReadConfig32(pciBus, pciDevFn, 8, i);
-					KernelLog.String("device bus="); KernelLog.Int(pciBus,1);
-					KernelLog.String(" pciDev="); KernelLog.Int(pciDev,1);
-					KernelLog.String(" pciFn="); KernelLog.Int(pciFn,1);
-					KernelLog.String(" :: ");
-					DisplayDeviceClass(i DIV 1000000H MOD 100H, i DIV 10000H MOD 100H, i DIV 100H MOD 100H);
+				res := PCIReadConfig32(pci.bus, pci.device, pci.function, 0, r0);
+				IF r0 # LONGINT(0FFFFFFFFH) THEN
+					res := PCIReadConfig32(pci.bus, pci.device, pci.function, 8, r8);
+
+					vendorId := r0 MOD 10000H;
+					deviceId := r0 DIV 10000H;
+					class := r8 DIV 1000000H MOD 100H;
+					subclass := r8 DIV 10000H MOD 100H;
+					api := r8 DIV 100H MOD 100H;
+
+					KernelLog.String("device bus="); KernelLog.Int(pci.bus,1);
+					KernelLog.String(" pciDev="); KernelLog.Int(pci.device,1);
+					KernelLog.String(" pciFn="); KernelLog.Int(pci.function,1);
+					KernelLog.String(" vendorId="); KernelLog.Int(vendorId,1);
+					KernelLog.String(" deviceId="); KernelLog.Int(deviceId,1);
+					KernelLog.String(" class="); KernelLog.Int(class,1);
+					KernelLog.String(" subclass="); KernelLog.Int(subclass,1);
+					KernelLog.String(" api="); KernelLog.Int(api,1);
+					KernelLog.String(" : ");
+					DisplayDeviceClass(class, subclass);
 					KernelLog.Ln;
 				END;
-			UNTIL ~PCIIterate(pciBus, pciDev, pciFn);
+			UNTIL ~Iterate(pci);
 		ELSE
 			KernelLog.String("No PCI type 1 found"); KernelLog.Ln;
 		END;
@@ -620,9 +618,9 @@ BEGIN
 END PCIDisabled;
 
 BEGIN
-	pci := FALSE;
+	pciEnabled := FALSE;
 	IF ~PCIDisabled() THEN
-		pci := PCICheckType1();
+		pciEnabled := PCICheckType1();
 		IF Trace THEN TracePCIDevices END;
 	END;
 	Show;
