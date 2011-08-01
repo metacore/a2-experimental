@@ -5,7 +5,7 @@ MODULE SortDemo;	(** AUTHOR "g.f."; PURPOSE sort demo *)
 IMPORT
 	Raster, Random, Objects, WMRectangles, Strings,
 	WM := WMWindowManager, WMComponents, WMStandardComponents,
-	Out := KernelLog, Clock;
+	Out := KernelLog, Clock, Kernel;
 	
 CONST
 	N = 100;  ElemSize = 4;
@@ -20,6 +20,7 @@ TYPE
 		white, grey, red, yellow: Raster.Pixel;
 		data: ARRAY N OF LONGINT;
 		random: Random.Generator;
+		t: Kernel.Timer;
 		
 		nofcomps, nofswaps: LONGINT; running:BOOLEAN;
 		
@@ -101,7 +102,7 @@ TYPE
 			FOR i := 1 TO n DO
 				j := random.Dice( N );  k := random.Dice( N );
 				Swap( j, k );
-				IF i MOD 16 = 0 THEN  Objects.Sleep( 10 )  END;
+				IF i MOD 16 = 0 THEN  NEW(t); t.Sleep(10) (*! Unix: Objects.Sleep( 10 ) *) END;
 			END
 		END Randomize;
 		
@@ -145,7 +146,7 @@ TYPE
 		
 		PROCEDURE Less( i, j: LONGINT ): BOOLEAN;
 		BEGIN
-			Highlight( i );  Highlight( j );  Update;  Objects.Sleep( 10 );
+			Highlight( i );  Highlight( j );  Update;  NEW(t); t.Sleep(10); (*! Unix: Objects.Sleep( 10 ); *)
 			Clear( i ); Clear( j );  Update;
 			INC( nofcomps );
 			RETURN data[i] < data[j];
