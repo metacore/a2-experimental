@@ -78,20 +78,20 @@ CONST
 	If*= 42; Case*= 43; While*= 44; Repeat*= 45; For*= 46; Loop*= 47;
 	With*= 48; Exit*= 49; Await*= 50; Return*= 51; Begin*= 52;
 	(* symbols, expressions and statements cannot start with *)
-	Semicolon*= 53; Transpose*= 54; RightBrace*= 55; RightBracket*= 56; RightParenthesis*= 57; Questionmark*= 58;
-	Upto*= 59; Arrow*= 60; Period*= 61; Comma*= 62; Colon*= 63; Of*= 64;
-	Then*= 65; Do*= 66; To*= 67; By*= 68; Becomes*= 69; Bar*= 70;
-	End*= 71; Else*= 72; Elsif*= 73; Until*= 74; Finally*= 75;
+	Semicolon*= 53; Transpose*= 54; RightBrace*= 55; RightBracket*= 56; RightParenthesis*= 57; Questionmark*= 58; ExclamationPoint*= 59;
+	Upto*= 60; Arrow*= 61; Period*= 62; Comma*= 63; Colon*= 64; Of*= 65;
+	Then*= 66; Do*= 67; To*= 68; By*= 69; Becomes*= 70; Bar*= 71;
+	End*= 72; Else*= 73; Elsif*= 74; Until*= 75; Finally*= 76;
 	(* declaration elements *)
-	Code*= 76; Const*= 77; Type*= 78; Var*= 79; Out*= 80; Procedure*= 81;
-	Operator*= 82; Import*= 83; Definition*= 84; Module*= 85; Cell*= 86; CellNet*= 87;
+	Code*= 77; Const*= 78; Type*= 79; Var*= 80; Out*= 81; Procedure*= 82;
+	Operator*= 83; Import*= 84; Definition*= 85; Module*= 86; Cell*= 87; CellNet*= 88;
 	(* composite type symbols *)
-	Array*= 88; Object*= 89; Record*= 90; Pointer*= 91; Enum*= 92; Port*= 93;
+	Array*= 89; Object*= 90; Record*= 91; Pointer*= 92; Enum*= 93; Port*= 94;
 	(* assembler constants *)
-	Ln*= 94; PC*= 95; PCOffset*= 96;
+	Ln*= 95; PC*= 96; PCOffset*= 97;
 	(* number types *)
-	Shortint*= 97; Integer*= 98; Longint*= 99; Hugeint*= 100; Real*= 101; Longreal*= 102;
-	Comment*= 103; EndOfText*= 104;
+	Shortint*= 98; Integer*= 99; Longint*= 100; Hugeint*= 101; Real*= 102; Longreal*= 103;
+	Comment*= 104; EndOfText*= 105;
 
 	SingleQuote = 27X;  DoubleQuote* = 22X;
 	Ellipsis = 7FX;   (* used in Scanner.GetNumber to return with ".." when reading an interval like 3..5 *)
@@ -811,12 +811,13 @@ TYPE
 				| ";":    s := Comment; SkipToEndOfLine;
 				| "=":     s := Equal;  GetNextCharacter
 				| "[":     s := LeftBracket;  GetNextCharacter
-				| "]":     s := RightBracket;  GetNextCharacter
+				| "]":     s := RightBracket;  GetNextCharacter				
 				| "{":     s := LeftBrace;  GetNextCharacter
 				| "}":     s := RightBrace;  GetNextCharacter
+				| "!":     s := ExclamationPoint; GetNextCharacter (* for the ARM assembler *)
 				| "A".."Z": s := Identifier; GetIdentifier( symbol );
 				| "a".."z": s := Identifier; GetIdentifier( symbol);
-				| "@":     s := Identifier; GetIdentifier( symbol); (* the '@'-symbol initiates an assembly scanner identifier *) (* genasm *)
+				| "@":     s := Identifier; GetIdentifier( symbol); (* the '@'-symbol initiates an assembly scanner identifier *)
 				| '$': GetNextCharacter;
 					IF ch = '$' THEN s := PCOffset; GetNextCharacter ELSE s := PC; END
 				ELSE s := None; GetNextCharacter;
@@ -955,6 +956,7 @@ TYPE
 		tokens[RightBracket] := "RightBracket";
 		tokens[RightParenthesis] := "RightParenthesis";
 		tokens[Questionmark] := "Questionmark";
+		tokens[ExclamationPoint] := "ExclamationPoint";
 		tokens[Upto] := "Upto";
 		tokens[Arrow] := "Arrow";
 		tokens[Period] := "Period";
