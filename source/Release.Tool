@@ -1532,7 +1532,7 @@ PACKAGE OberonGadgets ARCHIVE "OberonGadgets.zip" SOURCE "OberonGadgetsSrc.zip" 
 	Oberon.PictImages.Mod Oberon.BMPImages.Mod Oberon.JPEGImages.Mod Oberon.GIFImages.Mod Oberon.PSDImages.Mod
 	Colors.Panel
 
-	NATIVE, iWIN { Oberon.ColorGadgets.Mod }
+	NATIVE, iWIN,UNIX { Oberon.ColorGadgets.Mod }
 	eWIN { Win32.Oberon.ColorGadgets.Mod }
 
 	Oberon.PCXImages.Mod	# Color views
