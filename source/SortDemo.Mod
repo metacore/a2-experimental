@@ -3,24 +3,23 @@ MODULE SortDemo;	(** AUTHOR "g.f."; PURPOSE sort demo *)
 (* this is an A2-port of the SortDemo done by W.Weck in 1993 for Oberon V4 *)
 
 IMPORT
-	Raster, Random, Objects, WMRectangles, Strings,
+	Raster, Random, WMRectangles, Strings,
 	WM := WMWindowManager, WMComponents, WMStandardComponents,
 	Out := KernelLog, Clock, Kernel;
 	
 CONST
-	N = 100;  ElemSize = 4;
+	N = 100;  ElemSize = 5;
 
 	
 TYPE
 	SDW* =  OBJECT (WM.BufferWindow)
 	CONST
-		WindowWidth = N*ElemSize;  WindowHeight = N*ElemSize;
-		MaxY = WindowHeight - 1;
+		WindowSize = N*ElemSize;
 	VAR
-		white, grey, red, yellow: Raster.Pixel;
+		white, grey, col1, yellow: Raster.Pixel;
 		data: ARRAY N OF LONGINT;
 		random: Random.Generator;
-		t: Kernel.Timer;
+		t: Kernel.Timer;  delay: LONGINT;
 		
 		nofcomps, nofswaps: LONGINT; running:BOOLEAN;
 		
@@ -28,16 +27,17 @@ TYPE
 		PROCEDURE &New*;
 		VAR d, t: LONGINT;
 		BEGIN
-			Init( WindowWidth, WindowHeight, FALSE );
+			Init( WindowSize, WindowSize, FALSE );
 			manager := WM.GetDefaultManager();
 			manager.Add( 300, 300, SELF, {WM.FlagFrame, WM.FlagClose, WM.FlagNoResizing} );
 			SetTitle( Strings.NewString( "SortArray" ) );
 			Raster.SetRGB( white, 255, 255, 255 );
-			Raster.SetRGB( red, 255, 0, 0 );
 			Raster.SetRGB( yellow, 255, 255, 0 );
-			Raster.SetRGB( grey, 127, 127, 127 );
+			Raster.SetRGB( grey, 110, 110, 110 );
+			Raster.SetRGB( col1, 210, 140, 75 );
 			
 			NEW( random );  Clock.Get( t, d );  random.InitSeed( t );
+			delay := 16;
 			
 			Order;
 			running := FALSE
@@ -62,11 +62,15 @@ TYPE
 			x, y, len: LONGINT;
 		BEGIN
 			len := data[n];
-			x := ElemSize*n;  y := MaxY - (ElemSize*len);
+			x := ElemSize*n;  y := WindowSize - 1 - (ElemSize*len);
 			Raster.InitMode( mode, Raster.srcCopy );
 			IF len < N THEN  Raster.Fill( img, x, 0, x+ElemSize, y, white, mode )  END;
-			Raster.Fill( img, x, y+1, x+ElemSize, y+ElemSize+1, red, mode );
-			IF len > 1 THEN  Raster.Fill( img, x, y+ElemSize+1, x+ElemSize, MaxY, grey, mode )  END;
+			Raster.Fill( img, x, y+1, x+ElemSize, y+ElemSize+1, col1, mode );
+			IF len > 1 THEN  
+				Raster.Fill( img, x, y+ElemSize+1, x+1, WindowSize, white, mode );
+				Raster.Fill( img, x+1, y+ElemSize+1, x+ElemSize-1, WindowSize, grey, mode );
+				Raster.Fill( img, x+ElemSize-1, y+ElemSize+1, x+ElemSize, WindowSize, white, mode );
+			END;
 		END DrawElement;
 		
 		
@@ -75,9 +79,11 @@ TYPE
 			x, y, len: LONGINT;
 		BEGIN
 			len := data[n];
-			x := ElemSize*n;  y := MaxY - (ElemSize*len);
+			x := ElemSize*n;  y := WindowSize - 1 - (ElemSize*len);
 			Raster.InitMode( mode, Raster.srcCopy );
-			IF len > 1 THEN  Raster.Fill( img, x, y+ElemSize+1, x+ElemSize, MaxY, yellow, mode )  END;
+			IF len > 1 THEN  
+				Raster.Fill( img, x+1, y+ElemSize+1, x+ElemSize-1, WindowSize, yellow, mode )  
+			END;
 		END Highlight;
 		
 		PROCEDURE Clear( n: LONGINT );
@@ -85,9 +91,11 @@ TYPE
 			x, y, len: LONGINT;
 		BEGIN
 			len := data[n];
-			x := ElemSize*n;  y := MaxY - (ElemSize*len);
+			x := ElemSize*n;  y := WindowSize - 1 - (ElemSize*len);
 			Raster.InitMode( mode, Raster.srcCopy );
-			IF len > 1 THEN  Raster.Fill( img, x, y+ElemSize+1, x+ElemSize, MaxY, grey, mode )  END;
+			IF len > 1 THEN  
+				Raster.Fill( img, x+1, y+ElemSize+1, x+ElemSize-1, WindowSize, grey, mode )  
+			END;
 		END Clear;
 		
 		
@@ -102,7 +110,7 @@ TYPE
 			FOR i := 1 TO n DO
 				j := random.Dice( N );  k := random.Dice( N );
 				Swap( j, k );
-				IF i MOD 16 = 0 THEN  NEW(t); t.Sleep(10) (*! Unix: Objects.Sleep( 10 ) *) END;
+				IF i MOD 16 = 0 THEN  NEW(t); t.Sleep(10)  END;
 			END
 		END Randomize;
 		
@@ -135,23 +143,38 @@ TYPE
 		
 		
 		PROCEDURE Swap( i, j: LONGINT );
-		VAR t: LONGINT;
+		VAR tmp: LONGINT;
 		BEGIN
-			t := data[i];  data[i] := data[j];  data[j] := t;
+			tmp := data[i];  data[i] := data[j];  data[j] := tmp;
 			DrawElement( i );
 			DrawElement( j );
 			Update;
+			IF delay # 0 THEN  NEW( t ); t.Sleep( delay)  END; 
 			INC( nofswaps )
 		END Swap;
 		
 		PROCEDURE Less( i, j: LONGINT ): BOOLEAN;
 		BEGIN
-			Highlight( i );  Highlight( j );  Update;  NEW(t); t.Sleep(10); (*! Unix: Objects.Sleep( 10 ); *)
-			Clear( i ); Clear( j );  Update;
+			IF delay # 0 THEN
+				Highlight( i );  Highlight( j );  Update;  NEW( t ); t.Sleep( delay); 
+				Clear( i ); Clear( j );  Update;
+			END;
 			INC( nofcomps );
 			RETURN data[i] < data[j];
 		END Less;
 		
+		
+		PROCEDURE DecSpeed;
+		BEGIN
+			IF delay # 0 THEN  delay := 2*delay  ELSE  delay := 4 END;
+			Out.String( "delay: " ); Out.Int( delay, 1 );  Out.Ln
+		END DecSpeed;
+		
+		PROCEDURE IncSpeed;
+		BEGIN
+			IF delay > 4 THEN  delay := delay DIV 2   ELSE  delay := 0 END;
+			Out.String( "delay: " ); Out.Int( delay, 1 );  Out.Ln
+		END IncSpeed;
 		
 		PROCEDURE BubbleSort;
 		VAR i, n, swaps: LONGINT; 
@@ -323,7 +346,39 @@ TYPE
 		
 	END SDW;
 	
+	SortProcedure = PROCEDURE{DELEGATE};
 	
+	SortActivity = OBJECT
+	VAR
+		sorter: SortProcedure;
+		sorterName: ARRAY 64 OF CHAR;
+		sdw: SDW;
+		
+		PROCEDURE & Init( s: SDW );
+		BEGIN
+			sdw := s
+		END Init;
+				
+		PROCEDURE Start( CONST name: ARRAY OF CHAR;  proc: SortProcedure );
+		BEGIN{EXCLUSIVE}
+			COPY( name, sorterName );
+			sorter := proc
+		END Start;
+				
+		PROCEDURE Do;
+		BEGIN
+			AWAIT( sorter # NIL );
+			sdw.Start;
+			sorter;
+			sdw.Finish( sorterName );
+			sorter := NIL
+		END Do;
+				
+	BEGIN{ACTIVE}
+		LOOP
+			Do
+		END
+	END SortActivity;
 	
 	Window = OBJECT( WMComponents.FormWindow )
 		VAR
@@ -331,6 +386,9 @@ TYPE
 			button : WMStandardComponents.Button;
 
 			sdw: SDW;
+			
+			sort: SortActivity;
+			
 
 			PROCEDURE &New;
 			VAR vc: WMComponents.VisualComponent;
@@ -340,7 +398,8 @@ TYPE
 				SetContent( vc );
 				SetTitle( WM.NewString( "Sort Demo" ) );
 				WM.DefaultAddWindow( SELF );
-				NEW( sdw )
+				NEW( sdw );
+				NEW( sort, sdw )
 			END New;
 
 
@@ -351,7 +410,7 @@ TYPE
 			BEGIN
 				NEW( panel );
 					panel.bounds.SetWidth( 560 );
-					panel.bounds.SetHeight( 40 );
+					panel.bounds.SetHeight( 60 );
 					panel.fillColor.Set( SHORT( 0FFFFFFFFH ) );
 				
 				
@@ -469,47 +528,89 @@ TYPE
 				toolbar.AddContent( button );
 				
 				panel.AddContent( toolbar );
+				
+				
+				NEW( toolbar );
+					toolbar.bounds.SetHeight( 20 );
+					toolbar.alignment.Set( WMComponents.AlignTop );
+					toolbar.fillColor.Set( SHORT( 0CCCCCCFFH ) );
+
+				NEW( label );
+					label.bounds.SetWidth( 80 );
+					label.alignment.Set( WMComponents.AlignLeft );
+					label.caption.SetAOC( " Speed: " );
+					label.textColor.Set( 0000000FFH );
+				toolbar.AddContent(label);
+
+
+				NEW( button );
+					button.bounds.SetWidth( 80 );
+					button.alignment.Set( WMComponents.AlignLeft );
+					button.caption.SetAOC( " - " );
+					button.onClick.Add( DecSpeed );
+				toolbar.AddContent( button );
+				
+				
+				NEW( button );
+					button.bounds.SetWidth( 80 );
+					button.alignment.Set( WMComponents.AlignLeft );
+					button.caption.SetAOC( " + " );
+					button.onClick.Add( IncSpeed );
+				toolbar.AddContent( button );
+				
+				
+				panel.AddContent( toolbar );
+				
 
 				RETURN panel
 			END CreateForm;
 			
 			PROCEDURE Order( sender, data: ANY );
 			BEGIN
-				sdw.Order
+				IF ~ sdw.running THEN  sdw.Order  END
 			END Order;
 			
 			PROCEDURE RevOrder( sender, data: ANY );
 			BEGIN
-				sdw.RevOrder
+				IF ~ sdw.running THEN  sdw.RevOrder  END
 			END RevOrder;
 			
 			PROCEDURE BadOrder( sender, data: ANY );
 			BEGIN
-				sdw.BadOrder
+				IF ~ sdw.running THEN  sdw.BadOrder  END
 			END BadOrder;
 			
 			
 			PROCEDURE Rand10( sender, data: ANY );
 			BEGIN
-				sdw.Randomize( 10 )
+				IF ~ sdw.running THEN  sdw.Randomize( 10 )  END
 			END Rand10;
 			
 			PROCEDURE Rand100( sender, data: ANY );
 			BEGIN
-				sdw.Randomize( 100 )
+				IF ~ sdw.running THEN  sdw.Randomize( 100 )  END
 			END Rand100;
 			
 			PROCEDURE Rand500( sender, data: ANY );
 			BEGIN
-				sdw.Randomize( 500 )
+				IF ~ sdw.running THEN  sdw.Randomize( 500 )  END
 			END Rand500;
+			
+			
+			PROCEDURE IncSpeed( sender, data: ANY );
+			BEGIN
+				sdw.IncSpeed
+			END IncSpeed;
+			
+			PROCEDURE DecSpeed( sender, data: ANY );
+			BEGIN
+				sdw.DecSpeed
+			END DecSpeed;
 			
 			PROCEDURE StartBubbleSort( sender, data: ANY );
 			BEGIN
 				IF ~ sdw.running THEN
-					sdw.Start;
-					sdw.BubbleSort;
-					sdw.Finish( "BubbleSort" )
+					sort.Start( "BubbleSort", sdw.BubbleSort )
 				END
 			END StartBubbleSort;
 				
@@ -517,9 +618,7 @@ TYPE
 			PROCEDURE StartSelectSort( sender, data: ANY );
 			BEGIN
 				IF ~ sdw.running THEN
-					sdw.Start;
-					sdw.SelectSort;
-					sdw.Finish( "SelectSort" )
+					sort.Start( "SelectSort", sdw.SelectSort )
 				END
 			END StartSelectSort;
 				
@@ -527,9 +626,7 @@ TYPE
 			PROCEDURE StartShellSort( sender, data: ANY );
 			BEGIN
 				IF ~ sdw.running THEN
-					sdw.Start;
-					sdw.ShellSort;
-					sdw.Finish( "ShellSort" )
+					sort.Start( "ShellSort", sdw.ShellSort )
 				END
 			END StartShellSort;
 				
@@ -537,9 +634,7 @@ TYPE
 			PROCEDURE StartQuickSort( sender, data: ANY );
 			BEGIN
 				IF ~ sdw.running THEN
-					sdw.Start;
-					sdw.QuickSort;
-					sdw.Finish( "QuickSort" )
+					sort.Start( "QuickSort", sdw.QuickSort )
 				END
 			END StartQuickSort;
 			
@@ -547,9 +642,7 @@ TYPE
 			PROCEDURE StartHeapSort( sender, data: ANY );
 			BEGIN
 				IF ~ sdw.running THEN
-					sdw.Start;
-					sdw.HeapSort;
-					sdw.Finish( "HeapSort" )
+					sort.Start( "HeapSort", sdw.HeapSort )
 				END
 			END StartHeapSort;
 				
@@ -557,9 +650,7 @@ TYPE
 			PROCEDURE StartSmoothSort( sender, data: ANY );
 			BEGIN
 				IF ~ sdw.running THEN
-					sdw.Start;
-					sdw.SmoothSort;
-					sdw.Finish( "SmoothSort" )
+					sort.Start( "SmoothSort", sdw.SmoothSort )
 				END
 			END StartSmoothSort;
 				
