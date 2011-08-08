@@ -201,9 +201,9 @@ TYPE
 	(* task state segment *)
 	TSSDesc = RECORD	(* 1, p. 485 and p. 612 for required fields *)
 		Reserved1: LONGINT;
-		RSP0, RSP1, RSP2: HUGEINT;
+		RSP0 {ALIGNED(4)}, RSP1{ALIGNED(4)}, RSP2{ALIGNED(4)}: HUGEINT;
 		Reserved2, Reserved3: LONGINT;
-		IST1, IST2, IST3, IST4, IST5, IST6, IST7: HUGEINT;
+		IST1 {ALIGNED(4)}, IST2 {ALIGNED(4)}, IST3 {ALIGNED(4)}, IST4{ALIGNED(4)}, IST5{ALIGNED(4)}, IST6{ALIGNED(4)}, IST7{ALIGNED(4)}: HUGEINT;
 		Reserved4, Reserved5: LONGINT;
 		Reserved6, IOMapBaseAddress: INTEGER;
 	(* Implicit: IOBitmap: ARRAY 8192 DIV 4 OF SET *)
@@ -246,7 +246,7 @@ TYPE
 
 	HandlerRec = RECORD
 		valid: BOOLEAN;	(* offset 0 *)
-		handler: Handler	(* offset 4 *)
+		handler {ALIGNED(4)}: Handler	(* offset 4 *)
 	END;
 
 	GateDescriptor = RECORD
