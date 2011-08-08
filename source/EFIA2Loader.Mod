@@ -7,7 +7,7 @@ CONST
 	traceDebug = TRUE;
 
 	(* address to which the executable will be loaded to. Loaded to arbitrary address if  = -1 *)
-	kernelAddress = 10000H;
+	kernelAddress = 1000H;
 	(* address to which the executable relocates itself. Ignored if -1 *)
 	kernelRelocAddress = 0100000H;
 	(* address at which the boot table is generated. Arbitrary if -1 *)
@@ -383,6 +383,7 @@ VAR
 		kernelImageFile := EFILib.OpenFile(kernelFileName);
 		IF (kernelImageFile # NIL) THEN
 			kernelSize := SHORT(EFILib.GetFileSize(kernelImageFile));
+			TRACE(kernelSize);
 			kernelPages := (kernelSize DIV EFI.PageSize) + 1;
 
 			(* allocate all memory at kernelRelocAddress *)
@@ -403,6 +404,9 @@ VAR
 			loadAddr := kernelAddress;
 			status := EFILib.LoadFile(kernelImageFile, loadAddr);
 			IF (status = EFI.Success ) THEN
+				
+				Trace.Memory(loadAddr + 3CF34H, 4);
+				
 				TRACE("load success");
 				kernelAddr := loadAddr;
 				RETURN EFI.Success;
