@@ -224,11 +224,12 @@ TYPE
 			WHILE (variable # NIL) DO
 				size := SizeOf(variable.type.resolved);
 				IF size < 0 THEN RETURN FALSE END;
-				alignment := AlignmentOf(SELF.variableAlignment, variable.type.resolved);
-				Basic.Align(offset,alignment);
 
 				IF variable.alignment > 1 THEN
 					Basic.Align(offset, variable.alignment*dataUnit);
+				ELSE
+					alignment := AlignmentOf(SELF.variableAlignment, variable.type.resolved);
+					Basic.Align(offset,alignment);
 				END;
 
 				variable.SetOffset(offset);
@@ -308,13 +309,12 @@ TYPE
 					size := SizeOf(variable.type.resolved);
 					IF size < 0 THEN RETURN FALSE END;
 					DEC(offset,size);
-					alignment := AlignmentOf(SELF.variableAlignment,variable.type.resolved);
-					Basic.Align(offset,-alignment);
 
 					IF variable.alignment > 1 THEN
-						DEC(offset, parameterOffset);
 						Basic.Align(offset, -variable.alignment*dataUnit);
-						INC(offset, parameterOffset);
+					ELSE
+						alignment := AlignmentOf(SELF.variableAlignment,variable.type.resolved);
+						Basic.Align(offset,-alignment);
 					END;
 
 					variable.SetOffset(offset);
