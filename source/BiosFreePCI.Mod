@@ -22,7 +22,7 @@ MODULE PCI;	(** non-portable *)
 		MemorySpace* = {1};
 		BusMaster* = {2};
 
-		debug = FALSE;
+		debug = TRUE;
 
 		Done* = 0;  NoPCI* = -1;  NoBios32* = -1; Error* = -2;
 
@@ -93,6 +93,13 @@ MODULE PCI;	(** non-portable *)
 					IF (devId = deviceId) & (vendId = vendorId) THEN
 						IF idx = index THEN
 							busNr := pci.bus; devNr := pci.device; fktNr := pci.function;
+							IF debug THEN
+								KernelLog.String("FindPCIDevice "); 
+								KernelLog.Int(devId,1); KernelLog.String(", "); 
+								KernelLog.Int(vendId,1); KernelLog.String(","); 
+								KernelLog.Int(idx,1);
+								KernelLog.String(" found."); KernelLog.Ln; 
+							END;
 							RETURN Done
 						ELSE INC(index)
 						END;
@@ -107,7 +114,7 @@ MODULE PCI;	(** non-portable *)
 	END FindPCIDevice;
 
 	PROCEDURE FindPCIClassCode*(classCode, idx: LONGINT; VAR busNr, devNr, fktNr: LONGINT): LONGINT;
-	VAR pci: Pci; r0, r8,  index,res: LONGINT;
+	VAR pci: Pci; r0, r8,  index,res,class: LONGINT;
 	BEGIN {EXCLUSIVE}
 		IF pciEnabled THEN
 			StartIterate(pci);
@@ -115,9 +122,15 @@ MODULE PCI;	(** non-portable *)
 				res := PCIReadConfig32(pci.bus, pci.device, pci.function, 0, r0);
 				IF r0 # LONGINT(0FFFFFFFFH) THEN
 					res := PCIReadConfig32(pci.bus, pci.device, pci.function, 8, r8);
-					IF (classCode = r8 DIV 100H MOD 1000000) THEN
+					class := r8 DIV 100H MOD 1000000H;
+					IF (classCode = class) THEN
 						IF idx = index THEN
 							busNr := pci.bus; devNr := pci.device; fktNr := pci.function;
+							IF debug THEN
+								KernelLog.String("FindPCIClassCode "); 
+								KernelLog.Int(classCode,1); KernelLog.String(","); KernelLog.Int(idx,1);
+								KernelLog.String(" found."); KernelLog.Ln; 
+							END;
 							RETURN Done
 						ELSE INC(index)
 						END;
@@ -457,8 +470,9 @@ MODULE PCI;	(** non-portable *)
 			pci.function := 0;
 			INC(pci.device);
 			IF pci.device >= 32 THEN
+				pci.device := 0;
 				INC(pci.bus);
-				IF pci.bus >= 256 THEN RETURN FALSE END;
+				IF pci.bus >= 8 THEN RETURN FALSE END;
 			END;
 		END;
 		RETURN TRUE
@@ -599,6 +613,7 @@ MODULE PCI;	(** non-portable *)
 					KernelLog.String(" class="); KernelLog.Int(class,1);
 					KernelLog.String(" subclass="); KernelLog.Int(subclass,1);
 					KernelLog.String(" api="); KernelLog.Int(api,1);
+					KernelLog.String(" classCode= "); KernelLog.Address(r8 DIV 100H MOD 1000000H); 
 					KernelLog.String(" : ");
 					DisplayDeviceClass(class, subclass);
 					KernelLog.Ln;
@@ -625,6 +640,12 @@ BEGIN
 	END;
 	Show;
 END PCI.
+
+useful sources: 
+
+http://tldp.org/LDP/tlk/dd/pci.html
+http://my.execpc.com/~geezer/code/pci.c 
+
 
 (**
 Notes
