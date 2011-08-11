@@ -3483,7 +3483,7 @@ BEGIN
 			apicVer[0] := 0; apicVer[1] := 0
 		ELSE	(* configuration defined in table *)
 			MapPhysical(adr, 68*1024, adr);	(* 64K + 4K header *)
-			SYSTEM.GET (adr, i); ASSERT(x = 504D4350H);	(* check signature *)
+			SYSTEM.GET (adr, i); ASSERT(i = 504D4350H);	(* check signature *)
 			SYSTEM.GET (adr+4, i);	(* length *)
 			ASSERT(ChecksumMP(adr, i MOD 10000H) = 0);
 			IF TraceVerbose THEN
