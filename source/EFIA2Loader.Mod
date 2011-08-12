@@ -9,7 +9,7 @@ CONST
 	(* address to which the executable will be loaded to. Loaded to arbitrary address if  = -1 *)
 	kernelAddress = 1000H;
 	(* address to which the executable relocates itself. Ignored if -1 *)
-	kernelRelocAddress = 0100000H;
+	kernelRelocAddress = 01000000H;
 	(* address at which the boot table is generated. Arbitrary if -1 *)
 	bootTableAddress = -1;
 
@@ -367,6 +367,26 @@ VAR
 		val[0] := 0X
 	END GetConfig;
 
+	PROCEDURE Allocate(allocAddr: EFI.PhysicalAddress; kernelPages: LONGINT): EFI.Status;
+	VAR allocAdrCopy : EFI.PhysicalAddress; chunkPages: LONGINT; status: EFI.Status;
+	BEGIN
+		chunkPages := kernelPages;
+		chunkPages := 1;
+		REPEAT
+			allocAdrCopy := allocAddr; (* to protect allocAddr from being overwritten in AllocateMemory *)
+			status := EFILib.AllocateMemory(allocAdrCopy, chunkPages);
+			IF status = EFI.Success THEN
+				DEC(kernelPages, chunkPages);
+				allocAddr := allocAddr + EFI.PageSize*chunkPages;
+			ELSE
+				TRACE(kernelPages, chunkPages, allocAddr, status);
+				chunkPages := chunkPages DIV 2;
+				IF chunkPages > kernelPages THEN chunkPages := kernelPages END;
+			END;
+		UNTIL (kernelPages = 0) OR (chunkPages = 0);
+		RETURN status;
+	END Allocate;
+
 	(* 	loads the kernel image to kernelAddress if possible. Otherwise loads it to somewhere else and return WarnWriteFailure.
 		Allocates makes sure the memory at kernelRelocAddress is allocated (by us or by someone else) s.t.
 		the boot table will certainly not be allocated there.
@@ -388,41 +408,52 @@ VAR
 
 			(* allocate all memory at kernelRelocAddress *)
 			IF (kernelRelocAddress # -1) THEN
+				(*status := Allocate(kernelRelocAddress, kernelPages);*)
+				TRACE(status);
+				(*
 				allocAddr := kernelRelocAddress;
 				status := EFILib.AllocateMemory(allocAddr, kernelPages);
 				TRACE(status);
 				(* try to make sure all pages are allocated somehow *)
 				IF (status # EFI.Success) THEN
 					FOR i := 0 TO kernelPages DO
+						status := EFI.Success;
 						status := EFILib.AllocateMemory(allocAddr, 1);
-						TRACE(status);
+						TRACE(status, allocAddr);
 						allocAddr := allocAddr + EFI.PageSize;
 					END;
 				END;
+				*)
 			END;
 
-			loadAddr := kernelAddress;
+			loadAddr := kernelRelocAddress;
+			(*loadAddr := 400000H; *)
+
 			status := EFILib.LoadFile(kernelImageFile, loadAddr);
 			IF (status = EFI.Success ) THEN
-				
-				Trace.Memory(loadAddr + 3CF34H, 4);
-				
 				TRACE("load success");
 				kernelAddr := loadAddr;
 				RETURN EFI.Success;
 			ELSE
+				TRACE("could not load kernel with fixed adr");
 				(* try to recover: load it anywhere and relocate it later. make sure all pages at kernelAddress are allocated *)
+				(*status := Allocate(kernelAddress, kernelPages);*)
+				TRACE(status);
+				(*
 				allocAddr := kernelAddress;
 				FOR i := 0 TO kernelPages DO
+					status := EFI.Success;
 					status := EFILib.AllocateMemory(allocAddr, 1);
-					TRACE(status);
+					TRACE(status, allocAddr);
 					allocAddr := allocAddr + EFI.PageSize;
 				END;
+				*)
 
 				loadAddr := -1;
 				status := EFILib.LoadFile(kernelImageFile, loadAddr);
 				TRACE(status);
 				IF (status = EFI.Success) THEN
+					TRACE("loaded kernel to ", loadAddr);
 					kernelAddr := loadAddr;
 					RETURN EFI.WarnWriteFailure;
 				ELSE
@@ -446,8 +477,12 @@ VAR
 		kernelFileName, configFileName, arg : ARRAY 128 OF EFI.Char16;
 		val : ARRAY 100 OF CHAR;
 		i, dWidth, dHeight, dDepth, dFormat : LONGINT;
+		size: EFI.Int64;
 	BEGIN
 		Trace.String("Starting"); Trace.Ln;
+
+		status := EFILib.GetMemorySize(size);
+		TRACE(size);
 
 		IF EFILib.GetNextArg(kernelFileName) & EFILib.GetNextArg(configFileName) THEN
 			(* load the kernel file into memory *)
