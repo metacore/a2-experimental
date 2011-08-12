@@ -1140,14 +1140,14 @@ TYPE
 		RETURN h;
 	END ConvertUnsigned;
 
-	PROCEDURE MaxInteger*(system: System; type: SyntaxTree.IntegerType): HUGEINT;
+	PROCEDURE MaxInteger*(system: System; type: SyntaxTree.BasicType): HUGEINT;
 	VAR h: HUGEINT;
 	BEGIN
 		h := Runtime.AslH(1,system.SizeOf(type)-1);
 		RETURN h-1
 	END MaxInteger;
 
-	PROCEDURE MinInteger*(system: System; type: SyntaxTree.IntegerType): HUGEINT;
+	PROCEDURE MinInteger*(system: System; type: SyntaxTree.BasicType): HUGEINT;
 	VAR h: HUGEINT;
 	BEGIN
 		h := Runtime.AslH(1,system.SizeOf(type)-1);

@@ -4938,6 +4938,7 @@ TYPE
 							ELSIF type IS SyntaxTree.IntegerType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,Global.MaxInteger(system,type(SyntaxTree.IntegerType))));
 							ELSIF type IS SyntaxTree.FloatType THEN result.SetResolved(SyntaxTree.NewRealValue(position,Global.MaxFloat(system,type(SyntaxTree.FloatType))));
 							ELSIF type IS SyntaxTree.SetType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,system.SizeOf(type)-1)); type := system.shortintType;
+							ELSIF type IS SyntaxTree.SizeType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,Global.MaxInteger(system,type(SyntaxTree.BasicType))));
 							ELSE Error(Diagnostics.Invalid,parameter0.position,"builtin function not applicable to this type");
 							END;
 						ELSE
@@ -4968,6 +4969,7 @@ TYPE
 							ELSIF type IS SyntaxTree.IntegerType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,Global.MinInteger(system,type(SyntaxTree.IntegerType))));
 							ELSIF type IS SyntaxTree.FloatType THEN result.SetResolved(SyntaxTree.NewRealValue(position,Global.MinFloat(system,type(SyntaxTree.FloatType))));
 							ELSIF type IS SyntaxTree.SetType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position,0)); type := system.shortintType;
+							ELSIF type IS SyntaxTree.SizeType THEN result.SetResolved(SyntaxTree.NewIntegerValue(position, Global.MinInteger(system,type(SyntaxTree.BasicType))));
 							ELSE Error(parameter0.position,Diagnostics.Invalid,"builtin function not applicable to this type");
 							END;
 						ELSE
