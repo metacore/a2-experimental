@@ -196,7 +196,7 @@ TYPE
 	SetProperty* = OBJECT(Property)
 	VAR
 		value : SET;
-
+		(*
 		PROCEDURE IntToSet(h:LONGINT):SET;
 		VAR i:LONGINT; set:SET; 
 		BEGIN
@@ -219,8 +219,9 @@ TYPE
 			END;
 			RETURN int
 		END SetToInt;
-		
-		PROCEDURE FromStream*(r : Streams.Reader);
+		*)
+		(*
+		PROCEDURE FromStream*(r : Streams.Reader); (*SET read as Hex String*)
 		VAR token : ARRAY 10 OF CHAR; v : SET; i:LONGINT; res: LONGINT;
 		BEGIN
 			AcquireWrite;
@@ -232,15 +233,40 @@ TYPE
 			END;
 			ReleaseWrite
 		END FromStream;
-
-
-(*! to discuss: should a SET be written explicitely ? readability  vs overhead*)
+		*)
+		PROCEDURE FromStream*(r : Streams.Reader);
+		VAR token : ARRAY 256 OF CHAR; v : SET; i:LONGINT; res: LONGINT; ch:CHAR;
+		BEGIN
+			AcquireWrite;
+			NotDefault;
+			r.SkipWhitespace;
+			ch:=r.Peek(); 
+			IF ch#"{" THEN HALT(200) 
+			ELSE
+				i:=0;
+				r.Char(ch);
+				WHILE ch#"}" DO;
+					IF ch="<" THEN HALT(201) END;
+					token[i]:=ch; INC(i);
+					r.Char(ch);
+				END;
+				token[i]:=ch; token[i+1]:=0X;
+				IF r.res = Streams.Ok THEN
+					Strings.StrToSet(token,v);
+					IF v # value THEN value := v; Changed END;
+				END;
+			END;
+			ReleaseWrite
+		END FromStream;
+		
+			(*! to discuss: should a SET be written explicitely or compressed ? readability  vs overhead*)
 		PROCEDURE ToStream*(w : Streams.Writer);
-		VAR s:ARRAY 10 OF CHAR;
+		VAR s:ARRAY 256 OF CHAR;
 		BEGIN
 			AcquireRead;
-			Strings.IntToHexStr(SetToInt(Get()),8,s);
-			Strings.AppendChar(s,"H");
+			(*Strings.IntToHexStr(SetToInt(Get()),8,s);(*SET as HexString*)
+			Strings.AppendChar(s,"H");*)
+			Strings.SetToStr(Get(),s);
 			w.String(s);
 			ReleaseRead
 		END ToStream;
@@ -267,7 +293,7 @@ TYPE
 
 (*! to discuss: should a SET be written explicitely - readability at cost of overhead*)
 		PROCEDURE FromXML*(xml : XML.Element);
-		VAR en : XMLObjects.Enumerator; p : ANY; s : String; i:LONGINT;
+		VAR en : XMLObjects.Enumerator; p : ANY; s : String; i:LONGINT; v: SET;
 		BEGIN
 			en := xml.GetContents();
 			p := en.GetNext();
@@ -276,8 +302,8 @@ TYPE
 				s := p(XML.Chars).GetStr();
 				IF s # NIL THEN
 					Strings.Trim(s^, " "); 
-					Strings.StrToInt(s^,i);
-					Set(IntToSet(i))
+					Strings.StrToSet(s^,v);
+					Set(v)
 				END
 			END
 		END FromXML;
@@ -290,8 +316,9 @@ TYPE
 			IF nonDefault THEN
 				Indent(w, indent);
 				w.Char("<"); w.String(name^); w.Char(">");
-				Strings.IntToHexStr(SetToInt(value),8,s); Strings.AppendChar(s,"H");
-				w.String(s);
+				(*Strings.IntToHexStr(SetToInt(value),8,s); Strings.AppendChar(s,"H");
+				w.String(s);*)
+				w.Set(value);
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln;
 			END
 		END WriteXML;
