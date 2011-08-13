@@ -1,4 +1,4 @@
-MODULE WMFigures; (** AUTHOR "staubesv"; PURPOSE "Geometric shapes"; *)
+MODULE WMFigures; (** AUTHOR "staubesv, modif PH"; PURPOSE "Geometric shapes"; *)
 
 IMPORT
 	KernelLog,
@@ -232,7 +232,7 @@ TYPE
 
 	PointArray = POINTER TO ARRAY OF WMGraphics.Point2d;
 
-	Polynomial* = OBJECT(Figure)
+	Line* = OBJECT(Figure)
 	VAR
 		pointArray : PointArray; (* {pointArray # NIL} *)
 
@@ -328,7 +328,7 @@ TYPE
 			END;
 		END DrawBackground;
 
-	END Polynomial;
+	END Line;
 
 TYPE
 
@@ -403,7 +403,6 @@ TYPE
 			MovePoints(-box.l, -box.t);
 			Release;
 		END Normalize;
-
 
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
 		VAR p, q : Point; rect : WMRectangles.Rectangle;
@@ -727,11 +726,11 @@ PROCEDURE Max(x, y: LONGINT): LONGINT;
 BEGIN IF x > y THEN RETURN x ELSE RETURN y END
 END Max;
 
-PROCEDURE GenPolynomial*() : XML.Element;
-VAR polynomial : Polynomial;
+PROCEDURE GenLine*() : XML.Element;
+VAR line : Line;
 BEGIN
-	NEW(polynomial); RETURN polynomial;
-END GenPolynomial;
+	NEW(line); RETURN line;
+END GenLine;
 
 PROCEDURE GenCircle*() : XML.Element;
 VAR circle : Circle;
