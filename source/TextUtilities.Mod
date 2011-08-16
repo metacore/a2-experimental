@@ -1179,7 +1179,7 @@ TYPE
 			out.Ln;
 			out.String("<Object>");
 			IF (o # NIL) & (o IS XML.Element) THEN
-				o(XML.Element).Write(out, 1);
+				o(XML.Element).Write(out, NIL, 1);
 			END;
 			out.String("</Object>");out.Ln;
 		END WriteObject;

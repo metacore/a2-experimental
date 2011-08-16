@@ -1,7 +1,7 @@
 MODULE ComponentViewer;	(** AUTHOR "TF"; PURPOSE "Testbed for the component system"; *)
 
 IMPORT
-	Modules, Commands, Options, XML, Repositories, WMMessages, WMGraphics, WMWindowManager, WMComponents;
+	Modules, Commands, Options, XML, Repositories, WMMessages, WMGraphics, WMWindowManager, WMComponents, WMRestorable;
 
 CONST
 	DefaultWidth = 320;
@@ -14,11 +14,27 @@ TYPE
 
 	Window = OBJECT(WMComponents.FormWindow)
 
-		PROCEDURE &Init(width, height : LONGINT; alpha : BOOLEAN);
+		PROCEDURE RestoreWindow*(c : WMRestorable.Context);
+		VAR vc : WMComponents.VisualComponent;
+		BEGIN
+			ReInit(c.r-c.l, c.b-c.t);
+			(*
+			Init(c.r - c.l, c.b - c.t, FALSE);
+			*)
+			IF c.appData # NIL THEN
+				DisableUpdate;
+				LoadComponents(c.appData(XML.Element));
+				EnableUpdate;
+			END;
+			WMRestorable.AddByContext(SELF, c);
+			Resized(c.r-c.l,c.b-c.t);
+		END RestoreWindow;
+
+		PROCEDURE &InitWindow(width, height : LONGINT; alpha : BOOLEAN);
 		BEGIN
 			IncCount;
-			Init^(width, height, alpha);
-		END Init;
+			Init(width, height, alpha);
+		END InitWindow;
 
 		PROCEDURE Close;
 		BEGIN
@@ -26,10 +42,17 @@ TYPE
 			DecCount
 		END Close;
 
-		PROCEDURE Handle(VAR x : WMMessages.Message);
+		PROCEDURE Handle(VAR m : WMMessages.Message);
+		VAR data: XML.Element;
 		BEGIN
-			IF (x.msgType = WMMessages.MsgExt) & (x.ext # NIL) & (x.ext IS KillerMsg) THEN Close;
-			ELSE Handle^(x);
+			IF (m.msgType = WMMessages.MsgExt) & (m.ext # NIL) THEN
+				IF  (m.ext IS KillerMsg) THEN Close
+				ELSIF (m.ext IS WMRestorable.Storage) THEN
+					data := StoreComponents();
+					m.ext(WMRestorable.Storage).Add("ComponentViewer", "ComponentViewer.Restore", SELF, data)
+				ELSE Handle^(m);
+				END;
+			ELSE Handle^(m);
 			END;
 		END Handle;
 
@@ -112,6 +135,15 @@ BEGIN
 		context.error.String("Usage: ComponentViewer.Open [Options] <string> ~"); context.error.Ln;
 	END;
 END Open;
+
+PROCEDURE Restore*(context : WMRestorable.Context);
+VAR w : Window;
+BEGIN
+	IF context # NIL THEN
+		NEW(w, 100,100,FALSE);
+		w.RestoreWindow(context);
+	END;
+END Restore;
 
 PROCEDURE IncCount;
 BEGIN {EXCLUSIVE}

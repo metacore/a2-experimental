@@ -577,7 +577,7 @@ TYPE
 					IF (i >= LEN(buffers)) THEN Resize; END;
 					NEW(buf, 1024);
 					writer := buf.GetWriter();
-					components[i].Write(writer, 0);
+					components[i].Write(writer, NIL,0);
 					writer.Update;
 					buffers[i] := buf.GetString();
 				END;
@@ -2906,9 +2906,9 @@ TYPE
 			IF (w # NIL) THEN
 				NEW(writer, "GUI Builder XML", 640, 480, FALSE);
 				IF (w.editor.insertObjAt # NIL) THEN
-					w.editor.insertObjAt.Write(writer, 0);
+					w.editor.insertObjAt.Write(writer, NIL, 0);
 				ELSE
-					w.editor.panel.Write(writer, 0);
+					w.editor.panel.Write(writer, NIL, 0);
 				END;
 				writer.Update;
 			END;
@@ -3091,7 +3091,7 @@ TYPE
 			IF (file # NIL) THEN
 				window.modified := FALSE;
 				NEW(writer, file, 0);
-				window.editor.panel.Write(writer, 0);
+				window.editor.panel.Write(writer, NIL, 0);
 				COPY(filename, window.filename);
 				writer.Update;
 				Files.Register(file);

@@ -2,7 +2,7 @@ MODULE Repositories; (** AUTHOR "staubesv"; PURPOSE "Component repositories"; *)
 
 IMPORT
 	Streams, Modules, KernelLog, Commands, Strings, Files, Archives, Localization,
-	UTF8Strings, XML, XMLObjects, XMLScanner, XMLParser;
+	UTF8Strings, XML, XMLObjects, XMLScanner, XMLParser, D := Debugging;
 
 CONST
 	Ok* = 0;
@@ -82,6 +82,16 @@ TYPE
 		END Init;
 	END Context;
 
+	StoreContext*= OBJECT
+	VAR repository-: Repository;
+
+		PROCEDURE &InitStoreContext(r: Repository);
+		BEGIN
+			repository := r;
+		END InitStoreContext;
+
+	END StoreContext;
+
 	Command* = PROCEDURE {DELEGATE} (context : Context);
 
 TYPE
@@ -128,6 +138,21 @@ TYPE
 		BEGIN
 			RETURN Locked IN flags;
 		END IsLocked;
+
+		PROCEDURE FromXML*(xml: XML.Element);
+		VAR component: Component; enum: XMLObjects.Enumerator; c: ANY;
+		BEGIN
+			enum := xml.GetContents();
+			WHILE enum.HasMoreElements() DO
+				c := enum.GetNext();
+				IF c IS XML.Element THEN
+					component := ComponentFromXML(c(XML.Element));
+					IF component # NIL THEN
+						AddContent(component)
+					END;
+				END;
+			END;
+		END FromXML;
 
 	END Component;
 
@@ -740,6 +765,7 @@ TYPE
 		dictionaries : Dictionary;
 
 		errors : ErrorReporter;
+		registry-: Registry;
 
 		next : Repository;
 
@@ -755,6 +781,7 @@ TYPE
 			components := NIL;
 			dictionaries := NIL;
 			NEW(errors);
+			NEW(registry, SELF);
 			next := NIL;
 		END Init;
 
@@ -916,7 +943,7 @@ TYPE
 						END;
 						COPY(ci.name^, cname);
 						component(Component).SetRepository(SELF, cname, ci.id);
-						IF (ci.id # PrototypeID) THEN
+						IF  (ci.id # PrototypeID) THEN
 							ci.instance := component; (*TBD: Replaced by weak reference *)
 							IncrementTimestamp(timestamp);
 						END;
@@ -933,6 +960,13 @@ TYPE
 		VAR ci : ComponentInfo; filename : Files.FileName; nbrStr : ARRAY 16 OF CHAR; cname : Name;
 		BEGIN
 			ASSERT(component # NIL); (* TBD: Locking *)
+			ci := components;
+			WHILE (ci # NIL) & (ci.instance # component) DO ci := ci.next; END;
+			IF (ci # NIL) THEN
+				id := ci.id;
+				res := Ok;
+				RETURN
+			END;
 			NEW(ci);
 			IF (id # 0) THEN id := GetID(); END;
 			Strings.IntToStr(id, nbrStr);
@@ -949,6 +983,7 @@ TYPE
 					COPY(ci.name^, cname);
 					component.SetRepository(SELF, cname, ci.id);
 				END;
+			ELSE HALT(100);
 			END;
 			Store(res);
 			IncrementTimestamp(timestamp);
@@ -1040,12 +1075,13 @@ TYPE
 		END GetID;
 
 		PROCEDURE Store*(VAR res : LONGINT);
-		VAR writer : Streams.Writer;
+		VAR writer : Streams.Writer;context: StoreContext;
 		BEGIN
 			archive.Acquire;
 			writer := GetWriter(archive, IndexFile);
 			IF (writer # NIL) THEN
-				SELF.Write(writer, 0);
+				NEW(context, SELF);
+				Write(writer, context, 0);
 				writer.Update;
 			ELSE
 				res := 99;
@@ -1054,13 +1090,14 @@ TYPE
 		END Store;
 
 		PROCEDURE StoreComponent(CONST filename : ARRAY OF CHAR; component : Component; VAR res : LONGINT);
-		VAR writer : Streams.Writer;
+		VAR writer : Streams.Writer; context: StoreContext;
 		BEGIN
 			ASSERT(component # NIL);
 			archive.Acquire;
 			writer := GetWriter(archive, filename);
 			IF (writer # NIL) THEN
-				component.Write(writer, 0);
+				NEW(context, SELF);
+				component.Write(writer, context, 0);
 				writer.Update;
 				res := Ok;
 			ELSE
@@ -1073,7 +1110,7 @@ TYPE
 		BEGIN
 			IF (writer = NIL) THEN NEW(writer, KernelLog.Send, 1024); END;
 			writer.String("Dump repository "); writer.String(name); writer.String(": "); writer.Ln; writer.Update;
-			SELF.Write(writer, 0); writer.Ln;
+			SELF.Write(writer, NIL, 0); writer.Ln;
 			writer.Update;
 		END Dump;
 
@@ -1082,11 +1119,22 @@ TYPE
 	Repositories* = POINTER TO ARRAY OF Repository;
 
 	Properties* = OBJECT(XML.Element)
+	VAR repository-: Repository; (* to pass repository during creation *)
+		PROCEDURE &New(r: Repository);
+		BEGIN repository := r
+		END New;
+
 	END Properties;
 
 TYPE
 
 	Registry* = OBJECT(XML.ElementRegistry)
+	VAR repository: Repository;
+
+		PROCEDURE & InitRegistry(r: Repository);
+		BEGIN
+			repository := r
+		END InitRegistry;
 
 		PROCEDURE InstantiateElement*(CONST name: ARRAY OF CHAR): XML.Element;
 		VAR
@@ -1110,14 +1158,60 @@ TYPE
 						KernelLog.String("Repository not found"); KernelLog.Ln;
 					END;
 				ELSIF (componentName = "Properties") THEN
-					NEW(properties);
+					NEW(properties,SELF.repository);
 					RETURN properties;
+				ELSIF SELF.repository # NIL THEN
+					repository := SELF.repository;
+					 element := repository.GetComponent(componentName, id);
+					IF TraceInstantiate IN Trace THEN
+						KernelLog.String("Repositories.Registry.InstantiateElement: Instantiate component: "); KernelLog.String(componentName); KernelLog.Ln;
+						KernelLog.Boolean(element # NIL); KernelLog.Ln;
+					END;
 				END;
 			ELSE
 				KernelLog.String("Wrong name: "); KernelLog.String(name); KernelLog.Ln;
 			END;
 			RETURN element;
 		END InstantiateElement;
+
+		PROCEDURE InstantiateLate*(e: XML.Element): XML.Element;
+		VAR generator: XML.String; element: XML.Element;
+			moduleName, procedureName : Modules.Name; msg : ARRAY 128 OF CHAR; res : LONGINT;
+			generate : XML.GeneratorProcedure;
+			a: XML.Attribute;
+			enumerator: XMLObjects.Enumerator;
+			ptr: ANY;
+		BEGIN
+			element := NIL;
+			generator := e.GetAttributeValue("generator");
+			IF generator # NIL THEN
+				IF TraceInstantiate IN Trace THEN KernelLog.String("Repositories.Registry.InstantiateElementLate:"); KernelLog.String(generator^); KernelLog.Ln; END;
+				Commands.Split(generator^, moduleName, procedureName, res, msg);
+				IF (res = Commands.Ok) THEN
+					GETPROCEDURE(moduleName, procedureName, generate);
+					IF (generate # NIL) THEN
+						element := generate();
+					ELSE
+						KernelLog.String("Generator procedure not found: ");
+						KernelLog.String(moduleName); KernelLog.Char("."); KernelLog.String(procedureName);  KernelLog.Ln;
+					END;
+				ELSE
+					KernelLog.String("Invalid generator name"); KernelLog.Ln;
+				END;
+			END;
+			IF (element # NIL) THEN
+				enumerator := e.GetAttributes();
+				WHILE enumerator.HasMoreElements() DO
+					ptr := enumerator.GetNext();
+					IF (ptr IS XML.Attribute) THEN
+						element.AddAttribute(ptr(XML.Attribute));
+					END;
+				END;
+				RETURN element;
+			ELSE
+				RETURN e;
+			END;
+		END InstantiateLate;
 
 	END Registry;
 
@@ -1282,6 +1376,13 @@ BEGIN
 		Strings.Copy(name, next + 1, Strings.Length(name) - next, componentName);
 		id := 0;
 		succeeded := IsValidName(repositoryName) & IsValidName(componentName);
+		IF ~succeeded & IsValidName(repositoryName) & IsNumber(componentName) THEN
+			succeeded := TRUE;
+			Strings.StrToInt(componentName, id);
+			D.String("split name with index"); D.String(repositoryName); D.String(" : "); D.Int(id,1); D.Ln;
+			COPY(repositoryName, componentName);
+			repositoryName := "";
+		END;
 	ELSIF (count = 2) THEN
 		next := Strings.Find(name, 0, Delimiter);
 		Strings.Copy(name, 0, next, repositoryName);
@@ -1325,6 +1426,17 @@ BEGIN
 	END;
 	RETURN valid;
 END IsValidName;
+
+PROCEDURE IsNumber*(CONST name: ARRAY OF CHAR): BOOLEAN;
+VAR i: LONGINT;
+BEGIN
+	i := 0;
+	WHILE (i<LEN(name)) & (name[i] # 0X) & ('0' <= name[i]) & (name[i] <= '9') DO
+		INC(i);
+	END;
+	RETURN (i<LEN(name)) & (name[i] = 0X)
+END IsNumber;
+
 
 PROCEDURE NewJoinName*(CONST repositoryName, componentName : ARRAY OF CHAR; id : LONGINT) : Strings.String;
 VAR name : ARRAY 256 OF CHAR;
@@ -1784,7 +1896,7 @@ BEGIN
 			AddHeader(repository);
 			AddStructure(repository);
 			writer.String('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'); writer.Ln;
-			repository.Write(writer, 0);
+			repository.Write(writer, NIL, 0);
 			writer.Update;
 			res := Ok;
 		ELSE
@@ -1795,6 +1907,78 @@ BEGIN
 	END;
 	IF TraceCreation IN Trace THEN KernelLog.String("res = "); KernelLog.Int(res, 0); KernelLog.Ln; END;
 END CreateRepository;
+(*
+PROCEDURE FromXMLInRepository*(xml: XML.Element; repository: Repository);
+VAR generator: PROCEDURE(): XML.Element;
+VAR
+	l,name: Strings.String;
+	moduleName, procedureName: Modules.Name;
+	res: LONGINT; msg: ARRAY 32 OF CHAR;
+	component: Component;
+	element: XML.Element;
+BEGIN
+	component := NIL;
+	IF xml # NIL THEN
+		name := xml.GetName();
+		l := xml.GetAttributeValue("generator");
+		IF l # NIL THEN
+			Commands.Split(l^, moduleName, procedureName, res, msg);
+			IF (res = Commands.Ok) THEN
+				GETPROCEDURE(moduleName, procedureName, generator);
+				IF (generator # NIL) THEN
+					element := generator();
+					IF (element # NIL) & (element IS Component) THEN
+						component := element(Component);
+						component.SetName(name^);
+						component.FromXMLInRepository(xml,repository);
+					END;
+				ELSE KernelLog.String("WMComponents error: invalid generator "); KernelLog.String(l^); KernelLog.Ln;
+				END;
+			ELSE KernelLog.String("WMComponents error: could not generate component "); KernelLog.String(l^); KernelLog.Ln;
+			END;
+		ELSE
+			l := xml.GetAttributeValue("reference");
+			IF l # NIL THEN
+				repository.GetComponent(l^);
+		END;
+
+	END;
+	RETURN component
+END FromXMLInRepository;
+*)
+
+PROCEDURE ComponentFromXML*(xml: XML.Element): Component;
+VAR generator: PROCEDURE(): XML.Element;
+VAR
+	l,name: Strings.String;
+	moduleName, procedureName: Modules.Name;
+	res: LONGINT; msg: ARRAY 32 OF CHAR;
+	component: Component;
+	element: XML.Element;
+BEGIN
+	component := NIL;
+	IF xml # NIL THEN
+		name := xml.GetName();
+		l := xml.GetAttributeValue("generator");
+		IF l # NIL THEN
+			Commands.Split(l^, moduleName, procedureName, res, msg);
+			IF (res = Commands.Ok) THEN
+				GETPROCEDURE(moduleName, procedureName, generator);
+				IF (generator # NIL) THEN
+					element := generator();
+					IF (element # NIL) & (element IS Component) THEN
+						component := element(Component);
+						component.SetName(name^);
+						component.FromXML(xml);
+					END;
+				ELSE KernelLog.String("WMComponents error: invalid generator "); KernelLog.String(l^); KernelLog.Ln;
+				END;
+			ELSE KernelLog.String("WMComponents error: could not generate component "); KernelLog.String(l^); KernelLog.Ln;
+			END;
+		END;
+	END;
+	RETURN component
+END ComponentFromXML;
 
 PROCEDURE ShowRes*(res : LONGINT; out : Streams.Writer);
 BEGIN
@@ -1975,5 +2159,5 @@ BEGIN
 	globalTimestamp := 0;
 	repositories := NIL;
 	InitStrings;
-	NEW(registry); NEW(indexRegistry);
+	NEW(registry,NIL); NEW(indexRegistry);
 END Repositories.

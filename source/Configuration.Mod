@@ -180,7 +180,7 @@ BEGIN
 	IF config # NIL THEN
 		f := Files.New(ConfigFile);
 		Files.OpenWriter(out, f, 0);
-		config.Write(out, 0);
+		config.Write(out, NIL, 0);
 		out.Update();
 		Files.Register(f)
 	END

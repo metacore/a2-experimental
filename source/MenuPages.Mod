@@ -96,7 +96,7 @@ BEGIN
 		file := Files.New(filename);
 		IF (file # NIL) THEN
 			Files.OpenWriter(writer, file, 0);
-			menuPage.Write(writer, 0);
+			menuPage.Write(writer, NIL, 0);
 			writer.Update;
 			Files.Register(file);
 			context.out.String("Generated menu page "); context.out.String(filename); context.out.Ln;

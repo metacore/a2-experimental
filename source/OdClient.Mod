@@ -869,12 +869,12 @@ TYPE
 						END;
 						w.Ln;	(* mark end of header with empty line *)
 						IF xmlReq # NIL THEN (* send request body. *)
-							xmlReq.Write(w, 0);
+							xmlReq.Write(w, NIL, 0);
 							IF traceLevel >= TlBody THEN
 								IF xmlSize < StringWriterSize THEN
 									NEW(stringWriter, StringWriterSize);
 									aosioWriter := stringWriter; (* Dummy for the compiler. Is compiler correct ? *)
-									xmlReq.Write(aosioWriter, 0);
+									xmlReq.Write(aosioWriter, NIL, 0);
 									stringWriter.Get(buf);
 									log.Enter; log.String(buf); log.Exit;
 								ELSE
@@ -1078,12 +1078,12 @@ TYPE
 						w.String('Content-Type: text/xml; charset="utf-8"'); w.Ln;
 						w.String("Content-Length: "); w.Int(xml.XmlSize(xmlDoc), 1); w.Ln;
 						w.Ln();
-						xmlDoc.Write(w, 0); (* Send XML body *)
+						xmlDoc.Write(w, NIL, 0); (* Send XML body *)
 						IF traceLevel >= TlBody THEN
 							IF xmlSize < StringWriterSize THEN
 								NEW(stringWriter, StringWriterSize);
 								aosioWriter := stringWriter; (* Dummy for the compiler. Is compiler correct ? *)
-								xmlDoc.Write(aosioWriter, 0);
+								xmlDoc.Write(aosioWriter, NIL, 0);
 								stringWriter.Get(buf);
 								log.Enter; log.String(buf); log.Exit;
 							ELSE
@@ -1229,7 +1229,7 @@ TYPE
 						w.String('Content-Type: text/xml; charset="utf-8"'); w.Ln;
 						w.String("Content-Length: "); w.Int(xml.XmlSize(xmlDoc), 1); w.Ln;
 						w.Ln;
-						xmlDoc.Write(w, 0); (* Send XML body *)
+						xmlDoc.Write(w, NIL, 0); (* Send XML body *)
 						w.Char(0X); (* Give XML Scanner an EOF *)
 						w.Update();
 
@@ -1411,12 +1411,12 @@ TYPE
 							w.String('Content-Type: text/xml; charset="utf-8"'); w.Ln;
 							w.String("Content-Length: "); w.Int(xml.XmlSize(xmlDoc), 1); w.Ln;
 							w.Ln;
-							xmlDoc.Write(w, 0); (* Send XML body *)
+							xmlDoc.Write(w, NIL, 0); (* Send XML body *)
 							IF traceLevel >= TlBody THEN
 								IF xmlSize < StringWriterSize THEN
 									NEW(stringWriter, StringWriterSize);
 									aosioWriter := stringWriter; (* Dummy for the compiler. Is compiler correct ? *)
-									xmlDoc.Write(aosioWriter, 0);
+									xmlDoc.Write(aosioWriter, NIL, 0);
 									stringWriter.Get(buf);
 									log.Enter; log.String(buf); log.Exit;
 								ELSE

@@ -399,7 +399,7 @@ TYPE
 				    (* Error "transformation result has not a root element"*)
 				END;
 				w.String(DocType); w.Ln;
-				doc.Write(w, 0); (* externalize transformation result *)
+				doc.Write(w, NIL, 0); (* externalize transformation result *)
 			END
 		END;
 		w.Update
@@ -475,7 +475,7 @@ TYPE
 	PROCEDURE Log(elem: XML.Element);
 	VAR sw: Streams.StringWriter; w: Streams.Writer; msg: ARRAY 1024 OF CHAR;
 	BEGIN
-		NEW(sw, LEN(msg)); w := sw; elem.Write(w, 0);
+		NEW(sw, LEN(msg)); w := sw; elem.Write(w, NIL, 0);
 		sw.Get(msg); KernelLog.String(msg); KernelLog.Ln
 	END Log;
 

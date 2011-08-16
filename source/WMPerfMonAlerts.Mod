@@ -910,7 +910,7 @@ BEGIN
 		IF rules # NIL THEN
 			Files.OpenWriter(w, file, 0);
 			w.String('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'); w.Ln;
-			rules.Write(w, 0);
+			rules.Write(w, NIL, 0);
 			w.Update;
 			Files.Register(file);
 		ELSE

@@ -465,7 +465,7 @@ CONST
 							END;
 
 							Files.OpenWriter(fwriter, newfile, 0); writer := fwriter;
-							doc.Write(writer, 0);
+							doc.Write(writer, NIL, 0);
 
 							fwriter.Update;
 							Files.Register(newfile);
@@ -658,7 +658,7 @@ CONST
 
 				Files.OpenWriter(fw, newFile, 0); w := fw;
 				w.String(XMLProlog); w.Ln;
-				newRoot.Write(w, 0);
+				newRoot.Write(w, NIL, 0);
 				fw.Update;
 				Files.Register(newFile);
 
@@ -753,7 +753,7 @@ CONST
 					ASSERT(endPos >= 0, 9999);
 					Files.OpenWriter(fwriter, file, endPos); writer := fwriter
 				END;
-				elem.Write(writer, 0);
+				elem.Write(writer, NIL, 0);
 
 				writer.Ln;
 				writer.String("</");

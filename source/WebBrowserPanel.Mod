@@ -268,7 +268,7 @@ TYPE
 				IF verbose THEN KernelLog.String("---Parsing done."); KernelLog.Ln(); END;
 				NEW(text);
 				NEW(textWriter, text);
-				xmlDoc.Write(textWriter, 0);
+				xmlDoc.Write(textWriter, NIL,  0);
 				textWriter.Update;
 				(* Show *)
 				NEW(vScrollbar);
@@ -296,7 +296,7 @@ TYPE
 				xmlDoc := transformer.Transform();
 				NEW(text);
 				NEW(textWriter, text);
-				xmlDoc.Write(textWriter, 0);
+				xmlDoc.Write(textWriter, NIL, 0);
 				textWriter.Update;
 				(* Show *)
 				NEW(vScrollbar);

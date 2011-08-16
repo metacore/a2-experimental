@@ -39,7 +39,7 @@ TYPE
 		END SetPos;
 
 		(** write the content to stream w. level is the current hierarchy level. used for formatting *)
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		END Write;
 
 	END Content;
@@ -73,7 +73,7 @@ TYPE
 			END;
 		END SetNameAsString;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		BEGIN
 			w.String(name^)
 		END Write;
@@ -215,13 +215,13 @@ TYPE
 			AddContent^(c)
 		END AddContent;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		VAR e: Objects.Enumerator; c: ANY;
 		BEGIN
 			e := GetContents();
 			WHILE e.HasMoreElements() DO
 				c := e.GetNext();
-				c(Content).Write(w, level + 1)
+				c(Content).Write(w, context, level + 1)
 			END
 		END Write;
 
@@ -257,7 +257,7 @@ TYPE
 			SELF.encoding := NewString(encoding)
 		END SetEncoding;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		BEGIN
 			w.String('<?xml version="'); w.String(version^);
 			IF encoding # NIL THEN w.String('" encoding="'); w.String(encoding^) END;
@@ -286,7 +286,7 @@ TYPE
 			SELF.standalone := standalone
 		END SetStandalone;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		BEGIN
 			w.String('<?xml version="'); w.String(version^);
 			IF encoding # NIL THEN w.String('" encoding="'); w.String(encoding^) END;
@@ -384,7 +384,7 @@ TYPE
 			SELF.externalSubset := externalSubset
 		END SetExternalSubset;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY;  level : LONGINT);
 		VAR e: Objects.Enumerator; p: ANY; s: String;
 		BEGIN
 			w.String("<!DOCTYPE "); w.String(name^);
@@ -402,7 +402,7 @@ TYPE
 			IF e.HasMoreElements() THEN
 				w.String(" ["); NewLine(w, level + 1);
 				WHILE e.HasMoreElements() DO
-					p := e.GetNext(); p(Content).Write(w, level + 1)
+					p := e.GetNext(); p(Content).Write(w, context, level + 1)
 				END;
 				w.String("]")
 			END;
@@ -441,7 +441,7 @@ TYPE
 			SELF.publicId := NewString(publicId)
 		END SetPublicId;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		BEGIN
 			w.String("<!NOTATION "); w.String(name^);
 			IF publicId # NIL THEN
@@ -503,7 +503,7 @@ TYPE
 			SELF.notationName := NewString(notationName)
 		END SetNotationName;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		BEGIN
 			w.String("<!ENTITY ");
 			IF type = ParameterEntity THEN w.String("% ") END;
@@ -586,7 +586,7 @@ TYPE
 			attributeDecls.Add(attributeDecl.name^, attributeDecl)
 		END AddAttributeDecl;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		VAR e: Objects.Enumerator; p: ANY;
 		BEGIN
 			w.String("<!ELEMENT "); w.String(name^); w.Char(Space);
@@ -595,14 +595,14 @@ TYPE
 			ELSIF contentType = Any THEN
 				w.String("ANY")
 			ELSIF content # NIL THEN
-				content.Write(w, level + 1)
+				content.Write(w, context, level + 1)
 			END;
 			w.Char('>'); NewLine(w, level);
 			e := GetAttributeDecls();
 			IF e.HasMoreElements() THEN
 				w.String("<!ATTLIST "); w.String(name^); NewLine(w, level+1);
 				WHILE e.HasMoreElements() DO
-					p := e.GetNext(); p(Content).Write(w, level + 1)
+					p := e.GetNext(); p(Content).Write(w, context, level + 1)
 				END;
 				w.Char('>'); NewLine(w, level)
 			END
@@ -674,8 +674,8 @@ TYPE
 		BEGIN
 			SELF.name := name;
 		END SetNameAsString;
-
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+ 
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		VAR ch: CHAR;
 		BEGIN
 			w.String(name^);
@@ -723,19 +723,19 @@ TYPE
 			children.Add(cp)
 		END AddChild;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		VAR e: Objects.Enumerator; ch: CHAR; p: ANY;
 		BEGIN
 			e := GetChildren();
 			p := e.GetNext();
 			w.Char('(');
-			p(Content).Write(w, level + 1);
+			p(Content).Write(w, context, level + 1);
 			WHILE e.HasMoreElements() DO
 				p := e.GetNext();
 				IF type = Choice THEN w.String(" | ")
 				ELSIF type = Sequence THEN w.String(", ")
 				END;
-				p(Content).Write(w, level + 1)
+				p(Content).Write(w, context, level + 1)
 			END;
 			w.Char(')');
 			ch := GetOccurenceChar(); IF ch # 0X THEN w.Char(ch) END
@@ -817,7 +817,7 @@ TYPE
 			SELF.required := required
 		END SetRequired;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		VAR e: Objects.Enumerator; p: ANY;
 		BEGIN
 			w.String(name^); w.Char(Space);
@@ -836,9 +836,9 @@ TYPE
 			IF type # Enumeration THEN w.Char(Space) END;
 			IF (type = Notation) OR (type = Enumeration) THEN
 				w.Char('('); e := GetAllowedValues();
-				p := e.GetNext(); p(Content).Write(w, level + 1);
+				p := e.GetNext(); p(Content).Write(w, context, level + 1);
 				WHILE e.HasMoreElements() DO
-					w.Char('|'); p := e.GetNext(); p(Content).Write(w, level + 1)
+					w.Char('|'); p := e.GetNext(); p(Content).Write(w, context, level + 1)
 				END;
 				w.String(") ")
 			END;
@@ -877,7 +877,7 @@ TYPE
 			RETURN code
 		END GetCode;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		VAR codeArray: ARRAY 16 OF CHAR; codeStr: String;
 		BEGIN
 			DynamicStrings.IntToStr(code, codeArray);
@@ -912,7 +912,7 @@ TYPE
 			END
 		END SetDocument;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		BEGIN
 			w.Char('&'); w.String(name^); w.Char(';')
 		END Write;
@@ -1004,7 +1004,7 @@ TYPE
 			RETURN 0
 		END GetLength;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		VAR s: String;
 		BEGIN
 			s := GetStr(); w.String(s^)
@@ -1049,9 +1049,9 @@ TYPE
 
 	Comment* = OBJECT (ArrayChars)
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		BEGIN
-			NewLine(w, level-1); w.String("<!--"); Write^(w, level); w.String("-->"); NewLine(w, level)
+			NewLine(w, level-1); w.String("<!--"); Write^(w, context, level); w.String("-->"); NewLine(w, level)
 		END Write;
 
 	END Comment;
@@ -1059,7 +1059,7 @@ TYPE
 TYPE
 	CDataSect* = OBJECT (ArrayChars)
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		VAR s : String; i, j : LONGINT; buf : ARRAY 4 OF CHAR;
 		BEGIN
 			w.String("<![CDATA[");
@@ -1129,7 +1129,7 @@ TYPE
 			SELF.instruction := NewString(instruction)
 		END SetInstruction;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		BEGIN
 			w.String("<?"); w.String(target^); w.Char(Space);
 			w.String(instruction^); w.String("?>"); NewLine(w, level)
@@ -1212,7 +1212,7 @@ TYPE
 			END;
 		END SetValueAsString;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		BEGIN
 			IF value = NIL THEN KernelLog.String("NIL attribute "); KernelLog.Ln; RETURN END;
 			w.Char(Space); w.String(name^); w.String('="'); w.String(value^); w.Char('"')
@@ -1499,12 +1499,12 @@ TYPE
 			END;
 		END Traverse;
 
-		PROCEDURE WriteAttributes*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE WriteAttributes*(w: Streams.Writer; context: ANY; level : LONGINT);
 		VAR a : Attribute;
 		BEGIN {EXCLUSIVE}
 			a := attributes;
 			WHILE (a # NIL) DO
-				a.Write(w, level + 1);
+				a.Write(w, context, level + 1);
 				IF (a.next # NIL) THEN
 					a := a.next (Attribute);
 				ELSE
@@ -1513,18 +1513,18 @@ TYPE
 			END;
 		END WriteAttributes;
 
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT);
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		VAR c : Content;
 		BEGIN
 			w.Char('<'); w.String(name^);
-			WriteAttributes(w, level);
+			WriteAttributes(w, context, level);
 			c := GetFirst();
 			IF (c = NIL) THEN w.String("/>")
 			ELSE
 				w.Char('>');
 				IF ~(c IS ArrayChars)  THEN NewLine(w, level + 1) END;
-				c.Write(w, level + 1);
-				WHILE (GetNext(c) # NIL) DO c := GetNext(c); NewLine(w, level + 1); c.Write(w, level + 1); END;
+				c.Write(w, context,  level + 1);
+				WHILE (GetNext(c) # NIL) DO c := GetNext(c); NewLine(w, level + 1); c.Write(w, context, level + 1); END;
 				IF ~(c IS ArrayChars)  THEN NewLine(w, level); END;
 				w.String("</"); w.String(name^); w.Char('>');
 			END;
@@ -1625,6 +1625,12 @@ TYPE
 			END;
 			RETURN element;
 		END InstantiateElement;
+
+		(** fof, late time instantiation to be able to react on generator properties *)
+		PROCEDURE InstantiateLate*(e: Element): Element;
+		BEGIN
+			RETURN e (* stub *)
+		END InstantiateLate;
 
 		PROCEDURE GetTimestamp*() : LONGINT;
 		BEGIN

@@ -222,7 +222,7 @@ TYPE
 		BEGIN
 			f := Files.New(filename);
 			Files.OpenWriter(w, f, 0);
-			doc.Write(w, 0);
+			doc.Write(w, NIL, 0);
 			w.Update;
 			Files.Register(f);
 			f.Update
@@ -376,7 +376,7 @@ TYPE
 					w.Ln;
 					Strings.FormatDateTime("@ yyyy.mm.dd hh.nn.ss", Dates.Now(), s);
 					w.String("Was not stored in "); w.String(filename); w.String(s); w.Ln;
-					entry.Write(w, 0);
+					entry.Write(w, NIL, 0);
 					w.Update;
 					Files.Register(f);
 					f.Update;
@@ -408,7 +408,7 @@ TYPE
 					w.Ln;
 					Strings.FormatDateTime("@ yyyy.mm.dd hh.nn.ss", Dates.Now(), s);
 					w.String("Deleted from "); w.String(filename); w.String(s); w.Ln;
-					entry.Write(w, 0);
+					entry.Write(w, NIL, 0);
 					w.Update;
 					Files.Register(f);
 					f.Update;

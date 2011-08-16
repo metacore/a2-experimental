@@ -2344,7 +2344,7 @@ TYPE
 			IF file # NIL THEN
 				Files.OpenWriter(w, file, 0);
 				state := StorePages();
-				state.Write(w, 0);
+				state.Write(w, NIL, 0);
 				w.Update;
 				Files.Register(file);
 				KernelLog.String("PET state saved into "); KernelLog.String(filename); KernelLog.Ln;

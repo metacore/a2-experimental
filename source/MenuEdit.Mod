@@ -170,7 +170,7 @@ TYPE
 			w : Streams.Writer;
 		BEGIN
 			NEW(ml, "XML", w);
-			panel.Write(w, 0);
+			panel.Write(w, NIL, 0);
 			w.Update;
 		END Store;
 

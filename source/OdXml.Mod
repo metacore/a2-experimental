@@ -586,7 +586,7 @@ BEGIN END Dev0;
 PROCEDURE XmlSize*(doc: XML.Document): LONGINT;
 VAR counter: Streams.Writer;
 BEGIN
-	Streams.OpenWriter(counter, Dev0); doc.Write(counter, 0); counter.Update();
+	Streams.OpenWriter(counter, Dev0); doc.Write(counter, NIL, 0); counter.Update();
 	RETURN counter.sent;
 END XmlSize;
 
@@ -652,14 +652,14 @@ END EqualName;
 PROCEDURE LogDoc * (CONST info: ARRAY OF CHAR; doc: XML.Document);
 BEGIN
 	logW.String(info); logW.Ln;
-	doc.Write(logW, 0);
+	doc.Write(logW, NIL, 0);
 	logW.Update();
 END LogDoc;
 
 PROCEDURE LogEl * (CONST info: ARRAY OF CHAR; el: XML.Element);
 BEGIN
 	logW.String(info); logW.Ln;
-	el.Write(logW, 0);
+	el.Write(logW, NIL, 0);
 	logW.Update();
 END LogEl;
 
@@ -967,7 +967,7 @@ BEGIN
 		KernelLog.Enter; KernelLog.String("File found"); KernelLog.Exit;
 		NEW(scanner, fr); NEW(parser, scanner); xmlDoc := parser.Parse();
 		Streams.OpenWriter(w, KernelLog.Send); (* gibt das Zeugs im Kernel Log aus *)
-		xmlDoc.Write(w, 0); w.Update();
+		xmlDoc.Write(w, NIL, 0); w.Update();
 		GetVersionControlHref(xmlDoc, name);
 		w.String(name); w.Update();
 	ELSE

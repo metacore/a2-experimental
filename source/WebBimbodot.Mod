@@ -190,7 +190,7 @@ TYPE
 			NEW(e); e.SetName("Text"); r.AddContent(e);
 			NEW(c); c.SetStr(text^); e.AddContent(c);
 
-			d.Write(w, 0);
+			d.Write(w, NIL, 0);
 			w.Update;
 		END Store;
 

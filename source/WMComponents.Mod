@@ -45,7 +45,7 @@ IMPORT
 	XML, XMLScanner, XMLParser, XMLObjects, Codecs, Localization, Repositories,
 	Messages := WMMessages, Rectangles := WMRectangles,
 	WMEvents, WMProperties, WMGraphics, Strings, WM := WMWindowManager, Raster,
-	Commands, D := Debugging;
+	Commands, Modules,D := Debugging;
 
 CONST
 	Ok* = 0;
@@ -170,6 +170,7 @@ TYPE
 
 		(* If TRUE, this component is supposed to be created and managed by its parent. It is not externalized. *)
 		internal- : BOOLEAN;
+		generator-: XML.Attribute;
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -185,18 +186,23 @@ TYPE
 			NEW(enabled, PrototypeEnabled, NIL, NIL); properties.Add(enabled);
 			inPropertyUpdate := FALSE;
 			internal := FALSE;
+			NEW(generator); generator.SetName("generator"); generator.SetValue("WMComponents.NewComponent"); AddAttribute(generator);
 		END Init;
 
-		PROCEDURE Write*(w : Streams.Writer; level : LONGINT);
+		PROCEDURE SetGenerator*(CONST gen: ARRAY OF CHAR);
+		BEGIN generator.SetValue(gen)
+		END SetGenerator;
+
+		PROCEDURE Write*(w : Streams.Writer;context: ANY; level : LONGINT);
 		VAR enum: XMLObjects.Enumerator; c: ANY; name : Strings.String; nextLevel : LONGINT;
 		BEGIN
 			IF IsLocked() THEN RETURN; END;
 			IF ~internal THEN
 				name := GetName();
 				w.Char('<'); IF name = NIL THEN w.String("_NILNAME_") ELSE w.String(name^) END;
-				WriteAttributes(w, level);
+				WriteAttributes(w, context, level);
 				w.Char('>');
-				properties.WriteXML(w, level);
+				properties.WriteXML(w, context, level);
 				nextLevel := level + 1;
 			ELSE
 				nextLevel := level;
@@ -206,7 +212,7 @@ TYPE
 				c := enum.GetNext();
 				IF ~(c IS WMProperties.Properties) THEN
 					IF ~((c IS Component) & ((c(Component).internal) OR c(Component).IsLocked())) THEN NewLine(w, 0); NewLine(w, nextLevel); END;
-					c(XML.Content).Write(w, nextLevel);
+					c(XML.Content).Write(w, context, nextLevel);
 				END;
 			END;
 			IF ~internal THEN
@@ -214,6 +220,47 @@ TYPE
 				w.String("</"); IF name = NIL THEN w.String("_NILNAME_") ELSE w.String(name^); END;  w.Char('>')
 			END;
 		END Write;
+
+		(*
+		PROCEDURE ToRepository*(CONST repository: ARRAY OF CHAR; w: Streams.Writer; level: LONGINT);
+		VAR enum: XMLObjects.Enumerator; c: ANY; name : Strings.String; nextLevel : LONGINT;
+		BEGIN
+			IF IsLocked() THEN RETURN; END;
+			IF ~internal THEN
+				name := GetName();
+				w.Char('<'); IF name = NIL THEN w.String("_NILNAME_") ELSE w.String(name^) END;
+				WriteAttributes(w, NIL, level);
+				w.Char('>');
+				properties.ToRepository(repository,w, level);
+				nextLevel := level + 1;
+			ELSE
+				nextLevel := level;
+			END;
+			enum := GetContents();
+			WHILE enum.HasMoreElements() DO
+				c := enum.GetNext();
+				IF ~(c IS WMProperties.Properties) THEN
+					IF ~((c IS Component) & ((c(Component).internal) OR c(Component).IsLocked())) THEN NewLine(w, 0); NewLine(w, nextLevel); END;
+					IF (c IS Repositories.Component) THEN
+						c(Repositories.Component).ToRepository(repository, w, level);
+					ELSE
+						c(XML.Content).Write(w, NIL, nextLevel);
+					END;
+				END;
+			END;
+			IF ~internal THEN
+				NewLine(w, level);
+				w.String("</"); IF name = NIL THEN w.String("_NILNAME_") ELSE w.String(name^); END;  w.Char('>')
+			END;
+		END ToRepository;
+		*)
+
+		PROCEDURE FromXML*(xml: XML.Element);
+		VAR component: Component; enum: XMLObjects.Enumerator; c: ANY;
+		BEGIN
+			properties.FromXML(GetElementByName(xml,"Properties"));
+			FromXML^(xml);
+		END FromXML;
 
 		PROCEDURE IsCallFromSequencer*():BOOLEAN;
 		BEGIN
@@ -615,6 +662,7 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMComponents.NewVisualComponent");
 			SetNameAsString(StrVisualComponent);
 
 			NEW(bounds, PrototypeBounds, NIL, NIL); properties.Add(bounds);
@@ -890,6 +938,12 @@ TYPE
 		END EditDragOver;
 		*)
 
+		PROCEDURE FromXML(xml: XML.Element);
+		BEGIN
+			FromXML^(xml);
+			Invalidate;
+		END FromXML;
+
 		PROCEDURE AddVisualComponent(c :VisualComponent; x, y : LONGINT);
 		VAR vc : VisualComponent; bounds : Rectangles.Rectangle;canvas: WMGraphics.BufferCanvas;
 		BEGIN
@@ -916,6 +970,7 @@ TYPE
 				IF dragInfo.sender # SELF THEN
 					data(VisualComponent).bounds.Set(Rectangles.MakeRect(0, 0, data(VisualComponent).bounds.GetWidth()-1, data(VisualComponent).bounds.GetHeight()-1));
 					AddVisualComponent(data(VisualComponent),x+dragInfo.offsetX,y+dragInfo.offsetY);
+					data(VisualComponent).SetEditMode(TRUE,TRUE);
 					Invalidate;
 				ELSE
 					data(VisualComponent).bounds.Set(Rectangles.MakeRect(x+dragInfo.offsetX, y+dragInfo.offsetY, data(VisualComponent).bounds.GetWidth()-1, data(VisualComponent).bounds.GetHeight()-1));
@@ -1614,6 +1669,24 @@ TYPE
 		content : VisualComponent;
 		scaling* : BOOLEAN;
 
+		PROCEDURE LoadComponents*(xml: XML.Element);
+		VAR component: Repositories.Component; first: XML.Content;
+		BEGIN
+			IF xml # NIL THEN
+				component := Repositories.ComponentFromXML(xml);
+				IF (component # NIL) & (component IS VisualComponent) THEN
+					SetContent(component);
+					component(VisualComponent).Invalidate;
+				ELSE
+					KernelLog.String("formwindow could not load content"); KernelLog.Ln;
+				END;
+			END;
+		END LoadComponents;
+
+		PROCEDURE StoreComponents*(): XML.Element;
+		BEGIN RETURN content (* do not store form separately *)
+		END StoreComponents;
+
 		PROCEDURE SetContent*(x : XML.Content);
 		VAR seq : Messages.MsgSequencer;
 		BEGIN
@@ -1688,7 +1761,9 @@ TYPE
 		PROCEDURE Handle*(VAR m : Messages.Message);
 		BEGIN
 			Handle^(m);
-			IF (m.msgType = Messages.MsgExt) & (m.ext = componentStyleMsg) THEN CSChanged;
+			IF (m.msgType = Messages.MsgExt) & (m.ext # NIL) THEN
+				IF (m.ext = componentStyleMsg) THEN CSChanged
+				END;
 			ELSIF (m.msgType = Messages.MsgFocus) & (m.msgSubType = Messages.MsgSubFocusGot) THEN
 				IF (form # NIL) & (form.lastFocusComponent # NIL) THEN
 					form.lastFocusComponent.SetFocus;
@@ -1736,13 +1811,14 @@ TYPE
 
 	Form* = OBJECT(VisualComponent)
 	VAR
-		window : FormWindow;
+		window- : FormWindow;
 		lastFocusComponent : VisualComponent;
 
 		PROCEDURE &New*(window : FormWindow);
 		BEGIN
 			ASSERT(window # NIL);
 			Init;
+			SetGenerator("WMComponents.NewForm");
 			lastFocusComponent := NIL;
 			SetNameAsString(StrForm);
 			SELF.window := window; window.form := SELF;
@@ -1867,8 +1943,10 @@ TYPE
 
 	END PropertyListList;
 
+	WindowGenerator*= PROCEDURE(xml: XML.Content): WM.Window;
+
 VAR
-	hasErrors : BOOLEAN; (* accessed only from Load (EXCLUSIVE) *)
+	hasErrors : BOOLEAN; (* accessed only from  	 (EXCLUSIVE) *)
 	invalidateRectMsg- : Messages.MessageExtension; (* used as unique ID *)
 
 	PrototypeID, PrototypeUID : WMProperties.StringProperty;
@@ -1878,7 +1956,7 @@ VAR
 	PrototypeAlignment : WMProperties.Int32Property;
 	PrototypeVisible, PrototypeTakesFocus, PrototypeNeedsTab, PrototypeEditMode: WMProperties.BooleanProperty;
 	PrototypeFocusPrevious, PrototypeFocusNext : WMProperties.StringProperty;
-	StrComponent, StrVisualComponent, StrForm, StrModel, StrModelInfo : Strings.String;
+	StrComponent, StrVisualComponent, StrForm, StrFormWindow, StrModel, StrModelInfo : Strings.String;
 	GSonStartDrag, GSonStartDragInfo : Strings.String;
 
 	propertyListList- : PropertyListList;
@@ -2537,6 +2615,7 @@ BEGIN
 	StrComponent := NewString("Component");
 	StrVisualComponent := NewString("VisualComponent");
 	StrForm := NewString("Form");
+	StrFormWindow := NewString("FormWindow");
 	GSonStartDrag := NewString("onStartDrag");
 	GSonStartDragInfo := NewString("Event generated whenever a drag is started");
 	StrModel := NewString("Model");
@@ -2610,6 +2689,43 @@ BEGIN
 	macroHandlers.namespace := DefaultNamespace;
 	macroHandlers.next := NIL;
 END InstallDefaultMacroHandler;
+
+(*! ---- xml tool --- move to where appropriate *)
+PROCEDURE GetElementByName(parent : XML.Element; CONST name : ARRAY OF CHAR) : XML.Element;
+VAR elem : XML.Element; enum : XMLObjects.Enumerator; ptr : ANY; string : Strings.String;
+BEGIN
+	IF parent # NIL THEN
+		enum := parent.GetContents(); enum.Reset();
+		WHILE enum.HasMoreElements() DO
+			ptr := enum.GetNext();
+			IF ptr IS XML.Element THEN
+				elem := ptr (XML.Element);
+				string := elem.GetName();
+				IF (string # NIL) & (string^ = name) THEN
+					RETURN elem;
+				END;
+			END;
+		END;
+ 	END;
+ 	RETURN NIL;
+END GetElementByName;
+
+PROCEDURE NewComponent*(): XML.Element;
+VAR component: Component;
+BEGIN NEW(component); RETURN component;
+END NewComponent;
+
+PROCEDURE NewVisualComponent*(): XML.Element;
+VAR component: VisualComponent;
+BEGIN NEW(component); RETURN component;
+END NewVisualComponent;
+
+(* does not work like this its own because a form is statically bound to a window, but for completeness.. *)
+PROCEDURE NewForm*(): XML.Element;
+VAR component: Form;
+BEGIN NEW(component, NIL); RETURN component
+END NewForm;
+
 
 BEGIN
 	timestamp := 0;

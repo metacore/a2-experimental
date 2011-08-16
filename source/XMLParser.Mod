@@ -705,7 +705,7 @@ TYPE
 		END ParseElement;
 
 		PROCEDURE ParseStartTag(VAR e: XML.Element; VAR empty: BOOLEAN);
-		VAR s: String; pos: LONGINT;
+		VAR s: String; pos: LONGINT; firstInstantiationFailed: BOOLEAN;
 		BEGIN
 			pos := scanner.GetOldPos();
 			scanner.ScanMarkup();
@@ -714,13 +714,20 @@ TYPE
 			IF elemReg # NIL THEN
 				e := elemReg.InstantiateElement(s^)
 			END;
-			IF e = NIL THEN NEW(e) END;
+			IF e = NIL THEN
+				firstInstantiationFailed := TRUE; NEW(e)
+			ELSE
+				firstInstantiationFailed := FALSE;
+			END;
 			e.SetPos(scanner.GetPos());
 			e.SetNameAsString(s);
 			scanner.ScanMarkup();
 			WHILE scanner.sym = Scanner.Name DO
 				e.AddAttribute(ParseAttribute());
 				scanner.ScanMarkup();
+			END;
+			IF (elemReg # NIL) & (firstInstantiationFailed) THEN
+				e := elemReg.InstantiateLate(e);
 			END;
 			IF ~CheckSymbol({Scanner.TagEmptyElemClose, Scanner.TagClose}, "'/>' or '>' expected") THEN RETURN END;
 			IF scanner.sym = Scanner.TagEmptyElemClose THEN

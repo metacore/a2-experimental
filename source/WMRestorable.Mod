@@ -54,7 +54,7 @@ TYPE
 		BEGIN {EXCLUSIVE}
 			f := Files.New(name);
 			Files.OpenWriter(w, f, 0);
-			data.Write(w, 0);
+			data.Write(w, NIL, 0);
 			w.Update;
 			Files.Register(f)
 		END Write;
@@ -153,6 +153,15 @@ BEGIN
 		END;
 	END
 END RestoreWindow;
+
+PROCEDURE StoreWindow*(window: WM.Window; CONST fileName: ARRAY OF CHAR);
+VAR context: Storage; msg: WMMessages.Message;
+BEGIN
+	NEW(context);
+	msg.ext := context; msg.msgType := WMMessages.MsgExt;
+	window.Handle(msg);
+	context.Write(fileName);
+END StoreWindow;
 
 PROCEDURE Load*(context : Commands.Context); (** filename ~ *)
 VAR f : Files.File;

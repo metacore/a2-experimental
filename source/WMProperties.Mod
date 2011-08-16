@@ -1,7 +1,7 @@
 MODULE WMProperties; (** AUTHOR "TF"; PURPOSE "Properties" *)
 
 IMPORT
-	WMRectangles, WMGraphics, Strings, Localization, Repositories, WMEvents, Locks, XML, XMLObjects, Streams, KernelLog;
+	WMRectangles, WMGraphics, Strings, Localization, Repositories, WMEvents, Locks, XML, XMLObjects, Streams, Commands, Modules, KernelLog;
 
 TYPE
 	String = Strings.String;
@@ -13,6 +13,7 @@ TYPE
 		nonDefault : BOOLEAN;
 		list : PropertyList; (* contains the list, the property is added to *)
 		timestamp : LONGINT; (* incremented when property state is changed *)
+		repository: Repositories.Repository;
 
 		PROCEDURE &New*(prototype : Property; name, info : String);
 		BEGIN
@@ -112,7 +113,7 @@ TYPE
 		PROCEDURE FromXML*(xml : XML.Element);
 		END FromXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		END WriteXML;
 
 	END Property;
@@ -175,14 +176,14 @@ TYPE
 			END
 		END FromXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String;
 		BEGIN
 			name := GetName();
 			IF name = NIL THEN KernelLog.String("Nameless boolean property encountered. Ignored"); KernelLog.Ln; RETURN END;
 			IF nonDefault THEN
 				Indent(w, indent);
-				w.Char("<"); w.String(name^); w.Char(">");
+				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewBoolean"'); w.Char(">");
 				IF value THEN w.String("true") ELSE w.String("false") END;
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln;
 			END
@@ -196,9 +197,9 @@ TYPE
 	SetProperty* = OBJECT(Property)
 	VAR
 		value : SET;
-		(*
+
 		PROCEDURE IntToSet(h:LONGINT):SET;
-		VAR i:LONGINT; set:SET; 
+		VAR i:LONGINT; set:SET;
 		BEGIN
 			i:=0;
 			WHILE h#0 DO
@@ -208,7 +209,7 @@ TYPE
 			END;
 			RETURN set;
 		END IntToSet;
-		
+
 		PROCEDURE SetToInt(set:SET):HUGEINT;
 		VAR i:LONGINT; int:HUGEINT; s: String;
 		BEGIN
@@ -219,9 +220,8 @@ TYPE
 			END;
 			RETURN int
 		END SetToInt;
-		*)
-		(*
-		PROCEDURE FromStream*(r : Streams.Reader); (*SET read as Hex String*)
+
+		PROCEDURE FromStream*(r : Streams.Reader);
 		VAR token : ARRAY 10 OF CHAR; v : SET; i:LONGINT; res: LONGINT;
 		BEGIN
 			AcquireWrite;
@@ -233,40 +233,15 @@ TYPE
 			END;
 			ReleaseWrite
 		END FromStream;
-		*)
-		PROCEDURE FromStream*(r : Streams.Reader);
-		VAR token : ARRAY 256 OF CHAR; v : SET; i:LONGINT; res: LONGINT; ch:CHAR;
-		BEGIN
-			AcquireWrite;
-			NotDefault;
-			r.SkipWhitespace;
-			ch:=r.Peek(); 
-			IF ch#"{" THEN HALT(200) 
-			ELSE
-				i:=0;
-				r.Char(ch);
-				WHILE ch#"}" DO;
-					IF ch="<" THEN HALT(201) END;
-					token[i]:=ch; INC(i);
-					r.Char(ch);
-				END;
-				token[i]:=ch; token[i+1]:=0X;
-				IF r.res = Streams.Ok THEN
-					Strings.StrToSet(token,v);
-					IF v # value THEN value := v; Changed END;
-				END;
-			END;
-			ReleaseWrite
-		END FromStream;
-		
-			(*! to discuss: should a SET be written explicitely or compressed ? readability  vs overhead*)
+
+
+(*! to discuss: should a SET be written explicitely ? readability  vs overhead*)
 		PROCEDURE ToStream*(w : Streams.Writer);
-		VAR s:ARRAY 256 OF CHAR;
+		VAR s:ARRAY 10 OF CHAR;
 		BEGIN
 			AcquireRead;
-			(*Strings.IntToHexStr(SetToInt(Get()),8,s);(*SET as HexString*)
-			Strings.AppendChar(s,"H");*)
-			Strings.SetToStr(Get(),s);
+			Strings.IntToHexStr(SetToInt(Get()),8,s);
+			Strings.AppendChar(s,"H");
 			w.String(s);
 			ReleaseRead
 		END ToStream;
@@ -293,7 +268,7 @@ TYPE
 
 (*! to discuss: should a SET be written explicitely - readability at cost of overhead*)
 		PROCEDURE FromXML*(xml : XML.Element);
-		VAR en : XMLObjects.Enumerator; p : ANY; s : String; i:LONGINT; v: SET;
+		VAR en : XMLObjects.Enumerator; p : ANY; s : String; i:LONGINT;
 		BEGIN
 			en := xml.GetContents();
 			p := en.GetNext();
@@ -301,24 +276,23 @@ TYPE
 			IF p IS XML.Chars THEN
 				s := p(XML.Chars).GetStr();
 				IF s # NIL THEN
-					Strings.Trim(s^, " "); 
-					Strings.StrToSet(s^,v);
-					Set(v)
+					Strings.Trim(s^, " ");
+					Strings.StrToInt(s^,i);
+					Set(IntToSet(i))
 				END
 			END
 		END FromXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String; s: ARRAY 10 OF CHAR;
 		BEGIN
 			name := GetName();
 			IF name = NIL THEN KernelLog.String("Nameless boolean property encountered. Ignored"); KernelLog.Ln; RETURN END;
 			IF nonDefault THEN
 				Indent(w, indent);
-				w.Char("<"); w.String(name^); w.Char(">");
-				(*Strings.IntToHexStr(SetToInt(value),8,s); Strings.AppendChar(s,"H");
-				w.String(s);*)
-				w.Set(value);
+				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewSet"'); w.Char(">");
+				Strings.IntToHexStr(SetToInt(value),8,s); Strings.AppendChar(s,"H");
+				w.String(s);
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln;
 			END
 		END WriteXML;
@@ -460,14 +434,14 @@ TYPE
 			ReleaseWrite
 		END FromXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY;  indent : LONGINT);
 		VAR name : String;
 		BEGIN
 			name := GetName();
 			IF name = NIL THEN KernelLog.String("Nameless Int32 property encountered. Ignored"); KernelLog.Ln; RETURN END;
 			IF nonDefault THEN
 				Indent(w, indent);
-				w.Char("<"); w.String(name^); w.Char(">");
+				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewInt32"'); w.Char(">");
 				w.Int(value, 0);
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln
 			END
@@ -613,14 +587,14 @@ TYPE
 			ReleaseWrite
 		END FromXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String;
 		BEGIN
 			name := GetName();
 			IF name = NIL THEN KernelLog.String("Nameless Int32 property encountered. Ignored"); KernelLog.Ln; RETURN END;
 			IF nonDefault THEN
 				Indent(w, indent);
-				w.Char("<"); w.String(name^); w.Char(">");
+				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewReal"'); w.Char(">");
 				w.Float(value, 0);
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln
 			END
@@ -757,7 +731,7 @@ TYPE
 			END
 		END FromXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String; res : LONGINT;
 		BEGIN
 			name := GetName();
@@ -765,7 +739,7 @@ TYPE
 			IF nonDefault THEN
 				IF (value # NIL) OR ((dictionary # NIL) & (word # NIL)) THEN
 					Indent(w, indent);
-					w.Char("<"); w.String(name^); w.Char(">");
+					w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewString"'); w.Char(">");
 					IF (dictionary # NIL) & (word # NIL) THEN
 						w.String("::");
 						XML.UTF8ToStream(dictionary.fullname^, w, res);
@@ -849,14 +823,14 @@ TYPE
 			ReleaseWrite
 		END FromXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String;
 		BEGIN
 			name := GetName();
 			IF name = NIL THEN KernelLog.String("Nameless color property encountered. Ignored"); KernelLog.Ln; RETURN END;
 			IF nonDefault THEN
 				Indent(w, indent);
-				w.Char("<"); w.String(name^); w.Char(">");
+				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewColor"'); w.Char(">");
 				w.Hex(value, -8);
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln;
 			END
@@ -1028,7 +1002,7 @@ TYPE
 			SetFont(name, size, style);
 		END FromXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String; font : WMGraphics.Font; temp : ARRAY 32 OF CHAR;
 		BEGIN
 			name := GetName();
@@ -1036,7 +1010,7 @@ TYPE
 			IF nonDefault THEN
 				font := Get();
 				Indent(w, indent);
-				w.Char("<"); w.String(name^);
+				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewSet"');
 					w.String(' name="'); w.String(font.name); w.String('" size="'); w.Int(font.size, 0); w.String('" style="');
 					Strings.SetToStr(font.style, temp); w.String(temp); w.String('"');
 				w.String("/>");
@@ -1071,7 +1045,7 @@ TYPE
 		PROCEDURE ToStream*(w : Streams.Writer);
 		BEGIN
 			AcquireRead;
-			w.Int(value.x, 0); w.Char(" "); w.Int(value.x, 0); 
+			w.Int(value.x, 0); w.Char(" "); w.Int(value.x, 0);
 			ReleaseRead
 		END ToStream;
 
@@ -1099,24 +1073,24 @@ TYPE
 		PROCEDURE SetCoordinate*(x,y : LONGINT);
 		BEGIN
 			AcquireWrite;
-			IF (x#value.x) OR (y#value.y) THEN Changed END; 
+			IF (x#value.x) OR (y#value.y) THEN Changed END;
 			NotDefault;
 			ReleaseWrite
 		END SetCoordinate;
-		
+
 		PROCEDURE GetCoordinate*(VAR x,y: LONGINT);
 		BEGIN
 			x:=value.x; y:=value.y
 		END GetCoordinate;
-		
-		
+
+
 		PROCEDURE SetX*(x : LONGINT);
 		BEGIN
 			AcquireWrite;
 			IF value.x # x THEN value.x := x; Changed END; NotDefault;
 			ReleaseWrite
 		END SetX;
-		
+
 		PROCEDURE SetY*(y : LONGINT);
 		BEGIN
 			AcquireWrite;
@@ -1128,7 +1102,7 @@ TYPE
 		BEGIN
 			RETURN value.x
 		END GetX;
-		
+
 		PROCEDURE GetY*(): LONGINT;
 		BEGIN
 			RETURN value.y
@@ -1156,14 +1130,14 @@ TYPE
 			ReleaseWrite
 		END FromXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String; t : WMGraphics.Point2d;
 		BEGIN
 			name := GetName();
 			IF name = NIL THEN KernelLog.String("Nameless point property encountered. Ignored"); KernelLog.Ln; RETURN END;
 			IF nonDefault THEN
 				t := Get();
-				Indent(w, indent);w.Char("<"); w.String(name^); w.Char(">"); w.Ln;
+				Indent(w, indent);w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewPoint"'); w.Char(">"); w.Ln;
 				Indent(w, indent + 1); w.String("<X>"); w.Int(t.x, 0); w.String("</X>"); w.Ln;
 				Indent(w, indent + 1); w.String("<Y>"); w.Int(t.y, 0); w.String("</Y>"); w.Ln;
 				Indent(w, indent); w.String("</"); w.String(name^); w.Char(">"); w.Ln;
@@ -1352,14 +1326,14 @@ TYPE
 			ReleaseWrite
 		END FromXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String; t : WMRectangles.Rectangle;
 		BEGIN
 			name := GetName();
 			IF name = NIL THEN KernelLog.String("Nameless rectangle property encountered. Ignored"); KernelLog.Ln; RETURN END;
 			IF nonDefault THEN
 				t := Get();
-				Indent(w, indent);w.Char("<"); w.String(name^); w.Char(">"); w.Ln;
+				Indent(w, indent);w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewRectangle"'); w.Char(">"); w.Ln;
 				Indent(w, indent + 1); w.String("<Left>"); w.Int(t.l, 0); w.String("</Left>"); w.Ln;
 				Indent(w, indent + 1); w.String("<Top>"); w.Int(t.t, 0); w.String("</Top>"); w.Ln;
 				Indent(w, indent + 1); w.String("<Width>"); w.Int(t.r-t.l, 0); w.String("</Width>"); w.Ln;
@@ -1379,6 +1353,7 @@ TYPE
 		componentName : Strings.String;
 		generator : Strings.String;
 		componentID : LONGINT;
+		level: LONGINT;
 
 		PROCEDURE FromStream*(r : Streams.Reader);
 		VAR
@@ -1422,6 +1397,10 @@ TYPE
 				w.String(generator^);
 			ELSIF (repositoryName # NIL) & (componentName # NIL) THEN
 				w.String(repositoryName^); w.String(":"); w.String(componentName^); w.String(":"); w.Int(componentID, 0);
+			ELSIF  (object # NIL) THEN
+				w.Ln;
+				Indent(w,level); object.Write(w, NIL, level);
+				w.Ln; Indent(w,level-1);
 			END;
 			ReleaseRead
 		END ToStream;
@@ -1443,6 +1422,9 @@ TYPE
 					SELF.object := object;
 					IF (res # Repositories.Ok) THEN
 					END;
+				ELSIF (componentName # NIL) & (repository # NIL) THEN
+					object := repository.GetComponent(componentName^, componentID);
+					SELF.object := object;
 				END;
 			END;
 			ReleaseRead;
@@ -1473,7 +1455,10 @@ TYPE
 				ReleaseWrite;
 			ELSIF Repositories.SplitName(string, repositoryName, componentName, componentID) THEN
 				AcquireWrite;
-				SELF.repositoryName := Strings.NewString(repositoryName);
+				IF repositoryName # "" THEN
+					SELF.repositoryName := Strings.NewString(repositoryName);
+				ELSE ASSERT(repository # NIL);
+				END;
 				SELF.componentName := Strings.NewString(componentName);
 				SELF.componentID := componentID;
 				SELF.generator := NIL;
@@ -1522,28 +1507,59 @@ TYPE
 			en := xml.GetContents();
 			p := en.GetNext();
 			NotDefault;
-			IF p IS XML.Chars THEN
+			IF (p # NIL ) & (p IS XML.Chars) THEN
 				s := p(XML.Chars).GetStr();
 				IF s # NIL THEN
 					Strings.Trim(s^, " ");
 					SetAsString(s^)
 				END
+			ELSIF (p # NIL) & (p IS XML.Element) THEN
+				object := Repositories.ComponentFromXML(p(XML.Element));
 			END
 		END FromXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
-		VAR name : String;
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY;  indent : LONGINT);
+		VAR name : String; id,res: LONGINT; repository: Repositories.Repository;
 		BEGIN
 			name := GetName();
 			IF name = NIL THEN KernelLog.String("Nameless boolean property encountered. Ignored"); KernelLog.Ln; RETURN END;
 			IF nonDefault THEN
 				Indent(w, indent);
-				w.Char("<"); w.String(name^); w.Char(">");
-				ToStream(w);
+				level := indent+1;
+				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewReference"'); w.Char(">");
+				IF (context # NIL) & (context IS Repositories.StoreContext) & (object # NIL) THEN
+					repository := context(Repositories.StoreContext).repository;
+					id := 1;
+					repository.PutComponent(object, name^,id,res);
+					w.String(name^); w.String(":"); w.Int(id, 0);
+				ELSE
+					ToStream(w);
+				END;
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln;
 			END
 		END WriteXML;
 
+		(*
+		PROCEDURE ToRepository*(CONST repository: ARRAY OF CHAR; w: Streams.Writer; indent: LONGINT);
+		VAR name : String; id, res: LONGINT;
+		BEGIN
+			name := GetName();
+			IF name = NIL THEN KernelLog.String("Nameless boolean property encountered. Ignored"); KernelLog.Ln; RETURN END;
+			IF nonDefault THEN
+				Indent(w, indent);
+				level := indent+1;
+				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewReference"'); w.Char(">");
+				IF object # NIL THEN
+					id := 1;
+					Repositories.PutComponent(object, repository, name^,id,res);
+					w.String(repository); w.String(":"); w.String(name^); w.String(":"); w.Int(id, 0);
+				ELSE
+					ToStream(w);
+				END;
+				w.String("</"); w.String(name^); w.Char(">"); w.Ln;
+			END
+		END ToRepository;
+		*)
 	END ReferenceProperty;
 
 TYPE
@@ -1716,8 +1732,10 @@ TYPE
 		VAR
 			en : XMLObjects.Enumerator;
 			p : ANY; s, n : String; i : LONGINT;
+			repository: Repositories.Repository;
 		BEGIN
 			AcquireWrite;
+			IF xml IS Repositories.Properties THEN repository := xml(Repositories.Properties).repository ELSE repository := NIL END;
 			en := xml.GetContents();
 			WHILE en.HasMoreElements() DO
 				p := en.GetNext();
@@ -1725,6 +1743,7 @@ TYPE
 					s := p(XML.Element).GetName();
 					i := 0;
 					WHILE i < nofProperties DO
+						properties[i].repository := repository;
 						n := properties[i].GetName();
 						IF (n # NIL) & (n^ = s^) THEN
 							properties[i].FromXML(p(XML.Element)); i := nofProperties
@@ -1736,7 +1755,59 @@ TYPE
 			ReleaseWrite
 		END SetXML;
 
-		PROCEDURE WriteXML*(w : Streams.Writer; indent : LONGINT);
+		PROCEDURE FromXML*(xml: XML.Element);
+		VAR generator: PROCEDURE(): Property;
+		VAR
+			property: Property;
+			l: Strings.String;
+			en : XMLObjects.Enumerator;
+			p : ANY; s, n : String; i : LONGINT;
+			moduleName, procedureName: Modules.Name;
+			res: LONGINT; msg: ARRAY 32 OF CHAR;
+			found: BOOLEAN;
+		BEGIN
+			IF xml # NIL THEN
+				AcquireWrite;
+				en := xml.GetContents();
+				WHILE en.HasMoreElements() DO
+					p := en.GetNext();
+					IF p IS XML.Element THEN
+						s := p(XML.Element).GetName();
+
+						(* check if property is already there (and potentially linked in application, in which case it should not be reinstalled *)
+						i := 0; found := FALSE;
+						WHILE (i < nofProperties) & ~found DO
+							n := properties[i].GetName();
+							IF (n # NIL) & (n^ = s^) THEN
+								found := TRUE;
+								properties[i].FromXML(p(XML.Element)); i := nofProperties
+							END;
+							INC(i)
+						END;
+						IF ~found THEN
+							l := p(XML.Element).GetAttributeValue("loader");
+							IF l # NIL THEN
+								Commands.Split(l^, moduleName, procedureName, res, msg);
+								IF (res = Commands.Ok) THEN
+									GETPROCEDURE(moduleName, procedureName, generator);
+									IF (generator # NIL) THEN
+										property := generator();
+										IF (property # NIL) THEN
+											property.New(NIL, s, NIL);
+											property.FromXML(p(XML.Element));
+											Add(property);
+										END;
+									END;
+								END;
+							END;
+						END;
+					END
+				END;
+				ReleaseWrite
+			END;
+		END FromXML;
+
+		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR i : LONGINT;
 		BEGIN
 			w.Ln;
@@ -1744,12 +1815,29 @@ TYPE
 			w.String("<Properties>"); w.Ln;
 			AcquireRead;
 			FOR i := 0 TO nofProperties - 1 DO
-				properties[i].WriteXML(w, indent + 2)
+				properties[i].WriteXML(w, context, indent + 2)
 			END;
 			Indent(w, indent + 1);
 			w.String("</Properties>");
 			ReleaseRead
 		END WriteXML;
+
+		(*
+		PROCEDURE ToRepository*(CONST repository: ARRAY OF CHAR; w : Streams.Writer; indent : LONGINT);
+		VAR i : LONGINT;
+		BEGIN
+			w.Ln;
+			Indent(w, indent + 1);
+			w.String("<Properties>"); w.Ln;
+			AcquireRead;
+			FOR i := 0 TO nofProperties - 1 DO
+				properties[i].ToRepository(repository, w, indent + 2)
+			END;
+			Indent(w, indent + 1);
+			w.String("</Properties>");
+			ReleaseRead
+		END ToRepository;
+		*)
 
 		PROCEDURE Changed(p : Property);
 		BEGIN (* {EXCLUSIVE} *)
@@ -1784,6 +1872,57 @@ BEGIN
 	END;
 	RETURN value
 END ReadCharDataInt;
+
+PROCEDURE NewBoolean*(): Property;
+VAR property: BooleanProperty;
+BEGIN NEW(property,NIL,NIL,NIL); RETURN property
+END NewBoolean;
+
+PROCEDURE NewSet*(): Property;
+VAR property: SetProperty;
+BEGIN NEW(property,NIL,NIL,NIL); RETURN property
+END NewSet;
+
+PROCEDURE NewInt32*(): Property;
+VAR property: Int32Property;
+BEGIN NEW(property,NIL,NIL,NIL); RETURN property
+END NewInt32;
+
+PROCEDURE NewReal*(): Property;
+VAR property: RealProperty;
+BEGIN NEW(property,NIL,NIL,NIL); RETURN property
+END NewReal;
+
+PROCEDURE NewString*(): Property;
+VAR property: StringProperty;
+BEGIN NEW(property,NIL,NIL,NIL); RETURN property
+END NewString;
+
+PROCEDURE NewColor*(): Property;
+VAR property: ColorProperty;
+BEGIN NEW(property,NIL,NIL,NIL); RETURN property
+END NewColor;
+
+PROCEDURE NewFont*(): Property;
+VAR property: FontProperty;
+BEGIN NEW(property,NIL,NIL,NIL); RETURN property
+END NewFont;
+
+PROCEDURE NewPoint*(): Property;
+VAR property: PointProperty;
+BEGIN NEW(property,NIL,NIL,NIL); RETURN property
+END NewPoint;
+
+PROCEDURE NewRectangle*(): Property;
+VAR property: RectangleProperty;
+BEGIN NEW(property,NIL,NIL,NIL); RETURN property
+END NewRectangle;
+
+PROCEDURE NewReference*(): Property;
+VAR property: ReferenceProperty;
+BEGIN NEW(property,NIL,NIL,NIL); RETURN property
+END NewReference;
+
 
 BEGIN
 	StringProperties := Strings.NewString("PropertyList");

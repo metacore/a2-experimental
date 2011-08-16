@@ -2266,7 +2266,7 @@ TYPE
 			file := Files.New(filename^);
 			IF file # NIL THEN
 				Files.OpenWriter(fw, file, 0);
-				doc.Write(fw, 0);
+				doc.Write(fw, NIL, 0);
 				fw.Update();
 				Files.Register(file);
 				IF DEBUG THEN KernelLog.String("Writing File successful"); KernelLog.Ln(); 	END;

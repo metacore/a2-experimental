@@ -194,6 +194,7 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMStandardComponents.GenPanel");
 			SetNameAsString(StrPanel)
 		END Init;
 
@@ -222,6 +223,7 @@ TYPE
 			NEW(textColor, PrototypeTextColor, NIL, NIL); properties.Add(textColor);
 			NEW(alignH, PrototypeAlignH, NIL, NIL); properties.Add(alignH);
 			NEW(alignV, PrototypeAlignV, NIL, NIL); properties.Add(alignV);
+			SetGenerator("WMStandardComponents.GenLabel");
 			SetNameAsString(StrLabel)
 		END Init;
 
@@ -358,6 +360,7 @@ TYPE
 
 			(* events *)
 			NEW(onClick, SELF, GSonClick, GSonClickButtonInfo, SELF.StringToCompCommand); events.Add(onClick);
+			SetGenerator("WMStandardComponents.GenButton");
 		END Init;
 
 		PROCEDURE CheckClickHandler;
@@ -949,6 +952,7 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMStandardComponents.GenScrollbar");
 			SetNameAsString(StrScrollbar);
 			NEW(min, PrototypeSmin, NIL, NIL); properties.Add(min);
 			NEW(max, PrototypeSmax,  NIL, NIL); properties.Add(max);
@@ -1630,6 +1634,7 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMStandardComponents.GenSlider");
 			SetNameAsString(NewString("Slider"));
 			NEW(min, PrototypeSmin, NIL, NIL); properties.Add(min);
 			NEW(max, PrototypeSmax,  NIL, NIL); properties.Add(max);
@@ -1923,6 +1928,7 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMStandardComponents.GenResizer");
 			SetNameAsString(StrResizer);
 			NEW(clDefault, PrototypeRclDefault, NIL, NIL); properties.Add(clDefault);
 			NEW(isFlat, PrototypeRisFlat, NIL, NIL); properties.Add(isFlat);
@@ -2034,6 +2040,7 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMStandardComponents.GenGroupPanel");
 			SetNameAsString(StrGroupPanel);
 			NEW(caption, ProtGPCaption, NIL, NIL); properties.Add(caption);
 			NEW(textColor, ProtGPTextColor, NIL, NIL); properties.Add(textColor);
@@ -2143,6 +2150,7 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMStandardComponents.GenCheckbox");
 			NEW(caption, ProtCBCaption, NIL, NIL); properties.Add(caption);
 			NEW(hasThreeStates, ProtCBHasThreeStates, NIL, NIL); properties.Add(hasThreeStates);
 			NEW(state, ProtCBState, NIL, NIL); properties.Add(state);
@@ -2367,6 +2375,7 @@ TYPE
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
+			SetGenerator("WMStandardComponents.GenImage");
 			SetNameAsString(StrImage);
 			NEW(imageName, PrototypeImageName, NIL, NIL); properties.Add(imageName);
 			image := NIL;
@@ -2437,6 +2446,7 @@ TYPE
 		PROCEDURE & Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMStandardComponents.GenImagePanel");
 			(* properties *)
 			NEW(imgName, ProtoIpImgName, NIL, NIL); properties.Add(imgName);
 			(* scrollbars *)

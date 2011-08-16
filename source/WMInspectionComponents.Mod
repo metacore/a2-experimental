@@ -1080,7 +1080,7 @@ TYPE
 		END MyStartDrag;
 
 		PROCEDURE HandleButton(sender, data : ANY);
-		VAR object : XML.Element; modelView : ModelView; window : Window;
+		VAR object : XML.Element; modelView : ModelView; window : Window; propertyPanel: PropertyPanel;
 		BEGIN
 			object := SELF.object;
 			IF (object # NIL) & (object IS Models.Model) THEN
@@ -1088,6 +1088,12 @@ TYPE
 				modelView.bounds.SetExtents(ModelWindowWidth, ModelWindowHeight);
 				modelView.fillColor.Set(WMGraphics.White);
 				NEW(window, modelView);
+			ELSIF (object # NIL) & (object IS WMComponents.Component) THEN
+				NEW(propertyPanel);
+				propertyPanel.bounds.SetExtents(300,300);
+				propertyPanel.fillColor.Set(WMGraphics.Yellow);
+				NEW(window, propertyPanel);
+				propertyPanel.SetComponent(SELF,object);
 			END;
 		END HandleButton;
 
@@ -1152,6 +1158,9 @@ TYPE
 					ELSE
 						button.caption.Set(StrNoCaption);
 					END;
+				ELSIF (object IS WMComponents.Component) THEN
+					button.enabled.Set(TRUE);
+					button.caption.SetAOC("(component)");
 				ELSE
 					button.enabled.Set(FALSE);
 					button.caption.Set(StrNoCaption);
@@ -3130,7 +3139,7 @@ TYPE
 				name := component.GetName();
 				IF (name = NIL) THEN name := Strings.NewString("NoName"); END;
 				NEW(writer, name^, 640, 480, FALSE);
-				component.Write(writer, 0);
+				component.Write(writer,NIL, 0);
 				writer.Update;
 			END;
 		END HandleShowBtn;

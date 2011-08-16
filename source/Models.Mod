@@ -154,16 +154,16 @@ TYPE
 		END WriteValue;
 
 		(** Externalize model to stream <w> at indention level <level> *)
-		PROCEDURE Write*(w: Streams.Writer; level : LONGINT); (** overwrite *)
+		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT); (** overwrite *)
 		VAR name : Strings.String;
 		BEGIN
 			IF (SELF IS Container) THEN
-				Write^(w, level);
+				Write^(w, context, level);
 			ELSE
 				(* Hmm... this violates the idea of XML.Element as container *)
 				AcquireRead;
 				name := GetName();
-				w.Char('<'); w.String(name^); WriteAttributes(w, level); w.Char('>');
+				w.Char('<'); w.String(name^); WriteAttributes(w, context, level); w.Char('>');
 				WriteValue(w, level + 1);
 				w.String("</"); w.String(name^); w.Char('>');
 				ReleaseRead;
