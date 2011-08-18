@@ -543,7 +543,9 @@ BEGIN
 END SetAOC;
 
 PROCEDURE GetString*(CONST source : Any; VAR string : Strings.String; VAR res : LONGINT);
-VAR value : ARRAY 64 OF CHAR; (*? !!! *)
+VAR
+	value : ARRAY 64 OF CHAR; (*? !!! *)
+	n: LONGINT;
 BEGIN
 	res := Ok;
 	IF (source IS String) THEN
@@ -579,6 +581,10 @@ BEGIN
 		END;
 	ELSE
 		res := CannotConvert;
+	END;
+
+	IF res = Ok THEN
+		string := Strings.NewString(value);
 	END;
 END GetString;
 
