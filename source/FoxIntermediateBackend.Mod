@@ -4394,6 +4394,7 @@ TYPE
 					Designate(sv,res);
 					Emit(Push(res.tag));
 					Emit(Push(res.op));
+					ReleaseOperand(res);
 					CallProcedure;
 				END;
 			END String;
@@ -4429,6 +4430,7 @@ TYPE
 			BEGIN
 				IF GetProcedure("Bits") THEN
 					Emit(Push(op));
+					ReleaseIntermediateOperand(op);
 					Emit(Push(IntermediateCode.Immediate(int32,0))); (* ofs *)
 					Emit(Push(IntermediateCode.Immediate(int32,32))); (* n *)
 					CallProcedure;
@@ -4439,6 +4441,7 @@ TYPE
 			BEGIN
 				IF GetProcedure("Boolean") THEN
 					Emit(Push(op));
+					ReleaseIntermediateOperand(op);
 					CallProcedure;
 				END;
 			END Boolean;
@@ -4447,6 +4450,7 @@ TYPE
 			BEGIN
 				IF GetProcedure("Char") THEN
 					Emit(Push(op));
+					ReleaseIntermediateOperand(op);
 					CallProcedure;
 				END;
 			END Char;
@@ -4455,6 +4459,7 @@ TYPE
 			BEGIN
 				IF GetProcedure("Address") THEN
 					Emit(Push(op));
+					ReleaseIntermediateOperand(op);
 					CallProcedure;
 				END;
 			END Address;
@@ -4464,6 +4469,8 @@ TYPE
 				IF GetProcedure("String") THEN
 					Emit(Push(tag));
 					Emit(Push(op));
+					ReleaseIntermediateOperand(op);
+					ReleaseIntermediateOperand(tag);
 					CallProcedure;
 				END;
 			END StringOperand;
