@@ -46,7 +46,7 @@ CONST
 		NegativeDivisorTrap*=12;
 
 		Trace = FALSE;
-		TraceRegisterUsage=FALSE;
+		TraceRegisterUsage=TRUE;
 
 		ArrayAlignment = 8*8;			(* first array element of ArrayBlock and first data element of SystemBlock must be aligned to 0 MOD ArrayAlignment *)
 
@@ -1135,7 +1135,7 @@ TYPE
 			IF (register > 0) THEN
 				registerUsage.DecUse(register);
 				IF TraceRegisterUsage & (dump# NIL) THEN
-					dump.String("unuse register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln;
+					dump.String("unuse register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln; dump.Update;
 				END;
 				IF registerUsage.Use(register)=0 THEN RemoveRegisterEntry(usedRegisters,register) END;
 			END;
@@ -1146,7 +1146,7 @@ TYPE
 			IF (register > 0) THEN
 				registerUsage.IncUse(register);
 				IF TraceRegisterUsage & (dump# NIL) THEN
-					dump.String("use register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln;
+					dump.String("use register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln; dump.Update;
 				END;
 				IF registerUsage.Use(register)=1 THEN
 					AddRegisterEntry(usedRegisters,register, registerUsage.used[register].class, registerUsage.used[register].type) END;
@@ -1202,7 +1202,7 @@ TYPE
 					registerUsage.DecUse(entry.register);
 					ASSERT(registerUsage.Use(entry.register)=0);
 					IF TraceRegisterUsage & (dump# NIL) THEN
-						dump.String("unuse register "); dump.Int(entry.register,1); dump.Ln;
+						dump.String("unuse register "); dump.Int(entry.register,1); dump.Ln; dump.Update;
 					END;
 				ELSIF prev = NIL THEN
 					usedRegisters := entry; entry.prev := NIL; entry.next := NIL; prev := entry;
@@ -4386,6 +4386,7 @@ TYPE
 			END CallProcedure;
 
 			PROCEDURE String(CONST s: ARRAY OF CHAR);
+			VAR res: Operand;
 			BEGIN
 				IF GetProcedure("String") THEN
 					sv := SyntaxTree.NewStringValue(-1,s);
@@ -4430,7 +4431,6 @@ TYPE
 			BEGIN
 				IF GetProcedure("Bits") THEN
 					Emit(Push(op));
-					ReleaseIntermediateOperand(op);
 					Emit(Push(IntermediateCode.Immediate(int32,0))); (* ofs *)
 					Emit(Push(IntermediateCode.Immediate(int32,32))); (* n *)
 					CallProcedure;
@@ -4441,7 +4441,6 @@ TYPE
 			BEGIN
 				IF GetProcedure("Boolean") THEN
 					Emit(Push(op));
-					ReleaseIntermediateOperand(op);
 					CallProcedure;
 				END;
 			END Boolean;
@@ -4450,7 +4449,6 @@ TYPE
 			BEGIN
 				IF GetProcedure("Char") THEN
 					Emit(Push(op));
-					ReleaseIntermediateOperand(op);
 					CallProcedure;
 				END;
 			END Char;
@@ -4459,7 +4457,6 @@ TYPE
 			BEGIN
 				IF GetProcedure("Address") THEN
 					Emit(Push(op));
-					ReleaseIntermediateOperand(op);
 					CallProcedure;
 				END;
 			END Address;
@@ -4469,8 +4466,6 @@ TYPE
 				IF GetProcedure("String") THEN
 					Emit(Push(tag));
 					Emit(Push(op));
-					ReleaseIntermediateOperand(op);
-					ReleaseIntermediateOperand(tag);
 					CallProcedure;
 				END;
 			END StringOperand;
