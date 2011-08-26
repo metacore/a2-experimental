@@ -69,7 +69,6 @@ VAR
 		ObjectFile.FromPooledName(pooledName, source); Information(source, message);
 	END InformationP;
 
-
 	PROCEDURE FindBlock* (CONST identifier: ObjectFile.Identifier): Block;
 	VAR block: Block;
 	BEGIN
@@ -137,8 +136,10 @@ VAR
 			IF reference = NIL THEN reference := ImportBlock(fixup.identifier) END;
 
 			IF reference = NIL THEN
+				ObjectFile.FromPooledName(fixup.identifier.name,str); Strings.Append(str," in " );
+				ObjectFile.FromPooledName(block.identifier.name,name);
+				Strings.Append(str,  name);
 				 ErrorP (fixup.identifier.name, "unresolved");
-				 ErrorP (block.identifier.name, "unresolved in");
 			ELSIF (reference.identifier.fingerprint # 0) & (block.fixup[i].identifier.fingerprint # 0) & (reference.identifier.fingerprint # block.fixup[i].identifier.fingerprint) THEN
 				ObjectFile.FromPooledName(fixup.identifier.name,str); Strings.Append(str," in " );
 				ObjectFile.FromPooledName(block.identifier.name,name);
