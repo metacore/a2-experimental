@@ -67,7 +67,7 @@ CONST
 	TraceInstantiate = 1;
 	TraceCreation = 2;
 
-	Trace = {};
+	Trace = {TraceInstantiate};
 
 TYPE
 
@@ -116,7 +116,10 @@ TYPE
 			SELF.repository := repository; SELF.refNum := refNum;
 			IF (repository # NIL) THEN
 				SELF.name := Strings.NewString(name);
+				SetNameAsString(SELF.name);
+				(*
 				SetNameAsString(NewJoinName(repository.name, name, refNum));
+				*)
 			ELSE
 				IF (SELF.name # NIL) THEN
 					SetNameAsString(SELF.name);
