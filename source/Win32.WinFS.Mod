@@ -14,6 +14,7 @@ CONST
 	Temporary* = Files.Temporary;
 
 	TraceFile = 0;  TraceFileSystem = 1;  TraceCollection = 2;  TraceSearch = 3;  Trace = {};
+	TraceMounting=FALSE;
 	deviceArrival* = 08000H;   (* DBT_DEVICEARRIVAL = 08000H *)
 	deviceRemove* = 08004H;   (* DBT_DEVICEREMOVECOMPLETE = 08004H *)
 
@@ -819,7 +820,7 @@ VAR
 		p: Files.Parameters; namebuf1, namebuf2: FileName;  size, snum, mlen, sysfl: LONGINT;
 		res: LONGINT; prefix: ARRAY 256 OF CHAR;
 	BEGIN
-		IF (context = NIL) THEN
+		IF TraceMounting & (context = NIL) THEN
 			NEW(context, NIL, NIL, NIL, NIL, NIL);
 		END;
 		NEW(p, context.in, context.arg, context.out, context.error, context.caller);
