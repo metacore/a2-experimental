@@ -5,7 +5,7 @@ IMPORT Kernel32, Modules,Trace,Commands;
 CONST
 	none = 0; console = 1; file = 2;
 VAR
-	hin, hout: Kernel32.HANDLE;
+	hin-, hout-: Kernel32.HANDLE;
 	mode: LONGINT; (* none, console or file *)
 
 (* Sender to be used with Stream.Writer *)

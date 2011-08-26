@@ -330,7 +330,7 @@ VAR
 			Use the GetProcAddress Oberon wrapper. *)
 	getProcAddress-: PROCEDURE {WINAPI} ( hModule: LONGINT;  CONST  lpProcName: ARRAY   OF CHAR ): ADDRESS;
 	(** The LoadLibrary function maps the specified executable module into the address space of the calling process. *)
-	LoadLibrary-: PROCEDURE {WINAPI} ( VAR lpLibFileName: ARRAY   OF CHAR ): HINSTANCE;   (* must be patched by linker / PE loader *)
+	LoadLibrary-: PROCEDURE {WINAPI} ( CONST lpLibFileName: ARRAY   OF CHAR ): HINSTANCE;   (* must be patched by linker / PE loader *)
 
 
 	(** The AllocConsole function allocates a new console for the calling process. *)
