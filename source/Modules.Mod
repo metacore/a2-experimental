@@ -107,7 +107,7 @@ TYPE
 			maxPtrs*: LONGINT;
 
 		PROCEDURE FindRoots;	(* override *)
-		VAR i: LONGINT; ptr: ANY; moduleName: Name;
+		VAR i: LONGINT; ptr: ANY; moduleName: Name; protRecBlockAdr: SYSTEM.ADDRESS; protRecBlock: Heaps.ProtRecBlock;
 		BEGIN
 			IF published THEN	(* mark global pointers *)
 				moduleName := name;
@@ -115,6 +115,15 @@ TYPE
 					SYSTEM.GET (ptrAdr[i], ptr);
 					IF ptr # NIL THEN Heaps.Mark(ptr) END
 				END;
+
+				(* mark prot rec fields, for whatever reasons this does not work correctly in the statically linked heap *)
+				SYSTEM.GET(SYSTEM.VAL(SYSTEM.ADDRESS,SELF)+Heaps.HeapBlockOffset, protRecBlockAdr);
+				protRecBlock := SYSTEM.VAL(Heaps.ProtRecBlock, protRecBlockAdr);
+				Heaps.Mark(protRecBlock.awaitingLock.head);
+				Heaps.Mark(protRecBlock.awaitingCond.head);
+				Heaps.Mark(protRecBlock.lockedBy);
+				Heaps.Mark(protRecBlock.lock);
+
 				Heaps.AddRootObject(next);
 				(* all other fields are being traversed by Mark of the Garbage Collector *)
 			END;
@@ -320,6 +329,10 @@ VAR module : Module; ignoreMsg : ARRAY 32 OF CHAR; i, res : LONGINT;
 BEGIN
 	module := ThisModule(moduleName, res, ignoreMsg);
 	IF (res = Ok) THEN
+		IF ~module.init THEN (* give the module a chance to initialize, no timer available here, no yield ... *)
+			i := 1000000;
+			REPEAT DEC(i) UNTIL (i = 0) OR module.init
+		END;
 		ASSERT(module.init);	(* module body must have been called (see note at end of module) *)
 		Machine.Acquire(Machine.Modules);
 		i := 0; entryAdr := Heaps.NilVal;
