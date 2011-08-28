@@ -67,7 +67,7 @@ CONST
 	TraceInstantiate = 1;
 	TraceCreation = 2;
 
-	Trace = {TraceInstantiate};
+	Trace = {};
 
 TYPE
 
