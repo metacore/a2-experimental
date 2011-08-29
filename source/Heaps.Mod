@@ -771,7 +771,7 @@ BEGIN
 						REPEAT
 							obj := rootList;					(* get head object *)
 							rootList := rootList.nextRoot;		(* link to next *)
-							obj.FindRoots;
+							obj.FindRoots; (* Mark called via AddRootObject, but not for objects in static heap *)
 						UNTIL rootList = NIL
 					END;
 					IF numCandidates # 0 THEN CheckCandidates END
@@ -787,7 +787,7 @@ BEGIN
 					REPEAT
 						obj := rootList;					(* get head object *)
 						rootList := rootList.nextRoot;		(* link to next *)
-						obj.FindRoots;
+						obj.FindRoots; (* Mark called via AddRootObject, but not for objects in static heap *)
 					UNTIL rootList = NIL
 				END;
 				MarkRealtimeObjects;
