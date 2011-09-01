@@ -11,15 +11,16 @@ MODULE BootLinker;   (* Oberon for Windows bootlinker (MH) / based on MIPS bootl
 IMPORT S := SYSTEM, Commands, Streams, Files, Out := KernelLog;
 
 CONST
-	Version = "22.12.2010";
+	Version = "30.08.2011";
 
 	StartModule = "BootConsole";
 	
 	ObjSuffix = ".Obj";
 
 	AdrSize = S.SIZEOF( S.ADDRESS );
+	SizeSize = S.SIZEOF( S.SIZE );
 
-	BootHeapSize = 32*1024*1024;  NofPtrFix = 10000;  ProtOff = 48;
+	BootHeapSize = 32*1024*1024;  NofPtrFix = 10000;  
 
 
 TYPE
@@ -30,7 +31,12 @@ TYPE
 	
 CONST
 	NilVal* = 0;
+	BlockSize = 32;
+	ProtOfs = 2*BlockSize + 16;
 	ArrayAlignment = 8;
+	HeapBlockOffset = - 2*AdrSize;
+	TypeDescOffset = -AdrSize;
+	
 	ProtTypeBit* = 31;   (* flags in TypeDesc, low bits reserved for extLevel *)
 	
 TYPE	
@@ -317,10 +323,10 @@ VAR
 		INC( size, AdrSize + 24 );  INC( size, (-size) MOD B );
 		ptr := NewBlock( size ) + AdrSize;
 		ClearMem( ptr, size - AdrSize );
-		S.PUT( ptr - AdrSize, ptr );  Relocate( ptr - AdrSize );
+		S.PUT( ptr - AdrSize, ptr );	Relocate( ptr - AdrSize );
 		S.PUT( ptr, size - AdrSize );
-		S.PUT( ptr + AdrSize, S.VAL( LONGINT, -AdrSize ) );
-		S.PUT( ptr + 24 - AdrSize, ptr );
+		S.PUT( ptr + SizeSize, S.VAL( LONGINT, -AdrSize ) );
+		S.PUT( ptr + 24 - AdrSize, ptr );	Relocate( ptr + 24 - AdrSize );
 		RETURN ptr + 24;
 	END NewSys;
 
@@ -344,23 +350,22 @@ VAR
 
 
 	PROCEDURE NewProtRec( VAR p: ANY;  tag: Address );
-	VAR size: LONGINT;  ptr: Address;
+	VAR recSize, size: LONGINT;  ptr0, ptr: Address;
 	BEGIN
-		S.GET( tag, size );
+		S.GET( tag, recSize );
 		(* add space for tag and header and round up to BlockSize *)
-		INC( size, AdrSize + ProtOff );  INC( size, (-size) MOD B );
-		ptr := NewBlock( size ) + AdrSize;  Relocate( ptr - AdrSize );
-		S.PUT( ptr - AdrSize, ptr );   (* set the main tag *)
-		S.PUT( ptr, size - AdrSize );   (* size *)
-		S.PUT( ptr + AdrSize, S.VAL( LONGINT, -AdrSize ) );
-		ClearMem( ptr + 8, ProtOff - 12 );   (* clear header *)
-		S.PUT16( ptr + 10, -1 );   (* flag = -1 *)
-		S.PUT( ptr + (ProtOff - AdrSize), tag );   (* set the tag *)
-		ptr := ptr + ProtOff;
-		S.PUT( ptr - AdrSize, tag );  Relocate( ptr - AdrSize );   (* set the tag *)
-		(* clear must be done inside lock to ensure all traced pointer fields are initialized to NIL *)
-		ClearMem( ptr, size - (AdrSize + ProtOff) );   (* clear everything except tag & header *)
-		p := S.VAL( ANY,  ptr )
+		size := recSize + ProtOfs + AdrSize;  INC( size, (-size) MOD BlockSize );
+		ptr0 := NewBlock( size ) + AdrSize;
+		ClearMem( ptr0, size - AdrSize );   (* clear everything *)
+		S.PUT( ptr0 - AdrSize, ptr0 );   (* set the main tag *)	Relocate( ptr0 - AdrSize );
+		S.PUT( ptr0, size - AdrSize );   (* size *)
+		S.PUT( ptr0 + SizeSize, S.VAL( Address, - AdrSize ) );
+		
+		ptr := ptr0 + ProtOfs;
+		S.PUT( ptr + HeapBlockOffset, ptr0 );	Relocate( ptr + HeapBlockOffset );
+		S.PUT( ptr + TypeDescOffset, tag );	Relocate( ptr + TypeDescOffset );
+		
+		p := S.VAL( ANY, ptr );
 	END NewProtRec;
 
 
@@ -799,7 +804,7 @@ VAR
 		LenOfs = 12;   (* offset of dimension 0 in array header *)
 		Align = ArrHdrSize + 4 + 15;   (* 4 for tag of next block, 15 for rounding up to 16 *)
 
-	VAR adr, size, tag, dataSize: LONGINT;
+	VAR adr, adr0, size, tag, dataSize: LONGINT;
 
 		PROCEDURE ArrSize( elements, elemSize: LONGINT ): LONGINT;
 		BEGIN
@@ -813,7 +818,8 @@ VAR
 			a := adr;  s := ArrSize( elements, elemSize );
 			INC( adr, s );  DEC( size, s );   (* allocate *)
 			(* array header *)
-			S.PUT( a - AdrSize, tag );   (* indirect tag *) Relocate( a - AdrSize );
+			S.PUT( a - AdrSize, tag );   (* indirect tag *) 
+			IF a # adr0 THEN  Relocate( a - AdrSize )  END;
 			S.PUT( a + LenOfs, elements );   (* dimension *)
 			ptr := S.VAL( ANY, a );  Relocate( S.ADR( ptr ) );
 		END SubObjArray;
@@ -831,12 +837,12 @@ VAR
 				ArrSize( h.exTableLen, S.SIZEOF( ExceptionTableEntry ) ) +
 				ArrSize( h.refSize, 1 );
 
-		adr := NewSys( size );  S.GET( adr - AdrSize, tag );
+		adr := NewSys( size );  S.GET( adr - AdrSize, tag );  adr0 := adr;
 
 		SubObjArray( S.VAL( ANY, m.entry ), h.entries, AdrSize );
 		SubObjArray( S.VAL( ANY, m.command ), h.commands, S.SIZEOF( Command ) );
 		SubObjArray( S.VAL( ANY, m.ptrAdr ), h.pointers, AdrSize );
-		NewArr( S.VAL( ANY, m.typeInfo ), ptrElemTag, h.types, 1 ); Relocate( S.ADR( m.typeInfo ) );
+		NewArr( S.VAL( ANY, m.typeInfo ), ptrElemTag, h.types, 1 );  Relocate( S.ADR( m.typeInfo ) );
 		SubObjArray( S.VAL( ANY, m.module ), h.modules, S.SIZEOF( Module ) );
 		SubObjArray( S.VAL( ANY, m.data ), dataSize + h.constSize, 1 );
 		SubObjArray( S.VAL( ANY, m.code ), h.codeSize, 1 );
@@ -1311,9 +1317,9 @@ VAR
 		END FixupCall;
 
 		PROCEDURE CheckScope( scope: ExportDesc;  level: INTEGER );
-		VAR fp, link, i: LONGINT;  adr, tdadr: Address;  tmpErr: BOOLEAN;
+		VAR fp, link, i: LONGINT;  adr, tdadr: Address;  tmpErr: BOOLEAN; prevlink: LONGINT;
 		BEGIN
-			tmpErr := (level = EUerrScope);  i := 0;  link := 0;  r.RawNum( fp );
+			tmpErr := (level = EUerrScope);  i := 0;  link := 0;  prevlink := 0;  r.RawNum( fp ); 
 			WHILE fp # EUEnd DO
 				IF fp = EURecord THEN
 					r.RawNum( link );
@@ -1323,13 +1329,15 @@ VAR
 							IF link # 0 THEN
 								adr := scope.dsc[i].dsc[0].adr;
 								S.GET( mod.sb + adr, tdadr );
-								S.PUT( m.sb - link, tdadr );  Relocate( m.sb - link )
+								S.PUT( m.sb - link, tdadr );  
+								IF link # prevlink THEN  Relocate( m.sb - link )  END;
+								prevlink := link
 							END
 						END;
 						CheckScope( scope.dsc[i], EUrecScope )
 					END
 				ELSE
-					prevname := name;  ReadString8( r, name );
+					prevname := name;  ReadString8( r, name );  
 					IF level >= EUobjScope THEN
 						tmpErr := FALSE;
 						IF level = EUobjScope THEN  r.RawNum( link )  END;
@@ -1347,7 +1355,8 @@ VAR
 								FixupCall( S.ADR( m.code[0] ),
 										    S.VAL( S.SIZE, S.VAL( SET, link ) - {EUProcFlagBit} ),
 										    scope.dsc[i].adr + S.ADR( mod.code[0] ) )
-							END
+							END;
+							prevlink := link
 						END
 					END
 				END;

@@ -3,7 +3,7 @@ Refer to the "General ETH Oberon System Source License" contract available at: h
 
 MODULE Heaps;
 
-IMPORT S := SYSTEM, Trace, Machine;
+IMPORT S := SYSTEM, Trace, Unix, Machine;
 
 TYPE
 	Address = S.ADDRESS;
@@ -17,7 +17,6 @@ CONST
 	AdrSize = S.SIZEOF( S.ADDRESS );
 	SizeSize = S.SIZEOF( S.SIZE );
 
-	TypeDescOffset* = -AdrSize;
 
 	FlagsOfs = AdrSize * 3;			(* flags offset in TypeDesc *)
 	ModOfs* = AdrSize * 4;			(* moduleAdr offset in TypeDesc *)
@@ -31,6 +30,8 @@ CONST
 	MethodEndMarker* = MinPtrOfs;   (* marks the end of the method addresses, used in Info.ModuleDetails *)
 
 	ArrayAlignment = 8;
+	HeapBlockOffset* = - 2*AdrSize;
+	TypeDescOffset* = -AdrSize;
 	
 	MaxMarkDepth = 8000;
 
@@ -57,7 +58,7 @@ VAR
 CONST
 	BlockSize = 32;
 	N = 32;  
-	ProtOfs* = BlockSize + 16;
+	ProtOfs* = 2*BlockSize + 16;
 	ProtTypeBit* = 31;   (** flags in TypeDesc, low bits reserved for extLevel *)
 
 	MarkBit* = 0;  ArrayBit* = 1;  FreeBit* = 2;  SubObjBit* = 3;  ProtObjBit* = 4;
@@ -69,6 +70,26 @@ TYPE
 				size: Size;
 				next{UNTRACED}: FreeBlk;
 			END;
+	
+	ProcessQueue* = RECORD
+		head*, tail*: ANY
+	END;
+			
+	ProtRecBlock* = POINTER TO ProtRecBlockDesc;
+	ProtRecBlockDesc* = RECORD 
+		recSize: Size;
+		ptrOffs: Address; 
+		
+		count*: LONGINT;
+		locked*: BOOLEAN;
+		awaitingLock*:	ProcessQueue;	(* unused in UnixAos *)
+		awaitingCond*: ProcessQueue;
+		lockedBy*: ANY;					(* unused in UnixAos *)
+		lock*: ANY;	(* used by Win32, unused for I386 and UnixAos *)
+		
+		mtx*: Unix.Mutex_t;		(* processes blocked awaiting lock *)
+		doEnter*: Unix.Condition_t;
+	END;
 
 	RootObject* = OBJECT 
 		PROCEDURE FindRoots*;	(** abstract *)
@@ -694,22 +715,22 @@ VAR
 	END NewRec;
 
 	PROCEDURE NewProtRec*( VAR p: ANY;  tag: Address; isRealtime: BOOLEAN );
-	VAR recSize, size: Size;  ptr: Address;
+	VAR recSize, size: Size;  ptr0, ptr: Address;
 	BEGIN
 		S.GET( tag, recSize );
 		(* add space for tag and header and round up to BlockSize *)
 		size := recSize + ProtOfs + AdrSize;  INC( size, (-size) MOD BlockSize );
 		Machine.Acquire( Machine.Heaps );
-		ptr := GetBlock( size ) + AdrSize;
-		S.PUT( ptr - AdrSize, ptr );   (* set the main tag *)
-		S.PUT( ptr, size - AdrSize );   (* size *)
-		S.PUT( ptr + AdrSize, S.VAL( Address, - AdrSize ) );
-		ClearMem( ptr + 8, ProtOfs - 12 );   (* clear header *)
-		S.PUT16( ptr + 10, -1 );   (* flag = -1 *)
-		S.PUT( ptr + (ProtOfs - AdrSize), tag );   (* set the tag *)
-		INC( ptr, ProtOfs );
-		(* clear must be done inside lock to ensure all traced pointer fields are initialized to NIL *)
-		ClearMem( ptr, size - (AdrSize + ProtOfs) );   (* clear everything except tag & header *)
+		ptr0 := GetBlock( size ) + AdrSize;
+		ClearMem( ptr0, size - AdrSize );   (* clear everything *)
+		S.PUT( ptr0 - AdrSize, ptr0 );   (* set the main tag *)
+		S.PUT( ptr0, size - AdrSize );   (* size *)
+		S.PUT( ptr0 + SizeSize, S.VAL( Address, - AdrSize ) );
+		
+		ptr := ptr0 + ProtOfs;
+		S.PUT( ptr + HeapBlockOffset, ptr0 );
+		S.PUT( ptr + TypeDescOffset, tag );   (* set the tag *)
+		
 		p := S.VAL( ANY, ptr );
 		Machine.Release( Machine.Heaps );
 	END NewProtRec;
