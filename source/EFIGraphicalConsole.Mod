@@ -40,7 +40,7 @@ TYPE
 		buffer: ARRAY 1342 OF CHAR;
 
 		(* frame buffer parameters *)
-		adr: SYSTEM.ADDRESS; VAR x,y,size: SYSTEM.SIZE; w,h,depth: SYSTEM.SIZE;
+		adr: SYSTEM.ADDRESS; VAR x,y: SYSTEM.SIZE; w,h,depth: SYSTEM.SIZE;
 		info: GraphicsModeInfo
 
 	PROCEDURE MakeFont(VAR font: Font);
@@ -377,7 +377,7 @@ TYPE
 			END;
 		ELSE
 			char := font.char[ORD(c)];
-			IF (char.w > 0) & (char.h>0) THEN
+			IF (char.w > 0) & (char.h>0) & (x+char.x < w) THEN
 				pw := SYSTEM.GET8(char.buffer);
 				ph := SYSTEM.GET8(char.buffer+1);
 				stride := (pw + 7) DIV 8;
@@ -408,22 +408,29 @@ TYPE
 		RETURN depth
 	END GetDepth;
 
-	PROCEDURE SetupConsole*(graphicsModeInfo: SYSTEM.ADDRESS; frameBufferAdr: SYSTEM.ADDRESS; frameBufferSize: SYSTEM.SIZE);
+	PROCEDURE SetupConsole*(graphicsModeInfo: SYSTEM.ADDRESS; frameBufferAdr: SYSTEM.ADDRESS);
 	VAR i: SYSTEM.ADDRESS;
 	BEGIN
+		Trace.String("Graphical Console, info = "); Trace.Address(graphicsModeInfo); Trace.Ln;
+		Trace.String("Graphical Console, address = "); Trace.Address(frameBufferAdr); Trace.Ln;
 		info := SYSTEM.VAL(GraphicsModeInfo, graphicsModeInfo);
 		adr := frameBufferAdr;
-		size := frameBufferSize;
-		depth := GetDepth(info);
-		FOR i := 0 TO size-1 DO SYSTEM.PUT(adr+i,0)	END;
 		x := 0; y := 0; w := info.HorizontalResolution; h :=  info.VerticalResolution; depth := GetDepth(info);
+		Trace.String("Graphical Console, w = "); Trace.Address(w); Trace.Ln;
+		Trace.String("Graphical Console, h = "); Trace.Address(h); Trace.Ln;
+		Trace.String("Graphical Console, depth = "); Trace.Address(depth); Trace.Ln;
+
+		FOR i := 0 TO w*h*depth DIV 8-1 DO SYSTEM.PUT(adr+i,0)	END;
+		RenderChar("X"); RenderChar("X");
 		Trace.Char := RenderChar;
 		Trace.String("Graphical Console started"); Trace.Ln;
 	END SetupConsole;
 
 
 BEGIN
+	Trace.String("Graphical Console Enter"); Trace.Ln;
 	MakeFont(font);
+	Trace.String("Graphical Console Exit"); Trace.Ln;
 END EFIGraphicalConsole.
 
 
