@@ -166,8 +166,8 @@ VAR
 		END;
 	END PrintGraphicsModes;
 
-	PROCEDURE GraphicsMode(prefWidth, prefHeight, prefDepth, prefMode: LONGINT);
-	VAR info: EFIGraphicsOutput.GraphicsModeInfo; adr: SYSTEM.ADDRESS; size: SYSTEM.SIZE;
+	PROCEDURE GraphicsMode(prefWidth, prefHeight, prefDepth, prefMode: LONGINT; VAR adr: SYSTEM.ADDRESS; VAR info: EFIGraphicsOutput.GraphicsModeInfo);
+	VAR size: SYSTEM.SIZE;
 	BEGIN
 		IF GetFrameBuffer(prefWidth, prefHeight, prefDepth, prefMode, adr, size, info) = EFI.Success  THEN
 		ELSIF GetFrameBuffer(1024,768,32,0,adr,size,info) = EFI.Success THEN
@@ -175,7 +175,7 @@ VAR
 		ELSIF GetFrameBuffer(1024,768,0,0,adr,size,info) = EFI.Success THEN
 		ELSIF GetFrameBuffer(0,0,0,0,adr,size,info) # EFI.Success THEN Trace.String("Warning: no graphics mode available"); Trace.Ln; RETURN
 		END;
-		EFIGraphicalConsole.SetupConsole(SYSTEM.VAL(SYSTEM.ADDRESS, info), adr, size);
+		EFIGraphicalConsole.SetupConsole(SYSTEM.VAL(SYSTEM.ADDRESS, info), adr);
 	END GraphicsMode;
 
 	(* Loads the configuration file and creates the corresponding boot-table. *)
@@ -504,7 +504,7 @@ VAR
 
 	PROCEDURE LoadA2;
 	VAR
-		kernelAddr, btAddr, fbAddr : SYSTEM.ADDRESS;
+		kernelAddr, btAddr, fbAddr: SYSTEM.ADDRESS;
 		fbSize: EFI.Int;
 		kernelSize: LONGINT;
 		kernelStat, btStat, fbStat, status : EFI.Status;
@@ -512,6 +512,7 @@ VAR
 		val : ARRAY 100 OF CHAR;
 		i, dWidth, dHeight, dDepth, dFormat : LONGINT;
 		size: EFI.Int64;
+		info: EFIGraphicsOutput.GraphicsModeInfo;
 	BEGIN
 		Trace.String("Starting"); Trace.Ln;
 
@@ -530,7 +531,7 @@ VAR
 				GetConfig("DHeight",val); i:=0; dHeight := EFILib.StringToInt(i, val);
 				GetConfig("DDepth",val); i:=0; dDepth := EFILib.StringToInt(i, val);
 				dFormat := EFIGraphicsOutput.PFBGRX8Bit;  (* Displays.Mod uses BGR *)
-				GraphicsMode(dWidth, dHeight, dDepth, dFormat);
+				GraphicsMode(dWidth, dHeight, dDepth, dFormat, fbAddr, info);
 				(*
 				fbStat := GetFrameBuffer(dWidth,dHeight,dDepth, dFormat, fbAddr, fbSize, info);
 				IF (fbStat = EFI.Success) THEN
@@ -582,6 +583,7 @@ VAR
 
 			IF ((kernelStat = EFI.Success) OR (kernelStat = EFI.WarnWriteFailure)) & (btStat = EFI.Success) THEN
 				Trace.String("Shutting down Boot Services..."); Trace.Ln;
+				FOR i := 0 TO 100 DO Trace.Ln END;
 				status := EFILib.ExitBootServices();
 				IF status = EFI.Success THEN
 					(* sshhhhhht!!!  nomore EFITrace from here on *)
@@ -590,7 +592,7 @@ VAR
 						SYSTEM.MOVE(kernelAddr, kernelAddress, kernelSize);
 						kernelAddr := kernelAddress;
 					END;
-					Machine.JumpTo(kernelAddr, btAddr, 0, fbAddr);
+					Machine.JumpTo(kernelAddr, btAddr, 0, fbAddr, SYSTEM.VAL(SYSTEM.ADDRESS,info));
 				ELSE
 					Trace.String("Could not exit boot services"); Trace.Ln;
 				END;

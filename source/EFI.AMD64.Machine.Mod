@@ -300,6 +300,7 @@ VAR
 
 	chs: ARRAY MaxDisks OF RECORD cyls, hds, spt: LONGINT END;
 	initRegs0, initRegs1: HUGEINT;
+	fbadr*, fbInfoPtr*: SYSTEM.ADDRESS; 
 	initRegs: ARRAY 2 OF HUGEINT;	(* kernel parameters *)
 	config: ARRAY 2048 OF CHAR;	(* config strings *)
 	bootFlag: SYSTEM.ADDRESS;
@@ -3889,6 +3890,9 @@ CODE{SYSTEM.AMD64}
 	MOV bootFlag, RAX
 	MOV initRegs0,RSI
 	MOV initRegs1, RDI
+	
+	MOV fbadr, RDI
+	MOV fbInfoPtr, RCX
 
 END FirstAddress;
 

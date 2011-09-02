@@ -9,7 +9,7 @@ VAR p0, p1: SYSTEM.ADDRESS;
 	esi	: ?
 	edi	: address of frame buffer
 *)
-PROCEDURE JumpTo*(adr : SYSTEM.ADDRESS; eax,esi,edi : HUGEINT);
+PROCEDURE JumpTo*(adr : SYSTEM.ADDRESS; eax,esi,edi,ecx : HUGEINT);
 CODE {SYSTEM.AMD64}
 	XOR RCX,RCX
 	XOR RDX,RDX
@@ -17,6 +17,7 @@ CODE {SYSTEM.AMD64}
 	MOV RSI, [RBP+esi];
 	MOV RAX, [RBP+eax];
 	MOV RBX, [RBP+adr]
+	MOV RCX, [RBP+ecx]
 	CALL RBX
 END JumpTo;
 

@@ -46,7 +46,7 @@ StaticLinker.Link --fileName=E:/felix.svn/qemu/disk/A2Loader.efi --fileFormat=EF
 
 SystemTools.DoCommands
 	Compiler.Compile --newObjectFile --objectFile=Generic  -b=AMD --bits=64
-	AMD64.Runtime.Mod Trace.Mod EFI.AMD64.Machine.Mod Heaps.Mod oc/Generic.Modules.Mod Objects.Mod Kernel.Mod 
+	AMD64.Runtime.Mod Trace.Mod EFI.AMD64.Machine.Mod EFIGraphicalConsole.Mod StartConsole.Mod Heaps.Mod oc/Generic.Modules.Mod Objects.Mod Kernel.Mod 
 	Interfaces.Mod KernelLog.Mod Plugins.Mod Streams.Mod Pipes.Mod Commands.Mod AMD64.Reals.Mod 
 	Reflection.Mod AMD64.Traps.Mod Locks.Mod BiosFreePCI.Mod Clock.Mod AMD64.MemCache.Mod Disks.Mod Files.Mod 
 	Dates.Mod Strings.Mod UTF8Strings.Mod Caches.Mod DiskVolumes.Mod OldDiskVolumes.Mod 
@@ -57,7 +57,7 @@ SystemTools.DoCommands
 	--fileName=E:/felix.svn/qemu/disk/IDE.Bin
 	--extension=Gof
 	--displacement=01000000H
-	Runtime Trace Machine Heaps Modules Objects Kernel 
+	Runtime Trace Machine EFIGraphicalConsole StartConsole Heaps Modules Objects Kernel 
 	KernelLog Plugins Streams Commands Reals 
 	Reflection Traps Locks PCI Clock MemCache Disks Files 
 	ATADisks
