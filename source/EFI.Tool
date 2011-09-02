@@ -1,15 +1,15 @@
 **************** 32 BIT ********************
 
-** Loader **
+** Loader * *
 
 SystemTools.DoCommands
 Compiler.Compile  --objectFile=Generic --symbolFile=Textual --bits=32 --traceModule=Trace
 	Runtime.Mod Trace.Mod EFI.Mod I386.EFIMachine.Mod EFITrace.Mod EFIFileProtocol.Mod EFISimpleFS.Mod
-	EFILoadedImage.Mod EFIGraphicsOutput.Mod EFILib.Mod EFIA2Loader.Mod
+	EFILoadedImage.Mod EFIGraphicsOutput.Mod EFILib.Mod EFIGraphicalConsole.Mod EFIA2Loader.Mod
 ~
 StaticLinker.Link --fileName=E:/felix.svn/qemu/disk/A2Loader.efi --fileFormat=EFI32 --displacement=401000H
 	Runtime Trace EFI EFIMachine EFITrace EFISimpleFS  EFIFileProtocol EFILoadedImage EFIGraphicsOutput EFILib 
-	EFIA2Loader~
+	 EFIGraphicalConsole EFIA2Loader~
 ~
 
 ** Kernel Image **
@@ -34,11 +34,11 @@ Linker.Link \.Obx E:/felix.svn/qemu/disk/IDE.Bin 0100000H 1000H
 SystemTools.DoCommands
 Compiler.Compile  --objectFile=Generic --symbolFile=Textual --bits=64 --traceModule=Trace
 	AMD64.Runtime.Mod Trace.Mod EFI.Mod AMD64.EFIMachine.Mod EFITrace.Mod EFIFileProtocol.Mod EFISimpleFS.Mod
-	EFILoadedImage.Mod EFIGraphicsOutput.Mod EFILib.Mod EFIA2Loader.Mod
+	EFILoadedImage.Mod EFIGraphicsOutput.Mod EFILib.Mod EFIGraphicalConsole.Mod EFIA2Loader.Mod
 ~
 StaticLinker.Link --fileName=E:/felix.svn/qemu/disk/A2Loader.efi --fileFormat=EFI64 --displacement=401000H
 	Runtime Trace EFI EFIMachine EFITrace EFISimpleFS  EFIFileProtocol EFILoadedImage EFIGraphicsOutput EFILib 
-	EFIA2Loader
+	 EFIGraphicalConsole EFIA2Loader
 ~
 ~
 
@@ -51,7 +51,7 @@ SystemTools.DoCommands
 	Reflection.Mod AMD64.Traps.Mod Locks.Mod BiosFreePCI.Mod Clock.Mod AMD64.MemCache.Mod Disks.Mod Files.Mod 
 	Dates.Mod Strings.Mod UTF8Strings.Mod Caches.Mod DiskVolumes.Mod OldDiskVolumes.Mod 
 	RAMVolumes.Mod DiskFS.Mod OldDiskFS.Mod OberonFS.Mod FATVolumes.Mod FATFiles.Mod ISO9660Volumes.Mod 
-	ISO9660Files.Mod RelativeFileSystem.Mod Loader.Mod BootConsole.Mod AMD64.ATADisks.Mod HugeModule.Mod ~
+	ISO9660Files.Mod RelativeFileSystem.Mod Loader.Mod BootConsole.Mod AMD64.ATADisks.Mod ~
 	
 	StaticLinker.Link
 	--fileName=E:/felix.svn/qemu/disk/IDE.Bin
@@ -62,7 +62,7 @@ SystemTools.DoCommands
 	Reflection Traps Locks PCI Clock MemCache Disks Files 
 	ATADisks
 	Dates Strings UTF8Strings Caches   	    
-	Loader HugeModule BootConsole ~
+	Loader  BootConsole ~
 ~
 
 
