@@ -7915,9 +7915,9 @@ Sufficient (but not necessary) conditions:
 		PROCEDURE ShapeDiffers( ): BOOLEAN;
 		VAR i: LONGINT;
 		BEGIN
-			ASSERT( oldDim = newDim );
-			FOR i := 0 TO oldDim - 1 DO
-				IF GetLen( dest, i ) # shape[i] THEN RETURN TRUE END;
+			ASSERT(GetDim(dest) = newDim);
+			FOR i := 0 TO newDim - 1 DO
+				IF GetLen(dest,i) # shape[i] THEN RETURN TRUE END;
 			END;
 			RETURN FALSE;
 		END ShapeDiffers;
