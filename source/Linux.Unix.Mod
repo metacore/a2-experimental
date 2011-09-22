@@ -308,7 +308,7 @@ VAR
 
 	libc-: LONGINT;
 
-	libraryPaths: ARRAY 7 OF ARRAY 32 OF CHAR;
+	libraryPaths: ARRAY 8 OF ARRAY 32 OF CHAR;
 
 
 	PROCEDURE Perror*( CONST msg: ARRAY OF CHAR );
@@ -333,7 +333,7 @@ VAR
 		IF libname[0] = '/' THEN  h := Glue.dlopen( S.ADR( libname ), mode );
 		ELSE
 			i := 0;  h := 0;
-			WHILE (h = 0) & (i <= 6) DO
+			WHILE (h = 0) & (i <= 7) DO
 				COPY( libraryPaths[i], p );  j := 0;
 				WHILE p[j] # 0X DO  INC( j )  END;
 				p[j] := '/';  k := 0;
@@ -407,11 +407,12 @@ BEGIN
 
 	libraryPaths[0] := "/lib32";
 	libraryPaths[1] := "/usr/lib32";
-	libraryPaths[2] := "/lib";
-	libraryPaths[3] := "/usr/lib";
-	libraryPaths[4] := "/usr/X11R6/lib";
-	libraryPaths[5] := "/usr/X11/lib";
-	libraryPaths[6] := "/usr/local/lib";
+	libraryPaths[2] := "/i386-linux-gnu";
+	libraryPaths[3] := "/usr/i386-linux-gnu";
+	libraryPaths[4] := "/lib";
+	libraryPaths[5] := "/usr/lib";
+	libraryPaths[6] := "/usr/X11R6/lib";
+	libraryPaths[7] := "/usr/X11/lib";
 
 
 	libc := Dlopen( libcname, 2 );
