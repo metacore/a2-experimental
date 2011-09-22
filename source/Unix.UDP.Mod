@@ -56,13 +56,11 @@ TYPE
 					SELF.lport := lport;  res := Error;
 					socket := Sockets.Socket( Unix.AFINET, Unix.SockDGram, Unix.IpProtoUDP );
 					IF socket # 0 THEN
-						IF lport # anyport THEN
-							laddr := Sockets.NewSocketAdr( anyIP, lport );
-							IF Sockets.Bind( socket, laddr ) THEN  
-								res := Ok;  open := TRUE  
-							ELSE  
-								Sockets.Close( socket )  
-							END
+						laddr := Sockets.NewSocketAdr( anyIP, lport );
+						IF Sockets.Bind( socket, laddr ) THEN  
+							res := Ok;  open := TRUE  
+						ELSE  
+							Sockets.Close( socket )  
 						END
 					END
 				END Open;
@@ -109,6 +107,9 @@ TYPE
 					addr: Sockets.SocketAdr; i: LONGINT;
 				BEGIN {EXCLUSIVE}
 					IF ~open THEN  res := Closed;  RETURN   END;
+					IF (ms >= 0) & ~Sockets.AwaitPacket( socket, ms ) THEN
+						res := Timeout;  RETURN
+					END;
 					IF Sockets.RecvFrom( socket, addr, data, ofs, len ) THEN
 						fport := Sockets.NetToInt( addr.port );
 						IF addr IS Sockets.SocketAdrV4 THEN

@@ -311,16 +311,33 @@ VAR
 	END Available;
 
 	PROCEDURE Requested*( s: LONGINT ): BOOLEAN;
-	VAR err, i: LONGINT;
+	VAR res, i: LONGINT;
 		readfds: Unix.FdSet;
 		timeout: Unix.Timeval;
 	BEGIN
 		timeout.sec := 0; timeout.usec := 0;
 		FOR i := 0 TO LEN( readfds ) - 1  DO readfds[i] := {} END;
 		INCL( readfds[s DIV 32],  s MOD 32 );
-		err := Unix.select( s+1, S.VAL( Unix.FdSetPtr, S.ADR( readfds ) ), NIL, NIL, timeout );
-		IF err < 0 THEN  RETURN FALSE  ELSE  RETURN TRUE  END;
+		res := Unix.select( s+1, S.VAL( Unix.FdSetPtr, S.ADR( readfds ) ), NIL, NIL, timeout );
+		IF res <= 0 THEN  RETURN FALSE  ELSE  RETURN TRUE  END;
 	END Requested;
+	
+	
+	PROCEDURE AwaitPacket*( s: LONGINT; ms: LONGINT ): BOOLEAN;
+	VAR res, err, i: LONGINT;
+		readfds: Unix.FdSet;
+		timeout: Unix.Timeval;
+	BEGIN
+		timeout.sec := ms DIV 1000;  ms := ms MOD 1000;
+		timeout.usec := 1000*ms;
+		FOR i := 0 TO LEN( readfds ) - 1  DO readfds[i] := {} END;
+		INCL( readfds[s DIV 32],  s MOD 32 );
+		REPEAT
+			res := Unix.select( s+1, S.VAL( Unix.FdSetPtr, S.ADR( readfds ) ), NIL, NIL, timeout );
+			IF res < 0 THEN  err := Unix.errno()  END
+		UNTIL (res >= 0) OR (err # Unix.EINTR);
+		IF res <= 0 THEN  RETURN FALSE  ELSE  RETURN TRUE  END;
+	END AwaitPacket;
 
 	
 	PROCEDURE SetLinger* ( s: LONGINT ): BOOLEAN;
