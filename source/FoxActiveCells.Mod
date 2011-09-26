@@ -991,6 +991,8 @@ TYPE
 			NEW(device,"Switch",SELF, LONGINT(0FFFFFFC7H)); supportedDevices.AddDevice(device);
 			NEW(device,"Motor",SELF,LONGINT(0FFFFFFCEH)); supportedDevices.AddDevice(device);
 			NEW(device,"BraceletSPI",SELF,LONGINT(0FFFFFFD2H)); supportedDevices.AddDevice(device);
+			NEW(device,"GPI",SELF,LONGINT(0FFFFFFD6H)); supportedDevices.AddDevice(device);
+			NEW(device,"GPO",SELF,LONGINT(0FFFFFFD6H)); supportedDevices.AddDevice(device);
 			NEW(imports,4);
 		END Init;
 
