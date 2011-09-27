@@ -72,7 +72,7 @@ VAR
 	recv		: PROCEDURE {C} ( s: LONGINT; buf: Address; len, flags: LONGINT ): LONGINT;
 	send		: PROCEDURE {C} ( s: LONGINT; buf: Address; len, flags: LONGINT ): LONGINT;
 	recvfrom	: PROCEDURE {C} ( s: LONGINT; buf: Address; len, flags: LONGINT; from: NameBuf; VAR flen: LONGINT ): LONGINT;
-	sendto		: PROCEDURE {C} ( s: LONGINT; buf: Address; len, flags: LONGINT; to: SocketAdr; VAR tlen: LONGINT ): LONGINT;
+	sendto		: PROCEDURE {C} ( s: LONGINT; buf: Address; len, flags: LONGINT; to: SocketAdr; tolen: LONGINT ): LONGINT;
 	shutdown	: PROCEDURE {C} ( s: LONGINT; how: LONGINT );
 	
 	getpeername	: PROCEDURE {C} ( s: LONGINT; adr: NameBuf; VAR adrlen: LONGINT ): LONGINT;
@@ -259,12 +259,12 @@ VAR
 	
 	
 	PROCEDURE RecvFrom*( s: LONGINT; VAR from: SocketAdr; 
-						    VAR buf: ARRAY OF CHAR; pos: LONGINT; VAR len: LONGINT ): BOOLEAN;
+						    VAR buf: ARRAY OF CHAR; pos: LONGINT;  VAR len: LONGINT ): BOOLEAN;
 	VAR res, err, size: LONGINT; nbuf: NameBuf;
 	BEGIN
 		NEW( nbuf ); size := 64;
 		REPEAT
-			res := recvfrom( s, S.ADR(buf[pos]), len, 0, nbuf, size );
+			res := recvfrom( s, S.ADR(buf[pos]), LEN( buf ) - pos, 0, nbuf, size );
 			IF res < 0 THEN  err := Unix.errno()  END
 		UNTIL (res >= 0) OR (err # Unix.EINTR);
 		IF res >= 0 THEN 
@@ -276,17 +276,17 @@ VAR
 		END
 	END RecvFrom;
 
-	PROCEDURE SendTo*( s: LONGINT; dest: SocketAdr; CONST buf: ARRAY OF CHAR; pos, len: LONGINT ): BOOLEAN;
+	PROCEDURE SendTo*( s: LONGINT;  dest: SocketAdr;  CONST buf: ARRAY OF CHAR;  pos, len: LONGINT ): BOOLEAN;
 	VAR err, size: LONGINT;
 	BEGIN
-		ASSERT( LEN(buf)-pos >= len );
+		ASSERT( LEN(buf) - pos >= len );
 		IF dest.family = Unix.AFINET THEN  size := SAdr4Size  ELSE  size := SAdr6Size  END;
 		err:= sendto( s, S.ADR( buf[pos] ), len, 0, dest, size );
 		IF err >= 0 THEN 
-			len := err;  RETURN TRUE 
+			RETURN TRUE 
 		ELSE 
 			Unix.Perror( "Sockets.SendTo" );
-			len := 0;  RETURN FALSE 
+			RETURN FALSE 
 		END
 	END SendTo;
 

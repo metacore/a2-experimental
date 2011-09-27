@@ -56,11 +56,17 @@ TYPE
 					SELF.lport := lport;  res := Error;
 					socket := Sockets.Socket( Unix.AFINET, Unix.SockDGram, Unix.IpProtoUDP );
 					IF socket # 0 THEN
-						laddr := Sockets.NewSocketAdr( anyIP, lport );
-						IF Sockets.Bind( socket, laddr ) THEN  
-							res := Ok;  open := TRUE  
-						ELSE  
-							Sockets.Close( socket )  
+						IF lport # anyport THEN
+							(* server *)
+							laddr := Sockets.NewSocketAdr( anyIP, lport );
+							IF Sockets.Bind( socket, laddr ) THEN  
+								res := Ok;  open := TRUE  
+							ELSE  
+								Sockets.Close( socket )  
+							END
+						ELSE
+							(* client *)
+							res := Ok;  open := TRUE 
 						END
 					END
 				END Open;
