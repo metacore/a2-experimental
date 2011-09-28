@@ -117,7 +117,7 @@ TYPE
 						res := Timeout;  RETURN
 					END;
 					IF Sockets.RecvFrom( socket, addr, data, ofs, len ) THEN
-						fport := Sockets.NetToInt( addr.port );
+						fport := Sockets.GetPortNumber( addr );
 						IF addr IS Sockets.SocketAdrV4 THEN
 							fip.usedProtocol := IP.IPv4;
 							fip.ipv4Adr := addr(Sockets.SocketAdrV4).v4Adr;
@@ -137,7 +137,7 @@ TYPE
 
 				(** Close the Socket, freeing its address for re-use. *)
 				PROCEDURE Close*;
-				BEGIN {EXCLUSIVE}
+				BEGIN 
 					Sockets.Close( socket )
 				END Close;
 

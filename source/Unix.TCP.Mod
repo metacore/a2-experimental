@@ -235,13 +235,13 @@ TYPE
 
 				(** Close a TCP connection (half-close). *)
 				PROCEDURE Close*;
-				BEGIN {EXCLUSIVE}
+				BEGIN 
 					Sockets.Close( socket );  state := Closed;
 				END Close;
 
 				(** Discard a TCP connection (shutdown). *)
 				PROCEDURE Discard*;
-				BEGIN {EXCLUSIVE}
+				BEGIN 
 					Sockets.Close( socket );  state := Closed;
 				END Discard;
 
