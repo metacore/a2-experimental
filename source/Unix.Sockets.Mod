@@ -57,9 +57,7 @@ TYPE
 
 CONST 
 	LingerSize = 8;
-	SAdr4Size = 16;
-	SAdr6Size = 32;
-	
+
 
 
 VAR
@@ -142,7 +140,7 @@ VAR
 	PROCEDURE BufToSocketAdr( CONST buf: ARRAY OF CHAR; len: LONGINT ): SocketAdr;
 	VAR adr4: SocketAdrV4; adr6: SocketAdrV6; 
 	BEGIN
-		IF len = SAdr4Size THEN
+		IF len = Unix.SockAddrSizeV4 THEN
 			NEW( adr4 ); 
 			S.MOVE( S.ADR( buf ), S.ADR( adr4^), len );
 			RETURN adr4
@@ -168,7 +166,7 @@ VAR
 	PROCEDURE Bind*( s: LONGINT; addr: SocketAdr): BOOLEAN;
 	VAR err, len: LONGINT;  
 	BEGIN
-		IF addr.family = Unix.AFINET THEN  len := SAdr4Size  ELSE  len := SAdr6Size  END;
+		IF addr.family = Unix.AFINET THEN  len := Unix.SockAddrSizeV4  ELSE  len := Unix.SockAddrSizeV6  END;
 		err:= bind( s, addr, len );
 		RETURN err = 0 
 	END Bind;
@@ -183,7 +181,7 @@ VAR
 	PROCEDURE Connect*( s: LONGINT; addr: SocketAdr ): BOOLEAN;
 	VAR err, len: LONGINT;
 	BEGIN
-		IF addr.family = Unix.AFINET THEN  len := SAdr4Size  ELSE  len := SAdr6Size  END;
+		IF addr.family = Unix.AFINET THEN  len := Unix.SockAddrSizeV4  ELSE  len := Unix.SockAddrSizeV6  END;
 		err:= connect( s, addr, len );
 		IF err = 0 THEN 
 			RETURN TRUE 
@@ -280,7 +278,7 @@ VAR
 	VAR err, size: LONGINT;
 	BEGIN
 		ASSERT( LEN(buf) - pos >= len );
-		IF dest.family = Unix.AFINET THEN  size := SAdr4Size  ELSE  size := SAdr6Size  END;
+		IF dest.family = Unix.AFINET THEN  size := Unix.SockAddrSizeV4  ELSE  size := Unix.SockAddrSizeV6  END;
 		err:= sendto( s, S.ADR( buf[pos] ), len, 0, dest, size );
 		IF err >= 0 THEN 
 			RETURN TRUE 
