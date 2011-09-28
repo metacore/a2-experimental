@@ -135,6 +135,8 @@ CONST
 	(* shutdown *)
 		ShutRDWR*	= 2;
 		
+	SockAddrSizeV4*	= 16;
+	SockAddrSizeV6*	= 32;
 
 	(*------------------------------------------------------------------*)
 
