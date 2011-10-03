@@ -657,7 +657,7 @@ TYPE
 							IF  (token >= 0) THEN s := token END;
 							IF (s = Module) OR (s=CellNet) THEN case := Lowercase END;
 						END;
-						IF firstIdentifier & (s # Module) THEN case := Uppercase; s := Identifier END;
+						IF firstIdentifier & (s # Module) & (s # CellNet) THEN case := Uppercase; s := Identifier END;
 				ELSE s := Identifier;  GetIdentifier( symbol );
 				END;
 			END;
