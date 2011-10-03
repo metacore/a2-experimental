@@ -61,8 +61,11 @@ TYPE
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR i: LONGINT;
 		BEGIN
-			symbol.DumpName(w); w.String(":"); w.Int(displacement,1);
-			IF symbolOffset # 0 THEN w.String(" (@"); w.Int(symbolOffset,1); w.String(")") END;
+			symbol.DumpName(w);			
+			IF symbolOffset # 0 THEN w.String(":"); w.Int(symbolOffset, 0) END;
+			
+			w.String(" (displ="); w.Int(displacement, 0); w.String(")");
+			
 			IF scale # 0 THEN w.String(" *"); w.Int(scale,1); END;
 			w.String(" [");
 
