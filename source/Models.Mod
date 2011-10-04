@@ -1,7 +1,7 @@
 MODULE Models; (** AUTHOR "staubesv"; PURPOSE "Models"; *)
 
 IMPORT
-	Streams, Locks, Types, Strings, XML, Texts, TextUtilities, Repositories, WMEvents;
+	Streams, Locks, Types, Strings, XML, Texts, TextUtilities, Repositories, WMEvents, WMComponents;
 
 CONST
 	Ok* = Types.Ok;
@@ -25,7 +25,7 @@ TYPE
 			- Notification of listeners
 			- Internalization/externalization
 	*)
-	Model* = OBJECT(Repositories.Component)
+	Model* = OBJECT(WMComponents.Component)
 	VAR
 		onChanged- : WMEvents.EventSource;
 		changed : BOOLEAN;
@@ -183,6 +183,7 @@ TYPE
 			Init^;
 			SetNameAsString(StrBoolean);
 			value := FALSE;
+			SetGenerator("Models.GenBoolean");
 		END Init;
 
 		PROCEDURE Set*(value : BOOLEAN);
@@ -237,6 +238,7 @@ TYPE
 			Init^;
 			SetNameAsString(StrInteger);
 			value := 0;
+			SetGenerator("Models.GenInteger");
 		END Init;
 
 		PROCEDURE Set*(value : LONGINT);
@@ -301,6 +303,7 @@ TYPE
 			Init^;
 			SetNameAsString(StrReal);
 			value := 0.0;
+			SetGenerator("Models.GenReal");
 		END Init;
 
 		PROCEDURE Set*(value : REAL);
@@ -355,6 +358,7 @@ TYPE
 			Init^;
 			SetNameAsString(StrLongreal);
 			value := 0.0;
+			SetGenerator("Models.GenLongreal");
 		END Init;
 
 		PROCEDURE Set*(value : LONGREAL);
@@ -409,6 +413,7 @@ TYPE
 			Init^;
 			SetNameAsString(StrChar);
 			value := 0X;
+			SetGenerator("Models.GenChar");
 		END Init;
 
 		PROCEDURE Set*(value : CHAR);
@@ -468,6 +473,7 @@ TYPE
 			Init^;
 			NEW(value, InitialStringSize);
 			SetNameAsString(StrString);
+			SetGenerator("Models.GenString");
 		END Init;
 
 		PROCEDURE Set*(value : Strings.String);
@@ -549,6 +555,7 @@ TYPE
 			Init^;
 			SetNameAsString(StrSet);
 			value := {};
+			SetGenerator("Models.GenSet");
 		END Init;
 
 		PROCEDURE Set*(value : SET);
@@ -633,6 +640,7 @@ TYPE
 			Init^;
 			SetNameAsString(StrText);
 			NEW(value); value.onTextChanged.Add(OnTextChanged);
+			SetGenerator("Models.GenText");
 		END Init;
 
 		PROCEDURE AcquireRead*;
@@ -739,6 +747,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrContainer);
+			SetGenerator("Models.GenContainer");
 		END Init;
 
 		PROCEDURE FindModel(CONST name : ARRAY OF CHAR) : Model;

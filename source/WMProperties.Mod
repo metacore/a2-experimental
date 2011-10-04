@@ -1507,6 +1507,7 @@ TYPE
 			en := xml.GetContents();
 			p := en.GetNext();
 			NotDefault;
+
 			IF (p # NIL ) & (p IS XML.Chars) THEN
 				s := p(XML.Chars).GetStr();
 				IF s # NIL THEN
@@ -1531,7 +1532,8 @@ TYPE
 					repository := context(Repositories.StoreContext).repository;
 					id := 1;
 					repository.PutComponent(object, name^,id,res);
-					w.String(name^); w.String(":"); w.Int(id, 0);
+
+					w.String(":"); (* <-- THIS repository *) w.String(name^); w.String(":"); w.Int(id, 0);
 				ELSE
 					ToStream(w);
 				END;

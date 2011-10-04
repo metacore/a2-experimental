@@ -942,7 +942,10 @@ TYPE
 						IF (ci.type = Type_Generator) THEN
 							INCL(component.flags, Generated);
 						ELSIF (ci.type = Type_Component) THEN
+							(*! what is this for? temporary commented to check persistency implementation.. *)
+							(*
 							LockChildren(component);
+							*)
 						END;
 						COPY(ci.name^, cname);
 						component(Component).SetRepository(SELF, cname, ci.id);
@@ -1097,6 +1100,7 @@ TYPE
 		BEGIN
 			ASSERT(component # NIL);
 			archive.Acquire;
+			D.String("StoreComponent to "); D.String(filename); D.Ln;
 			writer := GetWriter(archive, filename);
 			IF (writer # NIL) THEN
 				NEW(context, SELF);
@@ -1378,7 +1382,8 @@ BEGIN
 		Strings.Copy(name, 0, next, repositoryName);
 		Strings.Copy(name, next + 1, Strings.Length(name) - next, componentName);
 		id := 0;
-		succeeded := IsValidName(repositoryName) & IsValidName(componentName);
+		succeeded := ((repositoryName = "" ) OR IsValidName(repositoryName)) & IsValidName(componentName);
+		(* no, this is ambiguous, rather use ":ComponenName:Number" for such cases
 		IF ~succeeded & IsValidName(repositoryName) & IsNumber(componentName) THEN
 			succeeded := TRUE;
 			Strings.StrToInt(componentName, id);
@@ -1386,6 +1391,7 @@ BEGIN
 			COPY(repositoryName, componentName);
 			repositoryName := "";
 		END;
+		*)
 	ELSIF (count = 2) THEN
 		next := Strings.Find(name, 0, Delimiter);
 		Strings.Copy(name, 0, next, repositoryName);
@@ -1394,10 +1400,13 @@ BEGIN
 		Strings.Copy(name, pos, next - pos, componentName);
 		pos := next + 1;
 		Strings.StrToIntPos(name, id, pos);
-		succeeded := IsValidName(repositoryName) & IsValidName(componentName);
+		succeeded := ((repositoryName = "") OR IsValidName(repositoryName)) & IsValidName(componentName);
 	ELSE
 		succeeded := FALSE;
 	END;
+	D.String("SplitName"); D.String(repositoryName); D.String(":"); D.String(componentName); D.String(":"); D.Int(id,1);
+	IF succeeded THEN D.String(" (succeedded"); END;
+	D.Ln;
 	RETURN succeeded;
 END SplitName;
 
