@@ -1179,7 +1179,7 @@ PACKAGE EFI ARCHIVE "EFI.zip" SOURCE "EFISrc.zip" DESCRIPTION "EFI Boot Loader a
 
 	EFILib.Mod
 
-	EFITest.Mod EFIA2Loader.Mod
+	EFITest.Mod EFIGraphicalConsole.Mod EFIA2Loader.Mod
 END
 
 PACKAGE Contributions ARCHIVE "Contributions.zip" SOURCE "ContributionsSrc.zip"  DESCRIPTION "Contributions"
