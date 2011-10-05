@@ -1,7 +1,7 @@
 MODULE ComponentViewer;	(** AUTHOR "TF"; PURPOSE "Testbed for the component system"; *)
 
 IMPORT
-	Modules, Commands, Options, XML, Repositories, WMMessages, WMGraphics, WMWindowManager, WMComponents, WMRestorable;
+	Modules, Commands, Options, XML, Repositories, WMMessages, WMGraphics, WMWindowManager, WMComponents, WMRestorable, D:= Debugging, Files;
 
 CONST
 	DefaultWidth = 320;
@@ -135,6 +135,43 @@ BEGIN
 		context.error.String("Usage: ComponentViewer.Open [Options] <string> ~"); context.error.Ln;
 	END;
 END Open;
+
+PROCEDURE Store*(context: Commands.Context);
+VAR
+	filename, name, ext, formName : ARRAY 256 OF CHAR;
+	form: WMComponents.Component;
+	id,res: LONGINT;
+	originator: WMComponents.Component;
+	parent: XML.Element;
+BEGIN{EXCLUSIVE}
+	context.arg.SkipWhitespace; context.arg.String(filename); D.String(filename); D.Ln;
+
+	IF (context # NIL) & (context IS WMComponents.EventContext) THEN
+		originator := context(WMComponents.EventContext).originator;
+		parent := originator.GetParent();
+		WHILE (parent # NIL) & (parent IS WMComponents.Component) & ~(parent IS WMComponents.Form) DO
+			originator := parent(WMComponents.Component);
+			parent := originator.GetParent();
+		END;
+	END;
+	form := originator;
+	(*form := GetForm(current);*)
+	IF (form # NIL) & (filename # "") THEN
+		Repositories.CreateRepository(filename,res);
+		ASSERT(res = Repositories.Ok);
+		Files.SplitExtension(filename, name, ext);
+		id:= 1;
+		COPY(form.GetName()^,formName);
+		Repositories.PutComponent(form,name,form.GetName()^,id,res);
+		ASSERT(res = Repositories.Ok);
+		Repositories.StoreRepository(name,res);
+		ASSERT(res = Repositories.Ok);
+		Repositories.UnloadRepository(name,res);
+		ASSERT(res = Repositories.Ok);
+		context.out.String("stored component in repository "); context.out.String(filename); context.out.Ln;
+	END;
+END Store;
+
 
 PROCEDURE Restore*(context : WMRestorable.Context);
 VAR w : Window;

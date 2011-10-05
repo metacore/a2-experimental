@@ -196,7 +196,7 @@ TYPE
 		PROCEDURE Write*(w : Streams.Writer;context: ANY; level : LONGINT);
 		VAR enum: XMLObjects.Enumerator; c: ANY; name : Strings.String; nextLevel : LONGINT;
 		BEGIN
-			IF IsLocked() THEN RETURN; END;
+			IF IsLocked() THEN D.String("Component.Write: islocked"); D.Ln; RETURN; END;
 			IF ~internal THEN
 				name := GetName();
 				w.Char('<'); IF name = NIL THEN w.String("_NILNAME_") ELSE w.String(name^) END;
@@ -205,6 +205,7 @@ TYPE
 				properties.WriteXML(w, context, level);
 				nextLevel := level + 1;
 			ELSE
+				D.String("Component.Write: isInternal"); D.Ln;
 				nextLevel := level;
 			END;
 			enum := GetContents();
@@ -212,6 +213,7 @@ TYPE
 				c := enum.GetNext();
 				IF ~(c IS WMProperties.Properties) THEN
 					IF ~((c IS Component) & ((c(Component).internal) OR c(Component).IsLocked())) THEN NewLine(w, 0); NewLine(w, nextLevel); END;
+					(*D.String("WMComponents writing "); D.String(c(XML.Element).GetName()^); D.Ln;*)
 					c(XML.Content).Write(w, context, nextLevel);
 				END;
 			END;
@@ -929,7 +931,7 @@ TYPE
 		(** Dropped is called via the message handler to indicate an item has been dropped. *)
 		PROCEDURE DragDropped*(x, y: LONGINT; dragInfo : WM.DragInfo);
 		BEGIN
-
+			IF dragInfo.onReject # NIL THEN dragInfo.onReject(SELF,dragInfo) END;
 		END DragDropped;
 
 		(*
@@ -982,6 +984,7 @@ TYPE
 				model.Set(data(Repositories.Component));
 				RETURN TRUE
 			ELSE
+				IF dragInfo.onReject # NIL THEN dragInfo.onReject(SELF,dragInfo) END;
 				RETURN FALSE
 			END;
 		END EditDragDropped;
@@ -1335,6 +1338,8 @@ TYPE
 					command := GetAttributeValue("onReturn");
 				ELSIF (keySym = Inputs.KsEscape) THEN
 					command := GetAttributeValue("onEscape");
+				ELSIF (keySym = Inputs.KsF1) & (Inputs.Shift * flags # {}) THEN
+					SetEditMode(~editMode.Get(), TRUE);
 				END;
 				IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 
@@ -1494,6 +1499,7 @@ TYPE
 			currentEditRegion: LONGINT;
 			parent: XML.Element;
 			parentEditMode: BOOLEAN;
+
 		BEGIN
 			ASSERT(IsCallFromSequencer());
 			handled := FALSE;
@@ -1527,7 +1533,6 @@ TYPE
 						Edit(msg);
 					ELSE
 						IF msg.msgSubType = Messages.MsgSubPointerMove THEN
-
 							IF (parentEditMode) & (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
 								manager := msg.originator(WM.ViewPort).manager;
 								msg.originator(WM.ViewPort).GetKeyState(keyFlags);
@@ -1575,7 +1580,7 @@ TYPE
 							IF extPointerLeave # NIL THEN extPointerLeave(handled) END;
 							IF ~handled THEN PointerLeave END
 						END;
-						IF (msg.flags * {0, 1, 2} # {}) THEN
+						IF ~parentEditMode & (msg.flags * {0, 1, 2} # {}) & (msg.msgSubType = Messages.MsgSubPointerDown) THEN
 							CheckPointerEvent(msg.x, msg.y, msg.z, msg.flags);
 						END;
 					END;

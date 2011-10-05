@@ -136,11 +136,13 @@ TYPE
 		renderOffsetX : LONGINT;
 		lastX, lastY : LONGINT;
 
+		value: XML.Attribute;
+
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
 			SetNameAsString(GSTextField);
-
+			SetGenerator("WMEditors.GenTextField");
 			NEW(type, typeProto, NIL, NIL); properties.Add(type);
 			NEW(readOnly, readOnlyProto, NIL, NIL); properties.Add(readOnly);
 			NEW(textColor, textColorProto, NIL, NIL); properties.Add(textColor);
@@ -169,6 +171,8 @@ TYPE
 			lastX := -1; lastY := -1;
 			SetPointerInfo(manager.pointerText);
 			takesFocus.Set(TRUE);
+
+			NEW(value);value.SetName("Value"); value.SetValue(""); AddAttribute(value);
 		END Init;
 
 		PROCEDURE Initialize;
@@ -315,10 +319,11 @@ TYPE
 		PROCEDURE UpdateModel;
 		VAR string : Types.String256; res : LONGINT;
 		BEGIN
+			GetAsString(string.value);
 			IF (modelI # NIL) THEN
-				GetAsString(string.value);
 				modelI.SetGeneric(string, res);
 			END;
+			value.SetValue(string.value);
 		END UpdateModel;
 
 		PROCEDURE Changed;
@@ -1136,6 +1141,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(GSEditor);
+			SetGenerator("WMEditors.GenEditor");
 			allowIME := TRUE;
 			ime := WMInputMethods.activeIME;
 			NEW(multiLine, multiLineProto, NIL, NIL); properties.Add(multiLine);

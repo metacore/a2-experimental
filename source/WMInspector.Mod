@@ -3,7 +3,7 @@ MODULE WMInspector; (** AUTHOR "staubesv"; PURPOSE "Component inspection"; *)
 IMPORT
 	Modules, Strings, XMLObjects, Texts,
 	WMRectangles, WMGraphics, WMMessages, WMRestorable, WMWindowManager,
-	WMComponents, WMStandardComponents, WMTrees, WMTabComponents, WMInspectionComponents;
+	WMComponents, WMStandardComponents, WMTrees, WMTabComponents, WMInspectionComponents, XML, Raster;
 
 CONST
 	WindowWidth = 800; WindowHeight = 500;
@@ -17,10 +17,10 @@ TYPE
 	Windows = ARRAY MaxNofWindows OF WMWindowManager.Window;
 
 	(** Tree component that displays all window instances and their component hierarchies *)
-	InspectionTree = OBJECT(WMComponents.VisualComponent)
+	InspectionTree* = OBJECT(WMComponents.VisualComponent)
 	VAR
-		treeView : WMTrees.TreeView;
-		tree : WMTrees.Tree;
+		treeView- : WMTrees.TreeView;
+		tree- : WMTrees.Tree;
 
 		PROCEDURE &Init;
 		BEGIN
@@ -97,10 +97,11 @@ TYPE
 TYPE
 
 	(** Tree component that displays all window instances and their component hierarchies *)
-	FormComponentsTree = OBJECT(InspectionTree)
+	FormComponentsTree* = OBJECT(InspectionTree)
 	VAR
 		windows : Windows;
 		refreshBtn : WMStandardComponents.Button;
+		dragger: DragCommand;
 
 		PROCEDURE &Init;
 		BEGIN
@@ -112,7 +113,9 @@ TYPE
 			refreshBtn.caption.SetAOC("Refresh");
 			refreshBtn.onClick.Add(Refresh);
 			AddContent(refreshBtn);
-
+			NEW(dragger); dragger.alignment.Set(WMComponents.AlignBottom);
+			dragger.bounds.SetHeight(20);
+			AddContent(dragger);
 			AddContent(treeView);
 		END Init;
 
@@ -269,9 +272,9 @@ TYPE
 	KillerMsg = OBJECT
 	END KillerMsg;
 
-	Window = OBJECT(WMComponents.FormWindow)
+	Window* = OBJECT(WMComponents.FormWindow)
 	VAR
-		formTree : FormComponentsTree;
+		formTree- : FormComponentsTree;
 		textTree : TextComponentsTree;
 		selectedTextTree : SelectedTextTree;
 		currentTree : InspectionTree;
@@ -279,7 +282,7 @@ TYPE
 		libraryPanel : WMInspectionComponents.RepositoryPanel;
 		xmlPanel : WMInspectionComponents.XMLPanel;
 
-		PROCEDURE &New(context : WMRestorable.Context);
+		PROCEDURE &New*(context : WMRestorable.Context);
 		BEGIN
 			Init(WindowWidth, WindowHeight, FALSE);
 			IncCount;
@@ -325,6 +328,7 @@ TYPE
 
 			NEW(formTree); formTree.alignment.Set(WMComponents.AlignClient);
 			tabEntry.AddContent(formTree);
+			formTree.dragger.window := SELF;
 
 			NEW(tabEntry); tabEntry.alignment.Set(WMComponents.AlignClient);
 			tabEntry.caption.SetAOC("Text");
@@ -421,6 +425,101 @@ TYPE
 
 	END Window;
 
+	(* quick and dirty, preliminary for testing purposes, fof *)
+	DragCommand*= OBJECT(WMStandardComponents.Label)
+	VAR caption: XML.Attribute; window: Window;
+
+		PROCEDURE &Init*;
+		BEGIN
+			Init^; SELF.window := NIL;
+			NEW(caption); caption.SetName("Caption"); caption.SetValue("Drag to Inspect"); AddAttribute(caption);
+			SetGenerator("IngaComponents.NewCommandDragger");
+		END Init;
+
+		PROCEDURE DrawBackground(canvas: WMGraphics.Canvas);
+		VAR r: WMRectangles.Rectangle; name: XML.String;
+		BEGIN
+			r := GetClientRect();
+			canvas.Fill(r,LONGINT(0FF00FFFFH),WMGraphics.ModeSrcOverDst);
+			name := caption.GetValue();
+			IF name # NIL THEN
+				r := GetClientRect();
+				canvas.SetColor(0FFH);
+				WMGraphics.DrawStringInRect(canvas, r, FALSE, 1, 1, name^)
+			END;
+		END DrawBackground;
+
+		PROCEDURE Accept(sender, par: ANY);
+		VAR window: Window;
+			treeView : WMTrees.TreeView;
+			tree : WMTrees.Tree;
+			root: WMTrees.TreeNode;
+		(*window: WMInspectionComponents.Window; propertyPanel: WMInspectionComponents.PropertyPanel;*)
+
+			PROCEDURE FindComponent(node: WMTrees.TreeNode): BOOLEAN;
+			BEGIN
+				IF node = NIL THEN RETURN FALSE
+				ELSIF tree.GetNodeData(node)=sender THEN
+					tree.InclNodeState(node, WMTrees.NodeExpanded);
+					treeView.SelectNode(node);
+					treeView.onClickNode.Call(node);
+					RETURN TRUE
+				ELSE
+					IF FindComponent(tree.GetChildren(node)) THEN
+						tree.InclNodeState(node, WMTrees.NodeExpanded);
+						RETURN TRUE
+						(* open drag *)
+					ELSE
+						tree.ExclNodeState(node, WMTrees.NodeExpanded);
+						RETURN FindComponent(tree.GetNextSibling(node))
+					END;
+				END;
+			END FindComponent;
+
+		BEGIN
+			IF (sender # NIL) & (sender IS WMComponents.Component) THEN
+				IF SELF.window = NIL THEN
+					NEW(window,NIL);
+					WMWindowManager.AddWindow(window,100,100);
+				ELSE window := SELF.window
+				END;
+
+				treeView := window.formTree.treeView;
+				tree := window.formTree.tree;
+				tree.Acquire;
+				root := tree.GetRoot();
+				IF FindComponent(root) THEN END;
+				tree.Release;
+				(*
+				NEW(propertyPanel);
+				propertyPanel.bounds.SetExtents(300,300);
+				propertyPanel.fillColor.Set(WMGraphics.Yellow);
+				NEW(window, propertyPanel);
+				propertyPanel.SetComponent(SELF,sender);
+				*)
+			END;
+		END Accept;
+
+		PROCEDURE PointerDown(x, y : LONGINT; keys : SET);
+		VAR
+			img,icon: WMGraphics.Image; canvas, iconCanvas: WMGraphics.BufferCanvas; color: LONGINT;
+			r: WMRectangles.Rectangle;
+		BEGIN
+			IF 0 IN keys THEN
+				r := GetClientRect();
+				color := LONGINT(0AAFF00FFH);
+				NEW(img);
+				Raster.Create(img, 30,30, Raster.BGRA8888);
+				NEW(canvas,img);
+				canvas.Fill(WMRectangles.MakeRect(0, 0, 30,30), color , WMGraphics.ModeSrcOverDst);
+
+				IF StartDrag(NIL, img, 0,0,Accept,Accept) THEN
+				END;
+			END
+		END PointerDown;
+
+	END DragCommand;
+
 VAR
 	nofWindows : LONGINT;
 	manager : WMWindowManager.WindowManager;
@@ -514,6 +613,11 @@ BEGIN {EXCLUSIVE}
 	AWAIT(nofWindows = 0)
 END Cleanup;
 
+PROCEDURE NewCommandDragger*(): XML.Element;
+VAR label : DragCommand;
+BEGIN NEW(label); RETURN label
+END NewCommandDragger;
+
 BEGIN
 	nofWindows := 0;
 	manager := WMWindowManager.GetDefaultManager();
@@ -525,3 +629,5 @@ SystemTools.Free WMInspector ~
 SystemTools.FreeDownTo WMInspectionComponents ~
 
 WMInspector.Open ~
+
+ComponentViewer.Open --client WMInspector.NewCommandDragger ~

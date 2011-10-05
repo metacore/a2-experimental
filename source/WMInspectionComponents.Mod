@@ -1088,7 +1088,8 @@ TYPE
 				modelView.bounds.SetExtents(ModelWindowWidth, ModelWindowHeight);
 				modelView.fillColor.Set(WMGraphics.White);
 				NEW(window, modelView);
-			ELSIF (object # NIL) & (object IS WMComponents.Component) THEN
+			END;
+			IF (object # NIL) & (object IS WMComponents.Component) THEN
 				NEW(propertyPanel);
 				propertyPanel.bounds.SetExtents(300,300);
 				propertyPanel.fillColor.Set(WMGraphics.Yellow);
@@ -3295,7 +3296,7 @@ TYPE
 
 	KillerMsg = OBJECT END KillerMsg;
 
-	Window = OBJECT(WMComponents.FormWindow)
+	Window* = OBJECT(WMComponents.FormWindow)
 
 		PROCEDURE &New*(vc : WMComponents.VisualComponent);
 		BEGIN

@@ -1211,7 +1211,9 @@ TYPE
 				WHILE enumerator.HasMoreElements() DO
 					ptr := enumerator.GetNext();
 					IF (ptr IS XML.Attribute) THEN
-						element.AddAttribute(ptr(XML.Attribute));
+						(*! element must be copied ..., how to avoid this ? *)
+						element.SetAttributeValue(ptr(XML.Attribute).GetName()^, ptr(XML.Attribute).GetValue()^);
+						(* element.AddAttribute(ptr(XML.Attribute)); *)
 					END;
 				END;
 				RETURN element;
