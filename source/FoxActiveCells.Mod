@@ -14,6 +14,9 @@ CONST
 	SpecificationFileExtension*="spec";
 	ObjectFileExtension*="Gof";
 
+	VectorCapability*=0;
+	FloatingPointCapability*=1;
+
 	TraceError=TRUE;
 	BasePortAddress=LONGINT(0FFFFFFE0H);
 
@@ -402,7 +405,9 @@ TYPE
 		type-: Type; (* instance type *)
 		parameters-: ParameterList;
 		index-: LONGINT;
+		(* caches: *)
 		instructionMemorySize-, dataMemorySize-: LONGINT;
+		capabilities-: SET;
 
 		PROCEDURE &Init(CONST name: ARRAY OF CHAR; scope: Scope; c: Type);
 		BEGIN
@@ -410,8 +415,9 @@ TYPE
 			type := c;
 			index := -1; SELF.scope := scope; NEW(parameters,4);
 			ASSERT(scope # NIL);
-			instructionMemorySize := defaultInstructionMemorySize;
-			dataMemorySize := defaultDataMemorySize;
+			instructionMemorySize := c.instructionMemorySize;
+			dataMemorySize := c.dataMemorySize;
+			capabilities := c.capabilities;
 		END Init;
 
 		PROCEDURE SetInstructionMemorySize*(value: LONGINT);
@@ -621,10 +627,10 @@ TYPE
 	*)
 	Type*=OBJECT (Scope)
 	VAR
-
 		devices-: DeviceList;
 		modules-: ModuleList; (* for linking / compiling *)
 		instructionMemorySize-, dataMemorySize-: LONGINT; (* sizes in units *)
+		capabilities-: SET;
 
 		PROCEDURE & InitType*(CONST name: ARRAY OF CHAR; scope: Scope);
 		BEGIN
@@ -634,8 +640,14 @@ TYPE
 			dataMemorySize := defaultDataMemorySize;
 			NEW(devices,4);
 			NEW(modules,4);
-			SELF.scope := scope
+			SELF.scope := scope;
+			capabilities := {};
 		END InitType;
+
+		PROCEDURE AddCapability*(capability: LONGINT);
+		BEGIN
+			INCL(capabilities, capability);
+		END AddCapability;
 
 		PROCEDURE SetInstructionMemorySize*(value: LONGINT);
 		BEGIN instructionMemorySize := value

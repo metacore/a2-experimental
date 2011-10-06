@@ -159,6 +159,16 @@ TYPE
 			END;
 		END HasValue;
 
+		PROCEDURE HasFlag(modifiers: SyntaxTree.Modifier; CONST name: ARRAY OF CHAR): BOOLEAN;
+		VAR this: SyntaxTree.Modifier; id: SyntaxTree.Identifier;
+		BEGIN
+			this := modifiers; id := SyntaxTree.NewIdentifier(name);
+			WHILE (this # NIL) & (this.identifier# id) DO
+				this := this.nextModifier;
+			END;
+			RETURN this # NIL
+		END HasFlag;
+
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		VAR componentName, parameterName, name: SyntaxTree.String; instanceType: ActiveCells.Type;
 			parameter: SyntaxTree.Parameter; parameterType: SyntaxTree.Type; portIndex,i,direction,len: LONGINT;
@@ -174,6 +184,12 @@ TYPE
 			END;
 			IF HasValue(x.modifiers,Global.StringCodeMemorySize,codeMemorySize) THEN
 				instanceType.SetInstructionMemorySize(codeMemorySize)
+			END;
+			IF HasFlag(x.modifiers, Global.StringVector) THEN
+				instanceType.AddCapability(ActiveCells.VectorCapability)
+			END;
+			IF HasFlag(x.modifiers, Global.StringFloatingPoint) THEN
+				instanceType.AddCapability(ActiveCells.FloatingPointCapability)
 			END;
 
 			currentActiveCellsScope := instanceType;

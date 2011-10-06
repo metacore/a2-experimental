@@ -218,9 +218,19 @@ TYPE
 			Scope(x.recordScope);
 		END VisitRecordType;
 
+		PROCEDURE HasFlag(modifiers: SyntaxTree.Modifier; CONST name: ARRAY OF CHAR): BOOLEAN;
+		VAR this: SyntaxTree.Modifier; id: SyntaxTree.Identifier;
+		BEGIN
+			this := modifiers; id := SyntaxTree.NewIdentifier(name);
+			WHILE (this # NIL) & (this.identifier# id) DO
+				this := this.nextModifier;
+			END;
+			RETURN this # NIL
+		END HasFlag;
+
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		VAR name:Basic.PooledName; td: SyntaxTree.TypeDeclaration; type: SyntaxTree.Type; len,port,adr: LONGINT;
-			parameter: SyntaxTree.Parameter; symbol: IntermediateCode.Section; op: IntermediateCode.Operand;
+			parameter: SyntaxTree.Parameter; symbol: IntermediateCode.Section; op: IntermediateCode.Operand; capabilities: SET;
 		BEGIN
 			CheckTypeDeclaration(implementationVisitor, module,x,dump,implementationVisitor.newObjectFile);
 			IF (x.cellScope.ownerModule = module.module)  THEN
@@ -249,7 +259,10 @@ TYPE
 				END;
 				parameter := parameter.nextParameter;
 			END;
-
+			capabilities := {};
+			IF HasFlag(x.modifiers, Global.StringFloatingPoint) THEN INCL(capabilities, Global.FloatingPointCapability) END;
+			IF HasFlag(x.modifiers, Global.StringVector) THEN INCL(capabilities, Global.VectorCapability) END;
+			backend.SetCapabilities(capabilities);
 			Scope(x.cellScope);
 		END VisitCellType;
 

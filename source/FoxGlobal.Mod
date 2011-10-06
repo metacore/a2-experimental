@@ -30,6 +30,9 @@ CONST
 	StringChannelDepth*= "ChannelDepth";
 	StringChannelModule*= "Channels";
 
+	StringVector*="Vector";
+	StringFloatingPoint*="FloatingPoint";
+
 	(* traps *)
 	WithTrap* = 1;
 	CaseTrap* = 2;
@@ -95,13 +98,16 @@ CONST
 	IncMul* = DecMul + 1;
 	end = IncMul + 1;
 
+	VectorCapability* = 0;
+	FloatingPointCapability*= 1;
+
 VAR
 	(* names *)
 	SelfParameterName-,ReturnParameterName-,SystemName-,systemName-,PointerReturnName-, ResultName-,
 	A2Name-,OberonName-,ArrayBaseName-,RecordBodyName-,ModuleBodyName-,
 	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-,NameNoPAF-,NameFixed-,NameAligned-,NameStackAligned-,
 	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-, NameDynamic-, NameDataMemorySize-, NameCodeMemorySize-
-	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-: SyntaxTree.Identifier;
+	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-, NameVector-, NameFloatingPoint-: SyntaxTree.Identifier;
 
 	identifiers: ARRAY 2 OF ARRAY end OF SyntaxTree.Identifier;
 
@@ -1373,6 +1379,8 @@ TYPE
 		NameChannelWidth := SyntaxTree.NewIdentifier(StringChannelWidth);
 		NameChannelDepth := SyntaxTree.NewIdentifier(StringChannelDepth);
 		NameChannelModule := SyntaxTree.NewIdentifier(StringChannelModule);
+		NameVector := SyntaxTree.NewIdentifier(StringVector);
+		NameFloatingPoint := SyntaxTree.NewIdentifier(StringFloatingPoint);
 
 		(* types *)
 		Boolean8 := SyntaxTree.NewBooleanType(8);

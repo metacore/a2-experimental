@@ -407,6 +407,8 @@ TYPE
 				END;
 
 				assembler.PrearrangeReachableDataSections;
+				backend.SetCapabilities(instance.capabilities);
+				D.String("capabilities set to "); D.Set(instance.capabilities); D.Ln; 
 
 				IF ~assembler.GenerateObjectFileWithName(objectFileFormat, specification.log, {}, NIL, NIL, instanceName) THEN
 					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "could not generate object file");

@@ -17,6 +17,7 @@ TYPE
 		activeCellsSpecification-: ActiveCells.Specification;
 		findSectionName-: SyntaxTree.String;
 		findSectionOffset-: LONGINT;
+		capabilities-: SET;
 
 		(* constructor *)
 		PROCEDURE & InitBackend *;
@@ -28,6 +29,12 @@ TYPE
 			findSectionName := "";
 			findSectionOffset := 0;
 		END InitBackend;
+
+		PROCEDURE SetCapabilities*(capabilities: SET);
+		BEGIN
+			SELF.capabilities := capabilities;
+		END SetCapabilities;
+
 
 		PROCEDURE ResetError*;
 		BEGIN error := FALSE
@@ -44,7 +51,6 @@ TYPE
 			SELF.system := system;
 			SELF.activeCellsSpecification := activeCellsSpecification;
 		END Initialize;
-
 
 		(* Get the system used by this backend (singleton) *)
 		PROCEDURE GetSystem*():Global.System;
@@ -67,7 +73,7 @@ TYPE
 		PROCEDURE ProcessIntermediateCodeModule*(intermediateCodeModule: Formats.GeneratedModule): Formats.GeneratedModule;
 		BEGIN RETURN NIL (* only applicable for backends that use an intermediate backend *)
 		END ProcessIntermediateCodeModule;
-		
+
 		PROCEDURE FindPC*(x: SyntaxTree.Module; CONST sectionName: ARRAY OF CHAR; sectionOffset: LONGINT);
 		BEGIN
 		END FindPC;
@@ -124,7 +130,7 @@ TYPE
 		END;
 		RETURN backend
 	END GetBackendByName;
-	
+
 	PROCEDURE Assert(b: BOOLEAN; CONST reason: ARRAY OF CHAR);
 	BEGIN
 		ASSERT(b);

@@ -971,6 +971,8 @@ TYPE
 				modifier := x.modifiers;
 				IF HasValue(modifier,Global.NameDataMemorySize,position,value) THEN END;
 				IF HasValue(modifier,Global.NameCodeMemorySize,position,value) THEN END;
+				IF HasFlag(modifier, Global.NameVector,position) THEN END;
+				IF HasFlag(modifier, Global.NameFloatingPoint, position) THEN END;
 				CheckModifiers(modifier);
 
 				(* process parameters *)
