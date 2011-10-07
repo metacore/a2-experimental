@@ -1,6 +1,6 @@
 MODULE FoxActiveCells; (** AUTHOR "fof"; PURPOSE "hardware library for the ActiveCells compiler"; *)
 
-IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Global := FoxGlobal, Files, Streams, D := Debugging, Diagnostics, Strings, Commands, GenericLinker, StaticLinker;
+IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Global := FoxGlobal, Files, Streams, D := Debugging, Diagnostics, Strings, Commands, GenericLinker, StaticLinker, SYSTEM;
 
 CONST
 	In*= SyntaxTree.InPort; Out*= SyntaxTree.OutPort;
@@ -445,6 +445,7 @@ TYPE
 			w.String(" type="); w.String(typeName);
 			w.String(" instructionMemorySize="); w.Int(instructionMemorySize,1);
 			w.String(" dataMemorySize="); w.Int(dataMemorySize,1);
+			w.String(" capabilities="); WriteSet(w,capabilities);
 			w.Ln;
 			Indent(w,indent);
 
@@ -462,7 +463,8 @@ TYPE
 			IF r.GetInteger(index,FALSE) & CheckItem(r,"name") & GetString(r,name) &
 			CheckItem(r,"type") & GetString(r,s) &
 			CheckItem(r,"instructionMemorySize") & r.GetInteger(instructionMemorySize,FALSE) &
-			CheckItem(r,"dataMemorySize") & r.GetInteger(dataMemorySize,FALSE)
+			CheckItem(r,"dataMemorySize") & r.GetInteger(dataMemorySize,FALSE) &
+			CheckItem(r,"capabilities") & GetSet(r,capabilities)
 			THEN
 				symbol := GetSymbol(scope,s);
 				type := symbol(Type);
@@ -752,7 +754,8 @@ TYPE
 			IF ~r.GetInteger(i,FALSE) OR (index # i) OR
 				~CheckItem(r,"name") OR  ~GetString(r,name) OR
 			~CheckItem(r,"instructionMemorySize") OR ~r.GetInteger(instructionMemorySize,FALSE) OR
-			~CheckItem(r,"dataMemorySize") OR ~r.GetInteger(dataMemorySize,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
+			~CheckItem(r,"dataMemorySize") OR ~r.GetInteger(dataMemorySize,FALSE) OR
+			~CheckItem(r,"capabilities") OR ~GetSet(r,capabilities) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			IF ~CheckItem(r,"types") OR ~r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			FOR i := 0 TO number-1 DO
 				type := NewType("");
@@ -796,6 +799,7 @@ TYPE
 			w.String(" name="); w.String(name);
 			w.String(" instructionMemorySize="); w.Int(instructionMemorySize,1);
 			w.String(" dataMemorySize="); w.Int(dataMemorySize,1);
+			w.String(" capabilities="); WriteSet(w, capabilities);
 			w.Ln;
 			(* sub types first because of potential delegates on ports *)
 			Indent(w,indent); w.String("types=");w.Int(types.Length(),1); w.Ln;
@@ -1170,6 +1174,19 @@ TYPE
 		ELSE RETURN (name[0]=0X) & (c="'") OR (c='"')
 		END;
 	END GetString;
+
+	PROCEDURE GetSet(VAR r: Streams.Reader; VAR set: SET): BOOLEAN;
+	VAR int: LONGINT;
+	BEGIN
+		IF r.GetInteger(int, FALSE) THEN set := SYSTEM.VAL(SET, int); RETURN TRUE ELSE RETURN FALSE END;
+	END GetSet;
+
+	PROCEDURE WriteSet(VAR r: Streams.Writer; set: SET);
+	VAR int: LONGINT;
+	BEGIN
+		int := SYSTEM.VAL(LONGINT, set);
+		r.Int(int,1);
+	END WriteSet;
 
 	PROCEDURE ReadSpecification*(context: Commands.Context);
 	VAR fileName: Files.FileName; r: Files.Reader; specification: Specification;f : Files.File; b: BOOLEAN; diagnostics: Diagnostics.StreamDiagnostics;
