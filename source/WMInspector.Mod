@@ -486,6 +486,7 @@ TYPE
 
 				treeView := window.formTree.treeView;
 				tree := window.formTree.tree;
+				window.formTree.Refresh(SELF,NIL);
 				tree.Acquire;
 				root := tree.GetRoot();
 				IF FindComponent(root) THEN END;
