@@ -57,6 +57,104 @@ BEGIN
 	END;
 END FreeMemory;
 
+
+PROCEDURE GetMemoryMapping*(VAR adr: EFI.PhysicalAddress) : EFI.Status;
+CONST
+	approxMemMapSize = 2048; (* we actually can not resize the buffer. just hope its enough *)
+VAR
+	MemMapSize, MapKey, DescriptorSize: EFI.Int;  DescriptorVersion : EFI.Int32;
+	status : EFI.Status;
+	MemMap : ARRAY approxMemMapSize OF EFI.MemoryDescriptor;
+	MemMapElement : EFI.MemoryDescriptorPointer;
+	i, numEntries : EFI.Int;
+	numcritEntries : HUGEINT;
+	memsize : HUGEINT;
+	tmp : EFI.PhysicalAddress;
+BEGIN
+	MemMapSize := LEN(MemMap)*SYSTEM.SIZEOF(EFI.MemoryDescriptor);
+	status := EFI.table.BS.GetMemoryMap(MemMapSize, MemMap, MapKey, DescriptorSize, DescriptorVersion);
+	IF status = EFI.ErrBufferTooSmall THEN
+		(* we cant resize. We are doomed!*)
+		RETURN status;
+	END;
+	
+	adr := -1;
+	TRACE(status);
+	TRACE(adr);
+	status :=AllocateMemory(adr, 10); (* a few additional pages *)
+	(* now bootTablePhAddr contains the base address of the allocated pages *)
+	TRACE(status);
+	TRACE(adr);
+	IF status # EFI.Success THEN
+		RETURN status;
+	END;	
+	TRACE(status);
+	numcritEntries := 0;
+	MemMapSize := LEN(MemMap)*SYSTEM.SIZEOF(EFI.MemoryDescriptor);
+	status := EFI.table.BS.GetMemoryMap(MemMapSize, MemMap, MapKey, DescriptorSize, DescriptorVersion);
+	IF status = EFI.ErrBufferTooSmall THEN
+		(* we cant resize. We are doomed!*)
+		RETURN status;
+	END;
+
+	numEntries := MemMapSize DIV DescriptorSize; (*DIV SYSTEM.SIZEOF(EFI.MemoryDescriptor); *) 
+
+
+	tmp := 0H;
+	memsize := 0;
+	FOR i := 0 TO numEntries-1 DO
+		MemMapElement := SYSTEM.VAL(EFI.MemoryDescriptorPointer, SYSTEM.ADR(MemMap[0])+i*DescriptorSize);
+(*		IF (MemMapElement.Type #  EFI.MTConventionalMemory *)
+		IF ( (MemMapElement.Type = EFI.MTRuntimeServicesCode) OR ( MemMapElement.Type = EFI.MTRuntimeServicesData) 
+			OR (MemMapElement.Type = EFI.MTUnusableMemory) OR (MemMapElement.Type = EFI.MTACPIReclaimMemory) 
+			OR (MemMapElement.Type = EFI.MTACPIMemoryNVSM) OR (MemMapElement.Type = EFI.MTMemoryMappedIO) 
+			OR (MemMapElement.Type = EFI.MTMemoryMappedIOPortSpace) OR (MemMapElement.Type = EFI.MTPalCode) 		
+			OR (MemMapElement.Type = EFI.MTLoaderCode) OR (MemMapElement.Type = EFI.MTLoaderData)
+			OR (MemMapElement.Type = EFI.MTReserved) 
+			OR (MemMapElement.Type = EFI.MTBootServicesCode) OR (MemMapElement.Type = EFI.MTBootServicesData) (* this line shouldnt be - but it freezes if i touch that memory *)
+		
+			
+			
+			)THEN
+(*			Trace.Ln;
+			Trace.Address(MemMapElement.PhysicalStart);
+			Trace.String(" - " );
+			Trace.Address(MemMapElement.PhysicalStart+MemMapElement.NumberOfPages*LONG(EFI.PageSize));
+			Trace.String(" X ");
+			Trace.Address(MemMapElement.VirtualStart);
+			Trace.String(" - " );
+			Trace.Address(MemMapElement.VirtualStart+MemMapElement.NumberOfPages*LONG(EFI.PageSize));
+			*)
+			IF (tmp # MemMapElement.PhysicalStart) THEN
+				SYSTEM.PUT(adr+(numcritEntries*2+1+1)*8, MemMapElement.PhysicalStart);
+				tmp := MemMapElement.PhysicalStart+MemMapElement.NumberOfPages*LONG(EFI.PageSize);
+				SYSTEM.PUT(adr+(numcritEntries*2+1+1+1)*8, tmp);				
+				numcritEntries := 	numcritEntries +1;
+			ELSE
+				numcritEntries := 	numcritEntries -1;
+				tmp := MemMapElement.PhysicalStart+MemMapElement.NumberOfPages*LONG(EFI.PageSize);
+				SYSTEM.PUT(adr+(numcritEntries*2+1+1+1)*8, tmp);			
+				numcritEntries := 	numcritEntries +1;	
+			END;			
+		END;
+		memsize := memsize + MemMapElement.NumberOfPages;			
+	END;
+	
+	FOR i:= 0 TO numcritEntries-1 DO
+		SYSTEM.GET(adr+(i*2+1+1)*8, tmp);
+		TRACE(tmp);
+		SYSTEM.GET(adr+(i*2+1+1+1)*8, tmp);
+		TRACE(tmp);		
+	END;
+	
+
+	
+	SYSTEM.PUT(adr,numcritEntries);
+	SYSTEM.PUT(adr+8,memsize);
+	TRACE(adr);
+	RETURN EFI.Success;
+END GetMemoryMapping;
+
 (* find the size of the RAM by investigating the entries of the EFI Memory Map.  *)
 PROCEDURE GetMemorySize*(VAR memsize : EFI.Int64 ) : EFI.Status;
 CONST
@@ -65,6 +163,7 @@ VAR
 	MemMapSize, MapKey, DescriptorSize: EFI.Int;  DescriptorVersion : EFI.Int32;
 	status : EFI.Status;
 	MemMap : ARRAY approxMemMapSize OF EFI.MemoryDescriptor;
+	MemMapElement : EFI.MemoryDescriptorPointer;
 	i, numEntries : EFI.Int;
 BEGIN
 	MemMapSize := LEN(MemMap)*SYSTEM.SIZEOF(EFI.MemoryDescriptor);
@@ -74,15 +173,52 @@ BEGIN
 		RETURN status;
 	END;
 
-	numEntries := MemMapSize DIV SYSTEM.SIZEOF(EFI.MemoryDescriptor);
+	numEntries := MemMapSize DIV DescriptorSize; (*DIV SYSTEM.SIZEOF(EFI.MemoryDescriptor); *) 
 	memsize := 0;
-	FOR i := 0 TO numEntries DO
-		IF (memsize < MemMap[i].PhysicalStart + MemMap[i].NumberOfPages*LONG(EFI.PageSize)) THEN
-			memsize := MemMap[i].PhysicalStart + MemMap[i].NumberOfPages*LONG(EFI.PageSize);
-		END;
-	END;
 
-	memsize := SYSTEM.GET32(SYSTEM.ADR(memsize)+4); (* BUG! where ? *)
+	Trace.Ln();
+	Trace.Address(MemMapSize);
+	Trace.Ln();
+	Trace.Address(SYSTEM.SIZEOF(EFI.MemoryDescriptor));
+	Trace.Ln();
+	Trace.Address(36);
+	Trace.Ln();
+	Trace.Address(DescriptorSize);
+	Trace.Ln();
+	Trace.Address(DescriptorVersion);		
+	Trace.Ln();	
+	Trace.Ln();	
+	FOR i := 0 TO numEntries-1 DO
+		MemMapElement := SYSTEM.VAL(EFI.MemoryDescriptorPointer, SYSTEM.ADR(MemMap[0])+i*DescriptorSize);
+	(*	
+			MTLoaderCode* = 1;
+	MTLoaderData* = 2;
+	MTBootServicesCode* = 3;
+	MTBootServicesData* = 4;
+	MTRuntimeServicesCode* = 5;
+	MTRuntimeServicesData* = 6;
+	MTConventionalMemory*= 7;
+	MTUnusableMemory* = 8;
+	MTACPIReclaimMemorz* = 9;
+	MTACPIMemoryNVSM* = 10;
+	MTMemoryMappedIO* = 11;
+	MTMemoryMappedIOPortSpace* = 12;
+	MTPalCode* = 13;
+	MTMaxMemoryType* = 14;
+		*)
+(*	IF (TRUE) THEN*)
+
+		memsize := memsize + MemMapElement.NumberOfPages;	
+		(*IF (memsize < MemMap[i].PhysicalStart + MemMap[i].NumberOfPages*LONG(EFI.PageSize)) THEN
+			memsize := MemMap[i].PhysicalStart + MemMap[i].NumberOfPages*LONG(EFI.PageSize);
+		END;*)
+	END;
+	memsize := memsize * LONG(EFI.PageSize);
+	Trace.Address(LONG(EFI.PageSize));
+	Trace.Ln();
+	Trace.Address(memsize);	
+	Trace.Ln();	
+(*	memsize := SYSTEM.GET32(SYSTEM.ADR(memsize)+4); (* BUG! where ? *)*)
 
 	RETURN EFI.Success;
 END GetMemorySize;
@@ -106,6 +242,16 @@ BEGIN
 		END;
 		status := EFI.table.BS.ExitBootServices(EFI.imageHandle, MapKey);
 	UNTIL status = EFI.Success;
+	
+	(*
+     EFI.table.ConsoleInHandle := 0H;
+     EFI.table.ConIn:= NIL;
+	EFI.table.ConsoleOutHandle:= 0H;
+	EFI.table.ConOut:= NIL;
+	EFI.table.StandardErrorHandle:= 0H;
+	EFI.table.StdErr:= NIL;	
+	EFI.table.BS:= NIL;*)
+	 
 	RETURN EFI.Success;
 END ExitBootServices;
 

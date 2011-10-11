@@ -32,7 +32,7 @@ CONST
 
 	(* Memory Types (for BSAllocatePages and MemoryDescriptor.Type)*)
 	MTReserved* = 0;
-	MTLoderCode* = 1;
+	MTLoaderCode* = 1;
 	MTLoaderData* = 2;
 	MTBootServicesCode* = 3;
 	MTBootServicesData* = 4;
@@ -40,7 +40,7 @@ CONST
 	MTRuntimeServicesData* = 6;
 	MTConventionalMemory*= 7;
 	MTUnusableMemory* = 8;
-	MTACPIReclaimMemorz* = 9;
+	MTACPIReclaimMemory* = 9;
 	MTACPIMemoryNVSM* = 10;
 	MTMemoryMappedIO* = 11;
 	MTMemoryMappedIOPortSpace* = 12;
@@ -92,12 +92,16 @@ TYPE GUID* = RECORD
 	Data4*: ARRAY 8 OF Int8;
 END;
 
-TYPE MemoryDescriptor* = RECORD
-	Type-: Int32;
-	PhysicalStart-: PhysicalAddress;
-	VirtualStart-: VirtualAddress;
-	NumberOfPages-: Int64;
-	Attribute-: Int64;
+TYPE 
+	MemoryDescriptorPointer*= POINTER TO MemoryDescriptor;
+	MemoryDescriptor* = RECORD
+		Type- : Int32;
+		PhysicalStart-: PhysicalAddress;
+		VirtualStart-: VirtualAddress; 
+	(*	PhysicalStart-: Int64;
+		VirtualStart-: Int64;	*)
+		NumberOfPages-: Int64;
+		Attribute-: Int64;
 END;
 
 TYPE Time* = RECORD
@@ -129,14 +133,14 @@ SystemTable* = RECORD
 	Hdr-: TableHeader;
 	FirmwareVendor-{UNTRACED}: POINTER TO ARRAY OF Char16;
 	FirmwareRevision-: Int32;
-	ConsoleInHandle- : Handle;
-	ConIn- {UNTRACED}: POINTER TO SimpleInputInterface;
-	ConsoleOutHandle-: Handle;
-	ConOut- {UNTRACED}: POINTER TO SimpleTextOutputInterface;
-	StandardErrorHandle-: Handle;
-	StdErr- {UNTRACED}: POINTER TO SimpleTextOutputInterface;
+	ConsoleInHandle* : Handle;
+	ConIn* {UNTRACED}: POINTER TO SimpleInputInterface;
+	ConsoleOutHandle*: Handle;
+	ConOut* {UNTRACED}: POINTER TO SimpleTextOutputInterface;
+	StandardErrorHandle*: Handle;
+	StdErr* {UNTRACED}: POINTER TO SimpleTextOutputInterface;
 	RS- {UNTRACED}: POINTER TO RuntimeServices;
-	BS- {UNTRACED}: POINTER TO BootServices;
+	BS* {UNTRACED}: POINTER TO BootServices;
 	NumberOfTableEntries-: Int;
 	ConfigurationTable-{UNTRACED}: POINTER TO ARRAY 2048 OF ConfigurationTableEntry; (* access to ACPI, SMBIOS, ... *)
 END;

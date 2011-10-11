@@ -43,7 +43,7 @@ TYPE
 		adr: SYSTEM.ADDRESS; VAR x,y: SYSTEM.SIZE; w,h,depth: SYSTEM.SIZE;
 		info: GraphicsModeInfo
 
-	PROCEDURE MakeFont(VAR font: Font);
+	PROCEDURE MakeFont*(VAR font: Font);
 	VAR buf: Buffer; pos: LONGINT;
 		PROCEDURE SetBuf(VAR p: Buffer); BEGIN p := SYSTEM.ADR(buffer[pos]) END SetBuf;
 		PROCEDURE Put1(ch: CHAR); BEGIN buffer[pos] := ch; INC(pos) END Put1;
@@ -312,9 +312,68 @@ TYPE
 		Dimensions(font.char[255], 12, 0, -3, 12, 12);font.char[255].buffer := font.char[1].buffer;
 	END MakeFont;
 
+
+
 	PROCEDURE Mask(buf: SYSTEM.ADDRESS; bitof, stride, x, y, w, h, adr, dstride, depth: SYSTEM.SIZE);
 	CONST SetSize = MAX (SET) + 1;
 	VAR p, i, bitofs: SYSTEM.ADDRESS; s: SET; dadr: SYSTEM.ADDRESS; d: SYSTEM.SIZE;
+	VAR con : BOOLEAN;
+	VAR tmp : SYSTEM.SIZE;
+	BEGIN		
+			con := FALSE;
+			IF (w > 0) & (h > 0) THEN
+			i := buf MOD SYSTEM.SIZEOF (SET);
+			bitofs := bitof + i * 8;
+			p := buf-i + bitofs DIV SetSize * SYSTEM.SIZEOF (SET);	(* p always aligned to 32-bit boundary *)
+			bitofs := bitofs MOD SetSize; stride := stride*8;
+			LOOP
+				SYSTEM.GET(p, s); 
+				i := bitofs;
+				LOOP
+					IF (i MOD SetSize) IN s THEN
+						dadr := adr+(y*dstride+(x+i-bitofs)*depth);
+						FOR d := 0 TO depth-1 DO
+							SYSTEM.PUT8(dadr+d,0FFH);
+						END;
+					END;
+					INC(i);
+					IF i-bitofs = w THEN
+						 EXIT 
+					END;
+					IF i MOD SetSize = 0 THEN
+						SYSTEM.GET(p+i DIV 8, s) 
+					END;
+
+				END;
+				DEC(h);
+				IF h = 0 THEN 
+					EXIT 
+				END;
+				INC(y); 				
+				IF (bitofs >= stride) THEN 
+					DEC(bitofs, stride);
+				ELSE
+					con := TRUE;
+				END; 
+
+				IF (bitofs >= SetSize) OR ( con) THEN	(* moved outside s *)
+					con := FALSE;
+					bitofs := stride - bitofs; (* now we have the dec as positive number *) 
+					DEC(p, bitofs);					
+					bitofs := SetSize  -bitofs;	
+				END; 
+			END;
+		END;
+	END Mask;
+
+
+
+(*
+
+	PROCEDURE Mask(buf: SYSTEM.ADDRESS; bitof, stride, x, y, w, h, adr, dstride, depth: SYSTEM.SIZE);
+	CONST SetSize = MAX (SET) + 1;
+	VAR p, i, bitofs: SYSTEM.ADDRESS; s: SET; dadr: SYSTEM.ADDRESS; d: SYSTEM.SIZE;
+	VAR tmp : SYSTEM.SIZE;
 	BEGIN
 		IF (w > 0) & (h > 0) THEN
 			i := buf MOD SYSTEM.SIZEOF (SET);
@@ -336,13 +395,25 @@ TYPE
 				END;
 				DEC(h);
 				IF h = 0 THEN EXIT END;
-				INC(y); INC(bitofs, stride);
+				INC(y); INC(bitofs, -stride);
 				IF (bitofs >= SetSize) OR (bitofs < 0) THEN	(* moved outside s *)
-					INC(p, bitofs DIV SetSize * SYSTEM.SIZEOF (SET)); bitofs := bitofs MOD SetSize
+(*					TRACE(bitofs,-stride);
+					TRACE(bitofs DIV SetSize * SYSTEM.SIZEOF (SET));
+					TRACE(bitofs DIV SetSize);
+					TRACE(SetSize * SYSTEM.SIZEOF (SET));
+					TRACE(p);*)
+
+					
+					INC(p, bitofs); bitofs := bitofs MOD SetSize;
+(*					TRACE(p);
+					TRACE(bitofs);*)
 				END
 			END
 		END
 	END Mask;
+
+
+*)
 
 	PROCEDURE RenderChar0(c: CHAR; adr: SYSTEM.ADDRESS; VAR x,y: SYSTEM.SIZE; w,h,depth: SYSTEM.SIZE );
 	VAR char: Char; stride,pw,ph: LONGINT;
@@ -381,7 +452,7 @@ TYPE
 				pw := SYSTEM.GET8(char.buffer);
 				ph := SYSTEM.GET8(char.buffer+1);
 				stride := (pw + 7) DIV 8;
-				Mask(char.buffer, 16+stride*(char.h-1)*8, -stride, x+char.x, y+font.height-char.y-char.h, char.w, char.h, adr, w*depth DIV 8, depth DIV 8);
+				Mask(char.buffer, 16+stride*(char.h-1)*8, stride, x+char.x, y+font.height-char.y-char.h, char.w, char.h, adr, w*depth DIV 8, depth DIV 8);
 			END;
 			INC(x,char.dx);
 		END;
@@ -410,10 +481,17 @@ TYPE
 
 	PROCEDURE SetupConsole*(graphicsModeInfo: SYSTEM.ADDRESS; frameBufferAdr: SYSTEM.ADDRESS);
 	VAR i: SYSTEM.ADDRESS;
+	VAR tmp: HUGEINT;
 	BEGIN
 		Trace.String("Graphical Console, info = "); Trace.Address(graphicsModeInfo); Trace.Ln;
 		Trace.String("Graphical Console, address = "); Trace.Address(frameBufferAdr); Trace.Ln;
 		info := SYSTEM.VAL(GraphicsModeInfo, graphicsModeInfo);
+		
+		FOR i := 0 TO 9 DO
+			SYSTEM.GET(graphicsModeInfo+i*8,tmp);
+			Trace.Address(tmp);
+			Trace.Ln;
+		END;			
 		adr := frameBufferAdr;
 		x := 0; y := 0; w := info.HorizontalResolution; h :=  info.VerticalResolution; depth := GetDepth(info);
 		Trace.String("Graphical Console, w = "); Trace.Address(w); Trace.Ln;
@@ -421,7 +499,7 @@ TYPE
 		Trace.String("Graphical Console, depth = "); Trace.Address(depth); Trace.Ln;
 
 		FOR i := 0 TO w*h*depth DIV 8-1 DO SYSTEM.PUT(adr+i,0)	END;
-		RenderChar("X"); RenderChar("X");
+		RenderChar("X"); RenderChar("X");	
 		Trace.Char := RenderChar;
 		Trace.String("Graphical Console started"); Trace.Ln;
 	END SetupConsole;
