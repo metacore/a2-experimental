@@ -415,10 +415,18 @@ TYPE
 			type := c;
 			index := -1; SELF.scope := scope; NEW(parameters,4);
 			ASSERT(scope # NIL);
-			instructionMemorySize := c.instructionMemorySize;
-			dataMemorySize := c.dataMemorySize;
-			capabilities := c.capabilities;
+			SetType(c);
 		END Init;
+		
+		PROCEDURE SetType(type: Type);
+		BEGIN
+			IF type # NIL THEN
+				SELF.type := type;
+				dataMemorySize := type.dataMemorySize;
+				capabilities := type.capabilities;
+			END;
+		END SetType;
+		
 
 		PROCEDURE SetInstructionMemorySize*(value: LONGINT);
 		BEGIN instructionMemorySize := value
@@ -467,7 +475,7 @@ TYPE
 			CheckItem(r,"capabilities") & GetSet(r,capabilities)
 			THEN
 				symbol := GetSymbol(scope,s);
-				type := symbol(Type);
+				SetType(symbol(Type));
 				IF ~CheckItem(r,"parameters") OR ~r.GetInteger(number,FALSE)
 				THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 				FOR i := 0 TO number-1 DO
