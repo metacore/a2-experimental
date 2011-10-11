@@ -5,7 +5,7 @@ IMPORT
 	IntermediateCode := FoxIntermediateCode, IntermediateBackend := FoxIntermediateBackend, BinaryCode := FoxBinaryCode,
 	InstructionSet := FoxAMD64InstructionSet, Assembler := FoxAMD64Assembler, SemanticChecker := FoxSemanticChecker, Formats := FoxFormats,
 	Diagnostics, Streams, Options, Strings, ObjectFileFormat := FoxBinaryObjectFile, ActiveCells := FoxActiveCells
-	, Machine, D := Debugging;
+	, Machine, D := Debugging, CodeGenerators := FoxCodeGenerators;
 
 CONST
 
@@ -41,13 +41,13 @@ VAR registerOperands: ARRAY InstructionSet.numberRegisters OF Assembler.Operand;
 	 opESI, opEDI, opAX, opCX, opDX, opBX, opSI, opDI, opAL, opCL, opDL, opBL, opAH, opCH, opDH, opBH,opST0
 	 , opRSP, opRBP: Assembler.Operand;
 
-	 unusable,split,blocked,free: IntermediateBackend.Ticket;
+	 unusable,split,blocked,free: CodeGenerators.Ticket;
 
 TYPE
 
-	Ticket=IntermediateBackend.Ticket;
+	Ticket=CodeGenerators.Ticket;
 
-	PhysicalRegisters*=OBJECT (IntermediateBackend.PhysicalRegisters)
+	PhysicalRegisters*=OBJECT (CodeGenerators.PhysicalRegisters)
 	VAR
 		toVirtual: ARRAY InstructionSet.numberRegisters OF Ticket; (* registers real register -> none / reserved / split / blocked / virtual register (>0) *)
 		reserved: ARRAY InstructionSet.numberRegisters OF BOOLEAN;
@@ -447,7 +447,7 @@ TYPE
 
 	END PhysicalRegisters64;
 
-	CodeGeneratorAMD64 = OBJECT (IntermediateBackend.GeneratorWithTickets)
+	CodeGeneratorAMD64 = OBJECT (CodeGenerators.GeneratorWithTickets)
 	VAR
 		(* static generator state variables, considered constant during generation *)
 		runtimeModuleName: SyntaxTree.String;
@@ -1314,7 +1314,7 @@ TYPE
 
 		PROCEDURE EmitMov(CONST vdest,vsrc: IntermediateCode.Operand; part: LONGINT);
 		VAR op1,op2: Assembler.Operand; tmp: IntermediateCode.Operand;
-			t: IntermediateBackend.Ticket;
+			t: CodeGenerators.Ticket;
 		BEGIN
 			IF (vdest.mode = IntermediateCode.ModeRegister) & (vsrc.mode = IntermediateCode.ModeRegister) & (vsrc.offset # 0) THEN
 				(* MOV R1, R2+offset => LEA EAX, [EBX+offset] *)
