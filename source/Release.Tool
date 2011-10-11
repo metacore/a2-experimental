@@ -480,7 +480,7 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 	FoxParser.Mod  FoxSemanticChecker.Mod
 	FoxBackend.Mod FoxSections.Mod FoxBinaryCode.Mod FoxIntermediateCode.Mod FoxIntermediateCodeAssembler.Mod
 	FoxCompiler.Mod FoxFingerPrinter.Mod  FoxInterfaceComparison.Mod FoxTextualSymbolFile.Mod FoxBinarySymbolFile.Mod
-	FoxActiveCellsBackend.Mod FoxIntermediateBackend.Mod
+	FoxActiveCellsBackend.Mod FoxIntermediateBackend.Mod FoxCodeGenerators.Mod
 	FoxBinaryObjectFile.Mod FoxGenericObjectFile.Mod
 	FoxAMD64InstructionSet.Mod FoxAMD64Assembler.Mod FoxAMDBackend.Mod
 	FoxInstructionSetAMD64TabSeperated.txt
