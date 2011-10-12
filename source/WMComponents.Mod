@@ -170,7 +170,6 @@ TYPE
 
 		(* If TRUE, this component is supposed to be created and managed by its parent. It is not externalized. *)
 		internal- : BOOLEAN;
-		generator-: XML.Attribute;
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -186,11 +185,11 @@ TYPE
 			NEW(enabled, PrototypeEnabled, NIL, NIL); properties.Add(enabled);
 			inPropertyUpdate := FALSE;
 			internal := FALSE;
-			NEW(generator); generator.SetName("generator"); generator.SetValue("WMComponents.NewComponent"); AddAttribute(generator);
+			SetGenerator("WMComponents.NewComponent");
 		END Init;
 
 		PROCEDURE SetGenerator*(CONST gen: ARRAY OF CHAR);
-		BEGIN generator.SetValue(gen)
+		BEGIN SetAttributeValue("generator", gen);
 		END SetGenerator;
 
 		PROCEDURE Write*(w : Streams.Writer;context: ANY; level : LONGINT);

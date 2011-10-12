@@ -136,8 +136,6 @@ TYPE
 		renderOffsetX : LONGINT;
 		lastX, lastY : LONGINT;
 
-		value: XML.Attribute;
-
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
@@ -171,8 +169,7 @@ TYPE
 			lastX := -1; lastY := -1;
 			SetPointerInfo(manager.pointerText);
 			takesFocus.Set(TRUE);
-
-			NEW(value);value.SetName("Value"); value.SetValue(""); AddAttribute(value);
+			SetAttributeValue("Value","");
 		END Init;
 
 		PROCEDURE Initialize;
@@ -317,13 +314,13 @@ TYPE
 		END ModelChanged;
 
 		PROCEDURE UpdateModel;
-		VAR string : Types.String256; res : LONGINT;
+		VAR string : Types.String256; res : LONGINT; str: Strings.String;
 		BEGIN
 			GetAsString(string.value);
 			IF (modelI # NIL) THEN
 				modelI.SetGeneric(string, res);
 			END;
-			value.SetValue(string.value);
+			SetAttributeValue("Value",string.value);
 		END UpdateModel;
 
 		PROCEDURE Changed;
