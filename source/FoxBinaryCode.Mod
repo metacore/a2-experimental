@@ -232,7 +232,7 @@ TYPE
 
 		PROCEDURE PutBits*(d: LONGINT; size: Bits);
 		BEGIN
-			ASSERT(size MOD unit = 0);
+			(*ASSERT(size MOD unit = 0);*)
 			CheckSize(size);
 			bits.SetBits(pc*unit,size,d);
 			INC(pc,size DIV unit);
