@@ -5,7 +5,7 @@ IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,  D := Debugging,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal,
-	ActiveCells := FoxActiveCells, IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
+	ActiveCells := FoxActiveCells, IntermediateCode := FoxIntermediateCode,  IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
 	Files, StaticLinker, GenericLinker;
 
 CONST
@@ -357,6 +357,10 @@ TYPE
 				SELF.diagnostics := specification.diagnostics;
 				SELF.objectFileFormat := objectFileFormat;
 				NEW(assembler, specification.diagnostics, backend, ""); (* TODO: pass an optional path as third parameter *)
+				IF ~assembler.LoadModule(backend(IntermediateCode.IntermediateBackend).runtimeModuleName, TRUE) THEN
+					error := TRUE;
+					diagnostics.Error(backend(IntermediateCode.IntermediateBackend).runtimeModuleName,Diagnostics.Invalid, Diagnostics.Invalid, "could not load ir file");
+				END;
 				IF ~assembler.LoadModule(specification.name,TRUE) THEN
 					error := TRUE;
 					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "could not load ir file");
@@ -390,6 +394,7 @@ TYPE
 					D.String("assembling instance "); D.String(instanceName); D.String(" of type "); D.String(typeName); D.Ln;
 				END;
 
+				backend.SetCapabilities(instance.capabilities);
 				assembler.MarkReachabilityOfAll(FALSE);
 				COPY(typeName, linkRoot);
 				Strings.Append(linkRoot,".@BodyStub");
@@ -407,9 +412,6 @@ TYPE
 				END;
 
 				assembler.PrearrangeReachableDataSections;
-				backend.SetCapabilities(instance.capabilities);
-				D.String("capabilities set to "); D.Set(instance.capabilities); D.Ln; 
-
 				IF ~assembler.GenerateObjectFileWithName(objectFileFormat, specification.log, {}, NIL, NIL, instanceName) THEN
 					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "could not generate object file");
 					RETURN FALSE

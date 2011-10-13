@@ -435,7 +435,7 @@ TYPE
 		END ParseSectionProperties;
 
 		(** parse the content of an intermediate code module **)
-		PROCEDURE ParseModuleContent*(scanner: Scanner.AssemblerScanner; sectionList: Sections.SectionList; VAR moduleName: SyntaxTree.String; VAR backend: Backend.Backend; VAR imports: Sections.NameList): BOOLEAN;
+		PROCEDURE ParseModuleContent*(scanner: Scanner.AssemblerScanner; sectionList: Sections.SectionList; VAR moduleName: SyntaxTree.String; VAR backend: Backend.Backend;  VAR imports: Sections.NameList): BOOLEAN;
 		VAR
 			pos, positionOfDirective: LONGINT;
 			identifier: Scanner.StringType;
@@ -742,6 +742,7 @@ TYPE
 		VAR
 			intermediateCodeSection: IntermediateCode.Section;
 			i: LONGINT;
+			procedureName, moduleName: SyntaxTree.String;
 		BEGIN
 			IF ~section.isReachable THEN
 				IF Trace THEN D.String(">>> MarkAsReachable "); Basic.WritePooledName(D.Log, section.name); D.Ln END;
@@ -750,6 +751,11 @@ TYPE
 				intermediateCodeSection := section(IntermediateCode.Section);
 				(* go through all instructions in the section *)
 				FOR i := 0 TO intermediateCodeSection.pc - 1 DO
+					IF  ~backend(IntermediateCode.IntermediateBackend).SupportedInstruction2(intermediateCodeSection.instructions[i], moduleName, procedureName) THEN
+						Strings.Append(moduleName,".");
+						Strings.Append(moduleName, procedureName);
+						MarkAsReachableByName(moduleName);
+					END;
 					IF intermediateCodeSection.instructions[i].op1.symbol # NIL THEN MarkAsReachable(intermediateCodeSection.instructions[i].op1.symbol) END;
 					IF intermediateCodeSection.instructions[i].op2.symbol # NIL THEN MarkAsReachable(intermediateCodeSection.instructions[i].op2.symbol) END;
 					IF intermediateCodeSection.instructions[i].op3.symbol # NIL THEN MarkAsReachable(intermediateCodeSection.instructions[i].op3.symbol) END
@@ -1041,7 +1047,7 @@ TYPE
 		END GenerateObjectFile;
 
 		(* generate binary code and write an object file with a desired module name *)
-		PROCEDURE GenerateObjectFileWithName*(objectFileFormat: Formats.ObjectFileFormat; log: Streams.Writer; flags: SET; checker: SemanticChecker.Checker; activeCellsSpecification: ActiveCells.Specification; desiredName: SyntaxTree.String): BOOLEAN;
+		PROCEDURE GenerateObjectFileWithName*(objectFileFormat: Formats.ObjectFileFormat; log: Streams.Writer; flags: SET; checker: SemanticChecker.Checker; activeCellsSpecification: ActiveCells.Specification;  desiredName: SyntaxTree.String): BOOLEAN;
 		VAR
 			intermediateCodeModule: Sections.Module;
 			binaryModule: Formats.GeneratedModule;

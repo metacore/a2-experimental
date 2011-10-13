@@ -1,7 +1,7 @@
 MODULE FoxIntermediateCode; (** AUTHOR "fof"; PURPOSE "Oberon Compiler Abstract Intermediate Code"; *)
 (* Active Oberon Compiler, (c) 2009 Felix Friedrich *)
 IMPORT
-	Sections := FoxSections, Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
+	Sections := FoxSections, Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode, Backend := FoxBackend,
 	SYSTEM, Streams, Global := FoxGlobal, D := Debugging;
 
 CONST
@@ -325,6 +325,31 @@ TYPE
 		END Dump;
 
 	END Section;
+
+	IntermediateBackend*= OBJECT (Backend.Backend)
+	VAR
+		runtimeModuleName-: SyntaxTree.String;
+
+		PROCEDURE SupportedInstruction*(CONST instr: Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
+		BEGIN
+			moduleName := ""; procedureName := "";
+			RETURN TRUE
+		END SupportedInstruction;
+
+		(*! for testing purposes, will be removed *)
+		PROCEDURE SupportedInstruction2*(CONST instr: Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
+		BEGIN
+			moduleName := ""; procedureName := "";
+			RETURN TRUE
+		END SupportedInstruction2;
+
+		PROCEDURE SetRuntimeModuleName*(CONST name: ARRAY OF CHAR);
+		BEGIN
+			COPY(name, runtimeModuleName);
+		END SetRuntimeModuleName;
+
+	END IntermediateBackend;
+
 
 	VAR
 		instructionFormat-: ARRAY NofOpcodes OF InstructionFormat;

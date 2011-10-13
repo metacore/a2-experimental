@@ -67,8 +67,12 @@ TYPE
 		PROCEDURE AddRegisterEntry(register: LONGINT; class: IntermediateCode.RegisterClass; type: IntermediateCode.Type);
 		VAR new: RegisterEntry;
 		BEGIN
+			(* allocate *)
 			IF cache # NIL THEN new := cache; cache := cache.next; ELSE NEW(new) END;
-			new.register := register; new.registerClass := class; new.type := type; new.next := NIL; new.prev := NIL;
+			new.next := NIL; new.prev := NIL;
+			(* set *)
+			new.register := register; new.registerClass := class; new.type := type;
+			(* enter *)
 			IF first = NIL THEN
 				first := new; last:= new;
 			ELSE
@@ -81,20 +85,22 @@ TYPE
 		PROCEDURE RemoveRegisterEntry(register: LONGINT);
 		VAR this: RegisterEntry;
 		BEGIN
+			(* search *)
 			this := first;
 			WHILE (this # NIL) & (this.register # register) DO
 				this := this.next;
 			END;
+			(* remove *)
 			IF this = NIL THEN RETURN END;
 			IF this = first THEN first := first.next END;
 			IF this = last THEN last := last.prev END;
 			IF this.prev # NIL THEN this.prev.next := this.next END;
 			IF this.next # NIL THEN this.next.prev := this.prev END;
+			(* dispose *)
 			this.next := cache; cache := this;
 		END RemoveRegisterEntry;
 
 	END LiveRegisters;
-
 
 	GenericCodeGenerator*= OBJECT
 	VAR
@@ -300,7 +306,11 @@ TYPE
 				Basic.InitPooledName(sectionName);
 				Basic.SuffixPooledName(sectionName, StringPool.GetIndex1(moduleName));
 				Basic.SuffixPooledName(sectionName, StringPool.GetIndex1(procedureName));
-				source := IntermediateCode.NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.CodeSection, FALSE, sectionName,NIL,dump#NIL);
+				IF moduleName = module.moduleName THEN
+					source := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, FALSE, sectionName,NIL,dump#NIL);					
+				ELSE
+					source := IntermediateCode.NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.CodeSection, FALSE, sectionName,NIL,dump#NIL);
+				END;
 				IntermediateCode.InitAddress(op, IntermediateCode.GetType(module.system,module.system.addressType), source , 0);
 				Emit(IntermediateBackend.Call(op,IntermediateBackend.ToMemoryUnits(module.system,parSize)),"");
 				Emit(IntermediateBackend.Result(x.op1),"");

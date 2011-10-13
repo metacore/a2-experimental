@@ -1001,6 +1001,7 @@ TYPE
 			CheckRegister(instruction.op1);
 			CheckRegister(instruction.op2);
 			CheckRegister(instruction.op3);
+
 			IF supportedInstruction(instruction,moduleName,procedureName) THEN section.Emit(instruction)
 			ELSE Emulate(instruction,moduleName,procedureName);
 			END;
@@ -7514,13 +7515,10 @@ TYPE
 
 	END ImplementationVisitor;
 
-
-
-	IntermediateBackend*= OBJECT (Backend.Backend)
+	IntermediateBackend*= OBJECT (IntermediateCode.IntermediateBackend)
 	VAR
 		trace-: BOOLEAN;
 		traceString-: SyntaxTree.String;
-		runtimeModuleName-: SyntaxTree.String;
 		traceModuleName-: SyntaxTree.String;
 		newObjectFile-: BOOLEAN;
 		profile-: BOOLEAN;
@@ -7565,12 +7563,6 @@ TYPE
 
 			RETURN module
 		END GenerateIntermediate;
-
-		PROCEDURE SupportedInstruction*(CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
-		BEGIN
-			moduleName := ""; procedureName := "";
-			RETURN TRUE
-		END SupportedInstruction;
 
 		PROCEDURE SupportedImmediate*(CONST op: IntermediateCode.Operand): BOOLEAN;
 		BEGIN RETURN TRUE
@@ -7629,17 +7621,12 @@ TYPE
 			noRuntimeChecks := options.GetFlag("noRuntimeChecks");
 			noAsserts := options.GetFlag("noAsserts");
 			IF options.GetString("runtime",name) THEN
-				COPY(name, runtimeModuleName);
+				SetRuntimeModuleName(runtimeModuleName);
 			END;
 			IF ~options.GetString("traceModule",traceModuleName) THEN
 				traceModuleName := DefaultTraceModuleName;
 			END
 		END GetOptions;
-
-		PROCEDURE SetRuntimeModuleName*(CONST name: ARRAY OF CHAR);
-		BEGIN
-			COPY(name, runtimeModuleName);
-		END SetRuntimeModuleName;
 
 		PROCEDURE DefaultSymbolFileFormat(): Formats.SymbolFileFormat;
 		BEGIN RETURN SymbolFileFormat.Get()
