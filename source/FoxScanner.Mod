@@ -16,7 +16,7 @@ CONST
 	MaxLongrealExponent* = 308;   (* maximal longreal exponent *)
 
 	(* scanner constants *)
-	EOT* = 0X; LF* = 0AX; CR* = 0DX;
+	EOT* = 0X; LF* = 0AX; CR* = 0DX; TAB = 09X;
 
 TYPE
 	StringType* = ARRAY MaxStringLength OF CHAR;
@@ -289,6 +289,15 @@ TYPE
 		END ResetCase;
 
 		(** report an error occured during scanning **)
+		PROCEDURE ErrorS(CONST msg: ARRAY OF CHAR);
+		BEGIN
+			IF diagnostics # NIL THEN
+				diagnostics.Error(source, position, Diagnostics.Invalid, msg)
+			END;
+			error := TRUE;
+		END ErrorS;
+
+		(** report an error occured during scanning **)
 		PROCEDURE Error( code: INTEGER );
 		VAR errorMessage: ARRAY 256 OF CHAR;
 		BEGIN
@@ -314,17 +323,66 @@ TYPE
 		(** get a string starting at current position
 			string = '"' {Character} '"' | "'" {Character} "'".
 		**)
-		PROCEDURE GetString(VAR symbol: Symbol);
-		VAR i: INTEGER;  och: CHAR;
+		PROCEDURE GetString(VAR symbol: Symbol; useControl: BOOLEAN);
+		VAR i: INTEGER;  och: CHAR; flags: SET; error: BOOLEAN; ignoreWhitespace: BOOLEAN;
+		CONST control = '\'; IgnoreNewline = 0; IgnoreTab = 1;
+
+			PROCEDURE Append(ch :CHAR);
+			BEGIN
+				IF i = MaxStringLength - 1 THEN
+					Error( Basic.StringTooLong );  error := TRUE
+				ELSIF ch = 0X THEN
+					ErrorS("Unexpected end of text in string"); error := TRUE
+				ELSE
+					symbol.string[i] := ch;  INC( i )
+				END;
+			END Append;
+
 		BEGIN
-			i := 0;  och := ch;
+			i := 0;  och := ch; error := FALSE; flags := {IgnoreTab};
 			LOOP
+				IF error THEN EXIT END;
 				GetNextCharacter;
 				IF ch = och THEN EXIT END;
-				IF ch < " " THEN Error( Basic.StringIllegalCharacter );  EXIT END;
-				IF i = MaxStringLength - 1 THEN Error( Basic.StringTooLong );  EXIT END;
-				symbol.string[i] := ch;  INC( i )
+				IF useControl THEN
+					IF ch = control THEN
+						ignoreWhitespace := FALSE;
+						GetNextCharacter;
+						IF (ch = control) OR (ch = och) THEN
+							Append(ch)
+						ELSIF ch = 'n' THEN
+							Append(CR); Append(LF);
+						ELSIF ch = 't' THEN
+							Append(TAB)
+						ELSIF ch ='i' THEN
+							GetNextCharacter;
+							IF ch = 'n' THEN INCL(flags, IgnoreNewline)
+							ELSIF ch = 't' THEN INCL(flags, IgnoreTab)
+							ELSE ErrorS("Unknown control sequence")
+							END;
+						ELSIF ch = "e" THEN
+							GetNextCharacter;
+							IF ch = 'n' THEN EXCL(flags, IgnoreNewline)
+							ELSIF ch = 't' THEN EXCL(flags, IgnoreTab)
+							ELSE ErrorS("Unknown control sequence")
+							END;
+						ELSIF (ch <= " ") THEN ignoreWhitespace := TRUE;
+						ELSE
+							ErrorS("Unknown control sequence")
+						END;
+					ELSIF ((ch = CR) OR (ch = LF)) & (IgnoreNewline IN flags) THEN
+					ELSIF (ch = TAB) & (IgnoreTab IN flags) THEN
+					ELSIF ignoreWhitespace & (ch <= ' ') THEN
+					ELSE
+						ignoreWhitespace := FALSE;
+						Append(ch)
+					END;
+				ELSE
+					IF ch < " " THEN Error( Basic.StringIllegalCharacter );  EXIT END;
+					Append(ch)
+				END;
 			END;
+			IF ch = EOT THEN ErrorS("Unexpected end of text in string") END;
 			GetNextCharacter;  symbol.string[i] := 0X;  symbol.character := symbol.string[0];  symbol.stringLength := i + 1;
 		END GetString;
 
@@ -590,9 +648,9 @@ TYPE
 			IF s # EndOfText THEN
 				CASE ch OF  (* ch > " " *)
 				| DoubleQuote:
-						s := String; GetString(symbol);
+						s := String; GetString(symbol,FALSE);
 				| SingleQuote:
-						s := String; GetString(symbol);
+						s := String; GetString(symbol,FALSE);
 						(* to be replaced by:
 						s := Character; GetString(symbol);
 						IF symbol.stringLength #2 THEN  (* stringlength = 1 for empty string '' *)
@@ -640,7 +698,8 @@ TYPE
 				| "|":     s := Bar;  GetNextCharacter
 				| "}":     s := RightBrace;  GetNextCharacter
 				| "~":     s := Not;  GetNextCharacter
-				| "\":     s := Backslash;  GetNextCharacter
+				| "\":     s := Backslash;  GetNextCharacter;
+						IF ch = DoubleQuote THEN s := String; GetString(symbol, TRUE) END;
 				| "`":	s := Transpose; GetNextCharacter
 				| "?": 	s := Questionmark; GetNextCharacter
 				| Ellipsis:
@@ -749,6 +808,7 @@ TYPE
 			symbol.string[i] := 0X;
 		END GetIdentifier;
 
+		(*
 		(** get a string starting at current position
 			string = '"' {Character} '"' | "'" {Character} "'".
 		**)
@@ -765,6 +825,7 @@ TYPE
 			END;
 			GetNextCharacter;  symbol.string[i] := 0X;  symbol.character := symbol.string[0];  symbol.stringLength := i + 1;
 		END GetString;
+		*)
 
 		(** get next symbol **)
 		PROCEDURE GetNextSymbol*(VAR symbol: Symbol ): BOOLEAN;
@@ -786,12 +847,14 @@ TYPE
 				CASE ch OF  (* ch > " " *)
 				| EOT: 	s := EndOfText;
 				| DoubleQuote:
-						s := String; GetString(symbol);
+						s := String; GetString(symbol, FALSE);
 				| SingleQuote:
-						s := Character; GetString(symbol);
+						s := Character; GetString(symbol, FALSE);
 						IF symbol.stringLength #2 THEN  (* stringlength = 1 for empty string '' *)
 							Error(Basic.IllegalCharacterValue)
 						END;
+				| "\":     s := Backslash;  GetNextCharacter;
+						IF ch = DoubleQuote THEN s := String; GetString(symbol, TRUE) END;
 				| "#":     s := Unequal;  GetNextCharacter; (* for the ARM assembler *)
 				| "(": GetNextCharacter;
 						IF ch = "*" THEN GetNextCharacter; ReadComment(symbol);  s := Comment; ELSE s := LeftParenthesis END
@@ -811,9 +874,10 @@ TYPE
 				| ";":    s := Comment; SkipToEndOfLine;
 				| "=":     s := Equal;  GetNextCharacter
 				| "[":     s := LeftBracket;  GetNextCharacter
-				| "]":     s := RightBracket;  GetNextCharacter				
+				| "]":     s := RightBracket;  GetNextCharacter
 				| "{":     s := LeftBrace;  GetNextCharacter
 				| "}":     s := RightBrace;  GetNextCharacter
+
 				| "!":     s := ExclamationPoint; GetNextCharacter (* for the ARM assembler *)
 				| "A".."Z": s := Identifier; GetIdentifier( symbol );
 				| "a".."z": s := Identifier; GetIdentifier( symbol);
