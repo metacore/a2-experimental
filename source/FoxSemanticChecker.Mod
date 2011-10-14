@@ -1003,6 +1003,10 @@ TYPE
 					AnonymousTypeDeclaration(x,"Anonymous");
 				END;
 				x.SetState(SyntaxTree.Resolved);
+
+				IF x.cellScope.bodyProcedure = NIL THEN
+					Error(x.position, Diagnostics.Invalid, "Forbidden empty Body.");
+				END;
 			END;
 			resolvedType := ResolvedType(x);
 		END VisitCellType;
