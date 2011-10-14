@@ -1104,7 +1104,9 @@ TYPE
 				IF local THEN
 					device := instanceType.specification.supportedDevices.ByName(name);
 					IF device # NIL THEN
-						device := instanceType.NewDevice(device.name,device.adr)
+						IF instanceType.devices.ByName(device.name) = NIL THEN
+							device := instanceType.NewDevice(device.name,device.adr)
+						END;
 					END;
 				END;
 

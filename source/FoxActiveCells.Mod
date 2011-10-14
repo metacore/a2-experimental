@@ -228,7 +228,9 @@ TYPE
 		END GetDevice;
 
 		PROCEDURE AddDevice(p: Device);
-		BEGIN p.index := Length(); Add(p);
+		BEGIN
+			ASSERT(ByName(p.name) = NIL);
+			p.index := Length(); Add(p);
 		END AddDevice;
 
 		PROCEDURE ByName*(CONST name: ARRAY OF CHAR): Device;
@@ -417,7 +419,7 @@ TYPE
 			ASSERT(scope # NIL);
 			SetType(c);
 		END Init;
-		
+
 		PROCEDURE SetType(type: Type);
 		BEGIN
 			IF type # NIL THEN
@@ -426,7 +428,7 @@ TYPE
 				capabilities := type.capabilities;
 			END;
 		END SetType;
-		
+
 
 		PROCEDURE SetInstructionMemorySize*(value: LONGINT);
 		BEGIN instructionMemorySize := value
