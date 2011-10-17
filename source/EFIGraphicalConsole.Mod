@@ -319,7 +319,7 @@ TYPE
 	VAR p, i, bitofs: SYSTEM.ADDRESS; s: SET; dadr: SYSTEM.ADDRESS; d: SYSTEM.SIZE;
 	VAR con : BOOLEAN;
 	VAR tmp : SYSTEM.SIZE;
-	BEGIN		
+	BEGIN
 			con := FALSE;
 			IF (w > 0) & (h > 0) THEN
 			i := buf MOD SYSTEM.SIZEOF (SET);
@@ -327,7 +327,7 @@ TYPE
 			p := buf-i + bitofs DIV SetSize * SYSTEM.SIZEOF (SET);	(* p always aligned to 32-bit boundary *)
 			bitofs := bitofs MOD SetSize; stride := stride*8;
 			LOOP
-				SYSTEM.GET(p, s); 
+				SYSTEM.GET(p, s);
 				i := bitofs;
 				LOOP
 					IF (i MOD SetSize) IN s THEN
@@ -338,30 +338,30 @@ TYPE
 					END;
 					INC(i);
 					IF i-bitofs = w THEN
-						 EXIT 
+						 EXIT
 					END;
 					IF i MOD SetSize = 0 THEN
-						SYSTEM.GET(p+i DIV 8, s) 
+						SYSTEM.GET(p+i DIV 8, s)
 					END;
 
 				END;
 				DEC(h);
-				IF h = 0 THEN 
-					EXIT 
+				IF h = 0 THEN
+					EXIT
 				END;
-				INC(y); 				
-				IF (bitofs >= stride) THEN 
+				INC(y);
+				IF (bitofs >= stride) THEN
 					DEC(bitofs, stride);
 				ELSE
 					con := TRUE;
-				END; 
+				END;
 
 				IF (bitofs >= SetSize) OR ( con) THEN	(* moved outside s *)
 					con := FALSE;
-					bitofs := stride - bitofs; (* now we have the dec as positive number *) 
-					DEC(p, bitofs);					
-					bitofs := SetSize  -bitofs;	
-				END; 
+					bitofs := stride - bitofs; (* now we have the dec as positive number *)
+					DEC(p, bitofs);
+					bitofs := SetSize  -bitofs;
+				END;
 			END;
 		END;
 	END Mask;
@@ -403,7 +403,7 @@ TYPE
 					TRACE(SetSize * SYSTEM.SIZEOF (SET));
 					TRACE(p);*)
 
-					
+
 					INC(p, bitofs); bitofs := bitofs MOD SetSize;
 (*					TRACE(p);
 					TRACE(bitofs);*)
@@ -486,12 +486,12 @@ TYPE
 		Trace.String("Graphical Console, info = "); Trace.Address(graphicsModeInfo); Trace.Ln;
 		Trace.String("Graphical Console, address = "); Trace.Address(frameBufferAdr); Trace.Ln;
 		info := SYSTEM.VAL(GraphicsModeInfo, graphicsModeInfo);
-		
+
 		FOR i := 0 TO 9 DO
 			SYSTEM.GET(graphicsModeInfo+i*8,tmp);
-			Trace.Address(tmp);
+			Trace.Hex(tmp,8);
 			Trace.Ln;
-		END;			
+		END;
 		adr := frameBufferAdr;
 		x := 0; y := 0; w := info.HorizontalResolution; h :=  info.VerticalResolution; depth := GetDepth(info);
 		Trace.String("Graphical Console, w = "); Trace.Address(w); Trace.Ln;
@@ -499,7 +499,7 @@ TYPE
 		Trace.String("Graphical Console, depth = "); Trace.Address(depth); Trace.Ln;
 
 		FOR i := 0 TO w*h*depth DIV 8-1 DO SYSTEM.PUT(adr+i,0)	END;
-		RenderChar("X"); RenderChar("X");	
+		RenderChar("X"); RenderChar("X");
 		Trace.Char := RenderChar;
 		Trace.String("Graphical Console started"); Trace.Ln;
 	END SetupConsole;
