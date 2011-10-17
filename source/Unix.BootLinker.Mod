@@ -199,7 +199,7 @@ CONST
 	FileTag = 0BBX;				(* cf. PCM.Mod *)
 	NoZeroCompress = 0ADX;	(* cf. PCM.Mod *)
 	FileVersion* = 0B1X;			(* cf. PCM.Mod *)
-	FileVersionOC=0B2X; (* preparation for object and symbol file for new Oberon Compiler *)
+	FileVersionOC=0B3X; (* preparation for object and symbol file for new Oberon Compiler *)
 
 		(* object model exports *)
 	EUEnd = 0;  EURecord = 1;  EUobjScope = 0;  EUrecScope = 1;  EUerrScope = -1;
