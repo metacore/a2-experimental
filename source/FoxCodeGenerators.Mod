@@ -129,7 +129,7 @@ TYPE
 		END SetModule;
 
 		PROCEDURE Error*(CONST message: ARRAY OF CHAR);
-		VAR string: SyntaxTree.String;
+		VAR string:Basic.MessageString;
 		BEGIN
 			IF diagnostics # NIL THEN
 				Basic.FromPooledName(in.name, string);
@@ -144,11 +144,11 @@ TYPE
 
 		(* generic *)
 		PROCEDURE Section*(in: IntermediateCode.Section; out: BinaryCode.Section);
-		VAR pc: LONGINT; name: SyntaxTree.String; instruction: IntermediateCode.Instruction;
-			moduleName, procedureName: SyntaxTree.String;
+		VAR pc: LONGINT; name: Basic.SectionName; instruction: IntermediateCode.Instruction;
+			moduleName, procedureName: SyntaxTree.IdentifierString;
 
 			PROCEDURE ResolveLocalFixups;
-			VAR fixup, next: BinaryCode.Fixup; dest: LONGINT; msg,string: SyntaxTree.String; number: ARRAY 32 OF CHAR;
+			VAR fixup, next: BinaryCode.Fixup; dest: LONGINT; msg,string: Basic.MessageString; number: ARRAY 32 OF CHAR;
 			BEGIN
 				fixup := out.fixupList.firstFixup;
 				out.fixupList.InitFixupList;
@@ -243,7 +243,7 @@ TYPE
 			END DumpInstruction;
 
 
-			PROCEDURE Emulate(CONST x: IntermediateCode.Instruction; CONST moduleName,procedureName: Scanner.StringType);
+			PROCEDURE Emulate(CONST x: IntermediateCode.Instruction; CONST moduleName,procedureName: SyntaxTree.IdentifierString);
 			(*! this emulation procedure emulates instructions with destination operand only *)
 			VAR
 				parSize: LONGINT; sectionName: Basic.PooledName; source: Sections.Section; op: IntermediateCode.Operand;
@@ -307,7 +307,7 @@ TYPE
 				Basic.SuffixPooledName(sectionName, StringPool.GetIndex1(moduleName));
 				Basic.SuffixPooledName(sectionName, StringPool.GetIndex1(procedureName));
 				IF moduleName = module.moduleName THEN
-					source := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, FALSE, sectionName,NIL,dump#NIL);					
+					source := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, FALSE, sectionName,NIL,dump#NIL);
 				ELSE
 					source := IntermediateCode.NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.CodeSection, FALSE, sectionName,NIL,dump#NIL);
 				END;

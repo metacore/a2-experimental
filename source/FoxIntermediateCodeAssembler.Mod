@@ -8,6 +8,8 @@ CONST
 	IntermediateCodeExtension = "Fil"; (* TODO: move to a better place *)
 
 TYPE
+	FileName = ARRAY 256 OF CHAR;
+	MessageString= ARRAY 256 OF CHAR;
 	(** the intermediate code parser **)
 	IntermediateCodeParser* = OBJECT
 	CONST
@@ -32,7 +34,7 @@ TYPE
 		BEGIN
 			error := TRUE;
 			IF diagnostics # NIL THEN
-				diagnostics.Error(scanner.source,pos,Diagnostics.Invalid,msg);
+				diagnostics.Error(scanner.source^,pos,Diagnostics.Invalid,msg);
 			END;
 
 			D.Update;
@@ -52,13 +54,13 @@ TYPE
 		BEGIN
 			pos := symbol.start;
 			IF symbol.token # Scanner.Identifier THEN RETURN FALSE
-			ELSE COPY(symbol.string,identifier); NextSymbol; RETURN TRUE
+			ELSE COPY(symbol.identifierString,identifier); NextSymbol; RETURN TRUE
 			END;
 		END GetIdentifier;
 
 		PROCEDURE ExpectToken(x: LONGINT): BOOLEAN;
 		VAR
-			s: Scanner.StringType;
+			s: MessageString;
 		BEGIN
 			IF ThisToken(x) THEN RETURN TRUE
 			ELSE
@@ -69,7 +71,7 @@ TYPE
 
 		PROCEDURE ThisIdentifier(CONST this: ARRAY OF CHAR): BOOLEAN;
 		BEGIN
-			IF ~error & (symbol.token = Scanner.Identifier) & (this = symbol.string) THEN NextSymbol; RETURN TRUE ELSE RETURN FALSE END;
+			IF ~error & (symbol.token = Scanner.Identifier) & (this = symbol.identifierString) THEN NextSymbol; RETURN TRUE ELSE RETURN FALSE END;
 		END ThisIdentifier;
 
 		PROCEDURE ExpectAnyIdentifier(VAR pos: LONGINT; VAR identifier: ARRAY OF CHAR): BOOLEAN;
@@ -131,7 +133,7 @@ TYPE
 		PROCEDURE ParseLineNumber(expectedLineNumber: LONGINT);
 		VAR
 			positionOfLine, specifiedLineNumber: LONGINT;
-			message, tempString: SyntaxTree.String;
+			message, tempString: MessageString;
 		BEGIN
 			IF Trace THEN D.String(">>> ParseLineNumber"); D.Ln END;
 
@@ -158,7 +160,7 @@ TYPE
 			someHugeint: HUGEINT;
 			hasTypeDescriptor, isMemoryOperand, lastWasIdentifier, isNegated: BOOLEAN;
 			someLongreal: LONGREAL;
-			identifier: SyntaxTree.String;
+			identifier: SyntaxTree.IdentifierString;
 			type: IntermediateCode.Type;
 			sectionOfSymbol: Sections.Section;
 			name: Basic.PooledName;
@@ -213,7 +215,7 @@ TYPE
 
 			ELSIF symbol.token = Scanner.String THEN
 				(* string constant *)
-				IntermediateCode.InitString(operand, Strings.NewString(symbol.string));
+				IntermediateCode.InitString(operand, symbol.string);
 				NextSymbol
 
 			ELSE
@@ -296,7 +298,7 @@ TYPE
 			operand: IntermediateCode.Operand;
 			operands: ARRAY 3 OF IntermediateCode.Operand;
 			operandType: IntermediateCode.Type;
-			identifier, message, tempString: SyntaxTree.String;
+			identifier, message, tempString: SyntaxTree.IdentifierString;
 		BEGIN
 			IF Trace THEN D.String(">>> ParseInstruction"); D.Ln END;
 
@@ -435,10 +437,10 @@ TYPE
 		END ParseSectionProperties;
 
 		(** parse the content of an intermediate code module **)
-		PROCEDURE ParseModuleContent*(scanner: Scanner.AssemblerScanner; sectionList: Sections.SectionList; VAR moduleName: SyntaxTree.String; VAR backend: Backend.Backend;  VAR imports: Sections.NameList): BOOLEAN;
+		PROCEDURE ParseModuleContent*(scanner: Scanner.AssemblerScanner; sectionList: Sections.SectionList; VAR moduleName: SyntaxTree.IdentifierString; VAR backend: Backend.Backend;  VAR imports: Sections.NameList): BOOLEAN;
 		VAR
 			pos, positionOfDirective: LONGINT;
-			identifier: Scanner.StringType;
+			identifier: Scanner.IdentifierString;
 			afterModuleDirective, afterImportsDirective, afterFirstSection, isExternalSection: BOOLEAN;
 			sectionType: SHORTINT;
 			section: IntermediateCode.Section;
@@ -565,7 +567,7 @@ TYPE
 		PROCEDURE ParseModule*(scanner: Scanner.AssemblerScanner): Sections.Module;
 		VAR
 			result: Sections.Module;
-			moduleName, platformName: SyntaxTree.String;
+			moduleName, platformName: SyntaxTree.IdentifierString;
 			backend: Backend.Backend;
 			imports: Sections.NameList;
 		BEGIN
@@ -601,13 +603,13 @@ TYPE
 	VAR
 		backend-: Backend.Backend;
 		diagnostics: Diagnostics.Diagnostics;
-		rootModuleName, platformName, irFilePath: SyntaxTree.String;
+		rootModuleName, platformName, irFilePath: SyntaxTree.IdentifierString;
 		importList, loadedModules: Sections.NameList;
 		allSections: Sections.SectionList;
 		isSorted, alreadyPrearrangedSinceLastSort: BOOLEAN;
 		originalRestrictions: POINTER TO ARRAY OF ArrangementRestriction;
 
-		PROCEDURE & Init*(diagnostics: Diagnostics.Diagnostics; defaultBackend: Backend.Backend; irFilePath: SyntaxTree.String);
+		PROCEDURE & Init*(diagnostics: Diagnostics.Diagnostics; defaultBackend: Backend.Backend; irFilePath: SyntaxTree.IdentifierString);
 		BEGIN
 			SELF.diagnostics := diagnostics;
 			SELF.irFilePath := irFilePath;
@@ -620,25 +622,23 @@ TYPE
 			isSorted := FALSE
 		END Init;
 
-		PROCEDURE RemoveFileExtension(VAR filename: ARRAY OF CHAR);
-		VAR
-			name, extension: SyntaxTree.String;
+		PROCEDURE RemoveFileExtension(CONST filename: ARRAY OF CHAR; VAR moduleName: ARRAY OF CHAR);
+		VAR extension: FileName;
 		BEGIN
-			Files.SplitExtension(filename, name, extension);
-			COPY(name, filename)
+			Files.SplitExtension(filename, moduleName, extension);
 		END RemoveFileExtension;
 
 		(** load a module given by its name from an IR-file
 			- if 'resursive' is TRUE: also load the referenced modules from their corresponding files
 			- return TRUE if operation was successful
 		**)
-		PROCEDURE LoadModule*(moduleName: SyntaxTree.String; isRecursive: BOOLEAN): BOOLEAN;
-		BEGIN RETURN LoadModule2(moduleName, isRecursive, TRUE)
+		PROCEDURE LoadModule*(CONST moduleFileName: ARRAY OF CHAR; isRecursive: BOOLEAN): BOOLEAN;
+		BEGIN RETURN LoadModule2(moduleFileName, isRecursive, TRUE)
 		END LoadModule;
 
-		PROCEDURE LoadModule2(moduleName: SyntaxTree.String; isRecursive, isRoot: BOOLEAN): BOOLEAN;
+		PROCEDURE LoadModule2(CONST moduleFileName: ARRAY OF CHAR; isRecursive, isRoot: BOOLEAN): BOOLEAN;
 		VAR
-			filename, parsedModuleName: SyntaxTree.String;
+			filename, parsedModuleName, moduleName: SyntaxTree.IdentifierString;
 			parsedImportList: Sections.NameList;
 			assemblerScanner: Scanner.AssemblerScanner;
 			intermediateCodeParser: IntermediateCodeParser;
@@ -648,7 +648,7 @@ TYPE
 		BEGIN
 			IF Trace THEN D.String(">>> LoadModule "); D.String(moduleName); D.Ln END;
 
-			RemoveFileExtension(moduleName);
+			RemoveFileExtension(moduleFileName, moduleName);
 
 			(* check if the module has already been incorporated *)
 			IF loadedModules.ContainsName(moduleName) THEN
@@ -742,7 +742,7 @@ TYPE
 		VAR
 			intermediateCodeSection: IntermediateCode.Section;
 			i: LONGINT;
-			procedureName, moduleName: SyntaxTree.String;
+			procedureName, moduleName: SyntaxTree.IdentifierString;
 		BEGIN
 			IF ~section.isReachable THEN
 				IF Trace THEN D.String(">>> MarkAsReachable "); Basic.WritePooledName(D.Log, section.name); D.Ln END;
@@ -951,7 +951,7 @@ TYPE
 		END ExtractModule;
 
 		(** get all reachable sections in the form of an intermediate code module with a certain name **)
-		PROCEDURE ExtractModuleWithName*(desiredName: SyntaxTree.String): Sections.Module;
+		PROCEDURE ExtractModuleWithName*(CONST desiredName: ARRAY OF CHAR): Sections.Module;
 		VAR
 			result: Sections.Module;
 			section: Sections.Section;
@@ -1047,7 +1047,7 @@ TYPE
 		END GenerateObjectFile;
 
 		(* generate binary code and write an object file with a desired module name *)
-		PROCEDURE GenerateObjectFileWithName*(objectFileFormat: Formats.ObjectFileFormat; log: Streams.Writer; flags: SET; checker: SemanticChecker.Checker; activeCellsSpecification: ActiveCells.Specification;  desiredName: SyntaxTree.String): BOOLEAN;
+		PROCEDURE GenerateObjectFileWithName*(objectFileFormat: Formats.ObjectFileFormat; log: Streams.Writer; flags: SET; checker: SemanticChecker.Checker; activeCellsSpecification: ActiveCells.Specification;  CONST desiredName: ARRAY OF CHAR): BOOLEAN;
 		VAR
 			intermediateCodeModule: Sections.Module;
 			binaryModule: Formats.GeneratedModule;

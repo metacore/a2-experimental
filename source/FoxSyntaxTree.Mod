@@ -54,9 +54,10 @@ CONST
 	CaseGuard* = 2;
 
 TYPE
-	SourceCode*= Scanner.SourceString;
+	SourceCode*= Scanner.StringType;
 	BinaryCode*= BitSets.BitSet;
 	String*= Scanner.StringType;
+	IdentifierString*= Scanner.IdentifierString;
 
 	(** visitor pattern implementation *)
 	(* to use this object in your implementation, copy and paste and replace "x: " by "x: SyntaxTree." *)
@@ -468,7 +469,7 @@ TYPE
 	VAR name-: Identifier;
 
 		PROCEDURE & InitBasicType(CONST id: ARRAY OF CHAR; sizeInBits: LONGINT);
-		VAR str: String;
+		VAR str: IdentifierString;
 		BEGIN
 			COPY(id, str);Basic.AppendNumber(str,sizeInBits); name := NewIdentifier(str);
 			InitType(-1);
@@ -2400,12 +2401,12 @@ TYPE
 	(** <<value = "string">> **)
 	StringValue* = OBJECT (Value)
 		VAR
-			value-: Scanner.StringType;
+			value-: String;
 			length-: LONGINT;
 
-		PROCEDURE & InitStringValue(position: LONGINT; CONST value: ARRAY OF CHAR);
+		PROCEDURE & InitStringValue(position: LONGINT; value: String);
 		BEGIN
-			InitValue(position);  COPY(value,SELF.value);
+			InitValue(position);  SELF.value := value;
 			length := 0;
 			WHILE (length<LEN(value)) & (value[length] # 0X) DO
 				INC(length);
@@ -2413,7 +2414,7 @@ TYPE
 			IF length < LEN(value) THEN INC(length) END
 		END InitStringValue;
 
-		PROCEDURE SetValue*(CONST value: Scanner.StringType);
+		PROCEDURE SetValue*(CONST value: String);
 		BEGIN	SELF.value := value
 		END SetValue;
 
@@ -3536,7 +3537,7 @@ TYPE
 	(** (* comment *)  *)
 	Comment*=OBJECT
 	VAR position-: LONGINT;
-		source-: Scanner.SourceString; (* currently: POINTER TO ARRAY OF CHAR *)
+		source-: String; (* currently: POINTER TO ARRAY OF CHAR *)
 		scope-: Scope;
 		item-: ANY; sameLine-: BOOLEAN;
 		nextComment-: Comment;
@@ -4079,7 +4080,7 @@ TYPE
 	(* << MODULE name ['in' context] moduleScope name '.' >>  *)
 	Module* = OBJECT (Symbol)
 		VAR
-			sourceName-: Scanner.StringType;
+			sourceName-: Basic.FileName;
 			moduleScope-: ModuleScope;
 			context-:Identifier; (* modules context *)
 			case-: LONGINT; (* module notation in lower or upper case, important for printout and operators *)
@@ -4567,7 +4568,7 @@ VAR
 		NEW( complexValue, position, realValue, imagValue);  RETURN complexValue
 	END NewComplexValue;
 
-	PROCEDURE NewStringValue*( position: LONGINT;  CONST value: ARRAY OF CHAR): StringValue;
+	PROCEDURE NewStringValue*( position: LONGINT;  value: String): StringValue;
 	VAR stringValue: StringValue;
 	BEGIN
 		NEW( stringValue, position, value );  RETURN stringValue

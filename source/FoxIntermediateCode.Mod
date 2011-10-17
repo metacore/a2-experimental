@@ -328,7 +328,7 @@ TYPE
 
 	IntermediateBackend*= OBJECT (Backend.Backend)
 	VAR
-		runtimeModuleName-: SyntaxTree.String;
+		runtimeModuleName-: SyntaxTree.IdentifierString;
 
 		PROCEDURE SupportedInstruction*(CONST instr: Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
 		BEGIN

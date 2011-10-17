@@ -21,6 +21,7 @@ CONST
 	NoZeroCompress = 0ADX;	(* see PCM.NoZeroCompress *)
 	FileVersion = 0B1X;			(* see PCM.FileVersion *)
 	FileVersionOC=0B2X; (* preparation for object and symbol file for new Oberon Compiler *)
+	CurrentVersion=0B3X;
 
 	MaxStructs = 1024;	(* maximum number of structures in export block *)
 
@@ -68,10 +69,10 @@ BEGIN
 	IF tag = FileTag THEN
 		r.Char(tag);
 		IF tag = NoZeroCompress THEN r.Char(tag) END;	(* no zero compression in symbol file *)
-		IF (tag = FileVersion) OR (tag = FileVersionOC)  THEN
+		IF (tag = FileVersion) OR (tag >= FileVersionOC) & (tag <= CurrentVersion)  THEN
 			IF tag = FileVersion THEN
 			r.RawNum(symSize);
-			ELSIF tag = FileVersionOC THEN
+			ELSIF tag >= FileVersionOC THEN
 			r.RawLInt(symSize)
 			END;
 			r.RawSet(flags);	(* compilation flags *)

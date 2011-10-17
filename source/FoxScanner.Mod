@@ -7,7 +7,7 @@ CONST
 	Trace = FALSE;   (* debugging output *)
 
 	(* overal scanner limitation *)
-	MaxStringLength* = 256;  MaxIdentifierLength* = 128;
+	MaxIdentifierLength* = 128;
 
 	(* parametrization of numeric scanner: *)
 	MaxHexDigits* = 8;   (* maximal hexadecimal longint length *)
@@ -19,8 +19,9 @@ CONST
 	EOT* = 0X; LF* = 0AX; CR* = 0DX; TAB = 09X;
 
 TYPE
-	StringType* = ARRAY MaxStringLength OF CHAR;
-	SourceString*= Strings.String;
+	StringType* = Strings.String;
+	IdentifierType *= StringPool.Index;
+	IdentifierString*= ARRAY MaxIdentifierLength+1 OF CHAR;
 
 CONST
 
@@ -114,6 +115,16 @@ TYPE
 			Init(size); NEW(table,size); FOR i := 0 TO size-1 DO table[i] := -1; END;
 		END InitTable;
 
+		PROCEDURE IndexByIdentifier*(identifier: IdentifierType): LONGINT;
+		VAR stringPoolIndex: LONGINT;
+		BEGIN
+			IF Has(identifier) THEN
+				RETURN GetInt(identifier)
+			ELSE (* do not modify index *)
+				RETURN -1
+			END;
+		END IndexByIdentifier;
+
 		PROCEDURE IndexByString*(CONST name: ARRAY OF CHAR): LONGINT;
 		VAR stringPoolIndex: LONGINT;
 		BEGIN
@@ -124,6 +135,11 @@ TYPE
 				RETURN -1
 			END;
 		END IndexByString;
+
+		PROCEDURE IdentifierByIndex*(index: LONGINT; VAR identifier: IdentifierType);
+		BEGIN
+			identifier := table[index]
+		END IdentifierByIndex;
 
 		PROCEDURE StringByIndex*(index: LONGINT; VAR name: ARRAY OF CHAR);
 		VAR stringPoolIndex: LONGINT;
@@ -155,6 +171,8 @@ TYPE
 	Symbol*= RECORD
 		start*,end*,line-: LONGINT; (* start and end position of symbol *)
 		token*: Token; (* token of symbol *)
+		identifier*: IdentifierType; (* identifier *)
+		identifierString*: IdentifierString; (* cache of identifier's string *)
 		string*: StringType;  (* string or identifier *)
 		stringLength*: LONGINT; (* length of string, if stringLength = 2 then this may be interpreted as character and integer = ORD(ch) *)
 		numberType*: LONGINT;  (* Integer, HugeInteger, Real or Longreal *)
@@ -162,12 +180,11 @@ TYPE
 		hugeint*: HUGEINT;  (*! unify longint and hugeint *)
 		character*: CHAR;
 		real*: LONGREAL;
-		source*: SourceString; (* for comments and inline assembly *)
 	END;
 
 	StringMaker* = OBJECT (* taken from TF's scanner *)
 	VAR length : LONGINT;
-		data : SourceString;
+		data : StringType;
 
 		PROCEDURE &Init*(initialSize : LONGINT);
 		BEGIN
@@ -176,7 +193,7 @@ TYPE
 		END Init;
 
 		PROCEDURE Add*(CONST buf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
-		VAR i : LONGINT; n: SourceString;
+		VAR i : LONGINT; n: StringType;
 		BEGIN
 			IF length + len + 1 >= LEN(data) THEN
 				NEW(n, LEN(data) + len + 1); FOR i := 0 TO length - 1 DO n[i] := data[i] END;
@@ -210,14 +227,14 @@ TYPE
 			RETURN w
 		END GetWriter;
 
-		PROCEDURE GetString*(VAR len: LONGINT) : SourceString;
+		PROCEDURE GetString*(VAR len: LONGINT) : StringType;
 		BEGIN
 			len := length;
 			RETURN data
 		END GetString;
 
-		PROCEDURE GetStringCopy*(VAR len: LONGINT): SourceString;
-		VAR new: SourceString;
+		PROCEDURE GetStringCopy*(VAR len: LONGINT): StringType;
+		VAR new: StringType;
 		BEGIN
 			len := length;
 			NEW(new,len+1);
@@ -257,8 +274,8 @@ TYPE
 
 		firstIdentifier: BOOLEAN;   (* support of lower vs. upper case keywords  *)
 		case-: LONGINT;
-		sourceWriter: Streams.Writer;
-		sourceString: StringMaker;
+		stringWriter: Streams.Writer;
+		stringMaker: StringMaker;
 
 		(*
 			source: name of the source code for reference in error outputs
@@ -268,10 +285,11 @@ TYPE
 		*)
 		PROCEDURE & InitializeScanner*( CONST source: ARRAY OF CHAR; reader: Streams.Reader; position: LONGINT; diagnostics: Diagnostics.Diagnostics );
 		BEGIN
-			NEW(sourceString,1024);
-			sourceWriter := sourceString.GetWriter();
+			NEW(stringMaker,1024);
+			stringWriter := stringMaker.GetWriter();
 			error := FALSE;
-			COPY (source, SELF.source);
+			NEW(SELF.source, Strings.Length(source)+1);
+			COPY (source, SELF.source^);
 			SELF.reader := reader;
 			SELF.diagnostics := diagnostics;
 			ch := " ";
@@ -292,7 +310,7 @@ TYPE
 		PROCEDURE ErrorS(CONST msg: ARRAY OF CHAR);
 		BEGIN
 			IF diagnostics # NIL THEN
-				diagnostics.Error(source, position, Diagnostics.Invalid, msg)
+				diagnostics.Error(source^, position, Diagnostics.Invalid, msg)
 			END;
 			error := TRUE;
 		END ErrorS;
@@ -303,7 +321,7 @@ TYPE
 		BEGIN
 			IF diagnostics # NIL THEN
 				Basic.GetErrorMessage(code,"",errorMessage);
-				diagnostics.Error(source, position, code, errorMessage)
+				diagnostics.Error(source^, position, code, errorMessage)
 			END;
 			error := TRUE;
 		END Error;
@@ -324,22 +342,21 @@ TYPE
 			string = '"' {Character} '"' | "'" {Character} "'".
 		**)
 		PROCEDURE GetString(VAR symbol: Symbol; useControl: BOOLEAN);
-		VAR i: INTEGER;  och: CHAR; flags: SET; error: BOOLEAN; ignoreWhitespace: BOOLEAN;
+		VAR och: CHAR; flags: SET; error: BOOLEAN; ignoreWhitespace: BOOLEAN;
 		CONST control = '\'; IgnoreNewline = 0; IgnoreTab = 1;
 
 			PROCEDURE Append(ch :CHAR);
 			BEGIN
-				IF i = MaxStringLength - 1 THEN
-					Error( Basic.StringTooLong );  error := TRUE
-				ELSIF ch = 0X THEN
+				IF ch = 0X THEN
 					ErrorS("Unexpected end of text in string"); error := TRUE
 				ELSE
-					symbol.string[i] := ch;  INC( i )
+					stringWriter.Char(ch)
 				END;
 			END Append;
 
 		BEGIN
-			i := 0;  och := ch; error := FALSE; flags := {IgnoreTab};
+			stringMaker.Clear;
+			och := ch; error := FALSE; flags := {IgnoreTab};
 			LOOP
 				IF error THEN EXIT END;
 				GetNextCharacter;
@@ -383,7 +400,10 @@ TYPE
 				END;
 			END;
 			IF ch = EOT THEN ErrorS("Unexpected end of text in string") END;
-			GetNextCharacter;  symbol.string[i] := 0X;  symbol.character := symbol.string[0];  symbol.stringLength := i + 1;
+			stringWriter.Char(0X);
+			stringWriter.Update;
+			symbol.string := stringMaker.GetStringCopy(symbol.stringLength);
+			GetNextCharacter;
 		END GetString;
 
 		(**
@@ -397,9 +417,10 @@ TYPE
 		VAR i: LONGINT;
 		BEGIN
 			i := 0;
-			REPEAT symbol.string[i] := ch; INC( i );  GetNextCharacter UNTIL reservedCharacter[ORD( ch )] OR (i = MaxIdentifierLength);
+			REPEAT symbol.identifierString[i] := ch; INC( i );  GetNextCharacter UNTIL reservedCharacter[ORD( ch )] OR (i = MaxIdentifierLength);
 			IF i = MaxIdentifierLength THEN Error( Basic.IdentifierTooLong );  DEC( i ) END;
-			symbol.string[i] := 0X;
+			symbol.identifierString[i] := 0X;
+			StringPool.GetIndex(symbol.identifierString, symbol.identifier);
 		END GetIdentifier;
 
 		(**
@@ -454,9 +475,9 @@ TYPE
 						IF n < LEN( dig ) THEN dig[n] := ch;  INC( n ) END;
 						INC( m )
 					END;
-					symbol.string[si] := ch;  INC( si );  GetNextCharacter;  INC( i )
+					symbol.identifierString[si] := ch;  INC( si );  GetNextCharacter;  INC( i )
 				ELSIF ch = "." THEN
-					symbol.string[si] := ch;  INC( si );  GetNextCharacter;
+					symbol.identifierString[si] := ch;  INC( si );  GetNextCharacter;
 					IF ch = "." THEN ch := Ellipsis;  EXIT
 					ELSIF d = 0 THEN  (* i > 0 *) d := i
 					ELSE Error( Basic.NumberIllegalCharacter )
@@ -468,14 +489,14 @@ TYPE
 				IF n = m THEN
 					symbol.integer := 0;  i := 0;  symbol.hugeint := 0;
 					IF ch = "X" THEN  (* character *)
-						symbol.string[si] := ch;  INC( si );  GetNextCharacter;  result := Character;
+						symbol.identifierString[si] := ch;  INC( si );  GetNextCharacter;  result := Character;
 						IF  (n <= 2) THEN
 							WHILE i < n DO symbol.integer := symbol.integer * 10H + Hexadecimal( dig[i] );  INC( i ) END;
 							symbol.character := CHR(symbol.integer);
 						ELSE Error( Basic.NumberTooLarge )
 						END
 					ELSIF ch = "H" THEN  (* hexadecimal *)
-						symbol.string[si] := ch;  INC( si );  GetNextCharacter;
+						symbol.identifierString[si] := ch;  INC( si );  GetNextCharacter;
 						IF (n < MaxHexDigits) OR (n=MaxHexDigits) & (dig[0] <= "7")  THEN (* otherwise the positive (!) number is not in the range of longints *)
 							symbol.numberType := Integer;
 							(* IF (n = MaxHexDigits) & (dig[0] > "7") THEN  (* prevent overflow *) symbol.integer := -1 END;  *)
@@ -516,13 +537,13 @@ TYPE
 				f := 0;  e := 0;  expCh := "E";
 				WHILE n > 0 DO  (* 0 <= f < 1 *) DEC( n );  f := (Decimal( dig[n] ) + f) / 10 END;
 				IF (ch = "E") OR (ch = "D") THEN
-					expCh := ch;  symbol.string[si] := ch;  INC( si );  GetNextCharacter;  neg := FALSE;
-					IF ch = "-" THEN neg := TRUE;  symbol.string[si] := ch;  INC( si );  GetNextCharacter
-					ELSIF ch = "+" THEN symbol.string[si] := ch;  INC( si );  GetNextCharacter
+					expCh := ch;  symbol.identifierString[si] := ch;  INC( si );  GetNextCharacter;  neg := FALSE;
+					IF ch = "-" THEN neg := TRUE;  symbol.identifierString[si] := ch;  INC( si );  GetNextCharacter
+					ELSIF ch = "+" THEN symbol.identifierString[si] := ch;  INC( si );  GetNextCharacter
 					END;
 					IF ("0" <= ch) & (ch <= "9") THEN
 						REPEAT
-							n := Decimal( ch );  symbol.string[si] := ch;  INC( si );  GetNextCharacter;
+							n := Decimal( ch );  symbol.identifierString[si] := ch;  INC( si );  GetNextCharacter;
 							IF e <= (MAX( INTEGER ) - n) DIV 10 THEN e := e * 10 + n ELSE Error( Basic.NumberTooLarge ) END
 						UNTIL (ch < "0") OR ("9" < ch);
 						IF neg THEN e := -e END
@@ -544,7 +565,7 @@ TYPE
 					END
 				END
 			END;
-			symbol.string[si] := 0X;
+			symbol.identifierString[si] := 0X;
 			RETURN result;
 		END GetNumber;
 
@@ -552,19 +573,19 @@ TYPE
 		PROCEDURE ReadComment(VAR symbol: Symbol);
 		VAR level: LONGINT;
 		BEGIN
-			sourceString.Clear;
+			stringMaker.Clear;
 			level := 1;
 			WHILE (level > 0) & (ch # EOT) DO
 				IF ch = "(" THEN
-					sourceWriter.Char(ch);
+					stringWriter.Char(ch);
 					GetNextCharacter;
-					IF ch = "*" THEN INC(level); sourceWriter.Char(ch); GetNextCharacter;  END;
+					IF ch = "*" THEN INC(level); stringWriter.Char(ch); GetNextCharacter;  END;
 				ELSIF ch = "*" THEN
-					sourceWriter.Char(ch);
+					stringWriter.Char(ch);
 					GetNextCharacter;
-					IF ch =")" THEN DEC(level); sourceWriter.Char(ch); GetNextCharacter;  END;
+					IF ch =")" THEN DEC(level); stringWriter.Char(ch); GetNextCharacter;  END;
 				ELSE
-					sourceWriter.Char(ch);
+					stringWriter.Char(ch);
 					GetNextCharacter;
 				END;
 			END;
@@ -573,28 +594,18 @@ TYPE
 				Error(Basic.CommentNotClosed)
 			END;
 
-			sourceWriter.Char(0X);
-			sourceWriter.Update;
-			sourceString.Shorten(2); (* remove comment closing *)
+			stringWriter.Char(0X);
+			stringWriter.Update;
+			stringMaker.Shorten(2); (* remove comment closing *)
 			symbol.token := Comment;
-			symbol.source := sourceString.GetString(symbol.stringLength);
+			symbol.string := stringMaker.GetString(symbol.stringLength);
 		END ReadComment;
 
 		PROCEDURE SkipToNextEnd*(VAR startPos,endPos: LONGINT; VAR symbol: Symbol): BOOLEAN;
 		VAR s: LONGINT;
-
-			PROCEDURE GetIdentifier( VAR symbol: Symbol );
-			VAR i: LONGINT;
-			BEGIN
-				i := 0;
-				REPEAT symbol.string[i] := ch; INC( i );  GetNextCharacter UNTIL reservedCharacter[ORD( ch )] OR (i = MaxIdentifierLength);
-				IF i = MaxIdentifierLength THEN Error( Basic.IdentifierTooLong );  DEC( i ) END;
-				symbol.string[i] := 0X;
-			END GetIdentifier;
-
 		BEGIN
 			ASSERT(case # Unknown);
-			sourceString.Clear;
+			stringMaker.Clear;
 			startPos := symbol.end;
 			s := symbol.token;
 			WHILE (s # EndOfText) & (s # End) DO
@@ -603,18 +614,19 @@ TYPE
 				CASE ch OF
 				'A' .. 'Z','a'..'z': s := Identifier;
 					GetIdentifier(symbol);
-					IF (case=Uppercase) & (symbol.string = "END") OR (case=Lowercase) & (symbol.string = "end") THEN s := End
+					IF (case=Uppercase) & (symbol.identifierString = "END") OR (case=Lowercase) & (symbol.identifierString = "end") THEN
+						s := End
 					ELSE
-						sourceWriter.String(symbol.string);
+						stringWriter.String(symbol.identifierString);
 					END;
 				ELSE
-					sourceWriter.Char(ch);
+					stringWriter.Char(ch);
 					GetNextCharacter;
 				END;
 				symbol.end := position;
 			END;
-			sourceWriter.Update;
-			symbol.source := sourceString.GetStringCopy(symbol.stringLength);
+			stringWriter.Update;
+			symbol.string := stringMaker.GetStringCopy(symbol.stringLength);
 			symbol.token := s;
 
 			IF Trace THEN
@@ -643,8 +655,11 @@ TYPE
 		BEGIN
 			SkipBlanks;
 			symbol.start := position; symbol.line := line;
+			stringMaker.Clear;
+			(*
 			symbol.string[0] := ch;
 			symbol.string[1] := 0X;
+			*)
 			IF s # EndOfText THEN
 				CASE ch OF  (* ch > " " *)
 				| DoubleQuote:
@@ -662,35 +677,35 @@ TYPE
 				| "(":     GetNextCharacter;
 						IF ch = "*" THEN GetNextCharacter; ReadComment(symbol);  s := Comment; ELSE s := LeftParenthesis END
 				| ")":     s := RightParenthesis;  GetNextCharacter
-				| "*":    GetNextCharacter; IF ch = "*" THEN GetNextCharacter;  s := TimesTimes; symbol.string := "**" ELSE s := Times END
-				| "+":    GetNextCharacter; IF ch = "*" THEN GetNextCharacter; s := PlusTimes ; symbol.string := "+*" ELSE s := Plus END
+				| "*":    GetNextCharacter; IF ch = "*" THEN GetNextCharacter;  s := TimesTimes ELSE s := Times END
+				| "+":    GetNextCharacter; IF ch = "*" THEN GetNextCharacter; s := PlusTimes ELSE s := Plus END
 				| ",":     s := Comma;  GetNextCharacter
 				| "-":    s := Minus;  GetNextCharacter
 				| ".":     GetNextCharacter;
-						IF ch = "." THEN GetNextCharacter;  s := Upto;  symbol.string := "..";
-						ELSIF ch = "*" THEN GetNextCharacter;  s := DotTimes; symbol.string := ".*"
-						ELSIF ch = "/" THEN 	GetNextCharacter;  s := DotSlash; symbol.string := "./"
-						ELSIF ch="=" THEN GetNextCharacter; s := DotEqual; symbol.string :=".="
-						ELSIF ch="#" THEN GetNextCharacter; s := DotUnequal; symbol.string := ".#"
+						IF ch = "." THEN GetNextCharacter;  s := Upto;
+						ELSIF ch = "*" THEN GetNextCharacter;  s := DotTimes;
+						ELSIF ch = "/" THEN 	GetNextCharacter;  s := DotSlash;
+						ELSIF ch="=" THEN GetNextCharacter; s := DotEqual;
+						ELSIF ch="#" THEN GetNextCharacter; s := DotUnequal;
 						ELSIF ch=">" THEN GetNextCharacter;
-							IF ch="=" THEN s := DotGreaterEqual; symbol.string := ".>="; GetNextCharacter
-							ELSE s := DotGreater; symbol.string := ".>"
+							IF ch="=" THEN s := DotGreaterEqual; GetNextCharacter
+							ELSE s := DotGreater;
 							END
 						ELSIF ch="<" THEN GetNextCharacter;
-							IF ch="=" THEN s := DotLessEqual; symbol.string := ".<="; GetNextCharacter
-							ELSE s := DotLess; symbol.string := ".<"
+							IF ch="=" THEN s := DotLessEqual; GetNextCharacter
+							ELSE s := DotLess;
 							END
 						ELSE s := Period END
 				| "/":     s := Slash;  GetNextCharacter
 				| "0".."9":   s := GetNumber(symbol);
 				| ":":     GetNextCharacter;
-						IF ch = "=" THEN GetNextCharacter;  s := Becomes;  symbol.string := ":=";  ELSE s := Colon END
+						IF ch = "=" THEN GetNextCharacter;  s := Becomes  ELSE s := Colon END
 				| ";":     s := Semicolon;  GetNextCharacter
 				| "<":     GetNextCharacter;
-						IF ch = "=" THEN GetNextCharacter;  s := LessEqual;  symbol.string := "<=";  ELSE s := Less;  END
+						IF ch = "=" THEN GetNextCharacter;  s := LessEqual ELSE s := Less;  END
 				| "=":     s := Equal;  GetNextCharacter
 				| ">":     GetNextCharacter;
-						IF ch = "=" THEN GetNextCharacter;  s := GreaterEqual;  symbol.string := ">=";  ELSE s := Greater;  END
+						IF ch = "=" THEN GetNextCharacter;  s := GreaterEqual ELSE s := Greater;  END
 				| "[":     s := LeftBracket;  GetNextCharacter
 				| "]":     s := RightBracket;  GetNextCharacter
 				| "^":     s := Arrow;  GetNextCharacter
@@ -703,16 +718,16 @@ TYPE
 				| "`":	s := Transpose; GetNextCharacter
 				| "?": 	s := Questionmark; GetNextCharacter
 				| Ellipsis:
-						s := Upto;  symbol.string := "..";  GetNextCharacter
+						s := Upto;  GetNextCharacter
 				| "A".."Z": s := Identifier; GetIdentifier( symbol );
 						IF (case=Uppercase) OR (case=Unknown) THEN
-							token := keywordsUpper.IndexByString(symbol.string);
+							token := keywordsUpper.IndexByIdentifier(symbol.identifier);
 							IF  (token >= 0) THEN s := token END;
 							IF (s = Module) OR (s=CellNet) THEN case := Uppercase END;
 						END;
 				| "a".."z": s := Identifier; GetIdentifier( symbol);
 						IF (case = Lowercase) OR (case=Unknown) THEN
-							token := keywordsLower.IndexByString(symbol.string);
+							token := keywordsLower.IndexByIdentifier(symbol.identifier);
 							IF  (token >= 0) THEN s := token END;
 							IF (s = Module) OR (s=CellNet) THEN case := Lowercase END;
 						END;
@@ -801,31 +816,12 @@ TYPE
 		BEGIN
 			i := 0;
 			REPEAT
-				symbol.string[i] := ch; INC( i );  GetNextCharacter
+				symbol.identifierString[i] := ch; INC( i );  GetNextCharacter
 			UNTIL ~CharacterIsAllowed(ch) OR (i = MaxIdentifierLength);
 
 			IF i = MaxIdentifierLength THEN Error( Basic.IdentifierTooLong );  DEC( i ) END;
-			symbol.string[i] := 0X;
+			symbol.identifierString[i] := 0X;
 		END GetIdentifier;
-
-		(*
-		(** get a string starting at current position
-			string = '"' {Character} '"' | "'" {Character} "'".
-		**)
-		PROCEDURE GetString(VAR symbol: Symbol);
-		VAR i: INTEGER;  och: CHAR;
-		BEGIN
-			i := 0;  och := ch;
-			LOOP
-				GetNextCharacter;
-				IF ch = och THEN EXIT END;
-				(*IF ch < " " THEN Error( Basic.StringIllegalCharacter );  EXIT END;*)
-				IF i = MaxStringLength - 1 THEN Error( Basic.StringTooLong );  EXIT END;
-				symbol.string[i] := ch;  INC( i )
-			END;
-			GetNextCharacter;  symbol.string[i] := 0X;  symbol.character := symbol.string[0];  symbol.stringLength := i + 1;
-		END GetString;
-		*)
 
 		(** get next symbol **)
 		PROCEDURE GetNextSymbol*(VAR symbol: Symbol ): BOOLEAN;
@@ -842,14 +838,12 @@ TYPE
 			REPEAT
 				SkipBlanks;
 				symbol.start := position; symbol.line := line;
-				symbol.string[0] := ch;
-				symbol.string[1] := 0X;
 				CASE ch OF  (* ch > " " *)
 				| EOT: 	s := EndOfText;
 				| DoubleQuote:
-						s := String; GetString(symbol, FALSE);
+						s := String; GetString(symbol, TRUE);
 				| SingleQuote:
-						s := Character; GetString(symbol, FALSE);
+						s := Character; GetString(symbol, FALSE); symbol.character := symbol.string[0];
 						IF symbol.stringLength #2 THEN  (* stringlength = 1 for empty string '' *)
 							Error(Basic.IllegalCharacterValue)
 						END;
@@ -859,8 +853,8 @@ TYPE
 				| "(": GetNextCharacter;
 						IF ch = "*" THEN GetNextCharacter; ReadComment(symbol);  s := Comment; ELSE s := LeftParenthesis END
 				| ")":     s := RightParenthesis;  GetNextCharacter
-				| CR: GetNextCharacter; s := Ln; symbol.string := ""; IF ch = LF THEN GetNextCharacter END;
-				| LF: GetNextCharacter; s := Ln; symbol.string := "";
+				| CR: GetNextCharacter; s := Ln;IF ch = LF THEN GetNextCharacter END;
+				| LF: GetNextCharacter; s := Ln;
 				| "*":    s := Times; GetNextCharacter;
 				| "+":    s := Plus ; GetNextCharacter;
 				| ",":     s := Comma;  GetNextCharacter
@@ -917,8 +911,21 @@ TYPE
 		NEW( s, source, reader, position, diagnostics );  RETURN s;
 	END NewAssemblerScanner;
 
+	PROCEDURE SymbolToString*(CONST symbol: Symbol; case: LONGINT; VAR str: ARRAY OF CHAR);
+	VAR id: StringPool.Index;
+	BEGIN
+		CASE symbol.token OF
+		Identifier, Number: COPY(symbol.identifierString, str)
+		| String, Comment: ASSERT(LEN(str) >= LEN(symbol.string^)); COPY(symbol.string^, str);
+		ELSE
+			GetKeyword(case, symbol.token, id);
+			IF id < 0 THEN str := "" ELSE StringPool.GetString(id, str) END;
+		END;
+	END SymbolToString;
+
 	(** debugging output **)
 	PROCEDURE OutSymbol*(w: Streams.Writer; CONST symbol: Symbol);
+	VAR str: ARRAY 256 OF CHAR;
 	BEGIN
 		w.Int(symbol.start,1); w.String("-");w.Int(symbol.end,1); w.String(":");
 		w.String(tokens[symbol.token]);
@@ -930,7 +937,13 @@ TYPE
 				|Longreal: w.String("(longreal)")
 			END;
 		END;
-		IF symbol.string # "" THEN w.String(": "); w.String('"'); w.String(symbol.string); w.String('"') END;
+		IF symbol.token = String THEN
+			w.String(":"); w.String('"'); w.String(symbol.string^); w.String('"');
+		ELSIF symbol.token = Comment THEN
+			w.String("(*"); w.String(symbol.string^); w.String("*)");
+		ELSE
+			SymbolToString(symbol, Uppercase, str); w.String(": "); w.String(str);
+		END
 	END OutSymbol;
 
 	(** reserved characters are the characters that may not occur within an identifier **)
@@ -949,12 +962,12 @@ TYPE
 	END InitReservedCharacters;
 
 	(* get keyword by token *)
-	PROCEDURE GetKeyword*(case:LONGINT; token: LONGINT; VAR name: ARRAY OF CHAR);
+	PROCEDURE GetKeyword*(case:LONGINT; token: LONGINT; VAR identifier: IdentifierType);
 	BEGIN
 		IF case = Uppercase THEN
-			keywordsUpper.StringByIndex(token,name);
+			keywordsUpper.IdentifierByIndex(token,identifier);
 		ELSE ASSERT(case=Lowercase);
-			keywordsLower.StringByIndex(token,name);
+			keywordsLower.IdentifierByIndex(token,identifier);
 		END;
 	END GetKeyword;
 
@@ -1242,6 +1255,7 @@ TYPE
 		UNTIL scanner.error OR (sym.token=EndOfText)
 	END TestScanner;
 	*)
+
 BEGIN
 	InitReservedCharacters;   InitTokens; InitKeywords
 END FoxScanner.

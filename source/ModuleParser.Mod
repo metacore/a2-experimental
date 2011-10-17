@@ -384,7 +384,7 @@ TYPE
 
 		PROCEDURE ModuleP(VAR module: Module);
 		VAR
-			modName: FoxScanner.StringType;
+			modName: FoxScanner.IdentifierString;
 			definition: Definition;
 		BEGIN
 			NextSymbol;
@@ -393,8 +393,8 @@ TYPE
 				NextSymbol;
 				IF symbol.token = FoxScanner.Identifier THEN
 					NEW(module.ident);
-					COPY(symbol.string, modName);
-					module.ident.name := Strings.NewString(symbol.string);
+					COPY(symbol.identifierString, modName);
+					module.ident.name := Strings.NewString(symbol.identifierString);
 					module.ident.pos := symbol.start;
 				END;
 				NextSymbol;
@@ -402,7 +402,7 @@ TYPE
 					NextSymbol;
 					IF symbol.token = FoxScanner.Identifier THEN
 						NEW(module.context);
-						module.context.name := Strings.NewString(symbol.string);
+						module.context.name := Strings.NewString(symbol.identifierString);
 						module.context.pos := symbol.start;
 					END;
 					Check (FoxScanner.Identifier);
@@ -433,7 +433,7 @@ TYPE
 					module.bodyPos := 0;
 				END;
 				BodyP(FALSE, module.modifiers);
-				IF (symbol.token = FoxScanner.Identifier) & (symbol.string = modName) THEN
+				IF (symbol.token = FoxScanner.Identifier) & (symbol.identifierString = modName) THEN
 					(* correct *)
 				ELSE
 					(* maybe missing END or wrong module name *)
@@ -450,14 +450,14 @@ TYPE
 			NextSymbol;
 			WHILE symbol.token = FoxScanner.Identifier DO
 				NEW(import.ident);
-				import.ident.name := Strings.NewString(symbol.string);
+				import.ident.name := Strings.NewString(symbol.identifierString);
 				import.ident.pos := symbol.start;
 				NextSymbol;	(* avoids endless loop *)
 				IF symbol.token = FoxScanner.Becomes THEN
 					NextSymbol;
 					IF symbol.token = FoxScanner.Identifier THEN
 						NEW(import.alias);
-						import.alias.name := Strings.NewString(symbol.string);
+						import.alias.name := Strings.NewString(symbol.identifierString);
 						import.alias.pos := symbol.start;
 						NextSymbol;
 					ELSE
@@ -470,7 +470,7 @@ TYPE
 					NextSymbol;
 					IF symbol.token = FoxScanner.Identifier THEN
 						NEW(import.context);
-						import.context.name := Strings.NewString(symbol.string);
+						import.context.name := Strings.NewString(symbol.identifierString);
 						import.context.pos := symbol.start;
 					END;
 					Check (FoxScanner.Identifier);
@@ -493,7 +493,7 @@ TYPE
 				NextSymbol;
 				IF symbol.token = FoxScanner.Identifier THEN
 					NEW(definition.ident);
-					definition.ident.name := Strings.NewString(symbol.string);
+					definition.ident.name := Strings.NewString(symbol.identifierString);
 					definition.ident.pos := symbol.start;
 					NextSymbol;
 				END;
@@ -1011,7 +1011,7 @@ TYPE
 				NextSymbol;
 				IF symbol.token # FoxScanner.Identifier THEN
 					(* Error *)
-				ELSIF symbol.string = "DELEGATE" THEN
+				ELSIF symbol.identifierString = "DELEGATE" THEN
 					proc.delegate := TRUE;
 				END;
 				NextSymbol;
@@ -1059,13 +1059,13 @@ TYPE
 				| FoxScanner.RightBrace: DEC(brace); Add("}");
 				| FoxScanner.LeftBracket: INC(brak); Add("[");
 				| FoxScanner.RightBracket: DEC(brak); Add("]");
-				| FoxScanner.Number: Add(symbol.string);
+				| FoxScanner.Number: Add(symbol.identifierString);
 				| FoxScanner.Nil: Add("NIL");
 				| FoxScanner.True: Add("TRUE");
 				| FoxScanner.False: Add("FALSE");
 				| FoxScanner.Not: Add("~");
 				| FoxScanner.Period: Add(".");
-				| FoxScanner.Identifier: Add(symbol.string);
+				| FoxScanner.Identifier: Add(symbol.identifierString);
 				| FoxScanner.Comma: Add(", ");
 				| FoxScanner.Plus: Add(" + ");
 				| FoxScanner.Minus: Add(" - ");
@@ -1084,7 +1084,7 @@ TYPE
 				| FoxScanner.Slash: Add(" / ");
 				| FoxScanner.And: Add(" & ");
 				| FoxScanner.Or: Add(" OR ");
-				| FoxScanner.String: name[0] := '"'; name[1] := 0X; Add(name); Add(symbol.string); Add(name);
+				| FoxScanner.String: name[0] := '"'; name[1] := 0X; Add(name); Add(symbol.string^); Add(name);
 				| FoxScanner.Arrow: Add("^");
 				ELSE
 					(* error *)
@@ -1108,18 +1108,18 @@ TYPE
 				NextSymbol;
 				LOOP
 					IF symbol.token = FoxScanner.Identifier THEN
-						IF symbol.string = ExclusiveStr  THEN
+						IF symbol.identifierString = ExclusiveStr  THEN
 							modifiers := modifiers + {Exclusive};
 							NextSymbol;
-						ELSIF allowBody & (symbol.string = ActiveStr)  THEN
+						ELSIF allowBody & (symbol.identifierString = ActiveStr)  THEN
 							modifiers := modifiers + {Active};
 							NextSymbol
-						ELSIF allowBody & (symbol.string = RealtimeStr) THEN
+						ELSIF allowBody & (symbol.identifierString = RealtimeStr) THEN
 							NextSymbol;
-						ELSIF allowBody & (symbol.string = SafeStr)  THEN
+						ELSIF allowBody & (symbol.identifierString = SafeStr)  THEN
 							modifiers := modifiers + {Safe};
 							NextSymbol
-						ELSIF allowBody & (symbol.string = PriorityStr)  THEN
+						ELSIF allowBody & (symbol.identifierString = PriorityStr)  THEN
 							modifiers := modifiers + {Priority};
 							NextSymbol;
 							IF symbol.token = FoxScanner.LeftParenthesis THEN
@@ -1179,14 +1179,14 @@ TYPE
 			pos: LONGINT;
 		BEGIN
 			IF symbol.token = FoxScanner.Identifier THEN
-				COPY(symbol.string, name);
+				COPY(symbol.identifierString, name);
 				pos := symbol.start;
 				NextSymbol;
 				IF symbol.token = FoxScanner.Period THEN
 					NextSymbol;
 					IF symbol.token = FoxScanner.Identifier THEN
 						Strings.Append(name, ".");
-						Strings.Concat(name, symbol.string, name);
+						Strings.Concat(name, symbol.identifierString, name);
 						NextSymbol;
 					END;
 				END;
@@ -1198,13 +1198,13 @@ TYPE
 
 		PROCEDURE IdentDefP(identDef: IdentDef);
 		BEGIN
-			IF symbol.token = FoxScanner.Identifier THEN
+			IF (symbol.token = FoxScanner.Identifier) OR (symbol.token = FoxScanner.Number) & (symbol.numberType = FoxScanner.Character)  THEN
 				NEW(identDef.ident);
-				identDef.ident.name := Strings.NewString(symbol.string);
+				identDef.ident.name := Strings.NewString(symbol.identifierString);
 				identDef.ident.pos := symbol.start;
-			ELSIF (symbol.token = FoxScanner.String) OR (symbol.token = FoxScanner.Number) & (symbol.numberType = FoxScanner.Character) THEN
+			ELSIF (symbol.token = FoxScanner.String) THEN
 				NEW(identDef.ident);
-				identDef.ident.name := Strings.NewString(symbol.string);
+				identDef.ident.name := Strings.NewString(symbol.string^);
 				identDef.ident.pos := symbol.start;
 			END;
 			NextSymbol;

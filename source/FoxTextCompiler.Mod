@@ -94,7 +94,7 @@ CONST
 		symbolFile: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
 		activeCellsSpecification: ActiveCells.Specification;
-		findPC: SyntaxTree.String; flags: SET;
+		findPC: Basic.SectionName; flags: SET;
 		reader: Streams.Reader;
 	BEGIN
 		IF t = NIL THEN

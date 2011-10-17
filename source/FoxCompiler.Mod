@@ -27,6 +27,9 @@ CONST
 	TraceAssembling = FALSE;
 
 TYPE
+	SectionName = ARRAY 256 OF CHAR; (*! move *)
+	MessageString= ARRAY 256 OF CHAR;
+
 	TracingDiagnostics=OBJECT (Diagnostics.Diagnostics)
 	VAR diagnostics: Diagnostics.Diagnostics;
 
@@ -158,7 +161,7 @@ TYPE
 		printer: Printout.Printer;
 		system: Global.System;
 		generatedModule: Formats.GeneratedModule;
-		name: SyntaxTree.String;
+		name: SyntaxTree.IdentifierString;
 		activeCellsBackend: Backend.Backend;
 		split: Strings.StringArray;
 		sectionOffset: LONGINT;
@@ -374,12 +377,11 @@ TYPE
 				fileName, codeFileName, dataFileName: Files.FileName;
 				code, data: StaticLinker.Arrangement; linker: GenericLinker.Linker;
 				module: ActiveCells.Module;
-				linkRoot,msg: SyntaxTree.String;
 				i: LONGINT;
 				logFile: Files.File; linkerLog: Files.Writer;
 				type: ActiveCells.Type;
-
-				typeName, instanceName: SyntaxTree.String;
+				msg: MessageString;
+				typeName, instanceName, linkRoot: SectionName;
 				extension: ARRAY 32 OF CHAR;
 				instructionMemorySize, dataMemorySize: LONGINT;
 				parameter: ActiveCells.Parameter;
@@ -588,7 +590,7 @@ TYPE
 
 	PROCEDURE Compile*(context : Commands.Context);
 	VAR
-		filename: ARRAY 256 OF CHAR;
+		filename: Files.FileName;
 		error: BOOLEAN;
 		diagnostics: Diagnostics.StreamDiagnostics;
 		time: LONGINT; reader: Streams.Reader;
@@ -598,7 +600,7 @@ TYPE
 		symbolFileFormat: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
 		activeCellsSpecification: ActiveCells.Specification;
-		findPC: SyntaxTree.String;
+		findPC: SectionName;
 	BEGIN
 		error := FALSE;
 
@@ -631,7 +633,7 @@ TYPE
 		objectFileFormat: Formats.ObjectFileFormat;
 		dummySymbolFileFormat: Formats.SymbolFileFormat;
 		dummyDataflowSpecification: ActiveCells.Specification;
-		filename, dummyString: SyntaxTree.String;
+		filename, dummyString: Files.FileName;
 		assemblinker: IntermediateCodeAssembler.Assemblinker;
 		error: BOOLEAN;
 	BEGIN
@@ -668,7 +670,7 @@ TYPE
 		symbolFileFormat: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
 		activeCellsSpecification: ActiveCells.Specification;
-		findPC: SyntaxTree.String;
+		findPC: SectionName;
 	BEGIN
 		error := FALSE;
 		NEW(diagnostics, context.error);

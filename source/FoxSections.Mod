@@ -431,7 +431,7 @@ TYPE
 	END SectionList;
 
 	NameEntry = POINTER TO RECORD
-		name: SyntaxTree.String;
+		name: SyntaxTree.IdentifierString;
 	END;
 
 	(* TODO: efficient implementation using hash table *)
@@ -444,7 +444,7 @@ TYPE
 			Add(entry)
 		END AddName;
 
-		PROCEDURE GetName*(index: LONGINT): SyntaxTree.String;
+		PROCEDURE GetName*(index: LONGINT): SyntaxTree.IdentifierString;
 		VAR any: ANY;
 		BEGIN
 			any := Get(index);
@@ -452,7 +452,7 @@ TYPE
 			RETURN any(NameEntry).name
 		END GetName;
 
-		PROCEDURE ContainsName*(name: SyntaxTree.String): BOOLEAN;
+		PROCEDURE ContainsName*(name: SyntaxTree.IdentifierString): BOOLEAN;
 		VAR i: LONGINT;
 		BEGIN
 			FOR i := 0 TO Length() - 1 DO
@@ -466,7 +466,7 @@ TYPE
 	Module* = OBJECT (Formats.GeneratedModule)
 	VAR
 		allSections-: SectionList;
-		platformName-: SyntaxTree.String;
+		platformName-: SyntaxTree.IdentifierString;
 		imports-: NameList;
 
 		PROCEDURE & Init*(module: SyntaxTree.Module; system: Global.System);
@@ -486,14 +486,14 @@ TYPE
 		BEGIN SELF.imports := imports
 		END SetImports;
 
-		PROCEDURE SetPlatformName*(platformName: SyntaxTree.String);
+		PROCEDURE SetPlatformName*(platformName: SyntaxTree.IdentifierString);
 		BEGIN SELF.platformName := platformName
 		END SetPlatformName;
 
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR
 			dump: Basic.Writer;
-			name: SyntaxTree.String;
+			name: SyntaxTree.IdentifierString;
 			i: LONGINT;
 		BEGIN
 			dump := Basic.GetWriter(w);

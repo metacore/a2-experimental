@@ -450,7 +450,7 @@ TYPE
 	CodeGeneratorAMD64 = OBJECT (CodeGenerators.GeneratorWithTickets)
 	VAR
 		(* static generator state variables, considered constant during generation *)
-		runtimeModuleName: SyntaxTree.String;
+		runtimeModuleName: SyntaxTree.IdentifierString;
 		cpuBits: LONGINT;
 		opBP, opSP, opRA, opRB, opRC, opRD, opRS, opR8, opR9: Assembler.Operand; (* base pointer, stack pointer, register A, depends on cpuBits*)
 		BP, SP, RA, RD, RS, RC: LONGINT; (* base pointer and stack pointer register index, depends on cpuBits *)
@@ -480,7 +480,7 @@ TYPE
 
 
 		(* -------------------------- constructor -------------------------------*)
-		PROCEDURE &InitGeneratorAMD64(CONST runtime: SyntaxTree.String; diagnostics: Diagnostics.Diagnostics; bits: LONGINT);
+		PROCEDURE &InitGeneratorAMD64(CONST runtime: SyntaxTree.IdentifierString; diagnostics: Diagnostics.Diagnostics; bits: LONGINT);
 		VAR physicalRegisters: PhysicalRegisters; physicalRegisters32: PhysicalRegisters32; physicalRegisters64: PhysicalRegisters64;
 		BEGIN
 			runtimeModuleName := runtime;
@@ -1084,7 +1084,7 @@ TYPE
 
 			ReserveOperandRegisters(instruction.op3,FALSE); ReserveOperandRegisters(instruction.op2,FALSE); ReserveOperandRegisters(instruction.op1,FALSE);
 			TryUnmap(instruction.op3); TryUnmap(instruction.op2); TryUnmap(instruction.op1);
-			
+
 			(* remove remaining virtual registers that are not directly referenced by this instruction *)
 			FOR i := virtualRegisters.firstMapped TO virtualRegisters.lastMapped DO
 				IF LastUse(i)=inPC THEN
@@ -2571,7 +2571,7 @@ TYPE
 		PROCEDURE GetSystem(): Global.System;
 		VAR system: Global.System;
 
-			PROCEDURE AddRegister(CONST name: Scanner.StringType; val: LONGINT);
+			PROCEDURE AddRegister(CONST name: Scanner.IdentifierString; val: LONGINT);
 			BEGIN
 				Global.NewConstant(name,val,system.shortintType,system.systemScope)
 			END AddRegister;
@@ -2746,7 +2746,7 @@ TYPE
 		PROCEDURE ProcessIntermediateCodeModule*(intermediateCodeModule: Formats.GeneratedModule): Formats.GeneratedModule;
 		VAR
 			dump: Basic.Writer;
-			dumpName: SyntaxTree.String;
+			dumpName: Basic.MessageString;
 			result: Formats.GeneratedModule;
 		BEGIN
 			ASSERT(intermediateCodeModule IS Sections.Module);

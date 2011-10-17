@@ -1,7 +1,7 @@
 MODULE FoxBinarySymbolFile; (** AUTHOR "fof"; PURPOSE "Symbol File - Binary Format"; *)
 
 IMPORT
-	 Basic := FoxBasic,  Scanner := FoxScanner, SyntaxTree := FoxSyntaxTree, Global := FoxGlobal,
+	 Basic := FoxBasic, Scanner := FoxScanner,  SyntaxTree := FoxSyntaxTree, Global := FoxGlobal,
 	 Files,Streams, Kernel, SYSTEM, D := Debugging,  Diagnostics, Options, Formats := FoxFormats, InterfaceComparison := FoxInterfaceComparison
 	 ,Commands, Printout := FoxPrintout, SemanticChecker := FoxSemanticChecker,
 	 Machine
@@ -156,7 +156,7 @@ CONST
 		NoZeroCompress = 0ADX;		(* do. *)
 		FileVersion* = 0B1X;			(* do. *)
 		FileVersionOC*=0B2X;
-
+		FileVersionCurrent*=0B3X;
 TYPE
 	(* TypeReference provides a link between a type and a number for the purpose of late fixes while importing.
 		When a type number is encountered while importing, a type reference will be used as a placeholder for the final type.
@@ -632,8 +632,9 @@ TYPE
 	END IndexToAttribute;
 
 	BinarySymbolFile*=OBJECT (Formats.SymbolFileFormat)
-	VAR file-: Files.File; extension-,prefix-: SyntaxTree.String;
+	VAR file-: Files.File; extension-,prefix-: Basic.FileName;
 			noRedefinition, noModification, noInterfaceCheck: BOOLEAN;
+			version: CHAR;
 
 		(** Import - Symbol Table Loader Plugin *)
 		PROCEDURE Import(CONST moduleName: ARRAY OF CHAR; importCache: SyntaxTree.ModuleScope): SyntaxTree.Module;
@@ -660,7 +661,7 @@ TYPE
 
 			allTypes: IndexToType; numberReimports, numberTypes : LONGINT;
 
-			name: Scanner.StringType;
+			name: SyntaxTree.IdentifierString;
 
 			value: SyntaxTree.Value;
 
@@ -679,7 +680,7 @@ TYPE
 
 			(* Imports = {moduleName:RawString} 0X *)
 			PROCEDURE Imports;
-			VAR moduleName: Scanner.StringType; import: SyntaxTree.Import; importedModule: SyntaxTree.Module; moduleIdentifier,moduleContext: SyntaxTree.Identifier; b: BOOLEAN;
+			VAR moduleName: SyntaxTree.IdentifierString; import: SyntaxTree.Import; importedModule: SyntaxTree.Module; moduleIdentifier,moduleContext: SyntaxTree.Identifier; b: BOOLEAN;
 			BEGIN
 				R.RawString(moduleName);
 				WHILE	moduleName # ""	DO
@@ -729,7 +730,7 @@ TYPE
 
 			(* Value = [ RawNum | RawHInt | RawReal | RawLReal | RawString ] *)
 			PROCEDURE Value(type: SyntaxTree.Type): SyntaxTree.Value;
-			VAR i: LONGINT; huge: HUGEINT;  r: REAL;  lr: LONGREAL;  string: Scanner.StringType; set: SET;
+			VAR i: LONGINT; huge: HUGEINT;  r: REAL;  lr: LONGREAL; string: SyntaxTree.String; length: LONGINT; set: SET;
 				value: SyntaxTree.Value; size: LONGINT;
 			BEGIN
 				size := type.sizeInBits;
@@ -765,8 +766,12 @@ TYPE
 						IF TraceImport IN Trace THEN  D.Str("InConst / LongReal / "); D.Ln END;
 						value := SyntaxTree.NewRealValue(-1,lr);
 					END;
-				ELSIF type IS SyntaxTree.StringType THEN R.RawString(string);
-					IF TraceImport IN Trace THEN  D.Str("InConst / String / "); D.Str(string); D.Ln END;
+				ELSIF type IS SyntaxTree.StringType THEN
+					IF version <= FileVersionOC THEN NEW(string, 256)
+					ELSE R.RawLInt(length); NEW(string, length)
+					END;
+					R.RawString(string^);
+					IF TraceImport IN Trace THEN  D.Str("InConst / String / "); D.Str(string^); D.Ln END;
 					value := SyntaxTree.NewStringValue(-1,string);
 					type(SyntaxTree.StringType).SetLength(value(SyntaxTree.StringValue).length);
 					type.SetState(SyntaxTree.Resolved);
@@ -785,7 +790,7 @@ TYPE
 			(* EnumerationList = {name:RawString} sfEnd *)
 			PROCEDURE EnumerationList(enumerationScope: SyntaxTree.EnumerationScope);
 			VAR enumerator: SyntaxTree.Constant; visibility,flags: SET; b: BOOLEAN;
-				type: SyntaxTree.Type; name: Scanner.StringType; identifier: SyntaxTree.Identifier;
+				type: SyntaxTree.Type; name: SyntaxTree.IdentifierString; identifier: SyntaxTree.Identifier;
 			BEGIN
 				R.RawString(name);
 				WHILE name # "" DO
@@ -809,7 +814,7 @@ TYPE
 
 			(* ParameterList = { [sfObjflag ( sfCParam | sfDarwinCParam | sfWinAPIParam )] [sfVar] [sfReadOnly] Type name:RawString } sfEnd *)
 			PROCEDURE ParameterList(VAR callingConvention: LONGINT; parentScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType);
-			VAR name: Scanner.StringType; type: SyntaxTree.Type; f: LONGINT;
+			VAR name: SyntaxTree.IdentifierString; type: SyntaxTree.Type; f: LONGINT;
 				kind: LONGINT;
 				parameter: SyntaxTree.Parameter;
 			BEGIN
@@ -901,7 +906,7 @@ TYPE
 				procedureType: SyntaxTree.ProcedureType;
 				recordScope: SyntaxTree.RecordScope;
 				recordBody: SyntaxTree.Body;
-				name: Scanner.StringType;
+				name: SyntaxTree.IdentifierString;
 
 				ch: CHAR;
 				callingConvention: LONGINT;
@@ -1031,7 +1036,7 @@ TYPE
 				VAR
 					typtag,len: LONGINT;
 
-				name: Scanner.StringType;
+				name: SyntaxTree.IdentifierString;
 
 				type, baseType: SyntaxTree.Type;
 				typeDeclaration: SyntaxTree.TypeDeclaration;
@@ -1053,7 +1058,7 @@ TYPE
 
 				visibility: SET;
 
-				typeName: Scanner.StringType;
+				typeName: SyntaxTree.IdentifierString;
 
 				sysflag: LONGINT; flags: SET;
 
@@ -1327,7 +1332,7 @@ TYPE
 			END Inline;
 
 			(* Symbol = [sfObjFlag flag:RawNum] [sfReadOnly] Type name:RawString *)
-			PROCEDURE Symbol(parentScope: SyntaxTree.Scope; VAR type: SyntaxTree.Type; VAR name: Scanner.StringType;  VAR visibility: SET; VAR untraced, realtime, constructor, operator, isDynamic: BOOLEAN);
+			PROCEDURE Symbol(parentScope: SyntaxTree.Scope; VAR type: SyntaxTree.Type; VAR name: SyntaxTree.IdentifierString;  VAR visibility: SET; VAR untraced, realtime, constructor, operator, isDynamic: BOOLEAN);
 			VAR  f,i: LONGINT;
 			BEGIN
 				IF TraceImport IN Trace THEN
@@ -1559,7 +1564,7 @@ TYPE
 			NEW(allTypes,32); NEW(indexToAttribute,32);
 			ASSERT(fileName # "SYSTEM");
 
-			IF ~OpenSymFile(fileName, prefix, extension, R) THEN (*! reintroduce flexible extension *)
+			IF ~OpenSymFile(fileName, prefix, extension, R, version) THEN (*! reintroduce flexible extension *)
 				RETURN NIL
 			END;
 
@@ -1597,7 +1602,7 @@ TYPE
 
 			(* Imports = {moduleName:RawString} 0X *)
 			PROCEDURE Imports(import: SyntaxTree.Import);
-			VAR name: Scanner.StringType;
+			VAR name: SyntaxTree.IdentifierString;
 			BEGIN
 				WHILE import # NIL DO
 					IF  ~Global.IsSystemModule(import.module) THEN
@@ -1631,7 +1636,7 @@ TYPE
 					IF type.sizeInBits = 32 THEN w.RawReal(SHORT(v(SyntaxTree.RealValue).value));
 					ELSE w.RawLReal(v(SyntaxTree.RealValue).value);
 					END;
-				ELSIF type IS SyntaxTree.StringType THEN  w.RawString(v(SyntaxTree.StringValue).value);
+				ELSIF type IS SyntaxTree.StringType THEN  w.RawLInt(v(SyntaxTree.StringValue).length); w.RawString(v(SyntaxTree.StringValue).value^);
 				ELSIF type IS SyntaxTree.NilType THEN
 				ELSIF type IS SyntaxTree.ByteType THEN HALT(100)
 				ELSIF type IS SyntaxTree.EnumerationType THEN w.RawNum(v(SyntaxTree.EnumerationValue).value);
@@ -1646,7 +1651,7 @@ TYPE
 					sfEnd
 			*)
 			PROCEDURE Record(record: SyntaxTree.RecordType);
-			VAR scope: SyntaxTree.RecordScope; variable: SyntaxTree.Variable; procedure: SyntaxTree.Procedure; name: Scanner.StringType; flags,mode: SET;
+			VAR scope: SyntaxTree.RecordScope; variable: SyntaxTree.Variable; procedure: SyntaxTree.Procedure; name: SyntaxTree.IdentifierString; flags,mode: SET;
 				procedureType: SyntaxTree.ProcedureType; body: SyntaxTree.Body; first: BOOLEAN;
 			BEGIN
 				scope := record.recordScope;
@@ -1731,7 +1736,7 @@ TYPE
 					|sfTypeEnumeration enumerationBase:Type name:RawString
 			*)
 			PROCEDURE Type(type: SyntaxTree.Type);
-			VAR typeIndex,moduleIndex: LONGINT; name:Scanner.StringType; importedModule: SyntaxTree.Module; attribute: Attribute;
+			VAR typeIndex,moduleIndex: LONGINT; name:SyntaxTree.IdentifierString; importedModule: SyntaxTree.Module; attribute: Attribute;
 				baseType: SyntaxTree.Type; typeDeclaration : SyntaxTree.TypeDeclaration; flags: SET; size: LONGINT;
 			BEGIN
 				IF type = NIL THEN
@@ -1848,7 +1853,7 @@ TYPE
 						IF TraceExport IN Trace THEN
 							D.Str("Type / Basic / Range"); D.Ln
 						END;
-						
+
 					ELSIF type IS SyntaxTree.AddressType THEN w.RawNum(sfTypeAddress) (*! compatibility with PACO *)
 					ELSIF type IS SyntaxTree.SizeType THEN w.RawNum(sfTypeLongint)
 					ELSE HALT(100)
@@ -2004,7 +2009,7 @@ TYPE
 			EnumerationList = {name:RawString} 0X;
 			*)
 			PROCEDURE EnumerationList(enumerationScope: SyntaxTree.EnumerationScope);
-			VAR name: Scanner.StringType; enumerator: SyntaxTree.Constant;
+			VAR name: SyntaxTree.IdentifierString; enumerator: SyntaxTree.Constant;
 			BEGIN
 				enumerator := enumerationScope.firstConstant;
 				WHILE enumerator # NIL DO
@@ -2024,7 +2029,7 @@ TYPE
 				{ [sfObjFlag sfWinAPIParam | sfObjFlag sfCParam | sfObjFlag sfDarwinCParam] [sfVar] [sfReadOnly] Type name:RawString } sfEnd
 			*)
 			PROCEDURE ParameterList(procedureType: SyntaxTree.ProcedureType);
-			VAR flags: SET; name: Scanner.StringType;
+			VAR flags: SET; name: SyntaxTree.IdentifierString;
 				PROCEDURE Parameters(parameter: SyntaxTree.Parameter; reverse: BOOLEAN);
 				VAR procedureType: SyntaxTree.ProcedureType;
 				BEGIN
@@ -2108,7 +2113,7 @@ TYPE
 				[sfObjFlag flag:RawNum] [sfReadOnly] Type Name
 			*)
 			PROCEDURE Symbol(type: SyntaxTree.Type; name: SyntaxTree.Identifier; visibility: SET;untraced, realtime, constructor, operator, isDynamic: BOOLEAN);
-			VAR string,string2: Scanner.StringType;
+			VAR string,string2: SyntaxTree.IdentifierString;
 			BEGIN
 				IF TraceExport IN Trace THEN
 					Basic.GetString(name,string);
@@ -2151,7 +2156,7 @@ TYPE
 				sfEnd
 			*)
 			PROCEDURE Module(module: SyntaxTree.Module);
-			VAR constant: SyntaxTree.Constant; name: Scanner.StringType; first: BOOLEAN;
+			VAR constant: SyntaxTree.Constant; name: SyntaxTree.IdentifierString; first: BOOLEAN;
 				variable: SyntaxTree.Variable; typeDeclaration: SyntaxTree.TypeDeclaration; procedure: SyntaxTree.Procedure;
 				procedureType: SyntaxTree.ProcedureType;
 			BEGIN
@@ -2366,9 +2371,8 @@ TYPE
 
 	(** OpenSymFile - Open a symfile for reading *)
 
-	PROCEDURE OpenSymFile(CONST name,prefix,suffix: ARRAY OF CHAR;  VAR r: Streams.Reader): BOOLEAN;
+	PROCEDURE OpenSymFile(CONST name,prefix,suffix: ARRAY OF CHAR;  VAR r: Streams.Reader; VAR version: CHAR): BOOLEAN;
 		VAR res: BOOLEAN;  file: Files.FileName;  f: Files.File; R: Files.Reader; dummy: LONGINT; ch: CHAR;
-		version: CHAR;
 	BEGIN
 		res := FALSE;
 		MakeFileName(file, name, prefix, suffix);
@@ -2382,7 +2386,7 @@ TYPE
 				ASSERT(version = NoZeroCompress); r.Char(version);
 				IF version = FileVersion THEN
 					r.RawNum(dummy);	(*skip symfile size*)
-				ELSIF version = FileVersionOC THEN
+				ELSIF (version >= FileVersionOC) & (version <= FileVersionCurrent) THEN
 					r.RawLInt(dummy); (* new in OC: symbol file size uncompressed *)
 				ELSE
 					HALT(100)
@@ -2403,12 +2407,12 @@ END Get;
 
 
 PROCEDURE Test*(context: Commands.Context);
-VAR moduleName: Scanner.StringType; module: SyntaxTree.Module;
+VAR moduleName: SyntaxTree.IdentifierString; module: SyntaxTree.Module;
 		log2: Basic.Writer; time: LONGINT;
 		p: Printout.Printer;
 		symbolFileFormat: BinarySymbolFile;
 		options: Options.Options;
-		extension: SyntaxTree.String;
+		extension: Basic.FileName;
 BEGIN
 	NEW(options);
 		NEW(symbolFileFormat);

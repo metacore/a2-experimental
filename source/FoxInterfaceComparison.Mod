@@ -8,7 +8,7 @@ CONST
 	Trace=FALSE;
 
 	PROCEDURE CompareThis*(module: SyntaxTree.Module; symbolFileFormat: Formats.SymbolFileFormat; diagnostics: Diagnostics.Diagnostics; importCache: SyntaxTree.ModuleScope;  VAR flags: SET);
-	VAR fname: SyntaxTree.String; importedModule: SyntaxTree.Module; fingerprinter: FingerPrinter.FingerPrinter;
+	VAR fname: Basic.FileName; importedModule: SyntaxTree.Module; fingerprinter: FingerPrinter.FingerPrinter;
 
 	PROCEDURE SameType(new,old: SyntaxTree.Type): BOOLEAN;
 	VAR fpNew,fpOld: SyntaxTree.FingerPrint;
@@ -81,7 +81,7 @@ CONST
 
 	PROCEDURE CompareScopes(new,old: SyntaxTree.Scope);
 	VAR newSymbol, oldSymbol: SyntaxTree.Symbol;
-		newName, oldName: SyntaxTree.String;
+		newName, oldName: SyntaxTree.IdentifierString;
 		newPublic, oldPublic: BOOLEAN;
 	BEGIN
 		oldSymbol := NextSymbol(old.firstSymbol);

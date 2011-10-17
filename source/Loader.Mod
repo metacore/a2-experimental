@@ -23,6 +23,7 @@ CONST
 	NoZeroCompress = 0ADX;	(* cf. PCM.Mod *)
 	FileVersion* = 0B1X;			(* cf. PCM.Mod *)
 	FileVersionOC=0B2X; (* preparation for object and symbol file for new Oberon Compiler *)
+	CurrentFileVersion=0B3X;
 
 		(* object model exports *)
 	EUEnd = 0;  EURecord = 1;  EUobjScope = 0;  EUrecScope = 1;  EUerrScope = -1;
@@ -74,10 +75,10 @@ BEGIN
 	IF tag = FileTag THEN
 		r.Char(tag);
 		IF tag = NoZeroCompress THEN r.Char(tag) END;	(* no zero compression in symbol file *)
-		IF (tag = FileVersion) OR (tag = FileVersionOC) THEN
+		IF (tag = FileVersion) OR (tag >= FileVersionOC) & (tag <= CurrentFileVersion) THEN
 			IF tag = FileVersion THEN
 			r.RawNum(symSize);
-			ELSIF tag = FileVersionOC THEN
+			ELSIF tag >= FileVersionOC THEN
 			r.RawLInt(symSize)
 			END;
 			flags := {};

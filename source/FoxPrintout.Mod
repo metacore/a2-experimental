@@ -50,7 +50,7 @@ TYPE
 		END Indent;
 
 		PROCEDURE Identifier*(x: SyntaxTree.Identifier);
-		VAR str: Scanner.StringType;
+		VAR str: Scanner.IdentifierString;
 		BEGIN
 			Basic.GetString(x,str); w.String(str);
 		END Identifier;
@@ -367,7 +367,7 @@ TYPE
 		END Flags;
 
 		PROCEDURE Flag(identifier: SyntaxTree.Identifier; VAR first: BOOLEAN);
-		VAR name: SyntaxTree.String;
+		VAR name: SyntaxTree.IdentifierString;
 		BEGIN
 			IF first THEN w.String("{") ELSE w.String(", ") END;
 			first := FALSE;
@@ -842,9 +842,9 @@ TYPE
 			WHILE (i < LEN( x.value )) & (x.value[i] # 0X) & (x.value[i] # '"') DO INC( i );  END;
 			ASSERT(i # LEN(x.value));
 			IF  (x.value[i] = 0X) THEN (* no double quotes contained in the string *)
-				w.String( '"' );  w.String( x.value );  w.String( '"' );
+				w.String( '"' );  w.String( x.value^ );  w.String( '"' );
 			ELSE  (* double quotes found in string *)
-				w.String( "'" );  w.String( x.value );  w.String( "'" );
+				w.String( "'" );  w.String( x.value^ );  w.String( "'" );
 			END
 		END VisitStringValue;
 
@@ -1559,7 +1559,7 @@ TYPE
 		END VisitAwaitStatement;
 
 		PROCEDURE Modifiers(x: SyntaxTree.Modifier);
-		VAR name: Scanner.StringType; first: BOOLEAN;
+		VAR name: Scanner.IdentifierString; first: BOOLEAN;
 		BEGIN
 			first := TRUE;
 			WHILE x # NIL DO

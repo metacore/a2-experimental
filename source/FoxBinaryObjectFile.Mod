@@ -1,8 +1,8 @@
 MODULE FoxBinaryObjectFile; (** AUTHOR "fof"; PURPOSE "Oberon Compiler Object File Writer"; *)
 
 IMPORT
-	Scanner := FoxScanner, SyntaxTree := FoxSyntaxTree, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker, FingerPrinter := FoxFingerPrinter, Sections := FoxSections,
-	Streams, D := Debugging, Files, SYSTEM,Strings, BinaryCode := FoxBinaryCode, KernelLog, Diagnostics, SymbolFileFormat := FoxBinarySymbolFile, Basic := FoxBasic, Options,
+	Scanner := FoxScanner, Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, Global := FoxGlobal, SemanticChecker := FoxSemanticChecker, FingerPrinter := FoxFingerPrinter, Sections := FoxSections,
+	Streams, D := Debugging, Files, SYSTEM,Strings, BinaryCode := FoxBinaryCode, KernelLog, Diagnostics, SymbolFileFormat := FoxBinarySymbolFile, Options,
 	Formats := FoxFormats, IntermediateCode := FoxIntermediateCode, Machine
 	;
 
@@ -95,7 +95,7 @@ CONST
 
 	ofFileTag = 0BBX;				(* same constants are defined in Linker and Loader *)
 	ofNoZeroCompress = 0ADX;	(* do. *)
-	ofFileVersion = 0B2X;			(* do. *)
+	ofFileVersion = SymbolFileFormat.FileVersionCurrent;			(* do. *)
 
 	ofEUEnd = 0X;
 	ofEURecord = 1X;
@@ -122,10 +122,10 @@ TYPE
 	END Fixup;
 
 	ObjectFileFormat*= OBJECT (Formats.ObjectFileFormat)
-	VAR extension,prefix: SyntaxTree.String;
+	VAR extension,prefix: Basic.FileName;
 
 		PROCEDURE Export*(module: Formats.GeneratedModule; symbolFileFormat: Formats.SymbolFileFormat): BOOLEAN;
-		VAR symbolFile: Files.File; moduleName: SyntaxTree.String; fileName: Files.FileName; f: Files.File; w: Files.Writer;
+		VAR symbolFile: Files.File; moduleName: SyntaxTree.IdentifierString; fileName: Files.FileName; f: Files.File; w: Files.Writer;
 		VAR constSize, varSize, codeSize, caseTableSize: LONGINT; VAR const, code: ByteArray;
 		BEGIN
 			Global.ModuleFileName(module.module.name,module.module.context,moduleName);
@@ -260,7 +260,7 @@ TYPE
 
 
 	PROCEDURE MakeSectionOffsets(module: Sections.Module; VAR constSize, varSize, codeSize, caseTableSize: LONGINT; VAR const, code: ByteArray);
-	VAR symbolName: SyntaxTree.String; symbol: SyntaxTree.Symbol; binarySection: BinaryCode.Section;
+	VAR symbolName: SyntaxTree.IdentifierString; symbol: SyntaxTree.Symbol; binarySection: BinaryCode.Section;
 		pc: LONGINT;
 
 		PROCEDURE InModule(s: Sections.Section):BOOLEAN;
@@ -487,7 +487,7 @@ TYPE
 		PROCEDURE Entries;
 		VAR
 			p: Sections.Section; procedure: SyntaxTree.Procedure; procedureType : SyntaxTree.ProcedureType;
-			prev,tail: Fixup; firstOffset: LONGINT; name: Scanner.StringType; fixups, i: LONGINT; fixup: Fixup;
+			prev,tail: Fixup; firstOffset: LONGINT; name: SyntaxTree.IdentifierString; fixups, i: LONGINT; fixup: Fixup;
 		CONST
 			FixupSentinel = SHORT(0FFFFFFFFH);
 
@@ -587,7 +587,7 @@ TYPE
 
 			PROCEDURE WriteType(type : SyntaxTree.Type);
 			VAR typeDeclaration: SyntaxTree.TypeDeclaration; section: Sections.Section;
-				name: SyntaxTree.String;
+				name: SyntaxTree.IdentifierString;
 			BEGIN
 				IF type = NIL THEN
 					w.RawNum(0);
@@ -1066,7 +1066,7 @@ TYPE
 			END ExportType;
 
 			PROCEDURE SymbolOffset(symbol: SyntaxTree.Symbol): LONGINT;
-			VAR s: Sections.Section; name: SyntaxTree.String;
+			VAR s: Sections.Section; name: SyntaxTree.IdentifierString;
 			BEGIN
 				IF (symbol IS SyntaxTree.Procedure) & (symbol(SyntaxTree.Procedure).isInline) THEN
 					RETURN 0
@@ -1107,7 +1107,7 @@ TYPE
 			END ExportSymbol;
 
 			PROCEDURE ExportMethods(typeDeclaration: SyntaxTree.TypeDeclaration);
-			VAR name: Scanner.StringType; type: SyntaxTree.Type;  fingerPrint: SyntaxTree.FingerPrint; initialType: SyntaxTree.Type;
+			VAR name: SyntaxTree.IdentifierString; type: SyntaxTree.Type;  fingerPrint: SyntaxTree.FingerPrint; initialType: SyntaxTree.Type;
 			BEGIN
 				type := typeDeclaration.declaredType;
 				typeDeclaration.GetName(name);
@@ -1234,12 +1234,12 @@ TYPE
 			UsedRecord = tdentry:Number [FP "@"] 0X
 		*)
 		PROCEDURE Use;
-		VAR import: SyntaxTree.Import; name: Scanner.StringType; importedModule: SyntaxTree.Module; s: Sections.Section;
+		VAR import: SyntaxTree.Import; name: SyntaxTree.IdentifierString; importedModule: SyntaxTree.Module; s: Sections.Section;
 			constant: SyntaxTree.Constant; variable: SyntaxTree.Variable; typeDeclaration: SyntaxTree.TypeDeclaration; procedure: SyntaxTree.Procedure;
 			type: SyntaxTree.Type;fixup: Fixup; fixups: LONGINT;
 
 			PROCEDURE UseEntry(module: SyntaxTree.Module; symbol: SyntaxTree.Symbol; offsetInBytes: LONGINT; CONST prefix: ARRAY OF CHAR);
-			VAR name,suffix: Scanner.StringType; fingerPrint: SyntaxTree.FingerPrint; fp: LONGINT;
+			VAR name,suffix: Basic.SectionName; fingerPrint: SyntaxTree.FingerPrint; fp: LONGINT;
 			BEGIN
 				symbol.GetName(suffix);
 				IF prefix # "" THEN
@@ -1270,7 +1270,7 @@ TYPE
 			END UseEntry;
 
 			PROCEDURE UseType(type: SyntaxTree.Type);
-			VAR t: Sections.Section; fingerPrint: SyntaxTree.FingerPrint; name: SyntaxTree.String;
+			VAR t: Sections.Section; fingerPrint: SyntaxTree.FingerPrint; name: SyntaxTree.IdentifierString;
 			BEGIN
 				type := type.resolved;
 				LOOP
@@ -1310,7 +1310,7 @@ TYPE
 			END UseType;
 
 			PROCEDURE UseMethods(typeDeclaration: SyntaxTree.TypeDeclaration);
-			VAR procedure: SyntaxTree.Procedure; s: Sections.Section; prefix: Scanner.StringType; fingerPrint: SyntaxTree.FingerPrint; type: SyntaxTree.Type;
+			VAR procedure: SyntaxTree.Procedure; s: Sections.Section; prefix: SyntaxTree.IdentifierString; fingerPrint: SyntaxTree.FingerPrint; type: SyntaxTree.Type;
 				fixup: Fixup; fixups: LONGINT;
 			BEGIN
 				typeDeclaration.GetName(prefix);
@@ -1424,7 +1424,7 @@ TYPE
 		CONST MaxTags = 16; (* ug: temporary solution, Modules.MaxTags *)
 		VAR
 			tdSizePos, oldmth,newmeth: LONGINT;  base: SyntaxTree.RecordType;
-			name: Scanner.StringType;
+			name: SyntaxTree.IdentifierString;
 			baseModule: LONGINT; baseEntry: LONGINT;
 			upperPartTdSize, lowerPartTdSize: LONGINT;
 			size: LONGINT;
@@ -1720,7 +1720,7 @@ TYPE
 			END BaseType;
 
 			PROCEDURE RecordType(type: SyntaxTree.RecordType);
-			VAR destination: Sections.Section; name: SyntaxTree.String;
+			VAR destination: Sections.Section; name: SyntaxTree.IdentifierString;
 			BEGIN
 				destination := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.RegularKind); (*TODO*)
 				IF destination = NIL THEN

@@ -5,6 +5,7 @@ IMPORT Basic := FoxBasic, TestSuite, Diagnostics, Streams, Compiler, Commands, S
 
 TYPE
 	Command = ARRAY 256 OF CHAR;
+	SectionName = ARRAY 256 OF CHAR;
 
 	Tester = OBJECT (TestSuite.Tester)
 	VAR
@@ -63,7 +64,7 @@ TYPE
 		symbolFile: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
 		activeCellsSpecification: ActiveCells.Specification;
-		findPC: SyntaxTree.String;
+		findPC: SectionName;
 	BEGIN
 		IF (context.caller # NIL) & (context.caller IS Shell.Shell) THEN
 			writer := context.out

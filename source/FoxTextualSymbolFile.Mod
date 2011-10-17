@@ -9,7 +9,7 @@ CONST Trace = FALSE;
 
 TYPE
 	TextualSymbolFile = OBJECT (Formats.SymbolFileFormat)
-	VAR extension, prefix: SyntaxTree.String; noRedefinition, noModification: BOOLEAN;
+	VAR extension, prefix: Basic.FileName; noRedefinition, noModification: BOOLEAN;
 
 		PROCEDURE Import(CONST moduleFileName: ARRAY OF CHAR; importCache: SyntaxTree.ModuleScope): SyntaxTree.Module;
 		VAR fileName: Files.FileName; module: SyntaxTree.Module; reader: Streams.Reader; scanner: Scanner.Scanner; parser: Parser.Parser;
@@ -36,7 +36,7 @@ TYPE
 		END Import;
 
 		PROCEDURE Export(module: SyntaxTree.Module; importCache: SyntaxTree.ModuleScope): BOOLEAN;
-		VAR moduleName,fileName: Files.FileName; writer: Files.Writer; file: Files.File; printer: Printout.Printer; result: BOOLEAN;flags: SET;
+		VAR moduleName,fileName: Basic.FileName; writer: Files.Writer; file: Files.File; printer: Printout.Printer; result: BOOLEAN;flags: SET;
 		BEGIN
 			Global.ModuleFileName(module.name,module.context,moduleName);
 			Basic.Concat(fileName,prefix,moduleName,extension);

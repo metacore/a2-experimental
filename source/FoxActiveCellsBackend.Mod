@@ -170,7 +170,7 @@ TYPE
 		END HasFlag;
 
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
-		VAR componentName, parameterName, name: SyntaxTree.String; instanceType: ActiveCells.Type;
+		VAR componentName, parameterName, name: SyntaxTree.IdentifierString; instanceType: ActiveCells.Type;
 			parameter: SyntaxTree.Parameter; parameterType: SyntaxTree.Type; portIndex,i,direction,len: LONGINT;
 			port: ActiveCells.Port;
 			prevActiveCellsScope : ActiveCells.Scope;
@@ -229,7 +229,7 @@ TYPE
 
 		(* symbols *)
 		PROCEDURE VisitImport(x: SyntaxTree.Import);
-		VAR name: SyntaxTree.String;
+		VAR name: SyntaxTree.IdentifierString;
 		BEGIN
 			x.module.GetName(name);
 			backend.activeCellsSpecification.AddImport(name);
@@ -561,14 +561,14 @@ TYPE
 			port0,port1: ActiveCells.Port;
 			channel: ActiveCells.Channel;
 			type,t0,t1,t2: SyntaxTree.Type;
-			instanceName, typeName, portName: SyntaxTree.String;
+			instanceName, typeName, portName: SyntaxTree.IdentifierString;
 			len: LONGINT;
 			instance,instance0,instance1: ActiveCells.Instance;
 			symbol: ActiveCells.Symbol;
 			i: LONGINT; value: Value; par: ActiveCells.Parameter;
 			constructor: SyntaxTree.Procedure;
 			parameter: SyntaxTree.Parameter;
-			name: SyntaxTree.String;
+			name: Basic.SectionName;
 
 			PROCEDURE Index(VAR e: SyntaxTree.Expression; VAR suffix: ARRAY OF CHAR);
 			BEGIN
@@ -581,7 +581,7 @@ TYPE
 			END Index;
 
 			PROCEDURE GetInstanceName(e: SyntaxTree.Expression; VAR instanceName, typeName: ARRAY OF CHAR): BOOLEAN;
-			VAR suffix: SyntaxTree.String; type: SyntaxTree.Type; name: SyntaxTree.String;
+			VAR suffix: Basic.SectionName; type: SyntaxTree.Type; name: Basic.SectionName;
 			BEGIN
 				suffix := "";
 				type := e.type.resolved;
@@ -608,7 +608,7 @@ TYPE
 			END GetInstanceName;
 
 			PROCEDURE GetPort(p: SyntaxTree.Expression; VAR instance: ActiveCells.Instance; VAR port: ActiveCells.Port): BOOLEAN;
-			VAR name, instanceName, typeName: SyntaxTree.String; suffix: SyntaxTree.String; type: SyntaxTree.Type;
+			VAR name,suffix: Basic.SectionName; instanceName, typeName, portName: SyntaxTree.IdentifierString; type: SyntaxTree.Type;
 			BEGIN
 				type := p.type;
 				Index(p, suffix);
@@ -645,7 +645,7 @@ TYPE
 			*)
 
 			PROCEDURE GetDelegatePort(p: SyntaxTree.Expression; VAR port: ActiveCells.Port): BOOLEAN;
-			VAR portName, suffix: SyntaxTree.String;
+			VAR portName, suffix: Basic.SectionName;
 			BEGIN
 				Index(p,suffix);
 				p(SyntaxTree.SymbolDesignator).symbol.GetName(portName);
@@ -734,7 +734,7 @@ TYPE
 		PROCEDURE SystemTrace(x: SyntaxTree.ExpressionList);
 		VAR
 			stringWriter: Streams.StringWriter;
-			s: SyntaxTree.String;
+			s: Basic.MessageString;
 			printout: Printout.Printer;
 			value: Value;
 			expression: SyntaxTree.Expression;
@@ -772,7 +772,7 @@ TYPE
 				ELSIF expression.type.resolved IS SyntaxTree.BooleanType THEN
 					Boolean(value.boolean);
 				ELSIF expression.type.resolved IS SyntaxTree.StringType THEN
-					String(value.string);
+					String(value.string^);
 				ELSE Error(expression.position,NotYetImplemented);
 				END;
 				stringWriter.String("; ");
@@ -850,8 +850,7 @@ TYPE
 
 		PROCEDURE VisitStringValue(x: SyntaxTree.StringValue);
 		BEGIN
-			NEW(resultValue, x.type);
-			COPY(x.value, resultValue.string);
+			NEW(resultValue, x.type); resultValue.string := x.value;
 		END VisitStringValue;
 
 		PROCEDURE VisitNilValue(x: SyntaxTree.NilValue);
@@ -1046,7 +1045,7 @@ TYPE
 		VAR
 			declarationVisitor: DeclarationVisitor;
 			implementationVisitor: ImplementationVisitor;
-			name, instructionSet: SyntaxTree.String;
+			name, instructionSet: SyntaxTree.IdentifierString;
 		BEGIN
 			ResetError;
 			Global.GetSymbolName(x,name);
@@ -1097,7 +1096,7 @@ TYPE
 		local: BOOLEAN;
 
 		PROCEDURE AddImport(x: SyntaxTree.Module);
-		VAR module: ActiveCells.Module; VAR name: SyntaxTree.String; device: ActiveCells.Device;
+		VAR module: ActiveCells.Module; VAR name: SyntaxTree.IdentifierString; device: ActiveCells.Device;
 		BEGIN
 			IF ~Global.IsSystemModule(x) THEN
 				x.GetName(name);
@@ -1117,7 +1116,7 @@ TYPE
 		END AddImport;
 
 		PROCEDURE TraverseImports(x: SyntaxTree.Module);
-		VAR import: SyntaxTree.Import; name: SyntaxTree.String;
+		VAR import: SyntaxTree.Import; name: SyntaxTree.IdentifierString;
 		BEGIN
 			import := x.moduleScope.firstImport;
 			WHILE import # NIL DO

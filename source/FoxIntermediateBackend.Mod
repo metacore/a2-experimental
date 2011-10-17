@@ -633,7 +633,7 @@ TYPE
 		(** entry function to visit a complete module *)
 		PROCEDURE Module(x: SyntaxTree.Module; module: Sections.Module);
 		VAR
-			ir: IntermediateCode.Section; op: IntermediateCode.Operand; name: Basic.PooledName; str: SyntaxTree.String;
+			ir: IntermediateCode.Section; op: IntermediateCode.Operand; name: Basic.PooledName; idstr: SyntaxTree.IdentifierString;
 			hasDynamicOperatorDeclarations: BOOLEAN;
 			operator: SyntaxTree.Operator;
 			import: SyntaxTree.Import;
@@ -678,8 +678,8 @@ TYPE
 			(* add import names to the generated Sections.Module *)
 			import := x.moduleScope.firstImport;
 			WHILE import # NIL DO
-				import.GetName(str);
-				module.imports.AddName(str);
+				import.GetName(idstr);
+				module.imports.AddName(idstr);
 				import := import.nextImport
 			END;
 
@@ -711,8 +711,8 @@ TYPE
 				implementationVisitor.profileInit := implementationVisitor.NewSection(module.allSections, Sections.RegularKind, Sections.CodeSection, TRUE, name,NIL,dump);
 				implementationVisitor.profileInit.Emit(Enter(0,0,0));
 
-				Global.GetModuleName(module.module,str);
-				implementationVisitor.ProfilerAddModule(str);
+				Global.GetModuleName(module.module,idstr);
+				implementationVisitor.ProfilerAddModule(idstr);
 				implementationVisitor.numberProcedures := 0;
 			END;
 			implementationVisitor.profile := backend.profile;
@@ -874,7 +874,7 @@ TYPE
 		supportedImmediate: SupportedImmediateProcedure;
 		inData: BOOLEAN;  (* to prevent indirect reference to data within data sections, cf. VisitIntegerValue *)
 		emitLabels: BOOLEAN;
-		runtimeModuleName : SyntaxTree.String;
+		runtimeModuleName : SyntaxTree.IdentifierString;
 		newObjectFile: BOOLEAN;
 		currentCellScope: SyntaxTree.CellScope;
 		indexCounter: LONGINT;
@@ -887,7 +887,7 @@ TYPE
 		operatorInitializationCodeSection: IntermediateCode.Section;
 		fingerPrinter: FingerPrinter.FingerPrinter;
 
-		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedInstructionProcedure: SupportedInstructionProcedure; supportedImmediateProcedure: SupportedImmediateProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.String; backend: IntermediateBackend;
+		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedInstructionProcedure: SupportedInstructionProcedure; supportedImmediateProcedure: SupportedImmediateProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.IdentifierString; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
 		BEGIN
 			SELF.system := system;
@@ -990,7 +990,7 @@ TYPE
 
 
 		PROCEDURE Emit(instruction: IntermediateCode.Instruction);
-		VAR moduleName, procedureName: SyntaxTree.String;
+		VAR moduleName, procedureName: SyntaxTree.IdentifierString;
 
 			PROCEDURE CheckRegister(VAR op: IntermediateCode.Operand);
 			BEGIN
@@ -1647,8 +1647,8 @@ TYPE
 
 		PROCEDURE AddImport(CONST moduleName: ARRAY OF CHAR; VAR module: SyntaxTree.Module; force: BOOLEAN): BOOLEAN;
 		VAR import: SyntaxTree.Import;
-			s: Scanner.StringType;
-			selfName: SyntaxTree.String;
+			s: Basic.MessageString;
+			selfName: SyntaxTree.IdentifierString;
 		BEGIN
 			moduleScope.ownerModule.GetName(selfName);
 			IF (moduleName = selfName) & (moduleScope.ownerModule.context = Global.A2Name) THEN
@@ -1679,13 +1679,13 @@ TYPE
 			RETURN TRUE
 		END AddImport;
 
-		PROCEDURE Emulate(CONST x: IntermediateCode.Instruction; CONST moduleName,procedureName: Scanner.StringType);
+		PROCEDURE Emulate(CONST x: IntermediateCode.Instruction; CONST moduleName,procedureName: SyntaxTree.IdentifierString);
 		(*! this emulation procedure emulates instructions with destination operand only *)
 		VAR
 			machine: SyntaxTree.Module;
 			procedure: SyntaxTree.Procedure;
 			saved: RegisterEntry;
-			s: Scanner.StringType;
+			s: Basic.MessageString;
 			prevResult: Operand;
 		BEGIN
 			IF AddImport(moduleName,machine,TRUE) THEN
@@ -1826,7 +1826,7 @@ TYPE
 		*)
 
 		PROCEDURE GetRuntimeProcedure(CONST moduleName, procedureName: ARRAY OF CHAR; VAR procedure: SyntaxTree.Procedure; force: BOOLEAN): BOOLEAN;
-		VAR runtimeModule: SyntaxTree.Module; s: Scanner.StringType;
+		VAR runtimeModule: SyntaxTree.Module; s: Basic.MessageString;
 		BEGIN
 			IF AddImport(moduleName,runtimeModule,force) THEN
 				procedure := runtimeModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
@@ -1847,7 +1847,7 @@ TYPE
 
 		PROCEDURE GetTypeDescriptor(CONST moduleName, typeName: ARRAY OF CHAR): IntermediateCode.Section;
 		VAR importedModule: SyntaxTree.Module; source: IntermediateCode.Section; symbol: SyntaxTree.Symbol; pooledName: Basic.PooledName;
-			s: Scanner.StringType;
+			s: Basic.MessageString;
 		BEGIN
 			Basic.InitPooledName(pooledName);
 			pooledName[0] := Basic.MakeString(moduleName);
@@ -1931,7 +1931,7 @@ TYPE
 			procedure: SyntaxTree.Procedure;
 			saved: RegisterEntry;
 			reg: IntermediateCode.Operand;
-			procedureName: SyntaxTree.String;
+			procedureName: SyntaxTree.IdentifierString;
 		BEGIN
 			procedureName := "CompareString";
 
@@ -1975,7 +1975,7 @@ TYPE
 			leftSize, rightSize: IntermediateCode.Operand;
 			procedure: SyntaxTree.Procedure;
 			saved: RegisterEntry;
-			procedureName: SyntaxTree.String;
+			procedureName: SyntaxTree.IdentifierString;
 		BEGIN
 			procedureName := "CopyString";
 
@@ -3050,7 +3050,7 @@ TYPE
 
 		PROCEDURE PrepareTensorDescriptor(expression: SyntaxTree.IndexDesignator): SyntaxTree.Variable;
 		VAR variable: SyntaxTree.Variable; srcOperand,destOperand,procOp: Operand;
-			moduleName, procedureName: SyntaxTree.String; arrayBase: SyntaxTree.Module; saved: RegisterEntry; s: SyntaxTree.String;
+			moduleName, procedureName: SyntaxTree.IdentifierString; arrayBase: SyntaxTree.Module; saved: RegisterEntry; s: Basic.MessageString;
 			procedure: SyntaxTree.Procedure;
 			parameters: SyntaxTree.ExpressionList; e: SyntaxTree.Expression;
 			prefixIndices, prefixRanges, suffixIndices, suffixRanges,i : LONGINT; tensorFound: BOOLEAN;
@@ -4218,7 +4218,7 @@ TYPE
 		END ProfilerEnterExit;
 
 		PROCEDURE ProfilerAddProcedure(procedureNumber: LONGINT; CONST name: ARRAY OF CHAR);
-		VAR reg: IntermediateCode.Operand; result: Operand; procedure: SyntaxTree.Procedure; sv: SyntaxTree.StringValue;type: SyntaxTree.Type;
+		VAR string: SyntaxTree.String; reg: IntermediateCode.Operand; result: Operand; procedure: SyntaxTree.Procedure; sv: SyntaxTree.StringValue;type: SyntaxTree.Type;
 		BEGIN
 			IF GetRuntimeProcedure("FoxProfiler","AddProcedure",procedure,TRUE) THEN
 				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
@@ -4226,7 +4226,8 @@ TYPE
 				profileInit.Emit(Push(reg));
 				IntermediateCode.InitImmediate(reg, IntermediateCode.GetType(system,system.longintType), procedureNumber);
 				profileInit.Emit(Push(reg));
-				sv := SyntaxTree.NewStringValue(-1,name);
+				NEW(string, LEN(name)); COPY(name, string^);
+				sv := SyntaxTree.NewStringValue(-1,string);
 				type := SyntaxTree.NewStringType(-1,system.characterType,Strings.Length(name));
 				sv.SetType(type);
 				Designate(sv,result);
@@ -4239,14 +4240,15 @@ TYPE
 		END ProfilerAddProcedure;
 
 		PROCEDURE ProfilerAddModule(CONST name: ARRAY OF CHAR);
-		VAR sv: SyntaxTree.StringValue; type: SyntaxTree.Type; result: Operand;  reg: IntermediateCode.Operand; procedure: SyntaxTree.Procedure;
+		VAR string: SyntaxTree.String; sv: SyntaxTree.StringValue; type: SyntaxTree.Type; result: Operand;  reg: IntermediateCode.Operand; procedure: SyntaxTree.Procedure;
 		BEGIN
 			IF GetRuntimeProcedure("FoxProfiler","AddModule",procedure,TRUE) THEN
 				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
 				profileInit.Emit(Push(reg));
 				profileInitPatchPosition := profileInit.pc;
 				profileInit.Emit(Nop()); (* placeholder, will be patched by number of procedures *)
-				sv := SyntaxTree.NewStringValue(-1,name);
+				NEW(string, LEN(name)); COPY(name, string^);
+				sv := SyntaxTree.NewStringValue(-1,string);
 				type := SyntaxTree.NewStringType(-1,system.characterType,Strings.Length(name));
 				sv.SetType(type);
 				Designate(sv,result);
@@ -4366,7 +4368,7 @@ TYPE
 		VAR
 			traceModule: SyntaxTree.Module;
 			procedure: SyntaxTree.Procedure;
-			s,msg: Scanner.StringType;
+			s,msg: Basic.MessageString;
 			res: Operand;
 			i: LONGINT;
 			sv: SyntaxTree.StringValue;
@@ -4399,10 +4401,11 @@ TYPE
 			END CallProcedure;
 
 			PROCEDURE String(CONST s: ARRAY OF CHAR);
-			VAR res: Operand;
+			VAR res: Operand; string: SyntaxTree.String;
 			BEGIN
 				IF GetProcedure("String") THEN
-					sv := SyntaxTree.NewStringValue(-1,s);
+					NEW(string, LEN(s)); COPY(s, string^);
+					sv := SyntaxTree.NewStringValue(-1,string);
 					type := SyntaxTree.NewStringType(-1,system.characterType,Strings.Length(s));
 					sv.SetType(type);
 					Designate(sv,res);
@@ -4871,7 +4874,7 @@ TYPE
 			create a temporary variable in current scope
 		**)
 		PROCEDURE GetTemporaryVariable(type: SyntaxTree.Type): SyntaxTree.Variable;
-		VAR name: SyntaxTree.Identifier; string: Scanner.StringType ; variable: SyntaxTree.Symbol;
+		VAR name: SyntaxTree.Identifier; string: SyntaxTree.IdentifierString ; variable: SyntaxTree.Symbol;
 		scope: SyntaxTree.Scope; duplicate: BOOLEAN; offset: LONGINT;
 		BEGIN
 			COPY("@hiddenIRVar",string);
@@ -6643,7 +6646,7 @@ TYPE
 		PROCEDURE AssignMathArray(left,right: SyntaxTree.Expression);
 		VAR leftType, rightType: SyntaxTree.MathArrayType;
 			leftBase, rightBase: SyntaxTree.Type;
-			procedureName,s: SyntaxTree.String;
+			procedureName,s: SyntaxTree.IdentifierString;
 			arrayBase: SyntaxTree.Module; saved: RegisterEntry;  procedure: SyntaxTree.Procedure; parameter: SyntaxTree.Parameter;
 			size: LONGINT; rightKind: LONGINT;
 			dummy: IntermediateCode.Operand;
@@ -7232,7 +7235,7 @@ TYPE
 		VAR procedure: SyntaxTree.Procedure; procedureType: SyntaxTree.ProcedureType; procedureScope: SyntaxTree.ProcedureScope;
 			identifier: SyntaxTree.Identifier; body: SyntaxTree.Body; returnStatement : SyntaxTree.ReturnStatement;
 			statements: SyntaxTree.StatementSequence;
-			name, suffix: Scanner.StringType;
+			name, suffix: SyntaxTree.IdentifierString;
 		BEGIN
 			Strings.IntToStr(awaitProcCounter,suffix);
 			Strings.Concat("@AwaitProcedure",suffix,name);
@@ -7423,7 +7426,7 @@ TYPE
 
 		PROCEDURE Body(x: SyntaxTree.Body; scope: SyntaxTree.Scope; ir: IntermediateCode.Section; moduleBody: BOOLEAN);
 		VAR prevScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType; procedure: SyntaxTree.Procedure;
-			end: Label;res: IntermediateCode.Operand; cellScope: SyntaxTree.CellScope; op: Operand; string: SyntaxTree.String;
+			end: Label;res: IntermediateCode.Operand; cellScope: SyntaxTree.CellScope; op: Operand; string: SyntaxTree.IdentifierString;
 		BEGIN
 			IF Trace THEN TraceEnter("Body") END;
 			section := ir;
@@ -7518,8 +7521,8 @@ TYPE
 	IntermediateBackend*= OBJECT (IntermediateCode.IntermediateBackend)
 	VAR
 		trace-: BOOLEAN;
-		traceString-: SyntaxTree.String;
-		traceModuleName-: SyntaxTree.String;
+		traceString-: SyntaxTree.IdentifierString;
+		traceModuleName-: SyntaxTree.IdentifierString;
 		newObjectFile-: BOOLEAN;
 		profile-: BOOLEAN;
 		noRuntimeChecks: BOOLEAN;
@@ -7535,7 +7538,7 @@ TYPE
 			declarationVisitor: DeclarationVisitor;
 			implementationVisitor: ImplementationVisitor;
 			module: Sections.Module;
-			name, instructionSet, platformName: SyntaxTree.String;
+			name, instructionSet, platformName: SyntaxTree.IdentifierString;
 		BEGIN
 			ResetError;
 			Global.GetSymbolName(x,name);
@@ -7576,7 +7579,7 @@ TYPE
 		VAR
 			dump: Basic.Writer;
 			result: Sections.Module;
-			traceName: SyntaxTree.String;
+			traceName: Basic.MessageString;
 		BEGIN
 			ASSERT(intermediateCodeModule IS Sections.Module);
 			result := intermediateCodeModule(Sections.Module);
@@ -7612,7 +7615,7 @@ TYPE
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
-		VAR name: SyntaxTree.String;
+		VAR name: SyntaxTree.IdentifierString;
 		BEGIN
 			GetOptions^(options);
 			trace := options.GetString("trace",traceString);
@@ -8054,7 +8057,7 @@ TYPE
 			END BaseType;
 
 			PROCEDURE RecordType(type: SyntaxTree.RecordType);
-			VAR destination: Sections.Section; name: SyntaxTree.String;
+			VAR destination: Sections.Section; name: SyntaxTree.IdentifierString;
 			BEGIN
 				destination := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.RegularKind); (*TODO*)
 				IF destination = NIL THEN
@@ -8439,7 +8442,7 @@ TYPE
 
 		PROCEDURE PointerOffsets(destination : IntermediateCode.Section);
 		VAR numberPointers: LONGINT; procedure: SyntaxTree.Procedure; procedureType: SyntaxTree.ProcedureType;
-			variable: SyntaxTree.Variable; parameter: SyntaxTree.Parameter; string: SyntaxTree.String;
+			variable: SyntaxTree.Variable; parameter: SyntaxTree.Parameter; string: Basic.SectionName;
 		BEGIN
 			MetaInfo(procArray,"pcFrom");
 			MetaSymbol(module,procArray,destination,0,0);
@@ -8683,6 +8686,7 @@ TYPE
 		PROCEDURE NewTypeDescriptorInfo(tag: Sections.Section; offset: LONGINT; isProtected: BOOLEAN): Sections.Section;
 		VAR name: Basic.PooledName;source: IntermediateCode.Section;
 			moduleSection: IntermediateCode.Section; i: LONGINT; flags: SET;
+			sectionName: Basic.SectionName;
 		CONST MPO=-40000000H;
 		BEGIN
 				(*
@@ -8713,8 +8717,8 @@ TYPE
 				MetaInfo(source, "type name");
 				i := 0;
 				Global.GetSymbolPooledName(td,name);
-				Basic.FromPooledName(name, string);
-				MetaName(module,source,string);
+				Basic.FromPooledName(name, sectionName);
+				MetaName(module,source,sectionName);
 				source.SetReferenced(FALSE);
 				RETURN source;
 		END NewTypeDescriptorInfo;
@@ -8869,7 +8873,7 @@ TYPE
 	END GetType;
 
 	PROCEDURE BuildConstant(module: SyntaxTree.Module; value: SyntaxTree.Value; VAR adr: LONGINT): SyntaxTree.Constant;
-	VAR name: Scanner.StringType; constant: SyntaxTree.Constant;
+	VAR name: SyntaxTree.IdentifierString; constant: SyntaxTree.Constant;
 	BEGIN
 		name := "@const"; Basic.AppendNumber(name, adr); INC(adr);
 		(*
@@ -9424,7 +9428,7 @@ TYPE
 	END EnterImmediate;
 
 	PROCEDURE Init;
-	VAR i: LONGINT; name: SyntaxTree.String;
+	VAR i: LONGINT; name: SyntaxTree.IdentifierString;
 	BEGIN
 		int8 := IntermediateCode.NewType(IntermediateCode.SignedInteger,IntermediateCode.Bits8);
 		int16 := IntermediateCode.NewType(IntermediateCode.SignedInteger,IntermediateCode.Bits16);

@@ -52,6 +52,10 @@ TYPE
 	*)
 	String* = StringPool.Index;
 	PooledName*= ObjectFile.PooledName;
+	FileName*= Files.FileName;
+	SectionName*= ARRAY 256 OF CHAR;
+	MessageString*= ARRAY 256 OF CHAR;
+
 	ObjectArray = POINTER TO ARRAY OF ANY;
 	IntegerArray = POINTER TO ARRAY OF LONGINT;
 

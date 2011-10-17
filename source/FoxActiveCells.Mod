@@ -21,6 +21,7 @@ CONST
 	BasePortAddress=LONGINT(0FFFFFFE0H);
 
 TYPE
+	Name*= ARRAY 256 OF CHAR;
 
 	PortInstance*=RECORD
 		instance-: Instance; port-: Port
@@ -28,7 +29,7 @@ TYPE
 
 	(* base type of all ingredients of the specification graph *)
 	Symbol*=OBJECT
-	VAR name-: SyntaxTree.String;
+	VAR name-: Name;
 		scope-: Scope;
 
 
@@ -136,7 +137,7 @@ TYPE
 		END Write;
 
 		PROCEDURE Read*(r: Streams.Reader): BOOLEAN;
-		VAR s: SyntaxTree.String; index: LONGINT;
+		VAR s: Name; index: LONGINT;
 		BEGIN
 			IF ~r.GetInteger(index,FALSE) OR (index # SELF.index) OR ~CheckItem(r,"name") OR ~GetString(r,name)
 			OR ~CheckItem(r,"direction") OR ~GetString(r,s)
@@ -353,7 +354,7 @@ TYPE
 		END Write;
 
 		PROCEDURE Read(r: Streams.Reader): BOOLEAN;
-		VAR index: LONGINT; s: SyntaxTree.String;
+		VAR index: LONGINT; s: Name;
 		BEGIN
 			IF r.GetInteger(index,FALSE) & CheckItem(r,"name") & GetString(r,name)
 				&CheckItem(r,"type") & GetString(r,s) & CheckItem(r,"value") THEN
@@ -446,7 +447,7 @@ TYPE
 		END AddParameter;
 
 		PROCEDURE Write(w: Streams.Writer; indent: LONGINT);
-		VAR typeName: SyntaxTree.String; parameter: Parameter; i: LONGINT;
+		VAR typeName: Name; parameter: Parameter; i: LONGINT;
 		BEGIN
 			Indent(w,indent); INC(indent);
 			w.Int(index,1);
@@ -468,7 +469,7 @@ TYPE
 		END Write;
 
 		PROCEDURE Read(r: Streams.Reader): BOOLEAN;
-		VAR index: LONGINT; s: SyntaxTree.String; symbol: Symbol; i,number: LONGINT; parameter: Parameter;
+		VAR index: LONGINT; s: Name; symbol: Symbol; i,number: LONGINT; parameter: Parameter;
 		BEGIN
 			IF r.GetInteger(index,FALSE) & CheckItem(r,"name") & GetString(r,name) &
 			CheckItem(r,"type") & GetString(r,s) &
@@ -556,7 +557,7 @@ TYPE
 
 		(* generate a new channel, may be overwritten by implementations if a non-default channel object has to be installed *)
 		PROCEDURE NewChannel*(): Channel;
-		VAR channel: Channel; name: SyntaxTree.String;
+		VAR channel: Channel; name: Name;
 		BEGIN
 			name := "@Channel"; Basic.AppendNumber(name,channels.Length());
 			NEW(channel,name,SELF);
@@ -915,7 +916,7 @@ TYPE
 		END SetWidth;
 
 		PROCEDURE Read(r: Streams.Reader): BOOLEAN;
-		VAR s: SyntaxTree.String; i: LONGINT;
+		VAR s: Name; i: LONGINT;
 		BEGIN
 			IF ~r.GetInteger(i,FALSE) OR (i#index) OR
 			~CheckItem(r,"name") OR ~GetString(r,name) OR
@@ -991,7 +992,7 @@ TYPE
 	*)
 	Specification*=OBJECT (Scope) (* specification object including hardware factory *)
 	VAR
-		instructionSet-: SyntaxTree.String;
+		instructionSet-: Name;
 
 		diagnostics-: Diagnostics.Diagnostics;
 		log-: Streams.Writer;
@@ -1073,7 +1074,7 @@ TYPE
 
 		PROCEDURE Read*(r: Streams.Reader): BOOLEAN;
 		VAR i, number: LONGINT; type: Type;
-			instance: Instance; port: Port; channel: Channel; importName: SyntaxTree.String;
+			instance: Instance; port: Port; channel: Channel; importName: Name;
 		BEGIN
 			IF ~	CheckItem(r,"name") OR ~GetString(r,name) OR
 			~CheckItem(r,"instructionSet") OR ~GetString(r,instructionSet) OR
@@ -1111,7 +1112,7 @@ TYPE
 		END GetPortAddress;
 
 		PROCEDURE Emit*(): BOOLEAN; (* to be overwritten by implementers *)
-		VAR w: Files.Writer; f: Files.File; fileName: Files.FileName; msg: SyntaxTree.String;
+		VAR w: Files.Writer; f: Files.File; fileName: Files.FileName; msg: Name;
 		BEGIN
 			FlattenNetwork(SELF);
 			Files.JoinExtension(SELF.name,SpecificationFileExtension,fileName);
@@ -1225,7 +1226,7 @@ TYPE
 
 
 	PROCEDURE GetSymbol*(scope: Scope; CONST name: ARRAY OF CHAR): Symbol;
-	VAR scopeName: SyntaxTree.String; i,j: LONGINT; symbol: Symbol; first: BOOLEAN;
+	VAR scopeName: Name; i,j: LONGINT; symbol: Symbol; first: BOOLEAN;
 	BEGIN
 		i := 0; first := TRUE;
 		WHILE (scope # NIL) & (name[i] # 0X) DO
@@ -1254,7 +1255,7 @@ TYPE
 		 port: Port;
 
 		 PROCEDURE FlattenPortInstance(VAR pi: PortInstance);
-		 VAR name: SyntaxTree.String; port, prevPort: Port; instance: Instance;
+		 VAR name: Name; port, prevPort: Port; instance: Instance;
 		 BEGIN
 		 	IF pi.port # NIL THEN
 			 	port := pi.port.delegate.port;
@@ -1281,7 +1282,7 @@ TYPE
 		 END FlattenPortInstance;
 
 		 PROCEDURE EmbedInstance(instance: Instance; VAR subInstance: Instance): Instance;
-		 VAR name: SyntaxTree.String; newInstance: Instance; i: LONGINT; parameter,newParameter: Parameter;
+		 VAR name: Name; newInstance: Instance; i: LONGINT; parameter,newParameter: Parameter;
 		 BEGIN
 		 	COPY(instance.name, name); Strings.Append(name,"."); Strings.Append(name,subInstance.name);
 		 	newInstance := instances.ByName(name);

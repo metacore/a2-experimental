@@ -2456,7 +2456,7 @@ Sufficient (but not necessary) conditions:
 	BEGIN
 		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
 										  SYSTEM.SIZEOF( SHORTINT ), IncMulASSSLoop );
-	END IncMul;
+	END "IncMul";
 
 	OPERATOR "IncMul"*(left: SHORTINT; CONST right: ARRAY [ ? ] OF SHORTINT): ARRAY [ ? ] OF SHORTINT;
 	BEGIN

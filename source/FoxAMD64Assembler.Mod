@@ -121,7 +121,7 @@ CONST
 	symEnd = 24;
 
 TYPE
-	Name = Scanner.StringType;
+	Name = Scanner.IdentifierString;
 
 	Size = SHORTINT;
 	Register* = LONGINT; (* index for InstructionSet.registers *)
@@ -157,7 +157,7 @@ TYPE
 	NamedLabel*= OBJECT
 	VAR
 		offset: LONGINT;
-		name-: SyntaxTree.String;
+		name-: SyntaxTree.IdentifierString;
 		nextNamedLabel-: NamedLabel;
 		index-: LONGINT;
 
@@ -259,7 +259,7 @@ TYPE
 		END ErrorSS;
 
 		PROCEDURE ErrorSI(CONST msg1: ARRAY OF CHAR; mnemonic: LONGINT; CONST operands: ARRAY OF Operand);
-		VAR s: Streams.StringWriter; msg: SyntaxTree.String;
+		VAR s: Streams.StringWriter; msg: Basic.MessageString;
 		BEGIN
 			NEW(s,LEN(msg));
 			DumpInstruction(s,mnemonic,operands);
@@ -1047,7 +1047,7 @@ TYPE
 		type: SHORTINT;
 		currentFixup: Sections.Section;
 		currentLabel: NamedLabel;
-		sourceName: SyntaxTree.String;
+		sourceName: Basic.FileName;
 
 		PROCEDURE & InitAssembly*(diagnostics: Diagnostics.Diagnostics; emit: Emitter);
 		BEGIN
@@ -1103,7 +1103,7 @@ TYPE
 			char: CHAR;
 			orgReaderPos: LONGINT;
 			orgCodePos: LONGINT;
-			prevSourceName: SyntaxTree.String;
+			prevSourceName: Basic.FileName;
 			position: LONGINT;
 			prevCpuBits: Size;
 			prevCpuOptions: InstructionSet.CPUOptions;

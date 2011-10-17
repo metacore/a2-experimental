@@ -895,7 +895,7 @@ TYPE
 	END IsSystemModule;
 
 	(** Various factories *)
-	PROCEDURE DeclareType0(type: SyntaxTree.Type; CONST name: Scanner.StringType; in: SyntaxTree.Scope);
+	PROCEDURE DeclareType0(type: SyntaxTree.Type; CONST name: ARRAY OF CHAR; in: SyntaxTree.Scope);
 	VAR basic: SyntaxTree.TypeDeclaration; duplicate: BOOLEAN;
 	BEGIN
 		basic := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(name));
@@ -908,8 +908,8 @@ TYPE
 	END DeclareType0;
 
 	(** External interface backends can use to add their types etc. to the global scope *)
-	PROCEDURE DeclareType*(type: SyntaxTree.Type; CONST name: Scanner.StringType; CONST scope: ARRAY OF SyntaxTree.ModuleScope);
-	VAR nameL,nameU: Scanner.StringType;
+	PROCEDURE DeclareType*(type: SyntaxTree.Type; CONST name: ARRAY OF CHAR; CONST scope: ARRAY OF SyntaxTree.ModuleScope);
+	VAR nameL,nameU: Scanner.IdentifierString;
 	BEGIN
 		Basic.Lowercase(name,nameL);
 		Basic.Uppercase(name,nameU);
@@ -917,7 +917,7 @@ TYPE
 		DeclareType0(type,nameL,scope[Scanner.Lowercase]);
 	END DeclareType;
 
-	PROCEDURE NewConstant0(CONST name: Scanner.StringType; int: LONGINT; type: SyntaxTree.Type; in: SyntaxTree.Scope);
+	PROCEDURE NewConstant0(CONST name: ARRAY OF CHAR; int: LONGINT; type: SyntaxTree.Type; in: SyntaxTree.Scope);
 	VAR constant: SyntaxTree.Constant; value: SyntaxTree.IntegerValue;duplicate: BOOLEAN;
 	BEGIN
 		value := SyntaxTree.NewIntegerValue(-1,int);
@@ -932,8 +932,8 @@ TYPE
 		ASSERT(~duplicate);
 	END NewConstant0;
 
-	PROCEDURE NewConstant*(CONST name: Scanner.StringType; int: LONGINT; type: SyntaxTree.Type; CONST scope: ARRAY OF SyntaxTree.ModuleScope);
-	VAR nameL,nameU: Scanner.StringType;
+	PROCEDURE NewConstant*(CONST name: ARRAY OF CHAR; int: LONGINT; type: SyntaxTree.Type; CONST scope: ARRAY OF SyntaxTree.ModuleScope);
+	VAR nameL,nameU: Scanner.IdentifierString;
 	BEGIN
 		Basic.Lowercase(name,nameL);
 		Basic.Uppercase(name,nameU);
@@ -941,7 +941,7 @@ TYPE
 		NewConstant0(nameL,int,type,scope[Scanner.Lowercase]);
 	END NewConstant;
 
-	PROCEDURE NewBuiltin0( id: LONGINT; CONST name: Scanner.StringType; in:  SyntaxTree.ModuleScope; realtime: BOOLEAN);
+	PROCEDURE NewBuiltin0( id: LONGINT; CONST name: ARRAY OF CHAR; in:  SyntaxTree.ModuleScope; realtime: BOOLEAN);
 	VAR basic: SyntaxTree.Builtin; duplicate: BOOLEAN; type: SyntaxTree.ProcedureType;
 	BEGIN
 		basic := SyntaxTree.NewBuiltin(-1,SyntaxTree.NewIdentifier(name),id);
@@ -956,8 +956,8 @@ TYPE
 		ASSERT(~duplicate);
 	END NewBuiltin0;
 
-	PROCEDURE NewBuiltin*(id: LONGINT; CONST name: Scanner.StringType; CONST scope: ARRAY OF SyntaxTree.ModuleScope; realtime: BOOLEAN);
-	VAR nameL,nameU: Scanner.StringType;
+	PROCEDURE NewBuiltin*(id: LONGINT; CONST name: ARRAY OF CHAR; CONST scope: ARRAY OF SyntaxTree.ModuleScope; realtime: BOOLEAN);
+	VAR nameL,nameU: Scanner.IdentifierString;
 	BEGIN
 		Basic.Lowercase(name,nameL);
 		Basic.Uppercase(name,nameU);
@@ -966,7 +966,7 @@ TYPE
 	END NewBuiltin;
 
 	PROCEDURE ModuleFileName*(moduleName,context: SyntaxTree.Identifier; VAR fileName: ARRAY OF CHAR);
-	VAR prefix,name: Scanner.StringType;
+	VAR prefix,name: Scanner.IdentifierString;
 	BEGIN
 		Basic.GetString(moduleName,name);
 		IF (context = SyntaxTree.invalidIdentifier) OR (context = A2Name) THEN
@@ -979,7 +979,7 @@ TYPE
 	END ModuleFileName;
 
 	PROCEDURE ContextFromName*(CONST fileName: ARRAY OF CHAR; VAR module,context: SyntaxTree.Identifier);
-	VAR moduleName, contextName: Scanner.StringType; i,j: LONGINT;
+	VAR moduleName, contextName: Scanner.IdentifierString; i,j: LONGINT;
 	BEGIN
 		i := 0; j := 0;
 		WHILE (fileName[i] # 0X) & (fileName[i] # ".") DO
@@ -1003,7 +1003,7 @@ TYPE
 	END ContextFromName;
 
 	PROCEDURE GetModuleName*(module: SyntaxTree.Module; VAR name: ARRAY OF CHAR);
-	VAR n: SyntaxTree.String;
+	VAR n: SyntaxTree.IdentifierString;
 	BEGIN
 		name := "";
 		IF module.context # SyntaxTree.invalidIdentifier THEN
@@ -1025,7 +1025,7 @@ TYPE
 
 
 	PROCEDURE GetSymbolNameInScope*(symbol: SyntaxTree.Symbol; inScope: SyntaxTree.Scope; VAR name: ARRAY OF CHAR);
-	VAR n: SyntaxTree.String; td: SyntaxTree.TypeDeclaration;
+	VAR n: SyntaxTree.IdentifierString; td: SyntaxTree.TypeDeclaration;
 		PROCEDURE Scope(scope: SyntaxTree.Scope);
 		BEGIN
 			IF scope = NIL THEN (* do nothing, locally declared temporary symbol *)
@@ -1275,16 +1275,16 @@ TYPE
 	VAR i: LONGINT;
 
 		PROCEDURE NewKeywordIdentifier(op: LONGINT);
-		VAR str: Scanner.StringType;
+		VAR id: Scanner.IdentifierType;
 		BEGIN
-			Scanner.GetKeyword(Scanner.Uppercase,op,str);
-			identifiers[Scanner.Uppercase,op] := SyntaxTree.NewIdentifier(str);
-			Scanner.GetKeyword(Scanner.Lowercase,op,str);
-			identifiers[Scanner.Lowercase,op] := SyntaxTree.NewIdentifier(str);
+			Scanner.GetKeyword(Scanner.Uppercase,op,id);
+			identifiers[Scanner.Uppercase,op] := id;
+			Scanner.GetKeyword(Scanner.Lowercase,op,id);
+			identifiers[Scanner.Lowercase,op] := id;
 		END NewKeywordIdentifier;
 
-		PROCEDURE NewBuiltinIdentifier(op: LONGINT; CONST name: Scanner.StringType);
-		VAR nameL,nameU: Scanner.StringType;
+		PROCEDURE NewBuiltinIdentifier(op: LONGINT; CONST name: ARRAY OF CHAR);
+		VAR nameL,nameU: Scanner.IdentifierString;
 		BEGIN
 			ASSERT(op < LEN(identifiers[0]));
 			Basic.Lowercase(name,nameL);

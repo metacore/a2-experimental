@@ -6,6 +6,8 @@ CONST
 	NoFindPC*=MAX(LONGINT);
 
 TYPE
+	SectionName= ARRAY 256 OF CHAR;
+
 	(* container for generated code (intermediate code - binary code) *)
 	GeneratedModule*=OBJECT
 		VAR
@@ -13,7 +15,7 @@ TYPE
 			module-: SyntaxTree.Module;
 			system-: Global.System;
 			findPC-: LONGINT;
-			moduleName-: SyntaxTree.String; (* genasm *)
+			moduleName-: SectionName; (* genasm *)
 
 		PROCEDURE SetFindPC*(findPC: LONGINT);
 		BEGIN SELF.findPC := findPC
@@ -23,8 +25,8 @@ TYPE
 		BEGIN SELF.module := module; SELF.system := system; findPC := NoFindPC
 		END Init;
 
-		PROCEDURE SetModuleName*(moduleName: SyntaxTree.String);
-		BEGIN SELF.moduleName := moduleName
+		PROCEDURE SetModuleName*(CONST moduleName: ARRAY OF CHAR);
+		BEGIN COPY(moduleName, SELF.moduleName)
 		END SetModuleName;
 
 		PROCEDURE SetSystem*(system: Global.System);

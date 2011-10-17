@@ -121,7 +121,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	END ObjectFileFormat;
 
 	PROCEDURE GetFingerPrint (section: Sections.Section; fingerPrinter: FingerPrinter.FingerPrinter): LONGINT;
-	VAR fingerPrint: SyntaxTree.FingerPrint; fp: LONGINT; string: SyntaxTree.String;
+	VAR fingerPrint: SyntaxTree.FingerPrint; fp: LONGINT; string: Basic.SectionName;
 	BEGIN
 		IF section.fingerprint # 0 THEN
 			fp := section.fingerprint

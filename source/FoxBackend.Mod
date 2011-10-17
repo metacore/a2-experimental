@@ -5,6 +5,8 @@ IMPORT
 
 
 TYPE
+	SectionName = ARRAY 256 OF CHAR;
+
 	Backend* = OBJECT
 	VAR
 		diagnostics-: Diagnostics.Diagnostics;
@@ -15,7 +17,7 @@ TYPE
 		checker-: SemanticChecker.Checker;
 		source-: SyntaxTree.String;
 		activeCellsSpecification-: ActiveCells.Specification;
-		findSectionName-: SyntaxTree.String;
+		findSectionName-: SectionName;
 		findSectionOffset-: LONGINT;
 		capabilities-: SET;
 

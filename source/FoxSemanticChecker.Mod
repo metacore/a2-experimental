@@ -13,6 +13,7 @@ CONST
 	UndefinedPhase = 0; DeclarationPhase=1; ImplementationPhase=2;
 
 TYPE
+	FileName=ARRAY 256 OF CHAR;
 
 	LateFix= POINTER TO RECORD (* contains a late fix to be resolved in a later step: type fixes and implementations *)
 		p: ANY; scope: SyntaxTree.Scope;
@@ -519,7 +520,8 @@ TYPE
 
 		PROCEDURE ImportThis(position: LONGINT; moduleName: SyntaxTree.Identifier; VAR m: SyntaxTree.Module; force: BOOLEAN): BOOLEAN;
 		VAR import: SyntaxTree.Import;
-			s,name: Scanner.StringType;
+			s: ARRAY 256 OF CHAR;
+			name: SyntaxTree.IdentifierString;
 			selfName: SyntaxTree.String;
 		BEGIN
 			IF (moduleName = module.name) & (module.context = Global.A2Name) THEN
@@ -548,7 +550,7 @@ TYPE
 		END ImportThis;
 
 		PROCEDURE GetRuntimeProcedure(position: LONGINT;  moduleName: SyntaxTree.Identifier; CONST  procedureName: ARRAY OF CHAR; VAR procedure: SyntaxTree.Procedure; force: BOOLEAN): BOOLEAN;
-		VAR runtimeModule: SyntaxTree.Module; s,name: Scanner.StringType;
+		VAR runtimeModule: SyntaxTree.Module; name: Scanner.IdentifierString; s: ARRAY 256 OF CHAR;
 		BEGIN
 			IF ImportThis(position, moduleName,runtimeModule,force) THEN
 				procedure := runtimeModule.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
@@ -621,7 +623,7 @@ TYPE
 		*)
 
 		PROCEDURE AnonymousTypeDeclaration(x: SyntaxTree.Type; CONST prefix: ARRAY OF CHAR);
-		VAR typeDeclaration: SyntaxTree.TypeDeclaration; name,number: Scanner.StringType;
+		VAR typeDeclaration: SyntaxTree.TypeDeclaration; name,number: Scanner.IdentifierString;
 		BEGIN
 			Strings.IntToStr(x.position,number);
 			COPY(prefix,name);
@@ -2650,12 +2652,12 @@ TYPE
 				IF IsStringType(leftType) & IsStringType(rightType) THEN	(*ok*)
 					IF IsStringValue(left,strl) & IsStringValue(right,strr) THEN
 						CASE operator OF
-						|Scanner.Equal: NewBool(strl=strr);
-						|Scanner.Unequal:NewBool(strl#strr);
-						|Scanner.Less: NewBool(strl<strr);
-						|Scanner.LessEqual: NewBool(strl<=strr);
-						|Scanner.Greater:  NewBool(strl>strr);
-						|Scanner.GreaterEqual: NewBool(strl>=strr);
+						|Scanner.Equal: NewBool(strl^=strr^);
+						|Scanner.Unequal:NewBool(strl^#strr^);
+						|Scanner.Less: NewBool(strl^<strr^);
+						|Scanner.LessEqual: NewBool(strl^<=strr^);
+						|Scanner.Greater:  NewBool(strl^>strr^);
+						|Scanner.GreaterEqual: NewBool(strl^>=strr^);
 						ELSE
 							Error(binaryExpression.position,Diagnostics.Invalid,"operator not defined 4");
 						END;
@@ -4372,14 +4374,14 @@ TYPE
 			RETURN result;
 		END CheckCharacterValue;
 
-		PROCEDURE CheckStringValue(x: SyntaxTree.Expression; VAR value: ARRAY OF CHAR): BOOLEAN;
+		PROCEDURE CheckStringValue(x: SyntaxTree.Expression; VAR value: SyntaxTree.String): BOOLEAN;
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
 			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF (x.resolved # NIL) & (x.resolved IS SyntaxTree.StringValue) THEN
 				result := TRUE;
-				COPY(x.resolved(SyntaxTree.StringValue).value,value);
+				value := x.resolved(SyntaxTree.StringValue).value;
 			ELSE
 				Error(x.position,Diagnostics.Invalid,"expression is not a string constant");
 			END;
@@ -5473,7 +5475,7 @@ TYPE
 				(* --------- HWADR --------- *)
 				ELSIF (id = Global.systemHardwareAddress) & (Parameters(1,1)) THEN
 					IF CheckStringValue(parameter0,name) THEN
-						device := activeCellsSpecification.supportedDevices.ByName(name);
+						device := activeCellsSpecification.supportedDevices.ByName(name^);
 						IF device = NIL THEN
 							Error(parameter0.position,Diagnostics.Invalid,"unsupported device");
 							result := SyntaxTree.invalidExpression;
@@ -6343,7 +6345,7 @@ TYPE
 			module: SyntaxTree.Module;
 			moduleScope: SyntaxTree.ModuleScope;
 			import,reimport: SyntaxTree.Import;
-			filename: Scanner.StringType;
+			filename: FileName;
 		BEGIN
 			IF SymbolNeedsResolution(x) THEN
 				x.SetType(SyntaxTree.importType);
@@ -7561,7 +7563,7 @@ TYPE
 		BEGIN  END VisitProcedureType;
 
 		PROCEDURE Warning(x: SyntaxTree.Symbol; CONST text: ARRAY OF CHAR);
-		VAR msg: SyntaxTree.String;
+		VAR msg: ARRAY 256 OF CHAR;
 		BEGIN
 			Global.GetSymbolName(x,msg);
 			Strings.Append(msg," ");

@@ -213,7 +213,7 @@ TYPE
 		BEGIN
 			IF diagnostics # NIL THEN
 				Basic.GetErrorMessage(code,message,errorMessage);
-				diagnostics.Error(scanner.source, position, code, errorMessage);
+				diagnostics.Error(scanner.source^, position, code, errorMessage);
 			END;
 			error := TRUE
 		END Error;
@@ -226,7 +226,7 @@ TYPE
 		BEGIN
 			error := ~scanner.GetNextSymbol(symbol) OR error;
 			WHILE ~error & (symbol.token = Scanner.Comment) DO
-				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.source^,symbol.stringLength);
+				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.string^,symbol.stringLength);
 				moduleScope.AddComment(comment);
 				IF recentComment = NIL THEN
 					recentComment := comment;
@@ -268,7 +268,7 @@ TYPE
 		VAR comment: SyntaxTree.Comment;
 		BEGIN
 			WHILE ~error & (symbol.token = Scanner.Comment) DO
-				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.source^,symbol.stringLength);
+				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.string^,symbol.stringLength);
 				moduleScope.AddComment(comment);
 				IF recentComment = NIL THEN
 					recentComment := comment;
@@ -300,26 +300,26 @@ TYPE
 
 		(** Check if current symbol is an identifier. If yes then copy identifier to name and get next symbol,
 		report error otherwise and set name to empty name. returns success value *)
-		PROCEDURE MandatoryIdentifier( VAR name: Scanner.StringType): BOOLEAN;
+		PROCEDURE MandatoryIdentifier( VAR name: SyntaxTree.Identifier): BOOLEAN;
 		BEGIN
 			IF Peek(Scanner.Identifier) THEN
-				name := symbol.string;
+				name := symbol.identifier;
 				NextSymbol;
 				RETURN TRUE
 			ELSE
 				Error( symbol.start, Scanner.Identifier, "" );
-				name := "";
+				name := SyntaxTree.invalidIdentifier;
 				RETURN FALSE
 			END
 		END MandatoryIdentifier;
 
 		(** Expect an identifier (using MandatoryIdentifier) and return identifier object **)
 		PROCEDURE Identifier(VAR position: LONGINT): SyntaxTree.Identifier;
-		VAR name: Scanner.StringType; identifier: SyntaxTree.Identifier;
+		VAR name: SyntaxTree.Identifier; identifier: SyntaxTree.Identifier;
 		BEGIN
 			position := symbol.start;
 			IF MandatoryIdentifier(name) THEN
-				identifier := SyntaxTree.NewIdentifier(name);
+				identifier := name;
 			ELSE
 				identifier := SyntaxTree.invalidIdentifier;
 			END;
@@ -340,7 +340,7 @@ TYPE
 				RETURN TRUE
 			ELSE
 				Error( symbol.start, Scanner.String, "" );
-				name := "";
+				NEW(name,1); name^ := "";
 				RETURN FALSE
 			END
 		END MandatoryString;
@@ -351,7 +351,7 @@ TYPE
 		BEGIN
 			IF name = SyntaxTree.invalidIdentifier THEN (* nothing to be expected *)
 				RETURN TRUE
-			ELSIF (symbol.token # Scanner.Identifier) OR (Basic.MakeString(symbol.string) # name) THEN
+			ELSIF (symbol.token # Scanner.Identifier) OR (symbol.identifier # name) THEN
 				Basic.GetString(name,string);
 				Error( symbol.start, Scanner.Identifier, string );
 				RETURN FALSE
@@ -364,7 +364,7 @@ TYPE
 		(** Check if current symbol is an identifier and if the name matches. If yes then get next symbol, report error otherwise. returns success value*)
 		PROCEDURE ExpectThisString( CONST name: ARRAY OF CHAR ): BOOLEAN;
 		BEGIN
-			IF (Peek(Scanner.String) OR Peek(Scanner.Character) OR Peek(Scanner.Identifier)) & (symbol.string = name) THEN
+			IF Peek(Scanner.String) & (symbol.string^ = name) THEN
 				NextSymbol;
 				RETURN TRUE
 			ELSE
@@ -1071,13 +1071,13 @@ TYPE
 
 		(** Code = {  Any \ 'end' } . **)
 		PROCEDURE Code(outer: SyntaxTree.Statement): SyntaxTree.Code;
-		VAR startPos, endPos, i ,len: LONGINT; codeString: Scanner.SourceString; code: SyntaxTree.Code;
+		VAR startPos, endPos, i ,len: LONGINT; codeString: Scanner.StringType; code: SyntaxTree.Code;
 		BEGIN
 			startPos := symbol.start;
 			IF scanner.SkipToNextEnd(startPos, endPos, symbol) THEN
-				codeString := symbol.source;
+				codeString := symbol.string;
 				code := SyntaxTree.NewCode(startPos,outer);
-				i := 0; len := LEN(codeString);
+				i := 0; len := LEN(codeString^);
 				code.SetSourceCode(codeString,len);
 			END;
 			RETURN code;
@@ -1166,8 +1166,7 @@ TYPE
 
 			(* generic empty OBJECT type *)
 			IF Peek(Scanner.Semicolon) OR Peek(Scanner.RightParenthesis) THEN
-				Scanner.GetKeyword(scanner.case,Scanner.Object,str);
-				identifier := SyntaxTree.NewIdentifier(str);
+				Scanner.GetKeyword(scanner.case,Scanner.Object,identifier);
 	      		qualifiedIdentifier := SyntaxTree.NewQualifiedIdentifier(position,SyntaxTree.invalidIdentifier,identifier);
 				type := SyntaxTree.NewQualifiedType( position, parentScope, qualifiedIdentifier );
 				RETURN type
@@ -1674,7 +1673,7 @@ TYPE
 
 			IF Optional( Scanner.Arrow) THEN (* ignore forward declarations *)
 				forwardDeclaration := TRUE;
-				diagnostics.Warning(scanner.source, position, Diagnostics.Invalid,"Unsupported forward declaration. No semantic rules checked.");
+				diagnostics.Warning(scanner.source^, position, Diagnostics.Invalid,"Unsupported forward declaration. No semantic rules checked.");
 			ELSE forwardDeclaration := FALSE;
 			END;
 
@@ -1725,7 +1724,7 @@ TYPE
 		**)
 		PROCEDURE OperatorDeclaration(parentScope: SyntaxTree.Scope );
 		VAR
-			string: Scanner.StringType; name: Scanner.StringType;
+			string: Scanner.StringType;
 			procedureScope: SyntaxTree.ProcedureScope;
 			procedureType: SyntaxTree.ProcedureType;
 			operator: SyntaxTree.Operator;
@@ -1741,18 +1740,10 @@ TYPE
 
 			IF MandatoryString( string ) THEN
 				(* copy string to name and check for length. LEN(name)>0, LEN(string)>0 can be presumed  *)
-				i := 0;
-				REPEAT
-					ch := string[i];
-					name[i] := ch;
-					INC(i);
-				UNTIL (ch = 0X) OR (i=LEN(string)) OR (i=LEN(name));
-				IF ch # 0X THEN (* string too long to act as operator identifier *)
+				i := 0; WHILE (string^[i] # 0X) DO INC(i) END;
+				IF i >= Scanner.MaxIdentifierLength THEN (* string too long to act as operator identifier *)
 					Error(symbol.start,Basic.StringTooLong,"");
-					name := "";
-				END;
-			ELSE
-				name := "";
+				END
 			END;
 
 			IF Optional( Scanner.Times ) THEN access := SyntaxTree.ReadOnly;
@@ -1760,7 +1751,7 @@ TYPE
 			ELSE access := SyntaxTree.Internal;
 			END;
 			procedureScope := SyntaxTree.NewProcedureScope(parentScope);
-			operator := SyntaxTree.NewOperator( symbol.start, SyntaxTree.NewIdentifier(name), procedureScope);
+			operator := SyntaxTree.NewOperator( symbol.start, SyntaxTree.NewIdentifier(string^), procedureScope);
 			CommentSymbol(operator);
 			operator.SetAccess(access * SyntaxTree.ReadOnly);
 			procedureType := SyntaxTree.NewProcedureType(symbol.start,parentScope);
@@ -1772,7 +1763,7 @@ TYPE
 			IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
 				procedureScope.SetBody(Body(procedureScope));
 			END;
-			IF Mandatory(Scanner.End) & ExpectThisString(string) THEN END;
+			IF Mandatory(Scanner.End) & ExpectThisString(string^) THEN END;
 			parentScope.AddProcedure(operator);
 			IF parentScope IS SyntaxTree.ModuleScope THEN
 				parentScope(SyntaxTree.ModuleScope).AddOperator(operator);
@@ -1781,7 +1772,7 @@ TYPE
 			ELSE
 				Error(position,Diagnostics.Invalid,"Operators only allowed in module or record scope"); (* nopov *)
 			END;
-			IF Trace THEN EE( "Operator", name ) END;
+			IF Trace THEN EE( "Operator", string^ ) END;
 		END OperatorDeclaration;
 
 		(** VariableNameList = IdentifierDefinition [Flags] {',' IdentifierDefinition [Flags]}.**)
@@ -1961,7 +1952,7 @@ TYPE
 			isCellNet := Optional(Scanner.CellNet);
 			IF isCellNet OR Mandatory( Scanner.Module ) THEN
 				moduleName :=  Identifier(position);
-				module := SyntaxTree.NewModule( scanner.source, position, moduleName, moduleScope, scanner.case );
+				module := SyntaxTree.NewModule( scanner.source^, position, moduleName, moduleScope, scanner.case );
 				IF isCellNet THEN module.SetCellNet(TRUE) END;
 
 				module.SetType(SyntaxTree.moduleType);

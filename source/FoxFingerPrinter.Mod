@@ -822,7 +822,7 @@ TYPE
 
 		(* fp = fp & String *)
 		PROCEDURE VisitStringValue(x: SyntaxTree.StringValue);
-		BEGIN FPString(SELF.fp,x.value) END VisitStringValue;
+		BEGIN FPString(SELF.fp,x.value^) END VisitStringValue;
 
 		(* fp = fp & FP(x) *)
 		PROCEDURE FPValue(VAR fp: LONGINT; x: SyntaxTree.Expression);
@@ -993,7 +993,7 @@ TYPE
 			FP(VariableDeclaration)    = 0 <*> fpModePar -> Name -> Visibility <*> FP(Type).
 		*)
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
-		VAR fingerprint: FingerPrint; deep: BOOLEAN; name: SyntaxTree.String;
+		VAR fingerprint: FingerPrint; deep: BOOLEAN; name: SyntaxTree.IdentifierString;
 		BEGIN
 			fingerprint := x.fingerprint;
 
@@ -1019,7 +1019,7 @@ TYPE
 			FP(ParameterDeclaration)    = 0 <*> fpModePar -> Name -> Visibility <*> FP(Type).
 		*)
 		PROCEDURE VisitParameter(x: SyntaxTree.Parameter);
-		VAR fingerprint: FingerPrint; deep: BOOLEAN; name: SyntaxTree.String;
+		VAR fingerprint: FingerPrint; deep: BOOLEAN; name: SyntaxTree.IdentifierString;
 		BEGIN
 			fingerprint := x.fingerprint;
 
@@ -1214,7 +1214,7 @@ TYPE
 
 	(* fp = fp -> String *)
 	PROCEDURE FPName*(VAR fp: LONGINT; x: SyntaxTree.Identifier);
-	VAR name: Scanner.StringType;
+	VAR name: Scanner.IdentifierString;
 	BEGIN
 		Basic.GetString(x,name);
 		FPString(fp,name);
