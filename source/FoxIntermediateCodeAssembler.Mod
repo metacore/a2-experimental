@@ -847,6 +847,9 @@ TYPE
 			(* sort sections if necessary *)
 			IF ~isSorted THEN
 				IF Trace THEN D.String("++++++++++ before sorting ++++++++++"); DumpAllSections(D.Log) END;
+				FOR i:= 0 TO allSections.Length() - 1 DO
+					allSections.GetSection(i).SetOffset(i)
+				END;
 				allSections.Sort(SectionPositionAndSizeComparison);
 				IF Trace THEN D.String("++++++++++ after sorting ++++++++++"); DumpAllSections(D.Log) END;
 				isSorted := TRUE;
@@ -1048,7 +1051,7 @@ TYPE
 			ELSIF leftPosition > rightPosition THEN
 				RETURN FALSE
 			ELSIF leftSection.IsCode() & rightSection.IsCode() THEN
-				RETURN FALSE (* should keep order *)
+				RETURN leftSection.offset < rightSection.offset (* should keep order *)
 			ELSE
 				ASSERT(leftPosition = rightPosition); (* note: this is the case for sections without fixed positions *)
 				leftSize := leftSection.GetSize();
