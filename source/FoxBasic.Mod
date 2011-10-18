@@ -1738,6 +1738,51 @@ VAR
 		END
 	END PooledNameEndsWith;
 
+	PROCEDURE RemoveSuffix*(VAR name: PooledName);
+	VAR i,pos,pos0: LONGINT;string: ObjectFile.SectionName;
+	BEGIN
+		i := 0;
+		WHILE  (i< LEN(name)) & (name[i] >= 0) DO
+			INC(i);
+		END;
+		ASSERT(i>0);
+		IF i < LEN(name) THEN (* name[i] = empty *) name[i-1] := -1
+		ELSE (* i = LEN(name), name[i] = nonempty *)
+			DEC(i);
+			pos0 := 0; pos := 0;
+			WHILE (pos0 < LEN(string)) & (string[pos0] # 0X) DO
+				IF string[pos0] = "." THEN pos := pos0 END;
+				INC(pos0);
+			END;
+			IF pos = 0 THEN (* no dot in name or name starts with dot *)
+				name[i] := -1
+			ELSE (* remove last part in name *)
+				string[pos] := 0X;
+				name[i] := StringPool.GetIndex1(string);
+			END;
+		END;
+	END RemoveSuffix;
+
+
+	PROCEDURE IsPrefix*(CONST prefix, of: PooledName): BOOLEAN;
+	VAR prefixS, ofS: SectionName; i: LONGINT;
+	BEGIN
+		i := 0;
+		WHILE (i< LEN(prefix)) & (prefix[i] = of[i]) DO INC(i) END;
+
+		IF i = LEN(prefix) THEN RETURN TRUE (* identical *)
+		ELSE (* prefix[i] # of[i] *)
+			IF prefix[i] < 0 THEN RETURN TRUE
+			ELSIF of[i] < 0 THEN RETURN FALSE
+			ELSIF (i<LEN(prefix)) THEN RETURN FALSE
+			ELSE
+				StringPool.GetString(prefix[i], prefixS);
+				StringPool.GetString(of[i], ofS);
+				RETURN Strings.StartsWith(prefixS, 0, ofS)
+			END
+		END;
+	END IsPrefix;
+
 	PROCEDURE Expand(VAR oldAry: ErrorMsgs);
 	VAR
 		len, i: LONGINT;

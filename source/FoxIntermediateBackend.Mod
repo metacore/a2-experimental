@@ -470,13 +470,14 @@ TYPE
 				RETURN
 			ELSIF x = module.module.moduleScope.bodyProcedure THEN
 				inline := FALSE;
-				AddBodyCallStub(x,Sections.InitCodeSection,0);
+				AddBodyCallStub(x);
 				ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.BodyCodeSection, TRUE, name,x,dump);
 			ELSIF (scope.outerScope IS SyntaxTree.CellScope) & (x = scope.outerScope(SyntaxTree.CellScope).bodyProcedure) THEN
 				inline := FALSE;
 				actorType := scope.outerScope(SyntaxTree.CellScope).ownerCell;
 				IF ~HasValue(actorType.modifiers,Global.StringDataMemorySize,stackSize) THEN stackSize := ActiveCells.defaultDataMemorySize END;
-				AddBodyCallStub(x,Sections.InitCode2Section,stackSize);
+				AddBodyCallStub(x);
+				AddStackAllocation(x,stackSize);
 				ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.BodyCodeSection, TRUE, name,x,dump);
 			ELSIF (scope.outerScope IS SyntaxTree.CellScope) & (x.isConstructor) THEN
 				inline := FALSE;
@@ -607,7 +608,7 @@ TYPE
 		END Procedure;
 
 
-		PROCEDURE AddBodyCallStub(bodyProcedure: SyntaxTree.Procedure; sectionType: SHORTINT; initStack: LONGINT); (* code that is only necessary for static linkers *)
+		PROCEDURE AddBodyCallStub(bodyProcedure: SyntaxTree.Procedure); (* code that is only necessary for static linkers *)
 		VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope; name: Basic.PooledName;
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand;
 		BEGIN
@@ -618,17 +619,23 @@ TYPE
 			procedure.SetType(SyntaxTree.NewProcedureType(-1,bodyProcedure.scope));
 			procedure.SetAccess(SyntaxTree.Hidden);
 			Global.GetSymbolPooledName (procedure,name);
-			ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,sectionType, TRUE, name,procedure,dump);
-
-			IF initStack # 0 THEN
-				IntermediateCode.InitImmediate(op,IntermediateCode.GetType(system,system.addressType),initStack);
-				ir.Emit(Mov(implementationVisitor.sp,op));
-			END;
-
+			ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InitCodeSection, TRUE, name,procedure,dump);
 			Global.GetSymbolPooledName (bodyProcedure,name);
 			IntermediateCode.InitAddress(op, IntermediateCode.GetType(system,system.addressType), implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.BodyCodeSection, TRUE, name,bodyProcedure,dump) , 0);
 			ir.Emit(Call(op, 0));
 		END AddBodyCallStub;
+
+		PROCEDURE AddStackAllocation(symbol: SyntaxTree.Symbol; initStack: LONGINT); (* code that is only necessary for static linkers *)
+		VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope; name: Basic.PooledName;
+			ir: IntermediateCode.Section; op: IntermediateCode.Operand;
+		BEGIN
+			Global.GetSymbolPooledName (symbol,name);Basic.SuffixPooledName(name, Basic.MakeString("@StackAllocation"));
+			ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InitCode2Section, TRUE, name,NIL,dump);
+			IntermediateCode.InitImmediate(op,IntermediateCode.GetType(system,system.addressType),initStack);
+			ir.Emit(Mov(implementationVisitor.sp,op));
+		END AddStackAllocation;
+
+
 
 		(** entry function to visit a complete module *)
 		PROCEDURE Module(x: SyntaxTree.Module; module: Sections.Module);

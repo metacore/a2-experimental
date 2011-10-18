@@ -10,6 +10,7 @@ CONST
 TYPE
 	FileName = ARRAY 256 OF CHAR;
 	MessageString= ARRAY 256 OF CHAR;
+	ModuleLoader= PROCEDURE {DELEGATE} (CONST moduleFileName: ARRAY OF CHAR): BOOLEAN;
 	(** the intermediate code parser **)
 	IntermediateCodeParser* = OBJECT
 	CONST
@@ -437,7 +438,7 @@ TYPE
 		END ParseSectionProperties;
 
 		(** parse the content of an intermediate code module **)
-		PROCEDURE ParseModuleContent*(scanner: Scanner.AssemblerScanner; sectionList: Sections.SectionList; VAR moduleName: SyntaxTree.IdentifierString; VAR backend: Backend.Backend;  VAR imports: Sections.NameList): BOOLEAN;
+		PROCEDURE ParseModuleContent*(scanner: Scanner.AssemblerScanner; sectionList: Sections.SectionList; VAR moduleName: SyntaxTree.IdentifierString; VAR backend: Backend.Backend; loader: ModuleLoader): BOOLEAN;
 		VAR
 			pos, positionOfDirective: LONGINT;
 			identifier: Scanner.IdentifierString;
@@ -449,7 +450,7 @@ TYPE
 			IF Trace THEN D.Ln; D.String(">>> ParseModuleContent"); D.Ln END;
 
 			moduleName := "";
-			NEW(imports, 128);
+			(*NEW(imports, 128);*)
 
 			ASSERT(scanner # NIL);
 			SELF.scanner := scanner;
@@ -500,7 +501,10 @@ TYPE
 							Error(positionOfDirective, "import directive not before all sections")
 						ELSE
 							REPEAT
-								IF ExpectAnyIdentifier(positionOfDirective, identifier) THEN imports.AddName(identifier) END
+								IF ExpectAnyIdentifier(positionOfDirective, identifier) THEN
+									(*imports.AddName(identifier);*)
+									IF ~loader(identifier) THEN Error(positionOfDirective, "could not import") END;
+								END
 							UNTIL error OR ~ThisToken(Scanner.Comma);
 							IF ExpectLineDelimiter() THEN
 								afterImportsDirective := TRUE
@@ -564,7 +568,7 @@ TYPE
 		END ParseModuleContent;
 
 		(** parse an entire intermediate code module **)
-		PROCEDURE ParseModule*(scanner: Scanner.AssemblerScanner): Sections.Module;
+		PROCEDURE ParseModule*(scanner: Scanner.AssemblerScanner; loader: ModuleLoader): Sections.Module;
 		VAR
 			result: Sections.Module;
 			moduleName, platformName: SyntaxTree.IdentifierString;
@@ -572,7 +576,7 @@ TYPE
 			imports: Sections.NameList;
 		BEGIN
 			NEW(result, NIL, NIL); (* note: 1. there is no syntax tree module, 2. the system object to be used is not yet known *)
-			IF ParseModuleContent(scanner, result.allSections, moduleName, backend, imports) THEN
+			IF ParseModuleContent(scanner, result.allSections, moduleName, backend, loader) THEN
 				backend.GetDescription(platformName);
 
 				result.SetModuleName(moduleName);
@@ -593,7 +597,7 @@ TYPE
 	(** the assemblinker **)
 	Assemblinker* = OBJECT
 	CONST
-		Trace = FALSE;
+		Trace = TRUE;
 		RequireSortedSections = FALSE; (* whether the sections in the generated modules are sorted w.r.t. their fixed positions *)
 	TYPE
 		ArrangementRestriction = RECORD
@@ -627,6 +631,12 @@ TYPE
 		BEGIN
 			Files.SplitExtension(filename, moduleName, extension);
 		END RemoveFileExtension;
+
+		PROCEDURE LoadModuleInternal(CONST moduleFileName: ARRAY OF CHAR): BOOLEAN;
+		BEGIN
+			RETURN LoadModule(moduleFileName, TRUE)
+		END LoadModuleInternal;
+
 
 		(** load a module given by its name from an IR-file
 			- if 'resursive' is TRUE: also load the referenced modules from their corresponding files
@@ -674,8 +684,7 @@ TYPE
 						(* parse IR file *)
 						NEW(assemblerScanner, filename, reader, 0, diagnostics);
 						NEW(intermediateCodeParser, diagnostics, backend.GetSystem());
-
-						IF intermediateCodeParser.ParseModuleContent(assemblerScanner, allSections, parsedModuleName, parsedBackend, parsedImportList) THEN
+						IF intermediateCodeParser.ParseModuleContent(assemblerScanner, allSections, parsedModuleName, parsedBackend, LoadModuleInternal) THEN
 							IF Trace THEN
 								D.String(">>> IR file successfully parsed: "); D.String(filename); D.Ln;
 								DumpAllSections(D.Log);
@@ -690,13 +699,17 @@ TYPE
 								END
 							END;
 							IF isRecursive THEN
+								(*
 								(* go through all imports *)
 								FOR i := 0 TO parsedImportList.Length() - 1 DO
 									IF ~LoadModule2(parsedImportList.GetName(i), TRUE, FALSE) THEN RETURN FALSE END
 								END
+								*)
 								(* note that 'SELF.importList' remains empty *)
 							ELSE
+								(*
 								SELF.importList := parsedImportList
+								*)
 							END;
 							RETURN TRUE
 						ELSE
@@ -722,18 +735,18 @@ TYPE
 		END MarkAsReachableByName;
 
 		(** mark all sections whose names start with a certain prefix as reachable **)
-		PROCEDURE MarkAsReachableStartingWith*(CONST prefix: ARRAY OF CHAR);
+		PROCEDURE MarkAsReachableStartingWith*(CONST prefix: Basic.PooledName; allowedSections: SET);
 		VAR
 			section: Sections.Section;
-			name: ObjectFile.SectionName;
 			i: LONGINT;
 		BEGIN
 			(* TODO: could or should one make this faster using a hash table? *)
 			(* go through all sections *)
 			FOR i := 0 TO allSections.Length() - 1 DO
 				section := allSections.GetSection(i);
-				Basic.FromPooledName(section.name, name);
-				IF Strings.StartsWith(prefix, 0, name) THEN MarkAsReachable(section) END
+				IF section.type IN allowedSections THEN
+					IF Basic.IsPrefix(prefix, section.name) THEN MarkAsReachable(section) END
+				END;
 			END
 		END MarkAsReachableStartingWith;
 
@@ -743,10 +756,13 @@ TYPE
 			intermediateCodeSection: IntermediateCode.Section;
 			i: LONGINT;
 			procedureName, moduleName: SyntaxTree.IdentifierString;
+			prefix: Basic.PooledName;
 		BEGIN
 			IF ~section.isReachable THEN
 				IF Trace THEN D.String(">>> MarkAsReachable "); Basic.WritePooledName(D.Log, section.name); D.Ln END;
 				section.SetReachability(TRUE);
+				prefix := section.name; Basic.RemoveSuffix(prefix);
+				MarkAsReachableStartingWith(prefix, {Sections.InitCodeSection, Sections.InitCode2Section});
 				ASSERT(section IS IntermediateCode.Section);
 				intermediateCodeSection := section(IntermediateCode.Section);
 				(* go through all instructions in the section *)
@@ -999,7 +1015,7 @@ TYPE
 			ELSE
 				rightPosition := MAX(LONGINT)
 			END;
-
+			IF leftSection.IsCode() & rightSection.IsCode() THEN RETURN FALSE END;
 			RETURN leftPosition < rightPosition
 		END SectionPositionComparison;
 
@@ -1031,6 +1047,8 @@ TYPE
 				RETURN TRUE
 			ELSIF leftPosition > rightPosition THEN
 				RETURN FALSE
+			ELSIF leftSection.IsCode() & rightSection.IsCode() THEN
+				RETURN FALSE (* should keep order *)
 			ELSE
 				ASSERT(leftPosition = rightPosition); (* note: this is the case for sections without fixed positions *)
 				leftSize := leftSection.GetSize();

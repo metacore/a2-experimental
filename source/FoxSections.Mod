@@ -80,6 +80,11 @@ TYPE
 			END
 		END IsExternal;
 
+		PROCEDURE IsCode*(): BOOLEAN;
+		BEGIN
+			RETURN type IN {CodeSection, InitCodeSection, InitCode2Section, BodyCodeSection};
+		END IsCode;
+
 		PROCEDURE MarkAsNoPrototype*;
 		BEGIN isPrototype := FALSE
 		END MarkAsNoPrototype;
