@@ -342,7 +342,7 @@ TYPE
 		**)
 		(* multiline indicates that a string may occupy more than one lines, either concatenated or via multi-strings " "  " "
 		*)
-		PROCEDURE GetString(VAR symbol: Symbol; useControl: BOOLEAN; multiLine: BOOLEAN);
+		PROCEDURE GetString(VAR symbol: Symbol; multiLine, multiString, useControl: BOOLEAN);
 		VAR och: CHAR; error: BOOLEAN;
 		CONST control = '\';
 
@@ -362,7 +362,7 @@ TYPE
 				LOOP
 					IF error THEN EXIT END;
 					GetNextCharacter;
-					IF (ch = och) OR (ch = 0X) THEN EXIT END;
+					IF (ch = och) OR (ch = EOT) THEN EXIT END;
 					IF useControl & (ch = control) THEN
 						GetNextCharacter;
 						IF (ch = control) OR (ch = och) THEN
@@ -382,9 +382,10 @@ TYPE
 				IF ch = EOT THEN
 					ErrorS("Unexpected end of text in string")
 				ELSE
-					GetNextCharacter; SkipBlanks;
+					GetNextCharacter;
+					IF multiString THEN SkipBlanks END;
 				END;
-			UNTIL ~multiLine OR (ch # och);
+			UNTIL ~multiString OR (ch # och);
 			stringWriter.Char(0X);
 			stringWriter.Update;
 			symbol.string := stringMaker.GetStringCopy(symbol.stringLength);
@@ -645,9 +646,9 @@ TYPE
 				CASE ch OF  (* ch > " " *)
 				EOT: s := EndOfText
 				| DoubleQuote:
-						s := String; GetString(symbol,FALSE,TRUE);
+						s := String; GetString(symbol,TRUE, TRUE, FALSE);
 				| SingleQuote:
-						s := String; GetString(symbol,FALSE,FALSE);
+						s := String; GetString(symbol,FALSE, FALSE,FALSE);
 						(* to be replaced by:
 						s := Character; GetString(symbol);
 						IF symbol.stringLength #2 THEN  (* stringlength = 1 for empty string '' *)
@@ -696,7 +697,7 @@ TYPE
 				| '}':     s := RightBrace;  GetNextCharacter
 				| '~':     s := Not;  GetNextCharacter
 				| '\':     s := Backslash;  GetNextCharacter;
-						IF ch = DoubleQuote THEN s := String; GetString(symbol, TRUE, TRUE) END;
+						IF ch = DoubleQuote THEN s := String; GetString(symbol, TRUE, TRUE, TRUE) END;
 				| '`':	s := Transpose; GetNextCharacter
 				| '?': 	s := Questionmark; GetNextCharacter
 				| Ellipsis:
@@ -823,14 +824,14 @@ TYPE
 				CASE ch OF  (* ch > ' ' *)
 				| EOT: 	s := EndOfText;
 				| DoubleQuote:
-						s := String; GetString(symbol, FALSE, TRUE);
+						s := String; GetString(symbol, TRUE, FALSE, TRUE);
 				| SingleQuote:
-						s := Character; GetString(symbol, FALSE, FALSE); symbol.character := symbol.string[0];
+						s := Character; GetString(symbol, FALSE, FALSE, FALSE); symbol.character := symbol.string[0];
 						IF symbol.stringLength #2 THEN  (* stringlength = 1 for empty string '' *)
 							Error(Basic.IllegalCharacterValue)
 						END;
 				| '\':     s := Backslash;  GetNextCharacter;
-						IF ch = DoubleQuote THEN s := String; GetString(symbol, TRUE, TRUE) END;
+						IF ch = DoubleQuote THEN s := String; GetString(symbol, FALSE, FALSE, TRUE) END;
 				| '#':     s := Unequal;  GetNextCharacter; (* for the ARM assembler *)
 				| '(': GetNextCharacter;
 						IF ch = '*' THEN GetNextCharacter; ReadComment(symbol);  s := Comment; ELSE s := LeftParenthesis END
