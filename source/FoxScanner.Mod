@@ -340,9 +340,11 @@ TYPE
 		(** get a string starting at current position
 			string = '"' {Character} '"' | "'" {Character} "'".
 		**)
+		(* multiline indicates that a string may occupy more than one lines, either concatenated or via multi-strings " "  " "
+		*)
 		PROCEDURE GetString(VAR symbol: Symbol; useControl: BOOLEAN; multiLine: BOOLEAN);
-		VAR och: CHAR; flags, currentFlags: SET; error: BOOLEAN; ignoreWhitespace: BOOLEAN;
-		CONST control = '\'; IgnoreNewline = 0; IgnoreTab = 1; IgnoreWhitespace = 2;
+		VAR och: CHAR; error: BOOLEAN;
+		CONST control = '\';
 
 			PROCEDURE Append(ch :CHAR);
 			BEGIN
@@ -355,52 +357,25 @@ TYPE
 
 		BEGIN
 			stringMaker.Clear;
-			och := ch; error := FALSE; flags := {IgnoreTab};
+			och := ch; error := FALSE;
 			REPEAT
 				LOOP
 					IF error THEN EXIT END;
 					GetNextCharacter;
 					IF (ch = och) OR (ch = 0X) THEN EXIT END;
-					IF useControl THEN
-						IF ch = control THEN
-							ignoreWhitespace := FALSE;
-							GetNextCharacter;
-							IF (ch = control) OR (ch = och) THEN
-								Append(ch)
-							ELSIF ch = 'n' THEN
-								Append(CR); Append(LF);
-							ELSIF ch = 't' THEN
-								Append(TAB)
-							ELSIF ch ='i' THEN
-								GetNextCharacter;
-								IF ch = 'n' THEN INCL(flags, IgnoreNewline); INCL(currentFlags, IgnoreNewline);
-								ELSIF ch = 't' THEN INCL(flags, IgnoreTab);
-								ELSIF ch = 'w' THEN INCL(flags, IgnoreWhitespace);
-								ELSE ErrorS("Unknown control sequence")
-								END;
-							ELSIF ch = "e" THEN
-								GetNextCharacter;
-								IF ch = 'n' THEN EXCL(flags, IgnoreNewline)
-								ELSIF ch = 't' THEN EXCL(flags, IgnoreTab)
-								ELSIF ch= 'w' THEN EXCL(flags, IgnoreWhitespace);
-								ELSE ErrorS("Unknown control sequence")
-								END;
-							ELSIF (ch <= " ") THEN INCL(currentFlags, IgnoreWhitespace)
-							ELSE
-								ErrorS("Unknown control sequence")
-							END;
-						ELSIF ((ch = CR) OR (ch = LF)) THEN
-							IF ~(IgnoreNewline IN flags) THEN Append(ch) END;
-							currentFlags := flags; (* ignore whitespaces or tabulators at the beginning of a line only *)
-						ELSIF (ch = TAB) & (IgnoreTab IN currentFlags) THEN
-						ELSIF (ch <= ' ')  & (IgnoreWhitespace IN currentFlags) THEN
-							EXCL(currentFlags, IgnoreTab);
-						ELSE
-							EXCL(currentFlags, IgnoreTab); EXCL(currentFlags, IgnoreWhitespace);
+					IF useControl & (ch = control) THEN
+						GetNextCharacter;
+						IF (ch = control) OR (ch = och) THEN
 							Append(ch)
+						ELSIF ch = 'n' THEN
+							Append(CR); Append(LF);
+						ELSIF ch = 't' THEN
+							Append(TAB)
+						ELSE
+							ErrorS("Unknown control sequence")
 						END;
 					ELSE
-						IF ch < " " THEN Error( Basic.StringIllegalCharacter );  EXIT END;
+						IF ~multiLine & (ch < " ") THEN Error( Basic.StringIllegalCharacter ); EXIT END;
 						Append(ch)
 					END;
 				END;
@@ -673,10 +648,6 @@ TYPE
 						s := String; GetString(symbol,FALSE,TRUE);
 				| SingleQuote:
 						s := String; GetString(symbol,FALSE,FALSE);
-						IF symbol.stringLength = 2 THEN
-							symbol.character := symbol.string[0];
-							s := Character;
-						END;
 						(* to be replaced by:
 						s := Character; GetString(symbol);
 						IF symbol.stringLength #2 THEN  (* stringlength = 1 for empty string '' *)
