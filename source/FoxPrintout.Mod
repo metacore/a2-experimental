@@ -836,16 +836,23 @@ TYPE
 		END VisitComplexValue;
 
 		PROCEDURE VisitStringValue(x: SyntaxTree.StringValue);
-		VAR i: LONGINT;
+		VAR i: LONGINT; ch: CHAR;
 		BEGIN
 			i := 0;
-			WHILE (i < LEN( x.value )) & (x.value[i] # 0X) & (x.value[i] # '"') DO INC( i );  END;
-			ASSERT(i # LEN(x.value));
-			IF  (x.value[i] = 0X) THEN (* no double quotes contained in the string *)
-				w.String( '"' );  w.String( x.value^ );  w.String( '"' );
-			ELSE  (* double quotes found in string *)
-				w.String( "'" );  w.String( x.value^ );  w.String( "'" );
-			END
+			w.Char('\');
+			w.Char('"');
+			WHILE (i < LEN( x.value )) & (x.value[i] # 0X) DO
+				ch := x.value[i];
+				IF ch = Scanner.CR THEN w.String("\n")
+				ELSIF ch = Scanner.LF THEN (* ignore *)
+				ELSIF ch = Scanner.TAB THEN w.String("\t")
+				ELSIF ch = '\' THEN w.String("\\")
+				ELSIF ch = '"' THEN w.String(\"\\\""); (* \" *)
+				ELSE w.Char(ch)
+				END;
+				INC( i );
+			END;
+			w.Char('"');
 		END VisitStringValue;
 
 		PROCEDURE VisitNilValue(x: SyntaxTree.NilValue);

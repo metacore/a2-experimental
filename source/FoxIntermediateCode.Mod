@@ -542,7 +542,7 @@ TYPE
 						w.Ln;
 						newln := FALSE;
 					END;
-					IF (ch = '"') OR (ch = "\") THEN
+					IF (ch = '"') OR (ch = '\') THEN
 					 	w.Char( '\' );
 					 	w.Char(ch);
 					ELSE

@@ -16,7 +16,7 @@ CONST
 	MaxLongrealExponent* = 308;   (* maximal longreal exponent *)
 
 	(* scanner constants *)
-	EOT* = 0X; LF* = 0AX; CR* = 0DX; TAB = 09X;
+	EOT* = 0X; LF* = 0AX; CR* = 0DX; TAB* = 09X;
 
 TYPE
 	StringType* = Strings.String;
@@ -329,7 +329,6 @@ TYPE
 		(** get next character, end of text results in ch = EOT **)
 		PROCEDURE GetNextCharacter;
 		BEGIN
-			ASSERT(ch # EOT);
 			reader.Char(ch); INC(position);
 			IF ch = LF THEN INC(line) END;
 			(*
@@ -341,9 +340,9 @@ TYPE
 		(** get a string starting at current position
 			string = '"' {Character} '"' | "'" {Character} "'".
 		**)
-		PROCEDURE GetString(VAR symbol: Symbol; useControl: BOOLEAN);
-		VAR och: CHAR; flags: SET; error: BOOLEAN; ignoreWhitespace: BOOLEAN;
-		CONST control = '\'; IgnoreNewline = 0; IgnoreTab = 1;
+		PROCEDURE GetString(VAR symbol: Symbol; useControl: BOOLEAN; multiLine: BOOLEAN);
+		VAR och: CHAR; flags, currentFlags: SET; error: BOOLEAN; ignoreWhitespace: BOOLEAN;
+		CONST control = '\'; IgnoreNewline = 0; IgnoreTab = 1; IgnoreWhitespace = 2;
 
 			PROCEDURE Append(ch :CHAR);
 			BEGIN
@@ -357,53 +356,63 @@ TYPE
 		BEGIN
 			stringMaker.Clear;
 			och := ch; error := FALSE; flags := {IgnoreTab};
-			LOOP
-				IF error THEN EXIT END;
-				GetNextCharacter;
-				IF ch = och THEN EXIT END;
-				IF useControl THEN
-					IF ch = control THEN
-						ignoreWhitespace := FALSE;
-						GetNextCharacter;
-						IF (ch = control) OR (ch = och) THEN
-							Append(ch)
-						ELSIF ch = 'n' THEN
-							Append(CR); Append(LF);
-						ELSIF ch = 't' THEN
-							Append(TAB)
-						ELSIF ch ='i' THEN
+			REPEAT
+				LOOP
+					IF error THEN EXIT END;
+					GetNextCharacter;
+					IF (ch = och) OR (ch = 0X) THEN EXIT END;
+					IF useControl THEN
+						IF ch = control THEN
+							ignoreWhitespace := FALSE;
 							GetNextCharacter;
-							IF ch = 'n' THEN INCL(flags, IgnoreNewline)
-							ELSIF ch = 't' THEN INCL(flags, IgnoreTab)
-							ELSE ErrorS("Unknown control sequence")
+							IF (ch = control) OR (ch = och) THEN
+								Append(ch)
+							ELSIF ch = 'n' THEN
+								Append(CR); Append(LF);
+							ELSIF ch = 't' THEN
+								Append(TAB)
+							ELSIF ch ='i' THEN
+								GetNextCharacter;
+								IF ch = 'n' THEN INCL(flags, IgnoreNewline); INCL(currentFlags, IgnoreNewline);
+								ELSIF ch = 't' THEN INCL(flags, IgnoreTab);
+								ELSIF ch = 'w' THEN INCL(flags, IgnoreWhitespace);
+								ELSE ErrorS("Unknown control sequence")
+								END;
+							ELSIF ch = "e" THEN
+								GetNextCharacter;
+								IF ch = 'n' THEN EXCL(flags, IgnoreNewline)
+								ELSIF ch = 't' THEN EXCL(flags, IgnoreTab)
+								ELSIF ch= 'w' THEN EXCL(flags, IgnoreWhitespace);
+								ELSE ErrorS("Unknown control sequence")
+								END;
+							ELSIF (ch <= " ") THEN INCL(currentFlags, IgnoreWhitespace)
+							ELSE
+								ErrorS("Unknown control sequence")
 							END;
-						ELSIF ch = "e" THEN
-							GetNextCharacter;
-							IF ch = 'n' THEN EXCL(flags, IgnoreNewline)
-							ELSIF ch = 't' THEN EXCL(flags, IgnoreTab)
-							ELSE ErrorS("Unknown control sequence")
-							END;
-						ELSIF (ch <= " ") THEN ignoreWhitespace := TRUE;
+						ELSIF ((ch = CR) OR (ch = LF)) THEN
+							IF ~(IgnoreNewline IN flags) THEN Append(ch) END;
+							currentFlags := flags; (* ignore whitespaces or tabulators at the beginning of a line only *)
+						ELSIF (ch = TAB) & (IgnoreTab IN currentFlags) THEN
+						ELSIF (ch <= ' ')  & (IgnoreWhitespace IN currentFlags) THEN
+							EXCL(currentFlags, IgnoreTab);
 						ELSE
-							ErrorS("Unknown control sequence")
+							EXCL(currentFlags, IgnoreTab); EXCL(currentFlags, IgnoreWhitespace);
+							Append(ch)
 						END;
-					ELSIF ((ch = CR) OR (ch = LF)) & (IgnoreNewline IN flags) THEN
-					ELSIF (ch = TAB) & (IgnoreTab IN flags) THEN
-					ELSIF ignoreWhitespace & (ch <= ' ') THEN
 					ELSE
-						ignoreWhitespace := FALSE;
+						IF ch < " " THEN Error( Basic.StringIllegalCharacter );  EXIT END;
 						Append(ch)
 					END;
-				ELSE
-					IF ch < " " THEN Error( Basic.StringIllegalCharacter );  EXIT END;
-					Append(ch)
 				END;
-			END;
-			IF ch = EOT THEN ErrorS("Unexpected end of text in string") END;
+				IF ch = EOT THEN
+					ErrorS("Unexpected end of text in string")
+				ELSE
+					GetNextCharacter; SkipBlanks;
+				END;
+			UNTIL ~multiLine OR (ch # och);
 			stringWriter.Char(0X);
 			stringWriter.Update;
 			symbol.string := stringMaker.GetStringCopy(symbol.stringLength);
-			GetNextCharacter;
 		END GetString;
 
 		(**
@@ -636,96 +645,98 @@ TYPE
 			RETURN s=End
 		END SkipToNextEnd;
 
+		PROCEDURE SkipBlanks;
+		BEGIN
+			WHILE ch <= " " DO  (*ignore control characters*)
+				IF ch = EOT THEN
+					IF Trace THEN D.String("EOT"); D.Ln; END;
+					RETURN
+				ELSE GetNextCharacter
+				END
+			END;
+		END SkipBlanks;
 
 		(** get next symbol **)
 		PROCEDURE GetNextSymbol*(VAR symbol: Symbol ): BOOLEAN;
 		VAR s,token: LONGINT;
 
-			PROCEDURE SkipBlanks;
-			BEGIN
-				WHILE ch <= " " DO  (*ignore control characters*)
-					IF ch = EOT THEN
-						IF Trace THEN D.String("EOT"); D.Ln; END;
-						s := EndOfText;  RETURN
-					ELSE GetNextCharacter
-					END
-				END;
-			END SkipBlanks;
+
 
 		BEGIN
 			SkipBlanks;
 			symbol.start := position; symbol.line := line;
 			stringMaker.Clear;
-			(*
-			symbol.string[0] := ch;
-			symbol.string[1] := 0X;
-			*)
 			IF s # EndOfText THEN
 				CASE ch OF  (* ch > " " *)
+				EOT: s := EndOfText
 				| DoubleQuote:
-						s := String; GetString(symbol,FALSE);
+						s := String; GetString(symbol,FALSE,TRUE);
 				| SingleQuote:
-						s := String; GetString(symbol,FALSE);
+						s := String; GetString(symbol,FALSE,FALSE);
+						IF symbol.stringLength = 2 THEN
+							symbol.character := symbol.string[0];
+							s := Character;
+						END;
 						(* to be replaced by:
 						s := Character; GetString(symbol);
 						IF symbol.stringLength #2 THEN  (* stringlength = 1 for empty string '' *)
 							Error(Basic.IllegalCharacterValue)
 						END;
 						*)
-				| "#":     s := Unequal;  GetNextCharacter
-				| "&":     s := And;  GetNextCharacter
-				| "(":     GetNextCharacter;
-						IF ch = "*" THEN GetNextCharacter; ReadComment(symbol);  s := Comment; ELSE s := LeftParenthesis END
-				| ")":     s := RightParenthesis;  GetNextCharacter
-				| "*":    GetNextCharacter; IF ch = "*" THEN GetNextCharacter;  s := TimesTimes ELSE s := Times END
-				| "+":    GetNextCharacter; IF ch = "*" THEN GetNextCharacter; s := PlusTimes ELSE s := Plus END
-				| ",":     s := Comma;  GetNextCharacter
-				| "-":    s := Minus;  GetNextCharacter
-				| ".":     GetNextCharacter;
-						IF ch = "." THEN GetNextCharacter;  s := Upto;
-						ELSIF ch = "*" THEN GetNextCharacter;  s := DotTimes;
-						ELSIF ch = "/" THEN 	GetNextCharacter;  s := DotSlash;
-						ELSIF ch="=" THEN GetNextCharacter; s := DotEqual;
-						ELSIF ch="#" THEN GetNextCharacter; s := DotUnequal;
-						ELSIF ch=">" THEN GetNextCharacter;
-							IF ch="=" THEN s := DotGreaterEqual; GetNextCharacter
+				| '#':     s := Unequal;  GetNextCharacter
+				| '&':     s := And;  GetNextCharacter
+				| '(':     GetNextCharacter;
+						IF ch = '*' THEN GetNextCharacter; ReadComment(symbol);  s := Comment; ELSE s := LeftParenthesis END
+				| ')':     s := RightParenthesis;  GetNextCharacter
+				| '*':    GetNextCharacter; IF ch = '*' THEN GetNextCharacter;  s := TimesTimes ELSE s := Times END
+				| '+':    GetNextCharacter; IF ch = '*' THEN GetNextCharacter; s := PlusTimes ELSE s := Plus END
+				| ',':     s := Comma;  GetNextCharacter
+				| '-':    s := Minus;  GetNextCharacter
+				| '.':     GetNextCharacter;
+						IF ch = '.' THEN GetNextCharacter;  s := Upto;
+						ELSIF ch = '*' THEN GetNextCharacter;  s := DotTimes;
+						ELSIF ch = '/' THEN 	GetNextCharacter;  s := DotSlash;
+						ELSIF ch='=' THEN GetNextCharacter; s := DotEqual;
+						ELSIF ch='#' THEN GetNextCharacter; s := DotUnequal;
+						ELSIF ch='>' THEN GetNextCharacter;
+							IF ch='=' THEN s := DotGreaterEqual; GetNextCharacter
 							ELSE s := DotGreater;
 							END
-						ELSIF ch="<" THEN GetNextCharacter;
-							IF ch="=" THEN s := DotLessEqual; GetNextCharacter
+						ELSIF ch='<' THEN GetNextCharacter;
+							IF ch='=' THEN s := DotLessEqual; GetNextCharacter
 							ELSE s := DotLess;
 							END
 						ELSE s := Period END
-				| "/":     s := Slash;  GetNextCharacter
-				| "0".."9":   s := GetNumber(symbol);
-				| ":":     GetNextCharacter;
-						IF ch = "=" THEN GetNextCharacter;  s := Becomes  ELSE s := Colon END
-				| ";":     s := Semicolon;  GetNextCharacter
-				| "<":     GetNextCharacter;
-						IF ch = "=" THEN GetNextCharacter;  s := LessEqual ELSE s := Less;  END
-				| "=":     s := Equal;  GetNextCharacter
-				| ">":     GetNextCharacter;
-						IF ch = "=" THEN GetNextCharacter;  s := GreaterEqual ELSE s := Greater;  END
-				| "[":     s := LeftBracket;  GetNextCharacter
-				| "]":     s := RightBracket;  GetNextCharacter
-				| "^":     s := Arrow;  GetNextCharacter
-				| "{":     s := LeftBrace;  GetNextCharacter
-				| "|":     s := Bar;  GetNextCharacter
-				| "}":     s := RightBrace;  GetNextCharacter
-				| "~":     s := Not;  GetNextCharacter
-				| "\":     s := Backslash;  GetNextCharacter;
-						IF ch = DoubleQuote THEN s := String; GetString(symbol, TRUE) END;
-				| "`":	s := Transpose; GetNextCharacter
-				| "?": 	s := Questionmark; GetNextCharacter
+				| '/':     s := Slash;  GetNextCharacter
+				| '0'..'9':   s := GetNumber(symbol);
+				| ':':     GetNextCharacter;
+						IF ch = '=' THEN GetNextCharacter;  s := Becomes  ELSE s := Colon END
+				| ';':     s := Semicolon;  GetNextCharacter
+				| '<':     GetNextCharacter;
+						IF ch = '=' THEN GetNextCharacter;  s := LessEqual ELSE s := Less;  END
+				| '=':     s := Equal;  GetNextCharacter
+				| '>':     GetNextCharacter;
+						IF ch = '=' THEN GetNextCharacter;  s := GreaterEqual ELSE s := Greater;  END
+				| '[':     s := LeftBracket;  GetNextCharacter
+				| ']':     s := RightBracket;  GetNextCharacter
+				| '^':     s := Arrow;  GetNextCharacter
+				| '{':     s := LeftBrace;  GetNextCharacter
+				| '|':     s := Bar;  GetNextCharacter
+				| '}':     s := RightBrace;  GetNextCharacter
+				| '~':     s := Not;  GetNextCharacter
+				| '\':     s := Backslash;  GetNextCharacter;
+						IF ch = DoubleQuote THEN s := String; GetString(symbol, TRUE, TRUE) END;
+				| '`':	s := Transpose; GetNextCharacter
+				| '?': 	s := Questionmark; GetNextCharacter
 				| Ellipsis:
 						s := Upto;  GetNextCharacter
-				| "A".."Z": s := Identifier; GetIdentifier( symbol );
+				| 'A'..'Z': s := Identifier; GetIdentifier( symbol );
 						IF (case=Uppercase) OR (case=Unknown) THEN
 							token := keywordsUpper.IndexByIdentifier(symbol.identifier);
 							IF  (token >= 0) THEN s := token END;
 							IF (s = Module) OR (s=CellNet) THEN case := Uppercase END;
 						END;
-				| "a".."z": s := Identifier; GetIdentifier( symbol);
+				| 'a'..'z': s := Identifier; GetIdentifier( symbol);
 						IF (case = Lowercase) OR (case=Unknown) THEN
 							token := keywordsLower.IndexByIdentifier(symbol.identifier);
 							IF  (token >= 0) THEN s := token END;
@@ -829,7 +840,7 @@ TYPE
 
 			PROCEDURE SkipBlanks;
 			BEGIN
-				WHILE (ch <= " ") & (ch # CR) & (ch # LF) & (ch # EOT) DO  (* ignore control characters except line feeds *)
+				WHILE (ch <= ' ') & (ch # CR) & (ch # LF) & (ch # EOT) DO  (* ignore control characters except line feeds *)
 					GetNextCharacter
 				END;
 			END SkipBlanks;
@@ -838,44 +849,44 @@ TYPE
 			REPEAT
 				SkipBlanks;
 				symbol.start := position; symbol.line := line;
-				CASE ch OF  (* ch > " " *)
+				CASE ch OF  (* ch > ' ' *)
 				| EOT: 	s := EndOfText;
 				| DoubleQuote:
-						s := String; GetString(symbol, TRUE);
+						s := String; GetString(symbol, FALSE, TRUE);
 				| SingleQuote:
-						s := Character; GetString(symbol, FALSE); symbol.character := symbol.string[0];
+						s := Character; GetString(symbol, FALSE, FALSE); symbol.character := symbol.string[0];
 						IF symbol.stringLength #2 THEN  (* stringlength = 1 for empty string '' *)
 							Error(Basic.IllegalCharacterValue)
 						END;
-				| "\":     s := Backslash;  GetNextCharacter;
-						IF ch = DoubleQuote THEN s := String; GetString(symbol, TRUE) END;
-				| "#":     s := Unequal;  GetNextCharacter; (* for the ARM assembler *)
-				| "(": GetNextCharacter;
-						IF ch = "*" THEN GetNextCharacter; ReadComment(symbol);  s := Comment; ELSE s := LeftParenthesis END
-				| ")":     s := RightParenthesis;  GetNextCharacter
+				| '\':     s := Backslash;  GetNextCharacter;
+						IF ch = DoubleQuote THEN s := String; GetString(symbol, TRUE, TRUE) END;
+				| '#':     s := Unequal;  GetNextCharacter; (* for the ARM assembler *)
+				| '(': GetNextCharacter;
+						IF ch = '*' THEN GetNextCharacter; ReadComment(symbol);  s := Comment; ELSE s := LeftParenthesis END
+				| ')':     s := RightParenthesis;  GetNextCharacter
 				| CR: GetNextCharacter; s := Ln;IF ch = LF THEN GetNextCharacter END;
 				| LF: GetNextCharacter; s := Ln;
-				| "*":    s := Times; GetNextCharacter;
-				| "+":    s := Plus ; GetNextCharacter;
-				| ",":     s := Comma;  GetNextCharacter
-				| "-":    s := Minus;  GetNextCharacter
-				| "~":    s := Not;  GetNextCharacter
-				| ".":     s:= Period; GetNextCharacter
-				| "/":     s := Div;  GetNextCharacter
-				| "%":	s := Mod; GetNextCharacter
-				| "0".."9":   s := GetNumber(symbol);
-				| ":":     s := Colon; GetNextCharacter;
-				| ";":    s := Comment; SkipToEndOfLine;
-				| "=":     s := Equal;  GetNextCharacter
-				| "[":     s := LeftBracket;  GetNextCharacter
-				| "]":     s := RightBracket;  GetNextCharacter
-				| "{":     s := LeftBrace;  GetNextCharacter
-				| "}":     s := RightBrace;  GetNextCharacter
+				| '*':    s := Times; GetNextCharacter;
+				| '+':    s := Plus ; GetNextCharacter;
+				| ',':     s := Comma;  GetNextCharacter
+				| '-':    s := Minus;  GetNextCharacter
+				| '~':    s := Not;  GetNextCharacter
+				| '.':     s:= Period; GetNextCharacter
+				| '/':     s := Div;  GetNextCharacter
+				| '%':	s := Mod; GetNextCharacter
+				| '0'..'9':   s := GetNumber(symbol);
+				| ':':     s := Colon; GetNextCharacter;
+				| ';':    s := Comment; SkipToEndOfLine;
+				| '=':     s := Equal;  GetNextCharacter
+				| '[':     s := LeftBracket;  GetNextCharacter
+				| ']':     s := RightBracket;  GetNextCharacter
+				| '{':     s := LeftBrace;  GetNextCharacter
+				| '}':     s := RightBrace;  GetNextCharacter
 
-				| "!":     s := ExclamationPoint; GetNextCharacter (* for the ARM assembler *)
-				| "A".."Z": s := Identifier; GetIdentifier( symbol );
-				| "a".."z": s := Identifier; GetIdentifier( symbol);
-				| "@":     s := Identifier; GetIdentifier( symbol); (* the '@'-symbol initiates an assembly scanner identifier *)
+				| '!':     s := ExclamationPoint; GetNextCharacter (* for the ARM assembler *)
+				| 'A'..'Z': s := Identifier; GetIdentifier( symbol );
+				| 'a'..'z': s := Identifier; GetIdentifier( symbol);
+				| '@':     s := Identifier; GetIdentifier( symbol); (* the '@'-symbol initiates an assembly scanner identifier *)
 				| '$': GetNextCharacter;
 					IF ch = '$' THEN s := PCOffset; GetNextCharacter ELSE s := PC; END
 				ELSE s := None; GetNextCharacter;
@@ -938,7 +949,7 @@ TYPE
 			END;
 		END;
 		IF symbol.token = String THEN
-			w.String(":"); w.String('"'); w.String(symbol.string^); w.String('"');
+			w.String(":"); w.Char('"'); w.String(symbol.string^); w.Char('"');
 		ELSIF symbol.token = Comment THEN
 			w.String("(*"); w.String(symbol.string^); w.String("*)");
 		ELSE
@@ -1092,7 +1103,7 @@ TYPE
 			i := 0;
 			REPEAT
 				c := source[i];
-				IF (c >= "a") & (c<= "z") THEN c :=  CHR(ORD(c)-ORD('a')+ORD('A')) END;
+				IF (c >= 'a') & (c<= 'z') THEN c :=  CHR(ORD(c)-ORD('a')+ORD('A')) END;
 				dest[i] := c; INC(i);
 			UNTIL c = 0X;
 		END Upper;
@@ -1240,6 +1251,7 @@ TYPE
 			context.out.Ln;
 		END;
 	END ReportKeywords;
+
 
 	(*
 	PROCEDURE TestScanner*(context: Commands.Context);
