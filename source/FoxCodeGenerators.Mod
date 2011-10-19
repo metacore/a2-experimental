@@ -1,7 +1,7 @@
 MODULE FoxCodeGenerators; (** AUTHOR ""; PURPOSE ""; *)
 
 IMPORT Diagnostics, Sections := FoxSections, Streams, BinaryCode := FoxBinaryCode, IntermediateCode := FoxIntermediateCode,
-		IntermediateBackend := FoxIntermediateBackend, SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Scanner := FoxScanner,
+		IntermediateBackend := FoxIntermediateBackend, SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, 
 		StringPool, Strings, D := Debugging;
 
 CONST
@@ -158,6 +158,7 @@ TYPE
 						IF dump # NIL THEN
 							dump.String("local fixup "); dump.Int(fixup.offset,1); dump.String(" <-- ");
 							fixup.Dump(dump); dump.Ln; (*dump.Update;*)
+
 						END;
 						IF fixup.symbolOffset # 0 THEN
 							dest := fixup.symbolOffset;
@@ -169,7 +170,8 @@ TYPE
 						IF dump # NIL THEN
 							dump.String("local fixup resolved: ");
 							dump.Int(fixup.offset,1); dump.String(" <-- ");
-							fixup.Dump(dump); dump.Ln; (*dump.Update;*)
+							fixup.Dump(dump);
+							dump.Ln; (*dump.Update;*)
 						END;
 						IF ~out.ApplyFixup(fixup) THEN
 							COPY("fixup out of range: ", msg);
@@ -372,9 +374,6 @@ TYPE
 
 			(*CheckRegistersFree();*)
 			ResolveLocalFixups;
-			IF dump # NIL THEN
-				(*dump.Update*)
-			END;
 		END Section;
 
 		PROCEDURE FirstUse*(virtualRegister: LONGINT): LONGINT;
@@ -1087,11 +1086,6 @@ TYPE
 		PROCEDURE TryAllocate*(CONST operand: IntermediateCode.Operand; part: LONGINT);
 		BEGIN
 			IF (FirstUse(operand.register) = inPC) & (virtualRegisters.Mapped(operand.register,part)=NIL)  THEN
-				(*
-				D.String("IntermediateBackend.TryAllocate: "); D.Int(operand.register,1); D.Ln;
-				*)
-				(*ASSERT(virtualRegisters.Mapped(operand.register,0)=NIL);
-				*)
 				IF operand.mode = IntermediateCode.ModeMemory THEN
 					MapVirtualRegister(operand.register,operand.registerClass,IntermediateCode.GetType(module.system,module.system.addressType),part);
 				ELSE
