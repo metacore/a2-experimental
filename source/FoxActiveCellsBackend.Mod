@@ -326,7 +326,7 @@ TYPE
 
 			IF  (x.scope IS SyntaxTree.ModuleScope)
 				&  (x= x.scope(SyntaxTree.ModuleScope).bodyProcedure)
-				& (module.isCellNet)
+				& (x.scope(SyntaxTree.ModuleScope).ownerModule.isCellNet)
 				OR
 				(x.scope IS SyntaxTree.CellScope)
 				& (x= x.scope(SyntaxTree.CellScope).bodyProcedure)
@@ -335,6 +335,10 @@ TYPE
 				IF scope.body # NIL THEN
 					CellNetBody(scope.body);
 				END;
+			ELSIF (scope.outerScope IS SyntaxTree.CellScope) & (x.scope(SyntaxTree.CellScope).ownerCell.isCellNet)
+				OR (scope.outerScope IS SyntaxTree.ModuleScope) & (x.scope(SyntaxTree.ModuleScope).ownerModule.isCellNet)
+			THEN (* procedure in cell net scope *)
+				Error(x.position,NotYetImplemented);
 			END;
 			currentScope := prevScope;
 		END Procedure;
