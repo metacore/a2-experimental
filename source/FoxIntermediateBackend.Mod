@@ -66,6 +66,8 @@ CONST
 		NoType = 0; (* special type info values *)
 		LhsIsPointer = 0; (* for the operator kind *)
 		RhsIsPointer = 1;
+
+		DisableSysCalls= TRUE;
 TYPE
 	SupportedInstructionProcedure* = PROCEDURE {DELEGATE} (CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
 	SupportedImmediateProcedure* = PROCEDURE {DELEGATE} (CONST op: IntermediateCode.Operand): BOOLEAN;
@@ -629,7 +631,9 @@ TYPE
 		VAR procedure: SyntaxTree.Procedure; procedureScope: SyntaxTree.ProcedureScope; name: Basic.PooledName;
 			ir: IntermediateCode.Section; op: IntermediateCode.Operand;
 		BEGIN
-			Global.GetSymbolPooledName (symbol,name);Basic.SuffixPooledName(name, Basic.MakeString("@StackAllocation"));
+			Global.GetSymbolPooledName (symbol,name);
+			Basic.RemoveSuffix(name);
+			Basic.SuffixPooledName(name, Basic.MakeString("@StackAllocation"));
 			ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InitCode2Section, TRUE, name,NIL,dump);
 			IntermediateCode.InitImmediate(op,IntermediateCode.GetType(system,system.addressType),initStack);
 			ir.Emit(Mov(implementationVisitor.sp,op));
@@ -4979,7 +4983,7 @@ TYPE
 			ReleaseIntermediateOperand(reg);
 			(* push realtime flag: false by default *)
 			Emit(Push(false));
-			IF newObjectFile THEN CallThis("Heaps","NewRec") ELSE
+			IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewRec") ELSE
 			SysCall(SysNewRec);
 			END;
 		END NewMathArrayDescriptor;
@@ -5035,7 +5039,7 @@ TYPE
 						END;
 						Emit(Push(IntermediateCode.Immediate(IntermediateCode.GetType(system,system.setType),flags)));
 						Emit(Push(self));
-						IF newObjectFile THEN
+						IF newObjectFile OR DisableSysCalls THEN
 							CallThis("Objects","CreateProcess")
 						ELSE
 							SysCall(SysStart);
@@ -5135,10 +5139,10 @@ TYPE
 				Designate(p2,s2);
 				Emit(Push(s2.op));
 				ReleaseOperand(s0); ReleaseOperand(s1); ReleaseOperand(s2);
-				IF newObjectFile THEN
+				IF newObjectFile OR DisableSysCalls  THEN
 					CallThis("Modules","GetProcedure");
 				ELSE
-				SysCall(SysGetProcedure);
+					SysCall(SysGetProcedure);
 				END;
 			(* ---- ASH, LSH, ROT ----- *)
 			|Global.Ash, Global.systemLsh, Global.systemRot:
@@ -5426,7 +5430,7 @@ TYPE
 					ELSE Emit(Push(false));
 					END;
 
-					IF newObjectFile THEN
+					IF newObjectFile OR DisableSysCalls THEN
 						CallThis("Heaps","NewRec");
 					ELSE
 						SysCall(SysNewRec);
@@ -5561,8 +5565,10 @@ TYPE
 						IF (p0.type.resolved.isRealtime) THEN Emit(Push(true));
 						ELSE Emit(Push(false));
 						END;
-						IF newObjectFile THEN CallThis("Heaps","NewArr") ELSE
-						SysCall(SysNewArr);
+						IF newObjectFile OR DisableSysCalls THEN
+							CallThis("Heaps","NewArr")
+						ELSE
+							SysCall(SysNewArr);
 						END;
 					ELSE
 						size := ToMemoryUnits(system,system.SizeOf(type));
@@ -5585,8 +5591,10 @@ TYPE
 						IF (p0.type.resolved.isRealtime) THEN Emit(Push(true));
 						ELSE Emit(Push(false));
 						END;
-						IF newObjectFile THEN CallThis("Heaps","NewSys") ELSE
-						SysCall(SysNewSys);
+						IF newObjectFile OR DisableSysCalls THEN
+							CallThis("Heaps","NewSys")
+						ELSE
+							SysCall(SysNewSys);
 						END;
 					END;
 
@@ -5731,7 +5739,7 @@ TYPE
 							Emit(Push(tmp)); (* dimensions = 0, we control dimensions in the geometry descriptor *)
 							(* push realtime flag: false by default *)
 							Emit(Push(false));
-							IF newObjectFile THEN CallThis("Heaps","NewArr") ELSE SysCall(SysNewArr) END;
+							IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewArr") ELSE SysCall(SysNewArr) END;
 							IntermediateCode.InitRegister(adr,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 							Emit(Pop(adr));
 							GetMathArrayField(tmp,adr,MathPtrOffset);
@@ -5765,7 +5773,7 @@ TYPE
 							ReleaseIntermediateOperand(reg);
 							(* push realtime flag: false by default *)
 							Emit(Push(false));
-							IF newObjectFile THEN CallThis("Heaps","NewSys");
+							IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewSys");
 							ELSE SysCall(SysNewSys)
 							END;
 							IntermediateCode.InitRegister(adr,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
@@ -5938,7 +5946,7 @@ TYPE
 				ReleaseOperand(s1);
 				(* push realtime flag: false by default *)
 				Emit(Push(false));
-				IF newObjectFile THEN CallThis("Heaps","NewSys") ELSE
+				IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewSys") ELSE
 				SysCall(SysNewSys);
 				END;
 			(* ---- SYSTEM.INCR ----- *)
@@ -7296,7 +7304,7 @@ TYPE
 			Emit(Push(fp));
 			PushSelfPointer();
 			Emit(Push(nil));
-			IF newObjectFile THEN CallThis("Objects","Await") ELSE SysCall(SysAwait) END;
+			IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Await") ELSE SysCall(SysAwait) END;
 			SetLabel(label);
 			IF Trace THEN TraceExit("VisitAwaitStatement") END;
 		END VisitAwaitStatement;
@@ -7346,11 +7354,11 @@ TYPE
 			PushSelfPointer;
 			Emit(Push(true));
 			IF lock THEN
-				IF newObjectFile THEN CallThis("Objects","Lock")
+				IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Lock")
 				ELSE SysCall(SysLock)
 				END;
 			ELSE
-				IF newObjectFile THEN CallThis("Objects","Unlock");
+				IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Unlock");
 				ELSE SysCall(SysUnlock)
 				END
 			END;
