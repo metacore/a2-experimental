@@ -597,7 +597,7 @@ TYPE
 	(** the assemblinker **)
 	Assemblinker* = OBJECT
 	CONST
-		Trace = TRUE;
+		Trace = FALSE;
 		RequireSortedSections = FALSE; (* whether the sections in the generated modules are sorted w.r.t. their fixed positions *)
 	TYPE
 		ArrangementRestriction = RECORD
@@ -634,19 +634,25 @@ TYPE
 
 		PROCEDURE LoadModuleInternal(CONST moduleFileName: ARRAY OF CHAR): BOOLEAN;
 		BEGIN
-			RETURN LoadModule(moduleFileName, TRUE)
+			RETURN LoadModule2(moduleFileName, LoadModuleInternal, FALSE)
 		END LoadModuleInternal;
 
+		PROCEDURE LoadModuleEmpty(CONST moduleFileName: ARRAY OF CHAR): BOOLEAN;
+		BEGIN RETURN TRUE
+		END LoadModuleEmpty;
 
 		(** load a module given by its name from an IR-file
 			- if 'resursive' is TRUE: also load the referenced modules from their corresponding files
 			- return TRUE if operation was successful
 		**)
 		PROCEDURE LoadModule*(CONST moduleFileName: ARRAY OF CHAR; isRecursive: BOOLEAN): BOOLEAN;
-		BEGIN RETURN LoadModule2(moduleFileName, isRecursive, TRUE)
+		VAR loadModule: ModuleLoader;
+		BEGIN
+			IF isRecursive THEN loadModule := LoadModuleInternal ELSE loadModule := LoadModuleEmpty END;
+			RETURN LoadModule2(moduleFileName, loadModule, TRUE)
 		END LoadModule;
 
-		PROCEDURE LoadModule2(CONST moduleFileName: ARRAY OF CHAR; isRecursive, isRoot: BOOLEAN): BOOLEAN;
+		PROCEDURE LoadModule2(CONST moduleFileName: ARRAY OF CHAR; loadModule: ModuleLoader; isRoot: BOOLEAN): BOOLEAN;
 		VAR
 			filename, parsedModuleName, moduleName: SyntaxTree.IdentifierString;
 			parsedImportList: Sections.NameList;
@@ -654,6 +660,7 @@ TYPE
 			intermediateCodeParser: IntermediateCodeParser;
 			reader: Streams.Reader;
 			parsedBackend: Backend.Backend;
+
 			i: LONGINT;
 		BEGIN
 			IF Trace THEN D.String(">>> LoadModule "); D.String(moduleName); D.Ln END;
@@ -684,7 +691,7 @@ TYPE
 						(* parse IR file *)
 						NEW(assemblerScanner, filename, reader, 0, diagnostics);
 						NEW(intermediateCodeParser, diagnostics, backend.GetSystem());
-						IF intermediateCodeParser.ParseModuleContent(assemblerScanner, allSections, parsedModuleName, parsedBackend, LoadModuleInternal) THEN
+						IF intermediateCodeParser.ParseModuleContent(assemblerScanner, allSections, parsedModuleName, parsedBackend, loadModule) THEN
 							IF Trace THEN
 								D.String(">>> IR file successfully parsed: "); D.String(filename); D.Ln;
 								DumpAllSections(D.Log);
@@ -697,19 +704,6 @@ TYPE
 									backend := parsedBackend;
 									backend.GetDescription(platformName)
 								END
-							END;
-							IF isRecursive THEN
-								(*
-								(* go through all imports *)
-								FOR i := 0 TO parsedImportList.Length() - 1 DO
-									IF ~LoadModule2(parsedImportList.GetName(i), TRUE, FALSE) THEN RETURN FALSE END
-								END
-								*)
-								(* note that 'SELF.importList' remains empty *)
-							ELSE
-								(*
-								SELF.importList := parsedImportList
-								*)
 							END;
 							RETURN TRUE
 						ELSE
@@ -1046,19 +1040,33 @@ TYPE
 				rightPosition := MAX(LONGINT)
 			END;
 
-			IF leftPosition < rightPosition THEN
+			IF ~leftSection.IsCode() & rightSection.IsCode() THEN (* data sections first *)
 				RETURN TRUE
-			ELSIF leftPosition > rightPosition THEN
+			ELSIF leftSection.IsCode() & ~rightSection.IsCode() THEN (* data sections first *)
 				RETURN FALSE
-			ELSIF leftSection.IsCode() & rightSection.IsCode() THEN
-				RETURN leftSection.offset < rightSection.offset (* should keep order *)
-			ELSE
+			ELSIF leftSection.IsCode() & rightSection.IsCode() THEN (* code sections: sorted by linking preference, stable w.r.t. loading order *)
+				IF leftSection.type < rightSection.type THEN (* initcode2 < initcode < bodycode < code *)
+					RETURN TRUE
+				ELSIF leftSection.type = rightSection.type THEN
+					RETURN leftSection.offset < rightSection.offset (* must keep order as provided by loader *)
+				ELSE
+					RETURN FALSE
+				END
+			ELSIF leftPosition < rightPosition THEN (* data sections sorted by position *)
+				RETURN TRUE
+			ELSIF leftPosition > rightPosition THEN (* data sections sorted by position *)
+				RETURN FALSE
+			ELSE (* data section sorted by size, if no position provided *)
 				ASSERT(leftPosition = rightPosition); (* note: this is the case for sections without fixed positions *)
 				leftSize := leftSection.GetSize();
 				rightSize := rightSection.GetSize();
-				IF leftSize = Sections.UnknownSize THEN leftSize := MAX(LONGINT) END;
-				IF rightSize = Sections.UnknownSize THEN rightSize := MAX(LONGINT) END;
-				RETURN leftSize < rightSize
+				IF (leftSize = Sections.UnknownSize) OR (leftSize = 0) THEN leftSize := MAX(LONGINT) END;
+				IF (rightSize = Sections.UnknownSize) OR (rightSize = 0) THEN rightSize := MAX(LONGINT) END;
+				IF leftSize = rightSize THEN
+					RETURN leftSection.offset < rightSection.offset (* keeping order as provided by loader, cosmetic *)
+				ELSE
+					RETURN leftSize < rightSize
+				END
 			END
 		END SectionPositionAndSizeComparison;
 

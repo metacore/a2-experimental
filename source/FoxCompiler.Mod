@@ -430,7 +430,7 @@ TYPE
 				NEW (linker, specification.diagnostics, linkerLog, FALSE (* useAll *), FALSE (* stripInitCodes *), code, data);
 
 				objectFileFormat.GetExtension(extension);
-				linker.SetLinkRoot(linkRoot);
+				linker.SetLinkRoot("" (* linkRoot *)); (* take all initcode sections *)
 				StaticLinker.ReadObjectFile(instanceName, "",extension,linker);
 
 				(* do linking after having read in all blocks to account for potential constraints *)

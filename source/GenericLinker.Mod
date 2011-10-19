@@ -8,7 +8,7 @@ CONST InvalidAddress* = MAX (Address);
 
 TYPE Priority = LONGINT;
 
-CONST Fixed = 0; InitCode = 1; InitCode2=2; BodyCode = 3; Code = 4; Default = 5; Empty = 6;
+CONST Fixed = 0; InitCode2 = 1; InitCode=2; BodyCode = 3; Code = 4; Default = 5; Empty = 6;
 
 TYPE Arrangement* = OBJECT
 

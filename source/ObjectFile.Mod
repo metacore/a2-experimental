@@ -8,10 +8,12 @@ CONST
 	Relative* = 1;
 
 	(* Section types *)
-	Code* = 0;
+	(* code section types, ordered by decreasing linking preference *)
+	InitCode2*= 0;
 	InitCode* = 1;
-	InitCode2*= 2;
-	BodyCode* = 3;
+	BodyCode*= 2;
+	Code* = 3;
+	(* data section types *)
 	Data* = 4;
 	Const* = 5;
 
@@ -181,7 +183,7 @@ VAR
 
 
 	PROCEDURE IsCode* (type: SectionType): BOOLEAN;
-	BEGIN RETURN (type >= Code) & (type <=  BodyCode);
+	BEGIN RETURN (type IN {InitCode2, InitCode, BodyCode, Code})
 	END IsCode;
 
 	PROCEDURE Matches*(CONST this, that: Identifier): BOOLEAN;

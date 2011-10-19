@@ -1447,6 +1447,7 @@ TYPE
 			SELF.scope := scope;
 			numberParameters := 0; firstParameter := NIL; lastParameter := NIL;
 			SELF.cellScope := cellScope;
+			isCellNet := FALSE;
 		END InitCellType;
 
 		PROCEDURE AddParameter*(p: Parameter);
@@ -4100,6 +4101,7 @@ TYPE
 			firstScope := NIL; lastScope := NIL; numberScopes := 0;
 			SetType(moduleType);
 			closingComment := NIL;
+			isCellNet := FALSE;
 		END InitModule;
 
 		PROCEDURE SetCellNet*(isCellNet: BOOLEAN);
