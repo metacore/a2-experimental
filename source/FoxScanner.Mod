@@ -635,9 +635,6 @@ TYPE
 		(** get next symbol **)
 		PROCEDURE GetNextSymbol*(VAR symbol: Symbol ): BOOLEAN;
 		VAR s,token: LONGINT;
-
-
-
 		BEGIN
 			SkipBlanks;
 			symbol.start := position; symbol.line := line;
@@ -727,6 +724,10 @@ TYPE
 
 			RETURN ~error
 		END GetNextSymbol;
+
+		PROCEDURE ResetError*();
+		BEGIN error := FALSE
+		END ResetError;
 
 		(** set the diagnostics mode of the scanner (diagnostics = NIL ==> no report) and reset the error state
 			intended for silent symbol peeeking after the end of a module *)

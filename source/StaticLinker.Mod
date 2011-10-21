@@ -451,7 +451,7 @@ VAR options: Options.Options;
 	silent, useAll, strict: BOOLEAN;
 	codeFileFormat, dataFileFormat: FileFormat;
 	codeDisplacement, dataDisplacement: GenericLinker.Address;
-	path, extension, codeFileName, dataFileName, moduleName, logFileName: Files.FileName;
+	path, extension, codeFileName, dataFileName, moduleName, logFileName, tempName: Files.FileName;
 	diagnostics: Diagnostics.StreamDiagnostics; code, data: Arrangement; linker: GenericLinker.Linker;
 	linkRoot: ARRAY 256 OF CHAR; logFile: Files.File; log: Files.Writer;
 BEGIN
@@ -473,7 +473,9 @@ BEGIN
 	IF ~options.GetString ("extension", extension) THEN extension := ObjectFile.DefaultExtension; END;
 	IF ~options.GetString ("fileName", codeFileName) THEN codeFileName := "linker.bin"; END;
 	IF ~options.GetString ("dataFileName", dataFileName) THEN dataFileName := codeFileName; END;
-	IF ~options.GetString ("logFileName", logFileName) THEN logFileName := "linker.log" END;
+	IF ~options.GetString ("logFileName", logFileName) THEN
+		COPY(codeFileName, logFileName); Files.SplitExtension(logFileName,logFileName,tempName); Files.JoinExtension(logFileName,"log",logFileName);
+	END;
 	IF ~options.GetInteger ("displacement", codeDisplacement) THEN codeDisplacement := 0; END;
 	IF ~options.GetInteger ("dataDisplacement", codeDisplacement) THEN dataDisplacement := codeDisplacement; END;
 	codeFileFormat := GetFileFormat (options, "fileFormat", WriteBinaryFile);

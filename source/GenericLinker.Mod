@@ -242,14 +242,18 @@ VAR
 	VAR msg,num: ARRAY 128 OF CHAR;
 	BEGIN
 		IF block.used THEN
-			Strings.IntToHexStr(block.address, 8, num);
-			msg := "arranged at ";
+			IF ObjectFile.IsCode(block.type) THEN msg := " code arranged at "
+			ELSE msg := " data arranged at "
+			END;
+			Strings.IntToStr(block.address, num);
 			Strings.Append(msg, num);
 			IF block.bits # NIL THEN
 				Strings.Append(msg, " to ");
-				Strings.IntToHexStr(block.address+block.bits.GetSize() DIV block.unit, 8, num);
+				Strings.IntToStr(block.address+block.bits.GetSize() DIV block.unit-1, num);
 				Strings.Append(msg,num);
 			END;
+			Strings.IntToHexStr(block.address, 8, num);
+			Strings.Append(msg," ("); Strings.Append(msg,num); Strings.Append(msg,")");
 			InformationP (block.identifier.name, msg);
 		ELSE InformationP (block.identifier.name, "unused"); END;
 	END Diagnose;
