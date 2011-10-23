@@ -1,4 +1,4 @@
-MODULE POP3Client;
+MODULE POP3Client; (** AUTHOR "TF"; PURPOSE "Simple POP3 Client"; *)
 
 IMPORT
 	Streams, Files, IP, DNS, TCP, Strings, KernelLog;
@@ -9,16 +9,16 @@ CONST
 	StateAuthenticate = 2;
 	StateTransaction = 3;
 
-	ResOk = 0;
-	ResFailed = 1;
-	ResAlreadyOpen = 2;
-	ResServerNotFound = 3;
-	ResNoConnection = 4;
-	ResUserPassError = 5;
-	ResServerNotReady = 6;
-	ResServerFailed = 7;
+	ResOk* = 0;
+	ResFailed* = 1;
+	ResAlreadyOpen* = 2;
+	ResServerNotFound* = 3;
+	ResNoConnection* = 4;
+	ResUserPassError* = 5;
+	ResServerNotReady* = 6;
+	ResServerFailed* = 7;
 
-TYPE POP3Client = OBJECT
+TYPE POP3Client* = OBJECT
 	VAR connection : TCP.Connection;
 		w : Streams.Writer; (* writer on the control connection *)
 		r : Streams.Reader; (* reader on the control connection *)
@@ -50,7 +50,7 @@ TYPE POP3Client = OBJECT
 			END
 		END Connect;
 
-		PROCEDURE Login(CONST user, password : ARRAY OF CHAR) : BOOLEAN;
+		PROCEDURE Login*(CONST user, password : ARRAY OF CHAR) : BOOLEAN;
 		BEGIN
 			w.String("USER "); w.String(user); w.Ln; w.Update;
 			IF ReadResponse(message) THEN
@@ -63,7 +63,7 @@ TYPE POP3Client = OBJECT
 			END;
 		END Login;
 
-		PROCEDURE Quit;
+		PROCEDURE Quit*;
 		BEGIN {EXCLUSIVE}
 			w.String("QUIT"); w.Ln; w.Update;
 			IF ReadResponse(message) THEN END;
@@ -72,7 +72,7 @@ TYPE POP3Client = OBJECT
 			w := NIL; r := NIL
 		END Quit;
 
-		PROCEDURE List;
+		PROCEDURE List*;
 		VAR nr, len : LONGINT;
 		BEGIN {EXCLUSIVE}
 			w.String("LIST"); w.Ln; w.Update;
@@ -85,7 +85,7 @@ TYPE POP3Client = OBJECT
 			END;
 		END List;
 
-		PROCEDURE GetMessage(nr : LONGINT; CONST filename : ARRAY OF CHAR) : BOOLEAN;
+		PROCEDURE GetMessage*(nr : LONGINT; CONST filename : ARRAY OF CHAR) : BOOLEAN;
 		VAR str : ARRAY 1024 OF CHAR; f : Files.File; fw : Files.Writer;
 		BEGIN {EXCLUSIVE}
 			f := Files.New(filename);
@@ -110,7 +110,7 @@ TYPE POP3Client = OBJECT
 			END;
 		END GetMessage;
 
-		PROCEDURE NOOP;
+		PROCEDURE NOOP*;
 		BEGIN {EXCLUSIVE}
 			w.String("LIST"); w.Ln; w.Update;
 			IF ReadResponse(message) THEN
@@ -125,15 +125,13 @@ TYPE POP3Client = OBJECT
 			RETURN ch = "+"
 		END ReadResponse;
 
-
 	END POP3Client;
 
 PROCEDURE Test*;
 VAR client : POP3Client; res : LONGINT;
 BEGIN
 	NEW(client);
-	(* client.Connect("lillian.ethz.ch", 110, "frey", "henmimi456", res); *)
-	client.Connect("pop.bluewin.ch", 110, "frey", "nisbe42", res);
+	client.Connect("lillian.ethz.ch", 110, "user", "password", res);
 	IF res = 0 THEN
 		 client.List;
 		IF client.GetMessage(2, "test.txt") THEN KernelLog.String(" download ok ") ELSE KernelLog.String("download failed.");   END;
@@ -147,13 +145,4 @@ END POP3Client.
 POP3Client.Test
 SystemTools.Free POP3Client
 
-Color Codes
- Highlight
-Types and Procedures
-Lock Acquire / Lock Release
-Preferred notation (comment)
-Unsafe / Temporary / Stupid / requires attention
-Permanent Comment
-Assertion
-Debug
 
