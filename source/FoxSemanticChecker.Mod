@@ -398,7 +398,7 @@ TYPE
 						IF nextHighest > highest THEN highest := nextHighest END;
 					END;
 					e.SetValue(value);
-					CheckSymbol(e);
+					CheckSymbolVisibility(e);
 					e.SetType(x.ownerEnumeration);
 					e.SetState(SyntaxTree.Resolved);
 				END;
@@ -5782,7 +5782,7 @@ TYPE
 		(** check a symbol
 			- check visibility flags (symbols within procedure scope (direct or indirect) cannot be exported)
 		**)
-		PROCEDURE CheckSymbol(symbol: SyntaxTree.Symbol);
+		PROCEDURE CheckSymbolVisibility(symbol: SyntaxTree.Symbol);
 		VAR scope: SyntaxTree.Scope;
 		BEGIN
 			(* visibility *)
@@ -5798,7 +5798,7 @@ TYPE
 					END;
 				END;
 			END;
-		END CheckSymbol;
+		END CheckSymbolVisibility;
 
 				(** Check if a node has already been resolved. If not then mark as currently being resolved.
 			If node is currently being resolved then emit a cyclic definition error.
@@ -5834,7 +5834,7 @@ TYPE
 			IF SymbolNeedsResolution(typeDeclaration) THEN
 				typeDeclaration.SetType(SyntaxTree.typeDeclarationType);
 				typeDeclaration.SetDeclaredType(ResolveType(typeDeclaration.declaredType));
-				CheckSymbol(typeDeclaration);
+				CheckSymbolVisibility(typeDeclaration);
 				typeDeclaration.SetState(SyntaxTree.Resolved);
 			END;
 		END VisitTypeDeclaration;
@@ -5857,7 +5857,7 @@ TYPE
 				type := expression.type.resolved;
 				constant.SetType(type);
 				constant.SetValue(expression);
-				CheckSymbol(constant);
+				CheckSymbolVisibility(constant);
 				constant.SetState(SyntaxTree.Resolved);
 			END;
 		END VisitConstant;
@@ -5910,7 +5910,7 @@ TYPE
 						Error(variable.position,Diagnostics.Invalid,"forbidden open array variable");
 					END;
 				END;
-				CheckSymbol(variable);
+				CheckSymbolVisibility(variable);
 				IF HasFlag(modifiers, Global.NameUntraced,position) THEN
 					variable.SetUntraced(TRUE);
 					IF ~ContainsPointer(variable.type) THEN
@@ -5954,7 +5954,7 @@ TYPE
 			IF SymbolNeedsResolution(parameter) THEN
 				parameter.SetType(ResolveType(parameter.type));
 				ASSERT(parameter.type.resolved # NIL);
-				CheckSymbol(parameter);
+				CheckSymbolVisibility(parameter);
 				IF parameter.kind = SyntaxTree.ConstParameter THEN parameter.SetAccess(parameter.access * SyntaxTree.ReadOnly) END;
 				IF parameter.ownerType IS SyntaxTree.CellType THEN
 					parameter.SetAccess(SyntaxTree.ReadOnly);
@@ -6047,6 +6047,7 @@ TYPE
 					END;
 				END;
 				*)
+				CheckSymbolVisibility(procedure);
 
 				IF procedure.scope IS SyntaxTree.ProcedureScope THEN
 					procedure.SetLevel(procedure.scope(SyntaxTree.ProcedureScope).ownerProcedure.level+1);
@@ -6131,7 +6132,6 @@ TYPE
 				END;
 				Declarations(procedure.procedureScope);
 				(* body resolution part done as late fix of the procedure type *)
-				CheckSymbol(procedure);
 				procedure.SetState(SyntaxTree.Resolved);
 				currentIsRealtime := recentIsRealtime;
 				currentIsBodyProcedure := recentIsBodyProcedure;
