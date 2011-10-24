@@ -245,14 +245,21 @@ VAR
 			IF ObjectFile.IsCode(block.type) THEN msg := " code arranged at "
 			ELSE msg := " data arranged at "
 			END;
-			Strings.IntToStr(block.address, num);
+			Strings.IntToHexStr(block.address, 8, num);
+			Strings.Append(msg,"0");
 			Strings.Append(msg, num);
+			Strings.Append(msg,"H");
 			IF block.bits # NIL THEN
 				Strings.Append(msg, " to ");
-				Strings.IntToStr(block.address+block.bits.GetSize() DIV block.unit-1, num);
+				Strings.IntToHexStr(block.address+block.bits.GetSize() DIV block.unit-1, 8, num);
+				Strings.Append(msg,"0");
+				Strings.Append(msg, num);
+				Strings.Append(msg,"H");
+				(*Strings.IntToStr(block.address+block.bits.GetSize() DIV block.unit-1, num);
 				Strings.Append(msg,num);
+				*)
 			END;
-			Strings.IntToHexStr(block.address, 8, num);
+			Strings.IntToStr(block.address, num);
 			Strings.Append(msg," ("); Strings.Append(msg,num); Strings.Append(msg,")");
 			InformationP (block.identifier.name, msg);
 		ELSE InformationP (block.identifier.name, "unused"); END;

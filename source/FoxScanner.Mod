@@ -485,11 +485,13 @@ TYPE
 						IF (n < MaxHexDigits) OR (n=MaxHexDigits) & (dig[0] <= "7")  THEN (* otherwise the positive (!) number is not in the range of longints *)
 							symbol.numberType := Integer;
 							(* IF (n = MaxHexDigits) & (dig[0] > "7") THEN  (* prevent overflow *) symbol.integer := -1 END;  *)
-							WHILE i < n DO symbol.integer := symbol.integer * 10H + Hexadecimal( dig[i] );  INC( i ) END
+							WHILE i < n DO symbol.integer := symbol.integer * 10H + Hexadecimal( dig[i] );  INC( i ) END;
+							symbol.hugeint := symbol.integer;
 						ELSIF n <= MaxHugeHexDigits THEN
 							symbol.numberType := Hugeint;
 							IF (n = MaxHugeHexDigits) & (dig[0] > "7") THEN  (* prevent overflow *) symbol.hugeint := -1 END;
-							WHILE i < n DO symbol.hugeint := Hexadecimal( dig[i] ) + symbol.hugeint * 10H;  INC( i ) END
+							WHILE i < n DO symbol.hugeint := Hexadecimal( dig[i] ) + symbol.hugeint * 10H;  INC( i ) END;
+							symbol.integer :=SHORT(symbol.hugeint);
 						ELSE
 							symbol.numberType := Hugeint; (* to make parser able to go on *)
 							Error( Basic.NumberTooLarge )
@@ -512,6 +514,9 @@ TYPE
 								IF hugeint < 0 THEN Error( Basic.NumberTooLarge ) END
 							END;
 							symbol.hugeint := hugeint;
+							symbol.integer := SHORT(symbol.hugeint);
+						ELSE
+							symbol.hugeint := symbol.integer;
 						END
 					END
 				ELSE
