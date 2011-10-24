@@ -498,8 +498,12 @@ BEGIN
 	IF ~linker.error THEN linker.Link; END;
 
 	IF ~linker.error THEN
+		IF (code.displacement # 0) & (linker.log # NIL) THEN linker.log.String("code displacement 0"); linker.log.Hex(code.displacement,-8); linker.log.String("H"); linker.log.Ln END;
 		WriteOutputFile (code, codeFileName, linker, codeFileFormat);
-		IF data # code THEN WriteOutputFile (data, dataFileName, linker, dataFileFormat); END;
+		IF data # code THEN
+			IF (data.displacement # 0) & (linker.log # NIL) THEN linker.log.String("data displacement 0"); linker.log.Hex(data.displacement,-8); linker.log.String("H"); linker.log.Ln END;
+			WriteOutputFile (data, dataFileName, linker, dataFileFormat);
+		END;
 		IF ~silent THEN
 			context.out.String("Link successful. Written files: ");
 			context.out.String(codeFileName);

@@ -33,7 +33,7 @@ TYPE Linker* = OBJECT
 VAR
 	diagnostics: Diagnostics.Diagnostics;
 	useAll, stripInitCodes, error-: BOOLEAN;
-	log: Streams.Writer;
+	log-: Streams.Writer;
 	code, data: Arrangement;
 	firstBlock, firstLinkedBlock: Block;
 	linkRoot: ObjectFile.SectionName;
