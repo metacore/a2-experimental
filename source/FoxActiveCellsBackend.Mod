@@ -1120,14 +1120,16 @@ TYPE
 		END AddImport;
 
 		PROCEDURE TraverseImports(x: SyntaxTree.Module);
-		VAR import: SyntaxTree.Import; name: SyntaxTree.IdentifierString;
+		VAR import: SyntaxTree.Import; name: SyntaxTree.IdentifierString; l : BOOLEAN;
 		BEGIN
+			x.GetName(name); (* debugging *)
+			l := local; local := FALSE;
 			import := x.moduleScope.firstImport;
 			WHILE import # NIL DO
 				TraverseImports(import.module);
 				import := import.nextImport;
 			END;
-			x.GetName(name);
+			local := l; (* only direct imports are used for device registry *)
 			AddImport(x);
 		END TraverseImports;
 
@@ -1135,7 +1137,9 @@ TYPE
 		local := TRUE;
 		import := scope.firstImport;
 		WHILE import # NIL DO
-			TraverseImports(import.module);
+			IF import.module # scope.ownerModule THEN
+				TraverseImports(import.module);
+			END;
 			import := import.nextImport
 		END;
 		local := FALSE;
