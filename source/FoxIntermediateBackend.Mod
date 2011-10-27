@@ -347,7 +347,6 @@ TYPE
 			variable: SyntaxTree.Variable;
 			prevScope: SyntaxTree.Scope;  typeDeclaration: SyntaxTree.TypeDeclaration;
 		BEGIN
-			IF x IS SyntaxTree.CellScope THEN implementationVisitor.currentCellScope := x(SyntaxTree.CellScope) END;
 			prevScope := currentScope;
 			currentScope := x;
 			(* constants treated in implementation visitor  *)
@@ -375,8 +374,6 @@ TYPE
 				VisitConstant(constant);
 				constant := constant.nextConstant;
 			END;
-
-			IF x IS SyntaxTree.CellScope THEN implementationVisitor.currentCellScope := NIL END;
 			currentScope := prevScope;
 		END Scope;
 
@@ -887,7 +884,6 @@ TYPE
 		emitLabels: BOOLEAN;
 		runtimeModuleName : SyntaxTree.IdentifierString;
 		newObjectFile: BOOLEAN;
-		currentCellScope: SyntaxTree.CellScope;
 		indexCounter: LONGINT;
 
 		profile: BOOLEAN;
@@ -937,7 +933,6 @@ TYPE
 			IntermediateCode.InitImmediate(true,bool,1);
 
 			SELF.newObjectFile := newObjectFile;
-			currentCellScope := NIL;
 			indexCounter := 0;
 			NEW(registerUsage);
 			usedRegisters := NIL;
@@ -1879,9 +1874,6 @@ TYPE
 			IF importedModule = moduleScope.ownerModule THEN
 				source := NewSection(module.allSections, Sections.RegularKind, Sections.ConstSection, TRUE, pooledName, symbol, commentPrintout # NIL);
 			ELSE
-				IF currentCellScope # NIL THEN
-					currentCellScope.AddImport(importedModule);
-				END;
 				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.ConstSection, FALSE, pooledName, symbol, commentPrintout # NIL);
 			END;
 			RETURN source
@@ -1897,11 +1889,6 @@ TYPE
 				Emit(Call(result.op,ProcedureParametersSize(system,procedure)));
 				ReleaseOperand(result);
 			ELSE (* only static linking possible *)
-				IF currentCellScope # NIL THEN
-					(*
-					currentCellScope.AddImport(importedModule);
-					*)
-				END;
 				Basic.InitPooledName(pooledName);
 				pooledName[0] := Basic.MakeString(moduleName);
 				pooledName[1] := Basic.MakeString(procedureName);
@@ -1921,9 +1908,6 @@ TYPE
 				Emit(Result(return));
 				ReleaseOperand(result);
 			ELSE (* only static linking possible *)
-				IF currentCellScope # NIL THEN
-					(* currentCellScope.AddImport(importedModule);*)
-				END;
 				Basic.InitPooledName(pooledName);
 				pooledName[0] := Basic.MakeString(altModuleName);
 				pooledName[1] := Basic.MakeString(altProcedureName);
@@ -4141,10 +4125,6 @@ TYPE
 						CheckTypeDeclaration(SELF, module,x,commentPrintout # NIL, newObjectFile);
 						source := NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,td,commentPrintout # NIL);
 					ELSE
-						IF currentCellScope # NIL THEN
-							currentCellScope.AddImport(td.scope.ownerModule);
-						END;
-
 						source := NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.ConstSection, FALSE, name,td,commentPrintout # NIL);
 					END;
 					offset := ToMemoryUnits(system,(1+x(SyntaxTree.RecordType).recordScope.numberMethods+16+1)*system.addressSize);
@@ -5462,9 +5442,6 @@ TYPE
 						Global.GetSymbolPooledName(constructor,name);
 						ASSERT(~constructor.isInline);
 						IF constructor.scope.ownerModule # module.module THEN
-							IF currentCellScope # NIL THEN
-								currentCellScope.AddImport(constructor.scope.ownerModule);
-							END;
 							symbol := NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.CodeSection, FALSE, name,constructor,commentPrintout # NIL);
 						ELSE
 							symbol := NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, TRUE, name,constructor,commentPrintout # NIL);
@@ -6397,10 +6374,6 @@ TYPE
 			ELSIF x.scope IS SyntaxTree.ModuleScope THEN (* global variable in imported module *)
 				InitOperand(result,ModeReference);
 				Global.GetSymbolPooledName(x,name);
-				(*! check for new object file, correct? *)
-				IF currentCellScope # NIL THEN
-					currentCellScope.AddImport(x.scope.ownerModule);
-				END;
 				symbol := NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.VarSection, FALSE, name,x,commentPrintout # NIL);
 				IntermediateCode.InitAddress(result.op, addressType, symbol, 0)
 			ELSE (* field, left designator must have been emitted *)
@@ -6615,9 +6588,6 @@ TYPE
 					source.Emit(Asm(x.procedureScope.body.code.sourceCode,x.position));
 				END;
 			ELSE
-				IF currentCellScope # NIL THEN
-					currentCellScope.AddImport(x.scope.ownerModule);
-				END;
 				source := NewSection(module.allSections, Sections.ImportedSymbolKind,sectionType, FALSE, name,x,commentPrintout # NIL);
 			END;
 			IntermediateCode.InitAddress(reg, addressType, source , 0);

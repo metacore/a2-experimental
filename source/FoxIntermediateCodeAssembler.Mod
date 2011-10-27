@@ -744,6 +744,19 @@ TYPE
 			END
 		END MarkAsReachableStartingWith;
 
+		PROCEDURE ModuleIsReachable*(CONST name: Basic.String): BOOLEAN;
+		VAR i: LONGINT; section: Sections.Section;
+		BEGIN
+			FOR i := 0 TO allSections.Length()-1 DO
+				section := allSections.GetSection(i);
+				IF (section.name[0] = name) & section.isReachable THEN
+					RETURN TRUE
+				END;
+			END;
+			RETURN FALSE
+		END ModuleIsReachable;
+
+
 		(** mark a section as reachable and do the same recursively for all referenced sections **)
 		PROCEDURE MarkAsReachable(section: Sections.Section);
 		VAR

@@ -385,12 +385,13 @@ TYPE
 				logFile: Files.File; linkerLog: Files.Writer;
 				type: ActiveCells.Type;
 				msg: MessageString;
-				typeName, instanceName, linkRoot: SectionName;
+				typeName, instanceName, linkRoot, name: SectionName;
 				extension: ARRAY 32 OF CHAR;
 				instructionMemorySize, dataMemorySize: LONGINT;
 				parameter: ActiveCells.Parameter;
 				value: SyntaxTree.Value;
 				pooledName: Basic.PooledName;
+				device: ActiveCells.Device;
 			BEGIN
 
 				type := instance.type;
@@ -415,6 +416,27 @@ TYPE
 					END;
 					Basic.ToPooledName(parameter.name, pooledName);
 					assembler.PatchValueInSection(pooledName,value);
+				END;
+
+				FOR i := 0 TO type.specification.supportedDevices.Length()-1 DO
+					device := type.specification.supportedDevices.GetDevice(i);
+					IF instance.type.devices.ByName(device.name) = NIL THEN
+						IF assembler.ModuleIsReachable(Basic.MakeString(device.name)) THEN
+							msg := "Missing device capability ";
+							Strings.Append(msg, device.name);
+							Strings.Append(msg," in cell ");
+							instance.AppendToMsg(msg);
+							diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, msg);
+						END;
+					ELSE
+						IF ~assembler.ModuleIsReachable(Basic.MakeString(device.name)) THEN
+							msg := "Unused device ";
+							Strings.Append(msg, device.name);
+							Strings.Append(msg," in cell ");
+							instance.AppendToMsg(msg);
+							diagnostics.Warning(specification.name,Diagnostics.Invalid,Diagnostics.Invalid,msg);
+						END;
+					END;
 				END;
 
 				assembler.PrearrangeReachableDataSections;

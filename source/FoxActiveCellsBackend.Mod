@@ -169,6 +169,17 @@ TYPE
 			RETURN this # NIL
 		END HasFlag;
 
+		PROCEDURE AddDevices(instanceType: ActiveCells.Type; cellType: SyntaxTree.CellType);
+		VAR i: LONGINT; device: ActiveCells.Device;
+		BEGIN
+			FOR i := 0 TO instanceType.specification.supportedDevices.Length()-1 DO
+				device := instanceType.specification.supportedDevices.GetDevice(i);
+				IF HasFlag(cellType.modifiers, device.name) THEN
+					device := instanceType.NewDevice(device.name,device.adr)
+				END;
+			END;
+		END AddDevices;
+
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		VAR componentName, parameterName, name: SyntaxTree.IdentifierString; instanceType: ActiveCells.Type;
 			parameter: SyntaxTree.Parameter; parameterType: SyntaxTree.Type; portIndex,i,direction,len: LONGINT;
@@ -191,6 +202,7 @@ TYPE
 			IF HasFlag(x.modifiers, Global.StringFloatingPoint) THEN
 				instanceType.AddCapability(ActiveCells.FloatingPointCapability)
 			END;
+			AddDevices(instanceType, x);
 
 			currentActiveCellsScope := instanceType;
 			parameter := x.firstParameter;
@@ -1096,23 +1108,12 @@ TYPE
 	END Direction;
 
 	PROCEDURE AddModules(instanceType: ActiveCells.Type; scope: SyntaxTree.CellScope);
-	VAR import: SyntaxTree.Import;
-		local: BOOLEAN;
 
 		PROCEDURE AddImport(x: SyntaxTree.Module);
 		VAR module: ActiveCells.Module; VAR name: SyntaxTree.IdentifierString; device: ActiveCells.Device;
 		BEGIN
 			IF ~Global.IsSystemModule(x) THEN
 				x.GetName(name);
-				IF local THEN
-					device := instanceType.specification.supportedDevices.ByName(name);
-					IF device # NIL THEN
-						IF instanceType.devices.ByName(device.name) = NIL THEN
-							device := instanceType.NewDevice(device.name,device.adr)
-						END;
-					END;
-				END;
-
 				 IF instanceType.modules.ByName(name) = NIL THEN
 					module := instanceType.NewModule(name,"");
 				END;
@@ -1120,29 +1121,18 @@ TYPE
 		END AddImport;
 
 		PROCEDURE TraverseImports(x: SyntaxTree.Module);
-		VAR import: SyntaxTree.Import; name: SyntaxTree.IdentifierString; l : BOOLEAN;
+		VAR import: SyntaxTree.Import; name: SyntaxTree.IdentifierString;
 		BEGIN
 			x.GetName(name); (* debugging *)
-			l := local; local := FALSE;
 			import := x.moduleScope.firstImport;
 			WHILE import # NIL DO
 				TraverseImports(import.module);
 				import := import.nextImport;
 			END;
-			local := l; (* only direct imports are used for device registry *)
 			AddImport(x);
 		END TraverseImports;
 
 	BEGIN
-		local := TRUE;
-		import := scope.firstImport;
-		WHILE import # NIL DO
-			IF import.module # scope.ownerModule THEN
-				TraverseImports(import.module);
-			END;
-			import := import.nextImport
-		END;
-		local := FALSE;
 		TraverseImports(scope.ownerModule);
 	END AddModules;
 

@@ -58,6 +58,14 @@ TYPE
 			COPY(name,SELF.name);
 			SELF.scope := scope;
 		END InitSymbol;
+
+		PROCEDURE AppendToMsg*(VAR msg: ARRAY OF CHAR);
+		VAR name:Name;
+		BEGIN
+			GetFullName(name, NIL);
+			Strings.Append(msg, name);
+		END AppendToMsg;
+
 	END Symbol;
 
 	SymbolList*= OBJECT(Basic.List)
@@ -489,6 +497,16 @@ TYPE
 			ELSE IF TraceError THEN HALT(100) ELSE RETURN FALSE END
 			END;
 		END Read;
+
+		PROCEDURE AppendToMsg(VAR msg: ARRAY OF CHAR);
+		VAR name:Name;
+		BEGIN
+			AppendToMsg^(msg);
+			type.GetFullName(name,NIL);
+			Strings.Append(msg," (");
+			Strings.Append(msg,name);
+			Strings.Append(msg,")");
+		END AppendToMsg;
 
 	END Instance;
 
@@ -1364,6 +1382,8 @@ TYPE
 		scope.instances := instances;
 		scope.channels := channels;
 	END FlattenNetwork;
+
+
 
 
 END FoxActiveCells.

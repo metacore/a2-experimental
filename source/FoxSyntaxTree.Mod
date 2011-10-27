@@ -3889,15 +3889,13 @@ TYPE
 		ownerCell-: CellType;
 		bodyProcedure-: Procedure;
 		constructor-: Procedure;
-		firstImport-, lastImport-: Import; numberImports-: LONGINT;
 
 		PROCEDURE & InitCellScope(outer: Scope);
 		BEGIN
 			InitScope(outer);
 			ownerCell := NIL;
 			bodyProcedure := NIL;
-			numberImports := 0;
-			firstImport := NIL; lastImport := NIL; constructor := NIL;
+			constructor := NIL;
 		END InitCellScope;
 
 		PROCEDURE SetOwnerCell*(owner: CellType);
@@ -3913,26 +3911,6 @@ TYPE
 		PROCEDURE SetConstructor*(p: Procedure);
 		BEGIN constructor := p
 		END SetConstructor;
-
-		PROCEDURE FindImport*(identifier: Identifier): Import;
-		VAR p: Import;
-		BEGIN
-			p := firstImport;
-			WHILE(p#NIL) & (p.name # identifier) DO p := p.nextImport END; (* finds imports and re-imports! *)
-			RETURN p;
-		END FindImport;
-
-		PROCEDURE AddImport*(module: Module);
-		VAR import: Import;
-		BEGIN
-			IF FindImport(module.name) = NIL THEN
-				import := NewImport(0,module.name, module.name, TRUE);
-				import.SetModule(module);
-				IF lastImport= NIL THEN firstImport:= import ELSE lastImport.nextImport := import END;
-				lastImport := import;
-			END;
-			INC(numberImports);
-		END AddImport;
 
 	END CellScope;
 
