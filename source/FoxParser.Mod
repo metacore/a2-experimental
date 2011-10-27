@@ -1572,6 +1572,7 @@ TYPE
 						Check(Scanner.RightParenthesis)
 					ELSIF Optional(Scanner.Equal) THEN
 						expression := Expression();
+					ELSE
 						expression := NIL
 					END;
 					modifier := SyntaxTree.NewModifier(position,identifier,expression);

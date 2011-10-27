@@ -722,7 +722,7 @@ TYPE
 
 		PROCEDURE DoCompile(findPC : BOOLEAN; CONST pc :ARRAY OF CHAR; options : CompilerOptions);
 		VAR
-			compiler : CompilerInterface.Compiler; tw : TextUtilities.TextWriter; errors : BOOLEAN;
+			compiler : CompilerInterface.Compiler; tw : TextUtilities.TextWriter; errors : BOOLEAN; type: LONGINT;
 			positions : ARRAY 2 OF LONGINT;
 		BEGIN
 			ClearLog;
@@ -747,15 +747,17 @@ TYPE
 			END;
 			diagnostics.EnableNotification;
 			IF (diagnostics.nofEntries > 0) THEN
-				errorGrid.GetFirstPosition(positions);
-				IF (focus = EditorFocus) & (positions[0] # WMDiagnostics.Invalid) THEN
-					editor.tv.cursor.SetPosition(positions[0]);
-					editor.SetFocus;
-				ELSIF (focus = SplitEditorFocus) THEN
-					splitEditor.tv.cursor.SetPosition(positions[0]);
-					splitEditor.SetFocus;
+				errorGrid.GetFirstPosition(positions, type);
+				IF type # WMDiagnostics.TypeWarning THEN
+					IF (focus = EditorFocus) & (positions[0] # WMDiagnostics.Invalid) THEN
+						editor.tv.cursor.SetPosition(positions[0]);
+						editor.SetFocus;
+					ELSIF (focus = SplitEditorFocus) THEN
+						splitEditor.tv.cursor.SetPosition(positions[0]);
+						splitEditor.SetFocus;
+					END;
+					CursorChanged;
 				END;
-				CursorChanged;
 				errorGrid.visible.Set(TRUE);
 				logPanel.visible.Set(TRUE); logEdit.visible.Set(TRUE);
 			ELSE

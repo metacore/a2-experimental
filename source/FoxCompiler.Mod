@@ -210,6 +210,7 @@ TYPE
 
 
 	BEGIN
+		IF findPC # "" THEN EXCL(flags, Warnings) END;
 		IF TraceError IN flags THEN
 			NEW(traceDiagnostics,diagnostics); diagnostics := traceDiagnostics
 		END;
@@ -218,6 +219,9 @@ TYPE
 			system := Global.DefaultSystem()
 		ELSE
 			system := backend.GetSystem();
+		END;
+		IF (system # NIL) & (activeCellsSpecification # NIL) THEN
+			activeCellsSpecification.DefineDevices(system)
 		END;
 		IF (objectFileFormat # NIL) & (objectFileFormat.ForceModuleBodies()) THEN INCL(flags, ForceModuleBodies) END;
 
@@ -555,7 +559,8 @@ TYPE
 
 		IF options.GetString("activeCellsSpecification",name) THEN
 			activeCellsSpecification := GetActiveCellsSpecification(name);
-		ELSIF options.GetFlag("activeCells") THEN
+		END;
+		IF options.GetFlag("activeCells") & (activeCellsSpecification = NIL) THEN
 			NEW(activeCellsSpecification,"",diagnostics,NIL);
 		END;
 

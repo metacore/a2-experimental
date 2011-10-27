@@ -999,6 +999,22 @@ TYPE
 		supportedDevices-: DeviceList;
 		imports-: SymbolList;
 
+		PROCEDURE AddDevice*(CONST name: ARRAY OF CHAR; adr: HUGEINT);
+		VAR device: Device;
+		BEGIN
+			NEW(device, name, SELF, LONGINT(adr)); supportedDevices.AddDevice(device);
+		END AddDevice;
+
+		PROCEDURE DefineDevices*(system: Global.System);
+		VAR i: LONGINT; device: Device;
+		BEGIN
+			FOR i := 0 TO supportedDevices.Length()-1 DO
+				device := supportedDevices.GetDevice(i);
+				system.AddCapability(Basic.MakeString(device.name));
+			END;
+		END DefineDevices;
+
+
 		PROCEDURE & Init*(CONST name: ARRAY OF CHAR; diagnostics: Diagnostics.Diagnostics; log: Streams.Writer);
 		VAR device: Device;
 		BEGIN
@@ -1007,19 +1023,20 @@ TYPE
 			NEW(supportedDevices,4);
 			SELF.diagnostics := diagnostics;
 			SELF.log := log;
-			NEW(device,"DDR",SELF, 0FFCAH); supportedDevices.AddDevice(device);
-			NEW(device,"RS232",SELF,LONGINT(0FFFFFFC4H)); supportedDevices.AddDevice(device);
-			NEW(device,"LCD",SELF, LONGINT(0FFFFFFC8H)); supportedDevices.AddDevice(device);
-			NEW(device,"CF",SELF, LONGINT(0FFFFFFCCH)); supportedDevices.AddDevice(device);
-			NEW(device,"LED",SELF, LONGINT(0FFFFFFC7H)); supportedDevices.AddDevice(device);
-			NEW(device,"TIMER",SELF, LONGINT(0FFFFFFC6H)); supportedDevices.AddDevice(device);
-			(*NEW(device,"PORT",SELF,0FF10H); supportedDevices.AddDevice(device);*)
-			NEW(device,"PORT",SELF, LONGINT(0FFFFFFE0H)); supportedDevices.AddDevice(device);
-			NEW(device,"Switch",SELF, LONGINT(0FFFFFFC7H)); supportedDevices.AddDevice(device);
-			NEW(device,"Motor",SELF,LONGINT(0FFFFFFCEH)); supportedDevices.AddDevice(device);
-			NEW(device,"BraceletSPI",SELF,LONGINT(0FFFFFFD2H)); supportedDevices.AddDevice(device);
-			NEW(device,"GPI",SELF,LONGINT(0FFFFFFD6H)); supportedDevices.AddDevice(device);
-			NEW(device,"GPO",SELF,LONGINT(0FFFFFFD6H)); supportedDevices.AddDevice(device);
+
+			AddDevice("DDR", 0FFCAH);
+			AddDevice("RS232",0FFFFFFC4H);
+			AddDevice("LCD", 0FFFFFFC8H);
+			AddDevice("CF", 0FFFFFFCCH);
+			AddDevice("LED", 0FFFFFFC7H);
+			AddDevice("TIMER", 0FFFFFFC6H);
+			(*AddDevice("PORT",0FF10H); *)
+			AddDevice("PORT", 0FFFFFFE0H);
+			AddDevice("Switch", 0FFFFFFC7H);
+			AddDevice("Motor",0FFFFFFCEH);
+			AddDevice("BraceletSPI",0FFFFFFD2H);
+			AddDevice("GPI",0FFFFFFD6H);
+			AddDevice("GPO",0FFFFFFD6H);
 			NEW(imports,4);
 		END Init;
 

@@ -130,6 +130,7 @@ TYPE
 		(* system and global scopes and modules  (lowercase and uppercase each) *)
 		systemScope-, globalScope-: ARRAY 2 OF SyntaxTree.ModuleScope;
 		systemModule-,globalModule-: ARRAY 2 OF SyntaxTree.Module;
+		activeCellsCapabilities-: SyntaxTree.Symbol; (* list of supported capabilities, filled by ActiveCells specification *)
 
 		(* addressing granularity in code and data memory *)
 		codeUnit-: LONGINT;
@@ -173,11 +174,20 @@ TYPE
 			SELF.parameterAlignment.max := maxParAlign;
 			SELF.offsetFirstParameter := offsetFirstPar;
 			SELF.registerParameters := registerParameters;
+			activeCellsCapabilities := NIL;
 			BuildScopes(SELF);
 			FOR i := 0 TO LEN(operatorDefined)-1 DO
 				operatorDefined[i] := FALSE;
 			END;
 		END InitSystem;
+
+		PROCEDURE AddCapability*(name: SyntaxTree.Identifier);
+		VAR symbol: SyntaxTree.Symbol;
+		BEGIN
+			symbol := SyntaxTree.NewSymbol(name);
+			symbol.SetNext(activeCellsCapabilities);
+			activeCellsCapabilities := symbol
+		END AddCapability;
 
 		(*
 		PROCEDURE GenerateRecordOffsets*(x: SyntaxTree.RecordType): BOOLEAN; (* normally done in checker but the binary symbol file format makes this necessary *)

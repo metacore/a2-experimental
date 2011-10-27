@@ -478,7 +478,7 @@ TYPE
 			END;
 		END RemovePositionMarkers;
 
-		PROCEDURE GetFirstPosition*(VAR positions : ARRAY OF LONGINT);
+		PROCEDURE GetFirstPosition*(VAR positions : ARRAY OF LONGINT; VAR type: LONGINT);
 		VAR i : LONGINT;
 		BEGIN
 			Acquire;
@@ -490,6 +490,7 @@ TYPE
 					ELSE
 						positions[i] := Invalid;
 					END;
+					type := entries[0].type;
 				END;
 			ELSE
 				FOR i := 0 TO LEN(positions)-1 DO positions[i] := Invalid; END;
