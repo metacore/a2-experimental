@@ -4783,7 +4783,11 @@ TYPE
 								type := Global.GetIntegerType(system,i0);
 							END;
 						END;
-						type := system.longintType;
+
+						IF type.resolved.sizeInBits < 32 THEN
+							type := system.longintType;
+						END;
+
 						(*!compatibility with release, remove when resolved
 						    critical in release : SHORT(ASH(..))), ASH(ORD(..))
 						*)
