@@ -1045,7 +1045,8 @@ TYPE
 		PROCEDURE ToStream*(w : Streams.Writer);
 		BEGIN
 			AcquireRead;
-			w.Int(value.x, 0); w.Char(" "); w.Int(value.x, 0);
+			w.Int(value.x, 0); w.Char(" "); 
+			w.Int(value.y, 0);
 			ReleaseRead
 		END ToStream;
 

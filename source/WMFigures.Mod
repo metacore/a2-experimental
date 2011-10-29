@@ -1,8 +1,9 @@
 MODULE WMFigures; (** AUTHOR "staubesv, modif PH"; PURPOSE "Geometric shapes"; *)
 
 IMPORT
-	KernelLog,
-	Math, Strings, XML, WMRectangles, WMGraphics, WMGraphicUtilities, WMProperties, WMComponents;
+	KernelLog, Streams,
+	Math, Strings, XML, XMLObjects,
+	WMRectangles, WMGraphics, WMGraphicUtilities, WMProperties, WMComponents;
 
 CONST
 	(* Figure.state *)
@@ -18,7 +19,7 @@ TYPE
 	Point* = POINTER TO RECORD
 		x, y : LONGINT;
 		previous, next : Point;
-	END;
+		END;
 
 TYPE
 
@@ -55,7 +56,7 @@ TYPE
 		END Scale;
 
 		PROCEDURE AddControlPoint(x, y : LONGINT);
-		VAR point, p : Point;
+		VAR point, p : Point; 
 		BEGIN
 			NEW(point);
 			point.x := x; point.y := y;
@@ -226,7 +227,64 @@ TYPE
 			END;
 		END DrawForeground;
 
+		PROCEDURE ToXML;
+		VAR xmlpoint, pointlist: XML.Element; 
+			p:Point;
+			string: ARRAY 16 OF CHAR;
+		BEGIN
+			RemoveContent(GetFirstChild()); (* remove old pointlist, if existing*)
+			NEW(pointlist); pointlist.SetName("PointList");
+			p := points;
+			WHILE (p # NIL) DO
+				NEW(xmlpoint); xmlpoint.SetName("Point");
+				Strings.IntToStr(p.x,string); 
+				xmlpoint.SetAttributeValue("x", string);
+				Strings.IntToStr(p.y,string);
+				xmlpoint.SetAttributeValue("y", string);
+				pointlist.AddContent(xmlpoint);
+				p := p.next;
+		END;
+			AddContent(pointlist);
+		END ToXML;
+		
+		PROCEDURE FromXML*(xml: XML.Element);
+		VAR pointlist, xmlpoint: XML.Element; c: ANY;
+			name:Strings.String; xstring, ystring: Strings.String;
+			x, y: LONGINT;
+		BEGIN
+			FromXML^(xml);
+			nofPoints := 0;
+			points:=NIL;
+			pointlist := xml.GetFirstChild();
+			LOOP
+				IF pointlist=NIL THEN RETURN END;
+				name:=pointlist.GetName();	
+				IF name^="PointList" THEN EXIT END;
+				pointlist:=pointlist.GetNextSibling();
+			END;
+			
+			xmlpoint:=pointlist.GetFirstChild();
+			WHILE xmlpoint#NIL DO
+				name:=xmlpoint.GetName();
+				IF name^ = "Point" THEN
+					xstring:=xmlpoint.GetAttributeValue("x"); Strings.StrToInt(xstring^, x);
+					ystring:=xmlpoint.GetAttributeValue("y"); Strings.StrToInt(ystring^, y);
+					AddControlPoint(x,y);
+				END;
+				xmlpoint := xmlpoint.GetNextSibling();
+			END;
+		END FromXML;
+		
+		PROCEDURE Write*(w : Streams.Writer;context: ANY; level : LONGINT);
+		BEGIN
+			ToXML;
+			Write^(w, context, level);
+		END Write;
+
 	END Figure;
+	
+
+	
 
 TYPE
 
@@ -239,11 +297,14 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMFigures.GenLine");
 			SetNameAsString(StrLine);
-			AddControlPoint(10, 10);
-			AddControlPoint(20, 20);
+			IF nofPoints=0 THEN (* prototype *)
+				AddControlPoint(10, 10);
+				AddControlPoint(20, 20);
+			END;
 			INCL(state, EditPoints);
-			NEW(pointArray, 2);
+			NEW(pointArray, nofPoints);
 		END Init;
 
 		PROCEDURE Normalize(VAR newBounds : WMRectangles.Rectangle);
@@ -337,6 +398,7 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMFigures.GenCircle");
 			SetNameAsString(StrCircle);
 			AddControlPoint(10, 10);
 			AddControlPoint(20, 20);
@@ -378,6 +440,7 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMFigures.GenRectangle");
 			SetNameAsString(StrRectangle);
 			AddControlPoint(10, 10);
 			AddControlPoint(20, 20);
@@ -428,12 +491,15 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMFigures.GenSpline");
 			SetNameAsString(StrSpline);
 			INCL(state, EditPoints);
-			AddControlPoint(0, 20);
-			AddControlPoint(20, 0);
-			AddControlPoint(20, 20);
-			AddControlPoint(30, 30);
+			IF nofPoints=0 THEN (* prototype*)
+				AddControlPoint(0, 20);
+				AddControlPoint(20, 0);
+				AddControlPoint(20, 20);
+				AddControlPoint(30, 30);
+			END;
 		END Init;
 
 		PROCEDURE Normalize(VAR newBounds : WMRectangles.Rectangle);
