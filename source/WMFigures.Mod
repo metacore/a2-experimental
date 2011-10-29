@@ -10,7 +10,7 @@ CONST
 	Filled* = 0;
 	Closed* = 1;
 	EditPoints* = 2;
-	TrackMode* = 3;
+	Reshape*=3;
 
 	PointOffset = 2; PointSize = 6; (* size of the control points. Currently not related to Effects.gravity *)
 
@@ -26,12 +26,16 @@ TYPE
 	Figure* = OBJECT(WMComponents.VisualComponent)
 	VAR
 		width- : WMProperties.Int32Property;
-		color- : WMProperties.ColorProperty;
+		color-, clHover- : WMProperties.ColorProperty;
+		closed-: WMProperties.BooleanProperty;
+		filled-: WMProperties.BooleanProperty;
+		reshape-: WMProperties.BooleanProperty;
 
 		points : Point;
 		nofPoints : LONGINT;
 
 		hover, selected : Point;
+		mouseOver:BOOLEAN;
 
 		lastKeys, state : SET;
 
@@ -41,6 +45,10 @@ TYPE
 			SetNameAsString(StrFigure);
 			NEW(width, PrototypeWidth, NIL, NIL); properties.Add(width);
 			NEW(color, PrototypeColor, NIL, NIL); properties.Add(color);
+			NEW(reshape, PrototypeReshape, NIL, NIL); properties.Add(reshape);
+			NEW(closed, PrototypeClosed, NIL, NIL); properties.Add(closed);
+			NEW(filled, PrototypeFilled, NIL, NIL); properties.Add(filled);
+			NEW(clHover, PrototypeclHover, NIL, NIL); properties.Add(clHover);
 			points := NIL;
 			nofPoints := 0;
 			hover := NIL;
@@ -48,6 +56,19 @@ TYPE
 			state := {};
 			lastKeys := {};
 		END Init;
+		
+		PROCEDURE PropertyChanged(sender, property : ANY);
+		VAR bool: BOOLEAN;
+		BEGIN
+			IF (property = color) THEN Invalidate;
+			ELSIF (property = width) THEN Invalidate;
+			ELSIF (property = clHover) THEN Invalidate;
+			ELSIF (property = closed) THEN IF closed.Get() THEN INCL(state,Closed) ELSE EXCL(state,Closed); Invalidate; END;
+			ELSIF (property = filled) THEN	IF filled.Get() THEN INCL(state,Filled) ELSE EXCL(state,Filled); Invalidate; END;
+			ELSIF (property = reshape) THEN IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state,Reshape); Invalidate; END;
+			ELSE 	PropertyChanged^(sender, property);
+			END;
+		END PropertyChanged;
 
 		PROCEDURE Normalize(VAR newBounds : WMRectangles.Rectangle);
 		END Normalize;
@@ -105,9 +126,9 @@ TYPE
 			PointerUp^(x, y, keys);
 			IF ~(0 IN keys) & (selected # NIL) THEN selected := NIL; Invalidate; END;
 			IF (2 IN lastKeys) & ~(2 IN keys) THEN
-				IF (TrackMode IN state) THEN EXCL(state, TrackMode); ELSE INCL(state, TrackMode); END;
+				IF reshape.Get() THEN EXCL(state, Reshape); ELSE INCL(state, Reshape); END;
 				Invalidate;
-			ELSIF (EditPoints IN state) & (1 IN lastKeys) & ~(1 IN keys) & (TrackMode IN state) THEN
+			ELSIF (EditPoints IN state) & (1 IN lastKeys) & ~(1 IN keys) & (Reshape IN state) THEN
 				AddControlPoint(x, y);
 				Normalize(newBounds); bounds.Set(newBounds);
 				Invalidate;
@@ -121,12 +142,12 @@ TYPE
 				Invalidate;
 			END;
 		END PointerUp;
-
+		
 		PROCEDURE PointerMove(x, y : LONGINT; keys : SET);
 		VAR p : Point; oldBounds, newBounds : WMRectangles.Rectangle;
 		BEGIN
 			PointerMove^(x, y, keys);
-			IF (selected # NIL) THEN
+			IF (Reshape IN state) & (selected # NIL) THEN
 				selected.x := x;
 				selected.y := y;
 				oldBounds := bounds.Get();
@@ -140,6 +161,13 @@ TYPE
 				IF (p # hover) THEN
 					hover := p;
 					Invalidate; (*? optimize *)
+				END;
+				IF (p=NIL) THEN
+					IF HitTestLine(x,y) THEN
+						IF ~mouseOver THEN mouseOver := TRUE; Invalidate END
+					ELSE
+						IF mouseOver THEN mouseOver := FALSE; Invalidate END
+					END;
 				END;
 			END;
 		END PointerMove;
@@ -156,7 +184,7 @@ TYPE
 		END MovePoints;
 
 		(* Is X, Y somewhere inside the polygon defined by p ? *)
-		PROCEDURE Inside(x, y: LONGINT; X, Y: LONGINT): BOOLEAN;
+		PROCEDURE Inside(X, Y: LONGINT): BOOLEAN;
 		VAR c, q, p: LONGINT;
 		BEGIN
 			c := 0;
@@ -181,6 +209,10 @@ TYPE
 			END;
 			RETURN NIL;
 		END ThisPoint;
+		
+		PROCEDURE HitTestLine*(mx, my: LONGINT): BOOLEAN;
+		BEGIN RETURN FALSE
+		END HitTestLine;
 
 		PROCEDURE GetBoundingBox() : WMRectangles.Rectangle;
 		VAR p : Point; rect : WMRectangles.Rectangle;
@@ -200,10 +232,7 @@ TYPE
 			RETURN rect;
 		END GetBoundingBox;
 
-		PROCEDURE DrawForeground(canvas : WMGraphics.Canvas);
-		VAR p : Point;
-
-			PROCEDURE DrawControlPoint(p : Point);
+			PROCEDURE DrawControlPoint(canvas : WMGraphics.Canvas; p : Point);
 			VAR rect : WMRectangles.Rectangle; color : LONGINT;
 			BEGIN
 				ASSERT(p # NIL);
@@ -216,12 +245,14 @@ TYPE
 				WMGraphicUtilities.DrawRect(canvas, rect, WMGraphics.Black, WMGraphics.ModeSrcOverDst);
 			END DrawControlPoint;
 
+		PROCEDURE DrawForeground(canvas : WMGraphics.Canvas);
+		VAR p : Point;
 		BEGIN
 			DrawForeground^(canvas);
-			IF TrackMode IN state THEN
+			IF reshape.Get() THEN
 				p := points;
 				WHILE (p # NIL) DO
-					DrawControlPoint(p);
+					DrawControlPoint(canvas, p);
 					p := p.next;
 				END;
 			END;
@@ -237,10 +268,8 @@ TYPE
 			p := points;
 			WHILE (p # NIL) DO
 				NEW(xmlpoint); xmlpoint.SetName("Point");
-				Strings.IntToStr(p.x,string); 
-				xmlpoint.SetAttributeValue("x", string);
-				Strings.IntToStr(p.y,string);
-				xmlpoint.SetAttributeValue("y", string);
+				Strings.IntToStr(p.x,string); xmlpoint.SetAttributeValue("x", string);
+				Strings.IntToStr(p.y,string); xmlpoint.SetAttributeValue("y", string);
 				pointlist.AddContent(xmlpoint);
 				p := p.next;
 		END;
@@ -248,8 +277,9 @@ TYPE
 		END ToXML;
 		
 		PROCEDURE FromXML*(xml: XML.Element);
-		VAR pointlist, xmlpoint: XML.Element; c: ANY;
-			name:Strings.String; xstring, ystring: Strings.String;
+		VAR pointlist, xmlpoint: XML.Element; 
+			name:Strings.String; 
+			xstring, ystring: Strings.String;
 			x, y: LONGINT;
 		BEGIN
 			FromXML^(xml);
@@ -280,11 +310,8 @@ TYPE
 			ToXML;
 			Write^(w, context, level);
 		END Write;
-
+		
 	END Figure;
-	
-
-	
 
 TYPE
 
@@ -350,20 +377,37 @@ TYPE
 			Release;
 		END Scale;
 
-		PROCEDURE HitTestLine*(x, y, mx, my: LONGINT): BOOLEAN;
+		(* Is X, Y somewhere inside the polygon defined by p ? *)
+		PROCEDURE Inside(X, Y: LONGINT): BOOLEAN;
+		VAR c: LONGINT; p, q: Point;
+		BEGIN
+			c := 0;
+			IF (points # NIL) THEN
+				p := points; q:=p.next;
+				WHILE q#NIL DO
+					IF Intersect(X, Y, p.x, p.y, q.x, q.y) THEN INC(c) END;
+					p:=q; q:=q.next; 
+				END;
+				IF (nofPoints > 1) & Intersect(X, Y, p.x, p.y, points.x, points.y) THEN INC(c) END; 
+			END;
+			RETURN ODD(c);
+		END Inside;
+
+		PROCEDURE HitTestLine*(mx, my: LONGINT): BOOLEAN;
 		VAR p, q: Point; i : LONGINT;
 		BEGIN
 			IF (points = NIL) OR (points.next = NIL) THEN RETURN FALSE; END;
 			IF Filled IN state THEN
-				IF Inside(x, y, mx, my) THEN RETURN TRUE END;
+				IF Inside(mx, my) THEN RETURN TRUE END;
 			END;
 			p := points; q := points.next;
 			WHILE (q # NIL) DO
-				IF InLineVicinity(mx, my, x + p.x, y + p.y, x + q.x, y + q.y) THEN RETURN TRUE END;
+				IF InLineVicinity(mx, my, p.x, p.y, q.x, q.y) THEN RETURN TRUE END;
+				p:=q; q:=q.next;
 				INC(i);
 			END;
 			IF (Closed IN state) OR (Filled IN state) THEN
-				IF InLineVicinity(mx, my, x + p.x, y + p.y, x + points.x, y + points.y) THEN RETURN TRUE END;
+				IF InLineVicinity(mx, my, p.x, p.y, points.x, points.y) THEN RETURN TRUE END;
 			END;
 			RETURN FALSE
 		END HitTestLine;
@@ -382,10 +426,10 @@ TYPE
 				INC(i);
 				p := p.next;
 			END;
-			IF Filled IN state THEN
+			IF filled.Get() THEN
 				canvas.FillPolygonFlat(pointArray^, nofPoints, color.Get(), WMGraphics.ModeSrcOverDst);
 			ELSE
-				canvas.PolyLine(pointArray^, nofPoints, Closed IN state, color.Get(), WMGraphics.ModeSrcOverDst);
+				canvas.PolyLine(pointArray^, nofPoints, closed.Get(), color.Get(), WMGraphics.ModeSrcOverDst);
 			END;
 		END DrawBackground;
 
@@ -501,13 +545,48 @@ TYPE
 				AddControlPoint(30, 30);
 			END;
 		END Init;
+		
+				(* Is X, Y somewhere inside the polygon defined by p ? *) (*! to be implemented for pointarray; eliminate bias*)
+		PROCEDURE Inside(X, Y: LONGINT): BOOLEAN;
+		VAR c: LONGINT; p,q: Point;
+		BEGIN
+			c := 0;
+			IF (points # NIL) THEN
+				p := points; q := p.next;
+				WHILE q#NIL DO
+					IF Intersect(X, Y, p.x, p.y, q.x, q.y) THEN INC(c) END;
+					p:=q; q:=q.next;
+				END;
+				IF (nofPoints > 1) & Intersect(X, Y, p.x, p.y, points.x, points.y) THEN INC(c) END; 
+			END;
+			RETURN ODD(c);
+		END Inside;
+		
+		(*! to be implemented for full pointarray, not only for control points  with straight connections, eliminate bias*)
+		PROCEDURE HitTestLine*(mx, my: LONGINT): BOOLEAN;
+		VAR p, q: Point; i : LONGINT;
+		BEGIN
+			IF (points = NIL) OR (points.next = NIL) THEN RETURN FALSE; END;
+			IF Filled IN state THEN
+				IF Inside(mx, my) THEN RETURN TRUE END;
+			END;
+			p := points; q := points.next;
+			WHILE (q # NIL) DO
+				IF InLineVicinity(mx, my, p.x, p.y, q.x, q.y) THEN RETURN TRUE END;
+				p:=q; q:=q.next; INC(i);
+			END;
+			IF (Closed IN state) OR (Filled IN state) THEN
+				IF InLineVicinity(mx, my, p.x, p.y, points.x, points.y) THEN RETURN TRUE END;
+			END;
+			RETURN FALSE
+		END HitTestLine;
 
 		PROCEDURE Normalize(VAR newBounds : WMRectangles.Rectangle);
 		VAR bounds, box : WMRectangles.Rectangle; i, n : LONGINT;
 		BEGIN
 			bounds := SELF.bounds.Get();
 			Acquire;
-			SplineToPoly(points, Closed IN state, pointArray, n);
+			SplineToPoly(points, closed.Get(), pointArray, n);
 			box.l := MAX(LONGINT); box.r := MIN(LONGINT);
 			box.t := MAX(LONGINT); box.b := MIN(LONGINT);
 			FOR i := 0 TO n - 1 DO
@@ -530,14 +609,15 @@ TYPE
 		END Normalize;
 
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
-		VAR n : LONGINT;
+		VAR n : LONGINT; p: Point; col: LONGINT;
 		BEGIN
 			DrawBackground^(canvas);
 			SplineToPoly(points, Closed IN state, pointArray, n);
-			IF (Filled IN state) THEN
-				canvas.FillPolygonFlat(pointArray, n, color.Get(), WMGraphics.ModeSrcOverDst);
+			IF mouseOver THEN col:=clHover.Get() ELSE col:=color.Get() END;
+			IF filled.Get() THEN
+				canvas.FillPolygonFlat(pointArray, n, col, WMGraphics.ModeSrcOverDst);
 			ELSE
-				canvas.PolyLine(pointArray, n, Closed IN state, color.Get(), WMGraphics.ModeSrcOverDst);
+				canvas.PolyLine(pointArray, n, closed.Get(), col, WMGraphics.ModeSrcOverDst);
 			END;
 		END DrawBackground;
 
@@ -550,7 +630,10 @@ VAR
 	gravity : LONGINT;
 
 	PrototypeWidth : WMProperties.Int32Property;
-	PrototypeColor : WMProperties.ColorProperty;
+	PrototypeColor, PrototypeclHover : WMProperties.ColorProperty;
+	PrototypeClosed: WMProperties.BooleanProperty;
+	PrototypeFilled: WMProperties.BooleanProperty;
+	PrototypeReshape: WMProperties.BooleanProperty;
 
 	StrFigure, StrLine, StrCircle, StrRectangle, StrSpline : Strings.String;
 
@@ -822,6 +905,14 @@ BEGIN
 	PrototypeWidth.Set(1);
 	NEW(PrototypeColor, NIL, Strings.NewString("color"), Strings.NewString("Color"));
 	PrototypeColor.Set(WMGraphics.Red);
+	NEW(PrototypeclHover, NIL, Strings.NewString("clHover"), Strings.NewString("Color HOver"));
+	PrototypeColor.Set(WMGraphics.Yellow);
+	NEW(PrototypeClosed, NIL, Strings.NewString("closed"), Strings.NewString("Figure is closed"));
+	PrototypeClosed.Set(FALSE);
+	NEW(PrototypeFilled, NIL, Strings.NewString("filled"), Strings.NewString("Figure is filled"));
+	PrototypeFilled.Set(FALSE);
+	NEW(PrototypeReshape, NIL, Strings.NewString("reshape"), Strings.NewString("Control Points can be individually moved"));
+	PrototypeReshape.Set(TRUE);
 END InitPrototypes;
 
 PROCEDURE InitStrings;
@@ -838,3 +929,5 @@ BEGIN
 	InitStrings;
 	InitPrototypes;
 END WMFigures.
+
+SystemTools.FreeDownTo WMFigures ~
