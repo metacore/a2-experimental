@@ -1,7 +1,7 @@
 MODULE FoxCodeGenerators; (** AUTHOR ""; PURPOSE ""; *)
 
 IMPORT Diagnostics, Sections := FoxSections, Streams, BinaryCode := FoxBinaryCode, IntermediateCode := FoxIntermediateCode,
-		IntermediateBackend := FoxIntermediateBackend, SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, 
+		IntermediateBackend := FoxIntermediateBackend, SyntaxTree := FoxSyntaxTree, Basic := FoxBasic,
 		StringPool, Strings, D := Debugging;
 
 CONST
@@ -113,6 +113,7 @@ TYPE
 		error* : BOOLEAN;
 		allocation: RegisterAllocation;
 		liveRegisters: LiveRegisters;
+		inEmulation-: BOOLEAN;
 
 		(* generic *)
 		PROCEDURE & InitGenerator*(diagnostics: Diagnostics.Diagnostics);
@@ -288,6 +289,7 @@ TYPE
 
 
 			BEGIN
+				inEmulation := TRUE;
 				ASSERT(x.op1.mode # IntermediateCode.Undefined);
 				ASSERT(IntermediateCode.Op1IsDestination IN IntermediateCode.instructionFormat[x.opcode].flags);
 
@@ -317,6 +319,7 @@ TYPE
 				Emit(IntermediateBackend.Call(op,IntermediateBackend.ToMemoryUnits(module.system,parSize)),"");
 				Emit(IntermediateBackend.Result(x.op1),"");
 				RestoreRegisters;
+				inEmulation := FALSE;
 			END Emulate;
 
 			PROCEDURE SetLiveness(CONST x: IntermediateCode.Instruction);
@@ -345,6 +348,7 @@ TYPE
 
 
 		BEGIN
+			inEmulation := FALSE;
 			Basic.FromPooledName(in.name, name);
 			SELF.in := in; SELF.out := out;
 			dump := out.comments;
