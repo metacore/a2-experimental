@@ -654,35 +654,99 @@ TYPE
 
 	PROCEDURE Assemble*(context: Commands.Context);
 	VAR
+		input: Streams.Reader;
 		diagnostics: Diagnostics.StreamDiagnostics;
 		flags: SET;
 		defaultBackend: Backend.Backend;
 		objectFileFormat: Formats.ObjectFileFormat;
-		dummySymbolFileFormat: Formats.SymbolFileFormat;
-		dummyDataflowSpecification: ActiveCells.Specification;
-		filename, dummyString: Files.FileName;
+		filename, dummyString, name, targetFile: Files.FileName;
 		assemblinker: IntermediateCodeAssembler.Assemblinker;
-		error: BOOLEAN;
-	BEGIN
-		NEW(diagnostics, context.out);
-		IF GetOptions(context.arg, context.error, diagnostics, flags, defaultBackend, dummySymbolFileFormat, objectFileFormat, dummyDataflowSpecification, dummyString) THEN
-			(* TODO: handle flags, such as 'Print', 'Silent' and 'TraceError'? *)
+		error, result, parsed: BOOLEAN;
+		options:Options.Options;
+		position: LONGINT;
 
-			error := FALSE;
-			WHILE context.arg.GetString(filename) & (filename # ";") & ~error DO
-				NEW(assemblinker, diagnostics, defaultBackend, "");
-				IF assemblinker.LoadModule(filename, FALSE) THEN
-					assemblinker.MarkReachabilityOfAll(TRUE);
-					IF assemblinker.GenerateObjectFile(objectFileFormat, context.out, flags, NIL, NIL) THEN
-						diagnostics.Information(filename, Diagnostics.Invalid, Diagnostics.Invalid, "done.")
-					ELSE
-						error := TRUE
-					END
+		PROCEDURE Error(CONST error: ARRAY OF CHAR);
+		BEGIN
+			IF diagnostics # NIL THEN
+				diagnostics.Error("",Diagnostics.Invalid,Diagnostics.Invalid,error);
+			END;
+		END Error;
+
+	BEGIN
+		input := context.arg;
+		NEW(diagnostics, context.out);
+		result := TRUE;
+		NEW(options);
+		options.Add("b","backend",Options.String);
+		options.Add(0X, "objectFile", Options.String);
+		options.Add(0X, "targetFile", Options.String);
+
+		position := input.Pos();
+		parsed := options.Parse(input,NIL);
+
+		IF options.GetString("b", name) THEN
+			IF name = "" THEN defaultBackend := NIL
+			ELSE
+				defaultBackend := Backend.GetBackendByName(name);
+				IF (defaultBackend = NIL)  THEN
+					Error("backend could not be installed"); result := FALSE;
+				END;
+			END;
+		ELSE defaultBackend := Backend.GetBackendByName(DefaultBackend);
+			IF defaultBackend = NIL THEN Error("default backend could not be installed"); result := FALSE END;
+		END;
+
+		IF options.GetString("objectFile",name) THEN
+			IF name = "" THEN objectFileFormat := NIL
+			ELSE
+				objectFileFormat := GetObjectFileFormat(name);
+				IF objectFileFormat = NIL THEN Error("object file format could not be installed"); result := FALSE END;
+			END;
+		ELSIF defaultBackend # NIL THEN
+			objectFileFormat := defaultBackend.DefaultObjectFileFormat();
+		END;
+		IF defaultBackend # NIL THEN defaultBackend.DefineOptions (options); INCL(flags,Check); END;
+		IF objectFileFormat # NIL THEN objectFileFormat.DefineOptions(options); INCL(flags,Check) END;
+
+		IF result & ~parsed THEN
+			options.Clear;
+			input.SetPos(position);
+			result := options.Parse(input,context.error)
+		END;
+
+		IF result THEN
+			IF defaultBackend # NIL THEN defaultBackend.GetOptions (options) END;
+			IF objectFileFormat # NIL THEN objectFileFormat.GetOptions(options) END;
+			IF ~options.GetString("targetFile",targetFile) THEN targetFile := "" END;
+		END;
+
+		error := ~result;
+		IF targetFile # "" THEN
+			NEW(assemblinker, diagnostics, defaultBackend, "");
+		END;
+		WHILE input.GetString(filename) & (filename # ";") & (filename # "~") & ~error DO
+			IF targetFile = "" THEN NEW(assemblinker, diagnostics, defaultBackend, "") 	END;
+			IF assemblinker.LoadModule(filename, FALSE) THEN
+				assemblinker.MarkReachabilityOfAll(TRUE);
+				IF (targetFile = "") & assemblinker.GenerateObjectFile(objectFileFormat, context.out, flags, NIL, NIL) THEN
+					diagnostics.Information(filename, Diagnostics.Invalid, Diagnostics.Invalid, "done.")
+				ELSIF targetFile # "" THEN
+					diagnostics.Information(filename,  Diagnostics.Invalid, Diagnostics.Invalid, "loaded.")
 				ELSE
 					error := TRUE
 				END
+			ELSE
+				error := TRUE
 			END
-	 	END
+		END;
+		IF ~error & (targetFile # "") THEN
+			assemblinker.PrearrangeReachableDataSections;
+			IF 	assemblinker.GenerateObjectFileWithName(objectFileFormat, context.out, flags, NIL, NIL,targetFile)
+			THEN
+				diagnostics.Information(targetFile, Diagnostics.Invalid, Diagnostics.Invalid, "generated.")
+			ELSE error := FALSE
+			END;
+		END;
 	END Assemble;
 
 	PROCEDURE CompileReader*(context: Commands.Context; reader: Streams.Reader);
