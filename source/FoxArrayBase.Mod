@@ -7642,6 +7642,81 @@ Sufficient (but not necessary) conditions:
 	END Overlap;
 	*)
 
+	PROCEDURE AllocateTransposed( VAR dest: LONGINT;  src: LONGINT;
+												   elementsize: LONGINT ): ANY;
+	VAR ptr, data: ANY;  Size: LONGINT;
+		(* allocate a structure in dest compatible with src, if necessary. returns if allocation has taken place *)
+
+		PROCEDURE TransposedShape( l, r: LONGINT ): BOOLEAN;
+		VAR dim,max: LONGINT;
+		BEGIN
+			dim := GetDim( l );
+			IF dim # GetDim( r ) THEN RETURN FALSE END;
+			max := dim-1;
+			WHILE (dim > 0) DO
+				DEC( dim );
+				IF GetLen( l, max-dim ) # GetLen( r, dim ) THEN RETURN FALSE END;
+			END;
+			RETURN TRUE;
+		END TransposedShape;
+
+		PROCEDURE UseDescriptor;
+		VAR tag: LONGINT;
+		BEGIN
+			SYSTEM.GET( src - 4, tag );
+			Heaps.NewRec( ptr, tag, FALSE );
+			dest := SYSTEM.VAL( LONGINT, ptr );
+		END UseDescriptor;
+
+		PROCEDURE NewData;
+		VAR max,dim, len, size: LONGINT;
+		BEGIN
+			dim := GetDim( src );  size := elementsize;
+			PutDim( dest, dim );
+			PutSize( dest, elementsize );
+			max := dim-1;
+			WHILE (dim > 0) DO
+				DEC( dim );
+				len := GetLen( src, max-dim );  PutLen( dest, dim, len );
+				PutInc( dest, dim, size );  size := size * len;
+			END;
+			SYSTEM.NEW( data, size );
+			PutAdr( dest, SYSTEM.VAL( LONGINT, data ) );
+			PutPtr( dest, SYSTEM.VAL( LONGINT, data ) );
+		END NewData;
+
+	BEGIN
+		IF dest # 0 THEN Size := GetSize( dest );  ASSERT( Size = elementsize );  END;
+		IF debug THEN KernelLog.String( "Allocate same " );  Report( "allocation source", src );  Report( "allocation des", dest );  END;
+		IF dest = 0 THEN  (* NIL pointer, guaranteed to be tensor *)
+			IF TensorFlag IN GetFlags( src ) THEN UseDescriptor();
+			ELSE ptr := GetArrayDesc( GetDim( src ) );  dest := SYSTEM.VAL( LONGINT, ptr );
+			END;
+			PutFlags(dest, {TensorFlag});
+			NewData();  RETURN ptr;
+		ELSIF GetDim( dest ) # GetDim( src ) THEN  (* different dimension *)
+			(* check if re-allocation of descriptor is allowed *)
+			IF ~(TensorFlag IN GetFlags( dest )) &
+				~(TemporaryFlag IN GetFlags( dest )) THEN  (* no, not allowed*)
+				HALT( 100 );
+			END;
+			UseDescriptor();
+			PutFlags(dest, {TensorFlag});
+			NewData();  RETURN ptr;
+		ELSIF (GetAdr( dest ) = 0) OR ~TransposedShape( dest, src ) THEN
+			(* check if re-allocation of array data is allowed *)
+			IF RangeFlag IN GetFlags( dest ) THEN  (* no! not allowed *)
+				HALT( 100 );
+			END;
+			NewData();
+
+			RETURN data;
+		ELSE  (* nothing to do *)
+			RETURN NIL;
+		END;
+	END AllocateTransposed;
+
+
 	PROCEDURE Transpose*( dest, left: ADDRESS;  Size: LONGINT );
 	VAR len0, len1, linc0, linc1, dinc0, dinc1, ladr, dadr: LONGINT;  p: ANY;
 
@@ -7660,10 +7735,7 @@ Sufficient (but not necessary) conditions:
 			PutInc( dest, 1, GetIncr( left, 0 ) );  PutInc( dest, 0, GetIncr( left, 1 ) );
 		ELSE
 			len0 := GetLen( left, 0 );  len1 := GetLen( left, 1 );
-
-			IF (len0 # GetLen( dest, 1 )) OR (len1 # GetLen( dest, 0 )) THEN
-				Halt( GeometryMismatch, left, 0, dest )
-			END;
+			p := AllocateTransposed(dest,left,Size);
 			IF Overlap( left, dest ) THEN  (* copy data first, then transpose *)
 				SYSTEM.NEW( p, len0 * len1 * Size );  dinc0 := Size;  dinc1 := len0 * Size;
 				dadr := SYSTEM.VAL( LONGINT, p );  linc0 := GetIncr( left, 0 );
@@ -8361,7 +8433,7 @@ Sufficient (but not necessary) conditions:
 	END ExpandDimensions;
 
 	(* index ranges *)
-	
+
 	(* the length of a range, i.e. the number of indices that it stands for *)
 	OPERATOR "LEN"*(CONST range: RANGE): LONGINT;
 	VAR
@@ -8382,27 +8454,27 @@ Sufficient (but not necessary) conditions:
 		END;
 		RETURN result
 	END "LEN";
-	
+
 	(* complex numbers *)
-	
+
 	OPERATOR "/"*(CONST left, right: COMPLEX): COMPLEX;
-	VAR result: COMPLEX; divisor: REAL;		
-	BEGIN
-		divisor := RE(right) * RE(right) + IM(right) * IM(right);	
-		RE(result) := (RE(left) * RE(right) + IM(left) * IM(right)) / divisor;
-		IM(result) := (IM(left) * RE(right) - RE(left) * IM(right)) / divisor;
-		RETURN result
-	END "/";
-	
-	OPERATOR "/"*(CONST left, right: LONGCOMPLEX): LONGCOMPLEX;
-	VAR result: LONGCOMPLEX; divisor: LONGREAL;		
+	VAR result: COMPLEX; divisor: REAL;
 	BEGIN
 		divisor := RE(right) * RE(right) + IM(right) * IM(right);
 		RE(result) := (RE(left) * RE(right) + IM(left) * IM(right)) / divisor;
 		IM(result) := (IM(left) * RE(right) - RE(left) * IM(right)) / divisor;
 		RETURN result
 	END "/";
-		
+
+	OPERATOR "/"*(CONST left, right: LONGCOMPLEX): LONGCOMPLEX;
+	VAR result: LONGCOMPLEX; divisor: LONGREAL;
+	BEGIN
+		divisor := RE(right) * RE(right) + IM(right) * IM(right);
+		RE(result) := (RE(left) * RE(right) + IM(left) * IM(right)) / divisor;
+		IM(result) := (IM(left) * RE(right) - RE(left) * IM(right)) / divisor;
+		RETURN result
+	END "/";
+
 	OPERATOR "ABS"*(CONST arg: COMPLEX): REAL;
 	BEGIN RETURN Math.sqrt(RE(arg) * RE(arg) + IM(arg) * IM(arg))
 	END "ABS";
@@ -8410,10 +8482,10 @@ Sufficient (but not necessary) conditions:
 	OPERATOR "ABS"*(CONST arg: LONGCOMPLEX): LONGREAL;
 	BEGIN RETURN MathL.sqrt(RE(arg) * RE(arg) + IM(arg) * IM(arg))
 	END "ABS";
-	
+
 	(* for testing purposes *)
 	OPERATOR "+"*(CONST x, y: ARRAY [?] OF COMPLEX): ARRAY [?] OF COMPLEX;
-	BEGIN       
+	BEGIN
 	END "+";
 
 BEGIN
