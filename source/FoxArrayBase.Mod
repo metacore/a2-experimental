@@ -2678,7 +2678,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END EDivideASASLoop;
 
-	OPERATOR "./"*(CONST left,right: ARRAY [?] OF SHORTINT): ARRAY [?] OF SHORTINT;
+	OPERATOR "./"*(CONST left,right: ARRAY [?] OF SHORTINT): ARRAY [?] OF REAL;
 	BEGIN
 		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( REAL ),
 										  EDivideASASLoop );
@@ -2696,7 +2696,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END EDivideAIAILoop;
 
-	OPERATOR "./"*(CONST left,right: ARRAY [?] OF INTEGER): ARRAY [?] OF INTEGER;
+	OPERATOR "./"*(CONST left,right: ARRAY [?] OF INTEGER): ARRAY [?] OF REAL;
 	BEGIN
 		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( REAL ),
 										  EDivideAIAILoop );
@@ -2714,7 +2714,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END EDivideALALLoop;
 
-	OPERATOR "./"*(CONST left,right: ARRAY [?] OF LONGINT): ARRAY [?] OF LONGINT;
+	OPERATOR "./"*(CONST left,right: ARRAY [?] OF LONGINT): ARRAY [?] OF REAL;
 	BEGIN
 		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( REAL ),
 										  EDivideALALLoop );
@@ -2770,7 +2770,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END DivideASSSLoop;
 
-	OPERATOR "/"*(CONST left: ARRAY [ ? ] OF SHORTINT; right: SHORTINT ): ARRAY [ ? ] OF SHORTINT;
+	OPERATOR "/"*(CONST left: ARRAY [ ? ] OF SHORTINT; right: SHORTINT ): ARRAY [ ? ] OF REAL;
 	BEGIN
 		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( REAL ),
 										  DivideASSSLoop );
@@ -2805,7 +2805,7 @@ Sufficient (but not necessary) conditions:
 		END;
 	END DivideAISILoop;
 
-	OPERATOR "/"*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF INTEGER;
+	OPERATOR "/"*(CONST left: ARRAY [ ? ] OF INTEGER; right: INTEGER ): ARRAY [ ? ] OF REAL;
 	BEGIN
 		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( REAL ),
 										  DivideAISILoop );
