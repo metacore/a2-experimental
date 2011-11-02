@@ -6023,7 +6023,12 @@ TYPE
 						procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
 					END
 				END;
-				IF HasFlag(modifiers,Global.NameInterrupt,position) THEN procedureType.SetInterrupt(TRUE) END;
+				IF HasFlag(modifiers,Global.NameInterrupt,position) THEN procedureType.SetInterrupt(TRUE)
+				ELSIF HasValue(modifiers,Global.NameIrq,position,value) THEN
+					procedureType.SetInterrupt(TRUE);
+					procedureType.SetInterruptReturnAddressOffset(value)
+				END;
+				
 				IF HasFlag(modifiers,Global.NameNoPAF,position) THEN procedureType.SetNoPAF(TRUE) END;
 				IF HasValue(modifiers,Global.NameAligned,position,value) THEN procedure.SetAlignment(FALSE,value)
 				ELSIF HasValue(modifiers,Global.NameFixed,position,value) THEN procedure.SetAlignment(TRUE,value)

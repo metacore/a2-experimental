@@ -1505,6 +1505,7 @@ TYPE
 			returnParameter-: Parameter; (* not really necessary in syntax tree but very handy for backends *)
 
 			isDelegate-,isInterrupt-,noPAF-: BOOLEAN;
+			interruptReturnAddressOffset-: LONGINT;
 			callingConvention-: LONGINT;
 			stackAlignment-: LONGINT;
 			parameterOffset-: LONGINT; (* stack parameter offset caused by parameters on stack *)
@@ -1525,7 +1526,11 @@ TYPE
 		PROCEDURE SetNoPAF*(noPAF: BOOLEAN);
 		BEGIN SELF.noPAF := noPAF
 		END SetNoPAF;
-
+		
+		PROCEDURE SetInterruptReturnAddressOffset*(interruptReturnAddressOffset: LONGINT);
+		BEGIN SELF.interruptReturnAddressOffset := interruptReturnAddressOffset
+		END SetInterruptReturnAddressOffset;
+		
 		PROCEDURE SetInterrupt*(isIrq: BOOLEAN);
 		BEGIN SELF.isInterrupt := isIrq
 		END SetInterrupt;
