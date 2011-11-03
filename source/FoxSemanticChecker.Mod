@@ -5111,7 +5111,12 @@ TYPE
 					(* remaining issues can only be tested in backend *)
 				(* ---- SYSTEM.ADR----- *)
 				ELSIF (id = Global.systemAdr) & Parameters(1,1) THEN
+					IF HasAddress(parameter0) THEN
 						type := system.addressType;
+					ELSE
+						type := SyntaxTree.invalidType;
+						Error(parameter0.position,Diagnostics.Invalid,"has no address");
+					END;
 				(* ---- SYSTEM.BIT ----- *)
 				ELSIF (id = Global.systemBit) & Parameters(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
@@ -6028,7 +6033,7 @@ TYPE
 					procedureType.SetInterrupt(TRUE);
 					procedureType.SetInterruptReturnAddressOffset(value)
 				END;
-				
+
 				IF HasFlag(modifiers,Global.NameNoPAF,position) THEN procedureType.SetNoPAF(TRUE) END;
 				IF HasValue(modifiers,Global.NameAligned,position,value) THEN procedure.SetAlignment(FALSE,value)
 				ELSIF HasValue(modifiers,Global.NameFixed,position,value) THEN procedure.SetAlignment(TRUE,value)
@@ -8691,5 +8696,12 @@ TYPE
 			type := type(SyntaxTree.MathArrayType).arrayBase.resolved
 		END
 	END StaticMathArrayLengths;
+
+	PROCEDURE HasAddress(expression: SyntaxTree.Expression): BOOLEAN;
+	BEGIN
+		RETURN (expression IS SyntaxTree.SymbolDesignator) OR (expression IS SyntaxTree.ResultDesignator)
+			OR (expression IS SyntaxTree.IndexDesignator) OR (expression IS SyntaxTree.DereferenceDesignator) OR (expression IS SyntaxTree.TypeGuardDesignator)
+	END HasAddress;
+
 
 END FoxSemanticChecker.
