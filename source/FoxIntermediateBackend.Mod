@@ -2127,7 +2127,7 @@ TYPE
 				IF (x.type.resolved IS SyntaxTree.IntegerType) & IsIntegerConstant(x.right,value) & PowerOf2(value,exp) THEN
 					InitOperand(result,ModeValue);
 					Reuse1a(result.op,left.op,dest);
-					IntermediateCode.InitImmediate(right.op,IntermediateCode.GetType(system,rightType),exp);
+					IntermediateCode.InitImmediate(right.op, IntermediateCode.UnsignedIntegerType(MIN(left.op.type.sizeInBits, 32)), exp); (* TODO: check if correct *)
 					Emit(Shr(result.op,left.op,right.op));
 				ELSE
 					IF (x.type.resolved IS SyntaxTree.IntegerType) & (x.right.resolved = NIL) THEN (* divisor negative check *)
