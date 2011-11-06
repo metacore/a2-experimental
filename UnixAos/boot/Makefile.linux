@@ -5,11 +5,11 @@ CFLAGS  = -DLINUX
 LDFLAGS = -lpthread -lX11 -ldl -lrt -lm
 
 
-aos.linux:	clean oberon.o Threads.linux.o
-	$(CC) -s -o aos.linux oberon.o Threads.linux.o $(LDFLAGS)
+aos.linux:	clean aos.o Threads.linux.o
+	$(CC) -s -o aos.linux aos.o Threads.linux.o $(LDFLAGS)
 
-oberon.o:	oberon.c
-	$(CC) -c $(CFLAGS) oberon.c
+aos.o:	aos.c
+	$(CC) -c $(CFLAGS) aos.c
 
 Threads.linux.o:	Threads.h Threads.linux.c
 	$(CC) -c $(CFLAGS) Threads.linux.c 

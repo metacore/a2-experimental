@@ -15,7 +15,7 @@
  *
  *-----------------------------------------------------------*/
 
-#ifdef MAC
+#ifdef DARWIN
 #  define	__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__	1059
 #endif
 
@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <setjmp.h>	
-#ifdef MAC
+#ifdef DARWIN
 #  include <sys/ucontext.h>
 #  include <sys/_types.h>
 #endif
@@ -48,20 +48,20 @@ typedef void * 	Address;
 typedef void (*OberonProc)();
 
 FILE *fd;
-char *OBERON;
+char *AOSPATH;
 char path[4096];
 char *dirs[255];
 char fullname[512];
 int nofdir;
 char defaultpath[] = ".:/usr/aos/obj:/usr/aos/system";
 #ifdef SOLARIS
-  char bootname[64] = "SolarisOberonCore";
+  char bootname[64] = "SolarisAosCore";
 #endif
 #ifdef LINUX
-  char bootname[64] = "LinuxOberonCore";
+  char bootname[64] = "LinuxAosCore";
 #endif
-#ifdef MAC
-  char bootname[64] = "MacOberonCore";
+#ifdef DARWIN
+  char bootname[64] = "DarwinAosCore";
 #endif
 size_t heapSize;
 size_t codeSize;
@@ -120,7 +120,7 @@ void InitSignalHandler() {
 static void InstallTrap(trap_t p) {
 	
 	if (debug)
-		printf("Installing Oberon Trap\n");
+		printf("Installing Aos Trap\n");
 	AosTrap = p;
 }
 
@@ -369,12 +369,12 @@ void Boot() {
     if (fd != NULL) notfound = 0;
   }
   if (notfound) {
-    printf("oberon: boot file %s not found\n", bootname);  
+    printf("Aos BootLoader: boot file %s not found\n", bootname);  
     exit(-1);
   }
   fileHeapAdr = Rint(); fileHeapSize = Rint();
   if (fileHeapSize >= heapSize) {
-    printf("oberon loader: heap too small\n");  
+    printf("Aos BootLoader: heap too small\n");  
     exit(-1);
   }
   adr = heapAdr; len = fileHeapSize + 32; 
@@ -405,8 +405,8 @@ void InitPath() {
   int pos;
   char ch;
   
-  if ((OBERON = getenv("OBERON")) == NULL) OBERON = defaultpath;
-  strcpy(path, OBERON);
+  if ((AOSPATH = getenv("AOSPATH")) == NULL) AOSPATH = defaultpath;
+  strcpy(path, AOSPATH);
   pos = 0; nofdir = 0;
   ch = path[pos++];
   while (ch != '\0') {
@@ -435,7 +435,7 @@ int main(int argc, char *argv[])
   }
 
   debug = 0;
-  p = getenv("OBERON_DEBUG");
+  p = getenv("AOSDEBUG");
   if (p != NULL) debug = atoi(p);
 
   if (debug) {
@@ -444,13 +444,13 @@ int main(int argc, char *argv[])
   }
 
   heapSize = 0x200000;
-#ifdef MAC
+#ifdef DARWIN
   heapAdr = (Address)calloc(0x200, 0x1000);
 #else
   heapAdr = (Address)memalign(4096, heapSize);
 #endif
   if (heapAdr == 0) {
-    printf("oberon: cannot allocate initial heap space\n");  
+    printf("Aos BootLoader: cannot allocate initial heap space\n");  
     exit(-1);
   }
 
