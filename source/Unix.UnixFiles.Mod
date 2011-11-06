@@ -893,9 +893,9 @@ TYPE
 		IF (i > 0) & (cwd[i] = '/') THEN  cwd[i] := 0X  END;
 
 		(* get search pathes *)
-		a := Unix.getenv( S.ADR( "OBERON" ) );  i := 0;
+		a := Unix.getenv( S.ADR( "AOSPATH" ) );  i := 0;
 		IF a = 0 THEN
-			Trace.StringLn( "UnixFiles.Initialize: environment variable OBERON not defined" );  
+			Trace.StringLn( "UnixFiles.Initialize: environment variable AOSPATH not defined" );  
 			Unix.exit( 1 )
 		ELSE
 			REPEAT
