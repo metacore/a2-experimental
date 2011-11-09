@@ -1531,7 +1531,7 @@ TYPE
 					IF version = 0ADH THEN version := ORD(r.Get()) END;
 					IF version = 0B1H THEN (* PACO object file *)
 						r.RawNum(symSize);
-					ELSIF version = 0B2H THEN (*fof: OC object file *)
+					ELSIF (version = 0B2H) OR (version = 0B3H) THEN (*fof: OC object file *)
 						r.RawLInt(symSize);
 					END;
 					r.SkipBytes(symSize); (* skip symbol file *)
