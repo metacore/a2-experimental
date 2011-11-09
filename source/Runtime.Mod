@@ -237,17 +237,17 @@ BEGIN
 	IF l< 0 THEN RETURN -l ELSE RETURN l END;
 END AbsH;
 
-PROCEDURE AslH*(l,r: HUGEINT): HUGEINT; (*! coincides with Logic Shift, remove ? *)
+PROCEDURE AslH*(l: HUGEINT; r: LONGINT): HUGEINT; (*! coincides with Logic Shift, remove ? *)
 BEGIN
 	RETURN LslH(l,r)
 END AslH;
 
-PROCEDURE LslH*(l,r: HUGEINT): HUGEINT;
+PROCEDURE LslH*(l: HUGEINT; r: LONGINT): HUGEINT;
 CODE{SYSTEM.i386}
 	; taken from "Software Optimization Guide for AMD64 Processors"
 	MOV ECX,[EBP+8]
-	MOV EAX,[EBP+16]
-	MOV EDX,[EBP+20]
+	MOV EAX,[EBP+12]
+	MOV EDX,[EBP+16]
 	; Shift EDX:EAX left, shift count in ECX (count
 	; applied modulo 64).
 	SHLD EDX,EAX,CL		; First apply shift count.
@@ -259,12 +259,12 @@ CODE{SYSTEM.i386}
 	lshiftdone:
 END LslH;
 
-PROCEDURE AsrH*(l,r: HUGEINT): HUGEINT;
+PROCEDURE AsrH*(l: HUGEINT; r: LONGINT): HUGEINT;
 CODE{SYSTEM.i386}
 	; taken from "Software Optimization Guide for AMD64 Processors"
 	MOV ECX,[EBP+8]
-	MOV EAX,[EBP+16]
-	MOV EDX,[EBP+20]
+	MOV EAX,[EBP+12]
+	MOV EDX,[EBP+16]
 	; Shift EDX:EAX right, shift count in ECX (count
 	; applied modulo 64).
 	SHRD EAX,EDX,CL		; First apply shift count.
@@ -276,12 +276,12 @@ CODE{SYSTEM.i386}
 	rshiftdone:
 END AsrH;
 
-PROCEDURE LsrH*(l,r: HUGEINT): HUGEINT;
+PROCEDURE LsrH*(l: HUGEINT; r: LONGINT): HUGEINT;
 CODE{SYSTEM.i386}
 	; taken from "Software Optimization Guide for AMD64 Processors"
 	MOV ECX,[EBP+8]
-	MOV EAX,[EBP+16]
-	MOV EDX,[EBP+20]
+	MOV EAX,[EBP+12]
+	MOV EDX,[EBP+16]
 	; Shift EDX:EAX right, shift count in ECX (count
 	; applied modulo 64).
 	SHRD EAX,EDX,CL		; First apply shift count.
@@ -293,12 +293,12 @@ CODE{SYSTEM.i386}
 	rshiftdone:
 END LsrH;
 
-PROCEDURE RorH*(l,r: HUGEINT): HUGEINT;
+PROCEDURE RorH*(l: HUGEINT; r: LONGINT): HUGEINT;
 CODE{SYSTEM.i386}
 	; taken from "Software Optimization Guide for AMD64 Processors"
 	MOV ECX,[EBP+8]
-	MOV EAX,[EBP+16]
-	MOV EDX,[EBP+20]
+	MOV EAX,[EBP+12]
+	MOV EDX,[EBP+16]
 	; EBX (initially=EAX) -> EDX -> EAX
 	; Shift EDX:EAX right, shift count in ECX (count
 	; applied modulo 64).
@@ -313,12 +313,12 @@ CODE{SYSTEM.i386}
 	rshiftdone:
 END RorH;
 
-PROCEDURE RolH*(l,r: HUGEINT): HUGEINT;
+PROCEDURE RolH*(l: HUGEINT; r: LONGINT): HUGEINT;
 CODE{SYSTEM.i386}
 	; taken from "Software Optimization Guide for AMD64 Processors"
 	MOV ECX,[EBP+8]
-	MOV EAX,[EBP+16]
-	MOV EDX,[EBP+20]
+	MOV EAX,[EBP+12]
+	MOV EDX,[EBP+16]
 	; EDX <- EAX <- EBX (intially=EDX)
 	; Shift EDX:EAX left, shift count in ECX (count
 	; applied modulo 64).

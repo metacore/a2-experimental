@@ -4774,6 +4774,7 @@ TYPE
 					type := type0;
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
 						ConvertOperands(parameter0,parameter1); (* same type *)
+						
 						type := parameter0.type;
 						IF IsIntegerValue(parameter0,i0) THEN
 							IF IsIntegerValue(parameter1,i1) THEN
@@ -4791,7 +4792,7 @@ TYPE
 						(*!compatibility with release, remove when resolved
 						    critical in release : SHORT(ASH(..))), ASH(ORD(..))
 						*)
-						parameter1 := NewConversion(parameter1.position,parameter1,type,NIL);
+						parameter1 := NewConversion(parameter1.position,parameter1,system.longintType,NIL);
 						parameter0 := NewConversion(parameter0.position,parameter0,type,NIL);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
@@ -5184,13 +5185,18 @@ TYPE
 						(*!compatibility with release, remove when resolved
 						    critical in release : SHORT(ASH(..))), ASH(ORD(..))
 						*)
-						parameter1 := NewConversion(parameter1.position,parameter1,type,NIL);
+						parameter1 := NewConversion(parameter1.position,parameter1,system.longintType,NIL);
 						parameter0 := NewConversion(parameter0.position,parameter0,type,NIL);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
 					END;
 					*)
 				 	type := type0;
+				 	
+				 	(* TODO: check if okay *)
+				 	parameter1 := NewConversion(parameter1.position,parameter1,system.longintType,NIL);
+				 	actualParameters.SetExpression(1, parameter1);
+				 	
 					IF IsIntegerValue(parameter0,i0) & IsIntegerValue(parameter1,i1) THEN
 						result.SetResolved(SyntaxTree.NewIntegerValue(position,SYSTEM.LSH(i0,i1)));
 					END;

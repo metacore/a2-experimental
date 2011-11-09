@@ -2093,7 +2093,7 @@ TYPE
 				ELSIF (x.type.resolved IS SyntaxTree.IntegerType) & IsIntegerConstant(x.right,value) & PowerOf2(value,exp) THEN
 					InitOperand(result,ModeValue);
 					Reuse1a(result.op,left.op,dest);
-					IntermediateCode.InitImmediate(right.op,IntermediateCode.GetType(system,rightType),exp);
+					IntermediateCode.InitImmediate(right.op,IntermediateCode.GetType(system, system.longintType),exp);
 					Emit(Shl(result.op,left.op,right.op));
 				ELSIF leftType IS SyntaxTree.ComplexType THEN
 					InitOperand(result, ModeValue);
@@ -2127,7 +2127,7 @@ TYPE
 				IF (x.type.resolved IS SyntaxTree.IntegerType) & IsIntegerConstant(x.right,value) & PowerOf2(value,exp) THEN
 					InitOperand(result,ModeValue);
 					Reuse1a(result.op,left.op,dest);
-					IntermediateCode.InitImmediate(right.op, IntermediateCode.UnsignedIntegerType(MIN(left.op.type.sizeInBits, 32)), exp); (* TODO: check if correct *)
+					IntermediateCode.InitImmediate(right.op,IntermediateCode.GetType(system, system.longintType),exp);					
 					Emit(Shr(result.op,left.op,right.op));
 				ELSE
 					IF (x.type.resolved IS SyntaxTree.IntegerType) & (x.right.resolved = NIL) THEN (* divisor negative check *)
@@ -5141,13 +5141,13 @@ TYPE
 				IF IsIntegerConstant(p1,hint) THEN
 					ReuseCopy(reg,s0.op);
 					IF hint  > 0 THEN
-						IntermediateCode.InitImmediate(s1.op,s0.op.type,hint);
+						IntermediateCode.InitImmediate(s1.op,s1.op.type,hint);
 						IF x.id = Global.Ash THEN Emit(Shl(reg,s0.op,s1.op))
 						ELSIF x.id = Global.systemLsh THEN Emit(Shl(reg,s0.op,s1.op))
 						ELSIF x.id = Global.systemRot THEN Emit(Rol(reg,s0.op,s1.op))
 						END;
 					ELSIF hint < 0 THEN
-						IntermediateCode.InitImmediate(s1.op,s0.op.type,-hint);
+						IntermediateCode.InitImmediate(s1.op,s1.op.type,-hint);
 						IF x.id = Global.Ash THEN Emit(Shr(reg,s0.op,s1.op));
 						ELSIF x.id = Global.systemLsh THEN Emit(Shr(reg,s0.op,s1.op));
 						ELSIF x.id = Global.systemRot THEN Emit(Ror(reg,s0.op,s1.op));
@@ -5161,7 +5161,7 @@ TYPE
 					BrgeL(exit,s1.op,IntermediateCode.Immediate(IntermediateCode.GetType(system,p1.type),0));
 					Reuse1(tmp,s1.op);
 					Emit(Neg(tmp,s1.op));
-					Convert(tmp,s0.op.type);
+					Convert(tmp,s1.op.type);
 					IF x.id = Global.Ash THEN Emit(Shr(reg,reg,tmp))
 					ELSIF x.id = Global.systemLsh THEN Emit(Shr(reg,reg,tmp))
 					ELSIF x.id = Global.systemRot THEN Emit(Ror(reg,reg,tmp))
@@ -5171,7 +5171,7 @@ TYPE
 					BrL(end);
 					SetLabel(exit);
 					ReuseCopy(tmp,s1.op);
-					Convert(tmp,s0.op.type);
+					Convert(tmp,s1.op.type);
 					IF x.id = Global.Ash THEN Emit(Shl(reg,reg,tmp))
 					ELSIF x.id = Global.systemLsh THEN Emit(Shl(reg,reg,tmp))
 					ELSIF x.id = Global.systemRot THEN Emit(Rol(reg,reg,tmp))
@@ -9312,28 +9312,28 @@ TYPE
 	PROCEDURE Shl(dest,left,right: IntermediateCode.Operand):IntermediateCode.Instruction;
 	VAR instruction: IntermediateCode.Instruction;
 	BEGIN
-		IntermediateCode.InitInstruction(instruction,IntermediateCode.shl,dest,left,right);
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.shl,dest,left, IntermediateCode.ToUnsigned(right));
 		RETURN instruction
 	END Shl;
 
 	PROCEDURE Shr(dest,left,right: IntermediateCode.Operand):IntermediateCode.Instruction;
 	VAR instruction: IntermediateCode.Instruction;
 	BEGIN
-		IntermediateCode.InitInstruction(instruction,IntermediateCode.shr,dest,left,right);
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.shr,dest,left, IntermediateCode.ToUnsigned(right));
 		RETURN instruction
 	END Shr;
 
 	PROCEDURE Rol(dest,left,right: IntermediateCode.Operand):IntermediateCode.Instruction;
 	VAR instruction: IntermediateCode.Instruction;
 	BEGIN
-		IntermediateCode.InitInstruction(instruction,IntermediateCode.rol,dest,left,right);
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.rol,dest,left, IntermediateCode.ToUnsigned(right));
 		RETURN instruction
 	END Rol;
 
 	PROCEDURE Ror(dest,left,right: IntermediateCode.Operand):IntermediateCode.Instruction;
 	VAR instruction: IntermediateCode.Instruction;
 	BEGIN
-		IntermediateCode.InitInstruction(instruction,IntermediateCode.ror,dest,left,right);
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.ror,dest,left, IntermediateCode.ToUnsigned(right));
 		RETURN instruction
 	END Ror;
 

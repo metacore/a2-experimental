@@ -964,7 +964,20 @@ TYPE
 		ELSE  RETURN NewType(Float, SHORTINT(bits))
 		END;
 	END FloatType;
-
+	
+	(** make an integer operand unsigned
+	- note that no conversion is done, but only the type is changed **)
+	PROCEDURE ToUnsigned*(operand: Operand): Operand;
+	VAR
+		type: Type;
+		result: Operand;
+	BEGIN
+		ASSERT(operand.type.form IN Integer);
+		result := operand;
+		result.type.form := UnsignedInteger;		
+		RETURN result
+	END ToUnsigned;
+	
 	PROCEDURE DenotesType*(CONST name: ARRAY OF CHAR; VAR type: Type): BOOLEAN;
 	VAR
 		sizeInBits: LONGINT; pos: LONGINT;
