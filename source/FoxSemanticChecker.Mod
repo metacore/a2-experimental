@@ -6037,7 +6037,7 @@ TYPE
 				IF HasFlag(modifiers,Global.NameInterrupt,position) THEN procedureType.SetInterrupt(TRUE)
 				ELSIF HasValue(modifiers,Global.NameIrq,position,value) THEN
 					procedureType.SetInterrupt(TRUE);
-					procedureType.SetInterruptReturnAddressOffset(value)
+					procedureType.SetLinkOffset(value)
 				END;
 
 				IF HasFlag(modifiers,Global.NameNoPAF,position) THEN procedureType.SetNoPAF(TRUE) END;

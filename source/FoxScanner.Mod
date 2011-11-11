@@ -798,7 +798,7 @@ TYPE
 			PROCEDURE CharacterIsAllowed(character: CHAR): BOOLEAN;
 			BEGIN
 				CASE character OF
-				| 'a' .. 'z', 'A' .. 'Z', '0' .. '9', '@', '.': RETURN TRUE
+				| 'a' .. 'z', 'A' .. 'Z', '0' .. '9', '@', '.', '_': RETURN TRUE
 				ELSE RETURN FALSE
 				END;
 			END CharacterIsAllowed;
