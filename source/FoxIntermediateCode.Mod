@@ -656,7 +656,7 @@ TYPE
 		AddFormat(leave, "leave", Num, Undef, Undef ,{});
 		(* return value : return value, op1= returned value, if any, does not imply exit from procedure *)
 		AddFormat(return,"return",RegMemImm, Undef, Undef,{});
-		
+
 		(* TODO: new version:
 		(* exit parSize linkOffset - exit from procedure, op1 = parameter size, op2 = offset that has to be subtracted from return address (used for ARM interrupt procedures) *)
 		AddFormat(exit, "exit", Num, Num, Undef ,{});
@@ -705,13 +705,13 @@ TYPE
 		(* xor dest left right - bitwise xor *)
 		AddFormat(xor, "xor", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination,Commute23});
 		(* shl dest left right - shift left (arithmetic or logical, derived from sign of operands) *)
-		AddFormat(shl, "shl", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination}); (* logical or arithemtic shift, derived from type of operands *)
+		AddFormat(shl, "shl", RegMem, RegMemImm, RegMemImm,{SameType12,Op1IsDestination}); (* logical or arithemtic shift, derived from type of operands *)
 		(* shr dest left right - shift right (arithmetic or logical, derived from sign of operands)*)
-		AddFormat(shr, "shr", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination});
+		AddFormat(shr, "shr", RegMem, RegMemImm, RegMemImm,{SameType12,Op1IsDestination});
 		(* rol dest left right - rotate left *)
-		AddFormat(rol, "rol", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination});
+		AddFormat(rol, "rol", RegMem, RegMemImm, RegMemImm,{SameType12,Op1IsDestination});
 		(* ror dest left right - rotate right *)
-		AddFormat(ror, "ror", RegMem, RegMemImm, RegMemImm,{SameType12,SameType23,Op1IsDestination});
+		AddFormat(ror, "ror", RegMem, RegMemImm, RegMemImm,{SameType12,Op1IsDestination});
 		(* copy dest src size - move a block of size op3 units of memory from [op2] to [op1] *)
 		AddFormat(copy, "copy", RegMemImm, RegMemImm, RegMemImm,{SameType12,SameType23});
 		(* fill dest val size - fill a block of size op2 units of memory from [op1] with value in op3 *)
@@ -970,7 +970,7 @@ TYPE
 		ELSE  RETURN NewType(Float, SHORTINT(bits))
 		END;
 	END FloatType;
-	
+
 	(** make an integer operand unsigned
 	- note that no conversion is done, but only the type is changed **)
 	PROCEDURE ToUnsigned*(operand: Operand): Operand;
@@ -980,10 +980,10 @@ TYPE
 	BEGIN
 		ASSERT(operand.type.form IN Integer);
 		result := operand;
-		result.type.form := UnsignedInteger;		
+		result.type.form := UnsignedInteger;
 		RETURN result
 	END ToUnsigned;
-	
+
 	PROCEDURE DenotesType*(CONST name: ARRAY OF CHAR; VAR type: Type): BOOLEAN;
 	VAR
 		sizeInBits: LONGINT; pos: LONGINT;
