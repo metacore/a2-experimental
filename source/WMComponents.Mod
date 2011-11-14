@@ -45,7 +45,7 @@ IMPORT
 	XML, XMLScanner, XMLParser, XMLObjects, Codecs, Localization, Repositories,
 	Messages := WMMessages, Rectangles := WMRectangles,
 	WMEvents, WMProperties, WMGraphics, Strings, WM := WMWindowManager, Raster,
-	Commands, Modules,D := Debugging;
+	Commands, Modules,D := Debugging, Kernel;
 
 CONST
 	Ok* = 0;
@@ -963,18 +963,18 @@ TYPE
 		END AddVisualComponent;
 
 		PROCEDURE EditDragDropped(x,y: LONGINT; dragInfo: WM.DragInfo): BOOLEAN;
-		VAR data: ANY;
+		VAR data: ANY; e: ComponentListEntry;
 		BEGIN
 			data := dragInfo.data;
 			IF (data # NIL) & (data IS VisualComponent)  THEN
 				IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF,dragInfo) END;
 				IF dragInfo.sender # SELF THEN
-					data(VisualComponent).bounds.Set(Rectangles.MakeRect(0, 0, data(VisualComponent).bounds.GetWidth()-1, data(VisualComponent).bounds.GetHeight()-1));
+					data(VisualComponent).bounds.Set(Rectangles.MakeRect(0, 0, data(VisualComponent).bounds.GetWidth(), data(VisualComponent).bounds.GetHeight()));
 					AddVisualComponent(data(VisualComponent),x+dragInfo.offsetX,y+dragInfo.offsetY);
 					data(VisualComponent).SetEditMode(TRUE,TRUE);
 					Invalidate;
 				ELSE
-					data(VisualComponent).bounds.Set(Rectangles.MakeRect(x+dragInfo.offsetX, y+dragInfo.offsetY, data(VisualComponent).bounds.GetWidth()-1, data(VisualComponent).bounds.GetHeight()-1));
+					data(VisualComponent).bounds.Set(Rectangles.MakeRect(x+dragInfo.offsetX, y+dragInfo.offsetY, x+dragInfo.offsetX+data(VisualComponent).bounds.GetWidth(),  y+dragInfo.offsetY+data(VisualComponent).bounds.GetHeight()));
 					Invalidate;
 				END;
 				RETURN TRUE
@@ -982,6 +982,31 @@ TYPE
 				IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF,dragInfo) END;
 				model.Set(data(Repositories.Component));
 				RETURN TRUE
+			ELSIF (data # NIL) & (data IS SelectionList) THEN
+				IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF,dragInfo) END;
+				IF (dragInfo.sender # SELF) & ~data(SelectionList).Has(SELF) THEN
+					e := data(SelectionList).first;
+					WHILE e # NIL DO
+						e.component.bounds.Set(Rectangles.MakeRect(0, 0, e.component.bounds.GetWidth(), e.component.bounds.GetHeight()));
+						ASSERT(e.component IS VisualComponent);
+						AddVisualComponent(e.component,x+e.dx+dragInfo.offsetX, y+e.dy + dragInfo.offsetY);
+						e.component.SetEditMode(TRUE,TRUE);
+						e := e.next;
+					END;
+					Invalidate;
+				ELSE
+					x := x + bounds.GetLeft();
+					y := y + bounds.GetTop();
+					e := data(SelectionList).first;
+					WHILE e # NIL DO
+						D.Int(e.dx,10); D.Int(e.dy,10); D.Int(dragInfo.offsetX,10); D.Int(dragInfo.offsetY,10); D.Ln;
+						e.component.bounds.Set(Rectangles.MakeRect(x+dragInfo.offsetX+e.dx, y+dragInfo.offsetY+e.dy, e.dx+x+dragInfo.offsetX+e.component.bounds.GetWidth(),  e.dy+y+dragInfo.offsetY+e.component.bounds.GetHeight()));
+						e := e.next;
+					END;
+					Invalidate;
+				END;
+				RETURN TRUE
+
 			ELSE
 				IF dragInfo.onReject # NIL THEN dragInfo.onReject(SELF,dragInfo) END;
 				RETURN FALSE
@@ -1054,20 +1079,38 @@ TYPE
 		(** Is called after all sub-components are drawn *)
 		PROCEDURE DrawForeground*(canvas : WMGraphics.Canvas);
 		VAR r,r0: Rectangles.Rectangle; x,y,x0,y0: LONGINT; color: LONGINT;
+
+			PROCEDURE MarkSelected(r: Rectangles.Rectangle; w, color: LONGINT);
+			VAR r0: Rectangles.Rectangle;
+			BEGIN
+				r0 :=r; r0.r := r.l+w; r0.b := r.t+w;
+				canvas.Fill(r0, color, WMGraphics.ModeSrcOverDst);
+				r0 :=r; r0.r := r.l+w; r0.t := r.b-w;
+				canvas.Fill(r0, color, WMGraphics.ModeSrcOverDst);
+				r0 :=r; r0.l := r.r-w; r0.b := r.t+w;
+				canvas.Fill(r0, color, WMGraphics.ModeSrcOverDst);
+				r0 :=r; r0.l := r.r-w; r0.t := r.b-w;
+				canvas.Fill(r0, color, WMGraphics.ModeSrcOverDst);
+
+				r0 := r; r0.l := r.r-1; canvas.Fill(r0,color, WMGraphics.ModeSrcOverDst);
+				r0 := r; r0.r := r.l+1; canvas.Fill(r0,color, WMGraphics.ModeSrcOverDst);
+				r0 := r; r0.b := r.t+1; canvas.Fill(r0,color, WMGraphics.ModeSrcOverDst);
+				r0 := r; r0.t := r.b-1; canvas.Fill(r0,color, WMGraphics.ModeSrcOverDst);
+
+			END MarkSelected;
+
 		BEGIN
 			CheckReadLock;
+			r := GetClientRect();
 			IF editMode.Get() THEN
-
-				r := GetClientRect();
-
-				y := r.t;
+				y := r.t + (-r.t) MOD 8;
 				y0 := 0;
 				WHILE y < r.b DO
 					r0.t := y; r0.b := y+2;
-					x := r.l;  x0 := 0;
+					x := r.l + (-r.l) MOD 8;  x0 := 0;
 					WHILE x < r.r DO
 						r0.l := x; r0.r := x+2;
-						IF ODD(x0+y0) THEN color := 020H;
+						IF ODD(x DIV 8+y DIV 8) THEN color := 020H;
 						ELSE color := LONGINT(0FFFFFF20H);
 						END;
 						canvas.Fill(r0,color, WMGraphics.ModeSrcOverDst);
@@ -1075,7 +1118,13 @@ TYPE
 					END;
 					INC(y,8);INC(y0);
 				END;
-
+			END;
+			IF selection.Has(SELF) THEN
+				IF selection.state = 0 THEN
+					MarkSelected(r,8,LONGINT(080H));
+				ELSE
+					MarkSelected(r,8,LONGINT(0FFFFFFFF80H));
+				END;
 			END;
 		END DrawForeground;
 
@@ -1409,7 +1458,7 @@ TYPE
 
 		PROCEDURE Edit(VAR msg: Messages.Message);
 		VAR region: LONGINT; dx,dy: LONGINT; b: Rectangles.Rectangle; manager: WM.WindowManager;
-			w,h: LONGINT; img: WMGraphics.Image; canvas: WMGraphics.BufferCanvas;
+			w,h: LONGINT; img: WMGraphics.Image; canvas: WMGraphics.BufferCanvas; e: ComponentListEntry;
 		BEGIN
 			IF msg.msgSubType = Messages.MsgSubPointerUp THEN
 				editRegion := None;
@@ -1446,12 +1495,15 @@ TYPE
 				b.l := b.l+dx;
 				dx := 0; dy := 0;
 				*)
+				img := selection.ToImg(SELF,e);
+				(*
 				NEW(img);
 				bounds.GetExtents(w,h);
 				Raster.Create(img, w,h, Raster.BGRA8888);
 				NEW(canvas,img);
 				Draw(canvas);
-				IF StartDrag(SELF,img,-msg.x,-msg.y, EditMoved,NIL) THEN END;
+				*)
+				IF StartDrag(selection,img,-msg.x-e.dx,-msg.y-e.dy, EditMoved,NIL) THEN END;
 				RETURN
 			END;
 			bounds.Set(b);
@@ -1477,14 +1529,25 @@ TYPE
 		END SetEditMode;
 
 		PROCEDURE EditMoved(sender, data: ANY);
-		VAR parent: XML.Element; ldata: ANY;
+		VAR parent: XML.Element; ldata: ANY; e: ComponentListEntry;
 		BEGIN
-			parent := GetParent();
-			IF (sender # SELF) & (parent # NIL) & (parent IS VisualComponent) & (data # NIL) & (data IS WM.DragInfo) THEN
-				ldata := data(WM.DragInfo).data;
-				IF (ldata # NIL) & (ldata IS XML.Element) THEN
-					parent.RemoveContent(ldata(XML.Element));
-					parent(VisualComponent).Invalidate;
+			IF (sender # SELF)  THEN
+				IF (data # NIL) & (data IS WM.DragInfo) THEN
+					ldata := data(WM.DragInfo).data;
+					IF (ldata # NIL) & (ldata IS XML.Element) THEN
+						parent := ldata(XML.Element).GetParent();
+						parent.RemoveContent(ldata(XML.Element));
+						parent(VisualComponent).Invalidate;
+					ELSIF (ldata # NIL) & (ldata IS SelectionList) THEN
+						e := ldata(SelectionList).first;
+						WHILE e # NIL DO
+							parent := e.component.GetParent();
+							ldata := e.component;
+							parent.RemoveContent(ldata(XML.Element));
+							parent(VisualComponent).Invalidate;
+							e := e.next;
+						END;
+					END;
 				END;
 			END;
 		END EditMoved;
@@ -1521,6 +1584,11 @@ TYPE
 					END
 				END;
 				IF (fPointerOwner = SELF) THEN
+					IF (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
+						manager := msg.originator(WM.ViewPort).manager;
+						msg.originator(WM.ViewPort).GetKeyState(keyFlags);
+					END;
+
 					parent := GetParent();
 					IF (parent # NIL) & (parent IS VisualComponent) & parent(VisualComponent).editMode.Get() THEN
 						parentEditMode := TRUE
@@ -1533,8 +1601,6 @@ TYPE
 					ELSE
 						IF msg.msgSubType = Messages.MsgSubPointerMove THEN
 							IF (parentEditMode) & (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
-								manager := msg.originator(WM.ViewPort).manager;
-								msg.originator(WM.ViewPort).GetKeyState(keyFlags);
 								currentEditRegion := InEditBounds(msg.x, msg.y);
 								CASE currentEditRegion OF
 									| Lower, Upper: SetPointerInfo(manager.pointerUpDown)
@@ -1555,7 +1621,10 @@ TYPE
 							IF ~handled THEN PointerMove(msg.x, msg.y, msg.flags) END;
 							IF msg.dz # 0 THEN WheelMove(msg.dz) END
 						ELSIF msg.msgSubType = Messages.MsgSubPointerDown THEN
-							IF parentEditMode THEN editRegion := InEditBounds(msg.x, msg.y); END;
+							IF parentEditMode THEN
+								editRegion := InEditBounds(msg.x, msg.y);
+
+							END;
 							(*
 							IF (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
 								msg.originator(WM.ViewPort).GetKeyState(keyFlags);
@@ -1565,6 +1634,10 @@ TYPE
 							END;
 							*)
 							IF editRegion # None THEN
+								IF (keyFlags # {}) & (keyFlags <= Inputs.Shift) THEN
+									selection.Toggle(SELF)
+								ELSIF ~selection.Has(SELF) THEN selection.Reset(SELF)
+								END;
 								manager := msg.originator(WM.ViewPort).manager;
 								editX := msg.x; editY := msg.y;
 							ELSE
@@ -1672,6 +1745,24 @@ TYPE
 		disableUpdate : LONGINT;
 		content : VisualComponent;
 		scaling* : BOOLEAN;
+
+		PROCEDURE ToXML*():XML.Content;
+		VAR winx: XML.Element; a: XML.Attribute; string: ARRAY 128 OF CHAR; title:Strings.String;
+		BEGIN {EXCLUSIVE}
+			NEW(winx); winx.SetName("FormWindow");
+
+			NEW(a); a.SetName("name"); title:=GetTitle(); a.SetValue(title^); winx.AddAttribute(a);
+			NEW(a); a.SetName("generator"); a.SetValue("WMComponents.FormWindowGen"); winx.AddAttribute(a);
+
+			NEW(a); a.SetName("l"); Strings.IntToStr(bounds.l, string); a.SetValue(string); winx.AddAttribute(a);
+			NEW(a); a.SetName("t"); Strings.IntToStr(bounds.t, string); a.SetValue(string); winx.AddAttribute(a);
+			NEW(a); a.SetName("r"); Strings.IntToStr(bounds.r, string); a.SetValue(string); winx.AddAttribute(a);
+			NEW(a); a.SetName("b"); Strings.IntToStr(bounds.b, string); a.SetValue(string); winx.AddAttribute(a);
+
+			NEW(a); a.SetName("flags"); Strings.SetToStr(flags, string); a.SetValue(string); winx.AddAttribute(a);
+			winx.AddContent(form);
+			RETURN winx
+		END ToXML;
 
 		PROCEDURE LoadComponents*(xml: XML.Element);
 		VAR component: Repositories.Component; first: XML.Content;
@@ -1947,6 +2038,130 @@ TYPE
 
 	END PropertyListList;
 
+	ComponentListEntry= POINTER TO RECORD
+		component: VisualComponent;
+		dx,dy: LONGINT;
+		next: ComponentListEntry
+	END;
+
+	SelectionList= OBJECT
+	VAR first, last: ComponentListEntry; number: LONGINT; state: LONGINT; timer: Kernel.Timer;
+
+		PROCEDURE &Init;
+		BEGIN
+			first := NIL; last := NIL; number := 0; state := 0;
+		END Init;
+
+		PROCEDURE Reset(this: VisualComponent);
+		VAR entry: ComponentListEntry;
+		BEGIN
+			entry := first;
+			first := NIL; last := NIL; number := 0;
+			WHILE entry # NIL DO entry.component.Invalidate; entry := entry.next END;
+			Add(this);
+		END Reset;
+
+		PROCEDURE Has(this: ANY): BOOLEAN;
+		VAR entry: ComponentListEntry;
+		BEGIN
+			entry := first;
+			WHILE (entry # NIL) & (entry.component # this) DO entry := entry.next END;
+			RETURN entry # NIL
+		END Has;
+
+		PROCEDURE Add(this: VisualComponent);
+		VAR entry: ComponentListEntry;
+		BEGIN
+			IF (this = NIL) OR Has(this) THEN RETURN END;
+			NEW(entry); entry.component := this; entry.next := NIL;
+			IF last = NIL THEN
+				ASSERT(first = NIL);
+				first := entry; last := entry;
+			ELSE
+				last.next := entry; last := entry
+			END;
+			INC(number);
+			this.Invalidate;
+		END Add;
+
+		PROCEDURE Remove(this: VisualComponent);
+		VAR entry, prev: ComponentListEntry;
+		BEGIN
+			entry := first; prev := NIL;
+			WHILE (entry # NIL) & (entry.component # this) DO
+				prev := entry;
+				entry := entry.next;
+			END;
+			IF entry = NIL THEN RETURN END;
+			IF prev # NIL THEN prev.next := entry.next END;
+			IF entry = first THEN first := first.next END;
+			IF entry = last THEN last := prev END;
+			DEC(number);
+			this.Invalidate;
+		END Remove;
+
+		PROCEDURE Toggle(this: VisualComponent);
+		BEGIN
+			IF Has(this) THEN Remove(this) ELSE Add(this) END;
+		END Toggle;
+
+		PROCEDURE Update;
+		VAR e: ComponentListEntry;
+		BEGIN
+			e := first;
+			WHILE e # NIL DO
+				e.component.Invalidate;
+				e := e.next;
+			END;
+		END Update;
+
+		PROCEDURE ToImg(start: VisualComponent; VAR this: ComponentListEntry): WMGraphics.Image;
+		VAR l,t,r,b: LONGINT; e: ComponentListEntry; rect: Rectangles.Rectangle; img, image: WMGraphics.Image; w,h: LONGINT;
+			canvas: WMGraphics.BufferCanvas; srcCopy: Raster.Mode;
+		BEGIN
+			l := MAX(LONGINT); r := MIN(LONGINT);
+			t := MAX(LONGINT); b := MIN(LONGINT);
+			e := first;
+			WHILE e # NIL DO
+				rect := e.component(VisualComponent).bounds.Get();
+				IF rect.l < l THEN l := rect.l END;
+				IF rect.r > r THEN r := rect.r END;
+				IF rect.t < t THEN t := rect.t END;
+				IF rect.b > b THEN b := rect.b END;
+				e := e.next;
+			END;
+			Raster.InitMode(srcCopy, Raster.srcCopy);
+			NEW(image);
+			w := r-l+1; h := b-t+1;
+			Raster.Create(image, w,h, Raster.BGRA8888);
+			e := first;
+			WHILE e # NIL DO
+				rect := e.component.bounds.Get();
+				NEW(img);
+				Raster.Create(img,rect.r-rect.l+1, rect.b-rect.t+1, Raster.BGRA8888);
+				NEW(canvas,img);
+				e.component.Draw(canvas);
+				Raster.Copy(img,image,0,0,img.width-1, img.height-1,rect.l-l, rect.t-t, srcCopy);
+				e.dx := rect.l-l; e.dy := rect.t-t;
+				IF e.component = start THEN this := e END;
+				e := e.next
+			END;
+			RETURN image
+		END ToImg;
+
+
+
+	BEGIN {ACTIVE}
+		NEW(timer);
+		LOOP
+			timer.Sleep(1000);
+			state := (state + 1) MOD 2;
+			Update;
+		END
+	END SelectionList;
+
+
+
 	WindowGenerator*= PROCEDURE(xml: XML.Content): WM.Window;
 
 VAR
@@ -1970,6 +2185,7 @@ VAR
 	timestamp : LONGINT;
 
 	macroHandlers : MacroHandler; (* the head of the list is always the DefaultMacroHandler *)
+	selection-: SelectionList;
 
 PROCEDURE IsWhiteSpace(ch : CHAR) : BOOLEAN;
 BEGIN
@@ -2576,6 +2792,60 @@ BEGIN {EXCLUSIVE}
 	RETURN NIL
 END Load;
 
+(* generate module-specific form window  *)
+PROCEDURE FormWindowGen*(xml:XML.Content): WM.Window;
+VAR winx: XML.Element; formx: XML.Content; window: FormWindow; name, string:Strings.String;
+	l,t,r,b: LONGINT;
+BEGIN
+	IF xml IS XML.Element THEN
+		winx:=xml(XML.Element);
+		string:=winx.GetName();
+		IF string^="FormWindow" THEN
+			string:=winx.GetAttributeValue("l"); Strings.StrToInt(string^,l);
+			string:=winx.GetAttributeValue("t"); Strings.StrToInt(string^,t);
+			string:=winx.GetAttributeValue("r"); Strings.StrToInt(string^,r);
+			string:=winx.GetAttributeValue("b"); Strings.StrToInt(string^,b);
+			NEW(window, r-l, t-b, TRUE);
+			name:=winx.GetAttributeValue("name"); window.SetTitle(name);
+			window.bounds.r:=r; window.bounds.l:=l; window.bounds.t:=t; window.bounds.b:=b;
+			string:=winx.GetAttributeValue("flags"); Strings.StrToSet(string^,window.flags);
+			formx:=winx.GetFirst();
+			window.SetContent(formx);
+			WM.AddWindow(window,l,t);
+		END;
+	END;
+	RETURN window
+END FormWindowGen;
+
+
+(* generic loading of any form window using the generator procedure supplied in the XML as 'loader' attribute *)
+PROCEDURE LoadFormWindow*(xml:XML.Content): WM.Window;
+VAR winx: XML.Element; window: WM.Window;
+	name, string, load:Strings.String;
+	moduleName, procedureName : Modules.Name;
+	msg : ARRAY 128 OF CHAR;
+	res: LONGINT;
+	gen:WindowGenerator
+BEGIN
+	IF xml IS XML.Element THEN
+		winx:=xml(XML.Element);
+		name:=winx.GetName();
+		IF name^="FormWindow" THEN
+			string:=winx.GetAttributeValue("generator");
+			Commands.Split(load^, moduleName, procedureName, res, msg);
+			IF (res = Commands.Ok) THEN
+				GETPROCEDURE(moduleName, procedureName, gen);
+				IF (gen # NIL) THEN
+					window:=gen(xml);
+					WM.AddWindow(window,window.bounds.l,window.bounds.t);
+				END;
+			END;
+		END;
+	END;
+	RETURN window
+END LoadFormWindow;
+
+
 PROCEDURE LoadStyleInternal(CONST filename : ARRAY OF CHAR);
 VAR f : Files.File;
 	scanner : XMLScanner.Scanner;
@@ -2730,6 +3000,25 @@ VAR component: Form;
 BEGIN NEW(component, NIL); RETURN component
 END NewForm;
 
+PROCEDURE TestAlignLeft*;
+VAR min,l: LONGINT; entry: ComponentListEntry; b: Rectangles.Rectangle;
+BEGIN
+	min := MAX(LONGINT);
+	entry := selection.first;
+	WHILE entry # NIL DO
+		l := entry.component(VisualComponent).bounds.GetLeft();
+		IF l < min THEN min := l END;
+		entry := entry.next
+	END;
+	entry := selection.first;
+	WHILE entry # NIL DO
+		entry.component(VisualComponent).bounds.SetLeft(min);
+		entry := entry.next
+	END;
+
+END TestAlignLeft;
+
+
 
 BEGIN
 	timestamp := 0;
@@ -2739,6 +3028,7 @@ BEGIN
 	InitPrototypes;
 	NEW(invalidateRectMsg);
 	InstallDefaultMacroHandler;
+	NEW(selection);
 END WMComponents.
 
 The message sequencer contains a reader writer lock that can be used to block the hierarchy.
