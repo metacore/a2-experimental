@@ -21,7 +21,7 @@ CONST
 	CCallingConvention* =1;
 	WinAPICallingConvention* =2;
 	DarwinCCallingConvention* =3;
-	ArmInterruptCallingConvention* = 4; (* TODO: needed? *)
+	InterruptCallingConvention* = 4;
 
 	(** Access Flags *)
 	InternalRead* = 0;			(** can read symbol in same module *)
@@ -1506,7 +1506,7 @@ TYPE
 			returnParameter-: Parameter; (* not really necessary in syntax tree but very handy for backends *)
 
 			isDelegate-,isInterrupt-,noPAF-: BOOLEAN;
-			linkOffset-: LONGINT; (* link offset: used for ARM interrupt procedures *)
+			pcOffset-: LONGINT; (* PC offset: used for ARM interrupt procedures *)
 			callingConvention-: LONGINT;
 			stackAlignment-: LONGINT;
 			parameterOffset-: LONGINT; (* stack parameter offset caused by parameters on stack *)
@@ -1522,18 +1522,19 @@ TYPE
 			isDelegate := FALSE; isInterrupt := FALSE; noPAF := FALSE;
 			callingConvention := OberonCallingConvention;
 			parameterOffset := 0;
+			pcOffset := 0
 		END InitProcedureType;
 
 		PROCEDURE SetNoPAF*(noPAF: BOOLEAN);
 		BEGIN SELF.noPAF := noPAF
 		END SetNoPAF;
 		
-		PROCEDURE SetLinkOffset*(linkOffset: LONGINT);
-		BEGIN SELF.linkOffset := linkOffset
-		END SetLinkOffset;
+		PROCEDURE SetPcOffset*(pcOffset: LONGINT);
+		BEGIN SELF.pcOffset := pcOffset
+		END SetPcOffset;
 		
-		PROCEDURE SetInterrupt*(isIrq: BOOLEAN);
-		BEGIN SELF.isInterrupt := isIrq
+		PROCEDURE SetInterrupt*(isInterrupt: BOOLEAN);
+		BEGIN SELF.isInterrupt := isInterrupt
 		END SetInterrupt;
 
 		PROCEDURE SetModifiers*(flags: Modifier);

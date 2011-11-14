@@ -817,7 +817,10 @@ TYPE
 		BEGIN
 			IF TypeNeedsResolution(procedureType) THEN
 				modifiers := procedureType.modifiers;
-				IF HasFlag(modifiers, Global.NameWinAPI,position) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
+				IF HasFlag(modifiers, Global.NameWinAPI,position) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)			
+				ELSIF HasFlag(modifiers, Global.NameInterrupt,position) THEN
+					procedureType.SetInterrupt(TRUE);
+					procedureType.SetCallingConvention(SyntaxTree.InterruptCallingConvention)
 				ELSIF HasFlag(modifiers,Global.NameC,position) THEN
 					IF useDarwinCCalls THEN	(*fld*)
 						procedureType.SetCallingConvention(SyntaxTree.DarwinCCallingConvention)
@@ -825,7 +828,7 @@ TYPE
 						procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
 					END
 				END;
-				IF HasValue(modifiers,Global.NameStackAligned,position,value) THEN procedureType.SetStackAlignment(value) END;
+				IF HasValue(modifiers,Global.NameStackAligned,position,value) THEN procedureType.SetStackAlignment(value) END;				
 				IF HasFlag(modifiers, Global.NameDelegate,position) THEN procedureType.SetDelegate(TRUE) END;
 				IF HasFlag(modifiers, Global.NameRealtime,position) THEN procedureType.SetRealtime(TRUE) END;
 				CheckModifiers(modifiers);
@@ -6034,11 +6037,11 @@ TYPE
 						procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
 					END
 				END;
-				IF HasFlag(modifiers,Global.NameInterrupt,position) THEN procedureType.SetInterrupt(TRUE)
-				ELSIF HasValue(modifiers,Global.NameIrq,position,value) THEN
+				IF HasFlag(modifiers, Global.NameInterrupt, position) THEN
 					procedureType.SetInterrupt(TRUE);
-					procedureType.SetLinkOffset(value)
+					procedureType.SetCallingConvention(SyntaxTree.InterruptCallingConvention)					
 				END;
+				IF HasValue(modifiers, Global.NamePcOffset, position, value) THEN procedureType.SetPcOffset(value) END;
 
 				IF HasFlag(modifiers,Global.NameNoPAF,position) THEN procedureType.SetNoPAF(TRUE) END;
 				IF HasValue(modifiers,Global.NameAligned,position,value) THEN procedure.SetAlignment(FALSE,value)

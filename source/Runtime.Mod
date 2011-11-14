@@ -225,7 +225,7 @@ CODE{SYSTEM.i386}
 END ModHA;
 
 PROCEDURE ModH*(l,r: HUGEINT): HUGEINT;
-VAR res: HUGEINT
+VAR res: HUGEINT;
 BEGIN
 	res := ModHA(l,r);
 	IF res < 0 THEN INC(res,r) END;

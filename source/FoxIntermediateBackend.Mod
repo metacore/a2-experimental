@@ -586,7 +586,7 @@ TYPE
 
 					IF (procedureType.returnType = NIL) OR (scope.body.code # NIL)  THEN
 						ir.Emit(Leave(cc));
-						ir.Emit(Exit(parSize));
+						ir.Emit(Exit(parSize, procedureType.pcOffset));
 					ELSE
 						ir.Emit(Trap(ReturnTrap));
 					END
@@ -597,7 +597,7 @@ TYPE
 				implementationVisitor.Body(scope.body,currentScope,ir,x = module.module.moduleScope.bodyProcedure);
 				ir.ExitValidPAF;
 				ir.Emit(Leave(cc));
-				ir.Emit(Exit(parSize));
+				ir.Emit(Exit(parSize, procedureType.pcOffset));
 			END;
 			Scope(scope);
 			Signature;
@@ -745,7 +745,7 @@ TYPE
 
 			IF hasDynamicOperatorDeclarations THEN
 				implementationVisitor.operatorInitializationCodeSection.Emit(Leave(0));
-				implementationVisitor.operatorInitializationCodeSection.Emit(Exit(0));
+				implementationVisitor.operatorInitializationCodeSection.Emit(Exit(0, 0));
 			END;
 
 			IF backend.profile THEN
@@ -4257,7 +4257,7 @@ TYPE
 			IntermediateCode.InitImmediate(reg, IntermediateCode.GetType(system,system.longintType), numberProcedures);
 			profileInit.EmitAt(profileInitPatchPosition,Push(reg));
 			profileInit.Emit(Leave(0));
-			profileInit.Emit(Exit(0));
+			profileInit.Emit(Exit(0, 0));
 		END ProfilerPatchInit;
 
 		(** if operator can be overloaded dynamically, emit code that registers it in the runtime **)
@@ -7212,7 +7212,7 @@ TYPE
 			END;
 
 			Emit(Leave(procedure.type(SyntaxTree.ProcedureType).callingConvention));
-			Emit(Exit(parSize));
+			Emit(Exit(parSize, procedure.type(SyntaxTree.ProcedureType).pcOffset));
 			IF Trace THEN TraceExit("VisitReturnStatement") END;
 		END VisitReturnStatement;
 
@@ -8888,7 +8888,7 @@ TYPE
 		IF val <= 0 THEN  RETURN FALSE END;
 		exp := 0;
 		WHILE ~ODD(val) DO
-			val := val DIV 2;
+			val := LONGINT(val) DIV 2;
 			INC(exp)
 		END;
 		RETURN val = 1
@@ -9151,12 +9151,13 @@ TYPE
 		RETURN instruction
 	END Leave;
 
-	PROCEDURE Exit(parSize: LONGINT): IntermediateCode.Instruction;
-	VAR op1: IntermediateCode.Operand;
+	PROCEDURE Exit(parSize: LONGINT; pcOffset: LONGINT): IntermediateCode.Instruction;
+	VAR op1, op2: IntermediateCode.Operand;
 	VAR instruction: IntermediateCode.Instruction;
 	BEGIN
 		IntermediateCode.InitNumber(op1,parSize);
-		IntermediateCode.InitInstruction(instruction,IntermediateCode.exit,op1,emptyOperand,emptyOperand);
+		IntermediateCode.InitNumber(op2,pcOffset);
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.exit,op1,op2,emptyOperand);
 		RETURN instruction
 	END Exit;
 

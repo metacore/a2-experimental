@@ -656,14 +656,8 @@ TYPE
 		AddFormat(leave, "leave", Num, Undef, Undef ,{});
 		(* return value : return value, op1= returned value, if any, does not imply exit from procedure *)
 		AddFormat(return,"return",RegMemImm, Undef, Undef,{});
-
-		(* TODO: new version:
-		(* exit parSize linkOffset - exit from procedure, op1 = parameter size, op2 = offset that has to be subtracted from return address (used for ARM interrupt procedures) *)
+		(* exit parSize pcOffset - exit from procedure, op1 = parameter size, op2 = offset that has to be subtracted from return address (e.g., used for ARM interrupt procedures) *)
 		AddFormat(exit, "exit", Num, Num, Undef ,{});
-		*)
-		(* old version: *)
-		AddFormat(exit, "exit", Num, Undef, Undef ,{});
-
 		(* result, store result to operand op1 *)
 		AddFormat(result,"result",RegMem,Undef,Undef,{Op1IsDestination});
 		(* trap num- interrupt*)

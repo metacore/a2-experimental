@@ -11,7 +11,7 @@ CONST
 	StringUntraced* = "UNTRACED";
 	StringDelegate* = "DELEGATE";
 	StringInterrupt*= "INTERRUPT";
-	StringIrq* = "IRQ";
+	StringPcOffset* = "PCOFFSET";
 	StringNoPAF*="NOPAF";
 	StringFixed*="FIXED";
 	StringAligned*="ALIGNED";
@@ -106,7 +106,7 @@ VAR
 	(* names *)
 	SelfParameterName-,ReturnParameterName-,SystemName-,systemName-,PointerReturnName-, ResultName-,
 	A2Name-,OberonName-,ArrayBaseName-,RecordBodyName-,ModuleBodyName-,
-	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-, NameIrq-, NameNoPAF-,NameFixed-,NameAligned-,NameStackAligned-,
+	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-, NamePcOffset-, NameNoPAF-,NameFixed-,NameAligned-,NameStackAligned-,
 	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-, NameDynamic-, NameDataMemorySize-, NameCodeMemorySize-
 	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-, NameVector-, NameFloatingPoint-: SyntaxTree.Identifier;
 
@@ -1375,7 +1375,7 @@ TYPE
 		NameUntraced := SyntaxTree.NewIdentifier(StringUntraced);
 		NameDelegate := SyntaxTree.NewIdentifier(StringDelegate);
 		NameInterrupt := SyntaxTree.NewIdentifier(StringInterrupt);
-		NameIrq := SyntaxTree.NewIdentifier(StringIrq);
+		NamePcOffset := SyntaxTree.NewIdentifier(StringPcOffset);
 		NameNoPAF := SyntaxTree.NewIdentifier(StringNoPAF);
 		NameFixed := SyntaxTree.NewIdentifier(StringFixed);
 		NameAligned := SyntaxTree.NewIdentifier(StringAligned);
