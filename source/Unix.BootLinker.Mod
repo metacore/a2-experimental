@@ -1440,8 +1440,7 @@ VAR
 				S.GET( baseM.sb + type[i].baseEntry, baseRoot );
 				S.GET( baseRoot + Tag0Ofs, t );
 				WHILE t # 0 DO
-					S.PUT( baseTag - AdrSize*extLevel, t );
-					Relocate( S.ADR( baseTag - AdrSize*extLevel ) );
+					S.PUT( baseTag - AdrSize*extLevel, t );  Relocate( baseTag - AdrSize*extLevel );
 					INC( extLevel );
 					S.GET( baseRoot + Tag0Ofs - AdrSize*extLevel, t )
 				END;
