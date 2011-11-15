@@ -817,7 +817,7 @@ TYPE
 		BEGIN
 			IF TypeNeedsResolution(procedureType) THEN
 				modifiers := procedureType.modifiers;
-				IF HasFlag(modifiers, Global.NameWinAPI,position) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)			
+				IF HasFlag(modifiers, Global.NameWinAPI,position) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
 				ELSIF HasFlag(modifiers, Global.NameInterrupt,position) THEN
 					procedureType.SetInterrupt(TRUE);
 					procedureType.SetCallingConvention(SyntaxTree.InterruptCallingConvention)
@@ -828,7 +828,7 @@ TYPE
 						procedureType.SetCallingConvention(SyntaxTree.CCallingConvention)
 					END
 				END;
-				IF HasValue(modifiers,Global.NameStackAligned,position,value) THEN procedureType.SetStackAlignment(value) END;				
+				IF HasValue(modifiers,Global.NameStackAligned,position,value) THEN procedureType.SetStackAlignment(value) END;
 				IF HasFlag(modifiers, Global.NameDelegate,position) THEN procedureType.SetDelegate(TRUE) END;
 				IF HasFlag(modifiers, Global.NameRealtime,position) THEN procedureType.SetRealtime(TRUE) END;
 				CheckModifiers(modifiers);
@@ -4777,7 +4777,7 @@ TYPE
 					type := type0;
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
 						ConvertOperands(parameter0,parameter1); (* same type *)
-						
+
 						type := parameter0.type;
 						IF IsIntegerValue(parameter0,i0) THEN
 							IF IsIntegerValue(parameter1,i1) THEN
@@ -5195,11 +5195,11 @@ TYPE
 					END;
 					*)
 				 	type := type0;
-				 	
+
 				 	(* TODO: check if okay *)
 				 	parameter1 := NewConversion(parameter1.position,parameter1,system.longintType,NIL);
 				 	actualParameters.SetExpression(1, parameter1);
-				 	
+
 					IF IsIntegerValue(parameter0,i0) & IsIntegerValue(parameter1,i1) THEN
 						result.SetResolved(SyntaxTree.NewIntegerValue(position,SYSTEM.LSH(i0,i1)));
 					END;
@@ -6039,7 +6039,7 @@ TYPE
 				END;
 				IF HasFlag(modifiers, Global.NameInterrupt, position) THEN
 					procedureType.SetInterrupt(TRUE);
-					procedureType.SetCallingConvention(SyntaxTree.InterruptCallingConvention)					
+					procedureType.SetCallingConvention(SyntaxTree.InterruptCallingConvention)
 				END;
 				IF HasValue(modifiers, Global.NamePcOffset, position, value) THEN procedureType.SetPcOffset(value) END;
 
@@ -8709,7 +8709,8 @@ TYPE
 	PROCEDURE HasAddress(expression: SyntaxTree.Expression): BOOLEAN;
 	BEGIN
 		RETURN (expression IS SyntaxTree.SymbolDesignator) OR (expression IS SyntaxTree.ResultDesignator)
-			OR (expression IS SyntaxTree.IndexDesignator) OR (expression IS SyntaxTree.DereferenceDesignator) OR (expression IS SyntaxTree.TypeGuardDesignator)
+			OR (expression IS SyntaxTree.IndexDesignator) OR (expression IS SyntaxTree.DereferenceDesignator)
+			OR (expression IS SyntaxTree.TypeGuardDesignator) OR (expression IS SyntaxTree.StringValue);
 	END HasAddress;
 
 
