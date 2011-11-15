@@ -8888,7 +8888,7 @@ TYPE
 		IF val <= 0 THEN  RETURN FALSE END;
 		exp := 0;
 		WHILE ~ODD(val) DO
-			val := LONGINT(val) DIV 2;
+			val := val DIV 2;
 			INC(exp)
 		END;
 		RETURN val = 1
