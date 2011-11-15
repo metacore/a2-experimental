@@ -80,14 +80,14 @@ TYPE
 		recSize: Size;
 		ptrOffs: Address; 
 		
-		count*: LONGINT;
-		locked*: BOOLEAN;
+		count*: LONGINT;				(* unused in UnixAos *)
 		awaitingLock*:	ProcessQueue;	(* unused in UnixAos *)
 		awaitingCond*: ProcessQueue;
-		lockedBy*: ANY;					(* unused in UnixAos *)
+		lockedBy*: ANY;	
 		lock*: ANY;	(* used by Win32, unused for I386 and UnixAos *)
 		
 		mtx*: Unix.Mutex_t;		(* processes blocked awaiting lock *)
+		lockedByCond*: BOOLEAN;		(* UnixAos only *)
 		doEnter*: Unix.Condition_t;
 	END;
 
