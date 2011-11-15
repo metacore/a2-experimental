@@ -963,19 +963,22 @@ TYPE
 		END AddVisualComponent;
 
 		PROCEDURE EditDragDropped(x,y: LONGINT; dragInfo: WM.DragInfo): BOOLEAN;
-		VAR data: ANY; e: ComponentListEntry;
+		VAR data: ANY; e: ComponentListEntry; parent: XML.Element;
 		BEGIN
 			data := dragInfo.data;
 			IF (data # NIL) & (data IS VisualComponent)  THEN
-				IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF,dragInfo) END;
 				IF dragInfo.sender # SELF THEN
+					IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF,dragInfo) END;
 					data(VisualComponent).bounds.Set(Rectangles.MakeRect(0, 0, data(VisualComponent).bounds.GetWidth(), data(VisualComponent).bounds.GetHeight()));
 					AddVisualComponent(data(VisualComponent),x+dragInfo.offsetX,y+dragInfo.offsetY);
 					data(VisualComponent).SetEditMode(TRUE,TRUE);
 					Invalidate;
 				ELSE
-					data(VisualComponent).bounds.Set(Rectangles.MakeRect(x+dragInfo.offsetX, y+dragInfo.offsetY, x+dragInfo.offsetX+data(VisualComponent).bounds.GetWidth(),  y+dragInfo.offsetY+data(VisualComponent).bounds.GetHeight()));
-					Invalidate;
+					parent := GetParent();
+					IF parent = NIL THEN RETURN FALSE END;
+					x := x + bounds.GetLeft();
+					y := y + bounds.GetTop();
+					RETURN parent(VisualComponent).EditDragDropped(x,y,dragInfo);
 				END;
 				RETURN TRUE
 			ELSIF (data # NIL) & (data IS Repositories.Component) THEN
@@ -983,8 +986,8 @@ TYPE
 				model.Set(data(Repositories.Component));
 				RETURN TRUE
 			ELSIF (data # NIL) & (data IS SelectionList) THEN
-				IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF,dragInfo) END;
 				IF (dragInfo.sender # SELF) & ~data(SelectionList).Has(SELF) THEN
+					IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF,dragInfo) END;
 					e := data(SelectionList).first;
 					WHILE e # NIL DO
 						e.component.bounds.Set(Rectangles.MakeRect(0, 0, e.component.bounds.GetWidth(), e.component.bounds.GetHeight()));
@@ -995,18 +998,13 @@ TYPE
 					END;
 					Invalidate;
 				ELSE
+					parent := GetParent();
+					IF parent = NIL THEN RETURN FALSE END;
 					x := x + bounds.GetLeft();
 					y := y + bounds.GetTop();
-					e := data(SelectionList).first;
-					WHILE e # NIL DO
-						D.Int(e.dx,10); D.Int(e.dy,10); D.Int(dragInfo.offsetX,10); D.Int(dragInfo.offsetY,10); D.Ln;
-						e.component.bounds.Set(Rectangles.MakeRect(x+dragInfo.offsetX+e.dx, y+dragInfo.offsetY+e.dy, e.dx+x+dragInfo.offsetX+e.component.bounds.GetWidth(),  e.dy+y+dragInfo.offsetY+e.component.bounds.GetHeight()));
-						e := e.next;
-					END;
-					Invalidate;
+					RETURN parent(VisualComponent).EditDragDropped(x,y,dragInfo);
 				END;
 				RETURN TRUE
-
 			ELSE
 				IF dragInfo.onReject # NIL THEN dragInfo.onReject(SELF,dragInfo) END;
 				RETURN FALSE
@@ -1376,7 +1374,7 @@ TYPE
 		END KeyEvent;
 
 		PROCEDURE CheckKeyEvents(ucs : LONGINT; flags: SET; VAR keySym: LONGINT); (** FINAL *)
-		VAR event : KeyPressedEvent; command : Strings.String;
+		VAR event : KeyPressedEvent; command : Strings.String; scale: LONGINT;
 		BEGIN
 			ASSERT(IsCallFromSequencer());
 			event.ucs := ucs; event.flags := flags; event.keysym := keySym;
@@ -1386,8 +1384,16 @@ TYPE
 					command := GetAttributeValue("onReturn");
 				ELSIF (keySym = Inputs.KsEscape) THEN
 					command := GetAttributeValue("onEscape");
+					selection.Reset(NIL);
 				ELSIF (keySym = Inputs.KsF1) & (Inputs.Shift * flags # {}) THEN
 					SetEditMode(~editMode.Get(), TRUE);
+				ELSIF editMode.Get() THEN
+					IF Inputs.Shift * flags # {} THEN scale := 1 ELSE scale := 4 END;
+					IF keySym = Inputs.KsLeft THEN selection.Shift(-scale,0)
+					ELSIF keySym = Inputs.KsRight THEN selection.Shift(scale,0)
+					ELSIF keySym = Inputs.KsDown THEN selection.Shift(0,scale)
+					ELSIF keySym = Inputs.KsUp THEN selection.Shift(0,-scale)
+					END;
 				END;
 				IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 
@@ -1503,7 +1509,9 @@ TYPE
 				NEW(canvas,img);
 				Draw(canvas);
 				*)
-				IF StartDrag(selection,img,-msg.x-e.dx,-msg.y-e.dy, EditMoved,NIL) THEN END;
+				IF e # NIL THEN
+					IF StartDrag(selection,img,-msg.x-e.dx,-msg.y-e.dy, EditMoved,NIL) THEN END;
+				END;
 				RETURN
 			END;
 			bounds.Set(b);
@@ -2114,6 +2122,20 @@ TYPE
 				e := e.next;
 			END;
 		END Update;
+
+		PROCEDURE Shift(dx, dy: LONGINT);
+		VAR e: ComponentListEntry; rect: Rectangles.Rectangle;
+		BEGIN
+			e := first;
+			WHILE e # NIL DO
+				rect := e.component.bounds.Get();
+				INC(rect.l,dx); INC(rect.r,dx);
+				INC(rect.t,dy); INC(rect.b,dy);
+				e.component.bounds.Set(rect);
+				e := e.next
+			END;
+		END Shift;
+
 
 		PROCEDURE ToImg(start: VisualComponent; VAR this: ComponentListEntry): WMGraphics.Image;
 		VAR l,t,r,b: LONGINT; e: ComponentListEntry; rect: Rectangles.Rectangle; img, image: WMGraphics.Image; w,h: LONGINT;
@@ -3000,24 +3022,49 @@ VAR component: Form;
 BEGIN NEW(component, NIL); RETURN component
 END NewForm;
 
-PROCEDURE TestAlignLeft*;
-VAR min,l: LONGINT; entry: ComponentListEntry; b: Rectangles.Rectangle;
+PROCEDURE Align*(context: Commands.Context);
+VAR width,height: LONGINT; entry: ComponentListEntry; b,rect: Rectangles.Rectangle; string: ARRAY 32 OF CHAR; l,t: LONGINT;
 BEGIN
-	min := MAX(LONGINT);
 	entry := selection.first;
+	rect.l := MAX(LONGINT); rect.r := MIN(LONGINT);
+	rect.t := MAX(LONGINT); rect.b := MIN(LONGINT);
+	width := 0; height := 0;
+
 	WHILE entry # NIL DO
-		l := entry.component(VisualComponent).bounds.GetLeft();
-		IF l < min THEN min := l END;
-		entry := entry.next
-	END;
-	entry := selection.first;
-	WHILE entry # NIL DO
-		entry.component(VisualComponent).bounds.SetLeft(min);
+		b := entry.component.bounds.Get();
+		IF b.l < rect.l THEN rect.l := b.l END;
+		IF b.r > rect.r THEN rect.r := b.r END;
+		IF b.t < rect.t THEN rect.t := b.t END;
+		IF b.b > rect.b THEN rect.b := b.b END;
+		IF width < b.r-b.l THEN width := b.r-b.l END;
+		IF height < b.b-b.t THEN height := b.b - b.t END;
 		entry := entry.next
 	END;
 
-END TestAlignLeft;
+	WHILE context.arg.GetString(string) DO
+		l := rect.l; t := rect.t;
+		entry := selection.first;
+		WHILE entry # NIL DO
+			IF string = "left" THEN entry.component.bounds.SetLeft(rect.l)
+			ELSIF string = "right" THEN entry.component.bounds.SetRight(rect.r)
+			ELSIF string = "top" THEN entry.component.bounds.SetTop(rect.t)
+			ELSIF string = "bottom" THEN entry.component.bounds.SetBottom(rect.b)
+			ELSIF string = "width" THEN entry.component.bounds.SetWidth(width)
+			ELSIF string = "height" THEN entry.component.bounds.SetHeight(height)
+			ELSIF string = "size" THEN entry.component.bounds.SetExtents(width, height)
+			ELSIF string = "hcenter" THEN entry.component.bounds.SetLeft((rect.l + rect.r) DIV 2 - entry.component.bounds.GetWidth() DIV 2)
+			ELSIF string = "vcenter" THEN entry.component.bounds.SetTop((rect.t + rect.b) DIV 2 - entry.component.bounds.GetHeight() DIV 2)
+			ELSIF string = "center" THEN entry.component.bounds.SetLeft((rect.l + rect.r) DIV 2 - entry.component.bounds.GetWidth() DIV 2);
+											entry.component.bounds.SetTop((rect.t + rect.b) DIV 2 - entry.component.bounds.GetHeight() DIV 2)
+			ELSIF string = "horizontal" THEN entry.component.bounds.SetLeft(l); INC(l, entry.component.bounds.GetWidth()+1);
+			ELSIF string = "vertical" THEN entry.component.bounds.SetTop(t); INC(t, entry.component.bounds.GetHeight()+1);
+			ELSE RETURN
+			END;
+			entry := entry.next
+		END;
+	END;
 
+END Align;
 
 
 BEGIN
