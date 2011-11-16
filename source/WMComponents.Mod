@@ -811,19 +811,31 @@ TYPE
 			END
 		END GetVisualComponentRoot;
 
-		(** Position handling *)
-		PROCEDURE AlignmentChanged;
+		PROCEDURE AdaptRelativeBounds;
 		VAR p : XML.Element; inner, outer: Rectangles.Rectangle;
 		BEGIN
 			Acquire;
 			p := SELF.GetParent();
 			IF (p # NIL) & (p IS VisualComponent) THEN
-				IF alignment.Get()= AlignRelative THEN
 					inner := bounds.Get();
 					outer := p(VisualComponent).bounds.Get();
 					relativeBounds.Set(Rectangles.MakeRect( (inner.l * MaxRel) DIV (outer.r-outer.l), (inner.t * MaxRel) DIV (outer.b-outer.t),
 						(inner.r * MaxRel) DIV (outer.r - outer.l), (inner.b * MaxRel) DIV (outer.b - outer.t)));
 				END;
+			Release
+		END AdaptRelativeBounds;
+
+
+		(** Position handling *)
+		PROCEDURE AlignmentChanged;
+		VAR p : XML.Element; inner, outer: Rectangles.Rectangle;
+		BEGIN
+			Acquire;
+			IF alignment.Get()= AlignRelative THEN
+				AdaptRelativeBounds;
+			END;
+			p := SELF.GetParent();
+			IF (p # NIL) & (p IS VisualComponent) THEN
 				p(VisualComponent).AlignSubComponents
 			END;
 			Release
@@ -3085,6 +3097,7 @@ BEGIN
 			ELSIF string = "relative" THEN alignmentRelative := TRUE
 			ELSE done := TRUE
 			END;
+			entry.component.AdaptRelativeBounds;
 			entry.component.bounds.Set(b);
 			IF alignmentRelative = TRUE THEN entry.component.alignment.Set(AlignRelative) END;
 			entry := entry.next
