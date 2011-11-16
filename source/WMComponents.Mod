@@ -33,7 +33,6 @@ MODULE WMComponents;	(** AUTHOR "TF"; PURPOSE "Experiments with component concep
 	originator of the event.
 
 	If no MacroHandlerProcedure is found for a given macro, no substitution takes place.
-
 	Example:
 
 	onMiddleClick = SystemTools.Show ^attribute=FillColor
@@ -45,16 +44,16 @@ IMPORT
 	XML, XMLScanner, XMLParser, XMLObjects, Codecs, Localization, Repositories,
 	Messages := WMMessages, Rectangles := WMRectangles,
 	WMEvents, WMProperties, WMGraphics, Strings, WM := WMWindowManager, Raster,
-	Commands, Modules,D := Debugging, Kernel;
+	Commands, Modules,D := Debugging, Kernel, SYSTEM;
 
 CONST
 	Ok* = 0;
 	DuplicateNamespace* = 1;
 
-	AlignNone* = 0; AlignLeft* = 1; AlignTop* = 2; AlignRight* = 3; AlignBottom* = 4; AlignClient* = 5;
+	AlignNone* = 0; AlignLeft* = 1; AlignTop* = 2; AlignRight* = 3; AlignBottom* = 4; AlignClient* = 5; AlignRelative*=6;
 
 	None=0; Left=1; Right=2; Lower=3; Upper=4; LowerRight=5; UpperRight=6; LowerLeft=7; UpperLeft=8; Inside = 9;
-
+	MaxRel = 16*1024;
 
 
 	MaxComponentNameSize* = 64; (* including 0X *)
@@ -631,7 +630,7 @@ TYPE
 	(** Basic visual component *)
 	VisualComponent* = OBJECT(Component)
 	VAR
-		bounds-, bearing- : WMProperties.RectangleProperty;
+		bounds-, bearing-, relativeBounds-: WMProperties.RectangleProperty;
 		alignment- : WMProperties.Int32Property;
 		fillColor- : WMProperties.ColorProperty;
 		visible-, takesFocus-, needsTab-, editMode- : WMProperties.BooleanProperty;
@@ -667,6 +666,7 @@ TYPE
 			SetNameAsString(StrVisualComponent);
 
 			NEW(bounds, PrototypeBounds, NIL, NIL); properties.Add(bounds);
+			NEW(relativeBounds, PrototypeBoundsRelative, NIL, NIL); properties.Add(relativeBounds);
 			NEW(bearing, PrototypeBearing, NIL, NIL); properties.Add(bearing);
 			NEW(alignment, PrototypeAlignment, NIL, NIL); properties.Add(alignment);
 			NEW(fillColor, PrototypeFillColor, NIL, NIL); properties.Add(fillColor);
@@ -813,11 +813,19 @@ TYPE
 
 		(** Position handling *)
 		PROCEDURE AlignmentChanged;
-		VAR p : XML.Element;
+		VAR p : XML.Element; inner, outer: Rectangles.Rectangle;
 		BEGIN
 			Acquire;
 			p := SELF.GetParent();
-			IF (p # NIL) & (p IS VisualComponent) THEN p(VisualComponent).AlignSubComponents END;
+			IF (p # NIL) & (p IS VisualComponent) THEN
+				IF alignment.Get()= AlignRelative THEN
+					inner := bounds.Get();
+					outer := p(VisualComponent).bounds.Get();
+					relativeBounds.Set(Rectangles.MakeRect( (inner.l * MaxRel) DIV (outer.r-outer.l), (inner.t * MaxRel) DIV (outer.b-outer.t),
+						(inner.r * MaxRel) DIV (outer.r - outer.l), (inner.b * MaxRel) DIV (outer.b - outer.t)));
+				END;
+				p(VisualComponent).AlignSubComponents
+			END;
 			Release
 		END AlignmentChanged;
 
@@ -839,7 +847,7 @@ TYPE
 
 		PROCEDURE AlignSubComponents*;
 		VAR c : XML.Content; vc : VisualComponent;
-			r, b : Rectangles.Rectangle;
+			r, b, rel : Rectangles.Rectangle;
 		BEGIN
 			Acquire;
 			IF aligning THEN Release; RETURN END;
@@ -859,6 +867,10 @@ TYPE
 							| AlignBottom : vc.bounds.Set(Rectangles.MakeRect(r.l + b.l, r.b - vc.bounds.GetHeight() - b.b, r.r - b.r, r.b - b.b)); DEC(r.b, vc.bounds.GetHeight() + b.t + b.b)
 							| AlignRight : vc.bounds.Set(Rectangles.MakeRect(r.r - vc.bounds.GetWidth() - b.r , r.t + b.t, r.r - b.r, r.b - b.b)); DEC(r.r, vc.bounds.GetWidth() + b.l + b.r);
 							| AlignClient : IF ~Rectangles.RectEmpty(r) THEN vc.bounds.Set(Rectangles.MakeRect(r.l + b.l , r.t + b.t, r.r - b.r, r.b  - b.b)) END
+							| AlignRelative:
+								rel := vc.relativeBounds.Get();
+								vc.bounds.Set(Rectangles.MakeRect(r.l + ((r.r-r.l)*rel.l+MaxRel DIV 2) DIV MaxRel, r.t + ((r.b-r.t)*rel.t+MaxRel DIV 2) DIV MaxRel,
+												r.l + ((r.r-r.l)*rel.r +MaxRel DIV 2) DIV MaxRel, r.t+((r.b-r.t)*rel.b + MaxRel DIV 2) DIV MaxRel));
 							ELSE (* nothing *)
 							END;
 						END;
@@ -946,10 +958,11 @@ TYPE
 		END FromXML;
 
 		PROCEDURE AddVisualComponent(c :VisualComponent; x, y : LONGINT);
-		VAR vc : VisualComponent; bounds : Rectangles.Rectangle;canvas: WMGraphics.BufferCanvas;
+		VAR vc : VisualComponent; bounds : Rectangles.Rectangle;canvas: WMGraphics.BufferCanvas; relativeAlignment: BOOLEAN;
 		BEGIN
 			ASSERT(c # NIL);
 			vc := c (VisualComponent);
+			relativeAlignment := vc.alignment.Get() = AlignRelative;
 			vc.alignment.Set(AlignNone);
 			IF (vc.bounds.GetWidth() < 10) OR (vc.bounds.GetHeight() < 10) THEN
 				vc.bounds.SetExtents(40, 20);
@@ -959,6 +972,7 @@ TYPE
 			vc.bounds.Set(bounds);
 			(*LabelComponent(vc);*)
 			AddContent(vc);
+			IF relativeAlignment THEN vc.alignment.Set(AlignRelative) END;
 			vc.Reset(NIL, NIL);
 		END AddVisualComponent;
 
@@ -1052,13 +1066,15 @@ TYPE
 
 	(** Special methods *)
 		PROCEDURE Resized*;
-		VAR p : XML.Element;
+		VAR p : XML.Element; alignRelative: BOOLEAN;
 		BEGIN
 			IF sequencer # NIL THEN ASSERT(sequencer.lock.HasWriteLock()) END;
 			DisableUpdate;
 			p := SELF.GetParent();
 			IF (p # NIL) & (p IS VisualComponent) THEN p(VisualComponent).AlignSubComponents END;
+			IF alignment.Get() = AlignRelative THEN alignRelative := TRUE; alignment.Set(AlignNone) ELSE alignRelative := FALSE END;
 			AlignSubComponents;
+			IF alignRelative THEN alignment.Set(AlignRelative) END;
 			EnableUpdate;
 			IF (p # NIL) & (p IS VisualComponent) THEN p(VisualComponent).Invalidate
 			ELSE Invalidate()
@@ -1465,6 +1481,7 @@ TYPE
 		PROCEDURE Edit(VAR msg: Messages.Message);
 		VAR region: LONGINT; dx,dy: LONGINT; b: Rectangles.Rectangle; manager: WM.WindowManager;
 			w,h: LONGINT; img: WMGraphics.Image; canvas: WMGraphics.BufferCanvas; e: ComponentListEntry;
+			alignRelative : BOOLEAN;
 		BEGIN
 			IF msg.msgSubType = Messages.MsgSubPointerUp THEN
 				editRegion := None;
@@ -1514,7 +1531,9 @@ TYPE
 				END;
 				RETURN
 			END;
+			IF alignment.Get() = AlignRelative THEN alignRelative := TRUE; alignment.Set(AlignNone) ELSE alignRelative := FALSE END;
 			bounds.Set(b);
+			IF alignRelative THEN alignment.Set(AlignRelative) END;
 			editX := editX + dx; editY := editY + dy;
 		END Edit;
 
@@ -2191,7 +2210,7 @@ VAR
 	invalidateRectMsg- : Messages.MessageExtension; (* used as unique ID *)
 
 	PrototypeID, PrototypeUID : WMProperties.StringProperty;
-	PrototypeBounds-, PrototypeBearing : WMProperties.RectangleProperty;
+	PrototypeBounds-, PrototypeBoundsRelative-, PrototypeBearing : WMProperties.RectangleProperty;
 	PrototypeEnabled : WMProperties.BooleanProperty;
 	PrototypeFillColor : WMProperties.ColorProperty;
 	PrototypeAlignment : WMProperties.Int32Property;
@@ -2931,6 +2950,8 @@ BEGIN
 	(* Visual component properties *)
 	NEW(PrototypeBounds, NIL, NewString("Bounds"),
 		NewString("the bounding box of the component in parent coordinates"));
+	NEW(PrototypeBoundsRelative, NIL, NewString("RelBounds"),
+		NewString("the bounding box of the component in relative parent coordinates"));
 	NEW(PrototypeBearing, NIL, NewString("Bearing"),
 		NewString("the bearing (empty space) aroung the component if auto aligned"));
 	NEW(PrototypeFillColor, NIL, NewString("FillColor"),
@@ -3023,7 +3044,7 @@ BEGIN NEW(component, NIL); RETURN component
 END NewForm;
 
 PROCEDURE Align*(context: Commands.Context);
-VAR width,height: LONGINT; entry: ComponentListEntry; b,rect: Rectangles.Rectangle; string: ARRAY 32 OF CHAR; l,t: LONGINT;
+VAR width,height,bwidth,bheight: LONGINT; entry: ComponentListEntry; b,rect: Rectangles.Rectangle; string: ARRAY 32 OF CHAR; l,t: LONGINT; alignmentRelative, done: BOOLEAN;
 BEGIN
 	entry := selection.first;
 	rect.l := MAX(LONGINT); rect.r := MIN(LONGINT);
@@ -3032,39 +3053,47 @@ BEGIN
 
 	WHILE entry # NIL DO
 		b := entry.component.bounds.Get();
+		bwidth := b.r-b.l; bheight := b.b-b.t;
 		IF b.l < rect.l THEN rect.l := b.l END;
 		IF b.r > rect.r THEN rect.r := b.r END;
 		IF b.t < rect.t THEN rect.t := b.t END;
 		IF b.b > rect.b THEN rect.b := b.b END;
-		IF width < b.r-b.l THEN width := b.r-b.l END;
-		IF height < b.b-b.t THEN height := b.b - b.t END;
+		IF width < bwidth THEN width := bwidth END;
+		IF height < bheight THEN height := bheight END;
 		entry := entry.next
 	END;
 
-	WHILE context.arg.GetString(string) DO
+	done := FALSE;
+	WHILE ~done & context.arg.GetString(string) DO
 		l := rect.l; t := rect.t;
 		entry := selection.first;
-		WHILE entry # NIL DO
-			IF string = "left" THEN entry.component.bounds.SetLeft(rect.l)
-			ELSIF string = "right" THEN entry.component.bounds.SetRight(rect.r)
-			ELSIF string = "top" THEN entry.component.bounds.SetTop(rect.t)
-			ELSIF string = "bottom" THEN entry.component.bounds.SetBottom(rect.b)
-			ELSIF string = "width" THEN entry.component.bounds.SetWidth(width)
-			ELSIF string = "height" THEN entry.component.bounds.SetHeight(height)
-			ELSIF string = "size" THEN entry.component.bounds.SetExtents(width, height)
-			ELSIF string = "hcenter" THEN entry.component.bounds.SetLeft((rect.l + rect.r) DIV 2 - entry.component.bounds.GetWidth() DIV 2)
-			ELSIF string = "vcenter" THEN entry.component.bounds.SetTop((rect.t + rect.b) DIV 2 - entry.component.bounds.GetHeight() DIV 2)
-			ELSIF string = "center" THEN entry.component.bounds.SetLeft((rect.l + rect.r) DIV 2 - entry.component.bounds.GetWidth() DIV 2);
-											entry.component.bounds.SetTop((rect.t + rect.b) DIV 2 - entry.component.bounds.GetHeight() DIV 2)
-			ELSIF string = "horizontal" THEN entry.component.bounds.SetLeft(l); INC(l, entry.component.bounds.GetWidth()+1);
-			ELSIF string = "vertical" THEN entry.component.bounds.SetTop(t); INC(t, entry.component.bounds.GetHeight()+1);
-			ELSE RETURN
+		WHILE ~done & (entry # NIL) DO
+			IF entry.component.alignment.Get() = AlignRelative THEN entry.component.alignment.Set(AlignNone); alignmentRelative := TRUE ELSE alignmentRelative := FALSE END;
+			b := entry.component.bounds.Get(); bwidth := b.r-b.l; bheight := b.b-b.t;
+			IF string = "left" THEN b.l := rect.l; b.r := rect.l + bwidth;
+			ELSIF string = "right" THEN b.r := rect.r; b.l := rect.r-bwidth
+			ELSIF string = "top" THEN b.t := rect.t; b.b := rect.t + bheight;
+			ELSIF string = "bottom" THEN b.b := rect.b; b.t := rect.b-bheight
+			ELSIF string = "width" THEN b.r := b.l + width;
+			ELSIF string = "height" THEN b.b := b.t + height;
+			ELSIF string = "size" THEN b.r := b.l + width; b.b := b.t + height;
+			ELSIF string = "hcenter" THEN b.l := (rect.l+rect.r) DIV 2 - bwidth; b.r := b.l + bwidth;
+			ELSIF string = "vcenter" THEN b.t := (rect.t + rect.b) DIV 2 - bheight; b.b := b.t + bheight;
+			ELSIF string = "horizontal" THEN b.l := l; b.r := b.l + bwidth; l := b.r+1
+			ELSIF string = "vertical" THEN b.t := t; b.b := b.t + bheight; t := b.b + 1;
+			ELSIF string = "none" THEN alignmentRelative := FALSE
+			ELSIF string = "relative" THEN alignmentRelative := TRUE
+			ELSE done := TRUE
 			END;
+			entry.component.bounds.Set(b);
+			IF alignmentRelative = TRUE THEN entry.component.alignment.Set(AlignRelative) END;
 			entry := entry.next
 		END;
 	END;
 
 END Align;
+
+
 
 
 BEGIN

@@ -1239,6 +1239,7 @@ TYPE
 			alignment_chooser.model.Add(WMComponents.AlignRight, "Right", res); ASSERT(res = WMDropDownLists.Ok);
 			alignment_chooser.model.Add(WMComponents.AlignBottom, "Bottom", res); ASSERT(res = WMDropDownLists.Ok);
 			alignment_chooser.model.Add(WMComponents.AlignClient, "Client", res); ASSERT(res = WMDropDownLists.Ok);
+			alignment_chooser.model.Add(WMComponents.AlignRelative, "Relative", res); ASSERT(res = WMDropDownLists.Ok);
 			alignment_chooser.model.Release;
 			alignment_chooser.onSelect.Add(AlignmentSelected);
 			AddContent(alignment_chooser);
@@ -1567,6 +1568,7 @@ TYPE
 				|WMComponents.AlignTop: s := {5};
 				|WMComponents.AlignBottom: s := {5};
 				|WMComponents.AlignClient: s := {};
+				|WMComponents.AlignRelative: s := {}
 			ELSE
 				HALT(99);
 			END;
