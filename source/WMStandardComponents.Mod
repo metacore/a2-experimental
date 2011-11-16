@@ -214,6 +214,7 @@ TYPE
 		textColor- : WMProperties.ColorProperty;
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
+		scaleFont-: WMProperties.BooleanProperty;
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -223,6 +224,7 @@ TYPE
 			NEW(textColor, PrototypeTextColor, NIL, NIL); properties.Add(textColor);
 			NEW(alignH, PrototypeAlignH, NIL, NIL); properties.Add(alignH);
 			NEW(alignV, PrototypeAlignV, NIL, NIL); properties.Add(alignV);
+			NEW(scaleFont, PrototypeScaleFont, NIL, NIL); properties.Add(scaleFont);
 			SetGenerator("WMStandardComponents.GenLabel");
 			SetNameAsString(StrLabel)
 		END Init;
@@ -239,7 +241,11 @@ TYPE
 				Invalidate
 			ELSIF (property = font) THEN
 				RecacheProperties;
-			ELSE PropertyChanged^(sender, property)
+			ELSIF property = scaleFont THEN
+				IF scaleFont.Get() THEN font.SetSize(bounds.GetHeight()); SetFont(font.Get()) END;
+			ELSE
+				IF (property = bounds) & scaleFont.Get() THEN font.SetSize(bounds.GetHeight()); SetFont(font.Get()) END;
+				PropertyChanged^(sender, property)
 			END;
 		END PropertyChanged;
 
@@ -2626,6 +2632,8 @@ VAR
 	(* Image Panel *)
 	ProtoIpImgName* : WMProperties.StringProperty;
 
+	PrototypeScaleFont: WMProperties.BooleanProperty;
+
 	StrTimer*, StrSystemCommand*, StrEvent*, StrPanel*, StrLabel*, StrButton*, StrScrollbar*, StrResizer* ,
 	StrCheckbox, StrGroupPanel, StrImagePanel, StrModel, StrModelInfo, StrImage : String;
 
@@ -2684,6 +2692,8 @@ BEGIN
 	PrototypeAlignH.Set(WMGraphics.AlignLeft);
 	NEW(PrototypeAlignV, NIL, NewString("AlignV"), NewString("vertical alignment")); plLabel.Add(PrototypeAlignV);
 	PrototypeAlignV.Set(WMGraphics.AlignCenter);
+	NEW(PrototypeScaleFont, NIL, NewString("ScaleFont"), NewString("if fonts scales with height")); plLabel.Add(PrototypeScaleFont);
+	PrototypeScaleFont.Set(FALSE);
 
 	(* Button properties *)
 	NEW(plButton);	WMComponents.propertyListList.Add("Button", plButton);
