@@ -211,7 +211,6 @@ TYPE
 				c := enum.GetNext();
 				IF ~(c IS WMProperties.Properties) THEN
 					IF ~((c IS Component) & ((c(Component).internal) OR c(Component).IsLocked())) THEN NewLine(w, 0); NewLine(w, nextLevel); END;
-					(*D.String("WMComponents writing "); D.String(c(XML.Element).GetName()^); D.Ln;*)
 					c(XML.Content).Write(w, context, nextLevel);
 				END;
 			END;
@@ -811,20 +810,20 @@ TYPE
 			END
 		END GetVisualComponentRoot;
 
-		PROCEDURE AdaptRelativeBounds;
-		VAR p : XML.Element; inner, outer: Rectangles.Rectangle;
+		PROCEDURE AdaptRelativeBounds(parent: XML.Element);
+		VAR  inner, outer: Rectangles.Rectangle;
 		BEGIN
 			Acquire;
-			p := SELF.GetParent();
-			IF (p # NIL) & (p IS VisualComponent) THEN
-					inner := bounds.Get();
-					outer := p(VisualComponent).bounds.Get();
+			IF (parent # NIL) & (parent IS VisualComponent) THEN
+				inner := bounds.Get();
+				outer := parent(VisualComponent).bounds.Get();
+				IF (outer.b - outer.t > 0) & (outer.r - outer.l > 0) THEN
 					relativeBounds.Set(Rectangles.MakeRect( (inner.l * MaxRel) DIV (outer.r-outer.l), (inner.t * MaxRel) DIV (outer.b-outer.t),
 						(inner.r * MaxRel) DIV (outer.r - outer.l), (inner.b * MaxRel) DIV (outer.b - outer.t)));
 				END;
+			END;
 			Release
 		END AdaptRelativeBounds;
-
 
 		(** Position handling *)
 		PROCEDURE AlignmentChanged;
@@ -832,7 +831,7 @@ TYPE
 		BEGIN
 			Acquire;
 			IF alignment.Get()= AlignRelative THEN
-				AdaptRelativeBounds;
+				AdaptRelativeBounds(GetParent());
 			END;
 			p := SELF.GetParent();
 			IF (p # NIL) & (p IS VisualComponent) THEN
@@ -974,17 +973,14 @@ TYPE
 		BEGIN
 			ASSERT(c # NIL);
 			vc := c (VisualComponent);
-			relativeAlignment := vc.alignment.Get() = AlignRelative;
-			vc.alignment.Set(AlignNone);
 			IF (vc.bounds.GetWidth() < 10) OR (vc.bounds.GetHeight() < 10) THEN
 				vc.bounds.SetExtents(40, 20);
 			END;
 			bounds := vc.bounds.Get();
 			Rectangles.MoveRel(bounds, x, y);
 			vc.bounds.Set(bounds);
-			(*LabelComponent(vc);*)
+			vc.AdaptRelativeBounds(SELF);
 			AddContent(vc);
-			IF relativeAlignment THEN vc.alignment.Set(AlignRelative) END;
 			vc.Reset(NIL, NIL);
 		END AddVisualComponent;
 
@@ -1078,15 +1074,14 @@ TYPE
 
 	(** Special methods *)
 		PROCEDURE Resized*;
-		VAR p : XML.Element; alignRelative: BOOLEAN;
+		VAR p : XML.Element;
 		BEGIN
+			AdaptRelativeBounds(GetParent());
 			IF sequencer # NIL THEN ASSERT(sequencer.lock.HasWriteLock()) END;
 			DisableUpdate;
 			p := SELF.GetParent();
 			IF (p # NIL) & (p IS VisualComponent) THEN p(VisualComponent).AlignSubComponents END;
-			IF alignment.Get() = AlignRelative THEN alignRelative := TRUE; alignment.Set(AlignNone) ELSE alignRelative := FALSE END;
 			AlignSubComponents;
-			IF alignRelative THEN alignment.Set(AlignRelative) END;
 			EnableUpdate;
 			IF (p # NIL) & (p IS VisualComponent) THEN p(VisualComponent).Invalidate
 			ELSE Invalidate()
@@ -1523,29 +1518,13 @@ TYPE
 				b.t := b.t + dy; dy := 0;
 				b.r := b.r + dx
 			ELSIF editRegion = Inside THEN
-				(*
-				b.t := b.t+dy;
-				b.b := b.b+dy;
-				b.r := b.r+dx;
-				b.l := b.l+dx;
-				dx := 0; dy := 0;
-				*)
 				img := selection.ToImg(SELF,e);
-				(*
-				NEW(img);
-				bounds.GetExtents(w,h);
-				Raster.Create(img, w,h, Raster.BGRA8888);
-				NEW(canvas,img);
-				Draw(canvas);
-				*)
 				IF e # NIL THEN
 					IF StartDrag(selection,img,-msg.x-e.dx,-msg.y-e.dy, EditMoved,NIL) THEN END;
 				END;
 				RETURN
 			END;
-			IF alignment.Get() = AlignRelative THEN alignRelative := TRUE; alignment.Set(AlignNone) ELSE alignRelative := FALSE END;
 			bounds.Set(b);
-			IF alignRelative THEN alignment.Set(AlignRelative) END;
 			editX := editX + dx; editY := editY + dy;
 		END Edit;
 
@@ -3056,7 +3035,7 @@ BEGIN NEW(component, NIL); RETURN component
 END NewForm;
 
 PROCEDURE Align*(context: Commands.Context);
-VAR width,height,bwidth,bheight: LONGINT; entry: ComponentListEntry; b,rect: Rectangles.Rectangle; string: ARRAY 32 OF CHAR; l,t: LONGINT; alignmentRelative, done: BOOLEAN;
+VAR width,height,bwidth,bheight: LONGINT; entry: ComponentListEntry; b,rect: Rectangles.Rectangle; string: ARRAY 32 OF CHAR; l,t: LONGINT; done: BOOLEAN;
 BEGIN
 	entry := selection.first;
 	rect.l := MAX(LONGINT); rect.r := MIN(LONGINT);
@@ -3080,7 +3059,6 @@ BEGIN
 		l := rect.l; t := rect.t;
 		entry := selection.first;
 		WHILE ~done & (entry # NIL) DO
-			IF entry.component.alignment.Get() = AlignRelative THEN entry.component.alignment.Set(AlignNone); alignmentRelative := TRUE ELSE alignmentRelative := FALSE END;
 			b := entry.component.bounds.Get(); bwidth := b.r-b.l; bheight := b.b-b.t;
 			IF string = "left" THEN b.l := rect.l; b.r := rect.l + bwidth;
 			ELSIF string = "right" THEN b.r := rect.r; b.l := rect.r-bwidth
@@ -3093,13 +3071,11 @@ BEGIN
 			ELSIF string = "vcenter" THEN b.t := (rect.t + rect.b) DIV 2 - bheight; b.b := b.t + bheight;
 			ELSIF string = "horizontal" THEN b.l := l; b.r := b.l + bwidth; l := b.r+1
 			ELSIF string = "vertical" THEN b.t := t; b.b := b.t + bheight; t := b.b + 1;
-			ELSIF string = "none" THEN alignmentRelative := FALSE
-			ELSIF string = "relative" THEN alignmentRelative := TRUE
+			ELSIF string = "none" THEN  entry.component.alignment.Set(AlignNone)
+			ELSIF string = "relative" THEN  entry.component.alignment.Set(AlignRelative)
 			ELSE done := TRUE
 			END;
-			entry.component.AdaptRelativeBounds;
 			entry.component.bounds.Set(b);
-			IF alignmentRelative = TRUE THEN entry.component.alignment.Set(AlignRelative) END;
 			entry := entry.next
 		END;
 	END;
