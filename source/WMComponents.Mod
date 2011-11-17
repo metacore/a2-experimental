@@ -255,9 +255,13 @@ TYPE
 		*)
 
 		PROCEDURE FromXML*(xml: XML.Element);
-		VAR component: Component; enum: XMLObjects.Enumerator; c: ANY;
+		VAR component: Component; enum: XMLObjects.Enumerator; c: ANY; element: XML.Element;
 		BEGIN
-			properties.FromXML(GetElementByName(xml,"Properties"));
+			element := GetElementByName(xml,"Properties");
+			IF (element = NIL) & (xml IS Component) THEN (* trick to get XML description of properties if not already there (new components) *)
+				xml(Component).properties.ToXML(element)
+			END;
+			properties.FromXML(element);
 			FromXML^(xml);
 		END FromXML;
 
@@ -1397,7 +1401,7 @@ TYPE
 		END KeyEvent;
 
 		PROCEDURE CheckKeyEvents(ucs : LONGINT; flags: SET; VAR keySym: LONGINT); (** FINAL *)
-		VAR event : KeyPressedEvent; command : Strings.String; scale: LONGINT;
+		VAR event : KeyPressedEvent; command : Strings.String; scale: LONGINT; clone: Repositories.Component; parent: XML.Content;
 		BEGIN
 			ASSERT(IsCallFromSequencer());
 			event.ucs := ucs; event.flags := flags; event.keysym := keySym;
@@ -1416,6 +1420,10 @@ TYPE
 					ELSIF keySym = Inputs.KsRight THEN selection.Shift(scale,0)
 					ELSIF keySym = Inputs.KsDown THEN selection.Shift(0,scale)
 					ELSIF keySym = Inputs.KsUp THEN selection.Shift(0,-scale)
+					END;
+					IF keySym=4 (* CTRL-D *) THEN
+						clone := Clone(selection.first.component);
+						parent := selection.first.component.GetParent(); parent(Component).AddContent(clone);
 					END;
 				END;
 				IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
@@ -1517,7 +1525,7 @@ TYPE
 			ELSIF editRegion = UpperRight THEN
 				b.t := b.t + dy; dy := 0;
 				b.r := b.r + dx
-			ELSIF editRegion = Inside THEN
+			ELSIF (editRegion = Inside) & ((dx # 0) OR (dy # 0)) THEN
 				img := selection.ToImg(SELF,e);
 				IF e # NIL THEN
 					IF StartDrag(selection,img,-msg.x-e.dx,-msg.y-e.dy, EditMoved,NIL) THEN END;
@@ -3081,6 +3089,12 @@ BEGIN
 	END;
 
 END Align;
+
+PROCEDURE Clone*(x: Component): Repositories.Component;
+BEGIN
+	RETURN Repositories.ComponentFromXML(x)
+END Clone;
+
 
 
 

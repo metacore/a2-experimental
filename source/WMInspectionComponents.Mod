@@ -897,6 +897,7 @@ TYPE
 			AddContent(editName);
 			CreateEditor("Size:", editSize, 0);
 			CreateEditor("Style: ", editStyle, 0);
+			editStyle.SetAsString("{}");
 			outOfDate := {};
 		END New;
 
@@ -972,7 +973,7 @@ TYPE
 				SELF.font := property (WMProperties.FontProperty);
 			ELSE
 				SELF.font := NIL;
-				editName.SetAsString(""); editSize.SetAsString(""); editStyle.SetAsString("");
+				editName.SetAsString(""); editSize.SetAsString(""); editStyle.SetAsString("{}");
 			END;
 		END SetProperty;
 
@@ -1016,7 +1017,7 @@ TYPE
 			editor.bounds.SetWidth(40);
 			editor.onEnter.Add(EnterPressed);
 			editor.onChanged.Add(EditorContentChanged);
-			editor.type.Set(WMEditors.Decimal);
+			editor.type.Set(WMEditors.Ascii);
 			AddContent(editor);
 		END CreateEditor;
 

@@ -1,7 +1,7 @@
 MODULE WMProperties; (** AUTHOR "TF"; PURPOSE "Properties" *)
 
 IMPORT
-	WMRectangles, WMGraphics, Strings, Localization, Repositories, WMEvents, Locks, XML, XMLObjects, Streams, Commands, Modules, KernelLog;
+	WMRectangles, WMGraphics, Strings, Localization, Repositories, WMEvents, Locks, XML, XMLObjects, Streams, Commands, Modules, KernelLog, D:= Debugging;
 
 TYPE
 	String = Strings.String;
@@ -113,6 +113,15 @@ TYPE
 		PROCEDURE FromXML*(xml : XML.Element);
 		END FromXML;
 
+		PROCEDURE ToXML*(VAR element: XML.Element);
+		VAR name: String;
+		BEGIN
+			D.String("ToXML: ");
+			name := GetName();
+			NEW(element); IF name # NIL THEN element.SetName(name^); D.String(name^); END;
+			D.Ln;
+		END ToXML;
+
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		END WriteXML;
 
@@ -175,6 +184,16 @@ TYPE
 				END
 			END
 		END FromXML;
+
+		PROCEDURE ToXML(VAR element: XML.Element);
+		VAR chars: XML.ArrayChars;
+		BEGIN
+			ToXML^(element);
+			element.SetAttributeValue("loader","WMProperties.NewBoolean");
+			NEW(chars); element.AddContent(chars);
+			IF value THEN chars.SetStr("true") ELSE chars.SetStr("false") END;
+		END ToXML;
+
 
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String;
@@ -282,6 +301,17 @@ TYPE
 				END
 			END
 		END FromXML;
+
+		PROCEDURE ToXML(VAR element: XML.Element);
+		VAR chars: XML.ArrayChars;s: ARRAY 10 OF CHAR;
+		BEGIN
+			ToXML^(element);
+			element.SetAttributeValue("loader","WMProperties.NewSet");
+			NEW(chars); element.AddContent(chars);
+			Strings.IntToHexStr(SetToInt(value),8,s); Strings.AppendChar(s,"H");
+			chars.SetStr(s);
+		END ToXML;
+
 
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String; s: ARRAY 10 OF CHAR;
@@ -410,6 +440,8 @@ TYPE
 			ReleaseWrite
 		END Set;
 
+
+
 		PROCEDURE FromXML*(xml : XML.Element);
 		VAR
 			en : XMLObjects.Enumerator;
@@ -433,6 +465,14 @@ TYPE
 			INC(timestamp);
 			ReleaseWrite
 		END FromXML;
+
+		PROCEDURE ToXML(VAR element: XML.Element);
+		VAR chars: XML.ArrayChars;s: ARRAY 20 OF CHAR;
+		BEGIN
+			ToXML^(element);
+			element.SetAttributeValue("loader","WMProperties.NewInt32");
+			element.AddContent(NewIntChars(value));
+		END ToXML;
 
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY;  indent : LONGINT);
 		VAR name : String;
@@ -587,6 +627,16 @@ TYPE
 			ReleaseWrite
 		END FromXML;
 
+		PROCEDURE ToXML(VAR element: XML.Element);
+		VAR chars: XML.ArrayChars;s: ARRAY 20 OF CHAR; w: Streams.StringWriter;
+		BEGIN
+			ToXML^(element);
+			element.SetAttributeValue("loader","WMProperties.NewInt32");
+			NEW(chars); element.AddContent(chars);
+			NEW(w,30); w.Float(value,0); w.Get(s);
+			chars.SetStr(s);
+		END ToXML;
+
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String;
 		BEGIN
@@ -731,6 +781,31 @@ TYPE
 			END
 		END FromXML;
 
+		PROCEDURE ToXML(VAR element: XML.Element);
+		VAR chars: XML.ArrayChars;s: String; w: Streams.StringWriter; res,len: LONGINT;
+		BEGIN
+			ToXML^(element);
+			element.SetAttributeValue("loader","WMProperties.NewString");
+			IF (value # NIL) OR ((dictionary # NIL) & (word # NIL)) THEN
+				NEW(chars); element.AddContent(chars);
+				len := 64;
+				IF (value # NIL) THEN INC(len, LEN(value^)) END;
+				NEW(w, len);
+				IF (dictionary # NIL) & (word # NIL) THEN
+					w.String("::");
+					XML.UTF8ToStream(dictionary.fullname^, w, res);
+					IF (res = XML.Ok) THEN
+						w.String(":");
+						XML.UTF8ToStream(word^, w, res);
+					END;
+				ELSE
+					XML.UTF8ToStream(value^, w, res);
+				END;
+				NEW(s, w.Pos()+1); w.Get(s^);
+				chars.SetStr(s^);
+			END;
+		END ToXML;
+
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String; res : LONGINT;
 		BEGIN
@@ -822,6 +897,18 @@ TYPE
 			INC(timestamp);
 			ReleaseWrite
 		END FromXML;
+
+		PROCEDURE ToXML(VAR element: XML.Element);
+		VAR chars: XML.ArrayChars;s: String; w: Streams.StringWriter; res: LONGINT;
+		BEGIN
+			ToXML^(element);
+			element.SetAttributeValue("loader","WMProperties.NewColor");
+			NEW(chars); element.AddContent(chars);
+			NEW(w,10 );
+			w.Hex(value, -8);
+			NEW(s, w.Pos()+1); w.Get(s^);
+			chars.SetStr(s^);
+		END ToXML;
 
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String;
@@ -1002,6 +1089,19 @@ TYPE
 			SetFont(name, size, style);
 		END FromXML;
 
+		PROCEDURE ToXML(VAR element: XML.Element);
+		VAR s: ARRAY 32 OF CHAR;
+		BEGIN
+			ToXML^(element);
+			element.SetAttributeValue("loader","WMProperties.NewFont");
+			element.SetAttributeValue("name",font.name);
+			Strings.IntToStr(font.size, s);
+			element.SetAttributeValue("size",s);
+			Strings.SetToStr(font.style, s);
+			element.SetAttributeValue("style",s);
+		END ToXML;
+
+
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String; font : WMGraphics.Font; temp : ARRAY 32 OF CHAR;
 		BEGIN
@@ -1010,7 +1110,7 @@ TYPE
 			IF nonDefault THEN
 				font := Get();
 				Indent(w, indent);
-				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewSet"');
+				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewFont"');
 					w.String(' name="'); w.String(font.name); w.String('" size="'); w.Int(font.size, 0); w.String('" style="');
 					Strings.SetToStr(font.style, temp); w.String(temp); w.String('"');
 				w.String("/>");
@@ -1019,7 +1119,6 @@ TYPE
 		END WriteXML;
 
 	END FontProperty;
-
 
 
 TYPE
@@ -1045,7 +1144,7 @@ TYPE
 		PROCEDURE ToStream*(w : Streams.Writer);
 		BEGIN
 			AcquireRead;
-			w.Int(value.x, 0); w.Char(" "); 
+			w.Int(value.x, 0); w.Char(" ");
 			w.Int(value.y, 0);
 			ReleaseRead
 		END ToStream;
@@ -1130,6 +1229,18 @@ TYPE
 			INC(timestamp);
 			ReleaseWrite
 		END FromXML;
+
+		PROCEDURE ToXML(VAR element: XML.Element);
+		VAR cs: ARRAY 10 OF CHAR; sub: XML.Element; t: WMGraphics.Point2d;
+		BEGIN
+			ToXML^(element);
+			element.SetAttributeValue("loader","WMProperties.NewPoint");
+			t := Get();
+			NEW(sub); sub.SetName("X"); element.AddContent(sub);
+			sub.AddContent(NewIntChars(t.x));
+			NEW(sub); sub.SetName("Y");element.AddContent(sub);
+			sub.AddContent(NewIntChars(t.y));
+		END ToXML;
 
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String; t : WMGraphics.Point2d;
@@ -1327,6 +1438,23 @@ TYPE
 			ReleaseWrite
 		END FromXML;
 
+
+		PROCEDURE ToXML(VAR element: XML.Element);
+		VAR cs: ARRAY 10 OF CHAR; sub: XML.Element; t: WMRectangles.Rectangle;
+		BEGIN
+			ToXML^(element);
+			element.SetAttributeValue("loader","WMProperties.NewRectangle");
+			t := Get();
+			NEW(sub); sub.SetName("Left"); element.AddContent(sub);
+			sub.AddContent(NewIntChars(t.l));
+			NEW(sub); sub.SetName("Top");element.AddContent(sub);
+			sub.AddContent(NewIntChars(t.t));
+			NEW(sub); sub.SetName("Width");element.AddContent(sub);
+			sub.AddContent(NewIntChars(t.r-t.l));
+			NEW(sub); sub.SetName("Height");element.AddContent(sub);
+			sub.AddContent(NewIntChars(t.b-t.t));
+		END ToXML;
+
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String; t : WMRectangles.Rectangle;
 		BEGIN
@@ -1520,6 +1648,14 @@ TYPE
 			END
 		END FromXML;
 
+		PROCEDURE ToXML(VAR element: XML.Element);
+		VAR cs: ARRAY 10 OF CHAR; sub: XML.Element; t: WMRectangles.Rectangle;
+		BEGIN
+			ToXML^(element);
+			element.SetAttributeValue("loader","WMProperties.NewReference");
+			(*??? how to represent this ? *)
+		END ToXML;
+
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY;  indent : LONGINT);
 		VAR name : String; id,res: LONGINT; repository: Repositories.Repository;
 		BEGIN
@@ -1533,7 +1669,6 @@ TYPE
 					repository := context(Repositories.StoreContext).repository;
 					id := 1;
 					repository.PutComponent(object, name^,id,res);
-
 					w.String(":"); (* <-- THIS repository *) w.String(name^); w.String(":"); w.Int(id, 0);
 				ELSE
 					ToStream(w);
@@ -1731,6 +1866,8 @@ TYPE
 			RETURN (i < nofProperties)
 		END SetPropertyValue;
 
+
+
 		PROCEDURE SetXML*(xml : XML.Element);
 		VAR
 			en : XMLObjects.Enumerator;
@@ -1810,6 +1947,16 @@ TYPE
 			END;
 		END FromXML;
 
+		PROCEDURE ToXML*(VAR element: XML.Element);
+		VAR sub: XML.Element; i : LONGINT;
+		BEGIN
+			NEW(element); element.SetName("Properties");
+			FOR i := 0 TO nofProperties-1 DO
+				properties[i].ToXML(sub);
+				element.AddContent(sub);
+			END;
+		END ToXML;
+
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR i : LONGINT;
 		BEGIN
@@ -1875,6 +2022,16 @@ BEGIN
 	END;
 	RETURN value
 END ReadCharDataInt;
+
+PROCEDURE NewIntChars(i: LONGINT): XML.Chars;
+VAR chars: XML.ArrayChars; s: ARRAY 32 OF CHAR;
+BEGIN
+	NEW(chars);
+	Strings.IntToStr(i, s);
+	chars.SetStr(s);
+	RETURN chars
+END NewIntChars;
+
 
 PROCEDURE NewBoolean*(): Property;
 VAR property: BooleanProperty;

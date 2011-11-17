@@ -109,6 +109,7 @@ TYPE
 		textColorI : LONGINT;
 
 		font- : WMProperties.FontProperty;
+		scaleFont-: WMProperties.Int32Property;
 
 		modelI : Models.Model;
 
@@ -145,10 +146,12 @@ TYPE
 			NEW(readOnly, readOnlyProto, NIL, NIL); properties.Add(readOnly);
 			NEW(textColor, textColorProto, NIL, NIL); properties.Add(textColor);
 			NEW(font, WMStandardComponents.PrototypeFont, NIL, NIL); properties.Add(font);
+			NEW(scaleFont, PrototypeScaleFont, NIL,NIL); properties.Add(scaleFont);
 
 			NEW(onEscape, SELF, GSonEscape, GSonEscapeInfo, SELF.StringToCompCommand); events.Add(onEscape);
 			NEW(onEnter, SELF, GSonEnter, GSonEnterInfo, SELF.StringToCompCommand); events.Add(onEnter);
 			NEW(onChanged, SELF, NIL, NIL, NIL); events.Add(onChanged);
+
 
 			ime := WMInputMethods.activeIME;
 
@@ -204,7 +207,9 @@ TYPE
 				IF (element # NIL) & (element IS Models.Model) THEN
 					SetModel(element(Models.Model));
 				END;
+			ELSIF (property = scaleFont)& (scaleFont.Get()>0) THEN font.SetSize(bounds.GetHeight()*scaleFont.Get() DIV 100); SetFont(font.Get())
 			ELSE
+				IF (property = bounds) & (scaleFont.Get()>0) THEN font.SetSize(bounds.GetHeight()*scaleFont.Get() DIV 100); SetFont(font.Get()) END;
 				PropertyChanged^(sender, property);
 			END;
 		END PropertyChanged;
@@ -1672,6 +1677,7 @@ VAR
 	typeProto : WMProperties.Int32Property;
 	textColorProto : WMProperties.ColorProperty;
 	multiLineProto, readOnlyProto, allowScrollbarsProto : WMProperties.BooleanProperty;
+	PrototypeScaleFont: WMProperties.Int32Property;
 	highlightingProto : WMProperties.StringProperty;
 	GSonEnter, GSonEnterInfo : Strings.String;
 	GSonEscape, GSonEscapeInfo : Strings.String;
@@ -1701,6 +1707,8 @@ BEGIN
 	NEW(readOnlyProto, NIL, Strings.NewString("readOnly"), NIL); readOnlyProto.Set(FALSE);
 	NEW(allowScrollbarsProto, NIL, Strings.NewString("allowScrollbars"), NIL); allowScrollbarsProto.Set(TRUE);
 	NEW(highlightingProto, NIL, Strings.NewString("Highlighting"), Strings.NewString("Name of highlighting to be applied"));
+	NEW(PrototypeScaleFont, NIL, Strings.NewString("ScaleFont"), Strings.NewString("percentage that fonts scales with height (0=none)"));
+
 	highlightingProto.Set(NIL);
 END InitPrototypes;
 
