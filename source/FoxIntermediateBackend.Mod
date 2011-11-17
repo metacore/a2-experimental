@@ -2127,7 +2127,7 @@ TYPE
 				IF (x.type.resolved IS SyntaxTree.IntegerType) & IsIntegerConstant(x.right,value) & PowerOf2(value,exp) THEN
 					InitOperand(result,ModeValue);
 					Reuse1a(result.op,left.op,dest);
-					IntermediateCode.InitImmediate(right.op,IntermediateCode.GetType(system, system.longintType),exp);					
+					IntermediateCode.InitImmediate(right.op,IntermediateCode.GetType(system, system.longintType),exp);
 					Emit(Shr(result.op,left.op,right.op));
 				ELSE
 					IF (x.type.resolved IS SyntaxTree.IntegerType) & (x.right.resolved = NIL) THEN (* divisor negative check *)
@@ -3117,6 +3117,7 @@ TYPE
 			(* TODO: needed? *)
 			oldArrayDestinationTag: IntermediateCode.Operand;
 			oldArrayDestinationDimension: LONGINT;
+			position: LONGINT;
 
 			PROCEDURE Pass(op: IntermediateCode.Operand);
 			VAR registerClass: IntermediateCode.RegisterClass; parameterRegister: IntermediateCode.Operand;
@@ -3153,6 +3154,7 @@ TYPE
 
 		BEGIN
 			IF Trace THEN TraceEnter("PushParameter") END;
+			position := expression.position;
 			IF expression.resolved # NIL THEN expression := expression.resolved END;
 			type := expression.type.resolved;
 
@@ -3182,286 +3184,328 @@ TYPE
 			(* case 1 *)
 				IF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) &
 				(parameter.kind IN {SyntaxTree.ValueParameter, SyntaxTree.ConstParameter}) THEN
-				size := MathLenOffset + 2*SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
-				size := ToMemoryUnits(system,size*addressType.sizeInBits);
-				Emit(Sub(sp,sp,IntermediateCode.Immediate(addressType,size)));
-				dim := SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
-				arrayDestinationTag := sp;
+					size := MathLenOffset + 2*SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
+					size := ToMemoryUnits(system,size*addressType.sizeInBits);
+					Emit(Sub(sp,sp,IntermediateCode.Immediate(addressType,size)));
+					dim := SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
+					arrayDestinationTag := sp;
 
-				(* case 1b *)
-				IF expression IS SyntaxTree.IndexDesignator THEN
-				(*
-					dim := SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
-					descriptorType := GetMathArrayDescriptorType(dim);
-					variable := GetTemporaryVariable(descriptorType,expression.position);
-					Symbol(variable,variableOp);
-					arrayDestinationTag := variableOp.op;
-					*)
-					ReuseCopy(arrayDestinationTag,arrayDestinationTag);
-					dim := SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
-					arrayDestinationDimension := dim;
-					Designate(expression,operand);
-				(* case 1a *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open THEN
-				Designate(expression,operand);
-					Emit(Copy(arrayDestinationTag,operand.tag,IntermediateCode.Immediate(addressType,size)));
-					i := 0;
-					WHILE (i< dim) & (type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) DO
-						type := type.resolved(SyntaxTree.MathArrayType).arrayBase;
-						INC(i);
-					END;
-					type := expression.type.resolved;
-					WHILE (i<dim) DO (* remaining static dimensions *)
-						dimOp := IntermediateCode.Immediate(addressType,i);
-						GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-						PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
-						ReleaseOperand(tmpOperand);
-						GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-						PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
-						ReleaseOperand(tmpOperand);
-						INC(i);
-					END;
-					dimOp := IntermediateCode.Immediate(addressType,dim);
-					PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
-					PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset);
-				(* case 1d *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
-					Designate(expression,operand);
-					Dereference(operand,type.resolved);
-					DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
-					Emit(Copy(sp(*arrayDestinationTag*),operand.tag,IntermediateCode.Immediate(addressType,size)));
-					PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset);
-				(* case 1f *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
-					Designate(expression,operand);
-					FOR i := 0 TO dim-1 DO
-						dimOp := IntermediateCode.Immediate(addressType,i);
-						GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-						PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
-						ReleaseOperand(tmpOperand);
-						GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-						PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
-						ReleaseOperand(tmpOperand);
-					END;
-					dimOp := IntermediateCode.Immediate(addressType,dim);
-					PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
-					PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
-					PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-					PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
-					baseType := SemanticChecker.ArrayBase(type,dim);
-					tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
-					PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
-				ELSE HALT(100);
-				END;
-				ELSIF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) & (parameter.kind = SyntaxTree.VarParameter) THEN
-				dim := SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
-				(* case 2b *)
-				IF expression IS SyntaxTree.IndexDesignator THEN
-					descriptorType := GetMathArrayDescriptorType(dim);
-					variable := GetTemporaryVariable(descriptorType);
-					Symbol(variable,variableOp);
-					arrayDestinationTag := variableOp.op;
-					ReuseCopy(arrayDestinationTag,arrayDestinationTag);
-					arrayDestinationDimension := dim;
-					Designate(expression,operand);
-					Pass((operand.tag));
-				(* case 2a *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open THEN
-					WHILE (i< dim) & (type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) DO
-						type := type.resolved(SyntaxTree.MathArrayType).arrayBase;
-						INC(i);
-					END;
-					IF i = dim THEN
-						Designate(expression,operand);
-						Pass((operand.tag));
-					ELSE (* open-static *)
-						type := expression.type.resolved;
-						descriptorType := GetMathArrayDescriptorType(dim);
-						variable := GetTemporaryVariable(descriptorType);
-						Symbol(variable,variableOp);
-						arrayDestinationTag := variableOp.op;
-						Designate(expression,operand);
-						FOR i := 0 TO dim-1 DO
-							dimOp := IntermediateCode.Immediate(addressType,i);
-							GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-							PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
-							ReleaseOperand(tmpOperand);
-							GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-							PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
-							ReleaseOperand(tmpOperand);
-						END;
-						dimOp := IntermediateCode.Immediate(addressType,dim);
-						PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
-						PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
-						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
-						baseType := SemanticChecker.ArrayBase(type,dim);
-						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
-						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
-						Pass((arrayDestinationTag));
-					END;
-				(* case 2d *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
-					Designate(expression,operand);
-					Dereference(operand,type.resolved);
-					DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
-					Pass((operand.tag));
-				(* case 2f *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
-					descriptorType := GetMathArrayDescriptorType(dim);
-					variable := GetTemporaryVariable(descriptorType);
-					Symbol(variable,variableOp);
-					arrayDestinationTag := variableOp.op;
-					Designate(expression,operand);
-					FOR i := 0 TO dim-1 DO
-						dimOp := IntermediateCode.Immediate(addressType,i);
-						GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-						PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
-						ReleaseOperand(tmpOperand);
-						GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-						PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
-						ReleaseOperand(tmpOperand);
-					END;
-					dimOp := IntermediateCode.Immediate(addressType,dim);
-					PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
-					PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
-					PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-					PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
-					baseType := SemanticChecker.ArrayBase(type,dim);
-					tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
-					PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
-					Pass((arrayDestinationTag));
-				ELSE HALT(100);
-				END;
-				ELSIF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (parameter.kind IN {SyntaxTree.ConstParameter,SyntaxTree.ValueParameter}) THEN
-				dim := SemanticChecker.Dimension(type,{SyntaxTree.Open,SyntaxTree.Static});
-				(* case 3b *)
-				IF expression IS SyntaxTree.IndexDesignator THEN
-					IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN (* indexer of form a[e,....,?] *)
-						variable := PrepareTensorDescriptor(expression(SyntaxTree.IndexDesignator));
-						Symbol(variable,variableOp);
-						LoadValue(variableOp,system.addressType);
-					ELSE
-						descriptorType := GetMathArrayDescriptorType(dim);
-						variable := GetTemporaryVariable(descriptorType);
-						Symbol(variable,variableOp);
-					END;
-					arrayDestinationTag := variableOp.op;
-					ReuseCopy(arrayDestinationTag,arrayDestinationTag);
-					arrayDestinationDimension := 0;
-					Designate(expression,operand);
-					Pass((operand.tag));
-				(* case 3a *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open THEN
-					i := 0;
-					WHILE (i< dim) & (type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) DO
-						type := type.resolved(SyntaxTree.MathArrayType).arrayBase;
-						INC(i);
-					END;
-					IF i = dim THEN
-						Designate(expression,operand);
-						Pass((operand.tag));
-					ELSE (* open-static *)
-						type := expression.type.resolved;
-						descriptorType := GetMathArrayDescriptorType(dim);
-						variable := GetTemporaryVariable(descriptorType);
-						Symbol(variable,variableOp);
-						arrayDestinationTag := variableOp.op;
-						Designate(expression,operand);
-						FOR i := 0 TO dim-1 DO
-							dimOp := IntermediateCode.Immediate(addressType,i);
-							GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-							PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
-							ReleaseOperand(tmpOperand);
-							GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-							PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
-							ReleaseOperand(tmpOperand);
-						END;
-						dimOp := IntermediateCode.Immediate(addressType,dim);
-						PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
-						PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
-						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
-						baseType := SemanticChecker.ArrayBase(type,dim);
-						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
-						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
-						Pass((arrayDestinationTag));
-					END;
-				(* case 3d *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
-					Designate(expression,operand);
-					Dereference(operand,type.resolved);
+					(* case 1b *)
+					IF expression IS SyntaxTree.IndexDesignator THEN
 					(*
-					DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
-					*)
-					Pass((operand.tag));
-				(* case 3f *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
-					descriptorType := GetMathArrayDescriptorType(dim);
-					variable := GetTemporaryVariable(descriptorType);
-					Symbol(variable,variableOp);
-					arrayDestinationTag := variableOp.op;
-					Designate(expression,operand);
-					FOR i := 0 TO dim-1 DO
-						dimOp := IntermediateCode.Immediate(addressType,i);
-						GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-						PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
-						ReleaseOperand(tmpOperand);
-						GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-						PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
-						ReleaseOperand(tmpOperand);
-					END;
-					dimOp := IntermediateCode.Immediate(addressType,dim);
-					PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
-					PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
-					PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-					PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
-					baseType := SemanticChecker.ArrayBase(type,dim);
-					tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
-					PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
-					Pass((arrayDestinationTag));
-				ELSE HALT(100);
-				END;
-				ELSIF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (parameter.kind = SyntaxTree.VarParameter) THEN
-				dim := SemanticChecker.Dimension(type,{SyntaxTree.Open,SyntaxTree.Static});
-				(* case 4b *)
-				IF expression IS SyntaxTree.IndexDesignator THEN
-					IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN (* indexer of form a[e,....,?] *)
-						variable := PrepareTensorDescriptor(expression(SyntaxTree.IndexDesignator));
+						dim := SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
+						descriptorType := GetMathArrayDescriptorType(dim);
+						variable := GetTemporaryVariable(descriptorType,expression.position);
 						Symbol(variable,variableOp);
-						LoadValue(variableOp,system.addressType);
-					ELSE
+						arrayDestinationTag := variableOp.op;
+						*)
+						ReuseCopy(arrayDestinationTag,arrayDestinationTag);
+						dim := SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
+						arrayDestinationDimension := dim;
+						Designate(expression,operand);
+					(* case 1a *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open THEN
+					Designate(expression,operand);
+						Emit(Copy(arrayDestinationTag,operand.tag,IntermediateCode.Immediate(addressType,size)));
+						i := 0;
+						WHILE (i< dim) & (type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) DO
+							type := type.resolved(SyntaxTree.MathArrayType).arrayBase;
+							INC(i);
+						END;
+						type := expression.type.resolved;
+						WHILE (i<dim) DO (* remaining static dimensions *)
+							dimOp := IntermediateCode.Immediate(addressType,i);
+							GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+							PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
+							ReleaseOperand(tmpOperand);
+							GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+							PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
+							ReleaseOperand(tmpOperand);
+							INC(i);
+						END;
+						dimOp := IntermediateCode.Immediate(addressType,dim);
+						PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
+						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset);
+					(* case 1d *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
+						Designate(expression,operand);
+						Dereference(operand,type.resolved);
+						DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
+						Emit(Copy(sp(*arrayDestinationTag*),operand.tag,IntermediateCode.Immediate(addressType,size)));
+						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset);
+					(* case 1f *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
+						Designate(expression,operand);
+						FOR i := 0 TO dim-1 DO
+							dimOp := IntermediateCode.Immediate(addressType,i);
+							GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+							PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
+							ReleaseOperand(tmpOperand);
+							GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+							PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
+							ReleaseOperand(tmpOperand);
+						END;
+						dimOp := IntermediateCode.Immediate(addressType,dim);
+						PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
+						PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
+						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
+						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+						baseType := SemanticChecker.ArrayBase(type,dim);
+						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
+					ELSE HALT(100);
+					END;
+				ELSIF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) & (parameter.kind = SyntaxTree.VarParameter) THEN
+					dim := SemanticChecker.Dimension(parameter.type.resolved,{SyntaxTree.Open});
+					(* case 2b *)
+					IF expression IS SyntaxTree.IndexDesignator THEN
 						descriptorType := GetMathArrayDescriptorType(dim);
 						variable := GetTemporaryVariable(descriptorType);
 						Symbol(variable,variableOp);
-					END;
-					arrayDestinationTag := variableOp.op;
-					ReuseCopy(arrayDestinationTag,arrayDestinationTag);
-					arrayDestinationDimension := 0;
-					Designate(expression,operand);
-					IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
+						arrayDestinationTag := variableOp.op;
+						ReuseCopy(arrayDestinationTag,arrayDestinationTag);
+						arrayDestinationDimension := dim;
+						Designate(expression,operand);
+						Pass((operand.tag));
+					(* case 2a *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open THEN
+						WHILE (i< dim) & (type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) DO
+							type := type.resolved(SyntaxTree.MathArrayType).arrayBase;
+							INC(i);
+						END;
+						IF i = dim THEN
+							Designate(expression,operand);
+							Pass((operand.tag));
+						ELSE (* open-static *)
+							type := expression.type.resolved;
+							descriptorType := GetMathArrayDescriptorType(dim);
+							variable := GetTemporaryVariable(descriptorType);
+							Symbol(variable,variableOp);
+							arrayDestinationTag := variableOp.op;
+							Designate(expression,operand);
+							FOR i := 0 TO dim-1 DO
+								dimOp := IntermediateCode.Immediate(addressType,i);
+								GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+								PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
+								ReleaseOperand(tmpOperand);
+								GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+								PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
+								ReleaseOperand(tmpOperand);
+							END;
+							dimOp := IntermediateCode.Immediate(addressType,dim);
+							PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
+							PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
+							PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
+							PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+							baseType := SemanticChecker.ArrayBase(type,dim);
+							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+							PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
+							Pass((arrayDestinationTag));
+						END;
+					(* case 2d *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
+						Designate(expression,operand);
+						Dereference(operand,type.resolved);
+						DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
+						Pass((operand.tag));
+					(* case 2f *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
+						descriptorType := GetMathArrayDescriptorType(dim);
+						variable := GetTemporaryVariable(descriptorType);
 						Symbol(variable,variableOp);
-					ELSE
+						arrayDestinationTag := variableOp.op;
+						Designate(expression,operand);
+						FOR i := 0 TO dim-1 DO
+							dimOp := IntermediateCode.Immediate(addressType,i);
+							GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+							PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
+							ReleaseOperand(tmpOperand);
+							GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+							PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
+							ReleaseOperand(tmpOperand);
+						END;
+						dimOp := IntermediateCode.Immediate(addressType,dim);
+						PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
+						PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
+						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
+						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+						baseType := SemanticChecker.ArrayBase(type,dim);
+						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
+						Pass((arrayDestinationTag));
+					ELSE HALT(100);
+					END;
+				ELSIF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (parameter.kind IN {SyntaxTree.ConstParameter,SyntaxTree.ValueParameter}) THEN
+					dim := SemanticChecker.Dimension(type,{SyntaxTree.Open,SyntaxTree.Static});
+					(* case 3b *)
+					IF expression IS SyntaxTree.IndexDesignator THEN
+						IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN (* indexer of form a[e,....,?] *)
+							variable := PrepareTensorDescriptor(expression(SyntaxTree.IndexDesignator));
+							Symbol(variable,variableOp);
+							LoadValue(variableOp,system.addressType);
+						ELSE
+							descriptorType := GetMathArrayDescriptorType(dim);
+							variable := GetTemporaryVariable(descriptorType);
+							Symbol(variable,variableOp);
+						END;
+						arrayDestinationTag := variableOp.op;
+						ReuseCopy(arrayDestinationTag,arrayDestinationTag);
+						arrayDestinationDimension := 0;
+						Designate(expression,operand);
+						Pass((operand.tag));
+					(* case 3a *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open THEN
+						i := 0;
+						WHILE (i< dim) & (type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) DO
+							type := type.resolved(SyntaxTree.MathArrayType).arrayBase;
+							INC(i);
+						END;
+						IF i = dim THEN
+							Designate(expression,operand);
+							Pass((operand.tag));
+						ELSE (* open-static *)
+							type := expression.type.resolved;
+							descriptorType := GetMathArrayDescriptorType(dim);
+							variable := GetTemporaryVariable(descriptorType);
+							Symbol(variable,variableOp);
+							arrayDestinationTag := variableOp.op;
+							Designate(expression,operand);
+							FOR i := 0 TO dim-1 DO
+								dimOp := IntermediateCode.Immediate(addressType,i);
+								GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+								PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
+								ReleaseOperand(tmpOperand);
+								GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+								PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
+								ReleaseOperand(tmpOperand);
+							END;
+							dimOp := IntermediateCode.Immediate(addressType,dim);
+							PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
+							PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
+							PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
+							PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+							baseType := SemanticChecker.ArrayBase(type,dim);
+							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+							PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
+							Pass((arrayDestinationTag));
+						END;
+					(* case 3d *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
+						Designate(expression,operand);
+						Dereference(operand,type.resolved);
+						(*
+						DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
+						*)
+						Pass((operand.tag));
+					(* case 3f *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
+						descriptorType := GetMathArrayDescriptorType(dim);
+						variable := GetTemporaryVariable(descriptorType);
+						Symbol(variable,variableOp);
+						arrayDestinationTag := variableOp.op;
+						Designate(expression,operand);
+						FOR i := 0 TO dim-1 DO
+							dimOp := IntermediateCode.Immediate(addressType,i);
+							GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+							PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
+							ReleaseOperand(tmpOperand);
+							GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+							PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
+							ReleaseOperand(tmpOperand);
+						END;
+						dimOp := IntermediateCode.Immediate(addressType,dim);
+						PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
+						PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
+						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
+						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+						baseType := SemanticChecker.ArrayBase(type,dim);
+						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
+						Pass((arrayDestinationTag));
+					ELSE HALT(100);
+					END;
+				ELSIF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (parameter.kind = SyntaxTree.VarParameter) THEN
+					dim := SemanticChecker.Dimension(type,{SyntaxTree.Open,SyntaxTree.Static});
+					(* case 4b *)
+					IF expression IS SyntaxTree.IndexDesignator THEN
+						IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN (* indexer of form a[e,....,?] *)
+							variable := PrepareTensorDescriptor(expression(SyntaxTree.IndexDesignator));
+							Symbol(variable,variableOp);
+							LoadValue(variableOp,system.addressType);
+						ELSE
+							descriptorType := GetMathArrayDescriptorType(dim);
+							variable := GetTemporaryVariable(descriptorType);
+							Symbol(variable,variableOp);
+						END;
+						arrayDestinationTag := variableOp.op;
+						ReuseCopy(arrayDestinationTag,arrayDestinationTag);
+						arrayDestinationDimension := 0;
+						Designate(expression,operand);
+						IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
+							Symbol(variable,variableOp);
+						ELSE
+							variable := GetTemporaryVariable(parameter.type.resolved);
+							Symbol(variable,variableOp);
+							MakeMemory(tmp,variableOp.op,addressType,0);
+							Emit(Mov(tmp,operand.tag));
+							ReleaseIntermediateOperand(tmp);
+						END;
+						Pass((variableOp.op));
+						ReleaseOperand(variableOp);
+					(* case 4a *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open THEN
+						i := 0;
+						WHILE (i< dim) & (type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) DO
+							type := type.resolved(SyntaxTree.MathArrayType).arrayBase;
+							INC(i);
+						END;
+						IF i = dim THEN
+							Designate(expression,operand);
+							arrayDestinationTag := operand.tag;
+						ELSE (* open-static *)
+							type := expression.type.resolved;
+							descriptorType := GetMathArrayDescriptorType(dim);
+							variable := GetTemporaryVariable(descriptorType);
+							Symbol(variable,variableOp);
+							arrayDestinationTag := variableOp.op;
+							Designate(expression,operand);
+							FOR i := 0 TO dim-1 DO
+								dimOp := IntermediateCode.Immediate(addressType,i);
+								GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+								PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
+								ReleaseOperand(tmpOperand);
+								GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
+								PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
+								ReleaseOperand(tmpOperand);
+							END;
+							dimOp := IntermediateCode.Immediate(addressType,dim);
+							PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
+							PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
+							PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
+							PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+							baseType := SemanticChecker.ArrayBase(type,dim);
+							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+							PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
+						END;
 						variable := GetTemporaryVariable(parameter.type.resolved);
 						Symbol(variable,variableOp);
 						MakeMemory(tmp,variableOp.op,addressType,0);
-						Emit(Mov(tmp,operand.tag));
+						Emit(Mov(tmp,arrayDestinationTag));
 						ReleaseIntermediateOperand(tmp);
-					END;
-					Pass((variableOp.op));
-					ReleaseOperand(variableOp);
-				(* case 4a *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open THEN
-					i := 0;
-					WHILE (i< dim) & (type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) DO
-						type := type.resolved(SyntaxTree.MathArrayType).arrayBase;
-						INC(i);
-					END;
-					IF i = dim THEN
+						Pass((variableOp.op));
+						ReleaseOperand(variableOp);
+					(* case 4d *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
 						Designate(expression,operand);
-						arrayDestinationTag := operand.tag;
-					ELSE (* open-static *)
-						type := expression.type.resolved;
+						(*
+						Dereference(operand,type.resolved);
+						*)
+						(*
+						DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
+						*)
+						Pass((operand.op));
+					(* case 4f *)
+					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
 						descriptorType := GetMathArrayDescriptorType(dim);
 						variable := GetTemporaryVariable(descriptorType);
 						Symbol(variable,variableOp);
@@ -3484,77 +3528,34 @@ TYPE
 						baseType := SemanticChecker.ArrayBase(type,dim);
 						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
 						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
+						variable := GetTemporaryVariable(parameter.type.resolved);
+						Symbol(variable,variableOp);
+						MakeMemory(tmp,variableOp.op,addressType,0);
+						Emit(Mov(tmp,arrayDestinationTag));
+						ReleaseIntermediateOperand(tmp);
+						Pass((variableOp.op));
+						ReleaseOperand(variableOp);
+					ELSE HALT(100);
 					END;
-					variable := GetTemporaryVariable(parameter.type.resolved);
-					Symbol(variable,variableOp);
-					MakeMemory(tmp,variableOp.op,addressType,0);
-					Emit(Mov(tmp,arrayDestinationTag));
-					ReleaseIntermediateOperand(tmp);
-					Pass((variableOp.op));
-					ReleaseOperand(variableOp);
-				(* case 4d *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
-					Designate(expression,operand);
-					(*
-					Dereference(operand,type.resolved);
-					*)
-					(*
-					DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
-					*)
-					Pass((operand.op));
-				(* case 4f *)
-				ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
-					descriptorType := GetMathArrayDescriptorType(dim);
-					variable := GetTemporaryVariable(descriptorType);
-					Symbol(variable,variableOp);
-					arrayDestinationTag := variableOp.op;
-					Designate(expression,operand);
-					FOR i := 0 TO dim-1 DO
-						dimOp := IntermediateCode.Immediate(addressType,i);
-						GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-						PutMathArrayLength(arrayDestinationTag,tmpOperand.op,i);
-						ReleaseOperand(tmpOperand);
-						GetMathArrayIncrement(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
-						PutMathArrayIncrement(arrayDestinationTag,tmpOperand.op,i);
-						ReleaseOperand(tmpOperand);
-					END;
-					dimOp := IntermediateCode.Immediate(addressType,dim);
-					PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
-					PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
-					PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-					PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
-					baseType := SemanticChecker.ArrayBase(type,dim);
-					tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
-					PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
-					variable := GetTemporaryVariable(parameter.type.resolved);
-					Symbol(variable,variableOp);
-					MakeMemory(tmp,variableOp.op,addressType,0);
-					Emit(Mov(tmp,arrayDestinationTag));
-					ReleaseIntermediateOperand(tmp);
-					Pass((variableOp.op));
-					ReleaseOperand(variableOp);
-				ELSE HALT(100);
-				END;
 				ELSIF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static) & (parameter.kind = SyntaxTree.ValueParameter) THEN
 					IF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
-					size := system.SizeOf(type);
-					Basic.Align(size,system.AlignmentOf(system.parameterAlignment,type));
-					size := ToMemoryUnits(system,size);
-					Emit(Sub(sp,sp,IntermediateCode.Immediate(addressType,size)));
-					arrayDestinationTag := sp;
-					Designate(expression,operand);
-					Emit(Copy(arrayDestinationTag,operand.op,IntermediateCode.Immediate(addressType,size)));
-				ELSE HALT(100);
-				END;
+						size := system.SizeOf(type);
+						Basic.Align(size,system.AlignmentOf(system.parameterAlignment,type));
+						size := ToMemoryUnits(system,size);
+						Emit(Sub(sp,sp,IntermediateCode.Immediate(addressType,size)));
+						arrayDestinationTag := sp;
+						Designate(expression,operand);
+						Emit(Copy(arrayDestinationTag,operand.op,IntermediateCode.Immediate(addressType,size)));
+					ELSE HALT(100);
+					END;
 				ELSIF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static) & (parameter.kind IN {SyntaxTree.VarParameter,SyntaxTree.ConstParameter}) THEN
-				IF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
-					Designate(expression,operand);
-					Pass((operand.op));
-				ELSE HALT(100);
+					IF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
+						Designate(expression,operand);
+						Pass((operand.op));
+					ELSE Error(position,"Forbidden non-static actual type. Conversion involved?");
+					END;
+				ELSE HALT(200)
 				END;
-			ELSE HALT(200)
-			END;
-
 			ELSIF parameter.type.resolved IS SyntaxTree.RangeType THEN
 				IF parameter.kind = SyntaxTree.VarParameter THEN
 					ASSERT(~(expression IS SyntaxTree.RangeExpression));
@@ -3567,7 +3568,6 @@ TYPE
 					Pass((operand.tag)); (* last *)
 					Pass((operand.op)) (* first *)
 				END
-
 			ELSIF parameter.type.resolved IS SyntaxTree.ComplexType THEN
 				IF parameter.kind = SyntaxTree.VarParameter THEN
 					Designate(expression, operand);
@@ -3578,7 +3578,6 @@ TYPE
 					Pass((operand.tag)); (* real part *)
 					Pass((operand.op)) (* imaginary part *)
 				END
-
 			ELSE
 				IF (parameter.kind = SyntaxTree.ValueParameter) OR (parameter.kind = SyntaxTree.ConstParameter) & ~(parameter.type.resolved IS SyntaxTree.RecordType) & ~(parameter.type.resolved IS SyntaxTree.ArrayType) THEN
 					IF (type IS SyntaxTree.RecordType) OR IsStaticArray(parameter.type) THEN

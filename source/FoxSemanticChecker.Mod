@@ -2031,7 +2031,7 @@ TYPE
 			resolvedExpression := result
 		END VisitUnaryExpression;
 
-		PROCEDURE MathArrayConversion(expression: SyntaxTree.Expression; type: SyntaxTree.Type): SyntaxTree.Expression;
+		PROCEDURE MathArrayConversion(position: LONGINT; expression: SyntaxTree.Expression; type: SyntaxTree.Type): SyntaxTree.Expression;
 		VAR
 			result: SyntaxTree.Expression;
 
@@ -2049,10 +2049,10 @@ TYPE
 			IF (BaseType(type)=NIL) OR (BaseType(expression.type.resolved) = BaseType(type))  THEN
 				result := expression (* do not convert *)
 			ELSE (* should the search for operators be restricted to the ArrayBase module here ? *)
-				result := NewOperatorCall(expression.position,Global.Conversion,expression,NIL,type);
+				result := NewOperatorCall(position,Global.Conversion,expression,NIL,type);
 				IF result = NIL THEN
 					result := SyntaxTree.invalidExpression;
-					Error(expression.position,Diagnostics.Invalid,"incompatible conversion");
+					Error(position,Diagnostics.Invalid,"incompatible conversion");
 					IF VerboseErrorMessage THEN
 						Printout.Info("expression",expression);
 						Printout.Info("type",type);
@@ -2183,7 +2183,7 @@ TYPE
 				result := expression;
 				(* nothing to be done *)
 			ELSIF expression IS SyntaxTree.MathArrayValue THEN
-				result := MathArrayConversion(expression,type);
+				result := MathArrayConversion(position, expression,type);
 			ELSIF expression IS SyntaxTree.EnumerationValue THEN
 				result := expression;
 				(* nothing to be done *)
@@ -2243,11 +2243,11 @@ TYPE
 				HALT(100)
 			ELSIF (type IS SyntaxTree.MathArrayType) THEN
 				IF expression.type.resolved IS SyntaxTree.MathArrayType THEN
-					result := MathArrayConversion(expression,type);
+					result := MathArrayConversion(position, expression,type);
 				ELSIF IsArrayStructuredObjectType(expression.type) THEN
 					expression := ConvertToMathArray(expression);
 					type := MathArrayStructureOfType(type);
-					result := MathArrayConversion(expression, type)
+					result := MathArrayConversion(position, expression, type)
 				ELSE
 					Error(expression.position,Diagnostics.Invalid,"cannot convert non array type to array type")
 				END;
