@@ -214,7 +214,7 @@ TYPE
 		textColor- : WMProperties.ColorProperty;
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
-		scaleFont-: WMProperties.BooleanProperty;
+		scaleFont-: WMProperties.Int32Property;
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -242,9 +242,9 @@ TYPE
 			ELSIF (property = font) THEN
 				RecacheProperties;
 			ELSIF property = scaleFont THEN
-				IF scaleFont.Get() THEN font.SetSize(bounds.GetHeight()); SetFont(font.Get()) END;
+				IF scaleFont.Get()>0 THEN font.SetSize(bounds.GetHeight() * scaleFont.Get() DIV 100); SetFont(font.Get()) END;
 			ELSE
-				IF (property = bounds) & scaleFont.Get() THEN font.SetSize(bounds.GetHeight()); SetFont(font.Get()) END;
+				IF (property = bounds) & (scaleFont.Get()>0) THEN font.SetSize(bounds.GetHeight()*scaleFont.Get() DIV 100); SetFont(font.Get()) END;
 				PropertyChanged^(sender, property)
 			END;
 		END PropertyChanged;
@@ -315,6 +315,10 @@ TYPE
 
 		userData* : ANY;
 
+		textAlignH- : WMProperties.Int32Property;
+		textAlignV- : WMProperties.Int32Property;
+		scaleFont-: WMProperties.Int32Property;
+
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
@@ -363,6 +367,10 @@ TYPE
 		 	NEW(imgHoverNameBottom, PrototypeImgHoverNameBottom, NIL, NIL); properties.Add(imgHoverNameBottom);
 			NEW(imgPressedNameTop, PrototypeImgPressedNameTop, NIL, NIL); properties.Add(imgPressedNameTop);
 		 	NEW(imgPressedNameBottom, PrototypeImgPressedNameBottom, NIL, NIL); properties.Add(imgPressedNameBottom);
+
+			NEW(textAlignH, PrototypeButtonAlignH, NIL, NIL); properties.Add(textAlignH);
+			NEW(textAlignV, PrototypeButtonAlignV, NIL, NIL); properties.Add(textAlignV);
+			NEW(scaleFont, PrototypeScaleFont, NIL,NIL); properties.Add(scaleFont);
 
 			(* events *)
 			NEW(onClick, SELF, GSonClick, GSonClickButtonInfo, SELF.StringToCompCommand); events.Add(onClick);
@@ -464,7 +472,7 @@ TYPE
 		PROCEDURE PropertyChanged*(sender, data : ANY);
 		VAR element : XML.Element;
 		BEGIN
-			IF (data = caption) THEN Invalidate;
+			IF (data = caption) OR (data = textAlignH) OR (data = textAlignV) THEN Invalidate;
 			ELSIF (data = onClickHandler) THEN CheckClickHandler
 			ELSIF (data = clDefault) OR (data = clHover) OR (data = clPressed)
 				OR (data = clTextDefault) OR (data = clTextHover) OR (data = clTextPressed) THEN Invalidate;
@@ -485,7 +493,10 @@ TYPE
 				IF (element # NIL) & (element IS Models.Model) THEN
 					SetModel(element(Models.Model));
 				END;
-			ELSE PropertyChanged^(sender, data);
+			ELSIF (data = scaleFont)& (scaleFont.Get()>0) THEN font.SetSize(bounds.GetHeight()*scaleFont.Get() DIV 100); SetFont(font.Get())
+			ELSE
+				IF (data = bounds) & (scaleFont.Get()>0) THEN font.SetSize(bounds.GetHeight()*scaleFont.Get() DIV 100); SetFont(font.Get()) END;
+				PropertyChanged^(sender, data);
 			END;
 		END PropertyChanged;
 
@@ -745,7 +756,7 @@ TYPE
 			IF str # NIL THEN
 				r := GetClientRect();
 				canvas.SetColor(tc);
-				WMGraphics.DrawStringInRect(canvas, r, FALSE, 1, 1, str^)
+				WMGraphics.DrawStringInRect(canvas, r, FALSE, textAlignH.Get(), textAlignV.Get(), str^)
 			END;
 			IF isToggle.Get() & indicateToggle.Get() THEN
 				IF pressed THEN tc := WMGraphics.Green;
@@ -2539,8 +2550,8 @@ VAR
 	PrototypeCommandString*, PrototypeCaption* : WMProperties.StringProperty;
 	PrototypeFont- : WMProperties.FontProperty;
 	PrototypeTextColor*: WMProperties.ColorProperty;
-	PrototypeAlignH*: WMProperties.Int32Property;
-	PrototypeAlignV*: WMProperties.Int32Property;
+	PrototypeAlignH*, PrototypeButtonAlignH*: WMProperties.Int32Property;
+	PrototypeAlignV*, PrototypeButtonAlignV*: WMProperties.Int32Property;
 
 	 (* temporary prototype-prototypes *)
 	 ColorPrototype : WMProperties.ColorProperty;
@@ -2632,7 +2643,7 @@ VAR
 	(* Image Panel *)
 	ProtoIpImgName* : WMProperties.StringProperty;
 
-	PrototypeScaleFont: WMProperties.BooleanProperty;
+	PrototypeScaleFont: WMProperties.Int32Property;
 
 	StrTimer*, StrSystemCommand*, StrEvent*, StrPanel*, StrLabel*, StrButton*, StrScrollbar*, StrResizer* ,
 	StrCheckbox, StrGroupPanel, StrImagePanel, StrModel, StrModelInfo, StrImage : String;
@@ -2693,7 +2704,7 @@ BEGIN
 	NEW(PrototypeAlignV, NIL, NewString("AlignV"), NewString("vertical alignment")); plLabel.Add(PrototypeAlignV);
 	PrototypeAlignV.Set(WMGraphics.AlignCenter);
 	NEW(PrototypeScaleFont, NIL, NewString("ScaleFont"), NewString("if fonts scales with height")); plLabel.Add(PrototypeScaleFont);
-	PrototypeScaleFont.Set(FALSE);
+	PrototypeScaleFont.Set(0);
 
 	(* Button properties *)
 	NEW(plButton);	WMComponents.propertyListList.Add("Button", plButton);
@@ -2776,6 +2787,10 @@ BEGIN
 	NEW(PrototypeImgPressedNameTop, StringPrototype, NIL, NIL); plButton.Add(PrototypeImgPressedNameTop);
 	NEW(StringPrototype, NIL, NewString("BgBottomPressed"), NewString("Pressed background bitmap bottom")); StringPrototype.Set(NewString(""));
 	NEW(PrototypeImgPressedNameBottom, StringPrototype, NIL, NIL); plButton.Add(PrototypeImgPressedNameBottom);
+	NEW(PrototypeButtonAlignH, NIL, NewString("TextAlignH"), NewString("horizontal text alignment")); plButton.Add(PrototypeAlignH);
+	PrototypeButtonAlignH.Set(WMGraphics.AlignCenter);
+	NEW(PrototypeButtonAlignV, NIL, NewString("TextAlignV"), NewString("vertical text alignment")); plButton.Add(PrototypeAlignV);
+	PrototypeButtonAlignV.Set(WMGraphics.AlignCenter);
 
 	(* Scrollbar prototypes *)
 	NEW(plScrollbar); WMComponents.propertyListList.Add("Scrollbar", plScrollbar);
