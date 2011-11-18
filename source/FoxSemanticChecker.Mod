@@ -2041,6 +2041,9 @@ TYPE
 				WHILE (type # NIL) & (type IS SyntaxTree.MathArrayType) DO
 					type := Resolved(type(SyntaxTree.MathArrayType).arrayBase);
 				END;
+				WHILE (type # NIL) & (type IS SyntaxTree.ArrayType) DO
+					type := Resolved(type(SyntaxTree.ArrayType).arrayBase);
+				END;
 				RETURN type
 			END BaseType;
 
@@ -2252,7 +2255,10 @@ TYPE
 					Error(expression.position,Diagnostics.Invalid,"cannot convert non array type to array type")
 				END;
 			ELSIF (expression.type.resolved IS SyntaxTree.MathArrayType) THEN
-					Error(expression.position,Diagnostics.Invalid,"cannot convert array type to non-array type")
+					IF (expression.type.resolved(SyntaxTree.MathArrayType).form # SyntaxTree.Static)
+						OR ~(type IS SyntaxTree.ArrayType) THEN
+						Error(expression.position,Diagnostics.Invalid,"cannot convert array type to non-array type")
+					END;
 			ELSIF ~(type IS SyntaxTree.BasicType) & ~(expression.type.resolved IS SyntaxTree.CharacterType) THEN
 				(*skip, no conversion*)
 			ELSIF (type IS SyntaxTree.ArrayType) & (type(SyntaxTree.ArrayType).arrayBase.resolved IS SyntaxTree.ByteType) THEN
@@ -3464,7 +3470,7 @@ TYPE
 						Error(indexListItem.position, Diagnostics.Invalid,"lower bound of array range too small")
 					END;
 					IF IsIntegerValue(last, lastValue) & (lastValue # MAX(LONGINT)) THEN
-						IF (sourceArray.length # NIL) & IsIntegerValue(sourceArray.length, length) & (lastValue >= (length - 1)) THEN
+						IF (sourceArray.length # NIL) & IsIntegerValue(sourceArray.length, length) & (lastValue > (length - 1)) THEN
 							Error(indexListItem.position, Diagnostics.Invalid,"upper bound of array range too large")
 						END
 					END;
@@ -7774,6 +7780,8 @@ TYPE
 			ELSIF to IS SyntaxTree.ArrayType THEN
 				IF IsStringType(to) & (this IS SyntaxTree.StringType) THEN
 					result := (to(SyntaxTree.ArrayType).form = SyntaxTree.Open) OR (to(SyntaxTree.ArrayType).staticLength >= this(SyntaxTree.StringType).length)
+				ELSIF StaticArrayCompatible(to, this) THEN
+					result := TRUE
 				ELSE
 					result := (to(SyntaxTree.ArrayType).staticLength # 0) & SameType(to,this)
 				END;
@@ -7820,6 +7828,32 @@ TYPE
 		RETURN result
 	END CompatibleTo;
 
+	PROCEDURE StaticArrayCompatible(formal: SyntaxTree.Type; actual: SyntaxTree.Type): BOOLEAN;
+	VAR actualBase, formalBase: SyntaxTree.Type; result: BOOLEAN;
+	BEGIN
+		IF SameType(formal,actual) THEN
+			RETURN TRUE
+		ELSIF (formal IS SyntaxTree.MathArrayType) & (actual IS SyntaxTree.ArrayType) THEN
+			actualBase := actual(SyntaxTree.ArrayType).arrayBase.resolved;
+			formalBase := formal(SyntaxTree.MathArrayType).arrayBase.resolved;
+			RETURN
+				(formal(SyntaxTree.MathArrayType).form = SyntaxTree.Static)
+				& (actual(SyntaxTree.ArrayType).form = SyntaxTree.Static)
+				& (actual(SyntaxTree.ArrayType).staticLength = formal(SyntaxTree.MathArrayType).staticLength)
+				& StaticArrayCompatible(formalBase,actualBase)
+		ELSIF (formal IS SyntaxTree.ArrayType) & (actual IS SyntaxTree.MathArrayType) THEN
+			actualBase := actual(SyntaxTree.MathArrayType).arrayBase.resolved;
+			formalBase := formal(SyntaxTree.ArrayType).arrayBase.resolved;
+			RETURN
+				(formal(SyntaxTree.ArrayType).form = SyntaxTree.Static)
+				& (actual(SyntaxTree.MathArrayType).form = SyntaxTree.Static)
+				& (actual(SyntaxTree.MathArrayType).staticLength = formal(SyntaxTree.ArrayType).staticLength)
+				& StaticArrayCompatible(formalBase,actualBase)
+		ELSE RETURN FALSE
+		END;
+	END StaticArrayCompatible;
+
+
 	PROCEDURE OpenArrayCompatible(formalType: SyntaxTree.ArrayType; actualType: SyntaxTree.Type): BOOLEAN;
 	VAR arrayBase: SyntaxTree.Type; result: BOOLEAN;
 
@@ -7831,6 +7865,11 @@ TYPE
 				actualBase := actual(SyntaxTree.ArrayType).arrayBase.resolved;
 				formalBase := formal(SyntaxTree.ArrayType).arrayBase.resolved;
 				result := (formal(SyntaxTree.ArrayType).form = SyntaxTree.Open) & TC(formalBase,actualBase)
+			ELSIF ~result & (formal IS SyntaxTree.ArrayType) & (actual IS SyntaxTree.MathArrayType) THEN
+				actualBase := actual(SyntaxTree.MathArrayType).arrayBase.resolved;
+				formalBase := formal(SyntaxTree.ArrayType).arrayBase.resolved;
+				result := (formal(SyntaxTree.ArrayType).form = SyntaxTree.Open) & (actual(SyntaxTree.MathArrayType).form = SyntaxTree.Static)
+					& TC(formalBase, actualBase);
 			END;
 			RETURN result
 		END TC;
@@ -7843,6 +7882,8 @@ TYPE
 				result := arrayBase IS SyntaxTree.CharacterType
 			ELSIF actualType IS SyntaxTree.ArrayType THEN
 				result := (arrayBase IS SyntaxTree.ByteType) OR TC(formalType,actualType)
+			ELSIF actualType IS SyntaxTree.MathArrayType THEN
+				result := TC(formalType, actualType);
 			ELSE
 				result := (arrayBase IS SyntaxTree.ByteType)
 			END;

@@ -3133,22 +3133,27 @@ TYPE
 
 
 			PROCEDURE PushArrayLens(formalType,actualType: SyntaxTree.Type; dim: LONGINT);
-			VAR tmp: IntermediateCode.Operand;
+			VAR tmp: IntermediateCode.Operand; actualArrayBase: SyntaxTree.Type;
 			BEGIN
 				formalType := formalType.resolved; actualType := actualType.resolved;
 				IF IsOpenArray(formalType)THEN
 					IF actualType IS SyntaxTree.StringType THEN
 						Pass((IntermediateCode.Immediate(addressType,actualType(SyntaxTree.StringType).length)));
 						RETURN;
+					ELSIF (actualType IS SyntaxTree.MathArrayType) & (actualType(SyntaxTree.MathArrayType).form = SyntaxTree.Static) THEN
+						Pass((IntermediateCode.Immediate(addressType,actualType(SyntaxTree.MathArrayType).staticLength)));
+						actualArrayBase := actualType(SyntaxTree.MathArrayType).arrayBase.resolved;
 					ELSIF actualType(SyntaxTree.ArrayType).form = SyntaxTree.Static THEN
 						Pass((IntermediateCode.Immediate(addressType,actualType(SyntaxTree.ArrayType).staticLength)));
+						actualArrayBase := actualType(SyntaxTree.ArrayType).arrayBase.resolved;
 					ELSE
 						tmp := baseReg;
 						IntermediateCode.AddOffset(tmp,ToMemoryUnits(system,dim*system.addressSize));
 						IntermediateCode.MakeMemory(tmp,addressType);
 						Pass((tmp));
+						actualArrayBase := actualType(SyntaxTree.ArrayType).arrayBase.resolved;
 					END;
-					PushArrayLens(formalType(SyntaxTree.ArrayType).arrayBase.resolved, actualType(SyntaxTree.ArrayType).arrayBase.resolved,dim-1);
+					PushArrayLens(formalType(SyntaxTree.ArrayType).arrayBase.resolved, actualArrayBase,dim-1);
 				END;
 			END PushArrayLens;
 
@@ -3158,7 +3163,11 @@ TYPE
 			IF expression.resolved # NIL THEN expression := expression.resolved END;
 			type := expression.type.resolved;
 
-			ASSERT( (type IS SyntaxTree.MathArrayType) = (parameter.type.resolved IS SyntaxTree.MathArrayType) );
+			ASSERT( ((type IS SyntaxTree.MathArrayType) = (parameter.type.resolved IS SyntaxTree.MathArrayType))
+						OR  (type IS SyntaxTree.MathArrayType) & (parameter.type.resolved IS SyntaxTree.ArrayType)
+							& (type(SyntaxTree.MathArrayType).form = SyntaxTree.Static)
+							& (parameter.type.resolved(SyntaxTree.ArrayType).form = SyntaxTree.Open)
+				);
 
 			(* TODO: needed? *)
 			oldArrayDestinationTag := arrayDestinationTag;
@@ -6806,7 +6815,7 @@ TYPE
 			ELSIF (leftType IS SyntaxTree.ArrayType) THEN
 				IF (rightType IS SyntaxTree.StringType) THEN
 					CopyString(left,right);
-				ELSIF (rightType(SyntaxTree.ArrayType).staticLength # 0) & (leftType(SyntaxTree.ArrayType).staticLength # 0) THEN
+				ELSIF ((rightType IS SyntaxTree.ArrayType) & (rightType(SyntaxTree.ArrayType).staticLength # 0) OR (rightType IS SyntaxTree.MathArrayType) & (rightType(SyntaxTree.MathArrayType).staticLength # 0)) & (leftType(SyntaxTree.ArrayType).staticLength # 0) THEN
 					Designate(right,rightO);
 					Designate(left,leftO);
 					size := ToMemoryUnits(system,system.SizeOf(rightType));
