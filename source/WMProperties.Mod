@@ -954,12 +954,13 @@ TYPE
 			AcquireWrite;
 			NotDefault;
 			name := ""; size := 0; style := {};
-			r.String(name); r.SkipWhitespace;
-			r.Int(size, FALSE); r.SkipWhitespace;
-			r.String(temp); Strings.StrToSet(temp, style);
-			font := WMGraphics.GetFont(name, size, style);
-			IF (font = NIL) THEN font := WMGraphics.GetDefaultFont(); END;
-			IF (SELF.font # font) THEN SELF.font := font; Changed END;
+			IF r.GetString(name) & r.GetInteger(size, FALSE) & r.GetString(temp) THEN
+				Strings.StrToSet(temp, style);
+				IF size < 6 THEN size := 6 END;
+				font := WMGraphics.GetFont(name, size, style);
+				IF (font = NIL) THEN font := WMGraphics.GetDefaultFont(); END;
+				IF (SELF.font # font) THEN SELF.font := font; Changed END;
+			END;
 			ReleaseWrite
 		END FromStream;
 
@@ -1007,6 +1008,7 @@ TYPE
 		PROCEDURE SetFont*(CONST name : ARRAY OF CHAR; size : LONGINT; style : SET);
 		VAR font : WMGraphics.Font;
 		BEGIN
+			IF size < 6 THEN size := 6 END;
 			font := WMGraphics.GetFont(name, size, style);
 			IF (font = NIL) THEN font := WMGraphics.GetDefaultFont(); END;
 			ASSERT(font  # NIL);
@@ -1045,6 +1047,7 @@ TYPE
 		BEGIN
 			AcquireWrite;
 			font := Get();
+			IF size < 6 THEN size := 6 END;
 			IF (font.size # size) THEN
 				font := WMGraphics.GetFont(font.name, size, font.style);
 				IF (font = NIL) THEN font := WMGraphics.GetDefaultFont(); END;
@@ -1603,7 +1606,7 @@ TYPE
 				AcquireWrite;
 				IF repositoryName # "" THEN
 					SELF.repositoryName := Strings.NewString(repositoryName);
-				ELSE ASSERT(repository # NIL);
+				ELSE (*ASSERT(repository # NIL);*)
 				END;
 				SELF.componentName := Strings.NewString(componentName);
 				SELF.componentID := componentID;

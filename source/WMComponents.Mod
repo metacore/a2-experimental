@@ -3090,13 +3090,24 @@ BEGIN
 
 END Align;
 
+PROCEDURE SetProperty*(context: Commands.Context);
+VAR name, value: Strings.String; entry: ComponentListEntry;
+BEGIN
+	NEW(name,256); NEW(value, 256);
+	IF context.arg.GetString(name^) & context.arg.GetString(value^) THEN
+		entry := selection.first;
+		WHILE entry # NIL DO
+			IF entry.component.properties.SetPropertyValue(name, value) THEN END;
+			entry := entry.next;
+		END;
+	END;
+END SetProperty;
+
+
 PROCEDURE Clone*(x: Component): Repositories.Component;
 BEGIN
 	RETURN Repositories.ComponentFromXML(x)
 END Clone;
-
-
-
 
 
 BEGIN
