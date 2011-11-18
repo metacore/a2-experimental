@@ -814,12 +814,12 @@ TYPE
 			END
 		END GetVisualComponentRoot;
 
-		PROCEDURE AdaptRelativeBounds(parent: XML.Element);
-		VAR  inner, outer: Rectangles.Rectangle;
+		PROCEDURE AdaptRelativeBounds(inner: Rectangles.Rectangle; parent: XML.Element);
+		VAR  outer: Rectangles.Rectangle;
 		BEGIN
 			Acquire;
 			IF (parent # NIL) & (parent IS VisualComponent) THEN
-				inner := bounds.Get();
+				(* inner := bounds.Get();*)
 				outer := parent(VisualComponent).bounds.Get();
 				IF (outer.b - outer.t > 0) & (outer.r - outer.l > 0) THEN
 					relativeBounds.Set(Rectangles.MakeRect( (inner.l * MaxRel) DIV (outer.r-outer.l), (inner.t * MaxRel) DIV (outer.b-outer.t),
@@ -835,7 +835,7 @@ TYPE
 		BEGIN
 			Acquire;
 			IF alignment.Get()= AlignRelative THEN
-				AdaptRelativeBounds(GetParent());
+				AdaptRelativeBounds(bounds.Get(), GetParent());
 			END;
 			p := SELF.GetParent();
 			IF (p # NIL) & (p IS VisualComponent) THEN
@@ -983,7 +983,7 @@ TYPE
 			bounds := vc.bounds.Get();
 			Rectangles.MoveRel(bounds, x, y);
 			vc.bounds.Set(bounds);
-			vc.AdaptRelativeBounds(SELF);
+			vc.AdaptRelativeBounds(vc.bounds.Get(), SELF);
 			AddContent(vc);
 			vc.Reset(NIL, NIL);
 		END AddVisualComponent;
@@ -1080,7 +1080,9 @@ TYPE
 		PROCEDURE Resized*;
 		VAR p : XML.Element;
 		BEGIN
+			(*
 			AdaptRelativeBounds(GetParent());
+			*)
 			IF sequencer # NIL THEN ASSERT(sequencer.lock.HasWriteLock()) END;
 			DisableUpdate;
 			p := SELF.GetParent();
@@ -1532,6 +1534,7 @@ TYPE
 				END;
 				RETURN
 			END;
+			AdaptRelativeBounds(b, GetParent());
 			bounds.Set(b);
 			editX := editX + dx; editY := editY + dy;
 		END Edit;
@@ -3068,6 +3071,7 @@ BEGIN
 		entry := selection.first;
 		WHILE ~done & (entry # NIL) DO
 			b := entry.component.bounds.Get(); bwidth := b.r-b.l; bheight := b.b-b.t;
+			entry.component.AdaptRelativeBounds(b,entry.component.GetParent());
 			IF string = "left" THEN b.l := rect.l; b.r := rect.l + bwidth;
 			ELSIF string = "right" THEN b.r := rect.r; b.l := rect.r-bwidth
 			ELSIF string = "top" THEN b.t := rect.t; b.b := rect.t + bheight;
@@ -3083,6 +3087,7 @@ BEGIN
 			ELSIF string = "relative" THEN  entry.component.alignment.Set(AlignRelative)
 			ELSE done := TRUE
 			END;
+			entry.component.AdaptRelativeBounds(b,entry.component.GetParent());
 			entry.component.bounds.Set(b);
 			entry := entry.next
 		END;
