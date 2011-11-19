@@ -1090,23 +1090,28 @@ TYPE
 		END GenerateObjectFile;
 
 		(* set address of sections to a fixed position after compilation *)
-		PROCEDURE FixSections(binaryModule: Sections.Module);
+		PROCEDURE FixSections(binaryModule: Sections.Module; VAR sizes: ARRAY OF LONGINT);
 		VAR adr,i: LONGINT; section: Sections.Section; is: BinaryCode.Section;
 		BEGIN
 			adr := 0;
 			FOR i := 0 TO binaryModule.allSections.Length()-1 DO
 				section := binaryModule.allSections.GetSection(i);
+				is := section(IntermediateCode.Section).resolved;
 				IF section.IsCode() THEN
-					is := section(IntermediateCode.Section).resolved;
+					(*
+					Basic.WritePooledName(D.Log,section.name);
+					D.String(" @ "); D.Int(adr,1); D.Ln;
+					*)
 					is.SetAlignment(TRUE, adr);
-					adr := adr + is.pc;
-					is.Reset; (* enable recompilation *)
+					IF is.pc > sizes[i] THEN sizes[i] := is.pc END;
+					adr := adr + sizes[i];
 				END;
+				is.Reset; (* enable recompilation *)
 			END;
 		END FixSections;
 
 		(* check if any of the addresses of sections have changed during last compilation *)
-		PROCEDURE Conflict(binaryModule: Sections.Module): BOOLEAN;
+		PROCEDURE Conflict(binaryModule: Sections.Module; VAR sizes: ARRAY OF LONGINT): BOOLEAN;
 		VAR adr,i: LONGINT; section: Sections.Section;is: BinaryCode.Section;
 		BEGIN
 			adr := 0;
@@ -1114,8 +1119,7 @@ TYPE
 				section := binaryModule.allSections.GetSection(i);
 				IF section.IsCode() THEN
 					is := section(IntermediateCode.Section).resolved;
-					IF adr # is.alignment THEN RETURN TRUE END;
-					adr := adr + is.pc;
+					IF is.pc > sizes[i] THEN RETURN TRUE END;
 				END;
 			END;
 			RETURN FALSE
@@ -1129,6 +1133,7 @@ TYPE
 			intermediateCodeModule: Sections.Module;
 			binaryModule: Formats.GeneratedModule;
 			result: BOOLEAN;
+			sizes: POINTER TO ARRAY OF LONGINT; i: LONGINT;
 		BEGIN
 			intermediateCodeModule := ExtractModuleWithName(desiredName);
 			result := TRUE;
@@ -1137,14 +1142,16 @@ TYPE
 			backend.Initialize(diagnostics, log, flags, checker, backend.GetSystem(), activeCellsSpecification);
 			binaryModule := backend.ProcessIntermediateCodeModule(intermediateCodeModule); count := 0;
 			(* iterative compilation until all sections remain fixed at their position *)
+			NEW(sizes, binaryModule(Sections.Module).allSections.Length());
+			FOR i := 0 TO LEN(sizes)-1 DO sizes[i] := 0 END;
 			REPEAT
 				INC(count);
 				(* fix all section addresses *)
-				FixSections(binaryModule(Sections.Module));
+				FixSections(binaryModule(Sections.Module),sizes^);
 				(* compile *)
 				binaryModule := backend.ProcessIntermediateCodeModule(intermediateCodeModule);
 				(* and repeat if any of the section addresses have to be adapted *)
-			UNTIL ~Conflict(binaryModule(Sections.Module)) OR (count > 10) ;
+			UNTIL ~Conflict(binaryModule(Sections.Module),sizes^) OR (count > 10) ;
 			ASSERT(count <=10);
 
 			IF binaryModule = NIL THEN
@@ -1179,7 +1186,7 @@ TYPE
 		IF block.fixed THEN RETURN 0 END;
 		IF block.type = ObjectFile.InitCode THEN RETURN 2 END;
 		IF block.type = ObjectFile.InitCode2 THEN RETURN 1 END;
-		IF block.type = ObjectFile.BodyCode THEN RETURN 3 END;
+		IF block.type = ObjectFile.BodyCode THEN RETURN 5 END;
 		IF block.GetSize () = 0 THEN RETURN 6 END;
 		IF block.type = ObjectFile.Code THEN RETURN 5 END;
 		RETURN 5;
