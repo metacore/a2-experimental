@@ -1089,6 +1089,7 @@ TYPE
 		BEGIN RETURN GenerateObjectFileWithName(objectFileFormat, log, flags, checker, activeCellsSpecification, rootModuleName)
 		END GenerateObjectFile;
 
+		(* set address of sections to a fixed position after compilation *)
 		PROCEDURE FixSections(binaryModule: Sections.Module);
 		VAR adr,i: LONGINT; section: Sections.Section; is: BinaryCode.Section;
 		BEGIN
@@ -1104,6 +1105,7 @@ TYPE
 			END;
 		END FixSections;
 
+		(* check if any of the addresses of sections have changed during last compilation *)
 		PROCEDURE Conflict(binaryModule: Sections.Module): BOOLEAN;
 		VAR adr,i: LONGINT; section: Sections.Section;is: BinaryCode.Section;
 		BEGIN
@@ -1134,10 +1136,14 @@ TYPE
 			(* generate binary code *)
 			backend.Initialize(diagnostics, log, flags, checker, backend.GetSystem(), activeCellsSpecification);
 			binaryModule := backend.ProcessIntermediateCodeModule(intermediateCodeModule); count := 0;
+			(* iterative compilation until all sections remain fixed at their position *)
 			REPEAT
 				INC(count);
+				(* fix all section addresses *)
 				FixSections(binaryModule(Sections.Module));
+				(* compile *)
 				binaryModule := backend.ProcessIntermediateCodeModule(intermediateCodeModule);
+				(* and repeat if any of the section addresses have to be adapted *)
 			UNTIL ~Conflict(binaryModule(Sections.Module)) OR (count > 10) ;
 			ASSERT(count <=10);
 
