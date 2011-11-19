@@ -2,7 +2,8 @@ MODULE FoxIntermediateCodeAssembler;
 IMPORT
 	Strings, Diagnostics, D := Debugging, SyntaxTree := FoxSyntaxTree, Scanner := FoxScanner, Sections := FoxSections,
 	IntermediateCode := FoxIntermediateCode, Basic := FoxBasic, Streams, Files, Backend := FoxBackend,
-	Global := FoxGlobal, Formats := FoxFormats, SemanticChecker := FoxSemanticChecker, ActiveCells := FoxActiveCells, ObjectFile;
+	Global := FoxGlobal, Formats := FoxFormats, SemanticChecker := FoxSemanticChecker, ActiveCells := FoxActiveCells,
+	ObjectFile, BinaryCode := FoxBinaryCode;
 
 CONST
 	IntermediateCodeExtension = "Fil"; (* TODO: move to a better place *)
@@ -1058,9 +1059,9 @@ TYPE
 			ELSIF leftSection.IsCode() & ~rightSection.IsCode() THEN (* data sections first *)
 				RETURN FALSE
 			ELSIF leftSection.IsCode() & rightSection.IsCode() THEN (* code sections: sorted by linking preference, stable w.r.t. loading order *)
-				IF leftSection.type < rightSection.type THEN (* initcode2 < initcode < bodycode < code *)
+				IF GetPriority(leftSection) < GetPriority(rightSection) THEN
 					RETURN TRUE
-				ELSIF leftSection.type = rightSection.type THEN
+				ELSIF GetPriority(leftSection) = GetPriority(rightSection) THEN
 					RETURN leftSection.offset < rightSection.offset (* must keep order as provided by loader *)
 				ELSE
 					RETURN FALSE
@@ -1088,9 +1089,41 @@ TYPE
 		BEGIN RETURN GenerateObjectFileWithName(objectFileFormat, log, flags, checker, activeCellsSpecification, rootModuleName)
 		END GenerateObjectFile;
 
+		PROCEDURE FixSections(binaryModule: Sections.Module);
+		VAR adr,i: LONGINT; section: Sections.Section; is: BinaryCode.Section;
+		BEGIN
+			adr := 0;
+			FOR i := 0 TO binaryModule.allSections.Length()-1 DO
+				section := binaryModule.allSections.GetSection(i);
+				IF section.IsCode() THEN
+					is := section(IntermediateCode.Section).resolved;
+					is.SetAlignment(TRUE, adr);
+					adr := adr + is.pc;
+					is.Reset; (* enable recompilation *)
+				END;
+			END;
+		END FixSections;
+
+		PROCEDURE Conflict(binaryModule: Sections.Module): BOOLEAN;
+		VAR adr,i: LONGINT; section: Sections.Section;is: BinaryCode.Section;
+		BEGIN
+			adr := 0;
+			FOR i := 0 TO binaryModule.allSections.Length()-1 DO
+				section := binaryModule.allSections.GetSection(i);
+				IF section.IsCode() THEN
+					is := section(IntermediateCode.Section).resolved;
+					IF adr # is.alignment THEN RETURN TRUE END;
+					adr := adr + is.pc;
+				END;
+			END;
+			RETURN FALSE
+		END Conflict;
+
+
 		(* generate binary code and write an object file with a desired module name *)
 		PROCEDURE GenerateObjectFileWithName*(objectFileFormat: Formats.ObjectFileFormat; log: Streams.Writer; flags: SET; checker: SemanticChecker.Checker; activeCellsSpecification: ActiveCells.Specification;  CONST desiredName: ARRAY OF CHAR): BOOLEAN;
 		VAR
+			count: LONGINT;
 			intermediateCodeModule: Sections.Module;
 			binaryModule: Formats.GeneratedModule;
 			result: BOOLEAN;
@@ -1100,7 +1133,14 @@ TYPE
 
 			(* generate binary code *)
 			backend.Initialize(diagnostics, log, flags, checker, backend.GetSystem(), activeCellsSpecification);
-			binaryModule := backend.ProcessIntermediateCodeModule(intermediateCodeModule);
+			binaryModule := backend.ProcessIntermediateCodeModule(intermediateCodeModule); count := 0;
+			REPEAT
+				INC(count);
+				FixSections(binaryModule(Sections.Module));
+				binaryModule := backend.ProcessIntermediateCodeModule(intermediateCodeModule);
+			UNTIL ~Conflict(binaryModule(Sections.Module)) OR (count > 10) ;
+			ASSERT(count <=10);
+
 			IF binaryModule = NIL THEN
 				diagnostics.Error(desiredName, Diagnostics.Invalid, Diagnostics.Invalid, "the specified backend cannot process intermediate code");
 				result := FALSE
@@ -1127,5 +1167,16 @@ TYPE
 		END GenerateObjectFileWithName;
 
 	END Assemblinker;
+
+	PROCEDURE GetPriority (block: Sections.Section): LONGINT;
+	BEGIN
+		IF block.fixed THEN RETURN 0 END;
+		IF block.type = ObjectFile.InitCode THEN RETURN 2 END;
+		IF block.type = ObjectFile.InitCode2 THEN RETURN 1 END;
+		IF block.type = ObjectFile.BodyCode THEN RETURN 3 END;
+		IF block.GetSize () = 0 THEN RETURN 6 END;
+		IF block.type = ObjectFile.Code THEN RETURN 5 END;
+		RETURN 5;
+	END GetPriority;
 
 END FoxIntermediateCodeAssembler.
