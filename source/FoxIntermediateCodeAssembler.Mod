@@ -730,9 +730,9 @@ TYPE
 		END MarkAsReachableByName;
 
 		(** mark all sections whose names start with a certain prefix as reachable **)
-		PROCEDURE MarkAsReachableStartingWith*(CONST prefix: Basic.PooledName; allowedSections: SET);
+		PROCEDURE MarkAsReachableStartingWith(CONST prefix: Basic.PooledName; allowedSections: SET);
 		VAR
-			section: Sections.Section;
+			section: Sections.Section; name: Basic.PooledName;
 			i: LONGINT;
 		BEGIN
 			(* TODO: could or should one make this faster using a hash table? *)
@@ -740,7 +740,13 @@ TYPE
 			FOR i := 0 TO allSections.Length() - 1 DO
 				section := allSections.GetSection(i);
 				IF section.type IN allowedSections THEN
-					IF Basic.IsPrefix(prefix, section.name) THEN MarkAsReachable(section) END
+					IF Basic.IsPrefix(prefix, section.name) THEN
+						name := section.name;
+						Basic.RemoveSuffix(name);
+						IF prefix = name THEN
+							MarkAsReachable(section)
+						END
+					END
 				END;
 			END
 		END MarkAsReachableStartingWith;
@@ -756,7 +762,6 @@ TYPE
 			END;
 			RETURN FALSE
 		END ModuleIsReachable;
-
 
 		(** mark a section as reachable and do the same recursively for all referenced sections **)
 		PROCEDURE MarkAsReachable(section: Sections.Section);
