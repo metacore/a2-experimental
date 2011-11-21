@@ -1124,7 +1124,12 @@ TYPE
 				section := binaryModule.allSections.GetSection(i);
 				IF section.IsCode() THEN
 					is := section(IntermediateCode.Section).resolved;
-					IF is.pc > sizes[i] THEN RETURN TRUE END;
+					IF is.pc > sizes[i] THEN RETURN TRUE
+					(*
+					not necessary, the linker places correctly.
+					ELSIF is.pc < sizes[i] THEN is.SetPC(sizes[i]) (* set section size to maximal observed size *)
+					*)
+					END;
 				END;
 			END;
 			RETURN FALSE
@@ -1146,6 +1151,7 @@ TYPE
 			(* generate binary code *)
 			backend.Initialize(diagnostics, log, flags, checker, backend.GetSystem(), activeCellsSpecification);
 			binaryModule := backend.ProcessIntermediateCodeModule(intermediateCodeModule); count := 0;
+
 			(* iterative compilation until all sections remain fixed at their position *)
 			NEW(sizes, binaryModule(Sections.Module).allSections.Length());
 			FOR i := 0 TO LEN(sizes)-1 DO sizes[i] := 0 END;
@@ -1158,6 +1164,7 @@ TYPE
 				(* and repeat if any of the section addresses have to be adapted *)
 			UNTIL ~Conflict(binaryModule(Sections.Module),sizes^) OR (count > 10) ;
 			ASSERT(count <=10);
+
 
 			IF binaryModule = NIL THEN
 				diagnostics.Error(desiredName, Diagnostics.Invalid, Diagnostics.Invalid, "the specified backend cannot process intermediate code");
@@ -1189,12 +1196,12 @@ TYPE
 	PROCEDURE GetPriority (block: Sections.Section): LONGINT;
 	BEGIN
 		IF block.fixed THEN RETURN 0 END;
-		IF block.type = ObjectFile.InitCode THEN RETURN 2 END;
 		IF block.type = ObjectFile.InitCode2 THEN RETURN 1 END;
-		IF block.type = ObjectFile.BodyCode THEN RETURN 5 END;
+		IF block.type = ObjectFile.InitCode THEN RETURN 2 END;
+		IF block.type = ObjectFile.BodyCode THEN RETURN 3 END;
+		IF block.type = ObjectFile.Code THEN RETURN 4 END;
 		IF block.GetSize () = 0 THEN RETURN 6 END;
-		IF block.type = ObjectFile.Code THEN RETURN 5 END;
-		RETURN 5;
+		RETURN 5; (* default *)
 	END GetPriority;
 
 END FoxIntermediateCodeAssembler.

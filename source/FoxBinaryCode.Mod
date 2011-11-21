@@ -61,11 +61,11 @@ TYPE
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR i: LONGINT;
 		BEGIN
-			symbol.DumpName(w);			
+			symbol.DumpName(w);
 			IF symbolOffset # 0 THEN w.String(":"); w.Int(symbolOffset, 0) END;
-			
+
 			w.String(" (displ="); w.Int(displacement, 0); w.String(")");
-			
+
 			IF scale # 0 THEN w.String(" *"); w.Int(scale,1); END;
 			w.String(" [");
 
@@ -206,6 +206,7 @@ TYPE
 		PROCEDURE SetPC*(pc: Unit);
 		BEGIN
 			SELF.pc := pc;
+			CheckSize(0); (* adjust size *)
 		END SetPC;
 
 		PROCEDURE SetFinally*(atPC: Unit);
