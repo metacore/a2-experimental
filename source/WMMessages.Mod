@@ -173,6 +173,11 @@ TYPE
 					END
 				ELSE handler(msg) (* Generic message *)
 				END;
+				(* clear references *)
+				msg.originator := NIL;
+				msg.sender := NIL;
+				msg.ext := NIL;
+				originator := NIL;
 				RETURN TRUE
 			END
 		END Handle;
@@ -200,7 +205,13 @@ TYPE
 			IF hadOverflow THEN KernelLog.String(" - Recovered"); hadOverflow := FALSE END;
 			AWAIT((num # 0) OR ~alive);
 			IF ~alive THEN RETURN FALSE END;
-			msg := msgQ[head]; head := (head + 1)  MOD MsgQSize;
+			msg := msgQ[head];
+			(* clear references from the queue *)
+			msgQ[head].originator := NIL;
+			msgQ[head].sender := NIL;
+			msgQ[head].ext := NIL;
+
+			head := (head + 1)  MOD MsgQSize;
 			DEC(num);
 			originator := msg.originator;
 			RETURN TRUE
@@ -213,7 +224,6 @@ TYPE
 			IF th # NIL THEN continue := th() ELSE continue := FALSE END;
 			IF continue THEN lock.Reset ELSE RETURN END;
 		END;
-
 		alive := TRUE; me := Objects.ActiveObject();
 		(* Message processing loop *)
 		WHILE Get(msg) DO
