@@ -70,6 +70,7 @@ TYPE
 					WMWindowManager.ExtAddWindow(SELF, 50, 50, flags)
 				END;
 			END;
+
 		END New;
 
 		PROCEDURE Close;
@@ -219,6 +220,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrClock);
+			SetGenerator("WMClock.GenClock");
 			NEW(imageName, PrototypeImageName, NIL, NIL); properties.Add(imageName);
 			NEW(timeOffset, PrototypeTimeOffset, NIL, NIL); properties.Add(timeOffset);
 			NEW(viewMode, PrototypeViewMode, NIL, NIL); properties.Add(viewMode);
@@ -339,7 +341,7 @@ TYPE
 				Strings.FormatDateTime(format^, time, str^);
 				canvas.SetColor(color.Get());
 				IF (image = NIL) THEN
-					WMGraphicUtilities.DrawRect(canvas, GetClientRect(), color.Get(), WMGraphics.ModeCopy);
+					(*WMGraphicUtilities.DrawRect(canvas, GetClientRect(), color.Get(), WMGraphics.ModeCopy);*)
 				END;
 				WMGraphics.DrawStringInRect(canvas, GetClientRect(), FALSE, WMGraphics.AlignCenter, WMGraphics.AlignCenter, str^)
 			END;

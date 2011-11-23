@@ -1402,6 +1402,47 @@ TYPE
 		BEGIN ASSERT(IsCallFromSequencer());
 		END KeyEvent;
 
+		PROCEDURE EditKeyEvents(ucs : LONGINT; flags: SET; VAR keySym: LONGINT): BOOLEAN; (** FINAL *)
+		VAR event : KeyPressedEvent; command : Strings.String; scale: LONGINT;
+			clone: Repositories.Component; parent: XML.Content; parentEditMode: BOOLEAN;
+		BEGIN
+			ASSERT(IsCallFromSequencer());
+			event.ucs := ucs; event.flags := flags; event.keysym := keySym;
+
+			parent := GetParent();
+			IF (parent # NIL) & (parent IS VisualComponent) & parent(VisualComponent).editMode.Get() THEN
+				parentEditMode := TRUE
+			ELSE
+				parentEditMode := FALSE
+			END;
+
+			IF ({Inputs.Release} * flags = {}) THEN
+				IF (keySym = Inputs.KsF1) & (Inputs.Shift * flags # {}) THEN
+					SetEditMode(~editMode.Get(), TRUE);
+					RETURN TRUE
+				ELSIF (keySym = Inputs.KsEscape) THEN
+					selection.Reset(NIL);
+					RETURN FALSE
+				ELSIF editMode.Get() OR parentEditMode THEN
+					IF Inputs.Shift * flags # {} THEN scale := 1 ELSE scale := 4 END;
+					IF keySym = Inputs.KsLeft THEN selection.Shift(-scale,0); RETURN TRUE
+					ELSIF keySym = Inputs.KsRight THEN selection.Shift(scale,0); RETURN TRUE
+					ELSIF keySym = Inputs.KsDown THEN selection.Shift(0,scale); RETURN TRUE
+					ELSIF keySym = Inputs.KsUp THEN selection.Shift(0,-scale); RETURN TRUE
+					ELSIF keySym=4 (* CTRL-D *) THEN
+						clone := Clone(selection.first.component);
+						parent := selection.first.component.GetParent(); parent(Component).AddContent(clone);
+						RETURN TRUE
+					ELSIF keySym = Inputs.KsDelete THEN
+						RemoveSelection();
+						RETURN TRUE
+					END;
+				END
+			END;
+			RETURN FALSE;
+		END EditKeyEvents;
+
+
 		PROCEDURE CheckKeyEvents(ucs : LONGINT; flags: SET; VAR keySym: LONGINT); (** FINAL *)
 		VAR event : KeyPressedEvent; command : Strings.String; scale: LONGINT; clone: Repositories.Component; parent: XML.Content;
 		BEGIN
@@ -1414,19 +1455,21 @@ TYPE
 				ELSIF (keySym = Inputs.KsEscape) THEN
 					command := GetAttributeValue("onEscape");
 					selection.Reset(NIL);
-				ELSIF (keySym = Inputs.KsF1) & (Inputs.Shift * flags # {}) THEN
+				(*ELSIF (keySym = Inputs.KsF1) & (Inputs.Shift * flags # {}) THEN
 					SetEditMode(~editMode.Get(), TRUE);
-				ELSIF editMode.Get() THEN
+				   ELSIF editMode.Get() THEN
 					IF Inputs.Shift * flags # {} THEN scale := 1 ELSE scale := 4 END;
 					IF keySym = Inputs.KsLeft THEN selection.Shift(-scale,0)
 					ELSIF keySym = Inputs.KsRight THEN selection.Shift(scale,0)
 					ELSIF keySym = Inputs.KsDown THEN selection.Shift(0,scale)
 					ELSIF keySym = Inputs.KsUp THEN selection.Shift(0,-scale)
-					END;
-					IF keySym=4 (* CTRL-D *) THEN
+					ELSIF keySym=4 (* CTRL-D *) THEN
 						clone := Clone(selection.first.component);
 						parent := selection.first.component.GetParent(); parent(Component).AddContent(clone);
+					ELSIF keySym = Inputs.KsDelete THEN
+						RemoveSelection();
 					END;
+				*)
 				END;
 				IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 
@@ -1458,7 +1501,7 @@ TYPE
 		END CheckPointerEvent;
 
 		PROCEDURE InEditBounds(x,y: LONGINT): LONGINT;
-		CONST Border = 8;
+		CONST Border = 2;
 		VAR left, right, top, bottom: LONGINT;
 		BEGIN
 			left := bounds.GetLeft();
@@ -1691,7 +1734,10 @@ TYPE
 					 fPointerOwner.Handle(msg)
 				END
 			ELSIF msg.msgType = Messages.MsgKey THEN
-				IF focusComponent # SELF THEN focusComponent.Handle(msg)
+
+				IF EditKeyEvents(msg.x, msg.flags, msg.y) THEN
+					handled := TRUE;
+				ELSIF focusComponent # SELF THEN focusComponent.Handle(msg)
 				ELSIF (visible.Get()) THEN
 					IF ~needsTab.Get() & (msg.y = 0FF09H) THEN
 						IF (Inputs.Shift * msg.flags # {}) THEN FocusPrev ELSE FocusNext END
@@ -2868,7 +2914,7 @@ VAR winx: XML.Element; window: WM.Window;
 	moduleName, procedureName : Modules.Name;
 	msg : ARRAY 128 OF CHAR;
 	res: LONGINT;
-	gen:WindowGenerator
+	gen:WindowGenerator;
 BEGIN
 	IF xml IS XML.Element THEN
 		winx:=xml(XML.Element);
@@ -2887,7 +2933,6 @@ BEGIN
 	END;
 	RETURN window
 END LoadFormWindow;
-
 
 PROCEDURE LoadStyleInternal(CONST filename : ARRAY OF CHAR);
 VAR f : Files.File;
@@ -3107,6 +3152,18 @@ BEGIN
 		END;
 	END;
 END SetProperty;
+
+PROCEDURE RemoveSelection*;
+VAR entry: ComponentListEntry; parent: XML.Element;
+BEGIN
+	entry := selection.first;
+	WHILE entry # NIL DO
+		parent := entry.component.GetParent();
+		IF parent # NIL THEN parent(VisualComponent).RemoveContent(entry.component); parent(VisualComponent).Invalidate END;
+		entry := entry.next
+	END;
+END RemoveSelection;
+
 
 
 PROCEDURE Clone*(x: Component): Repositories.Component;
