@@ -72,12 +72,16 @@ VAR
 	c : XML.Content; component : Repositories.Component; string : XML.String;
 	vc : WMComponents.VisualComponent;
 	width, height, id, res : LONGINT;
+	fx,fy,fw,fh,x,y: LONGINT;
+	viewPort: WMWindowManager.ViewPort;
+	manager: WMWindowManager.WindowManager;
 BEGIN
 	NEW(options);
 	options.Add("h", "height", Options.Integer);
 	options.Add("w", "width", Options.Integer);
 	options.Add("c", "client", Options.Flag);
 	options.Add("a","alpha", Options.Flag);
+	options.Add("f","fullscreen", Options.Flag);
 	IF options.Parse(context.arg, context.error) & context.arg.GetString(filename) THEN
 		IF Repositories.SplitName(filename, repositoryName, componentName, id) & (repositoryName # "") THEN
 			(* Retrieve component from repository *)
@@ -121,10 +125,23 @@ BEGIN
 			IF options.GetFlag("client") THEN
 				vc.alignment.Set(WMComponents.AlignClient);
 			END;
+			IF options.GetFlag("fullscreen") THEN
+				viewPort := WMWindowManager.GetDefaultView();
+				fx := -1; fy := 0; fw := 1; fh := 1; (* full screen on screen number 4 *)
+				x := fx * viewPort.width0;
+				y := fy * viewPort.height0;
+				width := fw* viewPort.width0;
+				height := fh * viewPort.height0;
+			END;
 			NEW(window, width, height, options.GetFlag("alpha"));
 			window.SetTitle(vc.GetName());
 			window.SetContent(c);
-			WMWindowManager.DefaultAddWindow(window);
+			IF options.GetFlag("fullscreen") THEN
+				manager := WMWindowManager.GetDefaultManager();
+				manager.Add(x, y, window, {WMWindowManager.FlagStayOnTop});
+			ELSE
+				WMWindowManager.DefaultAddWindow(window);
+			END;
 		ELSE
 			IF (c = NIL) THEN context.error.String("Could not load/generate component "); context.error.String(filename);
 			ELSE context.error.String(filename); context.error.String(" is not a VisualComponent.");

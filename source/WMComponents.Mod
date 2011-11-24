@@ -1405,6 +1405,7 @@ TYPE
 		PROCEDURE EditKeyEvents(ucs : LONGINT; flags: SET; VAR keySym: LONGINT): BOOLEAN; (** FINAL *)
 		VAR event : KeyPressedEvent; command : Strings.String; scale: LONGINT;
 			clone: Repositories.Component; parent: XML.Content; parentEditMode: BOOLEAN;
+			enum: XMLObjects.Enumerator; obj: ANY;
 		BEGIN
 			ASSERT(IsCallFromSequencer());
 			event.ucs := ucs; event.flags := flags; event.keysym := keySym;
@@ -1433,6 +1434,14 @@ TYPE
 						clone := Clone(selection.first.component);
 						parent := selection.first.component.GetParent(); parent(Component).AddContent(clone);
 						RETURN TRUE
+					ELSIF keySym=1 THEN (* CTRL-A *)
+						enum := GetContents();
+						WHILE enum.HasMoreElements() DO
+							obj := enum.GetNext();
+							IF obj IS VisualComponent THEN
+								selection.Add(obj(VisualComponent))
+							END;
+						END;
 					ELSIF keySym = Inputs.KsDelete THEN
 						RemoveSelection();
 						RETURN TRUE
