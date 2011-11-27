@@ -4994,6 +4994,7 @@ TYPE
 			procedure: SyntaxTree.Procedure;
 			temporaryVariable: SyntaxTree.Variable;
 			dummy: IntermediateCode.Operand;
+			custom: SyntaxTree.CustomBuiltin;
 
 			PROCEDURE CallBodies(self: IntermediateCode.Operand; type: SyntaxTree.Type);
 			VAR recordScope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure; body: SyntaxTree.Body; flags: LONGINT;
@@ -6029,6 +6030,19 @@ TYPE
 					CallThis(ChannelModuleName,"Receive")
 				ELSE
 					CallThis(ChannelModuleName,"ReceiveNonBlocking")
+				END;
+			| Global.systemSpecial:
+				custom := x.left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.CustomBuiltin);
+				IF p0 # NIL THEN Evaluate(p0,s0) ELSE InitOperand(s0,ModeValue) END;
+				IF p1 # NIL THEN Evaluate(p1,s1) ELSE InitOperand(s1, ModeValue) END;
+				IF p2 # NIL THEN Evaluate(p2,s2) ELSE InitOperand(s2, ModeValue) END;
+				Emit(SpecialInstruction(custom.subType,s0.op, s1.op, s2.op));
+				ReleaseOperand(s0); ReleaseOperand(s1); ReleaseOperand(s2);
+				IF custom.returnType # NIL THEN
+					res := NewRegisterOperand(IntermediateCode.GetType(system,custom.returnType));
+					Emit(Result(res));
+					InitOperand(result,ModeValue);
+					result.op := res;
 				END;
 			ELSE (* function not yet implemented *)
 				Error(position,"not yet implemented");
@@ -9368,6 +9382,15 @@ TYPE
 		IntermediateCode.InitInstruction(instruction,IntermediateCode.data,op,emptyOperand,emptyOperand);
 		RETURN instruction
 	END Data;
+
+	PROCEDURE SpecialInstruction(subtype: SHORTINT; op1,op2,op3: IntermediateCode.Operand): IntermediateCode.Instruction;
+	VAR instruction: IntermediateCode.Instruction;
+	BEGIN
+		IntermediateCode.InitInstruction(instruction,IntermediateCode.special,op1,op2,op3);
+		IntermediateCode.SetSubType(instruction, subtype);
+		RETURN instruction
+	END SpecialInstruction;
+
 
 	PROCEDURE Reserve(units: LONGINT):IntermediateCode.Instruction;
 	VAR op1: IntermediateCode.Operand;

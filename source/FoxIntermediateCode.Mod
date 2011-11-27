@@ -23,6 +23,7 @@ CONST
 	UndefRegMem*={Undefined, ModeRegister, ModeMemory};
 	Num* = {ModeNumber};
 	Str*= {ModeString};
+	Any = {Undefined, ModeRegister, ModeMemory, ModeImmediate};
 
 	(* operand types *)
 	SignedInteger* = 1;
@@ -62,7 +63,7 @@ CONST
 	result*= 8; trap*= 9; br*= 10; breq*= 11; brne*= 12; brge*= 13; brlt*= 14; pop*= 15;
 	push*= 16; neg*= 17; not*= 18; abs*= 19; mul*= 20; div*= 21; mod*= 22; sub*= 23;
 	add*= 24; and*= 25; or*= 26; xor*= 27; shl*= 28; shr*= 29; rol*= 30; ror*= 31;
-	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; NofOpcodes*= 38;
+	copy*= 32; fill*= 33; asm*= 34; data*= 35; reserve*= 36; label*= 37; special*=38; NofOpcodes*= 39;
 
 	NotYetCalculatedSize = -2;
 
@@ -103,6 +104,7 @@ TYPE
 
 	Instruction* = RECORD
 		opcode-: SHORTINT; (* instruction opcode *)
+		subtype-: SHORTINT; (* for special backend instruction *)
 		pc-: LONGINT; (* backend program counter (in bits) for debugging and for label fixups in backend *)
 		op1*,op2*,op3*: Operand; (* first operand typically provides the result, if any *)
 	END;
@@ -627,6 +629,7 @@ TYPE
 		IF instr.op1.mode # Undefined THEN w.String(" "); DumpOperand(w,instr.op1) END;
 		IF instr.op2.mode # Undefined THEN w.String(", "); DumpOperand(w,instr.op2) END;
 		IF instr.op3.mode # Undefined THEN w.String(", "); DumpOperand(w,instr.op3) END;
+		IF instr.opcode = special THEN w.String(" sub "); w.Int(instr.subtype,1) END;
 	END DumpInstruction;
 
 	PROCEDURE InitInstructions;
@@ -718,6 +721,8 @@ TYPE
 		AddFormat(reserve, "reserve",Num,Undef,Undef,{});
 		(* label - pseudo-instruction to reference back to source code positions *)
 		AddFormat(label, "label",Num,Undef,Undef,{});
+		(* special instruction support for backend addtions *)
+		AddFormat(special,"special",Str, Any, Any, {} );
 	END InitInstructions;
 
 	PROCEDURE InitInstruction*(VAR instr: Instruction; opcode: SHORTINT; op1,op2,op3: Operand);
@@ -737,6 +742,12 @@ TYPE
 		instr.op2 := op2;
 		instr.op3 := op3;
 	END InitInstruction;
+
+	PROCEDURE SetSubType*(VAR instr: Instruction; subType: SHORTINT);
+	BEGIN
+		instr.subtype := subType
+	END SetSubType;
+
 
 	PROCEDURE InitOperand*(VAR op: Operand);
 	BEGIN

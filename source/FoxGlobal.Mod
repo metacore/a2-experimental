@@ -88,9 +88,10 @@ CONST
 	systemBit*= systemAdr+1; systemGet64*= systemBit+1; systemGet32*= systemGet64+1; systemGet16*= systemGet32+1;
 	systemGet8*= systemGet16+1; systemLsh*= systemGet8+1; systemRot*= systemLsh+1; systemVal*= systemRot+1; Conversion*= systemVal+1;
 	systemHardwareAddress*=systemVal+1; systemMsk*=systemHardwareAddress+1;
+	systemSpecial*=systemMsk+1;
 
 	(* from ERA *)
-	systemNull*=systemMsk+1; systemXOR*=systemNull+1; systemROR*=systemXOR+1; systemProc*=systemROR+1; systemStop* = systemProc + 1; LSL*=systemStop+1; LSR*=LSL+1; ASR*=LSR+1; Flt*=ASR+1; Floor*=Flt+1; Phi*=Floor+1;
+	systemNull*=systemSpecial+1; systemXOR*=systemNull+1; systemROR*=systemXOR+1; systemProc*=systemROR+1; systemStop* = systemProc + 1; LSL*=systemStop+1; LSR*=LSL+1; ASR*=LSR+1; Flt*=ASR+1; Floor*=Flt+1; Phi*=Floor+1;
 
 	DotTimesPlus* = Phi + 1;
 	AtMulDec* = DotTimesPlus + 1;
@@ -975,6 +976,33 @@ TYPE
 		NewBuiltin0(id,nameU,scope[Scanner.Uppercase],realtime);
 		NewBuiltin0(id,nameL,scope[Scanner.Lowercase],realtime);
 	END NewBuiltin;
+
+	PROCEDURE NewCustomBuiltin0(CONST name: ARRAY OF CHAR; in:  SyntaxTree.ModuleScope; subType: SHORTINT; r,p0,p1,p2: SyntaxTree.Type);
+	VAR basic: SyntaxTree.CustomBuiltin; duplicate: BOOLEAN; type: SyntaxTree.ProcedureType;
+	BEGIN
+		basic := SyntaxTree.NewCustomBuiltin(-1,SyntaxTree.NewIdentifier(name),systemSpecial,subType);
+		basic.SetAccess(SyntaxTree.ReadOnly);
+		basic.SetTypes(r,p0,p1,p2);
+		type := SyntaxTree.NewProcedureType(-1,in);
+		type.SetRealtime(TRUE);
+		type.SetReturnType(SyntaxTree.invalidType); (* make incompatible to any procedure *)
+		basic.SetType(type);
+		basic.SetState(SyntaxTree.Resolved);
+		in.EnterSymbol(basic,duplicate);
+		in.AddBuiltin(basic);
+		ASSERT(~duplicate);
+	END NewCustomBuiltin0;
+
+	PROCEDURE NewCustomBuiltin*(CONST name: ARRAY OF CHAR; CONST scope: ARRAY OF SyntaxTree.ModuleScope; subType: SHORTINT; r,p0,p1,p2: SyntaxTree.Type);
+	VAR nameL,nameU: Scanner.IdentifierString;
+	BEGIN
+		Basic.Lowercase(name,nameL);
+		Basic.Uppercase(name,nameU);
+		NewCustomBuiltin0(nameU,scope[Scanner.Uppercase],subType,r,p0,p1,p2);
+		NewCustomBuiltin0(nameL,scope[Scanner.Lowercase],subType,r,p0,p1,p2);
+	END NewCustomBuiltin;
+
+
 
 	PROCEDURE ModuleFileName*(moduleName,context: SyntaxTree.Identifier; VAR fileName: ARRAY OF CHAR);
 	VAR prefix,name: Scanner.IdentifierString;

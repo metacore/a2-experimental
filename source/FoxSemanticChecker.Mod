@@ -2239,7 +2239,7 @@ TYPE
 				typeSymbol.SetType(typeDeclaration.type);
 				expressionList.AddExpression(typeSymbol); (* type declaration symbol skipped *)
 				expressionList.AddExpression(expression);
-				result := SyntaxTree.NewBuiltinCallDesignator(expression.position,Global.systemVal,expressionList);
+				result := SyntaxTree.NewBuiltinCallDesignator(expression.position,Global.systemVal,NIL,expressionList);
 				result.SetType(type);
 			ELSIF IsArrayStructuredObjectType(type) THEN
 				(* no type can be converted to an array-structured object type *)
@@ -4480,6 +4480,7 @@ TYPE
 
 			mathArrayType: SyntaxTree.MathArrayType;
 			device: ActiveCells.Device;
+			custom: SyntaxTree.CustomBuiltin;
 
 			PROCEDURE Parameters(from,to: LONGINT): BOOLEAN;
 			VAR resultB: BOOLEAN;
@@ -4523,7 +4524,7 @@ TYPE
 			IF result = SyntaxTree.invalidExpression THEN (* error already handled *)
 			ELSIF result # NIL THEN type := result.type (* operator *)
 			ELSE
-				result := SyntaxTree.NewBuiltinCallDesignator(position,id,actualParameters);
+				result := SyntaxTree.NewBuiltinCallDesignator(position,id,left,actualParameters);
 				result(SyntaxTree.Designator).SetLeft(left);
 				(* ---- ASSERT ----- *)
 				IF (id = Global.Assert) & Parameters(1,2)  THEN
@@ -5511,6 +5512,22 @@ TYPE
 						ELSE
 							result := Global.NewIntegerValue(system,parameter0.position,device.adr);
 							type := result.type;
+						END;
+					END;
+				(* ------- custom builltins -----*)
+				ELSIF id = Global.systemSpecial THEN
+					custom := builtin(SyntaxTree.CustomBuiltin);
+					type := custom.returnType;
+					IF (custom.typeP0 = NIL) & Parameters(0,0) THEN
+					ELSE
+						parameter0 := NewConversion(parameter0.position,parameter0,custom.typeP0,NIL);
+						IF (custom.typeP1 = NIL) & Parameters(1,1) THEN
+						ELSE
+							parameter1 := NewConversion(parameter1.position,parameter1,custom.typeP1,NIL);
+							IF (custom.typeP2 = NIL) & Parameters(2,2) THEN
+							ELSE
+								parameter2 := NewConversion(parameter2.position,parameter2,custom.typeP1,NIL);
+							END;
 						END;
 					END;
 				ELSE

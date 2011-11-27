@@ -1528,11 +1528,11 @@ TYPE
 		PROCEDURE SetNoPAF*(noPAF: BOOLEAN);
 		BEGIN SELF.noPAF := noPAF
 		END SetNoPAF;
-		
+
 		PROCEDURE SetPcOffset*(pcOffset: LONGINT);
 		BEGIN SELF.pcOffset := pcOffset
 		END SetPcOffset;
-		
+
 		PROCEDURE SetInterrupt*(isInterrupt: BOOLEAN);
 		BEGIN SELF.isInterrupt := isInterrupt
 		END SetInterrupt;
@@ -2107,10 +2107,11 @@ TYPE
 		VAR
 			id-: LONGINT;
 			parameters-: ExpressionList;
+			builtin-: Builtin;
 
-		PROCEDURE & InitBuiltinCallDesignator(position: LONGINT; id: LONGINT; parameters: ExpressionList);
+		PROCEDURE & InitBuiltinCallDesignator(position: LONGINT; id: LONGINT; left: Designator; parameters: ExpressionList);
 		BEGIN
-			InitDesignator(position); SELF.parameters := parameters; SELF.id := id
+			InitDesignator(position); SELF.parameters := parameters; SELF.id := id; SELF.left := left;
 		END InitBuiltinCallDesignator;
 
 		PROCEDURE Accept*(v: Visitor);
@@ -2801,6 +2802,24 @@ TYPE
 		END Accept;
 
 	END Builtin;
+
+	CustomBuiltin*=OBJECT (Builtin)
+	VAR
+		subType-: SHORTINT;
+		returnType-, typeP0-, typeP1-, typeP2-: Type;
+
+		PROCEDURE & InitCustomBuiltin(position: LONGINT; name:Identifier; id: LONGINT; subType: SHORTINT);
+		BEGIN
+			InitBuiltin(position,name,id);
+			SELF.subType := subType;
+		END InitCustomBuiltin;
+
+		PROCEDURE SetTypes*(returnType, typeP0, typeP1, typeP2: Type);
+		BEGIN
+			SELF.returnType := returnType; SELF.typeP0 := typeP0; SELF.typeP1 := typeP1; SELF.typeP2 := typeP2;
+		END SetTypes;
+
+	END CustomBuiltin;
 
 	Operator* = OBJECT (Procedure)
 	VAR
@@ -4176,6 +4195,12 @@ VAR
 		NEW(builtin,position,name,id); RETURN builtin
 	END NewBuiltin;
 
+	PROCEDURE NewCustomBuiltin*(position: LONGINT; name: Identifier; id: LONGINT; subType: SHORTINT): CustomBuiltin;
+	VAR builtin:CustomBuiltin;
+	BEGIN
+		NEW(builtin,position,name,id,subType); RETURN builtin
+	END NewCustomBuiltin;
+
 	PROCEDURE NewOperator*( position: LONGINT;  name: Identifier; scope: ProcedureScope): Operator;
 	VAR operator: Operator;
 	BEGIN
@@ -4424,10 +4449,10 @@ VAR
 		NEW(procedureCallDesignator, position, left, parameters); RETURN procedureCallDesignator
 	END NewProcedureCallDesignator;
 
-	PROCEDURE NewBuiltinCallDesignator*(position: LONGINT; id: LONGINT; parameters: ExpressionList): BuiltinCallDesignator;
+	PROCEDURE NewBuiltinCallDesignator*(position: LONGINT; id: LONGINT; left: Designator; parameters: ExpressionList): BuiltinCallDesignator;
 	VAR builtinCallDesignator: BuiltinCallDesignator;
 	BEGIN
-		NEW(builtinCallDesignator, position, id, parameters); RETURN builtinCallDesignator
+		NEW(builtinCallDesignator, position, id, left,parameters); RETURN builtinCallDesignator
 	END NewBuiltinCallDesignator;
 
 	PROCEDURE NewTypeGuardDesignator*(position: LONGINT; left: Designator; type: Type): TypeGuardDesignator;
