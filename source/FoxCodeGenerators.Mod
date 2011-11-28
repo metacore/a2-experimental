@@ -268,7 +268,7 @@ TYPE
 					WHILE  entry # NIL DO
 						IF (FirstUse(entry.register) # pc) & (entry.register # x.op1.register) THEN
 							IntermediateCode.InitRegister(op, entry.type,entry.registerClass, entry.register);
-							Emit(IntermediateBackend.Push(op),"save");
+							Emit(IntermediateBackend.Push(x.textPosition,op),"save");
 						END;
 						entry := entry.next;
 					END;
@@ -281,7 +281,7 @@ TYPE
 					WHILE  entry # NIL DO
 						IF (FirstUse(entry.register) # pc)  & (entry.register # x.op1.register)  THEN
 							IntermediateCode.InitRegister(op, entry.type,entry.registerClass, entry.register);
-							Emit(IntermediateBackend.Pop(op),"restore");
+							Emit(IntermediateBackend.Pop(x.textPosition,op),"restore");
 						END;
 						entry := entry.prev;
 					END;
@@ -300,11 +300,11 @@ TYPE
 				IF ~module.imports.ContainsName(moduleName) THEN module.imports.AddName(moduleName) END;
 				parSize := 0;
 				IF x.op2.mode # IntermediateCode.Undefined THEN
-					Emit(IntermediateBackend.Push(x.op2),"par");
+					Emit(IntermediateBackend.Push(x.textPosition,x.op2),"par");
 					INC(parSize, module.system.addressSize);
 				END;
 				IF x.op3.mode # IntermediateCode.Undefined THEN
-					Emit(IntermediateBackend.Push(x.op3),"par");
+					Emit(IntermediateBackend.Push(x.textPosition,x.op3),"par");
 					INC(parSize, module.system.addressSize);
 				END;
 				Basic.InitPooledName(sectionName);
@@ -316,8 +316,8 @@ TYPE
 					source := IntermediateCode.NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.CodeSection, FALSE, sectionName,NIL,dump#NIL);
 				END;
 				IntermediateCode.InitAddress(op, IntermediateCode.GetType(module.system,module.system.addressType), source , 0);
-				Emit(IntermediateBackend.Call(op,IntermediateBackend.ToMemoryUnits(module.system,parSize)),"");
-				Emit(IntermediateBackend.Result(x.op1),"");
+				Emit(IntermediateBackend.Call(x.textPosition,op,IntermediateBackend.ToMemoryUnits(module.system,parSize)),"");
+				Emit(IntermediateBackend.Result(x.textPosition,x.op1),"");
 				RestoreRegisters;
 				inEmulation := FALSE;
 			END Emulate;

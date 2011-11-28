@@ -341,7 +341,7 @@ TYPE
 					END;
 
 					IF ~error THEN
-						IntermediateCode.InitInstruction(instruction, opCode, operands[0], operands[1], operands[2]);
+						IntermediateCode.InitInstruction(instruction, positionOfInstruction, opCode, operands[0], operands[1], operands[2]);
 						IF Strict & ~IntermediateCode.CheckInstruction(instruction, message) THEN
 							Error(positionOfInstruction, message)
 						END
@@ -971,7 +971,7 @@ TYPE
 
 			IntermediateCode.InitImmediate(dataOperand, IntermediateCode.GetType(backend.GetSystem(), syntaxTreeValue.type.resolved), hugeintValue);
 			IntermediateCode.InitOperand(emptyOperand);
-			IntermediateCode.InitInstruction(dataInstruction, IntermediateCode.data, dataOperand, emptyOperand, emptyOperand);
+			IntermediateCode.InitInstruction(dataInstruction, -1, IntermediateCode.data, dataOperand, emptyOperand, emptyOperand);
 
 			ASSERT(section IS IntermediateCode.Section);
 			section(IntermediateCode.Section).EmitAt(0, dataInstruction)

@@ -105,6 +105,7 @@ TYPE
 	Instruction* = RECORD
 		opcode-: SHORTINT; (* instruction opcode *)
 		subtype-: SHORTINT; (* for special backend instruction *)
+		textPosition-: LONGINT; (* for error handling and tracking (findPC) *)
 		pc-: LONGINT; (* backend program counter (in bits) for debugging and for label fixups in backend *)
 		op1*,op2*,op3*: Operand; (* first operand typically provides the result, if any *)
 	END;
@@ -725,7 +726,7 @@ TYPE
 		AddFormat(special,"special",Str, Any, Any, {} );
 	END InitInstructions;
 
-	PROCEDURE InitInstruction*(VAR instr: Instruction; opcode: SHORTINT; op1,op2,op3: Operand);
+	PROCEDURE InitInstruction*(VAR instr: Instruction; textPosition: LONGINT; opcode: SHORTINT; op1,op2,op3: Operand);
 	VAR format: InstructionFormat; mode1, mode2, mode3: LONGINT; (* debugging *)
 	BEGIN
 		format := instructionFormat[opcode];
@@ -741,6 +742,7 @@ TYPE
 		instr.op1 := op1;
 		instr.op2 := op2;
 		instr.op3 := op3;
+		instr.textPosition := textPosition;
 	END InitInstruction;
 
 	PROCEDURE SetSubType*(VAR instr: Instruction; subType: SHORTINT);
