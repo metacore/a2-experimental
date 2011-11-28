@@ -1,4 +1,4 @@
-MODULE MultiLogger;
+MODULE MultiLogger; (** AUTHOR "TF"; PURPOSE "Log window with a rich-text enabled TextWriter."; *)
 
 IMPORT
 	Streams, TextUtilities,

@@ -1,4 +1,4 @@
-MODULE RTL8139; (** AUTHOR "TF"; PURPOSE "Realtek RTL8139 ethernet driver"; *)
+MODULE RTL8139; (** AUTHOR "TF"; PURPOSE "Driver for RealTek RTL8139 Ethernet Controllers"; *)
 
 (* references :
 	RTL 8139C(L) Preliminary, REALTEK Semiconductor Corp., Rev 1.1 1999/11/4

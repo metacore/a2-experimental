@@ -1,4 +1,4 @@
-MODULE WMDropTarget; (** AUTHOR "?"; PURPOSE "Drag'n'Drop interface"; *)
+MODULE WMDropTarget; (** AUTHOR "TF"; PURPOSE "Drag'n'Drop interface"; *)
 
 IMPORT
 	Streams, Texts;

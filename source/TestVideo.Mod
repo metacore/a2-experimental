@@ -1,4 +1,4 @@
-MODULE TestVideo; (** AUTHOR "thomas.frey@alumni.ethz.ch; PURPOSE "Computer Vision Experiments"; *)
+MODULE TestVideo; (** AUTHOR "thomas.frey@alumni.ethz.ch"; PURPOSE "Computer Vision Experiments"; *)
 
 IMPORT
 	Kernel, Modules, Raster, VideoExample, Commands, Options, KernelLog, Random, WMGraphics, WMRectangles, Kernel32, SYSTEM, Vectors := W3dVectors, Math := MathL;

@@ -1,4 +1,4 @@
-MODULE WMBitmapFont;	(** TF **)
+MODULE WMBitmapFont;	(** AUTHOR "TF"; PURPOSE "Simple Bitmap font."; *)
 
 IMPORT
 	KernelLog, Commands,

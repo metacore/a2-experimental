@@ -1,5 +1,4 @@
-
-MODULE FirewireLowUtil; (** Author "VIP"; IEEE 1394 Generic Driver Utilities; *)
+MODULE FirewireLowUtil; (** AUTHOR "VIP"; PURPOSE "IEEE 1394 Generic Driver Utilities"; *)
 
 IMPORT SYSTEM, KernelLog;
 

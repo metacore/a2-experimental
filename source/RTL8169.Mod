@@ -1,12 +1,8 @@
-MODULE RTL8169;
+MODULE RTL8169; (** AUTHOR "Roger Keller"; PURPOSE "Driver for RealTek RTL8169 Ethernet Controllers"; *)
 (*
-Aos driver for RealTek RTL8169 Ethernet Controllers
-
 Reference: RealTek, "RealTek Gigabit Ethernet Media Access Controller
 	with Power Management RTL8169S/RTL8110S Registers"
 Revision 1.0, March 2003
-
-Author: Roger Keller (kellerog), ETH Zuerich
 *)
 IMPORT
 	SYSTEM, Kernel, Machine, PCI,
