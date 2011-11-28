@@ -976,33 +976,31 @@ TYPE
 		NewBuiltin0(id,nameU,scope[Scanner.Uppercase],realtime);
 		NewBuiltin0(id,nameL,scope[Scanner.Lowercase],realtime);
 	END NewBuiltin;
-
-	PROCEDURE NewCustomBuiltin0(CONST name: ARRAY OF CHAR; in:  SyntaxTree.ModuleScope; subType: SHORTINT; r,p0,p1,p2: SyntaxTree.Type);
-	VAR basic: SyntaxTree.CustomBuiltin; duplicate: BOOLEAN; type: SyntaxTree.ProcedureType;
+	
+	PROCEDURE NewCustomBuiltin0(CONST name: ARRAY OF CHAR; scope: SyntaxTree.ModuleScope; subType: SHORTINT; procedureType: SyntaxTree.ProcedureType);
+	VAR
+		isDuplicate: BOOLEAN;
+		customBuiltin: SyntaxTree.CustomBuiltin;		
 	BEGIN
-		basic := SyntaxTree.NewCustomBuiltin(-1,SyntaxTree.NewIdentifier(name),systemSpecial,subType);
-		basic.SetAccess(SyntaxTree.ReadOnly);
-		basic.SetTypes(r,p0,p1,p2);
-		type := SyntaxTree.NewProcedureType(-1,in);
-		type.SetRealtime(TRUE);
-		type.SetReturnType(SyntaxTree.invalidType); (* make incompatible to any procedure *)
-		basic.SetType(type);
-		basic.SetState(SyntaxTree.Resolved);
-		in.EnterSymbol(basic,duplicate);
-		in.AddBuiltin(basic);
-		ASSERT(~duplicate);
+		customBuiltin := SyntaxTree.NewCustomBuiltin(-1, SyntaxTree.NewIdentifier(name), systemSpecial, subType);
+		customBuiltin.SetAccess(SyntaxTree.ReadOnly); (* TODO: this might be changed *)
+		procedureType.SetRealtime(TRUE);		
+		customBuiltin.SetType(procedureType); (* TODO: make incompatible to any procedure *)
+		customBuiltin.SetState(SyntaxTree.Resolved);
+		scope.EnterSymbol(customBuiltin, isDuplicate);
+		scope.AddBuiltin(customBuiltin);
+		ASSERT(~isDuplicate)
 	END NewCustomBuiltin0;
 
-	PROCEDURE NewCustomBuiltin*(CONST name: ARRAY OF CHAR; CONST scope: ARRAY OF SyntaxTree.ModuleScope; subType: SHORTINT; r,p0,p1,p2: SyntaxTree.Type);
-	VAR nameL,nameU: Scanner.IdentifierString;
+	PROCEDURE NewCustomBuiltin*(CONST name: ARRAY OF CHAR; CONST scope: ARRAY OF SyntaxTree.ModuleScope; subType: SHORTINT; procedureType: SyntaxTree.ProcedureType);
+	VAR
+		nameL, nameU: Scanner.IdentifierString;
 	BEGIN
-		Basic.Lowercase(name,nameL);
-		Basic.Uppercase(name,nameU);
-		NewCustomBuiltin0(nameU,scope[Scanner.Uppercase],subType,r,p0,p1,p2);
-		NewCustomBuiltin0(nameL,scope[Scanner.Lowercase],subType,r,p0,p1,p2);
+		Basic.Lowercase(name, nameL);
+		Basic.Uppercase(name, nameU);
+		NewCustomBuiltin0(nameU, scope[Scanner.Uppercase], subType, procedureType);
+		NewCustomBuiltin0(nameL, scope[Scanner.Lowercase], subType, procedureType)
 	END NewCustomBuiltin;
-
-
 
 	PROCEDURE ModuleFileName*(moduleName,context: SyntaxTree.Identifier; VAR fileName: ARRAY OF CHAR);
 	VAR prefix,name: Scanner.IdentifierString;

@@ -4994,7 +4994,8 @@ TYPE
 			procedure: SyntaxTree.Procedure;
 			temporaryVariable: SyntaxTree.Variable;
 			dummy: IntermediateCode.Operand;
-			custom: SyntaxTree.CustomBuiltin;
+			customBuiltin: SyntaxTree.CustomBuiltin;
+			isVarPar: ARRAY 3 OF BOOLEAN;
 
 			PROCEDURE CallBodies(self: IntermediateCode.Operand; type: SyntaxTree.Type);
 			VAR recordScope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure; body: SyntaxTree.Body; flags: LONGINT;
@@ -6031,19 +6032,32 @@ TYPE
 				ELSE
 					CallThis(ChannelModuleName,"ReceiveNonBlocking")
 				END;
-			| Global.systemSpecial:
-				custom := x.left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.CustomBuiltin);
-				IF p0 # NIL THEN Evaluate(p0,s0) ELSE InitOperand(s0,ModeValue) END;
-				IF p1 # NIL THEN Evaluate(p1,s1) ELSE InitOperand(s1, ModeValue) END;
-				IF p2 # NIL THEN Evaluate(p2,s2) ELSE InitOperand(s2, ModeValue) END;
-				Emit(SpecialInstruction(position,custom.subType,s0.op, s1.op, s2.op));
+				
+			| Global.systemSpecial:								
+				customBuiltin := x.left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.CustomBuiltin);
+				ASSERT(customBuiltin.type IS SyntaxTree.ProcedureType);
+				procedureType := customBuiltin.type(SyntaxTree.ProcedureType);
+				
+				(* determine if parameters are of the VAR kind *)
+				ASSERT(x.parameters.Length() <= 3);
+				formalParameter := procedureType.firstParameter;
+				FOR i := 0 TO x.parameters.Length() - 1 DO
+					isVarPar[i] := formalParameter.kind = SyntaxTree.VarParameter;
+					formalParameter := formalParameter.nextParameter		
+				END;
+	
+				IF p0 # NIL THEN IF isVarPar[0] THEN Designate(p0, s0) ELSE Evaluate(p0,s0) END ELSE InitOperand(s0, ModeValue) END;
+				IF p1 # NIL THEN IF isVarPar[1] THEN Designate(p1, s1) ELSE Evaluate(p1,s1) END ELSE InitOperand(s1, ModeValue) END;
+				IF p2 # NIL THEN IF isVarPar[2] THEN Designate(p2, s2) ELSE Evaluate(p2,s2) END ELSE InitOperand(s2, ModeValue) END;
+				Emit(SpecialInstruction(position, customBuiltin.subType,s0.op, s1.op, s2.op));
 				ReleaseOperand(s0); ReleaseOperand(s1); ReleaseOperand(s2);
-				IF custom.returnType # NIL THEN
-					res := NewRegisterOperand(IntermediateCode.GetType(system,custom.returnType));
-					Emit(Result(position,res));
+				IF procedureType.returnType # NIL THEN
+					res := NewRegisterOperand(IntermediateCode.GetType(system, procedureType.returnType));
+					Emit(Result(position, res));
 					InitOperand(result,ModeValue);
 					result.op := res;
-				END;
+				END
+
 			ELSE (* function not yet implemented *)
 				Error(position,"not yet implemented");
 			END;

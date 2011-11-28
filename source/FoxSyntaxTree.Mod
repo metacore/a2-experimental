@@ -2806,19 +2806,18 @@ TYPE
 	CustomBuiltin*=OBJECT (Builtin)
 	VAR
 		subType-: SHORTINT;
-		returnType-, typeP0-, typeP1-, typeP2-: Type;
-
-		PROCEDURE & InitCustomBuiltin(position: LONGINT; name:Identifier; id: LONGINT; subType: SHORTINT);
+		
+		PROCEDURE & InitCustomBuiltin(position: LONGINT; name: Identifier; id: LONGINT; subType: SHORTINT);
 		BEGIN
 			InitBuiltin(position,name,id);
 			SELF.subType := subType;
 		END InitCustomBuiltin;
-
-		PROCEDURE SetTypes*(returnType, typeP0, typeP1, typeP2: Type);
-		BEGIN
-			SELF.returnType := returnType; SELF.typeP0 := typeP0; SELF.typeP1 := typeP1; SELF.typeP2 := typeP2;
-		END SetTypes;
-
+		
+		(* TODO: check if this is correct *)
+		PROCEDURE CompatibleTo*(otherType: Type): BOOLEAN;
+		BEGIN RETURN FALSE
+		END CompatibleTo;
+		
 	END CustomBuiltin;
 
 	Operator* = OBJECT (Procedure)
