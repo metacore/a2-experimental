@@ -513,7 +513,7 @@ TYPE
 
 			PROCEDURE CheckEmptySpillStack;
 			BEGIN
-				IF spillStack.Size()#0 THEN Error("implementation error, spill stack not cleared") END;
+				IF spillStack.Size()#0 THEN Error(inPC,"implementation error, spill stack not cleared") END;
 			END CheckEmptySpillStack;
 
 		BEGIN
@@ -1201,7 +1201,7 @@ TYPE
 				operand := Assembler.NewImm16(instruction.op1.intValue );
 				emitter.Emit1(InstructionSet.opRET,operand)
 			END;
-			IF fpStackPointer # 0 THEN Error("compiler implementation error: fp stack not cleared") END;
+			IF fpStackPointer # 0 THEN Error(instruction.textPosition,"compiler implementation error: fp stack not cleared") END;
 		END EmitExit;
 
 
@@ -1585,7 +1585,7 @@ TYPE
 		VAR fixup: Sections.Section;  target: Assembler.Operand; op: Assembler.Operand;
 			code: SyntaxTree.Code; emitterFixup,newFixup: BinaryCode.Fixup; resolved: BinaryCode.Section; pc: LONGINT;
 		BEGIN
-			IF fpStackPointer # 0 THEN Error("compiler implementation error: fp stack not cleared before call") END;
+			IF fpStackPointer # 0 THEN Error(instruction.textPosition,"compiler implementation error: fp stack not cleared before call") END;
 			IF instruction.op1.mode = IntermediateCode.ModeImmediate THEN
 				fixup := instruction.op1.symbol;
 				IF fixup.type = Sections.InlineCodeSection THEN

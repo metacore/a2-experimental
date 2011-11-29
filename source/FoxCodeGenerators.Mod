@@ -129,12 +129,12 @@ TYPE
 			SELF.module := module;
 		END SetModule;
 
-		PROCEDURE Error*(CONST message: ARRAY OF CHAR);
+		PROCEDURE Error*(position: LONGINT; CONST message: ARRAY OF CHAR);
 		VAR string:Basic.MessageString;
 		BEGIN
 			IF diagnostics # NIL THEN
 				Basic.FromPooledName(in.name, string);
-				diagnostics.Error(string, inPC, Diagnostics.Invalid, message)
+				diagnostics.Error(string, position, Diagnostics.Invalid, message)
 			END;
 			IF dump # NIL THEN (* to see error in trace output also *)
 				dump.String("Error: "); dump.String(message); dump.Ln; dump.Update;
@@ -181,7 +181,7 @@ TYPE
 							Strings.Append(msg, ":");
 							Strings.IntToStr(fixup.offset, number);
 							Strings.Append(msg, number);
-							Error(msg)
+							Error(inPC,msg)
 						END
 					ELSE
 						out.fixupList.AddFixup(fixup);
