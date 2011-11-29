@@ -23,6 +23,7 @@ CONST
 	ColorProcedure = WMGraphics.Black;
 	ColorExclusive = WMGraphics.Red;
 	ColorHasExclusiveBlock = WMGraphics.Magenta;
+	ColorInterrupt = 00CCCCFFH; (* dark cyan *)
 
 	SortIgnore = 1;
 	SortProcedure = 2;
@@ -996,6 +997,7 @@ VAR color : LONGINT;
 BEGIN
 	IF (ModuleParser.Exclusive IN modifiers) THEN color := ColorExclusive;
 	ELSIF (ModuleParser.HasExclusiveBlock IN modifiers) THEN color := ColorHasExclusiveBlock;
+	ELSIF (ModuleParser.Interrupt IN modifiers) THEN color := ColorInterrupt;
 	ELSE
 		color := defaultColor;
 	END;

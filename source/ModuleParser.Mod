@@ -22,12 +22,15 @@ CONST
 	(* procedure modifiers (in addition to block modifiers) *)
 	Overwrite* = 6; (* procedure overwrites procedure in superclass *)
 	Overwritten* = 7; (* procedure is overwritten in subclass *)
+	Interrupt* = 8; (* procedure is an interrupt handler that might be called asynchronously *)
 
 	ExclusiveStr = "EXCLUSIVE";
 	ActiveStr = "ACTIVE";
 	RealtimeStr = "REALTIME";
 	SafeStr = "SAFE";
 	PriorityStr = "PRIORITY";
+	NoPAFStr = "NOPAF"; FixedStr = "FIXED"; AlignedStr = "FIXED";
+	DynamicStr = "DYNAMIC"; InterruptStr = "INTERRUPT"; PCOffsetStr = "PCOFFSET";
 
 TYPE
 	InfoItem* = OBJECT
@@ -661,7 +664,9 @@ TYPE
 		PROCEDURE ProcHeadP(head: ProcHead);
 		VAR forward: BOOLEAN;
 		BEGIN
-			SysFlag;
+			ProcedureModifierP(head);
+			(*SysFlag;*)
+			
 			CASE symbol.token OF
 			| FoxScanner.Minus: head.inline := TRUE; NextSymbol;
 			| FoxScanner.And: head.constructor := TRUE; NextSymbol;
@@ -671,9 +676,11 @@ TYPE
 			| FoxScanner.Number: IF symbol.numberType = FoxScanner.Character THEN head.operator := TRUE END;
 			ELSE
 			END;
+			
 			NEW(head.identDef);
 			IdentDefP(head.identDef);
 			OSAIrq;		(* tk: Compatibility to OSACompiler*)
+			
 			IF symbol.token = FoxScanner.LeftParenthesis THEN
 				NEW(head.formalPars, head);
 				FormalParsP(head.formalPars);
@@ -1016,7 +1023,8 @@ TYPE
 				END;
 				NextSymbol;
 				Check(FoxScanner.RightBrace);
-			END;
+			END;			
+			KernelLog.String("test");
 			IF symbol.token = FoxScanner.LeftParenthesis THEN
 				NEW(proc.formalPars, proc);
 				FormalParsP(proc.formalPars);
@@ -1127,7 +1135,7 @@ TYPE
 								NEW(ignore);
 								ConstExprP(FoxScanner.RightParenthesis, -1, ignore);
 								Check(FoxScanner.RightParenthesis);
-							END;
+							END;							
 						ELSE
 							Error(symbol.start); NextSymbol (* skip the ident, probably a typo *)
 						END;
@@ -1138,6 +1146,39 @@ TYPE
 				Check(FoxScanner.RightBrace);
 			END;
 		END BlockModifierP;
+		
+		PROCEDURE ProcedureModifierP(procHead: ProcHead);
+		VAR	
+			value: LONGINT;
+		BEGIN	
+			IF symbol.token = FoxScanner.LeftBrace THEN
+				REPEAT
+					NextSymbol;
+					IF symbol.token = FoxScanner.Identifier THEN
+						IF symbol.identifierString = NoPAFStr THEN NextSymbol
+						ELSIF symbol.identifierString = FixedStr THEN NextSymbol; ModifierValueP(value)
+						ELSIF symbol.identifierString = AlignedStr THEN NextSymbol; ModifierValueP(value)
+						ELSIF symbol.identifierString = DynamicStr THEN NextSymbol
+						ELSIF symbol.identifierString = InterruptStr THEN NextSymbol; procHead.modifiers := procHead.modifiers + {Interrupt}
+						ELSIF symbol.identifierString = PCOffsetStr THEN NextSymbol; ModifierValueP(value)
+						ELSE Error(symbol.start); NextSymbol (* skip the ident, probably a typo *)
+						END
+					END
+				UNTIL symbol.token # FoxScanner.Comma;
+				Check(FoxScanner.RightBrace)
+			END
+		END ProcedureModifierP;
+		
+		PROCEDURE ModifierValueP(VAR value: LONGINT);
+		BEGIN
+			IF symbol.token = FoxScanner.Equal THEN
+				NextSymbol; Check(FoxScanner.Number); value := symbol.integer
+			ELSIF symbol.token = FoxScanner.LeftParenthesis THEN
+				NextSymbol; Check(FoxScanner.Number); value := symbol.integer; Check(FoxScanner.RightParenthesis)
+			ELSE
+				Error(symbol.start); NextSymbol
+			END
+		END ModifierValueP;
 
 		PROCEDURE BodyP(allowBody : BOOLEAN; VAR modifiers : SET);
 		VAR end, lastToken: LONGINT; m : SET; first : BOOLEAN;
