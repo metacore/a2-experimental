@@ -7559,9 +7559,9 @@ TYPE
 		BEGIN
 			IF simple THEN
 				TypeTags := 3; (* only 3 extensions allowed *)
-				MethodTableOffset := -TypeTags;
-				BaseTypesTableOffset := 0;
-				TypeRecordBaseOffset := TypeTags -1;
+				BaseTypesTableOffset := -1;
+				MethodTableOffset := -TypeTags+BaseTypesTableOffset;
+				TypeRecordBaseOffset := TypeTags;
 			ELSE
 				TypeTags := 16;
 				BaseTypesTableOffset := -2; (* typeInfo and size field *)
@@ -7723,8 +7723,8 @@ TYPE
 				Symbol(section, symbol, 0, (offset )); INC(numberPointers);
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1);D.Ln;  END;
 			ELSIF (type IS SyntaxTree.ProcedureType) & (type(SyntaxTree.ProcedureType).isDelegate) THEN
-				Symbol(section, symbol, 0, (offset )+module.system.addressSize DIV 8 ); INC(numberPointers);
-				IF Trace THEN D.Str("ptr at offset="); D.Int(offset+module.system.addressSize DIV 8,1); END;
+				Symbol(section, symbol, 0, (offset )+ToMemoryUnits(module.system,module.system.addressSize)); INC(numberPointers);
+				IF Trace THEN D.Str("ptr at offset="); D.Int(offset+ToMemoryUnits(module.system,module.system.addressSize),1); END;
 			ELSIF (type IS SyntaxTree.RecordType) THEN
 				(* never treat a record like a pointer, even if the pointer field is set! *)
 				WITH type: SyntaxTree.RecordType DO
@@ -7735,7 +7735,7 @@ TYPE
 					variable := type.recordScope.firstVariable;
 					WHILE(variable # NIL) DO
 						IF ~(variable.untraced) THEN
-							Pointers(offset+variable.offsetInBits DIV 8, symbol,  section, variable.type,numberPointers);
+							Pointers(offset+ToMemoryUnits(module.system,variable.offsetInBits), symbol,  section, variable.type,numberPointers);
 						END;
 						variable := variable.nextVariable;
 					END;
@@ -7750,7 +7750,7 @@ TYPE
 							n := n* type.staticLength;
 							base := type.arrayBase.resolved;
 						END;
-						size := module.system.SizeOf(base) DIV 8;
+						size := ToMemoryUnits(module.system,module.system.SizeOf(base));
 						IF SemanticChecker.ContainsPointer(base) THEN
 							ASSERT(n<1000000); (* not more than one million pointers on the stack ... *)
 							FOR i := 0 TO n-1 DO
@@ -7772,7 +7772,7 @@ TYPE
 							n := n* type.staticLength;
 							base := type.arrayBase.resolved;
 						END;
-						size := module.system.SizeOf(base) DIV 8;
+						size := ToMemoryUnits(module.system,module.system.SizeOf(base));
 						IF SemanticChecker.ContainsPointer(base) THEN
 							ASSERT(n<1000000); (* not more than one million pointers on the stack ... *)
 							FOR i := 0 TO n-1 DO
@@ -8012,7 +8012,7 @@ TYPE
 					INC(size);
 					variable.GetName(name);
 					Type(variable.type);
-					Longint(section,(variable.offsetInBits DIV 8));
+					Longint(section,ToMemoryUnits(module.system,variable.offsetInBits));
 					INC(size,4);
 					String(section,name);
 					INC(size,Strings.Length(name)+1);
@@ -8025,7 +8025,7 @@ TYPE
 					INC(size);
 					variable.GetName(name);
 					Type(variable.type);
-					Longint(section,(variable.offsetInBits DIV 8));
+					Longint(section,ToMemoryUnits(module.system,variable.offsetInBits));
 					INC(size,4);
 					variable.GetName(name);
 					String(section,name);
@@ -8322,14 +8322,14 @@ TYPE
 				variable := procedure.procedureScope.firstVariable;
 				WHILE(variable # NIL) DO
 					IF ~(variable.untraced) THEN
-						Pointers(variable.offsetInBits DIV 8, NIL,  pointerArray, variable.type, numberPointers);
+						Pointers(ToMemoryUnits(module.system,variable.offsetInBits), NIL,  pointerArray, variable.type, numberPointers);
 					END;
 					variable := variable.nextVariable
 				END;
 				parameter := procedureType.firstParameter;
 				WHILE(parameter # NIL) DO
 					IF ~(parameter.untraced) THEN
-						Pointers(parameter.offsetInBits DIV 8, NIL,  pointerArray, parameter.type, numberPointers);
+						Pointers(ToMemoryUnits(module.system,parameter.offsetInBits), NIL,  pointerArray, parameter.type, numberPointers);
 					END;
 					parameter := parameter.nextParameter;
 				END;
@@ -8562,7 +8562,7 @@ TYPE
 					Global.GetSymbolPooledName(td,name);
 					Basic.AppendToPooledName(name,"@Info");
 					source := IntermediateCode.NewSection(module.allSections, Sections.RegularKind, Sections.ConstSection, TRUE, name,NIL,implementationVisitor.dump # NIL);
-					Info(source, "type info size");	Address(source, 3*module.system.addressSize DIV 8+32);
+					Info(source, "type info size");	Address(source, 3*ToMemoryUnits(module.system,module.system.addressSize)+32);
 					Address(source,MPO-4);
 					Info(source, "type tag pointer");
 					Symbol( source, tag, offset, 0);
@@ -8682,7 +8682,7 @@ TYPE
 						Info(source, "type descriptor info pointer");
 						Symbol(source, NewTypeDescriptorInfo(source,source.pc+1,recordType.IsProtected()),0,0);
 						Info(source, "record size");
-						Address(source, module.system.SizeOf(recordType) DIV 8 (* in bytes *));
+						Address(source, ToMemoryUnits(module.system,module.system.SizeOf(recordType)));
 						Info(source, "pointer offsets pointer");
 						padding := 1- source.pc MOD 2;
 						Symbol(source, source, source.pc+1+padding,0);
@@ -8694,11 +8694,21 @@ TYPE
 					ELSE
 						(*
 							simple:
+											methods
 											tag(2)
 											tag(1)
 							td adr --->	tag(0)
+							td adr --->	size
 						*)
+						Info(source, "method table");
+						methods := recordType.recordScope.numberMethods;
+						FOR i := methods-1 TO 0 BY -1 DO
+							procedure := recordType.recordScope.FindMethod(i);
+							Symbol(source, GetSection(procedure),0,0);
+						END;
 						TdTable(TypeTags);
+						Info(source, "record size");
+						Address(source, ToMemoryUnits(module.system,module.system.SizeOf(recordType)));
 					END;
 					source.SetReferenced(FALSE);
 			END NewTypeDescriptor;

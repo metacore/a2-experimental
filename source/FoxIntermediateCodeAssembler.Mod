@@ -1102,7 +1102,7 @@ TYPE
 			FOR i := 0 TO binaryModule.allSections.Length()-1 DO
 				section := binaryModule.allSections.GetSection(i);
 				is := section(IntermediateCode.Section).resolved;
-				IF section.IsCode() THEN
+				IF (is # NIL) & section.IsCode() THEN
 					(*
 					Basic.WritePooledName(D.Log,section.name);
 					D.String(" @ "); D.Int(adr,1); D.Ln;
@@ -1122,7 +1122,7 @@ TYPE
 			adr := 0;
 			FOR i := 0 TO binaryModule.allSections.Length()-1 DO
 				section := binaryModule.allSections.GetSection(i);
-				IF section.IsCode() THEN
+				IF (is # NIL) & section.IsCode() THEN
 					is := section(IntermediateCode.Section).resolved;
 					IF is.pc > sizes[i] THEN RETURN TRUE
 					(*
