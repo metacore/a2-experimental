@@ -57,8 +57,8 @@ VAR
 	(* ------------------------- Heap ------------------------------- *)
 CONST
 	BlockSize = 32;
-	N = 32;  
-	ProtOfs* = 2*BlockSize + 16;
+	N = 32; 	(* number of free lists *)
+	ProtOfs = 2*BlockSize + 16;
 	ProtTypeBit* = 31;   (** flags in TypeDesc, low bits reserved for extLevel *)
 
 	MarkBit* = 0;  ArrayBit* = 1;  FreeBit* = 2;  SubObjBit* = 3;  ProtObjBit* = 4;
@@ -80,15 +80,14 @@ TYPE
 		recSize: Size;
 		ptrOffs: Address; 
 		
-		count*: LONGINT;				(* unused in UnixAos *)
+		count*: LONGINT;		
 		awaitingLock*:	ProcessQueue;	(* unused in UnixAos *)
 		awaitingCond*: ProcessQueue;
 		lockedBy*: ANY;	
-		lock*: ANY;	(* used by Win32, unused for I386 and UnixAos *)
+		lock*: ANY;	(* used by Win32 and UnixAos, unused for I386 *)
 		
 		mtx*: Unix.Mutex_t;		(* processes blocked awaiting lock *)
-		lockedByCond*: BOOLEAN;		(* UnixAos only *)
-		doEnter*: Unix.Condition_t;
+		enter*: Unix.Condition_t;
 	END;
 
 	RootObject* = OBJECT 
