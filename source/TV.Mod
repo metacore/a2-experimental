@@ -580,7 +580,7 @@ BEGIN
 		END;
 		f := Files.New (filename);
 		Files.OpenWriter (w, f, 0);
-		doc.Write(w, 0);
+		doc.Write(w, NIL, 0);
 		w.Update;
 		Files.Register (f)
 	END
