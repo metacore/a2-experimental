@@ -1160,7 +1160,7 @@ BEGIN
 END NewProcess;
 
 (* Create the process associated with an active object (kernel call). *)
-PROCEDURE CreateProcess(body: Body; priority: LONGINT; flags: SET; obj: ProtectedObject);
+PROCEDURE CreateProcess*(body: Body; priority: LONGINT; flags: SET; obj: ProtectedObject);
 VAR t: Process; type: SYSTEM.ADDRESS; heapBlock {UNTRACED}: Heaps.HeapBlock; i: LONGINT;
 BEGIN
 	IF Stats THEN Machine.AtomicInc(Ncreate) END;
@@ -1195,7 +1195,7 @@ END CreateProcess;
 (* Lock a protected object (kernel call) *)
 (* There are two different procedures for locking a protected object in case of priority inversion handling enabled or disabled due to the different
     locking strategy. *)
-PROCEDURE Lock(obj: ProtectedObject; exclusive: BOOLEAN);
+PROCEDURE Lock*(obj: ProtectedObject; exclusive: BOOLEAN);
 BEGIN
 	IF HandlePriorityInv THEN
 		LockPriorityInv(obj, exclusive)
@@ -1382,7 +1382,7 @@ END MaxPrio;
 (* Unlock a protected object (kernel call). *)
 (* There are two different procedures for locking a protected object in case of priority inverison handling enabled or disabled due to the different
     locking strategy. *)
-PROCEDURE Unlock(obj: ProtectedObject; dummy: BOOLEAN);
+PROCEDURE Unlock*(obj: ProtectedObject; dummy: BOOLEAN);
 BEGIN
 	IF HandlePriorityInv THEN
 		UnlockPriorityInv(obj)
@@ -1503,7 +1503,7 @@ END UnlockPriorityInv;
 (* Await a condition (kernel call). *)
 (* There are two different procedures for locking a protected object in case of priority inverison handling enabled or disabled due to the different
     locking strategies, i.e. there are no header locks in case of priority inversion handling. *)
-PROCEDURE Await(cond: Condition; slink: SYSTEM.ADDRESS; obj: ProtectedObject; flags: SET);
+PROCEDURE Await*(cond: Condition; slink: SYSTEM.ADDRESS; obj: ProtectedObject; flags: SET);
 BEGIN
 	IF HandlePriorityInv THEN
 		AwaitPriorityInv(cond, slink, obj, flags)
