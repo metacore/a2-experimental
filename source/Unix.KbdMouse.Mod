@@ -150,6 +150,7 @@ VAR
 					em := S.VAL( Api.XExposeEvent, event );
 					IF em.count = 0 THEN (* wait until last message*)
 						(* Let DisplayRefresher handle this *)
+						X11.Sync( xd, X11.True );
 						km.keysym := 0FFC6H;
 						SendKeyboardMsg( km )
 					END;	
