@@ -410,6 +410,7 @@ BEGIN
 	NEW(temp, available + 1);
 	context.arg.Bytes(temp^, 0, available, i); (* ignore i *)
 	Strings.Truncate (temp^, available);
+	RemoveComments(temp^, available);
 	commands := Strings.Split(temp^, "~");
 	NEW(command, LEN(temp)); NEW(parameters, LEN(temp));
 	i := 0;
@@ -471,6 +472,35 @@ BEGIN
 		IF i >= LEN(commands) THEN EXIT; END;
 	END;
 END DoCommands;
+
+(** remove Oberon style comments (parantheses and asterisks) from a string of a certain length.
+- comments may be nested arbitrarily
+- the operation is performed in situ: comments are replaced with whitespace characters
+**)
+PROCEDURE RemoveComments(VAR string: ARRAY OF CHAR; length: LONGINT);
+VAR
+	pos, level: LONGINT;
+BEGIN
+	level := 0;
+	pos := 0;
+	WHILE pos <= length - 1 DO
+		IF (string[pos] = '(') & (pos + 1 <= length - 1) & (string[pos + 1] = '*') THEN
+			(* a comment opened -> replace *)
+			INC(level);
+			string[pos] := ' '; string[pos + 1] := ' '; INC(pos, 2)
+		ELSIF (string[pos] = '*') & (pos + 1 <= length - 1) & (string[pos + 1] = ')') THEN
+			(* a comment is closed -> replace *)
+			DEC(level);
+			string[pos] := ' '; string[pos + 1] := ' '; INC(pos, 2)
+		ELSIF level <= 0 THEN
+			(* character outside any comment -> leave as is *)
+			INC(pos)
+		ELSE
+			(* character within a comment -> replace *)
+			string[pos] := ' '; INC(pos)
+		END
+	END
+END RemoveComments;
 
 PROCEDURE Repeat*(context : Commands.Context); (* nofTimes command [command parameters] ~ *)
 VAR
