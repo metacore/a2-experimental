@@ -3,7 +3,7 @@ MODULE X11Api; (** AUTHOR "fnecati"; PURPOSE "some missing types, const and func
 IMPORT
 	X11, Unix, Modules, Trace, SYSTEM;
 
-(*! New XEvet types *)
+(*! New XEvent types *)
 
 TYPE 
 	ADDRESS*= SYSTEM.ADDRESS;
@@ -401,7 +401,7 @@ TYPE
 	XWindowAttributes* = RECORD
 		x*, y*: LONGINT;			(* location of window *)
 		width*, height*: LONGINT;		(* width and height of window *)
-		border_width*: LONGINT;			(* border width of window *)
+		borderWidth*: LONGINT;			(* border width of window *)
 		depth*: LONGINT;			(* depth of window *)
 		visual* : VisualPtr;			(* the associated visual structure *)
 		root* : Window;				(* root of screen containing window *)
@@ -442,9 +442,9 @@ TYPE
 	TYPE XWindowChanges * = RECORD
 			x*, y*: LONGINT;
 			width*, height* : LONGINT;
-	 	   	border_width*: LONGINT;
+	 	   	borderWidth*: LONGINT;
 			sibling* : Window;
-	 	   	stack_mode*: LONGINT;
+	 	   	stackMode*: LONGINT;
 		END;
 
 	(* ******************************************** *)
@@ -729,7 +729,7 @@ TYPE
 		window* : Window;
 		x*, y* : LONGINT;
 		width*, height* : LONGINT;
-		border_width* : LONGINT;
+		borderWidth* : LONGINT;
 		above* : Window;
 		detail* : LONGINT;		(* Above, Below, TopIf, BottomIf, Opposite *)
 		valueMask* : LONGINT(*unsigned*);
@@ -879,7 +879,7 @@ VAR
 	
 	OpenDisplay- : PROCEDURE { C } (CONST name: ARRAY OF CHAR): DisplayPtr;
 	CloseDisplay- : PROCEDURE { C } (display:DisplayPtr): LONGINT;
-	CreateWindow- : PROCEDURE { C } (display: DisplayPtr; parent: Window;  x,  y: LONGINT;  width, height, border_width, depth, class: LONGINT; visual: VisualPtr; valuemask: SET;  attributes: ADDRESS (*XSetWindowAttributes*) ): Window;	
+	CreateWindow- : PROCEDURE { C } (display: DisplayPtr; parent: Window;  x,  y: LONGINT;  width, height, borderWidth, depth, class: LONGINT; visual: VisualPtr; valuemask: SET;  attributes: ADDRESS (*XSetWindowAttributes*) ): Window;	
 	DestroyWindow-: PROCEDURE { C }(display:DisplayPtr; win: Window): LONGINT;
 	DisplayWidthMM-: PROCEDURE {C} ( d: DisplayPtr;  screen: LONGINT ): LONGINT;
 	FreeColormap- : PROCEDURE { C } (display: DisplayPtr;  colormap: Colormap);
@@ -914,6 +914,12 @@ VAR
 	SendSelection-:	 PROCEDURE {C } ( VAR event: XSelectionRequestEvent );
 	ReceiveSelection-:  PROCEDURE { C } ( VAR event: XSelectionEvent );
 	ClearSelection-: PROCEDURE { C } ;
+
+	CheckTypedEvent-: PROCEDURE { C } (display: DisplayPtr; eventType: LONGINT; VAR event: XEvent): Bool;
+	CheckMaskedEvent-: PROCEDURE { C } (display: DisplayPtr; eventMask: SET; VAR event: XEvent): Bool;
+
+	CheckTypedWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventType: LONGINT; VAR event: XEvent): Bool;
+	CheckMaskedWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventMask: SET; VAR event: XEvent): Bool;
 
 			
 	(* wrapper procedure for XGetAtomName  *)
@@ -976,6 +982,12 @@ BEGIN {EXCLUSIVE}
 		Unix.Dlsym( xlib, "XSetWMProtocols", SYSTEM.VAL( ADDRESS, SetWMProtocols));
 		Unix.Dlsym( xlib, "XStoreName", SYSTEM.VAL( ADDRESS, StoreName));
 		Unix.Dlsym( xlib, "XWarpPointer", SYSTEM.VAL( ADDRESS, WarpPointer));
+		
+		Unix.Dlsym( xlib, "XCheckTypedEvent", SYSTEM.VAL( ADDRESS, CheckTypedEvent));
+		Unix.Dlsym( xlib, "XCheckMaskedEvent", SYSTEM.VAL( ADDRESS, CheckMaskedEvent));
+
+		Unix.Dlsym( xlib, "XCheckTypedWindowEvent", SYSTEM.VAL( ADDRESS, CheckTypedWindowEvent));
+		Unix.Dlsym( xlib, "XCheckMaskedWindowEvent", SYSTEM.VAL( ADDRESS, CheckMaskedWindowEvent));
 		
 END LoadX11Functions;
 

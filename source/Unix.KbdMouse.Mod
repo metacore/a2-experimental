@@ -77,6 +77,7 @@ VAR
 		em: Api.XExposeEvent;
 		cm : Api.XClientMessageEvent;
 		datal: Api.Data40l;
+		cn: Api.XConfigureEvent;
 	BEGIN
 		xd := disp.xdisp;
 		Machine.Acquire( Machine.X11 );
@@ -147,13 +148,19 @@ VAR
 					X11.QueryPointer( xd, event.window, rw, cw, xr, yr, x, y, xbuttons );
 					SendMouseMsg( x, y, 0, xbuttons )
 			| Api.Expose, Api.GraphicsExpose: 
+					(* hacking, clear all expoure events in queue *)
+					 WHILE Api.CheckTypedEvent(xd, Api.Expose, event) = X11.True DO END; 
+					(* WHILE Api.CheckTypedWindowEvent(xd, disp.primary, Api.Expose, event) = X11.True DO END;*) 
 					em := S.VAL( Api.XExposeEvent, event );
-					IF em.count = 0 THEN (* wait until last message*)
-						(* Let DisplayRefresher handle this *)
-						X11.Sync( xd, X11.True );
+					 IF em.count = 0 THEN  (* wait until last message*) 
+						(* Let DisplayRefresher handle this *)						
 						km.keysym := 0FFC6H;
-						SendKeyboardMsg( km )
-					END;	
+						(*X11.Sync(xd, X11.True); *)
+						SendKeyboardMsg( km );
+					 END;
+					(* clear all expoure events in queue, again *)
+					WHILE Api.CheckTypedEvent(xd, Api.Expose, event) = X11.True DO END; 
+(* 					WHILE Api.CheckTypedWindowEvent(xd, disp.primary, Api.Expose, event) = X11.True DO END; *)
 			| Api.NoExpose:
 			| Api.MappingNotify:
 					X11.RefreshKeyboardMapping( S.ADR( event ) )
@@ -173,7 +180,9 @@ VAR
 					IF X11.ReceiveSelection # NIL THEN Api.ReceiveSelection( S.VAL( Api.XSelectionEvent, event ) ) END
 			| Api.SelectionRequest:
 					IF X11.SendSelection # NIL THEN Api.SendSelection( S.VAL( Api.XSelectionRequestEvent, event ) ) END
+			| Api.ConfigureNotify:  cn := S.VAL(Api.XConfigureEvent, event);
 			ELSE
+
 			END;
 		END;
 		Machine.Release( Machine.X11 );
@@ -321,7 +330,8 @@ VAR
 
 		InitKeysym;
 
-		NEW( poll );  Objects.Sleep( 10 ); timeStart := Time()
+		NEW( poll );  Objects.Sleep( 10 ); timeStart := Time();
+		
 	END Init;
 
 	PROCEDURE InitKeysym;
