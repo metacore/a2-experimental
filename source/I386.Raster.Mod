@@ -1868,6 +1868,39 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 		END
 	END A8OverA8;
 
+	PROCEDURE BGRA8888OverBGRA8888(VAR mode: Mode0; sadr: SYSTEM.ADDRESS; sbit: LONGINT; dadr: SYSTEM.ADDRESS; dbit, len: LONGINT);
+	VAR src, dst: Pixel; fd,t: LONGINT;
+	BEGIN
+		WHILE len > 0 DO
+			SYSTEM.MOVE(sadr, SYSTEM.ADR(src), 4);
+			IF src[a] = 0FFX THEN
+				SYSTEM.MOVE(sadr,dadr,4);
+			ELSIF src[a] # 0X THEN
+				SYSTEM.MOVE(dadr, SYSTEM.ADR(dst), 4);
+				fd := 256-ORD(src[a]);
+				dst[0] := CHR(MIN( (256 * ORD(src[0]) + fd * ORD(dst[0])) DIV 256, 255));
+				(*
+				IF t < 255 THEN dst[0] := CHR(t) ELSE dst[0] := CHR(255) END;
+				*)
+				dst[1] := CHR(MIN((256 * ORD(src[1]) + fd * ORD(dst[1])) DIV 256, 255));
+				(*
+				IF t < 255 THEN dst[1] := CHR(t) ELSE dst[1] := CHR(255) END;
+				*)
+				dst[2] := CHR(MIN( (256 * ORD(src[2]) + fd * ORD(dst[2])) DIV 256, 255));
+				(*
+				IF t < 255 THEN dst[2] := CHR(t) ELSE dst[2] := CHR(255) END;
+				*)
+				dst[3] := CHR(MIN( (256 * ORD(src[3]) + fd * ORD(dst[3])) DIV 256, 255));
+				(*
+				IF t < 255 THEN dst[3] := CHR(t) ELSE dst[3] := CHR(255) END;
+				*)
+				SYSTEM.MOVE(SYSTEM.ADR(dst),dadr,4);
+			END;
+			INC(sadr,4); INC(dadr,4); DEC(len);
+		END
+
+	END BGRA8888OverBGRA8888;
+
 
 	(* BGRA8888 *)
 	PROCEDURE BGRA8888OverAny (VAR mode: Mode0; sadr: SYSTEM.ADDRESS; sbit: LONGINT; dadr: SYSTEM.ADDRESS; dbit, len: LONGINT);
@@ -2740,7 +2773,8 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 				CASE src.code OF
 				| a1: mode.buf := mode.col; mode.transfer := A1OverConst32
 				| a8: mode.buf := mode.col; mode.transfer := A8OverAny
-				ELSE mode.transfer := BGRA8888OverAny
+				| bgra8888: mode.transfer := BGRA8888OverBGRA8888
+				ELSE mode.transfer := BGRA8888OverAny; (* ? *)
 				END
 			ELSE
 				CASE src.code OF
@@ -2820,6 +2854,15 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			REP STOSW
 		END Fill16;
 
+		PROCEDURE Fill32(destAdr: SYSTEM.ADDRESS; size: SYSTEM.SIZE; filler: LONGINT);
+		CODE {SYSTEM.i386}
+			MOV EDI, [EBP+destAdr]
+			MOV ECX, [EBP+size]
+			MOV EAX, [EBP+filler]
+			CLD
+			REP STOSD
+		END Fill32;
+
 	BEGIN
 		ASSERT((0 <= llx) & (llx < urx) & (urx <= img.width) & (0 <= lly) & (lly < ury) & (ury <= img.height), 100);
 		bit := llx * img.fmt.bpp; adr := img.adr + lly * img.bpr + bit DIV 8; bit := bit MOD 8;
@@ -2829,6 +2872,13 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			t := urx - llx;
 			WHILE lly < ury DO
 				Fill16(adr, t, c);
+				INC(lly); INC(adr, img.bpr)
+			END
+		ELSIF (mode.op = srcCopy) & (img.fmt.code IN {}) THEN
+			c := ASH(ORD(pix[r]), 24) + ASH(ORD(pix[g]), 16) + ASH(ORD(pix[b]), 8) + ORD(pix[a]);
+			t := urx - llx;
+			WHILE lly < ury DO
+				Fill32(adr, t, c);
 				INC(lly); INC(adr, img.bpr)
 			END
 		ELSE
