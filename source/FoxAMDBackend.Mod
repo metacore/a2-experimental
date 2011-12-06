@@ -2139,27 +2139,52 @@ TYPE
 		END EmitShift;
 
 		PROCEDURE EmitCopy(CONST instruction: IntermediateCode.Instruction);
-		VAR op1,op2,op3: Assembler.Operand; esi, edi, ecx: Ticket;
+		VAR op1,op2,op3: Assembler.Operand; esi, edi, ecx, t: Ticket; temp,imm: Assembler.Operand; source, dest: IntermediateCode.Operand; size: HUGEINT;
 		BEGIN
-			Spill(physicalRegisters.Mapped(ESI));
-			Spill(physicalRegisters.Mapped(EDI));
-			Spill(physicalRegisters.Mapped(ECX));;
+			IF IntermediateCode.IsConstantInteger(instruction.op3, size) & (size = 4) THEN
+				Spill(physicalRegisters.Mapped(ESI));
+				Spill(physicalRegisters.Mapped(EDI));
+				esi := ReservePhysicalRegister(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32,RS,inPC);
+				edi := ReservePhysicalRegister(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32,RD,inPC);
+				MakeOperand(instruction.op1,Low,op1,edi);
+				MakeOperand(instruction.op2,Low,op2,esi);
+				emitter.Emit0(InstructionSet.opMOVSD);
+				UnmapTicket(esi);
+				UnmapTicket(edi);
+			ELSE
+				Spill(physicalRegisters.Mapped(ESI));
+				Spill(physicalRegisters.Mapped(EDI));
+				Spill(physicalRegisters.Mapped(ECX));;
 
-			esi := ReservePhysicalRegister(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32,RS,inPC);
-			edi := ReservePhysicalRegister(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32,RD,inPC);
-			ecx := ReservePhysicalRegister(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32,RC,inPC);
+				esi := ReservePhysicalRegister(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32,RS,inPC);
+				edi := ReservePhysicalRegister(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32,RD,inPC);
+				ecx := ReservePhysicalRegister(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32,RC,inPC);
 
-			MakeOperand(instruction.op1,Low,op1,edi);
-			MakeOperand(instruction.op2,Low,op2,esi);
-			MakeOperand(instruction.op3,Low,op3,ecx);
 
-			emitter.Emit0(InstructionSet.opCLD); (* copy upwards *)
-			emitter.EmitPrefix (InstructionSet.prfREP);
-			emitter.Emit0(InstructionSet.opMOVSB);
 
-			UnmapTicket(esi);
-			UnmapTicket(edi);
-			UnmapTicket(ecx);
+				MakeOperand(instruction.op1,Low,op1,edi);
+				MakeOperand(instruction.op2,Low,op2,esi);
+				MakeOperand(instruction.op3,Low,op3,ecx);
+
+				t := TemporaryTicket(IntermediateCode.GeneralPurposeRegister, IntermediateCode.int32);
+				TicketToOperand(t, temp);
+				emitter.Emit2(InstructionSet.opMOV, temp, opECX);
+				imm := Assembler.NewImm8(3);
+				emitter.Emit2(InstructionSet.opAND, temp, imm);
+				imm := Assembler.NewImm8(2);
+				emitter.Emit2(InstructionSet.opSHR, opECX, imm);
+				
+				emitter.Emit0(InstructionSet.opCLD); (* copy upwards *)
+				emitter.EmitPrefix (InstructionSet.prfREP);
+				emitter.Emit0(InstructionSet.opMOVSD);
+				emitter.Emit2(InstructionSet.opMOV, opECX, temp);
+				emitter.EmitPrefix (InstructionSet.prfREP);
+				emitter.Emit0(InstructionSet.opMOVSB);
+
+				UnmapTicket(esi);
+				UnmapTicket(edi);
+				UnmapTicket(ecx);
+			END;
 		END EmitCopy;
 
 

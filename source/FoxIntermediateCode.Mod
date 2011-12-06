@@ -826,6 +826,17 @@ TYPE
 	BEGIN InitMemory(op,type,base,offset); RETURN op
 	END Memory;
 
+	PROCEDURE IsConstantInteger*(CONST op: Operand; VAR value: HUGEINT): BOOLEAN;
+	BEGIN
+		IF (op.mode = ModeImmediate) & (op.type.form IN Integer) & (op.symbol = NIL) THEN
+			value := op.intValue;
+			RETURN TRUE
+		ELSE
+			RETURN FALSE
+		END;
+	END IsConstantInteger;
+
+
 	PROCEDURE InitImmediate*(VAR op: Operand; type: Type; value: HUGEINT);
 	BEGIN
 		Assert(type.form IN Integer,"operand type does not match value type");
