@@ -5,7 +5,7 @@ IMPORT Streams,Options,Commands,Files,Strings;
 
 	PROCEDURE Enum*(context: Commands.Context);
 	VAR w: Streams.Writer; nr: LONGINT; options: Options.Options; export,incremental,hex: BOOLEAN; start: LONGINT;
-		name,oldname: ARRAY 256 OF CHAR; lf: LONGINT;
+		name,oldname,prefix: ARRAY 256 OF CHAR; lf: LONGINT;
 
 		(** get next symbol **)
 		PROCEDURE GetNextSymbol(VAR s: ARRAY OF CHAR ): BOOLEAN;
@@ -77,16 +77,19 @@ IMPORT Streams,Options,Commands,Files,Strings;
 		options.Add("s", "start", Options.Integer);
 		options.Add("h","hex",Options.Flag);
 		options.Add("l","linefeed",Options.Integer);
+		options.Add("p","prefix",Options.String);
 
 		IF options.Parse(context.arg,context.error) THEN
 			w := context.out;
 			IF ~options.GetInteger("s",start) THEN start := 0 END;
 			export := options.GetFlag("e");
 			incremental := options.GetFlag("i");
-			hex := options.GetFlag("h");
+			hex := options.GetFlag("h");			
+			IF ~options.GetString("p", prefix) THEN prefix := "" END;
 			IF ~options.GetInteger("l",lf) THEN lf := MAX(LONGINT) END;
 			nr := start;
 			WHILE GetNextSymbol(name) DO
+				w.String(prefix);
 				w.String(name);
 				IF export THEN w.String("*"); END;
 				w.String("= ");

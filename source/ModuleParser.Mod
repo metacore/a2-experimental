@@ -756,8 +756,10 @@ TYPE
 		END FormalParsP;
 
 		PROCEDURE FPSectionP(fpSection: FPSection);
-		VAR identList: IdentList;
+		VAR
+			identList: IdentList; dummy: InfoItem;
 		BEGIN
+			NEW(dummy);
 			IF symbol.token = FoxScanner.Var THEN
 				fpSection.var := TRUE;
 				NextSymbol;
@@ -775,11 +777,13 @@ TYPE
 				fpSection.identList.ident.pos := symbol.start;
 				NextSymbol;
 				*)
+				IF symbol.token = FoxScanner.Equal THEN NextSymbol; ConstExprP(FoxScanner.Comma, FoxScanner.Colon, dummy) END; (* added for optional parameters *)
+				
 				WHILE symbol.token = FoxScanner.Comma DO
 					NEW(identList, fpSection.identList);
 					NextSymbol;
 					NEW(identList.identDef);
-					IdentDefP(identList.identDef);
+					IdentDefP(identList.identDef);					
 					AppendLast(fpSection.identList, identList);
 					(*
 					IF symbol.token = FoxScanner.Identifier THEN
@@ -792,6 +796,7 @@ TYPE
 						NextSymbol;
 					END;
 					*)
+					IF symbol.token = FoxScanner.Equal THEN NextSymbol; ConstExprP(FoxScanner.Comma, FoxScanner.Colon, dummy) END; (* added for optional parameters *)
 				END;
 				Check(FoxScanner.Colon);
 				NEW(fpSection.type, fpSection);
