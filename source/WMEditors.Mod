@@ -105,6 +105,7 @@ TYPE
 		readOnly- : WMProperties.BooleanProperty;
 		readOnlyI : BOOLEAN;
 
+		textBorder-: WMProperties.Int32Property;
 		textColor- : WMProperties.ColorProperty;
 		textColorI : LONGINT;
 
@@ -148,6 +149,7 @@ TYPE
 			NEW(readOnly, readOnlyProto, NIL, NIL); properties.Add(readOnly);
 			NEW(textColor, textColorProto, NIL, NIL); properties.Add(textColor);
 			NEW(scaleFont, PrototypeScaleFont, NIL,NIL); properties.Add(scaleFont);
+			NEW(textBorder, PrototypeTextBorder,NIL,NIL); properties.Add(textBorder);
 
 			NEW(onEscape, SELF, GSonEscape, GSonEscapeInfo, SELF.StringToCompCommand); events.Add(onEscape);
 			NEW(onEnter, SELF, GSonEnter, GSonEnterInfo, SELF.StringToCompCommand); events.Add(onEnter);
@@ -171,7 +173,7 @@ TYPE
 			dragPossible := FALSE;
 			dragString := NIL;
 			dragCopy := FALSE;
-			renderOffsetX := TextBorder;
+			renderOffsetX := textBorder.Get();
 			lastX := -1; lastY := -1;
 			SetPointerInfo(manager.pointerText);
 			takesFocus.Set(TRUE);
@@ -198,7 +200,7 @@ TYPE
 
 			PROCEDURE TextHeight(): LONGINT;
 			BEGIN
-				RETURN MAX (bounds.GetHeight()-2*TextBorder,4);
+				RETURN MAX (bounds.GetHeight()-2*textBorder.Get(),4);
 			END TextHeight;
 
 		BEGIN
@@ -357,7 +359,7 @@ TYPE
 			cursorPosition := 0;
 			x := x + ABS(renderOffsetX);
 			lastDistance := x;
-			i := 0; found := FALSE; gx := TextBorder;
+			i := 0; found := FALSE; gx := textBorder.Get();
 			WHILE ~found & (i < curLen) DO
 				code := string[i];
 				IF font.HasChar(code) THEN
@@ -404,6 +406,7 @@ TYPE
 			x, y : LONGINT; cursorX, selectionX0, selectionX1, tw, th: LONGINT; code, i, width, height : LONGINT;
 			selectionIsValid : BOOLEAN;
 			halign: LONGINT;
+			TextBorder: LONGINT;
 
 			PROCEDURE StringSize(VAR w,h: LONGINT);
 			VAR code,i: LONGINT;
@@ -433,6 +436,7 @@ TYPE
 			width := bounds.GetWidth();
 			height := bounds.GetHeight();
 
+			TextBorder := textBorder.Get();
 			StringSize(tw,th);
 			CASE alignH.Get() OF
 			WMGraphics.AlignRight:
@@ -483,15 +487,14 @@ TYPE
 			(* draw selection *)
 			IF selectionIsValid THEN
 				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y - font.GetAscent() , selectionX1, y + font.GetDescent() ), 0FF66H, WMGraphics.ModeSrcOverDst);
-
+				(* for fontsize debugging purposes:
 				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y , selectionX1, y+1), LONGINT(0FFFF00AAH), WMGraphics.ModeSrcOverDst);
 				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y+th , selectionX1, y+th+1), LONGINT(0FFFF00AAH), WMGraphics.ModeSrcOverDst);
 				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y+font.GetDescent() , selectionX1, y+font.GetDescent()+1), LONGINT(0FFFF00AAH), WMGraphics.ModeSrcOverDst);
 				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y-font.GetAscent() , selectionX1, y-font.GetAscent()+1), LONGINT(0FFFF00AAH), WMGraphics.ModeSrcOverDst);
-
 				canvas.Fill(WMRectangles.MakeRect(selectionX0,  height-1-TextBorder , selectionX1, height-TextBorder), LONGINT(0FF0000AAH), WMGraphics.ModeSrcOverDst);
 				canvas.Fill(WMRectangles.MakeRect(selectionX0,  TextBorder , selectionX1, TextBorder+1), LONGINT(0FF0000AAH), WMGraphics.ModeSrcOverDst);
-
+				*)
 			END;
 			IF cursorIsVisible & ~readOnlyI THEN
 				canvas.Fill(WMRectangles.MakeRect(cursorX, y - th , cursorX + CursorWidth, y + font.GetDescent() ), SHORT(0FF0000CCH), WMGraphics.ModeSrcOverDst);
@@ -1750,7 +1753,7 @@ VAR
 	GSmacros, GSmacrosInfo : Strings.String;
 	GSTextField, GSEditor : Strings.String;
 	GSModel, GSModelInfo : Strings.String;
-	PrototypeAlignH, PrototypeAlignV: WMProperties.Int32Property;
+	PrototypeAlignH, PrototypeAlignV, PrototypeTextBorder: WMProperties.Int32Property;
 
 PROCEDURE InitStrings;
 BEGIN
@@ -1774,13 +1777,14 @@ BEGIN
 	NEW(readOnlyProto, NIL, Strings.NewString("readOnly"), NIL); readOnlyProto.Set(FALSE);
 	NEW(allowScrollbarsProto, NIL, Strings.NewString("allowScrollbars"), NIL); allowScrollbarsProto.Set(TRUE);
 	NEW(highlightingProto, NIL, Strings.NewString("Highlighting"), Strings.NewString("Name of highlighting to be applied"));
+	highlightingProto.Set(NIL);
 	NEW(PrototypeScaleFont, NIL, Strings.NewString("ScaleFont"), Strings.NewString("percentage that fonts scales with height (0=none)"));
 	NEW(PrototypeAlignH, NIL, Strings.NewString("AlignH"), Strings.NewString("horizontal alignment"));
 	PrototypeAlignH.Set(WMGraphics.AlignLeft);
 	NEW(PrototypeAlignV, NIL, Strings.NewString("AlignV"), Strings.NewString("vertical alignment"));
 	PrototypeAlignV.Set(WMGraphics.AlignCenter);
-
-	highlightingProto.Set(NIL);
+	NEW(PrototypeTextBorder, NIL, Strings.NewString("TextBorder"), Strings.NewString("text boundary"));
+	PrototypeTextBorder.Set(4);
 END InitPrototypes;
 
 PROCEDURE GenTextField*() : XML.Element;

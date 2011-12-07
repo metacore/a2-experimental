@@ -2220,6 +2220,7 @@ TYPE
 				rect := e.component.bounds.Get();
 				INC(rect.l,dx); INC(rect.r,dx);
 				INC(rect.t,dy); INC(rect.b,dy);
+				e.component.AdaptRelativeBounds(rect,e.component.GetParent());
 				e.component.bounds.Set(rect);
 				e := e.next
 			END;
@@ -3149,8 +3150,8 @@ BEGIN
 			ELSIF string = "width" THEN b.r := b.l + width;
 			ELSIF string = "height" THEN b.b := b.t + height;
 			ELSIF string = "size" THEN b.r := b.l + width; b.b := b.t + height;
-			ELSIF string = "hcenter" THEN b.l := (rect.l+rect.r) DIV 2 - bwidth; b.r := b.l + bwidth;
-			ELSIF string = "vcenter" THEN b.t := (rect.t + rect.b) DIV 2 - bheight; b.b := b.t + bheight;
+			ELSIF string = "hcenter" THEN b.l := (rect.l+rect.r) DIV 2 - bwidth DIV 2; b.r := b.l + bwidth;
+			ELSIF string = "vcenter" THEN b.t := (rect.t + rect.b) DIV 2 - bheight DIV 2; b.b := b.t + bheight;
 			ELSIF string = "horizontal" THEN b.l := l; b.r := b.l + bwidth; l := b.r+1
 			ELSIF string = "vertical" THEN b.t := t; b.b := b.t + bheight; t := b.b + 1;
 			ELSIF string = "none" THEN  entry.component.alignment.Set(AlignNone)
