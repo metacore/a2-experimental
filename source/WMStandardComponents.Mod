@@ -240,9 +240,9 @@ TYPE
 			ELSIF (property = font) THEN
 				RecacheProperties;
 			ELSIF property = scaleFont THEN
-				IF scaleFont.Get()>0 THEN font.SetSize(bounds.GetHeight() * scaleFont.Get() DIV 100); SetFont(font.Get()) END;
+				IF scaleFont.Get()>0 THEN ScaleFont(bounds.GetHeight(), scaleFont.Get()); END;
 			ELSE
-				IF (property = bounds) & (scaleFont.Get()>0) THEN font.SetSize(bounds.GetHeight()*scaleFont.Get() DIV 100); SetFont(font.Get()) END;
+				IF (property = bounds) & (scaleFont.Get()>0) THEN ScaleFont(bounds.GetHeight(),scaleFont.Get()) END;
 				PropertyChanged^(sender, property)
 			END;
 		END PropertyChanged;
@@ -267,6 +267,8 @@ TYPE
 
 	(** Button *)
 	Button* = OBJECT (WMComponents.VisualComponent)
+	CONST
+		TextBorder=0;
 	VAR
 		caption- : WMProperties.StringProperty;
 		isRepeating-, isToggle-, indicateToggle- : WMProperties.BooleanProperty;
@@ -489,9 +491,9 @@ TYPE
 				IF (element # NIL) & (element IS Models.Model) THEN
 					SetModel(element(Models.Model));
 				END;
-			ELSIF (data = scaleFont)& (scaleFont.Get()>0) THEN font.SetSize(bounds.GetHeight()*scaleFont.Get() DIV 100); SetFont(font.Get())
+			ELSIF (data = scaleFont)& (scaleFont.Get()>0) THEN ScaleFont(bounds.GetHeight()-2*TextBorder,scaleFont.Get());
 			ELSE
-				IF (data = bounds) & (scaleFont.Get()>0) THEN font.SetSize(bounds.GetHeight()*scaleFont.Get() DIV 100); SetFont(font.Get()) END;
+				IF (data = bounds) & (scaleFont.Get()>0) THEN ScaleFont(bounds.GetHeight()-2*TextBorder,scaleFont.Get()); END;
 				PropertyChanged^(sender, data);
 			END;
 		END PropertyChanged;
@@ -751,6 +753,7 @@ TYPE
 			str := caption.Get();
 			IF str # NIL THEN
 				r := GetClientRect();
+				r := WMRectangles.MakeRect(r.l + TextBorder, r.t+TextBorder, r.r - TextBorder, r.b - TextBorder );
 				canvas.SetColor(tc);
 				WMGraphics.DrawStringInRect(canvas, r, FALSE, textAlignH.Get(), textAlignV.Get(), str^)
 			END;

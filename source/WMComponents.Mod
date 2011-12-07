@@ -1195,6 +1195,18 @@ TYPE
 			Release
 		END SetFont;
 
+		PROCEDURE ScaleFont*(height: LONGINT; percent: LONGINT);
+		VAR fh: LONGINT; f: WMGraphics.Font;
+		BEGIN
+			IF height < 4 THEN height := 4 END;
+			Acquire;
+			f := GetFont();
+			f := WMGraphics.GetFont(f.name, 100, f.style); (* expensive ? *) fh := f.GetAscent() + f.GetDescent();
+			font.SetSize(height* percent DIV fh);
+			SetFont(font.Get());
+			Release;
+		END ScaleFont;
+
 		(** Called by the component owner whenever a redraw to a canvas is needed. Caller must hold hierarchy lock *)
 		PROCEDURE Draw*(canvas : WMGraphics.Canvas);
 		BEGIN

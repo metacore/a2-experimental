@@ -194,12 +194,12 @@ TYPE
 		END SetCurrentCursorVisibility;
 
 		PROCEDURE PropertyChanged(sender, property : ANY);
-		VAR element : XML.Element;
+		VAR element : XML.Element; f: WMGraphics.Font;
+
 			PROCEDURE TextHeight(): LONGINT;
 			BEGIN
-				RETURN MIN (bounds.GetHeight()-2*TextBorder,4);
+				RETURN MAX (bounds.GetHeight()-2*TextBorder,4);
 			END TextHeight;
-
 
 		BEGIN
 			IF (property = type) THEN
@@ -217,9 +217,10 @@ TYPE
 				IF (element # NIL) & (element IS Models.Model) THEN
 					SetModel(element(Models.Model));
 				END;
-			ELSIF (property = scaleFont)& (scaleFont.Get()>0) THEN font.SetSize(TextHeight()*scaleFont.Get() DIV 100); SetFont(font.Get())
+			ELSIF (property = scaleFont)& (scaleFont.Get()>0) THEN
+				ScaleFont(TextHeight(),scaleFont.Get());
 			ELSE
-				IF (property = bounds) & (scaleFont.Get()>0) THEN font.SetSize(TextHeight()*scaleFont.Get() DIV 100); SetFont(font.Get()) END;
+				IF (property = bounds) & (scaleFont.Get()>0) THEN ScaleFont(TextHeight(),scaleFont.Get()); END;
 				PropertyChanged^(sender, property);
 			END;
 		END PropertyChanged;
@@ -444,7 +445,7 @@ TYPE
 
 			CASE alignV.Get() OF
 			WMGraphics.AlignBottom:
-				y := height - font.GetDescent() - TextBorder;
+				y := height -1 - font.GetDescent() - TextBorder;
 			| WMGraphics.AlignCenter:
 				y := (height - (font.GetAscent() + font.GetDescent()) ) DIV 2 + font.GetAscent();
 			ELSE (* top *)
@@ -481,13 +482,15 @@ TYPE
 			END;
 			(* draw selection *)
 			IF selectionIsValid THEN
-				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y - th , selectionX1, y + font.GetDescent() ), 0FF66H, WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y - font.GetAscent() , selectionX1, y + font.GetDescent() ), 0FF66H, WMGraphics.ModeSrcOverDst);
 
-				canvas.Fill(WMRectangles.MakeRect(selectionX0,  TextBorder , selectionX1, TextBorder+1), LONGINT(0FF000055H), WMGraphics.ModeSrcOverDst);
-				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y , selectionX1, y+1), LONGINT(0FF000055H), WMGraphics.ModeSrcOverDst);
-				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y+font.GetDescent() , selectionX1, y+font.GetDescent()+1), LONGINT(0FF000055H), WMGraphics.ModeSrcOverDst);
-				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y-font.GetAscent() , selectionX1, y-font.GetAscent()+1), LONGINT(0FF000055H), WMGraphics.ModeSrcOverDst);
-				canvas.Fill(WMRectangles.MakeRect(selectionX0,  height-TextBorder , selectionX1, height-TextBorder+1), LONGINT(0FF000055H), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y , selectionX1, y+1), LONGINT(0FFFF00AAH), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y+th , selectionX1, y+th+1), LONGINT(0FFFF00AAH), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y+font.GetDescent() , selectionX1, y+font.GetDescent()+1), LONGINT(0FFFF00AAH), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y-font.GetAscent() , selectionX1, y-font.GetAscent()+1), LONGINT(0FFFF00AAH), WMGraphics.ModeSrcOverDst);
+
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  height-1-TextBorder , selectionX1, height-TextBorder), LONGINT(0FF0000AAH), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  TextBorder , selectionX1, TextBorder+1), LONGINT(0FF0000AAH), WMGraphics.ModeSrcOverDst);
 
 			END;
 			IF cursorIsVisible & ~readOnlyI THEN
