@@ -112,7 +112,6 @@ TYPE
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
 
-		scaleFont-: WMProperties.Int32Property;
 
 		modelI : Models.Model;
 
@@ -148,7 +147,6 @@ TYPE
 			NEW(type, typeProto, NIL, NIL); properties.Add(type);
 			NEW(readOnly, readOnlyProto, NIL, NIL); properties.Add(readOnly);
 			NEW(textColor, textColorProto, NIL, NIL); properties.Add(textColor);
-			NEW(scaleFont, PrototypeScaleFont, NIL,NIL); properties.Add(scaleFont);
 			NEW(textBorder, PrototypeTextBorder,NIL,NIL); properties.Add(textBorder);
 
 			NEW(onEscape, SELF, GSonEscape, GSonEscapeInfo, SELF.StringToCompCommand); events.Add(onEscape);
@@ -1746,7 +1744,6 @@ VAR
 	typeProto : WMProperties.Int32Property;
 	textColorProto : WMProperties.ColorProperty;
 	multiLineProto, readOnlyProto, allowScrollbarsProto : WMProperties.BooleanProperty;
-	PrototypeScaleFont: WMProperties.Int32Property;
 	highlightingProto : WMProperties.StringProperty;
 	GSonEnter, GSonEnterInfo : Strings.String;
 	GSonEscape, GSonEscapeInfo : Strings.String;
@@ -1778,7 +1775,6 @@ BEGIN
 	NEW(allowScrollbarsProto, NIL, Strings.NewString("allowScrollbars"), NIL); allowScrollbarsProto.Set(TRUE);
 	NEW(highlightingProto, NIL, Strings.NewString("Highlighting"), Strings.NewString("Name of highlighting to be applied"));
 	highlightingProto.Set(NIL);
-	NEW(PrototypeScaleFont, NIL, Strings.NewString("ScaleFont"), Strings.NewString("percentage that fonts scales with height (0=none)"));
 	NEW(PrototypeAlignH, NIL, Strings.NewString("AlignH"), Strings.NewString("horizontal alignment"));
 	PrototypeAlignH.Set(WMGraphics.AlignLeft);
 	NEW(PrototypeAlignV, NIL, Strings.NewString("AlignV"), Strings.NewString("vertical alignment"));

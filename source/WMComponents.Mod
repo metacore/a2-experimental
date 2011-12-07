@@ -637,6 +637,7 @@ TYPE
 		alignment- : WMProperties.Int32Property;
 		fillColor- : WMProperties.ColorProperty;
 		font- : WMProperties.FontProperty;
+		scaleFont-: WMProperties.Int32Property;
 		visible-, takesFocus-, needsTab-, editMode- : WMProperties.BooleanProperty;
 		focusPrevious-, focusNext- : WMProperties.StringProperty;
 		model- : WMProperties.ReferenceProperty;
@@ -681,6 +682,7 @@ TYPE
 			NEW(editMode, PrototypeEditMode, NIL,NIL); properties.Add(editMode); editMode.Set(FALSE);
 			NEW(model, NIL, StrModel, StrModelInfo); properties.Add(model);
 			NEW(font, PrototypeFont, NIL, NIL); properties.Add(font);
+			NEW(scaleFont, PrototypeScaleFont, NIL,NIL); properties.Add(scaleFont);
 
 			NEW(onStartDrag, SELF, GSonStartDrag,GSonStartDragInfo, SELF.StringToCompCommand);
 			events.Add(onStartDrag);
@@ -791,13 +793,17 @@ TYPE
 
 		PROCEDURE PropertyChanged*(sender, property : ANY);
 		BEGIN
-			IF property = bounds THEN Resized
+			IF property = bounds THEN
+				ScaleFont(bounds.GetHeight(), scaleFont.Get());
+				Resized
 			ELSIF property = visible THEN Resized
 			ELSIF property = alignment THEN AlignmentChanged
 			ELSIF property = fillColor THEN Invalidate;
 			ELSIF property = bearing THEN Resized;
 			ELSIF property = editMode THEN Invalidate;
 			ELSIF property = model THEN Invalidate;
+			ELSIF (property = scaleFont) THEN
+				ScaleFont(bounds.GetHeight(),scaleFont.Get());
 			ELSE PropertyChanged^(sender, property)
 			END;
 		END PropertyChanged;
@@ -1196,14 +1202,19 @@ TYPE
 		END SetFont;
 
 		PROCEDURE ScaleFont*(height: LONGINT; percent: LONGINT);
-		VAR fh: LONGINT; f: WMGraphics.Font;
+		VAR fh,newSize: LONGINT; f: WMGraphics.Font;
 		BEGIN
 			IF height < 4 THEN height := 4 END;
+			IF percent <= 0 THEN RETURN END;
 			Acquire;
 			f := GetFont();
-			f := WMGraphics.GetFont(f.name, 100, f.style); (* expensive ? *) fh := f.GetAscent() + f.GetDescent();
-			font.SetSize(height* percent DIV fh);
-			SetFont(font.Get());
+			f := WMGraphics.GetFont(f.name, 100, f.style); (* expensive ? *)
+			fh := f.GetAscent() + f.GetDescent();
+			fh := height * percent DIV fh;
+			IF font.GetSize() # fh THEN
+				font.SetSize(fh);
+				Invalidate;
+			END;
 			Release;
 		END ScaleFont;
 
@@ -2286,6 +2297,7 @@ VAR
 	PrototypeFillColor : WMProperties.ColorProperty;
 	PrototypeAlignment : WMProperties.Int32Property;
 	PrototypeVisible, PrototypeTakesFocus, PrototypeNeedsTab, PrototypeEditMode: WMProperties.BooleanProperty;
+	PrototypeScaleFont: WMProperties.Int32Property;
 	PrototypeFocusPrevious, PrototypeFocusNext : WMProperties.StringProperty;
 	PrototypeFont- : WMProperties.FontProperty;
 	StrComponent, StrVisualComponent, StrForm, StrFormWindow, StrModel, StrModelInfo : Strings.String;
@@ -3047,6 +3059,7 @@ BEGIN
 	PrototypeEditMode.Set(FALSE);
 	NEW(PrototypeFont, NIL, NewString("Font"), NewString("Font"));
 	PrototypeFont.Set(WMGraphics.GetDefaultFont());
+	NEW(PrototypeScaleFont, NIL, Strings.NewString("ScaleFont"), Strings.NewString("percentage that fonts scales with height (0=none)"));
 END InitPrototypes;
 
 PROCEDURE ShowComponent(component : Component);

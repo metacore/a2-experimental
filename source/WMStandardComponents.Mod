@@ -213,7 +213,6 @@ TYPE
 		textColor- : WMProperties.ColorProperty;
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
-		scaleFont-: WMProperties.Int32Property;
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -222,7 +221,6 @@ TYPE
 			NEW(textColor, PrototypeTextColor, NIL, NIL); properties.Add(textColor);
 			NEW(alignH, PrototypeAlignH, NIL, NIL); properties.Add(alignH);
 			NEW(alignV, PrototypeAlignV, NIL, NIL); properties.Add(alignV);
-			NEW(scaleFont, PrototypeScaleFont, NIL, NIL); properties.Add(scaleFont);
 			SetGenerator("WMStandardComponents.GenLabel");
 			SetNameAsString(StrLabel)
 		END Init;
@@ -239,10 +237,7 @@ TYPE
 				Invalidate
 			ELSIF (property = font) THEN
 				RecacheProperties;
-			ELSIF property = scaleFont THEN
-				IF scaleFont.Get()>0 THEN ScaleFont(bounds.GetHeight(), scaleFont.Get()); END;
 			ELSE
-				IF (property = bounds) & (scaleFont.Get()>0) THEN ScaleFont(bounds.GetHeight(),scaleFont.Get()) END;
 				PropertyChanged^(sender, property)
 			END;
 		END PropertyChanged;
@@ -316,7 +311,6 @@ TYPE
 
 		textAlignH- : WMProperties.Int32Property;
 		textAlignV- : WMProperties.Int32Property;
-		scaleFont-: WMProperties.Int32Property;
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -368,7 +362,6 @@ TYPE
 
 			NEW(textAlignH, PrototypeButtonAlignH, NIL, NIL); properties.Add(textAlignH);
 			NEW(textAlignV, PrototypeButtonAlignV, NIL, NIL); properties.Add(textAlignV);
-			NEW(scaleFont, PrototypeScaleFont, NIL,NIL); properties.Add(scaleFont);
 
 			(* events *)
 			NEW(onClick, SELF, GSonClick, GSonClickButtonInfo, SELF.StringToCompCommand); events.Add(onClick);
@@ -491,9 +484,7 @@ TYPE
 				IF (element # NIL) & (element IS Models.Model) THEN
 					SetModel(element(Models.Model));
 				END;
-			ELSIF (data = scaleFont)& (scaleFont.Get()>0) THEN ScaleFont(bounds.GetHeight()-2*TextBorder,scaleFont.Get());
 			ELSE
-				IF (data = bounds) & (scaleFont.Get()>0) THEN ScaleFont(bounds.GetHeight()-2*TextBorder,scaleFont.Get()); END;
 				PropertyChanged^(sender, data);
 			END;
 		END PropertyChanged;
@@ -2642,7 +2633,6 @@ VAR
 	(* Image Panel *)
 	ProtoIpImgName* : WMProperties.StringProperty;
 
-	PrototypeScaleFont: WMProperties.Int32Property;
 
 	StrTimer*, StrSystemCommand*, StrEvent*, StrPanel*, StrLabel*, StrButton*, StrScrollbar*, StrResizer* ,
 	StrCheckbox, StrGroupPanel, StrImagePanel, StrModel, StrModelInfo, StrImage : String;
@@ -2702,8 +2692,6 @@ BEGIN
 	PrototypeAlignH.Set(WMGraphics.AlignLeft);
 	NEW(PrototypeAlignV, NIL, NewString("AlignV"), NewString("vertical alignment")); plLabel.Add(PrototypeAlignV);
 	PrototypeAlignV.Set(WMGraphics.AlignCenter);
-	NEW(PrototypeScaleFont, NIL, NewString("ScaleFont"), NewString("if fonts scales with height")); plLabel.Add(PrototypeScaleFont);
-	PrototypeScaleFont.Set(0);
 
 	(* Button properties *)
 	NEW(plButton);	WMComponents.propertyListList.Add("Button", plButton);
