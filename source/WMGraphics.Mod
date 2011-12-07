@@ -711,7 +711,7 @@ BEGIN
 		IF hAlign = AlignCenter THEN xPos := ((rect.l + rect.r) - tw) DIV 2
 		ELSIF hAlign = AlignRight THEN xPos := rect.r - tw
 		END;
-		IF vAlign = AlignCenter THEN yPos := (rect.t + rect.b - th) DIV 2 + font.GetAscent() ;
+		IF vAlign = AlignCenter THEN yPos := (rect.t + rect.b - font.GetDescent() - font.GetAscent() ) DIV 2 + font.GetAscent() ;
 		ELSIF vAlign = AlignBottom THEN yPos := rect.b - font.GetDescent();
 		END;
 		canvas.DrawString(xPos, yPos, text);

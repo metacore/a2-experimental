@@ -636,6 +636,7 @@ TYPE
 		bounds-, bearing-, relativeBounds-: WMProperties.RectangleProperty;
 		alignment- : WMProperties.Int32Property;
 		fillColor- : WMProperties.ColorProperty;
+		font- : WMProperties.FontProperty;
 		visible-, takesFocus-, needsTab-, editMode- : WMProperties.BooleanProperty;
 		focusPrevious-, focusNext- : WMProperties.StringProperty;
 		model- : WMProperties.ReferenceProperty;
@@ -644,7 +645,6 @@ TYPE
 		fPointerOwner : VisualComponent;
 		hasFocus- : BOOLEAN;
 		focusComponent : VisualComponent; (** Subcomponent that has the keyboard focus, if any *)
-		font : WMGraphics.Font;
 		extPointerDown, extPointerUp, extPointerMove : PointerHandler;
 		extPointerLeave : PointerLeaveHandler;
 		extDragOver, extDragDropped : DragDropHandler;
@@ -680,6 +680,7 @@ TYPE
 			NEW(focusNext, PrototypeFocusNext, NIL, NIL); properties.Add(focusNext);
 			NEW(editMode, PrototypeEditMode, NIL,NIL); properties.Add(editMode); editMode.Set(FALSE);
 			NEW(model, NIL, StrModel, StrModelInfo); properties.Add(model);
+			NEW(font, PrototypeFont, NIL, NIL); properties.Add(font);
 
 			NEW(onStartDrag, SELF, GSonStartDrag,GSonStartDragInfo, SELF.StringToCompCommand);
 			events.Add(onStartDrag);
@@ -1179,16 +1180,16 @@ TYPE
 
 		PROCEDURE GetFont*() : WMGraphics.Font;
 		BEGIN
-			IF font = NIL THEN RETURN WMGraphics.GetDefaultFont()
-			ELSE RETURN font
+			IF font.Get() = NIL THEN RETURN WMGraphics.GetDefaultFont()
+			ELSE RETURN font.Get()
 			END
 		END GetFont;
 
 		PROCEDURE SetFont*(font : WMGraphics.Font);
 		BEGIN
 			Acquire;
-			IF SELF.font # font THEN
-				SELF.font := font;
+			IF SELF.font.Get() # font THEN
+				SELF.font.Set(font);
 				Invalidate()
 			END;
 			Release
@@ -1200,7 +1201,7 @@ TYPE
 			CheckReadLock;
 			IF ~visible.Get() THEN RETURN END;
 			canvas.SaveState(canvasState);
-			IF font # NIL THEN canvas.SetFont(font) END;
+			IF font # NIL THEN canvas.SetFont(font.Get()) END;
 			DrawBackground(canvas);
 			IF extDraw # NIL THEN extDraw(canvas) END;
 			DrawSubComponents(canvas);
@@ -2273,6 +2274,7 @@ VAR
 	PrototypeAlignment : WMProperties.Int32Property;
 	PrototypeVisible, PrototypeTakesFocus, PrototypeNeedsTab, PrototypeEditMode: WMProperties.BooleanProperty;
 	PrototypeFocusPrevious, PrototypeFocusNext : WMProperties.StringProperty;
+	PrototypeFont- : WMProperties.FontProperty;
 	StrComponent, StrVisualComponent, StrForm, StrFormWindow, StrModel, StrModelInfo : Strings.String;
 	GSonStartDrag, GSonStartDragInfo : Strings.String;
 
@@ -3030,6 +3032,8 @@ BEGIN
 	PrototypeFocusNext.Set(NIL);
 	NEW(PrototypeEditMode, NIL, NewString("EditMode"), NewString("defines if the contents of the component can be edited"));
 	PrototypeEditMode.Set(FALSE);
+	NEW(PrototypeFont, NIL, NewString("Font"), NewString("Font"));
+	PrototypeFont.Set(WMGraphics.GetDefaultFont());
 END InitPrototypes;
 
 PROCEDURE ShowComponent(component : Component);

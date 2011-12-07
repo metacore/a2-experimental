@@ -210,7 +210,6 @@ TYPE
 	Label* = OBJECT(Panel)
 	VAR
 		caption- : WMProperties.StringProperty;
-		font- : WMProperties.FontProperty;
 		textColor- : WMProperties.ColorProperty;
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
@@ -220,7 +219,6 @@ TYPE
 		BEGIN
 			Init^;
 			NEW(caption, PrototypeCaption, NIL, NIL); properties.Add(caption);
-			NEW(font, PrototypeFont, NIL, NIL); properties.Add(font);
 			NEW(textColor, PrototypeTextColor, NIL, NIL); properties.Add(textColor);
 			NEW(alignH, PrototypeAlignH, NIL, NIL); properties.Add(alignH);
 			NEW(alignV, PrototypeAlignV, NIL, NIL); properties.Add(alignV);
@@ -271,7 +269,6 @@ TYPE
 	Button* = OBJECT (WMComponents.VisualComponent)
 	VAR
 		caption- : WMProperties.StringProperty;
-		font- : WMProperties.FontProperty;
 		isRepeating-, isToggle-, indicateToggle- : WMProperties.BooleanProperty;
 
 		onClickHandler- : WMProperties.StringProperty;
@@ -324,7 +321,6 @@ TYPE
 			Init^;
 			SetNameAsString(StrButton);
 			NEW(caption, PrototypeBcaption, NIL, NIL); properties.Add(caption);
-			NEW(font, PrototypeFont, NIL, NIL); properties.Add(font);
 
 			(* behavior *)
 			NEW(isRepeating, PrototypeBisRepeating, NIL, NIL); properties.Add(isRepeating);

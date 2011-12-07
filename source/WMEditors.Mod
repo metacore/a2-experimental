@@ -108,7 +108,9 @@ TYPE
 		textColor- : WMProperties.ColorProperty;
 		textColorI : LONGINT;
 
-		font- : WMProperties.FontProperty;
+		alignH- : WMProperties.Int32Property;
+		alignV- : WMProperties.Int32Property;
+
 		scaleFont-: WMProperties.Int32Property;
 
 		modelI : Models.Model;
@@ -145,13 +147,14 @@ TYPE
 			NEW(type, typeProto, NIL, NIL); properties.Add(type);
 			NEW(readOnly, readOnlyProto, NIL, NIL); properties.Add(readOnly);
 			NEW(textColor, textColorProto, NIL, NIL); properties.Add(textColor);
-			NEW(font, WMStandardComponents.PrototypeFont, NIL, NIL); properties.Add(font);
 			NEW(scaleFont, PrototypeScaleFont, NIL,NIL); properties.Add(scaleFont);
 
 			NEW(onEscape, SELF, GSonEscape, GSonEscapeInfo, SELF.StringToCompCommand); events.Add(onEscape);
 			NEW(onEnter, SELF, GSonEnter, GSonEnterInfo, SELF.StringToCompCommand); events.Add(onEnter);
 			NEW(onChanged, SELF, NIL, NIL, NIL); events.Add(onChanged);
 
+			NEW(alignH, PrototypeAlignH, NIL, NIL); properties.Add(alignH);
+			NEW(alignV, PrototypeAlignV, NIL, NIL); properties.Add(alignV);
 
 			ime := WMInputMethods.activeIME;
 
@@ -168,7 +171,7 @@ TYPE
 			dragPossible := FALSE;
 			dragString := NIL;
 			dragCopy := FALSE;
-			renderOffsetX := 0;
+			renderOffsetX := TextBorder;
 			lastX := -1; lastY := -1;
 			SetPointerInfo(manager.pointerText);
 			takesFocus.Set(TRUE);
@@ -192,6 +195,12 @@ TYPE
 
 		PROCEDURE PropertyChanged(sender, property : ANY);
 		VAR element : XML.Element;
+			PROCEDURE TextHeight(): LONGINT;
+			BEGIN
+				RETURN MIN (bounds.GetHeight()-2*TextBorder,4);
+			END TextHeight;
+
+
 		BEGIN
 			IF (property = type) THEN
 				typeI := type.Get();
@@ -202,14 +211,15 @@ TYPE
 				textColorI := textColor.Get();
 				Invalidate;
 			ELSIF (property = font) THEN Invalidate;
+			ELSIF (property = alignH) OR (property = alignV) THEN Invalidate
 			ELSIF (property = model) THEN
 				element := model.Get();
 				IF (element # NIL) & (element IS Models.Model) THEN
 					SetModel(element(Models.Model));
 				END;
-			ELSIF (property = scaleFont)& (scaleFont.Get()>0) THEN font.SetSize(bounds.GetHeight()*scaleFont.Get() DIV 100); SetFont(font.Get())
+			ELSIF (property = scaleFont)& (scaleFont.Get()>0) THEN font.SetSize(TextHeight()*scaleFont.Get() DIV 100); SetFont(font.Get())
 			ELSE
-				IF (property = bounds) & (scaleFont.Get()>0) THEN font.SetSize(bounds.GetHeight()*scaleFont.Get() DIV 100); SetFont(font.Get()) END;
+				IF (property = bounds) & (scaleFont.Get()>0) THEN font.SetSize(TextHeight()*scaleFont.Get() DIV 100); SetFont(font.Get()) END;
 				PropertyChanged^(sender, property);
 			END;
 		END PropertyChanged;
@@ -390,25 +400,69 @@ TYPE
 		CONST CursorWidth = 2; BorderWidth = 1;
 		VAR
 			font : WMGraphics.Font; g : WMGraphics.GlyphSpacings;
-			x, y : REAL; cursorX, selectionX0, selectionX1 : LONGINT; code, i, width : LONGINT;
+			x, y : LONGINT; cursorX, selectionX0, selectionX1, tw, th: LONGINT; code, i, width, height : LONGINT;
 			selectionIsValid : BOOLEAN;
+			halign: LONGINT;
+
+			PROCEDURE StringSize(VAR w,h: LONGINT);
+			VAR code,i: LONGINT;
+			BEGIN
+				w := 0; h := 0;
+				FOR i := 0 TO curLen-1 DO
+					code := string[i];
+					IF font.HasChar(code) THEN
+						font.GetGlyphSpacings(code, g);
+					ELSE
+						WMGraphics.FBGetGlyphSpacings(code, g);
+					END;
+					w := w + g.bearing.l + g.width + g.bearing.r;
+					h := MAX(h, g.height);
+				END;
+			END StringSize;
+
 		BEGIN
 			Draw^(canvas);
 			IF ~readOnlyI THEN
 				WMGraphicUtilities.DrawBevel(canvas, GetClientRect(), BorderWidth, TRUE, SHORT(0808080FFH), WMGraphics.ModeCopy)
 			END;
-			font := SELF.font.Get();
+			font := GetFont();
 			canvas.SetColor(textColorI);
 			selectionIsValid := SelectionIsValid();
 			cursorX := GetCursorCoordinateX();
 			width := bounds.GetWidth();
-			IF (cursorX  < ABS(renderOffsetX)) THEN renderOffsetX :=  -cursorX;
-			ELSIF (cursorX + CursorWidth > ABS(renderOffsetX) + width - TextBorder) THEN renderOffsetX := width - cursorX - CursorWidth - TextBorder;
+			height := bounds.GetHeight();
+
+			StringSize(tw,th);
+			CASE alignH.Get() OF
+			WMGraphics.AlignRight:
+				renderOffsetX := width-TextBorder-tw;
+			| WMGraphics.AlignCenter:
+				renderOffsetX :=  width DIV 2 - tw DIV 2;
+			ELSE (* left *)
+				renderOffsetX := TextBorder;
 			END;
-			cursorX := TextBorder;
-			IF (renderOffsetX < 0) THEN selectionX0 := 0; ELSE selectionX0 := TextBorder; END;
-			x := renderOffsetX + TextBorder;
-			y := TextBorder + font.GetAscent();
+
+			CASE alignV.Get() OF
+			WMGraphics.AlignBottom:
+				y := height - font.GetDescent() - TextBorder;
+			| WMGraphics.AlignCenter:
+				y := (height - (font.GetAscent() + font.GetDescent()) ) DIV 2 + font.GetAscent();
+			ELSE (* top *)
+				y := TextBorder + font.GetAscent();
+			END;
+
+			(* adaption to be able to edit out of visible area *)
+			IF hasFocus & ~readOnlyI THEN
+				IF (renderOffsetX + cursorX < TextBorder) THEN
+					renderOffsetX :=  -cursorX + TextBorder;
+				ELSIF (cursorX + CursorWidth + renderOffsetX > width - TextBorder) THEN
+					renderOffsetX := width - cursorX - CursorWidth - TextBorder;
+				END;
+				cursorX := TextBorder;
+			END;
+
+			IF (renderOffsetX < TextBorder) THEN selectionX0 := 0; ELSE selectionX0 := TextBorder; END;
+			x := renderOffsetX;
 			FOR i := 0 TO curLen - 1 DO
 				code := string[i];
 				IF font.HasChar(code) THEN
@@ -419,18 +473,25 @@ TYPE
 					WMGraphics.FBRenderChar(canvas, x, y, code)
 				END;
 				x := x + g.bearing.l + g.width + g.bearing.r;
-				IF (cursorPosition = i + 1) THEN cursorX := ENTIER(x); END;
+				IF (cursorPosition = i + 1) THEN cursorX := ENTIER(x*1.0); END;
 				IF (selectionIsValid) THEN
-					IF (selection.start = i + 1) THEN selectionX0 := ENTIER(x); END;
-					IF (selection.end = i) THEN selectionX1 := ENTIER(x + 0.5); END;
+					IF (selection.start = i + 1) THEN selectionX0 := ENTIER(x*1.0); END;
+					IF (selection.end = i) THEN selectionX1 := ENTIER(x*1.0 + 0.5); END;
 				END;
 			END;
 			(* draw selection *)
 			IF selectionIsValid THEN
-				canvas.Fill(WMRectangles.MakeRect(selectionX0, TextBorder, selectionX1, TextBorder + font.GetHeight()), 0FF66H, WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y - th , selectionX1, y + font.GetDescent() ), 0FF66H, WMGraphics.ModeSrcOverDst);
+
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  TextBorder , selectionX1, TextBorder+1), LONGINT(0FF000055H), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y , selectionX1, y+1), LONGINT(0FF000055H), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y+font.GetDescent() , selectionX1, y+font.GetDescent()+1), LONGINT(0FF000055H), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  y-font.GetAscent() , selectionX1, y-font.GetAscent()+1), LONGINT(0FF000055H), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(selectionX0,  height-TextBorder , selectionX1, height-TextBorder+1), LONGINT(0FF000055H), WMGraphics.ModeSrcOverDst);
+
 			END;
 			IF cursorIsVisible & ~readOnlyI THEN
-				canvas.Fill(WMRectangles.MakeRect(cursorX, TextBorder, cursorX + CursorWidth, TextBorder + font.GetAscent() ), SHORT(0FF0000CCH), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(cursorX, y - th , cursorX + CursorWidth, y + font.GetDescent() ), SHORT(0FF0000CCH), WMGraphics.ModeSrcOverDst);
 			END;
 		END Draw;
 
@@ -444,7 +505,7 @@ TYPE
 			IF (typeI = None) THEN
 				RETURN TRUE;
 			ELSIF (typeI = Decimal) THEN
-				RETURN (ORD("0") <= ch) & (ch <= ORD("9"));
+				RETURN (ORD("0") <= ch) & (ch <= ORD("9")) & (ch # ORD("-"));
 			ELSIF (typeI = Hex) THEN
 				RETURN ((ORD("0") <= ch) & (ch <= ORD("9"))) OR ((ORD("a") <= ch) & (ch <=ORD( "f"))) OR ((ORD("A") <= ch) & (ch <= ORD("F")));
 			ELSIF (typeI = Ascii) THEN
@@ -1043,8 +1104,10 @@ TYPE
 				dragInfo.data := dt;
 				IF ~hasFocus & cursorIsVisible THEN cursorIsVisible := FALSE; Invalidate; END;
 				ConfirmDrag(TRUE, dragInfo);
+				IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF, dragInfo) END;
 			ELSE
 				ConfirmDrag(FALSE, dragInfo);
+				IF dragInfo.onReject # NIL THEN dragInfo.onAccept(SELF, dragInfo) END;
 			END;
 		END DragDropped;
 
@@ -1684,6 +1747,7 @@ VAR
 	GSmacros, GSmacrosInfo : Strings.String;
 	GSTextField, GSEditor : Strings.String;
 	GSModel, GSModelInfo : Strings.String;
+	PrototypeAlignH, PrototypeAlignV: WMProperties.Int32Property;
 
 PROCEDURE InitStrings;
 BEGIN
@@ -1708,6 +1772,10 @@ BEGIN
 	NEW(allowScrollbarsProto, NIL, Strings.NewString("allowScrollbars"), NIL); allowScrollbarsProto.Set(TRUE);
 	NEW(highlightingProto, NIL, Strings.NewString("Highlighting"), Strings.NewString("Name of highlighting to be applied"));
 	NEW(PrototypeScaleFont, NIL, Strings.NewString("ScaleFont"), Strings.NewString("percentage that fonts scales with height (0=none)"));
+	NEW(PrototypeAlignH, NIL, Strings.NewString("AlignH"), Strings.NewString("horizontal alignment"));
+	PrototypeAlignH.Set(WMGraphics.AlignLeft);
+	NEW(PrototypeAlignV, NIL, Strings.NewString("AlignV"), Strings.NewString("vertical alignment"));
+	PrototypeAlignV.Set(WMGraphics.AlignCenter);
 
 	highlightingProto.Set(NIL);
 END InitPrototypes;

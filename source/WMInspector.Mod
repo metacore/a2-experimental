@@ -433,7 +433,7 @@ TYPE
 		BEGIN
 			Init^; SELF.window := NIL;
 			NEW(caption); caption.SetName("Caption"); caption.SetValue("Drag to Inspect"); AddAttribute(caption);
-			SetGenerator("IngaComponents.NewCommandDragger");
+			SetGenerator("WMInspector.NewCommandDragger");
 		END Init;
 
 		PROCEDURE DrawBackground(canvas: WMGraphics.Canvas);
