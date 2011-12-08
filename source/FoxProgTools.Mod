@@ -3,6 +3,44 @@ MODULE FoxProgTools;   (**  AUTHOR "fof"; PURPOSE "Oberon Compiler: Programming 
 
 IMPORT Streams,Options,Commands,Files,Strings;
 
+	(* e.g. InstructionBits "100xx0x0x" ~
+	0: should be 0
+	1: should be 1
+	x: free
+	*)
+	PROCEDURE InstructionBits*(context: Commands.Context);
+	VAR
+		i, length, bitPos: LONGINT;
+		shouldBeOnes, mask: SET;
+		pattern: ARRAY 33 OF CHAR;
+		w: Streams.Writer;
+		options: Options.Options;
+	BEGIN
+		NEW(options);
+		IF options.Parse(context.arg, context.error) THEN
+			IF context.arg.GetString(pattern) THEN
+				w := context.out;
+				length := 0;
+				WHILE pattern[length] # 0X DO INC(length) END;
+				IF (length # 16) & (length # 32) THEN
+					context.error.String("Error: invalid pattern length.");
+					context.error.Int(length, 0);
+					context.error.Ln
+				ELSE
+					FOR i := 0 TO length - 1 DO
+						bitPos := length - 1 - i;
+						CASE pattern[i] OF
+						| '0': INCL(mask, bitPos)
+						| '1': INCL(mask, bitPos); INCL(shouldBeOnes, bitPos)
+						ELSE (* ignore *)
+						END
+					END;
+					w.Set(shouldBeOnes); w.String(", "); w.Set(mask); w.Ln
+				END
+			END
+		END
+	END InstructionBits;
+
 	PROCEDURE Enum*(context: Commands.Context);
 	VAR w: Streams.Writer; nr: LONGINT; options: Options.Options; export,incremental,hex: BOOLEAN; start: LONGINT;
 		name,oldname,prefix: ARRAY 256 OF CHAR; lf: LONGINT;
