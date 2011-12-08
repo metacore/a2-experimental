@@ -148,14 +148,19 @@ TYPE
 			data : OpenTypeFonts.RasterData;
 			p1 : Raster.Pixel;
 			mode : Raster.Mode;
-
+			p: ARRAY 256 OF Raster.Pixel;
+			pixels: ARRAY [*,*] OF INTEGER;
+			x,y,val: LONGINT;
+		CONST
+			mask = [[0,1,0],[4,32,4],[0,1,0]];
 		BEGIN
-			Raster.SetRGBA(p1, 255, 0, 0, 255);
+			FOR val := 0 TO 255 DO Raster.SetRGBA(p[val],0,0,0,val) END;
+			Raster.SetRGBA(p1, 0, 0, 0, 255);
 			Raster.InitMode(mode, Raster.srcCopy);
 
 			no := OpenType.UnicodeToGlyph(ofont, code);
 			IF Debug THEN KernelLog.String("Reading Glyph Nr: "); KernelLog.Int(no, 0); KernelLog.String(" Code: u"); KernelLog.Hex(code, 4); KernelLog.Ln END;
-			OpenType.LoadGlyph(inst, glyph, no,  {OpenType.Hinted, OpenType.Width, OpenType.Raster});
+			OpenType.LoadGlyph(inst, glyph, no,  {OpenType.Hinted, OpenType.Width , OpenType.Raster });
 			g.dx := glyph.awx;													(* advance *)
 			g.x := glyph.hbx;													(* horizontal bearing x *)
 			g.y := glyph.hby;														(* horizontal bearing y *)
@@ -174,20 +179,35 @@ TYPE
 				xw := ((glyph.rw + 7) DIV 8) * 8;
 				l := xw * glyph.rh DIV 8;
 				IF xw *  glyph.rh > 0 THEN
-					NEW(g.img); Raster.Create(g.img, xw, glyph.rh, Raster.A1);
+					NEW(g.img); Raster.Create(g.img, xw, glyph.rh, Raster.A8); NEW(pixels, glyph.rh+2,xw+2);
 					pos := 0; k := 0;
 					WHILE l > 0 DO
 						ch := Pattern[k]; bits := ORD(ch); DEC(l); INC(k);
 						FOR b := 0 TO 7 DO
 							IF bit[ORD(ch), b]  THEN
 								IF pos MOD xw < glyph.rw THEN
-									Raster.Put(g.img, pos MOD xw, glyph.rh - pos DIV xw - 1, p1, mode);
+									IF size > 16 THEN
+										pixels[glyph.rh - pos DIV xw - 1 +1, pos MOD xw+1] := 255;
+									ELSE
+										Raster.Put(g.img, pos MOD xw, glyph.rh - pos DIV xw - 1, p1, mode);
+									END;
 								END
 							ELSE
 							END;
 							INC(pos)
 						END
-					END
+					END;
+
+					(* convolution *)
+
+					IF size > 16 THEN
+						FOR y := 0 TO g.img.height-1 DO
+							FOR x := 0 TO g.img.width-1 DO
+								val := mask +* pixels[y..y+2,x..x+2] DIV SUM(mask);
+								Raster.Put(g.img, x,y, p[val],mode);
+							END;
+						END;
+					END;
 				END
 
 			END;
