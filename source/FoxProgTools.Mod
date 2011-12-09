@@ -23,7 +23,7 @@ IMPORT Streams,Options,Commands,Files,Strings;
 				length := 0;
 				WHILE pattern[length] # 0X DO INC(length) END;
 				IF (length # 16) & (length # 32) THEN
-					context.error.String("Error: invalid pattern length.");
+					context.error.String("Error: invalid pattern length: ");
 					context.error.Int(length, 0);
 					context.error.Ln
 				ELSE
