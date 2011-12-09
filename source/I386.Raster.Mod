@@ -22,7 +22,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 	*)
 
 	IMPORT
-		SYSTEM, KernelLog, Machine, Streams, CLUTs, Displays, D := Debugging;
+		SYSTEM, KernelLog, Machine, Streams, CLUTs, Displays;
 
 
 	(*
