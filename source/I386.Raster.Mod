@@ -22,7 +22,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 	*)
 
 	IMPORT
-		SYSTEM, KernelLog, Machine, Streams, CLUTs, Displays;
+		SYSTEM, KernelLog, Machine, Streams, CLUTs, Displays, D := Debugging;
 
 
 	(*
@@ -706,6 +706,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 		VAR spix, dpix: Pixel;
 	BEGIN
 		WHILE len > 0 DO
+			spix := mode.col; dpix := mode.col;
 			mode.src.unpack(mode.src, sadr, sbit, spix);
 			mode.dst.unpack(mode.dst, dadr, dbit, dpix);
 			Blend(mode.op, spix, dpix);
@@ -1837,16 +1838,21 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 	END AnyOverA8;
 
 	PROCEDURE A8OverAny (VAR mode: Mode0; sadr: SYSTEM.ADDRESS; sbit: LONGINT; dadr: SYSTEM.ADDRESS; dbit, len: LONGINT);
-		VAR dpix: Pixel;
+	VAR spix, dpix: Pixel; alpha: CHAR;
 	BEGIN
 		WHILE len > 0 DO
-			SYSTEM.GET(sadr, mode.buf[a]);
-			IF mode.buf[a] = 0FFX THEN
+			SYSTEM.GET(sadr, alpha);
+			IF alpha = 0FFX THEN
 				mode.dst.pack(mode.dst, dadr, dbit, mode.buf)
 			ELSIF mode.buf[a] # 0X THEN
+				spix[a] := alpha;
+				(* the following computation of the colors has to be done because the blending method seems to assume this *)
+				spix[r] := CHR(ORD(mode.buf[r]) * ORD(alpha) DIV 255);
+				spix[g] := CHR(ORD(mode.col[g]) * ORD(alpha) DIV 255);
+				spix[b] := CHR(ORD(mode.col[b]) * ORD(alpha) DIV 255);
 				mode.dst.unpack(mode.dst, dadr, dbit, dpix);
-				Blend(mode.op, mode.buf, dpix);
-				mode.dst.pack(mode.dst, dadr, dbit, dpix)
+				Blend(mode.op, spix, dpix);
+				mode.dst.pack(mode.dst, dadr, dbit, dpix);
 			END;
 			INC(sadr); DEC(len);
 			dbit := dbit + mode.dst.bpp; INC(dadr, dbit DIV 8); dbit := dbit MOD 8
@@ -2548,6 +2554,8 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 		IF  (src.pal # NIL) & ((mode.map = NIL) OR (LEN(mode.map^) # src.pal.used) ) THEN
 			NEW(mode.map, src.pal.used)
 		END;
+
+
 		(* try to convert complex composite operations into simpler ones *)
 		IF alpha IN src.components * dst.components THEN	(* source and destination contain alpha information *)
 			op := mode.op
@@ -2770,6 +2778,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 				ELSE mode.transfer := AnyOverA8
 				END
 			| bgra8888:
+
 				CASE src.code OF
 				| a1: mode.buf := mode.col; mode.transfer := A1OverConst32
 				| a8: mode.buf := mode.col; mode.transfer := A8OverAny

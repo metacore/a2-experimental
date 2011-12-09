@@ -152,7 +152,7 @@ TYPE
 			pixels: ARRAY [*,*] OF INTEGER;
 			x,y,val: LONGINT;
 		CONST
-			mask = [[0,1,0],[4,32,4],[0,1,0]];
+			mask = [[0,1,0],[4,16,4],[0,1,0]];
 		BEGIN
 			FOR val := 0 TO 255 DO Raster.SetRGBA(p[val],0,0,0,val) END;
 			Raster.SetRGBA(p1, 0, 0, 0, 255);
