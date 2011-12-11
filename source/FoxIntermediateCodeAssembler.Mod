@@ -1122,8 +1122,8 @@ TYPE
 			adr := 0;
 			FOR i := 0 TO binaryModule.allSections.Length()-1 DO
 				section := binaryModule.allSections.GetSection(i);
+				is := section(IntermediateCode.Section).resolved;
 				IF (is # NIL) & section.IsCode() THEN
-					is := section(IntermediateCode.Section).resolved;
 					IF is.pc > sizes[i] THEN RETURN TRUE
 					(*
 					not necessary, the linker places correctly.
