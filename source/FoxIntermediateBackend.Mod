@@ -899,7 +899,7 @@ TYPE
 		fingerPrinter: FingerPrinter.FingerPrinter;
 
 		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedInstructionProcedure: SupportedInstructionProcedure; supportedImmediateProcedure: SupportedImmediateProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.IdentifierString; backend: IntermediateBackend;
-			newObjectFile: BOOLEAN);
+			newObjectFile: BOOLEAN)
 		BEGIN
 			SELF.system := system;
 			SELF.runtimeModuleName := runtime;
@@ -941,7 +941,7 @@ TYPE
 			NEW(registerUsage);
 			usedRegisters := NIL;
 			procedureResultDesignator := NIL;
-			NEW(fingerPrinter, system)
+			NEW(fingerPrinter, system);
 		END Init;
 
 		PROCEDURE NewSection(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.PooledName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
@@ -1884,11 +1884,12 @@ TYPE
 		END GetTypeDescriptor;
 
 
-		PROCEDURE CallThis(CONST moduleName, procedureName: ARRAY OF CHAR);
+		(* Call a runtime procedure.  If numberParameters >= 0 then the procedure may be called without module import. Otherwise the signature has to be inferred from the import. *)
+		PROCEDURE CallThis(CONST moduleName, procedureName: ARRAY OF CHAR; numberParameters: LONGINT);
 		VAR procedure: SyntaxTree.Procedure; result: Operand; reg: IntermediateCode.Operand; source: IntermediateCode.Section;
 			pooledName: Basic.PooledName;
 		BEGIN
-			IF GetRuntimeProcedure(moduleName,procedureName,procedure,FALSE) THEN (* ready for dynamic linking *)
+			IF GetRuntimeProcedure(moduleName,procedureName,procedure,numberParameters < 0) THEN (* ready for dynamic linking *)
 				StaticCallOperand(result,procedure);
 				Emit(Call(position,result.op,ProcedureParametersSize(system,procedure)));
 				ReleaseOperand(result);
@@ -1898,14 +1899,16 @@ TYPE
 				pooledName[1] := Basic.MakeString(procedureName);
 				source := NewSection(module.allSections, Sections.UnknownKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(reg, addressType, source , 0);
-				Emit(Call(position,reg, 0));
+				Emit(Call(position,reg, ToMemoryUnits(system,numberParameters * system.addressSize)));
 			END;
 		END CallThis;
+
 		(* call moduleName.procedureName if it can be imported, otherwise use altModuleName.altProcedureName  *)
-		PROCEDURE CallThis2(CONST moduleName, procedureName,altModuleName, altProcedureName: ARRAY OF CHAR; return: IntermediateCode.Operand);
+		PROCEDURE CallThis2(CONST moduleName, procedureName,altModuleName, altProcedureName: ARRAY OF CHAR;numberParameters: LONGINT; return: IntermediateCode.Operand);
 		VAR procedure: SyntaxTree.Procedure; result: Operand; address: IntermediateCode.Operand; source: IntermediateCode.Section;
 			pooledName: Basic.PooledName;
 		BEGIN
+			ASSERT(numberParameters >= 0);
 			IF GetRuntimeProcedure(moduleName,procedureName,procedure,FALSE) THEN (* ready for dynamic linking *)
 				StaticCallOperand(result,procedure);
 				Emit(Call(position,result.op,ProcedureParametersSize(system,procedure)));
@@ -1917,7 +1920,7 @@ TYPE
 				pooledName[1] := Basic.MakeString(altProcedureName);
 				source := NewSection(module.allSections,  Sections.UnknownKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(address, addressType, source , 0);
-				Emit(Call(position,address, 0));
+				Emit(Call(position,address, ToMemoryUnits(system, numberParameters * system.addressSize)));
 
 				Emit(Result(position,return));
 			END;
@@ -4975,7 +4978,7 @@ TYPE
 			ReleaseIntermediateOperand(reg);
 			(* push realtime flag: false by default *)
 			Emit(Push(position,false));
-			IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewRec") ELSE
+			IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewRec",3) ELSE
 			SysCall(SysNewRec);
 			END;
 		END NewMathArrayDescriptor;
@@ -5034,7 +5037,7 @@ TYPE
 						Emit(Push(position,IntermediateCode.Immediate(IntermediateCode.GetType(system,system.setType),flags)));
 						Emit(Push(position,self));
 						IF newObjectFile OR DisableSysCalls THEN
-							CallThis("Objects","CreateProcess")
+							CallThis("Objects","CreateProcess",4)
 						ELSE
 							SysCall(SysStart);
 						END;
@@ -5134,7 +5137,7 @@ TYPE
 				Emit(Push(position,s2.op));
 				ReleaseOperand(s0); ReleaseOperand(s1); ReleaseOperand(s2);
 				IF newObjectFile OR DisableSysCalls  THEN
-					CallThis("Modules","GetProcedure");
+					CallThis("Modules","GetProcedure", 7);
 				ELSE
 					SysCall(SysGetProcedure);
 				END;
@@ -5425,7 +5428,7 @@ TYPE
 					END;
 
 					IF newObjectFile OR DisableSysCalls THEN
-						CallThis("Heaps","NewRec");
+						CallThis("Heaps","NewRec", 3);
 					ELSE
 						SysCall(SysNewRec);
 					END;
@@ -5557,7 +5560,7 @@ TYPE
 						ELSE Emit(Push(position,false));
 						END;
 						IF newObjectFile OR DisableSysCalls THEN
-							CallThis("Heaps","NewArr")
+							CallThis("Heaps","NewArr",5)
 						ELSE
 							SysCall(SysNewArr);
 						END;
@@ -5583,7 +5586,7 @@ TYPE
 						ELSE Emit(Push(position,false));
 						END;
 						IF newObjectFile OR DisableSysCalls THEN
-							CallThis("Heaps","NewSys")
+							CallThis("Heaps","NewSys", 3)
 						ELSE
 							SysCall(SysNewSys);
 						END;
@@ -5730,7 +5733,7 @@ TYPE
 							Emit(Push(position,tmp)); (* dimensions = 0, we control dimensions in the geometry descriptor *)
 							(* push realtime flag: false by default *)
 							Emit(Push(position,false));
-							IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewArr") ELSE SysCall(SysNewArr) END;
+							IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewArr",5) ELSE SysCall(SysNewArr) END;
 							IntermediateCode.InitRegister(adr,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 							Emit(Pop(position,adr));
 							GetMathArrayField(tmp,adr,MathPtrOffset);
@@ -5764,7 +5767,7 @@ TYPE
 							ReleaseIntermediateOperand(reg);
 							(* push realtime flag: false by default *)
 							Emit(Push(position,false));
-							IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewSys");
+							IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewSys",3);
 							ELSE SysCall(SysNewSys)
 							END;
 							IntermediateCode.InitRegister(adr,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
@@ -5937,7 +5940,7 @@ TYPE
 				ReleaseOperand(s1);
 				(* push realtime flag: false by default *)
 				Emit(Push(position,false));
-				IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewSys") ELSE
+				IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewSys",3) ELSE
 				SysCall(SysNewSys);
 				END;
 			(* ---- SYSTEM.INCR ----- *)
@@ -6010,7 +6013,7 @@ TYPE
 				IF size # 1 THEN Error(p1.position,"send not implemented for complex data types") END;
 				ReleaseOperand(s0);
 				ReleaseOperand(s1);
-				CallThis(ChannelModuleName,"Send");
+				CallThis(ChannelModuleName,"Send",-1);
 			(* ----- RECEIVE ------*)
 			|Global.Receive:
 				Evaluate(p0,s0);
@@ -6032,9 +6035,9 @@ TYPE
 				ReleaseOperand(s1);
 				ReleaseOperand(s2);
 				IF p2 = NIL THEN
-					CallThis(ChannelModuleName,"Receive")
+					CallThis(ChannelModuleName,"Receive",-1)
 				ELSE
-					CallThis(ChannelModuleName,"ReceiveNonBlocking")
+					CallThis(ChannelModuleName,"ReceiveNonBlocking",-1)
 				END;
 
 			| Global.systemSpecial:
@@ -7314,7 +7317,7 @@ TYPE
 			Emit(Push(position,fp));
 			PushSelfPointer();
 			Emit(Push(position,nil));
-			IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Await") ELSE SysCall(SysAwait) END;
+			IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Await",4) ELSE SysCall(SysAwait) END;
 			SetLabel(label);
 			IF Trace THEN TraceExit("VisitAwaitStatement") END;
 		END VisitAwaitStatement;
@@ -7364,11 +7367,11 @@ TYPE
 			PushSelfPointer;
 			Emit(Push(position,true));
 			IF lock THEN
-				IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Lock")
+				IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Lock",2)
 				ELSE SysCall(SysLock)
 				END;
 			ELSE
-				IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Unlock");
+				IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Unlock",2);
 				ELSE SysCall(SysUnlock)
 				END
 			END;
@@ -7479,7 +7482,7 @@ TYPE
 				Emit(Push(position,op));
 				*)
 				res := NewRegisterOperand(bool);
-				CallThis2("Modules","PublishThis","Runtime","InsertModule",res);
+				CallThis2("Modules","PublishThis","Runtime","InsertModule",2,res);
 				end := NewLabel();
 				(*AcquireThisRegister(bool, IntermediateCode.Result);*)
 				BrneL(end, res,true);
@@ -7533,7 +7536,7 @@ TYPE
 			END;
 			IF newObjectFile & moduleBody  & ~suppressModuleRegistration & ~meta.simple THEN
 				PushSelfPointer();
-				CallThis("Modules","SetInitialized");
+				CallThis("Modules","SetInitialized",1);
 				SetLabel(end);
 			END;
 
@@ -9550,6 +9553,7 @@ TYPE
 		RETURN pc
 	END EnterImmediate;
 
+
 	PROCEDURE Init;
 	VAR i: LONGINT; name: SyntaxTree.IdentifierString;
 	BEGIN
@@ -9570,6 +9574,8 @@ TYPE
 			Basic.AppendNumber(name,i);
 			systemCalls[i] := SyntaxTree.NewSymbol(SyntaxTree.NewIdentifier(name));
 		END;
+
+
 	END Init;
 
 
