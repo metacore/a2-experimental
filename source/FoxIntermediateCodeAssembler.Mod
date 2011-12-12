@@ -1144,6 +1144,7 @@ TYPE
 			binaryModule: Formats.GeneratedModule;
 			result: BOOLEAN;
 			sizes: POINTER TO ARRAY OF LONGINT; i: LONGINT;
+			objectFileExtension: ARRAY 32 OF CHAR; objectFileName: Files.FileName;
 		BEGIN
 			intermediateCodeModule := ExtractModuleWithName(desiredName);
 			result := TRUE;
@@ -1181,6 +1182,12 @@ TYPE
 					(* write the generated code into an object file *)
 					objectFileFormat.Initialize(diagnostics);
 					IF objectFileFormat.Export(binaryModule, NIL) THEN
+						IF log # NIL THEN
+							log.String("assembled "); log.String(desiredName); log.String(" => ");
+							objectFileFormat.GetExtension(objectFileExtension);
+							Files.JoinExtension(desiredName, objectFileExtension, objectFileName);
+							log.String(objectFileName); log.Ln;
+						END;
 						IF Trace THEN D.String(">>> object file successfully written"); D.Ln END;
 					ELSE
 						diagnostics.Error(desiredName, Diagnostics.Invalid, Diagnostics.Invalid, "object file could not be written");

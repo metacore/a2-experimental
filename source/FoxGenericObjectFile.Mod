@@ -12,6 +12,13 @@ CONST
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	VAR prefix, extension: Files.FileName; binary: BOOLEAN;
 
+		PROCEDURE & InitObjectFileFormat;
+		BEGIN
+			Init;
+			prefix := ""; extension := ObjectFile.DefaultExtension;
+		END InitObjectFileFormat;
+
+
 		PROCEDURE Export* (module: Formats.GeneratedModule; symbolFileFormat: Formats.SymbolFileFormat): BOOLEAN;
 		VAR fileName: Files.FileName; file: Files.File; writer: Files.Writer; fingerPrinter: FingerPrinter.FingerPrinter; poolMap: ObjectFile.PoolMap;
 

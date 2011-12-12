@@ -386,14 +386,13 @@ TYPE
 				type: ActiveCells.Type;
 				msg: MessageString;
 				typeName, instanceName, linkRoot, name: SectionName;
-				extension: ARRAY 32 OF CHAR;
+				objectFileExtension: ARRAY 32 OF CHAR;
 				instructionMemorySize, dataMemorySize: LONGINT;
 				parameter: ActiveCells.Parameter;
 				value: SyntaxTree.Value;
 				pooledName: Basic.PooledName;
 				device: ActiveCells.Device;
 			BEGIN
-
 				type := instance.type;
 				type.GetFullName(typeName,NIL);
 				instance.GetFullName(instanceName,NIL);
@@ -439,6 +438,7 @@ TYPE
 					END;
 				END;
 
+				objectFileFormat.GetExtension(objectFileExtension);
 				assembler.PrearrangeReachableDataSections;
 				IF ~assembler.GenerateObjectFileWithName(objectFileFormat, specification.log, {}, NIL, NIL, instanceName) THEN
 					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "could not generate object file");
@@ -455,9 +455,8 @@ TYPE
 				IF logFile # NIL THEN NEW(linkerLog,logFile,0) ELSE logFile := NIL END;
 				NEW (linker, specification.diagnostics, linkerLog, FALSE (* useAll *), FALSE (* stripInitCodes *), code, data);
 
-				objectFileFormat.GetExtension(extension);
 				linker.SetLinkRoot("" (* linkRoot *)); (* take all initcode sections *)
-				StaticLinker.ReadObjectFile(instanceName, "",extension,linker);
+				StaticLinker.ReadObjectFile(instanceName, "",objectFileExtension,linker);
 
 				(* do linking after having read in all blocks to account for potential constraints *)
 				IF ~linker.error THEN linker.Link; END;
@@ -482,7 +481,7 @@ TYPE
 						specification.log.String(instanceName);
 						specification.log.String(" linked. IM = ");specification.log.Int(instructionMemorySize,1);
 						specification.log.String(", DM = "); specification.log.Int(dataMemorySize,1);
-						specification.log.Ln
+						specification.log.Ln; specification.log.Update;
 					END;
 				ELSE
 					msg := "could not link ";
