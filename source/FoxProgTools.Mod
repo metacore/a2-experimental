@@ -3,6 +3,95 @@ MODULE FoxProgTools;   (**  AUTHOR "fof"; PURPOSE "Oberon Compiler: Programming 
 
 IMPORT Streams,Options,Commands,Files,Strings;
 
+	PROCEDURE ParseARMInstructionSet*(context: Commands.Context);
+	VAR
+		ones, mask: SET;
+		char: CHAR;
+		numBits, i, bitPos: LONGINT;
+		fileName, token, mnemonic, flagString, pattern: ARRAY 256 OF CHAR;
+		file: Files.File;
+		reader: Files.Reader;
+	BEGIN
+		context.arg.SkipWhitespace; context.arg.String(fileName);
+		IF fileName # "" THEN
+			context.out.String("parsing file "); context.out.String(fileName); context.out.Ln; context.out.Ln; context.out.Update;
+			file := Files.Old(fileName);
+			NEW(reader, file, 0);
+			mnemonic := "";
+			reader.Token(token);
+			WHILE TRUE DO
+				IF token = "" THEN
+					reader.SkipWhitespace
+				ELSIF token[0] = '%' THEN (* comment *)
+					reader.SkipLn
+				ELSIF (token = "T") OR (token = "A") THEN
+					ASSERT(mnemonic # "");
+					context.out.String("EnterInstruction(instr"); context.out.String(mnemonic);
+					context.out.String(", "); IF token = "T" THEN context.out.String("Thumb") ELSE context.out.String("ARM") END;					
+					context.out.Update;
+					
+					reader.SkipWhitespace; reader.Token(token);
+					
+					IF token = "S+C" THEN flagString := "{flagCondAndS}"
+					ELSIF token = "C" THEN flagString := "{flagCondOnly}"
+					ELSIF token = "S|C" THEN flagString := "{flagOrAutoS}"
+					ELSIF token = "S=1" THEN flagString := "{flagAlwaysOnlyS}"
+					ELSE HALT(100)
+					END;
+					reader.SkipWhitespace;
+					
+					(* read bit pattern string and count bits *)	
+					numBits := 0;
+					WHILE ~reader.EOLN() DO						
+						reader.Char(char);
+						IF char # ' ' THEN
+							pattern[numBits] := char;
+							INC(numBits)
+						END
+					END;
+					
+					ASSERT((numBits MOD 16) = 0);
+					context.out.String(", "); context.out.Int(numBits DIV 16, 0);
+					
+					(* TODO: read operand allocation*)
+					
+					(*
+					context.out.Ln;
+					context.out.String('pattern string = "'); context.out.String(pattern); context.out.String('"');
+					context.out.Update;
+					*)
+					
+					mask := {};
+					ones := {};
+					FOR i := 0 TO numBits - 1 DO
+						bitPos := numBits - 1 - i;	
+						CASE pattern[i] OF
+						| '0': INCL(mask, bitPos)
+						| '1': INCL(mask, bitPos); INCL(ones, bitPos);
+						| 'O': (* ignore *)
+						| 'l':  INCL(ones, bitPos); 
+						ELSE
+							(* ignore *)
+						END
+					END;
+					
+					context.out.String(", "); context.out.Set(ones);
+					context.out.String(", "); context.out.Set(mask);
+					context.out.String(", "); context.out.String(flagString);
+					context.out.String(", operands...");
+					context.out.String(");"); context.out.Ln;
+					context.out.Update;
+					
+					RETURN
+				ELSE
+					(* start of a new mnemonic *)
+					mnemonic := token
+				END;				
+				reader.Token(token)
+			END			
+		END
+	END ParseARMInstructionSet;
+	
 	(* e.g. InstructionBits "100xx0x0x" ~
 	0: should be 0
 	1: should be 1
@@ -748,3 +837,5 @@ FoxProgTools.Enum --start=10 --hex  a b c  d e ~
 
 
 FoxProgTools.ParseAMDInstructionSet  FoxInstructionSetAMD64TabSeperated.txt ~
+
+FoxProgTools.ParseARMInstructionSet OC/ARM&ThumbInstructionSet.Text ~
