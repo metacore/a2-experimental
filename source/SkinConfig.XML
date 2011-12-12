@@ -157,6 +157,10 @@
 		<property name="bgLeftPressed" type="resource" mandatory="false" />
 		<property name="bgRightPressed" type="resource" mandatory="false" />
 		<property name="bgMiddlePressed" type="resource" mandatory="false" />
+		<property name="bgTopDefault" type="resource" mandatory="false" />
+		<property name="bgDefault" type="resource" mandatory="false" />
+		<property name="bgPressed" type="resource" mandatory="false" />
+		<property name="bgHover" type="resource" mandatory="false" />
 	</component>
 	<component name="scrollbar">
 		<property name="width" type="int32" mandatory="false" />
