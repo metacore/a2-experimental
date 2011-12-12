@@ -150,7 +150,7 @@ VAR
 			| Api.Expose, Api.GraphicsExpose: 
 					(* hacking, clear all expoure events in queue *)
 					 WHILE Api.CheckTypedEvent(xd, Api.Expose, event) = X11.True DO END; 
-					(* WHILE Api.CheckTypedWindowEvent(xd, disp.primary, Api.Expose, event) = X11.True DO END;*) 
+					WHILE Api.CheckWindowEvent(xd, disp.primary, {Api.ExposureMask}, event) = X11.True DO  END; 
 					em := S.VAL( Api.XExposeEvent, event );
 					 IF em.count = 0 THEN  (* wait until last message*) 
 						(* Let DisplayRefresher handle this *)						

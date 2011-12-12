@@ -916,10 +916,10 @@ VAR
 	ClearSelection-: PROCEDURE { C } ;
 
 	CheckTypedEvent-: PROCEDURE { C } (display: DisplayPtr; eventType: LONGINT; VAR event: XEvent): Bool;
-	CheckMaskedEvent-: PROCEDURE { C } (display: DisplayPtr; eventMask: SET; VAR event: XEvent): Bool;
+	CheckMaskEvent-: PROCEDURE { C } (display: DisplayPtr; eventMask: SET; VAR event: XEvent): Bool;
 
 	CheckTypedWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventType: LONGINT; VAR event: XEvent): Bool;
-	CheckMaskedWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventMask: SET; VAR event: XEvent): Bool;
+	CheckWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventMask: SET; VAR event: XEvent): Bool;
 
 			
 	(* wrapper procedure for XGetAtomName  *)
@@ -984,10 +984,10 @@ BEGIN {EXCLUSIVE}
 		Unix.Dlsym( xlib, "XWarpPointer", SYSTEM.VAL( ADDRESS, WarpPointer));
 		
 		Unix.Dlsym( xlib, "XCheckTypedEvent", SYSTEM.VAL( ADDRESS, CheckTypedEvent));
-		Unix.Dlsym( xlib, "XCheckMaskedEvent", SYSTEM.VAL( ADDRESS, CheckMaskedEvent));
+		Unix.Dlsym( xlib, "XCheckMaskEvent", SYSTEM.VAL( ADDRESS, CheckMaskEvent));
 
 		Unix.Dlsym( xlib, "XCheckTypedWindowEvent", SYSTEM.VAL( ADDRESS, CheckTypedWindowEvent));
-		Unix.Dlsym( xlib, "XCheckMaskedWindowEvent", SYSTEM.VAL( ADDRESS, CheckMaskedWindowEvent));
+		Unix.Dlsym( xlib, "XCheckWindowEvent", SYSTEM.VAL( ADDRESS, CheckWindowEvent));
 		
 END LoadX11Functions;
 
