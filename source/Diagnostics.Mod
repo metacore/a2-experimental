@@ -190,6 +190,7 @@ BEGIN
 	END;
 	IF (type # TypeInformation) THEN w.String(": ") END;
 	w.String(message); w.Ln;
+	w.Update;
 END Print;
 
 END Diagnostics.

@@ -955,7 +955,7 @@ TYPE
 						END;
 					END;
 				END;
-			ELSE
+			ELSIF TraceInstantiate IN Trace THEN
 				KernelLog.String("Repositories.GetComponent: Component '"); KernelLog.String(SELF.name); KernelLog.String(":");
 				KernelLog.String(name); KernelLog.String(":"); KernelLog.Int(id, 0); KernelLog.String("' not found"); KernelLog.Ln;
 			END;

@@ -666,7 +666,7 @@ TYPE
 		BEGIN
 			ProcedureModifierP(head);
 			(*SysFlag;*)
-			
+
 			CASE symbol.token OF
 			| FoxScanner.Minus: head.inline := TRUE; NextSymbol;
 			| FoxScanner.And: head.constructor := TRUE; NextSymbol;
@@ -676,11 +676,11 @@ TYPE
 			| FoxScanner.Number: IF symbol.numberType = FoxScanner.Character THEN head.operator := TRUE END;
 			ELSE
 			END;
-			
+
 			NEW(head.identDef);
 			IdentDefP(head.identDef);
 			OSAIrq;		(* tk: Compatibility to OSACompiler*)
-			
+
 			IF symbol.token = FoxScanner.LeftParenthesis THEN
 				NEW(head.formalPars, head);
 				FormalParsP(head.formalPars);
@@ -778,12 +778,12 @@ TYPE
 				NextSymbol;
 				*)
 				IF symbol.token = FoxScanner.Equal THEN NextSymbol; ConstExprP(FoxScanner.Comma, FoxScanner.Colon, dummy) END; (* added for optional parameters *)
-				
+
 				WHILE symbol.token = FoxScanner.Comma DO
 					NEW(identList, fpSection.identList);
 					NextSymbol;
 					NEW(identList.identDef);
-					IdentDefP(identList.identDef);					
+					IdentDefP(identList.identDef);
 					AppendLast(fpSection.identList, identList);
 					(*
 					IF symbol.token = FoxScanner.Identifier THEN
@@ -1028,8 +1028,7 @@ TYPE
 				END;
 				NextSymbol;
 				Check(FoxScanner.RightBrace);
-			END;			
-			KernelLog.String("test");
+			END;
 			IF symbol.token = FoxScanner.LeftParenthesis THEN
 				NEW(proc.formalPars, proc);
 				FormalParsP(proc.formalPars);
@@ -1140,7 +1139,7 @@ TYPE
 								NEW(ignore);
 								ConstExprP(FoxScanner.RightParenthesis, -1, ignore);
 								Check(FoxScanner.RightParenthesis);
-							END;							
+							END;
 						ELSE
 							Error(symbol.start); NextSymbol (* skip the ident, probably a typo *)
 						END;
@@ -1151,11 +1150,11 @@ TYPE
 				Check(FoxScanner.RightBrace);
 			END;
 		END BlockModifierP;
-		
+
 		PROCEDURE ProcedureModifierP(procHead: ProcHead);
-		VAR	
+		VAR
 			value: LONGINT;
-		BEGIN	
+		BEGIN
 			IF symbol.token = FoxScanner.LeftBrace THEN
 				REPEAT
 					NextSymbol;
@@ -1173,7 +1172,7 @@ TYPE
 				Check(FoxScanner.RightBrace)
 			END
 		END ProcedureModifierP;
-		
+
 		PROCEDURE ModifierValueP(VAR value: LONGINT);
 		BEGIN
 			IF symbol.token = FoxScanner.Equal THEN
