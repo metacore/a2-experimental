@@ -899,7 +899,7 @@ TYPE
 		fingerPrinter: FingerPrinter.FingerPrinter;
 
 		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedInstructionProcedure: SupportedInstructionProcedure; supportedImmediateProcedure: SupportedImmediateProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.IdentifierString; backend: IntermediateBackend;
-			newObjectFile: BOOLEAN)
+			newObjectFile: BOOLEAN);
 		BEGIN
 			SELF.system := system;
 			SELF.runtimeModuleName := runtime;
