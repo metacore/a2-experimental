@@ -11,7 +11,7 @@
 		<!ELEMENT Region EMPTY>
 		<!ATTLIST Style
 			name NMTOKEN #REQUIRED
-			fontname NMTOKEN "Syntax"
+			fontname NMTOKEN "*"
 			fontsize NMTOKEN "*"
 			fontstyle CDATA "{}"
 			color NMTOKEN "FF"
