@@ -415,7 +415,7 @@ TYPE
 			ret := Kernel32.QueryDosDevice(name, winname, LEN( winname ) );
 			IF ret # 0 THEN
 				NEW(port, i);
-				Serials.RegisterOnboardPort( i , port, name, "Windows COM Port" );
+				Serials.RegisterOnboardPort( i , port, name, winname );
 			END;
 		END;
 	END Init;
