@@ -2,7 +2,7 @@ MODULE Repositories; (** AUTHOR "staubesv"; PURPOSE "Component repositories"; *)
 
 IMPORT
 	Streams, Modules, KernelLog, Commands, Strings, Files, Archives, Localization,
-	UTF8Strings, XML, XMLObjects, XMLScanner, XMLParser, D := Debugging;
+	UTF8Strings, XML, XMLObjects, XMLScanner, XMLParser;
 
 CONST
 	Ok* = 0;
@@ -1100,7 +1100,6 @@ TYPE
 		BEGIN
 			ASSERT(component # NIL);
 			archive.Acquire;
-			D.String("StoreComponent to "); D.String(filename); D.Ln;
 			writer := GetWriter(archive, filename);
 			IF (writer # NIL) THEN
 				NEW(context, SELF);
@@ -1406,9 +1405,6 @@ BEGIN
 	ELSE
 		succeeded := FALSE;
 	END;
-	D.String("SplitName"); D.String(repositoryName); D.String(":"); D.String(componentName); D.String(":"); D.Int(id,1);
-	IF succeeded THEN D.String(" (succeedded"); END;
-	D.Ln;
 	RETURN succeeded;
 END SplitName;
 
