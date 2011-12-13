@@ -3,14 +3,126 @@ MODULE FoxProgTools;   (**  AUTHOR "fof"; PURPOSE "Oberon Compiler: Programming 
 
 IMPORT Streams,Options,Commands,Files,Strings;
 
-	PROCEDURE ParseARMInstructionSet*(context: Commands.Context);
+	PROCEDURE ParseARMInstructionSet*(context: Commands.Context);	
+	CONST
+		PrependIS = TRUE;
+	CONST
+		flagW = 0;
+		flagFixedS = 1;
+		flagS = 2;
+		flagC = 3;
+		flagX = 4;
+	TYPE		
+		Operand = RECORD
+			isWide: BOOLEAN;
+			rs, ts, is: SET;
+		END;
+		
+		Name = OBJECT
+		VAR
+			string: ARRAY 256 OF CHAR;
+			prev, next: Name;
+			
+			PROCEDURE & Init(CONST string: ARRAY OF CHAR);
+			BEGIN
+				COPY(string, SELF.string);
+				SELF.prev := NIL;
+				SELF.next := NIL
+			END Init;
+		END Name;
+		
+		SetOfNames = OBJECT
+		VAR
+			firstName: Name;
+			count: LONGINT;
+			
+			PROCEDURE & Init;
+			BEGIN
+				firstName := NIL;
+				count := 0
+			END Init;
+
+			PROCEDURE Add(CONST newString: ARRAY OF CHAR);
+			VAR
+				newName, name: Name;
+			BEGIN
+				IF firstName = NIL THEN
+					(* special case: first name *)
+					NEW(newName, newString); INC(count);
+					firstName := newName					
+				ELSE
+					name := firstName;
+					ASSERT(name # NIL);
+					WHILE name.next # NIL DO
+						IF name.string = newString THEN RETURN END;
+						name := name.next
+					END;
+					ASSERT(name.next = NIL);					
+					IF name.string = newString THEN RETURN END;
+					
+					NEW(newName, newString); INC(count);
+					name.next := newName;
+				END
+			END Add;
+		
+			PROCEDURE Dump(w: Streams.Writer);
+			VAR
+				name: Name;
+			BEGIN
+				w.Int(count, 0); w.String(" names:"); w.Ln;
+				name := firstName;
+				WHILE name # NIL DO
+					w.String(name.string); w.Ln;
+					name := name.next
+				END
+			END Dump;
+		
+		END SetOfNames;
+		
 	VAR
-		ones, mask: SET;
+		ones, mask, flags: SET;
 		char: CHAR;
-		numBits, i, bitPos: LONGINT;
-		fileName, token, mnemonic, flagString, pattern: ARRAY 256 OF CHAR;
+		isThumb, comma: BOOLEAN;
+		numBits, numOps, opNum, i, pos: LONGINT;
+		fileName, token, mnemonic, pattern, assignment, encodingName: ARRAY 256 OF CHAR;
 		file: Files.File;
 		reader: Files.Reader;
+		operands: ARRAY 10 OF Operand;
+		operand: Operand;
+		encodingNames: SetOfNames;
+		
+		PROCEDURE AppendNamedSet(VAR string: ARRAY OF CHAR; CONST name: ARRAY OF CHAR; set: SET);
+		VAR
+			j, start: LONGINT;
+			inside, first: BOOLEAN;
+			numString: ARRAY 32 OF CHAR;
+		BEGIN	
+			IF set # {} THEN
+				Strings.Append(string, name);
+				first := TRUE;
+				inside := FALSE;
+				FOR j := 0 TO 31 + 1 DO
+					IF (j < 32) & (j IN set) THEN
+						IF ~inside THEN							
+							IF first THEN first := FALSE ELSE Strings.Append(string, "and") END;
+							Strings.IntToStr(j, numString);
+							Strings.Append(string, numString);
+							start := j;
+							inside := TRUE
+						END
+					ELSE
+						IF inside THEN
+							IF j - 1 > start THEN
+								Strings.Append(string, "to");
+								Strings.IntToStr(j - 1, numString);
+								Strings.Append(string, numString);								
+							END;
+							inside := FALSE
+						END
+					END
+				END;				
+			END
+		END AppendNamedSet;
 	BEGIN
 		context.arg.SkipWhitespace; context.arg.String(fileName);
 		IF fileName # "" THEN
@@ -18,77 +130,167 @@ IMPORT Streams,Options,Commands,Files,Strings;
 			file := Files.Old(fileName);
 			NEW(reader, file, 0);
 			mnemonic := "";
+			
+			NEW(encodingNames);
+						
 			reader.Token(token);
-			WHILE TRUE DO
+			WHILE reader.Available() > 0 DO
 				IF token = "" THEN
 					reader.SkipWhitespace
 				ELSIF token[0] = '%' THEN (* comment *)
 					reader.SkipLn
 				ELSIF (token = "T") OR (token = "A") THEN
 					ASSERT(mnemonic # "");
-					context.out.String("EnterInstruction(instr"); context.out.String(mnemonic);
-					context.out.String(", "); IF token = "T" THEN context.out.String("Thumb") ELSE context.out.String("ARM") END;					
-					context.out.Update;
+					isThumb := token = 'T';
 					
+					(* parse flags *)
 					reader.SkipWhitespace; reader.Token(token);
 					
-					IF token = "S+C" THEN flagString := "{flagCondAndS}"
-					ELSIF token = "C" THEN flagString := "{flagCondOnly}"
-					ELSIF token = "S|C" THEN flagString := "{flagOrAutoS}"
-					ELSIF token = "S=1" THEN flagString := "{flagAlwaysOnlyS}"
-					ELSE HALT(100)
+					flags := {};
+					i := 0;
+					WHILE token[i] # 0X DO
+						CASE token[i] OF
+						| 'W': INCL(flags, flagW)
+						| 'S': INCL(flags, flagFixedS)
+						| 's':  INCL(flags, flagS)
+						| 'c':  INCL(flags, flagC)
+						| 'X':  INCL(flags, flagX)
+						ELSE HALT(100)
+						END;
+						INC(i)
 					END;
+					
+					(* parse bit pattern *)
 					reader.SkipWhitespace;
-					
-					(* read bit pattern string and count bits *)	
-					numBits := 0;
-					WHILE ~reader.EOLN() DO						
+					i := 0;
+					WHILE ~reader.EOLN() DO
 						reader.Char(char);
-						IF char # ' ' THEN
-							pattern[numBits] := char;
-							INC(numBits)
-						END
+						IF char # ' ' THEN pattern[i] := char; INC(i) END
 					END;
-					
+					numBits := i;
 					ASSERT((numBits MOD 16) = 0);
-					context.out.String(", "); context.out.Int(numBits DIV 16, 0);
 					
-					(* TODO: read operand allocation*)
+					(* parse operand assignment *)
+					reader.SkipWhitespace;
+					i := 0;
+					WHILE ~reader.EOLN() DO
+						reader.Char(char);
+						IF char # ' ' THEN assignment[i] := char; INC(i) END
+					END;
+					ASSERT(i = numBits);
 					
 					(*
 					context.out.Ln;
-					context.out.String('pattern string = "'); context.out.String(pattern); context.out.String('"');
+					context.out.String('pattern string = "'); context.out.String(pattern); context.out.String('"'); context.out.Ln;
+					context.out.String('assignment string = "'); context.out.String(assignment); context.out.String('"'); context.out.Ln;
 					context.out.Update;
 					*)
 					
-					mask := {};
-					ones := {};
+					mask := {}; ones := {};	
+					FOR i := 0 TO LEN(operands) - 1 DO
+						operands[i].rs := {};
+						operands[i].is := {};
+						operands[i].ts := {};
+						operands[i].isWide := FALSE
+					END;
+					
+					numOps := 0;
 					FOR i := 0 TO numBits - 1 DO
-						bitPos := numBits - 1 - i;	
-						CASE pattern[i] OF
-						| '0': INCL(mask, bitPos)
-						| '1': INCL(mask, bitPos); INCL(ones, bitPos);
-						| 'O': (* ignore *)
-						| 'l':  INCL(ones, bitPos); 
+						pos := numBits - 1 - i;						
+						IF (assignment[i] >= '1') & (assignment[i] <= '9') THEN
+							opNum := ORD(assignment[i]) - ORD('1'); (* 1st op: opNum = 0; 2nd op: opNum = 1 *)
+							IF opNum > numOps - 1 THEN numOps := opNum + 1 END;
 						ELSE
-							(* ignore *)
+							opNum := -1
+						END;
+						
+						CASE pattern[i] OF
+						| '0': INCL(mask, pos)
+						| '1': INCL(mask, pos); INCL(ones, pos);
+						| 'O': (* ignore *)
+						| 'l': INCL(ones, pos);
+						| 'r': INCL(operands[opNum].rs, pos);
+						| 't': INCL(operands[opNum].ts, pos);
+						| 'i', 'j': INCL(operands[opNum].is, pos);
+						| 'S': (* ignore *)
+						| 'c': (* ignore *)
+						ELSE (* ignore *)
 						END
 					END;
 					
+					(* mark 3rd operand as wide if W flag is present *)					
+					IF flagW IN flags THEN operands[2].isWide := TRUE END;
+					
+					context.out.String("EnterInstruction(instr"); context.out.String(mnemonic);
+					context.out.String(", "); IF isThumb THEN context.out.String("Thumb") ELSE context.out.String("ARM") END;
+					context.out.String(", "); context.out.Int(numBits DIV 16, 0);
 					context.out.String(", "); context.out.Set(ones);
 					context.out.String(", "); context.out.Set(mask);
-					context.out.String(", "); context.out.String(flagString);
-					context.out.String(", operands...");
-					context.out.String(");"); context.out.Ln;
-					context.out.Update;
+					context.out.String(", {");
 					
-					RETURN
+					comma := FALSE;
+					IF flagW IN flags THEN
+						context.out.String("flagW");
+						comma := TRUE
+					END;
+					IF flagFixedS IN flags THEN
+						IF comma THEN context.out.String(", ") END;
+						context.out.String("flagFixedS");
+						comma := TRUE
+					END;
+					IF flagS IN flags THEN
+						IF comma THEN context.out.String(", ") END;
+						context.out.String("flagS");
+						comma := TRUE
+					END;
+					IF flagC IN flags THEN
+						IF comma THEN context.out.String(", ") END;
+						context.out.String("flagC");
+						comma := TRUE
+					END;
+					IF flagX IN flags THEN
+						IF comma THEN context.out.String(", ") END;
+						context.out.String("flagX");
+						comma := TRUE
+					END;
+					context.out.String("}");		
+
+					FOR i := 0 TO numOps - 1 DO
+						operand := operands[i];
+						context.out.String(", ");
+						
+						encodingName := "enc";
+
+						IF (operand.rs = {}) & (operand.ts = {}) & (operand.is = {}) THEN
+							(* operand conceptually exists but is not encoded explicitly *)
+							Strings.Append(encodingName, "None")
+						ELSE
+							IF PrependIS THEN
+								IF isThumb THEN Strings.Append(encodingName, "T") ELSE Strings.Append(encodingName, "A"); END
+							END;
+							
+							AppendNamedSet(encodingName, "R", operand.rs);
+							AppendNamedSet(encodingName, "T", operand.ts);
+							AppendNamedSet(encodingName, "I", operand.is);
+							
+							IF operand.isWide THEN Strings.Append(encodingName, "W") END;
+						END;						
+						context.out.String(encodingName);
+						
+						encodingNames.Add(encodingName);
+					END;
+					context.out.String(");"); context.out.Ln;
+					context.out.Update
 				ELSE
 					(* start of a new mnemonic *)
 					mnemonic := token
-				END;				
+				END;
 				reader.Token(token)
-			END			
+			END;
+			
+			context.out.Ln; context.out.Ln;
+			encodingNames.Dump(context.out);
+			context.out.Update
 		END
 	END ParseARMInstructionSet;
 	
@@ -838,4 +1040,4 @@ FoxProgTools.Enum --start=10 --hex  a b c  d e ~
 
 FoxProgTools.ParseAMDInstructionSet  FoxInstructionSetAMD64TabSeperated.txt ~
 
-FoxProgTools.ParseARMInstructionSet OC/ARM&ThumbInstructionSet.Text ~
+FoxProgTools.ParseARMInstructionSet OC/FoxInstructionSetARM.txt ~
