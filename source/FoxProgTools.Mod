@@ -1,8 +1,83 @@
 MODULE FoxProgTools;   (**  AUTHOR "fof"; PURPOSE "Oberon Compiler: Programming Tools";  **)
 (* (c) fof ETH Zürich, 2009 *)
 
-IMPORT Streams,Options,Commands,Files,Strings;
+IMPORT Streams,Options,Commands,Files,Strings, Basic := FoxBasic;
+TYPE
+	NameEntry = POINTER TO RECORD
+		name: ARRAY 265 OF CHAR;
+	END;
+	
+	NameList = OBJECT(Basic.List)
+		PROCEDURE & Init;
+		BEGIN InitList(256)
+		END Init;
+		
+		PROCEDURE AddName(CONST name: ARRAY OF CHAR);
+		VAR entry: NameEntry;
+		BEGIN
+			NEW(entry);
+			COPY(name, entry.name);
+			Add(entry)
+		END AddName;
 
+		PROCEDURE GetName(index: LONGINT; VAR name: ARRAY OF CHAR);
+		VAR
+			any: ANY;
+		BEGIN
+			any := Get(index);
+			ASSERT(any IS NameEntry);			
+			COPY(any(NameEntry).name, name)
+		END GetName;
+
+		PROCEDURE ContainsName(CONST otherName: ARRAY OF CHAR): BOOLEAN;
+		VAR
+			i: LONGINT;
+			name: ARRAY 256 OF CHAR;
+		BEGIN
+			FOR i := 0 TO Length() - 1 DO
+				GetName(i, name);
+				IF name = otherName THEN RETURN TRUE END
+			END;
+			RETURN FALSE
+		END ContainsName;
+		
+		PROCEDURE Dump(w: Streams.Writer);
+		VAR
+			i: LONGINT;
+			name: 	ARRAY 256 OF CHAR;
+		BEGIN
+			w.Int(Length(), 0); w.String(" names:"); w.Ln;
+			FOR i := 0 TO Length() - 1 DO
+				GetName(i, name);
+				w.String(name); w.Ln
+			END;
+			w.Ln
+		END Dump;
+		
+		PROCEDURE SortNames;
+		BEGIN Sort(NameComparator)
+		END SortNames;
+		
+	END NameList;
+
+	PROCEDURE NameComparator(left, right: ANY): BOOLEAN;
+	VAR
+		result: SHORTINT;
+		i: LONGINT;		
+		leftChar, rightChar: CHAR;
+	BEGIN
+		result := 0; i := 0;
+		REPEAT
+			leftChar := left(NameEntry).name[i];
+			rightChar := right(NameEntry).name[i];
+			IF leftChar < rightChar THEN result := -1
+			ELSIF leftChar > rightChar THEN result := +1
+			END;
+			INC(i)
+		UNTIL (result # 0) OR (leftChar = 0X) OR (rightChar = 0X);					
+		RETURN result < 0
+	END NameComparator;
+	
 	PROCEDURE ParseARMInstructionSet*(context: Commands.Context);	
 	CONST
 		PrependIS = TRUE;
@@ -12,84 +87,30 @@ IMPORT Streams,Options,Commands,Files,Strings;
 		flagS = 2;
 		flagC = 3;
 		flagX = 4;
-	TYPE		
+	TYPE
 		Operand = RECORD
-			isWide: BOOLEAN;
-			rs, ts, is: SET;
+			isUsed, isWide: BOOLEAN;
+			rs: SET; (* register bits *)
+			ts: SET; (* shift type bits *)
+			is: SET; (* immediate bits *)
+			bs: SET; (* bitfield bits *)
+			cprs: SET; (* coprocessor register bits *)
+			cpns: SET; (* coprocessor number bits *)
+			cpos: SET; (* coprocessor opcode bits *)
+			cs: SET; (* condition bits *)
 		END;
-		
-		Name = OBJECT
-		VAR
-			string: ARRAY 256 OF CHAR;
-			prev, next: Name;
-			
-			PROCEDURE & Init(CONST string: ARRAY OF CHAR);
-			BEGIN
-				COPY(string, SELF.string);
-				SELF.prev := NIL;
-				SELF.next := NIL
-			END Init;
-		END Name;
-		
-		SetOfNames = OBJECT
-		VAR
-			firstName: Name;
-			count: LONGINT;
-			
-			PROCEDURE & Init;
-			BEGIN
-				firstName := NIL;
-				count := 0
-			END Init;
-
-			PROCEDURE Add(CONST newString: ARRAY OF CHAR);
-			VAR
-				newName, name: Name;
-			BEGIN
-				IF firstName = NIL THEN
-					(* special case: first name *)
-					NEW(newName, newString); INC(count);
-					firstName := newName					
-				ELSE
-					name := firstName;
-					ASSERT(name # NIL);
-					WHILE name.next # NIL DO
-						IF name.string = newString THEN RETURN END;
-						name := name.next
-					END;
-					ASSERT(name.next = NIL);					
-					IF name.string = newString THEN RETURN END;
-					
-					NEW(newName, newString); INC(count);
-					name.next := newName;
-				END
-			END Add;
-		
-			PROCEDURE Dump(w: Streams.Writer);
-			VAR
-				name: Name;
-			BEGIN
-				w.Int(count, 0); w.String(" names:"); w.Ln;
-				name := firstName;
-				WHILE name # NIL DO
-					w.String(name.string); w.Ln;
-					name := name.next
-				END
-			END Dump;
-		
-		END SetOfNames;
 		
 	VAR
 		ones, mask, flags: SET;
 		char: CHAR;
 		isThumb, comma: BOOLEAN;
 		numBits, numOps, opNum, i, pos: LONGINT;
-		fileName, token, mnemonic, pattern, assignment, encodingName: ARRAY 256 OF CHAR;
+		fileName, token, mnemonic, pattern, assignment, encodingName, message: ARRAY 256 OF CHAR;
 		file: Files.File;
 		reader: Files.Reader;
 		operands: ARRAY 10 OF Operand;
 		operand: Operand;
-		encodingNames: SetOfNames;
+		encodingNames: NameList;
 		
 		PROCEDURE AppendNamedSet(VAR string: ARRAY OF CHAR; CONST name: ARRAY OF CHAR; set: SET);
 		VAR
@@ -123,6 +144,16 @@ IMPORT Streams,Options,Commands,Files,Strings;
 				END;				
 			END
 		END AppendNamedSet;
+		
+		PROCEDURE Error(CONST message: ARRAY OF CHAR);
+		BEGIN
+			context.out.Ln;
+			context.out.String("Error: ");
+			context.out.String(message);
+			context.out.Ln;
+			context.out.Update
+		END Error;
+		
 	BEGIN
 		context.arg.SkipWhitespace; context.arg.String(fileName);
 		IF fileName # "" THEN
@@ -155,7 +186,8 @@ IMPORT Streams,Options,Commands,Files,Strings;
 						| 's':  INCL(flags, flagS)
 						| 'c':  INCL(flags, flagC)
 						| 'X':  INCL(flags, flagX)
-						ELSE HALT(100)
+						| '-': (* ignore *)
+						ELSE message := "unknown flag: "; Strings.AppendChar(message, token[i]); Error(message); RETURN
 						END;
 						INC(i)
 					END;
@@ -165,7 +197,7 @@ IMPORT Streams,Options,Commands,Files,Strings;
 					i := 0;
 					WHILE ~reader.EOLN() DO
 						reader.Char(char);
-						IF char # ' ' THEN pattern[i] := char; INC(i) END
+						IF (char # ' ') & (char # 9X) THEN pattern[i] := char; INC(i) END
 					END;
 					numBits := i;
 					ASSERT((numBits MOD 16) = 0);
@@ -175,7 +207,7 @@ IMPORT Streams,Options,Commands,Files,Strings;
 					i := 0;
 					WHILE ~reader.EOLN() DO
 						reader.Char(char);
-						IF char # ' ' THEN assignment[i] := char; INC(i) END
+						IF (char # ' ') & (char # 9X) THEN assignment[i] := char; INC(i) END
 					END;
 					ASSERT(i = numBits);
 					
@@ -188,9 +220,9 @@ IMPORT Streams,Options,Commands,Files,Strings;
 					
 					mask := {}; ones := {};	
 					FOR i := 0 TO LEN(operands) - 1 DO
-						operands[i].rs := {};
-						operands[i].is := {};
-						operands[i].ts := {};
+						operands[i].isUsed := FALSE;					
+						operands[i].rs := {}; operands[i].is := {}; operands[i].ts := {}; operands[i].bs := {};
+						operands[i].cprs := {}; operands[i].cpns := {}; operands[i].cpos := {}; operands[i].cs := {};
 						operands[i].isWide := FALSE
 					END;
 					
@@ -206,14 +238,20 @@ IMPORT Streams,Options,Commands,Files,Strings;
 						
 						CASE pattern[i] OF
 						| '0': INCL(mask, pos)
-						| '1': INCL(mask, pos); INCL(ones, pos);
-						| 'O': (* ignore *)
-						| 'l': INCL(ones, pos);
-						| 'r': INCL(operands[opNum].rs, pos);
-						| 't': INCL(operands[opNum].ts, pos);
-						| 'i', 'j': INCL(operands[opNum].is, pos);
+						| '1': INCL(mask, pos); INCL(ones, pos)
+						| 'O': (* ignore *)						
+						| 'l': INCL(ones, pos)
+						
+						| 'r': INCL(operands[opNum].rs, pos); operands[opNum].isUsed := TRUE
+						| 't': INCL(operands[opNum].ts, pos); operands[opNum].isUsed := TRUE
+						| 'i', 'j', 'H': INCL(operands[opNum].is, pos); operands[opNum].isUsed := TRUE
+						| 'b': INCL(operands[opNum].bs, pos); operands[opNum].isUsed := TRUE
+						| 'R': INCL(operands[opNum].cprs, pos); operands[opNum].isUsed := TRUE
+						| 'n': INCL(operands[opNum].cpns, pos); operands[opNum].isUsed := TRUE
+						| 'o': INCL(operands[opNum].cpos, pos); operands[opNum].isUsed := TRUE
+						| 'c': IF opNum >= 0 THEN INCL(operands[opNum].cs, pos); operands[opNum].isUsed := TRUE END						
 						| 'S': (* ignore *)
-						| 'c': (* ignore *)
+						
 						ELSE (* ignore *)
 						END
 					END;
@@ -261,7 +299,7 @@ IMPORT Streams,Options,Commands,Files,Strings;
 						
 						encodingName := "enc";
 
-						IF (operand.rs = {}) & (operand.ts = {}) & (operand.is = {}) THEN
+						IF ~operand.isUsed THEN
 							(* operand conceptually exists but is not encoded explicitly *)
 							Strings.Append(encodingName, "None")
 						ELSE
@@ -269,15 +307,22 @@ IMPORT Streams,Options,Commands,Files,Strings;
 								IF isThumb THEN Strings.Append(encodingName, "T") ELSE Strings.Append(encodingName, "A"); END
 							END;
 							
-							AppendNamedSet(encodingName, "R", operand.rs);
-							AppendNamedSet(encodingName, "T", operand.ts);
-							AppendNamedSet(encodingName, "I", operand.is);
+							AppendNamedSet(encodingName, "Reg", operand.rs);
+							AppendNamedSet(encodingName, "Type", operand.ts);
+							AppendNamedSet(encodingName, "Imm", operand.is);
+							AppendNamedSet(encodingName, "Bit", operand.bs);
+							
+							AppendNamedSet(encodingName, "CPReg", operand.cprs);
+							AppendNamedSet(encodingName, "CPNum", operand.cpns);
+							AppendNamedSet(encodingName, "CPOpcode", operand.cpos);
+							
+							AppendNamedSet(encodingName, "Cond", operand.cs);
 							
 							IF operand.isWide THEN Strings.Append(encodingName, "W") END;
 						END;						
 						context.out.String(encodingName);
 						
-						encodingNames.Add(encodingName);
+						IF ~encodingNames.ContainsName(encodingName) THEN encodingNames.AddName(encodingName) END;
 					END;
 					context.out.String(");"); context.out.Ln;
 					context.out.Update
@@ -287,8 +332,8 @@ IMPORT Streams,Options,Commands,Files,Strings;
 				END;
 				reader.Token(token)
 			END;
-			
 			context.out.Ln; context.out.Ln;
+			encodingNames.SortNames;
 			encodingNames.Dump(context.out);
 			context.out.Update
 		END
