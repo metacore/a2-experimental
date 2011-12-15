@@ -161,6 +161,10 @@
 		<property name="bgDefault" type="resource" mandatory="false" />
 		<property name="bgPressed" type="resource" mandatory="false" />
 		<property name="bgHover" type="resource" mandatory="false" />
+		<property name="useDeco" type="boolean" mandatory="false" />
+		<property name="decoDefault" type="resource" mandatory="false" />
+		<property name="decoHover" type="resource" mandatory="false" />
+		<property name="decoPressed" type="resource" mandatory ="false" />
 	</component>
 	<component name="scrollbar">
 		<property name="width" type="int32" mandatory="false" />
