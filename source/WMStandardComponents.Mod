@@ -1,7 +1,7 @@
 MODULE WMStandardComponents;	(** AUTHOR "TF"; PURPOSE "Standard components"; *)
 
 IMPORT
-	KernelLog, Kernel, Types, Models, Repositories, WMComponents, Strings,
+	KernelLog, Kernel, Types, Models, Repositories, WMComponents, Strings, Files,
 	WMGraphics, WMGraphicUtilities, WMRectangles,
 	WMEvents, XML, Inputs, WMProperties, WMWindowManager;
 
@@ -206,6 +206,62 @@ TYPE
 	END Panel;
 
 TYPE
+	Decoration= POINTER TO RECORD
+		TL, T, TR, L, M, R, BL, B, BR: WMGraphics.Image;
+	END;
+
+	(*
+	DecoratorPanel* = OBJECT (WMComponents.VisualComponent)
+	CONST TopLeft=0; Top=1; TopRight=2; Left=3; Right=4; BottomLeft =5; Bottom=6; BottomRight=7;Middle=8;
+	VAR
+		defaultImageName:  WMProperties.StringProperty;
+		defaultDecoration: Decoration;
+
+		PROCEDURE &Init*;
+		BEGIN
+			Init^;
+			SetGenerator("WMStandardComponents.GenDecoratorPanel");
+			SetNameAsString(StrPanel);
+			defaultDecoration := NIL;
+			NEW(defaultImageName, PrototypeDecoratorName, NIL, NIL); properties.Add(defaultImageName);
+		END Init;
+
+		PROCEDURE RecacheProperties;
+		BEGIN
+			RecacheProperties^;
+			Invalidate
+		END RecacheProperties;
+
+
+
+
+
+
+
+
+
+		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
+		VAR mode, mid, borderWidth : LONGINT;
+			 tc : WMGraphics.Color; r, rect : WMGraphics.Rectangle; down : BOOLEAN;
+			 str : String; deco: Decoration;
+		BEGIN
+			IF ~visible.Get() THEN RETURN END;
+			GetDecoration(defaultImageName.Get(), defaultDecoration);
+			deco := defaultDecoration;
+
+			Acquire;
+				rect := bounds.Get();
+				inner := rect;
+				IF deco.TL # NIL THEN
+					IF inner.left < deco.
+				END;
+			Release;
+		END DrawBackground;
+
+	END DecoratorPanel;
+	*)
+
+TYPE
 
 	Label* = OBJECT(Panel)
 	VAR
@@ -260,6 +316,8 @@ TYPE
 
 TYPE
 
+
+
 	(** Button *)
 	Button* = OBJECT (WMComponents.VisualComponent)
 	CONST
@@ -297,6 +355,12 @@ TYPE
 	 	imgDefaultTop, imgDefaultBottom,
 	 	imgHoverTop, imgHoverBottom,
 	 	imgPressedTop, imgPressedBottom : WMGraphics.Image;
+
+		useDeco-: WMProperties.BooleanProperty;
+		(* 3x9 backgound images for scalable representation *)
+		decoDefaultName-, decoHoverName-, decoPressedName-: WMProperties.StringProperty;
+		decoDefault-, decoHover-, decoPressed-: Decoration;
+
 
 		onClick- : EventSource;
 
@@ -352,6 +416,11 @@ TYPE
 			NEW(imgPressedNameLeft, PrototypeImgPressedNameLeft, NIL, NIL); properties.Add(imgPressedNameLeft);
 		 	NEW(imgPressedNameRight, PrototypeImgPressedNameRight, NIL, NIL); properties.Add(imgPressedNameRight);
 		 	NEW(imgPressedNameMiddle, PrototypeImgPressedNameMiddle, NIL, NIL); properties.Add(imgPressedNameMiddle);
+ 				(* --- *)
+ 			NEW(useDeco, PrototypeUseDeco, NIL, NIL); properties.Add(useDeco);
+			NEW(decoDefaultName, PrototypeDecoDefaultName, NIL, NIL); properties.Add(decoDefaultName);
+			NEW(decoHoverName, PrototypeDecoHoverName, NIL, NIL); properties.Add(decoHoverName);
+			NEW(decoPressedName, PrototypeDecoPressedName, NIL, NIL); properties.Add(decoPressedName);
  				(* --- *)
 			NEW(imgDefaultNameTop, PrototypeImgDefaultNameTop, NIL, NIL); properties.Add(imgDefaultNameTop);
 		 	NEW(imgDefaultNameBottom, PrototypeImgDefaultNameBottom, NIL, NIL); properties.Add(imgDefaultNameBottom);
@@ -426,6 +495,13 @@ TYPE
 				imgPressed := NIL;
 				imgDefault := NIL;
 			END;
+			IF useDeco.Get() THEN
+				GetDecoration(decoDefaultName.Get(), decoDefault);
+				GetDecoration(decoHoverName.Get(), decoHover);
+				GetDecoration(decoPressedName.Get(), decoPressed);
+			ELSE
+				decoDefault := NIL; decoHover := NIL; decoPressed := NIL;
+			END;
 			element := model.Get();
 			IF (element # NIL) & (element IS Models.Model) THEN
 				SetModel(element(Models.Model));
@@ -477,7 +553,9 @@ TYPE
 				OR (data = imgHoverNameTop) OR (data = imgHoverNameBottom)
 				OR (data = imgPressedNameTop) OR (data = imgPressedNameBottom)
 				OR (data = imgDefaultName) OR (data = imgPressedName)
-				OR (data = imgHoverName) THEN
+				OR (data = imgHoverName)
+				OR (data = decoDefaultName) OR (data = decoHoverName) OR (data= decoPressedName) OR (data = useDeco)
+				THEN
 					RecacheProperties; Invalidate;
 			ELSIF (data = model) THEN
 				element := model.Get();
@@ -712,6 +790,57 @@ TYPE
 			END
  		END GetVerticalImages;
 
+ 		PROCEDURE GetDecorationImage(name: String; CONST suffix: ARRAY OF CHAR; VAR image:WMGraphics.Image);
+		VAR fileName, extension: Files.FileName;
+		BEGIN
+			IF (name = NIL) OR (name^="") THEN
+				image := NIL;
+			ELSE
+				Files.SplitExtension(name^, fileName, extension);
+				Strings.Append(fileName, suffix);
+				Files.JoinExtension(fileName,extension, fileName);
+				image := WMGraphics.LoadImage(fileName, TRUE);
+			END;
+		END GetDecorationImage;
+
+		PROCEDURE GetDecoration(name: String; VAR d: Decoration);
+		BEGIN
+			IF (name = NIL) OR (name^ = "") THEN d := NIL; RETURN END;
+			IF d = NIL THEN
+				NEW(d);
+			END;
+			GetDecorationImage(name, "TL", d.TL);
+			GetDecorationImage(name, "T", d.T);
+			GetDecorationImage(name, "TR", d.TR);
+			GetDecorationImage(name, "L", d.L);
+			GetDecorationImage(name, "M", d.M);
+			GetDecorationImage(name, "R", d.R);
+			GetDecorationImage(name, "BL", d.BL);
+			GetDecorationImage(name, "B", d.B);
+			GetDecorationImage(name, "BR", d.BR);
+			IF (d.M = NIL) & (d.T = NIL) & (d.TR = NIL) & (d.L = NIL) & (d.M = NIL) & (d.R= NIL) & (d.BR = NIL) & (d.B=NIL) & (d.BR = NIL) THEN
+				d := NIL
+			END;
+		END GetDecoration;
+
+		 (* load images appropriate to the actual state of the button. a: left, b: middle, c: right *)
+ 		PROCEDURE GetThisDecoration(VAR d : Decoration);
+ 		VAR down : BOOLEAN;
+ 		BEGIN
+ 			down := pressed & (mouseOver OR isToggle.Get() OR keyboardPressed);
+			IF down THEN
+				IF decoPressed # NIL THEN d := decoPressed;
+				ELSIF decoHover # NIL THEN d := decoHover
+				ELSE d := decoDefault;
+				END
+			ELSIF mouseOver THEN
+				IF decoHover # NIL THEN d := decoHover
+				ELSE d := decoDefault
+				END
+			ELSE d := decoDefault
+			END
+ 		END GetThisDecoration;
+
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
 		VAR mode, mid, borderWidth : LONGINT;
 			 tc : WMGraphics.Color; r, rect : WMGraphics.Rectangle; down : BOOLEAN;
@@ -729,6 +858,8 @@ TYPE
 				ELSE
 					DrawVerticalBackground(canvas)
 				END
+			ELSIF useDeco.Get() THEN
+				DrawDecoBackground(canvas)
 			ELSE
 				IF invert3d THEN down := ~down END;
 				rect := GetClientRect();
@@ -760,6 +891,70 @@ TYPE
 			Release
 		END DrawBackground;
 
+
+		PROCEDURE DrawDecoBackground(canvas : WMGraphics.Canvas);
+		VAR
+			 deco: Decoration;
+
+			 l,r,t,b: LONGINT;
+			 (* left and right boundaries *)
+			 tl, ml, bl, tr, mr, br: LONGINT;
+			 (* top and bottom boundaries *)
+			 lt, mt, rt, lb, mb, rb: LONGINT;
+
+			 maxBorder: LONGINT;
+
+			 PROCEDURE Draw(img:WMGraphics.Image; l,t,r,b: LONGINT );
+			 BEGIN
+			 	IF (r>l) & (b>t) & (img # NIL) THEN
+		 			canvas.ScaleImage(img, WMRectangles.MakeRect(0, 0, img.width, img.height),	WMRectangles.MakeRect(l,t,r,b), WMGraphics.ModeSrcOverDst, 10)
+		 		END;
+			 END Draw;
+
+			 PROCEDURE Scale(i: LONGINT): LONGINT;
+			 BEGIN
+			 	IF i > maxBorder THEN RETURN maxBorder ELSE RETURN i END;
+			 END Scale;
+
+
+		BEGIN
+			GetThisDecoration(deco);
+			l := bounds.GetLeft(); r := bounds.GetRight();
+			t := bounds.GetTop(); b := bounds.GetBottom();
+			(* but we are drawing relative to 0,0 : *)
+			r := r-l; b := b-t; l := 0; t := 0;
+			IF r > b THEN maxBorder := b DIV 5 ELSE maxBorder := r DIV 5 END;
+
+			IF deco = NIL THEN RETURN END;
+
+			IF deco.TL # NIL THEN tl := Scale(deco.TL.width); lt := Scale(deco.TL.height); Draw(deco.TL, l,t,l+tl,t+lt)
+			ELSE tl := 0; lt := 0;
+			END;
+			IF deco.TR # NIL THEN tr := Scale(deco.TR.width); rt := Scale(deco.TR.height); Draw(deco.TR, r-tr, t, r, t+rt);
+			ELSE tr := 0; rt := 0;
+			END;
+			IF deco.BL # NIL THEN bl := Scale(deco.BL.width); lb := Scale(deco.BL.height); Draw(deco.BL, l, b-lb, l + bl, b);
+			ELSE bl := 0; lb := 0;
+			END;
+			IF deco.BR # NIL THEN br := Scale(deco.BR.width); rb := Scale(deco.BR.height); Draw(deco.BR, r-br, b-rb, r, b);
+			ELSE br := 0; rb := 0;
+			END;
+			IF deco.L # NIL THEN ml := Scale(deco.L.width); Draw(deco.L, l, t+lt, l+ml, b-lb);
+			ELSE ml := 0;
+			END;
+			IF deco.R # NIL THEN mr := Scale(deco.R.width); Draw(deco.R, r-br, t+rt, r, b-rb);
+			ELSE mr := 0;
+			END;
+			IF deco.T # NIL THEN mt := Scale(deco.T.height); Draw(deco.T, l+tl, t, r-tr, t+mt);
+			ELSE mt := 0;
+			END;
+			IF deco.B # NIL THEN mb := Scale(deco.B.height); Draw(deco.B, l+bl, b-mb, r-br, b);
+			ELSE mb := 0;
+			END;
+			IF deco.M # NIL THEN Draw(deco.M, l+ml, t+mt, r-br, b-mb);
+			END;
+		END DrawDecoBackground;
+
 		PROCEDURE DrawHorizontalBackground(canvas : WMGraphics.Canvas);
 		VAR imgLeft, imgMiddle, imgRight, img : WMGraphics.Image;
 			 wLeft, wRight : LONGINT;
@@ -790,6 +985,8 @@ TYPE
 				ELSE
 					wLeft := 0
 				END;
+				canvas.Line(wLeft, bounds.GetTop(), wLeft, bounds.GetBottom(), LONGINT(0FF0000FFH), WMGraphics.ModeSrcOverDst);
+
 				(* right *)
 				IF imgRight # NIL THEN
 					wRight := imgRight.width;
@@ -2566,6 +2763,9 @@ VAR
  	 PrototypeImgPressedNameTop*, PrototypeImgPressedNameBottom* : WMProperties.StringProperty;
 	 PrototypeBEffect3D : WMProperties.Int32Property;
 
+	PrototypeUseDeco*: WMProperties.BooleanProperty;
+	PrototypeDecoDefaultName*, PrototypeDecoHoverName*, PrototypeDecoPressedName*: WMProperties.StringProperty;
+
 	 (* Scrollbar prototypes *)
 	 PrototypeSvertical* : WMProperties.BooleanProperty;
 	 PrototypeSmin*, PrototypeSmax*, PrototypeSpos*, PrototypeSpageSize*, PrototypeSWidth*,
@@ -2634,7 +2834,7 @@ VAR
 	ProtoIpImgName* : WMProperties.StringProperty;
 
 
-	StrTimer*, StrSystemCommand*, StrEvent*, StrPanel*, StrLabel*, StrButton*, StrScrollbar*, StrResizer* ,
+	StrTimer*, StrSystemCommand*, StrEvent*, StrPanel*, StrDecoratorPanel*, StrLabel*, StrButton*, StrScrollbar*, StrResizer* ,
 	StrCheckbox, StrGroupPanel, StrImagePanel, StrModel, StrModelInfo, StrImage : String;
 
 PROCEDURE InitStrings;
@@ -2656,6 +2856,7 @@ BEGIN
 	StrSystemCommand := NewString("SystemCommand");
 	StrEvent := NewString("Event");
 	StrPanel := NewString("Panel");
+	StrDecoratorPanel := NewString("DecoratorPanel");
 	StrLabel := NewString("Label");
 	StrButton := NewString("Button");
 	StrScrollbar := NewString("Scrollbar");
@@ -2670,7 +2871,7 @@ END InitStrings;
 
 PROCEDURE InitPrototypes;
 VAR
-	plTimer, plLabel, plButton, plScrollbar, plSlider, plResizer, plCheckbox, plGroupPanel, plImagePanel : WMProperties.PropertyList;
+	plTimer, plLabel, plButton, plDecorator, plScrollbar, plSlider, plResizer, plCheckbox, plGroupPanel, plImagePanel : WMProperties.PropertyList;
 BEGIN
 	(* Timer properties *)
 	NEW(plTimer);
@@ -2692,6 +2893,18 @@ BEGIN
 	PrototypeAlignH.Set(WMGraphics.AlignLeft);
 	NEW(PrototypeAlignV, NIL, NewString("AlignV"), NewString("vertical alignment")); plLabel.Add(PrototypeAlignV);
 	PrototypeAlignV.Set(WMGraphics.AlignCenter);
+
+	(*
+	NEW(plDecorator); WMComponents.propertyListList.Add("Decorator", plDecorator);
+	NEW(PrototypeTopLeftName, NIL, NewString("TopLeft"), NewString("Default Top Left Decorator Bitmap")); PrototypeTopLeftName.Set(NewString("")); plDecorator.Add(PrototypeTopLeftName);
+	NEW(PrototypeTopName, NIL, NewString("Top"), NewString("Default Top Decorator Bitmap")); PrototypeLeftName.Set(NewString("")); plDecorator.Add(PrototypeTopName);
+	NEW(PrototypeTopRightName, NIL, NewString("TopRight"), NewString("Default Top Right Decorator Bitmap")); PrototypeRightName.Set(NewString("")); plDecorator.Add(PrototypeTopRightName);
+	NEW(PrototypeBottomLeftName, NIL, NewString("BottomLeft"), NewString("Default Bottom Left Decorator Bitmap")); PrototypeBottomLeftName.Set(NewString("")); plDecorator.Add(PrototypeBottomLeftName);
+	NEW(PrototypeBottomName, NIL, NewString("Bottom"), NewString("Default Bottom Decorator Bitmap")); PrototypeBottomName.Set(NewString("")); plDecorator.Add(PrototypeBottomName);
+	NEW(PrototypeBottomRightName, NIL, NewString("BottomRight"), NewString("Default Bottom Right Decorator Bitmap")); PrototypeBottomRightName.Set(NewString("")); plDecorator.Add(PrototypeBottomRightName);
+	NEW(PrototypeLeftName, NIL, NewString("Left"), NewString("Default Left Decorator Bitmap")); PrototypeLeftName.Set(NewString("")); plDecorator.Add(PrototypeLeftName);
+	NEW(PrototypeRightName, NIL, NewString("Right"), NewString("Default Right Decorator Bitmap")); PrototypeRightName.Set(NewString("")); plDecorator.Add(PrototypeRightName);
+	*)
 
 	(* Button properties *)
 	NEW(plButton);	WMComponents.propertyListList.Add("Button", plButton);
@@ -2752,6 +2965,16 @@ BEGIN
 	NEW(PrototypeImgDefaultNameTop, StringPrototype, NIL, NIL); plButton.Add(PrototypeImgDefaultNameTop);
 	NEW(StringPrototype, NIL, NewString("BgBottomDefault"), NewString("Default background bitmap bottom")); StringPrototype.Set(NewString(""));
 	NEW(PrototypeImgDefaultNameBottom, StringPrototype, NIL, NIL); plButton.Add(PrototypeImgDefaultNameBottom);
+
+	NEW(BooleanPrototype, NIL, NewString("UseDeco"), NewString("Is the button decorated by decoration?")); BooleanPrototype.Set(FALSE);
+	NEW(PrototypeUseDeco, BooleanPrototype, NIL, NIL); plButton.Add(PrototypeUseDeco);
+	NEW(StringPrototype, NIL, NewString("DecoDefault"), NewString("Default background decoration name")); StringPrototype.Set(NewString(""));
+	NEW(PrototypeDecoDefaultName, StringPrototype, NIL, NIL); plButton.Add(PrototypeDecoDefaultName);
+	NEW(StringPrototype, NIL, NewString("DecoHover"), NewString("Hover background decoration name")); StringPrototype.Set(NewString(""));
+	NEW(PrototypeDecoHoverName, StringPrototype, NIL, NIL); plButton.Add(PrototypeDecoHoverName);
+	NEW(StringPrototype, NIL, NewString("DecoPressed"), NewString("Pressed background decoration name")); StringPrototype.Set(NewString(""));
+	NEW(PrototypeDecoPressedName, StringPrototype, NIL, NIL); plButton.Add(PrototypeDecoPressedName);
+
 
 	NEW(StringPrototype, NIL, NewString("BgLeftHover"), NewString("Mouseover background bitmap left")); StringPrototype.Set(NewString(""));
 	NEW(PrototypeImgHoverNameLeft, StringPrototype, NIL, NIL); plButton.Add(PrototypeImgHoverNameLeft);
@@ -3028,6 +3251,13 @@ PROCEDURE GenPanel*() : XML.Element;
 VAR panel : Panel;
 BEGIN NEW(panel); RETURN panel
 END GenPanel;
+
+(*
+PROCEDURE GenDecoratorPanel*() : XML.Element;
+VAR panel : DecoratorPanel;
+BEGIN NEW(panel); RETURN panel
+END GenDecoratorPanel;
+*)
 
 PROCEDURE GenLabel*() : XML.Element;
 VAR label : Label;
