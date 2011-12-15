@@ -187,6 +187,7 @@ BEGIN{EXCLUSIVE}
 		ASSERT(res = Repositories.Ok);
 		context.out.String("stored component in repository "); context.out.String(filename); context.out.Ln;
 	END;
+FINALLY
 END Store;
 
 
@@ -220,7 +221,7 @@ BEGIN {EXCLUSIVE}
 	msg.msgType := WMMessages.MsgExt;
 	m := WMWindowManager.GetDefaultManager();
 	m.Broadcast(msg);
-	AWAIT(nofWindows = 0)
+	(*AWAIT(nofWindows = 0)*)
 END Cleanup;
 
 BEGIN

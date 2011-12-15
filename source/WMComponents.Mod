@@ -1534,7 +1534,7 @@ TYPE
 		END CheckPointerEvent;
 
 		PROCEDURE InEditBounds(x,y: LONGINT): LONGINT;
-		CONST Border = 2;
+		CONST Border = 8;
 		VAR left, right, top, bottom: LONGINT;
 		BEGIN
 			left := bounds.GetLeft();
