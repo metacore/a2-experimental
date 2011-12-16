@@ -1,7 +1,7 @@
 MODULE FoxProgTools;   (**  AUTHOR "fof"; PURPOSE "Oberon Compiler: Programming Tools";  **)
 (* (c) fof ETH Zürich, 2009 *)
 
-IMPORT Streams,Options,Commands,Files,Strings, Basic := FoxBasic;
+IMPORT Streams,Options,Commands,Files,Strings, Basic := FoxBasic, D := Debugging;
 TYPE
 	NameEntry = POINTER TO RECORD
 		name: ARRAY 265 OF CHAR;
@@ -11,7 +11,7 @@ TYPE
 		PROCEDURE & Init;
 		BEGIN InitList(256)
 		END Init;
-		
+
 		PROCEDURE AddName(CONST name: ARRAY OF CHAR);
 		VAR entry: NameEntry;
 		BEGIN
@@ -41,7 +41,7 @@ TYPE
 			RETURN FALSE
 		END ContainsName;
 		
-		PROCEDURE Dump(w: Streams.Writer);
+		PROCEDURE DumpNames(w: Streams.Writer);
 		VAR
 			i: LONGINT;
 			name: 	ARRAY 256 OF CHAR;
@@ -52,14 +52,14 @@ TYPE
 				w.String(name); w.Ln
 			END;
 			w.Ln
-		END Dump;
+		END DumpNames;
 		
 		PROCEDURE SortNames;
 		BEGIN Sort(NameComparator)
 		END SortNames;
-		
 	END NameList;
-
+	
+	(** string comparator function that is used to sort strings alphabetically **)
 	PROCEDURE NameComparator(left, right: ANY): BOOLEAN;
 	VAR
 		result: SHORTINT;
@@ -80,50 +80,37 @@ TYPE
 	
 	PROCEDURE ParseARMInstructionSet*(context: Commands.Context);	
 	CONST
-		PrependIS = TRUE;
-	CONST
-		flagW = 0;
-		flagFixedS = 1;
-		flagS = 2;
-		flagC = 3;
-		flagX = 4;
+		PrependIS = FALSE;
 	TYPE
 		Operand = RECORD
-			isUsed, isWide: BOOLEAN;
-			rs: SET; (* register bits *)
-			ts: SET; (* shift type bits *)
-			is: SET; (* immediate bits *)
-			bs: SET; (* bitfield bits *)
-			cprs: SET; (* coprocessor register bits *)
-			cpns: SET; (* coprocessor number bits *)
-			cpos: SET; (* coprocessor opcode bits *)
-			cs: SET; (* condition bits *)
+			type: ARRAY 256 OF CHAR;
+			mask: SET;
 		END;
-		
 	VAR
-		ones, mask, flags: SET;
-		char: CHAR;
 		isThumb, comma: BOOLEAN;
-		numBits, numOps, opNum, i, pos: LONGINT;
-		fileName, token, mnemonic, pattern, assignment, encodingName, message: ARRAY 256 OF CHAR;
-		file: Files.File;
-		reader: Files.Reader;
+		i, pos, numBits, numOps: LONGINT;
+		char: CHAR;
+		ones, mask: SET;
+		filename, mnemonic, token, flagString, encodingName, pattern, type: ARRAY 256 OF CHAR;
 		operands: ARRAY 10 OF Operand;
 		operand: Operand;
+		file: Files.File;
+		reader: Files.Reader;
 		encodingNames: NameList;
 		
-		PROCEDURE AppendNamedSet(VAR string: ARRAY OF CHAR; CONST name: ARRAY OF CHAR; set: SET);
+		PROCEDURE AppendMaskName(VAR string: ARRAY OF CHAR; mask: SET);
 		VAR
 			j, start: LONGINT;
 			inside, first: BOOLEAN;
 			numString: ARRAY 32 OF CHAR;
-		BEGIN	
-			IF set # {} THEN
-				Strings.Append(string, name);
+		BEGIN
+			IF mask = {} THEN
+				Strings.Append(string, "Implicit");
+			ELSE
 				first := TRUE;
 				inside := FALSE;
 				FOR j := 0 TO 31 + 1 DO
-					IF (j < 32) & (j IN set) THEN
+					IF (j < 32) & (j IN mask) THEN
 						IF ~inside THEN							
 							IF first THEN first := FALSE ELSE Strings.Append(string, "and") END;
 							Strings.IntToStr(j, numString);
@@ -143,7 +130,7 @@ TYPE
 					END
 				END;				
 			END
-		END AppendNamedSet;
+		END AppendMaskName;
 		
 		PROCEDURE Error(CONST message: ARRAY OF CHAR);
 		BEGIN
@@ -153,17 +140,34 @@ TYPE
 			context.out.Ln;
 			context.out.Update
 		END Error;
+
+		(*
+		PROCEDURE Log(CONST message: ARRAY OF CHAR);
+		BEGIN
+			context.out.Ln;
+			context.out.String("Log: ");
+			context.out.String(message);
+			context.out.Ln;
+			context.out.Update
+		END Log;
+		*)
+		
+		PROCEDURE IsUpperCase(char: CHAR): BOOLEAN;
+		BEGIN RETURN (ORD(char) >= ORD('A')) & (ORD(char) <= ORD('Z'))
+		END IsUpperCase;
 		
 	BEGIN
-		context.arg.SkipWhitespace; context.arg.String(fileName);
-		IF fileName # "" THEN
-			context.out.String("parsing file "); context.out.String(fileName); context.out.Ln; context.out.Ln; context.out.Update;
-			file := Files.Old(fileName);
-			NEW(reader, file, 0);
-			mnemonic := "";
+		context.arg.SkipWhitespace; context.arg.String(filename);
+		IF filename # "" THEN
 			
+			file := Files.Old(filename);
+			IF file = NIL THEN Error("file not found"); RETURN END;
+			context.out.String("parsing file "); context.out.String(filename); context.out.Ln; context.out.Ln; context.out.Update;
+			NEW(reader, file, 0);
+			
+			mnemonic := "";
 			NEW(encodingNames);
-						
+			
 			reader.Token(token);
 			WHILE reader.Available() > 0 DO
 				IF token = "" THEN
@@ -171,155 +175,122 @@ TYPE
 				ELSIF token[0] = '%' THEN (* comment *)
 					reader.SkipLn
 				ELSIF (token = "T") OR (token = "A") THEN
-					ASSERT(mnemonic # "");
+					
+					IF mnemonic = "" THEN Error("no mnemonic specified"); RETURN END;
 					isThumb := token = 'T';
 					
 					(* parse flags *)
 					reader.SkipWhitespace; reader.Token(token);
 					
-					flags := {};
+					flagString := "{";
+					comma := FALSE;
 					i := 0;
 					WHILE token[i] # 0X DO
-						CASE token[i] OF
-						| 'W': INCL(flags, flagW)
-						| 'S': INCL(flags, flagFixedS)
-						| 's':  INCL(flags, flagS)
-						| 'c':  INCL(flags, flagC)
-						| 'X':  INCL(flags, flagX)
-						| '-': (* ignore *)
-						ELSE message := "unknown flag: "; Strings.AppendChar(message, token[i]); Error(message); RETURN
+						char := token[i];
+						IF char # '-' THEN
+							IF comma THEN Strings.Append(flagString, ", "); END;
+							Strings.Append(flagString, "flag");
+							IF IsUpperCase(char) THEN Strings.Append(flagString, "Always") END;
+							Strings.AppendChar(flagString, Strings.UP(char));
+							comma := TRUE
 						END;
 						INC(i)
+					END;
+					Strings.Append(flagString, "}");
+					
+					(* reset operands *)
+					FOR i := 0 TO LEN(operands) - 1 DO
+						operand.type := "?";
+						operand.mask := {};
+						operands[i] := operand
 					END;
 					
 					(* parse bit pattern *)
 					reader.SkipWhitespace;
+					pattern := "";
 					i := 0;
-					WHILE ~reader.EOLN() DO
-						reader.Char(char);
-						IF (char # ' ') & (char # 9X) THEN pattern[i] := char; INC(i) END
-					END;
-					numBits := i;
-					ASSERT((numBits MOD 16) = 0);
-					
-					(* parse operand assignment *)
-					reader.SkipWhitespace;
-					i := 0;
-					WHILE ~reader.EOLN() DO
-						reader.Char(char);
-						IF (char # ' ') & (char # 9X) THEN assignment[i] := char; INC(i) END
-					END;
-					ASSERT(i = numBits);
-					
-					(*
-					context.out.Ln;
-					context.out.String('pattern string = "'); context.out.String(pattern); context.out.String('"'); context.out.Ln;
-					context.out.String('assignment string = "'); context.out.String(assignment); context.out.String('"'); context.out.Ln;
-					context.out.Update;
-					*)
-					
-					mask := {}; ones := {};	
-					FOR i := 0 TO LEN(operands) - 1 DO
-						operands[i].isUsed := FALSE;					
-						operands[i].rs := {}; operands[i].is := {}; operands[i].ts := {}; operands[i].bs := {};
-						operands[i].cprs := {}; operands[i].cpns := {}; operands[i].cpos := {}; operands[i].cs := {};
-						operands[i].isWide := FALSE
-					END;
-					
-					numOps := 0;
-					FOR i := 0 TO numBits - 1 DO
-						pos := numBits - 1 - i;						
-						IF (assignment[i] >= '1') & (assignment[i] <= '9') THEN
-							opNum := ORD(assignment[i]) - ORD('1'); (* 1st op: opNum = 0; 2nd op: opNum = 1 *)
-							IF opNum > numOps - 1 THEN numOps := opNum + 1 END;
-						ELSE
-							opNum := -1
+					reader.Char(char);
+					WHILE (char # 9X) & ~reader.EOLN() DO
+						IF char # ' ' THEN
+							pattern[i] := char;
+							INC(i)
 						END;
-						
-						CASE pattern[i] OF
-						| '0': INCL(mask, pos)
-						| '1': INCL(mask, pos); INCL(ones, pos)
-						| 'O': (* ignore *)						
-						| 'l': INCL(ones, pos)
-						
-						| 'r': INCL(operands[opNum].rs, pos); operands[opNum].isUsed := TRUE
-						| 't': INCL(operands[opNum].ts, pos); operands[opNum].isUsed := TRUE
-						| 'i', 'j', 'H': INCL(operands[opNum].is, pos); operands[opNum].isUsed := TRUE
-						| 'b': INCL(operands[opNum].bs, pos); operands[opNum].isUsed := TRUE
-						| 'R': INCL(operands[opNum].cprs, pos); operands[opNum].isUsed := TRUE
-						| 'n': INCL(operands[opNum].cpns, pos); operands[opNum].isUsed := TRUE
-						| 'o': INCL(operands[opNum].cpos, pos); operands[opNum].isUsed := TRUE
-						| 'c': IF opNum >= 0 THEN INCL(operands[opNum].cs, pos); operands[opNum].isUsed := TRUE END						
-						| 'S': (* ignore *)
-						
-						ELSE (* ignore *)
-						END
+						reader.Char(char)
+					END;
+					pattern[i] := 0X;
+					numBits := i;
+
+					IF (numBits MOD 16) # 0 THEN Error("number of bits in pattern not a multiple of 16");
+						context.out.String(pattern); context.out.Ln; context.out.Update;
+						RETURN
 					END;
 					
-					(* mark 3rd operand as wide if W flag is present *)					
-					IF flagW IN flags THEN operands[2].isWide := TRUE END;
+					ones := {};
+					mask := {};	
+					i := 0;
+					WHILE pattern[i] # 0X DO
+						pos := numBits - 1 - i;
+						char := pattern[i];
+						CASE char OF
+							| '0': INCL(mask, pos)
+							| '1': INCL(mask, pos); INCL(ones, pos)
+							| '-': (* ignore *)
+							| '+': INCL(ones, pos)							
+							| 'a' .. 'f': INCL(operands[ORD(char) - ORD('a')].mask, pos)
+							ELSE (* ignore *)
+						END;
+						INC(i)
+					END;
+
+					(* parse operand types *)		
+					i := 0;
+					WHILE ~reader.EOLN() DO
+						reader.SkipWhitespace;
+						reader.Token(token);
+						IF token # "-" THEN operands[i].type := token; INC(i) END
+					END;
+					numOps := i;
+					
+					(* print Oberon line of code that registers this encoding *)
 					
 					context.out.String("EnterInstruction(instr"); context.out.String(mnemonic);
 					context.out.String(", "); IF isThumb THEN context.out.String("Thumb") ELSE context.out.String("ARM") END;
 					context.out.String(", "); context.out.Int(numBits DIV 16, 0);
 					context.out.String(", "); context.out.Set(ones);
 					context.out.String(", "); context.out.Set(mask);
-					context.out.String(", {");
+					context.out.String(", "); context.out.String(flagString);
+					context.out.Update;
 					
-					comma := FALSE;
-					IF flagW IN flags THEN
-						context.out.String("flagW");
-						comma := TRUE
-					END;
-					IF flagFixedS IN flags THEN
-						IF comma THEN context.out.String(", ") END;
-						context.out.String("flagFixedS");
-						comma := TRUE
-					END;
-					IF flagS IN flags THEN
-						IF comma THEN context.out.String(", ") END;
-						context.out.String("flagS");
-						comma := TRUE
-					END;
-					IF flagC IN flags THEN
-						IF comma THEN context.out.String(", ") END;
-						context.out.String("flagC");
-						comma := TRUE
-					END;
-					IF flagX IN flags THEN
-						IF comma THEN context.out.String(", ") END;
-						context.out.String("flagX");
-						comma := TRUE
-					END;
-					context.out.String("}");		
-
 					FOR i := 0 TO numOps - 1 DO
 						operand := operands[i];
 						context.out.String(", ");
 						
+						(* compose encoding name *)
 						encodingName := "enc";
-
-						IF ~operand.isUsed THEN
-							(* operand conceptually exists but is not encoded explicitly *)
-							Strings.Append(encodingName, "None")
-						ELSE
-							IF PrependIS THEN
-								IF isThumb THEN Strings.Append(encodingName, "T") ELSE Strings.Append(encodingName, "A"); END
-							END;
-							
-							AppendNamedSet(encodingName, "Reg", operand.rs);
-							AppendNamedSet(encodingName, "Type", operand.ts);
-							AppendNamedSet(encodingName, "Imm", operand.is);
-							AppendNamedSet(encodingName, "Bit", operand.bs);
-							
-							AppendNamedSet(encodingName, "CPReg", operand.cprs);
-							AppendNamedSet(encodingName, "CPNum", operand.cpns);
-							AppendNamedSet(encodingName, "CPOpcode", operand.cpos);
-							
-							AppendNamedSet(encodingName, "Cond", operand.cs);
-							
-							IF operand.isWide THEN Strings.Append(encodingName, "W") END;
-						END;						
+						IF PrependIS THEN IF isThumb THEN Strings.AppendChar(encodingName, 'T') ELSE Strings.AppendChar(encodingName, 'A') END END;
+						
+						(* manual names: *)
+						type := operand.type;
+						IF type = "r" THEN Strings.Append(encodingName, "Reg");
+						ELSIF type = "isr" THEN Strings.Append(encodingName, "ImmShReg")
+						ELSIF type = "rsr" THEN Strings.Append(encodingName, "RegShReg")
+						ELSIF type = "i" THEN Strings.Append(encodingName, "Imm")
+						ELSIF type = "wi" THEN Strings.Append(encodingName, "WideImm")
+						ELSIF type = "l" THEN Strings.Append(encodingName, "Label")
+						ELSIF type = "l-" THEN Strings.Append(encodingName, "ForwardLabel")
+						ELSIF type = "l+" THEN Strings.Append(encodingName, "BackwardLabel")
+						ELSIF type = "b" THEN Strings.Append(encodingName, "Bitfield")
+						ELSIF type = "sp" THEN Strings.Append(encodingName, "SP")
+						ELSIF type = "1" THEN Strings.Append(encodingName, "Op1")
+						ELSIF type = "*" THEN (* ignore *)
+						ELSE Error("unknown operand type found"); RETURN
+						END;
+						
+						(* alternative, which works for arbitrary type strings
+						COPY(Strings.UpperCaseInNew(operand.type)^, type);
+						*)
+						
+						AppendMaskName(encodingName, operand.mask);
 						context.out.String(encodingName);
 						
 						IF ~encodingNames.ContainsName(encodingName) THEN encodingNames.AddName(encodingName) END;
@@ -334,8 +305,10 @@ TYPE
 			END;
 			context.out.Ln; context.out.Ln;
 			encodingNames.SortNames;
-			encodingNames.Dump(context.out);
+			encodingNames.DumpNames(context.out);
 			context.out.Update
+		ELSE
+			Error("filename missing")
 		END
 	END ParseARMInstructionSet;
 	
@@ -1083,6 +1056,6 @@ FoxProgTools.Enum --start=10 a b c  d e ~
 FoxProgTools.Enum --start=10 --hex  a b c  d e ~
 
 
-FoxProgTools.ParseAMDInstructionSet  FoxInstructionSetAMD64TabSeperated.txt ~
+FoxProgTools.ParseAMDInstructionSet FoxInstructionSetAMD64TabSeperated.txt ~
 
 FoxProgTools.ParseARMInstructionSet OC/FoxInstructionSetARM.txt ~
