@@ -287,7 +287,6 @@ TYPE
 					END;
 				END RestoreRegisters;
 
-
 			BEGIN
 				inEmulation := TRUE;
 				ASSERT(x.op1.mode # IntermediateCode.Undefined);
@@ -369,9 +368,11 @@ TYPE
 					|IntermediateCode.label: EmitLabel(instruction);
 				ELSE
 					IF Supported(instruction, moduleName, procedureName) THEN
-						Generate(instruction)
+						Generate(instruction);
+						PostGenerate(instruction);
 					ELSE
-						Emulate(instruction, moduleName, procedureName)
+						Emulate(instruction, moduleName, procedureName);
+						PostGenerate(instruction);
 					END
 				END;
 			END;
@@ -404,6 +405,9 @@ TYPE
 		BEGIN (*HALT(100); *) (* abstract *)
 		END Generate;
 
+		PROCEDURE PostGenerate*(CONST instr: IntermediateCode.Instruction);
+		BEGIN
+		END PostGenerate;
 
 		(* ---------------------- generically available code emission ------------------------- *)
 
