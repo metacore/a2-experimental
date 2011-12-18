@@ -503,7 +503,7 @@ TYPE
 			length := 0;
 			WHILE (length < LEN(value)) & (value[length] # 0X) DO INC(length); END;
 			AcquireWrite;
-			IF (length > LEN(value)) THEN
+			IF (length+1 > LEN(SELF.value^)) THEN
 				SELF.value := Strings.NewString(value);
 				Changed;
 			ELSIF (SELF.value^ # value) THEN
