@@ -3,7 +3,7 @@ MODULE WMStandardComponents;	(** AUTHOR "TF"; PURPOSE "Standard components"; *)
 IMPORT
 	KernelLog, Kernel, Types, Models, Repositories, WMComponents, Strings, Files,
 	WMGraphics, WMGraphicUtilities, WMRectangles,
-	WMEvents, XML, Inputs, WMProperties, WMWindowManager;
+	WMEvents, XML, Inputs, WMProperties, WMWindowManager, D:= Debugging;
 
 TYPE
 	(* Local type-alias for convenience *)
@@ -18,7 +18,8 @@ TYPE
 	VAR
 		onTimer-: EventSource;
 		eStart-, eStop- : EventListenerInfo;
-		interval- : WMProperties.Int32Property;
+		interval-, delay- : WMProperties.Int32Property;
+		wait-: LONGINT;
 		alive: BOOLEAN;
 		timer: Kernel.Timer;
 		internalEnabled : BOOLEAN;
@@ -31,6 +32,7 @@ TYPE
 			enabled.Set(FALSE); internalEnabled := FALSE;
 			NEW(onTimer, SELF, GSonTimer, GSonTimerInfo, SELF.StringToCompCommand); events.Add(onTimer);
 			NEW(interval, PrototypeInterval, NIL, NIL); properties.Add(interval);
+			NEW(delay, PrototypeDelay, NIL, NIL); properties.Add(interval);
 			NEW(eStart, GSStart, GSStartTimerInfo, SELF.Start); eventListeners.Add(eStart);
 			NEW(eStop, GSStop, GSStopTimerInfo, SELF.Stop); eventListeners.Add(eStop);
 			SetNameAsString(StrTimer)
@@ -48,12 +50,12 @@ TYPE
 
 		PROCEDURE Start*(sender, par : ANY); (** Eventhandler *)
 		BEGIN
-			enabled.Set(TRUE); BEGIN {EXCLUSIVE} internalEnabled := TRUE END;
+			enabled.Set(TRUE); BEGIN {EXCLUSIVE} internalEnabled := TRUE;wait := delay.Get() END;
 		END Start;
 
 		PROCEDURE Stop*(sender, par : ANY); (** Eventhandler *)
 		BEGIN
-			enabled.Set(FALSE); BEGIN {EXCLUSIVE} internalEnabled := FALSE END;
+			enabled.Set(FALSE); BEGIN {EXCLUSIVE} internalEnabled := FALSE; END;
 		END Stop;
 
 		PROCEDURE Finalize*; (** PROTECTED *)
@@ -65,8 +67,9 @@ TYPE
 		WHILE alive DO
 			BEGIN {EXCLUSIVE} AWAIT(internalEnabled OR ~alive) END;
 			IF alive THEN
-				timer.Sleep(interval.Get());
-				IF internalEnabled & (onTimer # NIL) THEN onTimer.Call(NIL) END
+				timer.Sleep(wait);
+				BEGIN {EXCLUSIVE} wait := interval.Get() END;
+				IF internalEnabled & (onTimer # NIL) THEN onTimer.Call(NIL) END;
 			END
 		END
 	END Timer;
@@ -1062,6 +1065,7 @@ TYPE
 		END KeyEvent;
 
 		PROCEDURE Click*(sender, par : ANY); (** Eventhandler *)
+		VAR event : WMComponents.PointerEvent; command : Strings.String;
 		BEGIN
 			(* synchronize if not synchronized *)
 			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.Click, sender, par)
@@ -1069,7 +1073,12 @@ TYPE
 				(* actual business logic *)
 				onClick.Call(par);
 				ExecuteClickHandler;
-			END
+			END;
+			IF (sender # NIL) & (sender IS Timer) THEN
+				command := GetAttributeValue("onClick");
+				IF command # NIL THEN WMComponents.HandleEvent(event, SELF, command) END;
+			END;
+
 		END Click;
 
 	END Button;
@@ -2733,7 +2742,7 @@ VAR
 	GSonClick, GSonClickButtonInfo, GSonClickCheckboxInfo : String;
 	GSonPositionChanged, GSonPositionChangedInfo : String;
 
-	PrototypeInterval* : WMProperties.Int32Property;
+	PrototypeDelay*, PrototypeInterval* : WMProperties.Int32Property;
 	PrototypeCommandString*, PrototypeCaption* : WMProperties.StringProperty;
 	PrototypeFont- : WMProperties.FontProperty;
 	PrototypeTextColor*: WMProperties.ColorProperty;
@@ -2878,6 +2887,9 @@ BEGIN
 	NEW(PrototypeInterval, NIL, NewString("Interval"),  NewString("time between two timer ticks in ms"));
 	PrototypeInterval.Set(100);
 	plTimer.Add(PrototypeInterval);
+	NEW(PrototypeDelay, NIL, NewString("Delay"),  NewString("delay before timer ticks run"));
+	PrototypeDelay.Set(1000);
+	plTimer.Add(PrototypeDelay);
 	WMComponents.propertyListList.Add("Timer", plTimer);
 
 	(* SystemCommand properties *)
