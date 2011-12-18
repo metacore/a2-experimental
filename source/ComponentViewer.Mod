@@ -82,6 +82,8 @@ BEGIN
 	options.Add("c", "client", Options.Flag);
 	options.Add("a","alpha", Options.Flag);
 	options.Add("f","fullscreen", Options.Flag);
+	options.Add("n","noFocus", Options.Flag);
+	options.Add("t","onTop", Options.Flag);
 	IF options.Parse(context.arg, context.error) & context.arg.GetString(filename) THEN
 		IF Repositories.SplitName(filename, repositoryName, componentName, id) & (repositoryName # "") THEN
 			(* Retrieve component from repository *)
@@ -127,7 +129,7 @@ BEGIN
 			END;
 			IF options.GetFlag("fullscreen") THEN
 				viewPort := WMWindowManager.GetDefaultView();
-				fx := -1; fy := 0; fw := 1; fh := 1; (* full screen on screen number 4 *)
+				fx := 0; fy := 0; fw := 1; fh := 1; (* full screen on screen number 4 *)
 				x := fx * viewPort.width0;
 				y := fy * viewPort.height0;
 				width := fw* viewPort.width0;
@@ -136,9 +138,11 @@ BEGIN
 			NEW(window, width, height, options.GetFlag("alpha"));
 			window.SetTitle(vc.GetName());
 			window.SetContent(c);
+			IF options.GetFlag("noFocus") THEN INCL(window.flags,WMWindowManager.FlagNoFocus) END;
+			IF options.GetFlag("onTop") THEN INCL(window.flags,WMWindowManager.FlagStayOnTop) END;
 			IF options.GetFlag("fullscreen") THEN
 				manager := WMWindowManager.GetDefaultManager();
-				manager.Add(x, y, window, {WMWindowManager.FlagStayOnTop});
+				manager.Add(x, y, window, {});
 			ELSE
 				WMWindowManager.DefaultAddWindow(window);
 			END;

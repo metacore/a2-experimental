@@ -126,7 +126,7 @@ TYPE
 		command- : Strings.String; (** {command # NIL}, immutable *)
 		timestamp- : LONGINT;
 
-		PROCEDURE &New(originator : Component; command : Strings.String; in, arg : Streams.Reader; out, error : Streams.Writer; caller : OBJECT);
+		PROCEDURE &New*(originator : Component; command : Strings.String; in, arg : Streams.Reader; out, error : Streams.Writer; caller : OBJECT);
 		BEGIN
 			ASSERT((originator # NIL) & (command # NIL));
 			SELF.originator := originator;
@@ -2325,7 +2325,7 @@ BEGIN
 	ASSERT(index < LEN(string));
 END SkipWhiteSpace;
 
-PROCEDURE ReadWord(CONST string : ARRAY OF CHAR; VAR word : ARRAY OF CHAR; VAR index : LONGINT) : BOOLEAN;
+PROCEDURE ReadWord*(CONST string : ARRAY OF CHAR; VAR word : ARRAY OF CHAR; VAR index : LONGINT) : BOOLEAN;
 VAR length, wordLength, i : LONGINT;
 BEGIN
 	SkipWhiteSpace(string, index);
@@ -2405,6 +2405,20 @@ BEGIN
 	Events.AddEvent("Components", Events.Error, 0, 0, 0, message, FALSE);
 END ReportError;
 
+PROCEDURE GetArgumentStream*(command: Strings.String; offset: LONGINT; VAR arguments: Streams.StringReader);
+VAR i: LONGINT;
+BEGIN
+	IF command = NIL THEN arguments := NIL; RETURN END;
+	i := offset;
+	WHILE (i < LEN(command)) & (command[i] # 0X) DO INC(i); END;
+	IF (i # offset) THEN
+		NEW(arguments, i - offset + 1);
+		arguments.SetRaw(command^, offset, i - offset + 1);
+	ELSE
+		arguments := NIL;
+	END;
+END GetArgumentStream;
+
 PROCEDURE GenerateContext*(oldCommand, command : Strings.String; index : LONGINT; originator : Component; CONST event : Event) : EventContext;
 VAR
 	context : EventContext; pointerContext : PointerContext; keyContext : KeyContext;
@@ -2413,14 +2427,7 @@ VAR
 BEGIN
 	ASSERT((command # NIL) & (0 <= index) & (index < LEN(command)));
 	ASSERT(originator # NIL);
-	i := index;
-	WHILE (i < LEN(command)) & (command[i] # 0X) DO INC(i); END;
-	IF (i # index) THEN
-		NEW(arguments, i - index + 1);
-		arguments.SetRaw(command^, index, i - index + 1);
-	ELSE
-		arguments := NIL;
-	END;
+	GetArgumentStream(command,index,arguments);
 	IF (event IS PointerEvent) THEN
 		NEW(pointerContext, originator, oldCommand, NIL, arguments, NIL, NIL, NIL); pointerContext.pointer := event(PointerEvent);
 		context := pointerContext;
