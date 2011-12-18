@@ -1,11 +1,13 @@
 MODULE ComponentViewer;	(** AUTHOR "TF"; PURPOSE "Testbed for the component system"; *)
 
 IMPORT
-	Modules, Commands, Options, XML, Repositories, WMMessages, WMGraphics, WMWindowManager, WMComponents, WMRestorable, D:= Debugging, Files;
+	Modules, Commands, Options, XML, Repositories, WMMessages, WMWindowManager, WMComponents,
+	WMRestorable, Streams, D:= Debugging, Files;
 
 CONST
 	DefaultWidth = 320;
 	DefaultHeight = 240;
+	InvalidPosition* =MIN(LONGINT);
 
 TYPE
 
@@ -15,7 +17,6 @@ TYPE
 	Window = OBJECT(WMComponents.FormWindow)
 
 		PROCEDURE RestoreWindow*(c : WMRestorable.Context);
-		VAR vc : WMComponents.VisualComponent;
 		BEGIN
 			ReInit(c.r-c.l, c.b-c.t);
 			(*
@@ -61,38 +62,28 @@ TYPE
 VAR
 	nofWindows : LONGINT;
 
-PROCEDURE Open*(context : Commands.Context); (** [Options] <RepositoryName:ComponentName:ID> | <ModuleName.ProcedureName> | <Filename> ~ *)
+PROCEDURE DoOpen*(filename: ARRAY OF CHAR; error: Streams.Writer; x,y,width, height: LONGINT; client, alpha, fullscreen: BOOLEAN; flags:SET);
 VAR
-	options : Options.Options;
-	filename, repositoryName, componentName : ARRAY 128 OF CHAR;
+	repositoryName, componentName : ARRAY 128 OF CHAR;
 	window : Window;
 	moduleName, procedureName : Modules.Name;
 	ignoreMsg : ARRAY 1 OF CHAR;
 	generatorProc : XML.GeneratorProcedure;
-	c : XML.Content; component : Repositories.Component; string : XML.String;
+	c : XML.Content; component : Repositories.Component;
 	vc : WMComponents.VisualComponent;
-	width, height, id, res : LONGINT;
-	fx,fy,fw,fh,x,y: LONGINT;
+	id, res : LONGINT;
+	fx,fy,fw,fh: LONGINT;
 	viewPort: WMWindowManager.ViewPort;
 	manager: WMWindowManager.WindowManager;
 BEGIN
-	NEW(options);
-	options.Add("h", "height", Options.Integer);
-	options.Add("w", "width", Options.Integer);
-	options.Add("c", "client", Options.Flag);
-	options.Add("a","alpha", Options.Flag);
-	options.Add("f","fullscreen", Options.Flag);
-	options.Add("n","noFocus", Options.Flag);
-	options.Add("t","onTop", Options.Flag);
-	IF options.Parse(context.arg, context.error) & context.arg.GetString(filename) THEN
 		IF Repositories.SplitName(filename, repositoryName, componentName, id) & (repositoryName # "") THEN
 			(* Retrieve component from repository *)
 			Repositories.GetComponentByString(filename, component, res);
 			IF (res = Repositories.Ok) THEN
 				c := component;
-			ELSE
-				context.error.String("Could not load "); context.error.String(filename);
-				context.error.String(" from repository, res: "); context.error.Int(res, 0); context.error.Ln;
+			ELSIF error # NIL THEN
+				error.String("Could not load "); error.String(filename);
+				error.String(" from repository, res: "); error.Int(res, 0); error.Ln;
 			END;
 		ELSE
 			Commands.Split(filename, moduleName, procedureName, res, ignoreMsg);
@@ -112,22 +103,20 @@ BEGIN
 		END;
 		IF (c # NIL) & (c IS WMComponents.VisualComponent) THEN
 			vc := c (WMComponents.VisualComponent);
-			IF options.GetInteger("width", width) THEN
+			IF width # 0 THEN
 				vc.bounds.SetWidth(width);
 			ELSE
 				width := vc.bounds.GetWidth();
 				IF (width <= 0) THEN width := DefaultWidth; END;
 			END;
-			IF options.GetInteger("height", height) THEN
+			IF height # 0 THEN
 				vc.bounds.SetHeight(height);
 			ELSE
 				height := vc.bounds.GetHeight();
 				IF (height <= 0) THEN height := DefaultHeight; END;
 			END;
-			IF options.GetFlag("client") THEN
-				vc.alignment.Set(WMComponents.AlignClient);
-			END;
-			IF options.GetFlag("fullscreen") THEN
+			IF client THEN vc.alignment.Set(WMComponents.AlignClient) END;
+			IF fullscreen THEN
 				viewPort := WMWindowManager.GetDefaultView();
 				fx := 0; fy := 0; fw := 1; fh := 1; (* full screen on screen number 4 *)
 				x := fx * viewPort.width0;
@@ -135,23 +124,53 @@ BEGIN
 				width := fw* viewPort.width0;
 				height := fh * viewPort.height0;
 			END;
-			NEW(window, width, height, options.GetFlag("alpha"));
+			NEW(window, width, height, alpha);
 			window.SetTitle(vc.GetName());
 			window.SetContent(c);
-			IF options.GetFlag("noFocus") THEN INCL(window.flags,WMWindowManager.FlagNoFocus) END;
-			IF options.GetFlag("onTop") THEN INCL(window.flags,WMWindowManager.FlagStayOnTop) END;
-			IF options.GetFlag("fullscreen") THEN
-				manager := WMWindowManager.GetDefaultManager();
-				manager.Add(x, y, window, {});
-			ELSE
-				WMWindowManager.DefaultAddWindow(window);
+			window.flags := window.flags + flags;
+			manager := WMWindowManager.GetDefaultManager();
+			IF (x = InvalidPosition) OR (y = InvalidPosition) THEN
+				WMWindowManager.GetNextPosition(window, manager, WMWindowManager.GetDefaultView(),x,y);
+			ELSIF fullscreen THEN
+				x := 0; y := 0
 			END;
-		ELSE
-			IF (c = NIL) THEN context.error.String("Could not load/generate component "); context.error.String(filename);
-			ELSE context.error.String(filename); context.error.String(" is not a VisualComponent.");
+			manager := WMWindowManager.GetDefaultManager();
+			manager.Add(x, y, window, flags);
+		ELSIF error # NIL THEN
+			IF (c = NIL) THEN error.String("Could not load/generate component "); error.String(filename);
+			ELSE error.String(filename); error.String(" is not a VisualComponent.");
 			END;
-			context.error.Ln;
+			error.Ln;
 		END;
+END DoOpen;
+
+
+PROCEDURE Open*(context : Commands.Context); (** [Options] <RepositoryName:ComponentName:ID> | <ModuleName.ProcedureName> | <Filename> ~ *)
+VAR
+	options : Options.Options;
+	filename : ARRAY 128 OF CHAR;
+	x,y, width, height: LONGINT;
+	flags: SET;
+BEGIN
+	NEW(options);
+	options.Add("x", "xPosition", Options.Integer);
+	options.Add("y", "yPosition", Options.Integer);
+	options.Add("h", "height", Options.Integer);
+	options.Add("w", "width", Options.Integer);
+	options.Add("c", "client", Options.Flag);
+	options.Add("a","alpha", Options.Flag);
+	options.Add("f","fullscreen", Options.Flag);
+	options.Add("n","noFocus", Options.Flag);
+	options.Add("t","onTop", Options.Flag);
+	IF options.Parse(context.arg, context.error) & context.arg.GetString(filename) THEN
+		IF ~options.GetInteger("width",width) THEN width := 0 END;
+		IF ~options.GetInteger("height",height) THEN height := 0 END;
+		IF ~options.GetInteger("x",x) THEN x := InvalidPosition END;
+		IF ~options.GetInteger("y",y) THEN y := InvalidPosition END;
+		IF options.GetFlag("fullscreen") THEN flags := {} ELSE flags := {WMWindowManager.FlagFrame, WMWindowManager.FlagClose, WMWindowManager.FlagMinimize} END;
+		IF options.GetFlag("noFocus") THEN INCL(flags, WMWindowManager.FlagNoFocus) END;
+		IF options.GetFlag("onTop") THEN INCL(flags, WMWindowManager.FlagStayOnTop) END;
+		DoOpen(filename, context.error, x , y, width, height, options.GetFlag("client"), options.GetFlag("alpha"), options.GetFlag("fullscreen"), flags);
 	ELSE
 		context.error.String("Usage: ComponentViewer.Open [Options] <string> ~"); context.error.Ln;
 	END;

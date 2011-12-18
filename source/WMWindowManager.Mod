@@ -1106,7 +1106,7 @@ BEGIN {EXCLUSIVE}
 	x1 := 0; y1 := 0;
 END ResetNextPosition;
 
-PROCEDURE GetNextPosition(window : Window; manager : WindowManager; view : ViewPort; VAR dx, dy : LONGINT);
+PROCEDURE GetNextPosition*(window : Window; manager : WindowManager; view : ViewPort; VAR dx, dy : LONGINT);
 VAR style : WindowStyle; x, y : LONGINT;
 BEGIN {EXCLUSIVE}
 	ASSERT((window # NIL) & (manager # NIL) & (view # NIL));
