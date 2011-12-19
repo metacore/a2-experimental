@@ -237,6 +237,7 @@ TYPE
 			updateInterval := 500;
 			alive := TRUE; dead := FALSE;
 			NEW(timer);
+			SetFont(WMGraphics.GetFont("Oberon", 24, {WMGraphics.FontBold}));
 		END Init;
 
 		PROCEDURE PropertyChanged(sender, property : ANY);
@@ -356,7 +357,6 @@ TYPE
 		END Finalize;
 
 	BEGIN {ACTIVE}
-		SetFont(WMGraphics.GetFont("Oberon", 24, {WMGraphics.FontBold}));
 		WHILE alive DO
 			lock.Acquire;
 			currentTime := Dates.Now();
