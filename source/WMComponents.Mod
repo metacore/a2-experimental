@@ -559,6 +559,7 @@ TYPE
 			changed or a Reset occured. The PropertyChanged method is called, too in case of multi-property changes
 		 	The component should call the inherited RecacheProperties method *)
 		PROCEDURE RecacheProperties*;
+		BEGIN
 		END RecacheProperties;
 
 		PROCEDURE InternalPropertyChanged(sender, property : ANY);
@@ -794,8 +795,14 @@ TYPE
 		PROCEDURE PropertyChanged*(sender, property : ANY);
 		BEGIN
 			IF property = bounds THEN
-				ScaleFont(bounds.GetHeight(), scaleFont.Get());
+				(*ScaleFont(bounds.GetHeight(), scaleFont.Get());*)
 				Resized
+			ELSIF property = font THEN
+				IF scaleFont.Get() # 0 THEN
+					ScaleFont(bounds.GetHeight(), scaleFont.Get());
+				ELSE
+					Invalidate;
+				END
 			ELSIF property = visible THEN Resized
 			ELSIF property = alignment THEN AlignmentChanged
 			ELSIF property = fillColor THEN Invalidate;
@@ -807,6 +814,12 @@ TYPE
 			ELSE PropertyChanged^(sender, property)
 			END;
 		END PropertyChanged;
+
+		PROCEDURE RecacheProperties;
+		BEGIN
+			IF scaleFont.Get() # 0 THEN ScaleFont(bounds.GetHeight(), scaleFont.Get()) END;
+			RecacheProperties^;
+		END RecacheProperties;
 
 		(** Get the root of visible components. Not neccessarily the same as GetComponentRoot() OR GetRoot() *)
 		PROCEDURE GetVisualComponentRoot*(): VisualComponent;
@@ -1095,6 +1108,7 @@ TYPE
 			p := SELF.GetParent();
 			IF (p # NIL) & (p IS VisualComponent) THEN p(VisualComponent).AlignSubComponents END;
 			AlignSubComponents;
+			IF scaleFont.Get() # 0 THEN ScaleFont(bounds.GetHeight(), scaleFont.Get()) END;
 			EnableUpdate;
 			IF (p # NIL) & (p IS VisualComponent) THEN p(VisualComponent).Invalidate
 			ELSE Invalidate()
