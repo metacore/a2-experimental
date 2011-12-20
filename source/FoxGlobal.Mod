@@ -114,7 +114,7 @@ VAR
 	identifiers: ARRAY 2 OF ARRAY end OF SyntaxTree.Identifier;
 
 	(* some handy type variables for backend / checker implementers *)
-	Boolean8, Boolean32: SyntaxTree.BooleanType;
+	Boolean8-, Boolean32-: SyntaxTree.BooleanType;
 	Integer8-, Integer16-, Integer32-, Integer64-: SyntaxTree.IntegerType;
 	Character8-, Character16-, Character32-: SyntaxTree.CharacterType;
 	Float32-, Float64-: SyntaxTree.FloatType;
