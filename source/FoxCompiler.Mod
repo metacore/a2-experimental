@@ -21,6 +21,7 @@ CONST
 	ForceModuleBodies*=8;
 	UseDarwinCCalls*=9;	(* use Darwin stack alignment for ext. C procedures *)	(*fld*)
 	SingleModule*=10;
+	Oberon07*=11;
 
 	DefaultBackend = "AMD";
 
@@ -214,12 +215,14 @@ TYPE
 		IF TraceError IN flags THEN
 			NEW(traceDiagnostics,diagnostics); diagnostics := traceDiagnostics
 		END;
-
+		
 		IF backend = NIL THEN
 			system := Global.DefaultSystem()
 		ELSE
+			IF Oberon07 IN flags THEN backend.SetOberon07 END; (* inform the backend about that the Oberon07 mode, it will return the corresponding Sytem object *)
 			system := backend.GetSystem();
 		END;
+		
 		IF (system # NIL) & (activeCellsSpecification # NIL) THEN
 			activeCellsSpecification.DefineDevices(system)
 		END;
@@ -527,6 +530,7 @@ TYPE
 		options.Add("e","traceError",Options.Flag);
 		options.Add("I","interface",Options.Flag);
 		options.Add("i","info",Options.Flag);
+		options.Add(0X,"oberon07",Options.Flag);		
 		options.Add("b","backend",Options.String);
 		options.Add("f","findPC",Options.String);
 		options.Add(0X,"singleModule",Options.Flag);
@@ -537,10 +541,9 @@ TYPE
 		options.Add(0X,"darwinHost", Options.Flag);
 		options.Add(0X,"activeCellsSpecification", Options.String);
 
-
 		position := input.Pos();
 		parsed := options.Parse(input,NIL);
-
+		
 		IF options.GetString("b", name) THEN
 			IF name = "" THEN backend := NIL
 			ELSE
@@ -552,7 +555,7 @@ TYPE
 		ELSE backend := Backend.GetBackendByName(DefaultBackend);
 			IF backend = NIL THEN Error("default backend could not be installed"); result := FALSE END;
 		END;
-
+		
 		IF options.GetString("objectFile",name) THEN
 			IF name = "" THEN objectFile := NIL
 			ELSE
@@ -596,7 +599,7 @@ TYPE
 		END;
 
 		IF result THEN
-			IF options.GetFlag("print") THEN INCL(flags, Print) END;
+			IF options.GetFlag("print") THEN INCL(flags, Print) END;			
 			IF options.GetFlag("silent") THEN INCL(flags, Silent) END;
 			IF options.GetFlag("check") THEN INCL(flags, Check) END;
 			IF options.GetFlag("traceError") THEN INCL(flags, TraceError) END;
@@ -605,6 +608,7 @@ TYPE
 			IF options.GetFlag("warnings") THEN INCL(flags, Warnings) END;
 			IF options.GetFlag("darwinHost") THEN INCL(flags,UseDarwinCCalls) END;	(*fld*)
 			IF options.GetFlag("singleModule") THEN INCL(flags,SingleModule) END;
+			IF options.GetFlag("oberon07") THEN INCL(flags, Oberon07) END;
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
 			IF objectFile # NIL THEN objectFile.GetOptions(options) END;

@@ -20,10 +20,12 @@ TYPE
 		findSectionName-: SectionName;
 		findSectionOffset-: LONGINT;
 		capabilities-: SET;
+		oberon07-: BOOLEAN;
 
 		(* constructor *)
 		PROCEDURE & InitBackend *;
 		BEGIN
+			oberon07 := FALSE;
 			system := NIL; (* only one instance per backend, never reallocate ! *)
 			diagnostics := NIL;
 			flags := {};
@@ -31,12 +33,17 @@ TYPE
 			findSectionName := "";
 			findSectionOffset := 0;
 		END InitBackend;
+		
+		PROCEDURE SetOberon07*;
+		BEGIN
+			ASSERT(system = NIL); (* assert that system Object has not been requested yet *)
+			oberon07 := TRUE
+		END SetOberon07;
 
 		PROCEDURE SetCapabilities*(capabilities: SET);
 		BEGIN
 			SELF.capabilities := capabilities;
 		END SetCapabilities;
-
 
 		PROCEDURE ResetError*;
 		BEGIN error := FALSE
