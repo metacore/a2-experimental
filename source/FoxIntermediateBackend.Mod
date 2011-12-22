@@ -1714,7 +1714,6 @@ TYPE
 					UnuseRegister(x.op1.register); (* avoid push on acquired but not yet set destination register *)
 				END;
 				*)
-				IF (x.op1.register >0) & (registerUsage.Use(x.op1.register) > 0) THEN RemoveRegisterEntry(usedRegisters,x.op1.register) END;
 				procedure := machine.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "Instruction not supported on target, emulation procedure ";
@@ -1724,6 +1723,7 @@ TYPE
 					Strings.Append(s," not present");
 					Error(position,s);
 				ELSE
+					IF (x.op1.register >0) & (registerUsage.Use(x.op1.register) > 0) THEN RemoveRegisterEntry(usedRegisters,x.op1.register) END;
 					prevResult := result;
 					StaticCallOperand(result,procedure);
 					SaveRegisters();
@@ -2140,7 +2140,7 @@ TYPE
 			|Scanner.Div:
 				Evaluate(x.left,left);
 				Evaluate(x.right,right);
-				IF (x.type.resolved IS SyntaxTree.IntegerType) & IsIntegerConstant(x.right,value) & PowerOf2(value,exp) THEN
+				IF ((x.type.resolved IS SyntaxTree.IntegerType) OR (x.type.resolved IS SyntaxTree.AddressType)) & IsIntegerConstant(x.right,value) & PowerOf2(value,exp) THEN
 					InitOperand(result,ModeValue);
 					Reuse1a(result.op,left.op,dest);
 					IntermediateCode.InitImmediate(right.op,IntermediateCode.GetType(system, system.longintType),exp);
@@ -2163,7 +2163,7 @@ TYPE
 			|Scanner.Mod:
 				Evaluate(x.left,left);
 				Evaluate(x.right,right);
-				IF (x.type.resolved IS SyntaxTree.IntegerType) & IsIntegerConstant(x.right,value) & PowerOf2(value,exp) THEN
+				IF ((x.type.resolved IS SyntaxTree.IntegerType) OR (x.type.resolved IS SyntaxTree.AddressType)) & IsIntegerConstant(x.right,value) & PowerOf2(value,exp) THEN
 					IntermediateCode.InitImmediate(right.op,IntermediateCode.GetType(system,x.type),value-1);
 					InitOperand(result,ModeValue);
 					Reuse1a(result.op,left.op,dest);
@@ -9036,7 +9036,7 @@ TYPE
 
 	PROCEDURE PowerOf2(val: HUGEINT;  VAR exp: LONGINT): BOOLEAN;
 	BEGIN
-		IF val <= 0 THEN  RETURN FALSE END;
+		IF val <= 0 THEN RETURN FALSE END;
 		exp := 0;
 		WHILE ~ODD(val) DO
 			val := val DIV 2;
