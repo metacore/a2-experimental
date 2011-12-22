@@ -1160,7 +1160,12 @@ TYPE
 				IF TraceRegisterUsage & (dump# NIL) THEN
 					dump.String("unuse register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln; dump.Update;
 				END;
-				IF registerUsage.Use(register)=0 THEN RemoveRegisterEntry(usedRegisters,register) END;
+				IF registerUsage.Use(register)=0 THEN
+					RemoveRegisterEntry(usedRegisters,register);
+					IF TraceRegisterUsage & (dump# NIL) THEN
+						dump.String("remove register from usedRegisters"); dump.Ln; dump.Update;
+					END;
+				END;
 			END;
 		END UnuseRegister;
 
@@ -1172,7 +1177,11 @@ TYPE
 					dump.String("use register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln; dump.Update;
 				END;
 				IF registerUsage.Use(register)=1 THEN
-					AddRegisterEntry(usedRegisters,register, registerUsage.used[register].class, registerUsage.used[register].type) END;
+					AddRegisterEntry(usedRegisters,register, registerUsage.used[register].class, registerUsage.used[register].type);
+					IF TraceRegisterUsage & (dump# NIL) THEN
+						dump.String("add register to usedRegisters"); dump.Ln; dump.Update;
+					END;
+				END;
 			END;
 		END UseRegister;
 
@@ -1697,12 +1706,15 @@ TYPE
 			saved: RegisterEntry;
 			s: Basic.MessageString;
 			prevResult: Operand;
+			usage: LONGINT;
 		BEGIN
 			IF AddImport(moduleName,machine,TRUE) THEN
-				(*IF x.op1.register > 0 THEN
-					registers.Unuse(x.op1.register); (* avoid push on acquired but not yet set destination register *)
-				END;*)
-				IF x.op1.register >0 THEN RemoveRegisterEntry(usedRegisters,x.op1.register) END;
+				(*
+				IF x.op1.register > 0 THEN
+					UnuseRegister(x.op1.register); (* avoid push on acquired but not yet set destination register *)
+				END;
+				*)
+				IF (x.op1.register >0) & (registerUsage.Use(x.op1.register) > 0) THEN RemoveRegisterEntry(usedRegisters,x.op1.register) END;
 				procedure := machine.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "Instruction not supported on target, emulation procedure ";
@@ -1723,13 +1735,10 @@ TYPE
 					END;
 					ReleaseUsedRegisters(saved);
 					Emit(Call(position,result.op,ProcedureParametersSize(system,procedure)));
-					(*IF x.op1.register > 0 THEN
-						registers.Use(x.op1.register); (* avoid push on acquired but not yet set destination register *)
-					END;*)
 					Emit(Result(position,x.op1));
 					result := prevResult;
 					RestoreRegisters(saved);
-					IF x.op1.register >0 THEN AddRegisterEntry(usedRegisters,x.op1.register, x.op1.registerClass, x.op1.type) END;
+					IF (x.op1.register >0) & (registerUsage.Use(x.op1.register)>0) THEN AddRegisterEntry(usedRegisters,x.op1.register, x.op1.registerClass, x.op1.type) END;
 				END;
 				(*
 				AcquireThisRegister(x.op1.type,IntermediateCode.Result);
@@ -6061,8 +6070,18 @@ TYPE
 				IF procedureType.returnType # NIL THEN
 					res := NewRegisterOperand(IntermediateCode.GetType(system, procedureType.returnType));
 					Emit(Result(position, res));
-					InitOperand(result,ModeValue);
+					(*InitOperand(result,ModeValue);
 					result.op := res;
+					*)
+
+					IF ~conditional THEN
+						InitOperand(result,ModeValue); result.op := res;
+					ELSE
+						BreqL(trueLabel,IntermediateCode.Immediate(res.type,1),res);
+						BrL(falseLabel);
+						ReleaseIntermediateOperand(res);
+					END;
+
 				END
 
 			ELSE (* function not yet implemented *)
@@ -8943,6 +8962,7 @@ TYPE
 		WHILE (this # NIL) & (this.register # register) DO
 			this := this.next;
 		END;
+		ASSERT(this # NIL);
 		IF this = queue THEN queue := queue.next END;
 		IF this.prev # NIL THEN this.prev.next := this.next END;
 		IF this.next # NIL THEN this.next.prev := this.prev END;
