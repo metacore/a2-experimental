@@ -186,7 +186,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				END;
 			END;
 			IF Trace THEN D.String("pos "); D.Int(reader.Pos(),1); D.Ln END;
-			ASSERT(ch=0X);
+			ASSERT((ch=0X) OR (size = 0));
 		END;
 	END ReadHeader;
 

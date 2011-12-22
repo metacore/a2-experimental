@@ -139,7 +139,7 @@ VAR
 				ObjectFile.FromPooledName(fixup.identifier.name,str); Strings.Append(str," in " );
 				ObjectFile.FromPooledName(block.identifier.name,name);
 				Strings.Append(str,  name);
-				 ErrorP (fixup.identifier.name, "unresolved");
+				Error(str, "unresolved");
 			ELSIF (reference.identifier.fingerprint # 0) & (block.fixup[i].identifier.fingerprint # 0) & (reference.identifier.fingerprint # block.fixup[i].identifier.fingerprint) THEN
 				ObjectFile.FromPooledName(fixup.identifier.name,str); Strings.Append(str," in " );
 				ObjectFile.FromPooledName(block.identifier.name,name);
@@ -304,7 +304,7 @@ VAR section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOO
 					pos := i+1; j := 0;
 				END;
 			END;
-			ASSERT(ch=0X);
+			ASSERT((ch=0X) OR (size = 0));
 		END;
 	END Header;
 
