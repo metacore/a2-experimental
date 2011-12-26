@@ -170,7 +170,7 @@ VAR
 		arrangement := GetArrangement (block);
 		block.address := arrangement.Allocate (block^);
 		IF block.address = InvalidAddress THEN ErrorP (block.identifier.name, "failed to allocate"); RETURN; END;
-		IF block.fixed THEN ASSERT (block.address = block.alignment);
+		IF block.fixed THEN IF block.address # block.alignment THEN ErrorP (block.identifier.name, "address allocation problem"); RETURN END;
 		ELSE ASSERT ((block.alignment = 0) OR (block.address MOD block.alignment = 0)); END;
 	END Arrange;
 
