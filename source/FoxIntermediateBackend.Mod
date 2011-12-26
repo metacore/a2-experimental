@@ -1013,7 +1013,7 @@ TYPE
 			CheckRegister(instruction.op3);
 
 			IF supportedInstruction(instruction,moduleName,procedureName) THEN section.Emit(instruction)
-			ELSE Emulate(instruction,moduleName,procedureName);
+			ELSE section.Emit(instruction); EnsureSymbol(moduleName,procedureName); (* remainder for binary object file *)
 			END;
 		END Emit;
 
@@ -1698,23 +1698,12 @@ TYPE
 			RETURN TRUE
 		END AddImport;
 
-		PROCEDURE Emulate(CONST x: IntermediateCode.Instruction; CONST moduleName,procedureName: SyntaxTree.IdentifierString);
-		(*! this emulation procedure emulates instructions with destination operand only *)
-		VAR
-			machine: SyntaxTree.Module;
-			procedure: SyntaxTree.Procedure;
-			saved: RegisterEntry;
-			s: Basic.MessageString;
-			prevResult: Operand;
-			usage: LONGINT;
+		(* needed for old binary object file format*)
+		PROCEDURE EnsureSymbol(CONST moduleName,procedureName: SyntaxTree.IdentifierString);
+		VAR r: Operand; procedure: SyntaxTree.Procedure; module: SyntaxTree.Module; s: ARRAY 128 OF CHAR;
 		BEGIN
-			IF AddImport(moduleName,machine,TRUE) THEN
-				(*
-				IF x.op1.register > 0 THEN
-					UnuseRegister(x.op1.register); (* avoid push on acquired but not yet set destination register *)
-				END;
-				*)
-				procedure := machine.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
+			IF AddImport(moduleName,module,TRUE) THEN
+				procedure := module.moduleScope.FindProcedure(SyntaxTree.NewIdentifier(procedureName));
 				IF procedure = NIL THEN
 					s := "Instruction not supported on target, emulation procedure ";
 					Strings.Append(s,moduleName);
@@ -1723,39 +1712,11 @@ TYPE
 					Strings.Append(s," not present");
 					Error(position,s);
 				ELSE
-					IF (x.op1.register >0) & (registerUsage.Use(x.op1.register) > 0) THEN RemoveRegisterEntry(usedRegisters,x.op1.register) END;
-					prevResult := result;
-					StaticCallOperand(result,procedure);
-					SaveRegisters();
-					IF x.op2.mode # IntermediateCode.Undefined THEN
-						Emit(Push(position,x.op2));
-					END;
-					IF x.op3.mode # IntermediateCode.Undefined THEN
-						Emit(Push(position,x.op3));
-					END;
-					ReleaseUsedRegisters(saved);
-					Emit(Call(position,result.op,ProcedureParametersSize(system,procedure)));
-					Emit(Result(position,x.op1));
-					result := prevResult;
-					RestoreRegisters(saved);
-					IF (x.op1.register >0) & (registerUsage.Use(x.op1.register)>0) THEN AddRegisterEntry(usedRegisters,x.op1.register, x.op1.registerClass, x.op1.type) END;
+					StaticCallOperand(r,procedure);
+					ReleaseOperand(r);
 				END;
-				(*
-				AcquireThisRegister(x.op1.type,IntermediateCode.Result);
-				RestoreRegisters(saved);
-				IF x.op1.register > 0 THEN
-					IF usedRegisters[x.op1.register].count = 0 THEN
-						AcquireThisRegister(usedRegisters[x.op1.register].type,x.op1.register)
-					ELSE
-						UseRegister(x.op1.register);
-					END;
-				END;
-				IntermediateCode.InitRegister(reg,x.op1.type,IntermediateCode.Result);
-				Emit(Mov(position,x.op1,reg));
-				ReleaseIntermediateOperand(reg);
-				*)
 			END;
-		END Emulate;
+		END EnsureSymbol;
 
 		PROCEDURE SysCall(nr: LONGINT);
 		VAR op: IntermediateCode.Operand; section: IntermediateCode.Section; pooledName: Basic.PooledName;

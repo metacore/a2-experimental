@@ -1083,6 +1083,8 @@ TYPE
 			END;
 
 			ReserveOperandRegisters(instruction.op3,FALSE); ReserveOperandRegisters(instruction.op2,FALSE); ReserveOperandRegisters(instruction.op1,FALSE);
+
+			(*
 			TryUnmap(instruction.op3); TryUnmap(instruction.op2); TryUnmap(instruction.op1);
 
 			(* remove remaining virtual registers that are not directly referenced by this instruction *)
@@ -1104,6 +1106,7 @@ TYPE
 				UnmapTicket(ticket);
 				ticket := tickets.live
 			END;
+			*)
 
 			(*
 			FOR i := 0 TO physicalRegisters.NumberRegisters()-1 DO
@@ -1114,6 +1117,17 @@ TYPE
 			END;
 			*)
 		END Generate;
+
+		PROCEDURE PostGenerate(CONST instruction: IntermediateCode.Instruction);
+		VAR ticket: Ticket;
+		BEGIN
+			TryUnmap(instruction.op3); TryUnmap(instruction.op2); TryUnmap(instruction.op1);
+			ticket := tickets.live;
+			WHILE (ticket # NIL) & (ticket.lastuse = inPC) DO
+				UnmapTicket(ticket);
+				ticket := tickets.live
+			END;
+		END PostGenerate;
 
 		(* enter procedure: generate PAF and clear stack *)
 		PROCEDURE EmitEnter(CONST instruction: IntermediateCode.Instruction);
@@ -2173,7 +2187,7 @@ TYPE
 				emitter.Emit2(InstructionSet.opAND, temp, imm);
 				imm := Assembler.NewImm8(2);
 				emitter.Emit2(InstructionSet.opSHR, opECX, imm);
-				
+
 				emitter.Emit0(InstructionSet.opCLD); (* copy upwards *)
 				emitter.EmitPrefix (InstructionSet.prfREP);
 				emitter.Emit0(InstructionSet.opMOVSD);

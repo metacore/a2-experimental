@@ -780,7 +780,7 @@ TYPE
 				intermediateCodeSection := section(IntermediateCode.Section);
 				(* go through all instructions in the section *)
 				FOR i := 0 TO intermediateCodeSection.pc - 1 DO
-					IF  ~backend(IntermediateCode.IntermediateBackend).SupportedInstruction2(intermediateCodeSection.instructions[i], moduleName, procedureName) THEN
+					IF  ~backend(IntermediateCode.IntermediateBackend).SupportedInstruction(intermediateCodeSection.instructions[i], moduleName, procedureName) THEN
 						Strings.Append(moduleName,".");
 						Strings.Append(moduleName, procedureName);
 						MarkAsReachableByName(moduleName);

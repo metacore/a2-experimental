@@ -338,14 +338,7 @@ TYPE
 			moduleName := ""; procedureName := "";
 			RETURN TRUE
 		END SupportedInstruction;
-
-		(*! for testing purposes, will be removed *)
-		PROCEDURE SupportedInstruction2*(CONST instr: Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
-		BEGIN
-			moduleName := ""; procedureName := "";
-			RETURN TRUE
-		END SupportedInstruction2;
-
+		
 		PROCEDURE SetRuntimeModuleName*(CONST name: ARRAY OF CHAR);
 		BEGIN
 			COPY(name, runtimeModuleName);
