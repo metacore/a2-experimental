@@ -454,6 +454,7 @@ VAR options: Options.Options;
 	path, extension, codeFileName, dataFileName, moduleName, logFileName, tempName: Files.FileName;
 	diagnostics: Diagnostics.StreamDiagnostics; code, data: Arrangement; linker: GenericLinker.Linker;
 	linkRoot: ARRAY 256 OF CHAR; logFile: Files.File; log: Files.Writer;
+	use: SET;
 BEGIN
 	NEW (options);
 	options.Add (0X, "silent", Options.Flag);
@@ -486,7 +487,8 @@ BEGIN
 	NEW (diagnostics, context.error);
 	logFile := Files.New(logFileName);
 	IF logFile # NIL THEN NEW(log, logFile,0) ELSE log := NIL END;
-	NEW (linker, diagnostics, log, useAll, FALSE, code, data);
+	IF useAll THEN use := GenericLinker.UseAll ELSE use := GenericLinker.UseInitCode END;
+	NEW (linker, diagnostics, log, use, code, data);
 
 	IF options.GetString("linkRoot",linkRoot) THEN linker.SetLinkRoot(linkRoot) END;
 

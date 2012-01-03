@@ -134,9 +134,9 @@ TYPE
 		BEGIN RETURN pc
 		END GetPC;
 
-		PROCEDURE & InitIntermediateSection*(kind, type: SHORTINT; isDefinition: BOOLEAN; CONST n: Basic.PooledName; symbol: SyntaxTree.Symbol; comment: BOOLEAN);
+		PROCEDURE & InitIntermediateSection*(kind, type: SHORTINT; priority: INTEGER; isDefinition: BOOLEAN; CONST n: Basic.PooledName; symbol: SyntaxTree.Symbol; comment: BOOLEAN);
 		BEGIN
-			InitSection(kind,type,isDefinition,n,symbol); InitArray;resolved := NIL;
+			InitSection(kind,type,priority,isDefinition,n,symbol); InitArray;resolved := NIL;
 			IF comment THEN NEW(comments,GetPC) ELSE comments := NIL END;
 			finally := -1;
 			validPAFEnter := 0; validPAFExit := 0;
@@ -338,7 +338,7 @@ TYPE
 			moduleName := ""; procedureName := "";
 			RETURN TRUE
 		END SupportedInstruction;
-		
+
 		PROCEDURE SetRuntimeModuleName*(CONST name: ARRAY OF CHAR);
 		BEGIN
 			COPY(name, runtimeModuleName);
@@ -395,7 +395,7 @@ TYPE
 		ASSERT(name[3] # Basic.MakeString(""));
 
 		(* create a new section and enter it *)
-		NEW(section, kind, type, isDefinition, name, syntaxTreeSymbol, dump);
+		NEW(section, kind, type, 0 (* initial priority = 0 *), isDefinition, name, syntaxTreeSymbol, dump);
 		IF syntaxTreeSymbol # NIL THEN section.SetFingerprint(syntaxTreeSymbol.fingerprint.shallow) END;
 		list.AddSection(section);
 		RETURN section

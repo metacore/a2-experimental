@@ -215,14 +215,14 @@ TYPE
 		IF TraceError IN flags THEN
 			NEW(traceDiagnostics,diagnostics); diagnostics := traceDiagnostics
 		END;
-		
+
 		IF backend = NIL THEN
 			system := Global.DefaultSystem()
 		ELSE
 			IF Oberon07 IN flags THEN backend.SetOberon07 END; (* inform the backend about that the Oberon07 mode, it will return the corresponding Sytem object *)
 			system := backend.GetSystem();
 		END;
-		
+
 		IF (system # NIL) & (activeCellsSpecification # NIL) THEN
 			activeCellsSpecification.DefineDevices(system)
 		END;
@@ -456,7 +456,7 @@ TYPE
 				NEW (code, 0); NEW (data, 0);
 				COPY(instanceName, msg); Strings.Append(msg,".log");	logFile := Files.New(msg);
 				IF logFile # NIL THEN NEW(linkerLog,logFile,0) ELSE logFile := NIL END;
-				NEW (linker, specification.diagnostics, linkerLog, FALSE (* useAll *), FALSE (* stripInitCodes *), code, data);
+				NEW (linker, specification.diagnostics, linkerLog, GenericLinker.UseInitCode, code, data);
 
 				linker.SetLinkRoot("" (* linkRoot *)); (* take all initcode sections *)
 				StaticLinker.ReadObjectFile(instanceName, "",objectFileExtension,linker);
@@ -530,7 +530,7 @@ TYPE
 		options.Add("e","traceError",Options.Flag);
 		options.Add("I","interface",Options.Flag);
 		options.Add("i","info",Options.Flag);
-		options.Add(0X,"oberon07",Options.Flag);		
+		options.Add(0X,"oberon07",Options.Flag);
 		options.Add("b","backend",Options.String);
 		options.Add("f","findPC",Options.String);
 		options.Add(0X,"singleModule",Options.Flag);
@@ -543,7 +543,7 @@ TYPE
 
 		position := input.Pos();
 		parsed := options.Parse(input,NIL);
-		
+
 		IF options.GetString("b", name) THEN
 			IF name = "" THEN backend := NIL
 			ELSE
@@ -555,7 +555,7 @@ TYPE
 		ELSE backend := Backend.GetBackendByName(DefaultBackend);
 			IF backend = NIL THEN Error("default backend could not be installed"); result := FALSE END;
 		END;
-		
+
 		IF options.GetString("objectFile",name) THEN
 			IF name = "" THEN objectFile := NIL
 			ELSE
@@ -599,7 +599,7 @@ TYPE
 		END;
 
 		IF result THEN
-			IF options.GetFlag("print") THEN INCL(flags, Print) END;			
+			IF options.GetFlag("print") THEN INCL(flags, Print) END;
 			IF options.GetFlag("silent") THEN INCL(flags, Silent) END;
 			IF options.GetFlag("check") THEN INCL(flags, Check) END;
 			IF options.GetFlag("traceError") THEN INCL(flags, TraceError) END;

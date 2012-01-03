@@ -8,7 +8,11 @@ CONST InvalidAddress* = MAX (Address);
 
 TYPE Priority = LONGINT;
 
-CONST Fixed = 0; InitCode2 = 1; InitCode=2; BodyCode = 3; Code = 4; Default = 5; Empty = 6;
+CONST
+	Fixed* = 0; InitCode*=1; BodyCode* = 2; Code* = 3; Data* = 4; Const* = 5; Empty* = 6;
+	UseAll *= {Fixed .. Empty};
+	UseInitCode*={Fixed, InitCode};
+	UseAllButInitCode*={Fixed, BodyCode..Empty};
 
 TYPE Arrangement* = OBJECT
 
@@ -32,15 +36,16 @@ END;
 TYPE Linker* = OBJECT
 VAR
 	diagnostics: Diagnostics.Diagnostics;
-	useAll, stripInitCodes, error-: BOOLEAN;
+	usedCategories: SET;
+	error-: BOOLEAN;
 	log-: Streams.Writer;
 	code, data: Arrangement;
 	firstBlock, firstLinkedBlock: Block;
 	linkRoot: ObjectFile.SectionName;
 
-	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; log: Streams.Writer; useAll, stripInitCodes: BOOLEAN; code, data: Arrangement);
+	PROCEDURE &InitLinker* (diagnostics: Diagnostics.Diagnostics; log: Streams.Writer; useCategories: SET; code, data: Arrangement);
 	BEGIN
-		SELF.diagnostics := diagnostics; SELF.log := log; SELF.useAll := useAll; SELF.stripInitCodes := stripInitCodes;
+		SELF.diagnostics := diagnostics; SELF.log := log; SELF.usedCategories := useCategories;
 		error := FALSE; SELF.code := code; SELF.data := data; firstBlock := NIL; firstLinkedBlock := NIL;
 		linkRoot := "";
 	END InitLinker;
@@ -96,8 +101,8 @@ VAR
 	BEGIN
 		IF FindBlock (section.identifier) # NIL THEN ObjectFile.FromPooledName(section.identifier.name,name); Error (name, "duplicated section"); RETURN; END;
 		NEW (block); ObjectFile.CopySection (section, block^); block.address := InvalidAddress; block.referenced := FALSE; block.used := FALSE;
-		priority := GetPriority (block); current := firstBlock; previous := NIL;
-		WHILE (current # NIL) & (GetPriority (current) <= priority) DO previous := current; current := current.next; END;
+		current := firstBlock; previous := NIL;
+		WHILE (current # NIL) & Precedes(current, block) DO previous := current; current := current.next; END;
 		IF previous # NIL THEN previous.next := block; ELSE firstBlock := block; END; block.next := current;
 		ExportBlock(block);
 	END AddSection;
@@ -108,8 +113,7 @@ VAR
 		IF ~error THEN block := firstBlock;
 			WHILE block # firstLinkedBlock DO
 				ObjectFile.FromPooledName(block.identifier.name, name);
-				used := (useAll OR (GetPriority (block) <= InitCode) OR (linkRoot # "") & Strings.StartsWith(linkRoot,0,name));
-				IF stripInitCodes & (block.type = ObjectFile.InitCode) THEN used := FALSE END;
+				used := (GetType (block) IN usedCategories) OR (linkRoot # "") & Strings.StartsWith(linkRoot,0,name);
 				Reference (block, used); block := block.next;
 			END;
 		END;
@@ -267,16 +271,26 @@ VAR
 
 END Linker;
 
-PROCEDURE GetPriority (block: Block): Priority;
+PROCEDURE GetType*(block: Block): LONGINT;
 BEGIN
 	IF block.fixed THEN RETURN Fixed END;
 	IF block.type = ObjectFile.InitCode THEN RETURN InitCode END;
-	IF block.type = ObjectFile.InitCode2 THEN RETURN InitCode2 END;
 	IF block.type = ObjectFile.BodyCode THEN RETURN BodyCode END;
 	IF block.bits.GetSize () = 0 THEN RETURN Empty END;
 	IF block.type = ObjectFile.Code THEN RETURN Code END;
-	RETURN Default;
-END GetPriority;
+	IF block.type = ObjectFile.Data THEN RETURN Data END;
+	IF block.type = ObjectFile.Const THEN RETURN Const END;
+	HALT(100); (* undefined type *)
+END GetType;
+
+
+PROCEDURE Precedes* (this, that: Block): BOOLEAN;
+VAR leftType, rightType: LONGINT;
+BEGIN
+	leftType := GetType(this);
+	rightType := GetType(that);
+	RETURN (leftType < rightType) OR (leftType = rightType) & (this.priority < that.priority)
+END Precedes;
 
 PROCEDURE Process* (reader: Streams.Reader; linker: Linker);
 VAR section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOOLEAN; poolMap: ObjectFile.PoolMap;
@@ -290,6 +304,7 @@ VAR section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOO
 		reader.SkipWhitespace;
 		reader.Char(ch); ASSERT(ch='v');
 		reader.Int(version,FALSE);
+		IF version <2 THEN linker.Error("","old object file version encountered. Recompile sources.") END;
 		reader.Char(ch); ASSERT(ch='.');
 		IF ~binary THEN reader.SkipWhitespace
 		ELSE

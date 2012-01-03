@@ -1522,12 +1522,13 @@ TYPE
 			isDelegate := FALSE; isInterrupt := FALSE; noPAF := FALSE;
 			callingConvention := OberonCallingConvention;
 			parameterOffset := 0;
-			pcOffset := 0
+			pcOffset := 0;
 		END InitProcedureType;
 
 		PROCEDURE SetNoPAF*(noPAF: BOOLEAN);
 		BEGIN SELF.noPAF := noPAF
 		END SetNoPAF;
+
 
 		PROCEDURE SetPcOffset*(pcOffset: LONGINT);
 		BEGIN SELF.pcOffset := pcOffset
@@ -2735,7 +2736,7 @@ TYPE
 			procedureScope- : ProcedureScope;
 			super-: Procedure;
 			level-, methodNumber-: LONGINT;
-			isBodyProcedure-, isConstructor-, isInline-: BOOLEAN;
+			isBodyProcedure-, isConstructor-, isInline-,isEntry-, isExit-: BOOLEAN;
 
 		PROCEDURE & InitProcedure( position: LONGINT;  name: Identifier; scope: ProcedureScope);
 		BEGIN
@@ -2750,6 +2751,8 @@ TYPE
 			isBodyProcedure := FALSE;
 			isConstructor := FALSE;
 			isInline := FALSE;
+			isEntry := FALSE;
+			isExit := FALSE;
 		END InitProcedure;
 
 		PROCEDURE SetSuper*(super: Procedure);
@@ -2768,6 +2771,14 @@ TYPE
 		PROCEDURE SetInline*(isInline: BOOLEAN);
 		BEGIN SELF.isInline := isInline
 		END SetInline;
+
+		PROCEDURE SetEntry*(entry: BOOLEAN);
+		BEGIN SELF.isEntry := entry
+		END SetEntry;
+
+		PROCEDURE SetExit*(exit: BOOLEAN);
+		BEGIN SELF.isExit := exit
+		END SetExit;
 
 		PROCEDURE SetLevel*(level: LONGINT);
 		BEGIN SELF.level := level
@@ -2806,18 +2817,18 @@ TYPE
 	CustomBuiltin*=OBJECT (Builtin)
 	VAR
 		subType-: SHORTINT;
-		
+
 		PROCEDURE & InitCustomBuiltin(position: LONGINT; name: Identifier; id: LONGINT; subType: SHORTINT);
 		BEGIN
 			InitBuiltin(position,name,id);
 			SELF.subType := subType;
 		END InitCustomBuiltin;
-		
+
 		(* TODO: check if this is correct *)
 		PROCEDURE CompatibleTo*(otherType: Type): BOOLEAN;
 		BEGIN RETURN FALSE
 		END CompatibleTo;
-		
+
 	END CustomBuiltin;
 
 	Operator* = OBJECT (Procedure)

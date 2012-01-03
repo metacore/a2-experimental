@@ -7,22 +7,24 @@ CONST
 	Absolute* = 0;
 	Relative* = 1;
 
-	(* Section types *)
-	(* code section types, ordered by decreasing linking preference *)
-	InitCode2*= 0;
-	InitCode* = 1;
-	BodyCode*= 2;
-	Code* = 3;
-	(* data section types *)
-	Data* = 4;
-	Const* = 5;
 
+	(* Section categories *)
+	(* code section categories, ordered by decreasing linking preference *)
+	InitCode*=0; (* initcode sections provide the entry point for static linking. A static linker includes this sections, a dynamic linker wants to omit them *)
+	BodyCode*=1; (* body code sections provide the entry point for dynamic linking. A dynamic linker needs to be able to distinguish them from normal code *)
+	Code*=2; (* normal executable code *)
+	(* data section categories *)
+	Data* = 3; (* data sections provide space for (global) variables *)
+	Const* = 4; (* const sections are data sections that are immutable *)
+
+	(* alignment types *)
 	Aligned=0;
 	Fixed=1;
 
 	DefaultExtension* = ".Gof";
 
 TYPE
+
 	Unit* = LONGINT;
 	Bits* = LONGINT;
 
@@ -78,6 +80,7 @@ TYPE
 
 	Section* = RECORD
 		type*: SectionType;
+		priority*: LONGINT;
 		identifier*: Identifier;
 		unit*: Bits;
 		fixed*: BOOLEAN;
@@ -177,13 +180,13 @@ TYPE
 	END PoolMap;
 
 VAR
-	types: ARRAY 6 OF ARRAY 10 OF CHAR;
+	categories: ARRAY 6 OF ARRAY 10 OF CHAR;
 	modes: ARRAY 2 OF ARRAY 4 OF CHAR;
 	relocatabilities: ARRAY 2 OF ARRAY 8 OF CHAR;
 
 
 	PROCEDURE IsCode* (type: SectionType): BOOLEAN;
-	BEGIN RETURN (type IN {InitCode2, InitCode, BodyCode, Code})
+	BEGIN RETURN (type IN {InitCode, BodyCode, Code})
 	END IsCode;
 
 	PROCEDURE Matches*(CONST this, that: Identifier): BOOLEAN;
@@ -325,7 +328,7 @@ VAR
 
 	BEGIN
 		IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
-		WriteValueIdentifier (section.type, types);
+		WriteValueIdentifier (section.type, categories);
 		writer.Char (Separator);
 		WriteIdentifier(section.identifier);
 		writer.Char (Separator);
@@ -334,6 +337,8 @@ VAR
 		IF section.fixed THEN WriteValueIdentifier(Fixed,relocatabilities) ELSE WriteValueIdentifier(Aligned,relocatabilities) END;
 		writer.Char (Separator);
 		writer.Int (section.alignment, 0);
+		writer.Char (Separator);
+		writer.Int(section.priority, 0);
 		writer.Char (Separator);
 		writer.Int (section.fixups, 0);
 		writer.Char (Separator);
@@ -424,12 +429,13 @@ VAR
 		END ReadFixup;
 
 	BEGIN
-		ReadValueIdentifier (section.type, types);
+		ReadValueIdentifier (section.type, categories);
 		ReadIdentifier (section.identifier);
 		reader.SkipWhitespace; reader.Int (section.unit, FALSE);
 		ReadValueIdentifier(relocatibility, relocatabilities);
 		section.fixed := relocatibility = Fixed;
 		reader.SkipWhitespace; reader.Int (section.alignment, FALSE);
+		reader.SkipWhitespace; reader.Int (section.priority, FALSE);
 		reader.SkipWhitespace; reader.Int (section.fixups, FALSE);
 		reader.SkipWhitespace; reader.Int (size, FALSE); size := size * section.unit;
 		IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
@@ -513,11 +519,12 @@ VAR
 	BEGIN
 		IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
 		writer.Char(1X);
-		WriteValueIdentifier (section.type, types);
+		WriteValueIdentifier (section.type, categories);
 		WriteIdentifier(section.identifier);
 		writer.RawNum (section.unit);
 		IF section.fixed THEN WriteValueIdentifier(Fixed,relocatabilities) ELSE WriteValueIdentifier(Aligned,relocatabilities) END;
 		writer.RawNum (section.alignment);
+		writer.RawNum (section.priority);
 		writer.RawNum (section.fixups);
 		size := section.bits.GetSize ();
 		writer.RawNum (size DIV section.unit);
@@ -618,12 +625,13 @@ VAR
 
 	BEGIN
 		reader.Char(ch); ASSERT(ch = 1X);
-		ReadValueIdentifier (section.type, types);
+		ReadValueIdentifier (section.type, categories);
 		ReadIdentifier (section.identifier);
 		reader.RawNum (section.unit);
 		ReadValueIdentifier(relocatibility, relocatabilities);
 		section.fixed := relocatibility = Fixed;
 		reader.RawNum (section.alignment);
+		reader.RawNum (section.priority);
 		reader.RawNum (section.fixups);
 		reader.RawNum (size); size := size * section.unit;
 		IF (section.fixup = NIL) OR (LEN (section.fixup) < section.fixups) THEN
@@ -820,12 +828,11 @@ VAR
 	END "#";
 
 BEGIN
-	types[Code] := "code";
-	types[InitCode] := "initcode";
-	types[InitCode2] := "initcode2";
-	types[BodyCode] := "bodycode";
-	types[Data] := "data";
-	types[Const] := "const";
+	categories[Code] := "code";
+	categories[InitCode] := "initcode";
+	categories[BodyCode] := "bodycode";
+	categories[Data] := "data";
+	categories[Const] := "const";
 	modes[Absolute] := "abs";
 	modes[Relative] := "rel";
 	relocatabilities[Fixed] := "fixed";

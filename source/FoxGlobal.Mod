@@ -12,6 +12,8 @@ CONST
 	StringDelegate* = "DELEGATE";
 	StringInterrupt*= "INTERRUPT";
 	StringPcOffset* = "PCOFFSET";
+	StringEntry* = "ENTRY";
+	StringExit*= "EXIT";
 	StringNoPAF*="NOPAF";
 	StringFixed*="FIXED";
 	StringAligned*="ALIGNED";
@@ -107,7 +109,7 @@ VAR
 	(* names *)
 	SelfParameterName-,ReturnParameterName-,SystemName-,systemName-,PointerReturnName-, ResultName-,
 	A2Name-,OberonName-,ArrayBaseName-,RecordBodyName-,ModuleBodyName-,
-	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-, NamePcOffset-, NameNoPAF-,NameFixed-,NameAligned-,NameStackAligned-,
+	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-, NamePcOffset-, NameNoPAF-,NameEntry-, NameExit-, NameFixed-,NameAligned-,NameStackAligned-,
 	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-, NameDynamic-, NameDataMemorySize-, NameCodeMemorySize-
 	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-, NameVector-, NameFloatingPoint-: SyntaxTree.Identifier;
 
@@ -976,15 +978,15 @@ TYPE
 		NewBuiltin0(id,nameU,scope[Scanner.Uppercase],realtime);
 		NewBuiltin0(id,nameL,scope[Scanner.Lowercase],realtime);
 	END NewBuiltin;
-	
+
 	PROCEDURE NewCustomBuiltin0(CONST name: ARRAY OF CHAR; scope: SyntaxTree.ModuleScope; subType: SHORTINT; procedureType: SyntaxTree.ProcedureType);
 	VAR
 		isDuplicate: BOOLEAN;
-		customBuiltin: SyntaxTree.CustomBuiltin;		
+		customBuiltin: SyntaxTree.CustomBuiltin;
 	BEGIN
 		customBuiltin := SyntaxTree.NewCustomBuiltin(-1, SyntaxTree.NewIdentifier(name), systemSpecial, subType);
 		customBuiltin.SetAccess(SyntaxTree.ReadOnly); (* TODO: this might be changed *)
-		procedureType.SetRealtime(TRUE);		
+		procedureType.SetRealtime(TRUE);
 		customBuiltin.SetType(procedureType); (* TODO: make incompatible to any procedure *)
 		customBuiltin.SetState(SyntaxTree.Resolved);
 		scope.EnterSymbol(customBuiltin, isDuplicate);
@@ -1403,6 +1405,8 @@ TYPE
 		NameInterrupt := SyntaxTree.NewIdentifier(StringInterrupt);
 		NamePcOffset := SyntaxTree.NewIdentifier(StringPcOffset);
 		NameNoPAF := SyntaxTree.NewIdentifier(StringNoPAF);
+		NameEntry := SyntaxTree.NewIdentifier(StringEntry);
+		NameExit := SyntaxTree.NewIdentifier(StringExit);
 		NameFixed := SyntaxTree.NewIdentifier(StringFixed);
 		NameAligned := SyntaxTree.NewIdentifier(StringAligned);
 		NameStackAligned := SyntaxTree.NewIdentifier(StringAlignStack);

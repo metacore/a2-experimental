@@ -65,6 +65,12 @@ CONST
 		LhsIsPointer = 0; (* for the operator kind *)
 		RhsIsPointer = 1;
 
+		(* priority values *)
+		FirstPriority=0;
+		EntryPriority=1;
+		InitPriority=2;
+		ExitPriority=3;
+
 		DisableSysCalls= TRUE;
 TYPE
 	SupportedInstructionProcedure* = PROCEDURE {DELEGATE} (CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
@@ -403,6 +409,7 @@ TYPE
 			registerClass: IntermediateCode.RegisterClass;
 			type: IntermediateCode.Type;
 			formalParameter: SyntaxTree.Parameter;
+			priority: INTEGER;
 
 			PROCEDURE Signature;
 			VAR parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType; returnType : SyntaxTree.Type;
@@ -485,7 +492,12 @@ TYPE
 				ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, TRUE, name,x,dump);
 			ELSE
 				inline := FALSE;
-				ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, TRUE, name,x,dump);
+				IF x.isEntry OR x.isExit THEN
+					ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InitCodeSection, TRUE, name,x,dump);
+					IF x.isEntry THEN ir.SetPriority(EntryPriority) ELSE ir.SetPriority(ExitPriority) END;
+				ELSE
+					ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, TRUE, name,x,dump);
+				END;
 			END;
 
 			cc := procedureType.callingConvention;
@@ -619,7 +631,8 @@ TYPE
 			procedure.SetType(SyntaxTree.NewProcedureType(-1,bodyProcedure.scope));
 			procedure.SetAccess(SyntaxTree.Hidden);
 			Global.GetSymbolPooledName (procedure,name);
-			ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InitCodeSection, TRUE, name,procedure,dump);
+			ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InitCodeSection,TRUE, name,procedure,dump);
+			ir.SetPriority(InitPriority);
 			Global.GetSymbolPooledName (bodyProcedure,name);
 			IntermediateCode.InitAddress(op, IntermediateCode.GetType(system,system.addressType), implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.BodyCodeSection, TRUE, name,bodyProcedure,dump) , 0);
 			ir.Emit(Call(bodyProcedure.position,op, 0));
@@ -632,7 +645,8 @@ TYPE
 			Global.GetSymbolPooledName (symbol,name);
 			Basic.RemoveSuffix(name);
 			Basic.SuffixPooledName(name, Basic.MakeString("@StackAllocation"));
-			ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InitCode2Section, TRUE, name,NIL,dump);
+			ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InitCodeSection,TRUE, name,NIL,dump);
+			ir.SetPriority(FirstPriority);
 			IntermediateCode.InitImmediate(op,IntermediateCode.GetType(system,system.addressType),initStack);
 			ir.Emit(Mov(-1,implementationVisitor.sp,op));
 		END AddStackAllocation;
@@ -740,7 +754,7 @@ TYPE
 			IF hasDynamicOperatorDeclarations THEN
 				EnsureBodyProcedure(x.moduleScope);
 				Global.GetModulePooledName(module.module,name); Basic.SuffixPooledName(name, Basic.MakeString("@OperatorInitialization"));
-				implementationVisitor.operatorInitializationCodeSection := implementationVisitor.NewSection(module.allSections, Sections.RegularKind, Sections.CodeSection, TRUE, name, NIL, dump);
+				implementationVisitor.operatorInitializationCodeSection := implementationVisitor.NewSection(module.allSections, Sections.RegularKind, Sections.CodeSection,TRUE, name, NIL, dump);
 				implementationVisitor.operatorInitializationCodeSection.Emit(Enter(-1,0,0,0));
 			END;
 
@@ -950,7 +964,7 @@ TYPE
 			IF (syntaxTreeSymbol # NIL) & ~((syntaxTreeSymbol IS SyntaxTree.Procedure) & (syntaxTreeSymbol(SyntaxTree.Procedure).isInline)) THEN
 				fp := fingerPrinter.SymbolFP(syntaxTreeSymbol)
 			END;
-			RETURN IntermediateCode.NewSection(list, kind, type, isDefinition, name, syntaxTreeSymbol, dump)
+			RETURN IntermediateCode.NewSection(list, kind, type,  isDefinition, name, syntaxTreeSymbol, dump)
 		END NewSection;
 
 		PROCEDURE AcquireRegister(CONST type: IntermediateCode.Type; class: IntermediateCode.RegisterClass): LONGINT;
@@ -6397,7 +6411,7 @@ TYPE
 			ELSIF x.scope IS SyntaxTree.ModuleScope THEN (* global variable in imported module *)
 				InitOperand(result,ModeReference);
 				Global.GetSymbolPooledName(x,name);
-				symbol := NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.VarSection, FALSE, name,x,commentPrintout # NIL);
+				symbol := NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.VarSection,FALSE, name,x,commentPrintout # NIL);
 				IntermediateCode.InitAddress(result.op, addressType, symbol, 0)
 			ELSE (* field, left designator must have been emitted *)
 				ASSERT(result.mode = ModeReference);

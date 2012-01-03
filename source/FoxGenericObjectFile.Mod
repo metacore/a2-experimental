@@ -6,7 +6,7 @@ IMPORT
 	FingerPrinter := FoxFingerPrinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := FoxTextualSymbolFile, KernelLog, D := Debugging;
 
 CONST
-	version = 1;
+	Version = 2;
 	Trace = FALSE;
 
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
@@ -170,6 +170,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		reader.SkipWhitespace;
 		reader.Char(ch); ASSERT(ch='v');
 		reader.Int(version,FALSE);
+		IF version < Version THEN KernelLog.String("warning: old object file encountered"); KernelLog.Ln END;
 		reader.Char(ch); ASSERT(ch='.');
 		IF ~binary THEN reader.SkipWhitespace
 		ELSE
@@ -238,7 +239,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		ELSE writer.String("FoxOFT");
 		END;
 		writer.Char(' ');
-		writer.Char('v'); writer.Int(version,0); writer.Char(".");
+		writer.Char('v'); writer.Int(Version,0); writer.Char(".");
 		IF ~binary THEN writer.Ln
 		ELSE
 			NEW(poolMap,512);

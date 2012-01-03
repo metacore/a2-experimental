@@ -400,6 +400,13 @@ TYPE
 						Error(positionOfProperty, "invalid fingerprint")
 					END
 
+				(* position *)
+				ELSIF ThisIdentifier("priority") & ExpectToken(Scanner.Equal) THEN
+					IF ExpectIntegerWithSign(integer) THEN
+						section.SetPriority(SHORT(integer));
+					ELSE
+						Error(positionOfProperty," invalid priority")
+					END;
 				(* alignment *)
 				ELSIF ThisIdentifier("aligned") & ExpectToken(Scanner.Equal) THEN
 					IF ExpectIntegerWithSign(integer) THEN
@@ -530,7 +537,6 @@ TYPE
 							ELSIF identifier = "bodycode" THEN sectionType := Sections.BodyCodeSection
 							ELSIF identifier = "inlinecode" THEN sectionType := Sections.InlineCodeSection
 							ELSIF identifier = "initcode" THEN sectionType := Sections.InitCodeSection
-							ELSIF identifier = "initcode2" THEN sectionType := Sections.InitCode2Section
 							ELSE Error(positionOfDirective, "invalid directive or section type")
 							END;
 
@@ -775,7 +781,7 @@ TYPE
 				IF Trace THEN D.String(">>> MarkAsReachable "); Basic.WritePooledName(D.Log, section.name); D.Ln END;
 				section.SetReachability(TRUE);
 				prefix := section.name; Basic.RemoveSuffix(prefix);
-				MarkAsReachableStartingWith(prefix, {Sections.InitCodeSection, Sections.InitCode2Section});
+				MarkAsReachableStartingWith(prefix, {Sections.InitCodeSection});
 				ASSERT(section IS IntermediateCode.Section);
 				intermediateCodeSection := section(IntermediateCode.Section);
 				(* go through all instructions in the section *)
@@ -1064,10 +1070,10 @@ TYPE
 			ELSIF leftSection.IsCode() & ~rightSection.IsCode() THEN (* data sections first *)
 				RETURN FALSE
 			ELSIF leftSection.IsCode() & rightSection.IsCode() THEN (* code sections: sorted by linking preference, stable w.r.t. loading order *)
-				IF GetPriority(leftSection) < GetPriority(rightSection) THEN
+				IF GetType(leftSection) < GetType(rightSection) THEN
 					RETURN TRUE
-				ELSIF GetPriority(leftSection) = GetPriority(rightSection) THEN
-					RETURN leftSection.offset < rightSection.offset (* must keep order as provided by loader *)
+				ELSIF GetType(leftSection) = GetType(rightSection) THEN
+					RETURN (leftSection.priority < rightSection.priority) OR (leftSection.offset < rightSection.offset) (* must keep order as provided by loader *)
 				ELSE
 					RETURN FALSE
 				END
@@ -1199,16 +1205,19 @@ TYPE
 		END GenerateObjectFileWithName;
 
 	END Assemblinker;
-
-	PROCEDURE GetPriority (block: Sections.Section): LONGINT;
+	PROCEDURE GetType*(block: Sections.Section): LONGINT;
+	CONST Fixed=0; InitCode=1; BodyCode=2;Code=3; Data=4; Const=5; Empty =6;
 	BEGIN
-		IF block.fixed THEN RETURN 0 END;
-		IF block.type = ObjectFile.InitCode2 THEN RETURN 1 END;
-		IF block.type = ObjectFile.InitCode THEN RETURN 2 END;
-		IF block.type = ObjectFile.BodyCode THEN RETURN 3 END;
-		IF block.type = ObjectFile.Code THEN RETURN 4 END;
-		IF block.GetSize () = 0 THEN RETURN 6 END;
-		RETURN 5; (* default *)
-	END GetPriority;
+		IF block.fixed THEN RETURN Fixed END;
+		IF block.type = ObjectFile.InitCode THEN RETURN InitCode END;
+		IF block.type = ObjectFile.BodyCode THEN RETURN BodyCode END;
+		IF block.GetSize () = 0 THEN RETURN Empty END;
+		IF block.type = ObjectFile.Code THEN RETURN Code END;
+		IF block.type = ObjectFile.Data THEN RETURN Data END;
+		IF block.type = ObjectFile.Const THEN RETURN Const END;
+		HALT(100); (* undefined type *)
+	END GetType;
+
+
 
 END FoxIntermediateCodeAssembler.

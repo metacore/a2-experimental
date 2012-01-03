@@ -5518,13 +5518,13 @@ TYPE
 				ELSIF id = Global.systemSpecial THEN
 					customBuiltin := builtin(SyntaxTree.CustomBuiltin);
 					ASSERT(customBuiltin.type IS SyntaxTree.ProcedureType);
-					procedureType := customBuiltin.type(SyntaxTree.ProcedureType);					
+					procedureType := customBuiltin.type(SyntaxTree.ProcedureType);
 					type := procedureType.returnType;
-					IF CheckArity(procedureType.numberParameters, procedureType.numberParameters) THEN (* check parameter count *)					
+					IF CheckArity(procedureType.numberParameters, procedureType.numberParameters) THEN (* check parameter count *)
 						(* go through all formal parameters *)
 						formalParameter := procedureType.firstParameter;
 						FOR i := 0 TO actualParameters.Length() - 1 DO
-							actualParameter := actualParameters.GetExpression(i);						
+							actualParameter := actualParameters.GetExpression(i);
 							IF actualParameter = SyntaxTree.invalidExpression THEN
 							ELSIF ~ParameterCompatible(formalParameter,actualParameter) THEN
 								Error(position,Diagnostics.Invalid, "incompatible parameter")
@@ -5532,10 +5532,10 @@ TYPE
 								actualParameter := NewConversion(actualParameter.position, actualParameter, formalParameter.type, NIL)
 							END;
 							actualParameters.SetExpression(i, actualParameter);
-							formalParameter := formalParameter.nextParameter						
+							formalParameter := formalParameter.nextParameter
 						END
 					END
-					
+
 				ELSE
 					Error(position,Diagnostics.Invalid,"builtin not implemented");
 					result := SyntaxTree.invalidExpression;
@@ -6073,6 +6073,9 @@ TYPE
 				IF HasValue(modifiers, Global.NamePcOffset, position, value) THEN procedureType.SetPcOffset(value) END;
 
 				IF HasFlag(modifiers,Global.NameNoPAF,position) THEN procedureType.SetNoPAF(TRUE) END;
+				IF HasFlag(modifiers, Global.NameEntry,position) THEN procedure.SetEntry(TRUE)
+				ELSIF HasFlag(modifiers, Global.NameExit, position) THEN procedure.SetExit(TRUE)
+				END;
 				IF HasValue(modifiers,Global.NameAligned,position,value) THEN procedure.SetAlignment(FALSE,value)
 				ELSIF HasValue(modifiers,Global.NameFixed,position,value) THEN procedure.SetAlignment(TRUE,value)
 				END;

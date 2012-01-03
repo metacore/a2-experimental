@@ -3,11 +3,10 @@ MODULE FoxSections; (** AUTHOR "fof"; PURPOSE "support for code sections and ref
 IMPORT SyntaxTree := FoxSyntaxTree,Streams,Global := FoxGlobal,Formats := FoxFormats, Basic := FoxBasic, Strings, ObjectFile;
 
 CONST
-	(* section types *)
-	CodeSection*=ObjectFile.Code;
+	(* section categories *)
 	InitCodeSection*=ObjectFile.InitCode;
-	InitCode2Section*=ObjectFile.InitCode2;
 	BodyCodeSection*=ObjectFile.BodyCode;
+	CodeSection*=ObjectFile.Code;
 	VarSection*=ObjectFile.Data;
 	ConstSection*=ObjectFile.Const;
 	InlineCodeSection*=10;
@@ -33,6 +32,7 @@ TYPE
 	VAR
 		name-: ObjectFile.PooledName; (* name of this section (globally unique-name derived from symbol name) *)
 		type-: SHORTINT; (* CodeSection, InlineCodeSection, VarSection or ConstSection *)
+		priority-: INTEGER; (* priority of the section *)
 		symbol-: SyntaxTree.Symbol; (* corresponding symbol in AST *)
 
 		isPrototype-: BOOLEAN; (* only applicable if kind=UnknownKind (used to determine whether a section is external or not) *)
@@ -50,13 +50,14 @@ TYPE
 		bitsPerUnit-: LONGINT; (* the unit size given in bits *)
 		isReachable-: BOOLEAN;
 
-		PROCEDURE & InitSection*(kind, type: SHORTINT; isDefinition: BOOLEAN; CONST n: ObjectFile.PooledName; symbol: SyntaxTree.Symbol);
+		PROCEDURE & InitSection*(kind, type: SHORTINT; priority: INTEGER; isDefinition: BOOLEAN; CONST n: ObjectFile.PooledName; symbol: SyntaxTree.Symbol);
 		BEGIN
 			ASSERT(kind # 0);
 			name := n;
 			SELF.symbol := symbol;
 			SELF.kind := kind;
 			SELF.type := type;
+			SELF.priority := priority;
 			isPrototype := ~isDefinition;
 			entryNumber := 0;
 			offset := 0;
@@ -82,7 +83,7 @@ TYPE
 
 		PROCEDURE IsCode*(): BOOLEAN;
 		BEGIN
-			RETURN type IN {CodeSection, InitCodeSection, InitCode2Section, BodyCodeSection};
+			RETURN type IN {CodeSection, InitCodeSection, BodyCodeSection};
 		END IsCode;
 
 		PROCEDURE MarkAsNoPrototype*;
@@ -133,6 +134,10 @@ TYPE
 		BEGIN SELF.type := type
 		END SetType;
 
+		PROCEDURE SetPriority*(priority: INTEGER);
+		BEGIN SELF.priority := priority
+		END SetPriority;
+
 		(* needed for old object file format, will be removed *)
 		PROCEDURE SetEntryNumber*(nr: LONGINT);
 		BEGIN entryNumber := nr;
@@ -150,7 +155,6 @@ TYPE
 			| VarSection: w.String("var");
 			| ConstSection: w.String("const");
 			| InitCodeSection: w.String("initcode");
-			| InitCode2Section: w.String("initcode2");
 			END;
 			w.String(" ");
 			DumpName(w);
@@ -161,6 +165,8 @@ TYPE
 			ELSIF positionOrAlignment > 1 THEN
 				w.String(" aligned="); w.Int(positionOrAlignment, 0)
 			END;
+
+			IF priority # 0 THEN w.String(" priority="); w.Int(priority,0) END;
 
 			IF fingerprint # 0 THEN w.String(" fingerprint="); w.Int(fingerprint, 0) END;
 
