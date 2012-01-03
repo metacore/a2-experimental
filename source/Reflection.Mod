@@ -41,7 +41,7 @@ VAR
 		IF v.type = 15 THEN
 			w.Char(22X);
 			LOOP
-				IF (v.n = 0) OR (~CheckHeapAddress(v.adr)) THEN EXIT END;
+				IF (v.n = 0) (*OR (~CheckHeapAddress(v.adr))*) THEN EXIT END;
 				SYSTEM.GET(v.adr, ch);
 				INC(v.adr);
 				IF (ch < " ") OR (ch > "~") THEN EXIT END;
