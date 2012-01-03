@@ -239,6 +239,7 @@ VAR
 		dest.unit := source.unit;
 		dest.fixed := source.fixed;
 		dest.alignment := source.alignment;
+		dest.priority := source.priority;
 		dest.fixups:= source.fixups;
 		NEW (dest.fixup, dest.fixups);
 		FOR i := 0 TO dest.fixups - 1 DO

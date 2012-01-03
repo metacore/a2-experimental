@@ -2611,7 +2611,7 @@ TYPE
 		InitOperand(op1); InitOperand(op2); InitOperand(op3);
 		NEW(diagnostics,context.error);
 		Basic.ToPooledName("test", pooledName);
-		NEW(code,Sections.CodeSection,8,pooledName,TRUE,TRUE);
+		NEW(code,Sections.CodeSection,8,0,pooledName,TRUE,TRUE);
 		NEW(assembly,diagnostics);
 		assembly.SetCode(code);
 		InitRegister(op1,InstructionSet.regEAX);

@@ -1070,9 +1070,9 @@ TYPE
 			ELSIF leftSection.IsCode() & ~rightSection.IsCode() THEN (* data sections first *)
 				RETURN FALSE
 			ELSIF leftSection.IsCode() & rightSection.IsCode() THEN (* code sections: sorted by linking preference, stable w.r.t. loading order *)
-				IF GetType(leftSection) < GetType(rightSection) THEN
+				IF GetPriority(leftSection) < GetPriority(rightSection) THEN
 					RETURN TRUE
-				ELSIF GetType(leftSection) = GetType(rightSection) THEN
+				ELSIF GetPriority(leftSection) = GetPriority(rightSection) THEN
 					RETURN (leftSection.priority < rightSection.priority) OR (leftSection.offset < rightSection.offset) (* must keep order as provided by loader *)
 				ELSE
 					RETURN FALSE
@@ -1205,18 +1205,19 @@ TYPE
 		END GenerateObjectFileWithName;
 
 	END Assemblinker;
-	PROCEDURE GetType*(block: Sections.Section): LONGINT;
+
+	PROCEDURE GetPriority*(block: Sections.Section): LONGINT;
 	CONST Fixed=0; InitCode=1; BodyCode=2;Code=3; Data=4; Const=5; Empty =6;
 	BEGIN
 		IF block.fixed THEN RETURN Fixed END;
 		IF block.type = ObjectFile.InitCode THEN RETURN InitCode END;
-		IF block.type = ObjectFile.BodyCode THEN RETURN BodyCode END;
+		IF block.type = ObjectFile.BodyCode THEN RETURN Code END; (* BodyCode does not necessarily have to be in front of code *)
 		IF block.GetSize () = 0 THEN RETURN Empty END;
 		IF block.type = ObjectFile.Code THEN RETURN Code END;
 		IF block.type = ObjectFile.Data THEN RETURN Data END;
 		IF block.type = ObjectFile.Const THEN RETURN Const END;
 		HALT(100); (* undefined type *)
-	END GetType;
+	END GetPriority;
 
 
 

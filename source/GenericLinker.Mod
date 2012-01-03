@@ -96,6 +96,15 @@ VAR
 	BEGIN  IF ObjectFile.IsCode (block.type) THEN RETURN code; ELSE RETURN data; END;
 	END GetArrangement;
 
+	(* this procedure may be overwritten by implementations of the linker that need a special ordering, as, for example, the bodycode in the front or so *)
+	PROCEDURE Precedes* (this, that: Block): BOOLEAN;
+	VAR leftType, rightType: LONGINT;
+	BEGIN
+		leftType := GetPriority(this);
+		rightType := GetPriority(that);
+		RETURN (leftType < rightType) OR (leftType = rightType) & (this.priority < that.priority)
+	END Precedes;
+
 	PROCEDURE AddSection* (CONST section: ObjectFile.Section);
 	VAR priority: Priority; block, current, previous: Block; name: ARRAY 256 OF CHAR;
 	BEGIN
@@ -283,14 +292,19 @@ BEGIN
 	HALT(100); (* undefined type *)
 END GetType;
 
-
-PROCEDURE Precedes* (this, that: Block): BOOLEAN;
-VAR leftType, rightType: LONGINT;
+PROCEDURE GetPriority(block: Block): LONGINT;
 BEGIN
-	leftType := GetType(this);
-	rightType := GetType(that);
-	RETURN (leftType < rightType) OR (leftType = rightType) & (this.priority < that.priority)
-END Precedes;
+	IF block.fixed THEN RETURN Fixed END;
+	IF block.type = ObjectFile.InitCode THEN RETURN InitCode END;
+	IF block.bits.GetSize () = 0 THEN RETURN Empty END;
+	IF block.type = ObjectFile.BodyCode THEN RETURN Code END;
+	IF block.type = ObjectFile.Code THEN RETURN Code END;
+	IF block.type = ObjectFile.Data THEN RETURN Data END;
+	IF block.type = ObjectFile.Const THEN RETURN Const END;
+	HALT(100); (* undefined type *)
+END GetPriority;
+
+
 
 PROCEDURE Process* (reader: Streams.Reader; linker: Linker);
 VAR section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOOLEAN; poolMap: ObjectFile.PoolMap;

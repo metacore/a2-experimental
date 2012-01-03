@@ -143,7 +143,7 @@ TYPE
 		END GetPC;
 
 
-		PROCEDURE & InitBinarySection*(type: SHORTINT; unit: LONGINT; CONST name:Basic.PooledName; dump: BOOLEAN; bigEndian: BOOLEAN);
+		PROCEDURE & InitBinarySection*(type: SHORTINT; priority: LONGINT; unit: LONGINT; CONST name:Basic.PooledName; dump: BOOLEAN; bigEndian: BOOLEAN);
 		BEGIN
 			ASSERT(unit > 0);
 			ASSERT(unit <= 32); (* implementation restriction *)
@@ -168,6 +168,7 @@ TYPE
 			validPAFEnter := 0; validPAFExit := 0;
 			pc := 0;
 			fixed := FALSE;
+			SELF.priority := priority;
 		END InitBinarySection;
 
 		PROCEDURE Reset*;
@@ -178,7 +179,6 @@ TYPE
 			validPAFEnter := 0; validPAFExit := 0;
 			pc := 0;
 		END Reset;
-
 
 		PROCEDURE EnterValidPAF*;
 		BEGIN
@@ -673,10 +673,10 @@ TYPE
 		NEW(fixup,mode,fixupOffset,symbol,symbolOffset,displacement,scale,fixupPattern); RETURN fixup
 	END NewFixup;
 
-	PROCEDURE NewBinarySection*(type: SHORTINT; unit: LONGINT; CONST name: Basic.PooledName; dump: BOOLEAN; bigEndian: BOOLEAN): Section;
+	PROCEDURE NewBinarySection*(type: SHORTINT; priority: LONGINT; unit: LONGINT; CONST name: Basic.PooledName; dump: BOOLEAN; bigEndian: BOOLEAN): Section;
 	VAR binarySection: Section;
 	BEGIN
-		NEW(binarySection,type,unit,name,dump,bigEndian); RETURN binarySection
+		NEW(binarySection,type,priority, unit,name,dump,bigEndian); RETURN binarySection
 	END NewBinarySection;
 
 

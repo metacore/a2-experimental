@@ -12,8 +12,8 @@ CONST
 	StringDelegate* = "DELEGATE";
 	StringInterrupt*= "INTERRUPT";
 	StringPcOffset* = "PCOFFSET";
-	StringEntry* = "ENTRY";
-	StringExit*= "EXIT";
+	StringEntry* = "INITIAL";
+	StringExit*= "FINAL";
 	StringNoPAF*="NOPAF";
 	StringFixed*="FIXED";
 	StringAligned*="ALIGNED";
