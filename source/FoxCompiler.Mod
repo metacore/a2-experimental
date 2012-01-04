@@ -618,7 +618,7 @@ TYPE
 	END GetOptions;
 
 	(*
-		Get next available name from stream.
+		Get next available name from stream ignoring comments and end of comment brackets
 		Returns TRUE on success, returns FALSE on end of stream, on error or if "~" or ";" encountered.
 		Scanner based on Peek() feature of stream. Necessary to make it restartable.
 	*)
@@ -644,13 +644,12 @@ TYPE
 			Next;
 			REPEAT
 				CASE ch OF
-				|"(": Next; IF ch = "*" THEN Comment END;
+				|"(": Next; IF ch = "*" THEN Comment; SkipWhitespace END;
 				|"*": Next; IF ch =")" THEN Next; done:= TRUE END;
 				| 0X: done := TRUE;
 				ELSE Next;
 				END;
 			UNTIL done;
-			SkipWhitespace;
 		END Comment;
 
 		PROCEDURE String(delimiter: CHAR);
@@ -671,7 +670,8 @@ TYPE
 		SkipWhitespace;
 		REPEAT
 			CASE ch OF
-				"(": Next; IF ch = "*" THEN Comment ELSE Append(ch) END;
+				"(": Next; IF ch = "*" THEN Comment ; SkipWhitespace ELSE Append(ch) END;
+				| "*": Next; IF ch = ")" THEN Next; SkipWhitespace ELSE Append(ch) END;
 				| '"', "'": done := TRUE; IF i = 0 THEN String(ch) END;
 				| 0X .. ' ', '~', ';': done := TRUE;
 			ELSE
