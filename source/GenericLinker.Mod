@@ -102,7 +102,7 @@ VAR
 	BEGIN
 		leftType := GetPriority(this);
 		rightType := GetPriority(that);
-		RETURN (leftType < rightType) OR (leftType = rightType) & (this.priority < that.priority)
+		RETURN (leftType <= rightType) OR (leftType = rightType) & (this.priority <= that.priority)
 	END Precedes;
 
 	PROCEDURE AddSection* (CONST section: ObjectFile.Section);
@@ -300,7 +300,7 @@ BEGIN
 	IF block.type = ObjectFile.BodyCode THEN RETURN Code END;
 	IF block.type = ObjectFile.Code THEN RETURN Code END;
 	IF block.type = ObjectFile.Data THEN RETURN Data END;
-	IF block.type = ObjectFile.Const THEN RETURN Const END;
+	IF block.type = ObjectFile.Const THEN RETURN Data END;
 	HALT(100); (* undefined type *)
 END GetPriority;
 

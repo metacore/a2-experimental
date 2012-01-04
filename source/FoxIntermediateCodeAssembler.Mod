@@ -1215,7 +1215,7 @@ TYPE
 		IF block.GetSize () = 0 THEN RETURN Empty END;
 		IF block.type = ObjectFile.Code THEN RETURN Code END;
 		IF block.type = ObjectFile.Data THEN RETURN Data END;
-		IF block.type = ObjectFile.Const THEN RETURN Const END;
+		IF block.type = ObjectFile.Const THEN RETURN Data END;
 		HALT(100); (* undefined type *)
 	END GetPriority;
 
