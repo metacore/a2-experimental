@@ -102,7 +102,7 @@ VAR
 	BEGIN
 		leftType := GetPriority(this);
 		rightType := GetPriority(that);
-		RETURN (leftType <= rightType) OR (leftType = rightType) & (this.priority <= that.priority)
+		RETURN (leftType < rightType) OR (leftType = rightType) & (this.priority < that.priority)
 	END Precedes;
 
 	PROCEDURE AddSection* (CONST section: ObjectFile.Section);
@@ -111,7 +111,7 @@ VAR
 		IF FindBlock (section.identifier) # NIL THEN ObjectFile.FromPooledName(section.identifier.name,name); Error (name, "duplicated section"); RETURN; END;
 		NEW (block); ObjectFile.CopySection (section, block^); block.address := InvalidAddress; block.referenced := FALSE; block.used := FALSE;
 		current := firstBlock; previous := NIL;
-		WHILE (current # NIL) & Precedes(current, block) DO previous := current; current := current.next; END;
+		WHILE (current # NIL) & ~Precedes(block,current) DO previous := current; current := current.next; END;
 		IF previous # NIL THEN previous.next := block; ELSE firstBlock := block; END; block.next := current;
 		ExportBlock(block);
 	END AddSection;
@@ -299,8 +299,8 @@ BEGIN
 	IF block.bits.GetSize () = 0 THEN RETURN Empty END;
 	IF block.type = ObjectFile.BodyCode THEN RETURN Code END;
 	IF block.type = ObjectFile.Code THEN RETURN Code END;
-	IF block.type = ObjectFile.Data THEN RETURN Data END;
-	IF block.type = ObjectFile.Const THEN RETURN Data END;
+	IF block.type = ObjectFile.Data THEN RETURN Code END;
+	IF block.type = ObjectFile.Const THEN RETURN Code END;
 	HALT(100); (* undefined type *)
 END GetPriority;
 
