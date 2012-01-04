@@ -1090,6 +1090,7 @@ TYPE
 			ELSE
 				(* make sure record scopes of non-ASOT object types do not contain operator declarations *)
 				IF recordType.recordScope.firstOperator # NIL THEN
+					RETURN;
 					Error(recordType.recordScope.firstOperator.position, Diagnostics.Invalid, "operator declared for record type without array structure")
 				END
 			END
@@ -3843,6 +3844,10 @@ TYPE
 			i: LONGINT;
 			hasError, done: BOOLEAN;
 
+			op: SyntaxTree.Operator;
+			actualParameters: SyntaxTree.ExpressionList;
+			result: SyntaxTree.Designator;
+
 			PROCEDURE FinalizeIndexDesignator;
 			BEGIN
 				IF indexDesignator # NIL THEN
@@ -3856,6 +3861,65 @@ TYPE
 					ASSERT(SyntaxTree.Resolved IN type.state)
 				END
 			END FinalizeIndexDesignator;
+
+
+		(*!!!! this is a stub, clean up ***)
+					(** find and return best operator matching to parameter list (nil, if none)
+			- search current module scope and all (directly or indirectly) imported modules for matching operator
+			- take operator with smalles distance, where signature distance is computed in procedure Distance
+		**)
+		PROCEDURE FindOperator(recordType: SyntaxTree.RecordType; actualParameters: SyntaxTree.ExpressionList; returnType: SyntaxTree.Type): SyntaxTree.Operator;
+		VAR bestOperator: SyntaxTree.Operator; bestDistance: LONGINT; import: SyntaxTree.Import; numberParameters: LONGINT; procedureType: SyntaxTree.ProcedureType;
+			identifier: SyntaxTree.Identifier;
+
+			PROCEDURE FindInScope(scope: SyntaxTree.RecordScope; access: SET);
+			VAR operator: SyntaxTree.Operator; distance,i: LONGINT;
+			BEGIN
+				operator := scope.firstOperator;
+				WHILE(operator # NIL) DO
+					IF (operator.name=identifier) & (operator.access * access # {}) THEN
+						procedureType := operator.type(SyntaxTree.ProcedureType);
+						distance := Distance(system, procedureType,actualParameters);
+						IF (distance < Infinity) THEN
+							IF returnType # NIL THEN
+								IF procedureType.returnType = NIL THEN
+									distance := Infinity
+								ELSE
+									i := TypeDistance(system,returnType,procedureType.returnType,TRUE);
+									IF i = Infinity THEN distance := Infinity ELSE INC(distance,i) END;
+								END;
+							END;
+						END;
+
+						(*
+						IF distance < Infinity THEN
+							Printout.Info("potential operator",operator);
+						ELSE
+							Printout.Info("operator not possible",operator);
+						END;
+						*)
+
+
+						IF distance < bestDistance THEN
+							bestDistance := distance;
+							bestOperator := operator;
+						END;
+					END;
+					operator := operator.nextOperator;
+				END;
+				(*
+				Printout.Info("taken operator",bestOperator);
+				*)
+
+			END FindInScope;
+
+		BEGIN
+			bestDistance := Infinity; bestOperator := NIL; numberParameters := actualParameters.Length();
+			identifier := SyntaxTree.NewIdentifier("[]");
+			FindInScope(recordType.recordScope,SyntaxTree.ReadOnly);
+			RETURN bestOperator
+		END FindOperator;
+
 
 		BEGIN
 			IF Trace THEN D.Str("VisitBracketDesignator"); D.Ln; END;
@@ -3878,6 +3942,28 @@ TYPE
 				designator := ResolveDesignator(bracketDesignator.left);
 				type := designator.type.resolved;
 				indexDesignator := NIL;
+
+				(*!!! clean up *)
+				IF (type IS SyntaxTree.PointerType) & (type(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.RecordType) & ~IsArrayStructuredObjectType(type) THEN
+					recordType := type(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
+					D.String("bracket designator on object type"); D.Ln;
+					rhs := bracketDesignator.relatedRhs;
+
+					actualParameters := SyntaxTree.NewExpressionList();
+					FOR i := 0 TO bracketDesignator.parameters.Length()-1 DO
+						expression := ResolveExpression(bracketDesignator.parameters.GetExpression(i));
+						actualParameters.AddExpression(expression);
+					END;
+					IF rhs # NIL THEN actualParameters.AddExpression(rhs) END;
+
+					op := FindOperator(recordType, actualParameters, NIL);
+					expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(InvalidPosition, designator) , op);
+					ASSERT(expression IS SyntaxTree.Designator);
+					result := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), actualParameters);
+					result.SetRelatedAsot(expression);
+					resolvedExpression := result;
+					RETURN;
+				END;
 
 				i := 0;
 				WHILE i <= bracketDesignator.parameters.Length() - 1 DO
@@ -6593,7 +6679,6 @@ TYPE
 
 			IF (left = SyntaxTree.invalidDesignator) OR (right = SyntaxTree.invalidExpression) THEN
 				(* error already handled *)
-
 			ELSIF (left IS SyntaxTree.ProcedureCallDesignator) & (left.type = NIL) & (left.relatedAsot # NIL) THEN
 				(* LHS is index write operator call on ASOT *)
 				procedureCallDesignator :=  left(SyntaxTree.ProcedureCallDesignator);
