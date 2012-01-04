@@ -1073,7 +1073,7 @@ TYPE
 				IF GetPriority(leftSection) < GetPriority(rightSection) THEN
 					RETURN TRUE
 				ELSIF GetPriority(leftSection) = GetPriority(rightSection) THEN
-					RETURN (leftSection.priority < rightSection.priority) OR (leftSection.offset < rightSection.offset) (* must keep order as provided by loader *)
+					RETURN (leftSection.priority < rightSection.priority) OR (leftSection.priority = rightSection.priority) & (leftSection.offset < rightSection.offset) (* must keep order as provided by loader *)
 				ELSE
 					RETURN FALSE
 				END
