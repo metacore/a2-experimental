@@ -3,7 +3,7 @@ MODULE FoxGenericObjectFile; (** AUTHOR "negelef"; PURPOSE "Generic Object File 
 IMPORT
 	StringPool, Streams, Commands, Basic := FoxBasic, Formats := FoxFormats, Sections := FoxSections, IntermediateCode := FoxIntermediateCode,
 	SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode,
-	FingerPrinter := FoxFingerPrinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := FoxTextualSymbolFile, KernelLog, D := Debugging;
+	FingerPrinter := FoxFingerPrinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := FoxTextualSymbolFile, Strings, KernelLog, D := Debugging;
 
 CONST
 	Version = 2;
@@ -45,6 +45,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				section, test: Sections.Section;
 				i, j: LONGINT;
 				name: ObjectFile.SectionName;
+				msg: ARRAY 128 OF CHAR;
 			BEGIN
 				FOR i := 0 TO sections.Length() - 1 DO
 					section := sections.GetSection(i);
@@ -53,12 +54,13 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 						FOR j := 0 TO i - 1 DO
 							test := sections.GetSection(j);
 							IF ~test.IsExternal() & (test(IntermediateCode.Section).resolved.identifier.fingerprint = section(IntermediateCode.Section).resolved.identifier.fingerprint) THEN
-								diagnostics.Warning(module.moduleName,Diagnostics.Invalid,Diagnostics.Invalid,"duplicate fingerPrints");
+								msg := "duplicate fingerPrints: ";
 								ObjectFile.FromPooledName(section(IntermediateCode.Section).resolved.identifier.name,name);
-								KernelLog.String(name); KernelLog.String(",");
+								Strings.Append(msg, name);
+								Strings.Append(msg, ", ");
 								ObjectFile.FromPooledName(test(IntermediateCode.Section).resolved.identifier.name,name);
-								KernelLog.String(name);
-								KernelLog.Ln;
+								Strings.Append(msg, name);
+								diagnostics.Warning(module.moduleName,Diagnostics.Invalid,Diagnostics.Invalid,msg);
 							END
 						END
 					END
