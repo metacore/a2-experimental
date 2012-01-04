@@ -617,6 +617,71 @@ TYPE
 		RETURN result
 	END GetOptions;
 
+	(*
+		Get next available name from stream.
+		Returns TRUE on success, returns FALSE on end of stream, on error or if "~" or ";" encountered.
+		Scanner based on Peek() feature of stream. Necessary to make it restartable.
+	*)
+	PROCEDURE GetString*(r: Streams.Reader; VAR string: ARRAY OF CHAR): BOOLEAN;
+	VAR ch: CHAR; i: LONGINT; done,error: BOOLEAN;
+
+		PROCEDURE Next;
+		BEGIN r.Char(ch); ch := r.Peek();
+		END Next;
+
+		PROCEDURE Append(ch: CHAR);
+		BEGIN string[i] := ch; INC(i)
+		END Append;
+
+		PROCEDURE SkipWhitespace;
+		BEGIN WHILE (ch <= " ") & (ch # 0X) DO Next END;
+		END SkipWhitespace;
+
+		PROCEDURE Comment;
+		VAR done: BOOLEAN;
+		BEGIN
+			done := FALSE;
+			Next;
+			REPEAT
+				CASE ch OF
+				|"(": Next; IF ch = "*" THEN Comment END;
+				|"*": Next; IF ch =")" THEN Next; done:= TRUE END;
+				| 0X: done := TRUE;
+				ELSE Next;
+				END;
+			UNTIL done;
+			SkipWhitespace;
+		END Comment;
+
+		PROCEDURE String(delimiter: CHAR);
+		VAR done: BOOLEAN;
+		BEGIN
+			done := FALSE; Next;
+			REPEAT
+				IF ch = delimiter THEN done := TRUE; Next;
+				ELSIF ch = 0X THEN done := TRUE; error := TRUE;
+				ELSE Append(ch); Next;
+				END;
+			UNTIL done OR (i=LEN(string)-1);
+		END String;
+
+	BEGIN
+		i := 0; done := FALSE;
+		ch := r.Peek(); (* restart scanning *)
+		SkipWhitespace;
+		REPEAT
+			CASE ch OF
+				"(": Next; IF ch = "*" THEN Comment ELSE Append(ch) END;
+				| '"', "'": done := TRUE; IF i = 0 THEN String(ch) END;
+				| 0X .. ' ', '~', ';': done := TRUE;
+			ELSE
+				Append(ch);
+				Next;
+			END;
+		UNTIL done OR (i = LEN(string)-1);
+		string[i] := 0X;
+		RETURN (i > 0) & done & ~error;
+	END GetString;
 
 	PROCEDURE Compile*(context : Commands.Context);
 	VAR
@@ -638,7 +703,7 @@ TYPE
 		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,activeCellsSpecification,findPC) THEN
 
 			time := Kernel.GetTicks();
-			WHILE context.arg.GetString(filename) & (filename # ";") & ~error DO
+			WHILE GetString(context.arg,filename) & ~error DO
 				reader := Basic.GetFileReader(filename);
 				IF reader = NIL THEN
 					diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
@@ -727,7 +792,7 @@ TYPE
 		IF targetFile # "" THEN
 			NEW(assemblinker, diagnostics, defaultBackend, "");
 		END;
-		WHILE input.GetString(filename) & (filename # ";") & (filename # "~") & ~error DO
+		WHILE GetString(input,filename) & ~error DO
 			IF targetFile = "" THEN NEW(assemblinker, diagnostics, defaultBackend, "") 	END;
 			IF assemblinker.LoadModule(filename, FALSE) THEN
 				assemblinker.MarkReachabilityOfAll(TRUE);
@@ -786,4 +851,3 @@ TYPE
 	END Assert;
 
 END Compiler.
-
