@@ -3910,13 +3910,15 @@ TYPE
 				(*
 				Printout.Info("taken operator",bestOperator);
 				*)
-
 			END FindInScope;
 
 		BEGIN
 			bestDistance := Infinity; bestOperator := NIL; numberParameters := actualParameters.Length();
 			identifier := SyntaxTree.NewIdentifier("[]");
-			FindInScope(recordType.recordScope,SyntaxTree.ReadOnly);
+			WHILE (recordType # NIL) & (bestOperator = NIL)  DO
+				FindInScope(recordType.recordScope,SyntaxTree.ReadOnly);
+				recordType := recordType.GetBaseRecord();
+			END;
 			RETURN bestOperator
 		END FindOperator;
 
@@ -3946,7 +3948,6 @@ TYPE
 				(*!!! clean up *)
 				IF (type IS SyntaxTree.PointerType) & (type(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.RecordType) & ~IsArrayStructuredObjectType(type) THEN
 					recordType := type(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
-					D.String("bracket designator on object type"); D.Ln;
 					rhs := bracketDesignator.relatedRhs;
 
 					actualParameters := SyntaxTree.NewExpressionList();
@@ -3957,12 +3958,17 @@ TYPE
 					IF rhs # NIL THEN actualParameters.AddExpression(rhs) END;
 
 					op := FindOperator(recordType, actualParameters, NIL);
-					expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(InvalidPosition, designator) , op);
-					ASSERT(expression IS SyntaxTree.Designator);
-					result := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), actualParameters);
-					result.SetRelatedAsot(expression);
-					resolvedExpression := result;
-					RETURN;
+					IF op # NIL THEN
+						expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(InvalidPosition, designator) , op);
+						ASSERT(expression IS SyntaxTree.Designator);
+						result := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), actualParameters);
+						result.SetRelatedAsot(expression);
+						resolvedExpression := result;
+						RETURN;
+					ELSE
+						Error(bracketDesignator.position,Diagnostics.Invalid,"undefined index operator");
+						resolvedExpression := SyntaxTree.invalidDesignator
+					END;
 				END;
 
 				i := 0;
