@@ -3730,7 +3730,7 @@ TYPE
 			BEGIN
 				IF actualParameter IS SyntaxTree.Designator THEN
 					designator := actualParameter(SyntaxTree.Designator);
-					IF (formalParameter.kind = SyntaxTree.VarParameter) & (designator.relatedAsot # NIL) THEN
+					IF (formalParameter.kind = SyntaxTree.VarParameter) & (designator.relatedAsot # NIL) & (actualParameter.type.resolved IS SyntaxTree.MathArrayType) THEN
 						(* actual parameter is an index read operator call on ASOT and formal parameter is of VAR kind *)
 						(* IF dump # NIL THEN dump.String("!!! BEGIN ASOT VAR parameter preparation"); dump.Ln; dump.Update END; *) (* TENTATIVE*)
 						ASSERT(checker # NIL);
@@ -3767,6 +3767,9 @@ TYPE
  						expression := checker.NewIndexOperatorCall(SemanticChecker.InvalidPosition, designator.relatedAsot, designator.relatedIndexList, tempVariableDesignator);
 						ASSERT(expression.type = NIL);
 						currentWriteBackCall.call := expression(SyntaxTree.ProcedureCallDesignator);
+					ELSIF (formalParameter.kind = SyntaxTree.VarParameter) & (designator.relatedAsot # NIL)  THEN
+						(* prepare writeback for any other "normal" indexer *)
+						HALT(200);
 					END
 				END
 			END PrepareParameter;

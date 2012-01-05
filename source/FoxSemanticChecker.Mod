@@ -3963,6 +3963,7 @@ TYPE
 						ASSERT(expression IS SyntaxTree.Designator);
 						result := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), actualParameters);
 						result.SetRelatedAsot(expression);
+						result.SetAssignable(TRUE);
 						resolvedExpression := result;
 						RETURN;
 					ELSE
