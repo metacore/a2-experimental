@@ -3915,7 +3915,7 @@ TYPE
 		BEGIN
 			bestDistance := Infinity; bestOperator := NIL; numberParameters := actualParameters.Length();
 			identifier := SyntaxTree.NewIdentifier("[]");
-			WHILE (recordType # NIL) & (bestOperator = NIL)  DO
+			WHILE (recordType # NIL) DO
 				FindInScope(recordType.recordScope,SyntaxTree.ReadOnly);
 				recordType := recordType.GetBaseRecord();
 			END;
