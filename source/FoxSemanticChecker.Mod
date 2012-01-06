@@ -3801,6 +3801,66 @@ TYPE
 			RETURN result
 		END NewIndexOperatorCall;
 
+		PROCEDURE NewObjectOperatorCall*(position: LONGINT; left: SyntaxTree.Expression; parameters: SyntaxTree.ExpressionList; rhs: SyntaxTree.Expression): SyntaxTree.Designator;
+		VAR type: SyntaxTree.Type; expression: SyntaxTree.Expression; op: SyntaxTree.Operator; recordType: SyntaxTree.RecordType;
+			actualParameters: SyntaxTree.ExpressionList; i: LONGINT; result: SyntaxTree.Designator;
+
+			PROCEDURE FindOperator(recordType: SyntaxTree.RecordType; identifier: SyntaxTree.Identifier; actualParameters: SyntaxTree.ExpressionList): SyntaxTree.Operator;
+			VAR bestOperator: SyntaxTree.Operator; bestDistance: LONGINT; import: SyntaxTree.Import; numberParameters: LONGINT; procedureType: SyntaxTree.ProcedureType;
+				PROCEDURE FindInScope(scope: SyntaxTree.RecordScope; access: SET);
+				VAR operator: SyntaxTree.Operator; distance,i: LONGINT;
+				BEGIN
+					operator := scope.firstOperator;
+					WHILE(operator # NIL) DO
+						IF (operator.name=identifier) & (operator.access * access # {}) THEN
+							procedureType := operator.type(SyntaxTree.ProcedureType);
+							distance := Distance(system, procedureType,actualParameters);
+							IF distance < bestDistance THEN
+								bestDistance := distance;
+								bestOperator := operator;
+								Printout.Info(" best ooperator",operator);
+							END;
+						END;
+						operator := operator.nextOperator;
+					END;
+				END FindInScope;
+
+			BEGIN
+				bestDistance := Infinity; bestOperator := NIL; numberParameters := actualParameters.Length();
+				identifier := SyntaxTree.NewIdentifier("[]");
+				WHILE (recordType # NIL) DO
+					FindInScope(recordType.recordScope,SyntaxTree.ReadOnly);
+					recordType := recordType.GetBaseRecord();
+				END;
+				RETURN bestOperator
+			END FindOperator;
+		BEGIN
+			type := left.type.resolved;
+
+			recordType := type(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
+
+			actualParameters := SyntaxTree.NewExpressionList();
+			FOR i := 0 TO parameters.Length()-1 DO
+				expression := ResolveExpression(parameters.GetExpression(i));
+				actualParameters.AddExpression(expression);
+			END;
+			IF rhs # NIL THEN actualParameters.AddExpression(rhs) END;
+
+			op := FindOperator(recordType, SyntaxTree.NewIdentifier("[]"), actualParameters);
+			IF op # NIL THEN
+				expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(InvalidPosition, left(SyntaxTree.Designator)) , op);
+				ASSERT(expression IS SyntaxTree.Designator);
+				result := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), actualParameters);
+				result.SetRelatedAsot(left);
+				result.SetRelatedIndexList(parameters);
+				result.SetAssignable(TRUE);
+			ELSE
+				Error(position,Diagnostics.Invalid,"undefined operator");
+				result := SyntaxTree.invalidDesignator
+			END;
+			RETURN result;
+		END NewObjectOperatorCall;
+
 		(** check and semantically resolve a bracket designator of the form 'left[expression, ..., expression]'
 			1. convert bracket designator chains into a single one that contains separators
 				e.g.: left[a, b, c][d, e][f] -> left[a, b, c, |, d, e, |, f]
@@ -3863,64 +3923,6 @@ TYPE
 			END FinalizeIndexDesignator;
 
 
-		(*!!!! this is a stub, clean up ***)
-					(** find and return best operator matching to parameter list (nil, if none)
-			- search current module scope and all (directly or indirectly) imported modules for matching operator
-			- take operator with smalles distance, where signature distance is computed in procedure Distance
-		**)
-		PROCEDURE FindOperator(recordType: SyntaxTree.RecordType; actualParameters: SyntaxTree.ExpressionList; returnType: SyntaxTree.Type): SyntaxTree.Operator;
-		VAR bestOperator: SyntaxTree.Operator; bestDistance: LONGINT; import: SyntaxTree.Import; numberParameters: LONGINT; procedureType: SyntaxTree.ProcedureType;
-			identifier: SyntaxTree.Identifier;
-
-			PROCEDURE FindInScope(scope: SyntaxTree.RecordScope; access: SET);
-			VAR operator: SyntaxTree.Operator; distance,i: LONGINT;
-			BEGIN
-				operator := scope.firstOperator;
-				WHILE(operator # NIL) DO
-					IF (operator.name=identifier) & (operator.access * access # {}) THEN
-						procedureType := operator.type(SyntaxTree.ProcedureType);
-						distance := Distance(system, procedureType,actualParameters);
-						IF (distance < Infinity) THEN
-							IF returnType # NIL THEN
-								IF procedureType.returnType = NIL THEN
-									distance := Infinity
-								ELSE
-									i := TypeDistance(system,returnType,procedureType.returnType,TRUE);
-									IF i = Infinity THEN distance := Infinity ELSE INC(distance,i) END;
-								END;
-							END;
-						END;
-
-						(*
-						IF distance < Infinity THEN
-							Printout.Info("potential operator",operator);
-						ELSE
-							Printout.Info("operator not possible",operator);
-						END;
-						*)
-
-
-						IF distance < bestDistance THEN
-							bestDistance := distance;
-							bestOperator := operator;
-						END;
-					END;
-					operator := operator.nextOperator;
-				END;
-				(*
-				Printout.Info("taken operator",bestOperator);
-				*)
-			END FindInScope;
-
-		BEGIN
-			bestDistance := Infinity; bestOperator := NIL; numberParameters := actualParameters.Length();
-			identifier := SyntaxTree.NewIdentifier("[]");
-			WHILE (recordType # NIL) DO
-				FindInScope(recordType.recordScope,SyntaxTree.ReadOnly);
-				recordType := recordType.GetBaseRecord();
-			END;
-			RETURN bestOperator
-		END FindOperator;
 
 
 		BEGIN
@@ -3947,29 +3949,8 @@ TYPE
 
 				(*!!! clean up *)
 				IF (type IS SyntaxTree.PointerType) & (type(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.RecordType) & ~IsArrayStructuredObjectType(type) THEN
-					recordType := type(SyntaxTree.PointerType).pointerBase.resolved(SyntaxTree.RecordType);
-					rhs := bracketDesignator.relatedRhs;
-
-					actualParameters := SyntaxTree.NewExpressionList();
-					FOR i := 0 TO bracketDesignator.parameters.Length()-1 DO
-						expression := ResolveExpression(bracketDesignator.parameters.GetExpression(i));
-						actualParameters.AddExpression(expression);
-					END;
-					IF rhs # NIL THEN actualParameters.AddExpression(rhs) END;
-
-					op := FindOperator(recordType, actualParameters, NIL);
-					IF op # NIL THEN
-						expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(InvalidPosition, designator) , op);
-						ASSERT(expression IS SyntaxTree.Designator);
-						result := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), actualParameters);
-						result.SetRelatedAsot(expression);
-						result.SetAssignable(TRUE);
-						resolvedExpression := result;
-						RETURN;
-					ELSE
-						Error(bracketDesignator.position,Diagnostics.Invalid,"undefined index operator");
-						resolvedExpression := SyntaxTree.invalidDesignator
-					END;
+					resolvedExpression := NewObjectOperatorCall(bracketDesignator.position, designator, bracketDesignator.parameters,bracketDesignator.relatedRhs);
+					RETURN
 				END;
 
 				i := 0;
@@ -6119,6 +6100,33 @@ TYPE
 			END;
 		END VisitParameter;
 
+		PROCEDURE FindSuperProcedure(scope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure): SyntaxTree.Procedure;
+		VAR super: SyntaxTree.Procedure; operator: SyntaxTree.Operator; procedureType: SyntaxTree.Type; baseRecord: SyntaxTree.RecordType;
+		BEGIN
+			baseRecord := RecordBase(scope.ownerRecord);
+			IF baseRecord = NIL THEN RETURN NIL END;
+			scope := baseRecord.recordScope;
+			procedureType := procedure.type.resolved;
+
+			IF procedure IS SyntaxTree.Operator THEN
+				operator := scope.firstOperator;
+				WHILE (operator # NIL) & ((operator.name # procedure.name) OR ~SameType(procedureType, operator.type)) DO
+					operator := operator.nextOperator;
+				END;
+				super := operator;
+			ELSE
+				super := scope.firstProcedure;
+				WHILE (super # NIL) & (super.name # procedure.name) DO
+					super := super.nextProcedure;
+				END;
+			END;
+			IF (super # NIL) & ((super.scope.ownerModule = procedure.scope.ownerModule) OR (SyntaxTree.Public * super.access # {})) THEN
+				RETURN super
+			ELSE
+				RETURN FindSuperProcedure(scope,procedure);
+			END;
+		END FindSuperProcedure;
+
 		(** check and resolve a procedure (with declaration and implementation scope)
 			- check the procedure type
 			- check if method (i.e. in record scope), if so then
@@ -6130,7 +6138,7 @@ TYPE
 		**)
 		PROCEDURE VisitProcedure(procedure: SyntaxTree.Procedure);
 		VAR super,testsuper,proc: SyntaxTree.Procedure; record: SyntaxTree.RecordType;
-			recordBase: SyntaxTree.RecordType; procedureType: SyntaxTree.ProcedureType;
+			procedureType: SyntaxTree.ProcedureType;
 			selfParameter: SyntaxTree.Parameter; qualifiedIdentifier: SyntaxTree.QualifiedIdentifier;
 			qualifiedType: SyntaxTree.QualifiedType; recentFlags: SET; flags: SET;
 			alignmentExpression,fixedExpression: SyntaxTree.Expression;value: LONGINT;
@@ -6144,12 +6152,6 @@ TYPE
 
 				IF Trace THEN D.Str("undefined"); D.Ln; END;
 				procedureType := procedure.type(SyntaxTree.ProcedureType);
-				(*
-				flags := Flags(procedureType.modifiers,{SyntaxTree.WinAPIFlag,SyntaxTree.CFlag,SyntaxTree.DelegateFlag,SyntaxTree.RealtimeFlag,SyntaxTree.InterruptFlag,SyntaxTree.NoPAFFlag,SyntaxTree.FixedFlag});
-				fixedExpression := flagExpressions[SyntaxTree.FixedFlag];
-				alignmentExpression := flagExpressions[SyntaxTree.AlignedFlag];
-				procedureType.AddFlags(flags);
-				*)
 				modifiers := procedureType.modifiers;
 				IF HasFlag(modifiers, Global.NameWinAPI,position) THEN procedureType.SetCallingConvention(SyntaxTree.WinAPICallingConvention)
 				ELSIF HasFlag(modifiers, Global.NameC,position) THEN
@@ -6189,17 +6191,6 @@ TYPE
 					Error(procedure.position,Diagnostics.Invalid,"problems during parameter offset computation");
 				END;
 
-				(*
-				IF (SyntaxTree.FixedFlag IN flags) & CheckIntegerValue(fixedExpression,value) THEN
-					IF procedure.procedureScope.body # NIL THEN
-						procedure.procedureScope.body.SetAlignment(TRUE,value);
-					END;
-				ELSIF (SyntaxTree.AlignedFlag IN flags) & CheckIntegerValue(alignmentExpression,value) THEN
-					IF procedure.procedureScope.body # NIL THEN
-						procedure.procedureScope.body.SetAlignment(FALSE,value);
-					END;
-				END;
-				*)
 				CheckSymbolVisibility(procedure);
 
 				IF procedure.scope IS SyntaxTree.ProcedureScope THEN
@@ -6222,12 +6213,6 @@ TYPE
 						selfParameter.SetType(qualifiedType);
 					END;
 					selfParameter.SetAccess(SyntaxTree.Hidden);
-					(*
-					procedureType.SetSelfParameter(selfParameter);
-					*)
-					(*
-					procedureType.AddParameter(selfParameter);
-					*)
 
 					(*! constructor information is redundant, we can remove "isConstructor" and repplace by constructor procedure reference *)
 					IF procedure.isConstructor THEN
@@ -6248,29 +6233,14 @@ TYPE
 							procedure.scope(SyntaxTree.RecordScope).SetConstructor(procedure);
 						END;
 					END;
-					recordBase := RecordBase(record);
-					IF (recordBase # NIL) THEN
-						super := recordBase.recordScope.FindProcedure(procedure.name);
-						IF (super = NIL) OR (super.scope.ownerModule = procedure.scope.ownerModule) OR (SyntaxTree.Public * super.access # {}) THEN
-							(* ok: no super method or super method is in same module scope or is exported or is constructor *)
-						ELSE
-							(* check if there is an exported method in the chain of super methods *)
-							testsuper := super;
-							WHILE (testsuper # NIL) & (SyntaxTree.Public*testsuper.access = {}) DO
-								testsuper := testsuper.super;
-							END;
-							IF testsuper = NIL THEN
-								super := NIL; (* no exported sup-method for this procedure *)
-							END;
+					super := FindSuperProcedure(record.recordScope, procedure);
+					IF (super # NIL) & SignatureCompatible(procedure.position,procedureType,super.type.resolved(SyntaxTree.ProcedureType)) THEN
+						IF (super.isConstructor) & ~(procedure.isConstructor) THEN
+							Error(procedure.position,Diagnostics.Invalid,"incompatible signature: non-constructor extends constructor");
 						END;
-						IF (super # NIL) & SignatureCompatible(procedure.position,procedureType,super.type.resolved(SyntaxTree.ProcedureType)) THEN
-							IF (super.isConstructor) & ~(procedure.isConstructor) THEN
-								Error(procedure.position,Diagnostics.Invalid,"incompatible signature: non-constructor extends constructor");
-							END;
-							procedure.SetSuper(super);
-							procedure.SetAccess(procedure.access+super.access);
-							procedure.MarkUsed;
-						END;
+						procedure.SetSuper(super);
+						procedure.SetAccess(procedure.access+super.access);
+						procedure.MarkUsed;
 					END;
 					IF  ~system.GenerateParameterOffsets(procedure,FALSE) (* assume that this is no nested procedure, is fixed later otherwise *)
 					THEN
@@ -6317,6 +6287,7 @@ TYPE
 			identifierNumber, position, i: LONGINT;
 			hasReturnType, mustBeUnary, mustBeBinary, mustReturnBoolean, mustReturnInteger, mustHaveEquitypedOperands: BOOLEAN;
 			modifiers: SyntaxTree.Modifier;
+			super: SyntaxTree.Operator;
 
 			(** whether a type is locally defined in the current module scope
 			for arrays, the base type must be locally defined **)
@@ -6344,7 +6315,8 @@ TYPE
 
 			VisitProcedure(operator);
 
-			IF operator.scope IS SyntaxTree.ModuleScope THEN
+			IF operator.scope IS SyntaxTree.RecordScope THEN
+			ELSIF operator.scope IS SyntaxTree.ModuleScope THEN
 				identifierNumber := Global.GetSymbol(operator.scope.ownerModule.case, operator.name);
 
 				IF identifierNumber = -1 THEN
