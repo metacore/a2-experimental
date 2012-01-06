@@ -1491,7 +1491,11 @@ TYPE
 					result := TRUE; (* special rule for WINAPI parameters, needed to be able to pass NIL address to var parameters *)
 				ELSIF ~IsVariable(actual) THEN
 					result := FALSE; error := TRUE;
-					Error(actual.position,Diagnostics.Invalid,"is not a variable");
+					IF actual IS SyntaxTree.ProcedureCallDesignator THEN
+						Error(actual.position,Diagnostics.Invalid,"not a variable: no operator for writing");
+					ELSE
+						Error(actual.position,Diagnostics.Invalid,"is not a variable");
+					END;
 					IF VerboseErrorMessage THEN
 						Printout.Info("actual",actual);
 						Printout.Info("formal",formal);
@@ -3818,7 +3822,6 @@ TYPE
 							IF distance < bestDistance THEN
 								bestDistance := distance;
 								bestOperator := operator;
-								Printout.Info(" best ooperator",operator);
 							END;
 						END;
 						operator := operator.nextOperator;
@@ -3848,12 +3851,26 @@ TYPE
 
 			op := FindOperator(recordType, SyntaxTree.NewIdentifier("[]"), actualParameters);
 			IF op # NIL THEN
-				expression := NewSymbolDesignator(InvalidPosition, NewDereferenceDesignator(InvalidPosition, left(SyntaxTree.Designator)) , op);
+				expression := NewSymbolDesignator(position, NewDereferenceDesignator(InvalidPosition, left(SyntaxTree.Designator)) , op);
 				ASSERT(expression IS SyntaxTree.Designator);
-				result := NewProcedureCallDesignator(InvalidPosition, expression(SyntaxTree.Designator), actualParameters);
+				result := NewProcedureCallDesignator(position, expression(SyntaxTree.Designator), actualParameters);
 				result.SetRelatedAsot(left);
 				result.SetRelatedIndexList(parameters);
-				result.SetAssignable(TRUE);
+
+				(* check if write operator exists, for var parameters *)
+				IF (rhs = NIL) & (op.type(SyntaxTree.ProcedureType).returnType # NIL) THEN
+					actualParameters := SyntaxTree.NewExpressionList();
+					FOR i := 0 TO parameters.Length()-1 DO
+						expression := ResolveExpression(parameters.GetExpression(i));
+						actualParameters.AddExpression(expression);
+					END;
+					rhs := SyntaxTree.NewDesignator(); rhs.SetType(op.type(SyntaxTree.ProcedureType).returnType); (* only a stub to test for existence of operator *)
+					actualParameters.AddExpression(rhs);
+					op := FindOperator(recordType, SyntaxTree.NewIdentifier("[]"), actualParameters);
+					IF op = NIL THEN rhs := NIL END;
+				END;
+
+				IF rhs # NIL THEN result.SetAssignable(TRUE) END;
 			ELSE
 				Error(position,Diagnostics.Invalid,"undefined operator");
 				result := SyntaxTree.invalidDesignator

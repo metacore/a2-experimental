@@ -3769,7 +3769,21 @@ TYPE
 						currentWriteBackCall.call := expression(SyntaxTree.ProcedureCallDesignator);
 					ELSIF (formalParameter.kind = SyntaxTree.VarParameter) & (designator.relatedAsot # NIL)  THEN
 						(* prepare writeback for any other "normal" indexer *)
-						HALT(200);
+						variable := GetTemporaryVariable(actualParameter.type.resolved);
+						tempVariableDesignator := SyntaxTree.NewSymbolDesignator(SemanticChecker.InvalidPosition, NIL, variable);
+						tempVariableDesignator.SetType(actualParameter.type.resolved);
+						Assign(tempVariableDesignator, actualParameter);
+						actualParameter := tempVariableDesignator;
+						IF firstWriteBackCall = NIL THEN
+							NEW(firstWriteBackCall);
+							currentWriteBackCall := firstWriteBackCall
+						ELSE
+							ASSERT(currentWriteBackCall # NIL);
+							NEW(currentWriteBackCall.next);
+							currentWriteBackCall := currentWriteBackCall.next
+						END;
+ 						expression := checker.NewObjectOperatorCall(SemanticChecker.InvalidPosition, designator.relatedAsot, designator.relatedIndexList, tempVariableDesignator);
+						currentWriteBackCall.call := expression(SyntaxTree.ProcedureCallDesignator);
 					END
 				END
 			END PrepareParameter;
