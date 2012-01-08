@@ -2736,7 +2736,7 @@ TYPE
 			procedureScope- : ProcedureScope;
 			super-: Procedure;
 			level-, methodNumber-: LONGINT;
-			isBodyProcedure-, isConstructor-, isInline-,isEntry-, isExit-: BOOLEAN;
+			isBodyProcedure-, isConstructor-, isInline-,isEntry-, isExit-,isFinal-,isAbstract-,isOverwritten-: BOOLEAN;
 
 		PROCEDURE & InitProcedure( position: LONGINT;  name: Identifier; scope: ProcedureScope);
 		BEGIN
@@ -2753,6 +2753,9 @@ TYPE
 			isInline := FALSE;
 			isEntry := FALSE;
 			isExit := FALSE;
+			isFinal := FALSE;
+			isAbstract := FALSE;
+			isOverwritten := FALSE;
 		END InitProcedure;
 
 		PROCEDURE SetSuper*(super: Procedure);
@@ -2779,6 +2782,18 @@ TYPE
 		PROCEDURE SetExit*(exit: BOOLEAN);
 		BEGIN SELF.isExit := exit
 		END SetExit;
+
+		PROCEDURE SetFinal*(final: BOOLEAN);
+		BEGIN SELF.isFinal := final
+		END SetFinal;
+
+		PROCEDURE SetOverwritten*(locallyOverwritten: BOOLEAN);
+		BEGIN SELF.isOverwritten := locallyOverwritten
+		END SetOverwritten;
+
+		PROCEDURE SetAbstract*(abstract: BOOLEAN);
+		BEGIN SELF.isAbstract := abstract
+		END SetAbstract;
 
 		PROCEDURE SetLevel*(level: LONGINT);
 		BEGIN SELF.level := level

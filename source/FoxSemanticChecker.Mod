@@ -929,7 +929,7 @@ TYPE
 						procedure := symbol(SyntaxTree.Procedure);
 						IF procedure.super # NIL THEN
 							procedure.SetMethodNumber(procedure.super.methodNumber)
-						ELSE
+						ELSE (*ELSIF ~procedure.isFinal THEN (* not a static method *)*)
 							procedure.SetMethodNumber(numberMethods);
 							INC(numberMethods);
 						END;
@@ -6139,6 +6139,8 @@ TYPE
 			END;
 			IF (super # NIL) & ((super.scope.ownerModule = procedure.scope.ownerModule) OR (SyntaxTree.Public * super.access # {})) THEN
 				RETURN super
+			ELSIF (super # NIL) & (FindSuperProcedure(scope,procedure)#NIL) THEN (* check if there is an exported supermethod, in which case return (non-exported) supermethod *)
+				RETURN super
 			ELSE
 				RETURN FindSuperProcedure(scope,procedure);
 			END;
@@ -6186,7 +6188,7 @@ TYPE
 
 				IF HasFlag(modifiers,Global.NameNoPAF,position) THEN procedureType.SetNoPAF(TRUE) END;
 				IF HasFlag(modifiers, Global.NameEntry,position) THEN procedure.SetEntry(TRUE)
-				ELSIF HasFlag(modifiers, Global.NameExit, position) THEN procedure.SetExit(TRUE)
+				ELSIF (procedure.scope IS SyntaxTree.ModuleScope) & HasFlag(modifiers, Global.NameExit, position) THEN procedure.SetExit(TRUE)
 				END;
 				IF HasValue(modifiers,Global.NameAligned,position,value) THEN procedure.SetAlignment(FALSE,value)
 				ELSIF HasValue(modifiers,Global.NameFixed,position,value) THEN procedure.SetAlignment(TRUE,value)
@@ -6199,6 +6201,10 @@ TYPE
 					END;
 				END;
 				IF HasFlag(modifiers,Global.NameRealtime,position) THEN procedureType.SetRealtime(TRUE) END;
+				IF HasFlag(modifiers,Global.NameFinal,position) THEN procedure.SetFinal(TRUE)
+				ELSIF HasFlag(modifiers,Global.NameAbstract,position) THEN procedure.SetAbstract(TRUE)
+				END;
+
 				CheckModifiers(modifiers);
 				FixProcedureType(procedureType);
 				currentIsRealtime := procedureType.isRealtime;
@@ -6255,7 +6261,11 @@ TYPE
 						IF (super.isConstructor) & ~(procedure.isConstructor) THEN
 							Error(procedure.position,Diagnostics.Invalid,"incompatible signature: non-constructor extends constructor");
 						END;
+						IF super.isFinal THEN
+							Error(procedure.position,Diagnostics.Invalid,"forbidden method extending final method");
+						END;
 						procedure.SetSuper(super);
+						super.SetOverwritten(TRUE);
 						procedure.SetAccess(procedure.access+super.access);
 						procedure.MarkUsed;
 					END;
@@ -8860,6 +8870,16 @@ TYPE
 			OR (expression IS SyntaxTree.IndexDesignator) OR (expression IS SyntaxTree.DereferenceDesignator)
 			OR (expression IS SyntaxTree.TypeGuardDesignator) OR (expression IS SyntaxTree.StringValue);
 	END HasAddress;
+
+
+	PROCEDURE IsStaticProcedure*(procedure: SyntaxTree.Procedure): BOOLEAN;
+	BEGIN
+		IF procedure.scope IS SyntaxTree.RecordScope THEN
+			RETURN (procedure.super = NIL) & ((procedure.isFinal) OR (procedure.access * SyntaxTree.Public = {}) & ~procedure.isOverwritten)
+		ELSE
+			RETURN TRUE
+		END;
+	END IsStaticProcedure;
 
 
 END FoxSemanticChecker.

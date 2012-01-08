@@ -18,6 +18,8 @@ CONST
 	StringFixed*="FIXED";
 	StringAligned*="ALIGNED";
 	StringAlignStack*="ALIGNSTACK";
+	StringFinal*="FINAL";
+	StringAbstract*="ABSTRACT";
 
 	(* block modifier flag names *)
 	StringExclusive* = "EXCLUSIVE";
@@ -111,7 +113,7 @@ VAR
 	A2Name-,OberonName-,ArrayBaseName-,RecordBodyName-,ModuleBodyName-,
 	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-, NamePcOffset-, NameNoPAF-,NameEntry-, NameExit-, NameFixed-,NameAligned-,NameStackAligned-,
 	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-, NameDynamic-, NameDataMemorySize-, NameCodeMemorySize-
-	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-, NameVector-, NameFloatingPoint-: SyntaxTree.Identifier;
+	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-, NameVector-, NameFloatingPoint-, NameFinal-, NameAbstract-: SyntaxTree.Identifier;
 
 	identifiers: ARRAY 2 OF ARRAY end OF SyntaxTree.Identifier;
 
@@ -1423,6 +1425,8 @@ TYPE
 		NameChannelModule := SyntaxTree.NewIdentifier(StringChannelModule);
 		NameVector := SyntaxTree.NewIdentifier(StringVector);
 		NameFloatingPoint := SyntaxTree.NewIdentifier(StringFloatingPoint);
+		NameFinal := SyntaxTree.NewIdentifier(StringFinal);
+		NameAbstract := SyntaxTree.NewIdentifier(StringAbstract);
 
 		(* types *)
 		Boolean8 := SyntaxTree.NewBooleanType(8);

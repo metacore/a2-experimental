@@ -6627,7 +6627,11 @@ TYPE
 		VAR source: IntermediateCode.Section; tag,reg: IntermediateCode.Operand; name:Basic.PooledName; sectionType: SHORTINT;
 		BEGIN
 			IF Trace THEN TraceEnter("StaticCallOperand") END;
-			tag := nil;
+			IF x.type(SyntaxTree.ProcedureType).isDelegate THEN
+				tag := result.op;
+				ReleaseIntermediateOperand(result.tag);
+			ELSE tag := nil
+			END;
 			GetCodeSectionNameForSymbol(x, name);
 			IF x.isInline THEN
 				sectionType := Sections.InlineCodeSection;
@@ -6655,7 +6659,7 @@ TYPE
 		(* handle expressions of the form designator.procedure or procedure *)
 		BEGIN
 			IF Trace THEN TraceEnter("VisitProcedure") END;
-			IF  x.type(SyntaxTree.ProcedureType).isDelegate THEN
+			IF  (x.type(SyntaxTree.ProcedureType).isDelegate) & ~SemanticChecker.IsStaticProcedure(x) THEN
 				DynamicCallOperand(result,x);
 			ELSIF x.isInline THEN
 				StaticCallOperand(result,x);
