@@ -315,7 +315,7 @@ END LoadWindow;
 
 
 (* reset skin-engine i.e. install zero-skin *)
-PROCEDURE SetZeroSkin;
+PROCEDURE SetZeroSkin(broadcast: BOOLEAN);
 VAR i, j : LONGINT; lists : WMComponents.ListArray;
 	 properties : WMProperties.PropertyArray; msg : Messages.Message;
 BEGIN
@@ -332,7 +332,7 @@ BEGIN
 		INC(i)
 	END;
 	msg.msgType := Messages.MsgExt; msg.ext := WMComponents.componentStyleMsg;
-	manager.Broadcast(msg);
+	IF broadcast THEN manager.Broadcast(msg) END;
 	(* default-window and cursors *)
 	manager.ZeroSkin
 END SetZeroSkin;
@@ -342,7 +342,7 @@ PROCEDURE SetXmlSkinInternal(doc : XML.Document);
 VAR p : ANY; cont : Objects.Enumerator; root: XML.Element;
 	el : XML.Content; s : Strings.String; desc : WM.WindowStyle;
 BEGIN
-	SetZeroSkin();
+	SetZeroSkin(FALSE);
 	root := doc.GetRoot();
 	cont := root.GetContents(); cont.Reset();
 	WHILE cont.HasMoreElements() DO
@@ -377,7 +377,7 @@ BEGIN
 		IF skin.xml # NIL THEN
 			SetXmlSkinInternal(skin.xml)
 		ELSE
-			SetZeroSkin()
+			SetZeroSkin(TRUE)
 		END
 	END
 END InstallSkin;
@@ -464,7 +464,7 @@ END SetCurrentAsDefault;
 PROCEDURE Unload*(context : Commands.Context);
 BEGIN
 	IF current # NIL THEN
-		SetZeroSkin();
+		SetZeroSkin(TRUE);
 		current := NIL;
 	ELSE
 		context.out.String("ZeroSkin already loaded"); context.out.Ln;
