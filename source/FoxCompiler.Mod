@@ -395,7 +395,9 @@ TYPE
 				value: SyntaxTree.Value;
 				pooledName: Basic.PooledName;
 				device: ActiveCells.Device;
+				error : BOOLEAN;
 			BEGIN
+				error := FALSE;
 				type := instance.type;
 				type.GetFullName(typeName,NIL);
 				instance.GetFullName(instanceName,NIL);
@@ -429,6 +431,7 @@ TYPE
 							Strings.Append(msg," in cell ");
 							instance.AppendToMsg(msg);
 							diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, msg);
+							error := TRUE;
 						END;
 					ELSE
 						IF ~assembler.ModuleIsReachable(Basic.MakeString(device.name)) THEN
@@ -437,9 +440,12 @@ TYPE
 							Strings.Append(msg," in cell ");
 							instance.AppendToMsg(msg);
 							diagnostics.Warning(specification.name,Diagnostics.Invalid,Diagnostics.Invalid,msg);
+							error := TRUE;
 						END;
 					END;
 				END;
+
+				IF error THEN RETURN FALSE END;
 
 				objectFileFormat.GetExtension(objectFileExtension);
 				assembler.PrearrangeReachableDataSections;
