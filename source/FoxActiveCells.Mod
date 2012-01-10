@@ -14,8 +14,8 @@ CONST
 	SpecificationFileExtension*="spec";
 	ObjectFileExtension*="Gof";
 
-	VectorCapability*=0;
-	FloatingPointCapability*=1;
+	VectorCapability*=Global.VectorCapability;
+	FloatingPointCapability*=Global.FloatingPointCapability;
 
 	TraceError=TRUE;
 	BasePortAddress=LONGINT(0FFFFFFE0H);
@@ -1055,6 +1055,7 @@ TYPE
 			AddDevice("BraceletSPI",0FFFFFFD2H);
 			AddDevice("GPI",0FFFFFFD6H);
 			AddDevice("GPO",0FFFFFFD6H);
+			AddDevice("WDT", 0FFFFFFD8H); (*watch dog timer*)
 			NEW(imports,4);
 		END Init;
 
