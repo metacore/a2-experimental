@@ -386,6 +386,8 @@ TYPE
 
 		END FixPointerType;
 
+
+
 		PROCEDURE VisitRecordType(recordType: SyntaxTree.RecordType);
 		VAR recordBase: SyntaxTree.RecordType; numberMethods: LONGINT; procedure,super,testsuper: SyntaxTree.Procedure; recordScope: SyntaxTree.RecordScope;
 			pointerType: SyntaxTree.Type; typeDeclaration: SyntaxTree.TypeDeclaration; symbol: SyntaxTree.Symbol; size: HUGEINT;
@@ -402,25 +404,11 @@ TYPE
 			WHILE symbol # NIL DO
 				IF (symbol IS SyntaxTree.Procedure) THEN
 					procedure := symbol(SyntaxTree.Procedure);
-					IF recordBase # NIL THEN
-						super := recordBase.recordScope.FindProcedure(procedure.name);
-						IF (super = NIL) OR (super.scope.ownerModule = procedure.scope.ownerModule) OR (SyntaxTree.Public * super.access # {}) THEN
-							(* ok: no super method or super method is in same module scope or is exported or is constructor *)
-						ELSE
-							(* check if there is an exported method in the chain of super methods *)
-							testsuper := super;
-							WHILE (testsuper # NIL) & (SyntaxTree.Public*testsuper.access = {}) DO
-								testsuper := testsuper.super;
-							END;
-							IF testsuper = NIL THEN
-								super := NIL; (* no exported sup-method for this procedure *)
-							END;
-						END;
-						procedure.SetSuper(super);
-						IF super # NIL THEN
-							procedure.SetAccess(procedure.access+super.access);
-						END;
-
+					IF procedure IS SyntaxTree.Operator THEN FixProcedureType(procedure.type(SyntaxTree.ProcedureType)) END;
+					super := SemanticChecker.FindSuperProcedure(recordScope, procedure);
+					procedure.SetSuper(super);
+					IF super # NIL THEN
+						procedure.SetAccess(procedure.access+super.access);
 					END;
 
 					IF procedure.super # NIL THEN
@@ -440,11 +428,6 @@ TYPE
 			END;
 
 			Scope(recordType.recordScope);
-
-			(*
-			Printout.Info("Record ", recordType);
-			Printout.Info("RecordScope ",recordType.recordScope);
-			*)
 
 			checker.SetCurrentScope(recordType.recordScope);
 			checker.ResolveArrayStructure(recordType);
@@ -488,11 +471,6 @@ TYPE
 				parameter.SetState(SyntaxTree.Resolved);
 				procedureType.SetReturnParameter(parameter);
 			END;
-			(*
-			IF procedureType.selfParameter # NIL THEN
-				procedureType.selfParameter.SetType(ResolveType(procedureType.selfParameter.type));
-			END;
-			*)
 		END FixProcedureType;
 
 		(* a type reference is resolved by replacing it with the respective element of the type list, all other types remain *)
@@ -1117,9 +1095,6 @@ TYPE
 						IF (typeDeclaration # NIL) THEN
 							qualifiedType := SyntaxTree.NewQualifiedType(-1,moduleScope,SyntaxTree.NewQualifiedIdentifier(-1,importedModule.name,identifier));
 							qualifiedType.SetResolved(typeDeclaration.declaredType);
-							(*
-							qualifiedType.SetState(SyntaxTree.Resolved);
-							*)
 							qualifiedType.SetTypeDeclaration(typeDeclaration);
 							type := qualifiedType;
 						END;
@@ -1178,9 +1153,6 @@ TYPE
 							R.RawNum(len);
 							size := SyntaxTree.NewIntegerValue(-1,len);
 							size.SetType(system.longintType);
-							(*
-							size.SetState(SyntaxTree.Resolved);
-							*)
 							arrayType.SetLength(size);
 					| sfTypeOpenMathArray:
 							IF TraceImport IN Trace THEN
@@ -1215,9 +1187,6 @@ TYPE
 							R.RawNum(len);
 							size := SyntaxTree.NewIntegerValue(-1,len);
 							size.SetType(system.longintType);
-							(*
-							size.SetState(SyntaxTree.Resolved);
-							*)
 							mathArrayType.SetLength(size);
 					| sfTypePointer:
 							IF TraceImport IN Trace THEN
@@ -1268,11 +1237,6 @@ TYPE
 							EnumerationList(enumerationScope);
 					END;
 
-					(*
-					type.SetState(SyntaxTree.Resolved);
-					*)
-
-
 					IF name # "" THEN
 						typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(name));
 						typeDeclaration.SetDeclaredType(type);
@@ -1281,9 +1245,6 @@ TYPE
 						typeDeclaration.SetState(SyntaxTree.Resolved);
 						qualifiedType := SyntaxTree.NewQualifiedType(-1,moduleScope, SyntaxTree.NewQualifiedIdentifier(-1,SyntaxTree.invalidIdentifier,typeDeclaration.name));
 						qualifiedType.SetResolved(type);
-						(*
-						qualifiedType.SetState(SyntaxTree.Resolved);
-						*)
 						type := qualifiedType;
 						type.SetTypeDeclaration(typeDeclaration);
 
@@ -1302,7 +1263,7 @@ TYPE
 				RETURN type;
 			END Type;
 
-			(*! todo
+			(*
 				Inline = {len:Char {c:Char}} 0X
 			*)
 			PROCEDURE Inline(scope: SyntaxTree.ProcedureScope);
@@ -1704,10 +1665,6 @@ TYPE
 					import := import.nextImport;
 				END;
 				ASSERT(import # NIL);
-				(*
-				IF ~import.direct THEN importedModule.name.GetString(name) END;
-				ASSERT(import.direct);
-				*)
 				RETURN index;
 			END ModuleIndex;
 
@@ -1749,13 +1706,6 @@ TYPE
 				type := type.resolved;
 				typeDeclaration := type.typeDeclaration;
 				IF (typeDeclaration # NIL) & (typeDeclaration.declaredType.resolved # type) THEN  typeDeclaration := NIL END;
-				(*
-				IF (type IS SyntaxTree.RecordType) & (typeDeclaration = NIL) THEN
-					IF (type(SyntaxTree.RecordType).pointerType # NIL) THEN
-						typeDeclaration := type(SyntaxTree.RecordType).pointerType.typeDeclaration
-					END;
-				END;
-				*)
 				size := type.sizeInBits;
 				IF type IS SyntaxTree.BasicType THEN (* BasicType  *)
 					IF type IS SyntaxTree.BooleanType THEN w.RawNum(sfTypeBoolean);
@@ -2070,12 +2020,6 @@ TYPE
 					*)
 					Parameters(procedureType.lastParameter,TRUE);
 				ELSE
-					(*
-					Parameters(procedureType.returnParameter,FALSE);
-					*)
-					(*
-					Parameters(procedureType.selfParameter,FALSE);
-					*)
 					Parameters(procedureType.firstParameter,FALSE);
 				END;
 				w.RawNum(sfEnd);

@@ -1287,6 +1287,8 @@ TYPE
 			WHILE toSize >= fromSize DO
 				toSize := toSize DIV 2; INC(distance);
 			END;
+		ELSIF (from IS SyntaxTree.RangeType) & (to IS SyntaxTree.RangeType) THEN
+			distance := 0;
 		END;
 		IF distance < 0 THEN distance := MAX(LONGINT) END;
 		RETURN distance

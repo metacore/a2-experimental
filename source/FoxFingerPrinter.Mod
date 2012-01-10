@@ -5,7 +5,6 @@ IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, SYSTEM, Global := FoxGlob
 		D := Debugging, Streams;
 
 (** FingerPrinting
-
 	FP(TypeDeclaration)        = 0 <*> fpModeType -> Name -> Visibility <*> FP(Type).
 	FP(ConstantDeclaration)    = 0 <*> fpModeConstant -> Name -> Visibility <*> FP(Type) -> Basic -> Value.
 	FP(VariableDeclaration)    = 0 <*> fpModePar -> Name -> Visibility <*> FP(Type).
@@ -549,6 +548,7 @@ TYPE
 		VAR fingerprint: FingerPrint; fp: LONGINT; name: ARRAY 256 OF CHAR;
 		BEGIN
 			IF Trace THEN TraceEnter("Method");
+				D.Address(SYSTEM.VAL(SYSTEM.ADDRESS,procedure));
 				procedure.GetName(name);
 				TraceIndent; D.Str("name = "); D.Str(name); D.Ln;
 			END;
@@ -567,7 +567,9 @@ TYPE
 				fp := fingerprint.shallow;
 			END;
 			IF procedure.access * SyntaxTree.Public # {} THEN (* visible method or visible supermethod *)
+				IF Trace THEN D.String("fp before method number"); D.Hex(fp,-8); D.Ln END;
 				FPNumber(fp,procedure.methodNumber);
+				IF Trace THEN D.String("fp after method number"); D.Hex(fp,-8); D.Ln END;
 				IF procedure # body THEN
 					FPNumber(private,fp); FPNumber(public,fp);
 				END;

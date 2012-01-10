@@ -3813,13 +3813,22 @@ TYPE
 			VAR bestOperator: SyntaxTree.Operator; bestDistance: LONGINT; import: SyntaxTree.Import; numberParameters: LONGINT; procedureType: SyntaxTree.ProcedureType;
 				PROCEDURE FindInScope(scope: SyntaxTree.RecordScope; access: SET);
 				VAR operator: SyntaxTree.Operator; distance,i: LONGINT;
+				CONST trace = FALSE;
 				BEGIN
+					IF trace THEN
+
+						FOR i := 0 TO actualParameters.Length()-1 DO
+							Printout.Info("par", actualParameters.GetExpression(i));
+						END;
+					END;
 					operator := scope.firstOperator;
 					WHILE(operator # NIL) DO
 						IF (operator.name=identifier) & (operator.access * access # {}) THEN
 							procedureType := operator.type(SyntaxTree.ProcedureType);
 							distance := Distance(system, procedureType,actualParameters);
+							IF trace THEN Printout.Info("check op ",operator) END;
 							IF distance < bestDistance THEN
+								IF trace THEN Printout.Info("taken op",operator) END;
 								bestDistance := distance;
 								bestOperator := operator;
 							END;
@@ -6117,34 +6126,6 @@ TYPE
 			END;
 		END VisitParameter;
 
-		PROCEDURE FindSuperProcedure(scope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure): SyntaxTree.Procedure;
-		VAR super: SyntaxTree.Procedure; operator: SyntaxTree.Operator; procedureType: SyntaxTree.Type; baseRecord: SyntaxTree.RecordType;
-		BEGIN
-			baseRecord := RecordBase(scope.ownerRecord);
-			IF baseRecord = NIL THEN RETURN NIL END;
-			scope := baseRecord.recordScope;
-			procedureType := procedure.type.resolved;
-
-			IF procedure IS SyntaxTree.Operator THEN
-				operator := scope.firstOperator;
-				WHILE (operator # NIL) & ((operator.name # procedure.name) OR ~SameType(procedureType, operator.type)) DO
-					operator := operator.nextOperator;
-				END;
-				super := operator;
-			ELSE
-				super := scope.firstProcedure;
-				WHILE (super # NIL) & (super.name # procedure.name) DO
-					super := super.nextProcedure;
-				END;
-			END;
-			IF (super # NIL) & ((super.scope.ownerModule = procedure.scope.ownerModule) OR (SyntaxTree.Public * super.access # {})) THEN
-				RETURN super
-			ELSIF (super # NIL) & (FindSuperProcedure(scope,procedure)#NIL) THEN (* check if there is an exported supermethod, in which case return (non-exported) supermethod *)
-				RETURN super
-			ELSE
-				RETURN FindSuperProcedure(scope,procedure);
-			END;
-		END FindSuperProcedure;
 
 		(** check and resolve a procedure (with declaration and implementation scope)
 			- check the procedure type
@@ -8673,7 +8654,7 @@ TYPE
 		RETURN FALSE
 	END IsBasicType;
 
-	PROCEDURE RecordBase(record: SyntaxTree.RecordType): SyntaxTree.RecordType;
+	PROCEDURE RecordBase*(record: SyntaxTree.RecordType): SyntaxTree.RecordType;
 	VAR baseType: SyntaxTree.Type; recordType: SyntaxTree.RecordType;
 	BEGIN
 		baseType := record.baseType;
@@ -8690,6 +8671,39 @@ TYPE
 		END;
 		RETURN recordType
 	END RecordBase;
+
+	PROCEDURE FindSuperProcedure*(scope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure): SyntaxTree.Procedure;
+	VAR super: SyntaxTree.Procedure; operator: SyntaxTree.Operator; procedureType: SyntaxTree.Type; baseRecord: SyntaxTree.RecordType;
+	BEGIN
+		baseRecord := RecordBase(scope.ownerRecord);
+		IF baseRecord = NIL THEN RETURN NIL END;
+		scope := baseRecord.recordScope;
+		procedureType := procedure.type.resolved;
+
+		IF procedure IS SyntaxTree.Operator THEN
+			operator := scope.firstOperator;
+			WHILE (operator # NIL) & ((operator.name # procedure.name) OR ~SameType(procedureType, operator.type)) DO
+				(*
+				Printout.Info("not same ",procedureType);
+				Printout.Info("with ",operator.type);
+				*)
+				operator := operator.nextOperator;
+			END;
+			super := operator;
+		ELSE
+			super := scope.firstProcedure;
+			WHILE (super # NIL) & (super.name # procedure.name) DO
+				super := super.nextProcedure;
+			END;
+		END;
+		IF (super # NIL) & ((super.scope.ownerModule = procedure.scope.ownerModule) OR (SyntaxTree.Public * super.access # {})) THEN
+			RETURN super
+		ELSIF (super # NIL) & (FindSuperProcedure(scope,procedure)#NIL) THEN (* check if there is an exported supermethod, in which case return (non-exported) supermethod *)
+			RETURN super
+		ELSE
+			RETURN FindSuperProcedure(scope,procedure);
+		END;
+	END FindSuperProcedure;
 
 	PROCEDURE GetConstructor(record: SyntaxTree.RecordType): SyntaxTree.Procedure;
 	VAR procedure: SyntaxTree.Procedure;
