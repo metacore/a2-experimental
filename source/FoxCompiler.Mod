@@ -440,7 +440,6 @@ TYPE
 							Strings.Append(msg," in cell ");
 							instance.AppendToMsg(msg);
 							diagnostics.Warning(specification.name,Diagnostics.Invalid,Diagnostics.Invalid,msg);
-							error := TRUE;
 						END;
 					END;
 				END;
