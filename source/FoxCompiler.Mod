@@ -476,7 +476,8 @@ TYPE
 				dataMemorySize := type.dataMemorySize;
 
 				IF (instructionMemorySize > 0) & (instructionMemorySize < code.SizeInBits() DIV system.codeUnit) THEN
-					diagnostics.Warning(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "specified instruction memory size too small");
+					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "specified instruction memory size too small");
+					error := TRUE;
 				END;
 
 				instructionMemorySize := MAX(code.SizeInBits() DIV system.codeUnit, instructionMemorySize);
@@ -485,7 +486,8 @@ TYPE
 				instance.SetDataMemorySize(dataMemorySize);
 
 				IF (dataMemorySize - data.SizeInBits() DIV system.dataUnit) < MinimalStackSize THEN
-					diagnostics.Warning(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "specified data memory size too small");
+					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "specified data memory size too small");
+					error := TRUE;
 				END;
 
 				Files.JoinExtension(instanceName,ActiveCells.CodeFileExtension,codeFileName);
@@ -509,7 +511,7 @@ TYPE
 					Strings.Append(msg,linkRoot);
 					diagnostics.Error("",Diagnostics.Invalid, Diagnostics.Invalid, msg);
 				END;
-				RETURN ~linker.error
+				RETURN ~linker.error & ~error
 			END LinkInstance;
 
 		END AssemblerObject;
