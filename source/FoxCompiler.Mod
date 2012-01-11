@@ -396,6 +396,7 @@ TYPE
 				pooledName: Basic.PooledName;
 				device: ActiveCells.Device;
 				error : BOOLEAN;
+			CONST MinimalStackSize=64;
 			BEGIN
 				error := FALSE;
 				type := instance.type;
@@ -473,10 +474,19 @@ TYPE
 
 				instructionMemorySize := type.instructionMemorySize;
 				dataMemorySize := type.dataMemorySize;
+
+				IF (instructionMemorySize > 0) & (instructionMemorySize < code.SizeInBits() DIV system.codeUnit) THEN
+					diagnostics.Warning(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "specified instruction memory size too small");
+				END;
+
 				instructionMemorySize := MAX(code.SizeInBits() DIV system.codeUnit, instructionMemorySize);
 				dataMemorySize := MAX(data.SizeInBits() DIV system.dataUnit, dataMemorySize);
 				instance.SetInstructionMemorySize(instructionMemorySize);
 				instance.SetDataMemorySize(dataMemorySize);
+
+				IF (dataMemorySize - data.SizeInBits() DIV system.dataUnit) < MinimalStackSize THEN
+					diagnostics.Warning(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "specified data memory size too small");
+				END;
 
 				Files.JoinExtension(instanceName,ActiveCells.CodeFileExtension,codeFileName);
 				Files.JoinExtension(instanceName,ActiveCells.DataFileExtension,dataFileName);
@@ -488,7 +498,10 @@ TYPE
 					IF specification.log # NIL THEN
 						specification.log.String(instanceName);
 						specification.log.String(" linked. IM = ");specification.log.Int(instructionMemorySize,1);
-						specification.log.String(", DM = "); specification.log.Int(dataMemorySize,1);
+						specification.log.String(" (used: "); specification.log.Int(code.SizeInBits() DIV system.codeUnit,1);
+						specification.log.String("), DM = "); specification.log.Int(dataMemorySize,1);
+						specification.log.String(" (used: "); specification.log.Int(data.SizeInBits() DIV system.dataUnit,1);
+						specification.log.String(")");
 						specification.log.Ln; specification.log.Update;
 					END;
 				ELSE

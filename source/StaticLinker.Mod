@@ -1,19 +1,21 @@
 MODULE StaticLinker;	(* AUTHOR "negelef"; PURPOSE "Static Object File Linker"; *)
 
-IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile, BitSets, Streams;
+IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile, BitSets, Streams, Strings;
 
 TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 	VAR
 		displacement: GenericLinker.Address;
 		bits: BitSets.BitSet;
+		maxUnitSize: ObjectFile.Bits;
 
 	PROCEDURE & InitArrangement* (displacement: GenericLinker.Address);
-	BEGIN SELF.displacement := displacement; NEW (bits, 0);
+	BEGIN SELF.displacement := displacement; maxUnitSize := 1; NEW (bits, 0);
 	END InitArrangement;
 
 	PROCEDURE Allocate* (CONST section: ObjectFile.Section): GenericLinker.Address;
 	VAR address, alignment: ObjectFile.Bits;
 	BEGIN
+		IF section.unit > maxUnitSize THEN maxUnitSize := section.unit END;
 		IF section.fixed THEN
 			address := (section.alignment - displacement) * section.unit;
 		ELSE
@@ -31,7 +33,6 @@ TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 	PROCEDURE SizeInBits*(): LONGINT;
 	BEGIN RETURN bits.GetSize()
 	END SizeInBits;
-
 
 	PROCEDURE Patch* (pos, value: GenericLinker.Address; offset, bits, unit: ObjectFile.Bits);
 	BEGIN SELF.bits.SetBits ((pos - displacement) * unit + offset, bits, value);
@@ -55,13 +56,20 @@ BEGIN
 END ReadObjectFile;
 
 PROCEDURE WriteOutputFile* (arrangement: Arrangement; CONST fileName: Files.FileName; linker: GenericLinker.Linker; fileFormat: FileFormat);
-VAR file: Files.File; writer: Files.Writer;
+VAR file: Files.File; writer: Files.Writer; msg: ARRAY 64 OF CHAR; number: ARRAY 32 OF CHAR;
 BEGIN
 	file := Files.New (fileName);
 	Files.OpenWriter (writer, file, 0);
 	fileFormat (linker, arrangement, writer);
 	writer.Update; Files.Register (file);
-	linker.Information (fileName, "written");
+	msg := "written ";
+	Strings.IntToStr(arrangement.SizeInBits(), number);
+	Strings.Append(msg, number);
+	Strings.Append(msg, " bits (= ");
+	Strings.IntToStr(arrangement.SizeInBits() DIV arrangement.maxUnitSize, number);
+	Strings.Append(msg, number);
+	Strings.Append(msg, " units).");
+	linker.Information (fileName, msg);
 END WriteOutputFile;
 
 PROCEDURE WriteBinaryFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
