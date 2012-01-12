@@ -1016,6 +1016,7 @@ TYPE
 		log-: Streams.Writer;
 		supportedDevices-: DeviceList;
 		imports-: SymbolList;
+		frequencyDivider-: LONGINT;
 
 		PROCEDURE AddDevice*(CONST name: ARRAY OF CHAR; adr: HUGEINT);
 		VAR device: Device;
@@ -1031,7 +1032,6 @@ TYPE
 				system.AddCapability(Basic.MakeString(device.name));
 			END;
 		END DefineDevices;
-
 
 		PROCEDURE & Init*(CONST name: ARRAY OF CHAR; diagnostics: Diagnostics.Diagnostics; log: Streams.Writer);
 		VAR device: Device;
@@ -1057,7 +1057,13 @@ TYPE
 			AddDevice("GPO",0FFFFFFD6H);
 			AddDevice("WDT", 0FFFFFFD8H); (*watch dog timer*)
 			NEW(imports,4);
+			frequencyDivider := 1;
 		END Init;
+
+		(*! this is a bit quick and dirty, think about general concepts of such parameters *)
+		PROCEDURE SetFrequencyDivider*(divider: LONGINT);
+		BEGIN frequencyDivider := divider
+		END SetFrequencyDivider;
 
 		PROCEDURE AddImport*(CONST name: ARRAY OF CHAR);
 		VAR import: Specification;
@@ -1079,6 +1085,7 @@ TYPE
 			Indent(w,indent);w.String("name="); w.String(name); w.Ln;
 			INC(indent);
 			Indent(w,indent); w.String("instructionSet="); w.String(instructionSet); w.Ln;
+			Indent(w,indent); w.String("frequencyDivider="); w.Int(frequencyDivider,1); w.Ln;
 			Indent(w,indent); w.String("imports="); w.Int(imports.Length(),1); w.Ln;
 			FOR i := 0 TO imports.Length()-1 DO
 				import := imports.GetSymbol(i);
@@ -1112,8 +1119,9 @@ TYPE
 		VAR i, number: LONGINT; type: Type;
 			instance: Instance; port: Port; channel: Channel; importName: Name;
 		BEGIN
-			IF ~	CheckItem(r,"name") OR ~GetString(r,name) OR
+			IF ~CheckItem(r,"name") OR ~GetString(r,name) OR
 			~CheckItem(r,"instructionSet") OR ~GetString(r,instructionSet) OR
+			~CheckItem(r,"frequencyDivider") OR ~r.GetInteger(frequencyDivider,FALSE) OR
 			~CheckItem(r,"imports") OR ~r.GetInteger(number,FALSE) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 			FOR i := 0 TO number-1 DO
 				IF ~GetString(r,importName) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;

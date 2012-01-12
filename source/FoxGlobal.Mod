@@ -37,6 +37,7 @@ CONST
 
 	StringVector*="Vector";
 	StringFloatingPoint*="FloatingPoint";
+	StringFrequencyDivider*="FrequencyDivider";
 
 	(* traps *)
 	WithTrap* = 1;
@@ -113,7 +114,8 @@ VAR
 	A2Name-,OberonName-,ArrayBaseName-,RecordBodyName-,ModuleBodyName-,
 	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-, NamePcOffset-, NameNoPAF-,NameEntry-, NameExit-, NameFixed-,NameAligned-,NameStackAligned-,
 	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-, NameDynamic-, NameDataMemorySize-, NameCodeMemorySize-
-	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-, NameVector-, NameFloatingPoint-, NameFinal-, NameAbstract-: SyntaxTree.Identifier;
+	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-, NameVector-, NameFloatingPoint-, NameFinal-, NameAbstract-,
+	NameFrequencyDivider-: SyntaxTree.Identifier;
 
 	identifiers: ARRAY 2 OF ARRAY end OF SyntaxTree.Identifier;
 
@@ -1207,6 +1209,7 @@ TYPE
 		NameFloatingPoint := SyntaxTree.NewIdentifier(StringFloatingPoint);
 		NameFinal := SyntaxTree.NewIdentifier(StringFinal);
 		NameAbstract := SyntaxTree.NewIdentifier(StringAbstract);
+		NameFrequencyDivider := SyntaxTree.NewIdentifier(StringFrequencyDivider);
 
 		(* types *)
 		Boolean8 := SyntaxTree.NewBooleanType(8);

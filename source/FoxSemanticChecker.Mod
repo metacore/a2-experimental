@@ -974,14 +974,23 @@ TYPE
 			IF TypeNeedsResolution(x) THEN
 
 				modifier := x.modifiers;
-				IF HasValue(modifier,Global.NameDataMemorySize,position,value) THEN END;
-				IF HasValue(modifier,Global.NameCodeMemorySize,position,value) THEN END;
-				IF HasFlag(modifier, Global.NameVector,position) THEN END;
-				IF HasFlag(modifier, Global.NameFloatingPoint, position) THEN END;
-				symbol := system.activeCellsCapabilities;
-				WHILE symbol # NIL DO
-					IF HasFlag(modifier, symbol.name, position) THEN END;
-					symbol := symbol.nextSymbol;
+				IF ~x.isCellNet THEN
+					IF HasValue(modifier,Global.NameDataMemorySize,position,value) THEN END;
+					IF HasValue(modifier,Global.NameCodeMemorySize,position,value) THEN END;
+					IF HasFlag(modifier, Global.NameVector,position) THEN END;
+					IF HasFlag(modifier, Global.NameFloatingPoint, position) THEN END;
+					symbol := system.activeCellsCapabilities;
+					WHILE symbol # NIL DO
+						IF HasFlag(modifier, symbol.name, position) THEN END;
+						symbol := symbol.nextSymbol;
+					END;
+				ELSE
+					(* no: this should not be allowed on cell net types or check against global scope ...
+					IF HasValue(modifier, Global.NameFrequencyDivider, position,value) THEN
+						IF parameter # NIL THEN Error(position, Diagnostics.Invalid,"forbiddern frequency divider in non-terminal cellnet")
+						END;
+					END
+					*)
 				END;
 				CheckModifiers(modifier);
 
@@ -7586,7 +7595,7 @@ TYPE
 		**)
 		PROCEDURE Module*(x: SyntaxTree.Module);
 		VAR (* nopov *)
-			import: SyntaxTree.Import;
+			import: SyntaxTree.Import; modifier: SyntaxTree.Modifier; value,position: LONGINT;
 		BEGIN
 			module := x;
 			ASSERT(x # NIL);
@@ -7597,6 +7606,12 @@ TYPE
 			RemoveModuleFromCache(importCache,x);
 			Declarations(x.moduleScope);
 			FixTypes();
+
+			IF module.isCellNet THEN
+				modifier := x.modifiers;
+				IF HasValue(modifier,Global.NameFrequencyDivider,position,value) THEN END;
+				CheckModifiers(modifier);
+			END;
 
 			(* nopov *)
 			IF ~error THEN

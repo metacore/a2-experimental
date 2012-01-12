@@ -182,14 +182,14 @@ TYPE
 
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		VAR componentName, parameterName, name: SyntaxTree.IdentifierString; instanceType: ActiveCells.Type;
-			parameter: SyntaxTree.Parameter; parameterType: SyntaxTree.Type; portIndex,i,direction,len: LONGINT;
+			parameter: SyntaxTree.Parameter; parameterType: SyntaxTree.Type; portIndex,i,direction,len,value: LONGINT;
 			port: ActiveCells.Port;
 			prevActiveCellsScope : ActiveCells.Scope;
 			dataMemorySize, codeMemorySize: LONGINT;
 		BEGIN
 			prevActiveCellsScope := currentActiveCellsScope;
 			x.typeDeclaration.GetName(componentName);
-			instanceType := currentActiveCellsScope.NewType(componentName); (*backend.activeCellsSpecification.NewType(componentName);*)
+			instanceType := currentActiveCellsScope.NewType(componentName); (*backend.cification.NewType(componentName);*)
 			IF HasValue(x.modifiers,Global.StringDataMemorySize,dataMemorySize) THEN
 				instanceType.SetDataMemorySize(dataMemorySize);
 			END;
@@ -203,6 +203,12 @@ TYPE
 				instanceType.AddCapability(ActiveCells.FloatingPointCapability)
 			END;
 			AddDevices(instanceType, x);
+
+			(*
+			IF x.isCellNet THEN
+				IF HasValue(x.modifiers,Global.StringFrequencyDivider,value) THEN backend.activeCellsSpecification.SetFrequencyDivider(value) END;
+			END;
+			*)
 
 			currentActiveCellsScope := instanceType;
 			parameter := x.firstParameter;
@@ -357,10 +363,14 @@ TYPE
 
 		(** entry function to visit a complete module *)
 		PROCEDURE Module*(x: SyntaxTree.Module);
+		VAR value: LONGINT;
 		BEGIN
 			ASSERT(x # NIL); module := x;
 			currentActiveCellsScope := backend.activeCellsSpecification;
 			implementationVisitor.moduleScope := x.moduleScope;
+			IF x.isCellNet THEN
+				IF HasValue(x.modifiers,Global.StringFrequencyDivider,value) THEN backend.activeCellsSpecification.SetFrequencyDivider(value) END;
+			END;
 			Scope(x.moduleScope);
 		END Module;
 

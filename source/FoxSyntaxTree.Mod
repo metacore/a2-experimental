@@ -4123,6 +4123,7 @@ TYPE
 			isCellNet-: BOOLEAN;
 			firstScope-,lastScope-: Scope; numberScopes-: LONGINT; (* list of all scopes for checker / backend traversal etc. *)
 			closingComment-: Comment;
+			modifiers-: Modifier;
 
 		PROCEDURE & InitModule( CONST sourceName: ARRAY OF CHAR; position: LONGINT; name: Identifier; scope: ModuleScope; case: LONGINT);
 		BEGIN
@@ -4137,6 +4138,7 @@ TYPE
 			SetType(moduleType);
 			closingComment := NIL;
 			isCellNet := FALSE;
+			modifiers := NIL;
 		END InitModule;
 
 		PROCEDURE SetCellNet*(isCellNet: BOOLEAN);
@@ -4154,6 +4156,11 @@ TYPE
 		PROCEDURE SetClosingComment*(comment: Comment);
 		BEGIN SELF.closingComment := comment
 		END SetClosingComment;
+
+		PROCEDURE SetModifiers*(modifiers: Modifier);
+		BEGIN SELF.modifiers := modifiers
+		END SetModifiers;
+
 
 		PROCEDURE AddScope*(c: Scope);
 		BEGIN

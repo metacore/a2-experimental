@@ -1944,7 +1944,7 @@ TYPE
 			         'end' Identifier '.'. **)
 		PROCEDURE Module*(): SyntaxTree.Module;
 		VAR moduleName, context: SyntaxTree.Identifier;  module: SyntaxTree.Module;  position: LONGINT; isCellNet: BOOLEAN;
-			scannerDiagnostics: Diagnostics.Diagnostics;
+			scannerDiagnostics: Diagnostics.Diagnostics; modifiers: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "Module" ) END;
 			position := symbol.start;
@@ -1952,9 +1952,10 @@ TYPE
 			currentScope := moduleScope;
 			isCellNet := Optional(Scanner.CellNet);
 			IF isCellNet OR Mandatory( Scanner.Module ) THEN
+				IF isCellNet & Optional(Scanner.LeftBrace) THEN modifiers := Flags() ELSE modifiers := NIL END;
 				moduleName :=  Identifier(position);
 				module := SyntaxTree.NewModule( scanner.source^, position, moduleName, moduleScope, scanner.case );
-				IF isCellNet THEN module.SetCellNet(TRUE) END;
+				IF isCellNet THEN module.SetCellNet(TRUE); module.SetModifiers(modifiers); END;
 
 				module.SetType(SyntaxTree.moduleType);
 				CommentSymbol(module);
