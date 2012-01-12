@@ -23,6 +23,8 @@ VAR
 	fileTab: ARRAY FileTabSize OF Address;
 	tempno: INTEGER;
 	openfiles: INTEGER;
+	
+	unixFS: UnixFileSystem;
 
 TYPE	
 	Filename = Files.FileName;
@@ -55,13 +57,70 @@ TYPE
 
 			END NameSet;
 			
-			
+	AliasFileSystem = OBJECT (Files.FileSystem)
+		VAR 
+			fs: UnixFileSystem;
+	
+			PROCEDURE & Init*( realFS: UnixFileSystem);
+			BEGIN
+				SELF.fs := realFS;  
+			END Init;
 
-	FileSystem* = OBJECT (Files.FileSystem)
+			PROCEDURE New0( name: ARRAY OF CHAR ): Files.File;
+			VAR f: Files.File;
+			BEGIN
+				f := fs.New0( name ); 
+				IF f # NIL THEN  f.fs := SELF  END;  
+				RETURN f;
+			END New0;
+
+			PROCEDURE Old0( name: ARRAY OF CHAR ): Files.File;
+			VAR f: Files.File;
+			BEGIN
+				f :=  fs.Old0( name ); 
+				IF f # NIL THEN  f.fs := SELF  END; 
+				RETURN f;
+			END Old0;
+
+			PROCEDURE Delete0( name: ARRAY OF CHAR;  VAR key, res: LONGINT );
+			BEGIN
+				fs.Delete0( name, key, res );
+			END Delete0;
+
+			PROCEDURE Rename0( old, new: ARRAY OF CHAR;  fold: Files.File;  VAR res: LONGINT );
+			BEGIN
+				fs.Rename0( old, new, fold, res );
+			END Rename0;
+
+			PROCEDURE Enumerate0( mask: ARRAY OF CHAR;  flags: SET;  enum: Files.Enumerator );
+			BEGIN
+				fs.Enumerate0( mask, flags, enum );
+			END Enumerate0;
+
+			PROCEDURE FileKey( name: ARRAY OF CHAR ): LONGINT;
+			VAR 
+			BEGIN
+				RETURN fs.FileKey( name );
+			END FileKey;
+
+			PROCEDURE CreateDirectory0( name: ARRAY OF CHAR;  VAR res: LONGINT );
+			BEGIN
+				fs.CreateDirectory0( name, res );
+			END CreateDirectory0;
+
+			PROCEDURE RemoveDirectory0( name: ARRAY OF CHAR;  force: BOOLEAN;  VAR key, res: LONGINT );
+			BEGIN
+				fs.RemoveDirectory0( name, force, key, res );
+			END RemoveDirectory0;
+
+	END AliasFileSystem;
+		
+
+	UnixFileSystem* = OBJECT (Files.FileSystem)
 
 				PROCEDURE & Init;
 				BEGIN
-					prefix := "";  vol := NIL;  desc := "Unix"
+					prefix := "";  vol := NIL;  desc := "UnixFS"
 				END Init;
 
 
@@ -261,7 +320,7 @@ TYPE
 							WHILE ent # NIL DO
 								COPY( dirName, fullName );  
 								GetEntryName;  Append( fullName, fileName );
-								IF ((fileName[0] # '.') OR (fileName = "..")) & Match( fileName, filemask, 0, 0 ) THEN
+								IF (fileName[0] # '.')  & Match( fileName, filemask, 0, 0 ) THEN
 									IF checkSet.Add( fileName ) THEN  (* not a covered name *)
 										r := Unix.stat( S.ADR( fullName ), stat );
 										tm := Unix.localtime( stat.mtime );
@@ -308,7 +367,7 @@ TYPE
 					checkSet := NIL;
 				END Enumerate0;
 
-			END FileSystem;
+			END UnixFileSystem;
 	
 	
 	Buffer = OBJECT (Files.Hint )
@@ -868,10 +927,11 @@ TYPE
 	
 
 
-	PROCEDURE Install*;
-	VAR fs: FileSystem;
+	PROCEDURE Install;
+	VAR aliasFS: AliasFileSystem;
 	BEGIN
-		NEW( fs );  Files.Add( fs, "Unix" );
+		NEW( unixFS );  (*  Files.Add( unixFS, "" );	*)
+		NEW( aliasFS, unixFS );  Files.Add( aliasFS, "searcher" )
 	END Install;
 
 	
