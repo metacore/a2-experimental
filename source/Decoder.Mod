@@ -693,7 +693,7 @@ TYPE
 				DEC(fieldInfo.type, 80H);
 				reader.RawNum(fieldInfo.dim)
 			ELSE
-				ASSERT((fieldInfo.type = 16H) OR (fieldInfo.type = 1DH));
+				(*ASSERT((fieldInfo.type = 16H) OR (fieldInfo.type = 1DH));*)
 				fieldInfo.kind := VarRecord;
 				reader.RawNum(fieldInfo.tdadr)
 			END;
