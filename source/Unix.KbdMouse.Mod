@@ -7,7 +7,7 @@ MODULE KbdMouse;   (* g.f.	9.7.07 *)
 
 (* replacement for the keyboard and mouse drivers in the Unix ports *)
 
-IMPORT X11, Machine, Unix, S := SYSTEM, Inputs, Plugins, Displays, XDisplay, Api:=X11Api, Modules, Objects;
+IMPORT Machine, S := SYSTEM, Inputs, Plugins, X11, Displays, XDisplay, Api:=X11Api, Modules, Objects;
 
 CONST
 	ML = 0;  MM = 1;  MR = 2;
@@ -17,15 +17,12 @@ CONST
 	Mod2KeyBit = 4;  Mod3KeyBit = 5;  Mod4KeyBit = 6;  Mod5KeyBit = 7;
 VAR
 	event: Api.XEvent;  xbuttons: SET;
-	timeStart: LONGINT;   (* milliseconds *)
 	compstatus: X11.ComposeStatus;
 
 	disp: XDisplay.Display;
 
 	MMseen, MRseen: BOOLEAN;
 		
-	wmDeleteWindow: X11.Atom; (* for delete Oberon display from X11-wm close icon *)
-
 TYPE
 	Poll = OBJECT 
 		BEGIN {ACTIVE, SAFE,PRIORITY(Objects.High - 1)}
@@ -149,18 +146,16 @@ VAR
 					SendMouseMsg( x, y, 0, xbuttons )
 			| Api.Expose, Api.GraphicsExpose: 
 					(* hacking, clear all expoure events in queue *)
-					 WHILE Api.CheckTypedEvent(xd, Api.Expose, event) = X11.True DO END; 
+					WHILE Api.CheckTypedEvent(xd, Api.Expose, event) = X11.True DO END; 
 					WHILE Api.CheckWindowEvent(xd, disp.primary, {Api.ExposureMask}, event) = X11.True DO  END; 
 					em := S.VAL( Api.XExposeEvent, event );
-					 IF em.count = 0 THEN  (* wait until last message*) 
+					IF em.count = 0 THEN  (* wait until last message*) 
 						(* Let DisplayRefresher handle this *)						
 						km.keysym := 0FFC6H;
-						(*X11.Sync(xd, X11.True); *)
 						SendKeyboardMsg( km );
-					 END;
+					END;
 					(* clear all expoure events in queue, again *)
 					WHILE Api.CheckTypedEvent(xd, Api.Expose, event) = X11.True DO END; 
-(* 					WHILE Api.CheckTypedWindowEvent(xd, disp.primary, Api.Expose, event) = X11.True DO END; *)
 			| Api.NoExpose:
 			| Api.MappingNotify:
 					X11.RefreshKeyboardMapping( S.ADR( event ) )
@@ -189,15 +184,6 @@ VAR
 	END PollXQueue;
 
 
-	(* Returns the elapsed number of timer ticks from Oberon startup. *)
-	PROCEDURE Time( ): LONGINT;
-	VAR timeval: Unix.Timeval;  timezone: Unix.Timezone;  res: LONGINT;
-	BEGIN
-		res := Unix.gettimeofday( timeval, timezone );
-		RETURN (timeval.usec DIV 1000 + timeval.sec * 1000 - timeStart) MOD 7FFFFFFFH
-	END Time;
-
-
 
 	(* Returns wether key (SHIFT, CTRL or ALT) is pressed *)
 	PROCEDURE KeyState( ): SET;
@@ -212,11 +198,6 @@ VAR
 		RETURN keys
 	END KeyState;
 
-
-	(** Modify AltGr Keyboard mapping  *)
-	PROCEDURE SetMapentry*( from, new: CHAR );
-	BEGIN
-	END SetMapentry;
 
 	PROCEDURE Keysym( CONST str: ARRAY OF CHAR ): LONGINT;
 	BEGIN
@@ -303,23 +284,23 @@ VAR
 
 		(* special keyboard: *)
 		modifiers[0] := shift;
-		(*a acute*)		Rebind( "aacute", 0, 094X );		Rebind( "aacute", 1, 094X );
-		(*a grave*) 		Rebind( "agrave", 0, 08BX );		Rebind( "agrave", 1, 08BX );
-		(*a diaeresis*)	Rebind( "adiaeresis", 0, 083X );	Rebind( "adiaeresis", 1, 083X );
-		(*a circumflex*) Rebind( "acircumflex", 0, 086X );  Rebind( "acircumflex", 1, 086X );
-		(*e acute*) 		Rebind( "eacute", 0, 090X );		Rebind( "eacute", 1, 090X );
-		(*e grave*)		Rebind( "egrave", 0, 08CX );		Rebind( "egrave", 1, 08CX );
-		(*e diaeresis*)	Rebind( "ediaeresis", 0, 091X );	Rebind( "ediaeresis", 1, 091X );
-		(*e circumflex*) Rebind( "ecircumflex", 0, 087X );	Rebind( "ecircumflex", 1, 087X );
-		(*i grave*)		Rebind( "igrave", 0, 08DX );		Rebind( "igrave", 1, 08DX );
-		(*i diaeresis*)	Rebind( "idiaeresis", 0, 092X );	Rebind( "idiaeresis", 1, 092X );
-		(*i circumflex*)	Rebind( "icircumflex", 0, 088X );	Rebind( "icircumflex", 1, 088X );
-		(*o grave*)		Rebind( "ograve", 0, 08EX );		Rebind( "ograve", 1, 08EX );
-		(*o diaeresis*)	Rebind( "odiaeresis", 0, 084X );	Rebind( "odiaeresis", 1, 084X );
-		(*o circumflex*) Rebind( "ocircumflex", 0, 089X );	Rebind( "ocircumflex", 1, 089X );
-		(*u grave*)		Rebind( "ugrave", 0, 08FX );		Rebind( "ugrave", 1, 08FX );
-		(*u diaeresis*)	Rebind( "udiaeresis", 0, 085X );	Rebind( "udiaeresis", 1, 085X );
-		(*u circumflex*) Rebind( "ucircumflex", 0, 08AX );	Rebind( "ucircumflex", 1, 08AX );
+		(*a acute*)		Rebind( "aacute", 0, 094X );			Rebind( "aacute", 1, 094X );
+		(*a grave*) 		Rebind( "agrave", 0, 08BX );			Rebind( "agrave", 1, 08BX );
+		(*a diaeresis*)	Rebind( "adiaeresis", 0, 083X );		Rebind( "adiaeresis", 1, 083X );
+		(*a circumflex*)	Rebind( "acircumflex", 0, 086X );	Rebind( "acircumflex", 1, 086X );
+		(*e acute*) 		Rebind( "eacute", 0, 090X );			Rebind( "eacute", 1, 090X );
+		(*e grave*)		Rebind( "egrave", 0, 08CX );			Rebind( "egrave", 1, 08CX );
+		(*e diaeresis*)	Rebind( "ediaeresis", 0, 091X );		Rebind( "ediaeresis", 1, 091X );
+		(*e circumflex*)	Rebind( "ecircumflex", 0, 087X );	Rebind( "ecircumflex", 1, 087X );
+		(*i grave*)		Rebind( "igrave", 0, 08DX );			Rebind( "igrave", 1, 08DX );
+		(*i diaeresis*)	Rebind( "idiaeresis", 0, 092X );		Rebind( "idiaeresis", 1, 092X );
+		(*i circumflex*)	Rebind( "icircumflex", 0, 088X );		Rebind( "icircumflex", 1, 088X );
+		(*o grave*)		Rebind( "ograve", 0, 08EX );			Rebind( "ograve", 1, 08EX );
+		(*o diaeresis*)	Rebind( "odiaeresis", 0, 084X );		Rebind( "odiaeresis", 1, 084X );
+		(*o circumflex*)	Rebind( "ocircumflex", 0, 089X );	Rebind( "ocircumflex", 1, 089X );
+		(*u grave*)		Rebind( "ugrave", 0, 08FX );			Rebind( "ugrave", 1, 08FX );
+		(*u diaeresis*)	Rebind( "udiaeresis", 0, 085X );		Rebind( "udiaeresis", 1, 085X );
+		(*u circumflex*)	Rebind( "ucircumflex", 0, 08AX );	Rebind( "ucircumflex", 1, 08AX );
 		(*c cedilla*)	Rebind( "ccedilla", 0, 093X );		Rebind( "ccedilla", 1, 093X );
 
 		(*n tilde*)		Rebind( "ntilde", 0, 095X );
@@ -330,7 +311,7 @@ VAR
 
 		InitKeysym;
 
-		NEW( poll );  Objects.Sleep( 10 ); timeStart := Time();
+		NEW( poll );  
 		
 	END Init;
 
