@@ -300,7 +300,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 		Win32.WinFS.Mod
 	}
 
-	NATIVE,WIN { RelativeFileSystem.Mod } # file system relative to path
+	NATIVE,WIN,UNIX { RelativeFileSystem.Mod } # file system relative to path
 
 	NATIVE,WIN,UNIX { Loader.Mod }
 	NATIVEGEN, WINGEN {BitSets.Mod Diagnostics.Mod StringPool.Mod ObjectFile.Mod GenericLinker.Mod  oc/GenericLoader.Mod}
