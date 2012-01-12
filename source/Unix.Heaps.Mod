@@ -685,13 +685,10 @@ VAR
 		
 		INC( throuput, size );
 		IF Stats THEN  INC(Nnew); INC(NnewBytes, size)  END;
+		Machine.Fill32( blkAdr, size, 0 );
 		RETURN blkAdr
 	END GetBlock;
 
-	PROCEDURE ClearMem*( a: Address; len: LONGINT );
-	BEGIN
-		Machine.Fill32( a, len, 0 )
-	END ClearMem;
 
 
 	(** Private compiler interface. Do not use. *)
@@ -708,7 +705,6 @@ VAR
 		Machine.Acquire( Machine.Heaps );
 		ptr := GetBlock( size ) + AdrSize;
 		S.PUT( ptr - AdrSize, tag );
-		ClearMem( ptr, size - AdrSize );
 		p := S.VAL( ANY, ptr );
 		Machine.Release( Machine.Heaps )
 	END NewRec;
@@ -721,7 +717,6 @@ VAR
 		size := recSize + ProtOfs + AdrSize;  INC( size, (-size) MOD BlockSize );
 		Machine.Acquire( Machine.Heaps );
 		ptr0 := GetBlock( size ) + AdrSize;
-		ClearMem( ptr0, size - AdrSize );   (* clear everything *)
 		S.PUT( ptr0 - AdrSize, ptr0 );   (* set the main tag *)
 		S.PUT( ptr0, size - AdrSize );   (* size *)
 		S.PUT( ptr0 + SizeSize, S.VAL( Address, - AdrSize ) );
@@ -741,7 +736,7 @@ VAR
 	BEGIN
 		size := size + AdrSize + 24;  INC( size, (-size) MOD BlockSize );
 		Machine.Acquire( Machine.Heaps );
-		ptr := GetBlock( size ) + AdrSize;  ClearMem( ptr, size - AdrSize );
+		ptr := GetBlock( size ) + AdrSize;  
 		S.PUT( ptr - AdrSize, ptr );  S.PUT( ptr, size - AdrSize );
 		S.PUT( ptr + AdrSize, S.VAL( Address, -AdrSize ) );
 		S.PUT( ptr + 20, ptr );
@@ -768,7 +763,6 @@ VAR
 				Machine.Acquire( Machine.Heaps );
 				ptr := GetBlock( size ) + AdrSize;
 				S.PUT( ptr - AdrSize, S.VAL( SET, eltag ) + {ArrayBit} );
-				ClearMem( ptr, size - AdrSize );
 				firstElem := ptr + dataOffset;
 				S.PUT( ptr, firstElem + arrSize - sTB.recSize );  (* last elem *)
 				(* ptr + 4 is reserved for mark phase *)
