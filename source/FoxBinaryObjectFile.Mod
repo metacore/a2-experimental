@@ -658,12 +658,15 @@ TYPE
 		BEGIN
 			type := type.resolved;
 			IF type IS SyntaxTree.AnyType THEN
+				ASSERT(offset MOD 4 = 0);
 				w.RawNum((offset )); INC(numberPointers);
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 			ELSIF type IS SyntaxTree.PointerType THEN
+				ASSERT(offset MOD 4 = 0);
 				w.RawNum((offset )); INC(numberPointers);
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1);D.Ln;  END;
 			ELSIF (type IS SyntaxTree.ProcedureType) & (type(SyntaxTree.ProcedureType).isDelegate) THEN
+				ASSERT(offset MOD 4 = 0);
 				w.RawNum((offset )+module.system.addressSize DIV 8 ); INC(numberPointers);
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset+module.system.addressSize DIV 8,1); END;
 			ELSIF (type IS SyntaxTree.RecordType) THEN
@@ -692,7 +695,7 @@ TYPE
 							n := n* type.staticLength;
 							base := type.arrayBase.resolved;
 						END;
-						size := module.system.SizeOf(base) DIV 8;
+						size := module.system.AlignedSizeOf(base) DIV 8;
 						IF SemanticChecker.ContainsPointer(base) THEN
 							ASSERT(n<1000000); (* not more than one million pointers on the stack ... *)
 							FOR i := 0 TO n-1 DO
@@ -700,6 +703,8 @@ TYPE
 							END;
 						END;
 					ELSE
+						ASSERT(offset MOD 4 = 0);
+
 						w.RawNum((offset )); INC(numberPointers);
 						IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 					END;
@@ -714,7 +719,7 @@ TYPE
 							n := n* type.staticLength;
 							base := type.arrayBase.resolved;
 						END;
-						size := module.system.SizeOf(base) DIV 8;
+						size := module.system.AlignedSizeOf(base) DIV 8;
 						IF SemanticChecker.ContainsPointer(base) THEN
 							ASSERT(n<1000000); (* not more than one million pointers on the stack ... *)
 							FOR i := 0 TO n-1 DO
@@ -722,6 +727,7 @@ TYPE
 							END;
 						END;
 					ELSE
+						ASSERT(offset MOD 4 = 0);
 						w.RawNum((offset )); INC(numberPointers); (* GC relevant pointer is at offset 0 *)
 						IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 					END
@@ -1442,7 +1448,7 @@ TYPE
 			name := "@@";
 			ASSERT(type.typeDeclaration # NIL);
 			type.typeDeclaration.GetName(name);
-			size := module.system.SizeOf(type) DIV 8;
+			size := module.system.AlignedSizeOf(type) DIV 8;
 			w.RawNum(size );
 			w.RawNum((d.offset )); (* type descriptor pointer address, patched by loader to type desciptor address *)
 

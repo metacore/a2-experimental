@@ -393,6 +393,7 @@ TYPE
 			recursion: BOOLEAN;
 
 			sizeInBits-: LONGINT; (* allocation size of this type in bits *)
+			alignmentInBits-: LONGINT;
 
 		PROCEDURE & InitType*( position: LONGINT);
 		BEGIN
@@ -401,6 +402,7 @@ TYPE
 			scope := NIL;
 			resolved := SELF;
 			sizeInBits := MIN(LONGINT);
+			alignmentInBits := MIN(LONGINT);
 			isRealtime := FALSE;
 			recursion := FALSE;
 			InitFingerPrint(fingerprint)
@@ -409,6 +411,10 @@ TYPE
 		PROCEDURE SetSize*(sizeInBits: LONGINT);
 		BEGIN SELF.sizeInBits := sizeInBits
 		END SetSize;
+
+		PROCEDURE SetAlignment*(alignmentInBits: LONGINT);
+		BEGIN SELF.alignmentInBits := alignmentInBits
+		END SetAlignment;
 
 		PROCEDURE End*( position: LONGINT );
 		BEGIN SELF.endposition := position;

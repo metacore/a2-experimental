@@ -1778,7 +1778,7 @@ TYPE
 				IF IsOpenArray(baseType) THEN
 					sizeOperand := GetArraySize(baseType(SyntaxTree.ArrayType),offset+system.addressSize);
 				ELSE
-					size := ToMemoryUnits(system,system.SizeOf(baseType));
+					size := ToMemoryUnits(system,system.AlignedSizeOf(baseType));
 					sizeOperand :=  IntermediateCode.Immediate(addressType,size);
 				END;
 				len := tag;
@@ -2824,7 +2824,7 @@ TYPE
 				ReleaseIntermediateOperand(tmp);
 				IF leftType(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
 					baseType := SemanticChecker.ArrayBase(resultingType, indexDim);
-					tmp := IntermediateCode.Immediate(addressType, ToMemoryUnits(system,system.SizeOf(baseType)));
+					tmp := IntermediateCode.Immediate(addressType, ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 				ELSE
 					GetMathArrayField(tmp,array.tag, MathElementSizeOffset);
 				END;
@@ -2884,7 +2884,7 @@ TYPE
 						RETURN res
 					END
 				ELSE
-					size := ToMemoryUnits(system,system.SizeOf(type));
+					size := ToMemoryUnits(system,system.AlignedSizeOf(type));
 					RETURN IntermediateCode.Immediate(addressType,size);
 				END;
 			END Length;
@@ -2897,7 +2897,7 @@ TYPE
 				WHILE (type IS SyntaxTree.MathArrayType) & (type(SyntaxTree.MathArrayType).form # SyntaxTree.Static) DO
 					type := type(SyntaxTree.MathArrayType).arrayBase;
 				END;
-				RETURN ToMemoryUnits(system,system.SizeOf(type));
+				RETURN ToMemoryUnits(system,system.AlignedSizeOf(type));
 			END StaticSize;
 
 			PROCEDURE IsImmediate(x: IntermediateCode.Operand): BOOLEAN;
@@ -3251,7 +3251,7 @@ TYPE
 						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
 						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
 						baseType := SemanticChecker.ArrayBase(type,dim);
-						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
 					ELSE HALT(100);
 					END;
@@ -3298,7 +3298,7 @@ TYPE
 							PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
 							PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
 							baseType := SemanticChecker.ArrayBase(type,dim);
-							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 							PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
 							Pass((arrayDestinationTag));
 						END;
@@ -3330,7 +3330,7 @@ TYPE
 						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
 						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
 						baseType := SemanticChecker.ArrayBase(type,dim);
-						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
 						Pass((arrayDestinationTag));
 					ELSE HALT(100);
@@ -3385,7 +3385,7 @@ TYPE
 							PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
 							PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
 							baseType := SemanticChecker.ArrayBase(type,dim);
-							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 							PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
 							Pass((arrayDestinationTag));
 						END;
@@ -3419,7 +3419,7 @@ TYPE
 						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
 						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
 						baseType := SemanticChecker.ArrayBase(type,dim);
-						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
 						Pass((arrayDestinationTag));
 					ELSE HALT(100);
@@ -3484,7 +3484,7 @@ TYPE
 							PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
 							PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
 							baseType := SemanticChecker.ArrayBase(type,dim);
-							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 							PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
 						END;
 						variable := GetTemporaryVariable(parameter.type.resolved);
@@ -3526,7 +3526,7 @@ TYPE
 						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
 						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
 						baseType := SemanticChecker.ArrayBase(type,dim);
-						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.SizeOf(baseType)));
+						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
 						variable := GetTemporaryVariable(parameter.type.resolved);
 						Symbol(variable,variableOp);
@@ -4585,7 +4585,7 @@ TYPE
 				WITH type: SyntaxTree.ArrayType DO
 					IF type.form = SyntaxTree.Static THEN
 						baseType := type.arrayBase;
-						size := ToMemoryUnits(system,system.SizeOf(baseType));
+						size := ToMemoryUnits(system,system.AlignedSizeOf(baseType));
 						FOR i := 0 TO type.staticLength-1 DO
 							InitFields(baseType,adr,offset+i*size);
 						END;
@@ -4598,14 +4598,14 @@ TYPE
 						imm := IntermediateCode.Immediate(addressType,dim);
 						PutMathArrayFieldOffset(adr,imm,MathDimOffset,offset);
 						baseType := SemanticChecker.ArrayBase(type,dim);
-						IF baseType = NIL THEN size := 0 ELSE size := system.SizeOf(baseType) END;
+						IF baseType = NIL THEN size := 0 ELSE size := system.AlignedSizeOf(baseType) END;
 						imm := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,size));
 						PutMathArrayFieldOffset(adr,imm,MathElementSizeOffset,offset);
 						ReleaseIntermediateOperand(imm);
 						(* flags remain empty (=0) for open array *)
 					ELSIF type.form = SyntaxTree.Static THEN
 						baseType := type.arrayBase;
-						size := ToMemoryUnits(system,system.SizeOf(baseType));
+						size := ToMemoryUnits(system,system.AlignedSizeOf(baseType));
 						FOR i := 0 TO type.staticLength-1 DO
 							InitFields(baseType,adr,offset+i*size);
 						END;
@@ -5745,9 +5745,9 @@ TYPE
 							ReleaseIntermediateOperand(reg);
 						ELSE
 							IF isTensor THEN
-								size := ToMemoryUnits(system,system.SizeOf(SemanticChecker.ArrayBase(type,MAX(LONGINT))));
+								size := ToMemoryUnits(system,system.AlignedSizeOf(SemanticChecker.ArrayBase(type,MAX(LONGINT))));
 							ELSE
-								size := ToMemoryUnits(system,system.SizeOf(SemanticChecker.ArrayBase(type,openDim)));
+								size := ToMemoryUnits(system,system.AlignedSizeOf(SemanticChecker.ArrayBase(type,openDim)));
 							END;
 							IF (size # 1) THEN
 								Emit(Mul(position,reg,reg,IntermediateCode.Immediate(addressType,size))); (*! optimize the multiplication of immediate operands *)
@@ -5794,9 +5794,9 @@ TYPE
 						i := openDim-1;
 						IntermediateCode.InitRegister(reg,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 						IF isTensor THEN
-							IntermediateCode.InitImmediate(tmp,addressType,ToMemoryUnits(system,system.SizeOf(SemanticChecker.ArrayBase(type,MAX(LONGINT)))));
+							IntermediateCode.InitImmediate(tmp,addressType,ToMemoryUnits(system,system.AlignedSizeOf(SemanticChecker.ArrayBase(type,MAX(LONGINT)))));
 						ELSE
-							IntermediateCode.InitImmediate(tmp,addressType,ToMemoryUnits(system,system.SizeOf(SemanticChecker.ArrayBase(type,openDim))));
+							IntermediateCode.InitImmediate(tmp,addressType,ToMemoryUnits(system,system.AlignedSizeOf(SemanticChecker.ArrayBase(type,openDim))));
 						END;
 						PutMathArrayField(adr,tmp,MathElementSizeOffset);
 						WHILE (i >= 0) DO
@@ -7768,7 +7768,7 @@ TYPE
 							n := n* type.staticLength;
 							base := type.arrayBase.resolved;
 						END;
-						size := ToMemoryUnits(module.system,module.system.SizeOf(base));
+						size := ToMemoryUnits(module.system,module.system.AlignedSizeOf(base));
 						IF SemanticChecker.ContainsPointer(base) THEN
 							ASSERT(n<1000000); (* not more than one million pointers on the stack ... *)
 							FOR i := 0 TO n-1 DO
@@ -7790,7 +7790,7 @@ TYPE
 							n := n* type.staticLength;
 							base := type.arrayBase.resolved;
 						END;
-						size := ToMemoryUnits(module.system,module.system.SizeOf(base));
+						size := ToMemoryUnits(module.system,module.system.AlignedSizeOf(base));
 						IF SemanticChecker.ContainsPointer(base) THEN
 							ASSERT(n<1000000); (* not more than one million pointers on the stack ... *)
 							FOR i := 0 TO n-1 DO
@@ -9139,42 +9139,6 @@ TYPE
 		END;
 		RETURN i
 	END DynamicDim;
-
-	(*
-	PROCEDURE ParametersSize(system: Global.System; procedureType: SyntaxTree.ProcedureType; isNested: BOOLEAN): LONGINT;
-	VAR parSize: LONGINT; parameter: SyntaxTree.Parameter;
-
-		PROCEDURE Parameter(parameter: SyntaxTree.Parameter);
-		BEGIN
-			IF parameter # NIL THEN
-				INC(parSize,system.SizeOfParameter(parameter));
-				parSize := parSize + (-parSize) MOD system.addressSize;
-			END;
-		END Parameter;
-
-	BEGIN
-		parSize := 0;
-		Parameter(procedureType.selfParameter);
-		parameter :=procedureType.lastParameter;
-		WHILE (parameter # NIL) DO
-			Parameter(parameter);
-			parameter := parameter.prevParameter;
-		END;
-
-		(*
-		IF procedureType.HasFlag(SyntaxTree.DelegateFlag) THEN INC(parSize,system.addressSize) END; (* method => self pointer *)
-			NO, SELF is encoded as regular parameter
-		*)
-		IF isNested THEN INC(parSize,system.addressSize) END; (* nested procedure => static base *)
-		IF NeedsStructuredReturnType(procedureType) THEN
-			IF procedureType.returnParameter = NIL THEN (* otherwise handled by caller *)
-				parSize := parSize + 2*system.addressSize
-			END
-		END;
-
-		RETURN ToMemoryUnits(system,parSize)
-	END ParametersSize;
-	*)
 
 	PROCEDURE ParametersSize(system: Global.System; procedureType: SyntaxTree.ProcedureType; isNested: BOOLEAN): LONGINT;
 	VAR parSize: LONGINT; parameter: SyntaxTree.Parameter;

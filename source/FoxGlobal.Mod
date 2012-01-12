@@ -195,121 +195,40 @@ TYPE
 			activeCellsCapabilities := symbol
 		END AddCapability;
 
-		(*
 		PROCEDURE GenerateRecordOffsets*(x: SyntaxTree.RecordType): BOOLEAN; (* normally done in checker but the binary symbol file format makes this necessary *)
-		VAR baseType: SyntaxTree.RecordType; offset,size: LONGINT; alignment: LONGINT; variable: SyntaxTree.Variable; error: BOOLEAN;
-			PROCEDURE Variable(variable: SyntaxTree.Variable);
-			BEGIN
-				size := SizeOf(variable.type.resolved);
-				IF size < 0 THEN error := TRUE END;
-				alignment := AlignmentOf(SELF.variableAlignment, variable.type.resolved);
-				Basic.Align(offset,alignment);
-				variable.SetOffset(offset);
-				INC(offset,size);
-			END Variable;
-
-		BEGIN
-			error := FALSE;
-			baseType :=x.GetBaseRecord();
-			IF (baseType  # NIL) & (baseType.sizeInBits < 0) THEN
-				error := ~GenerateRecordOffsets(baseType);
-			END;
-			IF baseType # NIL THEN
-				offset := baseType.sizeInBits
-			ELSE
-				offset := 0
-			END;
-			variable := x.recordScope.firstVariable;
-			WHILE (variable # NIL) DO
-				Variable(variable);
-				variable := variable.nextVariable;
-			END;
-			Basic.Align(offset,addressSize);
-			x.SetSize(offset);
-			RETURN ~error
-		END GenerateRecordOffsets;
-		*)
-
-		PROCEDURE GenerateRecordOffsets*(x: SyntaxTree.RecordType): BOOLEAN; (* normally done in checker but the binary symbol file format makes this necessary *)
-		VAR baseType: SyntaxTree.RecordType; offset,size: LONGINT; alignment: LONGINT; variable: SyntaxTree.Variable;
+		VAR baseType: SyntaxTree.RecordType; offset,size: LONGINT; alignment, thisAlignment: LONGINT; variable: SyntaxTree.Variable;
 		BEGIN
 			baseType :=x.GetBaseRecord();
 			IF (baseType  # NIL) & (baseType.sizeInBits < 0) THEN
-				RETURN GenerateRecordOffsets(baseType);
+				IF~ GenerateRecordOffsets(baseType) THEN RETURN FALSE END;
 			END;
 			IF baseType # NIL THEN
-				offset := baseType.sizeInBits
+				offset := baseType.sizeInBits; alignment := baseType.alignmentInBits;
 			ELSE
-				offset := 0
+				offset := 0; alignment := dataUnit;
 			END;
+
 			variable := x.recordScope.firstVariable;
 			WHILE (variable # NIL) DO
 				size := SizeOf(variable.type.resolved);
 				IF size < 0 THEN RETURN FALSE END;
 
 				IF variable.alignment > 1 THEN
-					Basic.Align(offset, variable.alignment*dataUnit);
+					thisAlignment := variable.alignment*dataUnit;
 				ELSE
-					alignment := AlignmentOf(SELF.variableAlignment, variable.type.resolved);
-					Basic.Align(offset,alignment);
+					thisAlignment := AlignmentOf(SELF.variableAlignment, variable.type.resolved);
 				END;
+				Basic.Align(offset, thisAlignment);
+				IF thisAlignment  > alignment THEN alignment := thisAlignment END;
 
 				variable.SetOffset(offset);
 				INC(offset,size);
 				variable := variable.nextVariable;
 			END;
-			Basic.Align(offset,addressSize);
+			x.SetAlignment(alignment);
 			x.SetSize(offset);
 			RETURN TRUE
 		END GenerateRecordOffsets;
-
-		(*
-
-		PROCEDURE GenerateVariableOffsets*(scope: SyntaxTree.Scope): BOOLEAN;
-		VAR variable: SyntaxTree.Variable; offset,size: LONGINT; alignment: LONGINT; parameterOffset :LONGINT; error: BOOLEAN;
-
-			PROCEDURE Variable(variable: SyntaxTree.Variable);
-			BEGIN
-				size := SizeOf(variable.type.resolved);
-				IF size<0 THEN error := TRUE END;
-				DEC(offset,size);
-				alignment := AlignmentOf(SELF.variableAlignment,variable.type.resolved);
-				Basic.Align(offset,-alignment);
-
-				(* alignment on stack *)
-				IF variable.alignment > 1 THEN
-					DEC(offset, parameterOffset);
-					Basic.Align(offset, -variable.alignment*dataUnit);
-					INC(offset, parameterOffset);
-				END;
-
-				variable.SetOffset(offset);
-			END Variable;
-
-		BEGIN
-			error := FALSE;
-			IF scope IS SyntaxTree.RecordScope THEN (* increasing indices *)
-				error := ~GenerateRecordOffsets(scope(SyntaxTree.RecordScope).ownerRecord)
-			ELSE (* module scope or procedure scope: decreasing indices *)
-				ASSERT((scope IS SyntaxTree.ModuleScope) OR (scope IS SyntaxTree.ProcedureScope) OR (scope IS SyntaxTree.CellScope)
-				);
-				offset := 0;
-				IF scope IS SyntaxTree.ProcedureScope THEN
-					parameterOffset := scope(SyntaxTree.ProcedureScope).ownerProcedure.type(SyntaxTree.ProcedureType).parameterOffset
-				ELSE
-					parameterOffset := 0
-				END;
-
-				variable := scope.firstVariable;
-				WHILE (variable # NIL) DO
-					Variable(variable);
-					variable := variable.nextVariable;
-				END;
-			END;
-			RETURN ~error
-		END GenerateVariableOffsets;
-
-		*)
 
 		PROCEDURE GenerateVariableOffsets*(scope: SyntaxTree.Scope): BOOLEAN;
 		VAR variable: SyntaxTree.Variable; offset,size: LONGINT; alignment: LONGINT; parameterOffset :LONGINT;
@@ -345,54 +264,6 @@ TYPE
 			END;
 			RETURN TRUE
 		END GenerateVariableOffsets;
-
-		(*
-		PROCEDURE GenerateParameterOffsets*(procedure : SyntaxTree.Procedure; nestedProcedure: BOOLEAN): BOOLEAN;
-		VAR offset,size: LONGINT;parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType; error: BOOLEAN;
-
-			PROCEDURE Parameter(parameter: SyntaxTree.Parameter);
-			BEGIN
-				IF parameter # NIL THEN
-					Basic.Align(offset,addressSize);
-					parameter.SetOffset(offset);
-					size := SizeOfParameter(parameter);
-					IF size < 0 THEN error := TRUE END;
-					INC(offset,SizeOfParameter(parameter));
-				END;
-			END Parameter;
-
-		BEGIN
-			error := FALSE;
-			procedureType := procedure.type(SyntaxTree.ProcedureType);
-			IF (procedure.isInline) THEN
-				offset := 0
-			ELSE
-				offset := SELF.offsetFirstParameter;
-			END;
-			IF nestedProcedure THEN
-				INC(offset,addressSize); (* parameter offset of static link *) (*! check alternative: add hidden parameter *)
-			END;
-			IF procedureType.callingConvention = SyntaxTree.OberonCallingConvention THEN
-				Parameter(procedureType.selfParameter);
-				parameter := procedureType.lastParameter;
-				WHILE (parameter # NIL) DO
-					Parameter(parameter);
-					parameter := parameter.prevParameter;
-				END;
-				procedureType.SetParameterOffset(offset);
-				Parameter(procedureType.returnParameter);
-			ELSE
-				ASSERT(procedureType.selfParameter = NIL);
-				parameter := procedureType.firstParameter;
-				WHILE (parameter # NIL) DO
-					Parameter(parameter);
-					parameter := parameter.nextParameter;
-				END;
-				procedureType.SetParameterOffset(offset);
-			END;
-			RETURN ~error
-		END GenerateParameterOffsets;
-		*)
 
 		PROCEDURE GenerateParameterOffsets*(procedure : SyntaxTree.Procedure; nestedProcedure: BOOLEAN): BOOLEAN;
 		VAR offset,size: LONGINT;parameter: SyntaxTree.Parameter; procedureType: SyntaxTree.ProcedureType;
@@ -441,104 +312,8 @@ TYPE
 		END GenerateParameterOffsets;
 
 
-
-		(*
 		PROCEDURE SizeOf*(type: SyntaxTree.Type): LONGINT;
-		VAR size: LONGINT; error: BOOLEAN;
-		BEGIN
-			type := type.resolved;
-			IF type IS SyntaxTree.BasicType THEN
-				size := type.sizeInBits
-			ELSIF type IS SyntaxTree.PointerType THEN
-				size := addressSize
-			ELSIF type IS SyntaxTree.ProcedureType THEN
-
-				IF type(SyntaxTree.ProcedureType).isDelegate THEN
-					size := 2*addressSize
-				ELSE
-					size := addressSize
-				END;
-			ELSIF type IS SyntaxTree.RecordType THEN
-				(* do not treat a record type like a pointer even if the Pointer field is set, this leads to problems in object files
-					rather make sure that each reference type is a POINTER TO at least behind the secenes!
-				*)
-				ASSERT(SyntaxTree.Resolved IN type.state);
-				size :=type(SyntaxTree.RecordType).sizeInBits;
-				IF size < 0 THEN
-					IF GenerateRecordOffsets(type(SyntaxTree.RecordType)) THEN
-						size :=type(SyntaxTree.RecordType).sizeInBits;
-					ELSE
-						size := -1
-					END;
-				END;
-				(*
-			ELSIF type IS SyntaxTree.CellType THEN
-				(* do not treat a record type like a pointer even if the Pointer field is set, this leads to problems in object files
-					rather make sure that each reference type is a POINTER TO at least behind the secenes!
-				*)
-				ASSERT(SyntaxTree.Resolved IN type.state);
-				size :=type(SyntaxTree.CellType).sizeInBits;
-				IF size < 0 THEN
-					IF GenerateVariableOffsets(type(SyntaxTree.CellType).actorScope) THEN
-						IF type(SyntaxTree.CellType).actorScope.lastVariable = NIL THEN
-							size := 0
-						ELSE
-							size := ABS(type(SyntaxTree.CellType).actorScope.lastVariable.offsetInBits);
-						END;
-					ELSE
-						size := -1
-					END;
-				END;
-				*)
-			ELSIF type IS SyntaxTree.ArrayType THEN
-				ASSERT(SyntaxTree.Resolved IN type.state);
-				IF type(SyntaxTree.ArrayType).form = SyntaxTree.Static THEN
-					size := SizeOf(type(SyntaxTree.ArrayType).arrayBase.resolved)*type(SyntaxTree.ArrayType).staticLength
-				ELSE
-					size := 0;
-					WHILE(type IS SyntaxTree.ArrayType) DO
-						type := type(SyntaxTree.ArrayType).arrayBase.resolved;
-						INC(size); (* length field *)
-					END;
-					size := size*addressSize+addressSize
-				END;
-			ELSIF type IS SyntaxTree.MathArrayType THEN
-				ASSERT(SyntaxTree.Resolved IN type.state);
-				IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
-					size := SizeOf(type(SyntaxTree.MathArrayType).arrayBase.resolved)*type(SyntaxTree.MathArrayType).staticLength
-				ELSIF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
-					size := addressSize (* pointer to geometry descriptor *)
-				ELSE
-					size := 0;
-					WHILE(type IS SyntaxTree.MathArrayType) DO
-						type := type(SyntaxTree.MathArrayType).arrayBase.resolved;
-						INC(size);
-					END;
-					size := size*2*addressSize (* length and increments *) +5*addressSize (* data ptr, adr ptr, flags, dim and elementsize *);
-				END;
-			ELSIF type IS SyntaxTree.StringType THEN
-				ASSERT(SyntaxTree.Resolved IN type.state);
-				size := type(SyntaxTree.StringType).length * SizeOf(type(SyntaxTree.StringType).baseType);
-			ELSIF type IS SyntaxTree.EnumerationType THEN
-				size := addressSize
-			ELSIF type = SyntaxTree.invalidType THEN size := 0
-			ELSIF type IS SyntaxTree.QualifiedType THEN
-				HALT(101); (* hint that unresolved type has been taken for type size computation *)
-			ELSIF type IS SyntaxTree.PortType THEN
-				size := addressSize
-			ELSIF type IS SyntaxTree.CellType THEN
-				size := 0;
-			ELSIF type IS SyntaxTree.RangeType THEN
-				size := 3 * SizeOf(longintType);
-			ELSE
-				HALT(100)
-			END;
-			RETURN size
-		END SizeOf;
-		*)
-
-		PROCEDURE SizeOf*(type: SyntaxTree.Type): LONGINT;
-		VAR size: LONGINT;
+		VAR size: LONGINT; base: SyntaxTree.Type;
 		BEGIN
 			IF type = NIL THEN RETURN -1 END;
 			type := type.resolved;
@@ -559,46 +334,31 @@ TYPE
 				IF ~(SyntaxTree.Resolved IN type.state) THEN
 					size := -1
 				ELSE
-					size :=type(SyntaxTree.RecordType).sizeInBits;
+					size :=type.sizeInBits;
 					IF size < 0 THEN
 						IF GenerateRecordOffsets(type(SyntaxTree.RecordType)) THEN
-							size :=type(SyntaxTree.RecordType).sizeInBits;
+							size :=type.sizeInBits;
 						ELSE
 							size := -1
 						END;
 					END;
 				END;
-				(*
-			ELSIF type IS SyntaxTree.CellType THEN
-				(* do not treat a record type like a pointer even if the Pointer field is set, this leads to problems in object files
-					rather make sure that each reference type is a POINTER TO at least behind the secenes!
-				*)
-				ASSERT(SyntaxTree.Resolved IN type.state);
-				size :=type(SyntaxTree.CellType).sizeInBits;
-				IF size < 0 THEN
-					IF GenerateVariableOffsets(type(SyntaxTree.CellType).actorScope) THEN
-						IF type(SyntaxTree.CellType).actorScope.lastVariable = NIL THEN
-							size := 0
-						ELSE
-							size := ABS(type(SyntaxTree.CellType).actorScope.lastVariable.offsetInBits);
-						END;
-					ELSE
-						size := -1
-					END;
-				END;
-				*)
 			ELSIF type IS SyntaxTree.ArrayType THEN
 				IF ~(SyntaxTree.Resolved IN type.state) THEN
 					size := -1
+				ELSIF type.sizeInBits >= 0 THEN
+					size := type.sizeInBits
 				ELSIF type(SyntaxTree.ArrayType).form = SyntaxTree.Static THEN
-					size := SizeOf(type(SyntaxTree.ArrayType).arrayBase.resolved)*type(SyntaxTree.ArrayType).staticLength
+					size := AlignedSizeOf(type(SyntaxTree.ArrayType).arrayBase.resolved)*type(SyntaxTree.ArrayType).staticLength;
+					type.SetSize(size);
 				ELSE
-					size := 0;
-					WHILE(type IS SyntaxTree.ArrayType) DO
-						type := type(SyntaxTree.ArrayType).arrayBase.resolved;
+					size := 0; base := type;
+					WHILE(base IS SyntaxTree.ArrayType) DO
+						base := base(SyntaxTree.ArrayType).arrayBase.resolved;
 						INC(size); (* length field *)
 					END;
-					size := size*addressSize+addressSize
+					size := size*addressSize+addressSize;
+					type.SetSize(size)
 				END;
 			ELSIF type IS SyntaxTree.MathArrayType THEN
 				IF ~(SyntaxTree.Resolved IN type.state) THEN
@@ -651,7 +411,6 @@ TYPE
 					RETURN SizeOf(par.type);
 				ELSE RETURN addressSize
 				END
-
 			ELSIF par.type.resolved IS SyntaxTree.RangeType THEN
 				IF par.kind = SyntaxTree.VarParameter THEN
 					RETURN addressSize
@@ -682,12 +441,23 @@ TYPE
 		BEGIN
 			type := type.resolved;
 			IF type IS SyntaxTree.RecordType THEN
-				result := alignment.max
-			ELSIF type IS SyntaxTree.ArrayType THEN
-				IF type(SyntaxTree.ArrayType).form = SyntaxTree.Static THEN
-					result := AlignmentOf(alignment,type(SyntaxTree.ArrayType).arrayBase.resolved);
+				IF type.alignmentInBits < 0 THEN
+					IF GenerateRecordOffsets(type(SyntaxTree.RecordType)) THEN
+						result := type.alignmentInBits
+					END
 				ELSE
-					result := alignment.max
+					result := type.alignmentInBits
+				END;
+			ELSIF type IS SyntaxTree.ArrayType THEN
+				IF type.alignmentInBits <0 THEN
+					IF type(SyntaxTree.ArrayType).form = SyntaxTree.Static THEN
+						result := AlignmentOf(alignment,type(SyntaxTree.ArrayType).arrayBase.resolved);
+					ELSE
+						result := alignment.max
+					END;
+					type.SetAlignment(result)
+				ELSE
+					result := type.alignmentInBits
 				END;
 			ELSIF type IS SyntaxTree.StringType THEN
 				result := SizeOf(type(SyntaxTree.StringType).baseType);
@@ -699,6 +469,14 @@ TYPE
 			ASSERT(result # 0);
 			RETURN result
 		END AlignmentOf;
+
+		PROCEDURE AlignedSizeOf*(type: SyntaxTree.Type): LONGINT;
+		VAR size: LONGINT;
+		BEGIN
+			size := SizeOf(type);
+			Basic.Align(size, AlignmentOf(variableAlignment, type));
+			RETURN size
+		END AlignedSizeOf;
 
 	END System;
 
