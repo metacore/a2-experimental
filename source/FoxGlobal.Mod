@@ -228,6 +228,7 @@ TYPE
 				variable := variable.nextVariable;
 			END;
 			x.SetAlignment(alignment);
+			Basic.Align(offset, alignment); (* strictly speaking not necessary, but with the old object file format otherwise problems with the GC show up *)
 			x.SetSize(offset);
 			RETURN TRUE
 		END GenerateRecordOffsets;
