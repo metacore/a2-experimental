@@ -35,6 +35,7 @@ TYPE
 		ofont : OpenType.Font;
 		inst: OpenType.Instance;
 		glyph : OpenType.Glyph;
+		convolutionCache: POINTER TO ARRAY OF ARRAY OF LONGINT;
 
 		PROCEDURE &Init*;
 		VAR mode : Raster.Mode; pix : Raster.Pixel;
@@ -149,10 +150,13 @@ TYPE
 			p1 : Raster.Pixel;
 			mode : Raster.Mode;
 			p: ARRAY 256 OF Raster.Pixel;
-			pixels: ARRAY [*,*] OF INTEGER;
-			x,y,val: LONGINT;
+			pixels: POINTER TO ARRAY OF ARRAY OF LONGINT;
+			x,y,val,iter: LONGINT;
 		CONST
-			mask = [[0,1,0],[4,16,4],[0,1,0]];
+			horizontal=[1,5,1];
+			vertical=[20,80,20];
+			sum= 127;
+			MinConvolutionSize=16;
 		BEGIN
 			FOR val := 0 TO 255 DO Raster.SetRGBA(p[val],0,0,0,val) END;
 			Raster.SetRGBA(p1, 0, 0, 0, 255);
@@ -167,6 +171,7 @@ TYPE
 			g.w := glyph.rw;														(* image width *)
 			g.h := glyph.rh;														(* image height *)
 
+
 			IF glyph.rw * glyph.rh # 0 THEN
 
 				data.rect := OpenTypeFonts.FillRect; data.adr := SYSTEM.ADR(Pattern); data.bpr := (glyph.rw+7) DIV 8; data.len := LEN(Pattern);
@@ -179,20 +184,36 @@ TYPE
 				xw := ((glyph.rw + 7) DIV 8) * 8;
 				l := xw * glyph.rh DIV 8;
 				IF xw *  glyph.rh > 0 THEN
-					NEW(g.img); Raster.Create(g.img, xw, glyph.rh, Raster.A8); NEW(pixels, glyph.rh+2,xw+2);
+					NEW(g.img); Raster.Create(g.img, xw, glyph.rh, Raster.A8);
+					IF (size > MinConvolutionSize) THEN
+						IF ((convolutionCache=NIL) OR (LEN(convolutionCache,0) < g.img.height+2) OR (LEN(convolutionCache,1) < g.img.width+2)) THEN
+							NEW(convolutionCache, glyph.rh+2,xw+2);
+						END;
+						pixels := convolutionCache;
+						FOR y := 0 TO g.img.height+1 DO
+							FOR x := 0 TO g.img.width+1 DO
+								pixels[y,x] := 0
+							END;
+						END;
+					END;
 					pos := 0; k := 0;
 					WHILE l > 0 DO
 						ch := Pattern[k]; bits := ORD(ch); DEC(l); INC(k);
 						FOR b := 0 TO 7 DO
 							IF bit[ORD(ch), b]  THEN
 								IF pos MOD xw < glyph.rw THEN
-									IF size > 16 THEN
+									IF size > MinConvolutionSize THEN
 										pixels[glyph.rh - pos DIV xw - 1 +1, pos MOD xw+1] := 255;
 									ELSE
 										Raster.Put(g.img, pos MOD xw, glyph.rh - pos DIV xw - 1, p1, mode);
 									END;
 								END
 							ELSE
+								IF pos MOD xw < glyph.rw THEN
+									IF size > MinConvolutionSize THEN
+										pixels[glyph.rh - pos DIV xw - 1 +1, pos MOD xw+1] := 0;
+									END
+								END
 							END;
 							INC(pos)
 						END
@@ -200,10 +221,12 @@ TYPE
 
 					(* convolution *)
 
-					IF size > 16 THEN
+					IF size > MinConvolutionSize THEN
 						FOR y := 0 TO g.img.height-1 DO
 							FOR x := 0 TO g.img.width-1 DO
-								val := mask +* pixels[y..y+2,x..x+2] DIV SUM(mask);
+								val := pixels[y+1,x] * horizontal[0] + pixels[y+1,x+1] * horizontal[1] + pixels[y+1,x+2] * horizontal[2];
+								val := val + pixels[y,x+1] * vertical[0] + pixels[y+1,x+1] * vertical[1] + pixels[y+2,x+1] * vertical[2];
+								val := val DIV sum;
 								Raster.Put(g.img, x,y, p[val],mode);
 							END;
 						END;
