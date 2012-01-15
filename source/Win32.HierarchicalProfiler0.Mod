@@ -49,18 +49,27 @@ TYPE
 		PROCEDURE RanMeanwhile(process : Objects.Process; currentCycles : HUGEINT) : BOOLEAN;
 		VAR i : LONGINT;
 		BEGIN
+
+			IF ~(process.mode IN {Objects.Running,Objects.Ready}) THEN RETURN FALSE END;
+
 			i := 0; WHILE (i < oldNofProcesses) &	(oldProcesses[i] # process) DO INC(i); END;
 			RETURN (i >= oldNofProcesses) OR (oldTimes[i] < currentCycles);
 		END RanMeanwhile;
 
 		PROCEDURE Process;
 		VAR process : Objects.Process; cycles : Objects.CpuCyclesArray; temp : ProcessTimeArray; i : LONGINT;
+			t0,t1,t2,t3: Kernel32.FileTime;
 		BEGIN
 			ProcessInfo.GetProcesses(processes, nofProcesses);
 			FOR i := 0 TO nofProcesses - 1 DO
 				process := processes[i];
-				Objects.GetCpuCycles(process, cycles, TRUE);
-				times[i] := cycles[0];
+
+				Objects.GetCpuCycles(process, cycles, TRUE); (* higher granularity counter, but does not detect suspending of thread *)
+				 times[i] := cycles[0];
+				(*
+				Kernel32.GetThreadTimes(process.handle, t0,t1,t2,t3);
+				times[i] := HUGEINT(t2.dwLowDateTime+t3.dwLowDateTime) + 10000000H * HUGEINT(t2.dwHighDateTime+t3.dwHighDateTime) ;
+				*)
 				IF (process # me) & RanMeanwhile(process, times[i]) THEN
 					HandleProcess(process);
 				END;
@@ -137,3 +146,7 @@ BEGIN
 	state := Initialized;
 	Modules.InstallTermHandler(Cleanup);
 END HierarchicalProfiler0.
+
+WMProfiler.Open
+
+SystemTools.Free WMProfiler HierarchicalProfiler HierarchicalProfiler0 ~

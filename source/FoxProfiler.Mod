@@ -189,7 +189,7 @@ VAR
 	PROCEDURE Report*(context: Commands.Context);
 	TYPE
 		Record=RECORD
-			name: ARRAY 64 OF CHAR;
+			name: ARRAY 256 OF CHAR;
 			calls:LONGINT; time,brut: HUGEINT
 		END;
 		Records=POINTER TO ARRAY OF Record;
@@ -198,6 +198,7 @@ VAR
 		i,j,k: LONGINT; records: Records; time,brut: HUGEINT; calls: LONGINT; recordNumber: LONGINT;
 		option: ARRAY 32 OF CHAR;
 		log: Streams.Writer;
+		all,done: BOOLEAN; sort: LONGINT;
 
 		PROCEDURE Sort(id: LONGINT);
 		VAR i,j: LONGINT;
@@ -209,8 +210,9 @@ VAR
 			END Swap;
 
 		BEGIN
-			FOR i := 0 TO LEN(records)-1 DO
-				FOR j := i TO LEN(records)-1 DO
+			IF id <0 THEN RETURN END;
+			FOR i := 0 TO recordNumber-1 DO
+				FOR j := i TO recordNumber-1 DO
 					IF (id=0) & (records[j].name < records[i].name) THEN Swap(records[i],records[j])
 					ELSIF (id=1) & (records[j].calls > records[i].calls) THEN Swap(records[i],records[j])
 					ELSIF (id=2) & (records[j].time >records[i].time) THEN Swap(records[i],records[j])
@@ -230,7 +232,7 @@ VAR
 			WHILE(i<chars) DO
 				log.Char(" "); INC(i);
 			END;
-			log.Update;
+			(*log.Update;*)
 		END String;
 
 		PROCEDURE Percent(x: LONGREAL);
@@ -239,6 +241,17 @@ VAR
 		END Percent;
 
 	BEGIN
+		sort := -1; all := FALSE; done := FALSE;
+		WHILE context.arg.GetString(option) & ~done DO
+			IF option = "name" THEN sort := 0
+			ELSIF option = "calls" THEN sort := 1
+			ELSIF option = "time" THEN sort := 2
+			ELSIF option = "brut" THEN sort := 3
+			ELSIF option = "all" THEN all := TRUE
+			ELSE done := TRUE
+			END;
+		END;
+
 		log := context.out;
 		recordNumber := 0;
 		FOR i := 0 TO numberModules-1 DO
@@ -257,21 +270,17 @@ VAR
 					END;
 				ELSE calls := -9999999
 				END;
-				records[recordNumber].calls := calls;
-				records[recordNumber].time := time;
-				records[recordNumber].brut := brut;
-				COPY(modules[i,j],records[recordNumber].name);
-				INC(recordNumber)
+				IF (calls > 0) OR all THEN
+					records[recordNumber].calls := calls;
+					records[recordNumber].time := time;
+					records[recordNumber].brut := brut;
+					COPY(modules[i,j],records[recordNumber].name);
+					INC(recordNumber)
+				END;
 			END;
 		END;
 
-		IF context.arg.GetString(option) THEN
-			IF option = "name" THEN Sort(0)
-			ELSIF option = "calls" THEN Sort(1)
-			ELSIF option = "time" THEN Sort(2)
-			ELSIF option = "brut" THEN Sort(3)
-			END;
-		END;
+		Sort(sort);
 		log.Char(0EX);
 		log.String("---  FoxProfiler timing report ----"); log.Ln;
 		log.String("processes= "); log.Int(numberProcesses,1); log.Ln;
@@ -284,13 +293,13 @@ VAR
 		brut := 0;
 		calls := 0;
 
-		FOR i := 0 TO LEN(records)-1 DO
+		FOR i := 0 TO recordNumber-1 DO
 			INC(time, records[i].time);
 			INC(brut, records[i].brut);
 			INC(calls, records[i].calls);
 		END;
 
-		FOR i := 0 TO LEN(records)-1 DO
+		FOR i := 0 TO recordNumber-1 DO
 			String(80,records[i].name);
 			log.Int(records[i].calls,10); log.Char(9X);
 			log.Float(records[i].time / frequency,12);
@@ -300,7 +309,7 @@ VAR
 			Percent(records[i].brut / brut);
 			log.Char(9X);
 			log.Float(records[i].brut / frequency / records[i].calls,10);
-			log.Ln; 
+			log.Ln;
 		END;
 		log.Update;
 
@@ -344,6 +353,23 @@ VAR
 		numberProcesses := 0;
 	END Init;
 
+	PROCEDURE Reset*;
+	VAR i,j,k: LONGINT;
+	BEGIN{EXCLUSIVE}
+		FOR i := 0 TO numberModules-1 DO
+			FOR j := 0 TO LEN(modules[i])-1 DO
+				IF (i< LEN(processes[k].modules)) & (j<LEN(processes[k].modules[i])) THEN
+					FOR k := 0 TO numberProcesses-1 DO
+						processes[k].modules[i,j].time := 0;
+						processes[k].modules[i,j].calls := 0;
+						processes[k].modules[i,j].brut := 0;
+					END;
+				END;
+			END;
+		END;
+	END Reset;
+
+
 BEGIN
 	NEW(log,KernelLog.Send,1024*1024);
 		(*
@@ -356,7 +382,11 @@ WMUtilities.Call --font=Courier FoxProfiler.Report calls ~
 WMUtilities.Call --font=Courier FoxProfiler.Report name ~
 WMUtilities.Call --font=Courier FoxProfiler.Report brut ~
 
+WMUtilities.Call --font=Courier FoxProfiler.Report time all ~
+
 Compiler.Compile --profile TuringCoatWnd.Mod ~
 TuringCoatWnd.Open
 
 SystemTools.Free TuringCoatWnd FoxProfiler ~
+
+FoxProfiler.Reset

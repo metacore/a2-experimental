@@ -30,7 +30,7 @@ CONST
 
 	DefaultMaxTime = 30;
 
-	MaxUnwindingDepth = 32;
+	MaxUnwindingDepth = 64;
 
 	Invalid = 0;
 
