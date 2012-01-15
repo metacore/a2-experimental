@@ -62,7 +62,7 @@ MODULE Inflate; (** AUTHOR "ejz"; PURPOSE "Aos inflate stream"; *)
 			BEGIN
 				SELF.input := input; bits := 0; nbits := 0; eof := FALSE;
 				buffer.size := 0;
-				res := Streams.Ok; InitReader(SELF.Receive, DefaultReaderSize)
+				res := Streams.Ok; InitReader(SELF.Receive, DefaultReaderSize);
 			END Init;
 
 			PROCEDURE ReadBits(nbits: LONGINT; VAR bits: LONGINT);
@@ -151,9 +151,9 @@ MODULE Inflate; (** AUTHOR "ejz"; PURPOSE "Aos inflate stream"; *)
 				END
 			END ReadCode;
 
-			PROCEDURE DynamicHuffman(VAR litT, distT: Tree);
+			PROCEDURE DynamicHuffman(VAR Temp,litT, distT: Tree);
 				VAR
-					T: Tree; bits, hlit, hdist, hclen, i, j, n, max: LONGINT;
+					bits, hlit, hdist, hclen, i, j, n, max: LONGINT;
 					clen: ARRAY 286+32 OF LONGINT; lit: ARRAY 286 OF LONGINT; dist: ARRAY 32 OF LONGINT;
 			BEGIN
 				ReadBits(5, bits); hlit := 257 + bits MOD 32;
@@ -169,10 +169,10 @@ MODULE Inflate; (** AUTHOR "ejz"; PURPOSE "Aos inflate stream"; *)
 				WHILE i < 19 DO
 					clen[clenTab[i]] := 0; INC(i)
 				END;
-				BuildTree(T, clen, 19, 7);
+				BuildTree(Temp, clen, 19, 7);
 				i := 0;
 				WHILE i < (hlit+hdist) DO
-					ReadCode(T, bits);
+					ReadCode(Temp, bits);
 					CASE bits OF
 						16: ReadBits(2, bits); n := 3 + (bits MOD 4); bits := clen[i-1];
 								WHILE n > 0 DO
@@ -255,8 +255,9 @@ MODULE Inflate; (** AUTHOR "ejz"; PURPOSE "Aos inflate stream"; *)
 			END CopyData;
 
 			PROCEDURE Inflate;
-				VAR win: Window; litT, distT: Tree; bits, i, d, l: LONGINT; final: BOOLEAN;
+				VAR win: POINTER TO Window; litT, distT,temp: Tree; bits, i, d, l: LONGINT; final: BOOLEAN;
 			BEGIN
+				NEW(win);
 				win.in := 0; win.out := 0; win.size := 0;
 				REPEAT
 					ReadBits(1, bits); final := (bits MOD 2) # 0;
@@ -277,7 +278,7 @@ MODULE Inflate; (** AUTHOR "ejz"; PURPOSE "Aos inflate stream"; *)
 								i := l
 							END;
 							WHILE win.size > (WindowSize-i) DO
-								CopyData(win)
+								CopyData(win^)
 							END;
 							input.Bytes(win.data, win.in, i, i);
 							DEC(l, i); INC(win.size, i);
@@ -285,7 +286,7 @@ MODULE Inflate; (** AUTHOR "ejz"; PURPOSE "Aos inflate stream"; *)
 						END
 					ELSIF bits < 3 THEN (* compressed *)
 						IF bits = 2 THEN
-							DynamicHuffman(litT, distT)
+							DynamicHuffman(temp,litT, distT)
 						ELSE
 							FixedHuffman(litT, distT)
 						END;
@@ -293,7 +294,7 @@ MODULE Inflate; (** AUTHOR "ejz"; PURPOSE "Aos inflate stream"; *)
 						WHILE l # 256 DO
 							IF l < 256 THEN
 								WHILE win.size > (WindowSize-1) DO
-									CopyData(win)
+									CopyData(win^)
 								END;
 								win.data[win.in] := CHR(l); INC(win.size);
 								win.in := (win.in + 1) MOD WindowSize
@@ -309,7 +310,7 @@ MODULE Inflate; (** AUTHOR "ejz"; PURPOSE "Aos inflate stream"; *)
 									ReadBits(i, bits); INC(d, bits MOD ASH(1, i))
 								END;
 								WHILE win.size > (WindowSize-l) DO
-									CopyData(win)
+									CopyData(win^)
 								END;
 								i := (win.in-d) MOD WindowSize;
 								WHILE l > 0 DO
@@ -325,7 +326,7 @@ MODULE Inflate; (** AUTHOR "ejz"; PURPOSE "Aos inflate stream"; *)
 						BEGIN {EXCLUSIVE} SELF.res := Error; RETURN END
 					END
 				UNTIL final OR (input.res # Streams.Ok);
-				WHILE win.size > 0 DO CopyData(win) END;
+				WHILE win.size > 0 DO CopyData(win^) END;
 				BEGIN {EXCLUSIVE}
 					SELF.eof := TRUE;
 					IF ~final & (SELF.res = Streams.Ok) THEN

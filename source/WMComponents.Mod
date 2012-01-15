@@ -1225,6 +1225,11 @@ TYPE
 			f := WMGraphics.GetFont(f.name, 100, f.style); (* expensive ? *)
 			fh := f.GetAscent() + f.GetDescent();
 			fh := height * percent DIV fh;
+
+			IF fh > 100 THEN fh := fh - fh MOD 8
+			ELSIF fh > 32 THEN fh := fh - fh MOD 4
+			ELSIF fh > 12 THEN fh := fh - fh MOD 2
+			END;
 			IF font.GetSize() # fh THEN
 				font.SetSize(fh);
 				Invalidate;
