@@ -204,7 +204,7 @@ END DoGC;
 
 PROCEDURE GetTicks*(): LONGINT;
 BEGIN
-	RETURN Machine.Ticks()
+	RETURN Machine.ticks
 END GetTicks;
 
 (** Set timer to expire in approximately "ms" milliseconds. *)
@@ -215,26 +215,26 @@ BEGIN
 		ms := ms * Second DIV 1000
 	END;
 	IF ms < 5 THEN INC(ms) END;	(* Nyquist adjustment *)
-	t.start := Machine.Ticks();
+	t.start := Machine.ticks;
 	t.target := t.start + ms
 END SetTimer;
 
 (** Test whether a timer has expired. *)
 PROCEDURE Expired*(CONST t: MilliTimer): BOOLEAN;
 BEGIN
-	RETURN Machine.Ticks() - t.target >= 0
+	RETURN Machine.ticks - t.target >= 0
 END Expired;
 
 (** Return elapsed time on a timer in milliseconds. *)
 PROCEDURE Elapsed*(CONST t: MilliTimer): LONGINT;
 BEGIN
-	RETURN (Machine.Ticks() - t.start) * (1000 DIV Second)
+	RETURN (Machine.ticks - t.start) * (1000 DIV Second)
 END Elapsed;
 
 (** Return time left on a timer in milliseconds. *)
 PROCEDURE Left*(CONST t: MilliTimer): LONGINT;
 BEGIN
-	RETURN (t.target - Machine.Ticks()) * (1000 DIV Second)
+	RETURN (t.target - Machine.ticks) * (1000 DIV Second)
 END Left;
 
 BEGIN
