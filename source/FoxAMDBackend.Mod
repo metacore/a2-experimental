@@ -938,6 +938,7 @@ TYPE
 		PROCEDURE AllocateStack(sizeInBytes: LONGINT);
 		VAR sizeOp: Assembler.Operand; opcode: LONGINT;
 		BEGIN
+			ASSERT(sizeInBytes MOD (cpuBits DIV 8) = 0);
 			IF sizeInBytes < 0 THEN
 				sizeInBytes := -sizeInBytes; opcode := InstructionSet.opADD;
 			ELSIF sizeInBytes > 0 THEN
@@ -1898,6 +1899,7 @@ TYPE
 		VAR
 			dividend,quotient,remainder,imm,target,memop: Assembler.Operand;
 			op1,op2,op3: Assembler.Operand; ra,rd: Ticket;
+			size: LONGINT;
 		BEGIN
 			(*
 			In general it must obviously hold that
@@ -2015,7 +2017,9 @@ TYPE
 			MakeOperand(instruction.op2,Low,op2,NIL);
 			MakeOperand(instruction.op3,Low,op3,NIL);
 			IF instruction.op3.mode = IntermediateCode.ModeImmediate THEN
-				AllocateStack(instruction.op3.type.sizeInBits DIV 8);
+				size := instruction.op3.type.sizeInBits DIV 8;
+				Basic.Align(size, cpuBits DIV 8);
+				AllocateStack(size);
 				Assembler.InitMem(memop,SHORT(instruction.op3.type.sizeInBits DIV 8),SP,0);
 				emitter.Emit2(InstructionSet.opMOV,memop,op3);
 				op3 := memop;
@@ -2039,7 +2043,9 @@ TYPE
 			END;
 
 			IF instruction.op3.mode = IntermediateCode.ModeImmediate THEN
-				AllocateStack(- (instruction.op3.type.sizeInBits DIV 8));
+				size := instruction.op3.type.sizeInBits DIV 8;
+				Basic.Align(size, cpuBits DIV 8);
+				AllocateStack(-size);
 			END;
 		END EmitDivMod;
 
