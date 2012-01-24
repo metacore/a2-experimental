@@ -912,6 +912,11 @@ TYPE
 				IF x.offsetInBits # MIN(LONGINT) THEN
 					w.String("@"); w.Hex(x.offsetInBits,1);
 				END;
+				IF x.type # NIL THEN
+				IF x.type.resolved.alignmentInBits >=0 THEN
+					w.String("@@"); w.Hex(x.type.resolved.alignmentInBits,1);
+				END;
+				END;
 				EndComment;
 			END;
 		END PrintSymbol;
