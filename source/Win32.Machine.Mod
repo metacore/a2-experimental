@@ -89,8 +89,8 @@ VAR
 	SSE41Support-: BOOLEAN;
 	SSE42Support-: BOOLEAN;
 	SSE5Support-: BOOLEAN;
-	AVXSupport-: BOOLEAN;	
-	
+	AVXSupport-: BOOLEAN;
+
 	(* windows *)
 	hInstance-: Kernel32.HINSTANCE;   (* init by linker/loader *)
 	isEXE-: BOOLEAN;  locks*: LONGINT;
@@ -100,6 +100,7 @@ VAR
 	fcr*: SET;   (** default floating-point control register value (default rounding mode is towards -infinity, for ENTIER) *)
 	mhz*: HUGEINT;   (** clock rate of GetTimer() in MHz, or 0 if not known *)
 
+	commandLine-: ARRAY 256 OF CHAR;
 VAR
 	lock-: ARRAY MaxLocks OF CHAR;  (* not implemented as SET because of shared access *)
 	cs: ARRAY MaxLocks OF Kernel32.CriticalSection;
@@ -502,9 +503,9 @@ CONST
 	SSE2Flag = 26;
 	SSE3Flag = 0; (*IN features2 from ECX*) (*PH 04/11*)
 	SSSE3Flag =9;
-	SSE41Flag =19; 
+	SSE41Flag =19;
 	SSE42Flag =20;
-	SSE5Flag = 11; 
+	SSE5Flag = 11;
 	AVXFlag = 28;
 BEGIN
 	MMXSupport := MMXFlag IN features;
@@ -522,6 +523,66 @@ BEGIN
 	END;
 END SetupSSE2Ext;
 
+PROCEDURE ReadCommandLine(VAR commandLine: ARRAY OF CHAR);
+VAR adr: SYSTEM.ADDRESS; i: LONGINT; ch: CHAR;
+BEGIN
+	adr := Kernel32.GetCommandLine();
+	SYSTEM.GET(adr,ch);
+	i := 0;
+	WHILE (i<LEN(commandLine)-1) & (ch # 0X) DO
+		commandLine[i] := ch;
+		INC(adr); INC(i);
+		SYSTEM.GET(adr,ch);
+	END;
+END ReadCommandLine;
+
+PROCEDURE ParseLine(VAR c: ARRAY OF CHAR; VAR iniFile: ARRAY OF CHAR);
+VAR i: LONGINT;
+
+	PROCEDURE SkipSpaces;
+	BEGIN
+		WHILE (c[i] <= " ") & (c[i] # 0X) DO INC(i) END;
+	END SkipSpaces;
+
+	PROCEDURE SkipName;
+	BEGIN
+		WHILE (c[i] > " ") DO INC(i) END;
+	END SkipName;
+
+	PROCEDURE CheckName(CONST name: ARRAY OF CHAR): BOOLEAN;
+	VAR j: LONGINT;
+	BEGIN
+		j := 0;
+		WHILE (c[i] = name[j]) & (c[i] # 0X) & (name[j] # 0X) DO
+			INC(i); INC(j);
+		END;
+		RETURN (name[j] = 0X);
+	END CheckName;
+
+	PROCEDURE ReadName(VAR name: ARRAY OF CHAR);
+	VAR j: LONGINT;
+	BEGIN
+		SkipSpaces;
+		j := 0;
+		WHILE (c[i] > " ") & (j < LEN(name)-1) DO
+			name[j] := c[i];
+			INC(i); INC(j);
+		END;
+		name[j] := 0X;
+	END ReadName;
+
+BEGIN
+	c[LEN(c)-1] := 0X;
+	i := 0;
+	SkipSpaces;
+	SkipName;
+	SkipSpaces;
+	IF c[i] = "-" THEN (* option *)
+		INC(i);
+		IF CheckName("ini") THEN SkipSpaces; ReadName(iniFile) END;
+	END;
+END ParseLine;
+
 PROCEDURE Init;
 VAR vendor: Vendor; ver: LONGINT;
 BEGIN
@@ -535,8 +596,13 @@ BEGIN
 	CPUID(vendor, ver, features,features2);	 SetupSSE2Ext;
 	fcr := (FCR() - {0,2,3,10,11}) + {0..5,8,9};	(* default FCR RC=00B *)
 
+	ReadCommandLine(commandLine);
+
 	defaultConfigFile[Kernel32.GetFullPathName (DefaultConfigFile, Kernel32.MaxPath, defaultConfigFile, 0)] := 0X;
-	userConfigFile[Kernel32.GetFullPathName (UserConfigFile, Kernel32.MaxPath, userConfigFile, 0)] := 0X;
+	userConfigFile := UserConfigFile;
+	ParseLine(commandLine, userConfigFile);
+	userConfigFile[Kernel32.GetFullPathName (userConfigFile, Kernel32.MaxPath, userConfigFile, 0)] := 0X;
+	Trace.String("config file = "); Trace.String(userConfigFile); Trace.Ln;
 
 END Init;
 
@@ -714,9 +780,9 @@ END GetStaticHeap;
 PROCEDURE ValidHeapAddress*(p: SYSTEM.ADDRESS): BOOLEAN;
 BEGIN
 	RETURN GreaterOrEqual(p,memBlockHead.beginBlockAdr) & LessOrEqual(p,memBlockTail.endBlockAdr)
-		
+
 		OR (p>=401000H) & (p<=500000H) (*! guess until kernel size known *)
-		
+
 END ValidHeapAddress;
 
 
