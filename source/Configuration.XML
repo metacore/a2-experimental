@@ -47,6 +47,7 @@ To update: Configuration.Init ~
 <!-- Autostart -->
 
 	<Section name="Autostart">
+		<Setting name="FileTrapWriter" value="FileTrapWriter.Install"/>
 		<Setting name="TrapWriter" value="WMTrapWriter.Install"/>
 		<Setting name="Uptime Monitor" value="UpTime.Install"/>
 		<Setting name="Start the main menu" value="StartMenu.Open"/>
