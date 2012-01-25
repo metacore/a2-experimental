@@ -1,7 +1,7 @@
 MODULE WMTrapWriter; (** AUTHOR "fof"; PURPOSE "trap window writer"; *)
 
 IMPORT
-	Modules, Streams, Traps, WMGraphics, WMUtilities;
+	Modules, Streams, TrapWriters, WMGraphics, WMUtilities;
 
 VAR w: WMUtilities.WindowWriter;
 
@@ -19,12 +19,12 @@ END TrapWriterFactory;
 
 PROCEDURE Install*;
 BEGIN
-	Traps.InstallTrapWriterFactory (TrapWriterFactory)
+	TrapWriters.InstallTrapWriterFactory (TrapWriterFactory)
 END Install;
 
 PROCEDURE Uninstall*;
 BEGIN
-	Traps.InstallTrapWriterFactory (NIL)
+	TrapWriters.UninstallTrapWriterFactory (TrapWriterFactory)
 END Uninstall;
 
 PROCEDURE HaltTest*;
@@ -46,4 +46,5 @@ END WMTrapWriter.
 SystemTools.Free WMTrapWriter WMUtilities ~
 
 WMTrapWriter.Install
+WMTrapWriter.Uninstall
 WMTrapWriter.HaltTest

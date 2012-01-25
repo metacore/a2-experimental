@@ -2691,10 +2691,16 @@ BEGIN
 						END;
 						IF ~error & builds.builds[build].marked THEN
 							COPY("CHECKBUILDS:", builds.builds[build].path);
+							(*
 							COPY("Obt", builds.builds[build].extension);
 							COPY("386", builds.builds[build].target);
+							*)
 							builds.builds[build].Compile(nofWorkers, context.out, context.error, FALSE, diagnostics, ignoreError);
+							DeleteFiles("CHECKBUILDS:*.Obw");
 							DeleteFiles("CHECKBUILDS:*.Obt");
+							DeleteFiles("CHECKBUILDS:*.Obx");
+							DeleteFiles("CHECKBUILDS:*.Sym");
+							DeleteFiles("CHECKBUILDS:*.Gof");
 						ELSE
 							diagnostics.ToStream(context.out, Diagnostics.All);
 						END;

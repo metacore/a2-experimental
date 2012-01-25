@@ -125,13 +125,13 @@ BUILDS
 	A2_64 {
 		INCLUDE "NATIVE NATIVEORIG AMD64"
 		COMPILER "Compiler.Compile"
-		COMPILEOPTIONS ""
+		COMPILEOPTIONS "--bits=64"
 		TARGET "AMD"
 		EXTENSION "Abx"
 		SYMBOLEXTENSION "Abx"
 		PATH "AOS:"
 		EXCLUDEPACKAGES "Contributions Oberon OberonGadgets OberonApplications OberonDocumentation OberonVoyager OberonAnts"
-		DISABLED "TRUE"
+		DISABLED "FALSE"
 	}
 	A2mini {
 		INCLUDE "NATIVE NATIVEORIG I386 I386ORIG"
@@ -259,7 +259,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	AMD64 { AMD64.Reals.Mod }
 
 	# default trap handling
-	Reflection.Mod
+	Reflection.Mod TrapWriters.Mod
 	I386 { Traps.Mod }
 	AMD64 { AMD64.Traps.Mod }
 	WIN {  Win32.Traps.Mod }
@@ -286,8 +286,11 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 
 	Files.Mod
 
+
 	Dates.Mod Strings.Mod # low-level utility modules
 	UTF8Strings.Mod
+
+	FileTrapWriter.Mod
 
 	Caches.Mod DiskVolumes.Mod OldDiskVolumes.Mod RAMVolumes.Mod DiskFS.Mod OldDiskFS.Mod OberonFS.Mod 	# file systems
 	FATVolumes.Mod FATFiles.Mod

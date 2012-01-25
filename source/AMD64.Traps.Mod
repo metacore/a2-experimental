@@ -1,6 +1,6 @@
 MODULE Traps;	(** AUTHOR "pjm"; PURPOSE "Trap handling and symbolic debugging"; *)
 
-IMPORT SYSTEM, Machine, KernelLog, Streams, Modules, Objects, Kernel, Reflection;
+IMPORT SYSTEM, Machine, KernelLog, Streams, Modules, Objects, Kernel, Reflection, TrapWriters;
 
 CONST
 	RecursiveLimit = 2;		(* normally 1 or 2 - how many recursive traps to display before stopping *)
@@ -16,46 +16,10 @@ TYPE
 		adr-: SYSTEM.ADDRESS;
 		type-, size-, n-, tdadr-: LONGINT
 	END;
-	 WriterFactory = PROCEDURE (): Streams.Writer;
 
-	TrapWriter = OBJECT (Streams.StringWriter)
-	(* pooling trap writer, EXCLUSIVE sections and allocation forbidden within trap! *)
-	VAR
-		trapped: BOOLEAN;
-		factory: WriterFactory;
-		timer: Kernel.Timer;
-
-		PROCEDURE Trapped;
-		BEGIN trapped := TRUE;
-		END Trapped;
-
-		PROCEDURE &InitTrapWriter*;
-		BEGIN InitStringWriter (Streams.DefaultWriterSize); trapped := FALSE
-		END InitTrapWriter;
-
-		PROCEDURE SetFactory (factory: WriterFactory);
-		BEGIN SELF.factory := factory;
-		END SetFactory;
-
-		PROCEDURE Write;
-		VAR contents: ARRAY Streams.DefaultWriterSize OF CHAR; len: LONGINT; writer: Streams.Writer;
-		BEGIN GetRaw (contents, len); Reset; writer := factory (); writer.Bytes (contents, 0, len); writer.Update;
-		END Write;
-
-	BEGIN {ACTIVE}
-		NEW(timer);
-		LOOP
-			 timer.Sleep(100);
-			 IF trapped THEN Write; trapped := FALSE
-			 ELSIF factory = NIL THEN RETURN
-			 END;
-		END;
-	END TrapWriter;
 
 VAR
 	trapState: ARRAY Machine.MaxCPU OF LONGINT;	(* indexed by Machine.ID() *)
-	trapWriter: TrapWriter;
-	defaultWriter: Streams.Writer;	(* protected by KernelLog lock in Show *)
 	modes: ARRAY 25 OF CHAR;
 	flags: ARRAY 13 OF CHAR;
 
@@ -86,7 +50,7 @@ VAR
 
 	BEGIN
 		overflow := FALSE;
-		IF trapWriter = NIL THEN w := defaultWriter ELSE w := trapWriter;  END;
+		w := TrapWriters.GetWriter();
 		w.Update;	(* flush previous output stuck in global writer w *)
 		w.Char(1X);	(* "start of trap" *)
 		id := Machine.ID();
@@ -160,7 +124,7 @@ VAR
 		w.String("---------------------------------"); w.Ln;
 		w.Char(02X);	(* "end of trap" *)
 		w.Update;
-		IF trapWriter # NIL THEN trapWriter.Trapped END;
+		TrapWriters.Trapped();
 		trapState[id] := 0
 	END Show;
 
@@ -373,17 +337,6 @@ VAR
 		END
 	END PageFault;
 
-	PROCEDURE InstallTrapWriterFactory*(factory: WriterFactory);
-	BEGIN
-		IF factory = NIL THEN
-			trapWriter.SetFactory (NIL);
-			trapWriter := NIL
-		ELSE
-			IF trapWriter = NIL THEN NEW (trapWriter) END;
-			trapWriter.SetFactory (factory)
-		END
-	END InstallTrapWriterFactory;
-
 	PROCEDURE Init;
 	VAR i: LONGINT; s: ARRAY 8 OF CHAR;
 	BEGIN
@@ -391,7 +344,6 @@ VAR
 			Machine.GetConfig("TestTrap", s);
 			IF s[0] = "1" THEN HALT(98) END
 		END;
-		Streams.OpenWriter(defaultWriter, KernelLog.Send); trapWriter := NIL;
 		FOR i := 0 TO Machine.MaxCPU-1 DO trapState[i] := 0 END;
 		Machine.InstallHandler(PageFault, Machine.PF);
 		FOR i := 0 TO 31 DO
