@@ -507,6 +507,7 @@ TYPE
 		positions : Positions;
 
 		owner : Window;
+		settings: Settings;
 
 		PROCEDURE &InitPanel *(window: Window);
 		VAR
@@ -514,7 +515,8 @@ TYPE
 			um: UndoManager.UndoManager;
 			colWidths : WMGrids.Spacings;
 			textViews : ARRAY 2 OF WMTextView.TextView;
-		BEGIN
+		BEGIN{EXCLUSIVE}
+			settings := GetSettings();
 			Init;
 			owner := window;
 			tree := NIL;
@@ -983,7 +985,7 @@ TYPE
 		END HandleShortcut;
 
 		PROCEDURE Finalize;
-		BEGIN
+		BEGIN{EXCLUSIVE}
 			Finalize^;
 			IF (editor # NIL) & (editor.text # NIL) THEN
 				editor.text.onTextChanged.Remove(TextChanged);
@@ -1041,10 +1043,12 @@ TYPE
 		modifierFlags : SET;
 
 		browseBase, browseTOS : BrowseEntry;
+		settings: Settings;
 
 		PROCEDURE &New*(c : WMRestorable.Context);
 		VAR vc : WMComponents.VisualComponent;
 		BEGIN
+			settings := GetSettings();
 			IncCount;
 			InitCodecs;
 			vc := CreateForm();
@@ -2601,7 +2605,7 @@ VAR
 	nofWindows : LONGINT;
 	scratchText : Texts.Text;
 	scratchModified : BOOLEAN;
-	settings : Settings;
+	gsettings : Settings;
 
 	StrScratchPanel, StrPETPanel : Strings.String;
 
@@ -2803,11 +2807,21 @@ BEGIN
 	RETURN text;
 END LoadText;
 
+PROCEDURE GetSettings(): Settings;
+VAR s: Settings;
+BEGIN
+	s := gsettings;
+	IF s = NIL THEN (* fallback in case of a race of IncCount and DecCount *)
+		NEW(s); s.Load;
+	END;
+	RETURN s
+END GetSettings;
+
 PROCEDURE IncCount;
 BEGIN {EXCLUSIVE}
 	INC(nofWindows);
 	IF (nofWindows = 1) THEN
-		NEW(settings); settings.Load;
+		NEW(gsettings); gsettings.Load;
 		LoadScratchText;
 	END;
 END IncCount;
@@ -2818,7 +2832,7 @@ BEGIN {EXCLUSIVE}
 	IF (nofWindows = 0) THEN
 		StoreScratchText;
 		scratchText := NIL;
-		settings := NIL;
+		gsettings := NIL;
 	END;
 END DecCount;
 

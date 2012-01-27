@@ -2,7 +2,7 @@ MODULE WMUtilities;  (** AUTHOR "fof"; PURPOSE "Utilities for easy opening of wi
 
 IMPORT
 	Modules, Commands, Options, Strings, TextUtilities,
-	WMWindowManager, WMMessages, WMGraphics, WMComponents, WMDocumentEditor;
+	WMWindowManager, WMMessages, WMGraphics, WMComponents, WMDocumentEditor, Kernel;
 
 CONST
 	Buttons = WMDocumentEditor.StoreButton + WMDocumentEditor.FormatButton + WMDocumentEditor.SearchButton
@@ -87,7 +87,7 @@ TYPE
 	END WindowWriter;
 
 VAR
-	nofWindows : LONGINT;
+	nofWindows : LONGINT; timeout: BOOLEAN;
 
 (** Call the specified command and redirect its output streams to a WindowWriter *)
 PROCEDURE Call*(context : Commands.Context); (** command ~ *)
@@ -139,22 +139,27 @@ BEGIN {EXCLUSIVE}
 	DEC(nofWindows)
 END DecCount;
 
+PROCEDURE Timeout;
+BEGIN{EXCLUSIVE}
+	timeout := TRUE
+END Timeout;
+
 PROCEDURE Cleanup;
-VAR
-	die : KillerMsg;
+VAR die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WMWindowManager.WindowManager;
-BEGIN
+	 timer: OBJECT VAR timer: Kernel.Timer; BEGIN{ACTIVE} NEW(timer); timer.Sleep(100); Timeout END;
+BEGIN {EXCLUSIVE}
 	NEW(die);
 	msg.ext := die;
 	msg.msgType := WMMessages.MsgExt;
 	m := WMWindowManager.GetDefaultManager();
-	m.Broadcast(msg);
-	BEGIN {EXCLUSIVE}
-		AWAIT(nofWindows = 0)
-	END
+	WHILE nofWindows >0 DO
+		m.Broadcast(msg);
+		timeout := FALSE; NEW(timer);
+		AWAIT (nofWindows = 0) OR timeout;
+	END;
 END Cleanup;
-
 BEGIN
 	Modules.InstallTermHandler (Cleanup);
 END WMUtilities.

@@ -25,7 +25,7 @@ IMPORT
 	Modules, Kernel, Serials, XYModem, Files, Inputs,
 	WMWindowManager, WMMessages, WMRestorable, WMGraphics, WMRectangles,
 	WMComponents, WMStandardComponents, WMProgressComponents, WMTextView, WMEditors, WMPopups, WMDialogs,
-	XML, XMLObjects, WMSearchComponents, Commands;
+	XML, XMLObjects, WMSearchComponents, Commands, T := Trace;
 
 CONST
 
@@ -1355,6 +1355,7 @@ TYPE
 
 		PROCEDURE Close;
 		BEGIN
+			T.String("closing window"); T.Ln;
 			Close^;
 			DecCount
 		END Close;
@@ -1381,6 +1382,7 @@ TYPE
 
 VAR
 	nofWindows : LONGINT;
+	timeout: BOOLEAN;
 
 	StrProgressInfo, StrCustomTextView, StrTerminalComponent : Strings.String;
 
@@ -1462,17 +1464,26 @@ BEGIN {EXCLUSIVE}
 	DEC(nofWindows)
 END DecCount;
 
+PROCEDURE Timeout;
+BEGIN{EXCLUSIVE}
+	timeout := TRUE
+END Timeout;
+
 PROCEDURE Cleanup;
 VAR die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WMWindowManager.WindowManager;
+	 timer: OBJECT VAR timer: Kernel.Timer; BEGIN{ACTIVE} NEW(timer); timer.Sleep(100); Timeout END;
 BEGIN {EXCLUSIVE}
 	NEW(die);
 	msg.ext := die;
 	msg.msgType := WMMessages.MsgExt;
 	m := WMWindowManager.GetDefaultManager();
-	m.Broadcast(msg);
-	AWAIT(nofWindows = 0)
+	WHILE nofWindows >0 DO
+		m.Broadcast(msg);
+		timeout := FALSE; NEW(timer);
+		AWAIT (nofWindows = 0) OR timeout;
+	END;
 END Cleanup;
 
 BEGIN

@@ -1915,7 +1915,9 @@ TYPE
 			DisableUpdate;
 			IF form # NIL THEN form.Finalize; form.sequencer.Stop END;
 			NEW(form, SELF); form.uid.Set(NewString("form"));
+			(*
 			NEW(seq, form.Handle); seq.SetTrapHandler(Trap); form.SetSequencer(seq);
+			*)
 			content := x(VisualComponent);
 			form.AddContent(x);
 			IF (x # NIL) & (x IS VisualComponent) THEN
@@ -2037,6 +2039,7 @@ TYPE
 		lastFocusComponent : VisualComponent;
 
 		PROCEDURE &New*(window : FormWindow);
+		VAR seq: Messages.MsgSequencer
 		BEGIN
 			ASSERT(window # NIL);
 			Init;
@@ -2045,6 +2048,7 @@ TYPE
 			SetNameAsString(StrForm);
 			SELF.window := window; window.form := SELF;
 			bounds.Set(Rectangles.MakeRect(0, 0, window.GetWidth(), window.GetHeight()));
+			NEW(seq, Handle); seq.SetTrapHandler(window.Trap); SetSequencer(seq);
 		END New;
 
 		PROCEDURE GetPointerInfo*() : WM.PointerInfo;

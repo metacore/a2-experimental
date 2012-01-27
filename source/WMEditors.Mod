@@ -1313,6 +1313,7 @@ TYPE
 
 		PROCEDURE SetText*(t : Texts.Text);
 		BEGIN
+			IF t = NIL THEN RETURN END;
 			Acquire;
 			text := t;
 			NEW(utilreader, text);
