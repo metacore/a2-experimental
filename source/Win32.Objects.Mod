@@ -5,7 +5,7 @@ MODULE Objects;   (** AUTHOR "pjm, ejz, fof"; PURPOSE "Active object runtime sup
 IMPORT SYSTEM, Trace, Kernel32, Machine, Modules, Heaps;
 
 CONST
-	HandleExcp = FALSE;   (* FALSE -> we asume that it is done correctly by Traps *)
+	HandleExcp = TRUE;   (* FALSE -> we asume that it is done correctly by Traps *)
 	TraceVerbose = FALSE;
 	StrongChecks = FALSE;  defaultStackSize = 0;
 	TraceOpenClose = FALSE;
@@ -248,11 +248,16 @@ TYPE
 
 
 	GCStatusExt = OBJECT(Heaps.GCStatus)
-		VAR gcOngoing: BOOLEAN;
+		VAR
+			gcOngoing: BOOLEAN;
+			event: Kernel32.HANDLE;
+			caller: Process;
 
 		PROCEDURE &Init;
 		BEGIN
 			gcOngoing := FALSE;
+			event := Kernel32.CreateEvent( NIL, Kernel32.False (* auto-reset *), Kernel32.False, NIL );   (* manual set event with initial state = reset *)
+			ASSERT(event # 0);
 		END Init;
 
 		(* called from Heaps.InvokeGC, i.e. this is a hidden upcall. However, it is necessary to take the Machine.Objects lock here since writing
@@ -266,13 +271,7 @@ TYPE
 				Machine.Acquire(Machine.Objects);
 				Machine.Acquire(Machine.Heaps); (* to protect agains concurrent LazySweep *)
 				r := CurrentProcess();
-				IF r.event = 0 THEN
-					r.event := Kernel32.CreateEvent( NIL, Kernel32.True (* manual *), Kernel32.False, NIL );   (* manual set event with initial state = reset *)
-					ASSERT ( r.event # 0, 1239 );
-				ELSE
-					res := Kernel32.ResetEvent( r.event );   (* reset event status *)
-					ASSERT ( res # 0, 1001 );
-				END;
+				caller := r;
 				r.mode := AwaitingEvent;
 				IF ~gcOngoing THEN
 					gcOngoing := TRUE;
@@ -287,13 +286,14 @@ TYPE
 					END;
 					(* start GC *)
 					ASSERT((gcProcess # NIL) & (gcProcess.mode = AwaitingEvent));
-					res := Kernel32.SetEvent(gcProcess.event);
 					gcProcess.mode := Running;
+					res := Kernel32.SetEvent(gcActivity.event);
 					gcProcess := NIL;
 				END;
 				Machine.Release(Machine.Heaps);
 				Machine.Release(Machine.Objects);
-				res := Kernel32.WaitForSingleObject(r.event, Kernel32.Infinite); (* block execution *)
+				(* no process is running except the caller process and the GC process, no race here *)
+				res := Kernel32.WaitForSingleObject(event, Kernel32.Infinite); (* block execution *)
 				ASSERT(res = Kernel32.WaitObject0)
 			ELSE
 				(* gcProcess calls this *)
@@ -306,20 +306,15 @@ TYPE
 					IF cur.mode = Suspended THEN
 						res := Kernel32.ResumeThread(cur.handle);
 						cur.mode := Running
-					ELSIF cur.mode = AwaitingEvent THEN
-						res := Kernel32.SetEvent(cur.event);
-						cur.mode := Running
 					END;
 					p := p.next
 				END;
+				caller.mode := Running;
+				Kernel32.SetEvent(event);
 				ASSERT(gcProcess = NIL);
 				gcProcess := CurrentProcess();
-				res := Kernel32.ResetEvent(gcProcess.event); (* reset event status, gcProcess.event # 0 since event was created in CreateProcess *)
-				ASSERT (res # 0, 1001);
 				gcProcess.mode := AwaitingEvent;
 				Machine.Release(Machine.Objects);
-				res := Kernel32.WaitForSingleObject(gcProcess.event, Kernel32.Infinite); (* block execution *)
-				ASSERT(res = Kernel32.WaitObject0)
 			END;
 		END SetgcOngoing;
 
@@ -328,23 +323,22 @@ TYPE
 	GCActivity = OBJECT
 	VAR
 		res: Kernel32.BOOL;
+		event: Kernel32.HANDLE;
+
+		PROCEDURE &Init;
+		BEGIN
+			event := Kernel32.CreateEvent( NIL, Kernel32.False (* auto-reset *), Kernel32.False, NIL );   (* manual set event with initial state = reset *)
+		END Init;
 
 	BEGIN {ACTIVE, SAFE, PRIORITY(GCPriority)}
 		Machine.Acquire(Machine.Objects);
 		ASSERT(gcProcess = NIL);
 		gcProcess := CurrentProcess();
-		IF gcProcess.event = 0 THEN
-			gcProcess.event := Kernel32.CreateEvent( NIL, Kernel32.True (* manual *), Kernel32.False, NIL );   (* manual set event with initial state = reset *)
-			ASSERT ( gcProcess.event # 0, 1239 );
-		ELSE
-			res := Kernel32.ResetEvent( gcProcess.event );   (* reset event status *)
-			ASSERT ( res # 0, 1001 );
-		END;
 		gcProcess.mode := AwaitingEvent;
 		Machine.Release(Machine.Objects);
-		res := Kernel32.WaitForSingleObject(gcProcess.event, Kernel32.Infinite);
-		ASSERT(res = Kernel32.WaitObject0);
 		LOOP
+			res := Kernel32.WaitForSingleObject(event, Kernel32.Infinite); (* block execution *)
+			ASSERT(res = Kernel32.WaitObject0);
 			(* process is scheduled -> perform garbage collection now *)
 			Heaps.CollectGarbage(Modules.root);
 			IF finalizerCaller # NIL THEN finalizerCaller.Activate() END;
@@ -363,22 +357,30 @@ TYPE
 
 	FinalizerCaller = OBJECT  (* separate active object that calls finalizers *)
 	VAR n: Heaps.FinalizerNode;
-		res: Kernel32.BOOL;
+		event: Kernel32.HANDLE;
+
+		PROCEDURE &Init;
+		BEGIN
+			event := Kernel32.CreateEvent( NIL, Kernel32.False (* automatic *), Kernel32.False, NIL );
+			ASSERT(event # 0);
+		END Init;
+
+		PROCEDURE Wait;
+		VAR res: Kernel32.BOOL;
+		BEGIN
+			res := Kernel32.WaitForSingleObject(event, Kernel32.Infinite);
+			ASSERT(res = Kernel32.WaitObject0);
+		END Wait;
 
 		PROCEDURE Activate;
+		VAR res: Kernel32.BOOL;
 		BEGIN
-			res := Kernel32.SetEvent(finalizerProcess.event);
+			res := Kernel32.SetEvent(event);
 		END Activate;
 
 	BEGIN {ACTIVE, SAFE, PRIORITY(High)}
-		finalizerProcess := CurrentProcess();
-		IF finalizerProcess.event = 0 THEN
-			finalizerProcess.event := Kernel32.CreateEvent( NIL, Kernel32.False (* automatic *), Kernel32.False, NIL );   (* automatic reset event *)
-			ASSERT ( finalizerProcess.event # 0, 1239 );
-		END;
 		LOOP
-			res := Kernel32.WaitForSingleObject(finalizerProcess.event, Kernel32.Infinite);
-			ASSERT(res = Kernel32.WaitObject0);
+			Wait;
 			LOOP
 				n := Heaps.GetFinalizer();
 				IF n = NIL THEN EXIT END;
@@ -389,7 +391,7 @@ TYPE
 					n.finalizer( n.objStrong ) (* may acquire locks *)
 				END
 			END
-		END
+		END;
 	END FinalizerCaller;
 
 VAR
@@ -402,7 +404,7 @@ VAR
 	numberOfProcessors: LONGINT; (* cached value of Machine.NumberOfProcessors() *)
 	gcProcess: Process;		(* process of gcActivity object, scheduled when garbage collection is necessary *)
 	finalizerCaller: FinalizerCaller; (* active object for finalizer process, regarded as aprt of GC *)
-	finalizerProcess: Process; (* finalizer process, regarded as part of GC *)
+	gcActivity: GCActivity;
 
 	event: Timer; (* list of events *)
 	clock: Clock;
@@ -522,6 +524,9 @@ CODE {SYSTEM.i386}
 	DB	000H
 END StackBottom;
 
+
+
+
 PROCEDURE {WINAPI} ExcpFrmHandler( VAR excpRec: Kernel32.ExceptionRecord; excpFrame: Kernel32.ExcpFrmPtr;
  										VAR context: Kernel32.Context;  dispatch: LONGINT ): LONGINT;
 VAR m: Modules.Module;  eip, ebp, stack: LONGINT;  pc, handler, fp, sp: LONGINT;  handled: BOOLEAN;  t: Process;
@@ -541,6 +546,7 @@ BEGIN
 	IF exceptionhandler = NIL THEN
 		Trace.StringLn ( "Objects: No exception handler installed" );
 		IF HandleExcp THEN
+
 			Trace.String( "EXCEPTION " );  Trace.Hex( excpRec.ExceptionCode, 1 );
 			Trace.String( " at " );  Trace.Hex( excpRec.ExceptionAddress, 1 );
 			Trace.Ln();  Trace.String( "EAX " );  Trace.Hex( context.EAX, 1 );
@@ -726,6 +732,7 @@ BEGIN
 	END;
 	t.mode := Terminated;   (* a process can also be "terminated" if the queue containing it is garbage collected *)
 	t.stackBottom := 0;  t.state.SP := 0;
+	t.restartPC := 0;
 	IF t.event # 0 THEN res := Kernel32.CloseHandle( t.event );  t.event := 0 END;
 	DEC( nProcs );  shutdown := (nProcs = 0);
 
@@ -935,6 +942,7 @@ BEGIN
 	END;
 	ASSERT(hdr.count = -1);	(* exclusive locked *)
 	Machine.Acquire(Machine.Objects);
+
 	IF hdr.awaitingCond.head # NIL THEN  (* evaluate the waiting conditions *)
 		(* we are holding the lock, so the queue can not change (to do: except in TerminateThis) *)
 		c := FindCondition(hdr.awaitingCond);   (* interrupts should be on during this call *)
@@ -1208,10 +1216,9 @@ BEGIN
 END InitEventHandling;
 
 PROCEDURE InitGCHandling;
-VAR gcActivity: GCActivity;
 BEGIN
-	gcProcess := NIL; NEW(gcActivity);
-	finalizerProcess := NIL; NEW(finalizerCaller);
+	NEW(gcActivity);
+	NEW(finalizerCaller);
 END InitGCHandling;
 
 PROCEDURE GCStatusFactory(): Heaps.GCStatus;
