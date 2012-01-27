@@ -285,10 +285,7 @@ TYPE
 						p := p.next
 					END;
 					(* start GC *)
-					ASSERT((gcProcess # NIL) & (gcProcess.mode = AwaitingEvent));
-					gcProcess.mode := Running;
-					res := Kernel32.SetEvent(gcActivity.event);
-					gcProcess := NIL;
+					gcActivity.Activate;
 				END;
 				Machine.Release(Machine.Heaps);
 				Machine.Release(Machine.Objects);
@@ -311,9 +308,9 @@ TYPE
 				END;
 				caller.mode := Running;
 				Kernel32.SetEvent(event);
-				ASSERT(gcProcess = NIL);
-				gcProcess := CurrentProcess();
-				gcProcess.mode := AwaitingEvent;
+				r := CurrentProcess();
+				ASSERT(r = gcActivity.process);
+				r.mode := AwaitingEvent;
 				Machine.Release(Machine.Objects);
 			END;
 		END SetgcOngoing;
@@ -324,21 +321,32 @@ TYPE
 	VAR
 		res: Kernel32.BOOL;
 		event: Kernel32.HANDLE;
+		process: Process;
 
 		PROCEDURE &Init;
 		BEGIN
 			event := Kernel32.CreateEvent( NIL, Kernel32.False (* auto-reset *), Kernel32.False, NIL );   (* manual set event with initial state = reset *)
 		END Init;
 
-	BEGIN {ACTIVE, SAFE, PRIORITY(GCPriority)}
-		Machine.Acquire(Machine.Objects);
-		ASSERT(gcProcess = NIL);
-		gcProcess := CurrentProcess();
-		gcProcess.mode := AwaitingEvent;
-		Machine.Release(Machine.Objects);
-		LOOP
+		PROCEDURE Activate;
+		BEGIN
+			process.mode := Running;
+			res := Kernel32.SetEvent(gcActivity.event);
+		END Activate;
+
+		PROCEDURE Wait;
+		BEGIN
 			res := Kernel32.WaitForSingleObject(event, Kernel32.Infinite); (* block execution *)
 			ASSERT(res = Kernel32.WaitObject0);
+		END Wait;
+
+	BEGIN {ACTIVE, SAFE, PRIORITY(GCPriority)}
+		Machine.Acquire(Machine.Objects);
+		process := CurrentProcess();
+		process.mode := AwaitingEvent;
+		Machine.Release(Machine.Objects);
+		LOOP
+			Wait;
 			(* process is scheduled -> perform garbage collection now *)
 			Heaps.CollectGarbage(Modules.root);
 			IF finalizerCaller # NIL THEN finalizerCaller.Activate() END;
@@ -402,7 +410,6 @@ VAR
 	ready: ProcessQueue;	(* contains running processes in this implementation *)
 
 	numberOfProcessors: LONGINT; (* cached value of Machine.NumberOfProcessors() *)
-	gcProcess: Process;		(* process of gcActivity object, scheduled when garbage collection is necessary *)
 	finalizerCaller: FinalizerCaller; (* active object for finalizer process, regarded as aprt of GC *)
 	gcActivity: GCActivity;
 
