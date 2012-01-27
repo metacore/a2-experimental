@@ -515,7 +515,7 @@ TYPE
 			um: UndoManager.UndoManager;
 			colWidths : WMGrids.Spacings;
 			textViews : ARRAY 2 OF WMTextView.TextView;
-		BEGIN{EXCLUSIVE}
+		BEGIN
 			settings := GetSettings();
 			Init;
 			owner := window;
@@ -985,7 +985,7 @@ TYPE
 		END HandleShortcut;
 
 		PROCEDURE Finalize;
-		BEGIN{EXCLUSIVE}
+		BEGIN
 			Finalize^;
 			IF (editor # NIL) & (editor.text # NIL) THEN
 				editor.text.onTextChanged.Remove(TextChanged);
