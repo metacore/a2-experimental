@@ -1,6 +1,9 @@
 MODULE TrapWriters; (** AUTHOR "fof"; PURPOSE "trap writer: write traps to different outputs"; *)
 
 IMPORT Streams, Kernel, KernelLog, Trace, Modules;
+
+CONST
+	TrapMaxCharacters = 32*1024;
 TYPE
 	Entry= POINTER TO RECORD factory: WriterFactory; next: Entry END;
 
@@ -12,6 +15,7 @@ TYPE
 		trapped: BOOLEAN;
 		first, last: Entry;
 		timer: Kernel.Timer;
+		contents: ARRAY TrapMaxCharacters OF CHAR;
 
 		PROCEDURE Trapped;
 		BEGIN trapped := TRUE;
@@ -21,7 +25,7 @@ TYPE
 		BEGIN
 			first := NIL; last := NIL; trapped := FALSE;
 			Add(f);
-			InitStringWriter (Streams.DefaultWriterSize);
+			InitStringWriter (TrapMaxCharacters);
 		END InitTrapWriter;
 
 		PROCEDURE Add(f: WriterFactory);
@@ -58,9 +62,10 @@ TYPE
 		END RemoveAll;
 
 		PROCEDURE Write;
-		VAR contents: ARRAY Streams.DefaultWriterSize OF CHAR; len: LONGINT; writer: Streams.Writer;
+		VAR len: LONGINT; writer: Streams.Writer;
 			e: Entry;
-		BEGIN GetRaw (contents, len); Reset;
+		BEGIN
+			GetRaw (contents, len); Reset;
 			e := first;
 			WHILE e # NIL DO
 				writer := e.factory (); writer.Bytes (contents, 0, len); writer.Update;
