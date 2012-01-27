@@ -101,6 +101,8 @@ VAR
 	mhz*: HUGEINT;   (** clock rate of GetTimer() in MHz, or 0 if not known *)
 
 	commandLine-: ARRAY 256 OF CHAR;
+	hin, hout: Kernel32.HANDLE;
+
 VAR
 	lock-: ARRAY MaxLocks OF CHAR;  (* not implemented as SET because of shared access *)
 	cs: ARRAY MaxLocks OF Kernel32.CriticalSection;
@@ -583,8 +585,32 @@ BEGIN
 	END;
 END ParseLine;
 
+PROCEDURE TraceChar(c: CHAR);
+VAR len: LONGINT;
+BEGIN
+	len := 1;
+	Kernel32.WriteFile(hout,c,len,len,NIL);
+END TraceChar;
+
+PROCEDURE SetTraceFile(VAR filename: ARRAY OF CHAR);
+BEGIN
+	Trace.String("trace -> file "); Trace.String(filename); Trace.Ln;
+	hout := Kernel32.CreateFile(filename, {Kernel32.GenericWrite}, {Kernel32.FileShareRead}, NIL, Kernel32.CreateAlways, {Kernel32.FileAttributeNormal}, Kernel32.NULL);
+	Trace.Char := TraceChar;
+END SetTraceFile;
+
+PROCEDURE SetTraceConsole;
+VAR res: LONGINT;
+BEGIN
+	Trace.String("trace -> console"); Trace.Ln;
+	res := Kernel32.AllocConsole ();
+	hin := Kernel32.GetStdHandle (Kernel32.STDInput);
+	hout := Kernel32.GetStdHandle (Kernel32.STDOutput);
+	Trace.Char := TraceChar;
+END SetTraceConsole;
+
 PROCEDURE Init;
-VAR vendor: Vendor; ver: LONGINT;
+VAR vendor: Vendor; ver: LONGINT; traceName: ARRAY 256 OF CHAR;
 BEGIN
 	locks := 0;
 	IF hInstance = Kernel32.NULL THEN  (* from exe file *)
@@ -604,6 +630,13 @@ BEGIN
 	userConfigFile[Kernel32.GetFullPathName (userConfigFile, Kernel32.MaxPath, userConfigFile, 0)] := 0X;
 	Trace.String("config file = "); Trace.String(userConfigFile); Trace.Ln;
 
+	GetConfig("Trace",traceName);
+	IF traceName = "File" THEN
+		GetConfig("TraceFile",traceName);
+		IF traceName # "" THEN SetTraceFile(traceName) END
+	ELSIF traceName = "Console" THEN SetTraceConsole
+	(* else trace is on kernel log *)
+	END;
 END Init;
 
 	(* Initialize locks. *)
@@ -1004,9 +1037,9 @@ END ChangeByteOrder;
 PROCEDURE TraceColor (c: SHORTINT);
 END TraceColor;
 
-PROCEDURE TraceChar (c: CHAR);
+PROCEDURE LogChar (c: CHAR);
 BEGIN trace[0] := c; Kernel32.OutputString (trace);
-END TraceChar;
+END LogChar;
 
 PROCEDURE -GetEAX*(): LONGINT;
 CODE{SYSTEM.i386}
@@ -1094,7 +1127,7 @@ END Portout32;
 
 
 BEGIN
-	trace[1] := 0X; Trace.Char := TraceChar; Trace.Color := TraceColor;
+	trace[1] := 0X; Trace.Char := LogChar; Trace.Color := TraceColor;
 	InitLocks();
 	Init;
 END Machine.
