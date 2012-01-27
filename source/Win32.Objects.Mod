@@ -531,9 +531,6 @@ CODE {SYSTEM.i386}
 	DB	000H
 END StackBottom;
 
-
-
-
 PROCEDURE {WINAPI} ExcpFrmHandler( VAR excpRec: Kernel32.ExceptionRecord; excpFrame: Kernel32.ExcpFrmPtr;
  										VAR context: Kernel32.Context;  dispatch: LONGINT ): LONGINT;
 VAR m: Modules.Module;  eip, ebp, stack: LONGINT;  pc, handler, fp, sp: LONGINT;  handled: BOOLEAN;  t: Process;
@@ -909,17 +906,17 @@ BEGIN  (* {called from user level} *)
 		ASSERT(r.waitingOn = NIL); (* sanity check *)
 		Remove(ready, r);
 		IF r.event = 0 THEN
-			r.event := Kernel32.CreateEvent( NIL, Kernel32.True (* manual *), Kernel32.False, NIL );   (* manual set event with initial state = reset *)
+			r.event := Kernel32.CreateEvent( NIL, Kernel32.False (* auto *), Kernel32.False, NIL );   (* auto reset event with initial state = reset *)
 			ASSERT ( r.event # 0, 1239 );
-		ELSE
-			res := Kernel32.ResetEvent( r.event ); (* reset event status *)
-			ASSERT ( res # 0, 1001 );
 		END;
 		r.waitingOn := obj;  r.mode := AwaitingLock;
 		Put(hdr.awaitingLock, r); INC(awl);
 		Machine.Release(Machine.Objects);
 		res := Kernel32.WaitForSingleObject(r.event, Kernel32.Infinite); (* block execution *)
 		ASSERT(res = Kernel32.WaitObject0);
+		IF StrongChecks THEN
+			ASSERT(hdr.lockedBy = r); (* at this moment only this process can own the lock and only this process can release it*)
+		END;
 	END
 END Lock;
 
@@ -1025,11 +1022,8 @@ BEGIN
 	r.waitingOn := obj; r.mode := AwaitingCond;
 	Remove(ready, r);
 	IF r.event = 0 THEN
-		r.event := Kernel32.CreateEvent( NIL, Kernel32.True (* manual *), Kernel32.False, NIL );   (* manual set event with initial state = reset *)
+		r.event := Kernel32.CreateEvent( NIL, Kernel32.False (* auto *), Kernel32.False, NIL );   (* auto-reset event with initial state = reset *)
 		ASSERT ( r.event # 0, 1239 );
-	ELSE
-		res := Kernel32.ResetEvent( r.event );  (* reset event status *)
-		ASSERT ( res # 0, 1001 );
 	END;
 	IF c # NIL THEN
 		DEC(awc); Put(ready, c); c.mode := Running;
