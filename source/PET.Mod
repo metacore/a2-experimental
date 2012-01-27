@@ -47,7 +47,7 @@ IMPORT
 	WMComponents, WMRectangles, WMMessages, WMDialogs, WMDiagnostics,
 	WMTextView, WMEditors, Strings, TextUtilities, Texts,
 	WMWindowManager, WMGrids, WMMacros, WMPopups, WMDropTarget,
-	PETTrees, Configuration, Codecs, WMTabComponents, UndoManager, WMSearchComponents;
+	PETTrees, Configuration, Codecs, WMTabComponents, UndoManager, WMSearchComponents, Kernel;
 
 CONST
 	WindowWidth = 800; WindowHeight = 600;
@@ -2608,6 +2608,7 @@ VAR
 	gsettings : Settings;
 
 	StrScratchPanel, StrPETPanel : Strings.String;
+	timeout: BOOLEAN;
 
 (** Open document *)
 PROCEDURE Open*(context : Commands.Context); (** [Options] {filename['@'position]} ~ *)
@@ -2836,15 +2837,26 @@ BEGIN {EXCLUSIVE}
 	END;
 END DecCount;
 
+PROCEDURE Timeout;
+BEGIN{EXCLUSIVE}
+	timeout := TRUE
+END Timeout;
+
 PROCEDURE Cleanup;
 VAR die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WMWindowManager.WindowManager;
+	 timer: OBJECT VAR timer: Kernel.Timer; BEGIN{ACTIVE} NEW(timer); timer.Sleep(100); Timeout END;
 BEGIN {EXCLUSIVE}
-	NEW(die); msg.ext := die; msg.msgType := WMMessages.MsgExt;
+	NEW(die);
+	msg.ext := die;
+	msg.msgType := WMMessages.MsgExt;
 	m := WMWindowManager.GetDefaultManager();
-	m.Broadcast(msg);
-	AWAIT(nofWindows = 0);
+	WHILE nofWindows >0 DO
+		m.Broadcast(msg);
+		timeout := FALSE; NEW(timer);
+		AWAIT (nofWindows = 0) OR timeout;
+	END;
 END Cleanup;
 
 PROCEDURE LoadModule(CONST moduleName : ARRAY OF CHAR);
