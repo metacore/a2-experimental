@@ -697,6 +697,12 @@ BEGIN
 	RETURN SYSTEM.VAL(Process, Machine.GetProcessPtr());
 END CurrentProcess;
 
+(* Return stack bottom of process. For compatibility WinAos/UnixAos/NativeAos  *)
+PROCEDURE GetStackBottom*(p: Process): SYSTEM.ADDRESS;
+BEGIN
+	RETURN p.stack.high
+END GetStackBottom;
+
 (** Return the active object currently executing. *)
 PROCEDURE ActiveObject* (): ANY;
 VAR r: Process;

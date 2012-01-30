@@ -494,22 +494,21 @@ VAR
 	END WriteSimpleVar;
 
 	(* Display call trackback. *)
-	PROCEDURE StackTraceBack*(w: Streams.Writer; pc, bp: SYSTEM.ADDRESS; long, overflow: BOOLEAN);
-	VAR count, refpos: LONGINT; base: SYSTEM.ADDRESS; m: Modules.Module; refs: Modules.Bytes;
+	PROCEDURE StackTraceBack*(w: Streams.Writer; pc, bp: SYSTEM.ADDRESS; stackhigh: LONGINT; long, overflow: BOOLEAN);
+	VAR count, refpos, stacklow: LONGINT; base: SYSTEM.ADDRESS; m: Modules.Module; refs: Modules.Bytes;
 	BEGIN
 		count := 0;	(* frame count *)
+		stacklow := bp;
 		REPEAT
 			m := Modules.ThisModuleByAdr(pc);
-			IF ShowAllProcs OR (m # NIL) OR (count = 0) THEN
+			IF (ShowAllProcs OR (m # NIL) OR (count = 0)) & (bp # 0) & (bp >= stacklow) & (bp <= stackhigh) THEN
 				WriteProc0(w, m, pc, bp, refs, refpos, base); w.Ln;	w.Update;
 				IF long & (~overflow OR (count > 0)) THEN	(* show variables *)
 					IF refpos # -1 THEN Variables(w, refs, refpos, base) END;
 					IF (m # NIL) & (base # m.sb) & (count = 0) THEN ModuleState(w, m) END
 				END;
-				IF bp # 0 THEN (* if bp is 0 in first frame *)
-					SYSTEM.GET(bp + SYSTEM.SIZEOF(SYSTEM.ADDRESS), pc);	(* return addr from stack *)
-					SYSTEM.GET(bp, bp);	(* follow dynamic link *)
-				END;
+				SYSTEM.GET(bp + SYSTEM.SIZEOF(SYSTEM.ADDRESS), pc);	(* return addr from stack *)
+				SYSTEM.GET(bp, bp);	(* follow dynamic link *)
 				INC(count)
 			ELSE
 				bp := 0

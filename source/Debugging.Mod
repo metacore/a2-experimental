@@ -51,18 +51,18 @@ VAR
 		ViewStack(oldbp,bp+4*SYSTEM.SIZEOF(SYSTEM.ADDRESS),s);
 	END Stack;
 
-	PROCEDURE TraceBackThis( eip, ebp: SYSTEM.ADDRESS );   (* do a stack trace back w.r.t. given instruction and frame pointers *)
+	PROCEDURE TraceBackThis( eip, ebp: SYSTEM.ADDRESS; stackhigh:LONGINT );   (* do a stack trace back w.r.t. given instruction and frame pointers *)
 	BEGIN
 		Log.Ln;  Log.String( "##################" );
 		Log.Ln;  Log.String( "# Debugging.TraceBack #" );
 		Log.Ln;  Log.String( "##################" );
-		Log.Ln;  Reflection.StackTraceBack( Log, eip, ebp, TRUE , FALSE );
+		Log.Ln;  Reflection.StackTraceBack( Log, eip, ebp, stackhigh, TRUE , FALSE );
 		Log.Update;
 	END TraceBackThis;
 
 	PROCEDURE TraceBack*;   (* do a stack trace back starting at the calling instruction position *)
 	BEGIN
-		TraceBackThis( Machine.CurrentPC(), Machine.CurrentBP() );
+		TraceBackThis( Machine.CurrentPC(), Machine.CurrentBP(), Objects.GetStackBottom(Objects.CurrentProcess()) );
 	END TraceBack;
 
 	(* TraceBackAll implemented in SystemTools.ShowStacks *)

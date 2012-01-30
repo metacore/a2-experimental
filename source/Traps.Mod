@@ -118,7 +118,7 @@ VAR
 			IF (int.INT = Machine.PF) & (ABS(int.PC-exc.CR[2]) < 100H) THEN	(* PF close to PC *)
 				KernelLog.Memory(int.ESP-16, 64)	(* show stack *)
 			END;*)
-			Reflection.StackTraceBack(w, int.PC, int.BP, long, overflow);
+			Reflection.StackTraceBack(w, int.PC, int.BP, Objects.GetStackBottom(p), long, overflow);
 		END;
 		w.String("---------------------------------"); w.Ln;
 		w.Char(02X);	(* "end of trap" *)

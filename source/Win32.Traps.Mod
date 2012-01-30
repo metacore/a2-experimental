@@ -203,7 +203,7 @@ VAR
 				(*ALEX 2005.12.08 when calling a pointer to a function and the pointer is NULL meaning eip=NULL*)
 			IF int.PC = 0 THEN SYSTEM.GET( int.SP, pc ) ELSE pc := int.PC END;
 
-			Reflection.StackTraceBack( w, pc, int.BP, long, overflow )
+			Reflection.StackTraceBack( w, pc, int.BP, Objects.GetStackBottom(p), long, overflow )
 		END;
 		w.String("---------------------------------"); w.Ln;
 		w.Char(02X);	(* "end of trap" *)
