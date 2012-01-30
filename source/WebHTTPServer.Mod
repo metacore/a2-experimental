@@ -379,6 +379,9 @@ TYPE
 					reply.statuscode := res;
 					WebHTTP.WriteStatus(reply, out)
 				END;
+				
+				out.Update; (* ignore out.res *)
+				
 				IF logEnabled THEN W3CLog(request, reply) END;
 
 				IF WebHTTP.GetAdditionalFieldValue(request.additionalFields, "Connection", value) THEN
@@ -393,8 +396,6 @@ TYPE
 				ELSE
 					consecutiveErrors := 0
 				END;
-
-				IF client.state=TCP.Established THEN out.Update (* ignore out.res *)	 END; (* patched 2012-01-30 PH*)
 				
 			END
 		UNTIL closeRequested OR ((request.maj = 1) & (request.min = 0)) OR (client.state # TCP.Established);
