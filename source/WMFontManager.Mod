@@ -23,6 +23,11 @@ TYPE
 	FontManager = OBJECT (WMGraphics.FontManager)
 	VAR
 		fontCache : Kernel.FinalizedCollection;
+
+		(* lru: last recently used font - circular buffer. This buffer is for fast access and provides a protection for a limited number of loaded fonts from being garbage collected.  *)
+		lru: ARRAY 64 OF WMGraphics.Font;
+		lruPosition: LONGINT;
+
 		defaultFont : WMGraphics.Font;
 		font : WMGraphics.Font; (* set by the enumerator *)
 		searchName : ARRAY 256 OF CHAR;
@@ -45,7 +50,8 @@ TYPE
 			defaultFont := WMDefaultFont.LoadDefaultFont(); (* fallback case *)
 			t := GetFont(defaultFontName, defaultFontSize, defaultFontStyle);
 			IF t = defaultFont THEN KernelLog.String("Using embedded font"); KernelLog.Ln ELSE defaultFont := t END;
-			WMGraphics.InstallDefaultFont(defaultFont)
+			WMGraphics.InstallDefaultFont(defaultFont);
+			lruPosition := 0;
 		END Init;
 
 		PROCEDURE MatchExact(obj : ANY; VAR cont : BOOLEAN);
@@ -137,31 +143,46 @@ TYPE
 		END Load;
 
 		PROCEDURE GetFont*(CONST name : ARRAY OF CHAR; size : LONGINT; style : SET) : WMGraphics.Font;
-		VAR tf : WMGraphics.Font; l : LoaderInfo; fi : FontInfo;
+		VAR tf,f : WMGraphics.Font; l : LoaderInfo; fi : FontInfo; i: LONGINT;
 		BEGIN {EXCLUSIVE}
 			font := defaultFont;
 			found := FALSE;
-			COPY(name, searchName); searchSize := size; searchStyle := style;
-			fontCache.Enumerate(MatchExact);
-			IF ~found THEN
-				NEW(fi);
-				fi.name := Strings.NewString(name);
-				fi.size := size; fi.style := style;
-				(* search for exact matches *)
-				l := exactLoaders;
-				WHILE ~found & (l # NIL) DO
-					tf := Load(l.loader, fi);
-					IF tf # NIL THEN font := tf; fontCache.Add(font, NIL); found := TRUE END;
-					l := l.next;
+
+			i := (lruPosition-1) MOD LEN(lru);
+			REPEAT
+				i := (i - 1) MOD LEN(lru);
+				f := lru[i];
+				IF f = NIL THEN i := lruPosition
+				ELSIF (f.size = size) & (f.style = style) & (f.name= name)THEN
+					font := f; found := TRUE;
 				END;
-				(* search for approximate matches (not exact style) *)
-				IF ~found THEN fontCache.Enumerate(MatchSimiliar) END;
-				l := approximateLoaders;
-				WHILE ~found & (l # NIL) DO
-					tf := Load(l.loader, fi);
-					IF tf # NIL THEN font := tf; fontCache.Add(font, NIL); found := TRUE END;
-					l := l.next;
-				END
+			UNTIL (i = lruPosition) OR found;
+
+			IF ~found THEN
+				COPY(name, searchName); searchSize := size; searchStyle := style;
+				fontCache.Enumerate(MatchExact);
+				IF ~found THEN
+					NEW(fi);
+					fi.name := Strings.NewString(name);
+					fi.size := size; fi.style := style;
+					(* search for exact matches *)
+					l := exactLoaders;
+					WHILE ~found & (l # NIL) DO
+						tf := Load(l.loader, fi);
+						IF tf # NIL THEN font := tf; fontCache.Add(font, NIL); found := TRUE END;
+						l := l.next;
+					END;
+					(* search for approximate matches (not exact style) *)
+					IF ~found THEN fontCache.Enumerate(MatchSimiliar) END;
+					l := approximateLoaders;
+					WHILE ~found & (l # NIL) DO
+						tf := Load(l.loader, fi);
+						IF tf # NIL THEN font := tf; fontCache.Add(font, NIL); found := TRUE END;
+						l := l.next;
+					END
+				END;
+				lru[lruPosition] := font; lruPosition := (lruPosition+1) MOD LEN(lru);
+
 			END;
 			RETURN font
 		END GetFont;
