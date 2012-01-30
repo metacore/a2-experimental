@@ -3,7 +3,7 @@
 MODULE Info; (** AUTHOR "pjm/staubesv"; PURPOSE "System information"; *)
 
 IMPORT
-	SYSTEM, Machine, Heaps, Objects, Streams, Reflection, Modules, Commands, Options, Strings;
+	SYSTEM, Machine, Heaps, Objects, Streams, Reflection, Modules, Commands, Options, Strings, D := Debugging;
 
 CONST
 	AddressSize = SYSTEM.SIZEOF(SYSTEM.ADDRESS);
@@ -26,7 +26,7 @@ TYPE
 	Type = RECORD
 		ptag : SYSTEM.ADDRESS;
 		count : LONGINT;
-		size : SYSTEM.SIZE;
+		size : LONGINT;
 		type : SHORTINT;
 	END;
 
@@ -68,18 +68,32 @@ TYPE
 		PROCEDURE SortBy(mode : LONGINT);
 		VAR i, j : LONGINT; temp : Type;
 
-			PROCEDURE IsGreaterThan(entry1, entry2 : Type; mode : LONGINT) : BOOLEAN;
-			VAR name1, name2: ARRAY 256 OF CHAR;
+			PROCEDURE IsGreaterThan(CONST entry1, entry2 : Type; mode : LONGINT) : BOOLEAN;
+			VAR name1, name2: ARRAY 256 OF CHAR; count1,count2, size1, size2: LONGINT;
 			BEGIN
 				IF mode = SortByName THEN
 					GetName(entry1.ptag,name1);
 					GetName(entry2.ptag,name2);
 					RETURN name1 > name2;
 				ELSE
+
+					count1 := entry1.count;
+					IF entry1.type = ArrayBlock THEN
+						size1 := entry1.size DIV count1;
+					ELSE
+						size1 := entry1.size;
+					END;
+					count2 := entry2.count;
+					IF entry2.type = ArrayBlock THEN
+						size2 := entry2.size DIV count2;
+					ELSE
+						size2 := entry2.size
+					END;
+
 				RETURN
-					((mode = SortByCount) & (entry1.count > entry2.count)) OR
-					((mode = SortBySize) & (entry1.size > entry2.size)) OR
-					((mode = SortByTotalSize) & (entry1.size * entry1.count > entry2.size * entry2.count))
+					((mode = SortByCount) & (count1 > count2)) OR
+					((mode = SortBySize) & (size1 > size2)) OR
+					((mode = SortByTotalSize) & (size1*count1 > size2 * count2))
 					;
 				END;
 
@@ -169,16 +183,17 @@ TYPE
 							out.String("U ");
 						END;
 						INC(selected, types[i].count);
-						INC(size, types[i].size * types[i].count);
 						out.Int(types[i].count, 8); out.Char(" ");
 
 						IF types[i].type = ArrayBlock THEN
+							INC(size, types[i].size);
 							out.Int(types[i].size DIV types[i].count, 6); out.String("B ");
 							out.Int(types[i].size, 10); out.String("B ");
 							WriteType(types[i].ptag, out);
 							out.String(" (total ");
-							WriteB(types[i].size, out); out.String(")"); out.Ln
+							WriteB(types[i].size, out); out.String(") [mean array sizes!] "); out.Ln
 						ELSE
+							INC(size, types[i].size * types[i].count);
 							out.Int(types[i].size, 6); out.String("B ");
 							out.Int(types[i].size * types[i].count, 10); out.String("B ");
 							WriteType(types[i].ptag, out);
