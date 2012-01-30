@@ -993,19 +993,19 @@ TYPE
 		END FromXML;
 
 		PROCEDURE AddVisualComponent(c :VisualComponent; x, y : LONGINT);
-		VAR vc : VisualComponent; bounds : Rectangles.Rectangle;canvas: WMGraphics.BufferCanvas; relativeAlignment: BOOLEAN;
+		VAR bounds : Rectangles.Rectangle;canvas: WMGraphics.BufferCanvas; relativeAlignment: BOOLEAN;
 		BEGIN
 			ASSERT(c # NIL);
-			vc := c (VisualComponent);
-			IF (vc.bounds.GetWidth() < 10) OR (vc.bounds.GetHeight() < 10) THEN
-				vc.bounds.SetExtents(40, 20);
+			IF (c.bounds.GetWidth() < 10) OR (c.bounds.GetHeight() < 10) THEN
+				c.bounds.SetExtents(40, 20);
 			END;
-			bounds := vc.bounds.Get();
+			bounds := c.bounds.Get();
 			Rectangles.MoveRel(bounds, x, y);
-			vc.bounds.Set(bounds);
-			vc.AdaptRelativeBounds(vc.bounds.Get(), SELF);
-			AddContent(vc);
-			vc.Reset(NIL, NIL);
+			c.bounds.Set(bounds);
+			c.AdaptRelativeBounds(c.bounds.Get(), SELF);
+			c.Reset(NIL, NIL);
+			c.RecacheProperties;
+			AddContent(c);
 		END AddVisualComponent;
 
 		PROCEDURE EditDragDropped(x,y: LONGINT; dragInfo: WM.DragInfo): BOOLEAN;
@@ -2039,7 +2039,7 @@ TYPE
 		lastFocusComponent : VisualComponent;
 
 		PROCEDURE &New*(window : FormWindow);
-		VAR seq: Messages.MsgSequencer
+		VAR seq: Messages.MsgSequencer;
 		BEGIN
 			ASSERT(window # NIL);
 			Init;
@@ -2334,6 +2334,7 @@ VAR
 
 	macroHandlers : MacroHandler; (* the head of the list is always the DefaultMacroHandler *)
 	selection-: SelectionList;
+
 
 PROCEDURE IsWhiteSpace(ch : CHAR) : BOOLEAN;
 BEGIN
@@ -3232,8 +3233,6 @@ BEGIN
 		entry := entry.next
 	END;
 END RemoveSelection;
-
-
 
 PROCEDURE Clone*(x: Component): Repositories.Component;
 BEGIN

@@ -135,6 +135,8 @@ BEGIN
 				x := 0; y := 0
 			END;
 			manager := WMWindowManager.GetDefaultManager();
+			IF c(WMComponents.Component).sequencer # NIL THEN c(WMComponents.Component).sequencer.WaitFree() END;
+
 			manager.Add(x, y, window, flags);
 		ELSIF error # NIL THEN
 			IF (c = NIL) THEN error.String("Could not load/generate component "); error.String(filename);

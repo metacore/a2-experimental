@@ -82,7 +82,7 @@ TYPE
 	VAR
 		head, num : LONGINT;
 		msgQ : ARRAY MsgQSize OF Message;
-		alive, continue, hadOverflow : BOOLEAN;
+		alive, continue, hadOverflow , waiting: BOOLEAN;
 		msg : Message;
 		handler : MessageHandler;
 		originator : ANY;
@@ -198,12 +198,19 @@ TYPE
 			alive := FALSE
 		END Stop;
 
+		PROCEDURE WaitFree*;
+		BEGIN {EXCLUSIVE}
+			AWAIT (waiting & (num=0) OR ~alive)
+		END WaitFree;
+
 		(* Remove a message from the queue. Block if no message is available but awake if queue is terminated by call to Stop *)
 		(* return if alive *)
 		PROCEDURE Get(VAR msg : Message) : BOOLEAN;
 		BEGIN {EXCLUSIVE}
 			IF hadOverflow THEN KernelLog.String(" - Recovered"); hadOverflow := FALSE END;
+			waiting := TRUE;
 			AWAIT((num # 0) OR ~alive);
+			waiting := FALSE;
 			IF ~alive THEN RETURN FALSE END;
 			msg := msgQ[head];
 			(* clear references from the queue *)
