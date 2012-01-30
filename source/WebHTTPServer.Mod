@@ -394,7 +394,8 @@ TYPE
 					consecutiveErrors := 0
 				END;
 
-				out.Update	(* ignore out.res *)
+				IF client.state=TCP.Established THEN out.Update (* ignore out.res *)	 END; (* patched 2012-01-30 PH*)
+				
 			END
 		UNTIL closeRequested OR ((request.maj = 1) & (request.min = 0)) OR (client.state # TCP.Established);
 		Terminate
