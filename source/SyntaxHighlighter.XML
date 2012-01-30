@@ -62,7 +62,7 @@
 	</Styles>
 
 	<Highlighters>
-		<Highlighter name="Oberon" defaultstyle="">
+		<Highlighter name="Oberon" defaultstyle="Default">
 			<Tokens>
 				<Group style="Green">
 					( (* )
@@ -227,7 +227,7 @@
 
 		</Highlighter>
 
-		<Highlighter name="DataflowOberon" defaultstyle="">
+		<Highlighter name="DataflowOberon" defaultstyle="Default">
 			<Tokens>
 				<Group style="Green">
 					( (* )
