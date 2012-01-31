@@ -382,7 +382,7 @@ BEGIN
 END CopyString;
 
 PROCEDURE EnsureAllocatedStack*(size: SYSTEM.SIZE);
-VAR i: LONGINT; temp: SYSTEM.ADDRESS;
+VAR i: SYSTEM.ADDRESS; temp: SYSTEM.ADDRESS;
 BEGIN
 	FOR i := 0 TO size BY 4096 DO
 		SYSTEM.GET(SYSTEM.ADR(i)-i,temp);

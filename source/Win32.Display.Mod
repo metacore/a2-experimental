@@ -1,6 +1,6 @@
 MODULE Display;   (** fof , source Win32.Windows.Mod+Win32.Displays.Mod+Win32.Display.Mod+Win32.Viewers.Mod **)
 
-IMPORT SYSTEM, Machine, Kernel32, Threads, User32, Modules, KernelLog, GDI32, Displays, Strings,
+IMPORT SYSTEM, Machine, Kernel32, User32, Modules, KernelLog, GDI32, Displays, Strings,
 	AosInputs := Inputs, Commands, Objects,WinFS;
 
 CONST
@@ -62,20 +62,20 @@ CONST
 
 	WM_DEVICECHANGE = 0219H;
 
-DBT_CONFIGCHANGECANCELED = 00019H  ;
-DBT_CONFIGCHANGED =00018H  ;
-DBT_CUSTOMEVENT =08006H ;
-DBT_DEVICEARRIVAL =08000H  ;
-DBT_DEVICEQUERYREMOVE =08001H  ;
-DBT_DEVICEQUERYREMOVEFAILED = 08002H  ;
-DBT_DEVICEREMOVECOMPLETE = 08004H  ;
-DBT_DEVICEREMOVEPENDING = 08003H  ;
-DBT_DEVICETYPESPECIFIC =08005H ;
-DBT_DEVNODES_CHANGED = 00007H ;
-DBT_QUERYCHANGECONFIG =  00017H;
-DBT_USERDEFINED = 0FFFFH ;
+	DBT_CONFIGCHANGECANCELED = 00019H  ;
+	DBT_CONFIGCHANGED =00018H  ;
+	DBT_CUSTOMEVENT =08006H ;
+	DBT_DEVICEARRIVAL =08000H  ;
+	DBT_DEVICEQUERYREMOVE =08001H  ;
+	DBT_DEVICEQUERYREMOVEFAILED = 08002H  ;
+	DBT_DEVICEREMOVECOMPLETE = 08004H  ;
+	DBT_DEVICEREMOVEPENDING = 08003H  ;
+	DBT_DEVICETYPESPECIFIC =08005H ;
+	DBT_DEVNODES_CHANGED = 00007H ;
+	DBT_QUERYCHANGECONFIG =  00017H;
+	DBT_USERDEFINED = 0FFFFH ;
 
-DBT_DEVTYP_VOLUME = 00002H;
+	DBT_DEVTYP_VOLUME = 00002H;
 
 TYPE
 
@@ -135,7 +135,7 @@ TYPE
 
 	CreateStruct = POINTER TO RECORD
 		win: Window;
-		event: Threads.Event;
+		finished: BOOLEAN;
 		className: ARRAY 32 OF CHAR;
 		style: SET;
 		x, y, w, h: LONGINT;
@@ -402,7 +402,9 @@ VAR
 			create := SYSTEM.VAL( CreateStruct, wParam );
 			IF ~(dummy IN win.state) THEN SetupWin( win ) ELSE Add( win, TRUE ) END;
 			IF ~(external IN win.state) THEN INC( nWindows ) END;
-			Threads.Set( create.event )
+			BEGIN{EXCLUSIVE}
+				create.finished := TRUE
+			END;
 		END;
 		RETURN User32.DefWindowProc( hwnd, uMsg, wParam, lParam )
 	END DummyProc;
@@ -935,16 +937,14 @@ VAR
 	VAR theWin: Window;  done: BOOLEAN;  winMain: WinMain;  ret: Kernel32.BOOL;
 	BEGIN
 		IF nWindows <= 0 THEN
-			NEW( winMain, create );  root := create.win;   (* ; winMain.name := "Windows.WinMain"; winMain.safe := FALSE;
-			NEW(winMain,create); *)
-			(*
-			createWin := create; Threads.Start(winMain, WinMain, 0)
-			*)
+			NEW( winMain, create );  root := create.win;
 		ELSE
 			theWin := FirstWindow();
 			ret := User32.PostMessage( theWin.hWnd, WMCreateWindow, 0, SYSTEM.VAL( User32.LParam, create ) )
 		END;
-		done := Threads.Wait( create.event, Threads.Infinite )
+		BEGIN {EXCLUSIVE}
+			AWAIT(create.finished)
+		END;
 	END CreateWin;
 
 	PROCEDURE {WINAPI} ControlWindowProc( hwnd: User32.HWND;  uMsg: LONGINT;  wParam: User32.WParam;
@@ -957,9 +957,6 @@ VAR
 			SYSTEM.GET( lParam, win );  win.hWnd := hwnd;
 			ret := User32.SetWindowLong( hwnd, GWLWindow, SYSTEM.VAL( LONGINT, win ) );  InstallW( win, TRUE );  RETURN 0
 		ELSE RETURN DummyProc(hwnd,uMsg,wParam,lParam);
-		(*
-		ELSE RETURN User32.DefWindowProc( hwnd, uMsg, wParam, lParam )
-		*)
 		END
 	END ControlWindowProc;
 
@@ -1015,11 +1012,7 @@ VAR
 		ISOToOberon[248] := CHR( 111 );  ISOToOberon[249] := CHR( 143 );  ISOToOberon[250] := CHR( 117 );
 		ISOToOberon[251] := CHR( 138 );  ISOToOberon[252] := CHR( 133 );  ISOToOberon[253] := CHR( 121 );
 		ISOToOberon[254] := CHR( 112 );  ISOToOberon[255] := CHR( 121 );
-		(*
-	NEW(events);  events.done := NIL;  events.next := events;  lastEvent := events;
-	events.id := -1;  events.disp := NIL;  events.state := 1;
-	*)
-		(* NEW(eventObj);  Threads.Create(eventObj);  eventObj.nEvents := 0; *)
+
 		InitBMI;
 		COPY(WindowTitle, windowTitle);
 	END InitMod;
@@ -1107,7 +1100,7 @@ VAR
 			NEW( disp );  disp.width := w;  disp.height := h;  disp.format := format;  disp.desc := "Display driver (";  Strings.IntToStr( disp.width, ts );
 			Strings.Append( disp.desc, ts );  Strings.Append( disp.desc, "x" );  Strings.IntToStr( disp.height, ts );
 			Strings.Append( disp.desc, ts );  Strings.Append( disp.desc, "x" );  Strings.IntToStr( disp.format, ts );
-			Strings.Append( disp.desc, ts );  Strings.Append( disp.desc, ")" );  NEW( create.event );  Threads.Create( create.event );
+			Strings.Append( disp.desc, ts );  Strings.Append( disp.desc, ")" );  create.finished := FALSE;
 			CreateWin( create );
 			User32.SetWindowText(root.hWnd, windowTitle);
 			User32.BringWindowToTop( root.hWnd );  User32.SetForegroundWindow( root.hWnd );
@@ -1130,8 +1123,9 @@ VAR
 			create.style :=
 				{User32.WSMinimizeBox, User32.WSMaximizeBox,  User32.WSSysMenu,  User32.WSVisible, User32.WSBorder, User32.WSThickFrame};
 			x := User32.CWUseDefault;  y := User32.CWUseDefault;  COPY( windowClassName, create.className );  create.x := x;
-			create.y := y;  create.w := w;  create.h := h + User32.GetSystemMetrics( User32.SMCYCaption );  NEW( create.event );
-			Threads.Create( create.event );  CreateWin( create );
+			create.y := y;  create.w := w;  create.h := h + User32.GetSystemMetrics( User32.SMCYCaption );
+			create.finished := FALSE;
+			CreateWin( create );
 			User32.SetWindowText(root.hWnd, windowTitle);
 			User32.BringWindowToTop( root.hWnd );  disp.Update;
 			User32.SetForegroundWindow( root.hWnd );

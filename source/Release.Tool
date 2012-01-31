@@ -337,7 +337,6 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	ActiveTimers.Mod
 
 	WIN {
-		Win32.Threads.Mod # Remove!
 		Win32.GDI32.Mod
 		Win32.Display.Mod
 		Win32.WSock32.Mod
@@ -1320,6 +1319,7 @@ PACKAGE Oberon ARCHIVE "Oberon.zip" SOURCE "OberonSrc.zip"  DESCRIPTION "Oberon 
 	}
 
 	eWIN {
+	Win32.Threads.Mod
 	Win32.Oberon.Displays.Mod Win32.Oberon.Display.Mod Win32.Oberon.Viewers.Mod
 	Win32.Oberon.Input.Mod Win32.Oberon.Fonts.Mod Win32.Oberon.Windows.Mod
 	}
