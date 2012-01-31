@@ -123,7 +123,12 @@ VAR
 	nofGlyphs, i, j, run, bits, b, pos, xw : LONGINT;
 	p1 : Raster.Pixel;
 	mode : Raster.Mode;
-
+	mem: POINTER TO ARRAY OF CHAR;
+	img: WMGraphics.Image;
+	w,h: LONGINT;
+	adr: LONGINT;
+CONST
+	MemoryOptimization = TRUE;
 BEGIN
 	Raster.SetRGBA(p1, 255, 0, 0, 255);
 	Raster.InitMode(mode, Raster.srcCopy);
@@ -173,12 +178,32 @@ BEGIN
 		IF i >= font.runs[run].end THEN INC(run); i := font.runs[run].beg END
 	END;
 
+	IF MemoryOptimization THEN
+		w := 0; h := 0;
+		FOR i := 0 TO 255 DO
+			IF font.glyphs[i].available THEN
+				INC(w, ((font.glyphs[i].w + 7) DIV 8) * 8);
+				h := MAX(h, font.glyphs[i].h);
+			END;
+		END;
+		NEW(img);
+		Raster.Create(img, w, h, Raster.A1);
+		mem := img.mem;
+		adr := img.adr;
+	END;
+
 	FOR i := 0 TO 255 DO
 		IF font.glyphs[i].available THEN
 			xw := ((font.glyphs[i].w + 7) DIV 8) * 8;
 			j := xw * font.glyphs[i].h DIV 8;
 			IF xw *  font.glyphs[i].h > 0 THEN
-				NEW(font.glyphs[i].img); Raster.Create(font.glyphs[i].img, xw, font.glyphs[i].h, Raster.A1);
+				NEW(font.glyphs[i].img);
+				IF MemoryOptimization THEN
+					Raster.CreateWithBuffer(font.glyphs[i].img, xw, font.glyphs[i].h, Raster.A1, mem, adr);
+				ELSE
+					Raster.Create(font.glyphs[i].img, xw, font.glyphs[i].h, Raster.A1);
+				END;
+
 				pos := 0;
 				WHILE j > 0 DO
 					r.Char(ch); bits := ORD(ch); DEC(j);
