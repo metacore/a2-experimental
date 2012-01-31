@@ -320,14 +320,16 @@ BEGIN
 	COPY(fieldName, a.key); COPY(value, a.value)
 END SetAdditionalFieldValue;
 
-PROCEDURE GetVersion(VAR ver: ARRAY OF CHAR; VAR maj, min: LONGINT);
+PROCEDURE GetVersion(VAR ver: ARRAY OF CHAR; VAR maj, min: LONGINT):BOOLEAN;
 VAR i: LONGINT;
 BEGIN
 	i := 0; maj := 0; min := 0;
 	IF Match(ver, "HTTP/", i) THEN
 		GetInt(i, ver, maj);
 		IF ver[i] = "." THEN INC(i) END;
-		GetInt(i, ver, min)
+		GetInt(i, ver, min);
+		RETURN TRUE
+	ELSE RETURN FALSE
 	END
 END GetVersion;
 
@@ -407,15 +409,16 @@ BEGIN
 END GetMethodName;
 
 PROCEDURE ParseRequest*(VAR in: Streams.Reader; VAR header: RequestHeader; VAR res: LONGINT; log : TFLog.Log);
-VAR s: ARRAY 32 OF CHAR; af: AdditionalField; ch :CHAR;
+VAR s: ARRAY 32 OF CHAR; af: AdditionalField; ch :CHAR; wellformed: BOOLEAN;
 BEGIN
 	header.host[0] := 0X;
 	GetToken(in, s); GetMethod(s, header.method);
 	GetToken(in, header.uri);
-	GetToken(in, s); GetVersion(s, header.maj, header.min);
+	GetToken(in, s); 
+	wellformed:=GetVersion(s, header.maj, header.min);
 	header.host := ""; header.referer := ""; header.useragent := ""; header.accept := ""; header.transferencoding := "";
 	header.additionalFields := NIL;
-	IF EOL(in) & (header.method # UnknownM) & (header.uri # "") THEN
+	IF wellformed & EOL(in) & (header.method # UnknownM) & (header.uri # "") THEN
 		in.SkipLn();
 		IF header.maj >= 1 THEN
 			REPEAT
@@ -446,9 +449,10 @@ END ParseRequest;
 
 PROCEDURE ParseReply*(VAR in: Streams.Reader; VAR header: ResponseHeader; VAR res: LONGINT; log : TFLog.Log);
 VAR s, sLow: ARRAY 32 OF CHAR; af: AdditionalField;
-	i :LONGINT; ch :CHAR;
+	i :LONGINT; ch :CHAR; wellformed: BOOLEAN;
 BEGIN
-	GetToken(in, s); GetVersion(s, header.maj, header.min);
+	GetToken(in, s); 
+	wellformed:=GetVersion(s, header.maj, header.min);
 	GetToken(in, s); i := 0; GetInt(i, s, header.statuscode); in.Ln(header.reasonphrase);
 	header.server := ""; header.date := ""; header.contenttype := "";
 	header.contentlength := -1;
