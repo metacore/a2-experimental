@@ -438,7 +438,8 @@ BEGIN
 			res := VersionNotSupported
 		END
 	ELSE
-			IF log # NIL THEN log.Enter; log.String("Unsupported HTTP method :"); log.Int(header.method, 5); log.Exit END;
+		in.SkipLn(); (*PH Jan 2012*)
+		IF log # NIL THEN log.Enter; log.String("Unsupported HTTP method :"); log.Int(header.method, 5); log.Exit END;
 		res := BadRequest
 	END
 END ParseRequest;
