@@ -11,6 +11,7 @@ CONST
 	RecordBlock = 1;
 	ProtRecBlock = 2;
 	ArrayBlock = 3;
+	SystemBlock = 4;
 
 	MaxNofTypes = 800;
 
@@ -26,8 +27,9 @@ TYPE
 	Type = RECORD
 		ptag : SYSTEM.ADDRESS;
 		count : LONGINT;
-		size : LONGINT;
+		size : SYSTEM.SIZE;
 		type : SHORTINT;
+		pc: SYSTEM.ADDRESS;
 	END;
 
 	Analyzer = OBJECT
@@ -78,17 +80,10 @@ TYPE
 				ELSE
 
 					count1 := entry1.count;
-					IF entry1.type = ArrayBlock THEN
-						size1 := entry1.size DIV count1;
-					ELSE
-						size1 := entry1.size;
-					END;
+					size1 := entry1.size DIV count1;
+
 					count2 := entry2.count;
-					IF entry2.type = ArrayBlock THEN
-						size2 := entry2.size DIV count2;
-					ELSE
-						size2 := entry2.size
-					END;
+					size2 := entry2.size DIV count2;
 
 				RETURN
 					((mode = SortByCount) & (count1 > count2)) OR
@@ -113,8 +108,49 @@ TYPE
 			END;
 		END SortBy;
 
-		PROCEDURE Add(CONST block : Heaps.HeapBlock);
-		VAR tag : SYSTEM.ADDRESS; i : LONGINT; type : SHORTINT;
+		PROCEDURE Add(CONST block : Heaps.HeapBlock; byPC: BOOLEAN);
+		VAR type: SHORTINT;
+
+			PROCEDURE AddByPC(type: SHORTINT);
+			VAR pc: SYSTEM.ADDRESS; i: LONGINT;
+			BEGIN
+				SYSTEM.GET(block.dataAdr + Heaps.HeapBlockOffset, pc);
+				SYSTEM.GET(pc + Heaps.HeapBlockOffset, pc);
+				IF pc # 0 THEN
+					i := 0; WHILE (i < LEN(types)) & (i < nofElements) & (types[i].pc # pc) DO INC(i) END;
+					IF (i < nofElements) THEN
+						INC(types[i].count);
+						INC(types[i].size, block.size);
+					ELSIF (i = nofElements) & (i < LEN(types)) THEN
+						types[i].ptag := 0;
+						types[i].count := 1;
+						types[i].size := block.size;
+						types[i].type := type;
+						types[i].pc := pc;
+						INC(nofElements)
+					END;
+				END;
+			END AddByPC;
+
+			PROCEDURE AddByType(type: SHORTINT);
+			VAR tag: SYSTEM.ADDRESS; i: LONGINT;
+			BEGIN
+				SYSTEM.GET(block.dataAdr + Heaps.TypeDescOffset, tag);
+				i := 0; WHILE (i < LEN(types)) & (i < nofElements) & (types[i].ptag # tag) DO INC(i) END;
+				IF (i < nofElements) THEN
+					INC(types[i].count);
+					INC(types[i].size, block.size);
+				ELSIF (i = nofElements) & (i < LEN(types)) THEN
+					types[i].ptag := tag;
+					types[i].count := 1;
+					types[i].size := block.size;
+					types[i].type := type;
+					types[i].pc := 0;
+					INC(nofElements)
+				END;
+			END AddByType;
+
+
 		BEGIN
 			INC(nofHeapBlocks); INC(sizeHeapBlocks, block.size);
 			IF (block IS Heaps.RecordBlock) OR (block IS Heaps.ProtRecBlock) OR (block IS Heaps.ArrayBlock) THEN
@@ -130,24 +166,16 @@ TYPE
 				ELSE
 					HALT(99);
 				END;
-
-				(* all these heap blocks have a type tag *)
-				SYSTEM.GET(block.dataAdr + Heaps.TypeDescOffset, tag);
-				i := 0; WHILE (i < LEN(types)) & (i < nofElements) & (types[i].ptag # tag) DO INC(i) END;
-				IF (i < nofElements) THEN
-					INC(types[i].count);
-					IF type = ArrayBlock THEN
-						INC(types[i].size, block.size);
-					END;
-				ELSIF (i = nofElements) & (i < LEN(types)) THEN
-					types[i].ptag := tag;
-					types[i].count := 1;
-					types[i].size := block.size;
-					types[i].type := type;
-					INC(nofElements)
+				IF byPC THEN
+					AddByPC(type)
+				ELSE
+					(* all these heap blocks have a type tag *)
+					AddByType(type)
 				END;
 			ELSIF (block IS Heaps.SystemBlock) THEN
 				INC(nofSystemBlocks); INC(sizeSystemBlocks, block.size);
+				(* system blocks do not have a type tag *)
+				AddByPC(SystemBlock);
 			ELSIF (block IS Heaps.FreeBlock) THEN
 				INC(nofFreeBlocks); INC(sizeFreeBlocks, block.size);
 			END;
@@ -157,6 +185,7 @@ TYPE
 		VAR
 			module : Modules.Module; typedesc : Modules.TypeDesc;
 			size, totalSize: SYSTEM.SIZE;
+			startpc: SYSTEM.ADDRESS;
 			i, selected, total : LONGINT;
 			string : ARRAY 256 OF CHAR; copy: ARRAY 256 OF CHAR;
 		BEGIN
@@ -165,41 +194,49 @@ TYPE
 			selected := 0; total := 0;
 			FOR i := 0 TO nofElements-1 DO
 				INC(total, types[i].count);
-				Modules.ThisTypeByAdr(types[i].ptag, module, typedesc);
-				IF module # NIL THEN
-					string := "";
-					COPY(module.name,copy);
-					Strings.AppendX(string, copy);
-					Strings.AppendX(string, ".");
-					COPY(typedesc.name,copy);
-					Strings.AppendX(string, copy);
+				module := NIL;
+				IF (types[i].pc # 0) THEN
+					module := Modules.ThisModuleByAdr(types[i].pc);
+				ELSIF (types[i].ptag # 0) THEN
+					Modules.ThisTypeByAdr(types[i].ptag, module, typedesc);
+				END;
+				IF (module # NIL)  THEN
+					IF (types[i].ptag # 0) THEN
+						string := "";
+						COPY(module.name,copy);
+						Strings.AppendX(string, copy);
+						Strings.AppendX(string, ".");
+						COPY(typedesc.name,copy);
+						Strings.AppendX(string, copy);
+					ELSE
+						string := "";
+						COPY(module.name,copy);
+						Strings.AppendX(string, copy);
+						Strings.AppendX(string, ".");
+						Reflection.GetProcedureName(types[i].pc, copy,startpc);
+						Strings.AppendX(string, copy);
+						Strings.Append(string,":");
+						Strings.IntToStr(types[i].pc - startpc, copy);
+						Strings.Append(string,copy);
+					END;
 
 					IF Strings.Match(mask, string) THEN
 						CASE types[i].type OF
 							|RecordBlock: out.String("R ");
 							|ProtRecBlock: out.String("P ");
 							|ArrayBlock: out.String("A ");
+							|SystemBlock: out.String("S ");
 						ELSE
 							out.String("U ");
 						END;
 						INC(selected, types[i].count);
 						out.Int(types[i].count, 8); out.Char(" ");
-
-						IF types[i].type = ArrayBlock THEN
-							INC(size, types[i].size);
-							out.Int(types[i].size DIV types[i].count, 6); out.String("B ");
-							out.Int(types[i].size, 10); out.String("B ");
-							WriteType(types[i].ptag, out);
-							out.String(" (total ");
-							WriteB(types[i].size, out); out.String(") [mean array sizes!] "); out.Ln
-						ELSE
-							INC(size, types[i].size * types[i].count);
-							out.Int(types[i].size, 6); out.String("B ");
-							out.Int(types[i].size * types[i].count, 10); out.String("B ");
-							WriteType(types[i].ptag, out);
-							out.String(" (total ");
-							WriteB(types[i].size * types[i].count, out); out.String(")"); out.Ln
-						END;
+						INC(size, types[i].size);
+						out.Int(types[i].size DIV types[i].count, 6); out.String("B ");
+						out.Int(types[i].size, 10); out.String("B ");
+						out.String(string);
+						out.String(" (total ");
+						WriteB(types[i].size, out); out.String(")"); out.Ln
 					END;
 				END;
 			END;
@@ -218,7 +255,7 @@ TYPE
 			END;
 		END ShowBlocks;
 
-		PROCEDURE Show(out : Streams.Writer; CONST mask : ARRAY OF CHAR; sortMode : LONGINT);
+		PROCEDURE Show(out : Streams.Writer; CONST mask : ARRAY OF CHAR; sortMode : LONGINT; byPC: BOOLEAN);
 		VAR nofUsedBlocks, sizeUsedBlocks : LONGINT;
 
 			PROCEDURE ShowBlock(CONST name : ARRAY OF CHAR; nofBlocks: LONGINT; size: SYSTEM.SIZE; totalNofBlocks: LONGINT; totalSize : SYSTEM.SIZE; out : Streams.Writer);
@@ -398,6 +435,7 @@ VAR
 BEGIN
 	NEW(options);
 	options.Add("s", "sort", Options.Integer);
+	options.Add(0X, "pc", Options.Flag);
 	IF options.Parse(context.arg, context.error) THEN
 		IF ~options.GetInteger("sort", sortMode) THEN sortMode := SortNone; END;
 		context.arg.SkipWhitespace; context.arg.String(mask);
@@ -408,13 +446,13 @@ BEGIN
 			p := memBlock.beginBlockAdr;
 			WHILE p # memBlock.endBlockAdr DO
 				heapBlock := SYSTEM.VAL(Heaps.HeapBlock, p + Heaps.BlockHeaderSize); (* get heap block *)
-				analyzer.Add(heapBlock);
+				analyzer.Add(heapBlock, options.GetFlag("pc"));
 				p := p + heapBlock.size
 			END;
 			memBlock := memBlock.next
 		END;
 		Machine.Release(Machine.Heaps);
-		analyzer.Show(context.out, mask, sortMode);
+		analyzer.Show(context.out, mask, sortMode, options.GetFlag("pc"));
 	END;
 END AllObjects;
 
@@ -441,7 +479,7 @@ BEGIN
 			Machine.Release(Machine.Heaps);
 			context.out.String("Heap block referenced by module "); context.out.String(moduleName); context.out.Char(":");
 			context.out.Ln;
-			analyzer.Show(context.out, mask, sortMode);
+			analyzer.Show(context.out, mask, sortMode, FALSE);
 		ELSE
 			context.error.String("Module "); context.error.String(moduleName); context.error.String(" is not loaded."); context.error.Ln;
 		END;
@@ -475,7 +513,7 @@ BEGIN
 						IF (variable.adr # 0) THEN
 							SYSTEM.GET(variable.adr, address);
 							MarkReference(analyzer, SYSTEM.VAL(ANY, address));
-							analyzer.Show(context.out, mask, sortMode);
+							analyzer.Show(context.out, mask, sortMode, FALSE);
 						END;
 					ELSE
 						context.error.String("Variable is not a pointer"); context.error.Ln;
@@ -528,7 +566,7 @@ BEGIN
 				Machine.Release(Machine.Heaps);
 				context.out.String("Heap blocks referenced by process ID = "); context.out.Int(processID, 0); context.out.Char(":");
 				context.out.Ln;
-				analyzer.Show(context.out, mask, sortMode);
+				analyzer.Show(context.out, mask, sortMode, FALSE);
 			ELSE
 				context.error.String("Process ID = "); context.error.Int(processID, 0); context.error.String(" not found");
 				context.error.Ln;
@@ -588,7 +626,7 @@ BEGIN
 			heapBlock := SYSTEM.VAL(Heaps.HeapBlock, blockAdr + Heaps.BlockHeaderSize); (* get heap block *)
 			mark := SYSTEM.GET32(blockAdr + Heaps.BlockHeaderSize); (* access to private field heapBlock.mark *)
 			IF (mark = currentMarkValue) THEN
-				analyzer.Add(heapBlock);
+				analyzer.Add(heapBlock, FALSE);
 				SYSTEM.PUT32(blockAdr + Heaps.BlockHeaderSize, currentMarkValue - 1);
 			END;
 			blockAdr := blockAdr + heapBlock.size

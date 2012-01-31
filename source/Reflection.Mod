@@ -309,12 +309,11 @@ VAR
 	END WriteProc;
 
 	(* Returns the name of the procedure the pc is in. Searchs in m.refs *)
-	PROCEDURE GetProcedureName*(pc: SYSTEM.ADDRESS; VAR name: ARRAY OF CHAR);
+	PROCEDURE GetProcedureName*(pc: SYSTEM.ADDRESS; VAR name: ARRAY OF CHAR; VAR startpc: SYSTEM.ADDRESS);
 	VAR
 		methadr, i: LONGINT;
 		ch: CHAR;
 		m: Modules.Module;
-		startpc: SYSTEM.ADDRESS;
 	BEGIN
 		m := Modules.ThisModuleByAdr(pc);
 
@@ -334,6 +333,9 @@ VAR
 					ch := m.refs[methadr];
 					INC(methadr);
 					INC(i);
+				END;
+				IF ~NewObjectFile(m.refs) THEN
+					INC(startpc, SYSTEM.ADR(m.code[0]));
 				END;
 			END;
 			name[i] := 0X;

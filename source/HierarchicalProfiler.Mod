@@ -295,7 +295,7 @@ END MergeChildNode;
 
 (* Add 'sample' to 'profile' *)
 PROCEDURE AddSample(profile : Node; type, info : LONGINT; CONST sampleInfo : SampleInfo; CONST sample : Sample);
-VAR node : Node; module : Modules.Module; pc : SYSTEM.ADDRESS; nodeName, name : Name; i : LONGINT;
+VAR node : Node; module : Modules.Module; pc,startpc : SYSTEM.ADDRESS; nodeName, name : Name; i : LONGINT;
 
 	PROCEDURE GenerateNodeName(module : Modules.Module; CONST procedureName : ARRAY OF CHAR) : Name;
 	VAR name : Name;
@@ -372,7 +372,7 @@ BEGIN
 			(* get procedure name *)
 			pc := sample[i];
 			module := Modules.ThisModuleByAdr(pc);
-			Reflection.GetProcedureName(pc, name);
+			Reflection.GetProcedureName(pc, name, startpc);
 			nodeName := GenerateNodeName(module, name);
 			node := MergeChildNode(nodeName, node);
 			DEC(i);
@@ -381,7 +381,7 @@ BEGIN
 		IF (sample[0] # Invalid) THEN
 			pc := sample[0];
 			module := Modules.ThisModuleByAdr(pc);
-			Reflection.GetProcedureName(pc, name);
+			Reflection.GetProcedureName(pc, name,startpc);
 			nodeName := GenerateNodeName(module, name);
 			node := MergeChildNode(nodeName, node);
 		END;

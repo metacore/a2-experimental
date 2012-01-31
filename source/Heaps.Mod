@@ -878,7 +878,7 @@ END NewBlock;
 (** NewSys - Implementation of SYSTEM.NEW. *)
 PROCEDURE NewSys*(VAR p: ANY; size: SYSTEM.SIZE; isRealtime: BOOLEAN);
 VAR blockSize, systemBlockSize: SYSTEM.SIZE; systemBlockAdr, dataBlockAdr: SYSTEM.ADDRESS;
-	systemBlock {UNTRACED}: SystemBlock;
+	systemBlock {UNTRACED}: SystemBlock; pc: SYSTEM.ADDRESS;
 BEGIN
 	systemBlockSize := BlockHeaderSize + SYSTEM.SIZEOF(SystemBlockDesc);
 	INC(systemBlockSize, (-systemBlockSize) MOD ArrayAlignment); (* round up to multiple of ArrayAlignment to ensure alignment of first data element to 0 MOD ArrayAlignment *)
@@ -889,7 +889,8 @@ BEGIN
 	systemBlockAdr:= NewBlock(blockSize);
 	IF systemBlockAdr # 0 THEN
 		SYSTEM.PUT(systemBlockAdr + TypeDescOffset, systemBlockTag);
-		SYSTEM.PUT(systemBlockAdr + HeapBlockOffset, NIL);
+		SYSTEM.GET(Machine.CurrentBP()+SYSTEM.SIZEOF(SYSTEM.ADDRESS),pc);
+		SYSTEM.PUT(systemBlockAdr + HeapBlockOffset,pc);
 		dataBlockAdr := systemBlockAdr + systemBlockSize (* - BlockHeaderSize + BlockHeaderSize *);
 		SYSTEM.PUT(dataBlockAdr + TypeDescOffset, NilVal);		(* no type descriptor *)
 		SYSTEM.PUT(dataBlockAdr + HeapBlockOffset, systemBlockAdr);
@@ -915,7 +916,7 @@ END NewSys;
 (** NewRec - Implementation of NEW with a record. *)
 PROCEDURE NewRec*(VAR p: ANY; tag: SYSTEM.ADDRESS; isRealtime: BOOLEAN);
 VAR flags: SET; size, blockSize: SYSTEM.SIZE; typeInfoAdr, recordBlockAdr, dataBlockAdr : SYSTEM.ADDRESS;
-	recordBlock {UNTRACED}: RecordBlock;
+	recordBlock {UNTRACED}: RecordBlock; pc: SYSTEM.ADDRESS;
 BEGIN
 	SYSTEM.GET (tag - AddressSize, typeInfoAdr);
 	SYSTEM.GET (typeInfoAdr + FlagsOfs, flags);
@@ -932,7 +933,8 @@ BEGIN
 		recordBlockAdr := NewBlock(blockSize);
 		IF recordBlockAdr # 0 THEN
 			SYSTEM.PUT(recordBlockAdr + TypeDescOffset, recordBlockTag);
-			SYSTEM.PUT(recordBlockAdr + HeapBlockOffset, NIL);
+			SYSTEM.GET(Machine.CurrentBP()+SYSTEM.SIZEOF(SYSTEM.ADDRESS),pc);
+			SYSTEM.PUT(recordBlockAdr + HeapBlockOffset,pc);
 			dataBlockAdr := recordBlockAdr + SYSTEM.SIZEOF(RecordBlockDesc) + BlockHeaderSize;
 			SYSTEM.PUT(dataBlockAdr + TypeDescOffset, tag);
 			SYSTEM.PUT(dataBlockAdr + HeapBlockOffset, recordBlockAdr);
@@ -962,7 +964,7 @@ END NewRec;
 (** NewProtRec - Implementation of NEW with a protected record. *)
 PROCEDURE NewProtRec*(VAR p: ANY; tag: SYSTEM.ADDRESS; isRealtime: BOOLEAN);
 VAR size, blockSize: SYSTEM.SIZE; protRecBlockAdr, dataBlockAdr: SYSTEM.ADDRESS;
-	protRecBlock {UNTRACED}: ProtRecBlock; i: LONGINT;
+	protRecBlock {UNTRACED}: ProtRecBlock; i: LONGINT; pc: SYSTEM.ADDRESS;
 BEGIN
 	SYSTEM.GET(tag, size);
 	blockSize := BlockHeaderSize + SYSTEM.SIZEOF(ProtRecBlockDesc) + BlockHeaderSize + size;
@@ -972,7 +974,8 @@ BEGIN
 	protRecBlockAdr := NewBlock(blockSize);
 	IF protRecBlockAdr # 0 THEN
 		SYSTEM.PUT(protRecBlockAdr + TypeDescOffset, protRecBlockTag);
-		SYSTEM.PUT(protRecBlockAdr + HeapBlockOffset, NIL);
+		SYSTEM.GET(Machine.CurrentBP()+SYSTEM.SIZEOF(SYSTEM.ADDRESS),pc);
+		SYSTEM.PUT(protRecBlockAdr + HeapBlockOffset,pc);
 		dataBlockAdr := protRecBlockAdr + SYSTEM.SIZEOF(ProtRecBlockDesc) + BlockHeaderSize;
 		SYSTEM.PUT(dataBlockAdr + TypeDescOffset, tag);
 		SYSTEM.PUT(dataBlockAdr + HeapBlockOffset, protRecBlockAdr);
@@ -1011,7 +1014,7 @@ END NewProtRec;
 PROCEDURE NewArr*(VAR p: ANY; elemTag: SYSTEM.ADDRESS; numElems, numDims: SYSTEM.SIZE; isRealtime: BOOLEAN);
 VAR arrayBlockAdr, dataBlockAdr: SYSTEM.ADDRESS; arrayBlock {UNTRACED}: ArrayBlock;
 	elemSize, arrSize, blockSize, arrayBlockSize, fillSize, size, ptrOfs, arrayDataOffset: SYSTEM.SIZE;
-	firstElem: SYSTEM.ADDRESS;
+	firstElem: SYSTEM.ADDRESS; pc: SYSTEM.ADDRESS;
 BEGIN
 	SYSTEM.GET(elemTag, elemSize);
 	arrSize := numElems * elemSize;
@@ -1034,7 +1037,8 @@ BEGIN
 			arrayBlockAdr := NewBlock(blockSize);
 			IF arrayBlockAdr # 0 THEN
 				SYSTEM.PUT(arrayBlockAdr + TypeDescOffset, arrayBlockTag);
-				SYSTEM.PUT(arrayBlockAdr + HeapBlockOffset, NIL);
+				SYSTEM.GET(Machine.CurrentBP()+SYSTEM.SIZEOF(SYSTEM.ADDRESS),pc);
+				SYSTEM.PUT(arrayBlockAdr + HeapBlockOffset,pc);
 				dataBlockAdr := arrayBlockAdr + arrayBlockSize (* - BlockHeaderSize + BlockHeaderSize *);
 				SYSTEM.PUT(dataBlockAdr + TypeDescOffset, elemTag);
 				SYSTEM.PUT(dataBlockAdr + HeapBlockOffset, arrayBlockAdr);
