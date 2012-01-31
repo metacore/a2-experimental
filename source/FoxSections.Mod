@@ -17,7 +17,6 @@ CONST
 	RegularKind* = 1;
 	CaseTableKind* = 2;
 	ImportedSymbolKind* = 3;
-	SystemCallKind* = 4;
 
 	LineCommentStart*="; ";
 
@@ -38,7 +37,7 @@ TYPE
 		isPrototype-: BOOLEAN; (* only applicable if kind=UnknownKind (used to determine whether a section is external or not) *)
 
 		(* for compatibility with old object file format *)
-		kind-: SHORTINT; (* UnknownKind, RegularKind, CaseTableKind, ImportedSymbolKind, SystemCallKind *)
+		kind-: SHORTINT; (* UnknownKind, RegularKind, CaseTableKind, ImportedSymbolKind *)
 		offset-: LONGINT;
 		entryNumber-: LONGINT;
 
@@ -184,7 +183,6 @@ TYPE
 			| RegularKind: w.String("regular")
 			| CaseTableKind: w.String("caseTable")
 			| ImportedSymbolKind: w.String("importedSymbol")
-			| SystemCallKind: w.String("systemCall")
 			END;
 			IF offset # 0 THEN w.String(" offset="); w.Int(offset, 0) END;
 			*)

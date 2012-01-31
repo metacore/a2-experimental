@@ -686,40 +686,13 @@ BEGIN
 	RETURN m.init;
 END Initialized;
 
-(** Return the specified kernel procedure address. *)
-PROCEDURE GetKernelProc*(num: LONGINT): SYSTEM.ADDRESS;
-VAR adr: SYSTEM.ADDRESS;
-BEGIN
-	adr := kernelProc[253-num];
-	ASSERT(adr # 0);
-	RETURN adr
-END GetKernelProc;
 
 PROCEDURE Init;
 VAR
-	newArr: PROCEDURE (VAR p: ANY; elemTag: SYSTEM.ADDRESS; numElems, numDims: SYSTEM.SIZE; isRealtime: BOOLEAN);
-	newSys: PROCEDURE (VAR p: ANY; size: SYSTEM.SIZE; isRealtime: BOOLEAN);
-	newRec: PROCEDURE (VAR p: ANY; tag: SYSTEM.ADDRESS; isRealtime: BOOLEAN);
-	getProcedure: PROCEDURE(CONST m, p : ARRAY OF CHAR; argTdAdr, retTdAdr : SYSTEM.ADDRESS; VAR entryAdr : SYSTEM.ADDRESS);
 	s: ARRAY 4 OF CHAR;
 BEGIN
 	(* root and initBlock are initialized by the linker *)
 	shutdown := None;
-	newArr := Heaps.NewArr;
-	newSys := Heaps.NewSys;
-	newRec := Heaps.NewRec;
-	getProcedure := GetProcedure;
-	kernelProc[0] := SYSTEM.VAL (SYSTEM.ADDRESS, newRec);	(* 253 *)
-	kernelProc[1] := SYSTEM.VAL (SYSTEM.ADDRESS, newSys);	(* 252 *)
-	kernelProc[2] := SYSTEM.VAL (SYSTEM.ADDRESS, newArr);	(* 251 *)
-	kernelProc[3] := 0;	(* 250 *)
-	kernelProc[4] := 0;	(* 249 *)
-	kernelProc[5] := 0;	(* 248 *)
-	kernelProc[6] := 0;	(* 247 *)
-	kernelProc[7] := 0;	(* 246 *)
-	kernelProc[8] := 0;	(* 245 *)
-	kernelProc[9] := 0;	(* 244 *)
-	kernelProc[10] := SYSTEM.VAL(SYSTEM.ADDRESS, getProcedure);	(* 243 *)
 	numLoaders := 0;
 	freeRoot := NIL;
 	Machine.GetConfig("TraceModules", s);

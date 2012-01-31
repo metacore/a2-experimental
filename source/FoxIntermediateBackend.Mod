@@ -70,8 +70,6 @@ CONST
 		EntryPriority=-3;
 		InitPriority=-2;
 		ExitPriority=-1;
-
-		DisableSysCalls= TRUE;
 TYPE
 	SupportedInstructionProcedure* = PROCEDURE {DELEGATE} (CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
 	SupportedImmediateProcedure* = PROCEDURE {DELEGATE} (CONST op: IntermediateCode.Operand): BOOLEAN;
@@ -1731,17 +1729,6 @@ TYPE
 				END;
 			END;
 		END EnsureSymbol;
-
-		PROCEDURE SysCall(nr: LONGINT);
-		VAR op: IntermediateCode.Operand; section: IntermediateCode.Section; pooledName: Basic.PooledName;
-		BEGIN
-			Basic.InitPooledName(pooledName);
-			pooledName[0] := systemCalls[nr].name;
-			section := NewSection(module.allSections, Sections.SystemCallKind,Sections.CodeSection, FALSE, pooledName,systemCalls[nr],commentPrintout # NIL); (* NOTE: by default no definition *)
-			section.SetEntryNumber(nr);
-			IntermediateCode.InitAddress(op,addressType,section,0);
-			Emit(Call(position,op,0)); (*! replace 0 by par size for other architectures ! *)
-		END SysCall;
 
 		PROCEDURE ConditionToValue(x: SyntaxTree.Expression);
 		VAR exit: Label; trueL,falseL: Label;
@@ -4979,9 +4966,7 @@ TYPE
 			ReleaseIntermediateOperand(reg);
 			(* push realtime flag: false by default *)
 			Emit(Push(position,false));
-			IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewRec",3) ELSE
-			SysCall(SysNewRec);
-			END;
+			CallThis("Heaps","NewRec",3);
 		END NewMathArrayDescriptor;
 
 		PROCEDURE VisitBuiltinCallDesignator(x: SyntaxTree.BuiltinCallDesignator);
@@ -5037,11 +5022,7 @@ TYPE
 						END;
 						Emit(Push(position,IntermediateCode.Immediate(IntermediateCode.GetType(system,system.setType),flags)));
 						Emit(Push(position,self));
-						IF newObjectFile OR DisableSysCalls THEN
-							CallThis("Objects","CreateProcess",4)
-						ELSE
-							SysCall(SysStart);
-						END;
+						CallThis("Objects","CreateProcess",4)
 					ELSE
 						Emit(Push(position,self));
 						StaticCallOperand(result,procedure);
@@ -5137,11 +5118,7 @@ TYPE
 				Designate(p2,s2);
 				Emit(Push(position,s2.op));
 				ReleaseOperand(s0); ReleaseOperand(s1); ReleaseOperand(s2);
-				IF newObjectFile OR DisableSysCalls  THEN
-					CallThis("Modules","GetProcedure", 7);
-				ELSE
-					SysCall(SysGetProcedure);
-				END;
+				CallThis("Modules","GetProcedure", 7);
 			(* ---- ASH, LSH, ROT ----- *)
 			|Global.Ash, Global.systemLsh, Global.systemRot:
 				Evaluate(p0,s0);
@@ -5428,11 +5405,7 @@ TYPE
 					ELSE Emit(Push(position,false));
 					END;
 
-					IF newObjectFile OR DisableSysCalls THEN
-						CallThis("Heaps","NewRec", 3);
-					ELSE
-						SysCall(SysNewRec);
-					END;
+					CallThis("Heaps","NewRec", 3);
 					(* check allocation success, if not successful then do not call initializers and bodies *)
 					IntermediateCode.InitRegister(pointer,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 					Emit(Pop(position,pointer));
@@ -5560,11 +5533,7 @@ TYPE
 						IF (p0.type.resolved.isRealtime) THEN Emit(Push(position,true));
 						ELSE Emit(Push(position,false));
 						END;
-						IF newObjectFile OR DisableSysCalls THEN
-							CallThis("Heaps","NewArr",5)
-						ELSE
-							SysCall(SysNewArr);
-						END;
+						CallThis("Heaps","NewArr",5)
 					ELSE
 						size := ToMemoryUnits(system,system.SizeOf(type));
 						IF (size # 1) THEN
@@ -5586,11 +5555,7 @@ TYPE
 						IF (p0.type.resolved.isRealtime) THEN Emit(Push(position,true));
 						ELSE Emit(Push(position,false));
 						END;
-						IF newObjectFile OR DisableSysCalls THEN
-							CallThis("Heaps","NewSys", 3)
-						ELSE
-							SysCall(SysNewSys);
-						END;
+						CallThis("Heaps","NewSys", 3)
 					END;
 
 					IF openDim > 0 THEN
@@ -5734,7 +5699,7 @@ TYPE
 							Emit(Push(position,tmp)); (* dimensions = 0, we control dimensions in the geometry descriptor *)
 							(* push realtime flag: false by default *)
 							Emit(Push(position,false));
-							IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewArr",5) ELSE SysCall(SysNewArr) END;
+							CallThis("Heaps","NewArr",5);
 							IntermediateCode.InitRegister(adr,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 							Emit(Pop(position,adr));
 							GetMathArrayField(tmp,adr,MathPtrOffset);
@@ -5768,9 +5733,7 @@ TYPE
 							ReleaseIntermediateOperand(reg);
 							(* push realtime flag: false by default *)
 							Emit(Push(position,false));
-							IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewSys",3);
-							ELSE SysCall(SysNewSys)
-							END;
+							CallThis("Heaps","NewSys",3);
 							IntermediateCode.InitRegister(adr,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 							Emit(Pop(position,adr));
 							GetMathArrayField(tmp,adr,MathPtrOffset);
@@ -5941,9 +5904,7 @@ TYPE
 				ReleaseOperand(s1);
 				(* push realtime flag: false by default *)
 				Emit(Push(position,false));
-				IF newObjectFile OR DisableSysCalls THEN CallThis("Heaps","NewSys",3) ELSE
-				SysCall(SysNewSys);
-				END;
+				CallThis("Heaps","NewSys",3);
 			(* ---- SYSTEM.INCR ----- *)
 			|Global.systemIncr:
 				Designate(p0,operand);
@@ -7332,7 +7293,7 @@ TYPE
 			Emit(Push(position,fp));
 			PushSelfPointer();
 			Emit(Push(position,nil));
-			IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Await",4) ELSE SysCall(SysAwait) END;
+			CallThis("Objects","Await",4);
 			SetLabel(label);
 			IF Trace THEN TraceExit("VisitAwaitStatement") END;
 		END VisitAwaitStatement;
@@ -7381,14 +7342,8 @@ TYPE
 			END;
 			PushSelfPointer;
 			Emit(Push(position,true));
-			IF lock THEN
-				IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Lock",2)
-				ELSE SysCall(SysLock)
-				END;
-			ELSE
-				IF newObjectFile OR DisableSysCalls THEN CallThis("Objects","Unlock",2);
-				ELSE SysCall(SysUnlock)
-				END
+			IF lock THEN CallThis("Objects","Lock",2)
+			ELSE CallThis("Objects","Unlock",2);
 			END;
 			IF Trace THEN TraceExit("Lock") END;
 		END Lock;

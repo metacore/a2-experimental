@@ -158,12 +158,12 @@ TYPE
 
 			e := x.enumerationScope.firstConstant; first := TRUE;
 			WHILE (e # NIL) DO
-				IF ~first THEN w.String(",") ELSE first := FALSE END;
+				IF ~first THEN w.String(", ") ELSE first := FALSE END;
 				VisitConstant(e);
 				e := e.nextConstant;
 			END;
 
-			Keyword("END");
+			Keyword(" END");
 		END VisitEnumerationType;
 
 		PROCEDURE VisitRangeType(x: SyntaxTree.RangeType);

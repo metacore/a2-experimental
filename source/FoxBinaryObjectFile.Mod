@@ -935,18 +935,7 @@ TYPE
 		BEGIN
 			w.Char(86X);
 			numberLinks := 0;
-			(* system call sections *)
-			FOR i := 0 TO module.allSections.Length() - 1 DO
-				p := module.allSections.GetSection(i);
-				IF p.kind = Sections.SystemCallKind THEN
-					temp := GetFixups(module,p,fixup);
-					IF  (fixup # NIL) THEN
-						w.Char(0X); w.Char(SysCallMap[p.entryNumber]);
-						w.RawNum(FixupList(fixup));
-						INC(numberLinks);
-					END
-				END
-			END;
+			(* system call sections removed: replaced by procedure calls *)
 
 			IF procedureFixupOffset #-1 THEN
 				w.Char(0X); w.Char(SysCallMap[ProcAddr]); w.RawNum(procedureFixupOffset);
