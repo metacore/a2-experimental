@@ -138,7 +138,7 @@ TYPE
 
 	END GCStatus;
 CONST
-	MaxFreeLists = 9;
+	MaxFreeLists = 8;
 TYPE
 	FreeList= RECORD minSize: SYSTEM.SIZE; first, last: FreeBlock END;
 	FreeLists = ARRAY MaxFreeLists OF FreeList;
@@ -182,6 +182,7 @@ VAR
 
 	GCType*: LONGINT;
 	freeBlockFound-, freeBlockNotFound-: LONGINT;
+	EnableFreeLists, EnableReturnBlocks: BOOLEAN;
 
 (* check validity of p *)
 PROCEDURE CheckPointer(p: SYSTEM.ADDRESS): BOOLEAN;
@@ -485,7 +486,7 @@ BEGIN
 		sweepBlockAdr := Machine.memBlockHead.beginBlockAdr;
 		sweepMarkValue := currentMarkValue;
 		ClearFreeLists;
-	ELSE
+	ELSIF EnableFreeLists THEN
 		(* maybe the free lists contain a suitable block *)
 		p := GetFreeBlockAndSplit(size);
 		found := p # NIL;
@@ -530,7 +531,7 @@ BEGIN
 						END;
 						found := TRUE;
 						sweepBlockAdr := lastFreeBlockAdr + size (* make sure next lazy sweep continues after block p *)
-					ELSE AppendFreeBlock(lastFreeBlock);
+					ELSIF EnableFreeLists THEN AppendFreeBlock(lastFreeBlock);
 					END;
 					lastFreeBlockAdr := NilVal;
 					lastFreeBlock := NIL;
@@ -948,6 +949,8 @@ PROCEDURE NewBlock(size: SYSTEM.SIZE): SYSTEM.ADDRESS;
 VAR try: LONGINT; p {UNTRACED}, freeBlock {UNTRACED}: FreeBlock; memBlock {UNTRACED}: Machine.MemoryBlock;
 	beginHeapBlockAdr, endHeapBlockAdr: SYSTEM.ADDRESS;
 BEGIN
+	IF EnableReturnBlocks & (sweepMarkValue < currentMarkValue) THEN LazySweep(MAX(LONGINT),p); ReturnBlocks END;
+
 	try := 1;
 	p := NIL;
 	LazySweep(size, p);
@@ -955,8 +958,7 @@ BEGIN
 		Machine.Release(Machine.Heaps);	(* give up control *)
 		GC;	(* try to free memory (other processes may also steal memory now) *)
 		Machine.Acquire(Machine.Heaps);
-		LazySweep(MAX(LONGINT),p);
-		ReturnBlocks;
+		IF EnableReturnBlocks & (sweepMarkValue < currentMarkValue) THEN LazySweep(MAX(LONGINT),p); ReturnBlocks END;
 		LazySweep(size, p);
 		IF p = NIL THEN
 			Machine.ExpandHeap(try, size, memBlock, beginHeapBlockAdr, endHeapBlockAdr);	(* try to extend the heap *)
@@ -967,7 +969,6 @@ BEGIN
 				sweepMemBlock := memBlock;
 				sweepBlockAdr := beginHeapBlockAdr;
 				LazySweep(size, p);
-				sweepMemBlock := NIL; (* restart from beginning, otherwise small blocks are allocated here also *)
 			END;
 			INC(try)
 		END
@@ -1250,7 +1251,13 @@ PROCEDURE Init;
 VAR beginBlockAdr, endBlockAdr, freeBlockAdr, p: SYSTEM.ADDRESS; ch: CHAR;
 	heapBlock {UNTRACED}: HeapBlock; freeBlock {UNTRACED}: FreeBlock; memBlock {UNTRACED}: Machine.MemoryBlock;
 	i: LONGINT; minSize: SYSTEM.SIZE;
+	s: ARRAY 32 OF CHAR;
 BEGIN
+	Machine.GetConfig("EnableFreeLists", s);
+	EnableFreeLists := (s[0] = "1");
+	Machine.GetConfig("EnableReturnBlocks", s);
+	EnableReturnBlocks := (s[0] = "1");
+
 	minSize := 32;
 	FOR i := 0 TO MaxFreeLists-1 DO
 		freeLists[i].minSize := minSize;
