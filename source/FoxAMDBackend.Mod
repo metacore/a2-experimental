@@ -938,7 +938,7 @@ TYPE
 		PROCEDURE AllocateStack(sizeInBytes: LONGINT);
 		VAR sizeOp: Assembler.Operand; opcode: LONGINT;
 		BEGIN
-			ASSERT(sizeInBytes MOD (cpuBits DIV 8) = 0);
+			ASSERT(sizeInBytes MOD 4 (* (cpuBits DIV 8) *) = 0);
 			IF sizeInBytes < 0 THEN
 				sizeInBytes := -sizeInBytes; opcode := InstructionSet.opADD;
 			ELSIF sizeInBytes > 0 THEN
@@ -997,7 +997,8 @@ TYPE
 			|IntermediateCode.exit: EmitExit(instruction);
 			|IntermediateCode.result:
 				IF IsFloat(instruction.op1) THEN EmitResultFPU(instruction)
-				ELSE EmitResult(instruction,Low);
+				ELSE
+					EmitResult(instruction,Low);
 					IF IsComplex(instruction.op1) THEN EmitResult(instruction,High) END;
 				END;
 			|IntermediateCode.return:
@@ -1356,7 +1357,7 @@ TYPE
 		END EmitMov;
 
 		PROCEDURE EmitConvertFPU(CONST vdest, vsrc: IntermediateCode.Operand);
-		VAR destType, srcType: IntermediateCode.Type; dest,src,espm,imm: Assembler.Operand; sizeInBytes: SHORTINT;
+		VAR destType, srcType: IntermediateCode.Type; dest,src,espm,imm: Assembler.Operand; sizeInBytes: LONGINT;
 		temp: Assembler.Operand; ticket: Ticket;
 		BEGIN
 			srcType := vsrc.type;
@@ -1391,12 +1392,13 @@ TYPE
 						MakeOperand(vsrc,Low,src,NIL);
 						emitter.Emit1(InstructionSet.opPUSH,src);
 						*)
-						sizeInBytes := SHORTINT(cpuBits DIV 8) (*SHORT(srcType.sizeInBits DIV 8)*);
+						sizeInBytes := SHORTINT(4 (* cpuBits DIV 8*)) (*SHORT(srcType.sizeInBits DIV 8)*);
 					END;
-					Assembler.InitMem(espm, sizeInBytes,SP,0);
+					Assembler.InitMem(espm, SHORTINT(sizeInBytes),SP,0);
 					emitter.Emit1(InstructionSet.opFILD,espm);
 					INC(fpStackPointer);
 					ASSERT(sizeInBytes >0);
+					Basic.Align(sizeInBytes, 4 (* cpuBits DIV 8*));
 					AllocateStack(-sizeInBytes);
 					MakeOperand(vdest,Low,dest,NIL);
 					emitter.Emit1(InstructionSet.opFSTP,dest);
@@ -1568,9 +1570,13 @@ TYPE
 		END EmitConvert;
 
 		PROCEDURE EmitResult(CONST instruction: IntermediateCode.Instruction; part: LONGINT);
-		VAR register: LONGINT; result,op: Assembler.Operand;
+		VAR register: LONGINT; result,op: Assembler.Operand; edxReserved: BOOLEAN;
 	BEGIN
 			register := ResultRegister(instruction.op1.type,part);
+			IF (part = Low) & IsComplex(instruction.op1) THEN
+				edxReserved := physicalRegisters.Reserved(EDI);
+				physicalRegisters.SetReserved(EDX,TRUE);
+			END;
 			(*
 			ticket := ReservePhysicalRegister(type,register);
 			TicketToOperand(ticket,result);
@@ -1578,9 +1584,9 @@ TYPE
 			result := registerOperands[register];
 			MakeOperand(instruction.op1,part,op,NIL);
 			Mov(InstructionSet.opMOV,op,result);
-			(*
-			UnmapTicket(ticket);
-			*)
+			IF edxReserved THEN
+				physicalRegisters.SetReserved(EDX, FALSE);
+			END
 		END EmitResult;
 
 		PROCEDURE EmitResultFPU(CONST instruction: IntermediateCode.Instruction);
@@ -2018,7 +2024,7 @@ TYPE
 			MakeOperand(instruction.op3,Low,op3,NIL);
 			IF instruction.op3.mode = IntermediateCode.ModeImmediate THEN
 				size := instruction.op3.type.sizeInBits DIV 8;
-				Basic.Align(size, cpuBits DIV 8);
+				Basic.Align(size, 4 (* cpuBits DIV 8 *) );
 				AllocateStack(size);
 				Assembler.InitMem(memop,SHORT(instruction.op3.type.sizeInBits DIV 8),SP,0);
 				emitter.Emit2(InstructionSet.opMOV,memop,op3);
@@ -2044,7 +2050,7 @@ TYPE
 
 			IF instruction.op3.mode = IntermediateCode.ModeImmediate THEN
 				size := instruction.op3.type.sizeInBits DIV 8;
-				Basic.Align(size, cpuBits DIV 8);
+				Basic.Align(size, 4 (* cpuBits DIV 8*) );
 				AllocateStack(-size);
 			END;
 		END EmitDivMod;

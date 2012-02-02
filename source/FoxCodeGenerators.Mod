@@ -300,11 +300,13 @@ TYPE
 				parSize := 0;
 				IF x.op2.mode # IntermediateCode.Undefined THEN
 					Emit(IntermediateBackend.Push(x.textPosition,x.op2),"par");
-					INC(parSize, module.system.addressSize);
+					INC(parSize, x.op2.type.sizeInBits);
+					Basic.Align(parSize, module.system.addressSize);
 				END;
 				IF x.op3.mode # IntermediateCode.Undefined THEN
 					Emit(IntermediateBackend.Push(x.textPosition,x.op3),"par");
-					INC(parSize, module.system.addressSize);
+					INC(parSize, x.op3.type.sizeInBits);
+					Basic.Align(parSize, module.system.addressSize);
 				END;
 				Basic.InitPooledName(sectionName);
 				Basic.SuffixPooledName(sectionName, StringPool.GetIndex1(moduleName));

@@ -79,7 +79,7 @@ CONST
 	If*= 42; Case*= 43; While*= 44; Repeat*= 45; For*= 46; Loop*= 47;
 	With*= 48; Exit*= 49; Await*= 50; Return*= 51; Begin*= 52;
 	(* symbols, expressions and statements cannot start with *)
-	Semicolon*= 53; Transpose*= 54; RightBrace*= 55; RightBracket*= 56; RightParenthesis*= 57; Questionmark*= 58; ExclamationPoint*= 59;
+	Semicolon*= 53; Transpose*= 54; RightBrace*= 55; RightBracket*= 56; RightParenthesis*= 57; Questionmark*= 58; ExclamationMark*= 59;
 	Upto*= 60; Arrow*= 61; Period*= 62; Comma*= 63; Colon*= 64; Of*= 65;
 	Then*= 66; Do*= 67; To*= 68; By*= 69; Becomes*= 70; Bar*= 71;
 	End*= 72; Else*= 73; Elsif*= 74; Until*= 75; Finally*= 76;
@@ -490,7 +490,7 @@ TYPE
 						ELSIF n <= MaxHugeHexDigits THEN
 							symbol.numberType := Hugeint;
 							IF (n = MaxHugeHexDigits) & (dig[0] > "7") THEN  (* prevent overflow *) symbol.hugeint := -1 END;
-							WHILE i < n DO symbol.hugeint := Hexadecimal( dig[i] ) + symbol.hugeint * 10H;  INC( i ) END;
+							WHILE i < n DO symbol.hugeint := Hexadecimal( dig[i] ) + symbol.hugeint * 10H; INC( i ) END;
 							symbol.integer :=SHORT(symbol.hugeint);
 						ELSE
 							symbol.numberType := Hugeint; (* to make parser able to go on *)
@@ -861,7 +861,7 @@ TYPE
 				| '{':     s := LeftBrace;  GetNextCharacter
 				| '}':     s := RightBrace;  GetNextCharacter
 
-				| '!':     s := ExclamationPoint; GetNextCharacter (* for the ARM assembler *)
+				| '!':     s := ExclamationMark; GetNextCharacter (* for the ARM assembler *)
 				| 'A'..'Z': s := Identifier; GetIdentifier( symbol );
 				| 'a'..'z': s := Identifier; GetIdentifier( symbol);
 				| '@':     s := Identifier; GetIdentifier( symbol); (* the '@'-symbol initiates an assembly scanner identifier *)
@@ -1022,7 +1022,7 @@ TYPE
 		tokens[RightBracket] := "RightBracket";
 		tokens[RightParenthesis] := "RightParenthesis";
 		tokens[Questionmark] := "Questionmark";
-		tokens[ExclamationPoint] := "ExclamationPoint";
+		tokens[ExclamationMark] := "ExclamationMark";
 		tokens[Upto] := "Upto";
 		tokens[Arrow] := "Arrow";
 		tokens[Period] := "Period";

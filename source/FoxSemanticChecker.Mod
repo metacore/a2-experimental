@@ -4614,15 +4614,26 @@ TYPE
 			numberActualParameters := actualParameters.Length();
 			IF numberActualParameters>0 THEN
 				parameter0 := actualParameters.GetExpression(0);
-				IF parameter0.type # NIL THEN type0 := parameter0.type.resolved END
+				IF parameter0.type # NIL THEN type0 := parameter0.type.resolved ELSE
+					Error(parameter0.position,Diagnostics.Invalid,"forbidden type-less argument");
+					result := SyntaxTree.invalidExpression
+				END
 			END;
 			IF numberActualParameters >1 THEN
 				parameter1 := actualParameters.GetExpression(1);
-				IF parameter1.type # NIL THEN type1 := parameter1.type.resolved END
+				IF parameter1.type # NIL THEN type1 := parameter1.type.resolved
+				ELSE
+					Error(parameter1.position,Diagnostics.Invalid,"forbidden type-less argument");
+					result := SyntaxTree.invalidExpression
+				END
 			END;
 			IF numberActualParameters >2 THEN
 				parameter2 := actualParameters.GetExpression(2);
-				IF parameter2.type # NIL THEN type2 := parameter2.type.resolved END
+				IF parameter2.type # NIL THEN type2 := parameter2.type.resolved
+				ELSE
+					Error(parameter2.position,Diagnostics.Invalid,"forbidden type-less argument");
+					result := SyntaxTree.invalidExpression
+				END
 			END;
 
 			id := builtin.id;
