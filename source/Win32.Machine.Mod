@@ -44,6 +44,7 @@ CONST
 	MemoryBlockOfs = BlockHeaderSize + RecordDescSize + BlockHeaderSize; (* memory block (including header) starts at offset HeaderSize *)
 
 	MemBlockSize = 8*1024*1024; (* 8 MB, must be multiple of StaticBlockSize *)
+	MinMemBlockSize = 4*1024*1024;
 
 	NilVal = 0;
 
@@ -884,7 +885,7 @@ BEGIN
 	INC(memDescSize, (-memDescSize) MOD StaticBlockSize); 	(* round up to multiple of StaticBlockSize *)
 	INC(size, (-size) MOD StaticBlockSize); (* round up to multiple of StaticBlockSize *)
 	memBlkSize := memDescSize + size + StaticBlockSize; 		(* add StaticBlockSize to account for alignments different from multiples of StaticBlockSize *)
-	IF memBlkSize < MemBlockSize THEN memBlkSize := MemBlockSize END; 	(* MemBlockSize implicitly multiple of StaticBlockSize *)
+	IF memBlkSize < MinMemBlockSize THEN memBlkSize := MemBlockSize END; 	(* MemBlockSize implicitly multiple of StaticBlockSize *)
 
 	adr := Kernel32.VirtualAlloc(NilVal, memBlkSize, {Kernel32.MEMCommit}, {Kernel32.PageExecuteReadWrite});
 
@@ -952,13 +953,14 @@ BEGIN
 	END;
 	IF cur = memBlock THEN
 		IF prev = NIL THEN
-			memBlockHead := cur.next
+			memBlockHead := cur.next;
 		ELSE
 			prev.next := cur.next;
-			IF cur.next = NIL THEN
+			IF prev.next = NIL THEN
 				memBlockTail := prev
 			END
 		END;
+		memBlock.next := NIL;
 		startAdr := memBlock.startAdr; (* this value must be cached for the second call of Kernel32.VirtualFree *)
 		Kernel32.VirtualFree(SYSTEM.VAL(LONGINT, memBlock.startAdr), memBlock.size, {Kernel32.MEMDecommit});
 		Kernel32.VirtualFree(SYSTEM.VAL(LONGINT, startAdr ), 0, {Kernel32.MEMRelease});

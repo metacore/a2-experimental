@@ -822,8 +822,9 @@ BEGIN
 END InvokeGC;
 
 PROCEDURE ReturnBlocks;
-VAR memBlock {UNTRACED}, free{UNTRACED}: Machine.MemoryBlock; p: SYSTEM.ADDRESS; heapBlock {UNTRACED}: HeapBlock;
+VAR memBlock {UNTRACED}, free{UNTRACED}: Machine.MemoryBlock; p: SYSTEM.ADDRESS; heapBlock {UNTRACED}: HeapBlock; f: FreeBlock;
 BEGIN
+	LazySweep(MAX(LONGINT),f); (* merge all empty blocks *)
 	memBlock := Machine.memBlockHead;
 	WHILE memBlock # NIL DO
 		free := NIL;
@@ -837,7 +838,8 @@ BEGIN
 			Machine.FreeMemBlock(free)
 		END;
 	END;
-	sweepMemBlock := NIL; (* restart lazy sweep to prevent returned blocks from being referenced *)
+	sweepMemBlock := Machine.memBlockHead;
+	sweepBlockAdr := Machine.memBlockHead.beginBlockAdr;
 END ReturnBlocks;
 
 PROCEDURE LazySweepGC*;
@@ -853,7 +855,6 @@ BEGIN
 	(* return blocks now *)
 	Machine.Acquire(Machine.Heaps);
 	(* trying to satisfy a request of MAX(LONGINT) bytes will never succeed - lazy sweep runs until end of heap *)
-	LazySweep(MAX(LONGINT), p);
 	ReturnBlocks;
 	Machine.Release(Machine.Heaps);
 END LazySweepGC;
@@ -880,7 +881,6 @@ VAR try: LONGINT; p {UNTRACED}, freeBlock {UNTRACED}: FreeBlock; memBlock {UNTRA
 	PROCEDURE CheckPostGC;
 	BEGIN
 		IF (sweepMarkValue < currentMarkValue) & EnableReturnBlocks THEN (* GC has run but no Sweep yet -- time to do post-gc cleanup *)
-			LazySweep(MAX(LONGINT),p); (* to detect empty blocks *)
 			ReturnBlocks
 		END;
 	END CheckPostGC;
