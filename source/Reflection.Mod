@@ -496,8 +496,8 @@ VAR
 	END WriteSimpleVar;
 
 	(* Display call trackback. *)
-	PROCEDURE StackTraceBack*(w: Streams.Writer; pc, bp: SYSTEM.ADDRESS; stackhigh: LONGINT; long, overflow: BOOLEAN);
-	VAR count, refpos, stacklow: LONGINT; base: SYSTEM.ADDRESS; m: Modules.Module; refs: Modules.Bytes;
+	PROCEDURE StackTraceBack*(w: Streams.Writer; pc, bp: SYSTEM.ADDRESS; stackhigh: SYSTEM.ADDRESS; long, overflow: BOOLEAN);
+	VAR count,refpos: LONGINT; stacklow: SYSTEM.ADDRESS; base: SYSTEM.ADDRESS; m: Modules.Module; refs: Modules.Bytes;
 	BEGIN
 		count := 0;	(* frame count *)
 		stacklow := bp;
