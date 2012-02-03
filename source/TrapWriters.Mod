@@ -50,7 +50,7 @@ TYPE
 					e := e.next
 				END;
 				IF e.next # NIL THEN
-					IF e.next = last THEN last := e.next.next END;
+					IF e.next = last THEN last := e END;
 					e.next := e.next.next;
 				END;
 			END;
@@ -121,7 +121,7 @@ VAR
 
 	PROCEDURE TraceFactory(): Streams.Writer;
 	BEGIN
-		RETURN trapWriter
+		RETURN traceWriter
 	END TraceFactory;
 
 	PROCEDURE LogFactory(): Streams.Writer;
@@ -166,3 +166,4 @@ BEGIN
 	defaultWriter := logWriter;
 	trapWriter := NIL;
 END TrapWriters.
+TrapWriters.InstallTraceWriter
