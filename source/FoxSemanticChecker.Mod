@@ -8331,7 +8331,7 @@ TYPE
 		RETURN result
 	END IsCharacterValue;
 
-	PROCEDURE IsBooleanValue(x: SyntaxTree.Expression; VAR value: BOOLEAN): BOOLEAN;
+	PROCEDURE IsBooleanValue*(x: SyntaxTree.Expression; VAR value: BOOLEAN): BOOLEAN;
 	VAR result: BOOLEAN;
 	BEGIN
 		IF  (x.resolved # NIL) & (x.resolved IS SyntaxTree.BooleanValue) THEN

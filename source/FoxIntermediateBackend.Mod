@@ -6850,18 +6850,27 @@ TYPE
 		END VisitAssignment;
 
 		PROCEDURE VisitIfStatement(x: SyntaxTree.IfStatement);
-		VAR end: Label; i,elsifs: LONGINT; elsif: SyntaxTree.IfPart;
+		VAR end: Label; i,elsifs: LONGINT; elsif: SyntaxTree.IfPart; escape: BOOLEAN;
 
 			PROCEDURE IfPart(if: SyntaxTree.IfPart);
-			VAR true, false: Label;
+			VAR true, false: Label; condition, value: BOOLEAN;
 			BEGIN
-				true := NewLabel();
-				false := NewLabel();
-				Condition(if.condition,true,false);
-				SetLabel(true);
-				StatementSequence(if.statements);
-				BrL(end);
-				SetLabel(false);
+				condition := ~SemanticChecker.IsBooleanValue(if.condition, value);
+				IF condition THEN
+					true := NewLabel();
+					false := NewLabel();
+					Condition(if.condition,true,false);
+					SetLabel(true);
+					StatementSequence(if.statements);
+					BrL(end);
+					SetLabel(false);
+				ELSE
+					IF value THEN (* always true *)
+						escape := TRUE;
+						StatementSequence(if.statements);
+						BrL(end);
+					END;
+				END;
 			END IfPart;
 
 		BEGIN
@@ -6870,10 +6879,12 @@ TYPE
 			IfPart(x.ifPart);
 			elsifs := x.ElsifParts();
 			FOR i := 0 TO elsifs-1 DO
-				elsif := x.GetElsifPart(i);
-				IfPart(elsif);
+				IF ~escape THEN
+					elsif := x.GetElsifPart(i);
+					IfPart(elsif);
+				END;
 			END;
-			IF x.elsePart # NIL THEN
+			IF (x.elsePart # NIL) & ~escape THEN
 				StatementSequence(x.elsePart);
 			END;
 			SetLabel(end);
