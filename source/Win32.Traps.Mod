@@ -390,6 +390,7 @@ VAR
 
 	PROCEDURE Install*; (* for loading this module *)
 	BEGIN
+		TrapWriters.InstallTraceWriter
 	END Install;
 
 BEGIN

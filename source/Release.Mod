@@ -1832,8 +1832,7 @@ TYPE
 			i := 0;
 			REPEAT
 				reader.Char(ch); (* Since we skipped the comments and whitespace, ch cannot be "#" or whitespace *)
-
-				IF useDelimiter & (ch = delimiter) THEN
+				IF useDelimiter & (ch = delimiter) OR (ch=0X) THEN
 				ELSE
 					token[i] := ch; INC(i);
 				END;
@@ -1846,7 +1845,10 @@ TYPE
 				(~useDelimiter & (IsWhitespace(ch) OR (ch = "#") OR (ch ="{") OR (ch="}") OR (ch = ","))) OR
 				(useDelimiter & (ch = delimiter));
 
-			IF (i < LEN(token)) THEN
+
+			IF (i = 0) & (reader.res = Streams.EOF) THEN (* end of text *)
+				RETURN FALSE
+			ELSIF (i < LEN(token)) THEN
 				token[i] := 0X;
 				COPY(token, name);
 				RETURN TRUE;
