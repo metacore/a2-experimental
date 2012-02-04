@@ -903,9 +903,13 @@ TYPE
 							| AlignRight : vc.bounds.Set(Rectangles.MakeRect(r.r - vc.bounds.GetWidth() - b.r , r.t + b.t, r.r - b.r, r.b - b.b)); DEC(r.r, vc.bounds.GetWidth() + b.l + b.r);
 							| AlignClient : IF ~Rectangles.RectEmpty(r) THEN vc.bounds.Set(Rectangles.MakeRect(r.l + b.l , r.t + b.t, r.r - b.r, r.b  - b.b)) END
 							| AlignRelative:
-								rel := vc.relativeBounds.Get();
-								vc.bounds.Set(Rectangles.MakeRect(r.l + ((r.r-r.l)*rel.l+MaxRel DIV 2) DIV MaxRel, r.t + ((r.b-r.t)*rel.t+MaxRel DIV 2) DIV MaxRel,
-												r.l + ((r.r-r.l)*rel.r +MaxRel DIV 2) DIV MaxRel, r.t+((r.b-r.t)*rel.b + MaxRel DIV 2) DIV MaxRel));
+								IF ~editMode.Get() THEN
+									rel := vc.relativeBounds.Get();
+									vc.bounds.Set(Rectangles.MakeRect(r.l + ((r.r-r.l)*rel.l+MaxRel DIV 2) DIV MaxRel, r.t + ((r.b-r.t)*rel.t+MaxRel DIV 2) DIV MaxRel,
+													r.l + ((r.r-r.l)*rel.r +MaxRel DIV 2) DIV MaxRel, r.t+((r.b-r.t)*rel.b + MaxRel DIV 2) DIV MaxRel));
+								ELSE
+									vc.AdaptRelativeBounds(vc.bounds.Get(),SELF);
+								END;
 							ELSE (* nothing *)
 							END;
 						END;
