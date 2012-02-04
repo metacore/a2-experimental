@@ -1239,7 +1239,11 @@ TYPE
 
 		(** Called by the component owner whenever a redraw to a canvas is needed. Caller must hold hierarchy lock *)
 		PROCEDURE Draw*(canvas : WMGraphics.Canvas);
+		VAR command: Strings.String; event: Event;
 		BEGIN
+			command := GetAttributeValue("onDraw");
+			IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
+
 			CheckReadLock;
 			IF ~visible.Get() THEN RETURN END;
 			canvas.SaveState(canvasState);
