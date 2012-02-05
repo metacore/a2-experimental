@@ -45,7 +45,7 @@ MODULE Release; (** AUTHOR "staubesv"; PURPOSE "Release build tool"; *)
  * Based on Release.Mod by pjm
  *
  *
- * BuildDescription =	BuildSection Packages
+ * BuildDescription =	Header Import BuildSection Packages
  * BuildSection = 		BUILDS {Build} END
  * Build = 				buildName OPENSECTION {BuildParameter} CLOSESECTION
  * Build = 				INCLUDE '"' [buildprefix {" " buildprefix} ] '"' | COMPILER '"' compileCommand '"' | TARGET '"' target '"' |
@@ -458,7 +458,7 @@ TYPE
 					module.isParsed := TRUE;
 					flags := flags + module.flags;
 					SplitName(name, pre, mid, suf);
-					IF (module.name # mid) THEN
+					IF (module.name # mid)  THEN
 						MakeMessage(message, "Module name not equal to filename in #", name, "");
 						diagnostics.Warning(builds.source, pos, Diagnostics.Invalid, message);
 					END;
@@ -499,7 +499,8 @@ TYPE
 		name- : Name;
 		prefixes : ARRAY MaxPrefixes OF Name;
 		excludedPackages : Strings.StringArray;
-		compiler, compileOptions : ARRAY 64 OF CHAR;
+		onlyPackages: Strings.StringArray;
+		compiler, compileOptions : ARRAY 128 OF CHAR;
 		target : ARRAY 8 OF CHAR;
 		extension : ARRAY 8 OF CHAR;
 		symbolFileExtension : ARRAY 8 OF CHAR;
@@ -529,6 +530,7 @@ TYPE
 			COPY("", name);
 			FOR i := 0 TO LEN(prefixes)-1 DO prefixes[i] := ""; END;
 			excludedPackages := NIL;
+			onlyPackages := NIL;
 			COPY(DefaultCompiler, compiler);
 			COPY(DefaultCompileOptions, compileOptions);
 			COPY(DefaultTarget, target);
@@ -544,6 +546,21 @@ TYPE
 			include := {};
 			position := -1;
 		END Init;
+
+		PROCEDURE CompileThisPackage(package: Package): BOOLEAN;
+		VAR i : LONGINT;
+		BEGIN
+			IF (onlyPackages # NIL) THEN
+				FOR i := 0 TO LEN(onlyPackages)-1 DO
+					IF (package.name = onlyPackages[i]^) THEN
+						RETURN TRUE
+					END;
+				END;
+				RETURN FALSE
+			END;
+			RETURN TRUE
+		END CompileThisPackage;
+
 
 		PROCEDURE PackageIsExcluded(package : Package) : BOOLEAN;
 		VAR i : LONGINT;
@@ -574,6 +591,10 @@ TYPE
 					Strings.TrimWS(string);
 					excludedPackages := Strings.Split(string, " ");
 				END;
+				IF options.GetString("only",string) THEN
+					Strings.TrimWS(string);
+					onlyPackages := Strings.Split(string, " ");
+				END;
 			END;
 		END SetOptions;
 
@@ -584,7 +605,7 @@ TYPE
 			characterCount := 0;
 			file := files;
 			WHILE (file # NIL) DO
-				IF file.IsSourceCode() & file.IsInRelease(include) & ~PackageIsExcluded(file.package) & file.doCompile THEN
+				IF file.IsSourceCode() & file.IsInRelease(include) & ~PackageIsExcluded(file.package) & file.doCompile  & CompileThisPackage(file.package) THEN
 					IF (w IS TextUtilities.TextWriter) THEN
 						IF (ImportsSystem IN file.flags) THEN
 							color := WMGraphics.Red;
@@ -1195,7 +1216,7 @@ TYPE
 			nofSources := 0;
 			file := files;
 			WHILE (file # NIL) DO
-				IF file.IsSourceCode() & file.IsInRelease(include) & ~PackageIsExcluded(file.package) THEN
+				IF file.IsSourceCode() & file.IsInRelease(include) & ~PackageIsExcluded(file.package) & CompileThisPackage(file.package) THEN
 					INC(nofSources);
 					IF file.doCompile THEN INC(nofMarked); END;
 				END;
@@ -1317,7 +1338,7 @@ TYPE
 			ELSE
 				NEW(dummyWriter, 2);
 				log := dummyWriter;
-				step := nofMarked DIV 10; steps := 1;
+				step := ((nofMarked-1) DIV 10) +1; steps := 1;
 				out.String(" 00% "); out.Update;
 			END;
 			startTime := Dates.Now();
@@ -1326,7 +1347,7 @@ TYPE
 			nofFiles := 0; err := FALSE;
 			file := files;
 			WHILE (file # NIL) DO
-				IF file.IsSourceCode() & file.IsInRelease(include) & ~PackageIsExcluded(file.package) & file.doCompile THEN
+				IF file.IsSourceCode() & file.IsInRelease(include) & ~PackageIsExcluded(file.package) & file.doCompile & CompileThisPackage(file.package) THEN
 					IF (nofWorkers = 0) THEN
 						CompileFile(file, diagnostics, log, err, importCache);
 						IF err THEN
@@ -1725,6 +1746,7 @@ CONST
 	VERSION = "VERSION";
 	BUILDS = "BUILDS";
 	INCLUDE="INCLUDE";
+	tIMPORT = "IMPORT";
 	COMPILER = "COMPILER";
 	COMPILEOPTIONS = "COMPILEOPTIONS";
 	TARGET = "TARGET";
@@ -1889,6 +1911,7 @@ TYPE
 	VAR
 		scanner : Scanner;
 		diagnostics : Diagnostics.Diagnostics;
+		log: Streams.Writer;
 		error : BOOLEAN;
 
 		currentPackage : Package;
@@ -1919,30 +1942,31 @@ TYPE
 		PROCEDURE Parse(VAR builds : Builds) : BOOLEAN;
 		VAR token : Token; v1, v2 : ARRAY 16 OF CHAR;
 		BEGIN
-			NEW(builds);
+			IF builds = NIL THEN NEW(builds) END;
 			COPY(scanner.source, builds.source);
 			IF ParseHeader(builds) THEN
 				IF (builds.version.major = VersionMajor) & (builds.version.minor <= VersionMinor) THEN
-					IF ParseBuilds(builds) THEN
-						LOOP
-							currentPackage := ParsePackageHeader();
-							IF (currentPackage # NIL) THEN
-								IF builds.packages.Add(currentPackage) THEN
-									IF ~ParsePackage(builds, token) THEN
-										EXIT;
-									END;
-								ELSE
-									Error(scanner.pos, "Package # is already defined", currentPackage.name, "");
+					IF ParseImport(builds) THEN (* load included sections *)
+					END;
+					IF ParseBuilds(builds) THEN END; (* optional *)
+					LOOP
+						currentPackage := ParsePackageHeader();
+						IF (currentPackage # NIL) THEN
+							IF builds.packages.Add(currentPackage) THEN
+								IF ~ParsePackage(builds, token) THEN
 									EXIT;
 								END;
 							ELSE
+								Error(scanner.pos, "Package # is already defined", currentPackage.name, "");
 								EXIT;
 							END;
-							scanner.SkipComments;
-							IF scanner.reader.Available() < 5 THEN EXIT; END;
+						ELSE
+							EXIT;
 						END;
-						IF ~error THEN builds.Initialize(diagnostics, error); END;
+						scanner.SkipComments;
+						IF scanner.reader.Available() < 5 THEN EXIT; END;
 					END;
+					IF ~error THEN builds.Initialize(diagnostics, error); END;
 				ELSE
 					VersionToString(VersionMajor, VersionMinor, v1);
 					VersionToString(builds.version.major, builds.version.minor, v2);
@@ -1952,6 +1976,37 @@ TYPE
 			ASSERT(builds # NIL);
 			RETURN ~(error OR scanner.error);
 		END Parse;
+
+		(* Import = IMPORT Entries END whereas Entries = FileName *)
+		PROCEDURE ParseImport(VAR builds : Builds) : BOOLEAN;
+		VAR token : Token; ignore : BOOLEAN; filename: Files.FileName;
+		BEGIN
+			ASSERT(builds # NIL);
+			scanner.Peek(token);
+			IF (token = tIMPORT) THEN
+				ignore := scanner.Get(token);
+				LOOP
+					scanner.Peek(token);
+					IF (token = ENDSECTION) THEN
+						ignore := scanner.Get(token);
+						RETURN TRUE;
+					ELSIF scanner.IsIdentifier(token) THEN  (* filename *)
+						IF IsFilename(token) THEN
+							COPY(token, filename);
+							IF ~ParseBuildFile(filename, builds, log, diagnostics) THEN
+								Error(scanner.pos, "Could not include #", filename, "")
+							END;
+						ELSE
+							Error(scanner.pos, "No filename #",token,"");
+							RETURN FALSE
+						END;
+						ignore := scanner.Get(token);
+					END;
+				END;
+			END;
+			RETURN FALSE;
+		END ParseImport;
+
 
 		(* Header = HEADER Entries END whereas Entries = VERSION VersionString *)
 		PROCEDURE ParseHeader(builds : Builds) : BOOLEAN;
@@ -2247,11 +2302,12 @@ TYPE
 			END;
 		END ParseBuildPrefixes;
 
-		PROCEDURE &Init(scanner : Scanner; diagnostics : Diagnostics.Diagnostics);
+		PROCEDURE &Init(scanner : Scanner; log: Streams.Writer; diagnostics : Diagnostics.Diagnostics);
 		BEGIN
 			ASSERT((scanner # NIL) & (diagnostics # NIL));
 			SELF.scanner := scanner;
 			SELF.diagnostics := diagnostics;
+			SELF.log := log
 		END Init;
 
 	END Parser;
@@ -2549,7 +2605,7 @@ BEGIN
 	END;
 END CallCommand;
 
-PROCEDURE ParseBuildDescription*(text : Texts.Text; CONST source: ARRAY OF CHAR; VAR builds : Builds;  diagnostics : Diagnostics.Diagnostics) : BOOLEAN;
+PROCEDURE ParseBuildDescription*(text : Texts.Text; CONST source: ARRAY OF CHAR; VAR builds : Builds;  log: Streams.Writer; diagnostics : Diagnostics.Diagnostics) : BOOLEAN;
 VAR
 	parser : Parser; scanner : Scanner;
 	reader : Streams.StringReader;
@@ -2565,28 +2621,28 @@ BEGIN
 	TextUtilities.TextToStr(text, buffer^);
 	NEW(reader, LEN(buffer)); reader.SetRaw(buffer^, 0, LEN(buffer));
 	NEW(scanner, source, reader, diagnostics);
-	NEW(parser, scanner, diagnostics);
+	NEW(parser, scanner, log, diagnostics);
 	RETURN parser.Parse(builds);
 END ParseBuildDescription;
 
 PROCEDURE ParseBuildFile*(
 	CONST filename : Files.FileName;
 	VAR builds : Builds;
-	context : Commands.Context;
+	log: Streams.Writer;
 	diagnostics : Diagnostics.Diagnostics
 	) : BOOLEAN;
 VAR text : Texts.Text; format, res : LONGINT; message : ARRAY 256 OF CHAR;
 BEGIN
-	context.out.String("Loading package description file "); context.out.String(filename); context.out.String(" ... ");
-	context.out.Update;
+	log.String("Loading package description file "); log.String(filename); log.String(" ... ");
+	log.Update;
 	NEW(text);
 	TextUtilities.LoadAuto(text, filename, format, res);
 	IF (res = 0) THEN
-		IF ParseBuildDescription(text, filename, builds, diagnostics) THEN
-			context.out.String("done."); context.out.Ln;
+		IF ParseBuildDescription(text, filename, builds, log, diagnostics) THEN
+			log.String("done."); log.Ln;
 			RETURN TRUE;
 		ELSE
-			context.out.Ln;
+			log.Ln;
 			RETURN FALSE;
 		END;
 	ELSE
@@ -2609,7 +2665,7 @@ VAR
 BEGIN
 	NEW(options,LEN(opt));
 	ASSERT((text # NIL) & (diagnostics # NIL));
-	error := ~ParseBuildDescription(text, source, builds, diagnostics);
+	error := ~ParseBuildDescription(text, source, builds, log, diagnostics);
 	IF ~error THEN
 		COPY(opt, options^);
 		Strings.TrimWS(options^);
@@ -2745,7 +2801,7 @@ BEGIN
 
 		IF context.arg.GetString(mask) THEN
 			NEW(diagnostics);
-			IF ParseBuildFile(buildFile, builds, context, diagnostics) THEN
+			IF ParseBuildFile(buildFile, builds, context.out, diagnostics) THEN
 				NEW(enumerator); enumerator.Open(mask, {});
 				WHILE enumerator.GetEntry(fullname, flags, ignore, ignore, ignore) DO
 					IF ~(Files.Directory IN flags) THEN
@@ -2784,7 +2840,7 @@ BEGIN
 		context.arg.SkipWhitespace; context.arg.String(filename);
 		IF (buildName # "") & (filename # "") THEN
 			NEW(diagnostics);
-			IF ParseBuildFile(buildFile, builds, context, diagnostics) THEN
+			IF ParseBuildFile(buildFile, builds, context.out, diagnostics) THEN
 				build := builds.GetBuild(buildName);
 				IF (build # NIL) THEN
 					position := build.FindPosition(filename, diagnostics);
@@ -2822,7 +2878,7 @@ BEGIN
 
 		IF (filename # "") THEN
 			NEW(diagnostics);
-			IF ParseBuildFile(filename, builds, context, diagnostics) THEN
+			IF ParseBuildFile(filename, builds, context.out, diagnostics) THEN
 				builds.Show(context.out, options.GetFlag("details"));
 			ELSE
 				diagnostics.ToStream(context.error, Diagnostics.All); context.error.Ln;
@@ -2878,7 +2934,7 @@ BEGIN
 
 		IF (filename # "") THEN
 			NEW(diagnostics);
-			IF ParseBuildFile(filename, builds, context, diagnostics) THEN
+			IF ParseBuildFile(filename, builds, context.out, diagnostics) THEN
 				IF MarkBuilds(context, builds) THEN
 					IF ~options.GetInteger("workers", nofWorkers) THEN nofWorkers := 0; END;
 					CheckBuilds(builds, nofWorkers, context, diagnostics);
@@ -2892,11 +2948,15 @@ BEGIN
 	END;
 END Check;
 
-PROCEDURE CheckDiagnostics(diagnostics : Diagnostics.DiagnosticsList; out : Streams.Writer) : BOOLEAN;
+PROCEDURE CheckDiagnostics(diagnostics : Diagnostics.DiagnosticsList; warnings: BOOLEAN; out : Streams.Writer) : BOOLEAN;
 BEGIN
 	ASSERT((diagnostics # NIL) & (out # NIL));
 	IF (diagnostics.nofErrors = 0) & (diagnostics.nofMessages > 0) THEN
-		diagnostics.ToStream(out, Diagnostics.All); out.Update;
+		IF warnings THEN diagnostics.ToStream(out, Diagnostics.All)
+		ELSE diagnostics.ToStream(out, {Diagnostics.TypeInformation, Diagnostics.TypeError})
+		END;
+
+		out.Update;
 		diagnostics.Reset;
 	END;
 	RETURN diagnostics.nofErrors = 0;
@@ -2922,8 +2982,8 @@ BEGIN
 		context.arg.SkipWhitespace; context.arg.String(modulename);
 		IF (modulename # "") THEN
 			NEW(diagnostics);
-			IF ParseBuildFile(filename, builds, context, diagnostics) THEN
-				IF CheckDiagnostics(diagnostics, context.out) THEN
+			IF ParseBuildFile(filename, builds, context.out, diagnostics) THEN
+				IF CheckDiagnostics(diagnostics, FALSE, context.out) THEN
 					build := builds.GetBuild(buildname);
 					IF (build # NIL) THEN
 						build.SetOptions(options);
@@ -2993,7 +3053,7 @@ BEGIN
 		IF (packagename # "") & (buildname # "") THEN
 			start0 := Dates.Now();
 			NEW(diagnostics);
-			IF ParseBuildFile(packagename, builds, context, diagnostics) THEN
+			IF ParseBuildFile(packagename, builds, context.out, diagnostics) THEN
 				build := builds.GetBuild(buildname);
 				IF (build # NIL) THEN
 					IF build.disabled THEN
@@ -3004,7 +3064,7 @@ BEGIN
 					build.SetOptions(options);
 					build.DoChecks(context.out, diagnostics, error);
 
-					IF CheckDiagnostics(diagnostics, context.out) & ~error THEN
+					IF CheckDiagnostics(diagnostics, FALSE, context.out) & ~error THEN
 
 						build.AnalyzeDependencies(context.out);
 						build.ClearMarks;
@@ -3085,6 +3145,7 @@ BEGIN
 	options.Add("b", "build", Options.Flag);
 	options.Add("c", "compiler", Options.String);
 	options.Add(0X, "exclude", Options.String);
+	options.Add(0X, "only", Options.String);
 	options.Add("e", "extension", Options.String);
 	options.Add("f", "file", Options.String);
 	options.Add("n", "nocheck", Options.Flag);
@@ -3097,6 +3158,7 @@ BEGIN
 	options.Add("x", "xml", Options.Flag);
 	options.Add("y", "", Options.Flag);
 	options.Add("z", "zip", Options.Flag);
+	options.Add("w","warnings",Options.Flag);
 
 	IF options.Parse(context.arg, context.error) THEN
 
@@ -3108,7 +3170,7 @@ BEGIN
 		IF (filename # "") & (buildname # "") THEN
 			start0 := Dates.Now();
 			NEW(diagnostics);
-			IF ParseBuildFile(filename, builds, context, diagnostics) THEN
+			IF ParseBuildFile(filename, builds, context.out, diagnostics) THEN
 				build := builds.GetBuild(buildname);
 				IF (build # NIL) THEN
 					IF build.disabled THEN
@@ -3126,7 +3188,7 @@ BEGIN
 						RETURN;
 					END;
 
-					IF CheckDiagnostics(diagnostics, context.out) & ~error THEN
+					IF CheckDiagnostics(diagnostics, options.GetFlag("warnings"), context.out) & ~error THEN
 
 						IF ~options.GetString("path", fullname) THEN fullname := ""; 	END;
 						Strings.Append(fullname, ToolFilename);
@@ -3140,7 +3202,7 @@ BEGIN
 							ELSIF ~options.GetFlag("zip") THEN
 								CallCommand("Notepad.Open", fullname, context);
 							END;
-							IF ~error & options.GetFlag("zip") & CheckDiagnostics(diagnostics, context.out) THEN
+							IF ~error & options.GetFlag("zip") & CheckDiagnostics(diagnostics, options.GetFlag("warnings"), context.out) THEN
 								build.GenerateZipFiles(context.out, context.error, diagnostics, error);
 							END;
 							IF ~error & options.GetFlag("xml") THEN
@@ -3169,7 +3231,11 @@ BEGIN
 			END;
 
 			IF (diagnostics.nofMessages > 0) THEN
-				diagnostics.ToStream(context.out, Diagnostics.All);
+				IF options.GetFlag("warnings") THEN
+					diagnostics.ToStream(context.out, Diagnostics.All);
+				ELSE
+					diagnostics.ToStream(context.out, {Diagnostics.TypeError, Diagnostics.TypeWarning});
+				END;
 				context.out.Ln;
 			END;
 		ELSE

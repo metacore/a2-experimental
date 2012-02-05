@@ -121,7 +121,6 @@ BUILDS
 		EXCLUDEPACKAGES ""
 		DISABLED "FALSE"
 	}
-
 	A2_64 {
 		INCLUDE "NATIVE NATIVEORIG AMD64"
 		COMPILER "Compiler.Compile"
@@ -153,6 +152,18 @@ BUILDS
 		SYMBOLEXTENSION "Obw"
 		PATH "../obj/"
 		EXCLUDEPACKAGES ""
+		DISABLED "FALSE"
+	}
+	WinAosMini
+	{
+		INCLUDE "WIN WINORIG iWIN"
+		COMPILER "Compiler.Compile"
+		COMPILEOPTIONS ""
+		TARGET "AMD"
+		EXTENSION "Obw"
+		SYMBOLEXTENSION "Obw"
+		PATH ""
+		EXCLUDEPACKAGES "Build Education Fun Testing Contributions Oberon OberonGadgets OberonApplications OberonDocumentation OberonVoyager OberonAnts CjkFonts Pr3Fonts Pr6Fonts"
 		DISABLED "FALSE"
 	}
 	eWinAos {
