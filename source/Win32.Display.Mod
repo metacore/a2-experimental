@@ -1148,7 +1148,7 @@ VAR
 		w := 0;  h := 0; x := 0; y := 0;
 
 		context.arg.SkipWhitespace;
-		IF (context.arg.Peek() = "H") THEN format := Displays.color565; InitBMI; END;
+		IF (context.arg.Peek() = "H") THEN format := Displays.color565; InitBMI; context.arg.Char(ignore[0])  END;
 
 		(* [width [height]]  *)
 		context.arg.SkipWhitespace;
