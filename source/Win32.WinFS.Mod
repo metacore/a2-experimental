@@ -688,7 +688,7 @@ TYPE
 			IF buffer.dirty THEN WriteBuffer() END
 		END Update;
 
-		PROCEDURE Finalize;
+		PROCEDURE Finalize*;
 		VAR res: Kernel32.BOOL;
 		BEGIN {EXCLUSIVE}
 			IF TraceFile IN Trace THEN KernelLog.String( "File.Finalize " );  KernelLog.String( fname );  KernelLog.Ln;  END;
@@ -708,6 +708,12 @@ TYPE
 
 			END
 		END Finalize;
+
+		PROCEDURE Close;
+		BEGIN
+			Finalize
+		END Close;
+
 
 	END File;
 VAR

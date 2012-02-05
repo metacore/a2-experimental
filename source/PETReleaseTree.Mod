@@ -22,7 +22,7 @@ TYPE
 		VAR builds : Build.Builds; succeeded : BOOLEAN;
 		BEGIN
 			AddNodes^(parent, diagnostics, log);
-			succeeded := Build.ParseBuildDescription(editor.text, "ReleaseTree", builds, diagnostics);
+			succeeded := Build.ParseBuildDescription(editor.text, "ReleaseTree", builds, log, diagnostics);
 			IF succeeded THEN
 				tree.SetNodeCaption(parent, Strings.NewString("Packages"));
 				tree.SetNodeState(parent, {WMTrees.NodeAlwaysExpanded});

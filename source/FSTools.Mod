@@ -1037,6 +1037,23 @@ BEGIN
 	out.String(")");
 END ShowRes;
 
+(** Close files -- paradox: open (old) file and call Close method. Intended for systems in a host environment to explicitely release a file handle. *)
+PROCEDURE CloseFiles*(context : Commands.Context); (** [Options] {file} ~ *)
+VAR
+	filelist : FileList;
+	nofFiles, res, n, ndone : LONGINT;
+	file: Files.File;
+BEGIN
+	nofFiles := GetFileList(context, filelist);
+	n := 0; ndone := 0;
+	WHILE (n<nofFiles) & (filelist[n] # NIL) DO
+		file := Files.Old(filelist[n]^);
+		IF file # NIL THEN file.Close END;
+		INC(n);
+	END;
+END CloseFiles;
+
+
 END FSTools.
 
 SystemTools.Free FSTools ~

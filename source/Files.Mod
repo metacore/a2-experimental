@@ -400,12 +400,16 @@ TYPE
 		PROCEDURE Update*;
 		BEGIN HALT(301) END Update;	(* abstract *)
 
-(* GC
-		PROCEDURE Registered*(): BOOLEAN;	(* race! *)
+		(*
+			Usually, in Oberon a file is not closed explicitly but by a call to finalizers by the garbage colloector.
+			However, for systems running in a host environment such as WinAos or UnixAos, explicitly closing a file may release files/handles that otherwise are blocked by the system.
+			Close is not necessarily implemented by a file system, therefore a call to Close may or may not have any effect.
+			Implementers of Close have to make sure that a call to close does not possibly contradict with file finalization.
+		*)
+		PROCEDURE Close*;
 		BEGIN
-			RETURN TRUE
-		END Registered;
-*)
+			(* abstract, potentially empty *)
+		END Close;
 
 	END File;
 
