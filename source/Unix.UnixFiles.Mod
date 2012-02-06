@@ -10,7 +10,7 @@ IMPORT S := SYSTEM, Trace, Unix, Machine, Heaps, Kernel, Modules, Files;
 CONST
 	NBufs = 4;  Bufsize = 4096;  FileTabSize = 1024;  ResFiles = 128;  NoDesc = -1;
 
-	Open = 0;  Create = 1;  Close = 2;	(* file states *)
+	Open = 0;  Create = 1;  Closed = 2;	(* file states *)
 
 TYPE
 	Address = S.ADDRESS;
@@ -410,7 +410,7 @@ TYPE
 				BEGIN
 					IF state = Create THEN  
 						GetTempName( registerName, workName );  tempFile := TRUE
-					ELSIF state = Close THEN  
+					ELSIF state = Closed THEN  
 						workName := registerName;  registerName := "";  tempFile := FALSE
 					END;
 					r := Unix.unlink( S.ADR( workName ) );
@@ -640,7 +640,7 @@ TYPE
 				PROCEDURE Register0*( VAR res: LONGINT );
 				BEGIN {EXCLUSIVE}
 					IF (state = Create) & (registerName # "") THEN  
-						state := Close (* shortcut renaming *)   
+						state := Closed (* shortcut renaming *)   
 					END;
 					UpdateX;
 					IF registerName # "" THEN
