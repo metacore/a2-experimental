@@ -23,9 +23,8 @@ CONST
 (*	TypeNameOfs = AdrSize * 5;		(* type name offset in TypeDesc *)
 	ModNameOfs = AdrSize * 2;		(* module name offset in ModuleDesc *)
 *)	
-	
 	NilVal* = 0;
-
+	
 	MinPtrOfs = -40000000H;	(* sentinel offset for ptrOfs *)
 	MethodEndMarker* = MinPtrOfs;   (* marks the end of the method addresses, used in Info.ModuleDetails *)
 
@@ -57,7 +56,9 @@ VAR
 	(* ------------------------- Heap ------------------------------- *)
 CONST
 	BlockSize = 32;
-	N = 32; 	(* number of free lists *)
+	MaxFreeLists = 14; 	(* number of free lists *)
+	FreeListBarrier = 7;
+	
 	ProtOfs = 2*BlockSize + 16;
 	ProtTypeBit* = 31;   (** flags in TypeDesc, low bits reserved for extLevel *)
 
@@ -65,10 +66,10 @@ CONST
 	FlagBits* = {MarkBit, ArrayBit, FreeBit, SubObjBit, ProtObjBit};
 
 TYPE
-	FreeBlk = POINTER TO RECORD
+	FreeBlock = POINTER TO RECORD
 				tag: Address;  (* = S.ADR( size ) *)
 				size: Size;
-				next{UNTRACED}: FreeBlk;
+				next{UNTRACED}: FreeBlock;
 			END;
 	
 	ProcessQueue* = RECORD
@@ -104,16 +105,17 @@ TYPE
 	PointerOffsets = POINTER TO ARRAY OF Size;
 	
 VAR
-	A: ARRAY N + 1 OF  (*FreeBlk*) Address;
-	lastA: ARRAY N + 1 OF Address;
+	freeLists: ARRAY MaxFreeLists + 1 OF	RECORD 
+											minSize: LONGINT;  
+											first{UNTRACED}: FreeBlock  
+										END;
+
 	candidates: ARRAY 1024 OF  Address;
 	nofcand: LONGINT;
 	
 	deferred: ARRAY 1000 OF Address;
 	noDeferred: LONGINT;
 	
-	fastNEW: BOOLEAN;	(* TRUE:  faster NEW is preferred over smaller heap *)
-
 	heapSize, heapAvailable: Size;
 
 	throuput:  Size;
@@ -379,39 +381,33 @@ VAR
 	END MarkDeferred;
 
 
+
 	
-	PROCEDURE Recycle( blkAdr: Address; blkSize: Size; atEnd: BOOLEAN );
-	VAR i: LONGINT;  block, x: FreeBlk;
+	PROCEDURE Recycle( blkAdr: Address; blkSize: Size );
+	VAR i: LONGINT;  block, x: FreeBlock;
 	BEGIN
-		i := blkSize DIV BlockSize;
-		IF i > N THEN  i := N  END;
-		block := S.VAL( FreeBlk, blkAdr );
-		
+		block := S.VAL( FreeBlock, blkAdr );
 		block.tag := blkAdr + AdrSize;
 		block.size := blkSize - AdrSize;
+		block.next := NIL;
 		
-		IF (i < N) OR fastNEW THEN	
-			IF atEnd THEN
-				(* append to end of list *)
-				block.next := NIL;
-				S.PUT( lastA[i], blkAdr );  
-				lastA[i] := S.ADR( block.next )
-			ELSE
-				(* prepend to list *)
-				block.next := S.VAL( FreeBlk, A[i] );
-				A[i] := blkAdr
-			END;	
+		i := 0;
+		WHILE (freeLists[i].minSize < blkSize) & (i < MaxFreeLists) DO  INC( i )  END;
+		
+		IF i < FreeListBarrier THEN	
+			block.next := freeLists[i].first;
+			freeLists[i].first := block
 		ELSE
 			(* keep them ordered to avoid unnecessary splits *)
 			(* this optimization has positive impact on heap utilization
 			    130 MB vs. 240 MB heap for compiling and linking a new system
 			    but it slows down heap allocation speed. 	*)
-			x := S.VAL( FreeBlk, A[N] );
+			x := freeLists[MaxFreeLists].first;
 			IF (x = NIL) OR (x.size > blkSize - AdrSize) THEN 
 				block.next := x;
-				A[N] := blkAdr
+				freeLists[MaxFreeLists].first := block
 			ELSE
-				WHILE ( x.next # NIL) & (x.next.size < blkSize - AdrSize) DO  x := x.next  END;
+				WHILE ( x.next # NIL) & (x.next.size < block.size) DO  x := x.next  END;
 				block.next := x.next;
 				x.next := block 
 			END	
@@ -420,13 +416,19 @@ VAR
 		INC( heapAvailable, blkSize );
 	END Recycle;
 	
-	PROCEDURE InitFreeLists;
-	VAR i: LONGINT;
+	
+	PROCEDURE ClearFreeLists;
+	VAR i, minSize: LONGINT;
 	BEGIN
-		FOR i := 0 TO N DO
-			A[i] := NilVal;  lastA[i] := S.ADR( A[i] );
-		END
-	END InitFreeLists;
+		minSize := BlockSize;
+		FOR i := 0 TO MaxFreeLists DO  
+			freeLists[i].minSize := minSize;
+			freeLists[i].first := NIL;
+			IF i < FreeListBarrier THEN  INC( minSize, BlockSize )  ELSE  minSize := 2 * minSize  END
+		END;
+		heapAvailable := 0
+	END ClearFreeLists;
+	
 
 	PROCEDURE Sweep;
 	VAR
@@ -434,7 +436,7 @@ VAR
 		blockSize, freeSize: Size;
 		memBlock, nextMemBlock: Machine.MemoryBlock;
 	BEGIN
-		InitFreeLists;
+		ClearFreeLists;
 		heapAvailable := 0; 
 
 		memBlock := Machine.memBlockHead;  
@@ -452,7 +454,7 @@ VAR
 				ELSE
 					S.PUT( block, tag - {MarkBit} );	(* remove mark bit *)
 					IF freeSize > 0 THEN
-						Recycle( freeBlock, freeSize, TRUE );
+						Recycle( freeBlock, freeSize );
 						freeSize := 0
 					END
 				END;
@@ -466,7 +468,7 @@ VAR
 				Machine.FreeMemBlock( S.VAL( Machine.MemoryBlock, memBlock ) );
 				heapSize := GetHeapSize();
 			ELSIF freeSize > 0 THEN
-				Recycle( freeBlock, freeSize, TRUE ); (* last collected block: *)
+				Recycle( freeBlock, freeSize ); (* last collected block: *)
 			END;
 			
 			memBlock := nextMemBlock;
@@ -617,12 +619,32 @@ VAR
 
 	(* -------------------------- memory allocation ----------------------- *)
 
-
+	PROCEDURE FindFreeBlock( size: Size ): FreeBlock;
+	VAR prev, block: FreeBlock;  i: LONGINT;
+	BEGIN
+		i := 0;
+		WHILE (i < MaxFreeLists) & (freeLists[i+1].minSize <= size)  DO  INC( i )  END;
+		
+		block := NIL;
+		REPEAT
+			IF freeLists[i].first = NIL THEN  INC( i )
+			ELSE
+				block := freeLists[i].first;  
+				IF block.size + AdrSize >= size THEN
+					freeLists[i].first := block.next 
+				ELSIF i >= FreeListBarrier THEN
+					REPEAT  prev := block;  block := block.next
+					UNTIL (block = NIL) OR (block.size + AdrSize >= size);
+					IF block # NIL THEN  prev.next := block.next  ELSE  INC( i )  END
+				END
+			END
+		UNTIL (block # NIL) OR (i > MaxFreeLists);
+		RETURN block
+	END FindFreeBlock;
 
 	PROCEDURE GetBlock( size: Size ): Address;   (* size MOD B = 0 *)
 	VAR 
-		i: LONGINT;  adr2: Address;
-		block, prevBlock, newBlock: FreeBlk;  blkSize, restSize: Size;  blkAdr: Address;
+		block: FreeBlock;  blkSize: Size;  blkAdr, adr2: Address;
 	BEGIN
 		IF (throuput > Machine.MemBlockSize) & (Machine.lock[Machine.GC] = 'N') THEN
 			Machine.InvokeGC;
@@ -630,58 +652,29 @@ VAR
 		END;
 
 		REPEAT
-			i := size DIV BlockSize;
-			IF i > N THEN  i := N  END;
-
-			LOOP
-				block := S.VAL( FreeBlk, A[i] );  prevBlock := NIL;
-				IF i = N  THEN
-					LOOP
-						IF block = NIL THEN
-							IF (throuput > 0) & (Machine.lock[Machine.GC] = 'N') THEN
-								Machine.InvokeGC;
-								throuput := 0;
-							ELSE
-								Machine.ExpandHeap( 0, size, S.VAL( Address, newBlock ), adr2 );
-								IF newBlock # NIL  THEN
-									newBlock.next := S.VAL( FreeBlk, A[N] );  
-									A[N] := S.VAL( Address, newBlock );
-									heapSize := GetHeapSize();
-									heapAvailable := Available()
-								ELSE
-									Trace.Ln;  
-									Trace.String( "Heapspace exhaustet" ); Trace.Ln;  
-									Machine.Release( Machine.Heaps );
-									HALT( 99 )
-								END
-							END;
-							DEC( i );  (* try again *)
-							EXIT
-						END;
-						
-						IF block.size >= size - AdrSize THEN  (* found *) EXIT   END;
-						prevBlock := block;
-						block := block.next
-					END  (* loop *)
-					
-				END;
-				IF block # NIL THEN  EXIT   END;
-				INC( i )
-			END  (* loop *)
-			
+			block := FindFreeBlock( size );
+			IF block = NIL THEN
+				IF (throuput > 0) & (Machine.lock[Machine.GC] = 'N') THEN
+					Machine.InvokeGC;
+					throuput := 0;  
+				ELSE
+					Machine.ExpandHeap( 0, size, S.VAL( Address, block ), adr2 );
+					IF block # NIL  THEN  
+						heapSize := GetHeapSize();
+					ELSE
+						Trace.Ln;  
+						Trace.String( "Heapspace exhaustet" ); Trace.Ln;  
+						Machine.Release( Machine.Heaps );
+						HALT( 99 )
+					END
+				END
+			END
 		UNTIL block # NIL;
 
 		blkSize := block.size + AdrSize;
 		blkAdr := S.VAL( Address, block );
-		
-		(*	unlink found block	*)
-		IF (i < N) OR (prevBlock = NIL) THEN  A[i] := S.VAL( Address, block.next )
-		ELSE  prevBlock.next := block.next
-		END;
 		DEC( heapAvailable, blkSize );
-		
-		restSize := blkSize - size;
-		IF restSize > 0 THEN  Recycle( blkAdr + size, restSize, FALSE )  END;
+		IF blkSize > size THEN  Recycle( blkAdr + size, blkSize - size )  END;
 		
 		INC( throuput, size );
 		IF Stats THEN  INC(Nnew); INC(NnewBytes, size)  END;
@@ -869,11 +862,11 @@ VAR
 
 	(* Returns the size in bytes of the remaining free heap *)
 	PROCEDURE Available( ): Size;
-	VAR i: LONGINT;  avail: Size;  block: FreeBlk;
+	VAR i: LONGINT;  avail: Size;  block: FreeBlock;
 	BEGIN
 		avail := 0;  i := 0;
-		WHILE i <= N DO
-			block := S.VAL( FreeBlk, A[i] );
+		WHILE i <= MaxFreeLists DO
+			block := freeLists[i].first;
 			WHILE block # NIL  DO
 				INC( avail, block.size + AdrSize );  block := block.next
 			END;
@@ -891,16 +884,17 @@ VAR
 	
 	
 	PROCEDURE GetHeapInfo*( VAR total, free, largest: Size );
-	VAR i: LONGINT;  block: FreeBlk;
+	VAR i: LONGINT;  block: FreeBlock;
 	BEGIN
 		free := 0;  largest := 0;  i := 0;
 		Machine.Acquire( Machine.Heaps );
 		total := heapSize;
-		WHILE i <= N DO
-			block := S.VAL( FreeBlk, A[i] );
+		WHILE i <= MaxFreeLists DO
+			block := freeLists[i].first;
 			WHILE block # NIL DO
-				INC( free, block.size + AdrSize );  block := block.next;
+				INC( free, block.size + AdrSize );  
 				IF block.size > largest THEN  largest := block.size  END;
+				block := block.next;
 			END;
 			INC( i )
 		END;
@@ -925,39 +919,33 @@ VAR
 	(*------------------ Initialization --------------------------------------------------*)
 
 	PROCEDURE InitHeap;
-	VAR i: LONGINT; adr1, adr2: Address;
-		tag: SET;
-		block, a: Address;
+	VAR adr2: Address;
+		block, tag: Address;  frBlock:FreeBlock;
 	BEGIN
 		block := Machine.memBlockHead.beginBlockAdr;
 		S.GET( block, tag );
-		WHILE tag # {} DO
+		WHILE tag # 0 DO
 			INC( block, SizeOf( block ) );
 			S.GET( block, tag );
 		END;
-		S.PUT( block, block + AdrSize );
-		S.PUT( block + AdrSize,  Machine.memBlockHead.endBlockAdr - block - AdrSize );
-		S.PUT( block + AdrSize + SizeSize, S.VAL( Address, 0 ) );
 		
-		a := Machine.memBlockHead.endBlockAdr;
-		S.PUT( a, a + AdrSize );
-		S.PUT( a + AdrSize, S.VAL( Address, 0 ) );
+		S.PUT( block, block + AdrSize );	(* tag *)
+		S.PUT( block + AdrSize,  Machine.memBlockHead.endBlockAdr - block - AdrSize );	(* size *)
+		S.PUT( block + AdrSize + SizeSize, S.VAL( Address, 0 ) );		(* next *)
+	
 		
-		i := 0;
-		WHILE i < N DO  A[i] := NilVal;  INC( i )  END;
-		A[N] := block;
+		ClearFreeLists;
+		freeLists[MaxFreeLists].first := S.VAL( FreeBlock, block );
 		
-		Machine.ExpandHeap( 0, 2*Machine.MemBlockSize - 2*BlockSize, adr1, adr2 );
-		IF adr1 # 0  THEN
-			S.PUT( adr1 + AdrSize + SizeSize, A[N] );  A[N] := adr1;
-			heapSize := GetHeapSize();
-			heapAvailable := Available()
-		END;
+		Machine.ExpandHeap( 0, 2*Machine.MemBlockSize - BlockSize, S.VAL( Address, frBlock ), adr2 );
+		IF frBlock # NIL  THEN  freeLists[MaxFreeLists].first.next := frBlock  END;
+
+		heapSize := GetHeapSize();
+		heapAvailable := Available()
 	END InitHeap;
 
 
 	PROCEDURE Init;
-	VAR s: ARRAY 8 OF CHAR;
 	BEGIN
 		IF Stats THEN
 			Ngc := 0;
@@ -969,9 +957,6 @@ VAR
 		nofcand := 0; 
 
 		InitHeap;
-		
-		Machine.GetConfig( "FastNEW", s );
-		fastNEW := ( s[0] = "1" )
 	END Init;
 
 
