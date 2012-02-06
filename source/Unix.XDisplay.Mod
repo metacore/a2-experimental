@@ -5,7 +5,7 @@ MODULE XDisplay;   (** X Windows display driver *)
 
 (*! uses XEvents from X11Api *)
 
-IMPORT S := SYSTEM, Trace, Unix, Machine, Files, X11, Api:=X11Api, Displays;
+IMPORT S := SYSTEM, Trace, Unix, Machine, Files, UnixFiles, X11, Api:=X11Api, Displays, Strings;
 
 CONST
 	IconNameStr = "UnixAos";
@@ -25,7 +25,7 @@ CONST
 	invert = 2;   (* destcolor := destcolor XOR sourcecolor. *)
 
 VAR
-	WinName, IconName: ARRAY 128 OF CHAR;
+	winName, iconName: ARRAY 128 OF CHAR;
 
 
 	X:	RECORD
@@ -402,8 +402,8 @@ TYPE
 					primary := X11.CreateSimpleWindow( X.display, root, 0, 0,
 											     			X.screenw - 16, X.screenh - 32, 0,
 														foreground, background );
-					X11.StoreName( xdisp, primary, S.ADR( WinName ) );
-					X11.SetIconName( xdisp, primary, S.ADR( IconName ) );
+					X11.StoreName( xdisp, primary, S.ADR( winName ) );
+					X11.SetIconName( xdisp, primary, S.ADR( iconName ) );
 					X11.SetCommand( xdisp, primary, Unix.argv, Unix.argc );
 					X11.SelectInput( xdisp, primary, X11.ExposureMask );
 					
@@ -630,8 +630,12 @@ VAR
 	END NewPattern;
 
 	PROCEDURE InitNames;
+	VAR cwd: ARRAY 128 OF CHAR;
 	BEGIN
-		COPY( Machine.version, WinName );  IconName := IconNameStr;
+		UnixFiles.GetWorkingDirectory( cwd );
+		COPY( Machine.version, winName );  
+		Strings.Append( winName, ",  Work: " );  Strings.Append( winName, cwd );
+		iconName := IconNameStr;
 	END InitNames;
 
 	PROCEDURE getDisplayName;
@@ -669,7 +673,7 @@ VAR
 
 	PROCEDURE ColorError;
 	BEGIN
-		Trace.StringLn( "ETH Oberon needs a color display. sorry." );  Unix.exit( 1 )
+		Trace.StringLn( "UnixAos needs a color display. sorry." );  Unix.exit( 1 )
 	END ColorError;
 
 	PROCEDURE CreateColors( d: Display );
