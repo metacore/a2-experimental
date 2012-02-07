@@ -552,7 +552,7 @@ TYPE
 		END Broadcast;
 
 		PROCEDURE Add*(left, top : LONGINT; w : Window; flags : SET);
-		VAR plugin : Plugins.Plugin;
+		VAR plugin : Plugins.Plugin; oldPointerOwner: Window;
 		BEGIN
 			ASSERT((w.next = NIL) & (w.prev = NIL)); (* window can not be inserted twice *)
 			lock.AcquireWrite;
@@ -566,8 +566,11 @@ TYPE
 			InsertAfter(FindTopWindow(WM.FlagStayOnTop IN flags), w);
 			w.manager := SELF;
 			IF (flags * { WM.FlagFrame } # { }) & (decorate # NIL) THEN decorate(w) END;
+			oldPointerOwner := GetPositionOwnerIntern(pointerX, pointerY, NIL);
 			AddVisibleDirty(w, w.bounds);
-			pointerOwner := GetPositionOwnerIntern(pointerX, pointerY, NIL);
+			IF oldPointerOwner = NIL THEN
+				pointerOwner := GetPositionOwnerIntern(pointerX, pointerY, NIL);
+			END;
 			CheckPointerImage; (* maybe some other window got below the cursor *)
 			lock.ReleaseWrite;
 			WM.IncWTimestamp;
