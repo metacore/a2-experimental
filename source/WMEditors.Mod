@@ -509,7 +509,7 @@ TYPE
 			IF (typeI = None) THEN
 				RETURN TRUE;
 			ELSIF (typeI = Decimal) THEN
-				RETURN (ORD("0") <= ch) & (ch <= ORD("9")) & (ch # ORD("-"));
+				RETURN (ORD("0") <= ch) & (ch <= ORD("9")) OR (ch = ORD("-"));
 			ELSIF (typeI = Hex) THEN
 				RETURN ((ORD("0") <= ch) & (ch <= ORD("9"))) OR ((ORD("a") <= ch) & (ch <=ORD( "f"))) OR ((ORD("A") <= ch) & (ch <= ORD("F")));
 			ELSIF (typeI = Ascii) THEN

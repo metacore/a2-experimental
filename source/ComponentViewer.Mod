@@ -169,12 +169,14 @@ BEGIN
 	options.Add("f","fullscreen", Options.Flag);
 	options.Add("n","noFocus", Options.Flag);
 	options.Add("t","onTop", Options.Flag);
+	options.Add("F","noFrame",Options.Flag);
 	IF options.Parse(context.arg, context.error) & context.arg.GetString(filename) THEN
 		IF ~options.GetInteger("width",width) THEN width := 0 END;
 		IF ~options.GetInteger("height",height) THEN height := 0 END;
 		IF ~options.GetInteger("x",x) THEN x := InvalidPosition END;
 		IF ~options.GetInteger("y",y) THEN y := InvalidPosition END;
 		IF options.GetFlag("fullscreen") THEN flags := {} ELSE flags := {WMWindowManager.FlagFrame, WMWindowManager.FlagClose, WMWindowManager.FlagMinimize} END;
+		IF options.GetFlag("noFrame") THEN flags := {} ELSE flags := {WMWindowManager.FlagFrame, WMWindowManager.FlagClose, WMWindowManager.FlagMinimize} END;
 		IF options.GetFlag("noFocus") THEN INCL(flags, WMWindowManager.FlagNoFocus) END;
 		IF options.GetFlag("onTop") THEN INCL(flags, WMWindowManager.FlagStayOnTop) END;
 		c := DoOpen(filename, context.error, x , y, width, height, options.GetFlag("client"), options.GetFlag("alpha"), options.GetFlag("fullscreen"), flags);
