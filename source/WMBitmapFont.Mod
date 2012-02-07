@@ -378,7 +378,9 @@ TYPE
 		VAR r : Files.Rider; i, j: LONGINT; f : Files.File;
 				notenoughregisters: LONGINT;
 		BEGIN
-			f := Files.Old(filename); f.Set(r, 0);
+			f := Files.Old(filename);
+			IF f = NIL THEN RETURN END;
+			f.Set(r, 0);
 			fontFile := f;
 			(* read number of ranges *)
 			Files.ReadLInt(r, nofGlyphRanges);
