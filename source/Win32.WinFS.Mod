@@ -934,8 +934,8 @@ VAR
 
 	PROCEDURE SetPaths;
 	VAR ret, i, j, k: LONGINT;
-		work, files, directories, temp: ARRAY Kernel32.MaxPath OF CHAR;
-		dirs: ARRAY 4 * Kernel32.MaxPath OF CHAR;
+		work, files, temp: ARRAY Kernel32.MaxPath OF CHAR;
+		directories, dirs: ARRAY 4 * Kernel32.MaxPath OF CHAR;
 		dir, sysPath: FileName;
 
 		PROCEDURE AddDir;
