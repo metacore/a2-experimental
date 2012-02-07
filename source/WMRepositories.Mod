@@ -299,11 +299,12 @@ TYPE
 				IF (component IS WMComponents.VisualComponent) THEN
 					vc := component (WMComponents.VisualComponent);
 					bounds := vc.bounds.Get();
-					IF (bounds.r - bounds.l < 10) THEN bounds.r := bounds.l + 10; vc.bounds.Set(bounds); END;
-					IF (bounds.b - bounds.t < 10) THEN bounds.b := bounds.t + 10; vc.bounds.Set(bounds); END;
+					IF (bounds.r - bounds.l < 10) THEN bounds.r := bounds.l + 100; vc.bounds.Set(bounds); END;
+					IF (bounds.b - bounds.t < 10) THEN bounds.b := bounds.t + 50; vc.bounds.Set(bounds); END;
 					(* render to bitmap *)
 					NEW(image); Raster.Create(image, bounds.r - bounds.l, bounds.b - bounds.t, Raster.BGRA8888);
 					NEW(canvas, image);
+					canvas.Fill(WMRectangles.MakeRect(0, 0, bounds.r-bounds.l, bounds.b-bounds.t), 0FF60H, WMGraphics.ModeSrcOverDst);
 					vc.Draw(canvas);
 				ELSE
 					name := component.GetName();
@@ -312,6 +313,8 @@ TYPE
 					w := 0; h := 0;
 					font := GetFont();
 					font.GetStringSize(name^, w, h);
+					IF (w =0) THEN w := 100 END;
+					IF (h=0) THEN h := 50 END;
 					IF (w > 0) & (h > 0) THEN
 						(* render to bitmap *)
 						NEW(image); Raster.Create(image, w, h, Raster.BGRA8888);

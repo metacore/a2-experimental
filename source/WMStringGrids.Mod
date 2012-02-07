@@ -437,7 +437,12 @@ TYPE
 			IF img # NIL THEN INC(left, img.width + 1) END;
 
 			IF s # NIL THEN
+				IF img # NIL THEN
+					canvas.ScaleImage(img, WMRectangles.MakeRect(0, 0, img.width, img.height),	WMRectangles.MakeRect(1, 1, w - 2, h - 2), WMGraphics.ModeSrcOverDst, 10);
+				END;
+				(*
 				canvas.DrawImage(1, 1, img, WMGraphics.ModeSrcOverDst);
+				*)
 				WMGraphics.DrawStringInRect(canvas, WMRectangles.MakeRect(left, 1, w - 2, h - 2), FALSE,
 					model.GetTextAlign(x, y), WMGraphics.AlignCenter, s^)
 			END;

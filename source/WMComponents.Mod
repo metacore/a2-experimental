@@ -1007,6 +1007,7 @@ TYPE
 			Rectangles.MoveRel(bounds, x, y);
 			c.bounds.Set(bounds);
 			c.AdaptRelativeBounds(c.bounds.Get(), SELF);
+			IF c.sequencer # sequencer THEN c.SetSequencer(sequencer) END;
 			c.Reset(NIL, NIL);
 			c.RecacheProperties;
 			AddContent(c);
