@@ -592,6 +592,14 @@ BEGIN
 	Machine.Release(Machine.Modules)
 END FreeModule;
 
+PROCEDURE Terminate(term: TerminationHandler);
+BEGIN
+	term
+FINALLY
+	(* trapped in module finalization -- just bad luck, let's try finalizing *)
+END Terminate;
+
+
 (** Shut down all modules by calling their termination handlers and then call Machine.Shutdown. *)
 PROCEDURE Shutdown*(code: LONGINT);
 VAR m: Module; term: TerminationHandler;
@@ -600,7 +608,7 @@ BEGIN
 		LOOP
 			Machine.Acquire(Machine.Modules);
 			m := root; WHILE (m # NIL) & (m.term = NIL) DO m := m.next END;
-			IF m # NIL THEN term := m.term; m.term := NIL END;
+			IF m # NIL THEN term := m.term; m.term := NIL END; (* finalizer only called once *)
 			Machine.Release(Machine.Modules);
 			IF m = NIL THEN EXIT END;
 			IF trace THEN
@@ -608,7 +616,7 @@ BEGIN
 				Trace.String("TermHandler "); Trace.StringLn (m.name);
 				Machine.Release (Machine.TraceOutput);
 			END;
-			term	(* if this causes exception or hangs, another shutdown call will retry *)
+			Terminate(term)	(* if this causes hangs, another shutdown call will retry -- is this a good solution ? *)
 		END;
 		(* clean up finalizers *)
 		m := root;

@@ -219,6 +219,8 @@ VAR
 
 	fullscreen: BOOLEAN;   (*ALEX 2005.11.30*)
 
+	closeRequests: LONGINT;
+
 	PROCEDURE CreateHWND( create: CreateStruct );
 	VAR str: ARRAY 32 OF CHAR;
 		ret: Kernel32.BOOL;
@@ -348,7 +350,7 @@ VAR
 			IF mouse = win THEN mouse := NIL END;
 			IF root = win THEN root := NIL END;
 			IF capture = win THEN ret := User32.ReleaseCapture();  capture := NIL END;
-			IF Objects.oberonLoop = NIL THEN Modules.Shutdown( 0 );  END;
+			IF Objects.oberonLoop = NIL THEN Modules.Shutdown( Modules.PowerDown );  END;
 			(*		win.getDC := GetDC;  win.releaseDC := ReleaseDC; *)
 			win.hDC := -1;   (* ??? *)
 			IF ~(external IN win.state) THEN ret := User32.DestroyWindow( win.hWnd );  win.hWnd := Kernel32.NULL END
@@ -744,7 +746,14 @@ VAR
 (** Common base handler for all visual windows (document or control) provided by this module. *)
 	PROCEDURE WindowHandler( win: Window;  uMsg: LONGINT;  wParam: User32.WParam;
 													  lParam: User32.LParam ): User32.LResult;
+
 	VAR handled: BOOLEAN; ret: Kernel32.BOOL;
+
+		closer: OBJECT (* to call a close request in an A2 thread, otherwise finalization does not work etc. *)
+		BEGIN{ACTIVE}
+			Modules.Shutdown(Modules.PowerDown);
+			User32.PostQuitMessage(0);
+		END;
 	BEGIN
 		IF update IN win.state THEN
 			handled := TRUE;
@@ -769,9 +778,12 @@ VAR
 				| User32.WMSetFocus, User32.WMKillFocus:
 						HandleFocus( win, uMsg, wParam )
 				| User32.WMClose:
-						(*Machine.Shutdown( TRUE ); *)  Modules.Shutdown(Modules.PowerDown);
-						User32.PostQuitMessage( 0 ) (*ALEX 2005.12.13 added this line*)
-
+						IF closeRequests < 3 THEN
+							NEW(closer); INC(closeRequests);
+						ELSE
+							Modules.Shutdown(Modules.PowerDown);
+							User32.PostQuitMessage( 0 ) (*ALEX 2005.12.13 added this line*)
+						END;
 				ELSE handled := FALSE
 				END
 			ELSIF (User32.WMKeyFirst <= uMsg) & (uMsg <= User32.WMKeyLast) THEN
@@ -1145,6 +1157,7 @@ VAR
 	PROCEDURE Install*(context : Commands.Context); (** ["H"] [ width [height] ] ["FULLSCREEN"] [ x [y] ] *)
 	VAR w, h, x, y : LONGINT; ignore : ARRAY 16 OF CHAR;
 	BEGIN
+		closeRequests := 0;
 		w := 0;  h := 0; x := 0; y := 0;
 
 		context.arg.SkipWhitespace;
