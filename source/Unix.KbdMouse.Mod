@@ -7,7 +7,8 @@ MODULE KbdMouse;   (* g.f.	9.7.07 *)
 
 (* replacement for the keyboard and mouse drivers in the Unix ports *)
 
-IMPORT Machine, S := SYSTEM, Inputs, Plugins, X11, Displays, XDisplay, Api:=X11Api, Modules, Objects;
+IMPORT Machine, S := SYSTEM, Inputs, Plugins, X11, Displays, XDisplay, Api:=X11Api, Modules, Objects, 
+	Out := KernelLog;
 
 CONST
 	ML = 0;  MM = 1;  MR = 2;
@@ -252,6 +253,7 @@ VAR
 		   modifiers[1] := capslock;	Rebind( "Return", 2, 0AX );
 			modifiers[2] := numlock;	Rebind( "Return", 3, 0AX );
 
+
 		FOR k := 0 TO 4 DO
 			CASE k OF
 			| 0:   n := 0;
@@ -270,7 +272,7 @@ VAR
 			Rebind4( "Escape", n, 1BX );
 			Rebind4( "Up", n, 0C1X );  Rebind4( "Down", n, 0C2X );
 			Rebind4( "Left", n, 0C4X );  Rebind4( "Right", n, 0C3X );
-			IF k < 2 THEN
+			IF k < 3 THEN
 				(* do not for NumLock on *)
 				Rebind4( "KP_Up", n, 0C1X );  Rebind4( "KP_Down", n, 0C2X );
 				Rebind4( "KP_Left", n, 0C4X );  Rebind4( "KP_Right", n, 0C3X );
@@ -281,9 +283,10 @@ VAR
 			Rebind4( "Home", n, 0A8X );  Rebind4( "KP_Home", n, 0A8X );
 			Rebind4( "End", n, 0A9X );  Rebind4( "KP_End", n, 0A9X );
 		END;
-
+		
+		
 		(* special keyboard: *)
-		modifiers[0] := shift;
+		modifiers[0] := shift; 
 		(*a acute*)		Rebind( "aacute", 0, 094X );			Rebind( "aacute", 1, 094X );
 		(*a grave*) 		Rebind( "agrave", 0, 08BX );			Rebind( "agrave", 1, 08BX );
 		(*a diaeresis*)	Rebind( "adiaeresis", 0, 083X );		Rebind( "adiaeresis", 1, 083X );
@@ -305,10 +308,10 @@ VAR
 
 		(*n tilde*)		Rebind( "ntilde", 0, 095X );
 		(*s sharp*)		Rebind( "ssharp", 0, 096X );
-		(*A diaeresis*)	Rebind( "Adiaeresis", 1, 080X );
-		(*O diaeresis*)	Rebind( "Odiaeresis", 1, 081X );
-		(*U diaeresis*)	Rebind( "Udiaeresis", 1, 082X );
-
+		(*A diaeresis*)	Rebind( "Adiaeresis", 0, 080X );
+		(*O diaeresis*)	Rebind( "Odiaeresis", 0, 081X );	
+		(*U diaeresis*)	Rebind( "Udiaeresis", 0, 082X );
+		
 		InitKeysym;
 
 		NEW( poll );  
