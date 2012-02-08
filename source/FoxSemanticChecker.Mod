@@ -146,6 +146,16 @@ TYPE
 			error := TRUE;
 		END Error;
 
+		PROCEDURE Warning(position: LONGINT; CONST message: ARRAY OF CHAR);
+		VAR errModule: SyntaxTree.Module;
+		BEGIN
+			IF diagnostics # NIL THEN
+				IF module # NIL THEN errModule := module ELSE errModule := currentScope.ownerModule END;
+				diagnostics.Warning(errModule.sourceName, position, Diagnostics.Invalid, message);
+			END;
+		END Warning;
+
+
 		PROCEDURE ErrorSS(position: LONGINT; CONST msg,msg2: ARRAY OF CHAR);
 		VAR errorMessage: ARRAY 256 OF CHAR;
 		BEGIN
@@ -6939,7 +6949,7 @@ TYPE
 		**)
 		PROCEDURE VisitCaseStatement(caseStatement: SyntaxTree.CaseStatement);
 		VAR expression: SyntaxTree.Expression; i: LONGINT; type: SyntaxTree.Type; caseList: SyntaxTree.CaseConstant;
-			ch: CHAR; l: LONGINT; min,max: LONGINT;
+			ch: CHAR; l: LONGINT; min,max: LONGINT; msg: ARRAY 64 OF CHAR;
 		BEGIN
 			expression := ResolveExpression(caseStatement.variable);
 			type := RegularType(expression.position,expression.type);
@@ -6964,6 +6974,14 @@ TYPE
 			FOR i := 0 TO caseStatement.CaseParts()-1 DO
 				CasePart(caseStatement.GetCasePart(i),type,caseList,min,max);
 			END;
+			IF (max - min > 1024) & (100* caseStatement.CaseParts() DIV (max-min) < 10) (* less than ten percent used in a huge case table *) THEN
+				msg := "huge sparse case table ";
+				Strings.AppendInt(msg, max-min);
+				Strings.Append(msg,"/");
+				Strings.AppendInt(msg, caseStatement.CaseParts());
+				Warning(caseStatement.position,msg);
+			END;
+
 			caseStatement.SetMinMax(min,max);
 			StatementSequence(caseStatement.elsePart);
 			IF expression.resolved # NIL THEN

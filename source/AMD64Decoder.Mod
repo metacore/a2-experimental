@@ -2540,6 +2540,8 @@ TYPE
 			| 0FDH: Instr (opSTD);
 			| 0FEH: Group4;
 			| 0FFH: Group5;
+			ELSE
+			CASE code OF
 			| 00F00H: Group6;
 			| 00F01H: Group7;
 			| 00F02H: Instr (opLAR); Gv; Ew;
@@ -3048,6 +3050,7 @@ TYPE
 			| 00FFEH: Type3 (opPADDD);
 			ELSE
 				Invalid;
+			END;
 			END;
 
 			WHILE arg < maxArgs DO

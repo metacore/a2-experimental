@@ -352,10 +352,19 @@ PROCEDURE Append* (VAR s: ARRAY OF CHAR; CONST appendix: ARRAY OF CHAR);
 BEGIN Concat (s, appendix, s)
 END Append;
 
+
 (** appends appendix to s: s := s || appendix. The resulting string is truncated to the length of s if necessary *)
 PROCEDURE AppendX* (VAR s: ARRAY OF CHAR; CONST appendix: ARRAY OF CHAR);
 BEGIN ConcatX (s, appendix, s)
 END AppendX;
+
+(** appends an integer number to a string *)
+PROCEDURE AppendInt*(VAR s: ARRAY OF CHAR; num: LONGINT);
+VAR number: ARRAY 16 OF CHAR;
+BEGIN
+	IntToStr(num,number); Append(s,number);
+END AppendInt;
+
 
 (** appends a character to a string s := s || char *)
 PROCEDURE AppendChar*(VAR s: ARRAY OF CHAR; ch: CHAR);
