@@ -1,3 +1,4 @@
+
 MODULE Release; (** AUTHOR "staubesv"; PURPOSE "Release build tool"; *)
 (**
  *
@@ -915,7 +916,7 @@ TYPE
 			NEW(file, builds);
 			COPY(filename, file.name);
 			SplitName(file.name, pre, file.module.name, suf);
-			IF (suf = "Mod") THEN
+			IF (suf = "Mod") OR (suf="Mdf") OR (suf="Mos") THEN
 				INCL(file.flags, SourceCode);
 				file.ParseModule(diagnostics);
 				IF (diagnostics.nofErrors = 0) THEN
@@ -1654,7 +1655,7 @@ TYPE
 			IF (pre = ReleasePrefix) THEN
 				INCL(file.flags, HasReleasePrefix);
 			END;
-			IF (suf = "Mod") THEN
+			IF (suf = "Mod") OR (suf="Mdf") OR (suf = "Mos") THEN
 				INCL(file.flags, SourceCode);
 				INC(nofSources);
 				INC(package.nofSources);
@@ -2341,6 +2342,20 @@ PROCEDURE GetModuleInfo(
 		UNTIL ((level = 0) & (oldLevel = 0)) OR (in.res # Streams.Ok);
 	END SkipComments;
 
+	PROCEDURE SkipProperties (in : Streams.Reader);
+	VAR level, oldLevel, oldPosition : LONGINT; ch, nextCh : CHAR;
+	BEGIN
+		in.SkipWhitespace;
+		ch := in.Peek();
+		IF ch = "{" THEN
+			in.Char(ch);
+			REPEAT
+				in.Char(ch);
+			UNTIL (ch = "}") OR (in.res # Streams.Ok)
+		END;
+	END SkipProperties;
+
+
 	PROCEDURE GetIdentifier(in : Streams.Reader; VAR identifier : ARRAY OF CHAR);
 	VAR ch : CHAR; i : LONGINT;
 	BEGIN
@@ -2386,7 +2401,9 @@ PROCEDURE GetModuleInfo(
 		name := ""; COPY(Modules.DefaultContext, context);
 		SkipComments(in);
 		in.SkipWhitespace; in.String(token); Strings.UpperCase(token);
-		IF (token = "MODULE") THEN
+		IF (token = "MODULE") OR (token = "CELLNET") THEN
+			SkipComments(in);
+			SkipProperties(in);
 			SkipComments(in);
 			GetIdentifier(in, name);
 			IF (name # "") THEN
@@ -3234,7 +3251,7 @@ BEGIN
 				IF options.GetFlag("warnings") THEN
 					diagnostics.ToStream(context.out, Diagnostics.All);
 				ELSE
-					diagnostics.ToStream(context.out, {Diagnostics.TypeError, Diagnostics.TypeWarning});
+					diagnostics.ToStream(context.out, {Diagnostics.TypeError, Diagnostics.TypeInformation});
 				END;
 				context.out.Ln;
 			END;
