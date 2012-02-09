@@ -2,6 +2,7 @@ MODULE WebHTTP; (** AUTHOR "tf/be"; PURPOSE "HTTP parsing"; *)
 (* 02.04.2003 es, additional result codes, WebDAV methods. *)
 (* 12.04.2003 es, WebDAV result codes. *)
 
+
 IMPORT IP, TFLog, Streams, Dates, Strings;
 
 CONST
@@ -78,8 +79,10 @@ CONST
 	(* Chunker stuff *)
 	BufSize = 400H;
 	TokenSize = 10H;
-
-
+	
+	(*http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html*)
+	MaxRequestHeaderFields* = 47;
+	
 TYPE
 	AdditionalField* = POINTER TO RECORD
 		key* : ARRAY 64 OF CHAR;
@@ -421,31 +424,40 @@ BEGIN
 	IF wellformed & EOL(in) & (header.method # UnknownM) & (header.uri # "") THEN
 		in.SkipLn();
 		IF header.maj >= 1 THEN
-			REPEAT
-				GetToken(in, s);
-				Strings.TrimRight(s, ":");
-				IF s = "Host" THEN in.Char(ch); in.Ln(header.host)
-				ELSIF s = "Referer" THEN in.Char(ch); in.Ln(header.referer)
-				ELSIF s = "User-Agent" THEN in.Char(ch); in.Ln(header.useragent)
-				ELSIF s = "Accept" THEN in.Char(ch); in.Ln(header.accept)
-				ELSIF s = "Transfer-Encoding" THEN in.Char(ch); in.Ln( header.transferencoding)
-				ELSE
-					NEW(af); COPY(s, af.key); in.Char(ch); in.Ln(af.value);
-					af.next := header.additionalFields; header.additionalFields := af
-				END;
-			UNTIL (in.res # Streams.Ok) OR in.EOLN();
+			ParseRequestHeaderFields(in,header,res); (* PH120209 disentangled ParseRequestHeaderFields*)
 			in.SkipLn;
-			res := OK
 		ELSE
 			IF log # NIL THEN log.Enter; log.String("Unsupported HTTP version :"); log.Int(header.maj, 5); log.Exit END;
 			res := VersionNotSupported
 		END
 	ELSE
-		in.SkipLn(); (*PH Jan 2012*)
-		IF log # NIL THEN log.Enter; log.String("Unsupported HTTP method :"); log.Int(header.method, 5); log.Exit END;
+		(*in.SkipLn(); PH Jan 2012*)
+		IF log # NIL THEN log.Enter; log.String("Bad request :"); log.Int(header.method, 5); log.Exit END;
 		res := BadRequest
 	END
 END ParseRequest;
+
+PROCEDURE ParseRequestHeaderFields*(VAR in: Streams.Reader; VAR header: RequestHeader; VAR res: LONGINT);
+VAR s: ARRAY 32 OF CHAR; af: AdditionalField; ch :CHAR; i:LONGINT;
+BEGIN
+	i:=0;
+	REPEAT
+		GetToken(in, s);
+		Strings.TrimRight(s, ":");
+		IF s = "Host" THEN in.Char(ch); in.Ln(header.host)
+		ELSIF s = "Referer" THEN in.Char(ch); in.Ln(header.referer)
+		ELSIF s = "User-Agent" THEN in.Char(ch); in.Ln(header.useragent)
+		ELSIF s = "Accept" THEN in.Char(ch); in.Ln(header.accept)
+		ELSIF s = "Transfer-Encoding" THEN in.Char(ch); in.Ln( header.transferencoding)
+		ELSE
+			NEW(af); COPY(s, af.key); in.Char(ch); in.Ln(af.value);
+			af.next := header.additionalFields; header.additionalFields := af;
+			INC(i);
+		END;
+		IF i > MaxRequestHeaderFields-5 THEN res:=RequestEntityTooLarge; RETURN END; (* hardening against malignant requests*)
+	UNTIL (in.res # Streams.Ok) OR in.EOLN();
+	res := OK
+END ParseRequestHeaderFields;
 
 PROCEDURE ParseReply*(VAR in: Streams.Reader; VAR header: ResponseHeader; VAR res: LONGINT; log : TFLog.Log);
 VAR s, sLow: ARRAY 32 OF CHAR; af: AdditionalField;
