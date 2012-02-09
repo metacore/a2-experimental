@@ -151,9 +151,7 @@ PROCEDURE FindStringRaw(CONST filename : Files.FileName; param : Parameters; sta
 VAR
 	r : Files.Reader;
 	f : Files.File;
-	d : ARRAY 256 OF LONGINT;
-	cb : Strings.String;
-	cpos, i, j, k, m, shift : LONGINT;
+	m: LONGINT;
 	p : PatternParameters;
 BEGIN
 	ASSERT(param IS PatternParameters);
@@ -162,6 +160,13 @@ BEGIN
 	f := Files.Old(filename);
 	IF f # NIL THEN
 		Files.OpenReader(r, f, 0);
+		SearchPatternRaw(r,p.searchString); 
+		IF r.res=0 THEN 
+			context.out.String(filename); context.out.Ln; context.out.Update;
+			RETURN;
+		END;
+		
+		(*
 		NEW(cb, m);
 		WHILE  (r.res = 0) & (cpos < m) DO (* PH120206:  was  "WHILE (r.res # 0) & (cpos < m) "  *)
 			cb[cpos] := r.Get();
@@ -185,12 +190,48 @@ BEGIN
 				context.out.String(filename); context.out.Ln; context.out.Update;
 				RETURN;
 			END
-		END;
+		END;*)
+		
 	ELSE
 		context.error.String("Could not open file "); context.error.String(filename); context.error.Ln;
 		context.error.Update;
 	END
 END FindStringRaw;
+
+
+(* 	Boyer-Moore match for streams. This procedure opens a file as character stream and does not take special care of formatting information.
+	It also doesn't do statistics but just outputs the filename if a match occurs and returns after the first match.
+	Postcondition: 
+	- If pattern is found, Reader is positioned after <pattern> and r.res=0; otherwise r.res#0  *)
+	
+PROCEDURE SearchPatternRaw*(r : Streams.Reader; CONST pattern: ARRAY OF CHAR);
+VAR
+	d : ARRAY 256 OF LONGINT;
+	cb : Strings.String;
+	cpos, i, j, k, m, shift : LONGINT;
+BEGIN
+	m := Strings.Length(pattern);
+	NEW(cb, m);
+	WHILE (r.res = 0 ) & (cpos < m) DO
+		cb[cpos] := r.Get();
+		INC(cpos);
+	END;
+	IF r.res = 0 THEN
+		FOR i := 0 TO 255 DO d[i] := m END;
+		FOR i := 0 TO m-2 DO d[ORD(pattern[i])] := m - i - 1 END;
+		i := m;
+		REPEAT j := m; k := i;
+			REPEAT DEC(k); DEC(j);
+			UNTIL (j < 0) OR (pattern[j] # cb[k MOD m]);
+			shift := d[ORD(cb[(i-1) MOD m])];
+			i := i + shift;
+			WHILE (cpos < i) & (r.res = 0) DO
+				cb[cpos MOD m] := r.Get();
+				INC(cpos);
+			END;
+		UNTIL (j < 0) OR (r.res # 0);
+	END;
+END SearchPatternRaw;
 
 PROCEDURE Enumerate(CONST pattern : ARRAY OF CHAR; param : Parameters; proc : EnumProc; stats : Statistics; context : Commands.Context);
 VAR
@@ -324,4 +365,4 @@ SearchTools.Find E:/WinaosNewCommands/winaos/src/*.Mod Commands  ~
 SearchTools.Replace E:/WinaosNewCommands/source/*.Mod AosCommands Commands ~
 SearchTools.Replace E:/WinaosNewCommands/winaos/src/*.Mod AosCommands Commands ~
 
-SystemTools.Free SearchTools ~
+SystemTools.FreeDownTo SearchTools ~
