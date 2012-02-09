@@ -354,7 +354,7 @@ VAR
 																   CONST lpName: ARRAY   OF CHAR ): HANDLE;
 	(** The CreateFile function creates or opens the following objects and returns a handle that can be used to access the object:
 		 files, pipes, mailslots, communications resources, disk devices (Windows NT only), consoles, directories (open only) *)
-	CreateFile-: PROCEDURE {WINAPI} ( VAR lpFileName: ARRAY   OF CHAR;
+	CreateFile-: PROCEDURE {WINAPI} ( CONST lpFileName: ARRAY   OF CHAR;
 																dwDesiredAccess, dwShareMode: SET;
 																lpSecurityAttributes: ANY;
 																dwCreationDistribution: LONGINT;
@@ -362,7 +362,7 @@ VAR
 																hTemplateFile: HANDLE ): HANDLE;
 	(** The CreateProcess function creates a new process and its primary thread. The new process executes the specified
 			executable file. *)
-	CreateProcess-: PROCEDURE {WINAPI} ( VAR lpApplicationName, lpCommandLine: ARRAY   OF CHAR;
+	CreateProcess-: PROCEDURE {WINAPI} ( CONST lpApplicationName, lpCommandLine: ARRAY   OF CHAR;
 																	   lpProcessAttributes, lpThreadAttributes: ANY;
 																	   bInheritHandles: BOOL;
 																	   dwCreationFlags: LONGINT;
