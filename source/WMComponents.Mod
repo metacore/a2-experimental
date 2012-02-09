@@ -800,9 +800,8 @@ TYPE
 			ELSIF property = font THEN
 				IF scaleFont.Get() # 0 THEN
 					ScaleFont(bounds.GetHeight(), scaleFont.Get());
-				ELSE
-					Invalidate;
-				END
+				END;
+				Invalidate;
 			ELSIF property = visible THEN Resized
 			ELSIF property = alignment THEN AlignmentChanged
 			ELSIF property = fillColor THEN Invalidate;
