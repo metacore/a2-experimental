@@ -18,7 +18,7 @@ TYPE
 
 			variables*: TFClasses.List; (** List of HTTPVariable *)
 
-		PROCEDURE &Init*(requestHeader: WebHTTP.RequestHeader; bodyReader: Streams.Reader);
+		PROCEDURE &Init*(VAR requestHeader: WebHTTP.RequestHeader; bodyReader: Streams.Reader);
 			VAR pos: LONGINT; restLength: LONGINT; uriReader : Streams.StringReader; uriRest : Strings.String;
 				contentType: ARRAY 40 OF CHAR;
 		BEGIN
@@ -220,3 +220,44 @@ TYPE
 END HTTPSupport.
 
 System.Free HTTPSupport ~
+
+
+
+
+
+[RFC3261] Section 25.1 defines the syntax for the WWW-Authenticate and Proxy-Authenticate header fields as follows.
+
+Proxy-Authenticate  = "Proxy-Authenticate" HCOLON challenge
+WWW-Authenticate    = "WWW-Authenticate" HCOLON challenge
+
+challenge           = ("Digest" LWS digest-cln *(COMMA digest-cln))
+                      / other-challenge
+
+This protocol defines the following extensions.
+
+challenge           = ("Digest" LWS digest-cln *(COMMA digest-cln))
+                      / "NTLM" LWS msspi-cln *(COMMA msspi-cln)
+                      / "Kerberos" LWS msspi-cln *(COMMA msspi-cln)
+                      / "TLS-DSK" LWS msspi-cln *(COMMA msspi-cln)
+                      / other-challenge
+digest-cln          = realm / domain / nonce
+                      / opaque / stale / algorithm
+                      / qop-options / auth-param
+algorithm           = "algorithm" EQUAL 
+                      ( "MD5" / "MD5-sess"/ "SHA256-sess" / token )
+msspi-cln           = realm / opaque 
+                      / targetname / gssapi-data / version / sts-uri
+targetname          = "targetname" EQUAL target-value
+target-value        = DQUOTE ( ntlm-target-val 
+                      / ( "sip/" kerberos-target-val)
+                      / tls-dsk-target-val ) DQUOTE
+ntlm-target-val     = token
+kerberos-target-val = token      
+tls-dsk-target-val  = token
+gssapi-data         = "gssapi-data" EQUAL gssapi-data-value
+gssapi-data-value   = quoted-string
+version             = "version" EQUAL version-value
+version-value       = 1*DIGIT
+sts-uri             = "sts-uri" EQUAL DQUOTE absoluteURI DQUOTE
+
+
