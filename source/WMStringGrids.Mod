@@ -402,7 +402,7 @@ TYPE
 
 		PROCEDURE DrawCell(canvas : WMGraphics.Canvas; w, h : LONGINT; state : SET; x, y : LONGINT);
 		VAR
-			s : String; font : WMGraphics.Font; left, c, tc: LONGINT; img : WMGraphics.Image;
+			s : String; font : WMGraphics.Font; left, c, tc: LONGINT; img : WMGraphics.Image; dispW, dispH: LONGINT;
 			valid : BOOLEAN;
 		BEGIN
 			s := model.GetCellText(x, y);
@@ -438,11 +438,16 @@ TYPE
 
 			IF s # NIL THEN
 				IF img # NIL THEN
-					canvas.ScaleImage(img, WMRectangles.MakeRect(0, 0, img.width, img.height),	WMRectangles.MakeRect(1, 1, w - 2, h - 2), WMGraphics.ModeSrcOverDst, 10);
+					dispW := img.width;
+					dispH := img.height;
+					IF dispW > w-2 THEN dispW := w-2 END;
+					IF dispH > h-2 THEN dispH := h-2 END;
+					IF (dispW # img.width) OR (dispH # img.height) THEN
+						canvas.ScaleImage(img, WMRectangles.MakeRect(0, 0, img.width, img.height),	WMRectangles.MakeRect(1, 1, dispW, dispH), WMGraphics.ModeSrcOverDst, 10);
+					ELSE
+						canvas.DrawImage(1, 1, img, WMGraphics.ModeSrcOverDst);
+					END
 				END;
-				(*
-				canvas.DrawImage(1, 1, img, WMGraphics.ModeSrcOverDst);
-				*)
 				WMGraphics.DrawStringInRect(canvas, WMRectangles.MakeRect(left, 1, w - 2, h - 2), FALSE,
 					model.GetTextAlign(x, y), WMGraphics.AlignCenter, s^)
 			END;
