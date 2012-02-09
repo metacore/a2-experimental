@@ -163,7 +163,7 @@ BEGIN
 	IF f # NIL THEN
 		Files.OpenReader(r, f, 0);
 		NEW(cb, m);
-		WHILE (r.res # 0) & (cpos < m) DO
+		WHILE  (r.res = 0) & (cpos < m) DO (* PH120206:  was  "WHILE (r.res # 0) & (cpos < m) "  *)
 			cb[cpos] := r.Get();
 			INC(cpos);
 		END;
