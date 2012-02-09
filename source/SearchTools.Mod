@@ -220,16 +220,21 @@ BEGIN
 		FOR i := 0 TO 255 DO d[i] := m END;
 		FOR i := 0 TO m-2 DO d[ORD(pattern[i])] := m - i - 1 END;
 		i := m;
-		REPEAT j := m; k := i;
+		(* REPEAT *)
+		LOOP
+			j := m; k := i;
 			REPEAT DEC(k); DEC(j);
 			UNTIL (j < 0) OR (pattern[j] # cb[k MOD m]);
+			IF j<0 THEN EXIT END; (* PH *)
 			shift := d[ORD(cb[(i-1) MOD m])];
 			i := i + shift;
 			WHILE (cpos < i) & (r.res = 0) DO
 				cb[cpos MOD m] := r.Get();
 				INC(cpos);
 			END;
-		UNTIL (j < 0) OR (r.res # 0);
+			IF r.res#0 THEN EXIT END; (* PH *)
+		END;
+		(* UNTIL (j < 0) OR (r.res # 0); *)
 	END;
 END SearchPatternRaw;
 
