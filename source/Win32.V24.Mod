@@ -1,6 +1,6 @@
 MODULE V24;   (**  AUTHOR "fof"; PURPOSE "V24 (V24/RS-232 driver) for WinAos";  **)
 
-IMPORT Kernel32, KernelLog, Heaps, Kernel, Commands, Serials, Strings;
+IMPORT Kernel32, KernelLog, Heaps, Kernel, Commands, Serials, Strings, D:= Debugging;
 
 CONST
 
@@ -379,7 +379,7 @@ TYPE
 
 	(** Scan the installed serial ports  *)
 	PROCEDURE Scan*(context : Commands.Context);
-	VAR i, ret: LONGINT; name: ARRAY 256 OF CHAR;
+	VAR i, ret: LONGINT; name,winname: ARRAY 256 OF CHAR;
 		strNumber: ARRAY 4 OF CHAR;
 	BEGIN
 		context.out.String( "Serial port detection and inspection (WinAos):" ); context.out.Ln;
@@ -388,8 +388,9 @@ TYPE
 			Strings.IntToStr(i, strNumber);
 			Strings.Append(name, strNumber);
 			context.out.String( name ); context.out.String( ":" );
-			ret := Kernel32.QueryDosDevice( name, name, LEN( name ) );
-			IF ret # Kernel32.False THEN context.out.String( name );  context.out.String( "." );
+			ret := Kernel32.QueryDosDevice( name, winname, LEN( name ) );
+			IF ret # Kernel32.False THEN
+				context.out.String( winname );  context.out.String( "." );
 			ELSE context.out.String( " no such port." );
 			END;
 			context.out.Ln
@@ -400,13 +401,14 @@ TYPE
 	END Install;
 
 (** Create a port object for each windows COM port *)
-	PROCEDURE Init;
+	PROCEDURE Init*;
 	VAR
 		i, ret: LONGINT;
 		name : ARRAY 8 OF CHAR;
 		winname: ARRAY 256 OF CHAR;
 		port: Port;
 		strNumber: ARRAY 4 OF CHAR;
+		serialsPort: Serials.Port;
 	BEGIN
 		FOR i := 1 TO MaxPortNo DO
 			COPY( "COM", name );
@@ -414,8 +416,13 @@ TYPE
 			Strings.Append(name, strNumber);
 			ret := Kernel32.QueryDosDevice(name, winname, LEN( winname ) );
 			IF ret # 0 THEN
-				NEW(port, i);
-				Serials.RegisterOnboardPort( i , port, name, winname );
+				serialsPort := Serials.GetPort(i);
+				IF (serialsPort = NIL) OR (serialsPort.description # winname) THEN
+					D.String("new port to register"); D.Ln;
+					IF serialsPort # NIL THEN Serials.UnRegisterPort(serialsPort) END;
+					NEW(port, i);
+					Serials.RegisterOnboardPort( i , port, name, winname );
+				END;
 			END;
 		END;
 	END Init;
