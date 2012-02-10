@@ -52,11 +52,18 @@ TYPE
 
 				socket	: LONGINT;  localAdr, foreignAdr: Sockets.SocketAdr;
 				
+				(* the next variables are for interface compatibility only *)
+				irs-: LONGINT;	(* initial receive sequence number *)
+				rcvnxt-: LONGINT;	(* receive next *)
+				iss-: LONGINT;	(* initial send sequence number *)
+				sndnxt-: LONGINT;	(* send next *)
+				
 				(* Initialization for internal use only. *)
 
 				PROCEDURE & Init*;
 				BEGIN
 					state := Unused;
+					irs := 0; iss := 0;  rcvnxt := 0;  sndnxt := 0
 				END Init;
 				
 
@@ -139,7 +146,7 @@ TYPE
 					ELSE
 						res := NotConnected (* Send on a Connection with state=Listen *)
 					END;
-					res := Ok;
+					INC( sndnxt );  res := Ok;
 				END Send;
 
 				(** Receive data on a TCP connection. The data parameter specifies the buffer.
@@ -169,6 +176,7 @@ TYPE
 									DEC( size, x );  INC( len, x );  INC( ofs, x );
 									IF len >= min THEN  
 										IF trace THEN  ShowBuffer( data, p, len )  END;
+										INC( rcvnxt );
 										RETURN  
 									END
 								ELSE
