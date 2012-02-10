@@ -80,8 +80,7 @@ CONST
 	BufSize = 400H;
 	TokenSize = 10H;
 	
-	(*http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html*)
-	MaxRequestHeaderFields* = 47;
+	MaxRequestHeaderFields* = 47+10; (* at most 47 standard headers of RFC 2616 plus a number of additional header fields*)
 	
 TYPE
 	AdditionalField* = POINTER TO RECORD
@@ -441,6 +440,7 @@ PROCEDURE ParseRequestHeaderFields*(VAR in: Streams.Reader; VAR header: RequestH
 VAR s: ARRAY 32 OF CHAR; af: AdditionalField; ch :CHAR; i:LONGINT;
 BEGIN
 	i:=0;
+	header.additionalFields:=NIL; (*PH 120210*)
 	REPEAT
 		GetToken(in, s);
 		Strings.TrimRight(s, ":");
