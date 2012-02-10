@@ -1,6 +1,6 @@
 MODULE V24;   (**  AUTHOR "fof"; PURPOSE "V24 (V24/RS-232 driver) for WinAos";  **)
 
-IMPORT Kernel32, KernelLog, Heaps, Kernel, Commands, Serials, Strings, D:= Debugging;
+IMPORT Kernel32, KernelLog, Heaps, Kernel, Commands, Serials, Strings;
 
 CONST
 
@@ -418,7 +418,6 @@ TYPE
 			IF ret # 0 THEN
 				serialsPort := Serials.GetPort(i);
 				IF (serialsPort = NIL) OR (serialsPort.description # winname) THEN
-					D.String("new port to register"); D.Ln;
 					IF serialsPort # NIL THEN Serials.UnRegisterPort(serialsPort) END;
 					NEW(port, i);
 					Serials.RegisterOnboardPort( i , port, name, winname );
