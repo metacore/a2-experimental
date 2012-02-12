@@ -2188,36 +2188,60 @@ TYPE
 
 				MakeOperand(instruction.op1,Low,op1,edi);
 				MakeOperand(instruction.op2,Low,op2,esi);
-				MakeOperand(instruction.op3,Low,op3,ecx);
 
-				t := TemporaryTicket(IntermediateCode.GeneralPurposeRegister, IntermediateCode.int32);
-				TicketToOperand(t, temp);
-
-				IF (instruction.op1.mode = IntermediateCode.ModeRegister) & (instruction.op1.register = IntermediateCode.SP) THEN
+				IF (instruction.op1.mode = IntermediateCode.ModeRegister) & (instruction.op1.register = IntermediateCode.SP) & IntermediateCode.IsConstantInteger(instruction.op3, size) & (size >= 4096)  THEN
 					(* special case on stack: copy downwards for possible stack allocation *)
-					emitter.Emit2(InstructionSet.opADD, opEDI, opECX);
-					emitter.Emit2(InstructionSet.opADD, opESI, opECX);
-					emitter.Emit2(InstructionSet.opMOV, temp, opECX);
-					imm := Assembler.NewImm8(3);
-					emitter.Emit2(InstructionSet.opAND, temp, imm);
-					imm := Assembler.NewImm8(2);
-					emitter.Emit2(InstructionSet.opSHR, opECX, imm);
-					emitter.Emit0(InstructionSet.opSTD); (* copy upwards *)
+					IF size MOD 4 # 0 THEN
+						imm := Assembler.NewImm32(size-1);
+						emitter.Emit2(InstructionSet.opADD, opEDI, imm);
+						emitter.Emit2(InstructionSet.opADD, opESI, imm);
+						imm := Assembler.NewImm32(size MOD 3);
+						emitter.Emit2(InstructionSet.opMOV, opECX, imm);
+						emitter.Emit0(InstructionSet.opSTD); (* copy down *)
+						emitter.EmitPrefix (InstructionSet.prfREP);
+						emitter.Emit0(InstructionSet.opMOVSB);
+						imm := Assembler.NewImm32(size DIV 4);
+						emitter.Emit2(InstructionSet.opMOV, opECX, imm);
+						emitter.EmitPrefix (InstructionSet.prfREP);
+						emitter.Emit0(InstructionSet.opMOVSD);
+					ELSE
+						imm := Assembler.NewImm32(size-4);
+						emitter.Emit2(InstructionSet.opADD, opEDI, imm);
+						emitter.Emit2(InstructionSet.opADD, opESI, imm);
+						imm := Assembler.NewImm32(size DIV 4);
+						emitter.Emit2(InstructionSet.opMOV, opECX, imm);
+						emitter.Emit0(InstructionSet.opSTD); (* copy down *)
+						emitter.EmitPrefix (InstructionSet.prfREP);
+						emitter.Emit0(InstructionSet.opMOVSD);
+					END
+				ELSIF  IntermediateCode.IsConstantInteger(instruction.op3, size) THEN
+					imm := Assembler.NewImm32(size DIV 4);
+					emitter.Emit2(InstructionSet.opMOV, opECX, imm);
+					emitter.Emit0(InstructionSet.opCLD); (* copy upwards *)
+					emitter.EmitPrefix (InstructionSet.prfREP);
+					emitter.Emit0(InstructionSet.opMOVSD);
+					IF size MOD 4 # 0 THEN
+						imm := Assembler.NewImm32(size MOD 4);
+						emitter.Emit2(InstructionSet.opMOV, opECX, imm);
+						emitter.EmitPrefix (InstructionSet.prfREP);
+						emitter.Emit0(InstructionSet.opMOVSB);
+					END;
 				ELSE
+					MakeOperand(instruction.op3,Low,op3,ecx);
+					t := TemporaryTicket(IntermediateCode.GeneralPurposeRegister, IntermediateCode.int32);
+					TicketToOperand(t, temp);
 					emitter.Emit2(InstructionSet.opMOV, temp, opECX);
 					imm := Assembler.NewImm8(3);
 					emitter.Emit2(InstructionSet.opAND, temp, imm);
 					imm := Assembler.NewImm8(2);
 					emitter.Emit2(InstructionSet.opSHR, opECX, imm);
 					emitter.Emit0(InstructionSet.opCLD); (* copy upwards *)
+					emitter.EmitPrefix (InstructionSet.prfREP);
+					emitter.Emit0(InstructionSet.opMOVSD);
+					emitter.Emit2(InstructionSet.opMOV, opECX, temp);
+					emitter.EmitPrefix (InstructionSet.prfREP);
+					emitter.Emit0(InstructionSet.opMOVSB);
 				END;
-				emitter.EmitPrefix (InstructionSet.prfREP);
-				emitter.Emit0(InstructionSet.opMOVSD);
-				emitter.Emit2(InstructionSet.opMOV, opECX, temp);
-				emitter.EmitPrefix (InstructionSet.prfREP);
-				emitter.Emit0(InstructionSet.opMOVSB);
-
-
 				UnmapTicket(esi);
 				UnmapTicket(edi);
 				UnmapTicket(ecx);
