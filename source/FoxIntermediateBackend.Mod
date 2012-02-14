@@ -721,7 +721,7 @@ TYPE
 			implementationVisitor.moduleSelf := moduleSelf;
 			meta.SetModule(module);
 
-			IF (forceModuleBody OR implementationVisitor.newObjectFile OR ScopeNeedsInitialization(x.moduleScope)) & ~meta.simple THEN
+			IF (forceModuleBody OR implementationVisitor.newObjectFile  & ~meta.simple  OR ScopeNeedsInitialization(x.moduleScope)) THEN
 				EnsureBodyProcedure(x.moduleScope); (* currently needed in Oberon, remove ? *)
 			END;
 
