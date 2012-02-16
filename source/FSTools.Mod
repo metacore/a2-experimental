@@ -369,12 +369,12 @@ BEGIN
 			context.out.Update;
 			context.error.Update;
 		ELSIF options.GetFlag("subdirectories") THEN
-			Strings.Append(name, Files.PathDelimiter);
 			IF options.GetFlag("directories") THEN
+				Strings.Append(name, Files.PathDelimiter);
 				PrepareContext(context, name, arguments);
 				enumProc(context);
+				Strings.Append(name, filemask);
 			END;
-			Strings.Append(name, filemask);
 			NEW(subDirEnum);
 			subDirEnum.Open(name, {});
 			EnumerateDirectory(subDirEnum, enumProc, options, context, filemask, arguments);
@@ -413,7 +413,9 @@ BEGIN
 					NEW(arguments, context.arg.Available()); Strings.Truncate(arguments^, 0);
 					context.arg.Bytes(arguments^, 0, context.arg.Available(), res); (* ignore res *)
 					NEW(enumContext, context.in, arg, context.out, context.error, context.caller);
+
 					EnumerateDirectory(enum, enumProc, options, context, filemask, arguments^);
+					enum.Close;
 				ELSE
 					context.out.String("Procedure "); context.out.String(commandProcStr); context.out.String(" not found");
 					context.out.Ln;
