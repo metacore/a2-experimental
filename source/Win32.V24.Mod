@@ -380,21 +380,23 @@ TYPE
 	(** Scan the installed serial ports  *)
 	PROCEDURE Scan*(context : Commands.Context);
 	VAR i, ret: LONGINT; name,winname: ARRAY 256 OF CHAR;
-		strNumber: ARRAY 4 OF CHAR;
+		strNumber: ARRAY 4 OF CHAR; found: BOOLEAN;
 	BEGIN
 		context.out.String( "Serial port detection and inspection (WinAos):" ); context.out.Ln;
+		found := FALSE;
 		FOR i := 1 TO MaxPortNo DO
 			COPY( "COM", name );
 			Strings.IntToStr(i, strNumber);
 			Strings.Append(name, strNumber);
-			context.out.String( name ); context.out.String( ":" );
 			ret := Kernel32.QueryDosDevice( name, winname, LEN( name ) );
 			IF ret # Kernel32.False THEN
+				found := TRUE;
+				context.out.String( name ); context.out.String( ":" );
 				context.out.String( winname );  context.out.String( "." );
-			ELSE context.out.String( " no such port." );
+				context.out.Ln
 			END;
-			context.out.Ln
 		END;
+		IF ~found THEN context.out.String("no ports found"); context.out.Ln END;
 	END Scan;
 
 	PROCEDURE Install*;

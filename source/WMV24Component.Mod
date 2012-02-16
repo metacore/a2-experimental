@@ -1486,6 +1486,13 @@ BEGIN {EXCLUSIVE}
 	END;
 END Cleanup;
 
+PROCEDURE InitV24;
+VAR res: LONGINT; msg: ARRAY 32 OF CHAR;
+BEGIN
+	Commands.Call("V24.Install",{},res,msg); (* auto-initialize V24 in Windows *)
+END InitV24;
+
+
 BEGIN
 	Modules.InstallTermHandler(Cleanup);
 	InitStrings;
