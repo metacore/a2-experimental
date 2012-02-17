@@ -66,8 +66,8 @@ CONST
 		RhsIsPointer = 1;
 
 		(* priority values, lower means higher priority *)
-		FirstPriority=-4;
-		EntryPriority=-3;
+		EntryPriority=-4;
+		FirstPriority=-3;
 		InitPriority=-2;
 		ExitPriority=-1;
 TYPE
