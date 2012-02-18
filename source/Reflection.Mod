@@ -301,11 +301,39 @@ VAR
 		END
 	END WriteProc0;
 
+	(* non-blocking version of Modules.ThisModuleByAdr *)
+	(** Return the module that contains code address pc or NIL if not found. Can also return freed modules. *)
+	PROCEDURE ThisModuleByAdr*(pc: SYSTEM.ADDRESS): Modules.Module;
+	VAR m: Modules.Module; cbase, dbase: SYSTEM.ADDRESS; i: LONGINT; found: BOOLEAN;
+	BEGIN
+		i := 0; found := FALSE;
+		REPEAT
+			CASE i OF
+				0: m := Modules.root
+				|1: m := Modules.freeRoot
+			END;
+			WHILE (m # NIL) & ~found DO
+				cbase := SYSTEM.ADR(m.code[0]); dbase := SYSTEM.ADR(m.data[0]);
+					(* include 1 byte after module in module, therefore <= below *)
+				IF (cbase <= pc) & (pc <= cbase + LEN(m.code^)) THEN
+					found := TRUE
+				ELSIF (dbase <= pc) & (pc <= dbase + LEN(m.data^)) THEN
+					found := TRUE
+				ELSE
+					m := m.next
+				END
+			END;
+			INC(i)
+		UNTIL found OR (i = 2);
+		RETURN m
+	END ThisModuleByAdr;
+
+
 	(** Find procedure name and write it. *)
 	PROCEDURE WriteProc*(w: Streams.Writer; pc: SYSTEM.ADDRESS);
 	VAR refs: Modules.Bytes; refpos: LONGINT; base: SYSTEM.ADDRESS;
 	BEGIN
-		WriteProc0(w, Modules.ThisModuleByAdr(pc), pc, -1, refs, refpos, base)
+		WriteProc0(w, ThisModuleByAdr(pc), pc, -1, refs, refpos, base)
 	END WriteProc;
 
 	(* Returns the name of the procedure the pc is in. Searchs in m.refs *)
@@ -315,7 +343,7 @@ VAR
 		ch: CHAR;
 		m: Modules.Module;
 	BEGIN
-		m := Modules.ThisModuleByAdr(pc);
+		m := ThisModuleByAdr(pc);
 
 
 		IF m # NIL THEN
@@ -357,7 +385,7 @@ VAR
 		startpc: SYSTEM.ADDRESS;
 	BEGIN
 		pos := -1;
-		m := Modules.ThisModuleByAdr(pc);
+		m := ThisModuleByAdr(pc);
 		IF m # NIL THEN
 			IF ~NewObjectFile(m.refs) THEN
 				DEC(pc, SYSTEM.ADR(m.code[0]));
@@ -502,7 +530,7 @@ VAR
 		count := 0;	(* frame count *)
 		stacklow := bp;
 		REPEAT
-			m := Modules.ThisModuleByAdr(pc);
+			m := ThisModuleByAdr(pc);
 			IF (ShowAllProcs OR (m # NIL) OR (count = 0)) & (bp # 0) & (bp >= stacklow) & (bp <= stackhigh) THEN
 				WriteProc0(w, m, pc, bp, refs, refpos, base); w.Ln;	w.Update;
 				IF long & (~overflow OR (count > 0)) THEN	(* show variables *)

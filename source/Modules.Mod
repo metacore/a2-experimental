@@ -151,6 +151,7 @@ VAR
 	numPtrs: LONGINT;
 	shutdown*: LONGINT;	(** None, Reboot, PowerDown *)
 	trace: BOOLEAN;
+	ptrOffsetsLock: BOOLEAN;
 
 (** Register a module loader. *)
 
@@ -200,17 +201,22 @@ BEGIN
 	Machine.Acquire(Machine.Modules);
 	n := root; WHILE (n # NIL) & (n.name # m.name) DO n := n.next END;
 	IF n # NIL THEN	(* module with same name exists, return it and ignore new m *)
-		m := n; new := FALSE
+		m := n; new := FALSE;
+		Machine.Release(Machine.Modules);
 	ELSE
 		m.published := TRUE;
 		m.next := root; root := m;
 		m.refcnt := 0;
+		FOR i := 0 TO LEN(m.module)-1 DO INC(m.module[i].refcnt) END;
+		new := TRUE;
+		(* another process may still be busy with entering procOffsets in the global table, wait here until not locked *)
+		REPEAT UNTIL ~ptrOffsetsLock; (* only one process at a time can check this and only one process at a time can set and reset --> no race problem *)
+		ptrOffsetsLock := TRUE;
+		Machine.Release(Machine.Modules);
+		(* InsertProcOffsets may not be called with the modules lock, cf. comment in InsertProcOffsets *)
 		InsertProcOffsets(m.procTable, m.ptrTable, m.maxPtrs);
 		m.procTable := NIL; m.ptrTable := NIL; (* not used any more as entered in global variable *)
-		FOR i := 0 TO LEN(m.module)-1 DO INC(m.module[i].refcnt) END;
-		new := TRUE
 	END;
-	Machine.Release(Machine.Modules)
 END Publish;
 
 (* runtime call for new compiler -- called by body of loaded module *)
@@ -462,7 +468,17 @@ END NumTotalPtrs;
 PROCEDURE InsertProcOffsets(procTable: ProcTable; ptrTable: PtrTable; maxPtr: LONGINT);
 VAR success: BOOLEAN; i, j, pos, poslast, newLen, num: LONGINT; newProcOffsets: ProcOffsetTable; newPtrOffsets: PtrTable;
 BEGIN
-	(* this procedure is called by procedure Publish only and is protected by the Machine.Modules lock *)
+	(* this procedure is called by procedure Publish only and is protected by the ptrOffsetsLock lock *)
+	(* the Modules lock may not be taken because there is a NEW statement in this procedure:
+		- this would violate the locking order precondition of Machine locks (no process holding a lower level lock can aquire a higher level lock) to prevent deadlocks
+		- if this is violated (and Machine.strongChecks = FALSE, otherwise trap) then a deadlock can occur in the following subtle way:
+			- this process takes the Module lock and stores the current interrupt state and disables interrupt
+			- this process temporarily aquires the Heaps lock (no problem)
+			- in case of a garbage collection, this process acquires the Objects lock (in Heaps.gcStatus of type Objects.GCStatus)
+			- the scheduler is configured to only schedule processes of at least GC priority and normally the timer interrupt is expected to collect all still running processes
+			- however, upon releasing the Objects lock, the interrupts are not enabled (because the ModulesLock is still acquired) and therefore the GC process can never be scheduled
+			-> deadlock
+	*)
 	IF LEN(procTable) > 0 THEN
 		IF numProcs + LEN(procTable) > LEN(procOffsets) THEN
 			newLen := LEN(procOffsets) + InitTableLen;
@@ -496,7 +512,9 @@ BEGIN
 			numPtrs := numPtrs + procTable[i].noPtr;
 		END;
 		numProcs := numProcs + LEN(procTable);
-	END
+	END;
+	(* release the ptrOffsetLock *)
+	ptrOffsetsLock := FALSE;
 END InsertProcOffsets;
 
 (** deletes a sequence of entries given in procTable from the global procOffsets table - the table remains sorted,
@@ -700,6 +718,7 @@ VAR
 	s: ARRAY 4 OF CHAR;
 BEGIN
 	(* root and initBlock are initialized by the linker *)
+	ptrOffsetsLock := FALSE;
 	shutdown := None;
 	numLoaders := 0;
 	freeRoot := NIL;
