@@ -421,7 +421,7 @@ PROCEDURE ParseRequest*(VAR in: Streams.Reader; VAR header: RequestHeader; VAR r
 VAR s: ARRAY 32 OF CHAR; af: AdditionalField; ch :CHAR; wellformed: BOOLEAN;
 BEGIN
 	header.host[0] := 0X;
-	in.SkipWhitespace; (* optimization PH 2012: to avoid unnecessary work in malformed requests*)
+	(*in.SkipWhitespace; *)(* optimization PH 2012: to avoid unnecessary work in malformed requests*)
 	GetToken(in, s); GetMethod(s, header.method);
 	GetToken(in, header.uri);
 	GetToken(in, s); 
