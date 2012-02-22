@@ -273,6 +273,13 @@ BEGIN
 END HasAdditionalField;
 
 (** Currently only for additional fields *)
+PROCEDURE GetAdditionalField*(af : AdditionalField; fieldName: ARRAY OF CHAR) : AdditionalField;
+BEGIN
+	WHILE (af # NIL) & (~EqualsI(af.key, fieldName)) DO af := af.next END;
+	RETURN af
+END GetAdditionalField;
+
+(** Currently only for additional fields *)
 PROCEDURE GetAdditionalFieldValue*(af: AdditionalField; fieldName: ARRAY OF CHAR; VAR value : ARRAY OF CHAR) : BOOLEAN;
 BEGIN
 	WHILE (af # NIL) & (~EqualsI(af.key, fieldName)) DO af := af.next END;
@@ -748,5 +755,7 @@ BEGIN
 END SplitHTTPAdr;
 
 END WebHTTP.
+
+
 
 System.Free WebHTTP~
