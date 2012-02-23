@@ -625,19 +625,18 @@ VAR
 		i := 0;
 		WHILE (i < MaxFreeLists) & (freeLists[i+1].minSize <= size)  DO  INC( i )  END;
 		
-		block := NIL;
 		REPEAT
-			IF freeLists[i].first = NIL THEN  INC( i )
-			ELSE
-				block := freeLists[i].first;  
+			block := freeLists[i].first;
+			IF block # NIL THEN  
 				IF block.size + AdrSize >= size THEN
-					freeLists[i].first := block.next 
-				ELSIF i >= FreeListBarrier THEN
+					 freeLists[i].first := block.next
+				ELSE  (* i = MaxFreeLists *)
 					REPEAT  prev := block;  block := block.next
 					UNTIL (block = NIL) OR (block.size + AdrSize >= size);
-					IF block # NIL THEN  prev.next := block.next  ELSE  INC( i )  END
+					IF block # NIL THEN  prev.next := block.next  END
 				END
-			END
+			END;
+			INC( i )
 		UNTIL (block # NIL) OR (i > MaxFreeLists);
 		RETURN block
 	END FindFreeBlock;
@@ -902,8 +901,12 @@ VAR
 	END GetHeapInfo;
 
 	PROCEDURE Used*( ): LONGINT;
+	VAR used: LONGINT;
 	BEGIN
-		RETURN heapSize - heapAvailable
+		Machine.Acquire( Machine.Heaps );
+		used := heapSize - heapAvailable;
+		Machine.Release( Machine.Heaps );
+		RETURN used
 	END Used;
 
 	PROCEDURE GetHeapSize( ): Size;
