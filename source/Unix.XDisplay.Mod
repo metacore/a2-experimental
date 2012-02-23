@@ -8,8 +8,6 @@ MODULE XDisplay;   (** X Windows display driver *)
 IMPORT S := SYSTEM, Trace, Unix, Machine, Files, UnixFiles, X11, Api:=X11Api, Displays, Strings;
 
 CONST
-	IconNameStr = "UnixAos";
-
 	BG = 0;  FG = 15;   (* Background, foreground colors.*)
 	
 
@@ -630,12 +628,15 @@ VAR
 	END NewPattern;
 
 	PROCEDURE InitNames;
-	VAR cwd: ARRAY 128 OF CHAR;
+	VAR cwd: ARRAY 128 OF CHAR;  i: LONGINT;
 	BEGIN
 		UnixFiles.GetWorkingDirectory( cwd );
 		COPY( Machine.version, winName );  
 		Strings.Append( winName, ",  Work: " );  Strings.Append( winName, cwd );
-		iconName := IconNameStr;
+		COPY( winName, iconName);  
+		i := 0;
+		WHILE iconName[i] > ' ' DO  INC( i )  END;
+		iconName[i] := 0X
 	END InitNames;
 
 	PROCEDURE getDisplayName;
