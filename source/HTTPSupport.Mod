@@ -1,5 +1,6 @@
 MODULE HTTPSupport; (** AUTHOR "Luc Blaeser/cs"; PURPOSE "HTTP Webserver Support Module for HTTP-Request Handling";
  contains also code parts from "CSHTTPSupport" by "cs" *)
+ (*PH2012 fix behaviour of wellformed POST with urlencoding in body and valid Content-Length*)
 
 IMPORT WebHTTP, Streams, Strings, TFClasses, KernelLog;
 
@@ -72,16 +73,16 @@ TYPE
 
 			PROCEDURE HasMoreData() : BOOLEAN;
 			BEGIN
-				RETURN ((r.Available() > 0) & close) OR (~close & (pos < size))
+				RETURN (close & (r.Available() > 0)) OR (~close & (pos < size)) (*PH 2012 fix behaviour of urlencoded POST with Content-Length *)
 			END HasMoreData;
 
 		BEGIN
 			pos := 0;
-			IF (~isUrlEncoded & WebHTTP.HasAdditionalField(header.additionalFields, "Content-Length")
+			IF (~isUrlEncoded & WebHTTP.HasAdditionalField(header.additionalFields, "Content-Length") 
 				& WebHTTP.GetAdditionalFieldValue(header.additionalFields, "Content-Length", s))THEN
-				Strings.StrToInt(s, size); close := FALSE
+				Strings.StrToInt(s, size); close := FALSE;
 			ELSE
-				close := TRUE
+				close := TRUE;
 			END;
 			WHILE (HasMoreData()) DO
 				NEW(var); var.isUrlEncoded := isUrlEncoded;
@@ -108,8 +109,8 @@ TYPE
 					var.value[i] := ch; INC(i)
 				END;
 				var.value[i] := 0X;
-				variables.Add(var)
-			END
+				variables.Add(var);
+			END;
 		END ParseVariables;
 
 		(** returns NIL if variable is not present *)
