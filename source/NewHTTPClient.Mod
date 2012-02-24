@@ -10,7 +10,7 @@ CONST
 	ErrIllegalResponse* = -3;
 
 TYPE
-	LimitedInStream* = OBJECT
+	(*LimitedInStream* = OBJECT
 	VAR inR: Streams.Reader;
 		remain: LONGINT;
 
@@ -34,7 +34,7 @@ TYPE
 			END
 		END Receiver;
 	END LimitedInStream;
-
+*)
 
 	HTTPConnection* = OBJECT
 	VAR host, referer, useragent, accept : ARRAY 128 OF CHAR;
@@ -76,7 +76,7 @@ TYPE
 			path : ARRAY 2048 OF CHAR;
 			port : LONGINT;
 			dechunk: WebHTTP.ChunkedInStream;
-			lin : LimitedInStream;
+			lin : WebHTTP.LimitedInStream;
 		BEGIN
 			requestHeader.maj := 1;
 			IF http11 THEN requestHeader.min := 1 ELSE requestHeader.min := 0 END;

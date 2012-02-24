@@ -228,6 +228,35 @@ TYPE
 			END
 		END Receiver;
 	END ChunkedInStream;
+	
+	(*
+	LimitedOutStream* = OBJECT (*to be done*)
+	END LimitedOutStream;
+	*)
+	
+	LimitedInStream* = OBJECT
+		VAR inR: Streams.Reader;
+			remain-: LONGINT;
+	
+		PROCEDURE &Init*(VAR inR, outR: Streams.Reader; size : LONGINT);
+		BEGIN
+			SELF.inR := inR;	remain := size;
+			Streams.OpenReader(outR, Receiver);
+		END Init;
+
+		PROCEDURE Receiver(VAR buf: ARRAY OF CHAR; ofs, size, min: LONGINT; VAR len, res: LONGINT);
+		VAR l: LONGINT;
+		BEGIN
+			IF remain > 0 THEN
+				ASSERT((size > 0) & (min <= size) & (min >= 0));
+				res := Streams.Ok;
+				l := size; IF l > remain THEN l := remain END;
+				inR.Bytes(buf, ofs, l, len);
+				DEC(remain, len);
+			ELSE res := Streams.EOF
+			END
+		END Receiver;
+	END LimitedInStream;
 
 PROCEDURE EOL(VAR in: Streams.Reader): BOOLEAN;
 BEGIN
