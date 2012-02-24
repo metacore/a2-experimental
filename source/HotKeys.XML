@@ -78,8 +78,8 @@
 	<!-- Example: Switch keyboard focus to previous/next window -->
 	<HotKey name="Open Windows Navigation" keys="CTRL+ALT+UP" command="WMNavigate.Open -vs 6 0 0 Navigation:TaskList "/>
 	<HotKey name="Close Windows Navigation" keys="CTRL+ALT+DOWN" command="WMNavigate.Close 6"/>
-	<HotKey name="FocusToNext" keys="CTRL+ALT+RIGHT" command="WMNavigate.FocusToNext"/>
-	<HotKey name="FocusToPrevious" keys="CTRL+ALT+LEFT" command="WMNavigate.FocusToPrevious"/>
+	<HotKey name="FocusToNext" keys="CTRL+TAB" command="WMNavigate.FocusToNext"/>
+	<HotKey name="FocusToPrevious" keys="CTRL+SHIFT+TAB" command="WMNavigate.FocusToPrevious"/>
 	
 	<!-- Example: Open window to enter and execute a command -->
 	<HotKey name="Run" keys="CTRL+R" command="HotKeysCommands.EnterCommand"/>
