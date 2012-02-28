@@ -2,7 +2,7 @@
 
 MODULE Commands; (** AUTHOR "pjm"; PURPOSE "Commands and parameters"; *)
 
-IMPORT Objects, Modules, Streams, KernelLog;
+IMPORT Objects, Modules, Streams, KernelLog, Trace, Machine;
 
 CONST
 
@@ -116,6 +116,7 @@ TYPE
 
 VAR
 	emptyString : ARRAY 1 OF CHAR;
+	trace: BOOLEAN;
 
 (* Create a ready on a empty string *)
 
@@ -178,6 +179,7 @@ END GetContext;
 PROCEDURE Activate*(CONST cmd : ARRAY OF CHAR; context : Context; flags : SET; VAR res : LONGINT; VAR msg : ARRAY OF CHAR);
 VAR moduleName, commandName : Modules.Name; run : Runner;
 BEGIN
+	IF trace THEN Trace.String("Commands.Activate "); Trace.String(cmd); Trace.Ln END;
 	Split(cmd, moduleName, commandName, res, msg);
 	IF (res = Ok) THEN
 		NEW(run, moduleName, commandName, context);
@@ -225,6 +227,15 @@ BEGIN
 	END;
 END Call;
 
+PROCEDURE Init;
+VAR s: ARRAY 4 OF CHAR;
 BEGIN
 	emptyString[0] := 0X;
+	Machine.GetConfig("TraceCommands", s);
+	trace := (s[0] = "1");
+END Init;
+
+
+BEGIN
+	Init
 END Commands.
