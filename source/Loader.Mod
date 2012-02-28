@@ -826,7 +826,7 @@ VAR
 BEGIN
 	f := Files.Old(fileName);
 	IF f # NIL THEN
-		IF FALSE THEN KernelLog.String("Loading ");  KernelLog.String(fileName);  KernelLog.Ln END;
+		IF trace THEN KernelLog.String("Loading ");  KernelLog.String(fileName);  KernelLog.Ln END;
 		res := Ok; msg[0] := 0X;
 		Files.OpenReader(r, f, 0);
 		ReadHeader(r, h, res, msg);

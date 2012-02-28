@@ -35,7 +35,9 @@ CONST
 	FileAttributeNotContentIndexed* = 13;
 
 	(** file creation flags *)
+	FileFlagDeleteOnClose*=26;
 	FileFlagRandomAccess* = 28;
+	FileFlagWriteThrough*= 31;
 
 	(** move method *)
 	FileBegin* = 0;

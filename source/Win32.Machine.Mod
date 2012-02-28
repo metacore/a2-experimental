@@ -108,7 +108,7 @@ VAR
 	lock-: ARRAY MaxLocks OF CHAR;  (* not implemented as SET because of shared access *)
 	cs: ARRAY MaxLocks OF Kernel32.CriticalSection;
 	trace: ARRAY 2 OF CHAR;
-	defaultConfigFile, userConfigFile: ARRAY Kernel32.MaxPath OF CHAR;
+	defaultConfigFile, userConfigFile, traceName: ARRAY Kernel32.MaxPath OF CHAR;
 
 	gcThreshold-: SYSTEM.SIZE;
 	bootHeapAdr: SYSTEM.ADDRESS; 	(* initialized by linker, variable name must not be changed, see Win32.Aos.Link *)
@@ -479,6 +479,7 @@ END GreaterOrEqual;
 		ASSERT ( locks <= 0 );
 		IF locks = MIN( LONGINT ) THEN RETURN END;   (* prevent double call *)
 		locks := MIN( LONGINT );  Trace.StringLn ( "Machine.Shutdown" );
+		RemoveTraceFile;
 		Kernel32.Shutdown( 0 );   (* calls the finalizer of Heaps *)
 	END Shutdown;
 
@@ -597,6 +598,7 @@ PROCEDURE SetTraceFile(VAR filename: ARRAY OF CHAR);
 BEGIN
 	Trace.String("trace -> file "); Trace.String(filename); Trace.Ln;
 	hout := Kernel32.CreateFile(filename, {Kernel32.GenericWrite}, {Kernel32.FileShareRead}, NIL, Kernel32.CreateAlways, {Kernel32.FileAttributeNormal}, Kernel32.NULL);
+	Kernel32.GetFullPathName(filename, LEN(filename), filename, NIL);
 	Trace.Char := TraceChar;
 END SetTraceFile;
 
@@ -610,8 +612,78 @@ BEGIN
 	Trace.Char := TraceChar;
 END SetTraceConsole;
 
+PROCEDURE SetupTraceName(VAR traceName: ARRAY OF CHAR);
+VAR
+	ext: ARRAY 256 OF CHAR;
+	extPos,i,j: LONGINT;
+	systemTime: Kernel32.SystemTime;
+	ch: CHAR;
+
+	PROCEDURE AppendDecimals(int: LONGINT; from, to: LONGINT);
+	VAR ten: LONGINT;
+	BEGIN
+		WHILE to >= from DO
+			traceName[i] := CHR(ORD("0")+ int DIV to MOD 10); INC(i);
+			to := to DIV 10;
+		END;
+	END AppendDecimals;
+
+BEGIN
+	Kernel32.GetLocalTime(systemTime);
+
+	extPos := 0;
+	REPEAT
+		ch := traceName[i];
+
+		IF ch = "." THEN j := 0; extPos := i END;
+
+		ext[j] := ch;
+		INC(j); INC(i);
+	UNTIL ch = 0X;
+
+	IF extPos > 0 THEN i := extPos END;
+	ext[j] := 0X;
+
+	AppendDecimals(systemTime.wYear,1,1000);
+	AppendDecimals(systemTime.wMonth,1,10);
+	AppendDecimals(systemTime.wDay,1,10);
+	traceName[i] := "_"; INC(i);
+	AppendDecimals(systemTime.wHour,1,10);
+	AppendDecimals(systemTime.wMinute,1,10);
+	AppendDecimals(systemTime.wSecond,1,10);
+	traceName[i] := "_"; INC(i);
+	AppendDecimals(systemTime.wMilliseconds,10,100);
+	j := 0;
+	REPEAT
+		ch := ext[j];
+		traceName[i] := ch;
+		INC(i); INC(j);
+	UNTIL ch = 0X;
+
+END SetupTraceName;
+
+PROCEDURE RemoveTraceFile;
+VAR res: LONGINT;
+BEGIN
+	IF traceName[0] # 0X THEN
+		Trace.String("removing "); Trace.String(traceName); Trace.Ln;
+		Trace.Char := LogChar;
+		res := Kernel32.CloseHandle(hout);
+		IF res = 0 THEN
+			res := Kernel32.GetLastError();
+			Trace.String("could not close "); Trace.String("; res = "); Trace.Int(res,1); Trace.Ln;
+		END;
+		res := Kernel32.DeleteFile(traceName);
+		IF res = 0 THEN
+			res := Kernel32.GetLastError();
+			Trace.String("could not delete "); Trace.String(traceName); Trace.String("; res = "); Trace.Int(res,1); Trace.Ln;
+		END;
+
+	END;
+END RemoveTraceFile;
+
 PROCEDURE Init;
-VAR vendor: Vendor; ver: LONGINT; traceName: ARRAY 256 OF CHAR;
+VAR vendor: Vendor; ver: LONGINT;
 BEGIN
 	locks := 0;
 	IF hInstance = Kernel32.NULL THEN  (* from exe file *)
@@ -631,10 +703,12 @@ BEGIN
 	userConfigFile[Kernel32.GetFullPathName (userConfigFile, Kernel32.MaxPath, userConfigFile, 0)] := 0X;
 	Trace.String("config file = "); Trace.String(userConfigFile); Trace.Ln;
 
+	traceName[0] := 0X;
 	GetConfig("Trace",traceName);
 	IF traceName = "File" THEN
-		GetConfig("TraceFile",traceName);
-		IF traceName # "" THEN SetTraceFile(traceName) END
+		traceName := "SystemTrace.txt";
+		SetupTraceName(traceName);
+		SetTraceFile(traceName);
 	ELSIF traceName = "Console" THEN SetTraceConsole
 	(* else trace is on kernel log *)
 	END;
