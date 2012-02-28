@@ -947,6 +947,23 @@ END
 
 PACKAGE GuiApplications ARCHIVE "GuiApplications.zip" SOURCE "GuiApplicationsSrc.zip" DESCRIPTION "Window Manager and Graphical Applications"
 
+	#TFPET
+	TFPET.Tool
+	code.css
+	highlight.js
+	TFStringPool.Mod
+	BimboScanner.Mod
+	TFTypeSys.Mod
+	TFDumpTS.Mod
+	TFScopeTools.Mod
+	TFCheck.Mod
+	TFAOParser.Mod
+	TFModuleTrees.Mod
+	TFPET.Mod
+	TFClasses.Mod
+	TFDocGenerator.Mod
+	TFXRef.Mod
+
 	CharacterLineup.Mod
 
 	WMDesktopIcons.Mod	# Programmable desktop icons

@@ -1,5 +1,7 @@
 MODULE TFClasses; (** AUTHOR "TF"; PURPOSE "Generic helper"; *)
 
+IMPORT Strings, SYSTEM;
+
 TYPE
 	ObjectArray* = POINTER TO ARRAY OF ANY;
 
@@ -217,6 +219,72 @@ TYPE
 		END SearchByKey;
 
 	END SortedList;
+
+	StringMapEntry = POINTER TO RECORD
+		key : Strings.String;
+		value : ANY;
+		next : StringMapEntry;
+		hash : LONGINT;
+	END;
+
+	StringMapEntryArray = POINTER TO ARRAY OF StringMapEntry;
+
+	StringHashMap* = OBJECT
+	VAR
+		hashtable : StringMapEntryArray;
+
+		PROCEDURE &Init*;
+		BEGIN
+			NEW(hashtable, 256);
+		END Init;
+		
+		PROCEDURE CalcHash(CONST buffer : ARRAY OF CHAR) : LONGINT;
+		VAR hash, i : LONGINT; ch : CHAR;
+		BEGIN
+			hash := 0;
+			i := 0; ch := buffer[0]; hash := 0;
+			WHILE ch # 0X DO
+				hash :=SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, SYSTEM.ROT(hash, 7)) / SYSTEM.VAL(SET, LONG(ORD(ch))));
+				INC(i); ch := buffer[i]
+			END;
+			RETURN hash
+		END CalcHash;
+
+		PROCEDURE Find*(CONST key : ARRAY OF CHAR) : ANY;
+		VAR hash : LONGINT;
+			e : StringMapEntry;
+		BEGIN
+			hash := CalcHash(key);
+			e := hashtable[hash MOD LEN(hashtable)];
+			WHILE (e # NIL) & (e.key^ # key) DO e := e.next END;
+			IF e # NIL THEN RETURN e.value 
+			ELSE RETURN NIL
+			END;
+		END Find;
+
+		PROCEDURE Add*(CONST key : ARRAY OF CHAR; value : ANY);
+		VAR hash : LONGINT;
+			e : StringMapEntry;
+		BEGIN
+			IF Find(key) # NIL THEN HALT(123) END;
+
+			hash := CalcHash(key);
+			NEW(e);
+			e.hash := hash;
+			e.key := Strings.NewString(key);
+			e.value := value;
+			e.next := hashtable[hash MOD LEN(hashtable)];
+			hashtable[hash MOD LEN(hashtable)] := e;
+		END Add;
+		
+		PROCEDURE GetKeys;
+		BEGIN
+			
+		END GetKeys;
+		
+
+	END StringHashMap;
+
 
 END TFClasses.
 
