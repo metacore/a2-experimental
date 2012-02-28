@@ -3,7 +3,7 @@ Refer to the "General ETH Oberon System Source License" contract available at: h
 
 MODULE Heaps;
 
-IMPORT S := SYSTEM, Trace, Unix, Machine;
+IMPORT S := SYSTEM, Glue, Trace, Unix, Machine;
 
 TYPE
 	Address = S.ADDRESS;
@@ -247,7 +247,7 @@ VAR
 			END
 		END;
 		Machine.Release( Machine.Heaps );
-		IF (N1 # 0) OR (N2 # 0) THEN
+		IF (Glue.debug # {}) & ((N1 # 0) OR (N2 # 0)) THEN
 			Machine.Acquire ( Machine.TraceOutput );
 			Trace.String( name );  Trace.Char( " " );
 			Trace.Int( N1, 1 );  Trace.String( " discarded finalizers, " );
