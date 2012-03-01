@@ -247,7 +247,7 @@ VAR
 			END
 		END;
 		Machine.Release( Machine.Heaps );
-		IF (Glue.debug # {}) & ((N1 # 0) OR (N2 # 0)) THEN
+		IF (N1 # 0) OR (N2 # 0) THEN
 			Machine.Acquire ( Machine.TraceOutput );
 			Trace.String( name );  Trace.Char( " " );
 			Trace.Int( N1, 1 );  Trace.String( " discarded finalizers, " );

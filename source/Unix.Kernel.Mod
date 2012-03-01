@@ -1,6 +1,6 @@
 MODULE Kernel;	(** AUTHOR "pjm"; PURPOSE "Implementation-independent kernel interface"; *)
 
-IMPORT Glue, Trace, Machine, Heaps, Modules, Objects;
+IMPORT Trace, Machine, Heaps, Modules, Objects;
 
 CONST
 	TimerFree = 0; TimerSleeping = 1; TimerWoken = 2; TimerExpired = 3;	(* Timer state *)
@@ -245,11 +245,9 @@ BEGIN
 	Machine.collectGarbage := DoGC;
 	Heaps.GC := GC;	(* switch to GC procedure with finalization *)
 	
-	IF Glue.debug # {} THEN
-		Machine.Acquire(Machine.TraceOutput);
-		Trace.String("Kernel: Initialized and started."); Trace.Ln;
-		Machine.Release(Machine.TraceOutput);
-	END
+	Machine.Acquire(Machine.TraceOutput);
+	Trace.String("Kernel: Initialized and started."); Trace.Ln;
+	Machine.Release(Machine.TraceOutput);
 END Kernel.
 
 (**
