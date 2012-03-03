@@ -82,6 +82,8 @@ CONST
 	
 	MaxRequestHeaderFields* = 47+10; (* at most 47 standard headers of RFC 2616 plus a number of additional header fields*)
 	
+	DocType* = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">';
+	
 TYPE
 	AdditionalField* = POINTER TO RECORD
 		key* : ARRAY 64 OF CHAR;
@@ -229,10 +231,61 @@ TYPE
 		END Receiver;
 	END ChunkedInStream;
 	
-	(*
-	LimitedOutStream* = OBJECT (*to be done*)
+(* writing to stream 'inW' writes 'size' characters to 'outW' and then stops, returning Streams.EOF when attempting to write beyond stream end *)
+(* implementation limination: 'remainder' bookkeeping and EOF detection occurs with Update(); but not after each Char() or Bytes(); a too large last data chunk may therefore be written only in part. when EOF is detected *)
+		
+	LimitedOutStream* = OBJECT
+		VAR outW: Streams.Writer;
+			buf: ARRAY BufSize OF CHAR;
+			bufPos: LONGINT;
+			remain-: LONGINT;
+	
+		PROCEDURE &Init*(VAR inW, outW: Streams.Writer; size : LONGINT);
+		BEGIN
+			SELF.outW := outW;	
+			remain := size;
+			bufPos:=0;
+			Streams.OpenWriter(inW, Sender);
+		END Init;
+
+		PROCEDURE Sender(CONST outBuf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
+		VAR i: LONGINT;
+		BEGIN
+			i := ofs;
+			res:=outW.res ;
+			WHILE (i < ofs+len) & (remain>0) DO
+				buf[bufPos] := outBuf[i];
+				INC(i);
+				INC(bufPos);
+				DEC(remain);
+				IF (bufPos = BufSize) OR (remain=0) THEN Write END;
+				IF propagate THEN outW.Update END
+			END;
+			IF (remain=0) & (i < ofs+len) THEN res:= Streams.EOF END;
+		END Sender;
+		
+		PROCEDURE Write;
+		BEGIN
+			outW.Bytes(buf, 0, bufPos);
+			bufPos := 0
+		END Write;
+		
+		PROCEDURE Update*;
+		BEGIN
+			Write;
+			outW.Update;
+		END Update;
+		
+		PROCEDURE Padding*(ch: CHAR);
+		VAR i:LONGINT;
+		BEGIN
+			Update; (*compute 'remain'*)
+			WHILE remain>0 DO outW.Char(ch); DEC(remain) END;
+			outW.Update;
+		END Padding;
+		
+	
 	END LimitedOutStream;
-	*)
 	
 	LimitedInStream* = OBJECT
 		VAR inR: Streams.Reader;
@@ -467,7 +520,7 @@ BEGIN
 			res := VersionNotSupported
 		END
 	ELSE
-		(*in.SkipLn(); PH Jan 2012*)
+		IF EOL(in) THEN in.SkipLn(); END; (*PH Jan 2012*)
 		IF log # NIL THEN log.Enter; log.String("Bad request :"); log.Int(header.method, 5); log.Exit END;
 		res := BadRequest
 	END
@@ -535,23 +588,14 @@ BEGIN
 	END;
 END ParseReply;
 
-(** PH 100224 for compatibility with Content-Type: multipart/x-mixed-replace; *)
 PROCEDURE ModifyReply*(VAR in: Streams.Reader; VAR header: ResponseHeader; VAR res: LONGINT; log : TFLog.Log);
 VAR s, sLow: ARRAY 32 OF CHAR; af: AdditionalField;
 	i :LONGINT; ch :CHAR;
 BEGIN
-	(*
-	GetToken(in, s); GetVersion(s, header.maj, header.min);
-	GetToken(in, s); i := 0; GetInt(i, s, header.statuscode); in.Ln(header.reasonphrase);
-	header.server := ""; header.date := ""; header.contenttype := "";
-	header.contentlength := -1;
-	header.transferencoding := ""; header.additionalFields := NIL;
-	header.contentlocation := "";
-	*)
 	REPEAT
 		GetToken(in, s);
 		Strings.TrimRight(s, ":");
-		(* to understand the Micros**t IIS replies *)
+		(* to understand the Microsoft IIS replies *)
 		Strings.Copy(s, 0, 32, sLow);
 		Strings.LowerCase(sLow);
 		IF sLow = "server" THEN in.Char(ch); in.Ln(header.server)
@@ -570,7 +614,6 @@ BEGIN
 	in.SkipLn();
 	res := OK
 END ModifyReply;
-
 
 PROCEDURE LogRequestHeader*(log : TFLog.Log; VAR header : RequestHeader);
 VAR s : ARRAY 32 OF CHAR; x: AdditionalField;
@@ -693,6 +736,16 @@ BEGIN
 	dst.String(h.reasonphrase); dst.Ln();
 	dst.String("Server: "); dst.String(h.server); dst.Ln()
 END WriteStatus;
+
+(* precondition: header statuscode and header reasonphrase are already filled in, e.g. by use of WriteStatus() *)
+PROCEDURE WriteHTMLStatus*(VAR h: ResponseHeader; dst: Streams.Writer);
+VAR reasonphrase: ARRAY 64 OF CHAR;
+BEGIN
+	dst.String(DocType); dst.Ln;
+	dst.String("<html><head><title>"); dst.Int(h.statuscode,0); dst.String(" - "); dst.String(h.reasonphrase); dst.String("</title></head>");
+	dst.String("<body>HTTP "); dst.Int(h.statuscode,0); dst.String(" - "); dst.String(h.reasonphrase); dst.String("<hr><address>");
+	dst.String(h.server); dst.String( "</address></body></html>"); dst.Ln;
+END WriteHTMLStatus;
 
 PROCEDURE SendResponseHeader*(VAR h: ResponseHeader; VAR dst: Streams.Writer);
 VAR s: ARRAY 32 OF CHAR; af: AdditionalField;

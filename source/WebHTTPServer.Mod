@@ -11,8 +11,8 @@ CONST
 	Major* = 1; Minor* = 1;
 
 	FileBufSize = 4096;
-	ServerVersion* = "Aos HTTP Server/0.3a";
-	DocType = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">';
+	ServerVersion* = "A2 HTTP Server/0.9";
+	DocType* = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">';
 	Tab = 09X;
 
 	Timeout = 300*1000;  (* [ms] timeout for keep-alive *)
@@ -143,16 +143,12 @@ TYPE
 							SendData(fr, out)
 						END
 					ELSE
-						NEW(c, w, out, request, reply);
 						reply.statuscode := WebHTTP.NotFound;
 						WebHTTP.SendResponseHeader(reply, out);
 
 						IF (request.method = WebHTTP.GetM) THEN
-							w.String(DocType); w.Ln;
-							w.String("<html><head><title>404 - Not Found</title></head>");
-							w.String("<body>HTTP 404 - File Not Found<hr><address>");
-							w.String(ServerVersion); w.String( "</address></body></html>");
-							w.Ln;
+							NEW(c, w, out, request, reply);
+							WebHTTP.WriteHTMLStatus(reply, w); 
 							w.Update;
 							c.Close
 						END
@@ -160,15 +156,10 @@ TYPE
 				ELSIF (reply.statuscode = WebHTTP.NotModified) THEN
 					WebHTTP.SendResponseHeader(reply, out)
 				ELSIF (reply.statuscode = WebHTTP.ObjectMoved) THEN
-					NEW(c, w, out, request, reply);
 					WebHTTP.SendResponseHeader(reply, out);
-
 					IF (request.method = WebHTTP.GetM) THEN
-						w.String(DocType); w.Ln;
-						w.String("<html><head><title>Document Moved</title></head>"); w.Ln;
-						w.String('<body><h1>Document Moved</h1>This document may be found <a href="http://');
-						w.String(request.uri); w.String(">here</a>.<hr><address>");
-						w.String(ServerVersion); w.String("</address></body></html>"); w.Ln;
+						NEW(c, w, out, request, reply);
+						WebHTTP.WriteHTMLStatus(reply, w);
 						w.Update;
 						c.Close
 					END
@@ -380,7 +371,7 @@ TYPE
 					WebHTTP.WriteStatus(reply, out)
 				END;
 				
-				out.Update; (* ignore out.res *)
+				out.Update; (*PH*)(* ignore out.res *)
 				
 				IF logEnabled THEN W3CLog(request, reply) END;
 
@@ -702,13 +693,13 @@ PC.Compile \s TFLog.Mod WebHTTP.Mod WebHTTPServer.Mod WebSSMPPlugin.Mod WebDefau
 START THE SERVER
 Configuration.DoCommands
 WebHTTPServerTools.Start \r:WORK: \l:WORK:WebHTTP.Log \s:on~
-	Aos.Call WebHTTPServerTools.AddHost livepc.inf.ethz.ch \r:FAT:/httproot/test~
-Aos.Call WebSSMPPlugin.Install~
-Aos.Call WebDefaultSSMP.Install~
-Aos.Call WebHTTPServerTools.ListHosts~
+WebHTTPServerTools.AddHost livepc.inf.ethz.ch \r:FAT:/httproot/test~
+WebSSMPPlugin.Install~
+WebDefaultSSMP.Install~
+WebHTTPServerTools.ListHosts~
 ~
 
-Aos.Call WebHTTPServerTools.Stop ~
+WebHTTPServerTools.Stop ~
 
 FREE THE SERVER
 SystemTools.Free WebHTTPServerTools WebDefaultSSMP WebSSMPPlugin WebHTTPServer  WebHTTP~
