@@ -7,8 +7,7 @@ MODULE KbdMouse;   (* g.f.	9.7.07 *)
 
 (* replacement for the keyboard and mouse drivers in the Unix ports *)
 
-IMPORT Machine, S := SYSTEM, Inputs, Plugins, X11, Displays, XDisplay, Api:=X11Api, Modules, Objects, 
-	Out := KernelLog;
+IMPORT Machine, S := SYSTEM, Inputs, Plugins, X11, Displays, XDisplay, Api:=X11Api, Modules, Objects;
 
 CONST
 	ML = 0;  MM = 1;  MR = 2;
@@ -171,11 +170,11 @@ VAR
 			| Api.UnmapNotify:
 			| Api.MapNotify: 
 			| Api.SelectionClear:
-					IF X11.ClearSelection # NIL THEN X11.ClearSelection() END
+					IF Api.ClearSelection # NIL THEN  Api.ClearSelection()  END
 			| Api.SelectionNotify:
-					IF X11.ReceiveSelection # NIL THEN Api.ReceiveSelection( S.VAL( Api.XSelectionEvent, event ) ) END
+					IF Api.ReceiveSelection # NIL THEN  Api.ReceiveSelection( S.VAL( Api.XSelectionEvent, event ) )  END
 			| Api.SelectionRequest:
-					IF X11.SendSelection # NIL THEN Api.SendSelection( S.VAL( Api.XSelectionRequestEvent, event ) ) END
+					IF Api.SendSelection # NIL THEN  Api.SendSelection( S.VAL( Api.XSelectionRequestEvent, event ) )  END
 			| Api.ConfigureNotify:  cn := S.VAL(Api.XConfigureEvent, event);
 			ELSE
 

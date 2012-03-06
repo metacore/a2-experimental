@@ -910,10 +910,7 @@ VAR
 
 	WarpPointer- : PROCEDURE {C} (display: DisplayPtr; srcwin, destwin: Window; srcx, srcy: LONGINT; srcwidth, srcheight: LONGINT; destx, desty: LONGINT);
 
-	(* cut and paste *)
-	SendSelection-:	 PROCEDURE {C } ( VAR event: XSelectionRequestEvent );
-	ReceiveSelection-:  PROCEDURE { C } ( VAR event: XSelectionEvent );
-	ClearSelection-: PROCEDURE { C } ;
+	
 
 	CheckTypedEvent-: PROCEDURE { C } (display: DisplayPtr; eventType: LONGINT; VAR event: XEvent): Bool;
 	CheckMaskEvent-: PROCEDURE { C } (display: DisplayPtr; eventMask: SET; VAR event: XEvent): Bool;
@@ -921,6 +918,11 @@ VAR
 	CheckTypedWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventType: LONGINT; VAR event: XEvent): Bool;
 	CheckWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventMask: SET; VAR event: XEvent): Bool;
 
+VAR
+	(* cut and paste *)
+	SendSelection*		: PROCEDURE( VAR event: XSelectionRequestEvent );
+	ReceiveSelection*	: PROCEDURE( VAR event: XSelectionEvent );
+	ClearSelection*		: PROCEDURE;
 			
 	(* wrapper procedure for XGetAtomName  *)
 	PROCEDURE GetAtomName*(display: DisplayPtr; atom: Atom): PChar;
