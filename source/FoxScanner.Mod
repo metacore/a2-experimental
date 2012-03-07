@@ -644,81 +644,79 @@ TYPE
 			SkipBlanks;
 			symbol.start := position; symbol.line := line;
 			stringMaker.Clear;
-			IF s # EndOfText THEN
-				CASE ch OF  (* ch > " " *)
-				EOT: s := EndOfText
-				| DoubleQuote:
-						s := String; GetString(symbol,TRUE, TRUE, FALSE);
-				| SingleQuote:
-						s := String; GetString(symbol,FALSE, FALSE,FALSE);
-						(* to be replaced by:
-						s := Character; GetString(symbol);
-						IF symbol.stringLength #2 THEN  (* stringlength = 1 for empty string '' *)
-							Error(Basic.IllegalCharacterValue)
-						END;
-						*)
-				| '#':     s := Unequal;  GetNextCharacter
-				| '&':     s := And;  GetNextCharacter
-				| '(':     GetNextCharacter;
-						IF ch = '*' THEN GetNextCharacter; ReadComment(symbol);  s := Comment; ELSE s := LeftParenthesis END
-				| ')':     s := RightParenthesis;  GetNextCharacter
-				| '*':    GetNextCharacter; IF ch = '*' THEN GetNextCharacter;  s := TimesTimes ELSE s := Times END
-				| '+':    GetNextCharacter; IF ch = '*' THEN GetNextCharacter; s := PlusTimes ELSE s := Plus END
-				| ',':     s := Comma;  GetNextCharacter
-				| '-':    s := Minus;  GetNextCharacter
-				| '.':     GetNextCharacter;
-						IF ch = '.' THEN GetNextCharacter;  s := Upto;
-						ELSIF ch = '*' THEN GetNextCharacter;  s := DotTimes;
-						ELSIF ch = '/' THEN 	GetNextCharacter;  s := DotSlash;
-						ELSIF ch='=' THEN GetNextCharacter; s := DotEqual;
-						ELSIF ch='#' THEN GetNextCharacter; s := DotUnequal;
-						ELSIF ch='>' THEN GetNextCharacter;
-							IF ch='=' THEN s := DotGreaterEqual; GetNextCharacter
-							ELSE s := DotGreater;
-							END
-						ELSIF ch='<' THEN GetNextCharacter;
-							IF ch='=' THEN s := DotLessEqual; GetNextCharacter
-							ELSE s := DotLess;
-							END
-						ELSE s := Period END
-				| '/':     s := Slash;  GetNextCharacter
-				| '0'..'9':   s := GetNumber(symbol);
-				| ':':     GetNextCharacter;
-						IF ch = '=' THEN GetNextCharacter;  s := Becomes  ELSE s := Colon END
-				| ';':     s := Semicolon;  GetNextCharacter
-				| '<':     GetNextCharacter;
-						IF ch = '=' THEN GetNextCharacter;  s := LessEqual ELSE s := Less;  END
-				| '=':     s := Equal;  GetNextCharacter
-				| '>':     GetNextCharacter;
-						IF ch = '=' THEN GetNextCharacter;  s := GreaterEqual ELSE s := Greater;  END
-				| '[':     s := LeftBracket;  GetNextCharacter
-				| ']':     s := RightBracket;  GetNextCharacter
-				| '^':     s := Arrow;  GetNextCharacter
-				| '{':     s := LeftBrace;  GetNextCharacter
-				| '|':     s := Bar;  GetNextCharacter
-				| '}':     s := RightBrace;  GetNextCharacter
-				| '~':     s := Not;  GetNextCharacter
-				| '\':     s := Backslash;  GetNextCharacter;
-						IF ch = DoubleQuote THEN s := String; GetString(symbol, TRUE, TRUE, TRUE) END;
-				| '`':	s := Transpose; GetNextCharacter
-				| '?': 	s := Questionmark; GetNextCharacter
-				| Ellipsis:
-						s := Upto;  GetNextCharacter
-				| 'A'..'Z': s := Identifier; GetIdentifier( symbol );
-						IF (case=Uppercase) OR (case=Unknown) THEN
-							token := keywordsUpper.IndexByIdentifier(symbol.identifier);
-							IF  (token >= 0) THEN s := token END;
-							IF (s = Module) OR (s=CellNet) THEN case := Uppercase END;
-						END;
-				| 'a'..'z': s := Identifier; GetIdentifier( symbol);
-						IF (case = Lowercase) OR (case=Unknown) THEN
-							token := keywordsLower.IndexByIdentifier(symbol.identifier);
-							IF  (token >= 0) THEN s := token END;
-							IF (s = Module) OR (s=CellNet) THEN case := Lowercase END;
-						END;
-						IF firstIdentifier & (s # Module) & (s # CellNet) THEN case := Uppercase; s := Identifier END;
-				ELSE s := Identifier;  GetIdentifier( symbol );
-				END;
+			CASE ch OF  (* ch > " " *)
+			EOT: s := EndOfText
+			| DoubleQuote:
+					s := String; GetString(symbol,TRUE, TRUE, FALSE);
+			| SingleQuote:
+					s := String; GetString(symbol,FALSE, FALSE,FALSE);
+					(* to be replaced by:
+					s := Character; GetString(symbol);
+					IF symbol.stringLength #2 THEN  (* stringlength = 1 for empty string '' *)
+						Error(Basic.IllegalCharacterValue)
+					END;
+					*)
+			| '#':     s := Unequal;  GetNextCharacter
+			| '&':     s := And;  GetNextCharacter
+			| '(':     GetNextCharacter;
+					IF ch = '*' THEN GetNextCharacter; ReadComment(symbol);  s := Comment; ELSE s := LeftParenthesis END
+			| ')':     s := RightParenthesis;  GetNextCharacter
+			| '*':    GetNextCharacter; IF ch = '*' THEN GetNextCharacter;  s := TimesTimes ELSE s := Times END
+			| '+':    GetNextCharacter; IF ch = '*' THEN GetNextCharacter; s := PlusTimes ELSE s := Plus END
+			| ',':     s := Comma;  GetNextCharacter
+			| '-':    s := Minus;  GetNextCharacter
+			| '.':     GetNextCharacter;
+					IF ch = '.' THEN GetNextCharacter;  s := Upto;
+					ELSIF ch = '*' THEN GetNextCharacter;  s := DotTimes;
+					ELSIF ch = '/' THEN 	GetNextCharacter;  s := DotSlash;
+					ELSIF ch='=' THEN GetNextCharacter; s := DotEqual;
+					ELSIF ch='#' THEN GetNextCharacter; s := DotUnequal;
+					ELSIF ch='>' THEN GetNextCharacter;
+						IF ch='=' THEN s := DotGreaterEqual; GetNextCharacter
+						ELSE s := DotGreater;
+						END
+					ELSIF ch='<' THEN GetNextCharacter;
+						IF ch='=' THEN s := DotLessEqual; GetNextCharacter
+						ELSE s := DotLess;
+						END
+					ELSE s := Period END
+			| '/':     s := Slash;  GetNextCharacter
+			| '0'..'9':   s := GetNumber(symbol);
+			| ':':     GetNextCharacter;
+					IF ch = '=' THEN GetNextCharacter;  s := Becomes  ELSE s := Colon END
+			| ';':     s := Semicolon;  GetNextCharacter
+			| '<':     GetNextCharacter;
+					IF ch = '=' THEN GetNextCharacter;  s := LessEqual ELSE s := Less;  END
+			| '=':     s := Equal;  GetNextCharacter
+			| '>':     GetNextCharacter;
+					IF ch = '=' THEN GetNextCharacter;  s := GreaterEqual ELSE s := Greater;  END
+			| '[':     s := LeftBracket;  GetNextCharacter
+			| ']':     s := RightBracket;  GetNextCharacter
+			| '^':     s := Arrow;  GetNextCharacter
+			| '{':     s := LeftBrace;  GetNextCharacter
+			| '|':     s := Bar;  GetNextCharacter
+			| '}':     s := RightBrace;  GetNextCharacter
+			| '~':     s := Not;  GetNextCharacter
+			| '\':     s := Backslash;  GetNextCharacter;
+					IF ch = DoubleQuote THEN s := String; GetString(symbol, TRUE, TRUE, TRUE) END;
+			| '`':	s := Transpose; GetNextCharacter
+			| '?': 	s := Questionmark; GetNextCharacter
+			| Ellipsis:
+					s := Upto;  GetNextCharacter
+			| 'A'..'Z': s := Identifier; GetIdentifier( symbol );
+					IF (case=Uppercase) OR (case=Unknown) THEN
+						token := keywordsUpper.IndexByIdentifier(symbol.identifier);
+						IF  (token >= 0) THEN s := token END;
+						IF (s = Module) OR (s=CellNet) THEN case := Uppercase END;
+					END;
+			| 'a'..'z': s := Identifier; GetIdentifier( symbol);
+					IF (case = Lowercase) OR (case=Unknown) THEN
+						token := keywordsLower.IndexByIdentifier(symbol.identifier);
+						IF  (token >= 0) THEN s := token END;
+						IF (s = Module) OR (s=CellNet) THEN case := Lowercase END;
+					END;
+					IF firstIdentifier & (s # Module) & (s # CellNet) THEN case := Uppercase; s := Identifier END;
+			ELSE s := Identifier;  GetIdentifier( symbol );
 			END;
 			firstIdentifier := FALSE;
 

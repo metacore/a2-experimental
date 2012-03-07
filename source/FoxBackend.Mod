@@ -33,10 +33,13 @@ TYPE
 			findSectionName := "";
 			findSectionOffset := 0;
 		END InitBackend;
-		
+
 		PROCEDURE SetOberon07*;
 		BEGIN
+			(*
 			ASSERT(system = NIL); (* assert that system Object has not been requested yet *)
+			object may be reused!
+			*)
 			oberon07 := TRUE
 		END SetOberon07;
 
