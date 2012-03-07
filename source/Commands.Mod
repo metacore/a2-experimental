@@ -203,6 +203,7 @@ END Activate;
 PROCEDURE Call*(cmds : ARRAY OF CHAR; flags : SET; VAR res : LONGINT; VAR msg : ARRAY OF CHAR);
 VAR context : Context; arg : Streams.StringReader; i, j, k : LONGINT; mode : ARRAY 5 OF CHAR; par : POINTER TO ARRAY OF CHAR;
 BEGIN
+	IF trace THEN Trace.String("Commands.Call "); Trace.String(cmds); Trace.Ln END;
 	NEW(par,LEN(cmds));
 	i := 0; WHILE (i # 4) & (i # LEN(cmds)) DO mode[i] := cmds[i]; INC(i); END;
 	mode[i] := 0X;	(* copy at most first 4 characters *)
