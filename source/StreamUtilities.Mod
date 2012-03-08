@@ -56,7 +56,7 @@ TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 		
 		PROCEDURE &Init(out:Streams.Writer; size: LONGINT);
 		BEGIN
-			InitWriter(Sender, WriterBufSize);
+			InitWriter(Sender, MIN(size, WriterBufSize));
 			SELF.out := out;	
 			SELF.size:=size; remain:=size;
 		END Init;
