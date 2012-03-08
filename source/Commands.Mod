@@ -30,9 +30,12 @@ TYPE
 		result*: LONGINT;
 
 		PROCEDURE &Init*(in, arg : Streams.Reader; out, error : Streams.Writer; caller: OBJECT);
+		VAR r: ReaderMonitor;
 		BEGIN
 			IF (in = NIL) THEN in := GetEmptyReader(); END;
-			IF (arg = NIL) THEN arg := GetEmptyReader(); END;
+			IF (arg = NIL) THEN arg := GetEmptyReader()
+			ELSIF trace THEN NEW(r , arg); arg:=r;
+			END;
 			IF (out = NIL) THEN NEW(out, KernelLog.Send, 128); END;
 			IF (error = NIL) THEN NEW(error, KernelLog.Send, 128); END;
 			SELF.in := in; SELF.arg := arg; SELF.out := out; SELF.error := error; SELF.caller := caller; SELF.result := Ok;
@@ -40,7 +43,32 @@ TYPE
 		END Init;
 
 	END Context;
+	
+	(*see StreamUtilities.Mod: reader that can daisychained with another reader that extracts a copy of the data flow to a monitor stream*)
+	ReaderMonitor* = OBJECT(Streams.Reader)
+		VAR in: Streams.Reader; 
+	
+		PROCEDURE &Init(in: Streams.Reader);
+		BEGIN
+			InitReader(Receiver, 1024);
+			SELF.in := in;	
+		END Init;
 
+		PROCEDURE Receiver(VAR buf: ARRAY OF CHAR; ofs, size, min: LONGINT; VAR len, res: LONGINT);
+		BEGIN
+			ASSERT((size > 0) & (min <= size) & (min >= 0));
+			in.Bytes(buf, ofs, size, len);
+			IF trace THEN
+				BEGIN{EXCLUSIVE}
+					IF LEN(buf)-len > 5 THEN buf[len]:="~";	buf[len+1]:=" "; buf[len+2]:=0DX; buf[len+3]:=0AX; END;
+					tracer.Bytes(buf, ofs, len+4); 
+					tracer.Update;
+				END
+			END;
+			res:=in.res
+		END Receiver;
+	END ReaderMonitor;
+	
 	(* Procedure types that can be called be runner thread *)
 	CommandProc = PROCEDURE;
 	CommandContextProc = PROCEDURE(context : Context);
@@ -117,6 +145,7 @@ TYPE
 VAR
 	emptyString : ARRAY 1 OF CHAR;
 	trace: BOOLEAN;
+	tracer: Streams.Writer;
 
 (* Create a ready on a empty string *)
 
@@ -179,7 +208,9 @@ END GetContext;
 PROCEDURE Activate*(CONST cmd : ARRAY OF CHAR; context : Context; flags : SET; VAR res : LONGINT; VAR msg : ARRAY OF CHAR);
 VAR moduleName, commandName : Modules.Name; run : Runner;
 BEGIN
-	IF trace THEN Trace.String("Commands.Activate "); Trace.String(cmd); Trace.Ln END;
+	IF trace THEN
+		BEGIN{EXCLUSIVE} tracer.String("Commands.Activate "); tracer.String(cmd); tracer.Char(" "); tracer.Update; END;
+	END;
 	Split(cmd, moduleName, commandName, res, msg);
 	IF (res = Ok) THEN
 		NEW(run, moduleName, commandName, context);
@@ -203,7 +234,9 @@ END Activate;
 PROCEDURE Call*(cmds : ARRAY OF CHAR; flags : SET; VAR res : LONGINT; VAR msg : ARRAY OF CHAR);
 VAR context : Context; arg : Streams.StringReader; i, j, k : LONGINT; mode : ARRAY 5 OF CHAR; par : POINTER TO ARRAY OF CHAR;
 BEGIN
-	IF trace THEN Trace.String("Commands.Call "); Trace.String(cmds); Trace.Ln END;
+	IF trace THEN 
+		BEGIN{EXCLUSIVE}tracer.String("Commands.Call "); tracer.String(cmds); tracer.String("~ "); tracer.Ln; tracer.Update; END;
+	END;
 	NEW(par,LEN(cmds));
 	i := 0; WHILE (i # 4) & (i # LEN(cmds)) DO mode[i] := cmds[i]; INC(i); END;
 	mode[i] := 0X;	(* copy at most first 4 characters *)
@@ -238,5 +271,6 @@ END Init;
 
 
 BEGIN
-	Init
+	Init;
+	Streams.OpenWriter(tracer, Trace.Send);
 END Commands.
