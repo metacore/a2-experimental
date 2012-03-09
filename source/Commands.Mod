@@ -33,9 +33,7 @@ TYPE
 		VAR r: ReaderMonitor;
 		BEGIN
 			IF (in = NIL) THEN in := GetEmptyReader(); END;
-			IF (arg = NIL) THEN arg := GetEmptyReader()
-			ELSIF trace THEN NEW(r , arg); arg:=r;
-			END;
+			IF (arg = NIL) THEN arg := GetEmptyReader()END;
 			IF (out = NIL) THEN NEW(out, KernelLog.Send, 128); END;
 			IF (error = NIL) THEN NEW(error, KernelLog.Send, 128); END;
 			SELF.in := in; SELF.arg := arg; SELF.out := out; SELF.error := error; SELF.caller := caller; SELF.result := Ok;
@@ -46,12 +44,13 @@ TYPE
 	
 	(*see StreamUtilities.Mod: reader that can daisychained with another reader that extracts a copy of the data flow to a monitor stream*)
 	ReaderMonitor* = OBJECT(Streams.Reader)
-		VAR in: Streams.Reader; 
+		VAR in: Streams.Reader; tracer: Streams.Writer;
 	
-		PROCEDURE &Init(in: Streams.Reader);
+		PROCEDURE &Init(in: Streams.Reader; tracer: Streams.Writer);
 		BEGIN
 			InitReader(Receiver, 1024);
 			SELF.in := in;	
+			SELF.tracer:=tracer;
 		END Init;
 
 		PROCEDURE Receiver(VAR buf: ARRAY OF CHAR; ofs, size, min: LONGINT; VAR len, res: LONGINT);
@@ -59,11 +58,8 @@ TYPE
 			ASSERT((size > 0) & (min <= size) & (min >= 0));
 			in.Bytes(buf, ofs, size, len);
 			IF trace THEN
-				BEGIN{EXCLUSIVE}
-					IF LEN(buf)-len > 5 THEN buf[len]:="~";	buf[len+1]:=" "; buf[len+2]:=0DX; buf[len+3]:=0AX; END;
-					tracer.Bytes(buf, ofs, len+4); 
-					tracer.Update;
-				END
+				IF LEN(buf)-len > 5 THEN buf[len]:="~";	buf[len+1]:=" "; buf[len+2]:=0DX; buf[len+3]:=0AX; END;
+				tracer.Bytes(buf, ofs, len+4); 
 			END;
 			res:=in.res
 		END Receiver;
@@ -79,7 +75,9 @@ TYPE
 	VAR
 		moduleName, commandName : Modules.Name;
 		context : Context;
-
+		
+		tracer: Streams.Writer; r: ReaderMonitor;
+		
 		proc : CommandProc;
 		commandProc : CommandContextProc;
 
@@ -92,7 +90,15 @@ TYPE
 		PROCEDURE &Init*(CONST moduleName, commandName : Modules.Name; context : Context);
 		BEGIN
 			SELF.moduleName := moduleName; SELF.commandName := commandName;
+			
 			IF (context = NIL) THEN NEW(context, NIL, NIL, NIL, NIL, NIL); END;
+			IF trace THEN 
+				Streams.OpenWriter(tracer, Trace.Send);
+				NEW(r , context.arg, tracer); context.arg:=r; 
+			END;
+			tracer.String("Commands.Activate "); 
+			tracer.String(moduleName); tracer.String(Delimiter); tracer.String(commandName); tracer.Char(" ");
+			
 			SELF.context := context;
 			res := CommandError; COPY("Error starting command", msg);
 			exception := FALSE;
@@ -139,13 +145,14 @@ TYPE
 		ELSE
 			res := CommandError; COPY("Exception during command execution", msg);
 		END;
+		tracer.String(" ~"); tracer.Ln; tracer.Update;
 		BEGIN {EXCLUSIVE} state := Finished; END;
 	END Runner;
 
 VAR
 	emptyString : ARRAY 1 OF CHAR;
 	trace: BOOLEAN;
-	tracer: Streams.Writer;
+	
 
 (* Create a ready on a empty string *)
 
@@ -208,9 +215,7 @@ END GetContext;
 PROCEDURE Activate*(CONST cmd : ARRAY OF CHAR; context : Context; flags : SET; VAR res : LONGINT; VAR msg : ARRAY OF CHAR);
 VAR moduleName, commandName : Modules.Name; run : Runner;
 BEGIN
-	IF trace THEN
-		BEGIN{EXCLUSIVE} tracer.String("Commands.Activate "); tracer.String(cmd); tracer.Char(" "); tracer.Update; END;
-	END;
+	
 	Split(cmd, moduleName, commandName, res, msg);
 	IF (res = Ok) THEN
 		NEW(run, moduleName, commandName, context);
@@ -232,11 +237,10 @@ END Activate;
 *)
 
 PROCEDURE Call*(cmds : ARRAY OF CHAR; flags : SET; VAR res : LONGINT; VAR msg : ARRAY OF CHAR);
-VAR context : Context; arg : Streams.StringReader; i, j, k : LONGINT; mode : ARRAY 5 OF CHAR; par : POINTER TO ARRAY OF CHAR;
+VAR context : Context; arg : Streams.StringReader; i, j, k : LONGINT; mode : ARRAY 5 OF CHAR; 
+par : POINTER TO ARRAY OF CHAR; 
 BEGIN
-	IF trace THEN 
-		BEGIN{EXCLUSIVE}tracer.String("Commands.Call "); tracer.String(cmds); tracer.String("~ "); tracer.Ln; tracer.Update; END;
-	END;
+	IF trace THEN 	Trace.String("Commands.Call "); Trace.String(cmds); Trace.String("~ "); Trace.Ln END;
 	NEW(par,LEN(cmds));
 	i := 0; WHILE (i # 4) & (i # LEN(cmds)) DO mode[i] := cmds[i]; INC(i); END;
 	mode[i] := 0X;	(* copy at most first 4 characters *)
@@ -272,5 +276,5 @@ END Init;
 
 BEGIN
 	Init;
-	Streams.OpenWriter(tracer, Trace.Send);
+	
 END Commands.
