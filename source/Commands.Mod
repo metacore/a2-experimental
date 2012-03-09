@@ -95,10 +95,9 @@ TYPE
 			IF trace THEN 
 				Streams.OpenWriter(tracer, Trace.Send);
 				NEW(r , context.arg, tracer); context.arg:=r; 
+				tracer.String("Commands.Activate "); 
+				tracer.String(moduleName); tracer.String(Delimiter); tracer.String(commandName); tracer.Char(" ");
 			END;
-			tracer.String("Commands.Activate "); 
-			tracer.String(moduleName); tracer.String(Delimiter); tracer.String(commandName); tracer.Char(" ");
-			
 			SELF.context := context;
 			res := CommandError; COPY("Error starting command", msg);
 			exception := FALSE;
@@ -145,7 +144,9 @@ TYPE
 		ELSE
 			res := CommandError; COPY("Exception during command execution", msg);
 		END;
-		tracer.String(" ~"); tracer.Ln; tracer.Update;
+		IF trace THEN
+			tracer.String(" ~"); tracer.Ln; tracer.Update
+		END;
 		BEGIN {EXCLUSIVE} state := Finished; END;
 	END Runner;
 
