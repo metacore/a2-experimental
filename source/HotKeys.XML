@@ -64,6 +64,7 @@
 	<!-- Example: Toggle visibility of windows -->
 	<HotKey name="Toggle visibility of user windows" keys="F6" command="WMNavigate.ToggleAll"/>
 	<HotKey name="Toggle visibility of navigation windows" keys="F7" command="WMNavigate.ToggleNavigation"/>
+	<HotKey name="Toggle visibility of navigation" keys="CTRL+1" command="WMNavigate.ToggleNavigation"/>
 	
 	<!-- Example: Move the window that has the keyboard focus relative to its current position -->
 	<HotKey name="MoveRight" keys="ALT+RIGHT" command="WMNavigate.MoveWindow -d 1 0"/>
@@ -96,10 +97,10 @@
 
 	<!-- Example: Key remappings -->
 	
-	<HotKey name="UP" keys="CTRL+I" command="REMAP UP"/>
-	<HotKey name="LEFT" keys="CTRL+J" command="REMAP LEFT"/>
-	<HotKey name="DOWN" keys="CTRL+K" command="REMAP DOWN"/>
-	<HotKey name="RIGHT" keys="CTRL+L" command="REMAP RIGHT"/>
+	<HotKey name="UP" keys="CTRL+SHOFT+I" command="REMAP UP"/>
+	<HotKey name="LEFT" keys="CTRL+SHIFT+J" command="REMAP LEFT"/>
+	<HotKey name="DOWN" keys="CTRL+SHIFT+K" command="REMAP DOWN"/>
+	<HotKey name="RIGHT" keys="CTRL+SHIFT+L" command="REMAP RIGHT"/>
 	
 	<HotKey name="BOLD" keys="CTRL+B" command="WMTextStyleTool.SetFontStyle BOLD"/>
 	

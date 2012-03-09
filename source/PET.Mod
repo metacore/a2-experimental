@@ -42,7 +42,7 @@ MODULE PET; (** AUTHOR "TF, PL"; PURPOSE "Programmer's Editing Tool"; *)
  *)
 
 IMPORT
-	KernelLog, Modules, Commands, Options, Streams, Inputs, Files, WMRestorable, XML, XMLScanner, XMLParser, XMLObjects,
+	KernelLog, KernelLogger, Modules, Commands, Options, Streams, Inputs, Files, WMRestorable, XML, XMLScanner, XMLParser, XMLObjects,
 	WMStandardComponents, WMGraphics, CompilerInterface, WhitespaceRemover,
 	WMComponents, WMRectangles, WMMessages, WMDialogs, WMDiagnostics,
 	WMTextView, WMEditors, Strings, TextUtilities, Texts,
@@ -474,6 +474,16 @@ TYPE
 	END DropURL;
 
 TYPE
+	TextWriter= OBJECT (TextUtilities.TextWriter)
+	VAR update: PROCEDURE {DELEGATE};
+
+		PROCEDURE Update;
+		BEGIN
+			IF update # NIL THEN update END;
+			Update^
+		END Update;
+
+	END TextWriter;
 
 	PETPanel = OBJECT(WMComponents.VisualComponent)
 	VAR
@@ -483,6 +493,7 @@ TYPE
 		scratch : ScratchPanel;
 		sidePanel : WMStandardComponents.Panel;
 		logPanel, editPanel: WMStandardComponents.Panel;
+		logWriter: TextWriter;
 		searchPanel: WMSearchComponents.SearchPanel;
 
 		errorGrid : WMDiagnostics.DiagnosticsView;
@@ -542,8 +553,15 @@ TYPE
 			resizerV.bounds.SetHeight(4);
 			scratchPanel.AddContent(resizerV);
 
+			NEW(logEdit); logEdit.bounds.SetHeight(100); logEdit.alignment.Set(WMComponents.AlignBottom);
+			logEdit.allowScrollbars.Set(TRUE);
+			logEdit.tv.showBorder.Set(TRUE); logEdit.visible.Set(FALSE);
+			NEW(logWriter, logEdit.text);
+			logWriter.update := OpenLogEditor;
+
 			NEW(scratch); scratch.alignment.Set(WMComponents.AlignClient);
 			scratch.editor.tv.commandCaller := window;
+			scratch.editor.tv.commandWriter := logWriter;
 			scratchPanel.AddContent(scratch);
 
 			sidePanel.AddContent(scratchPanel);
@@ -560,9 +578,6 @@ TYPE
 			resizerH.bounds.SetHeight(4);
 			logPanel.AddContent(resizerH);
 
-			NEW(logEdit); logEdit.bounds.SetHeight(30); logEdit.alignment.Set(WMComponents.AlignBottom);
-			logEdit.allowScrollbars.Set(FALSE);
-			logEdit.tv.showBorder.Set(TRUE); logEdit.visible.Set(FALSE);
 
 			NEW(resizerV); resizerV.alignment.Set(WMComponents.AlignTop);
 			resizerV.bounds.SetHeight(4);
@@ -608,6 +623,7 @@ TYPE
 			editor.tv.wrapMode.Set(WMTextView.NoWrap);
 			editor.tv.onCursorChanged := CursorChanged;
 			editor.tv.commandCaller := window;
+			editor.tv.commandWriter := logWriter;
 			editor.text.onTextChanged.Add(TextChanged);
 			editor.tv.showLineNumbers.Set(settings.showLineNumbers);
 			editor.tv.indicateTabs.Set(settings.indicateTabs);
@@ -628,6 +644,7 @@ TYPE
 			splitEditor.multiLine.Set(TRUE);
 			splitEditor.tv.wrapMode.Set(WMTextView.NoWrap);
 			splitEditor.tv.commandCaller := window;
+			splitEditor.tv.commandWriter := logWriter;
 			splitEditor.SetText(editor.text);
 			splitEditor.tv.showLineNumbers.Set(settings.showLineNumbers);
 			splitEditor.tv.indicateTabs.Set(settings.indicateTabs);
@@ -865,6 +882,12 @@ TYPE
 			IF (tree # NIL) THEN tree.SelectNodeByPos (position) END
 		END CursorChanged;
 
+		PROCEDURE OpenLogEditor;
+		BEGIN
+			IF ~logEdit.visible.Get() THEN logEdit.visible.Set(TRUE) END;
+		END OpenLogEditor;
+
+
 		PROCEDURE HandleShortcut(ucs : LONGINT; flags : SET; keysym : LONGINT) : BOOLEAN;
 		VAR pos : LONGINT;
 
@@ -944,6 +967,10 @@ TYPE
 		BEGIN
 			IF (keysym = 06H) & ControlKeyDown(flags) THEN (* CTRL-F *)
 				searchPanel.ToggleVisibility;
+			ELSIF (keysym = 05H) & ControlKeyDown(flags) THEN (* CTRL-E *)
+				logPanel.visible.Set(~logPanel.visible.Get());
+			ELSIF (keysym= 0CH) & ControlKeyDown(flags) THEN (* CTRL-L *)
+				logEdit.visible.Set(~logEdit.visible.Get());
 			ELSIF (keysym= 0EH) & ControlKeyDown(flags) THEN (* CTRL-N *)
 				HandlePreviousNext(TRUE);
 			ELSIF (keysym = 10H) & ControlKeyDown(flags) THEN (* CTRL-P *)
@@ -1013,7 +1040,7 @@ TYPE
 	VAR
 		filenameEdit, optionsEdit, positionEdit: WMEditors.Editor;
 		loadBtn, storeBtn, closeBtn, compileBtn, findPCBtn, undoBtn, redoBtn: WMStandardComponents.Button;
-		splitBtn, formatBtn, searchBtn, labelsBtn, wrapBtn, forwardBtn, backBtn : WMStandardComponents.Button;
+		splitBtn, formatBtn, searchBtn, labelsBtn, wrapBtn, errListBtn, findBtn, logBtn, forwardBtn, backBtn : WMStandardComponents.Button;
 		popup: WMPopups.Popup;
 
 		tabs : WMTabComponents.Tabs;
@@ -1219,6 +1246,21 @@ TYPE
 				wrapBtn.onClick.Add(ButtonHandler);
 				statusbar.AddContent(wrapBtn);
 
+				NEW(errListBtn); errListBtn.caption.SetAOC("Errors"); errListBtn.alignment.Set(WMComponents.AlignRight);
+				errListBtn.isToggle.Set(FALSE); errListBtn.SetPressed(FALSE);
+				errListBtn.onClick.Add(ButtonHandler);
+				statusbar.AddContent(errListBtn);
+
+				NEW(findBtn); findBtn.caption.SetAOC("Find"); findBtn.alignment.Set(WMComponents.AlignRight);
+				findBtn.isToggle.Set(FALSE); findBtn.SetPressed(FALSE);
+				findBtn.onClick.Add(ButtonHandler);
+				statusbar.AddContent(findBtn);
+
+				NEW(logBtn); logBtn.caption.SetAOC("Log"); logBtn.alignment.Set(WMComponents.AlignRight);
+				logBtn.isToggle.Set(FALSE); logBtn.SetPressed(FALSE);
+				logBtn.onClick.Add(ButtonHandler);
+				statusbar.AddContent(logBtn);
+
 				NEW(forwardBtn); forwardBtn.caption.SetAOC("-->"); forwardBtn.alignment.Set(WMComponents.AlignRight);
 				forwardBtn.onClick.Add(ButtonHandler);
 				statusbar.AddContent(forwardBtn);
@@ -1285,6 +1327,12 @@ TYPE
 				IF (currentPage # NIL) THEN
 					currentPage.ToggleWrap;
 				END;
+			ELSIF sender = logBtn THEN
+				IF currentPage # NIL THEN currentPage.logEdit.visible.Set(~currentPage.logEdit.visible.Get()) END;
+			ELSIF sender = findBtn THEN
+				IF currentPage # NIL THEN currentPage.searchPanel.visible.Set(~currentPage.searchPanel.visible.Get()) END;
+			ELSIF sender = errListBtn THEN
+				IF currentPage # NIL THEN currentPage.logPanel.visible.Set(~currentPage.logPanel.visible.Get()) END;
 			ELSIF sender = backBtn THEN
 				BrowseBack
 			ELSIF sender = forwardBtn THEN
