@@ -51,7 +51,6 @@ TYPE
 			SELF.tracer := tracer;
 			InitReader(Receiver, 1024);
 			SELF.in := in;
-			SELF.tracer:=tracer;
 		END Init;
 
 		PROCEDURE Receiver(VAR buf: ARRAY OF CHAR; ofs, size, min: LONGINT; VAR len, res: LONGINT);

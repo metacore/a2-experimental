@@ -390,7 +390,7 @@ VAR
 	command, parameters, paramString : Strings.String;
 	temp : Strings.String;
 	msg : ARRAY 128 OF CHAR;
-	available, i, j, k, res : LONGINT;
+	cur, available, i, j, k, res : LONGINT;
 
 	PROCEDURE CreateContext(paramString : Strings.String) : Commands.Context;
 	VAR c : Commands.Context; arg : Streams.StringReader; dummy : ARRAY 1 OF CHAR;
@@ -404,14 +404,33 @@ VAR
 		RETURN c;
 	END CreateContext;
 
+	PROCEDURE Resize(VAR t: Strings.String; len: LONGINT);
+	VAR new: Strings.String; i: LONGINT;
+	BEGIN
+		NEW(new, len);
+		IF t # NIL THEN
+			FOR i := 0 TO LEN(t)-1 DO new[i] := t[i] END;
+		END;
+		t := new;
+	END Resize;
+
+
 BEGIN
-	available := context.arg.Available();
-	IF (available < 1) THEN RETURN; END;
-	NEW(temp, available + 1);
-	context.arg.Bytes(temp^, 0, available, i); (* ignore i *)
-	Strings.Truncate (temp^, available);
+	cur := context.arg.Available();
+	IF (cur < 1) THEN RETURN; END;
+	NEW(temp, cur + 1);
+	available := 0;
+	WHILE cur > 0 DO
+		Resize(temp, available+cur+1);
+		context.arg.Bytes(temp^, available, cur, i); (* ignore i *)
+		INC(available, cur);
+		cur := context.arg.Available();
+	END;
+
 	RemoveComments(temp^, available);
+	Strings.Truncate (temp^, available);
 	commands := Strings.Split(temp^, "~");
+
 	NEW(command, LEN(temp)); NEW(parameters, LEN(temp));
 	i := 0;
 	LOOP
