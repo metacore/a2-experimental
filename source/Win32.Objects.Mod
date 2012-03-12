@@ -331,10 +331,8 @@ TYPE
 
 		PROCEDURE Activate;
 		BEGIN
-			Machine.Acquire(Machine.Objects);
 			process.mode := Running;
 			res := Kernel32.SetEvent(event);
-			Machine.Release(Machine.Objects);
 		END Activate;
 
 		PROCEDURE Wait;
