@@ -3660,7 +3660,10 @@ TYPE
 			END;
 			bufSize := Strings.Max(Strings.Min((end - start) * 5 + 1 (* for UTF *), MaxCallParameterBuf), 1);
 			NEW(s, bufSize);
-			TextUtilities.SubTextToStr(text, start, end - start, s^);
+			paramSize := 0;
+			TextUtilities.SubTextToStrAt(text, start, end - start, paramSize, s^);
+			INC(paramSize);
+
 			text.ReleaseRead;
 			Release;
 			IF  Inputs.Shift * modifierFlags # {} THEN
@@ -3705,7 +3708,6 @@ TYPE
 				END;
 
 				IF (i < LEN(s)) THEN (* copy parameter string *)
-					paramSize := LEN(s) + 1;
 					selectionOk := FALSE;
 					IF (nofLastSelections > 0) THEN
 						IF Texts.GetLastSelection(selectionText, from, to) THEN
