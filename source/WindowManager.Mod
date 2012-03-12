@@ -1558,6 +1558,9 @@ BEGIN
 	IF (disp(Displays.Display).format = Displays.color8888) THEN
 		WM.format := Raster.BGRA8888;
 		KernelLog.String("WindowManager: 32-bit color"); KernelLog.Ln;
+	ELSIF disp(Displays.Display).format = Displays.color888 THEN
+		WM.format := Raster.BGR888;
+		KernelLog.String("WindowManager: 24-bit color"); KernelLog.Ln;
 	ELSE
 		WM.format := Raster.BGR565;
 		KernelLog.String("WindowManager: 16-bit color"); KernelLog.Ln;
