@@ -1939,6 +1939,51 @@ VAR
 		 getDebugWriter := debug;
 	END InstallWriterFactory;
 
+	PROCEDURE Replace(VAR in: ARRAY OF CHAR; CONST this, by: ARRAY OF CHAR);
+	VAR pos: LONGINT;
+	BEGIN
+		pos := Strings.Pos(this,in);
+		IF pos >= 0 THEN
+			Strings.Delete(in,pos,Strings.Length(this));
+			Strings.Insert(by, in, pos);
+		END;
+	END Replace;
+
+	PROCEDURE MessageS*(CONST format, s0: ARRAY OF CHAR): MessageString;
+	VAR message: MessageString;
+	BEGIN
+		COPY(format, message);
+		Replace(message,"%0",s0);
+		RETURN message
+	END MessageS;
+
+	PROCEDURE MessageSS*(CONST format, s0, s1: ARRAY OF CHAR): MessageString;
+	VAR message: MessageString;
+	BEGIN
+		COPY(format, message);
+		Replace(message,"%0",s0);
+		Replace(message,"%1",s1);
+		RETURN message
+	END MessageSS;
+
+	PROCEDURE MessageI*(CONST format: ARRAY OF CHAR; i0: LONGINT): MessageString;
+	VAR message: MessageString; number: ARRAY 32 OF CHAR;
+	BEGIN
+		COPY(format, message);
+		Strings.IntToStr(i0,number);
+		Replace(message,"%0",number);
+	END MessageI;
+
+	PROCEDURE MessageSI*(CONST format: ARRAY OF CHAR; CONST s0: ARRAY OF CHAR; i1: LONGINT): MessageString;
+	VAR message: MessageString; number: ARRAY 32 OF CHAR;
+	BEGIN
+		COPY(format, message);
+		Replace(message,"%0",s0);
+		Strings.IntToStr(i1,number);
+		Replace(message,"%1",number);
+	END MessageSI;
+
+
 BEGIN
 	InitErrorMessages;
 	InitWindowWriter;

@@ -325,13 +325,16 @@ TYPE
 
 		PROCEDURE &Init;
 		BEGIN
+			ASSERT(gcActivity = NIL); (* should only exist once *)
 			event := Kernel32.CreateEvent( NIL, Kernel32.False (* auto-reset *), Kernel32.False, NIL );   (* manual set event with initial state = reset *)
 		END Init;
 
 		PROCEDURE Activate;
 		BEGIN
+			Machine.Acquire(Machine.Objects);
 			process.mode := Running;
-			res := Kernel32.SetEvent(gcActivity.event);
+			res := Kernel32.SetEvent(event);
+			Machine.Release(Machine.Objects);
 		END Activate;
 
 		PROCEDURE Wait;
