@@ -2745,9 +2745,10 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 				| p16: mode.transfer := P16CopyBGR888	(*PH090122*)
 				| bgr555, bgr565, bgr466: mode.transfer := Any16CopyBGR888
 				| bgr888: mode.transfer := Copy24
-				| bgra8888: IF SSE2enabled THEN mode.transfer := SSE2BGRA8888CopyBGR888
-							ELSE mode.transfer := BGRA8888CopyBGR888
-							END;
+				| bgra8888: 
+				(*	IF SSE2enabled THEN mode.transfer := SSE2BGRA8888CopyBGR888
+					ELSE *) mode.transfer := BGRA8888CopyBGR888
+				(*	END*);
 				ELSE mode.transfer := AnyCopyBGR888
 				END
 			| bgra8888:
