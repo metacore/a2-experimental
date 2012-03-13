@@ -11,7 +11,7 @@ CONST
 TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 		VAR out, monitor : Streams.Writer;
 		
-		PROCEDURE &Init(out:Streams.Writer; monitor: Streams.Writer);
+		PROCEDURE &Init*(out:Streams.Writer; monitor: Streams.Writer);
 		BEGIN
 			InitWriter(Sender, WriterBufSize);
 			SELF.out := out;	
@@ -26,6 +26,18 @@ TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 			res:=out.res;
 		END Sender;
 
+		PROCEDURE CanSetPos*(): BOOLEAN;
+		BEGIN RETURN out.CanSetPos()
+		END CanSetPos;
+
+		PROCEDURE SetPos*(pos: LONGINT);
+		BEGIN Reset; out.SetPos(pos);
+		END SetPos;
+
+		PROCEDURE Pos*(): LONGINT;
+		BEGIN RETURN out.Pos()
+		END Pos;
+
 	END WriterMonitor;
 	
 	(* reader that can daisychained with another reader that extracts a copy of the data flow to a monitor stream*)
@@ -33,7 +45,7 @@ TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 		VAR in: Streams.Reader;
 			monitor: Streams.Writer;
 	
-		PROCEDURE &Init(in: Streams.Reader; monitor: Streams.Writer);
+		PROCEDURE &Init*(in: Streams.Reader; monitor: Streams.Writer);
 		BEGIN
 			InitReader(Receiver, ReaderBufSize);
 			SELF.in := in;	
@@ -48,13 +60,26 @@ TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 			monitor.Update; (* or should this be left to the caller ? *)
 			res:=in.res
 		END Receiver;
+		
+		PROCEDURE CanSetPos*(): BOOLEAN;
+		BEGIN RETURN in.CanSetPos()
+		END CanSetPos;
+
+		PROCEDURE SetPos*(pos: LONGINT);
+		BEGIN Reset; in.SetPos(pos)
+		END SetPos;
+
+		PROCEDURE Pos*(): LONGINT;
+		BEGIN RETURN in.Pos()
+		END Pos;
+
 	END ReaderMonitor;
 	
 	LimitedWriter* = OBJECT (Streams.Writer);
 		VAR out : Streams.Writer;
 			size, remain-: LONGINT;
 		
-		PROCEDURE &Init(out:Streams.Writer; size: LONGINT);
+		PROCEDURE &Init*(out:Streams.Writer; size: LONGINT);
 		BEGIN
 			InitWriter(Sender, MIN(size, WriterBufSize));
 			SELF.out := out;	
@@ -71,19 +96,18 @@ TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 			IF num<len THEN res:=Streams.EOF ELSE res:=out.res END;
 		END Sender;
 		
-		PROCEDURE Reset;
+		PROCEDURE Reset*;
 		BEGIN
 			remain:=size;
 		END Reset;
 		
 	END LimitedWriter;
 
-(* not correctly working for different sizes yet - problemm with buffer sizes ?*)
 	LimitedReader* = OBJECT (Streams.Reader);
 		VAR in : Streams.Reader;
 			total, remain-: LONGINT;
 		
-		PROCEDURE &Init(in:Streams.Reader; size: LONGINT);
+		PROCEDURE &Init*(in:Streams.Reader; size: LONGINT);
 		BEGIN
 			InitReader(Receiver, MIN(size, ReaderBufSize));
 			SELF.in := in;	
@@ -100,7 +124,7 @@ TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 			IF (remain=0) & (num<size) THEN res:=Streams.EOF ELSE res:=in.res END;
 		END Receiver;
 		
-		PROCEDURE Reset;
+		PROCEDURE Reset*;
 		BEGIN
 			remain:=total;
 		END Reset;
