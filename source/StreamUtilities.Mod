@@ -1,7 +1,7 @@
 MODULE StreamUtilities; (** AUTHOR "Patrick Hunziker"; PURPOSE "stream utilities"; *)
-(* daisychaining of readers or writers with 'logging side-stream' or with size limitation*)
+(* daisychaining of readers or writers with 'logging side-stream', or with size limitation*)
 
-IMPORT Streams (* , KernelLog, Commands*);
+IMPORT Streams  , KernelLog, Commands;
 	
 CONST 
 	ReaderBufSize = Streams.DefaultReaderSize;
@@ -16,16 +16,18 @@ TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 			InitWriter(Sender, WriterBufSize);
 			SELF.out := out;	
 			SELF.monitor:=monitor;
+			Reset;
 		END Init;
 
 		PROCEDURE Sender(CONST outBuf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
 		BEGIN
 			out.Bytes(outBuf, ofs, len);
 			monitor.Bytes(outBuf, ofs, len);
+			INC(sent,len);
 			IF propagate THEN out.Update; monitor.Update END;
 			res:=out.res;
 		END Sender;
-
+		
 		PROCEDURE CanSetPos*(): BOOLEAN;
 		BEGIN RETURN out.CanSetPos()
 		END CanSetPos;
@@ -56,9 +58,10 @@ TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 		BEGIN
 			ASSERT((size > 0) & (min <= size) & (min >= 0));
 			in.Bytes(buf, ofs, size, len);
+			INC(received,len);
+			res:=in.res;
 			monitor.Bytes(buf, ofs, len); 
-			monitor.Update; (* or should this be left to the caller ? *)
-			res:=in.res
+			monitor.Update; 
 		END Receiver;
 		
 		PROCEDURE CanSetPos*(): BOOLEAN;
@@ -158,7 +161,7 @@ TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 		BEGIN
 			NEW(lr, in, size); r:=lr;
 		END OpenLimitedReader;
-(*
+
 (* application example: reader/writer monitors *)
 PROCEDURE Test*(context:Commands.Context);
 VAR w, log: Streams.Writer;
@@ -170,7 +173,7 @@ BEGIN
 
 	OpenReaderMonitor(r, context.arg, log); (*monitor the context.arg reader and send monitored input to log *)
 	res:=r.GetString(s); 
-	
+
 	OpenWriterMonitor(w, context.out, log);(* monitor the context.out writer and send monitored data to log*)
 	w.String("holla"); w.Ln; 
 	w.Update; 
@@ -187,12 +190,15 @@ BEGIN
 	
 	OpenLimitedReader(r, context.arg, 7); (*monitor the context.arg reader and send monitored input to log *)
 	res:=r.GetString(s); 
-	log.String(s); log.Ln; log.Update;
+	log.String(s); log.Ln;
+	res:=r.GetString(s); 
+	log.String(s); log.Ln; 
+	log.Update;
 	
 	OpenLimitedWriter(w, log, 6);(* monitor the context.out writer and send monitored data to log*)
 	w.String("123456789"); w.Ln; w.Update; 
 END Test2;
-*)
+
 END StreamUtilities.
 
 StreamUtilities.Test hello ~
