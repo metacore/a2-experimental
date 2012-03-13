@@ -414,7 +414,7 @@ BEGIN
 					context.arg.Bytes(arguments^, 0, context.arg.Available(), res); (* ignore res *)
 					NEW(enumContext, context.in, arg, context.out, context.error, context.caller);
 
-					EnumerateDirectory(enum, enumProc, options, context, filemask, arguments^);
+					EnumerateDirectory(enum, enumProc, options, enumContext, filemask, arguments^);
 					enum.Close;
 				ELSE
 					context.out.String("Procedure "); context.out.String(commandProcStr); context.out.String(" not found");
