@@ -1,19 +1,19 @@
 (* ETH Oberon, Copyright 2000 ETH Zürich Institut für Computersysteme, ETH Zentrum, CH-8092 Zürich.
 Refer to the general ETH Oberon System license contract available at: http://www.oberon.ethz.ch/ *)
 
-MODULE XDisplay;   (** X Windows display driver *)
+MODULE XDisplay;   (** X Windows display driver plugin *)
 
 (*! uses XEvents from X11Api *)
 
-IMPORT S := SYSTEM, Trace, Unix, Machine, Files, UnixFiles, X11, Api:=X11Api, Displays, Strings;
+IMPORT S := SYSTEM, Trace, Unix, Machine, Files, UnixFiles, X11, Api := X11Api, Displays, Strings;
 
 CONST
 	BG = 0;  FG = 15;   (* Background, foreground colors.*)
-	
+
 
 CONST
 	(* formats for Transfer.  value DIV 8 = bytes per pixel. *)
-	unknown* = 0;
+	unknown = 0;
 	index8 = 8;  color555 = 16;  color565 = 17;  color664 = 18;
 	color888 = 24;  color8888* = 32;
 
@@ -26,15 +26,6 @@ VAR
 	winName, iconName: ARRAY 128 OF CHAR;
 
 
-	X:	RECORD
-			display:				X11.DisplayPtr;
-			screen,
-			screenw, screenh:	LONGINT;
-			cells, planes:		LONGINT;
-			defcmap:			X11.Colormap;
-			depth:				INTEGER;
-		END;
-
 TYPE
 	Address = S.ADDRESS;
 	
@@ -42,17 +33,6 @@ TYPE
 				r, g, b: INTEGER
 			END;
 
-	Painter* = PROCEDURE ( x, y: INTEGER );
-
-	Marker* = RECORD
-				Fade*, Draw*: Painter (** Remove and draw marker. *)
-			END;
-
-	Cursor* = RECORD
-				marker*: Marker;   (** Cursor marker. *)
-				on*: BOOLEAN;   (** Is cursor shown? *)
-				X*, Y*: INTEGER (** Absolute cursor position. *)
-			END;
 
 
 	Clip* = OBJECT
@@ -119,30 +99,29 @@ TYPE
 	Display* = OBJECT   (Displays.Display)
 			VAR
 				xdisp-				: X11.DisplayPtr;
-				screen				: LONGINT;
-				visual-{UNTRACED}	: X11.VisualPtr;
-				depth-				: INTEGER;
-				nofcol-				: LONGINT;
-				cmap-				: X11.Colormap;
-				planesMask-		: LONGINT;
-				primary-,
-				secondary-,
-				currwin*			: X11.Window;
-				basePixel-,
-				foreground-,
-				background-		: LONGINT;
-				gc-					: X11.GC;
-				clip-				: Clip;
-
+				primary-			: X11.Window;
+				secondary-			: X11.Window;
+				currwin				: X11.Window;
+				wmDelete- 		: X11.Atom;
+				screen				: LONGINT;	
+				visual{UNTRACED}		: X11.VisualPtr;
+				depth				: LONGINT;
 				bigEndian			: BOOLEAN;
-				rgb-, defPal-		: ARRAY 256 OF RGB;
-				pixel-				: ARRAY 256 OF LONGINT;   (* pixel values for Oberon colors *)
+				gc					: X11.GC;
+				clip					: Clip;
+				
+				cmap				: X11.Colormap;
+				planesMask			: LONGINT;
+				foreground,
+				background			: LONGINT;
+				rgb, defPal			: ARRAY 256 OF RGB;	(* 8-bit pseudo color *)
+				pixel				: ARRAY 256 OF LONGINT;   (* pixel values for Oberon colors *)
 
 				xformat				: LONGINT;
 				currcol, currmode	: LONGINT;
 				xfunc				: ARRAY 3 OF LONGINT;
 				
-				wmDelete- : X11.Atom;
+				
 
 				PROCEDURE SetMode( col: LONGINT );
 				VAR mode: LONGINT;
@@ -333,7 +312,7 @@ TYPE
 						IF res # 0 THEN  pixel[col] := xcol.pixel  END
 					ELSE
 						xcol.flags := CHR( X11.DoAll );  xcol.pixel := pixel[col];
-						IF col < nofcol THEN  X11.StoreColor( xdisp, cmap, S.ADR( xcol ) )  END;
+						X11.StoreColor( xdisp, cmap, S.ADR( xcol ) ) 
 					END;
 					Machine.Release( Machine.X11 )
 				END SetColor;
@@ -374,7 +353,8 @@ TYPE
 					ELSE  (* index8 *)
 						i := 0;  ii := 0;  min := MAX( LONGINT );
 						WHILE (i < 256) & (min > 0) DO
-							rc := rgb[i];  x := ABS( r - rc.r );  y := ABS( g - rc.g );  z := ABS( b - rc.b );  m := x;
+							rc := rgb[i];  
+							x := ABS( r - rc.r );  y := ABS( g - rc.g );  z := ABS( b - rc.b );  m := x;
 							IF y > m THEN  m := y  END;
 							IF z > m THEN  m := z  END;
 							m := m*m + (x*x + y*y + z*z);
@@ -387,18 +367,24 @@ TYPE
 
 
 
-				PROCEDURE  & Initialize( absWidth, absHeight, relWidth, relHeight: LONGINT );
-				VAR event: Api.XEvent;  root: X11.Window;  gRoot, gX, gY, gW, gH, gBW, gD: LONGINT;
-					
-					res: LONGINT;
+				PROCEDURE  & Initialize( disp: X11.DisplayPtr; absWidth, absHeight, relWidth, relHeight: LONGINT );
+				VAR 
+					event: Api.XEvent;  root: X11.Window;  
+					gRoot, gX, gY, gW, gH, gBW, gD, res: LONGINT;  screenw, screenh	: LONGINT;
 				BEGIN
-					xdisp := X.display;  depth := X.depth;  cmap := X.defcmap;  screen := X.screen;
-					foreground := X11.BlackPixel( X.display, X.screen );
-					background := X11.WhitePixel( X.display, X.screen );
+					
+					xdisp := disp;  
+					screen := X11.DefaultScreen( xdisp );
+					screenw := X11.DisplayWidth( xdisp, screen );
+					screenh := X11.DisplayHeight( xdisp, screen );	
+					depth := X11.DefaultDepth( xdisp, screen );
+					cmap := X11.DefaultColormap( xdisp, screen );
+					foreground := X11.BlackPixel( xdisp, screen );
+					background := X11.WhitePixel( xdisp, screen );
 					Machine.Acquire( Machine.X11 );
-					root := X11.DefaultRootWindow( X.display );
-					primary := X11.CreateSimpleWindow( X.display, root, 0, 0,
-											     			X.screenw - 16, X.screenh - 32, 0,
+					root := X11.DefaultRootWindow( xdisp );
+					primary := X11.CreateSimpleWindow( xdisp, root, 0, 0,
+											     			screenw - 16, screenh - 32, 0,
 														foreground, background );
 					X11.StoreName( xdisp, primary, S.ADR( winName ) );
 					X11.SetIconName( xdisp, primary, S.ADR( iconName ) );
@@ -431,8 +417,8 @@ TYPE
 					offscreen := height;
 
 					(* pixmap may not be larger than screen: *)
-					IF gW > X.screenw THEN  gW := X.screenw  END;
-					IF gH > X.screenh THEN  gH := X.screenh  END;
+					IF gW > screenw THEN  gW := screenw  END;
+					IF gH > screenh THEN  gH := screenh  END;
 					secondary := X11.CreatePixmap( xdisp, primary, gW, gH, depth );
 					Machine.Release( Machine.X11 );
 
@@ -483,20 +469,20 @@ VAR
 		FOR colum := 0 TO width - 1 DO
 			CASE xformat OF
 			| index8:
-						S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
 			| color565, color555, color664:
-						S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
-						S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
 			| color888:
-						S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* B *)
-						S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* G *)
-						S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* R *)
-						byte := 0X;  S.PUT( ip, byte );  INC( ip );
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* B *)
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* G *)
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* R *)
+					byte := 0X;  S.PUT( ip, byte );  INC( ip );
 			ELSE  (* color8888 *)
-				S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* B *)
-				S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* G *)
-				S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* R *)
-				S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* X *)
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* B *)
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* G *)
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* R *)
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* X *)
 			END
 		END;
 	END PutLine;
@@ -509,20 +495,20 @@ VAR
 		FOR colum := 0 TO width - 1 DO
 			CASE xformat OF
 			| index8:
-						S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
 			| color565, color555, color664:
-						S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
-						S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
 			| color888:
-						S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* B *)
-						S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* G *)
-						S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* R *)
-						INC( ip )
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* B *)
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* G *)
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* R *)
+					INC( ip )
 			ELSE  (* color8888 *)
-				S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* B *)
-				S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* G *)
-				S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* R *)
-				S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* X *)
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* B *)
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* G *)
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* R *)
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* X *)
 			END
 		END;
 	END GetLine;
@@ -534,23 +520,23 @@ VAR
 		FOR colum := 0 TO width - 1 DO
 			CASE xformat OF
 			index8:
-						S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
 			| color565, color555, color664:
-						S.GET( bp + 1, byte );  S.PUT( ip, byte );  INC( ip );
-						S.GET( bp + 0, byte );  S.PUT( ip, byte );  INC( ip );
-						INC( bp, 2 )
+					S.GET( bp + 1, byte );  S.PUT( ip, byte );  INC( ip );
+					S.GET( bp + 0, byte );  S.PUT( ip, byte );  INC( ip );
+					INC( bp, 2 )
 			| color888:
-						byte := 0X;  S.PUT( ip, byte );  INC( ip );
-						S.GET( bp + 2, byte );  S.PUT( ip, byte );  INC( ip );   (* B *)
-						S.GET( bp + 1, byte );  S.PUT( ip, byte );  INC( ip );   (* G *)
-						S.GET( bp + 0, byte );  S.PUT( ip, byte );  INC( ip );   (* R *)
-						INC( bp, 3 );
+					byte := 0X;  S.PUT( ip, byte );  INC( ip );
+					S.GET( bp + 2, byte );  S.PUT( ip, byte );  INC( ip );   (* B *)
+					S.GET( bp + 1, byte );  S.PUT( ip, byte );  INC( ip );   (* G *)
+					S.GET( bp + 0, byte );  S.PUT( ip, byte );  INC( ip );   (* R *)
+					INC( bp, 3 );
 			ELSE  (* color8888 *)
-				S.GET( bp + 3, byte );  S.PUT( ip, byte );  INC( ip );   (* X *)
-				S.GET( bp + 2, byte );  S.PUT( ip, byte );  INC( ip );   (* B *)
-				S.GET( bp + 1, byte );  S.PUT( ip, byte );  INC( ip );   (* G *)
-				S.GET( bp + 0, byte );  S.PUT( ip, byte );  INC( ip );   (* R *)
-				INC( bp, 4 );
+					S.GET( bp + 3, byte );  S.PUT( ip, byte );  INC( ip );   (* X *)
+					S.GET( bp + 2, byte );  S.PUT( ip, byte );  INC( ip );   (* B *)
+					S.GET( bp + 1, byte );  S.PUT( ip, byte );  INC( ip );   (* G *)
+					S.GET( bp + 0, byte );  S.PUT( ip, byte );  INC( ip );   (* R *)
+					INC( bp, 4 );
 			END;
 		END;
 	END PutLineBE;
@@ -561,23 +547,23 @@ VAR
 		FOR colum := 0 TO width - 1 DO
 			CASE xformat OF
 			| index8:
-						S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
 			| color565, color555, color664:
-						S.GET( ip, byte );  S.PUT( bp + 1, byte );  INC( ip );
-						S.GET( ip, byte );  S.PUT( bp + 0, byte );  INC( ip );
-						INC( bp, 2 )
+					S.GET( ip, byte );  S.PUT( bp + 1, byte );  INC( ip );
+					S.GET( ip, byte );  S.PUT( bp + 0, byte );  INC( ip );
+					INC( bp, 2 )
 			| color888:
-						INC( ip );
-						S.GET( ip, byte );  S.PUT( bp + 2, byte );  INC( ip );   (* B *)
-						S.GET( ip, byte );  S.PUT( bp + 1, byte );  INC( ip );   (* G *)
-						S.GET( ip, byte );  S.PUT( bp + 0, byte );  INC( ip );   (* R *)
-						INC( bp, 3 );
+					INC( ip );
+					S.GET( ip, byte );  S.PUT( bp + 2, byte );  INC( ip );   (* B *)
+					S.GET( ip, byte );  S.PUT( bp + 1, byte );  INC( ip );   (* G *)
+					S.GET( ip, byte );  S.PUT( bp + 0, byte );  INC( ip );   (* R *)
+					INC( bp, 3 );
 			ELSE  (* color8888 *)
-				S.GET( ip, byte );  S.PUT( bp + 3, byte );  INC( ip );   (* X *)
-				S.GET( ip, byte );  S.PUT( bp + 2, byte );  INC( ip );   (* B *)
-				S.GET( ip, byte );  S.PUT( bp + 1, byte );  INC( ip );   (* G *)
-				S.GET( ip, byte );  S.PUT( bp + 0, byte );  INC( ip );   (* R *)
-				INC( bp, 4 );
+					S.GET( ip, byte );  S.PUT( bp + 3, byte );  INC( ip );   (* X *)
+					S.GET( ip, byte );  S.PUT( bp + 2, byte );  INC( ip );   (* B *)
+					S.GET( ip, byte );  S.PUT( bp + 1, byte );  INC( ip );   (* G *)
+					S.GET( ip, byte );  S.PUT( bp + 0, byte );  INC( ip );   (* R *)
+					INC( bp, 4 );
 			END
 		END;
 	END GetLineBE;
@@ -653,49 +639,41 @@ VAR
 		END
 	END getDisplayName;
 
-	PROCEDURE OpenX11Display;
-	VAR fd: LONGINT;
+	PROCEDURE OpenX11Display( ): X11.DisplayPtr;
+	VAR xdisp: X11.DisplayPtr;  screen, depth: LONGINT;
 	BEGIN
 		getDisplayName;
-		X.display := Api.OpenDisplay( dispname );
-		IF X.display = 0 THEN
+		xdisp := Api.OpenDisplay( dispname );
+		IF xdisp = 0 THEN
 			Trace.String( "Cannot open X11 display " );  Trace.StringLn( dispname );  Unix.exit( 1 )
 		END;
-		S.GET( X.display + 8, fd );
-		X.screen := X11.DefaultScreen( X.display );
-		X.screenw := X11.DisplayWidth( X.display, X.screen );
-		X.screenh := X11.DisplayHeight( X.display, X.screen );
-		X.depth := SHORT( X11.DefaultDepth( X.display, X.screen ) );
-		IF X.depth < 8 THEN  ColorError  END;
-		X.defcmap := X11.DefaultColormap( X.display, X.screen );
-		X.cells := X11.DisplayCells( X.display, X.screen );
-		X.planes := X11.DisplayPlanes( X.display, X.screen );
+		screen := X11.DefaultScreen( xdisp );
+		depth := X11.DefaultDepth( xdisp, screen );
+		IF depth < 8 THEN  
+			Trace.StringLn( "UnixAos needs a color display. sorry." );  Unix.exit( 1 )
+		END;
+		Trace.String( "X11 Display depth = " ); Trace.Int( depth, 1 ); Trace.Ln;
+		RETURN xdisp
 	END OpenX11Display;
 
-	PROCEDURE ColorError;
-	BEGIN
-		Trace.StringLn( "UnixAos needs a color display. sorry." );  Unix.exit( 1 )
-	END ColorError;
 
 	PROCEDURE CreateColors( d: Display );
 	VAR col: INTEGER;
-		visualInfo: X11.VisualInfo;  visual{UNTRACED}: X11.VisualPtr;
+		visualInfo: X11.VisualInfo;  
 	BEGIN
 		Machine.Acquire( Machine.X11 );
 		col := 0;
 		WHILE col < 256 DO  d.pixel[col] := col;  INC( col )  END;
 		IF (d.depth > 8) & (X11.MatchVisualInfo( d.xdisp, d.screen, d.depth, X11.TrueColor, visualInfo ) = 1) THEN
-			visual := visualInfo.visual;
+			d.visual := visualInfo.visual;
 		ELSIF X11.MatchVisualInfo( d.xdisp, d.screen, d.depth, X11.PseudoColor, visualInfo ) = 1 THEN
-			visual := visualInfo.visual
-		ELSE  ColorError
+			d.visual := visualInfo.visual
 		END;
-		d.nofcol := visual.mapEntries;
 		d.bigEndian := FALSE;
-		IF d.depth > 8 THEN  d.bigEndian := visual.blueMask > visual.redMask  END;
-		IF d.depth <= 8 THEN
-			d.nofcol := visual.mapEntries;
-			d.cmap := X11.CreateColormap( d.xdisp, d.primary, visual, X11.AllocAll );
+		IF d.depth > 8 THEN  
+			d.bigEndian := d.visual.blueMask > d.visual.redMask 
+		ELSE (* pseudo color *)
+			d.cmap := X11.CreateColormap( d.xdisp, d.primary, d.visual, X11.AllocAll );
 			X11.SetWindowColormap( d.xdisp, d.primary, d.cmap );
 			d.foreground := d.pixel[FG];
 			d.background := d.pixel[BG];
@@ -703,7 +681,7 @@ VAR
 			X11.ClearWindow( d.xdisp, d.primary )
 		END;
 		Machine.Release( Machine.X11 );
-		d.visual := visual;  d.basePixel := 0;  d.planesMask := ASH( 1, d.depth ) - 1
+		d.planesMask := ASH( 1, d.depth ) - 1
 	END CreateColors;
 
 
@@ -744,9 +722,7 @@ VAR
 	
 
 	PROCEDURE InitFormat( d: Display );
-	VAR visual: X11.VisualPtr;
 	BEGIN
-		visual := S.VAL( X11.VisualPtr, d.visual );
 		IF d.depth = 8 THEN  
 			d.format := Displays.index8;
 			d.xformat := index8
@@ -755,10 +731,8 @@ VAR
 			d.xformat := color555
 		ELSIF d.depth = 16 THEN
 			d.format := Displays.color565;
-			IF visual.blueMask = 0FH THEN  
-				d.xformat := color664
-			ELSE  
-				d.xformat := color565
+			IF d.visual.blueMask = 0FH THEN  d.xformat := color664
+			ELSE  d.xformat := color565
 			END
 		ELSIF d.depth = 24 THEN  
 			d.format := Displays.color888;
@@ -769,7 +743,6 @@ VAR
 		ELSE  
 			d.format := unknown
 		END;
-		Trace.String( "X11 Display depth = " ); Trace.Int( d.depth, 1 ); Trace.Ln
 	END InitFormat;
 
 	PROCEDURE CreateGC( d: Display );
@@ -844,11 +817,11 @@ VAR
 	END GetDisplaySize;
 
 	PROCEDURE Install*;
-	VAR disp: Display; res: LONGINT; s, w, h: LONGINT;
+	VAR disp: Display; res: LONGINT; s, w, h: LONGINT; xdisp: X11.DisplayPtr;
 	BEGIN
-		InitNames; OpenX11Display;
+		InitNames; xdisp := OpenX11Display( );
 		s := GetDisplaySize( w, h );
-		NEW( disp, w, h, s, s );
+		NEW( disp, xdisp, w, h, s, s );
 		disp.SetName( "XDisplay" );
 		disp.desc := "X11 display driver";
 		Displays.registry.Add( disp, res );
