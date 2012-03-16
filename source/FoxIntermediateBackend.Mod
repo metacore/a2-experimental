@@ -552,7 +552,7 @@ TYPE
 
 				implementationVisitor.Body(scope.body,currentScope,ir,x = module.module.moduleScope.bodyProcedure);
 
-				IF ~inline & ~(procedureType.noPAF) & ~x.isEntry THEN
+				IF ~inline & ~(procedureType.noPAF) & ~x.isEntry & ~x.isExit THEN
 					IF scope.lastVariable # NIL THEN
 						stackSize := scope.lastVariable.offsetInBits;
 						IF stackSize <0 THEN stackSize := -stackSize END;
@@ -560,7 +560,7 @@ TYPE
 					END;
 				END;
 
-				IF ~inline  & ~(procedureType.noPAF) & ~x.isEntry THEN
+				IF ~inline  & ~(procedureType.noPAF) & ~x.isEntry & ~x.isExit THEN
 					IF ToMemoryUnits(system,stackSize) > 4*1024-256 THEN (* stack frame potentially larger than page size *) (*! get page size from backend *)
 						(*! unnecessary with new implementation of ENTER -- should potentially be called by backend
 						IF implementationVisitor.GetRuntimeProcedure(implementationVisitor.runtimeModuleName,"EnsureAllocatedStack",procedure,TRUE) THEN

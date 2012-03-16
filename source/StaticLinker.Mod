@@ -1,19 +1,70 @@
 MODULE StaticLinker;	(* AUTHOR "negelef"; PURPOSE "Static Object File Linker"; *)
 
-IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile, BitSets, Streams, Strings;
+IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile, BitSets, Streams, Strings, D:= Debugging;
 
-TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
+TYPE
+	ExportName = ARRAY 64 OF CHAR;
+
+	PatchBlock*= POINTER TO RECORD
+		baseAdr: LONGINT; size: LONGINT;
+		addresses: LONGINT;
+		address: ARRAY 512 OF LONGINT;
+		next: PatchBlock;
+	END;
+
+	ExportInfo=OBJECT
+	VAR
+		exports: LONGINT;
+		name: ExportName;
+		symbolNames: POINTER TO ARRAY OF ExportName;
+		exportNames: POINTER TO ARRAY OF ExportName;
+		exportAddresses: POINTER TO ARRAY OF GenericLinker.Address;
+		patchBlock: PatchBlock;
+
+		PROCEDURE GetPatchBlock(adr: LONGINT): PatchBlock;
+		VAR p, t: PatchBlock;
+		BEGIN
+			t := patchBlock;
+			IF (patchBlock = NIL) OR (patchBlock.baseAdr > adr) THEN
+				NEW(p); p.next := patchBlock; patchBlock := p; p.baseAdr := adr;
+			ELSIF patchBlock.baseAdr = adr THEN p := patchBlock
+			ELSE
+				t := patchBlock;
+				WHILE (t.next # NIL) & (t.next.baseAdr <= adr) DO
+					t := t.next;
+				END;
+				IF t.baseAdr = adr THEN p := t
+				ELSE
+					NEW(p); p.next := t.next; t.next := p; p.baseAdr := adr
+				END;
+			END;
+			RETURN p
+		END GetPatchBlock;
+
+		PROCEDURE AddReloc(adr: LONGINT);
+		VAR aligned: LONGINT; p: PatchBlock;
+		BEGIN
+			aligned := adr - adr MOD 4096;
+			p := GetPatchBlock(aligned);
+			p.address[p.addresses] := adr (*- aligned*); INC(p.addresses);
+		END AddReloc;
+
+	END ExportInfo;
+
+	Arrangement* = OBJECT (GenericLinker.Arrangement);
 	VAR
 		displacement: GenericLinker.Address;
 		bits: BitSets.BitSet;
 		maxUnitSize: ObjectFile.Bits;
 
+		exportInfo: ExportInfo;
+
 	PROCEDURE & InitArrangement* (displacement: GenericLinker.Address);
-	BEGIN SELF.displacement := displacement; maxUnitSize := 1; NEW (bits, 0);
+	BEGIN SELF.displacement := displacement; maxUnitSize := 1; NEW (bits, 0); exportInfo := NIL;
 	END InitArrangement;
 
 	PROCEDURE Allocate* (CONST section: ObjectFile.Section): GenericLinker.Address;
-	VAR address, alignment: ObjectFile.Bits;
+	VAR address, alignment: ObjectFile.Bits; i: LONGINT; name: ObjectFile.PooledName;
 	BEGIN
 		IF section.unit > maxUnitSize THEN maxUnitSize := section.unit END;
 		IF section.fixed THEN
@@ -27,6 +78,17 @@ TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 			bits.Resize (address + section.bits.GetSize ());
 		END;
 		BitSets.CopyBits (section.bits, 0, bits, address, section.bits.GetSize ());
+
+		IF exportInfo # NIL THEN
+			FOR i := 0 TO exportInfo.exports-1 DO
+				ObjectFile.ToPooledName(exportInfo.symbolNames[i], name);
+				IF name= section.identifier.name THEN
+					exportInfo.exportAddresses[i] := address DIV section.unit + displacement;
+					D.String("found exported symbol "); D.String(exportInfo.symbolNames[i]); D.Ln;
+				END;
+			END
+		END;
+
 		RETURN address DIV section.unit + displacement;
 	END Allocate;
 
@@ -37,6 +99,18 @@ TYPE Arrangement* = OBJECT (GenericLinker.Arrangement);
 	PROCEDURE Patch* (pos, value: GenericLinker.Address; offset, bits, unit: ObjectFile.Bits);
 	BEGIN SELF.bits.SetBits ((pos - displacement) * unit + offset, bits, value);
 	END Patch;
+
+	PROCEDURE CheckReloc(target: LONGINT; CONST patch: ObjectFile.Patch);
+	VAR i: LONGINT;
+	BEGIN
+		IF (patch.mode = ObjectFile.Absolute) & (exportInfo # NIL) THEN
+			FOR i := 0 TO patch.offsets-1 DO
+				(*D.String("found reloc at "); D.Int(target+patch.offset[i],1); D.Ln;*)
+				exportInfo.AddReloc(target+patch.offset[i]);
+			END;
+		END;
+	END CheckReloc;
+
 
 END Arrangement;
 
@@ -117,6 +191,319 @@ PROCEDURE WriteTRMDataFile* (linker: GenericLinker.Linker; arrangement: Arrangem
 BEGIN WriteTRMFile (arrangement, writer, 32,1024);
 END WriteTRMDataFile;
 
+PROCEDURE WriteDLLFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer; bitmode, subSystem: INTEGER);
+CONST DOSText = "This program cannot be run in DOS mode.$";
+CONST DOSHeaderSize = 64; DOSCodeSize = 14; DOSTextSize = 40; DOSStubSize = ((DOSHeaderSize + DOSCodeSize + DOSTextSize + 15) DIV 16) * 16;
+CONST FileAlignment = 200H; SectionAlignment = 1000H; HeaderSize = 24; SectionHeaderSize = 40; DirectoryEntries = 16;
+VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress, BaseAddress: LONGINT; info: ExportInfo;
+
+	PROCEDURE Reserve (size: LONGINT);
+	BEGIN WHILE size # 0 DO writer.Char (0X); DEC (size); END;
+	END Reserve;
+
+	PROCEDURE WriteBYTE (value: LONGINT);
+	BEGIN writer.Char (CHR (value));
+	END WriteBYTE;
+
+	PROCEDURE WriteWORD (value: LONGINT);
+	BEGIN WriteBYTE (value MOD 100H); WriteBYTE (value DIV 100H);
+	END WriteWORD;
+
+	PROCEDURE WriteDWORD (value: LONGINT);
+	BEGIN WriteWORD (value MOD 10000H); WriteWORD (value DIV 10000H);
+	END WriteDWORD;
+
+	PROCEDURE WritePTR (value: LONGINT);
+	BEGIN WriteDWORD (value); IF bitmode = 64 THEN WriteDWORD (0) END;
+	END WritePTR;
+
+	PROCEDURE Align(this, to: LONGINT): LONGINT;
+	BEGIN
+		this := this + (-this) MOD to;
+		RETURN this;
+	END Align;
+
+	PROCEDURE ExportTableSize(): LONGINT;
+	VAR i,offset: LONGINT;
+	BEGIN
+		offset := 40 + Strings.Length(info.name)+1;
+		FOR i := 0 TO info.exports-1 DO
+			INC(offset, Strings.Length(info.exportNames[i])+1);
+			INC(offset, 10);
+		END;
+		RETURN offset
+	END ExportTableSize;
+
+	PROCEDURE AlignedExportTableSize(): LONGINT;
+	VAR size: LONGINT;
+	BEGIN
+		RETURN Align(ExportTableSize(), SectionAlignment);
+	END AlignedExportTableSize;
+
+	PROCEDURE SectionHeaderOffset(): LONGINT;
+	BEGIN RETURN DOSStubSize + HeaderSize + OptionalHeaderSize
+	END SectionHeaderOffset;
+
+	(*
+
+	PROCEDURE CodeSectionSize(): LONGINT;
+	BEGIN
+		RETURN HeadersSize - SectionHeaderOffset() + AlignedCodeSize
+	END CodeSectionSize;
+
+	PROCEDURE AlignedCodeSectionSize(): LONGINT;
+	BEGIN
+		RETURN Align(CodeSectionSize(), SectionAlignment);
+	END AlignedCodeSectionSize;
+	*)
+
+	PROCEDURE WriteDOSStub;
+	BEGIN
+		WriteWORD (5A4DH);	(* e_magic *)
+		WriteWORD (DOSStubSize);	(* e_cblp *)
+		WriteWORD (1);	(* e_cp *)
+		WriteWORD (0);	(* e_crlc *)
+		WriteWORD (DOSHeaderSize DIV 16);	(* e_cparhdr *)
+		WriteWORD (0);	(* e_minalloc *)
+		WriteWORD (0);	(* e_maxalloc *)
+		WriteWORD (0);	(* e_ss *)
+		WriteWORD (0);	(* e_sp *)
+		WriteWORD (0);	(* e_csum *)
+		WriteWORD (0);	(* e_ip *)
+		WriteWORD (0);	(* e_cs *)
+		WriteWORD (DOSHeaderSize);	(* e_lfarlc *)
+		WriteWORD (0);	(* e_ovno *)
+		Reserve (32);	(* e_res *)
+		WriteDWORD (DOSStubSize);	(* e_lfanew *)
+
+		WriteBYTE (00EH); WriteBYTE (01FH); WriteBYTE (0BAH); WriteWORD (DOSCodeSize);
+		WriteBYTE (0B4H); WriteBYTE (009H); WriteBYTE (0CDH); WriteBYTE (021H); WriteBYTE (0B8H);
+		WriteBYTE (001H); WriteBYTE (04CH); WriteBYTE (0CDH); WriteBYTE (021H); writer.String (DOSText);
+
+		Reserve (DOSStubSize - DOSHeaderSize - DOSCodeSize - DOSTextSize);
+	END WriteDOSStub;
+
+	PROCEDURE WriteHeader;
+	BEGIN
+		WriteDWORD (000004550H);	(* Signature *)
+		IF bitmode = 64 THEN
+			WriteWORD (08664H);	(* Machine *)
+		ELSE
+			WriteWORD (0014CH);	(* Machine *)
+		END;
+		WriteWORD (3);	(* NumberOfSections *)
+		WriteDWORD (0);	(* TimeDateStamp *)
+		WriteDWORD (0);	(* PointerToSymbolTable *)
+		WriteDWORD (0);	(* NumberOfSymbols *)
+		WriteWORD (OptionalHeaderSize);	(* SizeOfOptionalHeader *)
+
+		IF bitmode = 64 THEN
+			WriteWORD (02222H);	(* Characteristics *)
+		ELSE
+			WriteWORD (02322H);	(* Characteristics *)
+		END;
+	END WriteHeader;
+
+	PROCEDURE WriteOptionalHeader;
+	VAR ImageSize: LONGINT;
+	BEGIN
+		ImageSize := Align(BaseCodeAddress+AlignedCodeSize+AlignedExportTableSize()+AlignedRelocTableSize(), SectionAlignment);
+
+		(* 0 *) IF bitmode = 64 THEN
+			WriteWORD (0020BH);	(* Magic *)
+		ELSE
+			WriteWORD (0010BH);	(* Magic *)
+		END;
+		(* 2 *) WriteBYTE (0);	(* MajorLinkerVersion *)
+		(* 3 *) WriteBYTE (0);	(* MinorLinkerVersion *)
+		(* 4 *) WriteDWORD (CodeSize);	(* SizeOfCode *)
+		(* 8 *) WriteDWORD (0);	(* SizeOfInitializedData *)
+		(* 12 *) WriteDWORD (0);	(* SizeOfUninitializedData *)
+		(* 16 *) WriteDWORD (BaseCodeAddress);	(* AddressOfEntryPoint *)
+		(* 20 *) WriteDWORD (BaseCodeAddress);	(* BaseOfCode *)
+		(* 24 *) IF bitmode # 64 THEN
+			WriteDWORD (ImageSize);	(* BaseOfData *)
+		END;
+		(* 28 / 24 *) WritePTR (arrangement.displacement - BaseCodeAddress);	(* ImageBase *)
+		(* 32 *) WriteDWORD (SectionAlignment);	(* SectionAlignment *)
+		(* 36 *)WriteDWORD (FileAlignment);	(* FileAlignment *)
+		(* 40 *)WriteWORD (4);	(* MajorOperatingSystemVersion *)
+		(* 42 *)WriteWORD (0);	(* MinorOperatingSystemVersion *)
+		(* 44 *)WriteWORD (0);	(* MajorImageVersion *)
+		(* 46 *)WriteWORD (0);	(* MinorImageVersion *)
+		(* 48 *)WriteWORD (4);	(* MajorSubsystemVersion *)
+		(* 50 *)WriteWORD (0);	(* MinorSubsystemVersion *)
+		(* 52 *)WriteDWORD (0);	(* Win32VersionValue *)
+		(* 56 *)WriteDWORD (ImageSize);	(* SizeOfImage *)
+		(* 60 *)WriteDWORD (HeadersSize);	(* SizeOfHeaders *)
+		(* 64 *)WriteDWORD (0);	(* CheckSum *)
+		(* 68 *)WriteWORD (subSystem);	(* Subsystem *)
+		(* 70 *)WriteWORD (40H);	(* DllCharacteristics *)
+		(* 72 *)WritePTR (0100000H);	(* SizeOfStackReserve *)
+		(* 76 / 80 *)WritePTR (01000H);	(* SizeOfStackCommit *)
+		(* 80 / 88 *)WritePTR (0100000H);	(* SizeOfHeapReserve *)
+		(* 84 / 96 *)WritePTR (01000H);	(* SizeOfHeapCommit *)
+		(* 88 / 104 *)WriteDWORD (0);			(* LoaderFlags *)
+		(* 92 / 108  *)WriteDWORD (DirectoryEntries);	(* NumberOfRvaAndSizes *)
+
+		(* 96 / 112 *) WriteDWORD(BaseCodeAddress + AlignedCodeSize); WriteDWORD(ExportTableSize());  (* location and size of export table *)
+		(* 104 / 120 *) WriteDWORD (BaseCodeAddress +8) ; WriteDWORD (40); (* location and size of of idata section *)
+		Reserve (3 * 8);
+		WriteDWORD (BaseCodeAddress + AlignedCodeSize+AlignedExportTableSize()) ; WriteDWORD (RelocTableSize()); (* location and size of of reloc section *)
+		Reserve ((DirectoryEntries - 6) * 8);
+	END WriteOptionalHeader;
+
+	PROCEDURE WriteSections;
+	VAR alignedSize: LONGINT;ExportNameTableAddress, i, offset: LONGINT; p: PatchBlock;
+	BEGIN
+
+		(* code section header *)
+		(* 0 *) writer.String (".text"); Reserve (3);	(* Name *)
+		(* 8 *) WriteDWORD (CodeSize);	(* VirtualSize *)
+		(* 12 *) WriteDWORD (BaseCodeAddress);	(* VirtualAddress *)
+		(* 16 *) WriteDWORD (AlignedCodeSize);	(* SizeOfRawData *)
+		(* 20 *) WriteDWORD (BaseCodeAddress);	(* PointerToRawData *)
+		(* 24 *) WriteDWORD (0);	(* PointerToRelocations *)
+		(* 28 *) WriteDWORD (0);	(* PointerToLinenumbers *)
+		(* 32 *) WriteWORD (0);	(* NumberOfRelocations *)
+		(* 34 *) WriteWORD (0);	(* NumberOfLinenumbers *)
+		(* 36 *) WriteDWORD (SHORT (0E0000020H));	(* Characteristics *)
+
+		(* export table header *)
+		(* 0 *) writer.String(".edata"); Reserve(2); (* name *)
+		(* 8 *) WriteDWORD(ExportTableSize()); (* virtual size *)
+		(* 12 *) WriteDWORD(BaseCodeAddress + AlignedCodeSize (* address *));
+		(* 16 *) WriteDWORD(AlignedExportTableSize()); (* raw data size *)
+		(* 20 *) WriteDWORD(BaseCodeAddress + AlignedCodeSize); (* raw data pointer *)
+		(* 24 *) WriteDWORD (0);	(* PointerToRelocations *)
+		(* 28 *) WriteDWORD (0);	(* PointerToLinenumbers *)
+		(* 32 *) WriteWORD (0);	(* NumberOfRelocations *)
+		(* 34 *) WriteWORD (0);	(* NumberOfLinenumbers *)
+		(* 36 *) WriteDWORD (LONGINT (040000000H));	(* Characteristics *)
+
+		(* reloc table header *)
+		(* 0 *) writer.String(".reloc"); Reserve(2); (* name *)
+		(* 8 *) WriteDWORD(RelocTableSize()); (* virtual size *)
+		(* 12 *) WriteDWORD(BaseCodeAddress + AlignedCodeSize + AlignedExportTableSize() (* address *));
+		(* 16 *) WriteDWORD(AlignedRelocTableSize()); (* raw data size *)
+		(* 20 *) WriteDWORD(BaseCodeAddress + AlignedCodeSize+ AlignedExportTableSize()); (* raw data pointer *)
+		(* 24 *) WriteDWORD (0);	(* PointerToRelocations *)
+		(* 28 *) WriteDWORD (0);	(* PointerToLinenumbers *)
+		(* 32 *) WriteWORD (0);	(* NumberOfRelocations *)
+		(* 34 *) WriteWORD (0);	(* NumberOfLinenumbers *)
+		(* 36 *) WriteDWORD (LONGINT (040000000H));	(* Characteristics *)
+
+	 	(* 40 *) Reserve (BaseCodeAddress - SectionHeaderOffset()-120);
+
+	 	(**** code section *****)
+	 	(* BaseCodeAddress *)
+	 	WriteBinaryFile (linker, arrangement, writer);
+	 	(* BaseCodeAddress +CodeSize *)
+		Reserve (AlignedCodeSize-CodeSize);
+		(* BaseCodeAddress + AlignedCodeSize *)
+
+		(***** export section *****)
+		(* BaseCodeAddress + AlignedCodeSize  *)
+		(* 0 *) WriteDWORD(0); (* reserved *)
+		(* 4 *) WriteDWORD(0); (* time / date *)
+		(* 6 *) WriteWORD(0); (* major version *)
+		(* 8 *) WriteWORD(0); (* minor version *)
+		(* 12 *) WriteDWORD(BaseCodeAddress+AlignedCodeSize + 40 + 10* info.exports); (* RVA of DLL name *)
+		(* 16 *) WriteDWORD(1); (* start ordinal number *)
+		(* 20 *) WriteDWORD(info.exports); (* number of entries in export table *)
+		(* 24 *) WriteDWORD(info.exports); (* number of entries in name pointer table *)
+		(* 28 *) WriteDWORD(BaseCodeAddress+AlignedCodeSize + 40 ); (* export address table RVA *)
+		(* 32 *) WriteDWORD(BaseCodeAddress+AlignedCodeSize + 40 + 4* info.exports); (* name pointer RVA *)
+		(* 36 *) WriteDWORD(BaseCodeAddress+AlignedCodeSize + 40 + 8* info.exports); (* ordinal table RVA *)
+		(* 40 *)
+
+		(* export address table *)
+		FOR i := 0 TO info.exports-1 DO
+			ASSERT(info.exportAddresses[i] # 0);
+			D.String("export address:"); D.Int(info.exportAddresses[i],1); D.Ln;
+			WriteDWORD(info.exportAddresses[i]-BaseAddress+BaseCodeAddress); (* RVA ! *)
+		END;
+
+		(* export name pointer table *)
+		(* 40 + 4 * Number exports *)
+		ExportNameTableAddress := BaseCodeAddress + AlignedCodeSize + 40 + 10* info.exports ;
+		offset := Strings.Length(info.name)+1;
+		FOR i := 0 TO info.exports-1 DO
+			WriteDWORD(ExportNameTableAddress + offset);
+			INC(offset, Strings.Length(info.exportNames[i])+1);
+		END;
+
+		(* export ordinal table *)
+		(* 40 + 8* NumberExports  *)
+		FOR i := 0 TO info.exports-1 DO
+			WriteWORD(i);
+		END;
+
+		(* 40 + 10* NumberExports *)
+		(* export name table *)
+		writer.RawString(info.name);
+		FOR i := 0 TO info.exports-1 DO
+			writer.RawString(info.exportNames[i]); (* 0x terminated *)
+		END;
+
+		Reserve(AlignedExportTableSize() - ExportTableSize());
+
+		p := info.patchBlock;
+		WHILE p # NIL DO
+			D.String("PatchBlock: "); D.Address(p.baseAdr); D.Ln;
+			WriteDWORD(p.baseAdr -BaseAddress+BaseCodeAddress) (* RVA  of block *);
+			WriteDWORD(8+p.addresses*2+2*(p.addresses MOD 2)); (* number bytes of this block *)
+			FOR i := 0 TO p.addresses-1 DO
+				D.Address(p.address[i]); D.Ln;
+				WriteWORD(p.address[i] - p.baseAdr+ 3000H);(* block-relative addresses, highlow *)
+			END;
+			IF ODD(p.addresses) THEN WriteWORD(0); (*padding *) END;
+			p := p.next;
+		END;
+
+		Reserve(AlignedRelocTableSize() - RelocTableSize());
+	END WriteSections;
+
+	PROCEDURE RelocTableSize(): LONGINT;
+	VAR p: PatchBlock; size: LONGINT;
+	BEGIN
+		size := 0;
+		p := info.patchBlock;
+		WHILE p # NIL DO
+			INC(size, 8 + p.addresses * 2);
+			IF ODD(p.addresses) THEN INC(size, 2) END;
+			p := p.next
+		END;
+		RETURN size
+	END RelocTableSize;
+
+	PROCEDURE AlignedRelocTableSize(): LONGINT;
+	BEGIN RETURN Align(RelocTableSize(), SectionAlignment);
+
+	END AlignedRelocTableSize;
+
+
+BEGIN
+	info := arrangement.exportInfo;
+	BaseAddress := arrangement.displacement; (* ASSERT (arrangement.displacement = BaseAddress); *)
+	OptionalHeaderSize := 96 + DirectoryEntries * 8;
+	IF bitmode = 64 THEN INC (OptionalHeaderSize, 16); END;
+	CodeSize := arrangement.bits.GetSize () DIV 8;
+	AlignedCodeSize := Align(CodeSize, SectionAlignment);
+	HeadersSize :=  Align(DOSStubSize + HeaderSize + OptionalHeaderSize + SectionHeaderSize, FileAlignment);
+	BaseCodeAddress := Align(HeadersSize, SectionAlignment);
+
+	WriteDOSStub; WriteHeader; WriteOptionalHeader; WriteSections;
+END WriteDLLFile;
+
+PROCEDURE WriteDLL32File (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
+BEGIN WriteDLLFile (linker, arrangement, writer, 32, 2);
+END WriteDLL32File;
+
+PROCEDURE WriteDLL64File (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
+BEGIN WriteDLLFile (linker, arrangement, writer, 64, 2);
+END WriteDLL64File;
+
 PROCEDURE WritePEFile (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer; bitmode, subSystem: INTEGER);
 CONST DOSText = "This program cannot be run in DOS mode.$";
 CONST DOSHeaderSize = 64; DOSCodeSize = 14; DOSTextSize = 40; DOSStubSize = ((DOSHeaderSize + DOSCodeSize + DOSTextSize + 15) DIV 16) * 16;
@@ -183,9 +570,9 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress:
 		WriteDWORD (0);	(* NumberOfSymbols *)
 		WriteWORD (OptionalHeaderSize);	(* SizeOfOptionalHeader *)
 		IF bitmode = 64 THEN
-			WriteWORD (0022FH);	(* Characteristics *)
+			WriteWORD (00223H);	(* Characteristics *)
 		ELSE
-			WriteWORD (0032FH);	(* Characteristics *)
+			WriteWORD (00323H);	(* Characteristics *)
 		END;
 	END WriteHeader;
 
@@ -232,7 +619,7 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress:
 		WriteDWORD (DirectoryEntries);	(* NumberOfRvaAndSizes *)
 
 		Reserve (8);
-		WriteDWORD (BaseCodeAddress + 4) ; WriteDWORD (40);
+		WriteDWORD (BaseCodeAddress + 8) ; WriteDWORD (40);
 		Reserve ((DirectoryEntries - 2) * 8);
 	END WriteOptionalHeader;
 
@@ -451,8 +838,49 @@ BEGIN
 	ELSIF format = "EFI64" THEN RETURN WriteEFI64File;
 	ELSIF format = "ELF" THEN RETURN WriteELFFile;
 	ELSIF format = "MACHO" THEN RETURN WriteMachOFile;
+	ELSIF format = "DLL32" THEN RETURN WriteDLL32File;
+	ELSIF format = "DLL64" THEN RETURN WriteDLL64File;
 	ELSE RETURN default; END;
 END GetFileFormat;
+
+PROCEDURE MakeExports(arrangement: ExportInfo; CONST names: ARRAY OF CHAR);
+VAR number: LONGINT; i,j: LONGINT;
+BEGIN
+	number := 0;
+	WHILE names[i] # 0X DO
+		IF names[i] = "=" THEN INC(number) END;
+		INC(i);
+	END;
+
+	NEW(arrangement.symbolNames, number);
+	NEW(arrangement.exportNames, number);
+	NEW(arrangement.exportAddresses, number);
+	arrangement.exports := number;
+
+	number := 0;
+	i := 0;
+	WHILE names[i] # 0X DO
+		j := 0;
+		WHILE (names[i] # "=") & (names[i] # ",") & (names[i] # 0X) DO
+			arrangement.symbolNames[number][j] := names[i]; INC(i); INC(j);
+		END;
+		arrangement.symbolNames[number][j] := 0X;
+		IF names[i] = "=" THEN
+			INC(i);
+			j := 0;
+			WHILE (names[i] # ",") & (names[i] # 0X) DO
+				arrangement.exportNames[number,j] := names[i]; INC(i); INC(j);
+			END;
+			arrangement.exportNames[number,j] := 0X;
+		ELSE
+			COPY(arrangement.symbolNames[number], arrangement.exportNames[number]);
+			IF names[i] = "," THEN INC(i) END;
+		END;
+		D.String("export: "); D.String(arrangement.symbolNames[number]); D.String(" = "); D.String(arrangement.exportNames[number]); D.Ln;
+		INC(number);
+	END;
+END MakeExports;
+
 
 PROCEDURE Link* (context: Commands.Context);
 VAR options: Options.Options;
@@ -463,6 +891,7 @@ VAR options: Options.Options;
 	diagnostics: Diagnostics.StreamDiagnostics; code, data: Arrangement; linker: GenericLinker.Linker;
 	linkRoot: ARRAY 256 OF CHAR; logFile: Files.File; log: Files.Writer;
 	use: SET;
+	exportString: ARRAY 1024 OF CHAR;
 BEGIN
 	NEW (options);
 	options.Add (0X, "silent", Options.Flag);
@@ -474,6 +903,7 @@ BEGIN
 	options.Add (0X, "fileFormat", Options.String); options.Add (0X, "dataFileFormat", Options.String);
 	options.Add (0X, "logFileName", Options.String);
 	options.Add(0X,"linkRoot", Options.String);
+	options.Add(0X,"exports", Options.String);
 	IF ~options.Parse (context.arg, context.error) THEN context.result := Commands.CommandParseError; RETURN; END;
 	silent := options.GetFlag ("silent");
 	useAll := options.GetFlag ("useAll");
@@ -491,6 +921,11 @@ BEGIN
 	dataFileFormat := GetFileFormat (options, "dataFileFormat", codeFileFormat);
 
 	NEW (code, codeDisplacement);
+	IF options.GetString("exports", exportString) THEN
+		NEW(code.exportInfo);
+		MakeExports(code.exportInfo, exportString);
+		COPY(codeFileName, code.exportInfo.name);
+	END;
 	IF codeFileName # dataFileName THEN NEW (data, dataDisplacement); ELSE data := code; END;
 	NEW (diagnostics, context.error);
 	logFile := Files.New(logFileName);

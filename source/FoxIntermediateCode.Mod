@@ -370,7 +370,7 @@ TYPE
 			IF result # NIL THEN
 				(* section has been found by the AST symbol *)
 				ASSERT((result.kind = kind) OR (kind = Sections.UnknownKind) OR (result.kind = Sections.UnknownKind)); (* check kinds *)
-				ASSERT((type = Sections.UnknownSectionType) OR (result.type = type) OR (type = Sections.VarSection) & (result.type = Sections.ConstSection)); (* check types *)
+				(*ASSERT((type = Sections.UnknownSectionType) OR (result.type = type) OR (type = Sections.VarSection) & (result.type = Sections.ConstSection)); (* check types *)*)
 				IF result.type = Sections.UnknownSectionType THEN result.SetType(type) END; (* refine type *)
 				IF isDefinition THEN result.MarkAsNoPrototype END;
 				RETURN result(Section)

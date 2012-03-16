@@ -25,6 +25,12 @@ TYPE Arrangement* = OBJECT
 	PROCEDURE Patch* (pos, value: Address; offset, bits, unit: ObjectFile.Bits);
 	END Patch;
 
+	PROCEDURE CheckReloc*(target: Address; CONST patch: ObjectFile.Patch);
+	BEGIN
+		(* to be able to provide relocation information in an image*)
+	END CheckReloc;
+
+
 END Arrangement;
 
 TYPE Block* = POINTER TO RECORD (ObjectFile.Section)
@@ -242,6 +248,7 @@ VAR
 			ASSERT (reference # NIL);
 			FOR i := 0 TO fixup.patches-1 DO
 				ApplyPatch(fixup.patch[i]);
+				arrangement.CheckReloc(block.address, fixup.patch[i])
 			END;
 		END PatchFixup;
 
