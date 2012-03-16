@@ -1,9 +1,8 @@
 (* ETH Oberon, Copyright 2000 ETH Zürich Institut für Computersysteme, ETH Zentrum, CH-8092 Zürich.
 Refer to the general ETH Oberon System license contract available at: http://www.oberon.ethz.ch/ *)
 
-MODULE XDisplay;   (** X Windows display driver plugin *)
+MODULE XDisplay;   (** AUTHOR "gf"; PURPOSE  "display driver plugin for X Windows *)
 
-(*! uses XEvents from X11Api *)
 
 IMPORT S := SYSTEM, Trace, Unix, Machine, Files, UnixFiles, X11, Api := X11Api, Displays, Strings;
 
@@ -163,7 +162,7 @@ TYPE
 				CONST  Get = 0;  Set = 1;
 				VAR image: X11.Image;
 					imp: X11.ImagePtr;
-					bp, bp0, ip: Address; 
+					bp, ip: Address; 
 					line, ll: LONGINT;
 				BEGIN
 					ll := w*(xformat DIV 8);
@@ -172,38 +171,48 @@ TYPE
 					IF LEN( imgBuffer ) < 4*w*h THEN
 						NEW( imgBuffer, 4*w*h );	(* create buffer outside lock to avoid deadlock *)
 					END;
-
-					Machine.Acquire( Machine.X11 );
-					image := X11.CreateImage( xdisp, visual, depth, X11.ZPixmap, 0, 0, w, h, 32, 0 );
-					imp := S.VAL( X11.ImagePtr, image );
-					imp.data := S.ADR( imgBuffer[0] );
-					bp0 := S.ADR( buf[ofs] );
+			
+					bp := S.ADR( buf[ofs] );  
 					IF op = Set THEN
-						FOR line := 0 TO h - 1  DO
-							bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
-							IF imp.byteOrder = 0 THEN  PutLine( xformat, w, ip, bp )
-							ELSE  PutLineBE( xformat, w, ip, bp )
+						Machine.Acquire( Machine.X11 );
+						image := X11.CreateImage( xdisp, visual, depth, X11.ZPixmap, 0, 0, w, h, 32, 0 );
+						imp := S.VAL( X11.ImagePtr, image );
+						imp.data := S.ADR( imgBuffer[0] );  ip := imp.data;
+						IF imp.byteOrder = 0 THEN
+							FOR line := 0 TO h - 1  DO
+								PutLine( xformat, w, ip, bp );
+								INC( bp, stride );  INC( ip, imp.bytesPerLine )
 							END;
-							bp0 := bp0 + stride;
+						ELSE
+							FOR line := 0 TO h - 1  DO
+								PutLineBE( xformat, w, ip, bp );
+								INC( bp, stride );  INC( ip, imp.bytesPerLine )
+							END;
 						END;
 						IF currmode # replace THEN  
 							X11.SetFunction( xdisp, gc, xfunc[replace] );  currmode := replace  
 						END;
 						X11.PutImage( xdisp, primary, gc, image, 0, 0, x, y, w, h );
+						X11.Free( image );  imp := NIL;
+						Machine.Release( Machine.X11 )
 					ELSIF op = Get THEN
+						Machine.Acquire( Machine.X11 );
 						image := X11.GetImage( xdisp, primary, x, y, w, h, planesMask, X11.ZPixmap );
-						imp := S.VAL( X11.ImagePtr, image );
-						FOR line := 0 TO h - 1 DO
-							bp := bp0;  ip := imp.data + line*imp.bytesPerLine;
-							IF imp.byteOrder = 0 THEN  GetLine( xformat, w, ip, bp )
-							ELSE  GetLineBE( xformat, w, ip, bp )
-							END;
-							bp0 := bp0 + stride
+						imp := S.VAL( X11.ImagePtr, image );  ip := imp.data;
+						IF imp.byteOrder = 0 THEN
+							FOR line := 0 TO h - 1 DO
+								GetLine( xformat, w, ip, bp );
+								INC( bp, stride );  INC( ip, imp.bytesPerLine )
+							END
+						ELSE
+							FOR line := 0 TO h - 1 DO
+								GetLineBE( xformat, w, ip, bp );
+								INC( bp, stride );  INC( ip, imp.bytesPerLine )
+							END
 						END;
-						X11.Free( imp.data )
+						X11.Free( imp.data );  X11.Free( image );  imp := NIL;
+						Machine.Release( Machine.X11 )
 					END;
-					X11.Free( image );  imp := NIL;
-					Machine.Release( Machine.X11 )
 				END Transfer;
 
 
@@ -463,108 +472,132 @@ VAR
 	END ColorToIndex0;
 
 
-	PROCEDURE PutLine( xformat, width: LONGINT;  VAR ip, bp: Address );
-	VAR colum: LONGINT;  byte: CHAR;
+	PROCEDURE PutLine( xformat, width: LONGINT;  ip, bp: Address );
+	VAR i: LONGINT;  byte: CHAR;
 	BEGIN
-		FOR colum := 0 TO width - 1 DO
-			CASE xformat OF
-			| index8:
+		CASE xformat OF
+		| index8:
+				FOR i := 1 TO width DO
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip )
+				END;
+		| color565, color555, color664:
+				FOR i := 1 TO width DO
 					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
-			| color565, color555, color664:
-					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
-					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
-			| color888:
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip )
+				END;
+		| color888:
+				FOR i := 1 TO width DO
 					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* B *)
 					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* G *)
 					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* R *)
-					byte := 0X;  S.PUT( ip, byte );  INC( ip );
-			ELSE  (* color8888 *)
+					byte := 0X;  S.PUT( ip, byte );  INC( ip )
+				END;
+		ELSE  (* color8888 *)
+				FOR i := 1 TO width DO
 					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* B *)
 					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* G *)
 					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* R *)
 					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );   (* X *)
-			END
-		END;
+				END
+		END
 	END PutLine;
 
 
 
-	PROCEDURE GetLine( xformat, width: LONGINT;  VAR ip, bp: Address );
-	VAR colum: LONGINT;  byte: CHAR;
-	BEGIN
-		FOR colum := 0 TO width - 1 DO
-			CASE xformat OF
-			| index8:
+	PROCEDURE GetLine( xformat, width: LONGINT;  ip, bp: Address );
+	VAR i: LONGINT;  byte: CHAR;
+	BEGIN			
+		CASE xformat OF
+		| index8:
+				FOR i := 1 TO width DO
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp )
+				END;
+		| color565, color555, color664:
+				FOR i := 1 TO width DO
 					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
-			| color565, color555, color664:
-					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
-					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
-			| color888:
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp )
+				END
+		| color888:
+				FOR i := 1 TO width DO
 					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* B *)
 					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* G *)
 					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* R *)
 					INC( ip )
-			ELSE  (* color8888 *)
+				END
+		ELSE  (* color8888 *)
+				FOR i := 1 TO width DO
 					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* B *)
 					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* G *)
 					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* R *)
 					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );   (* X *)
-			END
+				END
 		END;
 	END GetLine;
 
 
-	PROCEDURE PutLineBE( xformat, width: LONGINT;  VAR ip, bp: Address );
-	VAR colum: LONGINT;  byte: CHAR;
+	PROCEDURE PutLineBE( xformat, width: LONGINT;  ip, bp: Address );
+	VAR i: LONGINT;  byte: CHAR;
 	BEGIN
-		FOR colum := 0 TO width - 1 DO
-			CASE xformat OF
-			index8:
-					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip );
-			| color565, color555, color664:
+		CASE xformat OF
+		index8:
+				FOR i := 1 TO width DO
+					S.GET( bp, byte );  S.PUT( ip, byte );  INC( bp );  INC( ip )
+				END
+		| color565, color555, color664:
+				FOR i := 1 TO width DO
 					S.GET( bp + 1, byte );  S.PUT( ip, byte );  INC( ip );
 					S.GET( bp + 0, byte );  S.PUT( ip, byte );  INC( ip );
 					INC( bp, 2 )
-			| color888:
+				END
+		| color888:
+				FOR i := 1 TO width DO
 					byte := 0X;  S.PUT( ip, byte );  INC( ip );
 					S.GET( bp + 2, byte );  S.PUT( ip, byte );  INC( ip );   (* B *)
 					S.GET( bp + 1, byte );  S.PUT( ip, byte );  INC( ip );   (* G *)
 					S.GET( bp + 0, byte );  S.PUT( ip, byte );  INC( ip );   (* R *)
-					INC( bp, 3 );
-			ELSE  (* color8888 *)
+					INC( bp, 3 )
+				END
+		ELSE  (* color8888 *)
+				FOR i := 1 TO width DO
 					S.GET( bp + 3, byte );  S.PUT( ip, byte );  INC( ip );   (* X *)
 					S.GET( bp + 2, byte );  S.PUT( ip, byte );  INC( ip );   (* B *)
 					S.GET( bp + 1, byte );  S.PUT( ip, byte );  INC( ip );   (* G *)
 					S.GET( bp + 0, byte );  S.PUT( ip, byte );  INC( ip );   (* R *)
 					INC( bp, 4 );
-			END;
+				END;
 		END;
 	END PutLineBE;
 
-	PROCEDURE GetLineBE( xformat, width: LONGINT;  VAR ip, bp: Address );
-	VAR colum: LONGINT;  byte: CHAR;
+	PROCEDURE GetLineBE( xformat, width: LONGINT;  ip, bp: Address );
+	VAR i: LONGINT;  byte: CHAR;
 	BEGIN
-		FOR colum := 0 TO width - 1 DO
-			CASE xformat OF
-			| index8:
-					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp );
-			| color565, color555, color664:
+		CASE xformat OF
+		| index8:
+				FOR i := 1 TO width DO
+					S.GET( ip, byte );  S.PUT( bp, byte );  INC( ip );  INC( bp )
+				END
+		| color565, color555, color664:
+				FOR i := 1 TO width DO
 					S.GET( ip, byte );  S.PUT( bp + 1, byte );  INC( ip );
 					S.GET( ip, byte );  S.PUT( bp + 0, byte );  INC( ip );
 					INC( bp, 2 )
-			| color888:
+				END
+		| color888:
+				FOR i := 1 TO width DO
 					INC( ip );
 					S.GET( ip, byte );  S.PUT( bp + 2, byte );  INC( ip );   (* B *)
 					S.GET( ip, byte );  S.PUT( bp + 1, byte );  INC( ip );   (* G *)
 					S.GET( ip, byte );  S.PUT( bp + 0, byte );  INC( ip );   (* R *)
-					INC( bp, 3 );
-			ELSE  (* color8888 *)
+					INC( bp, 3 )
+				END;
+		ELSE  (* color8888 *)
+				FOR i := 1 TO width DO
 					S.GET( ip, byte );  S.PUT( bp + 3, byte );  INC( ip );   (* X *)
 					S.GET( ip, byte );  S.PUT( bp + 2, byte );  INC( ip );   (* B *)
 					S.GET( ip, byte );  S.PUT( bp + 1, byte );  INC( ip );   (* G *)
 					S.GET( ip, byte );  S.PUT( bp + 0, byte );  INC( ip );   (* R *)
-					INC( bp, 4 );
-			END
+					INC( bp, 4 )
+				END;
 		END;
 	END GetLineBE;
 
