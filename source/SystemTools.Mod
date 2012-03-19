@@ -88,16 +88,22 @@ END UnlockOberon;
 
 (** List all currently loaded modules *)
 PROCEDURE ListModules*(context : Commands.Context);
-VAR m: Modules.Module;
+VAR m: Modules.Module; options: Options.Options; details: BOOLEAN;
 BEGIN
-	m := Modules.root;
-	WHILE m # NIL DO
-		context.out.String(m.name);
-		m := m.next;
-		IF m # NIL THEN
-			context.out.String(" ")
-		ELSE
-			context.out.Ln
+	NEW(options);
+	options.Add("c", "crc", Options.Flag);
+	options.Add("l", "ln", Options.Flag);
+	IF options.Parse(context.arg, context.error) THEN
+		m := Modules.root;
+		WHILE m # NIL DO
+			context.out.String(m.name);
+			IF options.GetFlag("crc") THEN context.out.String(" crc="); context.out.Hex(m.crc,-8); context.out.String("") END;
+			m := m.next;
+			IF m # NIL THEN
+				IF options.GetFlag("l") THEN context.out.Ln ELSE context.out.String(" ") END;
+			ELSE
+				context.out.Ln
+			END;
 		END;
 	END;
 END ListModules;
