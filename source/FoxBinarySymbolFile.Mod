@@ -156,7 +156,7 @@ CONST
 		NoZeroCompress = 0ADX;		(* do. *)
 		FileVersion* = 0B1X;			(* do. *)
 		FileVersionOC*=0B2X;
-		FileVersionCurrent*=0B3X;
+		FileVersionCurrent*=0B4X;
 TYPE
 	(* TypeReference provides a link between a type and a number for the purpose of late fixes while importing.
 		When a type number is encountered while importing, a type reference will be used as a placeholder for the final type.

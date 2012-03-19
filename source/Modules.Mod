@@ -105,6 +105,7 @@ TYPE
 			noProcs*: LONGINT;	(* used for removing proc offsets when unloading module *)
 			firstProc*: SYSTEM.ADDRESS; (* procedure with lowest PC in module, also used for unloading *)
 			maxPtrs*: LONGINT;
+			crc*: LONGINT; (* crc of the object file -- for unique identification *)
 
 		PROCEDURE FindRoots;	(* override *)
 		VAR i: LONGINT; ptr: ANY; moduleName: Name; protRecBlockAdr: SYSTEM.ADDRESS; protRecBlock: Heaps.ProtRecBlock;

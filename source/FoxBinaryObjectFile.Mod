@@ -19,7 +19,7 @@ IMPORT
 	                    numberPointers:RawLInt numberTypes:RawLInt numberImports:RawLInt
 	                    numberVarConstLinks:RawLInt numberLinks:RawLInt dataSize:RawLInt
 	                    constSize:RawLInt codeSize:RawLInt exTableLen:RawLInt numberProcs:RawLInt
-	                    maxPtrs:RawLInt typeDescSize:RawLInt moduleName:RawString
+	                    maxPtrs:RawLInt typeDescSize:RawLInt crc:RawLInt moduleName:RawString
 
 	Entries           = 82X:Char { entryOffset:RawNum }:numberEntries
 
@@ -190,9 +190,10 @@ TYPE
 		BEGIN COPY(extension, ext)
 		END GetExtension;
 
-
-
 	END ObjectFileFormat;
+
+
+
 
 	VAR SysCallMap : ARRAY DefaultNofSysCalls OF CHAR;
 
@@ -424,6 +425,7 @@ TYPE
 		exTableLen,numberProcs,maxPtrs,typeDescSize: LONGINT; headerPos,endPos: LONGINT;
 		moduleScope: SyntaxTree.ModuleScope; fingerprinter: FingerPrinter.FingerPrinter;
 		const, code: ByteArray; procedureFixupOffset : LONGINT;
+		crc: LONGINT; crc32: Basic.CRC32Stream;
 
 		PROCEDURE RawLIntAt(at: LONGINT; val: LONGINT);
 		VAR pos: LONGINT;
@@ -459,7 +461,7 @@ TYPE
 			refSize:4 numberEntries:4 numberCommands:4 numberPointers:4
 			numberTypes:4 numberImports:4 numberVarConstLinks:4 numberLinks:4
 			dataSize:4 constSize:4 codeSize:4 exTableLen:4 numberProcs:4 maxPtrs:4
-			typeDescSize:4 moduleName:String
+			typeDescSize:4 crc:4 moduleName:String
 		*)
 		PROCEDURE Header;
 		BEGIN
@@ -479,6 +481,7 @@ TYPE
 			w.RawLInt(numberProcs);
 			w.RawLInt(maxPtrs);
 			w.RawLInt(typeDescSize);
+			w.RawLInt(crc);
 			IF Trace THEN D.Str("moduleName:"); D.Str(moduleName); D.Ln; END;
 			w.RawString(moduleName);
 		END Header;
@@ -976,6 +979,7 @@ TYPE
 			w.Char(87X);
 			FOR i := 0 TO ((constSize-1) ) DO
 				w.Char(const[i]);
+				crc32.Char(const[i]);
 			END;
 		END Constants;
 
@@ -1216,6 +1220,7 @@ TYPE
 			w.Char(89X);
 			FOR i := 0 TO ((codeSize-1) ) DO
 				w.Char(code[i]);
+				crc32.Char(code[i]);
 			END;
 		END Code;
 
@@ -2086,6 +2091,7 @@ TYPE
 		NEW(fingerprinter,module.system);
 		(* module.module.name,moduleName);*)
 		Global.ModuleFileName(module.module.name,module.module.context,moduleName);
+		NEW(crc32);
 
 		IF Trace THEN D.Str("module: "); D.Str(moduleName); D.Ln END;
 		moduleScope := module.module.moduleScope;
@@ -2097,6 +2103,7 @@ TYPE
 		Constants; Exports; Code; Use; Types; ExceptionTable; PtrsInProcBlock; References;
 		endPos := w.Pos();
 		w.SetPos(headerPos);
+		crc := crc32.GetCRC();
 		Header;
 		w.SetPos(endPos);
 		w.Update;

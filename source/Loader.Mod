@@ -23,7 +23,7 @@ CONST
 	NoZeroCompress = 0ADX;	(* cf. PCM.Mod *)
 	FileVersion* = 0B1X;			(* cf. PCM.Mod *)
 	FileVersionOC=0B2X; (* preparation for object and symbol file for new Oberon Compiler *)
-	CurrentFileVersion=0B3X;
+	CurrentFileVersion=0B4X;
 
 		(* object model exports *)
 	EUEnd = 0;  EURecord = 1;  EUobjScope = 0;  EUrecScope = 1;  EUerrScope = -1;
@@ -39,7 +39,7 @@ CONST
 TYPE
 	ObjHeader = RECORD (* data from object file header *)
 		entries, commands, pointers, types, modules, links, dataLinks: LONGINT;
-		codeSize, dataSize, refSize, constSize, exTableLen, procs, maxPtrs: LONGINT;
+		codeSize, dataSize, refSize, constSize, exTableLen, procs, maxPtrs, crc: LONGINT;
 		staticTdSize: LONGINT; (* ug *)
 		name: Modules.Name
 	END;
@@ -99,6 +99,7 @@ BEGIN
 			r.RawLInt(h.procs);
 			r.RawLInt(h.maxPtrs);
 			r.RawLInt(h.staticTdSize); (* ug *)
+			IF ORD(tag) >= 0B4H THEN r.RawLInt(h.crc) END;
 			r.RawString(h.name);
 			IF trace THEN
 				KernelLog.String("  name: ");  KernelLog.String(h.name);

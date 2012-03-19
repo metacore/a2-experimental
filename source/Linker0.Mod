@@ -227,6 +227,7 @@ TYPE
 			noProcs*: LONGINT;
 			firstProc*: SYSTEM.ADDRESS;		(* procedure with lowest PC in module *)
 			maxPtrs*: LONGINT;
+			crc*: LONGINT;
 	END Module;
 
 	TypeDesc* = POINTER TO RECORD   (* ug: adapt constant TypeDescRecSize if this type if this type is changed !!! *)

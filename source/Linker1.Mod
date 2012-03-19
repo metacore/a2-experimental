@@ -21,7 +21,7 @@ CONST
 	NoZeroCompress = 0ADX;	(* see PCM.NoZeroCompress *)
 	FileVersion = 0B1X;			(* see PCM.FileVersion *)
 	FileVersionOC=0B2X; (* preparation for object and symbol file for new Oberon Compiler *)
-	CurrentVersion=0B3X;
+	CurrentVersion=0B4X;
 
 	MaxStructs = 1024;	(* maximum number of structures in export block *)
 
@@ -34,7 +34,7 @@ CONST
 TYPE
 	ObjHeader = RECORD (* data from object file header *)
 		entries, commands, pointers, types, modules, links, dataLinks: LONGINT;
-		codeSize, dataSize, refSize, constSize, exTableLen, procs, maxPtrs: LONGINT;
+		codeSize, dataSize, refSize, constSize, exTableLen, procs, maxPtrs, crc: LONGINT;
 		staticTdSize: LONGINT;
 		name: Modules.Name
 	END;
@@ -92,6 +92,7 @@ BEGIN
 			r.RawLInt(h.procs);
 			r.RawLInt(h.maxPtrs);
 			r.RawLInt(h.staticTdSize); (* ug *)
+			r.RawLInt(h.crc);
 			r.RawString(h.name);
 			IF trace THEN
 				KernelLog.String("  name: ");  KernelLog.String(h.name);
@@ -110,7 +111,8 @@ BEGIN
 				KernelLog.String("  exTableLen: "); KernelLog.Int(h.exTableLen, 1);
 				KernelLog.String("  procs: "); KernelLog.Int(h.procs, 1);
 				KernelLog.String("  maxPtrs: "); KernelLog.Int(h.maxPtrs, 1);
-				KernelLog.String("  staticTdSize: "); KernelLog.Int(h.staticTdSize, 1); KernelLog.Ln
+				KernelLog.String("  staticTdSize: "); KernelLog.Int(h.staticTdSize, 1); KernelLog.Ln;
+				KernelLog.String("  crc: "); KernelLog.Hex(h.crc,-8); KernelLog.Ln
 			END;
 			IF r.res # Streams.Ok THEN res := r.res END
 		ELSE
@@ -844,6 +846,7 @@ BEGIN
 			m.name[i] := 0X;
 			m.noProcs := h.procs;
 			m.maxPtrs := h.maxPtrs;
+			m.crc := h.crc;
 			AllocateModule(m,h);
 			IF trace THEN
 				KernelLog.Address(SYSTEM.ADR(m.code[0]));  KernelLog.Char(" ");

@@ -466,7 +466,7 @@ TYPE
 
 	ObjHeader = RECORD (* data from object file header *)
 		entries, commands, pointers, types, modules, links, dataLinks: LONGINT;
-		codeSize, dataSize, refSize, constSize, exTableLen, procs, maxPtrs: LONGINT;
+		codeSize, dataSize, refSize, constSize, exTableLen, procs, maxPtrs, crc: LONGINT;
 		staticTdSize: LONGINT; (* ug *)
 		name: Modules.Name
 	END;
@@ -974,7 +974,7 @@ TYPE
 			w.String("dataSize:"); w.Char(9X); w.Int(header.dataSize, 0); w.String(" ("); w.Hex(header.dataSize, 0); w.String("H)"); w.Ln;
 			w.String("constSize:"); w.Char(9X); w.Int(header.constSize, 0); w.String(" ("); w.Hex(header.constSize, 0); w.String("H)"); w.Ln;
 			w.String("codeSize:"); w.Char(9X); w.Int(header.codeSize, 0); w.String(" ("); w.Hex(header.codeSize, 0); w.String("H)"); w.Ln;
-
+			w.String("crc:"); w.Char(9X); w.Hex(header.crc,-8); w.Ln;
 			w.Ln;
 			w.String("Constants:"); w.Ln;
 			FOR i := 0 TO header.constSize-1 BY 16 DO
@@ -1531,7 +1531,7 @@ TYPE
 					IF version = 0ADH THEN version := ORD(r.Get()) END;
 					IF version = 0B1H THEN (* PACO object file *)
 						r.RawNum(symSize);
-					ELSIF (version = 0B2H) OR (version = 0B3H) THEN (*fof: OC object file *)
+					ELSIF (version >= 0B2H) THEN (*fof: OC object file *)
 						r.RawLInt(symSize);
 					END;
 					r.SkipBytes(symSize); (* skip symbol file *)
@@ -1550,6 +1550,7 @@ TYPE
 				r.RawLInt(header.dataSize);
 				r.RawLInt(header.constSize);
 				r.RawLInt(header.codeSize);
+
 				IF (codeScaleCallback # NIL) THEN codeScaleCallback(header.codeSize) END;
 
 				(* Sz: Exception handling *)
@@ -1559,7 +1560,7 @@ TYPE
 				r.RawLInt(noProcs);
 				r.RawLInt(tmp); (* ug: skip maxPtrs *)
 				r.RawLInt(tmp); (* ug: skip staticTdSize *)
-
+				IF version > 0B3H THEN r.RawLInt(header.crc) END;
 				r.RawString(name);
 				(* skip to code block *)
 				DecodeEntries;
@@ -1869,6 +1870,7 @@ VAR
 		header.procs := module.noProcs;
 		header.maxPtrs := module.maxPtrs;
 		header.staticTdSize := LEN(module.typeInfo);
+		header.crc := module.crc;
 		header.name := module.name;
 	END MakeHeader;
 

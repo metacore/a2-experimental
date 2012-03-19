@@ -1583,6 +1583,35 @@ TYPE
 
 	END Writer;
 
+	CRC32Stream* = OBJECT(Streams.Writer) (* from CRC.Mod *)
+	VAR
+		crc : LONGINT;
+
+		PROCEDURE  &InitStream*;
+		BEGIN
+			crc := LONGINT(0FFFFFFFFH);
+			InitWriter(Send, 256)
+		END InitStream;
+
+		PROCEDURE Send*(CONST buf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
+		VAR idx: LONGINT;
+		BEGIN
+			WHILE len > 0 DO
+				idx := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, crc) / SYSTEM.VAL(SET, LONG(ORD(buf[ofs])))) MOD 100H;
+				crc := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, CRC32Table[idx])/SYSTEM.VAL(SET, SYSTEM.LSH(crc, -8)));
+				DEC(len); INC(ofs)
+			END;
+			res := Streams.Ok
+		END Send;
+
+		PROCEDURE GetCRC*():LONGINT;
+		BEGIN
+			Update();
+			RETURN SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, crc)/{0..31})
+		END GetCRC;
+
+	END CRC32Stream;
+
 	DebugWriterFactory*= PROCEDURE (CONST title: ARRAY OF CHAR): Streams.Writer;
 	WriterFactory*=PROCEDURE (w: Streams.Writer): Writer;
 
@@ -1593,6 +1622,7 @@ VAR
 	debug: BOOLEAN;
 	getDebugWriter: DebugWriterFactory;
 	getWriter: WriterFactory;
+	CRC32Table: ARRAY 256 OF SET;
 
 	(* Make a string out of a series of characters. *)
 	PROCEDURE MakeString*( CONST s: ARRAY OF CHAR ): String;
@@ -1983,10 +2013,25 @@ VAR
 		Replace(message,"%1",number);
 	END MessageSI;
 
+	PROCEDURE InitTable32;
+	CONST poly = SHORT(0EDB88320H);
+	VAR n, c, k: LONGINT;
+	BEGIN
+		FOR n := 0 TO 255 DO
+			c := n;
+			FOR k := 0 TO 7 DO
+				IF ODD(c) THEN c := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, poly) / SYSTEM.VAL(SET, SYSTEM.LSH(c, -1)))
+				ELSE c := SYSTEM.LSH(c, -1)
+				END
+			END;
+			CRC32Table[n] := SYSTEM.VAL(SET, c)
+		END
+	END InitTable32;
 
 BEGIN
 	InitErrorMessages;
 	InitWindowWriter;
+	InitTable32;
 	lists := 0;  enlarged := 0;  strings := 0;
 	emptyString := MakeString("");
 	debug := FALSE;
