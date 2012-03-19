@@ -8425,7 +8425,6 @@ TYPE
 				RETURN section
 			END Block;
 
-
 		BEGIN
 			Global.GetModuleName(module.module,moduleName);
 			exportDescArray := Block("Heaps","SystemBlockDesc",".@ExportDescArray",exportDescArrayOffset);
@@ -8496,6 +8495,8 @@ TYPE
 			Address(moduleSection,0);
 			Info(moduleSection, "maxPtrs*: LONGINT");
 			Longint(moduleSection,maxPointers);
+			Info(moduleSection, "crc*: LONGINT");
+			Longint(moduleSection, 0); (*!  must be implemented *)
 		END Module;
 
 		PROCEDURE PointerArray(source: IntermediateCode.Section; scope: SyntaxTree.Scope; VAR numberPointers: LONGINT);
