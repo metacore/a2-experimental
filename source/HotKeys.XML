@@ -97,7 +97,7 @@
 
 	<!-- Example: Key remappings -->
 	
-	<HotKey name="UP" keys="CTRL+SHOFT+I" command="REMAP UP"/>
+	<HotKey name="UP" keys="CTRL+SHIFT+I" command="REMAP UP"/>
 	<HotKey name="LEFT" keys="CTRL+SHIFT+J" command="REMAP LEFT"/>
 	<HotKey name="DOWN" keys="CTRL+SHIFT+K" command="REMAP DOWN"/>
 	<HotKey name="RIGHT" keys="CTRL+SHIFT+L" command="REMAP RIGHT"/>
