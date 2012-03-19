@@ -456,7 +456,9 @@ BEGIN
 					IF cr THEN writer.Char(CR); END;
 					IF removeWhitespace THEN context.arg.SkipWhitespace; END;
 				END;
-				writer.Char(ch);
+				IF ch # 0X THEN
+					writer.Char(ch);
+				END;
 			END;
 			writer.Update;
 			Files.Register(file);
