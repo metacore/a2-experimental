@@ -838,6 +838,7 @@ BEGIN
 				m.name[i] := 0X;
 				m.noProcs := h.procs;
 				m.maxPtrs := h.maxPtrs;
+				m.crc := h.crc;
 				AllocateModule(m,h);
 				IF trace THEN
 					KernelLog.Hex(SYSTEM.ADR(m.code[0]), 8);  KernelLog.Char(" ");

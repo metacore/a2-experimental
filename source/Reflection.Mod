@@ -298,6 +298,7 @@ VAR
 			END;
 			w.String(" pc="); w.Int(LONGINT(pc),1); w.String(" ["); w.Address (pc); w.String("H]");
 			w.String(" = "); w.Int(LONGINT(startpc),1);  w.String(" + "); w.Int(LONGINT(pc-startpc),1);
+			w.String(" crc="); w.Hex(mod.crc,-8);
 		END
 	END WriteProc0;
 
