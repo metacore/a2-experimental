@@ -47,6 +47,7 @@ To update: Configuration.Init ~
 <!-- Autostart -->
 
 	<Section name="Autostart">
+		<Setting name="KernelCRC" value="SystemVersion.Init"/>
 		<Setting name="FileTrapWriter" value="FileTrapWriter.Install"/>
 		<Setting name="TrapWriter" value="WMTrapWriter.Install"/>
 		<Setting name="Uptime Monitor" value="UpTime.Install"/>
@@ -226,6 +227,9 @@ To update: Configuration.Init ~
 		<Section name="asm">
 			<Setting name="Open" value="PET.Open"/>
 		</Section>
+		<Section name="atg">
+			<Setting name="Open" value="PET.Open"/>
+		</Section>
 		<Section name="avi">
 			<Setting name="Open" value="WMPlayer.Open"/>
 		</Section>
@@ -236,9 +240,15 @@ To update: Configuration.Init ~
 			<Setting name="Open" value="WMPicView.Open"/>
 			<Setting name="Set as background" value="WMBackdrop.AddBackdropImage '@filename' ? ? ? ?"/>
 		</Section>
+		<Section name="bnf">
+			<Setting name="Open" value="PET.Open"/>
+		</Section>
 		<Section name="dsk">
 			<Setting name="Open" value="PET.Open"/>
 			<Setting name="Load desktop" value="WMDesktops.Load"/>
+		</Section>
+		<Section name="ebnf">
+			<Setting name="Open" value="PET.Open"/>
 		</Section>
 		<Section name="gif">
 			<Setting name="Open" value="WMPicView.Open"/>
@@ -264,6 +274,9 @@ To update: Configuration.Init ~
 		<Section name="jpg">
 			<Setting name="Open" value="WMPicView.Open"/>
 			<Setting name="Set as background" value="WMBackdrop.AddBackdropImage '@filename' ? ? ? ?"/>
+		</Section>
+		<Section name="kul">
+			<Setting name="Open" value="PET.Open"/>
 		</Section>
 		<Section name="log">
 			<Setting name="Open" value="PET.Open"/>
@@ -412,7 +425,7 @@ To update: Configuration.Init ~
 
 		<Section name="PET">
 			<Section name="General">
-				<Setting name="BackupOnStore" value="No"/> <!-- No | Yes | Paranoid -->
+				<Setting name="BackupOnStore" value="Yes"/> <!-- No | Yes | Paranoid -->
 				<Setting name="BackupOnCompile" value="FALSE"/>
 				<Setting name="ShowPathInTabs" value="FALSE"/>
 				<Setting name="ScratchPanelHeight" value="5"/>

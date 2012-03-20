@@ -2,7 +2,7 @@
 
 MODULE Traps;   (** AUTHOR "pjm"; PURPOSE "Trap handling and symbolic debugging"; *)
 
-IMPORT SYSTEM, Kernel32, Machine, TrapWriters,  KernelLog, Streams, Modules, Objects, Kernel,  Reflection;
+IMPORT SYSTEM, Kernel32, Machine, TrapWriters,  KernelLog, Streams, Modules, Objects, Kernel,  Reflection, SystemVersion;
 
 CONST
 	RecursiveLimit = 16;   (* normally 1 or 2 - how many recursive traps to display before stopping *)
@@ -158,7 +158,7 @@ VAR
 			w.String(", Locks: "); w.Set(exc.locks)
 		END;
 		*)
-			w.String( "System: " );  w.String( Machine.version );
+			w.String( "System: " );  w.String( Machine.version ); w.String(" Kernel_CRC="); w.Hex(SystemVersion.BootCRC,8);
 			(*w.String( " Uptime=" );  w.Hex(Machine.GetTimer()-Machine.boottime, -8);*)
 			IF long THEN
 				w.Char( 0EX );   (* "fixed font" *)
@@ -188,6 +188,7 @@ VAR
 				w.Ln; w.String( " FLAGS: " );  Flags( w, SYSTEM.VAL( SET, int.FLAGS ) );
 				w.Char( 0FX );   (* "proportional font" *)
 				w.Char( " " );  w.Set( SYSTEM.VAL( SET, int.FLAGS ) );  w.Ln;
+				w.String(" Features="); w.Set(Machine.features); w.Set(Machine.features2); w.Ln;
 				(*IF int.INT = Machine.UD THEN KernelLog.Memory(int.PC, 16) END*)  (* show bad instruction *)
 			ELSE w.Ln
 			END;

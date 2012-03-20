@@ -1,7 +1,7 @@
 MODULE SystemTools; (** AUTHOR "TF"; PURPOSE "Access to System Functions"; *)
 
 IMPORT
-	Machine, Modules, Objects, Commands, Options, ProcessInfo, Kernel, Streams, Dates, Strings, Plugins, Files;
+	Machine, Modules, Objects, Commands, Options, ProcessInfo, Kernel, Streams, Dates, Strings, Plugins, Files, SystemVersion;
 
 CONST
 	MaxTimers = 16;
@@ -666,7 +666,7 @@ END CollectGarbage;
 
 PROCEDURE Version*(context : Commands.Context);
 BEGIN
-	context.out.String(Machine.version); context.out.Ln;
+	context.out.String(Machine.version);context.out.String(" Kernel CRC="); context.out.Hex(SystemVersion.BootCRC, 8);  context.out.Ln;
 END Version;
 
 END SystemTools.
