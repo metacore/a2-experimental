@@ -194,7 +194,7 @@ TYPE
 		PROCEDURE Write*(w : Streams.Writer;context: ANY; level : LONGINT);
 		VAR enum: XMLObjects.Enumerator; c: ANY; name : Strings.String; nextLevel : LONGINT;
 		BEGIN
-			IF IsLocked() THEN D.String("Component.Write: islocked"); D.Ln; RETURN; END;
+			IF IsLocked() THEN (* D.String("Component.Write: islocked"); D.Ln; *) RETURN; END;
 			IF ~internal THEN
 				name := GetName();
 				w.Char('<'); IF name = NIL THEN w.String("_NILNAME_") ELSE w.String(name^) END;
@@ -203,7 +203,7 @@ TYPE
 				properties.WriteXML(w, context, level);
 				nextLevel := level + 1;
 			ELSE
-				D.String("Component.Write: isInternal"); D.Ln;
+				(* D.String("Component.Write: isInternal"); D.Ln; *)
 				nextLevel := level;
 			END;
 			enum := GetContents();
