@@ -15,7 +15,7 @@ TYPE
 
 	Window* = OBJECT (WMComponents.FormWindow)
 	VAR
-		editor: WMDocumentEditor.Editor;
+		editor-: WMDocumentEditor.Editor;
 		visible: BOOLEAN;
 
 		PROCEDURE &New*(CONST title : ARRAY OF CHAR; width, height : LONGINT; alpha : BOOLEAN);
@@ -54,7 +54,7 @@ TYPE
 
 	WindowWriter*= OBJECT (TextUtilities.TextWriter)
 	VAR
-		window: Window;
+		window-: Window;
 
 		PROCEDURE IsVisible*() : BOOLEAN;
 		BEGIN

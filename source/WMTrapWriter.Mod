@@ -13,6 +13,7 @@ BEGIN
 		w.SetWindowIcon(WMGraphics.LoadImage("WMIcons.tar://WMTrapWriter.png", TRUE));
 		w.SetFontName("Courier");
 		w.SetFontColor(WMGraphics.Yellow);
+		w.window.editor.SetWordWrap(TRUE);
 	END;
 	RETURN w;
 END TrapWriterFactory;

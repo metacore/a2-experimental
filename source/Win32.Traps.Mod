@@ -86,7 +86,7 @@ VAR
 				ELSIF code = 7 THEN StrAppend( desc, "Index out of range" )
 				ELSIF code = 8 THEN StrAppend( desc, "ASSERT failed" )
 				ELSIF code = 9 THEN StrAppend( desc, "Array dimension error" )
-				ELSIF code=10 THEN StrAppend(desc,"Array allocation error"); (* fof *)
+				ELSIF code=10 THEN StrAppend(desc, "Array allocation error" ); (* fof *)
 				ELSIF code = 13 THEN StrAppend( desc, "Keyboard interrupt" )
 				ELSIF code = 14 THEN StrAppend( desc, "Out of memory" )
 				ELSIF code = 15 THEN StrAppend( desc, "Deadlock (active objects)" );
@@ -126,7 +126,7 @@ VAR
 			(* output first line *)
 			SYSTEM.GET( int.SP, code );
 
-			w.String( "[" );  w.Int( trapState, 1 );  w.String( "] " );  w.String( "TRAP " );  w.Int( code, 1 );  w.String( " PL" );
+			w.String( "TRAP " );  w.Int( code, 1 ); w.String( " [" );  w.Int( trapState, 1 );  w.String( "]" );   w.String( " PL" );
 			w.Int( int.CS MOD 4, 2 );  w.Char( " " );  GetDescription();
 			(*
 		CASE exc.halt OF
@@ -162,8 +162,9 @@ VAR
 			IF long THEN
 				w.Char( 0EX );   (* "fixed font" *)
 				w.Ln;
+				w.String("Processor:");
 				(* output values *)
-				Val( "CS:", int.CS );  Val( "DS:", int.DS );  Val( "ES:", int.ES );  Val( "SS:", int.SS );   (* Val("CR0", int.CR[0]);*)
+				Val( "CS", int.CS );  Val( "DS", int.DS );  Val( "ES", int.ES );  Val( "SS", int.SS );   (* Val("CR0", int.CR[0]);*)
 				(*
 			Val("FPU", SYSTEM.VAL(LONGINT, int.FPU[1] * {0..15} + SYSTEM.LSH(int.FPU[2], 16))); w.Ln;
 			*)
@@ -172,18 +173,18 @@ VAR
 				(*
 			Val("CR2", int.CR[2]);
 			*)
-				Val( "PID", p.id );  w.Ln;  Val( "EAX", int.EAX );  Val( "EBX", int.EBX );  Val( "ECX", int.ECX );  Val( "EDX", int.EDX );
+				Val( "PID", p.id ); Val( "EAX", int.EAX );  Val( "EBX", int.EBX );  Val( "ECX", int.ECX );  Val( "EDX", int.EDX );
 				(*
 			Val("CR3", int.CR[3]);
 			Val("LCK", SYSTEM.VAL(LONGINT, int.locks)); w.Ln;
 			*)
-				Val( "EBP", int.BP );  Val( "FS:", int.FS );  Val( "GS:", int.GS );   (* Val("ERR", int.ERR); Val("CR4", int.CR[4]); *)
-				Val( "TMR", Kernel.GetTicks() );  w.Ln;
+				Val( "EBP", int.BP );  Val( "FS", int.FS );  Val( "GS", int.GS );   (* Val("ERR", int.ERR); Val("CR4", int.CR[4]); *)
+				Val( "TMR", Kernel.GetTicks() ); (* w.Ln;*)
 				IF SYSTEM.VAL( CHAR, int.DR7 ) # 0X THEN  (* some breakpoints enabled *)
 					Val( "DR0", int.DR0 );  Val( "DR1", int.DR1 );  Val( "DR2", int.DR2 );  Val( "DR3", int.DR3 );  Val( "DR6", int.DR6 );
 					Val( "DR7", int.DR7 );  w.Ln
 				END;
-				w.String( " FLAGS: " );  Flags( w, SYSTEM.VAL( SET, int.FLAGS ) );
+				w.Ln; w.String( " FLAGS: " );  Flags( w, SYSTEM.VAL( SET, int.FLAGS ) );
 				w.Char( 0FX );   (* "proportional font" *)
 				w.Char( " " );  w.Set( SYSTEM.VAL( SET, int.FLAGS ) );  w.Ln;
 				(*IF int.INT = Machine.UD THEN KernelLog.Memory(int.PC, 16) END*)  (* show bad instruction *)
@@ -202,7 +203,7 @@ VAR
 		END;*)
 				(*ALEX 2005.12.08 when calling a pointer to a function and the pointer is NULL meaning eip=NULL*)
 			IF int.PC = 0 THEN SYSTEM.GET( int.SP, pc ) ELSE pc := int.PC END;
-
+			w.String( "StackTraceBack:" );  w.Ln;
 			Reflection.StackTraceBack( w, pc, int.BP, Objects.GetStackBottom(p), long, overflow )
 		END;
 		w.String("---------------------------------"); w.Ln;
@@ -398,6 +399,8 @@ BEGIN
 	flags := "c!p!a!zstido";   (* bottom flags, !=reserved *)
 	Init
 END Traps.
+
+SystemTools.FreeDownTo Traps ~
 
 (*
 12.03.1998	pjm	Started
