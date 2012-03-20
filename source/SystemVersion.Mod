@@ -75,6 +75,11 @@ TYPE CRC= OBJECT
 		d:=0; t:=0; RETURN FALSE;
 	END GetKernelDate;
 	
+	(** call this dummy procedure to force module loading *)
+	PROCEDURE Init*; 
+	BEGIN
+	END Init;
+	
 	
 	PROCEDURE Test*;
 	BEGIN
