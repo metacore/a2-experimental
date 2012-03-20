@@ -8,10 +8,10 @@ MODULE BootLinker;   (* Oberon for Windows bootlinker (MH) / based on MIPS bootl
 (* 2009.01.27	g.f.	separated TypeTag from TypeDesc	*)
 
 
-IMPORT S := SYSTEM, Commands, Streams, Files, Out := KernelLog;
+IMPORT S := SYSTEM, Commands, Streams, Files;
 
 CONST
-	Version = "30.08.2011";
+	Version = "20.03.2012";
 
 	StartModule = "BootConsole";
 	
@@ -130,32 +130,33 @@ TYPE
 	Bytes* = POINTER TO ARRAY OF CHAR;
 	
 
-	Module* = OBJECT(RootObject)
+	Module = OBJECT(RootObject)
 			VAR
-				next*		: Module;
-				name*		: Name;
-				init*		: BOOLEAN;
-				published*	: BOOLEAN;
-				refcnt*		: LONGINT;
-				sb*	 		: Address;
+				next		: Module;
+				name		: Name;
+				init			: BOOLEAN;
+				published	: BOOLEAN;
+				refcnt		: LONGINT;
+				sb	 		: Address;
 			
-				entry*			: POINTER TO ARRAY OF Address;
-				command*		: POINTER TO ARRAY OF Command;
-				ptrAdr*			: POINTER TO ARRAY OF Address;
-				typeInfo*		: POINTER TO ARRAY OF TypeDesc;
-				module*		: POINTER TO ARRAY OF Module;
+				entry		: POINTER TO ARRAY OF Address;
+				command	: POINTER TO ARRAY OF Command;
+				ptrAdr		: POINTER TO ARRAY OF Address;
+				typeInfo		: POINTER TO ARRAY OF TypeDesc;
+				module		: POINTER TO ARRAY OF Module;
 
-				procTable*		: ProcTable; (* information inserted by loader, removed after use in Publish *)
-				ptrTable*		: PtrTable;  (* information inserted by loader, removed after use in Publish *)
+				procTable	: ProcTable; (* information inserted by loader, removed after use in Publish *)
+				ptrTable	: PtrTable;  (* information inserted by loader, removed after use in Publish *)
 
-				data*, code*, staticTypeDescs*, refs*	: Bytes;
+				data, code, staticTypeDescs, refs	: Bytes;
 
-				export*			: ExportDesc;
-				term*			: TermHandler;
-				exTable*		: ExceptionTable;
-				noProcs*		: LONGINT;
-				firstProc*		: Address;   (* procedure with lowest PC in module *)
-				maxPtrs*		: LONGINT;
+				export		: ExportDesc;
+				term		: TermHandler;
+				exTable		: ExceptionTable;
+				noProcs		: LONGINT;
+				firstProc		: Address;   (* procedure with lowest PC in module *)
+				maxPtrs		: LONGINT;
+				crc			: LONGINT
 			END Module;
 
 VAR
@@ -173,6 +174,9 @@ CONST
 	arrayMask = {1};
 
 VAR
+	out: Streams.Writer;
+	error: Streams.Writer;
+	
 	AN:  Address;
 
 	heapAdr, dlsymAdr, startModuleBody: Address;
@@ -199,8 +203,9 @@ CONST
 	FileTag = 0BBX;				(* cf. PCM.Mod *)
 	NoZeroCompress = 0ADX;	(* cf. PCM.Mod *)
 	FileVersion* = 0B1X;			(* cf. PCM.Mod *)
-	FileVersionOC=0B3X; (* preparation for object and symbol file for new Oberon Compiler *)
-
+	FileVersionOC=0B2X; (* preparation for object and symbol file for new Oberon Compiler *)
+	CurrentFileVersion=0B4X;
+	
 		(* object model exports *)
 	EUEnd = 0;  EURecord = 1;  EUobjScope = 0;  EUrecScope = 1;  EUerrScope = -1;
 	EUProcFlagBit = 31;
@@ -226,6 +231,7 @@ TYPE
 				procs			: LONGINT;
 				maxPtrs			: LONGINT;
 				staticTdSize		: LONGINT;
+				crc				: LONGINT;
 				name			: Name;
 			END;
 
@@ -259,24 +265,12 @@ VAR
 
 	(* ------------------- General procedures -------------------- *)
 
-	PROCEDURE Str( CONST s: ARRAY OF CHAR );
-	BEGIN
-		Out.String( s );
-	END Str;
 
-	PROCEDURE Int( i: LONGINT );
-	BEGIN
-		Out.Int( i, 0 );
-	END Int;
-
-	PROCEDURE Ln;
-	BEGIN
-		Out.Ln
-	END Ln;
 
 	PROCEDURE Error( CONST str1, str2: ARRAY OF CHAR );
 	BEGIN
-		Str( "Error: " );  Str( str1 );  Str( str2 );  Ln;
+		error.String( "Error: " );  error.String( str1 );  error.String( str2 );  
+		error.Ln;
 	END Error;
 
 
@@ -301,7 +295,7 @@ VAR
 		ASSERT( ptr MOD B = B - AdrSize );
 		S.GET( ptr + AdrSize, rsize );
 		IF rsize + AdrSize < size  THEN
-			Out.Ln; Out.String( "Pseudo-heap too small" );  Out.Ln;  RETURN 0
+			error.Ln; error.String( "Pseudo-heap too small" );  error.Ln;  RETURN 0
 		END;
 		rest := rsize + AdrSize - size;
 		IF rest > 0 THEN  (* >= B >= 16 *)
@@ -490,7 +484,8 @@ VAR
 				RefReadNum( pos, adr );  RefReadName( pos, name );  RefReadChar( pos, ch );
 			END;
 		END;
-		Str( "Kernel routine '" );  Str( pname );  Str( "' not found" );  Ln;  RETURN 0
+		error.String( "Kernel routine '" );  error.String( pname );  
+		error.String( "' not found" );  error.Ln;  RETURN 0
 	END ProcByName;
 
 
@@ -583,8 +578,8 @@ VAR
 			IF name = "PtrElemDesc" THEN  ptrElemTag := m.typeInfo[i].tag ;  INC( n )  END;
 		END;
 		IF n # 1 THEN
-			Out.Ln;
-			Out.String( "### 'PtrElemDesc' not found in module Glue" );  Out.Ln;
+			error.Ln;
+			error.String( "### 'PtrElemDesc' not found in module Glue" );  error.Ln;
 		END;
 		x := modules;
 		WHILE x # NIL DO
@@ -633,8 +628,9 @@ VAR
 		END;
 		
 		IF n # 5 THEN
-			Out.Ln;
-			Out.String( "### not all expected types found in module 'Modules'" );  Out.Ln;
+			error.Ln;
+			error.String( "### not all expected types found in module 'Modules'" ); 
+			error.Ln;
 		END;
 		x := modules;
 		WHILE x # NIL DO
@@ -648,8 +644,7 @@ VAR
 	BEGIN
 		FOR i := 0 TO ptrFixx - 1 DO
 			IF ptrFix[i] = adr THEN
-				Out.Ln;
-				Error( "", "same ptr location marked twice for fixing, ignored" );
+			(*	Error( "", "same ptr location marked twice for fixing, ignored" );	*)
 				RETURN
 			END
 		END;
@@ -710,12 +705,14 @@ VAR
 		m := modules;
 		WHILE (m # NIL) & (m.name # module) DO m := m.next  END;
 		IF m = NIL THEN
-			Str( "### AssignValue: module '" ); Str( module ); Str( "' not found" ); Ln;
+			error.String( "### AssignValue: module '" ); error.String( module ); 
+			error.String( "' not found" ); error.Ln;
 		ELSE
 			ofs := VarByName( m.refs, variable );
 			IF ofs = 0 THEN
-				Str( "### AssignValue: variable '" ); Str( module ); Out.Char( '.' ); Str( variable );
-				Str( "' not found" ); Ln
+				error.String( "### AssignValue: variable '" ); error.String( module ); 
+				error.Char( '.' ); error.String( variable );
+				error.String( "' not found" ); error.Ln
 			ELSE
 				S.PUT( m.sb + ofs, value );
 				IF reloc THEN  Relocate( m.sb + ofs )  END
@@ -736,10 +733,10 @@ VAR
 		IF tag = FileTag THEN
 			r.Char( tag );
 			IF tag = NoZeroCompress THEN  r.Char( tag )  END;	(* no zero compression in symbol file *)
-			IF (tag = FileVersion) OR (tag = FileVersionOC) THEN
+			IF (tag = FileVersion) OR (tag >= FileVersionOC) & (tag <= CurrentFileVersion) THEN
 				IF tag = FileVersion THEN
 					r.RawNum( symSize );
-				ELSIF tag = FileVersionOC THEN
+				ELSIF tag >= FileVersionOC THEN
 					r.RawLInt( symSize )
 				END;
 				flags := {};
@@ -760,26 +757,8 @@ VAR
 				r.RawLInt( h.procs );
 				r.RawLInt( h.maxPtrs );
 				r.RawLInt( h.staticTdSize ); (* ug *)
+				IF ORD(tag) >= 0B4H THEN  r.RawLInt( h.crc )  END;
 				r.RawString( h.name );
-				IF trace THEN
-					Out.String( "  name: ");  Out.String( h.name );
-					Out.String( "  symSize: ");  Out.Int( symSize, 1 );
-					Out.String( "  refSize: ");  Out.Int( h.refSize, 1 );  Out.Ln;
-					Out.String( "  entries: ");  Out.Int( h.entries, 1 );
-					Out.String( "  commands: ");  Out.Int( h.commands, 1 );
-					Out.String( "  pointers: ");  Out.Int( h.pointers, 1 );
-					Out.String( "  types: ");  Out.Int( h.types, 1 );
-					Out.String( "  modules: ");  Out.Int( h.modules, 1 );  Out.Ln;
-					Out.String( "  dataLinks: ");  Out.Int( h.dataLinks, 1 );
-					Out.String( "  links: ");  Out.Int( h.links, 1 );
-					Out.String( "  dataSize: ");  Out.Int( h.dataSize, 1 );
-					Out.String( "  constSize: ");  Out.Int( h.constSize, 1 );
-					Out.String( "  codeSize: ");  Out.Int( h.codeSize, 1 );  Out.Ln;
-					Out.String( "  exTableLen: ");  Out.Int( h.exTableLen, 1 );
-					Out.String( "  procs: "); Out.Int( h.procs, 1 );
-					Out.String( "  maxPtrs: "); Out.Int( h.maxPtrs, 1 );
-					Out.String( "  staticTdSize: "); Out.Int( h.staticTdSize, 1 ); Out.Ln
-				END;
 				IF r.res # Streams.Ok THEN  res := r.res  END
 			ELSE
 				res := TagInvalid;  COPY( "invalid tag", msg )
@@ -1284,7 +1263,7 @@ VAR
 		BEGIN
 			IF res = Ok THEN
 				res := IncompatibleImport;
-				Str( m.name );  Str( " incompatible with " );  Str( mod.name );  Str( "  :  " )
+				error.String( m.name );  error.String( " incompatible with " );  error.String( mod.name );  error.String( "  :  " )
 			END
 		END Err;
 
@@ -1317,9 +1296,9 @@ VAR
 		END FixupCall;
 
 		PROCEDURE CheckScope( scope: ExportDesc;  level: INTEGER );
-		VAR fp, link, i: LONGINT;  adr, tdadr: Address;  tmpErr: BOOLEAN; prevlink: LONGINT;
+		VAR fp, link, i: LONGINT;  adr, tdadr: Address;  tmpErr: BOOLEAN; 
 		BEGIN
-			tmpErr := (level = EUerrScope);  i := 0;  link := 0;  prevlink := 0;  r.RawNum( fp ); 
+			tmpErr := (level = EUerrScope);  i := 0;  link := 0;  r.RawNum( fp ); 
 			WHILE fp # EUEnd DO
 				IF fp = EURecord THEN
 					r.RawNum( link );
@@ -1330,8 +1309,7 @@ VAR
 								adr := scope.dsc[i].dsc[0].adr;
 								S.GET( mod.sb + adr, tdadr );
 								S.PUT( m.sb - link, tdadr );  
-								IF link # prevlink THEN  Relocate( m.sb - link )  END;
-								prevlink := link
+								Relocate( m.sb - link )
 							END
 						END;
 						CheckScope( scope.dsc[i], EUrecScope )
@@ -1355,8 +1333,7 @@ VAR
 								FixupCall( S.ADR( m.code[0] ),
 										    S.VAL( S.SIZE, S.VAL( SET, link ) - {EUProcFlagBit} ),
 										    scope.dsc[i].adr + S.ADR( mod.code[0] ) )
-							END;
-							prevlink := link
+							END
 						END
 					END
 				END;
@@ -1516,7 +1493,8 @@ VAR
 			| 254:   FixEntry( link[i].link, fixupCounts ) (* local procedure address *)
 			| 255:   FixCase( link[i].link, caseTableSize ) (* case table *)
 			ELSE
-				Str( "unsupported externel proc # " );  Int( link[i].entry );  Ln;
+				error.String( "unsupported externel proc # " );  
+				error.Int( link[i].entry, 0 );  error.Ln;
 				res := 3406;  RETURN  (* unknown fixup type *)
 			END
 		END
@@ -1553,6 +1531,7 @@ VAR
 				
 				m.noProcs := h.procs;
 				m.maxPtrs := h.maxPtrs;
+				m.crc := h.crc;
 
 				AllocateModule( m, h );
 
@@ -1703,9 +1682,9 @@ VAR
 		w.Update;
 		Files.Register( f );
 
-		Str( "heap: " );  Int( top - heapAdr );
-		Str( "  reloc: " );  Int( relocSize );
-		Str( "  file: " );  Int( f.Length( ) )
+		out.String( "heap: " );  out.Int( top - heapAdr, 0 );
+		out.String( "  reloc: " );  out.Int( relocSize, 0 );
+		out.String( "  file: " );  out.Int( f.Length( ), 0 )
 	END OutBootfile;
 
 	PROCEDURE RelocateProcOffsets;	
@@ -1733,11 +1712,18 @@ VAR
 		res: LONGINT;  msg: ARRAY 128 OF CHAR;
 		heap: Address;
 	BEGIN
+		out := context.out;  error := context.error;
+		
 		S.NEW( S.VAL( ANY, heap ), BootHeapSize );
-		IF heap = 0 THEN  Str( "S.NEW( heap, BootHeapSize ) failed" );  Ln;  RETURN  END;
+		IF heap = 0 THEN  
+			error.String( "S.NEW( heap, BootHeapSize ) failed" );  error.Ln;  
+			error.Update;
+			RETURN  
+		END;
 
 		IF ~context.arg.GetString( bootFileName ) OR ~context.arg.GetString( name ) THEN
-			Str( "wrong parameter(s), terminating" ); Ln;  RETURN
+			error.String( "wrong parameter(s), terminating" ); error.Ln;  
+			error.Update;  RETURN
 		END;
 		IF context.arg.GetString( name ) THEN
 			Init( heap );
@@ -1746,12 +1732,16 @@ VAR
 			NewArr( S.VAL( ANY, ptrOffsets ), 0, InitPtrTableLen, 1 );
 			numPtrs := 0; 
 			
-			Str( "linking " );  Str( bootFileName );  Ln;  res := Ok;
+			out.String( "linking " );  out.String( bootFileName );  out.Ln;  
+			res := Ok;
 			REPEAT
-				Str( "    " );  Str( name );
+				out.String( "    " );  out.String( name );  out.Ln;
 				m := Load( name, res, msg );
-				IF m = NIL THEN  Str( "   failed: " );  Str( msg )  END;
-				Ln;
+				IF m = NIL THEN  
+					error.String( "loading module " );  error.String( name ); error.String( "   failed: " );  
+					error.String( msg ) 
+				 END;
+				
 			UNTIL ~context.arg.GetString( name ) OR (m = NIL);
 			IF res = Ok THEN  
 				AssignValue( "Modules", "root", S.VAL( Address, modules ), TRUE );
@@ -1766,14 +1756,15 @@ VAR
 
 				OutBootfile( bootFileName )  
 			END;
-			Ln
-		ELSE  Str( "parameter error, module names missing, terminating" ); Ln
-		END
+			out.Ln
+		ELSE  
+			error.String( "parameter error, module names missing, terminating" ); error.Ln
+		END;
+		error.Update; out.Update
 	END Link;
 
 
-BEGIN
-	Str( "UnixAos Boot Linker (" );  Str( Version );  Str( ") " );  Ln
+
 END BootLinker.
 
 
