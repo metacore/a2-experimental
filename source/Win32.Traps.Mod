@@ -151,14 +151,15 @@ VAR
 				END
 		END;
 		*)
-			w.String( desc );  			w.Update;
+			w.String( desc );  	w.Ln;		w.Update;
 
 			(*
 		IF exc.locks # {} THEN
 			w.String(", Locks: "); w.Set(exc.locks)
 		END;
 		*)
-			w.Char( " " );  w.String( Machine.version );
+			w.String( "System: " );  w.String( Machine.version );
+			(*w.String( " Uptime=" );  w.Hex(Machine.GetTimer()-Machine.boottime, -8);*)
 			IF long THEN
 				w.Char( 0EX );   (* "fixed font" *)
 				w.Ln;
