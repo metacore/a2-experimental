@@ -1,54 +1,14 @@
-MODULE SystemVersion; (** AUTHOR ""; PURPOSE ""; *)
+MODULE SystemVersion; (** AUTHOR "Patrick Hunziker"; PURPOSE "unequivocally identify system by combined CRC of Kernel"; *)
+(* load this module early in the boot sequence, but after the statically linked modules. Currently, it is called early through Traps.Mod  *)
 
 IMPORT
-	SYSTEM, Kernel32,  Trace, Machine,  Heaps,  Modules, Objects, Kernel,
-	KernelLog, Streams, Commands, Files, WinFS, Loader,	BootConsole;
+	Modules, CRC, KernelLog;
 
-(*! to do: move CRC Object to a more generic module, e.g. CRC.Mod*)
-TYPE CRC= OBJECT
-	VAR crc : LONGINT;
-
-		PROCEDURE  &Init;
-		BEGIN
-			crc := LONGINT(0FFFFFFFFH);
-		END Init;
-
-		PROCEDURE Add(i: LONGINT);
-		VAR idx: LONGINT;
-		BEGIN
-			idx := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, crc) / SYSTEM.VAL(SET, i)) MOD 100H;
-			crc := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, CRC32Table[idx])/SYSTEM.VAL(SET, SYSTEM.LSH(crc, -8)));
-		END Add;
-
-		PROCEDURE Get():LONGINT;
-		BEGIN
-			RETURN SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, crc)/{0..31})
-		END Get;
+	VAR	BootCRC-: LONGINT;
 	
-	END CRC;
-
-	VAR CRC32Table: ARRAY 256 OF SET;
-		(* CRC of those Kernel Modules that were already loaded when this module was first loaded *)
-		BootCRC-: LONGINT;
-
-	PROCEDURE InitTable32;
-	CONST poly = SHORT(0EDB88320H);
-	VAR n, c, k: LONGINT;
-	BEGIN
-		FOR n := 0 TO 255 DO
-			c := n;
-			FOR k := 0 TO 7 DO
-				IF ODD(c) THEN c := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, poly) / SYSTEM.VAL(SET, SYSTEM.LSH(c, -1)))
-				ELSE c := SYSTEM.LSH(c, -1)
-				END
-			END;
-			CRC32Table[n] := SYSTEM.VAL(SET, c)
-		END
-	END InitTable32;
-
-	(* combined CRC of those Kernel Modules that loaded at this point in time *)
+	(* combined CRC of those Kernel Modules that loaded at this point in time.	 *)
 	PROCEDURE GetKernelCRC*():LONGINT;
-	VAR m:Modules.Module; crc: CRC;
+	VAR m:Modules.Module; crc: CRC.CRC32;
 	BEGIN
 		NEW(crc);
 		m:=Modules.ModuleByName("Kernel32"); IF m#NIL THEN crc.Add(m.crc) END;
@@ -68,18 +28,12 @@ TYPE CRC= OBJECT
 		RETURN crc.Get()
 	END GetKernelCRC;
 	
-	PROCEDURE GetKernelDate*(CONST name: ARRAY OF CHAR; VAR d,t: LONGINT): BOOLEAN;
-	VAR f: Files.File;
+	
+	PROCEDURE GetKernelDate(CONST name: ARRAY OF CHAR; VAR d,t: LONGINT): BOOLEAN;
 	BEGIN
 		(*! TBD*)
 		d:=0; t:=0; RETURN FALSE;
 	END GetKernelDate;
-	
-	(** call this dummy procedure to force module loading *)
-	PROCEDURE Init*; 
-	BEGIN
-	END Init;
-	
 	
 	PROCEDURE Test*;
 	BEGIN
@@ -88,8 +42,7 @@ TYPE CRC= OBJECT
 	END Test;
 	
 
-BEGIN 
-	InitTable32;
+BEGIN
 	BootCRC:=GetKernelCRC();
 END SystemVersion.
 

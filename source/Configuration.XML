@@ -47,7 +47,6 @@ To update: Configuration.Init ~
 <!-- Autostart -->
 
 	<Section name="Autostart">
-		<Setting name="KernelCRC" value="SystemVersion.Init"/>
 		<Setting name="FileTrapWriter" value="FileTrapWriter.Install"/>
 		<Setting name="TrapWriter" value="WMTrapWriter.Install"/>
 		<Setting name="Uptime Monitor" value="UpTime.Install"/>
