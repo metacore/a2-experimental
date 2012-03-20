@@ -100,6 +100,7 @@ VAR
 	features*,features2*: SET;   (** processor features *)
 	fcr*: SET;   (** default floating-point control register value (default rounding mode is towards -infinity, for ENTIER) *)
 	mhz*: HUGEINT;   (** clock rate of GetTimer() in MHz, or 0 if not known *)
+	boottime-: HUGEINT; (** in timer units *)
 
 	commandLine-: ARRAY 256 OF CHAR;
 	hin, hout: Kernel32.HANDLE;
@@ -483,13 +484,11 @@ END GreaterOrEqual;
 		Kernel32.Shutdown( 0 );   (* calls the finalizer of Heaps *)
 	END Shutdown;
 
-
 (* Dan: from new Machine *)
 PROCEDURE -GetTimer*(): HUGEINT;
 CODE {SYSTEM.Pentium}
 	RDTSC	; set EDX:EAX
 END GetTimer;
-
 
 (* Dan:  mono CPU PCs *)
 PROCEDURE ID*(): LONGINT;
@@ -685,6 +684,7 @@ END RemoveTraceFile;
 PROCEDURE Init;
 VAR vendor: Vendor; ver: LONGINT;
 BEGIN
+	boottime:=GetTimer();
 	locks := 0;
 	IF hInstance = Kernel32.NULL THEN  (* from exe file *)
 		hInstance := Kernel32.GetModuleHandle( NIL );  isEXE := TRUE
