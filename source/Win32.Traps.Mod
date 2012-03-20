@@ -158,7 +158,9 @@ VAR
 			w.String(", Locks: "); w.Set(exc.locks)
 		END;
 		*)
-			w.String( "System: " );  w.String( Machine.version ); w.String(" Kernel_CRC="); w.Hex(SystemVersion.BootCRC,8);
+			w.String( "System: " );  w.String( Machine.version ); 
+			w.String(" Kernel_CRC="); w.Hex(SystemVersion.BootCRC,8); 
+			w.String(" Uptime="); w.Hex(Machine.GetTimer()- Machine.boottime, 8);
 			(*w.String( " Uptime=" );  w.Hex(Machine.GetTimer()-Machine.boottime, -8);*)
 			IF long THEN
 				w.Char( 0EX );   (* "fixed font" *)
