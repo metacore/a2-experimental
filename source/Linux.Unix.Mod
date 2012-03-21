@@ -314,6 +314,14 @@ VAR
 	libraryPaths: ARRAY 8 OF ARRAY 32 OF CHAR;
 
 
+	PROCEDURE ModifyContext*( cont: Ucontext;  pc, bp, sp: LONGINT );
+	BEGIN
+		cont.mc.eip := pc;
+		cont.mc.ebp := bp;
+		cont.mc.esp := sp;
+		cont.mc.espatsig := sp
+	END ModifyContext;
+
 	PROCEDURE Perror*( CONST msg: ARRAY OF CHAR );
 	BEGIN
 		perror( S.ADR( msg ) )

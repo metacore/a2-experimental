@@ -52,7 +52,7 @@ VAR
 	VAR 
 		pc, sp, bp: Address;  
 		trapno: LONGINT;  
-		trthr: Objects.Process;  handled: BOOLEAN;  
+		trProcess: Objects.Process;  handled: BOOLEAN;  
 		w: Streams.Writer;
 	
 	PROCEDURE FinishTrapText( exitAos: BOOLEAN );
@@ -67,7 +67,7 @@ VAR
 			
 			IF exitAos THEN  Unix.exit( 1 )  END;
 			
-			S.GET( S.VAL( Address, trthr.obj ) - 4, tag );
+			S.GET( S.VAL( Address, trProcess.obj ) - 4, tag );
 			GetTypeName( tag, name );
 			IF name = "Oberon.System.OberonRunner" THEN  UnlockOberon  END;
 			TrapHandlingLevel := 0;
@@ -89,7 +89,7 @@ VAR
 			unix.error.Update
 		END;
 		
-		trthr := Objects.CurrentProcess( );  
+		trProcess := Objects.CurrentProcess( );  
 		w := TrapWriters.GetWriter();
 			
 		w.Char( 1X );   (* begin of trap text *) 
@@ -145,16 +145,19 @@ VAR
 			w.String( ", FP = " );  w.Address( bp );  w.Char( 'H' );
 			w.String( ", PC = " );  w.Address( pc );  w.Char( 'H' );  w.Ln;  
 			w.Ln;  
-			HandleException( w, trthr, bp, sp, pc, handled ); 
-			IF ~handled THEN  (* stack dump *)
-				Reflection.StackTraceBack( w, pc, bp, Objects.GetStackBottom(trthr), TRUE, FALSE )
+			HandleException( trProcess, ucp, handled ); 
+			IF handled THEN   
+				w.String( "exception handler found" );   w.Ln
+			ELSE
+				Reflection.StackTraceBack( w, pc, bp, Objects.GetStackBottom(trProcess), TRUE, FALSE )
 			END;  
 			FinishTrapText( FALSE );
+			IF handled THEN  RETURN  END;
 			IF Heaps.collecting OR Machine.standaloneAppl THEN  
 				Machine.Shutdown( FALSE );  Objects.Terminate  
 			END;  
 			IF 3 IN debug THEN  
-				Trace.String( "Teminating trapped thread " );  Trace.Int( trthr.id , 0 ); Trace.Ln
+				Trace.String( "Teminating trapped thread " );  Trace.Int( trProcess.id , 0 ); Trace.Ln
 			END;  
 			Objects.ExitTrap() 
 		END
@@ -173,15 +176,17 @@ VAR
 	
 
 	(* Handles an exception. Interrupts are on during this procedure. *)
-	PROCEDURE HandleException( w: Streams.Writer; obj: Objects.Process; fp, sp, pc: Address;  VAR handled: BOOLEAN );  
-	VAR handler: Address;  
+	PROCEDURE HandleException( obj: Objects.Process; cont: Unix.Ucontext;  VAR handled: BOOLEAN );  
+	VAR handler, fp, sp, pc: LONGINT;
 	BEGIN 
+		pc := cont.mc.eip;  fp := cont.mc.ebp;  sp := cont.mc.espatsig;
+		IF pc = 0 THEN  
+			(* assume call of procedure variable with value NIL *)
+			S.GET( sp, pc );   (* get return address on top of stack *)
+		END;  
 		handler := Modules.GetExceptionHandler( pc );   
 		IF handler # -1 THEN  (* Handler in the current PAF *)
-			(*
-			int.EIP := handler;  
-			SetTrapVariable( pc, fp );  SetLastExceptionState( exc );
-			*)
+			Unix.ModifyContext( cont, handler, fp, sp );
 			handled := TRUE;  
 		ELSE  
 			WHILE Machine.LessOrEqual( fp, obj.stackBottom) & (handler = -1) DO  
@@ -193,18 +198,10 @@ VAR
 			END;  
 			IF handler = -1 THEN  handled := FALSE   
 			ELSE 
-				(*
-				int.EIP := handler;  int.EBP := fp;  int.ESP := sp;  
-				SetTrapVariable( pc, fp );  SetLastExceptionState( exc );  
-				*)
+				Unix.ModifyContext( cont, handler, fp, sp );
 				handled := TRUE  
 			END  
 		END;  
-		IF handled THEN  
-			w.String( "(exception handler found but exception handling not yet implemented)" );  
-			w.Ln;  w.Ln;  
-			handled := FALSE   
-		END  
 	END HandleException;  
 	
 	
