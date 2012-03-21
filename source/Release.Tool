@@ -270,7 +270,7 @@ PACKAGE System ARCHIVE "System.zip" SOURCE "SystemSrc.zip" DESCRIPTION "System"
 	AMD64 { AMD64.Reals.Mod }
 
 	# default trap handling
-	Reflection.Mod TrapWriters.Mod
+	Reflection.Mod TrapWriters.Mod CRC.Mod SystemVersion.Mod
 	I386 { Traps.Mod }
 	AMD64 { AMD64.Traps.Mod }
 	WIN {  Win32.Traps.Mod }
