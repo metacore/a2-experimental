@@ -104,7 +104,16 @@ TYPE CRC32*= OBJECT
 		BEGIN
 			crc := LONGINT(0FFFFFFFFH);
 		END Init;
-
+		
+		(* standard use: one character at a time *)
+		PROCEDURE Char*(c: CHAR);
+		VAR idx: LONGINT;
+		BEGIN
+			idx := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, crc) / SYSTEM.VAL(SET, LONG(ORD(c)))) MOD 100H;
+			crc := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, CRC32Table[idx])/SYSTEM.VAL(SET, SYSTEM.LSH(crc, -8)));
+		END Char;
+		
+		(* nonstandard use - add a LONGINT *)
 		PROCEDURE Add*(i: LONGINT);
 		VAR idx: LONGINT;
 		BEGIN
