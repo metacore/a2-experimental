@@ -92,7 +92,7 @@ BEGIN
 			r.RawLInt(h.procs);
 			r.RawLInt(h.maxPtrs);
 			r.RawLInt(h.staticTdSize); (* ug *)
-			r.RawLInt(h.crc);
+			IF ORD(tag) >= 0B4H THEN r.RawLInt(h.crc) END;
 			r.RawString(h.name);
 			IF trace THEN
 				KernelLog.String("  name: ");  KernelLog.String(h.name);
