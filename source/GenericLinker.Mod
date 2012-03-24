@@ -64,20 +64,20 @@ VAR
 	BEGIN diagnostics.Error (source, Diagnostics.Invalid, Diagnostics.Invalid, message); error := TRUE;
 	END Error;
 
-	PROCEDURE ErrorP*(CONST pooledName: ObjectFile.PooledName; CONST message: ARRAY OF CHAR);
+	PROCEDURE ErrorP*(CONST pooledName: ObjectFile.SegmentedName; CONST message: ARRAY OF CHAR);
 	VAR source: ARRAY 256 OF CHAR;
 	BEGIN
-		ObjectFile.FromPooledName(pooledName, source); Error(source, message);
+		ObjectFile.SegmentedNameToString(pooledName, source); Error(source, message);
 	END ErrorP;
 
 	PROCEDURE Information* (CONST source, message: ARRAY OF CHAR);
 	BEGIN IF log#NIL  THEN log.String(source); log.String(":"); log.String(message); log.Ln END;
 	END Information;
 
-	PROCEDURE InformationP*(CONST pooledName: ObjectFile.PooledName; CONST message: ARRAY OF CHAR);
+	PROCEDURE InformationP*(CONST pooledName: ObjectFile.SegmentedName; CONST message: ARRAY OF CHAR);
 	VAR source: ARRAY 256 OF CHAR;
 	BEGIN
-		ObjectFile.FromPooledName(pooledName, source); Information(source, message);
+		ObjectFile.SegmentedNameToString(pooledName, source); Information(source, message);
 	END InformationP;
 
 	PROCEDURE FindBlock* (CONST identifier: ObjectFile.Identifier): Block;
@@ -114,7 +114,7 @@ VAR
 	PROCEDURE AddSection* (CONST section: ObjectFile.Section);
 	VAR priority: Priority; block, current, previous: Block; name: ARRAY 256 OF CHAR;
 	BEGIN
-		IF FindBlock (section.identifier) # NIL THEN ObjectFile.FromPooledName(section.identifier.name,name); Error (name, "duplicated section"); RETURN; END;
+		IF FindBlock (section.identifier) # NIL THEN ObjectFile.SegmentedNameToString(section.identifier.name,name); Error (name, "duplicated section"); RETURN; END;
 		NEW (block); ObjectFile.CopySection (section, block^); block.address := InvalidAddress; block.referenced := FALSE; block.used := FALSE;
 		current := firstBlock; previous := NIL;
 		WHILE (current # NIL) & ~Precedes(block,current) DO previous := current; current := current.next; END;
@@ -127,7 +127,7 @@ VAR
 	BEGIN
 		IF ~error THEN block := firstBlock;
 			WHILE block # firstLinkedBlock DO
-				ObjectFile.FromPooledName(block.identifier.name, name);
+				ObjectFile.SegmentedNameToString(block.identifier.name, name);
 				used := (GetType (block) IN usedCategories) OR (linkRoot # "") & Strings.StartsWith(linkRoot,0,name);
 				Reference (block, used); block := block.next;
 			END;
@@ -155,13 +155,13 @@ VAR
 			IF reference = NIL THEN reference := ImportBlock(fixup.identifier) END;
 
 			IF reference = NIL THEN
-				ObjectFile.FromPooledName(fixup.identifier.name,str); Strings.Append(str," in " );
-				ObjectFile.FromPooledName(block.identifier.name,name);
+				ObjectFile.SegmentedNameToString(fixup.identifier.name,str); Strings.Append(str," in " );
+				ObjectFile.SegmentedNameToString(block.identifier.name,name);
 				Strings.Append(str,  name);
 				Error(str, "unresolved");
 			ELSIF (reference.identifier.fingerprint # 0) & (block.fixup[i].identifier.fingerprint # 0) & (reference.identifier.fingerprint # block.fixup[i].identifier.fingerprint) THEN
-				ObjectFile.FromPooledName(fixup.identifier.name,str); Strings.Append(str," in " );
-				ObjectFile.FromPooledName(block.identifier.name,name);
+				ObjectFile.SegmentedNameToString(fixup.identifier.name,str); Strings.Append(str," in " );
+				ObjectFile.SegmentedNameToString(block.identifier.name,name);
 				Strings.Append(str,  name);
 				Error (str, "incompatible");
 			ELSE Reference (reference, block.used); END;
@@ -219,7 +219,7 @@ VAR
 					ELSE
 						minval := 0; maxval := ASH(1,nobits);
 					END;
-					ObjectFile.FromPooledName(block.identifier.name,name);
+					ObjectFile.SegmentedNameToString(block.identifier.name,name);
 					Strings.Append(name,":");
 					Strings.IntToStr(offset,number);
 					Strings.Append(name,number);

@@ -23,6 +23,7 @@ CONST
 
 	DefaultExtension* = ".Gof";
 
+	SegmentedNameLength=8;
 TYPE
 
 	Unit* = LONGINT;
@@ -30,7 +31,17 @@ TYPE
 
 	SectionType = INTEGER;
 
-	PooledName*= ARRAY 4 OF StringPool.Index;
+	SegmentedName*= RECORD
+		(*
+			0X terminated string representation in the form
+				{index char}.
+			Empty string is represented as 0 0X.
+			Implementers must guarantee that last separator is 0X.
+		*)
+		index*: ARRAY SegmentedNameLength OF StringPool.Index;
+		sep*: ARRAY SegmentedNameLength OF CHAR;
+	END;
+
 	SectionName* = ARRAY 128 OF CHAR;
 
 	(* FixupPattern = size (+|-) bits {size (+|-) bits}
@@ -52,7 +63,7 @@ TYPE
 	FixupPatterns*= POINTER TO ARRAY OF FixupPattern;
 
 	Identifier*= RECORD
-		name*: PooledName;
+		name*: SegmentedName;
 		fingerprint*: LONGINT;
 	END;
 
@@ -287,7 +298,7 @@ VAR
 		PROCEDURE WriteIdentifier(CONST identifier: Identifier);
 		VAR name: SectionName;
 		BEGIN
-			FromPooledName(identifier.name, name);
+			SegmentedNameToString(identifier.name, name);
 			writer.String (name);
 			writer.Char (Separator);
 			writer.Int (identifier.fingerprint, 0);
@@ -388,7 +399,7 @@ VAR
 		BEGIN
 			reader.SkipWhitespace;
 			reader.String(name);
-			ToPooledName(name,identifier.name);
+			StringToSegmentedName(name,".",identifier.name);
 			reader.SkipWhitespace; reader.Int (identifier.fingerprint,FALSE);
 		END ReadIdentifier;
 
@@ -479,15 +490,15 @@ VAR
 		END WritePattern;
 
 		PROCEDURE WriteIdentifier(CONST identifier: Identifier);
-		(*VAR name: SectionName;*)
-		VAR i,num: LONGINT;
+		VAR segment, index: LONGINT; sep: CHAR;
 		BEGIN
-			i := 0;
+			segment := 0;
 			REPEAT
-				num := poolMap.Get(identifier.name[i])+1;
-				writer.RawNum(num); (* avoid to write -1 *)
-				INC(i);
-			UNTIL (i = LEN(identifier.name)) OR (num = 0);
+				index := poolMap.Get(identifier.name.index[segment]);
+				writer.RawNum(index);
+				sep := identifier.name.sep[i];
+				writer.Char(sep);
+			UNTIL sep = 0X;
 			writer.RawNum (identifier.fingerprint);
 		END WriteIdentifier;
 
@@ -574,17 +585,16 @@ VAR
 
 		PROCEDURE ReadIdentifier(VAR identifier: Identifier);
 		(*VAR name: SectionName;*)
-		VAR i,num: LONGINT;
+		VAR i,index: LONGINT; sep: CHAR;
 		BEGIN
 			i := 0;
 			REPEAT
-				reader.RawNum(num);
-				identifier.name[i] := poolMap.Get(num-1);
+				reader.RawNum(index);
+				reader.Char(sep);
+				identifier.name.index[i] := poolMap.Get(index-1);
+				identifier.name.sep[i] := 0X;
 				INC(i);
-			UNTIL (i = LEN(identifier.name)) OR (num = 0);
-			WHILE i < LEN(identifier.name) DO
-				identifier.name[i] := -1; INC(i);
-			END;
+			UNTIL (sep = 0X);
 			 reader.RawNum (identifier.fingerprint);
 		END ReadIdentifier;
 
@@ -699,7 +709,6 @@ VAR
 		offsets := newOffsets;
 	END AddOffset;
 
-
 	PROCEDURE SamePattern(patterns: LONGINT; left, right: FixupPatterns): BOOLEAN;
 	VAR i: LONGINT;
 	BEGIN
@@ -708,7 +717,6 @@ VAR
 		END;
 		RETURN TRUE
 	END SamePattern;
-
 
 	PROCEDURE AddPatch(VAR patches: LONGINT; VAR patch: Patches; mode: INTEGER; displacement, scale: LONGINT; patterns: LONGINT; pattern: FixupPatterns; offset: LONGINT);
 	VAR i: LONGINT; newPatches: LONGINT; newPatch: Patches; len: LONGINT;
@@ -746,8 +754,7 @@ VAR
 		(* increase size and add *)
 	END AddPatch;
 
-
-	PROCEDURE AddFixup*(VAR fixups: LONGINT; VAR fixup: Fixups; CONST name: PooledName; fingerprint: LONGINT; mode: INTEGER; displacement, scale: LONGINT; patterns: LONGINT; pattern: FixupPatterns; offset: LONGINT);
+	PROCEDURE AddFixup*(VAR fixups: LONGINT; VAR fixup: Fixups; CONST name: SegmentedName; fingerprint: LONGINT; mode: INTEGER; displacement, scale: LONGINT; patterns: LONGINT; pattern: FixupPatterns; offset: LONGINT);
 	VAR i: LONGINT; newFixups: LONGINT; newFixup: Fixups;
 	BEGIN
 		FOR i := 0 TO fixups-1 DO
@@ -766,9 +773,6 @@ VAR
 			fixup := newFixup;
 		END;
 		fixup[fixups].identifier.name := name;
-		(*
-		COPY(name, fixup[fixups].identifier.name);
-		*)
 		fixup[fixups].identifier.fingerprint := fingerprint;
 		fixup[fixups].patches := 0;
 		fixup[fixups].patch := NIL;
@@ -777,55 +781,76 @@ VAR
 		(* increase size and add *)
 	END AddFixup;
 
-	PROCEDURE ToPooledName*(CONST name: ARRAY OF CHAR; VAR pooledName: PooledName);
-	VAR i,j,index: LONGINT; n: SectionName;
+	PROCEDURE StringToSegmentedName*(CONST name: ARRAY OF CHAR; sep: CHAR; VAR segmentedName: SegmentedName);
+	VAR i,j,segment: LONGINT; n: SectionName;
 	BEGIN
 		(* convert a string of the form A.B.C.suffix to [S(A), S(B), S(C), S(suffix)] *)
-		index := 0; i := 0;
-		WHILE (index < LEN(pooledName)) DO
+		segment := 0; i := 0;
+		REPEAT
 			j := 0;
-			WHILE (name[i] # 0X) & (name[i] # ".") DO
-				n[j] := name[i]; INC(i); INC(j);
-			END;
-			IF j > 0 THEN
-				IF index = LEN(pooledName)-1 THEN
-					WHILE (name[i] # 0X)  DO n[j] := name[i]; INC(i); INC(j); END;
-				END;
-				n[j] := 0X; StringPool.GetIndex(n,pooledName[index]);
+			IF segment = LEN(segmentedName.index)-1 THEN
+				WHILE (name[i] # 0X)  DO n[j] := name[i]; INC(i); INC(j); END;
 			ELSE
-				pooledName[index] := -1
+				WHILE (name[i] # 0X) & (name[i] # sep) DO n[j] := name[i]; INC(i); INC(j) END;
 			END;
-			IF name[i] = "." THEN INC(i) END;
-			INC(index);
-		END;
-	END ToPooledName;
+			n[j] := 0X;
+			StringPool.GetIndex(n,segmentedName.index[segment]);
+			segmentedName.sep[segment] := name[i];
+			IF name[i] = sep THEN INC(i) END;
+			INC(segment);
+		UNTIL name[i] = 0X;
+	END StringToSegmentedName;
 
-	PROCEDURE FromPooledName*(CONST pooledName: PooledName; VAR name: ARRAY OF CHAR);
-	VAR i,j, index: LONGINT; n: SectionName;
+	PROCEDURE SegmentedNameToString*(CONST segmentedName: SegmentedName; VAR name: ARRAY OF CHAR);
+	VAR i,j, segment: LONGINT; n: SectionName; sep: CHAR;
 	BEGIN
-		i := 0; index := 0;
-		WHILE (index < LEN(pooledName)) DO
-			IF pooledName[index] >= 0 THEN
-				IF index > 0 THEN name[i] := "."; INC(i) END;
-				StringPool.GetString(pooledName[index],n);
-				j := 0;
-				WHILE n[j] # 0X DO
-					name[i] := n[j]; INC(i); INC(j);
-				END;
+		ASSERT(LEN(name) > 0);
+		i := 0; segment:= 0;
+		REPEAT
+			StringPool.GetString(segmentedName.index[segment], n);
+			j := 0;
+			WHILE (n[j] # 0X) & (i< LEN(name)-1) DO
+				name[i] := n[j]; INC(i); INC(j);
 			END;
-			INC(index);
-		END;
-		name[i] := 0X;
-	END FromPooledName;
+			sep := segmentedName.sep[segment];
+			name[i] := sep;
+			INC(segment); INC(i);
+		UNTIL sep = 0X;
+	END SegmentedNameToString;
 
-	OPERATOR "="*(CONST l,r: PooledName): BOOLEAN;
+	OPERATOR "="*(CONST l,r: SegmentedName): BOOLEAN;
+	VAR i: LONGINT;
 	BEGIN
-		RETURN (l[0]=r[0]) & (l[1]=r[1]) & (l[2]=r[2]) & (l[3]=r[3])
+		i := 0;
+		WHILE (l.sep[i] # 0X) & (r.sep[i] # 0X) DO
+			IF (l.index[i] # r.index[i]) OR (l.sep[i] # r.sep[i]) THEN RETURN FALSE END;
+			INC(i);
+		END;
+		RETURN (l.sep[i] = r.sep[i]) & (l.index[i] = r.index[i]);
 	END "=";
 
-	OPERATOR "#"*(CONST l,r: PooledName): BOOLEAN;
+	OPERATOR ":="*(VAR l: SegmentedName; CONST rs: ARRAY OF CHAR);
+	VAR r: SegmentedName;
 	BEGIN
-		RETURN (l[0]#r[0]) OR (l[1]#r[1]) OR (l[2]#r[2]) OR (l[3]#r[3])
+		StringToSegmentedName(rs,".", l);
+	END ":=";
+
+	OPERATOR "="*(CONST l: SegmentedName; CONST rs: ARRAY OF CHAR): BOOLEAN;
+	VAR r: SegmentedName;
+	BEGIN
+		StringToSegmentedName(rs, ".", r);
+		RETURN l=r
+	END "=";
+
+	OPERATOR "#"*(CONST l,r: SegmentedName): BOOLEAN;
+	VAR i: LONGINT;
+	BEGIN
+		i := 0;
+		WHILE (l.sep[i] # 0X) & (r.sep[i] # 0X) DO
+			IF (l.index[i] # r.index[i]) OR (l.sep[i] # r.sep[i]) THEN RETURN TRUE END;
+			INC(i);
+		END;
+		RETURN (l.sep[i] # r.sep[i]) OR (l.index[i] # r.index[i]);
 	END "#";
 
 BEGIN

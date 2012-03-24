@@ -393,7 +393,7 @@ TYPE
 				instructionMemorySize, dataMemorySize: LONGINT;
 				parameter: ActiveCells.Parameter;
 				value: SyntaxTree.Value;
-				pooledName: Basic.PooledName;
+				pooledName: Basic.SegmentedName;
 				device: ActiveCells.Device;
 				error : BOOLEAN;
 			CONST MinimalStackSize=64;
@@ -419,7 +419,7 @@ TYPE
 					ELSE
 						value := SyntaxTree.NewIntegerValue(-1, parameter.integer); value.SetType(system.integerType);
 					END;
-					Basic.ToPooledName(parameter.name, pooledName);
+					Basic.ToSegmentedName(parameter.name, pooledName);
 					assembler.PatchValueInSection(pooledName,value);
 				END;
 

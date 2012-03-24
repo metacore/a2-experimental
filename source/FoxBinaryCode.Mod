@@ -143,14 +143,14 @@ TYPE
 		END GetPC;
 
 
-		PROCEDURE & InitBinarySection*(type: SHORTINT; priority: LONGINT; unit: LONGINT; CONST name:Basic.PooledName; dump: BOOLEAN; bigEndian: BOOLEAN);
+		PROCEDURE & InitBinarySection*(type: SHORTINT; priority: LONGINT; unit: LONGINT; CONST name:Basic.SegmentedName; dump: BOOLEAN; bigEndian: BOOLEAN);
 		BEGIN
 			ASSERT(unit > 0);
 			ASSERT(unit <= 32); (* implementation restriction *)
 			SELF.type := type;
 			identifier.name := name;
 			(*
-			ObjectFile.ToPooledName(name, SELF.identifier.name);
+			ObjectFile.ToSegmentedName(name, SELF.identifier.name);
 			*)
 			(*COPY(name,SELF.identifier.name);*)
 			NEW(bits,0);
@@ -673,7 +673,7 @@ TYPE
 		NEW(fixup,mode,fixupOffset,symbol,symbolOffset,displacement,scale,fixupPattern); RETURN fixup
 	END NewFixup;
 
-	PROCEDURE NewBinarySection*(type: SHORTINT; priority: LONGINT; unit: LONGINT; CONST name: Basic.PooledName; dump: BOOLEAN; bigEndian: BOOLEAN): Section;
+	PROCEDURE NewBinarySection*(type: SHORTINT; priority: LONGINT; unit: LONGINT; CONST name: Basic.SegmentedName; dump: BOOLEAN; bigEndian: BOOLEAN): Section;
 	VAR binarySection: Section;
 	BEGIN
 		NEW(binarySection,type,priority, unit,name,dump,bigEndian); RETURN binarySection

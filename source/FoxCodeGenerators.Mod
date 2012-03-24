@@ -133,7 +133,7 @@ TYPE
 		VAR string:Basic.MessageString;
 		BEGIN
 			IF diagnostics # NIL THEN
-				Basic.FromPooledName(in.name, string);
+				Basic.SegmentedNameToString(in.name, string);
 				diagnostics.Error(string, position, Diagnostics.Invalid, message)
 			END;
 			IF dump # NIL THEN (* to see error in trace output also *)
@@ -176,7 +176,7 @@ TYPE
 						END;
 						IF ~out.ApplyFixup(fixup) THEN
 							COPY("fixup out of range: ", msg);
-							Basic.FromPooledName(fixup.symbol.name, string);
+							Basic.SegmentedNameToString(fixup.symbol.name, string);
 							Strings.Append(msg, string);
 							Strings.Append(msg, ":");
 							Strings.IntToStr(fixup.offset, number);
@@ -249,7 +249,7 @@ TYPE
 			PROCEDURE Emulate(CONST x: IntermediateCode.Instruction; CONST moduleName,procedureName: SyntaxTree.IdentifierString);
 			(*! this emulation procedure emulates instructions with destination operand only *)
 			VAR
-				parSize: LONGINT; sectionName: Basic.PooledName; source: Sections.Section; op: IntermediateCode.Operand;
+				parSize: LONGINT; sectionName: Basic.SegmentedName; source: Sections.Section; op: IntermediateCode.Operand;
 				instruction: IntermediateCode.Instruction;
 
 				PROCEDURE Emit(CONST instruction: IntermediateCode.Instruction; CONST str: ARRAY OF CHAR);
@@ -308,9 +308,9 @@ TYPE
 					INC(parSize, x.op3.type.sizeInBits);
 					Basic.Align(parSize, module.system.addressSize);
 				END;
-				Basic.InitPooledName(sectionName);
-				Basic.SuffixPooledName(sectionName, StringPool.GetIndex1(moduleName));
-				Basic.SuffixPooledName(sectionName, StringPool.GetIndex1(procedureName));
+				Basic.InitSegmentedName(sectionName);
+				Basic.SuffixSegmentedName(sectionName, StringPool.GetIndex1(moduleName));
+				Basic.SuffixSegmentedName(sectionName, StringPool.GetIndex1(procedureName));
 				IF moduleName = module.moduleName THEN
 					source := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, FALSE, sectionName,NIL,dump#NIL);
 				ELSE
@@ -350,7 +350,7 @@ TYPE
 
 		BEGIN
 			inEmulation := FALSE;
-			Basic.FromPooledName(in.name, name);
+			Basic.SegmentedNameToString(in.name, name);
 			SELF.in := in; SELF.out := out;
 			dump := out.comments;
 
@@ -415,11 +415,11 @@ TYPE
 
 
 		PROCEDURE GetDataSection*(): IntermediateCode.Section;
-		VAR name: Basic.PooledName; section: IntermediateCode.Section;
+		VAR name: Basic.SegmentedName; section: IntermediateCode.Section;
 		BEGIN
-			Basic.InitPooledName(name);
-			name[0] := StringPool.GetIndex1(module.moduleName);
-			name[1] := StringPool.GetIndex1("@Immediates");
+			Basic.InitSegmentedName(name);
+			name.index[0] := StringPool.GetIndex1(module.moduleName); name.sep[0] := ".";
+			name.index[1] := StringPool.GetIndex1("@Immediates"); name.sep[1] := 0X;
 			section := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,NIL,TRUE);
 			RETURN section
 		END GetDataSection;

@@ -134,7 +134,7 @@ TYPE
 		BEGIN RETURN pc
 		END GetPC;
 
-		PROCEDURE & InitIntermediateSection*(kind, type: SHORTINT; priority: INTEGER; isDefinition: BOOLEAN; CONST n: Basic.PooledName; symbol: SyntaxTree.Symbol; comment: BOOLEAN);
+		PROCEDURE & InitIntermediateSection*(kind, type: SHORTINT; priority: INTEGER; isDefinition: BOOLEAN; CONST n: Basic.SegmentedName; symbol: SyntaxTree.Symbol; comment: BOOLEAN);
 		BEGIN
 			InitSection(kind,type,priority,isDefinition,n,symbol); InitArray;resolved := NIL;
 			IF comment THEN NEW(comments,GetPC) ELSE comments := NIL END;
@@ -360,7 +360,7 @@ TYPE
 		- if the section already exists, reuse the existing section
 		note: for compatibility with the old binary object file format, const sections can also be referred to as var sections
 	**)
-	PROCEDURE NewSection*(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.PooledName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): Section;
+	PROCEDURE NewSection*(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.SegmentedName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): Section;
 	VAR
 		result: Sections.Section;
 		section: Section;
@@ -389,10 +389,7 @@ TYPE
 		END;
 
 		(* a valid name must be present *)
-		ASSERT(name[0] # Basic.MakeString(""));
-		ASSERT(name[1] # Basic.MakeString(""));
-		ASSERT(name[2] # Basic.MakeString(""));
-		ASSERT(name[3] # Basic.MakeString(""));
+		ASSERT(name.index[0] # Basic.MakeString(""));
 
 		(* create a new section and enter it *)
 		NEW(section, kind, type, 0 (* initial priority = 0 *), isDefinition, name, syntaxTreeSymbol, dump);

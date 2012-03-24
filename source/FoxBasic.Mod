@@ -2,7 +2,7 @@ MODULE FoxBasic;   (**  AUTHOR "fof"; PURPOSE "Oberon Compiler: basic helpers: s
 (* (c) fof ETH Zürich, 2009 *)
 
 
-IMPORT KernelLog, StringPool, Strings, Streams, Diagnostics, Files, SYSTEM, ObjectFile;
+IMPORT KernelLog, StringPool, Strings, Streams, Diagnostics, Files, SYSTEM, ObjectFile, D:= Debugging;
 
 CONST
 	(* error numbers *)
@@ -51,7 +51,7 @@ TYPE
 	String* = POINTER TO ARRAY OF CHAR;
 	*)
 	String* = StringPool.Index;
-	PooledName*= ObjectFile.PooledName;
+	SegmentedName*= ObjectFile.SegmentedName;
 	FileName*= Files.FileName;
 	SectionName*= ARRAY 256 OF CHAR;
 	MessageString*= ARRAY 256 OF CHAR;
@@ -690,15 +690,15 @@ TYPE
 
 	END HashTableInt;
 
-	HashEntryPooledName = RECORD
-		key: ObjectFile.PooledName; (* key[0]= MIN(LONGINT) <=> empty *)
+	HashEntrySegmentedName = RECORD
+		key: ObjectFile.SegmentedName; (* key[0]= MIN(LONGINT) <=> empty *)
 		value: ANY;
 	END;
-	HashPooledNameArray = POINTER TO ARRAY OF HashEntryPooledName;
+	HashSegmentedNameArray = POINTER TO ARRAY OF HashEntrySegmentedName;
 
-	HashTablePooledName* = OBJECT
+	HashTableSegmentedName* = OBJECT
 	VAR
-		table: HashPooledNameArray;
+		table: HashSegmentedNameArray;
 		size: LONGINT;
 		used-: LONGINT;
 		maxLoadFactor: REAL;
@@ -715,13 +715,12 @@ TYPE
 			Clear;
 		END Init;
 
-		PROCEDURE Put*(CONST key: PooledName; value: ANY);
+		PROCEDURE Put*(CONST key: SegmentedName; value: ANY);
 		VAR hash: LONGINT;
 		BEGIN
-			ASSERT(key[0] # -1);
 			ASSERT(used < size);
 			hash := HashValue(key);
-			IF table[hash].key[0] = MIN(LONGINT) THEN
+			IF table[hash].key.index[0] = MIN(LONGINT) THEN
 				INC(used, 1);
 			END;
 			table[hash].key := key;
@@ -729,12 +728,12 @@ TYPE
 			IF (used / size) > maxLoadFactor THEN Grow END;
 		END Put;
 
-		PROCEDURE Get*(CONST key: PooledName):ANY;
+		PROCEDURE Get*(CONST key: SegmentedName):ANY;
 		BEGIN
 			RETURN table[HashValue(key)].value;
 		END Get;
 
-		PROCEDURE Has*(CONST key: PooledName):BOOLEAN;
+		PROCEDURE Has*(CONST key: SegmentedName):BOOLEAN;
 		BEGIN
 			RETURN table[HashValue(key)].key = key;
 		END Has;
@@ -744,51 +743,52 @@ TYPE
 
 		PROCEDURE Clear*;
 		VAR i: LONGINT;
-		BEGIN FOR i := 0 TO size - 1 DO table[i].key[0] := MIN(LONGINT); END; END Clear;
+		BEGIN FOR i := 0 TO size - 1 DO table[i].key.index[0] := MIN(LONGINT); table[i].key.sep[0] := 0X END; END Clear;
 
 		(* Internals *)
-		PROCEDURE Hash*(CONST name: PooledName): LONGINT;
-		VAR fp,i: LONGINT;
+		PROCEDURE Hash*(CONST name: SegmentedName): LONGINT;
+		VAR fp,i: LONGINT; sep: CHAR;
 		BEGIN
-			fp := name[0]; i := 1;
-			WHILE (i<LEN(name)) & (name[i] >= 0) DO
-				fp:=SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, SYSTEM.ROT(fp, 7)) / SYSTEM.VAL(SET, name[i]));
+			fp := name.index[0]; i := 1;
+			REPEAT
+				sep := name.sep[i];
+				fp:=SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, SYSTEM.ROT(fp, 7)) / SYSTEM.VAL(SET, name.index[i]));
 				INC(i);
-			END;
+			UNTIL (sep = 0X);
 			RETURN fp
 		END Hash;
 
-		PROCEDURE HashValue(CONST key: PooledName):LONGINT;
+		PROCEDURE HashValue(CONST key: SegmentedName):LONGINT;
 		VAR value, h,i: LONGINT;
 		BEGIN
-			ASSERT(key[0] # MIN(LONGINT));
 			h := Hash(key);
 			i := 0;
 			REPEAT
 				value := (h + i) MOD size;
+				ASSERT(i<size);
 				INC(i);
-			UNTIL((table[value].key[0] = MIN(LONGINT)) OR (table[value].key = key) OR (i > size));
-			ASSERT((table[value].key[0] = MIN(LONGINT)) OR (table[value].key = key));
+			UNTIL (table[value].key = key) OR (table[value].key.index[0] = MIN(LONGINT));
 			RETURN value;
 		END HashValue;
 
 		PROCEDURE Grow;
-		VAR oldTable: HashPooledNameArray; oldSize, i: LONGINT; key: PooledName;
+		VAR oldTable: HashSegmentedNameArray; oldSize, i: LONGINT; key: SegmentedName; value: ANY;
 		BEGIN
 			oldSize := size;
 			oldTable := table;
 			Init(size*2);
 			FOR i := 0 TO oldSize-1 DO
 				key := oldTable[i].key;
-				IF key[0] # MIN(LONGINT) THEN
-					IF oldTable[i].value # NIL THEN
-						Put(key, oldTable[i].value);
+				IF key.index[0] # MIN(LONGINT) THEN
+					value := oldTable[i].value;
+					IF value # NIL THEN
+						Put(key, value);
 					END;
 				END;
 			END;
 		END Grow;
 
-	END HashTablePooledName;
+	END HashTableSegmentedName;
 
 
 	(* Hash table supporting 2 keys *)
@@ -1687,129 +1687,118 @@ VAR
 		Strings.Append(s,nums);
 	END AppendNumber;
 
-	PROCEDURE InitPooledName*(VAR name: PooledName);
+	PROCEDURE InitSegmentedName*(VAR name: SegmentedName);
 	VAR i: LONGINT;
-	BEGIN FOR i := 0 TO LEN(name)-1 DO name[i] := -1 END;
-	END InitPooledName;
+	BEGIN name.index[0] := 0; name.sep[0] := 0X;
+	END InitSegmentedName;
 
-
-	PROCEDURE ToPooledName*(CONST name: ARRAY OF CHAR; VAR pooledName: PooledName);
+	PROCEDURE ToSegmentedName*(CONST name: ARRAY OF CHAR; VAR pooledName: SegmentedName);
 	BEGIN
-		ObjectFile.ToPooledName(name, pooledName);
-	END ToPooledName;
+		ObjectFile.StringToSegmentedName(name, ".", pooledName);
+	END ToSegmentedName;
 
-	PROCEDURE FromPooledName*(CONST pooledName: PooledName; VAR name: ARRAY OF CHAR);
+	PROCEDURE SegmentedNameToString*(CONST pooledName: SegmentedName; VAR name: ARRAY OF CHAR);
 	BEGIN
-		ObjectFile.FromPooledName(pooledName, name);
-	END FromPooledName;
+		ObjectFile.SegmentedNameToString(pooledName, name);
+	END SegmentedNameToString;
 
-	PROCEDURE WritePooledName*(w: Streams.Writer; name: PooledName);
+	PROCEDURE WriteSegmentedName*(w: Streams.Writer; name: SegmentedName);
 	VAR sectionName: ObjectFile.SectionName;
 	BEGIN
-		FromPooledName(name, sectionName);
+		SegmentedNameToString(name, sectionName);
 		w.String(sectionName);
-	END WritePooledName;
+	END WriteSegmentedName;
 
-	PROCEDURE AppendToPooledName*(VAR name: PooledName; CONST this: ARRAY OF CHAR);
-	VAR i,j: LONGINT; string: ObjectFile.SectionName;
+	PROCEDURE AppendToSegmentedName*(VAR name: SegmentedName; CONST this: ARRAY OF CHAR);
+	VAR i,j, segment: LONGINT; string: ObjectFile.SectionName;
 	BEGIN
-		i := 0;
-		WHILE (i<LEN(name)) & (name[i] >= 0)  DO
-			INC(i)
+		segment := 0;
+		WHILE name.sep[segment] # 0X DO
+			INC(segment)
 		END;
-		IF (this[0] = ".") & (i < LEN(name)) THEN (* suffix *)
-			j := 0;
-			WHILE this[j+1] # 0X DO
-				string[j] := this[j+1];
-				INC(j);
-			END;
-			string[j] := 0X;
-			name[i] := StringPool.GetIndex1(string);
-		ELSE
-			StringPool.GetString(name[i-1], string);
+
+		IF segment = LEN(name.sep)-1 THEN
+			StringPool.GetString(name.index[i], string);
 			Strings.Append(string, this);
-			name[i-1] := StringPool.GetIndex1(string);
+			name.index[segment] := StringPool.GetIndex1(string);
+		ELSE
+			IF this[0] = "." THEN i := 1 ELSE i := 0 END; j := 0;
+			WHILE this[i] # 0X DO
+				string[i] := this[j];
+				INC(i); INC(j);
+			END;
+			string[i] := 0X;
+			name.sep[segment] := ".";
+			INC(segment);
+			name.index[segment] := StringPool.GetIndex1(string);
+			name.sep[segment] := 0X;
 		END;
-	END AppendToPooledName;
+	END AppendToSegmentedName;
 
 	(* suffix using separation character "." *)
-	PROCEDURE SuffixPooledName*(VAR name: PooledName; this: StringPool.Index);
+	PROCEDURE SuffixSegmentedName*(VAR name: SegmentedName; this: StringPool.Index);
 	VAR string, suffix: ObjectFile.SectionName; i: LONGINT;
 	BEGIN
 		i := 0;
-		WHILE (i < LEN(name)) & (name[i] >=0) DO
+		WHILE (name.sep[i] # 0X) DO INC(i) END;
+		IF name.index[i] = 0 THEN
+			name.index[i] := this;
+		ELSIF i < LEN(name.sep)-1 THEN (* suffix *)
+			name.sep[i] := ".";
 			INC(i);
-		END;
-		IF i < LEN(name) THEN (* suffix *)
-			name[i] := this;
-			IF i<LEN(name)-1 THEN name[i+1] := -1 END;
+			name.sep[i] := 0X;
+			name.index[i] := this
 		ELSE
-			StringPool.GetString(name[i-1], string);
+			StringPool.GetString(name.index[i], string);
 			StringPool.GetString(this, suffix);
 			Strings.Append(string,".");
 			Strings.Append(string, suffix);
-			name[i-1] := StringPool.GetIndex1(string);
+			name.index[i-1] := StringPool.GetIndex1(string);
 		END;
-	END SuffixPooledName;
+	END SuffixSegmentedName;
 
-	PROCEDURE PooledNameEndsWith*(CONST name: PooledName; CONST this: ARRAY OF CHAR): BOOLEAN;
+	PROCEDURE SegmentedNameEndsWith*(CONST name: SegmentedName; CONST this: ARRAY OF CHAR): BOOLEAN;
 	VAR string: ObjectFile.SectionName; i: LONGINT;
 	BEGIN
 		i := 0;
-		WHILE (i< LEN(name)-1) & (name[i] >= 0) DO
-			INC(i);
-		END;
-		DEC(i);
-		IF i < 0 THEN
-			RETURN FALSE
-		ELSE
-			StringPool.GetString(name[i],string);
-			RETURN Strings.EndsWith(string, this);
-		END
-	END PooledNameEndsWith;
+		WHILE (name.sep[i] # 0X) DO INC(i) END;
+		StringPool.GetString(name.index[i],string);
+		RETURN Strings.EndsWith(string, this);
+	END SegmentedNameEndsWith;
 
-	PROCEDURE RemoveSuffix*(VAR name: PooledName);
+	PROCEDURE RemoveSuffix*(VAR name: SegmentedName);
 	VAR i,pos,pos0: LONGINT;string: ObjectFile.SectionName;
 	BEGIN
 		i := 0;
-		WHILE  (i< LEN(name)) & (name[i] >= 0) DO
-			INC(i);
+		WHILE (name.sep[i] # 0X) DO INC(i) END;
+		pos0 := 0; pos := 0;
+		WHILE (pos0 < LEN(string)) & (string[pos0] # 0X) DO
+			IF string[pos0] = "." THEN pos := pos0 END;
+			INC(pos0);
 		END;
-		ASSERT(i>0);
-		IF i < LEN(name) THEN (* name[i] = empty *) name[i-1] := -1
-		ELSE (* i = LEN(name), name[i] = nonempty *)
-			DEC(i);
-			pos0 := 0; pos := 0;
-			WHILE (pos0 < LEN(string)) & (string[pos0] # 0X) DO
-				IF string[pos0] = "." THEN pos := pos0 END;
-				INC(pos0);
-			END;
-			IF pos = 0 THEN (* no dot in name or name starts with dot *)
-				name[i] := -1
-			ELSE (* remove last part in name *)
-				string[pos] := 0X;
-				name[i] := StringPool.GetIndex1(string);
-			END;
+		IF pos = 0 THEN (* no dot in name or name starts with dot *)
+			name.index[i] := 0;
+			IF i> 0 THEN name.sep[i-1] := 0X END;
+		ELSE (* remove last part in name *)
+			string[pos] := 0X;
+			name.index[i] := StringPool.GetIndex1(string);
 		END;
 	END RemoveSuffix;
 
-
-	PROCEDURE IsPrefix*(CONST prefix, of: PooledName): BOOLEAN;
+	PROCEDURE IsPrefix*(CONST prefix, of: SegmentedName): BOOLEAN;
 	VAR prefixS, ofS: SectionName; i: LONGINT;
 	BEGIN
 		i := 0;
-		WHILE (i< LEN(prefix)) & (prefix[i] = of[i]) DO INC(i) END;
-
-		IF i = LEN(prefix) THEN RETURN TRUE (* identical *)
-		ELSE (* prefix[i] # of[i] *)
-			IF prefix[i] < 0 THEN RETURN TRUE
-			ELSIF of[i] < 0 THEN RETURN FALSE
-			ELSIF (i<LEN(prefix)) THEN RETURN FALSE
-			ELSE
-				StringPool.GetString(prefix[i], prefixS);
-				StringPool.GetString(of[i], ofS);
-				RETURN Strings.StartsWith(prefixS, 0, ofS)
-			END
+		WHILE (prefix.sep[i] # 0X) & (prefix.index[i] = of.index[i]) DO
+			IF of.sep[i] = 0X THEN RETURN FALSE END;
+			INC(i)
+		END;
+		IF prefix.index[i] = of.index[i] THEN RETURN TRUE
+		ELSIF prefix.sep[i] # 0X THEN RETURN FALSE
+		ELSE
+			StringPool.GetString(prefix.index[i], prefixS);
+			StringPool.GetString(of.index[i], ofS);
+			RETURN Strings.StartsWith(prefixS, 0, ofS)
 		END;
 	END IsPrefix;
 

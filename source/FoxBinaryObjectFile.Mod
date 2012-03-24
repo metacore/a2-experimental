@@ -1660,7 +1660,7 @@ TYPE
 				destination := module.allSections.GetSection(i);
 				IF destination.kind = Sections.RegularKind THEN
 					IF (destination.type # Sections.InitCodeSection) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).isInline THEN
-						IF Trace THEN D.Str("pointers in "); Basic.WritePooledName(D.Log,destination.name); D.Ln END;
+						IF Trace THEN D.Str("pointers in "); Basic.WriteSegmentedName(D.Log,destination.name); D.Ln END;
 					PointerOffsets(destination);
 					INC(counter);
 				END

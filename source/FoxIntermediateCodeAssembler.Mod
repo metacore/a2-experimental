@@ -165,7 +165,7 @@ TYPE
 			identifier: SyntaxTree.IdentifierString;
 			type: IntermediateCode.Type;
 			sectionOfSymbol: Sections.Section;
-			name: Basic.PooledName;
+			name: Basic.SegmentedName;
 			registerClass: IntermediateCode.RegisterClass;
 		BEGIN
 			IF Trace THEN D.String(">>> ParseOperand"); D.Ln END;
@@ -210,7 +210,7 @@ TYPE
 
 					IF Trace THEN D.String(">>> symbol detected"); D.Ln END;
 
-					Basic.ToPooledName(identifier, name);
+					Basic.ToSegmentedName(identifier, name);
 					sectionOfSymbol := IntermediateCode.NewSection(sectionList, Sections.UnknownKind, Sections.UnknownSectionType, FALSE, name, NIL, TRUE); (* no definition: if section does not yet exist, a prototype section is created *)
 					IntermediateCode.InitAddress(operand, IntermediateCode.UnsignedIntegerType(system.addressSize), sectionOfSymbol, symbolOffset)
 				END
@@ -453,7 +453,7 @@ TYPE
 			afterModuleDirective, afterImportsDirective, afterFirstSection, isExternalSection: BOOLEAN;
 			sectionType: SHORTINT;
 			section: IntermediateCode.Section;
-			name: Basic.PooledName;
+			name: Basic.SegmentedName;
 		BEGIN
 			IF Trace THEN D.Ln; D.String(">>> ParseModuleContent"); D.Ln END;
 
@@ -546,7 +546,7 @@ TYPE
 
 							IF ~error THEN
 								IF ExpectAnyIdentifier(pos, identifier) THEN
-									Basic.ToPooledName(identifier, name);
+									Basic.ToSegmentedName(identifier, name);
 									section := IntermediateCode.NewSection(sectionList, Sections.UnknownKind, sectionType, ~isExternalSection, name, NIL, TRUE); (* keeps section if already present *)
 
 									(* set default unit size for the platform, which depends on the section type *)
@@ -727,18 +727,18 @@ TYPE
 		PROCEDURE MarkAsReachableByName*(CONST name: ARRAY OF CHAR);
 		VAR
 			section: Sections.Section;
-			pooledName: Basic.PooledName;
+			pooledName: Basic.SegmentedName;
 		BEGIN
-			Basic.ToPooledName(name, pooledName);
+			Basic.ToSegmentedName(name, pooledName);
 			section:= allSections.FindByName(pooledName);
 			ASSERT(section # NIL);
 			MarkAsReachable(section)
 		END MarkAsReachableByName;
 
 		(** mark all sections whose names start with a certain prefix as reachable **)
-		PROCEDURE MarkAsReachableStartingWith(CONST prefix: Basic.PooledName; allowedSections: SET);
+		PROCEDURE MarkAsReachableStartingWith(CONST prefix: Basic.SegmentedName; allowedSections: SET);
 		VAR
-			section: Sections.Section; name: Basic.PooledName;
+			section: Sections.Section; name: Basic.SegmentedName;
 			i: LONGINT;
 		BEGIN
 			(* TODO: could or should one make this faster using a hash table? *)
@@ -762,7 +762,7 @@ TYPE
 		BEGIN
 			FOR i := 0 TO allSections.Length()-1 DO
 				section := allSections.GetSection(i);
-				IF (section.name[0] = name) & section.isReachable THEN
+				IF (section.name.index[0] = name) & section.isReachable THEN
 					RETURN TRUE
 				END;
 			END;
@@ -775,10 +775,10 @@ TYPE
 			intermediateCodeSection: IntermediateCode.Section;
 			i: LONGINT;
 			procedureName, moduleName: SyntaxTree.IdentifierString;
-			prefix: Basic.PooledName;
+			prefix: Basic.SegmentedName;
 		BEGIN
 			IF ~section.isReachable THEN
-				IF Trace THEN D.String(">>> MarkAsReachable "); Basic.WritePooledName(D.Log, section.name); D.Ln END;
+				IF Trace THEN D.String(">>> MarkAsReachable "); Basic.WriteSegmentedName(D.Log, section.name); D.Ln END;
 				section.SetReachability(TRUE);
 				prefix := section.name; Basic.RemoveSuffix(prefix);
 				MarkAsReachableStartingWith(prefix, {Sections.InitCodeSection});
@@ -955,7 +955,7 @@ TYPE
 			IF Trace THEN D.String("after prearrangement"); D.Ln; DumpAllSections(D.Log); D.Ln END;
 		END PrearrangeReachableDataSections;
 
-		PROCEDURE PatchValueInSection*(CONST sectionName: Basic.PooledName; syntaxTreeValue: SyntaxTree.Value);
+		PROCEDURE PatchValueInSection*(CONST sectionName: Basic.SegmentedName; syntaxTreeValue: SyntaxTree.Value);
 		VAR
 			section: Sections.Section;
 			emptyOperand, dataOperand: IntermediateCode.Operand;
@@ -1110,7 +1110,7 @@ TYPE
 				is := section(IntermediateCode.Section).resolved;
 				IF (is # NIL) & section.IsCode() THEN
 					(*
-					Basic.WritePooledName(D.Log,section.name);
+					Basic.WriteSegmentedName(D.Log,section.name);
 					D.String(" @ "); D.Int(adr,1); D.Ln;
 					*)
 					is.SetAlignment(TRUE, adr);

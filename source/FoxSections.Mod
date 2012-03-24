@@ -29,7 +29,7 @@ TYPE
 
 	Section*=OBJECT
 	VAR
-		name-: ObjectFile.PooledName; (* name of this section (globally unique-name derived from symbol name) *)
+		name-: ObjectFile.SegmentedName; (* name of this section (globally unique-name derived from symbol name) *)
 		type-: SHORTINT; (* CodeSection, InlineCodeSection, VarSection or ConstSection *)
 		priority-: INTEGER; (* priority of the section *)
 		symbol-: SyntaxTree.Symbol; (* corresponding symbol in AST *)
@@ -49,7 +49,7 @@ TYPE
 		bitsPerUnit-: LONGINT; (* the unit size given in bits *)
 		isReachable-: BOOLEAN;
 
-		PROCEDURE & InitSection*(kind, type: SHORTINT; priority: INTEGER; isDefinition: BOOLEAN; CONST n: ObjectFile.PooledName; symbol: SyntaxTree.Symbol);
+		PROCEDURE & InitSection*(kind, type: SHORTINT; priority: INTEGER; isDefinition: BOOLEAN; CONST n: ObjectFile.SegmentedName; symbol: SyntaxTree.Symbol);
 		BEGIN
 			ASSERT(kind # 0);
 			name := n;
@@ -192,7 +192,7 @@ TYPE
 
 		PROCEDURE DumpName*(w: Streams.Writer);
 		BEGIN
-			Basic.WritePooledName(w,name);
+			Basic.WriteSegmentedName(w,name);
 		END DumpName;
 
 	END Section;
@@ -325,16 +325,16 @@ TYPE
 
 	END SectionLookup;
 
-	SectionNameLookup = OBJECT(Basic.HashTablePooledName); (* SyntaxTree.Symbol _> Symbol *)
+	SectionNameLookup = OBJECT(Basic.HashTableSegmentedName); (* SyntaxTree.Symbol _> Symbol *)
 
-		PROCEDURE GetSection(CONST name: Basic.PooledName):Section;
+		PROCEDURE GetSection(CONST name: Basic.SegmentedName):Section;
 		VAR p: ANY;
 		BEGIN
 			p := Get(name);
 			IF p # NIL THEN RETURN p(Section) ELSE RETURN NIL END;
 		END GetSection;
 
-		PROCEDURE PutSection(CONST name:Basic.PooledName; section: Section);
+		PROCEDURE PutSection(CONST name:Basic.SegmentedName; section: Section);
 		BEGIN
 			Put(name, section);
 		END PutSection;
@@ -378,7 +378,7 @@ TYPE
 			IF section.symbol # NIL THEN (* special case, may not be added to lookup list *)
 				lookup.PutSection(section.symbol, section)
 			END;
-			IF section.name[0] # -1 THEN
+			IF (section.name.index[0] # 0) OR (section.name.sep[0] # 0X) THEN
 				lookupName.PutSection(section.name, section);
 			END;
 			Add(section)
@@ -395,7 +395,7 @@ TYPE
 		END FindBySymbol;
 
 		(** finds a section with a certain name **)
-		PROCEDURE FindByName*(CONST name: Basic.PooledName): Section;
+		PROCEDURE FindByName*(CONST name: Basic.SegmentedName): Section;
 		BEGIN
 			RETURN lookupName.GetSection(name)
 		END FindByName;
@@ -411,7 +411,7 @@ TYPE
 		END FindBySymbolAndKind;
 
 		(** finds a section with a certain name and kind (note: sections of unknown kind are also returned) **)
-		PROCEDURE FindByNameAndKind*(CONST name: Basic.PooledName; kind: SHORTINT): Section;
+		PROCEDURE FindByNameAndKind*(CONST name: Basic.SegmentedName; kind: SHORTINT): Section;
 		VAR
 			section: Section;
 		BEGIN
@@ -548,7 +548,7 @@ TYPE
 	BEGIN
 		FOR i := 0 TO module.allSections.Length() - 1 DO
 			section := module.allSections.GetSection(i);
-			ObjectFile.FromPooledName(section.name,name);
+			ObjectFile.SegmentedNameToString(section.name,name);
 			IF Strings.Match(filter, name) THEN section.Dump(w); w.Ln; END
 		END
 	END DumpFiltered;

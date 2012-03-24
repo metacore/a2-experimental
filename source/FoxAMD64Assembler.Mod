@@ -240,7 +240,7 @@ TYPE
 		BEGIN
 			COPY(message,msg);
 			Strings.Append(msg," in ");
-			ObjectFile.FromPooledName(code.identifier.name,name);
+			ObjectFile.SegmentedNameToString(code.identifier.name,name);
 			Strings.Append(msg, name);
 			IF diagnostics # NIL THEN
 				diagnostics.Error("",Diagnostics.Invalid,Diagnostics.Invalid,msg);
@@ -1065,7 +1065,7 @@ TYPE
 			IF (pos = Diagnostics.Invalid) OR (sourceName = "") THEN
 				COPY(message,msg);
 				Strings.Append(msg," in ");
-				ObjectFile.FromPooledName(emitter.code.identifier.name, name);
+				ObjectFile.SegmentedNameToString(emitter.code.identifier.name, name);
 				Strings.Append(msg, name);
 				diagnostics.Error(sourceName,errPos,Diagnostics.Invalid,msg);
 			ELSE
@@ -1560,7 +1560,7 @@ TYPE
 			END GetMemFixup;
 
 			PROCEDURE GetOffsetFixup (CONST ident: ARRAY OF CHAR; VAR operand: Operand);
-			VAR scopeSymbol: SyntaxTree.Symbol;name: Basic.PooledName; symbol: IntermediateCode.Section;
+			VAR scopeSymbol: SyntaxTree.Symbol;name: Basic.SegmentedName; symbol: IntermediateCode.Section;
 			BEGIN
 				IF labels.Find(ident) # NIL THEN RETURN END;
 				scopeSymbol := GetScopeSymbol (ident);
@@ -1570,7 +1570,7 @@ TYPE
 					Error("no symbols may be accessed in exported and inlined procedures");
 				END;
 
-				Global.GetSymbolPooledName(scopeSymbol,name);
+				Global.GetSymbolSegmentedName(scopeSymbol,name);
 				IF scopeSymbol.scope IS SyntaxTree.ModuleScope THEN
 					IF (scopeSymbol IS SyntaxTree.Variable) THEN
 						IF scopeSymbol.scope = module.module.moduleScope THEN
@@ -2601,7 +2601,7 @@ TYPE
 		op1,op2,op3: Operand;
 		diagnostics: Diagnostics.StreamDiagnostics;
 		code: Code;
-		pooledName: Basic.PooledName;
+		pooledName: Basic.SegmentedName;
 		PROCEDURE Op(CONST name: ARRAY OF CHAR): LONGINT;
 		BEGIN
 			RETURN InstructionSet.FindMnemonic(name)
@@ -2610,7 +2610,7 @@ TYPE
 	BEGIN
 		InitOperand(op1); InitOperand(op2); InitOperand(op3);
 		NEW(diagnostics,context.error);
-		Basic.ToPooledName("test", pooledName);
+		Basic.ToSegmentedName("test", pooledName);
 		NEW(code,Sections.CodeSection,8,0,pooledName,TRUE,TRUE);
 		NEW(assembly,diagnostics);
 		assembly.SetCode(code);

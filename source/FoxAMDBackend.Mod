@@ -2728,7 +2728,7 @@ TYPE
 		VAR
 			in: Sections.Section;
 			out: BinaryCode.Section;
-			name: Basic.PooledName;
+			name: Basic.SegmentedName;
 			procedure: SyntaxTree.Procedure;
 			i, j, initialSectionCount: LONGINT;
 
@@ -2889,10 +2889,10 @@ TYPE
 		PROCEDURE FindPC(x: SyntaxTree.Module; CONST sectionName: ARRAY OF CHAR; sectionOffset: LONGINT);
 		VAR
 			section: Sections.Section; binarySection: BinaryCode.Section; label: BinaryCode.LabelList; module: Formats.GeneratedModule;
-			i: LONGINT; pooledName: Basic.PooledName;
+			i: LONGINT; pooledName: Basic.SegmentedName;
 		BEGIN
 			module := ProcessSyntaxTreeModule(x);
-			Basic.ToPooledName(sectionName, pooledName);
+			Basic.ToSegmentedName(sectionName, pooledName);
 			i := 0;
 			REPEAT
 				section := module(Sections.Module).allSections.GetSection(i);

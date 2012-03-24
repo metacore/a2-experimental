@@ -836,14 +836,15 @@ TYPE
 		Strings.Append(name,n);
 	END GetModuleName;
 
-	PROCEDURE GetModulePooledName*(module: SyntaxTree.Module; VAR name: Basic.PooledName);
+	PROCEDURE GetModuleSegmentedName*(module: SyntaxTree.Module; VAR name: Basic.SegmentedName);
 	BEGIN
-		Basic.InitPooledName(name);
+		Basic.InitSegmentedName(name);
 		IF (module.context # SyntaxTree.invalidIdentifier) & (module.context # A2Name) THEN
-			name[0] := module.context; name[1] := module.name;
-		ELSE name[0] :=module.name;
+			name.index[0] := module.context; name.sep[0] := ".";
+			name.index[1] := module.name; name.sep[0] := 0X;
+		ELSE name.index[0] :=module.name; name.sep[0] := 0X;
 		END;
-	END GetModulePooledName;
+	END GetModuleSegmentedName;
 
 
 	PROCEDURE GetSymbolNameInScope*(symbol: SyntaxTree.Symbol; inScope: SyntaxTree.Scope; VAR name: ARRAY OF CHAR);
@@ -889,7 +890,7 @@ TYPE
 	BEGIN GetSymbolNameInScope(symbol,NIL,name)
 	END GetSymbolName;
 
-	PROCEDURE GetSymbolPooledNameInScope*(symbol: SyntaxTree.Symbol; inScope: SyntaxTree.Scope; VAR pooledName: Basic.PooledName);
+	PROCEDURE GetSymbolSegmentedNameInScope*(symbol: SyntaxTree.Symbol; inScope: SyntaxTree.Scope; VAR pooledName: Basic.SegmentedName);
 	VAR n: SyntaxTree.String; td: SyntaxTree.TypeDeclaration; i: LONGINT;
 		PROCEDURE Scope(scope: SyntaxTree.Scope);
 		BEGIN
@@ -897,37 +898,37 @@ TYPE
 			ELSIF scope = inScope THEN (* do not traverse further *)
 			ELSIF scope IS SyntaxTree.ModuleScope THEN
 				IF scope(SyntaxTree.ModuleScope).ownerModule.context # A2Name THEN
-					Basic.SuffixPooledName(pooledName, scope(SyntaxTree.ModuleScope).ownerModule.context);
+					Basic.SuffixSegmentedName(pooledName, scope(SyntaxTree.ModuleScope).ownerModule.context);
 				END;
-				Basic.SuffixPooledName(pooledName,scope.ownerModule.name);
+				Basic.SuffixSegmentedName(pooledName,scope.ownerModule.name);
 			ELSIF scope IS SyntaxTree.RecordScope THEN
 				Scope(scope.outerScope);
 				td := scope(SyntaxTree.RecordScope).ownerRecord.typeDeclaration;
 				IF td = NIL THEN
 					td := scope(SyntaxTree.RecordScope).ownerRecord.pointerType.typeDeclaration;
 				END;
-				Basic.SuffixPooledName(pooledName,td.name);
+				Basic.SuffixSegmentedName(pooledName,td.name);
 			ELSIF scope IS SyntaxTree.ProcedureScope THEN
 				Scope(scope.outerScope);
-				Basic.SuffixPooledName(pooledName,scope(SyntaxTree.ProcedureScope).ownerProcedure.name);
+				Basic.SuffixSegmentedName(pooledName,scope(SyntaxTree.ProcedureScope).ownerProcedure.name);
 			ELSIF scope IS SyntaxTree.CellScope THEN
 				Scope(scope.outerScope);
 				td := scope(SyntaxTree.CellScope).ownerCell.typeDeclaration;
-				Basic.SuffixPooledName(pooledName, td.name);
+				Basic.SuffixSegmentedName(pooledName, td.name);
 			END;
 		END Scope;
 
 	BEGIN
-		FOR i := 0 TO LEN(pooledName)-1 DO pooledName[i] := -1 END;
+		pooledName.index[0] := 0; pooledName.sep[0] := 0X;
 		Scope(symbol.scope);
-		Basic.SuffixPooledName(pooledName, symbol.name);
-	END GetSymbolPooledNameInScope;
+		Basic.SuffixSegmentedName(pooledName, symbol.name);
+	END GetSymbolSegmentedNameInScope;
 
 
-	PROCEDURE GetSymbolPooledName*(symbol: SyntaxTree.Symbol; VAR pooledName: Basic.PooledName);
+	PROCEDURE GetSymbolSegmentedName*(symbol: SyntaxTree.Symbol; VAR pooledName: Basic.SegmentedName);
 	BEGIN
-		GetSymbolPooledNameInScope(symbol,NIL,pooledName);
-	END GetSymbolPooledName;
+		GetSymbolSegmentedNameInScope(symbol,NIL,pooledName);
+	END GetSymbolSegmentedName;
 
 
 	PROCEDURE Level*(t: SyntaxTree.Type): LONGINT;

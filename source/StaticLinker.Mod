@@ -115,7 +115,7 @@ TYPE
 	END InitArrangement;
 
 	PROCEDURE Allocate* (CONST section: ObjectFile.Section): GenericLinker.Address;
-	VAR address, alignment: ObjectFile.Bits; i: LONGINT; name: ObjectFile.PooledName;
+	VAR address, alignment: ObjectFile.Bits; i: LONGINT; name: ObjectFile.SegmentedName;
 	BEGIN
 		IF section.unit > maxUnitSize THEN maxUnitSize := section.unit END;
 		IF section.fixed THEN
@@ -132,7 +132,7 @@ TYPE
 
 		IF exportInfo # NIL THEN
 			FOR i := 0 TO exportInfo.exports-1 DO
-				ObjectFile.ToPooledName(exportInfo.symbolNames[i], name);
+				ObjectFile.StringToSegmentedName(exportInfo.symbolNames[i], ".", name);
 				IF name= section.identifier.name THEN
 					exportInfo.exportAddresses[i] := address DIV section.unit + displacement;
 				END;

@@ -29,7 +29,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 					(* nothing to do *)
 				ELSE
 					IF section.resolved = NIL THEN
-						Basic.FromPooledName(section.name, name);
+						Basic.SegmentedNameToString(section.name, name);
 						D.String('"section.resolved = NIL" for '); D.String(name); D.Ln;
 						RETURN FALSE
 					END;
@@ -55,10 +55,10 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 							test := sections.GetSection(j);
 							IF ~test.IsExternal() & (test(IntermediateCode.Section).resolved.identifier.fingerprint = section(IntermediateCode.Section).resolved.identifier.fingerprint) THEN
 								msg := "duplicate fingerPrints: ";
-								ObjectFile.FromPooledName(section(IntermediateCode.Section).resolved.identifier.name,name);
+								ObjectFile.SegmentedNameToString(section(IntermediateCode.Section).resolved.identifier.name,name);
 								Strings.Append(msg, name);
 								Strings.Append(msg, ", ");
-								ObjectFile.FromPooledName(test(IntermediateCode.Section).resolved.identifier.name,name);
+								ObjectFile.SegmentedNameToString(test(IntermediateCode.Section).resolved.identifier.name,name);
 								Strings.Append(msg, name);
 								diagnostics.Warning(module.moduleName,Diagnostics.Invalid,Diagnostics.Invalid,msg);
 							END
@@ -137,7 +137,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		ELSIF (section.symbol = NIL) OR (section.symbol.scope = NIL) THEN
 			fp := 0;
 			IF (section(IntermediateCode.Section).resolved # NIL) & ~section.IsExternal() THEN
-				Basic.FromPooledName(section.name, string);
+				Basic.SegmentedNameToString(section.name, string);
 				FingerPrinter.FPString(fp, string)
 			END
 		ELSE
@@ -214,23 +214,26 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			END;
 		END Identifier;
 
-		PROCEDURE ProcessPooledName(CONST pooledName: ObjectFile.PooledName);
+		PROCEDURE ProcessSegmentedName(CONST pooledName: ObjectFile.SegmentedName);
 		VAR i: LONGINT;
 		BEGIN
-			FOR i := 0 TO LEN(pooledName)-1 DO
-				IF pooledName[i] < 0 THEN RETURN END;
-				Identifier(pooledName[i]);
+			i := 0;
+			LOOP
+				IF (pooledName.index[i] = 0) THEN RETURN END;
+				Identifier(pooledName.index[i]);
+				IF pooledName.sep[i] = 0X THEN RETURN END;
+				INC(i);
 			END;
-		END ProcessPooledName;
+		END ProcessSegmentedName;
 
 		PROCEDURE ProcessSection(section: IntermediateCode.Section);
 		VAR i: LONGINT; fixup: BinaryCode.Fixup;
 		BEGIN
 			IF section.resolved # NIL THEN
-				ProcessPooledName(section.resolved.identifier.name);
+				ProcessSegmentedName(section.resolved.identifier.name);
 				fixup := section.resolved.fixupList.firstFixup; i := 0;
 				WHILE fixup # NIL DO
-					ProcessPooledName(fixup.symbol.name);
+					ProcessSegmentedName(fixup.symbol.name);
 					fixup := fixup.nextFixup;
 				END;
 			END;

@@ -5,7 +5,8 @@ IMPORT
 		KernelLog;	(*debug only*)
 
 (**
-	StringPool stores strings of any length. Equal strings have the same index
+	StringPool stores strings of any length. Equal strings have the same index.
+	String with index 0 is guaranteed to be the empty string.
 *)
 
 
