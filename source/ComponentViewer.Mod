@@ -14,7 +14,7 @@ TYPE
 	KillerMsg = OBJECT
 	END KillerMsg;
 
-	Window = OBJECT(WMComponents.FormWindow)
+	Window* = OBJECT(WMComponents.FormWindow)
 
 		PROCEDURE RestoreWindow*(c : WMRestorable.Context);
 		BEGIN
@@ -62,21 +62,62 @@ TYPE
 VAR
 	nofWindows : LONGINT;
 
-PROCEDURE DoOpen*(filename: ARRAY OF CHAR; error: Streams.Writer; x,y,width, height: LONGINT; client, alpha, fullscreen: BOOLEAN; flags:SET): WMComponents.VisualComponent;
+PROCEDURE DoShow*( vc: WMComponents.VisualComponent; VAR window: Window; x,y,width, height: LONGINT; client, alpha, fullscreen: BOOLEAN;flags: SET);
 VAR
-	repositoryName, componentName : ARRAY 128 OF CHAR;
-	window : Window;
-	moduleName, procedureName : Modules.Name;
-	ignoreMsg : ARRAY 1 OF CHAR;
-	generatorProc : XML.GeneratorProcedure;
-	c : XML.Content; component : Repositories.Component;
-	vc : WMComponents.VisualComponent;
-	id, res : LONGINT;
 	fx,fy,fw,fh: LONGINT;
 	viewPort: WMWindowManager.ViewPort;
 	manager: WMWindowManager.WindowManager;
 BEGIN
-	c := NIL;
+	IF width # 0 THEN
+		vc.bounds.SetWidth(width);
+	ELSE
+		width := vc.bounds.GetWidth();
+		IF (width <= 0) THEN width := DefaultWidth; END;
+	END;
+	IF height # 0 THEN
+		vc.bounds.SetHeight(height);
+	ELSE
+		height := vc.bounds.GetHeight();
+		IF (height <= 0) THEN height := DefaultHeight; END;
+	END;
+	IF client THEN vc.alignment.Set(WMComponents.AlignClient) END;
+	IF fullscreen THEN
+		viewPort := WMWindowManager.GetDefaultView();
+		fx := 0; fy := 0; fw := 1; fh := 1; (* full screen on screen number 4 *)
+		x := fx * viewPort.width0;
+		y := fy * viewPort.height0;
+		width := fw* viewPort.width0;
+		height := fh * viewPort.height0;
+	END;
+
+	IF window = NIL THEN
+		NEW(window, width, height, alpha);
+		window.SetTitle(vc.GetName());
+		window.SetContent(vc);
+		window.flags := window.flags + flags;
+		manager := WMWindowManager.GetDefaultManager();
+		IF (x = InvalidPosition) OR (y = InvalidPosition) THEN
+			WMWindowManager.GetNextPosition(window, manager, WMWindowManager.GetDefaultView(),x,y);
+		ELSIF fullscreen THEN
+			x := 0; y := 0
+		END;
+		manager := WMWindowManager.GetDefaultManager();
+		IF vc.sequencer # NIL THEN vc.sequencer.WaitFree() END;
+		manager.Add(x, y, window, flags);
+	ELSE
+		window.SetContent(vc);
+	END;
+END DoShow;
+
+PROCEDURE DoLoad*(CONST filename: ARRAY OF CHAR; error: Streams.Writer): WMComponents.VisualComponent;
+VAR
+	repositoryName, componentName : ARRAY 128 OF CHAR;
+	moduleName, procedureName : Modules.Name;
+	ignoreMsg : ARRAY 1 OF CHAR;
+	generatorProc : XML.GeneratorProcedure;
+	c : XML.Content; component : Repositories.Component;
+	id, res : LONGINT;
+BEGIN
 	IF Repositories.SplitName(filename, repositoryName, componentName, id) & (repositoryName # "") THEN
 		(* Retrieve component from repository *)
 		Repositories.GetComponentByString(filename, component, res);
@@ -102,43 +143,18 @@ BEGIN
 			c := WMComponents.Load(filename);
 		END;
 	END;
-	IF (c # NIL) & (c IS WMComponents.VisualComponent) THEN
-		vc := c (WMComponents.VisualComponent);
-		IF width # 0 THEN
-			vc.bounds.SetWidth(width);
-		ELSE
-			width := vc.bounds.GetWidth();
-			IF (width <= 0) THEN width := DefaultWidth; END;
-		END;
-		IF height # 0 THEN
-			vc.bounds.SetHeight(height);
-		ELSE
-			height := vc.bounds.GetHeight();
-			IF (height <= 0) THEN height := DefaultHeight; END;
-		END;
-		IF client THEN vc.alignment.Set(WMComponents.AlignClient) END;
-		IF fullscreen THEN
-			viewPort := WMWindowManager.GetDefaultView();
-			fx := 0; fy := 0; fw := 1; fh := 1; (* full screen on screen number 4 *)
-			x := fx * viewPort.width0;
-			y := fy * viewPort.height0;
-			width := fw* viewPort.width0;
-			height := fh * viewPort.height0;
-		END;
-		NEW(window, width, height, alpha);
-		window.SetTitle(vc.GetName());
-		window.SetContent(c);
-		window.flags := window.flags + flags;
-		manager := WMWindowManager.GetDefaultManager();
-		IF (x = InvalidPosition) OR (y = InvalidPosition) THEN
-			WMWindowManager.GetNextPosition(window, manager, WMWindowManager.GetDefaultView(),x,y);
-		ELSIF fullscreen THEN
-			x := 0; y := 0
-		END;
-		manager := WMWindowManager.GetDefaultManager();
-		IF c(WMComponents.Component).sequencer # NIL THEN c(WMComponents.Component).sequencer.WaitFree() END;
+	IF ( c # NIL ) & (c IS WMComponents.VisualComponent) THEN RETURN c(WMComponents.VisualComponent) ELSE RETURN NIL END;
+END DoLoad;
 
-		manager.Add(x, y, window, flags);
+PROCEDURE DoOpen*(CONST filename: ARRAY OF CHAR; error: Streams.Writer; x,y,width, height: LONGINT; client, alpha, fullscreen: BOOLEAN; flags:SET): WMComponents.VisualComponent;
+VAR
+	window : Window;
+	c : WMComponents.VisualComponent
+BEGIN
+	c := DoLoad(filename, error);
+
+	IF (c # NIL)  THEN
+		DoShow(c(WMComponents.VisualComponent), window, x,y,width,height, client, alpha, fullscreen, flags);
 	ELSIF error # NIL THEN
 		IF (c = NIL) THEN error.String("Could not load/generate component "); error.String(filename);
 		ELSE error.String(filename); error.String(" is not a VisualComponent.");
