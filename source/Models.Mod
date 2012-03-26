@@ -688,6 +688,14 @@ TYPE
 			ReleaseWrite;
 		END Set;
 
+		PROCEDURE SetReference*(value: Texts.Text);
+		BEGIN
+			SELF.value := value;
+			AcquireWrite;
+			Changed;
+			ReleaseWrite;
+		END SetReference;
+
 		PROCEDURE Get*() : Texts.Text;
 		VAR value : Texts.Text;
 		BEGIN

@@ -750,6 +750,7 @@ TYPE
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMTextView.GenTextView");
 			SetNameAsString(StrTextView);
 			(* properties *)
 			NEW(defaultTextColor, PTVdefaultTextColor, NIL, NIL); properties.Add(defaultTextColor);
@@ -4184,6 +4185,13 @@ PROCEDURE Cleanup;
 BEGIN
 	cursorBlinker.Finalize;
 END Cleanup;
+
+PROCEDURE GenTextView*(): XML.Element;
+VAR e : TextView;
+BEGIN
+	NEW(e); RETURN e
+END GenTextView;
+
 
 BEGIN
 	NEW(cursorBlinker);
