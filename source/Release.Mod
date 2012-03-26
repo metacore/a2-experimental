@@ -3171,7 +3171,7 @@ BEGIN
 	options.Add("s", "symbolFileExtension", Options.String);
 	options.Add("t", "target", Options.String);
 	options.Add("v", "verbose", Options.Flag);
-	options.Add("w", "workers", Options.Integer);
+	options.Add(0X, "workers", Options.Integer);
 	options.Add("x", "xml", Options.Flag);
 	options.Add("y", "", Options.Flag);
 	options.Add("z", "zip", Options.Flag);

@@ -280,7 +280,7 @@ VAR
 
 	PROCEDURE WriteSectionTextual (writer: Streams.Writer; CONST section: Section);
 	CONST Separator = ' '; Tab = 09X;
-	VAR i: LONGINT; size: Bits; bits: LONGINT;
+	VAR i,offset,start, len: LONGINT; size: Bits; bits: LONGINT;
 
 		PROCEDURE WriteValueIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
 		BEGIN
@@ -338,6 +338,49 @@ VAR
 			END;
 		END WriteFixup;
 
+		PROCEDURE Zeros(offset: LONGINT): LONGINT;
+		VAR zeros: LONGINT;
+		BEGIN
+			zeros := 0;
+			WHILE (offset < size) & (section.bits.GetBits(offset, MIN(4, size-offset)) = 0) DO
+				INC(zeros);
+				INC(offset,4);
+			END;
+			RETURN zeros
+		END Zeros;
+
+		PROCEDURE GetSegment(VAR offset, start, len: LONGINT): BOOLEAN;
+		VAR zeros: LONGINT;
+		BEGIN
+			INC(offset, Zeros(offset)*4);
+			start := offset;
+			len := 0;
+			WHILE (offset < size) DO
+				zeros := Zeros(offset);
+				INC(offset, zeros*4);
+				IF (zeros > 8) OR (offset >= size) THEN
+					RETURN TRUE;
+				ELSE
+					INC(len, zeros*4);
+					INC(len, 4); INC(offset,4); (* non-zero element *)
+				END;
+			END;
+			RETURN len > 0;
+		END GetSegment;
+
+		PROCEDURE WriteSegment(offset,len: LONGINT); (* offset in bits *)
+		VAR bits: LONGINT; first: BOOLEAN;
+		BEGIN
+			writer.Int(len,1); writer.Char(Separator); writer.Int(offset,1); writer.Char(Separator);
+			WHILE len > 0 DO
+				bits := section.bits.GetBits(offset, MIN(4, size-offset));
+				writer.Char(NibbleToCharacter(bits));
+				INC(offset, 4);
+				DEC(len, 4);
+			END;
+			writer.Ln;
+		END WriteSegment;
+
 	BEGIN
 		IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
 		WriteValueIdentifier (section.type, categories);
@@ -355,24 +398,17 @@ VAR
 		writer.Int (section.fixups, 0);
 		writer.Char (Separator);
 		size := section.bits.GetSize ();
-		writer.Int (size DIV section.unit, 0);
+		writer.Int (size DIV section.unit, 1);
 		ASSERT(size MOD section.unit = 0);
 		FOR i := 0 TO section.fixups - 1 DO
 			writer.Ln; writer.Char (Tab); WriteFixup (section.fixup[i]);
 		END;
-		i := 0; bits := 0;
-		WHILE (i < size) & (bits = 0) DO
-			bits := section.bits.GetBits(i, MIN(4, size-i));
-			INC(i,4);
+		writer.Ln;
+		offset := 0;
+		WHILE GetSegment(offset, start, len) DO
+			WriteSegment(start, len)
 		END;
-		IF (bits = 0) & (size > 0) THEN
-			writer.Ln; writer.Char(Tab); writer.Char('N')
-		ELSE
-			FOR i := 0 TO size - 1 BY 4 DO
-				IF i MOD (32 * 8) = 0 THEN writer.Ln; writer.Char (Tab); END;
-				writer.Char (NibbleToCharacter (section.bits.GetBits (i, MIN (4, size - i))));
-			END;
-		END;
+		writer.Int(0,1); writer.Ln;
 		writer.Ln;
 	END WriteSectionTextual;
 
@@ -440,6 +476,23 @@ VAR
 			END;
 		END ReadFixup;
 
+		PROCEDURE ReadSegment(): BOOLEAN;
+		VAR len,offset: LONGINT;
+		BEGIN
+			reader.Int(len,FALSE);
+			reader.SkipWhitespace;
+			IF len = 0 THEN RETURN FALSE END;
+			reader.Int(offset,FALSE);
+			reader.SkipWhitespace;
+			WHILE len > 0 DO
+				reader.Char (char);
+				section.bits.SetBits (offset, MIN (4, size - offset), CharacterToNibble (char));
+				DEC(len, 4); INC(offset,4);
+			END;
+			RETURN TRUE
+		END ReadSegment;
+
+
 	BEGIN
 		ReadValueIdentifier (section.type, categories);
 		ReadIdentifier (section.identifier);
@@ -458,22 +511,17 @@ VAR
 		END;
 		IF section.bits # NIL THEN
 			section.bits.Resize (size);
+			section.bits.Zero();
 		ELSE
 			NEW (section.bits, size);
 		END;
-		FOR i := 0 TO size - 1 BY 4 DO
-			reader.SkipWhitespace; reader.Char (char);
-			IF char = 'N' THEN
-				ASSERT(i=0);
-				section.bits.Zero;
-			(* skip rest of section *) RETURN
-			END;
-			section.bits.SetBits (i, MIN (4, size - i), CharacterToNibble (char));
-		END;
+		REPEAT
+			reader.SkipWhitespace()
+		UNTIL ~ReadSegment()
 	END ReadSectionTextual;
 
 	PROCEDURE WriteSectionBinary (writer: Streams.Writer; CONST section: Section; poolMap: PoolMap);
-	VAR i: LONGINT; size: Bits; bits: LONGINT;
+	VAR i, offset, start, len: LONGINT; size: Bits; bits: LONGINT;
 
 		PROCEDURE WriteValueIdentifier (value: INTEGER; CONST identifiers: ARRAY OF ARRAY OF CHAR);
 		BEGIN
@@ -495,9 +543,10 @@ VAR
 			segment := 0;
 			REPEAT
 				index := poolMap.Get(identifier.name.index[segment]);
+				sep := identifier.name.sep[segment];
 				writer.RawNum(index);
-				sep := identifier.name.sep[i];
 				writer.Char(sep);
+				INC(segment);
 			UNTIL sep = 0X;
 			writer.RawNum (identifier.fingerprint);
 		END WriteIdentifier;
@@ -528,6 +577,50 @@ VAR
 			END;
 		END WriteFixup;
 
+		PROCEDURE Zeros(offset: LONGINT): LONGINT;
+		VAR zeros: LONGINT;
+		BEGIN
+			WHILE (offset < size) & (section.bits.GetBits(offset, MIN(32, size-offset)) = 0) DO
+				INC(zeros);
+				INC(offset,32);
+			END;
+			RETURN zeros
+		END Zeros;
+
+		PROCEDURE GetSegment(VAR offset, start, len: LONGINT): BOOLEAN;
+		VAR zeros: LONGINT;
+		BEGIN
+			INC(offset, Zeros(offset)*32);
+			start := offset;
+			len := 0;
+			WHILE (offset < size) DO
+				zeros := Zeros(offset);
+				INC(offset, zeros*32);
+				IF (zeros > 8) OR (offset >= size) THEN
+					RETURN TRUE;
+				ELSE
+					ASSERT(offset < size);
+					INC(len, zeros*32);
+					INC(len, 32); INC(offset,32); (* non-zero element *)
+				END;
+			END;
+			RETURN len > 0;
+		END GetSegment;
+
+		PROCEDURE WriteSegment(offset,len: LONGINT); (* offset in bits *)
+		VAR bits: LONGINT; first: BOOLEAN;
+		BEGIN
+			ASSERT(len > 0);
+			writer.RawNum(len); writer.RawNum(offset);
+			WHILE len > 0 DO
+				bits := section.bits.GetBits(offset, MIN(32, size-offset));
+				INC(offset, 32);
+				DEC(len, 32);
+				writer.RawLInt(bits);
+			END;
+		END WriteSegment;
+
+
 	BEGIN
 		IF section.type > Const THEN RETURN END; (* ignore exotic sections *)
 		writer.Char(1X);
@@ -544,20 +637,11 @@ VAR
 		FOR i := 0 TO section.fixups - 1 DO
 			WriteFixup (section.fixup[i]);
 		END;
-		i := 0; bits := 0;
-		WHILE (i < size) & (bits = 0) DO
-			bits := section.bits.GetBits(i, MIN(32, size-i));
-			INC(i,32);
+		offset := 0;
+		WHILE GetSegment(offset, start, len) DO
+			WriteSegment(start, len);
 		END;
-		IF (bits = 0) & (size > 0) THEN
-			writer.Char('Z');
-		ELSE
-			writer.Char('N');
-			FOR i := 0 TO size - 1 BY 32 DO
-				writer.RawNum (section.bits.GetBits (i, MIN (32, size - i)));
-			END;
-		END;
-		writer.Ln;
+		writer.RawNum(0);
 	END WriteSectionBinary;
 
 	PROCEDURE ReadSectionBinary (reader: Streams.Reader; VAR section: Section; poolMap: PoolMap);
@@ -591,8 +675,8 @@ VAR
 			REPEAT
 				reader.RawNum(index);
 				reader.Char(sep);
-				identifier.name.index[i] := poolMap.Get(index-1);
-				identifier.name.sep[i] := 0X;
+				identifier.name.index[i] := poolMap.Get(index);
+				identifier.name.sep[i] := sep;
 				INC(i);
 			UNTIL (sep = 0X);
 			 reader.RawNum (identifier.fingerprint);
@@ -634,6 +718,20 @@ VAR
 			END;
 		END ReadFixup;
 
+		PROCEDURE ReadSegment(): BOOLEAN;
+		VAR len,offset,bits: LONGINT;
+		BEGIN
+			reader.RawNum(len);
+			IF len = 0 THEN RETURN FALSE END;
+			reader.RawNum(offset);
+			WHILE len > 0 DO
+				reader.RawLInt (bits);
+				section.bits.SetBits (offset, MIN (32, size - offset), bits);
+				DEC(len, 32); INC(offset,32);
+			END;
+			RETURN TRUE
+		END ReadSegment;
+
 	BEGIN
 		reader.Char(ch); ASSERT(ch = 1X);
 		ReadValueIdentifier (section.type, categories);
@@ -653,17 +751,12 @@ VAR
 		END;
 		IF section.bits # NIL THEN
 			section.bits.Resize (size);
+			section.bits.Zero();
 		ELSE
 			NEW (section.bits, size);
 		END;
-		reader.Char (char);
-		IF char = 'Z' THEN section.bits.Zero
-		ELSE
-			ASSERT(char ='N');
-			FOR i := 0 TO size - 1 BY 32 DO
-				reader.RawNum (num);
-				section.bits.SetBits (i, MIN (32, size - i), num);
-			END;
+
+		WHILE ReadSegment() DO
 		END;
 	END ReadSectionBinary;
 
