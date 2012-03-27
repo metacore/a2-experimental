@@ -3,7 +3,6 @@ Refer to the general ETH Oberon System license contract available at: http://www
 
 MODULE KbdMouse;   (* g.f.	9.7.07 *)
 
-(*! uses XEvents from X11Api, responds to window delete messages, window expose event  *)
 
 (* replacement for the keyboard and mouse drivers in the Unix ports *)
 
@@ -27,8 +26,8 @@ TYPE
 	Poll = OBJECT 
 		BEGIN {ACTIVE, SAFE,PRIORITY(Objects.High - 1)}
 			LOOP
-				Objects.Sleep( 10 );  PollXQueue;
-			END  (* loop *)
+				Objects.Sleep( 15 );  PollXQueue;
+			END 
 		END Poll;
 
 VAR
@@ -75,10 +74,12 @@ VAR
 		cm : Api.XClientMessageEvent;
 		datal: Api.Data40l;
 		cn: Api.XConfigureEvent;
+		res, events: LONGINT;
 	BEGIN
 		xd := disp.xdisp;
 		Machine.Acquire( Machine.X11 );
-		WHILE Api.Pending(xd) > 0 DO 
+		events := Api.Pending( xd );
+		WHILE events > 0 DO 
 			Api.NextEvent( xd, event );
 			CASE event.typ OF
 			| Api.KeyPress: kp := S.VAL(Api.XKeyEvent, event);
@@ -146,8 +147,10 @@ VAR
 					SendMouseMsg( x, y, 0, xbuttons )
 			| Api.Expose, Api.GraphicsExpose: 
 					(* hacking, clear all expoure events in queue *)
-					WHILE Api.CheckTypedEvent(xd, Api.Expose, event) = X11.True DO END; 
-					WHILE Api.CheckWindowEvent(xd, disp.primary, {Api.ExposureMask}, event) = X11.True DO  END; 
+					REPEAT res := Api.CheckTypedEvent(xd, Api.Expose, event) UNTIL res # X11.True; 
+					REPEAT 
+						res := Api.CheckWindowEvent(xd, disp.primary, {Api.ExposureMask}, event) 
+					UNTIL res # X11.True; 
 					em := S.VAL( Api.XExposeEvent, event );
 					IF em.count = 0 THEN  (* wait until last message*) 
 						(* Let DisplayRefresher handle this *)						
@@ -155,7 +158,7 @@ VAR
 						SendKeyboardMsg( km );
 					END;
 					(* clear all expoure events in queue, again *)
-					WHILE Api.CheckTypedEvent(xd, Api.Expose, event) = X11.True DO END; 
+					REPEAT res := Api.CheckTypedEvent(xd, Api.Expose, event) UNTIL res # X11.True; 
 			| Api.NoExpose:
 			| Api.MappingNotify:
 					X11.RefreshKeyboardMapping( S.ADR( event ) )
@@ -177,8 +180,9 @@ VAR
 					IF Api.SendSelection # NIL THEN  Api.SendSelection( S.VAL( Api.XSelectionRequestEvent, event ) )  END
 			| Api.ConfigureNotify:  cn := S.VAL(Api.XConfigureEvent, event);
 			ELSE
-
+				(* ignore *)
 			END;
+			events := Api.Pending( xd );
 		END;
 		Machine.Release( Machine.X11 );
 	END PollXQueue;
