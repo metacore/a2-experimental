@@ -613,7 +613,7 @@ TYPE
 		VAR s: SET;
 		BEGIN
 			s:= WindowsFlags(a);
-			SetFileAttributes(fname,a);
+			SetFileAttributes(fname,s);
 		END SetAttributes;
 
 		PROCEDURE GetName( VAR name: ARRAY OF CHAR );
