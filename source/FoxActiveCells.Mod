@@ -1056,6 +1056,7 @@ TYPE
 			AddDevice("GPI",0FFFFFFD6H);
 			AddDevice("GPO",0FFFFFFD6H);
 			AddDevice("WDT", 0FFFFFFD8H); (*watch dog timer*)
+			AddDevice("SPI", 0FFFFFFD4H); (*ROBOT SPI on ML510*)
 			NEW(imports,4);
 			frequencyDivider := 1;
 		END Init;
