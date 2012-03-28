@@ -200,14 +200,22 @@ VAR
 		END;
 	END Matches;
 
-
 	PROCEDURE CopyIdentifier(CONST source: Identifier; VAR dest: Identifier);
 	BEGIN
 		dest.name := source.name; dest.fingerprint := source.fingerprint
 	END CopyIdentifier;
 
 	PROCEDURE CopyPattern(CONST source: Pattern; VAR dest: Pattern);
-	BEGIN dest := source
+	VAR i: LONGINT;
+	BEGIN
+		NEW(dest);
+		dest.mode := source.mode;
+		dest.scale := source.scale;
+		dest.patterns := source.patterns;
+		NEW(dest.pattern, dest.patterns);
+		FOR i := 0 TO LEN(dest.pattern)-1 DO
+			dest.pattern[i] := source.pattern[i];
+		END;
 	END CopyPattern;
 
 	PROCEDURE CopyPatches(sourcePatches: LONGINT; source: Patches; VAR destPatches: LONGINT; VAR dest: Patches);
