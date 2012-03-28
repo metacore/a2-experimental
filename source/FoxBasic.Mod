@@ -720,7 +720,7 @@ TYPE
 		BEGIN
 			ASSERT(used < size);
 			hash := HashValue(key);
-			IF table[hash].key.index[0] = MIN(LONGINT) THEN
+			IF table[hash].key[0] < 0 THEN
 				INC(used, 1);
 			END;
 			table[hash].key := key;
@@ -743,31 +743,31 @@ TYPE
 
 		PROCEDURE Clear*;
 		VAR i: LONGINT;
-		BEGIN FOR i := 0 TO size - 1 DO table[i].key.index[0] := MIN(LONGINT); table[i].key.sep[0] := 0X END; END Clear;
+		BEGIN FOR i := 0 TO size - 1 DO table[i].key[0] := -1; END; END Clear;
 
 		(* Internals *)
 		PROCEDURE Hash*(CONST name: SegmentedName): LONGINT;
-		VAR fp,i: LONGINT; sep: CHAR;
+		VAR fp,i: LONGINT;
 		BEGIN
-			fp := name.index[0]; i := 1;
-			REPEAT
-				sep := name.sep[i];
-				fp:=SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, SYSTEM.ROT(fp, 7)) / SYSTEM.VAL(SET, name.index[i]));
+			fp := name[0]; i := 1;
+			WHILE (i<LEN(name)) & (name[i] >= 0) DO
+				fp:=SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, SYSTEM.ROT(fp, 7)) / SYSTEM.VAL(SET, name[i]));
 				INC(i);
-			UNTIL (sep = 0X);
+			END;
 			RETURN fp
 		END Hash;
 
 		PROCEDURE HashValue(CONST key: SegmentedName):LONGINT;
 		VAR value, h,i: LONGINT;
 		BEGIN
+			ASSERT(key[0] >= 0);
 			h := Hash(key);
 			i := 0;
 			REPEAT
 				value := (h + i) MOD size;
-				ASSERT(i<size);
 				INC(i);
-			UNTIL (table[value].key = key) OR (table[value].key.index[0] = MIN(LONGINT));
+			UNTIL((table[value].key[0] < 0) OR (table[value].key = key) OR (i > size));
+			ASSERT((table[value].key[0] <0 ) OR (table[value].key = key));
 			RETURN value;
 		END HashValue;
 
@@ -779,10 +779,9 @@ TYPE
 			Init(size*2);
 			FOR i := 0 TO oldSize-1 DO
 				key := oldTable[i].key;
-				IF key.index[0] # MIN(LONGINT) THEN
-					value := oldTable[i].value;
-					IF value # NIL THEN
-						Put(key, value);
+				IF key[0] # MIN(LONGINT) THEN
+					IF oldTable[i].value # NIL THEN
+						Put(key, oldTable[i].value);
 					END;
 				END;
 			END;
@@ -1689,7 +1688,7 @@ VAR
 
 	PROCEDURE InitSegmentedName*(VAR name: SegmentedName);
 	VAR i: LONGINT;
-	BEGIN name.index[0] := 0; name.sep[0] := 0X;
+	BEGIN FOR i := 0 TO LEN(name)-1 DO name[i] := -1 END;
 	END InitSegmentedName;
 
 	PROCEDURE ToSegmentedName*(CONST name: ARRAY OF CHAR; VAR pooledName: SegmentedName);
@@ -1712,26 +1711,22 @@ VAR
 	PROCEDURE AppendToSegmentedName*(VAR name: SegmentedName; CONST this: ARRAY OF CHAR);
 	VAR i,j, segment: LONGINT; string: ObjectFile.SectionName;
 	BEGIN
-		segment := 0;
-		WHILE name.sep[segment] # 0X DO
-			INC(segment)
+		i := 0;
+		WHILE (i<LEN(name)) & (name[i] >= 0)  DO
+			INC(i)
 		END;
-
-		IF segment = LEN(name.sep)-1 THEN
-			StringPool.GetString(name.index[i], string);
-			Strings.Append(string, this);
-			name.index[segment] := StringPool.GetIndex1(string);
-		ELSE
-			IF this[0] = "." THEN i := 1 ELSE i := 0 END; j := 0;
-			WHILE this[i] # 0X DO
-				string[i] := this[j];
-				INC(i); INC(j);
+		IF (this[0] = ".") & (i < LEN(name)) THEN (* suffix *)
+			j := 0;
+			WHILE this[j+1] # 0X DO
+				string[j] := this[j+1];
+				INC(j);
 			END;
-			string[i] := 0X;
-			name.sep[segment] := ".";
-			INC(segment);
-			name.index[segment] := StringPool.GetIndex1(string);
-			name.sep[segment] := 0X;
+			string[j] := 0X;
+			name[i] := StringPool.GetIndex1(string);
+		ELSE
+			StringPool.GetString(name[i-1], string);
+			Strings.Append(string, this);
+			name[i-1] := StringPool.GetIndex1(string);
 		END;
 	END AppendToSegmentedName;
 
@@ -1740,20 +1735,18 @@ VAR
 	VAR string, suffix: ObjectFile.SectionName; i: LONGINT;
 	BEGIN
 		i := 0;
-		WHILE (name.sep[i] # 0X) DO INC(i) END;
-		IF name.index[i] = 0 THEN
-			name.index[i] := this;
-		ELSIF i < LEN(name.sep)-1 THEN (* suffix *)
-			name.sep[i] := ".";
+		WHILE (i < LEN(name)) & (name[i] >=0) DO
 			INC(i);
-			name.sep[i] := 0X;
-			name.index[i] := this
+		END;
+		IF i < LEN(name) THEN (* suffix *)
+			name[i] := this;
+			IF i<LEN(name)-1 THEN name[i+1] := -1 END;
 		ELSE
-			StringPool.GetString(name.index[i], string);
+			StringPool.GetString(name[i-1], string);
 			StringPool.GetString(this, suffix);
 			Strings.Append(string,".");
 			Strings.Append(string, suffix);
-			name.index[i-1] := StringPool.GetIndex1(string);
+			name[i-1] := StringPool.GetIndex1(string);
 		END;
 	END SuffixSegmentedName;
 
@@ -1761,27 +1754,40 @@ VAR
 	VAR string: ObjectFile.SectionName; i: LONGINT;
 	BEGIN
 		i := 0;
-		WHILE (name.sep[i] # 0X) DO INC(i) END;
-		StringPool.GetString(name.index[i],string);
+		WHILE (i< LEN(name)-1) & (name[i] >= 0) DO
+			INC(i);
+		END;
+		DEC(i);
+		IF i < 0 THEN
+			RETURN FALSE
+		ELSE
+			StringPool.GetString(name[i],string);
 		RETURN Strings.EndsWith(string, this);
+		END
 	END SegmentedNameEndsWith;
 
 	PROCEDURE RemoveSuffix*(VAR name: SegmentedName);
 	VAR i,pos,pos0: LONGINT;string: ObjectFile.SectionName;
 	BEGIN
 		i := 0;
-		WHILE (name.sep[i] # 0X) DO INC(i) END;
+		WHILE  (i< LEN(name)) & (name[i] >= 0) DO
+			INC(i);
+		END;
+		ASSERT(i>0);
+		IF i < LEN(name) THEN (* name[i] = empty *) name[i-1] := -1
+		ELSE (* i = LEN(name), name[i] = nonempty *)
+			DEC(i);
 		pos0 := 0; pos := 0;
 		WHILE (pos0 < LEN(string)) & (string[pos0] # 0X) DO
 			IF string[pos0] = "." THEN pos := pos0 END;
 			INC(pos0);
 		END;
 		IF pos = 0 THEN (* no dot in name or name starts with dot *)
-			name.index[i] := 0;
-			IF i> 0 THEN name.sep[i-1] := 0X END;
+				name[i] := -1
 		ELSE (* remove last part in name *)
 			string[pos] := 0X;
-			name.index[i] := StringPool.GetIndex1(string);
+				name[i] := StringPool.GetIndex1(string);
+		END;
 		END;
 	END RemoveSuffix;
 
@@ -1789,16 +1795,18 @@ VAR
 	VAR prefixS, ofS: SectionName; i: LONGINT;
 	BEGIN
 		i := 0;
-		WHILE (prefix.sep[i] # 0X) & (prefix.index[i] = of.index[i]) DO
-			IF of.sep[i] = 0X THEN RETURN FALSE END;
-			INC(i)
-		END;
-		IF prefix.index[i] = of.index[i] THEN RETURN TRUE
-		ELSIF prefix.sep[i] # 0X THEN RETURN FALSE
+		WHILE (i< LEN(prefix)) & (prefix[i] = of[i]) DO INC(i) END;
+
+		IF i = LEN(prefix) THEN RETURN TRUE (* identical *)
+		ELSE (* prefix[i] # of[i] *)
+			IF prefix[i] < 0 THEN RETURN TRUE
+			ELSIF of[i] < 0 THEN RETURN FALSE
+			ELSIF (i<LEN(prefix)) THEN RETURN FALSE
 		ELSE
-			StringPool.GetString(prefix.index[i], prefixS);
-			StringPool.GetString(of.index[i], ofS);
+				StringPool.GetString(prefix[i], prefixS);
+				StringPool.GetString(of[i], ofS);
 			RETURN Strings.StartsWith(prefixS, 0, ofS)
+			END
 		END;
 	END IsPrefix;
 

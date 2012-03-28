@@ -840,9 +840,12 @@ TYPE
 	BEGIN
 		Basic.InitSegmentedName(name);
 		IF (module.context # SyntaxTree.invalidIdentifier) & (module.context # A2Name) THEN
-			name.index[0] := module.context; name.sep[0] := ".";
-			name.index[1] := module.name; name.sep[0] := 0X;
-		ELSE name.index[0] :=module.name; name.sep[0] := 0X;
+			name[0] := module.context; 
+			name[1] := module.name;
+			name[2] := -1;
+		ELSE 
+			name[0] :=module.name;
+			name[1] := -1;
 		END;
 	END GetModuleSegmentedName;
 
@@ -919,7 +922,7 @@ TYPE
 		END Scope;
 
 	BEGIN
-		pooledName.index[0] := 0; pooledName.sep[0] := 0X;
+		FOR i := 0 TO LEN(pooledName)-1 DO pooledName[i] := -1 END;
 		Scope(symbol.scope);
 		Basic.SuffixSegmentedName(pooledName, symbol.name);
 	END GetSymbolSegmentedNameInScope;

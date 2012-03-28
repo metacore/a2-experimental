@@ -762,7 +762,7 @@ TYPE
 		BEGIN
 			FOR i := 0 TO allSections.Length()-1 DO
 				section := allSections.GetSection(i);
-				IF (section.name.index[0] = name) & section.isReachable THEN
+				IF (section.name[0] = name) & section.isReachable THEN
 					RETURN TRUE
 				END;
 			END;

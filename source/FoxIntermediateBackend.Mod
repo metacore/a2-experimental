@@ -1831,8 +1831,9 @@ TYPE
 			s: Basic.MessageString;
 		BEGIN
 			Basic.InitSegmentedName(pooledName);
-			pooledName.index[0] := Basic.MakeString(moduleName); pooledName.sep[0] := '.';
-			pooledName.index[1] := Basic.MakeString(typeName); pooledName.sep[1] := 0X;
+			pooledName[0] := Basic.MakeString(moduleName);
+			pooledName[1] := Basic.MakeString(typeName);
+			pooledName[2] := -1;
 
 			IF AddImport(moduleName,importedModule, FALSE) THEN
 				symbol := importedModule.moduleScope.FindTypeDeclaration(SyntaxTree.NewIdentifier(typeName));
@@ -1866,8 +1867,9 @@ TYPE
 				ReleaseOperand(result);
 			ELSE (* only static linking possible *)
 				Basic.InitSegmentedName(pooledName);
-				pooledName.index[0] := Basic.MakeString(moduleName); pooledName.sep[0] := ".";
-				pooledName.index[1] := Basic.MakeString(procedureName); pooledName.sep[1] := 0X;
+				pooledName[0] := Basic.MakeString(moduleName);
+				pooledName[1] := Basic.MakeString(procedureName);
+				pooledName[2] := -1;
 				source := NewSection(module.allSections, Sections.UnknownKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(reg, addressType, source , 0);
 				Emit(Call(position,reg, ToMemoryUnits(system,numberParameters * system.addressSize)));
@@ -1887,8 +1889,9 @@ TYPE
 				ReleaseOperand(result);
 			ELSE (* only static linking possible *)
 				Basic.InitSegmentedName(pooledName);
-				pooledName.index[0] := Basic.MakeString(altModuleName); pooledName.sep[0] := ".";
-				pooledName.index[1] := Basic.MakeString(altProcedureName); pooledName.sep[1] := 0X;
+				pooledName[0] := Basic.MakeString(altModuleName);
+				pooledName[1] := Basic.MakeString(altProcedureName);
+				pooledName[2] := -1;
 				source := NewSection(module.allSections,  Sections.UnknownKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
 				IntermediateCode.InitAddress(address, addressType, source , 0);
 				Emit(Call(position,address, ToMemoryUnits(system, numberParameters * system.addressSize)));
@@ -6195,8 +6198,9 @@ TYPE
 		VAR name: Basic.SegmentedName; section: IntermediateCode.Section;
 		BEGIN
 			Basic.InitSegmentedName(name);
-			name.index[0] := StringPool.GetIndex1(module.moduleName);name.sep[0] := ".";
-			name.index[1] := StringPool.GetIndex1("@Immediates"); name.sep[1] := 0X;
+			name[0] := StringPool.GetIndex1(module.moduleName);
+			name[1] := StringPool.GetIndex1("@Immediates");
+			name[2] := -1;
 			section := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,NIL,TRUE);
 			RETURN section
 		END GetDataSection;
@@ -6956,12 +6960,13 @@ TYPE
 			*)
 			string := "@case"; Basic.AppendNumber(string, caseId); INC(caseId);
 			Basic.InitSegmentedName(name);
-			name.index[0] := module.module.name; name.sep[0] := ".";
-			name.index[1] := Basic.MakeString(string); name.sep[1] := 0X;
-			symbol := SyntaxTree.NewSymbol(name.index[1]);
+			name[0] := module.module.name;
+			name[1] := Basic.MakeString(string);
+			name[2] := -1;
+			symbol := SyntaxTree.NewSymbol(name[1]);
 			symbol.SetScope(moduleScope);
 			NEW(fixups,size); FOR i := 0 TO size-1 DO fixups[i] := NIL END;
-			section := NewSection(module.allSections,Sections.CaseTableKind, Sections.ConstSection,TRUE, name,SyntaxTree.NewSymbol(name.index[1]),commentPrintout # NIL);
+			section := NewSection(module.allSections,Sections.CaseTableKind, Sections.ConstSection,TRUE, name,SyntaxTree.NewSymbol(name[1]),commentPrintout # NIL);
 			IntermediateCode.InitAddress(jmp, addressType, section,0);
 			ReuseCopy(res,var.op);
 			ReleaseOperand(var);
@@ -8201,7 +8206,7 @@ TYPE
 						END;
 						typeDeclaration := type.typeDeclaration; (* must be non-nil *)
 						IF (typeDeclaration.scope = NIL) OR (typeDeclaration.scope.ownerModule = module.module) THEN
-							name.index[0] := typeDeclaration.name; name.sep[0] := 0X;
+							name[0] := typeDeclaration.name; name[1] := -1;
 							section := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.RegularKind); (*TODO*)
 							ASSERT(section # NIL);
 							ASSERT(section.kind = Sections.RegularKind);

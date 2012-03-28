@@ -378,7 +378,7 @@ TYPE
 			IF section.symbol # NIL THEN (* special case, may not be added to lookup list *)
 				lookup.PutSection(section.symbol, section)
 			END;
-			IF (section.name.index[0] # 0) OR (section.name.sep[0] # 0X) THEN
+			IF section.name[0] >= 0 THEN
 				lookupName.PutSection(section.name, section);
 			END;
 			Add(section)

@@ -389,7 +389,7 @@ TYPE
 		END;
 
 		(* a valid name must be present *)
-		ASSERT(name.index[0] # Basic.MakeString(""));
+		ASSERT(name[0] > 0);
 
 		(* create a new section and enter it *)
 		NEW(section, kind, type, 0 (* initial priority = 0 *), isDefinition, name, syntaxTreeSymbol, dump);

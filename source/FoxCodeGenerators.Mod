@@ -418,8 +418,9 @@ TYPE
 		VAR name: Basic.SegmentedName; section: IntermediateCode.Section;
 		BEGIN
 			Basic.InitSegmentedName(name);
-			name.index[0] := StringPool.GetIndex1(module.moduleName); name.sep[0] := ".";
-			name.index[1] := StringPool.GetIndex1("@Immediates"); name.sep[1] := 0X;
+			name[0] := StringPool.GetIndex1(module.moduleName);
+			name[1] := StringPool.GetIndex1("@Immediates");
+			name[2] := -1;
 			section := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,NIL,TRUE);
 			RETURN section
 		END GetDataSection;

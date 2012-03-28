@@ -70,7 +70,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 
 			PROCEDURE ExportModule (module: Sections.Module): BOOLEAN;
 			BEGIN
-				WriteHeader(writer,binary,module.allSections,poolMap);
+				WriteHeader(writer,binary,module.allSections,poolMap, fingerPrinter);
 				RETURN ExportSections (module.allSections)
 			END ExportModule;
 
@@ -140,7 +140,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				Basic.SegmentedNameToString(section.name, string);
 				FingerPrinter.FPString(fp, string)
 			END
-		ELSE
+		ELSIF fingerPrinter # NIL THEN
 			fingerPrint := fingerPrinter.SymbolFP (section.symbol);
 			fp := fingerPrint.shallow;
 		END;
@@ -148,11 +148,12 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 	END GetFingerPrint;
 
 	PROCEDURE UpdateFixups (section: BinaryCode.Section;  fingerPrinter: FingerPrinter.FingerPrinter);
-	VAR fixup: BinaryCode.Fixup; i: INTEGER; fixupList: ObjectFile.Fixups; fixups: LONGINT;
+	VAR fixup: BinaryCode.Fixup; i: INTEGER; fixupList: ObjectFile.Fixups; fixups: LONGINT; index: LONGINT;
 	BEGIN
 		fixup := section.fixupList.firstFixup; i := 0; fixups := 0; fixupList := NIL;
 		WHILE fixup # NIL DO
-			ObjectFile.AddFixup(fixups, fixupList, fixup.symbol.name, GetFingerPrint(fixup.symbol, fingerPrinter), fixup.mode, fixup.displacement, fixup.scale, fixup.patterns, fixup.pattern, fixup.offset);
+			index := ObjectFile.AddFixup(fixups, fixupList, fixup.symbol.name, GetFingerPrint(fixup.symbol, fingerPrinter), fixup.mode,fixup.scale, fixup.patterns, fixup.pattern);
+			ObjectFile.AddPatch(fixupList[index].patches, fixupList[index].patch, fixup.displacement,  fixup.offset);
 			fixup := fixup.nextFixup; INC (i);
 		END;
 		ObjectFile.SetFixups(section^, fixups, fixupList);
@@ -193,8 +194,8 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		END;
 	END ReadHeader;
 
-	PROCEDURE WriteHeader(writer: Streams.Writer; binary: BOOLEAN; sections: Sections.SectionList; VAR poolMap: ObjectFile.PoolMap);
-	VAR p1,p2, size,i: LONGINT; section: Sections.Section;
+	PROCEDURE WriteHeader(writer: Streams.Writer; binary: BOOLEAN; sections: Sections.SectionList; VAR poolMap: ObjectFile.PoolMap; fingerPrinter:FingerPrinter.FingerPrinter);
+	VAR p1,p2, size,i: LONGINT; section: Sections.Section; fixups: LONGINT; fixupList: ObjectFile.Fixups;
 
 		PROCEDURE Identifier(id: LONGINT);
 		VAR i: LONGINT; name: ObjectFile.SectionName; ch: CHAR;
@@ -217,23 +218,23 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		PROCEDURE ProcessSegmentedName(CONST pooledName: ObjectFile.SegmentedName);
 		VAR i: LONGINT;
 		BEGIN
-			i := 0;
-			LOOP
-				IF (pooledName.index[i] = 0) THEN RETURN END;
-				Identifier(pooledName.index[i]);
-				IF pooledName.sep[i] = 0X THEN RETURN END;
-				INC(i);
+			FOR i := 0 TO LEN(pooledName)-1 DO
+				IF pooledName[i] < 0 THEN RETURN END;
+				Identifier(pooledName[i]);
 			END;
 		END ProcessSegmentedName;
 
 		PROCEDURE ProcessSection(section: IntermediateCode.Section);
-		VAR i: LONGINT; fixup: BinaryCode.Fixup;
+		VAR i: LONGINT; fixup: BinaryCode.Fixup; index: LONGINT;
 		BEGIN
 			IF section.resolved # NIL THEN
 				ProcessSegmentedName(section.resolved.identifier.name);
 				fixup := section.resolved.fixupList.firstFixup; i := 0;
 				WHILE fixup # NIL DO
 					ProcessSegmentedName(fixup.symbol.name);
+					(*
+					index := ObjectFile.AddFixup(fixups, fixupList, fixup.symbol.name, GetFingerPrint(fixup.symbol, fingerPrinter), fixup.mode,fixup.scale, fixup.patterns, fixup.pattern);
+					*)
 					fixup := fixup.nextFixup;
 				END;
 			END;
@@ -258,6 +259,11 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 			writer.SetPos(p1);
 			writer.RawLInt(size);
 			writer.SetPos(p2);
+
+			FOR i := 0 TO fixups-1 DO
+				D.String("fingerprint: "); Basic.WriteSegmentedName(D.Log, fixupList[i].identifier.name); D.Ln;
+			END;
+
 			IF Trace THEN D.String("pos "); D.Int(writer.Pos(),1); D.Ln END;
 		END;
 	END WriteHeader;
@@ -273,7 +279,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				NEW(reader,file,0);
 				writer := Basic.GetWriter(Basic.GetDebugWriter(fileName));
 				ReadHeader(reader, binary, poolMap);
-				WriteHeader(writer, FALSE, NIL, poolMapDummy);
+				WriteHeader(writer, FALSE, NIL, poolMapDummy, NIL);
 				WHILE reader.Peek () # 0X DO
 					ObjectFile.ReadSection (reader, section,binary, poolMap);
 					ObjectFile.WriteSection(writer, section, FALSE, NIL); (* textual *)

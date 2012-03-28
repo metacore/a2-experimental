@@ -25,7 +25,7 @@ TYPE Arrangement* = OBJECT
 	PROCEDURE Patch* (pos, value: Address; offset, bits, unit: ObjectFile.Bits);
 	END Patch;
 
-	PROCEDURE CheckReloc*(target: Address; CONST patch: ObjectFile.Patch);
+	PROCEDURE CheckReloc*(target: Address; CONST pattern: ObjectFile.Pattern; CONST patch: ObjectFile.Patch);
 	BEGIN
 		(* to be able to provide relocation information in an image*)
 	END CheckReloc;
@@ -203,18 +203,18 @@ VAR
 			BEGIN arrangement.Patch (target, address, pattern.offset, pattern.bits, block.unit); address := ASH (address, -pattern.bits);
 			END PatchPattern;
 
-			PROCEDURE CheckBits(value: LONGINT; CONST patch: ObjectFile.Patch; offset: LONGINT);
+			PROCEDURE CheckBits(value: LONGINT; CONST pattern: ObjectFile.Pattern; offset: LONGINT);
 			VAR i, nobits,remainder: LONGINT; minval, maxval: ObjectFile.Unit; name: ObjectFile.SectionName; number: ARRAY 32 OF CHAR;
 			BEGIN
 				nobits := 0;
-				FOR i := 0 TO patch.patterns-1 DO
-					INC(nobits,patch.pattern[i].bits);
+				FOR i := 0 TO pattern.patterns-1 DO
+					INC(nobits,pattern.pattern[i].bits);
 				END;
 
 				remainder := ASH(address,-nobits);
 
 				IF  (nobits <32) & ((remainder > 0) OR (remainder < -1)) THEN
-					IF patch.mode = ObjectFile.Relative THEN (* negative values allowed *)
+					IF pattern.mode = ObjectFile.Relative THEN (* negative values allowed *)
 						maxval := ASH(1,nobits-1)-1; minval := -maxval-1
 					ELSE
 						minval := 0; maxval := ASH(1,nobits);
@@ -227,19 +227,17 @@ VAR
 				END;
 			END CheckBits;
 
-			PROCEDURE ApplyPatch(CONST patch: ObjectFile.Patch);
+			PROCEDURE ApplyPatch(CONST pattern: ObjectFile.Pattern; CONST patch: ObjectFile.Patch);
 			VAR i,j: LONGINT;
 			BEGIN
-				FOR i := 0 TO patch.offsets-1 DO
-					target := block.address + patch.offset[i];
+					target := block.address + patch.offset;
 					address := reference.address + patch.displacement;
-					IF patch.mode = ObjectFile.Relative THEN
+					IF pattern.mode = ObjectFile.Relative THEN
 						DEC(address,target)
 					END;
-					address := ASH (address, patch.scale);
-					CheckBits(address, patch, patch.offset[i]);
-					FOR j := 0 TO patch.patterns-1 DO PatchPattern(patch.pattern[j]) END;
-				END;
+					address := ASH (address, pattern.scale);
+					CheckBits(address, pattern, patch.offset);
+					FOR j := 0 TO pattern.patterns-1 DO PatchPattern(pattern.pattern[j]) END;
 			END ApplyPatch;
 
 		BEGIN
@@ -247,15 +245,17 @@ VAR
 			IF reference = NIL THEN reference := ImportBlock(fixup.identifier) END;
 			ASSERT (reference # NIL);
 			FOR i := 0 TO fixup.patches-1 DO
-				ApplyPatch(fixup.patch[i]);
-				arrangement.CheckReloc(block.address, fixup.patch[i])
+				ApplyPatch(fixup.pattern, fixup.patch[i]);
+				arrangement.CheckReloc(block.address, fixup.pattern, fixup.patch[i])
 			END;
 		END PatchFixup;
 
 	BEGIN
 		ASSERT (block.used);
 		arrangement := GetArrangement (block);
-		FOR i := 0 TO block.fixups - 1 DO PatchFixup (block.fixup[i]); END;
+		FOR i := 0 TO block.fixups - 1 DO
+			PatchFixup (block.fixup[i])
+		END;
 	END Patch;
 
 	PROCEDURE Diagnose (block: Block);
