@@ -8120,11 +8120,13 @@ TYPE
 					INC(size,4);
 					String(section,"$$");
 					INC(size,3);
+					(* removed variables -- wrongly interpreted by Reflection 
 					variable := module.module.moduleScope.firstVariable;
 					WHILE(variable # NIL) DO
 						WriteVariable(variable,FALSE);
 						variable := variable.nextVariable;
 					END;
+					*)
 				END Scope;
 
 
