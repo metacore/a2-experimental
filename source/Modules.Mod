@@ -302,11 +302,10 @@ BEGIN
 	RETURN m
 END ThisModule;
 
-(** Return the module that contains code address pc or NIL if not found. Can also return freed modules. *)
-PROCEDURE ThisModuleByAdr*(pc: SYSTEM.ADDRESS): Module;
+(** Return the module that contains code address pc or NIL if not found. Can also return freed modules. -- non-blocking variant for Reflection. *)
+PROCEDURE ThisModuleByAdr0*(pc: SYSTEM.ADDRESS): Module;
 VAR m: Module; cbase, dbase: SYSTEM.ADDRESS; i: LONGINT; found: BOOLEAN;
 BEGIN
-	Machine.Acquire(Machine.Modules);
 	i := 0; found := FALSE;
 	REPEAT
 		CASE i OF
@@ -326,6 +325,15 @@ BEGIN
 		END;
 		INC(i)
 	UNTIL found OR (i = 2);
+	RETURN m
+END ThisModuleByAdr0;
+
+(** Return the module that contains code address pc or NIL if not found. Can also return freed modules. *)
+PROCEDURE ThisModuleByAdr*(pc: SYSTEM.ADDRESS): Module;
+VAR m: Module;
+BEGIN
+	Machine.Acquire(Machine.Modules);
+	m := ThisModuleByAdr0(pc);
 	Machine.Release(Machine.Modules);
 	RETURN m
 END ThisModuleByAdr;
