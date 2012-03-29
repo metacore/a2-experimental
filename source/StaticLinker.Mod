@@ -8,7 +8,7 @@ TYPE
 	PatchBlock*= POINTER TO RECORD
 		baseAdr: LONGINT;
 		addresses: LONGINT;
-		address: ARRAY 512 OF LONGINT;
+		address: ARRAY 1024 OF LONGINT;
 		next: PatchBlock;
 	END;
 
