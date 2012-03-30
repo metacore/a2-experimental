@@ -1573,8 +1573,8 @@ TYPE
 		VAR register: LONGINT; result,op: Assembler.Operand; edxReserved: BOOLEAN;
 	BEGIN
 			register := ResultRegister(instruction.op1.type,part);
+			edxReserved := physicalRegisters.Reserved(EDX);
 			IF (part = Low) & IsComplex(instruction.op1) THEN
-				edxReserved := physicalRegisters.Reserved(EDI);
 				physicalRegisters.SetReserved(EDX,TRUE);
 			END;
 			(*
@@ -1584,7 +1584,7 @@ TYPE
 			result := registerOperands[register];
 			MakeOperand(instruction.op1,part,op,NIL);
 			Mov(InstructionSet.opMOV,op,result);
-			IF edxReserved THEN
+			IF ~edxReserved THEN
 				physicalRegisters.SetReserved(EDX, FALSE);
 			END
 		END EmitResult;

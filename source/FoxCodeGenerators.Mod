@@ -828,6 +828,7 @@ TYPE
 			offset := spillStack.NextFree();
 			ticket.offset := offset;
 			size := spillStack.Size();
+			IF dump# NIL THEN dump.String("spillstack allocate (1) "); dump.Int(offset,1); dump.Ln; END;
 			spillStack.Allocate(offset,ticket);
 			size := spillStack.Size()-size;
 			ASSERT(size>=0);
@@ -864,6 +865,7 @@ TYPE
 				ticket1.spilled := TRUE;
 				ticket2.spilled := FALSE;
 				physicalRegisters.Allocate(ticket2.register,ticket2);
+				IF dump# NIL THEN dump.String("spillstack allocate (2) "); dump.Int(ticket1.offset,1); dump.Ln; END;
 				spillStack.Allocate(ticket1.offset,ticket1);
 				RETURN TRUE
 			END ExchangeSpill;
@@ -1001,6 +1003,7 @@ TYPE
 					ticket := tickets.Enter(class,type,index,TRUE,offset,lastuse);
 					size := spillStack.Size();
 					ticket.offset := offset;
+					IF dump# NIL THEN dump.String("spillstack allocate (3) "); dump.Int(offset,1);dump.Ln; END;
 					spillStack.Allocate(offset,ticket);
 					size := spillStack.Size()-size;
 					ASSERT(size>=0);
@@ -1078,6 +1081,7 @@ TYPE
 				physicalRegisters.SetReserved(ticket.register,TRUE);
 			ELSE (* spill new ticket rightaway, no phyiscal register assigned yet *)
 				size := spillStack.Size();
+				IF dump# NIL THEN dump.String("spillstack allocate (4)"); dump.Int(ticket.offset,1); dump.Ln; END;
 				spillStack.Allocate(ticket.offset,ticket);
 				size := spillStack.Size()-size;
 				ASSERT(size>=0);
