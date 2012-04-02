@@ -1,14 +1,14 @@
 MODULE X11Api; (** AUTHOR "fnecati"; PURPOSE "some missing types, const and functions in Unix.X11.Mod"; *)
 
 IMPORT
-	X11, Unix, Modules, Trace, SYSTEM;
+	X11, Unix, Modules, SYSTEM;
 
 (*! New XEvent types *)
 
 TYPE 
 	ADDRESS*= SYSTEM.ADDRESS;
 	PChar* = POINTER TO ARRAY OF CHAR;
-	Buffer = X11.Buffer;
+
 	VisualPtr = X11.VisualPtr;
 	VisualInfoPtr*  = POINTER TO X11.VisualInfo; 
 	DisplayPtr* = X11.DisplayPtr;
@@ -18,9 +18,13 @@ TYPE
 	Cursor* = X11.Cursor;
 	Atom* = X11.Atom;
 	XID* = LONGINT;
+
 	Drawable* = X11.Drawable;
 	Colormap* = X11.Colormap;
-	ComposeStatus = X11.ComposeStatus;
+	ComposeStatus* = RECORD 
+		composePtr*: LONGINT; 	(* state table pointer *)
+		charsMatched*: LONGINT;  (* match state *)
+	 END ;
 	KeySym* = X11.KeySym;
 	
 	(* Cursor control & motion *)
@@ -66,22 +70,19 @@ CONST
 
 
 	(* EVENT DEFINITIONS
-	    similar to Unix.X11.Mod but changed types to SET for easy usage 
-	*)
- 
-	(*  Input Event Masks. Used as event-mask window attribute and as arguments
+	  Input Event Masks. Used as event-mask window attribute and as arguments
 	   to Grab requests.  Not to be confused with event names. *)
 
 CONST
-	NoEventMask* = 0;  KeyPressMask* = 0; KeyReleaseMask* = 1;
-	ButtonPressMask* = 2;  ButtonReleaseMask* = 3;  EnterWindowMask* = 4;  
-	LeaveWindowMask* = 5;  PointerMotionMask* = 6;  PointerMotionHintMask* = 7;  
-	Button1MotionMask* = 8; Button2MotionMask* = 9; Button3MotionMask* = 10; 
-	Button4MotionMask* = 11;  Button5MotionMask* = 12;  ButtonMotionMask* = 13; 
-	KeymapStateMask* = 14; ExposureMask* = 15; VisibilityChangeMask* = 16; 
-	StructureNotifyMask* = 17; ResizeRedirectMask* = 18; SubstructureNotifyMask* = 19; 
-	SubstructureRedirectMask* = 20; FocusChangeMask * = 21; PropertyChangeMask* = 22; 
-	ColormapChangeMask* = 23; OwnerGrabButtonMask* = 24; 
+	NoEventMask* = 0H;  KeyPressMask* = 1H; KeyReleaseMask* = 2H;
+	ButtonPressMask* = 4H;  ButtonReleaseMask* = 8H;  EnterWindowMask* = 10H;  
+	LeaveWindowMask* = 20H;  PointerMotionMask* = 40H;  PointerMotionHintMask* = 80H;  
+	Button1MotionMask* = 100H; Button2MotionMask* = 200H; Button3MotionMask* = 400H; 
+	Button4MotionMask* = 800H;  Button5MotionMask* = 1000H;  ButtonMotionMask* = 2000H;
+	KeymapStateMask* = 4000H; ExposureMask* = 8000H; VisibilityChangeMask* = 10000H; 
+	StructureNotifyMask* = 20000H; ResizeRedirectMask* = 40000H; SubstructureNotifyMask* = 80000H; 
+	SubstructureRedirectMask* = 100000H; FocusChangeMask * = 200000H; PropertyChangeMask* = 400000H; 
+	ColormapChangeMask* = 800000H; OwnerGrabButtonMask* = 1000000H; 
 
 	(* Event names.  Used in "type" field in XEvent structures.  Not to be
 	confused with event masks above.  They start from 2 because 0 and 1
@@ -99,12 +100,12 @@ CONST
 	LASTEvent* =		36;	 (* must be bigger than any event # *)
 
 
-	(* Key masks. Used as modifiers to GrabButton and GrùabKey, results of QueryPointer,
+	(* Key masks. Used as modifiers to GrabButton and GrabKey, results of QueryPointer,
 	state in various key-, mouse-, and button-related events. *)
 
-	ShiftMask* = 1;  LockMask* = 2;  ControlMask* = 2;
-	Mod1Mask* = 4;  Mod2Mask* = 5;  Mod3Mask* = 6;
-	Mod4Mask* = 7;   Mod5Mask* = 8;
+	ShiftMask* = 0;  LockMask* = 1;  ControlMask* = 2;
+	Mod1Mask* = 3;  Mod2Mask* = 4;  Mod3Mask* = 5;
+	Mod4Mask* = 6;   Mod5Mask* = 7;
 
 	(* modifier names.  Used to build a SetModifierMapping request or
 	to read a GetModifierMapping request.  These correspond to the
@@ -115,10 +116,10 @@ CONST
 
 	(* button masks.  Used in same manner as Key masks above. Not to be confused
 	with button names below. *)
-	Button1Mask* = 9; Button2Mask* = 10; Button3Mask* = 11;
-	Button4Mask* = 12; Button5Mask* = 13;
+	Button1Mask* = 8; Button2Mask* = 9; Button3Mask* = 10;
+	Button4Mask* = 11; Button5Mask* = 12;
   
-	AnyModifier* = 16;  (* used in GrabButton, GrabKey *)
+	AnyModifier* = 15;  (* used in GrabButton, GrabKey *)
 
 	(* button names. Used as arguments to GrabButton and as detail in ButtonPress
 	and ButtonRelease events.  Not to be confused with button masks above.
@@ -215,14 +216,14 @@ CONST
 	InputOutput* = 1; InputOnly* = 2;
 
 	(* Window attributes for CreateWindow and ChangeWindowAttributes *)
-	CWBackPixmap* = 0; CWBackPixel* = 1; CWBorderPixmap* = 2; CWBorderPixel* = 3;
-	CWBitGravity* = 4; CWWinGravity* = 5; CWBackingStore* = 6;  CWBackingPlanes* = 7;
-	CWBackingPixel* = 8; CWOverrideRedirect* = 9; CWSaveUnder* =10; CWEventMask* =11;
-	CWDontPropagate* =12; CWColormap* = 13; CWCursor* =14;
+	CWBackPixmap* = 1H; CWBackPixel* = 2H; CWBorderPixmap* = 4H; CWBorderPixel* = 8H;
+	CWBitGravity* = 10H; CWWinGravity* = 20H; CWBackingStore* = 40H;  CWBackingPlanes* = 80;
+	CWBackingPixel* = 100H; CWOverrideRedirect* = 200H; CWSaveUnder* =400H; CWEventMask* =800H;
+	CWDontPropagate* =1000H; CWColormap* = 2000H; CWCursor* =4000H;
 
 	(* ConfigureWindow structure *)
-	CWX* = 0;  CWY* = 1; CWWidth* = 2; CWHeight* = 3; CWBorderWidth* = 4;
-	CWSibling* = 5; CWStackMode* = 6;
+	CWX* = 1H;  CWY* = 2H; CWWidth* = 4H; CWHeight* = 8H; CWBorderWidth* = 10H;
+	CWSibling* = 20H; CWStackMode* = 40H;
 
 	(* Bit Gravity *)
 	ForgetGravity* = 0; NorthWestGravity* = 1; NorthGravity* = 2; NorthEastGravity* = 3;
@@ -284,7 +285,7 @@ CONST
 	AllocAll* = 1;	(* allocate entire map writeable *)
 
 (* Flags used in StoreNamedColor, StoreColors *)
-	DoRed* = 0; DoGreen* = 1; DoBlue* = 2;
+	DoRed* = 1H; DoGreen* = 2H; DoBlue* = 4H;
 
 (* **************************************************************** 
                                            CURSOR STUFF  
@@ -303,20 +304,17 @@ CONST
 	LedModeOff* = 0; LedModeOn* = 1;
 
 	(* masks for ChangeKeyboardControl *)
-	KBKeyClickPercent* =  0;  KBBellPercent* =  1; KBBellPitch* =  2; 	KBBellDuration* =  3;
-	KBLed* =  4; KBLedMode* =  5; KBKey* =  6; KBAutoRepeatMode* =  7;
+	KBKeyClickPercent* =  1H;  KBBellPercent* =  2H; KBBellPitch* =  4H; 	KBBellDuration* =  8H;
+	KBLed* =  10H; KBLedMode* =  20H; KBKey* =  40H; KBAutoRepeatMode* =  80;
 	
 	MappingSuccess* = 0; MappingBusy* = 1; MappingFailed* = 2;
-
 	MappingModifier* = 0; MappingKeyboard* = 1; MappingPointer* = 2;
 
 (* ****************************************************************
                                               SCREEN SAVER STUFF 
  **************************************************************** *)
   DontPreferBlanking* = 0; PreferBlanking* = 1; DefaultBlanking* = 2;
-
   DisableScreenSaver* = 0; DisableScreenInterval* = 0;
-
   DontAllowExposures* = 0; AllowExposures* = 1; DefaultExposures* =2;
 
 (* for ForceScreenSaver *)
@@ -391,8 +389,8 @@ TYPE
 		backingPlanes*: LONGINT;(* planes to be preserved if possible *)
 		backingPixel*: LONGINT;(* value to use in restoring planes *)
 		saveUnder*: BOOLEAN;         (* should bits under be saved? (popups) *)
-		eventMask*:  SET;         (* set of events that should be saved *)
-		doNotPropagateMask*: SET;(* set of events that should not propagate *)
+		eventMask*:  LONGINT;         (* set of events that should be saved *)
+		doNotPropagateMask*: LONGINT;(* set of events that should not propagate *)
 		overrideRedirect*: BOOLEAN;  (* boolean value for override_redirect *)
 		colormap*: Colormap;       (* color map to be associated with window *)
 		cursor*: Cursor ;           (* cursor to be displayed (or None) *)
@@ -415,9 +413,9 @@ TYPE
 		colormap*: Colormap;			(* color map to be associated with window *)
 		mapInstalled*: BOOLEAN;		(* boolean, is color map currently installed*)
 		mapState*: LONGINT;		(* IsUnmapped, IsUnviewable, IsViewable *)
-		allEventMasks*: SET;		(* set of events all people have interest in*)
-		yourEventMask*: SET;		(* my event mask *)
-		doNotPropagateMask*: SET;	(* set of events that should not propagate *)
+		allEventMasks*: LONGINT;		(* set of events all people have interest in*)
+		yourEventMask*: LONGINT;		(* my event mask *)
+		doNotPropagateMask*: LONGINT;	(* set of events that should not propagate *)
 		overrideRedirect*: BOOLEAN;		(* boolean value for override-redirect *)
 		screen*: LONGINT; (*X11.Screen;*)			(* back pointer to correct screen *)
 	END;
@@ -867,8 +865,6 @@ TYPE
 	END;
 
 
-
-
 CONST 
 (* Action for EWMH client messages *)
 	NET_WM_STATE_REMOVE* = 0;
@@ -879,10 +875,11 @@ VAR
 	
 	OpenDisplay- : PROCEDURE { C } (CONST name: ARRAY OF CHAR): DisplayPtr;
 	CloseDisplay- : PROCEDURE { C } (display:DisplayPtr): LONGINT;
-	CreateWindow- : PROCEDURE { C } (display: DisplayPtr; parent: Window;  x,  y: LONGINT;  width, height, borderWidth, depth, class: LONGINT; visual: VisualPtr; valuemask: SET;  attributes: ADDRESS (*XSetWindowAttributes*) ): Window;	
+	CreateWindow- : PROCEDURE { C } (display: DisplayPtr; parent: Window;  x,  y: LONGINT;  width, height, borderWidth, depth, class: LONGINT; visual: VisualPtr; valuemask: LONGINT;  attributes: ADDRESS (*XSetWindowAttributes*) ): Window;	
 	DestroyWindow-: PROCEDURE { C }(display:DisplayPtr; win: Window): LONGINT;
 	DisplayWidthMM-: PROCEDURE {C} ( d: DisplayPtr;  screen: LONGINT ): LONGINT;
 	FreeColormap- : PROCEDURE { C } (display: DisplayPtr;  colormap: Colormap);
+	FreeCursor- : PROCEDURE { C } (display: DisplayPtr;  cursor: Cursor);
 	XGetAtomName- : PROCEDURE { C } (display: DisplayPtr; atom: Atom): LONGINT;
 	GetWindowAttributes- : PROCEDURE { C } (display: DisplayPtr; win: Window; attr: ADDRESS): LONGINT;
 	
@@ -891,16 +888,17 @@ VAR
 											VAR format, nitems, bytesafter, prop: LONGINT ): LONGINT;
 
 	GrabKeyboard-: PROCEDURE {C} (display: DisplayPtr; grabwindow: Window; ownerevents: Bool; pointermode, keyboardmode: LONGINT; time: Time): LONGINT;
-	GrabPointer-: PROCEDURE {C} (display:DisplayPtr; grabwindow: Window; ownerevents: Bool; eventmask: SET; pointermode, keyboardmode: LONGINT; confineto: Window; cursor: Cursor; time: Time): LONGINT;
+	GrabPointer-: PROCEDURE {C} (display:DisplayPtr; grabwindow: Window; ownerevents: Bool; eventmask: LONGINT; pointermode, keyboardmode: LONGINT; confineto: Window; cursor: Cursor; time: Time): LONGINT;
 	InternAtom-: PROCEDURE {C} ( display: DisplayPtr;  CONST name: ARRAY OF CHAR;  onlyifexists: Bool ): Atom;
 	LookupKeysym- : PROCEDURE { C } ( CONST event: XKeyEvent; index: LONGINT): KeySym;
-	LookupString-:	PROCEDURE {C} ( VAR event: XKeyEvent;  VAR buf: Buffer;  bufsize: LONGINT;  VAR keysym: KeySym; VAR cstat: ComposeStatus ): LONGINT;
+	LookupString-:	PROCEDURE {C} ( VAR event: XKeyEvent;  VAR buf: ARRAY OF CHAR;  bufsize: LONGINT;  VAR keysym: KeySym;  VAR cstat: ComposeStatus ): LONGINT;
 	MapWindow- : PROCEDURE { C } (display: DisplayPtr; win: Window);
 	NextEvent-: PROCEDURE {C} ( d: DisplayPtr;  VAR event: XEvent );
 	Pending- : PROCEDURE { C } (display: DisplayPtr): LONGINT;
 	RaiseWindow-: PROCEDURE { C }(display: DisplayPtr; win: Window);
 	RootWindow-: PROCEDURE { C }(display: DisplayPtr; screen: LONGINT): Window;	
-	SendEvent-: PROCEDURE {C} ( d: DisplayPtr;  w: Window;  propagate: Bool;	eventmask: SET; event: ADDRESS ): Bool;
+	SendEvent-: PROCEDURE {C} ( d: DisplayPtr;  w: Window;  propagate: Bool;	eventmask: LONGINT; event: ADDRESS ): Bool;
+	
 
 	SetStandardProperties-: PROCEDURE {C} (display: DisplayPtr; w: Window; CONST winName: ARRAY OF CHAR; 
 							CONST iconName: ARRAY OF CHAR; iconpixmap: Pixmap;  argv: POINTER TO ARRAY OF CHAR; argc: LONGINT; hints: ADDRESS);
@@ -910,20 +908,17 @@ VAR
 
 	WarpPointer- : PROCEDURE {C} (display: DisplayPtr; srcwin, destwin: Window; srcx, srcy: LONGINT; srcwidth, srcheight: LONGINT; destx, desty: LONGINT);
 
-	
+	(* cut and paste *)
+	SendSelection*:	 PROCEDURE ( VAR event: XSelectionRequestEvent );
+	ReceiveSelection*:  PROCEDURE  ( VAR event: XSelectionEvent );
+	ClearSelection*: PROCEDURE ;
 
 	CheckTypedEvent-: PROCEDURE { C } (display: DisplayPtr; eventType: LONGINT; VAR event: XEvent): Bool;
-	CheckMaskEvent-: PROCEDURE { C } (display: DisplayPtr; eventMask: SET; VAR event: XEvent): Bool;
+	CheckMaskEvent-: PROCEDURE { C } (display: DisplayPtr; eventMask: LONGINT; VAR event: XEvent): Bool;
 
 	CheckTypedWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventType: LONGINT; VAR event: XEvent): Bool;
-	CheckWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventMask: SET; VAR event: XEvent): Bool;
+	CheckWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventMask: LONGINT; VAR event: XEvent): Bool;
 
-VAR
-	(* cut and paste *)
-	SendSelection*		: PROCEDURE( VAR event: XSelectionRequestEvent );
-	ReceiveSelection*	: PROCEDURE( VAR event: XSelectionEvent );
-	ClearSelection*		: PROCEDURE;
-			
 	(* wrapper procedure for XGetAtomName  *)
 	PROCEDURE GetAtomName*(display: DisplayPtr; atom: Atom): PChar;
 	VAR adr, adr1: LONGINT;
@@ -956,7 +951,7 @@ VAR
 
 	
 PROCEDURE LoadX11Functions;
-BEGIN {EXCLUSIVE}
+BEGIN
 
 		xlib := Unix.Dlopen( Unix.libX11name, 2 );
 		Unix.Dlsym( xlib, "XOpenDisplay", SYSTEM.VAL( ADDRESS, OpenDisplay));
@@ -965,6 +960,7 @@ BEGIN {EXCLUSIVE}
 		Unix.Dlsym( xlib, "XDestroyWindow", SYSTEM.VAL( ADDRESS, DestroyWindow));
 		Unix.Dlsym( xlib, "XDisplayWidthMM", SYSTEM.VAL( ADDRESS, DisplayWidthMM));
 		Unix.Dlsym( xlib, "XFreeColormap", SYSTEM.VAL( ADDRESS, FreeColormap));
+		Unix.Dlsym( xlib, "XFreeCursor", SYSTEM.VAL( ADDRESS, FreeCursor));
 		Unix.Dlsym( xlib, "XGetAtomName", SYSTEM.VAL( ADDRESS, XGetAtomName));
 		Unix.Dlsym( xlib, "XGetWindowAttributes", SYSTEM.VAL( ADDRESS, GetWindowAttributes));
 		Unix.Dlsym( xlib, "XGetWindowProperty", SYSTEM.VAL( ADDRESS, GetWindowProperty));
@@ -990,14 +986,13 @@ BEGIN {EXCLUSIVE}
 
 		Unix.Dlsym( xlib, "XCheckTypedWindowEvent", SYSTEM.VAL( ADDRESS, CheckTypedWindowEvent));
 		Unix.Dlsym( xlib, "XCheckWindowEvent", SYSTEM.VAL( ADDRESS, CheckWindowEvent));
-		
+
 END LoadX11Functions;
 
 PROCEDURE OnClose;
-BEGIN {EXCLUSIVE}
+BEGIN
 	IF xlib # 0 THEN
      		Unix.Dlclose(xlib);
-       	Trace.String(Unix.libX11name); Trace.StringLn(' unloaded.');
 	END;
 END OnClose;
 

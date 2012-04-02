@@ -11,12 +11,10 @@ IMPORT Machine, S := SYSTEM, Inputs, Plugins, X11, Displays, XDisplay, Api:=X11A
 CONST
 	ML = 0;  MM = 1;  MR = 2;
 
-	Button1Bit = 8; Button2Bit = 9; Button3Bit =10;
-	ShiftKeyBit = 0;  ShiftLockBit = 1;  ControlKeyBit = 2;  Mod1KeyBit = 3;
-	Mod2KeyBit = 4;  Mod3KeyBit = 5;  Mod4KeyBit = 6;  Mod5KeyBit = 7;
+
 VAR
 	event: Api.XEvent;  xbuttons: SET;
-	compstatus: X11.ComposeStatus;
+	compstatus: Api.ComposeStatus;
 
 	disp: XDisplay.Display;
 
@@ -36,8 +34,8 @@ VAR
 
 	PROCEDURE CheckAlternateKeys( VAR mb: SET );
 	BEGIN
-		IF ~MMseen & (ControlKeyBit IN xbuttons) THEN INCL( mb, MM ) END;
-		IF ~MRseen & (Mod1KeyBit IN xbuttons) THEN INCL( mb, MR ) END
+		IF ~MMseen & (Api.ControlMask IN xbuttons) THEN INCL( mb, MM ) END;
+		IF ~MRseen & (Api.Mod1Mask IN xbuttons) THEN INCL( mb, MR ) END
 	END CheckAlternateKeys;
 
 
@@ -47,9 +45,9 @@ VAR
 		Machine.Release( Machine.X11 ); 
 		mm.keys := {};
 		mm.x := x;  mm.y := y;  mm.dz := dz;
-		IF Button1Bit IN xbuttons THEN  INCL( mm.keys, ML )  END;
-		IF Button2Bit IN xbuttons THEN  INCL( mm.keys, MM );  MMseen := TRUE  END;
-		IF Button3Bit IN xbuttons THEN  INCL( mm.keys, MR );  MRseen := TRUE  END;
+		IF Api.Button1Mask IN xbuttons THEN  INCL( mm.keys, ML )  END;
+		IF Api.Button2Mask IN xbuttons THEN  INCL( mm.keys, MM );  MMseen := TRUE  END;
+		IF Api.Button3Mask IN xbuttons THEN  INCL( mm.keys, MR );  MRseen := TRUE  END;
 		IF ~(MMseen & MRseen) THEN  CheckAlternateKeys( mm.keys )  END;
 		Inputs.mouse.Handle( mm );
 		Machine.Acquire( Machine.X11 )
@@ -64,8 +62,10 @@ VAR
 	END SendKeyboardMsg;
 
 	PROCEDURE PollXQueue;
+	CONST bufsize = 20;
 	VAR keycount, xr, yr, x, y, dz, i: LONGINT;
-		rw, cw: X11.Window;  buffer: X11.Buffer;  keysym: X11.KeySym;  xd: X11.DisplayPtr;
+		rw, cw: X11.Window;   
+		keysym: X11.KeySym;  xd: X11.DisplayPtr;
 		newxbuttons, bdiff: SET;
 		km: Inputs.KeyboardMsg;
 		kp : Api.XKeyEvent;
@@ -75,6 +75,7 @@ VAR
 		datal: Api.Data40l;
 		cn: Api.XConfigureEvent;
 		res, events: LONGINT;
+		buffer: ARRAY bufsize OF CHAR;
 	BEGIN
 		xd := disp.xdisp;
 		Machine.Acquire( Machine.X11 );
@@ -83,22 +84,24 @@ VAR
 			Api.NextEvent( xd, event );
 			CASE event.typ OF
 			| Api.KeyPress: kp := S.VAL(Api.XKeyEvent, event);
-					keycount := Api.LookupString( kp, buffer, X11.BufferSize, keysym, compstatus );
+					X11.lastEventTime := kp.time;
+					keycount := Api.LookupString( kp, buffer, bufsize, keysym, compstatus );
 					X11.QueryPointer( xd, event.window, rw, cw, xr, yr, x, y, newxbuttons );
 					i := 0;
 					IF keycount = 0 THEN
 						bdiff := newxbuttons / xbuttons;  xbuttons := newxbuttons;
-						km.ch := 0X;
-						IF ShiftKeyBit IN bdiff THEN km.keysym := Inputs.KsShiftL
-						ELSIF ControlKeyBit IN bdiff THEN km.keysym := Inputs.KsControlL
-						ELSIF Mod1KeyBit IN bdiff THEN km.keysym := Inputs.KsAltL
-						ELSIF Mod4KeyBit IN bdiff THEN km.keysym := Inputs.KsMetaL
-						ELSIF Mod5KeyBit IN bdiff THEN km.keysym := Inputs.KsAltR
+						km.ch := 0X;						
+						IF Api.ShiftMask IN bdiff THEN km.keysym := Inputs.KsShiftL
+						ELSIF Api.ControlMask IN bdiff THEN km.keysym := Inputs.KsControlL
+						ELSIF Api.Mod1Mask IN bdiff THEN km.keysym := Inputs.KsAltL
+						ELSIF Api.Mod4Mask IN bdiff THEN km.keysym := Inputs.KsMetaL
+						ELSIF Api.Mod5Mask IN bdiff THEN km.keysym := Inputs.KsAltR
 						END;
 						km.flags := KeyState( );
 						SendKeyboardMsg( km )
 					ELSE
 						xbuttons := newxbuttons;
+						
 						WHILE i < keycount DO
 							km.ch := buffer[i];  km.flags := KeyState( );
 							km.keysym := keySymbol[ORD( km.ch )];
@@ -108,37 +111,41 @@ VAR
 							SendKeyboardMsg( km );
 							INC( i )
 						END
+						
 					END;
 			| Api.KeyRelease: kp := S.VAL(Api.XKeyEvent, event);
+					X11.lastEventTime := kp.time;
 					X11.QueryPointer( xd, event.window, rw, cw, xr, yr, x, y, newxbuttons );
 					bdiff := newxbuttons / xbuttons;  xbuttons := newxbuttons;
 					IF bdiff # {} THEN
 						km.ch := 0X;
-						IF ShiftKeyBit IN bdiff THEN km.keysym := Inputs.KsShiftL
-						ELSIF ControlKeyBit IN bdiff THEN km.keysym := Inputs.KsControlL
-						ELSIF Mod1KeyBit IN bdiff THEN km.keysym := Inputs.KsAltL
-						ELSIF Mod4KeyBit IN bdiff THEN km.keysym := Inputs.KsMetaL
-						ELSIF Mod5KeyBit IN bdiff THEN km.keysym := Inputs.KsAltR
+						IF Api.ShiftMask IN bdiff THEN km.keysym := Inputs.KsShiftL
+						ELSIF Api.ControlMask IN bdiff THEN km.keysym := Inputs.KsControlL
+						ELSIF Api.Mod1Mask IN bdiff THEN km.keysym := Inputs.KsAltL
+						ELSIF Api.Mod4Mask IN bdiff THEN km.keysym := Inputs.KsMetaL
+						ELSIF Api.Mod5Mask IN bdiff THEN km.keysym := Inputs.KsAltR
 						END;
 						km.flags := KeyState( ) + {Inputs.Release};
 						SendKeyboardMsg( km )
 					END
 			| Api.ButtonPress: be := S.VAL(Api.XButtonPressedEvent, event);
+					X11.lastEventTime := be.time;
 					dz := 0;
 					CASE be.button OF
-					| Api.Button1:  INCL( xbuttons, Button1Bit )
-					| Api.Button2:  INCL( xbuttons, Button2Bit )
-					| Api.Button3:  INCL( xbuttons, Button3Bit )
+					| Api.Button1:  INCL( xbuttons, Api.Button1Mask )
+					| Api.Button2:  INCL( xbuttons, Api.Button2Mask )
+					| Api.Button3:  INCL( xbuttons, Api.Button3Mask )
 					| Api.Button4: dz := -1
 					| Api.Button5: dz := +1
 					ELSE  (* ignore *)
 					END;
 					SendMouseMsg( be.x, be.y, dz, xbuttons )
 			| Api.ButtonRelease: be := S.VAL(Api.XButtonReleasedEvent, event);
+					X11.lastEventTime := be.time;
 					CASE be.button OF
-					| Api.Button1:  EXCL( xbuttons, Button1Bit )
-					| Api.Button2:  EXCL( xbuttons, Button2Bit )
-					| Api.Button3:  EXCL( xbuttons, Button3Bit )
+					| Api.Button1:  EXCL( xbuttons, Api.Button1Mask )
+					| Api.Button2:  EXCL( xbuttons, Api.Button2Mask )
+					| Api.Button3:  EXCL( xbuttons, Api.Button3Mask )
 					ELSE  (* ignore *)
 					END;
 					SendMouseMsg( be.x, be.y, 0, xbuttons )
@@ -149,7 +156,7 @@ VAR
 					(* hacking, clear all expoure events in queue *)
 					REPEAT res := Api.CheckTypedEvent(xd, Api.Expose, event) UNTIL res # X11.True; 
 					REPEAT 
-						res := Api.CheckWindowEvent(xd, disp.primary, {Api.ExposureMask}, event) 
+						res := Api.CheckWindowEvent(xd, disp.primary, Api.ExposureMask, event) 
 					UNTIL res # X11.True; 
 					em := S.VAL( Api.XExposeEvent, event );
 					IF em.count = 0 THEN  (* wait until last message*) 
@@ -173,11 +180,19 @@ VAR
 			| Api.UnmapNotify:
 			| Api.MapNotify: 
 			| Api.SelectionClear:
-					IF Api.ClearSelection # NIL THEN  Api.ClearSelection()  END
+					IF Api.ClearSelection # NIL THEN Api.ClearSelection(); END
 			| Api.SelectionNotify:
-					IF Api.ReceiveSelection # NIL THEN  Api.ReceiveSelection( S.VAL( Api.XSelectionEvent, event ) )  END
+					IF Api.ReceiveSelection # NIL THEN
+						Machine.Release( Machine.X11 );
+							Api.ReceiveSelection( S.VAL( Api.XSelectionEvent, event ) );
+						Machine.Acquire( Machine.X11 )
+					END
 			| Api.SelectionRequest:
-					IF Api.SendSelection # NIL THEN  Api.SendSelection( S.VAL( Api.XSelectionRequestEvent, event ) )  END
+					IF Api.SendSelection # NIL THEN
+						Machine.Release( Machine.X11 );  
+							Api.SendSelection( S.VAL( Api.XSelectionRequestEvent, event ) );
+						Machine.Acquire( Machine.X11 )
+					END
 			| Api.ConfigureNotify:  cn := S.VAL(Api.XConfigureEvent, event);
 			ELSE
 				(* ignore *)
@@ -194,11 +209,11 @@ VAR
 	VAR keys: SET;
 	BEGIN
 		keys := {};
-		IF ShiftKeyBit IN xbuttons THEN  INCL( keys, Inputs.LeftShift )  END;
-		IF ControlKeyBit IN xbuttons THEN  INCL( keys, Inputs.LeftCtrl )  END;
-		IF Mod1KeyBit IN xbuttons THEN  INCL( keys, Inputs.LeftAlt )  END;
-		IF Mod4KeyBit IN xbuttons THEN  INCL( keys, Inputs.LeftMeta )  END;
-		IF Mod5KeyBit IN xbuttons THEN  INCL( keys, Inputs.RightAlt )  END;
+		IF Api.ShiftMask IN xbuttons THEN  INCL( keys, Inputs.LeftShift )  END;
+		IF Api.ControlMask IN xbuttons THEN  INCL( keys, Inputs.LeftCtrl )  END;
+		IF Api.Mod1Mask IN xbuttons THEN  INCL( keys, Inputs.LeftAlt )  END;
+		IF Api.Mod4Mask IN xbuttons THEN  INCL( keys, Inputs.LeftMeta )  END;
+		IF Api.Mod5Mask IN xbuttons THEN  INCL( keys, Inputs.RightAlt )  END;
 		RETURN keys
 	END KeyState;
 
@@ -244,7 +259,7 @@ VAR
 						  X11.KeyPressMask + X11.KeyReleaseMask + X11.StructureNotifyMask );
 		Machine.Release( Machine.X11 );
 
-		shift := Keysym( "Shift_L" );  control := Keysym( "Control_L" );
+	 	shift := Keysym( "Shift_L" );  control := Keysym( "Control_L" );
 		meta := Keysym( "Meta-L" );  alt := Keysym( "Alt_L" );
 		capslock := Keysym( "Caps_Lock" );  numlock := Keysym( "Num_Lock" );
 
@@ -314,7 +329,7 @@ VAR
 		(*A diaeresis*)	Rebind( "Adiaeresis", 0, 080X );
 		(*O diaeresis*)	Rebind( "Odiaeresis", 0, 081X );	
 		(*U diaeresis*)	Rebind( "Udiaeresis", 0, 082X );
-		
+		 
 		InitKeysym;
 
 		NEW( poll );  
