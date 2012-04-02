@@ -179,6 +179,9 @@ VAR
 	PROCEDURE HandleException( obj: Objects.Process; cont: Unix.Ucontext;  VAR handled: BOOLEAN );  
 	VAR handler, fp, sp, pc: LONGINT;
 	BEGIN 
+		IF Unix.version = "Darwin" THEN  handled := FALSE;  RETURN  END;
+		(* in Darwin ModifyContext fails with bus error *)
+		
 		pc := cont.mc.eip;  fp := cont.mc.ebp;  sp := cont.mc.espatsig;
 		IF pc = 0 THEN  
 			(* assume call of procedure variable with value NIL *)
