@@ -3,7 +3,7 @@ MODULE WMInspector; (** AUTHOR "staubesv"; PURPOSE "Component inspection"; *)
 IMPORT
 	Modules, Strings, XMLObjects, Texts,
 	WMRectangles, WMGraphics, WMMessages, WMRestorable, WMWindowManager,
-	WMComponents, WMStandardComponents, WMTrees, WMTabComponents, WMInspectionComponents, XML, Raster;
+	WMComponents, WMStandardComponents, WMTrees, WMTabComponents, WMInspectionComponents, XML, Raster, WMPopups;
 
 CONST
 	WindowWidth = 800; WindowHeight = 500;
@@ -188,13 +188,13 @@ TYPE
 				NEW(root);
 				tree.SetRoot(root);
 				tree.SetNodeCaption(root, Strings.NewString("Text"));
-				tree.InclNodeState(root, WMTrees.NodeExpanded);
 				WHILE ~reader.eot DO
 					reader.ReadCh(ignoreCh);
 					IF (reader.object # NIL) & (reader.object IS WMComponents.Component) THEN
 						AddComponents(reader.object (WMComponents.Component), root);
 					END;
 				END;
+				tree.InclNodeState(root, WMTrees.NodeExpanded);
 				tree.Release;
 				text.ReleaseRead;
 			ELSE
@@ -240,13 +240,13 @@ TYPE
 				NEW(root);
 				tree.SetRoot(root);
 				tree.SetNodeCaption(root, Strings.NewString("Text"));
-				tree.InclNodeState(root, WMTrees.NodeExpanded);
 				WHILE ~reader.eot & (reader.GetPosition() < to.GetPosition()) DO
 					reader.ReadCh(ignoreCh);
 					IF (reader.object # NIL) & (reader.object IS WMComponents.Component) THEN
 						AddComponents(reader.object (WMComponents.Component), root);
 					END;
 				END;
+				tree.InclNodeState(root, WMTrees.NodeExpanded);
 				tree.Release;
 				text.ReleaseRead;
 			ELSE
@@ -267,16 +267,66 @@ TYPE
 
 	END SelectedTextTree;
 
+
+	SelectedComponentsTree = OBJECT(InspectionTree)
+
+		PROCEDURE &Init;
+		BEGIN
+			Init^;
+			AddContent(treeView);
+			WMComponents.selection.onChanged.Add(Refresh);
+			Refresh(SELF, WMComponents.selection);
+		END Init;
+
+		PROCEDURE Refresh(sender, data : ANY);
+		VAR
+			root , node: WMTrees.TreeNode;
+			array: WMComponents.SelectionArray;
+			selection: WMComponents.SelectionList;
+			i: LONGINT;
+		BEGIN
+			ASSERT(tree # NIL);
+			IF (data # NIL) & (data IS WMComponents.SelectionList) THEN
+				selection := data(WMComponents.SelectionList);
+				array := selection.GetSelection();
+				tree.Acquire;
+				NEW(root);
+				tree.SetRoot(root);
+				tree.SetNodeCaption(root, Strings.NewString("selection"));
+				FOR i := 0 TO LEN(array)-1 DO
+					AddComponents(array[i], root);
+				END;
+				IF LEN(array) = 1 THEN
+					node := tree.GetChildren(root);
+					treeView.SelectNode(node);
+					treeView.onClickNode.Call(node);
+				END;
+				tree.InclNodeState(root, WMTrees.NodeExpanded);
+				tree.Release;
+			END;
+		END Refresh;
+
+		PROCEDURE Finalize;
+		BEGIN
+			Finalize^;
+			WMComponents.selection.onChanged.Remove(Refresh)
+		END Finalize;
+
+	END SelectedComponentsTree;
+
 TYPE
 
 	KillerMsg = OBJECT
 	END KillerMsg;
+
+	SelectionWrapper= POINTER TO RECORD tree: WMTrees.Tree; node: WMTrees.TreeNode END;
 
 	Window* = OBJECT(WMComponents.FormWindow)
 	VAR
 		formTree- : FormComponentsTree;
 		textTree : TextComponentsTree;
 		selectedTextTree : SelectedTextTree;
+		selectedComponentTree: SelectedComponentsTree;
 		currentTree : InspectionTree;
 		propertyPanel : WMInspectionComponents.PropertyPanel;
 		libraryPanel : WMInspectionComponents.RepositoryPanel;
@@ -296,6 +346,16 @@ TYPE
 			textTree.Refresh(NIL, NIL);
 			selectedTextTree.treeView.onClickNode.Add(NodeClicked);
 			selectedTextTree.Refresh(NIL, NIL);
+			selectedComponentTree.treeView.onClickNode.Add(NodeClicked);
+			selectedComponentTree.Refresh(NIL, NIL);
+
+			(*formTree.treeView.onSelectNode.Add(NodeSelected);*)
+
+
+			formTree.treeView.SetExtContextMenuHandler(ContextMenu);
+			textTree.treeView.SetExtContextMenuHandler(ContextMenu);
+			selectedTextTree.treeView.SetExtContextMenuHandler(ContextMenu);
+			selectedComponentTree.treeView.SetExtContextMenuHandler(ContextMenu);
 		END New;
 
 		PROCEDURE CreateForm() : WMComponents.VisualComponent;
@@ -331,18 +391,26 @@ TYPE
 			formTree.dragger.window := SELF;
 
 			NEW(tabEntry); tabEntry.alignment.Set(WMComponents.AlignClient);
-			tabEntry.caption.SetAOC("Text");
+			tabEntry.caption.SetAOC("Selection");
 			tabPanel.AddContent(tabEntry);
 
-			NEW(textTree); textTree.alignment.Set(WMComponents.AlignClient);
-			tabEntry.AddContent(textTree);
+			NEW(selectedComponentTree); selectedComponentTree.alignment.Set(WMComponents.AlignClient);
+			tabEntry.AddContent(selectedComponentTree);
 
 			NEW(tabEntry); tabEntry.alignment.Set(WMComponents.AlignClient);
-			tabEntry.caption.SetAOC("Selection");
+			tabEntry.caption.SetAOC("Sel. Text");
 			tabPanel.AddContent(tabEntry);
 
 			NEW(selectedTextTree); selectedTextTree.alignment.Set(WMComponents.AlignClient);
 			tabEntry.AddContent(selectedTextTree);
+
+
+			NEW(tabEntry); tabEntry.alignment.Set(WMComponents.AlignClient);
+			tabEntry.caption.SetAOC("Last Text");
+			tabPanel.AddContent(tabEntry);
+
+			NEW(textTree); textTree.alignment.Set(WMComponents.AlignClient);
+			tabEntry.AddContent(textTree);
 
 			NEW(rightPanel); rightPanel.alignment.Set(WMComponents.AlignClient);
 			panel.AddContent(rightPanel);
@@ -379,8 +447,9 @@ TYPE
 				caption := data(WMTabComponents.Tab).caption;
 				IF (caption # NIL) THEN
 					IF (caption^ = "Windows") THEN currentTree := formTree;
-					ELSIF (caption^ = "Text") THEN currentTree := textTree;
-					ELSIF (caption^ = "Selection") THEN currentTree := selectedTextTree;
+					ELSIF (caption^ = "Last Text") THEN currentTree := textTree;
+					ELSIF (caption^ = "Sel. Text") THEN currentTree := selectedTextTree;
+					ELSIF (caption^ = "Selection") THEN currentTree := selectedComponentTree;
 					END;
 				END;
 			END;
@@ -390,20 +459,89 @@ TYPE
 		VAR ptr : ANY;
 		BEGIN
 			IF (data # NIL) & (data IS WMTrees.TreeNode) THEN
-				currentTree.tree.Acquire;
-				ptr := currentTree.tree.GetNodeData(data(WMTrees.TreeNode));
-				currentTree.tree.Release;
-				IF (ptr # NIL) & (ptr IS WMComponents.Component) THEN
-					propertyPanel.SetComponent(SELF, ptr(WMComponents.Component));
-					libraryPanel.SetComponent(ptr(WMComponents.Component));
-					xmlPanel.SetComponent(ptr(WMComponents.Component));
-				ELSE
-					propertyPanel.SetComponent(SELF, NIL);
-					libraryPanel.SetComponent(NIL);
-					xmlPanel.SetComponent(NIL);
+				IF sender = currentTree.treeView THEN
+					currentTree.tree.Acquire;
+					ptr := currentTree.tree.GetNodeData(data(WMTrees.TreeNode));
+					currentTree.tree.Release;
+					IF (ptr # NIL) & (ptr IS WMComponents.Component) THEN
+						propertyPanel.SetComponent(SELF, ptr(WMComponents.Component));
+						libraryPanel.SetComponent(ptr(WMComponents.Component));
+						xmlPanel.SetComponent(ptr(WMComponents.Component));
+					ELSE
+						propertyPanel.SetComponent(SELF, NIL);
+						libraryPanel.SetComponent(NIL);
+						xmlPanel.SetComponent(NIL);
+					END;
 				END;
 			END;
 		END NodeClicked;
+
+		PROCEDURE GetVisualComponent(sel: SelectionWrapper): WMComponents.VisualComponent;
+		VAR nodeData: ANY;
+		BEGIN
+			sel.tree.Acquire;
+			nodeData := sel.tree.GetNodeData(sel.node);
+			sel.tree.Release;
+			IF (nodeData = NIL) OR ~(nodeData IS WMComponents.VisualComponent) THEN RETURN NIL
+			ELSE RETURN nodeData(WMComponents.VisualComponent)
+			END;
+		END GetVisualComponent;
+
+		PROCEDURE ToggleVisibility(sender, data: ANY);
+		VAR c: WMComponents.VisualComponent;
+		BEGIN
+			c := GetVisualComponent(data(SelectionWrapper));
+			c.visible.Set(~ c.visible.Get());
+		END ToggleVisibility;
+
+		PROCEDURE Select(sender, data: ANY);
+		VAR c: WMComponents.VisualComponent;
+		BEGIN
+			c := GetVisualComponent(data(SelectionWrapper));
+			WMComponents.selection.Toggle(c);
+			c.Invalidate;
+		END Select;
+
+		PROCEDURE ToggleEditMode(sender, data: ANY);
+		VAR c: WMComponents.VisualComponent;
+		BEGIN
+			c := GetVisualComponent(data(SelectionWrapper));
+			c.editMode.Set(~ c.editMode.Get());
+		END ToggleEditMode;
+
+		PROCEDURE Delete(sender, data: ANY);
+		VAR c: WMComponents.VisualComponent; parent: XML.Element;
+		BEGIN
+			WITH data: SelectionWrapper DO
+				c := GetVisualComponent(data);
+				parent := c.GetParent();
+				parent(WMComponents.VisualComponent).RemoveContent(c);
+				parent(WMComponents.VisualComponent).Invalidate;
+				data.tree.Acquire;
+				data.tree.RemoveNode(data.node);
+				data.tree.Release;
+			END;
+		END Delete;
+
+		PROCEDURE ContextMenu(sender : ANY; x, y: LONGINT);
+		VAR popup: WMPopups.Popup; wmx, wmy: LONGINT; node: WMTrees.TreeNode; treeView: WMTrees.TreeView;
+			par: SelectionWrapper;
+		BEGIN
+			NEW(popup);
+			IF (sender # NIL) & (sender IS WMTrees.TreeView) THEN
+				treeView := sender(WMTrees.TreeView);
+				node := treeView.GetNodeAtPos(x,y);
+				NEW(par);
+				par.tree := treeView.GetTree();
+				par.node := node;
+				popup.AddParButton("Toggle Selection", Select, par);
+				popup.AddParButton("Toggle Visibility", ToggleVisibility, par);
+				popup.AddParButton("Toggle EditMode", ToggleEditMode, par);
+				popup.AddParButton("Delete", Delete, par);
+				formTree.treeView.ToWMCoordinates(x,y, wmx, wmy);
+				popup.Popup(wmx, wmy)
+			END;
+		END ContextMenu;
 
 		PROCEDURE Handle(VAR x : WMMessages.Message);
 		BEGIN

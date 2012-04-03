@@ -3254,12 +3254,17 @@ TYPE
 			IF (SELF.model # NIL) THEN
 				SELF.model.onChanged.Add(ModelChanged);
 				typeLabel.caption.Set(GetModelTypeString(SELF.model));
-				string := Types.NewString();
-				SELF.model.GetGeneric(string, res);
-				IF (res = Types.Ok) THEN
-					editor.SetAsString(string.value^);
+
+				IF model IS Models.Text THEN
+					editor.SetText(model(Models.Text).Get());
 				ELSE
-					editor.SetAsString("<ERROR>");
+					string := Types.NewString();
+					SELF.model.GetGeneric(string, res);
+					IF (res = Types.Ok) THEN
+						editor.SetAsString(string.value^);
+					ELSE
+						editor.SetAsString("<ERROR>");
+					END;
 				END;
 			ELSE
 				typeLabel.caption.Set(StrNoCaption);
