@@ -44,7 +44,7 @@ IMPORT
 	XML, XMLScanner, XMLParser, XMLObjects, Codecs, Localization, Repositories,
 	Messages := WMMessages, Rectangles := WMRectangles,
 	WMEvents, WMProperties, WMGraphics, Strings, WM := WMWindowManager, Raster,
-	Commands, Modules,D := Debugging, Kernel, SYSTEM;
+	Commands, Modules,D := Debugging, Kernel, Locks, SYSTEM;
 
 CONST
 	Ok* = 0;
@@ -963,7 +963,7 @@ TYPE
 				IF c IS VisualComponent THEN
 					vc := c(VisualComponent);
 					r := vc.bounds.Get();
-					IF Rectangles.PointInRect(x, y, r) & vc.IsHit(x - r.l, y - r.t) THEN
+					IF Rectangles.PointInRect(x, y, r) & vc.IsHit(x - r.l, y - r.t)  THEN
 						result := vc
 					END;
 				END;
@@ -1021,7 +1021,6 @@ TYPE
 					IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF,dragInfo) END;
 					data(VisualComponent).bounds.Set(Rectangles.MakeRect(0, 0, data(VisualComponent).bounds.GetWidth(), data(VisualComponent).bounds.GetHeight()));
 					AddVisualComponent(data(VisualComponent),x+dragInfo.offsetX,y+dragInfo.offsetY);
-					data(VisualComponent).SetEditMode(TRUE,TRUE);
 					Invalidate;
 				ELSE
 					parent := GetParent();
@@ -1043,7 +1042,6 @@ TYPE
 						e.component.bounds.Set(Rectangles.MakeRect(0, 0, e.component.bounds.GetWidth(), e.component.bounds.GetHeight()));
 						ASSERT(e.component IS VisualComponent);
 						AddVisualComponent(e.component,x+e.dx+dragInfo.offsetX, y+e.dy + dragInfo.offsetY);
-						e.component.SetEditMode(TRUE,TRUE);
 						e := e.next;
 					END;
 					Invalidate;
@@ -1130,6 +1128,9 @@ TYPE
 
 		(** Is called after all sub-components are drawn *)
 		PROCEDURE DrawForeground*(canvas : WMGraphics.Canvas);
+		END DrawForeground;
+
+		PROCEDURE DrawSelection(canvas : WMGraphics.Canvas);
 		VAR r,r0: Rectangles.Rectangle; x,y,x0,y0: LONGINT; color: LONGINT;
 
 			PROCEDURE MarkSelected(r: Rectangles.Rectangle; w, color: LONGINT);
@@ -1162,8 +1163,8 @@ TYPE
 					x := r.l + (-r.l) MOD 8;  x0 := 0;
 					WHILE x < r.r DO
 						r0.l := x; r0.r := x+2;
-						IF ODD(x DIV 8+y DIV 8) THEN color := 020H;
-						ELSE color := LONGINT(0FFFFFF20H);
+						IF ODD(x DIV 8+y DIV 8) THEN color := 060H;
+						ELSE color := LONGINT(0FFFFFF60H);
 						END;
 						canvas.Fill(r0,color, WMGraphics.ModeSrcOverDst);
 						INC(x,8); INC(x0);
@@ -1178,7 +1179,8 @@ TYPE
 					MarkSelected(r,8,LONGINT(0FFFFFFFF80H));
 				END;
 			END;
-		END DrawForeground;
+		END DrawSelection;
+
 
 		PROCEDURE DrawSubComponents*(canvas : WMGraphics.Canvas);
 		VAR c : XML.Content; vc : VisualComponent; cr, r : Rectangles.Rectangle;
@@ -1254,6 +1256,7 @@ TYPE
 			IF font # NIL THEN canvas.SetFont(font.Get()) END;
 			DrawBackground(canvas);
 			IF extDraw # NIL THEN extDraw(canvas) END;
+			DrawSelection(canvas);
 			DrawSubComponents(canvas);
 			DrawForeground(canvas);
 			canvas.RestoreState(canvasState)
@@ -1470,12 +1473,12 @@ TYPE
 
 			IF ({Inputs.Release} * flags = {}) THEN
 				IF (keySym = Inputs.KsF1) & (Inputs.Shift * flags # {}) THEN
-					SetEditMode(~editMode.Get(), TRUE);
+					SetEditMode(~editMode.Get(), FALSE);
 					RETURN TRUE
 				ELSIF (keySym = Inputs.KsEscape) THEN
 					selection.Reset(NIL);
 					RETURN FALSE
-				ELSIF editMode.Get() OR parentEditMode THEN
+				ELSIF parentEditMode OR editMode.Get() THEN
 					IF Inputs.Shift * flags # {} THEN scale := 1 ELSE scale := 4 END;
 					IF keySym = Inputs.KsLeft THEN selection.Shift(-scale,0); RETURN TRUE
 					ELSIF keySym = Inputs.KsRight THEN selection.Shift(scale,0); RETURN TRUE
@@ -1698,10 +1701,18 @@ TYPE
 			ASSERT(IsCallFromSequencer());
 			handled := FALSE;
 			IF msg.msgType = Messages.MsgPointer THEN
+				parent := GetParent();
+				IF (parent # NIL) & (parent IS VisualComponent) & parent(VisualComponent).editMode.Get() THEN
+					parentEditMode := TRUE
+				ELSE
+					parentEditMode := FALSE
+				END;
 
 				IF msg.msgSubType = Messages.MsgSubPointerMove THEN
 					IF (msg.flags * {0, 1, 2} = {}) OR (fPointerOwner = NIL)  THEN
-						IF extGetPositionOwner # NIL THEN extGetPositionOwner(msg.x, msg.y, fPointerOwner, handled); END;
+						IF parentEditMode & ~editMode.Get() THEN fPointerOwner := SELF; handled := TRUE
+						ELSIF ~parentEditMode & (extGetPositionOwner # NIL) THEN extGetPositionOwner(msg.x, msg.y, fPointerOwner, handled);
+						END;
 						IF ~handled THEN
 							po := GetPositionOwner(msg.x, msg.y);
 							IF po # fPointerOwner THEN
@@ -1721,15 +1732,8 @@ TYPE
 						msg.originator(WM.ViewPort).GetKeyState(keyFlags);
 					END;
 
-					parent := GetParent();
-					IF (parent # NIL) & (parent IS VisualComponent) & parent(VisualComponent).editMode.Get() THEN
-						parentEditMode := TRUE
-					ELSE
-						parentEditMode := FALSE
-					END;
-
 					IF parentEditMode & (editRegion # None) THEN
-						Edit(msg);
+						Edit(msg)
 					ELSE
 						IF msg.msgSubType = Messages.MsgSubPointerMove THEN
 							IF (parentEditMode) & (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
@@ -1755,7 +1759,6 @@ TYPE
 						ELSIF msg.msgSubType = Messages.MsgSubPointerDown THEN
 							IF parentEditMode THEN
 								editRegion := InEditBounds(msg.x, msg.y);
-
 							END;
 							(*
 							IF (msg.originator # NIL) & (msg.originator IS WM.ViewPort) THEN
@@ -1794,7 +1797,6 @@ TYPE
 					 fPointerOwner.Handle(msg)
 				END
 			ELSIF msg.msgType = Messages.MsgKey THEN
-
 				IF EditKeyEvents(msg.x, msg.flags, msg.y) THEN
 					handled := TRUE;
 				ELSIF focusComponent # SELF THEN focusComponent.Handle(msg)
@@ -2183,35 +2185,47 @@ TYPE
 		next: ComponentListEntry
 	END;
 
-	SelectionList= OBJECT
+	SelectionArray* = POINTER TO ARRAY OF VisualComponent;
+
+	SelectionList*= OBJECT
 	VAR first, last: ComponentListEntry; number: LONGINT; state: LONGINT; timer: Kernel.Timer;
+		onChanged-: WMEvents.EventSource;
+		lock: Locks.RecursiveLock;
 
 		PROCEDURE &Init;
 		BEGIN
-			first := NIL; last := NIL; number := 0; state := 0;
+			NEW(lock);
+			first := NIL; last := NIL; number := 0; state := 0; NEW(onChanged, NIL, NIL, NIL, NIL);
 		END Init;
 
 		PROCEDURE Reset(this: VisualComponent);
 		VAR entry: ComponentListEntry;
 		BEGIN
+			lock.Acquire;
 			entry := first;
 			first := NIL; last := NIL; number := 0;
 			WHILE entry # NIL DO entry.component.Invalidate; entry := entry.next END;
+			lock.Release;
 			Add(this);
+			onChanged.Call(SELF);
 		END Reset;
 
-		PROCEDURE Has(this: ANY): BOOLEAN;
+		PROCEDURE Has*(this: ANY): BOOLEAN;
 		VAR entry: ComponentListEntry;
 		BEGIN
+			IF first = NIL THEN RETURN FALSE END; (* no lock for usual case *)
+			lock.Acquire;
 			entry := first;
 			WHILE (entry # NIL) & (entry.component # this) DO entry := entry.next END;
+			lock.Release;
 			RETURN entry # NIL
 		END Has;
 
-		PROCEDURE Add(this: VisualComponent);
+		PROCEDURE Add*(this: VisualComponent);
 		VAR entry: ComponentListEntry;
 		BEGIN
 			IF (this = NIL) OR Has(this) THEN RETURN END;
+			lock.Acquire;
 			NEW(entry); entry.component := this; entry.next := NIL;
 			IF last = NIL THEN
 				ASSERT(first = NIL);
@@ -2220,26 +2234,47 @@ TYPE
 				last.next := entry; last := entry
 			END;
 			INC(number);
+			lock.Release;
 			this.Invalidate;
+			onChanged.Call(SELF);
 		END Add;
 
-		PROCEDURE Remove(this: VisualComponent);
+		PROCEDURE Remove*(this: VisualComponent);
 		VAR entry, prev: ComponentListEntry;
 		BEGIN
+			lock.Acquire;
 			entry := first; prev := NIL;
 			WHILE (entry # NIL) & (entry.component # this) DO
 				prev := entry;
 				entry := entry.next;
 			END;
-			IF entry = NIL THEN RETURN END;
+			IF entry = NIL THEN lock.Release; RETURN END;
 			IF prev # NIL THEN prev.next := entry.next END;
 			IF entry = first THEN first := first.next END;
 			IF entry = last THEN last := prev END;
 			DEC(number);
+			lock.Release;
 			this.Invalidate;
+			onChanged.Call(SELF);
 		END Remove;
 
-		PROCEDURE Toggle(this: VisualComponent);
+
+		PROCEDURE GetSelection*(): SelectionArray;
+		VAR array: SelectionArray; i: LONGINT; e: ComponentListEntry;
+		BEGIN
+			lock.Acquire;
+			NEW(array, number);
+			e := first; i := 0;
+			WHILE e # NIL DO
+				array[i] := e.component;
+				INC(i);
+				e := e.next;
+			END;
+			lock.Release;
+			RETURN array;
+		END GetSelection;
+
+		PROCEDURE Toggle*(this: VisualComponent);
 		BEGIN
 			IF Has(this) THEN Remove(this) ELSE Add(this) END;
 		END Toggle;
@@ -2267,7 +2302,6 @@ TYPE
 				e := e.next
 			END;
 		END Shift;
-
 
 		PROCEDURE ToImg(start: VisualComponent; VAR this: ComponentListEntry): WMGraphics.Image;
 		VAR l,t,r,b: LONGINT; e: ComponentListEntry; rect: Rectangles.Rectangle; img, image: WMGraphics.Image; w,h: LONGINT;
@@ -2308,7 +2342,7 @@ TYPE
 	BEGIN {ACTIVE}
 		NEW(timer);
 		LOOP
-			timer.Sleep(1000);
+			timer.Sleep(400);
 			state := (state + 1) MOD 2;
 			Update;
 		END
