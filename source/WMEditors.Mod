@@ -219,6 +219,7 @@ TYPE
 				END;
 			ELSIF (property = scaleFont)& (scaleFont.Get()>0) THEN
 				ScaleFont(TextHeight(),scaleFont.Get());
+
 			ELSE
 				IF (property = bounds) & (scaleFont.Get()>0) THEN ScaleFont(TextHeight(),scaleFont.Get()); END;
 				PropertyChanged^(sender, property);
@@ -424,6 +425,7 @@ TYPE
 
 		BEGIN
 			Draw^(canvas);
+			IF ~visible.Get() THEN RETURN END;
 			IF ~readOnlyI THEN
 				WMGraphicUtilities.DrawBevel(canvas, GetClientRect(), BorderWidth, TRUE, SHORT(0808080FFH), WMGraphics.ModeCopy)
 			END;
@@ -1300,6 +1302,7 @@ TYPE
 		END RecacheProperties;
 
 		PROCEDURE PropertyChanged*(sender, property : ANY);
+		VAR reference: XML.Element;
 		BEGIN
 			IF (property = multiLine) THEN tv.isMultiLine.Set(multiLine.Get()); CheckScrollbars;
 			ELSIF (property = focusPrevious) THEN tv.focusPrevious.Set(focusPrevious.Get());
@@ -1307,18 +1310,32 @@ TYPE
 			ELSIF (property = takesFocus) THEN tv.takesFocus.Set(takesFocus.Get());
 			ELSIF (property = needsTab) THEN tv.needsTab.Set(needsTab.Get());
 			ELSIF (property = highlighting) THEN tv.highlighting.Set(highlighting.Get());
+			ELSIF (property = model) THEN
+				reference := model.Get();
+				IF (reference # NIL) & (reference IS Models.Text) THEN
+					SetText(reference(Models.Text).Get());
+				END;
 			ELSE PropertyChanged^(sender, property)
 			END;
 		END PropertyChanged;
 
 		PROCEDURE SetText*(t : Texts.Text);
+		VAR reference: XML.Element; textModel: Models.Text;
 		BEGIN
 			IF t = NIL THEN RETURN END;
 			Acquire;
 			text := t;
 			NEW(utilreader, text);
 			tv.SetText(t);
-			Release
+			Release;
+			reference := model.Get();
+			IF reference # NIL THEN
+				IF reference(Models.Text).Get() # text THEN
+					reference(Models.Text).SetReference(text);
+				END;
+			ELSE
+				NEW(textModel); textModel.SetReference(text); model.Set(textModel);
+			END;
 		END SetText;
 
 		(* this function is use by IMEs to set the next cursor position for live-editing bidirectional text *)
