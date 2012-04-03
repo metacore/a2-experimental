@@ -87,21 +87,24 @@ VAR
 					X11.lastEventTime := kp.time;
 					keycount := Api.LookupString( kp, buffer, bufsize, keysym, compstatus );
 					X11.QueryPointer( xd, event.window, rw, cw, xr, yr, x, y, newxbuttons );
-					i := 0;
 					IF keycount = 0 THEN
 						bdiff := newxbuttons / xbuttons;  xbuttons := newxbuttons;
 						km.ch := 0X;						
 						IF Api.ShiftMask IN bdiff THEN km.keysym := Inputs.KsShiftL
-						ELSIF Api.ControlMask IN bdiff THEN km.keysym := Inputs.KsControlL
-						ELSIF Api.Mod1Mask IN bdiff THEN km.keysym := Inputs.KsAltL
-						ELSIF Api.Mod4Mask IN bdiff THEN km.keysym := Inputs.KsMetaL
+						ELSIF Api.ControlMask IN bdiff THEN 
+							km.keysym := Inputs.KsControlL;
+							IF ~MMseen THEN  SendMouseMsg( x, y, 0, xbuttons )  END
+						ELSIF Api.Mod1Mask IN bdiff THEN 
+							km.keysym := Inputs.KsAltL;
+							IF ~MRseen THEN SendMouseMsg( x, y, 0, xbuttons )  END
+						ELSIF Api.Mod4Mask IN bdiff THEN 
+							km.keysym := Inputs.KsMetaL;
 						ELSIF Api.Mod5Mask IN bdiff THEN km.keysym := Inputs.KsAltR
 						END;
 						km.flags := KeyState( );
 						SendKeyboardMsg( km )
 					ELSE
-						xbuttons := newxbuttons;
-						
+						xbuttons := newxbuttons;  i := 0;
 						WHILE i < keycount DO
 							km.ch := buffer[i];  km.flags := KeyState( );
 							km.keysym := keySymbol[ORD( km.ch )];
@@ -111,7 +114,6 @@ VAR
 							SendKeyboardMsg( km );
 							INC( i )
 						END
-						
 					END;
 			| Api.KeyRelease: kp := S.VAL(Api.XKeyEvent, event);
 					X11.lastEventTime := kp.time;
@@ -120,8 +122,12 @@ VAR
 					IF bdiff # {} THEN
 						km.ch := 0X;
 						IF Api.ShiftMask IN bdiff THEN km.keysym := Inputs.KsShiftL
-						ELSIF Api.ControlMask IN bdiff THEN km.keysym := Inputs.KsControlL
-						ELSIF Api.Mod1Mask IN bdiff THEN km.keysym := Inputs.KsAltL
+						ELSIF Api.ControlMask IN bdiff THEN 
+							km.keysym := Inputs.KsControlL;
+							IF ~MMseen THEN  SendMouseMsg( x, y, 0, xbuttons )  END
+						ELSIF Api.Mod1Mask IN bdiff THEN 
+							km.keysym := Inputs.KsAltL;
+							IF ~MRseen THEN SendMouseMsg( x, y, 0, xbuttons )  END
 						ELSIF Api.Mod4Mask IN bdiff THEN km.keysym := Inputs.KsMetaL
 						ELSIF Api.Mod5Mask IN bdiff THEN km.keysym := Inputs.KsAltR
 						END;
