@@ -547,6 +547,39 @@ BEGIN
 	END;
 END CopyFiles;
 
+PROCEDURE GenerateName(CONST prefix: ARRAY OF CHAR; index: LONGINT; VAR str: ARRAY OF CHAR);
+VAR startTime: Dates.DateTime; num: ARRAY 32 OF CHAR;
+BEGIN
+	startTime := Dates.Now();
+	Strings.FormatDateTime("_yyyymmdd__hhnnss",startTime,str);
+	Strings.Concat(prefix,str,str);
+	IF index # 0 THEN
+		Strings.IntToStr(index,num);
+		Strings.Append(str,"_");
+		Strings.Concat(str,num,str);
+	END;
+	Strings.Concat(str,".bak",str);
+END GenerateName;
+
+PROCEDURE Backup*(context: Commands.Context);
+VAR index: LONGINT; fileList: FileList; nofFiles, n, res: LONGINT; str: Files.FileName; overwritten: BOOLEAN;
+BEGIN
+	overwritten := FALSE;
+	nofFiles := GetFileList(context, fileList);
+	n := 0;
+	WHILE (fileList[n] # NIL) DO
+		index := -1;
+		REPEAT
+			INC(index);
+			GenerateName(fileList[n]^, index, str);
+		UNTIL Files.Old(str) = NIL;
+		Files.CopyFile(fileList[n]^, str, overwritten, res);
+		context.out.String("backed up "); context.out.String(fileList[n]^); context.out.String(" in "); context.out.String(str); context.out.Ln;
+		ASSERT(~overwritten);
+		INC(n);
+	END;
+END Backup;
+
 (** Delete files *)
 PROCEDURE DeleteFiles*(context : Commands.Context); (** [Options] {file} ~ *)
 VAR
