@@ -10,6 +10,7 @@ CONST
 	ViewModeDateTime* = 1;
 	ViewModeDayOfWeek* = 2;
 	ViewModeAnalog* = 3;
+	ViewModeFormatted*= 4;
 
 	WindowWidth = 150; WindowHeight = 50;
 
@@ -204,10 +205,13 @@ TYPE
 		(** colors of hands *)
 		secondHandColor-, minuteHandColor-, hourHandColor- : WMProperties.ColorProperty;
 
+		(* format *)
+		format-: WMProperties.StringProperty;
+
 		currentTime : Dates.DateTime;
 		lock : Locks.Lock; (* protects currentTime *)
 
-		str, format : Strings.String;
+		str : Strings.String;
 		centerX, centerY : LONGINT;
 
 		image : WMGraphics.Image;
@@ -231,8 +235,9 @@ TYPE
 			NEW(secondHandColor, PrototypeSecondHandColor, NIL, NIL); properties.Add(secondHandColor);
 			NEW(minuteHandColor, PrototypeMinuteHandColor, NIL, NIL); properties.Add(minuteHandColor);
 			NEW(hourHandColor, PrototypeHourHandColor, NIL, NIL); properties.Add(hourHandColor);
+			NEW(format, PrototypeFormat, NIL, NIL); properties.Add(format);
 			NEW(lock);
-			NEW(str, 10); NEW(format, 10);
+			NEW(str, 10);
 			image := NIL;
 			updateInterval := 500;
 			alive := TRUE; dead := FALSE;
@@ -245,9 +250,12 @@ TYPE
 		BEGIN
 			IF (property = viewMode) THEN
 				vmValue := viewMode.Get();
-				IF vmValue = ViewModeStandard THEN COPY("hh:nn:ss", format^)
-				ELSIF vmValue = ViewModeDateTime THEN COPY("dd.mm.yy", format^)
-				ELSIF vmValue = ViewModeDayOfWeek THEN COPY("www dd.", format^)
+				IF vmValue = ViewModeStandard THEN
+					format.SetAOC("hh:nn:ss");
+				ELSIF vmValue = ViewModeDateTime THEN
+					format.SetAOC("dd.mm.yy");
+				ELSIF vmValue = ViewModeDayOfWeek THEN
+					format.SetAOC("www dd.");
 				END;
 				timer.Wakeup;
 			ELSIF (property = color) THEN
@@ -274,9 +282,12 @@ TYPE
 		BEGIN
 			RecacheProperties^;
 			vmValue := viewMode.Get();
-			IF vmValue = ViewModeStandard THEN COPY("hh:nn:ss", format^)
-			ELSIF vmValue = ViewModeDateTime THEN COPY("dd.mm.yy", format^)
-			ELSIF vmValue = ViewModeDayOfWeek THEN COPY("www dd.", format^)
+			IF vmValue = ViewModeStandard THEN
+				format.SetAOC("hh.nn.ss");
+			ELSIF vmValue = ViewModeDateTime THEN
+				format.SetAOC("dd.mm.yy");
+			ELSIF vmValue = ViewModeDayOfWeek THEN
+				format.SetAOC("www dd.");
 			END;
 			newImage := NIL;
 			string := imageName.Get();
@@ -327,7 +338,7 @@ TYPE
 		END DrawHands;
 
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
-		VAR time : Dates.DateTime;
+		VAR time : Dates.DateTime; formatString: Strings.String;
 		BEGIN
 			DrawBackground^(canvas);
 			lock.Acquire;
@@ -339,7 +350,8 @@ TYPE
 			IF (viewMode.Get() = ViewModeAnalog) THEN
 				DrawHands(canvas, time);
 			ELSE
-				Strings.FormatDateTime(format^, time, str^);
+				formatString := format.Get();
+				Strings.FormatDateTime(formatString^, time, str^);
 				canvas.SetColor(color.Get());
 				IF (image = NIL) THEN
 					(*WMGraphicUtilities.DrawRect(canvas, GetClientRect(), color.Get(), WMGraphics.ModeCopy);*)
@@ -380,6 +392,7 @@ VAR
 	PrototypeSecondHandLength, PrototypeMinuteHandLength, PrototypeHourHandLength : WMProperties.Int32Property;
 	PrototypeSecondHandColor, PrototypeMinuteHandColor, PrototypeHourHandColor : WMProperties.ColorProperty;
 	PrototypeTimeOffset, PrototypeUpdateInterval : WMProperties.Int32Property;
+	PrototypeFormat: WMProperties.StringProperty;
 
 	contextMenuParStandard, contextMenuParDateTime, contextMenuParDayOfWeek, contextMenuParAnalog : ContextMenuPar;
 
@@ -411,7 +424,7 @@ BEGIN
 	(* DigitalClock *)
 	NEW(PrototypeColor, NIL, Strings.NewString("Color"), Strings.NewString("toggle clock color"));
 	PrototypeColor.Set(0FFH);
-	NEW(PrototypeViewMode, NIL, Strings.NewString("ViewMode"),	Strings.NewString("select view mode"));
+	NEW(PrototypeViewMode, NIL, Strings.NewString("ViewMode"),	Strings.NewString("select view mode: time=0, date=1, dayOfWeek=2, analog=3, formatted=4"));
 	PrototypeViewMode.Set(ViewModeStandard);
 
 	(* AnalogClock *)
@@ -433,6 +446,8 @@ BEGIN
 	PrototypeHourHandColor.Set(WMGraphics.Black);
 	NEW(PrototypeUpdateInterval, NIL, Strings.NewString("UpdateInterval"), Strings.NewString("Redraw rate"));
 	PrototypeUpdateInterval.Set(500);
+	NEW(PrototypeFormat, NIL, Strings.NewString("Format"), Strings.NewString("Textual Format (yy, mm, dd, www, hh, nn, ss)"));
+	PrototypeFormat.Set(Strings.NewString("hh:nn:ss"));
 END InitPrototypes;
 
 PROCEDURE IncCount;
