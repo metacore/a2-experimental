@@ -21,6 +21,7 @@ TYPE
 	VAR
 		treeView- : WMTrees.TreeView;
 		tree- : WMTrees.Tree;
+		selected: WMTrees.TreeNode;
 
 		PROCEDURE &Init;
 		BEGIN
@@ -37,6 +38,7 @@ TYPE
 			caption : ARRAY 128 OF CHAR;
 			enum : XMLObjects.Enumerator;
 			p : ANY; i, len : LONGINT;
+			id: Strings.String;
 		BEGIN
 			name := component.GetName();
 			IF (name # NIL) THEN
@@ -44,6 +46,12 @@ TYPE
 			ELSE
 				caption := "NoName";
 			END;
+
+			id := component.id.Get();
+			IF (id # NIL) & (id^# "") THEN Strings.Append(caption,":"); Strings.Append(caption,id^) END;
+			id := component.uid.Get();
+			IF (id # NIL) & (id^# "") THEN Strings.Append(caption,":"); Strings.Append(caption,id^) END;
+
 
 			IF (component IS WMStandardComponents.Button) THEN
 				string := component(WMStandardComponents.Button).caption.Get();
@@ -64,7 +72,7 @@ TYPE
 						WHILE (i < 10) & (string[i] # 0X) & (len + i < LEN(caption) - 1) DO
 							caption[len + i] := string[i]; INC(i);
 						END;
-						caption[i] := 0X;
+						caption[len+i] := 0X;
 						Strings.Append(caption, "...");
 					END;
 					Strings.Append(caption, ")");
@@ -440,8 +448,40 @@ TYPE
 			RETURN panel;
 		END CreateForm;
 
+		(*
+		PROCEDURE GetSelectedNode(tree: WMTrees.Tree): WMTrees.TreeNode;
+		VAR node: WMTrees.TreeNode;
+
+			PROCEDURE FindSelected(node: WMTrees.TreeNode): WMTrees.TreeNode;
+			VAR state: SET; caption: Strings.String; found: WMTrees.TreeNode;
+			BEGIN
+				IF node # NIL THEN
+					caption := tree.GetNodeCaption(node);
+					TRACE(caption^);
+					TRACE(state);
+					state := tree.GetNodeState(node);
+					IF (WMTrees.StateSelected IN state) THEN
+						found := node
+					ELSE
+						found := FindSelected(tree.GetChildren(node));
+						IF found = NIL THEN
+							found := FindSelected(tree.GetNextSibling(node));
+						END;
+					END;
+				END;
+				RETURN found
+			END FindSelected;
+		BEGIN
+			tree.Acquire;
+			node := tree.GetRoot();
+			node := FindSelected(tree.GetChildren(node));
+			tree.Release;
+			RETURN node
+		END GetSelectedNode;
+		*)
+
 		PROCEDURE TabSelected(sender, data : ANY);
-		VAR caption : Strings.String;
+		VAR caption : Strings.String; node: WMTrees.TreeNode;
 		BEGIN
 			IF (data # NIL) & (data IS WMTabComponents.Tab)  THEN
 				caption := data(WMTabComponents.Tab).caption;
@@ -451,6 +491,11 @@ TYPE
 					ELSIF (caption^ = "Sel. Text") THEN currentTree := selectedTextTree;
 					ELSIF (caption^ = "Selection") THEN currentTree := selectedComponentTree;
 					END;
+					node := currentTree.selected;
+					(* does not work because tree is not rendered yet
+					node := GetSelectedNode(currentTree.tree);
+					*)
+					IF node # NIL THEN NodeClicked(currentTree.treeView, node) END;
 				END;
 			END;
 		END TabSelected;
@@ -462,6 +507,7 @@ TYPE
 				IF sender = currentTree.treeView THEN
 					currentTree.tree.Acquire;
 					ptr := currentTree.tree.GetNodeData(data(WMTrees.TreeNode));
+					currentTree.selected := data(WMTrees.TreeNode);
 					currentTree.tree.Release;
 					IF (ptr # NIL) & (ptr IS WMComponents.Component) THEN
 						propertyPanel.SetComponent(SELF, ptr(WMComponents.Component));
@@ -763,7 +809,7 @@ BEGIN
 	Modules.InstallTermHandler(Cleanup);
 END WMInspector.
 
-SystemTools.Free WMInspector ~
+SystemTools.FreeDownTo WMInspector ~
 
 SystemTools.FreeDownTo WMInspectionComponents ~
 
