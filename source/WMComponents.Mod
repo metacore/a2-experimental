@@ -711,7 +711,7 @@ TYPE
 		VAR root, vc : VisualComponent; p : XML.Element;
 		BEGIN
 			Acquire;
-			IF takesFocus.Get() & visible.Get() THEN
+			IF (takesFocus.Get() OR editMode.Get()) & visible.Get() THEN
 				IF TraceFocus IN Trace THEN KernelLog.String("Set focus to: "); ShowComponent(SELF); KernelLog.Ln; END;
 
 				root := GetVisualComponentRoot();
@@ -1778,8 +1778,8 @@ TYPE
 							ELSE
 								IF extPointerDown # NIL THEN extPointerDown(msg.x, msg.y, msg.flags, handled) END;
 								IF ~handled THEN PointerDown(msg.x, msg.y, msg.flags) END;
-								SetFocus
 							END;
+							SetFocus
 						ELSIF msg.msgSubType = Messages.MsgSubPointerUp THEN
 							IF extPointerUp # NIL THEN extPointerUp(msg.x, msg.y, msg.flags, handled) END;
 							IF ~handled THEN PointerUp(msg.x, msg.y, msg.flags) END
@@ -1797,9 +1797,9 @@ TYPE
 					 fPointerOwner.Handle(msg)
 				END
 			ELSIF msg.msgType = Messages.MsgKey THEN
-				IF EditKeyEvents(msg.x, msg.flags, msg.y) THEN
+				IF focusComponent # SELF THEN focusComponent.Handle(msg)
+				ELSIF EditKeyEvents(msg.x, msg.flags, msg.y) THEN
 					handled := TRUE;
-				ELSIF focusComponent # SELF THEN focusComponent.Handle(msg)
 				ELSIF (visible.Get()) THEN
 					IF ~needsTab.Get() & (msg.y = 0FF09H) THEN
 						IF (Inputs.Shift * msg.flags # {}) THEN FocusPrev ELSE FocusNext END
