@@ -1853,7 +1853,7 @@ TYPE
 			NEW(max, PrototypeSmax,  NIL, NIL); properties.Add(max);
 			NEW(pos, PrototypeSpos, NIL, NIL); properties.Add(pos);
 			NEW(pageSize, PrototypeSpageSize, NIL, NIL); properties.Add(pageSize);
-			NEW(trackerSize, NIL, NIL, NIL); properties.Add(trackerSize);
+			NEW(trackerSize, PrototypeTrackerSize, NIL, NIL); properties.Add(trackerSize);
 			trackerSize.Set(10);
 			NEW(vertical, PrototypeSvertical, NIL, NIL); properties.Add(vertical);
 			pos.SetBounds(min.Get(), max.Get());
@@ -2580,7 +2580,7 @@ TYPE
 	Image* = OBJECT(WMComponents.VisualComponent)
 	VAR
 		imageName- : WMProperties.StringProperty;
-		image : WMGraphics.Image;
+		image- : WMGraphics.Image;
 
 		scaleImage- : WMProperties.BooleanProperty;
 		scaleImageI : BOOLEAN;
@@ -2777,7 +2777,7 @@ VAR
 
 	 (* Scrollbar prototypes *)
 	 PrototypeSvertical* : WMProperties.BooleanProperty;
-	 PrototypeSmin*, PrototypeSmax*, PrototypeSpos*, PrototypeSpageSize*, PrototypeSWidth*,
+	 PrototypeSmin*, PrototypeSmax*, PrototypeSpos*, PrototypeSpageSize*, PrototypeTrackerSize*, PrototypeSWidth*,
 	 PrototypeSMinTrackerSize* : WMProperties.Int32Property;
 		 (* presentation : colors / images *)
  	 PrototypeSUseArrowImages*, PrototypeSUseTrackerImages*, PrototypeSRepeatMiddleBitmap* : WMProperties.BooleanProperty;
@@ -3022,6 +3022,8 @@ BEGIN
 	NEW(PrototypeSpos, NIL, NewString("Pos"), NewString("defines the scrollbar position"));
 	NEW(PrototypeSpageSize, NIL, NewString("PageSize"), NewString("defines the scrollbar page size"));
 	PrototypeSpageSize.Set(20);
+	NEW(PrototypeTrackerSize, NIL, NewString("tracker Size"), NewString("defines the tracker size"));
+	PrototypeTrackerSize.Set(20);
 		(* scrollbar width *)
 	NEW(Int32Prototype, NIL, NewString("Width"), NewString("defines the scrollbar width")); Int32Prototype.Set(14);
 	NEW(PrototypeSWidth, Int32Prototype, NIL, NIL); plScrollbar.Add(PrototypeSWidth);

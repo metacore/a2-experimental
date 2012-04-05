@@ -283,7 +283,7 @@ TYPE
 			RecacheProperties^;
 			vmValue := viewMode.Get();
 			IF vmValue = ViewModeStandard THEN
-				format.SetAOC("hh.nn.ss");
+				format.SetAOC("hh:nn:ss");
 			ELSIF vmValue = ViewModeDateTime THEN
 				format.SetAOC("dd.mm.yy");
 			ELSIF vmValue = ViewModeDayOfWeek THEN
