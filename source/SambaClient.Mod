@@ -11,6 +11,7 @@ CONST
 	Trace = FALSE;
 	SendBufferSize = 32000;
 	RWLimit = 2048;
+	SMBPort* = 445;
 
 TYPE
 	Connection = POINTER TO RECORD
@@ -1152,7 +1153,7 @@ BEGIN
 	c.tid := 0;
 	c.uid := 0;
 	NEW(tcpsender);
-	tcpsender.Connect(c.ipaddr, 445, c);
+	tcpsender.Connect(c.ipaddr, SMBPort, c);
 
 	IF (c.in # NIL) & (c.out # NIL) THEN
 		connection := tcpsender.connection;
@@ -1225,6 +1226,12 @@ END SambaClient.
 
 SystemTools.Free SambaClient ~
 
+FSTools.Mount SMB SmbFS 192.168.1.1 sharename userid password~
+
+FSTools.Mount SMB2 SmbFS 127.0.0.1 SBMShared id pwd~
+
+FSTools.Mount SMB SmbFS 192.168.1.1  ~
+
 FSTools.Mount SMB SmbFS 192.168.1.99 test ~
 
 FSTools.Mount SMB SmbFS 192.168.1.99 d ~
@@ -1236,5 +1243,11 @@ FSTools.Mount SMB SmbFS 129.132.50.7 test ~
 
 FSTools.Mount SMB SmbFS 192.168.1.102 test ~
 
+FSTools.Mount SMB SmbFS 127.0.0.1 ~
+
+FSTools.Mount SMB SmbFS 127.0.0.1 ~
+
 FSTools.Unmount SMB ~
+
+
 

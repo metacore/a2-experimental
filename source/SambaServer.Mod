@@ -8,7 +8,8 @@ CONST
 	NativeOS = "A2";
 	LANManager = "A2 LAN Manager";
 	FileSystem = "AosFS";
-	Trace = TRUE;
+	Trace = FALSE;
+	SMBPort* = 445;
 
 TYPE
 	Share = POINTER TO RECORD
@@ -1913,7 +1914,7 @@ BEGIN {EXCLUSIVE}
 		lastFID := 333;
 		lastSID := 111;
 		NEW(firstConn);
-		NEW(service, 445, NewAgent, res);
+		NEW(service, SMBPort, NewAgent, res);
 		context.out.String("Start SambaServer...");
 		IF res = TCPServices.Ok THEN
 			context.out.String("started!");
@@ -2060,4 +2061,5 @@ SystemTools.Free SambaServer ~
 SambaServer.ListShares ~
 SambaServer.AddShare \AOS AOS: ~
 SambaServer.AddShare \FAT FAT:Test/ ~
+SambaServer.AddShare \Test D:Samba/ ~
 
