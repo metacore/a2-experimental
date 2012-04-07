@@ -70,7 +70,7 @@ TYPE
 		END CanSetPos;
 
 		PROCEDURE SetPos(pos: LONGINT);
-		BEGIN Reset; in.SetPos(pos)
+		BEGIN Reset; pos0 := pos; in.SetPos(pos)
 		END SetPos;
 
 		PROCEDURE Pos(): LONGINT;
