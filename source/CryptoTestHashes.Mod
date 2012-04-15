@@ -7,7 +7,7 @@ IMPORT
 	PROCEDURE CheckHash( CONST modname, data, exphash: ARRAY OF CHAR );
 	VAR
 		temp: ARRAY 1024 OF CHAR;
-		hash: ARRAY 64 OF CHAR;
+		hash: ARRAY 128 OF CHAR;
 		h: Hashes.Hash;
 	BEGIN
 		h := Hashes.NewHash( modname );
@@ -17,32 +17,12 @@ IMPORT
 		Out.Ln; Out.String( "************************************" );
 		Out.Ln; Out.String( "Checking: " ); Out.String( h.name );
 		Out.Ln; Out.String( "Value:" ); Out.Ln; Out.String( "      '" ); Out.String( data ); Out.String( "'" );
-		Out.Ln; Out.String( "Hash:" ); Utils.PrintHex( hash, 0, h.size );
+		Out.Ln; Out.String( "Computed Hash:" ); Utils.PrintHex( hash, 0, h.size );
 		Utils.Hex2Bin( exphash, 0, temp, 0, h.size );
-		Out.Ln; Out.String( "Expected:" ); Utils.PrintHex( temp, 0, h.size );
+		Out.Ln; Out.String( "Expected Hash:" ); Utils.PrintHex( temp, 0, h.size );
 	END CheckHash;
 
-(*
-	PROCEDURE Test( modname : ARRAY OF CHAR);
-		VAR
-			hash, data: ARRAY 64 OF CHAR;
-			h: Hashes.Hash;
-	BEGIN
-		data := "abcabc";
-		h := Hashes.NewHash( modname );
-		(* Update(abc), Update(abc) is the same... *)
-		h.Initialize;
-		h.Update( data , 0, 3 );
-		h.Update( data, 0, 3 );
-		h.GetHash( hash, 0 );
-		Utils.OutHex( hash, 0, h.size );
-		(* ...like Update(abcabc) *)
-		h.Initialize;
-		h.Update( data, 0, 6 );
-		h.GetHash( hash, 0 );
-		Utils.OutHex( hash, 0, h.size );
-	END Test;
-*)
+
 
 	PROCEDURE measureTime( CONST modname: ARRAY OF CHAR );
 	VAR
@@ -85,10 +65,20 @@ IMPORT
 		measureTime( "CryptoSHA1" );
 	END TestSHA1;
 
+	PROCEDURE TestSHA256*;
+	BEGIN
+		CheckHash( "CryptoSHA256", "abc", 
+				"BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD" );
+		CheckHash( "CryptoSHA256", "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+				"248D6A61D20638B8E5C026930C3E6039A33CE45964FF2167F6ECEDD419DB06C1" );
+		measureTime( "CryptoSHA256" );
+	END TestSHA256;
+
 END CryptoTestHashes.
 
 
-SystemTools.Free CryptoTestHashes CryptoMD5 CryptoSHA1 CryptoHashes~
+SystemTools.Free CryptoTestHashes CryptoMD5 CryptoSHA1 CryptoSHA256 CryptoHashes~
 
 CryptoTestHashes.TestMD5~
 CryptoTestHashes.TestSHA1~
+CryptoTestHashes.TestSHA256 ~

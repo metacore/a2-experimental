@@ -644,13 +644,13 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 
 	CryptoBigNumbers.Mod CryptoBase64.Mod CryptoUtils.Mod CryptoCiphers.Mod CryptoARC4.Mod
 	CryptoDES.Mod CryptoDES3.Mod CryptoDES.Data
-	CryptoHashes.Mod
-	CryptoSHA1.Mod CryptoPrimes.Mod CryptoDSA.Mod CryptoDiffieHellman.Mod
+	CryptoHashes.Mod CryptoMD5.Mod CryptoSHA1.Mod CryptoSHA256.Mod
+	CryptoPrimes.Mod CryptoDSA.Mod CryptoDiffieHellman.Mod
 	CryptoAES.Mod
 	CryptoBlowfish.Mod CryptoBlowfish.Data
 	CryptoTwofish.Mod CryptoTwofish.Data
 	CryptoCAST.Mod CryptoCAST.Data
-	CryptoHMAC.Mod CryptoIDEA.Mod CryptoMD5.Mod
+	CryptoHMAC.Mod CryptoIDEA.Mod
 	CryptoRSA.Mod
 END
 
