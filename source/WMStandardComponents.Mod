@@ -272,6 +272,8 @@ TYPE
 		textColor- : WMProperties.ColorProperty;
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
+		fractionalDigits-: WMProperties.Int32Property;
+		modelI : Models.Model;
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -280,22 +282,36 @@ TYPE
 			NEW(textColor, PrototypeTextColor, NIL, NIL); properties.Add(textColor);
 			NEW(alignH, PrototypeAlignH, NIL, NIL); properties.Add(alignH);
 			NEW(alignV, PrototypeAlignV, NIL, NIL); properties.Add(alignV);
+			NEW(fractionalDigits, PrototypeFractionalDigits, NIL, NIL); properties.Add(fractionalDigits);
 			SetGenerator("WMStandardComponents.GenLabel");
 			SetNameAsString(StrLabel)
 		END Init;
 
 		PROCEDURE RecacheProperties;
+		VAR element: XML.Element;
 		BEGIN
 			RecacheProperties^;
+			element := model.Get();
+			IF (element # NIL) & (element IS Models.Model) THEN
+				SetModel(element(Models.Model));
+			END;
 			SetFont(font.Get());
 		END RecacheProperties;
 
 		PROCEDURE PropertyChanged*(sender, property : ANY);
+		VAR element : XML.Element;
 		BEGIN
 			IF (property = caption) OR (property = textColor) OR (property = alignH) OR (property = alignV) THEN
 				Invalidate
 			ELSIF (property = font) THEN
 				RecacheProperties;
+			ELSIF property = model THEN
+				element := model.Get();
+				IF (element # NIL) & (element IS Models.Model) THEN
+					SetModel(element(Models.Model));
+				END;
+			ELSIF property = fractionalDigits THEN
+				ModelChanged(NIL, NIL); Invalidate;
 			ELSE
 				PropertyChanged^(sender, property)
 			END;
@@ -305,6 +321,34 @@ TYPE
 		BEGIN
 			caption.SetAOC(x)
 		END SetCaption;
+
+		PROCEDURE ModelChanged(sender, data : ANY);
+		VAR string : Types.String256; res : LONGINT; real: Types.Longreal;
+		BEGIN
+			IF modelI = NIL THEN RETURN END;
+			res := -1;
+			IF (modelI IS Models.Real) OR (modelI IS Models.Longreal) THEN
+				modelI.GetGeneric(real, res);
+				IF res = Models.Ok THEN
+					Strings.FloatToStr(real.value, 1, fractionalDigits.Get(), 0, string.value);
+				END;
+			END;
+			IF res # Models.Ok THEN
+				modelI.GetGeneric(string, res);
+			END;
+			IF (res = Models.Ok) THEN
+				SetCaption(string.value);
+			END;
+		END ModelChanged;
+
+		PROCEDURE SetModel*(model : Models.Model);
+		BEGIN
+			Acquire;
+			IF (modelI # NIL) THEN modelI.onChanged.Remove(ModelChanged); END;
+			modelI := model;
+			IF (modelI # NIL) THEN ModelChanged(NIL, NIL); modelI.onChanged.Add(ModelChanged); END;
+			Release;
+		END SetModel;
 
 		PROCEDURE DrawBackground*(canvas : Canvas);
 		VAR str : String;
@@ -2748,7 +2792,7 @@ VAR
 	PrototypeTextColor*: WMProperties.ColorProperty;
 	PrototypeAlignH*, PrototypeButtonAlignH*: WMProperties.Int32Property;
 	PrototypeAlignV*, PrototypeButtonAlignV*: WMProperties.Int32Property;
-
+	PrototypeFractionalDigits*: WMProperties.Int32Property;
 	 (* temporary prototype-prototypes *)
 	 ColorPrototype : WMProperties.ColorProperty;
 	 BooleanPrototype : WMProperties.BooleanProperty;
@@ -2905,6 +2949,8 @@ BEGIN
 	PrototypeAlignH.Set(WMGraphics.AlignLeft);
 	NEW(PrototypeAlignV, NIL, NewString("AlignV"), NewString("vertical alignment")); plLabel.Add(PrototypeAlignV);
 	PrototypeAlignV.Set(WMGraphics.AlignCenter);
+	NEW(PrototypeFractionalDigits, NIL, NewString("FractionalDigits"), NewString("fractional digits")); plLabel.Add(PrototypeFractionalDigits);
+	PrototypeFractionalDigits.Set(0);
 
 	(*
 	NEW(plDecorator); WMComponents.propertyListList.Add("Decorator", plDecorator);

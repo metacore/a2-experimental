@@ -111,7 +111,7 @@ TYPE
 
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
-
+		fractionalDigits-: WMProperties.Int32Property;
 
 		modelI : Models.Model;
 
@@ -136,6 +136,8 @@ TYPE
 		dragString : Strings.String; (* 0X-terminated UTF8 string *)
 		dragCopy : BOOLEAN;
 
+		changeDue: BOOLEAN; (* if there is a change due and update must be performed on the model *)
+
 		renderOffsetX : LONGINT;
 		lastX, lastY : LONGINT;
 
@@ -155,6 +157,7 @@ TYPE
 
 			NEW(alignH, PrototypeAlignH, NIL, NIL); properties.Add(alignH);
 			NEW(alignV, PrototypeAlignV, NIL, NIL); properties.Add(alignV);
+			NEW(fractionalDigits, PrototypeFractionalDigits, NIL, NIL); properties.Add(fractionalDigits);
 
 			ime := WMInputMethods.activeIME;
 
@@ -176,6 +179,7 @@ TYPE
 			SetPointerInfo(manager.pointerText);
 			takesFocus.Set(TRUE);
 			SetAttributeValue("Value","");
+			changeDue := FALSE;
 		END Init;
 
 		PROCEDURE Initialize;
@@ -219,7 +223,8 @@ TYPE
 				END;
 			ELSIF (property = scaleFont)& (scaleFont.Get()>0) THEN
 				ScaleFont(TextHeight(),scaleFont.Get());
-
+			ELSIF property = fractionalDigits THEN
+				ModelChanged(NIL, NIL); Invalidate;
 			ELSE
 				IF (property = bounds) & (scaleFont.Get()>0) THEN ScaleFont(TextHeight(),scaleFont.Get()); END;
 				PropertyChanged^(sender, property);
@@ -322,13 +327,24 @@ TYPE
 		END SetModel;
 
 		PROCEDURE ModelChanged(sender, data : ANY);
-		VAR string : Types.String256; res : LONGINT;
+		VAR string : Types.String256; res : LONGINT; real: Types.Longreal;
 		BEGIN
-			modelI.GetGeneric(string, res);
-			IF (res = Models.Ok) & (SELF.string = NIL) OR (UTF8Strings.CompareToUnicode(string.value, SELF.string^) # UTF8Strings.CmpEqual) THEN
+			IF modelI = NIL THEN RETURN END;
+			res := -1;
+			IF (modelI IS Models.Real) OR (modelI IS Models.Longreal) THEN
+				modelI.GetGeneric(real, res);
+				IF res = Models.Ok THEN
+					Strings.FloatToStr(real.value, 1, fractionalDigits.Get(), 0, string.value);
+				END;
+			END;
+			IF res # Models.Ok THEN
+				modelI.GetGeneric(string, res);
+			END;
+			IF (res = Models.Ok) THEN
 				SetAsString(string.value);
 			END;
 		END ModelChanged;
+
 
 		PROCEDURE UpdateModel;
 		VAR string : Types.String256; res : LONGINT; str: Strings.String;
@@ -342,6 +358,7 @@ TYPE
 
 		PROCEDURE Changed;
 		BEGIN
+			changeDue := FALSE;
 			UpdateModel;
 			IF (onChanged # NIL) THEN onChanged.Call(NIL); END;
 		END Changed;
@@ -499,6 +516,9 @@ TYPE
 			IF cursorIsVisible & ~readOnlyI THEN
 				canvas.Fill(WMRectangles.MakeRect(cursorX, y - th , cursorX + CursorWidth, y + font.GetDescent() ), SHORT(0FF0000CCH), WMGraphics.ModeSrcOverDst);
 			END;
+			IF changeDue THEN
+				canvas.Fill(WMRectangles.MakeRect(renderOffsetX,  y - font.GetAscent() , x, y + font.GetDescent() ), SHORT(0FF000066H), WMGraphics.ModeSrcOverDst);
+			END;
 		END Draw;
 
 		PROCEDURE SelectionIsValid() : BOOLEAN;
@@ -559,7 +579,8 @@ TYPE
 					Invalidate;
 				END;
 				ASSERT(string[curLen] = 0);
-				Changed;
+				changeDue := TRUE;
+				(*Changed;*)
 			END;
 		END InsertChar;
 
@@ -596,7 +617,7 @@ TYPE
 					Release;
 					IF changed THEN
 						Invalidate;
-						Changed;
+						changeDue := TRUE;
 					END;
 				END;
 			END;
@@ -633,7 +654,10 @@ TYPE
 					Release;
 					IF changed THEN
 						Invalidate;
+						changeDue := TRUE;
+						(*
 						Changed;
+						*)
 					END;
 				END;
 			END;
@@ -643,14 +667,17 @@ TYPE
 		VAR i : LONGINT;
 		BEGIN
 			IF SelectionIsValid() THEN
-				DeleteSelection; Changed;
+				DeleteSelection; changeDue := TRUE; (*Changed;*)
 			ELSIF (curLen > 0) & (cursorPosition > 0) THEN
 				FOR i := cursorPosition-1 TO curLen-1 DO string[i] := string[i+1]; END;
 				DEC(curLen);
 				DEC(cursorPosition);
 				string[curLen] := 0;
 				Invalidate;
+				changeDue := TRUE;
+				(*
 				Changed;
+				*)
 			END;
 		END Backspace;
 
@@ -659,13 +686,14 @@ TYPE
 		VAR i : LONGINT;
 		BEGIN
 			IF SelectionIsValid() THEN
-				DeleteSelection; Changed;
+				DeleteSelection; (*Changed;*) changeDue := TRUE;
 			ELSIF (curLen > 0) & (cursorPosition < curLen) THEN
 				FOR i := cursorPosition TO curLen-1 DO string[i] := string[i+1]; END;
 				DEC(curLen);
 				string[curLen] := 0;
 				Invalidate;
-				Changed;
+				changeDue := TRUE;
+				(*Changed;*)
 			END;
 		END Delete;
 
@@ -888,7 +916,7 @@ TYPE
 			ELSIF (keySym = 0FF63H) & (flags * Inputs.Shift # {}) THEN  (* Shift Insert *)
 				Paste;
 			ELSIF (keySym = 0FF0DH)  THEN (* Enter *)
-				onEnter.Call(NIL);
+				onEnter.Call(NIL); Changed;
 			ELSIF (keySym = 0FF1BH) THEN (* Escape *)
 				onEscape.Call(NIL);
 			ELSIF (keySym = 00020H) & (flags * Inputs.Ctrl # {}) (* Ctrl-Space *)  THEN
@@ -998,6 +1026,7 @@ TYPE
 		PROCEDURE PointerLeave;
 		BEGIN
 			PointerLeave^;
+			IF changeDue THEN Changed END;
 			lastX := -1; lastY := -1;
 		END PointerLeave;
 
@@ -1174,6 +1203,7 @@ TYPE
 			cursorIsVisible := FALSE;
 			selectingCursorPos := -1;
 			Invalidate;
+			IF changeDue THEN Changed END;
 			IF ime # NIL THEN ime.Hide END;
 		END FocusLost;
 
@@ -1769,6 +1799,7 @@ VAR
 	GSTextField, GSEditor : Strings.String;
 	GSModel, GSModelInfo : Strings.String;
 	PrototypeAlignH, PrototypeAlignV, PrototypeTextBorder: WMProperties.Int32Property;
+	PrototypeFractionalDigits*: WMProperties.Int32Property;
 
 PROCEDURE InitStrings;
 BEGIN
@@ -1799,6 +1830,9 @@ BEGIN
 	PrototypeAlignV.Set(WMGraphics.AlignCenter);
 	NEW(PrototypeTextBorder, NIL, Strings.NewString("TextBorder"), Strings.NewString("text boundary"));
 	PrototypeTextBorder.Set(4);
+	NEW(PrototypeFractionalDigits, NIL, Strings.NewString("FractionalDigits"), Strings.NewString("fractional digits"));
+	PrototypeFractionalDigits.Set(0);
+
 END InitPrototypes;
 
 PROCEDURE GenTextField*() : XML.Element;
