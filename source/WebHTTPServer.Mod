@@ -144,24 +144,28 @@ TYPE
 						END
 					ELSE
 						reply.statuscode := WebHTTP.NotFound;
-						WebHTTP.SendResponseHeader(reply, out);
+						(*WebHTTP.SendResponseHeader(reply, out);*)
 
 						IF (request.method = WebHTTP.GetM) THEN
 							NEW(c, w, out, request, reply);
+							WebHTTP.SendResponseHeader(reply, out);
 							WebHTTP.WriteHTMLStatus(reply, w); 
 							w.Update;
 							c.Close
+						(* *) ELSE WebHTTP.SendResponseHeader(reply, out);
 						END
 					END
 				ELSIF (reply.statuscode = WebHTTP.NotModified) THEN
 					WebHTTP.SendResponseHeader(reply, out)
 				ELSIF (reply.statuscode = WebHTTP.ObjectMoved) THEN
-					WebHTTP.SendResponseHeader(reply, out);
+					(*WebHTTP.SendResponseHeader(reply, out);*)
 					IF (request.method = WebHTTP.GetM) THEN
 						NEW(c, w, out, request, reply);
+						WebHTTP.SendResponseHeader(reply, out);
 						WebHTTP.WriteHTMLStatus(reply, w);
 						w.Update;
 						c.Close
+					(* *) ELSE WebHTTP.SendResponseHeader(reply, out);
 					END
 				END
 			ELSE
@@ -692,7 +696,7 @@ PC.Compile \s TFLog.Mod WebHTTP.Mod WebHTTPServer.Mod WebSSMPPlugin.Mod WebDefau
 
 START THE SERVER
 Configuration.DoCommands
-WebHTTPServerTools.Start \r:WORK: \l:WORK:WebHTTP.Log \s:on~
+WebHTTPServerTools.Start \r:../httproot \l:WebHTTP.Log ~
 WebHTTPServerTools.AddHost livepc.inf.ethz.ch \r:FAT:/httproot/test~
 WebSSMPPlugin.Install~
 WebDefaultSSMP.Install~
@@ -700,6 +704,8 @@ WebHTTPServerTools.ListHosts~
 ~
 
 WebHTTPServerTools.Stop ~
+
+WebFTPServerTools.Start \r:httproot \l:httproot/FTP.Log~
 
 FREE THE SERVER
 SystemTools.Free WebHTTPServerTools WebDefaultSSMP WebSSMPPlugin WebHTTPServer  WebHTTP~
