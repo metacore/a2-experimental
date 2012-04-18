@@ -1150,19 +1150,11 @@ BEGIN
 	SYSTEM.PUT(m.sb + ofs, numPtrs);
 
 	(* write tag addresses as pointer values since the reference section does not contain variables of type SYSTEM.ADDRESS *)
+	(* patching of Type Tags not necessary any more -- cf. Module Heaps *)
+
 	m := ModuleByName(HeapModule);
 	ASSERT((m.refs[0] = 0F8X) & (m.refs[1] = 0X) & (m.refs[2] = "$") & (m.refs[3] = "$") & (m.refs[4] = 0X));
 	i := 5;
-	ofs := VarByName(m.refs, i, FreeBlockTagPtrName); ASSERT(ofs # 0);
-	SYSTEM.PUT(m.sb + ofs, freeBlockTag); Relocate(m.sb + ofs);
-	ofs := VarByName(m.refs, i, SystemBlockTagPtrName); ASSERT(ofs # 0);
-	SYSTEM.PUT(m.sb + ofs, systemBlockTag); Relocate(m.sb + ofs);
-	ofs := VarByName(m.refs, i, RecordBlockTagPtrName); ASSERT(ofs # 0);
-	SYSTEM.PUT(m.sb + ofs, recordBlockTag); Relocate(m.sb + ofs);
-	ofs := VarByName(m.refs, i, ProtRecBlockTagPtrName); ASSERT(ofs # 0);
-	SYSTEM.PUT(m.sb + ofs, protRecBlockTag); Relocate(m.sb + ofs);
-	ofs := VarByName(m.refs, i, ArrayBlockTagPtrName); ASSERT(ofs # 0);
-	SYSTEM.PUT(m.sb + ofs, arrayBlockTag); Relocate(m.sb + ofs);
 	ofs := VarByName(m.refs, i, CurrentMarkValueName); ASSERT(ofs # 0);
 	SYSTEM.PUT(m.sb + ofs, currentMarkValue)
 END RootGlobals;
