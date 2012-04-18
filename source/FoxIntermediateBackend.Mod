@@ -700,7 +700,7 @@ TYPE
 			(* add import names to the generated Sections.Module *)
 			import := x.moduleScope.firstImport;
 			WHILE import # NIL DO
-				import.GetName(idstr);
+				import.module.GetName(idstr);
 				module.imports.AddName(idstr);
 				import := import.nextImport
 			END;
@@ -8120,7 +8120,7 @@ TYPE
 					INC(size,4);
 					String(section,"$$");
 					INC(size,3);
-					(* removed variables -- wrongly interpreted by Reflection 
+					(* removed variables -- wrongly interpreted by Reflection
 					variable := module.module.moduleScope.firstVariable;
 					WHILE(variable # NIL) DO
 						WriteVariable(variable,FALSE);
