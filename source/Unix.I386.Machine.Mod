@@ -6,7 +6,7 @@ IMPORT SYSTEM, Trace, Unix, Glue;
 CONST
 	DefaultConfig = "Color 0  Stacksize 256";
 	
-	Version = "Aos (1.5/r4620)";
+	Version = "Aos (1.6/r4710)";
 
 	DefaultObjectFileExtension* = ".Obj";
 	
@@ -104,7 +104,9 @@ VAR
 	
 	thrSleep-	: PROCEDURE {REALTIME, C} ( ms: LONGINT );
 
-	saveSP*: PROCEDURE;		(* save SP for usage by GC *)
+	saveSP*		: PROCEDURE;		(* save SP for usage by GC *)
+	notifyTimer*	: PROCEDURE{DELEGATE};
+	
 	terminateAos: BOOLEAN;
 	
 	gcFinished: Unix.Condition_t; igc: Unix.Mutex_t;
@@ -880,7 +882,6 @@ END TraceChar;
 	
 	PROCEDURE InvokeGC*;
 	BEGIN
-		(*	ShowLocks  *)
 		Acquire( GC ); (* gets released by Kernel.FinalizerCaller *)
 		collect := TRUE;
 		conWait( gcFinished, igc );
@@ -897,19 +898,13 @@ END TraceChar;
 				t0 := GetTimer( );
 				collectGarbage;  
 				conSignal( gcFinished );
-			(*	thrSleep( 200 ); 
-				IF lock[GC] = 'N' THEN   	
-					(* finalizers have finished *)
-					Acquire( Heaps );  Acquire( GC );  
-					collectGarbage;
-					Release( Heaps );
-				END;	*)
 				t1 := GetTimer();
 				d := SHORT( (t1 - t0 ) DIV f );
 				INC( ticks, d );	
 			ELSE
 				thrSleep( 10 );  INC( ticks, 10 )
-			END
+			END;
+			notifyTimer
 		END
 	END GCLoop;	
 	
@@ -1034,6 +1029,7 @@ BEGIN
 	standaloneAppl := FALSE;
 	
 	saveSP := Empty;	(* to be replaced in module Objects *)
+	notifyTimer := Empty; (* to be replaced in Module Objects *)
 	
 	COPY( Unix.version, version );  Append( version, Version );
 	InitThreads;
