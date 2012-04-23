@@ -365,6 +365,29 @@ CONST
 	XA_FAMILY_NAME * = 64;  XA_FULL_NAME * = 65;  XA_CAP_HEIGHT * = 66;  XA_WM_CLASS * = 67;
 	XA_WM_TRANSIENT_FOR * = 68;  XA_LAST_PREDEFINED * = 68;
 
+(* ****************************************************************
+			CURSORS  <X11/Xcursorfont.h> 
+ **************************************************************** *)
+CONST
+	 XC_num_glyphs* = 154; 
+	 XC_X_cursor* = 0;  XC_arrow* = 2;  XC_based_arrow_down* = 4; XC_based_arrow_up* = 6;
+	 XC_boat* = 8; XC_bogosity* = 10; XC_bottom_left_corner* = 12; XC_bottom_right_corner* = 14;
+	 XC_bottom_side* = 16; XC_bottom_tee* = 18; XC_box_spiral* = 20; XC_center_ptr* = 22;
+	 XC_circle* = 24; XC_clock* = 26; XC_coffee_mug* = 28; XC_cross* = 30; XC_cross_reverse* = 32;
+	 XC_crosshair* = 34; XC_diamond_cross* = 36; XC_dot* = 38; XC_dotbox* = 40; XC_double_arrow* = 42;
+	 XC_draft_large* = 44; XC_draft_small* = 46; XC_draped_box* = 48; XC_exchange* = 50;
+	 XC_fleur* = 52; XC_gobbler* = 54; XC_gumby* = 56; XC_hand1* = 58; XC_hand2* = 60;
+	 XC_heart* = 62; XC_icon* = 64; XC_iron_cross* = 66; XC_left_ptr* = 68; XC_left_side* = 70;
+	 XC_left_tee* = 72; XC_leftbutton* = 74; XC_ll_angle* = 76; XC_lr_angle* = 78; XC_man* = 80;
+	 XC_middlebutton* = 82; XC_mouse* = 84; XC_pencil* = 86; XC_pirate* = 88; XC_plus* = 90;
+	 XC_question_arrow* = 92; XC_right_ptr* = 94; XC_right_side* = 96; XC_right_tee* = 98;
+	 XC_rightbutton* = 100; XC_rtl_logo* = 102; XC_sailboat* = 104; XC_sb_down_arrow* = 106;
+	 XC_sb_h_double_arrow* = 108; XC_sb_left_arrow* = 110; XC_sb_right_arrow* = 112; 
+	 XC_sb_up_arrow* = 114; XC_sb_v_double_arrow* = 116; XC_shuttle* = 118; XC_sizing* = 120;
+	 XC_spider* = 122; XC_spraycan* = 124; XC_star* = 126; XC_target* = 128; XC_tcross* = 130;
+	 XC_top_left_arrow* = 132; XC_top_left_corner* = 134; XC_top_right_corner* = 136;
+	 XC_top_side* = 138; XC_top_tee* = 140; XC_trek* = 142; XC_ul_angle* = 144;
+	 XC_umbrella* = 146; XC_ur_angle* = 148; XC_watch* = 150; XC_xterm* = 152;
 
 (* *********************************************** *)
 	(* X11/Xlib.h*) 	
@@ -444,6 +467,43 @@ TYPE
 			sibling* : Window;
 	 	   	stackMode*: LONGINT;
 		END;
+
+
+	(* new version containing base_width, base_height, and win_gravity fields;
+	  used with WM_NORMAL_HINTS.
+	 *)
+	TYPE DataAspect*=RECORD 
+			x*: LONGINT;	(* numerator *)
+			y*: LONGINT;	(* denominator *)
+		END;		
+		
+	TYPE XSizeHints* = RECORD 
+			flags*: LONGINT;	(* marks which fields in this structure are defined *) (* HUGEINT ?*)
+			x*, y*: LONGINT;		(* obsolete for new window mgrs, but clients *)
+			width*, height*: LONGINT;	(* should set so old wm's don't mess up *)
+			minWidth*, minHeight*: LONGINT;
+			maxWidth*, maxHeight*: LONGINT;
+			widthInc*, heightInc*: LONGINT;
+			maxAspect*, minAspect*: DataAspect;
+			baseWidth*, baseHeight*: LONGINT;		(* added by ICCCM version 1 *)
+			winGravity*: LONGINT;			(* added by ICCCM version 1 *)
+		END;
+	
+	(*  The next block of definitions are for window manager properties that
+	  clients and applications use for communication. *)
+	
+	(* flags argument in size hints *)
+	CONST 
+		USPosition * =  1H; (* user specified x, y *)
+		USSize * =   2H; (* user specified width, height *)
+		PPosition * =  4H; (* program specified position *)
+		PSize * =   8H; (* program specified size *)
+		PMinSize * =   10H; (* program specified minimum size *)
+		PMaxSize * =   20H; (* program specified maximum size *)
+		PResizeInc * =   40H; (* program specified resize increments *)
+		PAspect * =   80H; (* program specified min and max aspect ratios *)
+		PBaseSize * =   100H; (* program specified base for incrementing *)
+		PWinGravity * =  200H; (* program specified window gravity *)
 
 	(* ******************************************** *)
 	(* ******************************************** *)
@@ -873,51 +933,53 @@ CONST
 VAR
 	xlib: LONGINT;
 	
-	OpenDisplay- : PROCEDURE { C } (CONST name: ARRAY OF CHAR): DisplayPtr;
-	CloseDisplay- : PROCEDURE { C } (display:DisplayPtr): LONGINT;
-	CreateWindow- : PROCEDURE { C } (display: DisplayPtr; parent: Window;  x,  y: LONGINT;  width, height, borderWidth, depth, class: LONGINT; visual: VisualPtr; valuemask: LONGINT;  attributes: ADDRESS (*XSetWindowAttributes*) ): Window;	
-	DestroyWindow-: PROCEDURE { C }(display:DisplayPtr; win: Window): LONGINT;
-	DisplayWidthMM-: PROCEDURE {C} ( d: DisplayPtr;  screen: LONGINT ): LONGINT;
-	FreeColormap- : PROCEDURE { C } (display: DisplayPtr;  colormap: Colormap);
-	FreeCursor- : PROCEDURE { C } (display: DisplayPtr;  cursor: Cursor);
-	XGetAtomName- : PROCEDURE { C } (display: DisplayPtr; atom: Atom): LONGINT;
-	GetWindowAttributes- : PROCEDURE { C } (display: DisplayPtr; win: Window; attr: ADDRESS): LONGINT;
+	OpenDisplay- : PROCEDURE {C} (CONST name: ARRAY OF CHAR): DisplayPtr;
+	CloseDisplay- : PROCEDURE {C} (display:DisplayPtr): LONGINT;
+	CreateWindow- : PROCEDURE {C} (display: DisplayPtr; parent: Window; x, y: LONGINT; width, height, borderWidth, depth, class: LONGINT; visual: VisualPtr; valuemask: LONGINT;  VAR attributes: XSetWindowAttributes ): Window;
+	DestroyWindow-: PROCEDURE {C}(display:DisplayPtr; win: Window): LONGINT;
+	DisplayWidthMM-: PROCEDURE {C} (d: DisplayPtr; screen: LONGINT ): LONGINT;
+	FreeColormap- : PROCEDURE {C} (display: DisplayPtr; colormap: Colormap);
+	FreeCursor- : PROCEDURE {C} (display: DisplayPtr;  cursor: Cursor);
+	XGetAtomName- : PROCEDURE {C} (display: DisplayPtr; atom: Atom): LONGINT;
+	GetWindowAttributes- : PROCEDURE {C} (display: DisplayPtr; win: Window; VAR attr: XWindowAttributes): LONGINT;
 	
-	GetWindowProperty-: PROCEDURE {C} ( d: DisplayPtr;  w: Window;  property: Atom;
+	GetWindowProperty-: PROCEDURE {C} (d: DisplayPtr; w: Window; property: Atom;
 											offset, length: LONGINT;  delete: Bool;  reqtype: Atom;  VAR typ: Atom;
 											VAR format, nitems, bytesafter, prop: LONGINT ): LONGINT;
 
 	GrabKeyboard-: PROCEDURE {C} (display: DisplayPtr; grabwindow: Window; ownerevents: Bool; pointermode, keyboardmode: LONGINT; time: Time): LONGINT;
 	GrabPointer-: PROCEDURE {C} (display:DisplayPtr; grabwindow: Window; ownerevents: Bool; eventmask: LONGINT; pointermode, keyboardmode: LONGINT; confineto: Window; cursor: Cursor; time: Time): LONGINT;
-	InternAtom-: PROCEDURE {C} ( display: DisplayPtr;  CONST name: ARRAY OF CHAR;  onlyifexists: Bool ): Atom;
-	LookupKeysym- : PROCEDURE { C } ( CONST event: XKeyEvent; index: LONGINT): KeySym;
-	LookupString-:	PROCEDURE {C} ( VAR event: XKeyEvent;  VAR buf: ARRAY OF CHAR;  bufsize: LONGINT;  VAR keysym: KeySym;  VAR cstat: ComposeStatus ): LONGINT;
-	MapWindow- : PROCEDURE { C } (display: DisplayPtr; win: Window);
-	NextEvent-: PROCEDURE {C} ( d: DisplayPtr;  VAR event: XEvent );
-	Pending- : PROCEDURE { C } (display: DisplayPtr): LONGINT;
-	RaiseWindow-: PROCEDURE { C }(display: DisplayPtr; win: Window);
-	RootWindow-: PROCEDURE { C }(display: DisplayPtr; screen: LONGINT): Window;	
-	SendEvent-: PROCEDURE {C} ( d: DisplayPtr;  w: Window;  propagate: Bool;	eventmask: LONGINT; event: ADDRESS ): Bool;
+	InternAtom-: PROCEDURE {C} (display: DisplayPtr; CONST name: ARRAY OF CHAR;  onlyifexists: Bool ): Atom;
+	LookupKeysym- : PROCEDURE {C} (CONST event: XKeyEvent; index: LONGINT): KeySym;
+	LookupString-:	PROCEDURE {C} (VAR event: XKeyEvent; VAR buf: ARRAY OF CHAR;  bufsize: LONGINT; VAR keysym: KeySym; VAR cstat: ComposeStatus ): LONGINT;
+	MapWindow- : PROCEDURE {C} (display: DisplayPtr; win: Window);
+	NextEvent-: PROCEDURE {C} (d: DisplayPtr; VAR event: XEvent );
+	Pending- : PROCEDURE {C} (display: DisplayPtr): LONGINT;
+	RaiseWindow-: PROCEDURE {C}(display: DisplayPtr; win: Window);
+	RootWindow-: PROCEDURE {C}(display: DisplayPtr; screen: LONGINT): Window;	
+	SendEvent-: PROCEDURE {C} (d: DisplayPtr; w: Window; propagate: Bool; eventmask: LONGINT; event: ADDRESS ): Bool;
 	
-
+	SetNormalHints-: PROCEDURE {C} (d: DisplayPtr; w: Window; VAR hints: XSizeHints);
+	GetNormalHints-: PROCEDURE {C} (d: DisplayPtr; w: Window; VAR hints: XSizeHints): Status;
+	
 	SetStandardProperties-: PROCEDURE {C} (display: DisplayPtr; w: Window; CONST winName: ARRAY OF CHAR; 
-							CONST iconName: ARRAY OF CHAR; iconpixmap: Pixmap;  argv: POINTER TO ARRAY OF CHAR; argc: LONGINT; hints: ADDRESS);
-	SetWMProtocols-: PROCEDURE { C } (display: DisplayPtr; win: Window; protoclos: ADDRESS (* ARRAY OF Atoms *); count: LONGINT): LONGINT;
-	StoreName- : PROCEDURE { C } (display: DisplayPtr; win: Window; CONST s: ARRAY OF CHAR): LONGINT;
-	UnmapWindow- : PROCEDURE { C } (display: DisplayPtr; win: Window);	
+							CONST iconName: ARRAY OF CHAR; iconpixmap: Pixmap;  argv: ADDRESS; argc: LONGINT; VAR hints: XSizeHints);
+	SetWMProtocols-: PROCEDURE {C} (display: DisplayPtr; win: Window; protoclos: ADDRESS (* ARRAY OF Atoms *); count: LONGINT): LONGINT;
+	StoreName- : PROCEDURE {C} (display: DisplayPtr; win: Window; CONST s: ARRAY OF CHAR): LONGINT;
+	UnmapWindow- : PROCEDURE {C} (display: DisplayPtr; win: Window);	
 
 	WarpPointer- : PROCEDURE {C} (display: DisplayPtr; srcwin, destwin: Window; srcx, srcy: LONGINT; srcwidth, srcheight: LONGINT; destx, desty: LONGINT);
 
 	(* cut and paste *)
-	SendSelection*:	 PROCEDURE ( VAR event: XSelectionRequestEvent );
-	ReceiveSelection*:  PROCEDURE  ( VAR event: XSelectionEvent );
+	SendSelection*:	 PROCEDURE (VAR event: XSelectionRequestEvent );
+	ReceiveSelection*:  PROCEDURE (VAR event: XSelectionEvent );
 	ClearSelection*: PROCEDURE ;
 
-	CheckTypedEvent-: PROCEDURE { C } (display: DisplayPtr; eventType: LONGINT; VAR event: XEvent): Bool;
-	CheckMaskEvent-: PROCEDURE { C } (display: DisplayPtr; eventMask: LONGINT; VAR event: XEvent): Bool;
+	CheckTypedEvent-: PROCEDURE {C} (display: DisplayPtr; eventType: LONGINT; VAR event: XEvent): Bool;
+	CheckMaskEvent-: PROCEDURE {C} (display: DisplayPtr; eventMask: LONGINT; VAR event: XEvent): Bool;
 
-	CheckTypedWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventType: LONGINT; VAR event: XEvent): Bool;
-	CheckWindowEvent-: PROCEDURE { C } (display: DisplayPtr; window: Window; eventMask: LONGINT; VAR event: XEvent): Bool;
+	CheckTypedWindowEvent-: PROCEDURE {C} (display: DisplayPtr; window: Window; eventType: LONGINT; VAR event: XEvent): Bool;
+	CheckWindowEvent-: PROCEDURE {C} (display: DisplayPtr; window: Window; eventMask: LONGINT; VAR event: XEvent): Bool;
 
 	(* wrapper procedure for XGetAtomName  *)
 	PROCEDURE GetAtomName*(display: DisplayPtr; atom: Atom): PChar;
@@ -962,6 +1024,7 @@ BEGIN
 		Unix.Dlsym( xlib, "XFreeColormap", SYSTEM.VAL( ADDRESS, FreeColormap));
 		Unix.Dlsym( xlib, "XFreeCursor", SYSTEM.VAL( ADDRESS, FreeCursor));
 		Unix.Dlsym( xlib, "XGetAtomName", SYSTEM.VAL( ADDRESS, XGetAtomName));
+		Unix.Dlsym( xlib, "XGetNormalHints", SYSTEM.VAL( ADDRESS, GetNormalHints));		
 		Unix.Dlsym( xlib, "XGetWindowAttributes", SYSTEM.VAL( ADDRESS, GetWindowAttributes));
 		Unix.Dlsym( xlib, "XGetWindowProperty", SYSTEM.VAL( ADDRESS, GetWindowProperty));
 		Unix.Dlsym( xlib, "XGrabKeyboard", SYSTEM.VAL( ADDRESS, GrabKeyboard));
@@ -976,6 +1039,7 @@ BEGIN
 		Unix.Dlsym( xlib, "XRaiseWindow", SYSTEM.VAL( ADDRESS, RaiseWindow));
 		Unix.Dlsym( xlib, "XRootWindow", SYSTEM.VAL( ADDRESS, RootWindow));
 		Unix.Dlsym( xlib, "XSendEvent", SYSTEM.VAL( ADDRESS, SendEvent));
+		Unix.Dlsym( xlib, "XSetNormalHints", SYSTEM.VAL( ADDRESS, SetNormalHints));
 		Unix.Dlsym( xlib, "XSetStandardProperties", SYSTEM.VAL( ADDRESS, SetStandardProperties));
 		Unix.Dlsym( xlib, "XSetWMProtocols", SYSTEM.VAL( ADDRESS, SetWMProtocols));
 		Unix.Dlsym( xlib, "XStoreName", SYSTEM.VAL( ADDRESS, StoreName));
