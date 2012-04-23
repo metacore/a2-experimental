@@ -506,6 +506,7 @@ TYPE
 			END;
 
 			IF scope.body # NIL THEN
+				IF implementationVisitor.emitLabels THEN ir.Emit(LabelInstruction(scope.body.position)) END;
 				registerNumber := 0;
 				IF ~inline THEN
 					pc := ir.pc;
@@ -7475,6 +7476,7 @@ TYPE
 				ReleaseIntermediateOperand(res);
 			END;
 			IF x # NIL THEN
+				IF emitLabels THEN Emit(LabelInstruction(x.position)) END;
 				IF profile & (x.code = NIL) THEN (* do not profile assembler code sections *)
 					IF moduleBody THEN
 						ProfilerInit();
