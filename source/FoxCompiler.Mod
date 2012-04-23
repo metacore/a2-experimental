@@ -278,15 +278,13 @@ TYPE
 						split := Strings.Split(findPC,":");
 						IF LEN(split)>1 THEN
 							Strings.StrToInt(split[1]^,sectionOffset);
-						ELSE
-							sectionOffset := 0;
-						END;
-						backend.FindPC(module, split[0]^,sectionOffset);
-						IF backend.error THEN
-							FinalMessage(TRUE," could not be compiled (backend errors).");
-							RETURN FALSE
-						ELSE
-							RETURN TRUE
+							backend.FindPC(module, split[0]^,sectionOffset);
+							IF backend.error THEN
+								FinalMessage(TRUE," could not be compiled (backend errors).");
+								RETURN FALSE
+							ELSE
+								RETURN TRUE
+							END;
 						END;
 					END;
 					generatedModule := backend.ProcessSyntaxTreeModule(module);
@@ -306,6 +304,12 @@ TYPE
 				(** generate object file **)
 				IF objectFileFormat # NIL THEN
 					objectFileFormat.Initialize(diagnostics);
+
+					IF findPC # "" THEN
+						Strings.StrToInt(findPC, sectionOffset);
+						generatedModule.SetFindPC(sectionOffset);
+					END;
+
 					IF generatedModule = NIL THEN
 						FinalMessage(TRUE, " could not write object file (nothing generated).");
 						RETURN FALSE
