@@ -111,7 +111,7 @@ TYPE
 
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
-		fractionalDigits-: WMProperties.Int32Property;
+
 
 		modelI : Models.Model;
 
@@ -157,7 +157,6 @@ TYPE
 
 			NEW(alignH, PrototypeAlignH, NIL, NIL); properties.Add(alignH);
 			NEW(alignV, PrototypeAlignV, NIL, NIL); properties.Add(alignV);
-			NEW(fractionalDigits, PrototypeFractionalDigits, NIL, NIL); properties.Add(fractionalDigits);
 
 			ime := WMInputMethods.activeIME;
 
@@ -198,7 +197,7 @@ TYPE
 		END SetCurrentCursorVisibility;
 
 		PROCEDURE PropertyChanged(sender, property : ANY);
-		VAR element : XML.Element; f: WMGraphics.Font;
+		VAR f: WMGraphics.Font;
 
 			PROCEDURE TextHeight(): LONGINT;
 			BEGIN
@@ -217,14 +216,9 @@ TYPE
 			ELSIF (property = font) THEN Invalidate;
 			ELSIF (property = alignH) OR (property = alignV) THEN Invalidate
 			ELSIF (property = model) THEN
-				element := model.Get();
-				IF (element # NIL) & (element IS Models.Model) THEN
-					SetModel(element(Models.Model));
-				END;
+				SetModel(ModelInReference(model))
 			ELSIF (property = scaleFont)& (scaleFont.Get()>0) THEN
 				ScaleFont(TextHeight(),scaleFont.Get());
-			ELSIF property = fractionalDigits THEN
-				ModelChanged(NIL, NIL); Invalidate;
 			ELSE
 				IF (property = bounds) & (scaleFont.Get()>0) THEN ScaleFont(TextHeight(),scaleFont.Get()); END;
 				PropertyChanged^(sender, property);
@@ -232,16 +226,12 @@ TYPE
 		END PropertyChanged;
 
 		PROCEDURE RecacheProperties;
-		VAR element : XML.Element;
 		BEGIN
 			RecacheProperties^;
 			typeI := type.Get();
 			readOnlyI := readOnly.Get();
 			textColorI := textColor.Get();
-			element := model.Get();
-			IF (element # NIL) & (element IS Models.Model) THEN
-				SetModel(element(Models.Model));
-			END;
+			SetModel(ModelInReference(model));
 			Invalidate;
 		END RecacheProperties;
 
@@ -330,21 +320,11 @@ TYPE
 		VAR string : Types.String256; res : LONGINT; real: Types.Longreal;
 		BEGIN
 			IF modelI = NIL THEN RETURN END;
-			res := -1;
-			IF (modelI IS Models.Real) OR (modelI IS Models.Longreal) THEN
-				modelI.GetGeneric(real, res);
-				IF res = Models.Ok THEN
-					Strings.FloatToStr(real.value, 1, fractionalDigits.Get(), 0, string.value);
-				END;
-			END;
-			IF res # Models.Ok THEN
-				modelI.GetGeneric(string, res);
-			END;
+			modelI.GetGeneric(string, res);
 			IF (res = Models.Ok) THEN
 				SetAsString(string.value);
 			END;
 		END ModelChanged;
-
 
 		PROCEDURE UpdateModel;
 		VAR string : Types.String256; res : LONGINT; str: Strings.String;
@@ -1209,6 +1189,87 @@ TYPE
 
 	END TextField;
 
+	NumberField= OBJECT (TextField)
+	VAR
+		fractionalDigits-: WMProperties.Int32Property;
+		unit-: WMProperties.ReferenceProperty;
+		unitModel-: Models.Model;
+
+		PROCEDURE & Init*;
+		BEGIN
+			Init^;
+			SetNameAsString(GSNumberField);
+			SetGenerator("WMEditors.GenNumberField");
+			NEW(fractionalDigits, PrototypeFractionalDigits, NIL, NIL); properties.Add(fractionalDigits);
+			NEW(unit, PrototypeUnit, NIL, NIL); properties.Add(unit);
+		END Init;
+
+		PROCEDURE GetUnit(VAR u: LONGREAL): BOOLEAN;
+		VAR res: LONGINT; real: Types.Longreal; m: Models.Model;
+		BEGIN
+			m := ModelInReference(unit);
+			IF (m # NIL)THEN
+				m.GetGeneric(real, res);
+				IF (res = Models.Ok) & (real.value # 0) THEN
+					u := real.value; RETURN TRUE
+				END;
+			END;
+			RETURN FALSE
+		END GetUnit;
+
+		PROCEDURE RecacheProperties;
+		BEGIN
+			RecacheProperties^;
+			SetUnit(ModelInReference(unit));
+		END RecacheProperties;
+
+		PROCEDURE SetUnit*(m: Models.Model);
+		BEGIN
+			Acquire;
+			IF (unitModel# NIL) THEN unitModel.onChanged.Remove(ModelChanged) END;
+			unitModel := m;
+			IF (unitModel # NIL) THEN ModelChanged(NIL, NIL); unitModel.onChanged.Add(ModelChanged) END;
+			Release;
+		END SetUnit;
+
+		PROCEDURE ModelChanged(sender, data : ANY);
+		VAR string : Types.String256; res : LONGINT; real: Types.Longreal; unit: LONGREAL;
+		BEGIN
+			IF modelI = NIL THEN RETURN END;
+			res := -1;
+			modelI.GetGeneric(real, res);
+			IF res = Models.Ok THEN
+				IF GetUnit(unit) THEN real.value := unit * real.value END;
+				Strings.FloatToStr(real.value, 1, fractionalDigits.Get(), 0, string.value);
+				SetAsString(string.value);
+			END;
+		END ModelChanged;
+
+		PROCEDURE UpdateModel;
+		VAR string : Types.String256; res : LONGINT; str: Strings.String; real: Types.Longreal; u: LONGREAL;
+		BEGIN
+			GetAsString(string.value);
+			IF (modelI # NIL) THEN
+				Strings.StrToFloat(string.value, real.value);
+				IF GetUnit(u) THEN real.value := real.value / u END;
+				modelI.SetGeneric(real, res);
+			END;
+		END UpdateModel;
+
+		PROCEDURE PropertyChanged*(sender, property : ANY);
+		VAR reference: XML.Element; unitModel: XML.Element;
+		BEGIN
+			IF property = fractionalDigits THEN
+				ModelChanged(NIL, NIL); Invalidate;
+			ELSIF property = unit THEN
+				SetUnit(ModelInReference(unit));
+				Invalidate
+			ELSE PropertyChanged^(sender, property)
+			END;
+		END PropertyChanged;
+
+	END NumberField;
+
 TYPE
 
 	MacroData* = OBJECT
@@ -1796,10 +1857,19 @@ VAR
 	GSonEnter, GSonEnterInfo : Strings.String;
 	GSonEscape, GSonEscapeInfo : Strings.String;
 	GSmacros, GSmacrosInfo : Strings.String;
-	GSTextField, GSEditor : Strings.String;
+	GSTextField, GSEditor, GSNumberField : Strings.String;
 	GSModel, GSModelInfo : Strings.String;
 	PrototypeAlignH, PrototypeAlignV, PrototypeTextBorder: WMProperties.Int32Property;
 	PrototypeFractionalDigits*: WMProperties.Int32Property;
+	PrototypeUnit*: WMProperties.ReferenceProperty;
+
+PROCEDURE ModelInReference(property: WMProperties.ReferenceProperty): Models.Model;
+VAR ref: XML.Element;
+BEGIN
+	ref := property.Get();
+	IF (ref # NIL) & (ref IS Models.Model) THEN RETURN ref(Models.Model) ELSE RETURN NIL END;
+END ModelInReference;
+
 
 PROCEDURE InitStrings;
 BEGIN
@@ -1810,6 +1880,7 @@ BEGIN
 	GSmacros := Strings.NewString("macros");
 	GSmacrosInfo := Strings.NewString("must be handled directly without queuing, text has writelock, may not trap");
 	GSTextField := Strings.NewString("TextField");
+	GSNumberField := Strings.NewString("NumberField");
 	GSEditor := Strings.NewString("Editor");
 	GSModel := Strings.NewString("Model");
 	GSModelInfo := Strings.NewString("Model used by component");
@@ -1832,6 +1903,7 @@ BEGIN
 	PrototypeTextBorder.Set(4);
 	NEW(PrototypeFractionalDigits, NIL, Strings.NewString("FractionalDigits"), Strings.NewString("fractional digits"));
 	PrototypeFractionalDigits.Set(0);
+	NEW(PrototypeUnit, NIL, Strings.NewString("Unit"), Strings.NewString("unit conversion factor"));
 
 END InitPrototypes;
 
@@ -1840,6 +1912,12 @@ VAR t : TextField;
 BEGIN
 	NEW(t); RETURN t;
 END GenTextField;
+
+PROCEDURE GenNumberField*() : XML.Element;
+VAR t : NumberField;
+BEGIN
+	NEW(t); RETURN t;
+END GenNumberField;
 
 PROCEDURE GenEditor*() : XML.Element;
 VAR e : Editor;
@@ -1876,3 +1954,8 @@ BEGIN
 	InitStrings;
 	InitPrototypes;
 END WMEditors.
+
+
+
+ComponentViewer.Open WMStandardComponents.GenPanel ~
+ComponentViewer.Open WMEditors.GenNumberField ~ 
