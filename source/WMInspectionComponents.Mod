@@ -1115,24 +1115,33 @@ TYPE
 		END HandleButton;
 
 		PROCEDURE Apply(force : BOOLEAN);
-		VAR reference : WMProperties.ReferenceProperty; string, oldString : ARRAY 256 OF CHAR;
+		VAR reference : WMProperties.ReferenceProperty; string, oldString : ARRAY 256 OF CHAR; stringType: Types.String256; res: LONGINT;
 		BEGIN
 			reference := SELF.reference;
 			IF (reference # NIL) THEN
 				editor.GetAsString(string);
-				reference.GetAsString(oldString);
-				IF force OR (string # oldString) THEN
-					reference.SetAsString(string);
-					object := reference.Get();
-					UpdateButton(object);
+				object := reference.Get();
+				IF object # NIL THEN
+					IF (object IS Models.Model) THEN
+						COPY(string, stringType.value);
+						object(Models.Model).SetGeneric(stringType, res);
+						SetOutOfDate(FALSE);
+					END;
 				ELSE
-					SetOutOfDate(FALSE);
-				END;
+					reference.GetAsString(oldString);
+					IF force OR (string # oldString) THEN
+						reference.SetAsString(string);
+						object := reference.Get();
+						UpdateButton(object);
+					ELSE
+						SetOutOfDate(FALSE);
+					END;
+				END
 			END;
 		END Apply;
 
 		PROCEDURE Synchronize(force : BOOLEAN);
-		VAR reference : WMProperties.ReferenceProperty;string : ARRAY 256 OF CHAR;
+		VAR reference : WMProperties.ReferenceProperty;string : ARRAY 256 OF CHAR; stringType: Types.String256; res: LONGINT;
 		BEGIN
 			reference := SELF.reference;
 			IF (reference # NIL) & (force OR (lastTimestamp # reference.GetTimestamp())) THEN
@@ -1140,6 +1149,10 @@ TYPE
 				reference.GetAsString(string);
 				object := reference.Get();
 				UpdateButton(object);
+				IF (object # NIL) & (object IS Models.Model) THEN
+					object(Models.Model).GetGeneric(stringType,res);
+					IF res = Models.Ok THEN COPY(stringType.value, string) END;
+				END;
 				editor.SetAsString(string);
 				SetOutOfDate(FALSE);
 			END;

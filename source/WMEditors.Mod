@@ -1241,6 +1241,7 @@ TYPE
 			IF res = Models.Ok THEN
 				IF GetUnit(unit) THEN real.value := unit * real.value END;
 				Strings.FloatToStr(real.value, 1, fractionalDigits.Get(), 0, string.value);
+				CleanString(string.value);
 				SetAsString(string.value);
 			END;
 		END ModelChanged;
@@ -1870,6 +1871,17 @@ BEGIN
 	IF (ref # NIL) & (ref IS Models.Model) THEN RETURN ref(Models.Model) ELSE RETURN NIL END;
 END ModelInReference;
 
+PROCEDURE CleanString(VAR s: ARRAY OF CHAR);
+VAR i, lead: LONGINT;
+BEGIN
+	i := 0;
+	WHILE s[i] = " " DO INC(i) END;
+	lead := i;
+	WHILE s[i] # 0X DO s[i-lead] := s[i]; INC(i) END;
+	DEC(i, lead);
+	IF (i>0) & (s[i-1] =".") THEN DEC(i) END;
+	s[i] := 0X;
+END CleanString;
 
 PROCEDURE InitStrings;
 BEGIN

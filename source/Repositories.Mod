@@ -1277,7 +1277,7 @@ BEGIN
 	END;
 END LockChildren;
 
-PROCEDURE GenerateComponent(CONST generator : ARRAY OF CHAR) : Component;
+PROCEDURE GenerateComponent*(CONST generator : ARRAY OF CHAR) : Component;
 VAR
 	moduleName, procedureName : Modules.Name; msg : ARRAY 128 OF CHAR; res : LONGINT;
 	generate : XML.GeneratorProcedure;
@@ -1501,7 +1501,7 @@ END ExtractCommand;
 PROCEDURE CallCommand*(CONST command : ARRAY OF CHAR; VAR context : Context; VAR res : LONGINT);
 VAR
 	cmd : ARRAY 64 OF CHAR; param : POINTER TO ARRAY OF CHAR; reader : Streams.StringReader;
-	proc : Command;  i, j : LONGINT;
+	proc : Command;  i, j : LONGINT; object: ANY;
 BEGIN
 	IF Strings.StartsWith2(CommandPrefix, command) THEN
 		i := Strings.Length(CommandPrefix);
@@ -1535,6 +1535,15 @@ BEGIN
 				context.Init(context.in, reader, context.out, context.error, context.caller);
 			END;
 			proc(context);
+		ELSE
+			object := GenerateComponent(cmd);
+			IF object # NIL THEN
+				IF (context = NIL) THEN NEW(context, NIL, reader, NIL, NIL, NIL);
+				ELSE
+					context.Init(context.in, reader, context.out, context.error, context.caller);
+				END;
+				context.object := object
+			END;
 		END;
 	ELSE
 		res := NotFound;

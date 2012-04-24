@@ -92,6 +92,17 @@ TYPE
 			nofContents := 0;
 		END Init;
 
+		PROCEDURE ContentToFront*(c: Content);
+		BEGIN
+			RemoveContent(c);
+			BEGIN{EXCLUSIVE}
+				c.next := first;
+				c.previous := NIL;
+				first := c;
+				INC(nofContents);
+			END;
+		END ContentToFront;
+
 		PROCEDURE AddContent*(c: Content);
 		BEGIN {EXCLUSIVE}
 			ASSERT((c # NIL) & (c.next = NIL) & (c.previous = NIL)); (* may not be in more than one list! *)
@@ -674,7 +685,7 @@ TYPE
 		BEGIN
 			SELF.name := name;
 		END SetNameAsString;
- 
+
 		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT);
 		VAR ch: CHAR;
 		BEGIN

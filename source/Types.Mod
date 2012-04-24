@@ -287,17 +287,21 @@ BEGIN
 		target(Integer).value := ENTIER(value);
 	ELSIF (target IS String) THEN
 		IF (target(String).value # NIL) THEN
-			Strings.FloatToStr(value, 0, 1, 0, target(String).value^);
+			Strings.FloatToStr(value, 0, 8, 0, target(String).value^);
+			CleanString(target(String).value^);
 		ELSE
 			res := ConversionError;
 		END;
 	ELSIF (target IS DynamicString) THEN
 		EnsureLength(target(DynamicString), 32); (* TBD: max length of real? *)
-		Strings.FloatToStr(value, 0, 1, 0, target(DynamicString).value^);
+		Strings.FloatToStr(value, 0, 8, 0, target(DynamicString).value^);
+		CleanString(target(DynamicString).value^);
 	ELSIF (target IS String32) THEN
-		Strings.FloatToStr(value, 0, 1, 0, target(String32).value);
+		Strings.FloatToStr(value, 0, 8, 0, target(String32).value);
+		CleanString(target(String32).value);
 	ELSIF (target IS String256) THEN
-		Strings.FloatToStr(value, 0, 1, 0, target(String256).value);
+		Strings.FloatToStr(value, 0, 8, 0, target(String256).value);
+		CleanString(target(String256).value);
 	ELSIF (target IS Generic) THEN
 		IF (target(Generic).Set # NIL) THEN
 			real.value := value;
@@ -358,17 +362,21 @@ BEGIN
 		target(Integer).value := ENTIER(value);
 	ELSIF (target IS String) THEN
 		IF (target(String).value # NIL) THEN
-			Strings.FloatToStr(value, 0, 0, 0, target(String).value^);
+			Strings.FloatToStr(value, 0, 8, 0, target(String).value^);
+			CleanString(target(String).value^);
 		ELSE
 			res := ConversionError;
 		END;
 	ELSIF (target IS DynamicString) THEN
 		EnsureLength(target(DynamicString), 128); (* TBD max length of longreal? *)
-		Strings.FloatToStr(value, 0, 0, 0, target(DynamicString).value^);
+		Strings.FloatToStr(value, 0, 8, 0, target(DynamicString).value^);
+		CleanString(target(DynamicString).value^);
 	ELSIF (target IS String32) THEN
-		Strings.FloatToStr(value, 0, 0, 0, target(String32).value);
+		Strings.FloatToStr(value, 0, 8, 0, target(String32).value);
+		CleanString(target(String32).value);
 	ELSIF (target IS String256) THEN
-		Strings.FloatToStr(value, 0, 0, 0, target(String256).value);
+		Strings.FloatToStr(value, 0, 8, 0, target(String256).value);
+		CleanString(target(String256).value);
 	ELSIF (target IS Generic) THEN
 		IF (target(Generic).Set # NIL) THEN
 			longreal.value := value;
@@ -881,6 +889,19 @@ BEGIN
 END Assign;
 
 (* Helper procedures *)
+
+
+PROCEDURE CleanString(VAR s: ARRAY OF CHAR);
+VAR i, lead: LONGINT;
+BEGIN
+	i := 0;
+	WHILE s[i] = " " DO INC(i) END;
+	lead := i;
+	WHILE s[i] # 0X DO s[i-lead] := s[i]; INC(i) END;
+	DEC(i, lead);
+	IF (i>0) & (s[i-1] =".") THEN DEC(i) END;
+	s[i] := 0X;
+END CleanString;
 
 PROCEDURE StringToComponent(CONST string : ARRAY OF CHAR; VAR component : Repositories.Component; VAR res : LONGINT);
 VAR repositoryName, componentName : ARRAY 64 OF CHAR; componentID : LONGINT;
