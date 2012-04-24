@@ -2206,6 +2206,11 @@ TYPE
 						BrneL(falseLabel, left.extra, right.extra); (* step *)
 						ReleaseOperand(left); ReleaseOperand(right);
 						BrL(trueLabel)
+					ELSIF IsDelegate(leftType) THEN (* delegate comparison *)
+						BrneL(falseLabel, left.op, right.op); (* first *)
+						BrneL(falseLabel, left.tag, right.tag); (* last *)
+						ReleaseOperand(left); ReleaseOperand(right);
+						BrL(trueLabel)
 					ELSIF leftType IS SyntaxTree.ComplexType THEN
 						(* TODO: review this *)
 						BrneL(falseLabel, left.op, right.op); (* real part *)
@@ -2308,6 +2313,11 @@ TYPE
 						BrneL(trueLabel, left.op, right.op); (* first *)
 						BrneL(trueLabel, left.tag, right.tag); (* last *)
 						BrneL(trueLabel, left.extra, right.extra); (* step *)
+						ReleaseOperand(left); ReleaseOperand(right);
+						BrL(falseLabel)
+					ELSIF IsDelegate(leftType) THEN (* delegate comparison *)
+						BrneL(trueLabel, left.op, right.op); (* first *)
+						BrneL(trueLabel, left.tag, right.tag); (* last *)
 						ReleaseOperand(left); ReleaseOperand(right);
 						BrL(falseLabel)
 					ELSIF leftType IS SyntaxTree.ComplexType THEN
