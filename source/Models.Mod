@@ -1,7 +1,7 @@
 MODULE Models; (** AUTHOR "staubesv"; PURPOSE "Models"; *)
 
 IMPORT
-	Streams, Locks, Types, Strings, XML, Texts, TextUtilities, Repositories, WMEvents, WMComponents;
+	Streams, Locks, Types, Strings, XML, Texts, TextUtilities, Repositories, WMEvents, WMComponents, WMProperties, XMLObjects;
 
 CONST
 	Ok* = Types.Ok;
@@ -133,16 +133,20 @@ TYPE
 		PROCEDURE AddContent*(content : XML.Content); (** overwrite, protected *)
 		VAR string : Types.String; res : LONGINT;
 		BEGIN
+			IF (content # NIL) & (content IS XML.Element) & (content(XML.Element).GetName()^="VALUE") THEN
+				content := content(XML.Element).GetFirst();
+			END;
+
 			IF (SELF IS Container) THEN
 				AddContent^(content);
-			ELSE
+			ELSIF (content # NIL) & (content IS XML.ArrayChars) THEN
 				(* This violates the XML document structure. Could be fixed by allowing XML.ArrayChars SET and GET
 					procedures that dynamically set/get the model data as string *)
-				ASSERT((content # NIL) & (content IS XML.ArrayChars));
 				string.value := content(XML.ArrayChars).GetStr();
 				IF (string.value # NIL) THEN
 					SetGeneric(string, res); (* ignore res *)
 				END;
+			ELSE AddContent^(content);
 			END;
 		END AddContent;
 
@@ -155,7 +159,7 @@ TYPE
 
 		(** Externalize model to stream <w> at indention level <level> *)
 		PROCEDURE Write*(w: Streams.Writer; context: ANY; level : LONGINT); (** overwrite *)
-		VAR name : Strings.String;
+		VAR name : Strings.String; enum: XMLObjects.Enumerator; c: ANY;
 		BEGIN
 			IF (SELF IS Container) THEN
 				Write^(w, context, level);
@@ -164,7 +168,22 @@ TYPE
 				AcquireRead;
 				name := GetName();
 				w.Char('<'); w.String(name^); WriteAttributes(w, context, level); w.Char('>');
+				NewLine(w,level+1);
+				w.String("<VALUE>");
 				WriteValue(w, level + 1);
+				w.String("</VALUE>");
+
+				properties.WriteXML(w,context,level);
+
+				enum := GetContents();
+				WHILE enum.HasMoreElements() DO
+					c := enum.GetNext();
+					IF ~(c IS WMProperties.Properties) THEN
+						IF ~((c IS WMComponents.Component) & ((c(WMComponents.Component).internal) OR c(WMComponents.Component).IsLocked())) THEN NewLine(w, 0); NewLine(w, level+1); END;
+						c(XML.Content).Write(w, context, level+1);
+					END;
+				END;
+				NewLine(w,level);
 				w.String("</"); w.String(name^); w.Char('>');
 				ReleaseRead;
 			END;
@@ -822,6 +841,7 @@ TYPE
 		END GetField;
 
 	END Container;
+
 
 VAR
 	StrBoolean, StrInteger, StrReal, StrLongreal, StrChar, StrString, StrSet, StrText, StrContainer : Strings.String;
