@@ -1049,6 +1049,7 @@ TYPE
 			AddContent(adrLabel);
 			adrLabel.onStartDrag.Add(MyStartDrag);
 			adrLabel.SetExtPointerMoveHandler(AdrLabelMove);
+			adrLabel.SetExtDragDroppedHandler(MyDragDropped);
 			NEW(button); button.alignment.Set(WMComponents.AlignRight);
 			button.bounds.SetWidth(60);
 			button.fillColor.Set(WMGraphics.Red);
@@ -1079,6 +1080,20 @@ TYPE
 			adrLabel.Draw(canvas);
 			IF StartDrag(reference.Get(),img,0,0,NIL,NIL) THEN END;
 		END MyStartDrag;
+
+		PROCEDURE MyDragDropped(x,y: LONGINT; dragInfo: WMWindowManager.DragInfo; VAR handled: BOOLEAN);
+		VAR ref: ANY;
+		BEGIN
+			ref := dragInfo.data;
+			IF (ref # NIL) & (ref IS WMComponents.Component) THEN
+				reference.Set(ref(WMComponents.Component));
+				handled := TRUE
+			ELSIF ref = NIL THEN
+				reference.Set(NIL);
+				handled := TRUE
+			ELSE HALT(100);
+			END;
+		END MyDragDropped;
 
 		PROCEDURE HandleButton(sender, data : ANY);
 		VAR object : XML.Element; modelView : ModelView; window : Window; propertyPanel: PropertyPanel;
@@ -1149,7 +1164,7 @@ TYPE
 		VAR string : Types.String32; res : LONGINT; nbrStr : ARRAY 17 OF CHAR;
 		BEGIN
 			IF (object # NIL) THEN
-				Strings.AddressToStr(SYSTEM.ADR(object), nbrStr);
+				Strings.AddressToStr(SYSTEM.VAL(SYSTEM.ADDRESS,object), nbrStr);
 				adrLabel.caption.SetAOC(nbrStr);
 				button.fillColor.Set(WMGraphics.Green);
 				IF (object IS Models.Model) THEN
