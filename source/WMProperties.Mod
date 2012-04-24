@@ -1580,6 +1580,8 @@ TYPE
 			RETURN object
 		END Get;
 
+
+
 		PROCEDURE Set*(object : Repositories.Component);
 		BEGIN
 			AcquireWrite; (* TBD: Store object to repository *)
@@ -1679,7 +1681,7 @@ TYPE
 		END ToXML;
 
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY;  indent : LONGINT);
-		VAR name : String; id,res: LONGINT; repository: Repositories.Repository;
+		VAR name : String; id,res: LONGINT; repository: Repositories.Repository; objectName: String;
 		BEGIN
 			name := GetName();
 			IF name = NIL THEN KernelLog.String("Nameless boolean property encountered. Ignored"); KernelLog.Ln; RETURN END;
@@ -1690,8 +1692,10 @@ TYPE
 				IF (context # NIL) & (context IS Repositories.StoreContext) & (object # NIL) THEN
 					repository := context(Repositories.StoreContext).repository;
 					id := 1;
-					repository.PutComponent(object, name^,id,res);
-					w.String(":"); (* <-- THIS repository *) w.String(name^); w.String(":"); w.Int(id, 0);
+					objectName := object.GetName();
+					IF (objectName=NIL) OR (objectName^="") THEN objectName :=anonymous END;
+					repository.PutComponent(object, objectName^,id,res);
+					w.String(":"); (* <-- THIS repository *) w.String(objectName^); w.String(":"); w.Int(id, 0);
 				ELSE
 					ToStream(w);
 				END;
@@ -1888,8 +1892,6 @@ TYPE
 			RETURN (i < nofProperties)
 		END SetPropertyValue;
 
-
-
 		PROCEDURE SetXML*(xml : XML.Element);
 		VAR
 			en : XMLObjects.Enumerator;
@@ -2025,6 +2027,7 @@ TYPE
 VAR
 	StringProperties : String;
 	StringPropertiesInfo : String;
+	anonymous: String;
 
 PROCEDURE Indent(w : Streams.Writer; indent : LONGINT);
 VAR i : LONGINT;
@@ -2111,6 +2114,7 @@ END NewReference;
 
 BEGIN
 	StringProperties := Strings.NewString("PropertyList");
-	StringPropertiesInfo := Strings.NewString("the event is called if a property in the list is changed")
+	StringPropertiesInfo := Strings.NewString("the event is called if a property in the list is changed");
+	anonymous := Strings.NewString("ANONYMOUS");
 END WMProperties.
 
