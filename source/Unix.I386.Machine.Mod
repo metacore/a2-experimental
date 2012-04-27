@@ -4,16 +4,16 @@ MODULE Machine;	(** AUTHOR "pjm"; PURPOSE "Bootstrapping, configuration and mach
 IMPORT SYSTEM, Trace, Unix, Glue;
 
 CONST
-	DefaultConfig = "Color 0  Stacksize 256";
+	DefaultConfig = "Color 0  StackSize 256";
 	
-	Version = "Aos (1.6/r4710)";
+	Version = "Aos (1.7/r4723)";
 
 	DefaultObjectFileExtension* = ".Obj";
 	
 	Second* = 1000; (* frequency of ticks increments in Hz *)
 
 	(** bits in features variable *)
-	MTTR* = 12; MMX* = 23; 
+	MTTR* = 12;  MMX* = 23; 
 	
 	AdrSize = SYSTEM.SIZEOF( SYSTEM.ADDRESS );
 	SizeSize = SYSTEM.SIZEOF( SYSTEM.SIZE );
@@ -47,7 +47,8 @@ TYPE
 		beginBlockAdr-, endBlockAdr-: SYSTEM.ADDRESS
 	END;
 	
-	(** processor state, ordering of record fields is predefined! (not used in UnixAos, for compatibility only)*)
+	(** processor state, ordering of record fields is predefined! *)
+		(*!(not used in UnixAos, for interface compatibility only)*)
 	State* = RECORD					(* offsets used in FieldInterrupt, FieldIRQ and Objects.RestoreState *)
 		EDI*, ESI*, ERR*, ESP0*, EBX*, EDX*, ECX*, EAX*: LONGINT;	(** ESP0 = ADR(s.INT) *)
 		INT*, BP*, PC*, CS*: LONGINT;	(* BP and ERR are exchanged by glue code, for procedure link *)
@@ -60,8 +61,8 @@ TYPE
 	Size = SYSTEM.SIZE;
 
 VAR
-	lock-: ARRAY MaxLocks OF CHAR;  (* not implemented as SET because of shared access *)
-	mtx-: ARRAY MaxLocks OF Unix.Mutex_t;
+	lock-	: ARRAY MaxLocks OF CHAR;  (* not implemented as SET because of shared access *)
+	mtx		: ARRAY MaxLocks OF Unix.Mutex_t;
 	
 	version*: ARRAY 64 OF CHAR;	(** Aos version *)
 	
@@ -117,64 +118,64 @@ VAR
 
 (** -- Processor identification -- *)
 
-(** Return current processor ID (0 to MaxNum-1). *)
-PROCEDURE {REALTIME} ID* (): LONGINT;
-BEGIN
-	RETURN 0
-END ID;
-	
-	
-(* insert given memory block in sorted list of memory blocks, sort key is startAdr field - called during GC *)
-PROCEDURE InsertMemoryBlock(memBlock: MemoryBlock);
-VAR cur {UNTRACED}, prev {UNTRACED}: MemoryBlock;
-BEGIN
-	cur := memBlockHead;
-	prev := NIL;
-	WHILE (cur # NIL) & LessThan( cur.startAdr, memBlock.startAdr ) DO
-		prev := cur;
-		cur := cur.next
-	END;
-	IF prev = NIL THEN (* insert at head of list *)
-		memBlock.next := memBlockHead;
-		memBlockHead := memBlock
-	ELSE (* insert in middle or at end of list *)
-		prev.next := memBlock;
-		memBlock.next := cur;
-		IF cur = NIL THEN
-			memBlockTail := memBlock
-		END
-	END
-END InsertMemoryBlock;
-
-	
-(* Free unused memory block - called during GC *)
-PROCEDURE FreeMemBlock*(memBlock: MemoryBlock);
-VAR cur {UNTRACED}, prev {UNTRACED}: MemoryBlock;
-BEGIN
-	cur := memBlockHead;
-	prev := NIL;
-	WHILE (cur # NIL) & (cur # memBlock) DO
-		prev := cur;
-		cur := cur.next
-	END;
-	IF cur = memBlock THEN 
-		IF prev = NIL THEN
-			memBlockHead := cur.next
-		ELSE
-			prev.next := cur.next;
-			IF cur.next = NIL THEN
-				memBlockTail := prev
-			END
+	(** Return current processor ID (0 to MaxNum-1). *)
+	PROCEDURE {REALTIME} ID* (): LONGINT;
+	BEGIN
+		RETURN 0
+	END ID;
+		
+		
+	(* insert given memory block in sorted list of memory blocks, sort key is startAdr field - called during GC *)
+	PROCEDURE InsertMemoryBlock(memBlock: MemoryBlock);
+	VAR cur {UNTRACED}, prev {UNTRACED}: MemoryBlock;
+	BEGIN
+		cur := memBlockHead;
+		prev := NIL;
+		WHILE (cur # NIL) & LessThan( cur.startAdr, memBlock.startAdr ) DO
+			prev := cur;
+			cur := cur.next
 		END;
-		Unix.free( memBlock.startAdr )
-	ELSE
-		HALT(535)	(* error in memory block management *)
-	END;
-END FreeMemBlock;
+		IF prev = NIL THEN (* insert at head of list *)
+			memBlock.next := memBlockHead;
+			memBlockHead := memBlock
+		ELSE (* insert in middle or at end of list *)
+			prev.next := memBlock;
+			memBlock.next := cur;
+			IF cur = NIL THEN
+				memBlockTail := memBlock
+			END
+		END
+	END InsertMemoryBlock;
+
+		
+	(* Free unused memory block - called during GC *)
+	PROCEDURE FreeMemBlock*(memBlock: MemoryBlock);
+	VAR cur {UNTRACED}, prev {UNTRACED}: MemoryBlock;
+	BEGIN
+		cur := memBlockHead;
+		prev := NIL;
+		WHILE (cur # NIL) & (cur # memBlock) DO
+			prev := cur;
+			cur := cur.next
+		END;
+		IF cur = memBlock THEN 
+			IF prev = NIL THEN
+				memBlockHead := cur.next
+			ELSE
+				prev.next := cur.next;
+				IF cur.next = NIL THEN
+					memBlockTail := prev
+				END
+			END;
+			Unix.free( memBlock.startAdr )
+		ELSE
+			HALT(535)	(* error in memory block management *)
+		END;
+	END FreeMemBlock;
 
 	
 
-	(* expand heap by allocating a new memory block - called during GC *)
+	(* expand heap by allocating a new memory block *)
 	PROCEDURE ExpandHeap*( dummy: LONGINT; size: Size; VAR beginBlockAdr, endBlockAdr: Address );
 	VAR mBlock: MemoryBlock;  alloc, s: Size;  a, adr: Address; 
 	BEGIN 
@@ -233,14 +234,14 @@ END FreeMemBlock;
 	END TraceHeap;
 
 	
-(** Return information on free memory in Kbytes. *)
-PROCEDURE GetFreeK*(VAR total, lowFree, highFree: SYSTEM.SIZE);
-BEGIN
-	(* meaningless in Unix port, for interface compatibility only *)
-	total := 0;
-	lowFree := 0;
-	highFree := 0
-END GetFreeK;
+	(** Return information on free memory in Kbytes. *)
+	PROCEDURE GetFreeK*(VAR total, lowFree, highFree: SYSTEM.SIZE);
+	BEGIN
+		(* meaningless in Unix port, for interface compatibility only *)
+		total := 0;
+		lowFree := 0;
+		highFree := 0
+	END GetFreeK;
 
 (* Compare two unsigned addresses *)
 PROCEDURE {REALTIME} -LessThan* (a, b: SYSTEM.ADDRESS): BOOLEAN;
@@ -711,11 +712,11 @@ CODE { SYSTEM.i486 }
 END ChangeByteOrder;
 
 
-(* Send and print character *)
-PROCEDURE TraceChar *(c: CHAR);
-BEGIN
-	Trace.Char( c )
-END TraceChar;
+	(* Send and print character *)
+	PROCEDURE TraceChar *(c: CHAR);
+	BEGIN
+		Trace.Char( c )
+	END TraceChar;
 
 
 	(** CPU identification *)
@@ -897,8 +898,8 @@ END TraceChar;
 				collect := FALSE;
 				t0 := GetTimer( );
 				collectGarbage;  
-				conSignal( gcFinished );
 				t1 := GetTimer();
+				conSignal( gcFinished );
 				d := SHORT( (t1 - t0 ) DIV f );
 				INC( ticks, d );	
 			ELSE

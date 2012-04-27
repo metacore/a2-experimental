@@ -23,8 +23,8 @@ VAR
 	AAgetadr	: Address;	(* address of procedure dlsym *)
 
 	dlsym-		: PROCEDURE {C} ( handle: Address;  name: Address; adr: Address );
-	dlopen-		: PROCEDURE {C} ( pathname: Address;  mode: LONGINT ): Address;
-	dlclose-		: PROCEDURE {C} ( handle: Address );
+	dlopen-	: PROCEDURE {C} ( pathname: Address;  mode: LONGINT ): Address;
+	dlclose-	: PROCEDURE {C} ( handle: Address );
 	cout		: PROCEDURE {C} ( c: CHAR );	(* output to Unix stdout *)
 
 	debug-		: SET;	(* value of environment variable  OBERON_DEBUG  *)

@@ -79,9 +79,7 @@ TYPE
 	ProtRecBlock* = POINTER TO ProtRecBlockDesc;
 	ProtRecBlockDesc* = RECORD 
 		recSize: Size;
-		ptrOffs: Address; 
 		
-		count*: LONGINT;		
 		awaitingLock*:	ProcessQueue;	(* unused in UnixAos *)
 		awaitingCond*: ProcessQueue;
 		lockedBy*: ANY;	
@@ -96,7 +94,7 @@ TYPE
 		BEGIN HALT( 301 ) END FindRoots;
 	END RootObject;
 
-	StaticTypeBlock*= POINTER TO StaticTypeDesc;
+	StaticTypeBlock* = POINTER TO StaticTypeDesc;
 	StaticTypeDesc = RECORD
 		recSize: Size;
 		pointerOffsets* {UNTRACED}: PointerOffsets;
@@ -711,7 +709,6 @@ VAR
 		ptr0 := GetBlock( size ) + AdrSize;
 		S.PUT( ptr0 - AdrSize, ptr0 );   (* set the main tag *)
 		S.PUT( ptr0, size - AdrSize );   (* size *)
-		S.PUT( ptr0 + SizeSize, S.VAL( Address, - AdrSize ) );
 		
 		ptr := ptr0 + ProtOfs;
 		S.PUT( ptr + HeapBlockOffset, ptr0 );
@@ -841,7 +838,7 @@ VAR
 	VAR tag: SET;  ok: BOOLEAN;
 	BEGIN
 		ok := FALSE;  tag := {};
-		IF ValidAddress( p ) THEN
+		IF (p MOD 8 = 0) & ValidAddress( p ) THEN
 			IF p MOD 16 = 8 THEN  ok := TRUE (* subobject or sysblock *)
 			ELSE
 				S.GET( p - AdrSize, tag );

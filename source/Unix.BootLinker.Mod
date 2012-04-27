@@ -11,8 +11,6 @@ MODULE BootLinker;   (* Oberon for Windows bootlinker (MH) / based on MIPS bootl
 IMPORT S := SYSTEM, Commands, Streams, Files;
 
 CONST
-	Version = "20.03.2012";
-
 	StartModule = "BootConsole";
 	
 	ObjSuffix = ".Obj";
@@ -213,9 +211,6 @@ CONST
 	Sentinel = SHORT(0FFFFFFFFH);
 
 
-	trace = FALSE;
-
-
 TYPE
 
 	ObjHeader = RECORD  (* data in object file header *)
@@ -353,7 +348,6 @@ VAR
 		ClearMem( ptr0, size - AdrSize );   (* clear everything *)
 		S.PUT( ptr0 - AdrSize, ptr0 );   (* set the main tag *)	Relocate( ptr0 - AdrSize );
 		S.PUT( ptr0, size - AdrSize );   (* size *)
-		S.PUT( ptr0 + SizeSize, S.VAL( Address, - AdrSize ) );
 		
 		ptr := ptr0 + ProtOfs;
 		S.PUT( ptr + HeapBlockOffset, ptr0 );	Relocate( ptr + HeapBlockOffset );
