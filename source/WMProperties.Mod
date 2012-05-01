@@ -1498,11 +1498,34 @@ TYPE
 	ReferenceProperty* = OBJECT(Property)
 	VAR
 		object : Repositories.Component;
+		prev: Repositories.Component;
+		onLinkChanged-: WMEvents.EventSource;
+
 		repositoryName : Strings.String;
 		componentName : Strings.String;
 		generator : Strings.String;
 		componentID : LONGINT;
 		level: LONGINT;
+
+		PROCEDURE &NewRef*(prototype : Property; name, info : String);
+		BEGIN
+			New(prototype, name, info);
+			NEW(onLinkChanged, SELF, NIL, NIL, NIL);
+		END NewRef;
+
+		PROCEDURE ReplaceLink(object: Repositories.Component);
+		BEGIN
+			IF SELF.object # object THEN
+				IF SELF.object # NIL THEN SELF.object.onChanged.Remove(LinkChanged) END;
+				SELF.object := object;
+				IF object # NIL THEN object.onChanged.Add(LinkChanged) END;
+			END;
+		END ReplaceLink;
+
+		PROCEDURE LinkChanged*(sender, object: ANY);
+		BEGIN
+			onLinkChanged.Call(object)
+		END LinkChanged;
 
 		PROCEDURE FromStream*(r : Streams.Reader);
 		VAR
@@ -1563,29 +1586,25 @@ TYPE
 				IF (generator # NIL) THEN
 					Repositories.CallCommand(generator^, context, res);
 					IF (res = Repositories.Ok) & (context.object # NIL) & (context.object IS Repositories.Component) THEN
-						SELF.object := context.object(Repositories.Component);
-						object := SELF.object;
+						object := context.object(Repositories.Component);
+						ReplaceLink(object)
 					END;
 				ELSIF (repositoryName # NIL) & (componentName # NIL) THEN
 					Repositories.GetComponent(repositoryName^, componentName^, componentID, object, res);
-					SELF.object := object;
-					IF (res # Repositories.Ok) THEN
-					END;
+					ReplaceLink(object);
 				ELSIF (componentName # NIL) & (repository # NIL) THEN
 					object := repository.GetComponent(componentName^, componentID);
-					SELF.object := object;
+					ReplaceLink(object);
 				END;
 			END;
 			ReleaseRead;
 			RETURN object
 		END Get;
 
-
-
 		PROCEDURE Set*(object : Repositories.Component);
 		BEGIN
 			AcquireWrite; (* TBD: Store object to repository *)
-			IF (SELF.object # object) THEN SELF.object := object;  Changed;
+			IF (SELF.object # object) THEN ReplaceLink(object); Changed
 			ELSIF ~ nonDefault THEN Changed END;
 			NotDefault;
 			ReleaseWrite;
@@ -1600,7 +1619,7 @@ TYPE
 				SELF.componentName := NIL;
 				SELF.componentID := 0;
 				SELF.generator := Strings.NewString(string);
-				object := NIL;
+				ReplaceLink(NIL);
 				NotDefault;
 				Changed;
 				ReleaseWrite;
@@ -1613,7 +1632,7 @@ TYPE
 				SELF.componentName := Strings.NewString(componentName);
 				SELF.componentID := componentID;
 				SELF.generator := NIL;
-				object := NIL; (* invalidate reference *)
+				ReplaceLink(NIL); (* invalidate reference *)
 				NotDefault;
 				Changed;
 				ReleaseWrite;
@@ -1641,7 +1660,7 @@ TYPE
 		PROCEDURE Reset;
 		BEGIN
 			AcquireWrite;
-			object := NIL;
+			ReplaceLink(NIL);
 			repositoryName := NIL; componentName := NIL; componentID := 0;
 			generator := NIL;
 			NotDefault;
@@ -1652,6 +1671,7 @@ TYPE
 		PROCEDURE FromXML*(xml : XML.Element);
 		VAR en : XMLObjects.Enumerator; p : ANY; s : String;
 		BEGIN
+			ReplaceLink(NIL);
 			object := NIL;
 			repositoryName := NIL; componentName := NIL;
 			componentID := 0;
@@ -1666,7 +1686,7 @@ TYPE
 					SetAsString(s^)
 				END
 			ELSIF (p # NIL) & (p IS XML.Element) THEN
-				object := Repositories.ComponentFromXML(p(XML.Element));
+				ReplaceLink( Repositories.ComponentFromXML(p(XML.Element)));
 			END
 		END FromXML;
 
@@ -1703,27 +1723,6 @@ TYPE
 			END
 		END WriteXML;
 
-		(*
-		PROCEDURE ToRepository*(CONST repository: ARRAY OF CHAR; w: Streams.Writer; indent: LONGINT);
-		VAR name : String; id, res: LONGINT;
-		BEGIN
-			name := GetName();
-			IF name = NIL THEN KernelLog.String("Nameless boolean property encountered. Ignored"); KernelLog.Ln; RETURN END;
-			IF nonDefault THEN
-				Indent(w, indent);
-				level := indent+1;
-				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewReference"'); w.Char(">");
-				IF object # NIL THEN
-					id := 1;
-					Repositories.PutComponent(object, repository, name^,id,res);
-					w.String(repository); w.String(":"); w.String(name^); w.String(":"); w.Int(id, 0);
-				ELSE
-					ToStream(w);
-				END;
-				w.String("</"); w.String(name^); w.Char(">"); w.Ln;
-			END
-		END ToRepository;
-		*)
 	END ReferenceProperty;
 
 TYPE
