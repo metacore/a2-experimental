@@ -681,7 +681,7 @@ TYPE
 			NEW(focusPrevious, PrototypeFocusPrevious, NIL, NIL); properties.Add(focusPrevious);
 			NEW(focusNext, PrototypeFocusNext, NIL, NIL); properties.Add(focusNext);
 			NEW(editMode, PrototypeEditMode, NIL,NIL); properties.Add(editMode); editMode.Set(FALSE);
-			NEW(model, NIL, StrModel, StrModelInfo); properties.Add(model);
+			NEW(model, ModelPrototype, NIL, NIL); AddLink(model);
 			NEW(font, PrototypeFont, NIL, NIL); properties.Add(font);
 			NEW(scaleFont, PrototypeScaleFont, NIL,NIL); properties.Add(scaleFont);
 
@@ -691,6 +691,11 @@ TYPE
 
 			aligning := FALSE; fPointerOwner := SELF; focusComponent := SELF;
 		END Init;
+
+		PROCEDURE AddLink*(ref: WMProperties.ReferenceProperty);
+		BEGIN
+			properties.Add(ref); ref.onLinkChanged.Add(LinkChanged);
+		END AddLink;
 
 		(** Focus handling *)
 		PROCEDURE TraceFocusChain*;
@@ -792,6 +797,15 @@ TYPE
 			END;
 		END FocusPrev;
 
+		(* LinkChanged can be called to inform about changes of the state of links (i.e. objects in reference properties)
+			Unlike PropertyChanged which informs about an actual replacement of the link *)
+		PROCEDURE LinkChanged*(sender, link: ANY);
+		BEGIN
+			IF sender = model THEN
+				Invalidate
+			END;
+		END LinkChanged;
+
 		PROCEDURE PropertyChanged*(sender, property : ANY);
 		BEGIN
 			IF property = bounds THEN
@@ -819,6 +833,8 @@ TYPE
 			IF scaleFont.Get() # 0 THEN ScaleFont(bounds.GetHeight(), scaleFont.Get()) END;
 			RecacheProperties^;
 		END RecacheProperties;
+
+
 
 		(** Get the root of visible components. Not neccessarily the same as GetComponentRoot() OR GetRoot() *)
 		PROCEDURE GetVisualComponentRoot*(): VisualComponent;
@@ -2367,6 +2383,7 @@ VAR
 	PrototypeFont- : WMProperties.FontProperty;
 	StrComponent, StrVisualComponent, StrForm, StrFormWindow, StrModel, StrModelInfo : Strings.String;
 	GSonStartDrag, GSonStartDragInfo : Strings.String;
+	ModelPrototype-: WMProperties.ReferenceProperty;
 
 	propertyListList- : PropertyListList;
 	currentStyle- : XML.Element;
@@ -3133,6 +3150,7 @@ BEGIN
 	NEW(PrototypeFont, NIL, NewString("Font"), NewString("Font"));
 	PrototypeFont.Set(WMGraphics.GetDefaultFont());
 	NEW(PrototypeScaleFont, NIL, Strings.NewString("ScaleFont"), Strings.NewString("percentage that fonts scales with height (0=none)"));
+	NEW(ModelPrototype, NIL, StrModel, StrModelInfo);
 END InitPrototypes;
 
 PROCEDURE ShowComponent(component : Component);
