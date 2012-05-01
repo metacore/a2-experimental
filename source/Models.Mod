@@ -27,7 +27,6 @@ TYPE
 	*)
 	Model* = OBJECT(WMComponents.Component)
 	VAR
-		onChanged- : WMEvents.EventSource;
 		changed : BOOLEAN;
 		notificationMode : SHORTINT;
 		lock : Locks.RWLock;
@@ -35,7 +34,6 @@ TYPE
 		PROCEDURE &Init*; (** protected *)
 		BEGIN
 			Init^;
-			NEW(onChanged, NIL, NIL, NIL, NIL);
 			notificationMode := OnChanged;
 			changed := FALSE;
 			NEW(lock);
@@ -858,6 +856,35 @@ PROCEDURE IsPrintableCharacter(ch : CHAR) : BOOLEAN;
 BEGIN
 	RETURN (" " < ch) & (ORD(ch) < 128);
 END IsPrintableCharacter;
+
+(* global helper procedures *)
+
+(* Get a model from either a property reference or a model pointer *)
+PROCEDURE GetModel*(ref: ANY): Model;
+BEGIN
+	IF (ref # NIL) & (ref IS WMProperties.ReferenceProperty) THEN ref := ref(WMProperties.ReferenceProperty).Get() END;
+	IF (ref # NIL) & (ref IS Model) THEN RETURN ref(Model) END;
+	RETURN NIL
+END GetModel;
+
+PROCEDURE GetReal*(m: Model; VAR r: LONGREAL): BOOLEAN;
+VAR real: Types.Longreal; res: LONGINT;
+BEGIN
+	IF m = NIL THEN RETURN FALSE END;
+	m.GetGeneric(real, res);
+	IF (res = Ok) THEN
+		r := real.value; RETURN TRUE
+	ELSE RETURN FALSE
+	END;
+END GetReal;
+
+PROCEDURE SetReal*(m: Model; r: LONGREAL);
+VAR real: Types.Longreal; res: LONGINT;
+BEGIN
+	IF m = NIL THEN RETURN END;
+	real.value := r;
+	m.SetGeneric(real, res);
+END SetReal;
 
 (** Generator procedures *)
 

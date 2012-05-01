@@ -2,7 +2,7 @@ MODULE Repositories; (** AUTHOR "staubesv"; PURPOSE "Component repositories"; *)
 
 IMPORT
 	Streams, Modules, KernelLog, Commands, Strings, Files, Archives, Localization,
-	UTF8Strings, XML, XMLObjects, XMLScanner, XMLParser;
+	UTF8Strings, XML, XMLObjects, XMLScanner, XMLParser, WMEvents;
 
 CONST
 	Ok* = 0;
@@ -102,6 +102,7 @@ TYPE
 		repository : Repository; name : Strings.String; refNum : LONGINT;
 		flags : SET;
 		timestamp- : LONGINT;
+		onChanged- : WMEvents.EventSource; (* for update mechanisms, basically every component needs a feature to inform about updates *)
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -109,6 +110,7 @@ TYPE
 			repository := NIL; name := NIL; refNum := 0;
 			flags := {};
 			timestamp := 0;
+			NEW(onChanged, NIL, NIL, NIL, NIL);
 		END Init;
 
 		PROCEDURE SetRepository*(repository : Repository; CONST name : Name; refNum : LONGINT);
