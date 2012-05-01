@@ -273,7 +273,6 @@ TYPE
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
 		fractionalDigits-: WMProperties.Int32Property;
-		modelI : Models.Model;
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -288,13 +287,8 @@ TYPE
 		END Init;
 
 		PROCEDURE RecacheProperties;
-		VAR element: XML.Element;
 		BEGIN
 			RecacheProperties^;
-			element := model.Get();
-			IF (element # NIL) & (element IS Models.Model) THEN
-				SetModel(element(Models.Model));
-			END;
 			SetFont(font.Get());
 		END RecacheProperties;
 
@@ -305,13 +299,9 @@ TYPE
 				Invalidate
 			ELSIF (property = font) THEN
 				RecacheProperties;
-			ELSIF property = model THEN
-				element := model.Get();
-				IF (element # NIL) & (element IS Models.Model) THEN
-					SetModel(element(Models.Model));
-				END;
+			ELSIF property = model THEN Invalidate
 			ELSIF property = fractionalDigits THEN
-				ModelChanged(NIL, NIL); Invalidate;
+				LinkChanged(model, NIL); Invalidate;
 			ELSE
 				PropertyChanged^(sender, property)
 			END;
@@ -322,33 +312,24 @@ TYPE
 			caption.SetAOC(x)
 		END SetCaption;
 
-		PROCEDURE ModelChanged(sender, data : ANY);
-		VAR string : Types.String256; res : LONGINT; real: Types.Longreal;
+		PROCEDURE LinkChanged(sender, data : ANY);
+		VAR string : Types.String256; res : LONGINT; real: Types.Longreal; m: Models.Model;
 		BEGIN
-			IF modelI = NIL THEN RETURN END;
-			res := -1;
-			IF (modelI IS Models.Real) OR (modelI IS Models.Longreal) THEN
-				modelI.GetGeneric(real, res);
+			IF sender = model THEN
+				m := Models.GetModel(model);
+				IF m = NIL THEN RETURN END;
+				m.GetGeneric(real, res);
 				IF res = Models.Ok THEN
-					Strings.FloatToStr(real.value, 1, fractionalDigits.Get(), 0, string.value);
+					Types.FloatToString(real.value, fractionalDigits.Get(), string.value);
+				END;
+				IF res # Models.Ok THEN
+					m.GetGeneric(string, res);
+				END;
+				IF (res = Models.Ok) THEN
+					SetCaption(string.value);
 				END;
 			END;
-			IF res # Models.Ok THEN
-				modelI.GetGeneric(string, res);
-			END;
-			IF (res = Models.Ok) THEN
-				SetCaption(string.value);
-			END;
-		END ModelChanged;
-
-		PROCEDURE SetModel*(model : Models.Model);
-		BEGIN
-			Acquire;
-			IF (modelI # NIL) THEN modelI.onChanged.Remove(ModelChanged); END;
-			modelI := model;
-			IF (modelI # NIL) THEN ModelChanged(NIL, NIL); modelI.onChanged.Add(ModelChanged); END;
-			Release;
-		END SetModel;
+		END LinkChanged;
 
 		PROCEDURE DrawBackground*(canvas : Canvas);
 		VAR str : String;
@@ -374,8 +355,6 @@ TYPE
 		isRepeating-, isToggle-, indicateToggle- : WMProperties.BooleanProperty;
 
 		onClickHandler- : WMProperties.StringProperty;
-
-		modelI : Models.Model;
 
 		clDefault-, clHover-, clPressed-,
 		clTextDefault-, clTextHover-, clTextPressed- : WMProperties.ColorProperty;
@@ -434,7 +413,6 @@ TYPE
 			NEW(isToggle, PrototypeBisToggle, NIL, NIL); properties.Add(isToggle);
 			NEW(indicateToggle, PrototypeBindicateToggle, NIL, NIL); properties.Add(indicateToggle);
 			NEW(onClickHandler, PrototypeBonClickHandler, NIL, NIL); properties.Add(onClickHandler);
-			modelI := NIL;
 			(* look *)
 			bounds.SetPrototype(PrototypeBBounds); (* override the defaults *)
 			NEW(clDefault, PrototypeBclDefault, NIL, NIL); properties.Add(clDefault);
@@ -549,37 +527,31 @@ TYPE
 			ELSE
 				decoDefault := NIL; decoHover := NIL; decoPressed := NIL;
 			END;
-			element := model.Get();
-			IF (element # NIL) & (element IS Models.Model) THEN
-				SetModel(element(Models.Model));
-			END;
+
 			SetFont(font.Get());
 			CheckClickHandler;
 			Invalidate
 		END RecacheProperties;
 
-		PROCEDURE SetModel(model : Models.Model);
+		PROCEDURE LinkChanged(sender, data : ANY);
+		VAR boolean : Types.Boolean; res : LONGINT; m: Models.Model;
 		BEGIN
-			IF (modelI # NIL) THEN modelI.onChanged.Remove(ModelChanged); END;
-			modelI := model;
-			IF (modelI # NIL) THEN ModelChanged(NIL, NIL); modelI.onChanged.Add(ModelChanged); END;
-		END SetModel;
-
-		PROCEDURE ModelChanged(sender, data : ANY);
-		VAR boolean : Types.Boolean; res : LONGINT;
-		BEGIN
-			modelI.GetGeneric(boolean, res);
-			IF (res = Models.Ok) & (pressed # boolean.value) THEN
-				SetPressed(boolean.value);
+			IF sender = model THEN
+				m := Models.GetModel(model);
+				m.GetGeneric(boolean, res);
+				IF (res = Models.Ok) & (pressed # boolean.value) THEN
+					SetPressed(boolean.value);
+				END;
 			END;
-		END ModelChanged;
+		END LinkChanged;
 
 		PROCEDURE ChangeModel(value : BOOLEAN);
-		VAR boolean : Types.Boolean; res : LONGINT;
+		VAR boolean : Types.Boolean; res : LONGINT; m: Models.Model;
 		BEGIN
-			IF (modelI # NIL) THEN
+			m := Models.GetModel(model);
+			IF (m # NIL) THEN
 				boolean.value := value;
-				modelI.SetGeneric(boolean, res);
+				m.SetGeneric(boolean, res);
 			END;
 		END ChangeModel;
 
@@ -604,11 +576,7 @@ TYPE
 				OR (data = decoDefaultName) OR (data = decoHoverName) OR (data= decoPressedName) OR (data = useDeco)
 				THEN
 					RecacheProperties; Invalidate;
-			ELSIF (data = model) THEN
-				element := model.Get();
-				IF (element # NIL) & (element IS Models.Model) THEN
-					SetModel(element(Models.Model));
-				END;
+			ELSIF (data = model) THEN Invalidate
 			ELSE
 				PropertyChanged^(sender, data);
 			END;
@@ -1145,7 +1113,6 @@ TYPE
 	Scrollbar* = OBJECT (WMComponents.VisualComponent)
 	VAR
 		min-, max-, pos-, pageSize-, width- : WMProperties.Int32Property;
-		modelI : Models.Model;
 
 		vertical- : WMProperties.BooleanProperty;
 		minTrackerSize- : WMProperties.Int32Property;
@@ -1215,7 +1182,6 @@ TYPE
 			NEW(max, PrototypeSmax,  NIL, NIL); properties.Add(max);
 			NEW(pos, PrototypeSpos, NIL, NIL); properties.Add(pos);
 			NEW(pageSize, PrototypeSpageSize, NIL, NIL); properties.Add(pageSize);
-			modelI := NIL;
 			NEW(vertical, PrototypeSvertical, NIL, NIL); properties.Add(vertical);
 			pos.SetBounds(min.Get(), max.Get());
 			NEW(width, PrototypeSWidth, NIL, NIL);
@@ -1313,28 +1279,27 @@ TYPE
 			Invalidate;
 		END Resized;
 
-		PROCEDURE SetModel(model : Models.Model);
+		PROCEDURE LinkChanged(sender, data : ANY);
+		VAR integer : Types.Integer; res : LONGINT; m: Models.Model;
 		BEGIN
-			IF (modelI # NIL) THEN modelI.onChanged.Remove(ModelChanged); END;
-			modelI := model;
-			IF (modelI # NIL) THEN ModelChanged(NIL, NIL); modelI.onChanged.Add(ModelChanged); END;
-		END SetModel;
-
-		PROCEDURE ModelChanged(sender, data : ANY);
-		VAR integer : Types.Integer; res : LONGINT;
-		BEGIN
-			modelI.GetGeneric(integer, res);
-			IF (res = Models.Ok) & (pos.Get() # integer.value) THEN
-				pos.Set(integer.value);
+			IF sender = model THEN
+				m := Models.GetModel(model);
+				IF m # NIL THEN
+					m.GetGeneric(integer, res);
+					IF (res = Models.Ok) & (pos.Get() # integer.value) THEN
+						pos.Set(integer.value);
+					END;
+				END;
 			END;
-		END ModelChanged;
+		END LinkChanged;
 
 		PROCEDURE ChangeModel(value : LONGINT);
-		VAR integer : Types.Integer; res : LONGINT;
+		VAR integer : Types.Integer; res : LONGINT; m: Models.Model;
 		BEGIN
-			IF (modelI # NIL) THEN
+			m := Models.GetModel(model);
+			IF (m # NIL) THEN
 				integer.value := value;
-				modelI.SetGeneric(integer, res);
+				m.SetGeneric(integer, res);
 			END;
 		END ChangeModel;
 
@@ -1541,10 +1506,6 @@ TYPE
 		BEGIN
 			RecacheProperties^;
 			RecacheImages;
-			element := model.Get();
-			IF (element # NIL) & (element IS Models.Model) THEN
-				SetModel(element(Models.Model));
-			END;
 			pos.SetBounds(min.Get(), max.Get());
 			IF SELF.vertical.Get() THEN
 				bounds.SetWidth(SELF.width.Get())
@@ -1555,17 +1516,10 @@ TYPE
 		END RecacheProperties;
 
 		PROCEDURE PropertyChanged*(sender, property : ANY);
-		VAR element : XML.Element;
 		BEGIN
 			IF (property = pos) THEN
 				UpdateLayout; ChangeModel(pos.Get()); Invalidate;
-			ELSIF (property = model) THEN
-				element := model.Get();
-				IF (element # NIL) & (element IS Models.Model) THEN
-					SetModel(element(Models.Model));
-				ELSE
-					SetModel(NIL);
-				END;
+			ELSIF (property = model) THEN Invalidate;
 			ELSIF (property = vertical) THEN
 				IF SELF.vertical.Get() THEN
 					bounds.SetWidth(SELF.width.Get())

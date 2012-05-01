@@ -112,9 +112,6 @@ TYPE
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
 
-
-		modelI : Models.Model;
-
 		onEscape-, onEnter-, onChanged- : WMEvents.EventSource;
 
 		ime : WMInputMethods.IME;
@@ -215,8 +212,7 @@ TYPE
 				Invalidate;
 			ELSIF (property = font) THEN Invalidate;
 			ELSIF (property = alignH) OR (property = alignV) THEN Invalidate
-			ELSIF (property = model) THEN
-				SetModel(ModelInReference(model))
+			ELSIF (property = model) THEN Invalidate
 			ELSIF (property = scaleFont)& (scaleFont.Get()>0) THEN
 				ScaleFont(TextHeight(),scaleFont.Get());
 			ELSE
@@ -231,7 +227,6 @@ TYPE
 			typeI := type.Get();
 			readOnlyI := readOnly.Get();
 			textColorI := textColor.Get();
-			SetModel(ModelInReference(model));
 			Invalidate;
 		END RecacheProperties;
 
@@ -307,31 +302,25 @@ TYPE
 			END;
 		END SetAsString;
 
-		PROCEDURE SetModel*(model : Models.Model);
+		PROCEDURE LinkChanged(sender, object : ANY);
+		VAR string : Types.String256; res : LONGINT; real: Types.Longreal; m: Models.Model;
 		BEGIN
-			Acquire;
-			IF (modelI # NIL) THEN modelI.onChanged.Remove(ModelChanged); END;
-			modelI := model;
-			IF (modelI # NIL) THEN ModelChanged(NIL, NIL); modelI.onChanged.Add(ModelChanged); END;
-			Release;
-		END SetModel;
-
-		PROCEDURE ModelChanged(sender, data : ANY);
-		VAR string : Types.String256; res : LONGINT; real: Types.Longreal;
-		BEGIN
-			IF modelI = NIL THEN RETURN END;
-			modelI.GetGeneric(string, res);
-			IF (res = Models.Ok) THEN
-				SetAsString(string.value);
+			IF sender = model THEN
+				m := Models.GetModel(model);
+				m.GetGeneric(string, res);
+				IF (res = Models.Ok) THEN
+					SetAsString(string.value);
+				END;
 			END;
-		END ModelChanged;
+		END LinkChanged;
 
 		PROCEDURE UpdateModel;
-		VAR string : Types.String256; res : LONGINT; str: Strings.String;
+		VAR string : Types.String256; res : LONGINT; str: Strings.String; m: Models.Model;
 		BEGIN
 			GetAsString(string.value);
-			IF (modelI # NIL) THEN
-				modelI.SetGeneric(string, res);
+			m := Models.GetModel(model);
+			IF (m # NIL) THEN
+				m.SetGeneric(string, res);
 			END;
 			SetAttributeValue("Value",string.value);
 		END UpdateModel;
@@ -1192,8 +1181,7 @@ TYPE
 	NumberField= OBJECT (TextField)
 	VAR
 		fractionalDigits-: WMProperties.Int32Property;
-		unit-: WMProperties.ReferenceProperty;
-		unitModel-: Models.Model;
+		unitModel-: WMProperties.ReferenceProperty;
 
 		PROCEDURE & Init*;
 		BEGIN
@@ -1201,13 +1189,13 @@ TYPE
 			SetNameAsString(GSNumberField);
 			SetGenerator("WMEditors.GenNumberField");
 			NEW(fractionalDigits, PrototypeFractionalDigits, NIL, NIL); properties.Add(fractionalDigits);
-			NEW(unit, PrototypeUnit, NIL, NIL); properties.Add(unit);
+			NEW(unitModel, PrototypeUnit, NIL, NIL); AddLink(unitModel)
 		END Init;
 
 		PROCEDURE GetUnit(VAR u: LONGREAL): BOOLEAN;
 		VAR res: LONGINT; real: Types.Longreal; m: Models.Model;
 		BEGIN
-			m := ModelInReference(unit);
+			m := Models.GetModel(unitModel);
 			IF (m # NIL)THEN
 				m.GetGeneric(real, res);
 				IF (res = Models.Ok) & (real.value # 0) THEN
@@ -1220,40 +1208,34 @@ TYPE
 		PROCEDURE RecacheProperties;
 		BEGIN
 			RecacheProperties^;
-			SetUnit(ModelInReference(unit));
 		END RecacheProperties;
 
-		PROCEDURE SetUnit*(m: Models.Model);
+		PROCEDURE LinkChanged(sender, data : ANY);
+		VAR string : Types.String256; res : LONGINT; real: Types.Longreal; unit: LONGREAL; m: Models.Model;
 		BEGIN
-			Acquire;
-			IF (unitModel# NIL) THEN unitModel.onChanged.Remove(ModelChanged) END;
-			unitModel := m;
-			IF (unitModel # NIL) THEN ModelChanged(NIL, NIL); unitModel.onChanged.Add(ModelChanged) END;
-			Release;
-		END SetUnit;
-
-		PROCEDURE ModelChanged(sender, data : ANY);
-		VAR string : Types.String256; res : LONGINT; real: Types.Longreal; unit: LONGREAL;
-		BEGIN
-			IF modelI = NIL THEN RETURN END;
-			res := -1;
-			modelI.GetGeneric(real, res);
-			IF res = Models.Ok THEN
-				IF GetUnit(unit) THEN real.value := unit * real.value END;
-				Strings.FloatToStr(real.value, 1, fractionalDigits.Get(), 0, string.value);
-				CleanString(string.value);
-				SetAsString(string.value);
+			IF (sender = model) OR (sender = unitModel) THEN
+				res := -1;
+				m := Models.GetModel(model);
+				IF m = NIL THEN RETURN END;
+				m.GetGeneric(real, res);
+				IF res = Models.Ok THEN
+					IF GetUnit(unit) THEN real.value := unit * real.value END;
+					Strings.FloatToStr(real.value, 1, fractionalDigits.Get(), 0, string.value);
+					CleanString(string.value);
+					SetAsString(string.value);
+				END;
 			END;
-		END ModelChanged;
+		END LinkChanged;
 
 		PROCEDURE UpdateModel;
-		VAR string : Types.String256; res : LONGINT; str: Strings.String; real: Types.Longreal; u: LONGREAL;
+		VAR string : Types.String256; res : LONGINT; str: Strings.String; real: Types.Longreal; u: LONGREAL; m: Models.Model;
 		BEGIN
 			GetAsString(string.value);
-			IF (modelI # NIL) THEN
+			m := Models.GetModel(model);
+			IF (m # NIL) THEN
 				Strings.StrToFloat(string.value, real.value);
 				IF GetUnit(u) THEN real.value := real.value / u END;
-				modelI.SetGeneric(real, res);
+				m.SetGeneric(real, res);
 			END;
 		END UpdateModel;
 
@@ -1261,9 +1243,8 @@ TYPE
 		VAR reference: XML.Element; unitModel: XML.Element;
 		BEGIN
 			IF property = fractionalDigits THEN
-				ModelChanged(NIL, NIL); Invalidate;
-			ELSIF property = unit THEN
-				SetUnit(ModelInReference(unit));
+				LinkChanged(model, NIL); Invalidate;
+			ELSIF property = unitModel THEN
 				Invalidate
 			ELSE PropertyChanged^(sender, property)
 			END;
@@ -1864,12 +1845,6 @@ VAR
 	PrototypeFractionalDigits*: WMProperties.Int32Property;
 	PrototypeUnit*: WMProperties.ReferenceProperty;
 
-PROCEDURE ModelInReference(property: WMProperties.ReferenceProperty): Models.Model;
-VAR ref: XML.Element;
-BEGIN
-	ref := property.Get();
-	IF (ref # NIL) & (ref IS Models.Model) THEN RETURN ref(Models.Model) ELSE RETURN NIL END;
-END ModelInReference;
 
 PROCEDURE CleanString(VAR s: ARRAY OF CHAR);
 VAR i, lead: LONGINT;
