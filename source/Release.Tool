@@ -541,9 +541,10 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 
 	Localization.Mod
 	Archives.Mod
-	Repositories.Mod
 
 	WMRectangles.Mod WMEvents.Mod
+	Repositories.Mod
+
 	FP1616.Mod DefaultTextStyles.XML	# Text System
 
 	Texts.Mod
