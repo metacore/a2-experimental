@@ -61,7 +61,6 @@ VAR
 	END WriteVar;
 
 	PROCEDURE CheckHeapAddress(address: SYSTEM.ADDRESS): BOOLEAN;
-	VAR i: LONGINT; block{UNTRACED}: Machine.MemoryBlock; hit: BOOLEAN;
 	BEGIN
 		RETURN Machine.ValidHeapAddress(address);
 	END CheckHeapAddress;
@@ -505,10 +504,14 @@ VAR
 		REPEAT
 			m := Modules.ThisModuleByAdr0(pc);
 			IF (ShowAllProcs OR (m # NIL) OR (count = 0)) & (bp # 0) & (bp >= stacklow) & (bp <= stackhigh) THEN
-				WriteProc0(w, m, pc, bp, refs, refpos, base); w.Ln;	w.Update;
-				IF long & (~overflow OR (count > 0)) THEN	(* show variables *)
-					IF refpos # -1 THEN Variables(w, refs, refpos, base) END;
-					IF (m # NIL) & (base # m.sb) & (count = 0) THEN ModuleState(w, m) END
+				IF CheckHeapAddress( pc ) THEN
+					WriteProc0(w, m, pc, bp, refs, refpos, base); w.Ln;	w.Update;
+					IF long & (~overflow OR (count > 0)) THEN	(* show variables *)
+						IF refpos # -1 THEN Variables(w, refs, refpos, base) END;
+						IF (m # NIL) & (base # m.sb) & (count = 0) THEN ModuleState(w, m) END
+					END;
+				ELSE
+					w.String( "Unknown external procedure, pc = " );  w.Hex( pc, 8 );  w.Ln
 				END;
 				SYSTEM.GET(bp + SYSTEM.SIZEOF(SYSTEM.ADDRESS), pc);	(* return addr from stack *)
 				SYSTEM.GET(bp, bp);	(* follow dynamic link *)
