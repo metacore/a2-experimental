@@ -418,8 +418,8 @@ BEGIN
 
 	libraryPaths[0] := "/lib32";
 	libraryPaths[1] := "/usr/lib32";
-	libraryPaths[2] := "/i386-linux-gnu";
-	libraryPaths[3] := "/usr/i386-linux-gnu";
+	libraryPaths[2] := "/lib/i386-linux-gnu";
+	libraryPaths[3] := "/usr/lib/i386-linux-gnu";
 	libraryPaths[4] := "/lib";
 	libraryPaths[5] := "/usr/lib";
 	libraryPaths[6] := "/usr/X11R6/lib";
