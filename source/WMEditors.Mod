@@ -305,8 +305,7 @@ TYPE
 		PROCEDURE LinkChanged(sender, object : ANY);
 		VAR string : Types.String256; res : LONGINT; real: Types.Longreal; m: Models.Model;
 		BEGIN
-			IF sender = model THEN
-				m := Models.GetModel(model);
+			IF (sender = model) & Models.GetModel(model,m) THEN
 				m.GetGeneric(string, res);
 				IF (res = Models.Ok) THEN
 					SetAsString(string.value);
@@ -318,8 +317,7 @@ TYPE
 		VAR string : Types.String256; res : LONGINT; str: Strings.String; m: Models.Model;
 		BEGIN
 			GetAsString(string.value);
-			m := Models.GetModel(model);
-			IF (m # NIL) THEN
+			IF Models.GetModel(model,m) THEN
 				m.SetGeneric(string, res);
 			END;
 			SetAttributeValue("Value",string.value);
@@ -1189,14 +1187,13 @@ TYPE
 			SetNameAsString(GSNumberField);
 			SetGenerator("WMEditors.GenNumberField");
 			NEW(fractionalDigits, PrototypeFractionalDigits, NIL, NIL); properties.Add(fractionalDigits);
-			NEW(unitModel, PrototypeUnit, NIL, NIL); AddLink(unitModel)
+			NEW(unitModel, PrototypeUnit, NIL, NIL); properties.Add(unitModel)
 		END Init;
 
 		PROCEDURE GetUnit(VAR u: LONGREAL): BOOLEAN;
 		VAR res: LONGINT; real: Types.Longreal; m: Models.Model;
 		BEGIN
-			m := Models.GetModel(unitModel);
-			IF (m # NIL)THEN
+			IF Models.GetModel(unitModel, m) THEN
 				m.GetGeneric(real, res);
 				IF (res = Models.Ok) & (real.value # 0) THEN
 					u := real.value; RETURN TRUE
@@ -1207,6 +1204,7 @@ TYPE
 
 		PROCEDURE RecacheProperties;
 		BEGIN
+			IF unitModel.Get()# NIL THEN LinkChanged(unitModel, unitModel.Get()) END;
 			RecacheProperties^;
 		END RecacheProperties;
 
@@ -1215,8 +1213,7 @@ TYPE
 		BEGIN
 			IF (sender = model) OR (sender = unitModel) THEN
 				res := -1;
-				m := Models.GetModel(model);
-				IF m = NIL THEN RETURN END;
+				IF ~Models.GetModel(model,m) THEN RETURN END;
 				m.GetGeneric(real, res);
 				IF res = Models.Ok THEN
 					IF GetUnit(unit) THEN real.value := unit * real.value END;
@@ -1231,8 +1228,7 @@ TYPE
 		VAR string : Types.String256; res : LONGINT; str: Strings.String; real: Types.Longreal; u: LONGREAL; m: Models.Model;
 		BEGIN
 			GetAsString(string.value);
-			m := Models.GetModel(model);
-			IF (m # NIL) THEN
+			IF Models.GetModel(model, m) THEN
 				Strings.StrToFloat(string.value, real.value);
 				IF GetUnit(u) THEN real.value := real.value / u END;
 				m.SetGeneric(real, res);
@@ -1245,7 +1241,7 @@ TYPE
 			IF property = fractionalDigits THEN
 				LinkChanged(model, NIL); Invalidate;
 			ELSIF property = unitModel THEN
-				Invalidate
+				LinkChanged(model, NIL); Invalidate
 			ELSE PropertyChanged^(sender, property)
 			END;
 		END PropertyChanged;

@@ -30,7 +30,7 @@ IMPORT
 	Modules, Kernel, KernelLog, Strings, Inputs, Files, XML, XMLObjects, Repositories, Types, Models, WMDialogs, WMUtilities,
 	WMMessages, WMWindowManager,
 	WMRectangles, WMGraphics, WMEvents, WMProperties, WMComponents, WMStandardComponents,
-	WMEditors, WMColorComponents, WMDropDownLists, WMTabComponents, WMScrollableComponents, Raster;
+	WMEditors, WMColorComponents, WMDropDownLists, WMTabComponents, WMScrollableComponents, Raster, D:= Debugging;
 
 CONST
 	Ok = 0;
@@ -1143,6 +1143,7 @@ TYPE
 		PROCEDURE Synchronize(force : BOOLEAN);
 		VAR reference : WMProperties.ReferenceProperty;string : ARRAY 256 OF CHAR; stringType: Types.String256; res: LONGINT;
 		BEGIN
+			D.String("Synchronize"); D.Ln;
 			reference := SELF.reference;
 			IF (reference # NIL) & (force OR (lastTimestamp # reference.GetTimestamp())) THEN
 				lastTimestamp := reference.GetTimestamp();
@@ -2800,6 +2801,11 @@ TYPE
 			SetState(State_Synchronize);
 		END PropertyListChanged;
 
+		PROCEDURE LinkChanged(sender, data : ANY);
+		BEGIN
+			SetState(State_SynchronizeForce);
+		END LinkChanged;
+
 		PROCEDURE SetComponent*(sender, component : ANY);
 		BEGIN
 			IF ~IsCallFromSequencer() THEN
@@ -2832,6 +2838,7 @@ TYPE
 			IF (component # SELF.component) THEN
 				IF (SELF.component # NIL) THEN
 					SELF.component.properties.onPropertyChanged.Remove(PropertyListChanged);
+					SELF.component.properties.onLinkChanged.Remove(LinkChanged)
 				END;
 				SELF.component := component;
 				vc := curTabPanel;
@@ -2852,6 +2859,7 @@ TYPE
 				END;
 				IF (component # NIL) THEN
 					component.properties.onPropertyChanged.Add(PropertyListChanged);
+					component.properties.onLinkChanged.Add(LinkChanged);
 				END;
 				DisableUpdate;
 				UpdateTabCaptions;
@@ -2915,6 +2923,7 @@ TYPE
 			Finalize^;
 			IF (component # NIL) THEN
 				component.properties.onPropertyChanged.Remove(PropertyListChanged);
+				component.properties.onLinkChanged.Remove(LinkChanged);
 			END;
 			BEGIN {EXCLUSIVE} state := State_Terminating; END;
 			BEGIN {EXCLUSIVE} AWAIT(state = State_Terminated); END;

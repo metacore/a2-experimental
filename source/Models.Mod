@@ -860,11 +860,11 @@ END IsPrintableCharacter;
 (* global helper procedures *)
 
 (* Get a model from either a property reference or a model pointer *)
-PROCEDURE GetModel*(ref: ANY): Model;
+PROCEDURE GetModel*(ref: ANY; VAR m: Model): BOOLEAN;
 BEGIN
 	IF (ref # NIL) & (ref IS WMProperties.ReferenceProperty) THEN ref := ref(WMProperties.ReferenceProperty).Get() END;
-	IF (ref # NIL) & (ref IS Model) THEN RETURN ref(Model) END;
-	RETURN NIL
+	IF (ref # NIL) & (ref IS Model) THEN m := ref(Model); RETURN TRUE END;
+	RETURN FALSE
 END GetModel;
 
 PROCEDURE GetReal*(m: Model; VAR r: LONGREAL): BOOLEAN;

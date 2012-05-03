@@ -122,30 +122,34 @@ TYPE
 			END;
 		END RemoveByString;
 
-		(** Call the event with parameter par. The owner of the EventInfo class will be added in the event's sender parameter *)
-		PROCEDURE Call*(par : ANY);
+		PROCEDURE CallWithSender*(sender, par: ANY);
 		VAR cur : EventListenerLink;
 		BEGIN
 			IF (listeners.event # NIL) OR (listeners.string # NIL) THEN
-				IF listeners.event # NIL THEN listeners.event(owner, par);
+				IF listeners.event # NIL THEN listeners.event(sender, par);
 				ELSIF (listeners.string # NIL) & (finder # NIL) THEN
 					listeners.event := finder(listeners.string);
 					IF listeners.event = NIL THEN KernelLog.String("Fixup failed"); KernelLog.String(listeners.string^) END;
-					IF listeners.event # NIL THEN listeners.event(owner, par) END
+					IF listeners.event # NIL THEN listeners.event(sender, par) END
 				END;
 				cur := listeners.next;
 				WHILE cur # NIL DO
-					IF cur.event # NIL THEN cur.event(owner, par)
+					IF cur.event # NIL THEN cur.event(sender, par)
 					ELSE
 						IF (cur.string # NIL) & (finder # NIL) THEN
 							cur.event := finder(cur.string);
 							IF cur.event = NIL THEN KernelLog.String("Fixup failed"); KernelLog.String(cur.string^) END;
-							IF cur.event # NIL THEN cur.event(owner, par) END
+							IF cur.event # NIL THEN cur.event(sender, par) END
 						END
 					END;
 					cur := cur.next
 				END;
 			END;
+		END CallWithSender;
+
+		(** Call the event with parameter par. The owner of the EventInfo class will be added in the event's sender parameter *)
+		PROCEDURE Call*(par : ANY);
+		BEGIN CallWithSender(owner, par)
 		END Call;
 
 		(** return true if listeners are installed; Can be used to avoid calculating parameters, if there

@@ -315,9 +315,7 @@ TYPE
 		PROCEDURE LinkChanged(sender, data : ANY);
 		VAR string : Types.String256; res : LONGINT; real: Types.Longreal; m: Models.Model;
 		BEGIN
-			IF sender = model THEN
-				m := Models.GetModel(model);
-				IF m = NIL THEN RETURN END;
+			IF (sender = model) & Models.GetModel(model,m) THEN
 				m.GetGeneric(real, res);
 				IF res = Models.Ok THEN
 					Types.FloatToString(real.value, fractionalDigits.Get(), string.value);
@@ -536,8 +534,8 @@ TYPE
 		PROCEDURE LinkChanged(sender, data : ANY);
 		VAR boolean : Types.Boolean; res : LONGINT; m: Models.Model;
 		BEGIN
-			IF sender = model THEN
-				m := Models.GetModel(model);
+			IF (sender = model) & Models.GetModel(model,m) THEN
+				IF m = NIL THEN RETURN END;
 				m.GetGeneric(boolean, res);
 				IF (res = Models.Ok) & (pressed # boolean.value) THEN
 					SetPressed(boolean.value);
@@ -548,8 +546,7 @@ TYPE
 		PROCEDURE ChangeModel(value : BOOLEAN);
 		VAR boolean : Types.Boolean; res : LONGINT; m: Models.Model;
 		BEGIN
-			m := Models.GetModel(model);
-			IF (m # NIL) THEN
+			IF Models.GetModel(model, m) THEN
 				boolean.value := value;
 				m.SetGeneric(boolean, res);
 			END;
@@ -1282,13 +1279,10 @@ TYPE
 		PROCEDURE LinkChanged(sender, data : ANY);
 		VAR integer : Types.Integer; res : LONGINT; m: Models.Model;
 		BEGIN
-			IF sender = model THEN
-				m := Models.GetModel(model);
-				IF m # NIL THEN
-					m.GetGeneric(integer, res);
-					IF (res = Models.Ok) & (pos.Get() # integer.value) THEN
-						pos.Set(integer.value);
-					END;
+			IF (sender = model) & Models.GetModel(model,m) THEN
+				m.GetGeneric(integer, res);
+				IF (res = Models.Ok) & (pos.Get() # integer.value) THEN
+					pos.Set(integer.value);
 				END;
 			END;
 		END LinkChanged;
@@ -1296,8 +1290,7 @@ TYPE
 		PROCEDURE ChangeModel(value : LONGINT);
 		VAR integer : Types.Integer; res : LONGINT; m: Models.Model;
 		BEGIN
-			m := Models.GetModel(model);
-			IF (m # NIL) THEN
+			IF Models.GetModel(model, m) THEN
 				integer.value := value;
 				m.SetGeneric(integer, res);
 			END;

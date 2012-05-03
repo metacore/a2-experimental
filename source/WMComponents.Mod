@@ -165,7 +165,7 @@ TYPE
 		enabled- : WMProperties.BooleanProperty;
 
 		 (* discard property changes that come from a property change within the same component*)
-		inPropertyUpdate : BOOLEAN;
+		inPropertyUpdate, inLinkUpdate : BOOLEAN;
 
 		(* If TRUE, this component is supposed to be created and managed by its parent. It is not externalized. *)
 		internal- : BOOLEAN;
@@ -176,13 +176,14 @@ TYPE
 			SetNameAsString(StrComponent);
 			sequencer := NIL;
 			initialized := FALSE;
-			NEW(properties); properties.onPropertyChanged.Add(SELF.InternalPropertyChanged);
+			NEW(properties); properties.onPropertyChanged.Add(SELF.InternalPropertyChanged); properties.onLinkChanged.Add(SELF.InternalLinkChanged);
 			NEW(events);
 			NEW(eventListeners);
 			NEW(id, PrototypeID, NIL, NIL); properties.Add(id);
 			NEW(uid, PrototypeUID, NIL, NIL); properties.Add(uid);
 			NEW(enabled, PrototypeEnabled, NIL, NIL); properties.Add(enabled);
 			inPropertyUpdate := FALSE;
+			inLinkUpdate := FALSE;
 			internal := FALSE;
 			SetGenerator("WMComponents.NewComponent");
 		END Init;
@@ -549,6 +550,14 @@ TYPE
 			ASSERT(IsCallFromSequencer());
 		END LanguageChanged;
 
+
+
+		(* LinkChanged can be called to inform about changes of the state of links (i.e. objects in reference properties)
+			Unlike PropertyChanged which informs about an actual replacement of the link *)
+		PROCEDURE LinkChanged*(sender, link: ANY);
+		BEGIN ASSERT(IsCallFromSequencer());
+		END LinkChanged;
+
 		(* will be called synchronously if a property of the component changes. May not be called directly.
 			No such messages are sent until the component is initialized *)
 		PROCEDURE PropertyChanged*(sender, property : ANY);(** PROTECTED *)
@@ -563,12 +572,10 @@ TYPE
 		END RecacheProperties;
 
 		PROCEDURE InternalPropertyChanged(sender, property : ANY);
-		VAR debugPUpdate : BOOLEAN;
 		BEGIN
 			IF ~initialized THEN RETURN END;
 			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.InternalPropertyChanged, sender, property)
 			ELSE
-				debugPUpdate := inPropertyUpdate;
 				IF ~inPropertyUpdate THEN
 					inPropertyUpdate := TRUE;
 					IF property = properties THEN RecacheProperties END;
@@ -577,6 +584,20 @@ TYPE
 				END;
 			END
 		END InternalPropertyChanged;
+
+		PROCEDURE InternalLinkChanged(sender, property : ANY);
+		BEGIN
+			IF ~initialized THEN RETURN END;
+			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.InternalLinkChanged, sender, property)
+			ELSE
+				IF ~inLinkUpdate THEN
+					inLinkUpdate := TRUE;
+					LinkChanged(sender, property);
+					inLinkUpdate := FALSE
+				END;
+			END
+		END InternalLinkChanged;
+
 
 		(** Add a permanent XML attribute *)
 		PROCEDURE AddAttribute*(attribute: XML.Attribute);
@@ -681,7 +702,7 @@ TYPE
 			NEW(focusPrevious, PrototypeFocusPrevious, NIL, NIL); properties.Add(focusPrevious);
 			NEW(focusNext, PrototypeFocusNext, NIL, NIL); properties.Add(focusNext);
 			NEW(editMode, PrototypeEditMode, NIL,NIL); properties.Add(editMode); editMode.Set(FALSE);
-			NEW(model, ModelPrototype, NIL, NIL); AddLink(model);
+			NEW(model, ModelPrototype, NIL, NIL); properties.Add(model);
 			NEW(font, PrototypeFont, NIL, NIL); properties.Add(font);
 			NEW(scaleFont, PrototypeScaleFont, NIL,NIL); properties.Add(scaleFont);
 
@@ -691,11 +712,6 @@ TYPE
 
 			aligning := FALSE; fPointerOwner := SELF; focusComponent := SELF;
 		END Init;
-
-		PROCEDURE AddLink*(ref: WMProperties.ReferenceProperty);
-		BEGIN
-			properties.Add(ref); ref.onLinkChanged.Add(LinkChanged);
-		END AddLink;
 
 		(** Focus handling *)
 		PROCEDURE TraceFocusChain*;
@@ -821,7 +837,7 @@ TYPE
 			ELSIF property = fillColor THEN Invalidate;
 			ELSIF property = bearing THEN Resized;
 			ELSIF property = editMode THEN Invalidate;
-			ELSIF property = model THEN Invalidate;
+			ELSIF property = model THEN LinkChanged(model, model.Get()); Invalidate;
 			ELSIF (property = scaleFont) THEN
 				ScaleFont(bounds.GetHeight(),scaleFont.Get());
 			ELSE PropertyChanged^(sender, property)
@@ -831,11 +847,10 @@ TYPE
 		PROCEDURE RecacheProperties;
 		BEGIN
 			IF scaleFont.Get() # 0 THEN ScaleFont(bounds.GetHeight(), scaleFont.Get()) END;
+			IF (model # NIL) & (model.Get() # NIL) THEN LinkChanged(model,model.Get()) END;
 			RecacheProperties^;
 		END RecacheProperties;
-
-
-
+		
 		(** Get the root of visible components. Not neccessarily the same as GetComponentRoot() OR GetRoot() *)
 		PROCEDURE GetVisualComponentRoot*(): VisualComponent;
 		VAR p, c : XML.Element;

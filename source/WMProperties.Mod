@@ -1499,7 +1499,7 @@ TYPE
 	VAR
 		object : Repositories.Component;
 		prev: Repositories.Component;
-		onLinkChanged-: WMEvents.EventSource;
+		onLinkChanged: WMEvents.EventSource;
 
 		repositoryName : Strings.String;
 		componentName : Strings.String;
@@ -1516,15 +1516,15 @@ TYPE
 		PROCEDURE ReplaceLink(object: Repositories.Component);
 		BEGIN
 			IF SELF.object # object THEN
-				IF SELF.object # NIL THEN SELF.object.onChanged.Remove(LinkChanged) END;
+				IF (SELF.object # NIL) THEN SELF.object.onChanged.Remove(LinkChanged) END;
 				SELF.object := object;
-				IF object # NIL THEN object.onChanged.Add(LinkChanged) END;
+				IF object # NIL THEN object.onChanged.Add(LinkChanged); LinkChanged(SELF, object) END;
 			END;
 		END ReplaceLink;
 
 		PROCEDURE LinkChanged*(sender, object: ANY);
 		BEGIN
-			onLinkChanged.Call(object)
+			IF (list # NIL) THEN list.onLinkChanged.CallWithSender(SELF,object) END;
 		END LinkChanged;
 
 		PROCEDURE FromStream*(r : Streams.Reader);
@@ -1734,14 +1734,18 @@ TYPE
 		properties : PropertyArray;
 		nofProperties : LONGINT;
 		onPropertyChanged- : WMEvents.EventSource;
+		onLinkChanged-: WMEvents.EventSource;
 		lock : Locks.RWLock;
 		upNofChanges : LONGINT;
 		upChanged : Property;
 
-		PROCEDURE &New *;
+		propertyChanged, linkChanged: WMEvents.EventListener;
+
+		PROCEDURE &New*;
 		BEGIN
 			NEW(properties, 8);
 			NEW(onPropertyChanged, SELF, StringProperties, StringPropertiesInfo, NIL);
+			NEW(onLinkChanged, SELF, StringLinks, StringLinksInfo, NIL);
 			NEW(lock)
 		END New;
 
@@ -2024,8 +2028,8 @@ TYPE
 
 	Properties* = Repositories.Properties;
 VAR
-	StringProperties : String;
-	StringPropertiesInfo : String;
+	StringProperties, StringLinks : String;
+	StringPropertiesInfo, StringLinksInfo : String;
 	anonymous: String;
 
 PROCEDURE Indent(w : Streams.Writer; indent : LONGINT);
@@ -2112,8 +2116,10 @@ END NewReference;
 
 
 BEGIN
-	StringProperties := Strings.NewString("PropertyList");
+	StringProperties := Strings.NewString("PropertyChanged");
+	StringLinks := Strings.NewString("LinkChanged");
 	StringPropertiesInfo := Strings.NewString("the event is called if a property in the list is changed");
+	StringLinksInfo := Strings.NewString("the event is called if a link in a reference property in the list is changed");
 	anonymous := Strings.NewString("ANONYMOUS");
 END WMProperties.
 
