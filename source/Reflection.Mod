@@ -511,7 +511,7 @@ VAR
 						IF (m # NIL) & (base # m.sb) & (count = 0) THEN ModuleState(w, m) END
 					END;
 				ELSE
-					w.String( "Unknown external procedure, pc = " );  w.Hex( pc, 8 );  w.Ln
+					w.String( "Unknown external procedure, pc = " );  w.Address( pc );  w.Ln
 				END;
 				SYSTEM.GET(bp + SYSTEM.SIZEOF(SYSTEM.ADDRESS), pc);	(* return addr from stack *)
 				SYSTEM.GET(bp, bp);	(* follow dynamic link *)
