@@ -139,7 +139,8 @@ TYPE
 					END;
 					currentId := me(Objects.Process).id;
 					(* wait until no other writer and no reader has the lock *)
-					ASSERT(~(lockedBy = me) & ~InternalHasReadLock(), 3020);
+					ASSERT(~(lockedBy = me), 3020);
+					ASSERT(~InternalHasReadLock(), 3021);
 					AWAIT(DEADLOCK OR (lockedBy = NIL) & (nofReaders = 0));
 					IF DEADLOCK THEN HALT(3099) END;
 					lockedBy := me; lockLevel := 1

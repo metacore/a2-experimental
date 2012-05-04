@@ -1582,22 +1582,22 @@ TYPE
 		BEGIN
 			AcquireRead;
 			object := SELF.object;
+			ReleaseRead;
 			IF (object = NIL) THEN
 				IF (generator # NIL) THEN
 					Repositories.CallCommand(generator^, context, res);
 					IF (res = Repositories.Ok) & (context.object # NIL) & (context.object IS Repositories.Component) THEN
 						object := context.object(Repositories.Component);
-						ReplaceLink(object)
+						Set(object)
 					END;
 				ELSIF (repositoryName # NIL) & (componentName # NIL) THEN
 					Repositories.GetComponent(repositoryName^, componentName^, componentID, object, res);
-					ReplaceLink(object);
+					Set(object);
 				ELSIF (componentName # NIL) & (repository # NIL) THEN
 					object := repository.GetComponent(componentName^, componentID);
-					ReplaceLink(object);
+					Set(object);
 				END;
 			END;
-			ReleaseRead;
 			RETURN object
 		END Get;
 
