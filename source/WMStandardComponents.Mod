@@ -351,6 +351,7 @@ TYPE
 	VAR
 		caption- : WMProperties.StringProperty;
 		isRepeating-, isToggle-, indicateToggle- : WMProperties.BooleanProperty;
+		isInverse-: WMProperties.BooleanProperty;
 
 		onClickHandler- : WMProperties.StringProperty;
 
@@ -409,6 +410,7 @@ TYPE
 			(* behavior *)
 			NEW(isRepeating, PrototypeBisRepeating, NIL, NIL); properties.Add(isRepeating);
 			NEW(isToggle, PrototypeBisToggle, NIL, NIL); properties.Add(isToggle);
+			NEW(isInverse, PrototypeBisInverse, NIL, NIL); properties.Add(isInverse);
 			NEW(indicateToggle, PrototypeBindicateToggle, NIL, NIL); properties.Add(indicateToggle);
 			NEW(onClickHandler, PrototypeBonClickHandler, NIL, NIL); properties.Add(onClickHandler);
 			(* look *)
@@ -535,8 +537,8 @@ TYPE
 		VAR boolean : Types.Boolean; res : LONGINT; m: Models.Model;
 		BEGIN
 			IF (sender = model) & Models.GetModel(model,m) THEN
-				IF m = NIL THEN RETURN END;
 				m.GetGeneric(boolean, res);
+				IF isInverse.Get() THEN boolean.value := ~boolean.value END;
 				IF (res = Models.Ok) & (pressed # boolean.value) THEN
 					SetPressed(boolean.value);
 				END;
@@ -547,7 +549,7 @@ TYPE
 		VAR boolean : Types.Boolean; res : LONGINT; m: Models.Model;
 		BEGIN
 			IF Models.GetModel(model, m) THEN
-				boolean.value := value;
+				IF isInverse.Get() THEN boolean.value := ~value ELSE boolean.value := value END;
 				m.SetGeneric(boolean, res);
 			END;
 		END ChangeModel;
@@ -2752,7 +2754,7 @@ VAR
 	 PrototypeBUseBgImages* : WMProperties.BooleanProperty;
 	 PrototypeBclDefault*, PrototypeBclHover*, PrototypeBclPressed*,
 	 PrototypeBclTextDefault*, PrototypeBclTextHover*, PrototypeBclTextPressed* : WMProperties.ColorProperty;
-	 PrototypeBRepeatMiddleImg*, PrototypeBisRepeating*, PrototypeBisToggle*, PrototypeBindicateToggle*, PrototypeBIsHorizontal* : WMProperties.BooleanProperty;
+	 PrototypeBRepeatMiddleImg*, PrototypeBisRepeating*, PrototypeBisToggle*, PrototypeBisInverse*, PrototypeBindicateToggle*, PrototypeBIsHorizontal* : WMProperties.BooleanProperty;
 	 PrototypeBcaption*, PrototypeBonClickHandler* : WMProperties.StringProperty;
 	 PrototypeBimgDefaultName*, PrototypeBimgHoverName*, PrototypeBimgPressedName*, PrototypeBimageName* : WMProperties.StringProperty;
  	 PrototypeImgDefaultNameLeft*, PrototypeImgDefaultNameRight*, PrototypeImgDefaultNameMiddle*,
@@ -2919,6 +2921,7 @@ BEGIN
 	NEW(Int32Prototype, NIL, NewString("FontHeight"), NewString("height of the button text")); Int32Prototype.Set(12);
 	NEW(PrototypeBisRepeating, NIL, NewString("IsRepeating"), NewString("defines if the button repeats sending click events while being pressed down"));
 	NEW(PrototypeBisToggle, NIL, NewString("IsToggle"), NewString("defines if the button is a toggle button"));
+	NEW(PrototypeBisInverse, NIL, NewString("IsInverse"), NewString("defines if the button is the inverse of the model"));
 	NEW(PrototypeBindicateToggle, NIL, NewString("IndicateToggle"), NewString("Display small LED in toggle buttons"));
 	PrototypeBindicateToggle.Set(TRUE);
 		(* behaviour *)
