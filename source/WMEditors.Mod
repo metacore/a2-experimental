@@ -4,7 +4,7 @@ IMPORT
 	Inputs, Strings, XML, PositionDebugging, UTF8Strings, Texts, TextUtilities, UndoManager, HostClipboard, KernelLog,
 	Types, Models,
 	Raster, WMRectangles, WMGraphics, WMGraphicUtilities, WMEvents, WMProperties, WMDropTarget,
-	WMWindowManager, WMComponents, WMStandardComponents, WMTextView, WMInputMethods;
+	WMWindowManager, WMComponents, WMStandardComponents, WMTextView, WMInputMethods, D:= Debugging;
 
 CONST
 	(* Editor types *)
@@ -1204,8 +1204,9 @@ TYPE
 
 		PROCEDURE RecacheProperties;
 		BEGIN
-			IF unitModel.Get()# NIL THEN LinkChanged(unitModel, unitModel.Get()) END;
 			RecacheProperties^;
+			IF unitModel.Get()# NIL THEN LinkChanged(unitModel, unitModel.Get()) END;
+			IF model.Get()# NIL THEN LinkChanged(model, model.Get()) END;
 		END RecacheProperties;
 
 		PROCEDURE LinkChanged(sender, data : ANY);
@@ -1213,13 +1214,18 @@ TYPE
 		BEGIN
 			IF (sender = model) OR (sender = unitModel) THEN
 				res := -1;
-				IF ~Models.GetModel(model,m) THEN RETURN END;
-				m.GetGeneric(real, res);
-				IF res = Models.Ok THEN
-					IF GetUnit(unit) THEN real.value := unit * real.value END;
-					Strings.FloatToStr(real.value, 1, fractionalDigits.Get(), 0, string.value);
-					CleanString(string.value);
-					SetAsString(string.value);
+				IF Models.GetModel(model,m) THEN
+					m.GetGeneric(real, res);
+					IF res = Models.Ok THEN
+						IF GetUnit(unit) THEN real.value := unit * real.value END;
+						Types.FloatToString(real.value, fractionalDigits.Get(), string.value);
+						SetAsString(string.value);
+					ELSE
+						m.GetGeneric(string,res);
+						IF res = Models.Ok THEN
+							SetAsString(string.value);
+						END;
+					END;
 				END;
 			END;
 		END LinkChanged;
@@ -1228,7 +1234,7 @@ TYPE
 		VAR string : Types.String256; res : LONGINT; str: Strings.String; real: Types.Longreal; u: LONGREAL; m: Models.Model;
 		BEGIN
 			GetAsString(string.value);
-			IF Models.GetModel(model, m) THEN
+			IF Models.GetModel(model, m) & ~(m IS Models.String) THEN
 				Strings.StrToFloat(string.value, real.value);
 				IF GetUnit(u) THEN real.value := real.value / u END;
 				m.SetGeneric(real, res);
@@ -1841,19 +1847,6 @@ VAR
 	PrototypeFractionalDigits*: WMProperties.Int32Property;
 	PrototypeUnit*: WMProperties.ReferenceProperty;
 
-
-PROCEDURE CleanString(VAR s: ARRAY OF CHAR);
-VAR i, lead: LONGINT;
-BEGIN
-	i := 0;
-	WHILE s[i] = " " DO INC(i) END;
-	lead := i;
-	WHILE s[i] # 0X DO s[i-lead] := s[i]; INC(i) END;
-	DEC(i, lead);
-	IF (i>0) & (s[i-1] =".") THEN DEC(i) END;
-	s[i] := 0X;
-END CleanString;
-
 PROCEDURE InitStrings;
 BEGIN
 	GSonEnter := Strings.NewString("onEnter");
@@ -1941,4 +1934,4 @@ END WMEditors.
 
 
 ComponentViewer.Open WMStandardComponents.GenPanel ~
-ComponentViewer.Open WMEditors.GenNumberField ~ 
+ComponentViewer.Open WMEditors.GenTextField  ~ 
