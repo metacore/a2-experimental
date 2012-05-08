@@ -102,14 +102,19 @@ TYPE
 		END Close;
 
 		PROCEDURE SendChar (ch: CHAR; VAR res : LONGINT);
-		BEGIN {EXCLUSIVE}
-			IF ~open THEN res := Serials.Closed; END;
+		VAR wait: BOOLEAN;
+		BEGIN
+			BEGIN{EXCLUSIVE}
+				IF ~open THEN res := Serials.Closed; END;
+			END;
 			IF sender # NIL THEN
-				sender(ch, res);
-				INC(charactersSent);
-				IF EnableSendSpeedLimitation & (waitForMs # 0) & (charactersSent MOD eachNCharacters = 0) THEN
-					timer.Sleep(waitForMs);
+				BEGIN{EXCLUSIVE}
+					INC(charactersSent);
+					IF EnableSendSpeedLimitation & (waitForMs # 0) & (charactersSent MOD eachNCharacters = 0) THEN
+						timer.Sleep(waitForMs)
+					END;
 				END;
+				sender(ch, res);
 			END;
 		END SendChar;
 
