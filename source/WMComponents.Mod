@@ -837,7 +837,8 @@ TYPE
 			ELSIF property = fillColor THEN Invalidate;
 			ELSIF property = bearing THEN Resized;
 			ELSIF property = editMode THEN Invalidate;
-			ELSIF property = model THEN LinkChanged(model, model.Get()); Invalidate;
+			ELSIF property = model THEN
+				LinkChanged(model, model.Get()); Invalidate;
 			ELSIF (property = scaleFont) THEN
 				ScaleFont(bounds.GetHeight(),scaleFont.Get());
 			ELSE PropertyChanged^(sender, property)
@@ -846,11 +847,11 @@ TYPE
 
 		PROCEDURE RecacheProperties;
 		BEGIN
+			RecacheProperties^;
 			IF scaleFont.Get() # 0 THEN ScaleFont(bounds.GetHeight(), scaleFont.Get()) END;
 			IF (model # NIL) & (model.Get() # NIL) THEN LinkChanged(model,model.Get()) END;
-			RecacheProperties^;
 		END RecacheProperties;
-		
+
 		(** Get the root of visible components. Not neccessarily the same as GetComponentRoot() OR GetRoot() *)
 		PROCEDURE GetVisualComponentRoot*(): VisualComponent;
 		VAR p, c : XML.Element;
