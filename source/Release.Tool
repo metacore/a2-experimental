@@ -402,6 +402,9 @@ PACKAGE Drivers ARCHIVE "Drivers.zip" SOURCE "DriversSrc.zip" DESCRIPTION "Devic
 	# PC speaker driver
 	NATIVE { Beep.Mod }
 	WIN { Win32.Beep.Mod }
+	
+	# Pseudo sound driver for UnixAos
+	UNIX { Unix.OpenAL.Mod  OpenALSound.Mod }
 
 	WIN { Win32.WinDisks.Mod } # direct windows disk access, implements Disks interface
 
