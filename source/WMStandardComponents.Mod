@@ -3,7 +3,7 @@ MODULE WMStandardComponents;	(** AUTHOR "TF"; PURPOSE "Standard components"; *)
 IMPORT
 	KernelLog, Kernel, Types, Models, Repositories, WMComponents, Strings, Files,
 	WMGraphics, WMGraphicUtilities, WMRectangles,
-	WMEvents, XML, Inputs, WMProperties, WMWindowManager, D:= Debugging;
+	WMEvents, XML, Inputs, WMProperties, WMWindowManager,Modules,  D:= Debugging;
 
 TYPE
 	(* Local type-alias for convenience *)
@@ -73,6 +73,93 @@ TYPE
 			END
 		END
 	END Timer;
+
+	CursorBlinkerCallback = PROCEDURE {DELEGATE} (isVisible : BOOLEAN);
+
+	(** Global thread that periodically toggles the visibility of the registered component *)
+	Blinker* = OBJECT
+	VAR
+		cursor : ANY;
+		callback : CursorBlinkerCallback;
+		interval : LONGINT;
+		isVisible : BOOLEAN;
+
+		alive, dead : BOOLEAN;
+		timer : Kernel.Timer;
+
+		PROCEDURE &Init;
+		BEGIN
+			cursor := NIL; callback := NIL;
+			interval := 500;
+			isVisible := TRUE;
+			alive := TRUE; dead := FALSE;
+			NEW(timer);
+		END Init;
+
+		(** Set the currently active cursor and a callback that will be periodically called *)
+		PROCEDURE Set*(cursor : ANY; callback : CursorBlinkerCallback);
+		BEGIN {EXCLUSIVE}
+			ASSERT((cursor # NIL) & (callback # NIL));
+			IF (SELF.cursor # NIL) THEN callback(TRUE); END;
+			SELF.cursor := cursor;
+			SELF.callback := callback;
+			isVisible := TRUE;
+			timer.Wakeup;
+		END Set;
+
+		(** Set the cursor blinking interval in milliseconds. An interval of MAX(LONGINT) means don't blink *)
+		PROCEDURE SetInterval*(ms : LONGINT);
+		BEGIN {EXCLUSIVE}
+			ASSERT(ms > 0);
+			interval := ms;
+			timer.Wakeup;
+			IF (interval = MAX(LONGINT)) & (cursor # NIL) THEN
+				isVisible := TRUE;
+				callback(isVisible);
+			END;
+		END SetInterval;
+
+		(** If 'cursor' is the currently active cursor, set the currently active cursor to NIL *)
+		PROCEDURE Remove*(cursor : ANY);
+		BEGIN {EXCLUSIVE}
+			ASSERT(cursor # NIL);
+			IF (SELF.cursor = cursor) THEN
+				SELF.cursor := NIL;
+				SELF.callback := NIL;
+			END;
+		END Remove;
+
+		(** If 'cursor' is the currently active cursor, show it for one period *)
+		PROCEDURE Show*(cursor : ANY);
+		BEGIN {EXCLUSIVE}
+			ASSERT(cursor # NIL);
+			IF (SELF.cursor = cursor) THEN
+				isVisible := TRUE;
+				timer.Wakeup;
+			END;
+		END Show;
+
+		PROCEDURE Finalize;
+		BEGIN
+			BEGIN {EXCLUSIVE} alive := FALSE; END;
+			timer.Wakeup;
+			BEGIN {EXCLUSIVE} AWAIT(dead); END;
+		END Finalize;
+
+	BEGIN {ACTIVE}
+		WHILE alive DO
+			BEGIN {EXCLUSIVE}
+				AWAIT(~alive OR ((cursor # NIL) & (interval # MAX(LONGINT))));
+				IF alive THEN
+					callback(isVisible);
+					isVisible := ~isVisible;
+				END;
+			END;
+			timer.Sleep(interval);
+		END;
+		BEGIN {EXCLUSIVE} dead := TRUE; END;
+	END Blinker;
+
 
 TYPE
 
@@ -272,16 +359,19 @@ TYPE
 		textColor- : WMProperties.ColorProperty;
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
-		fractionalDigits-: WMProperties.Int32Property;
+		blinking-: WMProperties.BooleanProperty;
+
+		show: BOOLEAN; (* state for blinking *)
 
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			show := TRUE;
 			NEW(caption, PrototypeCaption, NIL, NIL); properties.Add(caption);
 			NEW(textColor, PrototypeTextColor, NIL, NIL); properties.Add(textColor);
 			NEW(alignH, PrototypeAlignH, NIL, NIL); properties.Add(alignH);
 			NEW(alignV, PrototypeAlignV, NIL, NIL); properties.Add(alignV);
-			NEW(fractionalDigits, PrototypeFractionalDigits, NIL, NIL); properties.Add(fractionalDigits);
+			NEW(blinking, PrototypeBlinking, NIL, NIL); properties.Add(blinking);
 			SetGenerator("WMStandardComponents.GenLabel");
 			SetNameAsString(StrLabel)
 		END Init;
@@ -290,7 +380,16 @@ TYPE
 		BEGIN
 			RecacheProperties^;
 			SetFont(font.Get());
+			PropertyChanged(NIL, blinking);
 		END RecacheProperties;
+
+		PROCEDURE SetBlinker(on: BOOLEAN);
+		BEGIN
+			IF show # on THEN
+				show := on
+			END;
+			Invalidate;
+		END SetBlinker;
 
 		PROCEDURE PropertyChanged*(sender, property : ANY);
 		VAR element : XML.Element;
@@ -300,12 +399,24 @@ TYPE
 			ELSIF (property = font) THEN
 				RecacheProperties;
 			ELSIF property = model THEN Invalidate
-			ELSIF property = fractionalDigits THEN
-				LinkChanged(model, NIL); Invalidate;
+			ELSIF property = blinking THEN
+				IF blinking.Get() THEN
+					blinker.Set(SELF, SetBlinker);
+				ELSE
+					blinker.Remove(SELF);
+					show := TRUE
+				END;
+				Invalidate;
 			ELSE
 				PropertyChanged^(sender, property)
 			END;
 		END PropertyChanged;
+
+		PROCEDURE Finalize;
+		BEGIN
+			Finalize^;
+			blinker.Remove(SELF);
+		END Finalize;
 
 		PROCEDURE SetCaption*(CONST x : ARRAY OF CHAR);
 		BEGIN
@@ -313,16 +424,10 @@ TYPE
 		END SetCaption;
 
 		PROCEDURE LinkChanged(sender, data : ANY);
-		VAR string : Types.String256; res : LONGINT; real: Types.Longreal; m: Models.Model;
+		VAR string : Types.String256; res : LONGINT; m: Models.Model;
 		BEGIN
 			IF (sender = model) & Models.GetModel(model,m) THEN
-				m.GetGeneric(real, res);
-				IF res = Models.Ok THEN
-					Types.FloatToString(real.value, fractionalDigits.Get(), string.value);
-				END;
-				IF res # Models.Ok THEN
-					m.GetGeneric(string, res);
-				END;
+				m.GetGeneric(string, res);
 				IF (res = Models.Ok) THEN
 					SetCaption(string.value);
 				END;
@@ -333,11 +438,12 @@ TYPE
 		VAR str : String;
 		BEGIN
 			DrawBackground^(canvas); str := caption.Get();
-			IF str # NIL THEN
+			IF (str # NIL) & show THEN
 				canvas.SetColor(textColor.Get());
 				WMGraphics.DrawStringInRect(canvas, GetClientRect(), FALSE, alignH.Get(), alignV.Get(), str^)
 			END;
 		END DrawBackground;
+
 	END Label;
 
 TYPE
@@ -2728,6 +2834,7 @@ TYPE
 
 VAR
 	manager : WMWindowManager.WindowManager;
+	blinker: Blinker;
 
 	(* global strings *)
 	GSonTimer, GSonTimerInfo, GSStart, GSStartTimerInfo, GSStop, GSStopTimerInfo : String;
@@ -2741,13 +2848,13 @@ VAR
 	PrototypeTextColor*: WMProperties.ColorProperty;
 	PrototypeAlignH*, PrototypeButtonAlignH*: WMProperties.Int32Property;
 	PrototypeAlignV*, PrototypeButtonAlignV*: WMProperties.Int32Property;
-	PrototypeFractionalDigits*: WMProperties.Int32Property;
 	 (* temporary prototype-prototypes *)
 	 ColorPrototype : WMProperties.ColorProperty;
 	 BooleanPrototype : WMProperties.BooleanProperty;
 	 StringPrototype : WMProperties.StringProperty;
 	 Int32Prototype : WMProperties.Int32Property;
 	 RectanglePrototype : WMProperties.RectangleProperty;
+	 PrototypeBlinking: WMProperties.BooleanProperty;
 
  	 (* Button prototypes *)
 	 PrototypeBBounds* : WMProperties.RectangleProperty;
@@ -2898,8 +3005,6 @@ BEGIN
 	PrototypeAlignH.Set(WMGraphics.AlignLeft);
 	NEW(PrototypeAlignV, NIL, NewString("AlignV"), NewString("vertical alignment")); plLabel.Add(PrototypeAlignV);
 	PrototypeAlignV.Set(WMGraphics.AlignCenter);
-	NEW(PrototypeFractionalDigits, NIL, NewString("FractionalDigits"), NewString("fractional digits")); plLabel.Add(PrototypeFractionalDigits);
-	PrototypeFractionalDigits.Set(0);
 
 	(*
 	NEW(plDecorator); WMComponents.propertyListList.Add("Decorator", plDecorator);
@@ -3237,6 +3342,7 @@ BEGIN
 	(* Image Panel *)
 	NEW(plImagePanel); WMComponents.propertyListList.Add("ImagePanel", plImagePanel);
 	NEW(ProtoIpImgName, NIL, NewString("Image"), NewString("Name of image to be displayed")); plImagePanel.Add(ProtoIpImgName);
+	NEW(PrototypeBlinking, NIL, NewString("Blinking"), NewString("Toggle Display of Component")); PrototypeBlinking.Set(FALSE);
 	WMComponents.propertyListList.UpdateStyle
 END InitPrototypes;
 
@@ -3359,7 +3465,14 @@ BEGIN
 	NEW(t, LEN(x)); COPY(x, t^); RETURN t
 END NewString;
 
+PROCEDURE Cleanup;
 BEGIN
+	blinker.Finalize;
+END Cleanup;
+
+BEGIN
+	NEW(blinker);
+	Modules.InstallTermHandler(Cleanup);
 	manager := WMWindowManager.GetDefaultManager();
 	InitStrings;
 	InitPrototypes;
