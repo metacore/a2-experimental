@@ -1539,7 +1539,7 @@ TYPE
 		bearingView : RectanglePropertyView;
 
 		fillColorView : ColorPropertyView;
-		visibleView, takesFocusView, needsTabView : BooleanPropertyView;
+		visibleView, takesFocusView, needsTabView, editModeView : BooleanPropertyView;
 
 		focusNextView, focusPrevView : StringPropertyView;
 
@@ -1551,6 +1551,7 @@ TYPE
 			NEW(bearingView, FALSE); AddContent(bearingView);
 			NEW(fillColorView); AddContent(fillColorView);
 			NEW(visibleView); AddContent(visibleView);
+			NEW(editModeView); AddContent(editModeView);
 			NEW(needsTabView); AddContent(needsTabView);
 			NEW(takesFocusView); AddContent(takesFocusView);
 			NEW(focusPrevView); AddContent(focusPrevView);
@@ -1562,7 +1563,7 @@ TYPE
 				boundsView.bounds.GetHeight() + bearingView.bounds.GetHeight() +
 				fillColorView.bounds.GetHeight() + visibleView.bounds.GetHeight() +
 				takesFocusView.bounds.GetHeight() + needsTabView.bounds.GetHeight() +
-				focusPrevView.bounds.GetHeight() + focusNextView.bounds.GetHeight()
+				focusPrevView.bounds.GetHeight() + focusNextView.bounds.GetHeight() + editModeView.bounds.GetHeight()
 			);
 		END Init;
 
@@ -1583,6 +1584,7 @@ TYPE
 			needsTabView.SetProperty(NIL);
 			focusPrevView.SetProperty(NIL);
 			focusNextView.SetProperty(NIL);
+			editModeView.SetProperty(NIL);
 		END ResetProperties;
 
 		PROCEDURE SetAlignment(alignmentMode : LONGINT);
@@ -1629,6 +1631,8 @@ TYPE
 					focusPrevView.SetProperty(property);
 				ELSIF (name^ = "FocusNext") & (property IS WMProperties.StringProperty) THEN
 					focusNextView.SetProperty(property);
+				ELSIF (name^ = "EditMode") & (property IS WMProperties.BooleanProperty) THEN
+					editModeView.SetProperty(property)
 				ELSE
 					res := CannotHandle;
 				END;
@@ -1649,6 +1653,7 @@ TYPE
 			takesFocusView.Apply(FALSE);
 			focusPrevView.Apply(FALSE);
 			focusNextView.Apply(FALSE);
+			editModeView.Apply(FALSE);
 		END Apply;
 
 		PROCEDURE Synchronize(force : BOOLEAN);
@@ -1663,6 +1668,7 @@ TYPE
 			takesFocusView.Synchronize(force);
 			focusPrevView.Synchronize(force);
 			focusNextView.Synchronize(force);
+			editModeView.Synchronize(force);
 		END Synchronize;
 
 		PROCEDURE Enable;
@@ -1677,6 +1683,7 @@ TYPE
 			takesFocusView.Enable;
 			focusPrevView.Enable;
 			focusNextView.Enable;
+			editModeView.Enable;
 		END Enable;
 
 		PROCEDURE Disable;
@@ -1690,6 +1697,7 @@ TYPE
 			takesFocusView.Disable;
 			focusPrevView.Disable;
 			focusNextView.Disable;
+			editModeView.Disable;
 		END Disable;
 
 	END VisualComponentView;
@@ -3426,7 +3434,8 @@ BEGIN
 		((name^ = "TakesFocus") & (property IS WMProperties.BooleanProperty)) OR
 		((name^ = "NeedsTab") & (property IS WMProperties.BooleanProperty)) OR
 		((name^ = "FocusNext") & (property IS WMProperties.StringProperty)) OR
-		((name^ = "FocusPrevious") & (property IS WMProperties.StringProperty))
+		((name^ = "FocusPrevious") & (property IS WMProperties.StringProperty)) OR
+		((name^ = "EditMode") & (property IS WMProperties.BooleanProperty))
 	);
 END IsVisualComponentProperty;
 
