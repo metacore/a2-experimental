@@ -995,7 +995,7 @@ TYPE
 				IF c IS VisualComponent THEN
 					vc := c(VisualComponent);
 					r := vc.bounds.Get();
-					IF Rectangles.PointInRect(x, y, r) & vc.IsHit(x - r.l, y - r.t)  THEN
+					IF Rectangles.PointInRect(x, y, r) & vc.IsHit(x - r.l, y - r.t) & vc.enabled.Get() THEN
 						result := vc
 					END;
 				END;
