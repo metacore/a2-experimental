@@ -361,7 +361,7 @@ TYPE
 		alignV- : WMProperties.Int32Property;
 		blinking-: WMProperties.BooleanProperty;
 
-		show: BOOLEAN; (* state for blinking *)
+		show-: BOOLEAN; (* state for blinking *)
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -2834,7 +2834,7 @@ TYPE
 
 VAR
 	manager : WMWindowManager.WindowManager;
-	blinker: Blinker;
+	blinker-: Blinker;
 
 	(* global strings *)
 	GSonTimer, GSonTimerInfo, GSStart, GSStartTimerInfo, GSStop, GSStopTimerInfo : String;
@@ -2854,7 +2854,7 @@ VAR
 	 StringPrototype : WMProperties.StringProperty;
 	 Int32Prototype : WMProperties.Int32Property;
 	 RectanglePrototype : WMProperties.RectangleProperty;
-	 PrototypeBlinking: WMProperties.BooleanProperty;
+	 PrototypeBlinking*: WMProperties.BooleanProperty;
 
  	 (* Button prototypes *)
 	 PrototypeBBounds* : WMProperties.RectangleProperty;
