@@ -1518,7 +1518,7 @@ TYPE
 			IF SELF.object # object THEN
 				IF (SELF.object # NIL) THEN SELF.object.onChanged.Remove(LinkChanged) END;
 				SELF.object := object;
-				IF object # NIL THEN object.onChanged.Add(LinkChanged); LinkChanged(SELF, object) END;
+				IF object # NIL THEN object.onChanged.Add(LinkChanged); LinkChanged(SELF, object)  END;
 			END;
 		END ReplaceLink;
 
@@ -1683,7 +1683,8 @@ TYPE
 				s := p(XML.Chars).GetStr();
 				IF s # NIL THEN
 					Strings.Trim(s^, " ");
-					SetAsString(s^)
+					SetAsString(s^);
+					object := Get();
 				END
 			ELSIF (p # NIL) & (p IS XML.Element) THEN
 				ReplaceLink( Repositories.ComponentFromXML(p(XML.Element)));
@@ -1994,6 +1995,7 @@ TYPE
 			Indent(w, indent + 1);
 			w.String("<Properties>"); w.Ln;
 			AcquireRead;
+
 			FOR i := 0 TO nofProperties - 1 DO
 				properties[i].WriteXML(w, context, indent + 2)
 			END;
