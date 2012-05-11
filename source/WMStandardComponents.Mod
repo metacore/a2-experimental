@@ -74,38 +74,28 @@ TYPE
 		END
 	END Timer;
 
-	CursorBlinkerCallback = PROCEDURE {DELEGATE} (isVisible : BOOLEAN);
+	CursorBlinkerCallback = PROCEDURE {DELEGATE} (sender, data: ANY);
 
 	(** Global thread that periodically toggles the visibility of the registered component *)
 	Blinker* = OBJECT
 	VAR
-		cursor : ANY;
-		callback : CursorBlinkerCallback;
+		events- : WMEvents.EventSource;
+
 		interval : LONGINT;
-		isVisible : BOOLEAN;
+		visible-: BOOLEAN;
 
 		alive, dead : BOOLEAN;
 		timer : Kernel.Timer;
 
 		PROCEDURE &Init;
 		BEGIN
-			cursor := NIL; callback := NIL;
 			interval := 500;
-			isVisible := TRUE;
+			visible := TRUE;
 			alive := TRUE; dead := FALSE;
 			NEW(timer);
+			NEW(events, SELF, NIL, NIL,NIL);
+			SetInterval(500);
 		END Init;
-
-		(** Set the currently active cursor and a callback that will be periodically called *)
-		PROCEDURE Set*(cursor : ANY; callback : CursorBlinkerCallback);
-		BEGIN {EXCLUSIVE}
-			ASSERT((cursor # NIL) & (callback # NIL));
-			IF (SELF.cursor # NIL) THEN callback(TRUE); END;
-			SELF.cursor := cursor;
-			SELF.callback := callback;
-			isVisible := TRUE;
-			timer.Wakeup;
-		END Set;
 
 		(** Set the cursor blinking interval in milliseconds. An interval of MAX(LONGINT) means don't blink *)
 		PROCEDURE SetInterval*(ms : LONGINT);
@@ -113,31 +103,11 @@ TYPE
 			ASSERT(ms > 0);
 			interval := ms;
 			timer.Wakeup;
-			IF (interval = MAX(LONGINT)) & (cursor # NIL) THEN
-				isVisible := TRUE;
-				callback(isVisible);
+			IF (interval = MAX(LONGINT)) THEN
+				visible := TRUE;
+				events.Call(SELF);
 			END;
 		END SetInterval;
-
-		(** If 'cursor' is the currently active cursor, set the currently active cursor to NIL *)
-		PROCEDURE Remove*(cursor : ANY);
-		BEGIN {EXCLUSIVE}
-			ASSERT(cursor # NIL);
-			IF (SELF.cursor = cursor) THEN
-				SELF.cursor := NIL;
-				SELF.callback := NIL;
-			END;
-		END Remove;
-
-		(** If 'cursor' is the currently active cursor, show it for one period *)
-		PROCEDURE Show*(cursor : ANY);
-		BEGIN {EXCLUSIVE}
-			ASSERT(cursor # NIL);
-			IF (SELF.cursor = cursor) THEN
-				isVisible := TRUE;
-				timer.Wakeup;
-			END;
-		END Show;
 
 		PROCEDURE Finalize;
 		BEGIN
@@ -149,10 +119,10 @@ TYPE
 	BEGIN {ACTIVE}
 		WHILE alive DO
 			BEGIN {EXCLUSIVE}
-				AWAIT(~alive OR ((cursor # NIL) & (interval # MAX(LONGINT))));
+				AWAIT(~alive OR ((interval # MAX(LONGINT))));
 				IF alive THEN
-					callback(isVisible);
-					isVisible := ~isVisible;
+					events.Call(SELF);
+					visible := ~visible;
 				END;
 			END;
 			timer.Sleep(interval);
@@ -280,20 +250,64 @@ TYPE
 (** Visual components *)
 TYPE
 	Panel* = OBJECT (WMComponents.VisualComponent)
+	VAR
+		blinking-: WMProperties.BooleanProperty;
+		blink: BOOLEAN;
+		show-: BOOLEAN; (* state for blinking *)
 
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
+			show := TRUE;
 			SetGenerator("WMStandardComponents.GenPanel");
-			SetNameAsString(StrPanel)
+			SetNameAsString(StrPanel);
+			NEW(blinking, PrototypeBlinking, NIL, NIL); properties.Add(blinking);
+			blink := blinking.Get();
 		END Init;
 
 		PROCEDURE RecacheProperties;
 		BEGIN
 			RecacheProperties^;
+			PropertyChanged(NIL, blinking);
 			Invalidate
 		END RecacheProperties;
+
+		PROCEDURE SetBlinker(sender, data: ANY);
+		BEGIN
+			WITH sender: Blinker DO
+				show := sender.visible;
+			END;
+			Invalidate;
+		END SetBlinker;
+
+		PROCEDURE PropertyChanged*(sender, property : ANY);
+		VAR b: BOOLEAN; element : XML.Element;
+		BEGIN
+			IF property = blinking THEN
+				b := blinking.Get();
+				IF b # blink THEN
+					blink := b;
+					IF b THEN
+						blinker.events.Add(SetBlinker);
+					ELSE
+						blinker.events.Remove(SetBlinker);
+						show := TRUE
+					END;
+				Invalidate;
+				END;
+			ELSE
+				PropertyChanged^(sender, property)
+			END;
+		END PropertyChanged;
+
+		PROCEDURE Finalize;
+		BEGIN
+			Finalize^;
+			blinker.events.Remove(SetBlinker);
+		END Finalize;
+
 	END Panel;
+
 
 TYPE
 	Decoration= POINTER TO RECORD
@@ -359,19 +373,16 @@ TYPE
 		textColor- : WMProperties.ColorProperty;
 		alignH- : WMProperties.Int32Property;
 		alignV- : WMProperties.Int32Property;
-		blinking-: WMProperties.BooleanProperty;
-
-		show-: BOOLEAN; (* state for blinking *)
 
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
-			show := TRUE;
+
 			NEW(caption, PrototypeCaption, NIL, NIL); properties.Add(caption);
 			NEW(textColor, PrototypeTextColor, NIL, NIL); properties.Add(textColor);
 			NEW(alignH, PrototypeAlignH, NIL, NIL); properties.Add(alignH);
 			NEW(alignV, PrototypeAlignV, NIL, NIL); properties.Add(alignV);
-			NEW(blinking, PrototypeBlinking, NIL, NIL); properties.Add(blinking);
+
 			SetGenerator("WMStandardComponents.GenLabel");
 			SetNameAsString(StrLabel)
 		END Init;
@@ -380,16 +391,7 @@ TYPE
 		BEGIN
 			RecacheProperties^;
 			SetFont(font.Get());
-			PropertyChanged(NIL, blinking);
 		END RecacheProperties;
-
-		PROCEDURE SetBlinker(on: BOOLEAN);
-		BEGIN
-			IF show # on THEN
-				show := on
-			END;
-			Invalidate;
-		END SetBlinker;
 
 		PROCEDURE PropertyChanged*(sender, property : ANY);
 		VAR element : XML.Element;
@@ -399,24 +401,11 @@ TYPE
 			ELSIF (property = font) THEN
 				RecacheProperties;
 			ELSIF property = model THEN Invalidate
-			ELSIF property = blinking THEN
-				IF blinking.Get() THEN
-					blinker.Set(SELF, SetBlinker);
-				ELSE
-					blinker.Remove(SELF);
-					show := TRUE
-				END;
-				Invalidate;
 			ELSE
 				PropertyChanged^(sender, property)
 			END;
 		END PropertyChanged;
 
-		PROCEDURE Finalize;
-		BEGIN
-			Finalize^;
-			blinker.Remove(SELF);
-		END Finalize;
 
 		PROCEDURE SetCaption*(CONST x : ARRAY OF CHAR);
 		BEGIN
@@ -2676,7 +2665,7 @@ TYPE
 
 TYPE
 
-	Image* = OBJECT(WMComponents.VisualComponent)
+	Image* = OBJECT(Panel)
 	VAR
 		imageName- : WMProperties.StringProperty;
 		image- : WMGraphics.Image;
@@ -2725,7 +2714,7 @@ TYPE
 		VAR width, height : LONGINT;
 		BEGIN
 			DrawBackground^(canvas);
-			IF (image # NIL) THEN
+			IF (image # NIL) & show THEN
 				IF scaleImageI THEN
 					width := bounds.GetWidth();
 					height := bounds.GetHeight();
@@ -2822,12 +2811,14 @@ TYPE
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
 		VAR x, y : LONGINT;
 		BEGIN
-			DrawBackground^(canvas);
-			IF img # NIL THEN
-				x := dx * hScrollbar.pos.Get() DIV 100;
-				y := dy * vScrollbar.pos.Get() DIV 100;
-				canvas.DrawImage(-x, -y, img, WMGraphics.ModeSrcOverDst)
-			END
+			IF show THEN
+				DrawBackground^(canvas);
+				IF img # NIL THEN
+					x := dx * hScrollbar.pos.Get() DIV 100;
+					y := dy * vScrollbar.pos.Get() DIV 100;
+					canvas.DrawImage(-x, -y, img, WMGraphics.ModeSrcOverDst)
+				END
+			END;
 		END DrawBackground;
 
 	END ImagePanel;
