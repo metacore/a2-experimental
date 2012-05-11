@@ -4,7 +4,7 @@ IMPORT
 	Inputs, Strings, XML, PositionDebugging, UTF8Strings, Texts, TextUtilities, UndoManager, HostClipboard, KernelLog,
 	Types, Models,
 	Raster, WMRectangles, WMGraphics, WMGraphicUtilities, WMEvents, WMProperties, WMDropTarget,
-	WMWindowManager, WMComponents, WMStandardComponents, WMTextView, WMInputMethods, D:= Debugging;
+	WMWindowManager, WMComponents, WMStandardComponents, WMTextView, WMInputMethods, D:= Debugging, Reals;
 
 CONST
 	(* Editor types *)
@@ -1217,9 +1217,13 @@ TYPE
 				IF Models.GetModel(model,m) THEN
 					m.GetGeneric(real, res);
 					IF res = Models.Ok THEN
-						IF GetUnit(unit) THEN real.value := unit * real.value END;
-						Types.FloatToString(real.value, fractionalDigits.Get(), string.value);
-						SetAsString(string.value);
+						IF Reals.IsNaNL(real.value) THEN
+							SetAsString("--")
+						ELSE
+							IF GetUnit(unit) THEN real.value := unit * real.value END;
+							Types.FloatToString(real.value, fractionalDigits.Get(), string.value);
+							SetAsString(string.value);
+						END
 					ELSE
 						m.GetGeneric(string,res);
 						IF res = Models.Ok THEN
