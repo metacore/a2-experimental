@@ -97,7 +97,7 @@ TYPE
 			- macros
 			- command execution
 	*)
-	TextField* = OBJECT(WMComponents.VisualComponent)
+	TextField* = OBJECT(WMStandardComponents.Panel)
 	VAR
 		type- : WMProperties.Int32Property;
 		typeI : LONGINT;
@@ -409,7 +409,7 @@ TYPE
 
 		BEGIN
 			Draw^(canvas);
-			IF ~visible.Get() THEN RETURN END;
+			IF ~visible.Get() OR ~show THEN RETURN END;
 			IF ~readOnlyI THEN
 				WMGraphicUtilities.DrawBevel(canvas, GetClientRect(), BorderWidth, TRUE, SHORT(0808080FFH), WMGraphics.ModeCopy)
 			END;
