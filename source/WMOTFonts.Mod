@@ -227,7 +227,7 @@ TYPE
 					vu := Get(x,y+1);
 					(* interpolate pixels only on boundary not in vertices *)
 					IF ((v #vl) # (v#vr)) & ((v#vb) # (v#vu)) THEN
-						obuf[x] := CHR( (10*Get(x,y) + 4*Get(x-1,y) + 4*Get(x+1,y) + 3*Get(x,y-1) + 3*Get(x,y+1)) DIV 24);
+						obuf[x] := CHR( (10*v+ 4*vl + 4*vr + 3*vb + 3*vu) DIV 24);
 					ELSE
 						obuf[x] := CHR(v);
 					END;
