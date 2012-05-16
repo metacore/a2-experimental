@@ -99,11 +99,15 @@ TYPE
 			IF glyphRanges[gri].glyphs = NIL THEN
 				NEW(glyphRanges[gri].glyphs, glyphRanges[gri].lastCode - glyphRanges[gri].firstCode + 1)
 			END;
+			(*
 			KernelLog.String("OT: Loading range: "); KernelLog.Hex(glyphRanges[gri].firstCode, 6); KernelLog.String(".."); KernelLog.Hex(glyphRanges[gri].lastCode, 6);
+			*)
 			FOR i := glyphRanges[gri].firstCode TO glyphRanges[gri].lastCode DO
 				ReadGlyph(i, glyphRanges[gri].glyphs[i - glyphRanges[gri].firstCode])
 			END;
+			(*
 			KernelLog.String("  done"); KernelLog.Ln;
+			*)
 			glyphRanges[gri].loaded := TRUE
 		END LoadGlyphRange;
 

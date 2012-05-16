@@ -753,7 +753,12 @@ TYPE
 		PROCEDURE Set*(value : String);
 		BEGIN
 			AcquireWrite;
-			SELF.value := value; Translate; NotDefault; Changed;
+				IF (value = SELF.value) (* reset with self must lead to update *) OR (value = NIL) OR (SELF.value = NIL) OR (value^ # SELF.value^) THEN
+					SELF.value := value; Translate;Changed;
+				ELSIF ~nonDefault THEN
+					Changed
+				END;
+				NotDefault;
 			ReleaseWrite
 		END Set;
 
@@ -769,9 +774,7 @@ TYPE
 
 		PROCEDURE SetAOC*(CONST value : ARRAY OF CHAR);
 		BEGIN
-			AcquireWrite;
-			SELF.value := Strings.NewString(value); Translate; NotDefault; Changed;
-			ReleaseWrite
+			Set(Strings.NewString(value));
 		END SetAOC;
 
 		PROCEDURE FromXML*(xml : XML.Element);
