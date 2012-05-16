@@ -1878,16 +1878,15 @@ TYPE
 			RETURN FALSE;
 		END GetPropertyValue;
 
-		PROCEDURE SetPropertyValue*(name, value : String) : BOOLEAN;
+		PROCEDURE SetPropertyValue*(CONST name, value: ARRAY OF CHAR) : BOOLEAN;
 		VAR i : LONGINT; n : String; vs : Streams.StringReader;
 		BEGIN
 			AcquireWrite;
-			IF (name = NIL) OR (value = NIL) THEN ReleaseWrite; RETURN FALSE END;
 			i := 0;
 			WHILE i < nofProperties DO
 				n := properties[i].GetName();
-				IF (n # NIL) & (n^ = name^) THEN
-					NEW(vs, LEN(value^)); vs.SetRaw(value^, 0, LEN(value^));
+				IF (n # NIL) & (n^ = name) THEN
+					NEW(vs, LEN(value)); vs.SetRaw(value, 0, LEN(value));
 					properties[i].FromStream(vs); i := nofProperties
 				END;
 				INC(i)

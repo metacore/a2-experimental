@@ -602,7 +602,7 @@ TYPE
 		(** Add a permanent XML attribute *)
 		PROCEDURE AddAttribute*(attribute: XML.Attribute);
 		BEGIN
-			IF ~properties.SetPropertyValue(attribute.GetName(), attribute.GetValue()) THEN
+			IF ~properties.SetPropertyValue(attribute.GetName()^, attribute.GetValue()^) THEN
 				AddAttribute^(attribute) (* save the attribute literally if it is not a known property of the component *)
 			END
 		END AddAttribute;
@@ -613,11 +613,8 @@ TYPE
 		END HasAttribute;
 
 		PROCEDURE SetAttributeValue*(CONST name, value : ARRAY OF CHAR);
-		VAR dummyName, dummyValue : Strings.String;
 		BEGIN
-			dummyName := Strings.NewString(name);
-			dummyValue := Strings.NewString(value);
-			IF ~properties.SetPropertyValue(dummyName, dummyValue) THEN
+			IF ~properties.SetPropertyValue(name, value) THEN
 				SetAttributeValue^(name, value);
 			END;
 		END SetAttributeValue;
@@ -3287,10 +3284,9 @@ BEGIN
 END Align;
 
 PROCEDURE SetProperty*(context: Commands.Context);
-VAR name, value: Strings.String; entry: ComponentListEntry;
+VAR name, value: ARRAY 256 OF CHAR; entry: ComponentListEntry;
 BEGIN
-	NEW(name,256); NEW(value, 256);
-	IF context.arg.GetString(name^) & context.arg.GetString(value^) THEN
+	IF context.arg.GetString(name) & context.arg.GetString(value) THEN
 		entry := selection.first;
 		WHILE entry # NIL DO
 			IF entry.component.properties.SetPropertyValue(name, value) THEN END;
