@@ -127,6 +127,7 @@ TYPE
 				PROCEDURE New0*( name: ARRAY OF CHAR ): Files.File;
 				VAR f: File;
 				BEGIN {EXCLUSIVE}
+					AwaitFinalizing;
 					NEW( f, SELF );
 					f.workName := "";  COPY( name, f.registerName );
 					f.fd := NoDesc;  f.state := Create;  f.fsize := 0;  f.fpos := 0;
@@ -149,6 +150,7 @@ TYPE
 					oflags: SET;  nextdir, path: Filename; 
 				BEGIN  {EXCLUSIVE}
 					IF name = "" THEN  RETURN NIL  END;
+					AwaitFinalizing;
 					
 					IF IsFullName( name ) THEN  
 						COPY( name, path );  nextdir := "";  
@@ -824,9 +826,14 @@ TYPE
 	PROCEDURE GC;
 	BEGIN
 		Kernel.GC;
-		(* now wait until finalizers have finished! (Cleanup)*)
-		WHILE Machine.lock[Machine.GC] = 'Y' DO  Machine.thrSleep( 10 )  END;
+		AwaitFinalizing
 	END GC;
+	
+	PROCEDURE AwaitFinalizing;
+	BEGIN
+		(* wait until finalizers have finished! (Cleanup)*)
+		WHILE Machine.lock[Machine.GC] = 'Y' DO  Machine.thrSleep( 10 )  END;
+	END AwaitFinalizing;
 
 
 	PROCEDURE ResetBuffers( f: File;  VAR stat: Unix.Status );
