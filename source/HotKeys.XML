@@ -103,5 +103,9 @@
 	<HotKey name="RIGHT" keys="CTRL+SHIFT+L" command="REMAP RIGHT"/>
 	
 	<HotKey name="BOLD" keys="CTRL+B" command="WMTextStyleTool.SetFontStyle BOLD"/>
+
+	<HotKey name="Close Windows" keys="CTRL+Q" command="SystemTools.Reboot"/>
+	<HotKey name="Trace" keys="CTRL+T" command="TLHostData.ToggleTrace;WMKernelLog.Open"/>
+
 	
 </HotKeys>
