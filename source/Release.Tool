@@ -1078,7 +1078,7 @@ PACKAGE Fun ARCHIVE "Fun.zip" SOURCE "FunSrc.zip" DESCRIPTION "Games, Demos and 
 	Bimso.Mod
 
 	# Demos
-	WMScribble.Mod WMGraphicsDemo.Mod
+	WMScribble.Mod WMGraphicsDemo.Mod SortDemo.Mod
 	Demos.rep
 	FractalDemo.Mod
 	WMBunny.Mod WMBunnyImages.tar
@@ -1516,7 +1516,7 @@ PACKAGE OberonGadgets ARCHIVE "OberonGadgets.zip" SOURCE "OberonGadgetsSrc.zip" 
 	TextDocs.Lib Oberon.PanelDocs.Mod 	# Document catalog
 	Oberon.Icons.Mod Oberon.ColorTools.Mod Oberon.NamePlates.Mod Oberon.Navigators.Mod Oberon.NoteBooks.Mod
 
-	NATIVE,iWIN { Oberon.Finder.Mod }
+	NATIVE,iWIN,UNIX { Oberon.Finder.Mod }
 	eWIN { Win32.Oberon.Finder.Mod }
 
 	Oberon.GadgetsIn.Mod Oberon.GadgetsOut.Mod
