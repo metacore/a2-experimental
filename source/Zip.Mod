@@ -71,7 +71,7 @@ TYPE
 	ArchiveDesc* = RECORD
 		nofEntries-: INTEGER;	(** total number of files stored in the zipfile **)
 		comment-: POINTER TO ARRAY OF CHAR;	(** comment for zipfile **)
-		file: Files.File;	(* pointer to the according zip-file *)
+		file-: Files.File;	(* pointer to the according zip-file *)
 		offset: LONGINT;	(* offset of end of central dir record *)
 		firstEntry, lastEntry: Entry	(* first and last Entry of Archive *)
 	END;
@@ -405,7 +405,7 @@ VAR
 	r: Files.Rider;
 	arc: Archive;
 BEGIN
-	f := Files.Old(name);
+	IF name#"" THEN f := Files.Old(name); END;
 	IF f # NIL THEN
 		RETURN OpenArchive(name, res)
 	ELSE
@@ -416,7 +416,7 @@ BEGIN
 		arc.offset := 0;
 		f.Set(r, 0);
 		WriteEndOfCentDir(arc, r);
-		Files.Register(f);
+		IF name#"" THEN Files.Register(f) END;
 		res := Ok;
 		RETURN arc
 	END
