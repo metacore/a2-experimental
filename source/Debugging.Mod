@@ -62,7 +62,9 @@ VAR
 
 	PROCEDURE TraceBack*;   (* do a stack trace back starting at the calling instruction position *)
 	BEGIN
+		Enter;
 		TraceBackThis( Machine.CurrentPC(), Machine.CurrentBP(), Objects.GetStackBottom(Objects.CurrentProcess()) );
+		Exit;
 	END TraceBack;
 
 	(* TraceBackAll implemented in SystemTools.ShowStacks *)
@@ -70,7 +72,11 @@ VAR
 	PROCEDURE FileStart*(context: Commands.Context);   (* start writing to a the file Debugging.Text *)
 	VAR w: Files.Writer;  filename: ARRAY 256 OF CHAR;
 	BEGIN
-		context.arg.String(filename);
+		IF context # NIL THEN
+			context.arg.String(filename);
+		ELSE
+			filename := ""
+		END;
 		IF (filename = "")  THEN filename := "Debugging.Text" END;
 		KernelLog.String("filename = "); KernelLog.String(filename); KernelLog.String("<"); KernelLog.Ln;
 		f := Files.New( filename );
