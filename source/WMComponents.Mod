@@ -598,38 +598,6 @@ TYPE
 			END
 		END InternalLinkChanged;
 
-
-		(** Add a permanent XML attribute *)
-		PROCEDURE AddAttribute*(attribute: XML.Attribute);
-		BEGIN
-			IF ~properties.SetPropertyValue(attribute.GetName()^, attribute.GetValue()^) THEN
-				AddAttribute^(attribute) (* save the attribute literally if it is not a known property of the component *)
-			END
-		END AddAttribute;
-
-		PROCEDURE HasAttribute*(CONST name : ARRAY OF CHAR) : BOOLEAN;
-		BEGIN
-			RETURN properties.HasProperty(name) OR HasAttribute^(name);
-		END HasAttribute;
-
-		PROCEDURE SetAttributeValue*(CONST name, value : ARRAY OF CHAR);
-		BEGIN
-			IF ~properties.SetPropertyValue(name, value) THEN
-				SetAttributeValue^(name, value);
-			END;
-		END SetAttributeValue;
-
-		PROCEDURE GetAttributeValue*(CONST name : ARRAY OF CHAR) : Strings.String;
-		VAR dummy : Strings.String;
-		BEGIN
-			NEW(dummy, 256);
-			IF properties.GetPropertyValue(name, dummy^) THEN
-				RETURN dummy;
-			ELSE
-				RETURN GetAttributeValue^(name);
-			END;
-		END GetAttributeValue;
-
 	END Component;
 
 TYPE
@@ -1148,8 +1116,22 @@ TYPE
 
 		(** Is called before any sub-components are drawn *)
 		PROCEDURE DrawBackground*(canvas : WMGraphics.Canvas);
-		VAR color : LONGINT;
+		VAR color : LONGINT; name:Strings.String;
 		BEGIN
+			(* message tracing
+			IF sequencer = Messages.debug THEN
+				D.Enter;
+				D.Ln;
+				D.String("##############"); D.Ln;
+				name := GetName();
+				IF name # NIL THEN D.String(name^); D.Ln; END;
+				name := id.Get();
+				IF name # NIL THEN D.String(name^); D.Ln; END;
+				D.Int(Kernel.GetTicks(),1); D.Ln;
+				(*D.TraceBack;*)
+				D.Exit;
+			END;
+			*)
 			CheckReadLock;
 			color := fillColor.Get();
 			IF color # 0 THEN canvas.Fill(GetClientRect(), color, WMGraphics.ModeSrcOverDst) END;

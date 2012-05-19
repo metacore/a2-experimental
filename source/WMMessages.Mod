@@ -1,7 +1,7 @@
 MODULE WMMessages; (** AUTHOR "TF"; PURPOSE "Support for messages and events"; *)
 
 IMPORT
-	Strings, KernelLog, Objects, Kernel, Locks;
+	Strings, KernelLog, Objects, Kernel, Locks, D:= Debugging;
 
 CONST
 	MsgQSize = 128;
@@ -128,6 +128,16 @@ TYPE
 		PROCEDURE Add*(VAR msg : Message) : BOOLEAN;
 		VAR i : LONGINT;
 		BEGIN {EXCLUSIVE}
+			(*
+			IF debug = SELF THEN
+				D.Enter;
+				D.Ln;
+				D.String("-- WMMessages.MsgSequencer.Add --"); D.Ln;
+				D.String("msg type "); D.Int(msg.msgType,1); D.Ln;
+				D.String("time "); D.Int(Kernel.GetTicks(),1);D.Ln;
+				D.Exit;
+			END;
+			*)
 			IF (msg.msgType = MsgPointer) & (num > 0) THEN  (* reduce pointer moves in buffer *)
 				i := num - 1;
 				WHILE i >= 0 DO
@@ -166,6 +176,17 @@ TYPE
 			(* if asynchronous call --> synchronize *)
 			IF ~IsCallFromSequencer() THEN RETURN Add(msg)
 			ELSE
+				(*
+				IF debug = SELF THEN
+					D.Enter;
+					D.Ln;
+					D.String("-- WMMessages.MsgSequencer.Handle --"); D.Ln;
+					D.String("msg type "); D.Int(msg.msgType,1); D.Ln;
+					D.String("time "); D.Int(Kernel.GetTicks(),1);D.Ln;
+					D.Exit;
+				END;
+				*)
+				
 				IF msg.msgType = MsgInvokeEvent THEN (* MsgInvokeEvent *)
 					IF msg.event # NIL THEN
 						msg.event(msg.sender, msg.ext);
@@ -253,6 +274,10 @@ VAR
 	 messagesAdded- : LONGINT;
 	 messagesDiscarded- : LONGINT;
 
+	 (*
+	 debug*: ANY;
+	*)
+	
 PROCEDURE TokenEnumerator(obj: ANY; VAR cont: BOOLEAN);
 BEGIN
 	cont := FALSE; ttoken := obj(AsyncToken)
