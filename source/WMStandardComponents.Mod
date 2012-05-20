@@ -2703,7 +2703,7 @@ TYPE
 			scaleImageI := scaleImage.Get();
 			s := imageName.Get();
 			IF (s # NIL) THEN
-				image := WMGraphics.LoadImage(s^, FALSE);
+				image := WMGraphics.LoadImage(s^, TRUE);
 			ELSE
 				image := NIL;
 			END;
@@ -2774,7 +2774,7 @@ TYPE
 		PROCEDURE RecacheProperties;
 		VAR s : String;
 		BEGIN
-			s := imgName.Get(); IF s # NIL THEN SetImage(SELF, WMGraphics.LoadImage(s^, FALSE)) END
+			s := imgName.Get(); IF s # NIL THEN SetImage(SELF, WMGraphics.LoadImage(s^, TRUE)) END
 		END RecacheProperties;
 
 		PROCEDURE ScrollbarsChanged(sender, data : ANY);

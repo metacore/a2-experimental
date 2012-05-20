@@ -728,6 +728,7 @@ TYPE
 			END;
 			IF (elemReg # NIL) & (firstInstantiationFailed) THEN
 				e := elemReg.InstantiateLate(e);
+				e.SetNameAsString(s);
 			END;
 			IF ~CheckSymbol({Scanner.TagEmptyElemClose, Scanner.TagClose}, "'/>' or '>' expected") THEN RETURN END;
 			IF scanner.sym = Scanner.TagEmptyElemClose THEN

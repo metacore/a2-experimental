@@ -1350,6 +1350,7 @@ VAR scanner : XMLScanner.Scanner; parser : XMLParser.Parser; document : XML.Docu
 BEGIN
 	ASSERT((reader # NIL) & (errors # NIL));
 	NEW(scanner, reader);
+	(*scanner.SetStringPooling({0..31}); *) (*! does not work: DynamicSTrings traps :( *)
 	NEW(parser, scanner);
 	parser.elemReg := elemReg;
 	parser.reportError := errors.Report;

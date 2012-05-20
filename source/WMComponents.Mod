@@ -315,9 +315,13 @@ TYPE
 		PROCEDURE AddContent*(c : XML.Content);
 		BEGIN
 			ASSERT(c # NIL);
-			IF c IS WMProperties.Properties THEN properties.SetXML(c(WMProperties.Properties))
+			IF c IS WMProperties.Properties THEN
+				properties.SetXML(c(WMProperties.Properties))
 			ELSIF c IS Component THEN
 				IF (sequencer # c(Component).sequencer) THEN c(Component).SetSequencer(sequencer) END;
+			ELSE
+				D.String("WMComponents.Component.AddContent: content of type "); D.Type(c); D.String(" ignored"); D.Ln;
+				RETURN
 			END;
 			Acquire;
 			AddContent^(c);
