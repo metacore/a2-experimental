@@ -1054,6 +1054,7 @@ TYPE
 		PROCEDURE SetStrAsString*(str : String);
 		BEGIN
 			SELF.str := str;
+			len := DynamicStrings.StringLength(str^)
 		END SetStrAsString;
 
 	END ArrayChars;
