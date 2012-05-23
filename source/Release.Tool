@@ -500,6 +500,7 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 	FoxBinaryObjectFile.Mod FoxGenericObjectFile.Mod
 	FoxAMD64InstructionSet.Mod FoxAMD64Assembler.Mod FoxAMDBackend.Mod
 	FoxInstructionSetAMD64TabSeperated.txt
+	FoxProfiler.Mod
 
 	# Runtime support for math oberon (Move to runtime package? *)
 	I386, WIN, UNIX { I386.Math.Mod I386.MathL.Mod }
