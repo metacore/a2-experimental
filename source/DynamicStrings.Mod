@@ -250,16 +250,18 @@ TYPE
 		END Grow;
 
 		PROCEDURE Add(ds : DynamicString; index : LONGINT; VAR string : String);
-		VAR entry : HashTableEntry; i, j : LONGINT;
+		VAR (*entry : HashTableEntry;*)  i, j : LONGINT; (*! careful: entry is a record, not a pointer *)
 		BEGIN (* assumption: ds is not yet contained in pool! *)
 			ASSERT(ds # NIL);
 			ASSERT((0 <= index) & (index < HashTableSize));
+			(*
 			entry := hashtable[index];
-			IF (entry.nofStrings >= LEN(entry.strings)) THEN Grow(entry.strings); END;
+			*)
+			IF (hashtable[index].nofStrings >= LEN(hashtable[index].strings)) THEN Grow(hashtable[index].strings); END;
 			(* skip entries that are lexically less than *)
-			i := 0; WHILE (i < entry.nofStrings) & LessThan(ds, entry.strings[i]) DO INC(i); END;
+			i := 0; WHILE (i < hashtable[index].nofStrings) & LessThan(ds, hashtable[index].strings[i]) DO INC(i); END;
 			(* move strings to the right to make place for new string at index i *)
-			j := entry.nofStrings - 1;
+			j := hashtable[index].nofStrings - 1;
 			WHILE (j >= i) DO
 				hashtable[index].strings[j + 1] := hashtable[index].strings[j];
 				DEC(j);
