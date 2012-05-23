@@ -11,6 +11,7 @@ CONST
 	Trace = FALSE;
 	SMBPort* = 445;
 
+
 TYPE
 	Share = POINTER TO RECORD
 		path, unc : Files.FileName;
@@ -1914,7 +1915,9 @@ BEGIN {EXCLUSIVE}
 		lastFID := 333;
 		lastSID := 111;
 		NEW(firstConn);
+
 		NEW(service, SMBPort, NewAgent, res);
+
 		context.out.String("Start SambaServer...");
 		IF res = TCPServices.Ok THEN
 			context.out.String("started!");
@@ -2061,5 +2064,5 @@ SystemTools.Free SambaServer ~
 SambaServer.ListShares ~
 SambaServer.AddShare \AOS AOS: ~
 SambaServer.AddShare \FAT FAT:Test/ ~
-SambaServer.AddShare \Test D:Samba/ ~
+SambaServer.AddShare \Test ../Legal/ ~
 
