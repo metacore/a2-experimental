@@ -124,10 +124,10 @@ VAR
 
 	(* procedures that might be replaced by ASM methods *)
 	loopSPAXAX*, loopSPARAR*: BinaryAASLoop;
-	loopAddAXAX*, loopAddARAR*: BinaryAAALoop;
+	loopAddAXAX*, loopAddARAR*, loopAddAZAZ*, loopAddALZALZ*: BinaryAAALoop;
 	loopMatMulAXAX*, loopMatMulARAR*: BinaryAASLoop;
 	loopMatMulIncAXAX*, loopMatMulIncARAR*: BinaryAASLoop;
-	loopMulAXSX*, loopMulARSR*: BinaryASALoop;
+	loopMulAXSX*, loopMulARSR*, loopMulAZSZ*, loopMulALZSLZ*: BinaryASALoop;
 	loopIncMulAXSX*, loopIncMulARSR*: BinaryASALoop;
 	matMulX*, matMulR*: FastMatMul;  matMulIncX*, matMulIncR*: FastMatMul;
 	transpose4*: TransposeP;  transpose8*: TransposeP;
@@ -158,12 +158,16 @@ VAR
 		KernelLog.String( "ArrayBase: setting runtime library (semi-optimized) default methods." );  KernelLog.Ln;  loopSPAXAX := SPAXAXLoop;
 		loopSPARAR := SPARARLoop;  loopAddAXAX := AddAXAXLoop;
 		loopAddARAR := AddARARLoop;  loopMatMulAXAX := MatMulAXAXLoop;
+		loopAddAZAZ := AddAZAZLoop; loopAddALZALZ := AddALZALZLoop;
 		loopMatMulIncAXAX := MatMulIncAXAXLoop;
 		loopMatMulARAR := MatMulARARLoop;  loopMulAXSX := MulAXSXLoop;
 		loopIncMulAXSX := IncMulAXSXLoop;
 		loopMatMulIncARAR := MatMulIncARARLoop;
 		loopMulARSR := MulARSRLoop;  loopIncMulARSR := IncMulARSRLoop;
 		matMulX := NIL;  matMulR := NIL;  matMulIncX := NIL;  matMulIncR := NIL;
+
+		loopMulAZSZ := MulAZSZLoop;
+		loopMulALZSLZ := MulALZSLZLoop;
 	END SetDefaults;
 
 	PROCEDURE Err(CONST s: ARRAY OF CHAR );
@@ -1775,6 +1779,7 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "+";
 
+(** LONGREAL *)
 	PROCEDURE AddAXAXLoop( ladr, radr, dadr, linc, rinc, dinc, len: LONGINT );
 	VAR lval, rval: LONGREAL;
 	BEGIN
@@ -1788,6 +1793,44 @@ Sufficient (but not necessary) conditions:
 	BEGIN
 		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
 										  SYSTEM.SIZEOF( LONGREAL ), loopAddAXAX );
+		RETURN RESULT
+	END "+";
+
+(** COMPLEX *)
+	PROCEDURE AddAZAZLoop( ladr, radr, dadr, linc, rinc, dinc, len: LONGINT );
+	VAR lval, rval: COMPLEX;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  SYSTEM.GET( radr, rval );  SYSTEM.PUT( dadr, lval + rval );
+			INC( ladr, linc );  INC( radr, rinc );  INC( dadr, dinc );  DEC( len );
+		END;
+	END AddAZAZLoop;
+
+	OPERATOR "+"*(CONST left,right: ARRAY [?] OF COMPLEX): ARRAY [?] OF COMPLEX;
+	BEGIN
+		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
+										  SYSTEM.SIZEOF( COMPLEX ), loopAddAZAZ );
+		RETURN RESULT
+	END "+";
+
+
+(** LONGCOMPLEX *)
+	PROCEDURE AddALZALZLoop( ladr, radr, dadr, linc, rinc, dinc, len: LONGINT );
+	VAR lvalRe, lvalIm, rvalRe, rvalIm: LONGREAL;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+			SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
+			SYSTEM.PUT( dadr, lvalRe+rvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), lvalIm+rvalIm );
+			INC( ladr, linc );  INC( radr, rinc );  INC( dadr, dinc );
+			DEC( len );
+		END;
+	END AddALZALZLoop;
+
+	OPERATOR "+"*(CONST left,right: ARRAY [?] OF LONGCOMPLEX): ARRAY [?] OF LONGCOMPLEX;
+	BEGIN
+		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
+										  SYSTEM.SIZEOF( LONGCOMPLEX ), loopAddALZALZ );
 		RETURN RESULT
 	END "+";
 
@@ -1918,6 +1961,59 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "+";
 
+
+(** COMPLEX *)
+	PROCEDURE AddAZSZLoop( ladr, radr, dadr, linc, dinc, len: LONGINT );
+	VAR lval, rval: COMPLEX;
+	BEGIN
+		SYSTEM.GET( radr, rval );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  SYSTEM.PUT( dadr, lval + rval );  INC( ladr, linc );
+			INC( dadr, dinc );  DEC( len );
+		END;
+	END AddAZSZLoop;
+
+	OPERATOR "+"*(CONST left: ARRAY [ ? ] OF COMPLEX; right: COMPLEX ): ARRAY [ ? ] OF COMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( COMPLEX ),
+										  AddAZSZLoop );
+		RETURN RESULT
+	END "+";
+
+	OPERATOR "+"*(left: COMPLEX; CONST right: ARRAY [ ? ] OF COMPLEX): ARRAY [ ? ] OF COMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( right ), SYSTEM.ADR( left ), SYSTEM.SIZEOF( COMPLEX ),
+										  AddAZSZLoop );
+		RETURN RESULT
+	END "+";
+
+(** LONGCOMPLEX *)
+	PROCEDURE AddALZSLZLoop( ladr, radr, dadr, linc, dinc, len: LONGINT );
+	VAR lvalRe, lvalIm, rvalRe, rvalIm: LONGREAL;
+	BEGIN
+		SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+			SYSTEM.PUT( dadr, lvalRe + rvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), lvalIm + rvalIm );
+			INC( ladr, linc );
+			INC( dadr, dinc );  DEC( len );
+		END;
+	END AddALZSLZLoop;
+
+	OPERATOR "+"*(CONST left: ARRAY [ ? ] OF LONGCOMPLEX; right: LONGCOMPLEX ): ARRAY [ ? ] OF LONGCOMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( LONGCOMPLEX ),
+										  AddALZSLZLoop );
+		RETURN RESULT
+	END "+";
+
+	OPERATOR "+"*(left: LONGCOMPLEX; CONST right: ARRAY [ ? ] OF LONGCOMPLEX): ARRAY [ ? ] OF LONGCOMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( right ), SYSTEM.ADR( left ), SYSTEM.SIZEOF( LONGCOMPLEX ),
+										  AddALZSLZLoop );
+		RETURN RESULT
+	END "+";
+
 	(*** subtraction array - array -> array  ********************************************************************)
 
 (** SHORTINT *)
@@ -2005,6 +2101,43 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "-";
 
+(** COMPLEX *)
+	PROCEDURE SubAZAZLoop( ladr, radr, dadr, linc, rinc, dinc, len: LONGINT );
+	VAR lval, rval: COMPLEX;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  SYSTEM.GET( radr, rval );  SYSTEM.PUT( dadr, lval - rval );
+			INC( ladr, linc );  INC( radr, rinc );  INC( dadr, dinc );  DEC( len );
+		END;
+	END SubAZAZLoop;
+
+	OPERATOR "-"*(CONST left,right: ARRAY [?] OF COMPLEX): ARRAY [?] OF COMPLEX;
+	BEGIN
+		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
+										  SYSTEM.SIZEOF( COMPLEX ), SubAZAZLoop );
+		RETURN RESULT
+	END "-";
+
+(** LONGCOMPLEX *)
+	PROCEDURE SubALZALZLoop( ladr, radr, dadr, linc, rinc, dinc, len: LONGINT );
+	VAR lvalRe, lvalIm, rvalRe, rvalIm: LONGREAL;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+			SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
+			SYSTEM.PUT( dadr, lvalRe-rvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), lvalIm-rvalIm );
+			INC( ladr, linc );  INC( radr, rinc );  INC( dadr, dinc );
+			DEC( len );
+		END;
+	END SubALZALZLoop;
+
+	OPERATOR "-"*(CONST left,right: ARRAY [?] OF LONGCOMPLEX): ARRAY [?] OF LONGCOMPLEX;
+	BEGIN
+		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
+										  SYSTEM.SIZEOF( LONGCOMPLEX ), SubALZALZLoop );
+		RETURN RESULT
+	END "-";
+
 	(*** subtraction array-scalar -> array  ********************************************************************)
 
 (** SHORTINT *)
@@ -2037,6 +2170,20 @@ Sufficient (but not necessary) conditions:
 
 (** LONGREAL *)
 	OPERATOR "-"*(CONST left: ARRAY [ ? ] OF LONGREAL; right: LONGREAL ): ARRAY [ ? ] OF LONGREAL;
+	BEGIN
+		RESULT := left + (-right);
+		RETURN RESULT
+	END "-";
+
+(** COMPLEX *)
+	OPERATOR "-"*(CONST left: ARRAY [ ? ] OF COMPLEX; right: COMPLEX ): ARRAY [ ? ] OF COMPLEX;
+	BEGIN
+		RESULT := left + (-right);
+		RETURN RESULT
+	END "-";
+
+(** LONGCOMPLEX *)
+	OPERATOR "-"*(CONST left: ARRAY [ ? ] OF LONGCOMPLEX; right: LONGCOMPLEX ): ARRAY [ ? ] OF LONGCOMPLEX;
 	BEGIN
 		RESULT := left + (-right);
 		RETURN RESULT
@@ -2135,6 +2282,43 @@ Sufficient (but not necessary) conditions:
 	END "-";
 
 
+(** COMPLEX *)
+	PROCEDURE SubSZAZLoop( ladr, radr, dadr, linc, dinc, len: LONGINT );
+	VAR lval, rval, dval: COMPLEX;
+	BEGIN
+		SYSTEM.GET( radr, rval );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  dval := rval - lval;  SYSTEM.PUT( dadr, dval );  INC( ladr, linc );
+			INC( dadr, dinc );  DEC( len );
+		END;
+	END SubSZAZLoop;
+
+	OPERATOR "-"*(left: COMPLEX; CONST right: ARRAY [ ? ] OF COMPLEX): ARRAY [ ? ] OF COMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( right ), SYSTEM.ADR( left ),
+										  SYSTEM.SIZEOF( COMPLEX ), SubSZAZLoop );
+		RETURN RESULT
+	END "-";
+
+(** LONGCOMPLEX *)
+	PROCEDURE SubSLZALZLoop( ladr, radr, dadr, linc, dinc, len: LONGINT );
+	VAR lvalRe, lvalIm, rvalRe, rvalIm: LONGREAL;
+	BEGIN
+		SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );			
+			SYSTEM.PUT( dadr, rvalRe-lvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), rvalIm-lvalIm );
+			INC( ladr, linc );
+			INC( dadr, dinc );  DEC( len );
+		END;
+	END SubSLZALZLoop;
+
+	OPERATOR "-"*(left: LONGCOMPLEX; CONST right: ARRAY [ ? ] OF LONGCOMPLEX): ARRAY [ ? ] OF LONGCOMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( right ), SYSTEM.ADR( left ),
+										  SYSTEM.SIZEOF( LONGCOMPLEX ), SubSLZALZLoop );
+		RETURN RESULT
+	END "-";
 
 	(*** element-wise multiply array x array -> array  ********************************************************************)
 
@@ -2221,6 +2405,44 @@ Sufficient (but not necessary) conditions:
 	BEGIN
 		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
 										  SYSTEM.SIZEOF( LONGREAL ), EMulAXAXLoop );
+		RETURN RESULT
+	END ".*";
+
+
+(** COMPLEX *)
+	PROCEDURE EMulAZAZLoop( ladr, radr, dadr, linc, rinc, dinc, len: LONGINT );
+	VAR lval, rval: COMPLEX;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  SYSTEM.GET( radr, rval );  SYSTEM.PUT( dadr, lval * rval );
+			INC( ladr, linc );  INC( radr, rinc );  INC( dadr, dinc );  DEC( len );
+		END;
+	END EMulAZAZLoop;
+
+	OPERATOR ".*"*(CONST left,right: ARRAY [?] OF COMPLEX): ARRAY [?] OF COMPLEX;
+	BEGIN
+		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
+										  SYSTEM.SIZEOF( COMPLEX ), EMulAZAZLoop );
+		RETURN RESULT
+	END ".*";
+
+(** LONGCOMPLEX *)
+	PROCEDURE EMulALZALZLoop( ladr, radr, dadr, linc, rinc, dinc, len: LONGINT );
+	VAR lvalRe, lvalIm, rvalRe, rvalIm: LONGREAL;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+			SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
+			SYSTEM.PUT( dadr, lvalRe*rvalRe - lvalIm*rvalIm ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), lvalRe*rvalIm + lvalIm*rvalRe );
+			INC( ladr, linc );  INC( radr, rinc );  INC( dadr, dinc );
+			DEC( len );
+		END;
+	END EMulALZALZLoop;
+
+	OPERATOR ".*"*(CONST left,right: ARRAY [?] OF LONGCOMPLEX): ARRAY [?] OF LONGCOMPLEX;
+	BEGIN
+		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
+										  SYSTEM.SIZEOF( LONGCOMPLEX ), EMulALZALZLoop );
 		RETURN RESULT
 	END ".*";
 
@@ -2436,6 +2658,59 @@ Sufficient (but not necessary) conditions:
 	BEGIN
 		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( right ), SYSTEM.ADR( left ),
 										  SYSTEM.SIZEOF( LONGREAL ), loopMulAXSX );
+		RETURN RESULT
+	END "*";
+
+
+(** COMPLEX *)
+	PROCEDURE MulAZSZLoop( ladr, radr, dadr, linc, dinc, len: LONGINT );
+	VAR lval, rval: COMPLEX;
+	BEGIN
+		SYSTEM.GET( radr, rval );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  SYSTEM.PUT( dadr, lval * rval );  INC( ladr, linc );
+			INC( dadr, dinc );  DEC( len );
+		END;
+	END MulAZSZLoop;
+
+	OPERATOR "*"*(CONST left: ARRAY [ ? ] OF COMPLEX; right: COMPLEX ): ARRAY [ ? ] OF COMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( COMPLEX ),
+										  loopMulAZSZ );
+		RETURN RESULT
+	END "*";
+
+	OPERATOR "*"*(left: COMPLEX; CONST right: ARRAY [ ? ] OF COMPLEX): ARRAY [ ? ] OF COMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( right ), SYSTEM.ADR( left ), SYSTEM.SIZEOF( COMPLEX ),
+										  loopMulAZSZ );
+		RETURN RESULT
+	END "*";
+
+(** LONGCOMPLEX *)
+	PROCEDURE MulALZSLZLoop( ladr, radr, dadr, linc, dinc, len: LONGINT );
+	VAR lvalRe, lvalIm, rvalRe, rvalIm: LONGREAL;
+	BEGIN
+		SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+			SYSTEM.PUT( dadr, lvalRe * rvalRe - lvalIm*rvalIm ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), lvalRe * rvalIm + lvalIm*rvalRe );
+			INC( ladr, linc );
+			INC( dadr, dinc );  DEC( len );
+		END;
+	END MulALZSLZLoop;
+
+	OPERATOR "*"*(CONST left: ARRAY [ ? ] OF LONGCOMPLEX; right: LONGCOMPLEX ): ARRAY [ ? ] OF LONGCOMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( LONGCOMPLEX ),
+										  loopMulALZSLZ );
+		RETURN RESULT
+	END "*";
+
+	OPERATOR "*"*(left: LONGCOMPLEX; CONST right: ARRAY [ ? ] OF LONGCOMPLEX): ARRAY [ ? ] OF LONGCOMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( right ), SYSTEM.ADR( left ), SYSTEM.SIZEOF( LONGCOMPLEX ),
+										  loopMulALZSLZ );
 		RETURN RESULT
 	END "*";
 
@@ -2757,6 +3032,54 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "./";
 
+(** COMPLEX *)
+	PROCEDURE EDivideAZAZLoop( ladr, radr, dadr, linc, rinc, dinc, len: LONGINT );
+	VAR lval, rval: COMPLEX;  dval: COMPLEX;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  SYSTEM.GET( radr, rval );  dval := lval / rval;
+			SYSTEM.PUT( dadr, dval );  INC( ladr, linc );  INC( radr, rinc );  INC( dadr, dinc );
+			DEC( len );
+		END;
+	END EDivideAZAZLoop;
+
+	OPERATOR "./"*(CONST left,right: ARRAY [?] OF COMPLEX): ARRAY [?] OF COMPLEX;
+	BEGIN
+		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
+										  SYSTEM.SIZEOF( COMPLEX ), EDivideAZAZLoop );
+		RETURN RESULT
+	END "./";
+
+
+(** LONGCOMPLEX *)
+	PROCEDURE EDivideALZALZLoop( ladr, radr, dadr, linc, rinc, dinc, len: LONGINT );
+	VAR lvalRe, lvalIm, rvalRe, rvalIm: LONGREAL;  dvalRe, dvalIm: LONGREAL; v: LONGREAL;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+			SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
+			IF rvalIm # 0.0D0 THEN
+				v := 1.0D0/(rvalRe*rvalRe + rvalIm*rvalIm);
+				dvalRe := v*(lvalRe*rvalRe+lvalIm*rvalIm);
+				dvalIm := v*(lvalIm*rvalRe-lvalRe*rvalIm);
+			ELSE
+				dvalRe := lvalRe/rvalRe;
+				dvalIm := lvalIm/rvalRe;
+			END;
+			SYSTEM.PUT( dadr, dvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), dvalIm );
+			INC( ladr, linc );  INC( radr, rinc );  INC( dadr, dinc );
+			DEC( len );
+		END;
+	END EDivideALZALZLoop;
+
+	OPERATOR "./"*(CONST left,right: ARRAY [?] OF LONGCOMPLEX): ARRAY [?] OF LONGCOMPLEX;
+	BEGIN
+		ApplyBinaryAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
+										  SYSTEM.SIZEOF( LONGCOMPLEX ), EDivideALZALZLoop );
+		RETURN RESULT
+	END "./";
+
+
 	(*** division array / scalar -> array and scalar / array -> array ********************************************************************)
 
 (** SHORTINT *)
@@ -2934,6 +3257,98 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "/";
 
+
+(** COMPLEX *)
+	PROCEDURE DivideAZSZLoop( ladr, radr, dadr, linc, dinc, len: LONGINT );
+	VAR lval, rval: COMPLEX;  dval: COMPLEX;
+	BEGIN
+		SYSTEM.GET( radr, rval );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  dval := lval / rval;  SYSTEM.PUT( dadr, dval );  INC( ladr, linc );
+			INC( dadr, dinc );  DEC( len );
+		END;
+	END DivideAZSZLoop;
+
+	OPERATOR "/"*(CONST left: ARRAY [ ? ] OF COMPLEX; right: COMPLEX ): ARRAY [ ? ] OF COMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
+										  SYSTEM.SIZEOF( COMPLEX ), DivideAZSZLoop );
+		RETURN RESULT
+	END "/";
+
+	PROCEDURE DivideSZAZLoop( ladr, radr, dadr, linc, dinc, len: LONGINT );
+	VAR lval, rval: COMPLEX;  dval: COMPLEX;
+	BEGIN
+		SYSTEM.GET( radr, rval );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  dval := rval / lval;  SYSTEM.PUT( dadr, dval );  INC( ladr, linc );
+			INC( dadr, dinc );  DEC( len );
+		END;
+	END DivideSZAZLoop;
+
+	OPERATOR "/"*(left: COMPLEX; CONST right: ARRAY [ ? ] OF COMPLEX): ARRAY [ ? ] OF COMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( right ), SYSTEM.ADR( left ),
+										  SYSTEM.SIZEOF( COMPLEX ), DivideSZAZLoop );
+		RETURN RESULT
+	END "/";
+
+
+(** LONGCOMPLEX *)
+	PROCEDURE DivideALZSLZLoop( ladr, radr, dadr, linc, dinc, len: LONGINT );
+	VAR lvalRe, lvalIm, rvalRe, rvalIm: LONGREAL;  dvalRe, dvalIm: LONGREAL; v: LONGREAL;
+	BEGIN
+		SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
+
+		IF rvalIm # 0.0D0 THEN
+			v := 1.0D0/(rvalRe*rvalRe + rvalIm*rvalIm);
+			WHILE (len > 0) DO
+				SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+				dvalRe := v*(lvalRe*rvalRe+lvalIm*rvalIm);
+				dvalIm := v*(lvalIm*rvalRe-lvalRe*rvalIm);
+				SYSTEM.PUT( dadr, dvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), dvalIm );
+				INC( ladr, linc );
+				INC( dadr, dinc );  DEC( len );
+			END;
+		ELSE
+			WHILE (len > 0) DO
+				SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+				dvalRe := lvalRe / rvalRe; dvalIm := lvalIm / rvalRe;
+				SYSTEM.PUT( dadr, dvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), dvalIm );
+				INC( ladr, linc );
+				INC( dadr, dinc );  DEC( len );
+			END;
+		END;
+	END DivideALZSLZLoop;
+
+	OPERATOR "/"*(CONST left: ARRAY [ ? ] OF LONGCOMPLEX; right: LONGCOMPLEX ): ARRAY [ ? ] OF LONGCOMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ),
+										  SYSTEM.SIZEOF( LONGCOMPLEX ), DivideALZSLZLoop );
+		RETURN RESULT
+	END "/";
+
+	PROCEDURE DivideSLZALZLoop( ladr, radr, dadr, linc, dinc, len: LONGINT );
+	VAR lvalRe, lvalIm, rvalRe, rvalIm: LONGREAL;  dvalRe, dvalIm: LONGREAL; v: LONGREAL;
+	BEGIN
+		SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+			v := 1.0D0/(lvalRe*lvalRe + lvalIm*lvalIm);
+			dvalRe := v*(rvalRe*lvalRe+rvalIm*lvalIm);
+			dvalIm := v*(rvalIm*lvalRe-rvalRe*lvalIm);
+			SYSTEM.PUT( dadr, dvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), dvalIm );
+			INC( ladr, linc );
+			INC( dadr, dinc );  DEC( len );
+		END;
+	END DivideSLZALZLoop;
+
+	OPERATOR "/"*(left: LONGCOMPLEX; CONST right: ARRAY [ ? ] OF LONGCOMPLEX): ARRAY [ ? ] OF LONGCOMPLEX;
+	BEGIN
+		ApplyBinaryASAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( right ), SYSTEM.ADR( left ),
+										  SYSTEM.SIZEOF( LONGCOMPLEX ), DivideSLZALZLoop );
+		RETURN RESULT
+	END "/";
 
 	(*** element-wise DIV array DIV array -> array  ********************************************************************)
 
@@ -6331,6 +6746,45 @@ Sufficient (but not necessary) conditions:
 	END "SUM";
 
 
+(** COMPLEX *)
+	PROCEDURE SumAZLoop( ladr, dadr, linc, len: LONGINT );
+	VAR lval, dval: COMPLEX;
+	BEGIN
+		SYSTEM.GET( dadr, dval );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  dval := dval + lval;  INC( ladr, linc );  DEC( len );
+		END;
+		SYSTEM.PUT( dadr, dval );
+	END SumAZLoop;
+
+	OPERATOR "SUM"*( CONST left: ARRAY [ ? ] OF COMPLEX ): COMPLEX;
+	TYPE Type = COMPLEX;
+	VAR val: Type;
+	BEGIN
+		val := 0;  ApplyUnaryASOp( SYSTEM.ADR( val ), SYSTEM.ADR( left ), SumAZLoop );
+		RETURN val;
+	END "SUM";
+
+(** LONGCOMPLEX *)
+	PROCEDURE SumALZLoop( ladr, dadr, linc, len: LONGINT );
+	VAR lvalRe, lvalIm, dvalRe, dvalIm: LONGREAL;
+	BEGIN
+		SYSTEM.GET( dadr, dvalRe ); SYSTEM.GET( dadr+SYSTEM.SIZEOF(LONGREAL), dvalIm );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+			dvalRe := dvalRe + lvalRe; dvalIm := dvalIm + lvalIm;
+			INC( ladr, linc );  DEC( len );
+		END;
+		SYSTEM.PUT( dadr, dvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), dvalIm );
+	END SumALZLoop;
+
+	OPERATOR "SUM"*( CONST left: ARRAY [ ? ] OF LONGCOMPLEX ): LONGCOMPLEX;
+	TYPE Type = LONGCOMPLEX;
+	VAR val: Type;
+	BEGIN
+		val := 0;  ApplyUnaryASOp( SYSTEM.ADR( val ), SYSTEM.ADR( left ), SumALZLoop );
+		RETURN val;
+	END "SUM";
 
 	(*** monadic ABS array -> array  ********************************************************************)
 
@@ -6496,6 +6950,33 @@ Sufficient (but not necessary) conditions:
 	BEGIN
 		ApplyUnarySAOp( SYSTEM.ADR( dest ), SYSTEM.ADR( right ), AssignSXAXLoop );
 	END ":=";
+
+(** COMPLEX *)
+	PROCEDURE AssignSZAZLoop( ladr, dadr, dinc, len: LONGINT );
+	VAR lval: COMPLEX;
+	BEGIN
+		SYSTEM.GET( ladr, lval );
+		WHILE (len > 0) DO SYSTEM.PUT( dadr, lval );  INC( dadr, dinc );  DEC( len );  END;
+	END AssignSZAZLoop;
+
+	OPERATOR ":="*(VAR dest: ARRAY [?] OF COMPLEX; right: COMPLEX);
+	BEGIN
+		ApplyUnarySAOp( SYSTEM.ADR( dest ), SYSTEM.ADR( right ), AssignSZAZLoop );
+	END ":=";
+
+(** LONGCOMPLEX *)
+	PROCEDURE AssignSLZALZLoop( ladr, dadr, dinc, len: LONGINT );
+	VAR lvalRe, lvalIm: LONGREAL;
+	BEGIN
+		SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+		WHILE (len > 0) DO SYSTEM.PUT( dadr, lvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), lvalIm ); INC( dadr, dinc );  DEC( len );  END;
+	END AssignSLZALZLoop;
+
+	OPERATOR ":="*(VAR dest: ARRAY [?] OF LONGCOMPLEX; right: LONGCOMPLEX);
+	BEGIN
+		ApplyUnarySAOp( SYSTEM.ADR( dest ), SYSTEM.ADR( right ), AssignSLZALZLoop );
+	END ":=";
+
 
 (*** matrix multipliation ********************************************************************)
 
@@ -8456,22 +8937,70 @@ Sufficient (but not necessary) conditions:
 	END "LEN";
 
 	(* complex numbers *)
+	
+	OPERATOR "+"*(CONST left, right: COMPLEX): COMPLEX;
+	VAR result: COMPLEX;
+	BEGIN		
+		RE(result) := RE(left) + RE(right);
+		IM(result) := IM(left) + IM(right);
+		RETURN result
+	END "+";
+	
+	OPERATOR "+"*(CONST left, right: LONGCOMPLEX): LONGCOMPLEX;
+	VAR result: LONGCOMPLEX;
+	BEGIN		
+		RE(result) := RE(left) + RE(right);
+		IM(result) := IM(left) + IM(right);
+		RETURN result
+	END "+";
+	
+	OPERATOR "-"*(CONST left, right: COMPLEX): COMPLEX;
+	VAR result: COMPLEX;
+	BEGIN		
+		RE(result) := RE(left) - RE(right);
+		IM(result) := IM(left) - IM(right);
+		RETURN result
+	END "-";
+	
+	OPERATOR "-"*(CONST left, right: LONGCOMPLEX): LONGCOMPLEX;
+	VAR result: LONGCOMPLEX;
+	BEGIN		
+		RE(result) := RE(left) - RE(right);
+		IM(result) := IM(left) - IM(right);
+		RETURN result
+	END "-";
+	
+	OPERATOR "*"*(CONST left, right: COMPLEX): COMPLEX;
+	VAR result: COMPLEX;
+	BEGIN		
+		RE(result) := RE(left) * RE(right) - IM(left) * IM(right);
+		IM(result) := RE(left) * IM(right) + IM(left) * RE(right);
+		RETURN result
+	END "*";
+	
+	OPERATOR "*"*(CONST left, right: LONGCOMPLEX): LONGCOMPLEX;
+	VAR result: LONGCOMPLEX;
+	BEGIN		
+		RE(result) := RE(left) * RE(right) - IM(left) * IM(right);
+		IM(result) := RE(left) * IM(right) + IM(left) * RE(right);
+		RETURN result
+	END "*";
 
 	OPERATOR "/"*(CONST left, right: COMPLEX): COMPLEX;
-	VAR result: COMPLEX; divisor: REAL;
+	VAR result: COMPLEX; iDivisor: REAL;
 	BEGIN
-		divisor := RE(right) * RE(right) + IM(right) * IM(right);
-		RE(result) := (RE(left) * RE(right) + IM(left) * IM(right)) / divisor;
-		IM(result) := (IM(left) * RE(right) - RE(left) * IM(right)) / divisor;
+		iDivisor := 1.0 / (RE(right) * RE(right) + IM(right) * IM(right));
+		RE(result) := (RE(left) * RE(right) + IM(left) * IM(right)) * iDivisor;
+		IM(result) := (IM(left) * RE(right) - RE(left) * IM(right)) * iDivisor;
 		RETURN result
 	END "/";
 
 	OPERATOR "/"*(CONST left, right: LONGCOMPLEX): LONGCOMPLEX;
-	VAR result: LONGCOMPLEX; divisor: LONGREAL;
+	VAR result: LONGCOMPLEX; iDivisor: LONGREAL;
 	BEGIN
-		divisor := RE(right) * RE(right) + IM(right) * IM(right);
-		RE(result) := (RE(left) * RE(right) + IM(left) * IM(right)) / divisor;
-		IM(result) := (IM(left) * RE(right) - RE(left) * IM(right)) / divisor;
+		iDivisor := 1.0D0 / (RE(right) * RE(right) + IM(right) * IM(right));
+		RE(result) := (RE(left) * RE(right) + IM(left) * IM(right)) * iDivisor;
+		IM(result) := (IM(left) * RE(right) - RE(left) * IM(right)) * iDivisor;
 		RETURN result
 	END "/";
 
@@ -8482,11 +9011,6 @@ Sufficient (but not necessary) conditions:
 	OPERATOR "ABS"*(CONST arg: LONGCOMPLEX): LONGREAL;
 	BEGIN RETURN MathL.sqrt(RE(arg) * RE(arg) + IM(arg) * IM(arg))
 	END "ABS";
-
-	(* for testing purposes *)
-	OPERATOR "+"*(CONST x, y: ARRAY [?] OF COMPLEX): ARRAY [?] OF COMPLEX;
-	BEGIN
-	END "+";
 
 BEGIN
 	alloc := 0;  SetDefaults();  InitOptimization();  (* CreateTypePool;  *)
