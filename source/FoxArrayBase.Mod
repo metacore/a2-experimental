@@ -124,6 +124,7 @@ VAR
 
 	(* procedures that might be replaced by ASM methods *)
 	loopSPAXAX*, loopSPARAR*: BinaryAASLoop;
+	loopSPAZAZ, loopSPALZALZ: BinaryAASLoop;
 	loopAddAXAX*, loopAddARAR*, loopAddAZAZ*, loopAddALZALZ*: BinaryAAALoop;
 	loopMatMulAXAX*, loopMatMulARAR*: BinaryAASLoop;
 	loopMatMulIncAXAX*, loopMatMulIncARAR*: BinaryAASLoop;
@@ -157,6 +158,7 @@ VAR
 	BEGIN
 		KernelLog.String( "ArrayBase: setting runtime library (semi-optimized) default methods." );  KernelLog.Ln;  loopSPAXAX := SPAXAXLoop;
 		loopSPARAR := SPARARLoop;  loopAddAXAX := AddAXAXLoop;
+		loopSPAZAZ := SPAZAZLoop; loopSPALZALZ := SPALZALZLoop;
 		loopAddARAR := AddARARLoop;  loopMatMulAXAX := MatMulAXAXLoop;
 		loopAddAZAZ := AddAZAZLoop; loopAddALZALZ := AddALZALZLoop;
 		loopMatMulIncAXAX := MatMulIncAXAXLoop;
@@ -2306,7 +2308,7 @@ Sufficient (but not necessary) conditions:
 	BEGIN
 		SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
 		WHILE (len > 0) DO
-			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );			
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
 			SYSTEM.PUT( dadr, rvalRe-lvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), rvalIm-lvalIm );
 			INC( ladr, linc );
 			INC( dadr, dinc );  DEC( len );
@@ -3782,6 +3784,51 @@ Sufficient (but not necessary) conditions:
 	BEGIN
 		dest := 0;
 		ApplyBinaryAASOp( SYSTEM.ADR( dest ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), loopSPAXAX );
+		RETURN dest;
+	END "+*";
+
+(** COMPLEX *)
+	PROCEDURE SPAZAZLoop( ladr, radr, dadr, linc, rinc, len: LONGINT );
+	VAR lval, rval: COMPLEX;  dval: COMPLEX;
+	BEGIN
+		SYSTEM.GET( dadr, dval );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  SYSTEM.GET( radr, rval );
+			RE(dval) := RE(dval) + RE(lval) * RE(rval) + IM(lval) * IM(rval);
+			IM(dval) := IM(dval) - RE(lval) * IM(rval) + IM(lval) * RE(rval);
+			INC( ladr, linc );  INC( radr, rinc );  DEC( len );
+		END;
+		SYSTEM.PUT( dadr, dval );
+	END SPAZAZLoop;
+
+	OPERATOR "+*"*( CONST left, right: ARRAY [ ? ] OF COMPLEX ): COMPLEX;
+	VAR dest: COMPLEX;
+	BEGIN
+		dest := 0;
+		ApplyBinaryAASOp( SYSTEM.ADR( dest ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), loopSPAZAZ );
+		RETURN dest;
+	END "+*";
+
+	(** COMPLEX *)
+	PROCEDURE SPALZALZLoop( ladr, radr, dadr, linc, rinc, len: LONGINT );
+	VAR lvalRe, lvalIm, rvalRe, rvalIm: LONGREAL;  dvalRe, dvalIm: LONGREAL;
+	BEGIN
+		SYSTEM.GET( dadr, dvalRe ); SYSTEM.GET( dadr+SYSTEM.SIZEOF(LONGREAL), dvalIm );
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+			SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
+			dvalRe := dvalRe + lvalRe * rvalRe + lvalIm * rvalIm;
+			dvalIm := dvalIm - lvalRe * rvalIm + lvalIm * rvalRe;
+			INC( ladr, linc );  INC( radr, rinc );  DEC( len );
+		END;
+		SYSTEM.PUT( dadr, dvalRe ); SYSTEM.PUT( dadr+SYSTEM.SIZEOF(LONGREAL), dvalIm );
+	END SPALZALZLoop;
+
+	OPERATOR "+*"*( CONST left, right: ARRAY [ ? ] OF LONGCOMPLEX ): LONGCOMPLEX;
+	VAR dest: LONGCOMPLEX;
+	BEGIN
+		dest := 0;
+		ApplyBinaryAASOp( SYSTEM.ADR( dest ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), loopSPALZALZ );
 		RETURN dest;
 	END "+*";
 
@@ -8937,50 +8984,50 @@ Sufficient (but not necessary) conditions:
 	END "LEN";
 
 	(* complex numbers *)
-	
+
 	OPERATOR "+"*(CONST left, right: COMPLEX): COMPLEX;
 	VAR result: COMPLEX;
-	BEGIN		
+	BEGIN
 		RE(result) := RE(left) + RE(right);
 		IM(result) := IM(left) + IM(right);
 		RETURN result
 	END "+";
-	
+
 	OPERATOR "+"*(CONST left, right: LONGCOMPLEX): LONGCOMPLEX;
 	VAR result: LONGCOMPLEX;
-	BEGIN		
+	BEGIN
 		RE(result) := RE(left) + RE(right);
 		IM(result) := IM(left) + IM(right);
 		RETURN result
 	END "+";
-	
+
 	OPERATOR "-"*(CONST left, right: COMPLEX): COMPLEX;
 	VAR result: COMPLEX;
-	BEGIN		
+	BEGIN
 		RE(result) := RE(left) - RE(right);
 		IM(result) := IM(left) - IM(right);
 		RETURN result
 	END "-";
-	
+
 	OPERATOR "-"*(CONST left, right: LONGCOMPLEX): LONGCOMPLEX;
 	VAR result: LONGCOMPLEX;
-	BEGIN		
+	BEGIN
 		RE(result) := RE(left) - RE(right);
 		IM(result) := IM(left) - IM(right);
 		RETURN result
 	END "-";
-	
+
 	OPERATOR "*"*(CONST left, right: COMPLEX): COMPLEX;
 	VAR result: COMPLEX;
-	BEGIN		
+	BEGIN
 		RE(result) := RE(left) * RE(right) - IM(left) * IM(right);
 		IM(result) := RE(left) * IM(right) + IM(left) * RE(right);
 		RETURN result
 	END "*";
-	
+
 	OPERATOR "*"*(CONST left, right: LONGCOMPLEX): LONGCOMPLEX;
 	VAR result: LONGCOMPLEX;
-	BEGIN		
+	BEGIN
 		RE(result) := RE(left) * RE(right) - IM(left) * IM(right);
 		IM(result) := RE(left) * IM(right) + IM(left) * RE(right);
 		RETURN result
