@@ -6915,6 +6915,40 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "ABS";
 
+(** COMPLEX *)
+	PROCEDURE AbsLoopZ( ladr, dadr, linc, dinc, len: LONGINT );
+	VAR lval: COMPLEX;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  SYSTEM.PUT( dadr, ABS(lval) );  INC( ladr, linc );
+			INC( dadr, dinc );  DEC( len );
+		END;
+	END AbsLoopZ;
+
+	OPERATOR "ABS"*(CONST src: ARRAY [ ? ] OF COMPLEX): ARRAY [ ? ] OF REAL;
+	BEGIN
+		ApplyUnaryAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( src ), SYSTEM.SIZEOF( REAL ), AbsLoopZ );
+		RETURN RESULT
+	END "ABS";
+
+(** LONGCOMPLEX *)
+	PROCEDURE AbsLoopLZ( ladr, dadr, linc, dinc, len: LONGINT );
+	VAR lvalRe, lvalIm: LONGREAL;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+			SYSTEM.PUT( dadr, MathL.sqrt(lvalRe*lvalRe + lvalIm*lvalIm) );
+			INC( ladr, linc );
+			INC( dadr, dinc );  DEC( len );
+		END;
+	END AbsLoopLZ;
+
+	OPERATOR "ABS"*(CONST src: ARRAY [ ? ] OF LONGCOMPLEX): ARRAY [ ? ] OF LONGREAL;
+	BEGIN
+		ApplyUnaryAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( src ), SYSTEM.SIZEOF( LONGREAL ), AbsLoopLZ );
+		RETURN RESULT
+	END "ABS";
+
 	(*** assign number to array  (initialisation) ********************************************************************)
 
 (** BOOLEAN *)
