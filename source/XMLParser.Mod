@@ -3,6 +3,9 @@ MODULE XMLParser;	(** AUTHOR "swalthert"; PURPOSE "XML parser"; *)
 IMPORT
 	Strings, KernelLog, DynamicStrings, Scanner := XMLScanner, XML;
 
+CONST 
+	Ok* = XML.Ok;
+	UnknownError* = -1;
 TYPE
 	String = Strings.String;
 
@@ -12,18 +15,21 @@ TYPE
 		dtd: XML.DocTypeDecl;
 		elemReg*: XML.ElementRegistry;
 		reportError*: PROCEDURE {DELEGATE} (pos, line, row: LONGINT; CONST msg: ARRAY OF CHAR);
+		res*: LONGINT; (* result success / error code *)
 		ds1, ds2 : DynamicStrings.DynamicString; (** utility string, { (ds1 # NIL) & (ds2 # NIL) } *)
 
 		PROCEDURE &Init*(s: Scanner.Scanner);
 		BEGIN
 			reportError := DefaultReportError;
 			scanner := s;
+			res := Ok;
 			NEW(ds1); NEW(ds2);
 		END Init;
 
 		PROCEDURE Error(CONST msg: ARRAY OF CHAR);
 		BEGIN
-			reportError(scanner.GetPos(), scanner.line, scanner.col, msg)
+			reportError(scanner.GetPos(), scanner.line, scanner.col, msg);
+			res := UnknownError;
 		END Error;
 
 		PROCEDURE CheckSymbol(expectedSymbols: SET; CONST errormsg: ARRAY OF CHAR): BOOLEAN;
