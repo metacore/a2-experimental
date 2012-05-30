@@ -8873,6 +8873,20 @@ Sufficient (but not necessary) conditions:
 										  SYSTEM.SIZEOF( LONGREAL ), loopMulAXSX );
 		RETURN RESULT
 	END "**";
+	
+	OPERATOR "**"*(CONST left,right: ARRAY [?] OF COMPLEX): ARRAY [?] OF COMPLEX;
+	BEGIN
+		ApplyTensorAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( COMPLEX ),
+										  loopMulAZSZ );
+		RETURN RESULT
+	END "**";
+	
+	OPERATOR "**"*(CONST left,right: ARRAY [?] OF LONGCOMPLEX): ARRAY [?] OF LONGCOMPLEX;
+	BEGIN
+		ApplyTensorAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( LONGCOMPLEX ),
+										  loopMulALZSLZ );
+		RETURN RESULT
+	END "**";
 
 	PROCEDURE InitOptimization;
 	VAR p: PROCEDURE;
