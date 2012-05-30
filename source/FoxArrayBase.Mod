@@ -9106,6 +9106,16 @@ Sufficient (but not necessary) conditions:
 	OPERATOR "ABS"*(CONST arg: LONGCOMPLEX): LONGREAL;
 	BEGIN RETURN MathL.sqrt(RE(arg) * RE(arg) + IM(arg) * IM(arg))
 	END "ABS";
+	
+	OPERATOR "<="*(CONST x, y: COMPLEX): BOOLEAN; BEGIN RETURN ABS(x) <= ABS(y); END "<=";
+	OPERATOR ">="*(CONST x, y: COMPLEX): BOOLEAN; BEGIN RETURN ABS(x) >= ABS(y); END ">=";
+	OPERATOR "<"*(CONST x, y: COMPLEX): BOOLEAN; BEGIN RETURN ABS(x) < ABS(y); END "<";
+	OPERATOR ">"*(CONST x, y: COMPLEX): BOOLEAN; BEGIN RETURN ABS(x) > ABS(y); END ">";
+	
+	OPERATOR "<="*(CONST x, y: LONGCOMPLEX): BOOLEAN; BEGIN RETURN ABS(x) <= ABS(y); END "<=";
+	OPERATOR ">="*(CONST x, y: LONGCOMPLEX): BOOLEAN; BEGIN RETURN ABS(x) >= ABS(y); END ">=";
+	OPERATOR "<"*(CONST x, y: LONGCOMPLEX): BOOLEAN; BEGIN RETURN ABS(x) < ABS(y); END "<";
+	OPERATOR ">"*(CONST x, y: LONGCOMPLEX): BOOLEAN; BEGIN RETURN ABS(x) > ABS(y); END ">";
 
 BEGIN
 	alloc := 0;  SetDefaults();  InitOptimization();  (* CreateTypePool;  *)
