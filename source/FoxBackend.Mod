@@ -90,6 +90,11 @@ TYPE
 		BEGIN
 		END FindPC;
 
+		(* code address check method to patch code addresses if in forbidden range (Spartan6!) *)
+		PROCEDURE CheckCodeAddress*(VAR adr: LONGINT) ;
+		BEGIN
+		END CheckCodeAddress;
+
 		(* method to query the instruction set description *)
 		PROCEDURE GetDescription*(VAR instructionSet: ARRAY OF CHAR);
 		BEGIN instructionSet := "undefined";
