@@ -1,7 +1,7 @@
 MODULE StreamUtilities; (** AUTHOR "Patrick Hunziker"; PURPOSE "stream utilities"; *)
 (* daisychaining of readers or writers with 'logging side-stream', or with size limitation*)
 
-IMPORT Streams (* , KernelLog, Commands*);
+IMPORT Streams(* , KernelLog, Commands*);
 	
 CONST 
 	ReaderBufSize = Streams.DefaultReaderSize;
@@ -120,18 +120,17 @@ TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 		PROCEDURE Receiver(VAR buf: ARRAY OF CHAR; ofs, size, min: LONGINT; VAR len, res: LONGINT);
 		VAR num:LONGINT;
 		BEGIN
-			ASSERT((size > 0) & (min <= size) & (min >= 0));
-			num:=MIN(remain,size); 
-			in.Bytes(buf, ofs, num, len);
-			DEC(remain,len);
-			IF (remain=0) & (num<size) THEN res:=Streams.EOF ELSE res:=in.res END;
+			ASSERT(size >= 0);
+			IF (remain=0) THEN len:=0; res:=Streams.EOF; RETURN END;
+			in.Bytes(buf, ofs, MIN(remain,size), len);
+			DEC(remain,len); INC(received,len);
+			res:=in.res;
 		END Receiver;
 		
 		PROCEDURE Reset*;
 		BEGIN
 			remain:=total;
 		END Reset;
-		
 	END LimitedReader;
 
 	(*open a monitoring writer on the out stream*)
