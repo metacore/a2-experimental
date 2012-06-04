@@ -151,7 +151,8 @@ TYPE
 			activeCellsSpecification: ActiveCells.Specification;
 			log: Streams.Writer;
 			VAR importCache: SyntaxTree.ModuleScope;
-			CONST findPC: ARRAY OF CHAR (* locate a source code position providing a binary module offset *)
+			CONST findPC: ARRAY OF CHAR; (* locate a source code position providing a binary module offset *)
+			documentation: Backend.Backend
 			): BOOLEAN;
 	VAR
 		module: SyntaxTree.Module;
@@ -338,6 +339,10 @@ TYPE
 					ELSIF ~activeCellsSpecification.Emit() THEN
 						FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;
 					END;
+				END;
+
+				IF documentation # NIL THEN
+					generatedModule := documentation.ProcessSyntaxTreeModule(module);
 				END;
 			ELSIF Print IN flags THEN
 				PrintModule;
@@ -533,7 +538,8 @@ TYPE
 		VAR symbolFile: Formats.SymbolFileFormat;
 		VAR objectFile: Formats.ObjectFileFormat;
 		VAR activeCellsSpecification: ActiveCells.Specification;
-		VAR findPC: ARRAY OF CHAR
+		VAR findPC: ARRAY OF CHAR;
+		VAR documentation: Backend.Backend
 		): BOOLEAN;
 	VAR options: Options.Options;  name: ARRAY 256 OF CHAR; result: BOOLEAN; position: LONGINT;
 		parsed: BOOLEAN;
@@ -560,10 +566,11 @@ TYPE
 		options.Add(0X,"singleModule",Options.Flag);
 		options.Add(0X, "symbolFile", Options.String);
 		options.Add(0X, "objectFile", Options.String);
-		options.Add("d","activeCells", Options.Flag);
+		options.Add(0X,"activeCells", Options.Flag);
 		options.Add("w","warnings", Options.Flag);
 		options.Add(0X,"darwinHost", Options.Flag);
 		options.Add(0X,"activeCellsSpecification", Options.String);
+		options.Add("d","documentation", Options.String);
 
 		position := input.Pos();
 		parsed := options.Parse(input,NIL);
@@ -612,9 +619,20 @@ TYPE
 			NEW(activeCellsSpecification,"",diagnostics,NIL);
 		END;
 
+		IF options.GetString("d", name) THEN
+			documentation := Backend.GetBackendByName("Documentation");
+			IF (backend = NIL)  THEN
+				Error("documentation backend could not be installed"); result := FALSE;
+			END;
+		ELSE
+			documentation := NIL
+		END;
+
+
 		IF backend # NIL THEN backend.DefineOptions (options); INCL(flags,Check); END;
 		IF symbolFile # NIL THEN symbolFile.DefineOptions(options); INCL(flags,Check) END;
 		IF objectFile # NIL THEN objectFile.DefineOptions(options); INCL(flags,Check) END;
+		IF documentation # NIL THEN documentation.DefineOptions(options) END;
 
 		IF result & ~parsed THEN
 			options.Clear;
@@ -636,6 +654,7 @@ TYPE
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
 			IF objectFile # NIL THEN objectFile.GetOptions(options) END;
+			IF documentation # NIL THEN documentation.GetOptions(options) END;
 			IF activeCellsSpecification # NIL THEN INCL(flags, DataFlow) END;
 		END;
 		RETURN result
@@ -720,11 +739,12 @@ TYPE
 		objectFile: Formats.ObjectFileFormat;
 		activeCellsSpecification: ActiveCells.Specification;
 		findPC: SectionName;
+		documentation: Backend.Backend;
 	BEGIN
 		error := FALSE;
 
 		NEW(diagnostics, context.error);
-		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,activeCellsSpecification,findPC) THEN
+		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,activeCellsSpecification,findPC, documentation) THEN
 
 			time := Kernel.GetTicks();
 			WHILE GetString(context.arg,filename) & ~error DO
@@ -732,7 +752,7 @@ TYPE
 				IF reader = NIL THEN
 					diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 				ELSE
-					error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC);
+					error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC, documentation);
 				END;
 				context.out.Update;
 				context.error.Update;
@@ -854,16 +874,17 @@ TYPE
 		objectFile: Formats.ObjectFileFormat;
 		activeCellsSpecification: ActiveCells.Specification;
 		findPC: SectionName;
+		documentation: Backend.Backend;
 	BEGIN
 		error := FALSE;
 		NEW(diagnostics, context.error);
-		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,activeCellsSpecification,findPC) THEN
+		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,activeCellsSpecification,findPC, documentation) THEN
 
 			time := Kernel.GetTicks();
 			IF reader = NIL THEN
 				diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 			ELSE
-				error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC);
+				error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC, documentation);
 			END;
 			context.out.Update;
 		END;

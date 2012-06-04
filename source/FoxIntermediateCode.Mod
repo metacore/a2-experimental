@@ -136,7 +136,7 @@ TYPE
 
 		PROCEDURE & InitIntermediateSection*(kind, type: SHORTINT; priority: INTEGER; isDefinition: BOOLEAN; CONST n: Basic.SegmentedName; symbol: SyntaxTree.Symbol; comment: BOOLEAN);
 		BEGIN
-			InitSection(kind,type,priority,isDefinition,n,symbol); InitArray;resolved := NIL;
+			InitSection(kind,type,priority,isDefinition,n,symbol); (*InitArray;*) pc := 0; resolved := NIL;
 			IF comment THEN NEW(comments,GetPC) ELSE comments := NIL END;
 			finally := -1;
 			validPAFEnter := 0; validPAFExit := 0;
@@ -239,7 +239,9 @@ TYPE
 				Assert((instruction.op1.mode # ModeRegister) OR (instruction.op1.offset = 0),"destination operand may not be register with nonzero offset");
 			END;
 			*)
-			IF pc = LEN(instructions) THEN
+			IF (instructions = NIL) THEN 
+				NEW(instructions, 16);
+			ELSIF pc = LEN(instructions) THEN
 				NEW(new,4*LEN(instructions));
 				SYSTEM.MOVE(SYSTEM.ADR(instructions[0]), SYSTEM.ADR(new[0]), LEN(instructions)*SYSTEM.SIZEOF(Instruction));
 				instructions := new;

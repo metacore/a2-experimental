@@ -12,15 +12,16 @@ TYPE
 		log: Streams.Writer;
 		verbose, execute: BOOLEAN;
 		flags: SET;
-		backend: Backend.Backend;
+		backend, docu: Backend.Backend;
 		symbolFile: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
 		command: Command;
 
 		PROCEDURE &InitTester (log: Streams.Writer; diagnostics: Diagnostics.Diagnostics; verbose, execute: BOOLEAN; CONST command: Command; flags: SET;
-			backend: Backend. Backend; symbolFile: Formats.SymbolFileFormat; objectFile: Formats.ObjectFileFormat);
+			backend: Backend. Backend; symbolFile: Formats.SymbolFileFormat; objectFile: Formats.ObjectFileFormat; docu: Backend.Backend);
 		BEGIN Init (diagnostics); SELF.log := log; SELF.verbose := verbose; SELF.execute := execute; SELF.command := command;
 			SELF.flags := flags; SELF.backend := backend; SELF.symbolFile := symbolFile; SELF.objectFile := objectFile;
+			SELF.docu := docu;
 		END InitTester;
 
 		PROCEDURE Handle (r: Streams.Reader; position: LONGINT; CONST name: ARRAY OF CHAR): INTEGER;
@@ -29,7 +30,7 @@ TYPE
 			result := TestSuite.Failure;
 			IF verbose THEN log.String ("testing: "); log.String (name); log.Ln; log.Update; diagnostics := SELF.diagnostics ELSE diagnostics := NIL END;
 			importCache := NIL;
-			IF Compiler.Modules (name, r, position, diagnostics, flags,backend, symbolFile,objectFile,NIL,NIL, importCache,"") THEN
+			IF Compiler.Modules (name, r, position, diagnostics, flags,backend, symbolFile,objectFile,NIL,NIL, importCache,"", docu) THEN
 				IF command # "" THEN
 					Commands.Call (command, {Commands.Wait}, res, msg);
 					IF res = Commands.Ok THEN
@@ -65,6 +66,7 @@ TYPE
 		objectFile: Formats.ObjectFileFormat;
 		activeCellsSpecification: ActiveCells.Specification;
 		findPC: SectionName;
+		docu: Backend.Backend;
 	BEGIN
 		IF (context.caller # NIL) & (context.caller IS Shell.Shell) THEN
 			writer := context.out
@@ -82,13 +84,13 @@ TYPE
 			IF options.GetString("o",optionsString) THEN
 				NEW(arg,256);
 				arg.Set(optionsString);
-				ASSERT (Compiler.GetOptions(arg, context.error, diagnostics, flags, backend,symbolFile,objectFile,activeCellsSpecification, findPC));
+				ASSERT (Compiler.GetOptions(arg, context.error, diagnostics, flags, backend,symbolFile,objectFile,activeCellsSpecification, findPC, docu));
 			END;
 			IF options.GetString ("c", command) THEN END;
 		END;
 		verbose := options.GetFlag("verbose");
 		execute := options.GetFlag("execute");
-		NEW (tester, writer, diagnostics, verbose, execute, command, flags, backend,symbolFile,objectFile);
+		NEW (tester, writer, diagnostics, verbose, execute, command, flags, backend,symbolFile,objectFile, docu);
 		NEW (report, writer);
 		TestSuite.Drive (context, tester);
 		tester.Print (report);

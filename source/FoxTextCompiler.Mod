@@ -96,6 +96,7 @@ CONST
 		activeCellsSpecification: ActiveCells.Specification;
 		findPC: Basic.SectionName; flags: SET;
 		reader: Streams.Reader;
+		docu: Backend.Backend;
 	BEGIN
 		IF t = NIL THEN
 			log.String ("No text available"); log.Ln; log.Update;
@@ -103,12 +104,12 @@ CONST
 		END;
 		NEW(stringReader,LEN(opt));
 		stringReader.Set(opt);
-		IF Compiler.GetOptions(stringReader,log,diagnostics,flags,backend,symbolFile,objectFile,activeCellsSpecification, findPC) THEN
+		IF Compiler.GetOptions(stringReader,log,diagnostics,flags,backend,symbolFile,objectFile,activeCellsSpecification, findPC, docu) THEN
 			reader := GetTextReader(t,pos);
 			IF pc # "" THEN INCL(flags,Compiler.FindPC); COPY(pc, findPC);
 			ELSIF findPC # "" THEN INCL(flags,Compiler.FindPC)
 			END;
-			error := ~Compiler.Modules(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,activeCellsSpecification, log,importCache,findPC)
+			error := ~Compiler.Modules(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,activeCellsSpecification, log,importCache,findPC, docu)
 		END;
 	END CompileText;
 

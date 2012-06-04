@@ -1245,7 +1245,7 @@ TYPE
 		PROCEDURE CompileFile(file : File; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer; VAR error : BOOLEAN; importCache : SyntaxTree.ModuleScope);
 		VAR
 		 	reader : Streams.Reader;
-			backend : Backend.Backend;
+			backend, documentation : Backend.Backend;
 			symbolFileFormat : Formats.SymbolFileFormat;
 			objectFileFormat : Formats.ObjectFileFormat;
 			dataflowSpecification: ActiveCells.Specification;
@@ -1264,9 +1264,9 @@ TYPE
 				GetCompilerOptions(options);
 				NEW(optionsReader, LEN(options));
 				optionsReader.Set(options);
-				error := ~Compiler.GetOptions(optionsReader, log, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, dataflowSpecification, findPC);
+				error := ~Compiler.GetOptions(optionsReader, log, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, dataflowSpecification, findPC, documentation);
 				IF ~error THEN
-					error := ~Compiler.Modules(file.name, reader, 0, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, dataflowSpecification, log, importCache, findPC);
+					error := ~Compiler.Modules(file.name, reader, 0, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, dataflowSpecification, log, importCache, findPC, documentation);
 				END;
 			ELSE
 				MakeMessage(message, "File # not found", file.name, "");
