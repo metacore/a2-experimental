@@ -145,12 +145,14 @@ TYPE
 		PROCEDURE Swap( i, j: LONGINT );
 		VAR tmp: LONGINT;
 		BEGIN
-			tmp := data[i];  data[i] := data[j];  data[j] := tmp;
-			DrawElement( i );
-			DrawElement( j );
-			Update;
-			IF delay # 0 THEN  NEW( t ); t.Sleep( delay)  END; 
-			INC( nofswaps )
+			IF i # j THEN
+				tmp := data[i];  data[i] := data[j];  data[j] := tmp;
+				DrawElement( i );
+				DrawElement( j );
+				Update;
+				IF delay # 0 THEN  NEW( t ); t.Sleep( delay)  END; 
+				INC( nofswaps )
+			END
 		END Swap;
 		
 		PROCEDURE Less( i, j: LONGINT ): BOOLEAN;
