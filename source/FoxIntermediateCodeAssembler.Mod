@@ -1113,6 +1113,7 @@ TYPE
 					Basic.WriteSegmentedName(D.Log,section.name);
 					D.String(" @ "); D.Int(adr,1); D.Ln;
 					*)
+					backend.CheckCodeAddress(adr);
 					is.SetAlignment(TRUE, adr);
 					IF is.pc > sizes[i] THEN sizes[i] := is.pc END;
 					adr := adr + sizes[i];
