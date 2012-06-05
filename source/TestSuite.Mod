@@ -11,7 +11,7 @@ CONST
 	Failure* = 2;
 
 TYPE
-	TestType = INTEGER;
+	TestType* = INTEGER;
 	TestName = ARRAY 100 OF CHAR;
 
 	TestResult* = POINTER TO RECORD
@@ -69,11 +69,11 @@ TYPE
 			string := code.GetString ();
 			NEW (reader, code.GetLength ());
 			reader.Set (string^);
-			AddResult (tests, type, name, Handle (reader, r.Pos () - writer.Pos () - 1, name) = type);
+			AddResult (tests, type, name, Handle (reader, r.Pos () - writer.Pos () - 1, name, type) = type);
 		END;
 	END Process;
 
-	PROCEDURE Handle* (r: Streams.Reader; pos: LONGINT; CONST name: ARRAY OF CHAR): INTEGER;
+	PROCEDURE Handle* (r: Streams.Reader; pos: LONGINT; CONST name: ARRAY OF CHAR; type: TestType): INTEGER;
 	END Handle;
 
 	PROCEDURE Print* (report: Report);

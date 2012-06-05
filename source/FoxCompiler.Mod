@@ -762,6 +762,8 @@ TYPE
 				context.out.Ln; context.out.String("compiler elapsed ms"); context.out.Int(time,10);
 			END;
 		END;
+		IF error THEN context.result := -1 ELSE context.result := Commands.Ok END;
+
 	END Compile;
 
 	PROCEDURE Assemble*(context: Commands.Context);

@@ -13,6 +13,7 @@ CONST
 	CommandNotFound* = 3901;
 	CommandError* = 3902;
 	CommandParseError* = 3903;
+	CommandTrapped* = 3904;
 
 	(* Separates module name from procedure name *)
 	Delimiter* = ".";
@@ -156,7 +157,7 @@ TYPE
 				END;
 			END;
 		ELSE
-			res := CommandError; COPY("Exception during command execution", msg);
+			res := CommandTrapped; COPY("Exception during command execution", msg);
 		END;
 		IF trace THEN
 			tracer.String(" ~"); tracer.Ln; tracer.Update

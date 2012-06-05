@@ -74,6 +74,12 @@ TYPE
 			writer := Basic.GetDebugWriter("Oberon Compiler Test Results")
 		END;
 		NEW(options);
+		
+		options.Add("p","prolog", Options.String);
+		options.Add("e","epilog", Options.String);
+		options.Add("c","command", Options.String);
+		
+		
 		options.Add("o","options",Options.String);
 		options.Add("v","verbose",Options.Flag);
 		options.Add("e","execute",Options.Flag);
