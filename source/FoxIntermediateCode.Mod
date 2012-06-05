@@ -239,7 +239,7 @@ TYPE
 				Assert((instruction.op1.mode # ModeRegister) OR (instruction.op1.offset = 0),"destination operand may not be register with nonzero offset");
 			END;
 			*)
-			IF (instructions = NIL) THEN 
+			IF (instructions = NIL) THEN
 				NEW(instructions, 16);
 			ELSIF pc = LEN(instructions) THEN
 				NEW(new,4*LEN(instructions));
@@ -383,7 +383,9 @@ TYPE
 			IF result # NIL THEN
 				(* section has been found by the name *)
 				ASSERT((result.kind = kind) OR (kind = Sections.UnknownKind) OR (result.kind = Sections.UnknownKind)); (* check kinds *)
-				ASSERT((result.type = type) OR (type = Sections.UnknownSectionType) OR (result.type = Sections.UnknownSectionType) OR (type = Sections.VarSection) & (result.type = Sections.ConstSection)); (* check types *)
+				ASSERT((result.type = type) OR (type = Sections.UnknownSectionType) OR (result.type = Sections.UnknownSectionType) OR (type = Sections.VarSection) & (result.type = Sections.ConstSection)
+					OR (result.type = Sections.BodyCodeSection) & (type = Sections.CodeSection)
+				); (* check types *)
 				IF result.type = Sections.UnknownSectionType THEN result.SetType(type) END; (* refine type *)
 				IF isDefinition THEN result.MarkAsNoPrototype END;
 				RETURN result(Section)

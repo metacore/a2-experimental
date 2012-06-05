@@ -667,7 +667,7 @@ TYPE
 			intermediateCodeParser: IntermediateCodeParser;
 			reader: Streams.Reader;
 			parsedBackend: Backend.Backend;
-
+			msg: ARRAY 128 OF CHAR;
 			i: LONGINT;
 		BEGIN
 			IF Trace THEN D.String(">>> LoadModule "); D.String(moduleName); D.Ln END;
@@ -690,7 +690,9 @@ TYPE
 					loadedModules.AddName(moduleName); (* to avoid recursive reloading this must be done before parsing *)
 
 					IF reader = NIL THEN
-						diagnostics.Error(filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open");
+						msg := "failed to open ";
+						Strings.Append(msg, filename);
+						diagnostics.Error(filename, Diagnostics.Invalid, Diagnostics.Invalid, msg);
 						RETURN FALSE
 					ELSE
 						IF Trace THEN D.String(">>> IR file successfully opened: "); D.String(filename); D.Ln END;

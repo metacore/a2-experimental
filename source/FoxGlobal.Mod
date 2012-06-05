@@ -59,7 +59,7 @@ CONST
 		Abs  Ash  Cap  Chr  Entier  EntierH  Len  Long  Max  Min Odd  Ord  Short  Size
 		Sum Dim First Last Step Re Im Lsl Lsr Asr
 		(* system proper procedures *)
-		systemGet  systemPut  systemMove  systemNew
+		systemGet  systemPut  systemMove  systemNew systemRef
 		systemIncr Reshape
 		systemZeroCopy systemTypeCode systemHalt
 		systemPut8 systemPut16 systemPut32 systemPut64 systemTrace
@@ -83,8 +83,8 @@ CONST
 
 	(* system proper procedures *)
 	systemGet*= Im+1; systemPut*= systemGet+1; systemMove*= systemPut+1;
-	systemNew*= systemMove+1;
-	systemIncr*= systemNew+1; Reshape*= systemIncr+1; systemZeroCopy*= Reshape+1; systemTypeCode*= systemZeroCopy+1; systemHalt*= systemTypeCode+1;
+	systemNew*= systemMove+1; systemRef *= systemNew+1;
+	systemIncr*= systemRef+1; Reshape*= systemIncr+1; systemZeroCopy*= Reshape+1; systemTypeCode*= systemZeroCopy+1; systemHalt*= systemTypeCode+1;
 	systemPut8*= systemHalt+1; systemPut16*= systemPut8+1; systemPut32*= systemPut16+1; systemPut64*= systemPut32+1;
 	systemTrace*= systemPut64+1;
 
@@ -543,6 +543,7 @@ TYPE
 		NewBuiltin(systemPut,"PUT",system.systemScope,TRUE);
 		NewBuiltin(systemMove,"MOVE",system.systemScope,TRUE);
 		NewBuiltin(systemNew,"NEW",system.systemScope,FALSE);
+		NewBuiltin(systemRef,"REF",system.systemScope,FALSE);
 		NewBuiltin(Reshape,"RESHAPE",system.globalScope,TRUE);
 		NewBuiltin(systemZeroCopy,"ZEROCOPY",system.globalScope,TRUE);
 		NewBuiltin(systemHalt,"HALT",system.systemScope,TRUE);
@@ -840,10 +841,10 @@ TYPE
 	BEGIN
 		Basic.InitSegmentedName(name);
 		IF (module.context # SyntaxTree.invalidIdentifier) & (module.context # A2Name) THEN
-			name[0] := module.context; 
+			name[0] := module.context;
 			name[1] := module.name;
 			name[2] := -1;
-		ELSE 
+		ELSE
 			name[0] :=module.name;
 			name[1] := -1;
 		END;

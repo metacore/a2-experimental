@@ -5003,6 +5003,8 @@ TYPE
 			dummy: IntermediateCode.Operand;
 			customBuiltin: SyntaxTree.CustomBuiltin;
 			isVarPar: ARRAY 3 OF BOOLEAN;
+			callsection: Sections.Section;
+			segmentedName: Basic.SegmentedName;
 
 			PROCEDURE CallBodies(self: IntermediateCode.Operand; type: SyntaxTree.Type);
 			VAR recordScope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure; body: SyntaxTree.Body; flags: LONGINT;
@@ -5919,6 +5921,13 @@ TYPE
 				(* push realtime flag: false by default *)
 				Emit(Push(position,false));
 				CallThis("Heaps","NewSys",3);
+			(* ---- SYSTEM.CALL ----- *)
+			|Global.systemRef:
+				Basic.ToSegmentedName(p0(SyntaxTree.StringValue).value^, segmentedName);
+				callsection := NewSection(module.allSections,  Sections.UnknownKind, Sections.CodeSection, FALSE, segmentedName, NIL,commentPrintout # NIL);
+				s0.mode := ModeValue;
+				IntermediateCode.InitAddress(s0.op, addressType, callsection,0);
+				result := s0
 			(* ---- SYSTEM.INCR ----- *)
 			|Global.systemIncr:
 				Designate(p0,operand);

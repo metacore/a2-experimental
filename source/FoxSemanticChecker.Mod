@@ -5419,6 +5419,9 @@ TYPE
 						parameter1 := NewConversion(Diagnostics.Invalid, parameter1, system.sizeType,NIL);
 						actualParameters.SetExpression(1,parameter1);
 					END;
+				(* ----SYSTEM.REF ---- *)
+				ELSIF (id = Global.systemRef) & CheckArity(1,1) & CheckStringType(parameter0) THEN
+					type := system.addressType
 				(* ---- SYSTEM.INCR ----- *)
 				ELSIF (id = Global.systemIncr) & CheckArity(1,2) THEN
 					type := system.sizeType;
