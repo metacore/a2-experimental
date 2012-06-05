@@ -19,6 +19,7 @@ CONST
 
 	TraceError=TRUE;
 	BasePortAddress=LONGINT(0FFFFFFE0H);
+	TraceSame= FALSE;
 
 TYPE
 	Name*= ARRAY 256 OF CHAR;
@@ -31,7 +32,6 @@ TYPE
 	Symbol*=OBJECT
 	VAR name-: Name;
 		scope-: Scope;
-
 
 		PROCEDURE GetFullName*(VAR name: ARRAY OF CHAR; in: Scope);
 
@@ -66,6 +66,11 @@ TYPE
 			Strings.Append(msg, name);
 		END AppendToMsg;
 
+		PROCEDURE Same*(as: Symbol; flags: SET): BOOLEAN;
+		BEGIN
+			RETURN name = as.name
+		END Same;
+
 	END Symbol;
 
 	SymbolList*= OBJECT(Basic.List)
@@ -89,6 +94,19 @@ TYPE
 			END;
 			RETURN NIL
 		END ByName;
+
+		PROCEDURE Same(as: SymbolList; flags: SET): BOOLEAN;
+		VAR i: LONGINT; left, right: Symbol;
+		BEGIN
+			IF as.Length() # Length() THEN RETURN FALSE END;
+			FOR i := 0 TO Length()-1 DO
+				left := GetSymbol(i);
+				right := as.GetSymbol(i);
+				IF ~left.Same(right, flags) THEN RETURN FALSE END;
+			END;
+			RETURN TRUE
+		END Same;
+
 	END SymbolList;
 
 	(* representation of a channel end point
@@ -102,6 +120,16 @@ TYPE
 		width-: LONGINT;
 		delegate-: PortInstance;
 		index-: LONGINT;
+
+		PROCEDURE Same(as: Symbol; flags: SET): BOOLEAN;
+		BEGIN
+			IF TraceSame THEN TRACE("Port",name) END;
+			IF (as = NIL) OR ~(as IS Port) THEN RETURN FALSE END;
+			WITH as: Port DO
+				IF (direction # as.direction) OR (adr # as.adr) OR (width # as.width) THEN RETURN FALSE END;
+			END;
+			RETURN Same^(as, flags)
+		END Same;
 
 		PROCEDURE &InitPort*(CONST name: ARRAY OF CHAR; scope: Scope; direction: LONGINT; adr: LONGINT);
 		BEGIN
@@ -192,6 +220,19 @@ TYPE
 			RETURN NIL
 		END ByName;
 
+		PROCEDURE Same(as: PortList; flags: SET): BOOLEAN;
+		VAR i: LONGINT; left, right: Port;
+		BEGIN
+			IF as.Length() # Length() THEN RETURN FALSE END;
+			FOR i := 0 TO Length()-1 DO
+				left := GetPort(i);
+				right := as.GetPort(i);
+				IF ~left.Same(right, flags) THEN RETURN FALSE END;
+			END;
+			RETURN TRUE
+		END Same;
+
+
 	END PortList;
 
 	(* devices are additional components that can be attached to processors
@@ -202,6 +243,17 @@ TYPE
 	VAR
 		adr-: LONGINT;
 		index-: LONGINT;
+
+		PROCEDURE Same(as: Symbol; flags: SET): BOOLEAN;
+		BEGIN
+			IF TraceSame THEN TRACE("Device",name) END;
+			IF (as = NIL) OR ~(as IS Device) THEN RETURN FALSE END;
+			WITH as: Device DO
+				IF (adr # as.adr) OR (index # as.index) THEN RETURN FALSE END;
+			END;
+			RETURN Same^(as, flags)
+		END Same;
+
 
 		PROCEDURE &InitDevice*(CONST name: ARRAY OF CHAR; scope: Scope; adr: LONGINT);
 		BEGIN
@@ -252,6 +304,19 @@ TYPE
 			RETURN NIL
 		END ByName;
 
+		PROCEDURE Same(as: DeviceList; flags: SET): BOOLEAN;
+		VAR i: LONGINT; left, right: Device;
+		BEGIN
+			IF as.Length() # Length() THEN RETURN FALSE END;
+			FOR i := 0 TO Length()-1 DO
+				left := GetDevice(i);
+				right := as.GetDevice(i);
+				IF ~left.Same(right, flags) THEN RETURN FALSE END;
+			END;
+			RETURN TRUE
+		END Same;
+
+
 	END DeviceList;
 
 	(*
@@ -263,6 +328,16 @@ TYPE
 	VAR
 		fileName*: Files.FileName; (* preparation for separate compilation (optimization) *)
 		index-: LONGINT;
+
+		PROCEDURE Same(as: Symbol; flags: SET): BOOLEAN;
+		BEGIN
+			IF TraceSame THEN TRACE("Module",name) END;
+			IF (as = NIL) OR  ~(as IS Module) THEN RETURN FALSE END;
+			WITH as: Module DO
+				IF (index # as.index) OR (fileName # as.fileName) THEN RETURN FALSE END;
+			END;
+			RETURN Same^(as, flags)
+		END Same;
 
 		PROCEDURE & InitModule(CONST name: ARRAY OF CHAR; scope: Scope; CONST fileName: ARRAY OF CHAR);
 		BEGIN
@@ -313,6 +388,19 @@ TYPE
 			RETURN NIL
 		END ByName;
 
+		PROCEDURE Same(as: ModuleList; flags: SET): BOOLEAN;
+		VAR i: LONGINT; left, right: Module;
+		BEGIN
+			IF as.Length() # Length() THEN RETURN FALSE END;
+			FOR i := 0 TO Length()-1 DO
+				left := GetModule(i);
+				right := as.GetModule(i);
+				IF ~left.Same(right, flags) THEN RETURN FALSE END;
+			END;
+			RETURN TRUE
+		END Same;
+
+
 	END ModuleList;
 
 	(*
@@ -326,6 +414,16 @@ TYPE
 		type-: SHORTINT; (* Integer or Boolean, for the time being *)
 		integer-: LONGINT;
 		boolean-: BOOLEAN;
+
+		PROCEDURE Same(as: Symbol; flags: SET): BOOLEAN;
+		BEGIN
+			IF TraceSame THEN TRACE("Parameter",name) END;
+			IF (as = NIL) OR ~(as IS Parameter) THEN RETURN FALSE END;
+			WITH as: Parameter DO
+				IF (index # as.index) OR (type # as.type) OR (integer # as.integer) OR (as.boolean # boolean) THEN RETURN FALSE END;
+			END;
+			RETURN Same^(as, flags)
+		END Same;
 
 		PROCEDURE &Init(CONST name: ARRAY OF CHAR; scope: Scope);
 		BEGIN
@@ -403,8 +501,20 @@ TYPE
 			END;
 			RETURN NIL
 		END ByName;
-	END ParameterList;
 
+		PROCEDURE Same(as: ParameterList; flags: SET): BOOLEAN;
+		VAR i: LONGINT; left, right: Parameter;
+		BEGIN
+			IF as.Length() # Length() THEN RETURN FALSE END;
+			FOR i := 0 TO Length()-1 DO
+				left := GetParameter(i);
+				right := as.GetParameter(i);
+				IF ~left.Same(right, flags) THEN RETURN FALSE END;
+			END;
+			RETURN TRUE
+		END Same;
+
+	END ParameterList;
 
 	(*
 		instances are variables in networks pointing to a type
@@ -419,6 +529,20 @@ TYPE
 		(* caches: *)
 		instructionMemorySize-, dataMemorySize-: LONGINT;
 		capabilities-: SET;
+
+		PROCEDURE Same(as: Symbol; flags: SET): BOOLEAN;
+		BEGIN
+			IF TraceSame THEN TRACE("Instance",name) END;
+			IF (as = NIL) OR ~(as IS Instance) THEN RETURN FALSE END;
+			WITH as: Instance DO
+				IF (index # as.index) THEN RETURN FALSE END;
+				IF ~type.Same(as.type, flags) THEN RETURN FALSE END;
+				IF ~parameters.Same(as.parameters, flags) THEN RETURN FALSE END;
+				IF (instructionMemorySize # as.instructionMemorySize) THEN RETURN FALSE END;
+				IF (dataMemorySize # as.dataMemorySize) THEN RETURN FALSE END;
+			END;
+			RETURN Same^(as, flags)
+		END Same;
 
 		PROCEDURE &Init(CONST name: ARRAY OF CHAR; scope: Scope; c: Type);
 		BEGIN
@@ -531,6 +655,19 @@ TYPE
 			END;
 			RETURN NIL
 		END ByName;
+
+		PROCEDURE Same(as: InstanceList; flags: SET): BOOLEAN;
+		VAR i: LONGINT; left, right: Symbol;
+		BEGIN
+			IF as.Length() # Length() THEN RETURN FALSE END;
+			FOR i := 0 TO Length()-1 DO
+				left := GetInstance(i);
+				right := as.GetInstance(i);
+				IF ~left.Same(right, flags) THEN RETURN FALSE END;
+			END;
+			RETURN TRUE
+		END Same;
+
 	END InstanceList;
 
 	InstanceMethod*= PROCEDURE {DELEGATE} (instance: Instance): BOOLEAN;
@@ -554,6 +691,20 @@ TYPE
 			NEW(symbols,4);
 			index := -1;
 		END InitScope;
+
+		PROCEDURE Same(as: Symbol; flags: SET): BOOLEAN;
+		BEGIN
+			IF TraceSame THEN TRACE("Scope",name) END;
+			IF (as = NIL) OR ~(as IS Scope) THEN RETURN FALSE END;
+			WITH as: Scope DO
+				IF ~symbols.Same(as.symbols, flags) THEN RETURN FALSE END;
+				IF ~instances.Same(as.instances, flags) THEN RETURN FALSE END;
+				IF ~channels.Same(as.channels, flags) THEN RETURN FALSE END;
+				IF ~types.Same(as.types, flags) THEN RETURN FALSE END;
+				IF ~ports.Same(as.ports, flags) THEN RETURN FALSE END;
+			END;
+			RETURN Same^(as, flags)
+		END Same;
 
 		PROCEDURE FindSymbol(CONST name: ARRAY OF CHAR; traverse: BOOLEAN): Symbol;
 		VAR symbol: Symbol;
@@ -662,6 +813,21 @@ TYPE
 		modules-: ModuleList; (* for linking / compiling *)
 		instructionMemorySize-, dataMemorySize-: LONGINT; (* sizes in units *)
 		capabilities-: SET;
+
+		PROCEDURE Same(as: Symbol; flags: SET): BOOLEAN;
+		BEGIN
+			IF TraceSame THEN TRACE("Type",name) END;
+			IF (as = NIL) OR ~(as IS Type) THEN RETURN FALSE END;
+			WITH as: Type DO
+				IF ~devices.Same(as.devices, flags) THEN RETURN FALSE END;
+				IF ~modules.Same(as.modules, flags) THEN RETURN FALSE END;
+				IF (instructionMemorySize # as.instructionMemorySize) THEN RETURN FALSE END;
+				IF (dataMemorySize # as.dataMemorySize) THEN RETURN FALSE END;
+				IF (capabilities # as.capabilities) THEN RETURN FALSE END;
+			END;
+			RETURN Same^(as, flags)
+		END Same;
+
 
 		PROCEDURE & InitType*(CONST name: ARRAY OF CHAR; scope: Scope);
 		BEGIN
@@ -893,6 +1059,18 @@ TYPE
 			RETURN NIL
 		END ByName;
 
+		PROCEDURE Same(as: TypeList; flags: SET): BOOLEAN;
+		VAR i: LONGINT; left, right: Type;
+		BEGIN
+			IF as.Length() # Length() THEN RETURN FALSE END;
+			FOR i := 0 TO Length()-1 DO
+				left := GetType(i);
+				right := as.GetType(i);
+				IF ~left.Same(right, flags) THEN RETURN FALSE END;
+			END;
+			RETURN TRUE
+		END Same;
+
 	END TypeList;
 
 	(*
@@ -906,6 +1084,22 @@ TYPE
 		fifoSize-: LONGINT;
 		widthInBits-: LONGINT;
 		index-: LONGINT; (* useful for implementations that emulate channels (simulator) *)
+
+
+		PROCEDURE Same(as: Symbol; flags: SET): BOOLEAN;
+		BEGIN
+			IF TraceSame THEN TRACE("Channel",name) END;
+			IF (as = NIL) OR ~(as IS Channel) THEN RETURN FALSE END;
+			WITH as: Channel DO
+				IF ~in.instance.Same(as.in.instance, flags) THEN RETURN FALSE END;
+				IF ~in.port.Same(as.in.port, flags) THEN RETURN FALSE END;
+				IF ~out.instance.Same(as.out.instance, flags) THEN RETURN FALSE END;
+				IF ~out.port.Same(as.out.port, flags) THEN RETURN FALSE END;
+				IF widthInBits # as.widthInBits THEN RETURN FALSE END;
+				IF index # as.index THEN RETURN FALSE END;
+			END;
+			RETURN Same^(as, flags)
+		END Same;
 
 		PROCEDURE & InitChannel(CONST name: ARRAY OF CHAR; scope: Scope);
 		BEGIN
@@ -1001,6 +1195,19 @@ TYPE
 			RETURN NIL
 		END ByPort;
 
+		PROCEDURE Same(as: ChannelList; flags: SET): BOOLEAN;
+		VAR i: LONGINT; left, right: Channel;
+		BEGIN
+			IF as.Length() # Length() THEN RETURN FALSE END;
+			FOR i := 0 TO Length()-1 DO
+				left := GetChannel(i);
+				right := as.GetChannel(i);
+				IF ~left.Same(right, flags) THEN RETURN FALSE END;
+			END;
+			RETURN TRUE
+		END Same;
+
+
 	END ChannelList;
 
 	(*
@@ -1023,6 +1230,19 @@ TYPE
 		BEGIN
 			NEW(device, name, SELF, LONGINT(adr)); supportedDevices.AddDevice(device);
 		END AddDevice;
+
+		PROCEDURE Same(as: Symbol; flags: SET): BOOLEAN;
+		VAR i: LONGINT;
+		BEGIN
+			IF TraceSame THEN TRACE("SameSpecification", name) END;
+			IF (as = NIL) OR ~(as IS Specification) THEN RETURN FALSE END;
+			WITH as: Specification DO
+				IF as.instructionSet # instructionSet THEN RETURN FALSE END;
+				IF ~imports.Same(as.imports,flags) THEN RETURN FALSE END;
+				IF frequencyDivider # as.frequencyDivider THEN RETURN FALSE END;
+			END;
+			RETURN Same^(as, flags);
+		END Same;
 
 		PROCEDURE DefineDevices*(system: Global.System);
 		VAR i: LONGINT; device: Device;
@@ -1269,6 +1489,20 @@ VAR
 		END;
 	END ReadSpecification;
 
+	PROCEDURE CompareSpecification*(context: Commands.Context);
+	VAR fileName: Files.FileName; spec1, spec2: Specification; b: BOOLEAN;
+	BEGIN
+		b := context.arg.GetString(fileName);
+		spec1 :=  LoadSpecification("",fileName, NIL, context.error);
+		IF spec1 = NIL THEN context.error.String("could not load specification "); context.error.String(fileName); RETURN END;
+		b := context.arg.GetString(fileName);
+		spec2 := LoadSpecification("",fileName, NIL, context.error);
+		IF spec2 = NIL THEN context.error.String("could not load specification "); context.error.String(fileName); RETURN END;
+		IF spec1.Same(spec2, {}) THEN context.out.String("Specifications are equal") ELSE context.out.String("specifications are not equal"); END;
+
+	END CompareSpecification;
+
+
 	(**
 		Load an ActiveCells specification
 
@@ -1282,13 +1516,13 @@ VAR
 	BEGIN
 		platform := GetPlatform(platformId);
 		COPY(name,fileName);
-		Strings.Append(fileName,".spec");		
-		IF platform # NIL THEN			
+		Strings.Append(fileName,".spec");
+		IF platform # NIL THEN
 			TRACE(platform.platformId^);
 			RESULT := platform.specLoader(fileName,diagnostics,log);
-		ELSE			
+		ELSE
 			NEW(RESULT,"",diagnostics,log);
-			
+
 		END;
 		RETURN RESULT;
 	END LoadSpecification;
@@ -1332,7 +1566,7 @@ VAR
 	PROCEDURE LoadSpecificationDefault(CONST name: ARRAY OF CHAR; diagnostics: Diagnostics.Diagnostics; log: Streams.Writer): Specification;
 	VAR r: Files.Reader;  specification: Specification; f: Files.File;
 	BEGIN
-		specification := NIL;		
+		specification := NIL;
 		f := Files.Old(name);
 		IF f # NIL THEN NEW(r,f,0); NEW(specification,"",diagnostics,log);
 			IF ~specification.Read(r) THEN specification := NIL END;
@@ -1463,17 +1697,21 @@ VAR
 		scope.channels := channels;
 	END FlattenNetwork;
 
-	PROCEDURE InitMod;	
+	PROCEDURE InitMod;
 	BEGIN
 		NEW(platforms,3);
 		NEW(platform);
 		platform.platformId := Strings.NewString("DEFAULT");
 		platform.specLoader := LoadSpecificationDefault;
 	END InitMod;
-	
+
 
 BEGIN
-	InitMod;	
+	InitMod;
 END FoxActiveCells.
 
 FoxActiveCells.ReadSpecification Test.spec ~
+FSTools.CopyFiles TL.spec => Test.spec ~
+FoxActiveCells.CompareSpecification Test TL ~~
+
+SystemTools.FreeDownTo FoxActiveCells ~
