@@ -1070,7 +1070,7 @@ TYPE
 		VAR import: Specification;
 		BEGIN
 			IF imports.ByName(name) = NIL THEN
-				import := LoadSpecification(name);
+				import := LoadSpecification("",name,NIL,NIL);
 				IF import # NIL THEN imports.Add(import); symbols.Add(import) END;
 			END;
 		END AddImport;
@@ -1177,6 +1177,10 @@ TYPE
 			END;
 		END Emit;
 
+		PROCEDURE GetHardwarePath*(VAR name: ARRAY OF CHAR);
+		BEGIN
+		END GetHardwarePath;
+
 	END Specification;
 
 	(*
@@ -1199,7 +1203,15 @@ TYPE
 	END WriteHugeint;
 	*)
 
+	(* ActiveCells hardware platform descriptor *)
+	PlatformDesc* = POINTER TO RECORD
+		platformId*: Strings.String; (** string with platform ID *)
+		specLoader*: PROCEDURE{DELEGATE}(CONST name: ARRAY OF CHAR; diagnostics: Diagnostics.Diagnostics; log: Streams.Writer): Specification; (** specification loader *)
+	END;
 
+VAR
+	platforms: Basic.List;
+	platform: PlatformDesc;
 
 	PROCEDURE Indent(w: Streams.Writer; indent: LONGINT);
 	BEGIN
@@ -1257,18 +1269,76 @@ TYPE
 		END;
 	END ReadSpecification;
 
-	PROCEDURE LoadSpecification(CONST name: ARRAY OF CHAR): Specification;
-	VAR fileName: Files.FileName; r:Files.Reader;  specification: Specification;f : Files.File;
+	(**
+		Load an ActiveCells specification
+
+		platformId - string ID of the platform to use
+		name - specification name
+	*)
+	PROCEDURE LoadSpecification*(CONST platformId: ARRAY OF CHAR; CONST name: ARRAY OF CHAR; diagnostics: Diagnostics.Diagnostics; log: Streams.Writer): Specification;
+	VAR
+		platform: PlatformDesc;
+		fileName: Files.FileName;
 	BEGIN
-		specification := NIL;
-		COPY(name,fileName); Strings.Append(fileName,".spec");
-		f := Files.Old(fileName);
-		IF f # NIL THEN NEW(r,f,0); NEW(specification,"",NIL,NIL);
+		platform := GetPlatform(platformId);
+		COPY(name,fileName);
+		Strings.Append(fileName,".spec");		
+		IF platform # NIL THEN			
+			TRACE(platform.platformId^);
+			RESULT := platform.specLoader(fileName,diagnostics,log);
+		ELSE			
+			NEW(RESULT,"",diagnostics,log);
+			
+		END;
+		RETURN RESULT;
+	END LoadSpecification;
+
+	(** Register an ActiveCells hardware platform *)
+	PROCEDURE RegisterPlatform*(platformDesc: PlatformDesc);
+	VAR i: LONGINT;
+	BEGIN
+		ASSERT(platformDesc # NIL);
+		ASSERT(platformDesc.platformId # NIL);
+		ASSERT(platformDesc.specLoader # NIL);
+
+		i := 0;
+		WHILE (i < platforms.Length()) & (platforms.Get(i)(PlatformDesc).platformId^ # platformDesc.platformId^) DO
+			INC(i);
+		END;
+
+		IF i < platforms.Length() THEN RETURN; END; (* do not allow registering same platform twice! *)
+
+		platforms.Add(platformDesc);
+
+		D.String("registered ActiveCells hardware platform "); D.String(platformDesc.platformId^); D.Ln;
+	END RegisterPlatform;
+
+	(** Get an ActiveCells hardware platform descriptor given the platform ID string *)
+	PROCEDURE GetPlatform*(CONST platformId: ARRAY OF CHAR): PlatformDesc;
+	VAR i: LONGINT;
+	BEGIN
+		i := 0;
+		WHILE (i < platforms.Length()) & (platforms.Get(i)(PlatformDesc).platformId^ # platformId) DO
+			INC(i);
+		END;
+
+		IF i < platforms.Length() THEN
+			RETURN platforms.Get(i)(PlatformDesc);
+		ELSE
+			RETURN platform;
+		END;
+	END GetPlatform;
+
+	PROCEDURE LoadSpecificationDefault(CONST name: ARRAY OF CHAR; diagnostics: Diagnostics.Diagnostics; log: Streams.Writer): Specification;
+	VAR r: Files.Reader;  specification: Specification; f: Files.File;
+	BEGIN
+		specification := NIL;		
+		f := Files.Old(name);
+		IF f # NIL THEN NEW(r,f,0); NEW(specification,"",diagnostics,log);
 			IF ~specification.Read(r) THEN specification := NIL END;
 		END;
 		RETURN specification
-	END LoadSpecification;
-
+	END LoadSpecificationDefault;
 
 	PROCEDURE GetSymbol*(scope: Scope; CONST name: ARRAY OF CHAR): Symbol;
 	VAR scopeName: Name; i,j: LONGINT; symbol: Symbol; first: BOOLEAN;
@@ -1393,9 +1463,17 @@ TYPE
 		scope.channels := channels;
 	END FlattenNetwork;
 
+	PROCEDURE InitMod;	
+	BEGIN
+		NEW(platforms,3);
+		NEW(platform);
+		platform.platformId := Strings.NewString("DEFAULT");
+		platform.specLoader := LoadSpecificationDefault;
+	END InitMod;
+	
 
-
-
+BEGIN
+	InitMod;	
 END FoxActiveCells.
 
 FoxActiveCells.ReadSpecification Test.spec ~
