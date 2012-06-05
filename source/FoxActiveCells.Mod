@@ -1231,7 +1231,7 @@ TYPE
 			NEW(device, name, SELF, LONGINT(adr)); supportedDevices.AddDevice(device);
 		END AddDevice;
 
-		PROCEDURE Same(as: Symbol; flags: SET): BOOLEAN;
+		PROCEDURE Same*(as: Symbol; flags: SET): BOOLEAN;
 		VAR i: LONGINT;
 		BEGIN
 			IF TraceSame THEN TRACE("SameSpecification", name) END;
