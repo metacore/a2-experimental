@@ -20,7 +20,6 @@ TYPE
 			COPY(epilog, SELF.epilog);
 			COPY(command, SELF.command);
 			COPY(fileName, SELF.fileName);
-			ASSERT(command # "");
 		END InitTester;
 
 		PROCEDURE Handle (r: Streams.Reader; position: LONGINT; CONST name: ARRAY OF CHAR; type: TestSuite.TestType): INTEGER;
@@ -46,7 +45,7 @@ TYPE
 				END;
 			END;
 
-			IF (res = Commands.Ok) THEN
+			IF (command # "") & (res = Commands.Ok) THEN
 				Commands.Call(command, {Commands.Wait}, res, msg);
 				IF res = Commands.Ok THEN
 					result := TestSuite.Positive
@@ -60,7 +59,7 @@ TYPE
 				IF (result # type) & verbose THEN
 					log.String (msg); log.Ln;
 				END;
-			ELSE result := TestSuite.Failure
+			ELSIF (command # "") THEN result := TestSuite.Failure
 			END;
 
 			IF epilog # "" THEN
@@ -92,7 +91,6 @@ TYPE
 		options.Add("f","fileName",Options.String);
 
 		NEW (diagnostics, writer);
-		command := "";
 		IF options.Parse(context.arg,context.error) THEN
 			IF ~options.GetString("p", prolog) THEN prolog := "" END;
 			IF ~options.GetString("c",  command) THEN command := "" END;
