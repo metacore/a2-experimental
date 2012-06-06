@@ -8825,7 +8825,7 @@ TYPE
 	END IsArrayType;
 
 	PROCEDURE IsComplexType(type: SyntaxTree.Type): BOOLEAN;
-	BEGIN RETURN (type # NIL) & (type.resolved IS SyntaxTree.ArrayType);
+	BEGIN RETURN (type # NIL) & (type.resolved IS SyntaxTree.ComplexType);
 	END IsComplexType;
 
 	(** if a type is an array-structured object type *)
