@@ -2459,7 +2459,7 @@ TYPE
 			ELSE
 				(* import OCArrayBase if needed *)
 				IF ~arrayBaseImported THEN
-					IF (leftExpression # NIL) & (leftExpression.type.resolved IS SyntaxTree.ComplexType) THEN
+					IF (leftExpression # NIL) & IsComplexType(leftExpression.type) THEN
 						(* operators on complex numbers *)
 						ImportModule(Global.ArrayBaseName,position);
 						arrayBaseImported := TRUE;
@@ -8823,6 +8823,10 @@ TYPE
 	PROCEDURE IsArrayType(type: SyntaxTree.Type): BOOLEAN;
 	BEGIN RETURN (type # NIL) & (type.resolved IS SyntaxTree.ArrayType);
 	END IsArrayType;
+
+	PROCEDURE IsComplexType(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN RETURN (type # NIL) & (type.resolved IS SyntaxTree.ArrayType);
+	END IsComplexType;
 
 	(** if a type is an array-structured object type *)
 	PROCEDURE IsArrayStructuredObjectType*(type: SyntaxTree.Type): BOOLEAN;
