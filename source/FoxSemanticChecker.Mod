@@ -1974,7 +1974,7 @@ TYPE
 			ELSIF left = SyntaxTree.invalidExpression THEN (* error already handled *)
 				RETURN
 			END;
-			IF  ~(left.type.resolved IS SyntaxTree.BasicType) THEN
+			IF  ~(left.type.resolved IS SyntaxTree.BasicType) OR (left.type.resolved IS SyntaxTree.ComplexType) THEN
 				operatorCall := NewOperatorCall(unaryExpression.position, operator,left,NIL,NIL);
 			END;
 			IF operatorCall # NIL THEN

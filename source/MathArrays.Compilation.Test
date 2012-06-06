@@ -256,3 +256,13 @@ TYPE
 	END Object;
 
 END Test.
+
+positive: complex conjugate operator
+
+MODULE Test;
+VAR c: COMPLEX; lc: LONGCOMPLEX;
+BEGIN
+	c := ~c;
+	lc := ~lc;
+	lc := ~c;
+END Test.

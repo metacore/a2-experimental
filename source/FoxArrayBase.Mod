@@ -8873,14 +8873,14 @@ Sufficient (but not necessary) conditions:
 										  SYSTEM.SIZEOF( LONGREAL ), loopMulAXSX );
 		RETURN RESULT
 	END "**";
-	
+
 	OPERATOR "**"*(CONST left,right: ARRAY [?] OF COMPLEX): ARRAY [?] OF COMPLEX;
 	BEGIN
 		ApplyTensorAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( COMPLEX ),
 										  loopMulAZSZ );
 		RETURN RESULT
 	END "**";
-	
+
 	OPERATOR "**"*(CONST left,right: ARRAY [?] OF LONGCOMPLEX): ARRAY [?] OF LONGCOMPLEX;
 	BEGIN
 		ApplyTensorAAAOp( SYSTEM.ADR( RESULT ), SYSTEM.ADR( left ), SYSTEM.ADR( right ), SYSTEM.SIZEOF( LONGCOMPLEX ),
@@ -9106,12 +9106,22 @@ Sufficient (but not necessary) conditions:
 	OPERATOR "ABS"*(CONST arg: LONGCOMPLEX): LONGREAL;
 	BEGIN RETURN MathL.sqrt(RE(arg) * RE(arg) + IM(arg) * IM(arg))
 	END "ABS";
-	
+
+	OPERATOR "~"*(CONST left: COMPLEX): COMPLEX;
+	BEGIN
+		RETURN RE(left) - IM(left) * IMAG
+	END "~";
+
+	OPERATOR "~"*(CONST left: LONGCOMPLEX): LONGCOMPLEX;
+	BEGIN
+		RETURN RE(left) - IM(left) * IMAG
+	END "~";
+
 	OPERATOR "<="*(CONST x, y: COMPLEX): BOOLEAN; BEGIN RETURN ABS(x) <= ABS(y); END "<=";
 	OPERATOR ">="*(CONST x, y: COMPLEX): BOOLEAN; BEGIN RETURN ABS(x) >= ABS(y); END ">=";
 	OPERATOR "<"*(CONST x, y: COMPLEX): BOOLEAN; BEGIN RETURN ABS(x) < ABS(y); END "<";
 	OPERATOR ">"*(CONST x, y: COMPLEX): BOOLEAN; BEGIN RETURN ABS(x) > ABS(y); END ">";
-	
+
 	OPERATOR "<="*(CONST x, y: LONGCOMPLEX): BOOLEAN; BEGIN RETURN ABS(x) <= ABS(y); END "<=";
 	OPERATOR ">="*(CONST x, y: LONGCOMPLEX): BOOLEAN; BEGIN RETURN ABS(x) >= ABS(y); END ">=";
 	OPERATOR "<"*(CONST x, y: LONGCOMPLEX): BOOLEAN; BEGIN RETURN ABS(x) < ABS(y); END "<";
