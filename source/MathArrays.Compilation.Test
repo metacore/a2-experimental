@@ -224,3 +224,21 @@ negative: incompatible actual parameter type for static formal type
 
 
 
+positive: use of COMPLEX and LONGCOMPLEX
+
+MODULE Test;
+
+ PROCEDURE Exp*( z: COMPLEX): COMPLEX;
+    VAR coef, re, real, im, imag: REAL;  exp: COMPLEX;
+    BEGIN
+        exp := real + imag * IMAG; 
+        RETURN exp
+    END Exp;
+
+PROCEDURE Exp*( z: LONGCOMPLEX): LONGCOMPLEX;
+    VAR coef, re, reaL, im, imaG: LONGREAL;  exp: LONGCOMPLEX; real: REAL;
+    BEGIN
+         exp :=  reaL + reaL * IMAG;   
+        RETURN exp
+    END Exp;
+END Test.

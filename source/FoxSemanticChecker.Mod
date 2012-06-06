@@ -2149,7 +2149,7 @@ TYPE
 				ELSIF (type IS SyntaxTree.ComplexType) THEN
 					result := SyntaxTree.NewComplexValue(expression.position, real, 0);
 					result.SetType(type);
-					result(SyntaxTree.ComplexValue).SetSubtype(expression.resolved(SyntaxTree.RealValue).subtype) (* reuse subtype *)
+					result(SyntaxTree.ComplexValue).UpdateSubtype;
 				ELSE
 					Error(position,Diagnostics.Invalid,"real value cannot be converted");
 					result := SyntaxTree.invalidExpression;
@@ -2309,7 +2309,7 @@ TYPE
 			convert operands left and right to a type that both operands are compatible with, if no such type exists then report error
 		**)
 		PROCEDURE ConvertOperands(VAR left,right: SyntaxTree.Expression);
-		VAR leftType,rightType: SyntaxTree.Type;
+		VAR leftType,rightType,type: SyntaxTree.Type;
 		BEGIN
 			IF left.type = NIL THEN Error(left.position,Diagnostics.Invalid,"no type")
 			ELSIF right.type= NIL THEN Error(right.position,Diagnostics.Invalid,"no type")
@@ -2321,6 +2321,12 @@ TYPE
 					left := NewConversion(left.position,left,right.type.resolved,NIL);
 				ELSIF CompatibleTo(system,rightType,leftType) THEN
 					right := NewConversion(right.position,right,left.type.resolved,NIL);
+				ELSIF
+					(leftType IS SyntaxTree.ComplexType) & (rightType IS SyntaxTree.FloatType) OR
+					(leftType IS SyntaxTree.FloatType) & (rightType IS SyntaxTree.ComplexType) THEN
+					(* must be the case LONGREAL / COMPLEX ) *)
+					left := NewConversion(left.position, left, Global.Complex128, NIL);
+					right := NewConversion(right.position, right, Global.Complex128, NIL);
 				ELSE
 					Error(left.position,Diagnostics.Invalid,"incompatible operands");
 				END;
@@ -7879,7 +7885,7 @@ TYPE
 
 			ELSIF to IS SyntaxTree.BasicType THEN
 				IF (to IS SyntaxTree.NumberType) & (this IS SyntaxTree.NumberType) THEN
-					IF to IS SyntaxTree.ComplexType THEN
+					IF (to IS SyntaxTree.ComplexType) OR (this IS SyntaxTree.ComplexType) THEN
 						result := this.CompatibleTo(to.resolved)
 					ELSE
 						result := Global.BasicTypeDistance(system,this(SyntaxTree.BasicType),to(SyntaxTree.BasicType)) < Infinity;
