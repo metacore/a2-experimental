@@ -242,3 +242,17 @@ PROCEDURE Exp*( z: LONGCOMPLEX): LONGCOMPLEX;
         RETURN exp
     END Exp;
 END Test.
+
+positive: release tag register when longcomplex is read from object field
+
+MODULE Test;
+
+TYPE
+	Object = OBJECT
+	VAR yn1, ct: LONGCOMPLEX;
+	VAR i: LONGINT; xn: ARRAY [*] OF LONGCOMPLEX;
+	BEGIN
+		yn1 := yn1
+	END Object;
+
+END Test.

@@ -1109,7 +1109,7 @@ TYPE
 					ASSERT((componentType = system.realType) OR (componentType = system.longrealType));
 					MakeMemory(firstOp, operand.op, IntermediateCode.GetType(system, componentType), 0);
 					MakeMemory(lastOp, operand.op, IntermediateCode.GetType(system, componentType), ToMemoryUnits(system, system.SizeOf(componentType)));
-					ReleaseIntermediateOperand(operand.op);
+					ReleaseOperand(operand);
 					operand.op := firstOp;
 					operand.tag := lastOp
 				ELSE
