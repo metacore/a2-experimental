@@ -1398,6 +1398,13 @@ TYPE
 			END;
 		END PropertyChanged;
 
+		PROCEDURE LinkChanged(sender, data : ANY);
+		VAR string : Types.String256; res : LONGINT; real: Types.Longreal; unit: LONGREAL; m: Models.Model;
+		BEGIN
+			LinkChanged^(sender, data);
+		END LinkChanged;
+
+
 		PROCEDURE SetText*(t : Texts.Text);
 		VAR reference: XML.Element; textModel: Models.Text;
 		BEGIN

@@ -319,7 +319,7 @@ TYPE
 				properties.SetXML(c(WMProperties.Properties))
 			ELSIF c IS Component THEN
 				IF (sequencer # c(Component).sequencer) THEN c(Component).SetSequencer(sequencer) END;
-			ELSE
+			ELSIF ~(c IS XML.Comment) THEN
 				D.String("WMComponents.Component.AddContent: content of type "); D.Type(c); D.String(" ignored"); D.Ln;
 				RETURN
 			END;
