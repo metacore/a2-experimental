@@ -1,6 +1,6 @@
 MODULE FoxActiveCells; (** AUTHOR "fof"; PURPOSE "hardware library for the ActiveCells compiler"; *)
 
-IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Global := FoxGlobal, Files, Streams, D := Debugging, Diagnostics, Strings, Commands, GenericLinker, StaticLinker, SYSTEM;
+IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Global := FoxGlobal, Files, Streams, D := Debugging, Diagnostics, Strings, Commands, GenericLinker, StaticLinker, SYSTEM, Modules;
 
 CONST
 	In*= SyntaxTree.InPort; Out*= SyntaxTree.OutPort;
@@ -1513,17 +1513,22 @@ VAR
 	VAR
 		platform: PlatformDesc;
 		fileName: Files.FileName;
+		mod: Modules.Module;
+		res: LONGINT;
+		msg: ARRAY 8 OF CHAR;
 	BEGIN
-		platform := GetPlatform(platformId);
+
+		Strings.Concat("Fox",platformId,fileName);
+		IF Modules.ModuleByName(fileName) = NIL THEN (* if platform module is not loaded - try to load it *)
+			mod := Modules.ThisModule(fileName,res,msg);
+		END;
+
 		COPY(name,fileName);
 		Strings.Append(fileName,".spec");
-		IF platform # NIL THEN
-			TRACE(platform.platformId^);
-			RESULT := platform.specLoader(fileName,diagnostics,log);
-		ELSE
-			NEW(RESULT,"",diagnostics,log);
 
-		END;
+		platform := GetPlatform(platformId); ASSERT(platform # NIL);		
+		RESULT := platform.specLoader(fileName,diagnostics,log);
+		
 		RETURN RESULT;
 	END LoadSpecification;
 
@@ -1696,6 +1701,38 @@ VAR
 		scope.instances := instances;
 		scope.channels := channels;
 	END FlattenNetwork;
+
+	PROCEDURE NormalizeName*(CONST src: ARRAY OF CHAR; VAR dest: ARRAY OF CHAR);
+	VAR i: LONGINT; ch: CHAR;
+	BEGIN
+		i := 0;
+		REPEAT
+			ch := src[i];
+			CASE ch OF
+				".", "@", "[", "]": dest[i] := "0";
+			ELSE
+				dest[i] := ch
+			END;
+			INC(i);
+		UNTIL ch = 0X;
+	END NormalizeName;
+
+	(* write a string and replace dots by the underscore character *)
+	PROCEDURE WriteName*(w: Streams.Writer; scope: Scope; CONST name, suffix: ARRAY OF CHAR);
+	VAR n: ARRAY 256 OF CHAR;
+	BEGIN
+		IF scope # NIL THEN scope.GetFullName(n,NIL); ELSE n := "" END;
+		IF name # "" THEN
+			IF n # "" THEN Strings.Append(n,".") END;
+			Strings.Append(n,name);
+		END;
+		NormalizeName(n,n);
+		IF suffix # "" THEN
+			ASSERT(n# "");
+			Strings.Append(n,"_"); Strings.Append(n,suffix)
+		END;
+		w.String(n);
+	END WriteName;
 
 	PROCEDURE InitMod;
 	BEGIN
