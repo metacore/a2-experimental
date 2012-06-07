@@ -86,13 +86,13 @@ TYPE
 		PROCEDURE Register( F: File );
 		BEGIN {EXCLUSIVE}
 			IF TraceCollection IN Trace THEN KernelLog.String( "Collections.Register " );  KernelLog.String( F.fname );  KernelLog.Ln;  END;
-			oldFiles.Add( F, FinalizeFile );  newFiles.Remove( F );  DEC( fileKey );  F.Init( F.fname, F.hfile, fileKey );
+			oldFiles.Add( F, FinalizeFile );  newFiles.Remove( F );  DEC( fileKey );  F.Init( F.fname, F.hfile, fileKey,F.fileSystem );
 		END Register;
 
 		PROCEDURE Unregister( F: File );
 		BEGIN {EXCLUSIVE}
 			IF TraceCollection IN Trace THEN KernelLog.String( "Unregister " );  KernelLog.String( F.fname );  KernelLog.Ln;  END;
-			oldFiles.Remove( F );  newFiles.Add( F, FinalizeFile (* FinalizeFile*) );  F.Init( F.fname, Kernel32.InvalidHandleValue, 0 );
+			oldFiles.Remove( F );  newFiles.Add( F, FinalizeFile (* FinalizeFile*) );  F.Init( F.fname, Kernel32.InvalidHandleValue, 0, F.fileSystem );
 		END Unregister;
 
 		PROCEDURE AddNew( F: File );
@@ -215,9 +215,9 @@ TYPE
 			IF TraceFileSystem IN Trace THEN KernelLog.String( "New0 " );  KernelLog.String( name );  KernelLog.Ln;  END;
 			F := NIL;
 			IF name = "" THEN  (* temporary file *)
-				NEW( F, name, Kernel32.InvalidHandleValue, 0 ); collection.AddNew( F );
+				NEW( F, name, Kernel32.InvalidHandleValue, 0, SELF ); collection.AddNew( F );
 			ELSIF FullPathName( name, fname ) & CheckPath(fname) THEN
-				NEW( F, fname, Kernel32.InvalidHandleValue, 0 ); collection.AddNew( F );
+				NEW( F, fname, Kernel32.InvalidHandleValue, 0, SELF ); collection.AddNew( F );
 			END;
 			IF TraceFileSystem IN Trace THEN KernelLog.String( "failed" );  KernelLog.Ln;  END;
 			RETURN F;
@@ -231,7 +231,7 @@ TYPE
 
 			IF (name # "") & FindFile( name, fname ) THEN
 				hfile := Kernel32.CreateFile( fname, {Kernel32.GenericRead}, {Kernel32.FileShareRead, Kernel32.FileShareWrite}, NIL , Kernel32.OpenExisting, {Kernel32.FileAttributeNormal}, 0 );
-				IF hfile # Kernel32.InvalidHandleValue THEN NEW( F, fname, hfile, collection.GetNextFileKey() );    collection.AddOld( F );  RETURN F END
+				IF hfile # Kernel32.InvalidHandleValue THEN NEW( F, fname, hfile, collection.GetNextFileKey() , SELF);    collection.AddOld( F );  RETURN F END
 			END;
 			IF TraceFileSystem IN Trace THEN KernelLog.String( "failed" );  KernelLog.Ln;  END;
 			RETURN NIL
@@ -444,8 +444,9 @@ TYPE
 		hfile: Kernel32.HANDLE;
 		buffer: Buffer;
 		fsize, fpos: LONGINT;
+		fileSystem: WinFileSystem;
 
-		PROCEDURE & Init*( VAR name: ARRAY OF CHAR;  hfile: Kernel32.HANDLE;  key: LONGINT );
+		PROCEDURE & Init*( VAR name: ARRAY OF CHAR;  hfile: Kernel32.HANDLE;  key: LONGINT ; fs: WinFileSystem);
 		VAR s: SET;  res: Kernel32.BOOL;
 		BEGIN
 			IF TraceFile IN Trace THEN KernelLog.String( "Init: " );  KernelLog.String( name );  KernelLog.String( " (" );  KernelLog.Int( key, 1 );  KernelLog.String( ")" );  KernelLog.Ln;  END;
@@ -457,7 +458,8 @@ TYPE
 			ELSE flags := {Temporary};  fsize := 0
 			END;
 			IF buffer = NIL THEN NEW( buffer );  END;
-			buffer.apos := -1;  buffer.len := 0;  buffer.dirty := FALSE
+			buffer.apos := -1;  buffer.len := 0;  buffer.dirty := FALSE;
+			fileSystem := fs
 		END Init;
 
 		PROCEDURE Set( VAR r: Files.Rider;  pos: LONGINT );
@@ -711,7 +713,8 @@ TYPE
 
 		PROCEDURE Close;
 		BEGIN
-			Finalize
+			Finalize;
+			fileSystem.collection.oldFiles.Remove(SELF);
 		END Close;
 
 
