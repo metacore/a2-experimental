@@ -21,6 +21,10 @@ CONST
 	BasePortAddress=LONGINT(0FFFFFFE0H);
 	TraceSame= FALSE;
 
+	(* comparison flags *)
+	CheckModules= 0;
+	CheckParameters=1;
+
 TYPE
 	Name*= ARRAY 256 OF CHAR;
 
@@ -537,7 +541,7 @@ TYPE
 			WITH as: Instance DO
 				IF (index # as.index) THEN RETURN FALSE END;
 				IF ~type.Same(as.type, flags) THEN RETURN FALSE END;
-				IF ~parameters.Same(as.parameters, flags) THEN RETURN FALSE END;
+				IF (CheckParameters IN flags) & ~parameters.Same(as.parameters, flags) THEN RETURN FALSE END;
 				IF (instructionMemorySize # as.instructionMemorySize) THEN RETURN FALSE END;
 				IF (dataMemorySize # as.dataMemorySize) THEN RETURN FALSE END;
 			END;
@@ -820,7 +824,7 @@ TYPE
 			IF (as = NIL) OR ~(as IS Type) THEN RETURN FALSE END;
 			WITH as: Type DO
 				IF ~devices.Same(as.devices, flags) THEN RETURN FALSE END;
-				IF ~modules.Same(as.modules, flags) THEN RETURN FALSE END;
+				IF (CheckModules IN flags) & ~modules.Same(as.modules, flags) THEN RETURN FALSE END;
 				IF (instructionMemorySize # as.instructionMemorySize) THEN RETURN FALSE END;
 				IF (dataMemorySize # as.dataMemorySize) THEN RETURN FALSE END;
 				IF (capabilities # as.capabilities) THEN RETURN FALSE END;
@@ -1526,9 +1530,9 @@ VAR
 		COPY(name,fileName);
 		Strings.Append(fileName,".spec");
 
-		platform := GetPlatform(platformId); ASSERT(platform # NIL);		
+		platform := GetPlatform(platformId); ASSERT(platform # NIL);
 		RESULT := platform.specLoader(fileName,diagnostics,log);
-		
+
 		RETURN RESULT;
 	END LoadSpecification;
 
