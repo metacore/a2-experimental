@@ -1114,7 +1114,7 @@ END
 PACKAGE Testing ARCHIVE "Testing.zip" SOURCE "TestingSrc.zip" DESCRIPTION "Tests and benchmarks"
 
 	# Compiler Testsuite
-	TestSuite.Mod  PCTest.Mod FoxTest.Mod
+	TestSuite.Mod  PCTest.Mod Versioning.Mod FoxTest.Mod
 
 	Oberon.Compilation.Test Oberon.Execution.Test
 	MathArrays.Compilation.Test MathArrays.Execution.Test

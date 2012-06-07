@@ -1,7 +1,7 @@
 MODULE FoxTest;	(** AUTHOR "fof"; PURPOSE "Fox tester"; *)
 (* (c) fof ETH Zürich, 2008 *)
 
-IMPORT Basic := FoxBasic, TestSuite, Diagnostics, Streams, Commands, Shell, Options, Files;
+IMPORT Basic := FoxBasic, TestSuite, Diagnostics, Streams, Commands, Shell, Options, Files, Strings, Versioning;
 
 TYPE
 	Command = ARRAY 256 OF CHAR;
@@ -9,13 +9,15 @@ TYPE
 	Tester = OBJECT (TestSuite.Tester)
 	VAR
 		log: Streams.Writer;
-		verbose, mayTrap: BOOLEAN;
+		fileLog: Streams.Writer;
+
+		mayTrap: BOOLEAN;
 		command, prolog, epilog: Command;
 		fileName: Files.FileName;
 
-		PROCEDURE &InitTester (log: Streams.Writer;  diagnostics: Diagnostics.Diagnostics; verbose,mayTrap: BOOLEAN; CONST prolog, command, epilog: Command; CONST fileName: ARRAY OF CHAR);
+		PROCEDURE &InitTester (log, logFileWriter: Streams.Writer;  diagnostics: Diagnostics.Diagnostics; mayTrap: BOOLEAN; CONST prolog, command, epilog: Command; CONST fileName: ARRAY OF CHAR);
 		BEGIN
-			Init (diagnostics); SELF.log := log; SELF.verbose := verbose; SELF.mayTrap := mayTrap;
+			Init (diagnostics); SELF.log := log; SELF.mayTrap := mayTrap; SELF.fileLog := logFileWriter;
 			COPY(prolog, SELF.prolog);
 			COPY(epilog, SELF.epilog);
 			COPY(command, SELF.command);
@@ -26,7 +28,7 @@ TYPE
 		VAR result: INTEGER; msg: ARRAY 128 OF CHAR; res: LONGINT; f: Files.File; w: Files.Writer; ch: CHAR;
 		BEGIN
 			result := TestSuite.Failure;
-			IF verbose THEN log.String ("testing: "); log.String (name); log.Ln END;
+			IF log # NIL THEN log.String ("testing: "); log.String (name); log.Ln END;
 
 			(* prepare tester input as a file for all test cases *)
 			f := Files.New(fileName);
@@ -40,7 +42,7 @@ TYPE
 			res := Commands.Ok;
 			IF prolog # "" THEN
 				Commands.Call(prolog, {Commands.Wait}, res, msg);
-				IF (res # Commands.Ok) & verbose  THEN
+				IF (res # Commands.Ok) & (log # NIL)  THEN
 					log.String("prolog failed: "); log.String(msg); log.Ln;
 				END;
 			END;
@@ -56,7 +58,7 @@ TYPE
 				ELSE
 					result := TestSuite.Negative
 				END;
-				IF (result # type) & verbose THEN
+				IF (result # type) & (log # NIL) THEN
 					log.String (msg); log.Ln;
 				END;
 			ELSIF (command # "") THEN result := TestSuite.Failure
@@ -64,7 +66,16 @@ TYPE
 
 			IF epilog # "" THEN
 				Commands.Call(epilog, {Commands.Wait}, res, msg);
-			END
+			END;
+
+			IF fileLog # NIL THEN
+				IF result = type THEN
+					fileLog.String("success: ")
+				ELSE
+					fileLog.String("failure: ")
+				END;
+				fileLog.String(name); fileLog.Ln;
+			END;
 		FINALLY
 			RETURN result;
 		END Handle;
@@ -74,7 +85,8 @@ TYPE
 	PROCEDURE DriveTest (context: Commands.Context);
 	VAR
 		diagnostics: Diagnostics.StreamDiagnostics; tester: Tester; writer: Streams.Writer; prolog, epilog, command: Command;
-		options: Options.Options; verbose, mayTrap: BOOLEAN; report: TestSuite.StreamReport; fileName: Files.FileName;
+		options: Options.Options; verbose, mayTrap: BOOLEAN; report: TestSuite.StreamReport; fileName, logFileName: Files.FileName; logFileWriter, log:Streams.Writer;
+		testname, resultname: Files.FileName; test, result, logFile: Files.File; reader: Files.Reader; s: ARRAY 64 OF CHAR;
 	BEGIN
 		IF (context.caller # NIL) & (context.caller IS Shell.Shell) THEN
 			writer := context.out
@@ -89,6 +101,7 @@ TYPE
 		options.Add("v","verbose",Options.Flag);
 		options.Add("t","mayTrap",Options.Flag);
 		options.Add("f","fileName",Options.String);
+		options.Add("l","logFile",Options.String);
 
 		NEW (diagnostics, writer);
 		IF options.Parse(context.arg,context.error) THEN
@@ -98,10 +111,38 @@ TYPE
 			IF ~options.GetString("f", fileName) THEN fileName := "TesterInput.txt" END;
 			mayTrap := options.GetFlag("t");
 			verbose := options.GetFlag("verbose");
-			NEW (tester, writer, diagnostics, verbose, mayTrap, prolog, command, epilog, fileName);
+
+			IF context.arg.GetString (testname) THEN
+				test := Files.Old (testname);
+				IF test = NIL THEN
+					context.error.String ("Failed to open test file "); context.error.String (testname); context.error.Ln;
+					RETURN;
+				END;
+			ELSE
+				context.result := Commands.CommandParseError;
+			END;
+
+			IF options.GetString("l",logFileName) THEN
+				logFileWriter := Versioning.NewLogWriter(logFileName, "Test",testname);
+				logFileWriter.Ln;
+				logFileWriter.String("prolog= "); logFileWriter.String(prolog); logFileWriter.Ln;
+				logFileWriter.String("command= "); logFileWriter.String(command); logFileWriter.Ln;
+				logFileWriter.Ln;
+			END;
+			IF verbose THEN log := writer ELSE log := NIL END;
+			NEW (tester, log, logFileWriter, diagnostics, mayTrap, prolog, command, epilog, fileName);
+
 			NEW (report, writer);
-			TestSuite.Drive (context, tester);
+			NEW (reader, test, 0);
+			IF ~context.arg.GetString (resultname) THEN
+				resultname := "";
+			END;
+			TestSuite.DriveByReader(reader, context.error, resultname, tester);
 			tester.Print (report);
+			IF logFileWriter # NIL THEN
+				logFileWriter.Update;
+				context.out.String("testing logged in "); context.out.String(logFileName); context.out.Ln;
+			END;
 		END;
 		writer.Update;
 	END DriveTest;
@@ -112,15 +153,20 @@ TYPE
 
 END FoxTest.
 
-SystemTools.Free FoxTest TestSuite~
+SystemTools.Free FoxTest TestSuite Versioning ~
 
 	FoxTest.Compile
 		--verbose --mayTrap
 		--prolog="Compiler.Compile TesterInput.txt"
 		--command="SystemTools.Free Test Dummy B A;SystemTools.Load Test"
+		--logFile="FoxExecutionTest.Log"
 	Oberon.Execution.Test Oberon.Execution.AMD64TestDiff ~
 
 	FoxTest.Compile
 		--verbose
 		--command="Compiler.Compile TesterInput.txt"
 	Oberon.Compilation.Test Oberon.Compilation.AMD64TestDiff ~
+
+
+
+	Test.log

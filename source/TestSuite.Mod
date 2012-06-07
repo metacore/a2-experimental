@@ -44,7 +44,7 @@ TYPE
 
 	VAR
 		tests, results: TestResultList;
-		diagnostics-: Diagnostics.Diagnostics;
+		diagnostics: Diagnostics.Diagnostics;
 
 	PROCEDURE &Init* (diagnostics: Diagnostics.Diagnostics);
 	BEGIN SELF.diagnostics := diagnostics;
@@ -225,40 +225,6 @@ VAR result: TestResult;
 BEGIN result := list.first; WHILE (result # NIL) & (result.name # name) DO result := result.next END; RETURN result
 END FindResult;
 
-(* public interface helper *)
-PROCEDURE Drive* (context: Commands.Context; tester: Tester);
-VAR testname, resultname: Files.FileName; test, result: Files.File; reader: Files.Reader; writer: Files.Writer;
-BEGIN
-	IF context.arg.GetString (testname) THEN
-		test := Files.Old (testname);
-		IF test = NIL THEN
-			context.error.String ("Failed to open test file "); context.error.String (testname); context.error.Ln;
-			RETURN;
-		END;
-	ELSE
-		context.result := Commands.CommandParseError;
-	END;
-	ClearList (tester.results);
-	IF context.arg.GetString (resultname) THEN
-		result := Files.Old (resultname);
-		IF result # NIL THEN
-			NEW (reader, result, 0); ReadResults (reader, tester.results)
-		END
-	ELSE
-		resultname := "";
-	END;
-	NEW (reader, test, 0);
-	tester.Process (reader);
-	IF resultname # "" THEN
-		result := Files.New (resultname);
-		IF result = NIL THEN
-			context.error.String ("Failed to open result file "); context.error.String (resultname); context.error.Ln;
-			RETURN;
-		ELSE
-			NEW (writer, result, 0); WriteResults (writer, tester.tests); writer.Update; Files.Register (result);
-		END
-	END;
-END Drive;
 
 (* public interface helper *)
 PROCEDURE DriveByReader* (reader: Streams.Reader; error: Streams.Writer; CONST resultname: ARRAY OF CHAR; tester: Tester);
@@ -285,5 +251,26 @@ BEGIN
 		END
 	END;
 END DriveByReader;
+
+(* public interface helper *)
+PROCEDURE Drive* (context: Commands.Context; tester: Tester);
+VAR testname, resultname: Files.FileName; test, result: Files.File; reader: Files.Reader; writer: Files.Writer;
+BEGIN
+	IF context.arg.GetString (testname) THEN
+		test := Files.Old (testname);
+		IF test = NIL THEN
+			context.error.String ("Failed to open test file "); context.error.String (testname); context.error.Ln;
+			RETURN;
+		END;
+	ELSE
+		context.result := Commands.CommandParseError;
+	END;
+	NEW (reader, test, 0);
+	IF ~context.arg.GetString (resultname) THEN
+		resultname := "";
+	END;
+	DriveByReader(reader, context.error, resultname, tester);
+END Drive;
+
 
 END TestSuite.
