@@ -29,7 +29,7 @@ TYPE
 			IF verbose THEN log.String ("testing: "); log.String (name); log.Ln END;
 
 			(* prepare tester input as a file for all test cases *)
-			f := Files.New("TesterInput.txt");
+			f := Files.New(fileName);
 			NEW(w,f,0);
 			WHILE r.Available() > 0 DO
 				r.Char(ch); w.Char(ch)
