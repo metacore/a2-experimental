@@ -152,7 +152,6 @@ TYPE
 		PROCEDURE Insert*( i: LONGINT; x: ANY );
 		VAR j: LONGINT;
 		BEGIN
-			ASSERT((i >= 0) & (i < count));
 			IF ~nilAllowed THEN ASSERT( x # NIL ) END;
 			IF ~multipleAllowed THEN ASSERT( ~debug OR ~Contains( x ) ) END;   (* already contained *)
 
