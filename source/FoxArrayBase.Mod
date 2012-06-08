@@ -5761,6 +5761,51 @@ Sufficient (but not necessary) conditions:
 	BEGIN
 		RETURN ~ApplyBinaryAABOp( SYSTEM.ADR( left ), SYSTEM.ADR( right ), EqlAXAXLoop, FALSE );
 	END "#";
+	
+(** COMPLEX *)
+	PROCEDURE EqlAZAZLoop( ladr, radr, linc, rinc, len: LONGINT ): BOOLEAN;
+	VAR lval, rval: COMPLEX;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lval );  SYSTEM.GET( radr, rval );
+			IF rval # lval THEN RETURN FALSE END;
+			INC( ladr, linc );  INC( radr, rinc );  DEC( len );
+		END;
+		RETURN TRUE;
+	END EqlAZAZLoop;
+
+	OPERATOR "="*( CONST left, right: ARRAY [ ? ] OF COMPLEX ): BOOLEAN;
+	BEGIN
+		RETURN ApplyBinaryAABOp( SYSTEM.ADR( left ), SYSTEM.ADR( right ), EqlAZAZLoop, FALSE );
+	END "=";
+
+	OPERATOR "#"*( CONST left, right: ARRAY [ ? ] OF COMPLEX ): BOOLEAN;
+	BEGIN
+		RETURN ~ApplyBinaryAABOp( SYSTEM.ADR( left ), SYSTEM.ADR( right ), EqlAZAZLoop, FALSE );
+	END "#";
+
+(** LONGCOMPLEX *)
+	PROCEDURE EqlALZALZLoop( ladr, radr, linc, rinc, len: LONGINT ): BOOLEAN;
+	VAR lvalRe, lvalIm, rvalRe, rvalIm: LONGREAL;
+	BEGIN
+		WHILE (len > 0) DO
+			SYSTEM.GET( ladr, lvalRe ); SYSTEM.GET( ladr+SYSTEM.SIZEOF(LONGREAL), lvalIm );
+			SYSTEM.GET( radr, rvalRe ); SYSTEM.GET( radr+SYSTEM.SIZEOF(LONGREAL), rvalIm );
+			IF (rvalRe # lvalRe) OR (rvalIm # lvalIm) THEN RETURN FALSE END;
+			INC( ladr, linc );  INC( radr, rinc );  DEC( len );
+		END;
+		RETURN TRUE;
+	END EqlALZALZLoop;
+
+	OPERATOR "="*( CONST left, right: ARRAY [ ? ] OF LONGCOMPLEX ): BOOLEAN;
+	BEGIN
+		RETURN ApplyBinaryAABOp( SYSTEM.ADR( left ), SYSTEM.ADR( right ), EqlALZALZLoop, FALSE );
+	END "=";
+
+	OPERATOR "#"*( CONST left, right: ARRAY [ ? ] OF LONGCOMPLEX ): BOOLEAN;
+	BEGIN
+		RETURN ~ApplyBinaryAABOp( SYSTEM.ADR( left ), SYSTEM.ADR( right ), EqlALZALZLoop, FALSE );
+	END "#";
 
 	(*** equals: array x scalar -> boolean  ********************************************************************)
 
