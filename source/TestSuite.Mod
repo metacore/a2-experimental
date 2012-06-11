@@ -44,7 +44,7 @@ TYPE
 
 	VAR
 		tests, results: TestResultList;
-		diagnostics: Diagnostics.Diagnostics;
+		diagnostics-: Diagnostics.Diagnostics;
 
 	PROCEDURE &Init* (diagnostics: Diagnostics.Diagnostics);
 	BEGIN SELF.diagnostics := diagnostics;
