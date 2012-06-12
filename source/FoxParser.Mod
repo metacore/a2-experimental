@@ -1944,7 +1944,7 @@ TYPE
 			         'end' Identifier '.'. **)
 		PROCEDURE Module*(): SyntaxTree.Module;
 		VAR moduleName, context: SyntaxTree.Identifier;  module: SyntaxTree.Module;  position: LONGINT; isCellNet: BOOLEAN;
-			scannerDiagnostics: Diagnostics.Diagnostics; modifiers: SyntaxTree.Modifier;
+			scannerDiagnostics: Diagnostics.Diagnostics; modifiers: SyntaxTree.Modifier; c: SyntaxTree.Comment;
 		BEGIN
 			IF Trace THEN S( "Module" ) END;
 			position := symbol.start;
@@ -1952,19 +1952,30 @@ TYPE
 			currentScope := moduleScope;
 			isCellNet := Optional(Scanner.CellNet);
 			IF isCellNet OR Mandatory( Scanner.Module ) THEN
+				c := recentComment; recentComment := NIL;
 				IF isCellNet & Optional(Scanner.LeftBrace) THEN modifiers := Flags() ELSE modifiers := NIL END;
 				moduleName :=  Identifier(position);
 				module := SyntaxTree.NewModule( scanner.source^, position, moduleName, moduleScope, scanner.case );
+
+				module.SetComment(c);
+				SetNextInComment(c, module);
+
 				IF isCellNet THEN module.SetCellNet(TRUE); module.SetModifiers(modifiers); END;
 
 				module.SetType(SyntaxTree.moduleType);
-				CommentSymbol(module);
 				IF Optional(Scanner.In) THEN
 					position := symbol.start;
 					context := Identifier(position);
 					module.SetContext(context);
 				END;
 				IF Lax THEN Ignore(Scanner.Semicolon) ELSE	Check(Scanner.Semicolon) END;
+
+				IF ~Peek(Scanner.EndOfText) THEN
+					module.SetClosingComment(recentComment);
+					SetNextInComment(recentComment, module);
+					recentComment := NIL;
+				END;
+
 				IF Optional(Scanner.Import) THEN ImportList(moduleScope) END;
 				DeclarationSequence( moduleScope);
 				IF Peek(Scanner.Begin) OR Peek(Scanner.Code) THEN
@@ -1981,12 +1992,14 @@ TYPE
 						NextSymbol;
 						scanner.ResetErrorDiagnostics(scannerDiagnostics);
 					END;
+					(*
 					(* do not use Check for not reading after end of module *)
 					IF ~Peek(Scanner.Module) & ~Peek(Scanner.CellNet) THEN
 						SetNextInComment(recentComment,module);
 						module.SetClosingComment(recentComment);
 						recentComment := NIL;
 					END;
+					*)
 				END;
 			END;
 			IF Trace THEN E( "Module" ) END;
