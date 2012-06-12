@@ -1,7 +1,7 @@
 MODULE TextCompiler; (** AUTHOR ""; PURPOSE ""; *)
 
 IMPORT Streams, Modules, Basic := FoxBasic, Compiler, TextUtilities, Diagnostics, Texts, Backend := FoxBackend, SyntaxTree := FoxSyntaxTree,
-	CompilerInterface, Formats := FoxFormats, ActiveCells := FoxActiveCells, Strings, UTF8Strings, Commands;
+	CompilerInterface, Hardware := FoxHardware, Formats := FoxFormats, ActiveCells := FoxActiveCells, Strings, UTF8Strings, Commands;
 
 CONST
 
@@ -93,7 +93,7 @@ CONST
 		importCache: SyntaxTree.ModuleScope;
 		symbolFile: Formats.SymbolFileFormat;
 		objectFile: Formats.ObjectFileFormat;
-		activeCellsSpecification: ActiveCells.Specification;
+		hardware: Hardware.Description;
 		findPC: Basic.SectionName; flags: SET;
 		reader: Streams.Reader;
 		docu: Backend.Backend;
@@ -104,12 +104,12 @@ CONST
 		END;
 		NEW(stringReader,LEN(opt));
 		stringReader.Set(opt);
-		IF Compiler.GetOptions(stringReader,log,diagnostics,flags,backend,symbolFile,objectFile,activeCellsSpecification, findPC, docu) THEN
+		IF Compiler.GetOptions(stringReader,log,diagnostics,flags,backend,symbolFile,objectFile,hardware, findPC, docu) THEN
 			reader := GetTextReader(t,pos);
 			IF pc # "" THEN INCL(flags,Compiler.FindPC); COPY(pc, findPC);
 			ELSIF findPC # "" THEN INCL(flags,Compiler.FindPC)
 			END;
-			error := ~Compiler.Modules(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,activeCellsSpecification, log,importCache,findPC, docu)
+			error := ~Compiler.Modules(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,hardware, log,importCache,findPC, docu)
 		END;
 	END CompileText;
 

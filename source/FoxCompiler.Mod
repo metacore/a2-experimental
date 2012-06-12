@@ -5,7 +5,7 @@ IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,  D := Debugging,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal,
-	ActiveCells := FoxActiveCells, IntermediateCode := FoxIntermediateCode,  IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
+	ActiveCells := FoxActiveCells, Hardware := FoxHardware, IntermediateCode := FoxIntermediateCode,  IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
 	Files, StaticLinker, GenericLinker;
 
 CONST
@@ -16,7 +16,7 @@ CONST
 	TraceError* = 3;
 	Info* = 4;
 	FindPC* = 5;
-	DataFlow*=6;
+	ActiveCellsFlag*=6;
 	Warnings*=7;
 	ForceModuleBodies*=8;
 	UseDarwinCCalls*=9;	(* use Darwin stack alignment for ext. C procedures *)	(*fld*)
@@ -116,30 +116,6 @@ TYPE
 		RETURN objectFileFormat
 	END GetObjectFileFormat;
 
-
-
-	PROCEDURE GetActiveCellsSpecification(CONST name: ARRAY OF CHAR): ActiveCells.Specification;
-	VAR
-		procname: ARRAY 256 OF CHAR;
-		factory: PROCEDURE (): ActiveCells.Specification;
-		specification: ActiveCells.Specification;
-	BEGIN
-		specification := NIL;
-		IF Strings.Length(name) > 0 THEN
-			GETPROCEDURE(name,"Get", factory); (* try long name for example -G=OCBinaryObjectFile *)
-			IF factory = NIL THEN (* try short name for example -G=Binary*)
-				procname := "Fox";
-				Strings.Append(procname, name);
-				GETPROCEDURE(procname,"Get", factory);
-			END;
-			IF factory # NIL THEN
-				specification := factory();
-				ASSERT(specification # NIL);
-			END;
-		END;
-		RETURN specification
-	END GetActiveCellsSpecification;
-
 	PROCEDURE Modules*(CONST source: ARRAY OF CHAR; (* source file name, for debugging and better error reports *)
 			reader: Streams.Reader; (* reader to read from *)
 			position: LONGINT; (* starting position in reader *)
@@ -148,7 +124,7 @@ TYPE
 			backend: Backend.Backend; (* backend: code generator *)
 			symbolFileFormat: Formats.SymbolFileFormat;
 			objectFileFormat: Formats.ObjectFileFormat;
-			activeCellsSpecification: ActiveCells.Specification;
+			hardware: Hardware.Description;
 			log: Streams.Writer;
 			VAR importCache: SyntaxTree.ModuleScope;
 			CONST findPC: ARRAY OF CHAR; (* locate a source code position providing a binary module offset *)
@@ -168,6 +144,7 @@ TYPE
 		split: Strings.StringArray;
 		sectionOffset: LONGINT;
 		traceDiagnostics : TracingDiagnostics;
+		activeCellsSpecification: ActiveCells.Specification;
 
 		PROCEDURE FinalMessage(error: BOOLEAN; CONST msg: ARRAY OF CHAR);
 		VAR message,name: ARRAY 256 OF CHAR;
@@ -224,13 +201,15 @@ TYPE
 			system := backend.GetSystem();
 		END;
 
-		IF (system # NIL) & (activeCellsSpecification # NIL) THEN
-			activeCellsSpecification.DefineDevices(system)
-		END;
+
 		IF (objectFileFormat # NIL) & (objectFileFormat.ForceModuleBodies()) THEN INCL(flags, ForceModuleBodies) END;
 
 		scanner := Scanner.NewScanner(source,reader,position,diagnostics);
-		IF DataFlow IN flags THEN
+		IF ActiveCellsFlag IN flags THEN
+			NEW(activeCellsSpecification, "", diagnostics, log);
+			IF (system # NIL) THEN
+				activeCellsSpecification.DefineDevices(system)
+			END;
 			Global.NewBuiltin(Global.Connect,"CONNECT",system.globalScope,FALSE);
 			Global.NewBuiltin(Global.Receive,"RECEIVE",system.globalScope,FALSE);
 			Global.NewBuiltin(Global.Send,"SEND",system.globalScope,FALSE);
@@ -240,7 +219,7 @@ TYPE
 			IF activeCellsBackend = NIL THEN FinalMessage(TRUE,"could not install activeCells backend"); RETURN FALSE END;
 		END;
 		parser := Parser.NewParser( scanner, diagnostics );
-		IF DataFlow IN flags THEN parser.ActiveCellsSupport END;
+		IF ActiveCellsFlag IN flags THEN parser.ActiveCellsSupport END;
 		REPEAT
 			(** first phase: scan and parse **)
 			module := parser.Module();
@@ -267,7 +246,7 @@ TYPE
 
 				IF Print IN flags THEN PrintModule END;
 
-				IF activeCellsSpecification # NIL THEN
+				IF ActiveCellsFlag IN flags THEN
 					Global.GetSymbolName(module,name);
 					activeCellsSpecification.Init(name,diagnostics,log)
 				END;
@@ -338,6 +317,8 @@ TYPE
 						FinalMessage(TRUE, " could not assemble"); RETURN FALSE
 					ELSIF ~activeCellsSpecification.Emit() THEN
 						FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;
+					ELSIF (hardware # NIL) & ~hardware.Emit(activeCellsSpecification) THEN
+						FinalMessage(TRUE, " could not emit hardware"); RETURN FALSE;
 					END;
 				END;
 
@@ -537,7 +518,7 @@ TYPE
 		VAR backend: Backend.Backend;
 		VAR symbolFile: Formats.SymbolFileFormat;
 		VAR objectFile: Formats.ObjectFileFormat;
-		VAR activeCellsSpecification: ActiveCells.Specification;
+		VAR hardware: Hardware.Description;
 		VAR findPC: ARRAY OF CHAR;
 		VAR documentation: Backend.Backend
 		): BOOLEAN;
@@ -569,7 +550,7 @@ TYPE
 		options.Add(0X,"activeCells", Options.Flag);
 		options.Add("w","warnings", Options.Flag);
 		options.Add(0X,"darwinHost", Options.Flag);
-		options.Add(0X,"activeCellsSpecification", Options.String);
+		options.Add(0X,"hardware", Options.String);
 		options.Add("d","documentation", Options.String);
 
 		position := input.Pos();
@@ -612,11 +593,8 @@ TYPE
 			symbolFile := objectFile.DefaultSymbolFileFormat();
 		END;
 
-		IF options.GetString("activeCellsSpecification",name) THEN
-			activeCellsSpecification := GetActiveCellsSpecification(name);
-		END;
-		IF options.GetFlag("activeCells") & (activeCellsSpecification = NIL) THEN
-			NEW(activeCellsSpecification,"",diagnostics,NIL);
+		IF options.GetString("hardware",name) THEN
+			hardware := Hardware.GetDescription(name)
 		END;
 
 		IF options.GetString("d", name) THEN
@@ -651,11 +629,11 @@ TYPE
 			IF options.GetFlag("darwinHost") THEN INCL(flags,UseDarwinCCalls) END;	(*fld*)
 			IF options.GetFlag("singleModule") THEN INCL(flags,SingleModule) END;
 			IF options.GetFlag("oberon07") THEN INCL(flags, Oberon07) END;
+			IF options.GetFlag("activeCells") THEN INCL(flags, ActiveCellsFlag) END;
 			IF backend # NIL THEN backend.GetOptions (options) END;
 			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
 			IF objectFile # NIL THEN objectFile.GetOptions(options) END;
 			IF documentation # NIL THEN documentation.GetOptions(options) END;
-			IF activeCellsSpecification # NIL THEN INCL(flags, DataFlow) END;
 		END;
 		RETURN result
 	END GetOptions;
@@ -740,11 +718,12 @@ TYPE
 		activeCellsSpecification: ActiveCells.Specification;
 		findPC: SectionName;
 		documentation: Backend.Backend;
+		hardware: Hardware.Description;
 	BEGIN
 		error := FALSE;
 
 		NEW(diagnostics, context.error);
-		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,activeCellsSpecification,findPC, documentation) THEN
+		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,hardware,findPC, documentation) THEN
 
 			time := Kernel.GetTicks();
 			WHILE GetString(context.arg,filename) & ~error DO
@@ -752,7 +731,7 @@ TYPE
 				IF reader = NIL THEN
 					diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 				ELSE
-					error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC, documentation);
+					error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile, hardware, context.out, importCache,findPC, documentation);
 				END;
 				context.out.Update;
 				context.error.Update;
@@ -877,16 +856,17 @@ TYPE
 		activeCellsSpecification: ActiveCells.Specification;
 		findPC: SectionName;
 		documentation: Backend.Backend;
+		hardware: Hardware.Description;
 	BEGIN
 		error := FALSE;
 		NEW(diagnostics, context.error);
-		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,activeCellsSpecification,findPC, documentation) THEN
+		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,hardware,findPC, documentation) THEN
 
 			time := Kernel.GetTicks();
 			IF reader = NIL THEN
 				diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 			ELSE
-				error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,activeCellsSpecification, context.out, importCache,findPC, documentation);
+				error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,hardware, context.out, importCache,findPC, documentation);
 			END;
 			context.out.Update;
 		END;

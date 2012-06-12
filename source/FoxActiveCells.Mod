@@ -548,6 +548,11 @@ TYPE
 			RETURN Same^(as, flags)
 		END Same;
 
+		PROCEDURE IsEngine*(): BOOLEAN;
+		BEGIN
+			RETURN Global.EngineCapability IN capabilities
+		END IsEngine;
+
 		PROCEDURE &Init(CONST name: ARRAY OF CHAR; scope: Scope; c: Type);
 		BEGIN
 			InitSymbol(name,scope);
@@ -1294,7 +1299,7 @@ TYPE
 		VAR import: Specification;
 		BEGIN
 			IF imports.ByName(name) = NIL THEN
-				import := LoadSpecification("",name,NIL,NIL);
+				import := LoadSpecification(name,NIL,NIL);
 				IF import # NIL THEN imports.Add(import); symbols.Add(import) END;
 			END;
 		END AddImport;
@@ -1401,10 +1406,6 @@ TYPE
 			END;
 		END Emit;
 
-		PROCEDURE GetHardwarePath*(VAR name: ARRAY OF CHAR);
-		BEGIN
-		END GetHardwarePath;
-
 	END Specification;
 
 	(*
@@ -1427,15 +1428,7 @@ TYPE
 	END WriteHugeint;
 	*)
 
-	(* ActiveCells hardware platform descriptor *)
-	PlatformDesc* = POINTER TO RECORD
-		platformId*: Strings.String; (** string with platform ID *)
-		specLoader*: PROCEDURE{DELEGATE}(CONST name: ARRAY OF CHAR; diagnostics: Diagnostics.Diagnostics; log: Streams.Writer): Specification; (** specification loader *)
-	END;
-
 VAR
-	platforms: Basic.List;
-	platform: PlatformDesc;
 
 	PROCEDURE Indent(w: Streams.Writer; indent: LONGINT);
 	BEGIN
@@ -1480,15 +1473,41 @@ VAR
 		r.Int(int,1);
 	END WriteSet;
 
+	(**
+		Load an ActiveCells specification
+		name - specification name, with or without suffix ".spec"
+	*)
+	PROCEDURE LoadSpecification*(CONST name: ARRAY OF CHAR; diagnostics: Diagnostics.Diagnostics; log: Streams.Writer): Specification;
+	VAR fileName: Files.FileName; spec: Specification; f: Files.File; r: Files.Reader;
+	BEGIN
+		COPY(name,fileName);
+		Strings.Append(fileName,".spec");
+		f := Files.Old(fileName);
+		(*
+		IF f = NIL THEN
+			COPY(name, fileName);
+			f := Files.Old(fileName);
+		END;
+		*)
+
+		IF f = NIL THEN IF log # NIL THEN log.String("could not load specification "); log.String(name); log.Ln END; RETURN NIL END;
+
+		NEW(spec, "", diagnostics, log);
+		NEW(r,f,0);
+		IF spec.Read(r) THEN
+			RETURN spec
+		ELSE
+			RETURN NIL
+		END;
+	END LoadSpecification;
+
 	PROCEDURE ReadSpecification*(context: Commands.Context);
 	VAR fileName: Files.FileName; r: Files.Reader; specification: Specification;f : Files.File; b: BOOLEAN; diagnostics: Diagnostics.StreamDiagnostics;
 	BEGIN
 		b := context.arg.GetString(fileName);
 		NEW(diagnostics, context.error);
-		NEW(specification,"",diagnostics,context.out);
-		f := Files.Old(fileName);
-		NEW(r,f,0);
-		IF specification.Read(r) THEN
+		specification := LoadSpecification(fileName, diagnostics, context.out);
+		IF specification # NIL THEN
 			specification.Write(context.out,0);
 		END;
 	END ReadSpecification;
@@ -1497,16 +1516,17 @@ VAR
 	VAR fileName: Files.FileName; spec1, spec2: Specification; b: BOOLEAN;
 	BEGIN
 		b := context.arg.GetString(fileName);
-		spec1 :=  LoadSpecification("",fileName, NIL, context.error);
+		spec1 :=  LoadSpecification(fileName, NIL, context.error);
 		IF spec1 = NIL THEN context.error.String("could not load specification "); context.error.String(fileName); RETURN END;
 		b := context.arg.GetString(fileName);
-		spec2 := LoadSpecification("",fileName, NIL, context.error);
+		spec2 := LoadSpecification(fileName, NIL, context.error);
 		IF spec2 = NIL THEN context.error.String("could not load specification "); context.error.String(fileName); RETURN END;
 		IF spec1.Same(spec2, {}) THEN context.out.String("Specifications are equal") ELSE context.out.String("specifications are not equal"); END;
-
 	END CompareSpecification;
 
 
+
+	(*
 	(**
 		Load an ActiveCells specification
 
@@ -1583,6 +1603,8 @@ VAR
 		RETURN specification
 	END LoadSpecificationDefault;
 
+	*)
+
 	PROCEDURE GetSymbol*(scope: Scope; CONST name: ARRAY OF CHAR): Symbol;
 	VAR scopeName: Name; i,j: LONGINT; symbol: Symbol; first: BOOLEAN;
 	BEGIN
@@ -1604,7 +1626,6 @@ VAR
 		END;
 		IF name[i] # 0X THEN RETURN NIL ELSE RETURN symbol END;
 	END GetSymbol;
-
 
 	PROCEDURE FlattenNetwork*(scope: Scope);
 	VAR instance,subInstance,newInstance: Instance; oldChannel,channel: Channel;
@@ -1738,6 +1759,7 @@ VAR
 		w.String(n);
 	END WriteName;
 
+	(*
 	PROCEDURE InitMod;
 	BEGIN
 		NEW(platforms,3);
@@ -1749,6 +1771,7 @@ VAR
 
 BEGIN
 	InitMod;
+	*)
 END FoxActiveCells.
 
 FoxActiveCells.ReadSpecification Test.spec ~
