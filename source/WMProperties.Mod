@@ -1182,7 +1182,10 @@ TYPE
 		PROCEDURE Set*(value : WMGraphics.Point2d);
 		BEGIN
 			AcquireWrite;
-			IF (SELF.value.x#value.x) OR (SELF.value.y#value.y) THEN Changed
+			IF (SELF.value.x#value.x) OR (SELF.value.y#value.y) THEN 
+				SELF.value.x:=value.x;
+				SELF.value.y:=value.y;
+				Changed
 			ELSIF ~nonDefault THEN Changed
 			END;
 			NotDefault;
@@ -1192,7 +1195,10 @@ TYPE
 		PROCEDURE SetCoordinate*(x,y : LONGINT);
 		BEGIN
 			AcquireWrite;
-			IF (x#value.x) OR (y#value.y) THEN Changed END;
+			IF (x#value.x) OR (y#value.y) THEN 
+				value.x:=x; value.y:=y;
+				Changed 
+			END;
 			NotDefault;
 			ReleaseWrite
 		END SetCoordinate;
