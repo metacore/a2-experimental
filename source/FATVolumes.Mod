@@ -113,8 +113,8 @@ TYPE
 		PROCEDURE InitLowLevel*(bpbin : ARRAY OF CHAR; numClusters : LONGINT; dev : Disks.Device; start, size, blockSize : LONGINT) : BOOLEAN;
 		VAR bpb : BPB;
 		BEGIN
-			COPY(bpbin, bpb);
-			ASSERT((LEN(bpb)=512) & (bpb[510]=055X) & (bpb[511]=0AAX));
+			ASSERT((LEN(bpbin)=512) & (bpbin[510]=055X) & (bpbin[511]=0AAX));
+			SYSTEM.MOVE(SYSTEM.ADR(bpbin[0]), SYSTEM.ADR(bpb[0]), 512);
 			SELF.dev := dev; SELF.start := start; SELF.size := size; SELF.blockSize := BS;
 			flags := {};
 			IF Initialize(bpb, numClusters) THEN
