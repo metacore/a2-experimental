@@ -771,7 +771,7 @@ TYPE
 		END HashValue;
 
 		PROCEDURE Grow;
-		VAR oldTable: HashSegmentedNameArray; oldSize, i: LONGINT; key: SegmentedName; value: ANY;
+		VAR oldTable: HashSegmentedNameArray; oldSize, i: LONGINT; key: SegmentedName;
 		BEGIN
 			oldSize := size;
 			oldTable := table;
@@ -1610,6 +1610,45 @@ TYPE
 
 	END CRC32Stream;
 
+	TracingDiagnostics=OBJECT (Diagnostics.Diagnostics)
+	VAR diagnostics: Diagnostics.Diagnostics;
+
+		PROCEDURE &InitDiagnostics(diagnostics: Diagnostics.Diagnostics);
+		BEGIN
+			SELF.diagnostics := diagnostics
+		END InitDiagnostics;
+
+		PROCEDURE Error(CONST source: ARRAY OF CHAR; position, errorCode : LONGINT; CONST message : ARRAY OF CHAR);
+		BEGIN
+			IF diagnostics # NIL THEN
+				diagnostics.Error(source,position,errorCode,message);
+			END;
+			D.Ln;
+			D.String(" ---------------------- TRACE for COMPILER ERROR  < ");
+			D.String(source);
+			IF position # Diagnostics.Invalid THEN D.String("@"); D.Int(position,1) END;
+			IF errorCode # Diagnostics.Invalid THEN D.String(" "); D.Int(errorCode,1); END;
+			D.String(" "); D.String(message);
+			D.String(" > ---------------------- ");
+			D.TraceBack
+		END Error;
+
+		PROCEDURE Warning*(CONST source : ARRAY OF CHAR; position, errorCode : LONGINT; CONST message : ARRAY OF CHAR);
+		BEGIN
+			IF diagnostics # NIL THEN
+				diagnostics.Warning(source,position,errorCode,message);
+			END;
+		END Warning;
+
+		PROCEDURE Information*(CONST source : ARRAY OF CHAR; position, errorCode : LONGINT; CONST message : ARRAY OF CHAR);
+		BEGIN
+			IF diagnostics # NIL THEN
+				diagnostics.Information(source,position,errorCode,message);
+			END;
+		END Information;
+
+	END TracingDiagnostics;
+
 	DebugWriterFactory*= PROCEDURE (CONST title: ARRAY OF CHAR): Streams.Writer;
 	WriterFactory*=PROCEDURE (w: Streams.Writer): Writer;
 
@@ -1708,7 +1747,7 @@ VAR
 	END WriteSegmentedName;
 
 	PROCEDURE AppendToSegmentedName*(VAR name: SegmentedName; CONST this: ARRAY OF CHAR);
-	VAR i,j, segment: LONGINT; string: ObjectFile.SectionName;
+	VAR i,j: LONGINT; string: ObjectFile.SectionName;
 	BEGIN
 		i := 0;
 		WHILE (i<LEN(name)) & (name[i] >= 0)  DO
@@ -2075,6 +2114,11 @@ VAR
 		RETURN (i > 0) & done & ~error;
 	END GetStringParameter;
 
+	PROCEDURE GetTracingDiagnostics*(diagnostics: Diagnostics.Diagnostics): Diagnostics.Diagnostics;
+	VAR tracing: TracingDiagnostics;
+	BEGIN
+		NEW(tracing, diagnostics); RETURN tracing
+	END GetTracingDiagnostics;
 
 	PROCEDURE InitTable32;
 	CONST poly = SHORT(0EDB88320H);

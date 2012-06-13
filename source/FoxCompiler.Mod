@@ -3,7 +3,7 @@ MODULE Compiler;   (**  AUTHOR "fof & fn"; PURPOSE "Oberon Compiler Command Inte
 
 IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
-	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,  D := Debugging,
+	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal,
 	ActiveCells := FoxActiveCells, Hardware := FoxHardware, IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
 	Files;
@@ -28,45 +28,6 @@ CONST
 TYPE
 	SectionName = ARRAY 256 OF CHAR; (*! move *)
 
-	TracingDiagnostics=OBJECT (Diagnostics.Diagnostics)
-	VAR diagnostics: Diagnostics.Diagnostics;
-
-		PROCEDURE &InitDiagnostics(diagnostics: Diagnostics.Diagnostics);
-		BEGIN
-			SELF.diagnostics := diagnostics
-		END InitDiagnostics;
-
-		PROCEDURE Error(CONST source: ARRAY OF CHAR; position, errorCode : LONGINT; CONST message : ARRAY OF CHAR);
-		BEGIN
-			IF diagnostics # NIL THEN
-				diagnostics.Error(source,position,errorCode,message);
-			END;
-			D.Ln;
-			D.String(" ---------------------- TRACE for COMPILER ERROR  < ");
-			D.String(source);
-			IF position # Diagnostics.Invalid THEN D.String("@"); D.Int(position,1) END;
-			IF errorCode # Diagnostics.Invalid THEN D.String(" "); D.Int(errorCode,1); END;
-			D.String(" "); D.String(message);
-			D.String(" > ---------------------- ");
-			D.TraceBack
-		END Error;
-
-		PROCEDURE Warning*(CONST source : ARRAY OF CHAR; position, errorCode : LONGINT; CONST message : ARRAY OF CHAR);
-		BEGIN
-			IF diagnostics # NIL THEN
-				diagnostics.Warning(source,position,errorCode,message);
-			END;
-		END Warning;
-
-		PROCEDURE Information*(CONST source : ARRAY OF CHAR; position, errorCode : LONGINT; CONST message : ARRAY OF CHAR);
-		BEGIN
-			IF diagnostics # NIL THEN
-				diagnostics.Information(source,position,errorCode,message);
-			END;
-		END Information;
-
-	END TracingDiagnostics;
-
 	CompilerOptions*= RECORD
 		flags*: SET;
 		backend*: Backend.Backend;
@@ -76,7 +37,6 @@ TYPE
 		findPC*: SectionName;
 		documentation*: Backend.Backend;
 	END;
-
 
 	PROCEDURE Modules*(CONST source: ARRAY OF CHAR; (* source file name, for debugging and better error reports *)
 			reader: Streams.Reader; (* reader to read from *)
@@ -98,7 +58,6 @@ TYPE
 		activeCellsBackend: Backend.Backend;
 		split: Strings.StringArray;
 		sectionOffset: LONGINT;
-		traceDiagnostics : TracingDiagnostics;
 		activeCellsSpecification: ActiveCells.Specification;
 		flags: SET;
 
@@ -148,7 +107,7 @@ TYPE
 		flags := options.flags;
 		IF options.findPC # "" THEN EXCL(flags, Warnings) END;
 		IF TraceError IN options.flags THEN
-			NEW(traceDiagnostics,diagnostics); diagnostics := traceDiagnostics
+			diagnostics := Basic.GetTracingDiagnostics(diagnostics)
 		END;
 
 		IF options.backend = NIL THEN
@@ -157,7 +116,6 @@ TYPE
 			IF Oberon07 IN options.flags THEN options.backend.SetOberon07 END; (* inform the backend about that the Oberon07 mode, it will return the corresponding Sytem object *)
 			system := options.backend.GetSystem();
 		END;
-
 
 		IF (options.objectFile # NIL) & (options.objectFile.ForceModuleBodies()) THEN INCL(flags, ForceModuleBodies) END;
 
@@ -264,7 +222,6 @@ TYPE
 						RETURN FALSE
 					END;
 				END;
-				FinalMessage(FALSE, " done.");
 
 				IF activeCellsSpecification = NIL THEN (* no activeCells *)
 				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
@@ -282,6 +239,8 @@ TYPE
 				IF options.documentation # NIL THEN
 					generatedModule := options.documentation.ProcessSyntaxTreeModule(module);
 				END;
+
+				FinalMessage(FALSE, " done.");
 			ELSIF Print IN flags THEN
 				PrintModule;
 				FinalMessage(FALSE, " done.")
@@ -451,7 +410,6 @@ TYPE
 		filename: ARRAY 256 OF CHAR;
 		error: BOOLEAN;
 		diagnostics: Diagnostics.StreamDiagnostics;
-		time: LONGINT;
 		importCache: SyntaxTree.ModuleScope;
 		options: CompilerOptions;
 	BEGIN
@@ -459,7 +417,6 @@ TYPE
 		NEW(diagnostics, context.error);
 		IF GetOptions(context.arg,context.error,diagnostics,options) THEN
 
-			time := Kernel.GetTicks();
 			IF reader = NIL THEN
 				diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 			ELSE
