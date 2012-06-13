@@ -5,7 +5,7 @@ IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal,
-	ActiveCells := FoxActiveCells, Hardware := FoxHardware, IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
+	ActiveCells := FoxActiveCells, Hardware := FoxHardware,
 	Files;
 
 CONST
@@ -60,6 +60,7 @@ TYPE
 		sectionOffset: LONGINT;
 		activeCellsSpecification: ActiveCells.Specification;
 		flags: SET;
+		activeCellsAssembler: Backend.Backend;
 
 		PROCEDURE FinalMessage(error: BOOLEAN; CONST msg: ARRAY OF CHAR);
 		VAR message,name: ARRAY 256 OF CHAR;
@@ -226,7 +227,10 @@ TYPE
 				IF activeCellsSpecification = NIL THEN (* no activeCells *)
 				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
 				ELSE
-					IF ~IntermediateCodeAssembler.AssembleActiveCells(activeCellsSpecification,options.backend) THEN
+					activeCellsAssembler := Backend.GetBackendByName("FoxIntermediateCodeAssembler");
+					IF activeCellsAssembler= NIL THEN FinalMessage(TRUE,"could not install activeCells assembler"); RETURN FALSE END;
+					activeCellsAssembler.Initialize(diagnostics, log, flags, checker, system, activeCellsSpecification);
+					IF ~activeCellsAssembler.Emit(options.backend) THEN
 						(*activeCellsSpecification.Link(diagnostics,system.codeUnit, system.dataUnit) *)
 						FinalMessage(TRUE, " could not assemble"); RETURN FALSE
 					ELSIF ~activeCellsSpecification.Emit() THEN

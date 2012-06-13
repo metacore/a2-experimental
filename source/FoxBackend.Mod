@@ -86,6 +86,11 @@ TYPE
 		BEGIN RETURN NIL (* only applicable for backends that use an intermediate backend *)
 		END ProcessIntermediateCodeModule;
 
+		(* general emision for chained backends -- used for active cells specification emission *)
+		PROCEDURE Emit*(backend: Backend): BOOLEAN;
+		BEGIN RETURN FALSE
+		END Emit;
+
 		PROCEDURE FindPC*(x: SyntaxTree.Module; CONST sectionName: ARRAY OF CHAR; sectionOffset: LONGINT);
 		BEGIN
 		END FindPC;

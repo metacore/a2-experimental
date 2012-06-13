@@ -402,7 +402,7 @@ PACKAGE Drivers ARCHIVE "Drivers.zip" SOURCE "DriversSrc.zip" DESCRIPTION "Devic
 	# PC speaker driver
 	NATIVE { Beep.Mod }
 	WIN { Win32.Beep.Mod }
-	
+
 	# Pseudo sound driver for UnixAos
 	UNIX { Unix.OpenAL.Mod  OpenALSound.Mod }
 
@@ -492,12 +492,12 @@ PACKAGE Compiler ARCHIVE "Compiler.zip" SOURCE "CompilerSrc.zip" DESCRIPTION "Ac
 
 	Fox.Tool
 	BitSets.Mod ObjectFile.Mod GenericLinker.Mod StaticLinker.Mod
-	FoxBasic.Mod  FoxProgTools.Mod  FoxScanner.Mod FoxSyntaxTree.Mod FoxGlobal.Mod 
+	FoxBasic.Mod  FoxProgTools.Mod  FoxScanner.Mod FoxSyntaxTree.Mod FoxGlobal.Mod
 	FoxActiveCells.Mod FoxHardware.Mod FoxFormats.Mod FoxPrintout.Mod
 	FoxParser.Mod  FoxSemanticChecker.Mod
-	FoxBackend.Mod FoxSections.Mod FoxBinaryCode.Mod FoxIntermediateCode.Mod FoxIntermediateCodeAssembler.Mod
+	FoxBackend.Mod FoxSections.Mod FoxBinaryCode.Mod
 	FoxCompiler.Mod FoxFingerPrinter.Mod  FoxInterfaceComparison.Mod FoxTextualSymbolFile.Mod FoxBinarySymbolFile.Mod
-	FoxActiveCellsBackend.Mod FoxIntermediateBackend.Mod FoxCodeGenerators.Mod
+	FoxActiveCellsBackend.Mod FoxIntermediateCode.Mod FoxIntermediateBackend.Mod FoxCodeGenerators.Mod
 	FoxBinaryObjectFile.Mod FoxGenericObjectFile.Mod
 	FoxAMD64InstructionSet.Mod FoxAMD64Assembler.Mod FoxAMDBackend.Mod
 	FoxInstructionSetAMD64TabSeperated.txt

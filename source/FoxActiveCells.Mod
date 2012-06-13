@@ -1,6 +1,6 @@
 MODULE FoxActiveCells; (** AUTHOR "fof"; PURPOSE "hardware library for the ActiveCells compiler"; *)
 
-IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Global := FoxGlobal, Files, Streams, D := Debugging, Diagnostics, Strings, Commands, GenericLinker, StaticLinker, SYSTEM, Modules;
+IMPORT SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Global := FoxGlobal, Files, Streams,  D := Debugging, Diagnostics, Strings, Commands, GenericLinker, StaticLinker, SYSTEM, Modules;
 
 CONST
 	In*= SyntaxTree.InPort; Out*= SyntaxTree.OutPort;
@@ -1408,6 +1408,7 @@ TYPE
 
 	END Specification;
 
+
 	(*
 	PROCEDURE ReadHugeint(r: Streams.Reader; VAR x: HUGEINT): BOOLEAN;
 	VAR low, high: LONGINT;
@@ -1427,8 +1428,6 @@ TYPE
 		r.Int(high,1); r.String(" "); r.Int(low,1);
 	END WriteHugeint;
 	*)
-
-VAR
 
 	PROCEDURE Indent(w: Streams.Writer; indent: LONGINT);
 	BEGIN
