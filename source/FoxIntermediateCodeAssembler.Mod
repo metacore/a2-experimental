@@ -3,20 +3,25 @@ IMPORT
 	Strings, Diagnostics, D := Debugging, SyntaxTree := FoxSyntaxTree, Scanner := FoxScanner, Sections := FoxSections,
 	IntermediateCode := FoxIntermediateCode, Basic := FoxBasic, Streams, Files, Backend := FoxBackend,
 	Global := FoxGlobal, Formats := FoxFormats, SemanticChecker := FoxSemanticChecker, ActiveCells := FoxActiveCells,
-	ObjectFile, BinaryCode := FoxBinaryCode;
+	ObjectFile, BinaryCode := FoxBinaryCode, GenericLinker, StaticLinker, Commands, Options;
 
 CONST
 	IntermediateCodeExtension = "Fil"; (* TODO: move to a better place *)
+	TraceAssembling = FALSE;
+	DefaultBackend = "AMD";
 
 TYPE
 	FileName = ARRAY 256 OF CHAR;
 	MessageString= ARRAY 256 OF CHAR;
+	SectionName = ARRAY 256 OF CHAR; (*! move *)
+
 	ModuleLoader= PROCEDURE {DELEGATE} (CONST moduleFileName: ARRAY OF CHAR): BOOLEAN;
 	(** the intermediate code parser **)
 	IntermediateCodeParser* = OBJECT
 	CONST
 		Trace = FALSE;
 		Strict = TRUE;
+
 	VAR
 		diagnostics: Diagnostics.Diagnostics;
 		error: BOOLEAN;
@@ -1222,6 +1227,282 @@ TYPE
 		HALT(100); (* undefined type *)
 	END GetPriority;
 
+
+	PROCEDURE AssembleActiveCells*(activeCellsSpecification: ActiveCells.Specification; backend: Backend.Backend): BOOLEAN;
+	TYPE
+		AssemblerObject= OBJECT
+		VAR
+			specification: ActiveCells.Specification;
+			backend: Backend.Backend;
+			diagnostics: Diagnostics.Diagnostics;
+			assembler: Assemblinker;
+			objectFileFormat: Formats.ObjectFileFormat;
+			flags: SET;
+			error: BOOLEAN;
+			system: Global.System;
+
+			PROCEDURE &Init(activeCellsSpecification: ActiveCells.Specification; b: Backend.Backend; objectFileFormat: Formats.ObjectFileFormat);
+			BEGIN
+				error := FALSE;
+				SELF.specification := activeCellsSpecification;
+				SELF.backend := b;
+				SELF.diagnostics := specification.diagnostics;
+				SELF.objectFileFormat := objectFileFormat;
+				NEW(assembler, specification.diagnostics, backend, ""); (* TODO: pass an optional path as third parameter *)
+				IF ~assembler.LoadModule(backend(IntermediateCode.IntermediateBackend).runtimeModuleName, TRUE) THEN
+					error := TRUE;
+					diagnostics.Error(backend(IntermediateCode.IntermediateBackend).runtimeModuleName,Diagnostics.Invalid, Diagnostics.Invalid, "could not load ir file");
+				END;
+				IF ~assembler.LoadModule(specification.name,TRUE) THEN
+					error := TRUE;
+					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "could not load ir file");
+				END;
+				backend := assembler.backend;
+				system := backend.system;
+			END Init;
+
+			PROCEDURE LinkInstance(instance: ActiveCells.Instance): BOOLEAN;
+			VAR
+				fileName, codeFileName, dataFileName: Files.FileName;
+				code, data: StaticLinker.Arrangement; linker: GenericLinker.Linker;
+				module: ActiveCells.Module;
+				i: LONGINT;
+				logFile: Files.File; linkerLog: Files.Writer;
+				type: ActiveCells.Type;
+				msg: MessageString;
+				typeName, instanceName, linkRoot, name: SectionName;
+				objectFileExtension: ARRAY 32 OF CHAR;
+				instructionMemorySize, dataMemorySize: LONGINT;
+				parameter: ActiveCells.Parameter;
+				value: SyntaxTree.Value;
+				pooledName: Basic.SegmentedName;
+				device: ActiveCells.Device;
+				error : BOOLEAN;
+			CONST MinimalStackSize=64;
+			BEGIN
+				error := FALSE;
+				type := instance.type;
+				type.GetFullName(typeName,NIL);
+				instance.GetFullName(instanceName,NIL);
+				IF TraceAssembling THEN
+					D.String("assembling instance "); D.String(instanceName); D.String(" of type "); D.String(typeName); D.Ln;
+				END;
+
+				backend.SetCapabilities(instance.capabilities);
+				assembler.MarkReachabilityOfAll(FALSE);
+				COPY(typeName, linkRoot);
+				Strings.Append(linkRoot,".@BodyStub");
+				assembler.MarkAsReachableByName(linkRoot);
+
+				FOR i := 0 TO instance.parameters.Length()-1 DO
+					parameter := instance.parameters.GetParameter(i);
+					IF parameter.type = 0 THEN (* Boolean *)
+						value := SyntaxTree.NewBooleanValue(-1, parameter.boolean); value.SetType(system.booleanType);
+					ELSE
+						value := SyntaxTree.NewIntegerValue(-1, parameter.integer); value.SetType(system.integerType);
+					END;
+					Basic.ToSegmentedName(parameter.name, pooledName);
+					assembler.PatchValueInSection(pooledName,value);
+				END;
+
+				FOR i := 0 TO type.specification.supportedDevices.Length()-1 DO
+					device := type.specification.supportedDevices.GetDevice(i);
+					IF instance.type.devices.ByName(device.name) = NIL THEN
+						IF assembler.ModuleIsReachable(Basic.MakeString(device.name)) THEN
+							msg := "Missing device capability ";
+							Strings.Append(msg, device.name);
+							Strings.Append(msg," in cell ");
+							instance.AppendToMsg(msg);
+							diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, msg);
+							error := TRUE;
+						END;
+					ELSE
+						IF ~assembler.ModuleIsReachable(Basic.MakeString(device.name)) THEN
+							msg := "Unused device ";
+							Strings.Append(msg, device.name);
+							Strings.Append(msg," in cell ");
+							instance.AppendToMsg(msg);
+							diagnostics.Warning(specification.name,Diagnostics.Invalid,Diagnostics.Invalid,msg);
+						END;
+					END;
+				END;
+
+				IF error THEN RETURN FALSE END;
+
+				objectFileFormat.GetExtension(objectFileExtension);
+				assembler.PrearrangeReachableDataSections;
+				IF ~assembler.GenerateObjectFileWithName(objectFileFormat, specification.log, {}, NIL, NIL, instanceName) THEN
+					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "could not generate object file");
+					RETURN FALSE
+				END;
+
+				IF TraceAssembling THEN
+					D.String("assembling instance done. "); D.Ln;
+				END;
+
+
+				NEW (code, 0); NEW (data, 0);
+				COPY(instanceName, msg); Strings.Append(msg,".log");	logFile := Files.New(msg);
+				IF logFile # NIL THEN NEW(linkerLog,logFile,0) ELSE logFile := NIL END;
+				NEW (linker, specification.diagnostics, linkerLog, GenericLinker.UseInitCode, code, data);
+
+				linker.SetLinkRoot("" (* linkRoot *)); (* take all initcode sections *)
+				StaticLinker.ReadObjectFile(instanceName, "",objectFileExtension,linker);
+
+				(* do linking after having read in all blocks to account for potential constraints *)
+				IF ~linker.error THEN linker.Link; END;
+
+				system := backend.GetSystem();
+
+				instructionMemorySize := type.instructionMemorySize;
+				dataMemorySize := type.dataMemorySize;
+
+				IF (instructionMemorySize > 0) & (instructionMemorySize < code.SizeInBits() DIV system.codeUnit) THEN
+					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "specified instruction memory size too small");
+					error := TRUE;
+				END;
+
+				instructionMemorySize := MAX(code.SizeInBits() DIV system.codeUnit, instructionMemorySize);
+				dataMemorySize := MAX(data.SizeInBits() DIV system.dataUnit, dataMemorySize);
+				instance.SetInstructionMemorySize(instructionMemorySize);
+				instance.SetDataMemorySize(dataMemorySize);
+
+				IF (dataMemorySize - data.SizeInBits() DIV system.dataUnit) < MinimalStackSize THEN
+					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "specified data memory size too small");
+					error := TRUE;
+				END;
+
+				Files.JoinExtension(instanceName,ActiveCells.CodeFileExtension,codeFileName);
+				Files.JoinExtension(instanceName,ActiveCells.DataFileExtension,dataFileName);
+
+				IF ~linker.error THEN
+					StaticLinker.WriteOutputFile (code, codeFileName, linker, StaticLinker.WriteTRMCodeFile);
+					StaticLinker.WriteOutputFile (data, dataFileName, linker, StaticLinker.WriteTRMDataFile);
+					IF linkerLog # NIL THEN linkerLog.Update; Files.Register(logFile) END;
+					IF specification.log # NIL THEN
+						specification.log.String(instanceName);
+						specification.log.String(" linked. IM = ");specification.log.Int(instructionMemorySize,1);
+						specification.log.String(" (used: "); specification.log.Int(code.SizeInBits() DIV system.codeUnit,1);
+						specification.log.String("), DM = "); specification.log.Int(dataMemorySize,1);
+						specification.log.String(" (used: "); specification.log.Int(data.SizeInBits() DIV system.dataUnit,1);
+						specification.log.String(")");
+						specification.log.Ln; specification.log.Update;
+					END;
+				ELSE
+					msg := "could not link ";
+					Strings.Append(msg,linkRoot);
+					diagnostics.Error("",Diagnostics.Invalid, Diagnostics.Invalid, msg);
+				END;
+				RETURN ~linker.error & ~error
+			END LinkInstance;
+
+		END AssemblerObject;
+
+	VAR obj: AssemblerObject;
+	BEGIN
+		ActiveCells.FlattenNetwork(activeCellsSpecification);
+		NEW(obj,activeCellsSpecification,backend,Formats.GetObjectFileFormat("Generic"));
+		IF obj.error THEN RETURN FALSE END;
+		RETURN activeCellsSpecification.ForEachInstanceDo(obj.LinkInstance);
+	END AssembleActiveCells;
+
+
+	PROCEDURE Assemble*(context: Commands.Context);
+	VAR
+		input: Streams.Reader;
+		diagnostics: Diagnostics.StreamDiagnostics;
+		flags: SET;
+		defaultBackend: Backend.Backend;
+		objectFileFormat: Formats.ObjectFileFormat;
+		filename, dummyString, name, targetFile: Files.FileName;
+		assemblinker: Assemblinker;
+		error, result, parsed: BOOLEAN;
+		options:Options.Options;
+		position: LONGINT;
+
+		PROCEDURE Error(CONST error: ARRAY OF CHAR);
+		BEGIN
+			IF diagnostics # NIL THEN
+				diagnostics.Error("",Diagnostics.Invalid,Diagnostics.Invalid,error);
+			END;
+		END Error;
+
+	BEGIN
+		input := context.arg;
+		NEW(diagnostics, context.out);
+		result := TRUE;
+		NEW(options);
+		options.Add("b","backend",Options.String);
+		options.Add(0X, "objectFile", Options.String);
+		options.Add(0X, "targetFile", Options.String);
+
+		position := input.Pos();
+		parsed := options.Parse(input,NIL);
+
+		IF options.GetString("b", name) THEN
+			IF name = "" THEN defaultBackend := NIL
+			ELSE
+				defaultBackend := Backend.GetBackendByName(name);
+				IF (defaultBackend = NIL)  THEN
+					Error("backend could not be installed"); result := FALSE;
+				END;
+			END;
+		ELSE defaultBackend := Backend.GetBackendByName(DefaultBackend);
+			IF defaultBackend = NIL THEN Error("default backend could not be installed"); result := FALSE END;
+		END;
+
+		IF options.GetString("objectFile",name) THEN
+			IF name = "" THEN objectFileFormat := NIL
+			ELSE
+				objectFileFormat := Formats.GetObjectFileFormat(name);
+				IF objectFileFormat = NIL THEN Error("object file format could not be installed"); result := FALSE END;
+			END;
+		ELSIF defaultBackend # NIL THEN
+			objectFileFormat := defaultBackend.DefaultObjectFileFormat();
+		END;
+		IF defaultBackend # NIL THEN defaultBackend.DefineOptions (options); END;
+		IF objectFileFormat # NIL THEN objectFileFormat.DefineOptions(options); END;
+
+		IF result & ~parsed THEN
+			options.Clear;
+			input.SetPos(position);
+			result := options.Parse(input,context.error)
+		END;
+
+		IF result THEN
+			IF defaultBackend # NIL THEN defaultBackend.GetOptions (options) END;
+			IF objectFileFormat # NIL THEN objectFileFormat.GetOptions(options) END;
+			IF ~options.GetString("targetFile",targetFile) THEN targetFile := "" END;
+		END;
+
+		error := ~result;
+		IF targetFile # "" THEN
+			NEW(assemblinker, diagnostics, defaultBackend, "");
+		END;
+		WHILE Basic.GetStringParameter(input,filename) & ~error DO
+			IF targetFile = "" THEN NEW(assemblinker, diagnostics, defaultBackend, "") 	END;
+			IF assemblinker.LoadModule(filename, FALSE) THEN
+				assemblinker.MarkReachabilityOfAll(TRUE);
+				IF (targetFile = "") & assemblinker.GenerateObjectFile(objectFileFormat, context.out, flags, NIL, NIL) THEN
+					diagnostics.Information(filename, Diagnostics.Invalid, Diagnostics.Invalid, "done.")
+				ELSIF targetFile # "" THEN
+					diagnostics.Information(filename,  Diagnostics.Invalid, Diagnostics.Invalid, "loaded.")
+				ELSE
+					error := TRUE
+				END
+			ELSE
+				error := TRUE
+			END
+		END;
+		IF ~error & (targetFile # "") THEN
+			assemblinker.PrearrangeReachableDataSections;
+			IF 	assemblinker.GenerateObjectFileWithName(objectFileFormat, context.out, flags, NIL, NIL,targetFile)
+			THEN
+				diagnostics.Information(targetFile, Diagnostics.Invalid, Diagnostics.Invalid, "generated.")
+			ELSE error := FALSE
+			END;
+		END;
+	END Assemble;
 
 
 END FoxIntermediateCodeAssembler.

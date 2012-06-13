@@ -1,6 +1,6 @@
 MODULE FoxFormats;
 
-IMPORT SyntaxTree := FoxSyntaxTree, Global := FoxGlobal, Streams, Diagnostics, Options;
+IMPORT SyntaxTree := FoxSyntaxTree, Global := FoxGlobal, Strings, Streams, Diagnostics, Options;
 
 CONST
 	NoFindPC*=MAX(LONGINT);
@@ -110,5 +110,56 @@ TYPE
 		END GetExtension;
 
 	END ObjectFileFormat;
+
+	PROCEDURE GetSymbolFileFormat*(CONST name: ARRAY OF CHAR): SymbolFileFormat;
+	VAR
+		procname: ARRAY 256 OF CHAR;
+		factory: PROCEDURE (): SymbolFileFormat;
+		symbolFileFormat: SymbolFileFormat;
+	BEGIN
+		symbolFileFormat := NIL;
+		IF Strings.Length(name) > 0 THEN
+			GETPROCEDURE(name,"Get", factory); (* try long name for example -G=OCBinarySymbolFile *)
+			IF factory = NIL THEN (* try short name for example -G=Binary *)
+				procname := "Fox";
+				Strings.Append(procname, name);
+				Strings.Append(procname, "SymbolFile");
+				GETPROCEDURE(procname,"Get", factory);
+			END;
+			IF factory # NIL THEN
+				symbolFileFormat := factory();
+				Assert(symbolFileFormat # NIL,"symbol file factory returned NIL symbol file format");
+			END;
+		END;
+		RETURN symbolFileFormat
+	END GetSymbolFileFormat;
+
+	PROCEDURE GetObjectFileFormat*(CONST name: ARRAY OF CHAR): ObjectFileFormat;
+	VAR
+		procname: ARRAY 256 OF CHAR;
+		factory: PROCEDURE (): ObjectFileFormat;
+		objectFileFormat: ObjectFileFormat;
+	BEGIN
+		objectFileFormat := NIL;
+		IF Strings.Length(name) > 0 THEN
+			GETPROCEDURE(name,"Get", factory); (* try long name for example -G=OCBinaryObjectFile *)
+			IF factory = NIL THEN (* try short name for example -G=Binary*)
+				procname := "Fox";
+				Strings.Append(procname, name);
+				Strings.Append(procname, "ObjectFile");
+				GETPROCEDURE(procname,"Get", factory);
+			END;
+			IF factory # NIL THEN
+				objectFileFormat := factory();
+				Assert(objectFileFormat # NIL,"symbol file factory returned NIL symbol file format");
+			END;
+		END;
+		RETURN objectFileFormat
+	END GetObjectFileFormat;
+
+	PROCEDURE Assert(b: BOOLEAN; CONST reason: ARRAY OF CHAR);
+	BEGIN
+		ASSERT(b);
+	END Assert;
 
 END FoxFormats.

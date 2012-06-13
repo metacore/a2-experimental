@@ -5,8 +5,8 @@ IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,  D := Debugging,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal,
-	ActiveCells := FoxActiveCells, Hardware := FoxHardware, IntermediateCode := FoxIntermediateCode,  IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
-	Files, StaticLinker, GenericLinker;
+	ActiveCells := FoxActiveCells, Hardware := FoxHardware, IntermediateCodeAssembler := FoxIntermediateCodeAssembler,
+	Files;
 
 CONST
 	(* flags *)
@@ -25,11 +25,8 @@ CONST
 
 	DefaultBackend = "AMD";
 
-	TraceAssembling = FALSE;
-
 TYPE
 	SectionName = ARRAY 256 OF CHAR; (*! move *)
-	MessageString= ARRAY 256 OF CHAR;
 
 	TracingDiagnostics=OBJECT (Diagnostics.Diagnostics)
 	VAR diagnostics: Diagnostics.Diagnostics;
@@ -70,66 +67,24 @@ TYPE
 
 	END TracingDiagnostics;
 
-	PROCEDURE GetSymbolFileFormat*(CONST name: ARRAY OF CHAR): Formats.SymbolFileFormat;
-	VAR
-		procname: ARRAY 256 OF CHAR;
-		factory: PROCEDURE (): Formats.SymbolFileFormat;
-		symbolFileFormat: Formats.SymbolFileFormat;
-	BEGIN
-		symbolFileFormat := NIL;
-		IF Strings.Length(name) > 0 THEN
-			GETPROCEDURE(name,"Get", factory); (* try long name for example -G=OCBinarySymbolFile *)
-			IF factory = NIL THEN (* try short name for example -G=Binary *)
-				procname := "Fox";
-				Strings.Append(procname, name);
-				Strings.Append(procname, "SymbolFile");
-				GETPROCEDURE(procname,"Get", factory);
-			END;
-			IF factory # NIL THEN
-				symbolFileFormat := factory();
-				Assert(symbolFileFormat # NIL,"symbol file factory returned NIL symbol file format");
-			END;
-		END;
-		RETURN symbolFileFormat
-	END GetSymbolFileFormat;
+	CompilerOptions*= RECORD
+		flags*: SET;
+		backend*: Backend.Backend;
+		symbolFile*: Formats.SymbolFileFormat;
+		objectFile*: Formats.ObjectFileFormat;
+		hardware*: Hardware.Description;
+		findPC*: SectionName;
+		documentation*: Backend.Backend;
+	END;
 
-	PROCEDURE GetObjectFileFormat*(CONST name: ARRAY OF CHAR): Formats.ObjectFileFormat;
-	VAR
-		procname: ARRAY 256 OF CHAR;
-		factory: PROCEDURE (): Formats.ObjectFileFormat;
-		objectFileFormat: Formats.ObjectFileFormat;
-	BEGIN
-		objectFileFormat := NIL;
-		IF Strings.Length(name) > 0 THEN
-			GETPROCEDURE(name,"Get", factory); (* try long name for example -G=OCBinaryObjectFile *)
-			IF factory = NIL THEN (* try short name for example -G=Binary*)
-				procname := "Fox";
-				Strings.Append(procname, name);
-				Strings.Append(procname, "ObjectFile");
-				GETPROCEDURE(procname,"Get", factory);
-			END;
-			IF factory # NIL THEN
-				objectFileFormat := factory();
-				Assert(objectFileFormat # NIL,"symbol file factory returned NIL symbol file format");
-			END;
-		END;
-		RETURN objectFileFormat
-	END GetObjectFileFormat;
 
 	PROCEDURE Modules*(CONST source: ARRAY OF CHAR; (* source file name, for debugging and better error reports *)
 			reader: Streams.Reader; (* reader to read from *)
 			position: LONGINT; (* starting position in reader *)
 			diagnostics: Diagnostics.Diagnostics; (* error output and status report *)
-			flags: SET; (* general flags, special options are handled by components *)
-			backend: Backend.Backend; (* backend: code generator *)
-			symbolFileFormat: Formats.SymbolFileFormat;
-			objectFileFormat: Formats.ObjectFileFormat;
-			hardware: Hardware.Description;
 			log: Streams.Writer;
-			VAR importCache: SyntaxTree.ModuleScope;
-			CONST findPC: ARRAY OF CHAR; (* locate a source code position providing a binary module offset *)
-			documentation: Backend.Backend
-			): BOOLEAN;
+			CONST options: CompilerOptions;
+			VAR importCache: SyntaxTree.ModuleScope): BOOLEAN;
 	VAR
 		module: SyntaxTree.Module;
 		scanner: Scanner.Scanner;
@@ -145,6 +100,7 @@ TYPE
 		sectionOffset: LONGINT;
 		traceDiagnostics : TracingDiagnostics;
 		activeCellsSpecification: ActiveCells.Specification;
+		flags: SET;
 
 		PROCEDURE FinalMessage(error: BOOLEAN; CONST msg: ARRAY OF CHAR);
 		VAR message,name: ARRAY 256 OF CHAR;
@@ -166,7 +122,7 @@ TYPE
 					diagnostics.Error (source, Diagnostics.Invalid, Diagnostics.Invalid, message);
 				END;
 			ELSE
-				IF (log # NIL) & ~(Silent IN flags) & ~(FindPC IN flags) THEN
+				IF (log # NIL) & ~(Silent IN options.flags) & ~(FindPC IN options.flags) THEN
 					log.String("compiling ");
 					IF source # "" THEN 	log.String(source); log.String(" => ");	END;
 					log.String(message); log.Ln;
@@ -178,10 +134,10 @@ TYPE
 		VAR print: Streams.Writer;
 		BEGIN
 			print := Basic.GetWriter(Basic.GetDebugWriter("Compiler Debug Output"));
-			IF Info IN flags THEN
-				printer := Printout.NewPrinter(print,Printout.All,Info IN flags);
+			IF Info IN options.flags THEN
+				printer := Printout.NewPrinter(print,Printout.All,Info IN options.flags);
 			ELSE
-				printer := Printout.NewPrinter(print,Printout.SourceCode,Info IN flags);
+				printer := Printout.NewPrinter(print,Printout.SourceCode,Info IN options.flags);
 			END;
 			print.Ln; printer.Module(module); print.Ln;
 			print.Update;
@@ -189,20 +145,21 @@ TYPE
 
 
 	BEGIN
-		IF findPC # "" THEN EXCL(flags, Warnings) END;
-		IF TraceError IN flags THEN
+		flags := options.flags;
+		IF options.findPC # "" THEN EXCL(flags, Warnings) END;
+		IF TraceError IN options.flags THEN
 			NEW(traceDiagnostics,diagnostics); diagnostics := traceDiagnostics
 		END;
 
-		IF backend = NIL THEN
+		IF options.backend = NIL THEN
 			system := Global.DefaultSystem()
 		ELSE
-			IF Oberon07 IN flags THEN backend.SetOberon07 END; (* inform the backend about that the Oberon07 mode, it will return the corresponding Sytem object *)
-			system := backend.GetSystem();
+			IF Oberon07 IN options.flags THEN options.backend.SetOberon07 END; (* inform the backend about that the Oberon07 mode, it will return the corresponding Sytem object *)
+			system := options.backend.GetSystem();
 		END;
 
 
-		IF (objectFileFormat # NIL) & (objectFileFormat.ForceModuleBodies()) THEN INCL(flags, ForceModuleBodies) END;
+		IF (options.objectFile # NIL) & (options.objectFile.ForceModuleBodies()) THEN INCL(flags, ForceModuleBodies) END;
 
 		scanner := Scanner.NewScanner(source,reader,position,diagnostics);
 		IF ActiveCellsFlag IN flags THEN
@@ -231,10 +188,10 @@ TYPE
 
 			IF Check IN flags THEN
 				(** second phase: check and resolve symbols **)
-				IF (symbolFileFormat # NIL) THEN
-					symbolFileFormat.Initialize(diagnostics,system);
+				IF (options.symbolFile # NIL) THEN
+					options.symbolFile.Initialize(diagnostics,system);
 				END;
-				checker := SemanticChecker.NewChecker(diagnostics,Info IN flags,UseDarwinCCalls IN flags,system,symbolFileFormat,activeCellsSpecification,importCache);
+				checker := SemanticChecker.NewChecker(diagnostics,Info IN flags,UseDarwinCCalls IN flags,system,options.symbolFile,activeCellsSpecification,importCache);
 				checker.Module(module);
 				IF checker.error THEN
 					FinalMessage(TRUE," could not be compiled (checker errors).");
@@ -252,14 +209,14 @@ TYPE
 				END;
 
 				(** third phase: generate code, can consist of sub-phases (such as intermediate backend / hardware backend) **)
-				IF backend # NIL THEN
-					backend.Initialize(diagnostics, log, flags, checker, system, activeCellsSpecification);
-					IF findPC # "" THEN
-						split := Strings.Split(findPC,":");
+				IF options.backend # NIL THEN
+					options.backend.Initialize(diagnostics, log, flags, checker, system, activeCellsSpecification);
+					IF options.findPC # "" THEN
+						split := Strings.Split(options.findPC,":");
 						IF LEN(split)>1 THEN
 							Strings.StrToInt(split[1]^,sectionOffset);
-							backend.FindPC(module, split[0]^,sectionOffset);
-							IF backend.error THEN
+							options.backend.FindPC(module, split[0]^,sectionOffset);
+							IF options.backend.error THEN
 								FinalMessage(TRUE," could not be compiled (backend errors).");
 								RETURN FALSE
 							ELSE
@@ -267,8 +224,8 @@ TYPE
 							END;
 						END;
 					END;
-					generatedModule := backend.ProcessSyntaxTreeModule(module);
-					IF backend.error THEN
+					generatedModule := options.backend.ProcessSyntaxTreeModule(module);
+					IF options.backend.error THEN
 						FinalMessage(TRUE, " could not be compiled (backend errors).");
 						RETURN FALSE
 					END;
@@ -276,24 +233,24 @@ TYPE
 
 
 				(** generate symbol file **)
-				IF (symbolFileFormat # NIL) & ~symbolFileFormat.Export(module, importCache) THEN
+				IF (options.symbolFile # NIL) & ~options.symbolFile.Export(module, importCache) THEN
 					FinalMessage(TRUE, " could not be compiled (symbol File errors).");
 					RETURN FALSE
 				END;
 
 				(** generate object file **)
-				IF objectFileFormat # NIL THEN
-					objectFileFormat.Initialize(diagnostics);
+				IF options.objectFile # NIL THEN
+					options.objectFile.Initialize(diagnostics);
 
-					IF findPC # "" THEN
-						Strings.StrToInt(findPC, sectionOffset);
+					IF options.findPC # "" THEN
+						Strings.StrToInt(options.findPC, sectionOffset);
 						generatedModule.SetFindPC(sectionOffset);
 					END;
 
 					IF generatedModule = NIL THEN
 						FinalMessage(TRUE, " could not write object file (nothing generated).");
 						RETURN FALSE
-					ELSIF ~objectFileFormat.Export(generatedModule,symbolFileFormat) THEN
+					ELSIF ~options.objectFile.Export(generatedModule,options.symbolFile) THEN
 						FinalMessage(TRUE, " could not be compiled (object file errors).");
 						RETURN FALSE
 					END;
@@ -312,18 +269,18 @@ TYPE
 				IF activeCellsSpecification = NIL THEN (* no activeCells *)
 				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
 				ELSE
-					IF ~AssembleActiveCells(activeCellsSpecification,backend) THEN
+					IF ~IntermediateCodeAssembler.AssembleActiveCells(activeCellsSpecification,options.backend) THEN
 						(*activeCellsSpecification.Link(diagnostics,system.codeUnit, system.dataUnit) *)
 						FinalMessage(TRUE, " could not assemble"); RETURN FALSE
 					ELSIF ~activeCellsSpecification.Emit() THEN
 						FinalMessage(TRUE, " could not emit backend specification"); RETURN FALSE;
-					ELSIF (hardware # NIL) & ~hardware.Emit(activeCellsSpecification) THEN
+					ELSIF (options.hardware # NIL) & ~options.hardware.Emit(activeCellsSpecification) THEN
 						FinalMessage(TRUE, " could not emit hardware"); RETURN FALSE;
 					END;
 				END;
 
-				IF documentation # NIL THEN
-					generatedModule := documentation.ProcessSyntaxTreeModule(module);
+				IF options.documentation # NIL THEN
+					generatedModule := options.documentation.ProcessSyntaxTreeModule(module);
 				END;
 			ELSIF Print IN flags THEN
 				PrintModule;
@@ -336,192 +293,8 @@ TYPE
 		RETURN TRUE;
 	END Modules;
 
-	PROCEDURE AssembleActiveCells(activeCellsSpecification: ActiveCells.Specification; backend: Backend.Backend): BOOLEAN;
-	TYPE
-		AssemblerObject= OBJECT
-		VAR
-			specification: ActiveCells.Specification;
-			backend: Backend.Backend;
-			diagnostics: Diagnostics.Diagnostics;
-			assembler: IntermediateCodeAssembler.Assemblinker;
-			objectFileFormat: Formats.ObjectFileFormat;
-			flags: SET;
-			error: BOOLEAN;
-			system: Global.System;
-
-			PROCEDURE &Init(activeCellsSpecification: ActiveCells.Specification; b: Backend.Backend; objectFileFormat: Formats.ObjectFileFormat);
-			BEGIN
-				error := FALSE;
-				SELF.specification := activeCellsSpecification;
-				SELF.backend := b;
-				SELF.diagnostics := specification.diagnostics;
-				SELF.objectFileFormat := objectFileFormat;
-				NEW(assembler, specification.diagnostics, backend, ""); (* TODO: pass an optional path as third parameter *)
-				IF ~assembler.LoadModule(backend(IntermediateCode.IntermediateBackend).runtimeModuleName, TRUE) THEN
-					error := TRUE;
-					diagnostics.Error(backend(IntermediateCode.IntermediateBackend).runtimeModuleName,Diagnostics.Invalid, Diagnostics.Invalid, "could not load ir file");
-				END;
-				IF ~assembler.LoadModule(specification.name,TRUE) THEN
-					error := TRUE;
-					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "could not load ir file");
-				END;
-				backend := assembler.backend;
-				system := backend.system;
-			END Init;
-
-			PROCEDURE LinkInstance(instance: ActiveCells.Instance): BOOLEAN;
-			VAR
-				fileName, codeFileName, dataFileName: Files.FileName;
-				code, data: StaticLinker.Arrangement; linker: GenericLinker.Linker;
-				module: ActiveCells.Module;
-				i: LONGINT;
-				logFile: Files.File; linkerLog: Files.Writer;
-				type: ActiveCells.Type;
-				msg: MessageString;
-				typeName, instanceName, linkRoot, name: SectionName;
-				objectFileExtension: ARRAY 32 OF CHAR;
-				instructionMemorySize, dataMemorySize: LONGINT;
-				parameter: ActiveCells.Parameter;
-				value: SyntaxTree.Value;
-				pooledName: Basic.SegmentedName;
-				device: ActiveCells.Device;
-				error : BOOLEAN;
-			CONST MinimalStackSize=64;
-			BEGIN
-				error := FALSE;
-				type := instance.type;
-				type.GetFullName(typeName,NIL);
-				instance.GetFullName(instanceName,NIL);
-				IF TraceAssembling THEN
-					D.String("assembling instance "); D.String(instanceName); D.String(" of type "); D.String(typeName); D.Ln;
-				END;
-
-				backend.SetCapabilities(instance.capabilities);
-				assembler.MarkReachabilityOfAll(FALSE);
-				COPY(typeName, linkRoot);
-				Strings.Append(linkRoot,".@BodyStub");
-				assembler.MarkAsReachableByName(linkRoot);
-
-				FOR i := 0 TO instance.parameters.Length()-1 DO
-					parameter := instance.parameters.GetParameter(i);
-					IF parameter.type = 0 THEN (* Boolean *)
-						value := SyntaxTree.NewBooleanValue(-1, parameter.boolean); value.SetType(system.booleanType);
-					ELSE
-						value := SyntaxTree.NewIntegerValue(-1, parameter.integer); value.SetType(system.integerType);
-					END;
-					Basic.ToSegmentedName(parameter.name, pooledName);
-					assembler.PatchValueInSection(pooledName,value);
-				END;
-
-				FOR i := 0 TO type.specification.supportedDevices.Length()-1 DO
-					device := type.specification.supportedDevices.GetDevice(i);
-					IF instance.type.devices.ByName(device.name) = NIL THEN
-						IF assembler.ModuleIsReachable(Basic.MakeString(device.name)) THEN
-							msg := "Missing device capability ";
-							Strings.Append(msg, device.name);
-							Strings.Append(msg," in cell ");
-							instance.AppendToMsg(msg);
-							diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, msg);
-							error := TRUE;
-						END;
-					ELSE
-						IF ~assembler.ModuleIsReachable(Basic.MakeString(device.name)) THEN
-							msg := "Unused device ";
-							Strings.Append(msg, device.name);
-							Strings.Append(msg," in cell ");
-							instance.AppendToMsg(msg);
-							diagnostics.Warning(specification.name,Diagnostics.Invalid,Diagnostics.Invalid,msg);
-						END;
-					END;
-				END;
-
-				IF error THEN RETURN FALSE END;
-
-				objectFileFormat.GetExtension(objectFileExtension);
-				assembler.PrearrangeReachableDataSections;
-				IF ~assembler.GenerateObjectFileWithName(objectFileFormat, specification.log, {}, NIL, NIL, instanceName) THEN
-					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "could not generate object file");
-					RETURN FALSE
-				END;
-
-				IF TraceAssembling THEN
-					D.String("assembling instance done. "); D.Ln;
-				END;
-
-
-				NEW (code, 0); NEW (data, 0);
-				COPY(instanceName, msg); Strings.Append(msg,".log");	logFile := Files.New(msg);
-				IF logFile # NIL THEN NEW(linkerLog,logFile,0) ELSE logFile := NIL END;
-				NEW (linker, specification.diagnostics, linkerLog, GenericLinker.UseInitCode, code, data);
-
-				linker.SetLinkRoot("" (* linkRoot *)); (* take all initcode sections *)
-				StaticLinker.ReadObjectFile(instanceName, "",objectFileExtension,linker);
-
-				(* do linking after having read in all blocks to account for potential constraints *)
-				IF ~linker.error THEN linker.Link; END;
-
-				system := backend.GetSystem();
-
-				instructionMemorySize := type.instructionMemorySize;
-				dataMemorySize := type.dataMemorySize;
-
-				IF (instructionMemorySize > 0) & (instructionMemorySize < code.SizeInBits() DIV system.codeUnit) THEN
-					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "specified instruction memory size too small");
-					error := TRUE;
-				END;
-
-				instructionMemorySize := MAX(code.SizeInBits() DIV system.codeUnit, instructionMemorySize);
-				dataMemorySize := MAX(data.SizeInBits() DIV system.dataUnit, dataMemorySize);
-				instance.SetInstructionMemorySize(instructionMemorySize);
-				instance.SetDataMemorySize(dataMemorySize);
-
-				IF (dataMemorySize - data.SizeInBits() DIV system.dataUnit) < MinimalStackSize THEN
-					diagnostics.Error(specification.name,Diagnostics.Invalid, Diagnostics.Invalid, "specified data memory size too small");
-					error := TRUE;
-				END;
-
-				Files.JoinExtension(instanceName,ActiveCells.CodeFileExtension,codeFileName);
-				Files.JoinExtension(instanceName,ActiveCells.DataFileExtension,dataFileName);
-
-				IF ~linker.error THEN
-					StaticLinker.WriteOutputFile (code, codeFileName, linker, StaticLinker.WriteTRMCodeFile);
-					StaticLinker.WriteOutputFile (data, dataFileName, linker, StaticLinker.WriteTRMDataFile);
-					IF linkerLog # NIL THEN linkerLog.Update; Files.Register(logFile) END;
-					IF specification.log # NIL THEN
-						specification.log.String(instanceName);
-						specification.log.String(" linked. IM = ");specification.log.Int(instructionMemorySize,1);
-						specification.log.String(" (used: "); specification.log.Int(code.SizeInBits() DIV system.codeUnit,1);
-						specification.log.String("), DM = "); specification.log.Int(dataMemorySize,1);
-						specification.log.String(" (used: "); specification.log.Int(data.SizeInBits() DIV system.dataUnit,1);
-						specification.log.String(")");
-						specification.log.Ln; specification.log.Update;
-					END;
-				ELSE
-					msg := "could not link ";
-					Strings.Append(msg,linkRoot);
-					diagnostics.Error("",Diagnostics.Invalid, Diagnostics.Invalid, msg);
-				END;
-				RETURN ~linker.error & ~error
-			END LinkInstance;
-
-		END AssemblerObject;
-
-	VAR obj: AssemblerObject;
-	BEGIN
-		ActiveCells.FlattenNetwork(activeCellsSpecification);
-		NEW(obj,activeCellsSpecification,backend,GetObjectFileFormat("Generic"));
-		IF obj.error THEN RETURN FALSE END;
-		RETURN activeCellsSpecification.ForEachInstanceDo(obj.LinkInstance);
-	END AssembleActiveCells;
-
-	PROCEDURE GetOptions*(input: Streams.Reader; error:Streams.Writer; diagnostics: Diagnostics.Diagnostics; VAR flags: SET;
-		VAR backend: Backend.Backend;
-		VAR symbolFile: Formats.SymbolFileFormat;
-		VAR objectFile: Formats.ObjectFileFormat;
-		VAR hardware: Hardware.Description;
-		VAR findPC: ARRAY OF CHAR;
-		VAR documentation: Backend.Backend
-		): BOOLEAN;
+	PROCEDURE GetOptions*(input: Streams.Reader; error:Streams.Writer; diagnostics: Diagnostics.Diagnostics;
+		VAR compilerOptions: CompilerOptions): BOOLEAN;
 	VAR options: Options.Options;  name: ARRAY 256 OF CHAR; result: BOOLEAN; position: LONGINT;
 		parsed: BOOLEAN;
 
@@ -557,60 +330,60 @@ TYPE
 		parsed := options.Parse(input,NIL);
 
 		IF options.GetString("b", name) THEN
-			IF name = "" THEN backend := NIL
+			IF name = "" THEN compilerOptions.backend := NIL
 			ELSE
-				backend := Backend.GetBackendByName(name);
-				IF (backend = NIL)  THEN
+				compilerOptions.backend := Backend.GetBackendByName(name);
+				IF (compilerOptions.backend = NIL)  THEN
 					Error("backend could not be installed"); result := FALSE;
 				END;
 			END;
-		ELSE backend := Backend.GetBackendByName(DefaultBackend);
-			IF backend = NIL THEN Error("default backend could not be installed"); result := FALSE END;
+		ELSE compilerOptions.backend := Backend.GetBackendByName(DefaultBackend);
+			IF compilerOptions.backend = NIL THEN Error("default backend could not be installed"); result := FALSE END;
 		END;
 
 		IF options.GetString("objectFile",name) THEN
-			IF name = "" THEN objectFile := NIL
+			IF name = "" THEN compilerOptions.objectFile := NIL
 			ELSE
-				objectFile := GetObjectFileFormat(name);
-				IF objectFile = NIL THEN Error("object file format could not be installed"); result := FALSE END;
+				compilerOptions.objectFile := Formats.GetObjectFileFormat(name);
+				IF compilerOptions.objectFile = NIL THEN Error("object file format could not be installed"); result := FALSE END;
 			END;
-		ELSIF backend # NIL THEN
-			objectFile := backend.DefaultObjectFileFormat();
+		ELSIF compilerOptions.backend # NIL THEN
+			compilerOptions.objectFile := compilerOptions.backend.DefaultObjectFileFormat();
 		END;
 
 		IF options.GetString("symbolFile",name) THEN
-			IF name = "" THEN symbolFile := NIL
+			IF name = "" THEN compilerOptions.symbolFile := NIL
 			ELSE
-				symbolFile := GetSymbolFileFormat(name);
-				IF symbolFile = NIL THEN Error("symbol file format could not be installed"); result := FALSE END;
+				compilerOptions.symbolFile := Formats.GetSymbolFileFormat(name);
+				IF compilerOptions.symbolFile = NIL THEN Error("symbol file format could not be installed"); result := FALSE END;
 			END;
-		ELSIF backend # NIL THEN
-			symbolFile := backend.DefaultSymbolFileFormat();
-			IF (symbolFile = NIL) & (objectFile # NIL) THEN
-				symbolFile := objectFile.DefaultSymbolFileFormat();
+		ELSIF compilerOptions.backend # NIL THEN
+			compilerOptions.symbolFile := compilerOptions.backend.DefaultSymbolFileFormat();
+			IF (compilerOptions.symbolFile = NIL) & (compilerOptions.objectFile # NIL) THEN
+				compilerOptions.symbolFile := compilerOptions.objectFile.DefaultSymbolFileFormat();
 			END;
-		ELSIF objectFile # NIL THEN
-			symbolFile := objectFile.DefaultSymbolFileFormat();
+		ELSIF compilerOptions.objectFile # NIL THEN
+			compilerOptions.symbolFile := compilerOptions.objectFile.DefaultSymbolFileFormat();
 		END;
 
 		IF options.GetString("hardware",name) THEN
-			hardware := Hardware.GetDescription(name)
+			compilerOptions.hardware := Hardware.GetDescription(name)
 		END;
 
 		IF options.GetString("d", name) THEN
-			documentation := Backend.GetBackendByName("Documentation");
-			IF (backend = NIL)  THEN
-				Error("documentation backend could not be installed"); result := FALSE;
+			compilerOptions.documentation := Backend.GetBackendByName("Documentation");
+			IF (compilerOptions.documentation = NIL)  THEN
+				Error("documentation engine could not be installed"); result := FALSE;
 			END;
 		ELSE
-			documentation := NIL
+			compilerOptions.documentation := NIL
 		END;
 
 
-		IF backend # NIL THEN backend.DefineOptions (options); INCL(flags,Check); END;
-		IF symbolFile # NIL THEN symbolFile.DefineOptions(options); INCL(flags,Check) END;
-		IF objectFile # NIL THEN objectFile.DefineOptions(options); INCL(flags,Check) END;
-		IF documentation # NIL THEN documentation.DefineOptions(options) END;
+		IF compilerOptions.backend # NIL THEN compilerOptions.backend.DefineOptions (options); INCL(compilerOptions.flags,Check); END;
+		IF compilerOptions.symbolFile # NIL THEN compilerOptions.symbolFile.DefineOptions(options); INCL(compilerOptions.flags,Check) END;
+		IF compilerOptions.objectFile # NIL THEN compilerOptions.objectFile.DefineOptions(options); INCL(compilerOptions.flags,Check) END;
+		IF compilerOptions.documentation # NIL THEN compilerOptions.documentation.DefineOptions(options) END;
 
 		IF result & ~parsed THEN
 			options.Clear;
@@ -619,90 +392,25 @@ TYPE
 		END;
 
 		IF result THEN
-			IF options.GetFlag("print") THEN INCL(flags, Print) END;
-			IF options.GetFlag("silent") THEN INCL(flags, Silent) END;
-			IF options.GetFlag("check") THEN INCL(flags, Check) END;
-			IF options.GetFlag("traceError") THEN INCL(flags, TraceError) END;
-			IF options.GetFlag("info") THEN INCL(flags,Info) END;
-			IF options.GetString("findPC",findPC) THEN INCL(flags,FindPC) END;
-			IF options.GetFlag("warnings") THEN INCL(flags, Warnings) END;
-			IF options.GetFlag("darwinHost") THEN INCL(flags,UseDarwinCCalls) END;	(*fld*)
-			IF options.GetFlag("singleModule") THEN INCL(flags,SingleModule) END;
-			IF options.GetFlag("oberon07") THEN INCL(flags, Oberon07) END;
-			IF options.GetFlag("activeCells") THEN INCL(flags, ActiveCellsFlag) END;
-			IF backend # NIL THEN backend.GetOptions (options) END;
-			IF symbolFile # NIL THEN symbolFile.GetOptions(options) END;
-			IF objectFile # NIL THEN objectFile.GetOptions(options) END;
-			IF documentation # NIL THEN documentation.GetOptions(options) END;
+			IF options.GetFlag("print") THEN INCL(compilerOptions.flags, Print) END;
+			IF options.GetFlag("silent") THEN INCL(compilerOptions.flags, Silent) END;
+			IF options.GetFlag("check") THEN INCL(compilerOptions.flags, Check) END;
+			IF options.GetFlag("traceError") THEN INCL(compilerOptions.flags, TraceError) END;
+			IF options.GetFlag("info") THEN INCL(compilerOptions.flags,Info) END;
+			IF options.GetString("findPC",compilerOptions.findPC) THEN INCL(compilerOptions.flags,FindPC) END;
+			IF options.GetFlag("warnings") THEN INCL(compilerOptions.flags, Warnings) END;
+			IF options.GetFlag("darwinHost") THEN INCL(compilerOptions.flags,UseDarwinCCalls) END;	(*fld*)
+			IF options.GetFlag("singleModule") THEN INCL(compilerOptions.flags,SingleModule) END;
+			IF options.GetFlag("oberon07") THEN INCL(compilerOptions.flags, Oberon07) END;
+			IF options.GetFlag("activeCells") THEN INCL(compilerOptions.flags, ActiveCellsFlag) END;
+			IF compilerOptions.backend # NIL THEN compilerOptions.backend.GetOptions (options) END;
+			IF compilerOptions.symbolFile # NIL THEN compilerOptions.symbolFile.GetOptions(options) END;
+			IF compilerOptions.objectFile # NIL THEN compilerOptions.objectFile.GetOptions(options) END;
+			IF compilerOptions.documentation # NIL THEN compilerOptions.documentation.GetOptions(options) END;
 		END;
 		RETURN result
 	END GetOptions;
 
-	(*
-		Get next available name from stream ignoring comments and end of comment brackets
-		Returns TRUE on success, returns FALSE on end of stream, on error or if "~" or ";" encountered.
-		Scanner based on Peek() feature of stream. Necessary to make it restartable.
-	*)
-	PROCEDURE GetString*(r: Streams.Reader; VAR string: ARRAY OF CHAR): BOOLEAN;
-	VAR ch: CHAR; i: LONGINT; done,error: BOOLEAN;
-
-		PROCEDURE Next;
-		BEGIN r.Char(ch); ch := r.Peek();
-		END Next;
-
-		PROCEDURE Append(ch: CHAR);
-		BEGIN string[i] := ch; INC(i)
-		END Append;
-
-		PROCEDURE SkipWhitespace;
-		BEGIN WHILE (ch <= " ") & (ch # 0X) DO Next END;
-		END SkipWhitespace;
-
-		PROCEDURE Comment;
-		VAR done: BOOLEAN;
-		BEGIN
-			done := FALSE;
-			Next;
-			REPEAT
-				CASE ch OF
-				|"(": Next; IF ch = "*" THEN Comment; SkipWhitespace END;
-				|"*": Next; IF ch =")" THEN Next; done:= TRUE END;
-				| 0X: done := TRUE;
-				ELSE Next;
-				END;
-			UNTIL done;
-		END Comment;
-
-		PROCEDURE String(delimiter: CHAR);
-		VAR done: BOOLEAN;
-		BEGIN
-			done := FALSE; Next;
-			REPEAT
-				IF ch = delimiter THEN done := TRUE; Next;
-				ELSIF ch = 0X THEN done := TRUE; error := TRUE;
-				ELSE Append(ch); Next;
-				END;
-			UNTIL done OR (i=LEN(string)-1);
-		END String;
-
-	BEGIN
-		i := 0; done := FALSE;
-		ch := r.Peek(); (* restart scanning *)
-		SkipWhitespace;
-		REPEAT
-			CASE ch OF
-				"(": Next; IF ch = "*" THEN Comment ; SkipWhitespace ELSE Append(ch) END;
-				| "*": Next; IF ch = ")" THEN Next; SkipWhitespace ELSE Append(ch) END;
-				| '"', "'": done := TRUE; IF i = 0 THEN String(ch) END;
-				| 0X .. ' ', '~', ';': done := TRUE;
-			ELSE
-				Append(ch);
-				Next;
-			END;
-		UNTIL done OR (i = LEN(string)-1);
-		string[i] := 0X;
-		RETURN (i > 0) & done & ~error;
-	END GetString;
 
 	PROCEDURE Compile*(context : Commands.Context);
 	VAR
@@ -710,33 +418,26 @@ TYPE
 		error: BOOLEAN;
 		diagnostics: Diagnostics.StreamDiagnostics;
 		time: LONGINT; reader: Streams.Reader;
-		flags: SET;
-		backend: Backend.Backend;
 		importCache: SyntaxTree.ModuleScope;
-		symbolFileFormat: Formats.SymbolFileFormat;
-		objectFile: Formats.ObjectFileFormat;
-		activeCellsSpecification: ActiveCells.Specification;
-		findPC: SectionName;
-		documentation: Backend.Backend;
-		hardware: Hardware.Description;
+		options: CompilerOptions;
 	BEGIN
 		error := FALSE;
 
 		NEW(diagnostics, context.error);
-		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,hardware,findPC, documentation) THEN
+		IF GetOptions(context.arg,context.error,diagnostics,options) THEN
 
 			time := Kernel.GetTicks();
-			WHILE GetString(context.arg,filename) & ~error DO
+			WHILE Basic.GetStringParameter(context.arg,filename) & ~error DO
 				reader := Basic.GetFileReader(filename);
 				IF reader = NIL THEN
 					diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 				ELSE
-					error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile, hardware, context.out, importCache,findPC, documentation);
+					error := ~Modules(filename, reader, 0, diagnostics,context.out, options,  importCache);
 				END;
 				context.out.Update;
 				context.error.Update;
 			END;
-			IF Silent IN flags THEN
+			IF Silent IN options.flags THEN
 				time := Kernel.GetTicks()-time;
 				context.out.Ln; context.out.String("compiler elapsed ms"); context.out.Int(time,10);
 			END;
@@ -745,136 +446,27 @@ TYPE
 
 	END Compile;
 
-	PROCEDURE Assemble*(context: Commands.Context);
-	VAR
-		input: Streams.Reader;
-		diagnostics: Diagnostics.StreamDiagnostics;
-		flags: SET;
-		defaultBackend: Backend.Backend;
-		objectFileFormat: Formats.ObjectFileFormat;
-		filename, dummyString, name, targetFile: Files.FileName;
-		assemblinker: IntermediateCodeAssembler.Assemblinker;
-		error, result, parsed: BOOLEAN;
-		options:Options.Options;
-		position: LONGINT;
-
-		PROCEDURE Error(CONST error: ARRAY OF CHAR);
-		BEGIN
-			IF diagnostics # NIL THEN
-				diagnostics.Error("",Diagnostics.Invalid,Diagnostics.Invalid,error);
-			END;
-		END Error;
-
-	BEGIN
-		input := context.arg;
-		NEW(diagnostics, context.out);
-		result := TRUE;
-		NEW(options);
-		options.Add("b","backend",Options.String);
-		options.Add(0X, "objectFile", Options.String);
-		options.Add(0X, "targetFile", Options.String);
-
-		position := input.Pos();
-		parsed := options.Parse(input,NIL);
-
-		IF options.GetString("b", name) THEN
-			IF name = "" THEN defaultBackend := NIL
-			ELSE
-				defaultBackend := Backend.GetBackendByName(name);
-				IF (defaultBackend = NIL)  THEN
-					Error("backend could not be installed"); result := FALSE;
-				END;
-			END;
-		ELSE defaultBackend := Backend.GetBackendByName(DefaultBackend);
-			IF defaultBackend = NIL THEN Error("default backend could not be installed"); result := FALSE END;
-		END;
-
-		IF options.GetString("objectFile",name) THEN
-			IF name = "" THEN objectFileFormat := NIL
-			ELSE
-				objectFileFormat := GetObjectFileFormat(name);
-				IF objectFileFormat = NIL THEN Error("object file format could not be installed"); result := FALSE END;
-			END;
-		ELSIF defaultBackend # NIL THEN
-			objectFileFormat := defaultBackend.DefaultObjectFileFormat();
-		END;
-		IF defaultBackend # NIL THEN defaultBackend.DefineOptions (options); INCL(flags,Check); END;
-		IF objectFileFormat # NIL THEN objectFileFormat.DefineOptions(options); INCL(flags,Check) END;
-
-		IF result & ~parsed THEN
-			options.Clear;
-			input.SetPos(position);
-			result := options.Parse(input,context.error)
-		END;
-
-		IF result THEN
-			IF defaultBackend # NIL THEN defaultBackend.GetOptions (options) END;
-			IF objectFileFormat # NIL THEN objectFileFormat.GetOptions(options) END;
-			IF ~options.GetString("targetFile",targetFile) THEN targetFile := "" END;
-		END;
-
-		error := ~result;
-		IF targetFile # "" THEN
-			NEW(assemblinker, diagnostics, defaultBackend, "");
-		END;
-		WHILE GetString(input,filename) & ~error DO
-			IF targetFile = "" THEN NEW(assemblinker, diagnostics, defaultBackend, "") 	END;
-			IF assemblinker.LoadModule(filename, FALSE) THEN
-				assemblinker.MarkReachabilityOfAll(TRUE);
-				IF (targetFile = "") & assemblinker.GenerateObjectFile(objectFileFormat, context.out, flags, NIL, NIL) THEN
-					diagnostics.Information(filename, Diagnostics.Invalid, Diagnostics.Invalid, "done.")
-				ELSIF targetFile # "" THEN
-					diagnostics.Information(filename,  Diagnostics.Invalid, Diagnostics.Invalid, "loaded.")
-				ELSE
-					error := TRUE
-				END
-			ELSE
-				error := TRUE
-			END
-		END;
-		IF ~error & (targetFile # "") THEN
-			assemblinker.PrearrangeReachableDataSections;
-			IF 	assemblinker.GenerateObjectFileWithName(objectFileFormat, context.out, flags, NIL, NIL,targetFile)
-			THEN
-				diagnostics.Information(targetFile, Diagnostics.Invalid, Diagnostics.Invalid, "generated.")
-			ELSE error := FALSE
-			END;
-		END;
-	END Assemble;
-
 	PROCEDURE CompileReader*(context: Commands.Context; reader: Streams.Reader);
 	VAR
 		filename: ARRAY 256 OF CHAR;
 		error: BOOLEAN;
 		diagnostics: Diagnostics.StreamDiagnostics;
 		time: LONGINT;
-		flags: SET;
-		backend: Backend.Backend;
 		importCache: SyntaxTree.ModuleScope;
-		symbolFileFormat: Formats.SymbolFileFormat;
-		objectFile: Formats.ObjectFileFormat;
-		activeCellsSpecification: ActiveCells.Specification;
-		findPC: SectionName;
-		documentation: Backend.Backend;
-		hardware: Hardware.Description;
+		options: CompilerOptions;
 	BEGIN
 		error := FALSE;
 		NEW(diagnostics, context.error);
-		IF GetOptions(context.arg,context.error,diagnostics,flags,backend,symbolFileFormat,objectFile,hardware,findPC, documentation) THEN
+		IF GetOptions(context.arg,context.error,diagnostics,options) THEN
 
 			time := Kernel.GetTicks();
 			IF reader = NIL THEN
 				diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 			ELSE
-				error := ~Modules(filename, reader, 0, diagnostics, flags, backend, symbolFileFormat,objectFile,hardware, context.out, importCache,findPC, documentation);
+				error := ~Modules(filename, reader, 0, diagnostics, context.out, options, importCache);
 			END;
 			context.out.Update;
 		END;
 	END CompileReader;
-
-	PROCEDURE Assert(b: BOOLEAN; CONST reason: ARRAY OF CHAR);
-	BEGIN
-		ASSERT(b);
-	END Assert;
 
 END Compiler.

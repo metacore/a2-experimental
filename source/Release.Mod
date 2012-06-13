@@ -63,7 +63,7 @@ MODULE Release; (** AUTHOR "staubesv"; PURPOSE "Release build tool"; *)
 IMPORT
 	SYSTEM,
 	Modules, Streams, Commands, Options, Files, Dates, Strings, Texts, TextUtilities, ReleaseThreadPool, Diagnostics, WMGraphics, Zip,
-	CompilerInterface, Compiler, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats, Backend := FoxBackend,FoxHardware;
+	CompilerInterface, Compiler, SyntaxTree := FoxSyntaxTree ;
 
 CONST
 	VersionMajor = 1;
@@ -1245,15 +1245,10 @@ TYPE
 		PROCEDURE CompileFile(file : File; diagnostics : Diagnostics.Diagnostics; log : Streams.Writer; VAR error : BOOLEAN; importCache : SyntaxTree.ModuleScope);
 		VAR
 		 	reader : Streams.Reader;
-			backend, documentation : Backend.Backend;
-			symbolFileFormat : Formats.SymbolFileFormat;
-			objectFileFormat : Formats.ObjectFileFormat;
-			hardware: FoxHardware.Description;
-			flags : SET;
-			findPC : ARRAY 256 OF CHAR;
 			options : ARRAY 1024 OF CHAR;
 			optionsReader : Streams.StringReader;
 			message : ARRAY 512 OF CHAR;
+			compilerOptions: Compiler.CompilerOptions;
 		BEGIN
 			ASSERT((file # NIL) & (diagnostics # NIL) & (importCache # NIL));
 			reader := GetReader(file, diagnostics);
@@ -1264,9 +1259,9 @@ TYPE
 				GetCompilerOptions(options);
 				NEW(optionsReader, LEN(options));
 				optionsReader.Set(options);
-				error := ~Compiler.GetOptions(optionsReader, log, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, hardware, findPC, documentation);
+				error := ~Compiler.GetOptions(optionsReader, log, diagnostics, compilerOptions);
 				IF ~error THEN
-					error := ~Compiler.Modules(file.name, reader, 0, diagnostics, flags, backend, symbolFileFormat, objectFileFormat, hardware, log, importCache, findPC, documentation);
+					error := ~Compiler.Modules(file.name, reader, 0, diagnostics, log, compilerOptions, importCache);
 				END;
 			ELSE
 				MakeMessage(message, "File # not found", file.name, "");
@@ -2343,7 +2338,7 @@ PROCEDURE GetModuleInfo(
 	END SkipComments;
 
 	PROCEDURE SkipProperties (in : Streams.Reader);
-	VAR level, oldLevel, oldPosition : LONGINT; ch, nextCh : CHAR;
+	VAR ch : CHAR;
 	BEGIN
 		in.SkipWhitespace;
 		ch := in.Peek();

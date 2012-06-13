@@ -89,14 +89,9 @@ CONST
 	PROCEDURE CompileText*(t: Texts.Text; CONST source: ARRAY OF CHAR; pos: LONGINT; CONST pc,opt: ARRAY OF CHAR; log: Streams.Writer;
 	diagnostics : Diagnostics.Diagnostics; VAR error: BOOLEAN);
 	VAR stringReader: Streams.StringReader;
-		backend: Backend.Backend;
-		importCache: SyntaxTree.ModuleScope;
-		symbolFile: Formats.SymbolFileFormat;
-		objectFile: Formats.ObjectFileFormat;
-		hardware: Hardware.Description;
-		findPC: Basic.SectionName; flags: SET;
 		reader: Streams.Reader;
-		docu: Backend.Backend;
+		options: Compiler.CompilerOptions;
+		importCache: SyntaxTree.ModuleScope;
 	BEGIN
 		IF t = NIL THEN
 			log.String ("No text available"); log.Ln; log.Update;
@@ -104,12 +99,12 @@ CONST
 		END;
 		NEW(stringReader,LEN(opt));
 		stringReader.Set(opt);
-		IF Compiler.GetOptions(stringReader,log,diagnostics,flags,backend,symbolFile,objectFile,hardware, findPC, docu) THEN
+		IF Compiler.GetOptions(stringReader,log,diagnostics,options) THEN
 			reader := GetTextReader(t,pos);
-			IF pc # "" THEN INCL(flags,Compiler.FindPC); COPY(pc, findPC);
-			ELSIF findPC # "" THEN INCL(flags,Compiler.FindPC)
+			IF pc # "" THEN INCL(options.flags,Compiler.FindPC); COPY(pc, options.findPC);
+			ELSIF options.findPC # "" THEN INCL(options.flags,Compiler.FindPC)
 			END;
-			error := ~Compiler.Modules(source,reader,0,diagnostics,flags,backend,symbolFile,objectFile,hardware, log,importCache,findPC, docu)
+			error := ~Compiler.Modules(source,reader,0,diagnostics, log, options, importCache)
 		END;
 	END CompileText;
 
