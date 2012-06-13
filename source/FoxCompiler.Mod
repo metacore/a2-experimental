@@ -230,6 +230,8 @@ TYPE
 					activeCellsAssembler := Backend.GetBackendByName("FoxIntermediateCodeAssembler");
 					IF activeCellsAssembler= NIL THEN FinalMessage(TRUE,"could not install activeCells assembler"); RETURN FALSE END;
 					activeCellsAssembler.Initialize(diagnostics, log, flags, checker, system, activeCellsSpecification);
+					IF options.hardware # NIL THEN options.hardware.Init(diagnostics, log) END;
+
 					IF ~activeCellsAssembler.Emit(options.backend) THEN
 						(*activeCellsSpecification.Link(diagnostics,system.codeUnit, system.dataUnit) *)
 						FinalMessage(TRUE, " could not assemble"); RETURN FALSE
@@ -330,7 +332,7 @@ TYPE
 		END;
 
 		IF options.GetString("hardware",name) THEN
-			compilerOptions.hardware := Hardware.GetDescription(name)
+			compilerOptions.hardware := Hardware.GetDescription(name);
 		END;
 
 		IF options.GetString("d", name) THEN
