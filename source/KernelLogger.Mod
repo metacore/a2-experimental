@@ -8,6 +8,8 @@ CONST
 	UpdateInterval = 200;	(* ms *)
 	LocalBuf = 4096 * 2;
 
+	MaxLogSize = 4*BufSize;
+
 TYPE
 	(* periodically poll the kernel log buffer *)
 	Logger = OBJECT
@@ -18,6 +20,8 @@ TYPE
 		bufPos : LONGINT;
 		ch : CHAR;
 		tw : TextUtilities.TextWriter;
+
+		limitCounter, n: LONGINT;
 
 		PROCEDURE &Open;
 		BEGIN
@@ -61,8 +65,29 @@ TYPE
 					END;
 				END;	(* 0X (end), 0DX (CR), 0AX (LF), 0EX (FixedFont), 0FX (NormalFont) *)
 				IF (ch = 0X) OR ~alive THEN EXIT END;
+				
+				INC(limitCounter);
+				
+				IF limitCounter >= 1024 THEN
+					kernelLog.AcquireWrite;
+					n := kernelLog.GetLength();
+					IF n > MaxLogSize THEN
+						kernelLog.Delete(0,n-MaxLogSize);					
+					END;
+					kernelLog.ReleaseWrite;
+					limitCounter := 0;
+				END;	
 			END;
-			IF added THEN tw.Update; END;
+			IF added THEN
+				tw.Update;
+
+				kernelLog.AcquireWrite;
+				n := kernelLog.GetLength();
+				IF n > MaxLogSize+1024 THEN
+					kernelLog.Delete(0,n-MaxLogSize);					
+				END;
+				kernelLog.ReleaseWrite;
+			END;
 			timer.Sleep(UpdateInterval);
 		END;
 		BEGIN {EXCLUSIVE} dead := TRUE END;
