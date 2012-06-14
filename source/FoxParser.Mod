@@ -1952,13 +1952,16 @@ TYPE
 			currentScope := moduleScope;
 			isCellNet := Optional(Scanner.CellNet);
 			IF isCellNet OR Mandatory( Scanner.Module ) THEN
-				c := recentComment; recentComment := NIL;
+				(*c := recentComment; recentComment := NIL;*)
 				IF isCellNet & Optional(Scanner.LeftBrace) THEN modifiers := Flags() ELSE modifiers := NIL END;
 				moduleName :=  Identifier(position);
 				module := SyntaxTree.NewModule( scanner.source^, position, moduleName, moduleScope, scanner.case );
 
+				CommentSymbol(module);
+				(*
 				module.SetComment(c);
 				SetNextInComment(c, module);
+				*)
 
 				IF isCellNet THEN module.SetCellNet(TRUE); module.SetModifiers(modifiers); END;
 

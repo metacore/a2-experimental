@@ -495,8 +495,8 @@ TYPE
 		BEGIN SELF.imports := imports
 		END SetImports;
 
-		PROCEDURE SetPlatformName*(platformName: SyntaxTree.IdentifierString);
-		BEGIN SELF.platformName := platformName
+		PROCEDURE SetPlatformName*(CONST platformName: ARRAY OF CHAR);
+		BEGIN COPY(platformName, SELF.platformName)
 		END SetPlatformName;
 
 		PROCEDURE Dump*(w: Streams.Writer);
