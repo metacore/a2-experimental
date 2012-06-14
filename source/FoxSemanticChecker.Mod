@@ -8209,10 +8209,18 @@ TYPE
 				IF distance = Infinity THEN
 					result := Infinity;
 				ELSE
-					IF (formalParameter.kind = SyntaxTree.VarParameter) & (result # 0) THEN
-						IF ~(formalParameter.type.resolved IS SyntaxTree.ArrayType) OR ~(actualParameter.type.resolved IS SyntaxTree.ArrayType) THEN
-							result := Infinity
-						ELSE
+					IF (formalParameter.kind = SyntaxTree.VarParameter) & (distance # 0) THEN
+						IF (formalParameter.type.resolved IS SyntaxTree.MathArrayType) & (actualParameter.type.resolved IS SyntaxTree.MathArrayType) THEN
+							baseActual := actualParameter.type.resolved(SyntaxTree.MathArrayType).arrayBase.resolved;
+							baseFormal := formalParameter.type.resolved(SyntaxTree.MathArrayType).arrayBase.resolved;
+							WHILE(baseActual IS SyntaxTree.MathArrayType) & (baseFormal IS SyntaxTree.MathArrayType) DO
+								baseActual := baseActual(SyntaxTree.ArrayType).arrayBase.resolved;
+								baseFormal := baseFormal(SyntaxTree.ArrayType).arrayBase.resolved;
+							END;
+							IF TypeDistance(system,baseActual,baseFormal,FALSE) # 0 THEN
+								result := Infinity
+							END;
+						ELSIF (formalParameter.type.resolved IS SyntaxTree.ArrayType) & (actualParameter.type.resolved IS SyntaxTree.ArrayType) THEN
 							baseActual := actualParameter.type.resolved(SyntaxTree.ArrayType).arrayBase.resolved;
 							baseFormal := formalParameter.type.resolved(SyntaxTree.ArrayType).arrayBase.resolved;
 							WHILE(baseActual IS SyntaxTree.ArrayType) & (baseFormal IS SyntaxTree.ArrayType) DO
@@ -8222,7 +8230,9 @@ TYPE
 							IF TypeDistance(system,baseActual,baseFormal,FALSE) # 0 THEN
 								result := Infinity
 							END;
-						END;
+						ELSE
+							result := Infinity
+						END;						
 					ELSE
 						INC(result,distance);
 					END;
