@@ -8211,15 +8211,18 @@ TYPE
 				ELSE
 					IF (formalParameter.kind = SyntaxTree.VarParameter) & (distance # 0) THEN
 						IF (formalParameter.type.resolved IS SyntaxTree.MathArrayType) & (actualParameter.type.resolved IS SyntaxTree.MathArrayType) THEN
+							(* already handled varpar *)
+							(*
 							baseActual := actualParameter.type.resolved(SyntaxTree.MathArrayType).arrayBase.resolved;
 							baseFormal := formalParameter.type.resolved(SyntaxTree.MathArrayType).arrayBase.resolved;
 							WHILE(baseActual IS SyntaxTree.MathArrayType) & (baseFormal IS SyntaxTree.MathArrayType) DO
-								baseActual := baseActual(SyntaxTree.ArrayType).arrayBase.resolved;
-								baseFormal := baseFormal(SyntaxTree.ArrayType).arrayBase.resolved;
+								baseActual := baseActual(SyntaxTree.MathArrayType).arrayBase.resolved;
+								baseFormal := baseFormal(SyntaxTree.MathArrayType).arrayBase.resolved;
 							END;
 							IF TypeDistance(system,baseActual,baseFormal,FALSE) # 0 THEN
 								result := Infinity
 							END;
+							*)
 						ELSIF (formalParameter.type.resolved IS SyntaxTree.ArrayType) & (actualParameter.type.resolved IS SyntaxTree.ArrayType) THEN
 							baseActual := actualParameter.type.resolved(SyntaxTree.ArrayType).arrayBase.resolved;
 							baseFormal := formalParameter.type.resolved(SyntaxTree.ArrayType).arrayBase.resolved;
@@ -8232,7 +8235,7 @@ TYPE
 							END;
 						ELSE
 							result := Infinity
-						END;						
+						END;
 					ELSE
 						INC(result,distance);
 					END;
@@ -8277,18 +8280,23 @@ TYPE
 			IF (to IS Delegate) THEN i := 1 END	(*special case: procedure -> proctype, not resolved yet*)
 		*)
 		ELSIF (from IS SyntaxTree.BasicType) THEN
-			IF to IS SyntaxTree.BasicType THEN  i := Global.BasicTypeDistance(system,from(SyntaxTree.BasicType), to(SyntaxTree.BasicType)) END
+			IF to IS SyntaxTree.BasicType THEN  i := Global.BasicTypeDistance(system,from(SyntaxTree.BasicType), to(SyntaxTree.BasicType)) END;
+			IF varpar & (i # 0) THEN i := Infinity END;
 		ELSIF (from IS SyntaxTree.ArrayType) THEN
 			IF to IS SyntaxTree.ArrayType THEN i := ArrayTypeDistance(system,from(SyntaxTree.ArrayType), to(SyntaxTree.ArrayType)) END
 		ELSIF (from IS SyntaxTree.RecordType) THEN
 			IF to IS SyntaxTree.RecordType THEN i := RecordTypeDistance(from(SyntaxTree.RecordType), to (SyntaxTree.RecordType)) END
 		ELSIF (from IS SyntaxTree.MathArrayType) THEN
 			IF to IS SyntaxTree.MathArrayType THEN
+				(*
 				IF varpar & (from(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (to(SyntaxTree.MathArrayType).form # SyntaxTree.Tensor) THEN
 					i := Infinity;
 				ELSE
+				*)
 					i := MathArrayTypeDistance(system,from(SyntaxTree.MathArrayType), to(SyntaxTree.MathArrayType),varpar)
+				(*
 				END;
+				*)
 			END
 		ELSIF (from IS SyntaxTree.PointerType) THEN
 			ptr := from(SyntaxTree.PointerType);
