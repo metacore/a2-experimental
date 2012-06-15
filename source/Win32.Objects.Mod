@@ -280,7 +280,7 @@ TYPE
 						cur := p(Process);
 						IF ((cur.mode = Ready) OR (cur.mode = Running)) & (cur.priority <= High) & (cur # r) THEN
 							res := Kernel32.SuspendThread(cur.handle);
-							cur.mode := Suspended;
+							cur.mode := Suspended
 						END;
 						p := p.next
 					END;
@@ -337,6 +337,7 @@ TYPE
 
 		PROCEDURE Wait;
 		BEGIN
+			process.mode := AwaitingEvent;
 			res := Kernel32.WaitForSingleObject(event, Kernel32.Infinite); (* block execution *)
 			ASSERT(res = Kernel32.WaitObject0);
 		END Wait;
@@ -786,6 +787,9 @@ BEGIN
 	t.mode := Running;
 	(* now gc is enabled for this process stack *)
 	Machine.Release(Machine.Objects);
+	(* loop all processes that the GC did not see during process suspending because they were in the very moment being generated (just before the locked section) *)
+	WHILE (gcActivity # NIL) & (gcActivity.process # NIL) & (gcActivity.process.mode = Running) DO END;
+
 	t.body(obj);
 	terminate(t);
 	RemoveExcpFrm(excpfrm);
