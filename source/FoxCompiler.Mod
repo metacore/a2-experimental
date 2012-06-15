@@ -243,6 +243,7 @@ TYPE
 				END;
 
 				IF options.documentation # NIL THEN
+					options.documentation.Initialize(diagnostics,log, flags,checker,system,activeCellsSpecification);
 					generatedModule := options.documentation.ProcessSyntaxTreeModule(module);
 				END;
 

@@ -220,11 +220,9 @@ TYPE
 
 		(** helper procedures interfacing to the scanner **)
 
-		(** Get next symbol from scanner and store it in object-local variable 'symbol' *)
-		PROCEDURE NextSymbol;
+		PROCEDURE SkipComments();
 		VAR comment: SyntaxTree.Comment;
 		BEGIN
-			error := ~scanner.GetNextSymbol(symbol) OR error;
 			WHILE ~error & (symbol.token = Scanner.Comment) DO
 				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.string^,symbol.stringLength);
 				moduleScope.AddComment(comment);
@@ -261,20 +259,21 @@ TYPE
 				END;
 				error := ~scanner.GetNextSymbol(symbol);
 			END;
+		END SkipComments;
+
+		(** Get next symbol from scanner and store it in object-local variable 'symbol' *)
+		PROCEDURE NextSymbol;
+		VAR comment: SyntaxTree.Comment;
+		BEGIN
+			error := ~scanner.GetNextSymbol(symbol) OR error;
+			SkipComments();
 		END NextSymbol;
 
 		(** Check if current symbol equals sym. If yes then return true, return false otherwise *)
 		PROCEDURE Peek(token: Scanner.Token): BOOLEAN;
 		VAR comment: SyntaxTree.Comment;
 		BEGIN
-			WHILE ~error & (symbol.token = Scanner.Comment) DO
-				comment := SyntaxTree.NewComment(symbol.start, currentScope, symbol.string^,symbol.stringLength);
-				moduleScope.AddComment(comment);
-				IF recentComment = NIL THEN
-					recentComment := comment;
-				END;
-				error := ~scanner.GetNextSymbol(symbol);
-			END;
+			SkipComments();
 			RETURN symbol.token = token
 		END Peek;
 
