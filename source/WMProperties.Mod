@@ -1901,7 +1901,7 @@ TYPE
 				INC(i)
 			END;
 			ReleaseWrite;
-			RETURN (i < nofProperties)
+			RETURN (i > nofProperties) (* if no success, then i=nofProperties;  patch PH 06/12 *)
 		END SetPropertyValue;
 
 		PROCEDURE SetXML*(xml : XML.Element);
