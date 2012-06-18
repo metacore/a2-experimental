@@ -83,10 +83,10 @@ TYPE
 		awaitingLock*:	ProcessQueue;	(* unused in UnixAos *)
 		awaitingCond*: ProcessQueue;
 		lockedBy*: ANY;	
-		lock*: ANY;	(* used by Win32 and UnixAos, unused for I386 *)
+		lock*: ANY;	(* used by Win32, unused for I386 and UnixAos *)
 		
-		mtx*: Unix.Mutex_t;		(* processes blocked awaiting lock *)
-		enter*: Unix.Condition_t;
+		mtx*: Unix.Mutex_t;			(* processes blocked awaiting lock *)
+		enter*: Unix.Condition_t;	(* processes blocked awaiting lock *)
 	END;
 
 	RootObject* = OBJECT 
