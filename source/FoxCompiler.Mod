@@ -227,7 +227,7 @@ TYPE
 				IF activeCellsSpecification = NIL THEN (* no activeCells *)
 				ELSIF (activeCellsSpecification.types.Length() = 0) & (activeCellsSpecification.instances.Length()=0) THEN (* nothing defined *)
 				ELSE
-					activeCellsAssembler := Backend.GetBackendByName("FoxIntermediateCodeAssembler");
+					activeCellsAssembler := Backend.GetBackendByName("FoxIntermediateLinker");
 					IF activeCellsAssembler= NIL THEN FinalMessage(TRUE,"could not install activeCells assembler"); RETURN FALSE END;
 					activeCellsAssembler.Initialize(diagnostics, log, flags, checker, system, activeCellsSpecification);
 					IF options.hardware # NIL THEN options.hardware.Init(diagnostics, log) END;

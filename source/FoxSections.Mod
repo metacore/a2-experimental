@@ -154,6 +154,8 @@ TYPE
 			| VarSection: w.String("var");
 			| ConstSection: w.String("const");
 			| InitCodeSection: w.String("initcode");
+			ELSE
+				w.String("UNDEFINED")
 			END;
 			w.String(" ");
 			DumpName(w);
