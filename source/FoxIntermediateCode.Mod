@@ -786,6 +786,11 @@ TYPE
 		op.offset := offset
 	END SetOffset;
 
+	PROCEDURE SetSymbol*(VAR op: Operand; section: Sections.Section);
+	BEGIN
+		op.symbol := section
+	END SetSymbol;
+
 	PROCEDURE SetIntValue*(VAR op: Operand; intValue: HUGEINT);
 	BEGIN op.intValue := intValue
 	END SetIntValue;
