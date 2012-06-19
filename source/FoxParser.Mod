@@ -1518,6 +1518,8 @@ TYPE
 			UNTIL ~Optional( Scanner.Comma );
 			Check( Scanner.Colon );
 			type := Type( SyntaxTree.invalidIdentifier, parentScope);
+			CommentSymbol(parameter);
+
 			ASSERT(type # NIL);
 			IF firstParameter # NIL THEN parameter := firstParameter.nextParameter ELSE parameter := procedureType.firstParameter END;
 			WHILE parameter # NIL DO
