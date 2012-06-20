@@ -6,7 +6,7 @@ IMPORT SYSTEM, Trace, Unix, Glue;
 CONST
 	DefaultConfig = "Color 0  StackSize 256";
 	
-	Version = "Aos (1.7/r4723)";
+	Version = "Aos (rev.4827)";
 
 	DefaultObjectFileExtension* = ".Obj";
 	
