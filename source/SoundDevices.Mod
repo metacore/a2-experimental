@@ -189,7 +189,7 @@ TYPE
 
 		PROCEDURE GetNativeFrequency*(nr : LONGINT):LONGINT;
 		BEGIN HALT(99) (* abstract *)
-		END GetNativeFrequeny;
+		END GetNativeFrequency;
 
 		PROCEDURE NofSamplingResolutions*():LONGINT;
 		BEGIN HALT(99) (* abstract *)
