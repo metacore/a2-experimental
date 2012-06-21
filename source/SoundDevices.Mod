@@ -187,7 +187,7 @@ TYPE
 		BEGIN HALT(99) (* abstract *)
 		END NofNativeFrequencies;
 
-		PROCEDURE GetNativeFrequeny*(nr : LONGINT):LONGINT;
+		PROCEDURE GetNativeFrequency*(nr : LONGINT):LONGINT;
 		BEGIN HALT(99) (* abstract *)
 		END GetNativeFrequeny;
 
