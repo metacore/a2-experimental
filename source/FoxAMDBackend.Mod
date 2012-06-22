@@ -1609,22 +1609,18 @@ TYPE
 			IF fpStackPointer # 0 THEN Error(instruction.textPosition,"compiler implementation error: fp stack not cleared before call") END;
 			IF instruction.op1.mode = IntermediateCode.ModeImmediate THEN
 				fixup := module.allSections.FindByName(instruction.op1.symbol);
-				IF fixup = NIL THEN fixup := module.importedSections.FindByName(instruction.op1.symbol) END;
 				IF (fixup # NIL) & (fixup.type = Sections.InlineCodeSection) THEN
-					code := fixup.symbol(SyntaxTree.Procedure).procedureScope.body.code;
 					pc := out.pc;
-					IF code.inlineCode # NIL THEN
-						emitter.code.CopyBits(code.inlineCode,0,code.inlineCode.GetSize());
-					END;
-					IF fixup(IntermediateCode.Section).resolved # NIL THEN
-						resolved := fixup(IntermediateCode.Section).resolved;
+					(* resolved must be available at this point ! *)
+					resolved := fixup(IntermediateCode.Section).resolved;
+					IF resolved # NIL THEN
+						emitter.code.CopyBits(resolved.bits,0,resolved.bits.GetSize());
 						emitterFixup := resolved.fixupList.firstFixup;
 						WHILE (emitterFixup # NIL) DO
 							newFixup := BinaryCode.NewFixup(emitterFixup.mode,emitterFixup.offset+pc,emitterFixup.symbol,emitterFixup.symbolOffset,emitterFixup.displacement,emitterFixup.scale,emitterFixup.pattern);
 							out.fixupList.AddFixup(newFixup);
 							emitterFixup := emitterFixup.nextFixup;
 						END;
-					(* ELSE ok: imported inline code without fixups *)
 					END;
 				ELSE
 					Assembler.InitOffset32(target,instruction.op1.intValue);

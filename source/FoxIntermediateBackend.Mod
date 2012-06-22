@@ -1,7 +1,7 @@
 MODULE FoxIntermediateBackend; (** AUTHOR ""; PURPOSE ""; *)
 
 IMPORT Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, SemanticChecker := FoxSemanticChecker, Backend := FoxBackend, Global := FoxGlobal,
-	Scanner := FoxScanner, IntermediateCode := FoxIntermediateCode, Sections := FoxSections, Printout := FoxPrintout,
+	Scanner := FoxScanner, IntermediateCode := FoxIntermediateCode, Sections := FoxSections, BinaryCode := FoxBinaryCode,  Printout := FoxPrintout,
 	SYSTEM, Diagnostics, Strings, Options, Streams, Compiler, Formats := FoxFormats, SymbolFileFormat := FoxTextualSymbolFile, D := Debugging,
 	FingerPrinter := FoxFingerPrinter, StringPool, ActiveCells := FoxActiveCells;
 
@@ -6610,6 +6610,7 @@ TYPE
 
 		PROCEDURE StaticCallOperand(VAR operand: Operand; x: SyntaxTree.Procedure);
 		VAR source: IntermediateCode.Section; tag,reg: IntermediateCode.Operand; name:Basic.SegmentedName; sectionType: SHORTINT;
+			binary: BinaryCode.Section; bits: SyntaxTree.BinaryCode;
 		BEGIN
 			IF Trace THEN TraceEnter("StaticCallOperand") END;
 			IF x.type(SyntaxTree.ProcedureType).isDelegate THEN
@@ -6630,6 +6631,12 @@ TYPE
 				IF source.pc = 0 THEN (* no code yet *)
 					source.Emit(Asm(position,x.procedureScope.body.code.sourceCode));
 				END;
+			ELSIF (sectionType = Sections.InlineCodeSection) & (x.procedureScope.body.code.inlineCode # NIL) THEN
+				bits := x.procedureScope.body.code.inlineCode;
+				source := NewSection(module.allSections, sectionType, name, x, commentPrintout # NIL);
+				binary := BinaryCode.NewBinarySection(source.type, source.priority, system.codeUnit, name, FALSE, FALSE);
+				binary.CopyBits(bits, 0, bits.GetSize());
+				source.SetResolved(binary);
 			ELSE
 				source := NewSection(module.importedSections, sectionType, name,x,commentPrintout # NIL);
 			END;

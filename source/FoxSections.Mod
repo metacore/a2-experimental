@@ -27,21 +27,20 @@ TYPE
 		name-: SectionName; (* name of this section (globally unique-name derived from symbol name) *)
 		type-: SHORTINT; (* CodeSection, InlineCodeSection, VarSection or ConstSection *)
 		priority-: INTEGER; (* priority of the section *)
-		symbol-: SyntaxTree.Symbol; (* corresponding symbol in AST *)
-
-		(* for compatibility with old object file format *)
-		offset-: LONGINT;
-		entryNumber-: LONGINT;
-		isCaseTable*: BOOLEAN;
-
-		referenced-: BOOLEAN;
 
 		fixed-: BOOLEAN; (* whether the position of the section is fixed, as opposed to being restricted by an alignment *)
 		positionOrAlignment-: LONGINT; (* the alignment OR the position *)
 		fingerprint-: LONGINT; (* fingerprint of the corresponding syntax tree node *)
 		bitsPerUnit-: LONGINT; (* the unit size given in bits *)
-		isReachable-: BOOLEAN;
 
+		(* for compatibility with old object file format *)
+		symbol-: SyntaxTree.Symbol; (* corresponding symbol in AST *)
+		offset-: LONGINT;
+		isCaseTable*: BOOLEAN; (* necessary because old object file format cannot patch fixups in variable/constant area *)
+		referenced-: BOOLEAN;
+
+		(* for linking *)
+		isReachable-: BOOLEAN;
 
 		PROCEDURE & InitSection*(type: SHORTINT; priority: INTEGER; CONST n: ObjectFile.SegmentedName; symbol: SyntaxTree.Symbol);
 		BEGIN
@@ -49,9 +48,7 @@ TYPE
 			SELF.symbol := symbol;
 			SELF.type := type;
 			SELF.priority := priority;
-			entryNumber := 0;
 			offset := 0;
-			entryNumber := 0;
 			referenced := TRUE;
 			fixed := FALSE;
 			positionOrAlignment := 1;
@@ -107,11 +104,6 @@ TYPE
 		PROCEDURE SetPriority*(priority: INTEGER);
 		BEGIN SELF.priority := priority
 		END SetPriority;
-
-		(* needed for old object file format, will be removed *)
-		PROCEDURE SetEntryNumber*(nr: LONGINT);
-		BEGIN entryNumber := nr;
-		END SetEntryNumber;
 
 		PROCEDURE Dump*(w: Streams.Writer);
 		BEGIN

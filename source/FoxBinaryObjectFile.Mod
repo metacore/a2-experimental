@@ -2172,6 +2172,11 @@ TYPE
 			END;
 
 			IF Trace THEN
+				D.String("imported sections(module) "); D.Ln;
+				module.importedSections.Dump(D.Log); D.Ln;
+				D.String("sections(module) "); D.Ln;
+				module.allSections.Dump(D.Log); D.Ln;
+
 				D.String("imported: "); D.Ln; importedSymbols.Dump(D.Log);
 				D.String("not imported: "); D.Ln; symbols.Dump(D.Log);
 				D.Ln;
