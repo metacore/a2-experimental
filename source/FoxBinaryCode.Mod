@@ -23,13 +23,15 @@ TYPE
 		pattern-: FixupPatterns; (* patterns describing the fixup format, cf. above *)
 		offset-: ObjectFile.Unit;
 
-		symbol-: Sections.Section; (* reference to the fixup's destination section *)
+		symbol-: Sections.SectionName; (* reference to the fixup's destination section *)
 		symbolOffset-: LONGINT; (* offset in intermediate section, must be patched (resolved and added to displacement) to destination section displacement *)
+		resolved*: Sections.Section; (* cache ! *)
 
-		PROCEDURE & InitFixup*(mode: INTEGER; fixupOffset: Unit; symbol: Sections.Section; symbolOffset: LONGINT; displacement: Unit; scale: LONGINT; fixupPattern: ObjectFile.FixupPatterns);
+		PROCEDURE & InitFixup*(mode: INTEGER; fixupOffset: Unit; symbol: Sections.SectionName; symbolOffset: LONGINT; displacement: Unit; scale: LONGINT; fixupPattern: ObjectFile.FixupPatterns);
 		BEGIN
 			ASSERT((mode = Relative) OR (mode = Absolute));
-			ASSERT(symbol # NIL);
+			ASSERT(symbol # "");
+			ASSERT(symbol[0] # 0);
 			nextFixup := NIL;
 			SELF.mode := mode;
 			SELF.displacement := displacement;
@@ -51,7 +53,7 @@ TYPE
 			SELF.offset := offset;
 		END SetFixupOffset;
 
-		PROCEDURE SetSymbol*(symbol: Sections.Section; symbolOffset: LONGINT; displacement: Unit);
+		PROCEDURE SetSymbol*(symbol: Sections.SectionName; symbolOffset: LONGINT; displacement: Unit);
 		BEGIN
 			SELF.symbol := symbol;
 			SELF.symbolOffset := symbolOffset;
@@ -61,7 +63,7 @@ TYPE
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR i: LONGINT;
 		BEGIN
-			symbol.DumpName(w);
+			Basic.WriteSegmentedName(w, symbol);
 			IF symbolOffset # 0 THEN w.String(":"); w.Int(symbolOffset, 0) END;
 
 			w.String(" (displ="); w.Int(displacement, 0); w.String(")");
@@ -667,7 +669,7 @@ TYPE
 		RETURN result
 	END ConvertToLongreal;
 
-	PROCEDURE NewFixup*(mode: INTEGER; fixupOffset: LONGINT; symbol: Sections.Section; symbolOffset,displacement: LONGINT; scale: LONGINT; fixupPattern: ObjectFile.FixupPatterns): Fixup;
+	PROCEDURE NewFixup*(mode: INTEGER; fixupOffset: LONGINT; symbol: Sections.SectionName; symbolOffset,displacement: LONGINT; scale: LONGINT; fixupPattern: ObjectFile.FixupPatterns): Fixup;
 	VAR fixup: Fixup;
 	BEGIN
 		NEW(fixup,mode,fixupOffset,symbol,symbolOffset,displacement,scale,fixupPattern); RETURN fixup

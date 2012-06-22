@@ -132,7 +132,7 @@ TYPE
 
 		IF exportInfo # NIL THEN
 			FOR i := 0 TO exportInfo.exports-1 DO
-				ObjectFile.StringToSegmentedName(exportInfo.symbolNames[i], ".", name);
+				ObjectFile.StringToSegmentedName(exportInfo.symbolNames[i], name);
 				IF name= section.identifier.name THEN
 					exportInfo.exportAddresses[i] := address DIV section.unit + displacement;
 				END;

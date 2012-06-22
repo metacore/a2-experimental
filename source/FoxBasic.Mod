@@ -1731,7 +1731,7 @@ VAR
 
 	PROCEDURE ToSegmentedName*(CONST name: ARRAY OF CHAR; VAR pooledName: SegmentedName);
 	BEGIN
-		ObjectFile.StringToSegmentedName(name, ".", pooledName);
+		ObjectFile.StringToSegmentedName(name,pooledName);
 	END ToSegmentedName;
 
 	PROCEDURE SegmentedNameToString*(CONST pooledName: SegmentedName; VAR name: ARRAY OF CHAR);

@@ -12,12 +12,6 @@ CONST
 	InlineCodeSection*=10;
 	UnknownSectionType *= 11;
 
-	(* section kinds *)
-	UnknownKind* = -1;
-	RegularKind* = 1;
-	CaseTableKind* = 2;
-	ImportedSymbolKind* = 3;
-
 	LineCommentStart*="; ";
 
 	(* gensam *)
@@ -26,20 +20,19 @@ CONST
 
 TYPE
 	Identifier*=ObjectFile.Identifier;
+	SectionName*= ObjectFile.SegmentedName;
 
 	Section*=OBJECT
 	VAR
-		name-: ObjectFile.SegmentedName; (* name of this section (globally unique-name derived from symbol name) *)
+		name-: SectionName; (* name of this section (globally unique-name derived from symbol name) *)
 		type-: SHORTINT; (* CodeSection, InlineCodeSection, VarSection or ConstSection *)
 		priority-: INTEGER; (* priority of the section *)
 		symbol-: SyntaxTree.Symbol; (* corresponding symbol in AST *)
 
-		isPrototype-: BOOLEAN; (* only applicable if kind=UnknownKind (used to determine whether a section is external or not) *)
-
 		(* for compatibility with old object file format *)
-		kind-: SHORTINT; (* UnknownKind, RegularKind, CaseTableKind, ImportedSymbolKind *)
 		offset-: LONGINT;
 		entryNumber-: LONGINT;
+		isCaseTable*: BOOLEAN;
 
 		referenced-: BOOLEAN;
 
@@ -49,15 +42,13 @@ TYPE
 		bitsPerUnit-: LONGINT; (* the unit size given in bits *)
 		isReachable-: BOOLEAN;
 
-		PROCEDURE & InitSection*(kind, type: SHORTINT; priority: INTEGER; isDefinition: BOOLEAN; CONST n: ObjectFile.SegmentedName; symbol: SyntaxTree.Symbol);
+
+		PROCEDURE & InitSection*(type: SHORTINT; priority: INTEGER; CONST n: ObjectFile.SegmentedName; symbol: SyntaxTree.Symbol);
 		BEGIN
-			ASSERT(kind # 0);
 			name := n;
 			SELF.symbol := symbol;
-			SELF.kind := kind;
 			SELF.type := type;
 			SELF.priority := priority;
-			isPrototype := ~isDefinition;
 			entryNumber := 0;
 			offset := 0;
 			entryNumber := 0;
@@ -65,34 +56,14 @@ TYPE
 			fixed := FALSE;
 			positionOrAlignment := 1;
 			fingerprint := 0;
-			bitsPerUnit := UnknownSize
+			bitsPerUnit := UnknownSize;
+			isCaseTable := FALSE;
 		END InitSection;
-
-		(* whether the section acts as a placeholder for another one (sections that where not assigned a proper kind are external if they are still prototypes) *)
-		PROCEDURE IsExternal*(): BOOLEAN;
-		BEGIN
-			IF kind = UnknownKind THEN
-				RETURN isPrototype
-			ELSIF kind = ImportedSymbolKind THEN
-				RETURN TRUE
-			ELSE
-				RETURN FALSE
-			END
-		END IsExternal;
 
 		PROCEDURE IsCode*(): BOOLEAN;
 		BEGIN
 			RETURN type IN {CodeSection, InitCodeSection, BodyCodeSection};
 		END IsCode;
-
-		PROCEDURE MarkAsNoPrototype*;
-		BEGIN isPrototype := FALSE
-		END MarkAsNoPrototype;
-
-		(** set the kind of a section this **)
-		PROCEDURE SetKind*(kind: SHORTINT);
-		BEGIN	 SELF.kind := kind
-		END SetKind;
 
 		PROCEDURE SetReferenced*(ref: BOOLEAN);
 		BEGIN referenced := ref;
@@ -144,8 +115,6 @@ TYPE
 
 		PROCEDURE Dump*(w: Streams.Writer);
 		BEGIN
-			IF IsExternal() THEN w.String(".external ") END;
-
 			w.String(".");
 			CASE type OF
 			| CodeSection: w.String("code")
@@ -175,19 +144,6 @@ TYPE
 
 			(* note: this information is actually redundant *)
 			IF GetSize() # UnknownSize THEN w.String(" size="); w.Int(GetSize(), 0) END;
-
-			(*
-			(* only for debugging of the binary object file format *)
-			w.String(" "); w.String(LineCommentStart);
-			w.String("kind=");
-			CASE kind OF
-			| UnknownKind: w.String("unknown")
-			| RegularKind: w.String("regular")
-			| CaseTableKind: w.String("caseTable")
-			| ImportedSymbolKind: w.String("importedSymbol")
-			END;
-			IF offset # 0 THEN w.String(" offset="); w.Int(offset, 0) END;
-			*)
 
 			w.Update
 		END Dump;
@@ -312,16 +268,7 @@ TYPE
 		END GetSection;
 
 		PROCEDURE PutSection(symbol: SyntaxTree.Symbol; section: Section);
-		VAR
-			foundSection: Section;
 		BEGIN
-			IF section.kind = ImportedSymbolKind THEN
-				foundSection := GetSection(symbol);
-				IF (foundSection # NIL) THEN
-					ASSERT(foundSection.kind = RegularKind);
-					RETURN
-				END
-			END;
 			Put(symbol,section);
 		END PutSection;
 
@@ -402,42 +349,15 @@ TYPE
 			RETURN lookupName.GetSection(name)
 		END FindByName;
 
-		(** finds a section with a certain AST symbol and kind (note: sections of unknown kind are also returned) **)
-		PROCEDURE FindBySymbolAndKind*(CONST symbol: SyntaxTree.Symbol; kind: SHORTINT): Section;
-		VAR
-			section: Section;
-		BEGIN
-			section := FindBySymbol(symbol); (* note: it is assumed that a symbol may only be present once in the list *)
-			IF (section # NIL) & (section.kind # UnknownKind) & (section.kind # kind) THEN section := NIL END;
-			RETURN section
-		END FindBySymbolAndKind;
-
-		(** finds a section with a certain name and kind (note: sections of unknown kind are also returned) **)
-		PROCEDURE FindByNameAndKind*(CONST name: Basic.SegmentedName; kind: SHORTINT): Section;
-		VAR
-			section: Section;
-		BEGIN
-			section := FindByName(name); (* note: it is assumed that a symbol may only be present once in the list *)
-			IF (section # NIL) & (section.kind # UnknownKind) & (section.kind # kind) THEN section := NIL END;
-			RETURN section
-		END FindByNameAndKind;
-
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR
 			i: LONGINT;
 			section: Section;
 		BEGIN
-			(* dump internal sections *)
 			FOR i := 0 TO Length() - 1 DO
 				section := GetSection(i);
-				IF ~section.IsExternal() THEN section.Dump(w); w.Ln END
+				section.Dump(w); w.Ln
 			END;
-
-			(* dump external sections *)
-			FOR i := 0 TO Length() - 1 DO
-				section := GetSection(i);
-				IF section.IsExternal() THEN section.Dump(w); w.Ln END
-			END
 		END Dump;
 	END SectionList;
 
@@ -477,6 +397,8 @@ TYPE
 	Module* = OBJECT (Formats.GeneratedModule)
 	VAR
 		allSections-: SectionList;
+		importedSections-: SectionList; (* necessary for binary object file format, for reference to symbol *)
+
 		platformName-: SyntaxTree.IdentifierString;
 		imports-: NameList;
 
@@ -484,6 +406,7 @@ TYPE
 		BEGIN
 			Init^(module,system);
 			NEW(allSections);
+			NEW(importedSections);
 			NEW(imports, 128);
 		END Init;
 

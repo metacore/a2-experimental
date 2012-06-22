@@ -433,7 +433,7 @@ VAR
 		BEGIN
 			reader.SkipWhitespace;
 			reader.String(name);
-			StringToSegmentedName(name,".",identifier.name);
+			StringToSegmentedName(name,identifier.name);
 			reader.SkipWhitespace; reader.Int (identifier.fingerprint,FALSE);
 		END ReadIdentifier;
 
@@ -919,7 +919,7 @@ VAR
 		RETURN index;
 	END AddFixup;
 
-	PROCEDURE StringToSegmentedName*(CONST name: ARRAY OF CHAR; sep: CHAR; VAR segmentedName: SegmentedName);
+	PROCEDURE StringToSegmentedName*(CONST name: ARRAY OF CHAR; VAR segmentedName: SegmentedName);
 	VAR i,j,segment: LONGINT; n: SectionName;
 	BEGIN
 		(* convert a string of the form A.B.C.suffix to [S(A), S(B), S(C), S(suffix)] *)
@@ -950,7 +950,7 @@ VAR
 			IF segmentedName[segment] >= 0 THEN
 				IF segment > 0 THEN name[i] := "."; INC(i) END;
 				StringPool.GetString(segmentedName[segment],n);
-			j := 0;
+				j := 0;
 				WHILE n[j] # 0X DO
 				name[i] := n[j]; INC(i); INC(j);
 			END;
@@ -963,13 +963,61 @@ VAR
 	OPERATOR "="*(CONST l,r: SegmentedName): BOOLEAN;
 	VAR i: LONGINT;
 	BEGIN
-		i := 0; WHILE (l[i] = r[i]) & (l[i] # -1)  DO INC(i) END; RETURN l[i] = r[i];
+		i := 0; WHILE (i < LEN(l)) & (l[i] = r[i]) & (l[i] # -1)  DO INC(i) END; RETURN (i = LEN(l)) OR (l[i] = r[i]);
 	END "=";
+
+	OPERATOR ":="*(VAR l: SegmentedName; CONST r: ARRAY OF CHAR);
+	BEGIN
+		StringToSegmentedName(r, l)
+	END ":=";
+
+	OPERATOR ":="*(VAR l: ARRAY OF CHAR; CONST r: SegmentedName);
+	BEGIN
+		SegmentedNameToString(r, l)
+	END ":=";
+
+	OPERATOR "="*(CONST l: SegmentedName; CONST r: ARRAY OF CHAR): BOOLEAN;
+	VAR i,j,segment: LONGINT; n: SectionName;
+	BEGIN
+		i := 0; segment := 0;
+		WHILE (segment < LEN(l)) DO
+			IF l[segment] < 0 THEN
+				RETURN r[i] = 0X
+			ELSE
+				IF (segment>0) THEN
+					IF (r[i] # ".") THEN RETURN FALSE END;
+					INC(i);
+				END;
+				StringPool.GetString(l[segment], n);
+				j := 0;
+				WHILE (r[i] = n[j]) & (n[j] # 0X) & (n[i] # 0X) DO
+					INC(i); INC(j);
+				END;
+				IF n[j] # 0X THEN RETURN FALSE END;
+			END;
+			INC(segment);
+		END;
+		RETURN r[i] = 0X;
+	END "=";
+
+	OPERATOR "="*(CONST l: ARRAY OF CHAR; r: SegmentedName): BOOLEAN;
+	BEGIN
+		RETURN r = l
+	END "=";
+
+	OPERATOR "#"*(CONST l: SegmentedName; CONST r: ARRAY OF CHAR): BOOLEAN;
+	BEGIN RETURN ~(l=r)
+	END "#";
+
+	OPERATOR "#"*(CONST l: ARRAY OF CHAR; r: SegmentedName): BOOLEAN;
+	BEGIN
+		RETURN ~(r=l)
+	END "#";
 
 	OPERATOR "#"*(CONST l,r: SegmentedName): BOOLEAN;
 	VAR i: LONGINT;
 	BEGIN
-		i := 0; WHILE (l[i] = r[i]) & (l[i] # -1)  DO INC(i) END; RETURN l[i] # r[i];
+		i := 0; WHILE (i<LEN(l)) & (l[i] = r[i]) & (l[i] # -1)  DO INC(i) END; RETURN (i<LEN(l)) & (l[i] # r[i]);
 	END "#";
 
 	PROCEDURE Statistics*;
@@ -977,7 +1025,6 @@ VAR
 		TRACE(headerLen); TRACE(fixupLen); TRACE(codeLen);
 		TRACE(statSections); TRACE(statFixups); TRACE(statSegments);
 	END Statistics;
-
 
 BEGIN
 	categories[Code] := "code";

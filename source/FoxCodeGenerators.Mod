@@ -155,7 +155,7 @@ TYPE
 				out.fixupList.InitFixupList;
 				WHILE fixup # NIL DO
 					next := fixup.nextFixup;
-					IF (fixup.symbol = in) & (fixup.mode = BinaryCode.Relative) THEN (* local relative fixup *)
+					IF (fixup.symbol = in.name) & (fixup.mode = BinaryCode.Relative) THEN (* local relative fixup *)
 						IF dump # NIL THEN
 							dump.String("local fixup "); dump.Int(fixup.offset,1); dump.String(" <-- ");
 							fixup.Dump(dump); dump.Ln; (*dump.Update;*)
@@ -176,7 +176,7 @@ TYPE
 						END;
 						IF ~out.ApplyFixup(fixup) THEN
 							COPY("fixup out of range: ", msg);
-							Basic.SegmentedNameToString(fixup.symbol.name, string);
+							string := fixup.symbol;
 							Strings.Append(msg, string);
 							Strings.Append(msg, ":");
 							Strings.IntToStr(fixup.offset, number);
@@ -246,19 +246,18 @@ TYPE
 			END DumpInstruction;
 
 
-			PROCEDURE Emulate(CONST x: IntermediateCode.Instruction; CONST moduleName,procedureName: SyntaxTree.IdentifierString);
+			PROCEDURE Emulate(VAR x: IntermediateCode.Instruction; CONST moduleName,procedureName: SyntaxTree.IdentifierString);
 			(*! this emulation procedure emulates instructions with destination operand only *)
 			VAR
 				parSize: LONGINT; sectionName: Basic.SegmentedName; source: Sections.Section; op: IntermediateCode.Operand;
 				instruction: IntermediateCode.Instruction;
 
-				PROCEDURE Emit(CONST instruction: IntermediateCode.Instruction; CONST str: ARRAY OF CHAR);
+				PROCEDURE Emit(instruction: IntermediateCode.Instruction; CONST str: ARRAY OF CHAR);
 				BEGIN
 					IF dump # NIL THEN
 						dump.Int(pc, 1); dump.String(" (emulation ");dump.String(str); dump.String(") : "); IntermediateCode.DumpInstruction(dump, instruction); dump.Ln;
 					END;
 					Generate(instruction);
-
 				END Emit;
 
 				PROCEDURE SaveRegisters;
@@ -275,7 +274,7 @@ TYPE
 				END SaveRegisters;
 
 				PROCEDURE RestoreRegisters;
-				VAR op: IntermediateCode.Operand; entry: RegisterEntry;
+				VAR op: IntermediateCode.Operand; entry: RegisterEntry; instruction: IntermediateCode.Instruction;
 				BEGIN
 					entry := liveRegisters.last;
 					WHILE  entry # NIL DO
@@ -311,12 +310,7 @@ TYPE
 				Basic.InitSegmentedName(sectionName);
 				Basic.SuffixSegmentedName(sectionName, StringPool.GetIndex1(moduleName));
 				Basic.SuffixSegmentedName(sectionName, StringPool.GetIndex1(procedureName));
-				IF moduleName = module.moduleName THEN
-					source := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, FALSE, sectionName,NIL,dump#NIL);
-				ELSE
-					source := IntermediateCode.NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.CodeSection, FALSE, sectionName,NIL,dump#NIL);
-				END;
-				IntermediateCode.InitAddress(op, IntermediateCode.GetType(module.system,module.system.addressType), source , 0);
+				IntermediateCode.InitAddress(op, IntermediateCode.GetType(module.system,module.system.addressType), sectionName , 0);
 				Emit(IntermediateBackend.Call(x.textPosition,op,IntermediateBackend.ToMemoryUnits(module.system,parSize)),"");
 				Emit(IntermediateBackend.Result(x.textPosition,x.op1),"");
 				RestoreRegisters;
@@ -403,7 +397,7 @@ TYPE
 		END Supported;
 
 		(* generate procedure - is called for any instruction that cannot be output directly by the generic code generator *)
-		PROCEDURE Generate*(CONST instr: IntermediateCode.Instruction);
+		PROCEDURE Generate*(VAR instr: IntermediateCode.Instruction);
 		BEGIN (*HALT(100); *) (* abstract *)
 		END Generate;
 
@@ -421,7 +415,7 @@ TYPE
 			name[0] := StringPool.GetIndex1(module.moduleName);
 			name[1] := StringPool.GetIndex1("@Immediates");
 			name[2] := -1;
-			section := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,NIL,TRUE);
+			section := IntermediateCode.NewSection(module.allSections, Sections.ConstSection, name,NIL,TRUE);
 			RETURN section
 		END GetDataSection;
 
@@ -440,7 +434,7 @@ TYPE
 				ELSE Assert(FALSE,"no floats other than 32 or 64 bit")
 				END;
 			END;
-			IF instruction.op1.symbol # NIL THEN
+			IF instruction.op1.symbol # "" THEN
 				NEW(fixupFormat,1);
 				fixupFormat[0].offset := 0;
 				fixupFormat[0].bits := type.sizeInBits;

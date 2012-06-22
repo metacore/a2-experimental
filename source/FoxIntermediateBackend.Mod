@@ -137,6 +137,7 @@ TYPE
 		moduleSelf: SyntaxTree.Variable;
 		dump: BOOLEAN;
 		forceModuleBody: BOOLEAN;
+		addressType: IntermediateCode.Type;
 
 		PROCEDURE & Init(system: Global.System; implementationVisitor: ImplementationVisitor; backend: IntermediateBackend; forceModuleBody, dump: BOOLEAN);
 		BEGIN
@@ -145,6 +146,7 @@ TYPE
 			SELF.dump := dump;
 			SELF.backend := backend;
 			SELF.forceModuleBody := forceModuleBody;
+			addressType := IntermediateCode.GetType(system,system.addressType)
 		END Init;
 
 		PROCEDURE Error(position: LONGINT; CONST s: ARRAY OF CHAR);
@@ -250,10 +252,10 @@ TYPE
 					INC(port);
 				ELSIF SemanticChecker.IsStaticArray(type,type,len) THEN
 					Global.GetSymbolSegmentedName(parameter,name);
-					symbol := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,parameter,dump);
+					symbol := implementationVisitor.NewSection(module.allSections, Sections.ConstSection, name,parameter,dump);
 					WHILE len > 0 DO
 						adr := backend.activeCellsSpecification.GetPortAddress(port);
-						IntermediateCode.InitImmediate(op,IntermediateCode.GetType(system,system.addressType),adr);
+						IntermediateCode.InitImmediate(op,addressType,adr);
 						symbol.Emit(Data(-1,op));
 						DEC(len); INC(port);
 					END;
@@ -294,7 +296,7 @@ TYPE
 			IF (currentScope IS SyntaxTree.ModuleScope) OR (currentScope IS SyntaxTree.CellScope) THEN
 				(* code section for variable *)
 				Global.GetSymbolSegmentedName(x,name);
-				irv := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.VarSection, TRUE, name,x,dump);
+				irv := implementationVisitor.NewSection(module.allSections, Sections.VarSection, name,x,dump);
 				irv.SetPositionOrAlignment(x.fixed, x.alignment);
 				irv.SetOffset(ToMemoryUnits(system,x.offsetInBits));
 				irv.Emit(Reserve(x.position,ToMemoryUnits(system,system.SizeOf(x.type))));
@@ -311,7 +313,7 @@ TYPE
 			ASSERT(currentScope.outerScope IS SyntaxTree.CellScope);
 			(* code section for variable *)
 			Global.GetSymbolSegmentedName(x,name);
-			irv := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.VarSection, TRUE, name,x,dump);
+			irv := implementationVisitor.NewSection(module.allSections, Sections.VarSection, name,x,dump);
 			irv.SetPositionOrAlignment(x.fixed, x.alignment);
 			(*
 			irv.SetOffset(ToMemoryUnits(system,x.offsetInBits));
@@ -468,7 +470,7 @@ TYPE
 			implementationVisitor.GetCodeSectionNameForSymbol(x, name);
 			IF (scope.body # NIL) & (x.isInline) THEN
 				inline := TRUE;
-				ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InlineCodeSection, TRUE, name,x,dump);
+				ir := implementationVisitor.NewSection(module.allSections, Sections.InlineCodeSection, name,x,dump);
 			ELSIF (x.scope # NIL) & (x.scope IS SyntaxTree.CellScope) & (x.scope(SyntaxTree.CellScope).ownerCell.isCellNet)
 				OR (x.scope # NIL) & (x.scope IS SyntaxTree.ModuleScope) & (x.scope(SyntaxTree.ModuleScope).ownerModule.isCellNet) THEN
 					(* assembly *)
@@ -476,25 +478,25 @@ TYPE
 			ELSIF x = module.module.moduleScope.bodyProcedure THEN
 				inline := FALSE;
 				AddBodyCallStub(x);
-				ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.BodyCodeSection, TRUE, name,x,dump);
+				ir := implementationVisitor.NewSection(module.allSections, Sections.BodyCodeSection, name,x,dump);
 			ELSIF (scope.outerScope IS SyntaxTree.CellScope) & (x = scope.outerScope(SyntaxTree.CellScope).bodyProcedure) THEN
 				inline := FALSE;
 				actorType := scope.outerScope(SyntaxTree.CellScope).ownerCell;
 				IF ~HasValue(actorType.modifiers,Global.StringDataMemorySize,stackSize) THEN stackSize := ActiveCells.defaultDataMemorySize END;
 				AddBodyCallStub(x);
 				AddStackAllocation(x,stackSize);
-				ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.BodyCodeSection, TRUE, name,x,dump);
+				ir := implementationVisitor.NewSection(module.allSections,Sections.BodyCodeSection, name,x,dump);
 			ELSIF (scope.outerScope IS SyntaxTree.CellScope) & (x.isConstructor) THEN
 				inline := FALSE;
 				Parameters(procedureType.firstParameter);
-				ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, TRUE, name,x,dump);
+				ir := implementationVisitor.NewSection(module.allSections, Sections.CodeSection, name,x,dump);
 			ELSE
 				inline := FALSE;
 				IF x.isEntry OR x.isExit THEN
-					ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InitCodeSection, TRUE, name,x,dump);
+					ir := implementationVisitor.NewSection(module.allSections, Sections.InitCodeSection, name,x,dump);
 					IF x.isEntry THEN ir.SetPriority(EntryPriority) ELSE ir.SetPriority(ExitPriority) END;
 				ELSE
-					ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, TRUE, name,x,dump);
+					ir := implementationVisitor.NewSection(module.allSections, Sections.CodeSection, name,x,dump);
 				END;
 			END;
 
@@ -565,7 +567,7 @@ TYPE
 					IF ToMemoryUnits(system,stackSize) > 4*1024-256 THEN (* stack frame potentially larger than page size *) (*! get page size from backend *)
 						(*! unnecessary with new implementation of ENTER -- should potentially be called by backend
 						IF implementationVisitor.GetRuntimeProcedure(implementationVisitor.runtimeModuleName,"EnsureAllocatedStack",procedure,TRUE) THEN
-							size := IntermediateCode.Immediate(IntermediateCode.GetType(system,system.addressType),ToMemoryUnits(system,stackSize+256));
+							size := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,stackSize+256));
 							ir.EmitAt(pc,Push(size));
 							implementationVisitor.StaticCallOperand(result,procedure);
 							ir.EmitAt(pc+1,Call(result.op,ProcedureParametersSize(system,procedure)));
@@ -578,15 +580,15 @@ TYPE
 
 					IF stackSize > 0 THEN
 						IF (stackSize MOD system.addressSize = 0) THEN
-							null := IntermediateCode.Immediate(IntermediateCode.GetType(system,system.addressType),0);
-							fp := IntermediateCode.Register(IntermediateCode.GetType(system,system.addressType),IntermediateCode.GeneralPurposeRegister,IntermediateCode.FP);
+							null := IntermediateCode.Immediate(addressType,0);
+							fp := IntermediateCode.Register(addressType,IntermediateCode.GeneralPurposeRegister,IntermediateCode.FP);
 							IntermediateCode.AddOffset(fp,ToMemoryUnits(system,-system.addressSize));
-							size := IntermediateCode.Immediate(IntermediateCode.GetType(system,system.addressType),stackSize DIV system.addressSize);
+							size := IntermediateCode.Immediate(addressType,stackSize DIV system.addressSize);
 						ELSE
 							null := IntermediateCode.Immediate(int8,0);
-							fp := IntermediateCode.Register(IntermediateCode.GetType(system,system.addressType),IntermediateCode.GeneralPurposeRegister,IntermediateCode.FP);
+							fp := IntermediateCode.Register(addressType,IntermediateCode.GeneralPurposeRegister,IntermediateCode.FP);
 							IntermediateCode.AddOffset(fp,ToMemoryUnits(system,-null.type.sizeInBits));
-							size := IntermediateCode.Immediate(IntermediateCode.GetType(system,system.addressType),stackSize DIV null.type.sizeInBits);
+							size := IntermediateCode.Immediate(addressType,stackSize DIV null.type.sizeInBits);
 						END;
 						(*! should potentially be called by backend -- enter might initialize
 						ir.EmitAt(pc+3,Fill(fp,null,size,TRUE));
@@ -630,10 +632,10 @@ TYPE
 			procedure.SetType(SyntaxTree.NewProcedureType(-1,bodyProcedure.scope));
 			procedure.SetAccess(SyntaxTree.Hidden);
 			Global.GetSymbolSegmentedName (procedure,name);
-			ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InitCodeSection,TRUE, name,procedure,dump);
+			ir := implementationVisitor.NewSection(module.allSections, Sections.InitCodeSection, name,procedure,dump);
 			ir.SetPriority(InitPriority);
 			Global.GetSymbolSegmentedName (bodyProcedure,name);
-			IntermediateCode.InitAddress(op, IntermediateCode.GetType(system,system.addressType), implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.BodyCodeSection, TRUE, name,bodyProcedure,dump) , 0);
+			IntermediateCode.InitAddress(op, addressType, name, 0);
 			ir.Emit(Call(bodyProcedure.position,op, 0));
 		END AddBodyCallStub;
 
@@ -644,9 +646,9 @@ TYPE
 			Global.GetSymbolSegmentedName (symbol,name);
 			Basic.RemoveSuffix(name);
 			Basic.SuffixSegmentedName(name, Basic.MakeString("@StackAllocation"));
-			ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.InitCodeSection,TRUE, name,NIL,dump);
+			ir := implementationVisitor.NewSection(module.allSections,Sections.InitCodeSection,name,NIL,dump);
 			ir.SetPriority(FirstPriority);
-			IntermediateCode.InitImmediate(op,IntermediateCode.GetType(system,system.addressType),initStack);
+			IntermediateCode.InitImmediate(op,addressType,initStack);
 			ir.Emit(Mov(-1,implementationVisitor.sp,op));
 		END AddStackAllocation;
 
@@ -712,8 +714,8 @@ TYPE
 				moduleSelf.SetType(system.anyType);
 				moduleSelf.SetScope(x.moduleScope);
 				moduleSelf.SetUntraced(TRUE);
-				ir := implementationVisitor.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,moduleSelf,dump);  ir.SetOffset(0);
-				IntermediateCode.InitImmediate(op,IntermediateCode.GetType(system,system.addressType),0);
+				ir := implementationVisitor.NewSection(module.allSections, Sections.ConstSection, name,moduleSelf,dump);  ir.SetOffset(0);
+				IntermediateCode.InitImmediate(op,addressType,0);
 				ir.Emit(Data(-1,op));
 			END;
 
@@ -729,10 +731,10 @@ TYPE
 			IF backend.profile THEN
 				EnsureBodyProcedure(x.moduleScope);
 				Global.GetModuleSegmentedName(module.module,name); Basic.SuffixSegmentedName(name, Basic.MakeString("@ModuleId"));
-				implementationVisitor.profileId := implementationVisitor.NewSection(module.allSections, Sections.RegularKind, Sections.VarSection, TRUE, name,NIL,dump);
+				implementationVisitor.profileId := implementationVisitor.NewSection(module.allSections, Sections.VarSection, name,NIL,dump);
 				implementationVisitor.profileId.Emit(Reserve(-1,ToMemoryUnits(system,system.SizeOf(system.longintType))));
 				Global.GetModuleSegmentedName(module.module,name); Basic.SuffixSegmentedName(name, Basic.MakeString("@InitProfiler"));
-				implementationVisitor.profileInit := implementationVisitor.NewSection(module.allSections, Sections.RegularKind, Sections.CodeSection, TRUE, name,NIL,dump);
+				implementationVisitor.profileInit := implementationVisitor.NewSection(module.allSections, Sections.CodeSection, name,NIL,dump);
 				implementationVisitor.profileInit.Emit(Enter(-1,0,0,0));
 
 				Global.GetModuleName(module.module,idstr);
@@ -753,7 +755,7 @@ TYPE
 			IF hasDynamicOperatorDeclarations THEN
 				EnsureBodyProcedure(x.moduleScope);
 				Global.GetModuleSegmentedName(module.module,name); Basic.SuffixSegmentedName(name, Basic.MakeString("@OperatorInitialization"));
-				implementationVisitor.operatorInitializationCodeSection := implementationVisitor.NewSection(module.allSections, Sections.RegularKind, Sections.CodeSection,TRUE, name, NIL, dump);
+				implementationVisitor.operatorInitializationCodeSection := implementationVisitor.NewSection(module.allSections, Sections.CodeSection,name, NIL, dump);
 				implementationVisitor.operatorInitializationCodeSection.Emit(Enter(-1,0,0,0));
 			END;
 
@@ -957,13 +959,13 @@ TYPE
 			NEW(fingerPrinter, system);
 		END Init;
 
-		PROCEDURE NewSection(list: Sections.SectionList; kind, type: SHORTINT; isDefinition: BOOLEAN; CONST name: Basic.SegmentedName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
+		PROCEDURE NewSection(list: Sections.SectionList; type: SHORTINT; CONST name: Basic.SegmentedName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
 		VAR fp: SyntaxTree.FingerPrint;
 		BEGIN
 			IF (syntaxTreeSymbol # NIL) & ~((syntaxTreeSymbol IS SyntaxTree.Procedure) & (syntaxTreeSymbol(SyntaxTree.Procedure).isInline)) THEN
 				fp := fingerPrinter.SymbolFP(syntaxTreeSymbol)
 			END;
-			RETURN IntermediateCode.NewSection(list, kind, type,  isDefinition, name, syntaxTreeSymbol, dump)
+			RETURN IntermediateCode.NewSection(list, type, name, syntaxTreeSymbol, dump)
 		END NewSection;
 
 		PROCEDURE AcquireRegister(CONST type: IntermediateCode.Type; class: IntermediateCode.RegisterClass): LONGINT;
@@ -1377,7 +1379,7 @@ TYPE
 			IF label.pc < 0 THEN (* label not yet set *)
 				label.AddFixup(section.pc);
 			END;
-			RETURN IntermediateCode.Address(addressType,label.section,label.pc);
+			RETURN IntermediateCode.Address(addressType,label.section.name,label.pc);
 		END LabelOperand;
 
 		PROCEDURE BrL(label: Label);
@@ -1421,7 +1423,7 @@ TYPE
 					ReleaseIntermediateOperand(operand);
 				END;
 				operand := new;
-			ELSIF (operand.mode = IntermediateCode.ModeImmediate) & (operand.symbol = NIL) & (operand.type.sizeInBits <= type.sizeInBits) & (operand.type.form IN IntermediateCode.Integer) & (type.form IN IntermediateCode.Integer) THEN
+			ELSIF (operand.mode = IntermediateCode.ModeImmediate) & (operand.symbol = "") & (operand.type.sizeInBits <= type.sizeInBits) & (operand.type.form IN IntermediateCode.Integer) & (type.form IN IntermediateCode.Integer) THEN
 				IntermediateCode.InitImmediate(operand,type,operand.intValue);
 			ELSE
 				IntermediateCode.InitRegister(new,type,IntermediateCode.GeneralPurposeRegister,AcquireRegister(type,IntermediateCode.GeneralPurposeRegister));
@@ -1486,7 +1488,7 @@ TYPE
 				i.e. shift 11111111 to the right by the difference between the
 				upper bound and the maximum number of set elements
 			*)
-			IF (operand.tag.mode = IntermediateCode.ModeImmediate) & (operand.tag.symbol = NIL) THEN
+			IF (operand.tag.mode = IntermediateCode.ModeImmediate) & (operand.tag.symbol = "") THEN
 				IntermediateCode.InitImmediate(operand.tag, operand.tag.type, operand.op.type.sizeInBits - 1- operand.tag.intValue);
 				Reuse1(temp, operand.tag);
 			ELSE
@@ -1827,14 +1829,14 @@ TYPE
 			END;
 		END GetRuntimeProcedure;
 
-		PROCEDURE GetTypeDescriptor(CONST moduleName, typeName: ARRAY OF CHAR): IntermediateCode.Section;
-		VAR importedModule: SyntaxTree.Module; source: IntermediateCode.Section; symbol: SyntaxTree.Symbol; pooledName: Basic.SegmentedName;
+		PROCEDURE GetTypeDescriptor(CONST moduleName, typeName: ARRAY OF CHAR; VAR name: Basic.SegmentedName);
+		VAR importedModule: SyntaxTree.Module; source: IntermediateCode.Section; symbol: SyntaxTree.Symbol;
 			s: Basic.MessageString;
 		BEGIN
-			Basic.InitSegmentedName(pooledName);
-			pooledName[0] := Basic.MakeString(moduleName);
-			pooledName[1] := Basic.MakeString(typeName);
-			pooledName[2] := -1;
+			Basic.InitSegmentedName(name);
+			name[0] := Basic.MakeString(moduleName);
+			name[1] := Basic.MakeString(typeName);
+			name[2] := -1;
 
 			IF AddImport(moduleName,importedModule, FALSE) THEN
 				symbol := importedModule.moduleScope.FindTypeDeclaration(SyntaxTree.NewIdentifier(typeName));
@@ -1849,11 +1851,10 @@ TYPE
 			ELSE symbol := NIL;
 			END;
 			IF importedModule = moduleScope.ownerModule THEN
-				source := NewSection(module.allSections, Sections.RegularKind, Sections.ConstSection, TRUE, pooledName, symbol, commentPrintout # NIL);
+				source := NewSection(module.allSections, Sections.ConstSection, name, symbol, commentPrintout # NIL);
 			ELSE
-				source := NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.ConstSection, FALSE, pooledName, symbol, commentPrintout # NIL);
+				source := NewSection(module.importedSections, Sections.ConstSection, name, symbol, commentPrintout # NIL);
 			END;
-			RETURN source
 		END GetTypeDescriptor;
 
 
@@ -1871,8 +1872,8 @@ TYPE
 				pooledName[0] := Basic.MakeString(moduleName);
 				pooledName[1] := Basic.MakeString(procedureName);
 				pooledName[2] := -1;
-				source := NewSection(module.allSections, Sections.UnknownKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
-				IntermediateCode.InitAddress(reg, addressType, source , 0);
+				source := NewSection(module.importedSections, Sections.CodeSection, pooledName, NIL,commentPrintout # NIL);
+				IntermediateCode.InitAddress(reg, addressType, pooledName , 0);
 				Emit(Call(position,reg, ToMemoryUnits(system,numberParameters * system.addressSize)));
 			END;
 		END CallThis;
@@ -1893,8 +1894,8 @@ TYPE
 				pooledName[0] := Basic.MakeString(altModuleName);
 				pooledName[1] := Basic.MakeString(altProcedureName);
 				pooledName[2] := -1;
-				source := NewSection(module.allSections,  Sections.UnknownKind, Sections.CodeSection, FALSE, pooledName, NIL,commentPrintout # NIL);
-				IntermediateCode.InitAddress(address, addressType, source , 0);
+				source := NewSection(module.importedSections, Sections.CodeSection,  pooledName, NIL,commentPrintout # NIL);
+				IntermediateCode.InitAddress(address, addressType, pooledName , 0);
 				Emit(Call(position,address, ToMemoryUnits(system, numberParameters * system.addressSize)));
 
 				Emit(Result(position,return));
@@ -2903,7 +2904,7 @@ TYPE
 
 			PROCEDURE IsImmediate(x: IntermediateCode.Operand): BOOLEAN;
 			BEGIN
-				RETURN (x.mode = IntermediateCode.ModeImmediate) & (x.symbol = NIL);
+				RETURN (x.mode = IntermediateCode.ModeImmediate) & (x.symbol = "");
 			END IsImmediate;
 
 
@@ -4066,7 +4067,7 @@ TYPE
 		END VisitProcedureCallDesignator;
 
 		PROCEDURE TypeDescriptorAdr(t: SyntaxTree.Type): IntermediateCode.Operand;
-		VAR res: IntermediateCode.Operand; source: Sections.Section; offset: LONGINT;
+		VAR res: IntermediateCode.Operand; source: Sections.Section; offset: LONGINT; name: Basic.SegmentedName;
 
 			td: SyntaxTree.TypeDeclaration;
 
@@ -4110,14 +4111,14 @@ TYPE
 			END GetDelegateType;
 
 
-			PROCEDURE GetBackendType(x: SyntaxTree.Type; VAR offset: LONGINT): Sections.Section;
+			PROCEDURE GetBackendType(x: SyntaxTree.Type; VAR offset: LONGINT; VAR name: Basic.SegmentedName);
 			(* create anonymous type declaration for types that need a type descriptor but have been declared anonymously
 				such as in VAR a: RECORD ... END;
 				reason: type desciptors in Sections are then accessible via a type declaration symbol and for types
 				and variables, constants and procedures the same mechanism can be used for fixups etc.
 			*)
 			VAR  source: Sections.Section;null: HUGEINT; td: SyntaxTree.TypeDeclaration;
-				name: Basic.SegmentedName; op: IntermediateCode.Operand;
+				op: IntermediateCode.Operand;
 			BEGIN (* no code emission *)
 				source := NIL;
 				x := x.resolved;
@@ -4140,31 +4141,31 @@ TYPE
 					Global.GetSymbolSegmentedName(td,name);
 					IF (td.scope = NIL) OR (td.scope.ownerModule = module.module) THEN
 						meta.CheckTypeDeclaration(x);
-						source := NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,td,commentPrintout # NIL);
+						source := NewSection(module.allSections, Sections.ConstSection, name,td,commentPrintout # NIL);
 					ELSE
-						source := NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.ConstSection, FALSE, name,td,commentPrintout # NIL);
+						source := NewSection(module.importedSections, Sections.ConstSection,name,td,commentPrintout # NIL);
 					END;
 					offset := ToMemoryUnits(system,meta.GetTypeRecordBaseOffset(x(SyntaxTree.RecordType).recordScope.numberMethods)*system.addressSize);
 				ELSE
-					source := module.allSections.FindBySymbolAndKind(td, Sections.RegularKind); (*TODO*)
+					offset := 0;
+					source := module.allSections.FindBySymbol(td); (*TODO*)
 					IF source = NIL THEN
 						null := 0;
 						Global.GetSymbolSegmentedName(td,name);
-						source := NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,td,commentPrintout # NIL);
+						source := NewSection(module.allSections, Sections.ConstSection, name,td,commentPrintout # NIL);
 						IntermediateCode.InitImmediate(op,addressType,0);
 						source(IntermediateCode.Section).Emit(Data(position,op));
 						source.SetReferenced(FALSE)
 					ELSE
-						ASSERT(source.kind = Sections.RegularKind)
+						name := source.name;
 					END;
 				END;
 
-				RETURN source;
 			END GetBackendType;
 
 		BEGIN
 			td := t.typeDeclaration;
-			source := GetBackendType(t,offset); (*! do not dereference a pointer here as the type descriptor for the pointer might be asked for *)
+			GetBackendType(t,offset,name); (*! do not dereference a pointer here as the type descriptor for the pointer might be asked for *)
 			(*
 			IF t IS SyntaxTree.PointerType THEN
 				source := GetBackendType(t(SyntaxTree.PointerType).pointerBase.resolved);
@@ -4172,13 +4173,13 @@ TYPE
 				source := GetBackendType(t);
 			END;
 			*)
-			ASSERT(source # NIL);
 			IF newObjectFile THEN
-				IntermediateCode.InitAddress(res, addressType, source, 0 (*
+				IntermediateCode.InitAddress(res, addressType, name, 0 (*
 				1+t(SyntaxTree.RecordType).recordScope.numberMethods+16+1 *));
-				IntermediateCode.SetOffset(res,offset);
+
+			IntermediateCode.SetOffset(res,offset);
 			ELSE
-				IntermediateCode.InitAddress(res, addressType, source,0);
+				IntermediateCode.InitAddress(res, addressType, name,0);
 			END;
 			(*
 			IntermediateCode.MakeMemory(res,IntermediateCode.UnsignedInteger,addressType.sizeInBits);
@@ -4204,7 +4205,7 @@ TYPE
 		PROCEDURE ProfilerInit;
 		VAR reg: IntermediateCode.Operand;
 		BEGIN
-			IntermediateCode.InitAddress(reg, addressType, profileInit , 0);
+			IntermediateCode.InitAddress(reg, addressType, profileInit.name , 0);
 			Emit(Call(position,reg,0));
 		END ProfilerInit;
 
@@ -4214,7 +4215,7 @@ TYPE
 			IF enter & GetRuntimeProcedure("FoxProfiler","EnterProcedure",procedure,TRUE)
 			OR ~enter & GetRuntimeProcedure("FoxProfiler","ExitProcedure",procedure,TRUE)
 			THEN
-				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
+				IntermediateCode.InitAddress(reg, addressType, profileId.name , 0);
 				IntermediateCode.MakeMemory(reg, IntermediateCode.GetType(system,system.longintType));
 				Emit(Push(position,reg));
 				IntermediateCode.InitImmediate(reg, IntermediateCode.GetType(system,system.longintType), procedureNumber);
@@ -4229,7 +4230,7 @@ TYPE
 		VAR string: SyntaxTree.String; reg: IntermediateCode.Operand; result: Operand; procedure: SyntaxTree.Procedure; sv: SyntaxTree.StringValue;type: SyntaxTree.Type;
 		BEGIN
 			IF GetRuntimeProcedure("FoxProfiler","AddProcedure",procedure,TRUE) THEN
-				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
+				IntermediateCode.InitAddress(reg, addressType, profileId.name , 0);
 				IntermediateCode.MakeMemory(reg, IntermediateCode.GetType(system,system.longintType));
 				profileInit.Emit(Push(position,reg));
 				IntermediateCode.InitImmediate(reg, IntermediateCode.GetType(system,system.longintType), procedureNumber);
@@ -4251,7 +4252,7 @@ TYPE
 		VAR string: SyntaxTree.String; sv: SyntaxTree.StringValue; type: SyntaxTree.Type; result: Operand;  reg: IntermediateCode.Operand; procedure: SyntaxTree.Procedure;
 		BEGIN
 			IF GetRuntimeProcedure("FoxProfiler","AddModule",procedure,TRUE) THEN
-				IntermediateCode.InitAddress(reg, addressType, profileId , 0);
+				IntermediateCode.InitAddress(reg, addressType, profileId.name , 0);
 				profileInit.Emit(Push(position,reg));
 				profileInitPatchPosition := profileInit.pc;
 				profileInit.Emit(Nop(position)); (* placeholder, will be patched by number of procedures *)
@@ -5449,11 +5450,11 @@ TYPE
 						Global.GetSymbolSegmentedName(constructor,name);
 						ASSERT(~constructor.isInline);
 						IF constructor.scope.ownerModule # module.module THEN
-							symbol := NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.CodeSection, FALSE, name,constructor,commentPrintout # NIL);
+							symbol := NewSection(module.importedSections, Sections.CodeSection, name,constructor,commentPrintout # NIL);
 						ELSE
-							symbol := NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, TRUE, name,constructor,commentPrintout # NIL);
+							symbol := NewSection(module.allSections, Sections.CodeSection, name,constructor,commentPrintout # NIL);
 						END;
-						Emit(Call(position,IntermediateCode.Address(addressType, symbol,0),ProcedureParametersSize(system,constructor)));
+						Emit(Call(position,IntermediateCode.Address(addressType, symbol.name,0),ProcedureParametersSize(system,constructor)));
 					ELSE
 						ReleaseIntermediateOperand(pointer);
 					END;
@@ -5924,9 +5925,9 @@ TYPE
 			(* ---- SYSTEM.CALL ----- *)
 			|Global.systemRef:
 				Basic.ToSegmentedName(p0(SyntaxTree.StringValue).value^, segmentedName);
-				callsection := NewSection(module.allSections,  Sections.UnknownKind, Sections.CodeSection, FALSE, segmentedName, NIL,commentPrintout # NIL);
+				callsection := NewSection(module.allSections,  Sections.CodeSection, segmentedName, NIL,commentPrintout # NIL);
 				s0.mode := ModeValue;
-				IntermediateCode.InitAddress(s0.op, addressType, callsection,0);
+				IntermediateCode.InitAddress(s0.op, addressType, callsection.name,0);
 				result := s0
 			(* ---- SYSTEM.INCR ----- *)
 			|Global.systemIncr:
@@ -6171,7 +6172,7 @@ TYPE
 					moduleSection := meta.ModuleSection();
 					moduleOffset := moduleSection.pc;
 					result.mode := ModeValue;
-					result.op := IntermediateCode.Address(addressType, moduleSection, moduleOffset);
+					result.op := IntermediateCode.Address(addressType, moduleSection.name, moduleOffset);
 				ELSE
 					Symbol(moduleSelf,result);
 					IntermediateCode.MakeMemory(result.op,addressType);
@@ -6221,7 +6222,7 @@ TYPE
 			name[0] := StringPool.GetIndex1(module.moduleName);
 			name[1] := StringPool.GetIndex1("@Immediates");
 			name[2] := -1;
-			section := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,NIL,TRUE);
+			section := IntermediateCode.NewSection(module.allSections, Sections.ConstSection, name,NIL,TRUE);
 			RETURN section
 		END GetDataSection;
 
@@ -6231,7 +6232,7 @@ TYPE
 			type := vop.type;
 			data := GetDataSection();
 			pc := EnterImmediate(data,vop);
-			IntermediateCode.InitAddress(vop, addressType, data, pc);
+			IntermediateCode.InitAddress(vop, addressType, data.name, pc);
 			IntermediateCode.MakeMemory(vop, type);
 		END GetImmediateMem;
 
@@ -6285,10 +6286,10 @@ TYPE
 			IF ~TryConstantDeclaration() THEN
 				IF constantDeclaration = NIL THEN constantDeclaration:=BuildConstant(module.module,x,constId) END;
 				Global.GetSymbolSegmentedName(constantDeclaration,name);
-				irv := NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,constantDeclaration,commentPrintout # NIL);
+				irv := NewSection(module.allSections,Sections.ConstSection,name,constantDeclaration,commentPrintout # NIL);
 				RecursiveData(x.array);
 				InitOperand(result,ModeReference);
-				IntermediateCode.InitAddress(result.op, addressType, irv,0);
+				IntermediateCode.InitAddress(result.op, addressType, irv.name,0);
 			END
 		END VisitMathArrayValue;
 
@@ -6298,11 +6299,10 @@ TYPE
 			IF constantDeclaration = NIL THEN
 				RETURN FALSE
 			ELSE
-				constant := module.allSections.FindBySymbolAndKind(constantDeclaration, Sections.RegularKind); (*TODO*)
+				constant := module.allSections.FindBySymbol(constantDeclaration); (*TODO*)
 				IF constant # NIL THEN
-					ASSERT(constant.kind = Sections.RegularKind);
 					InitOperand(result,ModeReference);
-					IntermediateCode.InitAddress(result.op,addressType,constant,0);
+					IntermediateCode.InitAddress(result.op,addressType,constant.name,0);
 					RETURN TRUE;
 				END;
 			END;
@@ -6342,13 +6342,13 @@ TYPE
 			IF ~TryConstantDeclaration() THEN
 				IF constantDeclaration = NIL THEN constantDeclaration:=BuildConstant(module.module,x,constId) END;
 				Global.GetSymbolSegmentedName(constantDeclaration,name);
-				irv := NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,constantDeclaration,commentPrintout # NIL);
+				irv := NewSection(module.allSections, Sections.ConstSection, name,constantDeclaration,commentPrintout # NIL);
 				FOR i := 0 TO x.length-1 DO
 					IntermediateCode.InitImmediate(op,IntermediateCode.GetType(system,system.characterType),ORD(x.value[i]));
 					irv.Emit(Data(position,op));
 				END;
 				InitOperand(result,ModeReference);
-				IntermediateCode.InitAddress(result.op, addressType, irv,0);
+				IntermediateCode.InitAddress(result.op, addressType, irv.name,0);
 				result.tag := IntermediateCode.Immediate(addressType,x.length);
 			END
 		END VisitStringValue;
@@ -6408,13 +6408,13 @@ TYPE
 			ELSIF (x.scope = moduleScope) OR (x.scope IS SyntaxTree.CellScope) THEN (* global variable *)
 				InitOperand(result,ModeReference);
 				Global.GetSymbolSegmentedName(x,name);
-				symbol := NewSection(module.allSections, Sections.RegularKind,Sections.VarSection, TRUE, name,x,commentPrintout # NIL);
-				IntermediateCode.InitAddress(result.op, addressType, symbol, 0);
+				symbol := NewSection(module.allSections, Sections.VarSection, name,x,commentPrintout # NIL);
+				IntermediateCode.InitAddress(result.op, addressType, symbol.name, 0);
 			ELSIF x.scope IS SyntaxTree.ModuleScope THEN (* global variable in imported module *)
 				InitOperand(result,ModeReference);
 				Global.GetSymbolSegmentedName(x,name);
-				symbol := NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.VarSection,FALSE, name,x,commentPrintout # NIL);
-				IntermediateCode.InitAddress(result.op, addressType, symbol, 0)
+				symbol := NewSection(module.importedSections, Sections.VarSection, name,x,commentPrintout # NIL);
+				IntermediateCode.InitAddress(result.op, addressType, symbol.name, 0)
 			ELSE (* field, left designator must have been emitted *)
 				ASSERT(result.mode = ModeReference);
 				IF result.op.mode = IntermediateCode.ModeMemory THEN
@@ -6469,8 +6469,8 @@ TYPE
 				IF ~(x.type.resolved IS SyntaxTree.PortType) THEN
 					InitOperand(result,ModeReference);
 					Global.GetSymbolSegmentedName(x,name);
-					symbol := NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,x,commentPrintout # NIL);
-					IntermediateCode.InitAddress(result.op, addressType, symbol, 0);
+					symbol := NewSection(module.allSections, Sections.ConstSection, name,x,commentPrintout # NIL);
+					IntermediateCode.InitAddress(result.op, addressType, symbol.name, 0);
 					RETURN
 				ELSE
 					InitOperand(result, ModeValue);
@@ -6488,8 +6488,8 @@ TYPE
 			ELSIF (currentScope IS SyntaxTree.ProcedureScope) & (currentScope(SyntaxTree.ProcedureScope).ownerProcedure.isConstructor) & (currentScope.outerScope IS SyntaxTree.CellScope) THEN
 				InitOperand(result,ModeReference);
 				Global.GetSymbolSegmentedName(x,name);
-				symbol := NewSection(module.allSections, Sections.RegularKind,Sections.VarSection, TRUE, name,x,commentPrintout # NIL);
-				IntermediateCode.InitAddress(result.op, addressType, symbol, 0);
+				symbol := NewSection(module.allSections, Sections.VarSection, name,x,commentPrintout # NIL);
+				IntermediateCode.InitAddress(result.op, addressType, symbol.name, 0);
 				RETURN
 			ELSE
 				GetBaseRegister(basereg,currentScope,x.scope);
@@ -6624,16 +6624,16 @@ TYPE
 				sectionType := Sections.CodeSection;
 			END;
 			IF (x.scope.ownerModule = module.module) THEN
-				source := NewSection(module.allSections, Sections.RegularKind,sectionType, TRUE, name,x,commentPrintout # NIL);
+				source := NewSection(module.allSections, sectionType, name,x,commentPrintout # NIL);
 			ELSIF (sectionType = Sections.InlineCodeSection) & (x.procedureScope.body.code.sourceCode # NIL) THEN
-				source := NewSection(module.allSections, Sections.RegularKind,sectionType, TRUE, name,x,commentPrintout # NIL);
+				source := NewSection(module.allSections, sectionType, name,x,commentPrintout # NIL);
 				IF source.pc = 0 THEN (* no code yet *)
 					source.Emit(Asm(position,x.procedureScope.body.code.sourceCode));
 				END;
 			ELSE
-				source := NewSection(module.allSections, Sections.ImportedSymbolKind,sectionType, FALSE, name,x,commentPrintout # NIL);
+				source := NewSection(module.importedSections, sectionType, name,x,commentPrintout # NIL);
 			END;
-			IntermediateCode.InitAddress(reg, addressType, source , 0);
+			IntermediateCode.InitAddress(reg, addressType, source.name , 0);
 			InitOperand(operand,ModeValue);
 			operand.op := reg;
 			operand.tag := tag;
@@ -6986,8 +6986,9 @@ TYPE
 			symbol := SyntaxTree.NewSymbol(name[1]);
 			symbol.SetScope(moduleScope);
 			NEW(fixups,size); FOR i := 0 TO size-1 DO fixups[i] := NIL END;
-			section := NewSection(module.allSections,Sections.CaseTableKind, Sections.ConstSection,TRUE, name,SyntaxTree.NewSymbol(name[1]),commentPrintout # NIL);
-			IntermediateCode.InitAddress(jmp, addressType, section,0);
+			section := NewSection(module.allSections, Sections.ConstSection,name,SyntaxTree.NewSymbol(name[1]),commentPrintout # NIL);
+			section.isCaseTable := TRUE;
+			IntermediateCode.InitAddress(jmp, addressType, section.name,0);
 			ReuseCopy(res,var.op);
 			ReleaseOperand(var);
 			Emit(Mul(position,res,res,IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.addressSize))));
@@ -7023,7 +7024,7 @@ TYPE
 			END;
 			SetLabel(out);
 			FOR i := 0 TO size-1 DO
-				IntermediateCode.InitAddress(op, addressType, fixups[i].section, fixups[i].pc);
+				IntermediateCode.InitAddress(op, addressType, fixups[i].section.name, fixups[i].pc);
 				section.Emit(Data(position,op));
 			END;
 			IF Trace THEN TraceExit("VisitCaseStatement") END;
@@ -7309,8 +7310,8 @@ TYPE
 			proc := MakeAwaitProcedure(x);
 			Emit(Push(position,fp));
 			Global.GetSymbolSegmentedName(proc,name);
-			symbol := NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, TRUE, name,proc,commentPrintout # NIL);
-			IntermediateCode.InitAddress(call,addressType,symbol,0);
+			symbol := NewSection(module.allSections, Sections.CodeSection, name,proc,commentPrintout # NIL);
+			IntermediateCode.InitAddress(call,addressType,name,0);
 			res := NewRegisterOperand(IntermediateCode.GetType(system,system.booleanType));
 			Emit(Call(position,call,ProcedureParametersSize(system,proc)));
 			Emit(Result(position,res));
@@ -7323,8 +7324,8 @@ TYPE
 			label := NewLabel();
 			BreqL(label, result.op, true);
 			ReleaseOperand(result);
-			symbol := NewSection(module.allSections, Sections.RegularKind,Sections.CodeSection, TRUE, name,proc,commentPrintout # NIL);
-			IntermediateCode.InitAddress(res, addressType, symbol,0);
+			symbol := NewSection(module.allSections, Sections.CodeSection, name,proc,commentPrintout # NIL);
+			IntermediateCode.InitAddress(res, addressType, name,0);
 			Emit(Push(position,res));
 			Emit(Push(position,fp));
 			PushSelfPointer();
@@ -7357,7 +7358,7 @@ TYPE
 				ELSE
 					moduleSection := meta.ModuleSection();
 					moduleOffset := moduleSection.pc;
-					op.op := IntermediateCode.Address(addressType, moduleSection, moduleOffset);
+					op.op := IntermediateCode.Address(addressType, moduleSection.name, moduleOffset);
 				END;
 			ELSE
 				GetBaseRegister(op.op,currentScope,scope);
@@ -7507,7 +7508,7 @@ TYPE
 				END;
 
 				IF moduleBody & (operatorInitializationCodeSection # NIL) THEN
-					Emit(Call(position,IntermediateCode.Address(addressType, operatorInitializationCodeSection, 0), 0))
+					Emit(Call(position,IntermediateCode.Address(addressType, operatorInitializationCodeSection.name, 0), 0))
 				END;
 
 				section.SetPositionOrAlignment(procedure.fixed, procedure.alignment);
@@ -7595,21 +7596,21 @@ TYPE
 		END GetTypeRecordBaseOffset;
 
 		PROCEDURE HeapBlock(CONST moduleName, typeName: ARRAY OF CHAR; section: IntermediateCode.Section; dataAdrOffset: LONGINT);
-		VAR moduleTD: IntermediateCode.Section; offset: LONGINT;
+		VAR moduleTD: IntermediateCode.Section; offset: LONGINT; name: Basic.SegmentedName;
 		BEGIN
 			INC(dataAdrOffset,6);
 			Info(section,"headerAdr");
 			Address(section,0);
 			Info(section,"typeDesc");
 
-			moduleTD := implementationVisitor.GetTypeDescriptor(moduleName,typeName);
+			implementationVisitor.GetTypeDescriptor(moduleName,typeName, name);
 			offset := ToMemoryUnits(module.system,TypeRecordBaseOffset*module.system.addressSize);
-			Symbol(section, moduleTD, 0, offset);
+			Symbol(section, name, 0, offset);
 
 			Info(section,"mark: LONGINT;");
 			Longint(section,-1);
 			Info(section,"dataAdr-: SYSTEM.ADDRESS");
-			Symbol(section,section,dataAdrOffset,0);
+			Symbol(section,section.name,dataAdrOffset,0);
 			Info(section,"size-: SYSTEM.SIZE");
 			Address(section,0);
 			Info(section,"nextRealtime: HeapBlock;");
@@ -7704,10 +7705,10 @@ TYPE
 		END String;
 
 
-		PROCEDURE Symbol(section: IntermediateCode.Section; symbol: Sections.Section; virtualOffset, realOffset: LONGINT);
+		PROCEDURE Symbol(section: IntermediateCode.Section; symbol: Sections.SectionName; virtualOffset, realOffset: LONGINT);
 		VAR op: IntermediateCode.Operand;
 		BEGIN
-			IF symbol = NIL THEN
+			IF symbol = "" THEN
 				Address( section, realOffset);
 				ASSERT(virtualOffset = 0);
 			ELSE
@@ -7725,15 +7726,15 @@ TYPE
 		BEGIN
 			type := type.resolved;
 			IF type IS SyntaxTree.AnyType THEN
-				Symbol(section, symbol, 0, (offset ));
+				Symbol(section, symbol.name, 0, (offset ));
 				INC(numberPointers);
 
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 			ELSIF type IS SyntaxTree.PointerType THEN
-				Symbol(section, symbol, 0, (offset )); INC(numberPointers);
+				Symbol(section, symbol.name, 0, (offset )); INC(numberPointers);
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1);D.Ln;  END;
 			ELSIF (type IS SyntaxTree.ProcedureType) & (type(SyntaxTree.ProcedureType).isDelegate) THEN
-				Symbol(section, symbol, 0, (offset )+ToMemoryUnits(module.system,module.system.addressSize)); INC(numberPointers);
+				Symbol(section, symbol.name, 0, (offset )+ToMemoryUnits(module.system,module.system.addressSize)); INC(numberPointers);
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset+ToMemoryUnits(module.system,module.system.addressSize),1); END;
 			ELSIF (type IS SyntaxTree.RecordType) THEN
 				(* never treat a record like a pointer, even if the pointer field is set! *)
@@ -7768,7 +7769,7 @@ TYPE
 							END;
 						END;
 					ELSE
-						Symbol( section, symbol, 0, (offset )); INC(numberPointers);
+						Symbol( section, symbol.name, 0, (offset )); INC(numberPointers);
 						IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 					END;
 				END;
@@ -7790,7 +7791,7 @@ TYPE
 							END;
 						END;
 					ELSE
-						Symbol(section, symbol, 0, (offset )); INC(numberPointers); (* GC relevant pointer is at offset 0 *)
+						Symbol(section, symbol.name, 0, (offset )); INC(numberPointers); (* GC relevant pointer is at offset 0 *)
 						IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 					END
 				END;
@@ -7806,7 +7807,7 @@ TYPE
 			THEN
 				fingerPrint := fingerPrinter.SymbolFP(symbol.symbol);
 				Longint(source,fingerPrint.shallow);
-				Symbol(source,symbol,0,0);
+				Symbol(source,symbol.name,0,0);
 				Address(source,0);
 				Address(source,0);
 				RETURN TRUE
@@ -7834,9 +7835,7 @@ TYPE
 			Array(source,sizePC);
 			FOR i := 0 TO module.allSections.Length() - 1 DO
 				section := module.allSections.GetSection(i);
-				IF section.kind = Sections.RegularKind THEN
-					IF ExportDesc( source, fingerPrinter, section) THEN INC(size) END
-				END
+				IF ExportDesc( source, fingerPrinter, section) THEN INC(size) END
 			END;
 			PatchLongint(source,sizePC,size);
 		END ExportDescArray;
@@ -7851,16 +7850,14 @@ TYPE
 			Info(source, "exception table content");
 			FOR i := 0 TO module.allSections.Length() - 1 DO
 				p := module.allSections.GetSection(i);
-				IF p.kind = Sections.RegularKind THEN
 				IF p.type = Sections.CodeSection THEN
 					finallyPC := p(IntermediateCode.Section).finally;
 					IF finallyPC>=0 THEN
-						Symbol( source, p, 0,0);
-						Symbol( source, p, finallyPC, 0);
-						Symbol( source, p, finallyPC,0);
+						Symbol( source, p.name, 0,0);
+						Symbol( source, p.name, finallyPC, 0);
+						Symbol( source, p.name, finallyPC,0);
 						INC(size);
 					END;
-				END
 				END
 			END;
 			PatchLongint(source,sizePC,size);
@@ -7932,10 +7929,7 @@ TYPE
 				PROCEDURE RecordType(type: SyntaxTree.RecordType);
 				VAR destination: Sections.Section; name: SyntaxTree.IdentifierString;
 				BEGIN
-					destination := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.RegularKind); (*TODO*)
-					IF destination = NIL THEN
-						destination := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.ImportedSymbolKind) (*TODO*)
-					END;
+					destination := module.allSections.FindBySymbol(type.typeDeclaration); (*TODO*)
 					IF destination = NIL THEN
 						(* imported unused record type *)
 						Char(section,0X); (* nil type *)
@@ -7946,7 +7940,6 @@ TYPE
 						D.Str("Warning: Unreferenced record type encountered: "); D.String(name); D.String(" unused? "); D.Ln;
 						*)
 					ELSE
-						ASSERT((destination.kind = Sections.RegularKind) OR (destination.kind = Sections.ImportedSymbolKind));
 						IF type.pointerType # NIL THEN
 							Char(section,rfRecordPointer)
 						ELSE
@@ -8088,9 +8081,9 @@ TYPE
 
 					Char(section,0F9X);
 					INC(size);
-					Symbol(section,s,0,0);
+					Symbol(section,s.name,0,0);
 					INC(size,4);
-					Symbol(section,s,s(IntermediateCode.Section).pc,0);
+					Symbol(section,s.name,s(IntermediateCode.Section).pc,0);
 					INC(size,4);
 					Longint(section,procedureType.numberParameters);
 					INC(size,4);
@@ -8135,9 +8128,9 @@ TYPE
 				BEGIN
 					Char(section,0F8X);
 					INC(size);
-					Symbol(section,s,0,0); (* start *)
+					Symbol(section,s.name,0,0); (* start *)
 					INC(size,4);
-					Symbol(section,s,s(IntermediateCode.Section).pc,0); (* end *)
+					Symbol(section,s.name,s(IntermediateCode.Section).pc,0); (* end *)
 					INC(size,4);
 					String(section,"$$");
 					INC(size,3);
@@ -8160,20 +8153,16 @@ TYPE
 
 				FOR i := 0 TO module.allSections.Length() - 1 DO
 					s := module.allSections.GetSection(i);
-					IF s.kind = Sections.RegularKind THEN
 					IF (s.type # Sections.InitCodeSection) & (s.symbol = module.module.moduleScope.bodyProcedure) THEN
 						Scope(s) (*! must be first procedure in ref section *)
-					END
 					END
 				END;
 
 				FOR i := 0 TO module.allSections.Length() - 1 DO
 					s := module.allSections.GetSection(i);
-					IF s.kind = Sections.RegularKind THEN
 					IF (s.symbol = module.module.moduleScope.bodyProcedure) THEN (* already done, see above *)
 					ELSIF (s.type # Sections.InitCodeSection) & (s.symbol # NIL) & (s.symbol IS SyntaxTree.Procedure) & ~s.symbol(SyntaxTree.Procedure).isInline THEN
 						Procedure(s)
-					END
 					END
 				END;
 
@@ -8230,15 +8219,14 @@ TYPE
 						typeDeclaration := type.typeDeclaration; (* must be non-nil *)
 						IF (typeDeclaration.scope = NIL) OR (typeDeclaration.scope.ownerModule = module.module) THEN
 							name[0] := typeDeclaration.name; name[1] := -1;
-							section := module.allSections.FindBySymbolAndKind(type.typeDeclaration, Sections.RegularKind); (*TODO*)
+							section := module.allSections.FindBySymbol(type.typeDeclaration); (*TODO*)
 							ASSERT(section # NIL);
-							ASSERT(section.kind = Sections.RegularKind);
 						ELSE
 							Global.GetSymbolSegmentedName(typeDeclaration,name);
 							(* TODO *)
-							section := IntermediateCode.NewSection(module.allSections, Sections.ImportedSymbolKind,Sections.ConstSection, FALSE, name,typeDeclaration, source.comments # NIL);
+							section := IntermediateCode.NewSection(module.importedSections, Sections.ConstSection, name,typeDeclaration, source.comments # NIL);
 						END;
-						Symbol(source,section, 0, ToMemoryUnits(module.system,(1 + type(SyntaxTree.RecordType).recordScope.numberMethods+16+1)*module.system.addressSize));
+						Symbol(source,name, 0, ToMemoryUnits(module.system,(1 + type(SyntaxTree.RecordType).recordScope.numberMethods+16+1)*module.system.addressSize));
 					END;
 				END WriteType;
 
@@ -8250,7 +8238,6 @@ TYPE
 
 			FOR i := 0 TO module.allSections.Length() - 1 DO
 				p := module.allSections.GetSection(i);
-				IF p.kind = Sections.RegularKind THEN
 				IF (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure)  THEN
 					procedure := p.symbol(SyntaxTree.Procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
@@ -8266,13 +8253,12 @@ TYPE
 						WriteType(procedureType.returnType);
 						(* command name *)
 						(* command code offset *)
-						Symbol(source,p,0,0);
+						Symbol(source,p.name,0,0);
 						INC(numberCommands);
 						IF Trace THEN
 							D.Ln;
 						END;
 					END;
-				END
 				END
 			END;
 			PatchLongint(source,sizePC,numberCommands);
@@ -8287,13 +8273,11 @@ TYPE
 			Array(source,sizePC);
 			FOR i := 0 TO module.allSections.Length() - 1 DO
 				p := module.allSections.GetSection(i);
-				IF p.kind = Sections.RegularKind THEN
 				WITH p: IntermediateCode.Section DO
 						IF Basic.SegmentedNameEndsWith(p.name,"@Info") THEN
-						Symbol(source,p,0,0);
+						Symbol(source,p.name,0,0);
 						INC(size);
 					END;
-				END
 				END
 			END;
 			PatchLongint(source,sizePC,size);
@@ -8320,13 +8304,13 @@ TYPE
 				variable: SyntaxTree.Variable; parameter: SyntaxTree.Parameter; string: Basic.SectionName;
 			BEGIN
 				Info(procArray,"pcFrom");
-				Symbol(procArray,destination,0,0);
+				Symbol(procArray,destination.name,0,0);
 				Info(procArray,"pcTo");
-				Symbol(procArray,destination,destination.pc,0);
+				Symbol(procArray,destination.name,destination.pc,0);
 				Info(procArray,"pcStatementBegin");
-				Symbol(procArray,destination,destination.validPAFEnter,0);
+				Symbol(procArray,destination.name,destination.validPAFEnter,0);
 				Info(procArray,"pcStatementEnd");
-				Symbol(procArray,destination,destination.validPAFExit,0);
+				Symbol(procArray,destination.name,destination.validPAFExit,0);
 				Basic.SegmentedNameToString(destination.name, string);
 				Info(pointerArray,string);
 				procedure := destination.symbol(SyntaxTree.Procedure);
@@ -8370,11 +8354,9 @@ TYPE
 			procArraySize := 0;
 			FOR i := 0 TO module.allSections.Length() - 1 DO
 				destination := module.allSections.GetSection(i);
-				IF destination.kind = Sections.RegularKind THEN
 				IF (destination.type IN {Sections.CodeSection, Sections.BodyCodeSection}) & (destination.symbol # NIL) & (destination.symbol IS SyntaxTree.Procedure) & ~destination.symbol(SyntaxTree.Procedure).isInline THEN
 					PointerOffsets(destination(IntermediateCode.Section));
 					INC(procArraySize);
-				END
 				END
 			END;
 
@@ -8408,20 +8390,21 @@ TYPE
 		*)
 
 		PROCEDURE ModuleSection(): IntermediateCode.Section;
-		VAR name: ARRAY 128 OF CHAR; moduleSection,moduleTD: IntermediateCode.Section; offset: LONGINT; pooledName: Basic.SegmentedName;
+		VAR name: ARRAY 128 OF CHAR;
+			moduleSection,moduleTD: IntermediateCode.Section; offset: LONGINT; pooledName: Basic.SegmentedName;
 		BEGIN
 			Global.GetModuleName(module.module,name);
 			Strings.Append(name,".@Module");
 			Basic.ToSegmentedName(name, pooledName);
-			moduleSection := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, pooledName,NIL,TRUE);
+			moduleSection := IntermediateCode.NewSection(module.allSections, Sections.ConstSection, pooledName,NIL,TRUE);
 			IF moduleSection.pc = 0 THEN
 				ProtectedHeapBlock("Heaps","ProtRecBlockDesc",moduleSection,2);
 				Info(moduleSection, "HeapBlock");
-				Symbol(moduleSection,moduleSection,2,0);
+				Symbol(moduleSection,moduleSection.name,2,0);
 				Info(moduleSection, "TypeDescriptor");
-				moduleTD := implementationVisitor.GetTypeDescriptor("Modules","Module");
+				implementationVisitor.GetTypeDescriptor("Modules","Module", pooledName);
 				offset := ToMemoryUnits(module.system,(1 + 1 (*= numberMethods*) +16+1)*module.system.addressSize);
-				Symbol(moduleSection, moduleTD, 0, offset);
+				Symbol(moduleSection, pooledName, 0, offset);
 			END;
 			RETURN moduleSection;
 		END ModuleSection;
@@ -8440,7 +8423,7 @@ TYPE
 				COPY(moduleName,name);
 				Strings.Append(name,suffix);
 				Basic.ToSegmentedName(name, pooledName);
-				section := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, pooledName, NIL,TRUE);
+				section := IntermediateCode.NewSection(module.allSections, Sections.ConstSection, pooledName, NIL,TRUE);
 				HeapBlock(mName,typeName,section,2);
 				Info(section, "HeapBlock");
 				(*
@@ -8490,33 +8473,33 @@ TYPE
 			Info(moduleSection, "sb*: SYSTEM.ADDRESS");
 			Address(moduleSection,0);
 			Info(moduleSection, "entry*: POINTER TO ARRAY OF SYSTEM.ADDRESS");
-			Symbol(moduleSection,emptyArraySection,emptyArraySectionOffset,0);
+			Symbol(moduleSection,emptyArraySection.name,emptyArraySectionOffset,0);
 			Info(moduleSection, "command*: POINTER TO ARRAY OF Command");
-			Symbol(moduleSection,commandsSection,commandsSectionOffset,0);
+			Symbol(moduleSection,commandsSection.name,commandsSectionOffset,0);
 			Info(moduleSection, "ptrAdr*: POINTER TO ARRAY OF SYSTEM.ADDRESS");
-			Symbol(moduleSection,pointerSection,pointerSectionOffset,0);
+			Symbol(moduleSection,pointerSection.name,pointerSectionOffset,0);
 			Info(moduleSection, "typeInfo*: POINTER TO ARRAY OF TypeDesc");
-			Symbol(moduleSection,typeInfoSection,typeInfoSectionOffset,0);
+			Symbol(moduleSection,typeInfoSection.name,typeInfoSectionOffset,0);
 			Info(moduleSection, "module*: POINTER TO ARRAY OF Module");
-			Symbol(moduleSection,emptyArraySection,emptyArraySectionOffset,0);
+			Symbol(moduleSection,emptyArraySection.name,emptyArraySectionOffset,0);
 			Info(moduleSection, "procTable*: ProcTable");
-			Symbol(moduleSection,procTableSection,procTableSectionOffset,0);
+			Symbol(moduleSection,procTableSection.name,procTableSectionOffset,0);
 			Info(moduleSection, "ptrTable*: PtrTable");
-			Symbol(moduleSection,ptrTableSection,ptrTableSectionOffset,0);
+			Symbol(moduleSection,ptrTableSection.name,ptrTableSectionOffset,0);
 			Info(moduleSection, "data*, code*, staticTypeDescs*, refs*: Bytes");
-			Symbol(moduleSection,emptyArraySection,emptyArraySectionOffset,0);
-			Symbol(moduleSection,emptyArraySection,emptyArraySectionOffset,0);
-			Symbol(moduleSection,emptyArraySection,emptyArraySectionOffset,0);
-			Symbol(moduleSection,referenceSection,referenceSectionOffset,0);
+			Symbol(moduleSection,emptyArraySection.name,emptyArraySectionOffset,0);
+			Symbol(moduleSection,emptyArraySection.name,emptyArraySectionOffset,0);
+			Symbol(moduleSection,emptyArraySection.name,emptyArraySectionOffset,0);
+			Symbol(moduleSection,referenceSection.name,referenceSectionOffset,0);
 			Info(moduleSection, "export*: ExportDesc");
 			Address(moduleSection,0);
 			Address(moduleSection,0);
 			Longint(moduleSection,exportDescSize);
-			Symbol(moduleSection,exportDescArray, exportDescArrayOffset,0);
+			Symbol(moduleSection,exportDescArray.name, exportDescArrayOffset,0);
 			Info(moduleSection, "term*: TerminationHandler");
 			Address(moduleSection,0);
 			Info(moduleSection, "exTable*: ExceptionTable");
-			Symbol(moduleSection,exceptionSection,exceptionSectionOffset,0);
+			Symbol(moduleSection,exceptionSection.name,exceptionSectionOffset,0);
 			Info(moduleSection, "noProcs*: LONGINT");
 			Longint(moduleSection,numberProcs);
 			Info(moduleSection, "firstProc*: SYSTEM.ADDRESS");
@@ -8539,9 +8522,8 @@ TYPE
 				variable := scope(SyntaxTree.ModuleScope).firstVariable;
 				WHILE variable # NIL DO
 					IF ~(variable.untraced) THEN
-						symbol := module.allSections.FindBySymbolAndKind(variable, Sections.RegularKind); (*TODO*)
+						symbol := module.allSections.FindBySymbol(variable);
 						ASSERT(symbol # NIL);
-						ASSERT(symbol.kind = Sections.RegularKind);
 						Pointers(0,symbol, source,variable.type,numberPointers);
 					END;
 					variable := variable.nextVariable;
@@ -8574,18 +8556,18 @@ TYPE
 					(* source := module.sections.FindByName(...) *)
 					Global.GetSymbolSegmentedName(td,name);
 					Basic.AppendToSegmentedName(name,"@Info");
-					source := IntermediateCode.NewSection(module.allSections, Sections.RegularKind, Sections.ConstSection, TRUE, name,NIL,implementationVisitor.dump # NIL);
+					source := IntermediateCode.NewSection(module.allSections, Sections.ConstSection, name,NIL,implementationVisitor.dump # NIL);
 					Info(source, "type info size");	Address(source, 3*ToMemoryUnits(module.system,module.system.addressSize)+32);
 					Address(source,MPO-4);
 					Info(source, "type tag pointer");
-					Symbol( source, tag, offset, 0);
+					Symbol( source, tag.name, offset, 0);
 					Info(source, "type flags");
 					flags := {};
 					IF isProtected THEN INCL(flags,31) END;
 					Set( source, flags);
 					Info(source, "pointer to module");
 					moduleSection := ModuleSection();
-					Symbol( source, moduleSection,moduleSection.pc,0);
+					Symbol( source, moduleSection.name,moduleSection.pc,0);
 					Info(source, "type name");
 					i := 0;
 					Global.GetSymbolSegmentedName(td,name);
@@ -8605,15 +8587,14 @@ TYPE
 					sectionType := Sections.CodeSection;
 				END;
 				IF (x.scope.ownerModule = module.module) THEN
-					source := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,sectionType, TRUE, name,x,implementationVisitor.dump # NIL);
+					source := IntermediateCode.NewSection(module.allSections, sectionType, name,x,implementationVisitor.dump # NIL);
 				ELSIF (sectionType = Sections.InlineCodeSection) & (x.procedureScope.body.code.sourceCode # NIL) THEN
 					HALT(200);
 				ELSE
-					source := IntermediateCode.NewSection(module.allSections, Sections.ImportedSymbolKind,sectionType, FALSE, name,x,implementationVisitor.dump # NIL);
+					source := IntermediateCode.NewSection(module.importedSections, sectionType, name,x,implementationVisitor.dump # NIL);
 				END;
 				RETURN source
 			END GetSection;
-
 			PROCEDURE NewTypeDescriptor;
 			VAR name: Basic.SegmentedName; op: IntermediateCode.Operand; source: IntermediateCode.Section;
 				i,methods: LONGINT;
@@ -8641,19 +8622,19 @@ TYPE
 						baseTD := baseRecord.typeDeclaration;
 						Global.GetSymbolSegmentedName(baseTD,name);
 						IF (baseTD.scope = NIL) OR (baseTD.scope.ownerModule = module.module) THEN
-							tir := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,baseTD,implementationVisitor.dump # NIL);
+							tir := IntermediateCode.NewSection(module.allSections, Sections.ConstSection, name,baseTD,implementationVisitor.dump # NIL);
 						ELSE
-							tir := IntermediateCode.NewSection(module.allSections, Sections.ImportedSymbolKind, Sections.ConstSection, FALSE, name,baseTD,implementationVisitor.dump # NIL);
+							tir := IntermediateCode.NewSection(module.importedSections, Sections.ConstSection, name,baseTD,implementationVisitor.dump # NIL);
 						END;
 						offset := ToMemoryUnits(module.system,GetTypeRecordBaseOffset(baseRecord.recordScope.numberMethods)*module.system.addressSize);
-						Symbol(source, tir, 0, offset);
+						Symbol(source, tir.name, 0, offset);
 						baseRecord := baseRecord.GetBaseRecord();
 					END;
 				END TdTable;
 
 			BEGIN
 					Global.GetSymbolSegmentedName(td,name);
-					source := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,td,implementationVisitor.dump # NIL);
+					source := IntermediateCode.NewSection(module.allSections, Sections.ConstSection, name,td,implementationVisitor.dump # NIL);
 
 					IF ~simple THEN
 						(*
@@ -8689,16 +8670,17 @@ TYPE
 						methods := recordType.recordScope.numberMethods;
 						FOR i := methods-1 TO 0 BY -1 DO
 							procedure := recordType.recordScope.FindMethod(i);
-							Symbol(source, GetSection(procedure),0,0);
+							Global.GetSymbolSegmentedName(procedure,name);
+							Symbol(source, name,0,0);
 						END;
 						TdTable(TypeTags);
 						Info(source, "type descriptor info pointer");
-						Symbol(source, NewTypeDescriptorInfo(source,source.pc+1,recordType.IsProtected()),0,0);
+						Symbol(source, NewTypeDescriptorInfo(source,source.pc+1,recordType.IsProtected()).name,0,0);
 						Info(source, "record size");
 						Address(source, ToMemoryUnits(module.system,module.system.SizeOf(recordType)));
 						Info(source, "pointer offsets pointer");
 						padding := 1- source.pc MOD 2;
-						Symbol(source, source, source.pc+1+padding,0);
+						Symbol(source, source.name, source.pc+1+padding,0);
 						IF padding >0 THEN
 							Info(source, "padding");
 							FOR i := 1 TO padding DO Address(source,0) END;
@@ -8717,7 +8699,8 @@ TYPE
 						methods := recordType.recordScope.numberMethods;
 						FOR i := methods-1 TO 0 BY -1 DO
 							procedure := recordType.recordScope.FindMethod(i);
-							Symbol(source, GetSection(procedure),0,0);
+							Global.GetSymbolSegmentedName(procedure, name);
+							Symbol(source, name,0,0);
 						END;
 						TdTable(TypeTags);
 						Info(source, "record size");
@@ -8738,8 +8721,7 @@ TYPE
 				IF td = NIL THEN td := recordType.pointerType.resolved.typeDeclaration END; (* for compatibility with paco *)
 				ASSERT(td # NIL);
 
-				section := module.allSections.FindBySymbolAndKind(td, Sections.RegularKind); (* TODO *)
-				ASSERT((section = NIL) OR (section.kind = Sections.RegularKind));
+				section := module.allSections.FindBySymbol(td); (* TODO *)
 				IF (section = NIL) OR (section(IntermediateCode.Section).pc = 0) THEN
 					IF implementationVisitor.newObjectFile THEN
 						IF (td.scope = NIL) OR (td.scope.ownerModule = module.module) THEN
@@ -8748,7 +8730,7 @@ TYPE
 					ELSE
 						(* data section in intermediate code *)
 						Global.GetSymbolSegmentedName(td,name);
-						tir := IntermediateCode.NewSection(module.allSections, Sections.RegularKind,Sections.ConstSection, TRUE, name,td,implementationVisitor.dump # NIL);
+						tir := IntermediateCode.NewSection(module.allSections, Sections.ConstSection, name,td,implementationVisitor.dump # NIL);
 						IntermediateCode.InitImmediate(op,IntermediateCode.GetType(module.system, module.system.addressType),0);
 						tir.Emit(Data(-1,op));
 					END;

@@ -2,7 +2,7 @@ MODULE FoxGlobal; (** AUTHOR "fof & fn"; PURPOSE "Oberon Compiler Globally Defin
 (* (c) fof ETH Zürich, 2008 *)
 
 IMPORT
-	SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Scanner := FoxScanner, Strings, Runtime;
+	SyntaxTree := FoxSyntaxTree, Basic := FoxBasic, Scanner := FoxScanner, Strings, Runtime, D:= Debugging;
 
 CONST
 	(* system flag names *)
@@ -851,6 +851,60 @@ TYPE
 			name[1] := -1;
 		END;
 	END GetModuleSegmentedName;
+
+	PROCEDURE FindSymbol*(CONST name: Basic.SegmentedName; scope: SyntaxTree.Scope): SyntaxTree.Symbol;
+	VAR s: LONGINT;  symbol : SyntaxTree.Symbol;
+
+		PROCEDURE GetSymbolScope;
+		VAR type: SyntaxTree.Type;
+		BEGIN
+			IF symbol IS SyntaxTree.Module THEN
+				scope := symbol(SyntaxTree.Module).moduleScope
+			ELSIF symbol IS SyntaxTree.Import THEN
+				scope := symbol(SyntaxTree.Import).module.moduleScope;
+			ELSIF symbol IS SyntaxTree.Procedure THEN
+				scope := symbol(SyntaxTree.Procedure).procedureScope
+			ELSIF symbol IS SyntaxTree.TypeDeclaration THEN
+				type := symbol(SyntaxTree.TypeDeclaration).declaredType.resolved;
+				IF type IS SyntaxTree.RecordType THEN
+					scope := type(SyntaxTree.RecordType).recordScope
+				END;
+			ELSE
+				scope := NIL
+			END
+		END GetSymbolScope;
+
+		PROCEDURE FindSymbol(name: SyntaxTree.Identifier): SyntaxTree.Symbol;
+		VAR symbols: SyntaxTree.Symbol;
+		BEGIN
+			IF scope = scope.ownerModule.moduleScope THEN
+				symbol := scope.ownerModule.moduleScope.ImportByModuleName(name, scope.ownerModule.context);
+				IF symbol = NIL THEN
+					symbol := scope.FindSymbol(name)
+				END;
+			ELSE
+				symbol := scope.FindSymbol(name)
+			END;
+			RETURN symbol
+		END FindSymbol;
+
+	BEGIN
+		s := 0;
+		IF name[0] = scope.ownerModule.name THEN
+			INC(s)
+		END;
+		scope := scope.ownerModule.moduleScope; (* expect fully qualified (segmented) name *)
+		REPEAT
+			IF scope = NIL THEN RETURN NIL END;
+			symbol := FindSymbol(name[s]);
+			IF symbol = NIL THEN RETURN NIL
+			ELSE
+				GetSymbolScope
+			END;
+			INC(s);
+		UNTIL (s = LEN(name)) OR (name[s] < 0);
+		RETURN symbol;
+	END FindSymbol;
 
 
 	PROCEDURE GetSymbolNameInScope*(symbol: SyntaxTree.Symbol; inScope: SyntaxTree.Scope; VAR name: ARRAY OF CHAR);

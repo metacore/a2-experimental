@@ -720,7 +720,7 @@ TYPE
 			data := GetDataSection();
 			pc := IntermediateBackend.EnterImmediate(data,vop);
 			Assembler.InitMem(imm, SHORT(vop.type.sizeInBits DIV 8) , Assembler.none,0);
-			Assembler.SetSymbol(imm,data,pc,0);
+			Assembler.SetSymbol(imm,data.name,pc,0);
 		END GetImmediateMem;
 
 		PROCEDURE GetImmediate(CONST virtual: IntermediateCode.Operand; part: LONGINT; VAR physical: Assembler.Operand; forbidden16Bit: BOOLEAN);
@@ -753,12 +753,12 @@ TYPE
 				ELSE value := virtual.intValue
 				END;
 
-				IF virtual.symbol # NIL THEN size := SHORT(type.sizeInBits DIV 8);
+				IF virtual.symbol # "" THEN size := SHORT(type.sizeInBits DIV 8);
 				ELSIF forbidden16Bit & IsImm16(value) & ~(IsImm8(value)) THEN size := Assembler.bits32;
 				ELSE size := 0
 				END;
 				Assembler.InitImm(physical,size ,value);
-				IF virtual.symbol # NIL THEN Assembler.SetSymbol(physical,virtual.symbol,virtual.symbolOffset,virtual.offset+part*Assembler.bits32) END;
+				IF virtual.symbol # "" THEN Assembler.SetSymbol(physical,virtual.symbol,virtual.symbolOffset,virtual.offset+part*Assembler.bits32) END;
 				IF (cpuBits=64) & ((physical.sizeInBytes=8) OR ~IsImm32(value)) THEN
 					ASSERT(cpuBits=64);
 					GetTemporaryRegister(IntermediateCode.int64,temp);
@@ -800,7 +800,7 @@ TYPE
 				END;
 				offset := virtual.offset;
 				ASSERT(virtual.intValue = 0);
-			ELSIF virtual.symbol # NIL THEN
+			ELSIF virtual.symbol # "" THEN
 				physicalRegister := Assembler.none;
 				offset := virtual.offset;
 				ASSERT(virtual.intValue = 0);
@@ -810,7 +810,7 @@ TYPE
 				ASSERT(virtual.offset = 0);
 			END;
 			Assembler.InitMem(physical, SHORT(type.sizeInBits DIV 8) , physicalRegister, offset+4*part);
-			IF virtual.symbol # NIL THEN
+			IF virtual.symbol # "" THEN
 				Assembler.SetSymbol(physical,virtual.symbol,virtual.symbolOffset,virtual.offset+4*part);
 			END;
 		END GetMemory;
@@ -960,7 +960,7 @@ TYPE
 		BEGIN RETURN (operand.type.form IN IntermediateCode.Integer) & (operand.type.sizeInBits > cpuBits)
 		END IsComplex;
 
-		PROCEDURE Generate(CONST instruction: IntermediateCode.Instruction);
+		PROCEDURE Generate(VAR instruction: IntermediateCode.Instruction);
 		VAR opcode: SHORTINT; ticket: Ticket; hwreg, lastUse, i, part: LONGINT;
 		BEGIN
 			(*!IF ((instruction.opcode = IntermediateCode.mov) OR (instruction.opcode = IntermediateCode.pop)) & (instruction.op1.register <= IntermediateCode.ParameterRegister) THEN
@@ -1456,8 +1456,8 @@ TYPE
 
 		PROCEDURE EmitConvert(CONST vdest, vsrc: IntermediateCode.Operand; part: LONGINT);
 		VAR destType, srcType: IntermediateCode.Type; op1,op2: Assembler.Operand; index: LONGINT; nul: Assembler.Operand;
-		ticket: Ticket; vop: IntermediateCode.Operand; ediReserved, esiReserved: BOOLEAN;
-			eax, edx: Ticket; symbol: Sections.Section; offset: LONGINT;
+			ticket: Ticket; vop: IntermediateCode.Operand; ediReserved, esiReserved: BOOLEAN;
+			eax, edx: Ticket; symbol: Sections.SectionName; offset: LONGINT;
 		BEGIN
 			GetPartType(vdest.type,part, destType);
 			GetPartType(vsrc.type,part,srcType);
@@ -1608,8 +1608,9 @@ TYPE
 		BEGIN
 			IF fpStackPointer # 0 THEN Error(instruction.textPosition,"compiler implementation error: fp stack not cleared before call") END;
 			IF instruction.op1.mode = IntermediateCode.ModeImmediate THEN
-				fixup := instruction.op1.symbol;
-				IF fixup.type = Sections.InlineCodeSection THEN
+				fixup := module.allSections.FindByName(instruction.op1.symbol);
+				IF fixup = NIL THEN fixup := module.importedSections.FindByName(instruction.op1.symbol) END;
+				IF (fixup # NIL) & (fixup.type = Sections.InlineCodeSection) THEN
 					code := fixup.symbol(SyntaxTree.Procedure).procedureScope.body.code;
 					pc := out.pc;
 					IF code.inlineCode # NIL THEN
@@ -1627,7 +1628,7 @@ TYPE
 					END;
 				ELSE
 					Assembler.InitOffset32(target,instruction.op1.intValue);
-					Assembler.SetSymbol(target,fixup,instruction.op1.offset,0);
+					Assembler.SetSymbol(target,instruction.op1.symbol,instruction.op1.offset,0);
 					emitter.Emit1(InstructionSet.opCALL,target);
 				END;
 			ELSE
@@ -2254,7 +2255,7 @@ TYPE
 			op: LONGINT;
 			edi, ecx: Ticket;
 		BEGIN
-			IF FALSE & (instruction.op3.mode = IntermediateCode.ModeImmediate) & (instruction.op3.symbol = NIL) & (instruction.op3.intValue < 5) THEN
+			IF FALSE & (instruction.op3.mode = IntermediateCode.ModeImmediate) & (instruction.op3.symbol = "") & (instruction.op3.intValue < 5) THEN
 				sizeInBits := instruction.op2.type.sizeInBits;
 				IF sizeInBits = IntermediateCode.Bits8 THEN src := opAL;
 				ELSIF sizeInBits = IntermediateCode.Bits16 THEN src := opAX;
@@ -2326,7 +2327,7 @@ TYPE
 			PROCEDURE JmpDest(brop: LONGINT);
 			BEGIN
 				IF instruction.op1.mode = IntermediateCode.ModeImmediate THEN
-					Assert(instruction.op1.symbol # NIL,"branch without symbol destination");
+					Assert(instruction.op1.symbol # "","branch without symbol destination");
 					dest := (instruction.op1.symbolOffset); (* this is the offset in the in-data section (intermediate code), it is not byte- *)
 					destPC := (in.instructions[dest].pc );
 					offset := destPC - (out.pc );
@@ -2390,7 +2391,7 @@ TYPE
 
 
 		BEGIN
-			IF (instruction.op1.symbol = in) & (instruction.op1.symbolOffset = inPC +1) THEN (* jump to next instruction can be ignored *)
+			IF (instruction.op1.symbol = in.name) & (instruction.op1.symbolOffset = inPC +1) THEN (* jump to next instruction can be ignored *)
 				IF dump # NIL THEN dump.String("jump to next instruction ignored"); dump.Ln END;
 				RETURN
 			END;
@@ -2735,12 +2736,14 @@ TYPE
 		 	(* recompute fixup positions and assign binary sections *)
 		 	PROCEDURE PatchFixups(section: BinaryCode.Section);
 			VAR resolved: BinaryCode.Section; fixup: BinaryCode.Fixup; displacement,symbolOffset: LONGINT; in: IntermediateCode.Section;
+				symbol: Sections.Section;
 			BEGIN
 				fixup := section.fixupList.firstFixup;
 				WHILE fixup # NIL DO
-					IF  (fixup.symbol(IntermediateCode.Section).resolved # NIL) THEN
-						resolved := fixup.symbol(IntermediateCode.Section).resolved(BinaryCode.Section);
-						in := fixup.symbol(IntermediateCode.Section);
+					symbol := module.allSections.FindByName(fixup.symbol);
+					IF  (symbol # NIL) & (symbol(IntermediateCode.Section).resolved # NIL) THEN
+						resolved := symbol(IntermediateCode.Section).resolved(BinaryCode.Section);
+						in := symbol(IntermediateCode.Section);
 						symbolOffset := fixup.symbolOffset;
 						IF symbolOffset = in.pc THEN
 							displacement := resolved.pc
@@ -2750,7 +2753,7 @@ TYPE
 						ELSE
 							displacement := 0;
 						END;
-						fixup.SetSymbol(fixup.symbol(IntermediateCode.Section),0,fixup.displacement+displacement);
+						fixup.SetSymbol(fixup.symbol,0,fixup.displacement+displacement);
 					END;
 					fixup := fixup.nextFixup;
 				END;
@@ -2761,7 +2764,6 @@ TYPE
 
 		 	FOR i := 0 TO module.allSections.Length() - 1 DO
 			 	in := module.allSections.GetSection(i);
-			 	IF ~in.IsExternal() THEN
 		 		IF in.type = Sections.InlineCodeSection THEN
 		 			name := in.name;
 			 		out := ResolvedSection(in(IntermediateCode.Section));
@@ -2769,7 +2771,6 @@ TYPE
 			 		procedure := in.symbol(SyntaxTree.Procedure);
 			 		procedure.procedureScope.body.code.SetBinaryCode(out.bits);
 			 	END
-				 END
 		 	END;
 
 			initialSectionCount := 0;
@@ -2779,21 +2780,19 @@ TYPE
 
 			 	FOR i := j TO initialSectionCount - 1 DO
 			 		in := module.allSections.GetSection(i);
-			 		IF ~in.IsExternal() THEN
-				 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
-				 			name := in.name;
-					 		out := ResolvedSection(in(IntermediateCode.Section));
-					 		cg.Section(in(IntermediateCode.Section),out);
-					 		IF out.type = Sections.VarSection THEN
-					 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
-					 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
-					 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
-					 			END;
-					 		ELSIF out.type = Sections.ConstSection THEN
-					 			out.SetAlignment(FALSE,4);
-					 		END;
-				 		END
-				 	END
+			 		IF (in.type # Sections.InlineCodeSection) & (in(IntermediateCode.Section).resolved = NIL) THEN
+			 			name := in.name;
+				 		out := ResolvedSection(in(IntermediateCode.Section));
+				 		cg.Section(in(IntermediateCode.Section),out);
+				 		IF out.type = Sections.VarSection THEN
+				 			IF out.pc = 1 THEN out.SetAlignment(FALSE,1)
+				 			ELSIF out.pc = 2 THEN out.SetAlignment(FALSE,2)
+				 			ELSIF out.pc > 2 THEN out.SetAlignment(FALSE,4)
+				 			END;
+				 		ELSIF out.type = Sections.ConstSection THEN
+				 			out.SetAlignment(FALSE,4);
+				 		END;
+			 		END
 			 	END
 			UNTIL initialSectionCount = module.allSections.Length(); (* process remaining sections that have been added during traversal of sections *)
 
@@ -2811,9 +2810,7 @@ TYPE
 
 			FOR i := 0 TO module.allSections.Length() - 1 DO
 				in := module.allSections.GetSection(i);
-				IF ~in.IsExternal() THEN
 		 		PatchFixups(in(IntermediateCode.Section).resolved)
-			 	END
 		 	END;
 
 			(*
@@ -2951,7 +2948,7 @@ TYPE
 		result := 0;
 		FOR i := 0 TO sectionList.Length() - 1 DO
 			section := sectionList.GetSection(i);
-			IF section.kind = Sections.RegularKind THEN INC(result) END
+			INC(result)
 		END;
 		RETURN result
 	END RegularSectionCount;
