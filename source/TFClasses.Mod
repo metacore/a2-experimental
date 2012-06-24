@@ -211,10 +211,9 @@ TYPE
 		VAR pos : LONGINT;
 		BEGIN {EXCLUSIVE}
 			pos := FindPosition(x);
-			IF compare(x, list[pos]) = 0 THEN
-				RETURN list[pos];
-			ELSE
-				RETURN NIL;
+			IF (x=NIL) OR (list[pos]=NIL) THEN RETURN NIL 	(* PH 2012 *)
+			ELSIF compare(x, list[pos]) = 0 THEN RETURN list[pos];
+			ELSE RETURN NIL;
 			END;
 		END SearchByKey;
 
