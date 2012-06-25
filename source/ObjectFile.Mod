@@ -98,8 +98,9 @@ TYPE
 	VAR
 		table: PoolMapArray;
 		size: LONGINT;
-		used-: LONGINT;
+		used: LONGINT;
 		maxLoadFactor: REAL;
+		writer: Streams.Writer;
 		(* Interface *)
 
 		PROCEDURE & Init* (initialSize: LONGINT);
@@ -110,9 +111,10 @@ TYPE
 			used := 0;
 			maxLoadFactor := 0.75;
 			Clear;
+			Put(0,0); (* empty string mapped one-to-one *)
 		END Init;
 
-		PROCEDURE Put*(key, value: LONGINT);
+		PROCEDURE Put(key, value: LONGINT);
 		VAR hash: LONGINT;
 		BEGIN
 			ASSERT(used < size);
@@ -120,10 +122,10 @@ TYPE
 			hash := HashValue(key);
 			IF table[hash].key <0  THEN
 				INC(used, 1);
+				table[hash].key := key;
 			ELSE
 				ASSERT(table[hash].key = key);
 			END;
-			table[hash].key := key;
 			table[hash].value := value;
 
 			IF (used / size) > maxLoadFactor THEN Grow END;
@@ -146,8 +148,6 @@ TYPE
 		PROCEDURE Clear*;
 		VAR i: LONGINT;
 		BEGIN FOR i := 0 TO size - 1 DO table[i].key := -1; END; END Clear;
-
-		(* Internals *)
 
 		(* only correctly working, if NIL key cannot be entered *)
 		PROCEDURE HashValue(key: LONGINT):LONGINT;
@@ -177,6 +177,51 @@ TYPE
 				END;
 			END;
 		END Grow;
+
+		(** read map and produce Local --> Global **)
+		PROCEDURE Read*(reader: Streams.Reader);
+		VAR i,j,pos,size,value: LONGINT; ch: CHAR;name: SectionName;
+		BEGIN
+			pos := 1;
+			reader.RawString(name);
+			WHILE name[0] # 0X DO
+				StringPool.GetIndex(name,value);
+				Put(pos,value);
+				INC(pos);
+				reader.RawString(name);
+			END;
+		END Read;
+
+		(** write global --> local map **)
+		PROCEDURE PutGlobal*(key: LONGINT);
+		VAR name: SectionName;
+		BEGIN
+			IF ~Has(key) THEN
+				Put(key, used);
+				StringPool.GetString(key, name);
+				writer.RawString(name);
+			END;
+		END PutGlobal;
+
+		PROCEDURE PutSegmentedName*(CONST name: SegmentedName);
+		VAR i: LONGINT;
+		BEGIN
+			FOR i := 0 TO LEN(name)-1 DO
+				IF name[i] < 0 THEN RETURN END;
+				PutGlobal(name[i]);
+			END;
+		END PutSegmentedName;
+
+		PROCEDURE BeginWriting*(w: Streams.Writer);
+		BEGIN
+			writer := w;
+		END BeginWriting;
+
+		PROCEDURE EndWriting*;
+		BEGIN
+			writer.RawString("");
+			writer := NIL;
+		END EndWriting;
 
 	END PoolMap;
 
@@ -543,7 +588,7 @@ VAR
 			i := 0;
 			REPEAT
 				num := poolMap.Get(identifier.name[i]);
-				writer.RawNum(num); (* avoid to write -1 *)
+				writer.RawNum(num);
 				INC(i);
 			UNTIL (i = LEN(identifier.name)) OR (num < 0);
 			writer.RawNum (identifier.fingerprint);

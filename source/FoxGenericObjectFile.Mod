@@ -6,7 +6,7 @@ IMPORT
 	FingerPrinter := FoxFingerPrinter, Files, Options, ObjectFile, Diagnostics, SymbolFileFormat := FoxTextualSymbolFile, Strings, KernelLog, D := Debugging;
 
 CONST
-	Version = 2;
+	Version = 3;
 	Trace = FALSE;
 
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
@@ -178,68 +178,26 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		reader.SkipWhitespace;
 		reader.Char(ch); ASSERT(ch='v');
 		reader.Int(version,FALSE);
-		IF version < Version THEN KernelLog.String("warning: old object file encountered"); KernelLog.Ln END;
+		IF version < Version THEN KernelLog.String("warning: old object file encountered, recompile all sources"); KernelLog.Ln END;
 		reader.Char(ch); ASSERT(ch='.');
 		IF ~binary THEN reader.SkipWhitespace
 		ELSE
 			NEW(poolMap,64);
-			reader.RawLInt(size);
-			pos := 0; j := 0;
-			FOR i := 0 TO size-1 DO
-				reader.Char(ch);
-				IF Trace THEN IF ch # 0X THEN D.Char(ch) ELSE D.Ln END END;
-				name[j] := ch; INC(j);
-				IF ch = 0X THEN
-					poolMap.Put(pos, StringPool.GetIndex1(name));
-					pos := i+1; j := 0;
-				END;
-			END;
-			IF Trace THEN D.String("pos "); D.Int(reader.Pos(),1); D.Ln END;
-			ASSERT((ch=0X) OR (size = 0));
+			poolMap.Read(reader);
 		END;
 	END ReadHeader;
 
 	PROCEDURE WriteHeader(writer: Streams.Writer; binary: BOOLEAN; sections: Sections.SectionList; VAR poolMap: ObjectFile.PoolMap; fingerPrinter:FingerPrinter.FingerPrinter);
 	VAR p1,p2, size,i: LONGINT; section: Sections.Section; fixups: LONGINT; fixupList: ObjectFile.Fixups;
 
-		PROCEDURE Identifier(id: LONGINT);
-		VAR i: LONGINT; name: ObjectFile.SectionName; ch: CHAR;
-		BEGIN
-			IF id >= 0 THEN
-				IF ~poolMap.Has(id) THEN
-					poolMap.Put(id, size);
-					StringPool.GetString(id, name);
-					i := 0;
-					REPEAT
-						ch := name[i];
-						INC(i); INC(size);
-						writer.Char(ch);
-						IF Trace THEN IF ch # 0X THEN D.Char(ch) ELSE D.Ln END; END;
-					UNTIL ch = 0X;
-				END;
-			END;
-		END Identifier;
-
-		PROCEDURE ProcessSegmentedName(CONST pooledName: ObjectFile.SegmentedName);
-		VAR i: LONGINT;
-		BEGIN
-			FOR i := 0 TO LEN(pooledName)-1 DO
-				IF pooledName[i] < 0 THEN RETURN END;
-				Identifier(pooledName[i]);
-			END;
-		END ProcessSegmentedName;
-
 		PROCEDURE ProcessSection(section: IntermediateCode.Section);
 		VAR i: LONGINT; fixup: BinaryCode.Fixup; index: LONGINT;
 		BEGIN
 			IF section.resolved # NIL THEN
-				ProcessSegmentedName(section.resolved.identifier.name);
+				poolMap.PutSegmentedName(section.name);
 				fixup := section.resolved.fixupList.firstFixup; i := 0;
 				WHILE fixup # NIL DO
-					ProcessSegmentedName(fixup.symbol);
-					(*
-					index := ObjectFile.AddFixup(fixups, fixupList, fixup.symbol.name, GetFingerPrint(fixup.symbol, fingerPrinter), fixup.mode,fixup.scale, fixup.patterns, fixup.pattern);
-					*)
+					poolMap.PutSegmentedName(fixup.symbol);
 					fixup := fixup.nextFixup;
 				END;
 			END;
@@ -254,16 +212,12 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		IF ~binary THEN writer.Ln
 		ELSE
 			NEW(poolMap,512);
-			p1 := writer.Pos(); size := 0;
-			writer.RawLInt(0);
+			poolMap.BeginWriting(writer);
 			FOR i := 0 TO sections.Length()-1 DO
 				section := sections.GetSection(i);
 				ProcessSection(section(IntermediateCode.Section));
 			END;
-			p2 := writer.Pos();
-			writer.SetPos(p1);
-			writer.RawLInt(size);
-			writer.SetPos(p2);
+			poolMap.EndWriting;
 
 			FOR i := 0 TO fixups-1 DO
 				D.String("fingerprint: "); Basic.WriteSegmentedName(D.Log, fixupList[i].identifier.name); D.Ln;

@@ -330,17 +330,7 @@ VAR section: ObjectFile.Section; string: ARRAY 32 OF CHAR; ch: CHAR; binary: BOO
 		IF ~binary THEN reader.SkipWhitespace
 		ELSE
 			NEW(poolMap,64);
-			reader.RawLInt(size);
-			pos := 0; j := 0;
-			FOR i := 0 TO size-1 DO
-				reader.Char(ch);
-				name[j] := ch; INC(j);
-				IF ch = 0X THEN
-					poolMap.Put(pos, StringPool.GetIndex1(name));
-					pos := i+1; j := 0;
-				END;
-			END;
-			ASSERT((ch=0X) OR (size = 0));
+			poolMap.Read(reader);
 		END;
 	END Header;
 
