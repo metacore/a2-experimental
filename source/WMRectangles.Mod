@@ -50,7 +50,7 @@ TYPE
 					 (outer.t <= inner.t) & (outer.b >= inner.b)
 	END IsContained;
 
-	PROCEDURE IsEqual*(VAR a, b : Rectangle) : BOOLEAN;
+	PROCEDURE IsEqual*(CONST a, b : Rectangle) : BOOLEAN;
 	BEGIN
 		RETURN (a.l = b.l) & (a.r = b.r) & (a.t = b.t) & (a.b = b.b)
 	END IsEqual;
