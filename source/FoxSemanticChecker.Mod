@@ -3572,14 +3572,18 @@ TYPE
 			END;
 		END AppendMathIndex;
 
-		PROCEDURE AppendIndex(position: LONGINT; index: SyntaxTree.IndexDesignator; expression: SyntaxTree.Expression; over: SyntaxTree.ArrayType);
+		PROCEDURE AppendIndex(position: LONGINT; index: SyntaxTree.IndexDesignator; expression: SyntaxTree.Expression; over: SyntaxTree.Type);
 		VAR  parameters: SyntaxTree.ExpressionList;
 		BEGIN
 			parameters := index.parameters;
 			IF (expression.type = NIL) THEN
 				Error(position,Diagnostics.Invalid,"invalid index");
 			ELSIF IsIntegerType(expression.type.resolved) THEN
-				IndexCheck(expression,over.length);
+				IF over IS SyntaxTree.ArrayType THEN
+					IndexCheck(expression,over(SyntaxTree.ArrayType).length);
+				ELSIF over IS SyntaxTree.StringType THEN
+					IndexCheck(expression,Global.NewIntegerValue(system, position, over(SyntaxTree.StringType).length));
+				END;
 				expression := NewConversion(InvalidPosition,expression,system.sizeType,NIL);
 				parameters.AddExpression(expression);
 			ELSE
@@ -4031,7 +4035,7 @@ TYPE
 						END;
 
 						(* create a new index designator, if needed *)
-						IF (indexDesignator = NIL) & ((type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.MathArrayType)) THEN
+						IF (indexDesignator = NIL) & ((type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.MathArrayType) OR (type IS SyntaxTree.StringType)) THEN
 							indexDesignator := SyntaxTree.NewIndexDesignator(bracketDesignator.position, designator);
 							indexDesignator.SetAssignable(designator.assignable);
 							indexDesignator.SetType(NIL); (* type will be re-set when index designator is finalized *)
@@ -4047,6 +4051,12 @@ TYPE
 							ASSERT(indexDesignator # NIL);
 							AppendIndex(expression.position, indexDesignator, expression, type(SyntaxTree.ArrayType));
 							type := type(SyntaxTree.ArrayType).arrayBase.resolved;
+							INC(i)
+						ELSIF type IS SyntaxTree.StringType THEN
+							(* indexing over an array *)
+							ASSERT(indexDesignator # NIL);
+							AppendIndex(expression.position, indexDesignator, expression, type);
+							type := type(SyntaxTree.StringType).baseType.resolved;
 							INC(i)
 
 						ELSIF type IS SyntaxTree.MathArrayType THEN

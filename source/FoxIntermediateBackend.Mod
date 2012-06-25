@@ -2870,7 +2870,7 @@ TYPE
 
 		PROCEDURE IndexDesignator(x: SyntaxTree.IndexDesignator);
 		VAR length,res: IntermediateCode.Operand; type: SyntaxTree.Type; maxDim: LONGINT; array:Operand;
-			index: Operand; e: SyntaxTree.Expression;i: LONGINT; size: LONGINT;
+			index: Operand; e: SyntaxTree.Expression;i: LONGINT; size: LONGINT; atype: SyntaxTree.ArrayType;
 
 			PROCEDURE Length(type: SyntaxTree.Type; dim: LONGINT; tag: IntermediateCode.Operand): IntermediateCode.Operand;
 			VAR res: IntermediateCode.Operand; size: LONGINT;
@@ -2947,6 +2947,14 @@ TYPE
 
 		BEGIN
 			type := x.left.type.resolved;
+			IF type IS SyntaxTree.StringType THEN
+				atype := SyntaxTree.NewArrayType(-1, NIL, SyntaxTree.Static);
+				atype.SetArrayBase(type(SyntaxTree.StringType).baseType);
+				atype.SetLength(Global.NewIntegerValue(system,-1, type(SyntaxTree.StringType).length));
+				type := atype;
+				x.left.SetType(type);
+			END;
+
 			maxDim := x.parameters.Length()-1;
 			IntermediateCode.InitImmediate(res,addressType,0);
 			FOR i := 0 TO maxDim DO
@@ -3029,7 +3037,7 @@ TYPE
 			type := x.left.type.resolved;
 			IF type IS SyntaxTree.MathArrayType THEN
 				MathIndexDesignator(x);
-			ELSE ASSERT(type IS SyntaxTree.ArrayType);
+			ELSE ASSERT((type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.StringType));
 				IndexDesignator(x);
 			END;
 			destination := dest;
