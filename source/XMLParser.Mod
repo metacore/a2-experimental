@@ -1,9 +1,9 @@
 MODULE XMLParser;	(** AUTHOR "swalthert"; PURPOSE "XML parser"; *)
 
 IMPORT
-	Strings, KernelLog, DynamicStrings, Scanner := XMLScanner, XML;
+	Strings, KernelLog, DynamicStrings, Scanner := XMLScanner, XML, D:= Debugging;
 
-CONST 
+CONST
 	Ok* = XML.Ok;
 	UnknownError* = -1;
 TYPE
@@ -673,12 +673,13 @@ TYPE
 		END ParseCDataSect;
 
 		PROCEDURE ParseCharData(): XML.ArrayChars;
-		VAR cd: XML.ArrayChars; oldpos: LONGINT; s: String;
+		VAR cd: XML.ArrayChars; oldpos: LONGINT; s,s2: String;
 		BEGIN
 			oldpos := scanner.GetOldPos();
 			NEW(cd); (* cd.SetFilePos(scanner.GetFile(), scanner.GetOldPos()); cd.SetLen(scanner.GetPos() - oldpos); *)
 			cd.SetPos(scanner.GetPos());
 			s := scanner.GetString(Scanner.Str_CharData);
+			s := ExpandCharacterRefs(s);
 			cd.SetStrAsString(s);
 			RETURN cd
 		END ParseCharData;
@@ -692,7 +693,7 @@ TYPE
 				REPEAT
 					scanner.ScanContent();
 					CASE scanner.sym OF
-					| Scanner.CharData: e.AddContent(ParseCharData())
+					| Scanner.CharData: e.AddContent( ParseCharData() )
 					| Scanner.TagElemStartOpen: e.AddContent(ParseElement())
 					| Scanner.CharRef: e.AddContent(ParseCharRef())
 					| Scanner.EntityRef: e.AddContent(ParseEntityRef())
@@ -775,65 +776,9 @@ TYPE
 			END
 		END ParseEndTag;
 
-		PROCEDURE ParseEntityValue(): String;
-		VAR s, es: String; start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
-		BEGIN
-			s := scanner.GetString(Scanner.Str_EntityValue);
-			ds1.Clear; ds1.Append(s^);
-			start := 0; len := ds1.Length();
-			WHILE start < len DO
-				WHILE (start < len) & ((ds1.Get(start) # '&') OR (ds1.Get(start + 1) # '#')) & (ds1.Get(start) # '%') DO
-					INC(start)
-				END;
-				IF ((ds1.Get(start) = '&') & (ds1.Get(start + 1) = '#')) OR (ds1.Get(start) = '%') THEN
-					end := start + 1;
-					WHILE (end < len) & (ds1.Get(end) # ';') DO
-						INC(end)
-					END;
-					IF ds1.Get(end) = ';' THEN
-						ds2.Clear;
-						s := ds1.Extract(0, start);	(* literal before reference *)
-						ds2.Append(s^);
-						IF (ds1.Get(start) = '&') & (ds1.Get(start + 1) = '#') THEN	(* character reference *)
-							s := ds1.Extract(start + 2, end - start - 1);
-							val := StrToInt(s^);
-							msg[0] := ExpandCharacterRef(val);
-							msg[1] := 0X;
-							ds2.Append(msg);
-							start := start + 1;
-						ELSE	(* predefined entity or parameter entity reference *)
-							s := ds1.Extract(start + 1, end - start - 1);	(* reference name *)
-							es := ExpandPredefinedEntity(s^);
-							IF (es # NIL) THEN
-								start := start + 1; (* don't expand reference again *)
-							ELSE
-								es := ExpandEntityRef(s^, XML.ParameterEntity);	(* reference value *)
-							END;
-							IF es = NIL THEN
-								NEW(ds2);
-								msg := 'unknown entity "'; ds2.Append(msg);
-								es := ds1.Extract(start + 1, end - start - 1); ds2.Append(es^);
-								msg := '"'; ds2.Append(msg);
-								es := ds2.ToArrOfChar();
-								Error(es^); RETURN ds1.ToArrOfChar()
-							END;
-							ds2.Append(es^);
-						END;
-						s := ds1.Extract(end + 1, len - end -1);	(* literal after reference *)
-						ds2.Append(s^);
-						ds1.CopyFrom(ds2, 0, ds2.Length());
-						len := ds1.Length()
-					ELSE
-						Error("';' expected (unclosed reference)"); RETURN ds1.ToArrOfChar()
-					END
-				END
-			END;
-			RETURN ds1.ToArrOfChar()
-		END ParseEntityValue;
-
-		PROCEDURE ParseAttributeValue(): String;
+		PROCEDURE ExpandCharacterRefs(s: String): String;
 		VAR
-			s, es: String; start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
+			es: String; start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
 			expanded : BOOLEAN;
 		BEGIN
 			s := scanner.GetString(Scanner.Str_AttributeValue);
@@ -893,6 +838,72 @@ TYPE
 			ELSE
 				RETURN s;
 			END;
+		END ExpandCharacterRefs;
+
+		PROCEDURE ParseEntityValue(): String;
+		VAR s, es: String; start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
+		BEGIN
+			ds1.Clear; ds1.Append(s^);
+			start := 0; len := ds1.Length();
+			WHILE start < len DO
+				WHILE (start < len) & ((ds1.Get(start) # '&') OR (ds1.Get(start + 1) # '#')) & (ds1.Get(start) # '%') DO
+					INC(start)
+				END;
+				IF ((ds1.Get(start) = '&') & (ds1.Get(start + 1) = '#')) OR (ds1.Get(start) = '%') THEN
+					end := start + 1;
+					WHILE (end < len) & (ds1.Get(end) # ';') DO
+						INC(end)
+					END;
+					IF ds1.Get(end) = ';' THEN
+						ds2.Clear;
+						s := ds1.Extract(0, start);	(* literal before reference *)
+						ds2.Append(s^);
+						IF (ds1.Get(start) = '&') & (ds1.Get(start + 1) = '#') THEN	(* character reference *)
+							s := ds1.Extract(start + 2, end - start - 1);
+							val := StrToInt(s^);
+							msg[0] := ExpandCharacterRef(val);
+							msg[1] := 0X;
+							ds2.Append(msg);
+							start := start + 1;
+						ELSE	(* predefined entity or parameter entity reference *)
+							s := ds1.Extract(start + 1, end - start - 1);	(* reference name *)
+							es := ExpandPredefinedEntity(s^);
+							IF (es # NIL) THEN
+								start := start + 1; (* don't expand reference again *)
+							ELSE
+								es := ExpandEntityRef(s^, XML.ParameterEntity);	(* reference value *)
+							END;
+							IF es = NIL THEN
+								NEW(ds2);
+								msg := 'unknown entity "'; ds2.Append(msg);
+								es := ds1.Extract(start + 1, end - start - 1); ds2.Append(es^);
+								msg := '"'; ds2.Append(msg);
+								es := ds2.ToArrOfChar();
+								Error(es^); RETURN ds1.ToArrOfChar()
+							END;
+							ds2.Append(es^);
+						END;
+						s := ds1.Extract(end + 1, len - end -1);	(* literal after reference *)
+						ds2.Append(s^);
+						ds1.CopyFrom(ds2, 0, ds2.Length());
+						len := ds1.Length()
+					ELSE
+						Error("';' expected (unclosed reference)"); RETURN ds1.ToArrOfChar()
+					END
+				END
+			END;
+			RETURN ds1.ToArrOfChar()
+		END ParseEntityValue;
+
+
+
+		PROCEDURE ParseAttributeValue(): String;
+		VAR
+			s, es: String; start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
+			expanded : BOOLEAN;
+		BEGIN
+			s := scanner.GetString(Scanner.Str_AttributeValue);
+			RETURN ExpandCharacterRefs(s);
 		END ParseAttributeValue;
 
 		PROCEDURE ParseCharRef(): XML.CharReference;
