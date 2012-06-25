@@ -7729,19 +7729,20 @@ TYPE
 			{pointerOffset}
 		*)
 		PROCEDURE Pointers(offset: LONGINT; symbol: Sections.Section; section: IntermediateCode.Section; type: SyntaxTree.Type; VAR numberPointers: LONGINT);
-		VAR variable: SyntaxTree.Variable; i,n,size: LONGINT; base: SyntaxTree.Type;
+		VAR variable: SyntaxTree.Variable; i,n,size: LONGINT; base: SyntaxTree.Type; name: Basic.SegmentedName;
 		BEGIN
+			IF symbol = NIL THEN name := "" ELSE name := symbol.name END;
 			type := type.resolved;
 			IF type IS SyntaxTree.AnyType THEN
-				Symbol(section, symbol.name, 0, (offset ));
+				Symbol(section, name, 0, (offset ));
 				INC(numberPointers);
 
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 			ELSIF type IS SyntaxTree.PointerType THEN
-				Symbol(section, symbol.name, 0, (offset )); INC(numberPointers);
+				Symbol(section, name, 0, (offset )); INC(numberPointers);
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1);D.Ln;  END;
 			ELSIF (type IS SyntaxTree.ProcedureType) & (type(SyntaxTree.ProcedureType).isDelegate) THEN
-				Symbol(section, symbol.name, 0, (offset )+ToMemoryUnits(module.system,module.system.addressSize)); INC(numberPointers);
+				Symbol(section, name, 0, (offset )+ToMemoryUnits(module.system,module.system.addressSize)); INC(numberPointers);
 				IF Trace THEN D.Str("ptr at offset="); D.Int(offset+ToMemoryUnits(module.system,module.system.addressSize),1); END;
 			ELSIF (type IS SyntaxTree.RecordType) THEN
 				(* never treat a record like a pointer, even if the pointer field is set! *)
@@ -7776,7 +7777,7 @@ TYPE
 							END;
 						END;
 					ELSE
-						Symbol( section, symbol.name, 0, (offset )); INC(numberPointers);
+						Symbol( section, name, 0, (offset )); INC(numberPointers);
 						IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 					END;
 				END;
@@ -7798,7 +7799,7 @@ TYPE
 							END;
 						END;
 					ELSE
-						Symbol(section, symbol.name, 0, (offset )); INC(numberPointers); (* GC relevant pointer is at offset 0 *)
+						Symbol(section, name, 0, (offset )); INC(numberPointers); (* GC relevant pointer is at offset 0 *)
 						IF Trace THEN D.Str("ptr at offset="); D.Int(offset,1); D.Ln; END;
 					END
 				END;
