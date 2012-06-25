@@ -194,7 +194,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		VAR i: LONGINT; fixup: BinaryCode.Fixup; index: LONGINT;
 		BEGIN
 			IF section.resolved # NIL THEN
-				poolMap.PutSegmentedName(section.resolved.identifier.name););
+				poolMap.PutSegmentedName(section.resolved.identifier.name);
 				fixup := section.resolved.fixupList.firstFixup; i := 0;
 				WHILE fixup # NIL DO
 					poolMap.PutSegmentedName(fixup.symbol);
