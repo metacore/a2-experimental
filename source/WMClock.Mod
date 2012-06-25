@@ -237,7 +237,7 @@ TYPE
 			NEW(hourHandColor, PrototypeHourHandColor, NIL, NIL); properties.Add(hourHandColor);
 			NEW(format, PrototypeFormat, NIL, NIL); properties.Add(format);
 			NEW(lock);
-			NEW(str, 10);
+			NEW(str, 32);
 			image := NIL;
 			updateInterval := 500;
 			alive := TRUE; dead := FALSE;
