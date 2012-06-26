@@ -1,7 +1,7 @@
 MODULE XMLParser;	(** AUTHOR "swalthert"; PURPOSE "XML parser"; *)
 
 IMPORT
-	Strings, KernelLog, DynamicStrings, Scanner := XMLScanner, XML, D:= Debugging;
+	Strings, KernelLog, DynamicStrings, Scanner := XMLScanner, XML;
 
 CONST
 	Ok* = XML.Ok;
