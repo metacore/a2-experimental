@@ -2109,7 +2109,6 @@ TYPE
 		VAR w,h: LONGINT;
 		BEGIN
 			IF property = bounds THEN
-				D.TraceBack();
 				IF ~ Rectangles.IsEqual(window.bounds, bounds.Get()) THEN
 					bounds.GetExtents(w,h);
 					window.manager.SetWindowSize(window,w,h);
