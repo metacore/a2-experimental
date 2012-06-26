@@ -654,6 +654,7 @@ TYPE
 		keyFlags: SET; (*! remove *)
 		oldPointerInfo : WM.PointerInfo;
 
+
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
@@ -1574,7 +1575,7 @@ TYPE
 			END;
 			IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 
-			command := GetAttributeValue("onClick");
+			command := GetAttributeValue("onAnyClick");
 			IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 		END CheckPointerEvent;
 
