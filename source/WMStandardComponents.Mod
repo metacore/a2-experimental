@@ -1180,10 +1180,8 @@ TYPE
 				onClick.Call(par);
 				ExecuteClickHandler;
 			END;
-			(*IF (sender # NIL) & (sender IS Timer) THEN*)
-				command := GetAttributeValue("onClick");
-				IF command # NIL THEN WMComponents.HandleEvent(event, SELF, command) END;
-			(*END;*)
+			command := GetAttributeValue("command");
+			IF command # NIL THEN WMComponents.HandleEvent(event, SELF, command) END;
 
 		END Click;
 

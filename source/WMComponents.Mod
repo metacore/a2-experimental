@@ -1575,7 +1575,7 @@ TYPE
 			END;
 			IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 
-			command := GetAttributeValue("onAnyClick");
+			command := GetAttributeValue("onClick");
 			IF (command # NIL) THEN HandleEvent(event, SELF, command); END;
 		END CheckPointerEvent;
 
