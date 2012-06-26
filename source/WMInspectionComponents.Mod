@@ -1143,7 +1143,6 @@ TYPE
 		PROCEDURE Synchronize(force : BOOLEAN);
 		VAR reference : WMProperties.ReferenceProperty;string : ARRAY 256 OF CHAR; stringType: Types.String256; res: LONGINT;
 		BEGIN
-			D.String("Synchronize"); D.Ln;
 			reference := SELF.reference;
 			IF (reference # NIL) & (force OR (lastTimestamp # reference.GetTimestamp())) THEN
 				lastTimestamp := reference.GetTimestamp();

@@ -16,6 +16,7 @@ CONST
 	FlagNavigation* = 8; (** The window will always appear at the same position/size on the screen independent of the range of the viewport displaying it. *)
 	FlagHidden* = 9; (** This flag indicates whether a window should be managed by window navigation tools. It does not influence the visibiliy or behaviour of the window *)
 	FlagNoResizing* = 10; (** If set, window resizing is disabled *)
+	FlagNoPointer*=11; (* if set, in window there will be no pointer visible --> touch screens *)
 
 	SizeMinHeight = 3; (* Minimum height of a window *)
 	SizeMinWidth = 3; (* Minimum width of a window *)
@@ -427,9 +428,10 @@ TYPE
 
 		PROCEDURE SetPointerInfo*(pi : PointerInfo);
 		BEGIN
+			IF FlagNoPointer IN flags THEN pi := pointerNull END;
 			IF pi # pointerInfo THEN
 				pointerInfo := pi;
-				IF manager # NIL THEN manager.CheckPointerImage END
+				IF manager # NIL THEN manager.CheckPointerImage END;
 			END
 		END SetPointerInfo;
 
@@ -1020,6 +1022,7 @@ TYPE
 
 VAR
 	registry- : Plugins.Registry;
+	pointerNull: PointerInfo;
 
 	(* Changes whenever a Window is added or removed to/from a WindowManager *)
 	wTimestamp- : LONGINT;
@@ -1176,4 +1179,5 @@ BEGIN
 	nextId := 0; x1 := 0; y1 := 0;
 	wTimestamp := 0; oTimestamp := 0;
 	format := Raster.BGRA8888;
+	NEW(pointerNull);
 END WMWindowManager.
