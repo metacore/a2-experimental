@@ -322,6 +322,8 @@ MODULE User32; (** non-portable / source: Win32.User32.Mod *)	(* ejz  *)
 		(** The GetFocus function retrieves the handle to the window that has the keyboard focus, if the window is attached
 			to the calling thread's message queue. *)
 		GetFocus-: PROCEDURE {WINAPI} (): HWND;
+		(** Retrieves a handle to the foreground window (the window with which the user is currently working). The system assigns a slightly higher priority to the thread that creates the foreground window than it does to other threads.  *)
+		GetForegroundWindow-: PROCEDURE {WINAPI} (): HWND;
 		(** The GetKeyState function retrieves the status of the specified virtual key. *)
 		GetKeyState-: PROCEDURE {WINAPI} (vKey: LONGINT): INTEGER;
 		(** The GetMenu function retrieves a handle to the menu assigned to the specified window. *)
@@ -514,6 +516,7 @@ BEGIN
 	Kernel32.GetProcAddress(mod, "GetCursorPos", SYSTEM.VAL(LONGINT,GetCursorPos ));
 	Kernel32.GetProcAddress(mod, "GetDC", SYSTEM.VAL(LONGINT,GetDC ));
 	Kernel32.GetProcAddress(mod, "GetFocus", SYSTEM.VAL(LONGINT,GetFocus ));
+	Kernel32.GetProcAddress(mod, "GetForegroundWindow", SYSTEM.VAL(LONGINT,GetForegroundWindow ));
 	Kernel32.GetProcAddress(mod, "GetKeyState", SYSTEM.VAL(LONGINT,GetKeyState ));
 	Kernel32.GetProcAddress(mod, "GetMenu", SYSTEM.VAL(LONGINT,GetMenu ));
 	Kernel32.GetProcAddress(mod, "GetMenuItemInfoA", SYSTEM.VAL(LONGINT,GetMenuItemInfo ));
