@@ -2925,7 +2925,7 @@ VAR
 	ProtGPTextColor* : WMProperties.ColorProperty;
 
 	(* Image *)
-	PrototypeImageName : WMProperties.StringProperty;
+	PrototypeImageName- : WMProperties.StringProperty;
 	PrototypeScaleImage : WMProperties.BooleanProperty;
 
 	(* Image Panel *)
