@@ -183,6 +183,7 @@ TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 		w,h, y, dy, x, p: LONGINT;
 		Rows:JSampRowList;
 		idct, factor, dither, colorMode: INTEGER;
+		ch: CHAR;
 	BEGIN
 
 
@@ -218,7 +219,7 @@ TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 		ELSE h := -h; y := h-1; dy := -1
 		END;
 		(*PH100226*)
-			IF (img.width#w) OR (img.height#h) OR (img.fmt.code#Raster.bgr888) THEN
+			IF (img.width#w) OR (img.height#h) OR (img.fmt.code#Raster.bgr888) THEN (*! gray and palette formats*)
 				Images.Create(img, SHORT(w), SHORT(h), Images.BGR888);
 			END;
 			(*Images.Create(img, SHORT(w), SHORT(h), Images.BGR888);*)
@@ -226,13 +227,25 @@ TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 			WHILE cInfo.bmpRows # NIL DO
 				rowOffset := 0;
 				x := 0; p := y * img.bpr;
-				WHILE x < w DO
-					img.mem[p    ] := cInfo.bmpRows.row[rowOffset +2 ]; INC(rowOffset);
-					img.mem[p+1] := cInfo.bmpRows.row[rowOffset      ]; INC(rowOffset);
-					img.mem[p+2] := cInfo.bmpRows.row[rowOffset -2 ]; INC(rowOffset);
-					INC(x); INC(p, 3);
-				END;
+				IF cInfo.numComponents=3 THEN
+					WHILE x < w DO
+						img.mem[p    ] := cInfo.bmpRows.row[rowOffset +2 ]; INC(rowOffset);
+						img.mem[p+1] := cInfo.bmpRows.row[rowOffset      ]; INC(rowOffset);
+						img.mem[p+2] := cInfo.bmpRows.row[rowOffset -2 ]; INC(rowOffset);
+						INC(x); INC(p, 3);
+					END;
 
+				ELSIF cInfo.numComponents=1 THEN
+					WHILE x < w DO
+						ch:=cInfo.bmpRows.row[rowOffset];
+						img.mem[p   ] := ch; 
+						img.mem[p+1] := ch;
+						img.mem[p+2] := ch;
+						INC(rowOffset);
+						INC(x); INC(p, 3);
+					END;
+				ELSE (*! TBD*)
+				END;
 		 	   INC(y, dy);
 		 	   Rows:=cInfo.bmpRows;
 				cInfo.bmpRows := cInfo.bmpRows.next;
@@ -3790,3 +3803,5 @@ BEGIN
 
 
 END JPEGDecoder.
+
+SystemTools.FreeDownTo JPEGDecoder~
