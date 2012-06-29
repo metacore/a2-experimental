@@ -657,7 +657,7 @@ TYPE
 
 				PROCEDURE Update*;
 				BEGIN {EXCLUSIVE}
-					UpdateX
+					IF state = Closed THEN  UpdateX  END
 				END Update;
 				
 				PROCEDURE UpdateX;
@@ -904,15 +904,18 @@ TYPE
 		name[i] := 0X;
 	END GetTempName;
 	
+
 	
 	PROCEDURE Cleanup( obj: ANY );
 	VAR r: LONGINT;  f: File;
 	BEGIN
 		f := S.VAL( File, obj );
-		IF fileTab[f.fd] # 0 THEN
+		IF fileTab[f.fd] # 0 THEN			
+			IF f.tempFile THEN  r := Unix.unlink( S.ADR( f.workName ) )  
+			ELSE  f.state := Closed;  f.Update;
+			END;
 			DEC( openfiles );  fileTab[f.fd] := 0;
 			r := Unix.close( f.fd );
-			IF f.tempFile THEN  r := Unix.unlink( S.ADR( f.workName ) )  END;
 		END;
 	END Cleanup;
 
@@ -923,9 +926,7 @@ TYPE
 		i := 0;
 		WHILE i < FileTabSize DO
 			f := S.VAL( File, fileTab[i] );
-			IF f # NIL THEN
-				IF f.tempFile THEN  r := Unix.unlink( S.ADR( f.workName ) )  END
-			END;
+			IF f # NIL THEN  Cleanup( f )  END;
 			INC( i )
 		END
 	END CloseFiles;
