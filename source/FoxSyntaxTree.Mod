@@ -387,6 +387,8 @@ TYPE
 			resolved-: Type; (* indirection to resolved type to preserve qualified types *)
 			position-,endposition-: LONGINT;
 			state-: SET;
+			hasPointers-: BOOLEAN;
+
 			fingerprint-: FingerPrint;
 
 			isRealtime-: BOOLEAN;
@@ -405,7 +407,8 @@ TYPE
 			alignmentInBits := MIN(LONGINT);
 			isRealtime := FALSE;
 			recursion := FALSE;
-			InitFingerPrint(fingerprint)
+			hasPointers := FALSE;
+			InitFingerPrint(fingerprint);
 		END InitType;
 
 		PROCEDURE SetSize*(sizeInBits: LONGINT);
@@ -428,6 +431,11 @@ TYPE
 		PROCEDURE SetState*(state: LONGINT);
 		BEGIN	INCL(SELF.state,state);
 		END SetState;
+
+		PROCEDURE SetHasPointers*(has: BOOLEAN);
+		BEGIN
+			hasPointers := has
+		END SetHasPointers;
 
 		PROCEDURE RemoveState*(state: LONGINT);
 		BEGIN EXCL(SELF.state,state)
@@ -508,6 +516,7 @@ TYPE
 		PROCEDURE & InitObjectType(sizeInBits: LONGINT);
 		BEGIN
 			InitBasicType("@Object",sizeInBits);
+			hasPointers := TRUE;
 		END InitObjectType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -538,6 +547,7 @@ TYPE
 		BEGIN
 			InitBasicType("@Nil",sizeInBits);
 			SetRealtime(TRUE);
+			hasPointers := TRUE;
 		END InitNilType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -566,6 +576,7 @@ TYPE
 		PROCEDURE & InitAnyType(sizeInBits: LONGINT);
 		BEGIN
 			InitBasicType("@Any",sizeInBits);
+			hasPointers := TRUE;
 		END InitAnyType;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -1222,6 +1233,7 @@ TYPE
 			pointerBase := NIL;
 			InitType(position);
 			SELF.scope := scope;
+			hasPointers := TRUE;
 		END InitPointerType;
 
 		PROCEDURE SetModifiers*(flags: Modifier);

@@ -500,6 +500,7 @@ TYPE
 				ELSIF arrayBase IS SyntaxTree.MathArrayType THEN
 					Error(x.position,Diagnostics.Invalid,"forbidden array mixed form");
 				END;
+				x.SetHasPointers(arrayBase.hasPointers);
 				x.SetState(SyntaxTree.Resolved);
 			END;
 			resolvedType := ResolvedType(x);
@@ -611,6 +612,7 @@ TYPE
 					IF x.form = SyntaxTree.Static THEN
 						x.SetIncrement(system.SizeOf(arrayBase));
 					END;
+					x.SetHasPointers((x.form # SyntaxTree.Static) OR arrayBase.hasPointers);
 				END;
 				x.SetState(SyntaxTree.Resolved);
 			END;
@@ -843,6 +845,7 @@ TYPE
 				IF HasFlag(modifiers, Global.NameRealtime,position) THEN procedureType.SetRealtime(TRUE) END;
 				CheckModifiers(modifiers);
 				typeFixes.Add(procedureType,currentScope);
+				procedureType.SetHasPointers(procedureType.isDelegate);
 				procedureType.SetState(SyntaxTree.Resolved);
 			END;
 			resolvedType := ResolvedType(procedureType)
@@ -857,6 +860,7 @@ TYPE
 		VAR resolved, baseType: SyntaxTree.Type; position: LONGINT;
 			numberMethods: LONGINT; recordBase, recordType: SyntaxTree.RecordType; procedure: SyntaxTree.Procedure;
 			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN;
+			hasPointers: BOOLEAN;
 
 			PROCEDURE IsPointerToRecord(type: SyntaxTree.Type; VAR recordType: SyntaxTree.RecordType): BOOLEAN;
 			BEGIN
@@ -874,10 +878,12 @@ TYPE
 
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
+				hasPointers := FALSE;
 				IF x.baseType # NIL THEN
 					position := x.baseType.position;
 					baseType := ResolveType(x.baseType);
 					resolved := baseType.resolved;
+					hasPointers := hasPointers OR resolved.hasPointers;
 
 					IF x.isObject THEN (* object *)
 						ASSERT(x.pointerType # NIL);
@@ -897,6 +903,7 @@ TYPE
 						ELSE
 							Error(position, Diagnostics.Invalid,"pointer to record does not extend pointer to record or record")
 						END;
+
 					ELSE
 						IF resolved IS SyntaxTree.RecordType THEN
 						ELSE
@@ -930,10 +937,12 @@ TYPE
 				END;
 
 				isRealtime := TRUE;
+				hasPointers := FALSE;
 				symbol := x.recordScope.firstSymbol; (* sorted symbols, important to go through procedures in a sorted way here !*)
 				WHILE symbol # NIL DO
 					IF symbol IS SyntaxTree.Variable THEN
 						isRealtime := isRealtime & symbol.type.resolved.isRealtime;
+						hasPointers := hasPointers OR symbol.type.resolved.hasPointers;
 					END;
 					IF symbol IS SyntaxTree.Procedure THEN
 						procedure := symbol(SyntaxTree.Procedure);
@@ -966,6 +975,7 @@ TYPE
 						AnonymousTypeDeclaration(x,"Anonymous");
 					END;
 				END;
+				x.SetHasPointers(hasPointers);
 				x.SetState(SyntaxTree.Resolved);
 			END;
 			resolvedType := ResolvedType(x);
@@ -8522,36 +8532,14 @@ TYPE
 		RETURN result
 	END IsPointerToRecord;
 
-
 	PROCEDURE ContainsPointer*(type: SyntaxTree.Type): BOOLEAN;
-	VAR scope: SyntaxTree.RecordScope; variable: SyntaxTree.Variable;
 	BEGIN
 		IF type # NIL THEN
-			type := type.resolved;
-			IF IsPointerType(type) THEN RETURN TRUE
-			ELSIF type IS SyntaxTree.ArrayType THEN RETURN ContainsPointer(type(SyntaxTree.ArrayType).arrayBase)
-			ELSIF type IS SyntaxTree.MathArrayType THEN
-				IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Static THEN
-					RETURN ContainsPointer(type(SyntaxTree.MathArrayType).arrayBase)
-				ELSE
-					RETURN TRUE
-				END;
-			ELSIF type IS SyntaxTree.RecordType THEN
-				scope := type(SyntaxTree.RecordType).recordScope;
-				variable := scope.firstVariable;
-				WHILE(variable # NIL) DO
-					IF ContainsPointer(variable.type) THEN RETURN TRUE
-					ELSE variable := variable.nextVariable
-					END;
-				END;
-				RETURN ContainsPointer(type(SyntaxTree.RecordType).baseType)
-			ELSIF (type IS SyntaxTree.ProcedureType) THEN
-				RETURN type(SyntaxTree.ProcedureType).isDelegate
-			END;
+			RETURN type.resolved.hasPointers
+		ELSE
+			RETURN FALSE
 		END;
-		RETURN FALSE
 	END ContainsPointer;
-
 
 	PROCEDURE IsStringType*(type: SyntaxTree.Type): BOOLEAN;
 	BEGIN
