@@ -5008,7 +5008,9 @@ TYPE
 
 				InitVariable(variable(SyntaxTree.Variable));
 			ELSE
+				(*
 				ASSERT(variable.type.resolved = type.resolved)
+				*)
 			END;
 			RETURN variable(SyntaxTree.Variable)
 		END GetTemporaryVariable;
