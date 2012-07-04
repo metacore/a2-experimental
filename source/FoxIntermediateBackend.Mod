@@ -859,7 +859,7 @@ TYPE
 	VariableUse= ARRAY 32 OF SET; (* upper bound of 1024 temporary variables in a procedure .. should be enough for all times *)
 
 	Variables = OBJECT (Basic.List)
-	VAR inUse: VariableUse
+	VAR inUse: VariableUse;
 
 		PROCEDURE & Init;
 		VAR i: LONGINT;
@@ -885,25 +885,10 @@ TYPE
 			IF any = NIL THEN RETURN NIL ELSE RETURN any(SyntaxTree.Variable) END;
 		END GetVariable;
 
-		PROCEDURE PutVariable(i: LONGINT; v: SyntaxTree.Variable);
-		BEGIN
-			Set(i,v);
-		END PutVariable;
-
 		PROCEDURE Occupy(pos: LONGINT);
 		BEGIN
 			INCL(inUse[pos DIV 32], pos MOD 32);
 		END Occupy;
-
-		(*
-		PROCEDURE FreeVariable(v: SyntaxTree.Variable);
-		VAR i: LONGINT;
-		BEGIN
-			FOR i := 0 TO Length()-1 DO
-				IF Get(i) = v THEN Free(i) END;
-			END;
-		END FreeVariable;
-		*)
 
 		PROCEDURE AddVariable(v: SyntaxTree.Variable);
 		BEGIN
@@ -7416,6 +7401,8 @@ TYPE
 			call: IntermediateCode.Operand; label: Label; name: Basic.SegmentedName;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitAwaitStatement") END;
+			IF profile THEN ProfilerEnterExit(numberProcedures, FALSE) END;
+
 			proc := MakeAwaitProcedure(x);
 			Emit(Push(position,fp));
 			Global.GetSymbolSegmentedName(proc,name);
@@ -7441,6 +7428,8 @@ TYPE
 			Emit(Push(position,nil));
 			CallThis("Objects","Await",4);
 			SetLabel(label);
+			IF profile THEN ProfilerEnterExit(numberProcedures, TRUE) END;
+
 			IF Trace THEN TraceExit("VisitAwaitStatement") END;
 		END VisitAwaitStatement;
 
@@ -7481,6 +7470,7 @@ TYPE
 		PROCEDURE Lock(lock: BOOLEAN);
 		BEGIN
 			IF Trace THEN TraceEnter("Lock") END;
+			IF profile THEN ProfilerEnterExit(numberProcedures, FALSE) END;
 			CheckRegistersFree(); (* no register may be in use as operands should not be preserved over the lock / unlock boundary *)
 			IF dump # NIL THEN
 				IF lock THEN dump.String("lock") ELSE dump.String("unlock") END;
@@ -7491,6 +7481,7 @@ TYPE
 			IF lock THEN CallThis("Objects","Lock",2)
 			ELSE CallThis("Objects","Unlock",2);
 			END;
+			IF profile THEN ProfilerEnterExit(numberProcedures, TRUE) END;
 			IF Trace THEN TraceExit("Lock") END;
 		END Lock;
 
