@@ -42,6 +42,7 @@ VAR registerOperands: ARRAY InstructionSet.numberRegisters OF Assembler.Operand;
 	 , opRSP, opRBP: Assembler.Operand;
 
 	 unusable,split,blocked,free: CodeGenerators.Ticket;
+	 traceStackSize: LONGINT;
 
 TYPE
 
@@ -1139,6 +1140,11 @@ TYPE
 			cc := SHORT(instruction.op1.intValue);
 			stackSize := SHORT(instruction.op2.intValue);
 			size := stackSize;
+
+			(*
+			IF stackSize > 512 THEN D.String("large stack size "); Basic.WriteSegmentedName(D.Log, in.name); D.String(": "); D.Int(stackSize,1); D.Ln; END;
+			*)
+			INC(traceStackSize, stackSize);
 
 			emitter.Emit1(InstructionSet.opPUSH,opBP);
 			emitter.Emit2(InstructionSet.opMOV,opBP,opSP);
@@ -3018,7 +3024,13 @@ TYPE
 	BEGIN NEW(backend); RETURN backend
 	END Get;
 
+	PROCEDURE Trace*;
+	BEGIN
+		TRACE(traceStackSize);
+	END Trace;
+
 BEGIN
+	traceStackSize := 0;
 	Init;
 	usePool := Machine.NumberOfProcessors()>1;
 END FoxAMDBackend.

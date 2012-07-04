@@ -467,6 +467,8 @@ TYPE
 			currentScope := scope;
 			procedureType := x.type(SyntaxTree.ProcedureType);
 
+			implementationVisitor.temporaries.Init;
+
 			implementationVisitor.GetCodeSectionNameForSymbol(x, name);
 			IF (scope.body # NIL) & (x.isInline) THEN
 				inline := TRUE;
@@ -854,6 +856,79 @@ TYPE
 		type: IntermediateCode.Type;
 	END;
 
+	VariableUse= ARRAY 32 OF SET; (* upper bound of 1024 temporary variables in a procedure .. should be enough for all times *)
+
+	Variables = OBJECT (Basic.List)
+	VAR inUse: VariableUse
+
+		PROCEDURE & Init;
+		VAR i: LONGINT;
+		BEGIN
+			InitList(16);
+			FOR i := 0 TO LEN(inUse)-1 DO inUse[i] := {} END;
+		END Init;
+
+		PROCEDURE GetUsage(VAR use: VariableUse);
+		BEGIN
+			use := inUse;
+		END GetUsage;
+
+		PROCEDURE SetUsage(CONST use: VariableUse);
+		BEGIN
+			inUse := use;
+		END SetUsage;
+
+		PROCEDURE GetVariable(i: LONGINT): SyntaxTree.Variable;
+		VAR any: ANY;
+		BEGIN
+			any := Get(i);;
+			IF any = NIL THEN RETURN NIL ELSE RETURN any(SyntaxTree.Variable) END;
+		END GetVariable;
+
+		PROCEDURE PutVariable(i: LONGINT; v: SyntaxTree.Variable);
+		BEGIN
+			Set(i,v);
+		END PutVariable;
+
+		PROCEDURE Occupy(pos: LONGINT);
+		BEGIN
+			INCL(inUse[pos DIV 32], pos MOD 32);
+		END Occupy;
+
+		(*
+		PROCEDURE FreeVariable(v: SyntaxTree.Variable);
+		VAR i: LONGINT;
+		BEGIN
+			FOR i := 0 TO Length()-1 DO
+				IF Get(i) = v THEN Free(i) END;
+			END;
+		END FreeVariable;
+		*)
+
+		PROCEDURE AddVariable(v: SyntaxTree.Variable);
+		BEGIN
+			Occupy(Length());
+			Add(v);
+		END AddVariable;
+
+		PROCEDURE GetFreeVariable(type: SyntaxTree.Type; VAR pos: LONGINT): SyntaxTree.Variable;
+		VAR var : SyntaxTree.Variable;
+		BEGIN
+			FOR pos := 0 TO Length()-1 DO
+				IF ~((pos MOD 32) IN inUse[pos DIV 32]) THEN
+					var := GetVariable(pos);
+					IF type.SameType(var.type) THEN
+						Occupy(pos); RETURN var
+					END;
+				END;
+			END;
+			pos := Length();
+			RETURN NIL
+		END GetFreeVariable;
+
+	END Variables;
+
+
 	ImplementationVisitor =OBJECT(SyntaxTree.Visitor)
 	VAR
 		system: Global.System;
@@ -913,6 +988,8 @@ TYPE
 		operatorInitializationCodeSection: IntermediateCode.Section;
 		fingerPrinter: FingerPrinter.FingerPrinter;
 
+		temporaries: Variables;
+
 		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedInstructionProcedure: SupportedInstructionProcedure; supportedImmediateProcedure: SupportedImmediateProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.IdentifierString; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
 		BEGIN
@@ -957,6 +1034,7 @@ TYPE
 			usedRegisters := NIL;
 			procedureResultDesignator := NIL;
 			NEW(fingerPrinter, system);
+			NEW(temporaries);
 		END Init;
 
 		PROCEDURE NewSection(list: Sections.SectionList; type: SHORTINT; CONST name: Basic.SegmentedName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
@@ -1054,7 +1132,9 @@ TYPE
 		END Expression;
 
 		PROCEDURE Statement(x: SyntaxTree.Statement);
+		VAR use: VariableUse;
 		BEGIN
+			temporaries.GetUsage(use);
 			position := x.position;
 			IF emitLabels THEN Emit(LabelInstruction(x.position)) END;
 			IF commentPrintout # NIL THEN
@@ -1064,6 +1144,7 @@ TYPE
 			END;
 			x.Accept(SELF);
 			CheckRegistersFree();
+			temporaries.SetUsage(use);
 		END Statement;
 
 		(* dereference op. If op is already a memory operand then use auxiliary register to dereference
@@ -4063,7 +4144,6 @@ TYPE
 				currentWriteBackCall := currentWriteBackCall.next
 			END;
 			RestoreGlobalState;
-
 			(* TENATIVE *)
 			(*
 			IF isOperatorCall THEN
@@ -4891,18 +4971,28 @@ TYPE
 			create a temporary variable in current scope
 		**)
 		PROCEDURE GetTemporaryVariable(type: SyntaxTree.Type): SyntaxTree.Variable;
-		VAR name: SyntaxTree.Identifier; string: SyntaxTree.IdentifierString ; variable: SyntaxTree.Symbol;
-		scope: SyntaxTree.Scope; duplicate: BOOLEAN; offset: LONGINT;
+		VAR name: SyntaxTree.Identifier; string: SyntaxTree.IdentifierString ; variable: SyntaxTree.Variable;
+		scope: SyntaxTree.Scope; duplicate: BOOLEAN; offset, index: LONGINT;
 		BEGIN
+			variable := temporaries.GetFreeVariable(type, index);
+			(*
 			COPY("@hiddenIRVar",string);
 			Basic.AppendNumber(string,GetIndex());
 			name := SyntaxTree.NewIdentifier(string);
+			*)
 			scope := currentScope;
-			variable := currentScope.FindVariable(name);
+			(*
+			variable := currentScope.FindVariable(name);*)
+
 			IF variable = NIL THEN
+				COPY("@hiddenIRVar",string);
+				Basic.AppendNumber(string,index);
+				name := SyntaxTree.NewIdentifier(string);
+
 				variable := SyntaxTree.NewVariable(Diagnostics.Invalid,name);
 				variable.SetType(type);
 				variable.SetAccess(SyntaxTree.Hidden);
+				temporaries.AddVariable(variable);
 
 				IF scope.lastVariable # NIL THEN
 					offset := scope.lastVariable.offsetInBits;
@@ -5493,6 +5583,7 @@ TYPE
 					ELSE
 						SetLabel(exit);
 					END;
+
 				ELSIF (type IS SyntaxTree.PointerType) & (type(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType)  THEN
 					type := type(SyntaxTree.PointerType).pointerBase.resolved;
 
@@ -7115,6 +7206,7 @@ TYPE
 
 			BrL(start);
 			SetLabel(false);
+
 			IF Trace THEN TraceExit("VisitForStatement") END;
 		END VisitForStatement;
 
