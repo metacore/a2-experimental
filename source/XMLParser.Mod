@@ -778,9 +778,61 @@ TYPE
 
 		PROCEDURE ExpandCharacterRefs(s: String): String;
 		VAR
-			es: String; start, end, len, val: LONGINT; msg: ARRAY 17 OF CHAR;
-			expanded : BOOLEAN;
+			from, to: LONGINT;
+			ch : CHAR;
+
+			PROCEDURE ReplaceEntity(CONST source: ARRAY OF CHAR; VAR srcPos: LONGINT; VAR dest: ARRAY OF CHAR; VAR destPos: LONGINT);
+			VAR ch: CHAR; name: ARRAY 32 OF CHAR; sp, dp: LONGINT; string: Strings.String; pos: LONGINT;
+			BEGIN
+				ASSERT(source[srcPos] = "&");
+				sp := srcPos+1;
+				REPEAT
+					ch := source[sp];
+					name[dp] := ch;
+					INC(sp); INC(dp);
+				UNTIL (ch = ";") OR (ch = 0X) OR (dp >= LEN(name));
+				name[dp-1] := 0X;
+
+				IF ch = ";" THEN
+					string := ExpandPredefinedEntity(name);
+					IF string # NIL THEN
+						pos := 0;
+						REPEAT
+							ch := string[pos];
+							dest[destPos] := ch;
+							INC(pos); INC(destPos);
+						UNTIL ch = 0X;
+						srcPos := sp -1;
+						DEC(destPos);
+					END;
+				END;
+				INC(srcPos);
+			END ReplaceEntity;
+
 		BEGIN
+			(* we make use of the fact that the "expansion" is actually always a shrinkage and therefore make change in place ! *)
+			to := 0; from := 0;
+
+			WHILE (s[from] # "&") & (s[from] # 0X) DO
+				INC(from); INC(to);
+			END;
+
+			REPEAT
+				ch := s[from];
+				IF ch = "&" THEN
+					ReplaceEntity(s^, from, s^, to);
+				ELSE
+					s[to] := ch;
+					INC(from); INC(to);
+				END;
+			UNTIL ch = 0X;
+
+			RETURN s
+
+			(*
+			END;
+			s[to] := 0X;
+
 			s := scanner.GetString(Scanner.Str_AttributeValue);
 			ds1.Clear; ds1.Append(s^);
 			start := 0; len := ds1.Length(); expanded := FALSE;
@@ -838,6 +890,7 @@ TYPE
 			ELSE
 				RETURN s;
 			END;
+			*)
 		END ExpandCharacterRefs;
 
 		PROCEDURE ParseEntityValue(): String;
