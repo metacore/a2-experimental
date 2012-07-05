@@ -1658,7 +1658,7 @@ TYPE
 		PROCEDURE GetMinMaxWidth*(VAR word, line : LONGINT);
 		VAR dx, pos : LONGINT;
 			cws, cls : LONGINT;
-			f : WMGraphics.Font;
+			f,cf : WMGraphics.Font;
 			ch : Char32;
 			tabstring : ARRAY 256 OF CHAR; tabs : CustomTabStops; tp : TabPositions;
 			sr : Streams.StringReader; tabCounter, tabPos : LONGINT; token : ARRAY 16 OF CHAR;
@@ -1691,7 +1691,8 @@ TYPE
 			END GetWidth;
 
 		BEGIN
-			f := GetFont(); (* set the default component font *)
+			cf := GetFont(); (* set the default component font *)
+			f := cf;
 			pos := 0; cws := 0; cls := 0; word := 0; line := 0;
 
 			text.AcquireRead;
@@ -1751,9 +1752,9 @@ TYPE
 							f := GetFontFromAttr(utilreader.attributes.fontInfo);
 							utilreader.attributes.fontInfo.fontcache := f
 						END
-					ELSE f := GetFont()
+					ELSE f := cf
 					END
-				ELSE f := GetFont();
+				ELSE f := cf;
 				END;
 
 				INC(pos);
@@ -1984,7 +1985,7 @@ TYPE
 		END GetParagraphEmbeddingLevel;
 
 
-				PROCEDURE LayoutLine(VAR pos : LONGINT; VAR ch : Char32; VAR l : LineInfo; wrapwidth, stopPos, stopXPos : LONGINT);
+		PROCEDURE LayoutLine(VAR pos : LONGINT; VAR ch : Char32; VAR l : LineInfo; wrapwidth, stopPos, stopXPos : LONGINT);
 		VAR
 			i, wrapPos : LONGINT;
 			eol, first : BOOLEAN;
@@ -1999,6 +2000,7 @@ TYPE
 			readerPosition : LONGINT;
 			highlighterStyle, lastHighlighterStyle : SyntaxHighlighter.Style;
 			currentStyle, lastStyle : ANY;
+			cf:  WMGraphics.Font;
 			style : RECORD
 				voff : LONGINT;
 				font : WMGraphics.Font;
@@ -2031,7 +2033,7 @@ TYPE
 					descent := style.font.GetDescent() + style.voff
 				ELSIF ch = Texts.LabelChar THEN
 					IF showLabels.Get() THEN
-						font := GetFont();
+						font := cf;
 						font.GetStringSize(localTextReader.object(Texts.LabelPiece).label^, dx, ascent);
 						INC(dx, 4);
 					ELSE
@@ -2053,7 +2055,8 @@ TYPE
 
 		BEGIN
 			style.voff := 0;
-			style.font := GetFont();
+			cf := GetFont();
+			style.font := cf;
 
 			x := 0; l.pos := pos; l.height := style.font.GetHeight(); eol := FALSE;
 
@@ -2197,14 +2200,14 @@ TYPE
 									localTextReader.attributes.fontInfo.fontcache := style.font;
 								END
 							ELSE
-								style.font := GetFont()
+								style.font := cf
 							END
 						END;
 					ELSE
 						IF (currentStyle # DefaultStyle) THEN
 							currentStyle := DefaultStyle;
 							style.voff := 0;
-							style.font := GetFont();
+							style.font := cf;
 							ld := 0;
 						END;
 					END;
@@ -2307,6 +2310,7 @@ TYPE
 			highlighterStyle, lastHighlighterStyle : SyntaxHighlighter.Style;
 			currentStyle, lastStyle : ANY;
 			lastColor : LONGINT;
+			cf: WMGraphics.Font;
 			style : RECORD
 				color, bgColor, voff : LONGINT;
 				font : WMGraphics.Font;
@@ -2324,7 +2328,8 @@ TYPE
 			canvas.SetColor(style.color); lastColor := style.color;
 			style.bgColor := defaultTextBgColorI;
 			style.voff := 0;
-			style.font := GetFont();
+			cf := GetFont();
+			style.font := cf;
 
 			IF llen < 0 THEN
 				linelength := layout.GetLineLength(linenr);
@@ -2459,7 +2464,7 @@ TYPE
 									localTextReader.attributes.fontInfo.fontcache := style.font;
 								END;
 							ELSE
-								style.font := GetFont();
+								style.font := cf;
 							END;
 						END;
 					ELSE
@@ -2468,7 +2473,7 @@ TYPE
 							style.color := defaultTextColorI;
 							style.bgColor := defaultTextBgColorI;
 							style.voff := 0;
-							style.font := GetFont();
+							style.font := cf;
 						END;
 					END;
 					ASSERT(style.font # NIL);
@@ -2521,7 +2526,7 @@ TYPE
 					IF indicateTabsI THEN canvas.SetPixel(x + sx + ((dx + 1) DIV 2), top + ((l.ascent + 1) DIV 2), WMGraphics.Blue, WMGraphics.ModeCopy); END;
 				ELSIF char = Texts.LabelChar THEN
 					IF showLabels.Get() THEN
-						font := GetFont();
+						font := cf;
 						font.GetStringSize(localTextReader.object(Texts.LabelPiece).label^, dx, dy);
 						font.RenderString(canvas, x + sx+2, top + (l.ascent), localTextReader.object(Texts.LabelPiece).label^);
 						INC(dx, 4);
