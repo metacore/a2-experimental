@@ -2229,6 +2229,30 @@ TYPE
 						emitter.EmitPrefix (InstructionSet.prfREP);
 						emitter.Emit0(InstructionSet.opMOVSB);
 					END;
+				ELSIF (instruction.op1.mode = IntermediateCode.ModeRegister) & (instruction.op1.register = IntermediateCode.SP) THEN
+					MakeOperand(instruction.op3,Low,op3,ecx);
+					t := TemporaryTicket(IntermediateCode.GeneralPurposeRegister, IntermediateCode.int32);
+					TicketToOperand(t, temp);
+					emitter.Emit2(InstructionSet.opADD, opESI, opECX);
+					emitter.Emit2(InstructionSet.opADD, opEDI, opECX);
+					emitter.Emit2(InstructionSet.opMOV, temp, opECX);
+					imm := Assembler.NewImm8(2);
+					emitter.Emit2(InstructionSet.opSHR, temp, imm);
+					imm := Assembler.NewImm8(3);
+					emitter.Emit2(InstructionSet.opAND, opECX, imm);
+					imm := Assembler.NewImm8(1);
+					emitter.Emit0(InstructionSet.opSTD); (* copy downwards *)
+					imm := Assembler.NewImm8(1);
+					emitter.Emit2(InstructionSet.opSUB, opESI, imm);
+					emitter.Emit2(InstructionSet.opSUB, opEDI, imm);
+					emitter.EmitPrefix (InstructionSet.prfREP);
+					emitter.Emit0(InstructionSet.opMOVSB);
+					imm := Assembler.NewImm8(3);
+					emitter.Emit2(InstructionSet.opSUB, opESI, imm);
+					emitter.Emit2(InstructionSet.opSUB, opEDI, imm);
+					emitter.Emit2(InstructionSet.opMOV, opECX, temp);
+					emitter.EmitPrefix (InstructionSet.prfREP);
+					emitter.Emit0(InstructionSet.opMOVSD);
 				ELSE
 					MakeOperand(instruction.op3,Low,op3,ecx);
 					t := TemporaryTicket(IntermediateCode.GeneralPurposeRegister, IntermediateCode.int32);
