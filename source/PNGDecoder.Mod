@@ -174,7 +174,8 @@ TYPE
 
 			PROCEDURE GetNextFilterByte() : CHAR;
 			VAR result:CHAR;
-					t1, t2:LONGINT;
+					t1, t2:LONGINT; f: LONGINT;
+					
 			BEGIN
 				CASE filter OF
 					| 0 : result := current[cp]
@@ -248,6 +249,26 @@ TYPE
 										SYSTEM.PUT8(p, a); INC(p)
 									END;
 						|6:(* color type 6 rgb + alpha *)
+							IF (filter = 0) & (hdr.bitDepth # 16) THEN
+								FOR x:=0 TO hdr.width-1 DO
+									r := current[cp]; INC(cp);
+									g := current[cp]; INC(cp);
+									b := current[cp]; INC(cp);
+									a := current[cp]; INC(cp);
+									IF ORD(a) = 255 THEN
+										SYSTEM.PUT8(p,b); INC(p);
+										SYSTEM.PUT8(p,g); INC(p);
+										SYSTEM.PUT8(p,r); INC(p);
+										SYSTEM.PUT8(p,a); INC(p);
+									ELSE
+										SYSTEM.PUT8(p, CHR(ORD(b)*ORD(a) DIV 256)); INC(p);
+										SYSTEM.PUT8(p, CHR(ORD(g)*ORD(a) DIV 256)); INC(p);
+										SYSTEM.PUT8(p, CHR(ORD(r)*ORD(a) DIV 256)); INC(p);
+										SYSTEM.PUT8(p, a); INC(p)
+									END;
+								END;
+							ELSE
+
 								FOR x:=0 TO hdr.width-1 DO
 									r:=GetNextFilterByte(); IF hdr.bitDepth = 16 THEN dummy:=GetNextFilterByte() END;
 									g:=GetNextFilterByte(); IF hdr.bitDepth = 16 THEN dummy:=GetNextFilterByte() END;
@@ -258,6 +279,7 @@ TYPE
 									SYSTEM.PUT8(p, CHR(ORD(r)*ORD(a) DIV 256)); INC(p);
 									SYSTEM.PUT8(p, a); INC(p)
 								END
+							END;
 					END;
 					bitPos := 0;
 					p := lastRowStart + pic.bpr;
