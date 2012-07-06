@@ -44,7 +44,7 @@ IMPORT
 	XML, XMLScanner, XMLParser, XMLObjects, Codecs, Localization, Repositories,
 	Messages := WMMessages, Rectangles := WMRectangles,
 	WMEvents, WMProperties, WMGraphics, Strings, WM := WMWindowManager, Raster,
-	Commands, Modules,D := Debugging, Kernel, Locks, SYSTEM;
+	Commands, Modules,D := Debugging, Kernel, Locks, SYSTEM, Objects;
 
 CONST
 	Ok* = 0;
@@ -480,7 +480,9 @@ TYPE
 		PROCEDURE Reset*(sender, data : ANY); (** PROTECTED *)
 		VAR c : XML.Content;
 		BEGIN
-			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.Reset, sender, data)
+			IF ~IsCallFromSequencer() THEN
+				sequencer.ScheduleEvent(SELF.Reset, sender, data);
+				Objects.Yield;
 			ELSE
 				IF ~initialized THEN Initialize END;
 				RecacheProperties;
@@ -529,7 +531,8 @@ TYPE
 					KernelLog.String("A message sent to ");
 					IF s # NIL THEN KernelLog.String(s^) ELSE KernelLog.String(" <uid = NIL>") END;
 					KernelLog.String(" was discarded")
-				END
+				END;
+				Objects.Yield; (* give the sequencer an immediate chance to react -- important on single-processor machines *)
 			ELSE HandleInternal(msg) END
 		END Handle;
 
@@ -578,7 +581,9 @@ TYPE
 		PROCEDURE InternalPropertyChanged(sender, property : ANY);
 		BEGIN
 			IF ~initialized THEN RETURN END;
-			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.InternalPropertyChanged, sender, property)
+			IF ~IsCallFromSequencer() THEN
+				sequencer.ScheduleEvent(SELF.InternalPropertyChanged, sender, property);
+				Objects.Yield;
 			ELSE
 				IF ~inPropertyUpdate THEN
 					inPropertyUpdate := TRUE;
@@ -592,7 +597,9 @@ TYPE
 		PROCEDURE InternalLinkChanged(sender, property : ANY);
 		BEGIN
 			IF ~initialized THEN RETURN END;
-			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.InternalLinkChanged, sender, property)
+			IF ~IsCallFromSequencer() THEN
+				sequencer.ScheduleEvent(SELF.InternalLinkChanged, sender, property);
+				Objects.Yield;
 			ELSE
 				IF ~inLinkUpdate THEN
 					inLinkUpdate := TRUE;
@@ -1288,7 +1295,7 @@ TYPE
 			IF ~IsCallFromSequencer() THEN
 				m.msgType := Messages.MsgExt;
 				m.ext := invalidateRectMsg; m.x := r.l; m.y := r.t; m.dx := r.r; m.dy := r.b; m.sender := SELF;
-				IF ~sequencer.Add(m) THEN END;
+				IF sequencer.Add(m) THEN Objects.Yield END;
 			ELSE
 				parent := GetParent();
 				IF (parent # NIL) & (parent IS VisualComponent) THEN
@@ -1302,7 +1309,7 @@ TYPE
 		PROCEDURE InvalidateCommand*(sender, par : ANY);
 		BEGIN
 			IF ~initialized THEN RETURN END;
-			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.InvalidateCommand, sender, par)
+			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.InvalidateCommand, sender, par); Objects.Yield;
 			ELSIF visible.Get() THEN InvalidateRect(GetClientRect())
 			END
 		END InvalidateCommand;

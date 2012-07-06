@@ -4,7 +4,8 @@ IMPORT
 	Strings, KernelLog, Objects, Kernel, Locks, D:= Debugging;
 
 CONST
-	MsgQSize = 128;
+	InitialMsgQSize = 64;
+	MaxMsgQSize = 32*1024; (* this is too huge anyway *)
 	(** Predefined Messages *)
 	MsgPointer* = 0; MsgKey* = 2; MsgClose* = 3; MsgStyleChanged* = 4;
 	MsgFocus* = 5; MsgExt* = 6; MsgDrag* = 7;
@@ -81,7 +82,7 @@ TYPE
 	MsgSequencer* = OBJECT
 	VAR
 		head, num : LONGINT;
-		msgQ : ARRAY MsgQSize OF Message;
+		msgQ : POINTER TO ARRAY (* MsgQSize*)  OF Message;
 		alive, continue, hadOverflow , waiting: BOOLEAN;
 		msg : Message;
 		handler : MessageHandler;
@@ -91,6 +92,7 @@ TYPE
 		th, traphandler : TrapHandler;
 		name* : String;
 		trapOnOverflow* : BOOLEAN;
+		overflows: LONGINT;
 
 		PROCEDURE &New*(handler : MessageHandler);
 		BEGIN
@@ -100,6 +102,8 @@ TYPE
 			originator := NIL; me := NIL; th := NIL; traphandler := NIL;
 			name := NIL;
 			alive := FALSE; continue := TRUE; hadOverflow := FALSE; trapOnOverflow := FALSE;
+			waiting := FALSE;
+			NEW(msgQ, InitialMsgQSize);
 		END New;
 
 		(** Add a trap handler for this process. This handler only decides whether to continue or to abort the process.
@@ -124,8 +128,19 @@ TYPE
 			END
 		END GetOriginator;
 
+		PROCEDURE Grow;
+		VAR new: POINTER TO ARRAY (* MsgQSize*)  OF Message; i: LONGINT;
+		BEGIN
+			NEW(new, LEN(msgQ) * 3 DIV 2);
+			FOR i := 0 TO LEN(msgQ)-1 DO
+				new[i] := msgQ[i]
+			END;
+			msgQ := new;
+			IF LEN(new) > 1024 THEN KernelLog.String("MessageQ exceeded 1024 elements"); KernelLog.Ln END;
+		END Grow;
+
 		(** Add a message to a queue. Discards the message if the queue is full *)
-		PROCEDURE Add*(VAR msg : Message) : BOOLEAN;
+		PROCEDURE Add*(VAR msg : Message): BOOLEAN;
 		VAR i : LONGINT;
 		BEGIN {EXCLUSIVE}
 			(*
@@ -141,40 +156,35 @@ TYPE
 			IF (msg.msgType = MsgPointer) & (num > 0) THEN  (* reduce pointer moves in buffer *)
 				i := num - 1;
 				WHILE i >= 0 DO
-					IF (msgQ[(head + i) MOD MsgQSize].msgType = MsgPointer) & (msg.msgSubType = MsgSubPointerMove) & (msgQ[(head + i) MOD MsgQSize].flags = msg.flags) THEN
-						msgQ[(head + i) MOD MsgQSize].x := msg.x;
-						msgQ[(head + i) MOD MsgQSize].y := msg.y;
-						msgQ[(head + i) MOD MsgQSize].z := msg.z;
+					IF (msgQ[(head + i) MOD LEN(msgQ)].msgType = MsgPointer) & (msg.msgSubType = MsgSubPointerMove) & (msgQ[(head + i) MOD LEN(msgQ)].flags = msg.flags) THEN
+						msgQ[(head + i) MOD LEN(msgQ)].x := msg.x;
+						msgQ[(head + i) MOD LEN(msgQ)].y := msg.y;
+						msgQ[(head + i) MOD LEN(msgQ)].z := msg.z;
 						RETURN TRUE
 					END;
 					DEC(i)
 				END
 			END;
-			IF num < MsgQSize THEN
-				IF Statistics THEN
-					INC(messagesAdded);
-					IF (msg.msgType >= 0) & (msg.msgType < MsgTypeMax) THEN
-						INC(messagesAddedByType[msg.msgType]);
-					END;
+			IF num >= MaxMsgQSize THEN RETURN FALSE END;
+			IF num >= LEN(msgQ) THEN
+				Grow
+			END;
+			IF Statistics THEN
+				INC(messagesAdded);
+				IF (msg.msgType >= 0) & (msg.msgType < MsgTypeMax) THEN
+					INC(messagesAddedByType[msg.msgType]);
 				END;
-				msgQ[(head + num) MOD MsgQSize] := msg; INC(num);
-				RETURN TRUE
-			ELSE
-				IF Statistics THEN INC(messagesDiscarded); END;
-				IF ~hadOverflow THEN
-					IF name # NIL THEN KernelLog.String(name^); KernelLog.String(" : ") END;
-					IF trapOnOverflow THEN HALT(123456) END;
-					(*KernelLog.String("Message queue overflow "); KernelLog.Ln; *)
-					hadOverflow := TRUE;
-				END;
-				RETURN FALSE
-			END
+			END;
+			msgQ[(head + num) MOD LEN(msgQ)] := msg; INC(num);
+			overflows := 0;
+			RETURN TRUE;
 		END Add;
 
 		PROCEDURE Handle(VAR msg : Message) : BOOLEAN;
 		BEGIN
 			(* if asynchronous call --> synchronize *)
-			IF ~IsCallFromSequencer() THEN RETURN Add(msg)
+			IF ~IsCallFromSequencer() THEN
+				IF Add(msg) THEN RETURN TRUE END;
 			ELSE
 				(*
 				IF debug = SELF THEN
@@ -186,7 +196,7 @@ TYPE
 					D.Exit;
 				END;
 				*)
-				
+
 				IF msg.msgType = MsgInvokeEvent THEN (* MsgInvokeEvent *)
 					IF msg.event # NIL THEN
 						msg.event(msg.sender, msg.ext);
@@ -239,7 +249,7 @@ TYPE
 			msgQ[head].sender := NIL;
 			msgQ[head].ext := NIL;
 
-			head := (head + 1)  MOD MsgQSize;
+			head := (head + 1)  MOD LEN(msgQ);
 			DEC(num);
 			originator := msg.originator;
 			RETURN TRUE
@@ -277,7 +287,7 @@ VAR
 	 (*
 	 debug*: ANY;
 	*)
-	
+
 PROCEDURE TokenEnumerator(obj: ANY; VAR cont: BOOLEAN);
 BEGIN
 	cont := FALSE; ttoken := obj(AsyncToken)
