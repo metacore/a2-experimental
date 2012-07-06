@@ -44,7 +44,7 @@ TYPE
 			IF TraceEnter THEN log.String("stack position "); log.Int(stackPosition,1); log.Ln; END;
 			IF stackPosition < MaxStackSize THEN
 				startTime[stackPosition] := enterTime;
-				correcture[stackPosition] := Machine.GetTimer()-enterTime;
+				correcture[stackPosition] := GetTimer()-enterTime;
 			END;
 			IF (moduleId < MaxModules) & (procedureId < MaxProcedures) THEN
 				INC(modules[moduleId,procedureId].calls);
@@ -61,7 +61,7 @@ TYPE
 					INC(modules[moduleId,procedureId].brut,enterTime-startTime[stackPosition]);
 				END;
 				IF stackPosition > 0 THEN
-					INC(correcture[stackPosition-1], Machine.GetTimer()-startTime[stackPosition]);
+					INC(correcture[stackPosition-1], GetTimer()-startTime[stackPosition]);
 				END;
 			END;
 			IF TraceEnter THEN log.String("stack position "); log.Int(stackPosition,1); log.Ln; END;
@@ -161,10 +161,18 @@ VAR
 		COPY(name,modules[moduleId,procedureId]);
 	END AddProcedure;
 
+	PROCEDURE GetTimer(): HUGEINT;
+	VAR cpuCycles: Objects.CpuCyclesArray;
+	BEGIN
+		Objects.GetCpuCycles(Objects.CurrentProcess(), cpuCycles, TRUE);
+		RETURN cpuCycles[0];
+		(* time:= Machine.GetTimer(); *)
+	END GetTimer;
+
 	PROCEDURE EnterProcedure*(moduleId, procedureId: LONGINT);
 	VAR time: HUGEINT; p: Process;
 	BEGIN
-		time:= Machine.GetTimer();
+		time:= GetTimer();
 		IF TraceEnter THEN log.String("Enter procedure: "); log.Int(moduleId,1); log.String(", "); log.Int(procedureId,1); log.Ln; log.Update 	END;
 		p := GetProcess();
 		p.Enter(moduleId,procedureId,time);
@@ -173,7 +181,7 @@ VAR
 	PROCEDURE ExitProcedure*(moduleId, procedureId: LONGINT);
 	VAR time: HUGEINT; p: Process;
 	BEGIN
-		time:= Machine.GetTimer();
+		time:= GetTimer();
 		IF TraceEnter THEN log.String("Exit procedure: "); log.Int(moduleId,1); log.String(", "); log.Int(procedureId,1); log.Ln; log.Update END;
 		p := GetProcess();
 		p.Exit(moduleId, procedureId, time);
