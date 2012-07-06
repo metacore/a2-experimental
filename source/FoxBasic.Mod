@@ -83,7 +83,7 @@ TYPE
 		PROCEDURE Grow;
 		VAR old: ObjectArray;  i: LONGINT;
 		BEGIN
-			INC( enlarged );  old := list;  NEW( list, LEN( list ) * 4 );
+			INC( enlarged );  old := list;  NEW( list, LEN( list ) * 3 DIV 2 (* more optimal for first-fit memory allocators *) ) ;
 			FOR i := 0 TO count - 1 DO list[i] := old[i] END
 		END Grow;
 

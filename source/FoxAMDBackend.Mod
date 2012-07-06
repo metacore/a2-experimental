@@ -1187,7 +1187,7 @@ TYPE
 					emitter.Emit2(InstructionSet.opSUB,opSP,op1);
 				END;
 			ELSE
-				op1 := Assembler.NewImm32(size);
+				op1 := Assembler.NewImm32(size+ spillStack.MaxSize());
 				emitter.Emit2(InstructionSet.opSUB,opSP,op1);
 			END;
 
@@ -1198,6 +1198,16 @@ TYPE
 				emitter.Emit1(InstructionSet.opPUSH,opESI);
 			END;
 			spillStackStart := stackSize;
+			
+			(*
+			IF (stackSize+spillStack.MaxSize()  > 128) THEN
+			D.String("section "); Basic.WriteSegmentedName(D.Log, in.name);
+			D.String(" stack size "); D.Int(stackSize,1);
+			D.String(" spill size "); D.Int(spillStack.MaxSize(),1);
+			D.Ln;
+			END;
+			*)
+			
 		END EmitEnter;
 
 		PROCEDURE EmitLeave(CONST instruction: IntermediateCode.Instruction);
