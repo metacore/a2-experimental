@@ -580,6 +580,21 @@ TYPE
 			END;
 		END MoveUp;
 
+		PROCEDURE InvalidateM(sender, data: ANY);
+		VAR c: WMComponents.VisualComponent; parent: XML.Element;
+		BEGIN
+			WITH data: SelectionWrapper DO
+				c := GetVisualComponent(data);
+				c.RecacheProperties;
+				c.Invalidate;
+				(*
+				parent := c.GetParent();
+				parent(WMComponents.VisualComponent).ContentToFront(c);
+				parent(WMComponents.VisualComponent).Invalidate;
+				*)
+			END;
+		END InvalidateM;
+
 		PROCEDURE ContextMenu(sender : ANY; x, y: LONGINT);
 		VAR popup: WMPopups.Popup; wmx, wmy: LONGINT; node: WMTrees.TreeNode; treeView: WMTrees.TreeView;
 			par: SelectionWrapper;
@@ -596,6 +611,7 @@ TYPE
 				popup.AddParButton("Toggle EditMode", ToggleEditMode, par);
 				popup.AddParButton("Delete", Delete, par);
 				popup.AddParButton("Up", MoveUp, par);
+				popup.AddParButton("Invalidate", InvalidateM, par);
 				formTree.treeView.ToWMCoordinates(x,y, wmx, wmy);
 				popup.Popup(wmx, wmy)
 			END;
