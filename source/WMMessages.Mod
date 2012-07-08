@@ -133,9 +133,9 @@ TYPE
 		BEGIN
 			NEW(new, LEN(msgQ) * 3 DIV 2);
 			FOR i := 0 TO LEN(msgQ)-1 DO
-				new[i] := msgQ[i]
+				new[i] := msgQ[(head+i) MOD LEN(msgQ)]
 			END;
-			msgQ := new;
+			msgQ := new;	head := 0;
 			IF LEN(new) > 1024 THEN KernelLog.String("MessageQ exceeded 1024 elements"); KernelLog.Ln END;
 		END Grow;
 
