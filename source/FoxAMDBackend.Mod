@@ -1198,7 +1198,7 @@ TYPE
 				emitter.Emit1(InstructionSet.opPUSH,opESI);
 			END;
 			spillStackStart := stackSize;
-			
+
 			(*
 			IF (stackSize+spillStack.MaxSize()  > 128) THEN
 			D.String("section "); Basic.WriteSegmentedName(D.Log, in.name);
@@ -1207,7 +1207,7 @@ TYPE
 			D.Ln;
 			END;
 			*)
-			
+
 		END EmitEnter;
 
 		PROCEDURE EmitLeave(CONST instruction: IntermediateCode.Instruction);
@@ -2202,13 +2202,13 @@ TYPE
 				MakeOperand(instruction.op1,Low,op1,edi);
 				MakeOperand(instruction.op2,Low,op2,esi);
 
-				IF (instruction.op1.mode = IntermediateCode.ModeRegister) & (instruction.op1.register = IntermediateCode.SP) & IntermediateCode.IsConstantInteger(instruction.op3, size) & (size >= 4096)  THEN
+				IF (instruction.op1.mode = IntermediateCode.ModeRegister) & (instruction.op1.register = IntermediateCode.SP) &  IntermediateCode.IsConstantInteger(instruction.op3, size) & (size >= 4096)  THEN
 					(* special case on stack: copy downwards for possible stack allocation *)
 					IF size MOD 4 # 0 THEN
 						imm := Assembler.NewImm32(size-1);
 						emitter.Emit2(InstructionSet.opADD, opEDI, imm);
 						emitter.Emit2(InstructionSet.opADD, opESI, imm);
-						imm := Assembler.NewImm32(size MOD 3);
+						imm := Assembler.NewImm32(size MOD 4);
 						emitter.Emit2(InstructionSet.opMOV, opECX, imm);
 						emitter.Emit0(InstructionSet.opSTD); (* copy down *)
 						emitter.EmitPrefix (InstructionSet.prfREP);
@@ -2239,30 +2239,31 @@ TYPE
 						emitter.EmitPrefix (InstructionSet.prfREP);
 						emitter.Emit0(InstructionSet.opMOVSB);
 					END;
+				(* this does not work in the kernel -- for whatever reasons
 				ELSIF (instruction.op1.mode = IntermediateCode.ModeRegister) & (instruction.op1.register = IntermediateCode.SP) THEN
+					D.String("using backward copying in "); Basic.WriteSegmentedName(D.Log, in.name); D.Ln;
 					MakeOperand(instruction.op3,Low,op3,ecx);
 					t := TemporaryTicket(IntermediateCode.GeneralPurposeRegister, IntermediateCode.int32);
 					TicketToOperand(t, temp);
 					emitter.Emit2(InstructionSet.opADD, opESI, opECX);
 					emitter.Emit2(InstructionSet.opADD, opEDI, opECX);
-					emitter.Emit2(InstructionSet.opMOV, temp, opECX);
-					imm := Assembler.NewImm8(2);
-					emitter.Emit2(InstructionSet.opSHR, temp, imm);
-					imm := Assembler.NewImm8(3);
-					emitter.Emit2(InstructionSet.opAND, opECX, imm);
-					imm := Assembler.NewImm8(1);
-					emitter.Emit0(InstructionSet.opSTD); (* copy downwards *)
 					imm := Assembler.NewImm8(1);
 					emitter.Emit2(InstructionSet.opSUB, opESI, imm);
 					emitter.Emit2(InstructionSet.opSUB, opEDI, imm);
+					emitter.Emit2(InstructionSet.opMOV, temp, opECX);
+					imm := Assembler.NewImm8(3);
+					emitter.Emit2(InstructionSet.opAND, opECX, imm);
+					emitter.Emit0(InstructionSet.opSTD); (* copy downwards *)
 					emitter.EmitPrefix (InstructionSet.prfREP);
 					emitter.Emit0(InstructionSet.opMOVSB);
 					imm := Assembler.NewImm8(3);
+					emitter.Emit2(InstructionSet.opMOV, opECX, temp);
+					emitter.Emit2(InstructionSet.opSHR, opECX, imm);
 					emitter.Emit2(InstructionSet.opSUB, opESI, imm);
 					emitter.Emit2(InstructionSet.opSUB, opEDI, imm);
-					emitter.Emit2(InstructionSet.opMOV, opECX, temp);
 					emitter.EmitPrefix (InstructionSet.prfREP);
 					emitter.Emit0(InstructionSet.opMOVSD);
+				*)
 				ELSE
 					MakeOperand(instruction.op3,Low,op3,ecx);
 					t := TemporaryTicket(IntermediateCode.GeneralPurposeRegister, IntermediateCode.int32);

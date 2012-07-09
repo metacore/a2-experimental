@@ -1028,7 +1028,7 @@ TYPE
 
 		PROCEDURE SetArrayBase*( type: Type );
 		BEGIN
-			arrayBase := type;
+			arrayBase := type; IF (arrayBase # NIL) & (arrayBase.hasPointers) THEN SetHasPointers(TRUE) END;
 		END SetArrayBase;
 
 		PROCEDURE SetLength*(length: Expression);
@@ -1101,12 +1101,12 @@ TYPE
 
 		PROCEDURE SetForm*(form: LONGINT);
 		BEGIN
-			SELF.form := form;
+			SELF.form := form; IF form # Static THEN SetHasPointers(TRUE) END;
 		END SetForm;
 
 		PROCEDURE SetArrayBase*( type: Type );
 		BEGIN
-			arrayBase := type;
+			arrayBase := type; IF (arrayBase # NIL) & (arrayBase.hasPointers) THEN SetHasPointers(TRUE) END;
 		END SetArrayBase;
 
 		PROCEDURE SetLength*(length: Expression);
@@ -1355,7 +1355,7 @@ TYPE
 
 		PROCEDURE SetBaseType*( type: Type );
 		BEGIN
-			baseType := type;
+			baseType := type; IF (baseType # NIL) & (baseType.hasPointers) THEN hasPointers := TRUE END;
 		END SetBaseType;
 
 		PROCEDURE SetPointerType*(pointerType: PointerType);
