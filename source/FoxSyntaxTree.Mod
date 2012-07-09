@@ -897,7 +897,7 @@ TYPE
 		END InitQualifiedType;
 
 		PROCEDURE SetResolved*(resolved: Type);
-		BEGIN SELF.resolved := resolved
+		BEGIN SELF.resolved := resolved; IF resolved # NIL THEN hasPointers := resolved.hasPointers END;
 		END SetResolved;
 
 		PROCEDURE SameType*(this: Type): BOOLEAN;
@@ -1561,7 +1561,7 @@ TYPE
 		END SetModifiers;
 
 		PROCEDURE SetDelegate*(delegate: BOOLEAN);
-		BEGIN SELF.isDelegate := delegate
+		BEGIN SELF.isDelegate := delegate; SELF.hasPointers := delegate;
 		END SetDelegate;
 
 		PROCEDURE SetStackAlignment*(alignment: LONGINT);
