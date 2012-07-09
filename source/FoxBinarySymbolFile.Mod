@@ -337,6 +337,7 @@ TYPE
 		BEGIN
 			ASSERT(arrayType.arrayBase # NIL);
 			arrayType.SetArrayBase(ResolveType(arrayType.arrayBase));
+			arrayType.SetHasPointers(arrayType.arrayBase.resolved.hasPointers);
 			arrayType.SetState(SyntaxTree.Resolved);
 		END VisitArrayType;
 
@@ -345,6 +346,9 @@ TYPE
 			arrayType.SetArrayBase(ResolveType(arrayType.arrayBase));
 			IF arrayType.form = SyntaxTree.Static THEN
 				arrayType.SetIncrement(system.SizeOf(arrayType.arrayBase));
+				arrayType.SetHasPointers(arrayType.arrayBase.resolved.hasPointers);
+			ELSE
+				arrayType.SetHasPointers(TRUE)
 			END;
 			arrayType.SetState(SyntaxTree.Resolved);
 		END VisitMathArrayType;
@@ -390,12 +394,14 @@ TYPE
 
 		PROCEDURE VisitRecordType(recordType: SyntaxTree.RecordType);
 		VAR recordBase: SyntaxTree.RecordType; numberMethods: LONGINT; procedure,super,testsuper: SyntaxTree.Procedure; recordScope: SyntaxTree.RecordScope;
-			pointerType: SyntaxTree.Type; typeDeclaration: SyntaxTree.TypeDeclaration; symbol: SyntaxTree.Symbol; size: HUGEINT;
+			pointerType: SyntaxTree.Type; typeDeclaration: SyntaxTree.TypeDeclaration; symbol: SyntaxTree.Symbol; size: HUGEINT; hasPointer: BOOLEAN;
+			var: SyntaxTree.Variable;
 		BEGIN
 			recordType.SetBaseType(ResolveType(recordType.baseType));
 
 			recordScope := recordType.recordScope;
 			recordBase := recordType.GetBaseRecord();
+			hasPointer := FALSE;
 			IF recordBase = NIL THEN numberMethods := 0;
 			ELSE
 				recordBase.Accept(SELF); numberMethods := recordBase.recordScope.numberMethods;
@@ -427,7 +433,15 @@ TYPE
 				recordType.IsObject(TRUE)
 			END;
 
+			IF (recordBase # NIL) &  recordBase.hasPointers THEN hasPointer := TRUE END;
+
 			Scope(recordType.recordScope);
+			var := recordType.recordScope.firstVariable;
+			WHILE var # NIL DO
+				hasPointer := hasPointer OR var.type.resolved.hasPointers;
+				var := var.nextVariable;
+			END;
+			recordType.SetHasPointers(hasPointer);
 
 			checker.SetCurrentScope(recordType.recordScope);
 			checker.ResolveArrayStructure(recordType);
@@ -448,6 +462,9 @@ TYPE
 		BEGIN
 			IF ~(SyntaxTree.Resolved IN procedureType.state) THEN
 				typeFixes.Add(procedureType);
+				IF procedureType.isDelegate THEN
+					procedureType.SetHasPointers(TRUE);
+				END;
 				procedureType.SetState(SyntaxTree.Resolved);
 			END;
 		END VisitProcedureType;
