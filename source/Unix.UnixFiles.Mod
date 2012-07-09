@@ -417,6 +417,7 @@ TYPE
 					END;
 					r := Unix.unlink( S.ADR( workName ) );
 					(*unlink first to avoid stale NFS handles and to avoid reuse of inodes*)
+					
 					IF (FileTabSize - openfiles) < ResFiles THEN  GC  END;
 						
 					fd := Unix.open( S.ADR( workName ), CreateFlags, Unix.rwrwr );
@@ -644,7 +645,7 @@ TYPE
 					IF (state = Create) & (registerName # "") THEN  
 						state := Closed (* shortcut renaming *)   
 					END;
-					UpdateX;
+					FlushBuffers;
 					IF registerName # "" THEN
 						fs.Rename0( workName, registerName, SELF, res );
 						IF res # Files.Ok THEN  
@@ -656,11 +657,11 @@ TYPE
 				
 
 				PROCEDURE Update*;
-				BEGIN {EXCLUSIVE}
-					IF state = Closed THEN  UpdateX  END
+				BEGIN 
 				END Update;
 				
-				PROCEDURE UpdateX;
+				
+				PROCEDURE FlushBuffers;
 				VAR i, r: LONGINT;
 				BEGIN 
 					IF fd = NoDesc THEN  CreateUnixFile  END;  
@@ -668,7 +669,21 @@ TYPE
 					WHILE (i < NBufs) & (bufs[i] # NIL ) DO  Flush( bufs[i] );  INC( i )  END;
 					r := Unix.fsync( fd );
 					IF r < 0 THEN  Halt( SELF, TRUE, "UnixFiles.File.Update: fsync failed" )  END;	
-				END UpdateX;
+				END FlushBuffers;
+				
+				
+				PROCEDURE Close*;
+				VAR r: LONGINT;
+				BEGIN {EXCLUSIVE}
+					IF fileTab[fd] # 0 THEN
+						IF tempFile THEN  r := Unix.unlink( S.ADR( workName ) )  
+						ELSE  FlushBuffers;
+						END;
+						DEC( openfiles );  fileTab[fd] := 0;
+						r := Unix.close( fd );
+						state := Closed
+					END;
+				END Close;
 				
 				
 				PROCEDURE GetName*( VAR name: ARRAY OF CHAR );
@@ -907,26 +922,19 @@ TYPE
 
 	
 	PROCEDURE Cleanup( obj: ANY );
-	VAR r: LONGINT;  f: File;
+	VAR f: File;
 	BEGIN
-		f := S.VAL( File, obj );
-		IF fileTab[f.fd] # 0 THEN			
-			IF f.tempFile THEN  r := Unix.unlink( S.ADR( f.workName ) )  
-			ELSE  f.state := Closed;  f.Update;
-			END;
-			DEC( openfiles );  fileTab[f.fd] := 0;
-			r := Unix.close( f.fd );
-		END;
+		f := S.VAL( File, obj );  f.Close
 	END Cleanup;
 
 
 	PROCEDURE CloseFiles;
-	VAR i, r: LONGINT;  f: File;
+	VAR i: LONGINT;  f: File;
 	BEGIN
 		i := 0;
 		WHILE i < FileTabSize DO
 			f := S.VAL( File, fileTab[i] );
-			IF f # NIL THEN  Cleanup( f )  END;
+			IF f # NIL THEN  f.Close  END;
 			INC( i )
 		END
 	END CloseFiles;
