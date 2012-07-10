@@ -136,7 +136,7 @@ TYPE
 				new[i] := msgQ[(head+i) MOD LEN(msgQ)]
 			END;
 			msgQ := new;	head := 0;
-			IF LEN(new) > 1024 THEN KernelLog.String("MessageQ exceeded 1024 elements"); KernelLog.Ln END;
+			KernelLog.String("MessageQ increased: "); KernelLog.Int(LEN(msgQ),1); KernelLog.Ln;
 		END Grow;
 
 		(** Add a message to a queue. Discards the message if the queue is full *)
