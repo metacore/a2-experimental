@@ -990,7 +990,7 @@ VAR
 		captionY := User32.GetSystemMetrics( User32.SMCYCaption );
 		menuY := User32.GetSystemMetrics( User32.SMCYMenu );  capture := NIL;  hook := NIL;  mouse := NIL;
 		(* winMain := NIL; *) nWindows := 0;  str := "PointCircle";
-		hCurrentCursor := User32.LoadCursor( Machine.hInstance, str );   (* Kernel32.NULL;  *)
+		hCurrentCursor := User32.LoadCursor( Machine.hInstance, str );   (* Kernel32.NULL;  *);
 		str := "Cross";  hAlternativeCursor := User32.LoadCursor( Machine.hInstance, str );  dummyClassName := "Aos.Dummy.Class";
 		windowClassName := "Aos.Window.Class";  controlClassName := "Aos.ControlWindow.Class";  aControlWinClass := Kernel32.NULL;  kioskmode := FALSE;
 		Kernel32.InitializeCriticalSection( moduleCS );
@@ -1028,6 +1028,12 @@ VAR
 		InitBMI;
 		COPY(WindowTitle, windowTitle);
 	END InitMod;
+
+	PROCEDURE DisableCursor*;
+	BEGIN
+		hCurrentCursor := Kernel32.NULL
+	END DisableCursor;
+
 
 	PROCEDURE InitBMI;
 	BEGIN
