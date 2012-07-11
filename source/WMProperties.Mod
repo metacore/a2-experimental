@@ -639,7 +639,7 @@ TYPE
 				ToXML^(element);
 				element.SetAttributeValue("loader","WMProperties.NewInt32");
 				NEW(chars); element.AddContent(chars);
-				NEW(w,30); w.Float(value,0); w.Get(s);
+				NEW(w,30); w.Float(value,24); w.Get(s);
 				chars.SetStr(s);
 			END;
 		END ToXML;
@@ -652,7 +652,7 @@ TYPE
 			IF nonDefault THEN
 				Indent(w, indent);
 				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewReal"'); w.Char(">");
-				w.Float(value, 0);
+				w.Float(value, 24);
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln
 			END
 		END WriteXML;
@@ -1182,7 +1182,7 @@ TYPE
 		PROCEDURE Set*(value : WMGraphics.Point2d);
 		BEGIN
 			AcquireWrite;
-			IF (SELF.value.x#value.x) OR (SELF.value.y#value.y) THEN 
+			IF (SELF.value.x#value.x) OR (SELF.value.y#value.y) THEN
 				SELF.value.x:=value.x;
 				SELF.value.y:=value.y;
 				Changed
@@ -1195,9 +1195,9 @@ TYPE
 		PROCEDURE SetCoordinate*(x,y : LONGINT);
 		BEGIN
 			AcquireWrite;
-			IF (x#value.x) OR (y#value.y) THEN 
+			IF (x#value.x) OR (y#value.y) THEN
 				value.x:=x; value.y:=y;
-				Changed 
+				Changed
 			END;
 			NotDefault;
 			ReleaseWrite
