@@ -32,6 +32,7 @@ TYPE
 			ds[0].name := "Total"; INCL(ds[0].flags, WMPerfMonPlugins.Sum); ds[0].unit := "KB";
 			ds[1].name := "Send"; ds[1].unit := "KB";
 			ds[2].name := "Receive"; ds[2].unit := "KB";
+			p.datasetDescriptor := ds;
 		END Init;
 
 		PROCEDURE UpdateDataset*;
