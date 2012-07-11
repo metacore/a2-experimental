@@ -27,7 +27,7 @@ VAR
 	dlclose-	: PROCEDURE {C} ( handle: Address );
 	cout		: PROCEDURE {C} ( c: CHAR );	(* output to Unix stdout *)
 
-	debug-		: SET;	(* value of environment variable  OBERON_DEBUG  *)
+	debug-		: SET;	(* value of environment variable  AOSDEBUG  *)
 
 
 	stackBottom-	: Address;	(* of main thread *)
