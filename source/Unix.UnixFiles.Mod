@@ -4,7 +4,7 @@ MODULE UnixFiles;   (** AUTHOR "gf"; PURPOSE "Unix file systems" *)
 
 (*  derived fron (SPARCOberon) Files.Mod by J. Templ 1.12. 89/14.05.93 *)
 
-IMPORT S := SYSTEM, Trace, Unix, Machine, Heaps, Kernel, Modules, Files;
+IMPORT S := SYSTEM, Unix, Machine, Heaps, Kernel, Modules, Log := KernelLog, Commands, Files;
 
 
 CONST
@@ -129,6 +129,7 @@ TYPE
 				BEGIN {EXCLUSIVE}
 					AwaitFinalizing;
 					NEW( f, SELF );
+					f.newObjectFile := IsObjectFile( name );
 					f.workName := "";  COPY( name, f.registerName );
 					f.fd := NoDesc;  f.state := Create;  f.fsize := 0;  f.fpos := 0;
 					f.swapper := -1;   (*all f.buf[i] = NIL*)
@@ -396,11 +397,12 @@ TYPE
 				fsize, fpos: Size;
 				bufs: ARRAY NBufs OF Buffer;
 				swapper, state: LONGINT;
+				newObjectFile: BOOLEAN;
 
 
 				PROCEDURE & Init( fs: Files.FileSystem );
 				BEGIN
-					SELF.fs := fs;  flags := {}
+					SELF.fs := fs;  flags := {};  newObjectFile := FALSE
 				END Init;
 
 				
@@ -657,7 +659,9 @@ TYPE
 				
 
 				PROCEDURE Update*;
-				BEGIN 
+				BEGIN {EXCLUSIVE}
+					IF ~newObjectFile THEN  FlushBuffers  END
+					(* ignoring Update for new object files makes compiling 15 times faster! *)
 				END Update;
 				
 				
@@ -919,6 +923,19 @@ TYPE
 		name[i] := 0X;
 	END GetTempName;
 	
+	
+	PROCEDURE IsObjectFile( CONST name: ARRAY OF CHAR ): BOOLEAN;
+	VAR i, p: LONGINT;  suffix: ARRAY 8 OF CHAR;
+	BEGIN
+		i := 0;  suffix := ".Obj";
+		WHILE name[i] # 0X DO  INC( i )  END;
+		IF i < 5 THEN  RETURN FALSE  END;
+		p := i - 4;
+		FOR i := 0 TO 3 DO
+			IF name[p+i] # suffix[i] THEN  RETURN FALSE  END;
+		END;
+		RETURN  TRUE
+	END IsObjectFile;
 
 	
 	PROCEDURE Cleanup( obj: ANY );
@@ -939,8 +956,6 @@ TYPE
 		END
 	END CloseFiles;
 
-	
-	
 
 
 	PROCEDURE Install;
@@ -971,7 +986,7 @@ TYPE
 		(* get search pathes *)
 		a := Unix.getenv( S.ADR( "AOSPATH" ) );  i := 0;
 		IF a = 0 THEN
-			Trace.StringLn( "UnixFiles.Initialize: environment variable AOSPATH not defined" );  
+			Log.String( "UnixFiles.Initialize: environment variable AOSPATH not defined" );  Log.Ln;
 			Unix.exit( 1 )
 		ELSE
 			REPEAT
@@ -982,7 +997,7 @@ TYPE
 		END;
 		i := 0;
 		WHILE i < FileTabSize DO  fileTab[i] := 0;  INC( i )  END;
-		tempno := 1;  openfiles := 0;
+		tempno := 1;  openfiles := 0;  
 		Modules.InstallTermHandler( CloseFiles )
 	END Initialize;
 
