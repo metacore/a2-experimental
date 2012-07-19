@@ -5,7 +5,7 @@ IMPORT
 	IntermediateCode := FoxIntermediateCode, IntermediateBackend := FoxIntermediateBackend, BinaryCode := FoxBinaryCode,
 	InstructionSet := FoxAMD64InstructionSet, Assembler := FoxAMD64Assembler, SemanticChecker := FoxSemanticChecker, Formats := FoxFormats,
 	Diagnostics, Streams, Options, Strings, ObjectFileFormat := FoxBinaryObjectFile, ActiveCells := FoxActiveCells
-	, Machine, D := Debugging, CodeGenerators := FoxCodeGenerators;
+	, Machine, D := Debugging, CodeGenerators := FoxCodeGenerators, ObjectFile;
 
 CONST
 
@@ -721,7 +721,7 @@ TYPE
 			data := GetDataSection();
 			pc := IntermediateBackend.EnterImmediate(data,vop);
 			Assembler.InitMem(imm, SHORT(vop.type.sizeInBits DIV 8) , Assembler.none,0);
-			Assembler.SetSymbol(imm,data.name,pc,0);
+			Assembler.SetSymbol(imm,data.name,0,pc,0);
 		END GetImmediateMem;
 
 		PROCEDURE GetImmediate(CONST virtual: IntermediateCode.Operand; part: LONGINT; VAR physical: Assembler.Operand; forbidden16Bit: BOOLEAN);
@@ -754,12 +754,12 @@ TYPE
 				ELSE value := virtual.intValue
 				END;
 
-				IF virtual.symbol # "" THEN size := SHORT(type.sizeInBits DIV 8);
+				IF virtual.symbol.name # "" THEN size := SHORT(type.sizeInBits DIV 8);
 				ELSIF forbidden16Bit & IsImm16(value) & ~(IsImm8(value)) THEN size := Assembler.bits32;
 				ELSE size := 0
 				END;
 				Assembler.InitImm(physical,size ,value);
-				IF virtual.symbol # "" THEN Assembler.SetSymbol(physical,virtual.symbol,virtual.symbolOffset,virtual.offset+part*Assembler.bits32) END;
+				IF virtual.symbol.name # "" THEN Assembler.SetSymbol(physical,virtual.symbol.name,virtual.symbol.fingerprint,virtual.symbolOffset,virtual.offset+part*Assembler.bits32) END;
 				IF (cpuBits=64) & ((physical.sizeInBytes=8) OR ~IsImm32(value)) THEN
 					ASSERT(cpuBits=64);
 					GetTemporaryRegister(IntermediateCode.int64,temp);
@@ -801,7 +801,7 @@ TYPE
 				END;
 				offset := virtual.offset;
 				ASSERT(virtual.intValue = 0);
-			ELSIF virtual.symbol # "" THEN
+			ELSIF virtual.symbol.name # "" THEN
 				physicalRegister := Assembler.none;
 				offset := virtual.offset;
 				ASSERT(virtual.intValue = 0);
@@ -811,8 +811,8 @@ TYPE
 				ASSERT(virtual.offset = 0);
 			END;
 			Assembler.InitMem(physical, SHORT(type.sizeInBits DIV 8) , physicalRegister, offset+4*part);
-			IF virtual.symbol # "" THEN
-				Assembler.SetSymbol(physical,virtual.symbol,virtual.symbolOffset,virtual.offset+4*part);
+			IF virtual.symbol.name # "" THEN
+				Assembler.SetSymbol(physical,virtual.symbol.name,virtual.symbol.fingerprint,virtual.symbolOffset,virtual.offset+4*part);
 			END;
 		END GetMemory;
 
@@ -1473,7 +1473,7 @@ TYPE
 		PROCEDURE EmitConvert(CONST vdest, vsrc: IntermediateCode.Operand; part: LONGINT);
 		VAR destType, srcType: IntermediateCode.Type; op1,op2: Assembler.Operand; index: LONGINT; nul: Assembler.Operand;
 			ticket: Ticket; vop: IntermediateCode.Operand; ediReserved, esiReserved: BOOLEAN;
-			eax, edx: Ticket; symbol: Sections.SectionName; offset: LONGINT;
+			eax, edx: Ticket; symbol: ObjectFile.Identifier; offset: LONGINT;
 		BEGIN
 			GetPartType(vdest.type,part, destType);
 			GetPartType(vsrc.type,part,srcType);
@@ -1568,10 +1568,10 @@ TYPE
 								ASSERT(Assembler.IsMemoryOperand(op1));
 								symbol := op1.symbol; offset := op1.offset;
 								Assembler.InitMem(op1,Assembler.bits32,op1.register, op1.displacement);
-								Assembler.SetSymbol(op1,symbol,offset,op1.displacement);
+								Assembler.SetSymbol(op1,symbol.name,symbol.fingerprint,offset,op1.displacement);
 								Mov(InstructionSet.opMOV, op1, op2);
 								Assembler.InitMem(op1,Assembler.bits32,op1.register, op1.displacement+Assembler.bits32);
-								Assembler.SetSymbol(op1,symbol,offset,op1.displacement);
+								Assembler.SetSymbol(op1,symbol.name, symbol.fingerprint,offset,op1.displacement);
 								Assembler.InitImm(op2,0,0);
 								Mov(InstructionSet.opMOV, op1, op2);
 							END;
@@ -1624,7 +1624,7 @@ TYPE
 		BEGIN
 			IF fpStackPointer # 0 THEN Error(instruction.textPosition,"compiler implementation error: fp stack not cleared before call") END;
 			IF instruction.op1.mode = IntermediateCode.ModeImmediate THEN
-				fixup := module.allSections.FindByName(instruction.op1.symbol);
+				fixup := module.allSections.FindByName(instruction.op1.symbol.name);
 				IF (fixup # NIL) & (fixup.type = Sections.InlineCodeSection) THEN
 					pc := out.pc;
 					(* resolved must be available at this point ! *)
@@ -1640,7 +1640,7 @@ TYPE
 					END;
 				ELSE
 					Assembler.InitOffset32(target,instruction.op1.intValue);
-					Assembler.SetSymbol(target,instruction.op1.symbol,instruction.op1.offset,0);
+					Assembler.SetSymbol(target,instruction.op1.symbol.name,instruction.op1.symbol.fingerprint,instruction.op1.offset,0);
 					emitter.Emit1(InstructionSet.opCALL,target);
 				END;
 			ELSE
@@ -2292,7 +2292,7 @@ TYPE
 			op: LONGINT;
 			edi, ecx: Ticket;
 		BEGIN
-			IF FALSE & (instruction.op3.mode = IntermediateCode.ModeImmediate) & (instruction.op3.symbol = "") & (instruction.op3.intValue < 5) THEN
+			IF FALSE & (instruction.op3.mode = IntermediateCode.ModeImmediate) & (instruction.op3.symbol.name = "") & (instruction.op3.intValue < 5) THEN
 				sizeInBits := instruction.op2.type.sizeInBits;
 				IF sizeInBits = IntermediateCode.Bits8 THEN src := opAL;
 				ELSIF sizeInBits = IntermediateCode.Bits16 THEN src := opAX;
@@ -2364,13 +2364,13 @@ TYPE
 			PROCEDURE JmpDest(brop: LONGINT);
 			BEGIN
 				IF instruction.op1.mode = IntermediateCode.ModeImmediate THEN
-					Assert(instruction.op1.symbol # "","branch without symbol destination");
+					Assert(instruction.op1.symbol.name # "","branch without symbol destination");
 					dest := (instruction.op1.symbolOffset); (* this is the offset in the in-data section (intermediate code), it is not byte- *)
 					destPC := (in.instructions[dest].pc );
 					offset := destPC - (out.pc );
 					IF dest > inPC THEN (* forward jump *)
 						Assembler.InitOffset32(target,0);
-						Assembler.SetSymbol(target,instruction.op1.symbol,instruction.op1.symbolOffset,instruction.op1.offset);
+						Assembler.SetSymbol(target,instruction.op1.symbol.name,instruction.op1.symbol.fingerprint,instruction.op1.symbolOffset,instruction.op1.offset);
 						emitter.Emit1(brop,target);
 					ELSIF ABS(offset)  <= 126 THEN
 						Assembler.InitOffset8(target,destPC);
@@ -2428,7 +2428,7 @@ TYPE
 
 
 		BEGIN
-			IF (instruction.op1.symbol = in.name) & (instruction.op1.symbolOffset = inPC +1) THEN (* jump to next instruction can be ignored *)
+			IF (instruction.op1.symbol.name = in.name) & (instruction.op1.symbolOffset = inPC +1) THEN (* jump to next instruction can be ignored *)
 				IF dump # NIL THEN dump.String("jump to next instruction ignored"); dump.Ln END;
 				RETURN
 			END;
@@ -2777,7 +2777,7 @@ TYPE
 			BEGIN
 				fixup := section.fixupList.firstFixup;
 				WHILE fixup # NIL DO
-					symbol := module.allSections.FindByName(fixup.symbol);
+					symbol := module.allSections.FindByName(fixup.symbol.name);
 					IF  (symbol # NIL) & (symbol(IntermediateCode.Section).resolved # NIL) THEN
 						resolved := symbol(IntermediateCode.Section).resolved(BinaryCode.Section);
 						in := symbol(IntermediateCode.Section);
@@ -2790,7 +2790,7 @@ TYPE
 						ELSE
 							displacement := 0;
 						END;
-						fixup.SetSymbol(fixup.symbol,0,fixup.displacement+displacement);
+						fixup.SetSymbol(fixup.symbol.name,fixup.symbol.fingerprint,0,fixup.displacement+displacement);
 					END;
 					fixup := fixup.nextFixup;
 				END;

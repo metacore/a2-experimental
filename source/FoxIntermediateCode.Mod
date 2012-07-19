@@ -2,7 +2,7 @@ MODULE FoxIntermediateCode; (** AUTHOR "fof"; PURPOSE "Oberon Compiler Abstract 
 (* Active Oberon Compiler, (c) 2009 Felix Friedrich *)
 IMPORT
 	Sections := FoxSections, Basic := FoxBasic, SyntaxTree := FoxSyntaxTree, BinaryCode := FoxBinaryCode, Backend := FoxBackend,
-	SYSTEM, Streams, Global := FoxGlobal, D := Debugging;
+	SYSTEM, Streams, Global := FoxGlobal, D := Debugging, ObjectFile;
 
 CONST
 	(* operand modes *)
@@ -87,7 +87,7 @@ TYPE
 		intValue-: HUGEINT; (* integer value, if mode = ModeImmediate and type.form IN Integer or ModeNumber *)
 		floatValue-: LONGREAL; (* real value, if mode = ModeImmediate and type.form = Float *)
 
-		symbol-: Sections.SectionName; (* referenced symbol, only valid for mode = ModeImmediate or mode = ModeMemory *)
+		symbol-: ObjectFile.Identifier; (* referenced symbol, only valid for mode = ModeImmediate or mode = ModeMemory *)
 		symbolOffset-: LONGINT; (* offset in IntermediateCode section, the difference to offset is that symbolOffset needs a resolving to real address offset *)
 		resolved*: Sections.Section; (** only cache ! *)
 
@@ -241,9 +241,9 @@ TYPE
 				Assert((instruction.op1.mode # ModeRegister) OR (instruction.op1.offset = 0),"destination operand may not be register with nonzero offset");
 			END;
 			*)
-			Assert(instruction.op1.symbol[0] # 0, "not intialized operand 1");
-			Assert(instruction.op2.symbol[0] # 0, "not intialized operand 2");
-			Assert(instruction.op3.symbol[0] # 0, "not intialized operand 3");
+			Assert(instruction.op1.symbol.name[0] # 0, "not intialized operand 1");
+			Assert(instruction.op2.symbol.name[0] # 0, "not intialized operand 2");
+			Assert(instruction.op3.symbol.name[0] # 0, "not intialized operand 3");
 
 			IF (instructions = NIL) THEN
 				NEW(instructions, 16);
@@ -273,7 +273,7 @@ TYPE
 		PROCEDURE PatchAddress*(pc: LONGINT; symbolOffset: LONGINT);
 		BEGIN
 			ASSERT((br <= instructions[pc].opcode) & (instructions[pc].opcode <= brlt));
-			ASSERT(instructions[pc].op1.symbol = SELF.name);
+			ASSERT(instructions[pc].op1.symbol.name = SELF.name);
 			(*
 			ASSERT(instr[pc].op1.symbol = SELF);
 			*)
@@ -457,8 +457,8 @@ TYPE
 			IF operand.type.form = Undefined THEN message := "memory type form undefined"; RETURN FALSE END;
 			IF operand.type.sizeInBits = 0 THEN message :="memory type size undefined"; RETURN FALSE END;
 			IF operand.register # None THEN
-				IF operand.symbol # "" THEN message :="symbol and register cannot be both set in a memory operand"; RETURN FALSE END
-			ELSIF operand.symbol # "" THEN
+				IF operand.symbol.name # "" THEN message :="symbol and register cannot be both set in a memory operand"; RETURN FALSE END
+			ELSIF operand.symbol.name # "" THEN
 				IF operand.intValue # 0 THEN message :="memory operand on non zero immediate with symbol # NIL"; RETURN FALSE END
 			(*ELSE
 				IF operand.intValue = 0 THEN message :="memory operand on address 0 zero without register and symbol"; RETURN FALSE END
@@ -469,7 +469,7 @@ TYPE
 			IF operand.type.sizeInBits = 0 THEN message :="register type size undefined"; RETURN FALSE END;
 			IF operand.register = None THEN message :="register undefined in register operand"; RETURN FALSE END
 		| ModeImmediate:
-			IF operand.symbol # "" THEN
+			IF operand.symbol.name # "" THEN
 				IF operand.intValue # 0 THEN message :="forbidden immediate with symbol and intValue # 0"; RETURN FALSE END;
 				IF operand.floatValue # 0 THEN message :="forbidden immediate with symbol and floatValue # 0"; RETURN FALSE END
 			END
@@ -574,8 +574,10 @@ TYPE
 					IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset,1);
 					ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset,1);
 					END;
-				ELSIF operand.symbol # "" THEN
-					Basic.WriteSegmentedName(w,operand.symbol); w.String(":"); w.Int(operand.symbolOffset,1);
+				ELSIF operand.symbol.name # "" THEN
+					Basic.WriteSegmentedName(w,operand.symbol.name);
+					IF operand.symbol.fingerprint # 0 THEN w.String("["); w.Hex(operand.symbol.fingerprint,-8); w.String("]"); END;
+					w.String(":"); w.Int(operand.symbolOffset,1);
 					IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset, 1);
 					ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset, 1);
 					END;
@@ -588,8 +590,10 @@ TYPE
 			ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset,1);
 			END;
 		|ModeImmediate:
-			IF operand.symbol # "" THEN
-				Basic.WriteSegmentedName(w,operand.symbol); w.String(":"); w.Int(operand.symbolOffset,1);
+			IF operand.symbol.name # "" THEN
+				Basic.WriteSegmentedName(w,operand.symbol.name);
+				IF operand.symbol.fingerprint # 0 THEN w.String("["); w.Hex(operand.symbol.fingerprint,-8); w.String("]"); END;
+				w.String(":"); w.Int(operand.symbolOffset,1);
 				IF operand.offset > 0 THEN w.String("+"); w.Int(operand.offset, 1);
 				ELSIF operand.offset < 0 THEN w.String("-"); w.Int(-operand.offset, 1);
 				END
@@ -623,7 +627,7 @@ TYPE
 	PROCEDURE OperandEquals*(CONST s1,s2: Operand) : BOOLEAN;
 	BEGIN
 		RETURN (s1.mode = s2.mode) & (s1.register = s2.register) & (s1.offset = s2.offset) & (s1.intValue = s2.intValue) & (s1.floatValue = s2.floatValue)
-		& (s1.symbol = s2.symbol) & (s1.string = s2.string) & (s1.symbolOffset = s2.symbolOffset) & TypeEquals(s1.type,s2.type);
+		& (s1.symbol.name = s2.symbol.name) & (s1.string = s2.string) & (s1.symbolOffset = s2.symbolOffset) & TypeEquals(s1.type,s2.type);
 	END OperandEquals;
 
 	PROCEDURE DumpInstruction*(w: Streams.Writer; CONST instr: Instruction);
@@ -741,9 +745,9 @@ TYPE
 		Assert(op3.mode IN format.op3,"third operand mode mismatch");
 		*)
 
-		Assert(op1.symbol[0] # 0, "not intialized operand 1");
-		Assert(op2.symbol[0] # 0, "not intialized operand 2");
-		Assert(op3.symbol[0] # 0, "not intialized operand 3");
+		Assert(op1.symbol.name[0] # 0, "not intialized operand 1");
+		Assert(op2.symbol.name[0] # 0, "not intialized operand 2");
+		Assert(op3.symbol.name[0] # 0, "not intialized operand 3");
 
 
 		instr.opcode := opcode;
@@ -765,9 +769,9 @@ TYPE
 		op.register := None; op.offset := 0; op.registerClass := GeneralPurposeRegister;
 		op.intValue := 0;
 		op.floatValue := 0;
-		op.symbol := "";
+		op.symbol.name := "";
+		op.symbol.fingerprint := 0;
 		op.symbolOffset := 0;
-		op.symbol := "";
 	END InitOperand;
 
 	PROCEDURE InitRegister*(VAR op: Operand; type: Type; registerClass: RegisterClass;  register: LONGINT);
@@ -788,7 +792,7 @@ TYPE
 	PROCEDURE AddOffset*(VAR op: Operand; offset: LONGINT);
 	BEGIN
 		Assert((op.mode = ModeRegister) OR (op.mode = ModeImmediate) & (op.type.form IN {SignedInteger, UnsignedInteger}),"offset not on register or integer immediate");
-		IF (op.mode = ModeImmediate) & (op.symbol = "") THEN
+		IF (op.mode = ModeImmediate) & (op.symbol.name = "") THEN
 			INC(op.intValue,offset)
 		ELSE
 			INC(op.offset,offset)
@@ -801,9 +805,10 @@ TYPE
 		op.offset := offset
 	END SetOffset;
 
-	PROCEDURE SetSymbol*(VAR op: Operand; symbol: Sections.SectionName);
+	PROCEDURE SetSymbol*(VAR op: Operand; symbol: Sections.SectionName; fp: LONGINT);
 	BEGIN
-		op.symbol := symbol
+		op.symbol.name := symbol;
+		op.symbol.fingerprint := fp;
 	END SetSymbol;
 
 	PROCEDURE SetIntValue*(VAR op: Operand; intValue: HUGEINT);
@@ -818,21 +823,21 @@ TYPE
 		ASSERT(op.register # 0);
 	END MakeMemory;
 
-	PROCEDURE InitAddress*(VAR op: Operand; type: Type; symbol: Sections.SectionName; symbolOffset: LONGINT);
+	PROCEDURE InitAddress*(VAR op: Operand; type: Type; symbol: Sections.SectionName; fp: LONGINT; symbolOffset: LONGINT);
 	BEGIN
 		Assert(symbol # "","forbidden nil symbol");
 		ASSERT(symbol[0] # 0); (* not initialized *)
-		InitImmediate(op,type,0); op.symbol := symbol; op.type := type; op.symbolOffset := symbolOffset
+		InitImmediate(op,type,0); op.symbol.name := symbol; op.symbol.fingerprint := fp; op.type := type; op.symbolOffset := symbolOffset
 	END InitAddress;
 
-	PROCEDURE Address*(type: Type; symbol: Sections.SectionName; offset: LONGINT): Operand;
+	PROCEDURE Address*(type: Type; symbol: Sections.SectionName; fp: LONGINT; offset: LONGINT): Operand;
 	VAR op: Operand;
-	BEGIN InitAddress(op,type,symbol,offset); RETURN op
+	BEGIN InitAddress(op,type,symbol,fp, offset); RETURN op
 	END Address;
 
 	PROCEDURE InitMemory*(VAR op:Operand; type: Type; base: Operand; offset: LONGINT);
 	BEGIN
-		Assert((base.mode = ModeRegister) OR (base.mode = ModeImmediate) & ((offset=0) OR (base.symbol#"")),"base operand must be register");
+		Assert((base.mode = ModeRegister) OR (base.mode = ModeImmediate) & ((offset=0) OR (base.symbol.name#"")),"base operand must be register");
 		op := base; INC(op.offset,offset); MakeMemory(op,type);
 	END InitMemory;
 
@@ -843,7 +848,7 @@ TYPE
 
 	PROCEDURE IsConstantInteger*(CONST op: Operand; VAR value: HUGEINT): BOOLEAN;
 	BEGIN
-		IF (op.mode = ModeImmediate) & (op.type.form IN Integer) & (op.symbol = "") THEN
+		IF (op.mode = ModeImmediate) & (op.type.form IN Integer) & (op.symbol.name = "") THEN
 			value := op.intValue;
 			RETURN TRUE
 		ELSE

@@ -157,7 +157,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		fixup := section.fixupList.firstFixup; i := 0; fixups := 0; fixupList := NIL;
 		WHILE fixup # NIL DO
 			(*! fingerprint := GetFingerPrint(fixup.symbol, fingerPrinter);  *)
-			index := ObjectFile.AddFixup(fixups, fixupList, fixup.symbol, 0, fixup.mode,fixup.scale, fixup.patterns, fixup.pattern);
+			index := ObjectFile.AddFixup(fixups, fixupList, fixup.symbol.name, fixup.symbol.fingerprint, fixup.mode,fixup.scale, fixup.patterns, fixup.pattern);
 			ObjectFile.AddPatch(fixupList[index].patches, fixupList[index].patch, fixup.displacement,  fixup.offset);
 			fixup := fixup.nextFixup; INC (i);
 		END;
@@ -197,7 +197,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				poolMap.PutSegmentedName(section.resolved.identifier.name);
 				fixup := section.resolved.fixupList.firstFixup; i := 0;
 				WHILE fixup # NIL DO
-					poolMap.PutSegmentedName(fixup.symbol);
+					poolMap.PutSegmentedName(fixup.symbol.name);
 					fixup := fixup.nextFixup;
 				END;
 			END;

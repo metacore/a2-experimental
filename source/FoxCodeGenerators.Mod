@@ -155,7 +155,7 @@ TYPE
 				out.fixupList.InitFixupList;
 				WHILE fixup # NIL DO
 					next := fixup.nextFixup;
-					IF (fixup.symbol = in.name) & (fixup.mode = BinaryCode.Relative) THEN (* local relative fixup *)
+					IF (fixup.symbol.name = in.name) & (fixup.mode = BinaryCode.Relative) THEN (* local relative fixup *)
 						IF dump # NIL THEN
 							dump.String("local fixup "); dump.Int(fixup.offset,1); dump.String(" <-- ");
 							fixup.Dump(dump); dump.Ln; (*dump.Update;*)
@@ -167,7 +167,7 @@ TYPE
 						ELSE
 							dest := 0;
 						END;
-						fixup.SetSymbol(fixup.symbol, 0, dest+fixup.displacement);
+						fixup.SetSymbol(fixup.symbol.name, fixup.symbol.fingerprint, 0, dest+fixup.displacement);
 						IF dump # NIL THEN
 							dump.String("local fixup resolved: ");
 							dump.Int(fixup.offset,1); dump.String(" <-- ");
@@ -176,7 +176,7 @@ TYPE
 						END;
 						IF ~out.ApplyFixup(fixup) THEN
 							COPY("fixup out of range: ", msg);
-							string := fixup.symbol;
+							string := fixup.symbol.name;
 							Strings.Append(msg, string);
 							Strings.Append(msg, ":");
 							Strings.IntToStr(fixup.offset, number);
@@ -251,6 +251,7 @@ TYPE
 			VAR
 				parSize: LONGINT; sectionName: Basic.SegmentedName; source: Sections.Section; op: IntermediateCode.Operand;
 				instruction: IntermediateCode.Instruction;
+				symbol: SyntaxTree.Symbol; fp: LONGINT;
 
 				PROCEDURE Emit(instruction: IntermediateCode.Instruction; CONST str: ARRAY OF CHAR);
 				BEGIN
@@ -310,7 +311,13 @@ TYPE
 				Basic.InitSegmentedName(sectionName);
 				Basic.SuffixSegmentedName(sectionName, StringPool.GetIndex1(moduleName));
 				Basic.SuffixSegmentedName(sectionName, StringPool.GetIndex1(procedureName));
-				IntermediateCode.InitAddress(op, IntermediateCode.GetType(module.system,module.system.addressType), sectionName , 0);
+				IF module.module # NIL THEN
+					symbol := IntermediateBackend.GetSymbol(module.module.moduleScope, moduleName, procedureName);
+				ELSE
+					symbol := NIL
+				END;
+				IF symbol # NIL THEN fp := symbol.fingerprint.shallow ELSE fp := 0 END;
+				IntermediateCode.InitAddress(op, IntermediateCode.GetType(module.system,module.system.addressType), sectionName , fp, 0);
 				Emit(IntermediateBackend.Call(x.textPosition,op,IntermediateBackend.ToMemoryUnits(module.system,parSize)),"");
 				Emit(IntermediateBackend.Result(x.textPosition,x.op1),"");
 				RestoreRegisters;
@@ -434,7 +441,7 @@ TYPE
 				ELSE Assert(FALSE,"no floats other than 32 or 64 bit")
 				END;
 			END;
-			IF instruction.op1.symbol # "" THEN
+			IF instruction.op1.symbol.name # "" THEN
 				NEW(fixupFormat,1);
 				fixupFormat[0].offset := 0;
 				fixupFormat[0].bits := type.sizeInBits;

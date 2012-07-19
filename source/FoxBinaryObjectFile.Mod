@@ -424,11 +424,11 @@ TYPE
 				binarySection.fixupList.InitFixupList; (* remove all fixups from list *)
 				WHILE fixup # NIL DO
 					next := fixup.nextFixup;
-					symbol := module.allSections.FindByName(fixup.symbol);
+					symbol := module.allSections.FindByName(fixup.symbol.name);
 					IF symbol # NIL THEN
 						symbol.SetReferenced(TRUE);
 					ELSIF Trace THEN
-						D.String("fixup symbol not found: "); Basic.WriteSegmentedName(D.Log, fixup.symbol); D.Ln;
+						D.String("fixup symbol not found: "); Basic.WriteSegmentedName(D.Log, fixup.symbol.name); D.Ln;
 					END;
 					IF (fixup.mode = BinaryCode.Relative) & (symbol # NIL) THEN (* relative offset within module *)
 						dest := (symbol.offset + fixup.displacement) - (section.offset + fixup.offset);
@@ -2160,10 +2160,10 @@ TYPE
 					IF Enter(section, symbols,symbol) THEN END;
 					fixup := section(IntermediateCode.Section).resolved.fixupList.firstFixup;
 					WHILE (fixup # NIL) DO
-						IF Enter(module.allSections.FindByName(fixup.symbol), symbols,symbol) THEN
+						IF Enter(module.allSections.FindByName(fixup.symbol.name), symbols,symbol) THEN
 							symbol.AddFixup(fixup, section);
 						END;
-						IF Enter(module.importedSections.FindByName(fixup.symbol), importedSymbols,symbol) THEN
+						IF Enter(module.importedSections.FindByName(fixup.symbol.name), importedSymbols,symbol) THEN
 							symbol.AddFixup(fixup, section)
 						END;
 						fixup := fixup.nextFixup;

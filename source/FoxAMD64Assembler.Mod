@@ -143,7 +143,7 @@ TYPE
 		sizeInBytes-: Size; (* for mem and imm and moffset *)
 		segment-,index-: Register; (* registers for mem *)
 		scale-, displacement-: LONGINT;  (* for mem *)
-		symbol- : Sections.SectionName; (* for imm and mem *)
+		symbol- : ObjectFile.Identifier; (* for imm and mem *)
 		symbolOffset-: LONGINT; (* offset in immediate code (source) for a fixup *)
 
 		val-: HUGEINT; (* for imm and moffset  *)
@@ -319,8 +319,8 @@ TYPE
 				RETURN instr
 			END FindInstruction;
 
-			PROCEDURE AddFixup (mode: SHORTINT; size: SHORTINT; pc: LONGINT; symbol: Sections.SectionName; symbolOffset, displacement: LONGINT);
-			VAR fixup: BinaryCode.Fixup; format: BinaryCode.FixupPatterns;
+			PROCEDURE AddFixup (mode: SHORTINT; size: SHORTINT; pc: LONGINT; symbol: ObjectFile.Identifier; symbolOffset, displacement: LONGINT);
+			VAR fixup: BinaryCode.Fixup; format: BinaryCode.FixupPatterns; id: ObjectFile.Identifier;
 			BEGIN
 				NEW(format,1);
 				format[0].bits:= size*8;
@@ -566,7 +566,7 @@ TYPE
 							ModRM (3, regField, InstructionSet.RegisterIndex(operands[addressOperand].register) MOD 8);
 						ELSIF cpuBits = bits16 THEN
 							IF Trace THEN KernelLog.String(" cpuBits=16 "); END;
-							IF (operands[addressOperand].scale # 1) OR (operands[addressOperand].symbol # "") THEN
+							IF (operands[addressOperand].scale # 1) OR (operands[addressOperand].symbol.name # "") THEN
 								ErrorSI("invalid effective address (2)", mnem,operands);
 								RETURN FALSE;
 							ELSIF operands[addressOperand].register= none THEN
@@ -661,8 +661,8 @@ TYPE
 										AddFixup (operands[addressOperand].fixup, pc);
 									END;
 								*)
-								IF lastPass & (operands[addressOperand].symbol # "") THEN
-									 AddFixup(BinaryCode.Absolute,4,code.pc,operands[addressOperand].symbol,operands[addressOperand].symbolOffset,operands[addressOperand].displacement)
+								IF lastPass & (operands[addressOperand].symbol.name # "") THEN
+									 AddFixup(BinaryCode.Absolute,4,code.pc,operands[addressOperand].symbol, operands[addressOperand].symbolOffset,operands[addressOperand].displacement)
 								END;
 								code.PutDWord (operands[addressOperand].displacement);
 							ELSE
@@ -760,17 +760,17 @@ TYPE
 
 								IF modField = 0 THEN
 									IF rmField = 5 THEN
-										IF lastPass & (operands[addressOperand].symbol # "") THEN AddFixup(BinaryCode.Absolute,4,code.pc,operands[addressOperand].symbol,operands[addressOperand].symbolOffset,operands[addressOperand].displacement) END;
+										IF lastPass & (operands[addressOperand].symbol.name # "") THEN AddFixup(BinaryCode.Absolute,4,code.pc,operands[addressOperand].symbol,operands[addressOperand].symbolOffset,operands[addressOperand].displacement) END;
 										code.PutDWord(operands[addressOperand].displacement);
 									ELSIF (rmField = 4) & (baseField = 5) THEN (* special case: SIB without base register: mandatory displacement *)
-										IF lastPass & (operands[addressOperand].symbol # "") THEN AddFixup(BinaryCode.Absolute,4,code.pc,operands[addressOperand].symbol,operands[addressOperand].symbolOffset,operands[addressOperand].displacement) END;
+										IF lastPass & (operands[addressOperand].symbol.name # "") THEN AddFixup(BinaryCode.Absolute,4,code.pc,operands[addressOperand].symbol,operands[addressOperand].symbolOffset,operands[addressOperand].displacement) END;
 										code.PutDWord(operands[addressOperand].displacement);
 									END;
 								ELSIF modField = 1 THEN
-									IF lastPass & (operands[addressOperand].symbol # "") THEN AddFixup(BinaryCode.Absolute,1,code.pc,operands[addressOperand].symbol,operands[addressOperand].symbolOffset,operands[addressOperand].displacement) END;
+									IF lastPass & (operands[addressOperand].symbol.name # "") THEN AddFixup(BinaryCode.Absolute,1,code.pc,operands[addressOperand].symbol,operands[addressOperand].symbolOffset,operands[addressOperand].displacement) END;
 									code.PutByte(operands[addressOperand].displacement);
 								ELSIF modField = 2 THEN
-									IF lastPass & (operands[addressOperand].symbol # "") THEN AddFixup(BinaryCode.Absolute,4,code.pc,operands[addressOperand].symbol,operands[addressOperand].symbolOffset,operands[addressOperand].displacement) END;
+									IF lastPass & (operands[addressOperand].symbol.name # "") THEN AddFixup(BinaryCode.Absolute,4,code.pc,operands[addressOperand].symbol,operands[addressOperand].symbolOffset,operands[addressOperand].displacement) END;
 									code.PutDWord (operands[addressOperand].displacement);
 								END;
 							END;
@@ -832,7 +832,7 @@ TYPE
 							IF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.rel32off) THEN
 								operands[i].pc := code.pc;
 
-								IF lastPass & (operands[i].symbol # "") THEN
+								IF lastPass & (operands[i].symbol.name # "") THEN
 									AddFixup(BinaryCode.Relative,4,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement-4);
 									code.PutDWord(SHORT(operands[i].val));
 								ELSE
@@ -843,7 +843,7 @@ TYPE
 							ELSIF (free[i]) & InstructionSet.IsImmediate32(InstructionSet.instructions[instr].operands[i])  THEN
 								operands[i].pc := code.pc;
 
-								IF lastPass & (operands[i].symbol # "") THEN
+								IF lastPass & (operands[i].symbol.name # "") THEN
 									AddFixup(BinaryCode.Absolute,4,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement);
 								END;
 								code.PutDWord (SHORT (operands[i].val));
@@ -866,7 +866,7 @@ TYPE
 								END;
 								operands[i].pc := code.pc;
 
-								IF lastPass & (operands[i].symbol # "") THEN  AddFixup(BinaryCode.Absolute,1,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement) END;
+								IF lastPass & (operands[i].symbol.name # "") THEN  AddFixup(BinaryCode.Absolute,1,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement) END;
 
 								code.PutByte (SHORT (operands[i].val));
 								free[i] := FALSE; i:= maxNumberOperands;
@@ -889,13 +889,13 @@ TYPE
 							IF (free[i]) & (InstructionSet.instructions[instr].operands[i] = InstructionSet.rel32off) THEN
 								operands[i].pc := code.pc;
 
-								IF lastPass & (operands[i].symbol # "") THEN AddFixup(BinaryCode.Relative,4,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement-4)  END;
+								IF lastPass & (operands[i].symbol.name # "") THEN AddFixup(BinaryCode.Relative,4,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement-4)  END;
 
 								code.PutDWord (SHORT (operands[i].val - code.pc - 4));
 								free[i] := FALSE; i:= maxNumberOperands;
 							ELSIF (free[i]) & InstructionSet.IsImmediate32(InstructionSet.instructions[instr].operands[i])  THEN
 								operands[i].pc := code.pc;
-								IF lastPass & (operands[i].symbol # "") THEN AddFixup(BinaryCode.Absolute,4,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement)  END;
+								IF lastPass & (operands[i].symbol.name # "") THEN AddFixup(BinaryCode.Absolute,4,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement)  END;
 
 								code.PutDWord (SHORT (operands[i].val));
 								free[i] := FALSE; i:= maxNumberOperands;
@@ -907,7 +907,7 @@ TYPE
 						FOR i := 0 TO maxNumberOperands - 1 DO
 							IF (free[i]) & InstructionSet.IsImmediate64(InstructionSet.instructions[instr].operands[i])  THEN
 								operands[i].pc := code.pc;
-								IF lastPass & (operands[i].symbol # "") THEN
+								IF lastPass & (operands[i].symbol.name # "") THEN
 									 AddFixup(BinaryCode.Absolute,8,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement)
 								END;
 								code.PutQWord (operands[i].val);
@@ -937,7 +937,7 @@ TYPE
 								IF cpuBits = bits16 THEN
 									code.PutWord (operands[i].displacement);
 								ELSE
-									IF lastPass & (operands[i].symbol # "") THEN
+									IF lastPass & (operands[i].symbol.name # "") THEN
 										 AddFixup(BinaryCode.Absolute,4,code.pc,operands[i].symbol,operands[i].symbolOffset,operands[i].displacement)
 									END;
 									code.PutDWord (operands[i].displacement);
@@ -1583,7 +1583,7 @@ TYPE
 					ELSIF (scopeSymbol IS SyntaxTree.Procedure) THEN
 						InitOffset32(operand,0); (* or immediate ?? *)
 					END;
-					SetSymbol(operand,name,0,0);
+					SetSymbol(operand,name,0,0,0);
 				ELSE
 					Error("direct access to local variable offset forbidden");
 				END;
@@ -1617,7 +1617,7 @@ TYPE
 				WHILE (i< LEN(operands)) & (operands[i].type # none) DO
 					IF (operands[i].type = ioffset) & (operands[i].sizeInBytes = bitsDefault)
 					THEN
-						IF operands[i].symbol = "" THEN
+						IF operands[i].symbol.name = "" THEN
 							operands[i].sizeInBytes := OffsetSize(operands[i].val);
 						ELSE
 							operands[i].sizeInBytes := bits32
@@ -1774,14 +1774,14 @@ TYPE
 							END;
 
 
-							IF offset.symbol = "" THEN (* nothing could be fixuped, must be a number / constant *)
+							IF offset.symbol.name = "" THEN (* nothing could be fixuped, must be a number / constant *)
 								type := offset.type; currentFixup := ""; currentLabel := NIL;
 								IF ~Expression (val2, FALSE,type) THEN
 									RETURN FALSE;
 								ELSE
 									offset.type := type;
 									IF currentFixup # "" THEN
-										offset.symbol := currentFixup; offset.symbolOffset := val2;
+										offset.symbol.name := currentFixup; offset.symbolOffset := val2;
 									ELSIF currentLabel # NIL THEN
 										IF (offset.sizeInBytes = bitsDefault ) & (val2 > emitter.code.pc) THEN (* forward jump *)
 											offset.sizeInBytes := bits32
@@ -1876,13 +1876,13 @@ TYPE
 				IF Trace THEN KernelLog.String("patch fixups "); KernelLog.Ln; END;
 				fixup := emitter.code.fixupList.firstFixup;
 				WHILE fixup # NIL DO
-					IF (fixup.symbol = in.name) & (fixup.symbolOffset < 0) THEN
+					IF (fixup.symbol.name = in.name) & (fixup.symbolOffset < 0) THEN
 						label := labels.first;
 						WHILE (label # NIL) & (label.index # -fixup.symbolOffset) DO label := label.nextNamedLabel END;
 						(*
 						fixup.SetSymbolOffset(label.offset);
 						*)
-						fixup.SetSymbol(out.name,0,label.offset+fixup.displacement);
+						fixup.SetSymbol(out.name,0,0,label.offset+fixup.displacement);
 						IF Trace THEN
 							KernelLog.String("patch fixup: ");
 							KernelLog.Hex(fixup.offset,1); KernelLog.String(" "); KernelLog.Hex(-fixup.displacement, 1);
@@ -2138,8 +2138,8 @@ TYPE
 				END;
 			END;
 
-			IF operand.symbol # "" THEN
-				Basic.WriteSegmentedName(w, operand.symbol);	w.String(":"); w.Int(operand.displacement,1);
+			IF operand.symbol.name # "" THEN
+				Basic.WriteSegmentedName(w, operand.symbol.name);	w.String(":"); w.Int(operand.displacement,1);
 				IF operand.symbolOffset # 0 THEN w.String("(@"); w.Int(operand.symbolOffset,1); w.String(")") END;
 			ELSIF operand.displacement # 0 THEN
 				IF (operand.displacement > 0) & ((operand.register # none) OR (operand.index # none)) THEN w.String("+");END;
@@ -2148,8 +2148,8 @@ TYPE
 
 			w.String("]");
 		|imm,ioffset:
-			IF operand.symbol # "" THEN
-				Basic.WriteSegmentedName(w, operand.symbol);	w.String(":"); w.Int(operand.displacement,1);
+			IF operand.symbol.name # "" THEN
+				Basic.WriteSegmentedName(w, operand.symbol.name);	w.String(":"); w.Int(operand.displacement,1);
 				IF operand.symbolOffset # 0 THEN w.String("(@"); w.Int(operand.symbolOffset,1); w.String(")") END;
 			ELSE
 				IF (operand.val > MAX(LONGINT)) OR (operand.val < MIN(LONGINT)) THEN
@@ -2386,10 +2386,10 @@ TYPE
 		operand.displacement := 0;
 		operand.val := 0;
 		operand.pc := none;
-		operand.symbol := "";
+		operand.symbol.name := "";
+		operand.symbol.fingerprint := 0;
 		operand.selector := none;
 		operand.offset := 0;
-		operand.symbol := "";
 	END InitOperand;
 
 
@@ -2479,9 +2479,11 @@ TYPE
 	BEGIN  InitMem128 (operand,reg, displacement); RETURN operand
 	END NewMem128;
 
-	PROCEDURE SetSymbol*(VAR operand: Operand; symbol: Sections.SectionName; symbolOffset, displacement: LONGINT);
+	PROCEDURE SetSymbol*(VAR operand: Operand; symbol: Sections.SectionName; fingerprint: LONGINT; symbolOffset, displacement: LONGINT);
 	BEGIN
-		operand.symbol := symbol; operand.symbolOffset := symbolOffset; operand.displacement := displacement;
+		operand.symbol.name := symbol;
+		operand.symbol.fingerprint := fingerprint;
+		operand.symbolOffset := symbolOffset; operand.displacement := displacement;
 	END SetSymbol;
 
 	PROCEDURE InitImm* (VAR operand: Operand; size: SHORTINT; val: HUGEINT);
@@ -2581,7 +2583,7 @@ TYPE
 		IF (left.type # right.type) OR (left.sizeInBytes # right.sizeInBytes) OR (left.symbol # right.symbol) THEN RETURN FALSE END;
 		CASE left.type OF
 			reg8,reg16,reg32,reg64,segReg,CRn,DRn,sti,xmm,mmx: RETURN left.register = right.register
-			| imm,ioffset: RETURN (left.val = right.val) & ((left.symbol="") OR (left.displacement = right.displacement))
+			| imm,ioffset: RETURN (left.val = right.val) & ((left.symbol.name="") OR (left.displacement = right.displacement))
 			| mem:RETURN (left.register = right.register) & (left.displacement = right.displacement) & (left.index = right.index) & (left.scale = right.scale)
 			| pntr1616,pntr1632: RETURN (left.selector=right.selector) & (left.offset=right.offset)
 		END;

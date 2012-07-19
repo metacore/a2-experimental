@@ -1011,6 +1011,16 @@ VAR
 		i := 0; WHILE (i < LEN(l)) & (l[i] = r[i]) & (l[i] # -1)  DO INC(i) END; RETURN (i = LEN(l)) OR (l[i] = r[i]);
 	END "=";
 
+	OPERATOR "="*(CONST l,r: Identifier): BOOLEAN;
+	BEGIN
+		RETURN (l.name = r.name) & (r.fingerprint = l.fingerprint)
+	END "=";
+
+	OPERATOR "#"*(CONST l,r: Identifier): BOOLEAN;
+	BEGIN
+		RETURN (l.name # r.name) OR (r.fingerprint # l.fingerprint)
+	END "#";
+
 	OPERATOR ":="*(VAR l: SegmentedName; CONST r: ARRAY OF CHAR);
 	BEGIN
 		StringToSegmentedName(r, l)

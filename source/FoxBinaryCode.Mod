@@ -23,15 +23,15 @@ TYPE
 		pattern-: FixupPatterns; (* patterns describing the fixup format, cf. above *)
 		offset-: ObjectFile.Unit;
 
-		symbol-: Sections.SectionName; (* reference to the fixup's destination section *)
+		symbol-: ObjectFile.Identifier; (* reference to the fixup's destination section *)
 		symbolOffset-: LONGINT; (* offset in intermediate section, must be patched (resolved and added to displacement) to destination section displacement *)
 		resolved*: Sections.Section; (* cache ! *)
 
-		PROCEDURE & InitFixup*(mode: INTEGER; fixupOffset: Unit; symbol: Sections.SectionName; symbolOffset: LONGINT; displacement: Unit; scale: LONGINT; fixupPattern: ObjectFile.FixupPatterns);
+		PROCEDURE & InitFixup*(mode: INTEGER; fixupOffset: Unit; symbol: ObjectFile.Identifier; symbolOffset: LONGINT; displacement: Unit; scale: LONGINT; fixupPattern: ObjectFile.FixupPatterns);
 		BEGIN
 			ASSERT((mode = Relative) OR (mode = Absolute));
-			ASSERT(symbol # "");
-			ASSERT(symbol[0] # 0);
+			ASSERT(symbol.name # "");
+			ASSERT(symbol.name[0] # 0);
 			nextFixup := NIL;
 			SELF.mode := mode;
 			SELF.displacement := displacement;
@@ -53,9 +53,10 @@ TYPE
 			SELF.offset := offset;
 		END SetFixupOffset;
 
-		PROCEDURE SetSymbol*(symbol: Sections.SectionName; symbolOffset: LONGINT; displacement: Unit);
+		PROCEDURE SetSymbol*(symbol: Sections.SectionName; fp: LONGINT; symbolOffset: LONGINT; displacement: Unit);
 		BEGIN
-			SELF.symbol := symbol;
+			SELF.symbol.name := symbol;
+			SELF.symbol.fingerprint := fp;
 			SELF.symbolOffset := symbolOffset;
 			SELF.displacement := displacement;
 		END SetSymbol;
@@ -63,7 +64,8 @@ TYPE
 		PROCEDURE Dump*(w: Streams.Writer);
 		VAR i: LONGINT;
 		BEGIN
-			Basic.WriteSegmentedName(w, symbol);
+			Basic.WriteSegmentedName(w, symbol.name);
+			IF symbol.fingerprint # 0 THEN w.String("["); w.Hex(symbol.fingerprint,-8); w.String("]") END;
 			IF symbolOffset # 0 THEN w.String(":"); w.Int(symbolOffset, 0) END;
 
 			w.String(" (displ="); w.Int(displacement, 0); w.String(")");
@@ -669,7 +671,7 @@ TYPE
 		RETURN result
 	END ConvertToLongreal;
 
-	PROCEDURE NewFixup*(mode: INTEGER; fixupOffset: LONGINT; symbol: Sections.SectionName; symbolOffset,displacement: LONGINT; scale: LONGINT; fixupPattern: ObjectFile.FixupPatterns): Fixup;
+	PROCEDURE NewFixup*(mode: INTEGER; fixupOffset: LONGINT; symbol: ObjectFile.Identifier; symbolOffset,displacement: LONGINT; scale: LONGINT; fixupPattern: ObjectFile.FixupPatterns): Fixup;
 	VAR fixup: Fixup;
 	BEGIN
 		NEW(fixup,mode,fixupOffset,symbol,symbolOffset,displacement,scale,fixupPattern); RETURN fixup
