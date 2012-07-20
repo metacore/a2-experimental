@@ -14,7 +14,7 @@ CONST
 		(** color components. *)
 	red* = 00FF0000H; green* = 0000FF00H; blue* = 000000FFH;
 
-	trans* = SHORT(80000000H);	(** transparency for Mask. *)
+	trans* = LONGINT(80000000H);	(** transparency for Mask. *)
 	invert* = 40000000H;	(** inverting. *)
 	(*alpha = 0C0000000H;	(** alpha blending. *)*)
 

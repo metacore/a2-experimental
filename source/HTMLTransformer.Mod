@@ -1479,7 +1479,7 @@ TYPE
 			IF border > 0 THEN
 				h := bounds.GetHeight();
 				w := bounds.GetWidth();
-				color := SHORT(0808080FFH);
+				color := LONGINT(0808080FFH);
 				FOR i := 0 TO border - 1 DO
 					canvas.Line(0, 0+i, w-1, 0+i, color, WMGraphics.ModeSrcOverDst);
 					canvas.Line(0+i, 0, 0+i, h-1, color, WMGraphics.ModeSrcOverDst);

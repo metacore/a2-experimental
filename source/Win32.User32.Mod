@@ -37,7 +37,7 @@ MODULE User32; (** non-portable / source: Win32.User32.Mod *)	(* ejz  *)
 		WSMaximize* = 24; WSVisible* = 28; WSMinimize* = 29; WSChild* = 30;
 
 		(** CreateWindow default value for x, y, nWidth, nHeight *)
-		CWUseDefault* = SHORT(080000000H);
+		CWUseDefault* = LONGINT(080000000H);
 
 		(** WMSize wParam values *)
 		SizeRestored* = 0; SizeMinimized* = 1; SizeMaximized* = 2; SizeMaxshow* = 3; SizeMaxhide* = 4;

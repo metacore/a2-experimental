@@ -358,7 +358,7 @@ TYPE
 			IF (outOfDate # value) THEN
 				outOfDate := value;
 				IF outOfDate THEN
-					editor.fillColor.Set(SHORT(0FFFF0099H));
+					editor.fillColor.Set(LONGINT(0FFFF0099H));
 				ELSE
 					editor.fillColor.Set(WMGraphics.White);
 				END;
@@ -460,7 +460,7 @@ TYPE
 			IF (outOfDate # value) THEN
 				outOfDate := value;
 				IF outOfDate THEN
-					editor.fillColor.Set(SHORT(0FFFF0099H));
+					editor.fillColor.Set(LONGINT(0FFFF0099H));
 				ELSE
 					editor.fillColor.Set(WMGraphics.White);
 				END;
@@ -511,7 +511,7 @@ TYPE
 				IF (number IN enabled) THEN
 					editor.enabled.Set(TRUE);
 					IF (number IN outOfDate) THEN
-						editor.fillColor.Set(SHORT(0FFFF0099H));
+						editor.fillColor.Set(LONGINT(0FFFF0099H));
 					ELSE
 						editor.fillColor.Set(WMGraphics.White);
 					END;
@@ -734,7 +734,7 @@ TYPE
 			IF (outOfDate # value) THEN
 				outOfDate := value;
 				IF outOfDate THEN
-					editor.fillColor.Set(SHORT(0FFFF0099H));
+					editor.fillColor.Set(LONGINT(0FFFF0099H));
 				ELSE
 					editor.fillColor.Set(WMGraphics.White);
 				END;
@@ -846,7 +846,7 @@ TYPE
 			IF (outOfDate # value) THEN
 				outOfDate := value;
 				IF outOfDate THEN
-					editor.fillColor.Set(SHORT(0FFFF0099H));
+					editor.fillColor.Set(LONGINT(0FFFF0099H));
 				ELSE
 					editor.fillColor.Set(WMGraphics.White);
 				END;
@@ -906,7 +906,7 @@ TYPE
 			PROCEDURE UpdateState(editor : WMEditors.TextField; number: LONGINT);
 			BEGIN
 				IF (number IN outOfDate) THEN
-					editor.fillColor.Set(SHORT(0FFFF0099H));
+					editor.fillColor.Set(LONGINT(0FFFF0099H));
 				ELSE
 					editor.fillColor.Set(WMGraphics.White);
 				END;
@@ -1223,7 +1223,7 @@ TYPE
 			IF (outOfDate # value) THEN
 				outOfDate := value;
 				IF outOfDate THEN
-					editor.fillColor.Set(SHORT(0FFFF0099H));
+					editor.fillColor.Set(LONGINT(0FFFF0099H));
 				ELSE
 					editor.fillColor.Set(WMGraphics.White);
 				END;
@@ -2455,7 +2455,7 @@ TYPE
 			IF (outOfDate # value) THEN
 				outOfDate := value;
 				IF outOfDate THEN
-					editor.fillColor.Set(SHORT(0FFFF0099H));
+					editor.fillColor.Set(LONGINT(0FFFF0099H));
 				ELSE
 					editor.fillColor.Set(WMGraphics.White);
 				END;

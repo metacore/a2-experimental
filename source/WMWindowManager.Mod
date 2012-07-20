@@ -102,14 +102,14 @@ TYPE
 			minimizeOffset := 0;
 
 			(* window caption *)
-			atextX := 5; atextY := 15; atextColor := SHORT(0FFFF00FFH);
+			atextX := 5; atextY := 15; atextColor := LONGINT(0FFFF00FFH);
 			itextX := 5; itextY := 15; itextColor := 04444FFH;
 
 			(* desktop *)
-			bgColor := SHORT(08080FFFFH);
+			bgColor := LONGINT(08080FFFFH);
 			fgColor := 0000000FFH;
 			selectCol := 0FFFFH;
-			desktopColor := SHORT(08080FFFFH);
+			desktopColor := LONGINT(08080FFFFH);
 
 			topFocusThreshold := 0; topThreshold := 0;
 			bottomFocusThreshold := 0; bottomThreshold := 0;

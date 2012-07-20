@@ -27,10 +27,10 @@ TYPE
 		PROCEDURE Initialize*;
 		BEGIN
 			c.h0 := 067452301H;
-			c.h1 := SHORT( 0EFCDAB89H );
-			c.h2 := SHORT( 098BADCFEH );
+			c.h1 := LONGINT( 0EFCDAB89H );
+			c.h2 := LONGINT( 098BADCFEH );
 			c.h3 := 010325476H;
-			c.h4 := SHORT( 0C3D2E1F0H );
+			c.h4 := LONGINT( 0C3D2E1F0H );
 			c.Nl := 0;
 			c.Nh := 0;
 			c.n := 0;
@@ -141,13 +141,13 @@ TYPE
 
 	PROCEDURE tr4059( a: LONGINT;  VAR b: LONGINT;  c, d, e: LONGINT;  VAR f: LONGINT;  x: SET);
 	BEGIN
-		f := S.VAL( LONGINT, x ) + e + SHORT(8F1BBCDCH) + S.ROT( a, 5 ) + F3( b, c, d );
+		f := S.VAL( LONGINT, x ) + e + LONGINT(8F1BBCDCH) + S.ROT( a, 5 ) + F3( b, c, d );
 		b := S.ROT( b, 30 )
 	END tr4059;
 
 	PROCEDURE tr6079( a: LONGINT;  VAR b: LONGINT;  c, d, e: LONGINT;  VAR f: LONGINT;  x: SET );
 	BEGIN
-		f := S.VAL( LONGINT, x ) + e + SHORT(0CA62C1D6H) + S.ROT( a, 5 ) + F2( b, c, d );
+		f := S.VAL( LONGINT, x ) + e + LONGINT(0CA62C1D6H) + S.ROT( a, 5 ) + F2( b, c, d );
 		b := S.ROT( b, 30 );
 	END tr6079;
 

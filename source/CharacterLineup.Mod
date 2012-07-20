@@ -329,9 +329,9 @@ TYPE
 			points : ARRAY 2560 OF WMGraphics.Point2d;
 		BEGIN
 			IF WMGrids.CellHighlighted IN state THEN
-				canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), SHORT(0FFFF00FFH), WMGraphics.ModeCopy)
+				canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0FFFF00FFH), WMGraphics.ModeCopy)
 			ELSE
-				canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), SHORT(0FFFFFFFFH), WMGraphics.ModeCopy)
+				canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0FFFFFFFFH), WMGraphics.ModeCopy)
 			END;
 			pos := y * NofCols + x;
 			IF useFilter THEN
@@ -358,9 +358,9 @@ TYPE
 			pos := x;
 			IF (relevantSubcomponents # NIL) & (pos < LEN(relevantSubcomponents)) THEN
 				IF WMGrids.CellHighlighted IN state THEN
-					canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), SHORT(0FFFF00FFH), WMGraphics.ModeCopy)
+					canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0FFFF00FFH), WMGraphics.ModeCopy)
 				ELSE
-					canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), SHORT(0FFFFFFFFH), WMGraphics.ModeCopy)
+					canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0FFFFFFFFH), WMGraphics.ModeCopy)
 				END;
 				IF IsInFilterArray(relevantSubcomponents[pos].ucs) THEN
 					canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), 0FFC0H, WMGraphics.ModeSrcOverDst)

@@ -1285,7 +1285,7 @@ TYPE
 					Strings.FloatToStr(pixelPerMM, 0,4,0, tempString);
 					IF WMDialogs.QueryString("Export Image Resolution [pixel/mm]:", tempString) = WMDialogs.ResOk THEN
 						Strings.StrToFloat(tempString, tempReal); pixelPerMM := SHORT(tempReal);
-						NEW(wait); wait.SetColor(SHORT(09999FFFFH)); wait.SetMessage("Rendering Image - please wait!");
+						NEW(wait); wait.SetColor(LONGINT(09999FFFFH)); wait.SetMessage("Rendering Image - please wait!");
 						wait.Show;
 						drawPanel.Render(TRUE);
 						IF ~previewON THEN									(* change to preview *)

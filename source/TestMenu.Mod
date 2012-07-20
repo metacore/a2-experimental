@@ -24,13 +24,13 @@ TYPE
 		BEGIN
 			NEW(panel);
 			panel.bounds.SetExtents(800, 700);
-			panel.fillColor.Set(SHORT(0FFFFFFFFH));
+			panel.fillColor.Set(LONGINT(0FFFFFFFFH));
 			panel.takesFocus.Set(TRUE);
 
 			NEW(menu); NEW(root);
 
 			NEW(menuPanel);
-			menuPanel.fillColor.Set(SHORT(WMGraphics.White));
+			menuPanel.fillColor.Set(LONGINT(WMGraphics.White));
 			menuPanel.bounds.SetHeight(20);
 			menuPanel.alignment.Set(WMComponents.AlignTop);
 			menuPanel.horizontal.Set(TRUE);

@@ -20,14 +20,14 @@ CONST
 
 	PollingInterval = 1000;
 
-	GridBgFillColor = SHORT(0E0E0E0FFH);
+	GridBgFillColor = LONGINT(0E0E0E0FFH);
 	NofColumns = 7;
 
-	ColorUnknown = SHORT(0C0C0C0FFH);
+	ColorUnknown = LONGINT(0C0C0C0FFH);
 	ColorInformation = WMGraphics.White;
 	ColorWarning = WMGraphics.Yellow;
-	ColorError = SHORT(0FF0000C0H);
-	ColorCritical = SHORT(0FF0000E0H);
+	ColorError = LONGINT(0FF0000C0H);
+	ColorCritical = LONGINT(0FF0000E0H);
 	ColorAlert = WMGraphics.Blue;
 	ColorFailure = WMGraphics.Red;
 	ColorOther = WMGraphics.White;

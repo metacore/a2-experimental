@@ -435,10 +435,10 @@ TYPE
 			UNTIL (in.res # Streams.Ok);
 
 			(* define Oberon Colors *)
-			oberonColors[0] := SHORT(0FFFFFFFFH); oberonColors[1] := SHORT(0FF0000FFH); oberonColors[2] := 000FF00FFH; oberonColors[3] := 00000FFFFH;
-			oberonColors[4] := SHORT(0FF00FFFFH); oberonColors[5] := SHORT(0FFFF00FFH); oberonColors[6] := 000FFFFFFH; oberonColors[7] := SHORT(0AA0000FFH);
-			oberonColors[8] := 000AA00FFH; oberonColors[9] := 00000AAFFH; oberonColors[10] := SHORT(0A6BCF3FFH); oberonColors[11] := 0008282FFH;
-			oberonColors[12] := SHORT(08A8A8AFFH); oberonColors[13] := SHORT(0BEBEBEFFH); oberonColors[14] := 07B7B7BFFH; oberonColors[15] := 0000000FFH;
+			oberonColors[0] := LONGINT(0FFFFFFFFH); oberonColors[1] := LONGINT(0FF0000FFH); oberonColors[2] := 000FF00FFH; oberonColors[3] := 00000FFFFH;
+			oberonColors[4] := LONGINT(0FF00FFFFH); oberonColors[5] := LONGINT(0FFFF00FFH); oberonColors[6] := 000FFFFFFH; oberonColors[7] := LONGINT(0AA0000FFH);
+			oberonColors[8] := 000AA00FFH; oberonColors[9] := 00000AAFFH; oberonColors[10] := LONGINT(0A6BCF3FFH); oberonColors[11] := 0008282FFH;
+			oberonColors[12] := LONGINT(08A8A8AFFH); oberonColors[13] := LONGINT(0BEBEBEFFH); oberonColors[14] := 07B7B7BFFH; oberonColors[15] := 0000000FFH;
 
 			NEW(text);
 			text.AcquireWrite;
@@ -643,10 +643,10 @@ TYPE
 			startPos, i, len, tempInt : LONGINT;
 		BEGIN
 			(* define Oberon colors *)
-			oberonColors[0] := SHORT(0FFFFFFFFH); oberonColors[1] := SHORT(0FF0000FFH); oberonColors[2] := 000FF00FFH; oberonColors[3] := 00000FFFFH;
-			oberonColors[4] := SHORT(0FF00FFFFH); oberonColors[5] := SHORT(0FFFF00FFH); oberonColors[6] := 000FFFFFFH; oberonColors[7] := SHORT(0AA0000FFH);
-			oberonColors[8] := 000AA00FFH; oberonColors[9] := 00000AAFFH; oberonColors[10] := SHORT(0A6BCF3FFH); oberonColors[11] := 0008282FFH;
-			oberonColors[12] := SHORT(08A8A8AFFH); oberonColors[13] := SHORT(0BEBEBEFFH); oberonColors[14] := 07B7B7BFFH; oberonColors[15] := 0000000FFH;
+			oberonColors[0] := LONGINT(0FFFFFFFFH); oberonColors[1] := LONGINT(0FF0000FFH); oberonColors[2] := 000FF00FFH; oberonColors[3] := 00000FFFFH;
+			oberonColors[4] := LONGINT(0FF00FFFFH); oberonColors[5] := LONGINT(0FFFF00FFH); oberonColors[6] := 000FFFFFFH; oberonColors[7] := LONGINT(0AA0000FFH);
+			oberonColors[8] := 000AA00FFH; oberonColors[9] := 00000AAFFH; oberonColors[10] := LONGINT(0A6BCF3FFH); oberonColors[11] := 0008282FFH;
+			oberonColors[12] := LONGINT(08A8A8AFFH); oberonColors[13] := LONGINT(0BEBEBEFFH); oberonColors[14] := 07B7B7BFFH; oberonColors[15] := 0000000FFH;
 
 			res := -1;
 			text.AcquireRead;
@@ -816,10 +816,10 @@ TYPE
 			ELSIF (stylename = "Highlight") THEN attr.fontInfo.style := {1};
 			ELSIF (stylename = "Assertion") THEN attr.fontInfo.style := {0}; attr.color := 00000FFFFH;
 			ELSIF (stylename = "Debug") THEN attr.color := 00000FFFFH;
-			ELSIF (stylename = "Lock") THEN attr.color := SHORT(0FF00FFFFH);
-			ELSIF (stylename = "Stupid") THEN attr.color := SHORT(0FF0000FFH);
-			ELSIF (stylename = "Comment") THEN attr.color := SHORT(0808080FFH);
-			ELSIF (stylename = "Preferred") THEN attr.fontInfo.style := {0}; attr.color := SHORT(0800080FFH);
+			ELSIF (stylename = "Lock") THEN attr.color := LONGINT(0FF00FFFFH);
+			ELSIF (stylename = "Stupid") THEN attr.color := LONGINT(0FF0000FFH);
+			ELSIF (stylename = "Comment") THEN attr.color := LONGINT(0808080FFH);
+			ELSIF (stylename = "Preferred") THEN attr.fontInfo.style := {0}; attr.color := LONGINT(0800080FFH);
 			ELSIF Strings.Match("AdHoc*", stylename) THEN
 				NEW(sr, LEN(stylename)); sr.Set(stylename);
 				sr.SkipWhitespace; sr.Token(token);												(* AdHoc *)

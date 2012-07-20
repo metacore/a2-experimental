@@ -399,7 +399,7 @@ BEGIN
 			FOR x := 0 TO w - 1 DO
 				tlabel := equivalence[labelBuffer[lbufpos]];
 				IF (tlabel>0)&(labelInfo[tlabel].nofPixels >= pixelThreshold) THEN color := labelColor[tlabel]
-				ELSE color := SHORT(0FFFFFFFFH);
+				ELSE color := LONGINT(0FFFFFFFFH);
 					Raster.SetRGBA(pix, ((color DIV 65536) DIV 256) MOD 256, (color DIV 65536) MOD 256,
 						(color DIV 256) MOD 256, 255);
 					Raster.Put(buffer, x, y, pix, mode);
@@ -533,7 +533,7 @@ BEGIN
 			IF DebugLiner THEN
 				IF g = NIL THEN NEW(g, buffer) END;
 				g.Fill(WMRectangles.MakeRect(path[p].x-2, path[p].y-2, path[p].x+2, path[p].y+2), 00FFH, WMGraphics.ModeCopy);
-				g.Fill(WMRectangles.MakeRect(path[p].x-1, path[p].y-1, path[p].x+1, path[p].y+1), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
+				g.Fill(WMRectangles.MakeRect(path[p].x-1, path[p].y-1, path[p].x+1, path[p].y+1), LONGINT(0FFFF00FFH), WMGraphics.ModeCopy);
 			END;
 			IF nofLines >= LEN(poly) THEN RETURN END;
 			IF nofLines = 0 THEN	poly[0] := path[i]; INC(nofLines) END;
@@ -554,7 +554,7 @@ BEGIN
 	IF DebugLiner THEN
 		FOR i := 0 TO nofLines - 1 DO
 			g.Fill(WMRectangles.MakeRect(poly[i].x-2, poly[i].y-2, poly[i].x+2, poly[i].y+2), 00FFH, WMGraphics.ModeCopy);
-			g.Fill(WMRectangles.MakeRect(poly[i].x-1, poly[i].y-1, poly[i].x+1, poly[i].y+1), SHORT(0FF0000FFH), WMGraphics.ModeCopy);
+			g.Fill(WMRectangles.MakeRect(poly[i].x-1, poly[i].y-1, poly[i].x+1, poly[i].y+1), LONGINT(0FF0000FFH), WMGraphics.ModeCopy);
 		END
 	 END;
 	 nofPoints := nofLines;
@@ -623,16 +623,16 @@ BEGIN
 						Transform(buffer, rectified.img, poly);
 						CheckFields(rectified.img);
 						rectified.Invalidate(WMRectangles.MakeRect(0, 0, rectified.GetWidth(), rectified.GetHeight()));
-						g.Line((poly[0].x + poly[1].x) DIV 2, (poly[0].y + poly[1].y) DIV 2 , (poly[2].x + poly[3].x) DIV 2, (poly[2].y + poly[3].y) DIV 2, SHORT(0FF0000FFH), WMGraphics.ModeSrcOverDst);
+						g.Line((poly[0].x + poly[1].x) DIV 2, (poly[0].y + poly[1].y) DIV 2 , (poly[2].x + poly[3].x) DIV 2, (poly[2].y + poly[3].y) DIV 2, LONGINT(0FF0000FFH), WMGraphics.ModeSrcOverDst);
 
 						g.FillPolygonFlat(gp, nofPoints, 000FF0080H, WMGraphics.ModeSrcOverDst);
 						g.Line(poly[0].x, poly[0].y, poly[2].x, poly[2].y, 000FFFFFFH, WMGraphics.ModeSrcOverDst);
 						g.Line(poly[1].x, poly[1].y, poly[3].x, poly[3].y, 000FFFFFFH, WMGraphics.ModeSrcOverDst);
 					END;
 
-(*					g.FillPolygonFlat(gp, nofPoints, SHORT(0FF00FF80H), WMGraphics.ModeSrcOverDst)	*)
+(*					g.FillPolygonFlat(gp, nofPoints, LONGINT(0FF00FF80H), WMGraphics.ModeSrcOverDst)	*)
 				ELSIF nofPoints = 6 THEN
-					g.FillPolygonFlat(gp, nofPoints, SHORT(0FF000020H), WMGraphics.ModeSrcOverDst);
+					g.FillPolygonFlat(gp, nofPoints, LONGINT(0FF000020H), WMGraphics.ModeSrcOverDst);
 				END;
 				t1 := GetTimer(); linetime := linetime + (t1 - t0);
 			END
@@ -927,7 +927,7 @@ VAR i : LONGINT;
 BEGIN
 	NEW(gen);
 	FOR i := 1 TO LEN(labelColor) - 1 DO labelColor[i] := gen.Integer();  END;
-	labelColor[0] := SHORT(0FFFFFFFFH);
+	labelColor[0] := LONGINT(0FFFFFFFFH);
 
 	dirX[DirN] := 0; dirY[DirN] := -1; (* N *)
 	dirX[DirNE] := 1; dirY[DirNE] := -1; (* NE *)

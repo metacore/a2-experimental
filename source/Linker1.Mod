@@ -29,7 +29,7 @@ CONST
 	EUEnd = 0;  EURecord = 1;  EUobjScope = 0;  EUrecScope = 1;  EUerrScope = -1;
 	EUProcFlagBit = 31;
 
-	Sentinel = SHORT(0FFFFFFFFH);
+	Sentinel = LONGINT(0FFFFFFFFH);
 
 TYPE
 	ObjHeader = RECORD (* data from object file header *)

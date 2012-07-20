@@ -112,7 +112,7 @@ BEGIN
 			res := Kernel32.GetThreadContext(handle, context);
 			IF (res = Kernel32.True) THEN
 				IF (context.PC # 0) THEN
-					callback(1, process, context.PC, context.BP, context.SP, SHORT(0FFFFFFFFH));
+					callback(1, process, context.PC, context.BP, context.SP, LONGINT(0FFFFFFFFH));
 				END;
 			END;
 			res := Kernel32.ResumeThread(handle);

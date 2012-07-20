@@ -76,7 +76,7 @@ TYPE
 			quality := 0;
 			NEW(message); Raster.Create(message, 300, 50, Raster.BGRA8888);
 			NEW(mc, message); mc.Fill(WMRectangles.MakeRect(0, 0, 300, 50), 0FF80H, WMGraphics.ModeCopy);
-			mc.SetColor(SHORT(0FFFFFFFFH));
+			mc.SetColor(LONGINT(0FFFFFFFFH));
 			WMGraphics.DrawStringInRect(mc, WMRectangles.MakeRect(0, 0, 300, 50), FALSE,
 				WMGraphics.AlignCenter, WMGraphics.AlignTop,
 			"Press left mouse button and move mouse to rotate");

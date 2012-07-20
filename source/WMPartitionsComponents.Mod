@@ -1648,7 +1648,7 @@ BEGIN
 	NEW(PrototypeClSelected, NIL, Strings.NewString("clSelected"), Strings.NewString("Color of selected partition"));
 	PrototypeClSelected.Set(WMGraphics.Yellow);
 	NEW(PrototypeClBackground, NIL, Strings.NewString("clBackground"), Strings.NewString("Background color of disk panels"));
-	PrototypeClBackground.Set(SHORT(0999999FFH));
+	PrototypeClBackground.Set(LONGINT(0999999FFH));
 END InitPrototypes;
 
 BEGIN

@@ -395,7 +395,7 @@ TYPE
 						WMRectangles.MakeRect(w - ENTIER(img.width * fw), 0, w, ENTIER(img.height * fh)), Graphics.ModeSrcOverDst, q);
 					closeImageWidth := img.width;
 				ELSE
-					canvas.Fill(WMRectangles.MakeRect(w - ENTIER(20 * fw), ENTIER(2 * fh), w, h), SHORT(0FF0000C0H), Graphics.ModeSrcOverDst);
+					canvas.Fill(WMRectangles.MakeRect(w - ENTIER(20 * fw), ENTIER(2 * fh), w, h), LONGINT(0FF0000C0H), Graphics.ModeSrcOverDst);
 					closeImageWidth := 20;
 				END;
 			END;
@@ -409,7 +409,7 @@ TYPE
 					canvas.ScaleImage(img, WMRectangles.MakeRect(0, 0, img.width, img.height),
 						WMRectangles.MakeRect(w - ENTIER((img.width + closeImageWidth - minimizeOffset) * fw), 0, w - ENTIER((closeImageWidth - minimizeOffset) * fw), ENTIER(img.height * fh)), Graphics.ModeSrcOverDst, q)
 				ELSE
-				(*	canvas.Fill(WMRectangles.MakeRect(w - ENTIER(20 * fw), ENTIER(2 * fh), w, h), SHORT(0FF0000C0H), Graphics.ModeSrcOverDst);  *)
+				(*	canvas.Fill(WMRectangles.MakeRect(w - ENTIER(20 * fw), ENTIER(2 * fh), w, h), LONGINT(0FF0000C0H), Graphics.ModeSrcOverDst);  *)
 				END;
 			END;
 
@@ -626,7 +626,7 @@ TYPE
 
 		PROCEDURE &New*;
 		BEGIN
-			color := SHORT(08080FFFFH);
+			color := LONGINT(08080FFFFH);
 			isVisible := TRUE;
 		END New;
 

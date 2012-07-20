@@ -467,7 +467,7 @@ TYPE
 		res: REAL;
 	BEGIN
 		mantissa := BIT.LAND(val, 1FFFFFH);
-		sign := BIT.LAND(val, SHORT(80000000H));
+		sign := BIT.LAND(val, LONGINT(80000000H));
 		exponent := BIT.LAND(val, 7FE00000H) DIV 1FFFFFH;
 		IF (sign # 0) THEN
 			mantissa := -1 * mantissa

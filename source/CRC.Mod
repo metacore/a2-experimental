@@ -11,7 +11,7 @@ IMPORT
 
 CONST
 	Init16 = -1;	(* initial CRC16 value *)
-	Init32 = SHORT(0FFFFFFFFH)  ;  (* initial CRC32 value *)
+	Init32 = LONGINT(0FFFFFFFFH)  ;  (* initial CRC32 value *)
 
 TYPE
 	CRC16Stream* = OBJECT(Streams.Writer)
@@ -146,7 +146,7 @@ VAR
 	END InitTable16;
 
 	PROCEDURE InitTable32;
-	CONST poly = SHORT(0EDB88320H);
+	CONST poly = LONGINT(0EDB88320H);
 	VAR n, c, k: LONGINT;
 	BEGIN
 		FOR n := 0 TO 255 DO

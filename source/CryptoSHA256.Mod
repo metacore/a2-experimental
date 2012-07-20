@@ -30,9 +30,9 @@ TYPE
 
 		PROCEDURE Initialize*;
 		BEGIN
-			c.h[0] := 6A09E667H;	c.h[1] := SHORT( 0BB67AE85H );
-			c.h[2] := 3C6EF372H;	c.h[3] := SHORT( 0A54FF53AH );
-			c.h[4] := 510E527FH;	c.h[5] := SHORT( 09B05688CH );
+			c.h[0] := 6A09E667H;	c.h[1] := LONGINT( 0BB67AE85H );
+			c.h[2] := 3C6EF372H;	c.h[3] := LONGINT( 0A54FF53AH );
+			c.h[4] := 510E527FH;	c.h[5] := LONGINT( 09B05688CH );
 			c.h[6] := 1F83D9ABH;	c.h[7] := 5BE0CD19H;
 			c.Nl := 0;
 			c.Nh := 0;

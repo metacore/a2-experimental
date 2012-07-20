@@ -182,7 +182,7 @@ TYPE
 			newCStyle.scaleHorizontal := 100;
 			newCStyle.scaleVertical := 100;
 			newCStyle.color := 0000000FFH;
-			newCStyle.bgColor := SHORT(0FFFFFF00H);
+			newCStyle.bgColor := LONGINT(0FFFFFF00H);
 
 			NEW(newPStyle);
 			newPStyle.name := "defaultParagraphStyle";
@@ -1337,7 +1337,7 @@ TYPE
 		PROCEDURE Draw*(canvas : WMGraphics.Canvas; x, y, w, h : LONGINT; zoomFactor: REAL; quality, preview: BOOLEAN);
 		VAR color: LONGINT;
 		BEGIN
-			color := SHORT(0FF0000FFH);
+			color := LONGINT(0FF0000FFH);
 			canvas.Line(x, y, x+w, y+h, color, WMGraphics.ModeCopy);
 			canvas.Line(x+w, y, x, y+h, color, WMGraphics.ModeCopy);
 		END Draw;

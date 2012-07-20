@@ -39,8 +39,8 @@ TYPE
 			button : WMStandardComponents.Button;
 
 		BEGIN
-			NEW(panel); panel.bounds.SetExtents(200, 700); panel.fillColor.Set(SHORT(0FFFFFFFFH)); panel.takesFocus.Set(TRUE);
-			NEW(toolbar); toolbar.fillColor.Set(SHORT(0A0A0A0FFH)); toolbar.bounds.SetHeight(20); toolbar.alignment.Set(WMComponents.AlignTop);
+			NEW(panel); panel.bounds.SetExtents(200, 700); panel.fillColor.Set(LONGINT(0FFFFFFFFH)); panel.takesFocus.Set(TRUE);
+			NEW(toolbar); toolbar.fillColor.Set(LONGINT(0A0A0A0FFH)); toolbar.bounds.SetHeight(20); toolbar.alignment.Set(WMComponents.AlignTop);
 			panel.AddContent(toolbar);
 			NEW(button); button.alignment.Set(WMComponents.AlignLeft); button.caption.SetAOC("Play");
 			toolbar.AddContent(button);

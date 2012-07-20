@@ -338,7 +338,7 @@ TYPE
 				filenameEdit.multiLine.Set(FALSE);
 				filenameEdit.tv.showBorder.Set(TRUE);
 				filenameEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
-				filenamePanel.AddInternalComponent(filenameEdit); filenameEdit.fillColor.Set(SHORT(0FFFFFFFFH));
+				filenamePanel.AddInternalComponent(filenameEdit); filenameEdit.fillColor.Set(LONGINT(0FFFFFFFFH));
 				filenameEdit.onEscape.Add(FilenameEscapeHandler);
 
 				IF (buttons * LoadButton # {}) THEN

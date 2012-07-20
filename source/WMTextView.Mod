@@ -41,8 +41,8 @@ CONST
 	InterclickCancelled = 99;
 
 	SelectionColor = 0000FF60H;
-	SelectionColorInterclick01 = SHORT(0FFFF0060H);
-	SelectionColorInterclick02 = SHORT(0FF000060H);
+	SelectionColorInterclick01 = LONGINT(0FFFF0060H);
+	SelectionColorInterclick02 = LONGINT(0FF000060H);
 
 TYPE
 	Char32 = Texts.Char32;
@@ -382,7 +382,7 @@ TYPE
 
 		PROCEDURE &Init*;
 		BEGIN
-			color := SHORT(0FF0000CCH); visible := TRUE
+			color := LONGINT(0FF0000CCH); visible := TRUE
 		END Init;
 
 		PROCEDURE Draw(canvas : WMGraphics.Canvas; x, y, ascent : LONGINT);
@@ -391,7 +391,7 @@ TYPE
 			IF img # NIL THEN canvas.DrawImage(x - hotX, y - hotY, img, WMGraphics.ModeSrcOverDst)
 			ELSE
 				currentArea := GetArea(x, y, ascent);
-				canvas.Fill(currentArea, SHORT(0FF0000CCH), WMGraphics.ModeSrcOverDst)
+				canvas.Fill(currentArea, LONGINT(0FF0000CCH), WMGraphics.ModeSrcOverDst)
 			END
 		END Draw;
 
@@ -2530,7 +2530,7 @@ TYPE
 						font.GetStringSize(localTextReader.object(Texts.LabelPiece).label^, dx, dy);
 						font.RenderString(canvas, x + sx+2, top + (l.ascent), localTextReader.object(Texts.LabelPiece).label^);
 						INC(dx, 4);
-						canvas.Fill(WMRectangles.MakeRect(x + sx, top, x + dx + sx, top + (l.height)), SHORT(0FF880050H), WMGraphics.ModeSrcOverDst);
+						canvas.Fill(WMRectangles.MakeRect(x + sx, top, x + dx + sx, top + (l.height)), LONGINT(0FF880050H), WMGraphics.ModeSrcOverDst);
 						WMGraphicUtilities.RectGlassShade(canvas, WMRectangles.MakeRect(x + sx, top, x + dx + sx, top + (l.height)), 1, FALSE)
 					ELSE dx := 0; END;
 				ELSE
@@ -2627,7 +2627,7 @@ TYPE
 
 			IF showBorderI THEN
 				WMGraphicUtilities.DrawBevel(canvas, GetClientRect(),
-					1, TRUE, SHORT(0808080FFH), WMGraphics.ModeCopy)
+					1, TRUE, LONGINT(0808080FFH), WMGraphics.ModeCopy)
 			END;
 
 			text.AcquireRead;
@@ -2790,7 +2790,7 @@ TYPE
 				IF commandMarker = NIL THEN
 					commandMarker := CreateHighlight();
 					commandMarker.SetKind(HLUnder);
-					commandMarker.SetColor(SHORT(0FF0000FFH));
+					commandMarker.SetColor(LONGINT(0FF0000FFH));
 					text.AcquireRead;
 					FindCommand(internalPos, a, b);
 					commandMarker.SetFromTo(a, b);

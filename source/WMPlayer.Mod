@@ -37,7 +37,7 @@ TYPE
 			panel : WMStandardComponents.Panel;
 			tabPositions : WMTextView.TabPositions; tabStops : WMTextView.CustomTabStops;
 		BEGIN
-			NEW(panel); panel.bounds.SetExtents(300, 100); panel.fillColor.Set(SHORT(0FFFFFFFFH));
+			NEW(panel); panel.bounds.SetExtents(300, 100); panel.fillColor.Set(LONGINT(0FFFFFFFFH));
 
 			NEW(tv);tv.alignment.Set(WMComponents.AlignClient);
 			tv.isMultiLine.Set(TRUE); tv.showBorder.Set(TRUE); tv.alwaysShowCursor.Set(FALSE);
@@ -180,10 +180,10 @@ TYPE
 			panel, toolbar : WMStandardComponents.Panel;
 			label: WMStandardComponents.Label;
 		BEGIN
-			NEW(panel); panel.bounds.SetExtents(DefaultWidth, DefaultHeight); panel.fillColor.Set(SHORT(0FFFFFFFFH)); panel.takesFocus.Set(TRUE);
+			NEW(panel); panel.bounds.SetExtents(DefaultWidth, DefaultHeight); panel.fillColor.Set(LONGINT(0FFFFFFFFH)); panel.takesFocus.Set(TRUE);
 
 			(* Search / position scrollbar *)
-			NEW(toolbar); toolbar.fillColor.Set(SHORT(0FFFFFFFFH)); toolbar.bounds.SetHeight(20); toolbar.alignment.Set(WMComponents.AlignTop);
+			NEW(toolbar); toolbar.fillColor.Set(LONGINT(0FFFFFFFFH)); toolbar.bounds.SetHeight(20); toolbar.alignment.Set(WMComponents.AlignTop);
 			panel.AddContent(toolbar);
 
 			NEW(search); search.alignment.Set(WMComponents.AlignClient);
@@ -191,7 +191,7 @@ TYPE
 			toolbar.AddContent(search);
 
 			(* Buttons *)
-			NEW(toolbar); toolbar.fillColor.Set(SHORT(0A0A0A0FFH)); toolbar.bounds.SetHeight(20); toolbar.alignment.Set(WMComponents.AlignTop);
+			NEW(toolbar); toolbar.fillColor.Set(LONGINT(0A0A0A0FFH)); toolbar.bounds.SetHeight(20); toolbar.alignment.Set(WMComponents.AlignTop);
 			panel.AddContent(toolbar);
 
 			NEW(playBtn); playBtn.alignment.Set(WMComponents.AlignLeft); playBtn.caption.SetAOC("Play");

@@ -587,7 +587,7 @@ TYPE
 				THEN
 					(* draw a plus sign *)
 					px := x - hindent; py := y + height DIV 2;
-					IF ~(NodeSubnodesUnknown IN state) THEN color := SHORT(0FFFFFFFFH) ELSE color := SHORT(0808080FFH) END;
+					IF ~(NodeSubnodesUnknown IN state) THEN color := LONGINT(0FFFFFFFFH) ELSE color := LONGINT(0808080FFH) END;
 					canvas.Fill(Rect.MakeRect(px - 5, py - 5, px +  5 + 1, py + 5 + 1), 0FFH, WMGraphics.ModeCopy);
 					canvas.Fill(Rect.MakeRect(px - 4, py - 4, px +  4 + 1, py + 4 + 1), color, WMGraphics.ModeCopy);
 					canvas.Line(px - 2, py , px + 2 + 1, py, 00000FFFFH, WMGraphics.ModeCopy);
@@ -897,7 +897,7 @@ BEGIN
 	NEW(plTreeView); WMComponents.propertyListList.Add("TreeView", plTreeView);
 
 	(* background colors *)
-	NEW(ColorPrototype, NIL, NewString("ClHover"), NewString("color of the tree item, if the mouse is over it")); ColorPrototype.Set(SHORT(0FFFF0080H));
+	NEW(ColorPrototype, NIL, NewString("ClHover"), NewString("color of the tree item, if the mouse is over it")); ColorPrototype.Set(LONGINT(0FFFF0080H));
 	NEW(PrototypeTclHover, ColorPrototype, NIL, NIL); plTreeView.Add(PrototypeTclHover);
 	NEW(ColorPrototype, NIL, NewString("ClSelected"), NewString("color of the the tree item, if it is selected")); ColorPrototype.Set(00000FF80H);
 	NEW(PrototypeTclSelected, ColorPrototype, NIL, NIL); plTreeView.Add(PrototypeTclSelected);
@@ -906,7 +906,7 @@ BEGIN
 	NEW(PrototypeTclTextDefault, ColorPrototype, NIL, NIL); plTreeView.Add(PrototypeTclTextDefault);
 	NEW(ColorPrototype, NIL, NewString("ClTextHover"), NewString("text color of the tree item, if the mouse is over it")); ColorPrototype.Set(00000FFFFH);
 	NEW(PrototypeTclTextHover, ColorPrototype, NIL, NIL); plTreeView.Add(PrototypeTclTextHover);
-	NEW(ColorPrototype, NIL, NewString("ClTextSelected"), NewString("text color of the tree item, when selected")); ColorPrototype.Set(SHORT(0FFFFFFFFH));
+	NEW(ColorPrototype, NIL, NewString("ClTextSelected"), NewString("text color of the tree item, when selected")); ColorPrototype.Set(LONGINT(0FFFFFFFFH));
 	NEW(PrototypeTclTextSelected, ColorPrototype, NIL, NIL); plTreeView.Add(PrototypeTclTextSelected);
 
 	NEW(PrototypeTfontHeight, NIL, NewString("FontHeight"), NewString("height of the tree item text"));

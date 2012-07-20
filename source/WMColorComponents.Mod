@@ -212,8 +212,8 @@ TYPE
 		BEGIN
 			rect := GetClientRect(); w := rect.r DIV 2; h := rect.b DIV 2;
 			(* background *)
-			c.Fill(WMRectangles.MakeRect(0, 0, w, h), SHORT(0AAAAAAFFH), WMGraphics.ModeCopy);
-			c.Fill(WMRectangles.MakeRect(w, h, 2*w, 2*h), SHORT(0AAAAAAFFH), WMGraphics.ModeCopy);
+			c.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0AAAAAAFFH), WMGraphics.ModeCopy);
+			c.Fill(WMRectangles.MakeRect(w, h, 2*w, 2*h), LONGINT(0AAAAAAFFH), WMGraphics.ModeCopy);
 			(* current color *)
 			DrawBackground^(c);
 			(* frame *)

@@ -90,7 +90,7 @@ TYPE
 
 		PROCEDURE HandleToggleColor(sender, data: ANY);
 		BEGIN
-			IF (clock.color.Get() = 0FFH) THEN clock.color.Set(SHORT(0FFFFFFFFH)) ELSE clock.color.Set(0FFH) END;
+			IF (clock.color.Get() = 0FFH) THEN clock.color.Set(LONGINT(0FFFFFFFFH)) ELSE clock.color.Set(0FFH) END;
 		END HandleToggleColor;
 
 		PROCEDURE HandleToggleView(sender, par: ANY);

@@ -30,8 +30,8 @@ under a public-key cryptosystem such as RSA. *)
 	BEGIN
 		NEW(cont);
 		cont.buf[0] := 067452301H;
-		cont.buf[1] := SHORT(0EFCDAB89H);
-		cont.buf[2] := SHORT(098BADCFEH);
+		cont.buf[1] := LONGINT(0EFCDAB89H);
+		cont.buf[2] := LONGINT(098BADCFEH);
 		cont.buf[3] := 010325476H;
 		cont.bits := 0;
 		RETURN cont

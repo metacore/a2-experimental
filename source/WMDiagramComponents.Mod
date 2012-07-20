@@ -759,10 +759,10 @@ TYPE
 			lineColor.Set(0FFH);
 
 			NEW(textColor, NIL, NIL, NIL); properties.Add(textColor);
-			textColor.Set(SHORT(0FF0000FFH));
+			textColor.Set(LONGINT(0FF0000FFH));
 
 			NEW(backgroundColor, NIL, NIL, NIL); properties.Add(backgroundColor);
-			backgroundColor.Set(SHORT(0FFFF00FFH));
+			backgroundColor.Set(LONGINT(0FFFF00FFH));
 
 			heights := NIL; labels := NIL; colors := NIL;
 			width := 1; offset := -0.5; numberData := 0;
@@ -933,7 +933,7 @@ BEGIN
 		S("samples between small separator lines")); PrototypeDeltaXGridSmall.Set(10);
 
 	NEW(PrototypeColor, NIL, S("Color"), S("color of the graph")); PrototypeColor.Set(0CC00FFH);
-	NEW(PrototypeGridColor, NIL, S("GridColor"), S("color of the grid")); PrototypeGridColor.Set(SHORT(0FFCC00FFH));
+	NEW(PrototypeGridColor, NIL, S("GridColor"), S("color of the grid")); PrototypeGridColor.Set(LONGINT(0FFCC00FFH));
 
 	NEW(PrototypeGlassShade, NIL, S("GlassShade"), NIL); PrototypeGlassShade.Set(8);
 	NEW(PrototypeValueWidth, NIL, S("ValueWidth"), NIL); PrototypeValueWidth.Set(50);

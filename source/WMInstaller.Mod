@@ -26,7 +26,7 @@ CONST
 	WindowMinWidth = 600;
 	WindowMinHeight = 300;
 
-	OberonColor =  SHORT(0D1616CAFH);
+	OberonColor =  LONGINT(0D1616CAFH);
 
 	UpperPanelHeight = 60;
 	LowerPanelHeight = 60;
@@ -522,7 +522,7 @@ TYPE
 		PROCEDURE DrawForeground(canvas : WMGraphics.Canvas);
 		BEGIN
 			DrawForeground^(canvas);
-			WMGraphicUtilities.DrawBevel(canvas, GetClientRect(), 1, TRUE, SHORT(0808080FFH), WMGraphics.ModeCopy);
+			WMGraphicUtilities.DrawBevel(canvas, GetClientRect(), 1, TRUE, LONGINT(0808080FFH), WMGraphics.ModeCopy);
 		END DrawForeground;
 
 		PROCEDURE &Init*;
@@ -1029,7 +1029,7 @@ TYPE
 			toolbar.AddContent(selectionLabel);
 			NEW(partitionSelector); partitionSelector.alignment.Set(WMComponents.AlignClient);
 			partitionSelector.fillColor.Set(WMGraphics.White);
-			partitionSelector.clBackground.Set(SHORT(0E0E0E0FFH) (* OberonColorLight *));
+			partitionSelector.clBackground.Set(LONGINT(0E0E0E0FFH) (* OberonColorLight *));
 			partitionSelector.onSelection.Add(HandleSelection);
 			panel.AddContent(partitionSelector);
 

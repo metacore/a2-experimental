@@ -162,7 +162,7 @@ TYPE
 	PROCEDURE hperm( VAR a: SET );
 	VAR t: SET;
 	BEGIN
-		t := (S.LSH( a, 18 ) / a)*S.VAL( SET, SHORT( 0CCCC0000H ) );
+		t := (S.LSH( a, 18 ) / a)*S.VAL( SET, LONGINT( 0CCCC0000H ) );
 		a := a / t / S.LSH( t, -18 )
 	END hperm;
 

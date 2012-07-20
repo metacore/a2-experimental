@@ -43,13 +43,13 @@ CONST
 	ImageScnMemShared = 010000000H;   (* Section is shareable. *)
 	ImageScnMemExecute = 020000000H;   (* Section is executable. *)
 	ImageScnMemRead = 040000000H;   (* Section is readable. *)
-	ImageScnMemWrite = SHORT(080000000H);   (* Section is writeable. *)
+	ImageScnMemWrite = LONGINT(080000000H);   (* Section is writeable. *)
 	ImageRelBasedAbsolute = 0;  ImageRelBasedHigh = 1;  ImageRelBasedLow = 2;  ImageRelBasedHighLow = 3;
 	ImageRelBasedHighAdj = 4;  ImageRelBasedMipsJmpAddr = 5;  ImageRelBasedSection = 6;  ImageRelBasedRel32 = 7;
 
 	RtCursor = 1;  RtIcon = 3;  RtGroupCursor = RtCursor + 11;  RtGroupIcon = RtIcon + 11;  RtVersion = 16;
 
-	DefaultLanguage = 0400H;  VsFfiSignature = SHORT(0FEEF04BDH);  VsFfiStrucVersion = 000010000H;  VsFfiFileFlagsMask = 00000003FH;
+	DefaultLanguage = 0400H;  VsFfiSignature = LONGINT(0FEEF04BDH);  VsFfiStrucVersion = 000010000H;  VsFfiFileFlagsMask = 00000003FH;
 	VosNtWindows32 = 000040004H;  VftApp = 000000001H;  VftDll = 000000002H;  Vft2Unknown = 000000000H;
 
 	MajorLinkerVersion = CHR( 0 );  MinorLinkerVersion = CHR( 90 );  PageSize = 01000H;  SectorSize = 0200H;

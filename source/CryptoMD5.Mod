@@ -24,7 +24,7 @@ TYPE
 		BEGIN
 			N := 0;
 			(* Initialize chaining values *)
-			A := 67452301H;  B := SHORT(0EFCDAB89H);  C := SHORT(098BADCFEH);  D := 10325476H;
+			A := 67452301H;  B := LONGINT(0EFCDAB89H);  C := LONGINT(098BADCFEH);  D := 10325476H;
 			initialized := TRUE
 		END Initialize;
 
@@ -170,44 +170,38 @@ VAR
 		INC( A, a );  INC( B, b );  INC( C, c );  INC( D, d );
 	END MD5;
 
-	PROCEDURE Unsigned( h: HUGEINT ): LONGINT;
-	BEGIN
-		RETURN SHORT( h );
-	END Unsigned;
-
-
 BEGIN
-	T[  1] := Unsigned( 0D76AA478H );	T[  2] := Unsigned( 0E8C7B756H );
-	T[  3] := Unsigned( 0242070DBH );	T[  4] := Unsigned( 0C1BDCEEEH );
-	T[  5] := Unsigned( 0F57C0FAFH );	T[  6] := Unsigned( 04787C62AH );
-	T[  7] := Unsigned( 0A8304613H );	T[  8] := Unsigned( 0FD469501H );
-	T[  9] := Unsigned( 0698098D8H );	T[10] := Unsigned( 08B44F7AFH );
-	T[11] := Unsigned( 0FFFF5BB1H );	T[12] := Unsigned( 0895CD7BEH );
-	T[13] := Unsigned( 06B901122H );	T[14] := Unsigned( 0FD987193H );
-	T[15] := Unsigned( 0A679438EH );	T[16] := Unsigned( 049B40821H );
-	T[17] := Unsigned( 0F61E2562H );	T[18] := Unsigned( 0C040B340H );
-	T[19] := Unsigned( 0265E5A51H );	T[20] := Unsigned( 0E9B6C7AAH );
-	T[21] := Unsigned( 0D62F105DH );	T[22] := Unsigned( 02441453H );
-	T[23] := Unsigned( 0D8A1E681H );	T[24] := Unsigned( 0E7D3FBC8H );
-	T[25] := Unsigned( 021E1CDE6H );	T[26] := Unsigned( 0C33707D6H );
-	T[27] := Unsigned( 0F4D50D87H );	T[28] := Unsigned( 0455A14EDH );
-	T[29] := Unsigned( 0A9E3E905H );	T[30] := Unsigned( 0FCEFA3F8H );
-	T[31] := Unsigned( 0676F02D9H );	T[32] := Unsigned( 08D2A4C8AH );
-	T[33] := Unsigned( 0FFFA3942H );	T[34] := Unsigned( 08771F681H );
-	T[35] := Unsigned( 06D9D6122H );	T[36] := Unsigned( 0FDE5380CH );
-	T[37] := Unsigned( 0A4BEEA44H );	T[38] := Unsigned( 04BDECFA9H );
-	T[39] := Unsigned( 0F6BB4B60H );	T[40] := Unsigned( 0BEBFBC70H );
-	T[41] := Unsigned( 0289B7EC6H );	T[42] := Unsigned( 0EAA127FAH );
-	T[43] := Unsigned( 0D4EF3085H );	T[44] := Unsigned( 04881D05H );
-	T[45] := Unsigned( 0D9D4D039H );	T[46] := Unsigned( 0E6DB99E5H );
-	T[47] := Unsigned( 01FA27CF8H );	T[48] := Unsigned( 0C4AC5665H );
-	T[49] := Unsigned( 0F4292244H );	T[50] := Unsigned( 0432AFF97H );
-	T[51] := Unsigned( 0AB9423A7H );	T[52] := Unsigned( 0FC93A039H );
-	T[53] := Unsigned( 0655B59C3H );	T[54] := Unsigned( 08F0CCC92H );
-	T[55] := Unsigned( 0FFEFF47DH );	T[56] := Unsigned( 085845DD1H );
-	T[57] := Unsigned( 06FA87E4FH );	T[58] := Unsigned( 0FE2CE6E0H );
-	T[59] := Unsigned( 0A3014314H );	T[60] := Unsigned( 04E0811A1H );
-	T[61] := Unsigned( 0F7537E82H );	T[62] := Unsigned( 0BD3AF235H );
-	T[63] := Unsigned( 02AD7D2BBH );	T[64] := Unsigned( 0EB86D391H );
+	T[  1] := LONGINT( 0D76AA478H );	T[  2] := LONGINT( 0E8C7B756H );
+	T[  3] := LONGINT( 0242070DBH );	T[  4] := LONGINT( 0C1BDCEEEH );
+	T[  5] := LONGINT( 0F57C0FAFH );	T[  6] := LONGINT( 04787C62AH );
+	T[  7] := LONGINT( 0A8304613H );	T[  8] := LONGINT( 0FD469501H );
+	T[  9] := LONGINT( 0698098D8H );	T[10] := LONGINT( 08B44F7AFH );
+	T[11] := LONGINT( 0FFFF5BB1H );	T[12] := LONGINT( 0895CD7BEH );
+	T[13] := LONGINT( 06B901122H );	T[14] := LONGINT( 0FD987193H );
+	T[15] := LONGINT( 0A679438EH );	T[16] := LONGINT( 049B40821H );
+	T[17] := LONGINT( 0F61E2562H );	T[18] := LONGINT( 0C040B340H );
+	T[19] := LONGINT( 0265E5A51H );	T[20] := LONGINT( 0E9B6C7AAH );
+	T[21] := LONGINT( 0D62F105DH );	T[22] := LONGINT( 02441453H );
+	T[23] := LONGINT( 0D8A1E681H );	T[24] := LONGINT( 0E7D3FBC8H );
+	T[25] := LONGINT( 021E1CDE6H );	T[26] := LONGINT( 0C33707D6H );
+	T[27] := LONGINT( 0F4D50D87H );	T[28] := LONGINT( 0455A14EDH );
+	T[29] := LONGINT( 0A9E3E905H );	T[30] := LONGINT( 0FCEFA3F8H );
+	T[31] := LONGINT( 0676F02D9H );	T[32] := LONGINT( 08D2A4C8AH );
+	T[33] := LONGINT( 0FFFA3942H );	T[34] := LONGINT( 08771F681H );
+	T[35] := LONGINT( 06D9D6122H );	T[36] := LONGINT( 0FDE5380CH );
+	T[37] := LONGINT( 0A4BEEA44H );	T[38] := LONGINT( 04BDECFA9H );
+	T[39] := LONGINT( 0F6BB4B60H );	T[40] := LONGINT( 0BEBFBC70H );
+	T[41] := LONGINT( 0289B7EC6H );	T[42] := LONGINT( 0EAA127FAH );
+	T[43] := LONGINT( 0D4EF3085H );	T[44] := LONGINT( 04881D05H );
+	T[45] := LONGINT( 0D9D4D039H );	T[46] := LONGINT( 0E6DB99E5H );
+	T[47] := LONGINT( 01FA27CF8H );	T[48] := LONGINT( 0C4AC5665H );
+	T[49] := LONGINT( 0F4292244H );	T[50] := LONGINT( 0432AFF97H );
+	T[51] := LONGINT( 0AB9423A7H );	T[52] := LONGINT( 0FC93A039H );
+	T[53] := LONGINT( 0655B59C3H );	T[54] := LONGINT( 08F0CCC92H );
+	T[55] := LONGINT( 0FFEFF47DH );	T[56] := LONGINT( 085845DD1H );
+	T[57] := LONGINT( 06FA87E4FH );	T[58] := LONGINT( 0FE2CE6E0H );
+	T[59] := LONGINT( 0A3014314H );	T[60] := LONGINT( 04E0811A1H );
+	T[61] := LONGINT( 0F7537E82H );	T[62] := LONGINT( 0BD3AF235H );
+	T[63] := LONGINT( 02AD7D2BBH );	T[64] := LONGINT( 0EB86D391H );
 END CryptoMD5.
 

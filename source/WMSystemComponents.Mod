@@ -736,7 +736,7 @@ TYPE
 			(* render to bitmap *)
 			NEW(img);	Raster.Create(img, 100, 200, Raster.BGRA8888);
 			NEW(c, img);
-			c.SetColor(SHORT(0FFFF00FFH));
+			c.SetColor(LONGINT(0FFFF00FFH));
 			top := 0;
 			FOR i := 0 TO LEN(selection) - 1 DO
 				IF selection[i] # NIL THEN

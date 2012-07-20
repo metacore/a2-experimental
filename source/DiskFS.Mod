@@ -27,12 +27,12 @@ CONST
 	DirRootAdr = 1*SectorFactor;
 	N = DirPgSize DIV 2;
 
-	DirMark = SHORT(9B1EA38DH);
-	HeaderMark = SHORT(9BA71D86H);
+	DirMark = LONGINT(9B1EA38DH);
+	HeaderMark = LONGINT(9BA71D86H);
 
 	MapIndexSize = (SectorSize-4) DIV 4;
 	MapSize = SectorSize DIV SYSTEM.SIZEOF (SET);	(* {MapSize MOD SYSTEM.SIZEOF (SET) = 0} *)
-	MapMark = SHORT(9C2F977FH);
+	MapMark = LONGINT(9C2F977FH);
 
 	MaxBufs = 1024;
 	InitHint = 200*SectorFactor;

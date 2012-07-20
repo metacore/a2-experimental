@@ -8,7 +8,7 @@ IMPORT SYSTEM, Kernel32, Modules, KernelLog; 		(* ALEX *)
 
 CONST
 	(** HKEYs *)
-	HKEYClassesRoot* = SHORT(080000000H);  HKEYCurrentUser* = SHORT(080000001H);
+	HKEYClassesRoot* = LONGINT(080000000H);  HKEYCurrentUser* = LONGINT(080000001H);
 
 	(** value type *)
 	RegNone* = 0;  RegSZ* = 01H;

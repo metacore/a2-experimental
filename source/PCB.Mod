@@ -3235,7 +3235,7 @@ END RealtimeCompatible;
 				IF params( BuiltInEl ).pnr = 1 THEN  (* fof *)
 						IF type=PCT.Char8 THEN RETURN NewIntValue(pos, ORD(MAX(CHAR)), PCT.Char8)
 						ELSIF type=PCT.Char16 THEN RETURN NewIntValue(pos, 0FFFFH, PCT.Char16)
-						ELSIF type=PCT.Char32 THEN RETURN NewIntValue(pos, SHORT(0FFFFFFFFH), PCT.Char32)
+						ELSIF type=PCT.Char32 THEN RETURN NewIntValue(pos, LONGINT(0FFFFFFFFH), PCT.Char32)
 						ELSIF type=PCT.Int8 THEN RETURN NewIntValue(pos, MAX(SHORTINT), type)
 						ELSIF type=PCT.Int16 THEN RETURN NewIntValue(pos, MAX(INTEGER), type)
 						ELSIF type=PCT.Int32 THEN RETURN NewIntValue(pos, MAX(LONGINT), type)
@@ -3875,8 +3875,8 @@ END RealtimeCompatible;
 				IF const THEN
 					i1 := lc.int;  i2 := rc.int;
 					IF (i1 < 0) OR (i2 < 0) THEN
-						DEC(i1, SHORT(80000000H));
-						DEC(i2, SHORT(80000000H))
+						DEC(i1, LONGINT(80000000H));
+						DEC(i2, LONGINT(80000000H))
 					END;
 					CASE op OF
 					|	PCS.comma:	lopd.link := ropd;  RETURN lopd			(*only for constants*)

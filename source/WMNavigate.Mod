@@ -1073,7 +1073,7 @@ TYPE
 			PROCEDURE DrawBg(y : LONGINT);
 			BEGIN
 				IF IsHighlighted(y) THEN
-					canvas.Fill(WMRectangles.MakeRect(0, y, bounds.GetWidth(), y + LineHeight), SHORT(060606A0H), WMGraphics.ModeSrcOverDst);
+					canvas.Fill(WMRectangles.MakeRect(0, y, bounds.GetWidth(), y + LineHeight), LONGINT(060606A0H), WMGraphics.ModeSrcOverDst);
 					canvas.SetColor(WMGraphics.White);
 				ELSE
 					canvas.SetColor(WMGraphics.Black);
@@ -1124,7 +1124,7 @@ TYPE
 
 			PROCEDURE DrawLine(VAR y : LONGINT);
 			BEGIN
-				canvas.Line(LeftBorder, y + (LineHeight DIV 2), bounds.GetWidth(), y + (LineHeight DIV 2), SHORT(0C0C0C0FFH), WMGraphics.ModeCopy);
+				canvas.Line(LeftBorder, y + (LineHeight DIV 2), bounds.GetWidth(), y + (LineHeight DIV 2), LONGINT(0C0C0C0FFH), WMGraphics.ModeCopy);
 				INC(y, LineHeight);
 			END DrawLine;
 
@@ -1136,7 +1136,7 @@ TYPE
 				canvas.DrawImage(LeftBorder + imgX, y + imgY, image, WMGraphics.ModeCopy);
 				WMGraphicUtilities.DrawRect(canvas,
 					WMRectangles.MakeRect(LeftBorder, y, bounds.GetWidth() - RightBorder, y + image.height),
-					SHORT(0C0C0C0C0H), WMGraphics.ModeSrcOverDst
+					LONGINT(0C0C0C0C0H), WMGraphics.ModeSrcOverDst
 				);
 				canvas.RestoreState(canvasState);
 			END DrawImage;
@@ -1153,7 +1153,7 @@ TYPE
 		BEGIN
 			Draw^(canvas);
 
-			canvas.Fill(WMRectangles.MakeRect(0, 0, LeftBorder - 5, bounds.GetHeight()), SHORT(0C0C0C0C0H), WMGraphics.ModeSrcOverDst);
+			canvas.Fill(WMRectangles.MakeRect(0, 0, LeftBorder - 5, bounds.GetHeight()), LONGINT(0C0C0C0C0H), WMGraphics.ModeSrcOverDst);
 
 			IF (menuLocation = Top) THEN
 				IF (nofDocuments > 0) THEN

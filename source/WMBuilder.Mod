@@ -2220,7 +2220,7 @@ TYPE
 
 		PROCEDURE DrawHelperLines(canvas : WMGraphics.Canvas; parent : WMComponents.VisualComponent; level : LONGINT; ofsX, ofsY : LONGINT);
 		VAR c : XML.Content; vc : WMComponents.VisualComponent; rect : WMRectangles.Rectangle;
-		CONST Color = SHORT(0A0A0FFFFH);
+		CONST Color = LONGINT(0A0A0FFFFH);
 		BEGIN
 			ASSERT((canvas # NIL) & (parent # NIL));
 			c := parent.GetFirst();
@@ -2266,7 +2266,7 @@ TYPE
 				IF (e # NIL) & (e IS WMComponents.VisualComponent) THEN
 					rect := e(WMComponents.VisualComponent).bounds.Get();
 					ToMyCoordinates(e(WMComponents.VisualComponent), rect.l, rect.t, x0, y0);
-					DrawIndication(canvas, x0, y0, x0 + (rect.r - rect.l), y0 + (rect.b - rect.t), 2, SHORT(0FF000090H));
+					DrawIndication(canvas, x0, y0, x0 + (rect.r - rect.l), y0 + (rect.b - rect.t), 2, LONGINT(0FF000090H));
 				END;
 			END;
 		END DrawForeground;
@@ -2280,14 +2280,14 @@ TYPE
 			count := 0; deltaN := snapgrid.deltaX * snapgrid.nX;
 			x := snapgrid.offsetX;
 			WHILE (x < width) DO
-				canvas.Line(x, 0, x, height, SHORT(0D0D0D0FFH), WMGraphics.ModeSrcOverDst);
+				canvas.Line(x, 0, x, height, LONGINT(0D0D0D0FFH), WMGraphics.ModeSrcOverDst);
 				INC(x, deltaN);
 			END;
 
 			count := 0; deltaN := snapgrid.deltaY * snapgrid.nY;
 			y := snapgrid.offsetY;
 			WHILE (y < height) DO
-				canvas.Line(0, y, width, y, SHORT(0D0D0D0FFH), WMGraphics.ModeSrcOverDst);
+				canvas.Line(0, y, width, y, LONGINT(0D0D0D0FFH), WMGraphics.ModeSrcOverDst);
 				INC(y, deltaN);
 			END;
 
@@ -2306,7 +2306,7 @@ TYPE
 		BEGIN
 			DrawBackground^(canvas);
 			IF (mode = EditMode) THEN
-				FillWithRectangles(canvas, GetClientRect(), 10, SHORT(0F0F0F0FFH), WMGraphics.White);
+				FillWithRectangles(canvas, GetClientRect(), 10, LONGINT(0F0F0F0FFH), WMGraphics.White);
 				IF showSnapGridI THEN
 					DrawSnapGrid(canvas);
 				END;

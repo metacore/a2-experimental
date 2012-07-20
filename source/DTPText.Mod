@@ -361,7 +361,7 @@ TYPE
 
 		PROCEDURE &Init*;
 		BEGIN
-			color := SHORT(0FF0000CCH); visible := TRUE
+			color := LONGINT(0FF0000CCH); visible := TRUE
 		END Init;
 
 		PROCEDURE Draw(canvas : WMGraphics.Canvas; x, y, ascent : LONGINT);
@@ -370,7 +370,7 @@ TYPE
 			IF img # NIL THEN canvas.DrawImage(x - hotX, y - hotY, img, WMGraphics.ModeSrcOverDst)
 			ELSE
 				currentArea := GetArea(x, y, ascent);
-				canvas.Fill(currentArea, SHORT(0FF0000CCH), WMGraphics.ModeSrcOverDst)
+				canvas.Fill(currentArea, LONGINT(0FF0000CCH), WMGraphics.ModeSrcOverDst)
 			END
 		END Draw;
 
@@ -545,7 +545,7 @@ TYPE
 			(* firstLineI := 0; *)
 			firstPos := 0;
 			defaultTextColor := 0000000FFH;
-			defaultTextBgColor := SHORT(0FFFFFF00H);
+			defaultTextBgColor := LONGINT(0FFFFFF00H);
 			quality := TRUE;
 			preview := FALSE;
 			firstInParagraph := FALSE;
@@ -1612,7 +1612,7 @@ TYPE
 				ELSE
 					(* default values *)
 					color := 0000000FFH;
-					bgcolor := SHORT(0FFFFFF00H);
+					bgcolor := LONGINT(0FFFFFF00H);
 					font := WMGraphics.GetFont("Oberon", 12, {});
 					voff := 0;
 					curStyle := NIL
@@ -2286,7 +2286,7 @@ TYPE
 *)
 			IF showBorders THEN
 				WMGraphicUtilities.DrawBevel(canvas, WMRectangles.ResizeRect(bounds.Get(), -1),
-					1, TRUE, SHORT(0808080FFH), WMGraphics.ModeCopy)
+					1, TRUE, LONGINT(0808080FFH), WMGraphics.ModeCopy)
 			END;
 			text.AcquireRead;
 			la := FindLineByY(firstLineI, Strings.Max(cliprect.t, bordersI.t));
@@ -2350,7 +2350,7 @@ TYPE
 (*				KernelLog.String("lines: "); KernelLog.Int(layout.GetNofLines(), 0); KernelLog.Ln;
 				KernelLog.String("lb: "); KernelLog.Int(lb, 0); KernelLog.Ln;
 *)				IF chained THEN color := 000FF00FFH;
-				ELSE color := SHORT(0FF0000FFH); END;
+				ELSE color := LONGINT(0FF0000FFH); END;
 				canvas.Line(w-6, h-6, w, h-6, color, WMGraphics.ModeCopy);
 				canvas.Line(w-6, h-6, w-6, h, color, WMGraphics.ModeCopy);
 				canvas.Line(w-6, h, w, h, color, WMGraphics.ModeCopy);

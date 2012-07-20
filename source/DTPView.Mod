@@ -7,14 +7,14 @@ IMPORT
 
 CONST
 	RULERSIZE = 20;
-	HIGHLIGHT = SHORT(0FF8800FFH);
+	HIGHLIGHT = LONGINT(0FF8800FFH);
 	ACTIVEFRAMECOLOR = 00000FFFFH;
 	FRAMECOLOR = 00088FFFFH;
 	MASTERFRAMECOLOR = 000FF88FFH;
-	BORDERCOLOR = SHORT(0FF00FFFFH);
+	BORDERCOLOR = LONGINT(0FF00FFFFH);
 	GUIDECOLOR = 000FFFFFFH;
-	GRIDCOLOR = SHORT(0BABABAFFH);
-	SUBGRIDCOLOR = SHORT(0DDDDDDFFH);
+	GRIDCOLOR = LONGINT(0BABABAFFH);
+	SUBGRIDCOLOR = LONGINT(0DDDDDDFFH);
 	point = 0.3527777778;						(* 1/72 inch *)
 
 VAR
@@ -1384,8 +1384,8 @@ TYPE
 			canvas.Fill(WMRectangles.MakeRect(RULERSIZE+1,0,bounds.GetWidth(), RULERSIZE+1), 0222222FFH, WMGraphics.ModeCopy);
 			canvas.Fill(WMRectangles.MakeRect(0,RULERSIZE+1,RULERSIZE+1, bounds.GetHeight()), 0222222FFH, WMGraphics.ModeCopy);
 
-			canvas.Fill(WMRectangles.MakeRect(RULERSIZE,1,bounds.GetWidth(), RULERSIZE), SHORT(0FFFFFFFFH), WMGraphics.ModeCopy);
-			canvas.Fill(WMRectangles.MakeRect(1,RULERSIZE,RULERSIZE, bounds.GetHeight()), SHORT(0FFFFFFFFH), WMGraphics.ModeCopy);
+			canvas.Fill(WMRectangles.MakeRect(RULERSIZE,1,bounds.GetWidth(), RULERSIZE), LONGINT(0FFFFFFFFH), WMGraphics.ModeCopy);
+			canvas.Fill(WMRectangles.MakeRect(1,RULERSIZE,RULERSIZE, bounds.GetHeight()), LONGINT(0FFFFFFFFH), WMGraphics.ModeCopy);
 			(* canvas.Line(0,0,200,200, 0FF0000FFH, WMGraphics.ModeSrcOverDst); *)
 			canvas.Line(docOriginX, 1, docOriginX, RULERSIZE-1, 0000000FFH, WMGraphics.ModeSrcOverDst);
 			canvas.Line(1, docOriginY, RULERSIZE-1, docOriginY, 0000000FFH, WMGraphics.ModeSrcOverDst);
@@ -1453,7 +1453,7 @@ TYPE
 					END;
 				END;
 			END;
-			canvas.Fill(WMRectangles.MakeRect(0,0,RULERSIZE, RULERSIZE), SHORT(0888888FFH), WMGraphics.ModeCopy);
+			canvas.Fill(WMRectangles.MakeRect(0,0,RULERSIZE, RULERSIZE), LONGINT(0888888FFH), WMGraphics.ModeCopy);
 
 
 		END DrawRuler;
@@ -1462,7 +1462,7 @@ TYPE
 		BEGIN
 			(* shadow *)
 			canvas.Fill(WMRectangles.MakeRect(docOriginX+5, docOriginY+5, ENTIER(document.GetPageWidth()*zoomFactor)+docOriginX+5, ENTIER(document.GetPageHeight()*zoomFactor)+docOriginY+5), 0444444FFH, WMGraphics.ModeCopy);
-			canvas.Fill(WMRectangles.MakeRect(docOriginX, docOriginY, ENTIER(document.GetPageWidth()*zoomFactor)+docOriginX, ENTIER(document.GetPageHeight()*zoomFactor)+docOriginY), SHORT(0FFFFFFFFH), WMGraphics.ModeCopy);
+			canvas.Fill(WMRectangles.MakeRect(docOriginX, docOriginY, ENTIER(document.GetPageWidth()*zoomFactor)+docOriginX, ENTIER(document.GetPageHeight()*zoomFactor)+docOriginY), LONGINT(0FFFFFFFFH), WMGraphics.ModeCopy);
 
 			(* draw Grid in Background *)
 			IF mpageMode THEN DrawGrid(canvas); END;

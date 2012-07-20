@@ -17,7 +17,7 @@ CONST
 	registerinterface* = 10; getprocedure* = 11;
 
 	(** Fixup, last address in a fixup chain *)
-	FixupSentinel* = SHORT(0FFFFFFFFH);
+	FixupSentinel* = LONGINT(0FFFFFFFFH);
 	UndefEntryNo* = -1;	(** GlobalVariable.EntryNo *)
 
 	(** Calling Conventions *)

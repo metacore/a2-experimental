@@ -9,7 +9,7 @@ CONST
 	WindowTitle = "Partition Table Editor";
 	WindowWidth = 680; WindowHeight = 140;
 
-	Grey = SHORT(0C0C0C0FFH);
+	Grey = LONGINT(0C0C0C0FFH);
 
 TYPE
 

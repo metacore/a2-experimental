@@ -1789,7 +1789,7 @@ TYPE
 
 						(* set FAT[1] EOC mark *)
 						vol.unsafe := TRUE;
-						vol.WriteFATEntry(1, SHORT(0FFFFFFFFH), res);
+						vol.WriteFATEntry(1, LONGINT(0FFFFFFFFH), res);
 						IF res # Disks.Ok THEN PartitionsLib.GetErrorMsg("Could not set EOC mark", res, temp); ReportError(temp); END;
 						vol.unsafe := FALSE;
 
@@ -1965,7 +1965,7 @@ TYPE
 			PartitionsLib.Put4(b, FsiFreeCount, freecount); (* last known free cluster count on volume *)
 			PartitionsLib.Put4(b, FsiNxtFree, nextfree); (* Hint: "next" free cluster known *)
 			FOR i := 0 TO 11 DO b[FsiReserved2] := 0X; END; (* Reserved *)
-			PartitionsLib.Put4(b, FsiTrailSig, SHORT(0AA550000H)); (* Trail signature *)
+			PartitionsLib.Put4(b, FsiTrailSig, LONGINT(0AA550000H)); (* Trail signature *)
 			RETURN b;
 		END BuildFSInfo;
 

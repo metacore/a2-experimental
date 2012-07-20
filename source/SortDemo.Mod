@@ -413,13 +413,13 @@ TYPE
 				NEW( panel );
 					panel.bounds.SetWidth( 560 );
 					panel.bounds.SetHeight( 60 );
-					panel.fillColor.Set( SHORT( 0FFFFFFFFH ) );
+					panel.fillColor.Set( LONGINT( 0FFFFFFFFH ) );
 				
 				
 				NEW( toolbar );
 					toolbar.bounds.SetHeight( 20 );
 					toolbar.alignment.Set( WMComponents.AlignTop );
-					toolbar.fillColor.Set( SHORT( 0CCCCCCFFH ) );
+					toolbar.fillColor.Set( LONGINT( 0CCCCCCFFH ) );
 
 				NEW( label );
 					label.bounds.SetWidth( 80 );
@@ -477,7 +477,7 @@ TYPE
 				NEW( toolbar );
 					toolbar.bounds.SetHeight( 20 );
 					toolbar.alignment.Set( WMComponents.AlignTop );
-					toolbar.fillColor.Set( SHORT( 0CCCCCCFFH ) );
+					toolbar.fillColor.Set( LONGINT( 0CCCCCCFFH ) );
 
 				NEW( label );
 					label.bounds.SetWidth( 80 );
@@ -535,7 +535,7 @@ TYPE
 				NEW( toolbar );
 					toolbar.bounds.SetHeight( 20 );
 					toolbar.alignment.Set( WMComponents.AlignTop );
-					toolbar.fillColor.Set( SHORT( 0CCCCCCFFH ) );
+					toolbar.fillColor.Set( LONGINT( 0CCCCCCFFH ) );
 
 				NEW( label );
 					label.bounds.SetWidth( 80 );

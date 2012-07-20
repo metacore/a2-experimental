@@ -401,7 +401,7 @@ TYPE
 			IF (r0.b < r1.b) THEN res.b := r0.b; ELSE res.b := r1.b; END;
 
 			rect := WMRectangles.MakeRect(ENTIER(viewPort.fx * (res.l - r1.l)), ENTIER(viewPort.fy * (res.t - r1.t)), ENTIER(viewPort.fx * (res.r - r1.l)), ENTIER(viewPort.fy * (res.b - r1.t)));
-			WMGraphicUtilities.DrawRect(canvas, rect, SHORT(0FF0000FFH), WMGraphics.ModeCopy);
+			WMGraphicUtilities.DrawRect(canvas, rect, LONGINT(0FF0000FFH), WMGraphics.ModeCopy);
 		END Draw;
 
 	BEGIN {ACTIVE}

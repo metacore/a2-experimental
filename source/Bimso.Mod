@@ -34,7 +34,7 @@ TYPE
 			i : LONGINT;
 		BEGIN
 			NEW(panel); panel.bounds.SetExtents(200, 200);
-			panel.fillColor.Set(SHORT(0DDFFDDFFH)); panel.takesFocus.Set(TRUE);
+			panel.fillColor.Set(LONGINT(0DDFFDDFFH)); panel.takesFocus.Set(TRUE);
 
 			NEW(b[0]); b[0].alignment.Set(WMComponents.AlignTop); b[0].bounds.SetHeight(50);
 			b[0].bearing.Set(WMRectangles.MakeRect(50,0,50,0));

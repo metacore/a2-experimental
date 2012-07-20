@@ -461,7 +461,7 @@ VAR OptionalHeaderSize, CodeSize, AlignedCodeSize, HeadersSize, BaseCodeAddress,
 		(* 28 *) WriteDWORD (0);	(* PointerToLinenumbers *)
 		(* 32 *) WriteWORD (0);	(* NumberOfRelocations *)
 		(* 34 *) WriteWORD (0);	(* NumberOfLinenumbers *)
-		(* 36 *) WriteDWORD (SHORT (0E0000020H));	(* Characteristics *)
+		(* 36 *) WriteDWORD (LONGINT (0E0000020H));	(* Characteristics *)
 
 		IF HasExports() THEN
 			(* export table header *)
@@ -687,7 +687,7 @@ CONST BaseAddress = 000010E8H;
 
 	PROCEDURE WriteMachHeader;
 	BEGIN
-		Write (SHORT (0FEEDFACEH));	(* magic *)
+		Write (LONGINT (0FEEDFACEH));	(* magic *)
 		Write (7);	(* cputype *)
 		Write (3);	(* cpusubtype *)
 		Write (2);	(* filetype *)

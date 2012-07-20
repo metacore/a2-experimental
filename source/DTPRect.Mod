@@ -36,7 +36,7 @@ TYPE
 		BEGIN
 			(* default values *)
 			lineColor := 0000000FFH;
-			rectColor := SHORT(0FFFFFFFFH);
+			rectColor := LONGINT(0FFFFFFFFH);
 			rectColor2 := 000FFFFH;
 			lineWidth := 0.0;
 			gradientHorizontal := TRUE;

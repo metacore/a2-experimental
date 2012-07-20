@@ -46,7 +46,7 @@ TYPE
 		PROCEDURE CreateForm() : WMComponents.VisualComponent;
 		VAR panel : WMStandardComponents.Panel; label : WMStandardComponents.Label;
 		BEGIN
-			NEW(mainPanel); mainPanel.bounds.SetExtents(710, 300); mainPanel.fillColor.Set(SHORT(0CCCCCCFFH));
+			NEW(mainPanel); mainPanel.bounds.SetExtents(710, 300); mainPanel.fillColor.Set(LONGINT(0CCCCCCFFH));
 
 			(* -- Info Panel -- *)
 			NEW(panel); panel.alignment.Set(WMComponents.AlignBottom); panel.bounds.SetHeight(20);
@@ -63,7 +63,7 @@ TYPE
 
 			NEW(decEd); decEd.alignment.Set(WMComponents.AlignLeft); decEd.multiLine.Set(FALSE);
 			decEd.bounds.SetWidth(100); decEd.onEnter.Add(FindChar);
-			decEd.fillColor.Set(SHORT(0FFFFFFFFH)); decEd.tv.showBorder.Set(TRUE);
+			decEd.fillColor.Set(LONGINT(0FFFFFFFFH)); decEd.tv.showBorder.Set(TRUE);
 			decEd.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			panel.AddContent(decEd);
 
@@ -73,7 +73,7 @@ TYPE
 
 			NEW(hexEd); hexEd.alignment.Set(WMComponents.AlignLeft); hexEd.multiLine.Set(FALSE);
 			hexEd.bounds.SetWidth(100); hexEd.onEnter.Add(FindChar);
-			hexEd.fillColor.Set(SHORT(0FFFFFFFFH)); hexEd.tv.showBorder.Set(TRUE);
+			hexEd.fillColor.Set(LONGINT(0FFFFFFFFH)); hexEd.tv.showBorder.Set(TRUE);
 			hexEd.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			panel.AddContent(hexEd);
 
@@ -86,7 +86,7 @@ TYPE
 			mainPanel.AddContent(panel);
 
 			NEW(preview); preview.alignment.Set(WMComponents.AlignLeft); preview.bounds.SetWidth(200);
-			preview.fillColor.Set(SHORT(0FFFFFFCCH));
+			preview.fillColor.Set(LONGINT(0FFFFFFCCH));
 			preview.textColor.Set(0000000FFH); preview.caption.SetAOC("");
 			preview.alignH.Set(WMGraphics.AlignCenter); preview.alignV.Set(WMGraphics.AlignCenter);
 			panel.AddContent(preview);
@@ -105,11 +105,11 @@ TYPE
 		VAR pos, i, dx, dy : LONGINT; charString : ARRAY 16 OF CHAR;
 		BEGIN
 			IF WMGrids.CellSelected IN state THEN
-				canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), SHORT(08888FFFFH), WMGraphics.ModeCopy)
+				canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(08888FFFFH), WMGraphics.ModeCopy)
 			ELSIF WMGrids.CellHighlighted IN state THEN
-				canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), SHORT(0FFFF00FFH), WMGraphics.ModeCopy)
+				canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0FFFF00FFH), WMGraphics.ModeCopy)
 			ELSE
-				canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), SHORT(0FFFFFFFFH), WMGraphics.ModeCopy)
+				canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0FFFFFFFFH), WMGraphics.ModeCopy)
 			END;
 			pos := y * NofCols + x;
 

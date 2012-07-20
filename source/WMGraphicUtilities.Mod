@@ -110,8 +110,8 @@ PROCEDURE RectGlassShade*(canvas : WMGraphics.Canvas; rect : WMRectangles.Rectan
 VAR i, ul, dr, da, w : LONGINT;
 BEGIN
 	IF borderWidth <= 0 THEN RETURN END;
-	IF down THEN ul := 090H; dr := SHORT(0FFFFFF90H)
-	ELSE dr := 090H; ul := SHORT(0FFFFFF90H)
+	IF down THEN ul := 090H; dr := LONGINT(0FFFFFF90H)
+	ELSE dr := 090H; ul := LONGINT(0FFFFFF90H)
 	END;
 	da := 90H DIV borderWidth;
 	FOR i := 0 TO borderWidth - 1 DO
@@ -125,7 +125,7 @@ BEGIN
 		canvas.Fill(WMRectangles.MakeRect(rect.r - 1 - i, rect.t + 1 + i, rect.r - i, rect.b - i - 1), dr, WMGraphics.ModeSrcOverDst);
 		DEC(ul, da); DEC(dr, da)
 	END;
-	i := 3; ul := SHORT(0FFFFFF40H); w := 5;
+	i := 3; ul := LONGINT(0FFFFFF40H); w := 5;
 	canvas.Fill(WMRectangles.MakeRect(rect.l + i , rect.t + i, rect.l + i + w, rect.t + i + 2), ul, WMGraphics.ModeSrcOverDst);
 	canvas.Fill(WMRectangles.MakeRect(rect.l + i, rect.t + i, rect.l + i + 2, rect.t + i + w), ul, WMGraphics.ModeSrcOverDst);
 END RectGlassShade;
@@ -134,8 +134,8 @@ PROCEDURE ExtRectGlassShade*(canvas : WMGraphics.Canvas; rect : WMRectangles.Rec
 VAR i, ul, dr, da, w, a, b, c, d : LONGINT;
 BEGIN
 	IF borderWidth <= 0 THEN RETURN END;
-	IF down THEN ul := 090H; dr := SHORT(0FFFFFF90H)
-	ELSE dr := 090H; ul := SHORT(0FFFFFF90H)
+	IF down THEN ul := 090H; dr := LONGINT(0FFFFFF90H)
+	ELSE dr := 090H; ul := LONGINT(0FFFFFF90H)
 	END;
 	da := 90H DIV borderWidth;
 	FOR i := 0 TO borderWidth - 1 DO
@@ -153,7 +153,7 @@ BEGIN
 		IF ~(3 IN openSides) THEN canvas.Fill(WMRectangles.MakeRect(rect.r - 1 - i, rect.t + a, rect.r - i, rect.b - c), dr, WMGraphics.ModeSrcOverDst) END;
 		DEC(ul, da); DEC(dr, da)
 	END;
-	i := 3; ul := SHORT(0FFFFFF40H); w := 5;
+	i := 3; ul := LONGINT(0FFFFFF40H); w := 5;
 (*	canvas.Fill(WMRectangles.MakeRect(rect.l + i , rect.t + i, rect.l + i + w, rect.t + i + 2), ul, WMGraphics.ModeSrcOverDst);
 	canvas.Fill(WMRectangles.MakeRect(rect.l + i, rect.t + i, rect.l + i + 2, rect.t + i + w), ul, WMGraphics.ModeSrcOverDst);
 *)

@@ -804,7 +804,7 @@ TYPE
 			offset := adr*4;
 			ReadSectorX(startFAT + offset DIV BS, data, 0, res);
 			IF (res = Disks.Ok) THEN
-				PutLongint(data, offset MOD BS, AND(GetLongint(data, offset MOD BS), SHORT(0F0000000H)) + link);
+				PutLongint(data, offset MOD BS, AND(GetLongint(data, offset MOD BS), LONGINT(0F0000000H)) + link);
 				FOR i := 0 TO numFATs-1 DO
 					WriteSectorX(startFAT + i*fatSize + offset DIV BS, data, 0, res);
 					IF (res # Disks.Ok) THEN

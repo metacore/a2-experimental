@@ -28,7 +28,7 @@ CONST
 	LineHeight* = 20;
 	ButtonWidth* = 80;
 	PerfViewFillColor = 0444444FFH;
-	PerfViewColor = SHORT(0FF0000FFH);
+	PerfViewColor = LONGINT(0FF0000FFH);
 
 	UseSkinColors* = FALSE;
 
@@ -516,7 +516,7 @@ TYPE
 			pview.SetExtUpdate(Update);
 
 			NEW(info); info.bounds.SetHeight(LineHeight); info.alignment.Set(WMComponents.AlignBottom);
-			IF ~UseSkinColors THEN info.fillColor.Set(SHORT(0CCCCCCFFH)); info.textColor := WMGraphics.Black; END;
+			IF ~UseSkinColors THEN info.fillColor.Set(LONGINT(0CCCCCCFFH)); info.textColor := WMGraphics.Black; END;
 			info.SetFont(WMGraphics.GetFont("Courier", 10, {}));
 			pview.min.Set(plugin.p.min); IF plugin.p.max # 0 THEN pview.max.Set(plugin.p.max); END;
 			pview.autoMin.Set(plugin.p.autoMin); pview.autoMax.Set(plugin.p.autoMax);

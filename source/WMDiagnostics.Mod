@@ -13,8 +13,8 @@ CONST
 	Invalid* = Diagnostics.Invalid;
 
 	(* Error grid colors *)
-	ColorError = SHORT(0FF3030A0H);
-	ColorWarning = SHORT(0D0D040C0H);
+	ColorError = LONGINT(0FF3030A0H);
+	ColorWarning = LONGINT(0D0D040C0H);
 	ColorPCPosition = 0007F00A0H;
 
 	(* Textview position marker pictures *)

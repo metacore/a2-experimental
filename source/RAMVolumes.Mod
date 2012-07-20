@@ -7,7 +7,7 @@ MODULE RAMVolumes; (** AUTHOR "pjm"; PURPOSE "RAM-based volume"; *)
 IMPORT SYSTEM, Files;
 
 CONST
-	DirMark = SHORT(9B1EA38DH);	(* for NatFS and AosFS *)
+	DirMark = LONGINT(9B1EA38DH);	(* for NatFS and AosFS *)
 
 TYPE
 	Volume* = OBJECT (Files.Volume)

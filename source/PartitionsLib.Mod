@@ -133,7 +133,7 @@ CONST
 
 	N2KSS = 2048;
 	N2KBPS = N2KSS DIV BS;
-	N2KDirMark = SHORT(9B1EA38DH);
+	N2KDirMark = LONGINT(9B1EA38DH);
 
 	AosSSLog2 = 12;
 	AosSS = ASH(1, AosSSLog2); (* Sector Size *)
@@ -142,7 +142,7 @@ CONST
 	AosSTS = 128;
 	AosXS = AosSS DIV 4;
 	AosHS = 568;
-	AosDirMark = SHORT(9B1EA38DH);
+	AosDirMark = LONGINT(9B1EA38DH);
 
 	AosType = 76;
 	NativeType1 = 79;

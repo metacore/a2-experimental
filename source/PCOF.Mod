@@ -14,9 +14,9 @@ CONST
 
 	NewRefSection = TRUE;
 
-	Sentinel = SHORT(0FFFFFFFFH);
+	Sentinel = LONGINT(0FFFFFFFFH);
 
-	EUEnd = 0X; EURecord = 1X; EUProcFlag = SHORT(080000000H);
+	EUEnd = 0X; EURecord = 1X; EUProcFlag = LONGINT(080000000H);
 
 
 TYPE

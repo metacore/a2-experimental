@@ -978,7 +978,7 @@ TYPE
 				IF SELF.effect3D.Get() > 0 THEN WMGraphicUtilities.RectGlassShade(canvas, rect, SELF.effect3D.Get(), down) END
 			END;
 			(* focus *)
-			IF hasFocus THEN WMGraphicUtilities.DrawRect(canvas, WMRectangles.ResizeRect(rect, -1), SHORT(0FF000080H), mode) END;
+			IF hasFocus THEN WMGraphicUtilities.DrawRect(canvas, WMRectangles.ResizeRect(rect, -1), LONGINT(0FF000080H), mode) END;
 			(* foreground *)
 			IF image # NIL THEN canvas.DrawImage(0, 0, image, WMGraphics.ModeSrcOverDst) END;
 			str := caption.Get();
@@ -2360,7 +2360,7 @@ TYPE
 			tempString : Strings.String;
 		BEGIN
 			DrawBackground^(canvas);
-			highlight := SHORT(0FFFFFF80H);
+			highlight := LONGINT(0FFFFFF80H);
 			shadow := 000000080H;
 			rect := GetClientRect();
 			tempString := caption.Get();
@@ -2645,12 +2645,12 @@ TYPE
 			IF mouseOver THEN
 				IF useImages.Get() THEN
 					IF scaleImages.Get() THEN
-						canvas.Fill(WMRectangles.MakeRect(0, 0, ENTIER(bounds.GetHeight()/img.height*img.width), bounds.GetHeight()), SHORT(0FFFF0040H), WMGraphics.ModeSrcOverDst)
+						canvas.Fill(WMRectangles.MakeRect(0, 0, ENTIER(bounds.GetHeight()/img.height*img.width), bounds.GetHeight()), LONGINT(0FFFF0040H), WMGraphics.ModeSrcOverDst)
 					ELSE
-						canvas.Fill(WMRectangles.MakeRect(0, ((rect.b-rect.t)-img.height) DIV 2, img.width, img.height), SHORT(0FFFF0040H), WMGraphics.ModeSrcOverDst)
+						canvas.Fill(WMRectangles.MakeRect(0, ((rect.b-rect.t)-img.height) DIV 2, img.width, img.height), LONGINT(0FFFF0040H), WMGraphics.ModeSrcOverDst)
 					END
 				ELSE
-					canvas.Fill(WMRectangles.MakeRect(0, 0, rect.r-rect.l, rect.b-rect.t), SHORT(0FFFF0040H), WMGraphics.ModeSrcOverDst)
+					canvas.Fill(WMRectangles.MakeRect(0, 0, rect.r-rect.l, rect.b-rect.t), LONGINT(0FFFF0040H), WMGraphics.ModeSrcOverDst)
 				END
 			END;
 			(* caption *)
@@ -3042,12 +3042,12 @@ BEGIN
 		(* background color *)
 	NEW(ColorPrototype, NIL, NewString("ClDefault"), NewString("Default background color")); ColorPrototype.Set(1010C080H);
 	NEW(PrototypeBclDefault, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclDefault);
-	NEW(ColorPrototype, NIL, NewString("ClHover"), NewString("Mouseover background color")); ColorPrototype.Set(SHORT(0EEEE00FFH));
+	NEW(ColorPrototype, NIL, NewString("ClHover"), NewString("Mouseover background color")); ColorPrototype.Set(LONGINT(0EEEE00FFH));
 	NEW(PrototypeBclHover, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclHover);
-	NEW(ColorPrototype, NIL, NewString("ClPressed"), NewString("Pressed background color")); ColorPrototype.Set(SHORT(0EEEE00FFH));
+	NEW(ColorPrototype, NIL, NewString("ClPressed"), NewString("Pressed background color")); ColorPrototype.Set(LONGINT(0EEEE00FFH));
 	NEW(PrototypeBclPressed, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclPressed);
 		(* font color *)
-	NEW(ColorPrototype, NIL, NewString("ClTextDefault"), NewString("Default text color")); ColorPrototype.Set(SHORT(0FFFF00FFH));
+	NEW(ColorPrototype, NIL, NewString("ClTextDefault"), NewString("Default text color")); ColorPrototype.Set(LONGINT(0FFFF00FFH));
 	NEW(PrototypeBclTextDefault, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclTextDefault);
 	NEW(ColorPrototype, NIL, NewString("ClTextHover"), NewString("Mouseover text color")); ColorPrototype.Set(00000FFFFH);
 	NEW(PrototypeBclTextHover, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclTextHover);
@@ -3131,9 +3131,9 @@ BEGIN
  	NEW(PrototypeSClPressed, ColorPrototype, NIL, NIL); plScrollbar.Add(PrototypeSClPressed);
 	NEW(ColorPrototype, NIL, NewString("ClBtnDefault"), NewString("Default background color")); ColorPrototype.Set(1010C080H);
  	NEW(PrototypeSClBtnDefault, ColorPrototype, NIL, NIL); plScrollbar.Add(PrototypeSClBtnDefault);
-	NEW(ColorPrototype, NIL, NewString("ClBtnHover"), NewString("Mouseover background color")); ColorPrototype.Set(SHORT(0EEEE00FFH));
+	NEW(ColorPrototype, NIL, NewString("ClBtnHover"), NewString("Mouseover background color")); ColorPrototype.Set(LONGINT(0EEEE00FFH));
  	NEW(PrototypeSClBtnHover, ColorPrototype, NIL, NIL); plScrollbar.Add(PrototypeSClBtnHover);
-	NEW(ColorPrototype, NIL, NewString("ClBtnPressed"), NewString("Pressed background color")); ColorPrototype.Set(SHORT(0EEEE00FFH));
+	NEW(ColorPrototype, NIL, NewString("ClBtnPressed"), NewString("Pressed background color")); ColorPrototype.Set(LONGINT(0EEEE00FFH));
  	NEW(PrototypeSClBtnPressed, ColorPrototype, NIL, NIL); plScrollbar.Add(PrototypeSClBtnPressed);
  	NEW(PrototypeSEffect3D, NIL, NewString("Effect3D"), NewString("Degree of 3d-effect. Zero for flat presentation")); PrototypeSEffect3D.Set(2);
 		(* background *)
@@ -3293,13 +3293,13 @@ BEGIN
 	ProtCBState.Set(Unchecked);
 
 			(* background color *)
-	NEW(ColorPrototype, NIL, NewString("ClBack"), NewString("Checkbox Background Color")); ColorPrototype.Set(SHORT(0FFFFFF80H));
+	NEW(ColorPrototype, NIL, NewString("ClBack"), NewString("Checkbox Background Color")); ColorPrototype.Set(LONGINT(0FFFFFF80H));
 	NEW(ProtCBclBack, ColorPrototype, NIL, NIL); plCheckbox.Add(ProtCBclBack);
 	NEW(ColorPrototype, NIL, NewString("ClCheck"), NewString("Checkbox Check Color")); ColorPrototype.Set(0000000FFH);
 	NEW(ProtCBclCheck, ColorPrototype, NIL, NIL); plCheckbox.Add(ProtCBclCheck);
 	NEW(ColorPrototype, NIL, NewString("ClDefault"), NewString("Checkbox 3rd state Check Color")); ColorPrototype.Set(0555555FFH);
 	NEW(ProtCBclDefault, ColorPrototype, NIL, NIL); plCheckbox.Add(ProtCBclDefault);
-	NEW(ColorPrototype, NIL, NewString("ClInactive"), NewString("Checkbox Inactive Color")); ColorPrototype.Set(SHORT(088888880H));
+	NEW(ColorPrototype, NIL, NewString("ClInactive"), NewString("Checkbox Inactive Color")); ColorPrototype.Set(LONGINT(088888880H));
 	NEW(ProtCBclInactive, ColorPrototype, NIL, NIL); plCheckbox.Add(ProtCBclInactive);
 		(* presentation *)
 	NEW(BooleanPrototype, NIL, NewString("UseBitmaps"), NewString("Have the Checkbox decorated by Images")); BooleanPrototype.Set(FALSE);

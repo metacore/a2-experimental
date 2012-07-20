@@ -635,7 +635,7 @@ TYPE
 		VAR text : Texts.Text; tw : TextUtilities.TextWriter; dateTime : Dates.DateTime; temp : ARRAY 256 OF CHAR;
 		BEGIN
 			NEW(text); NEW(tw, text);
-			tw.SetFontColor(SHORT(808080FFH)); (* comment grey *)
+			tw.SetFontColor(LONGINT(808080FFH)); (* comment grey *)
 
 			tw.String("# "); tw.String(name); tw.Ln;
 

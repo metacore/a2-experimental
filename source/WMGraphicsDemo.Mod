@@ -122,7 +122,7 @@ TYPE
 		PROCEDURE TheEnd;
 		BEGIN
 			canvas.DrawImage(0, 0, bild, WMGraphics.ModeCopy);
-			canvas.Fill(WMRectangles.MakeRect(100, bild.height DIV 2 - 20, bild.width - 100, bild.height DIV 2 + 20), SHORT(0FFFFFF80H), WMGraphics.ModeSrcOverDst);
+			canvas.Fill(WMRectangles.MakeRect(100, bild.height DIV 2 - 20, bild.width - 100, bild.height DIV 2 + 20), LONGINT(0FFFFFF80H), WMGraphics.ModeSrcOverDst);
 			canvas.SetFont(WMGraphics.GetFont("Oberon", 20, {WMGraphics.FontBold}));
 			canvas.DrawString(bild.width DIV 2 - 40, bild.height DIV 2 + 5 ,  "The End");
 			Swap;

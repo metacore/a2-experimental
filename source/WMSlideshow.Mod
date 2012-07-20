@@ -462,7 +462,7 @@ TYPE  SlideshowNavigation = OBJECT(WMComponents.FormWindow);
 
 		NEW(nav);
 		nav.bounds.SetExtents(prevLen, 20);
-		nav.fillColor.Set(SHORT(0AAAAAAAAH));
+		nav.fillColor.Set(LONGINT(0AAAAAAAAH));
 		nav.takesFocus.Set(TRUE);
 		nav.alignment.Set(WMComponents.AlignTop);
 

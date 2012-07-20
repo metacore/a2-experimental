@@ -97,13 +97,13 @@ TYPE
 			Raster.Fill(img, FieldOffsetX, FieldOffsetY, FieldOffsetX + Width*BoxSize, FieldOffsetY + Height*BoxSize, colors[0], mode);
 			WMGraphicUtilities.DrawBevel(canvas, WMRectangles.MakeRect(
 				FieldOffsetX - BevelBorder, FieldOffsetY - BevelBorder, FieldOffsetX + Width*BoxSize + BevelBorder, FieldOffsetY + Height*BoxSize + BevelBorder),
-				2, TRUE, SHORT(0FFFFFFFFH), WMGraphics.ModeCopy);
+				2, TRUE, LONGINT(0FFFFFFFFH), WMGraphics.ModeCopy);
 
 			(* Preview panel *)
 			Raster.Fill(img, Border, Border, FieldOffsetX - Border, Border + BlockSize*BoxSize, colors[0], mode);
 			WMGraphicUtilities.DrawBevel(canvas, WMRectangles.MakeRect(
 				Border - BevelBorder, Border - BevelBorder, FieldOffsetX - Border + BevelBorder, Border + BlockSize*BoxSize + BevelBorder),
-				2, TRUE, SHORT(0FFFFFFFFH), WMGraphics.ModeCopy);
+				2, TRUE, LONGINT(0FFFFFFFFH), WMGraphics.ModeCopy);
 			Reset;
 			pointerThreshold := 10;
 			WM.DefaultAddWindow(SELF);
@@ -138,10 +138,10 @@ TYPE
 			END DrawLine;
 
 		BEGIN
-			canvas.Fill(WMRectangles.MakeRect(InfoOffsetX, InfoOffsetY, FieldOffsetX - Border, InfoOffsetY + InfoHeight), SHORT(0FFFFFFA0H), WMGraphics.ModeCopy);
+			canvas.Fill(WMRectangles.MakeRect(InfoOffsetX, InfoOffsetY, FieldOffsetX - Border, InfoOffsetY + InfoHeight), LONGINT(0FFFFFFA0H), WMGraphics.ModeCopy);
 			WMGraphicUtilities.DrawBevel(canvas, WMRectangles.MakeRect(
 				InfoOffsetX - BevelBorder, InfoOffsetY - BevelBorder, FieldOffsetX - Border + BevelBorder, InfoOffsetY + InfoHeight + BevelBorder),
-				2, TRUE, SHORT(0FFFFFFFFH), WMGraphics.ModeCopy);
+				2, TRUE, LONGINT(0FFFFFFFFH), WMGraphics.ModeCopy);
 			canvas.SetColor(WMGraphics.Black);
 			IF (state = Running) OR (state = Finished) THEN
 				IF (state = Finished) THEN

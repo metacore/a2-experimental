@@ -13,7 +13,7 @@ MODULE Heaps;	(** AUTHOR "pjm/Luc Bläser/U. Glavitsch (ug)"; PURPOSE "Heap mana
 IMPORT SYSTEM, Trace, Machine;
 
 CONST
-	DebugValue = SHORT(0DEADDEADH);	(* set non-0 to clear free storage to this value *)
+	DebugValue = LONGINT(0DEADDEADH);	(* set non-0 to clear free storage to this value *)
 	Stats* = TRUE;					(* maintain statistical counters *)
 
 	AddressSize = SYSTEM.SIZEOF(SYSTEM.ADDRESS);

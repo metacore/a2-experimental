@@ -252,11 +252,11 @@ TYPE
 
 		PROCEDURE BuildPalette;
 		BEGIN
-			colors[0] := SHORT(0FF0000FFH);							(* red *)
-			colors[1] := SHORT(0FF5500FFH);
-			colors[2] := SHORT(0FFAA00FFH);
-			colors[3] := SHORT(0FFFF00FFH);							(* yellow *)
-			colors[4] := SHORT(0AAFF00FFH);
+			colors[0] := LONGINT(0FF0000FFH);							(* red *)
+			colors[1] := LONGINT(0FF5500FFH);
+			colors[2] := LONGINT(0FFAA00FFH);
+			colors[3] := LONGINT(0FFFF00FFH);							(* yellow *)
+			colors[4] := LONGINT(0AAFF00FFH);
 			colors[5] := 055FF00FFH;
 			colors[6] := 000FF00FFH;							(* green *)
 			colors[7] := 000FF55FFH;
@@ -266,11 +266,11 @@ TYPE
 			colors[11] := 00055FFFFH;
 			colors[12] := 00000FFFFH;						(* blue *)
 			colors[13] := 05500FFFFH;
-			colors[14] :=SHORT( 0AA00FFFFH);
-			colors[15] :=SHORT( 0FF00FFFFH);						(* magenta *)
-			colors[16] :=SHORT( 0FF00AAFFH);
-			colors[17] :=SHORT( 0FF0055FFH);
-			colors[18] :=SHORT( 0888888FFH);						(* grey *)
+			colors[14] :=LONGINT( 0AA00FFFFH);
+			colors[15] :=LONGINT( 0FF00FFFFH);						(* magenta *)
+			colors[16] :=LONGINT( 0FF00AAFFH);
+			colors[17] :=LONGINT( 0FF0055FFH);
+			colors[18] :=LONGINT( 0888888FFH);						(* grey *)
 
 		END BuildPalette;
 
@@ -334,7 +334,7 @@ TYPE
 			mainPanel.takesFocus.Set(TRUE);
 
 			(* -- tabs -- *)
-			NEW(tabPanel); tabPanel.bounds.SetHeight(20); tabPanel.fillColor.Set(SHORT(0CCCCCCFFH));
+			NEW(tabPanel); tabPanel.bounds.SetHeight(20); tabPanel.fillColor.Set(LONGINT(0CCCCCCFFH));
 			tabPanel.alignment.Set(WMComponents.AlignTop);
 			NEW(pstyleButton); pstyleButton.caption.SetAOC("Paragraph"); pstyleButton.alignment.Set(WMComponents.AlignLeft);
 			(* pstyleButton.SetExtPointerDownHandler(TabHandler); *)
@@ -351,7 +351,7 @@ TYPE
 			NEW(borderPanel); borderPanel.bounds.SetWidth(200); borderPanel.alignment.Set(WMComponents.AlignLeft);
 			borderPanel.hasInnerBevel := TRUE; borderPanel.innerBevelDown := TRUE; borderPanel.SetBorder(8,8,8,8);
 			NEW(gridPanel); gridPanel.alignment.Set(WMComponents.AlignClient);
-			gridPanel.fillColor.Set(SHORT(0FFFFFFFFH));
+			gridPanel.fillColor.Set(LONGINT(0FFFFFFFFH));
 			NEW(pList); pList.alignment.Set(WMComponents.AlignClient);
 			pList.onClick.Add(PClickSelected);
 			pList.model.Acquire;
@@ -373,7 +373,7 @@ TYPE
 			NEW(label); label.bounds.SetWidth(labelWidth); label.caption.SetAOC(" Paragraph Style Name:");
 			label.alignment.Set(WMComponents.AlignLeft);
 			NEW(pName); pName.alignment.Set(WMComponents.AlignClient);
-			pName.multiLine.Set(FALSE); pName.fillColor.Set(SHORT(0FFFFFFFFH)); pName.tv.showBorder.Set(TRUE);
+			pName.multiLine.Set(FALSE); pName.fillColor.Set(LONGINT(0FFFFFFFFH)); pName.tv.showBorder.Set(TRUE);
 			pName.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); pName.onEnter.Add(UpdateValueHandler);
 			panel.AddContent(label);
 			panel.AddContent(pName);
@@ -385,7 +385,7 @@ TYPE
 			NEW(button1); button1.caption.SetAOC("+"); button1.alignment.Set(WMComponents.AlignRight);
 			button1.SetExtPointerDownHandler(AlignHandler); button1.bounds.SetWidth(20);
 			NEW(pAlign); pAlign.alignment.Set(WMComponents.AlignClient);
-			pAlign.multiLine.Set(FALSE); pAlign.fillColor.Set(SHORT(0FFFFFFFFH)); pAlign.tv.showBorder.Set(TRUE);
+			pAlign.multiLine.Set(FALSE); pAlign.fillColor.Set(LONGINT(0FFFFFFFFH)); pAlign.tv.showBorder.Set(TRUE);
 			pAlign.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); pAlign.onEnter.Add(UpdateValueHandler);
 			panel.AddContent(label); panel.AddContent(button1);
 			panel.AddContent(pAlign);
@@ -395,7 +395,7 @@ TYPE
 			NEW(label); label.bounds.SetWidth(labelWidth); label.caption.SetAOC(" First Line Indent:");
 			label.alignment.Set(WMComponents.AlignLeft);
 			NEW(pFirstIndent); pFirstIndent.alignment.Set(WMComponents.AlignClient);
-			pFirstIndent.multiLine.Set(FALSE); pFirstIndent.fillColor.Set(SHORT(0FFFFFFFFH)); pFirstIndent.tv.showBorder.Set(TRUE);
+			pFirstIndent.multiLine.Set(FALSE); pFirstIndent.fillColor.Set(LONGINT(0FFFFFFFFH)); pFirstIndent.tv.showBorder.Set(TRUE);
 			pFirstIndent.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); pFirstIndent.onEnter.Add(UpdateValueHandler);
 			panel.AddContent(label);
 			panel.AddContent(pFirstIndent);
@@ -485,7 +485,7 @@ TYPE
 			NEW(borderPanel); borderPanel.bounds.SetWidth(200); borderPanel.alignment.Set(WMComponents.AlignLeft);
 			borderPanel.hasInnerBevel := TRUE; borderPanel.innerBevelDown := TRUE; borderPanel.SetBorder(8,8,8,8);
 			NEW(gridPanel); gridPanel.bounds.SetWidth(200); gridPanel.alignment.Set(WMComponents.AlignClient);
-			gridPanel.fillColor.Set(SHORT(0FFFFFFFFH));
+			gridPanel.fillColor.Set(LONGINT(0FFFFFFFFH));
 			NEW(cList); cList.alignment.Set(WMComponents.AlignClient);
 			cList.onClick.Add(CClickSelected);
 			cList.model.Acquire;
@@ -613,13 +613,13 @@ TYPE
 			propertyPanel.AddContent(panel);
 			NEW(groupPanel); groupPanel.alignment.Set(WMComponents.AlignTop);
 			groupPanel.SetCaption("Preview:"); groupPanel.bounds.SetHeight(80);
-			NEW(previewLabel); previewLabel.fillColor.Set(SHORT(0FFFFFFFFH)); previewLabel.alignment.Set(WMComponents.AlignClient);
+			NEW(previewLabel); previewLabel.fillColor.Set(LONGINT(0FFFFFFFFH)); previewLabel.alignment.Set(WMComponents.AlignClient);
 			previewLabel.caption.SetAOC("The quick brown Fox jumped over the lazy Dog"); previewLabel.alignH.Set(1); previewLabel.alignV.Set(1);
 			groupPanel.AddContent(previewLabel);
 			propertyPanel.AddContent(groupPanel);
 			NEW(fontNotFound); fontNotFound.bounds.SetHeight(20); fontNotFound.alignment.Set(WMComponents.AlignTop);
 			fontNotFound.caption.SetAOC("  ERROR: Font not found! - using DefaultFont"); fontNotFound.visible.Set(FALSE);
-			propertyPanel.AddContent(fontNotFound); fontNotFound.textColor.Set(SHORT(0FF0000FFH));
+			propertyPanel.AddContent(fontNotFound); fontNotFound.textColor.Set(LONGINT(0FF0000FFH));
 
 			(* -- character style buttons -- *)
 			NEW(buttonPanel); buttonPanel.bounds.SetHeight(30); buttonPanel.fillColor.Set(panelColor);
@@ -650,7 +650,7 @@ TYPE
 		VAR newEditor: WMEditors.Editor;
 		BEGIN
 			NEW(newEditor); newEditor.alignment.Set(WMComponents.AlignClient);
-			newEditor.multiLine.Set(FALSE); newEditor.fillColor.Set(SHORT(0FFFFFFFFH)); newEditor.tv.showBorder.Set(TRUE);
+			newEditor.multiLine.Set(FALSE); newEditor.fillColor.Set(LONGINT(0FFFFFFFFH)); newEditor.tv.showBorder.Set(TRUE);
 			newEditor.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); newEditor.onEnter.Add(UpdateValueHandler);
 			newEditor.SetExtFocusHandler(FocusHandler);
 			RETURN newEditor;
@@ -1247,7 +1247,7 @@ TYPE
 			newCStyle.scaleHorizontal := 100;
 			newCStyle.scaleVertical := 100;
 			newCStyle.color := 0000000FFH;
-			newCStyle.bgColor := SHORT(0FFFFFF00H);
+			newCStyle.bgColor := LONGINT(0FFFFFF00H);
 
 			INC(styleCounter);
 			document.AddStyle(newCStyle);
@@ -1726,7 +1726,7 @@ TYPE
 		BEGIN
 			Init^;
 			fontColor := 0000000FFH;
-			fontBackColor := SHORT(0FFFFFFFFH);
+			fontBackColor := LONGINT(0FFFFFFFFH);
 			SetFont(WMGraphics.GetFont("Oberon", 16, {})); (* WMGraphics.FontBold *)
 		END Init;
 
@@ -1763,7 +1763,7 @@ TYPE
 		VAR rect: WMRectangles.Rectangle;
 			highlight, shadow, w, h, dist : LONGINT;
 		BEGIN
-			highlight := SHORT(0FFFFFF80H);
+			highlight := LONGINT(0FFFFFF80H);
 			shadow := 000000080H;
 			rect := GetClientRect();
 			dist := (rect.b-rect.t) DIV 2;
@@ -1821,7 +1821,7 @@ TYPE
 			highlight, shadow, w, h : LONGINT;
 
 		BEGIN
-			highlight := SHORT(0FFFFFF80H);
+			highlight := LONGINT(0FFFFFF80H);
 			shadow := 000000080H;
 			rect := GetClientRect();
 			(* canvas.Fill(rect, 0FF0000FFH, WMGraphics.ModeSrcOverDst); *)
@@ -1965,8 +1965,8 @@ TYPE
 			Init^;
 			border := WMRectangles.MakeRect(0,0,0,0);
 			caption := ""; textColor := 0000000FFH; alignH := 0; alignV := 0;
-			hasBevel := FALSE; bevelWidth := 5; bevelColor := SHORT(088888888H); bevelDown := FALSE;
-			hasInnerBevel := FALSE; innerBevelWidth := 5; innerBevelColor := SHORT(088888888H); innerBevelDown := TRUE;
+			hasBevel := FALSE; bevelWidth := 5; bevelColor := LONGINT(088888888H); bevelDown := FALSE;
+			hasInnerBevel := FALSE; innerBevelWidth := 5; innerBevelColor := LONGINT(088888888H); innerBevelDown := TRUE;
 			hasGlass := FALSE; glassWidth := 5; glassDown := TRUE; glassOpenSides := {};
 			altFillColor := fillColor.Get(); fillMode := 0;
 			CreateComponent;
@@ -1979,7 +1979,7 @@ TYPE
 			NEW(spacerTop); spacerTop.bounds.SetHeight(border.t); spacerTop.alignment.Set(WMComponents.AlignTop);
 			NEW(spacerRight); spacerRight.bounds.SetWidth(border.r); spacerRight.alignment.Set(WMComponents.AlignRight);
 			NEW(spacerBottom); spacerBottom.bounds.SetHeight(border.b); spacerBottom.alignment.Set(WMComponents.AlignBottom);
-			NEW(centerContent); centerContent.alignment.Set(WMComponents.AlignClient); centerContent.fillColor.Set(SHORT(0FF8800FFH));
+			NEW(centerContent); centerContent.alignment.Set(WMComponents.AlignClient); centerContent.fillColor.Set(LONGINT(0FF8800FFH));
 			AddContent^(spacerTop);
 			AddContent^(spacerBottom);
 			NEW(panel); panel.alignment.Set(WMComponents.AlignClient);

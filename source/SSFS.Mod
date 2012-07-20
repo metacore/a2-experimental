@@ -33,7 +33,7 @@ CONST
 	PartitionTooSmall* = 5000;
 
 	(* Magic number used to identify our file system *)
-	SSFS_MagicNumber = SHORT(99887766H);
+	SSFS_MagicNumber = LONGINT(99887766H);
 	SSFS_Version = 01H;
 
 	BlockSize = 4096; (* must be multiple of device.blockSize *)

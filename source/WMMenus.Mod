@@ -26,9 +26,9 @@ CONST
 	ShadowOffsetVertical = 5;
 	ShadowOffsetHorizontal = 5;
 
-	LightGrey = SHORT(0C0C0C0FFH);
-	LightGreyDrag = SHORT(0C0C0C0C0H);
-	WhiteDrag = SHORT(0FFFFFFC0H);
+	LightGrey = LONGINT(0C0C0C0FFH);
+	LightGreyDrag = LONGINT(0C0C0C0C0H);
+	WhiteDrag = LONGINT(0FFFFFFC0H);
 
 	TextImageDistance = 4;
 	MinImageWidth = 4;
@@ -199,7 +199,7 @@ TYPE
 				WHILE (child # NIL) DO
 					IF ~(child IS Separator) THEN
 						IF (child = hover) THEN
-							canvas.Fill(WMRectangles.MakeRect(x, 0, x + ItemWidth(child, horizontalI), bounds.GetHeight()), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
+							canvas.Fill(WMRectangles.MakeRect(x, 0, x + ItemWidth(child, horizontalI), bounds.GetHeight()), LONGINT(0FFFF00FFH), WMGraphics.ModeCopy);
 						ELSIF (child = selection) THEN
 							canvas.Fill(WMRectangles.MakeRect(x, 0, x + ItemWidth(child, horizontalI), bounds.GetHeight()), clSelected.Get(), WMGraphics.ModeCopy);
 						END;
@@ -237,7 +237,7 @@ TYPE
 					x := HMenuDistance;
 					IF ~(child IS Separator) THEN
 						IF (child = hover) THEN
-							canvas.Fill(WMRectangles.MakeRect(0, y, bounds.GetWidth(), y + ItemHeight(child)), SHORT(0FFFF00FFH), WMGraphics.ModeCopy);
+							canvas.Fill(WMRectangles.MakeRect(0, y, bounds.GetWidth(), y + ItemHeight(child)), LONGINT(0FFFF00FFH), WMGraphics.ModeCopy);
 						ELSIF (child = selection) THEN
 							canvas.Fill(WMRectangles.MakeRect(0, y, bounds.GetWidth(), y + ItemHeight(child)), clSelected.Get(), WMGraphics.ModeCopy);
 						END;

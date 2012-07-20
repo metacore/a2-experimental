@@ -12,7 +12,7 @@ CONST
 	WarnWriteFailure	*= 3;
 	WarnBufferTooSmall *= 4;
 	(* Errors*)
-	Error* = SHORT(80000000H); (* == 80000000H *)
+	Error* = LONGINT(80000000H); (* == 80000000H *)
 	ErrLoadError* = Error + 1;
 	ErrInvalidParameter* = Error + 2;
 	ErrUnsupported* = Error + 3;

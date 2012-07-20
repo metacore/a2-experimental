@@ -58,7 +58,7 @@ TYPE
 			LOOP
 				ch := Get();
 				IF ch # 0X THEN
-					IF ch = 0EX THEN tw.SetFontName("Courier"); tw.SetFontColor(SHORT(0800000FFH));
+					IF ch = 0EX THEN tw.SetFontName("Courier"); tw.SetFontColor(LONGINT(0800000FFH));
 					ELSIF ch = 0FX THEN tw.SetFontName("Oberon"); tw.SetFontColor(0FFH);
 					ELSIF ch = 0DX THEN (* ignore CR character - this approximates the CRLF -> LF *)
 					ELSE tw.Char(ch); added := TRUE;

@@ -17,9 +17,9 @@ CONST
 	(** FontStyles *)
 	FontBold* = 0; FontItalic* = 1;
 
-	Black* = 0FFH; White* = SHORT(0FFFFFFFFH);
-	Red* = SHORT(0FF0000FFH); Green* = 000FF00FFH; Blue* = 0FFFFH;
-	Yellow* = SHORT(0FFFF00FFH); Magenta* = SHORT(0FF00FFFFH); Cyan* = 00FFFFFFH;
+	Black* = 0FFH; White* = LONGINT(0FFFFFFFFH);
+	Red* = LONGINT(0FF0000FFH); Green* = 000FF00FFH; Blue* = 0FFFFH;
+	Yellow* = LONGINT(0FFFF00FFH); Magenta* = LONGINT(0FF00FFFFH); Cyan* = 00FFFFFFH;
 
 
 TYPE
@@ -765,7 +765,7 @@ BEGIN
 		Strings.IntToStr(char,str); Strings.Concat("U", str, str);
 		f.GetStringSize(str, w, h);
 		r := Rectangles.MakeRect(ENTIER(x), ENTIER(y) - f.ascent, ENTIER(x) + w, ENTIER(y) + f.descent);
-		canvas.Fill(r, SHORT(0CCCC00FFH), ModeCopy);
+		canvas.Fill(r, LONGINT(0CCCC00FFH), ModeCopy);
 		f.RenderString(canvas, x, y, str)
 	END
 END FBRenderChar;

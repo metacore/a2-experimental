@@ -411,7 +411,7 @@ TYPE
 			Draw^(canvas);
 			IF ~visible.Get() OR ~show THEN RETURN END;
 			IF ~readOnlyI THEN
-				WMGraphicUtilities.DrawBevel(canvas, GetClientRect(), BorderWidth, TRUE, SHORT(0808080FFH), WMGraphics.ModeCopy)
+				WMGraphicUtilities.DrawBevel(canvas, GetClientRect(), BorderWidth, TRUE, LONGINT(0808080FFH), WMGraphics.ModeCopy)
 			END;
 			font := GetFont();
 			canvas.SetColor(textColorI);
@@ -481,10 +481,10 @@ TYPE
 				*)
 			END;
 			IF cursorIsVisible & ~readOnlyI THEN
-				canvas.Fill(WMRectangles.MakeRect(cursorX, y - th , cursorX + CursorWidth, y + font.GetDescent() ), SHORT(0FF0000CCH), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(cursorX, y - th , cursorX + CursorWidth, y + font.GetDescent() ), LONGINT(0FF0000CCH), WMGraphics.ModeSrcOverDst);
 			END;
 			IF changeDue THEN
-				canvas.Fill(WMRectangles.MakeRect(renderOffsetX,  y - font.GetAscent() , x, y + font.GetDescent() ), SHORT(0FF000066H), WMGraphics.ModeSrcOverDst);
+				canvas.Fill(WMRectangles.MakeRect(renderOffsetX,  y - font.GetAscent() , x, y + font.GetDescent() ), LONGINT(0FF000066H), WMGraphics.ModeSrcOverDst);
 			END;
 		END Draw;
 

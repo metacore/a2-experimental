@@ -275,7 +275,7 @@ TYPE
 						Strings.Max(y1, y0)), 5, FALSE)
 			END;
 			IF recalcNeeded THEN
-				canvas.SetColor(SHORT(0FFFF00FFH));
+				canvas.SetColor(LONGINT(0FFFF00FFH));
 				canvas.DrawString(20, 20, "Calculating...");
 				str := "Processes : "; Strings.IntToStr( nofProcesses.Get(), t);
 				Strings.Append(str, t);

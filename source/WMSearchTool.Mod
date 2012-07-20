@@ -121,26 +121,26 @@ TYPE
 			pathLabel, fmaskLabel, contentLabel : WMStandardComponents.Label;
 			filledPathString : ARRAY 1024 OF CHAR;
 		BEGIN
-			NEW(panel); panel.bounds.SetExtents(700, 500); panel.fillColor.Set(SHORT(0FFFFFFFFH)); panel.takesFocus.Set(TRUE);
+			NEW(panel); panel.bounds.SetExtents(700, 500); panel.fillColor.Set(LONGINT(0FFFFFFFFH)); panel.takesFocus.Set(TRUE);
 
-			NEW(toolbarPath); toolbarPath.fillColor.Set(SHORT(0FFFFFFFFH));  toolbarPath.bounds.SetHeight(25);
+			NEW(toolbarPath); toolbarPath.fillColor.Set(LONGINT(0FFFFFFFFH));  toolbarPath.bounds.SetHeight(25);
 			toolbarPath.alignment.Set(WMComponents.AlignTop);
 			panel.AddContent(toolbarPath);
 
-			NEW(toolbarFMask); toolbarFMask.fillColor.Set(SHORT(0FFFFFFFFH)); toolbarFMask.bounds.SetHeight(25);
+			NEW(toolbarFMask); toolbarFMask.fillColor.Set(LONGINT(0FFFFFFFFH)); toolbarFMask.bounds.SetHeight(25);
 			toolbarFMask.alignment.Set(WMComponents.AlignTop);
 			panel.AddContent(toolbarFMask);
 
-			NEW(toolbar); toolbar.fillColor.Set(SHORT(0FFFFFFFFH)); toolbar.bounds.SetHeight(25);
+			NEW(toolbar); toolbar.fillColor.Set(LONGINT(0FFFFFFFFH)); toolbar.bounds.SetHeight(25);
 			toolbar.alignment.Set(WMComponents.AlignTop);
 			panel.AddContent(toolbar);
 
-			NEW(toolbarSearch); toolbarSearch.fillColor.Set(SHORT(0FFFFFFFFH)); toolbarSearch.bounds.SetHeight(20);
+			NEW(toolbarSearch); toolbarSearch.fillColor.Set(LONGINT(0FFFFFFFFH)); toolbarSearch.bounds.SetHeight(20);
 			toolbarSearch.alignment.Set(WMComponents.AlignTop);
 			panel.AddContent(toolbarSearch);
 
 			NEW(pathLabel); pathLabel.alignment.Set(WMComponents.AlignLeft);
-			pathLabel.bounds.SetWidth(70); pathLabel.fillColor.Set(SHORT(0FFFFFFFFH));
+			pathLabel.bounds.SetWidth(70); pathLabel.fillColor.Set(LONGINT(0FFFFFFFFH));
 			pathLabel.SetCaption(" Path:");
 			toolbarPath.AddContent(pathLabel);
 
@@ -149,16 +149,16 @@ TYPE
 			pathEdit.bounds.SetWidth(300); pathEdit.multiLine.Set(FALSE);
 			pathEdit.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1));
 			pathEdit.tv.showBorder.Set(TRUE);
-			pathEdit.fillColor.Set(SHORT(0FFFFFFFFH));
+			pathEdit.fillColor.Set(LONGINT(0FFFFFFFFH));
 			toolbarPath.AddContent(pathEdit);
 
 			NEW(pathLabel); pathLabel.alignment.Set(WMComponents.AlignLeft);
-			pathLabel.bounds.SetWidth(300); pathLabel.fillColor.Set(SHORT(0FFFFFFFFH));
+			pathLabel.bounds.SetWidth(300); pathLabel.fillColor.Set(LONGINT(0FFFFFFFFH));
 			pathLabel.SetCaption(" e.g. FS:, FS:/subDir, FS:/subDir/subSubDir, etc.");
 			toolbarPath.AddContent(pathLabel);
 
 			NEW(fmaskLabel); fmaskLabel.alignment.Set(WMComponents.AlignLeft);
-			fmaskLabel.bounds.SetWidth(70); fmaskLabel.fillColor.Set(SHORT(0FFFFFFFFH));
+			fmaskLabel.bounds.SetWidth(70); fmaskLabel.fillColor.Set(LONGINT(0FFFFFFFFH));
 			fmaskLabel.SetCaption(" Files:");
 			toolbarFMask.AddContent(fmaskLabel);
 
@@ -166,11 +166,11 @@ TYPE
 			fmaskEdit.bounds.SetWidth(300); fmaskEdit.multiLine.Set(FALSE);
 			fmaskEdit.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1));
 			fmaskEdit.tv.showBorder.Set(TRUE);
-			fmaskEdit.fillColor.Set(SHORT(0FFFFFFFFH));
+			fmaskEdit.fillColor.Set(LONGINT(0FFFFFFFFH));
 			toolbarFMask.AddContent(fmaskEdit);
 
 			NEW(contentLabel); contentLabel.alignment.Set(WMComponents.AlignLeft);
-			contentLabel.bounds.SetWidth(70); contentLabel.fillColor.Set(SHORT(0FFFFFFFFH));
+			contentLabel.bounds.SetWidth(70); contentLabel.fillColor.Set(LONGINT(0FFFFFFFFH));
 			contentLabel.SetCaption(" Content:");
 			toolbar.AddContent(contentLabel);
 
@@ -178,7 +178,7 @@ TYPE
 			contentEdit.bounds.SetWidth(300); contentEdit.multiLine.Set(FALSE);
 			contentEdit.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1));
 			contentEdit.tv.showBorder.Set(TRUE);
-			contentEdit.fillColor.Set(SHORT(0FFFFFFFFH));
+			contentEdit.fillColor.Set(LONGINT(0FFFFFFFFH));
 			toolbar.AddContent(contentEdit);
 
 			NEW(searchBtn);
@@ -196,7 +196,7 @@ TYPE
 			toolbarSearch.AddContent(stopBtn);
 
 			NEW(status); status.alignment.Set(WMComponents.AlignBottom); status.bounds.SetHeight(20);
-			panel.AddContent(status); status.fillColor.Set(SHORT(0CCCCCCFFH));
+			panel.AddContent(status); status.fillColor.Set(LONGINT(0CCCCCCFFH));
 
 			NEW(statusLabel); statusLabel.bounds.SetWidth(panel.bounds.GetWidth());
 			statusLabel.caption.SetAOC("Status : Ready"); statusLabel.alignment.Set(WMComponents.AlignLeft);

@@ -14,7 +14,7 @@ IMPORT
 		(* target machine minimum values of basic types expressed in host machine format: *)
 		MinSInt* = -80H;
 		MinInt* = -8000H;
-		MinLInt* =  SHORT(80000000H);	(* i386: -2147483648*)
+		MinLInt* =  LONGINT(80000000H);	(* i386: -2147483648*)
 
 		(* target machine maximum values of basic types expressed in host machine format: *)
 		MaxSInt* = 7FH;

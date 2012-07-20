@@ -19,14 +19,14 @@ CONST
 	OverviewWidth = 10;
 
 	DarkGreen = 000C000FFH;
-	DarkRed = SHORT(0C00000FFH);
+	DarkRed = LONGINT(0C00000FFH);
 
-	DiffColorLeft = SHORT(0FF000030H);
+	DiffColorLeft = LONGINT(0FF000030H);
 	DiffColorRight = 00000FF30H;
 	EmptyLineColor = WMGraphics.White;
 
-	LineNbrBgColor = SHORT(0E0E0FFFFH);
-	BgColor = SHORT(0CCCCCCFFH);
+	LineNbrBgColor = LONGINT(0E0E0FFFFH);
+	BgColor = LONGINT(0CCCCCCFFH);
 
 	MouseWheelMultiplier = 3;
 
@@ -82,7 +82,7 @@ TYPE
 
 			NEW(filenameEdit); filenameEdit.alignment.Set(WMComponents.AlignClient);
 			filenameEdit.multiLine.Set(FALSE);
-			filenameEdit.fillColor.Set(SHORT(0FFFFFFFFH));
+			filenameEdit.fillColor.Set(LONGINT(0FFFFFFFFH));
 			filenameEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			filenameEdit.tv.showBorder.Set(TRUE);
 			filenameEdit.tv.SetExtDragOverHandler(FileNameEditDragOver);
@@ -361,7 +361,7 @@ TYPE
 			IF img # NIL THEN
 				NEW(c,img);
 				rect := WMRectangles.MakeRect(0,0,img.width, img.height);
-				c.Fill(rect, SHORT(0808080FFH), WMGraphics.ModeCopy);
+				c.Fill(rect, LONGINT(0808080FFH), WMGraphics.ModeCopy);
 				Invalidate;
 			END;
 		END Setup;
@@ -379,7 +379,7 @@ TYPE
 			END;
 			NEW(c,img);
 			rect := WMRectangles.MakeRect(0, 0,img.width, img.height);
-			c.Fill(rect, SHORT(0808080FFH), WMGraphics.ModeCopy);
+			c.Fill(rect, LONGINT(0808080FFH), WMGraphics.ModeCopy);
 			view.grid.model.Acquire;
 			nofRows:= view.grid.model.GetNofRows();
 			IF nofRows > 0 THEN
@@ -416,7 +416,7 @@ TYPE
 		VAR rect: WMRectangles.Rectangle; (* x0, x1: LONGINT; *)
 		BEGIN
 			rect := GetClientRect();
-			canvas.Fill(rect, SHORT(0CCCCCCFFH), WMGraphics.ModeCopy);
+			canvas.Fill(rect, LONGINT(0CCCCCCFFH), WMGraphics.ModeCopy);
 			IF img # NIL THEN
 				canvas.DrawImage(0,ScrollbarWidth,img, WMGraphics.ModeCopy);
 				IF showPage THEN
@@ -508,7 +508,7 @@ TYPE
 
 			NEW(middlePanel);
 			middlePanel.bounds.SetWidth (2*OverviewWidth + ScrollbarWidth); middlePanel.alignment.Set(WMComponents.AlignLeft);
-			middlePanel.fillColor.Set (SHORT(0FFFFFFFFH));
+			middlePanel.fillColor.Set (LONGINT(0FFFFFFFFH));
 
 			NEW(diffBtn); diffBtn.caption.SetAOC("Diff"); diffBtn.alignment.Set(WMComponents.AlignTop);
 			diffBtn.onClick.Add(DiffHandler);
@@ -516,7 +516,7 @@ TYPE
 			middlePanel.AddContent(diffBtn);
 
 			NEW(scrollPanel); scrollPanel.alignment.Set(WMComponents.AlignClient);
-			scrollPanel.fillColor.Set (SHORT(0FFFFFFFFH));
+			scrollPanel.fillColor.Set (LONGINT(0FFFFFFFFH));
 
 			NEW(leftOverview, leftView);
 			leftOverview.bounds.SetWidth(OverviewWidth); leftOverview.alignment.Set(WMComponents.AlignLeft);

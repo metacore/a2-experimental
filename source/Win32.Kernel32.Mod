@@ -70,23 +70,23 @@ CONST
 
 	SizeOf80387Registers* = 80;  ExceptionMaximumParameters* = 15;
 
-	ExceptionGuardPage* = SHORT(080000001H);
-	ExceptionBreakPoint* = SHORT(080000003H);
-	ExceptionSingleStep* = SHORT(080000004H);
-	ExceptionAccessViolation* = SHORT(0C0000005H);
-	ExceptionIllegalInstruction* = SHORT(0C000001DH);
-	ExceptionArrayBoundsExceeded* = SHORT(0C000008CH);
-	ExceptionFltDenormalOperand* = SHORT(0C000008DH);
-	ExceptionFltDivideByZero* = SHORT(0C000008EH);
-	ExceptionFltInexactResult* = SHORT(0C000008FH);
-	ExceptionFltInvalidOperation* = SHORT(0C0000090H);
-	ExceptionFltOverflow* = SHORT(0C0000091H);
-	ExceptionFltStackCheck* = SHORT(0C0000092H);
-	ExceptionFltUndeflow* = SHORT(0C0000093H);
-	ExceptionIntDivideByZero* = SHORT(0C0000094H);
-	ExceptionIntOverflow* =SHORT(0C0000095H);
-	ExceptionPrivInstruction* = SHORT(0C0000096H);
-	ExceptionStackOverflow* = SHORT(0C00000FDH);
+	ExceptionGuardPage* = LONGINT(080000001H);
+	ExceptionBreakPoint* = LONGINT(080000003H);
+	ExceptionSingleStep* = LONGINT(080000004H);
+	ExceptionAccessViolation* = LONGINT(0C0000005H);
+	ExceptionIllegalInstruction* = LONGINT(0C000001DH);
+	ExceptionArrayBoundsExceeded* = LONGINT(0C000008CH);
+	ExceptionFltDenormalOperand* = LONGINT(0C000008DH);
+	ExceptionFltDivideByZero* = LONGINT(0C000008EH);
+	ExceptionFltInexactResult* = LONGINT(0C000008FH);
+	ExceptionFltInvalidOperation* = LONGINT(0C0000090H);
+	ExceptionFltOverflow* = LONGINT(0C0000091H);
+	ExceptionFltStackCheck* = LONGINT(0C0000092H);
+	ExceptionFltUndeflow* = LONGINT(0C0000093H);
+	ExceptionIntDivideByZero* = LONGINT(0C0000094H);
+	ExceptionIntOverflow* =LONGINT(0C0000095H);
+	ExceptionPrivInstruction* = LONGINT(0C0000096H);
+	ExceptionStackOverflow* = LONGINT(0C00000FDH);
 
 	ContextIntel = 16;
 	ContextControl* = {0, ContextIntel};   (* SS:SP, CS:IP, FLAGS, BP *)

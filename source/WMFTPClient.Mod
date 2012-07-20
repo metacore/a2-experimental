@@ -110,7 +110,7 @@ TYPE
 			bearing : WMRectangles.Rectangle;
 
 		BEGIN
-			NEW(panel); panel.bounds.SetExtents(600, 400); panel.fillColor.Set(SHORT(0CCCCCCFFH));
+			NEW(panel); panel.bounds.SetExtents(600, 400); panel.fillColor.Set(LONGINT(0CCCCCCFFH));
 
 			bearing := WMRectangles.MakeRect(3, 3, 3, 3);
 
@@ -122,7 +122,7 @@ TYPE
 			label.caption.SetAOC(" Host: "); label.textColor.Set(0000000FFH); topToolbar.AddContent(label);
 
 			NEW(address); address.bounds.SetWidth(150); address.alignment.Set(WMComponents.AlignLeft);
-			address.multiLine.Set(FALSE); address.fillColor.Set(SHORT(0FFFFFFFFH)); address.tv.showBorder.Set(TRUE);
+			address.multiLine.Set(FALSE); address.fillColor.Set(LONGINT(0FFFFFFFFH)); address.tv.showBorder.Set(TRUE);
 			address.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			address.onEnter.Add(ConnectHandler);
 			topToolbar.AddContent(address);
@@ -132,7 +132,7 @@ TYPE
 			label.caption.SetAOC(" Port: "); label.textColor.Set(0000000FFH); topToolbar.AddContent(label);
 
 			NEW(port); port.bounds.SetWidth(50); port.alignment.Set(WMComponents.AlignLeft);
-			port.multiLine.Set(FALSE); port.fillColor.Set(SHORT(0FFFFFFFFH)); port.tv.showBorder.Set(TRUE);
+			port.multiLine.Set(FALSE); port.fillColor.Set(LONGINT(0FFFFFFFFH)); port.tv.showBorder.Set(TRUE);
 			port.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); port.SetAsString("21");
 			topToolbar.AddContent(port);
 
@@ -155,10 +155,10 @@ TYPE
 			panel.AddContent(statusbar);
 
 			NEW(conLabel); conLabel.bounds.SetWidth(14); conLabel.alignment.Set(WMComponents.AlignLeft);
-			statusbar.AddContent(conLabel); conLabel.bearing.Set(bearing); conLabel.fillColor.Set(SHORT(0CC0000FFH));
+			statusbar.AddContent(conLabel); conLabel.bearing.Set(bearing); conLabel.fillColor.Set(LONGINT(0CC0000FFH));
 
 			NEW(busyLabel); busyLabel.bounds.SetWidth(14); busyLabel.alignment.Set(WMComponents.AlignLeft);
-			statusbar.AddContent(busyLabel); busyLabel.bearing.Set(bearing); busyLabel.fillColor.Set(SHORT(0888888FFH));
+			statusbar.AddContent(busyLabel); busyLabel.bearing.Set(bearing); busyLabel.fillColor.Set(LONGINT(0888888FFH));
 
 			NEW(statusLabel); statusLabel.bounds.SetWidth(400); statusLabel.alignment.Set(WMComponents.AlignLeft);
 			statusLabel.textColor.Set(0000000FFH);
@@ -172,7 +172,7 @@ TYPE
 			label.caption.SetAOC(" Command: "); label.textColor.Set(0000000FFH); pnl.AddContent(label);
 
 			NEW(cmd); cmd.alignment.Set(WMComponents.AlignClient);
-			cmd.multiLine.Set(FALSE); cmd.fillColor.Set(SHORT(0FFFFFFFFH)); cmd.tv.showBorder.Set(TRUE);
+			cmd.multiLine.Set(FALSE); cmd.fillColor.Set(LONGINT(0FFFFFFFFH)); cmd.tv.showBorder.Set(TRUE);
 			cmd.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			cmd.onEnter.Add(CommandHandler);
 			pnl.AddContent(cmd);
@@ -180,7 +180,7 @@ TYPE
 			statusbar.AddContent(pnl);
 
 			(* --- FTP main panel --- *)
-			NEW(ftpPanel); ftpPanel.alignment.Set(WMComponents.AlignClient); ftpPanel.fillColor.Set(SHORT(0FFFFFFFFH));
+			NEW(ftpPanel); ftpPanel.alignment.Set(WMComponents.AlignClient); ftpPanel.fillColor.Set(LONGINT(0FFFFFFFFH));
 			panel.AddContent(ftpPanel);
 			ftpPanel.owner := SELF;
 
@@ -315,7 +315,7 @@ TYPE
 				conLabel.fillColor.Set(0CC00FFH);
 				connect.caption.SetAOC("Disconnect");
 			ELSE
-				conLabel.fillColor.Set(SHORT(0CC0000FFH));
+				conLabel.fillColor.Set(LONGINT(0CC0000FFH));
 				connect.caption.SetAOC("Connect");
 			END
 		END SetConnected;
@@ -323,8 +323,8 @@ TYPE
 		PROCEDURE SetBusy(bus : BOOLEAN);
 		BEGIN
 			busy := bus;
-			IF bus THEN	busyLabel.fillColor.Set(SHORT(0FF8800FFH))
-			ELSE busyLabel.fillColor.Set(SHORT(0888888FFH))	END
+			IF bus THEN	busyLabel.fillColor.Set(LONGINT(0FF8800FFH))
+			ELSE busyLabel.fillColor.Set(LONGINT(0888888FFH))	END
 		END SetBusy;
 
 	END Window;
@@ -360,11 +360,11 @@ TYPE
 			NEW(filter, FileListFilterProt, NIL, NIL); properties.Add(filter);
 
 			NEW(panel); panel.bounds.SetHeight(20); panel.alignment.Set(WMComponents.AlignTop);
-			panel.fillColor.Set(SHORT(0CCCCCCFFH)); AddContent(panel);
+			panel.fillColor.Set(LONGINT(0CCCCCCFFH)); AddContent(panel);
 			NEW(label); label.bounds.SetWidth(40); label.alignment.Set(WMComponents.AlignLeft);
 			label.caption.SetAOC(" Path: "); panel.AddContent(label); label.textColor.Set(0000000FFH);
 			NEW(pathEdit); pathEdit.alignment.Set(WMComponents.AlignClient);
-			panel.AddContent(pathEdit); pathEdit.fillColor.Set(SHORT(0EEEEEEFFH));
+			panel.AddContent(pathEdit); pathEdit.fillColor.Set(LONGINT(0EEEEEEFFH));
 			pathEdit.onEnter.Add(PathChanged); pathEdit.SetAsString("/");
 			pathEdit.multiLine.Set(FALSE); pathEdit.tv.defaultTextBgColor.Set(pathEdit.fillColor.Get());
 			pathEdit.tv.showBorder.Set(TRUE); pathEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
@@ -637,7 +637,7 @@ TYPE
 			(* render to bitmap *)
 			NEW(img);	Raster.Create(img, 100, 200, Raster.BGRA8888);
 			NEW(c, img);
-			c.SetColor(SHORT(0FFFF00FFH));
+			c.SetColor(LONGINT(0FFFF00FFH));
 			top := 0;
 			FOR i := 0 TO LEN(selection) - 1 DO
 				IF selection[i] # NIL THEN

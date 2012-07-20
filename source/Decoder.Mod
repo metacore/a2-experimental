@@ -845,7 +845,7 @@ TYPE
 			WHILE opcodes # NIL DO
 
 				IF IsExceptionHandled(opcodes.offset) THEN
-					textWriter.SetBgColor(SHORT(0C0D5FFFFH));
+					textWriter.SetBgColor(LONGINT(0C0D5FFFFH));
 				ELSE
 					textWriter.SetBgColor(WMGraphics.White);
 				END;
@@ -867,7 +867,7 @@ TYPE
 				textWriter.SetFontColor(0000099FFH);
 				opcodes.PrintInstruction(w);	w.Char(9X);
 				opcodes.PrintArguments(w); w.Char(9X);
-				textWriter.SetFontColor(SHORT(0999999FFH));
+				textWriter.SetFontColor(LONGINT(0999999FFH));
 				opcodes.PrintVariables(w);
 				w.Ln;
 				opcodes := opcodes.next

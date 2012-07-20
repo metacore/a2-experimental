@@ -94,7 +94,7 @@ TYPE
 
 		PROCEDURE GetFillColor(secondsLeft : LONGINT) : LONGINT;
 		BEGIN
-			RETURN WMGraphicUtilities.InterpolateColorLinear(SHORT(0FFFF00C0H), SHORT(0FF0000FFH), ENTIER(256 * ((3600 - secondsLeft) / 3600)));
+			RETURN WMGraphicUtilities.InterpolateColorLinear(LONGINT(0FFFF00C0H), LONGINT(0FF0000FFH), ENTIER(256 * ((3600 - secondsLeft) / 3600)));
 		END GetFillColor;
 
 		PROCEDURE GetIndicationColor() : LONGINT;
@@ -105,7 +105,7 @@ TYPE
 				indicationStep := 256;
 			END;
 			indicationValue := indicationValue + indicationStep;
-			RETURN WMGraphicUtilities.InterpolateColorLinear(SHORT(0FFFF00C0H), SHORT(0FF0000FFH), indicationValue);
+			RETURN WMGraphicUtilities.InterpolateColorLinear(LONGINT(0FFFF00C0H), LONGINT(0FF0000FFH), indicationValue);
 		END GetIndicationColor;
 
 		PROCEDURE Update( dt : Dates.DateTime);
@@ -133,17 +133,17 @@ TYPE
 					ELSIF indicateTriggered & (seconds = 0) THEN
 						newFillColor := GetIndicationColor();
 					ELSE
-						newFillColor := SHORT(0FFFF00C0H);
+						newFillColor := LONGINT(0FFFF00C0H);
 					END;
 					IF (newFillColor # lastFillColor) THEN
 						fillColor.Set(newFillColor);
 					END;
 				ELSIF IsTomorrow(dt, trigger) THEN
 					IF (dateStringType # Tomorrow) THEN newDateString := "Tomorrow"; dateStringType := Tomorrow; END;
-					fillColor.Set(SHORT(0EEEEFFFFH));
+					fillColor.Set(LONGINT(0EEEEFFFFH));
 				ELSIF SameWeek(trigger, dt) THEN
 					IF (dateStringType # ThisWeek) THEN Strings.FormatDateTime("wwww", trigger, newDateString); dateStringType := ThisWeek; END;
-					fillColor.Set(SHORT(0EEEEFFFFH));
+					fillColor.Set(LONGINT(0EEEEFFFFH));
 				ELSIF (dateStringType # Date) THEN
 					Strings.FormatDateTime("dd.mm.yyyy", trigger, newDateString); dateStringType := Date;
 					fillColor.Set(WMGraphics.White);

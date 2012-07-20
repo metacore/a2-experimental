@@ -50,7 +50,7 @@ MODULE PCOFPE; (** AUTHOR "ejz"; PURPOSE "Parallel Compiler: PE object file plug
 
 		ModeDef = 0; ModeDLL = 1; ModeEXE = 2;
 
-		EUEnd = 0X; EURecord = 1X; EUProcFlag = SHORT(080000000H);
+		EUEnd = 0X; EURecord = 1X; EUProcFlag = LONGINT(080000000H);
 
 	TYPE
 		ImageFileHeader = RECORD

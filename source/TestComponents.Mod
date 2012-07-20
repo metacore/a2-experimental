@@ -89,7 +89,7 @@ TYPE
 		BEGIN
 			NEW(panel);
 			panel.bounds.SetExtents(640, 480);
-			panel.fillColor.Set(SHORT(0FFFFFFFFH));
+			panel.fillColor.Set(LONGINT(0FFFFFFFFH));
 			panel.takesFocus.Set(TRUE);
 
 			NEW(toolbar);
@@ -144,7 +144,7 @@ TYPE
 			toolbar: WMStandardComponents.Panel;
 			button : WMStandardComponents.Button;
 		BEGIN
-			NEW(panel); panel.bounds.SetExtents(800, 700); panel.fillColor.Set(SHORT(0FFFFFFFFH)); panel.takesFocus.Set(TRUE);
+			NEW(panel); panel.bounds.SetExtents(800, 700); panel.fillColor.Set(LONGINT(0FFFFFFFFH)); panel.takesFocus.Set(TRUE);
 
 			NEW(toolbar); toolbar.fillColor.Set(000FF00FFH); toolbar.bounds.SetHeight(20); toolbar.alignment.Set(WMComponents.AlignTop);
 			panel.AddContent(toolbar);
@@ -158,7 +158,7 @@ TYPE
 
 			NEW(tabs);
 			tabs.alignment.Set(WMComponents.AlignClient);
-			tabs.fillColor.Set(SHORT(0FF0000FFH));
+			tabs.fillColor.Set(LONGINT(0FF0000FFH));
 			panel.AddContent(tabs);
 			tabs.model.Acquire;
 			tabs.model.SetNofCols(4);

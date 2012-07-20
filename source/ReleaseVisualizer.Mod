@@ -740,7 +740,7 @@ TYPE
 		PROCEDURE GetColor(snr : LONGINT) : LONGINT;
 		VAR i, res : LONGINT;
 		BEGIN
-			res := SHORT(0FF0000FFH);
+			res := LONGINT(0FF0000FFH);
 			FOR i := 0 TO nofSubSystemInfo - 1 DO
 				IF s[i].nr = snr THEN res := s[i].color END
 			END;
@@ -749,8 +749,8 @@ TYPE
 
 		PROCEDURE &Init(ml : ModuleList);
 		CONST
-			ColorRuntime = SHORT(0A0A0FFFFH);
-			ColorUsb = SHORT(0A0A0A0FFH);
+			ColorRuntime = LONGINT(0A0A0FFFFH);
+			ColorUsb = LONGINT(0A0A0A0FFH);
 		VAR
 			i, j : LONGINT;
 		BEGIN
@@ -758,22 +758,22 @@ TYPE
 			SELF.ml := ml;
 			i := 32; j := 32;
 			DEC(j); DEC(j);
-				AddSubSystem(i, "Trace", "A2", SHORT(ColorRuntime), j, FALSE);
-				AddSubSystem(i, "Machine", "A2", SHORT(ColorRuntime), j, FALSE);
-				AddSubSystem(i, "Heaps", "A2", SHORT(ColorRuntime), j, FALSE);
-				AddSubSystem(i, "Modules", "A2", SHORT(ColorRuntime), j, FALSE);
-				AddSubSystem(i, "Objects", "A2", SHORT(ColorRuntime), j, FALSE);
-				AddSubSystem(i, "Kernel", "A2", SHORT(ColorRuntime), j, FALSE);
+				AddSubSystem(i, "Trace", "A2", LONGINT(ColorRuntime), j, FALSE);
+				AddSubSystem(i, "Machine", "A2", LONGINT(ColorRuntime), j, FALSE);
+				AddSubSystem(i, "Heaps", "A2", LONGINT(ColorRuntime), j, FALSE);
+				AddSubSystem(i, "Modules", "A2", LONGINT(ColorRuntime), j, FALSE);
+				AddSubSystem(i, "Objects", "A2", LONGINT(ColorRuntime), j, FALSE);
+				AddSubSystem(i, "Kernel", "A2", LONGINT(ColorRuntime), j, FALSE);
 			DEC(j); DEC(i);
 				AddSubSystem(i, "Sound", "A2", 0008080FFH, j, TRUE);
 			DEC(j); DEC(i);
-				AddSubSystem(i, "WMPerfMonPlugins", "A2", SHORT(0FF0000FFH), j, TRUE);
+				AddSubSystem(i, "WMPerfMonPlugins", "A2", LONGINT(0FF0000FFH), j, TRUE);
 			DEC(j); DEC(i);
-				AddSubSystem(i, "UsbDebug", "A2", SHORT(ColorUsb), j, TRUE);
-				AddSubSystem(i, "UsbDriverLoader", "A2", SHORT(ColorUsb), j, TRUE);
-				AddSubSystem(i, "Usbdi", "A2", SHORT(ColorUsb), j, TRUE);
-				AddSubSystem(i, "UsbHcdi", "A2", SHORT(ColorUsb), j, TRUE);
-				AddSubSystem(i, "UsbHidUP", "A2", SHORT(ColorUsb), j, TRUE);
+				AddSubSystem(i, "UsbDebug", "A2", LONGINT(ColorUsb), j, TRUE);
+				AddSubSystem(i, "UsbDriverLoader", "A2", LONGINT(ColorUsb), j, TRUE);
+				AddSubSystem(i, "Usbdi", "A2", LONGINT(ColorUsb), j, TRUE);
+				AddSubSystem(i, "UsbHcdi", "A2", LONGINT(ColorUsb), j, TRUE);
+				AddSubSystem(i, "UsbHidUP", "A2", LONGINT(ColorUsb), j, TRUE);
 			DEC(j); DEC(i);
 				AddSubSystem(i, "Bluetooth", "A2", 0000080FFH, j, TRUE);
 			DEC(j); DEC(i);
@@ -786,17 +786,17 @@ TYPE
 				AddSubSystem(i, "StringPool", "A2", 0008000FFH, j, TRUE);
 				AddSubSystem(i, "PCDebug", "A2", 0008000FFH, j, TRUE);
 			DEC(j);	DEC(i);
-				AddSubSystem(i, "Network", "A2", SHORT(0800080FFH), j, TRUE);
+				AddSubSystem(i, "Network", "A2", LONGINT(0800080FFH), j, TRUE);
 					DEC(i);
-				AddSubSystem(i, "WebHTTPServer", "A2", SHORT(08000C0FFH), j, TRUE);
+				AddSubSystem(i, "WebHTTPServer", "A2", LONGINT(08000C0FFH), j, TRUE);
 			DEC(j);	DEC(i);
-				AddSubSystem(i, "WindowManager", "A2", SHORT(0FFFF80FFH), j, TRUE);
-				AddSubSystem(i, "WMWindowManager", "A2", SHORT(0FFFF80FFH), j, TRUE);
+				AddSubSystem(i, "WindowManager", "A2", LONGINT(0FFFF80FFH), j, TRUE);
+				AddSubSystem(i, "WMWindowManager", "A2", LONGINT(0FFFF80FFH), j, TRUE);
 					DEC(i);
-				AddSubSystem(i, "WMComponents", "A2", SHORT(0FF8080FFH), j, TRUE);
+				AddSubSystem(i, "WMComponents", "A2", LONGINT(0FF8080FFH), j, TRUE);
 					DEC(i);
-				AddSubSystem(i, "XMLScanner", "A2", SHORT(0800080FFH), 0, TRUE);
-				AddSubSystem(i, "XMLObjects", "A2", SHORT(0800080FFH), 0, TRUE);
+				AddSubSystem(i, "XMLScanner", "A2", LONGINT(0800080FFH), 0, TRUE);
+				AddSubSystem(i, "XMLObjects", "A2", LONGINT(0800080FFH), 0, TRUE);
 		END Init;
 
 		PROCEDURE CheckModule(m : ModuleInfo);

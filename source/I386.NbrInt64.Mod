@@ -640,6 +640,6 @@ CONST
 	END Store;
 
 BEGIN
-	MinNbr.low := 0;  MinNbr.hi := SHORT(80000000H);  MaxNbr.low :=SHORT( 0FFFFFFFFH);  MaxNbr.hi :=SHORT( 7FFFFFFFH);  One := Long( 1 );
+	MinNbr.low := 0;  MinNbr.hi := LONGINT(80000000H);  MaxNbr.low :=LONGINT( 0FFFFFFFFH);  MaxNbr.hi :=LONGINT( 7FFFFFFFH);  One := Long( 1 );
 	Two := Long( 2 )
 END NbrInt64.

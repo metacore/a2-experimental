@@ -52,7 +52,7 @@ CONST
 	MinLoadSpecialOffset = -0FFH;
 	MaxLoadSpecialOffset = 0FFH;
 	MaxShifterOperand = 7F000000H;
-	MinShifterOperand = SHORT(80000000H);
+	MinShifterOperand = LONGINT(80000000H);
 
 VAR
 	MinMaxOffset: ARRAY NumLabelTypes OF RECORD min, max: LONGINT END;

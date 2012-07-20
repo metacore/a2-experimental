@@ -865,7 +865,7 @@ BEGIN
 		(*allocate*)
 	PCLIR.Emit12(code, PCLIR.sub, reg, reg2, size.adr);
 	IF ~aligned THEN
-		PCLIR.EmitLoadConst(code, mask, PCLIR.Address, FALSE, SHORT(0FFFFFFFCH));
+		PCLIR.EmitLoadConst(code, mask, PCLIR.Address, FALSE, LONGINT(0FFFFFFFCH));
 		PCLIR.Emit12(code, PCLIR.and, reg, reg, mask);
 	END;
 
@@ -966,7 +966,7 @@ BEGIN
 	(* PCLIR.Emit12(code, PCLIR.sub, reg, PCLIR.SP, size.adr); *)
 	PCLIR.Emit12(code, PCLIR.sub, reg, reg2, size.adr);
 	IF ~aligned THEN
-		PCLIR.EmitLoadConst(code, mask, PCLIR.Address, FALSE, SHORT(0FFFFFFFCH));
+		PCLIR.EmitLoadConst(code, mask, PCLIR.Address, FALSE, LONGINT(0FFFFFFFCH));
 		PCLIR.Emit12(code, PCLIR.and, reg, reg, mask);
 	END;
 
@@ -1115,7 +1115,7 @@ BEGIN
 		(*allocate*)
 	PCLIR.Emit12(code, PCLIR.sub, reg, PCLIR.SP, size.adr);
 	IF ~aligned THEN
-		PCLIR.EmitLoadConst(code, mask, PCLIR.Address, FALSE, SHORT(0FFFFFFFCH));
+		PCLIR.EmitLoadConst(code, mask, PCLIR.Address, FALSE, LONGINT(0FFFFFFFCH));
 		PCLIR.Emit12(code, PCLIR.and, reg, reg, mask);
 	END;
 
@@ -1204,7 +1204,7 @@ END LocalArray;
 		(*allocate*)
 		PCLIR.Emit12( code, PCLIR.sub, reg, PCLIR.SP, size.adr );
 		IF ~aligned THEN
-			PCLIR.EmitLoadConst( code, mask, PCLIR.Address, FALSE , SHORT(0FFFFFFFCH) );
+			PCLIR.EmitLoadConst( code, mask, PCLIR.Address, FALSE , LONGINT(0FFFFFFFCH) );
 			PCLIR.Emit12( code, PCLIR.and, reg, reg, mask );
 		END;
 		PCLIR.Emit01( code, PCLIR.loadsp, reg );
@@ -1284,7 +1284,7 @@ BEGIN
 	Convert (code, size, PCT.Address, TRUE);
 	PCLIR.Emit12(code, PCLIR.sub, reg, PCLIR.SP, size.adr);
 	IF ~aligned THEN
-		PCLIR.EmitLoadConst(code, mask, PCLIR.Address, FALSE, SHORT(0FFFFFFFCH));
+		PCLIR.EmitLoadConst(code, mask, PCLIR.Address, FALSE, LONGINT(0FFFFFFFCH));
 		PCLIR.Emit12(code, PCLIR.and, reg, reg, mask)
 	END;
 	PCLIR.Emit01(code, PCLIR.loadsp, reg);

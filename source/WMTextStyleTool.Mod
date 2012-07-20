@@ -1429,7 +1429,7 @@ TYPE
 				newCStyle.scaleHorizontal := FP1616.FloatToFixp(100.0);
 				newCStyle.scaleVertical := FP1616.FloatToFixp(100.0);
 				newCStyle.color := 0000000FFH;
-				newCStyle.bgColor := SHORT(0FFFFFF00H);
+				newCStyle.bgColor := LONGINT(0FFFFFF00H);
 			ELSE
 				(* copy selected style *)
 				COPY(currentCStyle.family, newCStyle.family);

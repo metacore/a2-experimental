@@ -220,8 +220,8 @@ TYPE
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
 		BEGIN
 			DrawBackground^(canvas);
-			canvas.Line(0, 0, x-1, 0, SHORT(0808080FFH), WMGraphics.ModeSrcOverDst);
-			canvas.Line(0, 1, x-1, 1, SHORT(0C0C0C0FFH), WMGraphics.ModeSrcOverDst);
+			canvas.Line(0, 0, x-1, 0, LONGINT(0808080FFH), WMGraphics.ModeSrcOverDst);
+			canvas.Line(0, 1, x-1, 1, LONGINT(0C0C0C0FFH), WMGraphics.ModeSrcOverDst);
 		END DrawBackground;
 	END HR;
 

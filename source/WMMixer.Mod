@@ -145,7 +145,7 @@ TYPE
 		BEGIN
 			dev := SoundDevices.GetDefaultDevice();
 
-			NEW(panel); panel.bounds.SetExtents(MWidth * dev.GetNofMixerChannels(), 200); panel.fillColor.Set(SHORT(0FFFFFFFFH)); panel.takesFocus.Set(TRUE);
+			NEW(panel); panel.bounds.SetExtents(MWidth * dev.GetNofMixerChannels(), 200); panel.fillColor.Set(LONGINT(0FFFFFFFFH)); panel.takesFocus.Set(TRUE);
 
 			IF dev # NIL THEN
 				FOR i := 0 TO dev.GetNofMixerChannels() - 1 DO

@@ -112,11 +112,11 @@ TYPE
 		END Green;
 
 		PROCEDURE Red;
-		BEGIN IF tw # NIL THEN tw.SetFontColor (SHORT(0FF0000FFH)); tw.SetFontStyle ({0}) END;
+		BEGIN IF tw # NIL THEN tw.SetFontColor (LONGINT(0FF0000FFH)); tw.SetFontStyle ({0}) END;
 		END Red;
 
 		PROCEDURE Orange;
-		BEGIN IF tw # NIL THEN tw.SetFontColor (SHORT (0FFC000FFH)); tw.SetFontStyle ({0}) END;
+		BEGIN IF tw # NIL THEN tw.SetFontColor (LONGINT (0FFC000FFH)); tw.SetFontStyle ({0}) END;
 		END Orange;
 
 		PROCEDURE Default;

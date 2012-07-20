@@ -19,14 +19,14 @@ CONST
 	DirPgSize = 50;
 	N = DirPgSize DIV 2;
 
-	DirMark = SHORT(9B1EA38DH);
-	HeaderMark = SHORT(9BA71D86H);
+	DirMark = LONGINT(9B1EA38DH);
+	HeaderMark = LONGINT(9BA71D86H);
 
 	FillerSize = 36;
 
 	MapIndexSize = (SS-4) DIV 4;
 	MapSize = SS DIV SYSTEM.SIZEOF (SET);	(* {MapSize MOD 8*SYSTEM.SIZEOF(SET) = 0} *)
-	MapMark = SHORT(9C2F977FH);
+	MapMark = LONGINT(9C2F977FH);
 
 	MaxBufs = 4;
 	InitHint = 200*SF;

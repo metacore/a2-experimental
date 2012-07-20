@@ -82,7 +82,7 @@ TYPE
 			sb.AddContent(gb);
 
 			(* edit panel *)
-			NEW(ep); ep.alignment.Set(WMComponents.AlignClient); ep.fillColor.Set(SHORT(0DDDD00EEH));
+			NEW(ep); ep.alignment.Set(WMComponents.AlignClient); ep.fillColor.Set(LONGINT(0DDDD00EEH));
 			panel.AddContent(ep);
 
 			NEW(edit); edit.bounds.SetHeight(20); edit.alignment.Set(WMComponents.AlignTop); edit.tv.showBorder.Set(TRUE);
@@ -98,7 +98,7 @@ TYPE
 			list.Acquire;
 			list.defaultRowHeight.Set(25);
 			list.cellDist.Set(0);
-			list.clCell.Set(SHORT(0FFFFFFA0H));
+			list.clCell.Set(LONGINT(0FFFFFFA0H));
 			(*list.SetColSpacings(spacings);
 			list.SetFont(WMGraphics.GetFont("Single", 20, {})); *)
 			list.Release;
@@ -312,8 +312,8 @@ TYPE
 			treeView.MeasureNode(treeView.draggedNode, w, h);
 			Raster.Create(img, w, h, Raster.BGRA8888);
 			NEW(canvas, img);
-			canvas.SetColor(SHORT(0FF00FFFFH));
-			canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), SHORT(0FF00FFFFH), WMGraphics.ModeCopy);
+			canvas.SetColor(LONGINT(0FF00FFFFH));
+			canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0FF00FFFFH), WMGraphics.ModeCopy);
 			KernelLog.String("w= "); KernelLog.Int(w, 0); KernelLog.String("h= "); KernelLog.Int(h, 0); KernelLog.Ln;
 			canvas.DrawString(5, h -  10, "huga");
 			IF StartDrag(treeView.draggedNode, img, 0, 0, NIL, NIL) THEN
@@ -955,17 +955,17 @@ TYPE
 			suggestions : TS.ObjectList;
 			nofSuggestions : LONGINT;
 		BEGIN
-			color := SHORT(0FF000080H);
+			color := LONGINT(0FF000080H);
 			TS.s.GetString(ident.name, s);
 		(*	KernelLog.String("*** Unknown identifier :"); KernelLog.String(s); KernelLog.Ln; *)
 			IF editor.tv.cursor.GetPosition() = ident.pos.b THEN
 				suggestionStart := ident.pos.a;
 				cursorScope := scope;
 				cursorIsFirstLevelScope := first;
-				color := SHORT(0FF800080H);
+				color := LONGINT(0FF800080H);
 				NEW(suggestions);
 				FindSuggestions(scope, first, s, suggestions);
-				IF suggestions.nofObjs > 0 THEN color := SHORT(000008080H) END;
+				IF suggestions.nofObjs > 0 THEN color := LONGINT(000008080H) END;
 				IF suggestions.nofObjs = 1 THEN singleSuggestion := suggestions.objs[0] END;
 			END;
 			NEW(cur); cur.next := errorHighlights; errorHighlights := cur;
