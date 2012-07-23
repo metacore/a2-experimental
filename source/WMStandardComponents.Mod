@@ -1998,11 +1998,27 @@ TYPE
 			AddInternalComponent(minusPage);
 			AddInternalComponent(plusPage);
 			AddInternalComponent(tracker);
+			tracker.SetExtPointerUpHandler(TrackerPointerUp);
 			tracker.SetExtPointerDownHandler(TrackerPointerDown);
 			tracker.SetExtPointerMoveHandler(TrackerPointerMove);
 
 			takesFocus.Set(FALSE)
 		END Init;
+
+		PROCEDURE LinkChanged(sender, link: ANY);
+		VAR m: Models.Model; integer: LONGINT;
+		BEGIN
+			IF sender = model THEN
+				IF Models.GetModel(model,m) THEN
+					IF Models.GetInteger(m, integer) THEN
+						pos.Set(integer);
+					END;
+				END;
+			ELSE
+				LinkChanged^(sender, link)
+			END;
+		END LinkChanged;
+
 
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
 		CONST BarWidth = 8;
@@ -2036,6 +2052,20 @@ TYPE
 			lx := x; ly := y; handled := FALSE
 		END TrackerPointerDown;
 
+		PROCEDURE TrackerPointerUp(x, y : LONGINT; keys : SET; VAR handled : BOOLEAN);
+		BEGIN
+			ChangeModel
+		END TrackerPointerUp;
+
+		PROCEDURE ChangeModel;
+		VAR m: Models.Model; real: Types.Integer; res : LONGINT;
+		BEGIN
+			IF Models.GetModel(model,m) THEN
+				real.value := pos.Get();
+				m.SetGeneric(real,res)
+			END;
+		END ChangeModel;
+
 		PROCEDURE TrackerPointerMove(x, y : LONGINT; keys : SET; VAR handled : BOOLEAN);
 		VAR dx, dy, dp, d : LONGINT; f : REAL; tmax, tmin : LONGINT;
 		BEGIN
@@ -2057,7 +2087,7 @@ TYPE
 					ELSE dp := 0
 					END;
 				END;
-				IF dp # 0 THEN pos.Set(pos.Get() + dp); onPositionChanged.Call(pos) END
+				IF dp # 0 THEN pos.Set(pos.Get() + dp); onPositionChanged.Call(pos) END;
 			END;
 			handled := FALSE
 		END TrackerPointerMove;

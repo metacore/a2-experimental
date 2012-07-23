@@ -878,6 +878,17 @@ BEGIN
 	END;
 END GetReal;
 
+PROCEDURE GetInteger*(m: Model; VAR i: LONGINT): BOOLEAN;
+VAR int: Types.Integer; res: LONGINT;
+BEGIN
+	IF m = NIL THEN RETURN FALSE END;
+	m.GetGeneric(int, res);
+	IF (res = Ok) THEN
+		i := int.value; RETURN TRUE
+	ELSE RETURN FALSE
+	END;
+END GetInteger;
+
 PROCEDURE SetReal*(m: Model; r: LONGREAL);
 VAR real: Types.Longreal; res: LONGINT;
 BEGIN

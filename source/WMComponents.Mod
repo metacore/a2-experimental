@@ -263,7 +263,20 @@ TYPE
 				xml(Component).properties.ToXML(element)
 			END;
 			properties.FromXML(element);
-			FromXML^(xml);
+
+			(* was: supercall to Repositories *)
+			enum := xml.GetContents();
+			WHILE enum.HasMoreElements() DO
+				c := enum.GetNext();
+				IF c IS XML.Element THEN
+					IF ~(c IS Component) OR ~c(Component).internal THEN
+						component := ComponentFromXML(c(XML.Element));
+						IF component # NIL THEN
+							AddContent(component)
+						END;
+					END;
+				END;
+			END;
 		END FromXML;
 
 		PROCEDURE IsCallFromSequencer*():BOOLEAN;
@@ -3313,9 +3326,43 @@ BEGIN
 	END;
 END RemoveSelection;
 
+
+PROCEDURE ComponentFromXML*(xml: XML.Element): Component;
+VAR generator: PROCEDURE(): XML.Element;
+VAR
+	l,name: Strings.String;
+	moduleName, procedureName: Modules.Name;
+	res: LONGINT; msg: ARRAY 32 OF CHAR;
+	component: Component;
+	element: XML.Element;
+BEGIN
+	component := NIL;
+	IF xml # NIL THEN
+		name := xml.GetName();
+		l := xml.GetAttributeValue("generator");
+		IF l # NIL THEN
+			Commands.Split(l^, moduleName, procedureName, res, msg);
+			IF (res = Commands.Ok) THEN
+				GETPROCEDURE(moduleName, procedureName, generator);
+				IF (generator # NIL) THEN
+					element := generator();
+					IF (element # NIL) & (element IS Component) THEN
+						component := element(Component);
+						component.SetName(name^);
+						component.FromXML(xml);
+					END;
+				ELSE KernelLog.String("WMComponents error: invalid generator "); KernelLog.String(l^); KernelLog.Ln;
+				END;
+			ELSE KernelLog.String("WMComponents error: could not generate component "); KernelLog.String(l^); KernelLog.Ln;
+			END;
+		END;
+	END;
+	RETURN component
+END ComponentFromXML;
+
 PROCEDURE Clone*(x: Component): Repositories.Component;
 BEGIN
-	RETURN Repositories.ComponentFromXML(x)
+	RETURN ComponentFromXML(x)
 END Clone;
 
 
