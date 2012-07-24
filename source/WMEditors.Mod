@@ -298,7 +298,7 @@ TYPE
 				Release;
 				ASSERT(string[curLen] = 0);
 				Invalidate;
-				Changed;
+				(*Changed;*)
 			END;
 		END SetAsString;
 
