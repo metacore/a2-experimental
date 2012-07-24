@@ -3142,7 +3142,7 @@ BEGIN
 	NEW(PrototypeSpos, NIL, NewString("Pos"), NewString("defines the scrollbar position"));
 	NEW(PrototypeSpageSize, NIL, NewString("PageSize"), NewString("defines the scrollbar page size"));
 	PrototypeSpageSize.Set(20);
-	NEW(PrototypeTrackerSize, NIL, NewString("tracker Size"), NewString("defines the tracker size"));
+	NEW(PrototypeTrackerSize, NIL, NewString("TrackerSize"), NewString("defines the tracker size"));
 	PrototypeTrackerSize.Set(20);
 		(* scrollbar width *)
 	NEW(Int32Prototype, NIL, NewString("Width"), NewString("defines the scrollbar width")); Int32Prototype.Set(14);
