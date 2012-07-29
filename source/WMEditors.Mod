@@ -309,6 +309,7 @@ TYPE
 				m.GetGeneric(string, res);
 				IF (res = Models.Ok) THEN
 					SetAsString(string.value);
+					SetAttributeValue("Value",string.value);
 				END;
 			END;
 		END LinkChanged;
