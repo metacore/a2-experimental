@@ -163,7 +163,9 @@ TYPE
 			OR (priority > High) (* stack of GC and realtime processes not traced *) THEN
 				RETURN
 			END;
+			(*
 			ASSERT( SYSTEM.VAL( Process, Kernel32.TlsGetValue( tlsIndex ) ) # SELF); (* should not trace gc process *)
+			*)
 
 			state.ContextFlags := Kernel32.ContextControl + Kernel32.ContextInteger;
 			res := Kernel32.GetThreadContext( handle, state );
@@ -249,6 +251,7 @@ TYPE
 
 	GCStatusExt = OBJECT(Heaps.GCStatus)
 		VAR
+			(*
 			gcOngoing: BOOLEAN;
 			event: Kernel32.HANDLE;
 			caller: Process;
@@ -259,12 +262,14 @@ TYPE
 			event := Kernel32.CreateEvent( NIL, Kernel32.False (* auto-reset *), Kernel32.False, NIL );   (* manual set event with initial state = reset *)
 			ASSERT(event # 0);
 		END Init;
+			*)
 
+		(*
 		(* called from Heaps.InvokeGC, i.e. this is a hidden upcall. However, it is necessary to take the Machine.Objects lock here since writing
 		    the set of variables here must not be interrupted, i.e. atomic writing of the set of variables is absolutely necessary.  They system may hang
 		    if the lock is not taken. *)
 		PROCEDURE SetgcOngoing(value: BOOLEAN);
-		VAR p: Heaps.ProcessLink; cur, r: Process; res: Kernel32.BOOL;
+		VAR p: Heaps.ProcessLink; cur, r: Process; res: Kernel32.BOOL; num: LONGINT;
 		BEGIN (* serialize writers *)
 			IF value THEN
 				(* Low, Medium or High priority process calls this *)
@@ -273,6 +278,7 @@ TYPE
 				r := CurrentProcess();
 				caller := r;
 				r.mode := AwaitingEvent;
+				num := 0;
 				IF ~gcOngoing THEN
 					gcOngoing := TRUE;
 					p := ready.head;
@@ -281,6 +287,7 @@ TYPE
 						IF ((cur.mode = Ready) OR (cur.mode = Running)) & (cur.priority <= High) & (cur # r) THEN
 							res := Kernel32.SuspendThread(cur.handle);
 							cur.mode := Suspended
+						ELSE INC(num);
 						END;
 						p := p.next
 					END;
@@ -314,10 +321,54 @@ TYPE
 				Machine.Release(Machine.Objects);
 			END;
 		END SetgcOngoing;
+		*)
+
+	(* called from Heaps.InvokeGC, i.e. this is a hidden upcall. However, it is necessary to take the Machine.Objects lock here since writing
+		    the set of variables here must not be interrupted, i.e. atomic writing of the set of variables is absolutely necessary.  They system may hang
+		    if the lock is not taken. *)
+		PROCEDURE SetgcOngoing(value: BOOLEAN);
+		VAR p: Heaps.ProcessLink; cur, r: Process; res: Kernel32.BOOL; num: LONGINT;
+		BEGIN (* serialize writers *)
+			IF value THEN
+				(* Low, Medium or High priority process calls this *)
+				Machine.Acquire(Machine.Objects);
+				Machine.Acquire(Machine.Heaps); (* to protect agains concurrent LazySweep *)
+				r := CurrentProcess();
+				num := 0;
+				p := ready.head;
+				WHILE p # NIL DO
+					cur := p(Process);
+					IF ((cur.mode = Ready) OR (cur.mode = Running)) & (cur.priority <= High) & (cur # r) THEN
+						res := Kernel32.SuspendThread(cur.handle);
+						cur.mode := Suspended
+					ELSE INC(num);
+					END;
+					p := p.next
+				END;
+
+				Heaps.CollectGarbage(Modules.root);
+				p := ready.head;
+				WHILE (p # NIL) DO
+					cur := p(Process);
+					(* only suspended and awaiting processes of ready queue are resumed *)
+					IF cur.mode = Suspended THEN
+						res := Kernel32.ResumeThread(cur.handle);
+						cur.mode := Running
+					END;
+					p := p.next
+				END;
+
+
+				Machine.Release(Machine.Heaps);
+				Machine.Release(Machine.Objects);
+				IF finalizerCaller # NIL THEN finalizerCaller.Activate() END;
+			END;
+		END SetgcOngoing;
 
 	END GCStatusExt;
 
 	GCActivity = OBJECT
+	(*
 	VAR
 		res: Kernel32.BOOL;
 		event: Kernel32.HANDLE;
@@ -351,9 +402,10 @@ TYPE
 			Wait;
 			(* process is scheduled -> perform garbage collection now *)
 			Heaps.CollectGarbage(Modules.root);
-			IF finalizerCaller # NIL THEN finalizerCaller.Activate() END;
 			Heaps.gcStatus.SetgcOngoing(FALSE); (* resumes waiting processes and suspends itself *)
+			IF finalizerCaller # NIL THEN finalizerCaller.Activate() END;
 		END
+	*)
 	END GCActivity;
 
 	FinalizedCollection* = OBJECT
@@ -788,8 +840,10 @@ BEGIN
 	(* now gc is enabled for this process stack *)
 	Machine.Release(Machine.Objects);
 	(* loop all processes that the GC did not see during process suspending because they were in the very moment being generated (just before the locked section) *)
-	WHILE (gcActivity # NIL) & (gcActivity.process # NIL) & (gcActivity.process.mode = Running) DO END;
 
+	(*! should not be necessary any more as GC runs immediately and without scheduling decisions
+	WHILE (gcActivity # NIL) & (gcActivity.process # NIL) & (gcActivity.process.mode = Running) DO END;
+	*)
 	t.body(obj);
 	terminate(t);
 	RemoveExcpFrm(excpfrm);
