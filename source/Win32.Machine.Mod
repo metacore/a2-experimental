@@ -740,7 +740,7 @@ END Init;
 		END;
 		lock[level] := "Y";
 	END Acquire;
-
+	
 (** Release a spin-lock. *)
 	PROCEDURE Release*( level: LONGINT );   (* release lock *)
 	BEGIN
@@ -789,6 +789,7 @@ CONST MemBlockHeaderSize = BlockHeaderSize + RecordDescSize + BlockHeaderSize;
 	DataAdrOffset = AddressSize; (* offset of dataAdr field in Heaps.HeapBlockDesc *)
 VAR memDescSize, memBlkSize, alignOffset: SYSTEM.SIZE; adr, memHeaderAdr, memBlockAdr, memBlockHeadAdr: SYSTEM.ADDRESS;
 	memBlock {UNTRACED}: MemoryBlock; i: LONGINT; ch: CHAR; h: HUGEINT; size: LONGINT;
+	initVal: LONGINT;
 BEGIN
 
 	(*
@@ -816,7 +817,14 @@ BEGIN
 	memBlkSize := memDescSize + size + StaticBlockSize; 		(* add StaticBlockSize to account for alignments different from multiples of StaticBlockSize *)
 	IF memBlkSize < MemBlockSize THEN memBlkSize := MemBlockSize END; 	(* MemBlockSize implicitly multiple of StaticBlockSize *)
 
-	adr := Kernel32.VirtualAlloc(NilVal, memBlkSize, {Kernel32.MEMCommit}, {Kernel32.PageExecuteReadWrite});
+	initVal := 8*1024*1024;
+	adr := Kernel32.VirtualAlloc(initVal, memBlkSize, {Kernel32.MEMCommit, Kernel32.MEMReserve}, {Kernel32.PageExecuteReadWrite});
+	IF adr = NilVal THEN (* allocation failed *)
+		adr := Kernel32.VirtualAlloc(NilVal, memBlkSize, {Kernel32.MEMCommit}, {Kernel32.PageExecuteReadWrite});
+	END;
+	Trace.String("first heap block intVal "); Trace.Int(initVal,1); Trace.Ln;
+	Trace.String("first heap block memBlkSize "); Trace.Int(memBlkSize,1); Trace.Ln;
+	Trace.String("first heap block adr "); Trace.Int(adr,1); Trace.Ln;
 	ASSERT(adr # 0);
 
 	IF adr > 0 THEN
@@ -953,7 +961,8 @@ CONST MemBlockHeaderSize = BlockHeaderSize + RecordDescSize + BlockHeaderSize;
 	HeapBlockOffset = - 2 * AddressSize; (* see Heaps.Mod *)
 	DataAdrOffset = AddressSize; (* offset of dataAdr field in Heaps.HeapBlockDesc *)
 VAR memDescSize, memBlkSize, alignOffset: SYSTEM.SIZE; adr, memHeaderAdr, memBlockAdr, memBlockHeadAdr: SYSTEM.ADDRESS;
-	memBlock {UNTRACED}: MemoryBlock; i: LONGINT; ch: CHAR; h: HUGEINT;
+	memBlock {UNTRACED}: MemoryBlock; i: LONGINT; ch: CHAR; h: HUGEINT; initVal: LONGINT;
+	continue: BOOLEAN;
 BEGIN
 	memDescSize := MemBlockHeaderSize + SYSTEM.SIZEOF(MemoryBlockDesc);
 	INC(memDescSize, (-memDescSize) MOD StaticBlockSize); 	(* round up to multiple of StaticBlockSize *)
@@ -961,7 +970,17 @@ BEGIN
 	memBlkSize := memDescSize + size + StaticBlockSize; 		(* add StaticBlockSize to account for alignments different from multiples of StaticBlockSize *)
 	IF memBlkSize < MinMemBlockSize THEN memBlkSize := MemBlockSize END; 	(* MemBlockSize implicitly multiple of StaticBlockSize *)
 
-	adr := Kernel32.VirtualAlloc(NilVal, memBlkSize, {Kernel32.MEMCommit}, {Kernel32.PageExecuteReadWrite});
+	INC(memBlkSize, (-memBlkSize) MOD MemBlockSize);
+	initVal := memBlockTail.startAdr + memBlockTail.size;
+	adr := Kernel32.VirtualAlloc(initVal, memBlkSize, {Kernel32.MEMCommit, Kernel32.MEMReserve}, {Kernel32.PageExecuteReadWrite});
+	IF adr = NilVal THEN (* allocation failed *)
+		adr := Kernel32.VirtualAlloc(NilVal, memBlkSize, {Kernel32.MEMCommit}, {Kernel32.PageExecuteReadWrite});
+	END;
+	continue := adr = initVal;
+	Trace.String("expand heap block intVal "); Trace.Int(initVal,1); Trace.Ln;
+	Trace.String("expand heap block memBlkSize "); Trace.Int(memBlkSize,1); Trace.Ln;
+	Trace.String("expand heap block adr "); Trace.Int(adr,1); Trace.Ln;
+	ASSERT(adr # 0);
 
 	IF adr # 0 THEN
 
@@ -973,33 +992,42 @@ BEGIN
 			alignOffset := SHORT(-h MOD StaticBlockSize);
 		END;
 
-		memHeaderAdr := adr + alignOffset;  	(* force alignment of memory block start *)
-		memBlockAdr := memHeaderAdr + MemBlockHeaderSize;
-		memBlock := SYSTEM.VAL(MemoryBlock, memBlockAdr);
-		memBlock.next := NIL;
-		memBlock.startAdr := adr;
-		memBlock.size := memBlkSize;
+		IF continue THEN
+			memBlock := memBlockTail;
+			memBlock.size := memBlock.size + memBlkSize;
 
-		beginBlockAdr := memHeaderAdr + memDescSize;
-		endBlockAdr := adr + memBlkSize - alignOffset;
-		memBlock.beginBlockAdr := beginBlockAdr;
-		memBlock.endBlockAdr := beginBlockAdr;
-		(* upon memory block insertion memBlock.beginBlockAdr = memBlock.endBlockAdr to denote that the memory block has no valid heap blocks yet
-		     - necessary for real-time GC. Memory block end address is set by caller by using SetMemBlockEndAddress after fitting free block in. *)
+			beginBlockAdr := memBlockTail.endBlockAdr;
+			endBlockAdr := beginBlockAdr;
+			INC(endBlockAdr, memBlkSize);
+		ELSE
+			memHeaderAdr := adr + alignOffset;  	(* force alignment of memory block start *)
+			memBlockAdr := memHeaderAdr + MemBlockHeaderSize;
+			memBlock := SYSTEM.VAL(MemoryBlock, memBlockAdr);
+			memBlock.next := NIL;
+			memBlock.startAdr := adr;
+			memBlock.size := memBlkSize;
 
-		(* copy header of memBlockHead to header of memBlock - byte by byte *)
-		memBlockHeadAdr := SYSTEM.VAL(SYSTEM.ADDRESS, memBlockHead);
-		FOR i := 0 TO MemBlockHeaderSize - 1 DO
-			SYSTEM.GET(memBlockHeadAdr - MemBlockHeaderSize + i, ch);
-			SYSTEM.PUT(memBlockAdr - MemBlockHeaderSize + i, ch)
+			beginBlockAdr := memHeaderAdr + memDescSize;
+			endBlockAdr := adr + memBlkSize - alignOffset;
+			memBlock.beginBlockAdr := beginBlockAdr;
+			memBlock.endBlockAdr := beginBlockAdr;
+			(* upon memory block insertion memBlock.beginBlockAdr = memBlock.endBlockAdr to denote that the memory block has no valid heap blocks yet
+			     - necessary for real-time GC. Memory block end address is set by caller by using SetMemBlockEndAddress after fitting free block in. *)
+
+			(* copy header of memBlockHead to header of memBlock - byte by byte *)
+			memBlockHeadAdr := SYSTEM.VAL(SYSTEM.ADDRESS, memBlockHead);
+			FOR i := 0 TO MemBlockHeaderSize - 1 DO
+				SYSTEM.GET(memBlockHeadAdr - MemBlockHeaderSize + i, ch);
+				SYSTEM.PUT(memBlockAdr - MemBlockHeaderSize + i, ch)
+			END;
+
+			(* correct fields *)
+			SYSTEM.PUT(memBlockAdr + HeapBlockOffset, memHeaderAdr + BlockHeaderSize);	(* set reference to header part of memory block correctly *)
+			SYSTEM.PUT(memBlockAdr + TypeDescOffset, 0);										(* set type descriptor field of memory block to default value, memory blocks are not traced by GC *)
+			SYSTEM.PUT(memHeaderAdr + BlockHeaderSize + DataAdrOffset, memBlockAdr);		(* set dataAdr of RecordBlockDesc to correct value *)
+
+			InsertMemoryBlock(memBlock);
 		END;
-
-		(* correct fields *)
-		SYSTEM.PUT(memBlockAdr + HeapBlockOffset, memHeaderAdr + BlockHeaderSize);	(* set reference to header part of memory block correctly *)
-		SYSTEM.PUT(memBlockAdr + TypeDescOffset, 0);										(* set type descriptor field of memory block to default value, memory blocks are not traced by GC *)
-		SYSTEM.PUT(memHeaderAdr + BlockHeaderSize + DataAdrOffset, memBlockAdr);		(* set dataAdr of RecordBlockDesc to correct value *)
-
-		InsertMemoryBlock(memBlock);
 
 		memoryBlock := memBlock;
 	ELSE
