@@ -3,7 +3,7 @@ Refer to the "General ETH Oberon System Source License" contract available at: h
 
 MODULE Heaps;
 
-IMPORT S := SYSTEM, Glue, Trace, Unix, Machine;
+IMPORT S := SYSTEM, Trace, Unix, Machine;
 
 TYPE
 	Address = S.ADDRESS;
@@ -72,6 +72,12 @@ TYPE
 				next{UNTRACED}: FreeBlock;
 			END;
 	
+	FreeList = RECORD 
+				minSize: LONGINT;  
+				first{UNTRACED}: FreeBlock;
+				last{UNTRACED}: FreeBlock
+			END;
+	
 	ProcessQueue* = RECORD
 		head*, tail*: ANY
 	END;
@@ -103,10 +109,7 @@ TYPE
 	PointerOffsets = POINTER TO ARRAY OF Size;
 	
 VAR
-	freeLists: ARRAY MaxFreeLists + 1 OF	RECORD 
-											minSize: LONGINT;  
-											first{UNTRACED}: FreeBlock  
-										END;
+	freeLists: ARRAY MaxFreeLists + 1 OF FreeList;
 
 	candidates: ARRAY 1024 OF  Address;
 	nofcand: LONGINT;
@@ -379,7 +382,16 @@ VAR
 	END MarkDeferred;
 
 
-
+	PROCEDURE AppendFree( VAR freeList: FreeList; block: FreeBlock );
+	BEGIN
+		IF freeList.first = NIL THEN
+			freeList.first := block;  freeList.last := block
+		ELSE
+			freeList.last.next := block;
+			freeList.last := block;
+		END;
+		block.next := NIL
+	END AppendFree;
 	
 	PROCEDURE Recycle( blkAdr: Address; blkSize: Size );
 	VAR i: LONGINT;  block, x: FreeBlock;
@@ -393,8 +405,7 @@ VAR
 		WHILE (freeLists[i].minSize < blkSize) & (i < MaxFreeLists) DO  INC( i )  END;
 		
 		IF i < FreeListBarrier THEN	
-			block.next := freeLists[i].first;
-			freeLists[i].first := block
+			AppendFree( freeLists[i], block )
 		ELSE
 			(* keep them ordered to avoid unnecessary splits *)
 			(* this optimization has positive impact on heap utilization
@@ -422,6 +433,7 @@ VAR
 		FOR i := 0 TO MaxFreeLists DO  
 			freeLists[i].minSize := minSize;
 			freeLists[i].first := NIL;
+			freeLists[i].last := NIL;
 			IF i < FreeListBarrier THEN  INC( minSize, BlockSize )  ELSE  minSize := 2 * minSize  END
 		END;
 		heapAvailable := 0
@@ -627,7 +639,9 @@ VAR
 			block := freeLists[i].first;
 			IF block # NIL THEN  
 				IF block.size + AdrSize >= size THEN
-					 freeLists[i].first := block.next
+					IF block = freeLists[i].last THEN  freeLists[i].first := NIL;  freeLists[i].last := NIL
+					ELSE freeLists[i].first := block.next;  block.next := NIL
+					END;
 				ELSE  (* i = MaxFreeLists *)
 					REPEAT  prev := block;  block := block.next
 					UNTIL (block = NIL) OR (block.size + AdrSize >= size);
@@ -638,6 +652,8 @@ VAR
 		UNTIL (block # NIL) OR (i > MaxFreeLists);
 		RETURN block
 	END FindFreeBlock;
+	
+	
 
 	PROCEDURE GetBlock( size: Size ): Address;   (* size MOD B = 0 *)
 	VAR 
