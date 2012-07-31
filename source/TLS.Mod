@@ -1152,7 +1152,7 @@ TYPE
 			SendHandshake( data, ServerHello, ofs-4, pos-ofs )
 		END SendServerHello;
 
-		PROCEDURE ReceiveClientKeyExchange( data: ARRAY OF CHAR; ofs, len: LONGINT );
+		PROCEDURE ReceiveClientKeyExchange(CONST data: ARRAY OF CHAR; ofs, len: LONGINT );
 			VAR
 				encryptedPremasterSecret, premasterSecret: CryptoBigNumbers.BigNumber;
 				res: BOOLEAN;
@@ -1225,7 +1225,7 @@ TYPE
 			SendHandshake( data, Finished, ofs-4, 12 )
 		END SendFinished;
 
-		PROCEDURE ReceiveFinished( data: ARRAY OF CHAR; ofs, len: LONGINT );
+		PROCEDURE ReceiveFinished(CONST data: ARRAY OF CHAR; ofs, len: LONGINT );
 			VAR
 				seed: ARRAY 36 OF CHAR;
 				verifyData: ARRAY 12 OF CHAR;
