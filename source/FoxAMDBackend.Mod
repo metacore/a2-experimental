@@ -2239,9 +2239,8 @@ TYPE
 						emitter.EmitPrefix (InstructionSet.prfREP);
 						emitter.Emit0(InstructionSet.opMOVSB);
 					END;
-				(* this does not work in the kernel -- for whatever reasons
+				(* this does not work in the kernel -- for whatever reasons *)
 				ELSIF (instruction.op1.mode = IntermediateCode.ModeRegister) & (instruction.op1.register = IntermediateCode.SP) THEN
-					D.String("using backward copying in "); Basic.WriteSegmentedName(D.Log, in.name); D.Ln;
 					MakeOperand(instruction.op3,Low,op3,ecx);
 					t := TemporaryTicket(IntermediateCode.GeneralPurposeRegister, IntermediateCode.int32);
 					TicketToOperand(t, temp);
@@ -2256,14 +2255,15 @@ TYPE
 					emitter.Emit0(InstructionSet.opSTD); (* copy downwards *)
 					emitter.EmitPrefix (InstructionSet.prfREP);
 					emitter.Emit0(InstructionSet.opMOVSB);
-					imm := Assembler.NewImm8(3);
+					imm := Assembler.NewImm8(2);
 					emitter.Emit2(InstructionSet.opMOV, opECX, temp);
 					emitter.Emit2(InstructionSet.opSHR, opECX, imm);
+					imm := Assembler.NewImm8(3);
 					emitter.Emit2(InstructionSet.opSUB, opESI, imm);
 					emitter.Emit2(InstructionSet.opSUB, opEDI, imm);
 					emitter.EmitPrefix (InstructionSet.prfREP);
 					emitter.Emit0(InstructionSet.opMOVSD);
-				*)
+					emitter.Emit0(InstructionSet.opCLD);
 				ELSE
 					MakeOperand(instruction.op3,Low,op3,ecx);
 					t := TemporaryTicket(IntermediateCode.GeneralPurposeRegister, IntermediateCode.int32);
