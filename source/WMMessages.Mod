@@ -210,7 +210,8 @@ TYPE
 				msg.ext := NIL;
 				originator := NIL;
 				RETURN TRUE
-			END
+			END;
+			RETURN FALSE
 		END Handle;
 
 		(* put event into message queue *)
