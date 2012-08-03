@@ -4,7 +4,7 @@ MODULE UnixFiles;   (** AUTHOR "gf"; PURPOSE "Unix file systems" *)
 
 (*  derived fron (SPARCOberon) Files.Mod by J. Templ 1.12. 89/14.05.93 *)
 
-IMPORT S := SYSTEM, Unix, Machine, Heaps, Kernel, Modules, Log := KernelLog, Commands, Files;
+IMPORT S := SYSTEM, Unix, Machine, Heaps, Kernel, Modules, Log := KernelLog, Files;
 
 
 CONST
@@ -129,7 +129,6 @@ TYPE
 				BEGIN {EXCLUSIVE}
 					AwaitFinalizing;
 					NEW( f, SELF );
-					f.newObjectFile := IsObjectFile( name );
 					f.workName := "";  COPY( name, f.registerName );
 					f.fd := NoDesc;  f.state := Create;  f.fsize := 0;  f.fpos := 0;
 					f.swapper := -1;   (*all f.buf[i] = NIL*)
@@ -397,12 +396,11 @@ TYPE
 				fsize, fpos: Size;
 				bufs: ARRAY NBufs OF Buffer;
 				swapper, state: LONGINT;
-				newObjectFile: BOOLEAN;
 
 
 				PROCEDURE & Init( fs: Files.FileSystem );
 				BEGIN
-					SELF.fs := fs;  flags := {};  newObjectFile := FALSE
+					SELF.fs := fs;  flags := {};  
 				END Init;
 
 				
@@ -660,19 +658,17 @@ TYPE
 
 				PROCEDURE Update*;
 				BEGIN {EXCLUSIVE}
-					IF ~newObjectFile THEN  FlushBuffers  END
-					(* ignoring Update for new object files makes compiling 15 times faster! *)
+					FlushBuffers
 				END Update;
 				
 				
 				PROCEDURE FlushBuffers;
-				VAR i, r: LONGINT;
+				VAR i: LONGINT; 
 				BEGIN 
 					IF fd = NoDesc THEN  CreateUnixFile  END;  
-					i := 0;
-					WHILE (i < NBufs) & (bufs[i] # NIL ) DO  Flush( bufs[i] );  INC( i )  END;
-					r := Unix.fsync( fd );
-					IF r < 0 THEN  Halt( SELF, TRUE, "UnixFiles.File.Update: fsync failed" )  END;	
+					FOR i := 0 TO NBufs - 1 DO
+						IF bufs[i] # NIL THEN  Flush( bufs[i] )  END
+					END;
 				END FlushBuffers;
 				
 				
@@ -683,9 +679,9 @@ TYPE
 						IF tempFile THEN  r := Unix.unlink( S.ADR( workName ) )  
 						ELSE  FlushBuffers;
 						END;
-						DEC( openfiles );  fileTab[fd] := 0;
+						fileTab[fd] := 0;
 						r := Unix.close( fd );
-						state := Closed
+						DEC( openfiles );  state := Closed
 					END;
 				END Close;
 				
@@ -924,18 +920,6 @@ TYPE
 	END GetTempName;
 	
 	
-	PROCEDURE IsObjectFile( CONST name: ARRAY OF CHAR ): BOOLEAN;
-	VAR i, p: LONGINT;  suffix: ARRAY 8 OF CHAR;
-	BEGIN
-		i := 0;  suffix := ".Obj";
-		WHILE name[i] # 0X DO  INC( i )  END;
-		IF i < 5 THEN  RETURN FALSE  END;
-		p := i - 4;
-		FOR i := 0 TO 3 DO
-			IF name[p+i] # suffix[i] THEN  RETURN FALSE  END;
-		END;
-		RETURN  TRUE
-	END IsObjectFile;
 
 	
 	PROCEDURE Cleanup( obj: ANY );
@@ -953,7 +937,7 @@ TYPE
 			f := S.VAL( File, fileTab[i] );
 			IF f # NIL THEN  f.Close  END;
 			INC( i )
-		END
+		END;
 	END CloseFiles;
 
 
@@ -998,7 +982,7 @@ TYPE
 		i := 0;
 		WHILE i < FileTabSize DO  fileTab[i] := 0;  INC( i )  END;
 		tempno := 1;  openfiles := 0;  
-		Modules.InstallTermHandler( CloseFiles )
+		Modules.InstallTermHandler( CloseFiles )	
 	END Initialize;
 
 BEGIN
