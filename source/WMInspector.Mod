@@ -580,6 +580,19 @@ TYPE
 			END;
 		END MoveUp;
 
+		PROCEDURE MoveDown(sender, data: ANY);
+		VAR c: WMComponents.VisualComponent; parent: XML.Element;
+		BEGIN
+			WITH data: SelectionWrapper DO
+				c := GetVisualComponent(data);
+				parent := c.GetParent();
+				parent(WMComponents.VisualComponent).RemoveContent(c);
+				parent(WMComponents.VisualComponent).AddContent(c);
+				parent(WMComponents.VisualComponent).Invalidate;
+			END;
+		END MoveDown;
+
+
 		PROCEDURE InvalidateM(sender, data: ANY);
 		VAR c: WMComponents.VisualComponent; parent: XML.Element;
 		BEGIN
@@ -611,6 +624,7 @@ TYPE
 				popup.AddParButton("Toggle EditMode", ToggleEditMode, par);
 				popup.AddParButton("Delete", Delete, par);
 				popup.AddParButton("Up", MoveUp, par);
+				popup.AddParButton("Down", MoveDown, par);
 				popup.AddParButton("Invalidate", InvalidateM, par);
 				formTree.treeView.ToWMCoordinates(x,y, wmx, wmy);
 				popup.Popup(wmx, wmy)
