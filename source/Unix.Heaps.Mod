@@ -122,7 +122,6 @@ VAR
 
 	throuput:  Size;
 	GC*: PROCEDURE;
-	invokeGC*: PROCEDURE;
 	collecting-: BOOLEAN;
 	markDepth: LONGINT;
 
@@ -662,7 +661,9 @@ VAR
 		block: FreeBlock;  blkSize: Size;  blkAdr, adr2: Address;
 	BEGIN
 		IF (throuput > Machine.MemBlockSize) & (Machine.lock[Machine.GC] = 'N') THEN
-			invokeGC;
+			Machine.Release( Machine.Heaps );
+			GC;
+			Machine.Acquire( Machine.Heaps );
 			throuput := 0;
 		END;
 
@@ -670,7 +671,9 @@ VAR
 			block := FindFreeBlock( size );
 			IF block = NIL THEN
 				IF (throuput > 0) & (Machine.lock[Machine.GC] = 'N') THEN
-					invokeGC;
+					Machine.Release( Machine.Heaps );
+					GC;
+					Machine.Acquire( Machine.Heaps );
 					throuput := 0;  
 				ELSE
 					Machine.ExpandHeap( 0, size, S.VAL( Address, block ), adr2 );
@@ -971,8 +974,7 @@ VAR
 			NgcCyclesMark := 0; NgcCyclesLastRun := 0; NgcCyclesMax := 0; NgcCyclesAllRuns := 0;
 		END;
 
-		GC := EmptyProc;			(* no GC until EmptyProc gets replaced (in module Kernel) *)
-		invokeGC := EmptyProc;		(* no GC until EmptyProc gets replaced (in module Objects) *)
+		GC := EmptyProc;			(* no GC until EmptyProc gets replaced (in module Objects) *)
 		nofcand := 0; 
 
 		InitHeap;

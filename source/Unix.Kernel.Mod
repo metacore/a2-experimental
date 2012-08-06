@@ -152,9 +152,7 @@ VAR
 (** Activate the garbage collector immediately. *)
 PROCEDURE GC*;
 BEGIN
-	Machine.Acquire( Machine.Heaps );
-	Objects.InvokeGC;
-	Machine.Release( Machine.Heaps );
+	Heaps.GC
 END GC;
 
 
@@ -201,8 +199,6 @@ END Left;
 BEGIN
 	ASSERT(1000 MOD Second = 0);	(* for Elapsed *)
 	second := Second;
-	
-	Heaps.GC := GC;	(* switch to GC procedure with finalization *)
 	
 	Machine.Acquire(Machine.TraceOutput);
 	Trace.String("Kernel: Initialized and started."); Trace.Ln;
