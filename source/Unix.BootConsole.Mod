@@ -1,6 +1,6 @@
 MODULE BootConsole;
 
-IMPORT S := SYSTEM, Trace, Glue, Unix, Machine, Modules, Objects, Commands;
+IMPORT S := SYSTEM, Trace, Glue, Unix, Modules, Objects, Commands;
 
 TYPE
 	Module = Modules.Module;
@@ -176,7 +176,7 @@ BEGIN
 	StartSystem;
 	
 	Objects.SetPriority( Objects.GCPriority );
-	Machine.GCLoop;
+	Objects.GCLoop;
 END BootConsole.
 
 

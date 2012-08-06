@@ -1,6 +1,6 @@
 MODULE Kernel;	(** AUTHOR "pjm"; PURPOSE "Implementation-independent kernel interface"; *)
 
-IMPORT Trace, Machine, Heaps, Modules, Objects;
+IMPORT Trace, Machine, Heaps, Objects;
 
 CONST
 	TimerFree = 0; TimerSleeping = 1; TimerWoken = 2; TimerExpired = 3;	(* Timer state *)
@@ -15,9 +15,8 @@ TYPE
 	(** Enumerator for FinalizedCollection.Enumerate. *)
 	Enumerator* = PROCEDURE {DELEGATE} (obj: ANY; VAR cont: BOOLEAN);
 
-	FinalizerNode = POINTER TO RECORD (Heaps.FinalizerNode)
+	FinalizerNode = POINTER TO RECORD (Objects.FinalizerNode)
 		nextObj {UNTRACED}: FinalizerNode;	(* in Collection c *)
-		c: FinalizedCollection;					(* collection containing object *)
 	END;
 
 	(** Polling timer. *)
@@ -61,7 +60,7 @@ TYPE
 
 TYPE
 	(** A collection of objects that are finalized automatically by the garbage collector. *)
-	FinalizedCollection* = OBJECT
+	FinalizedCollection* = OBJECT(Objects.FinalizedCollection)
 		VAR root: FinalizerNode;	(* weak list of contents linked by nextObj *)
 
 		(** Add obj to collection. Parameter fin specifies finalizer, or NIL if not required. *)	(* may be called multiple times *)
@@ -144,59 +143,21 @@ TYPE
 
 	END FinalizedCollection;
 
-	FinalizerCaller = OBJECT	(* separate active object that calls finalizers *)
-		VAR n: Heaps.FinalizerNode; activated: BOOLEAN;
 
-		PROCEDURE &Init;
-		BEGIN
-			activated := FALSE
-		END Init;
-
-		PROCEDURE Activate;
-		BEGIN {EXCLUSIVE}
-			activated := TRUE
-		END Activate;
-
-	BEGIN {ACTIVE, SAFE, PRIORITY(Objects.High)}
-		LOOP
-			BEGIN {EXCLUSIVE}
-				AWAIT(activated); activated := FALSE
-			END;
-			LOOP
-				n := Heaps.GetFinalizer();
-				IF n = NIL THEN EXIT END;
-				IF n IS FinalizerNode THEN
-					n(FinalizerNode).c.RemoveAll(n.objStrong)	(* remove it if it is not removed yet *)
-				END;
-				IF n.finalizer # NIL THEN
-					n.finalizer(n.objStrong)	(* may acquire locks *)
-				END
-			END;
-			Machine.Release( Machine.GC )
-		END
-	END FinalizerCaller;
 
 VAR
 	second*: LONGINT;	(** number of timer counts per second (Hz) *)
-	finalizer: FinalizerCaller;
 	
 
 (** Activate the garbage collector immediately. *)
 PROCEDURE GC*;
 BEGIN
 	Machine.Acquire( Machine.Heaps );
-	Machine.InvokeGC;
+	Objects.InvokeGC;
 	Machine.Release( Machine.Heaps );
 END GC;
 
-PROCEDURE DoGC;
-BEGIN
-	Objects.SuspendActivities;
-	Heaps.CollectGarbage( Modules.root );
-	Objects.ResumeActivities;
-		
-	finalizer.Activate  (* finalizers will be called by seperate process *)
-END DoGC;
+
 
 (** -- Timers -- *)
 
@@ -240,9 +201,7 @@ END Left;
 BEGIN
 	ASSERT(1000 MOD Second = 0);	(* for Elapsed *)
 	second := Second;
-	NEW(finalizer);	(* activate finalizer object *)
 	
-	Machine.collectGarbage := DoGC;
 	Heaps.GC := GC;	(* switch to GC procedure with finalization *)
 	
 	Machine.Acquire(Machine.TraceOutput);

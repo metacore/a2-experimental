@@ -6,7 +6,7 @@ IMPORT SYSTEM, Trace, Unix, Glue;
 CONST
 	DefaultConfig = "Color 0  StackSize 256";
 	
-	Version = "Aos (rev.4855)";
+	Version = "Aos (rev.4899)";
 
 	DefaultObjectFileExtension* = ".Obj";
 	
@@ -76,7 +76,7 @@ VAR
 	SSE5Support-	: BOOLEAN;
 	AVXSupport-	: BOOLEAN;
 	
-	ticks-: LONGINT;	(** timer ticks. Use Kernel.GetTicks() to read, don't write *)
+	ticks*: LONGINT;	(** timer ticks. Use Kernel.GetTicks() to read, don't write *)
 	
 	prioLow-, prioHigh-: LONGINT;	(* permitted thread priorities *)
 	
@@ -106,13 +106,7 @@ VAR
 	thrSleep-	: PROCEDURE {REALTIME, C} ( ms: LONGINT );
 
 	saveSP*		: PROCEDURE;		(* save SP for usage by GC *)
-	notifyTimer*	: PROCEDURE{DELEGATE};
-	
-	terminateAos: BOOLEAN;
-	
-	gcFinished: Unix.Condition_t; igc: Unix.Mutex_t;
-	collect: BOOLEAN;
-	collectGarbage*: PROCEDURE;
+
 	
 	logfile: LONGINT;
 
@@ -880,35 +874,7 @@ END ChangeByteOrder;
 	END Shutdown;
 		
 
-	
-	PROCEDURE InvokeGC*;
-	BEGIN
-		Acquire( GC ); (* gets released by Kernel.FinalizerCaller *)
-		collect := TRUE;
-		conWait( gcFinished, igc );
-	END InvokeGC;
-	
-
-	PROCEDURE GCLoop*;	(* Timer and GCActivity *)
-	VAR t0, t1, f: HUGEINT;  d: LONGINT;
-	BEGIN
-		f := mhz * 1000;
-		LOOP
-			IF collect THEN  
-				collect := FALSE;
-				t0 := GetTimer( );
-				collectGarbage;  
-				t1 := GetTimer();
-				conSignal( gcFinished );
-				d := SHORT( (t1 - t0 ) DIV f );
-				INC( ticks, d );	
-			ELSE
-				thrSleep( 10 );  INC( ticks, 10 )
-			END;
-			notifyTimer
-		END
-	END GCLoop;	
-	
+		
 
 	PROCEDURE InitHeap;
 	VAR heapAdr, firstBlock, size: SYSTEM.ADDRESS;  
@@ -964,7 +930,7 @@ END ChangeByteOrder;
 		t1 := GetTimer();
 		mhz := (t1 - t0) DIV 100000;
 		IF Glue.debug # {} THEN
-			Trace.String( "CPU speed: " );  Trace.Int( SHORT( mhz ), 0);  Trace.String( " Mhz" );  Trace.Ln
+			Trace.String( "CPU speed: ~" );  Trace.Int( SHORT( mhz ), 0);  Trace.String( " Mhz" );  Trace.Ln
 		END
 	END CPUSpeed;
 	
@@ -1026,17 +992,14 @@ BEGIN
 		
 	Unix.Dlsym( 0, "thrSleep",		SYSTEM.VAL( Address, thrSleep ) );
 	
-	terminateAos := FALSE;
 	standaloneAppl := FALSE;
 	
 	saveSP := Empty;	(* to be replaced in module Objects *)
-	notifyTimer := Empty; (* to be replaced in Module Objects *)
 	
 	COPY( Unix.version, version );  Append( version, Version );
 	InitThreads;
 	InitLocks;
-	collect := FALSE;
-	igc := mtxInit( 0 );  gcFinished := conInit( 0 );
+
 	InitHeap;
 	InitConfig;
 	InitLog;
