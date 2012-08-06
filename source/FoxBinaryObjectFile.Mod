@@ -1123,6 +1123,8 @@ TYPE
 				IF type = NIL THEN RETURN END; (* no type *)
 
 				type := type.resolved;
+
+				(* fof: thjs can cause a repetitive entry of the same type *)
 				initialType := type;
 				WHILE (type IS SyntaxTree.PointerType) OR (type IS SyntaxTree.ArrayType) OR (type IS SyntaxTree.MathArrayType) DO
 					IF type IS SyntaxTree.PointerType THEN
@@ -1134,6 +1136,7 @@ TYPE
 					END;
 					IF type = initialType THEN RETURN END; (* avoid cycles *)
 				END;
+
 
 				IF (type IS SyntaxTree.RecordType) & (type(SyntaxTree.RecordType).recordScope.ownerModule = module.module)  THEN
 					w.Char(ofEURecord);
@@ -1214,7 +1217,7 @@ TYPE
 				(*! check for duplicate fingerprint *)
 				w.RawNum(offset );
 
-				IF Trace THEN
+				IF Trace  THEN
 					symbol.GetName(name);
 					D.Str("FoxObjectFile.Exports.ExportSymbol ");
 					IF prefix # "" THEN D.Str(prefix); D.Str(".") END;

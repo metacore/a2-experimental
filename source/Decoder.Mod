@@ -4,7 +4,7 @@ MODULE Decoder;
 
 IMPORT SYSTEM, Modules, Streams, MemoryReader, Strings, Files, KernelLog, TextUtilities, Commands, WMGraphics,
 	WMEditors, WMTextView, WMComponents, WMStandardComponents, WMDialogs, WMRestorable, WMTrees, WMMessages,
-	WM := WMWindowManager;
+	WM := WMWindowManager, D:= Debugging;
 
 CONST
 	maxDecoders = 5;
@@ -1327,10 +1327,11 @@ TYPE
 				len := 0;
 				IF fp # 0 THEN NEW(check, exp) END;
 				WHILE fp # 0 DO
+				D.Hex(fp,-8); D.Ln;
 					NEW(export);
 					export.fp := fp;
 					AddExport(export);
-					IF fp = 1 THEN
+					IF (fp = 1) THEN
 						r.RawNum(off);
 						export.val := off;
 						IF off >= 0 THEN
@@ -1341,6 +1342,7 @@ TYPE
 						IF level = 0 THEN
 							r.RawNum(adr);
 							export.val := adr;
+							(*
 							i := 0;
 							WHILE i # len DO
 								IF check[i] = fp THEN
@@ -1351,6 +1353,7 @@ TYPE
 									INC(i)
 								END
 							END;
+							*)
 							check[len] := fp; INC(len)
 						END;
 					END;
@@ -1529,7 +1532,7 @@ TYPE
 		END SkipPointerInProc;
 
 		PROCEDURE &New (CONST fileName : ARRAY OF CHAR);
-		VAR ch : CHAR; tmp : LONGINT; j, res : LONGINT; msg : ARRAY 255 OF CHAR;
+		VAR ch : CHAR; tmp : LONGINT; j, res : LONGINT; msg : ARRAY 255 OF CHAR; pos: LONGINT;
 		BEGIN
 			Init;
 			Strings.GetExtension (fileName, msg, ext);
@@ -1584,6 +1587,7 @@ TYPE
 				SkipConsts;
 				SkipExports;
 				ch := r.Get();
+				pos := r.Pos();
 				ASSERT(ch = 89X);
 
 				(* code section *)
@@ -2062,4 +2066,5 @@ BEGIN
 	Initialize ("AMD64Decoder");
 END Decoder.
 
-S.Free Decoder ~
+SystemTools.FreeDownTo Decoder ~
+WMProperties.Obw
