@@ -4996,6 +4996,7 @@ TYPE
 
 				InitVariable(variable(SyntaxTree.Variable));
 			ELSE
+				InitVariable(variable(SyntaxTree.Variable));
 				(*
 				ASSERT(variable.type.resolved = type.resolved)
 				*)
@@ -7639,7 +7640,7 @@ TYPE
 				END;
 
 				ParameterCopies(procedureType);
-				InitVariables(scope);
+					InitVariables(scope);
 				IF x.code = NIL THEN
 					VisitStatementBlock(x);
 				ELSE
