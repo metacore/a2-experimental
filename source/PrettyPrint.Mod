@@ -18,10 +18,27 @@ CONST PPDir = "PPr";
 		END;
 		RETURN FALSE
 	END CheckSubDirectory;
+	
+	PROCEDURE LowerCase( CONST fname: ARRAY OF CHAR ): BOOLEAN;
+	VAR i, p: LONGINT;  ch: CHAR;  suffix: ARRAY 32 OF CHAR;
+	BEGIN
+		i := 0;
+		WHILE fname[i] # 0X DO
+			IF fname[i] = '.' THEN  p := i END;
+			INC( i )
+		END;
+		i := 0;  ch := fname[p];  INC( p );
+		WHILE ch # 0X DO
+			suffix[i] := ch;  INC( i );
+			ch := fname[p];  INC( p )
+		END;
+		suffix[i] := 0X;
+		RETURN suffix = ".Modl"
+	END LowerCase;
 
-
-	(*  create syntax highlighted Oberon texts of the program sources in subdir PPr *)
-	PROCEDURE Do*( context: Commands.Context );	(*  {filename} ~ *)
+	(* convert program sources into syntax highlighted Oberon Texts in subdir 'PPr' *)
+	
+	PROCEDURE Convert*( context: Commands.Context );	(*  {filename} ~ *)
 	VAR 
 		fileName: ARRAY 64 OF CHAR;  res: LONGINT;
 		src, dest, cmd, msg: ARRAY 128 OF CHAR;
@@ -29,7 +46,7 @@ CONST PPDir = "PPr";
 		out, err: Streams.Writer;
 	BEGIN
 		out := context.out;  err := context.error;
-		out.String( "PrettyPrint.Do" ); out.Ln;
+		out.String( "PrettyPrint.Convert" ); out.Ln;
 		IF ~CheckSubDirectory( PPDir ) THEN  Files.CreateDirectory( PPDir, res )  END;
 		WHILE context.arg.GetString( fileName ) DO
 			out.String( "    " );  out.String( fileName );  out.Update;
@@ -43,8 +60,12 @@ CONST PPDir = "PPr";
 				Files.CopyFile( src, dest, overwrite, res );
 
 				cmd := "SEQ TextConverter.Oberon ";  Strings.Append( cmd, dest );
-				Strings.Append( cmd, ";SyntaxHighlighter.Highlight " );
-				Strings.Append( cmd, dest );  Strings.Append( cmd, " Oberon" );
+				Strings.Append( cmd, ";SyntaxHighlighter.Highlight " );  Strings.Append( cmd, dest );  
+				IF LowerCase( fileName ) THEN
+					Strings.Append( cmd, " LowercaseOberon" )
+				ELSE
+					Strings.Append( cmd, " Oberon" )
+				END;
 				Commands.Call( cmd, {}, res, msg );
 				IF res # 0 THEN
 					err.String( msg );  err.Ln;  err.Update;
@@ -54,16 +75,23 @@ CONST PPDir = "PPr";
 				END
 			END
 		END
-	END Do;
+	END Convert;
 
 END PrettyPrint.
 
-	(*
+(* ---------------------------------------------------------- *)
 
-	PrettyPrint.Do  TestProgram.Mod  PrettyPrint.Mod Unix.Objects.Mod ~
-
-	The real printing can be done in the Oberon subsystem:
-		
-		Desktops.PrintDoc  <printer name>	PPr/PrettyPrint.Mod ~
+	PrettyPrint.Convert  
+		<modname>.Mod  <modname>.Mod ... ~
 	
-	*)
+	(* for lower case keywords use the suffix '.Modl' *)
+	PrettyPrint.Convert 
+		<modname>.Modl ... ~
+
+	The real printing on a postscript printer can be done in the Oberon subsystem:
+		
+		Desktops.PrintDoc  <printer name>	PPr/<modname>.Mod ~
+	
+(* ----------------------------------------------------------- *)
+
+
