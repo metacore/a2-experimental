@@ -1014,7 +1014,7 @@ TYPE
 				INC(i)
 			END;
 			enumerator.Close;
-			SortDir
+			IF fullView THEN SortDirDate ELSE SortDir END;
 		END ScanPath;
 
 		PROCEDURE StartNewPath*(path : Strings.String);
@@ -1059,6 +1059,32 @@ TYPE
 				dir[R] := x
 			END
 		END SortDir;
+
+		(* binary insertion algorithm from "Algorithms and Data Structures" by N. Wirth *)
+		PROCEDURE SortDirDate;
+		VAR
+			i, j, m, L, R : LONGINT;
+			x : DirEntry;
+			dirTime,dirDate:LONGINT;
+			dirFlag, xFlag: SHORTINT;
+		BEGIN
+			FOR i := 1 TO LEN(dir) - 1 DO
+				x := dir[i]; L := 0; R := i;
+				IF Files.Directory IN x.flags THEN xFlag := 0 ELSE xFlag := 1 END;
+				WHILE L < R DO
+					m := (L + R) DIV 2; 
+					dirTime := dir[m].time; dirDate:= dir[m].date; 
+					IF Files.Directory IN dir[m].flags THEN dirFlag := 0 ELSE dirFlag := 1 END;
+					IF (dirFlag < xFlag) OR ((dirFlag=xFlag) & ((dirDate< x.date) OR ((dirDate=x.date)&(dirTime<x.time)))) THEN
+						R := m
+					ELSE
+						L := m + 1
+					END
+				END;
+				FOR j := i TO R + 1 BY -1 DO dir[j] := dir[j - 1] END;
+				dir[R] := x
+			END
+		END SortDirDate;
 
 	END FileList;
 
