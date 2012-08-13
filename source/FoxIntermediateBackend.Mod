@@ -29,6 +29,7 @@ CONST
 		TensorFlag* = 0;   (* flag indicating a tensor array *)
 		RangeFlag* = 1;   (* flag indicating a range, e.g. an array derived from A[..,..] *)
 		StackFlag* = 2;   (* flag indicates temporary result *)
+		StaticFlag* = 1;   (* flag indicating a static array, may not be reallocated *)
 
 		(** compiler generated traps *)
 		WithTrap* = 1; (* generated when a WITH statement fails *)
@@ -3329,7 +3330,7 @@ TYPE
 						PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
 						PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
 						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+						PutMathArrayField(arrayDestinationTag,IntermediateCode.Immediate(addressType,SYSTEM.VAL(LONGINT,{StaticFlag})),MathFlagsOffset);
 						baseType := SemanticChecker.ArrayBase(type,dim);
 						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
@@ -3376,7 +3377,7 @@ TYPE
 							PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
 							PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
 							PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-							PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+							PutMathArrayField(arrayDestinationTag, IntermediateCode.Immediate(addressType,SYSTEM.VAL(LONGINT,{StaticFlag})),MathFlagsOffset);
 							baseType := SemanticChecker.ArrayBase(type,dim);
 							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 							PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
@@ -3408,7 +3409,7 @@ TYPE
 						PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
 						PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
 						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+						PutMathArrayField(arrayDestinationTag,IntermediateCode.Immediate(addressType,SYSTEM.VAL(LONGINT,{StaticFlag})),MathFlagsOffset);
 						baseType := SemanticChecker.ArrayBase(type,dim);
 						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
@@ -3463,7 +3464,7 @@ TYPE
 							PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
 							PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
 							PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-							PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+							PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (* static flag ? *)
 							baseType := SemanticChecker.ArrayBase(type,dim);
 							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 							PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
@@ -3497,7 +3498,7 @@ TYPE
 						PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
 						PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
 						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+						PutMathArrayField(arrayDestinationTag,IntermediateCode.Immediate(addressType,SYSTEM.VAL(LONGINT,{StaticFlag})),MathFlagsOffset);
 						baseType := SemanticChecker.ArrayBase(type,dim);
 						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
@@ -3562,7 +3563,7 @@ TYPE
 							PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
 							PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
 							PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-							PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+							PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset);
 							baseType := SemanticChecker.ArrayBase(type,dim);
 							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 							PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
@@ -3604,7 +3605,7 @@ TYPE
 						PutMathArrayField(arrayDestinationTag,dimOp,MathDimOffset);
 						PutMathArrayField(arrayDestinationTag,operand.op,MathAdrOffset);
 						PutMathArrayField(arrayDestinationTag,nil,MathPtrOffset);
-						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset); (*! set static flag *)
+						PutMathArrayField(arrayDestinationTag,IntermediateCode.Immediate(addressType,SYSTEM.VAL(LONGINT,{StaticFlag})),MathFlagsOffset);
 						baseType := SemanticChecker.ArrayBase(type,dim);
 						tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,system.AlignedSizeOf(baseType)));
 						PutMathArrayField(arrayDestinationTag,tmp,MathElementSizeOffset);
@@ -7640,7 +7641,7 @@ TYPE
 				END;
 
 				ParameterCopies(procedureType);
-					InitVariables(scope);
+				InitVariables(scope);
 				IF x.code = NIL THEN
 					VisitStatementBlock(x);
 				ELSE
