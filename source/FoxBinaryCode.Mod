@@ -465,6 +465,7 @@ TYPE
 				FOR i := 0 TO fixup.patterns-1 DO
 					INC(nobits,fixup.pattern[i].bits);
 				END;
+				IF fixup.mode = Relative THEN DEC(nobits) END;
 				remainder := ASH(address,-nobits);
 				RETURN (nobits >31) OR (remainder = 0) OR (remainder = -1)
 			END CheckBits;
