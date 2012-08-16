@@ -10,7 +10,7 @@ TYPE
 
 	Window* = OBJECT (WMComponents.FormWindow)
 	VAR
-		editor : WMDocumentEditor.Editor;
+		editor- : WMDocumentEditor.Editor;
 
 		PROCEDURE &New*(c : WMRestorable.Context);
 		BEGIN
