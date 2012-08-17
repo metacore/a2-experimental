@@ -555,6 +555,28 @@ TYPE
 			c.editMode.Set(~ c.editMode.Get());
 		END ToggleEditMode;
 
+
+		PROCEDURE UpdateNode(tree: WMTrees.Tree; node: WMTrees.TreeNode; cParent: WMComponents.VisualComponent);
+		VAR child, parent: WMTrees.TreeNode; enum : XMLObjects.Enumerator; p: ANY;
+		BEGIN
+			tree.Acquire;
+			parent := tree.GetParent(node);
+			child := tree.GetChildren(parent);
+			WHILE child # NIL DO
+				tree.RemoveNode(child);
+				child := tree.GetChildren(parent);
+			END;
+			enum := cParent.GetContents();
+			WHILE enum.HasMoreElements() DO
+				p := enum.GetNext();
+				IF (p IS WMComponents.Component) THEN
+					currentTree.AddComponents(p(WMComponents.Component), parent);
+				END;
+			END;
+			tree.Release;
+		END UpdateNode;
+
+
 		PROCEDURE Delete(sender, data: ANY);
 		VAR c: WMComponents.VisualComponent; parent: XML.Element;
 		BEGIN
@@ -570,28 +592,58 @@ TYPE
 		END Delete;
 
 		PROCEDURE MoveUp(sender, data: ANY);
-		VAR c: WMComponents.VisualComponent; parent: XML.Element;
+		VAR c: WMComponents.VisualComponent; parent: XML.Element; treeParent: WMTrees.TreeNode;
 		BEGIN
 			WITH data: SelectionWrapper DO
 				c := GetVisualComponent(data);
 				parent := c.GetParent();
-				parent(WMComponents.VisualComponent).ContentToFront(c);
-				parent(WMComponents.VisualComponent).Invalidate;
+				parent.RemoveContent(c);
+				parent.MoveContentBefore(c, NIL);
+				UpdateNode(data.tree, data.node, parent(WMComponents.VisualComponent));
 			END;
 		END MoveUp;
 
 		PROCEDURE MoveDown(sender, data: ANY);
-		VAR c: WMComponents.VisualComponent; parent: XML.Element;
+		VAR c: WMComponents.VisualComponent; parent: XML.Element;treeParent: WMTrees.TreeNode;
 		BEGIN
 			WITH data: SelectionWrapper DO
 				c := GetVisualComponent(data);
 				parent := c.GetParent();
-				parent(WMComponents.VisualComponent).RemoveContent(c);
-				parent(WMComponents.VisualComponent).AddContent(c);
+				parent.MoveContentAfter(c, NIL);
 				parent(WMComponents.VisualComponent).Invalidate;
+				UpdateNode(data.tree, data.node, parent(WMComponents.VisualComponent));
 			END;
 		END MoveDown;
 
+		PROCEDURE MoveOneDown(sender, data: ANY);
+		VAR c: WMComponents.VisualComponent; parent: XML.Element; next: XML.Content; treeParent, nextTreeNode: WMTrees.TreeNode;
+		BEGIN
+			WITH data: SelectionWrapper DO
+				c := GetVisualComponent(data);
+				parent := c.GetParent();
+				next := parent.GetNext(c);
+				IF next # NIL THEN
+					parent.MoveContentAfter(c,next);
+					parent(WMComponents.VisualComponent).Invalidate;
+					UpdateNode(data.tree, data.node, parent(WMComponents.VisualComponent));
+				END;
+			END;
+		END MoveOneDown;
+
+		PROCEDURE MoveOneUp(sender, data: ANY);
+		VAR c: WMComponents.VisualComponent; parent: XML.Element; previous: XML.Content;treeParent, previousTreeNode: WMTrees.TreeNode;
+		BEGIN
+			WITH data: SelectionWrapper DO
+				c := GetVisualComponent(data);
+				parent := c.GetParent();
+				previous := parent.GetPrevious(c);
+				IF previous  # NIL THEN
+					parent.MoveContentBefore(c,previous);
+					parent(WMComponents.VisualComponent).Invalidate;
+					UpdateNode(data.tree, data.node, parent(WMComponents.VisualComponent));
+				END;
+			END;
+		END MoveOneUp;
 
 		PROCEDURE InvalidateM(sender, data: ANY);
 		VAR c: WMComponents.VisualComponent; parent: XML.Element;
@@ -624,6 +676,8 @@ TYPE
 				popup.AddParButton("Toggle EditMode", ToggleEditMode, par);
 				popup.AddParButton("Delete", Delete, par);
 				popup.AddParButton("Up", MoveUp, par);
+				popup.AddParButton("OneUp", MoveOneUp, par);
+				popup.AddParButton("OneDown", MoveOneDown, par);
 				popup.AddParButton("Down", MoveDown, par);
 				popup.AddParButton("Invalidate", InvalidateM, par);
 				formTree.treeView.ToWMCoordinates(x,y, wmx, wmy);

@@ -92,16 +92,75 @@ TYPE
 			nofContents := 0;
 		END Init;
 
-		PROCEDURE ContentToFront*(c: Content);
+		PROCEDURE RemoveContent0(c: Content): BOOLEAN;
+		VAR cur : Content;
 		BEGIN
-			RemoveContent(c);
-			BEGIN{EXCLUSIVE}
-				c.next := first;
-				c.previous := NIL;
-				first := c;
-				INC(nofContents);
+			ASSERT(c # NIL);
+			IF (first # NIL) THEN
+				IF (first = c) THEN
+					IF (first.next # NIL) THEN first.next.previous := NIL; END;
+					first := first.next;
+					IF (last = c) THEN last := NIL; ASSERT(first = NIL); END;
+					c.next := NIL; c.previous := NIL;
+					RETURN TRUE
+				ELSE
+					cur := first;
+					WHILE (cur.next # NIL) & (cur.next # c) DO cur := cur.next; END;
+					IF (cur.next # NIL) THEN
+						IF (cur.next.next # NIL) THEN cur.next.next.previous := cur; END;
+						cur.next := cur.next.next;
+						IF (last = c) THEN last := cur; ASSERT(cur.next = NIL); END;
+						c.next := NIL; c.previous := NIL;
+						RETURN TRUE
+					END;
+				END;
 			END;
-		END ContentToFront;
+			RETURN FALSE
+		END RemoveContent0;
+
+		(* Move this after previous. If previous = NIL then move this to end *)
+		PROCEDURE MoveContentAfter*(this, previous: Content);
+		VAR current: Content;
+		BEGIN{EXCLUSIVE}
+			IF RemoveContent0(this) THEN
+				IF (previous = NIL) OR (previous = last) THEN (* insert as last *)
+					IF last = NIL THEN
+						first := this; last := this
+					ELSE
+						last.next := this;
+						this.previous := last;
+						last := this;
+					END;
+				ELSE
+					this.next := previous.next;
+					this.next.previous := this;
+					previous.next := this;
+					this.previous := previous;
+				END
+			END;
+		END MoveContentAfter;
+
+		(* Move this before next. If next = NIL then move this to front *)
+		PROCEDURE MoveContentBefore*(this, next: Content);
+		VAR current: Content;
+		BEGIN{EXCLUSIVE}
+			IF RemoveContent0(this) THEN
+				IF (next = NIL) OR (next = first) THEN (* insert as first *)
+					IF first = NIL THEN
+						first := this; last := this
+					ELSE
+						this.next := first;
+						first.previous := this;
+						first := this;
+					END;
+				ELSE
+					next.previous.next := this;
+					this.previous := next.previous;
+					this.next := next;
+					next.previous := this;
+				END;
+			END;
+		END MoveContentBefore;
 
 		PROCEDURE AddContent*(c: Content);
 		BEGIN {EXCLUSIVE}
@@ -120,28 +179,9 @@ TYPE
 		END AddContent;
 
 		PROCEDURE RemoveContent*(c: Content);
-		VAR cur : Content;
+		VAR b: BOOLEAN;
 		BEGIN {EXCLUSIVE}
-			ASSERT(c # NIL);
-			IF (first # NIL) THEN
-				IF (first = c) THEN
-					IF (first.next # NIL) THEN first.next.previous := NIL; END;
-					first := first.next;
-					IF (last = c) THEN last := NIL; ASSERT(first = NIL); END;
-					DEC(nofContents);
-					c.next := NIL; c.previous := NIL;
-				ELSE
-					cur := first;
-					WHILE (cur.next # NIL) & (cur.next # c) DO cur := cur.next; END;
-					IF (cur.next # NIL) THEN
-						IF (cur.next.next # NIL) THEN cur.next.next.previous := cur; END;
-						cur.next := cur.next.next;
-						IF (last = c) THEN last := cur; ASSERT(cur.next = NIL); END;
-						DEC(nofContents);
-						c.next := NIL; c.previous := NIL;
-					END;
-				END;
-			END;
+			IF RemoveContent0(c) THEN DEC(nofContents) END
 		END RemoveContent;
 
 		PROCEDURE GetContents*(): Objects.Enumerator;
