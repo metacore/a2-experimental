@@ -653,6 +653,156 @@ TYPE
 		END CreateEditor;
 
 	END RectanglePropertyView;
+	
+TYPE 
+	PointPropertyView = OBJECT(PropertyView)
+	VAR
+		point : WMProperties.PointProperty;
+		editX, editY : WMEditors.TextField;
+		enabled, outOfDate : SET;
+
+		PROCEDURE &New(wh : BOOLEAN);
+		BEGIN
+			Init;
+			SetNameAsString(StrPointPropertyView);
+			ofsInfo := -1;
+			CreateEditor("X:", editX, 50);
+			CreateEditor("Y:", editY, 0);
+			enabled := {0..5};
+			outOfDate := {};
+		END New;
+
+		PROCEDURE UpdateEditorStates;
+
+			PROCEDURE UpdateState(editor : WMEditors.TextField; number: LONGINT);
+			BEGIN
+				IF (number IN enabled) THEN
+					editor.enabled.Set(TRUE);
+					IF (number IN outOfDate) THEN
+						editor.fillColor.Set(LONGINT(0FFFF0099H));
+					ELSE
+						editor.fillColor.Set(WMGraphics.White);
+					END;
+				ELSE
+					editor.enabled.Set(FALSE);
+					editor.fillColor.Set(0CCCCCCCCH);
+				END;
+			END UpdateState;
+
+		BEGIN
+			UpdateState(editX, 0);
+			UpdateState(editY, 1);
+		END UpdateEditorStates;
+
+		PROCEDURE Apply(force : BOOLEAN);
+		VAR point : WMProperties.PointProperty; pnt, p : WMGraphics.Point2d; string : ARRAY 32 OF CHAR;
+		BEGIN
+			point := SELF.point;
+			IF (point # NIL) THEN
+				editX.GetAsString(string); Strings.StrToInt(string, pnt.x);
+				editY.GetAsString(string); Strings.StrToInt(string, pnt.y);
+				p := point.Get();
+				IF force OR (p.x#pnt.x) OR (p.y#pnt.y)  THEN
+					point.Set(pnt);
+				ELSE
+					SetOutOfDate({});
+				END;
+			END;
+		END Apply;
+
+		PROCEDURE Synchronize(force : BOOLEAN);
+		VAR point : WMProperties.PointProperty; pnt : WMGraphics.Point2d; string : ARRAY 32 OF CHAR;
+		BEGIN
+			point := SELF.point;
+			IF (point # NIL) & (force OR (lastTimestamp # point.GetTimestamp())) THEN
+				lastTimestamp := point.GetTimestamp();
+				pnt := point.Get();
+				Strings.IntToStr(pnt.x, string); editX.SetAsString(string);
+				Strings.IntToStr(pnt.y, string); editY.SetAsString(string);
+				SetOutOfDate({});
+			END;
+		END Synchronize;
+
+		PROCEDURE IsCompatible(property : WMProperties.Property) : BOOLEAN;
+		BEGIN
+			RETURN (property # NIL) & (property IS WMProperties.PointProperty);
+		END IsCompatible;
+
+		PROCEDURE Enable;
+		BEGIN
+			UpdateEditorStates;
+		END Enable;
+
+		PROCEDURE Disable;
+		BEGIN
+			editX.enabled.Set(FALSE); editY.enabled.Set(FALSE); 
+		END Disable;
+
+		PROCEDURE SetProperty(property : WMProperties.Property);
+		BEGIN
+			ASSERT((property = NIL) OR ((property # NIL) & (property IS WMProperties.PointProperty)));
+			SetProperty^(property);
+			IF (property # NIL) THEN
+				SELF.point := property (WMProperties.PointProperty);
+			ELSE
+				SELF.point := NIL;
+				editX.SetAsString(""); editY.SetAsString(""); 
+			END;
+		END SetProperty;
+
+		PROCEDURE SetEnabled(value : SET);
+		BEGIN
+			IF (value # enabled) THEN
+				enabled := value;
+				UpdateEditorStates;
+			END;
+		END SetEnabled;
+
+		PROCEDURE SetOutOfDate(value : SET);
+		BEGIN
+			IF (outOfDate # value) THEN
+				outOfDate := value;
+				UpdateEditorStates;
+			END;
+		END SetOutOfDate;
+
+		PROCEDURE EditorContentChanged(sender, data : ANY);
+		VAR s : SET;
+		BEGIN
+			s := outOfDate;
+			IF (sender = editX) THEN INCL(s, 0);
+			ELSIF (sender = editY) THEN INCL(s, 1);
+			END;
+			SetOutOfDate(s);
+		END EditorContentChanged;
+
+		PROCEDURE EnterPressed(sender, data : ANY);
+		BEGIN
+			Apply(FALSE);
+		END EnterPressed;
+
+		PROCEDURE CreateEditor(CONST caption : ARRAY OF CHAR; VAR editor : WMEditors.TextField; leftBearing : LONGINT);
+		VAR label : WMStandardComponents.Label;
+		BEGIN
+			NEW(label); label.alignment.Set(WMComponents.AlignLeft);
+			label.bounds.SetWidth(50);
+			label.alignH.Set(WMGraphics.AlignCenter);
+			label.caption.SetAOC(caption);
+			IF (leftBearing # 0) THEN
+				label.bearing.Set(WMRectangles.MakeRect(leftBearing, 0, 0, 0));
+			END;
+			AddContent(label);
+
+			NEW(editor); editor.alignment.Set(WMComponents.AlignLeft);
+			editor.bounds.SetWidth(40);
+			editor.onEnter.Add(EnterPressed);
+			editor.onChanged.Add(EditorContentChanged);
+			editor.type.Set(WMEditors.Decimal);
+			AddContent(editor);
+		END CreateEditor;
+
+	END PointPropertyView;
+
 
 TYPE
 
@@ -2121,6 +2271,7 @@ TYPE
 			referenceView : ReferencePropertyView;
 			fontView : FontPropertyView;
 			rectangleView : RectanglePropertyView;
+			pointView: PointPropertyView;
 			stringView : StringPropertyView;
 			colorView : ColorPropertyView;
 			unknownView : UnknownPropertyView;
@@ -2165,6 +2316,13 @@ TYPE
 							content.AddContent(rectangleView);
 							list.Add(rectangleView);
 							INC(height, rectangleView.bounds.GetHeight());
+							INC(nofElements);
+							
+						ELSIF (property IS WMProperties.PointProperty) THEN
+							NEW(pointView, TRUE); pointView.SetProperty(property (WMProperties.PointProperty));
+							content.AddContent(pointView);
+							list.Add(pointView);
+							INC(height, pointView.bounds.GetHeight());
 							INC(nofElements);
 						ELSIF  (property IS WMProperties.ColorProperty) THEN
 							NEW(colorView); colorView.SetProperty(property (WMProperties.ColorProperty));
@@ -3381,7 +3539,8 @@ VAR
 
 	StrNotAvailable, StrNoCaption, StrType,
 	StrComponentInfo, StrStandardProperties, StrExtendedProperties, StrExtendedPropertiesView, StrEventListeners, StrEventSources,
-	StrBooleanPropertyView, StrInt32PropertyView, StrRealPropertyView, StrRectanglePropertyView, StrStringPropertyView,
+	StrBooleanPropertyView, StrInt32PropertyView, StrRealPropertyView, StrRectanglePropertyView, StrPointPropertyView, 
+	StrStringPropertyView,
 	StrColorPropertyView, StrEventSourceView, StrEventListenerView, StrUnknownPropertyView,
 	StrFontPropertyView, StrReferencePropertyView, StrAlignmentPropertyView, StrModelView : Strings.String;
 	StrBoolean, StrInteger, StrBoundedInteger, StrReal, StrLongreal, StrChar,
@@ -3489,6 +3648,7 @@ BEGIN
 	ELSIF (property IS WMProperties.Int32Property) THEN string := "Integer";
 	ELSIF (property IS WMProperties.StringProperty) THEN string := "String";
 	ELSIF (property IS WMProperties.RectangleProperty) THEN string := "Rectangle";
+	ELSIF (property IS WMProperties.PointProperty) THEN string := "Point";
 	ELSIF (property IS WMProperties.ColorProperty) THEN string := "Color";
 	ELSE
 		string := "Other";
@@ -3533,6 +3693,7 @@ BEGIN
 	StrInt32PropertyView := Strings.NewString("Int32PropertyView");
 	StrRealPropertyView := Strings.NewString("RealPropertyView");
 	StrRectanglePropertyView := Strings.NewString("RectanglePropertyView");
+	StrPointPropertyView := Strings.NewString("PointPropertyView");
 	StrStringPropertyView := Strings.NewString("StringPropertyView");
 	StrColorPropertyView := Strings.NewString("ColorPropertyView");
 	StrFontPropertyView := Strings.NewString("FontPropertyView");
@@ -3562,3 +3723,5 @@ BEGIN
 	InitStrings;
 	Modules.InstallTermHandler(Cleanup);
 END WMInspectionComponents.
+
+SystemTools.FreeDownTo WMInspectionComponents ~

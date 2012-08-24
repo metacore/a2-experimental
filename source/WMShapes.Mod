@@ -19,7 +19,7 @@ TYPE
 		arrowAtStart-, arrowAtEnd-:WMProperties.BooleanProperty;
 		arrowAtStartI, arrowAtEndI: BOOLEAN;		
 
-		PROCEDURE &Init;
+		PROCEDURE &Init*;
 		BEGIN
 			Init^;
 			SetGenerator("WMShapes.GenLine");
@@ -38,23 +38,37 @@ TYPE
 			arrowAtEnd.Set(TRUE); arrowAtEndI := arrowAtEnd.Get();
 		END Init;
 
-		PROCEDURE PropertyChanged(sender, property : ANY);
+		PROCEDURE PropertyChanged*(sender, property : ANY);
+		VAR x0,y0,x1,y1:LONGINT; rect: WMRectangles.Rectangle;
 		BEGIN
-			IF (property = color) THEN colorI := color.Get(); Invalidate;
-			ELSIF (property = isVertical) THEN	isVerticalI := isVertical.Get(); Invalidate;
-			ELSIF (property = start) THEN	startI := start.Get(); Invalidate;
+			IF (property = color) THEN colorI := color.Get(); Invalidate; KernelLog.String("color changed0 "); KernelLog.Int(colorI,8); KernelLog.Ln;
+			ELSIF (property = isVertical) THEN isVerticalI := isVertical.Get(); Invalidate;
+			ELSIF (property = start) THEN	 startI := start.Get(); Invalidate;
 			ELSIF (property = end) THEN	endI := end.Get(); Invalidate;
 			ELSIF (property = arrowAtStart) THEN arrowAtStartI := arrowAtStart.Get(); Invalidate;
 			ELSIF (property = arrowAtEnd) THEN	arrowAtEndI := arrowAtEnd.Get(); Invalidate;
 			ELSE PropertyChanged^(sender, property);
 			END;
+			(*
+			IF (property = start) OR (property = end) THEN 
+				rect:=bounds.Get();
+				x0:=startI.x+rect.l; y0:=startI.y+rect.t; x1:=endI.x+rect.l; y1:=endI.y+rect.t;
+				rect:=WMRectangles.MakeRect(MIN(x0,x1)-5, MIN(y0,y1)-5, MAX(x0, x1)+5, MAX(y0,y1)+5); (* add border for arrowhead display *)
+				bounds.Set(rect);
+				startI.x:=x0-rect.l; startI.y:= y0-rect.t; start.Set(startI);
+				endI.x:=x1-rect.l; endI.y:= y1-rect.t; end.Set(endI)
+			END;
+			Invalidate;
+			*)
 		END PropertyChanged;
 
-		PROCEDURE Set*(x0,y0, x1, y1: LONGINT); (*! to do: refine arrowhead*)
+		PROCEDURE Set*(x0,y0, x1, y1: LONGINT); 
 		VAR rect:WMRectangles.Rectangle; 
 		BEGIN
-			rect:=WMRectangles.MakeRect(MIN(x0,x1)-5, MIN(y0,y1)-5, MAX(x0, x1)+5, MAX(y0,y1)+5); (*add size for arrowhead*)
+			
+			rect:=WMRectangles.MakeRect(MIN(x0,x1)-5, MIN(y0,y1)-5, MAX(x0, x1)+5, MAX(y0,y1)+5); (* add border for arrowhead display *)
 			bounds.Set(rect);
+			
 			start.SetCoordinate(x0-rect.l, y0-rect.t);	PropertyChanged(SELF, start);
 			end.SetCoordinate(x1-rect.l, y1-rect.t);	PropertyChanged(SELF, end);	
 		END Set;
@@ -82,7 +96,7 @@ TYPE
 			arrowAtEnd.Set(1 IN arrows); PropertyChanged(SELF, arrowAtEnd);
 		END SetArrowheads;
 		
-		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
+		PROCEDURE DrawBackground*(canvas : WMGraphics.Canvas);
 		CONST pi=3.1516; headscale= 0.25;
 		VAR  alpha: REAL;
 			dx,dy: LONGINT;
@@ -98,6 +112,10 @@ TYPE
 				IF arrowAtEndI THEN
 					canvas.Line(endI.x,endI.y, endI.x - ENTIER(0.5+head * Math.cos(alpha + pi/8)), endI.y - ENTIER(0.5+head * Math.sin(alpha + pi/8)), colorI, WMGraphics.ModeSrcOverDst);
 					canvas.Line(endI.x,endI.y, endI.x - ENTIER(0.5+head * Math.cos(alpha - pi/8)), endI.y - ENTIER(0.5+head * Math.sin(alpha - pi/8)), colorI, WMGraphics.ModeSrcOverDst);
+				END;
+				IF arrowAtStartI THEN
+					canvas.Line(startI.x,startI.y, startI.x + ENTIER(0.5+head * Math.cos(alpha + pi/8)), startI.y + ENTIER(0.5+head * Math.sin(alpha + pi/8)), colorI, WMGraphics.ModeSrcOverDst);
+					canvas.Line(startI.x,startI.y, startI.x + ENTIER(0.5+head * Math.cos(alpha - pi/8)), startI.y + ENTIER(0.5+head * Math.sin(alpha - pi/8)), colorI, WMGraphics.ModeSrcOverDst);
 				END
 			END;
 		END DrawBackground;
