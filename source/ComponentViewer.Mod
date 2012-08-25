@@ -2,7 +2,7 @@ MODULE ComponentViewer;	(** AUTHOR "TF"; PURPOSE "Testbed for the component syst
 
 IMPORT
 	Modules, Commands, Options, XML, Repositories, WMMessages, WMWindowManager, WMComponents,
-	WMRestorable, Streams, D:= Debugging, Files;
+	WMRestorable, Streams, D:= Debugging, Files, WMRectangles;
 
 CONST
 	DefaultWidth = 320;

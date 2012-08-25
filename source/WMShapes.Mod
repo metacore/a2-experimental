@@ -1,5 +1,5 @@
 MODULE WMShapes; (** AUTHOR "staubesv, PH"; PURPOSE "Basic geormetric shapes as visual components"; *)
-
+(*! to do: thread safety*)
 IMPORT
 	Strings, XML, WMRectangles, WMGraphics, WMGraphicUtilities, WMProperties, WMComponents, Math, KernelLog;
 
@@ -39,38 +39,39 @@ TYPE
 		END Init;
 
 		PROCEDURE PropertyChanged*(sender, property : ANY);
-		VAR x0,y0,x1,y1:LONGINT; rect: WMRectangles.Rectangle;
+		VAR dx, dy :LONGINT; rect, rect0: WMRectangles.Rectangle; 
 		BEGIN
-			IF (property = color) THEN colorI := color.Get(); Invalidate; KernelLog.String("color changed0 "); KernelLog.Int(colorI,8); KernelLog.Ln;
+			IF (property = color) THEN colorI := color.Get(); Invalidate; 
 			ELSIF (property = isVertical) THEN isVerticalI := isVertical.Get(); Invalidate;
-			ELSIF (property = start) THEN	 startI := start.Get(); Invalidate;
-			ELSIF (property = end) THEN	endI := end.Get(); Invalidate;
+			ELSIF (property = start) OR (property = end) THEN	 
+				rect0:=bounds.Get();	startI := start.Get(); endI := end.Get();
+				
+				rect:=WMRectangles.MakeRect(MIN(startI.x,endI.x)+rect0.l-5, MIN(startI.y,endI.y)+rect0.t-5, MAX(startI.x, endI.x)+rect0.l+5, MAX(startI.y,endI.y)+rect0.t+5); (* add border for arrowhead display *)
+
+				dx:=rect.l - rect0.l;
+				dy:=rect.t - rect0.t;
+				startI.x:=startI.x-dx; endI.x:=endI.x-dx;
+				startI.y:=startI.y-dy; endI.y:=endI.y-dy;
+				
+				IF ~WMRectangles.IsEqual(rect,rect0) THEN bounds.Set(rect); END;
+				start.Set(startI);
+				end.Set(endI);
+				Invalidate;
 			ELSIF (property = arrowAtStart) THEN arrowAtStartI := arrowAtStart.Get(); Invalidate;
 			ELSIF (property = arrowAtEnd) THEN	arrowAtEndI := arrowAtEnd.Get(); Invalidate;
 			ELSE PropertyChanged^(sender, property);
 			END;
-			(*
-			IF (property = start) OR (property = end) THEN 
-				rect:=bounds.Get();
-				x0:=startI.x+rect.l; y0:=startI.y+rect.t; x1:=endI.x+rect.l; y1:=endI.y+rect.t;
-				rect:=WMRectangles.MakeRect(MIN(x0,x1)-5, MIN(y0,y1)-5, MAX(x0, x1)+5, MAX(y0,y1)+5); (* add border for arrowhead display *)
-				bounds.Set(rect);
-				startI.x:=x0-rect.l; startI.y:= y0-rect.t; start.Set(startI);
-				endI.x:=x1-rect.l; endI.y:= y1-rect.t; end.Set(endI)
-			END;
-			Invalidate;
-			*)
 		END PropertyChanged;
 
+		(* position a line line in parent coordinates*)
 		PROCEDURE Set*(x0,y0, x1, y1: LONGINT); 
-		VAR rect:WMRectangles.Rectangle; 
+		VAR rect:WMRectangles.Rectangle; changed:BOOLEAN;
 		BEGIN
-			
-			rect:=WMRectangles.MakeRect(MIN(x0,x1)-5, MIN(y0,y1)-5, MAX(x0, x1)+5, MAX(y0,y1)+5); (* add border for arrowhead display *)
-			bounds.Set(rect);
-			
-			start.SetCoordinate(x0-rect.l, y0-rect.t);	PropertyChanged(SELF, start);
-			end.SetCoordinate(x1-rect.l, y1-rect.t);	PropertyChanged(SELF, end);	
+			rect:=bounds.Get(); 
+			changed:=FALSE;
+			IF (x0 # rect.l + startI.x) OR (y0#rect.t+startI.y) THEN start.SetCoordinate(x0-rect.l, y0-rect.t); changed:=TRUE END;
+			IF (x1 # rect.l + endI.x) OR (y1#rect.t+endI.y) THEN end.SetCoordinate(x1-rect.l, y1-rect.t); changed:=TRUE END;
+			IF changed THEN	PropertyChanged(SELF, start); PropertyChanged(SELF, end) END;
 		END Set;
 		
 		(** Return if the line is hit at (x, y) in parent coordinates *)
@@ -92,8 +93,8 @@ TYPE
 		
 		PROCEDURE SetArrowheads*(arrows:SET);
 		BEGIN
-			arrowAtStart.Set(0 IN arrows); PropertyChanged(SELF, arrowAtStart);
-			arrowAtEnd.Set(1 IN arrows); PropertyChanged(SELF, arrowAtEnd);
+			IF (0 IN arrows)#arrowAtStartI THEN arrowAtStart.Set(0 IN arrows); PropertyChanged(SELF, arrowAtStart); END;
+			IF (1 IN arrows)#arrowAtEndI THEN arrowAtEnd.Set(1 IN arrows); PropertyChanged(SELF, arrowAtEnd); END;
 		END SetArrowheads;
 		
 		PROCEDURE DrawBackground*(canvas : WMGraphics.Canvas);

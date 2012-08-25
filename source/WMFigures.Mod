@@ -63,9 +63,9 @@ TYPE
 			IF (property = color) THEN Invalidate;
 			ELSIF (property = width) THEN Invalidate;
 			ELSIF (property = clHover) THEN Invalidate;
-			ELSIF (property = closed) THEN IF closed.Get() THEN INCL(state,Closed) ELSE EXCL(state,Closed); Invalidate; END;
-			ELSIF (property = filled) THEN	IF filled.Get() THEN INCL(state,Filled) ELSE EXCL(state,Filled); Invalidate; END;
-			ELSIF (property = reshape) THEN IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state,Reshape); Invalidate; END;
+			ELSIF (property = closed) THEN IF closed.Get() THEN INCL(state,Closed) ELSE EXCL(state,Closed);  END; Invalidate;
+			ELSIF (property = filled) THEN	IF filled.Get() THEN INCL(state,Filled) ELSE EXCL(state,Filled); END; Invalidate;
+			ELSIF (property = reshape) THEN IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state,Reshape); END; Invalidate;
 			ELSE 	PropertyChanged^(sender, property);
 			END;
 		END PropertyChanged;
@@ -329,9 +329,11 @@ TYPE
 			IF nofPoints=0 THEN (* prototype *)
 				AddControlPoint(10, 10);
 				AddControlPoint(20, 20);
+				AddControlPoint(30, 10);
 			END;
 			INCL(state, EditPoints);
 			NEW(pointArray, nofPoints);
+			bounds.Set(GetBoundingBox());
 		END Init;
 
 		PROCEDURE Normalize(VAR newBounds : WMRectangles.Rectangle);
@@ -447,6 +449,7 @@ TYPE
 			AddControlPoint(10, 10);
 			AddControlPoint(20, 20);
 			INCL(state, EditPoints);
+			bounds.Set(GetBoundingBox());
 		END Init;
 
 		PROCEDURE Normalize(VAR newBounds : WMRectangles.Rectangle);
@@ -489,6 +492,7 @@ TYPE
 			AddControlPoint(10, 10);
 			AddControlPoint(20, 20);
 			INCL(state, EditPoints);
+			bounds.Set(GetBoundingBox());
 		END Init;
 
 		PROCEDURE Normalize(VAR newBounds : WMRectangles.Rectangle);
@@ -544,6 +548,7 @@ TYPE
 				AddControlPoint(20, 20);
 				AddControlPoint(30, 30);
 			END;
+			bounds.Set(GetBoundingBox());
 		END Init;
 		
 				(* Is X, Y somewhere inside the polygon defined by p ? *) (*! to be implemented for pointarray; eliminate bias*)
@@ -931,3 +936,10 @@ BEGIN
 END WMFigures.
 
 SystemTools.FreeDownTo WMFigures ~
+
+ComponentViewer.Open WMFigures.GenLine ~
+ComponentViewer.Open WMFigures.GenSpline ~
+ComponentViewer.Open WMFigures.GenCircle ~
+ComponentViewer.Open WMFigures.GenRectangle ~
+
+ComponentViewer.Open WMShapes.GenLine ~
