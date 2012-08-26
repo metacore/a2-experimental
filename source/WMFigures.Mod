@@ -11,6 +11,7 @@ CONST
 	Closed* = 1;
 	EditPoints* = 2;
 	Reshape*=3;
+	Arrow*=4;
 
 	PointOffset = 2; PointSize = 6; (* size of the control points. Currently not related to Effects.gravity *)
 
@@ -30,6 +31,7 @@ TYPE
 		closed-: WMProperties.BooleanProperty;
 		filled-: WMProperties.BooleanProperty;
 		reshape-: WMProperties.BooleanProperty;
+		arrow-: WMProperties.BooleanProperty;
 
 		points : Point;
 		nofPoints : LONGINT;
@@ -46,14 +48,19 @@ TYPE
 			NEW(width, PrototypeWidth, NIL, NIL); properties.Add(width);
 			NEW(color, PrototypeColor, NIL, NIL); properties.Add(color);
 			NEW(reshape, PrototypeReshape, NIL, NIL); properties.Add(reshape);
+			NEW(arrow, PrototypeArrow, NIL, NIL); properties.Add(arrow);
 			NEW(closed, PrototypeClosed, NIL, NIL); properties.Add(closed);
 			NEW(filled, PrototypeFilled, NIL, NIL); properties.Add(filled);
 			NEW(clHover, PrototypeclHover, NIL, NIL); properties.Add(clHover);
+			state := {};
+			IF closed.Get() THEN INCL(state,Closed) ELSE EXCL(state,Closed);  END; 
+			IF filled.Get() THEN INCL(state,Filled) ELSE EXCL(state,Filled); END;
+			IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state,Reshape); END;
+			IF arrow.Get() THEN INCL(state,Arrow) ELSE EXCL(state,Arrow); END;
 			points := NIL;
 			nofPoints := 0;
 			hover := NIL;
 			selected := NIL;
-			state := {};
 			lastKeys := {};
 		END Init;
 		
@@ -66,6 +73,7 @@ TYPE
 			ELSIF (property = closed) THEN IF closed.Get() THEN INCL(state,Closed) ELSE EXCL(state,Closed);  END; Invalidate;
 			ELSIF (property = filled) THEN	IF filled.Get() THEN INCL(state,Filled) ELSE EXCL(state,Filled); END; Invalidate;
 			ELSIF (property = reshape) THEN IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state,Reshape); END; Invalidate;
+			ELSIF (property = arrow) THEN IF arrow.Get() THEN INCL(state,Arrow) ELSE EXCL(state,Arrow); END; Invalidate;
 			ELSE 	PropertyChanged^(sender, property);
 			END;
 		END PropertyChanged;
@@ -246,17 +254,32 @@ TYPE
 			END DrawControlPoint;
 
 		PROCEDURE DrawForeground(canvas : WMGraphics.Canvas);
-		VAR p : Point;
+		VAR p : Point; a: BOOLEAN;
 		BEGIN
 			DrawForeground^(canvas);
+			a:=arrow.Get();
 			IF reshape.Get() THEN
 				p := points;
 				WHILE (p # NIL) DO
 					DrawControlPoint(canvas, p);
+					(*IF (p.next=NIL) & (arrow) THEN DrawArrow(p.previous, p) END;*)
 					p := p.next;
 				END;
 			END;
 		END DrawForeground;
+		
+		PROCEDURE DrawArrow(canvas : WMGraphics.Canvas; p0,p1: Point);
+		CONST pi=3.1516; headscale= 0.5;
+		VAR  alpha: REAL;
+			 head: LONGREAL;
+			col:LONGINT;
+		BEGIN
+				alpha:=arctan2(p1.x-p0.x, p1.y-p0.y);
+				head:= 2+ 0.2 * MAX(ABS(p1.x-p0.x), ABS(p1.y-p0.y)); (*avoid sqrt for performance reasons*) 
+				col:=color.Get();
+				canvas.Line(p1.x,p1.y, p1.x - ENTIER(0.5+head * Math.cos(alpha + pi/8)), p1.y - ENTIER(0.5+head * Math.sin(alpha + pi/8)), col, WMGraphics.ModeSrcOverDst);
+				canvas.Line(p1.x,p1.y, p1.x - ENTIER(0.5+head * Math.cos(alpha - pi/8)), p1.y - ENTIER(0.5+head * Math.sin(alpha - pi/8)), col, WMGraphics.ModeSrcOverDst);
+		END DrawArrow;
 
 		PROCEDURE ToXML;
 		VAR xmlpoint, pointlist: XML.Element; 
@@ -329,7 +352,7 @@ TYPE
 			IF nofPoints=0 THEN (* prototype *)
 				AddControlPoint(10, 10);
 				AddControlPoint(20, 20);
-				AddControlPoint(30, 10);
+				(*AddControlPoint(30, 10);*)
 			END;
 			INCL(state, EditPoints);
 			NEW(pointArray, nofPoints);
@@ -415,7 +438,7 @@ TYPE
 		END HitTestLine;
 
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
-		VAR p : Point; i : LONGINT;
+		VAR p, plast : Point; i : LONGINT;
 		BEGIN
 			DrawBackground^(canvas);
 			IF (nofPoints # LEN(pointArray)) THEN
@@ -426,15 +449,16 @@ TYPE
 				pointArray[i].x := p.x;
 				pointArray[i].y := p.y;
 				INC(i);
+				plast:=p;
 				p := p.next;
 			END;
+			IF (Arrow IN state) & (plast#NIL) THEN DrawArrow(canvas, plast.previous, plast) END;
 			IF filled.Get() THEN
 				canvas.FillPolygonFlat(pointArray^, nofPoints, color.Get(), WMGraphics.ModeSrcOverDst);
 			ELSE
 				canvas.PolyLine(pointArray^, nofPoints, closed.Get(), color.Get(), WMGraphics.ModeSrcOverDst);
 			END;
 		END DrawBackground;
-
 	END Line;
 
 TYPE
@@ -476,6 +500,7 @@ TYPE
 			q := points.next;
 			canvas.SetColor(color.Get());
 			WMGraphicUtilities.Circle(canvas, p.x, p.y, Distance(p.x, p.y, q.x, q.y));
+			IF (Arrow IN state) THEN DrawArrow(canvas, p,q); END;
 		END DrawBackground;
 
 	END Circle;
@@ -624,6 +649,8 @@ TYPE
 			ELSE
 				canvas.PolyLine(pointArray, n, closed.Get(), col, WMGraphics.ModeSrcOverDst);
 			END;
+			p:=points; WHILE (p#NIL)&(p.next#NIL) DO p:=p.next END; 
+			IF (Arrow IN state) & (p#NIL) THEN DrawArrow(canvas, p.previous, p) END;
 		END DrawBackground;
 
 	END Spline;
@@ -639,8 +666,20 @@ VAR
 	PrototypeClosed: WMProperties.BooleanProperty;
 	PrototypeFilled: WMProperties.BooleanProperty;
 	PrototypeReshape: WMProperties.BooleanProperty;
-
+	PrototypeArrow: WMProperties.BooleanProperty;
+	
 	StrFigure, StrLine, StrCircle, StrRectangle, StrSpline : Strings.String;
+
+PROCEDURE arctan2(x,y: REAL): REAL; (*arctan in range 0..2pi*)
+	BEGIN
+		IF (x>0) & (y>=0) THEN RETURN Math.arctan(y/x)
+		ELSIF (x>0) & (y<0) THEN RETURN Math.arctan(y/x)+2*Math.pi
+		ELSIF x<0 THEN RETURN Math.arctan(y/x)+Math.pi
+		ELSIF (x=0) & (y>0) THEN RETURN Math.pi/2
+		ELSIF (x=0) & (y<0) THEN RETURN 3*Math.pi/2
+		ELSE (*( x=0) & (y=0) *) RETURN 0 (*or RETURN NaN ?*) 
+		END
+	END arctan2;
 
 (* start of Rege code *)
 
@@ -911,13 +950,15 @@ BEGIN
 	NEW(PrototypeColor, NIL, Strings.NewString("color"), Strings.NewString("Color"));
 	PrototypeColor.Set(WMGraphics.Red);
 	NEW(PrototypeclHover, NIL, Strings.NewString("clHover"), Strings.NewString("Color HOver"));
-	PrototypeColor.Set(WMGraphics.Yellow);
+	PrototypeclHover.Set(WMGraphics.Yellow);
 	NEW(PrototypeClosed, NIL, Strings.NewString("closed"), Strings.NewString("Figure is closed"));
 	PrototypeClosed.Set(FALSE);
 	NEW(PrototypeFilled, NIL, Strings.NewString("filled"), Strings.NewString("Figure is filled"));
 	PrototypeFilled.Set(FALSE);
 	NEW(PrototypeReshape, NIL, Strings.NewString("reshape"), Strings.NewString("Control Points can be individually moved"));
 	PrototypeReshape.Set(TRUE);
+	NEW(PrototypeArrow, NIL, Strings.NewString("arrow"), Strings.NewString("Draw arrow at end of line"));
+	PrototypeArrow.Set(FALSE);
 END InitPrototypes;
 
 PROCEDURE InitStrings;

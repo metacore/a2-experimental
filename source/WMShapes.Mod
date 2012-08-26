@@ -36,6 +36,7 @@ TYPE
 			arrowAtStart.Set(FALSE); arrowAtStartI := arrowAtStart.Get();
 			NEW(arrowAtEnd, NIL, StrArrowEnd, StrArrowEndDescription); properties.Add(arrowAtEnd);
 			arrowAtEnd.Set(TRUE); arrowAtEndI := arrowAtEnd.Get();
+			PropertyChanged(SELF, start); (* recompute bounding box *)
 		END Init;
 
 		PROCEDURE PropertyChanged*(sender, property : ANY);
