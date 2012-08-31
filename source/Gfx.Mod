@@ -1108,6 +1108,7 @@ MODULE Gfx; (** portable *)	(* eos  *)
 	(** draw line in requested mode **)
 	PROCEDURE DrawLine* (ctxt: Context; x0, y0, x1, y1: REAL; mode: SET);
 	BEGIN
+		IF (x0=x1)&(y0=y1) THEN RETURN END; (*optimization PH 2012*)
 		ASSERT(~(InPath IN ctxt.mode), 100);
 		ASSERT(mode * {Fill, Clip, EvenOdd} = {}, 101);
 		ctxt.do.begin(ctxt, mode);
