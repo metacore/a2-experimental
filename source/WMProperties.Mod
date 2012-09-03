@@ -580,7 +580,7 @@ TYPE
 		PROCEDURE ToStream*(w : Streams.Writer);
 		BEGIN
 			AcquireRead;
-			w.Float(value, 0);
+			w.Float(value, 24);
 			ReleaseRead
 		END ToStream;
 
@@ -637,7 +637,7 @@ TYPE
 		BEGIN
 			IF (GetName # NIL) & nonDefault THEN
 				ToXML^(element);
-				element.SetAttributeValue("loader","WMProperties.NewInt32");
+				element.SetAttributeValue("loader","WMProperties.NewReal");
 				NEW(chars); element.AddContent(chars);
 				NEW(w,30); w.Float(value,24); w.Get(s);
 				chars.SetStr(s);
@@ -648,7 +648,7 @@ TYPE
 		VAR name : String;
 		BEGIN
 			name := GetName();
-			IF name = NIL THEN KernelLog.String("Nameless Int32 property encountered. Ignored"); KernelLog.Ln; RETURN END;
+			IF name = NIL THEN KernelLog.String("Nameless Real property encountered. Ignored"); KernelLog.Ln; RETURN END;
 			IF nonDefault THEN
 				Indent(w, indent);
 				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewReal"'); w.Char(">");

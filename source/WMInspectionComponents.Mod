@@ -422,7 +422,7 @@ TYPE
 			IF (real # NIL) & (force OR (lastTimestamp # real.GetTimestamp())) THEN
 				lastTimestamp := real.GetTimestamp();
 				value := real.Get();
-				Strings.FloatToStr(value, 3, 8, 0, string);
+				Strings.FloatToStr(value, 0, 16, 0, string); (*PH2012*)(*! to do: this string procedure is not suited for exponents*)
 				editor.SetAsString(string);
 				SetOutOfDate(FALSE);
 			END;

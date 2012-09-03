@@ -359,7 +359,7 @@ TYPE
 		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
 		BEGIN
 			WriteValue^(w, level);
-			w.Float(value, 8);
+			w.Float(value, 15); (*8 decimal, 'E-', 2 expo, decimal point, leading space*)
 		END WriteValue;
 
 	END Real;
@@ -414,7 +414,7 @@ TYPE
 		PROCEDURE WriteValue*(w : Streams.Writer; level : LONGINT); (** protected *)
 		BEGIN
 			WriteValue^(w, level);
-			w.Float(value, 10);
+			w.Float(value, 24); (* leading space, decimal point, 16 digits, 5 expo *)
 		END WriteValue;
 
 	END Longreal;
