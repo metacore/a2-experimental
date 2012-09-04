@@ -30,7 +30,8 @@ IMPORT
 	Modules, Kernel, KernelLog, Strings, Inputs, Files, XML, XMLObjects, Repositories, Types, Models, WMDialogs, WMUtilities,
 	WMMessages, WMWindowManager,
 	WMRectangles, WMGraphics, WMEvents, WMProperties, WMComponents, WMStandardComponents,
-	WMEditors, WMColorComponents, WMDropDownLists, WMTabComponents, WMScrollableComponents, Raster, D:= Debugging;
+	WMEditors, WMColorComponents, WMDropDownLists, WMTabComponents, WMScrollableComponents, Raster, D:= Debugging,
+	Streams;
 
 CONST
 	Ok = 0;
@@ -416,13 +417,17 @@ TYPE
 		END Apply;
 
 		PROCEDURE Synchronize(force : BOOLEAN);
-		VAR real : WMProperties.RealProperty; value : LONGREAL; string : ARRAY 256 OF CHAR;
+		VAR real : WMProperties.RealProperty; value : LONGREAL; string : ARRAY 256 OF CHAR; sw: Streams.StringWriter;
 		BEGIN
 			real := SELF.real;
 			IF (real # NIL) & (force OR (lastTimestamp # real.GetTimestamp())) THEN
 				lastTimestamp := real.GetTimestamp();
 				value := real.Get();
-				Strings.FloatToStr(value, 0, 16, 0, string); (*PH2012*)(*! to do: this string procedure is not suited for exponents*)
+				(*Strings.FloatToStr(value, 0, 16, 0, string);*) (*PH2012*)(*! to do: this string procedure is not suited for exponents*)
+				(*workaround: *)
+				NEW(sw, 30);
+				sw.Float(value,24);
+				sw.Get(string);
 				editor.SetAsString(string);
 				SetOutOfDate(FALSE);
 			END;

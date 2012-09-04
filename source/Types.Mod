@@ -1,7 +1,7 @@
 MODULE Types; (** AUTHOR "staubesv"; PURPOSE "Generic types and type conversion"; *)
 
 IMPORT
-	Strings, Texts, TextUtilities, Repositories;
+	Strings, Texts, TextUtilities, Repositories, Streams;
 
 CONST
 
@@ -276,7 +276,7 @@ BEGIN
 END GetReal;
 
 PROCEDURE SetReal*(VAR target : Any; value : REAL; VAR res : LONGINT);
-VAR real : Real;
+VAR real : Real; w:Streams.StringWriter;
 BEGIN
 	res := Ok;
 	IF (target IS Real) THEN
@@ -287,17 +287,21 @@ BEGIN
 		target(Integer).value := ENTIER(value);
 	ELSIF (target IS String) THEN
 		IF (target(String).value # NIL) THEN
-			FloatToString(value, 8, target(String).value^);
+			(*FloatToString(value, 8, target(String).value^);*)
+			NEW(w,30); w.Float(value,24); w.Get(target(String).value^);
 		ELSE
 			res := ConversionError;
 		END;
 	ELSIF (target IS DynamicString) THEN
 		EnsureLength(target(DynamicString), 32); (* TBD: max length of real? *)
-		FloatToString(value, 8, target(DynamicString).value^);
+		(*FloatToString(value, 8, target(DynamicString).value^);*)
+		NEW(w,30); w.Float(value,24); w.Get(target(DynamicString).value^);
 	ELSIF (target IS String32) THEN
-		FloatToString(value, 8,  target(String32).value);
+		(*FloatToString(value, 8,  target(String32).value);*)
+		NEW(w,30); w.Float(value,24); w.Get(target(String32).value);
 	ELSIF (target IS String256) THEN
-		FloatToString(value, 8, target(String256).value);
+		(*FloatToString(value, 8, target(String256).value);*)
+		NEW(w,30); w.Float(value,24); w.Get(target(String256).value);
 	ELSIF (target IS Generic) THEN
 		IF (target(Generic).Set # NIL) THEN
 			real.value := value;
@@ -347,7 +351,7 @@ BEGIN
 END GetLongreal;
 
 PROCEDURE SetLongreal*(VAR target : Any; value : LONGREAL; VAR res : LONGINT);
-VAR longreal : Longreal;
+VAR longreal : Longreal; w:Streams.StringWriter;
 BEGIN
 	res := Ok;
 	IF (target IS Longreal) THEN
@@ -358,17 +362,21 @@ BEGIN
 		target(Integer).value := ENTIER(value);
 	ELSIF (target IS String) THEN
 		IF (target(String).value # NIL) THEN
-			FloatToString(value, 8, target(String).value^);
+			(*FloatToString(value, 8, target(String).value^);*)
+			NEW(w,30); w.Float(value,24); w.Get(target(String).value^);
 		ELSE
 			res := ConversionError;
 		END;
 	ELSIF (target IS DynamicString) THEN
 		EnsureLength(target(DynamicString), 128); (* TBD max length of longreal? *)
-		FloatToString(value, 8, target(DynamicString).value^);
+		(*FloatToString(value, 8, target(DynamicString).value^);*)
+		NEW(w,30); w.Float(value,24); w.Get(target(DynamicString).value^);
 	ELSIF (target IS String32) THEN
-		FloatToString(value, 8, target(String32).value);
+		(*FloatToString(value, 8, target(String32).value);*)
+		NEW(w,30); w.Float(value,24); w.Get(target(String32).value);
 	ELSIF (target IS String256) THEN
-		FloatToString(value, 8, target(String256).value);
+		(*FloatToString(value, 8, target(String256).value);*)
+		NEW(w,30); w.Float(value,24); w.Get(target(String256).value);
 	ELSIF (target IS Generic) THEN
 		IF (target(Generic).Set # NIL) THEN
 			longreal.value := value;
