@@ -289,7 +289,7 @@ VAR
 			i := 0;  FK := "F0";
 			WHILE i < 10 DO FK[1] := CHR( ORD( "0" ) + i );  Rebind4( FK, n, CHR( 0F0H + i ) );  INC( i ) END;
 			i := 10;  FK := "F10";
-			WHILE i < 12 DO FK[2] := CHR( ORD( "A" ) + i - 10 );  Rebind4( FK, n, CHR( 0F0H + i ) );  INC( i ) END;
+			WHILE i <= 12 DO FK[2] := CHR( ORD( "0" ) + i - 10 );  Rebind4( FK, n, CHR( 0F0H + i ) );  INC( i ) END;
 
 			Rebind4( "BackSpace", n, 7FX );
 			Rebind4( "Delete", n, 0A1X );
