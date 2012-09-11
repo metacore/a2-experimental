@@ -294,6 +294,7 @@ BEGIN
 	ELSIF bps = 19200 THEN eachNCharacters := 16;
 	ELSIF bps = 38400 THEN eachNCharacters := 32;
 	ELSIF bps = 115200 THEN eachNCharacters := 100;
+	ELSIF bps = 921600 THEN eachNCharacters := 800;
 	ELSE
 		res := Serials.WrongBPS;
 	END;
