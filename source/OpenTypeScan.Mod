@@ -98,7 +98,7 @@ MODULE OpenTypeScan;	(** AUTHOR "eos, PL"; PURPOSE "Bluebottle port of OpenType"
 	END Insert;
 
 	PROCEDURE IntersectLine (x0, y0, x1, y1: F26D6; VAR scans: Scanline; hint: Intersection; t, dt: Fixed);
-		VAR y, yend, ystep, dy, dy0, dy2, dx, xstep, q, r, x, xr: F26D6; up: INTEGER; qt, rt, tr: Fixed;
+		VAR y, yend, ystep, dy, dy0, dy2, dx, xstep, q, r, x, xr: F26D6; up: LONGINT; qt, rt, tr: Fixed; times: LONGINT;
 	BEGIN
 		IF y0 # y1 THEN
 			y := y0+20H; yend := y1+20H;
@@ -117,18 +117,48 @@ MODULE OpenTypeScan;	(** AUTHOR "eos, PL"; PURPOSE "Bluebottle port of OpenType"
 				END;
 				q := xstep * (dx DIV dy); r := 2*(dx MOD dy);
 				x := x0 + q * dy0; xr := r * dy0;
+				IF xr >= dy THEN
+					times := (xr-dy) DIV dy2 + 1;
+					INC(x,xstep*times);
+					DEC(xr, dy2*times);
+				END;
+				(*
 				WHILE xr >= dy DO INC(x, xstep); DEC(xr, dy2) END;
+				*)
 				q := 40H*q; r := 40H*r;
+				(*
 				WHILE r >= dy DO INC(q, xstep); DEC(r, dy2) END;
+				*)
+				IF r >= dy THEN
+					times := (r-dy) DIV dy2 + 1;
+					INC(q,xstep*times);
+					DEC(r, dy2*times);
+				END;
 
 				qt := dt DIV dy; rt := 2*(dt MOD dy);
 				INC(t, qt * dy0); tr := rt * dy0;
-				WHILE tr >= dy DO INC(t); DEC(tr, dy2) END;
-				qt := 40H*qt; rt := 40H*rt;
-				WHILE rt >= dy DO INC(qt); DEC(rt, dy2) END;
 
+
+				IF tr >= dy THEN
+					times := (tr-dy) DIV dy2 + 1;
+					INC(t,times);
+					DEC(tr, dy2*times);
+				END;
+				(*
+				WHILE tr >= dy DO INC(t); DEC(tr, dy2) END;
+				*)
+				qt := 40H*qt; rt := 40H*rt;
+				(*
+				WHILE rt >= dy DO INC(qt); DEC(rt, dy2) END;
+				*)
+
+				IF rt >= dy THEN
+					times := (rt-dy) DIV dy2 + 1;
+					INC(qt,times);
+					DEC(rt, dy2*times);
+				END;
 				REPEAT
-					Insert(scans, y, x, up, hint, t);
+					Insert(scans, y, x, SHORT(up), hint, t);
 					INC(x, q); INC(xr, r);
 					IF xr >= dy THEN INC(x, xstep); DEC(xr, dy2) END;
 					INC(t, qt); INC(tr, rt);
