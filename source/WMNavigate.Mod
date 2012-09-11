@@ -695,6 +695,7 @@ TYPE
 			res : LONGINT;
 			rect : WMRectangles.Rectangle;
 			closeWindow : DoCloseWindow;
+			same: BOOLEAN;
 		BEGIN
 			IF ~enabled.Get() THEN RETURN; END;
 			lastKeys := keys;
@@ -708,9 +709,14 @@ TYPE
 				END;
 				lock.Release;
 				IF (window # NIL) THEN
+					same := lastWindow = window;
 					IF 0 IN keys THEN lastWindow := window; ELSE lastWindow := NIL; END;
 					IF keys * {0,1} # {} THEN
-						GoToWindow(window, 0 IN keys);
+						IF same & window.isVisible THEN
+							manager.SetIsVisible(window, FALSE);
+						ELSE
+							GoToWindow(window, 0 IN keys);
+						END;
 					ELSIF keys * {2} # {} THEN
 						IF (menuLocation.Get() = Top) THEN
 							ToWMCoordinates(rect.l, rect.t + ShadowWidth, gx, gy);
