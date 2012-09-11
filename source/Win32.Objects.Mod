@@ -1329,11 +1329,14 @@ BEGIN
 	ASSERT(process # NIL);
 	IF (Kernel32.QueryThreadCycleTime # NIL) THEN
 		res := Kernel32.QueryThreadCycleTime(process.handle, cpuCycles[0]);
-		IF ~all & (res = Kernel32.True) THEN
-			temp := process.lastThreadTimes;
-			process.lastThreadTimes := cpuCycles[0];
-			cpuCycles[0] := cpuCycles[0] - temp;
-		END;
+	ELSE
+		cpuCycles[0] := Machine.GetTimer(); res := Kernel32.True;
+	END;
+
+	IF ~all & (res = Kernel32.True) THEN
+		temp := process.lastThreadTimes;
+		process.lastThreadTimes := cpuCycles[0];
+		cpuCycles[0] := cpuCycles[0] - temp;
 	END;
 END GetCpuCycles;
 
