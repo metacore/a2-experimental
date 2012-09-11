@@ -296,6 +296,7 @@ VAR
 		String(10,"calls"); log.Char(9X);
 		String(18,"time [%]"); log.Char(9X);
 		String(18,"brut [%]"); log.Char(9X);
+		String(10,"time/call");log.Char(9X);
 		String(10,"brut/call"); log.Ln;
 		time := 0;
 		brut := 0;
@@ -315,6 +316,8 @@ VAR
 			log.Char(9X);
 			log.Float(records[i].brut / frequency,12);
 			Percent(records[i].brut / brut);
+			log.Char(9X);
+			log.Float(records[i].time / frequency / records[i].calls,10);
 			log.Char(9X);
 			log.Float(records[i].brut / frequency / records[i].calls,10);
 			log.Ln;

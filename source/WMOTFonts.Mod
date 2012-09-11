@@ -200,7 +200,7 @@ TYPE
 		END ReadGlyph;
 
 		PROCEDURE Antialias(img: Raster.Image);
-		VAR x,y,w,h: LONGINT; ibuf, obuf: POINTER TO ARRAY OF CHAR; mode: Raster.Mode; v,vl,vr,vu,vb: LONGINT;
+		VAR x,y,w,h,pos: LONGINT; ibuf, obuf: POINTER TO ARRAY OF CHAR; mode: Raster.Mode; v,vl,vr,vu,vb: LONGINT;
 
 			PROCEDURE Get(x,y: LONGINT): LONGINT;
 			BEGIN
@@ -222,19 +222,37 @@ TYPE
 				Raster.GetPixels(img, 0,y,w,Raster.A8, ibuf^, y*w,mode);
 			END;
 
-			FOR y := 0 TO img.height-1 DO
-				FOR x := 0 TO img.width-1 DO
-					v := Get(x,y);
-					vl := Get(x-1,y);
-					vr := Get(x+1,y);
-					vb := Get(x,y-1);
-					vu := Get(x,y+1);
+			pos := 0;
+			FOR y := 0 TO h-1 DO
+				FOR x := 0 TO w-1 DO
+					v := ORD(ibuf[pos]);
+					IF x > 0 THEN
+					vl := ORD(ibuf[pos-1]);
+					ELSE
+					vl := 0;
+					END;
+					IF x < w-1 THEN
+						vr := ORD(ibuf[pos+1]);
+					ELSE
+						vr := 0
+					END;
+					IF y > 0 THEN
+						vb := ORD(ibuf[pos-w]);
+					ELSE
+						vb := 0
+					END;
+					IF y < h-1 THEN
+						vu := ORD(ibuf[pos+w]);
+					ELSE
+						vu := 0;
+					END;
 					(* interpolate pixels only on boundary not in vertices *)
 					IF (((size > 24) OR (v = 0)) & (v #vl) # (v#vr)) & ((v#vb) # (v#vu)) THEN
 						obuf[x] := CHR( (10*v+ 4*vl + 4*vr + 3*vb + 3*vu) DIV 24);
 					ELSE
 						obuf[x] := CHR(v);
 					END;
+					INC(pos);
 				END;
 				Raster.PutPixels(img, 0, y, w, Raster.A8, obuf^, 0, mode);
 			END;
