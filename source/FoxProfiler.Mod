@@ -272,9 +272,11 @@ VAR
 				time := 0; calls := 0; brut := 0;
 				IF (i< LEN(processes[k].modules)) & (j<LEN(processes[k].modules[i])) THEN
 					FOR k := 0 TO numberProcesses-1 DO
+						IF processes[k] # NIL THEN
 						INC(time, processes[k].modules[i,j].time);
 						INC(calls, processes[k].modules[i,j].calls);
 						INC(brut, processes[k].modules[i,j].brut);
+						END;
 					END;
 				ELSE calls := -9999999
 				END;

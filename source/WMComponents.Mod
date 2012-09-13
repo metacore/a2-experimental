@@ -81,7 +81,7 @@ CONST
 	MacroSelection = "selection";
 	MacroClipboard = "clipboard";
 	MacroAttributePrefix = "attribute=";
-
+	CanYield = TRUE;
 
 TYPE
 	(** Installable event preview handlers. Are called by the components sequencer thread *)
@@ -495,7 +495,7 @@ TYPE
 		BEGIN
 			IF ~IsCallFromSequencer() THEN
 				sequencer.ScheduleEvent(SELF.Reset, sender, data);
-				Objects.Yield;
+				IF CanYield THEN Objects.Yield END;
 			ELSE
 				IF ~initialized THEN Initialize END;
 				RecacheProperties;
@@ -545,7 +545,7 @@ TYPE
 					IF s # NIL THEN KernelLog.String(s^) ELSE KernelLog.String(" <uid = NIL>") END;
 					KernelLog.String(" was discarded")
 				END;
-				Objects.Yield; (* give the sequencer an immediate chance to react -- important on single-processor machines *)
+				IF CanYield THEN Objects.Yield END (* give the sequencer an immediate chance to react -- important on single-processor machines *)
 			ELSE HandleInternal(msg) END
 		END Handle;
 
@@ -596,7 +596,7 @@ TYPE
 			IF ~initialized THEN RETURN END;
 			IF ~IsCallFromSequencer() THEN
 				sequencer.ScheduleEvent(SELF.InternalPropertyChanged, sender, property);
-				Objects.Yield;
+				IF CanYield THEN Objects.Yield END;
 			ELSE
 				IF ~inPropertyUpdate THEN
 					inPropertyUpdate := TRUE;
@@ -612,7 +612,7 @@ TYPE
 			IF ~initialized THEN RETURN END;
 			IF ~IsCallFromSequencer() THEN
 				sequencer.ScheduleEvent(SELF.InternalLinkChanged, sender, property);
-				Objects.Yield;
+				IF CanYield THEN Objects.Yield END;
 			ELSE
 				IF ~inLinkUpdate THEN
 					inLinkUpdate := TRUE;
@@ -1308,7 +1308,7 @@ TYPE
 			IF ~IsCallFromSequencer() THEN
 				m.msgType := Messages.MsgExt;
 				m.ext := invalidateRectMsg; m.x := r.l; m.y := r.t; m.dx := r.r; m.dy := r.b; m.sender := SELF;
-				IF sequencer.Add(m) THEN Objects.Yield END;
+				IF sequencer.Add(m) THEN IF CanYield THEN Objects.Yield END END;
 			ELSE
 				parent := GetParent();
 				IF (parent # NIL) & (parent IS VisualComponent) THEN
@@ -1322,7 +1322,7 @@ TYPE
 		PROCEDURE InvalidateCommand*(sender, par : ANY);
 		BEGIN
 			IF ~initialized THEN RETURN END;
-			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.InvalidateCommand, sender, par); Objects.Yield;
+			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.InvalidateCommand, sender, par); IF CanYield THEN Objects.Yield END;
 			ELSIF visible.Get() THEN InvalidateRect(GetClientRect())
 			END
 		END InvalidateCommand;
