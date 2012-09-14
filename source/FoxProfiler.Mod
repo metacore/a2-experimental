@@ -332,15 +332,16 @@ VAR
 				log.String("warning: process "); log.Int(k,1); log.String(" still running with a stack of "); log.Int(processes[k].stackPosition,1); log.Ln;
 			END;
 		END;
-		(*
+
 		log.String("---------------------------"); log.Ln;
 			String(80,"SUM");
 			log.Int(calls,10); log.Char(9X);
 			log.Float(time / frequency,10); log.Char(9X);
 			log.Float(brut / frequency,10); log.Char(9X);
+			log.Float(time / frequency / calls,20);
 			log.Float(brut / frequency / calls,20);
 			log.Ln; log.Update;
-		*)
+
 		log.String("---------------------------"); log.Ln;
 		log.Char(0FX);
 		log.Update;
