@@ -2157,10 +2157,19 @@ TYPE
 
 		BEGIN
 			NEW(symbols); NEW(importedSymbols);
+
+			(* enter all sections first to keep ordering *)
 			FOR i := 0 TO module.allSections.Length() - 1 DO
 				section := module.allSections.GetSection(i);
 				IF (section.type # Sections.InlineCodeSection) & (section.type # Sections.InitCodeSection) & ~section.isCaseTable THEN
 					IF Enter(section, symbols,symbol) THEN END;
+				END;
+			END;
+
+			FOR i := 0 TO module.allSections.Length() - 1 DO
+				section := module.allSections.GetSection(i);
+				IF (section.type # Sections.InlineCodeSection) & (section.type # Sections.InitCodeSection) & ~section.isCaseTable THEN
+					(* IF Enter(section, symbols,symbol) THEN END;*)
 					fixup := section(IntermediateCode.Section).resolved.fixupList.firstFixup;
 					WHILE (fixup # NIL) DO
 						IF Enter(module.allSections.FindByName(fixup.symbol.name), symbols,symbol) THEN
