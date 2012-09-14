@@ -22,14 +22,111 @@ TYPE
 		treeView- : WMTrees.TreeView;
 		tree- : WMTrees.Tree;
 		selected: WMTrees.TreeNode;
+		dragged: WMTrees.TreeNode;
 
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
 			NEW(treeView); treeView.alignment.Set(WMComponents.AlignClient);
 			tree := treeView.GetTree();
+			treeView.onStartDrag.Add(OnStartDrag);
+			treeView.SetExtDragDroppedHandler(DragDroppedHandler);
 			(* add treeView in subclass *)
 		END Init;
+
+		(* drag drop in the following way:
+			drag starts, data = component
+			drag destination: EditDragDropped at destination
+			destination makes sure that drag accepted is called to remove component
+			destination accepts data from drag
+		*)
+
+		PROCEDURE DragAccepted(sender, data: ANY);
+		VAR dragInfo: WMWindowManager.DragInfo; parent: XML.Element;
+		BEGIN
+			IF data # NIL THEN
+				dragInfo := data(WMWindowManager.DragInfo);
+				data := dragInfo.data;
+
+				IF (data # NIL) & (data IS WMComponents.VisualComponent) THEN
+					parent := data(WMComponents.VisualComponent).GetParent();
+					IF parent # NIL THEN
+						parent.RemoveContent(data(WMComponents.VisualComponent));
+						parent(WMComponents.VisualComponent).Invalidate;
+					END;
+				END;
+
+				IF (data # NIL) & (data = GetNodeData(dragged)) THEN
+					tree.Acquire;
+					tree.RemoveNode(dragged);
+					tree.Release;
+				END;
+
+			END
+		END DragAccepted;
+
+		PROCEDURE DragRejected(sender, data: ANY);
+		BEGIN
+			(* no action necessary *)
+		END DragRejected;
+
+		PROCEDURE GetNodeData(node: WMTrees.TreeNode): WMComponents.VisualComponent;
+		VAR nodeData: ANY;
+		BEGIN
+			tree.Acquire;
+			nodeData := tree.GetNodeData(node);
+			tree.Release;
+			IF (nodeData = NIL) OR ~(nodeData IS WMComponents.VisualComponent) THEN RETURN NIL
+			ELSE RETURN nodeData(WMComponents.VisualComponent)
+			END;
+		END GetNodeData;
+
+		PROCEDURE DragDroppedHandler(x,y: LONGINT; dragInfo: WMWindowManager.DragInfo; VAR handled: BOOLEAN);
+		VAR node: WMTrees.TreeNode; destination,source: WMComponents.VisualComponent; data: ANY; parent: XML.Element;
+		BEGIN
+			node := treeView.GetNodeAtPos(x,y);
+			IF node # NIL THEN
+				destination := GetNodeData(node);
+			ELSE destination := NIL
+			END;
+			data := dragInfo.data;
+			IF (data # NIL) & (data IS WMComponents.VisualComponent)  THEN
+				source := data(WMComponents.VisualComponent);
+			END;
+
+			IF (source # NIL) & (destination # NIL) THEN
+				ConfirmDrag(TRUE, dragInfo);
+				destination.AddContent(source);
+				destination.Invalidate;
+				tree.Acquire;
+				AddComponents(source, node);
+				tree.Release;
+				handled := TRUE;
+			END;
+
+		END DragDroppedHandler;
+
+		PROCEDURE OnStartDrag(sender, data : ANY);
+		VAR w, h: LONGINT; img: WMGraphics.Image; canvas: WMGraphics.BufferCanvas; caption: Strings.String;
+		BEGIN
+			NEW(img);
+			dragged := treeView.draggedNode;
+			treeView.MeasureNode(dragged, w, h);
+			Raster.Create(img, w, h, Raster.BGRA8888);
+			NEW(canvas, img);
+			canvas.SetColor(LONGINT(0FF00FFFFH));
+			canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0FF00FFFFH), WMGraphics.ModeCopy);
+			(*KernelLog.String("w= "); KernelLog.Int(w, 0); KernelLog.String("h= "); KernelLog.Int(h, 0); KernelLog.Ln;*)
+			canvas.SetColor(0FFH);
+			tree.Acquire();
+			caption := tree.GetNodeCaption(dragged);
+			tree.Release();
+			canvas.DrawString(0,0, caption^);
+			dragged := treeView.draggedNode;
+			IF (dragged # NIL) & StartDrag(GetNodeData(dragged), img, 0, 0, DragAccepted, DragRejected) THEN
+
+			END;
+		END OnStartDrag;
 
 		PROCEDURE AddComponents(component : WMComponents.Component; parent : WMTrees.TreeNode);
 		VAR
