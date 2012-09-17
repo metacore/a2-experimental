@@ -4450,7 +4450,7 @@ TYPE
 			END
 		END RegisterDynamicOperator;
 
-		PROCEDURE SystemTrace(x: SyntaxTree.ExpressionList);
+		PROCEDURE SystemTrace(x: SyntaxTree.ExpressionList; pos: LONGINT);
 		VAR
 			traceModule: SyntaxTree.Module;
 			procedure: SyntaxTree.Procedure;
@@ -4588,8 +4588,10 @@ TYPE
 					msg := "";
 					expression := x.GetExpression(i);
 					Global.GetModuleName(module.module, s);
-					stringWriter.String(s); stringWriter.String("@"); stringWriter.Int(expression.position,1);
-					stringWriter.String(":");
+					IF i = 0 THEN
+						stringWriter.String(s); stringWriter.String("@"); stringWriter.Int(pos,1);
+						stringWriter.String(":");
+					END;
 
 					printout := Printout.NewPrinter(stringWriter,Printout.SourceCode,FALSE);
 					IF ~(expression IS SyntaxTree.StringValue) THEN
@@ -6073,7 +6075,7 @@ TYPE
 				result.mode := ModeValue;
 			(* ---- SYSTEM.TRACE ----- *)
 			|Global.systemTrace:
-				SystemTrace(x.parameters);
+				SystemTrace(x.parameters, x.position);
 			(* ----- CONNECT ------*)
 			|Global.Connect:
 				Error(x.position,"cannot be connected in runtime yet");
