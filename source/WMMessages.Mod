@@ -1,7 +1,7 @@
 MODULE WMMessages; (** AUTHOR "TF"; PURPOSE "Support for messages and events"; *)
 
 IMPORT
-	Strings, KernelLog, Objects, Kernel, Locks, D:= Debugging;
+	Strings, KernelLog, Objects, Kernel, Locks, D:= Debugging, Reflection, SYSTEM;
 
 CONST
 	InitialMsgQSize = 64;
@@ -12,14 +12,20 @@ CONST
 	MsgInvokeEvent* = 8;
 	MsgResized* = 9;
 	MsgSetLanguage* = 10;
+	MsgInvalidate*= 11;
 
 	MsgSubPointerMove* = 0; MsgSubPointerDown* = 1; MsgSubPointerUp* = 2; MsgSubPointerLeave* = 3;
 	MsgSubFocusGot* = 0; MsgSubFocusLost* = 1; MsgSubMasterFocusGot* = 2; MsgSubMasterFocusLost* = 3;
+
+	MsgSubAll*=0; MsgSubRectangle*=1; MsgSubNothing*=2; (* regions: all or rectangle as defined by x, y, dx, dy *)
+
 	MsgDragOver* = 0; MsgDragDropped* = 1;
 
 	(** Gather statistics about added/discarded messages? *)
 	Statistics* = TRUE;
 	MsgTypeMax* = 10;
+
+
 
 TYPE
 	(** Generic Component Command *)
@@ -129,11 +135,20 @@ TYPE
 		END GetOriginator;
 
 		PROCEDURE Grow;
-		VAR new: POINTER TO ARRAY (* MsgQSize*)  OF Message; i: LONGINT;
+		VAR new: POINTER TO ARRAY (* MsgQSize*)  OF Message; i: LONGINT; name: ARRAY 128 OF CHAR; VAR pc: SYSTEM.ADDRESS;
 		BEGIN
 			NEW(new, LEN(msgQ) * 3 DIV 2);
 			FOR i := 0 TO LEN(msgQ)-1 DO
-				new[i] := msgQ[(head+i) MOD LEN(msgQ)]
+				new[i] := msgQ[(head+i) MOD LEN(msgQ)];
+				IF new[i].msgType = MsgInvokeEvent THEN
+					Reflection.GetProcedureName(SYSTEM.VAL(SYSTEM.ADDRESS, new[i].event), name, pc );
+				ELSE name := ""
+				END;
+				IF TraceQueue THEN
+					TRACE(i, new[i].msgType, new[i].msgSubType);
+					TRACE(new[i].x, new[i].y, new[i].dx, new[i].dy);
+					TRACE("Event procedure: ", name);
+				END;
 			END;
 			msgQ := new;	head := 0;
 			KernelLog.String("MessageQ increased: "); KernelLog.Int(LEN(msgQ),1); KernelLog.Ln;
@@ -141,7 +156,7 @@ TYPE
 
 		(** Add a message to a queue. Discards the message if the queue is full *)
 		PROCEDURE Add*(VAR msg : Message): BOOLEAN;
-		VAR i : LONGINT;
+		VAR i, pos: LONGINT;
 		BEGIN {EXCLUSIVE}
 			(*
 			IF debug = SELF THEN
@@ -156,15 +171,86 @@ TYPE
 			IF (msg.msgType = MsgPointer) & (num > 0) THEN  (* reduce pointer moves in buffer *)
 				i := num - 1;
 				WHILE i >= 0 DO
-					IF (msgQ[(head + i) MOD LEN(msgQ)].msgType = MsgPointer) & (msg.msgSubType = MsgSubPointerMove) & (msgQ[(head + i) MOD LEN(msgQ)].flags = msg.flags) THEN
-						msgQ[(head + i) MOD LEN(msgQ)].x := msg.x;
-						msgQ[(head + i) MOD LEN(msgQ)].y := msg.y;
-						msgQ[(head + i) MOD LEN(msgQ)].z := msg.z;
+					pos := (head + i) MOD LEN(msgQ);
+					IF (msgQ[pos].msgType = MsgPointer) & (msg.msgSubType = MsgSubPointerMove) & (msgQ[pos].flags = msg.flags) THEN
+						msgQ[pos].x := msg.x;
+						msgQ[pos].y := msg.y;
+						msgQ[pos].z := msg.z;
 						RETURN TRUE
 					END;
 					DEC(i)
 				END
 			END;
+
+
+			IF (msg.msgType = MsgInvalidate) & (num > 0) THEN
+				i := num-1;
+				pos := (head + i) MOD LEN(msgQ);
+				IF (msgQ[pos].sender = msg.sender) & (msgQ[pos].msgType = MsgInvalidate) & (msgQ[pos].msgSubType = msg.msgSubType) THEN
+					IF msg.msgSubType= MsgSubRectangle THEN
+						IF Contained(msgQ[pos], msg) THEN
+							IF TraceQueue THEN
+								TRACE("container first ", msg.x, msg.dx, msg.y, msg.dy);
+								TRACE(msgQ[pos].x, msgQ[pos].dx, msgQ[pos].y, msgQ[pos].dy);
+							END;
+							(* replace *)
+							msgQ[pos].x := msg.x; msgQ[pos].y := msg.y; msgQ[pos].dx := msg.dx; msgQ[pos].dy := msg.dy;
+							RETURN TRUE;
+						ELSIF Contained(msg, msgQ[pos]) THEN
+							IF TraceQueue THEN
+								TRACE("contained first ", msg.x, msg.dx, msg.y, msg.dy);
+								TRACE(msgQ[pos].x, msgQ[pos].dx, msgQ[pos].y, msgQ[pos].dy);
+							END;
+							(* keep *)
+							RETURN TRUE;
+						END;
+					ELSIF msg.msgSubType = MsgSubAll THEN
+						(* keep *)
+						IF TraceQueue THEN
+							TRACE("keep first");
+						END;
+						RETURN TRUE;
+					END;
+				END;
+
+				DEC(i);
+				WHILE i >= 0 DO
+					pos := (head + i) MOD LEN(msgQ);
+					IF (msgQ[pos].sender = msg.sender) & (msgQ[pos].msgType = MsgInvalidate) & (msgQ[pos].msgSubType = msg.msgSubType) THEN
+						IF msg.msgSubType= MsgSubRectangle THEN
+							IF Contained(msgQ[pos], msg) THEN
+								IF TraceQueue THEN
+									TRACE("container  ", pos);
+									TRACE( msg.x, msg.dx, msg.y, msg.dy);
+									TRACE(msgQ[pos].x, msgQ[pos].dx, msgQ[pos].y, msgQ[pos].dy);
+								END;
+
+								msgQ[pos].msgSubType := MsgSubNothing;
+								i := 0;
+							ELSIF Contained(msg, msgQ[pos]) THEN
+								IF TraceQueue THEN
+									TRACE("contained  ", pos);
+									TRACE(msg.x, msg.dx, msg.y, msg.dy);
+									TRACE(msgQ[pos].x, msgQ[pos].dx, msgQ[pos].y, msgQ[pos].dy);
+								END;
+
+								msg.x := msgQ[pos].x; msg.y := msgQ[pos].y; msg.dx := msgQ[pos].dx; msg.dy := msgQ[pos].dy;
+								msgQ[pos].msgSubType := MsgSubNothing;
+								i := 0;
+							END;
+						ELSIF msgQ[pos].msgSubType = MsgSubAll THEN
+							IF TraceQueue THEN
+								TRACE("replace ", pos);
+							END;
+							msgQ[pos].msgSubType := MsgSubNothing;
+							i := 0;
+						END;
+					END;
+					DEC(i);
+				END;
+			END;
+
+
 			IF num >= MaxMsgQSize THEN RETURN FALSE END;
 			IF num >= LEN(msgQ) THEN
 				Grow
@@ -285,6 +371,8 @@ VAR
 	 messagesAdded- : LONGINT;
 	 messagesDiscarded- : LONGINT;
 
+	 TraceQueue: BOOLEAN;
+
 	 (*
 	 debug*: ANY;
 	*)
@@ -313,6 +401,24 @@ BEGIN
 	IF t.IsCompleted() THEN tokenCache.Add(t, NIL) END;
 END RecycleAsyncToken;
 
+PROCEDURE Contained(CONST this, container: Message): BOOLEAN;
 BEGIN
-	NEW(tokenCache)
+	RETURN (container.x <= this.x) & (container.dx >= this.dx) & (container.y <= this.y) & (container.dy >= this.dy)
+END Contained;
+
+PROCEDURE TraceOn*;
+BEGIN
+	TraceQueue := TRUE;
+	TRACE(TraceQueue);
+END TraceOn;
+
+PROCEDURE TraceOff*;
+BEGIN
+	TraceQueue := FALSE;
+	TRACE(TraceQueue);
+END TraceOff;
+
+BEGIN
+	NEW(tokenCache);
+	TraceQueue := FALSE;
 END WMMessages.

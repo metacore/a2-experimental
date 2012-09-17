@@ -1306,8 +1306,13 @@ TYPE
 			IF ~initialized THEN RETURN END;
 			IF ~visible.Get() THEN RETURN END;
 			IF ~IsCallFromSequencer() THEN
+				m.msgType := Messages.MsgInvalidate;
+				m.msgSubType := Messages.MsgSubRectangle;
+				(*
 				m.msgType := Messages.MsgExt;
-				m.ext := invalidateRectMsg; m.x := r.l; m.y := r.t; m.dx := r.r; m.dy := r.b; m.sender := SELF;
+				m.ext := invalidateRectMsg;
+				*)
+				m.x := r.l; m.y := r.t; m.dx := r.r; m.dy := r.b; m.sender := SELF;
 				IF sequencer.Add(m) THEN IF CanYield THEN Objects.Yield END END;
 			ELSE
 				parent := GetParent();
@@ -1320,10 +1325,20 @@ TYPE
 		END InvalidateRect;
 
 		PROCEDURE InvalidateCommand*(sender, par : ANY);
+		VAR m: Messages.Message; r: Rectangles.Rectangle;
 		BEGIN
 			IF ~initialized THEN RETURN END;
-			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.InvalidateCommand, sender, par); IF CanYield THEN Objects.Yield END;
-			ELSIF visible.Get() THEN InvalidateRect(GetClientRect())
+			IF ~IsCallFromSequencer() THEN
+				r := GetClientRect();
+				m.msgType := Messages.MsgInvalidate;
+				m.msgSubType := Messages.MsgSubAll; (* implies client rect *)
+				m.sender := SELF;
+				IF sequencer.Add(m) THEN IF CanYield THEN Objects.Yield END END;
+				(*
+				sequencer.ScheduleEvent(SELF.InvalidateCommand, sender, par); IF CanYield THEN Objects.Yield END;
+				*)
+			ELSIF visible.Get() THEN
+				InvalidateRect(GetClientRect())
 			END
 		END InvalidateCommand;
 
@@ -1894,8 +1909,17 @@ TYPE
 					v.focusComponent := v;
 					v.FocusLost; IF v.extFocus # NIL THEN v.extFocus(FALSE) END; p := p.GetParent()
 				END;
+			ELSIF msg.msgType = Messages.MsgInvalidate THEN
+				IF msg.msgSubType = Messages.MsgSubAll THEN
+					msg.sender(VisualComponent).InvalidateRect(GetClientRect());
+				ELSIF msg.msgSubType = Messages.MsgSubRectangle THEN
+					msg.sender(VisualComponent).InvalidateRect(Rectangles.MakeRect(msg.x, msg.y, msg.dx, msg.dy));
+				ELSE (* nothing  to do *)
+				END;
 			ELSIF msg.msgType = Messages.MsgExt THEN
-				IF msg.ext = invalidateRectMsg THEN msg.sender(VisualComponent).InvalidateRect(Rectangles.MakeRect(msg.x, msg.y, msg.dx, msg.dy))
+				IF msg.ext = invalidateRectMsg THEN
+					TRACE("WARNING: OLD MESSAGE FORM");
+					msg.sender(VisualComponent).InvalidateRect(Rectangles.MakeRect(msg.x, msg.y, msg.dx, msg.dy))
 				ELSE
 					BroadcastSubcomponents(msg);
 				END
