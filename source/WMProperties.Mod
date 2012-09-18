@@ -123,6 +123,10 @@ TYPE
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		END WriteXML;
 
+		PROCEDURE Finalize*;
+		BEGIN
+		END Finalize;
+
 	END Property;
 
 TYPE
@@ -1733,6 +1737,13 @@ TYPE
 			END
 		END WriteXML;
 
+		PROCEDURE Finalize*;
+		BEGIN
+			AcquireWrite;
+			ReplaceLink(NIL);
+			ReleaseWrite;
+		END Finalize;
+
 	END ReferenceProperty;
 
 TYPE
@@ -2033,6 +2044,17 @@ TYPE
 		BEGIN (* {EXCLUSIVE} *)
 			IF p # upChanged THEN INC(upNofChanges); upChanged := p END;
 		END Changed;
+
+		PROCEDURE Finalize*;
+		VAR i: LONGINT;
+		BEGIN
+			AcquireWrite;
+			FOR i := 0 TO nofProperties - 1 DO
+				properties[i].Finalize
+			END;
+			ReleaseWrite;
+		END Finalize;
+
 
 	END PropertyList;
 
