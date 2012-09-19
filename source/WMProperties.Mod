@@ -1543,7 +1543,6 @@ TYPE
 			fullname, repositoryName : ARRAY 256 OF CHAR; componentName : ARRAY 128 OF CHAR;
 			writer : Streams.Writer; buffer : Strings.Buffer; ch : CHAR;
 		BEGIN
-			HALT(100);
 			r.String(fullname);
 			IF Repositories.IsCommandString(fullname) THEN
 				AcquireWrite;
@@ -1595,7 +1594,7 @@ TYPE
 			AcquireRead;
 			object := SELF.object;
 			ReleaseRead;
-			(*
+			(* late time generation of object for supporting of loading repositories *)
 			IF (object = NIL) THEN
 				IF (generator # NIL) THEN
 					Repositories.CallCommand(generator^, context, res);
@@ -1611,7 +1610,6 @@ TYPE
 					Set(object);
 				END;
 			END;
-			*)
 			RETURN object
 		END Get;
 
@@ -1634,15 +1632,7 @@ TYPE
 				SELF.componentName := NIL;
 				SELF.componentID := 0;
 				SELF.generator := Strings.NewString(string);
-				(*ReplaceLink(NIL);*)
-
-					Repositories.CallCommand(generator^, context, res);
-					IF (res = Repositories.Ok) & (context.object # NIL) & (context.object IS Repositories.Component) THEN
-						object := context.object(Repositories.Component);
-						Set(object)
-					END;
-
-
+				ReplaceLink(NIL);
 				NotDefault;
 				Changed;
 				ReleaseWrite;
@@ -1655,18 +1645,7 @@ TYPE
 				SELF.componentName := Strings.NewString(componentName);
 				SELF.componentID := componentID;
 				SELF.generator := NIL;
-
-				IF (SELF.repositoryName # NIL) & (SELF.componentName # NIL) THEN
-					Repositories.GetComponent(SELF.repositoryName^, SELF.componentName^, componentID, object, res);
-					Set(object);
-				ELSIF (SELF.componentName # NIL) & (repository # NIL) THEN
-					object := repository.GetComponent(SELF.componentName^, componentID);
-					Set(object);
-				END;
-
-				(*
 				ReplaceLink(NIL); (* invalidate reference *)
-				*)
 				NotDefault;
 				Changed;
 				ReleaseWrite;
