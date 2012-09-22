@@ -1998,15 +1998,22 @@ TYPE
 		BEGIN
 			DisableUpdate;
 			IF form # NIL THEN form.Finalize; form.sequencer.Stop END;
-			NEW(form, SELF); form.uid.Set(NewString("form"));
+			IF x IS Form THEN
+				form := x(Form);
+				form.SetWindow(SELF)
+			ELSE
+				NEW(form, SELF); form.uid.Set(NewString("form"));
+			END;
 			(*
 			NEW(seq, form.Handle); seq.SetTrapHandler(Trap); form.SetSequencer(seq);
 			*)
-			content := x(VisualComponent);
-			form.AddContent(x);
-			IF (x # NIL) & (x IS VisualComponent) THEN
-				form.focusComponent := x(VisualComponent);
-				form.fPointerOwner := x(VisualComponent)
+			IF x # form THEN
+				content := x(VisualComponent);
+				form.AddContent(x);
+				IF (x # NIL) & (x IS VisualComponent) THEN
+					form.focusComponent := x(VisualComponent);
+					form.fPointerOwner := x(VisualComponent)
+				END;
 			END;
 			form.Reset(SELF, NIL);
 			EnableUpdate;
@@ -2123,40 +2130,46 @@ TYPE
 		lastFocusComponent : VisualComponent;
 
 		PROCEDURE &New*(window : FormWindow);
-		VAR seq: Messages.MsgSequencer;
 		BEGIN
-			ASSERT(window # NIL);
 			Init;
 			SetGenerator("WMComponents.NewForm");
 			lastFocusComponent := NIL;
 			SetNameAsString(StrForm);
-			SELF.window := window; window.form := SELF;
-			bounds.Set(Rectangles.MakeRect(0, 0, window.GetWidth(), window.GetHeight()));
-			NEW(seq, Handle); seq.SetTrapHandler(window.Trap); SetSequencer(seq);
+			SetWindow(window)
 		END New;
+
+		PROCEDURE SetWindow*(window: FormWindow);
+		VAR seq: Messages.MsgSequencer;
+		BEGIN
+			IF window # NIL THEN
+				SELF.window := window; window.form := SELF;
+				bounds.Set(Rectangles.MakeRect(0, 0, window.GetWidth(), window.GetHeight()));
+				NEW(seq, Handle); seq.SetTrapHandler(window.Trap); SetSequencer(seq);
+			END;
+		END SetWindow;
 
 		PROCEDURE GetPointerInfo*() : WM.PointerInfo;
 		BEGIN
 			ASSERT(IsCallFromSequencer());
-			RETURN window.pointerInfo
+			IF window # NIL THEN RETURN window.pointerInfo ELSE RETURN NIL END
 		END GetPointerInfo;
 
 		PROCEDURE SetPointerInfo*(pi : WM.PointerInfo);
 		BEGIN
 			ASSERT(IsCallFromSequencer());
-			window.SetPointerInfo(pi)
+			IF window # NIL THEN window.SetPointerInfo(pi) END;
 		END SetPointerInfo;
 
 		PROCEDURE DisableUpdate*;
 		BEGIN
 			ASSERT(IsCallFromSequencer());
-			window.DisableUpdate;
+			IF window # NIL THEN window.DisableUpdate END
 		END DisableUpdate;
 
 		PROCEDURE EnableUpdate*;
 		BEGIN
 			ASSERT(IsCallFromSequencer());
-			window.EnableUpdate;
+			IF window # NIL THEN window.EnableUpdate END
 		END EnableUpdate;
 
 		PROCEDURE InvalidateRect*(rect : Rectangles.Rectangle);
@@ -2170,7 +2183,9 @@ TYPE
 			IF property = bounds THEN
 				IF ~ Rectangles.IsEqual(window.bounds, bounds.Get()) THEN
 					bounds.GetExtents(w,h);
-					window.manager.SetWindowSize(window,w,h);
+					IF window # NIL THEN
+						window.manager.SetWindowSize(window,w,h);
+					END;
 				ELSE
 					(*ScaleFont(bounds.GetHeight(), scaleFont.Get());*)
 					Resized
