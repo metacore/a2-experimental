@@ -31,7 +31,7 @@ IMPORT
 	WMMessages, WMWindowManager,
 	WMRectangles, WMGraphics, WMEvents, WMProperties, WMComponents, WMStandardComponents,
 	WMEditors, WMColorComponents, WMDropDownLists, WMTabComponents, WMScrollableComponents, Raster, D:= Debugging,
-	Streams, WMDropTarget;
+	Streams, WMDropTarget, Commands;
 
 CONST
 	Ok = 0;
@@ -231,8 +231,20 @@ TYPE
 		END MyDragDropped;
 
 		PROCEDURE SetDroppedString( CONST string : ARRAY OF CHAR; position : LONGINT; VAR res : LONGINT);
-		VAR object: ANY;
+		VAR object: ANY; gen: XML.GeneratorProcedure; moduleName, procedureName ,msg: Modules.Name; element: XML.Element;
+
 		BEGIN
+			Commands.Split(string, moduleName, procedureName, res, msg);
+			IF (res = Commands.Ok) THEN
+				GETPROCEDURE(moduleName, procedureName, gen);
+			END;
+			IF gen # NIL THEN
+				element := gen();
+				IF (element # NIL) & (element IS Repositories.Component) THEN
+					property.SetLink(element(Repositories.Component));
+					RETURN
+				END;
+			END;
 			property.SetLinkAsString(string);
 			object := property.GetLink();
 			res := 1; (* to avoid removal of source *)
