@@ -3067,7 +3067,6 @@ TYPE
 			ELSE KernelLog.String("WMTextView : Drag could not be started")
 			END;
 		END AutoStartDrag;
-
 		PROCEDURE DragWasAccepted(sender, data : ANY);
 		VAR di : WMWindowManager.DragInfo;
 			dt : WMDropTarget.DropTarget;
@@ -3129,10 +3128,14 @@ TYPE
 					temp.CopyFromText(text, a, b-a, 0);
 					IF (temp.GetLength() > 0) THEN NEW(string, temp.GetLength() * 5); ELSE NEW(string, 1); string[0] := 0X; END;
 					temp.ReleaseWrite;
-					text.Delete(a, b- a);
 					text.ReleaseWrite;
 					TextUtilities.TextToStr(temp, string^);
 					itf(WMDropTarget.DropString).Set(string^, res);
+					IF res = 0 THEN
+					text.AcquireWrite;
+					text.Delete(a, b- a);
+					text.ReleaseWrite;
+					END;
 				ELSE
 					text.AcquireRead;
 					a := dragSelA.GetPosition(); b := dragSelB.GetPosition();

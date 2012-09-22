@@ -31,7 +31,7 @@ IMPORT
 	WMMessages, WMWindowManager,
 	WMRectangles, WMGraphics, WMEvents, WMProperties, WMComponents, WMStandardComponents,
 	WMEditors, WMColorComponents, WMDropDownLists, WMTabComponents, WMScrollableComponents, Raster, D:= Debugging,
-	Streams;
+	Streams, WMDropTarget;
 
 CONST
 	Ok = 0;
@@ -48,6 +48,55 @@ CONST
 	ModelWindowWidth = 320; ModelWindowHeight = 80;
 
 TYPE
+	SetStringProcedure = PROCEDURE {DELEGATE} (CONST string : ARRAY OF CHAR; position : LONGINT; VAR res : LONGINT);
+
+	DropTarget = OBJECT(WMDropTarget.DropTarget)
+	VAR
+		originator : ANY;
+		setString : SetStringProcedure;
+		position : LONGINT;
+
+		PROCEDURE &Init(originator : ANY; setString : SetStringProcedure; position : LONGINT);
+		BEGIN
+			ASSERT(setString # NIL);
+			SELF.originator := originator;
+			SELF.setString := setString;
+			SELF.position := position;
+		END Init;
+
+		PROCEDURE GetInterface(type : LONGINT) : WMDropTarget.DropInterface;
+		VAR sdi : DropString;
+		BEGIN
+			IF (type = WMDropTarget.TypeString) THEN
+				NEW(sdi, originator, setString, position); RETURN sdi;
+			ELSE
+				RETURN NIL;
+			END;
+		END GetInterface;
+
+	END DropTarget;
+
+	DropString = OBJECT(WMDropTarget.DropString)
+	VAR
+		originator : ANY;
+		setString : SetStringProcedure;
+		position : LONGINT;
+
+		PROCEDURE &Init(originator : ANY; setString : SetStringProcedure; position : LONGINT);
+		BEGIN
+			ASSERT(setString # NIL);
+			SELF.originator := originator;
+			SELF.setString := setString;
+			SELF.position := position;
+		END Init;
+
+		PROCEDURE Set(CONST string : ARRAY OF CHAR; VAR res : LONGINT);
+		BEGIN
+			setString(string, position, res);
+		END Set;
+
+	END DropString;
+
 
 	(** Base class of property view classes used by ExtendedProperties component *)
 	PropertyView = OBJECT(WMComponents.VisualComponent)
@@ -160,9 +209,10 @@ TYPE
 		END InfoLabelStartDrag;
 
 		PROCEDURE MyDragDropped(x,y: LONGINT; dragInfo: WMWindowManager.DragInfo; VAR handled: BOOLEAN);
-		VAR ref: ANY;
+		VAR ref,sender: ANY; dt: DropTarget; pos: LONGINT;
 		BEGIN
 			ref := dragInfo.data;
+			sender := dragInfo.sender;
 			IF (ref # NIL) & (ref IS Repositories.Component) THEN
 				property.SetLink(ref(Repositories.Component));
 				handled := TRUE;
@@ -171,9 +221,22 @@ TYPE
 				property.SetLink(NIL);
 				handled := TRUE;
 				UpdateAdrLabel(property.GetLink());
+
+				NEW(dt, SELF, SetDroppedString, pos);
+				dragInfo.data := dt;
+				ConfirmDrag(TRUE, dragInfo);
+				IF dragInfo.onReject # NIL THEN dragInfo.onReject(SELF, dragInfo) END;
 			ELSE HALT(100);
 			END;
 		END MyDragDropped;
+
+		PROCEDURE SetDroppedString( CONST string : ARRAY OF CHAR; position : LONGINT; VAR res : LONGINT);
+		VAR object: ANY;
+		BEGIN
+			property.SetLinkAsString(string);
+			object := property.GetLink();
+			res := 1; (* to avoid removal of source *)
+		END SetDroppedString;
 
 		(* Apply the settings of the view to the property *)
 		PROCEDURE Apply(force : BOOLEAN);
@@ -3857,3 +3920,5 @@ BEGIN
 END WMInspectionComponents.
 
 SystemTools.FreeDownTo WMInspectionComponents ~
+
+

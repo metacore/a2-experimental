@@ -1107,10 +1107,8 @@ TYPE
 				dragInfo.data := dt;
 				IF ~hasFocus & cursorIsVisible THEN cursorIsVisible := FALSE; Invalidate; END;
 				ConfirmDrag(TRUE, dragInfo);
-				IF dragInfo.onAccept # NIL THEN dragInfo.onAccept(SELF, dragInfo) END;
 			ELSE
 				ConfirmDrag(FALSE, dragInfo);
-				IF dragInfo.onReject # NIL THEN dragInfo.onAccept(SELF, dragInfo) END;
 			END;
 		END DragDropped;
 
