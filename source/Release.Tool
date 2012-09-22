@@ -581,6 +581,8 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 
 	TextUtilities.Mod bluebottle.xsl	# Text Utilities
 
+	Types.Mod
+	Models.Mod
 	WMProperties.Mod
 
 	WMMessages.Mod
@@ -786,11 +788,10 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	# Icons representing applications (don't put icons used by applications inside!)
 	WMIcons.tar
 
-	Types.Mod
+
 	Attributes.Mod
 
 	# Components
-	Models.Mod
 	WMStandardComponents.Mod
 	WMProgressComponents.Mod
 	WMShapes.Mod

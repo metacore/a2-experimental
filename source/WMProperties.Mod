@@ -1,7 +1,7 @@
 MODULE WMProperties; (** AUTHOR "TF"; PURPOSE "Properties" *)
 
 IMPORT
-	WMRectangles, WMGraphics, Strings, Localization, Repositories, WMEvents, Locks, XML, XMLObjects, Streams, Commands, Modules, KernelLog;
+	WMRectangles, WMGraphics, Strings, Localization, Repositories, WMEvents, Locks, XML, XMLObjects, Streams, Commands, Modules, KernelLog, Models, Types;
 
 TYPE
 	String = Strings.String;
@@ -15,6 +15,15 @@ TYPE
 		timestamp : LONGINT; (* incremented when property state is changed *)
 		repository: Repositories.Repository;
 
+		object : Repositories.Component;
+
+		repositoryName : Strings.String;
+		componentName : Strings.String;
+		generator : Strings.String;
+		componentID : LONGINT;
+
+		inLinkUpdate: BOOLEAN;
+
 		PROCEDURE &New*(prototype : Property; name, info : String);
 		BEGIN
 			SELF.name := name;
@@ -24,6 +33,170 @@ TYPE
 			list := NIL;
 			timestamp := 0;
 		END New;
+
+		PROCEDURE ReplaceLink*(object: Repositories.Component);
+		BEGIN
+			IF SELF.object # object THEN
+				IF (SELF.object # NIL) THEN SELF.object.onChanged.Remove(LinkChanged) END;
+				SELF.object := object;
+				IF object # NIL THEN object.onChanged.Add(LinkChanged); LinkChanged(SELF, object)  END;
+			END;
+		END ReplaceLink;
+
+		PROCEDURE LinkChanged(sender, object: ANY);
+		BEGIN
+			AcquireWrite;
+			inLinkUpdate := TRUE;
+			UpdateProperty;
+			inLinkUpdate := FALSE;
+			ReleaseWrite;
+			IF (list # NIL) THEN list.onLinkChanged.CallWithSender(SELF,object) END;
+		END LinkChanged;
+
+		PROCEDURE SetLinkAsString*(CONST string : ARRAY OF CHAR);
+		VAR repositoryName : ARRAY 256 OF CHAR; componentName : ARRAY 128 OF CHAR; componentID : LONGINT;
+		context : Repositories.Context; res : LONGINT; object: Repositories.Component;
+		BEGIN
+			IF Repositories.IsCommandString(string) THEN
+				AcquireWrite;
+				SELF.repositoryName := NIL;
+				SELF.componentName := NIL;
+				SELF.componentID := 0;
+				SELF.generator := Strings.NewString(string);
+				ReplaceLink(NIL);
+				NotDefault;
+				Changed;
+				ReleaseWrite;
+			ELSIF Repositories.SplitName(string, repositoryName, componentName, componentID) THEN
+				AcquireWrite;
+				IF repositoryName # "" THEN
+					SELF.repositoryName := Strings.NewString(repositoryName);
+				ELSE (*ASSERT(repository # NIL);*)
+				END;
+				SELF.componentName := Strings.NewString(componentName);
+				SELF.componentID := componentID;
+				SELF.generator := NIL;
+				ReplaceLink(NIL); (* invalidate reference *)
+				NotDefault;
+				Changed;
+				ReleaseWrite;
+			ELSE
+				Reset;
+			END;
+		END SetLinkAsString;
+
+		PROCEDURE GetLinkAsString*(VAR string : ARRAY OF CHAR);
+		VAR nbrStr : ARRAY 16 OF CHAR;
+		BEGIN
+			AcquireRead;
+			IF (SELF.generator # NIL) THEN
+				COPY(SELF.generator^, string);
+			ELSIF (repositoryName # NIL) & (componentName # NIL) THEN
+				COPY(repositoryName^, string); Strings.Append(string, Repositories.Delimiter);
+				Strings.Append(string, componentName^); Strings.Append(string, Repositories.Delimiter);
+				Strings.IntToStr(componentID, nbrStr); Strings.Append(string, nbrStr);
+			ELSE
+				string := "";
+			END;
+			ReleaseRead;
+		END GetLinkAsString;
+
+		PROCEDURE IsLink(p: ANY): BOOLEAN;
+		VAR s:Strings.String; xml: XML.Element; en:XMLObjects.Enumerator;
+		BEGIN
+			IF (p IS XML.Element) THEN
+				xml := p(XML.Element);
+				s := xml.GetName();
+				IF s # NIL THEN
+					IF s^ = "Object" THEN
+						en := xml.GetContents();
+						p := en.GetNext();
+						NotDefault;
+						IF (p # NIL ) & (p IS XML.Chars) THEN
+							s := p(XML.Chars).GetStr();
+							IF s # NIL THEN
+								Strings.Trim(s^, " ");
+								SetLinkAsString(s^);
+								object := GetLink();
+								RETURN TRUE
+							END
+						ELSIF (p # NIL) & (p IS XML.Element) THEN
+							ReplaceLink( Repositories.ComponentFromXML(p(XML.Element)));
+							object := GetLink();
+							RETURN TRUE
+						END
+					END;
+				END;
+			END;
+			RETURN FALSE
+		END IsLink;
+
+		PROCEDURE WriteLink*(w : Streams.Writer; context: ANY;  indent : LONGINT): BOOLEAN;
+		VAR name : String; id,res: LONGINT; repository: Repositories.Repository; objectName: String;
+		BEGIN
+			IF object # NIL THEN
+				Indent(w, indent);
+				(*level := indent+1;*)
+				w.Char("<"); w.String("Object"); w.Char(">");
+				IF (context # NIL) & (context IS Repositories.StoreContext) THEN
+					repository := context(Repositories.StoreContext).repository;
+					id := 1;
+					objectName := object.GetName();
+					IF (objectName=NIL) OR (objectName^="") THEN objectName :=anonymous END;
+					repository.PutComponent(object, objectName^,id,res);
+					w.String(":"); (* <-- THIS repository *) w.String(objectName^); w.String(":"); w.Int(id, 0);
+				ELSE
+					ToStream(w);
+				END;
+				w.String("</"); w.String("Object"); w.Char(">"); w.Ln;
+				RETURN TRUE
+			END;
+			RETURN FALSE;
+		END WriteLink;
+
+		PROCEDURE UpdateModel;
+		BEGIN
+		END UpdateModel;
+
+		PROCEDURE UpdateProperty;
+		BEGIN
+		END UpdateProperty;
+
+		PROCEDURE SetLink*(object : Repositories.Component);
+		BEGIN
+			AcquireWrite; (* TBD: Store object to repository *)
+			IF (SELF.object # object) THEN ReplaceLink(object); Changed
+			ELSIF ~ nonDefault THEN Changed END;
+			NotDefault;
+			ReleaseWrite;
+		END SetLink;
+
+		PROCEDURE GetLink*() : Repositories.Component;
+		VAR object : Repositories.Component; context : Repositories.Context; res : LONGINT;
+		BEGIN
+			AcquireRead;
+			object := SELF.object;
+			ReleaseRead;
+			(* late time generation of object for supporting of loading repositories *)
+			IF (object = NIL) THEN
+				IF (generator # NIL) THEN
+					Repositories.CallCommand(generator^, context, res);
+					IF (res = Repositories.Ok) & (context.object # NIL) & (context.object IS Repositories.Component) THEN
+						object := context.object(Repositories.Component);
+						SetLink(object)
+					END;
+				ELSIF (repositoryName # NIL) & (componentName # NIL) THEN
+					Repositories.GetComponent(repositoryName^, componentName^, componentID, object, res);
+					SetLink(object);
+				ELSIF (componentName # NIL) & (repository # NIL) THEN
+					object := repository.GetComponent(componentName^, componentID);
+					SetLink(object);
+				END;
+			END;
+			RETURN object
+		END GetLink;
+
+
 
 		PROCEDURE SetPrototype*(prototype : Property);
 		BEGIN
@@ -152,6 +325,27 @@ TYPE
 			ReleaseRead
 		END ToStream;
 
+		PROCEDURE UpdateProperty;
+		VAR boolean: Types.Boolean; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF GetModel(object, model) THEN
+				 model.GetGeneric(boolean, res);
+				 IF res = 0 THEN Set(boolean.value) END;
+			END;
+		END UpdateProperty;
+
+		PROCEDURE UpdateModel;
+		VAR type: Types.Boolean; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF inLinkUpdate THEN RETURN END;
+			IF GetModel(object, model) THEN
+				type.value := value;
+				model.SetGeneric(type, res);
+
+			END;
+		END UpdateModel;
+
+
 		PROCEDURE Get*() : BOOLEAN;
 		VAR r : BOOLEAN;
 		BEGIN
@@ -166,7 +360,8 @@ TYPE
 		PROCEDURE Set*(value : BOOLEAN);
 		BEGIN
 			AcquireWrite;
-			IF value # SELF.value THEN SELF.value := value; Changed
+			IF value # SELF.value THEN SELF.value := value; Changed;
+				IF (object # NIL) THEN UpdateModel END;
 			ELSIF ~ nonDefault THEN Changed END;
 			NotDefault;
 			ReleaseWrite;
@@ -178,7 +373,8 @@ TYPE
 			en := xml.GetContents();
 			p := en.GetNext();
 			value := FALSE; NotDefault;
-			IF p IS XML.Chars THEN
+			IF IsLink(p) THEN
+			ELSIF p IS XML.Chars THEN
 				s := p(XML.Chars).GetStr();
 				IF s # NIL THEN
 					Strings.Trim(s^, " "); Strings.LowerCase(s^);
@@ -199,7 +395,6 @@ TYPE
 			END;
 		END ToXML;
 
-
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String;
 		BEGIN
@@ -208,7 +403,9 @@ TYPE
 			IF nonDefault THEN
 				Indent(w, indent);
 				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewBoolean"'); w.Char(">");
-				IF value THEN w.String("true") ELSE w.String("false") END;
+				IF ~WriteLink(w,context,indent) THEN
+					IF value THEN w.String("true") ELSE w.String("false") END;
+				END;
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln;
 			END
 		END WriteXML;
@@ -270,6 +467,25 @@ TYPE
 			ReleaseRead
 		END ToStream;
 
+		PROCEDURE UpdateProperty;
+		VAR boolean: Types.Set; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF GetModel(object, model) THEN
+				 model.GetGeneric(boolean, res);
+				 IF res = 0 THEN Set(boolean.value) END;
+			END;
+		END UpdateProperty;
+
+		PROCEDURE UpdateModel;
+		VAR type: Types.Set; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF inLinkUpdate THEN RETURN END;
+			IF GetModel(object, model) THEN
+				type.value := value;
+				model.SetGeneric(type, res);
+			END;
+		END UpdateModel;
+
 		PROCEDURE Get*() : SET;
 		VAR r : SET;
 		BEGIN
@@ -284,7 +500,10 @@ TYPE
 		PROCEDURE Set*(value : SET);
 		BEGIN
 			AcquireWrite;
-			IF value # SELF.value THEN SELF.value := value; Changed
+			IF value # SELF.value THEN
+				SELF.value := value;
+				IF (object # NIL) THEN UpdateModel END;
+				Changed
 			ELSIF ~ nonDefault THEN Changed END;
 			NotDefault;
 			ReleaseWrite;
@@ -297,7 +516,8 @@ TYPE
 			en := xml.GetContents();
 			p := en.GetNext();
 			NotDefault;
-			IF p IS XML.Chars THEN
+			IF IsLink(p) THEN
+			ELSIF p IS XML.Chars THEN
 				s := p(XML.Chars).GetStr();
 				IF s # NIL THEN
 					Strings.Trim(s^, " ");
@@ -328,8 +548,10 @@ TYPE
 			IF nonDefault THEN
 				Indent(w, indent);
 				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewSet"'); w.Char(">");
-				Strings.IntToHexStr(SetToInt(value),8,s); Strings.AppendChar(s,"H");
-				w.String(s);
+				IF ~WriteLink(w,context,indent) THEN
+					Strings.IntToHexStr(SetToInt(value),8,s); Strings.AppendChar(s,"H");
+					w.String(s);
+				END;
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln;
 			END
 		END WriteXML;
@@ -344,6 +566,25 @@ TYPE
 		value : LONGINT;
 		min, max : LONGINT;
 		bounded, silent : BOOLEAN;
+
+		PROCEDURE UpdateProperty;
+		VAR integer: Types.Integer; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF GetModel(object, model) THEN
+				 model.GetGeneric(integer, res);
+				 IF res = 0 THEN Set(integer.value) END;
+			END;
+		END UpdateProperty;
+
+		PROCEDURE UpdateModel;
+		VAR type: Types.Integer; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF inLinkUpdate THEN RETURN END;
+			IF GetModel(object, model) THEN
+				type.value := value;
+				model.SetGeneric(type, res);
+			END;
+		END UpdateModel;
 
 		(** Confines the possible input values between min and max. Implicitly activates the bounds check. If the current value
 			lies outside the bounds, it is truncated to the nearest and a change notification is sent after the end of the transaction. *)
@@ -439,9 +680,12 @@ TYPE
 			AcquireWrite;
 			IF Validate(value) # SELF.value THEN
 				SELF.value := Validate(value);
-				IF ~silent THEN Changed END
+				IF ~silent THEN
+					Changed;
+					IF object # NIL THEN UpdateModel END;
+				END
 			ELSIF ~nonDefault & ~silent THEN
-				Changed
+				Changed;
 			END;
 			NotDefault;
 			ReleaseWrite
@@ -464,7 +708,8 @@ TYPE
 			en := xml.GetContents();
 			IF en.HasMoreElements() THEN
 				p := en.GetNext();
-				IF p IS XML.Chars THEN
+				IF IsLink(p) THEN
+				ELSIF p IS XML.Chars THEN
 					s := p(XML.Chars).GetStr();
 					IF s # NIL THEN Strings.StrToInt(s^, value); Set(value) END
 				END
@@ -491,7 +736,9 @@ TYPE
 			IF nonDefault THEN
 				Indent(w, indent);
 				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewInt32"'); w.Char(">");
-				w.Int(value, 0);
+				IF ~WriteLink(w,context,indent) THEN
+					w.Int(value, 0);
+				END;
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln
 			END
 		END WriteXML;
@@ -588,6 +835,25 @@ TYPE
 			ReleaseRead
 		END ToStream;
 
+		PROCEDURE UpdateProperty;
+		VAR boolean: Types.Longreal; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF GetModel(object, model) THEN
+				 model.GetGeneric(boolean, res);
+				 IF res = 0 THEN Set(boolean.value) END;
+			END;
+		END UpdateProperty;
+
+		PROCEDURE UpdateModel;
+		VAR type: Types.Longreal; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF inLinkUpdate THEN RETURN END;
+			IF GetModel(object, model) THEN
+				type.value := value;
+				model.SetGeneric(type, res);
+			END;
+		END UpdateModel;
+
 		PROCEDURE Get*() : LONGREAL;
 		VAR r : LONGREAL;
 		BEGIN
@@ -604,7 +870,9 @@ TYPE
 			AcquireWrite;
 			IF Validate(value) # SELF.value THEN
 				SELF.value := Validate(value);
-				IF ~silent THEN Changed END
+				IF ~silent THEN Changed
+				END;
+				IF (object # NIL) THEN UpdateModel END;
 			ELSIF ~nonDefault & ~silent THEN
 				Changed
 			END;
@@ -627,7 +895,8 @@ TYPE
 			en := xml.GetContents();
 			IF en.HasMoreElements() THEN
 				p := en.GetNext();
-				IF p IS XML.Chars THEN
+					IF IsLink(p) THEN
+					ELSIF p IS XML.Chars THEN
 					s := p(XML.Chars).GetStr();
 					IF s # NIL THEN Strings.StrToFloat(s^, value); Set(value) END
 				END
@@ -656,7 +925,9 @@ TYPE
 			IF nonDefault THEN
 				Indent(w, indent);
 				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewReal"'); w.Char(">");
-				w.Float(value, 24);
+				IF ~WriteLink(w,context,indent) THEN
+					w.Float(value, 24);
+				END;
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln
 			END
 		END WriteXML;
@@ -754,17 +1025,38 @@ TYPE
 			RETURN r
 		END Get;
 
+		PROCEDURE UpdateModel;
+		VAR type: Types.String; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF inLinkUpdate THEN RETURN END;
+			IF GetModel(object, model) THEN
+				type.value := value;
+				model.SetGeneric(type, res);
+			END;
+		END UpdateModel;
+
 		PROCEDURE Set*(value : String);
 		BEGIN
 			AcquireWrite;
 				IF (value = SELF.value) (* reset with self must lead to update *) OR (value = NIL) OR (SELF.value = NIL) OR (value^ # SELF.value^) THEN
 					SELF.value := value; Translate;Changed;
+					IF (object # NIL) THEN UpdateModel END;
 				ELSIF ~nonDefault THEN
 					Changed
 				END;
 				NotDefault;
 			ReleaseWrite
 		END Set;
+
+		PROCEDURE UpdateProperty;
+		VAR type: Types.String; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF GetModel(object, model) THEN
+				type.value := value; (* pass pointer to string *)
+				model.GetGeneric(type, res);
+				 IF res = 0 THEN Set(type.value) END;
+			END;
+		END UpdateProperty;
 
 		PROCEDURE GetAOC*(VAR value : ARRAY OF CHAR);
 		BEGIN
@@ -787,7 +1079,8 @@ TYPE
 			en := xml.GetContents();
 			p := en.GetNext();
 			IF p # NIL THEN
-				IF p IS XML.Chars THEN
+				IF IsLink(p) THEN
+				ELSIF p IS XML.Chars THEN
 					Set(p(XML.Chars).GetStr())
 				END
 			ELSE
@@ -831,15 +1124,17 @@ TYPE
 				IF (value # NIL) OR ((dictionary # NIL) & (word # NIL)) THEN
 					Indent(w, indent);
 					w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewString"'); w.Char(">");
-					IF (dictionary # NIL) & (word # NIL) THEN
-						w.String("::");
-						XML.UTF8ToStream(dictionary.fullname^, w, res);
-						IF (res = XML.Ok) THEN
-							w.String(":");
-							XML.UTF8ToStream(word^, w, res);
+					IF ~WriteLink(w,context,indent) THEN
+						IF (dictionary # NIL) & (word # NIL) THEN
+							w.String("::");
+							XML.UTF8ToStream(dictionary.fullname^, w, res);
+							IF (res = XML.Ok) THEN
+								w.String(":");
+								XML.UTF8ToStream(word^, w, res);
+							END;
+						ELSE
+							XML.UTF8ToStream(value^, w, res);
 						END;
-					ELSE
-						XML.UTF8ToStream(value^, w, res);
 					END;
 					w.String("</"); w.String(name^); w.Char(">"); w.Ln;
 					IF (res # XML.Ok) THEN
@@ -874,6 +1169,25 @@ TYPE
 			ReleaseRead
 		END ToStream;
 
+		PROCEDURE UpdateProperty;
+		VAR boolean: Types.Integer; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF GetModel(object, model) THEN
+				 model.GetGeneric(boolean, res);
+				 IF res = 0 THEN Set(boolean.value) END;
+			END;
+		END UpdateProperty;
+
+		PROCEDURE UpdateModel;
+		VAR type: Types.Integer; model: Models.Model; res: LONGINT;
+		BEGIN
+			IF inLinkUpdate THEN RETURN END;
+			IF GetModel(object, model) THEN
+				type.value := value;
+				model.SetGeneric(type, res);
+			END;
+		END UpdateModel;
+
 		PROCEDURE Get*() : LONGINT;
 		VAR r : LONGINT;
 		BEGIN
@@ -888,7 +1202,9 @@ TYPE
 		PROCEDURE Set*(value : HUGEINT);
 		BEGIN
 			AcquireWrite;
-			IF SHORT(value) # SELF.value THEN SELF.value := SHORT(value); Changed
+			IF SHORT(value) # SELF.value THEN
+				SELF.value := SHORT(value); Changed;
+				IF (object # NIL) THEN UpdateModel END;
 			ELSIF ~nonDefault THEN Changed
 			END;
 			NotDefault;
@@ -905,7 +1221,8 @@ TYPE
 			en := xml.GetContents();
 			IF en.HasMoreElements() THEN
 				p := en.GetNext();
-				IF p IS XML.Chars THEN
+				IF IsLink(p) THEN
+				ELSIF p IS XML.Chars THEN
 					s := p(XML.Chars).GetStr();
 					IF s # NIL THEN Strings.HexStrToInt(s^, value, res) END; NotDefault
 				END
@@ -936,7 +1253,9 @@ TYPE
 			IF nonDefault THEN
 				Indent(w, indent);
 				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewColor"'); w.Char(">");
-				w.Hex(value, -8);
+				IF ~WriteLink(w,context,indent) THEN
+					w.Hex(value, -8);
+				END;
 				w.String("</"); w.String(name^); w.Char(">"); w.Ln;
 			END
 		END WriteXML;
@@ -999,7 +1318,9 @@ TYPE
 			IF (font = NIL) THEN font := WMGraphics.GetDefaultFont(); END;
 			ASSERT(font # NIL);
 			AcquireWrite;
-			IF font # SELF.font THEN SELF.font := font; Changed
+			IF font # SELF.font THEN
+				SELF.font := font; Changed;
+				IF object # NIL THEN UpdateModel END;
 			ELSIF ~ nonDefault THEN Changed END;
 			NotDefault;
 			ReleaseWrite;
@@ -1124,7 +1445,6 @@ TYPE
 			END;
 		END ToXML;
 
-
 		PROCEDURE WriteXML*(w : Streams.Writer; context: ANY; indent : LONGINT);
 		VAR name : String; font : WMGraphics.Font; temp : ARRAY 32 OF CHAR;
 		BEGIN
@@ -1134,8 +1454,8 @@ TYPE
 				font := Get();
 				Indent(w, indent);
 				w.Char("<"); w.String(name^); w.String(' loader="WMProperties.NewFont"');
-					w.String(' name="'); w.String(font.name); w.String('" size="'); w.Int(font.size, 0); w.String('" style="');
-					Strings.SetToStr(font.style, temp); w.String(temp); w.String('"');
+				w.String(' name="'); w.String(font.name); w.String('" size="'); w.Int(font.size, 0); w.String('" style="');
+				Strings.SetToStr(font.style, temp); w.String(temp); w.String('"');
 				w.String("/>");
 				w.Ln;
 			END
@@ -1172,6 +1492,7 @@ TYPE
 			ReleaseRead
 		END ToStream;
 
+
 		PROCEDURE Get*() : WMGraphics.Point2d;
 		VAR r : WMGraphics.Point2d;
 		BEGIN
@@ -1189,7 +1510,8 @@ TYPE
 			IF (SELF.value.x#value.x) OR (SELF.value.y#value.y) THEN
 				SELF.value.x:=value.x;
 				SELF.value.y:=value.y;
-				Changed
+				IF object # NIL THEN UpdateModel END;
+				Changed;
 			ELSIF ~nonDefault THEN Changed
 			END;
 			NotDefault;
@@ -1337,7 +1659,8 @@ TYPE
 			AcquireWrite;
 			IF (SELF.value.l # value.l) OR (SELF.value.t # value.t) OR
 				(SELF.value.r # value.r) OR (SELF.value.b # value.b) THEN
-				SELF.value := value; Changed
+				SELF.value := value; Changed;
+				IF object # NIL THEN UpdateModel END;
 			ELSIF ~nonDefault THEN Changed
 			END;
 			NotDefault;
@@ -1510,12 +1833,14 @@ TYPE
 
 	ReferenceProperty* = OBJECT(Property)
 	VAR
+		(*
 		object : Repositories.Component;
 
 		repositoryName : Strings.String;
 		componentName : Strings.String;
 		generator : Strings.String;
 		componentID : LONGINT;
+		*)
 		(* temporary used in WriteXML *)
 		level: LONGINT;
 
@@ -1523,20 +1848,6 @@ TYPE
 		BEGIN
 			New(prototype, name, info);
 		END NewRef;
-
-		PROCEDURE ReplaceLink(object: Repositories.Component);
-		BEGIN
-			IF SELF.object # object THEN
-				IF (SELF.object # NIL) THEN SELF.object.onChanged.Remove(LinkChanged) END;
-				SELF.object := object;
-				IF object # NIL THEN object.onChanged.Add(LinkChanged); LinkChanged(SELF, object)  END;
-			END;
-		END ReplaceLink;
-
-		PROCEDURE LinkChanged*(sender, object: ANY);
-		BEGIN
-			IF (list # NIL) THEN list.onLinkChanged.CallWithSender(SELF,object) END;
-		END LinkChanged;
 
 		PROCEDURE FromStream*(r : Streams.Reader);
 		VAR
@@ -1616,58 +1927,21 @@ TYPE
 		PROCEDURE Set*(object : Repositories.Component);
 		BEGIN
 			AcquireWrite; (* TBD: Store object to repository *)
-			IF (SELF.object # object) THEN ReplaceLink(object); Changed
+			IF (SELF.object # object) THEN
+				ReplaceLink(object); Changed;
 			ELSIF ~ nonDefault THEN Changed END;
 			NotDefault;
 			ReleaseWrite;
 		END Set;
 
 		PROCEDURE SetAsString*(CONST string : ARRAY OF CHAR);
-		VAR repositoryName : ARRAY 256 OF CHAR; componentName : ARRAY 128 OF CHAR; componentID : LONGINT;
-		context : Repositories.Context; res : LONGINT; object: Repositories.Component;
 		BEGIN
-			IF Repositories.IsCommandString(string) THEN
-				AcquireWrite;
-				SELF.repositoryName := NIL;
-				SELF.componentName := NIL;
-				SELF.componentID := 0;
-				SELF.generator := Strings.NewString(string);
-				ReplaceLink(NIL);
-				NotDefault;
-				Changed;
-				ReleaseWrite;
-			ELSIF Repositories.SplitName(string, repositoryName, componentName, componentID) THEN
-				AcquireWrite;
-				IF repositoryName # "" THEN
-					SELF.repositoryName := Strings.NewString(repositoryName);
-				ELSE (*ASSERT(repository # NIL);*)
-				END;
-				SELF.componentName := Strings.NewString(componentName);
-				SELF.componentID := componentID;
-				SELF.generator := NIL;
-				ReplaceLink(NIL); (* invalidate reference *)
-				NotDefault;
-				Changed;
-				ReleaseWrite;
-			ELSE
-				Reset;
-			END;
+			SetLinkAsString(string)
 		END SetAsString;
 
 		PROCEDURE GetAsString*(VAR string : ARRAY OF CHAR);
-		VAR nbrStr : ARRAY 16 OF CHAR;
 		BEGIN
-			AcquireRead;
-			IF (SELF.generator # NIL) THEN
-				COPY(SELF.generator^, string);
-			ELSIF (repositoryName # NIL) & (componentName # NIL) THEN
-				COPY(repositoryName^, string); Strings.Append(string, Repositories.Delimiter);
-				Strings.Append(string, componentName^); Strings.Append(string, Repositories.Delimiter);
-				Strings.IntToStr(componentID, nbrStr); Strings.Append(string, nbrStr);
-			ELSE
-				string := "";
-			END;
-			ReleaseRead;
+			GetLinkAsString(string)
 		END GetAsString;
 
 		PROCEDURE Reset;
@@ -2146,6 +2420,13 @@ VAR property: ReferenceProperty;
 BEGIN NEW(property,NIL,NIL,NIL); RETURN property
 END NewReference;
 
+(* Get a model from either a property reference or a model pointer *)
+PROCEDURE GetModel*(ref: ANY; VAR m: Models.Model): BOOLEAN;
+BEGIN
+	IF (ref # NIL) & (ref IS ReferenceProperty) THEN ref := ref(ReferenceProperty).Get() END;
+	IF (ref # NIL) & (ref IS Models.Model) THEN m := ref(Models.Model); RETURN TRUE END;
+	RETURN FALSE
+END GetModel;
 
 BEGIN
 	StringProperties := Strings.NewString("PropertyChanged");

@@ -1,7 +1,7 @@
 MODULE Models; (** AUTHOR "staubesv"; PURPOSE "Models"; *)
 
 IMPORT
-	Streams, Locks, Types, Strings, XML, Texts, TextUtilities, Repositories, WMEvents, WMComponents, WMProperties, XMLObjects;
+	Streams, Locks, Types, Strings, XML, Texts, TextUtilities, Repositories, XMLObjects;
 
 CONST
 	Ok* = Types.Ok;
@@ -25,7 +25,7 @@ TYPE
 			- Notification of listeners
 			- Internalization/externalization
 	*)
-	Model* = OBJECT(WMComponents.Component)
+	Model* = OBJECT(Repositories.Component)
 	VAR
 		changed : BOOLEAN;
 		notificationMode : SHORTINT;
@@ -171,15 +171,10 @@ TYPE
 				WriteValue(w, level + 1);
 				w.String("</VALUE>");
 
-				properties.WriteXML(w,context,level);
-
 				enum := GetContents();
 				WHILE enum.HasMoreElements() DO
 					c := enum.GetNext();
-					IF ~(c IS WMProperties.Properties) THEN
-						IF ~((c IS WMComponents.Component) & ((c(WMComponents.Component).internal) OR c(WMComponents.Component).IsLocked())) THEN NewLine(w, 0); NewLine(w, level+1); END;
-						c(XML.Content).Write(w, context, level+1);
-					END;
+					c(XML.Content).Write(w, context, level+1);
 				END;
 				NewLine(w,level);
 				w.String("</"); w.String(name^); w.Char('>');
@@ -859,13 +854,7 @@ END IsPrintableCharacter;
 
 (* global helper procedures *)
 
-(* Get a model from either a property reference or a model pointer *)
-PROCEDURE GetModel*(ref: ANY; VAR m: Model): BOOLEAN;
-BEGIN
-	IF (ref # NIL) & (ref IS WMProperties.ReferenceProperty) THEN ref := ref(WMProperties.ReferenceProperty).Get() END;
-	IF (ref # NIL) & (ref IS Model) THEN m := ref(Model); RETURN TRUE END;
-	RETURN FALSE
-END GetModel;
+
 
 PROCEDURE GetReal*(m: Model; VAR r: LONGREAL): BOOLEAN;
 VAR real: Types.Longreal; res: LONGINT;

@@ -188,9 +188,6 @@ TYPE
 			SetGenerator("WMComponents.NewComponent");
 		END Init;
 
-		PROCEDURE SetGenerator*(CONST gen: ARRAY OF CHAR);
-		BEGIN SetAttributeValue("generator", gen);
-		END SetGenerator;
 
 		PROCEDURE Write*(w : Streams.Writer;context: ANY; level : LONGINT);
 		VAR enum: XMLObjects.Enumerator; c: ANY; name : Strings.String; nextLevel : LONGINT;

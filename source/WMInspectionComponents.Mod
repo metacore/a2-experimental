@@ -40,7 +40,7 @@ CONST
 	LineHeight = 20;
 	LineBearing = 2;
 
-	NameWidth = 100;
+	NameWidth = 80;
 
 	(** maximum number of property sheet cache entries per instance *)
 	MaxNofCacheEntries = 20;
@@ -60,6 +60,8 @@ TYPE
 
 		next : PropertyView;
 
+		nameLabel, infoLabel, adrLabel : WMStandardComponents.Label;
+
 		PROCEDURE &Init*;
 		BEGIN
 			Init^;
@@ -69,13 +71,117 @@ TYPE
 			bounds.SetHeight(LineHeight);
 			bearing.Set(WMRectangles.MakeRect(LineBearing, LineBearing, LineBearing, LineBearing));
 			next := NIL;
+
+			NEW(nameLabel); nameLabel.alignment.Set(WMComponents.AlignLeft);
+			nameLabel.bounds.SetWidth(NameWidth);
+			nameLabel.fillColor.Set(0);
+			nameLabel.bearing.Set(WMRectangles.MakeRect(2, 0, 2, 0));
+			AddContent(nameLabel);
+			nameLabel.onStartDrag.Add(InfoLabelStartDrag); (* trick to make popup *)
+			nameLabel.SetExtPointerMoveHandler(InfoLabelMove);
+
+			NEW(infoLabel); infoLabel.alignment.Set(WMComponents.AlignLeft);
+			infoLabel.bounds.SetWidth(20);
+			infoLabel.fillColor.Set(0);
+			infoLabel.alignH.Set(WMGraphics.AlignCenter);
+			AddContent(infoLabel);
+			infoLabel.onStartDrag.Add(InfoLabelStartDrag); (* trick to make popup *)
+			infoLabel.SetExtPointerMoveHandler(InfoLabelMove);
+
+			NEW(adrLabel); adrLabel.alignment.Set(WMComponents.AlignLeft);
+			adrLabel.bounds.SetWidth(40);
+			adrLabel.fillColor.Set(0CCCCFFFFH);
+			adrLabel.bearing.Set(WMRectangles.MakeRect(2, 0, 2, 0));
+			AddContent(adrLabel);
+			adrLabel.onStartDrag.Add(MyStartDrag);
+			adrLabel.SetExtPointerMoveHandler(AdrLabelMove);
+			adrLabel.SetExtDragDroppedHandler(MyDragDropped);
+
 		END Init;
+
+		PROCEDURE UpdateAdrLabel(object : XML.Element);
+		VAR string : Types.String32; res : LONGINT; nbrStr : ARRAY 17 OF CHAR; t: Modules.TypeDesc;
+		BEGIN
+			IF (object # NIL) THEN
+				t := Modules.TypeOf(object);
+				COPY(t.name, nbrStr);
+				adrLabel.caption.SetAOC(nbrStr);
+				adrLabel.fillColor.Set(0CCFFH);
+				adrLabel.textColor.Set(WMGraphics.White);
+			ELSE
+				adrLabel.caption.SetAOC("NIL");
+				adrLabel.fillColor.Set(0CCCCFFFFH);
+				adrLabel.textColor.Set(WMGraphics.Black);
+			END;
+		END UpdateAdrLabel;
+
+		PROCEDURE AdrLabelMove(x, y : LONGINT; keys : SET; VAR handled : BOOLEAN);
+		VAR dx, dy, dp, d : LONGINT; f : REAL; tmax, tmin : LONGINT;
+		BEGIN
+			IF keys = {0} THEN adrLabel.AutoStartDrag END;
+		END AdrLabelMove;
+
+		PROCEDURE MyStartDrag(sender, data: ANY);
+		VAR w,h: LONGINT; img: WMGraphics.Image; canvas: WMGraphics.BufferCanvas;
+		BEGIN
+			NEW(img);
+			adrLabel.bounds.GetExtents(w,h);
+			Raster.Create(img, w,h, Raster.BGRA8888);
+			NEW(canvas,img);
+			adrLabel.Draw(canvas);
+			IF StartDrag(property.GetLink(),img,0,0,NIL,NIL) THEN END;
+		END MyStartDrag;
+
+		PROCEDURE InfoLabelMove(x, y : LONGINT; keys : SET; VAR handled : BOOLEAN);
+		VAR dx, dy, dp, d : LONGINT; f : REAL; tmax, tmin : LONGINT;
+		BEGIN
+			IF keys = {0} THEN infoLabel.AutoStartDrag END;
+		END InfoLabelMove;
+
+		PROCEDURE InfoLabelStartDrag(sender, data: ANY);
+		VAR w,h: LONGINT; img: WMGraphics.Image; canvas: WMGraphics.BufferCanvas; font: WMGraphics.Font; string: Strings.String;
+		BEGIN
+			IF info # NIL THEN string := info
+			ELSIF name # NIL THEN string := name
+			ELSE RETURN
+			END;
+			IF string = NIL THEN RETURN END;
+			NEW(img);
+			font := GetFont();
+			font.GetStringSize(string^,w,h);
+			INC(w,20); INC(h,5);
+			Raster.Create(img, w,h, Raster.BGRA8888);
+			NEW(canvas,img);
+			canvas.SetFont(font);
+			canvas.SetColor(LONGINT(0FFFFFFFFH));
+			canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0333333FFH), WMGraphics.ModeCopy);
+			WMGraphics.DrawStringInRect(canvas, WMRectangles.MakeRect(0, 0, w, h), FALSE, 1, 1, string^);
+			IF StartDrag(NIL,img,0,0,NIL,NIL) THEN END;
+		END InfoLabelStartDrag;
+
+		PROCEDURE MyDragDropped(x,y: LONGINT; dragInfo: WMWindowManager.DragInfo; VAR handled: BOOLEAN);
+		VAR ref: ANY;
+		BEGIN
+			ref := dragInfo.data;
+			IF (ref # NIL) & (ref IS Repositories.Component) THEN
+				property.SetLink(ref(Repositories.Component));
+				handled := TRUE;
+				UpdateAdrLabel(property.GetLink());
+			ELSIF ref = NIL THEN
+				property.SetLink(NIL);
+				handled := TRUE;
+				UpdateAdrLabel(property.GetLink());
+			ELSE HALT(100);
+			END;
+		END MyDragDropped;
 
 		(* Apply the settings of the view to the property *)
 		PROCEDURE Apply(force : BOOLEAN);
 		END Apply;
 
 		PROCEDURE Synchronize(force : BOOLEAN);
+		BEGIN
+			UpdateAdrLabel(property.GetLink())
 		END Synchronize;
 
 		PROCEDURE IsCompatible(property : WMProperties.Property) : BOOLEAN;
@@ -90,6 +196,7 @@ TYPE
 		PROCEDURE Draw(canvas : WMGraphics.Canvas);
 		BEGIN
 			Draw^(canvas);
+			(*
 			IF (ofsName >= 0) THEN
 				IF (name # NIL) THEN
 					canvas.DrawString(ofsName, 14, name^);
@@ -104,6 +211,7 @@ TYPE
 					canvas.DrawString(ofsInfo, 14, "NoDescription");
 				END;
 			END;
+			*)
 		END Draw;
 
 		PROCEDURE SetProperty(property : WMProperties.Property);
@@ -114,7 +222,25 @@ TYPE
 				name := property.GetName();
 				info := property.GetInfo();
 				lastTimestamp := property.GetTimestamp() - 1;
+				IF (info # NIL) & (info^ # "") THEN
+					infoLabel.caption.SetAOC("i");
+					infoLabel.fillColor.Set(0FFFF88FFH);
+				ELSE
+					infoLabel.caption.SetAOC("");
+					infoLabel.fillColor.Set(0);
+				END;
+				IF name # NIL THEN
+					nameLabel.caption.SetAOC(name^);
+					nameLabel.fillColor.Set(0FFFF88FFH);
+				ELSE
+					nameLabel.caption.SetAOC("Unnamed");
+					nameLabel.fillColor.Set(0);
+				END;
 			ELSE
+				nameLabel.caption.SetAOC("");
+				infoLabel.caption.SetAOC("");
+				nameLabel.fillColor.Set(0);
+				infoLabel.fillColor.Set(0);
 				name := NIL;
 				info := NIL;
 			END;
@@ -203,7 +329,6 @@ TYPE
 
 			NEW(checkbox); checkbox.alignment.Set(WMComponents.AlignLeft);
 			checkbox.bounds.SetWidth(LineHeight);
-			checkbox.bearing.Set(WMRectangles.MakeRect(NameWidth, 0, 0, 0));
 			checkbox.onClick.Add(CheckboxClicked);
 			AddContent(checkbox);
 		END Init;
@@ -230,6 +355,7 @@ TYPE
 		PROCEDURE Synchronize(force : BOOLEAN);
 		VAR boolean : WMProperties.BooleanProperty; state : LONGINT;
 		BEGIN
+			Synchronize^(force);
 			boolean := SELF.boolean;
 			IF (boolean # NIL) & (force OR (lastTimestamp # boolean.GetTimestamp())) THEN
 				lastTimestamp := boolean.GetTimestamp();
@@ -293,7 +419,6 @@ TYPE
 			NEW(editor); editor.alignment.Set(WMComponents.AlignLeft);
 			editor.type.Set(WMEditors.Decimal);
 			editor.bounds.SetWidth(80);
-			editor.bearing.Set(WMRectangles.MakeRect(NameWidth, 0, 0, 0));
 			editor.onEnter.Add(EnterPressed);
 			editor.onChanged.Add(EditorContentChanged);
 			AddContent(editor);
@@ -317,6 +442,7 @@ TYPE
 		PROCEDURE Synchronize(force : BOOLEAN);
 		VAR int32 : WMProperties.Int32Property; value : LONGINT; string : ARRAY 256 OF CHAR;
 		BEGIN
+			Synchronize^(force);
 			int32 := SELF.int32;
 			IF (int32 # NIL) & (force OR (lastTimestamp # int32.GetTimestamp())) THEN
 				lastTimestamp := int32.GetTimestamp();
@@ -395,7 +521,6 @@ TYPE
 			NEW(editor); editor.alignment.Set(WMComponents.AlignLeft);
 			editor.type.Set(WMEditors.Ascii);
 			editor.bounds.SetWidth(80);
-			editor.bearing.Set(WMRectangles.MakeRect(NameWidth, 0, 0, 0));
 			editor.onEnter.Add(EnterPressed);
 			editor.onChanged.Add(EditorContentChanged);
 			AddContent(editor);
@@ -419,6 +544,7 @@ TYPE
 		PROCEDURE Synchronize(force : BOOLEAN);
 		VAR real : WMProperties.RealProperty; value : LONGREAL; string : ARRAY 256 OF CHAR; sw: Streams.StringWriter;
 		BEGIN
+			Synchronize^(force);
 			real := SELF.real;
 			IF (real # NIL) & (force OR (lastTimestamp # real.GetTimestamp())) THEN
 				lastTimestamp := real.GetTimestamp();
@@ -497,7 +623,7 @@ TYPE
 			Init;
 			SetNameAsString(StrRectanglePropertyView);
 			ofsInfo := -1;
-			CreateEditor("Left:", editLeft, 50);
+			CreateEditor("Left:", editLeft, 0);
 			CreateEditor("Top:", editTop, 0);
 			CreateEditor("Right: ", editRight, 0);
 			CreateEditor("Bottom:", editBottom, 0);
@@ -556,6 +682,7 @@ TYPE
 		PROCEDURE Synchronize(force : BOOLEAN);
 		VAR rectangle : WMProperties.RectangleProperty; rect : WMRectangles.Rectangle; string : ARRAY 32 OF CHAR;
 		BEGIN
+			Synchronize^(force);
 			rectangle := SELF.rectangle;
 			IF (rectangle # NIL) & (force OR (lastTimestamp # rectangle.GetTimestamp())) THEN
 				lastTimestamp := rectangle.GetTimestamp();
@@ -658,8 +785,8 @@ TYPE
 		END CreateEditor;
 
 	END RectanglePropertyView;
-	
-TYPE 
+
+TYPE
 	PointPropertyView = OBJECT(PropertyView)
 	VAR
 		point : WMProperties.PointProperty;
@@ -671,7 +798,7 @@ TYPE
 			Init;
 			SetNameAsString(StrPointPropertyView);
 			ofsInfo := -1;
-			CreateEditor("X:", editX, 50);
+			CreateEditor("X:", editX, 0);
 			CreateEditor("Y:", editY, 0);
 			enabled := {0..5};
 			outOfDate := {};
@@ -718,6 +845,7 @@ TYPE
 		PROCEDURE Synchronize(force : BOOLEAN);
 		VAR point : WMProperties.PointProperty; pnt : WMGraphics.Point2d; string : ARRAY 32 OF CHAR;
 		BEGIN
+			Synchronize^(force);
 			point := SELF.point;
 			IF (point # NIL) & (force OR (lastTimestamp # point.GetTimestamp())) THEN
 				lastTimestamp := point.GetTimestamp();
@@ -740,7 +868,7 @@ TYPE
 
 		PROCEDURE Disable;
 		BEGIN
-			editX.enabled.Set(FALSE); editY.enabled.Set(FALSE); 
+			editX.enabled.Set(FALSE); editY.enabled.Set(FALSE);
 		END Disable;
 
 		PROCEDURE SetProperty(property : WMProperties.Property);
@@ -751,7 +879,7 @@ TYPE
 				SELF.point := property (WMProperties.PointProperty);
 			ELSE
 				SELF.point := NIL;
-				editX.SetAsString(""); editY.SetAsString(""); 
+				editX.SetAsString(""); editY.SetAsString("");
 			END;
 		END SetProperty;
 
@@ -823,7 +951,6 @@ TYPE
 			SetNameAsString(StrStringPropertyView);
 			ofsInfo := -1;
 			NEW(editor); editor.alignment.Set(WMComponents.AlignClient);
-			editor.bearing.Set(WMRectangles.MakeRect(NameWidth, 0, 0, 0));
 			editor.onChanged.Add(EditorContentChanged);
 			editor.onEnter.Add(EnterPressed);
 			AddContent(editor);
@@ -848,6 +975,7 @@ TYPE
 		PROCEDURE Synchronize(force : BOOLEAN);
 		VAR string : WMProperties.StringProperty; value : Strings.String;
 		BEGIN
+			Synchronize^(force);
 			string := SELF.string;
 			IF (string # NIL) & (force OR (lastTimestamp # string.GetTimestamp())) THEN
 				lastTimestamp := string.GetTimestamp();
@@ -926,7 +1054,6 @@ TYPE
 
 			NEW(colorPot); colorPot.alignment.Set(WMComponents.AlignLeft);
 			colorPot.bounds.SetWidth(20);
-			colorPot.bearing.Set(WMRectangles.MakeRect(NameWidth, 0, 0, 0));
 			colorPot.SetExternalColorChangeHandler(ColorDropped);
 			AddContent(colorPot);
 
@@ -957,6 +1084,7 @@ TYPE
 		PROCEDURE Synchronize(force : BOOLEAN);
 		VAR color : WMProperties.ColorProperty;  string : ARRAY 16 OF CHAR; value : LONGINT;
 		BEGIN
+			Synchronize^(force);
 			color := SELF.color;
 			IF (color # NIL) & (force OR (lastTimestamp # color.GetTimestamp())) THEN
 				lastTimestamp := color.GetTimestamp();
@@ -1045,7 +1173,6 @@ TYPE
 			ofsInfo := -1;
 			NEW(editName); editName.alignment.Set(WMComponents.AlignLeft);
 			editName.bounds.SetWidth(80);
-			editName.bearing.Set(WMRectangles.MakeRect(NameWidth, 0, 0, 0));
 			editName.onEnter.Add(EnterPressed);
 			editName.onChanged.Add(EditorContentChanged);
 			editName.type.Set(WMEditors.Unicode);
@@ -1094,6 +1221,7 @@ TYPE
 		PROCEDURE Synchronize(force : BOOLEAN);
 		VAR font : WMProperties.FontProperty; name, temp : ARRAY 32 OF CHAR; size : LONGINT; style : SET;
 		BEGIN
+			Synchronize^(force);
 			font := SELF.font;
 			IF (font # NIL) & (force OR (lastTimestamp # font.GetTimestamp())) THEN
 				lastTimestamp := font.GetTimestamp();
@@ -1185,7 +1313,6 @@ TYPE
 		reference : WMProperties.ReferenceProperty;
 		object : XML.Element;
 		editor : WMEditors.TextField;
-		adrLabel : WMStandardComponents.Label;
 		button : WMStandardComponents.Button;
 		outOfDate : BOOLEAN;
 
@@ -1197,14 +1324,15 @@ TYPE
 			reference := NIL;
 			object := NIL;
 
+			(*
 			NEW(adrLabel); adrLabel.alignment.Set(WMComponents.AlignLeft);
 			adrLabel.bounds.SetWidth(60);
 			adrLabel.fillColor.Set(0CCCCCCCH);
-			adrLabel.bearing.Set(WMRectangles.MakeRect(NameWidth, 0, 0, 0));
 			AddContent(adrLabel);
 			adrLabel.onStartDrag.Add(MyStartDrag);
 			adrLabel.SetExtPointerMoveHandler(AdrLabelMove);
 			adrLabel.SetExtDragDroppedHandler(MyDragDropped);
+			*)
 			NEW(button); button.alignment.Set(WMComponents.AlignRight);
 			button.bounds.SetWidth(60);
 			button.fillColor.Set(WMGraphics.Red);
@@ -1240,8 +1368,8 @@ TYPE
 		VAR ref: ANY;
 		BEGIN
 			ref := dragInfo.data;
-			IF (ref # NIL) & (ref IS WMComponents.Component) THEN
-				reference.Set(ref(WMComponents.Component));
+			IF (ref # NIL) & (ref IS Repositories.Component) THEN
+				reference.Set(ref(Repositories.Component));
 				handled := TRUE
 			ELSIF ref = NIL THEN
 				reference.Set(NIL);
@@ -1304,6 +1432,7 @@ TYPE
 				reference.GetAsString(string);
 				object := reference.Get();
 				UpdateButton(object);
+				UpdateAdrLabel(object);
 				IF (object # NIL) & (object IS Models.Model) THEN
 					object(Models.Model).GetGeneric(stringType,res);
 					IF res = Models.Ok THEN COPY(stringType.value, string) END;
@@ -1329,11 +1458,9 @@ TYPE
 		END Disable;
 
 		PROCEDURE UpdateButton(object : XML.Element);
-		VAR string : Types.String32; res : LONGINT; nbrStr : ARRAY 17 OF CHAR;
+		VAR string : Types.String32; res : LONGINT; nbrStr : ARRAY 17 OF CHAR; t: Modules.TypeDesc;
 		BEGIN
 			IF (object # NIL) THEN
-				Strings.AddressToStr(SYSTEM.VAL(SYSTEM.ADDRESS,object), nbrStr);
-				adrLabel.caption.SetAOC(nbrStr);
 				button.fillColor.Set(WMGraphics.Green);
 				IF (object IS Models.Model) THEN
 					button.enabled.Set(TRUE);
@@ -1351,7 +1478,6 @@ TYPE
 					button.caption.Set(StrNoCaption);
 				END;
 			ELSE
-				adrLabel.caption.SetAOC("NIL");
 				button.enabled.Set(FALSE);
 				button.fillColor.Set(WMGraphics.Red);
 				button.caption.Set(StrNoCaption);
@@ -1371,6 +1497,7 @@ TYPE
 				editor.SetAsString("");
 			END;
 			UpdateButton(SELF.object);
+			UpdateAdrLabel(SELF.object);
 		END SetProperty;
 
 		PROCEDURE SetOutOfDate(value : BOOLEAN);
@@ -1412,7 +1539,6 @@ TYPE
 			ofsInfo := -1;
 			NEW(alignment_chooser);
 			alignment_chooser.alignment.Set(WMComponents.AlignLeft);
-			alignment_chooser.bearing.Set(WMRectangles.MakeRect(100, 0, 0, 0));
 			alignment_chooser.maxGridHeight.Set(200);
 			alignment_chooser.bounds.SetWidth(100);
 			alignment_chooser.mode.Set(WMDropDownLists.Mode_SelectOnly);
@@ -1444,6 +1570,7 @@ TYPE
 		PROCEDURE Synchronize(force : BOOLEAN);
 		VAR int32 : WMProperties.Int32Property;
 		BEGIN
+			Synchronize^(force);
 			int32 := SELF.int32;
 			IF (int32 # NIL) & (force OR (lastTimestamp # int32.GetTimestamp())) THEN
 				lastTimestamp := int32.GetTimestamp();
@@ -2322,7 +2449,7 @@ TYPE
 							list.Add(rectangleView);
 							INC(height, rectangleView.bounds.GetHeight());
 							INC(nofElements);
-							
+
 						ELSIF (property IS WMProperties.PointProperty) THEN
 							NEW(pointView, TRUE); pointView.SetProperty(property (WMProperties.PointProperty));
 							content.AddContent(pointView);
@@ -3544,7 +3671,7 @@ VAR
 
 	StrNotAvailable, StrNoCaption, StrType,
 	StrComponentInfo, StrStandardProperties, StrExtendedProperties, StrExtendedPropertiesView, StrEventListeners, StrEventSources,
-	StrBooleanPropertyView, StrInt32PropertyView, StrRealPropertyView, StrRectanglePropertyView, StrPointPropertyView, 
+	StrBooleanPropertyView, StrInt32PropertyView, StrRealPropertyView, StrRectanglePropertyView, StrPointPropertyView,
 	StrStringPropertyView,
 	StrColorPropertyView, StrEventSourceView, StrEventListenerView, StrUnknownPropertyView,
 	StrFontPropertyView, StrReferencePropertyView, StrAlignmentPropertyView, StrModelView : Strings.String;

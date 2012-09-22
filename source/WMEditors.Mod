@@ -305,7 +305,7 @@ TYPE
 		PROCEDURE LinkChanged(sender, object : ANY);
 		VAR string : Types.String256; res : LONGINT; real: Types.Longreal; m: Models.Model;
 		BEGIN
-			IF (sender = model) & Models.GetModel(model,m) THEN
+			IF (sender = model) & WMProperties.GetModel(model,m) THEN
 				m.GetGeneric(string, res);
 				IF (res = Models.Ok) THEN
 					SetAsString(string.value);
@@ -318,7 +318,7 @@ TYPE
 		VAR string : Types.String256; res : LONGINT; str: Strings.String; m: Models.Model;
 		BEGIN
 			GetAsString(string.value);
-			IF Models.GetModel(model,m) THEN
+			IF WMProperties.GetModel(model,m) THEN
 				m.SetGeneric(string, res);
 			END;
 			SetAttributeValue("Value",string.value);
@@ -1194,7 +1194,7 @@ TYPE
 		PROCEDURE GetUnit(VAR u: LONGREAL): BOOLEAN;
 		VAR res: LONGINT; real: Types.Longreal; m: Models.Model;
 		BEGIN
-			IF Models.GetModel(unitModel, m) THEN
+			IF WMProperties.GetModel(unitModel, m) THEN
 				m.GetGeneric(real, res);
 				IF (res = Models.Ok) & (real.value # 0) THEN
 					u := real.value; RETURN TRUE
@@ -1215,7 +1215,7 @@ TYPE
 		BEGIN
 			IF (sender = model) OR (sender = unitModel) THEN
 				res := -1;
-				IF Models.GetModel(model,m) THEN
+				IF WMProperties.GetModel(model,m) THEN
 					m.GetGeneric(real, res);
 					IF res = Models.Ok THEN
 						IF Reals.IsNaNL(real.value) THEN
@@ -1239,7 +1239,7 @@ TYPE
 		VAR string : Types.String256; res : LONGINT; str: Strings.String; real: Types.Longreal; u: LONGREAL; m: Models.Model;
 		BEGIN
 			GetAsString(string.value);
-			IF Models.GetModel(model, m) & ~(m IS Models.String) THEN
+			IF WMProperties.GetModel(model, m) & ~(m IS Models.String) THEN
 				Strings.StrToFloat(string.value, real.value);
 				IF GetUnit(u) THEN real.value := real.value / u END;
 				m.SetGeneric(real, res);

@@ -113,6 +113,10 @@ TYPE
 			NEW(onChanged, NIL, NIL, NIL, NIL);
 		END Init;
 
+		PROCEDURE SetGenerator*(CONST gen: ARRAY OF CHAR);
+		BEGIN SetAttributeValue("generator", gen);
+		END SetGenerator;
+
 		PROCEDURE SetRepository*(repository : Repository; CONST name : Name; refNum : LONGINT);
 		BEGIN {EXCLUSIVE}
 			SELF.repository := repository; SELF.refNum := refNum;

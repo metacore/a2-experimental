@@ -415,7 +415,7 @@ TYPE
 		PROCEDURE LinkChanged(sender, data : ANY);
 		VAR string : Types.String256; res : LONGINT; m: Models.Model;
 		BEGIN
-			IF (sender = model) & Models.GetModel(model,m) THEN
+			IF (sender = model) & WMProperties.GetModel(model,m) THEN
 				m.GetGeneric(string, res);
 				IF (res = Models.Ok) THEN
 					SetCaption(string.value);
@@ -631,7 +631,7 @@ TYPE
 		PROCEDURE LinkChanged(sender, data : ANY);
 		VAR boolean : Types.Boolean; res : LONGINT; m: Models.Model;
 		BEGIN
-			IF (sender = model) & Models.GetModel(model,m) THEN
+			IF (sender = model) & WMProperties.GetModel(model,m) THEN
 				m.GetGeneric(boolean, res);
 				IF isInverse.Get() THEN boolean.value := ~boolean.value END;
 				IF (res = Models.Ok) & (pressed # boolean.value) THEN
@@ -643,7 +643,7 @@ TYPE
 		PROCEDURE ChangeModel(value : BOOLEAN);
 		VAR boolean : Types.Boolean; res : LONGINT; m: Models.Model;
 		BEGIN
-			IF Models.GetModel(model, m) THEN
+			IF WMProperties.GetModel(model, m) THEN
 				IF isInverse.Get() THEN boolean.value := ~value ELSE boolean.value := value END;
 				m.SetGeneric(boolean, res);
 			END;
@@ -1374,7 +1374,7 @@ TYPE
 		PROCEDURE LinkChanged(sender, data : ANY);
 		VAR integer : Types.Integer; res : LONGINT; m: Models.Model;
 		BEGIN
-			IF (sender = model) & Models.GetModel(model,m) THEN
+			IF (sender = model) & WMProperties.GetModel(model,m) THEN
 				m.GetGeneric(integer, res);
 				IF (res = Models.Ok) & (pos.Get() # integer.value) THEN
 					pos.Set(integer.value);
@@ -1385,7 +1385,7 @@ TYPE
 		PROCEDURE ChangeModel(value : LONGINT);
 		VAR integer : Types.Integer; res : LONGINT; m: Models.Model;
 		BEGIN
-			IF Models.GetModel(model, m) THEN
+			IF WMProperties.GetModel(model, m) THEN
 				integer.value := value;
 				m.SetGeneric(integer, res);
 			END;
@@ -2009,7 +2009,7 @@ TYPE
 		VAR m: Models.Model; integer: LONGINT;
 		BEGIN
 			IF sender = model THEN
-				IF Models.GetModel(model,m) THEN
+				IF WMProperties.GetModel(model,m) THEN
 					IF Models.GetInteger(m, integer) THEN
 						pos.Set(integer);
 					END;
@@ -2060,7 +2060,7 @@ TYPE
 		PROCEDURE ChangeModel;
 		VAR m: Models.Model; real: Types.Integer; res : LONGINT;
 		BEGIN
-			IF Models.GetModel(model,m) THEN
+			IF WMProperties.GetModel(model,m) THEN
 				real.value := pos.Get();
 				m.SetGeneric(real,res)
 			END;

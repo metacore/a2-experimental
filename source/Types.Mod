@@ -211,11 +211,15 @@ BEGIN
 	ELSIF (target IS Longreal) THEN
 		target(Longreal).value := value;
 	ELSIF (target IS String) THEN
+		EnsureStringLength(target(String).value, 11);
+		Strings.IntToStr(value, target(String).value^);
+		(*
 		IF (target(String).value # NIL) THEN
 			Strings.IntToStr(value, target(String).value^);
 		ELSE
 			res := ConversionError;
 		END;
+		*)
 	ELSIF (target IS DynamicString) THEN
 		EnsureLength(target(DynamicString), 11);
 		Strings.IntToStr(value, target(DynamicString).value^);
@@ -286,6 +290,7 @@ BEGIN
 	ELSIF (target IS Integer) THEN
 		target(Integer).value := ENTIER(value);
 	ELSIF (target IS String) THEN
+		EnsureStringLength(target(String).value, 32);
 		IF (target(String).value # NIL) THEN
 			(*FloatToString(value, 8, target(String).value^);*)
 			NEW(w,30); w.Float(value,24); w.Get(target(String).value^);
@@ -508,11 +513,24 @@ BEGIN
 	END;
 END GetAOC;
 
+PROCEDURE EnsureStringLength(VAR s: Strings.String; length: LONGINT);
+VAR l: LONGINT;
+BEGIN
+	IF (s = NIL) OR (Strings.Length(s^) < length) THEN
+		NEW(s,length)
+	END;
+END EnsureStringLength;
+
+
 PROCEDURE SetAOC*(VAR target : Any; CONST value : ARRAY OF CHAR; VAR res : LONGINT);
 VAR temp : LONGREAL; string : String;
 BEGIN
 	res := Ok;
 	IF (target IS String) THEN
+		TRACE(Strings.Length(value));
+		EnsureStringLength(target(String).value, Strings.Length(value)+1);
+		COPY(value, target(String).value^);
+		(*
 		IF (target(String).value # NIL) THEN
 			COPY(value, target(String).value^);
 			IF (Strings.Length(value) >= LEN(target(String).value)) THEN
@@ -521,6 +539,7 @@ BEGIN
 		ELSE
 			res := ConversionError;
 		END;
+		*)
 	ELSIF (target IS DynamicString) THEN
 		SetValue(target(DynamicString), value);
 	ELSIF (target IS String32) THEN
