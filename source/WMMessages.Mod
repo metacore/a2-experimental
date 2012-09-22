@@ -22,7 +22,8 @@ CONST
 	MsgDragOver* = 0; MsgDragDropped* = 1;
 
 	(** Gather statistics about added/discarded messages? *)
-	Statistics* = TRUE;
+	Statistics* = FALSE;
+	TraceQueue = FALSE;
 	MsgTypeMax* = 10;
 
 
@@ -157,6 +158,10 @@ TYPE
 		(** Add a message to a queue. Discards the message if the queue is full *)
 		PROCEDURE Add*(VAR msg : Message): BOOLEAN;
 		VAR i, pos: LONGINT;
+		CONST
+			MergePointers = TRUE;
+			MergeInvalidates = TRUE;
+
 		BEGIN {EXCLUSIVE}
 			(*
 			IF debug = SELF THEN
@@ -168,7 +173,7 @@ TYPE
 				D.Exit;
 			END;
 			*)
-			IF (msg.msgType = MsgPointer) & (num > 0) THEN  (* reduce pointer moves in buffer *)
+			IF MergePointers & (msg.msgType = MsgPointer) & (num > 0) THEN  (* reduce pointer moves in buffer *)
 				i := num - 1;
 				WHILE i >= 0 DO
 					pos := (head + i) MOD LEN(msgQ);
@@ -183,7 +188,7 @@ TYPE
 			END;
 
 
-			IF (msg.msgType = MsgInvalidate) & (num > 0) THEN
+			IF MergeInvalidates & (msg.msgType = MsgInvalidate) & (num > 0)  THEN
 				i := num-1;
 				pos := (head + i) MOD LEN(msgQ);
 				IF (msgQ[pos].sender = msg.sender) & (msgQ[pos].msgType = MsgInvalidate) & (msgQ[pos].msgSubType = msg.msgSubType) THEN
@@ -371,8 +376,6 @@ VAR
 	 messagesAdded- : LONGINT;
 	 messagesDiscarded- : LONGINT;
 
-	 TraceQueue: BOOLEAN;
-
 	 (*
 	 debug*: ANY;
 	*)
@@ -406,19 +409,6 @@ BEGIN
 	RETURN (container.x <= this.x) & (container.dx >= this.dx) & (container.y <= this.y) & (container.dy >= this.dy)
 END Contained;
 
-PROCEDURE TraceOn*;
-BEGIN
-	TraceQueue := TRUE;
-	TRACE(TraceQueue);
-END TraceOn;
-
-PROCEDURE TraceOff*;
-BEGIN
-	TraceQueue := FALSE;
-	TRACE(TraceQueue);
-END TraceOff;
-
 BEGIN
 	NEW(tokenCache);
-	TraceQueue := FALSE;
 END WMMessages.
