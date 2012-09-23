@@ -225,7 +225,6 @@ TYPE
 				NEW(dt, SELF, SetDroppedString, pos);
 				dragInfo.data := dt;
 				ConfirmDrag(TRUE, dragInfo);
-				IF dragInfo.onReject # NIL THEN dragInfo.onReject(SELF, dragInfo) END;
 			ELSE HALT(100);
 			END;
 		END MyDragDropped;
@@ -1438,20 +1437,6 @@ TYPE
 			adrLabel.Draw(canvas);
 			IF StartDrag(reference.Get(),img,0,0,NIL,NIL) THEN END;
 		END MyStartDrag;
-
-		PROCEDURE MyDragDropped(x,y: LONGINT; dragInfo: WMWindowManager.DragInfo; VAR handled: BOOLEAN);
-		VAR ref: ANY;
-		BEGIN
-			ref := dragInfo.data;
-			IF (ref # NIL) & (ref IS Repositories.Component) THEN
-				reference.Set(ref(Repositories.Component));
-				handled := TRUE
-			ELSIF ref = NIL THEN
-				reference.Set(NIL);
-				handled := TRUE
-			ELSE HALT(100);
-			END;
-		END MyDragDropped;
 
 		PROCEDURE HandleButton(sender, data : ANY);
 		VAR object : XML.Element; modelView : ModelView; window : Window; propertyPanel: PropertyPanel;
