@@ -3,7 +3,7 @@ MODULE WMInspector; (** AUTHOR "staubesv"; PURPOSE "Component inspection"; *)
 IMPORT
 	Modules, Strings, XMLObjects, Texts,
 	WMRectangles, WMGraphics, WMMessages, WMRestorable, WMWindowManager,
-	WMComponents, WMStandardComponents, WMTrees, WMTabComponents, WMInspectionComponents, XML, Raster, WMPopups;
+	WMComponents, WMStandardComponents, WMTrees, WMTabComponents, WMInspectionComponents, XML, Raster, WMPopups, Models;
 
 CONST
 	WindowWidth = 800; WindowHeight = 500;
@@ -205,22 +205,36 @@ TYPE
 	FormComponentsTree* = OBJECT(InspectionTree)
 	VAR
 		windows : Windows;
-		refreshBtn : WMStandardComponents.Button;
+		refreshBtn, splitBtn : WMStandardComponents.Button;
 		dragger: DragCommand;
 
 		PROCEDURE &Init;
+		VAR panel: WMStandardComponents.Panel;
 		BEGIN
 			Init^;
 			Clear(windows);
 
-			NEW(refreshBtn); refreshBtn.alignment.Set(WMComponents.AlignBottom);
-			refreshBtn.bounds.SetHeight(20);
-			refreshBtn.caption.SetAOC("Refresh");
-			refreshBtn.onClick.Add(Refresh);
-			AddContent(refreshBtn);
 			NEW(dragger); dragger.alignment.Set(WMComponents.AlignBottom);
 			dragger.bounds.SetHeight(20);
+			dragger.bearing.Set(WMRectangles.MakeRect(Bearing, Bearing, Bearing, Bearing));
 			AddContent(dragger);
+
+			NEW(panel); panel.alignment.Set(WMComponents.AlignBottom);
+			panel.bounds.SetHeight(20);
+			AddContent(panel);
+
+			NEW(refreshBtn); refreshBtn.alignment.Set(WMComponents.AlignLeft);
+			refreshBtn.bounds.SetWidth(100);
+			refreshBtn.caption.SetAOC("Refresh");
+			refreshBtn.onClick.Add(Refresh);
+			panel.AddContent(refreshBtn);
+
+			NEW(splitBtn); splitBtn.alignment.Set(WMComponents.AlignClient);
+			splitBtn.bounds.SetHeight(20);
+			splitBtn.caption.SetAOC("Split");
+			splitBtn.isToggle.Set(TRUE);
+			panel.AddContent(splitBtn);
+
 			AddContent(treeView);
 		END Init;
 
@@ -426,24 +440,22 @@ TYPE
 
 	SelectionWrapper= POINTER TO RECORD tree: WMTrees.Tree; node: WMTrees.TreeNode END;
 
-	Window* = OBJECT(WMComponents.FormWindow)
+	InspectorComponent= OBJECT (WMComponents.VisualComponent)
 	VAR
 		formTree- : FormComponentsTree;
 		textTree : TextComponentsTree;
 		selectedTextTree : SelectedTextTree;
 		selectedComponentTree: SelectedComponentsTree;
 		currentTree : InspectionTree;
+
 		propertyPanel : WMInspectionComponents.PropertyPanel;
 		libraryPanel : WMInspectionComponents.RepositoryPanel;
 		xmlPanel : WMInspectionComponents.XMLPanel;
 
-		PROCEDURE &New*(context : WMRestorable.Context);
+		PROCEDURE &InitInspector(simple: BOOLEAN; vis: Models.Boolean);
 		BEGIN
-			Init(WindowWidth, WindowHeight, FALSE);
-			IncCount;
-			SetContent(CreateForm());
-			SetTitle(Strings.NewString("Inspector"));
-			SetIcon(WMGraphics.LoadImage("WMInspector.tar://WMInspector.png", TRUE));
+			Init;
+			Create(simple, vis);
 			currentTree := formTree;
 			formTree.treeView.onClickNode.Add(NodeClicked);
 			formTree.Refresh(NIL, NIL);
@@ -454,26 +466,21 @@ TYPE
 			selectedComponentTree.treeView.onClickNode.Add(NodeClicked);
 			selectedComponentTree.Refresh(NIL, NIL);
 
-			(*formTree.treeView.onSelectNode.Add(NodeSelected);*)
-
-
 			formTree.treeView.SetExtContextMenuHandler(ContextMenu);
 			textTree.treeView.SetExtContextMenuHandler(ContextMenu);
 			selectedTextTree.treeView.SetExtContextMenuHandler(ContextMenu);
 			selectedComponentTree.treeView.SetExtContextMenuHandler(ContextMenu);
-		END New;
 
-		PROCEDURE CreateForm() : WMComponents.VisualComponent;
+		END InitInspector;
+
+		PROCEDURE Create(simple: BOOLEAN; vis: Models.Boolean);
 		VAR
-			panel, rightPanel, treePanel, libPanel : WMStandardComponents.Panel; resizer : WMStandardComponents.Resizer;
+			rightPanel, treePanel, libPanel : WMStandardComponents.Panel; resizer : WMStandardComponents.Resizer;
 			tabPanel : WMTabComponents.TabPanel; tabControl : WMTabComponents.Tabs; tabEntry : WMTabComponents.TabEntry;
 		BEGIN
-			NEW(panel); panel.alignment.Set(WMComponents.AlignClient);
-			panel.fillColor.Set(WMGraphics.White);
-
 			NEW(treePanel); treePanel.alignment.Set(WMComponents.AlignLeft);
 			treePanel.bounds.SetWidth(200);
-			panel.AddContent(treePanel);
+			AddContent(treePanel);
 
 			NEW(resizer); resizer.alignment.Set(WMComponents.AlignRight);
 			resizer.bounds.SetWidth(5);
@@ -493,7 +500,8 @@ TYPE
 
 			NEW(formTree); formTree.alignment.Set(WMComponents.AlignClient);
 			tabEntry.AddContent(formTree);
-			formTree.dragger.window := SELF;
+			formTree.dragger.inspector := SELF;
+			formTree.splitBtn.model.Set(vis);
 
 			NEW(tabEntry); tabEntry.alignment.Set(WMComponents.AlignClient);
 			tabEntry.caption.SetAOC("Selection");
@@ -509,7 +517,6 @@ TYPE
 			NEW(selectedTextTree); selectedTextTree.alignment.Set(WMComponents.AlignClient);
 			tabEntry.AddContent(selectedTextTree);
 
-
 			NEW(tabEntry); tabEntry.alignment.Set(WMComponents.AlignClient);
 			tabEntry.caption.SetAOC("Last Text");
 			tabPanel.AddContent(tabEntry);
@@ -518,66 +525,34 @@ TYPE
 			tabEntry.AddContent(textTree);
 
 			NEW(rightPanel); rightPanel.alignment.Set(WMComponents.AlignClient);
-			panel.AddContent(rightPanel);
+			AddContent(rightPanel);
 
-			NEW(libPanel); libPanel.alignment.Set(WMComponents.AlignBottom);
-			libPanel.bounds.SetHeight(60);
-			libPanel.fillColor.Set(0C0C0C0FFH);
-			rightPanel.AddContent(libPanel);
+			IF ~simple THEN
+				NEW(libPanel); libPanel.alignment.Set(WMComponents.AlignBottom);
+				libPanel.bounds.SetHeight(60);
+				libPanel.fillColor.Set(0C0C0C0FFH);
+				rightPanel.AddContent(libPanel);
 
-			NEW(resizer); resizer.alignment.Set(WMComponents.AlignTop);
-			resizer.bounds.SetHeight(5);
-			libPanel.AddContent(resizer);
+				NEW(resizer); resizer.alignment.Set(WMComponents.AlignTop);
+				resizer.bounds.SetHeight(5);
+				libPanel.AddContent(resizer);
 
-			NEW(libraryPanel); libraryPanel.alignment.Set(WMComponents.AlignTop);
-			libraryPanel.bounds.SetHeight(50);
-			libraryPanel.bearing.Set(WMRectangles.MakeRect(Bearing, Bearing, Bearing, Bearing));
-			libPanel.AddContent(libraryPanel);
+				NEW(libraryPanel); libraryPanel.alignment.Set(WMComponents.AlignTop);
+				libraryPanel.bounds.SetHeight(50);
+				libraryPanel.bearing.Set(WMRectangles.MakeRect(Bearing, Bearing, Bearing, Bearing));
+				libPanel.AddContent(libraryPanel);
 
-			NEW(xmlPanel); xmlPanel.alignment.Set(WMComponents.AlignTop);
-			xmlPanel.bounds.SetHeight(20);
-			xmlPanel.bearing.Set(WMRectangles.MakeRect(2*Bearing, Bearing, Bearing, Bearing));
-			libPanel.AddContent(xmlPanel);
+				NEW(xmlPanel); xmlPanel.alignment.Set(WMComponents.AlignTop);
+				xmlPanel.bounds.SetHeight(20);
+				xmlPanel.bearing.Set(WMRectangles.MakeRect(2*Bearing, Bearing, Bearing, Bearing));
+				libPanel.AddContent(xmlPanel);
+			END;
 
-			NEW(propertyPanel); propertyPanel.alignment.Set(WMComponents.AlignClient);
-			rightPanel.AddContent(propertyPanel);
+				NEW(propertyPanel); propertyPanel.alignment.Set(WMComponents.AlignClient);
+				rightPanel.AddContent(propertyPanel);
+		END Create;
 
-			RETURN panel;
-		END CreateForm;
-
-		(*
-		PROCEDURE GetSelectedNode(tree: WMTrees.Tree): WMTrees.TreeNode;
-		VAR node: WMTrees.TreeNode;
-
-			PROCEDURE FindSelected(node: WMTrees.TreeNode): WMTrees.TreeNode;
-			VAR state: SET; caption: Strings.String; found: WMTrees.TreeNode;
-			BEGIN
-				IF node # NIL THEN
-					caption := tree.GetNodeCaption(node);
-					TRACE(caption^);
-					TRACE(state);
-					state := tree.GetNodeState(node);
-					IF (WMTrees.StateSelected IN state) THEN
-						found := node
-					ELSE
-						found := FindSelected(tree.GetChildren(node));
-						IF found = NIL THEN
-							found := FindSelected(tree.GetNextSibling(node));
-						END;
-					END;
-				END;
-				RETURN found
-			END FindSelected;
-		BEGIN
-			tree.Acquire;
-			node := tree.GetRoot();
-			node := FindSelected(tree.GetChildren(node));
-			tree.Release;
-			RETURN node
-		END GetSelectedNode;
-		*)
-
-		PROCEDURE TabSelected(sender, data : ANY);
+	PROCEDURE TabSelected(sender, data : ANY);
 		VAR caption : Strings.String; node: WMTrees.TreeNode;
 		BEGIN
 			IF (data # NIL) & (data IS WMTabComponents.Tab)  THEN
@@ -608,12 +583,20 @@ TYPE
 					currentTree.tree.Release;
 					IF (ptr # NIL) & (ptr IS WMComponents.Component) THEN
 						propertyPanel.SetComponent(SELF, ptr(WMComponents.Component));
-						libraryPanel.SetComponent(ptr(WMComponents.Component));
-						xmlPanel.SetComponent(ptr(WMComponents.Component));
+						IF libraryPanel # NIL THEN
+							libraryPanel.SetComponent(ptr(WMComponents.Component));
+						END;
+						IF xmlPanel # NIL THEN
+							xmlPanel.SetComponent(ptr(WMComponents.Component));
+						END;
 					ELSE
 						propertyPanel.SetComponent(SELF, NIL);
-						libraryPanel.SetComponent(NIL);
-						xmlPanel.SetComponent(NIL);
+						IF libraryPanel # NIL THEN
+							libraryPanel.SetComponent(NIL);
+						END;
+						IF xmlPanel # NIL THEN
+							xmlPanel.SetComponent(NIL);
+						END;
 					END;
 				END;
 			END;
@@ -782,6 +765,80 @@ TYPE
 			END;
 		END ContextMenu;
 
+
+	END InspectorComponent;
+
+
+	Window* = OBJECT(WMComponents.FormWindow)
+	VAR
+		upper, lower: InspectorComponent;
+		upperVisible: Models.Boolean;
+		PROCEDURE &New*(context : WMRestorable.Context);
+		BEGIN
+			Init(WindowWidth, WindowHeight, FALSE);
+			IncCount;
+			NEW(upperVisible); upperVisible.Set(FALSE);
+			SetContent(CreateF());
+			SetTitle(Strings.NewString("Inspector"));
+			SetIcon(WMGraphics.LoadImage("WMInspector.tar://WMInspector.png", TRUE));
+		END New;
+
+		PROCEDURE CreateF(): WMComponents.VisualComponent;
+		VAR panel: WMStandardComponents.Panel;  resizer: WMStandardComponents.Resizer;
+		BEGIN
+			NEW(panel); panel.alignment.Set(WMComponents.AlignClient);
+			panel.fillColor.Set(WMGraphics.White);
+
+			NEW(upper,TRUE, upperVisible); upper.alignment.Set(WMComponents.AlignTop);
+			upper.fillColor.Set(WMGraphics.White);
+			upper.bounds.SetHeight(200);
+			panel.AddContent(upper);
+			upper.visible.SetLink(upperVisible);
+
+			NEW(resizer); resizer.alignment.Set(WMComponents.AlignBottom);
+			resizer.bounds.SetHeight(5);
+			upper.AddContent(resizer);
+
+			NEW(lower,FALSE, upperVisible); lower.alignment.Set(WMComponents.AlignClient);
+			lower.fillColor.Set(WMGraphics.White);
+			panel.AddContent(lower);
+			RETURN panel
+		END CreateF;
+
+
+		(*
+		PROCEDURE GetSelectedNode(tree: WMTrees.Tree): WMTrees.TreeNode;
+		VAR node: WMTrees.TreeNode;
+
+			PROCEDURE FindSelected(node: WMTrees.TreeNode): WMTrees.TreeNode;
+			VAR state: SET; caption: Strings.String; found: WMTrees.TreeNode;
+			BEGIN
+				IF node # NIL THEN
+					caption := tree.GetNodeCaption(node);
+					TRACE(caption^);
+					TRACE(state);
+					state := tree.GetNodeState(node);
+					IF (WMTrees.StateSelected IN state) THEN
+						found := node
+					ELSE
+						found := FindSelected(tree.GetChildren(node));
+						IF found = NIL THEN
+							found := FindSelected(tree.GetNextSibling(node));
+						END;
+					END;
+				END;
+				RETURN found
+			END FindSelected;
+		BEGIN
+			tree.Acquire;
+			node := tree.GetRoot();
+			node := FindSelected(tree.GetChildren(node));
+			tree.Release;
+			RETURN node
+		END GetSelectedNode;
+		*)
+
+
 		PROCEDURE Handle(VAR x : WMMessages.Message);
 		BEGIN
 			IF (x.msgType = WMMessages.MsgExt) & (x.ext # NIL) THEN
@@ -804,11 +861,11 @@ TYPE
 
 	(* quick and dirty, preliminary for testing purposes, fof *)
 	DragCommand*= OBJECT(WMStandardComponents.Label)
-	VAR caption: XML.Attribute; window: Window;
+	VAR caption: XML.Attribute; inspector: InspectorComponent;
 
 		PROCEDURE &Init*;
 		BEGIN
-			Init^; SELF.window := NIL;
+			Init^; SELF.inspector:= NIL;
 			NEW(caption); caption.SetName("Caption"); caption.SetValue("Drag to Inspect"); AddAttribute(caption);
 			SetGenerator("WMInspector.NewCommandDragger");
 		END Init;
@@ -855,15 +912,16 @@ TYPE
 
 		BEGIN
 			IF (sender # NIL) & (sender IS WMComponents.Component) THEN
-				IF SELF.window = NIL THEN
+				IF SELF.inspector = NIL THEN
 					NEW(window,NIL);
 					WMWindowManager.AddWindow(window,100,100);
-				ELSE window := SELF.window
+					inspector := window.lower;
+				ELSE inspector := SELF.inspector
 				END;
 
-				treeView := window.formTree.treeView;
-				tree := window.formTree.tree;
-				window.formTree.Refresh(SELF,NIL);
+				treeView := inspector.formTree.treeView;
+				tree := inspector.formTree.tree;
+				inspector.formTree.Refresh(SELF,NIL);
 				tree.Acquire;
 				root := tree.GetRoot();
 				IF FindComponent(root) THEN END;

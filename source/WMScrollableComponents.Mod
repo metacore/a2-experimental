@@ -203,6 +203,7 @@ TYPE
 			IF (sequencer # NIL) & ~sequencer.IsCallFromSequencer() THEN
 				sequencer.ScheduleEvent(FitScrollTarget, NIL, NIL)
 			END;
+			IF nofLevelsPerPage.Get() = 0 THEN RETURN END;
 			ASSERT(nofLevelsPerPage.Get() > 0);
 			IF (scrollPanel # NIL) THEN
 				spw := scrollPanel.bounds.GetWidth(); sph := scrollPanel.bounds.GetHeight();
@@ -215,7 +216,9 @@ TYPE
 					IF (th > (h-sh)) OR (tw<=w) THEN rw := w - sw ELSE rw := w END;
 					dx := tw- rw;
 					hScrollbar.visible.Set(TRUE);
+					IF rw > 0 THEN
 					nofLevels := Strings.Max(minNofLevels.Get(), nofLevelsPerPage.Get() * dx DIV rw);
+					END;
 					hScrollbar.max.Set(nofLevels);
 					(* hScrollbar.pageSize.Set(Strings.Max(1, (rw * nofLevels) DIV dx)); *)
 					hScrollbar.pageSize.Set(Strings.Max(1, (rw * nofLevels) DIV th) + 1);
@@ -232,7 +235,9 @@ TYPE
 					IF (tw > (w-sw)) OR (th<=h)  THEN rh := h - sh ELSE rh := h END;
 					dy := th - rh;
 					vScrollbar.visible.Set(TRUE);
-					nofLevels := Strings.Max(minNofLevels.Get(), nofLevelsPerPage.Get() * dy DIV rh);
+					IF rh > 0 THEN
+						nofLevels := Strings.Max(minNofLevels.Get(), nofLevelsPerPage.Get() * dy DIV rh)
+					END;
 					vScrollbar.max.Set(nofLevels);
 					(* vScrollbar.pageSize.Set(Strings.Max(1, (rh * nofLevels) DIV dy)); *)
 					vScrollbar.pageSize.Set(Strings.Max(1, (rh * nofLevels) DIV th) + 1);
