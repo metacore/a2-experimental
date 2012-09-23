@@ -590,6 +590,8 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 
 	WMGraphicUtilities.Mod
 
+	WMDropTarget.Mod
+
 	WMComponents.Mod # Components
 
 	KernelLogger.Mod
@@ -757,6 +759,7 @@ PACKAGE Applications ARCHIVE "Applications.zip" SOURCE "ApplicationsSrc.zip" DES
 	MD5.Mod	# Temporarily moved here from gadgets
 	HTTPSupport.Mod HTTPSession.Mod DynamicWebpage.Mod 	# Dynamic Webpages support
 	DynamicWebpagePlugin.Mod PrevalenceSystem.Mod
+	WMDropTarget.Mod
 	GenericSort.Mod WebStd.Mod WebComplex.Mod
 
 	WMCharCodes.Mod HTMLScanner.Mod HTMLParser.Mod gb2312.txt 	# Webbrowser
@@ -783,7 +786,6 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	WindowManager.Mod
 	UNIX { Unix.X11.Mod Unix.X11Api.Mod Unix.XDisplay.Mod Unix.Beep.Mod Unix.KbdMouse.Mod }
 
-	WMDropTarget.Mod
 
 	# Icons representing applications (don't put icons used by applications inside!)
 	WMIcons.tar

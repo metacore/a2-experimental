@@ -44,7 +44,7 @@ IMPORT
 	XML, XMLScanner, XMLParser, XMLObjects, Codecs, Localization, Repositories,
 	Messages := WMMessages, Rectangles := WMRectangles,
 	WMEvents, WMProperties, WMGraphics, Strings, WM := WMWindowManager, Raster,
-	Commands, Modules,D := Debugging, Kernel, Locks, SYSTEM, Objects;
+	Commands, Modules,D := Debugging, Kernel, Locks, SYSTEM, Objects, WMDropTarget;
 
 CONST
 	Ok* = 0;
@@ -97,6 +97,55 @@ TYPE
 	Recursion*= ENUM None*, FromComponent*, FromBottom* END;
 
 TYPE
+	SetStringProcedure = PROCEDURE {DELEGATE} (CONST string : ARRAY OF CHAR; x,y : LONGINT; VAR res : LONGINT);
+
+	DropTarget = OBJECT(WMDropTarget.DropTarget)
+	VAR
+		originator : ANY;
+		setString : SetStringProcedure;
+		x,y : LONGINT;
+
+		PROCEDURE &Init(originator : ANY; setString : SetStringProcedure; x,y : LONGINT);
+		BEGIN
+			ASSERT(setString # NIL);
+			SELF.originator := originator;
+			SELF.setString := setString;
+			SELF.x := x;
+			SELF.y := y;
+		END Init;
+
+		PROCEDURE GetInterface(type : LONGINT) : WMDropTarget.DropInterface;
+		VAR sdi : DropString;
+		BEGIN
+			IF (type = WMDropTarget.TypeString) THEN
+				NEW(sdi, originator, setString, x,y); RETURN sdi;
+			ELSE
+				RETURN NIL;
+			END;
+		END GetInterface;
+
+	END DropTarget;
+
+	DropString = OBJECT(WMDropTarget.DropString)
+	VAR
+		originator : ANY;
+		setString : SetStringProcedure;
+		x,y : LONGINT;
+
+		PROCEDURE &Init(originator : ANY; setString : SetStringProcedure; x,y : LONGINT);
+		BEGIN
+			ASSERT(setString # NIL);
+			SELF.originator := originator;
+			SELF.setString := setString;
+			SELF.x := x; SELF.y := y;
+		END Init;
+
+		PROCEDURE Set(CONST string : ARRAY OF CHAR; VAR res : LONGINT);
+		BEGIN
+			setString(string, x,y, res);
+		END Set;
+
+	END DropString;
 
 	LanguageExtension* = POINTER TO RECORD(Messages.MessageExtension)
 		languages* : Localization.Languages;
@@ -1033,7 +1082,7 @@ TYPE
 		END AddVisualComponent;
 
 		PROCEDURE EditDragDropped(x,y: LONGINT; dragInfo: WM.DragInfo): BOOLEAN;
-		VAR data: ANY; e: ComponentListEntry; parent: XML.Element;
+		VAR data: ANY; e: ComponentListEntry; parent: XML.Element; dt: DropTarget; pos: LONGINT;
 		BEGIN
 			data := dragInfo.data;
 			IF (data # NIL) & (data IS VisualComponent)  THEN
@@ -1074,10 +1123,43 @@ TYPE
 				END;
 				RETURN TRUE
 			ELSE
+				NEW(dt, SELF, SetDroppedString, x,y);
+				dragInfo.data := dt;
+				ConfirmDrag(TRUE, dragInfo);
+
 				IF dragInfo.onReject # NIL THEN dragInfo.onReject(SELF,dragInfo) END;
 				RETURN FALSE
 			END;
 		END EditDragDropped;
+
+		PROCEDURE SetDroppedString( CONST string : ARRAY OF CHAR; x,y : LONGINT; VAR res : LONGINT);
+		VAR gen: XML.GeneratorProcedure; moduleName, procedureName ,msg: Modules.Name; element: XML.Element;
+			context: Repositories.Context; repositoryName, componentName: ARRAY 265 OF CHAR; componentID: LONGINT; object: Repositories.Component;
+		BEGIN
+			Commands.Split(string, moduleName, procedureName, res, msg);
+			IF (res = Commands.Ok) THEN
+				GETPROCEDURE(moduleName, procedureName, gen);
+			END;
+			IF gen # NIL THEN
+				element := gen();
+			ELSIF Repositories.IsCommandString(string) THEN
+				Repositories.CallCommand(string, context, res);
+				IF (res = Repositories.Ok) & (context.object # NIL) & (context.object IS Repositories.Component) THEN
+					element := context.object(Repositories.Component);
+				END;
+			ELSIF Repositories.SplitName(string, repositoryName, componentName, componentID) THEN
+				Repositories.GetComponent(repositoryName, componentName, componentID, object, res);
+				element := object;
+			END;
+
+			IF (element # NIL) & (element IS VisualComponent) THEN
+				AddVisualComponent(element(VisualComponent),x,y);
+				Invalidate;
+			ELSIF (element # NIL) & (element IS Repositories.Component) THEN
+				model.Set(element(Repositories.Component))
+			END;
+			res := 1; (* to avoid removal of source *)
+		END SetDroppedString;
 
 		(** Is called via the message handler to inform about the result of a recent drag operation *)
 		PROCEDURE DragResult*(accepted : BOOLEAN; recipient : ANY; dragInfo : WM.DragInfo);
