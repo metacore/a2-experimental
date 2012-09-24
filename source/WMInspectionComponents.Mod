@@ -241,6 +241,7 @@ TYPE
 				element := gen();
 				IF (element # NIL) & (element IS Repositories.Component) THEN
 					property.SetLink(element(Repositories.Component));
+					res := 1;
 					RETURN
 				END;
 			END;

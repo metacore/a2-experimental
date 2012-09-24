@@ -1126,8 +1126,6 @@ TYPE
 				NEW(dt, SELF, SetDroppedString, x,y);
 				dragInfo.data := dt;
 				ConfirmDrag(TRUE, dragInfo);
-
-				IF dragInfo.onReject # NIL THEN dragInfo.onReject(SELF,dragInfo) END;
 				RETURN FALSE
 			END;
 		END EditDragDropped;
