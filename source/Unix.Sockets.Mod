@@ -51,7 +51,7 @@ TYPE
 		linger	: LONGINT;
 	END;
 		
-	Keepalive = POINTER TO RECORD (SocketOption)
+	Switch = POINTER TO RECORD (SocketOption)
 		onoff	: LONGINT
 	END;
 
@@ -351,7 +351,7 @@ VAR
 	
 	PROCEDURE KeepAlive* ( s: LONGINT; enable: BOOLEAN ): BOOLEAN;
 	VAR 
-		opt: Keepalive;
+		opt: Switch;
 		err: LONGINT;
 	BEGIN
 		NEW( opt );  
@@ -360,6 +360,19 @@ VAR
 		IF err # 0 THEN  Unix.Perror(  "Sockets.KeepAlive (setsockopt)" )  END;
 		RETURN err = 0 
 	END KeepAlive;
+	
+	
+	PROCEDURE NoDelay* ( s: LONGINT; enable: BOOLEAN ): BOOLEAN;
+	VAR 
+		opt: Switch;
+		err: LONGINT;
+	BEGIN
+		NEW( opt );  
+		IF enable THEN  opt.onoff := 1  ELSE  opt.onoff := 0  END;  
+		err := setsockopt( s, Unix.SoLSocket, Unix.SoNoDelay, opt, 4 );
+		IF err # 0 THEN  Unix.Perror(  "Sockets.NoDelay (setsockopt)" )  END;
+		RETURN err = 0 
+	END NoDelay;
 	
 	
 	PROCEDURE NetToInt* (x: INTEGER): INTEGER;

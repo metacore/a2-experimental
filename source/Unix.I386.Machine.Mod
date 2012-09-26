@@ -4,9 +4,9 @@ MODULE Machine;	(** AUTHOR "pjm"; PURPOSE "Bootstrapping, configuration and mach
 IMPORT SYSTEM, Trace, Unix, Glue;
 
 CONST
-	DefaultConfig = "Color 0  StackSize 256";
+	DefaultConfig = "Color 0  StackSize 128";
 	
-	Version = "Aos (rev.4899)";
+	Version = "Aos (rev.4947)";
 
 	DefaultObjectFileExtension* = ".Obj";
 	

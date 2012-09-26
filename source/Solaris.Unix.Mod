@@ -124,6 +124,7 @@ CONST
 		SoLSocket*		= 0FFFFH;	(* socket option level *)
 		SoLinger*		= 80H; 		(* linger (gracefully close the connection)*)
 		SoKeepAlive*	= 8;			(* keep connection alive *)
+		SoNoDelay*	= 1;			(* no delay *)
 		
 	(* ioctl *)
 		FioNRead*		= 4004667FH;	(* something to read ? *)

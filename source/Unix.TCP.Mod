@@ -135,10 +135,11 @@ TYPE
 				BEGIN {EXCLUSIVE}
 					IF trace THEN  Out.String( "Send: socket=" );  Out.Int( socket, 0 );  ShowBuffer( data, ofs, len )  END;
 					IF state = Established THEN
+						res := Ok;
 						WHILE len > 0 DO
 							n := len;
 							IF Sockets.Send( socket, data, ofs, n ) THEN  
-								res := Ok;  DEC( len, n );  INC( ofs, n )
+								DEC( len, n );  INC( ofs, n )
 							ELSE  
 								res := ConnectionReset;  len := 0
 							END
@@ -146,7 +147,7 @@ TYPE
 					ELSE
 						res := NotConnected (* Send on a Connection with state=Listen *)
 					END;
-					INC( sndnxt );  res := Ok;
+					INC( sndnxt )
 				END Send;
 
 				(** Receive data on a TCP connection. The data parameter specifies the buffer.
@@ -192,6 +193,7 @@ TYPE
 					ELSE  
 						res := NotConnected
 					END;
+					INC( rcvnxt )
 				END Receive;
 			
 				
@@ -203,13 +205,15 @@ TYPE
 					This option is normally chosen by applications like telnet or VNC client, which send verly little data but
 					shall not be delayed.*)
 				PROCEDURE DelaySend*( enable: BOOLEAN );
-					(* dummy *)
+				VAR ignore: BOOLEAN;
+				BEGIN {EXCLUSIVE}
+					ignore := Sockets.NoDelay( socket, ~enable )
 				END DelaySend;
 
 				(** Enable or disable keep-alive. (default: disabled) *)
 				PROCEDURE KeepAlive*( enable: BOOLEAN );
 				VAR ignore: BOOLEAN;
-				BEGIN
+				BEGIN {EXCLUSIVE}
 					ignore := Sockets.KeepAlive( socket, enable )
 				END KeepAlive;
 
@@ -238,7 +242,14 @@ TYPE
 				(** Wait until the connection state is either in the good or bad set, up to "ms" milliseconds. *)
 				PROCEDURE AwaitState*( good, bad: SET;  ms: LONGINT;  VAR res: LONGINT );
 				BEGIN
-					WHILE (ms > 0) & ~(state IN (good+bad)) DO  Objects.Sleep( 10 );  DEC( ms, 10 )  END
+					WHILE (ms > 0) & ~(state IN (good+bad)) DO  Objects.Sleep( 10 );  DEC( ms, 10 )  END;
+					IF state IN good THEN
+						res := Ok
+					ELSIF state IN bad THEN
+						res := NotConnected
+					ELSE
+						res := TimedOut
+					END
 				END AwaitState;
 
 				(** Close a TCP connection (half-close). *)
