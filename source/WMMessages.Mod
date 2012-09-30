@@ -1,7 +1,7 @@
 MODULE WMMessages; (** AUTHOR "TF"; PURPOSE "Support for messages and events"; *)
 
 IMPORT
-	Strings, KernelLog, Objects, Kernel, Locks, D:= Debugging, Reflection, SYSTEM;
+	Strings, KernelLog, Objects, Kernel, Locks, D:= Debugging, Modules, Reflection, SYSTEM;
 
 CONST
 	InitialMsgQSize = 64;
@@ -25,7 +25,6 @@ CONST
 	Statistics* = FALSE;
 	TraceQueue = FALSE;
 	MsgTypeMax* = 10;
-
 
 
 TYPE
@@ -158,27 +157,40 @@ TYPE
 		(** Add a message to a queue. Discards the message if the queue is full *)
 		PROCEDURE Add*(VAR msg : Message): BOOLEAN;
 		VAR i, pos: LONGINT; name: ARRAY 256 OF CHAR; pc: SYSTEM.ADDRESS;
+		module: Modules.Module; type: Modules.TypeDesc;
 		CONST
 			MergePointers = TRUE;
 			MergeInvalidates = TRUE;
 
 		BEGIN {EXCLUSIVE}
 			IF debug = SELF THEN
-				D.Enter;
-				D.Ln;
-				D.String("-- WMMessages.MsgSequencer.Add --"); D.Ln;
-				D.String("msg type "); D.Int(msg.msgType,1); D.Ln;
-				D.String("time "); D.Int(Kernel.GetTicks(),1);D.Ln;
-
+				KernelLog.String("<----");
+				IF msg.msgType < LEN(MsgName) THEN COPY(MsgName[msg.msgType], name) ELSE name := "" END;
+				TRACE("WMMessages.MsgSequencer.Add", name);
+				TRACE(i, msg.msgType, msg.msgSubType);
+				TRACE(msg.x, msg.y, msg.dx, msg.dy);
+				IF msg.sender # NIL THEN
+					type := Modules.TypeOf(msg.sender);
+					IF (type # NIL) THEN
+						COPY(type.mod.name, name); Strings.Append(name, "."); Strings.Append(name, type.name);
+						TRACE(msg.sender, name);
+					ELSE
+						TRACE(msg.sender);
+					END;
+				END;
 				IF msg.msgType = MsgInvokeEvent THEN
 					Reflection.GetProcedureName(SYSTEM.VAL(SYSTEM.ADDRESS, msg.event), name, pc );
-				ELSE name := ""
+					TRACE("Event procedure ", name);
 				END;
-					TRACE(i, msg.msgType, msg.msgSubType);
-					TRACE(msg.x, msg.y, msg.dx, msg.dy);
-					TRACE("Event procedure: ", name);
-
-				D.Exit;
+				IF msg.ext # NIL THEN
+					type := Modules.TypeOf(msg.ext);
+					IF (type # NIL) THEN
+						COPY(type.mod.name, name); Strings.Append(name, "."); Strings.Append(name, type.name);
+						TRACE(msg.ext, name);
+					ELSE
+						TRACE(msg.ext);
+					END;
+				END;
 			END;
 
 			IF MergePointers & (msg.msgType = MsgPointer) & (num > 0) THEN  (* reduce pointer moves in buffer *)
@@ -205,6 +217,7 @@ TYPE
 							IF TraceQueue OR (debug = SELF) THEN
 								TRACE("container first ", msg.x, msg.dx, msg.y, msg.dy);
 								TRACE(msgQ[pos].x, msgQ[pos].dx, msgQ[pos].y, msgQ[pos].dy);
+								KernelLog.Ln;
 							END;
 							(* replace *)
 							msgQ[pos].x := msg.x; msgQ[pos].y := msg.y; msgQ[pos].dx := msg.dx; msgQ[pos].dy := msg.dy;
@@ -213,6 +226,7 @@ TYPE
 							IF TraceQueue OR (debug = SELF) THEN
 								TRACE("contained first ", msg.x, msg.dx, msg.y, msg.dy);
 								TRACE(msgQ[pos].x, msgQ[pos].dx, msgQ[pos].y, msgQ[pos].dy);
+								KernelLog.Ln;
 							END;
 							(* keep *)
 							RETURN TRUE;
@@ -221,6 +235,7 @@ TYPE
 						(* keep *)
 						IF TraceQueue OR (debug = SELF) THEN
 							TRACE("keep first");
+							KernelLog.Ln;
 						END;
 						RETURN TRUE;
 					END;
@@ -232,7 +247,7 @@ TYPE
 					IF (msgQ[pos].sender = msg.sender) & (msgQ[pos].msgType = MsgInvalidate) & (msgQ[pos].msgSubType = msg.msgSubType) THEN
 						IF msg.msgSubType= MsgSubRectangle THEN
 							IF Contained(msgQ[pos], msg) THEN
-								IF TraceQueue THEN
+								IF TraceQueue OR (debug = SELF) THEN
 									TRACE("container  ", pos);
 									TRACE( msg.x, msg.dx, msg.y, msg.dy);
 									TRACE(msgQ[pos].x, msgQ[pos].dx, msgQ[pos].y, msgQ[pos].dy);
@@ -276,6 +291,12 @@ TYPE
 			END;
 			msgQ[(head + num) MOD LEN(msgQ)] := msg; INC(num);
 			overflows := 0;
+
+			IF debug = SELF THEN
+				KernelLog.Ln;
+			END;
+
+
 			RETURN TRUE;
 		END Add;
 
@@ -337,6 +358,8 @@ TYPE
 		(* Remove a message from the queue. Block if no message is available but awake if queue is terminated by call to Stop *)
 		(* return if alive *)
 		PROCEDURE Get(VAR msg : Message) : BOOLEAN;
+		VAR i, pos: LONGINT; name: ARRAY 256 OF CHAR; pc: SYSTEM.ADDRESS;
+			module: Modules.Module; type: Modules.TypeDesc;
 		BEGIN {EXCLUSIVE}
 			IF hadOverflow THEN KernelLog.String(" - Recovered"); hadOverflow := FALSE END;
 			waiting := TRUE;
@@ -352,6 +375,39 @@ TYPE
 			head := (head + 1)  MOD LEN(msgQ);
 			DEC(num);
 			originator := msg.originator;
+
+			IF debug = SELF THEN
+				KernelLog.String("---->");
+				IF msg.msgType < LEN(MsgName) THEN COPY(MsgName[msg.msgType], name) ELSE name := "" END;
+				TRACE("WMMessages.MsgSequencer.Get", name);
+				TRACE(i, msg.msgType, msg.msgSubType);
+				TRACE(msg.x, msg.y, msg.dx, msg.dy);
+				IF msg.sender # NIL THEN
+					type := Modules.TypeOf(msg.sender);
+					IF (type # NIL) THEN
+						COPY(type.mod.name, name); Strings.Append(name, "."); Strings.Append(name, type.name);
+						TRACE(msg.sender, name);
+					ELSE
+						TRACE(msg.sender);
+					END;
+				END;
+				IF msg.msgType = MsgInvokeEvent THEN
+					Reflection.GetProcedureName(SYSTEM.VAL(SYSTEM.ADDRESS, msg.event), name, pc );
+					TRACE("Event procedure ", name);
+				END;
+				IF msg.ext # NIL THEN
+					type := Modules.TypeOf(msg.ext);
+					IF (type # NIL) THEN
+						COPY(type.mod.name, name); Strings.Append(name, "."); Strings.Append(name, type.name);
+						TRACE(msg.ext, name);
+					ELSE
+						TRACE(msg.ext);
+					END;
+				END;
+				KernelLog.Ln;
+			END;
+
+
 			RETURN TRUE
 		END Get;
 
@@ -386,6 +442,7 @@ VAR
 
 
 	 debug*: ANY;
+	 MsgName: ARRAY 32 OF ARRAY 32 OF CHAR;
 
 
 PROCEDURE TokenEnumerator(obj: ANY; VAR cont: BOOLEAN);
@@ -419,4 +476,15 @@ END Contained;
 
 BEGIN
 	NEW(tokenCache);
+	MsgName[MsgPointer] := "MsgPointer";
+	MsgName[MsgKey] := "MsgKey";
+	MsgName[MsgClose] := "MsgClose";
+	MsgName[MsgStyleChanged] := "MsgStyleChanged";
+	MsgName[MsgFocus] := "MsgFocus";
+	MsgName[MsgExt] := "MsgExt";
+	MsgName[MsgDrag] := "MsgDrag";
+	MsgName[MsgInvokeEvent] := "MsgInvokeEvent";
+	MsgName[MsgResized] := "MsgResized" ;
+	MsgName[MsgSetLanguage] := "MsgSetLanguage";
+	MsgName[MsgInvalidate] := "MsgInvalidate";
 END WMMessages.
