@@ -157,22 +157,30 @@ TYPE
 
 		(** Add a message to a queue. Discards the message if the queue is full *)
 		PROCEDURE Add*(VAR msg : Message): BOOLEAN;
-		VAR i, pos: LONGINT;
+		VAR i, pos: LONGINT; name: ARRAY 256 OF CHAR; pc: SYSTEM.ADDRESS;
 		CONST
 			MergePointers = TRUE;
 			MergeInvalidates = TRUE;
 
 		BEGIN {EXCLUSIVE}
-			(*
 			IF debug = SELF THEN
 				D.Enter;
 				D.Ln;
 				D.String("-- WMMessages.MsgSequencer.Add --"); D.Ln;
 				D.String("msg type "); D.Int(msg.msgType,1); D.Ln;
 				D.String("time "); D.Int(Kernel.GetTicks(),1);D.Ln;
+
+				IF msg.msgType = MsgInvokeEvent THEN
+					Reflection.GetProcedureName(SYSTEM.VAL(SYSTEM.ADDRESS, msg.event), name, pc );
+				ELSE name := ""
+				END;
+					TRACE(i, msg.msgType, msg.msgSubType);
+					TRACE(msg.x, msg.y, msg.dx, msg.dy);
+					TRACE("Event procedure: ", name);
+
 				D.Exit;
 			END;
-			*)
+
 			IF MergePointers & (msg.msgType = MsgPointer) & (num > 0) THEN  (* reduce pointer moves in buffer *)
 				i := num - 1;
 				WHILE i >= 0 DO
@@ -194,7 +202,7 @@ TYPE
 				IF (msgQ[pos].sender = msg.sender) & (msgQ[pos].msgType = MsgInvalidate) & (msgQ[pos].msgSubType = msg.msgSubType) THEN
 					IF msg.msgSubType= MsgSubRectangle THEN
 						IF Contained(msgQ[pos], msg) THEN
-							IF TraceQueue THEN
+							IF TraceQueue OR (debug = SELF) THEN
 								TRACE("container first ", msg.x, msg.dx, msg.y, msg.dy);
 								TRACE(msgQ[pos].x, msgQ[pos].dx, msgQ[pos].y, msgQ[pos].dy);
 							END;
@@ -202,7 +210,7 @@ TYPE
 							msgQ[pos].x := msg.x; msgQ[pos].y := msg.y; msgQ[pos].dx := msg.dx; msgQ[pos].dy := msg.dy;
 							RETURN TRUE;
 						ELSIF Contained(msg, msgQ[pos]) THEN
-							IF TraceQueue THEN
+							IF TraceQueue OR (debug = SELF) THEN
 								TRACE("contained first ", msg.x, msg.dx, msg.y, msg.dy);
 								TRACE(msgQ[pos].x, msgQ[pos].dx, msgQ[pos].y, msgQ[pos].dy);
 							END;
@@ -211,7 +219,7 @@ TYPE
 						END;
 					ELSIF msg.msgSubType = MsgSubAll THEN
 						(* keep *)
-						IF TraceQueue THEN
+						IF TraceQueue OR (debug = SELF) THEN
 							TRACE("keep first");
 						END;
 						RETURN TRUE;
@@ -233,7 +241,7 @@ TYPE
 								msgQ[pos].msgSubType := MsgSubNothing;
 								i := 0;
 							ELSIF Contained(msg, msgQ[pos]) THEN
-								IF TraceQueue THEN
+								IF TraceQueue OR (debug = SELF)  THEN
 									TRACE("contained  ", pos);
 									TRACE(msg.x, msg.dx, msg.y, msg.dy);
 									TRACE(msgQ[pos].x, msgQ[pos].dx, msgQ[pos].y, msgQ[pos].dy);
@@ -244,7 +252,7 @@ TYPE
 								i := 0;
 							END;
 						ELSIF msgQ[pos].msgSubType = MsgSubAll THEN
-							IF TraceQueue THEN
+							IF TraceQueue OR (debug = SELF)  THEN
 								TRACE("replace ", pos);
 							END;
 							msgQ[pos].msgSubType := MsgSubNothing;
@@ -376,9 +384,9 @@ VAR
 	 messagesAdded- : LONGINT;
 	 messagesDiscarded- : LONGINT;
 
-	 (*
+
 	 debug*: ANY;
-	*)
+
 
 PROCEDURE TokenEnumerator(obj: ANY; VAR cont: BOOLEAN);
 BEGIN
