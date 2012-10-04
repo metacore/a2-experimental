@@ -929,7 +929,7 @@ TYPE
 			IF (p # NIL) & (p IS VisualComponent) THEN
 				p(VisualComponent).AlignSubComponents
 			END;
-			Resized;
+			Invalidate;
 			Release
 		END AlignmentChanged;
 
