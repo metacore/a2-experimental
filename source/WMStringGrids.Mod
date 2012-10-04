@@ -353,7 +353,8 @@ TYPE
 		(*	NEW(fontHeight, PrototypeTfontHeight, NIL, NIL); properties.Add(fontHeight);	*)
 			takesFocus.Set(TRUE);
 			NEW(model);
-			model.onChanged.Add(ModelChanged)
+			model.onChanged.Add(ModelChanged);
+			ModelChanged(NIL,NIL);
 		END Init;
 
 		PROCEDURE ModelChanged(sender, data : ANY);
