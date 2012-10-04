@@ -1935,7 +1935,6 @@ TYPE
 
 		PROCEDURE LinkChanged(sender, object: ANY);
 		BEGIN
-			LinkChanged^(sender, object);
 			IF (list # NIL) THEN list.onLinkChanged.CallWithSender(SELF,object) END;
 		END LinkChanged;
 
