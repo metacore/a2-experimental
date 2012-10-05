@@ -89,7 +89,7 @@ TYPE
 	VAR
 		head, num : LONGINT;
 		msgQ : POINTER TO ARRAY (* MsgQSize*)  OF Message;
-		alive, continue, hadOverflow , waiting: BOOLEAN;
+		alive, continue, hadOverflow , waiting, stopped: BOOLEAN;
 		msg : Message;
 		handler : MessageHandler;
 		originator : ANY;
@@ -108,7 +108,7 @@ TYPE
 			originator := NIL; me := NIL; th := NIL; traphandler := NIL;
 			name := NIL;
 			alive := FALSE; continue := TRUE; hadOverflow := FALSE; trapOnOverflow := FALSE;
-			waiting := FALSE;
+			waiting := FALSE; stopped := FALSE;
 			NEW(msgQ, InitialMsgQSize);
 		END New;
 
@@ -138,13 +138,15 @@ TYPE
 		VAR new: POINTER TO ARRAY (* MsgQSize*)  OF Message; i: LONGINT; name: ARRAY 128 OF CHAR; VAR pc: SYSTEM.ADDRESS;
 		BEGIN
 			NEW(new, LEN(msgQ) * 3 DIV 2);
+
+			IF stopped THEN TRACE("!!!!!!!!!!!!!", stopped) END;
 			FOR i := 0 TO LEN(msgQ)-1 DO
 				new[i] := msgQ[(head+i) MOD LEN(msgQ)];
 				IF new[i].msgType = MsgInvokeEvent THEN
 					Reflection.GetProcedureName(SYSTEM.VAL(SYSTEM.ADDRESS, new[i].event), name, pc );
 				ELSE name := ""
 				END;
-				IF TraceQueue THEN
+				IF TraceQueue OR stopped THEN
 					TRACE(i, new[i].msgType, new[i].msgSubType);
 					TRACE(new[i].x, new[i].y, new[i].dx, new[i].dy);
 					TRACE("Event procedure: ", name);
@@ -206,7 +208,6 @@ TYPE
 					DEC(i)
 				END
 			END;
-
 
 			IF MergeInvalidates & (msg.msgType = MsgInvalidate) & (num > 0)  THEN
 				i := num-1;
@@ -347,7 +348,7 @@ TYPE
 		(** Stop the message sequencer. Must be called if the queue is no longer needed *)
 		PROCEDURE Stop*;
 		BEGIN {EXCLUSIVE}
-			alive := FALSE
+			alive := FALSE; stopped := TRUE;
 		END Stop;
 
 		PROCEDURE WaitFree*;
