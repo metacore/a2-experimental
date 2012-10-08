@@ -136,20 +136,41 @@ TYPE
 
 		PROCEDURE Grow;
 		VAR new: POINTER TO ARRAY (* MsgQSize*)  OF Message; i: LONGINT; name: ARRAY 128 OF CHAR; VAR pc: SYSTEM.ADDRESS;
+			type: Modules.TypeDesc; msg: Message;
 		BEGIN
 			NEW(new, LEN(msgQ) * 3 DIV 2);
 
 			IF stopped THEN TRACE("!!!!!!!!!!!!!", stopped) END;
 			FOR i := 0 TO LEN(msgQ)-1 DO
 				new[i] := msgQ[(head+i) MOD LEN(msgQ)];
-				IF new[i].msgType = MsgInvokeEvent THEN
-					Reflection.GetProcedureName(SYSTEM.VAL(SYSTEM.ADDRESS, new[i].event), name, pc );
-				ELSE name := ""
+				IF TraceQueue OR stopped (* OR (LEN(new) > 1024) *) THEN
+				msg := new[i];
+				IF msg.msgType < LEN(MsgName) THEN COPY(MsgName[msg.msgType], name) ELSE name := "" END;
+				TRACE(i,"***************", name);
+				TRACE(i, msg.msgType, msg.msgSubType);
+				TRACE(msg.x, msg.y, msg.dx, msg.dy, msg.flags);
+				IF msg.sender # NIL THEN
+					type := Modules.TypeOf(msg.sender);
+					IF (type # NIL) THEN
+						COPY(type.mod.name, name); Strings.Append(name, "."); Strings.Append(name, type.name);
+						TRACE(msg.sender, name);
+					ELSE
+						TRACE(msg.sender);
+					END;
 				END;
-				IF TraceQueue OR stopped THEN
-					TRACE(i, new[i].msgType, new[i].msgSubType);
-					TRACE(new[i].x, new[i].y, new[i].dx, new[i].dy);
-					TRACE("Event procedure: ", name);
+				IF msg.msgType = MsgInvokeEvent THEN
+					Reflection.GetProcedureName(SYSTEM.VAL(SYSTEM.ADDRESS, msg.event), name, pc );
+					TRACE("Event procedure ", name);
+				END;
+				IF msg.ext # NIL THEN
+					type := Modules.TypeOf(msg.ext);
+					IF (type # NIL) THEN
+						COPY(type.mod.name, name); Strings.Append(name, "."); Strings.Append(name, type.name);
+						TRACE(msg.ext, name);
+					ELSE
+						TRACE(msg.ext);
+					END;
+				END;
 				END;
 			END;
 			msgQ := new;	head := 0;
@@ -195,11 +216,11 @@ TYPE
 				END;
 			END;
 
-			IF MergePointers & (msg.msgType = MsgPointer) & (num > 0) THEN  (* reduce pointer moves in buffer *)
+			IF MergePointers & (msg.msgType = MsgPointer) & (msg.msgSubType = MsgSubPointerMove) & (num > 0) THEN  (* reduce pointer moves in buffer *)
 				i := num - 1;
 				WHILE i >= 0 DO
 					pos := (head + i) MOD LEN(msgQ);
-					IF (msgQ[pos].msgType = MsgPointer) & (msg.msgSubType = MsgSubPointerMove) & (msgQ[pos].flags = msg.flags) THEN
+					IF (msgQ[pos].msgType = MsgPointer) & (msgQ[pos].msgSubType = MsgSubPointerMove) & (msgQ[pos].flags = msg.flags) THEN
 						msgQ[pos].x := msg.x;
 						msgQ[pos].y := msg.y;
 						msgQ[pos].z := msg.z;
