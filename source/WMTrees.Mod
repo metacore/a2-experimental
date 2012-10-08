@@ -760,7 +760,7 @@ TYPE
 		PROCEDURE PointerMove(x, y : LONGINT; keys : SET);
 		VAR new : TreeNode;
 		BEGIN
-			new := GetNodeAtPos(x, y);
+			new := GetNodeAtPos(downX, downY);
 			IF dragPossible THEN
 				IF (ABS(x - downX) > DragDist) OR (ABS(y - downY) > DragDist) THEN
 					dragPossible := FALSE;
