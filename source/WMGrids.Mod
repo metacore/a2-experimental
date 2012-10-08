@@ -53,9 +53,9 @@ TYPE
 		getCellSpans : GetCellSpansProc;
 		drawCell : DrawCellProc;
 		getCellState : GetCellStateProc;
-		tableStart : CellPos;
+		tableStart* : CellPos;
 		state, tempState : Graphics.CanvasState;
-		scrollx, scrolly : WMStandardComponents.Scrollbar;
+		scrollx-, scrolly- : WMStandardComponents.Scrollbar;
 		showScrollX-, showScrollY- : WMProperties.BooleanProperty;  (* show scrollbars if needed *)
 		showScrollXC, showScrollYC : BOOLEAN;
 		alwaysShowScrollX-, alwaysShowScrollY- : WMProperties.BooleanProperty;  (* always show scrollbars even if not needed, overruled by showScroll *)
@@ -118,6 +118,8 @@ TYPE
 
 			scrollx.onPositionChanged.Add(Scrolled);
 			scrolly.onPositionChanged.Add(Scrolled);
+			scrollx.pageSize.Set(1);
+			scrolly.pageSize.Set(1);
 
 			selectionMode := GridSelectSingleCell;
 			selStart.col := -1; selStart.row := -1;
@@ -189,7 +191,7 @@ TYPE
 			PropertyChanged^(sender, property)
 		END PropertyChanged;
 
-		PROCEDURE GetColWidth(i : LONGINT) : LONGINT;
+		PROCEDURE GetColWidth*(i : LONGINT) : LONGINT;
 		BEGIN
 			CheckReadLock;
 			IF colWidths = NIL THEN RETURN defaultColWidthC
@@ -248,7 +250,7 @@ TYPE
 
 (** Scrollbars *)
 		(** Define if the scrollbars should always be visible, if not needed. Overruled by ShowScrollbars *)
-		PROCEDURE GetRowHeight(i : LONGINT) : LONGINT;
+		PROCEDURE GetRowHeight*(i : LONGINT) : LONGINT;
 		BEGIN
 			CheckReadLock;
 			IF rowHeights = NIL THEN RETURN defaultRowHeightC
@@ -283,7 +285,7 @@ TYPE
 			Release
 		END SetDrawCellProc;
 
-		PROCEDURE GetFixedPixels(VAR w, h :LONGINT);
+		PROCEDURE GetFixedPixels*(VAR w, h :LONGINT);
 		VAR i : LONGINT;
 		BEGIN
 			w := 0; h := 0;
@@ -307,14 +309,14 @@ TYPE
 			END
 		END GetCellSpans;
 
-		PROCEDURE IsSkipCell(x, y : LONGINT) : BOOLEAN;
+		PROCEDURE IsSkipCell*(x, y : LONGINT) : BOOLEAN;
 		VAR spanx, spany : LONGINT;
 		BEGIN
 			GetCellSpans(x, y, spanx, spany);
 			RETURN (spanx = 0) OR (spany = 0)
 		END IsSkipCell;
 
-		PROCEDURE GetCellDimensions(x, y : LONGINT; VAR width, height : LONGINT);
+		PROCEDURE GetCellDimensions*(x, y : LONGINT; VAR width, height : LONGINT);
 		VAR spanx, spany, i : LONGINT;
 		BEGIN
 			GetCellSpans(x, y, spanx, spany);
@@ -359,7 +361,7 @@ TYPE
 		END GetCellState;
 
 		(** col, row point to the master cell of (x, y). dx, dy are decreased by the respective decrement *)
-		PROCEDURE FindMasterCell(x, y : LONGINT; VAR col, row, xpos, ypos : LONGINT);
+		PROCEDURE FindMasterCell*(x, y : LONGINT; VAR col, row, xpos, ypos : LONGINT);
 		VAR cw, ch : LONGINT;
 		BEGIN
 			col := x; row := y;
@@ -600,7 +602,9 @@ TYPE
 		PROCEDURE Scrolled(sender, data : ANY);
 		BEGIN
 			IF ~IsCallFromSequencer() THEN sequencer.ScheduleEvent(SELF.Scrolled, sender, data)
-			ELSE SetTopPosition(scrollx.pos.Get(), scrolly.pos.Get(), FALSE)
+			ELSE
+				SetTopPosition(scrollx.pos.Get(), scrolly.pos.Get(), FALSE);
+				AlignSubComponents
 			END
 		END Scrolled;
 
