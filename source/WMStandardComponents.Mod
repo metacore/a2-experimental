@@ -455,8 +455,8 @@ TYPE
 		effect3D- : WMProperties.Int32Property;
 
 		(* single images *)
-		imgDefaultName-, imgHoverName-, imgPressedName-, imageName- : WMProperties.StringProperty;
-		imgDefault, imgHover, imgPressed : WMGraphics.Image;
+		imgDefaultName-, imgDisabledName-, imgHoverName-, imgPressedName-, imageName- : WMProperties.StringProperty;
+		imgDefault, imgDisabled, imgHover, imgPressed : WMGraphics.Image;
 
 		useBgBitmaps-, isHorizontal-, repeatMiddleImg-  : WMProperties.BooleanProperty;
 
@@ -519,6 +519,7 @@ TYPE
 			NEW(effect3D, PrototypeBEffect3D, NIL, NIL); properties.Add(effect3D);
 				(* --- *)
 			NEW(imgDefaultName, PrototypeBimgDefaultName, NIL, NIL); properties.Add(imgDefaultName);
+			NEW(imgDisabledName, PrototypeBimgDisabledName, NIL, NIL); properties.Add(imgDisabledName);
 			NEW(imgHoverName, PrototypeBimgHoverName, NIL, NIL); properties.Add(imgHoverName);
 			NEW(imgPressedName, PrototypeBimgPressedName, NIL, NIL); properties.Add(imgPressedName);
 			NEW(imageName, PrototypeBimageName, NIL, NIL); properties.Add(imageName);
@@ -604,6 +605,7 @@ TYPE
 				s := imgHoverName.Get();			IF s # NIL THEN imgHover			:= WMGraphics.LoadImage(s^, TRUE) END;
 				s := imgPressedName.Get();			IF s # NIL THEN imgPressed			:= WMGraphics.LoadImage(s^, TRUE) END;
 				s := imgDefaultName.Get();			IF s # NIL THEN imgDefault			:= WMGraphics.LoadImage(s^, TRUE) END;
+				s := imgDisabledName.Get(); 		IF s # NIL THEN imgDisabled			:= WMGraphics.LoadImage(s^, TRUE) END;
 			ELSE
 				imgDefaultLeft := NIL; imgDefaultRight := NIL; imgDefaultMiddle := NIL;
 				imgHoverLeft := NIL; imgHoverRight := NIL; imgHoverMiddle := NIL;
@@ -666,7 +668,7 @@ TYPE
 				OR (data = imgHoverNameTop) OR (data = imgHoverNameBottom)
 				OR (data = imgPressedNameTop) OR (data = imgPressedNameBottom)
 				OR (data = imgDefaultName) OR (data = imgPressedName)
-				OR (data = imgHoverName)
+				OR (data = imgHoverName) OR (data = imgDisabledName) OR (data = enabled)
 				OR (data = decoDefaultName) OR (data = decoHoverName) OR (data= decoPressedName) OR (data = useDeco)
 				THEN
 					RecacheProperties; Invalidate;
@@ -1069,7 +1071,13 @@ TYPE
 			 wLeft, wRight : LONGINT;
 			 down : BOOLEAN;
 		BEGIN
-			IF imgDefault # NIL THEN
+			IF ~enabled.Get() & (imgDisabled # NIL) THEN
+				img := imgDisabled;
+				canvas.ScaleImage(	img,
+				 	WMRectangles.MakeRect(0, 0, img.width, img.height),
+					WMRectangles.MakeRect(0, 0, bounds.GetWidth(), bounds.GetHeight()),
+					WMGraphics.ModeSrcOverDst, 10)
+			ELSIF imgDefault # NIL THEN
 				down := pressed & (mouseOver OR isToggle.Get() OR keyboardPressed);
 				IF down & (imgPressed # NIL) THEN
 					img := imgPressed
@@ -2882,7 +2890,7 @@ VAR
 	 PrototypeBclTextDefault*, PrototypeBclTextHover*, PrototypeBclTextPressed* : WMProperties.ColorProperty;
 	 PrototypeBRepeatMiddleImg*, PrototypeBisRepeating*, PrototypeBisToggle*, PrototypeBisInverse*, PrototypeBindicateToggle*, PrototypeBIsHorizontal* : WMProperties.BooleanProperty;
 	 PrototypeBcaption*, PrototypeBonClickHandler* : WMProperties.StringProperty;
-	 PrototypeBimgDefaultName*, PrototypeBimgHoverName*, PrototypeBimgPressedName*, PrototypeBimageName* : WMProperties.StringProperty;
+	 PrototypeBimgDefaultName*, PrototypeBimgDisabledName*, PrototypeBimgHoverName*, PrototypeBimgPressedName*, PrototypeBimageName* : WMProperties.StringProperty;
  	 PrototypeImgDefaultNameLeft*, PrototypeImgDefaultNameRight*, PrototypeImgDefaultNameMiddle*,
  	 PrototypeImgDefaultNameTop*, PrototypeImgDefaultNameBottom*,
  	 PrototypeImgHoverNameLeft*, PrototypeImgHoverNameRight*, PrototypeImgHoverNameMiddle*,
@@ -3053,6 +3061,8 @@ BEGIN
 		(* single images *)
 	NEW(StringPrototype, NIL, NewString("BgDefault"), NewString("Default background bitmap")); StringPrototype.Set(NewString(""));
 	NEW(PrototypeBimgDefaultName, StringPrototype, NIL, NIL); plButton.Add(PrototypeBimgDefaultName);
+	NEW(StringPrototype, NIL, NewString("BgDisabled"), NewString("Default disabled background bitmap")); StringPrototype.Set(NewString(""));
+	NEW(PrototypeBimgDisabledName, StringPrototype, NIL, NIL); plButton.Add(PrototypeBimgDisabledName);
 	NEW(StringPrototype, NIL, NewString("BgHover"), NewString("Mouseover background bitmap")); StringPrototype.Set(NewString(""));
 	NEW(PrototypeBimgHoverName, StringPrototype, NIL, NIL); plButton.Add(PrototypeBimgHoverName);
 	NEW(StringPrototype, NIL, NewString("BgPressed"), NewString("Pressed background bitmap")); StringPrototype.Set(NewString(""));
