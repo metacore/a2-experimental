@@ -3755,10 +3755,15 @@ TYPE
 					KernelLog.Ln;
 				END;
 				Commands.Activate(command, context, {}, res, msg);
-				IF res # Commands.Ok THEN
-					commandWriter.String("WMTextView: Command execution error, res: "); commandWriter.Int(res, 0);
-					commandWriter.String(" ("); commandWriter.String(msg); commandWriter.String(")"); commandWriter.Ln;
-					commandWriter.Update;
+				IF (res # Commands.Ok) THEN
+					IF commandWriter # NIL THEN
+						commandWriter.String("WMTextView: Command execution error, res: "); commandWriter.Int(res, 0);
+						commandWriter.String(" ("); commandWriter.String(msg); commandWriter.String(")"); commandWriter.Ln;
+						commandWriter.Update;
+					ELSE
+						KernelLog.String("WMTextView: Command execution error, res: "); KernelLog.Int(res, 0);
+						KernelLog.String(" ("); KernelLog.String(msg); KernelLog.String(")"); KernelLog.Ln;
+					END;
 				END;
 			END;
 		END StartCommand;
