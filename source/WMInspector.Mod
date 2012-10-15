@@ -114,14 +114,14 @@ TYPE
 			treeView.MeasureNode(dragged, w, h);
 			Raster.Create(img, w, h, Raster.BGRA8888);
 			NEW(canvas, img);
-			canvas.SetColor(LONGINT(0FF00FFFFH));
-			canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0FF00FFFFH), WMGraphics.ModeCopy);
+			canvas.SetColor(LONGINT(0FFFF00FFH));
+			canvas.Fill(WMRectangles.MakeRect(0, 0, w, h), LONGINT(0FFFF00FFH), WMGraphics.ModeCopy);
 			(*KernelLog.String("w= "); KernelLog.Int(w, 0); KernelLog.String("h= "); KernelLog.Int(h, 0); KernelLog.Ln;*)
 			canvas.SetColor(0FFH);
 			tree.Acquire();
 			caption := tree.GetNodeCaption(dragged);
 			tree.Release();
-			canvas.DrawString(0,0, caption^);
+			canvas.DrawString(0,h, caption^);
 			dragged := treeView.draggedNode;
 			IF (dragged # NIL) & StartDrag(GetNodeData(dragged), img, 0, 0, DragAccepted, DragRejected) THEN
 
