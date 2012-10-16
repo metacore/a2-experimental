@@ -2,6 +2,9 @@ MODULE WMRectangles; (** AUTHOR "TF"; PURPOSE "Basic rectangles that are used by
 
 TYPE
 	Rectangle* = RECORD l*, t*, r*, b*: LONGINT END;
+		(* It is important to understand and respect that the point (r,b) is not included in the rectangle !
+			This is to ensure consistency between the continuous and discrete case
+		*)
 
 	PROCEDURE Min(a, b:LONGINT):LONGINT;
 	BEGIN

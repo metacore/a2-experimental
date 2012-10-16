@@ -1,7 +1,7 @@
 MODULE Display;   (** fof , source Win32.Windows.Mod+Win32.Displays.Mod+Win32.Display.Mod+Win32.Viewers.Mod **)
 
 IMPORT SYSTEM, Machine, Kernel32, User32, Modules, KernelLog, GDI32, Displays, Strings,
-	AosInputs := Inputs, Commands, Objects,WinFS;
+	AosInputs := Inputs, Commands, Objects,WinFS, Options;
 
 CONST
 	dbgDisableReleaseMsg = TRUE;
@@ -185,6 +185,7 @@ TYPE
 
 		PROCEDURE Transfer( VAR buf: ARRAY OF CHAR;  ofs, stride, x, y, w, h, op: LONGINT );
 		BEGIN
+
 			IF letWindowsHandleTheBuffer THEN
 				IF op = Displays.set THEN
 					ToMemory( root, buf, ofs, stride, x, y, w, h );  ToWindow( root, x, y, w, h, root.dx, root.dy );
@@ -1161,35 +1162,28 @@ VAR
 	END DoInstall;
 
 	PROCEDURE Install*(context : Commands.Context); (** ["H"] [ width [height] ] ["FULLSCREEN"] [ x [y] ] *)
-	VAR w, h, x, y : LONGINT; ignore : ARRAY 16 OF CHAR;
+	VAR x,y,w,h : LONGINT; options: Options.Options;
 	BEGIN
-		closeRequests := 0;
-		w := 0;  h := 0; x := 0; y := 0;
-
-		context.arg.SkipWhitespace;
-		IF (context.arg.Peek() = "H") THEN format := Displays.color565; InitBMI; context.arg.Char(ignore[0])  END;
-
-		(* [width [height]]  *)
-		context.arg.SkipWhitespace;
-		IF (context.arg.Peek() >= '0') & (context.arg.Peek() <= '9') THEN context.arg.Int( w, TRUE ) END;
-		context.arg.SkipWhitespace();
-		IF (context.arg.Peek() >= '0') & (context.arg.Peek() <= '9') THEN context.arg.Int( h, TRUE ) END;
-
-		(*ALEX 2005.11.30*)
-		context.arg.SkipWhitespace();
-		IF context.arg.Peek() = 'F' THEN
-			context.arg.String(ignore);
-			fullscreen := TRUE; context.out.String( "Display: Fullscreen mode" )
+		NEW(options);
+		options.Add("b","bits16",Options.Flag);
+		options.Add("f","fullscreen",Options.Flag);
+		options.Add("w","width",Options.Integer);
+		options.Add("h","height",Options.Integer);
+		options.Add("x","xOffset",Options.Integer);
+		options.Add("y","yOffset",Options.Integer);
+		options.Add("n","noPointer",Options.Flag);
+		IF ~options.Parse(context.arg, context.error) THEN
+			w := 0; h := 0; x := 0; y := 0;
 		ELSE
-			fullscreen := FALSE; context.out.String( "Display: Normal mode" )
+			IF options.GetFlag("b") THEN format := Displays.color565; InitBMI END;
+			fullscreen := options.GetFlag("f");
+			IF ~options.GetInteger("x", x) THEN x := 0 END;
+			IF ~options.GetInteger("y", y) THEN y := 0 END;
+			IF ~options.GetInteger("w", w) THEN w := 0 END;
+			IF ~options.GetInteger("h", h) THEN h := 0 END;
+			IF options.GetFlag("n") THEN DisableCursor END;
 		END;
-		context.out.Ln;
-
-		(* [x y ] *)
-		context.arg.SkipWhitespace;
-		IF (context.arg.Peek() >= '0') & (context.arg.Peek() <= '9') OR (context.arg.Peek() = '-') THEN context.arg.Int( x, TRUE ) END;
-		context.arg.SkipWhitespace;
-		IF (context.arg.Peek() >= '0') & (context.arg.Peek() <= '9') OR (context.arg.Peek() = '-') THEN context.arg.Int( y, TRUE ) END;
+		closeRequests := 0;
 
 		DoInstall( w, h, x, y);
 	END Install;

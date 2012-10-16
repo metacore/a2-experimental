@@ -3,7 +3,7 @@ MODULE WindowManager;	(** AUTHOR "TF"; PURPOSE "Window manager implementation"; 
 IMPORT
 	KernelLog, Kernel, Strings, Plugins, Inputs, Modules, Displays, Graphics := WMGraphics,
 	Messages := WMMessages, DW := WMDefaultWindows,
-	WM := WMWindowManager, Rect := WMRectangles, Raster,  WMFontManager (*Load*);
+	WM := WMWindowManager, Rect := WMRectangles, Raster,  WMFontManager (*Load*), Commands, Options;
 
 CONST
 	DirtyBufSize = 128;
@@ -311,6 +311,7 @@ TYPE
 									height := ENTIER((cb.b - range.t) * fy) - ENTIER((cb.t - range.t) * fy);
 								END;
 
+
 								IF navig THEN
 									cur.Draw(canvas, width, height, Graphics.ScaleBox);
 								ELSE
@@ -447,7 +448,7 @@ TYPE
 			NEW(dirtyQ);
 			NEW(pointer, 30, 30, TRUE); pointer.useAlpha := TRUE;
 			top := pointer; top.flags := { WM.FlagStayOnTop, WM.FlagNonDispatched, WM.FlagHidden };
-			NEW(bg); bg.manager := SELF;
+			NEW(bg,0); bg.manager := SELF;
 			bottom := bg; bottom.next := top; top.prev := bottom;
 			bg.flags := {WM.FlagHidden};
 			SetWindowTitle(top, WM.NewString("Mouse Cursor"));
@@ -992,6 +993,8 @@ TYPE
 			ELSE pi := NIL
 			END;
 
+			IF WM.FlagNoPointer IN top.flags THEN pi := pointerNull; pointerInfo := pi END;
+
 			IF pi = NIL THEN pi := pointerStandard END; IF pointerInfo = NIL THEN pointerInfo := pointerStandard END;
 
 			IF (pi # pointerInfo) OR ((pointerX # top.bounds.l - pointerInfo.hotX) OR (pointerY # top.bounds.t - pointerInfo.hotY)) THEN
@@ -1011,7 +1014,9 @@ TYPE
 				END;
 
 				Rect.ExtendRect(rect, top.bounds);
+
 				dirtyQ.Add(rect);
+
 				pointerInfo := pi
 			END;
 			lock.ReleaseWrite
@@ -1541,17 +1546,17 @@ BEGIN
 	Bound(x.t, 0, img.height); Bound(x.b, 0, img.height)
 END ClipAtImage;
 
-PROCEDURE FillSession(wm : WindowManager);
+PROCEDURE FillSession(wm : WindowManager; bgColor: LONGINT);
 VAR bg : DW.BackWindow; t : Window;
 BEGIN
-	NEW(bg);
+	NEW(bg, bgColor);
 	bg.flags := {WM.FlagHidden};
 	wm.SetWindowTitle(bg, WM.NewString("New background"));
 	Rect.SetRect(bg.bounds, MIN(LONGINT), MIN(LONGINT), MAX(LONGINT), MAX(LONGINT));
 	wm.lock.AcquireWrite; t := wm.ReplaceBackground(bg); wm.lock.ReleaseWrite;
 END FillSession;
 
-PROCEDURE Replace*;
+PROCEDURE Replace*(color: LONGINT; noPointer: BOOLEAN);
 VAR disp : Plugins.Plugin; view : ViewPort; r : Rectangle; res : LONGINT;
 BEGIN
 	disp := Displays.registry.Await("");
@@ -1566,9 +1571,12 @@ BEGIN
 		KernelLog.String("WindowManager: 16-bit color"); KernelLog.Ln;
 	END;
 	NEW (session);  NEW(toucher);
+	IF noPointer THEN
+		INCL( session.top.flags, WM.FlagNoPointer);
+	END;
 	NEW(view, disp(Displays.Display));
 	session.lock.AcquireWrite; session.AddView(view); session.lock.ReleaseWrite;
-	FillSession(session);
+	FillSession(session, color);
 	IF (view.width0 > 0) & (view.height0 > 0) THEN
 		r := Graphics.MakeRectangle(0, 0, view.width0, view.height0);
 	ELSE
@@ -1624,12 +1632,24 @@ BEGIN
 	 END
 END CleanUp;
 
-PROCEDURE Install*;
+PROCEDURE Install*(context: Commands.Context);
+VAR options: Options.Options; color: LONGINT; noPointer: BOOLEAN;
+CONST DefaultColor = LONGINT(8080FFFFH);
+BEGIN
+	NEW(options);
+	options.Add(0X,"bgColor",Options.Integer);
+	options.Add(0X,"noPointer",Options.Flag);
+	IF options.Parse(context.arg, context.error) THEN
+		IF ~options.GetInteger("bgColor", color) THEN color := DefaultColor END;
+		noPointer := options.GetFlag("noPointer");
+	ELSE noPointer := FALSE; color := DefaultColor
+	END;
+	Replace(color, noPointer);
+
 END Install;
 
 BEGIN
 	WMFontManager.Install;
-	Replace;
 	InitCharMaps;
 	Modules.InstallTermHandler(CleanUp);
 	NEW(t);

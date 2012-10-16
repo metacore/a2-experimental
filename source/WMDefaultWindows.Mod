@@ -624,9 +624,9 @@ TYPE
 	BackWindow* = OBJECT(WM.Window)
 	VAR color : LONGINT;
 
-		PROCEDURE &New*;
+		PROCEDURE &New*(bgColor: LONGINT);
 		BEGIN
-			color := LONGINT(08080FFFFH);
+			color := bgColor;
 			isVisible := TRUE;
 		END New;
 
