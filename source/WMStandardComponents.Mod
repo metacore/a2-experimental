@@ -450,13 +450,13 @@ TYPE
 
 		onClickHandler- : WMProperties.StringProperty;
 
-		clDefault-, clHover-, clPressed-,
-		clTextDefault-, clTextHover-, clTextPressed- : WMProperties.ColorProperty;
+		clDefault-, clHover-, clPressed-, clInactive-,
+		clTextDefault-, clTextHover-, clTextPressed-, clTextInactive- : WMProperties.ColorProperty;
 		effect3D- : WMProperties.Int32Property;
 
 		(* single images *)
-		imgDefaultName-, imgDisabledName-, imgHoverName-, imgPressedName-, imageName- : WMProperties.StringProperty;
-		imgDefault, imgDisabled, imgHover, imgPressed : WMGraphics.Image;
+		imgDefaultName-, imgInactiveName-, imgHoverName-, imgPressedName-, imageName- : WMProperties.StringProperty;
+		imgDefault, imgInactive, imgHover, imgPressed : WMGraphics.Image;
 
 		useBgBitmaps-, isHorizontal-, repeatMiddleImg-  : WMProperties.BooleanProperty;
 
@@ -513,13 +513,15 @@ TYPE
 			NEW(clDefault, PrototypeBclDefault, NIL, NIL); properties.Add(clDefault);
 			NEW(clHover, PrototypeBclHover, NIL, NIL); properties.Add(clHover);
 			NEW(clPressed, PrototypeBclPressed, NIL, NIL); properties.Add(clPressed);
+			NEW(clInactive, PrototypeBclInactive, NIL, NIL); properties.Add(clInactive);
 			NEW(clTextDefault, PrototypeBclTextDefault, NIL, NIL); properties.Add(clTextDefault);
 			NEW(clTextHover, PrototypeBclTextHover, NIL, NIL); properties.Add(clTextHover);
 			NEW(clTextPressed, PrototypeBclTextPressed,  NIL, NIL); properties.Add(clTextPressed);
+			NEW(clTextInactive, PrototypeBclTextInactive, NIL, NIL); properties.Add(clTextInactive);
 			NEW(effect3D, PrototypeBEffect3D, NIL, NIL); properties.Add(effect3D);
 				(* --- *)
 			NEW(imgDefaultName, PrototypeBimgDefaultName, NIL, NIL); properties.Add(imgDefaultName);
-			NEW(imgDisabledName, PrototypeBimgDisabledName, NIL, NIL); properties.Add(imgDisabledName);
+			NEW(imgInactiveName, PrototypeBimgInactiveName, NIL, NIL); properties.Add(imgInactiveName);
 			NEW(imgHoverName, PrototypeBimgHoverName, NIL, NIL); properties.Add(imgHoverName);
 			NEW(imgPressedName, PrototypeBimgPressedName, NIL, NIL); properties.Add(imgPressedName);
 			NEW(imageName, PrototypeBimageName, NIL, NIL); properties.Add(imageName);
@@ -605,7 +607,7 @@ TYPE
 				s := imgHoverName.Get();			IF s # NIL THEN imgHover			:= WMGraphics.LoadImage(s^, TRUE) END;
 				s := imgPressedName.Get();			IF s # NIL THEN imgPressed			:= WMGraphics.LoadImage(s^, TRUE) END;
 				s := imgDefaultName.Get();			IF s # NIL THEN imgDefault			:= WMGraphics.LoadImage(s^, TRUE) END;
-				s := imgDisabledName.Get(); 		IF s # NIL THEN imgDisabled			:= WMGraphics.LoadImage(s^, TRUE) END;
+				s := imgInactiveName.Get(); 		IF s # NIL THEN imgInactive			:= WMGraphics.LoadImage(s^, TRUE) END;
 			ELSE
 				imgDefaultLeft := NIL; imgDefaultRight := NIL; imgDefaultMiddle := NIL;
 				imgHoverLeft := NIL; imgHoverRight := NIL; imgHoverMiddle := NIL;
@@ -656,8 +658,8 @@ TYPE
 		BEGIN
 			IF (data = caption) OR (data = textAlignH) OR (data = textAlignV) THEN Invalidate;
 			ELSIF (data = onClickHandler) THEN CheckClickHandler
-			ELSIF (data = clDefault) OR (data = clHover) OR (data = clPressed)
-				OR (data = clTextDefault) OR (data = clTextHover) OR (data = clTextPressed) THEN Invalidate;
+			ELSIF (data = clDefault) OR (data = clHover) OR (data = clPressed) OR (data = clTextInactive)
+				OR (data = clTextDefault) OR (data = clTextHover) OR (data = clTextPressed) OR (data = clTextInactive) THEN Invalidate;
 			ELSIF (data = font) THEN SetFont(font.Get());
 			ELSIF (data = isToggle) OR (data = indicateToggle) OR (data = isHorizontal) OR (data = repeatMiddleImg) OR (data = effect3D) THEN Invalidate;
 			ELSIF (data = imageName) OR (data = useBgBitmaps)
@@ -668,7 +670,7 @@ TYPE
 				OR (data = imgHoverNameTop) OR (data = imgHoverNameBottom)
 				OR (data = imgPressedNameTop) OR (data = imgPressedNameBottom)
 				OR (data = imgDefaultName) OR (data = imgPressedName)
-				OR (data = imgHoverName) OR (data = imgDisabledName) OR (data = enabled)
+				OR (data = imgHoverName) OR (data = imgInactiveName) OR (data = enabled)
 				OR (data = decoDefaultName) OR (data = decoHoverName) OR (data= decoPressedName) OR (data = useDeco)
 				THEN
 					RecacheProperties; Invalidate;
@@ -960,7 +962,8 @@ TYPE
 			IF ~visible.Get() THEN RETURN END;
 			Acquire;
 			down := pressed;
-			IF down THEN mid := clPressed.Get(); tc := clTextPressed.Get()
+			IF ~enabled.Get() THEN mid := clInactive.Get(); tc := clTextInactive.Get()
+			ELSIF down THEN mid := clPressed.Get(); tc := clTextPressed.Get()
 			ELSIF mouseOver THEN 	mid := clHover.Get(); tc := clTextHover.Get()
 			ELSE mid := clDefault.Get();	tc := clTextDefault.Get()	END;
 			IF useBgBitmaps.Get() THEN
@@ -1071,8 +1074,8 @@ TYPE
 			 wLeft, wRight : LONGINT;
 			 down : BOOLEAN;
 		BEGIN
-			IF ~enabled.Get() & (imgDisabled # NIL) THEN
-				img := imgDisabled;
+			IF ~enabled.Get() & (imgInactive # NIL) THEN
+				img := imgInactive;
 				canvas.ScaleImage(	img,
 				 	WMRectangles.MakeRect(0, 0, img.width, img.height),
 					WMRectangles.MakeRect(0, 0, bounds.GetWidth(), bounds.GetHeight()),
@@ -2886,11 +2889,11 @@ VAR
  	 (* Button prototypes *)
 	 PrototypeBBounds* : WMProperties.RectangleProperty;
 	 PrototypeBUseBgImages* : WMProperties.BooleanProperty;
-	 PrototypeBclDefault*, PrototypeBclHover*, PrototypeBclPressed*,
-	 PrototypeBclTextDefault*, PrototypeBclTextHover*, PrototypeBclTextPressed* : WMProperties.ColorProperty;
+	 PrototypeBclDefault*, PrototypeBclHover*, PrototypeBclPressed*, PrototypeBclInactive*,
+	 PrototypeBclTextDefault*, PrototypeBclTextHover*, PrototypeBclTextPressed* , PrototypeBclTextInactive*: WMProperties.ColorProperty;
 	 PrototypeBRepeatMiddleImg*, PrototypeBisRepeating*, PrototypeBisToggle*, PrototypeBisInverse*, PrototypeBindicateToggle*, PrototypeBIsHorizontal* : WMProperties.BooleanProperty;
 	 PrototypeBcaption*, PrototypeBonClickHandler* : WMProperties.StringProperty;
-	 PrototypeBimgDefaultName*, PrototypeBimgDisabledName*, PrototypeBimgHoverName*, PrototypeBimgPressedName*, PrototypeBimageName* : WMProperties.StringProperty;
+	 PrototypeBimgDefaultName*, PrototypeBimgInactiveName*, PrototypeBimgHoverName*, PrototypeBimgPressedName*, PrototypeBimageName* : WMProperties.StringProperty;
  	 PrototypeImgDefaultNameLeft*, PrototypeImgDefaultNameRight*, PrototypeImgDefaultNameMiddle*,
  	 PrototypeImgDefaultNameTop*, PrototypeImgDefaultNameBottom*,
  	 PrototypeImgHoverNameLeft*, PrototypeImgHoverNameRight*, PrototypeImgHoverNameMiddle*,
@@ -3061,8 +3064,8 @@ BEGIN
 		(* single images *)
 	NEW(StringPrototype, NIL, NewString("BgDefault"), NewString("Default background bitmap")); StringPrototype.Set(NewString(""));
 	NEW(PrototypeBimgDefaultName, StringPrototype, NIL, NIL); plButton.Add(PrototypeBimgDefaultName);
-	NEW(StringPrototype, NIL, NewString("BgDisabled"), NewString("Default disabled background bitmap")); StringPrototype.Set(NewString(""));
-	NEW(PrototypeBimgDisabledName, StringPrototype, NIL, NIL); plButton.Add(PrototypeBimgDisabledName);
+	NEW(StringPrototype, NIL, NewString("BgInactive"), NewString("Default disabled background bitmap")); StringPrototype.Set(NewString(""));
+	NEW(PrototypeBimgInactiveName, StringPrototype, NIL, NIL); plButton.Add(PrototypeBimgInactiveName);
 	NEW(StringPrototype, NIL, NewString("BgHover"), NewString("Mouseover background bitmap")); StringPrototype.Set(NewString(""));
 	NEW(PrototypeBimgHoverName, StringPrototype, NIL, NIL); plButton.Add(PrototypeBimgHoverName);
 	NEW(StringPrototype, NIL, NewString("BgPressed"), NewString("Pressed background bitmap")); StringPrototype.Set(NewString(""));
@@ -3086,6 +3089,8 @@ BEGIN
 	NEW(PrototypeBclHover, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclHover);
 	NEW(ColorPrototype, NIL, NewString("ClPressed"), NewString("Pressed background color")); ColorPrototype.Set(LONGINT(0EEEE00FFH));
 	NEW(PrototypeBclPressed, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclPressed);
+	NEW(ColorPrototype, NIL, NewString("ClInactive"), NewString("Inactive background color")); ColorPrototype.Set(LONGINT(80808080H));
+	NEW(PrototypeBclInactive, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclInactive);
 		(* font color *)
 	NEW(ColorPrototype, NIL, NewString("ClTextDefault"), NewString("Default text color")); ColorPrototype.Set(LONGINT(0FFFF00FFH));
 	NEW(PrototypeBclTextDefault, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclTextDefault);
@@ -3093,6 +3098,9 @@ BEGIN
 	NEW(PrototypeBclTextHover, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclTextHover);
 	NEW(ColorPrototype, NIL, NewString("ClTextPressed"), NewString("Pressed text color")); ColorPrototype.Set(00000FFFFH);
 	NEW(PrototypeBclTextPressed, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclTextPressed);
+	NEW(ColorPrototype, NIL, NewString("ClTextInactive"), NewString("Inactive text color")); ColorPrototype.Set(0FFFFFF80H);
+	NEW(PrototypeBclTextInactive, ColorPrototype, NIL, NIL); plButton.Add(PrototypeBclTextInactive);
+
 		(* effect3D *)
 	NEW(Int32Prototype, NIL, NewString("Effect3D"), NewString("Degree of 3d-effect. Zero for flat presentation")); Int32Prototype.Set(2);
 	NEW(PrototypeBEffect3D, Int32Prototype, NIL, NIL); plButton.Add(PrototypeBEffect3D);
