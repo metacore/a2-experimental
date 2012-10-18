@@ -1637,11 +1637,11 @@ VAR options: Options.Options; color: LONGINT; noPointer: BOOLEAN;
 CONST DefaultColor = LONGINT(8080FFFFH);
 BEGIN
 	NEW(options);
-	options.Add(0X,"bgColor",Options.Integer);
-	options.Add(0X,"noPointer",Options.Flag);
+	options.Add("c","bgColor",Options.Integer);
+	options.Add("n","noMouseCursor",Options.Flag);
 	IF options.Parse(context.arg, context.error) THEN
 		IF ~options.GetInteger("bgColor", color) THEN color := DefaultColor END;
-		noPointer := options.GetFlag("noPointer");
+		noPointer := options.GetFlag("noMouseCursor");
 	ELSE noPointer := FALSE; color := DefaultColor
 	END;
 	Replace(color, noPointer);

@@ -1171,7 +1171,7 @@ VAR
 		options.Add("h","height",Options.Integer);
 		options.Add("x","xOffset",Options.Integer);
 		options.Add("y","yOffset",Options.Integer);
-		options.Add("n","noPointer",Options.Flag);
+		options.Add("n","noMouseCursor",Options.Flag);
 		IF ~options.Parse(context.arg, context.error) THEN
 			w := 0; h := 0; x := 0; y := 0;
 		ELSE
