@@ -308,13 +308,13 @@ nolba:	inc dword [sector]	; next sector number
 
 	xor eax, eax
 	mov ax, cs
+
 	shl eax, 4
-
-	add [gdtdesc + 2], eax		; adjust absolute offsets
-
+	add eax, gdt
+	mov dword [gdtdesc + 2], eax		; adjust absolute offsets
 	lgdt	[gdtdesc]
 	mov	eax, cr0
-	or	eax, 1
+	or	al, 1
 	mov	cr0, eax
 	mov	bx, (bootdata - gdt)
 	mov	ds, bx
@@ -1417,7 +1417,7 @@ prompt:	db 13,10,10,'OBL3>',0
 ; align 8 - make sure that the alignment is correct
 gdt:	db 0,0,0,0,0,0,0,0	; null segment
 	db 0ffh,0ffh,0,0,0,9ah,0cfh,0	; kernel code segment
-bootdata:	
+bootdata:
 	db 0ffh,0ffh,0,0,0,92h,0cfh,0	; kernel data segment
 gdtend:
 apm32:	db 0ffh,0ffh,0,0,0,9ah,0cfh,0	; APM 32-bit code segment
