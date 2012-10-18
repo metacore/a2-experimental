@@ -625,12 +625,15 @@ wsend:	ret
 
 nextsector:
 
-rk5:	mov al, [es:bx-1]
+rk5:
+	mov al, [es:bx-1]
 	add [sum], al
 	dec bx
 	jnz rk5
 
 	push edx
+
+	xchg bx,bx
 
 	mov	eax, [si]
 	shl eax, 9 ; position * sectorsize
@@ -640,9 +643,10 @@ rk5:	mov al, [es:bx-1]
 
 copybuffer:
 	mov edx, [es:bx]
-	mov	[eax], edx
+	mov	[ds:eax], edx
 	add	bx, 4
 	add	eax, 4
+	xchg bx, bx
 	cmp	bx, sectsize ; compare against cx * sectsize in general case (when cx # 1)
 	jne	copybuffer
 
