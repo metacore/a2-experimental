@@ -1205,8 +1205,7 @@ TYPE
 				Strings.Append(options, " --symbolFileExtension="); Strings.Append(options, "."); Strings.Append(options, symbolFileExtension);
 			 END;
 			IF path # "" THEN
-				Strings.Append(options, " --objectFilePrefix="); Strings.Append(options, path);
-				Strings.Append(options, " --symbolFilePrefix="); Strings.Append(options, path);
+				Strings.Append(options, " --destPath="); Strings.Append(options, path);
 			END;
 		END GetCompilerOptions;
 
