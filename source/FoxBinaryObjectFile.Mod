@@ -115,14 +115,14 @@ TYPE Name=ARRAY 256 OF CHAR;
 TYPE
 
 	ObjectFileFormat*= OBJECT (Formats.ObjectFileFormat)
-	VAR extension,prefix: Basic.FileName;
+	VAR extension: Basic.FileName;
 
 		PROCEDURE Export*(module: Formats.GeneratedModule; symbolFileFormat: Formats.SymbolFileFormat): BOOLEAN;
 		VAR symbolFile: Files.File; moduleName: SyntaxTree.IdentifierString; fileName: Files.FileName; f: Files.File; w: Files.Writer;
 		VAR constSize, varSize, codeSize, caseTableSize: LONGINT; VAR const, code: ByteArray;
 		BEGIN
 			Global.ModuleFileName(module.module.name,module.module.context,moduleName);
-			Basic.Concat(fileName,prefix,moduleName,extension);
+			Basic.Concat(fileName,path,moduleName,extension);
 			IF Trace THEN D.Str("FoxBinaryObjectFile.ObjectFileFormat.Export "); D.Str(moduleName); D.Ln; END;
 
 			IF ~(module IS Sections.Module) THEN
@@ -160,7 +160,6 @@ TYPE
 		PROCEDURE DefineOptions*(options: Options.Options);
 		BEGIN
 			options.Add(0X,"objectFileExtension",Options.String);
-			options.Add(0X,"objectFilePrefix",Options.String);
 		END DefineOptions;
 
 		PROCEDURE GetOptions*(options: Options.Options);
@@ -168,7 +167,6 @@ TYPE
 			IF ~options.GetString("objectFileExtension",extension) THEN
 				extension := Machine.DefaultObjectFileExtension
 			END;
-			IF ~options.GetString("objectFilePrefix",prefix) THEN prefix := "" END
 		END GetOptions;
 
 		PROCEDURE DefaultSymbolFileFormat(): Formats.SymbolFileFormat;

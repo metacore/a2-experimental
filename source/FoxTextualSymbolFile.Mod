@@ -9,13 +9,13 @@ CONST Trace = FALSE;
 
 TYPE
 	TextualSymbolFile = OBJECT (Formats.SymbolFileFormat)
-	VAR extension, prefix: Basic.FileName; noRedefinition, noModification: BOOLEAN;
+	VAR extension: Basic.FileName; noRedefinition, noModification: BOOLEAN;
 
 		PROCEDURE Import(CONST moduleFileName: ARRAY OF CHAR; importCache: SyntaxTree.ModuleScope): SyntaxTree.Module;
 		VAR fileName: Files.FileName; module: SyntaxTree.Module; reader: Streams.Reader; scanner: Scanner.Scanner; parser: Parser.Parser;
 			checker: SemanticChecker.Checker;
 		BEGIN
-			Basic.Concat(fileName,prefix,moduleFileName,extension);
+			Basic.Concat(fileName,path,moduleFileName,extension);
 			IF Trace THEN D.Ln; D.Str("importing "); D.Str(fileName); D.Ln; D.Update;  END;
 			reader := Basic.GetFileReader(fileName);
 			scanner := Scanner.NewScanner(moduleFileName, reader, 0, diagnostics);
@@ -39,7 +39,7 @@ TYPE
 		VAR moduleName,fileName: Basic.FileName; writer: Files.Writer; file: Files.File; printer: Printout.Printer; result: BOOLEAN;flags: SET;
 		BEGIN
 			Global.ModuleFileName(module.name,module.context,moduleName);
-			Basic.Concat(fileName,prefix,moduleName,extension);
+			Basic.Concat(fileName,path,moduleName,extension);
 			IF Trace THEN D.Ln; D.Str("exporting"); D.Str(fileName); D.Ln; D.Update;  END;
 
 			file := Files.New(fileName);
@@ -80,7 +80,6 @@ TYPE
 		PROCEDURE DefineOptions(options: Options.Options);
 		BEGIN
 			options.Add(0X,"symbolFileExtension",Options.String);
-			options.Add(0X,"symbolFilePrefix",Options.String);
 			options.Add(0X,"noRedefinition",Options.Flag);
 			options.Add(0X,"noModification",Options.Flag);
 		END DefineOptions;
@@ -88,7 +87,6 @@ TYPE
 		PROCEDURE GetOptions(options: Options.Options);
 		BEGIN
 			IF ~options.GetString("symbolFileExtension",extension) THEN extension := ".Sym" END;
-			IF ~options.GetString("symbolFilePrefix",prefix) THEN prefix := "" END;
 			noRedefinition := options.GetFlag("noRedefinition");
 			noModification := options.GetFlag("noModification");
 		END GetOptions;

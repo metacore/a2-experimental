@@ -627,7 +627,7 @@ TYPE
 	END IndexToAttribute;
 
 	BinarySymbolFile*=OBJECT (Formats.SymbolFileFormat)
-	VAR file-: Files.File; extension-,prefix-: Basic.FileName;
+	VAR file-: Files.File; extension-: Basic.FileName;
 			noRedefinition, noModification, noInterfaceCheck: BOOLEAN;
 			version: CHAR;
 
@@ -1542,7 +1542,7 @@ TYPE
 			NEW(allTypes,32); NEW(indexToAttribute,32);
 			ASSERT(fileName # "SYSTEM");
 
-			IF ~OpenSymFile(fileName, prefix, extension, R, version) THEN (*! reintroduce flexible extension *)
+			IF ~OpenSymFile(fileName, path, extension, R, version) THEN (*! reintroduce flexible extension *)
 				RETURN NIL
 			END;
 
@@ -2297,7 +2297,6 @@ TYPE
 		PROCEDURE DefineOptions*(options: Options.Options);
 		BEGIN
 			options.Add(0X,"symbolFileExtension",Options.String);
-			options.Add(0X,"symbolFilePrefix",Options.String);
 			options.Add(0X,"noRedefinition",Options.Flag);
 			options.Add(0X,"noModification",Options.Flag);
 			options.Add(0X,"noInterfaceCheck",Options.Flag);
@@ -2308,7 +2307,6 @@ TYPE
 			IF ~options.GetString("symbolFileExtension",extension) THEN
 				extension := Machine.DefaultObjectFileExtension
 			END;
-			IF ~options.GetString("symbolFilePrefix",prefix) THEN prefix := "" END;
 			noRedefinition := options.GetFlag("noRedefinition");
 			noModification := options.GetFlag("noModification");
 			noInterfaceCheck := options.GetFlag("noInterfaceCheck");
@@ -2382,7 +2380,7 @@ BEGIN
 		symbolFileFormat.GetOptions(options);
 		context.arg.SkipWhitespace; context.arg.String(moduleName);
 		time := Kernel.GetTicks();
-		symbolFileFormat.Initialize(NIL,Global.DefaultSystem());
+		symbolFileFormat.Initialize(NIL,Global.DefaultSystem(),"");
 		module := symbolFileFormat.Import(moduleName,NIL);
 		time := Kernel.GetTicks()-time;
 		D.Str("importer elapsed ms: "); D.Int(time,10); D.Ln;

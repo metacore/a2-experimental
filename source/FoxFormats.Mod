@@ -1,6 +1,6 @@
 MODULE FoxFormats;
 
-IMPORT SyntaxTree := FoxSyntaxTree, Global := FoxGlobal, Strings, Streams, Diagnostics, Options;
+IMPORT SyntaxTree := FoxSyntaxTree, Global := FoxGlobal, Strings, Streams, Diagnostics, Options, Files;
 
 CONST
 	NoFindPC*=MAX(LONGINT);
@@ -43,14 +43,16 @@ TYPE
 
 	(* symbol file import / export for different implementations *)
 	SymbolFileFormat*=OBJECT
-		VAR diagnostics-:  Diagnostics.Diagnostics; system-: Global.System;
+		VAR
+			diagnostics-:  Diagnostics.Diagnostics; system-: Global.System;
+			path-: Files.FileName;
 
 		PROCEDURE &Init*;
-		BEGIN diagnostics := NIL; system := NIL;
+		BEGIN diagnostics := NIL; system := NIL; path := ""
 		END Init;
 
-		PROCEDURE Initialize*(diagnostics: Diagnostics.Diagnostics; system: Global.System);
-		BEGIN SELF.diagnostics := diagnostics; SELF.system := system;
+		PROCEDURE Initialize*(diagnostics: Diagnostics.Diagnostics; system: Global.System; CONST path: ARRAY OF CHAR);
+		BEGIN SELF.diagnostics := diagnostics; SELF.system := system; COPY(path, SELF.path)
 		END Initialize;
 
 		PROCEDURE Export*(module: SyntaxTree.Module; importCache: SyntaxTree.ModuleScope): BOOLEAN;
@@ -76,13 +78,14 @@ TYPE
 	(* object file export for different implementations *)
 	ObjectFileFormat*= OBJECT
 		VAR diagnostics-: Diagnostics.Diagnostics;
+			path-: Files.FileName;
 
 		PROCEDURE &Init*;
-		BEGIN diagnostics := NIL
+		BEGIN diagnostics := NIL;path := ""
 		END Init;
 
-		PROCEDURE Initialize*(diagnostics: Diagnostics.Diagnostics);
-		BEGIN SELF.diagnostics := diagnostics
+		PROCEDURE Initialize*(diagnostics: Diagnostics.Diagnostics; CONST path: ARRAY OF CHAR);
+		BEGIN SELF.diagnostics := diagnostics;  COPY(path, SELF.path)
 		END Initialize;
 
 		PROCEDURE Export*(module: GeneratedModule; symbolFileFormat: SymbolFileFormat): BOOLEAN;

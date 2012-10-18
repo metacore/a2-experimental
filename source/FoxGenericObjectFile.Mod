@@ -10,12 +10,11 @@ CONST
 	Trace = FALSE;
 
 TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
-	VAR prefix, extension: Files.FileName; binary: BOOLEAN;
+	VAR extension: Files.FileName; binary: BOOLEAN;
 
 		PROCEDURE & InitObjectFileFormat;
 		BEGIN
-			Init;
-			prefix := ""; extension := ObjectFile.DefaultExtension;
+			Init; extension := ObjectFile.DefaultExtension;
 		END InitObjectFileFormat;
 
 
@@ -86,7 +85,7 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 				RETURN FALSE;
 			END;
 
-			IF prefix # "" THEN Files.JoinPath (prefix, module.moduleName, fileName); ELSE COPY (module.moduleName, fileName); END;
+			IF path # "" THEN Files.JoinPath (path, module.moduleName, fileName); ELSE COPY (module.moduleName, fileName); END;
 			Files.JoinExtension (fileName, extension, fileName);
 
 			IF Trace THEN D.String(">>> filename: "); D.String(fileName); D.Ln END;
@@ -111,14 +110,12 @@ TYPE ObjectFileFormat* = OBJECT (Formats.ObjectFileFormat)
 		PROCEDURE DefineOptions* (options: Options.Options);
 		BEGIN
 			options.Add(0X,"objectFileExtension",Options.String);
-			options.Add(0X,"objectFilePrefix",Options.String);
 			options.Add(0X,"textualObjectFile",Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions* (options: Options.Options);
 		BEGIN
 			IF ~options.GetString("objectFileExtension",extension) THEN extension := ObjectFile.DefaultExtension; END;
-			IF ~options.GetString("objectFilePrefix",prefix) THEN prefix := ""; END;
 			binary := ~options.GetFlag("textualObjectFile");
 		END GetOptions;
 

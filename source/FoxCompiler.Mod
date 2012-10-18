@@ -37,6 +37,7 @@ TYPE
 		findPC*: SectionName;
 		documentation*: Backend.Backend;
 		activeCellsBackend, activeCellsAssembler: Backend.Backend;
+		srcPath, destPath: Files.FileName;
 	END;
 
 	PROCEDURE Modules*(CONST source: ARRAY OF CHAR; (* source file name, for debugging and better error reports *)
@@ -146,7 +147,7 @@ TYPE
 			IF Check IN flags THEN
 				(** second phase: check and resolve symbols **)
 				IF (options.symbolFile # NIL) THEN
-					options.symbolFile.Initialize(diagnostics,system);
+					options.symbolFile.Initialize(diagnostics,system,options.destPath);
 				END;
 				checker := SemanticChecker.NewChecker(diagnostics,Info IN flags,UseDarwinCCalls IN flags,system,options.symbolFile,activeCellsSpecification,importCache);
 				checker.Module(module);
@@ -197,7 +198,7 @@ TYPE
 
 				(** generate object file **)
 				IF options.objectFile # NIL THEN
-					options.objectFile.Initialize(diagnostics);
+					options.objectFile.Initialize(diagnostics, options.destPath);
 
 					IF options.findPC # "" THEN
 						Strings.StrToInt(options.findPC, sectionOffset);
@@ -288,6 +289,8 @@ TYPE
 		options.Add(0X,"darwinHost", Options.Flag);
 		options.Add(0X,"hardware", Options.String);
 		options.Add("d","documentation", Options.String);
+		options.Add("S","srcPath", Options.String);
+		options.Add("D","destPath", Options.String);
 
 		position := input.Pos();
 		parsed := options.Parse(input,NIL);
@@ -347,7 +350,6 @@ TYPE
 			compilerOptions.activeCellsAssembler := Backend.GetBackendByName("FoxIntermediateLinker");
 		END;
 
-
 		IF compilerOptions.backend # NIL THEN compilerOptions.backend.DefineOptions (options); INCL(compilerOptions.flags,Check); END;
 		IF compilerOptions.symbolFile # NIL THEN compilerOptions.symbolFile.DefineOptions(options); INCL(compilerOptions.flags,Check) END;
 		IF compilerOptions.objectFile # NIL THEN compilerOptions.objectFile.DefineOptions(options); INCL(compilerOptions.flags,Check) END;
@@ -373,6 +375,8 @@ TYPE
 			IF options.GetFlag("singleModule") THEN INCL(compilerOptions.flags,SingleModule) END;
 			IF options.GetFlag("oberon07") THEN INCL(compilerOptions.flags, Oberon07) END;
 			IF options.GetFlag("activeCells") THEN INCL(compilerOptions.flags, ActiveCellsFlag) END;
+			IF ~options.GetString("srcPath", compilerOptions.srcPath) THEN compilerOptions.srcPath := "" END;
+			IF ~options.GetString("destPath", compilerOptions.destPath) THEN compilerOptions.destPath := "" END;
 			IF compilerOptions.backend # NIL THEN compilerOptions.backend.GetOptions (options) END;
 			IF compilerOptions.symbolFile # NIL THEN compilerOptions.symbolFile.GetOptions(options) END;
 			IF compilerOptions.objectFile # NIL THEN compilerOptions.objectFile.GetOptions(options) END;
@@ -386,7 +390,7 @@ TYPE
 
 	PROCEDURE Compile*(context : Commands.Context);
 	VAR
-		filename: Files.FileName;
+		filename, path, file: Files.FileName;
 		error: BOOLEAN;
 		diagnostics: Diagnostics.StreamDiagnostics;
 		time: LONGINT; reader: Streams.Reader;
@@ -400,7 +404,12 @@ TYPE
 
 			time := Kernel.GetTicks();
 			WHILE Basic.GetStringParameter(context.arg,filename) & ~error DO
+				IF options.srcPath # "" THEN
+					Files.SplitPath(filename, path, file);
+					IF path = "" THEN Files.JoinPath(file, options.srcPath, filename) END;
+				END;
 				reader := Basic.GetFileReader(filename);
+
 				IF reader = NIL THEN
 					diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open"); error := TRUE;
 				ELSE
