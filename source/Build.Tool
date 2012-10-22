@@ -88,7 +88,7 @@ Partitions.SetConfig VDISK0#0
 	RamFS="RAMVolumes.New DiskFS.NewFS"
 	AosFS="DiskVolumes.New DiskFS.NewFS"
 	Boot1="Keyboard.Install;MousePS2.Install"
-	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
+	Boot2="DriverDatabase.Reload;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
 	Boot3="WindowManager.Install"
 	Boot4="Loopback.Install;Ethernet3Com90x.Install;RTL8139.Install;Intel8255x.Install;AM79C970.Install"
 	Boot5="Autostart.Run"
@@ -142,7 +142,7 @@ Partitions.SetConfig VDISK0#0
 	RamFS="RAMVolumes.New DiskFS.NewFS"
 	AosFS="DiskVolumes.New DiskFS.NewFS"
 	Boot1="Keyboard.Install;MousePS2.Install"
-	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
+	Boot2="DriverDatabase.Reload;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
 	Boot3="WindowManager.Install"
 	Boot5="Autostart.Run"
 	Boot="DisplayLinear.Install"
@@ -195,7 +195,7 @@ Partitions.SetConfig VDISK0#1
 	Boot="DisplayLinear.Install"
 	AosFS="DiskVolumes.New DiskFS.NewFS"
 	Boot1="Keyboard.Install;MousePS2.Install"
-	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
+	Boot2="DriverDatabase.Reload;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
 	Boot3="WindowManager.Install"
 	Boot5="Autostart.Run"
 	Init="144"
@@ -248,7 +248,7 @@ Partitions.SetConfig VDISK0#1
 	BootVol1="AOS AosFS IDE0#1"
 	AosFS="DiskVolumes.New DiskFS.NewFS"
 	Boot1="Keyboard.Install;MousePS2.Install"
-	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
+	Boot2="DriverDatabase.Reload;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
 	Boot3="WindowManager.Install"
 	Boot5="Autostart.Run"
 	Boot="DisplayLinear.Install"
@@ -276,7 +276,7 @@ SystemTools.Timer start ~
 
 FSTools.DeleteFiles ../Test/A2HDD.img ~
 
-VirtualDisks.Create ../Test/A2HDD.img 65520 512 ~
+VirtualDisks.Create ../Test/A2HDD.img 300000 512 ~
 VirtualDisks.Install -b=512 VDISK0 ../Test/A2HDD.img ~
 
 Linker.Link \P../Test/ \.Obx ../Test/USB.Bin 0100000H 100000H Kernel Traps
@@ -285,31 +285,34 @@ Linker.Link \P../Test/ \.Obx ../Test/USB.Bin 0100000H 100000H Kernel Traps
 	
 Partitions.WriteMBR VDISK0#0 OBEMBR.Bin ~
 Partitions.InstallBootManager VDISK0#0 ~
-Partitions.Create VDISK0#1 76 32 ~
+Partitions.Create VDISK0#1 76 150 ~
 
 Partitions.Format VDISK0#1 AosFS -2 ../Test/USB.Bin ~ (* -2 makes sure that actual boot file size is taken as offset for AosFS *)
 FSTools.Mount TEMP AosFS VDISK0#1 ~
 
 ZipTool.ExtractAll --prefix=TEMP: --sourcePath=../Test/ --overwrite --silent
-	System.zip Drivers.zip ApplicationsMiniSrc.zip  Compiler.zip GuiApplicationsMini.zip
-	ScreenFonts.zip ~
+	Kernel.zip System.zip Drivers.zip ApplicationsMini.zip Applications.zip Compiler.zip CompilerSrc.zip
+	GuiApplicationsMini.zip GuiApplications.zip Fun.zip Contributions.zip Build.zip EFI.zip
+	Oberon.zip OberonGadgets.zip OberonApplications.zip OberonDocumentation.zip
+	KernelSrc.zip SystemSrc.zip DriversSrc.zip ApplicationsMiniSrc.zip ApplicationsSrc.zip GuiApplicationsMiniSrc.zip GuiApplicationsSrc.zip FunSrc.zip BuildSrc.zip
+	ScreenFonts.zip CjkFonts.zip TrueTypeFonts.zip ~
 
 FSTools.Watch TEMP ~
 FSTools.Unmount TEMP ~
 
 Partitions.SetConfig VDISK0#1
-	TraceMode="5" TracePort="1" TraceBPS="115200"
-	BootVol1="AOS AosFS IDE0#1"
+	TraceMode="0" TracePort="1" TraceBPS="115200"
+	BootVol1="AOS AosFS USB0#1"
 	AosFS="DiskVolumes.New DiskFS.NewFS"
 	Boot1="Keyboard.Install;MousePS2.Install"
-	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
+	Boot2="DriverDatabase.Reload;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
 	Boot3="WindowManager.Install"
 	Boot5="Autostart.Run"
 	Boot="DisplayLinear.Install"
 	CacheSize="1000"
 	ExtMemSize="64"
 	MaxProcs="-1"
-	Init=""
+	Init="117"
 	~
 VirtualDisks.Uninstall VDISK0 ~
 
