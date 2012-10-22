@@ -173,10 +173,7 @@ entry1:
 	push word entry2	; in relocated loader at IP= offset entry2
 	retf	; jump to CS:IP
 ; = END ===========
-bufbeg0:	db 0	; buffer overwrites code later
-bufbeg:	db 0	; an area from here to bufend will be used
-		; as buffer for editing the config strings
-; NOTE: keep that area as large as possible !
+
 
 ; set up segment registers & stack
 entry2:
@@ -1458,3 +1455,8 @@ depth:	resw 1	; bits per pixel (video mode)
 opcode:	resw 1	; temporary save area
 InitBin:	resw 1	; video mode value as integer
 		; 0 indicates long assembler code string
+
+bufbeg0:	resb 1	; buffer overwrites code later
+bufbeg:	resb 1	; an area from here to bufend will be used
+		; as buffer for editing the config strings
+; NOTE: keep that area as large as possible !
