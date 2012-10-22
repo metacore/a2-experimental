@@ -269,14 +269,17 @@ SystemTools.Show HDD image build time:  ~ SystemTools.Timer elapsed ~
 
 SystemTools.DoCommands
 
+PCAAMD64.Assemble OBLUnreal.Asm ~
+PartitionsLib.SetBootLoaderFile OBLUnreal.Bin ~ 
+
 SystemTools.Timer start ~
 
-FSTools.DeleteFiles ../Test/A2USB.img ~
+FSTools.DeleteFiles ../Test/A2HDD.img ~
 
-VirtualDisks.Create ../Test/A2USB.img 65536 512 ~
-VirtualDisks.Install -b=512 VDISK0 ../Test/A2USB.img ~
+VirtualDisks.Create ../Test/A2HDD.img 65520 512 ~
+VirtualDisks.Install -b=512 VDISK0 ../Test/A2HDD.img ~
 
-Linker.Link \P../Test/ \.Obx ../Test/USB.Bin 0100000H 1000H Kernel Traps
+Linker.Link \P../Test/ \.Obx ../Test/USB.Bin 0100000H 100000H Kernel Traps
 	UsbHubDriver UsbEhci UsbStorageBoot
 	DiskVolumes DiskFS Loader BootConsole ~
 	
@@ -284,7 +287,7 @@ Partitions.WriteMBR VDISK0#0 OBEMBR.Bin ~
 Partitions.InstallBootManager VDISK0#0 ~
 Partitions.Create VDISK0#1 76 32 ~
 
-Partitions.Format VDISK0#1 AosFS 512 ../Test/USB.Bin ~
+Partitions.Format VDISK0#1 AosFS -2 ../Test/USB.Bin ~ (* -2 makes sure that actual boot file size is taken as offset for AosFS *)
 FSTools.Mount TEMP AosFS VDISK0#1 ~
 
 ZipTool.ExtractAll --prefix=TEMP: --sourcePath=../Test/ --overwrite --silent
@@ -295,7 +298,7 @@ FSTools.Watch TEMP ~
 FSTools.Unmount TEMP ~
 
 Partitions.SetConfig VDISK0#1
-	TraceMode="0" TracePort="1" TraceBPS="115200"
+	TraceMode="5" TracePort="1" TraceBPS="115200"
 	BootVol1="AOS AosFS IDE0#1"
 	AosFS="DiskVolumes.New DiskFS.NewFS"
 	Boot1="Keyboard.Install;MousePS2.Install"
@@ -303,10 +306,14 @@ Partitions.SetConfig VDISK0#1
 	Boot3="WindowManager.Install"
 	Boot5="Autostart.Run"
 	Boot="DisplayLinear.Install"
-	Init="117"
 	CacheSize="1000"
+	ExtMemSize="64"
+	MaxProcs="-1"
+	Init=""
 	~
 VirtualDisks.Uninstall VDISK0 ~
 
 SystemTools.Show HDD image build time:  ~ SystemTools.Timer elapsed ~
+
+FSTools.CloseFiles ../Test/A2HDD.img ~
 
