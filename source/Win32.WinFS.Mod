@@ -749,7 +749,7 @@ VAR
 	BEGIN
 		i := 0;  ch := src[0];
 		WHILE ch # 0X DO
-			IF (ch >= "a") & (ch < "z") THEN ch := CAP( ch ) END;
+			IF (ch >= "a") & (ch <= "z") THEN ch := CAP( ch ) END;
 			dst[i] := ch;  INC( i );  ch := src[i]
 		END;
 		dst[i] := 0X

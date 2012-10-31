@@ -488,7 +488,9 @@ MODULE GfxRegions; (** portable *)	(* eos  *)
 				IF wn < points THEN	(* some points have been discarded => move filler slices *)
 					rn := points; points := wn;
 					REPEAT
-						data[wn] := reg.data[rn];	(* data may have been reallocated! *)
+						IF (wn < LEN(data)) & (rn < LEN(reg.data)) THEN
+							data[wn] := reg.data[rn];	(* data may have been reallocated! *)
+						END;
 						INC(wn); INC(rn)
 					UNTIL rn = reg.points;
 					reg.data := data;
