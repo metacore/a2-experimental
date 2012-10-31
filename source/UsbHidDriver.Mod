@@ -62,6 +62,13 @@ TYPE
 		lastDx, lastDy: 	LONGINT;
 	END;
 
+	TouchscreenState = POINTER TO RECORD
+		x,y: UsbHidReport.UsageTuple;
+		tipSwitch, inRange: UsbHidReport.UsageTuple;
+		prevX, prevZ: LONGINT;
+		prevS: BOOLEAN;
+	END;
+
 	(*Handling keyboard devices*)
 	KeyboardState = OBJECT(UsbKeyboard.KeyboardBase);
 	VAR
@@ -408,6 +415,7 @@ TYPE
 		reportManager			: UsbHidReport.HidReportManager;
 		hidReportItemQueue	: UsbHidReport.ReportItemQueue;
 		mouseState				: MouseState;
+		touchscreenState : TouchscreenState;
 		keyboardState			: KeyboardState;
 		consumerState			: ConsumerState;
 		joystickState			: JoystickState;
@@ -488,6 +496,10 @@ TYPE
 			END;
 
 			IF InitializeJoystickDriver()=TRUE THEN
+				canManage := TRUE;
+			END;
+
+			IF InitializeTouchscreenDriver()=TRUE THEN
 				canManage := TRUE;
 			END;
 
@@ -606,6 +618,7 @@ TYPE
 					IF Debug THEN KernelLog.String("handle mouse driver"); KernelLog.Ln; END;
 					HandleMouseDriver;
 				END;
+
 				IF(keyboardState#NIL) THEN
 					IF Debug  THEN  KernelLog.String("handle keyboard driver"); KernelLog.Ln; END;
 					HandleKeyboardDriver;
@@ -624,6 +637,11 @@ TYPE
 				IF(joystickState#NIL) THEN
 					IF Debug THEN KernelLog.String("handle custom driver"); KernelLog.Ln; END;
 					HandleJoystickDriver;
+				END;
+
+				IF touchscreenState #NIL THEN
+					IF Debug  THEN  KernelLog.String("handle touchscreen driver"); KernelLog.Ln; END;
+					HandleTouchscreenDriver
 				END;
 
 				(*get new message from hid device*)
@@ -685,6 +703,32 @@ TYPE
 			END;
 			Inputs.mouse.Handle(mm);
 		END HandleMouseDriver;
+
+		(**
+		 * Is called by handleHidEvent when mouse device is found
+		 *)
+		PROCEDURE HandleTouchscreenDriver;
+		VAR
+			mm : 			Inputs.AbsMouseMsg;
+			x,y: LONGINT;
+		BEGIN
+			x := touchscreenState.x.usageValue;
+			y := touchscreenState.y.usageValue;
+
+			IF (touchscreenState.tipSwitch.usageValue#0) THEN mm.keys := mm.keys + {0}; END;
+			(* these dimensions are very specific to the model we currently need. The driver has to be factored our to a separate module *)
+			mm.x := x * 1024 DIV 16274; mm.y := y * 768 DIV 12152; 
+
+			IF (0 IN mm.keys) &  ~touchscreenState.prevS THEN
+				(* patch window manager issue: expects that the mouse is there without button pressed previously... *)
+				EXCL(mm.keys, 0);
+				Inputs.mouse.Handle(mm);
+				INCL(mm.keys, 0);
+			END;
+
+			Inputs.mouse.Handle(mm);
+			touchscreenState.prevS := 0 IN mm.keys;
+		END HandleTouchscreenDriver;
 
 		(**
 		 * Is called by handleHidEvent when keyboard device is found
@@ -1084,6 +1128,31 @@ TYPE
 				RETURN FALSE;
 			END;
 		END InitializeJoystickDriver;
+
+		(**
+		 * checks, whether the device sends mouse informations or not
+		 *)
+		PROCEDURE InitializeTouchscreenDriver():BOOLEAN;
+		VAR
+			mouseCollection	: UsbHidReport.HidCollection;
+			temp			: UsbHidReport.HidReport;
+			i				: LONGINT;
+			isReportProtocol: BOOLEAN;
+		BEGIN
+			(*get mouse collection: mouse collection uses UsagePage(Generic Desktop Controlsl)->1 and Usage(Mouse)->2*)
+			mouseCollection := reportManager.GetCollection(0DH, 04H);
+			IF (mouseCollection#NIL) THEN
+				NEW(touchscreenState);
+				touchscreenState.x 		:= reportManager.GetUsage(UsagePage.GenericDesktopPage, 30H, mouseCollection,temp);
+				touchscreenState.y 		:= reportManager.GetUsage(UsagePage.GenericDesktopPage, 31H, mouseCollection,temp);
+				touchscreenState.tipSwitch := reportManager.GetUsage(0DH, 042H, mouseCollection,temp);
+				touchscreenState.inRange := reportManager.GetUsage(0DH, 032H, mouseCollection,temp);
+				RETURN TRUE;
+			ELSE
+				RETURN FALSE;
+			END;
+		END InitializeTouchscreenDriver;
+
 
 		(**
 		 * Reads bitlen bits from a position index
