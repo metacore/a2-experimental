@@ -145,6 +145,13 @@ TYPE
 			sizeInUnits := NotYetCalculatedSize
 		END InitIntermediateSection;
 
+		PROCEDURE EnableComments*(enabled: BOOLEAN);
+		BEGIN
+			IF enabled & (comments = NIL) THEN NEW(comments, GetPC)
+			ELSIF ~enabled THEN comments := NIL
+			END;
+		END EnableComments;
+
 		PROCEDURE EnterValidPAF*;
 		BEGIN validPAFEnter := pc
 		END EnterValidPAF;
