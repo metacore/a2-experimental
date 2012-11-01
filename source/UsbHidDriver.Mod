@@ -716,8 +716,9 @@ TYPE
 			y := touchscreenState.y.usageValue;
 
 			IF (touchscreenState.tipSwitch.usageValue#0) THEN mm.keys := mm.keys + {0}; END;
-			(* these dimensions are very specific to the model we currently need. The driver has to be factored our to a separate module *)
-			mm.x := x * 1024 DIV 16274; mm.y := y * 768 DIV 12152; 
+			(* these dimensions are very specific to the respective model. Implement a separate driver in UsbTouchscreen.Mod ! *)
+			mm.x := x; mm.y := y;
+			TRACE(x,y,mm.keys);
 
 			IF (0 IN mm.keys) &  ~touchscreenState.prevS THEN
 				(* patch window manager issue: expects that the mouse is there without button pressed previously... *)
@@ -1141,7 +1142,7 @@ TYPE
 		BEGIN
 			(*get mouse collection: mouse collection uses UsagePage(Generic Desktop Controlsl)->1 and Usage(Mouse)->2*)
 			mouseCollection := reportManager.GetCollection(0DH, 04H);
-			IF (mouseCollection#NIL) THEN
+			IF (mouseCollection#NIL) THEN
 				NEW(touchscreenState);
 				touchscreenState.x 		:= reportManager.GetUsage(UsagePage.GenericDesktopPage, 30H, mouseCollection,temp);
 				touchscreenState.y 		:= reportManager.GetUsage(UsagePage.GenericDesktopPage, 31H, mouseCollection,temp);
