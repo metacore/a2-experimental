@@ -475,6 +475,7 @@ PACKAGE Drivers ARCHIVE "Drivers.zip" SOURCE "DriversSrc.zip" DESCRIPTION "Devic
 
 		UsbPrinter.Mod
 		UsbGarminGPS18.Mod
+		UsbTouchscreen.Mod
 
 		# Bluetooth stack
 		Bluetooth.Mod BluetoothUART.Mod UsbBluetooth.Mod BluetoothUSB.Mod
