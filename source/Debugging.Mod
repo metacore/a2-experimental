@@ -1,6 +1,6 @@
 MODULE Debugging;   (**  AUTHOR "fof"; PURPOSE "Debugging facilities";  **)
 
-IMPORT SYSTEM, Streams, KernelLog, Files, StringPool,  Modules, Objects, Reflection, Machine, Commands, Locks;
+IMPORT SYSTEM, Streams, KernelLog, Files, StringPool,  Modules, Objects, Reflection, Machine, Commands, Locks, Dates;
 
 VAR
 	DefaultLog, Log-: Streams.Writer;  f: Files.File;  lock: Locks.RWLock;
@@ -53,9 +53,9 @@ VAR
 
 	PROCEDURE TraceBackThis( eip, ebp: SYSTEM.ADDRESS; stackhigh:LONGINT );   (* do a stack trace back w.r.t. given instruction and frame pointers *)
 	BEGIN
-		Log.Ln;  Log.String( "##################" );
+		Log.Ln;  Log.String( "#######################" );
 		Log.Ln;  Log.String( "# Debugging.TraceBack #" );
-		Log.Ln;  Log.String( "##################" );
+		Log.Ln;  Log.String( "#######################" );
 		Log.Ln;  Reflection.StackTraceBack( Log, eip, ebp, stackhigh, TRUE , FALSE );
 		Log.Update;
 	END TraceBackThis;
@@ -171,9 +171,12 @@ VAR
 	END Str0;
 
 	PROCEDURE Enter*;   (* start exclusive writing *)
-	VAR a: ANY;  p: Objects.Process;
+	VAR a: ANY;  p: Objects.Process;	dt: Dates.DateTime;
 	BEGIN
-		lock.AcquireWrite;  Ln;  Str( "{ [P " );  p := Objects.CurrentProcess();  Int( p.id,1 );  Str( " " );  a := Objects.ActiveObject();  Type( a );  Str( "] " );
+		lock.AcquireWrite;  Ln;
+		Str( "{ [P " );  p := Objects.CurrentProcess();  Int( p.id,1 );  Str( " " );  a := Objects.ActiveObject();  Type( a );  Str( "] " );
+		dt := Dates.Now(); Int(dt.hour,0); Char(':'); Int(dt.minute,0); Char(':'); Int(dt.second,0);
+
 	END Enter;
 
 	PROCEDURE Exit*;   (* end exclusive writing *)
