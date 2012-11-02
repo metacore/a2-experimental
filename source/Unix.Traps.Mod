@@ -1,14 +1,10 @@
 (* ETH Oberon, Copyright 2000 ETH Zuerich Institut fuer Computersysteme, ETH Zentrum, CH-8092 Zuerich.
 Refer to the "General ETH Oberon System Source License" contract available at: http://www.oberon.ethz.ch/ *)
 
-MODULE Traps;  
+MODULE Traps;  (** AUTHOR "G.F."; PURPOSE "Exception Trap and symbolic debugging"; *)
 
-(* 2000.02.06	g.f.	release 2.3.6d	*)
-(* 2000.03.30	g.f.	more rubust trap handling while loading system *)
-(* 2001.01.06	g.f.	adapted to new compiler *)
-(* 2001.02.19	g.f.	Exception Handling added *)
-(* 2002.01.03	g.f.	signal 13 no longer exits Oberon  *)
-(* 2006.07.09	g.f.	Unix-Aos version	*)
+(* 2000.02.06	g.f.	UnixOberon release 2.3.6d	*)
+(* 2006.07.09	g.f.	UnixAos version	*)
 
 IMPORT S := SYSTEM, Trace, Glue, Unix, Objects, Machine, Heaps, Streams, Modules, Reflection, 
 		TrapWriters, Commands, StdIO;  
@@ -23,9 +19,8 @@ VAR
 	InstallSignalHandler: PROCEDURE ( h: SigHandler );  
 	
 	TrapHandlingLevel: INTEGER;  
-	hexDigit: ARRAY 17 OF CHAR;
 	
-	debug: SET;  
+	trace: BOOLEAN;  
 	
 	unix: Commands.Context;
 		
@@ -55,7 +50,7 @@ VAR
 		trProcess: Objects.Process;  handled: BOOLEAN;  
 		w: Streams.Writer;
 	
-	PROCEDURE FinishTrapText( exitAos: BOOLEAN );
+		PROCEDURE FinishTrapText( exitAos: BOOLEAN );
 		VAR tag: Address;  name: ARRAY 72 OF CHAR;
 		BEGIN
 			
@@ -74,27 +69,39 @@ VAR
 			Machine.Release( Machine.Trap );
 		END FinishTrapText;
 		
+		
+		PROCEDURE TimeTag;
+		VAR 
+			tv: Unix.Timeval;  tz: Unix.Timezone;  t: Unix.TmPtr;  ret: LONGINT;
+			
+			PROCEDURE Int( i: LONGINT );
+			BEGIN
+				IF i < 10 THEN  w.Char( '0' )  END;
+				w.Int( i, 0 )
+			END Int;
+			
+		BEGIN
+			ret := Unix.gettimeofday( tv, tz );
+			t := Unix.localtime( tv );
+			w.Int( 1900 + t.year, 4 );  w.Char( '/' );  Int( t.mon + 1 );  w.Char( '/' );  Int( t.mday );  
+			w.String( "  " );  Int( t.hour );  w.Char( ':' );  Int( t.min );  w.Ln;
+		END TimeTag;
+		
 	BEGIN 
 		INC( TrapHandlingLevel ); 
-		IF 3 IN debug THEN  
+		IF trace THEN  
 			Trace.String( "Aos Trap:  signal = " );  Trace.Int( sig, 0 );  
 			Trace.String( ",  ucp = " );  Trace.Hex( S.VAL( Address, ucp ), -8 );  
 			Trace.String( ", traphandling  level = " ); Trace.Int( TrapHandlingLevel, 1 );  
 			Trace.Ln;  
 		END;  
-		
-		IF Machine.standaloneAppl THEN	
-			unix.error.Ln;  unix.error.Ln;
-			unix.error.String( "### Program aborted. Stack backtrace in logfile" );  unix.error.Ln;
-			unix.error.Update
-		END;
-		
+				
 		trProcess := Objects.CurrentProcess( );  
 		w := TrapWriters.GetWriter();
-			
 		w.Char( 1X );   (* begin of trap text *) 
 		w.Ln;  
-		w.String( Machine.version ); w.Ln; w.Ln;
+		w.String( Machine.version ); w.String( "   " );  TimeTag;
+		w.Ln;
 		IF TrapHandlingLevel = 1 THEN  
 			Machine.Acquire( Machine.Trap );
 			w.String( "Trap " ) 
@@ -102,11 +109,11 @@ VAR
 			w.String( "==== recursive Trap" )  
 		END;  
 		CASE sig OF 
-		| 1:       w.String( "  1 (Hangup signal)" );   
-		| 2:       w.String( "  2 (User interrupt)" );   
-		| 3:       w.String( "  3 (Quit signal)" );   
-		| 4:       w.String( "  4 (Illegal instruction)" );   
-		| 5:       w.String( "  5." );  
+		| 1:		w.String( "1 (Hangup signal)" );   
+		| 2:  	w.String( "2 (User interrupt)" );   
+		| 3:		w.String( "3 (Quit signal)" );   
+		| 4:  	w.String( "4 (Illegal instruction)" );   
+		| 5:   	w.String( "5." );  
 				sp := ucp.mc.espatsig;
 				S.GET( sp, trapno );  w.Int( trapno, 0 );  
 				CASE trapno OF 
@@ -120,16 +127,16 @@ VAR
 				| 9:       w.String( "  (Array dimension error)" ) 
 				ELSE 
 					IF trapno >= 30 THEN  w.String( "  (programmed HALT)" )  
-					ELSE  w.String( "  (unknown trap, division error?)" )   
+					ELSE  w.String( "  (unknown exception, division error?)" )   
 					END  
 				END;   
-		| 8:       w.String( "  8 (Arithmetic exception)" );   
-		| 10:     w.String( "  10 (Bus Error)" ) 
-		| 11:     w.String( "  11 (Segmentation violation)" ) 
-		| 13:     w.String( "  13 (Broken pipe)" ) 
-		| 14:     w.String( "  14 (Alarm signal)" ) 
+		|  8:	w.String( "8 (Arithmetic exception)" );   
+		|10: 	w.String( "10 (Bus Error)" ) 
+		|11:	w.String( "11 (Segmentation violation)" ) 
+		|13:	w.String( "13 (Broken pipe)" ) 
+		|14:	w.String( "14 (Alarm signal)" ) 
 		ELSE 
-			w.String( "  (Signal " );  w.Int( sig, 0 );  w.String( ") " );  
+			w.String( "(Signal " );  w.Int( sig, 0 );  w.Char( ')' );  
 		END;  
 		w.Ln;  
 		IF TrapHandlingLevel > 1 THEN 
@@ -141,22 +148,28 @@ VAR
 				(* assume call of procedure variable with value NIL *)
 				S.GET( sp, pc );   (* get return address on top of stack *)
 			END;  	
-			w.String( "SP = " );  w.Address( sp );  w.Char( 'H' );
-			w.String( ", FP = " );  w.Address( bp );  w.Char( 'H' );
-			w.String( ", PC = " );  w.Address( pc );  w.Char( 'H' );  w.Ln;  
+			w.Ln;
+			w.String( "    sp = " );  w.Address( sp );  w.String( ", fp = " );  w.Address( bp ); 
+			w.String( ", pc = " );  w.Address( pc );  w.Ln;  
 			w.Ln;  
+			Reflection.StackTraceBack( w, pc, bp, Objects.GetStackBottom(trProcess), TRUE, FALSE );
 			HandleException( trProcess, ucp, handled ); 
 			IF handled THEN   
-				w.String( "exception handler found" );   w.Ln
-			ELSE
-				Reflection.StackTraceBack( w, pc, bp, Objects.GetStackBottom(trProcess), TRUE, FALSE )
+				w.Ln;  w.Ln;
+				w.String( "### program continues with exception handler ###" );   w.Ln				
 			END;  
 			FinishTrapText( FALSE );
-			IF handled THEN  RETURN  END;
+			IF handled THEN  RETURN  (* to exception handler! *)END;
+			
+			IF Machine.standaloneAppl THEN	
+				unix.error.Ln;  unix.error.Ln;
+				unix.error.String( "### Program aborted. Stack backtrace in logfile" );  unix.error.Ln;
+				unix.error.Update
+			END;
 			IF Heaps.collecting OR Machine.standaloneAppl THEN  
 				Machine.Shutdown( FALSE );  Objects.Terminate  
 			END;  
-			IF 3 IN debug THEN  
+			IF trace THEN  
 				Trace.String( "Teminating trapped thread " );  Trace.Int( trProcess.id , 0 ); Trace.Ln
 			END;  
 			Objects.ExitTrap() 
@@ -213,7 +226,7 @@ VAR
 	CONST SIGALRM = 14;  
 	VAR ures: LONGINT;
 	BEGIN 
-		IF 3 IN debug THEN  
+		IF trace THEN  
 			Trace.String( "Traps.SignalHander: received signal " );  
 			Trace.Int( signal, 1 );  Trace.Ln  
 		END;  
@@ -236,7 +249,7 @@ VAR
 
 
 BEGIN 
-	debug := Glue.debug;  hexDigit := "0123456789ABCDEF";
+	trace := 3 IN Glue.debug; 
 	Unix.Dlsym( 0, "InstallTrap", S.VAL( Address, InstallSignalHandler ) );
 	InstallSignalHandler( SignalHandler );
 	unix := StdIO.env
