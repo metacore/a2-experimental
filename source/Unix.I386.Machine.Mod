@@ -1,12 +1,12 @@
 MODULE Machine;	(** AUTHOR "pjm"; PURPOSE "Bootstrapping, configuration and machine interface"; *)
 
 
-IMPORT SYSTEM, Trace, Unix, Glue;
+IMPORT S := SYSTEM, Trace, Unix, Glue;
 
 CONST
 	DefaultConfig = "Color 0  StackSize 128";
 	
-	Version = "Aos (rev.4947)";
+	Version = "Aos (rev.5005)";
 
 	DefaultObjectFileExtension* = ".Obj";
 	
@@ -15,8 +15,9 @@ CONST
 	(** bits in features variable *)
 	MTTR* = 12;  MMX* = 23; 
 	
-	AdrSize = SYSTEM.SIZEOF( SYSTEM.ADDRESS );
-	SizeSize = SYSTEM.SIZEOF( SYSTEM.SIZE );
+	AdrSize = S.SIZEOF( S.ADDRESS );
+	SizeSize = S.SIZEOF( S.SIZE );
+	
 	BlockSize = 32;
 	MemBlockSize* = 64*1024*1024;
 	
@@ -37,14 +38,17 @@ CONST
 	
 
 TYPE
+	Address = S.ADDRESS;
+	Size = S.SIZE;
+	
 	Vendor* = ARRAY 13 OF CHAR;	
 
 	MemoryBlock* = POINTER TO MemoryBlockDesc;
 	MemoryBlockDesc* = RECORD
 		next- {UNTRACED}: MemoryBlock;
-		startAdr-: SYSTEM.ADDRESS; 		(* sort key in linked list of memory blocks *)
-		size-: SYSTEM.SIZE; 					
-		beginBlockAdr-, endBlockAdr-: SYSTEM.ADDRESS
+		startAdr-: Address; 		(* sort key in linked list of memory blocks *)
+		size-: Size; 					
+		beginBlockAdr-, endBlockAdr-: Address
 	END;
 	
 	(** processor state, ordering of record fields is predefined! *)
@@ -57,16 +61,15 @@ TYPE
 		ES*, DS*, FS*, GS*: LONGINT;	(** only valid if (VMBit IN s.FLAGS) *)
 	END;
 	
-	Address = SYSTEM.ADDRESS;
-	Size = SYSTEM.SIZE;
-
+	
 VAR
 	lock-	: ARRAY MaxLocks OF CHAR;  (* not implemented as SET because of shared access *)
 	mtx		: ARRAY MaxLocks OF Unix.Mutex_t;
 	
-	version*: ARRAY 64 OF CHAR;	(** Aos version *)
+	version-: ARRAY 64 OF CHAR;	(** Aos version *)
 	
 	features-, features2 : SET;
+	MMXSupport-	: BOOLEAN;
 	SSESupport-	: BOOLEAN;
 	SSE2Support-	: BOOLEAN;
 	SSE3Support-	: BOOLEAN;
@@ -98,14 +101,14 @@ VAR
 	mtxLock	: PROCEDURE {REALTIME, C} ( mtx: Unix.Mutex_t );
 	mtxUnlock	: PROCEDURE {REALTIME, C} ( mtx: Unix.Mutex_t );
 	
-	conInit-	: PROCEDURE {REALTIME, C}  ( dummy: LONGINT ): Unix.Condition_t;
+	conInit		: PROCEDURE {REALTIME, C}  ( dummy: LONGINT ): Unix.Condition_t;
 	conDestroy	: PROCEDURE {REALTIME, C}  ( cond: Unix.Condition_t );
-	conWait-	: PROCEDURE {REALTIME, C}  ( cond: Unix.Condition_t;  mtx: Unix.Mutex_t );
-	conSignal-	: PROCEDURE {REALTIME, C}  ( cond: Unix.Condition_t );
+	conWait	: PROCEDURE {REALTIME, C}  ( cond: Unix.Condition_t;  mtx: Unix.Mutex_t );
+	conSignal	: PROCEDURE {REALTIME, C}  ( cond: Unix.Condition_t );
 	
 	thrSleep-	: PROCEDURE {REALTIME, C} ( ms: LONGINT );
 
-	saveSP*		: PROCEDURE;		(* save SP for usage by GC *)
+	saveSP*	: PROCEDURE;		(* save SP for usage by GC *)
 
 	
 	logfile: LONGINT;
@@ -184,7 +187,7 @@ VAR
 		END;
 		
 		IF adr # 0 THEN  
-			mBlock := SYSTEM.VAL( MemoryBlock, adr );  
+			mBlock := S.VAL( MemoryBlock, adr );  
 			mBlock.next := NIL;  
 			mBlock.startAdr := adr;
 			mBlock.size := alloc;  
@@ -201,9 +204,9 @@ VAR
 			IF 1 IN Glue.debug THEN TraceHeap( mBlock )  END;
 			
 			a := mBlock.beginBlockAdr;
-			SYSTEM.PUT( a, a + AdrSize );	(* tag *)
-			SYSTEM.PUT( a + AdrSize, s - AdrSize );  (* size *)
-			SYSTEM.PUT( a + AdrSize + SizeSize, SYSTEM.VAL( Address, 0 ) ); (* next *)
+			S.PUT( a, a + AdrSize );	(* tag *)
+			S.PUT( a + AdrSize, s - AdrSize );  (* size *)
+			S.PUT( a + AdrSize + SizeSize, S.VAL( Address, 0 ) ); (* next *)
 			
 			beginBlockAdr := mBlock.beginBlockAdr;
 			endBlockAdr := mBlock.endBlockAdr;
@@ -229,7 +232,7 @@ VAR
 
 	
 	(** Return information on free memory in Kbytes. *)
-	PROCEDURE GetFreeK*(VAR total, lowFree, highFree: SYSTEM.SIZE);
+	PROCEDURE GetFreeK*(VAR total, lowFree, highFree: Size);
 	BEGIN
 		(* meaningless in Unix port, for interface compatibility only *)
 		total := 0;
@@ -238,7 +241,7 @@ VAR
 	END GetFreeK;
 
 (* Compare two unsigned addresses *)
-PROCEDURE {REALTIME} -LessThan* (a, b: SYSTEM.ADDRESS): BOOLEAN;
+PROCEDURE {REALTIME} -LessThan* (a, b: Address): BOOLEAN;
 CODE {SYSTEM.i386}
 	POP EBX
 	POP EAX
@@ -246,7 +249,7 @@ CODE {SYSTEM.i386}
 	SETB AL
 END LessThan;
 
-PROCEDURE {REALTIME} -LessOrEqual* (a, b: SYSTEM.ADDRESS): BOOLEAN;
+PROCEDURE {REALTIME} -LessOrEqual* (a, b: Address): BOOLEAN;
 CODE {SYSTEM.i386}
 	POP EBX
 	POP EAX
@@ -254,7 +257,7 @@ CODE {SYSTEM.i386}
 	SETBE AL
 END LessOrEqual;
 
-PROCEDURE {REALTIME} -GreaterThan* (a, b: SYSTEM.ADDRESS): BOOLEAN;
+PROCEDURE {REALTIME} -GreaterThan* (a, b: Address): BOOLEAN;
 CODE {SYSTEM.i386}
 	POP EBX
 	POP EAX
@@ -262,7 +265,7 @@ CODE {SYSTEM.i386}
 	SETA AL
 END GreaterThan;
 
-PROCEDURE {REALTIME} -GreaterOrEqual* (a, b: SYSTEM.ADDRESS): BOOLEAN;
+PROCEDURE {REALTIME} -GreaterOrEqual* (a, b: Address): BOOLEAN;
 CODE {SYSTEM.i386}
 	POP EBX
 	POP EAX
@@ -271,7 +274,7 @@ CODE {SYSTEM.i386}
 END GreaterOrEqual;
 
 (** Fill "size" bytes at "destAdr" with "filler". "size" must be multiple of 4. *)
-PROCEDURE {REALTIME} Fill32* (destAdr: SYSTEM.ADDRESS; size: SYSTEM.SIZE; filler: LONGINT);
+PROCEDURE {REALTIME} Fill32* (destAdr: Address; size: Size; filler: LONGINT);
 CODE {SYSTEM.i386}
 	MOV EDI, [EBP+destAdr]
 	MOV ECX, [EBP+size]
@@ -464,7 +467,7 @@ END Portout32;
 
 
 (* returns if an address is a currently allocated heap address *)
-PROCEDURE ValidHeapAddress*( p: SYSTEM.ADDRESS ): BOOLEAN;
+PROCEDURE ValidHeapAddress*( p: Address ): BOOLEAN;
 VAR mb: MemoryBlock; 
 BEGIN
 	mb := memBlockHead;  
@@ -475,20 +478,20 @@ BEGIN
 	RETURN FALSE  
 END ValidHeapAddress;
 
-PROCEDURE Ensure32BitAddress*( adr: SYSTEM.ADDRESS ): LONGINT;
+PROCEDURE Ensure32BitAddress*( adr: Address ): LONGINT;
 BEGIN
 	RETURN adr
 END Ensure32BitAddress;
 
-PROCEDURE Is32BitAddress*( adr: SYSTEM.ADDRESS ): BOOLEAN;
-BEGIN  RETURN SYSTEM.VAL( LONGINT, adr ) = adr;
+PROCEDURE Is32BitAddress*( adr: Address ): BOOLEAN;
+BEGIN  RETURN S.VAL( LONGINT, adr ) = adr;
 END Is32BitAddress;
 
 
 (** -- Atomic operations -- *)
 
 (** Atomic INC(x). *)
-PROCEDURE -AtomicInc*(VAR x: LONGINT);
+PROCEDURE -AtomicInc*(VAR 	x: LONGINT);
 CODE {SYSTEM.i386}
 	POP EAX
 	LOCK
@@ -542,31 +545,31 @@ END AtomicCAS;
 
 
 (* Return current instruction pointer *)
-PROCEDURE {REALTIME} CurrentPC* (): SYSTEM.ADDRESS;
+PROCEDURE {REALTIME} CurrentPC* (): Address;
 CODE {SYSTEM.i386}
 	MOV EAX, [EBP+4]
 END CurrentPC;
 
 (* Return current frame pointer *)
-PROCEDURE {REALTIME} -CurrentBP* (): SYSTEM.ADDRESS;
+PROCEDURE {REALTIME} -CurrentBP* (): Address;
 CODE {SYSTEM.i386}
 	MOV EAX, EBP
 END CurrentBP;
 
 (* Set current frame pointer *)
-PROCEDURE {REALTIME} -SetBP* (bp: SYSTEM.ADDRESS);
+PROCEDURE {REALTIME} -SetBP* (bp: Address);
 CODE {SYSTEM.i386}
 	POP EBP
 END SetBP;
 
 (* Return current stack pointer *)
-PROCEDURE {REALTIME} -CurrentSP* (): SYSTEM.ADDRESS;
+PROCEDURE {REALTIME} -CurrentSP* (): Address;
 CODE {SYSTEM.i386}
 	MOV EAX, ESP
 END CurrentSP;
 
 (* Set current stack pointer *)
-PROCEDURE {REALTIME} -SetSP* (sp: SYSTEM.ADDRESS);
+PROCEDURE {REALTIME} -SetSP* (sp: Address);
 CODE {SYSTEM.i386}
 	POP ESP
 END SetSP;
@@ -714,24 +717,39 @@ END ChangeByteOrder;
 
 
 	(** CPU identification *)
-	PROCEDURE CPUID*(function : LONGINT; VAR eax, ebx, ecx, edx : SET);
+
+	PROCEDURE CPUID*( VAR vendor: Vendor;  VAR version: LONGINT;  VAR features1,features2: SET );
 	CODE {SYSTEM.i386, SYSTEM.Pentium}
-		MOV EAX, [EBP+function]	; CPUID function parameter
-	
-		MOV ESI, [EBP+ecx]		; copy ecx into ECX (sometimes used as input parameter)
-		MOV ECX, [ESI]
-
-		CPUID					; execute CPUID
-
-		MOV ESI, [EBP+eax]		; copy EAX into eax;
-		MOV [ESI], EAX
-		MOV ESI, [EBP+ebx]		; copy EBX into ebx
-		MOV [ESI], EBX
-		MOV ESI, [EBP+ecx]		; copy ECX into ecx
-		MOV [ESI], ECX
-		MOV ESI, [EBP+edx]		; copy EDX into edx
-		MOV [ESI], EDX
+		MOV	EAX, 0
+		CPUID
+		CMP	EAX, 0
+		JNE	ok
+		MOV	ESI, [EBP+vendor]
+		MOV	[ESI], AL	;  AL = 0
+		MOV	ESI, [EBP+version]
+		MOV	[ESI], EAX	;  EAX = 0
+		MOV	ESI, [EBP+features1]
+		MOV	[ESI], EAX
+		MOV	ESI, [EBP+features2]
+		MOV	[ESI], EAX
+		JMP	end
+		ok:
+		MOV	ESI, [EBP+vendor]
+		MOV	[ESI], EBX
+		MOV	[ESI+4], EDX
+		MOV	[ESI+8], ECX
+		MOV	BYTE [ESI+12], 0
+		MOV	EAX, 1
+		CPUID
+		MOV	ESI, [EBP+version]
+		MOV	[ESI], EAX
+		MOV	ESI, [EBP+features1]
+		MOV	[ESI], EDX
+		MOV	ESI, [EBP+features2]
+		MOV	[ESI], ECX
+		end:
 	END CPUID;
+	
 
 	(* If the CPUID instruction is supported, the ID flag (bit 21) of the EFLAGS register is r/w *)
 	PROCEDURE CpuIdSupported( ) : BOOLEAN;
@@ -748,56 +766,38 @@ END ChangeByteOrder;
 		SETNE AL;				; return TRUE if bit 21 has changed, FALSE otherwise
 	END CpuIdSupported;
 
-	PROCEDURE DetectProcessorFeatures;
-	CONST 
-		FXSRFlag = 24; (*IN features from EBX*)
+	
+	(* setup MMX, SSE and SSE2..SSE5 and AVX extension *)
+
+	PROCEDURE SetupSSE2Ext;
+	CONST
+		MMXFlag=23;(*IN features from EBX*)
+		FXSRFlag = 24;
 		SSEFlag = 25;
 		SSE2Flag = 26;
 		SSE3Flag = 0; (*IN features2 from ECX*) (*PH 04/11*)
 		SSSE3Flag =9;
-		SSE41Flag =19; 
+		SSE41Flag =19;
 		SSE42Flag =20;
-		SSE5Flag = 11; 
+		SSE5Flag = 11;
 		AVXFlag = 28;
-	VAR 
-		eax, ebx, ecx, edx : SET;
 	BEGIN
-		SSE2Support := FALSE;
-		SSE3Support := FALSE;
-		SSSE3Support := FALSE;
-		SSE41Support := FALSE;
-		SSE42Support := FALSE;
-		SSE5Support := FALSE;
-		AVXSupport := FALSE;
-		features := {}; features2 := {};
-		IF CpuIdSupported() THEN
-			(* CPUID standard function 0: Returns largest standard function supported in eax *)
-			CPUID( 0, eax, ebx, ecx, edx );
-			IF (SYSTEM.VAL(LONGINT, eax) >= 1) THEN
-				(* CPUID standard function 1: Returns processor features in ecx, edx *)
-				CPUID( 1, eax, ebx, ecx, edx );
-				features := edx;  features2 := ecx;
-				IF SSEFlag IN features THEN
-					SSESupport := TRUE;
-					(* checking for SSE2 support *)
-					IF SSE2Flag IN features THEN SSE2Support := TRUE;
-						(* checking for SSE3... support*)(*PH 04/11*)
-						IF SSE3Flag IN features2 THEN SSE3Support := TRUE;
-							IF SSSE3Flag IN features2 THEN	SSSE3Support := TRUE END;
-							IF SSE41Flag IN features2 THEN	SSE41Support := TRUE;
-								IF SSE42Flag IN features2 THEN	SSE42Support := TRUE END;
-							END;
-							IF SSE5Flag IN features2 THEN SSE5Support := TRUE END;
-							IF AVXFlag IN features2 THEN AVXSupport := TRUE END;
-						END;
-					END;
-					(* checking for support for the FXSAVE and FXRSTOR instruction *)
-					IF FXSRFlag IN features THEN (* InitSSE *) END;
-				END;
-			END;
+		MMXSupport := MMXFlag IN features;
+		SSESupport := SSEFlag IN features;
+		SSE2Support := SSESupport & (SSE2Flag IN features);
+		SSE3Support := SSE2Support & (SSE3Flag IN features2);
+		SSSE3Support := SSE3Support & (SSSE3Flag IN features2); (* PH 04/11*)
+		SSE41Support := SSE3Support & (SSE41Flag IN features2);
+		SSE42Support := SSE3Support & (SSE42Flag IN features2);
+		SSE5Support := SSE3Support & (SSE5Flag IN features2);
+		AVXSupport := SSE3Support & (AVXFlag IN features2);
+
+		IF SSESupport & (FXSRFlag IN features) THEN
+			(* InitSSE(); *) (*! not privileged mode in Windows and Unix not allowed *)
 		END;
-	END DetectProcessorFeatures;
+	END SetupSSE2Ext;
 	
+
 	PROCEDURE -InitSSE;
 	CODE {SYSTEM.Pentium, SYSTEM.Privileged}
 		MOV	EAX, CR4
@@ -877,7 +877,7 @@ END ChangeByteOrder;
 		
 
 	PROCEDURE InitHeap;
-	VAR heapAdr, firstBlock, size: SYSTEM.ADDRESS;  
+	VAR heapAdr, firstBlock, size: Address;  
 	BEGIN
 		Unix.Dlsym( 0, "heapAdr", heapAdr );  
 		Unix.Dlsym( 0, "heapSize", size );  
@@ -890,18 +890,18 @@ END ChangeByteOrder;
 		firstMemBlock.endBlockAdr := firstBlock + size;  
 		firstMemBlock.size := size;
 	
-		memBlockHead := SYSTEM.VAL( MemoryBlock, SYSTEM.ADR( firstMemBlock ) );
+		memBlockHead := S.VAL( MemoryBlock, S.ADR( firstMemBlock ) );
 		memBlockTail := memBlockHead;
 	END InitHeap;
 
 	PROCEDURE InitConfig;
-	VAR a: SYSTEM.ADDRESS;  i: LONGINT;  c: CHAR;
+	VAR a: Address;  i: LONGINT;  c: CHAR;
 	BEGIN
-		a := Unix.getenv( SYSTEM.ADR( "AOSCONFIG" ) );
+		a := Unix.getenv( S.ADR( "AOSCONFIG" ) );
 		IF a = 0 THEN  config := DefaultConfig
 		ELSE
 			REPEAT
-				SYSTEM.GET( a, c );  INC( a );  config[i] := c;  INC( i )
+				S.GET( a, c );  INC( a );  config[i] := c;  INC( i )
 			UNTIL c = 0X
 		END
 	END InitConfig;
@@ -937,14 +937,14 @@ END ChangeByteOrder;
 	PROCEDURE Log1( c: CHAR );
 	VAR ignore: LONGINT;
 	BEGIN
-		ignore := Unix.write( 1, SYSTEM.ADR( c ), 1 );
-		ignore := Unix.write( logfile, SYSTEM.ADR( c ), 1 );
+		ignore := Unix.write( 1, S.ADR( c ), 1 );
+		ignore := Unix.write( logfile, S.ADR( c ), 1 );
 	END Log1;
 	
 	PROCEDURE Log2( c: CHAR );
 	VAR ignore: LONGINT;
 	BEGIN
-		ignore := Unix.write( logfile, SYSTEM.ADR( c ), 1 );
+		ignore := Unix.write( logfile, S.ADR( c ), 1 );
 	END Log2;
 	
 	
@@ -957,7 +957,7 @@ END ChangeByteOrder;
 			name[i] := CHR( pid MOD 10 + ORD( '0' ) );  DEC( i );
 			pid := pid DIV 10;		
 		UNTIL i = 3;
-		logfile := Unix.open( SYSTEM.ADR( name ), Unix.rdwr + Unix.creat + Unix.trunc, Unix.rwrwr );
+		logfile := Unix.open( S.ADR( name ), Unix.rdwr + Unix.creat + Unix.trunc, Unix.rwrwr );
 		IF Unix.argc < 3 THEN  Trace.Char := Log1  
 		ELSE  Trace.Char := Log2;  standaloneAppl := TRUE 
 		END
@@ -976,36 +976,42 @@ END ChangeByteOrder;
 	PROCEDURE {REALTIME} Empty;
 	END Empty;
 
+	PROCEDURE Init;
+	VAR vendor: Vendor; ver: LONGINT;
+	BEGIN
+		Unix.Dlsym( 0, "thrInitialize",	S.VAL( Address, thrInitialize ) );
+		
+		Unix.Dlsym( 0, "mtxInit",		S.VAL( Address, mtxInit ) );
+		Unix.Dlsym( 0, "mtxDestroy",	S.VAL( Address, mtxDestroy ) );
+		Unix.Dlsym( 0, "mtxLock",		S.VAL( Address, mtxLock ) );
+		Unix.Dlsym( 0, "mtxUnlock",		S.VAL( Address, mtxUnlock ) );
+		
+		Unix.Dlsym( 0, "conInit",			S.VAL( Address, conInit ) );
+		Unix.Dlsym( 0, "conDestroy",	S.VAL( Address, conDestroy ) );
+		Unix.Dlsym( 0, "conWait",		S.VAL( Address, conWait ) );
+		Unix.Dlsym( 0, "conSignal",		S.VAL( Address, conSignal ) );
+			
+		Unix.Dlsym( 0, "thrSleep",		S.VAL( Address, thrSleep ) );
+		
+		standaloneAppl := FALSE;
+		
+		saveSP := Empty;	(* to be replaced in module Objects *)
+		
+		COPY( Unix.version, version );  Append( version, Version );
+		InitThreads;
+		InitLocks;
+
+		InitHeap;
+		InitConfig;
+		InitLog;
+		CPUSpeed;
+		
+		CPUID( vendor, ver, features,features2 );	 SetupSSE2Ext;
+		fcr := (FCR() - {0,2,3,10,11}) + {0..5,8,9};	(* default FCR RC=00B *)
+	END Init;
 
 BEGIN
-	Unix.Dlsym( 0, "thrInitialize",	SYSTEM.VAL( Address, thrInitialize ) );
-	
-	Unix.Dlsym( 0, "mtxInit",		SYSTEM.VAL( Address, mtxInit ) );
-	Unix.Dlsym( 0, "mtxDestroy",	SYSTEM.VAL( Address, mtxDestroy ) );
-	Unix.Dlsym( 0, "mtxLock",		SYSTEM.VAL( Address, mtxLock ) );
-	Unix.Dlsym( 0, "mtxUnlock",		SYSTEM.VAL( Address, mtxUnlock ) );
-	
-	Unix.Dlsym( 0, "conInit",			SYSTEM.VAL( Address, conInit ) );
-	Unix.Dlsym( 0, "conDestroy",	SYSTEM.VAL( Address, conDestroy ) );
-	Unix.Dlsym( 0, "conWait",		SYSTEM.VAL( Address, conWait ) );
-	Unix.Dlsym( 0, "conSignal",		SYSTEM.VAL( Address, conSignal ) );
-		
-	Unix.Dlsym( 0, "thrSleep",		SYSTEM.VAL( Address, thrSleep ) );
-	
-	standaloneAppl := FALSE;
-	
-	saveSP := Empty;	(* to be replaced in module Objects *)
-	
-	COPY( Unix.version, version );  Append( version, Version );
-	InitThreads;
-	InitLocks;
-
-	InitHeap;
-	InitConfig;
-	InitLog;
-	DetectProcessorFeatures;
-	CPUSpeed;
-	fcr := (FCR() - {0,2,3,10,11}) + {0..5,8,9};	(* default FCR RC=00B *)
+	Init
 END Machine.
 
 (*
