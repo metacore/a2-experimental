@@ -25,7 +25,7 @@ MODULE SerialsVirtual; (** AUTHOR "staubesv"; PURPOSE "Virtual serial port drive
  *)
 
 IMPORT
-	KernelLog, Strings, Modules, Commands, Streams, Files, Kernel,
+	KernelLog, Strings, Modules, Commands, Streams, Files, Kernel, Random,
 	Serials;
 
 CONST
@@ -107,6 +107,8 @@ TYPE
 			BEGIN{EXCLUSIVE}
 				IF ~open THEN res := Serials.Closed; END;
 			END;
+
+			IF (errorRate > 0) & (random.Uniform() < errorRate) THEN ch := CHR(ORD(ch) + random.Dice(20)) END;
 			IF sender # NIL THEN
 				BEGIN{EXCLUSIVE}
 					INC(charactersSent);
@@ -274,6 +276,8 @@ TYPE
 
 VAR
 	active : ARRAY Serials.MaxPorts+1 OF BOOLEAN;
+	errorRate: LONGREAL;
+	random: Random.Generator;
 
 PROCEDURE ShowModule;
 BEGIN
@@ -294,6 +298,8 @@ BEGIN
 	ELSIF bps = 19200 THEN eachNCharacters := 16;
 	ELSIF bps = 38400 THEN eachNCharacters := 32;
 	ELSIF bps = 115200 THEN eachNCharacters := 100;
+	ELSIF bps = 230400 THEN eachNCharacters := 200;
+	ELSIF bps = 460800 THEN eachNCharacters := 400;
 	ELSIF bps = 921600 THEN eachNCharacters := 800;
 	ELSE
 		res := Serials.WrongBPS;
@@ -431,6 +437,19 @@ BEGIN
 	END;
 END Cleanup;
 
+PROCEDURE SetErrorRate*(context: Commands.Context);
+VAR rate, divisor: LONGINT;
+BEGIN
+	IF context.arg.GetInteger(rate,FALSE) & context.arg.GetInteger(divisor,FALSE) THEN
+		errorRate := rate  / divisor;
+	END;;
+END SetErrorRate;
+
+
 BEGIN
 	Modules.InstallTermHandler(Cleanup);
+	NEW(random); errorRate := 0;
 END SerialsVirtual.
+
+SerialsVirtual.SetErrorRate 0 1 ~
+SerialsVirtual.SetErrorRate 1 100000 ~
