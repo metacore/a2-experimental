@@ -108,7 +108,7 @@ TYPE
 				IF ~open THEN res := Serials.Closed; END;
 			END;
 
-			IF (errorRate > 0) & (random.Uniform() < errorRate) THEN ch := CHR(ORD(ch) + random.Dice(20)) END;
+			IF (errorRate > 0) & (random.Uniform() < errorRate) THEN RETURN; ch := CHR(ORD(ch) + random.Dice(20)) END;
 			IF sender # NIL THEN
 				BEGIN{EXCLUSIVE}
 					INC(charactersSent);

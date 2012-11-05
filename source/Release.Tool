@@ -391,7 +391,6 @@ END
 PACKAGE Drivers ARCHIVE "Drivers.zip" SOURCE "DriversSrc.zip" DESCRIPTION "Device Drivers"
 
 	# virtual device drivers
-	SerialsVirtual.Mod # Virtual serial port (implements Serials interface)
 	VirtualDisks.Mod # Virtual disk (implements Disks interface)
 	DisplayNull.Mod # Virtual display (implements Displays interface)
 
@@ -534,6 +533,8 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 	AMD64 { AMD64.Math.Mod AMD64.MathL.Mod }
 
 	Random.Mod
+
+	SerialsVirtual.Mod # Virtual serial port (implements Serials interface)
 
 	Autostart.Mod FSTools.Mod
 
