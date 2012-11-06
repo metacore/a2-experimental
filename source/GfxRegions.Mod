@@ -166,7 +166,7 @@ MODULE GfxRegions; (** portable *)	(* eos  *)
 		VAR i: LONGINT;
 	BEGIN
 		i := 0;
-		WHILE i < points DO
+		WHILE (i < points) & (i < LEN(dst)) & (i < LEN(src)) DO
 			dst[i] := src[i];
 			INC(i)
 		END
