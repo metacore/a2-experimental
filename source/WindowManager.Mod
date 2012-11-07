@@ -989,8 +989,6 @@ TYPE
 			lock.AcquireWrite;
 			ASSERT(top # NIL);
 
-			TRACE(pointerOwner);
-
 			IF pointerOwner # NIL THEN
 				IF WM.FlagNoPointer IN pointerOwner.flags THEN pi := pointerNull ELSE pi := pointerOwner.pointerInfo END;
 			(*ELSIF WM.FlagNoPointer IN top.flags THEN pi := pointerNull; pointerInfo := pi; *)
