@@ -27,7 +27,7 @@ MODULE UsbFTDI;  (** AUTHOR "neuf"; PURPOSE "FTDI FT232BM USB-RS232 Converter Dr
  *	- testing
  *)
 
-IMPORT SYSTEM, Kernel, KernelLog, Modules, Serials, Usbdi, BIT;
+IMPORT SYSTEM, Kernel, KernelLog, Modules, Serials, Usbdi;
 
 CONST
 
@@ -605,7 +605,7 @@ TYPE
 		PROCEDURE SetEventChar(ch:CHAR):BOOLEAN;
 		VAR wValue:LONGINT;status : Usbdi.Status;
 		BEGIN
-			wValue:=BIT.LAND(ORD(ch),100H);
+			wValue:=LAND(ORD(ch),100H);
 			status := device.Request(Usbdi.ToDevice + Usbdi.Vendor + Usbdi.Device, FtdiEventCharRequest, wValue, 0, 0, data1^);
 			IF status # Usbdi.Ok THEN
 				IF Debug THEN ShowModule("SetEventChar failed."); KernelLog.Ln; END;
@@ -617,7 +617,7 @@ TYPE
 		PROCEDURE SetErrorChar(ch:CHAR):BOOLEAN;
 		VAR wValue:LONGINT;status : Usbdi.Status;
 		BEGIN
-			wValue:=BIT.LAND(ORD(ch),100H);
+			wValue:=LAND(ORD(ch),100H);
 			status := device.Request(Usbdi.ToDevice + Usbdi.Vendor + Usbdi.Device, FtdiErrorCharRequest, wValue, 0, 0, data1^);
 			IF status # Usbdi.Ok THEN
 				IF Debug THEN ShowModule("SetEventChar failed."); KernelLog.Ln; END;
@@ -1134,7 +1134,7 @@ TYPE
 			bps := portbps;
 
 			res := driver.GetLCR(set);
-			data:=BIT.LAND(SYSTEM.VAL(LONGINT,set),0FFH);
+			data:=LAND(SYSTEM.VAL(LONGINT,set),0FFH);
 
 
 			IF set * FtdiSetDataStopBits2 # {} THEN
@@ -1227,6 +1227,10 @@ TYPE
 		END Close;
 
 	END Port;
+
+PROCEDURE LAND(x, y: LONGINT): LONGINT;
+BEGIN RETURN SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, x) * SYSTEM.VAL(SET, y))
+END LAND;
 
 PROCEDURE ShowModule(CONST string : ARRAY OF CHAR);
 BEGIN
