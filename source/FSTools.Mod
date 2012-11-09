@@ -1090,37 +1090,6 @@ BEGIN
 	END;
 END CloseFiles;
 
-PROCEDURE SplitFile*(context: Commands.Context);
-VAR source, dest1, dest2: Files.FileName; i,offset: LONGINT;
-	w: Files.Writer; r: Files.Reader;
-	s,d1,d2: Files.File;
-	ch: CHAR;
-BEGIN
-	IF context.arg.GetString(source) & context.arg.GetInteger(offset,TRUE) & context.arg.GetString(dest1) & context.arg.GetString(dest2) THEN
-		s := Files.Old(source);
-		d1  := Files.New(dest1);
-		NEW(r,s,0);
-		NEW(w,d1,0);
-		WHILE (i< offset) & (r.Available() > 0) DO
-			r.Char(ch); w.Char(ch);
-			INC(i);
-		END;
-		w.Update;
-		d2 := Files.New(dest2);
-		NEW(w,d2,0);
-		WHILE (r.Available() > 0) DO
-			r.Char(ch); w.Char(ch);
-			INC(i);
-		END;
-		w.Update;
-		Files.Register(d1); Files.Register(d2);
-		context.out.String("File splitting done."); context.out.Ln;
-	ELSE
-		context.error.String("Syntax: SplitFile src offset dest1 dest2 "); context.error.Ln;
-	END;
-END SplitFile;
-
-
 
 END FSTools.
 

@@ -272,7 +272,7 @@ SystemTools.DoCommands
 PCAAMD64.Assemble OBLUnreal.Asm ~
 PartitionsLib.SetBootLoaderFile OBLUnreal.Bin ~ 
 PCAAMD64.Assemble BootManager.Asm ~
-FSTools.SplitFile BootManager.Bin 02000H BootManagerMBR.Bin BootManagerTail.Bin ~ 
+BootManager.Split BootManager.Bin ~ 
 SystemTools.Timer start ~
 
 FSTools.DeleteFiles ../Test/A2HDD.img ~
