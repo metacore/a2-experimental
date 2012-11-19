@@ -1208,7 +1208,10 @@ PACKAGE Build ARCHIVE "Build.zip" SOURCE "BuildSrc.zip"  DESCRIPTION "Build Tool
 	PETReleaseTree.Mod
 	Linker0.Mod Linker1.Mod Linker.Mod
 	WIN { Win32.Aos.Link }
-	UNIX { Unix.BootLinker.Mod UnixAos.Tool }
+	UNIX { 
+		Unix.BootLinkerHeaps.Mod Unix.BootLinkerModules.Mod Unix.BootLinkerLoader.Mod  
+		Unix.BootLinker.Mod UnixAos.Tool
+	}
 	OBEMBR4.ASM BootManager.Asm OBL.Asm  # Asm
 	BootManager.Mod BootManager.Tool # Splits up BootManager.Bin into BootManagerMBR.Bin and BootManagerTail.Bin
 END
