@@ -149,6 +149,7 @@ TYPE
 				ASSERT((proc # NIL) OR (commandProc # NIL) OR (commandName = ""));
 				IF (proc # NIL) THEN
 					proc();
+					context.out.Update; context.error.Update;
 				ELSIF (commandProc # NIL) THEN
 					ASSERT(context # NIL);
 					commandProc(context);
