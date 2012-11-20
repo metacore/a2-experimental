@@ -1651,6 +1651,7 @@ TYPE
 
 	DebugWriterFactory*= PROCEDURE (CONST title: ARRAY OF CHAR): Streams.Writer;
 	WriterFactory*=PROCEDURE (w: Streams.Writer): Writer;
+	DiagnosticsFactory*=PROCEDURE (w: Streams.Writer): Diagnostics.Diagnostics;
 
 VAR
 	lists-: LONGINT;  enlarged-: LONGINT;  strings-: LONGINT; integerObjects: HashTableInt;
@@ -1659,6 +1660,7 @@ VAR
 	debug: BOOLEAN;
 	getDebugWriter: DebugWriterFactory;
 	getWriter: WriterFactory;
+	getDiagnostics: DiagnosticsFactory;
 	CRC32Table: ARRAY 256 OF SET;
 
 	(* Make a string out of a series of characters. *)
@@ -1990,6 +1992,14 @@ VAR
 		RETURN w;
 	END GetDebugWriter;
 
+	PROCEDURE GetDiagnostics*(w: Streams.Writer): Diagnostics.Diagnostics;
+	VAR diagnostics: Diagnostics.StreamDiagnostics;
+	BEGIN
+		IF getDiagnostics # NIL THEN RETURN getDiagnostics(w)
+		ELSE NEW(diagnostics,w); RETURN diagnostics
+		END;
+	END GetDiagnostics;
+
 	PROCEDURE InitWindowWriter;
 	VAR install: PROCEDURE;
 	BEGIN
@@ -1998,10 +2008,11 @@ VAR
 		IF install # NIL THEN install END;
 	END InitWindowWriter;
 
-	PROCEDURE InstallWriterFactory*(writer: WriterFactory; debug: DebugWriterFactory);
+	PROCEDURE InstallWriterFactory*(writer: WriterFactory; debug: DebugWriterFactory; diagnostics: DiagnosticsFactory);
 	BEGIN
 		 getWriter := writer;
 		 getDebugWriter := debug;
+		 getDiagnostics := diagnostics;
 	END InstallWriterFactory;
 
 	PROCEDURE Replace(VAR in: ARRAY OF CHAR; CONST this, by: ARRAY OF CHAR);

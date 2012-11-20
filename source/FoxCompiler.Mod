@@ -392,14 +392,14 @@ TYPE
 	VAR
 		filename, path, file: Files.FileName;
 		error: BOOLEAN;
-		diagnostics: Diagnostics.StreamDiagnostics;
+		diagnostics: Diagnostics.Diagnostics;
 		time: LONGINT; reader: Streams.Reader;
 		importCache: SyntaxTree.ModuleScope;
 		options: CompilerOptions;
 	BEGIN
 		error := FALSE;
 
-		NEW(diagnostics, context.error);
+		diagnostics := Basic.GetDiagnostics(context.error);
 		IF GetOptions(context.arg,context.error,diagnostics,options) THEN
 
 			time := Kernel.GetTicks();
@@ -431,12 +431,12 @@ TYPE
 	VAR
 		filename: ARRAY 256 OF CHAR;
 		error: BOOLEAN;
-		diagnostics: Diagnostics.StreamDiagnostics;
+		diagnostics: Diagnostics.Diagnostics;
 		importCache: SyntaxTree.ModuleScope;
 		options: CompilerOptions;
 	BEGIN
 		error := FALSE;
-		NEW(diagnostics, context.error);
+		diagnostics := Basic.GetDiagnostics(context.error);
 		IF GetOptions(context.arg,context.error,diagnostics,options) THEN
 
 			IF reader = NIL THEN

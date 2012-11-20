@@ -45,7 +45,7 @@ TYPE
 		fontName : ARRAY 32 OF CHAR;
 		fontSize, fontColor, fontBgColor, fontVOff : LONGINT;
 		fontStyle : SET;
-		currentAttributes : Texts.Attributes;
+		currentAttributes- : Texts.Attributes;
 		oldBytes : ARRAY 7 OF CHAR;
 		nofOldBytes : LONGINT;
 		attributesBuf: AttributesBuf;
