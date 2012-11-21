@@ -34,7 +34,7 @@ CONST
 	
 	MaxMarkDepth = 8000;
 
-
+	ThruputBarrier = Machine.MemBlockSize DIV 4 * 3;
 
 	(* ----------------- object finalization ------------------------------*)
 
@@ -120,7 +120,7 @@ VAR
 	
 	heapSize, heapAvailable: Size;
 
-	throuput:  Size;
+	thruput:  Size;
 	GC* : PROCEDURE;
 	InvokeGC* : PROCEDURE;
 	collecting-: BOOLEAN;
@@ -620,7 +620,7 @@ VAR
 		CheckCandidates;  CheckFinalizedObjects;
 		Sweep;
 
-		collecting := FALSE;  throuput := 0;
+		collecting := FALSE;  thruput := 0;
 		IF Stats THEN
 			time2 := Machine.GetTimer ();
 			NgcCyclesLastRun := time2 - time1;
@@ -664,22 +664,22 @@ VAR
 	VAR 
 		block: FreeBlock;  blkSize: Size;  blkAdr, adr2: Address;
 	BEGIN
-		IF (throuput > Machine.MemBlockSize) & (Machine.lock[Machine.GC] = 'N') THEN
+		IF ((thruput > ThruputBarrier) OR (heapAvailable < size)) & (Machine.lock[Machine.GC] = 'N') THEN
+			thruput := 0;
 			Machine.Release( Machine.Heaps );
 			GC;
 			Machine.Acquire( Machine.Heaps );
-			throuput := 0;
 		END;
 
 		REPEAT
 			block := FindFreeBlock( size );
 			IF block = NIL THEN
-				IF (throuput > 0) & (Machine.lock[Machine.GC] = 'N') THEN
+				IF (thruput > 0) & (Machine.lock[Machine.GC] = 'N') THEN
+					thruput := 0;
 					Machine.Release( Machine.Heaps );
 					GC;
 					Machine.Acquire( Machine.Heaps );
-					throuput := 0;  
-				ELSE
+				ELSE	
 					Machine.ExpandHeap( 0, size, S.VAL( Address, block ), adr2 );
 					IF block # NIL  THEN  
 						heapSize := GetHeapSize();
@@ -688,7 +688,7 @@ VAR
 						Trace.String( "Heapspace exhaustet" ); Trace.Ln;  
 						Machine.Release( Machine.Heaps );
 						HALT( 99 )
-					END
+					END	
 				END
 			END
 		UNTIL block # NIL;
@@ -698,7 +698,7 @@ VAR
 		DEC( heapAvailable, blkSize );
 		IF blkSize > size THEN  Recycle( blkAdr + size, blkSize - size )  END;
 		
-		INC( throuput, size );
+		INC( thruput, size );
 		IF Stats THEN  INC(Nnew); INC(NnewBytes, size)  END;
 		Machine.Fill32( blkAdr, size, 0 );
 		RETURN blkAdr
