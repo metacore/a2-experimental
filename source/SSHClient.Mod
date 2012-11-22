@@ -1,11 +1,11 @@
-MODULE SSHClient; (* ejz, (WMVT100.Mod) *)
+MODULE SSHClient; 	(** AUTHOR "G.F.";  PURPOSE "Secure Shell"; *)
 
-(* g.f.	2010.04.20	modified to use an SSH connection instead of telnet *)
+(* derived from WMVT100.Mod by ejz, modified to use an SSH connection instead of telnet *)
 
 
 	IMPORT
 		WMWindowManager, WMComponents, WMStandardComponents, WMG := WMGraphics,
-		WMPopups, WMMessages, WMEditors, WMRectangles, Commands,
+		WMPopups, WMMessages, WMEditors, WMRectangles, Commands, Files,
 		Strings, Texts, Inputs, Streams, Out := KernelLog, SSHAuthorize, SSH, Beep;
 
 
@@ -385,9 +385,16 @@ MODULE SSHClient; (* ejz, (WMVT100.Mod) *)
 			END Erase;
 
 			PROCEDURE NewAttr;
+			VAR f: Files.File;
 			BEGIN
 				NEW(attr); attr.special := {};
-				attr.fnt := WMG.GetFont( "Courier", 10, {} );
+				f := Files.Old( "VeraMono12b.Scn.Fnt" );
+				IF f # NIL THEN
+				(*	attr.fnt := WMG.GetFont( "DejaVuMono", 12, {} ) *)
+					attr.fnt := WMG.GetFont( "VeraMono", 12, {0} )
+				ELSE
+					attr.fnt := WMG.GetFont( "Courier", 10, {} )
+				END;
 				attr.bg := WMG.RGBAToColor( 255, 255, 255, 255 );
 				attr.fg := WMG.RGBAToColor( 0, 0, 0, 255 )
 			END NewAttr;
