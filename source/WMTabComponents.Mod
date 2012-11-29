@@ -30,7 +30,8 @@ TYPE
 	Tabs* = OBJECT(WMComponents.VisualComponent)
 	VAR
 		left, right : WMStandardComponents.Button;
-		leftOfs, totalWidth, border : LONGINT;
+		leftOfs, totalWidth, border, lines : LONGINT;
+		lineHeight-: WMProperties.Int32Property;
 		tabs-, hover, selected- : Tab;
 		canvasState : WMGraphics.CanvasState;
 
@@ -56,7 +57,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrTabs);
-
+			lines := 1;
 			NEW(left);
 			left.alignment.Set(WMComponents.AlignLeft);
 			left.bounds.SetWidth(10);
@@ -106,6 +107,8 @@ TYPE
 			NEW(bgLeftAttention, ProtoTcBgLeftAttention, NIL, NIL); properties.Add(bgLeftAttention);
 			NEW(bgMiddleAttention, ProtoTcBgMiddleAttention, NIL, NIL); properties.Add(bgMiddleAttention);
 			NEW(bgRightAttention, ProtoTcBgRightAttention, NIL, NIL); properties.Add(bgRightAttention);
+
+			NEW(lineHeight, ProtoLineHeight, NIL, NIL); properties.Add(lineHeight);
 		END Init;
 
 		PROCEDURE Initialize*;
@@ -129,6 +132,8 @@ TYPE
 				(property = clTextSelected) OR (property = clTextAttention) OR (property = clTextSelectedAttention)
 			THEN
 				Invalidate;
+			ELSIF (property = bounds) THEN
+				CalcSize; PropertyChanged^(sender, property);
 			ELSE
 				PropertyChanged^(sender, property);
 			END;
@@ -163,17 +168,19 @@ TYPE
 			Invalidate
 		END RecacheProperties;
 
-		PROCEDURE FindTabFromPos(x: LONGINT) : Tab;
-		VAR cur : Tab; pos, dl, w: LONGINT;
+		PROCEDURE FindTabFromPos(x,y: LONGINT) : Tab;
+		VAR cur : Tab; pos,posy, dl, w,h: LONGINT;
 		BEGIN
 			IF left.visible.Get() THEN dl := left.bounds.GetWidth() ELSE dl := 0 END;
-			pos := - leftOfs + dl;
+			h := lineHeight.Get();
+			IF h = 0 THEN h := bounds.GetHeight() END;
+			pos := - leftOfs + dl; posy := 0;
 			cur := tabs;
 			WHILE cur # NIL DO
 				w := cur.w;
-				IF pos > bounds.GetWidth() THEN RETURN NIL END;
+				IF pos > bounds.GetWidth() THEN INC(posy, h); pos := 0; (*RETURN NIL*) END;
 				pos := pos + w;
-				IF x < pos THEN RETURN cur END;
+				IF (x < pos) & (y < posy+h) THEN RETURN cur END;
 				cur := cur.next
 			END;
 			RETURN NIL
@@ -183,7 +190,7 @@ TYPE
 		VAR new : Tab;
 		BEGIN
 			IF 0 IN keys THEN
-				new := FindTabFromPos(x);
+				new := FindTabFromPos(x,y);
 				IF (selected # new) & (new # NIL) THEN
 					selected := new;
 					onSelectTab.Call(selected);
@@ -221,7 +228,7 @@ TYPE
 		PROCEDURE PointerMove*(x, y: LONGINT; keys: SET); (** PROTECTED *)
 		VAR  new : Tab;
 		BEGIN
-			new := FindTabFromPos(x);
+			new := FindTabFromPos(x,y);
 			IF hover # new THEN
 				hover := new;
 				Invalidate
@@ -238,6 +245,7 @@ TYPE
 		BEGIN
 			DEC(leftOfs, 10);
 			IF leftOfs < 0 THEN leftOfs := 0 END;
+			CalcSize;
 			Invalidate;
 		END MoveLeft;
 
@@ -245,6 +253,7 @@ TYPE
 		BEGIN
 			INC(leftOfs, 10);
 			IF leftOfs > totalWidth - 10 THEN leftOfs := totalWidth - 10 END;
+			CalcSize;
 			Invalidate;
 		END MoveRight;
 
@@ -292,7 +301,7 @@ TYPE
 
 		PROCEDURE CheckLeftRightButtons;
 		BEGIN
-			IF totalWidth >= bounds.GetWidth() THEN
+			IF (totalWidth >= bounds.GetWidth()) OR (lines > 1)  THEN
 				right.visible.Set(TRUE);
 				left.visible.Set(TRUE)
 			ELSE
@@ -309,22 +318,27 @@ TYPE
 		END Resized;
 
 		PROCEDURE CalcSize;
-		VAR cur : Tab; font : WMGraphics.Font; dx, dy : LONGINT;
+		VAR cur : Tab; font : WMGraphics.Font; dx, dy, lh : LONGINT; width: LONGINT;
 		BEGIN
 			font := GetFont();
-			totalWidth := 0;
+			totalWidth := 0; width := 0; lines := 1; lh := lineHeight.Get();
 			cur := tabs;
 			WHILE cur # NIL DO
 				IF cur.width # 0 THEN
-					totalWidth := totalWidth + cur.width;
+					width := width + cur.width;
 				ELSIF cur.caption # NIL THEN
 					font.GetStringSize(cur.caption^, dx, dy);
-					totalWidth := totalWidth + dx + 2 * border
+					width := width + dx + 2 * border
 				ELSE
-					totalWidth := totalWidth + 2 * border
+					width := width + 2 * border
 				END;
-				cur := cur.next
+				cur := cur.next;
+				IF width > totalWidth THEN totalWidth := width END;
+				IF (width -leftOfs > bounds.GetWidth()-left.bounds.GetWidth()-right.bounds.GetWidth()) & (lh # 0) & (cur # NIL) THEN
+					width := 0; INC(lines);
+				END;
 			END;
+			IF lh # 0 THEN bounds.SetHeight(lines * lh) END;
 			CheckLeftRightButtons
 		END CalcSize;
 
@@ -371,8 +385,8 @@ TYPE
 
 		PROCEDURE DrawBackground*(canvas : WMGraphics.Canvas);
 		VAR r : WMRectangles.Rectangle;
-			w, h, dl, dr, wLeft, wRight : LONGINT;
-			pos : LONGINT; dx, dy, dc : LONGINT;
+			w, h, lh, dl, dr, wLeft, wRight : LONGINT;
+			pos,ypos : LONGINT; dx, dy, dc : LONGINT;
 			cur : Tab; font : WMGraphics.Font;
 			imgLeft, imgMiddle, imgRight : WMGraphics.Image;
 		BEGIN
@@ -380,12 +394,14 @@ TYPE
 			font := GetFont();
 			dc := font.descent;
 (*			DrawBackground^(canvas); *)
-			h := bounds.GetHeight(); w := bounds.GetWidth();
+			lh := lineHeight.Get();
+			IF lh # 0 THEN h := lh ELSE h:= bounds.GetHeight() END;
+			w := bounds.GetWidth();
 
 			IF left.visible.Get() THEN dl := left.bounds.GetWidth() ELSE dl := 0 END;
 			IF right.visible.Get() THEN dr := right.bounds.GetWidth() ELSE dr := 0 END;
 			canvas.SaveState(canvasState);
-			canvas.SetClipRect(WMRectangles.MakeRect(dl, 0, w - dr, h));
+			canvas.SetClipRect(WMRectangles.MakeRect(dl, 0, w - dr, bounds.GetHeight()));
 			canvas.ClipRectAsNewLimits(dl, 0);
 
 			pos := - leftOfs;
@@ -399,7 +415,7 @@ TYPE
 					w := 2 * border
 				END;
 				cur.w := w;
-				r := WMRectangles.MakeRect(pos, 0, pos + w, h);
+				r := WMRectangles.MakeRect(pos, ypos, pos + w, ypos+h);
 
 				IF useBgBitmaps.Get() THEN
 					IF cur = hover THEN
@@ -479,6 +495,10 @@ TYPE
 				END;
 				IF cur.caption # NIL THEN canvas.DrawString(r.l + border , r.b - dc - 1, cur.caption^) END;
 				pos := pos + w;
+				IF pos >  bounds.GetWidth() - right.bounds.GetWidth() - left.bounds.GetWidth() THEN
+					pos := 0;
+					ypos := ypos + h;
+				END;
 				cur := cur.next
 			END;
 			canvas.RestoreState(canvasState)
@@ -646,7 +666,7 @@ TYPE
 VAR
 	ColorPrototype, ProtoTcDefault*, ProtoTcHover*, ProtoTcSelected*, ProtoTcAttention*, ProtoTcSelectedAttention*,
 	ProtoTcTextDefault*, ProtoTcTextHover*, ProtoTcTextSelected*, ProtoTcTextAttention, ProtoTcTextSelectedAttention* : WMProperties.ColorProperty;
-	Int32Prototype, ProtoTcBorderWidth* : WMProperties.Int32Property;
+	Int32Prototype, ProtoTcBorderWidth*, ProtoLineHeight : WMProperties.Int32Property;
 	StringPrototype, ProtoTcBgLeftDefault, ProtoTcBgMiddleDefault, ProtoTcBgRightDefault,
 	ProtoTcBgLeftHover, ProtoTcBgMiddleHover, ProtoTcBgRightHover,
 	ProtoTcBgLeftSelected, ProtoTcBgMiddleSelected, ProtoTcBgRightSelected,
@@ -788,6 +808,8 @@ BEGIN
 	(* border width *)
 	NEW(Int32Prototype, NIL, Strings.NewString("BorderWidth"), Strings.NewString("Width of the border of the tabs")); Int32Prototype.Set(3);
 	NEW(ProtoTcBorderWidth, Int32Prototype, NIL, NIL);	plTabs.Add(ProtoTcBorderWidth);
+
+	NEW(ProtoLineHeight, NIL, Strings.NewString("LineHeight"), Strings.NewString("height of a single line. If zero then no multiline support")); ProtoLineHeight.Set(0);
 
 	WMComponents.propertyListList.UpdateStyle;
 END InitPrototypes;
