@@ -479,6 +479,7 @@ TYPE
 				&CheckItem(r,"type") & GetString(r,s) & CheckItem(r,"value") THEN
 					IF s= "INTEGER" THEN type := Integer
 					ELSIF s = "BOOLEAN" THEN type := Boolean
+					ELSIF s = "STRING" THEN type := String
 					ELSE RETURN FALSE
 					END;
 					IF (type = Integer) & r.GetInteger(integer,FALSE) THEN
@@ -626,6 +627,7 @@ TYPE
 				parameter.Write(w,indent+1);
 			END;
 
+			Indent(w,indent);
 			w.String("capabilityParameters=");w.Int(capabilityParameters.Length(),1); w.Ln;
 			FOR i := 0 TO capabilityParameters.Length()-1 DO
 				parameter := capabilityParameters.GetParameter(i);
@@ -653,7 +655,6 @@ TYPE
 					parameter := AddParameter("");
 					IF ~parameter.Read(r) THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 				END;
-
 				IF ~CheckItem(r,"capabilityParameters") OR ~r.GetInteger(number,FALSE)
 				THEN IF TraceError THEN HALT(100) ELSE RETURN FALSE END END;
 				FOR i := 0 TO number-1 DO
