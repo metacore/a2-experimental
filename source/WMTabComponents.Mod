@@ -178,7 +178,7 @@ TYPE
 			cur := tabs;
 			WHILE cur # NIL DO
 				w := cur.w;
-				IF pos > bounds.GetWidth() THEN INC(posy, h); pos := 0; (*RETURN NIL*) END;
+				IF pos + w DIV 2 > bounds.GetWidth() THEN INC(posy, h); pos := dl; (*RETURN NIL*) END;
 				pos := pos + w;
 				IF (x < pos) & (y < posy+h) THEN RETURN cur END;
 				cur := cur.next
@@ -241,17 +241,52 @@ TYPE
 			Invalidate
 		END PointerLeave;
 
-		PROCEDURE MoveLeft(sender, data : ANY);
+
+		PROCEDURE GetLeftTabs(VAR w: LONGINT; inner: BOOLEAN): BOOLEAN;
+		VAR cur : Tab; font : WMGraphics.Font; dx, dy, lh,dl : LONGINT; width, pos: LONGINT;
 		BEGIN
-			DEC(leftOfs, 10);
+			IF left.visible.Get() THEN dl := left.bounds.GetWidth() ELSE dl := 0 END;
+			font := GetFont();
+			cur := tabs;
+			pos := -leftOfs+dl;
+			WHILE cur # NIL DO
+				IF cur.width # 0 THEN
+					w := cur.width
+				ELSIF cur.caption # NIL THEN
+					font.GetStringSize(cur.caption^, dx, dy);
+					w := dx + 2 * border
+				ELSE
+					w := 2 * border
+				END;
+				IF (pos >= 0) & inner THEN RETURN TRUE END;
+				pos := pos + w;
+				IF (pos >= 0) & ~inner THEN RETURN TRUE END;
+				cur := cur.next;
+			END;
+			RETURN FALSE
+		END GetLeftTabs;
+
+		PROCEDURE MoveLeft(sender, data : ANY);
+		VAR w: LONGINT;
+		BEGIN
+			IF GetLeftTabs(w, FALSE) THEN
+				DEC(leftOfs, w)
+			END;
+			(*DEC(leftOfs, 10);*)
 			IF leftOfs < 0 THEN leftOfs := 0 END;
 			CalcSize;
 			Invalidate;
 		END MoveLeft;
 
 		PROCEDURE MoveRight(sender, data : ANY);
+		VAR w: LONGINT;
 		BEGIN
+			IF GetLeftTabs(w, TRUE) THEN
+				INC(leftOfs, w)
+			END;
+			(*
 			INC(leftOfs, 10);
+			*)
 			IF leftOfs > totalWidth - 10 THEN leftOfs := totalWidth - 10 END;
 			CalcSize;
 			Invalidate;
@@ -318,25 +353,28 @@ TYPE
 		END Resized;
 
 		PROCEDURE CalcSize;
-		VAR cur : Tab; font : WMGraphics.Font; dx, dy, lh : LONGINT; width: LONGINT;
+		VAR cur : Tab; font : WMGraphics.Font; dx, dy, lh : LONGINT; width, w, pos: LONGINT;
 		BEGIN
 			font := GetFont();
 			totalWidth := 0; width := 0; lines := 1; lh := lineHeight.Get();
 			cur := tabs;
+			pos := -leftOfs;
+
 			WHILE cur # NIL DO
 				IF cur.width # 0 THEN
-					width := width + cur.width;
+					w := cur.width
 				ELSIF cur.caption # NIL THEN
 					font.GetStringSize(cur.caption^, dx, dy);
-					width := width + dx + 2 * border
+					w := dx + 2 * border
 				ELSE
-					width := width + 2 * border
+					w := 2 * border
 				END;
+				IF (pos + w DIV 2 > bounds.GetWidth()) & (lh # 0) THEN
+					width := 0; pos := 0; INC(lines);
+				END;
+				width := width + w; pos := pos + w;
 				cur := cur.next;
 				IF width > totalWidth THEN totalWidth := width END;
-				IF (width -leftOfs > bounds.GetWidth()-left.bounds.GetWidth()-right.bounds.GetWidth()) & (lh # 0) & (cur # NIL) THEN
-					width := 0; INC(lines);
-				END;
 			END;
 			IF lh # 0 THEN bounds.SetHeight(lines * lh) END;
 			CheckLeftRightButtons
@@ -415,6 +453,11 @@ TYPE
 					w := 2 * border
 				END;
 				cur.w := w;
+				IF pos + w DIV 2>  bounds.GetWidth() THEN
+					pos := 0;
+					ypos := ypos + h;
+				END;
+
 				r := WMRectangles.MakeRect(pos, ypos, pos + w, ypos+h);
 
 				IF useBgBitmaps.Get() THEN
@@ -495,10 +538,6 @@ TYPE
 				END;
 				IF cur.caption # NIL THEN canvas.DrawString(r.l + border , r.b - dc - 1, cur.caption^) END;
 				pos := pos + w;
-				IF pos >  bounds.GetWidth() - right.bounds.GetWidth() - left.bounds.GetWidth() THEN
-					pos := 0;
-					ypos := ypos + h;
-				END;
 				cur := cur.next
 			END;
 			canvas.RestoreState(canvasState)
