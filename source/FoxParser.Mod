@@ -1041,7 +1041,7 @@ TYPE
 		END Statement;
 
 		(** StatementSequence = Statement {';' Statement}. **)
-		PROCEDURE StatementSequence(outer: SyntaxTree.Statement ): SyntaxTree.StatementSequence;
+		PROCEDURE StatementSequence*(outer: SyntaxTree.Statement ): SyntaxTree.StatementSequence;
 		VAR statements: SyntaxTree.StatementSequence; b: BOOLEAN;
 		BEGIN
 			IF Trace THEN S( "StatementSequence" ) END;
