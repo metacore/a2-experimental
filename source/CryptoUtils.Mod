@@ -269,7 +269,7 @@ VAR
 		END
 	END BlockToCharsLE;
 	
-	PROCEDURE BESetToChars( CONST v: SET;  VAR buf: ARRAY OF CHAR;  pos: LONGINT );
+	PROCEDURE BESetToChars*( CONST v: SET;  VAR buf: ARRAY OF CHAR;  pos: LONGINT );
 	VAR val: LONGINT;
 	BEGIN
 		val := S.VAL( LONGINT, v );
