@@ -1203,7 +1203,7 @@ TYPE
 					operand.extra := stepOp;
 				ELSIF type IS SyntaxTree.ComplexType THEN
 					componentType := type(SyntaxTree.ComplexType).componentType;
-					ASSERT((componentType = system.realType) OR (componentType = system.longrealType));
+					ASSERT((componentType.SameType(system.realType)) OR (componentType.SameType(system.longrealType)));
 					MakeMemory(firstOp, operand.op, IntermediateCode.GetType(system, componentType), 0);
 					MakeMemory(lastOp, operand.op, IntermediateCode.GetType(system, componentType), ToMemoryUnits(system, system.SizeOf(componentType)));
 					ReleaseOperand(operand);
