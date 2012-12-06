@@ -2406,7 +2406,11 @@ VAR sectFM, e : XML.Element;
 	p : ANY; enum: XMLObjects.Enumerator;
 	f : FormatDescriptor;
 BEGIN
-	sectFM := Configuration.GetNamedElement(Configuration.config.GetRoot(), "Section", "TextFormats");
+	IF Configuration.config # NIL THEN
+		sectFM := Configuration.GetNamedElement(Configuration.config.GetRoot(), "Section", "TextFormats");
+	ELSE
+		sectFM := NIL;
+	END;
 	IF sectFM # NIL THEN
 		enum := sectFM.GetContents();
 		IF enum # NIL THEN
