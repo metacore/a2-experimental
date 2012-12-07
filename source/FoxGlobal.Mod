@@ -1084,7 +1084,6 @@ TYPE
 	VAR m: HUGEINT;
 	BEGIN
 		m := Runtime.AslH(1,sizeInBits);
-		TRACE(m, this, sizeInBits);
 		RETURN (this >= 0) & (this < m)
 	END IsUnsignedInteger;
 
