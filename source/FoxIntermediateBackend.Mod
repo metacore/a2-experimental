@@ -5939,7 +5939,7 @@ TYPE
 				ELSE (* no pointer to record, no pointer to array *)
 					HALT(200);
 				END;
-			(* ---- SYSTEM.ADR----- *)
+			(* ---- ADDRESSOF----- *)
 			|Global.systemAdr:
 				Designate(p0,s0);
 				s0.mode := ModeValue;
@@ -5950,7 +5950,7 @@ TYPE
 				END;
 				Convert(s0.op,IntermediateCode.GetType(system,x.type));
 				result := s0;
-			(* ---- SYSTEM.BIT ----- *)
+			(* ---- BIT ----- *)
 			|Global.systemBit:
 				Evaluate(p0,s0);
 				ToMemory(s0.op,addressType,0);
@@ -5968,7 +5968,7 @@ TYPE
 					BrL(falseLabel);
 					ReleaseIntermediateOperand(res);
 				END;
-			(* --- SYSTEM.MSK ----*)
+			(* --- MSK ----*)
 			|Global.systemMsk:
 				Evaluate(p0,s0);
 				Evaluate(p1,s1);
@@ -7763,9 +7763,9 @@ TYPE
 
 			Info(section,"mark: LONGINT;");
 			Longint(section,-1);
-			Info(section,"dataAdr-: SYSTEM.ADDRESS");
+			Info(section,"dataAdr-: ADDRESS");
 			Symbol(section,section, dataAdrOffset,0);
-			Info(section,"size-: SYSTEM.SIZE");
+			Info(section,"size-: SIZE");
 			Address(section,0);
 			Info(section,"nextRealtime: HeapBlock;");
 			Address(section,0);
@@ -8334,8 +8334,8 @@ TYPE
 		Command* = RECORD
 			(* Fields exported for initialization by loader/linker only! Consider read-only! *)
 			name*: Name; (* name of the procedure *)
-			argTdAdr*, retTdAdr* : SYSTEM.ADDRESS; (* address of type descriptors of argument and return type, 0 if no type *)
-			entryAdr* : SYSTEM.ADDRESS; (* entry address of procedure *)
+			argTdAdr*, retTdAdr* : ADDRESS; (* address of type descriptors of argument and return type, 0 if no type *)
+			entryAdr* : ADDRESS; (* entry address of procedure *)
 		END;
 		*)
 		PROCEDURE CommandArray(source: IntermediateCode.Section);
@@ -8445,13 +8445,13 @@ TYPE
 
 		(*
 			ProcTableEntry* = RECORD
-				pcFrom*, pcLimit*, pcStatementBegin*, pcStatementEnd*: SYSTEM.ADDRESS;
+				pcFrom*, pcLimit*, pcStatementBegin*, pcStatementEnd*: ADDRESS;
 				noPtr*: LONGINT;
 			END;
 
 			ProcTable* = POINTER TO ARRAY OF ProcTableEntry;
 
-			PtrTable* = POINTER TO ARRAY OF SYSTEM.ADDRESS;
+			PtrTable* = POINTER TO ARRAY OF ADDRESS;
 		*)
 
 		PROCEDURE PointersInProcTables(procArray, pointerArray: IntermediateCode.Section; VAR procArraySize, maxPointers: LONGINT);
@@ -8531,10 +8531,10 @@ TYPE
 				name*: Name;
 				init, published: BOOLEAN;
 				refcnt*: LONGINT; (* counts loaded modules that import this module *)
-				sb*: SYSTEM.ADDRESS; <- set to beginning of data section by loader
-				entry*: POINTER TO ARRAY OF SYSTEM.ADDRESS; <- not needed in new loader
+				sb*: ADDRESS; <- set to beginning of data section by loader
+				entry*: POINTER TO ARRAY OF ADDRESS; <- not needed in new loader
 				command*: POINTER TO ARRAY OF Command;
-				ptrAdr*: POINTER TO ARRAY OF SYSTEM.ADDRESS;
+				ptrAdr*: POINTER TO ARRAY OF ADDRESS;
 				typeInfo*: POINTER TO ARRAY OF TypeDesc;
 				module*: POINTER TO ARRAY OF Module; <---- currently done by loader
 				procTable*: ProcTable; (* information inserted by loader, removed after use in Publish *)
@@ -8545,7 +8545,7 @@ TYPE
 				term*: TerminationHandler;
 				exTable*: ExceptionTable;
 				noProcs*: LONGINT;
-				firstProc*: SYSTEM.ADDRESS; <-   done by loader
+				firstProc*: ADDRESS; <-   done by loader
 				maxPtrs*: LONGINT;
 		*)
 
@@ -8631,13 +8631,13 @@ TYPE
 			Boolean(moduleSection,FALSE);
 			Info(moduleSection, "refcnt*: LONGINT");
 			Longint(moduleSection,0);
-			Info(moduleSection, "sb*: SYSTEM.ADDRESS");
+			Info(moduleSection, "sb*: ADDRESS");
 			Address(moduleSection,0);
-			Info(moduleSection, "entry*: POINTER TO ARRAY OF SYSTEM.ADDRESS");
+			Info(moduleSection, "entry*: POINTER TO ARRAY OF ADDRESS");
 			Symbol(moduleSection,emptyArraySection,emptyArraySectionOffset,0);
 			Info(moduleSection, "command*: POINTER TO ARRAY OF Command");
 			Symbol(moduleSection,commandsSection,commandsSectionOffset,0);
-			Info(moduleSection, "ptrAdr*: POINTER TO ARRAY OF SYSTEM.ADDRESS");
+			Info(moduleSection, "ptrAdr*: POINTER TO ARRAY OF ADDRESS");
 			Symbol(moduleSection,pointerSection,pointerSectionOffset,0);
 			Info(moduleSection, "typeInfo*: POINTER TO ARRAY OF TypeDesc");
 			Symbol(moduleSection,typeInfoSection,typeInfoSectionOffset,0);
@@ -8663,7 +8663,7 @@ TYPE
 			Symbol(moduleSection,exceptionSection,exceptionSectionOffset,0);
 			Info(moduleSection, "noProcs*: LONGINT");
 			Longint(moduleSection,numberProcs);
-			Info(moduleSection, "firstProc*: SYSTEM.ADDRESS");
+			Info(moduleSection, "firstProc*: ADDRESS");
 			Address(moduleSection,0);
 			Info(moduleSection, "maxPtrs*: LONGINT");
 			Longint(moduleSection,maxPointers);
@@ -8708,7 +8708,7 @@ TYPE
 						TypeDesc* = POINTER TO RECORD
 							descSize: LONGINT;
 							sentinel: LONGINT;	(* = MPO-4 *)
-							tag*: SYSTEM.ADDRESS; (* pointer to static type descriptor, only used by linker and loader *)
+							tag*: ADDRESS; (* pointer to static type descriptor, only used by linker and loader *)
 							flags*: SET;
 							mod*: Module;	(* hint only, because module may have been freed (at Heaps.ModOfs) *)
 							name*: Name;

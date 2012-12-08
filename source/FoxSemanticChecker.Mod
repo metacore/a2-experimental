@@ -5274,7 +5274,7 @@ TYPE
 							result.SetResolved(parameter0(SyntaxTree.Value));
 						END;
 					END;
-				(* ---- SYSTEM.SIZEOF ----- *)
+				(* ---- SIZEOF ----- *)
 				ELSIF (id = Global.systemSizeOf) & CheckArity(1,1) THEN
 					IF (parameter0.type = SyntaxTree.typeDeclarationType) THEN
 						type := parameter0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
@@ -5295,7 +5295,7 @@ TYPE
 						END;
 					END;
 					(* remaining issues can only be tested in backend *)
-				(* ---- SYSTEM.ADR----- *)
+				(* ---- ADDRESSOF----- *)
 				ELSIF (id = Global.systemAdr) & CheckArity(1,1) THEN
 					IF HasAddress(parameter0) THEN
 						type := system.addressType;
@@ -5303,7 +5303,7 @@ TYPE
 						type := SyntaxTree.invalidType;
 						Error(parameter0.position,Diagnostics.Invalid,"has no address");
 					END;
-				(* ---- SYSTEM.BIT ----- *)
+				(* ---- BIT ----- *)
 				ELSIF (id = Global.systemBit) & CheckArity(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
 						parameter0 := NewConversion(parameter0.position,parameter0,system.addressType,NIL);
@@ -5312,7 +5312,7 @@ TYPE
 						actualParameters.SetExpression(1,parameter1);
 					END;
 					type := system.booleanType;
-				(* ----- SYSTEM.MSK ---- *)
+				(* ----- MSK ---- *)
 				ELSIF (id = Global.systemMsk) & CheckArity(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
 						ConvertOperands(parameter0,parameter1);
@@ -5348,7 +5348,7 @@ TYPE
 						actualParameters.SetExpression(0,parameter0);
 					END;
 					type := system.shortintType;
-				(* ---- SYSTEM.LSH, SYSTEM.ROT ----- *)
+				(* ---- LSH, ROT ----- *)
 				ELSIF ((id = Global.systemLsh) OR (id = Global.systemRot)) & CheckArity(2,2) THEN
 (*					type := type0;
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
@@ -5357,9 +5357,9 @@ TYPE
 						IF IsIntegerValue(parameter0,i0) THEN
 							IF IsIntegerValue(parameter1,i1) THEN
 								IF id = Global.systemLsh THEN
-								i0 := SYSTEM.LSH(i0,i1);
+								i0 := LSH(i0,i1);
 								ELSE
-								i0 := SYSTEM.ROT(i0,i1)
+								i0 := ROT(i0,i1)
 								END;
 								result.SetResolved(SyntaxTree.NewIntegerValue(position,i0));
 								result := ResolveExpression(result);
@@ -5383,7 +5383,7 @@ TYPE
 				 	actualParameters.SetExpression(1, parameter1);
 
 					IF IsIntegerValue(parameter0,i0) & IsIntegerValue(parameter1,i1) THEN
-						result.SetResolved(SyntaxTree.NewIntegerValue(position,SYSTEM.LSH(i0,i1)));
+						result.SetResolved(SyntaxTree.NewIntegerValue(position,LSH(i0,i1)));
 					END;
 				(* ---- SYSTEM.VAL ----- *)
 				ELSIF (id = Global.systemVal) & CheckArity(2,2) THEN
