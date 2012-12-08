@@ -563,36 +563,38 @@ TYPE
 		system.setType := SyntaxTree.NewSetType(system.addressSize);
 		(* type declarations *)
 		DeclareType(system.byteType,"BYTE",system.systemScope);
-		DeclareType(system.addressType,"ADDRESS",system.systemScope); (* mapped to longint *)
-		DeclareType(system.sizeType,"SIZE",system.systemScope); (* mapped to longint *)
+		DeclareType(system.addressType,"ADDRESS",system.globalScope);
+		DeclareType(system.sizeType,"SIZE",system.globalScope);
 		(*DeclareType(Same,"SAME",system.systemScope);*)
 
 		(* system builtin procedures *)
 		NewBuiltin(systemGet,"GET",system.systemScope,TRUE);
 		NewBuiltin(systemPut,"PUT",system.systemScope,TRUE);
-		NewBuiltin(systemMove,"MOVE",system.systemScope,TRUE);
-		NewBuiltin(systemNew,"NEW",system.systemScope,FALSE);
-		NewBuiltin(systemRef,"REF",system.systemScope,FALSE);
-		NewBuiltin(Reshape,"RESHAPE",system.globalScope,TRUE);
-		NewBuiltin(systemZeroCopy,"ZEROCOPY",system.globalScope,TRUE);
-		NewBuiltin(systemHalt,"HALT",system.systemScope,TRUE);
 		NewBuiltin(systemPut64,"PUT64",system.systemScope,TRUE);
 		NewBuiltin(systemPut32,"PUT32",system.systemScope,TRUE);
 		NewBuiltin(systemPut16,"PUT16",system.systemScope,TRUE);
 		NewBuiltin(systemPut8,"PUT8",system.systemScope,TRUE);
-		NewBuiltin(systemAdr,"ADR",system.systemScope,TRUE);
-		NewBuiltin(systemBit,"BIT",system.systemScope,TRUE);
 		NewBuiltin(systemGet64,"GET64",system.systemScope,TRUE);
 		NewBuiltin(systemGet32,"GET32",system.systemScope,TRUE);
 		NewBuiltin(systemGet16,"GET16",system.systemScope,TRUE);
 		NewBuiltin(systemGet8,"GET8",system.systemScope,TRUE);
-		NewBuiltin(systemLsh,"LSH",system.systemScope,TRUE);
-		NewBuiltin(systemRot,"ROT",system.systemScope,TRUE);
 		NewBuiltin(systemVal,"VAL",system.systemScope,TRUE);
-		NewBuiltin(systemIncr,"INCR",system.systemScope,TRUE);
+		NewBuiltin(systemMove,"MOVE",system.systemScope,TRUE);
+		NewBuiltin(systemRef,"REF",system.systemScope,FALSE);
+		NewBuiltin(systemNew,"NEW",system.systemScope,FALSE);
 		NewBuiltin(systemTypeCode,"TYPECODE",system.systemScope,TRUE);
-		NewBuiltin(systemSizeOf,"SIZEOF",system.systemScope,TRUE);
+		NewBuiltin(systemHalt,"HALT",system.systemScope,TRUE);
+
+		NewBuiltin(Reshape,"RESHAPE",system.globalScope,TRUE);
+		NewBuiltin(systemZeroCopy,"ZEROCOPY",system.globalScope,TRUE);
+		NewBuiltin(systemAdr,"ADDRESSOF",system.globalScope,TRUE);
+		NewBuiltin(systemLsh,"LSH",system.globalScope,TRUE);
+		NewBuiltin(systemRot,"ROT",system.globalScope,TRUE);
+		NewBuiltin(systemIncr,"INCR",system.globalScope,TRUE);
+		NewBuiltin(systemSizeOf,"SIZEOF",system.globalScope,TRUE);
+
 		NewBuiltin(systemMsk,"MSK",system.systemScope,TRUE);
+		NewBuiltin(systemBit,"BIT",system.systemScope,TRUE);
 
 		(* Set up system types *)
 		DeclareType(system.characterType,"CHAR",system.globalScope);
