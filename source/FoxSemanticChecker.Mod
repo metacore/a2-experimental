@@ -2066,6 +2066,26 @@ TYPE
 					ELSE
 						Error(left.position,Diagnostics.Invalid,"unary operator not applicable");
 					END;
+				(* ADDRESS OF *)
+				|Scanner.Address:
+					IF HasAddress(left) THEN
+						type := system.addressType;
+					ELSE
+						type := SyntaxTree.invalidType;
+						Error(left.position,Diagnostics.Invalid,"has no address");
+					END;
+				(* SIZE OF *)
+				|Scanner.Size:
+					IF (left.type = SyntaxTree.typeDeclarationType) THEN
+						type := left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
+						result.SetResolved(SyntaxTree.NewIntegerValue(left.position,system.SizeOf(type.resolved) DIV 8 (* in bytes *) ));
+						type := system.integerType;
+						(* was Int16  in paco but should be systemSize (conflict with current release) *)
+					ELSE
+						(* for variables, system sizeof could represent the physically occupied size
+							determined via the type descriptor, implement that ? *)
+						Error(left.position,Diagnostics.Invalid,"is not a type symbol");
+					END
 				ELSE
 					Error(left.position,Diagnostics.Invalid,"unary operator not defined");
 				END;
@@ -8998,9 +9018,15 @@ TYPE
 		END
 	END StaticMathArrayLengths;
 
+	PROCEDURE SymbolHasAddress(symbol: SyntaxTree.Symbol): BOOLEAN;
+	BEGIN
+		RETURN (symbol IS SyntaxTree.Variable) OR (symbol IS SyntaxTree.Parameter) OR (symbol IS SyntaxTree.Procedure)
+	END SymbolHasAddress;
+
+
 	PROCEDURE HasAddress(expression: SyntaxTree.Expression): BOOLEAN;
 	BEGIN
-		RETURN (expression IS SyntaxTree.SymbolDesignator) OR (expression IS SyntaxTree.ResultDesignator)
+		RETURN (expression IS SyntaxTree.SymbolDesignator) & SymbolHasAddress(expression(SyntaxTree.SymbolDesignator).symbol) OR (expression IS SyntaxTree.ResultDesignator)
 			OR (expression IS SyntaxTree.IndexDesignator) OR (expression IS SyntaxTree.DereferenceDesignator)
 			OR (expression IS SyntaxTree.TypeGuardDesignator) OR (expression IS SyntaxTree.StringValue);
 	END HasAddress;

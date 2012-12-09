@@ -1697,7 +1697,7 @@ TYPE
 
 
 		PROCEDURE VisitUnaryExpression(x: SyntaxTree.UnaryExpression);
-		VAR type: SyntaxTree.Type; operand: Operand; dest: IntermediateCode.Operand;
+		VAR type,t0: SyntaxTree.Type; operand: Operand; dest: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitUnaryExpression") END;
 			dest := destination; destination := emptyOperand;
@@ -1727,6 +1727,17 @@ TYPE
 				ELSE HALT(200)
 				END;
 				ReleaseOperand(operand);
+			ELSIF x.operator = Scanner.Address THEN
+				Designate(x.left,operand);
+				operand.mode := ModeValue;
+				t0 := x.left.type.resolved;
+				IF (t0 IS SyntaxTree.MathArrayType) & (t0(SyntaxTree.MathArrayType).form = SyntaxTree.Open) THEN
+					ReleaseIntermediateOperand(operand.op);
+					operand.op := operand.tag;
+					IntermediateCode.InitOperand(operand.tag);
+				END;
+				Convert(operand.op,IntermediateCode.GetType(system,x.type));
+				result := operand;
 			ELSE HALT(100)
 			END;
 			destination := dest;

@@ -692,6 +692,8 @@ TYPE
 		OperatorDefined(system,Short,TRUE);
 		OperatorDefined(system,Sum,TRUE);
 		OperatorDefined(system,Dim,TRUE);
+		OperatorDefined(system,Scanner.Address, TRUE);
+		OperatorDefined(system,Scanner.Size, TRUE);
 	END SetDefaultOperators;
 
 	PROCEDURE DefaultSystem*(): System;
