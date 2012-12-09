@@ -6101,14 +6101,6 @@ TYPE
 					call := SyntaxTree.NewProcedureCallDesignator(position,left(SyntaxTree.Designator),x.parameters);
 					VisitProcedureCallDesignator(call(SyntaxTree.ProcedureCallDesignator));
 				END;
-			(* ---- SYSTEM.ZEROCOPY----- *)
-			|Global.systemZeroCopy:
-				IF GetRuntimeProcedure("FoxArrayBase","ZeroCopy",procedure,TRUE) THEN
-					left := SyntaxTree.NewSymbolDesignator(Diagnostics.Invalid, NIL, procedure);
-					left.SetType(procedure.type);
-					call := SyntaxTree.NewProcedureCallDesignator(position,left(SyntaxTree.Designator),x.parameters);
-					VisitProcedureCallDesignator(call(SyntaxTree.ProcedureCallDesignator));
-				END;
 			(* ---- SYSTEM.TYPECODE ----- *)
 			|Global.systemTypeCode:
 				type := p0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
@@ -6890,6 +6882,10 @@ TYPE
 			mem: IntermediateCode.Operand;
 			leftType, rightType, componentType: SyntaxTree.Type;
 			size: LONGINT;
+			parameters: SyntaxTree.ExpressionList;
+			procedure: SyntaxTree.Procedure;
+			call: SyntaxTree.ProcedureCallDesignator;
+			designator: SyntaxTree.Designator;
 
 			PROCEDURE CanPassAsResultParameter(right: SyntaxTree.Expression): BOOLEAN;
 			VAR procedureType: SyntaxTree.ProcedureType;
@@ -6901,7 +6897,6 @@ TYPE
 					ELSIF right IS SyntaxTree.BuiltinCallDesignator THEN
 						WITH right: SyntaxTree.BuiltinCallDesignator DO
 							IF right.id = Global.Reshape THEN RETURN TRUE
-							ELSIF right.id = Global.systemZeroCopy THEN RETURN TRUE
 							END;
 						END;
 					END;
@@ -6916,6 +6911,15 @@ TYPE
 			IF CanPassAsResultParameter(right) THEN
 				procedureResultDesignator := left(SyntaxTree.Designator);
 				Expression(right);
+			ELSIF (right IS SyntaxTree.UnaryExpression) & (right(SyntaxTree.UnaryExpression).operator = Scanner.Alias) THEN
+				(* left <-- ALIAS OF right: zerocopy *)
+				IF GetRuntimeProcedure("FoxArrayBase","ZeroCopy",procedure,TRUE) THEN
+					designator := SyntaxTree.NewSymbolDesignator(Diagnostics.Invalid, NIL, procedure);
+					designator.SetType(procedure.type);
+					parameters := SyntaxTree.NewExpressionList();  parameters.AddExpression(right(SyntaxTree.UnaryExpression).left); parameters.AddExpression(left);
+					call := SyntaxTree.NewProcedureCallDesignator(position,designator(SyntaxTree.Designator),parameters);
+					VisitProcedureCallDesignator(call(SyntaxTree.ProcedureCallDesignator));
+				END;
 			ELSIF leftType IS SyntaxTree.RangeType THEN
 				(* LHS is of array range type *)
 				ASSERT(rightType IS SyntaxTree.RangeType); (* ensured by the checker *)

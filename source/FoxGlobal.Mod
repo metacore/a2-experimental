@@ -62,7 +62,7 @@ CONST
 		(* system proper procedures *)
 		systemGet  systemPut  systemMove  systemNew systemRef
 		systemIncr Reshape
-		systemZeroCopy systemTypeCode systemHalt
+		systemTypeCode systemHalt
 		systemPut8 systemPut16 systemPut32 systemPut64 systemTrace
 		(* system functions *)
 		systemAdr  systemBit  systemGet64  systemGet32  systemGet16  systemGet8
@@ -85,7 +85,7 @@ CONST
 	(* system proper procedures *)
 	systemGet*= Im+1; systemPut*= systemGet+1; systemMove*= systemPut+1;
 	systemNew*= systemMove+1; systemRef *= systemNew+1;
-	systemIncr*= systemRef+1; Reshape*= systemIncr+1; systemZeroCopy*= Reshape+1; systemTypeCode*= systemZeroCopy+1; systemHalt*= systemTypeCode+1;
+	systemIncr*= systemRef+1; Reshape*= systemIncr+1; systemTypeCode*= Reshape+1; systemHalt*= systemTypeCode+1;
 	systemPut8*= systemHalt+1; systemPut16*= systemPut8+1; systemPut32*= systemPut16+1; systemPut64*= systemPut32+1;
 	systemTrace*= systemPut64+1;
 
@@ -586,7 +586,6 @@ TYPE
 		NewBuiltin(systemHalt,"HALT",system.systemScope,TRUE);
 
 		NewBuiltin(Reshape,"RESHAPE",system.globalScope,TRUE);
-		NewBuiltin(systemZeroCopy,"ZEROCOPY",system.globalScope,TRUE);
 		NewBuiltin(systemAdr,"ADDRESSOF",system.globalScope,TRUE);
 		NewBuiltin(systemLsh,"LSH",system.globalScope,TRUE);
 		NewBuiltin(systemRot,"ROT",system.globalScope,TRUE);
@@ -694,6 +693,7 @@ TYPE
 		OperatorDefined(system,Dim,TRUE);
 		OperatorDefined(system,Scanner.Address, TRUE);
 		OperatorDefined(system,Scanner.Size, TRUE);
+		OperatorDefined(system,Scanner.Alias, TRUE);
 	END SetDefaultOperators;
 
 	PROCEDURE DefaultSystem*(): System;

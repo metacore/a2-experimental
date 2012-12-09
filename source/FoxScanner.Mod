@@ -51,7 +51,7 @@ CONST
 	(* declaration elements *)
 	Code Const Type Var Out Procedure Operator Import Definition Module Cell CellNet
 	(* composite type symbols *)
-	Array Object Record Pointer Enum Port Address Size
+	Array Object Record Pointer Enum Port Address Size Alias
 	(* assembler constants *)
 	Ln PC PCOffset
 	(* number types *)
@@ -89,12 +89,12 @@ CONST
 	Operator*= 83; Import*= 84; Definition*= 85; Module*= 86; Cell*= 87; CellNet*= 88;
 	(* composite type symbols *)
 	Array*= 89; Object*= 90; Record*= 91; Pointer*= 92; Enum*= 93; Port*= 94;
-	Address*= 95; Size*= 96;
+	Address*= 95; Size*= 96; Alias*= 97;
 	(* assembler constants *)
-	Ln*= 97; PC*= 98; PCOffset*= 99;
+	Ln*= 98; PC*= 99; PCOffset*= 100;
 	(* number types *)
-	Shortint*= 100; Integer*= 101; Longint*= 102; Hugeint*= 103; Real*= 104; Longreal*= 105;
-	Comment*= 106; EndOfText*= 107;
+	Shortint*= 101; Integer*= 102; Longint*= 103; Hugeint*= 104; Real*= 105; Longreal*= 106;
+	Comment*= 107; EndOfText*= 108;
 
 	SingleQuote = 27X;  DoubleQuote* = 22X;
 	Ellipsis = 7FX;   (* used in Scanner.GetNumber to return with ".." when reading an interval like 3..5 *)
@@ -1059,6 +1059,7 @@ TYPE
 		tokens[Enum] := "Enum";
 		tokens[Port] := "Port";
 		tokens[Address] := "Address";
+		tokens[Alias] := "Alias";
 		tokens[Size] := "Size";
 		tokens[Ln] := "Ln";
 		tokens[PC] := "PC";
@@ -1167,6 +1168,7 @@ TYPE
 		Enter( "record" , Record);
 		Enter( "address" , Address);
 		Enter( "size" , Size);
+		Enter( "alias" , Alias);
 
 		(* symbols *)
 		EnterSymbol( "#", Unequal);

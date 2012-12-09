@@ -2086,6 +2086,13 @@ TYPE
 							determined via the type descriptor, implement that ? *)
 						Error(left.position,Diagnostics.Invalid,"is not a type symbol");
 					END
+				 (* ALIAS OF *)
+				|Scanner.Alias:
+					type := left.type.resolved;
+					IF ~(type IS SyntaxTree.MathArrayType) THEN
+						type := SyntaxTree.invalidType;
+						Error(left.position, Diagnostics.Invalid,"alias on non math array type");
+					END;
 				ELSE
 					Error(left.position,Diagnostics.Invalid,"unary operator not defined");
 				END;
@@ -5566,15 +5573,6 @@ TYPE
 					ELSE
 						Error(position, Diagnostics.Invalid,"reshape on non math array type");
 						result := SyntaxTree.invalidExpression;
-					END;
-				(* ---- SYSTEM.ZEROCOPY----- *)
-				ELSIF (id = Global.systemZeroCopy) & CheckArity(2,2) THEN
-					IF (type0 IS SyntaxTree.MathArrayType) & (type1 IS SyntaxTree.MathArrayType) THEN
-						IF ~CompatibleTo(system,type1,type0) THEN
-							Error(parameter0.position,Diagnostics.Invalid,"incompatible parameter in reshape");
-							result := SyntaxTree.invalidExpression;
-						END;
-					ELSE Error(position, Diagnostics.Invalid,"zerocopy on non math array type");
 					END;
 				(* ---- SYSTEM.TYPECODE ----- *)
 				ELSIF (id = Global.systemTypeCode) & CheckArity(1,1) THEN

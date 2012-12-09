@@ -575,7 +575,7 @@ TYPE
 				designator := SyntaxTree.NewSelfDesignator(position);
 			ELSIF Optional(Scanner.Result) THEN
 				designator := SyntaxTree.NewResultDesignator(position);
-			ELSIF (symbol.token = Scanner.Address) OR (symbol.token = Scanner.Size) THEN
+			ELSIF (symbol.token = Scanner.Address) OR (symbol.token = Scanner.Size) OR (symbol.token = Scanner.Alias) THEN
 				identifier := symbol.identifier;
 				designator := SyntaxTree.NewIdentifierDesignator(position,identifier);
 				NextSymbol;
@@ -712,7 +712,7 @@ TYPE
 					factor := Factor();
 					factor := SyntaxTree.NewUnaryExpression( position, factor, Scanner.Not );
 					factor.End( symbol.end );
-			| Scanner.Address, Scanner.Size:
+			| Scanner.Address, Scanner.Size, Scanner.Alias:
 					operator := symbol.token;
 					factor := Designator();
 					IF Optional(Scanner.Of) THEN
