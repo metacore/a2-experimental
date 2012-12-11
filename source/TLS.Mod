@@ -1336,10 +1336,10 @@ TYPE
 
 		PROCEDURE SendError( alertType: LONGINT );
 		BEGIN
-			(*IF Trace THEN*)
+			IF Trace THEN
 				KernelLog.String("S > C  Error");KernelLog.Ln;
 				KernelLog.String("  alertType: ");KernelLog.Int(alertType, 3);KernelLog.Ln;
-			(*END;*)
+			END;
 			outbuf[ 0 ] := CHR( 2 );	(* level: fatal *)
 			outbuf[ 1 ] := CHR( alertType );
 			SendRecord( outbuf, Alert, 0, 2 );
