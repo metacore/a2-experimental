@@ -21,8 +21,9 @@ CONST
 	SynReceived* = 3;  Established* = 4;  CloseWait* = 5;  FinWait1* = 6;
 	Closing* = 7;  LastAck* = 8;  FinWait2* = 9;  TimeWait* = 10;
 	Unused* = 11;   (* no real state, only used in this implementation *)
+	TLSHandshake* = 12; (* prepare for TLS implementation*)
 
-	OpenStates* = {Listen, SynReceived, Established, CloseWait, FinWait1, FinWait2};
+	OpenStates* = {Listen, SynReceived, Established, CloseWait, FinWait1, FinWait2, TLSHandshake};
 	ClosedStates* = {Unused, Closed, Closing, LastAck, TimeWait};
 	HalfClosedStates* = ClosedStates + {FinWait1, FinWait2};
 	FinStates* = {Unused, Closed, CloseWait, Closing, LastAck, TimeWait};  Timeout = 14;
@@ -153,7 +154,7 @@ TYPE
 			IF state = Closed THEN res := NotConnected;  RETURN
 			ELSIF state = Closing THEN
 			ELSE
-				ASSERT ( (state = Established) & (socket # WSock32.InvalidSocket) );
+				ASSERT ( ((state = Established) OR (state = TLSHandshake)) & (socket # WSock32.InvalidSocket) );
 			END;
 
 			res := Streams.Ok;
