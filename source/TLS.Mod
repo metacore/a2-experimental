@@ -10,7 +10,7 @@ CONST
 	Trace = FALSE; 
 
 	(** tlsStates *)
-	ServerHandshake* = 12; (* i.e. Win32.TCP.TLSHandshake ; not yet implemented in TCP.Mod*)
+	ServerHandshake* = 12;
 
 	(* server-side handshake states *)
 	NotAValidHandshakeState = 200; HandshakeFinished = 215;
@@ -623,7 +623,7 @@ TYPE
 		BEGIN
 			IF Trace THEN KernelLog.String("Close"); KernelLog.Ln; END;
 			ASSERT( SELF.conn # NIL );
-			IF ( State() = TCP.Established )  OR ( State() = ServerHandshake )  THEN (* PH 121211: Win32.TCP.Mod needed to understand ServerHandshake *)
+			IF ( State() = TCP.Established ) OR ( State() = ServerHandshake ) THEN
 				SendWarning( CloseNotify )
 			END;
 			conn.Close();
@@ -850,7 +850,7 @@ TYPE
 			(* record header *)
 			IF Trace THEN
 				KernelLog.String("Receiving Record No. ");KernelLog.Int(currentReadState.recordSeq.numL, 2);KernelLog.Ln;
-				KernelLog.String("Currently available: "); (*KernelLog.Int(in.Available(), 8);*)KernelLog.Ln; (*! here was a blocking in.Available() .. PH 121211*)
+				KernelLog.String("Currently available: ");KernelLog.Int(in.Available(), 8);KernelLog.Ln
 			END;
 			type := ORD( in.Get( ) );	(* content type *)
 			IF Trace THEN KernelLog.String("  contentType: ");KernelLog.Int(type, 6);KernelLog.Ln END;
@@ -1287,7 +1287,6 @@ TYPE
 		PROCEDURE ReceiveAlert( VAR data: ARRAY OF CHAR; ofs, len: LONGINT );
 			VAR level, description, ptr: LONGINT;
 		BEGIN
-			
 			ptr := ofs;
 			WHILE ptr < ofs + len DO	(* for each Alert-message *)
 				level := ORD( data[ ptr ] );
@@ -1299,8 +1298,7 @@ TYPE
 				ELSE	(* illegal level *)
 					SendError( IllegalParameter )
 				END;
-				INC( ptr, 2 );
-				IF Trace THEN KernelLog.String("C > S  Receive Alert, description: "); KernelLog.Int(level,4);KernelLog.Int(description,4); KernelLog.Ln END;
+				INC( ptr, 2 )
 			END
 		END ReceiveAlert;
 
@@ -1313,10 +1311,10 @@ TYPE
 
 		PROCEDURE ReceiveError( alertType: LONGINT);
 		BEGIN
-			(*IF Trace THEN
+			IF Trace THEN
 				KernelLog.String("C > S  Error");KernelLog.Ln;
 				KernelLog.String("  alertType: ");KernelLog.Int(alertType, 3);KernelLog.Ln;
-			END;*)
+			END;
 			IF session # NIL THEN 		SELF.session.Invalidate( )		END;
 			SELF.conn.Close( );
 			applicationDataPipe.Close();
