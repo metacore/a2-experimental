@@ -1,7 +1,6 @@
 (* Aos, Copyright 2001, Pieter Muller, ETH Zurich *)
 
 MODULE TCP; (** AUTHOR "pjm, mvt"; PURPOSE "TCP protocol"; *)
-(*! to do: Connection.Send should understand the TLS Connection state "TLSHandshake", currently only in Win32.TCP.Mod *)
 
 (*
 TCP - Transmission Control Protocol. Based on the 4.4BSD-Lite distribution described in Wright and Stevens, "TCP/IP Illustrated, Volume 2: The Implementation", ISBN 0-201-63354-X. See the BSD copyright statement at the end of this module. From that code it inherits some horrible control flow, which was left mostly intact, to make it easier to compare with the book.
@@ -96,9 +95,8 @@ CONST
 	FinWait2* = 9;
 	TimeWait* = 10;
 	Unused* = 11; (* no real state, only used in this implementation *)
-	
 
-	OpenStates* = {Listen, SynReceived, Established, CloseWait, FinWait1, FinWait2, TLSHandshake};
+	OpenStates* = {Listen, SynReceived, Established, CloseWait, FinWait1, FinWait2};
 	ClosedStates* = {Unused, Closed, Closing, LastAck, TimeWait};
 	HalfClosedStates* = ClosedStates + {FinWait1, FinWait2};
 	FinStates* = {Unused, Closed, CloseWait, Closing, LastAck, TimeWait};
