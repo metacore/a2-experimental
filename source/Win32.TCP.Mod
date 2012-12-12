@@ -153,7 +153,7 @@ TYPE
 			IF state = Closed THEN res := NotConnected;  RETURN
 			ELSIF state = Closing THEN
 			ELSE
-				ASSERT ((state = Established) & (socket # WSock32.InvalidSocket) );
+				ASSERT ((*state = Established) & *) (socket # WSock32.InvalidSocket) );
 			END;
 
 			res := Streams.Ok;
