@@ -268,7 +268,7 @@ VAR
 	BEGIN
 		IF rootObject = NIL THEN (* nothing *)
 		(*
-		ELSIF CheckPointer(SYSTEM.VAL(ADDRESS,rootObject)) THEN
+		ELSIF CheckPointer(rootObject) THEN
 			(* object in heap, must be fully marked and traversed *)
 			Mark(rootObject)
 		ELSE
