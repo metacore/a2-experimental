@@ -1206,6 +1206,7 @@ TYPE
 					CASE symbol.token OF
 					| FoxScanner.Begin: INC(end);
 					| FoxScanner.If, FoxScanner.Case, FoxScanner.While, FoxScanner.For, FoxScanner.Loop, FoxScanner.With: INC(end);
+					| FoxScanner.Code: REPEAT NextSymbol UNTIL (symbol.token = FoxScanner.End) OR (symbol.token = FoxScanner.EndOfText);
 					| FoxScanner.End: DEC(end);
 					ELSE
 					END;
