@@ -605,6 +605,17 @@ TYPE
 		DeclareType(system.integerType,"INTEGER",system.globalScope);
 		DeclareType(system.longintType,"LONGINT",system.globalScope);
 		DeclareType(system.hugeintType,"HUGEINT",system.globalScope);
+
+		DeclareType(Integer8, "SIGNED8", system.globalScope);
+		DeclareType(Integer16, "SIGNED16", system.globalScope);
+		DeclareType(Integer32, "SIGNED32", system.globalScope);
+		DeclareType(Integer64, "SIGNED64", system.globalScope);
+
+		DeclareType(Unsigned8, "UNSIGNED8", system.globalScope);
+		DeclareType(Unsigned16, "UNSIGNED16", system.globalScope);
+		DeclareType(Unsigned32, "UNSIGNED32", system.globalScope);
+		DeclareType(Unsigned64, "UNSIGNED64", system.globalScope);
+
 		DeclareType(system.realType,"REAL",system.globalScope);
 		DeclareType(system.longrealType,"LONGREAL",system.globalScope);
 		DeclareType(system.complexType,"COMPLEX",system.globalScope);
@@ -1179,6 +1190,12 @@ TYPE
 			(from IS SyntaxTree.FloatType) & (to IS SyntaxTree.FloatType) THEN
 			WHILE toSize >= fromSize DO
 				toSize := toSize DIV 2; INC(distance);
+			END;
+
+			IF from IS SyntaxTree.IntegerType THEN
+				IF from(SyntaxTree.IntegerType).signed # to(SyntaxTree.IntegerType).signed THEN
+					IF to(SyntaxTree.IntegerType).signed THEN distance := MAX(LONGINT) ELSE INC(distance, 4) END;
+				END;
 			END;
 		ELSIF (from IS SyntaxTree.IntegerType) & (to IS SyntaxTree.FloatType) THEN
 			IF toSize = 64 THEN distance := 1 ELSE distance := 0 END;

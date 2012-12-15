@@ -1610,6 +1610,8 @@ TYPE
 				END;
 			ELSIF (leftType IS SyntaxTree.AddressType) & IsAddressValue(right) THEN
 				result := TRUE;
+			ELSIF IsUnsignedIntegerType(leftType) & IsUnsignedValue(right, leftType.sizeInBits) THEN
+				result := TRUE
 			ELSIF ~CompatibleTo(system,rightType,leftType) THEN
 				Error(left.position,Diagnostics.Invalid,"incompatible assignment");
 				IF VerboseErrorMessage THEN
@@ -4537,6 +4539,15 @@ TYPE
 			RETURN result;
 		END CheckIntegerValue;
 
+		PROCEDURE IsUnsignedValue(x: SyntaxTree.Expression; maxSizeInBits: LONGINT): BOOLEAN;
+		BEGIN
+			IF (x.resolved # NIL) & (x.resolved IS SyntaxTree.IntegerValue) THEN
+				RETURN Global.IsUnsignedInteger(x.resolved(SyntaxTree.IntegerValue).hvalue, maxSizeInBits)
+			ELSE
+				RETURN FALSE
+			END;
+		END IsUnsignedValue;
+
 		PROCEDURE IsAddressValue(x: SyntaxTree.Expression): BOOLEAN;
 		BEGIN
 			IF (x.resolved # NIL) & (x.resolved IS SyntaxTree.IntegerValue) THEN
@@ -5245,8 +5256,11 @@ TYPE
 				(* ---- SHORT ----- *)
 				ELSIF (id = Global.Short) & CheckArity(1,1) THEN
 					type := type0;
-					IF IsIntegerType(type) THEN
-						IF type.sizeInBits = 8 THEN Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
+					IF IsSignedIntegerType(type) THEN
+						IF (type.sizeInBits = 8) OR (type = system.shortintType) THEN Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
+						ELSIF type = system.integerType THEN type := system.shortintType
+						ELSIF type = system.longintType THEN type := system.integerType
+						ELSIF type = system.hugeintType THEN type:= system.longintType
 						ELSE
 							CASE type.sizeInBits OF
 								16: type := Global.Integer8
@@ -5255,11 +5269,13 @@ TYPE
 							END;
 						END;
 					ELSIF type IS SyntaxTree.FloatType THEN
-						IF type.sizeInBits = 32 THEN Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
+						IF (type.sizeInBits = 32) OR (type = system.realType) THEN Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
+						ELSIF type = system.longrealType THEN type := system.realType
 						ELSIF type.sizeInBits = 64 THEN type := Global.Float32
 						END;
 					ELSIF type IS SyntaxTree.ComplexType THEN
-						IF type.sizeInBits = 64 THEN Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
+						IF (type.sizeInBits = 64) OR (type = system.complexType) THEN Error(parameter0.position,Diagnostics.Invalid,"short not applicable")
+						ELSIF (type = system.longcomplexType) THEN type := system.complexType
 						ELSIF type.sizeInBits = 128 THEN type := Global.Complex64
 						END;
 					ELSE
@@ -5274,8 +5290,11 @@ TYPE
 				(* ---- LONG ----- *)
 				ELSIF (id = Global.Long) & CheckArity(1,1) THEN
 					type := type0;
-					IF IsIntegerType(type) THEN
-						IF type.sizeInBits = 64 THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
+					IF IsSignedIntegerType(type) THEN
+						IF (type.sizeInBits = 64) OR (type = system.hugeintType) THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
+						ELSIF type = system.longintType THEN type := system.hugeintType
+						ELSIF type = system.integerType THEN type := system.longintType
+						ELSIF type = system.shortintType THEN type := system.integerType
 						ELSE
 							CASE type.sizeInBits OF
 							8: type := Global.Integer16
@@ -5284,11 +5303,13 @@ TYPE
 							END;
 						END;
 					ELSIF type IS SyntaxTree.FloatType THEN
-						IF type.sizeInBits = 64 THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
+						IF (type.sizeInBits = 64) OR (type = system.longrealType) THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
+						ELSIF type= system.realType THEN  type := system.longrealType
 						ELSIF type.sizeInBits = 32 THEN type := Global.Float64
 						END;
 					ELSIF type IS SyntaxTree.ComplexType THEN
-						IF type.sizeInBits = 128 THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
+						IF (type.sizeInBits = 128) OR (type = system.longcomplexType) THEN Error(parameter0.position,Diagnostics.Invalid,"long not applicable")
+						ELSIF type = system.complexType THEN type := system.longcomplexType
 						ELSIF type.sizeInBits = 64 THEN type := Global.Complex128
 						END;
 					ELSE
@@ -8397,6 +8418,16 @@ TYPE
 	BEGIN
 		RETURN (type # NIL) & ((type IS SyntaxTree.IntegerType) OR (type IS SyntaxTree.AddressType) OR (type IS SyntaxTree.SizeType))
 	END IsIntegerType;
+
+	PROCEDURE IsSignedIntegerType*(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN
+		RETURN (type # NIL) & (type IS SyntaxTree.IntegerType) & type(SyntaxTree.IntegerType).signed
+	END IsSignedIntegerType;
+
+	PROCEDURE IsUnsignedIntegerType*(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN
+		RETURN (type # NIL) & (type IS SyntaxTree.IntegerType) & ~type(SyntaxTree.IntegerType).signed
+	END IsUnsignedIntegerType;
 
 	PROCEDURE IsIntegerValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
 	VAR result: BOOLEAN;
