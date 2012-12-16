@@ -2463,6 +2463,7 @@ TYPE
 			designator: SyntaxTree.Designator;
 			actualParameters, tempList: SyntaxTree.ExpressionList;
 			recordType: SyntaxTree.RecordType;
+			castReturnType : SyntaxTree.MathArrayType;
 		BEGIN
 			IF (leftExpression = SyntaxTree.invalidExpression) OR (rightExpression = SyntaxTree.invalidExpression)  THEN
 				result := SyntaxTree.invalidExpression
@@ -2550,6 +2551,11 @@ TYPE
 					expression := NewSymbolDesignator(position,designator,operator);
 					designator := expression(SyntaxTree.Designator);
 					result := NewProcedureCallDesignator(position,designator,actualParameters);
+					IF op = Scanner.Alias THEN (* hard type cast to same type *)
+						castReturnType := SyntaxTree.NewMathArrayType(Diagnostics.Invalid, expression.type.scope,SyntaxTree.Tensor);
+						castReturnType.SetArrayBase(ArrayBase(leftExpression.type.resolved,MAX(LONGINT)));
+						result.SetType(castReturnType);
+					END;
 				ELSE
 					result := NIL;
 				END;
@@ -6527,6 +6533,7 @@ TYPE
 						| Global.Odd: (* TODO: arity? *)
 						| Global.Sum: (* TODO: arity? *)
 						| Global.Dim: mustBeUnary := TRUE; mustReturnInteger := TRUE;
+						| Scanner.Alias:
 						END;
 
 						(* check parameter count *)
