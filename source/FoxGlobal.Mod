@@ -1205,6 +1205,8 @@ TYPE
 			END;
 		ELSIF (from IS SyntaxTree.RangeType) & (to IS SyntaxTree.RangeType) THEN
 			distance := 0;
+		ELSIF (from IS SyntaxTree.BooleanType) & (to IS SyntaxTree.BooleanType) THEN
+			distance := 0;
 		END;
 
 		IF distance < 0 THEN distance := MAX(LONGINT) END;
