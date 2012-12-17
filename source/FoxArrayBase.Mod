@@ -1238,7 +1238,7 @@ Sufficient (but not necessary) conditions:
 	BEGIN
 		ZeroCopy(src, RESULT);
 		RETURN RESULT
-	END "ALIAS"
+	END "ALIAS";
 
 	PROCEDURE SameShape( l, r: LONGINT ): BOOLEAN;
 	VAR dim: LONGINT;
