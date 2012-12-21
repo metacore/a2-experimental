@@ -1770,8 +1770,8 @@ TYPE
 					(* the element is not a range expression *)
 
 					(* check type and add conversion if needed *)
-					IF elementResult.type.resolved IS SyntaxTree.IntegerType THEN
-						elementResult := NewConversion(elementResult.position, elementResult, system.longintType, NIL)
+					IF IsSizeType(elementResult.type.resolved, system.addressSize) THEN
+						elementResult := NewConversion(elementResult.position, elementResult, system.sizeType, NIL)
 					ELSE
 						Error(elementResult.position, Diagnostics.Invalid, "non integer element in set");
 						elementResult := SyntaxTree.invalidExpression;
@@ -2421,8 +2421,14 @@ TYPE
 				(* error already handled *)
 			ELSE
 				leftType := left.type.resolved; rightType := right.type.resolved;
-				IF (leftType IS SyntaxTree.AddressType) & CompatibleTo(system, rightType, leftType) THEN
+				IF (leftType IS SyntaxTree.AddressType) & IsAddressExpression(right) THEN
 					right := NewConversion(right.position, right, leftType, NIL);
+				ELSIF (rightType IS SyntaxTree.AddressType) & IsAddressExpression(left) THEN
+					left := NewConversion(left.position,left,rightType,NIL);
+				ELSIF (leftType IS SyntaxTree.SizeType) & IsSizeExpression(right) THEN
+					right := NewConversion(right.position, right, leftType, NIL);
+				ELSIF (rightType IS SyntaxTree.SizeType) & IsSizeExpression(left) THEN
+					left := NewConversion(left.position,left,rightType,NIL);
 				ELSIF CompatibleTo(system,leftType,rightType) THEN
 					left := NewConversion(left.position,left,right.type.resolved,NIL);
 				ELSIF CompatibleTo(system,rightType,leftType) THEN
@@ -4650,6 +4656,16 @@ TYPE
 				RETURN FALSE
 			END
 		END IsAddressValue;
+
+		PROCEDURE IsAddressExpression(x: SyntaxTree.Expression): BOOLEAN;
+		BEGIN
+			RETURN IsAddressType(x.type.resolved, system.addressSize) OR  IsAddressValue(x)
+		END IsAddressExpression;
+
+		PROCEDURE IsSizeExpression(x: SyntaxTree.Expression): BOOLEAN;
+		BEGIN
+			RETURN IsSizeType(x.type.resolved, system.addressSize) OR IsAddressValue(x)
+		END IsSizeExpression;
 
 		PROCEDURE CheckEnumerationValue(x: SyntaxTree.Expression; VAR value: LONGINT): BOOLEAN;
 		VAR result: BOOLEAN;
@@ -8527,6 +8543,17 @@ TYPE
 	BEGIN
 		RETURN (type # NIL) & ((type IS SyntaxTree.IntegerType) OR (type IS SyntaxTree.AddressType) OR (type IS SyntaxTree.SizeType))
 	END IsIntegerType;
+
+	PROCEDURE IsAddressType*(type: SyntaxTree.Type; addressWidth: LONGINT): BOOLEAN;
+	BEGIN
+		RETURN (type # NIL) & ((type IS SyntaxTree.IntegerType) & (type(SyntaxTree.IntegerType).sizeInBits <= addressWidth) OR (type IS SyntaxTree.AddressType) OR (type IS SyntaxTree.SizeType))
+	END IsAddressType;
+
+	PROCEDURE IsSizeType(type: SyntaxTree.Type; addressWidth: LONGINT): BOOLEAN;
+	BEGIN
+		RETURN (type # NIL) & ((type IS SyntaxTree.IntegerType) & (type(SyntaxTree.IntegerType).sizeInBits <= addressWidth) OR (type IS SyntaxTree.SizeType))
+	END IsSizeType;
+
 
 	PROCEDURE IsSignedIntegerType*(type: SyntaxTree.Type): BOOLEAN;
 	BEGIN
