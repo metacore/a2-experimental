@@ -390,8 +390,26 @@ VAR
 		block.next := NIL
 	END AppendFree;
 	
+	PROCEDURE InsertSorted( VAR freeList: FreeList; block: FreeBlock );
+	VAR x: FreeBlock;
+	BEGIN
+		(* keep them ordered to avoid unnecessary splits *)
+		(* this optimization has positive impact on heap utilization
+			130 MB vs. 240 MB heap for compiling and linking a new system
+			but it slows down heap allocation speed. 	*)
+		x := freeList.first;
+		IF (x = NIL) OR (x.size > block.size) THEN 
+			block.next := x;
+			freeList.first := block
+		ELSE
+			WHILE ( x.next # NIL) & (x.next.size < block.size) DO  x := x.next  END;
+			block.next := x.next;
+			x.next := block 
+		END	
+	END InsertSorted;
+	
 	PROCEDURE Recycle( blkAdr: ADDRESS; blkSize: SIZE );
-	VAR i: LONGINT;  block, x: FreeBlock;
+	VAR i: LONGINT;  block: FreeBlock;
 	BEGIN
 		block := S.VAL( FreeBlock, blkAdr );
 		block.tag := blkAdr + AddrSize;
@@ -404,21 +422,8 @@ VAR
 		IF i < FreeListBarrier THEN	
 			AppendFree( freeLists[i], block )
 		ELSE
-			(* keep them ordered to avoid unnecessary splits *)
-			(* this optimization has positive impact on heap utilization
-			    130 MB vs. 240 MB heap for compiling and linking a new system
-			    but it slows down heap allocation speed. 	*)
-			x := freeLists[MaxFreeLists].first;
-			IF (x = NIL) OR (x.size > blkSize - AddrSize) THEN 
-				block.next := x;
-				freeLists[MaxFreeLists].first := block
-			ELSE
-				WHILE ( x.next # NIL) & (x.next.size < block.size) DO  x := x.next  END;
-				block.next := x.next;
-				x.next := block 
-			END	
+			InsertSorted( freeLists[i], block )
 		END;	
-		
 		INC( heapAvailable, blkSize );
 	END Recycle;
 	
