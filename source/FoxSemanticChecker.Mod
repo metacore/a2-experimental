@@ -2105,6 +2105,9 @@ TYPE
 		PROCEDURE MathArrayConversion(position: LONGINT; expression: SyntaxTree.Expression; type: SyntaxTree.Type): SyntaxTree.Expression;
 		VAR
 			result: SyntaxTree.Expression;
+			array: SyntaxTree.MathArrayExpression;
+			value: SyntaxTree.MathArrayValue;
+			isValue: BOOLEAN;
 
 			PROCEDURE BaseType(type: SyntaxTree.Type): SyntaxTree.Type;
 			BEGIN
@@ -2118,10 +2121,67 @@ TYPE
 				RETURN type
 			END BaseType;
 
+			PROCEDURE RecursivelyConvert(x, to: SyntaxTree.MathArrayExpression);
+			VAR position,numberElements,i: LONGINT; expression: SyntaxTree.Expression; array: SyntaxTree.MathArrayExpression;
+			BEGIN
+				numberElements := x.elements.Length();
+				FOR i := 0 TO numberElements-1 DO
+					expression := x.elements.GetExpression(i);
+					IF expression IS SyntaxTree.MathArrayExpression THEN
+						array := SyntaxTree.NewMathArrayExpression(position);
+						RecursivelyConvert(expression(SyntaxTree.MathArrayExpression), array);
+						expression := array;
+					ELSE
+						position := expression.position;
+						expression := NewConversion(position,x.elements.GetExpression(i),type,NIL);
+						isValue := isValue & (expression.resolved # NIL);
+					END;
+					to.elements.AddExpression(expression);
+				END;
+			END RecursivelyConvert;
+
+
+			PROCEDURE RecursivelySetType(x: SyntaxTree.MathArrayExpression): SyntaxTree.Type;
+			VAR numberElements,i,size,gsize: LONGINT; baseType: SyntaxTree.Type;expression: SyntaxTree.Expression;
+				arrayType: SyntaxTree.MathArrayType;
+			BEGIN
+				numberElements := x.elements.Length();
+				baseType := NIL;
+				gsize := 0;
+				FOR i := 0 TO numberElements-1 DO
+					expression := x.elements.GetExpression(i);
+					IF expression IS SyntaxTree.MathArrayExpression THEN
+						size := expression(SyntaxTree.MathArrayExpression).elements.Length();
+						IF i=0 THEN
+							gsize := size;
+							baseType := RecursivelySetType(expression(SyntaxTree.MathArrayExpression));
+						ELSIF (baseType = type) OR (gsize # size) THEN  Error(expression.position,Diagnostics.Invalid, "invalid array dimensions");
+						ELSE expression.SetType(baseType)
+						END;
+					ELSIF baseType = NIL THEN baseType := type;
+					ELSIF baseType # type THEN Error(expression.position,Diagnostics.Invalid, "invalid array dimensions");
+					END;
+				END;
+				arrayType := SyntaxTree.NewMathArrayType(x.position,NIL, SyntaxTree.Static);
+				arrayType.SetArrayBase(baseType);
+				arrayType.SetLength(Global.NewIntegerValue(system,x.position,numberElements));
+				RETURN ResolveType(arrayType);
+			END RecursivelySetType;
+
 		BEGIN
 			result := SyntaxTree.invalidExpression;
 			IF (BaseType(type)=NIL) OR (BaseType(expression.type.resolved).SameType(BaseType(type)))  THEN
 				result := expression (* do not convert *)
+			ELSIF (expression.resolved # NIL) THEN (* value *)
+				isValue := TRUE;
+				type :=  type.resolved;
+				array := SyntaxTree.NewMathArrayExpression(expression.position);
+				RecursivelyConvert(expression(SyntaxTree.MathArrayValue).array(SyntaxTree.MathArrayExpression), array);
+				value := SyntaxTree.NewMathArrayValue(array.position);
+				value.SetArray(array);
+				value.SetType(RecursivelySetType(array));
+				result := value;
+				ASSERT(isValue);
 			ELSE (* should the search for operators be restricted to the ArrayBase module here ? *)
 				result := NewOperatorCall(position,Global.Conversion,expression,NIL,type);
 				IF result = NIL THEN
@@ -5842,6 +5902,17 @@ TYPE
 			left: SyntaxTree.Designator;
 			result,expression: SyntaxTree.Expression;
 			typeDeclaration: SyntaxTree.TypeDeclaration;
+			type, expressionType: SyntaxTree.Type;
+
+			PROCEDURE BaseType(type: SyntaxTree.Type): SyntaxTree.Type;
+			BEGIN
+				type := type.resolved;
+				WHILE (type # NIL) & (type IS SyntaxTree.MathArrayType) DO
+					type := Resolved(type(SyntaxTree.MathArrayType).arrayBase);
+				END;
+				RETURN type
+			END BaseType;
+
 		BEGIN
 			IF Trace THEN D.Str("VisitParameterDesignator"); D.Ln; END;
 			result := SyntaxTree.invalidDesignator;
@@ -5861,7 +5932,10 @@ TYPE
 						END
 					ELSIF IsTypeDesignator(left,typeDeclaration)  & (parameters.Length()=1) THEN
 						expression := parameters.GetExpression(0);
-						IF ((typeDeclaration.declaredType.resolved IS SyntaxTree.NumberType) OR (typeDeclaration.declaredType.resolved IS SyntaxTree.AddressType))& ((expression.type.resolved IS SyntaxTree.NumberType) OR (expression.type.resolved IS SyntaxTree.AddressType) OR (expression.type.resolved IS SyntaxTree.SizeType)) THEN
+						type := typeDeclaration.declaredType.resolved;
+						expressionType := BaseType(expression.type); (* type or base type of math array, if applicable *)
+						IF ((type IS SyntaxTree.NumberType) OR (type IS SyntaxTree.AddressType)) &
+							((expressionType IS SyntaxTree.NumberType) OR (expressionType IS SyntaxTree.AddressType) OR (expressionType IS SyntaxTree.SizeType)) THEN
 							result := NewConversion(designator.position,expression,typeDeclaration.declaredType,left)
 						ELSE
 							Error(left.position,Diagnostics.Invalid,"invalid type in explicit conversion");
