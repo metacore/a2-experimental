@@ -2172,7 +2172,7 @@ TYPE
 			result := SyntaxTree.invalidExpression;
 			IF (BaseType(type)=NIL) OR (BaseType(expression.type.resolved).SameType(BaseType(type)))  THEN
 				result := expression (* do not convert *)
-			ELSIF (expression.resolved # NIL) THEN (* value *)
+			ELSIF (expression.resolved # NIL) & (type.resolved IS SyntaxTree.BasicType) (*! performance: do also include cases where type is open array or tensor of base type *) THEN (* value *)
 				isValue := TRUE;
 				type :=  type.resolved;
 				array := SyntaxTree.NewMathArrayExpression(expression.position);
@@ -2181,7 +2181,7 @@ TYPE
 				value.SetArray(array);
 				value.SetType(RecursivelySetType(array));
 				result := value;
-				ASSERT(isValue);
+				IF ~isValue THEN Error(position, Diagnostics.Invalid, "incompatible array conversion") END;
 			ELSE (* should the search for operators be restricted to the ArrayBase module here ? *)
 				result := NewOperatorCall(position,Global.Conversion,expression,NIL,type);
 				IF result = NIL THEN
