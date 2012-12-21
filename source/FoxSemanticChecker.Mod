@@ -2595,7 +2595,7 @@ TYPE
 				value := Global.NewIntegerValue(system,binaryExpression.position,v);
 
 				(* type cast to "larger" type only if the value is still in the range *)
-				IF CompatibleTo(system,value.type, t) OR (t IS SyntaxTree.AddressType) & IsAddressValue(value) THEN
+				IF (t IS SyntaxTree.AddressType) & IsAddressValue(value) THEN
 					value.SetType(t);
 				END;
 
