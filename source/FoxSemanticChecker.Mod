@@ -2147,9 +2147,6 @@ TYPE
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);
 				ELSIF (type IS SyntaxTree.AddressType) THEN
-					(*
-					IF int < 0 THEN Error(position,Diagnostics.Invalid,"negative value cannot be converted to address") END;
-					*)
 					int := Global.ConvertUnsigned(int,system.SizeOf(type));
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);
@@ -2364,7 +2361,9 @@ TYPE
 				(* error already handled *)
 			ELSE
 				leftType := left.type.resolved; rightType := right.type.resolved;
-				IF CompatibleTo(system,leftType,rightType) THEN
+				IF (leftType IS SyntaxTree.AddressType) & CompatibleTo(system, rightType, leftType) THEN
+					right := NewConversion(right.position, right, leftType, NIL);
+				ELSIF CompatibleTo(system,leftType,rightType) THEN
 					left := NewConversion(left.position,left,right.type.resolved,NIL);
 				ELSIF CompatibleTo(system,rightType,leftType) THEN
 					right := NewConversion(right.position,right,left.type.resolved,NIL);
@@ -2594,9 +2593,12 @@ TYPE
 			PROCEDURE NewInteger(v: HUGEINT; t: SyntaxTree.Type);
 			BEGIN
 				value := Global.NewIntegerValue(system,binaryExpression.position,v);
-				(*
-				value.SetType(t);
-				*)
+
+				(* type cast to "larger" type only if the value is still in the range *)
+				IF CompatibleTo(system,value.type, t) OR (t IS SyntaxTree.AddressType) & IsAddressValue(value) THEN
+					value.SetType(t);
+				END;
+
 				result.SetResolved(value);
 				type := value.type;
 			END NewInteger;
