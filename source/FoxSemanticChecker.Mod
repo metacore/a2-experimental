@@ -2172,9 +2172,9 @@ TYPE
 			result := SyntaxTree.invalidExpression;
 			IF (BaseType(type)=NIL) OR (BaseType(expression.type.resolved).SameType(BaseType(type)))  THEN
 				result := expression (* do not convert *)
-			ELSIF (expression.resolved # NIL) & (type.resolved IS SyntaxTree.BasicType) (*! performance: do also include cases where type is open array or tensor of base type *) THEN (* value *)
+			ELSIF (expression.resolved # NIL) & (BaseType(type) IS SyntaxTree.BasicType) THEN (* compliance has already been checked *)
 				isValue := TRUE;
-				type :=  type.resolved;
+				type :=  BaseType(type);
 				array := SyntaxTree.NewMathArrayExpression(expression.position);
 				RecursivelyConvert(expression(SyntaxTree.MathArrayValue).array(SyntaxTree.MathArrayExpression), array);
 				value := SyntaxTree.NewMathArrayValue(array.position);
