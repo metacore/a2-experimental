@@ -88,6 +88,7 @@ TYPE
 			tab : WMTabComponents.Tab;
 			s : Strings.String;
 		BEGIN
+			DisableUpdate;
 			tabs.RemoveAllTabs;
 			IF currentPage # NIL THEN page.RemoveContent(currentPage);
 				currentPage := NIL
@@ -113,6 +114,7 @@ TYPE
 					INC(i);
 				END
 			END;
+			EnableUpdate;
 			IF currentPage # NIL THEN
 		(*		IF ~currentPage.initialized THEN currentPage.Initialize END; *)
 				page.AddContent(currentPage);
@@ -179,7 +181,7 @@ TYPE
 			DisableUpdate;
 			LoadPages;
 			EnableUpdate;
-			page.Invalidate
+			UpdatePages;
 		END Refresh;
 
 		PROCEDURE TabSelected(sender, data : ANY);

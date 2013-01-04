@@ -66,6 +66,7 @@ TYPE
 
 		PROCEDURE SetPlugin(name : String);
 		BEGIN
+			IF (name^ = currentPluginName^) & (plugin # NIL) THEN RETURN END;
 			IF plugin # NIL THEN
 				plugin.Close;
 			END;
@@ -307,7 +308,6 @@ TYPE
 		BEGIN
 			NEW(startMenu);
 			startMenu.SetOriginator(NIL);
-			startMenu.LoadPages
 		END Open;
 
 		PROCEDURE Close;
@@ -318,7 +318,6 @@ TYPE
 		PROCEDURE Refresh(extView: ANY);
 		BEGIN
 			startMenu.SetOriginator(extView);
-			startMenu.LoadPages
 		END Refresh;
 
 		PROCEDURE ReopenMenuItemsShifted(upwards : BOOLEAN);
