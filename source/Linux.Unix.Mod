@@ -131,6 +131,59 @@ CONST
 	SockAddrSizeV4*	= 16;
 	SockAddrSizeV6*	= 28;
 
+	(*----------------------- seral line, cf Unix.V24.Mod -----------------------*)
+	
+	FIONREAD*	= 541BH;
+	TIOCMGET*		= 5415H;
+	TIOCMBIS*		= 5416H;
+	TIOCMBIC*		= 5417H;
+	TIOCMSET*		= 5418H;
+	
+	(* speeds *)
+	B0*	= 0;
+	B50*	= 1;
+	B75*	= 2; 
+	B110*	= 3; 
+	B134*	= 4; 
+	B150*	= 5; 
+	B200*	= 6; 
+	B300*	= 7; 
+	B600*	= 8; 
+	B1200* 	= 9; 
+	B1800* 	= 10; 
+	B2400* 	= 11; 
+	B4800* 	= 12; 
+	B9600* 	= 13; 
+	B19200*	= 14; 
+	B38400*	= 15; 
+
+	B57600* 	= 1001H; 
+	B115200*	= 1002H; 
+	B230400*	= 1003H; 
+
+
+
+	(* tio.cflag bits *)
+	CSIZE*		= {4,5};
+	   CS5*		= {};
+	   CS6*		= {4};
+	   CS7*		= {5};
+	   CS8*		= {4,5};
+	CSTOPB*	= {6};
+	CREAD*	= {7};
+	PARENB*	= {8};
+	PARODD*	= {9};
+	HUPCL*		= {10};
+	CLOCAL*	= {11};
+	
+TYPE
+	Termios* = RECORD
+		iflags*, oflags*, cflags*, lflags*: SET;
+		line*: CHAR;
+		cc*	: ARRAY 32 OF CHAR;
+		ispeed-, ospeed-: LONGINT
+	END;
+
 	(*------------------------------------------------------------------*)
 
 

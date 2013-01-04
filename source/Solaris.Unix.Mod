@@ -136,8 +136,57 @@ CONST
 	SockAddrSizeV4*	= 16;
 	SockAddrSizeV6*	= 32;
 
-	(*------------------------------------------------------------------*)
+	(*---------------------------- serial line -----------------------------*)
+	
+	
+	FIONREAD*	=  4004667FH;
+ 	TIOCMGET*		=  0741DH;
+	TIOCMSET*		=  0741AH;
+	
+	(* Speeds *)
+	B0*	= 0;
+	B50*	= 1;
+	B75*	= 2;
+	B110*	= 3;
+	B134*	= 4;
+	B150*	= 5;
+	B200*	= 6;
+	B300*	= 7;
+	B600*	= 8;
+	B1200*		= 9;
+	B1800*		= 10;
+	B2400*		= 11;
+	B4800*		= 12;
+	B9600*		= 13;
+	B19200*	= 14;
+	B38400*	= 15;
 
+	B57600*	= 16;
+	B115200*	= 18;
+	B230400*	= 20;
+
+
+	(* tio.cflag bits *)
+	CSIZE*   	= {4,5};
+	   CS5*   	= {};
+	   CS6*   	= {4};
+	   CS7*   	= {5};
+	   CS8*   	= {4,5};
+	CSTOPB*	= {6};
+	CREAD*	= {7};
+	PARENB*	= {8};
+	PARODD*	= {9};
+	HUPCL*		= {10};
+	CLOCAL*	= {11};
+	
+TYPE
+	Termios* = RECORD
+		iflags*, oflags*, cflags*, lflags*: SET;
+		cc*: ARRAY 19 OF CHAR;
+		dummy-: ARRAY 2 OF LONGINT
+	END;
+	
+	(*------------------------------------------------------------------*)
 
 TYPE
 	DevT* = LONGINT;

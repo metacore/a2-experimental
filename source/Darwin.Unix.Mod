@@ -120,6 +120,7 @@ CONST
 	(* ioctl *)
 		FioNRead*		= 4004667FH;	(* something to read ? *)
 		
+		
 	(* recv *)
 		MsgPeek*		= 2;
 		MsgDontWait*	= 80H;		(* non blocking read *)
@@ -130,8 +131,58 @@ CONST
 	SockAddrSizeV4*	= 16;
 	SockAddrSizeV6*	= 28;
 	
-	(*------------------------------------------------------------------*)
+	(*-------------------seral line ---------------------------------------*)
+	
+	FIONREAD*	= 4004667FH;
+	TIOCMGET*		= LONGINT( 4004746AH );
+	TIOCMBIC*		= LONGINT( 8004746BH );
+	TIOCMBIS*		= LONGINT( 8004746CH );
+	TIOCMSET*		= LONGINT( 8004746DH );
+	
+	(* speeds *)
+	B0*	= 0;
+	B50*	= 50;
+	B75*	= 75;
+	B110*	= 110;
+	B134*	= 134;
+	B150*	= 150;
+	B200*	= 200;
+	B300*	= 300;
+	B600*	= 600;
+	B1200*		= 1200;
+	B1800*		= 1800;
+	B2400*		= 2400;
+	B4800*		= 4800;
+	B9600*		= 9600;
+	B19200*	= 19200;
+	B38400*	= 38400;
 
+	B57600*	= 57600;
+	B115200*	= 115200;
+	B230400*	= 230400;
+
+
+	(* tio.cflag bits *)
+	CSIZE*		= {8,9};	(* character size mask *)
+	   CS5*		= {};  	(* 5 bits (pseudo) *)
+	   CS6*		= {8}; 	(* 6 bits *)
+	   CS7*		= {9}; 	(* 7 bits *)
+	   CS8*		= {8,9};	(* 8 bits *)
+	CSTOPB*	= {10};	(* send 2 stop bits *)
+	CREAD*	= {11};	(* enable receiver *)
+	PARENB*	= {12};	(* parity enable *)
+	PARODD*	= {13};	(* odd parity, else even *)
+	HUPCL*		= {14};	(* hang up on last close *)
+	CLOCAL*	= {15};	(* ignore modem status lines *)
+	
+TYPE
+	Termios* = RECORD
+		iflags*, oflags*, cflags*, lflags*: SET;
+		cc*: ARRAY 20 OF CHAR;
+		ispeed-, ospeed-: LONGINT
+	END;
+	
+	(*------------------------------------------------------------------*)
 
 TYPE
 	DevT* = LONGINT;
