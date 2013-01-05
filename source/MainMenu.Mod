@@ -116,13 +116,13 @@ TYPE
 			END;
 			EnableUpdate;
 			IF currentPage # NIL THEN
-		(*		IF ~currentPage.initialized THEN currentPage.Initialize END; *)
 				page.AddContent(currentPage);
 				currentPage.Reset(SELF, NIL);
 				page.AlignSubComponents;
 				page.Invalidate;
 				IF tabList[currentPageNr] # NIL THEN tabs.Select(tabList[currentPageNr]) END
 			END;
+			tabs.Invalidate
 		END UpdatePages;
 
 		PROCEDURE TryLoad(CONST name : ARRAY OF CHAR; pos : LONGINT);
@@ -152,6 +152,7 @@ TYPE
 			END IsNum;
 
 		BEGIN
+			DisableUpdate;
 			NEW(enumerator);
 			FOR i := 0 TO 99 DO
 				IF pages[i] = currentPage THEN currentPageNr := i END;
@@ -173,15 +174,13 @@ TYPE
 				END
 			END;
 			enumerator.Close;
+			EnableUpdate;
 			UpdatePages
 		END LoadPages;
 
 		PROCEDURE Refresh(sender, data : ANY);
 		BEGIN
-			DisableUpdate;
-			LoadPages;
-			EnableUpdate;
-			page.Invalidate
+			LoadPages
 		END Refresh;
 
 		PROCEDURE TabSelected(sender, data : ANY);
