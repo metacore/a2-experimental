@@ -302,8 +302,8 @@ TYPE
 	BEGIN
 		Unix.Dlsym( Unix.libc, "tcgetattr",		ADDRESSOF( tcgetattr ) );
 		Unix.Dlsym( Unix.libc, "tcsetattr",		ADDRESSOF( tcsetattr ) );
-		Unix.Dlsym( Unix.libc, "cfgetispeed",		ADDRESSOF( cfsetispeed ) );
-		Unix.Dlsym( Unix.libc, "cfgetospeed",	ADDRESSOF( cfsetospeed ) );
+		Unix.Dlsym( Unix.libc, "cfgetispeed",		ADDRESSOF( cfgetispeed ) );
+		Unix.Dlsym( Unix.libc, "cfgetospeed",	ADDRESSOF( cfgetospeed ) );
 		Unix.Dlsym( Unix.libc, "cfsetispeed",		ADDRESSOF( cfsetispeed ) );
 		Unix.Dlsym( Unix.libc, "cfsetospeed",		ADDRESSOF( cfsetospeed ) );
 	END Initialize
@@ -330,7 +330,7 @@ SystemTools.Free V24~
 	COM3 -> /dev/ttyS2
 	COM4 -> /dev/ttyS3
 	
-	On Solaris and Darwin hosts then tty lines have different names.
+	On Solaris and Darwin hosts the tty lines have different names.
 	To make them useable for Aos create symbolic links
 	
 	Solaris:	ln -s  /dev/ttya  /dev/ttyS0
