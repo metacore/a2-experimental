@@ -1013,9 +1013,9 @@ TYPE
 					top.bounds.b := top.bounds.t
 				END;
 
-				Rect.ExtendRect(rect, top.bounds);
-
+				dirtyQ.Add(top.bounds);
 				dirtyQ.Add(rect);
+				(* the dirty q handling will merge the rectangles if beneficial. Doing it here results in potential large area screen updates *)
 
 				pointerInfo := pi
 			END;
