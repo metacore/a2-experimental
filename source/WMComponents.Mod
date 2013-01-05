@@ -1421,11 +1421,12 @@ TYPE
 		PROCEDURE InvalidateCommand*(sender, par : ANY);
 		VAR m: Messages.Message; r, b: Rectangles.Rectangle; client: VisualComponent; parent: XML.Element;
 		BEGIN
-			IF ~initialized THEN RETURN END;
+			IF ~initialized OR ~visible.Get() THEN RETURN END;
 			r := GetClientRect();
 			client := SELF;
 			parent := GetParent();
 			WHILE (parent # NIL) & (parent IS VisualComponent) DO
+				IF ~parent(VisualComponent).visible.Get() THEN RETURN END;
 				b := client.bounds.Get();
 				Rectangles.MoveRel(r, b.l, b.t);
 				client := parent(VisualComponent);
