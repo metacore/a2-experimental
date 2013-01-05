@@ -181,7 +181,7 @@ TYPE
 			DisableUpdate;
 			LoadPages;
 			EnableUpdate;
-			UpdatePages;
+			page.Invalidate
 		END Refresh;
 
 		PROCEDURE TabSelected(sender, data : ANY);
