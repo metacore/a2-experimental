@@ -41,7 +41,7 @@ VAR
 		Append( name, typ.name )
 	END GetTypeName;
 
-	PROCEDURE Trap( sig: LONGINT;  ucp: Unix.Ucontext );  
+	PROCEDURE Trap( sig: LONGINT;  ucp: Unix.Ucontext;  fatalerror: BOOLEAN );  
 	VAR 
 		pc, sp, bp: ADDRESS;  
 		trapno: LONGINT;  
@@ -51,15 +51,14 @@ VAR
 		PROCEDURE FinishTrapText( exitAos: BOOLEAN );
 		VAR tag: ADDRESS;  name: ARRAY 72 OF CHAR;
 		BEGIN
-			
 			w.Ln; w.Ln; 
 			w.String("----------------------------------------------------"); w.Ln; 
-			w.Char( 2X );   (* end of trap text *) 
-			w.Update;
-			TrapWriters.Trapped;
 			
 			IF exitAos THEN  Unix.exit( 1 )  END;
 			
+			w.Char( 2X );   (* end of trap text *) 
+			w.Update;
+			TrapWriters.Trapped;
 			S.GET( S.VAL( ADDRESS, trProcess.obj ) - 4, tag );
 			GetTypeName( tag, name );
 			IF name = "Oberon.System.OberonRunner" THEN  UnlockOberon  END;
@@ -95,13 +94,18 @@ VAR
 		END;  
 				
 		trProcess := Objects.CurrentProcess( );  
-		w := TrapWriters.GetWriter();
-		w.Char( 1X );   (* begin of trap text *) 
-		w.Ln;  
-		w.String( Machine.version ); w.String( "   " );  TimeTag;
-		w.Ln;
+		IF fatalerror THEN  
+			w := unix.error  
+		ELSE  
+			w := TrapWriters.GetWriter();
+			w.Char( 1X );   (* begin of trap text *) 
+			w.Ln;  
+			w.String( Machine.version ); w.String( "   " );  TimeTag;
+			w.Ln
+		END;
+		
 		IF TrapHandlingLevel = 1 THEN  
-			Machine.Acquire( Machine.Trap );
+			IF ~fatalerror THEN  Machine.Acquire( Machine.Trap )  END;
 			w.String( "Trap " ) 
 		ELSE  
 			w.String( "==== recursive Trap" )  
@@ -138,7 +142,7 @@ VAR
 		END;  
 		w.Ln;  
 		IF TrapHandlingLevel > 1 THEN 
-			FinishTrapText( Heaps.collecting OR (TrapHandlingLevel > 2) );
+			FinishTrapText( fatalerror OR (TrapHandlingLevel > 2) );
 			Objects.Terminate
 		ELSE
 			pc := ucp.mc.eip;  bp := ucp.mc.ebp;
@@ -156,7 +160,7 @@ VAR
 				w.Ln;  w.Ln;
 				w.String( "### program continues with exception handler ###" );   w.Ln				
 			END;  
-			FinishTrapText( FALSE );
+			FinishTrapText( fatalerror );
 			IF handled THEN  RETURN  (* to exception handler! *)END;
 			
 			IF Machine.standaloneAppl THEN	
@@ -164,9 +168,7 @@ VAR
 				unix.error.String( "### Program aborted. Stack backtrace in logfile" );  unix.error.Ln;
 				unix.error.Update
 			END;
-			IF Heaps.collecting OR Machine.standaloneAppl THEN  
-				Machine.Shutdown( FALSE );  Objects.Terminate  
-			END;  
+			IF Heaps.collecting OR Machine.standaloneAppl THEN  Machine.Shutdown( FALSE )  END;  
 			IF trace THEN  
 				Trace.String( "Teminating trapped thread " );  Trace.Int( trProcess.id , 0 ); Trace.Ln
 			END;  
@@ -221,27 +223,21 @@ VAR
 	
 	PROCEDURE SignalHandler( signal: LONGINT;  scp, ucp, dummy: ADDRESS );   
 		(* 'dummy' for 16 byte stack alignment, MacOS! *)
-	CONST SIGALRM = 14;  
-	VAR ures: LONGINT;
 	BEGIN 
-		IF trace THEN  
-			Trace.String( "Traps.SignalHander: received signal " );  
-			Trace.Int( signal, 1 );  Trace.Ln  
-		END;  
-		IF signal IN  {1, 2, 15} (* SIGHUP, SIGINT, SIGTERM *) THEN  RETURN   END;  
-		IF Heaps.collecting THEN  
-			IF signal = SIGALRM THEN  
-				(* delay delivery *)  ures := Unix.alarm( 1 );  RETURN  
-			ELSE  
+		IF ~(signal IN  {1, 2, 14, 15}) (* SIGHUP, SIGINT, SIGALRM, SIGTERM *) THEN  
+			IF trace THEN  
+				Trace.String( "Traps.SignalHander: received signal " );  
+				Trace.Int( signal, 1 );  Trace.Ln  
+			END;
+			IF Heaps.collecting THEN  
 				Trace.Ln;  Trace.String( "PANIC: Trap " );  Trace.Int( signal, 0 );  
-				Trace.String( " in garbage collector" );  Trace.Ln;  
+				Trace.String( " in garbage collector" );  Trace.Ln;  Trace.Ln;
 				Machine.Release( Machine.Heaps );
-				Machine.Release( Machine.X11 );
-				Trap( signal, S.VAL( Unix.Ucontext, ucp ) )  
-			END;  
-		ELSE  
-			Trap( signal, S.VAL( Unix.Ucontext, ucp ) )  
-		END  
+				Trap( signal, S.VAL( Unix.Ucontext, ucp ), TRUE )  
+			ELSE  
+				Trap( signal, S.VAL( Unix.Ucontext, ucp ), FALSE )  
+			END  
+		END
 	END SignalHandler;  
 	
 
