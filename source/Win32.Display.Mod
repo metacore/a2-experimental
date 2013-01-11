@@ -193,7 +193,7 @@ TYPE
 				END;
 			ELSE
 				IF root.bmadr = 0 THEN GetDC( root ) END;
-				InitFrameBuffer( root.bmadr, disp.width * disp.height * format );  Transfer^( buf, ofs, stride, x, y, w, h, op );
+				InitFrameBuffer( root.bmadr, disp.width * disp.height * format, disp.width * disp.format);  Transfer^( buf, ofs, stride, x, y, w, h, op );
 				IF op = Displays.set THEN ToWindow( root, x, y, w, h, root.dx, root.dy );  END;
 			END;
 
