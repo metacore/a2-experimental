@@ -65,12 +65,12 @@ TYPE
 				process := processes[i];
 
 				Objects.GetCpuCycles(process, cycles, FALSE); (* higher granularity counter, but does not detect suspending of thread *)
-				 times[i] := cycles[0];
+				times[i] := cycles[0];
 				(*
 				Kernel32.GetThreadTimes(process.handle, t0,t1,t2,t3);
 				times[i] := HUGEINT(t2.dwLowDateTime+t3.dwLowDateTime) + 10000000H * HUGEINT(t2.dwHighDateTime+t3.dwHighDateTime) ;
 				*)
-				IF (process # me) & (cycles[0] # 0) & (process.mode # Objects.AwaitingCond)   & (process.mode < Objects.Suspended) & (process.mode >= Objects.Ready)  (*RanMeanwhile(process, times[i]) *) THEN
+				IF (process # me) & (cycles[0] # 0)  & (process.mode = Objects.Running) (* (process.mode # Objects.AwaitingEvent) & (process.mode # Objects.AwaitingCond)  & (process.mode < Objects.Suspended) & (process.mode >= Objects.Ready)  (*RanMeanwhile(process, times[i]) *) *) THEN
 					HandleProcess(process);
 				END;
 			END;
