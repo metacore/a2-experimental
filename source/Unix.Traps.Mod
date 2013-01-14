@@ -9,7 +9,9 @@ MODULE Traps;  (** AUTHOR "G.F."; PURPOSE "Exception Trap and symbolic debugging
 IMPORT S := SYSTEM, Trace, Glue, Unix, Objects, Machine, Heaps, Streams, Modules, Reflection, 
 		TrapWriters, Commands, StdIO;  
 
-
+CONST
+	AddrSize = SIZEOF( ADDRESS );
+	
 TYPE 		
 	SigHandler = PROCEDURE ( sig: LONGINT; scp, ucp, dum: ADDRESS );  
 	
@@ -33,57 +35,51 @@ VAR
 	END Append;
 	
 	
-	PROCEDURE GetTypeName( tag: ADDRESS;  VAR name: ARRAY OF CHAR );
-	VAR  typ: Modules.TypeDesc;
+	PROCEDURE TimeTag( w: Streams.Writer );
+	VAR 
+		tv: Unix.Timeval;  tz: Unix.Timezone;  t: Unix.TmPtr;  ret: LONGINT;
+			
+		PROCEDURE Int( i: LONGINT );
+		BEGIN
+			IF i < 10 THEN  w.Char( '0' )  END;
+			w.Int( i, 0 )
+		END Int;
+			
 	BEGIN
-		S.GET( tag - 4, typ );  name[0] := 0X;
-		IF typ.mod # NIL THEN  Append( name, typ.mod.name );  Append( name,  "." )  END;
-		Append( name, typ.name )
-	END GetTypeName;
+		ret := Unix.gettimeofday( tv, tz );
+		t := Unix.localtime( tv );
+		w.Int( 1900 + t.year, 4 );  w.Char( '/' );  Int( t.mon + 1 );  w.Char( '/' );  Int( t.mday );  
+		w.String( "  " );  Int( t.hour );  w.Char( ':' );  Int( t.min );  w.Ln;
+	END TimeTag;
+	
+	
+		
+	PROCEDURE FinishTrap( w: Streams.Writer;  p: Objects.Process );
+	VAR tag: ADDRESS;  td: Modules.TypeDesc;  name: ARRAY 72 OF CHAR;
+	BEGIN
+		w.Char( 2X );   (* end of trap text *) 
+		w.Update;
+		TrapWriters.Trapped;
+			
+		S.GET( S.VAL( ADDRESS, p.obj ) - AddrSize, tag );
+		S.GET( tag - AddrSize, td );  
+		IF td.mod # NIL THEN  
+			COPY( td.mod.name, name );  Append( name,  "." );  Append( name, td.name );
+			IF name = "Oberon.System.OberonRunner" THEN  UnlockOberon  END
+		END;
+		TrapHandlingLevel := 0;
+		Machine.Release( Machine.Trap )
+	END FinishTrap;
+	
+	
 
 	PROCEDURE Trap( sig: LONGINT;  ucp: Unix.Ucontext;  fatalerror: BOOLEAN );  
 	VAR 
 		pc, sp, bp: ADDRESS;  
 		trapno: LONGINT;  
-		trProcess: Objects.Process;  handled: BOOLEAN;  
+		process: Objects.Process;  
+		handled: BOOLEAN;  
 		w: Streams.Writer;
-	
-		PROCEDURE FinishTrapText( exitAos: BOOLEAN );
-		VAR tag: ADDRESS;  name: ARRAY 72 OF CHAR;
-		BEGIN
-			w.Ln; w.Ln; 
-			w.String("----------------------------------------------------"); w.Ln; 
-			
-			IF exitAos THEN  Unix.exit( 1 )  END;
-			
-			w.Char( 2X );   (* end of trap text *) 
-			w.Update;
-			TrapWriters.Trapped;
-			S.GET( S.VAL( ADDRESS, trProcess.obj ) - 4, tag );
-			GetTypeName( tag, name );
-			IF name = "Oberon.System.OberonRunner" THEN  UnlockOberon  END;
-			TrapHandlingLevel := 0;
-			Machine.Release( Machine.Trap );
-		END FinishTrapText;
-		
-		
-		PROCEDURE TimeTag;
-		VAR 
-			tv: Unix.Timeval;  tz: Unix.Timezone;  t: Unix.TmPtr;  ret: LONGINT;
-			
-			PROCEDURE Int( i: LONGINT );
-			BEGIN
-				IF i < 10 THEN  w.Char( '0' )  END;
-				w.Int( i, 0 )
-			END Int;
-			
-		BEGIN
-			ret := Unix.gettimeofday( tv, tz );
-			t := Unix.localtime( tv );
-			w.Int( 1900 + t.year, 4 );  w.Char( '/' );  Int( t.mon + 1 );  w.Char( '/' );  Int( t.mday );  
-			w.String( "  " );  Int( t.hour );  w.Char( ':' );  Int( t.min );  w.Ln;
-		END TimeTag;
-		
 	BEGIN 
 		INC( TrapHandlingLevel ); 
 		IF trace THEN  
@@ -93,17 +89,14 @@ VAR
 			Trace.Ln;  
 		END;  
 				
-		trProcess := Objects.CurrentProcess( );  
 		IF fatalerror THEN  
 			w := unix.error  
 		ELSE  
 			w := TrapWriters.GetWriter();
 			w.Char( 1X );   (* begin of trap text *) 
-			w.Ln;  
-			w.String( Machine.version ); w.String( "   " );  TimeTag;
-			w.Ln
 		END;
-		
+		w.Ln;  
+		w.String( Machine.version ); w.String( "   " );  TimeTag( w );  w.Ln;
 		IF TrapHandlingLevel = 1 THEN  
 			IF ~fatalerror THEN  Machine.Acquire( Machine.Trap )  END;
 			w.String( "Trap " ) 
@@ -141,10 +134,9 @@ VAR
 			w.String( "(Signal " );  w.Int( sig, 0 );  w.Char( ')' );  
 		END;  
 		w.Ln;  
-		IF TrapHandlingLevel > 1 THEN 
-			FinishTrapText( fatalerror OR (TrapHandlingLevel > 2) );
-			Objects.Terminate
-		ELSE
+		handled := FALSE;
+		IF TrapHandlingLevel = 1 THEN
+			process := Objects.CurrentProcess( ); 
 			pc := ucp.mc.eip;  bp := ucp.mc.ebp;
 			IF pc = 0 THEN  
 				(* assume call of procedure variable with value NIL *)
@@ -154,24 +146,30 @@ VAR
 			w.String( "    sp = " );  w.Address( sp );  w.String( ", fp = " );  w.Address( bp ); 
 			w.String( ", pc = " );  w.Address( pc );  w.Ln;  
 			w.Ln;  
-			Reflection.StackTraceBack( w, pc, bp, Objects.GetStackBottom(trProcess), TRUE, FALSE );
-			HandleException( trProcess, ucp, handled ); 
+			Reflection.StackTraceBack( w, pc, bp, Objects.GetStackBottom( process ), TRUE, FALSE );
+			HandleException( process, ucp, handled ); 
 			IF handled THEN   
 				w.Ln;  w.Ln;
 				w.String( "### program continues with exception handler ###" );   w.Ln				
-			END;  
-			FinishTrapText( fatalerror );
-			IF handled THEN  RETURN  (* to exception handler! *)END;
+			END
+		END;
+		w.Ln; w.Ln; 
+		w.String("----------------------------------------------------"); w.Ln; 
+		
+		IF fatalerror OR (TrapHandlingLevel > 2) THEN  Machine.Shutdown( FALSE )  END;
+		
+		FinishTrap( w, process );
+		
+		IF handled THEN  RETURN  (*! to exception handler !! *)  END;
 			
-			IF Machine.standaloneAppl THEN	
-				unix.error.Ln;  unix.error.Ln;
-				unix.error.String( "### Program aborted. Stack backtrace in logfile" );  unix.error.Ln;
-				unix.error.Update
-			END;
-			IF Heaps.collecting OR Machine.standaloneAppl THEN  Machine.Shutdown( FALSE )  END;  
-			IF trace THEN  
-				Trace.String( "Teminating trapped thread " );  Trace.Int( trProcess.id , 0 ); Trace.Ln
-			END;  
+		IF Machine.standaloneAppl THEN	
+			unix.error.Ln;  unix.error.Ln;
+			unix.error.String( "### Program aborted. Stack backtrace in logfile" );  unix.error.Ln;
+			unix.error.Update;
+			Machine.Shutdown( FALSE )
+		ELSIF TrapHandlingLevel > 1 THEN 
+			Objects.Terminate
+		ELSE
 			Objects.ExitTrap() 
 		END
 	END Trap;  
