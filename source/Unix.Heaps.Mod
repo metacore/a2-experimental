@@ -110,7 +110,7 @@ TYPE
 VAR
 	freeLists: ARRAY MaxFreeLists + 1 OF FreeList;
 
-	candidates: CandBuffer;
+	candidates, candbuf: CandBuffer;
 	nofcand: LONGINT;
 	
 	deferred: ARRAY 1000 OF ADDRESS;
@@ -507,7 +507,7 @@ VAR
 	END SizeOf;
 	
 	
-	PROCEDURE SortCandidates( VAR candbuf: CandBuffer;  nc: LONGINT );
+	PROCEDURE SortCandidates( nc: LONGINT );
 	VAR i, j, h: LONGINT;  p: ADDRESS;
 	BEGIN
 		(* sort them in increasing order using shellsort *)
@@ -524,24 +524,33 @@ VAR
 			END
 		UNTIL h = 1;
 	END SortCandidates;
+	
+	
 
 	PROCEDURE CheckCandidates;  
 	VAR
 		i, nc: LONGINT; mb: Machine.MemoryBlock;
 		p, tag1, tag2, block: ADDRESS;
 		blkSize: SIZE;
-		candbuf: CandBuffer;
+		
+		PROCEDURE NextCandidate(): ADDRESS;
+		VAR cand: ADDRESS;
+		BEGIN
+			IF i < nc THEN  cand := candbuf[i];  INC( i )  ELSE  cand := 0  END;
+			RETURN cand
+		END NextCandidate;
+		
 	BEGIN
 		IF nofcand = 0 THEN  RETURN  END;
 		
-		candbuf := candidates;  nc := nofcand;  nofcand := 0;
-		
-		SortCandidates( candbuf, nc );
+		candbuf := candidates;  nc := nofcand;  nofcand := 0;  
+		SortCandidates( nc );
 
-		p := candbuf[i];  i := 1;
+		i := 0;
+		p := NextCandidate();  
 		mb := Machine.memBlockHead;
 		REPEAT
-			IF (p < mb.endBlockAdr) & (candbuf[nc-1] > mb.beginBlockAdr) THEN
+			IF (p < mb.endBlockAdr) & (candbuf[nc-1] > mb.beginBlockAdr) THEN	
 				block := mb.beginBlockAdr;  
 				blkSize := SizeOf( block );
 				REPEAT
@@ -550,32 +559,31 @@ VAR
 							S.GET( block, tag1 );
 							IF tag1 # p THEN  (* not a free block *) Mark( S.VAL( ANY, p ) )  END
 						END;
-						p := candbuf[i];  INC( i )
+						p := NextCandidate();  
 					ELSIF p = block + AddrSize + 24 THEN  (* system block ? *)
 						S.GET( block, tag1 );
 						S.GET( p - AddrSize, tag2 );
 						IF (tag2 = p - 24) & (tag2 = tag1)  THEN
 							(* really a sysblock *)  Mark( S.VAL( ANY, p ) );
 						END;
-						p := candbuf[i];  INC( i )
+						p := NextCandidate();  
 					ELSIF (blkSize > AddrSize + ProtOfs) & (p = block + AddrSize + ProtOfs)  THEN  (* prot. obj. ? *)
 						S.GET( block, tag1 );
 						IF tag1 = block + AddrSize THEN  Mark( S.VAL( ANY, p ) )  END;
-						p := candbuf[i];  INC( i )
+						p := NextCandidate();  
 					ELSE
 						block := block + blkSize;
 						IF block < mb.endBlockAdr THEN  blkSize := SizeOf( block ) END;
 					END;
-				UNTIL (i > nc) OR (block >= mb.endBlockAdr) OR (p >= mb.endBlockAdr)
-			END;
+				UNTIL (p = 0) OR (block >= mb.endBlockAdr) OR (p >= mb.endBlockAdr);
+			END;	
 			mb := mb.next;
-		UNTIL (mb = NIL) OR (i > nc);
+		UNTIL (mb = NIL) OR (p = 0);
 	END CheckCandidates;
 	
 
-
 	PROCEDURE AddCandidate*( p: ADDRESS );
-	VAR tag0Addr, tag0: ADDRESS;  tag: SET;
+	VAR tag0Addr, tag0: ADDRESS;  tag: SET;  i: LONGINT;
 	BEGIN
 		IF p MOD 32 = 0 THEN
 			tag0Addr := p - AddrSize (* RecBlk, ArrBlk *)
@@ -585,6 +593,11 @@ VAR
 			tag0Addr := p - 24 - AddrSize (* SysBlk *)
 		ELSE  RETURN
 		END;
+		
+		i := 0;
+		WHILE (i < nofcand) & (candidates[i] # p) DO  INC( i )  END;
+		IF i < nofcand THEN  (* double *) RETURN  END; 
+		
 		IF ValidAddress( tag0Addr ) THEN
 			S.GET( tag0Addr, tag0 );
 			IF ODD( tag0 ) THEN  RETURN  END;  (* already marked *)
