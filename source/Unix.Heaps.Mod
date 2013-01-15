@@ -525,63 +525,51 @@ VAR
 		UNTIL h = 1;
 	END SortCandidates;
 
-	PROCEDURE CheckCandidates( nc: LONGINT );  
+	PROCEDURE CheckCandidates;  
 	VAR
-		i: LONGINT; sb: Machine.MemoryBlock;
-		p, tag1, tag2, block, endBlockAdr: ADDRESS;
+		i, nc: LONGINT; mb: Machine.MemoryBlock;
+		p, tag1, tag2, block: ADDRESS;
 		blkSize: SIZE;
 		candbuf: CandBuffer;
 	BEGIN
-		IF nc = 0 THEN  RETURN  END;
+		IF nofcand = 0 THEN  RETURN  END;
 		
-		candbuf := candidates;  nofcand := 0;
+		candbuf := candidates;  nc := nofcand;  nofcand := 0;
 		
 		SortCandidates( candbuf, nc );
 
-		(* sweep phase *)
-		i := 0;  p := candbuf[i];
-
-		sb := Machine.memBlockHead;
-		LOOP
-			IF sb = NIL THEN  EXIT   END;
-
-			block := sb.beginBlockAdr;  endBlockAdr := sb.endBlockAdr;
-			blkSize := SizeOf( block );
-
-			LOOP
-				IF p <= block + AddrSize THEN
-					IF p = block + AddrSize THEN
+		p := candbuf[i];  i := 1;
+		mb := Machine.memBlockHead;
+		REPEAT
+			IF (p < mb.endBlockAdr) & (candbuf[nc-1] > mb.beginBlockAdr) THEN
+				block := mb.beginBlockAdr;  
+				blkSize := SizeOf( block );
+				REPEAT
+					IF p <= block + AddrSize THEN
+						IF p = block + AddrSize THEN
+							S.GET( block, tag1 );
+							IF tag1 # p THEN  (* not a free block *) Mark( S.VAL( ANY, p ) )  END
+						END;
+						p := candbuf[i];  INC( i )
+					ELSIF p = block + AddrSize + 24 THEN  (* system block ? *)
 						S.GET( block, tag1 );
-						IF tag1 # p THEN  (* not a free block *) Mark( S.VAL( ANY, p ) )  END
+						S.GET( p - AddrSize, tag2 );
+						IF (tag2 = p - 24) & (tag2 = tag1)  THEN
+							(* really a sysblock *)  Mark( S.VAL( ANY, p ) );
+						END;
+						p := candbuf[i];  INC( i )
+					ELSIF (blkSize > AddrSize + ProtOfs) & (p = block + AddrSize + ProtOfs)  THEN  (* prot. obj. ? *)
+						S.GET( block, tag1 );
+						IF tag1 = block + AddrSize THEN  Mark( S.VAL( ANY, p ) )  END;
+						p := candbuf[i];  INC( i )
+					ELSE
+						block := block + blkSize;
+						IF block < mb.endBlockAdr THEN  blkSize := SizeOf( block ) END;
 					END;
-					INC( i );
-					IF i = nc THEN  EXIT   END;
-					p := candbuf[i]
-				ELSIF p = block + AddrSize + 24 THEN  (* system block ? *)
-					S.GET( block, tag1 );
-					S.GET( p - AddrSize, tag2 );
-					IF (tag2 = p - 24) & (tag2 = tag1)  THEN
-						(* really a sysblock *)  Mark( S.VAL( ANY, p ) );
-					END;
-					INC( i );
-					IF i = nc THEN  EXIT   END;
-					p := candbuf[i]
-				ELSIF (blkSize > AddrSize + ProtOfs) & (p = block + AddrSize + ProtOfs)  THEN  (* prot. obj. ? *)
-					S.GET( block, tag1 );
-					IF tag1 = block + AddrSize THEN  Mark( S.VAL( ANY, p ) )  END;
-					INC( i );
-					IF i = nc THEN  EXIT   END;
-					p := candbuf[i]
-				ELSE
-					block := block + blkSize;
-					IF block >= endBlockAdr THEN  EXIT   END;
-					blkSize := SizeOf( block );
-				END;
+				UNTIL (i > nc) OR (block >= mb.endBlockAdr) OR (p >= mb.endBlockAdr)
 			END;
-
-			IF i = nc THEN  EXIT   END;
-			sb := sb.next;
-		END;
+			mb := mb.next;
+		UNTIL (mb = NIL) OR (i > nc);
 	END CheckCandidates;
 	
 
@@ -603,7 +591,7 @@ VAR
 			S.GET ( p - AddrSize, tag );
 			IF ValidAddress( S.VAL( ADDRESS, tag - {ArrayBit, MarkBit} ) ) THEN
 				candidates[nofcand] := p;  INC( nofcand );
-				IF nofcand = MaxCandidates THEN  CheckCandidates( nofcand )  END
+				IF nofcand = MaxCandidates THEN  CheckCandidates  END
 			END;
 		END
 	END AddCandidate;
@@ -621,7 +609,8 @@ VAR
 		collecting := TRUE;  markDepth := 0;  noDeferred := 0;  nofcand := 0;
 		
 		Mark( root );
-		CheckCandidates( nofcand );  CheckFinalizedObjects;
+		REPEAT  CheckCandidates  UNTIL nofcand = 0;  
+		CheckFinalizedObjects;
 		Sweep;
 
 		collecting := FALSE;  thruput := 0;
@@ -689,7 +678,7 @@ VAR
 						heapSize := GetHeapSize();
 					ELSE
 						Trace.Ln;  
-						Trace.String( "Heapspace exhaustet" ); Trace.Ln;  
+						Trace.String( "Heapspace exhausted" ); Trace.Ln;  
 						Machine.Release( Machine.Heaps );
 						HALT( 99 )
 					END	
