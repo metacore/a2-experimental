@@ -4448,21 +4448,21 @@ TYPE
 		END CheckNumberType;
 
 		(**
-			if expression x is of number type but not complex then return true else report error and return false
+			if expression x is of number or size type but not complex then return true else report error and return false
 		**)
-		PROCEDURE CheckNonComplexNumberType(x: SyntaxTree.Expression): BOOLEAN;
+		PROCEDURE CheckNonComplexNumberSizeType(x: SyntaxTree.Expression): BOOLEAN;
 		VAR result: BOOLEAN;
 		BEGIN
 			result := FALSE;
 			IF x = SyntaxTree.invalidExpression THEN
 			ELSIF x.type.resolved IS SyntaxTree.ComplexType THEN
 				Error(x.position,Diagnostics.Invalid,"is complex type");
-			ELSIF ~(x.type.resolved IS SyntaxTree.NumberType) THEN
+			ELSIF ~(x.type.resolved IS SyntaxTree.NumberType) & ~(x.type.resolved IS SyntaxTree.SizeType) THEN
 				Error(x.position,Diagnostics.Invalid,"is non number type");
 			ELSE result := TRUE
 			END;
 			RETURN result
-		END CheckNonComplexNumberType;
+		END CheckNonComplexNumberSizeType;
 
 		PROCEDURE CheckAddressType(x: SyntaxTree.Expression): BOOLEAN;
 		VAR result: BOOLEAN; type: SyntaxTree.Type;
@@ -5090,7 +5090,7 @@ TYPE
 				(* ---- ABS ----- *)
 				ELSIF (id = Global.Abs) & CheckArity(1,1) THEN
 					(* note: ABS on complex numbers is done using overloading *)
-					IF CheckNonComplexNumberType(parameter0) THEN
+					IF CheckNonComplexNumberSizeType(parameter0) THEN
 						type := type0;
 						IF IsIntegerValue(parameter0,i0) THEN
 							result.SetResolved(SyntaxTree.NewIntegerValue(position,ABS(i0)));
@@ -5294,7 +5294,7 @@ TYPE
 						ELSE
 							Error(parameter0.position,Diagnostics.Invalid,"is not a type symbol");
 						END
-					ELSIF CheckNonComplexNumberType(parameter0) & CheckNonComplexNumberType(parameter1) THEN
+					ELSIF CheckNonComplexNumberSizeType(parameter0) & CheckNonComplexNumberSizeType(parameter1) THEN
 						ConvertOperands(parameter0,parameter1);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
@@ -5325,7 +5325,7 @@ TYPE
 						ELSE
 							Error(parameter0.position,Diagnostics.Invalid,"is not a type symbol");
 						END
-					ELSIF CheckNonComplexNumberType(parameter0) & CheckNonComplexNumberType(parameter1) THEN
+					ELSIF CheckNonComplexNumberSizeType(parameter0) & CheckNonComplexNumberSizeType(parameter1) THEN
 						ConvertOperands(parameter0,parameter1);
 						actualParameters.SetExpression(0,parameter0);
 						actualParameters.SetExpression(1,parameter1);
