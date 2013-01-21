@@ -6108,6 +6108,15 @@ TYPE
 				Convert(result.op,IntermediateCode.GetType(system, x.type));
 			(* ---- SUM ----- *)
 			|Global.Sum: HALT(200);
+			(* ---- CAS ----- *)
+			|Global.Cas:
+				Designate(p0,s0);
+				Evaluate(p1,s1);
+				Evaluate(p2,s2);
+				Emit(Cas(position,s0.op,s1.op,s2.op));
+				ReleaseOperand(s0); ReleaseOperand(s1); ReleaseOperand(s2);
+				res := NewRegisterOperand(IntermediateCode.GetType(system, p0.type));
+				Emit(Result(position, res)); result.op := res; result.mode := ModeValue;
 			(* ---- DIM ----- *)
 			|Global.Dim:
 				ASSERT(~SemanticChecker.IsArrayStructuredObjectType(p0.type));
@@ -9638,6 +9647,13 @@ TYPE
 		IntermediateCode.InitInstruction(instruction,position,IntermediateCode.ror,dest,left, IntermediateCode.ToUnsigned(right));
 		RETURN instruction
 	END Ror;
+
+	PROCEDURE Cas(position: LONGINT;dest,src,size: IntermediateCode.Operand): IntermediateCode.Instruction;
+	VAR instruction: IntermediateCode.Instruction;
+	BEGIN
+		IntermediateCode.InitInstruction(instruction,position,IntermediateCode.cas,dest,src,size);
+		RETURN instruction
+	END Cas;
 
 	PROCEDURE Copy(position: LONGINT;dest,src,size: IntermediateCode.Operand): IntermediateCode.Instruction;
 	VAR instruction: IntermediateCode.Instruction;

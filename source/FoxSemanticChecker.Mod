@@ -5675,6 +5675,25 @@ TYPE
 					ELSE
 						Error(position,Diagnostics.Invalid,"dimension on non math array type");
 					END;
+				(* ---- CAS ----- *)
+				ELSIF (id = Global.Cas) & CheckArity(3,3) THEN
+					IF type0.IsComposite () THEN
+						Error(position,Diagnostics.Invalid,"first parameter of composite type");
+						result := SyntaxTree.invalidExpression;
+					ELSIF ~IsVariable (parameter0) THEN
+						Error(position,Diagnostics.Invalid,"first parameter not assignable");
+						result := SyntaxTree.invalidExpression;
+					ELSIF ~CompatibleTo(system,type1,type0) THEN
+						Error(position,Diagnostics.Invalid,"second parameter incompatible");
+						result := SyntaxTree.invalidExpression;
+					ELSIF ~CompatibleTo(system,type2,type0) THEN
+						Error(position,Diagnostics.Invalid,"third parameter incompatible");
+						result := SyntaxTree.invalidExpression;
+					ELSE
+						parameter1 := NewConversion(Diagnostics.Invalid,parameter1,type0,NIL); actualParameters.SetExpression(1,parameter1);
+						parameter2 := NewConversion(Diagnostics.Invalid,parameter2,type0,NIL); actualParameters.SetExpression(2,parameter2);
+						type := type0;
+					END;
 				(* ---- RESHAPE ----- *)
 				ELSIF (id = Global.Reshape) & CheckArity(2,2) THEN
 					IF type0 IS SyntaxTree.MathArrayType THEN
