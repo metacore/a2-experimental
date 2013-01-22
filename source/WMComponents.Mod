@@ -2163,11 +2163,14 @@ TYPE
 		BEGIN
 			(* 	does not work because of deadlock. Not easy to resolve because the sequencer lock and the SELF.lock are used always somwhere in the code...
 
+				form.Acquire;
 				IF (form # NIL) & (form.initialized) & useAlpha THEN
 					hit := form.GetPositionOwner(x,y) # NIL;
 				END;
+				form.Release;
 			*)
-			hit := form.visible.Get(); (* too coarse to be useful *)
+			hit := ~useAlpha OR form.visible.Get(); (* too coarse to be useful *)
+			
 			RETURN hit
 		END IsHit;
 
