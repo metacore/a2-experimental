@@ -340,7 +340,7 @@ CODE{SYSTEM.Pentium}
 	MOV	EBX, [EBP + new + 0]
 	MOV	ECX, [EBP + new + 4]
 	MOV	EDI, [EBP + value]
-	CMPXCHG8B [EDI]
+	LOCK CMPXCHG8B [EDI]
 END CasH;
 
 (* compare strings,
