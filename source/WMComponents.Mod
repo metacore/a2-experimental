@@ -1218,9 +1218,11 @@ TYPE
 			IF sequencer # NIL THEN ASSERT(sequencer.lock.HasWriteLock()) END;
 			DisableUpdate;
 			p := SELF.GetParent();
-			IF (p # NIL) & (p IS VisualComponent) THEN p(VisualComponent).AlignSubComponents END;
-			AlignSubComponents;
-			IF scaleFont.Get() # 0 THEN ScaleFont(bounds.GetHeight(), scaleFont.Get()) END;
+			IF  (p # NIL) & (p IS VisualComponent) & (alignment.Get() # AlignClient) THEN p(VisualComponent).AlignSubComponents END;
+			IF visible.Get() THEN 
+				AlignSubComponents;
+				IF scaleFont.Get() # 0 THEN ScaleFont(bounds.GetHeight(), scaleFont.Get()) END;
+			END;
 			EnableUpdate;
 			IF (p # NIL) & (p IS VisualComponent) THEN p(VisualComponent).Invalidate
 			ELSE Invalidate()
