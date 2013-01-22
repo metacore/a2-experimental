@@ -1028,7 +1028,7 @@ TYPE
 		(** Return if the component is hit at (x, y) in component coordinates *)
 		PROCEDURE IsHit*(x, y: LONGINT): BOOLEAN;
 		BEGIN
-			RETURN visible.Get() & Rectangles.PointInRect(x, y, GetClientRect())
+			RETURN visible.Get() & enabled.Get() &  Rectangles.PointInRect(x, y, GetClientRect())
 		END IsHit;
 
 		(** Return the topmost first child component at (x, y) *)
@@ -1042,7 +1042,7 @@ TYPE
 				IF c IS VisualComponent THEN
 					vc := c(VisualComponent);
 					r := vc.bounds.Get();
-					IF Rectangles.PointInRect(x, y, r) & vc.IsHit(x - r.l, y - r.t) & vc.enabled.Get() THEN
+					IF Rectangles.PointInRect(x, y, r) & vc.IsHit(x - r.l, y - r.t)  THEN
 						result := vc
 					END;
 				END;
@@ -1218,8 +1218,8 @@ TYPE
 			IF sequencer # NIL THEN ASSERT(sequencer.lock.HasWriteLock()) END;
 			DisableUpdate;
 			p := SELF.GetParent();
-			IF  (p # NIL) & (p IS VisualComponent) & (alignment.Get() # AlignClient) THEN p(VisualComponent).AlignSubComponents END;
-			IF visible.Get() THEN 
+			IF  (p # NIL) & (p IS VisualComponent) & (alignment.Get() # AlignNone) THEN p(VisualComponent).AlignSubComponents END;
+			IF visible.Get() THEN
 				AlignSubComponents;
 				IF scaleFont.Get() # 0 THEN ScaleFont(bounds.GetHeight(), scaleFont.Get()) END;
 			END;
@@ -2157,6 +2157,19 @@ TYPE
 			CopyRect(rect);
 			Invalidate(rect)
 		END Update;
+
+		PROCEDURE IsHit(x,y: LONGINT): BOOLEAN;
+		VAR hit: BOOLEAN;
+		BEGIN
+			(* 	does not work because of deadlock. Not easy to resolve because the sequencer lock and the SELF.lock are used always somwhere in the code...
+
+				IF (form # NIL) & (form.initialized) & useAlpha THEN
+					hit := form.GetPositionOwner(x,y) # NIL;
+				END;
+			*)
+			hit := form.visible.Get(); (* too coarse to be useful *)
+			RETURN hit
+		END IsHit;
 
 		PROCEDURE Handle*(VAR m : Messages.Message);
 		BEGIN
