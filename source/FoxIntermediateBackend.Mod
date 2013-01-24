@@ -23,8 +23,8 @@ CONST
 		MathLenOffset=5;
 		MathIncrOffset=6;
 
-		SysDataArrayOffset* = 8*8;   (* array offset in system block, for 32 byte alignment *)
-		ArrDataArrayOffset*= 16*8; (* array offset in array block, to be compatible with the GC scheme of POINTER TO ARRAY OF ... *)
+		SysDataArrayOffset* = 0; (* array offset in system block, for 32 byte alignment *)
+		ArrDataArrayOffset*= 16*8; (* 16 bytes array offset in array block, to be compatible with the GC scheme of POINTER TO ARRAY OF ... *)
 
 		TensorFlag* = 0;   (* flag indicating a tensor array *)
 		RangeFlag* = 1;   (* flag indicating a range, e.g. an array derived from A[..,..] *)
@@ -5883,7 +5883,6 @@ TYPE
 								Emit(Mul(position,reg,reg,IntermediateCode.Immediate(addressType,size))); (*! optimize the multiplication of immediate operands *)
 							END;
 							tmp := IntermediateCode.Immediate(addressType,ToMemoryUnits(system,SysDataArrayOffset));
-							(* DIV 2 term for some strange alignment, don't understand it at the moment - copied from PCC *)
 							Emit(Add(position,reg,reg,tmp));
 
 							Designate(p0,l);
@@ -7601,6 +7600,7 @@ TYPE
 		PROCEDURE ParameterCopies(x: SyntaxTree.ProcedureType);
 		VAR parameter: SyntaxTree.Parameter; type: SyntaxTree.Type; op: Operand; temp,size,par: IntermediateCode.Operand;
 			const: IntermediateCode.Operand;
+			parameterDesignator: SyntaxTree.Expression;
 		BEGIN
 			IF Trace THEN TraceEnter("ParameterCopies") END;
 			parameter := x.firstParameter;
@@ -7626,6 +7626,9 @@ TYPE
 						ReleaseOperand(op);
 						IntermediateCode.MakeMemory(par,addressType);
 						Emit(Mov(position,par,sp));
+					ELSIF (type IS SyntaxTree.MathArrayType) & (type(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
+						parameterDesignator := checker.NewSymbolDesignator(position,NIL,parameter);
+						Assign(parameterDesignator,parameterDesignator);
 					END;
 				END;
 				parameter := parameter.nextParameter;
