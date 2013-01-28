@@ -5358,7 +5358,7 @@ TYPE
 				SetLabel(ignore);
 				result.op := reg;
 			(* ---- CHR ----- *)
-			|Global.Chr:
+			|Global.Chr, Global.Chr32:
 				Evaluate(p0,result);
 				Convert(result.op,IntermediateCode.GetType(system,x.type));
 			|Global.Entier, Global.EntierH:
@@ -5398,7 +5398,7 @@ TYPE
 					BrL(falseLabel);
 				END;
 			(* ---- ORD ----- *)
-			|Global.Ord:
+			|Global.Ord, Global.Ord32:
 				Evaluate(p0,result);
 				Convert(result.op,IntermediateCode.GetType(system,x.type));
 			(* ---- SHORT, LONG ----- *)
