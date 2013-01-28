@@ -7164,9 +7164,8 @@ TYPE
 			*)
 			string := "@case"; Basic.AppendNumber(string, caseId); INC(caseId);
 			Basic.InitSegmentedName(name);
-			name[0] := module.module.name;
-			name[1] := Basic.MakeString(string);
-			name[2] := -1;
+			Global.GetModuleSegmentedName(module.module, name);
+			Basic.SuffixSegmentedName(name,Basic.MakeString(string));
 			symbol := SyntaxTree.NewSymbol(name[1]);
 			symbol.SetScope(moduleScope);
 			NEW(fixups,size); FOR i := 0 TO size-1 DO fixups[i] := NIL END;
