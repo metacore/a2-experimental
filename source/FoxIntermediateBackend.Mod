@@ -6381,13 +6381,10 @@ TYPE
 		END VisitBooleanValue;
 
 		PROCEDURE GetDataSection*(): IntermediateCode.Section;
-		VAR name: Basic.SegmentedName; section: IntermediateCode.Section; s: ARRAY 128 OF CHAR; i: LONGINT;
+		VAR name: Basic.SegmentedName; section: IntermediateCode.Section;
 		BEGIN
 			Global.GetModuleSegmentedName(module.module, name);
 			Basic.SuffixSegmentedName(name,Basic.MakeString("@Immediates"));
-			FOR i := 0 TO LEN(name)-1 DO
-				IF name[i] >= 0 THEN StringPool.GetString(name[i], s); TRACE(name[i], s) END;
-			END;
 			section := IntermediateCode.NewSection(module.allSections, Sections.ConstSection, name,NIL,TRUE);
 			RETURN section
 		END GetDataSection;
