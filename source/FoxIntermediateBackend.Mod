@@ -8478,12 +8478,11 @@ TYPE
 		END IsFirstDirectOccurence;
 
 		PROCEDURE ImportsArray(source: IntermediateCode.Section);
-		VAR import: SyntaxTree.Import ; pc: LONGINT; moduleSection: IntermediateCode.Section; name: Basic.SegmentedName; numberImports: LONGINT; offset: LONGINT;
+		VAR import: SyntaxTree.Import ; pc: LONGINT;name: Basic.SegmentedName; numberImports: LONGINT; offset: LONGINT;
 		BEGIN
 			Array(source,pc);
 			Info(source, "import module array data");
-			moduleSection:= ModuleSection(); (* to determine module offset *)
-			offset := moduleSection.pc;
+			offset := ToMemoryUnits(module.system, 22* module.system.addressSize) (* Module pointer offset -- cf. ModuleSection(), how to encode generically correct? *);
 			import :=  module.module.moduleScope.firstImport;
 			numberImports := 0;
 			WHILE import # NIL DO
