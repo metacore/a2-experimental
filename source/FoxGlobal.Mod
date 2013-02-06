@@ -20,6 +20,7 @@ CONST
 	StringAlignStack*="ALIGNSTACK";
 	StringFinal*="FINAL";
 	StringAbstract*="ABSTRACT";
+	StringRegister*= "REGISTER";
 
 	(* block modifier flag names *)
 	StringExclusive* = "EXCLUSIVE";
@@ -117,7 +118,7 @@ VAR
 	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-, NamePcOffset-, NameNoPAF-,NameEntry-, NameExit-, NameFixed-,NameAligned-,NameStackAligned-,
 	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-, NameDynamic-, NameDataMemorySize-, NameCodeMemorySize-
 	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-, NameVector-, NameFloatingPoint-, NameEngine-, NameFinal-, NameAbstract-,
-	NameFrequencyDivider-: SyntaxTree.Identifier;
+	NameFrequencyDivider-, NameRegister-: SyntaxTree.Identifier;
 
 	identifiers: ARRAY 2 OF ARRAY end OF SyntaxTree.Identifier;
 
@@ -135,6 +136,8 @@ TYPE
 	Alignment* = RECORD
 		min, max: LONGINT; (* alignments in bits *)
 	END;
+
+	PassInRegisterProc = PROCEDURE {DELEGATE} (type: SyntaxTree.Type): BOOLEAN;
 
 	System*= OBJECT
 	VAR
@@ -168,7 +171,9 @@ TYPE
 		addressType-, sizeType-, shortintType-, integerType-, longintType-, hugeintType-, characterType-, characterType8-, characterType16-, characterType32-, setType-, booleanType-, anyType-,byteType-,
 		realType-, longrealType-, complexType-, longcomplexType-, objectType-, nilType-, rangeType-: SyntaxTree.Type;
 
-		PROCEDURE &InitSystem*(codeUnit, dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar, registerParameters: LONGINT);
+		CanPassInRegister-: PassInRegisterProc;
+
+		PROCEDURE &InitSystem*(codeUnit, dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar, registerParameters: LONGINT; canPassInRegister: PassInRegisterProc);
 		VAR i: LONGINT;
 		BEGIN
 			ASSERT(dataUnit > 0);
@@ -190,6 +195,7 @@ TYPE
 			FOR i := 0 TO LEN(operatorDefined)-1 DO
 				operatorDefined[i] := FALSE;
 			END;
+			CanPassInRegister := canPassInRegister;
 		END InitSystem;
 
 		PROCEDURE AddCapability*(name: SyntaxTree.Identifier);
@@ -713,7 +719,7 @@ TYPE
 	PROCEDURE DefaultSystem*(): System;
 	VAR system: System;
 	BEGIN
-		NEW(system,8,8,32, 8,32,32,32,64,0);
+		NEW(system,8,8,32, 8,32,32,32,64,0, NIL);
 		SetDefaultDeclarations(system,8);
 		SetDefaultOperators(system);
 		RETURN system
@@ -1356,6 +1362,7 @@ TYPE
 		NameFinal := SyntaxTree.NewIdentifier(StringFinal);
 		NameAbstract := SyntaxTree.NewIdentifier(StringAbstract);
 		NameFrequencyDivider := SyntaxTree.NewIdentifier(StringFrequencyDivider);
+		NameRegister := SyntaxTree.NewIdentifier(StringRegister);
 
 		(* types *)
 		Boolean8 := SyntaxTree.NewBooleanType(8);
