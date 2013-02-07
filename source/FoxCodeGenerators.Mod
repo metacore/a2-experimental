@@ -1082,7 +1082,6 @@ TYPE
 				IF size<0 THEN AllocateSpillStack(size) END;
 			ELSIF ticket.register # None THEN
 				IF dump # NIL THEN
-					D.TraceBack;
 					dump.String("free register: index="); dump.Int(ticket.register,1);  dump.Ln;
 				END;
 				physicalRegisters.SetReserved(ticket.register,FALSE);

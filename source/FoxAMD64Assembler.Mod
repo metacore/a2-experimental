@@ -391,7 +391,7 @@ TYPE
 
 
 		BEGIN
-			IF dump # NIL THEN
+			IF (dump # NIL) & (lastPass) THEN
 				pc0 := code.pc;
 				DumpInstruction(dump,mnem,operands);
 				dump.Update;

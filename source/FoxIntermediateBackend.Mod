@@ -7647,7 +7647,7 @@ TYPE
 				result: IntermediateCode.Operand;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitCode") END;
-			IF x.inRules # NIL THEN
+			IF (x.inRules # NIL) & (x.inRules.Length()>0) THEN
 				NEW(in, x.inRules.Length());
 				FOR i := 0 TO LEN(in)-1 DO
 					statement := x.inRules.GetStatement(i);
@@ -7661,7 +7661,7 @@ TYPE
 				END;
 			ELSE in := NIL
 			END;
-			IF x.outRules # NIL THEN
+			IF (x.outRules # NIL) & (x.outRules.Length()>0) THEN
 				NEW(out, x.outRules.Length());
 				FOR i := 0 TO LEN(out)-1 DO
 					statement := x.outRules.GetStatement(i);

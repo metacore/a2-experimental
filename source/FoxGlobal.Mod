@@ -173,7 +173,7 @@ TYPE
 
 		CanPassInRegister-: PassInRegisterProc;
 
-		PROCEDURE &InitSystem*(codeUnit, dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar, registerParameters: LONGINT; canPassInRegister: PassInRegisterProc);
+		PROCEDURE &InitSystem*(codeUnit, dataUnit: LONGINT; addressSize, minVarAlign, maxVarAlign, minParAlign, maxParAlign, offsetFirstPar, registerParameters: LONGINT);
 		VAR i: LONGINT;
 		BEGIN
 			ASSERT(dataUnit > 0);
@@ -195,8 +195,14 @@ TYPE
 			FOR i := 0 TO LEN(operatorDefined)-1 DO
 				operatorDefined[i] := FALSE;
 			END;
-			CanPassInRegister := canPassInRegister;
+			CanPassInRegister :=NIL
 		END InitSystem;
+
+		PROCEDURE SetRegisterPassCallback*(canPassInRegister: PassInRegisterProc);
+		BEGIN
+			CanPassInRegister := canPassInRegister;
+		END SetRegisterPassCallback;
+
 
 		PROCEDURE AddCapability*(name: SyntaxTree.Identifier);
 		VAR symbol: SyntaxTree.Symbol;
@@ -719,7 +725,7 @@ TYPE
 	PROCEDURE DefaultSystem*(): System;
 	VAR system: System;
 	BEGIN
-		NEW(system,8,8,32, 8,32,32,32,64,0, NIL);
+		NEW(system,8,8,32, 8,32,32,32,64,0);
 		SetDefaultDeclarations(system,8);
 		SetDefaultOperators(system);
 		RETURN system
