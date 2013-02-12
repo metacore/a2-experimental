@@ -301,8 +301,24 @@ END Clipboard.
 
 
 
-Clipboard.Install ~
+ Clipboard.Install ~
 
 
-SystemTools.Free Clipboard ~
+ SystemTools.Free Clipboard ~
 	
+	
+	  ---------------------------------------------
+	   Cut & paste between X11 applications and UnixAos. 
+	
+	   After performing 'Clipboard.Install ~' the X11 clipboard and the
+	   Aos clipboard get synchronized. Every new X11 selection modifies 
+	   the Aos clipboard and the copy operation with the pie menu in 
+	   Aos alters the primary X11 selection. The selection can then be 
+	   inserted into an X11 application (e.g. the mail tool Thunderbird) 
+	   by clicking the MM button. 
+	   
+	   To stop the clipboard synchronization perform:
+	        'SystemTools.Free Clipboard ~'.
+	        
+	        
+	   ---------------------------------------------
