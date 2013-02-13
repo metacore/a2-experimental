@@ -7733,6 +7733,7 @@ TYPE
 						IntermediateCode.MakeMemory(par,addressType);
 						Emit(Mov(position,par,sp));
 					ELSIF (type IS SyntaxTree.MathArrayType) & (type(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
+						checker.SetCurrentScope(currentScope);
 						parameterDesignator := checker.NewSymbolDesignator(position,NIL,parameter);
 						Assign(parameterDesignator,parameterDesignator);
 					END;
