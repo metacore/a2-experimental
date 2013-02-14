@@ -2139,8 +2139,11 @@ TYPE
 				|Scanner.Size:
 					IF (left.type = SyntaxTree.typeDeclarationType) THEN
 						type := left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
-						result.SetResolved(SyntaxTree.NewIntegerValue(left.position,system.SizeOf(type.resolved) DIV 8 (* in bytes *) ));
-						type := system.integerType;
+						int := system.SizeOf(type.resolved) DIV 8 (* in bytes *);
+						value := SyntaxTree.NewIntegerValue(left.position, int);
+						result.SetResolved(value);
+						type := Global.GetSignedIntegerType(system,int);
+						value.SetType(type)
 						(* was Int16  in paco but should be systemSize (conflict with current release) *)
 					ELSE
 						(* for variables, system sizeof could represent the physically occupied size
