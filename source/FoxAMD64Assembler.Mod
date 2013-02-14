@@ -1955,9 +1955,12 @@ TYPE
 				NextSymbol;
 
 				IF (scope # NIL) THEN
-					emitter.cpuOptions := {};
-					IF ~Ensure (symLBrace, 550) THEN
+					IF symbol #  symLBrace THEN
+						(* treat CPU options as an optional limitation and not vice versa *)
 						RETURN
+					ELSE
+						emitter.cpuOptions := {};
+						NextSymbol
 					END;
 
 					(* parse code flags such as {SYSTEM.i386 .... } *)
