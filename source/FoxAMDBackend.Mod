@@ -618,7 +618,7 @@ TYPE
 					SpecialMove(InstructionSet.opMOVSD, dest, src, type);
 				END;
 			ELSE
-				SpecialMove( InstructionSet.opMOV, dest, src, type);
+				SpecialMove(InstructionSet.opMOV, dest, src, type);
 			END;
 		END Move;
 
@@ -1062,7 +1062,7 @@ TYPE
 				END;
 			|IntermediateCode.conv:
 				IF IsFloat(instruction.op1) OR IsFloat(instruction.op2) THEN
-					EmitConvertFloat(instruction.op1,instruction.op2)
+					EmitConvertFloat(instruction)
 				ELSE
 					EmitConvert(instruction.op1,instruction.op2,Low);
 					IF IsComplex(instruction.op1) THEN EmitConvert(instruction.op1,instruction.op2,High) END;
@@ -1460,10 +1460,11 @@ TYPE
 			END;
 		END EmitMov;
 
-		PROCEDURE EmitConvertFloat(CONST vdest, vsrc: IntermediateCode.Operand);
+		PROCEDURE EmitConvertFloat(CONST instruction: IntermediateCode.Instruction);
 		VAR destType, srcType: IntermediateCode.Type; dest,src,espm,imm: Assembler.Operand; sizeInBytes: LONGINT;
-		temp: Assembler.Operand; ticket: Ticket;
+		temp: Assembler.Operand; ticket: Ticket; vdest, vsrc: IntermediateCode.Operand
 		BEGIN
+			vdest := instruction.op1; vsrc := instruction.op2;
 			srcType := vsrc.type;
 			destType := vdest.type;
 			IF destType.form = IntermediateCode.Float THEN
@@ -1477,83 +1478,112 @@ TYPE
 						ticket := TemporaryTicket(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32);
 						TicketToOperand(ticket,temp);
 						emitter.Emit2(InstructionSet.opMOVSX,temp,src);
-						emitter.Emit1(InstructionSet.opPUSH,temp);
-						UnmapTicket(ticket);
-						sizeInBytes := temp.sizeInBytes;
-					ELSIF IsComplex(vsrc) THEN
+						IF backend.forceFPU THEN (* via stack *)
+							emitter.Emit1(InstructionSet.opPUSH,temp);
+							UnmapTicket(ticket);
+							sizeInBytes := temp.sizeInBytes;
+						ELSE (* via register *)
+							espm := temp;
+							sizeInBytes := 0
+						END;
+					ELSIF IsComplex(vsrc) THEN (* via stack *)
 						EmitPush(vsrc,High);
 						EmitPush(vsrc,Low);
-						(*
-						MakeOperand(vsrc,High,src,NIL);
-						emitter.Emit1(InstructionSet.opPUSH,src);
-						MakeOperand(vsrc,Low,src,NIL);
-						emitter.Emit1(InstructionSet.opPUSH,src);
-						*)
 						sizeInBytes := 8
 					ELSE
-						EmitPush(vsrc,Low);
-						(*
-						MakeOperand(vsrc,Low,src,NIL);
-						emitter.Emit1(InstructionSet.opPUSH,src);
-						*)
-						sizeInBytes := SHORTINT(4 (* cpuBits DIV 8*)) (*SHORT(srcType.sizeInBits DIV 8)*);
+						IF backend.forceFPU THEN (* via stack *)
+							EmitPush(vsrc,Low);
+							sizeInBytes := SHORTINT(4 (* cpuBits DIV 8*)) (*SHORT(srcType.sizeInBits DIV 8)*);
+						ELSE (* via memory or register *)
+							sizeInBytes := 0;
+							MakeOperand(vsrc,Low,src,NIL);
+							IF Assembler.IsImmediateOperand(src) THEN (* use temporary register *)
+								ticket := TemporaryTicket(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32);
+								TicketToOperand(ticket,temp);
+								emitter.Emit2(InstructionSet.opMOVSX,temp,src);
+								espm := temp
+							ELSE
+								espm := src
+							END;
+						END
 					END;
-					Assembler.InitMem(espm, SHORTINT(sizeInBytes),SP,0);
-					emitter.Emit1(InstructionSet.opFILD,espm);
-					INC(fpStackPointer);
-					ASSERT(sizeInBytes >0);
-					Basic.Align(sizeInBytes, 4 (* cpuBits DIV 8*));
-					AllocateStack(-sizeInBytes);
-					MakeOperand(vdest,Low,dest,NIL);
-					emitter.Emit1(InstructionSet.opFSTP,dest);
-					DEC(fpStackPointer);
+					IF sizeInBytes > 0 THEN
+						Assembler.InitMem(espm, SHORTINT(sizeInBytes),SP,0);
+					END;
+					IF backend.forceFPU THEN
+						emitter.Emit1(InstructionSet.opFILD,espm);
+						INC(fpStackPointer);
+						ASSERT(sizeInBytes >0);
+						Basic.Align(sizeInBytes, 4 (* cpuBits DIV 8*));
+						AllocateStack(-sizeInBytes);
+						MakeOperand(vdest,Low,dest,NIL);
+						emitter.Emit1(InstructionSet.opFSTP,dest);
+						DEC(fpStackPointer);
+					ELSE
+						MakeOperand(vdest,Low,dest,NIL);
+						IF destType.sizeInBits = 32 THEN
+							emitter.Emit2(InstructionSet.opCVTSI2SS, dest, espm)
+						ELSE
+							emitter.Emit2(InstructionSet.opCVTSI2SD, dest, espm)
+						END;
+						AllocateStack(-sizeInBytes);
+					END;
 				END;
 			ELSE
 				ASSERT(destType.form IN IntermediateCode.Integer);
 				ASSERT(srcType.form = IntermediateCode.Float);
 				Assert(vdest.type.form = IntermediateCode.SignedInteger, "no entier as result for unsigned integer");
 				MakeOperand(vsrc,Low,src,NIL);
-				emitter.Emit1(InstructionSet.opFLD,src); INC(fpStackPointer);
-				MakeOperand(vdest,Low,dest,NIL);
-				IF destType.sizeInBits = IntermediateCode.Bits64 THEN AllocateStack(12) ELSE AllocateStack(8) END;
-
-				Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,0);
-
-				emitter.Emit1(InstructionSet.opFNSTCW,espm);
-				emitter.Emit0(InstructionSet.opFWAIT);
-
-				Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,0);
-				ticket := TemporaryTicket(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32);
-				TicketToOperand(ticket,temp);
-
-				emitter.Emit2(InstructionSet.opMOV,temp,espm);
-				imm := Assembler.NewImm32(0F3FFH);
-				emitter.Emit2(InstructionSet.opAND,temp,imm);
-				imm := Assembler.NewImm32(0400H);
-				emitter.Emit2(InstructionSet.opOR,temp,imm);
-				Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,4);
-				emitter.Emit2(InstructionSet.opMOV,espm,temp);
-				Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,4);
-				emitter.Emit1(InstructionSet.opFLDCW,espm);
-				IF destType.sizeInBits = IntermediateCode.Bits64 THEN
-					Assembler.InitMem(espm,IntermediateCode.Bits64 DIV 8,SP,4);
-					emitter.Emit1(InstructionSet.opFISTP,espm);DEC(fpStackPointer);
-					emitter.Emit0(InstructionSet.opFWAIT);
+				IF ~backend.forceFPU THEN
+					MakeOperand(vdest,Low,dest,ticket);
+					IF srcType.sizeInBits = 32 THEN
+						emitter.Emit2(InstructionSet.opCVTSS2SI, dest, src)
+					ELSE
+						emitter.Emit2(InstructionSet.opCVTSD2SI, dest, src)
+					END;
 				ELSE
-					Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,4);
-					emitter.Emit1(InstructionSet.opFISTP,espm); DEC(fpStackPointer);
+					emitter.Emit1(InstructionSet.opFLD,src); INC(fpStackPointer);
+					MakeOperand(vdest,Low,dest,NIL);
+					IF destType.sizeInBits = IntermediateCode.Bits64 THEN AllocateStack(12) ELSE AllocateStack(8) END;
+
+					Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,0);
+
+					emitter.Emit1(InstructionSet.opFNSTCW,espm);
 					emitter.Emit0(InstructionSet.opFWAIT);
-				END;
-				Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,0);
-				emitter.Emit1(InstructionSet.opFLDCW,espm);
 
-				emitter.Emit1(InstructionSet.opPOP,temp);
-				UnmapTicket(ticket);
+					Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,0);
+					ticket := TemporaryTicket(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32);
+					TicketToOperand(ticket,temp);
 
-				emitter.Emit1(InstructionSet.opPOP,dest);
-				IF IsComplex(vdest) THEN
-					MakeOperand(vdest,High,dest,NIL);
+					emitter.Emit2(InstructionSet.opMOV,temp,espm);
+					imm := Assembler.NewImm32(0F3FFH);
+					emitter.Emit2(InstructionSet.opAND,temp,imm);
+					imm := Assembler.NewImm32(0400H);
+					emitter.Emit2(InstructionSet.opOR,temp,imm);
+					Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,4);
+					emitter.Emit2(InstructionSet.opMOV,espm,temp);
+					Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,4);
+					emitter.Emit1(InstructionSet.opFLDCW,espm);
+					IF destType.sizeInBits = IntermediateCode.Bits64 THEN
+						Assembler.InitMem(espm,IntermediateCode.Bits64 DIV 8,SP,4);
+						emitter.Emit1(InstructionSet.opFISTP,espm);DEC(fpStackPointer);
+						emitter.Emit0(InstructionSet.opFWAIT);
+					ELSE
+						Assembler.InitMem(espm,IntermediateCode.Bits32 DIV 8,SP,4);
+						emitter.Emit1(InstructionSet.opFISTP,espm); DEC(fpStackPointer);
+						emitter.Emit0(InstructionSet.opFWAIT);
+					END;
+					Assembler.InitMem(espm,IntermediateCode.Bits16 DIV 8,SP,0);
+					emitter.Emit1(InstructionSet.opFLDCW,espm);
+
+					emitter.Emit1(InstructionSet.opPOP,temp);
+					UnmapTicket(ticket);
+
 					emitter.Emit1(InstructionSet.opPOP,dest);
+					IF IsComplex(vdest) THEN
+						MakeOperand(vdest,High,dest,NIL);
+						emitter.Emit1(InstructionSet.opPOP,dest);
+					END;
 				END;
 			END;
 		END EmitConvertFloat;
