@@ -384,11 +384,10 @@ TYPE
 			BEGIN code.PutByte (scale MOD 4 * 40H + index MOD 8 * 8H + base MOD 8);
 			END SIB;
 
-			PROCEDURE FPOperation(mnem: LONGINT): BOOLEAN;
+			PROCEDURE FPOrSSEOperation(instr: LONGINT): BOOLEAN;
 			BEGIN
-				RETURN InstructionSet.cpuFPU IN InstructionSet.instructions[InstructionSet.mnemonics[mnem].firstInstruction].cpuOptions
-			END FPOperation;
-
+				RETURN {InstructionSet.cpuFPU, InstructionSet.cpuSSE, InstructionSet.cpuSSE2, InstructionSet.cpuSSE3} * InstructionSet.instructions[instr].cpuOptions # {}
+			END FPOrSSEOperation;
 
 		BEGIN
 			IF (dump # NIL) & (lastPass) THEN
@@ -483,7 +482,7 @@ TYPE
 								INCL (rexPrefix, rexX)
 							END
 						END;
-						IF (operands[i].sizeInBytes = bits64) & ~(InstructionSet.optD64 IN bitwidthOptions) &~ FPOperation(mnem) THEN
+						IF (operands[i].sizeInBytes = bits64) & ~(InstructionSet.optD64 IN bitwidthOptions) & ~FPOrSSEOperation(instr) THEN
 							IF Trace THEN KernelLog.String(" bits64 "); KernelLog.Ln; END;
 							INCL (rexPrefix, rexW)
 						END;
