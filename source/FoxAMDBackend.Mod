@@ -592,6 +592,13 @@ TYPE
 					procedureName := "CasH"; RETURN FALSE;
 				ELSE RETURN TRUE
 				END;
+			ELSIF ~backend.forceFPU & (instruction.opcode = IntermediateCode.conv) & (instruction.op1.type.form IN IntermediateCode.Integer) & (instruction.op2.type.form = IntermediateCode.Float)  & IsComplex(instruction.op1) THEN
+				IF instruction.op2.type.sizeInBits=32 THEN
+					procedureName := "EntierRH"
+				ELSE
+					procedureName := "EntierXH"
+				END;
+				RETURN FALSE
 			END;
 			RETURN TRUE
 		END Supported;
@@ -1497,7 +1504,7 @@ TYPE
 
 		PROCEDURE EmitConvertFloat(CONST instruction: IntermediateCode.Instruction);
 		VAR destType, srcType: IntermediateCode.Type; dest,src,espm,imm: Assembler.Operand; sizeInBytes: LONGINT;
-		temp: Assembler.Operand; ticket: Ticket; vdest, vsrc: IntermediateCode.Operand
+		temp, temp2, temp3: Assembler.Operand; ticket: Ticket; vdest, vsrc: IntermediateCode.Operand
 		BEGIN
 			vdest := instruction.op1; vsrc := instruction.op2;
 			srcType := vsrc.type;
@@ -1581,18 +1588,30 @@ TYPE
 				MakeOperand(vsrc,Low,src,NIL);
 				IF ~backend.forceFPU THEN
 					MakeOperand(vdest,Low,dest,ticket);
-					GetTemporaryRegister(destType, temp);
+					GetTemporaryRegister(srcType, temp);
+					GetTemporaryRegister(srcType, temp3);
+					GetTemporaryRegister(destType, temp2);
 					IF srcType.sizeInBits = 32 THEN
-						(* convert truncated -> negative numbers round up *)
-						emitter.Emit2(InstructionSet.opCVTTSS2SI, temp, src);
+						(* convert truncated -> negative numbers round up !*)
+						emitter.Emit2(InstructionSet.opCVTTSS2SI, dest, src);
+						(* back to temporary mmx register *)
+						emitter.Emit2(InstructionSet.opCVTSI2SS, temp, dest);
+						(* subtract *)
+						emitter.Emit2(InstructionSet.opMOVSS, temp3, src);
+						emitter.Emit2(InstructionSet.opSUBSS, temp3, temp);
+						(* back to a GP register in order to determine the sign bit *)
 					ELSE
-						emitter.Emit2(InstructionSet.opCVTTSD2SI, temp, src)
+						emitter.Emit2(InstructionSet.opCVTTSD2SI, dest, src);
+						emitter.Emit2(InstructionSet.opCVTSI2SD, temp, dest);
+						emitter.Emit2(InstructionSet.opMOVSD, temp3, src);
+						emitter.Emit2(InstructionSet.opSUBSD, temp3, temp);
+						emitter.Emit2(InstructionSet.opCVTSD2SS, temp3, temp3);
 					END;
-					(* correct for negative numbers: subtract the sign bit *)
-					Move(dest, temp, destType);
-					Assembler.InitImm(imm, 0 ,31);
-					emitter.Emit2(InstructionSet.opSHR, temp, imm);
-					emitter.Emit2(InstructionSet.opSUB, dest, temp);
+					emitter.Emit2(InstructionSet.opMOVD, temp2, temp3);
+					Assembler.InitImm(imm, 0 ,srcType.sizeInBits-1);
+					emitter.Emit2(InstructionSet.opBT, temp2, imm);
+					Assembler.InitImm(imm, 0 ,0);
+					emitter.Emit2(InstructionSet.opSBB, dest, imm);
 				ELSE
 					emitter.Emit1(InstructionSet.opFLD,src); INC(fpStackPointer);
 					MakeOperand(vdest,Low,dest,NIL);
