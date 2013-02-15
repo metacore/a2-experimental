@@ -1974,7 +1974,7 @@ TYPE
 		BEGIN
 			IF ticket # NIL THEN
 				MakeOperand(vop,part, op1,NIL);
-				Move(op1,left,PhysicalOperandType(op1));
+				Move(op1,left,vop.type);
 				UnmapTicket(ticket);
 			END;
 		END FinishOp;
