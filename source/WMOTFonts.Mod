@@ -351,7 +351,7 @@ BEGIN
 	try := 0;
 	REPEAT
 		COPY(fi.name^, exactName);
-		IF try > 0 THEN  Strings.Append(exactName, ".")  END;
+		IF try > 0 THEN  Strings.Append(exactName, "_")  END;
 		(*ALEX 2006.06.05 bold fonts are suffixed with bd; ex.: arialbd.ttf*)
 		IF (WMGraphics.FontBold IN fi.style) & ~(WMGraphics.FontItalic IN fi.style) THEN
 			Strings.Append(exactName, "bd")
