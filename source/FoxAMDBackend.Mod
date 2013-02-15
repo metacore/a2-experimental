@@ -980,7 +980,7 @@ TYPE
 				IF vop.type.length > 1 THEN
 					emitter.Emit2(InstructionSet.opMOVUPS, op, previous);
 				ELSE
-					emitter.Emit2(InstructionSet.opMOV,op,previous);
+					Move(op, previous, vop.type);
 				END;
 			END;
 		END MakeRegister;
@@ -1356,52 +1356,69 @@ TYPE
 		END EmitReturn;
 
 		PROCEDURE EmitMovFloat(CONST vdest,vsrc:IntermediateCode.Operand);
-		VAR op1,op2, espm: Assembler.Operand; sizeInBytes: SHORTINT; vcopy: IntermediateCode.Operand;
+		VAR dest,src, espm: Assembler.Operand; sizeInBytes: SHORTINT; vcopy: IntermediateCode.Operand;
 		BEGIN
 			sizeInBytes := SHORTINT(vdest.type.sizeInBits DIV 8);
-			IF backend.forceFPU THEN
-				IF vdest.type.form IN IntermediateCode.Integer THEN
-					(* e.g. in SYSTEM.VAL(LONGINT, r) *)
-					IF vsrc.mode = IntermediateCode.ModeMemory THEN
-						vcopy := vsrc; IntermediateCode.SetType(vcopy,vdest.type);
-						EmitMov(vdest, vcopy,Low);
-						IF IsComplex(vdest) THEN
-							EmitMov(vdest,vcopy,High);
-						END;
-					ELSE
-						MakeOperand(vsrc,Low,op2,NIL);
-						emitter.Emit1(InstructionSet.opFLD,op2);
+			IF vdest.type.form IN IntermediateCode.Integer THEN
+				(* e.g. in SYSTEM.VAL(LONGINT, r) *)
+				IF vsrc.mode = IntermediateCode.ModeMemory THEN
+					vcopy := vsrc; IntermediateCode.SetType(vcopy,vdest.type);
+					EmitMov(vdest, vcopy,Low);
+					IF IsComplex(vdest) THEN
+						EmitMov(vdest,vcopy,High);
+					END;
+				ELSE
+					IF backend.forceFPU THEN
+						MakeOperand(vsrc,Low,src,NIL);
+						emitter.Emit1(InstructionSet.opFLD,src);
 						INC(fpStackPointer);
 						IF vdest.mode = IntermediateCode.ModeMemory THEN
-							MakeOperand(vdest,Low,op1,NIL);
-							Assembler.SetSize(op1,sizeInBytes);
-							emitter.Emit1(InstructionSet.opFSTP,op1);
+							MakeOperand(vdest,Low,dest,NIL);
+							Assembler.SetSize(dest,sizeInBytes);
+							emitter.Emit1(InstructionSet.opFSTP,dest);
 							DEC(fpStackPointer);
 						ELSE
 							AllocateStack(sizeInBytes);
 							Assembler.InitMem(espm, sizeInBytes,SP,0);
 							emitter.Emit1(InstructionSet.opFSTP,espm);
 							DEC(fpStackPointer);
-							MakeOperand(vdest,Low,op1,NIL);
+							MakeOperand(vdest,Low,dest,NIL);
+							EmitPop(vdest,Low);
+							IF IsComplex(vdest) THEN
+								EmitPop(vdest,High);
+							END;
+						END;
+					ELSE
+						MakeOperand(vsrc, Low, src, NIL);
+						IF vdest.mode = IntermediateCode.ModeMemory THEN
+							MakeOperand(vdest, Low, dest, NIL);
+							Move(dest, src, vsrc.type);
+						ELSE (* need temporary stack argument *)
+							AllocateStack(sizeInBytes);
+							Assembler.InitMem(espm, sizeInBytes,SP,0);
+							Move(espm, src, vsrc.type);
+							MakeOperand(vdest,Low,dest,NIL);
 							EmitPop(vdest,Low);
 							IF IsComplex(vdest) THEN
 								EmitPop(vdest,High);
 							END;
 						END;
 					END;
-				ELSIF vsrc.type.form IN IntermediateCode.Integer THEN
-					(* e.g. in SYSTEM.VAL(REAL, i) *)
-					IF vdest.mode = IntermediateCode.ModeMemory THEN
-						vcopy := vdest; IntermediateCode.SetType(vcopy,vsrc.type);
-						EmitMov(vcopy, vsrc,Low);
-						IF IsComplex(vsrc) THEN
-							EmitMov(vcopy,vsrc,High);
-						END;
-					ELSE
+				END;
+			ELSIF vsrc.type.form IN IntermediateCode.Integer THEN
+				(* e.g. in SYSTEM.VAL(REAL, i) *)
+				IF vdest.mode = IntermediateCode.ModeMemory THEN
+					vcopy := vdest; IntermediateCode.SetType(vcopy,vsrc.type);
+					EmitMov(vcopy, vsrc,Low);
+					IF IsComplex(vsrc) THEN
+						EmitMov(vcopy,vsrc,High);
+					END;
+				ELSE
+					IF backend.forceFPU THEN
 						IF vsrc.mode = IntermediateCode.ModeMemory THEN
-							MakeOperand(vsrc,Low,op2,NIL);
-							Assembler.SetSize(op2,sizeInBytes);
-							emitter.Emit1(InstructionSet.opFLD,op2);
+							MakeOperand(vsrc,Low,src,NIL);
+							Assembler.SetSize(src,sizeInBytes);
+							emitter.Emit1(InstructionSet.opFLD,src);
 						ELSE
 							IF IsComplex(vsrc) THEN
 								EmitPush(vsrc,High);
@@ -1413,22 +1430,40 @@ TYPE
 							AllocateStack(-sizeInBytes);
 						END;
 						INC(fpStackPointer);
-						MakeOperand(vdest,Low,op1,NIL);
-						emitter.Emit1(InstructionSet.opFSTP,op1);
+						MakeOperand(vdest,Low,dest,NIL);
+						emitter.Emit1(InstructionSet.opFSTP,dest);
 						DEC(fpStackPointer);
+					ELSE
+						IF vsrc.mode = IntermediateCode.ModeMemory THEN
+							MakeOperand(vsrc,Low,src,NIL);
+							Assembler.SetSize(src,sizeInBytes);
+							MakeOperand(vdest,Low,dest,NIL);
+							Move(dest, src, vdest.type);
+						ELSE
+							IF IsComplex(vsrc) THEN
+								EmitPush(vsrc,High);
+							END;
+							EmitPush(vsrc,Low);
+							Assembler.InitMem(espm, sizeInBytes,SP,0);
+							MakeOperand(vdest, Low, dest, NIL);
+							Move(dest, espm, vdest.type);
+							AllocateStack(-sizeInBytes);
+						END;
 					END;
-				ELSE
-					MakeOperand(vsrc,Low,op2,NIL);
-					emitter.Emit1(InstructionSet.opFLD,op2);
-					INC(fpStackPointer);
-					MakeOperand(vdest,Low,op1,NIL);
-					emitter.Emit1(InstructionSet.opFSTP,op1);
-					DEC(fpStackPointer);
 				END;
 			ELSE
-				MakeOperand(vsrc, Low, op2, NIL);
-				MakeOperand(vdest, Low, op1, NIL);
-				Move(op1, op2, vdest.type)
+				IF backend.forceFPU THEN
+					MakeOperand(vsrc,Low,src,NIL);
+					emitter.Emit1(InstructionSet.opFLD,src);
+					INC(fpStackPointer);
+					MakeOperand(vdest,Low,dest,NIL);
+					emitter.Emit1(InstructionSet.opFSTP,dest);
+					DEC(fpStackPointer);
+				ELSE
+					MakeOperand(vsrc, Low, src, NIL);
+					MakeOperand(vdest, Low, dest, NIL);
+					Move(dest, src, vdest.type)
+				END;
 			END;
 		END EmitMovFloat;
 
@@ -1470,7 +1505,17 @@ TYPE
 			IF destType.form = IntermediateCode.Float THEN
 				CASE srcType.form OF
 				|IntermediateCode.Float: (* just a move *)
-					EmitMovFloat(vdest, vsrc);
+					IF backend.forceFPU THEN
+						EmitMovFloat(vdest, vsrc);
+					ELSE
+						MakeOperand(vsrc,Low,src,NIL);
+						MakeOperand(vdest, Low, dest, NIL);
+						IF srcType.sizeInBits = 32 THEN
+							emitter.Emit2(InstructionSet.opCVTSS2SD, dest, src)
+						ELSE
+							emitter.Emit2(InstructionSet.opCVTSD2SS, dest, src)
+						END;
+					END;
 				|IntermediateCode.SignedInteger:
 					(* put value to stack and then read from stack via Float *)
 					IF vsrc.type.sizeInBits < IntermediateCode.Bits32 THEN
@@ -1536,11 +1581,18 @@ TYPE
 				MakeOperand(vsrc,Low,src,NIL);
 				IF ~backend.forceFPU THEN
 					MakeOperand(vdest,Low,dest,ticket);
+					GetTemporaryRegister(destType, temp);
 					IF srcType.sizeInBits = 32 THEN
-						emitter.Emit2(InstructionSet.opCVTSS2SI, dest, src)
+						(* convert truncated -> negative numbers round up *)
+						emitter.Emit2(InstructionSet.opCVTTSS2SI, temp, src);
 					ELSE
-						emitter.Emit2(InstructionSet.opCVTSD2SI, dest, src)
+						emitter.Emit2(InstructionSet.opCVTTSD2SI, temp, src)
 					END;
+					(* correct for negative numbers: subtract the sign bit *)
+					Move(dest, temp, destType);
+					Assembler.InitImm(imm, 0 ,31);
+					emitter.Emit2(InstructionSet.opSHR, temp, imm);
+					emitter.Emit2(InstructionSet.opSUB, dest, temp);
 				ELSE
 					emitter.Emit1(InstructionSet.opFLD,src); INC(fpStackPointer);
 					MakeOperand(vdest,Low,dest,NIL);
@@ -2537,12 +2589,22 @@ TYPE
 
 			PROCEDURE CmpFloat;
 			BEGIN
-				MakeOperand(instruction.op2,Low,left,NIL);
-				emitter.Emit1(InstructionSet.opFLD,left); INC(fpStackPointer);
-				MakeOperand(instruction.op3,Low,right,NIL);
-				emitter.Emit1(InstructionSet.opFCOMP,right); DEC(fpStackPointer);
-				emitter.Emit1(InstructionSet.opFNSTSW,opAX);
-				emitter.Emit0(InstructionSet.opSAHF);
+				IF backend.forceFPU THEN
+					MakeOperand(instruction.op2,Low,left,NIL);
+					emitter.Emit1(InstructionSet.opFLD,left); INC(fpStackPointer);
+					MakeOperand(instruction.op3,Low,right,NIL);
+					emitter.Emit1(InstructionSet.opFCOMP,right); DEC(fpStackPointer);
+					emitter.Emit1(InstructionSet.opFNSTSW,opAX);
+					emitter.Emit0(InstructionSet.opSAHF);
+				ELSE
+					MakeRegister(instruction.op2,Low,left);
+					MakeOperand(instruction.op3,Low,right,NIL);
+					IF instruction.op2.type.sizeInBits = 32 THEN
+						emitter.Emit2(InstructionSet.opCOMISS, left, right);
+					ELSE
+						emitter.Emit2(InstructionSet.opCOMISD, left, right);
+					END
+				END;
 			END CmpFloat;
 
 			PROCEDURE Cmp(part: LONGINT; VAR reverse: BOOLEAN);
