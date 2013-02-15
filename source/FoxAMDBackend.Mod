@@ -3300,7 +3300,7 @@ TYPE
 		BEGIN
 			options.Add(0X,"bits",Options.Integer);
 			options.Add(0X,"traceable", Options.Flag);
-			options.Add(0X,"useXMM", Options.Flag);
+			options.Add(0X,"useFPU", Options.Flag);
 			DefineOptions^(options);
 		END DefineOptions;
 
@@ -3308,7 +3308,7 @@ TYPE
 		BEGIN
 			IF ~options.GetInteger("bits",bits) THEN bits := 32 END;
 			traceable := options.GetFlag("traceable");
-			forceFPU := ~options.GetFlag("useXMM");
+			forceFPU := options.GetFlag("useFPU");
 			GetOptions^(options);
 		END GetOptions;
 
