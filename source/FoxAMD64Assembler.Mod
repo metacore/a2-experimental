@@ -1956,39 +1956,38 @@ TYPE
 				IF (scope # NIL) THEN
 					IF symbol #  symLBrace THEN
 						(* treat CPU options as an optional limitation and not vice versa *)
-						RETURN
 					ELSE
 						emitter.cpuOptions := {};
-						NextSymbol
-					END;
+						NextSymbol;
 
-					(* parse code flags such as {SYSTEM.i386 .... } *)
-					LOOP
-						IF ~Ensure (symIdent, 551) THEN
-							RETURN
-						END;
-						IF ident # "SYSTEM" THEN
-							Error("unsupported target identifier");
-							RETURN
-						END;
-						IF symbol # symPeriod THEN
-							Error("identifier expected");
-							RETURN;
-						END;
-						IF ~GetCPU (TRUE) THEN
-							RETURN;
-						END;
+						(* parse code flags such as {SYSTEM.i386 .... } *)
+						LOOP
+							IF ~Ensure (symIdent, 551) THEN
+								RETURN
+							END;
+							IF ident # "SYSTEM" THEN
+								Error("unsupported target identifier");
+								RETURN
+							END;
+							IF symbol # symPeriod THEN
+								Error("identifier expected");
+								RETURN;
+							END;
+							IF ~GetCPU (TRUE) THEN
+								RETURN;
+							END;
 
-						IF symbol = symRBrace THEN
-							EXIT
-						ELSIF symbol = symComma THEN
-							NextSymbol
-						ELSE
-							Error("target specifier expected");
-							RETURN;
+							IF symbol = symRBrace THEN
+								EXIT
+							ELSIF symbol = symComma THEN
+								NextSymbol
+							ELSE
+								Error("target specifier expected");
+								RETURN;
+							END;
 						END;
-					END;
-					NextSymbol;
+						NextSymbol;
+					END
 				END;
 
 				LOOP
