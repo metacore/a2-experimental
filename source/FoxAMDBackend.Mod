@@ -1571,6 +1571,19 @@ TYPE
 						MakeOperand(vdest,Low,dest,NIL);
 						emitter.Emit1(InstructionSet.opFSTP,dest);
 						DEC(fpStackPointer);
+					ELSIF IsComplex(vsrc) THEN
+						emitter.Emit1(InstructionSet.opFILD,espm);
+						MakeOperand(vdest,Low,dest,NIL);
+						IF Assembler.IsMemoryOperand(dest) THEN
+							emitter.Emit1(InstructionSet.opFSTP,dest);
+						ELSE (* must be register *)
+							emitter.Emit1(InstructionSet.opFSTP,espm);
+							emitter.Emit2(InstructionSet.opMOVQ,dest,espm);
+							IF destType.sizeInBits = 32 THEN
+								emitter.Emit2(InstructionSet.opCVTSD2SS, dest,dest);
+							END;
+						END;
+						AllocateStack(-sizeInBytes);
 					ELSE
 						MakeOperand(vdest,Low,dest,NIL);
 						IF destType.sizeInBits = 32 THEN
