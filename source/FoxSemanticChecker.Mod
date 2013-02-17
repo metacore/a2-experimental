@@ -4498,7 +4498,6 @@ TYPE
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
 					block := SyntaxTree.NewExitableBlock(position, NIL (*! todo *));
 					block.SetStatements(SyntaxTree.CloneStatementSequence(procedure.procedureScope.body.statements));
-					Printout.Info("cloned block", block);
 					IF procedureType.returnType # NIL THEN
 						canPassInRegister := CanPassInRegister(procedureType.returnType);
 						temporary := GetTemporaryVariable(procedureType.returnType, canPassInRegister);
@@ -4526,7 +4525,6 @@ TYPE
 					END;
 
 					ReplaceSymbols(block, resolvedStatement, symbols, expressions, temporaryDesignator);
-					Printout.Info("cloned block with replacement", block);
 					IF ~error THEN
 						block.Accept(SELF);
 					ELSE
