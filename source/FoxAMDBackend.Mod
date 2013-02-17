@@ -206,10 +206,18 @@ TYPE
 		PROCEDURE NextFree(CONST type: IntermediateCode.Type):LONGINT;
 		VAR i,sizeInBits,length, form: LONGINT;
 
-			PROCEDURE GetHint(offset: LONGINT): LONGINT;
+			PROCEDURE GetGPHint(offset: LONGINT): LONGINT;
 			VAR res: LONGINT;
 			BEGIN
-				IF (hint # none) & (toVirtual[hint MOD 32 + offset]=free) & ~Reserved(hint) THEN res := hint ELSE res := none END;
+				IF (hint # none) & (hint >= AL) & (hint <= EDI) & (toVirtual[hint MOD 32 + offset]=free) & ~Reserved(hint) THEN res := hint ELSE res := none END;
+				hint := none;
+				RETURN res
+			END GetGPHint;
+
+			PROCEDURE GetHint(from,to: LONGINT): LONGINT;
+			VAR res: LONGINT;
+			BEGIN
+				IF (hint # none) & (hint >= from) & (hint <= to) & (toVirtual[hint]=free) & ~Reserved(hint) THEN res := hint ELSE res := none END;
 				hint := none;
 				RETURN res
 			END GetHint;
@@ -241,15 +249,15 @@ TYPE
 			ELSIF type.form IN IntermediateCode.Integer THEN
 				sizeInBits := type.sizeInBits;
 				IF type.sizeInBits = IntermediateCode.Bits8 THEN
-					i := GetHint(AL);
+					i := GetGPHint(AL);
 					IF i = none THEN i := Get(BL, AL) END;
 					IF i = none THEN i := Get(BH, AH) END;
 				ELSIF type.sizeInBits = IntermediateCode.Bits16 THEN
-					i := GetHint(AX);
+					i := GetGPHint(AX);
 					IF i = none THEN i := Get(DI, SI) END;
 					IF i = none THEN i := Get(BX, AX) END;
 				ELSIF type.sizeInBits = IntermediateCode.Bits32 THEN
-					i := GetHint(EAX);
+					i := GetGPHint(EAX);
 					IF i = none THEN i := Get(EDI,ESI) END;
 					IF i = none THEN i := Get(EBX,EAX) END;
 				ELSE HALT(100)
@@ -260,7 +268,8 @@ TYPE
 					i := Get(InstructionSet.regST0, InstructionSet.regST6);
 					(* ST7 unusable as it is overwritten during arithmetic instructions *)
 				ELSE
-					i := Get(XMM7, XMM0)
+					i := GetHint(XMM0, XMM7);
+					IF i = none THEN 	i := Get(XMM7, XMM0) END
 				END;
 			END;
 			hint := none; (* reset *)
@@ -614,18 +623,27 @@ TYPE
 			END;
 		END GetPartType;
 
+		(* simple move without conversion *)
 		PROCEDURE Move(VAR dest, src: Assembler.Operand; CONST type: IntermediateCode.Type);
 		BEGIN
 			IF type.length > 1 THEN
-				HALT(200);
+				IF type.length = 4 THEN
+					ASSERT(type.form = IntermediateCode.Float);
+					ASSERT(type.sizeInBits = 32);
+					SpecialMove(InstructionSet.opMOVUPS, InstructionSet.opMOVUPS, dest, src, type);
+				ELSE
+					ASSERT(type.form = IntermediateCode.Float);
+					ASSERT(type.sizeInBits = 64);
+					SpecialMove(InstructionSet.opMOVUPD, InstructionSet.opMOVUPS, dest, src, type);
+				END;
 			ELSIF type.form = IntermediateCode.Float THEN
 				IF type.sizeInBits = 32 THEN
-					SpecialMove(InstructionSet.opMOVSS, dest, src, type);
+					SpecialMove(InstructionSet.opMOVSS, InstructionSet.opMOVSS, dest, src, type);
 				ELSE
-					SpecialMove(InstructionSet.opMOVSD, dest, src, type);
+					SpecialMove(InstructionSet.opMOVSD, InstructionSet.opMOVSD, dest, src, type);
 				END;
 			ELSE
-				SpecialMove(InstructionSet.opMOV, dest, src, type);
+				SpecialMove(InstructionSet.opMOV, InstructionSet.opMOV, dest, src, type);
 			END;
 		END Move;
 
@@ -741,9 +759,9 @@ TYPE
 		PROCEDURE GetSpillOperand(ticket: Ticket; VAR op: Assembler.Operand);
 		BEGIN
 			IF FrameSpillStack THEN
-				op := Assembler.NewMem(SHORT(ticket.type.sizeInBits DIV 8), BP , -(spillStackStart + cpuBits DIV 8 + ticket.offset*cpuBits DIV 8));
+				op := Assembler.NewMem(SHORTINT(ticket.type.sizeInBits*ticket.type.length DIV 8), BP , -(spillStackStart + cpuBits DIV 8 + ticket.offset*cpuBits DIV 8));
 			ELSE
-				op := Assembler.NewMem(SHORT(ticket.type.sizeInBits DIV 8),SP , (spillStack.Size()-ticket.offset)*cpuBits DIV 8);
+				op := Assembler.NewMem(SHORTINT(ticket.type.sizeInBits*ticket.type.length DIV 8),SP , (spillStack.Size()-ticket.offset)*cpuBits DIV 8);
 			END;
 		END GetSpillOperand;
 
@@ -994,8 +1012,9 @@ TYPE
 
 		(*-------------------  helpers for code generation ----------------------*)
 
-		PROCEDURE SpecialMove(op: LONGINT; VAR dest,src: Assembler.Operand; type: IntermediateCode.Type);
-		VAR temp: Assembler.Operand; ticket: Ticket; op2: LONGINT;
+		(* move, potentially with conversion. parameter back used for moving back from temporary operand*)
+		PROCEDURE SpecialMove(op, back: LONGINT; VAR dest,src: Assembler.Operand; type: IntermediateCode.Type);
+		VAR temp: Assembler.Operand; ticket: Ticket;
 		BEGIN
 			IF Assembler.SameOperand(src,dest) THEN (* do nothing *)
 			ELSIF ~Assembler.IsMemoryOperand(dest) OR ~Assembler.IsMemoryOperand(src) THEN
@@ -1004,13 +1023,7 @@ TYPE
 				ticket := TemporaryTicket(IntermediateCode.GeneralPurposeRegister,type);
 				TicketToOperand(ticket,temp);
 				emitter.Emit2(op,temp,src);
-				CASE op OF
-					InstructionSet.opMOVSS, InstructionSet.opMOVSD:
-					op2 := op
-				ELSE
-					op2 := InstructionSet.opMOV
-				END;
-				emitter.Emit2(op2,dest,temp);
+				emitter.Emit2(back,dest,temp);
 				UnmapTicket(ticket);
 			END;
 		END SpecialMove;
@@ -1087,7 +1100,7 @@ TYPE
 				END;
 			|IntermediateCode.return:
 				IF IsFloat(instruction.op1) & backend.forceFPU THEN
-					EmitReturnFloat(instruction)
+					EmitReturnFPU(instruction)
 				ELSE
 					EmitReturn(instruction,Low);
 					IF IsComplex(instruction.op1) THEN EmitReturn(instruction, High) END;
@@ -1324,7 +1337,7 @@ TYPE
 			IF fpStackPointer # 0 THEN Error(instruction.textPosition,"compiler implementation error: fp stack not cleared") END;
 		END EmitExit;
 
-		PROCEDURE EmitReturnFloat(CONST instruction: IntermediateCode.Instruction);
+		PROCEDURE EmitReturnFPU(CONST instruction: IntermediateCode.Instruction);
 		VAR operand: Assembler.Operand;
 		BEGIN
 			IF IsRegister(instruction.op1) & MappedTo(instruction.op1.register,Low, ST0) THEN
@@ -1339,7 +1352,7 @@ TYPE
 				DEC(fpStackPointer);
 				*)
 			END;
-		END EmitReturnFloat;
+		END EmitReturnFPU;
 
 		(* return operand
 			store operand in return register or on fp stack
@@ -1518,9 +1531,9 @@ TYPE
 						MakeOperand(vsrc,Low,src,NIL);
 						MakeOperand(vdest, Low, dest, NIL);
 						IF srcType.sizeInBits = 32 THEN
-							emitter.Emit2(InstructionSet.opCVTSS2SD, dest, src)
+							SpecialMove(InstructionSet.opCVTSS2SD, InstructionSet.opMOVSS, dest, src, destType)
 						ELSE
-							emitter.Emit2(InstructionSet.opCVTSD2SS, dest, src)
+							SpecialMove(InstructionSet.opCVTSD2SS, InstructionSet.opMOVSD, dest, src, destType)
 						END;
 					END;
 				|IntermediateCode.SignedInteger:
@@ -1730,7 +1743,7 @@ TYPE
 						edx := ReservePhysicalRegister(IntermediateCode.GeneralPurposeRegister,IntermediateCode.int32,EDX,inPC);
 						IF vsrc.type.sizeInBits < 32 THEN
 							MakeOperand(vsrc,Low,op2,NIL);
-							SpecialMove(InstructionSet.opMOVSX,opEAX,op2,PhysicalOperandType(opEAX));
+							SpecialMove(InstructionSet.opMOVSX,InstructionSet.opMOV,opEAX,op2,PhysicalOperandType(opEAX));
 						ELSE
 							MakeOperand(vsrc,Low,op2,eax);
 						END;
@@ -1756,9 +1769,9 @@ TYPE
 					ELSIF  srcType.form = IntermediateCode.SignedInteger THEN
 						IF srcType.sizeInBits=32 THEN (* 64 bits only *)
 							ASSERT(cpuBits=64);
-							SpecialMove(InstructionSet.opMOVSXD,op1,op2,PhysicalOperandType(op1));
+							SpecialMove(InstructionSet.opMOVSXD,InstructionSet.opMOV,op1,op2,PhysicalOperandType(op1));
 						ELSE
-							SpecialMove(InstructionSet.opMOVSX,op1,op2,PhysicalOperandType(op1));
+							SpecialMove(InstructionSet.opMOVSX,InstructionSet.opMOV,op1,op2,PhysicalOperandType(op1));
 						END;
 					ELSE
 						ASSERT(srcType.form = IntermediateCode.UnsignedInteger);
@@ -1778,7 +1791,7 @@ TYPE
 								Move( op1, op2,srcType);
 							END;
 						ELSE
-							SpecialMove(InstructionSet.opMOVZX, op1, op2,PhysicalOperandType(op1))
+							SpecialMove(InstructionSet.opMOVZX, InstructionSet.opMOV, op1, op2,PhysicalOperandType(op1))
 						END;
 					END;
 				END;
@@ -2812,15 +2825,16 @@ TYPE
 		END EmitPop;
 
 		PROCEDURE EmitPushFloat(CONST vop: IntermediateCode.Operand);
-		VAR sizeInBytes: LONGINT; memop: Assembler.Operand; op: Assembler.Operand;
+		VAR sizeInBytes,length: LONGINT; memop: Assembler.Operand; op: Assembler.Operand;
 		BEGIN
 			MakeOperand(vop,Low,op,NIL);
 			IF (vop.mode = IntermediateCode.ModeMemory) & (vop.type.sizeInBits =cpuBits) THEN
 				emitter.Emit1(InstructionSet.opPUSH,op);
 			ELSE
 				sizeInBytes := vop.type.sizeInBits DIV 8;
-				AllocateStack(sizeInBytes);
-				Assembler.InitMem(memop, SHORTINT(sizeInBytes),SP,0);
+				length := vop.type.length;
+				AllocateStack(sizeInBytes*length);
+				Assembler.InitMem(memop, SHORTINT(sizeInBytes*length),SP,0);
 				IF backend.forceFPU THEN
 					emitter.Emit1(InstructionSet.opFLD,op); INC(fpStackPointer);
 					emitter.Emit1(InstructionSet.opFSTP,memop); DEC(fpStackPointer);
@@ -2831,14 +2845,15 @@ TYPE
 		END EmitPushFloat;
 
 		PROCEDURE EmitPopFloat(CONST vop: IntermediateCode.Operand);
-		VAR sizeInBytes: LONGINT; memop: Assembler.Operand; op: Assembler.Operand;
+		VAR sizeInBytes,length: LONGINT; memop: Assembler.Operand; op: Assembler.Operand;
 		BEGIN
 			sizeInBytes := vop.type.sizeInBits DIV 8;
-			IF (vop.mode = IntermediateCode.ModeMemory) & (vop.type.sizeInBits =cpuBits) THEN
+			length := vop.type.length;
+			IF (vop.mode = IntermediateCode.ModeMemory) & (vop.type.sizeInBits*length =cpuBits) THEN
 				MakeOperand(vop,Low,op,NIL);
 				emitter.Emit1(InstructionSet.opPOP,op);
 			ELSE
-				Assembler.InitMem(memop, SHORTINT(sizeInBytes),SP,0);
+				Assembler.InitMem(memop, SHORTINT(sizeInBytes*length),SP,0);
 				IF backend.forceFPU THEN
 					emitter.Emit1(InstructionSet.opFLD,memop);
 					INC(fpStackPointer);
@@ -2995,16 +3010,15 @@ TYPE
 			IF outr # NIL THEN
 				FOR i := 0 TO LEN(outr)-1 DO
 					IF outr[i].mode # IntermediateCode.Undefined THEN
-						IntermediateCode.DumpOperand(D.Log, outr[i]); D.Ln;
 						register := map.Find(outr[i].string^);
 						ticket := physicalRegisters.Mapped(register);
 						IF ticket.lastuse = inPC THEN UnmapTicket(ticket); physicalRegisters.AllocationHint(register) END; (* try to reuse register here *)
 						Assembler.InitRegister(reg, register);
 						MakeOperand(outr[i], Low, dest, NIL);
-						IF outr[i].type.length > 0 THEN
-							SpecialMove(InstructionSet.opMOVUPS, dest, reg, PhysicalOperandType(dest))
+						IF outr[i].type.length > 1 THEN
+							SpecialMove(InstructionSet.opMOVUPS,InstructionSet.opMOVUPS, dest, reg, outr[i].type)
 						ELSE
-							Move( dest, reg, PhysicalOperandType(dest))
+							Move( dest, reg,outr[i].type)
 						END;
 					END;
 				END;
@@ -3300,7 +3314,6 @@ TYPE
 		VAR length: LONGINT; baseType: SyntaxTree.Type; b: BOOLEAN;
 		BEGIN
 			b := SemanticChecker.IsStaticMathArray(type, length, baseType) & (baseType IS SyntaxTree.FloatType) & (baseType.sizeInBits = 32) & (length = 4);
-			TRACE(b, length);
 			RETURN b
 		END CanPassInRegister;
 
