@@ -7665,8 +7665,13 @@ TYPE
 		PROCEDURE VisitCode(x: SyntaxTree.Code);
 		VAR (*  inline: Sections.CellNet; symbol: SyntaxTree.Symbol; *)
 			in, out: IntermediateCode.Rules; statement: SyntaxTree.Statement; i: LONGINT; operand: Operand; str: POINTER TO ARRAY OF CHAR;
-				result: IntermediateCode.Operand;
+				result: IntermediateCode.Operand; scope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType; return: IntermediateCode.Operand;
 		BEGIN
+			scope := currentScope;
+			WHILE ~(scope IS SyntaxTree.ProcedureScope) DO scope := scope.outerScope END;
+			procedureType := scope(SyntaxTree.ProcedureScope).ownerProcedure.type(SyntaxTree.ProcedureType);
+			return := emptyOperand;
+
 			IF Trace THEN TraceEnter("VisitCode") END;
 			IF (x.inRules # NIL) & (x.inRules.Length()>0) THEN
 				NEW(in, x.inRules.Length());
@@ -7674,7 +7679,6 @@ TYPE
 					statement := x.inRules.GetStatement(i);
 					WITH statement: SyntaxTree.Assignment DO
 						Evaluate(statement.right, operand);
-						Printout.Info("asm statement",statement);
 						result := operand.op;
 						NEW(str, 64);
 						Basic.GetString(statement.left(SyntaxTree.IdentifierDesignator).identifier, str^);
@@ -7699,8 +7703,10 @@ TYPE
 					|statement: SyntaxTree.ReturnStatement DO
 						NEW(str, 64);
 						Basic.GetString(statement.returnValue(SyntaxTree.IdentifierDesignator).identifier, str^);
-						out[i] := emptyOperand; IntermediateCode.SetString(out[i], str);
+						out[i] :=NewRegisterOperand(IntermediateCode.GetType(system, procedureType.returnType));
+						IntermediateCode.SetString(out[i], str);
 						ReleaseIntermediateOperand(operand.tag);
+						return := out[i];
 					ELSE
 					END;
 				END;
@@ -7714,16 +7720,16 @@ TYPE
 			END;
 			IF out # NIL THEN
 				FOR i := 0 TO LEN(out)-1 DO
-					ReleaseIntermediateOperand(out[i]);
-					statement := x.outRules.GetStatement(i);
-					(*? why necessary
-					IF statement IS SyntaxTree.StatementBlock THEN
-						statement := statement(SyntaxTree.StatementBlock).statements.GetStatement(1);
-						Statement(statement);
-
+					WITH statement: SyntaxTree.Assignment DO
+						ReleaseIntermediateOperand(out[i]);
+					ELSE
 					END;
-					*)
+					statement := x.outRules.GetStatement(i);
 				END;
+			END;
+			IF return.mode # IntermediateCode.Undefined THEN
+				Emit(Return(position,return));
+				ReleaseIntermediateOperand(return);
 			END;
 
 			IF Trace THEN TraceExit("VisitCode") END;
