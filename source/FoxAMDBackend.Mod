@@ -209,7 +209,7 @@ TYPE
 			PROCEDURE GetGPHint(offset: LONGINT): LONGINT;
 			VAR res: LONGINT;
 			BEGIN
-				IF (hint # none) & (hint >= AL) & (hint <= EDI) & (toVirtual[hint MOD 32 + offset]=free) & ~Reserved(hint) THEN res := hint ELSE res := none END;
+				IF (hint # none) & (hint >= AL) & (hint <= EDI) & (toVirtual[hint MOD 32 + offset]=free) & ~Reserved(hint) THEN res := hint MOD 32 + offset ELSE res := none END;
 				hint := none;
 				RETURN res
 			END GetGPHint;

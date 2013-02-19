@@ -3801,13 +3801,17 @@ TYPE
 		END PushParameter;
 
 		PROCEDURE VisitStatementDesignator(x: SyntaxTree.StatementDesignator);
+		VAR prevConditional: BOOLEAN;
 		BEGIN
+			prevConditional := conditional;
+			conditional := FALSE;
 
 			IF (x.result # NIL) & ( x.result IS SyntaxTree.SymbolDesignator) & (x.result(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Variable) & (x.result(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Variable).useRegister) THEN
 				Expression(x.result); (* use register *)
 			END;
 
 			Statement(x.statement);
+			conditional := prevConditional;
 			IF x.result # NIL THEN Expression(x.result) END;
 
 			IF (x.result # NIL) & (x.result IS SyntaxTree.SymbolDesignator) & (x.result(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Variable) & (x.result(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Variable).useRegister) THEN
