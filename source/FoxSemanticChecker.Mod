@@ -5275,8 +5275,8 @@ TYPE
 					ELSE
 						type := SyntaxTree.invalidType;
 					END;
-				(* ---- ASH ----- *)
-				ELSIF (id = Global.Ash) & CheckArity(2,2) THEN
+				(* ---- ASH, ASR ----- *)
+				ELSIF ((id = Global.Ash) OR (id= Global.Asr)) & CheckArity(2,2) THEN
 					type := type0;
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
 						ConvertOperands(parameter0,parameter1); (* same type *)
@@ -5284,7 +5284,7 @@ TYPE
 						type := parameter0.type;
 						IF IsIntegerValue(parameter0,i0) THEN
 							IF IsIntegerValue(parameter1,i1) THEN
-								i0 := ASH(i0,i1);
+								IF id = Global.Ash THEN i0 := ASH(i0,i1) ELSE (* i0 := ASR(i0,i1) *) END;
 								result.SetResolved(SyntaxTree.NewIntegerValue(position,i0));
 								result := ResolveExpression(result);
 								type := Global.GetSignedIntegerType(system,i0);
@@ -5613,8 +5613,8 @@ TYPE
 							result.SetResolved(parameter0(SyntaxTree.Value));
 						END;
 					END;
-				(* ---- SIZEOF ----- *)
-				ELSIF (id = Global.systemSizeOf) & CheckArity(1,1) THEN
+				(* ---- SIZE OF ----- *)
+				ELSIF (id = Global.systemSize) & CheckArity(1,1) THEN
 					IF (parameter0.type = SyntaxTree.typeDeclarationType) THEN
 						type := parameter0(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.TypeDeclaration).declaredType;
 						result.SetResolved(SyntaxTree.NewIntegerValue(position,system.SizeOf(type.resolved) DIV 8 (* in bytes *) ));
@@ -5688,42 +5688,23 @@ TYPE
 						actualParameters.SetExpression(0,parameter0);
 					END;
 					type := system.shortintType;
-				(* ---- LSH, ROT ----- *)
-				ELSIF ((id = Global.systemLsh) OR (id = Global.systemRot)) & CheckArity(2,2) THEN
-(*					type := type0;
-					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
-						ConvertOperands(parameter0,parameter1); (* same type *)
-						type := parameter0.type;
-						IF IsIntegerValue(parameter0,i0) THEN
-							IF IsIntegerValue(parameter1,i1) THEN
-								IF id = Global.systemLsh THEN
-								i0 := LSH(i0,i1);
-								ELSE
-								i0 := ROT(i0,i1)
-								END;
-								result.SetResolved(SyntaxTree.NewIntegerValue(position,i0));
-								result := ResolveExpression(result);
-								type := Global.GetIntegerType(system,i0);
-							END;
-						END;
-						type := system.longintType;
-						(*!compatibility with release, remove when resolved
-						    critical in release : SHORT(ASH(..))), ASH(ORD(..))
-						*)
-						parameter1 := NewConversion(parameter1.position,parameter1,system.longintType,NIL);
-						parameter0 := NewConversion(parameter0.position,parameter0,type,NIL);
-						actualParameters.SetExpression(0,parameter0);
-						actualParameters.SetExpression(1,parameter1);
-					END;
-					*)
+				(* ---- LSH, LSL, ROT, ROR ----- *)
+				ELSIF ((id = Global.Lsh) OR (id = Global.Rot) OR (id= Global.Ror)) & CheckArity(2,2) THEN
 				 	type := type0;
 
-				 	(* TODO: check if okay *)
 				 	parameter1 := NewConversion(parameter1.position,parameter1,system.longintType,NIL);
 				 	actualParameters.SetExpression(1, parameter1);
 
 					IF IsIntegerValue(parameter0,i0) & IsIntegerValue(parameter1,i1) THEN
-						result.SetResolved(SyntaxTree.NewIntegerValue(position,LSH(i0,i1)));
+						IF id = Global.Lsh THEN
+							result.SetResolved(SyntaxTree.NewIntegerValue(position,LSH(i0,i1)));
+						ELSIF id = Global.Rot THEN
+							result.SetResolved(SyntaxTree.NewIntegerValue(position,ROT(i0,i1)));
+						ELSIF id = Global.Ror THEN
+							(*
+							result.SetResolved(SyntaxTree.NewIntegerValue(position,ROR(i0,i1)));
+							*)
+						END;
 					END;
 				(* ---- SYSTEM.VAL ----- *)
 				ELSIF (id = Global.systemVal) & CheckArity(2,2) THEN
@@ -5807,8 +5788,8 @@ TYPE
 				(* ----SYSTEM.REF ---- *)
 				ELSIF (id = Global.systemRef) & CheckArity(1,1) & CheckStringType(parameter0) THEN
 					type := system.addressType
-				(* ---- SYSTEM.INCR ----- *)
-				ELSIF (id = Global.systemIncr) & CheckArity(1,2) THEN
+				(* ---- INCR ----- *)
+				ELSIF (id = Global.Incr) & CheckArity(1,2) THEN
 					type := system.sizeType;
 					base := type0;
 					IF (numberActualParameters =2) & CheckSizeType(parameter1) THEN
@@ -5921,10 +5902,6 @@ TYPE
 						Error(parameter0.position,Diagnostics.Invalid,"is not a type symbol");
 					END;
 					type := system.addressType;
-				(* -------- ERA --------- *)
-				(* ---- SYSTEM.NULL ----- *)
-				ELSIF (id = Global.systemNull) & CheckArity(1,1) THEN
-					type := system.booleanType;
 				(* -------- FLT --------- *)
 				ELSIF (id = Global.Flt) & CheckArity(1,1) THEN
 					type := system.realType;
@@ -5944,12 +5921,7 @@ TYPE
 						END;
 						result.SetResolved(SyntaxTree.NewRealValue(position, SYSTEM.VAL(REAL, i)));
 					END;
-				(* ------- FLOOR -------- *)
-				ELSIF (id = Global.Floor) & CheckArity(1,1) THEN
-					type := system.longintType;
-					IF CheckRealType(parameter0) & IsRealValue(parameter0,r) THEN
-						result.SetResolved(SyntaxTree.NewIntegerValue(position,ENTIER(r)));
-					END;
+				(*
 				(* ------- PROC -------- *)
 				ELSIF (id = Global.systemProc) & CheckArity(2,2) THEN
 					 type := parameter1.type.resolved;
@@ -5957,7 +5929,7 @@ TYPE
 				(* ------- STOP -------- *)
 				ELSIF (id = Global.systemStop) & CheckArity(0,0) THEN
 				(* ------- SHIFTS -------- *)
-				ELSIF ((id = Global.ASR) OR (id = Global.LSR) OR (id = Global.LSL) OR (id = Global.systemROR)) & CheckArity(2,2) THEN
+				ELSIF ((id = Global.Asr) OR (id = Global.Lsr) OR (id = Global.Lsl) OR (id = Global.systemROR)) & CheckArity(2,2) THEN
 					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
 						type := type0;
 					END;
@@ -5967,6 +5939,7 @@ TYPE
 					IF CheckIntegerType(parameter0) & (type0=type1) THEN
 					END;
 					type := type0;
+				*)
 				(* ------- CONNECT -------*)
 				ELSIF (id = Global.Connect) & (CheckArity(2,3)) THEN
 					IF 	~(currentIsCellNet) THEN
@@ -6028,18 +6001,6 @@ TYPE
 						ELSE
 							parameter1 := NewConversion(position,parameter1,parameter0.type.resolved,NIL);
 							actualParameters.SetExpression(1,parameter1);
-						END;
-					END;
-				(* --------- HWADR --------- *)
-				ELSIF (id = Global.systemHardwareAddress) & (CheckArity(1,1)) THEN
-					IF CheckStringValue(parameter0,name) THEN
-						device := activeCellsSpecification.supportedDevices.ByName(name^);
-						IF device = NIL THEN
-							Error(parameter0.position,Diagnostics.Invalid,"unsupported device");
-							result := SyntaxTree.invalidExpression;
-						ELSE
-							result := Global.NewIntegerValue(system,parameter0.position,device.adr);
-							type := result.type;
 						END;
 					END;
 				(* ------- custom builtins ----- *)

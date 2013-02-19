@@ -5339,9 +5339,10 @@ TYPE
 				ReleaseOperand(s0); ReleaseOperand(s1); ReleaseOperand(s2);
 				CallThis("Modules","GetProcedure", 7);
 			(* ---- ASH, LSH, ROT ----- *)
-			|Global.Ash, Global.systemLsh, Global.systemRot:
+			|Global.Ash, Global.Asr, Global.Lsh, Global.Rot, Global.Ror:
 				Evaluate(p0,s0);
-				IF (x.id = Global.systemLsh) OR (x.id = Global.systemRot) THEN
+				IF (x.id = Global.Lsh) OR (x.id = Global.Rot) OR (x.id = Global.Ror)THEN
+					(* make unsigned arguments in order to produced a logical shift *)
 					IF s0.op.type.form = IntermediateCode.SignedInteger THEN
 						convert:= TRUE;
 						itype := s0.op.type;
@@ -5357,14 +5358,18 @@ TYPE
 					IF hint  > 0 THEN
 						IntermediateCode.InitImmediate(s1.op,s1.op.type,hint);
 						IF x.id = Global.Ash THEN Emit(Shl(position,reg,s0.op,s1.op))
-						ELSIF x.id = Global.systemLsh THEN Emit(Shl(position,reg,s0.op,s1.op))
-						ELSIF x.id = Global.systemRot THEN Emit(Rol(position,reg,s0.op,s1.op))
+						ELSIF x.id = Global.Lsh THEN Emit(Shl(position,reg,s0.op,s1.op))
+						ELSIF x.id = Global.Rot THEN Emit(Rol(position,reg,s0.op,s1.op))
+						ELSIF x.id = Global.Ror THEN Emit(Ror(position,reg,s0.op,s1.op))
+						ELSIF x.id = Global.Asr THEN Emit(Shr(position,reg,s0.op,s1.op))
 						END;
 					ELSIF hint < 0 THEN
 						IntermediateCode.InitImmediate(s1.op,s1.op.type,-hint);
 						IF x.id = Global.Ash THEN Emit(Shr(position,reg,s0.op,s1.op));
-						ELSIF x.id = Global.systemLsh THEN Emit(Shr(position,reg,s0.op,s1.op));
-						ELSIF x.id = Global.systemRot THEN Emit(Ror(position,reg,s0.op,s1.op));
+						ELSIF x.id = Global.Lsh THEN Emit(Shr(position,reg,s0.op,s1.op));
+						ELSIF x.id = Global.Rot THEN Emit(Ror(position,reg,s0.op,s1.op));
+						ELSIF x.id = Global.Ror THEN Emit(Rol(position,reg,s0.op,s1.op))
+						ELSIF x.id = Global.Asr THEN Emit(Shl(position,reg,s0.op,s1.op))
 						END;
 					END;
 					ReleaseOperand(s0); ReleaseOperand(s1);
@@ -5377,18 +5382,21 @@ TYPE
 					Emit(Neg(position,tmp,s1.op));
 					Convert(tmp,s1.op.type);
 					IF x.id = Global.Ash THEN Emit(Shr(position,reg,reg,tmp))
-					ELSIF x.id = Global.systemLsh THEN Emit(Shr(position,reg,reg,tmp))
-					ELSIF x.id = Global.systemRot THEN Emit(Ror(position,reg,reg,tmp))
+					ELSIF x.id = Global.Lsh THEN Emit(Shr(position,reg,reg,tmp))
+					ELSIF x.id = Global.Rot THEN Emit(Ror(position,reg,reg,tmp))
+					ELSIF x.id = Global.Ror THEN Emit(Rol(position,reg,s0.op,s1.op))
+					ELSIF x.id = Global.Asr THEN Emit(Shl(position,reg,s0.op,s1.op))
 					END;
 					ReleaseIntermediateOperand(tmp);
-					(*!!!!! distinction arithmetic / logical shift *)
 					BrL(end);
 					SetLabel(exit);
 					ReuseCopy(tmp,s1.op);
 					Convert(tmp,s1.op.type);
 					IF x.id = Global.Ash THEN Emit(Shl(position,reg,reg,tmp))
-					ELSIF x.id = Global.systemLsh THEN Emit(Shl(position,reg,reg,tmp))
-					ELSIF x.id = Global.systemRot THEN Emit(Rol(position,reg,reg,tmp))
+					ELSIF x.id = Global.Lsh THEN Emit(Shl(position,reg,reg,tmp))
+					ELSIF x.id = Global.Rot THEN Emit(Rol(position,reg,reg,tmp))
+					ELSIF x.id = Global.Ror THEN Emit(Ror(position,reg,s0.op,s1.op))
+					ELSIF x.id = Global.Asr THEN Emit(Shr(position,reg,s0.op,s1.op))
 					END;
 					ReleaseIntermediateOperand(tmp);
 					SetLabel(end);
@@ -6148,8 +6156,8 @@ TYPE
 				s0.mode := ModeValue;
 				IntermediateCode.InitAddress(s0.op, addressType, callsection.name, 0, 0);
 				result := s0
-			(* ---- SYSTEM.INCR ----- *)
-			|Global.systemIncr:
+			(* ---- INCR ----- *)
+			|Global.Incr:
 				Designate(p0,operand);
 				IF p0.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
 					Dereference(operand,p0.type.resolved);
