@@ -1095,8 +1095,15 @@ TYPE
 		VAR moduleName, procedureName: SyntaxTree.IdentifierString;
 
 			PROCEDURE CheckRegister(VAR op: IntermediateCode.Operand);
+			VAR i: LONGINT;
 			BEGIN
 				IF op.register >0 THEN IntermediateCode.SetRegister(op,registerUsage.Map(op.register)) END;
+				IF op.rule # NIL THEN
+					FOR i := 0 TO LEN(op.rule)-1 DO
+						CheckRegister(op.rule[i])
+					END;
+				END;
+
 			END CheckRegister;
 
 		BEGIN
