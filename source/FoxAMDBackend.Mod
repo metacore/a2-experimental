@@ -1516,8 +1516,8 @@ TYPE
 		END EmitMov;
 
 		PROCEDURE EmitConvertFloat(CONST instruction: IntermediateCode.Instruction);
-		VAR destType, srcType: IntermediateCode.Type; dest,src,espm,imm: Assembler.Operand; sizeInBytes: LONGINT;
-		temp, temp2, temp3: Assembler.Operand; ticket: Ticket; vdest, vsrc: IntermediateCode.Operand
+		VAR destType, srcType, dtype: IntermediateCode.Type; dest,src,espm,imm: Assembler.Operand; sizeInBytes, index: LONGINT;
+		temp, temp2, temp3, temp4: Assembler.Operand; ticket: Ticket; vdest, vsrc: IntermediateCode.Operand
 		BEGIN
 			vdest := instruction.op1; vsrc := instruction.op2;
 			srcType := vsrc.type;
@@ -1616,19 +1616,26 @@ TYPE
 					MakeOperand(vdest,Low,dest,ticket);
 					GetTemporaryRegister(srcType, temp);
 					GetTemporaryRegister(srcType, temp3);
-					GetTemporaryRegister(destType, temp2);
+					IF destType.sizeInBits < 32 THEN
+						IntermediateCode.InitType(dtype, destType.form, 32);
+						GetTemporaryRegister(dtype, temp4);
+					ELSE
+						dtype := destType;
+						temp4 := dest;
+					END;
+					GetTemporaryRegister(dtype, temp2);
 					IF srcType.sizeInBits = 32 THEN
 						(* convert truncated -> negative numbers round up !*)
-						emitter.Emit2(InstructionSet.opCVTTSS2SI, dest, src);
+						emitter.Emit2(InstructionSet.opCVTTSS2SI, temp4, src);
 						(* back to temporary mmx register *)
-						emitter.Emit2(InstructionSet.opCVTSI2SS, temp, dest);
+						emitter.Emit2(InstructionSet.opCVTSI2SS, temp, temp4);
 						(* subtract *)
 						emitter.Emit2(InstructionSet.opMOVSS, temp3, src);
 						emitter.Emit2(InstructionSet.opSUBSS, temp3, temp);
 						(* back to a GP register in order to determine the sign bit *)
 					ELSE
-						emitter.Emit2(InstructionSet.opCVTTSD2SI, dest, src);
-						emitter.Emit2(InstructionSet.opCVTSI2SD, temp, dest);
+						emitter.Emit2(InstructionSet.opCVTTSD2SI, temp4, src);
+						emitter.Emit2(InstructionSet.opCVTSI2SD, temp, temp4);
 						emitter.Emit2(InstructionSet.opMOVSD, temp3, src);
 						emitter.Emit2(InstructionSet.opSUBSD, temp3, temp);
 						emitter.Emit2(InstructionSet.opCVTSD2SS, temp3, temp3);
@@ -1637,7 +1644,20 @@ TYPE
 					Assembler.InitImm(imm, 0 ,srcType.sizeInBits-1);
 					emitter.Emit2(InstructionSet.opBT, temp2, imm);
 					Assembler.InitImm(imm, 0 ,0);
-					emitter.Emit2(InstructionSet.opSBB, dest, imm);
+					emitter.Emit2(InstructionSet.opSBB, temp4, imm);
+
+
+					IF dtype.sizeInBits # destType.sizeInBits THEN
+						index := temp4.register;
+						CASE destType.sizeInBits OF (* choose low part accordingly *)
+							IntermediateCode.Bits8: index := index MOD 32 + AL;
+							|IntermediateCode.Bits16: index := index MOD 32 + AX;
+							|IntermediateCode.Bits32: index := index MOD 32 + EAX;
+						END;
+						temp4 := registerOperands[index];
+						emitter.Emit2(InstructionSet.opMOV, dest, temp4);
+					END
+
 				ELSE
 					emitter.Emit1(InstructionSet.opFLD,src); INC(fpStackPointer);
 					MakeOperand(vdest,Low,dest,NIL);
