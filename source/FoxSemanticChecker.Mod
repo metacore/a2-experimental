@@ -5284,7 +5284,7 @@ TYPE
 						type := parameter0.type;
 						IF IsIntegerValue(parameter0,i0) THEN
 							IF IsIntegerValue(parameter1,i1) THEN
-								IF id = Global.Ash THEN i0 := ASH(i0,i1) ELSE (* i0 := ASR(i0,i1) *) END;
+								IF id = Global.Ash THEN i0 := ASH(i0,i1) ELSE i0 := ASR(i0,i1) END;
 								result.SetResolved(SyntaxTree.NewIntegerValue(position,i0));
 								result := ResolveExpression(result);
 								type := Global.GetSignedIntegerType(system,i0);
@@ -5701,9 +5701,7 @@ TYPE
 						ELSIF id = Global.Rot THEN
 							result.SetResolved(SyntaxTree.NewIntegerValue(position,ROT(i0,i1)));
 						ELSIF id = Global.Ror THEN
-							(*
 							result.SetResolved(SyntaxTree.NewIntegerValue(position,ROR(i0,i1)));
-							*)
 						END;
 					END;
 				(* ---- SYSTEM.VAL ----- *)
@@ -5921,25 +5919,6 @@ TYPE
 						END;
 						result.SetResolved(SyntaxTree.NewRealValue(position, SYSTEM.VAL(REAL, i)));
 					END;
-				(*
-				(* ------- PROC -------- *)
-				ELSIF (id = Global.systemProc) & CheckArity(2,2) THEN
-					 type := parameter1.type.resolved;
-					 result := parameter0; (*! should not be done via direct replacement ! *)
-				(* ------- STOP -------- *)
-				ELSIF (id = Global.systemStop) & CheckArity(0,0) THEN
-				(* ------- SHIFTS -------- *)
-				ELSIF ((id = Global.Asr) OR (id = Global.Lsr) OR (id = Global.Lsl) OR (id = Global.systemROR)) & CheckArity(2,2) THEN
-					IF CheckIntegerType(parameter0) & CheckIntegerType(parameter1) THEN
-						type := type0;
-					END;
-					type := type0;
-				(* ------ XOR ------- *)
-				ELSIF (id = Global.systemXOR) THEN
-					IF CheckIntegerType(parameter0) & (type0=type1) THEN
-					END;
-					type := type0;
-				*)
 				(* ------- CONNECT -------*)
 				ELSIF (id = Global.Connect) & (CheckArity(2,3)) THEN
 					IF 	~(currentIsCellNet) THEN
