@@ -3252,9 +3252,9 @@ TYPE
 		PROCEDURE PushParameter(expression: SyntaxTree.Expression; parameter: SyntaxTree.Parameter; callingConvention: LONGINT; needsParameterBackup: BOOLEAN; VAR parameterBackup: IntermediateCode.Operand; numberRegister: LONGINT);
 		VAR
 			type, descriptorType, baseType: SyntaxTree.Type;
-			operand, tmpOperand, variableOp: Operand;
+			operand, tmpOperand, variableOp, variable2Op: Operand;
 			baseReg, tmp, dimOp: IntermediateCode.Operand;
-			variable: SyntaxTree.Variable;
+			variable, variable2: SyntaxTree.Variable;
 			dim, i, size: LONGINT;
 
 			(* TODO: needed? *)
@@ -3556,6 +3556,15 @@ TYPE
 						Symbol(variable,variableOp);
 						arrayDestinationTag := variableOp.op;
 						Designate(expression,operand);
+						IF operand.op.type.length >1 THEN (* vector register *)
+							variable2 := GetTemporaryVariable(type);
+							Symbol(variable2, variable2Op);
+							MakeMemory(tmp,variable2Op.op,operand.op.type,0);
+							Emit(Mov(position,tmp, operand.op));
+							ReleaseOperand(operand);
+							Symbol(variable2, operand);
+						END;
+
 						FOR i := 0 TO dim-1 DO
 							dimOp := IntermediateCode.Immediate(addressType,i);
 							GetMathArrayLength(type.resolved(SyntaxTree.MathArrayType),operand,dimOp,FALSE,tmpOperand);
