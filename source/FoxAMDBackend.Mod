@@ -2848,7 +2848,8 @@ TYPE
 		VAR sizeInBytes,length: LONGINT; memop: Assembler.Operand; op: Assembler.Operand;
 		BEGIN
 			MakeOperand(vop,Low,op,NIL);
-			IF (vop.mode = IntermediateCode.ModeMemory) & (vop.type.sizeInBits =cpuBits) THEN
+			length := vop.type.length;
+			IF (vop.mode = IntermediateCode.ModeMemory) & (vop.type.sizeInBits*length =cpuBits) THEN
 				emitter.Emit1(InstructionSet.opPUSH,op);
 			ELSE
 				sizeInBytes := vop.type.sizeInBits DIV 8;
@@ -2885,7 +2886,7 @@ TYPE
 					MakeOperand(vop,Low,op,NIL);
 					Move(op, memop, vop.type)
 				END;
-				AllocateStack(-sizeInBytes);
+				AllocateStack(-sizeInBytes*length);
 			END;
 		END EmitPopFloat;
 
