@@ -6542,8 +6542,6 @@ TYPE
 			IF IsOberonInline(procedure) THEN
 				IF SyntaxTree.Public * procedure.access # {} THEN
 					Error(procedure.position, Diagnostics.Invalid, "Export of Oberon Inline Not Yet Implemented")
-				ELSE
-					Warning(procedure.position, "Experimental Inline Feature");
 				END;
 			END;
 

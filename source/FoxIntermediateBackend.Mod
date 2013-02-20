@@ -71,7 +71,7 @@ CONST
 		FirstPriority=-3;
 		InitPriority=-2;
 		ExitPriority=-1;
-		
+
 		StrictChecks = FALSE;
 TYPE
 	SupportedInstructionProcedure* = PROCEDURE {DELEGATE} (CONST instr: IntermediateCode.Instruction; VAR moduleName,procedureName: ARRAY OF CHAR): BOOLEAN;
@@ -1402,15 +1402,17 @@ TYPE
 		END RestoreRegisters;
 
 		PROCEDURE CheckRegistersFree;
-		VAR r: RegisterEntry;
+		VAR r: RegisterEntry; warning: ARRAY 128 OF CHAR;
 		BEGIN
 			IF usedRegisters # NIL THEN
 				r := usedRegisters;
 				WHILE r # NIL DO
-					Error(r.register,"not released register");
+					warning := "register ";
+					Strings.AppendInt(warning, r.register);
+					Strings.Append(warning, " not released.");
+					Warning(position,warning);
 					r := r .next;
 				END;
-				Error(position,"register not released");
 			END;
 		END CheckRegistersFree;
 
@@ -1813,7 +1815,7 @@ TYPE
 		BEGIN
 			backend.diagnostics.Warning(module.module.sourceName,position,Diagnostics.Invalid,s);
 			IF dump # NIL THEN
-				dump.String(s); dump.Ln;
+				dump.String(s); dump.Ln; dump.Update;
 			END;
 		END Warning;
 
@@ -7936,9 +7938,7 @@ TYPE
 			IF x # NIL THEN
 				SELF.position := x.position;
 			END;
-			IF StrictChecks THEN
-				CheckRegistersFree();
-			END;
+			CheckRegistersFree();
 			currentScope := prevScope;
 			IF Trace THEN TraceExit("Body") END;
 		END Body;
