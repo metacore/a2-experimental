@@ -140,6 +140,8 @@ TYPE
 			TestSuite.DriveByReader(reader, context.error, resultname, tester);
 			tester.Print (report);
 			IF logFileWriter # NIL THEN
+				NEW(report, logFileWriter);
+				tester.Print(report);
 				logFileWriter.Update;
 				context.out.String("testing logged in "); context.out.String(logFileName); context.out.Ln;
 			END;
@@ -168,5 +170,3 @@ SystemTools.Free FoxTest TestSuite Versioning ~
 	Oberon.Compilation.Test Oberon.Compilation.AMD64TestDiff ~
 
 
-
-	Test.log
