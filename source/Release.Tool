@@ -1353,7 +1353,6 @@ PACKAGE Contributions ARCHIVE "Contributions.zip" SOURCE "ContributionsSrc.zip" 
 END
 
 PACKAGE Oberon ARCHIVE "Oberon.zip" SOURCE "OberonSrc.zip"  DESCRIPTION "Oberon for A2"
-	Oberon.Mod
 	# emulation modules
 	NATIVE,UNIX { Oberon.Kernel.Mod }
 	NATIVE,WIN { Oberon.Types.Mod }
@@ -1373,7 +1372,9 @@ PACKAGE Oberon ARCHIVE "Oberon.zip" SOURCE "OberonSrc.zip"  DESCRIPTION "Oberon 
 		Oberon.Input.Mod 	# WM-based Display & Input
 		Oberon.Viewers.Mod Oberon.Fonts.Mod
 	}
-
+	
+	Oberon.Mod
+	
 	eWIN {
 	Win32.Threads.Mod
 	Win32.Oberon.Displays.Mod Win32.Oberon.Display.Mod Win32.Oberon.Viewers.Mod
