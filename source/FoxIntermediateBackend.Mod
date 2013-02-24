@@ -3071,6 +3071,7 @@ TYPE
 						res := tag;
 						IntermediateCode.AddOffset(res,ToMemoryUnits(system,addressType.sizeInBits*(DynamicDim(type)-1)));
 						IntermediateCode.MakeMemory(res,addressType);
+						UseIntermediateOperand(res);
 						RETURN res
 					END
 				END;
@@ -3173,13 +3174,14 @@ TYPE
 				IF ((length.mode # IntermediateCode.ModeImmediate) OR (index.op.mode # IntermediateCode.ModeImmediate)) & tagsAvailable THEN
 					BoundCheck(index.op, length);
 				END;
+				ReleaseIntermediateOperand(length);
 				ReleaseOperand(index);
 				type := type(SyntaxTree.ArrayType).arrayBase.resolved;
 				length := ArrayLength(type,array.dimOffset+i-1,array.tag);
 				IF (length.mode # IntermediateCode.ModeImmediate) OR (length.intValue # 1) THEN
 					MulInt(res,res,length);
-					ReleaseIntermediateOperand(length);
 				END;
+				ReleaseIntermediateOperand(length);
 			END;
 			IF (type IS SyntaxTree.ArrayType) THEN
 				IF (type(SyntaxTree.ArrayType).form # SyntaxTree.Static) THEN
@@ -5284,7 +5286,7 @@ TYPE
 			PROCEDURE CallBodies(self: IntermediateCode.Operand; type: SyntaxTree.Type);
 			VAR recordScope: SyntaxTree.RecordScope; procedure: SyntaxTree.Procedure; body: SyntaxTree.Body; flags: LONGINT;
 				priority: IntermediateCode.Operand;
-				op: Operand;
+				op,callop: Operand;
 			BEGIN
 				IF type = NIL THEN RETURN END;
 				type := type.resolved;
@@ -5299,8 +5301,8 @@ TYPE
 					body := procedure.procedureScope.body;
 					Emit(Push(position,self));
 					IF body.isActive THEN
-						StaticCallOperand(result,procedure);
-						Emit(Push(position,result.op));
+						StaticCallOperand(callop,procedure);
+						Emit(Push(position,callop.op));
 						IF body.priority # NIL THEN Evaluate(body.priority,op); priority := op.op;
 							Convert(priority,int32);
 						ELSE priority := IntermediateCode.Immediate(int32,0)
@@ -5316,8 +5318,8 @@ TYPE
 						CallThis("Objects","CreateProcess",4)
 					ELSE
 						Emit(Push(position,self));
-						StaticCallOperand(result,procedure);
-						Emit(Call(position,result.op,ProcedureParametersSize(system,procedure)));
+						StaticCallOperand(callop,procedure);
+						Emit(Call(position,callop.op,ProcedureParametersSize(system,procedure)));
 					END;
 					Emit(Pop(position,self));
 				END;
@@ -5750,6 +5752,7 @@ TYPE
 						ToMemory(l.op,addressType,0);
 						Emit(Mov(position,l.op,pointer));
 						ReleaseOperand(l);
+						result.tag := emptyOperand;
 					END;
 
 					(* call bodies *)
