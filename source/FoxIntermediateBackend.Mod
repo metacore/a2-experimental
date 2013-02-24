@@ -45,7 +45,7 @@ CONST
 		NegativeDivisorTrap*=12;
 
 		Trace = FALSE;
-		TraceRegisterUsage=TRUE;
+		TraceRegisterUsageCount=TRUE;
 
 		ArrayAlignment = 8*8;			(* first array element of ArrayBlock and first data element of SystemBlock must be aligned to 0 MOD ArrayAlignment *)
 
@@ -784,7 +784,7 @@ TYPE
 
 	UsedArray*=POINTER TO ARRAY OF RECORD count: LONGINT; map: LONGINT; type: IntermediateCode.Type; class: IntermediateCode.RegisterClass END;
 
-	RegisterUsage*=OBJECT
+	RegisterUsageCount*=OBJECT
 	VAR used: UsedArray; count: LONGINT;
 
 		PROCEDURE &Init;
@@ -832,11 +832,6 @@ TYPE
 		PROCEDURE DecUse(register: LONGINT);
 		BEGIN
 			DEC(used[register].count);
-			(*
-			IF (register = 1) & (count > 30)  THEN
-				D.TraceBack;
-			END;
-			*)
 		END DecUse;
 
 		PROCEDURE Map(register: LONGINT): LONGINT;
@@ -851,7 +846,9 @@ TYPE
 
 		PROCEDURE Remap(register: LONGINT; to: LONGINT);
 		BEGIN
-			used[register].map:= to
+			used[register].map:= to;
+			used[to].count := used[register].count;
+			used[register].count := 0;
 		END Remap;
 
 		PROCEDURE Use(register: LONGINT): LONGINT;
@@ -863,7 +860,7 @@ TYPE
 			END
 		END Use;
 
-	END RegisterUsage;
+	END RegisterUsageCount;
 
 	RegisterEntry = POINTER TO RECORD
 		prev,next: RegisterEntry;
@@ -962,7 +959,7 @@ TYPE
 		(*
 		usedRegisters: Registers;
 		*)
-		registerUsage: RegisterUsage;
+		registerUsageCount: RegisterUsageCount;
 		usedRegisters: RegisterEntry;
 
 		(* useful operands and types *)
@@ -1031,7 +1028,7 @@ TYPE
 
 			SELF.newObjectFile := newObjectFile;
 			indexCounter := 0;
-			NEW(registerUsage);
+			NEW(registerUsageCount);
 			usedRegisters := NIL;
 			procedureResultDesignator := NIL;
 			NEW(fingerPrinter, system);
@@ -1050,7 +1047,7 @@ TYPE
 		PROCEDURE AcquireRegister(CONST type: IntermediateCode.Type; class: IntermediateCode.RegisterClass): LONGINT;
 		VAR new: LONGINT;
 		BEGIN
-			new :=  registerUsage.Next(type,class);
+			new :=  registerUsageCount.Next(type,class);
 			UseRegister(new);
 			RETURN new
 		END AcquireRegister;
@@ -1099,7 +1096,7 @@ TYPE
 			PROCEDURE CheckRegister(VAR op: IntermediateCode.Operand);
 			VAR i: LONGINT;
 			BEGIN
-				IF op.register >0 THEN IntermediateCode.SetRegister(op,registerUsage.Map(op.register)) END;
+				IF op.register >0 THEN IntermediateCode.SetRegister(op,registerUsageCount.Map(op.register)) END;
 				IF op.rule # NIL THEN
 					FOR i := 0 TO LEN(op.rule)-1 DO
 						CheckRegister(op.rule[i])
@@ -1248,6 +1245,7 @@ TYPE
 		BEGIN
 			prevConditional := conditional;
 			conditional := FALSE;
+			InitOperand(result, ModeUndefined);
 			Expression(x);
 			op := result;
 			LoadValue(op,x.type.resolved);
@@ -1259,6 +1257,7 @@ TYPE
 		BEGIN
 			prevConditional := conditional;
 			conditional := FALSE;
+			InitOperand(result,ModeUndefined);
 			Expression(x);
 			op := result;
 		(*
@@ -1290,15 +1289,20 @@ TYPE
 		PROCEDURE UnuseRegister(register: LONGINT);
 		BEGIN
 			IF (register > 0) THEN
-				registerUsage.DecUse(register);
-				IF TraceRegisterUsage & (dump# NIL) THEN
-					dump.String("unuse register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln; dump.Update;
+				register := registerUsageCount.Map(register);
+				registerUsageCount.DecUse(register);
+				IF TraceRegisterUsageCount & (dump# NIL) THEN
+					dump.String("unuse register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsageCount.Use(register),1); dump.Ln; dump.Update;
 				END;
-				IF registerUsage.Use(register)=0 THEN
-					RemoveRegisterEntry(usedRegisters,register);
-					IF TraceRegisterUsage & (dump# NIL) THEN
+				IF registerUsageCount.Use(register)=0 THEN
+					IF ~RemoveRegisterEntry(usedRegisters,register) THEN
+						Warning(position, "register cannot be removed");
+					END;
+					IF TraceRegisterUsageCount & (dump# NIL) THEN
 						dump.String("remove register from usedRegisters"); dump.Ln; dump.Update;
 					END;
+				ELSIF registerUsageCount.Use(register)<0 THEN
+					D.TraceBack;
 				END;
 			END;
 		END UnuseRegister;
@@ -1306,13 +1310,14 @@ TYPE
 		PROCEDURE UseRegister(register: LONGINT);
 		BEGIN
 			IF (register > 0) THEN
-				registerUsage.IncUse(register);
-				IF TraceRegisterUsage & (dump# NIL) THEN
-					dump.String("use register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsage.Use(register),1); dump.Ln; dump.Update;
+				register := registerUsageCount.Map(register);
+				registerUsageCount.IncUse(register);
+				IF TraceRegisterUsageCount & (dump# NIL) THEN
+					dump.String("use register "); dump.Int(register,1); dump.String(": ");dump.Int(registerUsageCount.Use(register),1); dump.Ln; dump.Update;
 				END;
-				IF registerUsage.Use(register)=1 THEN
-					AddRegisterEntry(usedRegisters,register, registerUsage.used[register].class, registerUsage.used[register].type);
-					IF TraceRegisterUsage & (dump# NIL) THEN
+				IF registerUsageCount.Use(register)=1 THEN
+					AddRegisterEntry(usedRegisters,register, registerUsageCount.used[register].class, registerUsageCount.used[register].type);
+					IF TraceRegisterUsageCount & (dump# NIL) THEN
 						dump.String("add register to usedRegisters"); dump.Ln; dump.Update;
 					END;
 				END;
@@ -1344,7 +1349,7 @@ TYPE
 		BEGIN
 			entry := usedRegisters;
 			WHILE entry # NIL DO
-				type := registerUsage.used[entry.register].type;
+				type := registerUsageCount.used[entry.register].type;
 				IntermediateCode.InitRegister(op,entry.type,entry.registerClass, entry.register);
 				Emit(Push(position,op));
 				entry := entry.next;
@@ -1365,9 +1370,9 @@ TYPE
 			WHILE entry # NIL DO
 				next := entry.next;
 				IF entry.registerClass.class = IntermediateCode.Parameter THEN
-					registerUsage.DecUse(entry.register);
-					ASSERT(registerUsage.Use(entry.register)=0);
-					IF TraceRegisterUsage & (dump# NIL) THEN
+					registerUsageCount.DecUse(entry.register);
+					ASSERT(registerUsageCount.Use(entry.register)=0);
+					IF TraceRegisterUsageCount & (dump# NIL) THEN
 						dump.String("unuse register "); dump.Int(entry.register,1); dump.Ln; dump.Update;
 					END;
 				ELSIF prev = NIL THEN
@@ -1381,7 +1386,7 @@ TYPE
 
 		(* restore registers from array saved and re-enter into array markedRegisters (recursion possible) *)
 		PROCEDURE RestoreRegisters(CONST saved: RegisterEntry);
-		VAR op: IntermediateCode.Operand; entry,prev: RegisterEntry; type: IntermediateCode.Type; class: IntermediateCode.RegisterClass;
+		VAR op: IntermediateCode.Operand; entry,prev: RegisterEntry; type: IntermediateCode.Type; class: IntermediateCode.RegisterClass; new: LONGINT;
 		BEGIN
 			entry := saved;
 			WHILE (entry # NIL) DO prev := entry; entry := entry.next END;
@@ -1391,7 +1396,15 @@ TYPE
 				type := entry.type;
 				class := entry.registerClass;
 				IntermediateCode.InitRegister(op,type,class,entry.register);
-				registerUsage.Remap(entry.register,registerUsage.Next(type,class));
+				new := registerUsageCount.Next(type,class);
+				registerUsageCount.Remap(entry.register,new);
+				IF TraceRegisterUsageCount & (dump# NIL) THEN
+					dump.String("remap register "); dump.Int(entry.register,1);
+					dump.String("to "); dump.Int(new,1);
+					dump.String("with count "); dump.Int(registerUsageCount.Use(new),1); dump.Ln; dump.Update;
+				END;
+				entry.register := new;
+
 				Emit(Pop(position,op));
 				AddRegisterEntry(usedRegisters,entry.register,entry.registerClass, entry.type);
 				entry := prev;
@@ -1402,7 +1415,7 @@ TYPE
 		END RestoreRegisters;
 
 		PROCEDURE CheckRegistersFree;
-		VAR r: RegisterEntry; warning: ARRAY 128 OF CHAR;
+		VAR r: RegisterEntry; warning: ARRAY 128 OF CHAR; i: LONGINT;
 		BEGIN
 			IF usedRegisters # NIL THEN
 				r := usedRegisters;
@@ -1412,6 +1425,19 @@ TYPE
 					Strings.Append(warning, " not released.");
 					Warning(position,warning);
 					r := r .next;
+				END;
+			END;
+			FOR i := 0 TO registerUsageCount.count-1 DO
+				IF registerUsageCount.used[i].count < 0 THEN
+					warning := "register ";
+					Strings.AppendInt(warning, i);
+					Strings.Append(warning, " unused too often.");
+					Warning(position,warning);
+				ELSIF registerUsageCount.used[i].count > 0 THEN (* should always coincide with cases above *)
+					warning := "register ";
+					Strings.AppendInt(warning, i);
+					Strings.Append(warning, " not unused often enough.");
+					Warning(position,warning);
 				END;
 			END;
 		END CheckRegistersFree;
@@ -1531,6 +1557,7 @@ TYPE
 		PROCEDURE Convert(VAR operand: IntermediateCode.Operand; type: IntermediateCode.Type);
 		VAR new: IntermediateCode.Operand;
 		BEGIN
+			IF Trace THEN TraceEnter("Convert") END;
 			IF IntermediateCode.TypeEquals(type,operand.type) THEN (* nothing to be done *)
 			ELSIF (operand.mode = IntermediateCode.ModeRegister) THEN
 				IF (type.sizeInBits = operand.type.sizeInBits) & (type.form IN IntermediateCode.Integer) & (operand.type.form IN IntermediateCode.Integer)
@@ -1552,6 +1579,7 @@ TYPE
 				ReleaseIntermediateOperand(operand);
 				operand := new;
 			END;
+			IF Trace THEN TraceExit("Convert") END;
 		END Convert;
 
 		PROCEDURE TrapC(br: ConditionalBranch; left,right:IntermediateCode.Operand; trapNo: LONGINT);
@@ -2501,6 +2529,7 @@ TYPE
 					Convert(temp.op,bool);
 					result.mode := ModeValue;
 					result.op := temp.op;
+					result.tag := nil; (* may be left over from calls to evaluate *)
 				END;
 			ELSE
 				HALT(100);
@@ -2677,6 +2706,7 @@ TYPE
 
 			(* designate the array to be indexed over, perform tensor range check if known *)
 			Designate(x.left, array);
+
 			IF leftType(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
 				Dereference(array, leftType);
 				IF tensorRangeCount=0 THEN
@@ -2700,6 +2730,7 @@ TYPE
 			ReuseCopy(localResult.op, array.op);
 			*)
 			localResult.op := array.op;
+			UseIntermediateOperand(localResult.op);
 
 			(* go through the index list *)
 			FOR i := 0 TO indexListSize - 1 DO
@@ -2731,6 +2762,8 @@ TYPE
 					IF SemanticChecker.IsIntegerType(expression.type.resolved) THEN
 						(* SINGLE INDEX *)
 						Evaluate(expression, index);
+						ReleaseIntermediateOperand(index.tag);
+						index.tag := emptyOperand;
 						Convert(index.op, sizeType);
 
 						(* lower bound check *)
@@ -2752,11 +2785,6 @@ TYPE
 						ReleaseOperand(sourceLength);
 						Convert(index.op, addressType);
 						summand := index.op;
-						ReleaseIntermediateOperand(index.tag);
-						(*
-						ReuseCopy(summand, index.op);
-						ReleaseOperand(index)
-						*)
 
 					ELSIF expression.type.resolved IS SyntaxTree.RangeType THEN
 						(* RANGE OF INDICES *)
@@ -2822,7 +2850,7 @@ TYPE
 						ELSE
 							(* targetLength := lastIndex + 1 *)
 							Reuse1(targetLength, lastIndex);
-							Emit(Add(position,targetLength, lastIndex, IntermediateCode.Immediate(sizeType, 1)));
+							AddInt(targetLength, lastIndex, IntermediateCode.Immediate(sizeType, 1));
 						END;
 						ReleaseOperand(sourceLength);
 						ReleaseIntermediateOperand(lastIndex);
@@ -2883,7 +2911,7 @@ TYPE
 							BrL(skipLabel2);
 							SetLabel(skipLabel1);
 							Emit(Div(position,targetLength, targetLength, stepSize));
-							Emit(Add(position,targetLength, targetLength, IntermediateCode.Immediate(sizeType, 1)));
+							AddInt(targetLength, targetLength, IntermediateCode.Immediate(sizeType, 1));
 							SetLabel(skipLabel2);
 							ReleaseIntermediateOperand(tmp);
 						END;
@@ -2900,7 +2928,7 @@ TYPE
 							(* targetIncrement := sourceIncrement * stepSize *)
 							Reuse1(targetIncrement, stepSize);
 							ASSERT((sourceIncrement.op.mode # IntermediateCode.ModeImmediate) OR (stepSize.mode # IntermediateCode.ModeImmediate));
-							Emit(Mul(position,targetIncrement, sourceIncrement.op, stepSize))
+							MulInt(targetIncrement, sourceIncrement.op, stepSize);
 						END;
 						ReleaseIntermediateOperand(stepSize);
 
@@ -2910,7 +2938,7 @@ TYPE
 							GetMathArrayField(tmp, array.tag, MathDimOffset);
 							ReuseCopy(destDim, tmp);
 							ReleaseIntermediateOperand(tmp);
-							Emit(Add(position,destDim, destDim, IntermediateCode.Immediate(sizeType, indexDim + destDimOffset)));
+							AddInt(destDim, destDim, IntermediateCode.Immediate(sizeType, indexDim + destDimOffset));
 
 							PutMathArrayLenOrIncr(localResult.tag, targetLength, destDim, FALSE);
 							PutMathArrayLenOrIncr(localResult.tag, targetIncrement, destDim, TRUE);
@@ -2937,7 +2965,7 @@ TYPE
 					Convert(sourceIncrement.op, addressType);
 					Convert(summand, addressType);
 					MulInt(summand, summand, sourceIncrement.op);
-					ReleaseOperand(sourceIncrement);
+					ReleaseIntermediateOperand(sourceIncrement.op);
 					AddInt(localResult.op, localResult.op, summand);
 					ReleaseIntermediateOperand(summand);
 				END
@@ -5428,8 +5456,8 @@ TYPE
 					IF x.id = Global.Ash THEN Emit(Shr(position,reg,reg,tmp))
 					ELSIF x.id = Global.Lsh THEN Emit(Shr(position,reg,reg,tmp))
 					ELSIF x.id = Global.Rot THEN Emit(Ror(position,reg,reg,tmp))
-					ELSIF x.id = Global.Ror THEN Emit(Rol(position,reg,s0.op,s1.op))
-					ELSIF x.id = Global.Asr THEN Emit(Shl(position,reg,s0.op,s1.op))
+					ELSIF x.id = Global.Ror THEN Emit(Rol(position,reg,reg,tmp))
+					ELSIF x.id = Global.Asr THEN Emit(Shl(position,reg,reg,tmp))
 					END;
 					ReleaseIntermediateOperand(tmp);
 					BrL(end);
@@ -5439,8 +5467,8 @@ TYPE
 					IF x.id = Global.Ash THEN Emit(Shl(position,reg,reg,tmp))
 					ELSIF x.id = Global.Lsh THEN Emit(Shl(position,reg,reg,tmp))
 					ELSIF x.id = Global.Rot THEN Emit(Rol(position,reg,reg,tmp))
-					ELSIF x.id = Global.Ror THEN Emit(Ror(position,reg,s0.op,s1.op))
-					ELSIF x.id = Global.Asr THEN Emit(Shr(position,reg,s0.op,s1.op))
+					ELSIF x.id = Global.Ror THEN Emit(Ror(position,reg,reg,tmp))
+					ELSIF x.id = Global.Asr THEN Emit(Shr(position,reg,reg,tmp))
 					END;
 					ReleaseIntermediateOperand(tmp);
 					SetLabel(end);
@@ -5681,7 +5709,8 @@ TYPE
 					IntermediateCode.InitRegister(pointer,addressType,IntermediateCode.GeneralPurposeRegister,AcquireRegister(addressType,IntermediateCode.GeneralPurposeRegister));
 					Emit(Pop(position,pointer));
 					MakeMemory(reg,pointer,addressType,0);
-					ReleaseIntermediateOperand(pointer); pointer := reg;
+					ReleaseIntermediateOperand(pointer);
+					pointer := reg;
 					exit := NewLabel();
 					BreqL(exit,pointer,nil);
 					Emit(Push(position,pointer));
@@ -6420,10 +6449,13 @@ TYPE
 			dest := destination; destination := emptyOperand;
 			Designate(x.left(SyntaxTree.SymbolDesignator).left,result);
 			tag := result.op;
-			ReleaseIntermediateOperand(result.tag);
+			(*ReleaseIntermediateOperand(result.tag); not necessary -- done in StaticCallOperand *)
 			procedure := x.left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Procedure);
 			StaticCallOperand(result,procedure.super);
+
 			ReleaseIntermediateOperand(result.tag);
+			UseIntermediateOperand(tag); (* necessary ? *)
+
 			result.tag := tag;
 			destination := dest;
 			IF Trace THEN TraceExit("VisitSupercallDesignator") END;
@@ -6667,16 +6699,20 @@ TYPE
 		END GetBaseRegister;
 
 		PROCEDURE VisitVariable(x: SyntaxTree.Variable);
-		VAR symbol: Sections.Section;  type: SyntaxTree.Type; name: Basic.SegmentedName; temp: IntermediateCode.Operand;
+		VAR symbol: Sections.Section;  type: SyntaxTree.Type; name: Basic.SegmentedName; temp: IntermediateCode.Operand; reg: LONGINT;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitVariable");  END;
 			type := x.type.resolved;
 			IF (x.useRegister) THEN
 				InitOperand(result, ModeValue);
-				IF x.registerNumber < 0 THEN x.SetRegisterNumber(AcquireRegister(IntermediateCode.GetType(system, type),IntermediateCode.GeneralPurposeRegister))
-				ELSE UseRegister(x.registerNumber);
+				IF x.registerNumber < 0 THEN
+					x.SetRegisterNumber(AcquireRegister(IntermediateCode.GetType(system, type),IntermediateCode.GeneralPurposeRegister));
+					reg := x.registerNumber;
+				ELSE
+					reg := registerUsageCount.Map(x.registerNumber);
+					UseRegister(reg);
 				END;
-				IntermediateCode.InitRegister(result.op,IntermediateCode.GetType(system, type),IntermediateCode.GeneralPurposeRegister,x.registerNumber);
+				IntermediateCode.InitRegister(result.op,IntermediateCode.GetType(system, type),IntermediateCode.GeneralPurposeRegister,reg);
 			ELSIF (x.scope IS SyntaxTree.ProcedureScope) THEN (* local variable (potentially via nested procedure) *)
 				InitOperand(result,ModeReference);
 				GetBaseRegister(result.op,currentScope,x.scope);
@@ -7033,7 +7069,7 @@ TYPE
 			PROCEDURE CanPassAsResultParameter(right: SyntaxTree.Expression): BOOLEAN;
 			VAR procedureType: SyntaxTree.ProcedureType;
 			BEGIN
-				IF ReturnedAsParameter(right.type) THEN
+				IF ReturnedAsParameter(right.type)  THEN
 					IF right IS SyntaxTree.ProcedureCallDesignator THEN
 						procedureType := right(SyntaxTree.ProcedureCallDesignator).left.type.resolved(SyntaxTree.ProcedureType);
 						RETURN procedureType.callingConvention = SyntaxTree.OberonCallingConvention
@@ -7718,10 +7754,13 @@ TYPE
 		VAR (*  inline: Sections.CellNet; symbol: SyntaxTree.Symbol; *)
 			in, out: IntermediateCode.Rules; statement: SyntaxTree.Statement; i: LONGINT; operand: Operand; str: POINTER TO ARRAY OF CHAR;
 				result: IntermediateCode.Operand; scope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType; return: IntermediateCode.Operand;
+				parSize: LONGINT;
+				procedure: SyntaxTree.Procedure;
 		BEGIN
 			scope := currentScope;
 			WHILE ~(scope IS SyntaxTree.ProcedureScope) DO scope := scope.outerScope END;
-			procedureType := scope(SyntaxTree.ProcedureScope).ownerProcedure.type(SyntaxTree.ProcedureType);
+			procedure :=  scope(SyntaxTree.ProcedureScope).ownerProcedure;
+			procedureType := procedure.type(SyntaxTree.ProcedureType);
 			return := emptyOperand;
 
 			IF Trace THEN TraceEnter("VisitCode") END;
@@ -7781,6 +7820,11 @@ TYPE
 			END;
 			IF return.mode # IntermediateCode.Undefined THEN
 				Emit(Return(position,return));
+				Emit(Leave(position,procedureType(SyntaxTree.ProcedureType).callingConvention));
+				IF procedureType.callingConvention = SyntaxTree.CCallingConvention THEN parSize := 0
+				ELSE parSize := ProcedureParametersSize(system,procedure);
+				END;
+				Emit(Exit(position,parSize, procedureType(SyntaxTree.ProcedureType).pcOffset,procedureType(SyntaxTree.ProcedureType).callingConvention));
 				ReleaseIntermediateOperand(return);
 			END;
 
@@ -7850,8 +7894,10 @@ TYPE
 		PROCEDURE Body(x: SyntaxTree.Body; scope: SyntaxTree.Scope; ir: IntermediateCode.Section; moduleBody: BOOLEAN);
 		VAR prevScope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType; procedure: SyntaxTree.Procedure;
 			end: Label;res: IntermediateCode.Operand; cellScope: SyntaxTree.CellScope; op: Operand; string: SyntaxTree.IdentifierString;
+			saved: RegisterEntry;
 		BEGIN
 			IF Trace THEN TraceEnter("Body") END;
+			ReleaseUsedRegisters(saved); (* just in case ... *)
 			section := ir;
 			IF ir.comments # NIL THEN
 				commentPrintout := Printout.NewPrinter(ir.comments,Printout.SourceCode,FALSE);
@@ -7861,7 +7907,7 @@ TYPE
 				commentPrintout := NIL;
 				dump := NIL;
 			END;
-			registerUsage.Init;
+			registerUsageCount.Init;
 
 			prevScope := currentScope;
 			currentScope := scope;
@@ -9363,17 +9409,21 @@ TYPE
 		END;
 	END AddRegisterEntry;
 
-	PROCEDURE RemoveRegisterEntry(VAR queue: RegisterEntry; register: LONGINT);
+	PROCEDURE RemoveRegisterEntry(VAR queue: RegisterEntry; register: LONGINT): BOOLEAN;
 	VAR this: RegisterEntry;
 	BEGIN
 		this := queue;
 		WHILE (this # NIL) & (this.register # register) DO
 			this := this.next;
 		END;
+		IF this = NIL THEN
+			RETURN FALSE
+		END;
 		ASSERT(this # NIL);
 		IF this = queue THEN queue := queue.next END;
 		IF this.prev # NIL THEN this.prev.next := this.next END;
 		IF this.next # NIL THEN this.next.prev := this.prev END;
+		RETURN TRUE
 	END RemoveRegisterEntry;
 
 	PROCEDURE Assert(cond: BOOLEAN; CONST reason: ARRAY OF CHAR);

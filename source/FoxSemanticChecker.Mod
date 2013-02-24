@@ -4412,7 +4412,7 @@ TYPE
 			RETURN variable(SyntaxTree.Variable)
 		END GetTemporaryVariable;
 
-		PROCEDURE CanPassInRegister(type: SyntaxTree.Type): BOOLEAN;
+		PROCEDURE CanPassInRegister*(type: SyntaxTree.Type): BOOLEAN;
 		BEGIN
 			type := type.resolved;
 			IF (type IS SyntaxTree.BasicType) & ~type.IsPointer() & ~type.IsComposite() THEN
