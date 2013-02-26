@@ -7043,6 +7043,9 @@ TYPE
 						ExpressionList(e.parameters)
 					|e: SyntaxTree.BuiltinCallDesignator DO
 						ExpressionList(e.parameters);
+					|e: SyntaxTree.IndexDesignator DO
+						ExpressionList(e.parameters);
+						e.SetLeft(E(e.left))
 					ELSE
 					END;
 					RETURN e
