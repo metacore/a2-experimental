@@ -6255,6 +6255,11 @@ TYPE
 				ReleaseOperand(s0); ReleaseOperand(s1); ReleaseOperand(s2);
 				res := NewRegisterOperand(IntermediateCode.GetType(system, p0.type));
 				Emit(Result(position, res)); result.op := res; result.mode := ModeValue;
+				IF conditional THEN
+					BreqL(trueLabel,IntermediateCode.Immediate(res.type,1),res);
+					BrL(falseLabel);
+					ReleaseIntermediateOperand(res);
+				END;
 			(* ---- DIM ----- *)
 			|Global.Dim:
 				ASSERT(~SemanticChecker.IsArrayStructuredObjectType(p0.type));
