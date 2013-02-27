@@ -4495,7 +4495,6 @@ TYPE
 
 				IF (left IS SyntaxTree.SymbolDesignator) & (left(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Procedure) &  IsOberonInline(left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Procedure))  THEN
 					procedure := left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Procedure);
-					ResolveSymbol(procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
 					block := SyntaxTree.NewExitableBlock(position, NIL (*! todo *));
 					block.SetStatements(SyntaxTree.CloneStatementSequence(procedure.procedureScope.body.statements));
@@ -4524,9 +4523,7 @@ TYPE
 						expressions.AddExpression(temporaryDesignator);
 						var := var.nextVariable
 					END;
-					Printout.Info("block a",block);
 					ReplaceSymbols(block, resolvedStatement, symbols, expressions, temporaryDesignator);
-					Printout.Info("block b",block);
 					IF ~error THEN
 						block.Accept(SELF);
 					ELSE
@@ -7032,8 +7029,6 @@ TYPE
 			BEGIN
 				IF (e IS SyntaxTree.SymbolDesignator) & (e(SyntaxTree.SymbolDesignator).symbol = sym) THEN
 					s := e(SyntaxTree.SymbolDesignator).symbol;
-					Printout.Info("s",s);
-					Printout.Info("exp",exp);
 					RETURN exp
 				ELSE
 					WITH e :SyntaxTree.BinaryExpression DO
@@ -7119,7 +7114,6 @@ TYPE
 		BEGIN
 			FOR expCount := 0 TO symbols.Length()-1 DO
 				exp := expressions.GetExpression(expCount);
-				Printout.Info("exp",exp);
 				sym := symbols.GetSymbol(expCount);
 				statement := Traverse(statement,outer);
 			END;
