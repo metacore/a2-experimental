@@ -10,7 +10,7 @@ CONST
 	Infinity = MAX(LONGINT); (* for type distance *)
 	InvalidPosition* = Diagnostics.Invalid;
 	MaxTensorIndexOperatorSize = 4;
-	UndefinedPhase = 0; DeclarationPhase=1; ImplementationPhase=2;
+	UndefinedPhase = 0; DeclarationPhase=1; InlinePhase=2; ImplementationPhase=3;
 
 TYPE
 	FileName=ARRAY 256 OF CHAR;
@@ -4495,6 +4495,7 @@ TYPE
 
 				IF (left IS SyntaxTree.SymbolDesignator) & (left(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Procedure) &  IsOberonInline(left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Procedure))  THEN
 					procedure := left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Procedure);
+					ResolveSymbol(procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
 					block := SyntaxTree.NewExitableBlock(position, NIL (*! todo *));
 					block.SetStatements(SyntaxTree.CloneStatementSequence(procedure.procedureScope.body.statements));
@@ -4523,8 +4524,9 @@ TYPE
 						expressions.AddExpression(temporaryDesignator);
 						var := var.nextVariable
 					END;
-
+					Printout.Info("block a",block);
 					ReplaceSymbols(block, resolvedStatement, symbols, expressions, temporaryDesignator);
+					Printout.Info("block b",block);
 					IF ~error THEN
 						block.Accept(SELF);
 					ELSE
@@ -7030,6 +7032,8 @@ TYPE
 			BEGIN
 				IF (e IS SyntaxTree.SymbolDesignator) & (e(SyntaxTree.SymbolDesignator).symbol = sym) THEN
 					s := e(SyntaxTree.SymbolDesignator).symbol;
+					Printout.Info("s",s);
+					Printout.Info("exp",exp);
 					RETURN exp
 				ELSE
 					WITH e :SyntaxTree.BinaryExpression DO
@@ -7044,8 +7048,13 @@ TYPE
 					|e: SyntaxTree.BuiltinCallDesignator DO
 						ExpressionList(e.parameters);
 					|e: SyntaxTree.IndexDesignator DO
+						e.SetLeft(E(e.left));
 						ExpressionList(e.parameters);
-						e.SetLeft(E(e.left))
+					|e: SyntaxTree.BracketDesignator DO
+						e.SetLeft(E(e.left));
+						ExpressionList(e.parameters);
+					|e: SyntaxTree.ResultDesignator DO
+						RETURN result(SyntaxTree.Designator);
 					ELSE
 					END;
 					RETURN e
@@ -7110,6 +7119,7 @@ TYPE
 		BEGIN
 			FOR expCount := 0 TO symbols.Length()-1 DO
 				exp := expressions.GetExpression(expCount);
+				Printout.Info("exp",exp);
 				sym := symbols.GetSymbol(expCount);
 				statement := Traverse(statement,outer);
 			END;
@@ -7907,7 +7917,11 @@ TYPE
 			END;
 			IF (scope IS SyntaxTree.ProcedureScope) & (scope(SyntaxTree.ProcedureScope).body # NIL) (* & ~(scope IS SyntaxTree.RecordScope) *) THEN
 				(* module body, record bodies are wrapped into an artifical procedure *)
-				Body(scope(SyntaxTree.ProcedureScope).body)
+				IF (phase = InlinePhase) & (IsOberonInline(procedure)) THEN
+					Body(scope(SyntaxTree.ProcedureScope).body)
+				ELSIF (phase = ImplementationPhase) & ~IsOberonInline(procedure) THEN
+					Body(scope(SyntaxTree.ProcedureScope).body)
+				END;
 			END;
 			currentScope := prevScope;
 			currentIsRealtime := prevIsRealtime;
@@ -7922,6 +7936,12 @@ TYPE
 		VAR  scope: SyntaxTree.Scope; prevPhase: LONGINT;
 		BEGIN
 			prevPhase := phase;
+			phase := InlinePhase;
+			scope := x.firstScope;
+			WHILE(scope # NIL) DO
+				Implementation(scope);
+				scope := scope.nextScope;
+			END;
 			phase := ImplementationPhase;
 			scope := x.firstScope;
 			WHILE(scope # NIL) DO
