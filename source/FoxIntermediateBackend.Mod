@@ -2693,7 +2693,7 @@ TYPE
 
 			InitOperand(localResult, ModeReference);
 
-			IF resultingType IS SyntaxTree.MathArrayType THEN
+			IF (resultingType IS SyntaxTree.MathArrayType) & (resultingType(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
 				targetArrayDimensionality := resultingType(SyntaxTree.MathArrayType).Dimensionality();
 
 				IF arrayDestinationTag.mode # IntermediateCode.Undefined THEN
@@ -2997,7 +2997,7 @@ TYPE
 			ELSIF (resultingType IS SyntaxTree.ArrayType) THEN
 				result.tag := array.tag; UseIntermediateOperand(result.tag); result.dimOffset := array.dimOffset+indexListSize-1;
 
-			ELSIF (resultingType IS SyntaxTree.MathArrayType) THEN
+			ELSIF (resultingType IS SyntaxTree.MathArrayType) & (resultingType(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
 				(* finalize target array descriptor *)
 				ASSERT(result.tag.mode # IntermediateCode.Undefined); (* tag has been already set in the beginning *)
 
@@ -3545,7 +3545,7 @@ TYPE
 				ELSIF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (parameter.kind IN {SyntaxTree.ConstParameter,SyntaxTree.ValueParameter}) THEN
 					dim := SemanticChecker.Dimension(type,{SyntaxTree.Open,SyntaxTree.Static});
 					(* case 3b *)
-					IF expression IS SyntaxTree.IndexDesignator THEN
+					IF (expression IS SyntaxTree.IndexDesignator) & (type.resolved(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
 						IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN (* indexer of form a[e,....,?] *)
 							variable := PrepareTensorDescriptor(expression(SyntaxTree.IndexDesignator));
 							Symbol(variable,variableOp);
@@ -3641,7 +3641,7 @@ TYPE
 				ELSIF (parameter.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor) & (parameter.kind = SyntaxTree.VarParameter) THEN
 					dim := SemanticChecker.Dimension(type,{SyntaxTree.Open,SyntaxTree.Static});
 					(* case 4b *)
-					IF expression IS SyntaxTree.IndexDesignator THEN
+					IF (expression IS SyntaxTree.IndexDesignator) & (type(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
 						IF type(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN (* indexer of form a[e,....,?] *)
 							variable := PrepareTensorDescriptor(expression(SyntaxTree.IndexDesignator));
 							Symbol(variable,variableOp);
