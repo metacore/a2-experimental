@@ -7765,8 +7765,8 @@ TYPE
 
 		PROCEDURE VisitCode(x: SyntaxTree.Code);
 		VAR (*  inline: Sections.CellNet; symbol: SyntaxTree.Symbol; *)
-			in, out: IntermediateCode.Rules; statement: SyntaxTree.Statement; i: LONGINT; operand: Operand; str: POINTER TO ARRAY OF CHAR;
-				result: IntermediateCode.Operand; scope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType; return: IntermediateCode.Operand;
+			in, out: IntermediateCode.Rules; statement: SyntaxTree.Statement; i: LONGINT; operand,par: Operand; str: POINTER TO ARRAY OF CHAR;
+				result, mem: IntermediateCode.Operand; scope: SyntaxTree.Scope; procedureType: SyntaxTree.ProcedureType; return: IntermediateCode.Operand;
 				parSize: LONGINT;
 				procedure: SyntaxTree.Procedure;
 		BEGIN
@@ -7832,7 +7832,15 @@ TYPE
 				END;
 			END;
 			IF return.mode # IntermediateCode.Undefined THEN
-				Emit(Return(position,return));
+				IF ReturnedAsParameter(procedureType.returnType) THEN
+					Symbol(procedureType.returnParameter, par);
+					MakeMemory(mem, par.op, return.type, 0);
+					ReleaseOperand(par);
+					Emit(Mov(position, mem, return));
+					ReleaseIntermediateOperand(mem);
+				ELSE
+					Emit(Return(position,return));
+				END;
 				Emit(Leave(position,procedureType(SyntaxTree.ProcedureType).callingConvention));
 				IF procedureType.callingConvention = SyntaxTree.CCallingConvention THEN parSize := 0
 				ELSE parSize := ProcedureParametersSize(system,procedure);
