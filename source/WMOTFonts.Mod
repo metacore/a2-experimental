@@ -2,7 +2,7 @@ MODULE WMOTFonts;	(** AUTHOR "PL"; PURPOSE "OpenType Support" *)
 
 IMPORT
 	KernelLog, WMGraphics, Raster, WMFontManager, Strings, WMRectangles,
-	Files, OpenTypeFonts, OpenType, OpenTypeInt, OpenTypeScan;
+	Files, OpenTypeFonts, OpenType, OpenTypeInt, OpenTypeScan, Zip;
 
 CONST
 	ScreenDPI = 71;
@@ -113,6 +113,10 @@ TYPE
 			file: Files.File;
 			fileName: Files.FileName;
 			i: LONGINT;
+			archive: Zip.Archive;
+			res: LONGINT;
+			entry: Zip.Entry;
+			rider: Files.Rider;
 
 			PROCEDURE ReadGlyph(VAR g: Glyph);
 			VAR len: LONGINT;
@@ -141,7 +145,22 @@ TYPE
 
 		BEGIN
 			GetCacheFileName(gri, fileName);
+			(* first try direct -- if not in zip file it is faster *)
 			file := Files.Old(fileName);
+			(* then try in zip file *)
+			IF (file = NIL) THEN
+				archive := Zip.OpenArchive("FontCache.zip", res);
+				IF res # Zip.Ok THEN
+					RETURN FALSE
+				ELSE
+					entry := Zip.GetEntry(archive, fileName, res);
+					IF res # Zip.Ok THEN RETURN FALSE END;
+					file := Files.New("");
+					file.Set(rider,0);
+					Zip.ExtractEntry(archive, entry, rider, res);
+				END;
+			END;
+			(* if file is still not here then the cache is not yet created *)
 			IF file = NIL THEN
 				RETURN FALSE
 			ELSE
@@ -159,7 +178,9 @@ TYPE
 			writer: Files.Writer;
 			file: Files.File;
 			fileName: Files.FileName;
-			i: LONGINT;
+			i,res: LONGINT;
+			archive: Zip.Archive;
+			r: Files.Rider;
 
 			PROCEDURE WriteGlyph(CONST g: Glyph);
 			BEGIN
@@ -190,17 +211,24 @@ TYPE
 
 		BEGIN
 			GetCacheFileName(gri, fileName);
-			file := Files.New(fileName);
+			file := Files.New("");
+
 			Files.OpenWriter(writer, file, 0);
 			FOR i := glyphRanges[gri].firstCode TO glyphRanges[gri].lastCode DO
 				WriteGlyph(glyphRanges[gri].glyphs[i - glyphRanges[gri].firstCode])
 			END;
 			writer.Update;
 			Files.Register(file);
+			archive := Zip.OpenArchive("FontCache.zip", res);
+			IF res # Zip.Ok THEN
+				archive := Zip.CreateArchive("FontCache.zip",res);
+			END;
+			file.Set(r, 0);
+			Zip.AddEntry(archive, fileName, r, file.Length(), 9, 2, res);
 		END ToCacheFile;
 
 		PROCEDURE LoadGlyphRange(gri : LONGINT);
-		VAR i : LONGINT;
+		VAR i: LONGINT;
 		BEGIN
 			IF glyphRanges[gri].glyphs = NIL THEN
 				NEW(glyphRanges[gri].glyphs, glyphRanges[gri].lastCode - glyphRanges[gri].firstCode + 1)
