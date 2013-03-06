@@ -7221,6 +7221,42 @@ TYPE
 			IF Trace THEN TraceExit("VisitAssignment") END;
 		END VisitAssignment;
 
+		PROCEDURE VisitCommunicationStatement(communication: SyntaxTree.CommunicationStatement);
+		VAR p0,p1: SyntaxTree.Expression; len,val: LONGINT; l,r: Operand; res,adr,reg: IntermediateCode.Operand; type, componentType: SyntaxTree.Type;
+			constructor: SyntaxTree.Procedure; s0,s1: Operand; hint: HUGEINT; size: LONGINT;
+		BEGIN
+			p0 := communication.left; p1 := communication.right;
+			IF communication.send THEN
+				Evaluate(p0,s0);
+				Evaluate(p1,s1);
+				size := ToMemoryUnits(system,system.SizeOf(p1.type));
+				Emit(Push(position,s0.op));
+				Emit(Push(position,s1.op));
+				(*
+				Emit(Push(position,IntermediateCode.Immediate(addressType,size)));
+				*)
+				IF size # 1 THEN Error(p1.position,"send not implemented for complex data types") END;
+				ReleaseOperand(s0);
+				ReleaseOperand(s1);
+				CallThis(ChannelModuleName,"Send",-1);
+			(* ----- RECEIVE ------*)
+			ELSE
+				Evaluate(p0,s0);
+				Emit(Push(position,s0.op));
+				Designate(p1,s1);
+				size := ToMemoryUnits(system,system.SizeOf(p1.type));
+				Emit(Push(position,s1.op));
+				(*
+				Emit(Push(position,IntermediateCode.Immediate(addressType,size)));
+				*)
+				IF size # 1 THEN Error(p1.position,"receive not implemented for complex data types") END;
+				ReleaseOperand(s0);
+				ReleaseOperand(s1);
+				CallThis(ChannelModuleName,"Receive",-1)
+			END;
+		END VisitCommunicationStatement;
+
+
 		PROCEDURE VisitIfStatement(x: SyntaxTree.IfStatement);
 		VAR end: Label; i,elsifs: LONGINT; elsif: SyntaxTree.IfPart; escape: BOOLEAN;
 
