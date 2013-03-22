@@ -540,7 +540,7 @@ TYPE
 			END;
 
 			fpStackPointer := 0;
-			InitTicketGenerator(diagnostics,2,physicalRegisters);
+			InitTicketGenerator(diagnostics,backend.optimize,2,physicalRegisters);
 		END InitGeneratorAMD64;
 
 		(*------------------- overwritten methods ----------------------*)

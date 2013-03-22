@@ -9527,6 +9527,7 @@ TYPE
 		noRuntimeChecks: BOOLEAN;
 		simpleMetaData-: BOOLEAN;
 		noAsserts: BOOLEAN;
+		optimize-: BOOLEAN;
 
 		PROCEDURE &InitIntermediateBackend*;
 		BEGIN
@@ -9630,6 +9631,7 @@ TYPE
 			options.Add(0X,"noRuntimeChecks",Options.Flag);
 			options.Add(0X,"noAsserts",Options.Flag);
 			options.Add(0X,"metaData",Options.String);
+			options.Add('o',"optimize", Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -9648,6 +9650,7 @@ TYPE
 			END;
 			IF options.GetString("runtime",name) THEN SetRuntimeModuleName(name) END;
 			IF options.GetString("traceModule",name) THEN SetTraceModuleName(name) END;
+			optimize := options.GetFlag("optimize");
 		END GetOptions;
 
 		PROCEDURE DefaultSymbolFileFormat(): Formats.SymbolFileFormat;
