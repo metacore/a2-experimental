@@ -275,7 +275,8 @@ TYPE
 				PROCEDURE CheckMov(VAR instruction: IntermediateCode.Instruction);
 				VAR i: LONGINT; srcReg, destReg: LONGINT;
 				BEGIN
-					IF (instruction.opcode = IntermediateCode.mov) & (instruction.op1.mode = IntermediateCode.ModeRegister) & (instruction.op2.mode = IntermediateCode.ModeRegister) THEN
+					IF (instruction.opcode = IntermediateCode.mov) & (instruction.op1.mode = IntermediateCode.ModeRegister) 
+						& (instruction.op2.mode = IntermediateCode.ModeRegister) & IntermediateCode.TypeEquals(instruction.op1.type, instruction.op2.type) THEN
 						destReg := instruction.op1.register;
 						srcReg := instruction.op2.register;
 						IF (destReg >= 0) & (allocation.table[destReg].first = pc) & (srcReg >= 0) & (allocation.table[srcReg].last = pc)  THEN
