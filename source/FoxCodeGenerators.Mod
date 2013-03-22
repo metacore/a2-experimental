@@ -234,6 +234,68 @@ TYPE
 				END;
 			END GetRegisterAllocation;
 
+			PROCEDURE Optimize;
+			TYPE
+				Entry= POINTER TO RECORD src, dest: LONGINT; next: Entry END;
+			VAR
+				pc: LONGINT;
+				first: Entry;
+
+				PROCEDURE AddMap(src, dest: LONGINT);
+				VAR entry: Entry;
+				BEGIN
+					NEW(entry); entry.src := src; entry.dest := dest;
+					entry.next := first;
+					first := entry;
+				END AddMap;
+
+				PROCEDURE CheckMapped(VAR instruction: IntermediateCode.Instruction);
+				VAR op1, op2, op3: IntermediateCode.Operand;
+					PROCEDURE Map(CONST op: IntermediateCode.Operand): IntermediateCode.Operand;
+					VAR entry: Entry; res: IntermediateCode.Operand;
+					BEGIN
+						res := op;
+						entry := first;
+						WHILE entry # NIL DO
+							IF op.register = entry.src THEN
+								IntermediateCode.SetRegister(res, entry.dest);
+							END;
+							entry := entry.next;
+						END;
+						RETURN res
+					END Map;
+
+				BEGIN
+					op1 := Map(instruction.op1);
+					op2 := Map(instruction.op2);
+					op3 := Map(instruction.op3);
+					IntermediateCode.InitInstruction(instruction, instruction.textPosition, instruction.opcode, op1, op2, op3);
+				END CheckMapped;
+
+				PROCEDURE CheckMov(VAR instruction: IntermediateCode.Instruction);
+				VAR i: LONGINT; srcReg, destReg: LONGINT;
+				BEGIN
+					IF (instruction.opcode = IntermediateCode.mov) & (instruction.op1.mode = IntermediateCode.ModeRegister) & (instruction.op2.mode = IntermediateCode.ModeRegister) THEN
+						destReg := instruction.op1.register;
+						srcReg := instruction.op2.register;
+						IF (destReg >= 0) & (allocation.table[destReg].first = pc) & (srcReg >= 0) & (allocation.table[srcReg].last = pc)  THEN
+							AddMap(destReg, srcReg);
+							allocation.table[srcReg].last := allocation.table[destReg].last;
+							IntermediateCode.InitInstruction0(instruction, instruction.textPosition, IntermediateCode.nop);
+						END;
+					END;
+				END CheckMov;
+
+			BEGIN
+
+
+				first := NIL;
+				FOR pc := 0 TO in.pc-1 DO
+					CheckMapped(in.instructions[pc]);
+					CheckMov(in.instructions[pc]);
+				END;
+			END Optimize;
+
 			PROCEDURE DumpInstruction(CONST instruction: IntermediateCode.Instruction);
 				PROCEDURE Use(CONST operand: IntermediateCode.Operand);
 				BEGIN
@@ -375,6 +437,7 @@ TYPE
 			dump := out.comments;
 
 			GetRegisterAllocation;
+			Optimize;
 			Prepare;
 
 			FOR pc := 0 TO in.pc-1 DO
