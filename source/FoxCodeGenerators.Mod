@@ -254,8 +254,9 @@ TYPE
 
 				PROCEDURE CheckMapped(VAR instruction: IntermediateCode.Instruction);
 				VAR op1, op2, op3: IntermediateCode.Operand;
+
 					PROCEDURE Map(CONST op: IntermediateCode.Operand): IntermediateCode.Operand;
-					VAR entry: Entry; res: IntermediateCode.Operand;
+					VAR entry: Entry; res: IntermediateCode.Operand; i: LONGINT;
 					BEGIN
 						res := op;
 						entry := first;
@@ -264,6 +265,11 @@ TYPE
 								IntermediateCode.SetRegister(res, entry.dest);
 							END;
 							entry := entry.next;
+						END;
+						IF op.rule # NIL THEN
+							FOR i := 0 TO LEN(op.rule)-1 DO
+								op.rule[i] := Map(op.rule[i]);
+							END;
 						END;
 						RETURN res
 					END Map;

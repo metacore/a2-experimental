@@ -492,7 +492,7 @@ TYPE
 			implementationVisitor.temporaries.Init;
 
 			implementationVisitor.GetCodeSectionNameForSymbol(x, name);
-			IF (scope.body # NIL) & (x.isInline) THEN
+			IF (scope.body # NIL) & (x.isInline)  THEN
 				inline := TRUE;
 				ir := implementationVisitor.NewSection(module.allSections, Sections.InlineCodeSection, name,x,dump);
 			ELSIF (x.scope # NIL) & (x.scope IS SyntaxTree.CellScope) & (x.scope(SyntaxTree.CellScope).ownerCell.isCellNet)
@@ -3958,7 +3958,7 @@ TYPE
 
 		END VisitStatementDesignator;
 
-		PROCEDURE InlineProcedureCall(x: SyntaxTree.ProcedureCallDesignator);
+		PROCEDURE InlineProcedureCall(x: SyntaxTree.ProcedureCallDesignator): BOOLEAN;
 		VAR
 			procedure: SyntaxTree.Procedure;
 			procedureType: SyntaxTree.ProcedureType;
@@ -3968,15 +3968,40 @@ TYPE
 			actualParameter: SyntaxTree.Expression;
 			i: LONGINT;
 			variable, localVariable: SyntaxTree.Variable;
-			variableDesignator, tagDesignator, returnDesignator: SyntaxTree.Designator;
+			variableDesignator, tagDesignator, returnDesignator: SyntaxTree.Expression;
 			src, dest: Operand;
 			prevInlineExit : Label;
 			prevMapper: SymbolMapper;
+			tooComplex: BOOLEAN;
 
-			PROCEDURE IsSimple(e: SyntaxTree.Expression): BOOLEAN;
+			PROCEDURE SimpleExpression(e: SyntaxTree.Expression): BOOLEAN;
 			BEGIN
-				RETURN (e IS SyntaxTree.SymbolDesignator) OR (e IS SyntaxTree.ProcedureCallDesignator) (*! add condition refering to type *)
-			END IsSimple;
+				IF e = NIL THEN RETURN TRUE
+				ELSIF (e IS SyntaxTree.SymbolDesignator) THEN RETURN SimpleExpression(e(SyntaxTree.SymbolDesignator).left)
+				ELSIF (e IS SyntaxTree.Value) THEN RETURN TRUE
+				ELSIF (e IS SyntaxTree.SelfDesignator) THEN RETURN TRUE
+				ELSIF (e IS SyntaxTree.ResultDesignator) THEN RETURN TRUE
+				ELSIF (e IS SyntaxTree.DereferenceDesignator) THEN RETURN SimpleExpression(e(SyntaxTree.DereferenceDesignator).left)
+				ELSE RETURN FALSE
+				END;
+			END SimpleExpression;
+
+			PROCEDURE FitsInRegister(type: SyntaxTree.Type): BOOLEAN;
+			BEGIN
+				RETURN checker.CanPassInRegister(type)
+			END FitsInRegister;
+
+			PROCEDURE GetTemp(type: SyntaxTree.Type; tryRegister: BOOLEAN): SyntaxTree.Expression;
+			VAR
+				variable: SyntaxTree.Variable;
+				variableDesignator: SyntaxTree.Designator;
+			BEGIN
+				variable :=  GetTemporaryVariable(type, tryRegister & FitsInRegister(type));
+				variableDesignator := SyntaxTree.NewSymbolDesignator(SemanticChecker.InvalidPosition, NIL, variable);
+				variableDesignator.SetType(type);
+				RETURN variableDesignator
+			END GetTemp;
+
 
 
 		BEGIN
@@ -3984,6 +4009,7 @@ TYPE
 			prevInlineExit := currentInlineExit;
 			prevMapper := currentMapper;
 			currentInlineExit := NewLabel();
+			tooComplex := FALSE;
 			NEW(currentMapper);
 			currentIsInline := TRUE;
 			procedure := x.left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Procedure);
@@ -3992,29 +4018,50 @@ TYPE
 			formalParameter := procedureType.firstParameter;
 			actualParameters := x.parameters;
 
-			FOR i := 0 TO actualParameters.Length()-1 DO
+			i := 0;
+			WHILE (i < actualParameters.Length()) & ~tooComplex DO
 				actualParameter := actualParameters.GetExpression(i);
 				IF actualParameter.resolved # NIL THEN
 					actualParameter := actualParameter.resolved
 				END;
 
-				IF TRUE THEN
+				(*
+					if expression is simple and can be passed immediately
+					or if type fits in register then we can proceed
+					otherwise we escape to ordinary procedure call.
+				*)
+
+				(* cases where the expression can be mapped identically *)
+				IF SimpleExpression(actualParameter) & (formalParameter.kind IN {SyntaxTree.ConstParameter, SyntaxTree.VarParameter})  THEN
 					currentMapper.Add(formalParameter, actualParameter, NIL);
+				ELSIF FitsInRegister(actualParameter.type) & (formalParameter.kind IN {SyntaxTree.ConstParameter, SyntaxTree.ValueParameter}) THEN
+					variableDesignator := GetTemp(formalParameter.type, TRUE);
+					(*
+					Assign(variableDesignator, actualParameter);
+					*)
+
+					Evaluate(actualParameter, src);
+					Designate(variableDesignator, dest);
+					Emit(Mov(x.position, dest.op, src.op));
+					ReleaseOperand(dest);
+					ReleaseOperand(src);
+
+					currentMapper.Add(formalParameter, variableDesignator, NIL);
+				ELSE tooComplex := TRUE
+				END;
+
+				(*
 				ELSIF (formalParameter.kind = SyntaxTree.ConstParameter) & IsSimple(actualParameter) THEN
 					currentMapper.Add(formalParameter, actualParameter, NIL);
 				ELSIF (formalParameter.kind = SyntaxTree.VarParameter) OR formalParameter.type.IsComposite() & (formalParameter.kind = SyntaxTree.ConstParameter) THEN
-					variable := GetTemporaryVariable(system.addressType, FALSE);
+					variableDesignator := GetTemp(system.addressType, FALSE);
 					Designate(actualParameter, src);
-					variableDesignator := SyntaxTree.NewSymbolDesignator(SemanticChecker.InvalidPosition, NIL, variable);
-					variableDesignator.SetType(system.addressType);
 					Designate(variableDesignator, dest);
 					IntermediateCode.MakeMemory(dest.op,addressType);
 					Emit(Mov(x.position, dest.op, src.op));
 					ReleaseOperand(dest);
 					IF src.tag.mode # IntermediateCode.Undefined THEN
-						variable := GetTemporaryVariable(system.addressType, FALSE);
-						tagDesignator := SyntaxTree.NewSymbolDesignator(SemanticChecker.InvalidPosition, NIL, variable);
-						tagDesignator.SetType(system.addressType);
+						tagDesignator := GetTemp(system.addressType, FALSE);
 						Designate(tagDesignator, dest);
 						IntermediateCode.MakeMemory(dest.op,addressType);
 						Emit(Mov(x.position, dest.op, src.op));
@@ -4022,52 +4069,43 @@ TYPE
 
 					ReleaseOperand(dest); ReleaseOperand(src);
 					currentMapper.Add(formalParameter, variableDesignator, tagDesignator);
-				ELSE
-					variable := GetTemporaryVariable(formalParameter.type, FALSE);
-					variableDesignator := SyntaxTree.NewSymbolDesignator(SemanticChecker.InvalidPosition, NIL, variable);
-					variableDesignator.SetType(formalParameter.type);
-					Assign(variableDesignator, actualParameter);
-					Printout.Info("parameter assign from ", actualParameter);
-					Printout.Info("parameter assign to ", variableDesignator);
-					currentMapper.Add(formalParameter, variableDesignator, NIL);
 				END;
+				*)
 				formalParameter := formalParameter.nextParameter;
+				INC(i);
 			END;
 
 
-			IF procedureType.returnType # NIL THEN
-				variable := GetTemporaryVariable(procedureType.returnType, TRUE);
-				(*variable.SetUseRegister(TRUE (*procedureType.returnParameter = NIL*));*)
-				returnDesignator := SyntaxTree.NewSymbolDesignator(SemanticChecker.InvalidPosition, NIL, variable);
-				returnDesignator.SetType(procedureType.returnType);
+			IF ~tooComplex & (procedureType.returnType # NIL) THEN
+				returnDesignator := GetTemp(procedureType.returnType, TRUE);
 				currentMapper.Add(NIL, returnDesignator, NIL);
 			END;
 
 			localVariable := procedure.procedureScope.firstVariable;
-			WHILE localVariable # NIL DO
-				variable := GetTemporaryVariable(localVariable.type, FALSE);
-				variableDesignator := SyntaxTree.NewSymbolDesignator(SemanticChecker.InvalidPosition, NIL, variable);
-				variableDesignator.SetType(procedureType.returnType);
+			WHILE ~tooComplex & (localVariable # NIL) DO
+				variableDesignator := GetTemp(localVariable.type, FALSE);
 				currentMapper.Add(localVariable, variableDesignator, NIL);
 				localVariable := localVariable.nextVariable;
 			END;
 
-			VisitStatementBlock(procedure.procedureScope.body);
+			IF ~tooComplex THEN
+				VisitStatementBlock(procedure.procedureScope.body);
 
-			SetLabel(currentInlineExit);
+				SetLabel(currentInlineExit);
 
-			IF procedureType.returnType # NIL THEN
-				Designate(returnDesignator, result);
-				IF conditional THEN
-					ASSERT (procedureType.returnType.resolved IS SyntaxTree.BooleanType);
-					ValueToCondition(result)
+				IF procedureType.returnType # NIL THEN
+					Designate(returnDesignator, result);
+					IF conditional THEN
+						ASSERT (procedureType.returnType.resolved IS SyntaxTree.BooleanType);
+						ValueToCondition(result)
+					END;
 				END;
 			END;
-
 
 			currentMapper := prevMapper;
 			currentInlineExit := prevInlineExit;
 			currentIsInline := wasInline;
+			RETURN ~tooComplex
 		END InlineProcedureCall;
 
 
@@ -4226,9 +4264,12 @@ TYPE
 
 			IF (x.left IS SyntaxTree.SymbolDesignator) & (x.left(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Procedure) THEN
 				procedure := x.left(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Procedure);
-				IF SemanticChecker.IsOberonInline(procedure) & (procedure.scope.ownerModule = module.module) THEN
-					InlineProcedureCall(x);
-					RETURN
+				IF procedure.isOberonInline & (procedure.scope.ownerModule = module.module) THEN
+					IF  InlineProcedureCall(x) THEN
+						RETURN
+					ELSE
+						Warning(x.position, "Inline call with complex parameters not yet implemented. Emitting ordinary procedure call.")
+					END
 				END;
 			END;
 
@@ -7153,7 +7194,7 @@ TYPE
 			ELSE tag := nil
 			END;
 			GetCodeSectionNameForSymbol(x, name);
-			IF x.isInline THEN
+			IF x.isInline  THEN
 				sectionType := Sections.InlineCodeSection;
 			ELSE
 				sectionType := Sections.CodeSection;

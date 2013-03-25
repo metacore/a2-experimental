@@ -6277,6 +6277,8 @@ TYPE
 				IF SyntaxTree.Public * procedure.access # {} THEN
 					Error(procedure.position, Diagnostics.Invalid, "Export of Oberon Inline Not Yet Implemented")
 				END;
+				procedure.SetInline(FALSE);
+				procedure.SetOberonInline(TRUE);
 			END;
 
 			IF SymbolNeedsResolution(procedure) THEN
@@ -8003,7 +8005,7 @@ TYPE
 
 	END Warnings;
 
-	PROCEDURE IsOberonInline*(procedure: SyntaxTree.Procedure): BOOLEAN;
+	PROCEDURE IsOberonInline(procedure: SyntaxTree.Procedure): BOOLEAN;
 	BEGIN
 		RETURN procedure.isInline & ((procedure.procedureScope.body = NIL) OR (procedure.procedureScope.body # NIL) & (procedure.procedureScope.body.code = NIL))
 	END IsOberonInline;
