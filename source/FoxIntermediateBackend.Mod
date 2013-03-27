@@ -5470,6 +5470,7 @@ TYPE
 				type := typeDeclaration.declaredType;
 			ELSE
 				typeDeclaration := SyntaxTree.NewTypeDeclaration(-1,SyntaxTree.NewIdentifier(name));
+				typeDeclaration.SetAccess(SyntaxTree.Hidden);
 				recordScope := SyntaxTree.NewRecordScope(parentScope);
 				recordType := SyntaxTree.NewRecordType( -1, parentScope, recordScope);
 				recordType.SetTypeDeclaration(typeDeclaration);
