@@ -667,7 +667,7 @@ VAR
 	VAR 
 		block: FreeBlock;  blkSize: SIZE;  blkAdr, adr2: ADDRESS;
 	BEGIN 
-		Machine.Acquire( Machine.Allocator );
+	(*	Machine.Acquire( Machine.Allocator );		dead lock! *)
 		IF ((thruput > ThruputBarrier) OR (heapAvailable < size)) & (Machine.lock[Machine.GC] = 'N') THEN
 			thruput := 0;
 			Machine.Release( Machine.Heaps );
@@ -705,7 +705,7 @@ VAR
 		INC( thruput, size );
 		IF Stats THEN  INC(Nnew); INC(NnewBytes, size)  END;
 		Machine.Fill32( blkAdr, size, 0 );
-		Machine.Release( Machine.Allocator );
+	(*	Machine.Release( Machine.Allocator );	*)
 		RETURN blkAdr
 	END GetBlock;
 
