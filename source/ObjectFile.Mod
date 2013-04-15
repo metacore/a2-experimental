@@ -242,7 +242,7 @@ VAR
 
 
 	statHeaders, statHeadersSize: LONGINT;
-	statFixups, statFixupsSize: LONGINT;
+	statFixups, statFixupsSize, statFixupPatterns, statFixupPatches: LONGINT;
 	statAliases, statAliasesSize: LONGINT;
 	statSegments, statSegmentsSize: LONGINT;
 
@@ -641,6 +641,7 @@ VAR
 		BEGIN
 			writer.RawNum (pattern.offset);
 			writer.RawNum (pattern.bits);
+			INC(statFixupPatterns);
 		END WriteFixupPattern;
 
 		PROCEDURE WriteIdentifier(CONST identifier: Identifier);
@@ -670,6 +671,7 @@ VAR
 		BEGIN
 			writer.RawNum (patch.displacement);
 			writer.RawNum (patch.offset);
+			INC(statFixupPatches);
 		END WritePatch;
 
 		PROCEDURE WriteFixup (CONST fixup: Fixup);
@@ -1206,7 +1208,7 @@ VAR
 	VAR sections: LONGINT; sectionsContentSize: LONGINT;
 	BEGIN
 		TRACE(statHeaders, statHeadersSize);
-		TRACE(statFixups, statFixupsSize);
+		TRACE(statFixups, statFixupsSize, statFixupPatterns, statFixupPatches);
 		TRACE(statAliases, statAliasesSize);
 		TRACE(statSegments, statSegmentsSize, statSegmentsSize DIV MAX(1,statSegments));
 
@@ -1224,7 +1226,7 @@ VAR
 	PROCEDURE ResetStatistics*;
 	BEGIN
 		statHeaders := 0; statHeadersSize := 0;
-		statFixups := 0; statFixupsSize := 0;
+		statFixups := 0; statFixupsSize := 0; statFixupPatterns := 0; statFixupPatches := 0;
 		statAliases := 0; statAliasesSize := 0;
 		statSegments := 0; statSegmentsSize := 0;
 		statCodeSections := 0; statCodeSectionsSize := 0;

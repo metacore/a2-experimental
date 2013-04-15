@@ -527,7 +527,7 @@ TYPE
 					IF x.isEntry THEN ir.SetPriority(EntryPriority) ELSE ir.SetPriority(ExitPriority) END;
 				ELSE
 					ir := implementationVisitor.NewSection(module.allSections, Sections.CodeSection, name,x,dump);
-					ir.SetExported(IsExported(x));
+					ir.SetExported(IsExported(x) OR SemanticChecker.InMethodTable(x));
 				END;
 			END;
 
@@ -9465,6 +9465,7 @@ TYPE
 			BEGIN
 					Global.GetSymbolSegmentedName(td,name);
 					source := IntermediateCode.NewSection(module.allSections, Sections.ConstSection, name,td,implementationVisitor.dump # NIL);
+					source.SetExported(IsExported(td));
 
 					IF ~simple THEN
 						(*
@@ -10435,7 +10436,7 @@ TYPE
 
 	PROCEDURE IsExported(symbol: SyntaxTree.Symbol): BOOLEAN;
 	BEGIN
-		RETURN symbol.access * SyntaxTree.Public # {}
+		RETURN (symbol # NIL) & (symbol.access * SyntaxTree.Public # {})
 	END IsExported;
 
 
