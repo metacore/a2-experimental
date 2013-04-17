@@ -123,8 +123,10 @@ TYPE
 				res := -1;
 				RETURN
 			END;
-			IF min > max THEN min := max END;
-			input.Bytes(buf, ofs, min, len);
+			IF size < min THEN size := min END;
+			IF size > max THEN size := max END;
+
+			input.Bytes(buf, ofs, size, len);
 			DEC(max, len);
 			res := input.res
 		END Receive;
