@@ -393,7 +393,11 @@ TYPE
 				OctStrToInt(hdr.size, size);
 				e.pos := pos;
 				pos := pos + RecordSize + size + ((-size) MOD RecordSize);
-				Files.OpenReader(in, file, pos);
+				IF in.CanSetPos() THEN
+					in.SetPos(pos)
+				ELSE
+					Files.OpenReader(in, file, pos);
+				END;
 				NEW(hdr)
 			END;
 			IF (in.res = Streams.Ok) & (hdr.chksum # "") THEN
