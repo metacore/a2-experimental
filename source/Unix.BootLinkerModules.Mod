@@ -164,7 +164,7 @@ VAR
 	PROCEDURE FixTypeDescs( m: Module );
 	VAR i: LONGINT; 
 		
-		PROCEDURE PatchExport( VAR scope: ExportDesc;  tag: LONGINT );
+		PROCEDURE PatchExport( VAR scope: ExportDesc;  tag: ADDRESS );
 		VAR i: LONGINT;  t: ADDRESS;
 		BEGIN
 			S.GET( S.VAL( ADDRESS, scope.dsc ) - AdrSize, t );
@@ -178,16 +178,16 @@ VAR
 		END PatchExport;
 	
 	BEGIN
-		S.PUT( S.VAL( ADDRESS, m.typeInfo ) - AdrSize, S.VAL( SET, ptrElemTag ) + Heaps.ArrayMask );
+		S.PUT( S.VAL( ADDRESS, m.typeInfo ) - AdrSize, ptrElemTag + 2(*ArrayBit*) );
 		FOR i := 0 TO LEN( m.typeInfo ) -1 DO
 			S.PUT( S.VAL( ADDRESS, m.typeInfo[i] ) - AdrSize, tdTag );
 		END;
-		S.PUT( S.VAL( ADDRESS, m.module ) - AdrSize, S.VAL( SET, ptrElemTag ) + Heaps.ArrayMask );
+		S.PUT( S.VAL( ADDRESS, m.module ) - AdrSize, ptrElemTag + 2(*ArrayBit*) );
 		FOR i := 0 TO LEN( m.module ) -1 DO
 			S.PUT( S.VAL( ADDRESS, m.module[i] ) - AdrSize, modTag );
 		END;
 		S.PUT( S.VAL( ADDRESS, m ) - AdrSize,  modTag );
-		PatchExport( m.export, S.VAL( ADDRESS, S.VAL( SET, expTag ) + Heaps.ArrayMask ) );
+		PatchExport( m.export, expTag + 2(*ArrayBit*) );
 	END FixTypeDescs;
 
 	
