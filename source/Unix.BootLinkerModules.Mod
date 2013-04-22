@@ -389,8 +389,8 @@ VAR
 		ELSE
 			ofs := VarByName( m.refs, varName );
 			IF ofs = 0 THEN
-				error.String( "### AssignValue: variable '" ); error.String( modName ); 
-				error.Char( '.' ); error.String( varName );
+				error.String( "### AssignValue: variable '" ); 
+				error.String( modName );  error.Char( '.' );  error.String( varName );
 				error.String( "' not found" ); error.Ln
 			ELSE
 				S.PUT( m.sb + ofs, value );
@@ -405,13 +405,13 @@ VAR
 		m := root;
 		WHILE (m # NIL) & (m.name # modName) DO m := m.next  END;
 		IF m = NIL THEN
-			error.String( "### AssignValue: module '" ); error.String( modName ); 
+			error.String( "### AssignAddress: module '" );  error.String( modName ); 
 			error.String( "' not found" ); error.Ln;
 		ELSE
 			ofs := VarByName( m.refs, varName );
 			IF ofs = 0 THEN
-				error.String( "### AssignValue: variable '" ); error.String( modName ); 
-				error.Char( '.' ); error.String( varName );
+				error.String( "### AssignAddress: variable '" ); 
+				error.String( modName );  error.Char( '.' );  error.String( varName );
 				error.String( "' not found" ); error.Ln
 			ELSE
 				S.PUT( m.sb + ofs, value );
