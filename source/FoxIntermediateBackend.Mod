@@ -1223,6 +1223,9 @@ TYPE
 			ELSE
 				x.Accept(SELF)
 			END;
+			IF (x IS SyntaxTree.Designator) & (x(SyntaxTree.Designator).modifiers # NIL) THEN
+				Error(x.position, "unsupported modifier");
+			END;
 		END Expression;
 
 		(*
