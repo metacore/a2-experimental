@@ -9388,10 +9388,12 @@ TYPE
 		PROCEDURE CheckTypeDeclaration(x: SyntaxTree.Type);
 		VAR recordType: SyntaxTree.RecordType;
 			tir: IntermediateCode.Section; op: IntermediateCode.Operand; name: Basic.SegmentedName; td: SyntaxTree.TypeDeclaration;
-			section: Sections.Section; string: SyntaxTree.String;
+			section: Sections.Section; string: SyntaxTree.String; type: SyntaxTree.Type;
 
 			PROCEDURE FieldArray(source: IntermediateCode.Section);
-			VAR variable: SyntaxTree.Variable; pc: LONGINT; symbol: Sections.Section; size: LONGINT; name: ARRAY 128 OF CHAR;
+			VAR variable: SyntaxTree.Variable; pc, offset: LONGINT; symbol, tir: Sections.Section; size: LONGINT; name: ARRAY 128 OF CHAR;
+				segmentedName: Basic.SegmentedName;
+				td: SyntaxTree.TypeDeclaration;
 			BEGIN
 				Array(source,pc);
 
@@ -9403,12 +9405,33 @@ TYPE
 				END;
 				size :=0;
 				WHILE variable # NIL DO
+					type := variable.type.resolved;
 					Info(source,"offset");
 					Size(source, ToMemoryUnits(module.system,variable.offsetInBits));
-					Info(source,"type");
-					Size(source, 0);
+					Info(source,"type class");
+					IF type IS SyntaxTree.PointerType THEN
+						Size(source, 1);
+					ELSIF type IS SyntaxTree.RecordType THEN
+						Size(source, 2);
+					ELSIF type IS SyntaxTree.NumberType THEN
+						Size(source, 3);
+					ELSE
+						Size(source, 0);
+					END;
 					Info(source, "type desc");
-					Address(source, 0);
+					IF type IS SyntaxTree.RecordType THEN
+						td := type(SyntaxTree.RecordType).typeDeclaration;
+						Global.GetSymbolSegmentedName(td,segmentedName);
+						IF (td.scope = NIL) OR (td.scope.ownerModule = module.module) THEN
+							tir := IntermediateCode.NewSection(module.allSections, Sections.ConstSection, segmentedName,td,implementationVisitor.dump # NIL);
+						ELSE
+							tir := IntermediateCode.NewSection(module.importedSections, Sections.ConstSection, segmentedName,td,implementationVisitor.dump # NIL);
+						END;
+						offset := ToMemoryUnits(module.system,GetTypeRecordBaseOffset(type(SyntaxTree.RecordType).recordScope.numberMethods)*module.system.addressSize);
+						Symbol(source, tir,  0, offset);
+					ELSE
+						Address(source, 0);
+					END;
 					Info(source,"flags");
 					Set(source, {});
 					Info(source,"name");
