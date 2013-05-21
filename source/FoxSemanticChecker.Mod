@@ -755,7 +755,7 @@ TYPE
 			this := modifiers;
 			WHILE this # NIL DO
 				IF ~this.resolved THEN
-				IF checkUse THEN
+				IF checkUse OR (this.expression = NIL) THEN
 					Error(this.position,Diagnostics.Invalid,"unexpected modifier");
 				ELSE
 					this.SetExpression(ConstantExpression(this.expression));
