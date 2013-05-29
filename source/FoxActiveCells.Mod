@@ -870,7 +870,7 @@ TYPE
 				IF (dataMemorySize # as.dataMemorySize) THEN RETURN FALSE END;
 				IF (capabilities # as.capabilities) THEN RETURN FALSE END;
 			END;
-			RETURN Same^(as, flags)
+			RETURN TRUE (*RETURN Same^(as, flags)*)
 		END Same;
 
 
