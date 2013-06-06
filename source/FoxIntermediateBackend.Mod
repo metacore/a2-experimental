@@ -670,8 +670,15 @@ TYPE
 			ir.SetExported(TRUE);
 			ir.SetPriority(InitPriority);
 			Global.GetSymbolSegmentedName (bodyProcedure,name);
-			IntermediateCode.InitAddress(op, addressType, name, implementationVisitor.GetFingerprint(bodyProcedure), 0);
-			ir.Emit(Call(bodyProcedure.position,op, 0));
+			IF backend.forceDynamicLoad THEN
+				implementationVisitor.currentScope := module.module.moduleScope;
+				implementationVisitor.section := ir;
+				implementationVisitor.PushSelfPointer();
+				implementationVisitor.CallThis("Modules","Preregister",1);
+			ELSE
+				IntermediateCode.InitAddress(op, addressType, name, implementationVisitor.GetFingerprint(bodyProcedure), 0);
+				ir.Emit(Call(bodyProcedure.position,op, 0));
+			END;
 		END AddBodyCallStub;
 
 		PROCEDURE AddStackAllocation(symbol: SyntaxTree.Symbol; initStack: LONGINT); (* code that is only necessary for static linkers *)
@@ -1053,6 +1060,8 @@ TYPE
 		currentIsInline: BOOLEAN;
 		currentMapper: SymbolMapper;
 		currentInlineExit: Label;
+
+		moduleBodySection: IntermediateCode.Section;
 
 		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedInstructionProcedure: SupportedInstructionProcedure; supportedImmediateProcedure: SupportedImmediateProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.IdentifierString; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
@@ -8250,6 +8259,7 @@ TYPE
 			IF Trace THEN TraceEnter("Body") END;
 			ReleaseUsedRegisters(saved); (* just in case ... *)
 			section := ir;
+			IF moduleBody THEN moduleBodySection := section END;
 			IF ir.comments # NIL THEN
 				commentPrintout := Printout.NewPrinter(ir.comments,Printout.SourceCode,FALSE);
 				commentPrintout.SingleStatement(TRUE);
@@ -9234,6 +9244,7 @@ TYPE
 				noProcs*: LONGINT;
 				firstProc*: ADDRESS; <-   done by loader
 				maxPtrs*: LONGINT;
+				crc*: LONGINT;
 		*)
 
 		PROCEDURE ModuleSection(): IntermediateCode.Section;
@@ -9258,7 +9269,7 @@ TYPE
 			RETURN moduleSection;
 		END ModuleSection;
 
-		PROCEDURE Module();
+		PROCEDURE Module(bodyProc: IntermediateCode.Section);
 		VAR moduleName: ARRAY 128 OF CHAR;
 		moduleSection, pointerSection, importSection, emptyArraySection, exportDescArray, exceptionSection, commandsSection,
 			typeInfoSection, procTableSection, ptrTableSection, referenceSection : IntermediateCode.Section;
@@ -9359,6 +9370,10 @@ TYPE
 			Longint(moduleSection,maxPointers);
 			Info(moduleSection, "crc*: LONGINT");
 			Longint(moduleSection, 0); (*!  must be implemented *)
+
+
+			Info(moduleSection, "body*: ADDRESS");
+			Symbol(moduleSection, bodyProc, 0,0);
 		END Module;
 
 		PROCEDURE PointerArray(source: IntermediateCode.Section; scope: SyntaxTree.Scope; VAR numberPointers: LONGINT);
@@ -9679,6 +9694,7 @@ TYPE
 		simpleMetaData-: BOOLEAN;
 		noAsserts: BOOLEAN;
 		optimize-: BOOLEAN;
+		forceDynamicLoad-: BOOLEAN;
 		dump-: Basic.Writer;
 
 
@@ -9719,7 +9735,7 @@ TYPE
 			declarationVisitor.Module(x,module);
 
 			IF newObjectFile & ~meta.simple THEN
-				meta.Module();
+				meta.Module(implementationVisitor.moduleBodySection);
 			END;
 
 			GetDescription(platformName);
@@ -9784,6 +9800,7 @@ TYPE
 			options.Add(0X,"noAsserts",Options.Flag);
 			options.Add(0X,"metaData",Options.String);
 			options.Add('o',"optimize", Options.Flag);
+			options.Add(0X,"forceDynamicLoad", Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -9803,6 +9820,7 @@ TYPE
 			IF options.GetString("runtime",name) THEN SetRuntimeModuleName(name) END;
 			IF options.GetString("traceModule",name) THEN SetTraceModuleName(name) END;
 			optimize := options.GetFlag("optimize");
+			forceDynamicLoad := options.GetFlag("forceDynamicLoad");
 		END GetOptions;
 
 		PROCEDURE DefaultSymbolFileFormat(): Formats.SymbolFileFormat;
