@@ -670,7 +670,7 @@ TYPE
 			ir.SetExported(TRUE);
 			ir.SetPriority(InitPriority);
 			Global.GetSymbolSegmentedName (bodyProcedure,name);
-			IF backend.forceDynamicLoad THEN
+			IF backend.preregisterStatic THEN
 				implementationVisitor.currentScope := module.module.moduleScope;
 				implementationVisitor.section := ir;
 				implementationVisitor.PushSelfPointer();
@@ -2991,17 +2991,29 @@ TYPE
 
 						(* 3. incorporate index step size: *)
 						IF IsIntegerImmediate(stepSize, staticStepSize) & IsIntegerImmediate(targetLength, staticTargetLength) THEN
-							(* step size and current target length are static *)
+							staticTargetLength := (staticTargetLength-1) DIV staticStepSize + 1;
+							(*step size and current target length are static *)
+
+							(* old: from Olivier
 							IF staticTargetLength MOD staticStepSize = 0 THEN
 								staticTargetLength := staticTargetLength DIV staticStepSize
 							ELSE
 								staticTargetLength := 1 + staticTargetLength DIV staticStepSize
 							END;
+							*)
 							targetLength := IntermediateCode.Immediate(sizeType, staticTargetLength)
 						ELSIF IsIntegerImmediate(stepSize, staticStepSize) & (staticStepSize = 1) THEN
 							(* step size = 1: nothing to do *)
 						ELSE
 							(* emit code for this:
+								targetLength := (targetLength-1) DIV stepSize +1;
+							*)
+							AddInt(targetLength, targetLength, IntermediateCode.Immediate(sizeType, -1));
+							DivInt(targetLength, targetLength, stepSize);
+							AddInt(targetLength, targetLength, IntermediateCode.Immediate(sizeType, 1));
+							(*
+
+							(* old from Olivier: emit code for this:
 							tmp := targetLength MOD stepSize;
 							IF tmp = 0 THEN
 								targetLength := targetLength DIV stepSize
@@ -3023,6 +3035,7 @@ TYPE
 							AddInt(targetLength, targetLength, IntermediateCode.Immediate(sizeType, 1));
 							SetLabel(skipLabel2);
 							ReleaseIntermediateOperand(tmp);
+							*)
 						END;
 
 						(* determine increment of target array for current dimension *)
@@ -3242,6 +3255,26 @@ TYPE
 				END;
 			END;
 		END MulInt;
+
+		PROCEDURE DivInt(VAR res: IntermediateCode.Operand; x,y: IntermediateCode.Operand);
+		BEGIN
+			ReleaseIntermediateOperand(res);
+			IF IsImmediate(x) & IsImmediate(y) THEN
+				IntermediateCode.InitImmediate(res,x.type,x.intValue DIV y.intValue);
+			ELSE
+				IF ~ReusableRegister(res) THEN
+					IntermediateCode.InitRegister(res,x.type,IntermediateCode.GeneralPurposeRegister,AcquireRegister(x.type,IntermediateCode.GeneralPurposeRegister));
+				ELSE UseIntermediateOperand(res);
+				END;
+				IF IsImmediate(x) & (x.intValue = 1) THEN
+					Emit(Mov(position,res,y))
+				ELSIF IsImmediate(y) & (y.intValue=1) THEN
+					Emit(Mov(position,res,x))
+				ELSE
+					Emit(Div(position,res, x, y));
+				END;
+			END;
+		END DivInt;
 
 		PROCEDURE IndexDesignator(x: SyntaxTree.IndexDesignator);
 		VAR length,res: IntermediateCode.Operand; type: SyntaxTree.Type; maxDim: LONGINT; array:Operand;
@@ -9694,7 +9727,7 @@ TYPE
 		simpleMetaData-: BOOLEAN;
 		noAsserts: BOOLEAN;
 		optimize-: BOOLEAN;
-		forceDynamicLoad-: BOOLEAN;
+		preregisterStatic-: BOOLEAN;
 		dump-: Basic.Writer;
 
 
@@ -9800,7 +9833,7 @@ TYPE
 			options.Add(0X,"noAsserts",Options.Flag);
 			options.Add(0X,"metaData",Options.String);
 			options.Add('o',"optimize", Options.Flag);
-			options.Add(0X,"forceDynamicLoad", Options.Flag);
+			options.Add(0X,"preregisterStatic", Options.Flag);
 		END DefineOptions;
 
 		PROCEDURE GetOptions(options: Options.Options);
@@ -9820,7 +9853,7 @@ TYPE
 			IF options.GetString("runtime",name) THEN SetRuntimeModuleName(name) END;
 			IF options.GetString("traceModule",name) THEN SetTraceModuleName(name) END;
 			optimize := options.GetFlag("optimize");
-			forceDynamicLoad := options.GetFlag("forceDynamicLoad");
+			preregisterStatic := options.GetFlag("preregisterStatic");
 		END GetOptions;
 
 		PROCEDURE DefaultSymbolFileFormat(): Formats.SymbolFileFormat;
