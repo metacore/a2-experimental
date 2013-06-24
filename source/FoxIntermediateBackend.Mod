@@ -1062,6 +1062,7 @@ TYPE
 		currentInlineExit: Label;
 
 		moduleBodySection: IntermediateCode.Section;
+		NeedDescriptor : BOOLEAN;
 
 		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedInstructionProcedure: SupportedInstructionProcedure; supportedImmediateProcedure: SupportedImmediateProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.IdentifierString; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
@@ -1109,6 +1110,7 @@ TYPE
 			NEW(fingerPrinter, system);
 			NEW(temporaries);
 			currentIsInline := FALSE;
+			NeedDescriptor := FALSE;
 		END Init;
 
 		PROCEDURE NewSection(list: Sections.SectionList; type: SHORTINT; CONST name: Basic.SegmentedName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
@@ -2794,7 +2796,7 @@ TYPE
 
 			InitOperand(localResult, ModeReference);
 
-			IF (resultingType IS SyntaxTree.MathArrayType) & (resultingType(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
+			IF (resultingType IS SyntaxTree.MathArrayType)  & ( (resultingType(SyntaxTree.MathArrayType).form # SyntaxTree.Static) OR NeedDescriptor) THEN
 				targetArrayDimensionality := resultingType(SyntaxTree.MathArrayType).Dimensionality();
 
 				IF arrayDestinationTag.mode # IntermediateCode.Undefined THEN
@@ -3079,7 +3081,7 @@ TYPE
 			ELSIF (resultingType IS SyntaxTree.ArrayType) THEN
 				result.tag := array.tag; UseIntermediateOperand(result.tag); result.dimOffset := array.dimOffset+indexListSize-1;
 
-			ELSIF (resultingType IS SyntaxTree.MathArrayType) & (resultingType(SyntaxTree.MathArrayType).form # SyntaxTree.Static) THEN
+			ELSIF (resultingType IS SyntaxTree.MathArrayType) & ( (resultingType(SyntaxTree.MathArrayType).form # SyntaxTree.Static) OR NeedDescriptor) THEN
 				(* finalize target array descriptor *)
 				ASSERT(result.tag.mode # IntermediateCode.Undefined); (* tag has been already set in the beginning *)
 
@@ -3576,8 +3578,10 @@ TYPE
 						arrayDestinationTag := variableOp.op;
 						ReuseCopy(arrayDestinationTag,arrayDestinationTag);
 						arrayDestinationDimension := dim;
+						NeedDescriptor := TRUE;
 						Designate(expression,operand);
 						Pass((operand.tag));
+						NeedDescriptor := FALSE;
 					(* case 2a *)
 					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open THEN
 						WHILE (i< dim) & (type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Open) DO
@@ -10322,6 +10326,7 @@ TYPE
 	PROCEDURE Push*(position: LONGINT;op: IntermediateCode.Operand): IntermediateCode.Instruction;
 	VAR instruction: IntermediateCode.Instruction;
 	BEGIN
+		ASSERT(op.mode # IntermediateCode.Undefined);
 		IntermediateCode.InitInstruction(instruction, position, IntermediateCode.push,op,emptyOperand,emptyOperand);
 		RETURN instruction
 	END Push;
