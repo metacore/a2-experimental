@@ -2991,16 +2991,8 @@ TYPE
 
 						(* 3. incorporate index step size: *)
 						IF IsIntegerImmediate(stepSize, staticStepSize) & IsIntegerImmediate(targetLength, staticTargetLength) THEN
-							staticTargetLength := (staticTargetLength-1) DIV staticStepSize + 1;
 							(*step size and current target length are static *)
-
-							(* old: from Olivier
-							IF staticTargetLength MOD staticStepSize = 0 THEN
-								staticTargetLength := staticTargetLength DIV staticStepSize
-							ELSE
-								staticTargetLength := 1 + staticTargetLength DIV staticStepSize
-							END;
-							*)
+							staticTargetLength := (staticTargetLength-1) DIV staticStepSize + 1;
 							targetLength := IntermediateCode.Immediate(sizeType, staticTargetLength)
 						ELSIF IsIntegerImmediate(stepSize, staticStepSize) & (staticStepSize = 1) THEN
 							(* step size = 1: nothing to do *)
@@ -3011,31 +3003,7 @@ TYPE
 							AddInt(targetLength, targetLength, IntermediateCode.Immediate(sizeType, -1));
 							DivInt(targetLength, targetLength, stepSize);
 							AddInt(targetLength, targetLength, IntermediateCode.Immediate(sizeType, 1));
-							(*
 
-							(* old from Olivier: emit code for this:
-							tmp := targetLength MOD stepSize;
-							IF tmp = 0 THEN
-								targetLength := targetLength DIV stepSize
-							ELSE
-								targetLength := targetLength DIV stepSize;
-								targetLength := targetLength + 1
-							END
-							*)
-							skipLabel1 := NewLabel();
-							skipLabel2 := NewLabel();
-							tmp := 	IntermediateCode.Register(sizeType, IntermediateCode.GeneralPurposeRegister,AcquireRegister(sizeType,IntermediateCode.GeneralPurposeRegister));
-							Emit(Mod(position,tmp, targetLength, stepSize));
-							BrneL(skipLabel1, tmp, IntermediateCode.Immediate(sizeType, 0));
-							TransferToRegister(targetLength, targetLength);
-							Emit(Div(position,targetLength, targetLength, stepSize));
-							BrL(skipLabel2);
-							SetLabel(skipLabel1);
-							Emit(Div(position,targetLength, targetLength, stepSize));
-							AddInt(targetLength, targetLength, IntermediateCode.Immediate(sizeType, 1));
-							SetLabel(skipLabel2);
-							ReleaseIntermediateOperand(tmp);
-							*)
 						END;
 
 						(* determine increment of target array for current dimension *)
