@@ -3,7 +3,7 @@
 MODULE Info; (** AUTHOR "pjm/staubesv"; PURPOSE "System information"; *)
 
 IMPORT
-	SYSTEM, Machine, Heaps, Objects, Streams, Reflection, Modules, Commands, Options, Strings, D := Debugging;
+	SYSTEM, Machine, Heaps, Objects, Streams, Reflection, Modules, Commands, Options, Strings, D := Debugging, Kernel;
 
 CONST
 	AddressSize = SIZEOF(ADDRESS);
@@ -111,6 +111,25 @@ TYPE
 		PROCEDURE Add(CONST block : Heaps.HeapBlock; byPC: BOOLEAN);
 		VAR type: SHORTINT;
 
+
+			PROCEDURE AddByType(type: SHORTINT);
+			VAR tag: ADDRESS; i: LONGINT;
+			BEGIN
+				SYSTEM.GET(block.dataAdr + Heaps.TypeDescOffset, tag);
+				i := 0; WHILE (i < LEN(types)) & (i < nofElements) & (types[i].ptag # tag) DO INC(i) END;
+				IF (i < nofElements) THEN
+					INC(types[i].count);
+					INC(types[i].size, block.size);
+				ELSIF (i = nofElements) & (i < LEN(types)) THEN
+					types[i].ptag := tag;
+					types[i].count := 1;
+					types[i].size := block.size;
+					types[i].type := type;
+					types[i].pc := 0;
+					INC(nofElements)
+				END;
+			END AddByType;
+
 			PROCEDURE AddByPC(type: SHORTINT);
 			VAR pc: ADDRESS; i: LONGINT;
 			BEGIN
@@ -132,23 +151,6 @@ TYPE
 				END;
 			END AddByPC;
 
-			PROCEDURE AddByType(type: SHORTINT);
-			VAR tag: ADDRESS; i: LONGINT;
-			BEGIN
-				SYSTEM.GET(block.dataAdr + Heaps.TypeDescOffset, tag);
-				i := 0; WHILE (i < LEN(types)) & (i < nofElements) & (types[i].ptag # tag) DO INC(i) END;
-				IF (i < nofElements) THEN
-					INC(types[i].count);
-					INC(types[i].size, block.size);
-				ELSIF (i = nofElements) & (i < LEN(types)) THEN
-					types[i].ptag := tag;
-					types[i].count := 1;
-					types[i].size := block.size;
-					types[i].type := type;
-					types[i].pc := 0;
-					INC(nofElements)
-				END;
-			END AddByType;
 
 
 		BEGIN
@@ -456,6 +458,89 @@ BEGIN
 	END;
 END AllObjects;
 
+PROCEDURE RecentAllocators*(context : Commands.Context); (** [Options] mask ~ *)
+VAR
+	options : Options.Options; sortMode : LONGINT;
+	analyzer : Analyzer;
+	memBlock {UNTRACED}: Machine.MemoryBlock;
+	heapBlock : Heaps.HeapBlock;
+	mask : ARRAY 128 OF CHAR;
+	i,from,to,num, pcs: LONGINT;
+	scale: HUGEINT;
+	pc,startpc: ADDRESS;
+	module: Modules.Module; name: ARRAY 256 OF CHAR;
+	time: HUGEINT;
+	timer: Kernel.MilliTimer;
+BEGIN
+	time := Machine.GetTimer();
+	NEW(options);
+	options.Add("c", "clear", Options.Flag);
+	options.Add("s", "scale", Options.Integer);
+	IF options.Parse(context.arg, context.error) THEN
+		IF options.GetInteger("scale", num) & (num > 0 ) THEN
+			scale := num
+		ELSE (* autoscale to ms *)
+		   Kernel.SetTimer( timer, 100 );  scale := Machine.GetTimer();
+	        WHILE ~Kernel.Expired( timer ) DO END;
+	        scale := (Machine.GetTimer() - scale) DIV 100; (* 1 ms resolution *)
+	     END;
+
+		context.out.String("----------- recent allocators, t = ");
+		context.out.Hex(Heaps.recentAllocators[i].time, -16);
+		context.out.String(" ---------------"); context.out.Ln;
+		Machine.Acquire(Machine.Heaps);
+		i := Heaps.numRecentAllocators;
+		DEC(i); i := i MOD LEN(Heaps.recentAllocators);
+		from := i;
+		pc := Heaps.recentAllocators[i].pc[0];
+		WHILE (i # Heaps.numRecentAllocators) & (pc # 0) DO
+			DEC(i); i := i MOD LEN(Heaps.recentAllocators);
+			pc := Heaps.recentAllocators[i].pc[0];
+		END;
+		to := i;
+		Machine.Release(Machine.Heaps);
+		i := from; num := 0;
+		WHILE i # to DO
+
+			context.out.Int(num,1); context.out.String(": ");
+			context.out.Hex(Heaps.recentAllocators[i].time, -16);
+
+			context.out.String("(");
+			context.out.Int( SHORT((Heaps.recentAllocators[i].time-time) DIV scale), 1);
+			context.out.String(")");
+
+			context.out.String(": ");
+
+			FOR pcs := 0 TO LEN(Heaps.recentAllocators[i].pc)-1 DO
+				pc := Heaps.recentAllocators[i].pc[pcs];
+
+				module := Modules.ThisModuleByAdr(pc);
+				context.out.String(module.name);
+				context.out.String(".");
+				Reflection.GetProcedureName(pc, name,startpc);
+				context.out.String(name);
+				context.out.String(":");
+				context.out.Int(pc-startpc,1);
+				context.out.String(" ");
+			END;
+			context.out.Ln;
+			DEC(i); i := i MOD LEN(Heaps.recentAllocators);
+			INC(num);
+		END;
+		IF options.GetFlag("clear") THEN ClearRecentAllocators END;
+	END;
+END RecentAllocators;
+
+PROCEDURE ClearRecentAllocators*;
+VAR i: LONGINT;
+BEGIN
+	Machine.Acquire(Machine.Heaps);
+	i := (Heaps.numRecentAllocators - 1) MOD LEN(Heaps.recentAllocators);
+	Heaps.recentAllocators[i].pc[0] := 0;
+	Machine.Release(Machine.Heaps);
+END ClearRecentAllocators;
+
+
 PROCEDURE TraceModule*(context : Commands.Context); (** moduleName mask ~ *)
 VAR
 	options : Options.Options; sortMode : LONGINT;
@@ -731,4 +816,11 @@ SystemTools.CollectGarbage ~
 
 
 Compiler.Compile --symbolFilePrefix=/temp/objEO/ --objectFilePrefix=/temp/objEO/  Info.Mod ~
+
+Info.RecentAllocators --clear   --scale=2400000 ~
+Info.RecentAllocators    --scale=2400000 ~
+Info.RecentAllocators --clear ~
+Info.ClearRecentAllocators  ~
+
+
 

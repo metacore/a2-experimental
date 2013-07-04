@@ -14,22 +14,13 @@ IMPORT SYSTEM, Trace, Machine;
 
 CONST
 	DebugValue = LONGINT(0DEADDEADH);	(* set non-0 to clear free storage to this value *)
+	AllocatorHistorySize = 4096; (* recent history of allocators to be able to trace memory wasting sources *)
 	Stats* = TRUE;					(* maintain statistical counters *)
 
 	AddressSize = SIZEOF(ADDRESS);
 
 	MaxTries = 16;				(* max number of times to try and allocate memory, before trapping *)
 	Unmarked = -1;				(* mark value of free blocks *)
-	TemporaryMarkValue = -2;	(* temporary mark value for newly assigned objects *)
-	(*!fof 2012.07
-		I think that the Temporary Mark Value is not necessary any more as even newly assigned objects are visible to the
-		graph of accessible objects from the very first moment on. Therefore I have disabled the Temporary Mark Value.
-		I keep this warning in until I am absolutely sure that there is no other reason about the TemporaryMarkValue.
-
-		Reason for removal: the temporary mark values increase fragmentation considerably since objects stay in the graph two cycles.
-		Important for transiently used objects.
-	*)
-
 	BlockSize* = 32;			(* power of two, <= 32 for RegisterCandidates *)
 	ArrayAlignment = 8;			(* first array element of ArrayBlock and first data element of SystemBlock must be aligned to 0 MOD ArrayAlignment *)
 	BlockHeaderSize* = 2 * AddressSize;
@@ -191,6 +182,31 @@ VAR
 	GCType*: LONGINT;
 	freeBlockFound-, freeBlockNotFound-: LONGINT;
 	EnableFreeLists, EnableReturnBlocks, trace-: BOOLEAN;
+
+	recentAllocators*: ARRAY AllocatorHistorySize OF RECORD pc*: ARRAY 5 OF ADDRESS; time*: HUGEINT END;
+	numRecentAllocators*: LONGINT;
+
+PROCEDURE AddRecent();
+VAR time: HUGEINT; bp: ADDRESS; i: LONGINT;pc: ADDRESS
+BEGIN
+	time := Machine.GetTimer();
+
+	bp := Machine.CurrentBP();
+
+	SYSTEM.GET(bp, bp);
+	SYSTEM.GET(bp+SIZEOF(ADDRESS),pc);
+
+	FOR i := 0 TO LEN(recentAllocators[numRecentAllocators].pc)-1 DO
+		recentAllocators[numRecentAllocators].pc[i] := pc;
+		IF bp # 0 THEN
+			SYSTEM.GET(bp, bp);
+			SYSTEM.GET(bp+SIZEOF(ADDRESS),pc);
+		END;
+	END;
+
+	recentAllocators[numRecentAllocators].time := time;
+	INC(numRecentAllocators); numRecentAllocators := numRecentAllocators MOD LEN(recentAllocators);
+END AddRecent;
 
 (* check validity of p *)
 PROCEDURE CheckPointer(p: ADDRESS): BOOLEAN;
@@ -572,7 +588,7 @@ BEGIN
 			block := SYSTEM.VAL(HeapBlock, sweepBlockAdr + BlockHeaderSize); (* get heap block *)
 			blockMark := block.mark; (* cache these values since they may be overwritten during concatenation *)
 			blockSize := block.size;
-			IF (block.mark # TemporaryMarkValue) & (block.mark < sweepMarkValue) THEN
+			IF (block.mark < sweepMarkValue) THEN
 				IF (block IS SystemBlock) OR (block IS RecordBlock) OR (block IS ProtRecBlock) OR (block IS ArrayBlock) THEN
 					freeBlock := SYSTEM.VAL(FreeBlock, block);
 					InitFreeBlock(freeBlock, Unmarked, NilVal, block.size); (* convert this block into a free heap block and clear its data *)
@@ -591,11 +607,7 @@ BEGIN
 					Machine.Fill32(sweepBlockAdr, BlockHeaderSize + SIZEOF(FreeBlockDesc), DebugValue);
 				END
 			END;
-			IF (blockMark = TemporaryMarkValue) OR (blockMark >= sweepMarkValue) OR (sweepBlockAdr + blockSize = sweepMemBlock.endBlockAdr) THEN (* no further merging is possible *)
-				IF (blockMark = TemporaryMarkValue) THEN
-					(* header of this block is not cleared, thus, we may access the block normally *)
-					block.mark := currentMarkValue
-				END;
+			IF (blockMark >= sweepMarkValue) OR (sweepBlockAdr + blockSize = sweepMemBlock.endBlockAdr) THEN (* no further merging is possible *)
 				IF lastFreeBlockAdr # NilVal THEN
 					IF Machine.GreaterOrEqual(lastFreeBlock.size, size) THEN (* block found - may be too big *)
 						p := lastFreeBlock;
@@ -1072,6 +1084,7 @@ BEGIN
 	IF p # NIL THEN
 		IF Stats THEN INC(Nnew); INC(NnewBytes, size) END;
 		ASSERT(p.size >= size);
+		IF trace THEN AddRecent END;
 		RETURN p;
 	ELSE 	(* try = MaxTries *)
 		SYSTEM.HALT(14) 	(* out of memory *)
@@ -1098,7 +1111,7 @@ BEGIN
 		SYSTEM.PUT(dataBlockAdr + TypeDescOffset, NilVal);		(* no type descriptor *)
 		SYSTEM.PUT(dataBlockAdr + HeapBlockOffset, systemBlockAdr);
 		systemBlock := SYSTEM.VAL(SystemBlock, systemBlockAdr);
-		systemBlock.mark := currentMarkValue (*!TemporaryMarkValue*);
+		systemBlock.mark := currentMarkValue;
 		systemBlock.dataAdr := dataBlockAdr;
 		systemBlock.size := blockSize;
 		IF isRealtime THEN
@@ -1154,7 +1167,7 @@ BEGIN
 			SYSTEM.PUT(dataBlockAdr + HeapBlockOffset, recordBlockAdr);
 			recordBlock := SYSTEM.VAL(RecordBlock, recordBlockAdr);
 			(* recordBlock.next and recordBlock.prev already set to NIL by NewBlock *)
-			recordBlock.mark := currentMarkValue (*!TemporaryMarkValue*);
+			recordBlock.mark := currentMarkValue;
 			recordBlock.dataAdr := dataBlockAdr;
 			recordBlock.size := blockSize;
 			IF isRealtime THEN
@@ -1194,7 +1207,7 @@ BEGIN
 		SYSTEM.PUT(dataBlockAdr + TypeDescOffset, tag);
 		SYSTEM.PUT(dataBlockAdr + HeapBlockOffset, protRecBlockAdr);
 		protRecBlock := SYSTEM.VAL(ProtRecBlock, protRecBlockAdr);
-		protRecBlock.mark := currentMarkValue (*!TemporaryMarkValue*);
+		protRecBlock.mark := currentMarkValue;
 		protRecBlock.dataAdr := dataBlockAdr;
 		protRecBlock.size := blockSize;
 		IF isRealtime THEN
@@ -1262,7 +1275,7 @@ BEGIN
 				SYSTEM.PUT(dataBlockAdr + TypeDescOffset, elemTag);
 				SYSTEM.PUT(dataBlockAdr + HeapBlockOffset, arrayBlockAdr);
 				arrayBlock := SYSTEM.VAL(ArrayBlock, arrayBlockAdr);
-				arrayBlock.mark := currentMarkValue (*!TemporaryMarkValue*);
+				arrayBlock.mark := currentMarkValue;
 				arrayBlock.dataAdr := dataBlockAdr;
 				arrayBlock.size := blockSize;
 				IF isRealtime THEN
@@ -1342,7 +1355,7 @@ BEGIN
 		blockAdr := memBlock.beginBlockAdr;
 		WHILE Machine.LessThan(blockAdr, memBlock.endBlockAdr) DO
 			block := SYSTEM.VAL(HeapBlock, blockAdr + BlockHeaderSize); (* get heap block *)
-			IF (block.mark # TemporaryMarkValue) & (block.mark < currentMarkValue) THEN (* free/unused block encountered *)
+			IF (block.mark < currentMarkValue) THEN (* free/unused block encountered *)
 				free := free + block.size;
 				IF Machine.GreaterThan(block.size, largest) THEN largest := block.size END
 			END;
