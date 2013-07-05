@@ -1,7 +1,7 @@
 MODULE StreamUtilities; (** AUTHOR "Patrick Hunziker"; PURPOSE "stream utilities"; *)
 (* daisychaining of readers or writers with 'logging side-stream', or with size limitation*)
 
-IMPORT Streams, SYSTEM(* , KernelLog, Commands*);
+IMPORT Streams, SYSTEM, KernelLog(* , KernelLog, Commands*);
 
 CONST
 	ReaderBufSize = Streams.DefaultReaderSize;
@@ -44,7 +44,6 @@ TYPE	WriterMonitor* = OBJECT (Streams.Writer);
 
 TYPE
 
-
 	WriteEntry = POINTER TO RECORD buf: POINTER TO ARRAY OF CHAR; len: LONGINT; propagate: BOOLEAN; next: WriteEntry END;
 
 (* writer that writes asynchronously - updates are delayed until the thread is ready for it
@@ -52,115 +51,54 @@ TYPE
 	Caution: Pos() and SetPos() enforce synchronisation.
 	*)
 
-	AsynchronousForwarder* = OBJECT (Streams.Writer);
-		VAR out: Streams.Writer;
-			first, last: WriteEntry;
-			free: WriteEntry;
+	AsynchronousWriter= OBJECT(Streams.Writer)
+	VAR
+		first, last: WriteEntry;
+		free: WriteEntry;
+		size: LONGINT;
+		sender: Streams.Sender;
 
-		PROCEDURE &Init*(out:Streams.Writer);
+		PROCEDURE & InitWriter(sender: Streams.Sender; size: LONGINT);
 		BEGIN
-			InitWriter(Sender, WriterBufSize);
-			SELF.out := out;
-			Reset;
 			first := NIL; last := NIL; free := NIL;
-		END Init;
-
-		PROCEDURE GetFreeEntry(): WriteEntry;
-		VAR entry: WriteEntry;
-		BEGIN{EXCLUSIVE}
-			IF free = NIL THEN NEW(entry) ELSE entry := free; free := free.next END;
-			RETURN entry
-		END GetFreeEntry;
-
-		PROCEDURE ReturnEntry(entry: WriteEntry);
-		BEGIN{EXCLUSIVE}
-			entry.next := free;
-			free := entry
-		END ReturnEntry;
-
-		PROCEDURE PutEntry(entry: WriteEntry);
-		BEGIN{EXCLUSIVE}
-			IF last = NIL THEN first := entry; last := entry
-			ELSE last.next := entry; last := entry END;
-			entry.next := NIL;
-		END PutEntry;
-
-		PROCEDURE GetEntry(): WriteEntry;
-		VAR entry: WriteEntry;
-		BEGIN{EXCLUSIVE}
-			AWAIT(first # NIL);
-			entry := first;
-			first := first.next;
-			IF first = NIL THEN last := NIL END;
-			RETURN entry
-		END GetEntry;
-
-		PROCEDURE Sender(CONST outBuf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
-		VAR entry: WriteEntry;
-		BEGIN
-			entry := GetFreeEntry();
-			IF (entry.buf = NIL) OR (LEN(entry.buf^) < len) THEN
-				NEW(entry.buf, len);
-			END;
-			SYSTEM.MOVE(SYSTEM.ADR(outBuf[ofs]), SYSTEM.ADR(entry.buf[0]), len);
-			entry.propagate := propagate;
-			entry.len := len;
-			res := 0;
-			PutEntry(entry);
-		END Sender;
-
-		PROCEDURE CanSetPos*(): BOOLEAN;
-		BEGIN RETURN out.CanSetPos()
-		END CanSetPos;
-
-		PROCEDURE SetPos*(pos: LONGINT);
-		BEGIN{EXCLUSIVE}
-			AWAIT(first = NIL);
-			Reset; out.SetPos(pos);
-		END SetPos;
-
-		PROCEDURE Pos*(): LONGINT;
-		BEGIN{EXCLUSIVE}
-			AWAIT(first = NIL);
-			RETURN out.Pos()
-		END Pos;
-
-		PROCEDURE ProcessWrites;
-		VAR entry: WriteEntry;
-		BEGIN
-			LOOP
-				entry := GetEntry();
-
-				out.Bytes(entry.buf^, 0, entry.len);
-				IF entry.propagate THEN out.Update END;
-				INC(sent,entry.len);
-				res:=out.res;
-
-				ReturnEntry(entry);
-			END;
-		END ProcessWrites;
-
-	BEGIN{ACTIVE}
-		ProcessWrites;
-	END AsynchronousForwarder;
-
-	AsynchronousWriter* = OBJECT (Streams.Writer);
-		VAR sender: Streams.Sender;
-			first, last: WriteEntry;
-			free: WriteEntry;
-
-		PROCEDURE &Init*(sender: Streams.Sender; size: LONGINT);
-		BEGIN
-			InitWriter(Sender, size);
+			SELF.size := size;
 			SELF.sender := sender;
+			InitWriter^(Add, size);
 			Reset;
-			first := NIL; last := NIL; free := NIL;
-		END Init;
+		END InitWriter;
 
-		PROCEDURE GetFreeEntry(): WriteEntry;
+		PROCEDURE Add(CONST outBuf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
+		VAR entry: WriteEntry;
+		BEGIN
+			IF ~ToLastEntry(outBuf, ofs, len, propagate, res) THEN
+				entry := GetFreeEntry(MAX(SELF.size, len));
+				SYSTEM.MOVE(ADDRESS OF outBuf[ofs], ADDRESS OF entry.buf[0], len);
+				entry.len := len;
+				entry.propagate := propagate;
+				PutEntry(entry)
+			END;
+		END Add;
+
+		(* check last entry for enough space to host data. If available, remove from list and return *)
+		PROCEDURE ToLastEntry(CONST outBuf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT): BOOLEAN;
+		BEGIN{EXCLUSIVE}
+			IF last = NIL THEN RETURN FALSE
+			ELSIF last.propagate # propagate THEN RETURN FALSE
+			ELSIF (last.len + len > LEN(last.buf^)) THEN RETURN FALSE
+			ELSE
+				SYSTEM.MOVE(ADDRESS OF outBuf[ofs], ADDRESS OF last.buf[last.len], len);
+				INC(last.len, len);
+				res := 0;
+				RETURN TRUE
+			END;
+		END ToLastEntry;
+
+		PROCEDURE GetFreeEntry(len: LONGINT): WriteEntry;
 		VAR entry: WriteEntry;
 		BEGIN{EXCLUSIVE}
 			IF free = NIL THEN NEW(entry) ELSE entry := free; free := free.next END;
+			IF (entry.buf = NIL) OR (LEN(entry.buf)< len) THEN NEW(entry.buf, len) END;
+			entry.len := 0; entry.propagate := FALSE;
 			RETURN entry
 		END GetFreeEntry;
 
@@ -186,20 +124,6 @@ TYPE
 			IF first = NIL THEN last := NIL END;
 			RETURN entry
 		END GetEntry;
-
-		PROCEDURE Sender(CONST outBuf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
-		VAR entry: WriteEntry;
-		BEGIN
-			entry := GetFreeEntry();
-			IF (entry.buf = NIL) OR (LEN(entry.buf^) < len) THEN
-				NEW(entry.buf, len);
-			END;
-			SYSTEM.MOVE(SYSTEM.ADR(outBuf[ofs]), SYSTEM.ADR(entry.buf[0]), len);
-			entry.propagate := propagate;
-			entry.len := len;
-			res := 0;
-			PutEntry(entry);
-		END Sender;
 
 		PROCEDURE ProcessWrites;
 		VAR entry: WriteEntry;
@@ -217,6 +141,41 @@ TYPE
 		ProcessWrites;
 	END AsynchronousWriter;
 
+
+	AsynchronousForwarder* = OBJECT (AsynchronousWriter);
+		VAR out: Streams.Writer;
+
+		PROCEDURE &Init*(out:Streams.Writer);
+		BEGIN
+			SELF.out := out;
+			InitWriter(Sender, WriterBufSize);
+		END Init;
+
+		PROCEDURE CanSetPos*(): BOOLEAN;
+		BEGIN RETURN out.CanSetPos()
+		END CanSetPos;
+
+		PROCEDURE SetPos*(pos: LONGINT);
+		BEGIN{EXCLUSIVE}
+			AWAIT(first = NIL);
+			Reset; out.SetPos(pos);
+		END SetPos;
+
+		PROCEDURE Pos*(): LONGINT;
+		BEGIN{EXCLUSIVE}
+			AWAIT(first = NIL);
+			RETURN out.Pos()
+		END Pos;
+
+		PROCEDURE Sender(CONST outBuf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
+		BEGIN
+			out.Bytes(outBuf, ofs, len);
+			IF propagate THEN out.Update END;
+			INC(sent,len);
+			res:=out.res;
+		END Sender;
+
+	END AsynchronousForwarder;
 
 	(* reader that can daisychained with another reader that extracts a copy of the data flow to a monitor stream*)
 	ReaderMonitor* = OBJECT(Streams.Reader)
@@ -382,18 +341,28 @@ BEGIN
 	w.String("123456789"); w.Ln; w.Update;
 END Test2;
 *)
-(*
+
 PROCEDURE TestAsync*;
 VAR log: Streams.Writer; i: LONGINT;
 BEGIN
 	NEW(log, KernelLog.Send,128);
-	log := OpenAsynchronousWriter(log);
-	FOR i := 0 TO 20 DO
+	log := OpenAsynchronousForwarder(log);
+	FOR i := 0 TO 200 DO
 		log.String(" Hallo from asynch "); log.Ln; log.Update;
 	END;
 	KernelLog.String(" D O N E "); KernelLog.Ln;
 END TestAsync;
-*)
+
+
+PROCEDURE TestAsync2*;
+VAR log: AsynchronousWriter; i: LONGINT;
+BEGIN
+	NEW(log, KernelLog.Send,128);
+	FOR i := 0 TO 200 DO
+		log.String(" Hallo from asynch2 "); log.Ln; log.Update;
+	END;
+	KernelLog.String(" D O N E "); KernelLog.Ln;
+END TestAsync2;
 
 END StreamUtilities.
 
@@ -403,4 +372,6 @@ StreamUtilities.TestAsync abcd efghijk ~
 
 SystemTools.FreeDownTo StreamUtilities ~
 
+StreamUtilities.TestAsync
 
+StreamUtilities.TestAsync2
