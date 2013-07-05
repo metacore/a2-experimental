@@ -14,7 +14,7 @@ IMPORT SYSTEM, Trace, Machine;
 
 CONST
 	DebugValue = LONGINT(0DEADDEADH);	(* set non-0 to clear free storage to this value *)
-	AllocatorHistorySize = 4096; (* recent history of allocators to be able to trace memory wasting sources *)
+
 	Stats* = TRUE;					(* maintain statistical counters *)
 
 	AddressSize = SIZEOF(ADDRESS);
@@ -183,30 +183,13 @@ VAR
 	freeBlockFound-, freeBlockNotFound-: LONGINT;
 	EnableFreeLists, EnableReturnBlocks, trace-: BOOLEAN;
 
-	recentAllocators*: ARRAY AllocatorHistorySize OF RECORD pc*: ARRAY 5 OF ADDRESS; time*: HUGEINT END;
-	numRecentAllocators*: LONGINT;
+	allocationLogger-: PROCEDURE(p: ANY);
 
-PROCEDURE AddRecent();
-VAR time: HUGEINT; bp: ADDRESS; i: LONGINT;pc: ADDRESS
+(* for low level debugging of allocation -- beware: errors or traps in allocation logger can produce catastrophy - loggers may not allocate memory  *)
+PROCEDURE SetAllocationLogger*(a: PROCEDURE (p:ANY));
 BEGIN
-	time := Machine.GetTimer();
-
-	bp := Machine.CurrentBP();
-
-	SYSTEM.GET(bp, bp);
-	SYSTEM.GET(bp+SIZEOF(ADDRESS),pc);
-
-	FOR i := 0 TO LEN(recentAllocators[numRecentAllocators].pc)-1 DO
-		recentAllocators[numRecentAllocators].pc[i] := pc;
-		IF bp # 0 THEN
-			SYSTEM.GET(bp, bp);
-			SYSTEM.GET(bp+SIZEOF(ADDRESS),pc);
-		END;
-	END;
-
-	recentAllocators[numRecentAllocators].time := time;
-	INC(numRecentAllocators); numRecentAllocators := numRecentAllocators MOD LEN(recentAllocators);
-END AddRecent;
+	allocationLogger := a
+END SetAllocationLogger;
 
 (* check validity of p *)
 PROCEDURE CheckPointer(p: ADDRESS): BOOLEAN;
@@ -1084,7 +1067,6 @@ BEGIN
 	IF p # NIL THEN
 		IF Stats THEN INC(Nnew); INC(NnewBytes, size) END;
 		ASSERT(p.size >= size);
-		IF trace THEN AddRecent END;
 		RETURN p;
 	ELSE 	(* try = MaxTries *)
 		SYSTEM.HALT(14) 	(* out of memory *)
@@ -1126,6 +1108,7 @@ BEGIN
 	ELSE
 		p := NIL
 	END;
+	IF allocationLogger # NIL THEN allocationLogger(p) END;
 	Machine.Release(Machine.Heaps)
 END NewSys;
 
@@ -1184,6 +1167,7 @@ BEGIN
 		ELSE
 			p := NIL
 		END;
+		IF allocationLogger # NIL THEN allocationLogger(p) END;
 		Machine.Release(Machine.Heaps)
 	END;
 END NewRec;
@@ -1234,6 +1218,7 @@ BEGIN
 	ELSE
 		p := NIL
 	END;
+	IF allocationLogger # NIL THEN allocationLogger(p) END;
 	Machine.Release(Machine.Heaps)
 END NewProtRec;
 
@@ -1298,6 +1283,7 @@ BEGIN
 			ELSE
 				p := NIL
 			END;
+			IF allocationLogger # NIL THEN allocationLogger(p) END;
 			Machine.Release(Machine.Heaps)
 		END
 	END

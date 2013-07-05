@@ -21,6 +21,7 @@ CONST
 	SortBySize = 2;
 	SortByTotalSize = 3; (* whereas TotalSize = Count * Size *)
 	SortByName = 4;
+	AllocatorHistorySize = 4096; (* recent history of allocators to be able to trace memory wasting sources *)
 
 TYPE
 
@@ -311,6 +312,30 @@ TYPE
 
 VAR
 	currentMarkValueAddress : ADDRESS;
+	recentAllocators*: ARRAY AllocatorHistorySize OF RECORD pc*: ARRAY 3 OF ADDRESS; time*: HUGEINT END;
+	numRecentAllocators*: LONGINT;
+
+PROCEDURE LogAlloc(p: ANY);
+VAR time: HUGEINT; bp: ADDRESS; i: LONGINT;pc: ADDRESS;
+BEGIN
+	time := Machine.GetTimer();
+
+	bp := Machine.CurrentBP();
+
+	SYSTEM.GET(bp+SIZEOF(ADDRESS),pc);
+
+	FOR i := 0 TO LEN(recentAllocators[numRecentAllocators].pc)-1 DO
+		recentAllocators[numRecentAllocators].pc[i] := pc;
+		IF bp # 0 THEN
+			SYSTEM.GET(bp, bp);
+			SYSTEM.GET(bp+SIZEOF(ADDRESS),pc);
+		END;
+	END;
+
+	recentAllocators[numRecentAllocators].time := time;
+	INC(numRecentAllocators); numRecentAllocators := numRecentAllocators MOD LEN(recentAllocators);
+END LogAlloc;
+
 
 PROCEDURE WriteB(b : SIZE; out : Streams.Writer);
 VAR shift : LONGINT; suffix : ARRAY 2 OF CHAR;
@@ -473,16 +498,16 @@ BEGIN
         scale := (Machine.GetTimer() - scale) DIV 100; (* 1 ms resolution *)
 	END;
 	out.String("----------- recent allocators, t = ");
-	out.Hex(Heaps.recentAllocators[i].time, -16);
+	out.Hex(recentAllocators[i].time, -16);
 	out.String(" ---------------"); out.Ln;
 	Machine.Acquire(Machine.Heaps);
-	i := Heaps.numRecentAllocators;
-	DEC(i); i := i MOD LEN(Heaps.recentAllocators);
+	i := numRecentAllocators;
+	DEC(i); i := i MOD LEN(recentAllocators);
 	from := i;
-	pc := Heaps.recentAllocators[i].pc[0];
-	WHILE (i # Heaps.numRecentAllocators) & (pc # 0) DO
-		DEC(i); i := i MOD LEN(Heaps.recentAllocators);
-		pc := Heaps.recentAllocators[i].pc[0];
+	pc := recentAllocators[i].pc[0];
+	WHILE (i # numRecentAllocators) & (pc # 0) DO
+		DEC(i); i := i MOD LEN(recentAllocators);
+		pc := recentAllocators[i].pc[0];
 	END;
 	to := i;
 	Machine.Release(Machine.Heaps);
@@ -490,16 +515,16 @@ BEGIN
 	WHILE i # to DO
 
 		out.Int(num,1); out.String(": ");
-		out.Hex(Heaps.recentAllocators[i].time, -16);
+		out.Hex(recentAllocators[i].time, -16);
 
 		out.String("(");
-		out.Int( SHORT((Heaps.recentAllocators[i].time-time) DIV scale), 1);
+		out.Int( SHORT((recentAllocators[i].time-time) DIV scale), 1);
 		out.String(")");
 
 		out.String(": ");
 
-		FOR pcs := 0 TO LEN(Heaps.recentAllocators[i].pc)-1 DO
-			pc := Heaps.recentAllocators[i].pc[pcs];
+		FOR pcs := 0 TO LEN(recentAllocators[i].pc)-1 DO
+			pc := recentAllocators[i].pc[pcs];
 
 			module := Modules.ThisModuleByAdr(pc);
 			out.String(module.name);
@@ -511,7 +536,7 @@ BEGIN
 			out.String(" ");
 		END;
 		out.Ln;
-		DEC(i); i := i MOD LEN(Heaps.recentAllocators);
+		DEC(i); i := i MOD LEN(recentAllocators);
 		INC(num);
 	END;
 END ShowRecentAllocators;
@@ -520,10 +545,16 @@ PROCEDURE ClearRecentAllocators*;
 VAR i: LONGINT;
 BEGIN
 	Machine.Acquire(Machine.Heaps);
-	i := (Heaps.numRecentAllocators - 1) MOD LEN(Heaps.recentAllocators);
-	Heaps.recentAllocators[i].pc[0] := 0;
+	i := (numRecentAllocators - 1) MOD LEN(recentAllocators);
+	recentAllocators[i].pc[0] := 0;
 	Machine.Release(Machine.Heaps);
 END ClearRecentAllocators;
+
+PROCEDURE AddAllocatorLogger*;
+BEGIN
+	Heaps.SetAllocationLogger(LogAlloc);
+END AddAllocatorLogger;
+
 
 PROCEDURE RecentAllocators*(context : Commands.Context); (** [Options] mask ~ *)
 VAR
@@ -789,9 +820,15 @@ BEGIN
 	RETURN address;
 END GetCurrentMarkValueAddress;
 
+PROCEDURE Terminate;
+BEGIN
+	IF Heaps.allocationLogger = LogAlloc THEN Heaps.SetAllocationLogger(NIL) END;
+END Terminate;
+
 BEGIN
 	currentMarkValueAddress := GetCurrentMarkValueAddress();
 	ASSERT(currentMarkValueAddress # Heaps.NilVal);
+	Modules.InstallTermHandler(Terminate);
 END Info.
 
 SystemTools.Free Info ~
@@ -820,6 +857,7 @@ SystemTools.CollectGarbage ~
 
 Compiler.Compile --symbolFilePrefix=/temp/objEO/ --objectFilePrefix=/temp/objEO/  Info.Mod ~
 
+Info.AddAllocatorLogger
 Info.RecentAllocators --clear   --scale=2400000 ~
 Info.RecentAllocators    --scale=2400000 ~
 Info.RecentAllocators --clear ~
