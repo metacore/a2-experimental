@@ -52,7 +52,7 @@ TYPE
 	Caution: Pos() and SetPos() enforce synchronisation.
 	*)
 
-	AsynchronousWriter* = OBJECT (Streams.Writer);
+	AsynchronousForwarder* = OBJECT (Streams.Writer);
 		VAR out: Streams.Writer;
 			first, last: WriteEntry;
 			free: WriteEntry;
@@ -135,6 +135,79 @@ TYPE
 				IF entry.propagate THEN out.Update END;
 				INC(sent,entry.len);
 				res:=out.res;
+
+				ReturnEntry(entry);
+			END;
+		END ProcessWrites;
+
+	BEGIN{ACTIVE}
+		ProcessWrites;
+	END AsynchronousForwarder;
+
+	AsynchronousWriter* = OBJECT (Streams.Writer);
+		VAR sender: Streams.Sender;
+			first, last: WriteEntry;
+			free: WriteEntry;
+
+		PROCEDURE &Init*(sender: Streams.Sender; size: LONGINT);
+		BEGIN
+			InitWriter(Sender, size);
+			SELF.sender := sender;
+			Reset;
+			first := NIL; last := NIL; free := NIL;
+		END Init;
+
+		PROCEDURE GetFreeEntry(): WriteEntry;
+		VAR entry: WriteEntry;
+		BEGIN{EXCLUSIVE}
+			IF free = NIL THEN NEW(entry) ELSE entry := free; free := free.next END;
+			RETURN entry
+		END GetFreeEntry;
+
+		PROCEDURE ReturnEntry(entry: WriteEntry);
+		BEGIN{EXCLUSIVE}
+			entry.next := free;
+			free := entry
+		END ReturnEntry;
+
+		PROCEDURE PutEntry(entry: WriteEntry);
+		BEGIN{EXCLUSIVE}
+			IF last = NIL THEN first := entry; last := entry
+			ELSE last.next := entry; last := entry END;
+			entry.next := NIL;
+		END PutEntry;
+
+		PROCEDURE GetEntry(): WriteEntry;
+		VAR entry: WriteEntry;
+		BEGIN{EXCLUSIVE}
+			AWAIT(first # NIL);
+			entry := first;
+			first := first.next;
+			IF first = NIL THEN last := NIL END;
+			RETURN entry
+		END GetEntry;
+
+		PROCEDURE Sender(CONST outBuf: ARRAY OF CHAR; ofs, len: LONGINT; propagate: BOOLEAN; VAR res: LONGINT);
+		VAR entry: WriteEntry;
+		BEGIN
+			entry := GetFreeEntry();
+			IF (entry.buf = NIL) OR (LEN(entry.buf^) < len) THEN
+				NEW(entry.buf, len);
+			END;
+			SYSTEM.MOVE(SYSTEM.ADR(outBuf[ofs]), SYSTEM.ADR(entry.buf[0]), len);
+			entry.propagate := propagate;
+			entry.len := len;
+			res := 0;
+			PutEntry(entry);
+		END Sender;
+
+		PROCEDURE ProcessWrites;
+		VAR entry: WriteEntry;
+		BEGIN
+			LOOP
+				entry := GetEntry();
+
+				sender(entry.buf^, 0, entry.len, entry.propagate, res);
 
 				ReturnEntry(entry);
 			END;
@@ -244,11 +317,11 @@ TYPE
 	END OpenWriterMonitor;
 
 
-	PROCEDURE OpenAsynchronousWriter*(out: Streams.Writer): Streams.Writer;
-	VAR a: AsynchronousWriter;
+	PROCEDURE OpenAsynchronousForwarder*(out: Streams.Writer): Streams.Writer;
+	VAR a: AsynchronousForwarder;
 	BEGIN
 		NEW(a, out); RETURN a
-	END OpenAsynchronousWriter;
+	END OpenAsynchronousForwarder;
 
 
 	(*open a monitoring reader on the in stream*)
