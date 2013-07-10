@@ -329,7 +329,7 @@ TYPE
 
 		(** Check if current symbol is a string (or string-like character). If yes then copy identifier to name and get next symbol,
 		report error otherwise and set name to empty name. returns success value*)
-		PROCEDURE MandatoryString( VAR name: Scanner.StringType ): BOOLEAN;
+		PROCEDURE MandatoryString*( VAR name: Scanner.StringType ): BOOLEAN;
 		BEGIN
 			IF Peek( Scanner.String) THEN
 				name := symbol.string;
