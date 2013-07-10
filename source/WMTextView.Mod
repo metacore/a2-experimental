@@ -3579,13 +3579,13 @@ TYPE
 		VAR ch : LONGINT; string : ARRAY 23 OF CHAR; i : LONGINT; sDoCommands, lastWasTilde : BOOLEAN;
 			escapeString: ARRAY 32 OF LONGINT; escapePos: LONGINT; escape: BOOLEAN;
 
+			(* note: this simple algorithm can be emplyed if  the substring to be implicitly searched for does not contain its first character *)
 			PROCEDURE String(escape: BOOLEAN; CONST escapeString: ARRAY OF LONGINT);
 			VAR done: BOOLEAN; escapePos: LONGINT;
 			BEGIN
 				done := FALSE; escapePos := -1;
 				REPEAT
 					utilreader.ReadCh(ch);
-					TRACE(ch, CHR(ch));
 					IF ch = ORD('"') THEN
 						IF escape THEN
 							escapePos := 0;
