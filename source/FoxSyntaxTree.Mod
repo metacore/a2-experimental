@@ -357,6 +357,15 @@ TYPE
 			SELF.prefix := prefix; SELF.suffix := suffix;
 		END InitQualifiedIdentifier;
 
+		PROCEDURE GetName*(VAR name: Basic.SegmentedName);
+		VAR s: ARRAY 64 OF CHAR;
+		BEGIN
+			Basic.InitSegmentedName(name);
+			IF prefix # invalidIdentifier THEN Basic.SuffixSegmentedName(name, prefix) END;
+			Basic.SuffixSegmentedName(name, suffix)
+		END GetName;
+
+
 	END QualifiedIdentifier;
 
 	(**** types ****)

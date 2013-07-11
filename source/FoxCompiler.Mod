@@ -41,16 +41,32 @@ TYPE
 		replacements: SemanticChecker.Replacement;
 	END;
 
-	PROCEDURE ParseReplacements(fileName: ARRAY OF CHAR; VAR replacement: SemanticChecker.Replacement): BOOLEAN;
-	VAR file: Files.File; reader: Files.Reader; r: SemanticChecker.Replacement; equal: CHAR;
-		name, value: ARRAY 256 OF CHAR; done: BOOLEAN;
+	PROCEDURE ParseReplacements(CONST filename: ARRAY OF CHAR; VAR replacement: SemanticChecker.Replacement; diagnostics: Diagnostics.Diagnostics): BOOLEAN;
+	VAR reader: Streams.Reader; r: SemanticChecker.Replacement;
+		identifier: SyntaxTree.QualifiedIdentifier;
+		scanner: Scanner.Scanner; parser: Parser.Parser; expression: SyntaxTree.Expression;
 	BEGIN
 		replacement := NIL;
-		IF fileName = "" THEN RETURN TRUE END;
-		file := Files.Old(fileName);
-		IF file = NIL THEN RETURN FALSE END;
-		Files.OpenReader(reader, file, 0);
-		done := FALSE;
+		reader := Basic.GetFileReader(filename);
+		IF reader = NIL THEN
+			diagnostics.Error (filename, Diagnostics.Invalid, Diagnostics.Invalid, "failed to open");
+		ELSE
+
+			NEW(scanner, filename, reader,0, diagnostics);
+			NEW(parser, scanner, diagnostics);
+
+			REPEAT (* WHILE parser.Peek(Scanner.Identifier) DO*)
+				identifier := parser.QualifiedIdentifier();
+				IF parser.Mandatory(Scanner.Equal) THEN
+					expression := parser.Expression();
+					NEW(r); identifier.GetName(r.name);  r.expression := expression; r.used := FALSE;
+					r.next := replacement; replacement := r;
+				END;
+				WHILE parser.Optional(Scanner.Semicolon) DO END;
+			UNTIL ~parser.Peek(Scanner.Identifier); (*END;*)
+
+		END;
+		(*done := FALSE;
 		WHILE reader.GetString(name) & ~done DO
 			IF reader.GetChar(equal) & (equal = "=") & reader.GetString(value) THEN
 				NEW(r); r.name := name; r.string := Strings.NewString(value); r.used := FALSE;
@@ -58,6 +74,7 @@ TYPE
 			ELSE done := TRUE;
 			END;
 		END;
+		*)
 		RETURN (replacement # NIL)
 	END ParseReplacements;
 
@@ -378,7 +395,7 @@ TYPE
 		END;
 
 		IF options.GetString("replacements", name) THEN
-			IF ~ParseReplacements(name, compilerOptions.replacements) THEN
+			IF ~ParseReplacements(name, compilerOptions.replacements, diagnostics) THEN
 				Error("replacement file could not be opened or is empty"); result := FALSE;
 			END;
 		ELSE compilerOptions.replacements := NIL

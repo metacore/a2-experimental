@@ -58,7 +58,7 @@ TYPE
 
 	Replacement*= POINTER TO RECORD
 		name*: Basic.SegmentedName;
-		string*: Strings.String;
+		expression*: SyntaxTree.Expression;
 		used*: BOOLEAN;
 		next*: Replacement;
 	END;
@@ -166,12 +166,13 @@ TYPE
 			error := TRUE;
 		END ErrorSS;
 
-		PROCEDURE InfoSS(position: LONGINT; CONST s: Basic.String; msg2: ARRAY OF CHAR);
-		VAR msg: ARRAY 256 OF CHAR;
+		PROCEDURE InfoSS(position: LONGINT; CONST msg1: ARRAY OF CHAR; CONST s: Basic.String);
+		VAR msg, msg2: ARRAY 256 OF CHAR;
 		BEGIN
 			IF diagnostics # NIL THEN
-				Basic.GetString(s, msg);
+				COPY(msg1, msg);
 				Strings.Append(msg, " = ");
+				Basic.GetString(s, msg2);
 				Strings.Append(msg, msg2);
 				diagnostics.Information(currentScope.ownerModule.sourceName, position, Diagnostics.Invalid, msg);
 			END;
@@ -6158,12 +6159,15 @@ TYPE
 						replacement := replacement.next;
 					END;
 					IF replacement # NIL THEN
-						InfoSS(constant.position, constant.name, replacement.string^);
+						InfoSS(constant.position, "replacing constant", constant.name);
+						(*
 						NEW(stringReader, Strings.Length(replacement.string^));
 						stringReader.Set(replacement.string^);
 						NEW(scanner, replacement.string^, stringReader,0, diagnostics);
 						NEW(parser, scanner, diagnostics);
 						expression := parser.Expression();
+						*)
+						expression := replacement.expression;
 						replacement.used := TRUE;
 					END;
 				END;
