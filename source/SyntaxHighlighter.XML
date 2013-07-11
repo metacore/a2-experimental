@@ -337,11 +337,15 @@
 				/>
 				<Region
 					style="String" styleOpen="Bold" styleClose="Bold"
-					open='"' close='"' nesting="FALSE" multiline="FALSE"
+					open='"' close='"' nesting="FALSE" multiline="TRUE"
 				/>
 				<Region
 					style="String" styleOpen="Bold" styleClose="Bold"
-					open="'" close="'" nesting="FALSE" multiline="FALSE"
+					open="'" close="'" nesting="FALSE" multiline="TRUE"
+				/>
+				<Region
+					style="String" styleOpen="Bold" styleClose="Bold"
+					open='\"' close='"\' nesting="FALSE" multiline="TRUE"
 				/>
 			</Regions>
 
@@ -438,6 +442,10 @@
 					style="String" styleOpen="Bold" styleClose="Bold"
 					open="'" close="'" nesting="FALSE" multiline="TRUE"
 				/>
+				<Region
+					style="String" styleOpen="Bold" styleClose="Bold"
+					open='\"' close='"\' nesting="FALSE" multiline="TRUE"
+				/>
 			</Regions>
 		</Highlighter>
 
@@ -468,7 +476,15 @@
 				/>
 				<Region
 					style="String" styleOpen="Bold" styleClose="Bold"
-					open='"' close='"' nesting="FALSE" multiline="FALSE"
+					open='"' close='"' nesting="FALSE" multiline="TRUE"
+				/>
+				<Region
+					style="String" styleOpen="Bold" styleClose="Bold"
+					open="'" close="'" nesting="FALSE" multiline="TRUE"
+				/>
+				<Region
+					style="String" styleOpen="Bold" styleClose="Bold"
+					open='\"' close='"\' nesting="FALSE" multiline="TRUE"
 				/>
 			</Regions>
 		</Highlighter>

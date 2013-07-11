@@ -481,20 +481,22 @@ TYPE
 		PROCEDURE GetEscapedString(VAR symbol: Symbol);
 		VAR endString: ARRAY 4 OF CHAR; escape: CHAR;
 		BEGIN
+			(* backslash already consumed *)
 			stringMaker.Clear;
 			IF ch = '"' THEN
 				escape := 0X;
 			ELSE
-				escape := ch; GetNextCharacter; ASSERT(ch = '"')
+				escape := ch; GetNextCharacter;
 			END;
+			ASSERT((ch = '"') OR (ch = "'"));
 			REPEAT
 				IF escape # 0X THEN
-					endString[0] := '"';
+					endString[0] := ch;
 					endString[1] := escape;
 					endString[2] := '\';
 					endString[3] := 0X;
 				ELSE
-					endString[0] := '"';
+					endString[0] := ch;
 					endString[1] := '\';
 					endString[2] := 0X;
 				END;
@@ -504,7 +506,6 @@ TYPE
 			stringWriter.Update;
 			symbol.string := stringMaker.GetStringCopy(symbol.stringLength);
 		END GetEscapedString;
-
 
 
 		(** get a string starting at current position
