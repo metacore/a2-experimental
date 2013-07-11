@@ -2692,6 +2692,26 @@ TYPE
 		BEGIN	SELF.value := value
 		END SetValue;
 
+		PROCEDURE Append*(CONST value: String);
+		VAR new: String; len: LONGINT;
+		BEGIN
+			len := Strings.Length(SELF.value^) + Strings.Length(value^) + 1;
+			IF LEN(SELF.value) < len THEN
+				NEW(new, len);
+				COPY(SELF.value^, new^);
+				SELF.value := new
+			END;
+			Strings.Append(SELF.value^, value^);
+			length := len
+		END Append;
+
+		PROCEDURE AppendChar*(CONST ch: CHAR);
+		VAR v: String;
+		BEGIN
+			NEW(v,2); v[0] := ch;
+			Append(v);
+		END AppendChar;
+
 		PROCEDURE Clone(): Expression;
 		VAR copy: StringValue;
 		BEGIN

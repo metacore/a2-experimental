@@ -429,8 +429,11 @@ TYPE
 *)
 
 		(* simple case can be utilized when endString does not contain first character, which is the case for our string convention *)
-		PROCEDURE ConsumeStringUntil(CONST endString: ARRAY OF CHAR);
+		PROCEDURE ConsumeStringUntil(CONST endString: ARRAY OF CHAR; useControl: BOOLEAN);
 		VAR escapePos: LONGINT; ech: CHAR; i: LONGINT; startPosition: LONGINT;
+		CONST
+			Control = '\';
+			Delimiter = '"';
 
 				PROCEDURE Append(ch :CHAR);
 				BEGIN
@@ -449,6 +452,18 @@ TYPE
 				IF ch = ech THEN
 					INC(escapePos); ech := endString[escapePos];
 					GetNextCharacter;
+				ELSIF useControl & (ch = Control) THEN
+					GetNextCharacter;
+					IF (ch = Control) OR (ch = Delimiter) THEN
+						Append(ch)
+					ELSIF ch = 'n' THEN
+						Append(CR); Append(LF);
+					ELSIF ch = 't' THEN
+						Append(TAB)
+					ELSE
+						ErrorS("Unknown control sequence")
+					END;
+					GetNextCharacter
 				ELSIF escapePos = 0 THEN (* frequent case *)
 					Append(ch); GetNextCharacter;
 				ELSE
@@ -472,7 +487,6 @@ TYPE
 			ELSE
 				escape := ch; GetNextCharacter; ASSERT(ch = '"')
 			END;
-			TRACE(escape);
 			REPEAT
 				IF escape # 0X THEN
 					endString[0] := '"';
@@ -484,7 +498,7 @@ TYPE
 					endString[1] := '\';
 					endString[2] := 0X;
 				END;
-				ConsumeStringUntil(endString);
+				ConsumeStringUntil(endString, escape = 0X);
 			UNTIL TRUE;
 			stringWriter.Char(0X);
 			stringWriter.Update;
@@ -856,9 +870,13 @@ TYPE
 			| '}':     s := RightBrace;  GetNextCharacter
 			| '~':     s := Not;  GetNextCharacter
 			| '\':     s := Backslash;  GetNextCharacter;
-					IF ch = DoubleQuote THEN 
-						s := String; GetString(symbol, TRUE, TRUE, TRUE)
-					ELSIF (ch > " ") & (reader.Peek() = DoubleQuote) THEN 
+					IF ch = DoubleQuote THEN
+						s := String;
+						GetEscapedString(symbol);
+						(*
+						GetString(symbol, TRUE, TRUE, TRUE)
+						*)
+					ELSIF (ch > " ") & (reader.Peek() = DoubleQuote) THEN
 						s := String;
 						GetEscapedString(symbol);
 					END;

@@ -687,6 +687,15 @@ TYPE
 					factor := SyntaxTree.NewStringValue( position, symbol.string );
 					factor.End( symbol.end );
 					NextSymbol;
+					WHILE (symbol.token = Scanner.String) OR (symbol.token = Scanner.Character) DO
+						IF symbol.token = Scanner.Character THEN
+							factor(SyntaxTree.StringValue).AppendChar(symbol.character);
+						ELSE
+							factor(SyntaxTree.StringValue).Append(symbol.string);
+						END;
+						factor.End(symbol.end);
+						NextSymbol;
+					END;
 			| Scanner.Nil:
 					factor := SyntaxTree.NewNilValue( position );
 					factor.End( symbol.end );
