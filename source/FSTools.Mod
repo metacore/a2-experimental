@@ -439,7 +439,7 @@ END Enumerate;
 PROCEDURE CreateFile*(context : Commands.Context); (** [Options] filename [content] ~ *)
 VAR
 	options : Options.Options; cr, removeWhitespace : BOOLEAN;
-	file : Files.File; filename : Files.FileName; writer : Files.Writer; ch : CHAR;
+	file : Files.File; filename : Files.FileName; writer : Files.Writer; ch : CHAR; pos: LONGINT;
 BEGIN
 	NEW(options);
 	options.Add("c", "cr", Options.Flag);
@@ -455,8 +455,11 @@ BEGIN
 			END;
 			IF file = NIL THEN
 				file := Files.New(filename);
+				pos := 0;
+			ELSE
+				pos := file.Length();
 			END;
-			Files.OpenWriter(writer, file, file.Length());
+			Files.OpenWriter(writer, file, pos);
 			IF removeWhitespace THEN context.arg.SkipWhitespace; END;
 			WHILE (context.arg.res = Streams.Ok) DO
 				ch := context.arg.Get();
