@@ -3260,9 +3260,7 @@ TYPE
 				GenerateBinary(result(Sections.Module),dump);
 				IF dump # NIL THEN
 					dump.Ln; dump.Ln;
-					dump.BeginComment;
 					dump.String(";------------------ binary code -------------------"); dump.Ln;
-					dump.EndComment;
 					IF (traceString="") OR (traceString="*") THEN
 						result.Dump(dump);
 						dump.Update
