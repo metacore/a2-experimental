@@ -9078,7 +9078,7 @@ TYPE
 				IF (p.symbol # NIL) & (p.symbol IS SyntaxTree.Procedure)  THEN
 					procedure := p.symbol(SyntaxTree.Procedure);
 					procedureType := procedure.type(SyntaxTree.ProcedureType);
-					IF (SyntaxTree.PublicRead IN procedure.access) & ~(procedure.isInline) & ~(procedureType.isDelegate) & GetProcedureAllowed() THEN
+					IF (SyntaxTree.PublicWrite IN procedure.access) & ~(procedure.isInline) & ~(procedureType.isDelegate) & GetProcedureAllowed() THEN
 						procedure.GetName(name);
 						Name(source,name);
 						numberParameters := procedureType.numberParameters;

@@ -1757,14 +1757,14 @@ TYPE
 			END;
 
 			position:= symbol.start;
-			IdentifierDefinition( name, access,FALSE);
+			IdentifierDefinition( name, access,TRUE);
 
 			procedureScope := SyntaxTree.NewProcedureScope(parentScope);
 			procedure := SyntaxTree.NewProcedure( position, name, procedureScope);
 			procedure.SetConstructor(isConstructor);
 			procedure.SetInline(isInline);
 			CommentSymbol(procedure);
-			procedure.SetAccess(access * SyntaxTree.ReadOnly);
+			procedure.SetAccess(access);
 
 			procedureType.SetModifiers(modifiers);
 			procedure.SetType(procedureType);

@@ -3380,6 +3380,8 @@ TYPE
 				assignable := assignable & (SyntaxTree.InternalWrite IN symbol.access);
 			END;
 
+			assignable := assignable & ~(symbol IS SyntaxTree.Procedure);
+
 			result := SyntaxTree.NewSymbolDesignator(position,left,symbol);
 			result.SetType(symbol.type);
 			result.SetAssignable(assignable);
