@@ -759,9 +759,9 @@ CONST
 	SSE2Flag = 26;
 	SSE3Flag = 0; (*IN features2 from ECX*) (*PH 04/11*)
 	SSSE3Flag =9;
-	SSE41Flag =19; 
+	SSE41Flag =19;
 	SSE42Flag =20;
-	SSE5Flag = 11; 
+	SSE5Flag = 11;
 	AVXFlag = 28;
 BEGIN
 	SSE2Support := FALSE;
@@ -2671,6 +2671,25 @@ entry:
 ;	CALL traceInterruptIn
 
 	MOV EBX, [ESP+32]	; EBX = int number
+
+	CMP BL, IRQ0 + 7 ; if irq=7 then check for spurious interrupt on master
+	JNE skip1
+	MOV    AL, 0BH
+	OUT    20H, AL
+	IN    AL, 20H
+	BT    AX, 7
+	JNC    end
+skip1:
+	CMP BL, IRQ8 + 7  ; if irq=15 then check for spurious interrupt on slave
+	JNE skip2
+	MOV    AL, 0BH
+	OUT    21H, AL
+	IN    AL, 21H
+	BT    AX, 7
+	MOV AL, 20H
+	JNC    irq0 ; acknowledge IRQ on master
+
+skip2:
 	IMUL EBX, EBX, MaxNumHandlers
 	IMUL EBX, EBX, 12
 	LEA EAX, intHandler
@@ -2704,7 +2723,7 @@ nodelegate:
 	OUT IntB0, AL		; 2nd controller
 irq0:
 	OUT IntA0, AL		; 1st controller
-
+end:
 	POPAD				; now EBP = error code
 	POP EBP			; now EBP = INT
 	POP EBP			; now EBP = caller EBP
