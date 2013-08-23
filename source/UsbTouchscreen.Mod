@@ -196,8 +196,7 @@ TYPE
 			END;
 			x := SELF.x.usageValue;
 			y := SELF.y.usageValue;
-			
-			TRACE(x,y);
+
 
 			IF (tipSwitch.usageValue#0) THEN mm.keys := mm.keys + {0}; END;
 			(* these dimensions are very specific to the model we currently need. The driver has to be factored our to a separate module *)
@@ -353,6 +352,6 @@ BEGIN
 END UsbTouchscreen.
 
 UsbTouchscreen.InstallCDT975
-UsbTouchscreen.InstallUnknown1 
+UsbTouchscreen.InstallUnknown1
 
 SystemTools.Free UsbTouchscreen ~
