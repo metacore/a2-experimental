@@ -798,7 +798,7 @@ VAR t: Process; id: LONGINT; new: Process; preempt: BOOLEAN;
 BEGIN
 	Machine.DisableIRQ(state.INT);	(* do this before acknowledging irq *)
 
-	IF strongChecks THEN
+	IF StrongChecks THEN
 		IF processingIRQ[state.INT-MinIRQ] THEN
 			Trace.String("IRQ recursion "); Trace.Int(state.INT,1); Trace.Ln;
 			RETURN
@@ -806,8 +806,16 @@ BEGIN
 			processingIRQ[state.INT-MinIRQ] := TRUE;
 		END;
 	END;
+	
+	(* if the reenabling of interrupts cannot be circumvented, then it is REQUIRED to acknowledge interrupts
+		BEFORE reenabling. Otherwise spurious IRQs cannot be identified as such.
+		Please note that this particular problem with spurious IRQs cannot observed on many machines but IF it is observed
+		then the machine will behave unexpected. Very hard to debug and trace!
 
-	Machine.Sti ();	(* avoid Processors.StopAll deadlock when waiting for locks below (remove this) *)
+		Machine.Ack(state.INT); 
+		Machine.Sti ();	(* avoid Processors.StopAll deadlock when waiting for locks below (remove this) *)
+	*)
+	
 	Machine.Acquire(Machine.Objects);
 	t := interrupt[state.INT-MinIRQ].process;
 	IF StrongChecks THEN ASSERT(t.mode = AwaitingEvent) END;

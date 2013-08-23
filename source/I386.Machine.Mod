@@ -5,7 +5,7 @@ MODULE Machine;	(** AUTHOR "pjm"; PURPOSE "Bootstrapping, configuration and mach
 IMPORT SYSTEM, Trace;
 
 CONST
-	Version = "A2 Revision 4186 (17.06.2011)";
+	Version = "A2 Revision 5387 (23.08.2013)";
 
 	MaxCPU* = 8;	(** maximum number of processors (up to 16) *)
 
@@ -2675,16 +2675,16 @@ entry:
 	CMP BL, IRQ0 + 7 ; if irq=7 then check for spurious interrupt on master
 	JNE skip1
 	MOV    AL, 0BH
-	OUT    20H, AL
-	IN    AL, 20H
+	OUT    IntA0, AL
+	IN    AL, IntA0
 	BT    AX, 7
 	JNC    end
 skip1:
 	CMP BL, IRQ8 + 7  ; if irq=15 then check for spurious interrupt on slave
 	JNE skip2
 	MOV    AL, 0BH
-	OUT    21H, AL
-	IN    AL, 21H
+	OUT    IntB0, AL
+	IN    AL, IntB0
 	BT    AX, 7
 	MOV AL, 20H
 	JNC    irq0 ; acknowledge IRQ on master
@@ -2729,6 +2729,8 @@ end:
 	POP EBP			; now EBP = caller EBP
 	IRETD
 END FieldIRQ;
+
+
 
 (* LoadIDT - Load interrupt descriptor table *)
 PROCEDURE LoadIDT(base: ADDRESS; size: SIZE);
