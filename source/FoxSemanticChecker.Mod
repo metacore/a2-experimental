@@ -3372,7 +3372,7 @@ TYPE
 				END;
 			END;
 
-			assignable := (left = NIL) OR left.assignable OR (left IS SyntaxTree.DereferenceDesignator) OR (left IS SyntaxTree.SelfDesignator);
+			assignable := (left = NIL) OR left.assignable OR (left IS SyntaxTree.DereferenceDesignator) OR (left IS SyntaxTree.SelfDesignator) OR (left IS SyntaxTree.SymbolDesignator) & (left(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Import);
 
 			IF (currentScope # NIL) & (symbol.scope.ownerModule # currentScope.ownerModule) THEN
 				assignable := assignable & (SyntaxTree.PublicWrite IN symbol.access);
