@@ -1453,7 +1453,7 @@ TYPE
 				position := symbol.start;
 				constant := SyntaxTree.NewConstant( position, identifier );
 				CommentSymbol(constant);
-				constant.SetAccess(access * SyntaxTree.ReadOnly);
+				constant.SetAccess(access);
 				IF Optional(Scanner.Equal) THEN
 					expression := Expression();
 					constant.SetValue( expression );
@@ -1826,7 +1826,7 @@ TYPE
 			procedureScope := SyntaxTree.NewProcedureScope(parentScope);
 			operator := SyntaxTree.NewOperator( symbol.start, SyntaxTree.NewIdentifier(string^), procedureScope);
 			CommentSymbol(operator);
-			operator.SetAccess(access * SyntaxTree.ReadOnly);
+			operator.SetAccess(access);
 			procedureType := SyntaxTree.NewProcedureType(symbol.start,parentScope);
 			IF Mandatory(Scanner.LeftParenthesis) THEN FormalParameters( procedureType, procedureScope ) END;
 			procedureType.SetModifiers(modifiers); (* nopov *)
@@ -1903,7 +1903,7 @@ TYPE
 			(*
 			type.SetName(typeDeclaration.name);  (* don't do that: overwrites global names ! *)
 			*)
-			typeDeclaration.SetAccess(access * SyntaxTree.ReadOnly);
+			typeDeclaration.SetAccess(access);
 			parentScope.AddTypeDeclaration( typeDeclaration );
 			IF Trace THEN E( "TypeDeclaration" ) END;
 		END TypeDeclaration;
@@ -1917,7 +1917,7 @@ TYPE
 			position := symbol.start;
 			constant := SyntaxTree.NewConstant( position, name );
 			CommentSymbol(constant);
-			constant.SetAccess(access * SyntaxTree.ReadOnly);
+			constant.SetAccess(access);
 			Check( Scanner.Equal );
 			expression := Expression();
 			constant.SetValue( expression );
