@@ -1491,7 +1491,9 @@ TYPE
 
 			IF actualType = SyntaxTree.invalidType THEN (* error already handled *)
 			ELSIF (formal.kind = SyntaxTree.VarParameter) THEN
-
+				IF (actual IS SyntaxTree.SymbolDesignator) & (actual(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Variable) THEN
+					actual(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Variable).UsedAsReference;
+				END;
 				IF (formal.ownerType(SyntaxTree.ProcedureType).callingConvention = SyntaxTree.WinAPICallingConvention) & (actualType IS SyntaxTree.NilType) THEN
 					result := TRUE; (* special rule for WINAPI parameters, needed to be able to pass NIL address to var parameters *)
 				ELSIF ~IsVariable(actual) THEN
@@ -3380,7 +3382,8 @@ TYPE
 				assignable := assignable & (SyntaxTree.InternalWrite IN symbol.access);
 			END;
 
-			assignable := assignable & ((symbol IS SyntaxTree.Variable) OR (symbol IS SyntaxTree.Parameter));
+			assignable := assignable & ((symbol IS SyntaxTree.Variable) OR (symbol IS SyntaxTree.Parameter)
+				& (symbol(SyntaxTree.Parameter).kind # SyntaxTree.ConstParameter) & ~(symbol(SyntaxTree.Parameter).ownerType IS SyntaxTree.CellType));
 
 			result := SyntaxTree.NewSymbolDesignator(position,left,symbol);
 			result.SetType(symbol.type);
@@ -6283,7 +6286,6 @@ TYPE
 				parameter.SetType(ResolveType(parameter.type));
 				ASSERT(parameter.type.resolved # NIL);
 				CheckSymbolVisibility(parameter);
-				IF parameter.kind = SyntaxTree.ConstParameter THEN parameter.SetAccess(parameter.access * SyntaxTree.ReadOnly) END;
 				IF parameter.ownerType IS SyntaxTree.CellType THEN
 					parameter.SetAccess(SyntaxTree.ReadOnly);
 				END;
