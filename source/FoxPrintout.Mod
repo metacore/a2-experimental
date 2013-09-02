@@ -910,8 +910,8 @@ TYPE
 			ELSE
 				Identifier(x.name)
 			END;
-			IF (x IS SyntaxTree.Parameter) & (x(SyntaxTree.Parameter).ownerType IS SyntaxTree.CellType) THEN (* no access control characters *)
-			ELSIF SyntaxTree.PublicWrite IN x.access THEN w.String( "*" )
+
+			IF SyntaxTree.PublicWrite IN x.access THEN w.String( "*" )
 			ELSIF SyntaxTree.PublicRead IN x.access THEN w.String( "-" )
 			ELSIF x.access = {} THEN ASSERT(mode > SourceCode);
 				IF info THEN BeginComment; w.String("<- hidden"); EndComment  END;

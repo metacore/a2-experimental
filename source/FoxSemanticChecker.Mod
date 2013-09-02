@@ -193,20 +193,23 @@ TYPE
 			WHILE (scope # NIL) & (symbol = NIL) DO
 				symbol := scope.FindSymbol(name);
 
-				WHILE (symbol # NIL) & (symbol.scope.ownerModule # currentScope.ownerModule) & (symbol.access * SyntaxTree.Public = {}) DO
-					(* found symbol in different module, but is it not exported, can we go on searching in record base scopes ? *)
-					symbol.MarkUsed;
-					IF (symbol.scope IS SyntaxTree.RecordScope) THEN
-						ownerRecord := symbol.scope(SyntaxTree.RecordScope).ownerRecord;
-						base := RecordBase(ownerRecord);
-						IF (base # NIL) THEN
-							baseScope := base.recordScope;
-							symbol := Find(baseScope,name,FALSE);
+				IF (symbol # NIL) & (symbol IS SyntaxTree.Parameter) & (symbol.scope IS SyntaxTree.CellScope) THEN (* ok, symbol auto-export in scope *)
+				ELSE
+					WHILE (symbol # NIL) & (symbol.scope.ownerModule # currentScope.ownerModule) & (symbol.access * SyntaxTree.Public = {}) DO
+						(* found symbol in different module, but is it not exported, can we go on searching in record base scopes ? *)
+						symbol.MarkUsed;
+						IF (symbol.scope IS SyntaxTree.RecordScope) THEN
+							ownerRecord := symbol.scope(SyntaxTree.RecordScope).ownerRecord;
+							base := RecordBase(ownerRecord);
+							IF (base # NIL) THEN
+								baseScope := base.recordScope;
+								symbol := Find(baseScope,name,FALSE);
+							ELSE
+								symbol := NIL;
+							END;
 						ELSE
 							symbol := NIL;
 						END;
-					ELSE
-						symbol := NIL;
 					END;
 				END;
 				IF traverse THEN scope := scope.outerScope ELSE scope := NIL END;
@@ -6286,9 +6289,6 @@ TYPE
 				parameter.SetType(ResolveType(parameter.type));
 				ASSERT(parameter.type.resolved # NIL);
 				CheckSymbolVisibility(parameter);
-				IF parameter.ownerType IS SyntaxTree.CellType THEN
-					parameter.SetAccess(SyntaxTree.ReadOnly);
-				END;
 				IF parameter.defaultValue # NIL THEN
 					IF parameter.kind # SyntaxTree.ValueParameter THEN
 						Error(parameter.position,Diagnostics.Invalid,"forbidden default value on non-value parameter");
