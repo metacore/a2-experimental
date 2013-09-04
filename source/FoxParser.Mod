@@ -755,6 +755,9 @@ TYPE
 					factor := SyntaxTree.NewUnaryExpression(position,factor,Scanner.Transpose);
 				END;
 			END;
+			IF Optional(Scanner.Questionmarks) THEN
+				factor := SyntaxTree.NewBinaryExpression(position, factor, Factor(), Scanner.Questionmarks)
+			END;
 			IF Trace THEN E( "Factor" ) END;
 			RETURN factor
 		END Factor;

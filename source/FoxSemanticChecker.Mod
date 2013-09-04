@@ -2829,6 +2829,8 @@ TYPE
 				ELSE
 					Error(binaryExpression.position,Diagnostics.Invalid,"operator not applicable between different enumerators");
 				END;
+			ELSIF (leftType IS SyntaxTree.PortType) & (operator = Scanner.Questionmarks) THEN
+				type := system.booleanType;
 			ELSIF (leftType IS SyntaxTree.BasicType) & (rightType IS SyntaxTree.BasicType)
 				OR IsCharacterType(leftType) & IsCharacterType(rightType)
 			THEN
