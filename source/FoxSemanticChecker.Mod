@@ -964,7 +964,7 @@ TYPE
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		VAR
 			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter; type: SyntaxTree.Type; len: LONGINT;
-			modifier: SyntaxTree.Modifier; position,value: LONGINT;
+			modifier: SyntaxTree.Modifier; position,value: LONGINT; isEngine: BOOLEAN;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 
@@ -972,7 +972,7 @@ TYPE
 				IF ~x.isCellNet THEN
 					IF HasValue(modifier,Global.NameDataMemorySize,position,value) THEN END;
 					IF HasValue(modifier,Global.NameCodeMemorySize,position,value) THEN END;
-					IF HasFlag(modifier, Global.NameEngine, position) THEN END;
+					IF HasFlag(modifier, Global.NameEngine, position) THEN isEngine := TRUE ELSE isEngine := FALSE END;
 					IF HasFlag(modifier, Global.NameVector,position) THEN END;
 					IF HasFlag(modifier, Global.NameFloatingPoint, position) THEN END;
 					symbol := system.activeCellsCapabilities;
@@ -1022,8 +1022,10 @@ TYPE
 				END;
 				x.SetState(SyntaxTree.Resolved);
 
-				IF x.cellScope.bodyProcedure = NIL THEN
+				IF (x.cellScope.bodyProcedure = NIL) & (~isEngine)THEN
 					Error(x.position, Diagnostics.Invalid, "Forbidden empty Body.");
+				ELSIF (x.cellScope.bodyProcedure # NIL) & (isEngine)THEN
+					Warning(x.position, "Non-empty body for an engine?");
 				END;
 			END;
 			resolvedType := ResolvedType(x);
