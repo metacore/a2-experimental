@@ -1519,7 +1519,7 @@ TYPE
 		VAR
 			type: SyntaxTree.Type; name: SyntaxTree.Identifier;
 			firstParameter, parameter: SyntaxTree.Parameter;
-			position: LONGINT;
+			position: LONGINT; modifiers: SyntaxTree.Modifier;
 		BEGIN
 			IF Trace THEN S( "PortDeclaration" ) END;
 			firstParameter := cell.lastParameter;
@@ -1527,6 +1527,12 @@ TYPE
 				name := Identifier(position);
 				parameter := SyntaxTree.NewParameter(position,cell,name,SyntaxTree.ValueParameter);
 				cell.AddParameter(parameter);
+
+				IF Optional(Scanner.LeftBrace) THEN
+					modifiers := Flags();
+					parameter.SetModifiers(modifiers);
+				END;
+
 			UNTIL ~Optional( Scanner.Comma );
 			Check( Scanner.Colon );
 			type := Type( SyntaxTree.invalidIdentifier, parentScope);
