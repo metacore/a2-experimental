@@ -2235,6 +2235,8 @@ TYPE
 					result := SyntaxTree.NewComplexValue(expression.position, real, 0);
 					result.SetType(type);
 					result(SyntaxTree.ComplexValue).UpdateSubtype;
+				ELSIF (type IS SyntaxTree.PortType) THEN
+					result := ConvertValue(position, expression, system.integerType);
 				ELSE
 					Error(position,Diagnostics.Invalid,"real value cannot be converted");
 					result := SyntaxTree.invalidExpression;
@@ -2255,6 +2257,8 @@ TYPE
 				ELSIF (type IS SyntaxTree.CharacterType) OR (type IS SyntaxTree.ByteType) THEN (* for example: possible via ch = CHR(SYSTEM.VAL(LONGINT,set)) *)
 					result := SyntaxTree.NewCharacterValue(expression.position,SYSTEM.VAL(CHAR,set));
 					result.SetType(type);
+				ELSIF (type IS SyntaxTree.PortType) THEN
+					result := ConvertValue(position, expression, system.integerType);
 				ELSE
 					Error(position,Diagnostics.Invalid,"set value cannot be converted");
 					result := SyntaxTree.invalidExpression;
@@ -2287,6 +2291,8 @@ TYPE
 				ELSIF (type IS SyntaxTree.CharacterType) THEN
 					result := SyntaxTree.NewCharacterValue(expression.position,char);
 					result.SetType(type);
+				ELSIF (type IS SyntaxTree.PortType) THEN
+					result := ConvertValue(position, expression, system.integerType);
 				ELSE
 					Error(position,Diagnostics.Invalid,"character value cannot be converted");
 					result := SyntaxTree.invalidExpression;
