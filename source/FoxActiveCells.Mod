@@ -16,6 +16,7 @@ CONST
 
 	VectorCapability*=Global.VectorCapability;
 	FloatingPointCapability*=Global.FloatingPointCapability;
+	TRMSCapability*=Global.TRMSCapability;
 
 	TraceError=FALSE;
 	BasePortAddress=LONGINT(0FFFFFFE0H);
