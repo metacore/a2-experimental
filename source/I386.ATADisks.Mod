@@ -2278,13 +2278,7 @@ BEGIN
 		AddController(c);
 		NEW(c, 170H, 370H, 0, 15);
 		AddController(c);
-	ELSIF (str[0] = "D") & (str[1] = "=") THEN
-		i := 2;
-		num1 := Machine.StrToInt(i, str);
-		IF str[i] = "," THEN INC(i) END;
-		num2 := Machine.StrToInt(i,str);
-		ScanPCI(num1, num2);
-	ELSE
+	ELSIF ~ParseConfigString(str) THEN
 		Show("Scanning PCI bus for IDE & SATA class devices ..."); KernelLog.Ln;
 		FOR class := 010100H TO 0101FFH DO ScanPCIClass(class); END;	(* IDE *)
 		FOR class := 010600H TO 0106FFH DO ScanPCIClass(class); END;	(* SATA *)
@@ -2368,15 +2362,54 @@ BEGIN
 	KernelLog.String("ATADisks: "); KernelLog.String(string);
 END Show;
 
+PROCEDURE ParseConfigString(CONST s: ARRAY OF CHAR): BOOLEAN;
+VAR pos: LONGINT; ch: CHAR; cmdbase, cnlbase, bmbase, irq: LONGINT; c: Controller;
+
+	PROCEDURE Char(VAR ch: CHAR);
+	BEGIN ch := s[pos]; IF ch # 0X THEN INC(pos) END;
+	END Char;
+
+	PROCEDURE Hex(VAR n: LONGINT): BOOLEAN;
+	BEGIN
+		IF (s[pos] >= "0") & (s[pos] <= "9") THEN n := ORD(ch)-ORD("0"); INC(pos); RETURN TRUE
+		ELSIF (s[pos] >= "A") & (s[pos] <= "F") THEN n := ORD(ch)-ORD("A")+10;  INC(pos); RETURN TRUE
+		ELSE RETURN FALSE
+		END;
+	END Hex;
+
+	PROCEDURE Number(VAR num: LONGINT);
+	VAR n: LONGINT;
+	BEGIN
+		num := 0;
+		WHILE Hex(n) DO num := num* 10H + n END;
+	END Number;
+
+BEGIN
+	pos := 0;
+	IF s[0] = "X" THEN
+		Show("Using predefined configuration string "); KernelLog.String(s); KernelLog.Ln;
+		REPEAT
+			Number(cmdbase); Char(ch);
+			Number(cnlbase); Char(ch);
+			Number(bmbase); Char(ch);
+			Number(irq); Char(ch);
+			NEW(c,cmdbase, cnlbase, bmbase, irq);
+			AddController(c);
+		UNTIL ch # ",";
+		RETURN TRUE
+	ELSE
+		RETURN FALSE
+	END;
+END ParseConfigString;
 
 PROCEDURE GetConfigString*(VAR s: ARRAY OF CHAR);
 VAR i: LONGINT; c: Controller; pos: LONGINT;
 
-	PROCEDURE Append(c: CHAR);
+	PROCEDURE Char(c: CHAR);
 	BEGIN
 		s[pos] := c;
 		IF pos < LEN(s)-1 THEN INC(pos) END;
-	END Append;
+	END Char;
 
 	PROCEDURE Hex(x: LONGINT): CHAR;
 	BEGIN
@@ -2385,33 +2418,34 @@ VAR i: LONGINT; c: Controller; pos: LONGINT;
 		END;
 	END Hex;
 
-	PROCEDURE Add(a: CHAR; n: LONGINT);
+	PROCEDURE Number(n: LONGINT);
 	VAR h: ARRAY 8 OF CHAR; i: LONGINT;
 	BEGIN
-		ASSERT(n>=0); Append(a);
+		ASSERT(n>=0);
 		i := 0;
 		REPEAT
 			h[i] := Hex(n MOD 10H); n := n DIV 10H; INC(i);
 		UNTIL n = 0;
 		WHILE(i>0) DO
-			DEC(i); Append(h[i]);
+			DEC(i); Char(h[i]);
 		END;
-	END Add;
+	END Number;
 
 BEGIN
 	pos := 0;
-	Append("X");
+	Char("X");
 	FOR i := 0 TO MaxControllers-1 DO
-		IF controller[i] # NIL THEN
-			IF i > 0 THEN Append(",") END;
+		c := controller[i];
+		IF c # NIL THEN
+			IF i > 0 THEN Char(",") END;
 			c := controller[i];
-			Add("|",c.cmdbase);
-			Add("|",c.cnlbase);
-			Add("|",c.bmbase);
-			Add("|",c.irq);
+			Number(c.cmdbase);Char("|");
+			Number(c.cnlbase);Char("|");
+			Number(c.bmbase); Char("|");
+			Number(c.irq);
 		END;
 	END;
-	Append(0X);
+	Char(0X);
 END GetConfigString;
 
 PROCEDURE ShowConfigString*;
