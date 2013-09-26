@@ -2245,6 +2245,7 @@ VAR
 	class: LONGINT;
 	str: ARRAY 32 OF CHAR;
 	c: Controller;
+	i, num1, num2: LONGINT;
 BEGIN
 	nofControllers := 2;
 	Machine.GetConfig("ATADetect", str);
@@ -2277,6 +2278,12 @@ BEGIN
 		AddController(c);
 		NEW(c, 170H, 370H, 0, 15);
 		AddController(c);
+	ELSIF (str[0] = "D") & (str[1] = "=") THEN
+		i := 2;
+		num1 := Machine.StrToInt(i, str);
+		IF str[i] = "," THEN INC(i) END;
+		num2 := Machine.StrToInt(i,str);
+		ScanPCI(num1, num2);
 	ELSE
 		Show("Scanning PCI bus for IDE & SATA class devices ..."); KernelLog.Ln;
 		FOR class := 010100H TO 0101FFH DO ScanPCIClass(class); END;	(* IDE *)
@@ -2360,6 +2367,59 @@ PROCEDURE Show(CONST string : ARRAY OF CHAR);
 BEGIN
 	KernelLog.String("ATADisks: "); KernelLog.String(string);
 END Show;
+
+
+PROCEDURE GetConfigString*(VAR s: ARRAY OF CHAR);
+VAR i: LONGINT; c: Controller; pos: LONGINT;
+
+	PROCEDURE Append(c: CHAR);
+	BEGIN
+		s[pos] := c;
+		IF pos < LEN(s)-1 THEN INC(pos) END;
+	END Append;
+
+	PROCEDURE Hex(x: LONGINT): CHAR;
+	BEGIN
+		IF x < 10 THEN RETURN CHR(ORD("0")+x)
+		ELSE RETURN CHR(ORD("A")+x-10);
+		END;
+	END Hex;
+
+	PROCEDURE Add(a: CHAR; n: LONGINT);
+	VAR h: ARRAY 8 OF CHAR; i: LONGINT;
+	BEGIN
+		ASSERT(n>=0); Append(a);
+		i := 0;
+		REPEAT
+			h[i] := Hex(n MOD 10H); n := n DIV 10H; INC(i);
+		UNTIL n = 0;
+		WHILE(i>0) DO
+			DEC(i); Append(h[i]);
+		END;
+	END Add;
+
+BEGIN
+	pos := 0;
+	Append("X");
+	FOR i := 0 TO MaxControllers-1 DO
+		IF controller[i] # NIL THEN
+			IF i > 0 THEN Append(",") END;
+			c := controller[i];
+			Add("|",c.cmdbase);
+			Add("|",c.cnlbase);
+			Add("|",c.bmbase);
+			Add("|",c.irq);
+		END;
+	END;
+	Append(0X);
+END GetConfigString;
+
+PROCEDURE ShowConfigString*;
+VAR s: ARRAY 128 OF CHAR;
+BEGIN
+	GetConfigString(s);
+	KernelLog.String("config = "); KernelLog.String(s); KernelLog.Ln;
+END ShowConfigString;
 
 (* Clean up unloaded module. *)
 PROCEDURE Cleanup;
