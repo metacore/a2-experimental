@@ -2817,7 +2817,7 @@ TYPE
 		BEGIN {EXCLUSIVE}
 			table := NIL; GetVars(dev, part, tsize, reserved, fsOfs, res);
 			BootLoaderSize := reserved-tsize;
-			TRACE(BootLoaderSize);
+			(*TRACE(BootLoaderSize);*)
 			IF res = AosDisks.Ok THEN
 				NEW(table, tsize*BS);
 				dev.Transfer(AosDisks.Read, dev.table[part].start + BootLoaderSize, tsize, table^, 0, res)
@@ -2830,7 +2830,7 @@ TYPE
 		BEGIN {EXCLUSIVE}
 			GetVars(dev, part, tsize, reserved, fsOfs, res);
 			BootLoaderSize := reserved-tsize;
-			TRACE(BootLoaderSize);
+			(*TRACE(BootLoaderSize);*)
 			IF res = AosDisks.Ok THEN
 				ASSERT(tsize*BS = LEN(table^)); (* same size *)
 				dev.Transfer(AosDisks.Write, dev.table[part].start + BootLoaderSize, tsize, table^, 0, res)

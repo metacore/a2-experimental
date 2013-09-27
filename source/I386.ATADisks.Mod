@@ -2217,12 +2217,13 @@ BEGIN
 	AddController(c);
 END IdentifyController;
 
+
 PROCEDURE ScanPCI(vendor, id: LONGINT);
 VAR idx, bus, dev, fkt: LONGINT;
 BEGIN
-	idx := 0;
+	idx := 0; Dot();
 	WHILE PCI.FindPCIDevice(id, vendor, idx, bus, dev, fkt) = PCI.Done DO
-		Show("Found PCI device "); KernelLogHex(vendor, 4, 0); KernelLog.String(":"); KernelLogHex(id, 4, 0); KernelLog.Ln;
+		Show("Found PCI device "); KernelLogHex(vendor, 4, 0); KernelLog.String(":"); KernelLogHex(id, 4, 0); KernelLog.Ln; 
 		IdentifyController(bus, dev, fkt);
 		INC(idx);
 	END;
@@ -2231,10 +2232,10 @@ END ScanPCI;
 PROCEDURE ScanPCIClass(class: LONGINT);
 VAR idx, bus, dev, fkt: LONGINT;
 BEGIN
-	idx := 0;
+	idx := 0; Dot();
 	WHILE PCI.FindPCIClassCode(class, idx, bus, dev, fkt) = PCI.Done DO
 		Show("Found PCI device on bus "); KernelLog.Int(bus, 0); KernelLog.String(", device "); KernelLog.Int(dev, 0);
-		KernelLog.String(", function "); KernelLog.Int(fkt, 0); KernelLog.Ln;
+		KernelLog.String(", function "); KernelLog.Int(fkt, 0); KernelLog.Ln; 
 		IdentifyController(bus, dev, fkt);
 		INC(idx);
 	END;
@@ -2243,7 +2244,7 @@ END ScanPCIClass;
 PROCEDURE IdentifyControllers;
 VAR
 	class: LONGINT;
-	str: ARRAY 32 OF CHAR;
+	str: ARRAY 128 OF CHAR;
 	c: Controller;
 	i, num1, num2: LONGINT;
 BEGIN
@@ -2357,10 +2358,21 @@ BEGIN
 	expectedCount := 0;
 END ResetCounter;
 
+VAR dots: LONGINT;
+
+PROCEDURE Dot;
+BEGIN
+	KernelLog.String(".");
+	INC(dots); 	IF dots >= 128 THEN KernelLog.Ln; dots := 0 END;
+END Dot;
+
 PROCEDURE Show(CONST string : ARRAY OF CHAR);
 BEGIN
+	IF dots > 0 THEN KernelLog.Ln END;
+	dots := 0;
 	KernelLog.String("ATADisks: "); KernelLog.String(string);
 END Show;
+
 
 PROCEDURE ParseConfigString(CONST s: ARRAY OF CHAR): BOOLEAN;
 VAR pos: LONGINT; ch: CHAR; cmdbase, cnlbase, bmbase, irq: LONGINT; c: Controller;
@@ -2370,9 +2382,11 @@ VAR pos: LONGINT; ch: CHAR; cmdbase, cnlbase, bmbase, irq: LONGINT; c: Controlle
 	END Char;
 
 	PROCEDURE Hex(VAR n: LONGINT): BOOLEAN;
+	VAR ch: CHAR;
 	BEGIN
-		IF (s[pos] >= "0") & (s[pos] <= "9") THEN n := ORD(ch)-ORD("0"); INC(pos); RETURN TRUE
-		ELSIF (s[pos] >= "A") & (s[pos] <= "F") THEN n := ORD(ch)-ORD("A")+10;  INC(pos); RETURN TRUE
+		ch := s[pos];
+		IF (ch >= "0") & (ch <= "9") THEN n := ORD(ch)-ORD("0"); INC(pos); RETURN TRUE
+		ELSIF (ch >= "A") & (ch <= "F") THEN n := ORD(ch)-ORD("A")+10; INC(pos); RETURN TRUE
 		ELSE RETURN FALSE
 		END;
 	END Hex;
@@ -2385,8 +2399,8 @@ VAR pos: LONGINT; ch: CHAR; cmdbase, cnlbase, bmbase, irq: LONGINT; c: Controlle
 	END Number;
 
 BEGIN
-	pos := 0;
 	IF s[0] = "X" THEN
+		pos := 1; (* skip "X" "*)
 		Show("Using predefined configuration string "); KernelLog.String(s); KernelLog.Ln;
 		REPEAT
 			Number(cmdbase); Char(ch);
@@ -2403,7 +2417,7 @@ BEGIN
 END ParseConfigString;
 
 PROCEDURE GetConfigString*(VAR s: ARRAY OF CHAR);
-VAR i: LONGINT; c: Controller; pos: LONGINT;
+VAR i: LONGINT; c: Controller; first: BOOLEAN; pos: LONGINT
 
 	PROCEDURE Char(c: CHAR);
 	BEGIN
@@ -2433,15 +2447,15 @@ VAR i: LONGINT; c: Controller; pos: LONGINT;
 
 BEGIN
 	pos := 0;
+	first := TRUE;
 	Char("X");
 	FOR i := 0 TO MaxControllers-1 DO
 		c := controller[i];
 		IF c # NIL THEN
-			IF i > 0 THEN Char(",") END;
-			c := controller[i];
-			Number(c.cmdbase);Char("|");
-			Number(c.cnlbase);Char("|");
-			Number(c.bmbase); Char("|");
+			IF ~first THEN Char(",") ELSE first := FALSE END;
+			Number(c.cmdbase);Char(":");
+			Number(c.cnlbase);Char(":");
+			Number(c.bmbase); Char(":");
 			Number(c.irq);
 		END;
 	END;
