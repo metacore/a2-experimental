@@ -1324,7 +1324,8 @@ TYPE
 			(*AddDevice("PORT",0FF10H); *)
 			AddDevice("PORT", 0FFFFFFE0H);
 			AddDevice("Switch", 0FFFFFFC7H);
-			AddDevice("PersistentSwitch", 0FFFFFFC8H);
+			AddDevice("Wheel", 0FFFFFFC8H);
+			AddDevice("PersistentSwitch", 0FFFFFFC9H);
 			AddDevice("Motor",0FFFFFFCEH);
 			AddDevice("BraceletSPI",0FFFFFFD2H);
 			AddDevice("GPI",0FFFFFFD6H);
