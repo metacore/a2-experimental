@@ -124,16 +124,9 @@ TYPE
 
 
 		PROCEDURE Permute*;
-		VAR
-			i: LONGINT;
+		VAR r: LONGINT;
 		BEGIN
-			FOR i := 0 TO nrRounds-1 DO
-				theta(state);
-			       rho(state);
-			       pi(state);
-			       chi(state);
-			       iota(state, i);
-			END;
+			FOR r := 0 TO nrRounds-1 DO  Round( state, r ) END
 		END Permute;
 
 
@@ -143,39 +136,45 @@ TYPE
 
 
 
-
-	PROCEDURE ToBitInterleaving( in: Lane;  VAR out: Lane );
-	VAR
-		i: LONGINT;
+	(* Credit to Henry S. Warren, Hacker's Delight, Addison-Wesley, 2002	*)
+	PROCEDURE ToBitInterleaving( in: Lane; VAR out: Lane );
+	VAR temp, temp0, temp1: SET;
 	BEGIN
-		out.low := {};  out.high := {};
-		FOR i := 0 TO 31 DO
-			IF i IN in.low THEN
-				IF ODD(i) THEN  INCL( out.high, i DIV 2 )  ELSE  INCL( out.low, i DIV 2 )  END;
-			END
-		END;
-		FOR i := 0 TO 31 DO
-			IF i IN in.high THEN
-				IF ODD(i) THEN  INCL( out.high, i DIV 2 + 16)  ELSE  INCL( out.low, i DIV 2 + 16)  END;
-			END
-		END;
+	        temp0 := in.low;
+	        temp := (temp0 / LSH(temp0, -1)) * S.VAL(SET, 022222222H);  temp0 := temp0 / temp / LSH(temp, 1);
+	        temp := (temp0 / LSH(temp0, -2)) * S.VAL(SET, 00C0C0C0CH);  temp0 := temp0 / temp / LSH(temp, 2);
+	        temp := (temp0 / LSH(temp0, -4)) * S.VAL(SET, 000F000F0H);  temp0 := temp0 / temp / LSH(temp, 4);
+	        temp := (temp0 / LSH(temp0, -8)) * S.VAL(SET, 00000FF00H);  temp0 := temp0 / temp / LSH(temp, 8);
+	        temp1 := in.high;
+	        temp := (temp1 / LSH(temp1, -1)) * S.VAL(SET, 022222222H);  temp1 := temp1 / temp / LSH(temp, 1);
+	        temp := (temp1 / LSH(temp1, -2)) * S.VAL(SET, 00C0C0C0CH);  temp1 := temp1 / temp / LSH(temp, 2);
+	        temp := (temp1 / LSH(temp1, -4)) * S.VAL(SET, 000F000F0H);  temp1 := temp1 / temp / LSH(temp, 4);
+	        temp := (temp1 / LSH(temp1, -8)) * S.VAL(SET, 00000FF00H);  temp1 := temp1 / temp / LSH(temp, 8);
+	        out.low := (temp0 * S.VAL(SET, 00000FFFFH)) + LSH(temp1,16);
+	        out.high := LSH(temp0, - 16) + (temp1 * S.VAL(SET, 0FFFF0000H));
 	END ToBitInterleaving;
 
-
-	PROCEDURE FromBitInterleaving( in: Lane; VAR out: Lane );
-	VAR 
-		i:LONGINT;  bitSet: BOOLEAN;
+	(* Credit to Henry S. Warren, Hacker's Delight, Addison-Wesley, 2002 *)
+	PROCEDURE FromBitInterleaving( in: Lane;  VAR out: Lane );
+	VAR temp, temp0, temp1: SET;
 	BEGIN
-		out.low := {};  out.high := {};
-		FOR i := 0 TO 63 DO
-			IF ODD(i) THEN  bitSet := (i DIV 2) IN in.high  ELSE  bitSet := (i DIV 2) IN in.low  END;
-			IF bitSet THEN
-				IF i < 32 THEN  INCL( out.low, i )  ELSE  INCL( out.high, i - 32 )  END
-			END
-		END
+	        temp0 := in.low; 
+	        temp1 := in.high; 
+	        temp := (temp0 * S.VAL(SET, 00000FFFFH)) + LSH(temp1, 16); 
+	        temp1 := LSH(temp0, - 16) + (temp1 * S.VAL(SET, 0FFFF0000H)); 
+	        temp0 := temp; 
+	        temp := (temp0 / LSH(temp0, -8)) * S.VAL(SET, 00000FF00H);  temp0 := temp0 / temp / LSH(temp, 8); 
+	        temp := (temp0 / LSH(temp0, -4)) * S.VAL(SET, 000F000F0H);  temp0 := temp0 / temp / LSH(temp, 4); 
+	        temp := (temp0 / LSH(temp0, -2)) * S.VAL(SET, 00C0C0C0CH);  temp0 := temp0 / temp / LSH(temp, 2); 
+	        temp := (temp0 / LSH(temp0, -1)) * S.VAL(SET, 022222222H);  temp0 := temp0 / temp / LSH(temp, 1); 
+	        
+	        temp := (temp1 / LSH(temp1, -8)) * S.VAL(SET, 00000FF00H);  temp1 := temp1 / temp / LSH(temp, 8);
+	        temp := (temp1 / LSH(temp1, -4)) * S.VAL(SET, 000F000F0H);  temp1 := temp1 / temp / LSH(temp, 4);
+	        temp := (temp1 / LSH(temp1, -2)) * S.VAL(SET, 00C0C0C0CH);  temp1 := temp1 / temp / LSH(temp, 2);
+	        temp := (temp1 / LSH(temp1, -1)) * S.VAL(SET, 022222222H);  temp1 := temp1 / temp / LSH(temp, 1);
+	        out.low := temp0;
+	        out.high := temp1;
 	END FromBitInterleaving;
-
-
 
 
 
@@ -190,12 +189,12 @@ TYPE
 		END
 	END ROL64;
 
-
-	PROCEDURE theta( a: State );
+	PROCEDURE Round( a: State; r: LONGINT );
 	VAR
-		x, y, i: LONGINT;
-		c, d: ARRAY 5 OF Lane;
+		x, y, i, i1, i2: LONGINT;
+		c, d: ARRAY 5 OF Lane;  tempA: ARRAY 25 OF Lane;
 	BEGIN
+		(* theta *)
 		FOR x := 0 TO 4 DO
 			c[x].low := {};  c[x].high := {};
 			FOR y := 0 TO 4 DO
@@ -216,42 +215,22 @@ TYPE
 				a[i].low := a[i].low / d[x].low;  
 				a[i].high := a[i].high / d[x].high
 			END
-		END
-	END theta;
-
-
-	PROCEDURE rho( a: State );
-	VAR 
-		x, y, i: LONGINT;
-	BEGIN
+		END;
+		(* rho *)
 		FOR x := 0 TO 4 DO
 			FOR y := 0 TO 4 DO
 				i := x + 5*y;
 				ROL64( a[i], a[i], rhoOffsets[i] )
 			END
-		END
-	END rho;
-
-
-	PROCEDURE pi( a: State );
-	VAR
-		x, y, i: LONGINT;
-		tempA: ARRAY 25 OF Lane;
-	BEGIN
+		END;
+		(* pi *)
 		FOR i := 0 TO 24 DO  tempA[i] := a[i]  END;
 		FOR x := 0 TO 4 DO
 			FOR y := 0 TO 4 DO
 				a[y + 5*((2*x + 3*y) MOD 5)] := tempA[x + 5*y]
 			END
 		END;
-	END pi;
-
-
-	PROCEDURE chi( a: State );
-	VAR
-		x, y, i, i1, i2: LONGINT;
-		c: ARRAY 5 OF Lane;
-	BEGIN
+		(* chi *)
 		FOR y := 0 TO 4 DO
 			FOR x := 0 TO 4 DO
 				i := x + 5*y;  i1 := (x+1) MOD 5 + 5*y;  i2 := (x+2) MOD 5 + 5*y;
@@ -263,18 +242,13 @@ TYPE
 				a[i].low := c[x].low;  
 				a[i].high := c[x].high
 			END
-		END
-	END chi;
-
-
-
-	PROCEDURE iota( a: State; indexRound: LONGINT );
-	BEGIN
-		a[0].low := a[0].low / roundConstants[indexRound].low;
-		a[0].high := a[0].high / roundConstants[indexRound].high;
-	END iota;
-
-
+		END;
+		(* iota *)
+		a[0].low := a[0].low / roundConstants[r].low;
+		a[0].high := a[0].high / roundConstants[r].high;
+	END Round;
+	
+	
 
 	(* ---------------------------------------------------------------- *)
 
@@ -327,34 +301,6 @@ TYPE
 		RETURN result;
 	END LFSR86540;
 
-	(*
-	PROCEDURE DisplayRoundConstants*( w: Streams.Writer );
-	VAR
-		i: LONGINT;
-	BEGIN
-		FOR i := 0 TO nrRounds -1 DO
-			w.String( "RC[" ); w.Int( i, 2 );  w.String( ", 0, 1] = " );
-			w.Hex( S.VAL( LONGINT, roundConstants[i].low ), -8 );  w.String( " : " ); 
-			w.Hex( S.VAL( LONGINT, roundConstants[i].high ), -8 );  w.Ln
-		END;
-		w.Ln
-	END DisplayRoundConstants;
-
-  
-
-	PROCEDURE DisplayRhoOffsets*( w: Streams.Writer );
-	VAR
-		x, y: LONGINT;
-	BEGIN
-		FOR y := 0 TO 4 DO
-			FOR x := 0 TO 4 DO
-				w.String( "RhoOffset[" );  w.Int( x, 1 ); w.Char( ',' );  w.Int( y, 1 );
-				w.String( "] = " ); w.Int( rhoOffsets[5*y + x], 2 ); w.Ln
-			END
-		END;
-		w.Ln
-	END DisplayRhoOffsets;
-	*)
 
 
 
