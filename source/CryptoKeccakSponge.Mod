@@ -9,7 +9,10 @@ IMPORT Keccak := CryptoKeccakF1600;
 
 CONST
 	LaneSize = Keccak.LaneSize;
-
+	Width* = Keccak.Width;
+	DefaultRate* = 1024;
+	DefaultCapacity* = 576;
+	
 TYPE 
 	Instance* = OBJECT 
 	VAR
@@ -21,17 +24,17 @@ TYPE
 		cmodl: LONGINT;		(* chunk MOD LaneSize *)
 		cdivl: LONGINT;			(* chunk DIV LaneSize *)
 
-		PROCEDURE &Init*( rate, capacity: LONGINT );
+		PROCEDURE &Init*;
 		BEGIN
 			NEW( state );
-			Initialize( rate, capacity )
+			Initialize( DefaultRate, DefaultCapacity )
 		END Init;
 		
 		
 		PROCEDURE Initialize*( rate, capacity: LONGINT );
 		BEGIN
-			ASSERT( rate + capacity = Keccak.Width );
-			ASSERT( (rate > 0) & (rate <= Keccak.Width) & (rate MOD 8 = 0) );
+			ASSERT( rate + capacity = Width );
+			ASSERT( (rate > 0) & (rate <= Width) & (rate MOD 8 = 0) );
 			state.Initialize;
 			chunk := rate DIV 8;
 			index := 0;

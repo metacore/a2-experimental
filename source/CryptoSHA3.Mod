@@ -16,32 +16,35 @@ TYPE
 			
 		PROCEDURE &Init*;
 		BEGIN
-			rate := 64; capacity := 1536;
-			NEW( sponge, rate, capacity );
-			initialized := FALSE
+			NEW( sponge );
+			rate := Sponge.DefaultRate; 
+			capacity := Sponge.DefaultCapacity;
+			dsuffix := 7FH;
+			Initialize	(* with default properties *)
 		END Init;
 
 		PROCEDURE Initialize*;
 		BEGIN
-			sponge.Initialize( rate, capacity )
+			sponge.Initialize( rate, capacity );
+			initialized := TRUE
 		END Initialize;
 		
 		PROCEDURE InitializeProperties*( rate, capacity, hashBitSize: LONGINT; delimitedSuffix: CHAR );
 		BEGIN
-			ASSERT( (rate + capacity = 1600) & (hashBitSize MOD 8 = 0) );
+			ASSERT( (rate + capacity = Sponge.Width) & (hashBitSize MOD 8 = 0) );
 			ASSERT( delimitedSuffix # 0X );
 			SetNameAndSize( "sha3", hashBitSize DIV 8 );
 			SELF.rate := rate;  SELF.capacity := capacity;
 			dsuffix := ORD( delimitedSuffix );
-			sponge.Initialize( rate, capacity );
-			initialized := TRUE
+			
+			Initialize;
 		END InitializeProperties;
 
 
 		(** data: value to be hashed *)
 		PROCEDURE Update*( CONST data: ARRAY OF CHAR;  pos, len: LONGINT );
 		BEGIN
-			ASSERT( initialized );
+			ASSERT( initialized );	
 			sponge.Absorb( data, pos, len )
 		END Update;
 		
@@ -56,7 +59,7 @@ TYPE
 				lb := ORD( data[bitLength DIV 8] );
 				lb := LSH( lb, -(8 - lastbits) ) + LSH( dsuffix, lastbits );
 				IF lb DIV 100H = 0 THEN
-					dsuffix := lb MOD 100H
+					dsuffix := lb
 				ELSE
 					tdata[0] := CHR( lb MOD 100H );
 					sponge.Absorb( tdata, 0, 1 );
