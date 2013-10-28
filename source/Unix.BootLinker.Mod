@@ -129,7 +129,7 @@ BootLinker.Link  bootFileName := modName0 modName1 ... ~
 Boot File Format:
 
 
-	achitecture		(* LONGINT,  32 or 64 *)
+	architecture		(* LONGINT,  32 or 64 *)
 	heapAddr		(* HUGEINT *)
 	heapSize		(* LONGINT *)
 	startOffset		(* LONGINT *)
