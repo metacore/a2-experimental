@@ -29,9 +29,7 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <dlfcn.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -39,6 +37,7 @@
 #ifdef DARWIN
 #  include <sys/ucontext.h>
 #  include <sys/_types.h>
+#  include <sys/signal.h>
 #endif
 #include <signal.h>
 #include <limits.h>
@@ -84,7 +83,7 @@ typedef	void(*trap_t)(long, void*, void*, int);
 static trap_t	AosTrap;
 
 
-static void sighandler( int sig, void *scp, void *ucp ) {
+static void sighandler( int sig, siginfo_t *scp, void *ucp ) {
 	
 	if (debug | (AosTrap == NULL)) {
 	    printf("\nhandler for signal %d got called, ucp = %p\n", sig, ucp);
@@ -100,11 +99,7 @@ static void installHandler(int sig) {
 	sigemptyset(&mask);
 	act.sa_mask = mask;
 	act.sa_flags =  SA_SIGINFO|SA_ONSTACK|SA_NODEFER;
-#ifdef LINUX
-	act.sa_handler = (__sighandler_t)sighandler;
-#else
-	act.sa_handler = sighandler;
-#endif
+	act.sa_sigaction = sighandler;
 	if (sigaction( sig, &act, NULL ) != 0) {
 		perror("sigaction");
 	}
@@ -383,7 +378,7 @@ void Boot() {
   }
   arch = Rint();
   if (arch != 8*sizeof(address)) {
-    printf("bootfile %s has wrong architecture, got %d, expected %d\n", bootname, arch, 8*sizeof(address) );
+    printf("bootfile %s has wrong architecture, got %d, expected %d\n", bootname, arch, (int)(8*sizeof(address)) );
     exit(-1);
   }
   fileHeapAdr = RAddress(); 
