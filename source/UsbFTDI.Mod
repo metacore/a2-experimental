@@ -1056,7 +1056,8 @@ TYPE
 					EXIT;
 				END;
 				INC(i);
-				diagnostic := SYSTEM.VAL(LONGINT, driver.diagnostics); (* includes Serials.OE, Serials.PE, Serials.FE & Serials.BI *)
+				diagnostic := SYSTEM.VAL(LONGINT, driver.diagnostics - {Serials.OverrunError, Serials.ParityError, Serials.FramingError, Serials.BreakInterrupt}); 
+					(* not including Serials.OE, Serials.PE, Serials.FE & Serials.BI, otherwise the driver stops receiving data when frame errors occur *)
 			END;
 		END HandleData;
 
