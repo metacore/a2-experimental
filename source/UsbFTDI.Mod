@@ -540,6 +540,7 @@ TYPE
 
 			(* the interrupt pipe for endpoint EpInterruptStatus is used to asynchronously receive status information... set up the USB transfers. *)
 			bulkIn.SetTimeout(0);
+			NEW(port); port.driver := SELF; (* port is used in completion handler, must be set up here *)
 			bulkIn.SetCompletionHandler(UpdateDataStatus);
 			ignore := bulkIn.Transfer(64, 0, data64^);
 
@@ -560,7 +561,6 @@ TYPE
 
 
 			(* Register port at Serials *)
-			NEW(port); NEW(port.data1, 1); port.driver := SELF;
 			Serials.RegisterPort(port, Description);
 			RETURN TRUE;
 		END Connect;
