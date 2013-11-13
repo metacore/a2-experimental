@@ -520,8 +520,9 @@ BEGIN
 		f := LoadFont(exactName, fi.size);
 		
 		IF (f = NIL) & (WMGraphics.FontBold IN fi.style) & ~(WMGraphics.FontItalic IN fi.style) THEN
-			(* some fonts do use "bd" as suffix *)
+			(* some fonts do use "bd" or "_bd" as suffix *)
 			COPY(fi.name^, exactName);
+			IF try > 0 THEN  Strings.Append(exactName, "_")  END;
 			Strings.Append(exactName, "bd.ttf");
 			f := LoadFont(exactName, fi.size);
 		END;
