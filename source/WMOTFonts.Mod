@@ -189,7 +189,7 @@ TYPE
 			no := OpenType.UnicodeToGlyph(ofont, code);
 			IF Debug THEN KernelLog.String("Reading Glyph Nr: "); KernelLog.Int(no, 0); KernelLog.String(" Code: u"); KernelLog.Hex(code, 4); KernelLog.Ln END;
 				
-			OpenType.LoadGlyph(inst, glyph, ras, no,  {OpenType.Hinted, OpenType.Width , OpenType.Raster, OpenType.Grey});
+			OpenType.LoadGlyph(inst, glyph, ras, no,  {OpenType.Width , OpenType.Raster, OpenType.Grey});
 			
 			g.dx := glyph.awx;													(* advance *)
 			g.x := glyph.hbx;													(* horizontal bearing x *)
