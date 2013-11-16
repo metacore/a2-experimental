@@ -183,7 +183,7 @@ TYPE
 		
 		PROCEDURE ReadGlyph(code : LONGINT; VAR g : Glyph);
 		VAR no, dw, dh, y, x: LONGINT; mode: Raster.Mode; data: RasterData;
-		BEGIN
+		BEGIN{EXCLUSIVE}
 			Raster.InitMode(mode, Raster.srcCopy);
 
 			no := OpenType.UnicodeToGlyph(ofont, code);
