@@ -1360,10 +1360,11 @@ MODULE OpenType;	(** AUTHOR "eos, PL"; PURPOSE "Bluebottle port of OpenType"; *)
 		ELSIF ((x1-x0) = 1) & (a0 # 0) THEN
 			
 			IF 40H-a0 > a1 THEN 
-				a0 := 0; a1 := 0;
+				a0 := 0; 
+				(*a1 := 0;*)
 				(*DEC(a0,a1); a1 := 0;*)
 			ELSE 
-				a0 := 0; a1 := 0; INC(x0); INC(x1);
+				(*a0 := 0; *) a1 := 0; (* INC(x0); *) INC(x1);
 				(*INC(a1, 40H-a0); a0 := 3FH;*)
 			END;
 		END;
