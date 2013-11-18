@@ -3031,6 +3031,7 @@ BEGIN
 	NEW(PrototypeFont, NIL, NewString("Font"), NewString("Font"));
 	PrototypeFont.Set(WMGraphics.GetDefaultFont());
 	NEW(PrototypeTextColor, NIL, NewString("TextColor"), NewString("text color")); plLabel.Add(PrototypeTextColor);
+	PrototypeTextColor.Set(0FFH);
 	NEW(PrototypeAlignH, NIL, NewString("AlignH"), NewString("horizontal alignment")); plLabel.Add(PrototypeAlignH);
 	PrototypeAlignH.Set(WMGraphics.AlignLeft);
 	NEW(PrototypeAlignV, NIL, NewString("AlignV"), NewString("vertical alignment")); plLabel.Add(PrototypeAlignV);
