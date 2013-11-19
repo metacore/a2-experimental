@@ -672,6 +672,9 @@ TYPE
 		highlighter : SyntaxHighlighter.Highlighter;
 		state : SyntaxHighlighter.State;
 		fontCache : FontCache;
+		
+		(** vertical centering -- momentarily only working for a single line *)
+		textAlignV-: WMProperties.Int32Property;
 
 		showLineNumbers- : WMProperties.BooleanProperty;
 		showLineNumbersI : BOOLEAN;
@@ -777,6 +780,7 @@ TYPE
 			lineNumberFont := NIL; lineNumberFont10 := NIL;
 			NEW(indicateTabs, PTVIndicateTabs, NIL, NIL); properties.Add(indicateTabs);
 			NEW(clBgCurrentLine, PTVclBgCurrentLine, NIL, NIL); properties.Add(clBgCurrentLine);
+			NEW(textAlignV, PVTtextAlignV, NIL, NIL); properties.Add(textAlignV);
 
 			(* events *)
 			NEW(onLinkClicked, SELF, PTVonLinkClick, PTVonLinkClickInfo, SELF.StringToCompCommand); events.Add(onLinkClicked);
@@ -1038,6 +1042,8 @@ TYPE
 				indicateTabsI := indicateTabs.Get(); Invalidate;
 			ELSIF (property = clBgCurrentLine) THEN
 				clBgCurrentLineI := clBgCurrentLine.Get(); Invalidate;
+			ELSIF (property = textAlignV) THEN
+				Invalidate;
 			ELSIF (property = lineNumberColor) OR (property = lineNumberBgColor) THEN
 				lineNumberColorI := lineNumberColor.Get();
 				lineNumberBgColorI := lineNumberBgColor.Get();
@@ -2646,6 +2652,8 @@ TYPE
 			END;
 
 			top := bordersI.t;
+			IF (la = lb) & (textAlignV.Get() = WMGraphics.AlignCenter) THEN top := (cliprect.b - cliprect.t) DIV 2 - layout.lines[la].height DIV 2  END;
+		
 			FOR i := firstLineI TO la - 1 DO
 				top := top + (layout.lines[i].height);
 				CheckParagraphBegin(i, top);
@@ -4099,7 +4107,7 @@ VAR
 
 	PTVIsMultiLine, PTVIsPassword, PTVShowBorder, PTValwaysShowCursor, PTVShowLabels : WMProperties.BooleanProperty;
 	PTVAllowCommandExecution, PTVAllowTextSelection, PTVAllowPiemenu : WMProperties.BooleanProperty;
-	PTVWrapMode, PTVMouseWheelScrollSpeed : WMProperties.Int32Property;
+	PTVWrapMode, PTVMouseWheelScrollSpeed, PVTtextAlignV : WMProperties.Int32Property;
 	PTVfirstLine, PTVleftShift, PTVPasswordChar : WMProperties.Int32Property;
 	PTVdefaultTextColor, PTVdefaultTextBgColor : WMProperties.ColorProperty;
 	PTVborders : WMProperties.RectangleProperty;
@@ -4218,6 +4226,8 @@ BEGIN
 	PTVHighlighting.Set(NIL);
 	NEW(PTVclBgCurrentLine, NIL, Strings.NewString("ClBgCurrentLine"), Strings.NewString("Background color of currently edited line"));
 	PTVclBgCurrentLine.Set(0);
+	NEW(PVTtextAlignV, NIL, Strings.NewString("TextAlignV"), Strings.NewString("vertical Text Alignment"));
+	PVTtextAlignV.Set(WMGraphics.AlignTop);
 END InitPrototypes;
 
 
