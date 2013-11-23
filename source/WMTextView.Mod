@@ -2624,7 +2624,7 @@ TYPE
 		END RenderAboveTextMarkers;
 
 		PROCEDURE Draw*(canvas : WMGraphics.Canvas);
-		VAR la, lb, i, top, t : LONGINT; cliprect : WMRectangles.Rectangle; cstate : WMGraphics.CanvasState;
+		VAR la, lb, i, top, t, b : LONGINT; cliprect : WMRectangles.Rectangle; cstate : WMGraphics.CanvasState;
 		BEGIN
 			ASSERT(layout # NIL);
 			canvas.SaveState(cstate);
@@ -2652,7 +2652,13 @@ TYPE
 			END;
 
 			top := bordersI.t;
-			IF (la = lb) & (textAlignV.Get() = WMGraphics.AlignCenter) THEN top := (cliprect.b - cliprect.t) DIV 2 - layout.lines[la].height DIV 2  END;
+			IF (la = lb) & (textAlignV.Get() = WMGraphics.AlignCenter) THEN 
+				TRACE(layout.lines[la].height, layout.lines[la].ascent );
+				t := bordersI.t;
+				b := bounds.GetHeight()-bordersI.b;	
+				top :=  (t+b- layout.lines[la].height) DIV 2 (*- layout.lines[la].ascent*);
+				(* something is wrong with ascent and height here, does not comply with the notions in fonts *)
+			END;
 		
 			FOR i := firstLineI TO la - 1 DO
 				top := top + (layout.lines[i].height);
