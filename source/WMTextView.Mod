@@ -2653,7 +2653,6 @@ TYPE
 
 			top := bordersI.t;
 			IF (la = lb) & (textAlignV.Get() = WMGraphics.AlignCenter) THEN 
-				TRACE(layout.lines[la].height, layout.lines[la].ascent );
 				t := bordersI.t;
 				b := bounds.GetHeight()-bordersI.b;	
 				top :=  (t+b- layout.lines[la].height) DIV 2 (*- layout.lines[la].ascent*);
