@@ -5,8 +5,71 @@ MODULE UsbTouchscreen;  (** AUTHOR "felixf"; PURPOSE "USB Touchscreen drivers"; 
 **)
 
 IMPORT
-	SYSTEM, KernelLog, Modules, Inputs, Usbdi, UsbHid, HidParser := UsbHidParser, UsbHidReport, UsagePage := UsbHidUP, Displays, Plugins;
+	SYSTEM, KernelLog, Modules, Inputs, Usbdi, UsbHid, HidParser := UsbHidParser, UsbHidReport, UsagePage := UsbHidUP, Displays, Plugins, Objects, Kernel;
+
+CONST
+	ChatterLimit = 0 (*ms*);
+	Trace= TRUE;
 TYPE
+	
+	Delayer= OBJECT
+	CONST
+		Idle=0;
+		Waiting=1;
+		Expired=2;
+		Canceled=3;
+		
+	VAR 
+		mm : 	Inputs.AbsMouseMsg;
+		timer: Objects.Timer; 
+		state: SHORTINT;
+		prev: BOOLEAN;
+		
+		PROCEDURE & Init;
+		BEGIN
+			NEW(timer); state := Idle;
+			prev:= FALSE;
+		END Init;
+		
+		PROCEDURE SetPrev(value: BOOLEAN): BOOLEAN;
+		VAR p: BOOLEAN;
+		BEGIN{EXCLUSIVE}
+			p := prev;
+			prev := value;
+			RETURN value # p;
+		END SetPrev;
+		
+		PROCEDURE HandleTimeout;
+		BEGIN {EXCLUSIVE}
+			IF state = Waiting THEN 
+				state := Expired;
+				IF Trace THEN
+					TRACE(Kernel.GetTicks(), mm.keys,"timeout up event");
+				END;
+				Inputs.mouse.Handle(mm);
+				prev := FALSE;
+			END;
+		END HandleTimeout;
+		
+		PROCEDURE Cancel*;
+		BEGIN {EXCLUSIVE}
+			IF state = Waiting THEN 
+				state := Canceled; (* make sure that handle timeout does not execute anything *)
+				Objects.CancelTimeout(timer);
+			END;
+		END Cancel;
+		
+		(** Delay the calling process the specified number of milliseconds or until Wakeup is called. Only one process may sleep on a specific timer at a time. *)
+		PROCEDURE Enter(m: Inputs.AbsMouseMsg);
+		BEGIN {EXCLUSIVE}
+			Objects.CancelTimeout(timer);
+			mm := m;
+			state := Waiting;
+			Objects.SetTimeout(timer, HandleTimeout, ChatterLimit);
+		END Enter;
+
+
+	END Delayer;
 
 	HidDriver= OBJECT (UsbHid.HidDriver);
 	VAR
@@ -14,7 +77,6 @@ TYPE
 		minX, maxX, minY, maxY: LONGINT;
 
 		tipSwitch, inRange: UsbHidReport.UsageTuple;
-		prevS: BOOLEAN;
 
 		(*itemParser is responsible for parsing the usb hid report descriptor*)
 		itemParser 	: HidParser.ItemParser;
@@ -28,6 +90,14 @@ TYPE
 		useReportIDMechanism	: BOOLEAN;
 
 		display: Displays.Display;
+		prevPush: LONGINT;
+		delayer: Delayer;
+
+		PROCEDURE & Init;
+		BEGIN
+			NEW(delayer);
+		END Init;
+		
 
 		(*
 		 * This procedure is called by the USB system software after an instance of this object has been passed to it via the probe procedure.
@@ -202,16 +272,34 @@ TYPE
 			(* these dimensions are very specific to the model we currently need. The driver has to be factored our to a separate module *)
 			mm.x := (x-minX) * w DIV (maxX-minX+1); mm.y := (y-minY) * h DIV (maxY-minY+1);
 
-
-			IF (0 IN mm.keys) &  ~prevS THEN
-				(* patch window manager issue: expects that the mouse is there without button pressed previously... *)
-				EXCL(mm.keys, 0);
+			IF ~(0 IN mm.keys) (* & (Kernel.GetTicks()-prevPush < ChatterLimit) *) THEN 
+				(* very short push - we enter the the release in a delay queue and wait for further events *)
+				IF ChatterLimit   > 0 THEN
+					delayer.Enter(mm); (* enrter up event *)
+				ELSE
+					IF delayer.SetPrev(FALSE) THEN END;
+					IF Trace THEN
+						TRACE(Kernel.GetTicks(), mm.keys,"up event");
+					END;
+					Inputs.mouse.Handle(mm);
+				END;
+			ELSIF (0 IN mm.keys) THEN
+				IF ChatterLimit > 0 THEN
+					delayer.Cancel(); (* cancel pending up events *)
+				END;
+				IF delayer.SetPrev(TRUE) THEN
+					EXCL(mm.keys, 0);
+					IF Trace THEN
+						TRACE(Kernel.GetTicks(), mm.keys,"initial up event");
+					END;
+					Inputs.mouse.Handle(mm);
+					INCL(mm.keys, 0);
+				END;
+				IF Trace THEN
+					TRACE(Kernel.GetTicks(), mm.keys,"down event");
+				END;
 				Inputs.mouse.Handle(mm);
-				INCL(mm.keys, 0);
 			END;
-
-			Inputs.mouse.Handle(mm);
-			prevS := 0 IN mm.keys;
 		END HandleDriver;
 
 
