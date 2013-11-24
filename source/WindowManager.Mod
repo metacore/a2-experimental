@@ -1389,7 +1389,7 @@ TYPE
 		enableMMEmulation : BOOLEAN;
 
 		(* double click support *)
-		lastTime: LONGINT;
+		lastTime, lastX, lastY: LONGINT;
 		prevKeys: SET;
 	(*CONST
 		DoubleClick = 400 (* ms *);*)
@@ -1427,10 +1427,10 @@ TYPE
 
 					IF (DoubleClick > 0) & (msg.keys = {0}) & (prevKeys = {}) THEN
 						time := Kernel.GetTicks();
-						IF time - lastTime < DoubleClick THEN
+						IF (time - lastTime < DoubleClick) & (ABS(msg.x-lastX) < 3) & (ABS(msg.y-lastY) <3) THEN
 							msg.keys := {1}; lastTime := time-DoubleClick;
 						ELSE
-							lastTime := time;
+							lastTime := time; lastX := x; lastY := msg.y;
 						END;
 					END;
 					prevKeys := msg.keys;
