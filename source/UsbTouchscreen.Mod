@@ -8,69 +8,9 @@ IMPORT
 	SYSTEM, KernelLog, Modules, Inputs, Usbdi, UsbHid, HidParser := UsbHidParser, UsbHidReport, UsagePage := UsbHidUP, Displays, Plugins, Objects, Kernel;
 
 CONST
-	ChatterLimit = 0 (*ms*);
-	Trace= TRUE;
+	Trace= FALSE;
 TYPE
 	
-	Delayer= OBJECT
-	CONST
-		Idle=0;
-		Waiting=1;
-		Expired=2;
-		Canceled=3;
-		
-	VAR 
-		mm : 	Inputs.AbsMouseMsg;
-		timer: Objects.Timer; 
-		state: SHORTINT;
-		prev: BOOLEAN;
-		
-		PROCEDURE & Init;
-		BEGIN
-			NEW(timer); state := Idle;
-			prev:= FALSE;
-		END Init;
-		
-		PROCEDURE SetPrev(value: BOOLEAN): BOOLEAN;
-		VAR p: BOOLEAN;
-		BEGIN{EXCLUSIVE}
-			p := prev;
-			prev := value;
-			RETURN value # p;
-		END SetPrev;
-		
-		PROCEDURE HandleTimeout;
-		BEGIN {EXCLUSIVE}
-			IF state = Waiting THEN 
-				state := Expired;
-				IF Trace THEN
-					TRACE(Kernel.GetTicks(), mm.keys,"timeout up event");
-				END;
-				Inputs.mouse.Handle(mm);
-				prev := FALSE;
-			END;
-		END HandleTimeout;
-		
-		PROCEDURE Cancel*;
-		BEGIN {EXCLUSIVE}
-			IF state = Waiting THEN 
-				state := Canceled; (* make sure that handle timeout does not execute anything *)
-				Objects.CancelTimeout(timer);
-			END;
-		END Cancel;
-		
-		(** Delay the calling process the specified number of milliseconds or until Wakeup is called. Only one process may sleep on a specific timer at a time. *)
-		PROCEDURE Enter(m: Inputs.AbsMouseMsg);
-		BEGIN {EXCLUSIVE}
-			Objects.CancelTimeout(timer);
-			mm := m;
-			state := Waiting;
-			Objects.SetTimeout(timer, HandleTimeout, ChatterLimit);
-		END Enter;
-
-
-	END Delayer;
-
 	HidDriver= OBJECT (UsbHid.HidDriver);
 	VAR
 		x,y: UsbHidReport.UsageTuple;
@@ -91,11 +31,12 @@ TYPE
 
 		display: Displays.Display;
 		prevPush: LONGINT;
-		delayer: Delayer;
+		
+		prev: BOOLEAN;
 
 		PROCEDURE & Init;
 		BEGIN
-			NEW(delayer);
+			prev := FALSE;
 		END Init;
 		
 
@@ -274,34 +215,24 @@ TYPE
 
 			IF ~(0 IN mm.keys) (* & (Kernel.GetTicks()-prevPush < ChatterLimit) *) THEN 
 				(* very short push - we enter the the release in a delay queue and wait for further events *)
-				IF ChatterLimit   > 0 THEN
-					delayer.Enter(mm); (* enrter up event *)
-				ELSE
-					IF delayer.SetPrev(FALSE) THEN END;
-					IF Trace THEN
-						TRACE(Kernel.GetTicks(), mm.keys,"up event");
-					END;
-					Inputs.mouse.Handle(mm);
+				prev := FALSE;
+				IF Trace THEN TRACE(Kernel.GetTicks(), mm.keys,"up event");
 				END;
+				Inputs.mouse.Handle(mm);
 			ELSIF (0 IN mm.keys) THEN
-				IF ChatterLimit > 0 THEN
-					delayer.Cancel(); (* cancel pending up events *)
-				END;
-				IF delayer.SetPrev(TRUE) THEN
+				IF ~prev THEN 
+					(* artificial initial up event in order to set mouse coordinates like with a "real" mouse *)
+					prev := TRUE;
 					EXCL(mm.keys, 0);
-					IF Trace THEN
-						TRACE(Kernel.GetTicks(), mm.keys,"initial up event");
-					END;
+					IF Trace THEN TRACE(Kernel.GetTicks(), mm.keys,"initial up event"); END;
 					Inputs.mouse.Handle(mm);
 					INCL(mm.keys, 0);
 				END;
-				IF Trace THEN
-					TRACE(Kernel.GetTicks(), mm.keys,"down event");
+				IF Trace THEN TRACE(Kernel.GetTicks(), mm.keys,"down event");
 				END;
 				Inputs.mouse.Handle(mm);
 			END;
 		END HandleDriver;
-
 
 		(**
 		 * Reads bitlen bits from a position index
