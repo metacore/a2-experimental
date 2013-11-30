@@ -567,6 +567,7 @@ TYPE
 
 		PROCEDURE Disconnect;
 		BEGIN
+			IF Debug THEN ShowModule("Driver Disconnected"); KernelLog.Ln; END;
 			Serials.UnRegisterPort(SELF.port);
 		END Disconnect;
 
@@ -687,7 +688,11 @@ TYPE
 				END;
 				ignore := bulkIn.Transfer(64, 0, data64^);(* get next data *)
 			ELSE
-				IF Debug THEN ShowModule("UpdateDataStatus failed."); KernelLog.Ln; END;
+				IF Debug THEN ShowModule("UpdateDataStatus failed."); KernelLog.Ln; 
+					TRACE(status);
+					
+				END;
+				ignore := bulkIn.Transfer(64, 0, data64^);(* get next data *)
 			END;
 			IF Trace * TraceReceiveStatus # {} THEN KernelLog.Ln; END;
 		END UpdateDataStatus;
