@@ -594,7 +594,9 @@ TYPE
 					END;
 					designator := SyntaxTree.NewParameterDesignator( position,designator,expressionList);
 				ELSIF Optional( Scanner.Period ) THEN
-					IF Peek(Scanner.Size) (* special rule: support for SYSTEM.SIZE *) THEN
+					CASE symbol.identifierString[0] OF
+						"a".."z", "A" .. "Z":
+					(*IF Peek(Scanner.Size) (* special rule: support for SYSTEM.SIZE *) THEN*)
 						identifier := symbol.identifier; NextSymbol;
 					ELSE
 						identifier := Identifier(position);
