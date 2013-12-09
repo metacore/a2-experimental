@@ -5102,6 +5102,8 @@ TYPE
 							Address(res.op);String("H");
 						ELSIF (expression.type.resolved IS SyntaxTree.PointerType) OR IsPointerToRecord(expression.type,recordType) THEN
 							Address(res.op);String("H");
+						ELSIF (expression.type.resolved IS SyntaxTree.ProcedureType) THEN
+							Address(res.op);String("H");
 						ELSE HALT(200);
 						END;
 					END;
@@ -10072,7 +10074,7 @@ TYPE
 		ELSIF type IS SyntaxTree.AnyType THEN
 			RETURN TRUE (*! potentially is a pointer to record, treat it this way?? *)
 		ELSE
-			HALT(200)
+			RETURN FALSE
 		END;
 	END IsPointerToRecord;
 
