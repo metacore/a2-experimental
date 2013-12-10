@@ -2039,7 +2039,7 @@ TYPE
 	PropertyList* = OBJECT
 	VAR
 		properties : PropertyArray;
-		nofProperties : LONGINT;
+		nofProperties- : LONGINT;
 		onPropertyChanged- : WMEvents.EventSource;
 		onLinkChanged-: WMEvents.EventSource;
 		lock : Locks.RWLock;
