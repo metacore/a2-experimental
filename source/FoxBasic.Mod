@@ -2001,6 +2001,14 @@ VAR
 		ELSE NEW(diagnostics,w); RETURN diagnostics
 		END;
 	END GetDiagnostics;
+	
+	PROCEDURE GetDefaultDiagnostics*(): Diagnostics.Diagnostics;
+	VAR w: Streams.Writer;
+	BEGIN
+		NEW(w, KernelLog.Send,128);
+		RETURN GetDiagnostics(w);
+	END GetDefaultDiagnostics;
+	
 
 	PROCEDURE InitWindowWriter;
 	VAR install: PROCEDURE;
