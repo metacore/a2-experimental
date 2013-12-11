@@ -5855,7 +5855,9 @@ TYPE
 			IF left # SyntaxTree.invalidDesignator THEN
 				parameters := designator.parameters;
 				IF ExpressionList(parameters) THEN
-					IF IsExtensibleDesignator(left) & (parameters.Length()=1) & IsTypeDesignator(parameters.GetExpression(0),typeDeclaration) THEN
+					IF (left.type = NIL) THEN
+						Error(left.position,Diagnostics.Invalid,"object is not a procedure or cannot be extended");
+					ELSIF IsExtensibleDesignator(left) & (parameters.Length()=1) & IsTypeDesignator(parameters.GetExpression(0),typeDeclaration) THEN
 						result := NewTypeGuardDesignator(designator.position,left,typeDeclaration.declaredType)
 					ELSIF IsUnextensibleRecord(left) & (parameters.Length()=1) & IsTypeDesignator(parameters.GetExpression(0),typeDeclaration) & (typeDeclaration.declaredType.resolved = left.type.resolved) THEN
 						result := NewTypeGuardDesignator(designator.position,left,typeDeclaration.declaredType)
