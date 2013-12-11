@@ -13,18 +13,17 @@ CONST
 	Reshape*=3;
 	Arrow*=4;
 
-	PointOffset = 2; PointSize = 6; (* size of the control points. Currently not related to Effects.gravity *)
+	PointOffset = 2; 
+	PointSize = 6; (* size of the control points. Currently not related to Effects.gravity *)
 
 TYPE
-
 	Point* = POINTER TO RECORD
 		x, y : LONGINT;
 		previous, next : Point;
 		END;
 
 TYPE
-
-	Figure* = OBJECT(WMComponents.VisualComponent) (*! to do: notification of change in Component Inspector to View*)
+	Figure* = OBJECT(WMComponents.VisualComponent) 
 	VAR
 		width- : WMProperties.Int32Property;
 		color-, clHover- : WMProperties.ColorProperty;
@@ -35,13 +34,16 @@ TYPE
 
 		points- : Point;
 		nofPoints : LONGINT;
-		(*pointlist: Components.Component;*) (*! to do caching of pointlist; notification of parent when pointlist changes, or its point properties *)
 
 		hover, selected : Point;
+		selectedLine:BOOLEAN;
 		selectedIndex:LONGINT;
 		mouseOver:BOOLEAN;
 
 		lastKeys, state : SET;
+		
+		interactive:BOOLEAN;
+		oldx,oldy:LONGINT;
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -64,19 +66,17 @@ TYPE
 			hover := NIL;
 			selected := NIL;
 			lastKeys := {};
+			interactive:=FALSE
 		END Init;
 		
-		(*
-		PROCEDURE LinkChanged(sender,link: ANY);
+		PROCEDURE ModelChanged(sender, property : ANY);
 		BEGIN
-			IF (sender IS WMComponents.Component) & (sender(WMComponents.Component).GetName()^="PointList") THEN RecachePoints 
-			ELSE LinkChanged^(sender,link)
+			IF~interactive THEN (* avoid 'echo' message when changing figure through GUI *)
+				RecachePoints; Invalidate;
 			END;
-		END LinkChanged;
-		*)
+		END ModelChanged;
 		
 		PROCEDURE PropertyChanged(sender, property : ANY);
-		VAR bool: BOOLEAN;
 		BEGIN
 			IF (property = color) THEN Invalidate;
 			ELSIF (property = width) THEN Invalidate;
@@ -89,27 +89,21 @@ TYPE
 			END;
 		END PropertyChanged;
 
-		PROCEDURE Normalize(VAR newBounds : WMRectangles.Rectangle);
+		PROCEDURE Normalize(VAR newBounds : WMRectangles.Rectangle); 
 		END Normalize;
 
 		PROCEDURE Scale;
 		END Scale;
 
-		PROCEDURE FindPointProperty(x,y: LONGINT):WMProperties.PointProperty;
-		VAR pointlist: XML.Element; name:Strings.String; p:WMProperties.Property;
-			PArray:WMProperties.PropertyArray; oldx,oldy, n,j:LONGINT;
+		PROCEDURE FindControlPoint(x,y: LONGINT):WMProperties.PointProperty;
+		VAR 
+			PArray:WMProperties.PropertyArray; oldx,oldy, n:LONGINT;
 		BEGIN
-			pointlist := GetFirstChild();
-			LOOP
-				IF pointlist=NIL THEN RETURN NIL END;
-				name:=pointlist.GetName();
-				IF name^="PointList" THEN EXIT END;
-				pointlist:=pointlist.GetNextSibling();
-			END;
-			PArray:=pointlist(WMComponents.Component).properties.Enumerate();
+			RecachePointList;
+			PArray:=model.Get()(WMComponents.Component).properties.Enumerate();
 			n:=0;
 			LOOP
-				IF n>LEN(PArray) THEN EXIT END;
+				IF n>=LEN(PArray) THEN RETURN NIL END;
 				IF (PArray[n]#NIL) & (PArray[n] IS WMProperties.PointProperty) THEN
 					PArray[n](WMProperties.PointProperty).GetCoordinate(oldx,oldy);
 					IF (oldx=x) & (oldy=y) THEN 
@@ -118,66 +112,30 @@ TYPE
 				END;
 				INC(n)
 			END;
-			RETURN NIL
-		END FindPointProperty;
+		END FindControlPoint;
 
 		PROCEDURE AddControlPoint*(x, y : LONGINT);
-		VAR pointlist,p:XML.Element; pList:WMComponents.Component;
+		VAR 
 			i,n:LONGINT; s,string: ARRAY 16 OF CHAR;
 			PArray:WMProperties.PropertyArray;
 			pp:WMProperties.PointProperty; 
 		BEGIN
-			pointlist := GetFirstChild();
-			LOOP
-				IF pointlist=NIL THEN 
-					NEW(pList); pList.SetName("PointList"); AddContent(pList); (*! to do: find other solution than list of point properties. E.g. use 'model'*)
-					pointlist:=pList; EXIT
-					(*RETURN *)
-				END;
-				IF pointlist.GetName()^="PointList" THEN EXIT END;
-				pointlist:=pointlist.GetNextSibling();
-			END;
-			PArray:=pointlist(WMComponents.Component).properties.Enumerate();
+			RecachePointList;
+			PArray:=model.Get()(WMComponents.Component).properties.Enumerate();
 			n:=0;
 			FOR i:=0 TO LEN(PArray)-1 DO
 				IF (PArray[i]#NIL)&(PArray[i] IS WMProperties.PointProperty) THEN INC(n); END;
 			END;
 			string:="Point"; Strings.IntToStr(n,s); Strings.Append(string,s);
-			NEW(pp,NIL,Strings.NewString(string),NIL);  pp.SetCoordinate(x,y); pointlist(WMComponents.Component).properties.Add(pp);
+			NEW(pp,NIL,Strings.NewString(string),NIL);  pp.SetCoordinate(x,y); 
+			
+			model.Get()(WMComponents.Component).properties.Add(pp);
 			AddPoint(x,y);
 			bounds.Set(GetBoundingBox());
-			Invalidate;
 		END AddControlPoint;
-		
-		PROCEDURE SetIndexedPointProperty(i:LONGINT; x,y: LONGINT);
-		VAR pointlist: XML.Element; name:Strings.String; p:WMProperties.Property;
-			pp:WMProperties.PointProperty;
-			PArray:WMProperties.PropertyArray; n,j:LONGINT;
-		BEGIN
-			pointlist := GetFirstChild();
-			LOOP
-				IF pointlist=NIL THEN RETURN END;
-				name:=pointlist.GetName();
-				IF name^="PointList" THEN EXIT END;
-				pointlist:=pointlist.GetNextSibling();
-			END;
-			PArray:=pointlist(WMComponents.Component).properties.Enumerate();
-			n:=0; j:=0;
-			LOOP
-				IF n>LEN(PArray) THEN EXIT END;
-				IF (PArray[n]#NIL) & (PArray[n] IS WMProperties.PointProperty) THEN
-					IF j=i THEN PArray[n](WMProperties.PointProperty).SetCoordinate(x,y); EXIT
-					ELSE INC(j);
-					END;
-				END;
-				INC(n)
-			END;
-			(*pp:=FindPointProperty(x,y); pp.SetCoordinate*)
-			RecachePoints;
-		END SetIndexedPointProperty;
 
 		PROCEDURE AddPoint(x, y : LONGINT);
-		VAR point, p : Point; newBounds:  WMRectangles.Rectangle;
+		VAR point, p : Point;
 		BEGIN
 			NEW(point);
 			point.x := x; point.y := y;
@@ -193,16 +151,15 @@ TYPE
 			END;
 			INC(nofPoints);
 			Release;
-			Normalize(newBounds); (*?*)
-			(*bounds.Set(newBounds);*)
+			
 		END AddPoint;
 
-		PROCEDURE RemoveControlPoint*(point : Point); (*! to: remove corresponding XML, decrement nofPoints*)
+		PROCEDURE RemoveControlPoint*(point : Point);
 		VAR pp: WMProperties.PointProperty; 
 			pointlist: XML.Element;
 		BEGIN
 			ASSERT(point # NIL);
-			pp:=FindPointProperty(point.x, point.y);
+			pp:=FindControlPoint(point.x, point.y);
 			pointlist := GetFirstChild();
 			LOOP
 				IF pointlist=NIL THEN RETURN END;
@@ -215,6 +172,26 @@ TYPE
 			RecachePoints;
 		END RemoveControlPoint;
 
+		PROCEDURE MoveThisPoint(i:LONGINT; x,y: LONGINT);
+		VAR PArray:WMProperties.PropertyArray; n,j:LONGINT;
+		BEGIN
+			PArray:=model.Get()(WMComponents.Component).properties.Enumerate();
+			n:=0; j:=0;
+			LOOP
+				IF n>=LEN(PArray) THEN EXIT END;
+				IF (PArray[n]#NIL) & (PArray[n] IS WMProperties.PointProperty) THEN
+					IF j=i THEN 
+						interactive:=TRUE;
+						PArray[n](WMProperties.PointProperty).SetCoordinate(x,y); 
+						interactive:=FALSE;
+						EXIT
+					ELSE INC(j);
+					END;
+				END;
+				INC(n)
+			END;
+		END MoveThisPoint;
+
 		PROCEDURE Resized;
 		BEGIN
 			Resized^;
@@ -226,7 +203,11 @@ TYPE
 			lastKeys := keys;
 			IF (0 IN keys) & (selected = NIL) THEN
 				selected := ThisPoint(x, y);
-				IF (selected # NIL) THEN Invalidate; END;
+				IF (selected # NIL) THEN Invalidate; 
+				ELSE 
+					selectedLine:=HitTestLine(x,y); 
+					IF selectedLine THEN oldx:=x; oldy:=y; log.String("HitLine"); log.Ln; log.Update; END; 
+				END;
 			END;
 		END PointerDown;
 
@@ -234,16 +215,19 @@ TYPE
 		VAR newBounds : WMRectangles.Rectangle; point : Point;
 		BEGIN
 			PointerUp^(x, y, keys);
+			selectedLine:=FALSE;
 			IF ~(0 IN keys) & (selected # NIL) THEN 
-				
-				SetIndexedPointProperty(selectedIndex, x,y); (*PH*)
+				MoveThisPoint(selectedIndex, x,y); 
+				Normalize(newBounds); bounds.Set(newBounds);
 				selected := NIL; Invalidate; 
 			END;
 			IF (2 IN lastKeys) & ~(2 IN keys) THEN
 				IF reshape.Get() THEN EXCL(state, Reshape); ELSE INCL(state, Reshape); END;
 				Invalidate;
 			ELSIF (EditPoints IN state) & (1 IN lastKeys) & ~(1 IN keys) & (Reshape IN state) THEN
+				interactive:=TRUE; (*HACK, should be solved by consistent change in Points and Model*)
 				AddControlPoint(x, y);
+				interactive:=FALSE;
 				Normalize(newBounds); bounds.Set(newBounds);
 				Invalidate;
 			ELSIF (EditPoints IN state) & (0 IN keys) & (0 IN lastKeys) & (2 IN lastKeys) & ~(2 IN keys) THEN
@@ -270,6 +254,10 @@ TYPE
 					bounds.Set(newBounds);
 				END;
 				Invalidate;
+			ELSIF (Reshape IN state) & selectedLine THEN
+				MovePoints(x-oldx, y-oldy); oldx:=x; oldy:=y;
+				(*Normalize(newBounds); bounds.Set(newBounds);*) (*! to do: adapt bounds. need synchronization with model*)
+				Invalidate;
 			ELSE
 				p := ThisPoint(x, y);
 				IF (p # hover) THEN
@@ -286,7 +274,7 @@ TYPE
 			END;
 		END PointerMove;
 
-		PROCEDURE MovePoints(dx, dy : LONGINT);
+		PROCEDURE MovePoints(dx, dy : LONGINT);  (*! to do: this is not reflected in the model*)
 		VAR p : Point;
 		BEGIN
 			p := points;
@@ -299,17 +287,6 @@ TYPE
 
 		(* Is X, Y somewhere inside the polygon defined by p ? *)
 		PROCEDURE Inside*(X, Y: LONGINT): BOOLEAN;
-		VAR c, q, p: LONGINT;
-		BEGIN
-			c := 0;
-			IF (points # NIL) THEN
-	(*			q := points;
-				FOR i := 0 TO nofPoints - 2 DO
-					IF Intersect(X, Y, points[i].x + x, points[i].y + y, points[i + 1].x + x, points[i + 1].y + y) THEN INC(c) END;
-				END;
-				IF (nofPoints > 1) & Intersect(X, Y, points[nofPoints-1].x + x, points[nofPoints-1].y + y, points[0].x + x, points[0].y + y) THEN INC(c) END; *)
-			END;
-			RETURN ODD(c);
 		END Inside;
 
 		(** Return point located at mouse position mx. my (NIL if no point at location). *)
@@ -387,19 +364,25 @@ TYPE
 				canvas.Line(p1.x,p1.y, p1.x - ENTIER(0.5+head * Math.cos(alpha - pi/8)), p1.y - ENTIER(0.5+head * Math.sin(alpha - pi/8)), col, WMGraphics.ModeSrcOverDst);
 		END DrawArrow;
 
-		PROCEDURE RecachePoints;
-		VAR pointlist: XML.Element; p:Point;
+		PROCEDURE RecachePointList;
+		VAR pointlist:WMComponents.Component;
+		BEGIN
+			IF (model.Get()=NIL) OR (model.Get().GetName()^#"PointList") THEN 
+				NEW(pointlist); 
+				pointlist.SetName("PointList"); 
+				pointlist.properties.onPropertyChanged.Add(ModelChanged); (*model notifies visual component about changes *)
+				model.Set(pointlist); 
+			END;
+		END RecachePointList;
+
+		PROCEDURE RecachePoints; (* precondition: pointlist#NIL*)
+		VAR p:Point;
 			PArray:WMProperties.PropertyArray;
 			i:LONGINT;
 		BEGIN
-			pointlist := GetFirstChild();
-			LOOP
-				IF pointlist=NIL THEN RETURN END;
-				IF pointlist.GetName()^="PointList" THEN EXIT END;
-				pointlist:=pointlist.GetNextSibling();
-			END;
+			RecachePointList;
 			points:=NIL; p:=NIL; nofPoints:=0;
-			PArray:=pointlist(WMComponents.Component).properties.Enumerate();
+			PArray:=model.Get()(WMComponents.Component).properties.Enumerate();
 			FOR i:=0 TO LEN(PArray)-1 DO
 				IF (PArray[i]#NIL)&(PArray[i] IS WMProperties.PointProperty) THEN
 					AddPoint(PArray[i](WMProperties.PointProperty).GetX(), PArray[i](WMProperties.PointProperty).GetY());
@@ -416,14 +399,8 @@ TYPE
 		PROCEDURE FromXML*(xml: XML.Element);
 		BEGIN
 			FromXML^(xml);
-			(*
-			IF nofPoints=0 THEN (* prototype *)
-				AddControlPoint(10, 10);
-				AddControlPoint(20, 20);
-				(*AddControlPoint(30, 10);*)
-			END;
-			*)
 			RecachePoints;
+			bounds.Set(GetBoundingBox());
 		END FromXML;
 		
 	END Figure;
@@ -1004,7 +981,7 @@ END Intersect;
 PROCEDURE Distance(x, y, x0, y0: LONGINT): LONGINT;
 VAR dx, dy: LONGINT;
 BEGIN dx := x - x0; dy := y - y0;
-	RETURN SHORT(ENTIER(Math.sqrt(dx * dx + dy * dy)))
+	RETURN ENTIER(Math.sqrt(dx * dx + dy * dy))
 END Distance;
 
 PROCEDURE Min(x, y: LONGINT): LONGINT;
@@ -1077,10 +1054,19 @@ ComponentViewer.Open WMShapes.GenLine ~
 
 Example application for Line:
 
-	line:=WMFigures.GenLine();
-	line(WMFigures.Line).AddControlPoint(30,20); 
-	line(WMFigures.Line).AddControlPoint(40,50); 
-	line(WMFigures.Line).AddControlPoint(10,70); 
-	line.Write(context.out, NIL, 0); context.out.Ln; context.out.Update; (* show XML structure*)
-	ComponentViewer.DoShow(line(WMFigures.Figure), window, 200,300,200,200, FALSE,FALSE,FALSE, {}); (* show component in window*)
+MODULE FigureTester; 
+	IMPORT ComponentViewer, Commands, XML, WMFigures;
+	PROCEDURE Test*(context:Commands.Context);
+	VAR line: XML.Element; window: ComponentViewer.Window;
+	BEGIN
+		line:=WMFigures.GenLine();
+		line(WMFigures.Line).AddControlPoint(30,20); 
+		line(WMFigures.Line).AddControlPoint(40,50); 
+		line(WMFigures.Line).AddControlPoint(10,70); 
+		line.Write(context.out, NIL, 0); context.out.Ln; context.out.Update; (* show XML structure*)
+		ComponentViewer.DoShow(line(WMFigures.Figure), window, 200,300,200,200, FALSE,FALSE,FALSE, {});
+	END Test;
+END FigureTester.
+
+FigureTester.Test  ~
 
