@@ -5,7 +5,7 @@ IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal,
-	ActiveCells := FoxActiveCells, Hardware := FoxHardware, ParserCS := FoxParserCS, ScannerCS := FoxScannerCS,
+	ActiveCells := FoxActiveCells, Hardware := FoxHardware, Frontend := FoxFrontend,
 	Files;
 
 CONST
@@ -23,15 +23,16 @@ CONST
 	SingleModule*=10;
 	Oberon07*=11;
 	ChangeCase*=12;
-	CSharpFlag*=13;
 
 	DefaultBackend = "AMD";
+	DefaultFrontend = "Oberon";
 
 TYPE
 	SectionName = ARRAY 256 OF CHAR; (*! move *)
 
 	CompilerOptions*= RECORD
 		flags*: SET;
+		frontend*: Frontend.Frontend;
 		backend*: Backend.Backend;
 		symbolFile*: Formats.SymbolFileFormat;
 		objectFile*: Formats.ObjectFileFormat;
@@ -90,8 +91,6 @@ TYPE
 			VAR importCache: SyntaxTree.ModuleScope): BOOLEAN;
 	VAR
 		module: SyntaxTree.Module;
-		scanner: Scanner.Scanner;
-		parser: Parser.Parser;
 		checker: SemanticChecker.Checker;
 		warnings: SemanticChecker.Warnings;
 		printer: Printout.Printer;
@@ -102,8 +101,6 @@ TYPE
 		sectionOffset: LONGINT;
 		activeCellsSpecification: ActiveCells.Specification;
 		flags: SET;
-		parserCS: ParserCS.Parser;
-		scannerCS: ScannerCS.Scanner;
 
 		PROCEDURE FinalMessage(error: BOOLEAN; CONST msg: ARRAY OF CHAR);
 		VAR message,name: ARRAY 256 OF CHAR;
@@ -175,28 +172,13 @@ TYPE
 			Global.NewBuiltin(Global.Delegate,"DELEGATE",system.globalScope,FALSE);
 			IF options.activeCellsBackend = NIL THEN FinalMessage(TRUE,"could not install activeCells backend"); RETURN FALSE END;
 		END;
-		IF CSharpFlag IN options.flags THEN
-			scannerCS := ScannerCS.NewScanner(source,reader,position,diagnostics);
-			parserCS := ParserCS.NewParser(scannerCS, diagnostics);
-		ELSE
-			scanner := Scanner.NewScanner(source,reader,position,diagnostics);
-			parser := Parser.NewParser( scanner, diagnostics );
-		END;
-		IF ActiveCellsFlag IN flags THEN parser.ActiveCellsSupport END;
+		options.frontend.Initialize(diagnostics, reader, source, position, ActiveCellsFlag IN flags);
 		REPEAT
 			(** first phase: scan and parse **)
-			IF parser # NIL THEN
-				module := parser.Module();
-				IF parser.error THEN
-					FinalMessage(TRUE," could not be compiled (parser errors).");
-					RETURN FALSE;
-				END;
-			ELSE
-				module := parserCS.Module();
-				IF parserCS.error THEN
-					FinalMessage(TRUE," could not be compiled (parser errors).");
-					RETURN FALSE;
-				END;
+			module := options.frontend.Parse();
+			IF options.frontend.Error() THEN 
+				FinalMessage(TRUE," could not be compiled (parser errors).");
+				RETURN FALSE;
 			END;
 			ASSERT(module # NIL);
 
@@ -314,7 +296,7 @@ TYPE
 			ELSE
 				FinalMessage(FALSE, " done.");
 			END;
-		UNTIL (SingleModule IN flags) OR (parser = NIL) OR ~parser.NextModule();
+		UNTIL (SingleModule IN flags) OR options.frontend.Done();
 
 
 		RETURN TRUE;
@@ -344,6 +326,7 @@ TYPE
 		options.Add("i","info",Options.Flag);
 		options.Add(0X,"oberon07",Options.Flag);
 		options.Add("b","backend",Options.String);
+		options.Add("F","frontEnd",Options.String);
 		options.Add("f","findPC",Options.String);
 		options.Add(0X,"singleModule",Options.Flag);
 		options.Add(0X, "symbolFile", Options.String);
@@ -356,7 +339,6 @@ TYPE
 		options.Add("S","srcPath", Options.String);
 		options.Add("D","destPath", Options.String);
 		options.Add(0X,"replacements", Options.String);
-		options.Add("C","cSharp",Options.Flag);
 
 		position := input.Pos();
 		parsed := options.Parse(input,NIL);
@@ -371,6 +353,18 @@ TYPE
 			END;
 		ELSE compilerOptions.backend := Backend.GetBackendByName(DefaultBackend);
 			IF compilerOptions.backend = NIL THEN Error("default backend could not be installed"); result := FALSE END;
+		END;
+		
+		IF options.GetString("F", name) THEN
+			IF name = "" THEN compilerOptions.frontend := NIL
+			ELSE
+				compilerOptions.frontend := Frontend.GetFrontendByName(name);
+				IF (compilerOptions.frontend = NIL)  THEN
+					Error("backend could not be installed"); result := FALSE;
+				END;
+			END;
+		ELSE compilerOptions.frontend := Frontend.GetFrontendByName(DefaultFrontend);
+			IF compilerOptions.frontend = NIL THEN Error("default frontend could not be installed"); result := FALSE END;
 		END;
 
 		IF options.GetString("objectFile",name) THEN
@@ -453,7 +447,6 @@ TYPE
 			IF options.GetFlag("singleModule") THEN INCL(compilerOptions.flags,SingleModule) END;
 			IF options.GetFlag("oberon07") THEN INCL(compilerOptions.flags, Oberon07) END;
 			IF options.GetFlag("activeCells") THEN INCL(compilerOptions.flags, ActiveCellsFlag) END;
-			IF options.GetFlag("cSharp") THEN INCL(compilerOptions.flags, CSharpFlag) END;
 			IF ~options.GetString("srcPath", compilerOptions.srcPath) THEN compilerOptions.srcPath := "" END;
 			IF ~options.GetString("destPath", compilerOptions.destPath) THEN compilerOptions.destPath := "" END;
 			IF compilerOptions.backend # NIL THEN compilerOptions.backend.GetOptions (options) END;
