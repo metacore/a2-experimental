@@ -5,7 +5,7 @@ IMPORT
 	Basic := FoxBasic, Scanner := FoxScanner, Parser := FoxParser,
 	SemanticChecker := FoxSemanticChecker, SyntaxTree := FoxSyntaxTree, Formats := FoxFormats,
 	Streams, Commands,Diagnostics, Options, Kernel, Printout := FoxPrintout, Backend := FoxBackend,Strings, Global := FoxGlobal,
-	ActiveCells := FoxActiveCells, Hardware := FoxHardware,
+	ActiveCells := FoxActiveCells, Hardware := FoxHardware, ParserCS := FoxParserCS, ScannerCS := FoxScannerCS,
 	Files;
 
 CONST
@@ -23,6 +23,7 @@ CONST
 	SingleModule*=10;
 	Oberon07*=11;
 	ChangeCase*=12;
+	CSharpFlag*=13;
 
 	DefaultBackend = "AMD";
 
@@ -101,6 +102,8 @@ TYPE
 		sectionOffset: LONGINT;
 		activeCellsSpecification: ActiveCells.Specification;
 		flags: SET;
+		parserCS: ParserCS.Parser;
+		scannerCS: ScannerCS.Scanner;
 
 		PROCEDURE FinalMessage(error: BOOLEAN; CONST msg: ARRAY OF CHAR);
 		VAR message,name: ARRAY 256 OF CHAR;
@@ -160,7 +163,6 @@ TYPE
 
 		IF (options.objectFile # NIL) & (options.objectFile.ForceModuleBodies()) THEN INCL(flags, ForceModuleBodies) END;
 
-		scanner := Scanner.NewScanner(source,reader,position,diagnostics);
 		IF ActiveCellsFlag IN flags THEN
 			NEW(activeCellsSpecification, "", diagnostics, log);
 			IF (system # NIL) THEN
@@ -173,14 +175,28 @@ TYPE
 			Global.NewBuiltin(Global.Delegate,"DELEGATE",system.globalScope,FALSE);
 			IF options.activeCellsBackend = NIL THEN FinalMessage(TRUE,"could not install activeCells backend"); RETURN FALSE END;
 		END;
-		parser := Parser.NewParser( scanner, diagnostics );
+		IF CSharpFlag IN options.flags THEN
+			scannerCS := ScannerCS.NewScanner(source,reader,position,diagnostics);
+			parserCS := ParserCS.NewParser(scannerCS, diagnostics);
+		ELSE
+			scanner := Scanner.NewScanner(source,reader,position,diagnostics);
+			parser := Parser.NewParser( scanner, diagnostics );
+		END;
 		IF ActiveCellsFlag IN flags THEN parser.ActiveCellsSupport END;
 		REPEAT
 			(** first phase: scan and parse **)
-			module := parser.Module();
-			IF parser.error THEN
-				FinalMessage(TRUE," could not be compiled (parser errors).");
-				RETURN FALSE;
+			IF parser # NIL THEN
+				module := parser.Module();
+				IF parser.error THEN
+					FinalMessage(TRUE," could not be compiled (parser errors).");
+					RETURN FALSE;
+				END;
+			ELSE
+				module := parserCS.Module();
+				IF parserCS.error THEN
+					FinalMessage(TRUE," could not be compiled (parser errors).");
+					RETURN FALSE;
+				END;
 			END;
 			ASSERT(module # NIL);
 
@@ -298,7 +314,7 @@ TYPE
 			ELSE
 				FinalMessage(FALSE, " done.");
 			END;
-		UNTIL (SingleModule IN flags) OR ~parser.NextModule();
+		UNTIL (SingleModule IN flags) OR (parser = NIL) OR ~parser.NextModule();
 
 
 		RETURN TRUE;
@@ -340,6 +356,7 @@ TYPE
 		options.Add("S","srcPath", Options.String);
 		options.Add("D","destPath", Options.String);
 		options.Add(0X,"replacements", Options.String);
+		options.Add("C","cSharp",Options.Flag);
 
 		position := input.Pos();
 		parsed := options.Parse(input,NIL);
@@ -436,6 +453,7 @@ TYPE
 			IF options.GetFlag("singleModule") THEN INCL(compilerOptions.flags,SingleModule) END;
 			IF options.GetFlag("oberon07") THEN INCL(compilerOptions.flags, Oberon07) END;
 			IF options.GetFlag("activeCells") THEN INCL(compilerOptions.flags, ActiveCellsFlag) END;
+			IF options.GetFlag("cSharp") THEN INCL(compilerOptions.flags, CSharpFlag) END;
 			IF ~options.GetString("srcPath", compilerOptions.srcPath) THEN compilerOptions.srcPath := "" END;
 			IF ~options.GetString("destPath", compilerOptions.destPath) THEN compilerOptions.destPath := "" END;
 			IF compilerOptions.backend # NIL THEN compilerOptions.backend.GetOptions (options) END;
