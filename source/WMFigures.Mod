@@ -112,9 +112,9 @@ TYPE
 		PROCEDURE MoveFigure*(dx,dy:LONGINT);
 		VAR i,x,y:LONGINT;
 		BEGIN	
+			Acquire;
 			IF PArray#NIL THEN PArray:=properties.Enumerate(); END;
 			IF PArray=NIL THEN RETURN END;
-			Acquire;
 			FOR i:=0 TO LEN(PArray)-1 DO
 				IF (PArray[i]#NIL) & (PArray[i] IS WMProperties.PointProperty) THEN
 					PArray[i](WMProperties.PointProperty).GetCoordinate(x, y); 
@@ -153,16 +153,15 @@ TYPE
 			IF (2 IN lastKeys) & ~(2 IN keys) THEN
 				IF reshape.Get() THEN EXCL(state, Reshape); ELSE INCL(state, Reshape); END;
 			ELSIF (EditPoints IN state) & (1 IN lastKeys) & ~(1 IN keys) & (Reshape IN state) THEN
-				AddPoint(fx, fy);
+				AddPoint(fx, fy); Invalidate;
 			ELSIF (EditPoints IN state) & (0 IN keys) & (0 IN lastKeys) & (2 IN lastKeys) & ~(2 IN keys) THEN
 				(*RemoveModelPoint(ThisPoint(fx, fy)); *)
 				(*properties.Remove(ThisPoint(fx+bl, fy+bt));*)
-				(*RecachePoints; Normalize; *)
+				(*RecachePoints; Normalize; Invalidate; *)
 			ELSE(* PointerUp^(x, y, keys);*)
 			END;
 			selectedLine:=FALSE;
 			selected:=NIL;
-			Invalidate;
 		END PointerUp;
 		
 		PROCEDURE PointerMove*(fx, fy : LONGINT; keys : SET);
@@ -184,7 +183,6 @@ TYPE
 				hover:=pp;
 				mouseOver := ~mouseOver; *)
 			END;
-			Invalidate;
 		END PointerMove;
 		
 				(* Is X, Y somewhere inside the polygon defined by p ? *)
@@ -575,7 +573,7 @@ TYPE
 				AddPoint(30, 30);
 			END;
 			RecachePoints;
-			IF points#NIL THEN SplineToPoly(points, Closed IN state, pointArray, nSegments); END;
+			SplineToPoly(points, Closed IN state, pointArray, nSegments);
 			Normalize;
 			Invalidate;
 		END Init;
@@ -603,19 +601,23 @@ TYPE
 			IF Filled IN state THEN
 				IF Inside(mx, my) THEN RETURN TRUE END;
 			END;
-			p := points; q := points.next;
+			FOR i:=0 TO nSegments-1 DO
+				IF (ABS(mx-pointArray[i].x)<gravity) & (ABS(my-pointArray[i].y)<gravity) THEN RETURN TRUE END; (* here only testing segment points, can be refined*)
+			END;
+			 (*!the following code is  for line hiting above. does not work so well for spline yet*)
+			(*p := points; q := points.next;
 			WHILE (q # NIL) DO
 				IF InLineVicinity(mx, my, p.x, p.y, q.x, q.y) THEN RETURN TRUE END;
 				p:=q; q:=q.next; INC(i);
 			END;
 			IF (Closed IN state) OR (Filled IN state) THEN
 				IF InLineVicinity(mx, my, p.x, p.y, points.x, points.y) THEN RETURN TRUE END;
-			END;
+			END;*)
 			RETURN FALSE
 		END IsHit;
 
 		PROCEDURE Normalize; 
-		VAR i, dx,dy:LONGINT; oldrect, rect:WMRectangles.Rectangle; p:Point; (*! to do: there is a mixup of parent/child coordinates after moving, here and in Spline.HitTest. repair*)
+		VAR i:LONGINT; oldrect, rect:WMRectangles.Rectangle; p:Point; (*! to do: there is a mixup of parent/child coordinates after moving, here and in Spline.HitTest. repair*)
 		BEGIN
 			oldrect:=bounds.Get();
 			rect.l := MAX(LONGINT); rect.t := MAX(LONGINT); rect.r := MIN(LONGINT); rect.b := MIN(LONGINT);
@@ -627,24 +629,21 @@ TYPE
 				pointArray[i].x:=pointArray[i].x-rect.l;
 				pointArray[i].y:=pointArray[i].y-rect.t;
 			END;
-			(*
-			dx:=rect.l-oldrect.l;
-			dy:=rect.t-oldrect.t;
 			p:=points;
-			WHILE p#NIL DO p.x:=p.x-dx; p.y:=p.y-dy; p:=p.next END;
-			*)
+			WHILE p#NIL DO (* adapt display point coordinates to new bounds *)
+				p.x:=p.x-rect.l; p.y:=p.y-rect.t; 
+				p:=p.next; 
+			END;
 			bounds.Set(rect);
 		END Normalize;
-
 
 		PROCEDURE DrawBackground*(canvas : WMGraphics.Canvas);
 		VAR p: Point; col: LONGINT; 
 		BEGIN
-			DrawBackground^(canvas);
+			DrawBackground^(canvas); 
 			RecachePoints;
-			(*Normalize;*)
-			SplineToPoly(points, Closed IN state, pointArray, nSegments);
-			Normalize;
+			SplineToPoly(points, Closed IN state, pointArray, nSegments); (* spline boundary computation requires prior spline expansion, not normalized *)
+			Normalize; 
 			
 			IF mouseOver THEN col:=clHover.Get() ELSE col:=color.Get() END;
 			IF filled.Get() THEN
@@ -846,6 +845,8 @@ VAR
 	END ClSplineDerivates;
 
 BEGIN
+	IF c=NIL THEN k:=0; RETURN END;
+	 
 	n := 0; WHILE c # NIL DO RX[n+1] := c.x ; RY[n+1] := c.y; INC(n); c := c.next END;
 	IF closed THEN RX[n+1] := RX[1]; RY[n+1] := RY[1]; INC(n) ; END;
 	RS[1] := 0.0; i := 2;
