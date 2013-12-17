@@ -142,12 +142,13 @@ TYPE
 		BEGIN
 			bl:=bounds.GetLeft(); 
 			bt:=bounds.GetTop();
-			IF ~(0 IN keys) &  (Reshape IN state)  THEN
+			IF ~(0 IN keys) & reshape.Get() (* (Reshape IN state)*)  THEN
 				IF (selected # NIL) THEN MovePoint(selected, fx, fy); selected := NIL;
 				ELSE  
 					dx:=fx+bl-oldx; oldx:=fx+bl; 
 					dy:=fy+bt-oldy; oldy:=fy+bt;
-					MoveFigure(dx, dy); selectedLine:=FALSE;
+					MoveFigure(dx, dy); 
+					selectedLine:=FALSE;
 				END;
 			END;
 			IF (2 IN lastKeys) & ~(2 IN keys) THEN
@@ -167,9 +168,9 @@ TYPE
 		PROCEDURE PointerMove*(fx, fy : LONGINT; keys : SET);
 		VAR dx,dy,bl,bt:LONGINT; pp:WMProperties.Property;
 		BEGIN
-			IF (Reshape IN state) & (selected # NIL) THEN 
+			IF reshape.Get() (*(Reshape IN state)*) & (selected # NIL) THEN 
 				MovePoint(selected, fx, fy);
-			ELSIF (Reshape IN state) & selectedLine THEN 
+			ELSIF reshape.Get() (* (Reshape IN state)*) & selectedLine THEN 
 				bl:=bounds.GetLeft(); 
 				bt:=bounds.GetTop();
 				dx:=fx+bl-oldx; oldx:=fx+bl;
@@ -188,7 +189,6 @@ TYPE
 				(* Is X, Y somewhere inside the polygon defined by p ? *)
 		PROCEDURE Inside*(X, Y: LONGINT): BOOLEAN;
 		END Inside;
-
 		
 		(** Return if the line is hit at (x, y) in parent coordinates *)
 		PROCEDURE IsHit*(x, y: LONGINT): BOOLEAN; 
@@ -207,7 +207,6 @@ TYPE
 			ELSE  PropertyChanged^(sender, property); (* e.g, handling bounds by parent *)
 			END;
 		END PropertyChanged;
-
 	
 		PROCEDURE AddDisplayPoint(x, y : LONGINT);
 		VAR point, p : Point; 
@@ -325,7 +324,7 @@ TYPE
 			col:LONGINT;
 		BEGIN
 				alpha:=arctan2(p1.x-p0.x, p1.y-p0.y);
-				head:=MAX( 4,  0.2 * MAX(ABS(p1.x-p0.x), ABS(p1.y-p0.y))); (*avoid sqrt for performance reasons*) 
+				head:=MAX( 4,  0.05 * MAX(ABS(p1.x-p0.x), ABS(p1.y-p0.y))); (*avoid sqrt for performance reasons*) 
 				col:=color.Get();
 				canvas.Line(p1.x,p1.y, p1.x - ENTIER(0.5+head * Math.cos(alpha + pi/8)), p1.y - ENTIER(0.5+head * Math.sin(alpha + pi/8)), col, WMGraphics.ModeSrcOverDst);
 				canvas.Line(p1.x,p1.y, p1.x - ENTIER(0.5+head * Math.cos(alpha - pi/8)), p1.y - ENTIER(0.5+head * Math.sin(alpha - pi/8)), col, WMGraphics.ModeSrcOverDst);
@@ -430,7 +429,7 @@ TYPE
 				INC(i);
 				plast:=p; p := p.next;
 			END;
-			IF (Arrow IN state) & (plast#NIL) THEN DrawArrow(canvas, plast.previous, plast) END;
+			IF arrow.Get() (*(Arrow IN state)*) & (plast#NIL) THEN DrawArrow(canvas, plast.previous, plast) END;
 			IF filled.Get() THEN    canvas.FillPolygonFlat(pointArray^, nofPoints, color.Get(), WMGraphics.ModeSrcOverDst);
 			ELSE					canvas.PolyLine(pointArray^, nofPoints, closed.Get(), color.Get(), WMGraphics.ModeSrcOverDst);
 			END;
@@ -640,6 +639,7 @@ TYPE
 		PROCEDURE DrawBackground*(canvas : WMGraphics.Canvas);
 		VAR p: Point; col: LONGINT; 
 		BEGIN
+			
 			DrawBackground^(canvas); 
 			RecachePoints;
 			SplineToPoly(points, Closed IN state, pointArray, nSegments); (* spline boundary computation requires prior spline expansion, not normalized *)
@@ -651,7 +651,7 @@ TYPE
 			ELSE
 				canvas.PolyLine(pointArray, nSegments, closed.Get(), col, WMGraphics.ModeSrcOverDst);
 			END;
-			IF (Arrow IN state) & (p#NIL) THEN DrawArrow(canvas, p.previous, p) END;
+			IF arrow.Get() (*(Arrow IN state)*) & (p#NIL) THEN DrawArrow(canvas, p.previous, p) END;
 		END DrawBackground;
 
 	END Spline;
