@@ -142,9 +142,9 @@ TYPE
 		BEGIN
 			bl:=bounds.GetLeft(); 
 			bt:=bounds.GetTop();
-			IF ~(0 IN keys) THEN
-				IF selected # NIL THEN MovePoint(selected, fx, fy); selected := NIL;
-				ELSE 
+			IF ~(0 IN keys) &  (Reshape IN state)  THEN
+				IF (selected # NIL) THEN MovePoint(selected, fx, fy); selected := NIL;
+				ELSE  
 					dx:=fx+bl-oldx; oldx:=fx+bl; 
 					dy:=fy+bt-oldy; oldy:=fy+bt;
 					MoveFigure(dx, dy); selectedLine:=FALSE;
