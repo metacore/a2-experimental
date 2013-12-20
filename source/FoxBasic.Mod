@@ -1510,7 +1510,7 @@ TYPE
 		BEGIN Indent; w.String(x)
 		END String;
 
-		PROCEDURE Int*( x, wd: LONGINT );
+		PROCEDURE Int*( x: HUGEINT; wd: LONGINT );
 		BEGIN Indent; w.Int(x,wd)
 		END Int;
 

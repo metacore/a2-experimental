@@ -4980,15 +4980,6 @@ TYPE
 				END;
 			END Integer;
 
-			PROCEDURE Hex64(op: IntermediateCode.Operand);
-			BEGIN
-				IF GetProcedure("HIntHex") THEN
-					Emit(Push(position,op));
-					Emit(Push(position,IntermediateCode.Immediate(int32,16)));
-					CallProcedure;
-				END;
-			END Hex64;
-
 			PROCEDURE Float(op: IntermediateCode.Operand);
 			BEGIN
 				IF GetProcedure("HIntHex") THEN
@@ -5077,14 +5068,10 @@ TYPE
 					ELSE
 						Evaluate(expression,res);
 						IF expression.type.resolved IS SyntaxTree.IntegerType THEN
-							IF res.op.type.sizeInBits = IntermediateCode.Bits64 THEN
-								Hex64(res.op); String("H");
-							ELSE
-								IF res.op.type.sizeInBits < IntermediateCode.Bits32 THEN
-									Convert(res.op,int32);
-								END;
-								Integer(res.op);
+							IF res.op.type.sizeInBits < IntermediateCode.Bits64 THEN
+								Convert(res.op,int64);
 							END;
+							Integer(res.op);
 						ELSIF expression.type.resolved IS SyntaxTree.BooleanType THEN
 							Boolean(res.op);
 						ELSIF expression.type.resolved IS SyntaxTree.SetType THEN
