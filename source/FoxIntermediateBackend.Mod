@@ -733,6 +733,7 @@ TYPE
 				variable := scope.firstVariable;
 				WHILE variable # NIL DO
 					IF TypeNeedsInitialization(variable.type) THEN RETURN TRUE END;
+					IF variable.initializer # NIL THEN RETURN TRUE END;
 					variable := variable.nextVariable;
 				END;
 				RETURN FALSE
@@ -5154,7 +5155,7 @@ TYPE
 		END InitFields;
 
 		PROCEDURE InitVariable(VAR variable: SyntaxTree.Variable);
-		VAR type: SyntaxTree.Type; operand: Operand; tmp: IntermediateCode.Operand;
+		VAR type: SyntaxTree.Type; operand: Operand; tmp: IntermediateCode.Operand; reference: SyntaxTree.Expression;
 		BEGIN
 			type := variable.type.resolved;
 			IF (type IS SyntaxTree.MathArrayType) THEN
@@ -5172,6 +5173,12 @@ TYPE
 				END;
 			ELSE
 				Symbol(variable,operand);
+				IF variable.initializer # NIL THEN
+					reference := SyntaxTree.NewSymbolDesignator(variable.initializer.position,NIL,variable);
+					reference.SetType(variable.type.resolved);
+					reference.SetAssignable(TRUE);
+					Assign(reference,variable.initializer);
+				END;
 				InitFields(type, operand.op,0);
 				ReleaseOperand(operand);
 			END;

@@ -1872,6 +1872,7 @@ TYPE
 				variable := SyntaxTree.NewVariable( position, varname );
 				CommentSymbol(variable);
 				IF Optional(Scanner.LeftBrace) THEN variable.SetModifiers(Flags()) END;
+				IF Optional(Scanner.Becomes) THEN variable.SetInitializer (Expression()) END;
 				variable.SetAccess(access);
 				scope.AddVariable(variable);
 			UNTIL ~Optional( Scanner.Comma );

@@ -1002,12 +1002,18 @@ TYPE
 				IF (x.access # SyntaxTree.Hidden) THEN
 					Comments(x.comment,x,FALSE);
 					PrintSymbol(x);
+					IF x.initializer # NIL THEN
+						w.String( " := " ); Expression (x.initializer);
+					END;
 					w.String( ": " );
 					Type(x.type);
 					Comments(x.comment,x,TRUE);
 				ELSIF mode>SourceCode THEN
 					Comments(x.comment,x,FALSE);
 					PrintSymbol(x);
+					IF x.initializer # NIL THEN
+						w.String( " := " ); Expression (x.initializer);
+					END;
 					Comments(x.comment,x,TRUE);
 				END
 			END;

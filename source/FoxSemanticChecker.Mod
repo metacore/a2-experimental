@@ -6284,6 +6284,9 @@ TYPE
 					IF HasValue(modifiers, Global.NameDataMemorySize, position, value) THEN END;
 				END;
 				CheckModifiers(modifiers, ~InCellNetScope(variable.scope) OR ~(variable.type.resolved IS SyntaxTree.CellType));
+				IF variable.initializer # NIL THEN
+					variable.SetInitializer (CompatibleConversion (variable.initializer.position, ConstantExpression(variable.initializer), variable.type));
+				END;
 				variable.SetState(SyntaxTree.Resolved);
 			END;
 		END VisitVariable;
