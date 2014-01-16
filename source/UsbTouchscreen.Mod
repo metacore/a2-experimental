@@ -330,7 +330,8 @@ VAR hidDriver : HidDriver;
 BEGIN
 	hidDriver := NIL;
 	IF (dev.descriptor.idVendor = 3EBH) & (dev.descriptor.idProduct =201CH) THEN
-		NEW(hidDriver); hidDriver.minX := 0; hidDriver.minY := 0; hidDriver.maxX := 16274; hidDriver.maxY := 12152
+		NEW(hidDriver); hidDriver.minX := 0; hidDriver.minY := 0; hidDriver.maxX := 16274; hidDriver.maxY := 12152;
+		installed := TRUE;
 	END;
 	RETURN hidDriver;
 END Probe;
@@ -344,7 +345,8 @@ VAR hidDriver : HidDriver;
 BEGIN
 	hidDriver := NIL;
 	IF (dev.descriptor.idVendor = 19E2H) & (dev.descriptor.idProduct =2533H) THEN
-		NEW(hidDriver); hidDriver.minX := 0; hidDriver.minY := 0; hidDriver.maxX := 1366; hidDriver.maxY := 768
+		NEW(hidDriver); hidDriver.minX := 0; hidDriver.minY := 0; hidDriver.maxX := 1366; hidDriver.maxY := 768;
+		installed := TRUE;
 	END;
 	RETURN hidDriver;
 END Probe2;
@@ -353,6 +355,7 @@ END Probe2;
 PROCEDURE Cleanup;
 BEGIN
 	Usbdi.drivers.Remove("Atmel");
+	Usbdi.drivers.Remove("UnknownVendorTS");
 END Cleanup;
 
 PROCEDURE InstallCDT975*;
@@ -365,8 +368,10 @@ BEGIN
 	Usbdi.drivers.Add(Probe2, "UnknownVendorTS", "Touchscreen", 10);
 END InstallUnknown1;
 
+VAR installed-: BOOLEAN;
 
 BEGIN
+	installed := FALSE;
 	Modules.InstallTermHandler(Cleanup);
 END UsbTouchscreen.
 
