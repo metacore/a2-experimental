@@ -372,6 +372,8 @@ VAR installed-: BOOLEAN;
 
 BEGIN
 	installed := FALSE;
+	InstallCDT975;
+	InstallUnknown1;
 	Modules.InstallTermHandler(Cleanup);
 END UsbTouchscreen.
 
