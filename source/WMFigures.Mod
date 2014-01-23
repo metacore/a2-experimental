@@ -66,18 +66,18 @@ TYPE
 			Normalize;
 		END Init;
 		
-
-
 		PROCEDURE AddPoint*(x, y : LONGINT);
 		VAR 
 			s: ARRAY 16 OF CHAR;
 			pp:WMProperties.PointProperty; 
 		BEGIN
 			Strings.IntToStr(nofPoints,s);
-			NEW(pp,NIL,Strings.NewString(s),NIL);  pp.SetCoordinate(x,y); 
+			NEW(pp,NIL,Strings.NewString(s),NIL);  
 			Acquire;
 			properties.Add(pp);
 			Release;
+			pp.SetCoordinate(x,y); 
+			(*pp.Changed; *)(* overkill ?*)
 			RecachePoints;
 			Normalize;
 			Invalidate;
@@ -90,11 +90,22 @@ TYPE
 			Invalidate;
 		END MovePoint;
 		
-		PROCEDURE RemovePoint*; (*! tbd*)
+		PROCEDURE RemovePoint*(fx, fy : LONGINT);
+		VAR 
+			pp:WMProperties.Property; 
+		BEGIN
+			pp:=ThisPoint(fx,fy);
+			IF pp#NIL THEN
+				Acquire;
+				properties.Remove(pp);
+				Release;
+			END;
+			RecachePoints;
+			Normalize;
+			Invalidate;
 		END RemovePoint;
 		
-		
-				(** Return point located at mouse position mx. my, which are in Figure coordinates that change, e.g. when points are added. (NIL if no point at location). *)
+		(** Return point located at mouse position mx. my, which are in Figure coordinates that change, e.g. when points are added. (NIL if no point at location). *)
 		PROCEDURE ThisPoint*(fx, fy : LONGINT): WMProperties.Property;
 		VAR  i:LONGINT; px,py: LONGINT;
 		BEGIN
@@ -108,6 +119,34 @@ TYPE
 			END;
 			RETURN NIL;
 		END ThisPoint;
+		
+		(** Return point Nr 'index' .  Negative numbers are counted top-down.  *)
+		PROCEDURE IndexedPoint*(index : LONGINT): WMProperties.Property;
+		VAR  i,j:LONGINT; 
+		BEGIN
+			i:=0; j:=0;
+			IF index >=0 THEN
+				WHILE i<LEN(PArray) DO
+					IF (PArray[i]#NIL)&(PArray[i] IS WMProperties.PointProperty) THEN
+						IF j=index THEN RETURN PArray[i]
+						ELSE INC(j)
+						END;
+					END;
+					INC(i);
+				END;
+			ELSE 
+				i:=LEN(PArray)-1; j:=1; index:=-index;
+				WHILE i>=0 DO
+					IF (PArray[i]#NIL)&(PArray[i] IS WMProperties.PointProperty) THEN
+						IF j=index THEN RETURN PArray[i]
+						ELSE INC(j)
+						END;
+					END;
+					DEC(i);
+				END;
+			END;
+			RETURN NIL;
+		END IndexedPoint;
 		
 		PROCEDURE MoveFigure*(dx,dy:LONGINT);
 		VAR i,x,y:LONGINT;
@@ -142,7 +181,7 @@ TYPE
 		BEGIN
 			bl:=bounds.GetLeft(); 
 			bt:=bounds.GetTop();
-			IF ~(0 IN keys) & reshape.Get() (* (Reshape IN state)*)  THEN
+			IF (keys={0}) & reshape.Get()  THEN
 				IF (selected # NIL) THEN MovePoint(selected, fx, fy); selected := NIL;
 				ELSE  
 					dx:=fx+bl-oldx; oldx:=fx+bl; 
@@ -151,14 +190,13 @@ TYPE
 					selectedLine:=FALSE;
 				END;
 			END;
-			IF (2 IN lastKeys) & ~(2 IN keys) THEN
-				IF reshape.Get() THEN EXCL(state, Reshape); ELSE INCL(state, Reshape); END;
-			ELSIF (EditPoints IN state) & (1 IN lastKeys) & ~(1 IN keys) & (Reshape IN state) THEN
-				AddPoint(fx, fy); Invalidate;
-			ELSIF (EditPoints IN state) & (0 IN keys) & (0 IN lastKeys) & (2 IN lastKeys) & ~(2 IN keys) THEN
-				(*RemoveModelPoint(ThisPoint(fx, fy)); *)
-				(*properties.Remove(ThisPoint(fx+bl, fy+bt));*)
-				(*RecachePoints; Normalize; Invalidate; *)
+			(*IF (2 IN lastKeys) & ~(2 IN keys) THEN
+				IF reshape.Get() THEN EXCL(state, Reshape); ELSE INCL(state, Reshape); END;(*??xxx*)
+			ELS*)
+			IF reshape.Get() & (EditPoints IN state) & (1 IN lastKeys) & ~(1 IN keys)  THEN
+				AddPoint(fx, fy); (* Invalidate;*)(*!partly functional - wrong coordinates*)
+			ELSIF reshape.Get() & (EditPoints IN state) & (lastKeys={0,2}) & (keys#{0,2}) THEN
+				RemovePoint(fx,fy); 
 			ELSE(* PointerUp^(x, y, keys);*)
 			END;
 			selectedLine:=FALSE;
@@ -168,9 +206,9 @@ TYPE
 		PROCEDURE PointerMove*(fx, fy : LONGINT; keys : SET);
 		VAR dx,dy,bl,bt:LONGINT; pp:WMProperties.Property;
 		BEGIN
-			IF reshape.Get() (*(Reshape IN state)*) & (selected # NIL) THEN 
+			IF reshape.Get() & (keys={0}) (*(Reshape IN state)*) & (selected # NIL) THEN 
 				MovePoint(selected, fx, fy);
-			ELSIF reshape.Get() (* (Reshape IN state)*) & selectedLine THEN 
+			ELSIF reshape.Get() & (keys={0}) (* (Reshape IN state)*) & selectedLine THEN 
 				bl:=bounds.GetLeft(); 
 				bt:=bounds.GetTop();
 				dx:=fx+bl-oldx; oldx:=fx+bl;
@@ -204,9 +242,20 @@ TYPE
 			ELSIF (property = reshape) THEN IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state,Reshape); END; Invalidate;
 			ELSIF (property = arrow) THEN IF arrow.Get() THEN INCL(state,Arrow) ELSE EXCL(state,Arrow); END; Invalidate;
 			ELSIF property IS WMProperties.PointProperty THEN Invalidate; RecachePoints; Normalize; 
+			ELSIF property=properties THEN RecachePoints; Invalidate; Normalize; PropertyChanged^(sender, property); (*?*)
 			ELSE  PropertyChanged^(sender, property); (* e.g, handling bounds by parent *)
 			END;
 		END PropertyChanged;
+		
+		(*
+		PROCEDURE RecacheProperties;
+		BEGIN
+			RecachePoints;
+			RecacheProperties^;
+			
+		END RecacheProperties;
+		*)
+		
 	
 		PROCEDURE AddDisplayPoint(x, y : LONGINT);
 		VAR point, p : Point; 
@@ -249,8 +298,6 @@ TYPE
 		PROCEDURE Scale;
 		END Scale;
 
-
-
 		PROCEDURE GetBoundingBox() : WMRectangles.Rectangle; (*! will be eliminated*)
 		VAR rect : WMRectangles.Rectangle; i:LONGINT;
 		BEGIN
@@ -272,20 +319,17 @@ TYPE
 		PROCEDURE RecachePoints; (*build point list in parent coordinates*)
 		VAR p:Point;	i,x,y:LONGINT;
 		BEGIN
-			Acquire;
+			(* called by sequencer -> hierarchy is locked, see WMVisualComponentSkeleton.Mod *)
 			PArray:=properties.Enumerate();
 			points:=NIL; p:=NIL; nofPoints:=0;
 			FOR i:=0 TO LEN(PArray)-1 DO
 				IF (PArray[i]#NIL)&(PArray[i] IS WMProperties.PointProperty) THEN
-					x:=PArray[i](WMProperties.PointProperty).GetX(); 
-					y:=PArray[i](WMProperties.PointProperty).GetY();
+					PArray[i](WMProperties.PointProperty).GetCoordinate(x,y);
 					AddDisplayPoint(x, y);
 				END;
 			END;
-			Release;
 		END RecachePoints;
-
-
+		
 		PROCEDURE DrawDisplayPoint(canvas : WMGraphics.Canvas; pp: WMProperties.PointProperty);
 		VAR rect : WMRectangles.Rectangle; color, x,y,fx,fy : LONGINT;
 		BEGIN
@@ -330,7 +374,7 @@ TYPE
 				canvas.Line(p1.x,p1.y, p1.x - ENTIER(0.5+head * Math.cos(alpha - pi/8)), p1.y - ENTIER(0.5+head * Math.sin(alpha - pi/8)), col, WMGraphics.ModeSrcOverDst);
 		END DrawArrow;
 
-		
+		(*
 		PROCEDURE FromXML*(xml: XML.Element);
 		BEGIN
 			FromXML^(xml);
@@ -338,6 +382,7 @@ TYPE
 			Invalidate;
 			Normalize;
 		END FromXML;
+		*)
 		
 	END Figure;
 
