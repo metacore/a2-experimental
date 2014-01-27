@@ -360,12 +360,12 @@ END Cleanup;
 
 PROCEDURE InstallCDT975*;
 BEGIN
-	Usbdi.drivers.Add(Probe, "Atmel", "CDT 9.75", 10);
+	Usbdi.drivers.Add(Probe, "Atmel", "CDT 9.75", 0);
 END InstallCDT975;
 
 PROCEDURE InstallUnknown1*;
 BEGIN
-	Usbdi.drivers.Add(Probe2, "UnknownVendorTS", "Touchscreen", 10);
+	Usbdi.drivers.Add(Probe2, "UnknownVendorTS", "Touchscreen", 0);
 END InstallUnknown1;
 
 VAR installed-: BOOLEAN;
