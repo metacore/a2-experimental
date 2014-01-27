@@ -27,7 +27,7 @@ MODULE UsbFTDI;  (** AUTHOR "neuf"; PURPOSE "FTDI FT232BM USB-RS232 Converter Dr
  *	- testing
  *)
 
-IMPORT SYSTEM, Kernel, KernelLog, Modules, Serials, Usbdi;
+IMPORT Usb (* for init of Usbdi.drivers ! *), SYSTEM, Kernel, KernelLog, Modules, Serials, Usbdi;
 
 CONST
 

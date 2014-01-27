@@ -5,7 +5,7 @@ MODULE UsbTouchscreen;  (** AUTHOR "felixf"; PURPOSE "USB Touchscreen drivers"; 
 **)
 
 IMPORT
-	SYSTEM, KernelLog, Modules, Inputs, Usbdi, UsbHid, HidParser := UsbHidParser, UsbHidReport, UsagePage := UsbHidUP, Displays, Plugins, Objects, Kernel;
+	Usb (* for init of Usbdi.drivers ! *), SYSTEM, KernelLog, Modules, Inputs, Usbdi, UsbHid, HidParser := UsbHidParser, UsbHidReport, UsagePage := UsbHidUP, Displays, Plugins, Objects, Kernel;
 
 CONST
 	Trace= FALSE;
