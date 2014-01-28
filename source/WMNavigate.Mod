@@ -1,11 +1,5 @@
 MODULE WMNavigate; (** AUTHOR "staubesv"; PURPOSE "Windows navigation"; *)
-(**
 
-	Some experiments for window navigation.
-
-	Status: BETA
-
-*)
 IMPORT
 	Modules, Kernel, Commands, Options, Locks, Strings, Raster, Plugins, Displays, KernelLog, Inputs, XML,
 	WMRectangles, WMGraphics, WMGraphicUtilities, WMWindowManager, WMComponents, WMProperties, Files, Dates;
