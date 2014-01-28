@@ -1366,21 +1366,37 @@ BEGIN (* must hold window manager lock *)
 	RETURN image;
 END GetWindowImage;
 
-PROCEDURE GenerateName(CONST prefix: ARRAY OF CHAR; VAR str: ARRAY OF CHAR);
-VAR startTime: Dates.DateTime; num: ARRAY 32 OF CHAR;
+PROCEDURE GenerateName(prefix: Strings.String; VAR str: ARRAY OF CHAR);
+VAR startTime: Dates.DateTime; i,j:LONGINT; num: ARRAY 32 OF CHAR; title: Files.FileName; c:CHAR;
 BEGIN
+	i:=0; j:=0;
+	WHILE (i<LEN(prefix)) & (j<LEN(title)-1) DO
+		c:=prefix[i];
+		IF (c>="A")&(c<="Z") OR (c>="a")&(c<="z") OR(c>="0")&(c<="9") OR (c="_") OR (c=" ")THEN
+			IF c=" " THEN c:="_" END;
+			title[j]:=c; INC(i); INC(j);
+		ELSE
+			INC(i);
+		END;
+	END;
+	title[j]:=0X;
+	IF title="" THEN title:="ScreenShot" END;
+	
 	startTime := Dates.Now();
 	Strings.FormatDateTime("_yyyymmdd__hhnnss",startTime,str);
-	Strings.Concat(prefix,str,str);
+	Strings.Concat(title,str,str);
 	Strings.Concat(str,".bmp",str);
 END GenerateName;
 
 PROCEDURE WindowShot(window: WMWindowManager.Window);
-VAR fn: Files.FileName; res: LONGINT;
+VAR fn: Files.FileName;  res: LONGINT;
 BEGIN
 	IF window IS WMWindowManager.DoubleBufferWindow THEN
-		GenerateName("ScreenShot",fn);
+		GenerateName(window.GetTitle(),fn);
 		WMGraphics.StoreImage(window(WMWindowManager.DoubleBufferWindow).backImg, fn, res);
+	ELSIF window IS WMWindowManager.BufferWindow THEN
+		GenerateName(window.GetTitle(),fn);
+		WMGraphics.StoreImage(window(WMWindowManager.BufferWindow).img, fn, res);
 	END;
 END WindowShot;
 
