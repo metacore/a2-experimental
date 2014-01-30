@@ -368,6 +368,10 @@ BEGIN
 	Usbdi.drivers.Add(Probe2, "UnknownVendorTS", "Touchscreen", 0);
 END InstallUnknown1;
 
+PROCEDURE Install*;
+BEGIN
+END Install;
+
 VAR installed-: BOOLEAN;
 
 BEGIN
