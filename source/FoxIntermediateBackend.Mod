@@ -2085,6 +2085,26 @@ TYPE
 				RETURN IntermediateCode.Immediate(addressType,size)
 			END;
 		END GetDynamicSize;
+		
+		PROCEDURE GetSizeFromTag(tag: IntermediateCode.Operand): IntermediateCode.Operand;
+		VAR result: IntermediateCode.Operand;
+		BEGIN
+			MakeMemory(result, tag, addressType, 0);
+			RETURN result
+		END GetSizeFromTag;
+		
+		PROCEDURE GetArrayOfBytesSize(e: SyntaxTree.Expression; tag: IntermediateCode.Operand): IntermediateCode.Operand;
+		VAR parameter: SyntaxTree.Parameter;
+		BEGIN
+			IF (e IS SyntaxTree.SymbolDesignator) & (e(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.Parameter) THEN
+				parameter := e(SyntaxTree.SymbolDesignator).symbol(SyntaxTree.Parameter);
+				IF (parameter.kind IN {SyntaxTree.VarParameter,SyntaxTree.ConstParameter}) & (parameter.type.resolved IS SyntaxTree.RecordType) THEN RETURN GetSizeFromTag(tag) END;
+			ELSIF e IS SyntaxTree.DereferenceDesignator THEN
+				IF (e.type.resolved IS SyntaxTree.RecordType) THEN RETURN GetSizeFromTag(tag) END;
+			END;
+			RETURN GetDynamicSize(e.type, tag);
+		END GetArrayOfBytesSize;
+		
 
 		(*
 		to find imported symbol. not needed ?
@@ -3503,7 +3523,7 @@ TYPE
 
 			IF IsArrayOfSystemByte(parameter.type) THEN
 				Designate(expression,operand);
-				tmp := GetDynamicSize(type,operand.tag);
+				tmp := GetArrayOfBytesSize(expression,operand.tag);
 				ReleaseIntermediateOperand(operand.tag);
 				operand.tag := tmp;
 				IF callingConvention = SyntaxTree.OberonCallingConvention  THEN
@@ -5240,7 +5260,7 @@ TYPE
 				Emit(Mov(position,reg,dim));
 				Emit(Mul(position,reg,reg,IntermediateCode.Immediate(addressType,ToMemoryUnits(system,2*addressType.sizeInBits))));
 				Emit(Add(position,reg,reg,base));
-				MakeMemory(mem,reg,addressType,offset);
+				MakeMemory(mem, reg, addressType, offset);
 				ReleaseIntermediateOperand(reg);
 				Emit(Mov(position,mem,value));
 				ReleaseIntermediateOperand(mem);
