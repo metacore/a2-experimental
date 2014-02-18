@@ -1286,7 +1286,19 @@ TYPE
 		ELSE RETURN Integer64
 		END;
 	END GetSignedIntegerType;
-
+	
+	PROCEDURE GetIntegerType*(system: System; this: HUGEINT): SyntaxTree.IntegerType;
+	BEGIN
+		IF IsSignedInteger(this,8) THEN RETURN Integer8
+		ELSIF IsUnsignedInteger(this,8) THEN RETURN Unsigned8
+		ELSIF IsSignedInteger(this, 16) THEN RETURN Integer16
+		ELSIF IsUnsignedInteger(this,16) THEN RETURN Unsigned16
+		ELSIF IsSignedInteger(this, 32) THEN RETURN Integer32
+		ELSIF IsUnsignedInteger(this,32) THEN RETURN Unsigned32
+		ELSE RETURN Integer64
+		END;
+	END GetIntegerType;
+	
 	PROCEDURE NewIntegerValue*(system: System; position: LONGINT; hugeint: HUGEINT): SyntaxTree.Value;
 	VAR value: SyntaxTree.IntegerValue;
 	BEGIN
