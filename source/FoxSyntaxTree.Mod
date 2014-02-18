@@ -251,6 +251,9 @@ TYPE
 		(** symbols *)
 		PROCEDURE VisitSymbol*(x: Symbol);
 		BEGIN HALT(100) (* abstract *) END VisitSymbol;
+		
+		PROCEDURE VisitModule*(x: Module);
+		BEGIN HALT(100) (* abstract *) END VisitModule;
 
 		PROCEDURE VisitTypeDeclaration*(x: TypeDeclaration);
 		BEGIN HALT(100) (* abstract *) END VisitTypeDeclaration;
@@ -4724,6 +4727,11 @@ TYPE
 			lastScope := c;
 			INC(numberScopes);
 		END AddScope;
+
+		PROCEDURE Accept*(v: Visitor);
+		VAR position: LONGINT;
+		BEGIN position := SELF.position; v.VisitModule(SELF)
+		END Accept;
 
 	END Module;
 
