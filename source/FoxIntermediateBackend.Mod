@@ -4187,7 +4187,7 @@ TYPE
 			designator: SyntaxTree.Designator;
 			procedureType: SyntaxTree.ProcedureType;
 			formalParameter: SyntaxTree.Parameter;
-			noPush: Label;
+			noPush, end: Label;
 			operand: Operand;
 			reg, size, mem, mask, dest: IntermediateCode.Operand;
 			saved: RegisterEntry;
@@ -4557,20 +4557,27 @@ TYPE
 					Emit(Push(position,operand.tag));
 				END;
 				parametersSize := ProcedureParametersSize(system,symbol(SyntaxTree.Procedure));
+				ReleaseParameterRegisters();
+				Emit(Call(position,operand.op,parametersSize));
 			ELSIF (symbol IS SyntaxTree.Variable) OR (symbol IS SyntaxTree.Parameter) THEN
+				parametersSize := ParametersSize(system,procedureType,FALSE);
 				IF (procedureType.isDelegate) THEN (* push self pointer only if procedure is a method *)
 					noPush := NewLabel();
+					end := NewLabel();
 					BreqL(noPush,operand.tag,nil);
 					Emit(Push(position,operand.tag));
+					ReleaseParameterRegisters();
+					Emit(Call(position,operand.op,parametersSize));
+					BrL(end); 
 					SetLabel(noPush);
+					Emit(Call(position,operand.op,parametersSize-ToMemoryUnits(system,addressType.sizeInBits)));
+					SetLabel(end);
+				ELSE
+					ReleaseParameterRegisters();
+					Emit(Call(position,operand.op,parametersSize));				
 				END;
-				parametersSize := ParametersSize(system,procedureType,FALSE);
 			ELSE HALT(200);
 			END;
-
-			ReleaseParameterRegisters();
-
-			Emit(Call(position,operand.op,parametersSize));
 
 			IF procedureType.noReturn THEN
 				Emit(Trap(position,NoReturnTrap));
