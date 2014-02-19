@@ -9866,6 +9866,9 @@ TYPE
 			noRuntimeChecks := options.GetFlag("noRuntimeChecks");
 			noAsserts := options.GetFlag("noAsserts");
 			IF options.GetFlag("newObjectFile") THEN newObjectFile := TRUE END;
+			IF options.GetString("objectFile",string) & (string = "Minos") THEN 
+				simpleMetaData := TRUE
+			END;
 			IF options.GetString("metaData",string) THEN
 				IF string = "simple" THEN simpleMetaData := TRUE
 				ELSIF string ="full" THEN simpleMetaData := FALSE
