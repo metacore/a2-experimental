@@ -1866,7 +1866,7 @@ TYPE
 						END;
 
 					ELSIF type IS SyntaxTree.AddressType THEN w.RawNum(sfTypeAddress) (*! compatibility with PACO *)
-					ELSIF type IS SyntaxTree.SizeType THEN w.RawNum(sfTypeLongint)
+					ELSIF type IS SyntaxTree.SizeType THEN w.RawNum(sfTypeSize)
 					ELSE HALT(100)
 					END;
 				ELSIF type IS SyntaxTree.StringType THEN (* special case BasicType : StringType *)
