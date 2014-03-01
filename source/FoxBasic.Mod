@@ -2142,7 +2142,7 @@ VAR
 	END GetTracingDiagnostics;
 
 	PROCEDURE InitTable32;
-	CONST poly = SHORT(0EDB88320H);
+	CONST poly = LONGINT(0EDB88320H);
 	VAR n, c, k: LONGINT;
 	BEGIN
 		FOR n := 0 TO 255 DO
