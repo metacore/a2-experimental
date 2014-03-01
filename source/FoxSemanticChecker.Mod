@@ -1613,7 +1613,7 @@ TYPE
 		VAR hugeint: HUGEINT;
 		BEGIN
 			hugeint := value(SyntaxTree.IntegerValue).hvalue;
-			value.SetType(Global.GetSignedIntegerType(system,hugeint));
+			value.SetType(Global.GetIntegerType(system,hugeint));
 			resolvedExpression := value
 		END VisitIntegerValue;
 
@@ -1991,7 +1991,7 @@ TYPE
 							int := -left.resolved(SyntaxTree.IntegerValue).hvalue;
 							value := SyntaxTree.NewIntegerValue(unaryExpression.position,int);
 							result.SetResolved(value);
-							type := Global.GetSignedIntegerType(system,int);
+							type := Global.GetIntegerType(system,int);
 							value.SetType(type);
 						ELSE
 							type := left.type
@@ -2062,7 +2062,7 @@ TYPE
 						int := system.SizeOf(type.resolved) DIV 8 (* in bytes *);
 						value := SyntaxTree.NewIntegerValue(left.position, int);
 						result.SetResolved(value);
-						type := Global.GetSignedIntegerType(system,int);
+						type := Global.GetIntegerType(system,int);
 						value.SetType(type)
 						(* was Int16  in paco but should be systemSize (conflict with current release) *)
 					ELSE
@@ -2628,6 +2628,7 @@ TYPE
 			type: SyntaxTree.Type;
 			value: SyntaxTree.Value;
 			leftFirst, leftLast, leftStep, rightFirst, rightLast, rightStep: LONGINT;
+			integerConstantFolding: BOOLEAN;
 
 			PROCEDURE NewBool(v: BOOLEAN);
 			BEGIN
@@ -2845,15 +2846,18 @@ TYPE
 			ELSIF (leftType IS SyntaxTree.BasicType) & (rightType IS SyntaxTree.BasicType)
 				OR IsCharacterType(leftType) & IsCharacterType(rightType)
 			THEN
-				IF leftType # rightType THEN
-					ConvertOperands(left,right); (* operands must be of the same type here *)
+				integerConstantFolding := IsIntegerValue(left,il) & IsIntegerValue(right,ir);
+				IF (leftType # rightType)   THEN
+					IF ~integerConstantFolding THEN (* no conversions for constant folding on integer values  *)
+						ConvertOperands(left,right); (* operands must be of the same type here *)
+					END;
 					binaryExpression.SetLeft(left);
 					binaryExpression.SetRight(right);
 					leftType := left.type.resolved;
 					rightType := right.type.resolved;
 				END;
 				type := leftType;
-				IF ~leftType.SameType(rightType) THEN
+				IF ~integerConstantFolding & ~leftType.SameType(rightType) THEN
 					Error(binaryExpression.position,Diagnostics.Invalid,"conversion failed ?");
 					IF VerboseErrorMessage THEN
 						Printout.Info("left",left);
@@ -5048,7 +5052,7 @@ TYPE
 						type := type0;
 						IF IsIntegerValue(parameter0,i0) THEN
 							result.SetResolved(SyntaxTree.NewIntegerValue(position,ABS(i0)));
-							type := Global.GetSignedIntegerType(system,ABS(i0));
+							type := Global.GetIntegerType(system,ABS(i0));
 						ELSIF IsRealValue(parameter0,r) THEN
 							result.SetResolved(SyntaxTree.NewRealValue(position,ABS(r)));
 						END;
@@ -5067,7 +5071,7 @@ TYPE
 								IF id = Global.Ash THEN i0 := ASH(i0,i1) ELSE i0 := ASR(i0,i1) END;
 								result.SetResolved(SyntaxTree.NewIntegerValue(position,i0));
 								result := ResolveExpression(result);
-								type := Global.GetSignedIntegerType(system,i0);
+								type := Global.GetIntegerType(system,i0);
 							END;
 						END;
 
@@ -5120,7 +5124,7 @@ TYPE
 					IF CheckRealType(parameter0) THEN
 						IF IsRealValue(parameter0,r) THEN
 							result.SetResolved(SyntaxTree.NewIntegerValue(position,ENTIER(r)));
-							type := Global.GetSignedIntegerType(system,ENTIER(r));
+							type := Global.GetIntegerType(system,ENTIER(r));
 						END
 					END;
 				(* ---- ENTIERH ----- *)

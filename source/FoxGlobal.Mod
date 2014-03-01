@@ -1303,7 +1303,7 @@ TYPE
 	VAR value: SyntaxTree.IntegerValue;
 	BEGIN
 		value := SyntaxTree.NewIntegerValue(position,hugeint);
-		value.SetType(GetSignedIntegerType(system,hugeint));
+		value.SetType(GetIntegerType(system,hugeint));
 		RETURN value
 	END NewIntegerValue;
 
@@ -1345,17 +1345,22 @@ TYPE
 	BEGIN
 		fromSize := system.SizeOf(from); toSize := system.SizeOf(to);
 		distance := -1;
-		IF (from IS SyntaxTree.CharacterType) & (to IS SyntaxTree.CharacterType) OR
-			(from IS SyntaxTree.IntegerType) & (to IS SyntaxTree.IntegerType) OR
-			(from IS SyntaxTree.FloatType) & (to IS SyntaxTree.FloatType) THEN
+		IF (from IS SyntaxTree.IntegerType) & (to IS SyntaxTree.IntegerType) & (toSize >= fromSize) THEN
+			IF from(SyntaxTree.IntegerType).signed # to(SyntaxTree.IntegerType).signed THEN
+				IF (toSize=fromSize) & to(SyntaxTree.IntegerType).signed THEN 
+					distance := MIN(LONGINT) 
+				ELSE
+					INC(distance,2);
+				END;
+			END;
 			WHILE toSize >= fromSize DO
 				toSize := toSize DIV 2; INC(distance);
 			END;
-
-			IF from IS SyntaxTree.IntegerType THEN
-				IF from(SyntaxTree.IntegerType).signed # to(SyntaxTree.IntegerType).signed THEN
-					IF to(SyntaxTree.IntegerType).signed THEN distance := MAX(LONGINT) ELSE INC(distance, 4) END;
-				END;
+		ELSIF (from IS SyntaxTree.CharacterType) & (to IS SyntaxTree.CharacterType) & (toSize >= fromSize)  OR
+			(from IS SyntaxTree.FloatType) & (to IS SyntaxTree.FloatType) & (toSize >= fromSize) 
+		THEN
+			WHILE toSize >= fromSize DO
+				toSize := toSize DIV 2; INC(distance);
 			END;
 		ELSIF (from IS SyntaxTree.IntegerType) & (to IS SyntaxTree.FloatType) THEN
 			IF toSize = 64 THEN distance := 1 ELSE distance := 0 END;
