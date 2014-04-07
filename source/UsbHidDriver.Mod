@@ -424,6 +424,8 @@ TYPE
 		consumerState			: ConsumerState;
 		joystickState			: JoystickState;
 		useReportIDMechanism	: BOOLEAN;
+		
+		recentStatus: Usbdi.Status;
 
 		(*
 		 * This procedure is called by the USB system software after an instance of this object has been passed to it via the probe procedure.
@@ -618,7 +620,7 @@ TYPE
 			IF LoggingMode=ShowFullReport THEN reportManager.PrintReportState END;
 
 			IF (  (status = Usbdi.Ok) OR (status=Usbdi.ShortPacket)) THEN
-
+				recentStatus := status;
 				IF(mouseState#NIL) THEN
 					IF Debug THEN KernelLog.String("handle mouse driver"); KernelLog.Ln; END;
 					HandleMouseDriver;
@@ -665,6 +667,7 @@ TYPE
 						device.FreePipe(pipe);
 					END;
 				END;
+				recentStatus := status;
 			END;
 		END HandleHidEvent;
 
@@ -672,6 +675,12 @@ TYPE
 		BEGIN
 			RETURN touchscreenState # NIL
 		END IsTouchscreen;
+		
+		PROCEDURE GetRecentStatus*(): Usbdi.Status;
+		BEGIN
+			RETURN recentStatus;
+		END GetRecentStatus;
+		
 		
 		(**
 		 * Is called by handleHidEvent when mouse device is found
