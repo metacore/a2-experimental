@@ -518,6 +518,7 @@ TYPE
 				pipe.SetCompletionHandler(HandleHidEvent);
 
 				status := pipe.Transfer(pipe.maxPacketSize, 0, reportBuffer^);
+				recentStatus := status;
 				IF Debug THEN
 					KernelLog.String("UsbHidDriver.HidDriver.Connect: Connect successfully finished"); KernelLog.Ln;
 				END;
@@ -675,6 +676,15 @@ TYPE
 		BEGIN
 			RETURN touchscreenState # NIL
 		END IsTouchscreen;
+		
+		PROCEDURE GetPipeStatus*(): Usbdi.Status;
+		VAR len: LONGINT;
+		BEGIN
+			IF pipe # NIL THEN RETURN pipe.GetStatus(len) 
+			ELSE RETURN Usbdi.Error
+			END;
+		END GetPipeStatus;
+		
 		
 		PROCEDURE GetRecentStatus*(): Usbdi.Status;
 		BEGIN
