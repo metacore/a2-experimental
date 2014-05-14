@@ -232,6 +232,7 @@ TYPE
 		VAR first: BOOLEAN;
 		BEGIN
 			first := TRUE;
+			IF x.isUnsafe THEN Flag(Global.NameUnsafe,first) END;
 			IF x.isRealtime THEN Flag(Global.NameRealtime,first) END;
 			FlagEnd(first);
 		END PointerFlags;
@@ -246,7 +247,7 @@ TYPE
 				IF (pointerBase IS SyntaxTree.RecordType) & (pointerBase(SyntaxTree.RecordType).isObject) THEN
 					VisitRecordType(pointerBase(SyntaxTree.RecordType))
 				ELSE
-					Keyword("POINTER "); Flags((*x.flags*)); Keyword("TO " );  Type(x.pointerBase)
+					Keyword("POINTER "); PointerFlags(x); Keyword("TO " );  Type(x.pointerBase);
 				END;
 			END;
 		END VisitPointerType;

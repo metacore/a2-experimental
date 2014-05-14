@@ -2321,7 +2321,7 @@ TYPE
 					(* get type desc tag *)
 					IF IsPointerToRecord(leftType,recordType) THEN
 						Evaluate(x.left,left);
-						Dereference(left,recordType)
+						Dereference(left,recordType,IsUnsafePointer(leftType))
 					ELSE
 						Designate(x.left,left);
 					END;
@@ -2854,7 +2854,7 @@ TYPE
 			Designate(x.left, array);
 
 			IF leftType(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
-				Dereference(array, leftType);
+				Dereference(array, leftType,FALSE);
 				IF tensorRangeCount=0 THEN
 					DimensionCheck(array.tag, IntermediateCode.Immediate(int32, rangeCount+indexCount), BreqL)
 				END
@@ -3576,7 +3576,7 @@ TYPE
 					(* case 1d *)
 					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
 						Designate(expression,operand);
-						Dereference(operand,type.resolved);
+						Dereference(operand,type.resolved,FALSE);
 						DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
 						Emit(Copy(position,sp(*arrayDestinationTag*),operand.tag,IntermediateCode.Immediate(addressType,size)));
 						PutMathArrayField(arrayDestinationTag,nil,MathFlagsOffset);
@@ -3652,7 +3652,7 @@ TYPE
 					(* case 2d *)
 					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
 						Designate(expression,operand);
-						Dereference(operand,type.resolved);
+						Dereference(operand,type.resolved,FALSE);
 						DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
 						Pass((operand.tag));
 					(* case 2f *)
@@ -3737,7 +3737,7 @@ TYPE
 					(* case 3d *)
 					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
 						Designate(expression,operand);
-						Dereference(operand,type.resolved);
+						Dereference(operand,type.resolved,FALSE);
 						(*
 						DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
 						*)
@@ -3850,7 +3850,7 @@ TYPE
 					ELSIF type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
 						Designate(expression,operand);
 						(*
-						Dereference(operand,type.resolved);
+						Dereference(operand,type.resolved,FALSE);
 						*)
 						(*
 						DimensionCheck(operand.tag, IntermediateCode.Immediate(int32,dim),BreqL);
@@ -5923,7 +5923,7 @@ TYPE
 				ELSIF p0.type.resolved IS SyntaxTree.MathArrayType THEN
 					ASSERT(p1 # NIL);
 					IF p0.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
-						Dereference(operand,p0.type.resolved);
+						Dereference(operand,p0.type.resolved,FALSE);
 					END;
 					GetMathArrayLength(p0.type.resolved(SyntaxTree.MathArrayType),operand, l.op, TRUE, result);
 					ReleaseOperand(operand); ReleaseOperand(l);
@@ -6306,7 +6306,7 @@ TYPE
 							END;
 							Designate(p0,l);
 							IF isTensor THEN
-								Dereference(l,type);
+								Dereference(l,type,FALSE);
 								t := SemanticChecker.ArrayBase(type,MAX(LONGINT));
 							END;
 							Emit(Push(position,l.tag)); (* address for use after syscall *)
@@ -6349,7 +6349,7 @@ TYPE
 
 							Designate(p0,l);
 							IF isTensor THEN
-								Dereference(l,type);
+								Dereference(l,type,FALSE);
 							END;
 							Emit(Push(position,l.tag)); (* address for use after syscall *)
 							Emit(Push(position,l.tag)); (* address for syscall *)
@@ -6559,7 +6559,7 @@ TYPE
 			|Global.Incr:
 				Designate(p0,operand);
 				IF p0.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
-					Dereference(operand,p0.type.resolved);
+					Dereference(operand,p0.type.resolved,FALSE);
 				END;
 				ASSERT(p1 # NIL);
 				Evaluate(p1,l);
@@ -6588,7 +6588,7 @@ TYPE
 				ASSERT(~SemanticChecker.IsArrayStructuredObjectType(p0.type));
 				Designate(p0,s0);
 				IF p0.type.resolved(SyntaxTree.MathArrayType).form = SyntaxTree.Tensor THEN
-					Dereference(s0,p0.type.resolved);
+					Dereference(s0,p0.type.resolved,FALSE);
 				END;
 				MathArrayDim(p0.type.resolved(SyntaxTree.MathArrayType),s0.tag,result);
 				ReleaseOperand(s0);
@@ -6735,7 +6735,7 @@ TYPE
 			IF Trace THEN TraceExit("VisitTypeGuardDesignator") END;
 		END VisitTypeGuardDesignator;
 
-		PROCEDURE Dereference(VAR operand: Operand; type: SyntaxTree.Type);
+		PROCEDURE Dereference(VAR operand: Operand; type: SyntaxTree.Type; isUnsafe: BOOLEAN);
 		VAR dereferenced: IntermediateCode.Operand; arrayDataOffset: LONGINT;
 		BEGIN
 			LoadValue(operand,system.addressType); (* in case operand is not a value yet *)
@@ -6746,13 +6746,26 @@ TYPE
 			operand.tag := dereferenced;
 			UseIntermediateOperand(operand.tag);
 			IF (type=NIL) OR (type IS SyntaxTree.RecordType) THEN
-				IntermediateCode.AddOffset(operand.tag,ToMemoryUnits(system,-addressType.sizeInBits));
-				IntermediateCode.MakeMemory(operand.tag,addressType);
+				IF isUnsafe THEN
+					ReleaseIntermediateOperand(operand.tag);
+					operand.tag := TypeDescriptorAdr(type);
+					IF ~newObjectFile THEN
+						IntermediateCode.MakeMemory(operand.tag,addressType);
+					END;
+				ELSE
+					IntermediateCode.AddOffset(operand.tag,ToMemoryUnits(system,-addressType.sizeInBits));
+					IntermediateCode.MakeMemory(operand.tag,addressType);
+				END;
 			ELSIF type IS SyntaxTree.ArrayType THEN
-				arrayDataOffset := DynamicDim(type) * addressType.sizeInBits + 3 * addressType.sizeInBits;
-				INC(arrayDataOffset, (-arrayDataOffset) MOD ArrayAlignment);  (* round up to multiple of ArrayAlignment to ensure that first array element is aligned at 0 MOD ArrayAlignment *)
-				IntermediateCode.AddOffset(operand.op,ToMemoryUnits(system,arrayDataOffset));
-				IntermediateCode.AddOffset(operand.tag,ToMemoryUnits(system,ArrayDimTable*system.addressSize))
+				IF isUnsafe THEN
+					ReleaseIntermediateOperand(operand.tag);
+					IntermediateCode.InitImmediate(operand.tag,addressType,type(SyntaxTree.ArrayType).staticLength);
+				ELSE
+					arrayDataOffset := DynamicDim(type) * addressType.sizeInBits + 3 * addressType.sizeInBits;
+					INC(arrayDataOffset, (-arrayDataOffset) MOD ArrayAlignment);  (* round up to multiple of ArrayAlignment to ensure that first array element is aligned at 0 MOD ArrayAlignment *)
+					IntermediateCode.AddOffset(operand.op,ToMemoryUnits(system,arrayDataOffset));
+					IntermediateCode.AddOffset(operand.tag,ToMemoryUnits(system,ArrayDimTable*system.addressSize))
+				END;
 			ELSIF type IS SyntaxTree.MathArrayType THEN
 				IntermediateCode.AddOffset(operand.op,ToMemoryUnits(system,MathAdrOffset*addressType.sizeInBits));
 				IntermediateCode.MakeMemory(operand.op,addressType);
@@ -6767,7 +6780,7 @@ TYPE
 			dest := destination; destination := emptyOperand;
 			Evaluate(x.left,d);
 			type := x.type.resolved;
-			Dereference(d,type);
+			Dereference(d,type,IsUnsafePointer(x.left.type));
 			result := d;
 			destination := dest;
 			IF Trace THEN TraceExit("VisitDereferenceDesignator") END;
@@ -7629,7 +7642,7 @@ TYPE
 			ELSE*)
 			Designate(x.variable,res);
 			IF IsPointerToRecord(x.variable.type,recordType) THEN
-				Dereference(res,recordType)
+				Dereference(res,recordType,IsUnsafePointer(x.variable.type))
 			END;
 			trueL := NewLabel();
 			TypeTest(res.tag,x.type,trueL,falseL);
@@ -10064,6 +10077,10 @@ TYPE
 			RETURN FALSE
 		END
 	END IsStrictlyPointerToRecord;
+
+	PROCEDURE IsUnsafePointer(type: SyntaxTree.Type): BOOLEAN;
+	BEGIN RETURN (type # NIL) & (type.resolved IS SyntaxTree.PointerType) & type.resolved(SyntaxTree.PointerType).isUnsafe
+	END IsUnsafePointer
 
 	PROCEDURE IsPointerToRecord(type: SyntaxTree.Type; VAR recordType: SyntaxTree.RecordType): BOOLEAN;
 	BEGIN type := type.resolved;

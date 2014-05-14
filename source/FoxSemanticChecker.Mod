@@ -666,6 +666,7 @@ TYPE
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 				modifiers := x.modifiers;
+				x.SetUnsafe(HasFlag(modifiers,Global.NameUnsafe,position));
 				x.SetRealtime(HasFlag(modifiers,Global.NameRealtime, position));
 				CheckModifiers(modifiers, TRUE);
 				(* inheritance cycle check
@@ -747,6 +748,7 @@ TYPE
 					Error(this.position,Diagnostics.Invalid,"unexpected expression");
 				END;
 				this.Resolved;
+				position := this.position;
 				RETURN TRUE
 			ELSE
 				RETURN FALSE
@@ -8225,7 +8227,7 @@ TYPE
 
 			ELSIF to IS SyntaxTree.PointerType THEN
 				result := IsPointerType(this) & (IsTypeExtension(to,this) OR ((to(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType) & SameType(to,this)))
-				     & (~to.isRealtime OR this.isRealtime) OR (this IS SyntaxTree.NilType)
+				     & (~to.isRealtime OR this.isRealtime) OR (this IS SyntaxTree.NilType) OR (this IS SyntaxTree.AddressType) & to(SyntaxTree.PointerType).isUnsafe;
 			ELSIF to IS SyntaxTree.ProcedureType THEN
 				result := (this IS SyntaxTree.NilType) OR (this IS SyntaxTree.ProcedureType) & SameType(to(SyntaxTree.ProcedureType),this(SyntaxTree.ProcedureType))
 					& (~(this(SyntaxTree.ProcedureType).isDelegate) OR (to(SyntaxTree.ProcedureType).isDelegate))
