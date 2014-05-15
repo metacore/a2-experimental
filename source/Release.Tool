@@ -189,7 +189,7 @@ BUILDS
 		TARGET "AMD"
 		EXTENSION "Obj"
 		SYMBOLEXTENSION "Obj"
-		PATH "./"
+		PATH "NewAos/"
 		EXCLUDEPACKAGES "OberonVoyager OberonAnts"
 		DISABLED "FALSE"
 	}
@@ -200,7 +200,7 @@ BUILDS
 		TARGET "AMD"
 		EXTENSION "Obj"
 		SYMBOLEXTENSION "Obj"
-		PATH "./"
+		PATH "NewAos/"
 		EXCLUDEPACKAGES "OberonVoyager OberonAnts"
 		DISABLED "FALSE"
 	}
@@ -211,7 +211,7 @@ BUILDS
 		TARGET "AMD"
 		EXTENSION "Obj"
 		SYMBOLEXTENSION "Obj"
-		PATH "./"
+		PATH "NewAos/"
 		EXCLUDEPACKAGES "OberonVoyager OberonAnts"
 		DISABLED "FALSE"
 	}
