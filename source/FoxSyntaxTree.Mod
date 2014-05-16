@@ -4045,18 +4045,25 @@ TYPE
 			blockModifiers-: Modifier;
 			isExclusive-: BOOLEAN;
 			isRealtime-: BOOLEAN;
+			isUnchecked-: BOOLEAN;
 
 		PROCEDURE & InitStatementBlock( position: LONGINT ; outer: Statement);
 		BEGIN
 			InitStatement( position ,outer);  statements := NIL;  blockModifiers := NIL;
 			isExclusive := FALSE;
 			isRealtime := FALSE;
+			isUnchecked := FALSE;
 		END InitStatementBlock;
 
 		PROCEDURE SetRealtime*(b: BOOLEAN);
 		BEGIN
 			isRealtime := b
 		END SetRealtime;
+
+		PROCEDURE SetUnchecked*(unchecked: BOOLEAN);
+		BEGIN
+			isUnchecked := unchecked
+		END SetUnchecked;
 
 		PROCEDURE SetModifier*(modifier: Modifier);
 		BEGIN

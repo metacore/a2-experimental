@@ -24,6 +24,7 @@ CONST
 	StringNoReturn*="NORETURN";
 	StringUnsafe*="UNSAFE";
 	StringDisposable*="DISPOSABLE";
+	StringUnchecked*="UNCHECKED";
 
 	(* block modifier flag names *)
 	StringExclusive* = "EXCLUSIVE";
@@ -186,7 +187,7 @@ VAR
 	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-, NamePcOffset-, NameNoPAF-,NameEntry-, NameExit-, NameFixed-,NameAligned-,NameStackAligned-,
 	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-, NameDynamic-, NameDataMemorySize-, NameCodeMemorySize-
 	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-, NameVector-, NameFloatingPoint-, NameTRM-, NameTRMS-, NameEngine-, NameFinal-, NameAbstract-,
-	NameFrequencyDivider-, NameRegister-,NameNoReturn-,NameUnsafe-,NameDisposable-: SyntaxTree.Identifier;
+	NameFrequencyDivider-, NameRegister-,NameNoReturn-,NameUnsafe-,NameDisposable-,NameUnchecked-: SyntaxTree.Identifier;
 
 	identifiers: ARRAY 2 OF ARRAY end OF SyntaxTree.Identifier;
 
@@ -1535,6 +1536,7 @@ TYPE
 		NameNoReturn := SyntaxTree.NewIdentifier(StringNoReturn);
 		NameUnsafe := SyntaxTree.NewIdentifier(StringUnsafe);
 		NameDisposable := SyntaxTree.NewIdentifier(StringDisposable);
+		NameUnchecked := SyntaxTree.NewIdentifier(StringUnchecked);
 
 		(* types *)
 		Boolean8 := SyntaxTree.NewBooleanType(8);

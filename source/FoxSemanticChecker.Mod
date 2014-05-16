@@ -7561,6 +7561,12 @@ TYPE
 						recordBody.SetRealtime(TRUE);
 						block.SetRealtime(TRUE);
 					END;
+				ELSIF name=Global.NameUnchecked THEN
+					IF block.isUnchecked THEN
+						Error(position,Diagnostics.Invalid,"duplicate unchecked flag")
+					ELSE
+						block.SetUnchecked(TRUE);
+					END;
 				ELSE
 					Error(position,Diagnostics.Invalid,"unknown block modifier");
 				END;

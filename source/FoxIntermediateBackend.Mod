@@ -624,7 +624,7 @@ TYPE
 					IF (procedureType.returnType = NIL) OR (scope.body.code # NIL)  THEN
 						ir.Emit(Leave(x.position,cc));
 						ir.Emit(Exit(x.position,procedureType.pcOffset,cc));
-					ELSE
+					ELSIF ~scope.body.isUnchecked & ~backend.noRuntimeChecks THEN
 						ir.Emit(Trap(x.position,ReturnTrap));
 					END
 				END;
@@ -1057,6 +1057,8 @@ TYPE
 		moduleBodySection: IntermediateCode.Section;
 		NeedDescriptor : BOOLEAN;
 
+		isUnchecked: BOOLEAN;
+
 		PROCEDURE & Init(system: Global.System; checker: SemanticChecker.Checker; supportedInstructionProcedure: SupportedInstructionProcedure; supportedImmediateProcedure: SupportedImmediateProcedure; emitLabels: BOOLEAN; CONST runtime: SyntaxTree.IdentifierString; backend: IntermediateBackend;
 			newObjectFile: BOOLEAN);
 		BEGIN
@@ -1104,6 +1106,7 @@ TYPE
 			NEW(temporaries);
 			currentIsInline := FALSE;
 			NeedDescriptor := FALSE;
+			isUnchecked := backend.noRuntimeChecks;
 		END Init;
 
 		PROCEDURE NewSection(list: Sections.SectionList; type: SHORTINT; CONST name: Basic.SegmentedName; syntaxTreeSymbol: SyntaxTree.Symbol; dump: BOOLEAN): IntermediateCode.Section;
@@ -1704,7 +1707,7 @@ TYPE
 		PROCEDURE CheckSetElement(o: IntermediateCode.Operand);
 		VAR max: IntermediateCode.Operand;
 		BEGIN
-			IF backend.noRuntimeChecks THEN RETURN END;
+			IF isUnchecked THEN RETURN END;
 			IF o.mode # IntermediateCode.ModeImmediate THEN (* otherwise it's the job of the checker *)
 				IntermediateCode.InitImmediate(max, setType, setType.sizeInBits (* number of bits in set *) -1);
 				TrapC(BrgeL, max, o, SetElementTrap);
@@ -2419,7 +2422,7 @@ TYPE
 				ELSE
 					IF (x.type.resolved IS SyntaxTree.IntegerType) & (x.right.resolved = NIL) THEN (* divisor negative check *)
 						IntermediateCode.InitImmediate(zero,IntermediateCode.GetType(system,rightType),0);
-						IF ~backend.noRuntimeChecks THEN
+						IF ~isUnchecked THEN
 							exit := NewLabel();
 							BrltL(exit,zero,right.op);
 							Emit(Trap(position,NegativeDivisorTrap));
@@ -2442,7 +2445,7 @@ TYPE
 				ELSE
 					IF (x.type.resolved IS SyntaxTree.IntegerType) & (x.right.resolved = NIL) THEN (* divisor negative check *)
 						IntermediateCode.InitImmediate(zero,IntermediateCode.GetType(system,rightType),0);
-						IF ~backend.noRuntimeChecks THEN
+						IF ~isUnchecked THEN
 							exit := NewLabel();
 							BrltL(exit,zero,right.op);
 							Emit(Trap(position,NegativeDivisorTrap));
@@ -2779,7 +2782,7 @@ TYPE
 
 		PROCEDURE BoundCheck(index,length: IntermediateCode.Operand);
 		BEGIN
-			IF backend.noRuntimeChecks THEN RETURN END;
+			IF isUnchecked THEN RETURN END;
 			IF tagsAvailable THEN
 				TrapC(BrltL,index,length,IndexCheckTrap);
 			END;
@@ -2788,7 +2791,7 @@ TYPE
 		PROCEDURE DimensionCheck(base,dim: IntermediateCode.Operand; op: ConditionalBranch );
 		VAR d: IntermediateCode.Operand;
 		BEGIN
-			IF backend.noRuntimeChecks THEN RETURN END;
+			IF isUnchecked THEN RETURN END;
 			MakeMemory(d,base,dim.type,ToMemoryUnits(system,MathDimOffset * addressType.sizeInBits));
 			TrapC(op,dim,d,ArraySizeTrap);
 			ReleaseIntermediateOperand(d);
@@ -2915,7 +2918,7 @@ TYPE
 						(* lower bound check *)
 						IF IsIntegerImmediate(index.op, staticIndex) THEN
 							ASSERT(staticIndex >= 0) (* ensured by the checker *)
-						ELSIF backend.noRuntimeChecks THEN (* do nothing *)
+						ELSIF isUnchecked THEN (* do nothing *)
 						ELSE
 							TrapC(BrgeL, index.op, IntermediateCode.Immediate(sizeType, 0), IndexCheckTrap)
 						END;
@@ -2923,7 +2926,7 @@ TYPE
 						(* upper bound check *)
 						IF IsIntegerImmediate(index.op, staticIndex) & IsIntegerImmediate(sourceLength.op, staticSourceLength) THEN
 							ASSERT(staticIndex < staticSourceLength) (* ensured by checker *)
-						ELSIF backend.noRuntimeChecks THEN (* do nothing *)
+						ELSIF isUnchecked THEN (* do nothing *)
 						ELSE
 							TrapC(BrltL, index.op, sourceLength.op, IndexCheckTrap)
 						END;
@@ -2958,7 +2961,7 @@ TYPE
 						(* check if step size is valid *)
 						IF IsIntegerImmediate(stepSize, staticStepSize) THEN
 							ASSERT(staticStepSize >= 1) (* ensured by the checker *)
-						ELSIF backend.noRuntimeChecks THEN (* do nothing *)
+						ELSIF isUnchecked THEN (* do nothing *)
 						ELSE
 							TrapC(BrgeL, stepSize, IntermediateCode.Immediate(sizeType, 1), IndexCheckTrap)
 						END;
@@ -2966,7 +2969,7 @@ TYPE
 						(* check lower bound check *)
 						IF IsIntegerImmediate(firstIndex, staticFirstIndex) THEN
 							ASSERT(staticFirstIndex >= 0) (* ensured by the checker *)
-						ELSIF backend.noRuntimeChecks THEN (* do nothing *)
+						ELSIF isUnchecked THEN (* do nothing *)
 						ELSE
 							TrapC(BrgeL, firstIndex, IntermediateCode.Immediate(sizeType, 0), IndexCheckTrap)
 						END;
@@ -2976,7 +2979,7 @@ TYPE
 							(* statically open range: nothing to do *)
 						ELSIF IsIntegerImmediate(lastIndex, staticLastIndex) & IsIntegerImmediate(sourceLength.op, staticSourceLength) THEN
 							ASSERT(staticLastIndex < staticSourceLength)
-						ELSIF backend.noRuntimeChecks THEN (* do nothing *)
+						ELSIF isUnchecked THEN (* do nothing *)
 						ELSE
 							TrapC(BrltL, lastIndex, sourceLength.op, IndexCheckTrap)
 						END;
@@ -5309,7 +5312,7 @@ TYPE
 				offset := MathLenOffset;
 			END;
 			INC(offset,operand.dimOffset*2);
-			IF check & (type.form = SyntaxTree.Tensor) &  ~backend.noRuntimeChecks THEN
+			IF check & (type.form = SyntaxTree.Tensor) & ~isUnchecked THEN
 				TrapC(BrneL,operand.tag,IntermediateCode.Immediate(addressType,0),IndexCheckTrap);
 			END;
 			(* static dimension *)
@@ -5344,7 +5347,7 @@ TYPE
 				IF check THEN
 					IF type.form = SyntaxTree.Tensor THEN
 						DimensionCheck(operand.tag,dim,BrltL);
-					ELSIF backend.noRuntimeChecks THEN (* do nothing *)
+					ELSIF isUnchecked THEN (* do nothing *)
 					ELSE
 						TrapC(BrltL,dim,IntermediateCode.Immediate(addressType,SemanticChecker.Dimension(type,{SyntaxTree.Open,SyntaxTree.Static})), IndexCheckTrap);
 					END;
@@ -5416,7 +5419,7 @@ TYPE
 				result.op := res;
 			ELSE
 				Convert(dim,addressType);
-				IF ~backend.noRuntimeChecks THEN
+				IF ~isUnchecked THEN
 					TrapC(BrltL,dim,IntermediateCode.Immediate(addressType,SemanticChecker.Dimension(type,{SyntaxTree.Open,SyntaxTree.Static})), IndexCheckTrap);
 				END;
 
@@ -5700,7 +5703,7 @@ TYPE
 				Evaluate(p0,s0);
 				Evaluate(p1,s1);
 				Convert(s1.op,setType);
-				IF (s1.op.mode # IntermediateCode.ModeImmediate) & ~backend.noRuntimeChecks THEN
+				IF (s1.op.mode # IntermediateCode.ModeImmediate) & ~isUnchecked THEN
 					TrapC(BrltL,s1.op,IntermediateCode.Immediate(setType,setType.sizeInBits),IndexCheckTrap);
 				END;
 				ReuseCopy(res,s0.op);
@@ -6105,7 +6108,7 @@ TYPE
 							type := type(SyntaxTree.ArrayType).arrayBase.resolved;
 							parameter := x.parameters.GetExpression(i);
 							Evaluate(parameter,r);
-							IF (r.op.mode # IntermediateCode.ModeImmediate) & ~backend.noRuntimeChecks THEN
+							IF (r.op.mode # IntermediateCode.ModeImmediate) & ~isUnchecked THEN
 								IntermediateCode.InitImmediate(tmp,IntermediateCode.GetType(system,parameter.type),0);
 								TrapC(BrgeL,r.op,tmp,ArraySizeTrap);
 							END;
@@ -6274,7 +6277,7 @@ TYPE
 							END;
 							parameter := x.parameters.GetExpression(i);
 							Evaluate(parameter,r);
-							IF (r.op.mode # IntermediateCode.ModeImmediate) & ~(backend.noRuntimeChecks) THEN
+							IF (r.op.mode # IntermediateCode.ModeImmediate) & ~isUnchecked THEN
 								IntermediateCode.InitImmediate(tmp,IntermediateCode.GetType(system,parameter.type),0);
 								TrapC(BrgeL,r.op,tmp,ArraySizeTrap);
 							END;
@@ -6708,7 +6711,7 @@ TYPE
 
 			Expression(x.left);
 			IF x.left.type.resolved = x.type.resolved THEN (* always true: do nothing *)
-			ELSIF backend.noRuntimeChecks THEN (* no check *)
+			ELSIF isUnchecked THEN (* no check *)
 			ELSE
 				trueL := NewLabel();
 				falseL := NewLabel();
@@ -7664,7 +7667,7 @@ TYPE
 				SetLabel(falseL);
 			END;
 			IF x.elsePart = NIL THEN
-				IF ~backend.noRuntimeChecks THEN
+				IF ~isUnchecked THEN
 					Emit(Trap(position,WithTrap));
 				END;
 			ELSE
@@ -7736,7 +7739,7 @@ TYPE
 			END;
 			IF x.elsePart # NIL THEN
 				StatementSequence(x.elsePart);
-			ELSIF ~backend.noRuntimeChecks THEN
+			ELSIF ~isUnchecked THEN
 				Emit(Trap(position,CaseTrap));
 			END;
 			SetLabel(out);
@@ -8133,15 +8136,20 @@ TYPE
 		END Lock;
 
 		PROCEDURE VisitStatementBlock(x: SyntaxTree.StatementBlock);
+		VAR previouslyUnchecked: BOOLEAN;
 		BEGIN
 			IF Trace THEN TraceEnter("VisitStatementBlock") END;
 			IF emitLabels THEN Emit(LabelInstruction(x.position)) END;
 
+			previouslyUnchecked := isUnchecked;
+			isUnchecked := isUnchecked OR x.isUnchecked;
 			IF x.isExclusive THEN Lock(TRUE); ASSERT(~locked);  locked := TRUE; END;
 			IF x.statements # NIL THEN
 				StatementSequence(x.statements);
 			END;
 			IF x.isExclusive THEN Lock(FALSE); ASSERT(locked); locked := FALSE; END;
+			isUnchecked := previouslyUnchecked;
+
 			IF Trace THEN TraceExit("VisitStatementBlock") END;
 		END VisitStatementBlock;
 
