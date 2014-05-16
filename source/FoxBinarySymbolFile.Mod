@@ -153,6 +153,8 @@ CONST
 		sfDarwinCParam= 15; (* fld for darwin *)
 		sfRealtime= 21;
 		sfDynamic = 22;
+		sfUnsafe= 23;
+		sfDisposable= 24;
 
 		Undef=MIN(LONGINT);
 
@@ -1222,7 +1224,11 @@ TYPE
 							type := pointerType;
 							pointerType.SetPointerBase(baseType);
 							R.RawNum(SYSTEM.VAL(LONGINT,flags));
-							IF sfRealtime IN flags THEN type.SetRealtime(TRUE) END;
+							WITH type: SyntaxTree.PointerType DO
+								IF sfUnsafe IN flags THEN type.SetUnsafe(TRUE) END;
+								IF sfRealtime IN flags THEN type.SetRealtime(TRUE) END;
+								IF sfDisposable IN flags THEN type.SetDisposable(TRUE) END;
+							END;
 					| sfTypeRecord:
 							IF TraceImport IN Trace THEN
 								D.Str("Type / User / Record "); D.Str(name); D.Ln
@@ -1933,7 +1939,11 @@ TYPE
 							w.RawNum(sfTypePointer);
 							Type(type(SyntaxTree.PointerType).pointerBase);
 							w.RawString(name);
-							IF type.isRealtime THEN INCL(flags,sfRealtime) END;
+							WITH type: SyntaxTree.PointerType DO
+								IF type.isUnsafe THEN INCL(flags,sfUnsafe) END;
+								IF type.isRealtime THEN INCL(flags,sfRealtime) END;
+								IF type.isDisposable THEN INCL(flags,sfDisposable) END;
+							END;
 							w.RawNum(SYSTEM.VAL(LONGINT,flags));
 						ELSIF type IS SyntaxTree.ArrayType THEN
 							IF TraceExport IN Trace THEN D.Str("Type / UserType / ArrayType "); D.Str(name); D.Ln END;

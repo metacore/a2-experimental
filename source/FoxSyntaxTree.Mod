@@ -1252,12 +1252,14 @@ TYPE
 			modifiers-: Modifier; (* set by the parser *)
 			pointerBase-: Type;
 			isUnsafe-: BOOLEAN;
+			isDisposable-: BOOLEAN;
 
 		PROCEDURE & InitPointerType(position: LONGINT; scope: Scope);
 		BEGIN
 			modifiers := NIL;
 			pointerBase := NIL;
 			isUnsafe := FALSE;
+			isDisposable := FALSE;
 			InitType(position);
 			SELF.scope := scope;
 			hasPointers := TRUE;
@@ -1276,6 +1278,11 @@ TYPE
 		BEGIN
 			isUnsafe := unsafe;
 		END SetUnsafe;
+
+		PROCEDURE SetDisposable*(disposable: BOOLEAN);
+		BEGIN
+			isDisposable := disposable;
+		END SetDisposable;
 
 		PROCEDURE Extends*(this: Type): BOOLEAN;
 		VAR result: BOOLEAN; extension, base: Type;
