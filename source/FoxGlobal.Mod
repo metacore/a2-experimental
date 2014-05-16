@@ -237,7 +237,7 @@ TYPE
 			A good concept has to be derived.
 		*)
 
-		addressType-, sizeType-, shortintType-, integerType-, longintType-, hugeintType-, characterType-, characterType8-, characterType16-, characterType32-, setType-, booleanType-, anyType-,byteType-,
+		addressType-, sizeType-, shortintType-, integerType-, longintType-, hugeintType-, wordType-, longWordType-, characterType-, characterType8-, characterType16-, characterType32-, setType-, booleanType-, anyType-,byteType-,
 		realType-, longrealType-, complexType-, longcomplexType-, objectType-, nilType-, rangeType-: SyntaxTree.Type;
 
 		CanPassInRegister-: PassInRegisterProc;
@@ -598,6 +598,8 @@ TYPE
 		(* types *)
 		system.longintType := SyntaxTree.NewIntegerType(32, TRUE);
 		system.hugeintType := SyntaxTree.NewIntegerType(64, TRUE);
+		system.wordType := SyntaxTree.NewIntegerType(MIN(system.addressSize,32),TRUE);
+		system.longWordType := SyntaxTree.NewIntegerType(system.addressSize,TRUE);
 		system.realType := SyntaxTree.NewFloatType(32);
 		system.longrealType := SyntaxTree.NewFloatType(64);
 		(*
@@ -693,6 +695,8 @@ TYPE
 		DeclareType(system.integerType,"INTEGER",system.globalScope);
 		DeclareType(system.longintType,"LONGINT",system.globalScope);
 		DeclareType(system.hugeintType,"HUGEINT",system.globalScope);
+		DeclareType(system.wordType,"WORD",system.globalScope);
+		DeclareType(system.longWordType,"LONGWORD",system.globalScope);
 
 		DeclareType(Integer8, "SIGNED8", system.globalScope);
 		DeclareType(Integer16, "SIGNED16", system.globalScope);
