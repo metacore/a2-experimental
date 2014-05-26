@@ -1495,6 +1495,7 @@ TYPE
 				type := entry.type;
 				class := entry.registerClass;
 				IntermediateCode.InitRegister(op,type,class,entry.register);
+				(*
 				new := registerUsageCount.Next(type,class);
 				registerUsageCount.Remap(entry.register,new);
 				IF TraceRegisterUsageCount & (dump# NIL) THEN
@@ -1503,7 +1504,8 @@ TYPE
 					dump.String("with count "); dump.Int(registerUsageCount.Use(new),1); dump.Ln; dump.Update;
 				END;
 				entry.register := new;
-
+				*)
+				
 				Emit(Pop(position,op));
 				AddRegisterEntry(usedRegisters,entry.register,entry.registerClass, entry.type);
 				entry := prev;
