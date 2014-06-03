@@ -3317,13 +3317,16 @@ TYPE
 				*)
 				END;
 
-				length := ArrayLength(type(SyntaxTree.ArrayType),array.dimOffset+i,array.tag);
-				IF ((length.mode # IntermediateCode.ModeImmediate) OR (index.op.mode # IntermediateCode.ModeImmediate)) & tagsAvailable THEN
-					BoundCheck(index.op, length);
+				IF (array.tag.mode # IntermediateCode.Undefined ) THEN
+					length := ArrayLength(type(SyntaxTree.ArrayType),array.dimOffset+i,array.tag);
+					IF ((length.mode # IntermediateCode.ModeImmediate) OR (index.op.mode # IntermediateCode.ModeImmediate)) & tagsAvailable THEN
+						BoundCheck(index.op, length);
+					END;
+					ReleaseIntermediateOperand(length);
 				END;
-				ReleaseIntermediateOperand(length);
 				ReleaseOperand(index);
 				type := type(SyntaxTree.ArrayType).arrayBase.resolved;
+				
 				length := ArrayLength(type,array.dimOffset+i-1,array.tag);
 				IF (length.mode # IntermediateCode.ModeImmediate) OR (length.intValue # 1) THEN
 					MulInt(res,res,length);
@@ -6764,7 +6767,11 @@ TYPE
 			ELSIF type IS SyntaxTree.ArrayType THEN
 				IF isUnsafe THEN
 					ReleaseIntermediateOperand(operand.tag);
-					IntermediateCode.InitImmediate(operand.tag,addressType,type(SyntaxTree.ArrayType).staticLength);
+					IF type(SyntaxTree.ArrayType).form = SyntaxTree.Static THEN
+						IntermediateCode.InitImmediate(operand.tag,addressType,type(SyntaxTree.ArrayType).staticLength);
+					ELSE
+						operand.tag := emptyOperand;
+					END;
 				ELSE
 					arrayDataOffset := DynamicDim(type) * addressType.sizeInBits + 3 * addressType.sizeInBits;
 					INC(arrayDataOffset, (-arrayDataOffset) MOD ArrayAlignment);  (* round up to multiple of ArrayAlignment to ensure that first array element is aligned at 0 MOD ArrayAlignment *)
