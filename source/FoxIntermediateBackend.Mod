@@ -5129,8 +5129,8 @@ TYPE
 		END SystemTrace;
 
 		PROCEDURE InitFields(type: SyntaxTree.Type; CONST adr: IntermediateCode.Operand; offset: LONGINT);
-		VAR baseType: SyntaxTree.Type; imm: IntermediateCode.Operand; dim,size: LONGINT;
-			variable: SyntaxTree.Variable; i: LONGINT;
+		VAR baseType: SyntaxTree.Type; imm,mem: IntermediateCode.Operand; dim,size: LONGINT;
+			variable: SyntaxTree.Variable; i: LONGINT; initializerOp: Operand;
 		BEGIN
 			type := type.resolved;
 			IF type IS SyntaxTree.RecordType THEN
@@ -5143,6 +5143,13 @@ TYPE
 					END;
 					variable := type.recordScope.firstVariable;
 					WHILE variable # NIL DO
+						IF variable.initializer # NIL THEN
+							Evaluate(variable.initializer,initializerOp);
+							MakeMemory(mem,adr,IntermediateCode.GetType(system,variable.type),offset+ ToMemoryUnits(system,variable.offsetInBits));
+							Emit(Mov(position,mem,initializerOp.op));
+							ReleaseOperand(initializerOp);
+							ReleaseIntermediateOperand(mem);
+						END;					
 						InitFields(variable.type, adr, offset+ ToMemoryUnits(system,variable.offsetInBits));
 						variable := variable.nextVariable
 					END;
