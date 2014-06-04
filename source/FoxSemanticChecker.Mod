@@ -2204,7 +2204,7 @@ TYPE
 					int := Global.ConvertSigned(int,system.SizeOf(type));
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);
-				ELSIF (type IS SyntaxTree.AddressType) THEN
+				ELSIF (type IS SyntaxTree.AddressType) OR (type IS SyntaxTree.PointerType) & type(SyntaxTree.PointerType).isUnsafe THEN
 					int := Global.ConvertUnsigned(int,system.SizeOf(type));
 					result := SyntaxTree.NewIntegerValue(position,int);
 					result.SetType(type);
@@ -8251,7 +8251,7 @@ TYPE
 				END;
 
 			ELSIF to IS SyntaxTree.PointerType THEN
-				result := (this IS SyntaxTree.NilType) OR (this IS SyntaxTree.AddressType) & to(SyntaxTree.PointerType).isUnsafe OR
+				result := (this IS SyntaxTree.NilType) OR ((this IS SyntaxTree.AddressType) OR (this IS SyntaxTree.IntegerType)) & to(SyntaxTree.PointerType).isUnsafe OR
 						IsPointerType(this) & (IsTypeExtension(to,this) OR ((to(SyntaxTree.PointerType).pointerBase.resolved IS SyntaxTree.ArrayType) & SameType(to,this)))
 				     & (~to.isRealtime OR this.isRealtime);
 			ELSIF to IS SyntaxTree.ProcedureType THEN
