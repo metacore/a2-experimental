@@ -617,6 +617,7 @@ MODULE PCI;	 (** author: fof -- PCI without using PCI bios (using PCI tables des
 						KernelLog.String(" : ");
 						DisplayDeviceClass(class, subclass);
 						KernelLog.Ln;
+					END;
 				END;
 			UNTIL ~Iterate(pci);
 		ELSE
