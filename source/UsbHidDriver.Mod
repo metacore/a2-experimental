@@ -72,6 +72,7 @@ TYPE
 		tipSwitch, inRange: UsbHidReport.UsageTuple;
 		prev: BOOLEAN;
 		prevx, prevy: LONGINT;
+		prevkeys: SET;
 	END;
 
 	(*Handling keyboard devices*)
@@ -757,9 +758,12 @@ TYPE
 					This does not work well together with an external mouse.
 					We keep the coordinate for the time being -- with the side effect that there may be a pointer-over status after a touchscreen click
 				*)
-				mm.x := touchscreenState.prevx;
-				mm.y := touchscreenState.prevy;
-				Inputs.mouse.Handle(mm);
+				IF 0 IN touchscreenState.prevkeys THEN
+					mm.x := touchscreenState.prevx;
+					mm.y := touchscreenState.prevy;
+					touchscreenState.prevkeys := mm.keys;
+					Inputs.mouse.Handle(mm);
+				END;
 			ELSIF (0 IN mm.keys) THEN (* down event or pointer move *)
 				IF ~touchscreenState.prev THEN
 					(* artificial initial up event in order to set mouse coordinates like with a "real" mouse before sending the down event *)
@@ -768,9 +772,10 @@ TYPE
 					Inputs.mouse.Handle(mm);
 				END;
 				(* down event or pointer event *)
-				Inputs.mouse.Handle(mm);
 				touchscreenState.prevx := x;
 				touchscreenState.prevy := y;
+				touchscreenState.prevkeys := mm.keys;
+				Inputs.mouse.Handle(mm);
 			END;
 		END HandleTouchscreenDriver;
 
