@@ -5018,10 +5018,12 @@ TYPE
 
 			PROCEDURE Set(op: IntermediateCode.Operand);
 			BEGIN
-				IF GetProcedure("Bits") THEN
+				IF GetProcedure("Set") THEN
 					Emit(Push(position,op));
+					(*
 					Emit(Push(position,IntermediateCode.Immediate(int32,0))); (* ofs *)
 					Emit(Push(position,IntermediateCode.Immediate(int32,32))); (* n *)
+					*)
 					CallProcedure;
 				END;
 			END Set;
