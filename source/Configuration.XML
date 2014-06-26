@@ -203,6 +203,7 @@ To update: Configuration.Init ~
 		<Setting name="Armenian" value="WMArmenianIME.Install"/>
 		<Setting name="Hebrew" value="WMHebrewIME.Install"/>
 		<Setting name="Pinyin" value="WMPinyinIME.Install"/>
+		<Setting name="Ethiopic" value="WMEthiopicIME.Install"/>
 		<Setting name="Unicode" value="WMUnicodeIME.Install"/>
 	</Section>
 
