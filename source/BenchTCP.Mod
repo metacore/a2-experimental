@@ -67,10 +67,10 @@ TYPE
 					total:=len;
 					time:=((HUGEINT(ORD(buf[0]))*256+ORD(buf[1]))*256 + ORD(buf[2]))*256 + ORD(buf[3]);
 					KernelLog.String("ClientTime: "); KernelLog.Int(time,6); KernelLog.String(" : ");
-					KernelLog.Int(time MOD 60,6); time:=time DIV 60;
-					KernelLog.Int(time MOD 60,6); time:=time DIV 60;
-					KernelLog.Int(time MOD 24,6); time:=time DIV 24;
-					KernelLog.Int(time,6); 
+					KernelLog.Int(time MOD 60,6); time:=time DIV 60; KernelLog.String("sec");
+					KernelLog.Int(time MOD 60,6); time:=time DIV 60; KernelLog.String("min");
+					KernelLog.Int(time MOD 24,6); time:=time DIV 24; KernelLog.String("hh");
+					KernelLog.Int(time,7);  KernelLog.String("days since 1.1.1900");
 					KernelLog.Ln;   
 				ELSE
 					NEW(sender, c, buf, num);
@@ -90,7 +90,7 @@ TYPE
 				END;
 				c.Close();
 				IF res = 0 THEN c.AwaitState(TCP.ClosedStates, {}, CloseTimeout, res) END;
-				IF res = 0 THEN Report(Kernel.Elapsed(timer), port, total, server) END
+				IF (res = 0)&(port#TimePort) THEN Report(Kernel.Elapsed(timer), port, total, server) END
 			END;
 			IF res # 0 THEN Message(server, " connection failed", res) END
 		END
@@ -118,7 +118,6 @@ BEGIN
 	KernelLog.String(Header);
 	IF port = DiscardPort THEN KernelLog.String("Discard ");
 	ELSIF port = EchoPort THEN KernelLog.String("Echo ");
-	ELSIF port = TimePort THEN KernelLog.String("Time"); 
 	ELSE KernelLog.String("Chargen ");
 	END;
 	KernelLog.Int(total, 0); KernelLog.String("KB, ");
@@ -132,6 +131,7 @@ BEGIN
 	END;
 	KernelLog.String(", "); KernelLog.String(msg);
 	KernelLog.Ln;
+
 END Report;
 
 

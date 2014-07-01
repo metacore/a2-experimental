@@ -1,26 +1,21 @@
 MODULE WebTimeServer; (** AUTHOR "Patrick Hunziker"; PURPOSE "time server RFC 868"; *)
 
-IMPORT Modules, KernelLog, TCP, TCPServices, Streams, Dates;
+IMPORT Modules, TCP, TCPServices, Streams, Dates;
 
 CONST
-	TimePort = 37;
+	TimePort* = 37;
 
 TYPE
 	TimeAgent = OBJECT (TCPServices.Agent)
-		VAR days,hours,minutes,seconds: LONGINT; w: Streams.Writer;
+		VAR 
+			days,hours,minutes,seconds: LONGINT; 
 			time:HUGEINT;
+			w: Streams.Writer;
 
 	BEGIN {ACTIVE}
 		Streams.OpenWriter(w, client.Send);
 		Dates.TimeDifference(time1900, Dates.Now(), days,hours,minutes,seconds);
-		time:=((days*24+hours)*60+minutes)*60+seconds;
-		(*
-		IF Trace THEN
-			KernelLog.String("Server Time: "); KernelLog.Int(time,4); KernelLog.String(" : "); 
-			KernelLog.Int(days,4); KernelLog.Int(hours,4); KernelLog.Int(minutes,4); KernelLog.Int(seconds,4);
-			KernelLog.Ln;
-		END;
-		*)
+		time:=((HUGEINT(days)*24+hours)*60+minutes)*60+seconds;
 		w.Net32(LONGINT(time));
 		w.Update;
 		Terminate
@@ -53,7 +48,6 @@ BEGIN
 END Cleanup;
 
 BEGIN
-	time := NIL;
 	time1900.year:=1900; time1900.month:=1; time1900.day:=1;
 	Modules.InstallTermHandler(Cleanup)
 END WebTimeServer.
