@@ -14,9 +14,8 @@ TYPE
 
 	BEGIN {ACTIVE}
 		Streams.OpenWriter(w, client.Send);
-		Dates.TimeDifference(Dates.ZeroDateRFC868, Dates.Now(), days,hours,minutes,seconds); (* does Dates consider the extra second added to world time in  http://www.timeanddate.com/time/leapseconds.html ?*)
-		t:=((HUGEINT(days)*24+hours)*60+minutes)*60+seconds;
-		INC(t,25); (*! the 25 leap seconds added to UTC since 1972 are added here. They should instead be done in Dates.Mod. see http://en.wikipedia.org/wiki/Leap_second *)
+		Dates.TimeDifference(Dates.ZeroDateRFC868, Dates.Now(), days,hours,minutes,seconds); 
+		t:=((HUGEINT(days)*24+hours)*60+minutes)*60+seconds; (* the leap seconds are handled implicitely: http://www.eecis.udel.edu/~mills/leap.html *)
 		w.Net32(LONGINT(t));
 		w.Update;
 		Terminate
