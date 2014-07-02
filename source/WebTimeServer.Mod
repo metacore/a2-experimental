@@ -9,20 +9,20 @@ TYPE
 	TimeAgent = OBJECT (TCPServices.Agent)
 		VAR 
 			days,hours,minutes,seconds: LONGINT; 
-			time:HUGEINT;
+			t: HUGEINT;
 			w: Streams.Writer;
 
 	BEGIN {ACTIVE}
 		Streams.OpenWriter(w, client.Send);
-		Dates.TimeDifference(time1900, Dates.Now(), days,hours,minutes,seconds);
-		time:=((HUGEINT(days)*24+hours)*60+minutes)*60+seconds;
-		w.Net32(LONGINT(time));
+		Dates.TimeDifference(Dates.ZeroDateRFC868, Dates.Now(), days,hours,minutes,seconds); (* does Dates consider the extra second added to world time in  http://www.timeanddate.com/time/leapseconds.html ?*)
+		t:=((HUGEINT(days)*24+hours)*60+minutes)*60+seconds;
+		INC(t,25); (*! the 25 leap seconds added to UTC since 1972 are added here. They should instead be done in Dates.Mod. see http://en.wikipedia.org/wiki/Leap_second *)
+		w.Net32(LONGINT(t));
 		w.Update;
 		Terminate
 	END TimeAgent;
 
 VAR
-	time1900: Dates.DateTime;
 	time: TCPServices.Service;
 
 PROCEDURE Open*;
@@ -48,11 +48,11 @@ BEGIN
 END Cleanup;
 
 BEGIN
-	time1900.year:=1900; time1900.month:=1; time1900.day:=1;
 	Modules.InstallTermHandler(Cleanup)
 END WebTimeServer.
 
 SystemTools.Free WebTimeServer ~
+SystemTools.FreeDownTo TCP ~
 
 WebTimeServer.Open
 WebTimeServer.Close
