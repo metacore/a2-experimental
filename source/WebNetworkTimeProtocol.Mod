@@ -188,6 +188,7 @@ BEGIN
 	context.out.Int(packet.TransmitTimestamp DIV 100000000H MOD 100000000H,0);
 	context.out.Char(".");
 	context.out.Int(packet.TransmitTimestamp MOD 100000000H,0); context.out.Ln;
+	context.out.Update;
 END GetSimpleTime;
 
 
