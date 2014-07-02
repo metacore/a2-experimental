@@ -21,7 +21,7 @@ Implementation currently limited to the simple network time protocol
 ToDo: full NTP synchronization algorithm.
 *)
 
-IMPORT IP,UDP, Streams, Commands, Configuration, DNS;
+IMPORT IP,UDP, Streams, Commands, Configuration, DNS, Machine;
 
 CONST NTPPort*=123;
 
@@ -42,7 +42,7 @@ END;
 
 
 
-(* get a single time record from an NTP time server. *)
+(** get a single time record from an NTP time server. *)
 PROCEDURE Get*(fip:IP.Adr; fport:LONGINT; VAR p:Packet);
 VAR socket: UDP.Socket; len, res, high, low:LONGINT;
 	buf: ARRAY 1024 OF CHAR;
@@ -92,19 +92,40 @@ END Get;
 PROCEDURE SynchronizeNTP;
 END SynchronizeNTP;
 
+(* to be done: simple NTP synchronization algo from RFC 4330 *)
+PROCEDURE SynchronizeSNTP;
+(*
+ The roundtrip delay d and system clock offset t are defined as:
+      d = (T4 - T1) - (T3 - T2)     t = ((T2 - T1) + (T3 - T4)) / 2.
+
+This can be used to set the system clock, if a high accuracy clock is settable on this hardware/OS
+*)
+END SynchronizeSNTP;
+
 
 PROCEDURE GetSimpleTime*(context:Commands.Context);
-VAR ipstr: ARRAY 64 OF CHAR; port, res:LONGINT; fip: IP.Adr; packet:Packet;
-BEGIN
+VAR ipstr: ARRAY 64 OF CHAR; port, res:LONGINT;machineTimer1,machineTimer2: HUGEINT; fip: IP.Adr; packet:Packet;
+BEGIN 
+	
 	IF ~context.arg.GetString(ipstr) THEN	Configuration.Get("NTP.Server0",ipstr,res); END;
 	(* note that DNS.HostByName might also deliver a default NTP server when an empty string and an NTP port number is given*)
 	DNS.HostByName(ipstr, fip, port);
 	IF ~context.arg.GetInteger(port,FALSE) THEN port:=NTPPort END;
 	context.out.String("checking server "); context.out.String(ipstr);context.out.Char(":"); context.out.Int(port,0);  context.out.Ln; context.out.Update;
+	
+	machineTimer1:=Machine.GetTimer();
 	Get(fip, port, packet);
+	machineTimer2:=Machine.GetTimer();
+	
+	(* reference time *)
 	context.out.String("SNTP transmit time [seconds, fraction]: "); 
 	context.out.Int(packet.TransmitTimestamp DIV 100000000H MOD 100000000H,0); context.out.Char(".");
-	context.out.Int(packet.TransmitTimestamp MOD 100000000H,0);
+	context.out.Int(packet.TransmitTimestamp MOD 100000000H,0); context.out.Ln;
+	
+	(* local machine cycle count since reset *)
+	context.out.String("local machine counter: "); 
+	context.out.Int(machineTimer1 ,0); context.out.Ln;
+	context.out.Int(machineTimer2 ,0); context.out.Ln;
 END GetSimpleTime;
 
 
