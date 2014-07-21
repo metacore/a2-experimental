@@ -103,7 +103,11 @@ VAR
 							km.keysym := Inputs.KsAltL;
 							IF ~MRseen THEN SendMouseMsg( x, y, 0, xbuttons )  END
 						ELSIF MetaMask*bdiff # {} THEN km.keysym := Inputs.KsMetaL
-						ELSIF Api.Mod5Mask IN bdiff THEN km.keysym := Inputs.KsAltR						
+						ELSIF Api.Mod5Mask IN bdiff THEN km.keysym := Inputs.KsAltR	
+						ELSIF keysym = 0FE20H THEN  (* handle Shift-Tab key *)
+							km.keysym := Inputs.KsTab; km.ch :=09X
+						ELSE
+							km.keysym := keysym;				
 						END;
 						km.flags := KeyState( );
 						SendKeyboardMsg( km )
