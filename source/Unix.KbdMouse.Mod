@@ -376,6 +376,8 @@ VAR
 		keySymbol[0A3H] := Inputs.KsPageDown;
 		keySymbol[0A8H] := Inputs.KsHome;
 		keySymbol[0A9H] := Inputs.KsEnd;
+		keySymbol[01BH] := Inputs.KsEscape;
+		
 		FOR i := 0F1H TO 0FCH DO keySymbol[i] := 0FFBEH + (i - 0F1H) END
 	END InitKeysym;
 
