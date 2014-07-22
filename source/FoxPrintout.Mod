@@ -1145,6 +1145,9 @@ TYPE
 				Indent;
 				Comments(x.comment,x,FALSE);
 				Keyword("PROCEDURE " );
+				IF (mode = SymbolFile) & ~x.isInline THEN
+					w.String("^ ");
+				END;
 
 				(*
 				CallingConvention(x.type(SyntaxTree.ProcedureType).callingConvention);
@@ -1186,10 +1189,10 @@ TYPE
 				END;
 				w.String( ";" );
 				Comments(x.comment,x,TRUE);
-				IF mode >= SymbolFile THEN
+				IF (mode > SymbolFile) OR (mode = SymbolFile) & (x.isInline) THEN
 					ProcedureScope(x.procedureScope);
+					Indent;  Keyword("END " );  Identifier(x.name);
 				END;
-				Indent;  Keyword("END " );  Identifier(x.name);
 			END;
 		END VisitProcedure;
 
@@ -1228,6 +1231,7 @@ TYPE
 				Keyword("OPERATOR ");
 
 				first := TRUE;
+				IF mode = SymbolFile THEN w.String("^ ") END;
 				IF x.isDynamic THEN Flag(Global.NameDynamic, first) END;
 				IF ~first THEN w.String("}") END;
 
@@ -1247,10 +1251,10 @@ TYPE
 				END;
 				w.String( ";" );
 				Comments(x.comment,x,TRUE);
-				IF mode >= SymbolFile THEN
-				ProcedureScope(x.procedureScope);
+				IF mode > SymbolFile THEN
+					ProcedureScope(x.procedureScope);
+					Indent;  Keyword("END " );  	w.String( '"' );  Identifier(x.name);  w.String( '"' );
 				END;
-				Indent;  Keyword("END " );  	w.String( '"' );  Identifier(x.name);  w.String( '"' );
 			END
 		END VisitOperator;
 
