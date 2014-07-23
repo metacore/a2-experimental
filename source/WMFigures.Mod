@@ -545,13 +545,12 @@ TYPE
 		BEGIN
 			radius0:= Distance(points.x, points.y, points.next.x,points.next.y);
 			radius:=Distance(mx,my, points.x,points.y);
-			IF ABS(radius - radius0)<gravity THEN RETURN TRUE (*boundary line hit*)
+			IF (Filled IN state) THEN RETURN radius<=radius0 (*inside circle*)
 			ELSIF radius < gravity THEN RETURN TRUE (*center point hit*)
-			ELSIF (Filled IN state) & (radius<=radius0) THEN RETURN TRUE (*inside circle*)
+			ELSIF ABS(radius - radius0)<gravity THEN RETURN TRUE (*boundary line hit*)
 			ELSE RETURN FALSE
 			END;
 		END IsHit;
-		
 
 		PROCEDURE DrawBackground*(canvas : WMGraphics.Canvas);
 		VAR p, q : Point; 
@@ -563,7 +562,7 @@ TYPE
 			p := points;
 			q := points.next;
 			canvas.SetColor(color.Get());
-			IF Filled IN state THEN WMGraphicUtilities.Circle(canvas, p.x, p.y, Distance(p.x, p.y, q.x, q.y)); (*! to be done: draw filled circle*)
+			IF (*Filled IN state*) FALSE THEN (*canvas.FillPolygonFlat(pointArray^, nofPoints, color.Get(), WMGraphics.ModeSrcOverDst); *)(*! to be done: draw filled circle*)
 			ELSE WMGraphicUtilities.Circle(canvas, p.x, p.y, Distance(p.x, p.y, q.x, q.y));
 			END;
 			IF (Arrow IN state) THEN DrawArrow(canvas, p,q); END;
@@ -599,7 +598,7 @@ TYPE
 		
 		PROCEDURE IsHit*(mx, my: LONGINT): BOOLEAN;
 		BEGIN
-			IF Filled IN state THEN (*! to be done*)
+			IF Filled IN state THEN 
 				RETURN ((mx-points.x)*(mx-points.next.x) <=0 ) & ((my-points.y)*(my-points.next.y) <=0 ) (* simple "in-between" test *)
 			ELSE RETURN 
 				InLineVicinity(mx, my, points.x, points.y, points.x, points.next.y) OR
@@ -623,7 +622,7 @@ TYPE
 			rect.r := Max(p.x, q.x);
 			rect.t := Min(p.y, q.y);
 			rect.b := Max(p.y, q.y);
-			IF (*Filled IN state *) FALSE THEN (* to be done *)
+			IF (*Filled IN state *) FALSE THEN (*canvas.FillPolygonFlat(pointArray^, nofPoints, color.Get(), WMGraphics.ModeSrcOverDst);*) (*! to be done *)
 			ELSE WMGraphicUtilities.DrawRect(canvas, rect, color.Get(), WMGraphics.ModeSrcOverDst);
 			END;
 		END DrawBackground;
