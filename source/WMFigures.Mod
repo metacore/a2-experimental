@@ -539,12 +539,19 @@ TYPE
 			bounds.Set(rect);
 		END Normalize;
 		
-		(*
+		
 		PROCEDURE IsHit*(mx, my: LONGINT): BOOLEAN;
+		VAR radius0, radius: LONGINT;
 		BEGIN
-			RETURN ABS(Distance(mx,my, points.next.x,points.next.y) - Distance(points.x, points.y, points.next.x,points.next.y))<gravity
+			radius0:= Distance(points.x, points.y, points.next.x,points.next.y);
+			radius:=Distance(mx,my, points.x,points.y);
+			IF ABS(radius - radius0)<gravity THEN RETURN TRUE (*boundary line hit*)
+			ELSIF radius < gravity THEN RETURN TRUE (*center point hit*)
+			ELSIF (Filled IN state) & (radius<=radius0) THEN RETURN TRUE (*inside circle*)
+			ELSE RETURN FALSE
+			END;
 		END IsHit;
-		*)
+		
 
 		PROCEDURE DrawBackground*(canvas : WMGraphics.Canvas);
 		VAR p, q : Point; 
@@ -556,7 +563,9 @@ TYPE
 			p := points;
 			q := points.next;
 			canvas.SetColor(color.Get());
-			WMGraphicUtilities.Circle(canvas, p.x, p.y, Distance(p.x, p.y, q.x, q.y));
+			IF Filled IN state THEN WMGraphicUtilities.Circle(canvas, p.x, p.y, Distance(p.x, p.y, q.x, q.y)); (*! to be done: draw filled circle*)
+			ELSE WMGraphicUtilities.Circle(canvas, p.x, p.y, Distance(p.x, p.y, q.x, q.y));
+			END;
 			IF (Arrow IN state) THEN DrawArrow(canvas, p,q); END;
 		END DrawBackground;
 
@@ -590,11 +599,14 @@ TYPE
 		
 		PROCEDURE IsHit*(mx, my: LONGINT): BOOLEAN;
 		BEGIN
-			RETURN 
+			IF Filled IN state THEN (*! to be done*)
+				RETURN ((mx-points.x)*(mx-points.next.x) <=0 ) & ((my-points.y)*(my-points.next.y) <=0 ) (* simple "in-between" test *)
+			ELSE RETURN 
 				InLineVicinity(mx, my, points.x, points.y, points.x, points.next.y) OR
 				InLineVicinity(mx, my, points.x, points.y, points.next.x, points.y) OR
 				InLineVicinity(mx, my, points.x, points.next.y, points.next.x, points.next.y) OR
 				InLineVicinity(mx, my, points.next.x, points.y, points.next.x, points.next.y) 
+			END;
 		END IsHit;
 		
 
@@ -611,7 +623,9 @@ TYPE
 			rect.r := Max(p.x, q.x);
 			rect.t := Min(p.y, q.y);
 			rect.b := Max(p.y, q.y);
-			WMGraphicUtilities.DrawRect(canvas, rect, color.Get(), WMGraphics.ModeSrcOverDst);
+			IF (*Filled IN state *) FALSE THEN (* to be done *)
+			ELSE WMGraphicUtilities.DrawRect(canvas, rect, color.Get(), WMGraphics.ModeSrcOverDst);
+			END;
 		END DrawBackground;
 
 	END Rectangle;
@@ -1127,3 +1141,4 @@ END TestFigures.
 TestFigures.Do
 TestFigures.Do1
 
+SystemTools.FreeDownTo TestFigures ~
