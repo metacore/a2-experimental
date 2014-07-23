@@ -2142,14 +2142,10 @@ TYPE
 			init:WMProperties.BooleanProperty;
 		BEGIN
 			ASSERT(component # NIL);
-			(*set fields here*)
 			NEW(init, WMProperties.NewBoolean(), Strings.NewString("Initialized"), Strings.NewString("component is initialized (readonly field). Required for proper function. "));
 			init.Set(component.initialized);
-			componentView.SetProperty(init, res); (* currently readonly. tbd: allow modification *)
-			componentView.initializedView.Disable;
-			(*componentView.initializedView.checkbox.enabled.Set(FALSE);
-			componentView.initializedView.checkbox.editMode.Set(FALSE);
-			*)
+			componentView.SetProperty(init, res); 
+			componentView.initializedView.Disable; (*! currently readonly. tbd: allow modification by inspector *)
 			nofElements := 0;
 			propertyArray := component.properties.Enumerate();
 			IF (propertyArray # NIL) THEN
