@@ -237,6 +237,18 @@ TYPE
 			IF x.isDisposable THEN Flag(Global.NameDisposable,first) END;
 			FlagEnd(first);
 		END PointerFlags;
+		
+		PROCEDURE ObjectFlags ( rec: SyntaxTree.RecordType; x: SyntaxTree.PointerType);
+		VAR first: BOOLEAN;
+		BEGIN
+			first := TRUE;
+			IF x.isUnsafe THEN Flag(Global.NameUnsafe,first) END;
+			IF x.isRealtime THEN Flag(Global.NameRealtime,first) END;
+			IF x.isDisposable THEN Flag(Global.NameDisposable,first) END;
+			IF rec.IsProtected() THEN Flag(Global.NameExclusive, first) END;
+			FlagEnd(first);
+		END ObjectFlags;
+		
 
 		PROCEDURE VisitPointerType(x: SyntaxTree.PointerType);
 		VAR pointerBase: SyntaxTree.Type;
@@ -289,7 +301,7 @@ TYPE
 		BEGIN
 			IF x.isObject THEN
 				Keyword("OBJECT ");
-				IF x.pointerType # NIL THEN PointerFlags(x.pointerType) END;
+				IF x.pointerType # NIL THEN ObjectFlags(x, x.pointerType) END;
 				IF info THEN
 					BeginComment; w.String("ObjectType");
 
@@ -1187,9 +1199,9 @@ TYPE
 					Symbol(type.returnParameter);
 					EndComment;
 				END;
-				w.String( ";" );
-				Comments(x.comment,x,TRUE);
 				IF (mode > SymbolFile) OR (mode = SymbolFile) & (x.isInline) THEN
+					w.String( ";" );
+					Comments(x.comment,x,TRUE);
 					ProcedureScope(x.procedureScope);
 					Indent;  Keyword("END " );  Identifier(x.name);
 				END;
