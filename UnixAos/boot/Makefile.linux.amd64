@@ -1,6 +1,6 @@
 #
 
-CC      = gcc -m32
+CC      = gcc -m64
 CFLAGS  = -DLINUX 
 LDFLAGS = -lpthread -ldl -lX11 -lrt -lm
 
