@@ -119,8 +119,14 @@ VAR
 						ELSE
 							xbuttons := newxbuttons;  i := 0;
 							WHILE i < keycount DO
-								km.ch := buffer[i];  km.flags := KeyState( );
-								km.keysym := keySymbol[ORD( km.ch )];
+								km.ch := buffer[i];  
+								IF (km.ch = 0C4X) & (Api.ShiftMask IN xbuttons)  THEN
+									(* Adiaeresis on US-ASCII keyboard via xmodmap *)
+									km.keysym := ORD( km.ch )
+								ELSE
+									km.keysym := keySymbol[ORD( km.ch )]
+								END;
+								km.flags := KeyState( );
 								IF km.ch = 0F1X THEN  km.ch := 0A4X
 								ELSIF km.ch = 0F2X THEN km.ch := 0A5X
 								END;								
@@ -324,36 +330,37 @@ VAR
 		
 		
 		(* special keyboard: *)
-		modifiers[0] := shift; 
-		(*a acute*)		Rebind( "aacute", 0, 094X );			Rebind( "aacute", 1, 094X );
-		(*a grave*) 		Rebind( "agrave", 0, 08BX );			Rebind( "agrave", 1, 08BX );
-		(*a diaeresis*)	Rebind( "adiaeresis", 0, 083X );		Rebind( "adiaeresis", 1, 083X );
-		(*a circumflex*)	Rebind( "acircumflex", 0, 086X );		Rebind( "acircumflex", 1, 086X );
-		(*e acute*) 		Rebind( "eacute", 0, 090X );			Rebind( "eacute", 1, 090X );
-		(*e grave*)		Rebind( "egrave", 0, 08CX );			Rebind( "egrave", 1, 08CX );
-		(*e diaeresis*)	Rebind( "ediaeresis", 0, 091X );		Rebind( "ediaeresis", 1, 091X );
-		(*e circumflex*)	Rebind( "ecircumflex", 0, 087X );		Rebind( "ecircumflex", 1, 087X );
-		(*i grave*)		Rebind( "igrave", 0, 08DX );			Rebind( "igrave", 1, 08DX );
-		(*i diaeresis*)	Rebind( "idiaeresis", 0, 092X );		Rebind( "idiaeresis", 1, 092X );
-		(*i circumflex*)	Rebind( "icircumflex", 0, 088X );		Rebind( "icircumflex", 1, 088X );
-		(*o grave*)		Rebind( "ograve", 0, 08EX );			Rebind( "ograve", 1, 08EX );
-		(*o diaeresis*)	Rebind( "odiaeresis", 0, 084X );		Rebind( "odiaeresis", 1, 084X );
-		(*o circumflex*)	Rebind( "ocircumflex", 0, 089X );		Rebind( "ocircumflex", 1, 089X );
-		(*u grave*)		Rebind( "ugrave", 0, 08FX );			Rebind( "ugrave", 1, 08FX );
-		(*u diaeresis*)	Rebind( "udiaeresis", 0, 085X );		Rebind( "udiaeresis", 1, 085X );
-		(*u circumflex*)	Rebind( "ucircumflex", 0, 08AX );		Rebind( "ucircumflex", 1, 08AX );
-		(*c cedilla*)	Rebind( "ccedilla", 0, 093X );			Rebind( "ccedilla", 1, 093X );
-
-		(*n tilde*)		Rebind( "ntilde", 0, 095X );
-		(*s sharp*)		Rebind( "ssharp", 0, 096X );
-		(*A diaeresis*)	Rebind( "Adiaeresis", 0, 080X );
-		(*O diaeresis*)	Rebind( "Odiaeresis", 0, 081X );	
-		(*U diaeresis*)	Rebind( "Udiaeresis", 0, 082X );
-		 
+		Rebind( "aacute", 0, 094X );	
+		Rebind( "agrave", 0, 08BX );	
+		Rebind( "Adiaeresis", 0, 080X );		Rebind( "adiaeresis", 0, 083X );
+		Rebind( "acircumflex", 0, 086X );	
+		Rebind( "eacute", 0, 090X );	
+		Rebind( "egrave", 0, 08CX );	
+		Rebind( "ediaeresis", 0, 091X );	
+		Rebind( "ecircumflex", 0, 087X );	
+		Rebind( "igrave", 0, 08DX );	
+		Rebind( "idiaeresis", 0, 092X );	
+		Rebind( "icircumflex", 0, 088X );	
+		Rebind( "ograve", 0, 08EX );	
+		Rebind( "Odiaeresis", 0, 081X );		Rebind( "odiaeresis", 0, 084X );	
+		Rebind( "ocircumflex", 0, 089X );
+		Rebind( "ugrave", 0, 08FX );	
+		Rebind( "Udiaeresis", 0, 082X );		Rebind( "udiaeresis", 0, 085X );	
+		Rebind( "ucircumflex", 0, 08AX );
+		Rebind( "ccedilla", 0, 093X );			
+		Rebind( "ntilde", 0, 095X );
+		Rebind( "ssharp", 0, 096X );
+		
+		Rebind( "idotless", 0, 0FDX); 
+		Rebind( "Iabovedot", 0, 0DDX);
+		Rebind( "gbreve", 0, 0F0X ); 
+		Rebind( "Gbreve", 0, 0D0X );
+		Rebind( "scedilla", 0, 0FEX ); 
+		Rebind( "Scedilla", 0, 0DEX );
+					 
 		InitKeysym;
 
 		NEW( poll );  
-		
 	END Init;
 
 	PROCEDURE InitKeysym;
@@ -408,12 +415,12 @@ END KbdMouse.
 	DELETE	0A1X
 	PAGE-UP	0A2X
 	PAGE-DOWN	0A3X
+	
+	some none ascii character get mapped to UTF8:
 	ä, Ä	131, 128
 	ö, Ö	132, 129
 	ü, Ü	133, 130
 	ß	150
-
-The MODule EditKeys allows you to determine the keyboard code of any key pressed. For cross-platform portability, Oberon does not normally support all keys available on your keyboard.
-
-2. On some platforms, SetMouseLimits may not influence the physical movement of the mouse cursor itself, only the magnitude of the coordinates returned by Mouse.
+	. . .
+	
 *)
