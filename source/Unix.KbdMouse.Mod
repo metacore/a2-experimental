@@ -120,16 +120,11 @@ VAR
 							xbuttons := newxbuttons;  i := 0;
 							WHILE i < keycount DO
 								km.ch := buffer[i];  
-								IF (km.ch = 0C4X) & (Api.ShiftMask IN xbuttons)  THEN
-									(* Adiaeresis on US-ASCII keyboard via xmodmap *)
-									km.keysym := ORD( km.ch )
-								ELSE
-									km.keysym := keySymbol[ORD( km.ch )]
-								END;
-								km.flags := KeyState( );
 								IF km.ch = 0F1X THEN  km.ch := 0A4X
 								ELSIF km.ch = 0F2X THEN km.ch := 0A5X
-								END;								
+								END;
+								km.keysym := keySymbol[ORD( km.ch )];
+								km.flags := KeyState( );
 								SendKeyboardMsg( km );
 								INC( i )
 							END
@@ -330,33 +325,36 @@ VAR
 		
 		
 		(* special keyboard: *)
-		Rebind( "aacute", 0, 094X );	
-		Rebind( "agrave", 0, 08BX );	
-		Rebind( "Adiaeresis", 0, 080X );		Rebind( "adiaeresis", 0, 083X );
-		Rebind( "acircumflex", 0, 086X );	
-		Rebind( "eacute", 0, 090X );	
-		Rebind( "egrave", 0, 08CX );	
-		Rebind( "ediaeresis", 0, 091X );	
-		Rebind( "ecircumflex", 0, 087X );	
-		Rebind( "igrave", 0, 08DX );	
-		Rebind( "idiaeresis", 0, 092X );	
-		Rebind( "icircumflex", 0, 088X );	
-		Rebind( "ograve", 0, 08EX );	
-		Rebind( "Odiaeresis", 0, 081X );		Rebind( "odiaeresis", 0, 084X );	
-		Rebind( "ocircumflex", 0, 089X );
-		Rebind( "ugrave", 0, 08FX );	
-		Rebind( "Udiaeresis", 0, 082X );		Rebind( "udiaeresis", 0, 085X );	
-		Rebind( "ucircumflex", 0, 08AX );
-		Rebind( "ccedilla", 0, 093X );			
-		Rebind( "ntilde", 0, 095X );
-		Rebind( "ssharp", 0, 096X );
-		
-		Rebind( "idotless", 0, 0FDX); 
-		Rebind( "Iabovedot", 0, 0DDX);
-		Rebind( "gbreve", 0, 0F0X ); 
-		Rebind( "Gbreve", 0, 0D0X );
-		Rebind( "scedilla", 0, 0FEX ); 
-		Rebind( "Scedilla", 0, 0DEX );
+		modifiers[0] := shift;  modifiers[1] := meta;
+		FOR i := 0 TO 2 DO  
+			Rebind( "aacute", i, 094X );	
+			Rebind( "agrave", i, 08BX );	
+			Rebind( "Adiaeresis", i, 080X );		Rebind( "adiaeresis", i, 083X );
+			Rebind( "acircumflex", i, 086X );	
+			Rebind( "eacute", i, 090X );	
+			Rebind( "egrave", i, 08CX );	
+			Rebind( "ediaeresis", i, 091X );	
+			Rebind( "ecircumflex", i, 087X );	
+			Rebind( "igrave", i, 08DX );	
+			Rebind( "idiaeresis", i, 092X );	
+			Rebind( "icircumflex", i, 088X );	
+			Rebind( "ograve", i, 08EX );	
+			Rebind( "Odiaeresis", i, 081X );		Rebind( "odiaeresis", i, 084X );	
+			Rebind( "ocircumflex", i, 089X );
+			Rebind( "ugrave", i, 08FX );	
+			Rebind( "Udiaeresis", i, 082X );		Rebind( "udiaeresis", i, 085X );	
+			Rebind( "ucircumflex", i, 08AX );
+			Rebind( "ccedilla", i, 093X );			
+			Rebind( "ntilde", i, 095X );
+			Rebind( "ssharp", i, 096X );
+			
+			Rebind( "idotless", i, 0FDX); 
+			Rebind( "Iabovedot", i, 0DDX);
+			Rebind( "gbreve", i, 0F0X ); 
+			Rebind( "Gbreve", i, 0D0X );
+			Rebind( "scedilla", i, 0FEX ); 
+			Rebind( "Scedilla", i, 0DEX );
+		END;
 					 
 		InitKeysym;
 
