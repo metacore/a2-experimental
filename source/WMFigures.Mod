@@ -67,6 +67,7 @@ TYPE
 		
 		PROCEDURE Initialize*;
 		BEGIN(* Call whenever the component composite is resetted (also when put into FormWindow) ; see WMComponentSkeleton.Mod *)
+			RecacheProperties;
 			Initialize^;
 		END Initialize;
 		
@@ -181,7 +182,7 @@ TYPE
 		BEGIN
 			bl:=bounds.GetLeft(); 
 			bt:=bounds.GetTop();
-			IF (keys={0}) & reshape.Get()  THEN
+			IF (keys={0}) & (Reshape IN state) (*reshape.Get()*)  THEN
 				IF (selected # NIL) THEN MovePoint(selected, fx, fy); selected := NIL; selectedLine:=FALSE;
 				ELSE  
 					dx:=fx+bl-oldx; oldx:=fx+bl; 
@@ -194,9 +195,9 @@ TYPE
 			(*IF (2 IN lastKeys) & ~(2 IN keys) THEN
 				IF reshape.Get() THEN EXCL(state, Reshape); ELSE INCL(state, Reshape); END;
 			ELS*)
-			IF reshape.Get() & (EditPoints IN state) & (1 IN lastKeys) & ~(1 IN keys)  THEN
+			IF (Reshape IN state) (*reshape.Get()*) & (EditPoints IN state) & (1 IN lastKeys) & ~(1 IN keys)  THEN
 				AddPoint(fx, fy); (*!partly functional - wrong coordinates*)
-			ELSIF reshape.Get() & (EditPoints IN state) & (lastKeys={0,2}) & (keys#{0,2}) THEN
+			ELSIF (Reshape IN state) (*reshape.Get()*) & (EditPoints IN state) & (lastKeys={0,2}) & (keys#{0,2}) THEN
 				RemovePoint(fx,fy); 
 			ELSE(* PointerUp^(x, y, keys);*)
 			END;
@@ -207,9 +208,9 @@ TYPE
 		PROCEDURE PointerMove*(fx, fy : LONGINT; keys : SET);
 		VAR dx,dy,bl,bt:LONGINT; pp:WMProperties.Property;
 		BEGIN
-			IF reshape.Get() & (keys={0}) (*(Reshape IN state)*) & (selected # NIL) THEN 
+			IF (Reshape IN state) (*reshape.Get()*) & (keys={0}) (*(Reshape IN state)*) & (selected # NIL) THEN 
 				MovePoint(selected, fx, fy);
-			ELSIF reshape.Get() & (keys={0}) (* (Reshape IN state)*) & selectedLine THEN 
+			ELSIF (Reshape IN state) (*reshape.Get()*) & (keys={0}) (* (Reshape IN state)*) & selectedLine THEN 
 				bl:=bounds.GetLeft(); 
 				bt:=bounds.GetTop();
 				dx:=fx+bl-oldx; oldx:=fx+bl;
@@ -243,8 +244,8 @@ TYPE
 			ELSIF (property = filled) THEN IF filled.Get() THEN INCL(state,Filled) ELSE EXCL(state,Filled); END; Invalidate;
 			ELSIF (property = reshape) THEN IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state,Reshape); END; Invalidate;
 			ELSIF (property = arrow) THEN IF arrow.Get() THEN INCL(state,Arrow) ELSE EXCL(state,Arrow); END; Invalidate;
-			ELSIF property IS WMProperties.PointProperty THEN Resized; RecachePoints; Invalidate; (* Normalize; *)
-			ELSIF property=properties THEN Resized; RecachePoints; (*Normalize;*)Invalidate; (*PropertyChanged^(sender, property); *)
+			ELSIF property IS WMProperties.PointProperty THEN Resized; Invalidate; 
+			ELSIF property=properties THEN Resized; Invalidate; (*?PropertyChanged^(sender, property); *)
 			ELSE  PropertyChanged^(sender, property);  (* e.g, handling bounds by parent *)
 			END;
 		END PropertyChanged;
@@ -311,6 +312,10 @@ TYPE
 		
 		PROCEDURE RecacheProperties;
 		BEGIN (* called by sequencer -> hierarchy is locked, see WMVisualComponentSkeleton.Mod *)
+			IF closed.Get() THEN INCL(state,Closed) ELSE EXCL(state,Closed) END; 
+			IF filled.Get() THEN INCL(state,Filled); ELSE EXCL(state, Filled) END;
+			IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state, Reshape) END;
+			IF arrow.Get() THEN INCL(state,Arrow) ELSE EXCL(state, Arrow) END;
 			RecacheProperties^;
 			RecachePoints;
 		END RecacheProperties;
@@ -405,6 +410,7 @@ TYPE
 		PROCEDURE Initialize*;
 		VAR pp:WMProperties.PointProperty;
 		BEGIN
+
 			RecachePoints;
 			IF nofPoints=0 THEN (* prototype*)
 				Acquire;
@@ -492,8 +498,8 @@ TYPE
 				INC(i);
 				plast:=p; p := p.next;
 			END;
-			IF arrow.Get() (*(Arrow IN state)*) & (plast#NIL) THEN DrawArrow(canvas, plast.previous, plast) END;
-			IF filled.Get() THEN    canvas.FillPolygonFlat(pointArray^, nofPoints, color.Get(), WMGraphics.ModeSrcOverDst);
+			IF (Arrow IN state) & (plast#NIL) THEN DrawArrow(canvas, plast.previous, plast) END;
+			IF Filled IN state THEN    canvas.FillPolygonFlat(pointArray^, nofPoints, color.Get(), WMGraphics.ModeSrcOverDst);
 			ELSE					canvas.PolyLine(pointArray^, nofPoints, closed.Get(), color.Get(), WMGraphics.ModeSrcOverDst);
 			END;
 		END DrawBackground;
@@ -739,7 +745,7 @@ TYPE
 			Normalize; 
 			
 			IF mouseOver THEN col:=clHover.Get() ELSE col:=color.Get() END;
-			IF filled.Get() THEN
+			IF Filled IN state THEN
 				canvas.FillPolygonFlat(pointArray, nSegments, col, WMGraphics.ModeSrcOverDst);
 			ELSE
 				canvas.PolyLine(pointArray, nSegments, closed.Get(), col, WMGraphics.ModeSrcOverDst);
