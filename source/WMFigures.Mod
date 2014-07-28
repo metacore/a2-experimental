@@ -182,12 +182,13 @@ TYPE
 			bl:=bounds.GetLeft(); 
 			bt:=bounds.GetTop();
 			IF (keys={0}) & reshape.Get()  THEN
-				IF (selected # NIL) THEN MovePoint(selected, fx, fy); selected := NIL;
+				IF (selected # NIL) THEN MovePoint(selected, fx, fy); selected := NIL; selectedLine:=FALSE;
 				ELSE  
 					dx:=fx+bl-oldx; oldx:=fx+bl; 
 					dy:=fy+bt-oldy; oldy:=fy+bt;
 					MoveFigure(dx, dy); 
 					selectedLine:=FALSE;
+					selected:=NIL;
 				END;
 			END;
 			(*IF (2 IN lastKeys) & ~(2 IN keys) THEN
@@ -242,9 +243,9 @@ TYPE
 			ELSIF (property = filled) THEN IF filled.Get() THEN INCL(state,Filled) ELSE EXCL(state,Filled); END; Invalidate;
 			ELSIF (property = reshape) THEN IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state,Reshape); END; Invalidate;
 			ELSIF (property = arrow) THEN IF arrow.Get() THEN INCL(state,Arrow) ELSE EXCL(state,Arrow); END; Invalidate;
-			ELSIF property IS WMProperties.PointProperty THEN Resized; RecachePoints; Normalize; 
-			ELSIF property=properties THEN Invalidate;  RecachePoints; (*Normalize; *)(*PropertyChanged^(sender, property); ?*)
-			ELSE  PropertyChanged^(sender, property); (* e.g, handling bounds by parent *)
+			ELSIF property IS WMProperties.PointProperty THEN Resized; RecachePoints; Invalidate; (* Normalize; *)
+			ELSIF property=properties THEN Resized; RecachePoints; (*Normalize;*)Invalidate; (*PropertyChanged^(sender, property); *)
+			ELSE  PropertyChanged^(sender, property);  (* e.g, handling bounds by parent *)
 			END;
 		END PropertyChanged;
 	
@@ -271,7 +272,7 @@ TYPE
 		PROCEDURE Normalize; 
 		VAR p:Point; rect: WMRectangles.Rectangle;
 		BEGIN
-			(*? does some flicker originate here ? - suppress display update here*)
+			
 			rect.l := MAX(LONGINT); rect.t := MAX(LONGINT); rect.r := MIN(LONGINT); rect.b := MIN(LONGINT);
 			p:=points;
 			WHILE p#NIL DO (* adapt display point coordinates to new bounds *)
@@ -462,7 +463,8 @@ TYPE
 		VAR p, q: Point; i : LONGINT;
 		BEGIN
 			IF (points = NIL) OR (points.next = NIL) THEN RETURN FALSE; END;
-			IF Filled IN state THEN
+			IF ~ (Reshape IN state) THEN RETURN FALSE
+			ELSIF Filled IN state THEN
 				IF Inside(mx, my) THEN RETURN TRUE END;
 			END;
 			p := points; q := points.next;
@@ -546,6 +548,7 @@ TYPE
 		PROCEDURE IsHit*(mx, my: LONGINT): BOOLEAN;
 		VAR radius0, radius: LONGINT;
 		BEGIN
+			IF ~ (Reshape IN state) THEN RETURN FALSE END;
 			radius0:= Distance(points.x, points.y, points.next.x,points.next.y);
 			radius:=Distance(mx,my, points.x,points.y);
 			IF (Filled IN state) THEN RETURN radius<=radius0 (*inside circle*)
@@ -601,7 +604,8 @@ TYPE
 		
 		PROCEDURE IsHit*(mx, my: LONGINT): BOOLEAN;
 		BEGIN
-			IF Filled IN state THEN 
+			IF ~ (Reshape IN state) THEN RETURN FALSE
+			ELSIF Filled IN state THEN 
 				RETURN ((mx-points.x)*(mx-points.next.x) <=0 ) & ((my-points.y)*(my-points.next.y) <=0 ) (* simple "in-between" test *)
 			ELSE RETURN 
 				InLineVicinity(mx, my, points.x, points.y, points.x, points.next.y) OR
