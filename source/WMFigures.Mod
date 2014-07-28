@@ -242,7 +242,7 @@ TYPE
 			ELSIF (property = filled) THEN IF filled.Get() THEN INCL(state,Filled) ELSE EXCL(state,Filled); END; Invalidate;
 			ELSIF (property = reshape) THEN IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state,Reshape); END; Invalidate;
 			ELSIF (property = arrow) THEN IF arrow.Get() THEN INCL(state,Arrow) ELSE EXCL(state,Arrow); END; Invalidate;
-			ELSIF property IS WMProperties.PointProperty THEN Invalidate; RecachePoints; (*Normalize; *)
+			ELSIF property IS WMProperties.PointProperty THEN Resized; RecachePoints; Normalize; 
 			ELSIF property=properties THEN Invalidate;  RecachePoints; (*Normalize; *)(*PropertyChanged^(sender, property); ?*)
 			ELSE  PropertyChanged^(sender, property); (* e.g, handling bounds by parent *)
 			END;
