@@ -75,14 +75,17 @@ TYPE
 		VAR 
 			s: ARRAY 16 OF CHAR;
 			pp:WMProperties.PointProperty; 
+			(*a: XML.Attribute;*)
 		BEGIN
-			Strings.IntToStr(nofPoints,s);
+			Strings.IntToStr(nofPoints,s); 
+			Strings.Concat("Point",s,s);
 			INC(nofPoints);
 			NEW(pp,NIL,Strings.NewString(s),NIL);  
+			pp.SetCoordinate(x,y); 
+			(*NEW(a); a.SetName("Index"); a.SetValue(s); pp.AddAttribute(a);*)
 			Acquire;
 			properties.Add(pp);
 			Release;
-			pp.SetCoordinate(x,y); 
 		END AddPoint;
 
 		(* x,y in Figure coordinates, which may change when adding new points etc. Remember that PointProperty is in (stable) parent coordinates*)
@@ -404,10 +407,10 @@ TYPE
 			RecachePoints;
 			IF nofPoints=0 THEN (* prototype*)
 				Acquire;
-				NEW(pp,NIL,Strings.NewString("0"),NIL); pp.SetCoordinate(5,20); properties.Add(pp); INC(nofPoints);
-				NEW(pp,NIL,Strings.NewString("1"),NIL); pp.SetCoordinate(20,0); properties.Add(pp); INC(nofPoints);
-				NEW(pp,NIL,Strings.NewString("2"),NIL); pp.SetCoordinate(20,20); properties.Add(pp); INC(nofPoints);
-				NEW(pp,NIL,Strings.NewString("3"),NIL); pp.SetCoordinate(30,30); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point0"),NIL); pp.SetCoordinate(5,20); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point1"),NIL); pp.SetCoordinate(20,0); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point2"),NIL); pp.SetCoordinate(20,20); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point3"),NIL); pp.SetCoordinate(30,30); properties.Add(pp); INC(nofPoints);
 				Release;
 				(*bounds.Set(WMRectangles.MakeRect(0,0,40,40));*)
 				RecachePoints;
@@ -511,8 +514,8 @@ TYPE
 		BEGIN
 			RecachePoints;
 			IF nofPoints=0 THEN (* prototype*)
-				NEW(pp,NIL,Strings.NewString("0"),NIL); pp.SetCoordinate(15,15); properties.Add(pp); INC(nofPoints);
-				NEW(pp,NIL,Strings.NewString("1"),NIL); pp.SetCoordinate(30,30); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point0"),NIL); pp.SetCoordinate(15,15); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point1"),NIL); pp.SetCoordinate(30,30); properties.Add(pp); INC(nofPoints);
 				bounds.Set(WMRectangles.MakeRect(0,0,40,40));
 				RecachePoints;
 			END;
@@ -587,8 +590,8 @@ TYPE
 		BEGIN
 			RecachePoints;
 			IF nofPoints=0 THEN (* prototype*)
-				NEW(pp,NIL,Strings.NewString("0"),NIL); pp.SetCoordinate(10,10); properties.Add(pp); INC(nofPoints);
-				NEW(pp,NIL,Strings.NewString("1"),NIL); pp.SetCoordinate(30,30); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point0"),NIL); pp.SetCoordinate(10,10); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point1"),NIL); pp.SetCoordinate(30,30); properties.Add(pp); INC(nofPoints);
 				bounds.Set(WMRectangles.MakeRect(0,0,40,40));
 				RecachePoints;
 			END;
@@ -651,10 +654,10 @@ TYPE
 			RecachePoints;
 			IF nofPoints=0 THEN (* default *)
 				Acquire;
-				NEW(pp,NIL,Strings.NewString("0"),NIL); pp.SetCoordinate(5,20); properties.Add(pp); INC(nofPoints);
-				NEW(pp,NIL,Strings.NewString("1"),NIL); pp.SetCoordinate(20,0); properties.Add(pp); INC(nofPoints);
-				NEW(pp,NIL,Strings.NewString("2"),NIL); pp.SetCoordinate(20,20); properties.Add(pp); INC(nofPoints);
-				NEW(pp,NIL,Strings.NewString("3"),NIL); pp.SetCoordinate(30,30); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point0"),NIL); pp.SetCoordinate(5,20); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point1"),NIL); pp.SetCoordinate(20,0); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point2"),NIL); pp.SetCoordinate(20,20); properties.Add(pp); INC(nofPoints);
+				NEW(pp,NIL,Strings.NewString("Point3"),NIL); pp.SetCoordinate(30,30); properties.Add(pp); INC(nofPoints);
 				(*bounds.Set(WMRectangles.MakeRect(0,0,40,40));*)
 				Release;
 				RecachePoints;
@@ -1095,6 +1098,7 @@ BEGIN
 	background.fillColor.Set(WMGraphics.Green);
 	window.SetContent(background);
 	WMWindowManager.AddWindow(window, 200,200);
+	INCL(window.flags, WMWindowManager.FlagStorable); (* allow interactive storage of window*)
 	
 	NEW(l); l.AddPoint(10,20); l.AddPoint(100,200); l.AddPoint(80, 20);
 	background.AddContent(l); 	
@@ -1129,6 +1133,7 @@ VAR
 BEGIN
 	NEW(window, 400,400, FALSE);
 	WMWindowManager.AddWindow(window, 200,200);
+	INCL(window.flags, WMWindowManager.FlagStorable);
 	
 	NEW(l); l.AddPoint(10,20); l.AddPoint(100,200); l.AddPoint(80, 20);
 	window.SetContent(l); 
