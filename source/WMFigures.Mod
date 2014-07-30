@@ -208,14 +208,17 @@ TYPE
 		PROCEDURE PointerMove*(fx, fy : LONGINT; keys : SET);
 		VAR dx,dy,bl,bt:LONGINT; pp:WMProperties.Property;
 		BEGIN
-			IF (Reshape IN state) (*reshape.Get()*) & (keys={0}) (*(Reshape IN state)*) & (selected # NIL) THEN 
+			IF (Reshape IN state)  & (keys={0})  & (selected # NIL) THEN 
 				MovePoint(selected, fx, fy);
-			ELSIF (Reshape IN state) (*reshape.Get()*) & (keys={0}) (* (Reshape IN state)*) & selectedLine THEN 
+			ELSIF (Reshape IN state)  & (keys={0})  & selectedLine THEN 
 				bl:=bounds.GetLeft(); 
 				bt:=bounds.GetTop();
 				dx:=fx+bl-oldx; oldx:=fx+bl;
 				dy:=fy+bt-oldy; oldy:=fy+bt;
 				MoveFigure(dx, dy);
+			(*ELSIF (Reshape IN state) & ~(0 IN keys) THEN
+				mouseOver:=IsHit(fx,fy);
+			*)
 			ELSE
 				(*bl:=bounds.GetLeft(); 
 				bt:=bounds.GetTop();
@@ -244,8 +247,8 @@ TYPE
 			ELSIF (property = filled) THEN IF filled.Get() THEN INCL(state,Filled) ELSE EXCL(state,Filled); END; Invalidate;
 			ELSIF (property = reshape) THEN IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state,Reshape); END; Invalidate;
 			ELSIF (property = arrow) THEN IF arrow.Get() THEN INCL(state,Arrow) ELSE EXCL(state,Arrow); END; Invalidate;
-			ELSIF property IS WMProperties.PointProperty THEN Resized; Invalidate; 
-			ELSIF property=properties THEN Resized; Invalidate; (*?PropertyChanged^(sender, property); *)
+			ELSIF property IS WMProperties.PointProperty THEN Resized;(*has Invalidate built in*) (*Invalidate; *)
+			ELSIF property=properties THEN Resized; (*has invalidate built in*)(* Invalidate;*) (*?PropertyChanged^(sender, property); *)
 			ELSE  PropertyChanged^(sender, property);  (* e.g, handling bounds by parent *)
 			END;
 		END PropertyChanged;
