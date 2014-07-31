@@ -20,6 +20,9 @@ TYPE
 		END;
 
 TYPE
+	(* after constructing/inserting a figure, call figure.Initialize(), otherwise they will not be responsive;
+		alternatively, after constructing complex figures and putting them into a form, call form.Reset(NIL,NIL) for hierarchical initialization *)	
+	
 	Figure* = OBJECT(WMComponents.VisualComponent) 
 	VAR
 		width- : WMProperties.Int32Property;
@@ -207,7 +210,7 @@ TYPE
 		
 		PROCEDURE PointerMove*(fx, fy : LONGINT; keys : SET);
 		VAR dx,dy,bl,bt:LONGINT; pp:WMProperties.Property;
-		BEGIN
+		BEGIN 
 			IF (Reshape IN state)  & (keys={0})  & (selected # NIL) THEN 
 				MovePoint(selected, fx, fy);
 			ELSIF (Reshape IN state)  & (keys={0})  & selectedLine THEN 
@@ -1111,30 +1114,27 @@ BEGIN
 	background.fillColor.Set(WMGraphics.Green);
 	window.SetContent(background);
 	WMWindowManager.AddWindow(window, 200,200);
-	INCL(window.flags, WMWindowManager.FlagStorable); (* allow interactive storage of window*)
+	INCL(window.flags, WMWindowManager.FlagStorable); (* allow interactive storage of window through context menu *)
 	
 	NEW(l); l.AddPoint(10,20); l.AddPoint(100,200); l.AddPoint(80, 20);
 	background.AddContent(l); 	
-	l.Initialize; l.Invalidate;
 
 	NEW(r); r.AddPoint(30,40); r.AddPoint(120,200); 
-	background.AddContent(r);
-	r.Initialize; r.Invalidate;
+	background.AddContent(r)
 	
 	NEW(c); c.AddPoint(100,100); c.AddPoint(150,150);
 	background.AddContent(c);
-	c.Initialize; c.Invalidate;
 	
 	NEW(s); (*spline with default points*)
 	background.AddContent(s);
 	s.color.Set(WMGraphics.Blue);
-	s.Initialize; s.Invalidate;
 	
 	NEW(r); r.AddPoint(70,80); r.AddPoint(110,110); 
 	r.reshape.Set(FALSE); (* non-reshapable *)
 	r.color.Set(WMGraphics.Blue);
 	background.AddContent(r);
-	r.Initialize; r.Invalidate;
+	
+	window.form.Reset(NIL,NIL); (* initializes contents hierarchically - required for proper function*)
 END Do;
 
 PROCEDURE Do1*;
