@@ -325,8 +325,7 @@ TYPE
 					END;
 				END;
 			END;
-			Initialize; (*? needed ?*)
-			(*RecacheProperties;*) (*? PH might be a good addition here ? or will it be called redundantly ? *)
+			(*Initialize;*) (* redundant *)
 		END FromXML;
 
 		PROCEDURE IsCallFromSequencer*():BOOLEAN;
@@ -3235,6 +3234,7 @@ BEGIN
 			END;
 		END;
 	END;
+	
 	RETURN window
 END FormWindowGen;
 
@@ -3271,7 +3271,7 @@ BEGIN
 	IF context.arg.GetString(filename) & (Strings.Length(filename)>0) THEN
 		xml:=Load(filename); (* here, the xml tree is already constructed, however not in the right sequence ( [Init()..loadProperties()..Initialize()] )*)
 		window:=LoadFormWindow(xml);
-		IF window#NIL THEN WM.AddWindow(window,window.bounds.l,window.bounds.t); END;
+		IF window#NIL THEN WM.AddWindow(window,window.bounds.l,window.bounds.t)  END;
 	END;
 END Open;
 
