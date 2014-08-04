@@ -780,7 +780,7 @@ BEGIN
 	dst.Ln()
 END SendResponseHeader;
 
-PROCEDURE SendErrorReply*(code:LONGINT; VAR request: RequestHeader; VAR reply: ResponseHeader; VAR out: Streams.Writer);
+PROCEDURE SendStatusReply*(code:LONGINT; VAR request: RequestHeader; VAR reply: ResponseHeader; VAR out: Streams.Writer);
 VAR w : Streams.Writer; 
 	chunker: ChunkedOutStream;
 BEGIN
@@ -792,7 +792,7 @@ BEGIN
 	WriteHTMLStatus(reply, w); 
 	w.Update;
 	chunker.Close
-END SendErrorReply;
+END SendStatusReply;
 
 PROCEDURE GetPath*(VAR url, path : ARRAY OF CHAR);
 VAR i, j : LONGINT;
