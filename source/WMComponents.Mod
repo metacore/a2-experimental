@@ -2205,7 +2205,7 @@ TYPE
 				END;
 			ELSIF (m.msgType = Messages.MsgSetLanguage) & (m.ext # NIL) & (m.ext IS LanguageExtension) THEN
 				LanguageChanged(m.ext(LanguageExtension).languages);
-			(*?PH*) ELSIF (m.msgType=Messages.MsgReset)&(form#NIL) THEN form.Reset(NIL,NIL) 
+			ELSIF (m.msgType=Messages.MsgReset)&(form#NIL) THEN form.Reset(NIL,NIL) 
 			END;
 			IF (TraceFocus IN Trace) THEN
 				IF  (m.msgType = Messages.MsgFocus) THEN
