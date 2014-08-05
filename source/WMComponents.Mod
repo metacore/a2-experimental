@@ -2112,14 +2112,17 @@ TYPE
 			IF x IS Form THEN
 				form := x(Form);
 				form.SetWindow(SELF);
-				(* assure that both trees are #NIL; redundant structure..*)
+			(*PH<*)	
+				(* assure that both trees (also the 'content' tree are #NIL; redundant structure.. modified PH*)(*? double bookkeeping ??*)
 				c:=x(Form).GetFirst();
 				WHILE (c#NIL) & (c IS XML.Container) & ~(c IS VisualComponent) DO
 					c:=c(XML.Container).GetNext(c);
 				END;
-				IF (c#NIL)&(c IS VisualComponent) THEN content:=c(VisualComponent) END;
+				IF (c#NIL)&(c IS VisualComponent) THEN (*?*) content:=c(VisualComponent) END;
+			(*>PH*)		
+			
 			ELSE
-				NEW(form, SELF); form.uid.Set(NewString("form"));
+				NEW(form, SELF); form.uid.Set(NewString("form"))
 			END;
 			(*
 			NEW(seq, form.Handle); seq.SetTrapHandler(Trap); form.SetSequencer(seq);
@@ -2202,6 +2205,7 @@ TYPE
 				END;
 			ELSIF (m.msgType = Messages.MsgSetLanguage) & (m.ext # NIL) & (m.ext IS LanguageExtension) THEN
 				LanguageChanged(m.ext(LanguageExtension).languages);
+			(*?PH*) ELSIF (m.msgType=Messages.MsgReset)&(form#NIL) THEN form.Reset(NIL,NIL) 
 			END;
 			IF (TraceFocus IN Trace) THEN
 				IF  (m.msgType = Messages.MsgFocus) THEN
@@ -2262,6 +2266,9 @@ TYPE
 				SELF.window := window; window.form := SELF;
 				bounds.Set(Rectangles.MakeRect(0, 0, window.GetWidth(), window.GetHeight()));
 				NEW(seq, Handle); seq.SetTrapHandler(window.Trap); SetSequencer(seq);
+				(*?PH	IF window.sequencer#NIL THEN SetSequencer(window.sequencer) ELSE
+					NEW(seq, Handle); seq.SetTrapHandler(window.Trap); SetSequencer(seq);
+				END *)
 			END;
 		END SetWindow;
 
@@ -3234,7 +3241,6 @@ BEGIN
 			END;
 		END;
 	END;
-	
 	RETURN window
 END FormWindowGen;
 
@@ -3271,7 +3277,9 @@ BEGIN
 	IF context.arg.GetString(filename) & (Strings.Length(filename)>0) THEN
 		xml:=Load(filename); (* here, the xml tree is already constructed, however not in the right sequence ( [Init()..loadProperties()..Initialize()] )*)
 		window:=LoadFormWindow(xml);
-		IF window#NIL THEN WM.AddWindow(window,window.bounds.l,window.bounds.t)  END;
+		IF window#NIL THEN 
+			WM.AddWindow(window,window.bounds.l,window.bounds.t); 
+		END;
 	END;
 END Open;
 
