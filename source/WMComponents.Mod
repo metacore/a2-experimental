@@ -2194,6 +2194,7 @@ TYPE
 		END Update;
 
 		PROCEDURE Handle*(VAR m : Messages.Message);
+		VAR timer:Kernel.Timer;
 		BEGIN
 			Handle^(m);
 			IF (m.msgType = Messages.MsgExt) & (m.ext # NIL) THEN
@@ -2206,6 +2207,7 @@ TYPE
 			ELSIF (m.msgType = Messages.MsgSetLanguage) & (m.ext # NIL) & (m.ext IS LanguageExtension) THEN
 				LanguageChanged(m.ext(LanguageExtension).languages);
 			ELSIF (m.msgType=Messages.MsgReset)THEN 
+				NEW(timer); timer.Sleep(100);(* give some time to form window initialization *)
 				IF (form#NIL) & (form.sequencer#NIL) THEN CSChanged END;
 			END;
 			IF (TraceFocus IN Trace) THEN
