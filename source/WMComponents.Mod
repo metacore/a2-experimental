@@ -2205,7 +2205,8 @@ TYPE
 				END;
 			ELSIF (m.msgType = Messages.MsgSetLanguage) & (m.ext # NIL) & (m.ext IS LanguageExtension) THEN
 				LanguageChanged(m.ext(LanguageExtension).languages);
-			ELSIF (m.msgType=Messages.MsgReset)&(form#NIL) THEN form.Reset(NIL,NIL) 
+			ELSIF (m.msgType=Messages.MsgReset)THEN 
+				IF (form#NIL) & (form.sequencer#NIL) THEN CSChanged END;
 			END;
 			IF (TraceFocus IN Trace) THEN
 				IF  (m.msgType = Messages.MsgFocus) THEN
@@ -2218,7 +2219,7 @@ TYPE
 					KernelLog.String("Focus chain: "); form.TraceFocusChain;
 				END;
 			END;
-			IF form # NIL THEN form.Handle(m) END
+			IF (form # NIL) & (form.sequencer#NIL) THEN form.Handle(m) END
 		END Handle;
 
 		PROCEDURE LanguageChanged*(languages : Localization.Languages);
@@ -2266,9 +2267,6 @@ TYPE
 				SELF.window := window; window.form := SELF;
 				bounds.Set(Rectangles.MakeRect(0, 0, window.GetWidth(), window.GetHeight()));
 				NEW(seq, Handle); seq.SetTrapHandler(window.Trap); SetSequencer(seq);
-				(*?PH	IF window.sequencer#NIL THEN SetSequencer(window.sequencer) ELSE
-					NEW(seq, Handle); seq.SetTrapHandler(window.Trap); SetSequencer(seq);
-				END *)
 			END;
 		END SetWindow;
 
