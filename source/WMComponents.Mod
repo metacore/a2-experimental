@@ -907,15 +907,15 @@ TYPE
 				Resized (*implicit Invalidate*)
 			ELSIF property = bearing THEN Resized;
 			(* ELSIF bounds=relativeBounds  THEN ? *)
-			ELSIF property = alignment THEN AlignmentChanged (*implicit Invalidate*)
+			ELSIF property = alignment THEN AlignmentChanged; Invalidate (*moved here from implicit Invalidate*)
 			ELSIF property = fillColor THEN Invalidate;
 			ELSIF property = font THEN
 				IF scaleFont.Get() # 0 THEN
-					ScaleFont(bounds.GetHeight(), scaleFont.Get());
+					ScaleFont(bounds.GetHeight(), scaleFont.Get()); (* implicit Invalidate*)
 				END;
 				Invalidate;
 			ELSIF (property = scaleFont) THEN ScaleFont(bounds.GetHeight(),scaleFont.Get());  (*implicit Invalidate*)
-			ELSIF property = visible THEN Resized
+			ELSIF property = visible THEN Resized (*Implicit Invalidate*)
 			(* ELSIF takesFocus, needsTab...*)			
 			ELSIF property = editMode THEN Invalidate;
 			ELSIF property = model THEN LinkChanged(model, model.Get()); Invalidate;
@@ -970,7 +970,7 @@ TYPE
 			IF (p # NIL) & (p IS VisualComponent) THEN
 				p(VisualComponent).AlignSubComponents
 			END;
-			Invalidate;
+			(*Invalidate;*)
 			Release
 		END AlignmentChanged;
 
