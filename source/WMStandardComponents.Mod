@@ -268,6 +268,7 @@ TYPE
 		PROCEDURE RecacheProperties;
 		BEGIN
 			RecacheProperties^;
+			PropertyChanged(SELF,blinking)
 		END RecacheProperties;
 
 		PROCEDURE SetBlinker(sender, data: ANY);	(* quite generic => might be moved to VisualComponent *)
