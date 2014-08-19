@@ -397,12 +397,9 @@ TYPE
 					IF (sequencer # c(Component).sequencer) THEN 
 						IF sequencer#NIL THEN 
 							c(Component).SetSequencer(sequencer); 
-							c(Component).Reset(SELF,NIL); (*implied RecacheProperties*)
-							IF (SELF IS VisualComponent) & ( c IS VisualComponent) THEN (* move to VisualComponent*)
-								m.sender:=SELF; 
-								m.msgType := Messages.MsgInvalidate;
-								m.msgSubType := Messages.MsgSubAll;
-								IF sequencer.Add(m) THEN  END; 
+							c(Component).Reset(SELF,NIL); (* will be scheduled by sequencer. implied RecacheProperties*)
+							IF (SELF IS VisualComponent) & ( c IS VisualComponent) THEN (* todo: move to VisualComponent*)
+								sequencer.ScheduleEvent(SELF(VisualComponent).InvalidateCommand, SELF, NIL); 
 							END;
 						ELSE (* no tree traversal - is less costly *)
 							c(Component).sequencer:=NIL; c(Component).initialized:=FALSE;
