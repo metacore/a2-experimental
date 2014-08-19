@@ -5,7 +5,7 @@ MODULE SortDemo;	(** AUTHOR "g.f."; PURPOSE sort demo *)
 IMPORT
 	Raster, Random, WMRectangles, Strings, WMMessages,
 	WM := WMWindowManager, WMComponents, WMStandardComponents,
-	Log := KernelLog, Clock, Objects;
+	Log := KernelLog, Clock, Objects, Kernel;
 	
 CONST
 	N = 140;  ElemSize = 5;
@@ -109,12 +109,13 @@ TYPE
 		END Update;
 		
 		PROCEDURE Randomize( n: LONGINT );
-		VAR i, j, k: LONGINT;  
+		VAR i, j, k: LONGINT;  t: Kernel.Timer;
 		BEGIN
+			NEW(t);
 			FOR i := 1 TO n DO
 				j := random.Dice( N );  k := random.Dice( N );
 				Swap( j, k );
-				IF i MOD 16 = 0 THEN  Objects.Sleep(10)  END;
+				IF i MOD 16 = 0 THEN  t.Sleep(10)  END;
 			END
 		END Randomize;
 		
@@ -213,9 +214,10 @@ TYPE
 		
 		
 		PROCEDURE ConcQuickSort;
+		VAR t: Kernel.Timer;
 		BEGIN
 			ConcQuick( 0, N-1 );
-			WHILE sorters > 0 DO  Objects.Sleep( 10 )  END
+			WHILE sorters > 0 DO  t.Sleep( 10 )  END
 		END ConcQuickSort;
 		
 		
@@ -685,23 +687,25 @@ VAR
 	nofcomps, nofswaps: LONGINT; 
 	
 	PROCEDURE Swap( i, j: LONGINT );
-	VAR tmp: LONGINT;  
+	VAR tmp: LONGINT;  t: Kernel.Timer;
 	BEGIN
 		IF i # j THEN
 			tmp := data[i];  data[i] := data[j];  data[j] := tmp;
 			sdw.DrawElement( i );
 			sdw.DrawElement( j );
 			sdw.Update;
-			IF delay # 0 THEN  Objects.Sleep( delay)  END; 
+			IF delay # 0 THEN NEW(t); t.Sleep( delay)  END; 
 			INC( nofswaps )
 		END
 	END Swap;
 	
 	PROCEDURE Less( i, j: LONGINT ): BOOLEAN;
+	VAR t: Kernel.Timer;
 	BEGIN
 		IF delay # 0 THEN
 			sdw.Highlight( i );  sdw.Highlight( j );  sdw.Update;  
-			Objects.Sleep( delay); 
+			NEW(t);
+			t.Sleep( delay); 
 			sdw.Clear( i ); sdw.Clear( j );  sdw.Update;
 		END;
 		INC( nofcomps );
