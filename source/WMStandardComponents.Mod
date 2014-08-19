@@ -299,7 +299,7 @@ TYPE
 			RecacheProperties^;
 			(*? seems wrong inversion of PropertyChange/RecacheProperty call hierarchy PH*)
 			PropertyChanged(NIL, blinking);
-			Invalidate (*? PH in certain cases already called in PropertyChanged above*)
+			(*Invalidate*) (*? PH in certain cases already called in PropertyChanged above*)
 		END RecacheProperties;
 
 		PROCEDURE SetBlinker(sender, data: ANY);
