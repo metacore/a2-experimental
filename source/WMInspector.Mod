@@ -213,6 +213,7 @@ TYPE
 		VAR panel: WMStandardComponents.Panel;
 		BEGIN
 			Init^;
+			SetNameAsString(Strings.NewString("FormComponentsTree"));
 			Clear(windows);
 
 			NEW(dragger); dragger.alignment.Set(WMComponents.AlignBottom);
@@ -289,6 +290,7 @@ TYPE
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
+			SetNameAsString(Strings.NewString("TextComponentsTree"));
 			AddContent(treeView);
 			Texts.onLastTextChanged.Add(Refresh);
 		END Init;
@@ -342,6 +344,7 @@ TYPE
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
+			SetNameAsString(Strings.NewString("SelectedTextTree"));
 			AddContent(treeView);
 			Texts.onLastSelectionChanged.Add(Refresh);
 		END Init;
@@ -393,6 +396,7 @@ TYPE
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
+			SetNameAsString(Strings.NewString("SelectedComponentsTree"));
 			AddContent(treeView);
 			WMComponents.selection.onChanged.Add(Refresh);
 			Refresh(SELF, WMComponents.selection);
