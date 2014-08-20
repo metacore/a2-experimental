@@ -1868,7 +1868,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			ELSIF mode.buf[a] # 0X THEN
 				spix[a] := alpha;
 				(* the following computation of the colors has to be done because the blending method seems to assume this *)
-				spix[r] := CHR(ORD(mode.buf[r]) * ORD(alpha) DIV 255);
+				spix[r] := CHR(ORD(mode.col[r]) * ORD(alpha) DIV 255);
 				spix[g] := CHR(ORD(mode.col[g]) * ORD(alpha) DIV 255);
 				spix[b] := CHR(ORD(mode.col[b]) * ORD(alpha) DIV 255);
 				mode.dst.unpack(mode.dst, dadr, dbit, dpix);
@@ -1879,6 +1879,34 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			dbit := dbit + mode.dst.bpp; INC(dadr, dbit DIV 8); dbit := dbit MOD 8
 		END
 	END A8OverAny;
+	
+	PROCEDURE A8OverBGRA8888(VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
+	VAR src , dst: Pixel; rc,gc,bc, fd, fs: LONGINT;
+	BEGIN
+		rc := ORD(mode.col[r]);
+		gc := ORD(mode.col[g]);
+		bc := ORD(mode.col[b]);
+		fs := 255;
+		WHILE len > 0 DO
+			SYSTEM.GET(sadr, src[a]);
+			SYSTEM.MOVE(dadr, ADDRESSOF(dst), 4);
+				(* the following computation of the colors has to be done because the blending method seems to assume this *)
+				src[r] := CHR(rc * ORD(src[a]) DIV 255);
+				src[g] := CHR(gc * ORD(src[a]) DIV 255);
+				src[b] := CHR(bc * ORD(src[a]) DIV 255);
+
+				fd := 255-ORD(src[a]);
+				
+				dst[0] := Clamp[200H + (fs * ORD(src[0]) + fd * ORD(dst[0])) DIV 255];
+				dst[1] := Clamp[200H + (fs * ORD(src[1]) + fd * ORD(dst[1])) DIV 255];
+				dst[2] := Clamp[200H + (fs * ORD(src[2]) + fd * ORD(dst[2])) DIV 255];
+				dst[3] := Clamp[200H + (fs * ORD(src[3]) + fd * ORD(dst[3])) DIV 255];
+				
+				SYSTEM.MOVE(ADDRESSOF(dst),dadr,4);
+			INC(sadr); INC(dadr,4); DEC(len);
+		END
+	END A8OverBGRA8888;
+	
 
 	PROCEDURE A8OverA8 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 		VAR in, out: CHAR;
@@ -2803,7 +2831,8 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 
 				CASE src.code OF
 				| a1: mode.buf := mode.col; mode.transfer := A1OverConst32
-				| a8: mode.buf := mode.col; mode.transfer := A8OverAny
+				| a8: mode.buf := mode.col; mode.transfer := A8OverAny;
+					IF mode.op = srcOverDst THEN mode.transfer := A8OverBGRA8888 END;
 				| bgra8888: mode.transfer := BGRA8888OverBGRA8888
 				ELSE mode.transfer := BGRA8888OverAny; (* ? *)
 				END
