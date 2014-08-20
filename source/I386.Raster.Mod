@@ -2907,7 +2907,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 				INC(lly); INC(adr, img.bpr)
 			END
 		ELSIF (mode.op = srcCopy) & (img.fmt.code IN {bgra8888(*PH*)}) THEN
-			c := ASH(ORD(pix[b]), 24) + ASH(ORD(pix[g]), 16) + ASH(ORD(pix[r]), 8) + ORD(pix[a]);
+			c := SYSTEM.VAL(LONGINT, pix);
 			t := urx - llx;
 			WHILE lly < ury DO
 				Fill32(adr, t, c);
