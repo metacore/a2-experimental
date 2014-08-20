@@ -2906,15 +2906,22 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 				Fill16(adr, t, c);
 				INC(lly); INC(adr, img.bpr)
 			END
-		ELSIF (mode.op = srcCopy) & (img.fmt.code IN {}) THEN
-			c := ASH(ORD(pix[r]), 24) + ASH(ORD(pix[g]), 16) + ASH(ORD(pix[b]), 8) + ORD(pix[a]);
+		ELSIF (mode.op = srcCopy) & (img.fmt.code IN {bgra8888(*PH*)}) THEN
+			c := ASH(ORD(pix[b]), 24) + ASH(ORD(pix[g]), 16) + ASH(ORD(pix[r]), 8) + ORD(pix[a]);
 			t := urx - llx;
 			WHILE lly < ury DO
 				Fill32(adr, t, c);
 				INC(lly); INC(adr, img.bpr)
 			END
+		(*!  PH*)
+		ELSIF (mode.op = clear) & (img.fmt.code=bgra8888) THEN
+			t := urx - llx;
+			WHILE lly < ury DO
+				Fill32(adr, t, 0);
+				INC(lly); INC(adr, img.bpr)
+			END
 		ELSE
-
+		(**)
 			Bind(mode, PixelFormat, img.fmt);
 			IF (mode.op IN {clear, srcCopy}) OR (pix[a] = 0FFX) & (mode.op IN {srcOverDst, dstWithoutSrc}) THEN	(* dst is replaced *)
 				(* copy one pixel to lower left corner of rect *)
