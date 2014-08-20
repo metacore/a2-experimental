@@ -3025,27 +3025,51 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 
 	(** copy rectangular area to the same or another image in specified mode **)
 	PROCEDURE Copy* (src, dst: Image; llx, lly, urx, ury, dx, dy: LONGINT; VAR mode: Mode);
-		VAR w, h, sbit, dbit, slen, sb, db, len, l: LONGINT; sadr, dadr, sa, da: ADDRESS;
+		VAR w, h, sbit, dbit, slen, sb, db, len, l, w1, h1: LONGINT; sadr, dadr, sa, da: ADDRESS;
+		
+		PROCEDURE Copy32N(srcAdr: ADDRESS; destAdr: ADDRESS; size: SIZE);
+		CODE {SYSTEM.i386}
+			MOV ESI, [EBP+srcAdr]
+			MOV EDI, [EBP+destAdr]
+			CLD
+			MOV ECX, [EBP+size]
+			REP MOVSD
+		END Copy32N;
+		
 	BEGIN
 		ASSERT((0 <= llx) & (llx <= urx) & (urx <= src.width) & (0 <= lly) & (lly <= ury) & (ury <= src.height), 100);
 		ASSERT((0 <= dx) & (dx + urx - llx <= dst.width) & (0 <= dy) & (dy + ury - lly <= dst.height), 101);
 		Bind(mode, src.fmt, dst.fmt);
 		w := urx - llx; h := ury - lly;
 		IF (src # dst) OR (lly > dy) OR (lly = dy) & ((llx > dx) OR (urx <= dx)) THEN	(* copy lines bottom-up *)
-			sbit := llx * src.fmt.bpp; sadr := src.adr + lly * src.bpr + sbit DIV 8; sbit := sbit MOD 8;
+			sbit := llx * src.fmt.bpp;  sadr := src.adr + lly * src.bpr + sbit DIV 8; sbit := sbit MOD 8;
 			dbit := dx * dst.fmt.bpp; dadr := dst.adr + dy * dst.bpr + dbit DIV 8; dbit := dbit MOD 8;
-			WHILE h > 0 DO
-				mode.transfer(mode, sadr, sbit, dadr, dbit, w);
-				INC(sadr, src.bpr); INC(dadr, dst.bpr); DEC(h)
-			END
+			IF (src.fmt.code=bgra8888)&(dst.fmt.code=bgra8888) & (mode.op=srcCopy) THEN (* assuming aligned 32Bit pixels for best performance*)
+				WHILE h > 0 DO
+					Copy32N(sadr,dadr,w);
+					INC(sadr, src.bpr); INC(dadr, dst.bpr); DEC(h)
+				END
+			ELSE
+				WHILE h > 0 DO
+					mode.transfer(mode, sadr, sbit, dadr, dbit, w);
+					INC(sadr, src.bpr); INC(dadr, dst.bpr); DEC(h)
+				END
+			END;
 		ELSIF lly < dy THEN	(* copy lines top-down *)
-			sbit := llx * src.fmt.bpp; sadr := src.adr + ury * src.bpr + sbit DIV 8; sbit := sbit MOD 8;
+			sbit := llx * src.fmt.bpp; sadr := src.adr + ury * src.bpr + sbit DIV 8;  sbit := sbit MOD 8;
 			dbit := dx * dst.fmt.bpp; dadr := dst.adr + (dy + h) * dst.bpr + dbit DIV 8; dbit := dbit MOD 8;
-			WHILE h > 0 DO
-				DEC(sadr, src.bpr); DEC(dadr, dst.bpr); DEC(h);
-				mode.transfer(mode, sadr, sbit, dadr, dbit, w)
-			END
-		ELSIF llx # dx THEN	(* uh oh! overlapping spans *)
+			IF  (src.fmt.code=bgra8888)&(dst.fmt.code=bgra8888)& (mode.op=srcCopy) THEN
+				WHILE h > 0 DO
+					Copy32N(sadr,dadr,w);
+					DEC(sadr, src.bpr); DEC(dadr, dst.bpr); DEC(h)
+				END
+			ELSE
+				WHILE h > 0 DO
+					DEC(sadr, src.bpr); DEC(dadr, dst.bpr); DEC(h);
+					mode.transfer(mode, sadr, sbit, dadr, dbit, w)
+				END
+			END;
+		ELSIF llx # dx THEN	(* uh oh! overlapping spans *) (* could use CopyN32 with reversed direction flag CLD, see http://en.wikibooks.org/wiki/X86_Assembly/Data_Transfer#Move_String *)
 			slen := dx + w - urx;	(* maximal span length guaranteeing non-overlapping spans *)
 			sbit := urx * src.fmt.bpp; sadr := src.adr + lly * src.bpr + sbit DIV 8; sbit := sbit MOD 8;
 			dbit := (dx + w) * dst.fmt.bpp; dadr := dst.adr + dy * dst.bpr + dbit DIV 8; dbit := dbit MOD 8;
