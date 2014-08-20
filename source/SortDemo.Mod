@@ -217,6 +217,7 @@ TYPE
 		VAR t: Kernel.Timer;
 		BEGIN
 			ConcQuick( 0, N-1 );
+			NEW(t);
 			WHILE sorters > 0 DO  t.Sleep( 10 )  END
 		END ConcQuickSort;
 		
@@ -334,7 +335,7 @@ TYPE
 		END Start;
 				
 		PROCEDURE Do;
-		BEGIN
+		BEGIN{EXCLUSIVE}
 			AWAIT( sorter # NIL );
 			sdw.Start;
 			sorter;
