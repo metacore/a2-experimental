@@ -1483,7 +1483,7 @@ TYPE
 		PROCEDURE InvalidateCommand*(sender, par : ANY);
 		VAR m: Messages.Message; r, b: Rectangles.Rectangle; client: VisualComponent; parent: XML.Element;
 		BEGIN
-			IF ~initialized OR ~visible.Get() THEN RETURN END;
+			IF ~initialized OR ~visible.Get() THEN RETURN END; (*? double call to visible.Get here and below. Which one is better ?*)
 			IF ~IsCallFromSequencer() OR ~visible.Get() THEN
 				r := GetClientRect();
 				client := SELF;
@@ -2160,6 +2160,7 @@ TYPE
 		BEGIN 
 			BEGIN{EXCLUSIVE} 
 				INC(disableUpdate);
+				INCL(flags, 13); (* render windows background non-displayed*)
 				IF form # NIL THEN form.Finalize; form.sequencer.Stop; content:=NIL END;
 				IF x IS Form THEN
 					form := x(Form);
@@ -2232,7 +2233,7 @@ TYPE
 			IF Raster.alpha IN img.fmt.components THEN
 				canvas.Fill(rect, 0H, WMGraphics.ModeCopy)
 			ELSE
-				canvas.Fill(rect, 0FFH, WMGraphics.ModeCopy)
+				canvas.Fill(rect, 0H (*0FFH*), Raster.clear(*WMGraphics.ModeCopy*))
 			END;
 			form.Draw(canvas);
 			canvas.RestoreState(cs);
