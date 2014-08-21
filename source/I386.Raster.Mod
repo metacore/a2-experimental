@@ -822,6 +822,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 		END
 	END Clear1;
 	
+	(*
 	PROCEDURE ClearBytes (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	BEGIN
 		len := len * mode.dst.bpp DIV 8;
@@ -832,6 +833,16 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			SYSTEM.PUT(dadr, 0X); INC(dadr); DEC(len)
 		END
 	END ClearBytes;
+	*)
+	
+	PROCEDURE ClearBytes (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
+	CODE {SYSTEM.i386}
+			MOV EDI, [EBP+dadr]
+			MOV ECX, [EBP+len]
+			MOV EAX, 0
+			CLD
+			REP STOSB
+	END ClearBytes;	
 	
 	PROCEDURE Clear32 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	CODE {SYSTEM.i386}
