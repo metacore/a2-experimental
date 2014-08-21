@@ -821,7 +821,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			SYSTEM.PUT(dadr, out)
 		END
 	END Clear1;
-
+	
 	PROCEDURE ClearBytes (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	BEGIN
 		len := len * mode.dst.bpp DIV 8;
@@ -832,8 +832,51 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			SYSTEM.PUT(dadr, 0X); INC(dadr); DEC(len)
 		END
 	END ClearBytes;
-
-
+	
+	PROCEDURE Clear32 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
+	CODE {SYSTEM.i386}
+			MOV EDI, [EBP+dadr]
+			MOV EAX, 4
+			MOV ECX, [EBP+len]
+			MUL ECX
+			MOV ECX, EAX
+			MOV EAX, 0
+			CLD
+			REP STOSD
+	END Clear32;	
+	
+	(*---- fill --------------*)
+	PROCEDURE Fill16(destAdr: ADDRESS; size: SIZE; filler: LONGINT);
+		CODE {SYSTEM.i386}
+			MOV EDI, [EBP+destAdr]
+			MOV ECX, [EBP+size]
+			MOV EAX, [EBP+filler]
+			CLD
+			REP STOSW
+		END Fill16;
+	
+	PROCEDURE Fill32(destAdr: ADDRESS; size: SIZE; filler: LONGINT); (*! to do: change interface, introduce in Blend()*)
+		(* (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);*)
+		CODE {SYSTEM.i386}
+			MOV EDI, [EBP+destAdr]
+			MOV ECX, [EBP+size]
+			MOV EAX, [EBP+filler]
+			CLD
+			REP STOSD
+		END Fill32;
+	(*
+	PROCEDURE Fill32B (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
+	CODE {SYSTEM.i386}
+			MOV EDI, [EBP+dadr]
+			MOV EAX, 4
+			MOV ECX, [EBP+len]
+			MUL ECX
+			MOV ECX, EAX
+			MOV EAX, [mode.buf]
+			CLD
+			REP STOSD
+	END Fill32B;	
+	*)
 	(*--- srcCopy Transfer ---*)
 
 	(* constant values *)
@@ -932,11 +975,21 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			INC(sadr); INC(dadr); DEC(len)
 		END
 	END I8CopyI8;
-
+(*
 	PROCEDURE Copy16 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	BEGIN
 		SYSTEM.MOVE(sadr, dadr, 2*len)
 	END Copy16;
+	*)
+	
+	PROCEDURE Copy16(VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
+	CODE {SYSTEM.i386}
+			MOV ESI, [EBP+sadr]
+			MOV EDI, [EBP+dadr]
+			CLD
+			MOV ECX, [EBP+len]
+			REP MOVSW
+	END Copy16;	
 
 	PROCEDURE I16CopyI16 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 		VAR val: INTEGER;
@@ -952,13 +1005,21 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 	BEGIN
 		SYSTEM.MOVE(sadr, dadr, 3*len)
 	END Copy24;
-
+(*
 	PROCEDURE Copy32 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	BEGIN
 		SYSTEM.MOVE(sadr, dadr, 4*len)
 	END Copy32;
-
-
+*)
+	PROCEDURE Copy32(VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
+	CODE {SYSTEM.i386}
+			MOV ESI, [EBP+sadr]
+			MOV EDI, [EBP+dadr]
+			CLD
+			MOV ECX, [EBP+len]
+			REP MOVSD
+	END Copy32;	
+	
 	(* general methods *)
 	PROCEDURE AnyCopyAny (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 		VAR pix: Pixel;
@@ -2644,7 +2705,8 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 		ELSIF op = clear THEN
 			CASE dst.code OF
 			| a1: mode.transfer := Clear1
-			| a8, bgr555, bgr565, bgr466, bgr888, bgra8888: mode.transfer := ClearBytes
+			| a8, bgr555, bgr565, bgr466, bgr888(*, bgra8888*): mode.transfer := ClearBytes
+			| bgra8888: mode.transfer:=Clear32;
 			| p8:
 				mode.buf[0] := CHR(CLUTs.Match(dst.pal.clut, 0));
 				IF mode.buf[0] = 0X THEN mode.transfer := ClearBytes
@@ -2906,24 +2968,6 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 	(** fill rectangular area **)
 	PROCEDURE Fill* (img: Image; llx, lly, urx, ury: LONGINT; pix: Pixel; VAR mode: Mode);
 		VAR bit, bb, x, c, t: LONGINT; m: Mode; adr, aa: ADDRESS;
-		PROCEDURE Fill16(destAdr: ADDRESS; size: SIZE; filler: LONGINT);
-		CODE {SYSTEM.i386}
-			MOV EDI, [EBP+destAdr]
-			MOV ECX, [EBP+size]
-			MOV EAX, [EBP+filler]
-			CLD
-			REP STOSW
-		END Fill16;
-
-		PROCEDURE Fill32(destAdr: ADDRESS; size: SIZE; filler: LONGINT);
-		CODE {SYSTEM.i386}
-			MOV EDI, [EBP+destAdr]
-			MOV ECX, [EBP+size]
-			MOV EAX, [EBP+filler]
-			CLD
-			REP STOSD
-		END Fill32;
-
 	BEGIN
 		ASSERT((0 <= llx) & (llx < urx) & (urx <= img.width) & (0 <= lly) & (lly < ury) & (ury <= img.height), 100);
 		bit := llx * img.fmt.bpp; adr := img.adr + lly * img.bpr + bit DIV 8; bit := bit MOD 8;
@@ -2935,22 +2979,14 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 				Fill16(adr, t, c);
 				INC(lly); INC(adr, img.bpr)
 			END
-		ELSIF (mode.op = srcCopy) & (img.fmt.code IN {bgra8888(*PH*)}) THEN
+		ELSIF (mode.op = srcCopy) & (img.fmt.code IN {bgra8888(*PH*)}) THEN (*!to do: move Fill32 with standardized parameters in to Bind() instead*)
 			c := SYSTEM.VAL(LONGINT, pix);
 			t := urx - llx;
 			WHILE lly < ury DO
 				Fill32(adr, t, c);
 				INC(lly); INC(adr, img.bpr)
 			END
-		(*!  PH*)
-		ELSIF (mode.op = clear) & (img.fmt.code=bgra8888) THEN
-			t := urx - llx;
-			WHILE lly < ury DO
-				Fill32(adr, t, 0);
-				INC(lly); INC(adr, img.bpr)
-			END
 		ELSE
-		(**)
 			Bind(mode, PixelFormat, img.fmt);
 			IF (mode.op IN {clear, srcCopy}) OR (pix[a] = 0FFX) & (mode.op IN {srcOverDst, dstWithoutSrc}) THEN	(* dst is replaced *)
 				(* copy one pixel to lower left corner of rect *)
@@ -3026,16 +3062,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 	(** copy rectangular area to the same or another image in specified mode **)
 	PROCEDURE Copy* (src, dst: Image; llx, lly, urx, ury, dx, dy: LONGINT; VAR mode: Mode);
 		VAR w, h, sbit, dbit, slen, sb, db, len, l, w1, h1: LONGINT; sadr, dadr, sa, da: ADDRESS;
-		
-		PROCEDURE Copy32N(srcAdr: ADDRESS; destAdr: ADDRESS; size: SIZE);
-		CODE {SYSTEM.i386}
-			MOV ESI, [EBP+srcAdr]
-			MOV EDI, [EBP+destAdr]
-			CLD
-			MOV ECX, [EBP+size]
-			REP MOVSD
-		END Copy32N;
-		
+				
 	BEGIN
 		ASSERT((0 <= llx) & (llx <= urx) & (urx <= src.width) & (0 <= lly) & (lly <= ury) & (ury <= src.height), 100);
 		ASSERT((0 <= dx) & (dx + urx - llx <= dst.width) & (0 <= dy) & (dy + ury - lly <= dst.height), 101);
@@ -3044,31 +3071,17 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 		IF (src # dst) OR (lly > dy) OR (lly = dy) & ((llx > dx) OR (urx <= dx)) THEN	(* copy lines bottom-up *)
 			sbit := llx * src.fmt.bpp;  sadr := src.adr + lly * src.bpr + sbit DIV 8; sbit := sbit MOD 8;
 			dbit := dx * dst.fmt.bpp; dadr := dst.adr + dy * dst.bpr + dbit DIV 8; dbit := dbit MOD 8;
-			IF (src.fmt.code=bgra8888)&(dst.fmt.code=bgra8888) & (mode.op=srcCopy) THEN (* assuming aligned 32Bit pixels for best performance*)
-				WHILE h > 0 DO
-					Copy32N(sadr,dadr,w);
-					INC(sadr, src.bpr); INC(dadr, dst.bpr); DEC(h)
-				END
-			ELSE
-				WHILE h > 0 DO
-					mode.transfer(mode, sadr, sbit, dadr, dbit, w);
-					INC(sadr, src.bpr); INC(dadr, dst.bpr); DEC(h)
-				END
-			END;
+			WHILE h > 0 DO
+				mode.transfer(mode, sadr, sbit, dadr, dbit, w);
+				INC(sadr, src.bpr); INC(dadr, dst.bpr); DEC(h)
+			END
 		ELSIF lly < dy THEN	(* copy lines top-down *)
 			sbit := llx * src.fmt.bpp; sadr := src.adr + ury * src.bpr + sbit DIV 8;  sbit := sbit MOD 8;
 			dbit := dx * dst.fmt.bpp; dadr := dst.adr + (dy + h) * dst.bpr + dbit DIV 8; dbit := dbit MOD 8;
-			IF  (src.fmt.code=bgra8888)&(dst.fmt.code=bgra8888)& (mode.op=srcCopy) THEN
-				WHILE h > 0 DO
-					Copy32N(sadr,dadr,w);
-					DEC(sadr, src.bpr); DEC(dadr, dst.bpr); DEC(h)
-				END
-			ELSE
-				WHILE h > 0 DO
-					DEC(sadr, src.bpr); DEC(dadr, dst.bpr); DEC(h);
-					mode.transfer(mode, sadr, sbit, dadr, dbit, w)
-				END
-			END;
+			WHILE h > 0 DO
+				DEC(sadr, src.bpr); DEC(dadr, dst.bpr); DEC(h);
+				mode.transfer(mode, sadr, sbit, dadr, dbit, w)
+			END
 		ELSIF llx # dx THEN	(* uh oh! overlapping spans *) (* could use CopyN32 with reversed direction flag CLD, see http://en.wikibooks.org/wiki/X86_Assembly/Data_Transfer#Move_String *)
 			slen := dx + w - urx;	(* maximal span length guaranteeing non-overlapping spans *)
 			sbit := urx * src.fmt.bpp; sadr := src.adr + lly * src.bpr + sbit DIV 8; sbit := sbit MOD 8;
