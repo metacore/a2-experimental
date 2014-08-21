@@ -448,7 +448,7 @@ VAR
 	BEGIN
 		IF no >= argc THEN  val[0] := 0X
 		ELSE
-			S.GET( argv + 4*no, adr );  i := 0;
+			S.GET( argv + SIZEOF(ADDRESS)*no, adr );  i := 0;
 			REPEAT  S.GET( adr, ch );  val[i] := ch;  INC( adr );  INC( i );   UNTIL (ch = 0X) OR (i >= LEN( val ));
 		END
 	END GetArg;
