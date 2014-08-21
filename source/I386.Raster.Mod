@@ -542,11 +542,9 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 		fmt.pack := pack; fmt.unpack := unpack
 	END InitFormat;
 
-	(** initialize 8 bit index format with custom palette **)
+	(** initialize index formats with custom palette **)
 	PROCEDURE InitPaletteFormat* (VAR fmt: Format; pal: Palette);
 	BEGIN
-		(*fmt.code := p8; fmt.bpp := 8; fmt.align := 1; fmt.components := {index}; fmt.pal := pal;
-		fmt.pack := PackP8; fmt.unpack := UnpackP8*)
 		fmt.components := {index}; fmt.pal := pal;
 		IF pal.used<=256 THEN
 			fmt.align := 1;
@@ -848,8 +846,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 	CODE {SYSTEM.i386}
 			MOV EDI, [EBP+dadr]
 			MOV EAX, 4
-			MOV ECX, [EBP+len]
-			MUL ECX
+			MUL [EBP+len]
 			MOV ECX, EAX
 			MOV EAX, 0
 			CLD
@@ -857,6 +854,15 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 	END Clear32;	
 	
 	(*---- fill --------------*)
+	PROCEDURE Fill8(destAdr: ADDRESS; size: SIZE; filler: LONGINT);
+		CODE {SYSTEM.i386}
+			MOV EDI, [EBP+destAdr]
+			MOV ECX, [EBP+size]
+			MOV EAX, [EBP+filler]
+			CLD
+			REP STOSB
+		END Fill8;
+		
 	PROCEDURE Fill16(destAdr: ADDRESS; size: SIZE; filler: LONGINT);
 		CODE {SYSTEM.i386}
 			MOV EDI, [EBP+destAdr]
@@ -866,8 +872,18 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			REP STOSW
 		END Fill16;
 	
+	PROCEDURE Fill24(destAdr: ADDRESS; size: SIZE; filler: LONGINT);
+		CODE {SYSTEM.i386}
+			MOV EDI, [EBP+destAdr]
+			MOV EAX, 3
+			MUL [EBP+size]
+			MOV ECX, EAX
+			MOV EAX, [EBP+filler]
+			CLD
+			REP STOSB
+		END Fill24;
+	
 	PROCEDURE Fill32(destAdr: ADDRESS; size: SIZE; filler: LONGINT); (*! to do: change interface, introduce in Blend()*)
-		(* (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);*)
 		CODE {SYSTEM.i386}
 			MOV EDI, [EBP+destAdr]
 			MOV ECX, [EBP+size]
@@ -875,19 +891,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			CLD
 			REP STOSD
 		END Fill32;
-	(*
-	PROCEDURE Fill32B (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
-	CODE {SYSTEM.i386}
-			MOV EDI, [EBP+dadr]
-			MOV EAX, 4
-			MOV ECX, [EBP+len]
-			MUL ECX
-			MOV ECX, EAX
-			MOV EAX, [mode.buf]
-			CLD
-			REP STOSD
-	END Fill32B;	
-	*)
+
 	(*--- srcCopy Transfer ---*)
 
 	(* constant values *)
@@ -916,27 +920,24 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 		END
 	END Set1;
 
+
 	PROCEDURE ConstCopy8 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	BEGIN
-		WHILE len > 0 DO
-			SYSTEM.PUT(dadr, mode.buf[0]); INC(dadr); DEC(len)
-		END
+		Fill8(dadr, len, ORD(mode.buf[0]))
+		(*WHILE len > 0 DO	SYSTEM.PUT(dadr, mode.buf[0]); INC(dadr); DEC(len) END*)
 	END ConstCopy8;
 
 	PROCEDURE ConstCopy16 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	BEGIN
-		WHILE len > 0 DO
-			SYSTEM.MOVE(ADDRESSOF(mode.buf[0]), dadr, 2); INC(dadr, 2); DEC(len)
-		END
+		Fill16(dadr, len, ORD(mode.buf[0])+ASH(ORD(mode.buf[1]),8))
+		(*WHILE len > 0 DO SYSTEM.MOVE(ADDRESSOF(mode.buf[0]), dadr, 2); INC(dadr, 2); DEC(len) END*)
 	END ConstCopy16;
 
 	PROCEDURE ConstCopy24 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	BEGIN
-		WHILE len > 0 DO
-			SYSTEM.MOVE(ADDRESSOF(mode.buf[0]), dadr, 3); INC(dadr, 3); DEC(len)
-		END
+		Fill24(dadr, len, ORD(mode.buf[0])+ASH(ORD(mode.buf[1]),8)+ASH(ORD(mode.buf[2]),16));
+		(*WHILE len > 0 DO	SYSTEM.MOVE(ADDRESSOF(mode.buf[0]), dadr, 3); INC(dadr, 3); DEC(len) END*)
 	END ConstCopy24;
-
 
 	(* identical formats *)
 	PROCEDURE Copy1 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
@@ -2990,7 +2991,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 				Fill16(adr, t, c);
 				INC(lly); INC(adr, img.bpr)
 			END
-		ELSIF (mode.op = srcCopy) & (img.fmt.code IN {bgra8888(*PH*)}) THEN (*!to do: move Fill32 with standardized parameters in to Bind() instead*)
+		ELSIF (mode.op = srcCopy) & (img.fmt.code = bgra8888) THEN (*!to do: move Fill32 with standardized parameters in to Bind() instead*)
 			c := SYSTEM.VAL(LONGINT, pix);
 			t := urx - llx;
 			WHILE lly < ury DO
