@@ -5,10 +5,11 @@ MODULE SortDemo;	(** AUTHOR "g.f."; PURPOSE sort demo *)
 IMPORT
 	Raster, Random, WMRectangles, Strings, WMMessages,
 	WM := WMWindowManager, WMComponents, WMStandardComponents,
-	Log := KernelLog, Clock, Objects, Kernel;
+	Log := KernelLog, Clock, Kernel, Machine;
 	
 CONST
 	N = 140;  ElemSize = 5;
+	MaxConcurrentSorters = 5;	(* assuming we have 6 processor cores *)
 
 TYPE
 	SDW* =  OBJECT (WM.BufferWindow)
@@ -216,9 +217,10 @@ TYPE
 		PROCEDURE ConcQuickSort;
 		VAR t: Kernel.Timer;
 		BEGIN
+			activeSorters := 0; concSorters := 0;
 			ConcQuick( 0, N-1 );
 			NEW(t);
-			WHILE sorters > 0 DO  t.Sleep( 10 )  END
+			WHILE (activeSorters > 0) OR (concSorters > 0) DO  t.Sleep( 50 )  END
 		END ConcQuickSort;
 		
 		
@@ -653,7 +655,8 @@ TYPE
 
 
 	ConcurrentSorter = OBJECT
-		VAR lo, hi, i, j, m: LONGINT;  done: BOOLEAN;
+		VAR lo, hi, i, j, m: LONGINT;  
+			concurrentSorter: ConcurrentSorter;
 			
 			PROCEDURE &Init (low, high: LONGINT );
 			BEGIN
@@ -661,20 +664,26 @@ TYPE
 			END Init;
 					
 		BEGIN {ACTIVE}
-			INC( sorters );
-			i := lo;  j := hi;  m := (lo + hi) DIV 2;  done := FALSE;
-			REPEAT
-				WHILE Less( i, m ) DO  INC( i )  END;
-				WHILE Less( m, j ) DO  DEC( j )  END;
-				IF i <= j THEN
-					IF m = i THEN  m := j
-					ELSIF m = j THEN  m := i
-					END;
-					Swap( i, j );  INC( i );  DEC( j )
+			IF lo < hi THEN
+				i := lo;  j := hi;  m := (lo + hi) DIV 2;  
+				REPEAT
+					WHILE Less( i, m ) DO  INC( i )  END;
+					WHILE Less( m, j ) DO  DEC( j )  END;
+					IF i <= j THEN
+						IF m = i THEN  m := j
+						ELSIF m = j THEN  m := i
+						END;
+						Swap( i, j );  INC( i );  DEC( j )
+					END
+				UNTIL i > j;
+				IF concSorters < MaxConcurrentSorters THEN  
+					Machine.AtomicInc( concSorters );
+					NEW( concurrentSorter, lo, j );  ConcQuick( i, hi )
+				ELSE
+					ConcQuick( lo, j );  ConcQuick( i, hi )
 				END
-			UNTIL i > j;
-			ConcQuick( lo, j );  ConcQuick( i, hi );
-			DEC( sorters )
+			END;
+			Machine.AtomicDec( concSorters )
 		END ConcurrentSorter;	
 		
 		
@@ -683,7 +692,8 @@ VAR
 	sdw: SDW;
 	data: ARRAY N OF LONGINT;  (* sort array *)
 	delay: LONGINT;
-	sorters: LONGINT;
+	activeSorters, concSorters: LONGINT;
+	
 	
 	nofcomps, nofswaps: LONGINT; 
 	
@@ -696,7 +706,7 @@ VAR
 			sdw.DrawElement( j );
 			sdw.Update;
 			IF delay # 0 THEN NEW(t); t.Sleep( delay)  END; 
-			INC( nofswaps )
+			Machine.AtomicInc( nofswaps )
 		END
 	END Swap;
 	
@@ -709,14 +719,15 @@ VAR
 			t.Sleep( delay); 
 			sdw.Clear( i ); sdw.Clear( j );  sdw.Update;
 		END;
-		INC( nofcomps );
+		Machine.AtomicInc( nofcomps );
 		RETURN data[i] < data[j];
 	END Less;
 	
 	PROCEDURE ConcQuick( lo, hi: LONGINT );
 	VAR i, j, m: LONGINT;
-		leftSorter, rightSorter: ConcurrentSorter;
+		concurrentSorter: ConcurrentSorter;
 	BEGIN
+		Machine.AtomicInc( activeSorters );
 		IF lo < hi THEN
 			i := lo;  j := hi;  m := (lo + hi) DIV 2;
 			REPEAT
@@ -729,11 +740,14 @@ VAR
 					Swap( i, j );  INC( i );  DEC( j )
 				END
 			UNTIL i > j;
-			IF j - lo > 20 THEN  NEW( leftSorter, lo, j )  END;  
-			IF hi - i > 20 THEN  NEW( rightSorter, i, hi )  END;
-			IF leftSorter = NIL THEN  ConcQuick( lo, j )  END;
-			IF rightSorter = NIL THEN  ConcQuick( i, hi )  END
-		END
+			IF concSorters < MaxConcurrentSorters THEN  
+				Machine.AtomicInc( concSorters );
+				NEW( concurrentSorter, lo, j );  ConcQuick( i, hi )
+			ELSE
+				ConcQuick( lo, j );  ConcQuick( i, hi )
+			END
+		END;
+		Machine.AtomicDec( activeSorters );
 	END ConcQuick;
 	
 	PROCEDURE SeqQuick( lo, hi: LONGINT );
