@@ -446,7 +446,7 @@ VAR
 	END Dlclose;
 
 	PROCEDURE GetArg*( no: LONGINT;  VAR val: ARRAY OF CHAR );
-	VAR ch: CHAR;  adr, i: LONGINT;
+	VAR ch: CHAR;  adr: ADDRESS; i: LONGINT;
 	BEGIN
 		IF no >= argc THEN  val[0] := 0X
 		ELSE
