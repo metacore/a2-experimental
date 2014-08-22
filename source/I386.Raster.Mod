@@ -842,12 +842,11 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			REP STOSB
 	END ClearBytes;	
 	
+	(* len is nr of DWords*)
 	PROCEDURE Clear32 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	CODE {SYSTEM.i386}
 			MOV EDI, [EBP+dadr]
-			MOV EAX, 4
-			MUL [EBP+len]
-			MOV ECX, EAX
+			IMUL ECX, [EBP+len], 4
 			MOV EAX, 0
 			CLD
 			REP STOSD
@@ -863,6 +862,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			REP STOSB
 		END Fill8;
 		
+		(* size in 16bit words*)
 	PROCEDURE Fill16(destAdr: ADDRESS; size: SIZE; filler: LONGINT);
 		CODE {SYSTEM.i386}
 			MOV EDI, [EBP+destAdr]
@@ -872,17 +872,17 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			REP STOSW
 		END Fill16;
 	
+	(* size in 24bit entities*)
 	PROCEDURE Fill24(destAdr: ADDRESS; size: SIZE; filler: LONGINT);
 		CODE {SYSTEM.i386}
 			MOV EDI, [EBP+destAdr]
-			MOV EAX, 3
-			MUL [EBP+size]
-			MOV ECX, EAX
+			IMUL ECX, [EBP+size],3  ; because bytes are used below
 			MOV EAX, [EBP+filler]
 			CLD
 			REP STOSB
 		END Fill24;
 	
+	(* size in DWords*)
 	PROCEDURE Fill32(destAdr: ADDRESS; size: SIZE; filler: LONGINT); (*! to do: change interface, introduce in Blend()*)
 		CODE {SYSTEM.i386}
 			MOV EDI, [EBP+destAdr]
@@ -891,6 +891,16 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			CLD
 			REP STOSD
 		END Fill32;
+
+	(* len in DWords*)
+	PROCEDURE Fill32A(VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT); (*! to do: change interface, introduce in Blend()*)
+		CODE {SYSTEM.i386}
+			MOV EDI, [EBP+dadr]
+			MOV ECX, [EBP+len]
+			MOV EAX, [EBP+sadr]
+			CLD
+			REP STOSD
+		END Fill32A;
 
 	(*--- srcCopy Transfer ---*)
 
@@ -919,7 +929,6 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			SYSTEM.PUT(dadr, out)
 		END
 	END Set1;
-
 
 	PROCEDURE ConstCopy8 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	BEGIN
@@ -987,13 +996,13 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			INC(sadr); INC(dadr); DEC(len)
 		END
 	END I8CopyI8;
-(*
+
 	PROCEDURE Copy16 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	BEGIN
 		SYSTEM.MOVE(sadr, dadr, 2*len)
 	END Copy16;
-	*)
 	
+	(*
 	PROCEDURE Copy16(VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	CODE {SYSTEM.i386}
 			MOV ESI, [EBP+sadr]
@@ -1002,6 +1011,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			MOV ECX, [EBP+len]
 			REP MOVSW
 	END Copy16;	
+	*)
 
 	PROCEDURE I16CopyI16 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 		VAR val: INTEGER;
@@ -1017,12 +1027,12 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 	BEGIN
 		SYSTEM.MOVE(sadr, dadr, 3*len)
 	END Copy24;
-(*
+
 	PROCEDURE Copy32 (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	BEGIN
 		SYSTEM.MOVE(sadr, dadr, 4*len)
 	END Copy32;
-*)
+(* (*produces only slightly more compact assembler code as prior procedure*)
 	PROCEDURE Copy32(VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 	CODE {SYSTEM.i386}
 			MOV ESI, [EBP+sadr]
@@ -1031,7 +1041,7 @@ MODULE Raster; (** non-portable *)	(* eos, TF  **)
 			MOV ECX, [EBP+len]
 			REP MOVSD
 	END Copy32;	
-	
+	*)
 	(* general methods *)
 	PROCEDURE AnyCopyAny (VAR mode: Mode0; sadr: ADDRESS; sbit: LONGINT; dadr: ADDRESS; dbit, len: LONGINT);
 		VAR pix: Pixel;
@@ -3551,7 +3561,7 @@ The following global variables contain formats which are special and have a uniq
 	* A8 (code a8): 8 bit alpha (mainly for anti-aliased character patterns)
 	* - (code p8): 8 bit indexed with custom palette (Oberon pictures, use InitPaletteFormat to initialize)
 	* D8 (code d8): 8 bit indexed with display palette (no palette structure attached)
-	* - (code p16): 16 bit indexed with 16bit Palette. This type is, e.g.,  often used in medical imaging (DICOM-3 standard) (*PH 2004*)
+	* - (code p16): 16 bit indexed with 16bit Palette. This type is, e.g.,  often used in medical imaging (DICOM-3 standard) (* PH 2004 *)
 	* BGR555 (code bgr555), BGR565 (code bgr565), BGR466 (code bgr466): 16 bit hi-color
 	* BGR888 (code bgr888): 24 bit true-color
 	* BGRA8888 (code bgra8888), PixelFormat: 32 bit true-color with alpha channel (general pixel format)
