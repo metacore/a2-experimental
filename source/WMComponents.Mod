@@ -2121,6 +2121,15 @@ TYPE
 		content : VisualComponent;
 		scaling* : BOOLEAN;
 	
+		(*
+		PROCEDURE SetCanvas*(canvas:Graphics.BufferCanvas; CONST generator: ARRAY OF CHAR);
+		VAR a: a: XML.Attribute; 
+		BEGIN
+			canvas.New(img); SELF.canvas:=canvas;
+		END SetCanvas;
+		*)
+
+	
 		PROCEDURE ToXML*():XML.Content;
 		VAR winx: XML.Element; a: XML.Attribute; string: ARRAY 128 OF CHAR; title:Strings.String;
 		BEGIN {EXCLUSIVE}
@@ -2134,6 +2143,7 @@ TYPE
 			NEW(a); a.SetName("r"); Strings.IntToStr(bounds.r, string); a.SetValue(string); winx.AddAttribute(a);
 			NEW(a); a.SetName("b"); Strings.IntToStr(bounds.b, string); a.SetValue(string); winx.AddAttribute(a);
 			NEW(a); a.SetName("flags"); Strings.SetToStr(flags, string); a.SetValue(string); winx.AddAttribute(a);
+			NEW(a); a.SetName("canvasGenerator"); a.SetValue(canvas.generator^); winx.AddAttribute(a);
 			winx.AddContent(form);
 			RETURN winx
 		END ToXML;
@@ -3285,7 +3295,11 @@ BEGIN {EXCLUSIVE}
 END Load;
 
 PROCEDURE FormWindowGen*(xml:XML.Content): WM.Window; 
-VAR winx: XML.Element; formx: XML.Content; window: FormWindow; name, string:Strings.String;
+VAR winx: XML.Element; formx: XML.Content; window: FormWindow; name, string:Strings.String; canvas:WMGraphics.BufferCanvas;
+	canvasGen: WMGraphics.CanvasGenerator;
+	moduleName, procedureName : Modules.Name;
+	msg : ARRAY 128 OF CHAR;
+	res: LONGINT;
 	l,t,r,b: LONGINT;
 BEGIN
 	IF xml IS XML.Element THEN
@@ -3300,6 +3314,18 @@ BEGIN
 			name:=winx.GetAttributeValue("name"); window.SetTitle(name);
 			window.bounds.r:=r; window.bounds.l:=l; window.bounds.t:=t; window.bounds.b:=b;
 			string:=winx.GetAttributeValue("flags"); Strings.StrToSet(string^,window.flags);
+			string:=winx.GetAttributeValue("canvasGenerator"); (* allow to plug in alternative canvas versions,e.g. WMGraphicsGfx.Canvas *)
+			IF (string#NIL) THEN
+				Commands.Split(string^, moduleName, procedureName, res, msg);
+				IF (res = Commands.Ok) THEN
+					GETPROCEDURE(moduleName, procedureName, canvasGen);
+					IF (canvasGen # NIL) THEN
+						canvas:=canvasGen();
+						canvas.New(window.img); window.canvas:=canvas;
+					END;
+				END;
+			END;
+			
 			formx:=winx.GetFirst(); (* this typically has name="Form" *)
 			IF (formx#NIL)&(formx IS XML.Element) THEN
 				window.LoadComponents(formx(XML.Element)); (* at the price of duplication of component tree construction ...*)

@@ -1,0 +1,134 @@
+MODULE WMGraphicsGfx; (** AUTHOR "Patrick Hunziker"; PURPOSE "use rich Gfx Business logic for WMWindowManager.Canvas"; *)
+
+IMPORT Gfx, GfxBuffer, GfxRaster, GfxMatrix, GfxRegions, Raster, Strings, WMGraphics, WMWindowManager;
+	
+TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
+	VAR
+		gfxContext-: GfxBuffer.Context;
+		
+		PROCEDURE &New*(img : Raster.Image);
+		BEGIN
+			IF img#NIL THEN
+				New^(img);
+				generator:=Strings.NewString("WMGraphicsGfx.GenCanvas");
+				SetupDrawing;	
+			ELSE (* need to call canvas.New(img) later on*)
+			END;
+		END New;
+		
+		PROCEDURE SetupDrawing;
+		VAR m: GfxMatrix.Matrix; c: GfxBuffer.Context;
+		BEGIN
+			NEW(gfxContext);
+			GfxBuffer.Init(gfxContext, GetImage());
+			GfxBuffer.SetCompOp(gfxContext, Raster.srcOverDst);
+			c := gfxContext(GfxBuffer.Context);
+			GfxRaster.ResetClip(c);
+			GfxRegions.SetToRect(c.clipReg, SHORT(clipRect.l), SHORT(clipRect.t), SHORT(clipRect.r), SHORT(clipRect.b));
+			GfxMatrix.Init(m,1,0,0,1,dx,dy); (* one to one coordinate system, translated by the component's origin *)
+			Gfx.SetCTM(gfxContext,m);
+			SetFont(WMGraphics.GetDefaultFont());
+			SetColor(WMGraphics.Black);
+			
+			StartDraw(WMGraphics.GetDefaultFont(), WMGraphics.Blue, WMGraphics.White, 1, 10);
+		END SetupDrawing;
+		
+		PROCEDURE SetLineWidth(w:LONGINT);
+		BEGIN
+			Gfx.SetLineWidth(gfxContext,w);
+		END SetLineWidth;
+		
+		(* set font color*)
+		PROCEDURE SetColor*(color:LONGINT);
+		VAR gfxcolor:Gfx.Color;
+		BEGIN
+			SetColor^(color);
+			Gfx.SetStrokeColor(gfxContext,ColorToGfxColor(color));	
+		END SetColor;
+		
+		PROCEDURE ColorToGfxColor(color:LONGINT):Gfx.Color;
+			VAR gfxcolor:Gfx.Color;
+		BEGIN
+			SetColor^(color);
+			gfxcolor.a := INTEGER(color MOD 100H);
+			gfxcolor.b := INTEGER(color DIV 100H MOD 100H);
+			gfxcolor.g := INTEGER(color DIV 10000H MOD 100H);
+			gfxcolor.r := INTEGER(color DIV 1000000H MOD 100H);
+			RETURN gfxcolor
+		END ColorToGfxColor;
+		
+		PROCEDURE GfxColorToColor(gfxColor:Gfx.Color):WMGraphics.Color;
+		BEGIN
+			color:=LONGINT (((HUGEINT(gfxColor.r*100H)+gfxColor.g)*100+gfxColor.b)*100+gfxColor.a)
+		END GfxColorToColor;
+		
+		PROCEDURE StartDraw(font: WMGraphics.Font; fcol, bcol, width, dashLength: LONGINT);
+		VAR gfxcolor: Gfx.Color; on, off: ARRAY 1 OF REAL;
+		BEGIN
+			SetColor(fcol);
+			Gfx.SetStrokeColor(gfxContext,ColorToGfxColor(fcol));	
+			Gfx.SetFillColor(gfxContext, ColorToGfxColor(bcol));
+			
+			SetLineWidth(width);
+
+			IF  (SELF.font=NIL) OR (SELF.font.name# font.name) THEN
+				SetFont(font);
+				Gfx.SetFontName(gfxContext, font.name, SHORT(font.size));
+			END;
+			IF dashLength > 0 THEN
+				on[0] := dashLength; off[0] := dashLength;
+				Gfx.SetDashPattern(gfxContext, on, off, 1, 0);
+			END
+		END StartDraw;
+		
+		PROCEDURE Line(x0, y0, x1, y1 : LONGINT; color : WMGraphics.Color; mode : LONGINT); (*this is a heavy duty procedure that can be called millions of times in time-varying or scrolled graphs - optimize*)
+		BEGIN
+			(* to do use line color, not fontcolor here*)
+			Gfx.DrawLine(gfxContext, x0, x0, x1, y1, {Gfx.Stroke}); (*may be refined by plotting to upper/lower boundary*)
+				(* Performance issue: Gfx.DrawLine expects REAL coordinates;	inside of Gfx a  coordinate transformation and conversion from REAL to Integer pixel position will happen again *)
+		END Line;
+
+		(** draw circle in requested mode (clockwise if r > 0, counterclockwise if r < 0) **)
+		PROCEDURE Circle(x,y,r:LONGINT); (*tentative -this method will be changed*)
+		BEGIN
+			Gfx.DrawCircle(gfxContext, x,y,r, {Gfx.Stroke});
+		END Circle;
+
+		(*to be extended by various Gfx specific drawing primitives*)
+
+	END Canvas;
+
+PROCEDURE GenCanvas*():WMGraphics.Canvas; (* generator procedure *)
+VAR c:Canvas; img:Raster.Image;
+BEGIN
+	NEW(c,img); RETURN c (* img is NIL, needs a call of c.New(img) later on *)
+END GenCanvas;
+
+PROCEDURE Test*; (* will be removed *)
+VAR w:WMWindowManager.BufferWindow; c: Canvas;
+BEGIN
+	NEW(w, 300,400, FALSE);
+	NEW(c, w.img);
+	w.canvas:=c;
+	
+	c.Fill(w.bounds, WMGraphics.Red, WMGraphics.ModeCopy);
+	
+	c.SetLineWidth(5);
+	c.Line(10,10,100,100, WMGraphics.Blue, WMGraphics.ModeCopy);
+	
+	c.SetPixel (50,30, WMGraphics.White, WMGraphics.ModeCopy);
+	
+	c.DrawString(60,40,"Hello World");
+	
+	c.SetLineWidth(3);
+	c.SetColor(WMGraphics.Yellow);
+	c.Circle(150,200, 100);
+	
+	WMWindowManager.DefaultAddWindow(w);
+	w.Invalidate(w.bounds);
+END Test;
+
+END WMGraphicsGfx.
+
+WMGraphicsGfx.Test ~
+
