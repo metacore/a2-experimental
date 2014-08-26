@@ -255,15 +255,11 @@ TYPE
 			ELSIF (property = filled) THEN IF filled.Get() THEN INCL(state,Filled) ELSE EXCL(state,Filled); END; Invalidate;
 			ELSIF (property = reshape) THEN IF reshape.Get() THEN INCL(state,Reshape) ELSE EXCL(state,Reshape); END; Invalidate;
 			ELSIF (property = arrow) THEN IF arrow.Get() THEN INCL(state,Arrow) ELSE EXCL(state,Arrow); END; Invalidate;
-			ELSIF property IS WMProperties.PointProperty THEN
-				RecachePoints; (*? could be moved to PropertyChanged ?*)
+			ELSIF (property IS WMProperties.PointProperty) OR (property=properties) THEN
+				RecachePoints;
 				Normalize;
-				 Resized;(*has Invalidate built in*) (*Invalidate; *)
-			ELSIF property=properties THEN 
-				RecachePoints; (*? could be moved to PropertyChanged ?*)
-				Normalize;
-				Resized; (*has invalidate built in*)(* Invalidate;*) (*?PropertyChanged^(sender, property); *)
-			ELSE  PropertyChanged^(sender, property);  (* e.g, handling bounds by parent *)
+				Resized;(*implied Invalidate*) 
+			ELSE  PropertyChanged^(sender, property); 
 			END;
 		END PropertyChanged;
 	
@@ -746,16 +742,17 @@ TYPE
 
 		PROCEDURE PropertyChanged*(sender, property : ANY);
 			BEGIN
-				IF property IS WMProperties.PointProperty THEN
-					RecachePoints; (*? could be moved to PropertyChanged ?*)
-					SplineToPoly(points, Closed IN state, pointArray, nSegments); (* spline boundary computation requires prior spline expansion, not normalized *)
+				IF (property=closed) THEN 
+					IF closed.Get() THEN INCL(state,Closed) ELSE EXCL(state,Closed);  END; 
+					RecachePoints; 
+					SplineToPoly(points, Closed IN state, pointArray, nSegments); 
 					Normalize;
-					Resized;(*has Invalidate built in*) (*Invalidate; *)
-				ELSIF property=properties THEN 
-					RecachePoints; (*? could be moved to PropertyChanged ?*)
-					SplineToPoly(points, Closed IN state, pointArray, nSegments); (* spline boundary computation requires prior spline expansion, not normalized *)
+					Resized; (*implied Invalidate; *)
+				ELSIF (property=properties) OR (property IS WMProperties.PointProperty) THEN
+					RecachePoints; 
+					SplineToPoly(points, Closed IN state, pointArray, nSegments); 
 					Normalize;
-					Resized; 
+					Resized;
 				ELSE PropertyChanged^(sender,property);
 				END;
 			END PropertyChanged;
