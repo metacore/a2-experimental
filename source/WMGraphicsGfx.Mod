@@ -5,6 +5,10 @@ IMPORT Gfx, GfxBuffer, GfxRaster, GfxMatrix, GfxRegions, Raster, Strings, WMGrap
 TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 	VAR
 		gfxContext-: GfxBuffer.Context;
+		fillColor: LONGINT;
+		gfxStrokeColor: Gfx.Color;
+		gfxFillColor: Gfx.Color;
+		gfxLineWidth: REAL;
 		
 		PROCEDURE &New*(img : Raster.Image);
 		BEGIN
@@ -15,36 +19,54 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 			ELSE (* need to call canvas.New(img) later on*)
 			END;
 		END New;
-		
+
 		PROCEDURE SetupDrawing;
-		VAR m: GfxMatrix.Matrix; c: GfxBuffer.Context;
+		VAR m: GfxMatrix.Matrix; (*c: GfxBuffer.Context;*)
+			(*!X font: WMGraphics.Font;*)(*! delete this and use Canvas.font variable*)
+			on, off: ARRAY 1 OF REAL;
+			VAR dashLength:REAL;
 		BEGIN
 			NEW(gfxContext);
 			GfxBuffer.Init(gfxContext, GetImage());
 			GfxBuffer.SetCompOp(gfxContext, Raster.srcOverDst);
-			c := gfxContext(GfxBuffer.Context);
-			GfxRaster.ResetClip(c);
-			GfxRegions.SetToRect(c.clipReg, SHORT(clipRect.l), SHORT(clipRect.t), SHORT(clipRect.r), SHORT(clipRect.b));
+			(*c := gfxContext(GfxBuffer.Context);*)
+			GfxRaster.ResetClip(gfxContext);
+			GfxRegions.SetToRect(gfxContext.clipReg, SHORT(clipRect.l), SHORT(clipRect.t), SHORT(clipRect.r), SHORT(clipRect.b));
 			GfxMatrix.Init(m,1,0,0,1,dx,dy); (* one to one coordinate system, translated by the component's origin *)
 			Gfx.SetCTM(gfxContext,m);
-			SetFont(WMGraphics.GetDefaultFont());
-			SetColor(WMGraphics.Black);
+			on[0] := dashLength; off[0] := dashLength; Gfx.SetDashPattern(gfxContext, on, off, 1, 0);
 			
-			StartDraw(WMGraphics.GetDefaultFont(), WMGraphics.Blue, WMGraphics.White, 1, 10);
+			SetFont(WMGraphics.GetDefaultFont()); 
+			SetLineWidth(1.0);
+			SetColor(WMGraphics.Blue);
+			SetFillColor(WMGraphics.Red);
 		END SetupDrawing;
-		
-		PROCEDURE SetLineWidth(w:LONGINT);
+
+		PROCEDURE SetLineWidth*(w:REAL);
 		BEGIN
+			gfxLineWidth:=w;
 			Gfx.SetLineWidth(gfxContext,w);
 		END SetLineWidth;
 		
-		(* set font color*)
+		(* set line color*)
 		PROCEDURE SetColor*(color:LONGINT);
-		VAR gfxcolor:Gfx.Color;
 		BEGIN
-			SetColor^(color);
-			Gfx.SetStrokeColor(gfxContext,ColorToGfxColor(color));	
+			IF color#SELF.color THEN
+				SetColor^(color);
+				gfxStrokeColor:=ColorToGfxColor(color);
+				Gfx.SetStrokeColor(gfxContext, gfxStrokeColor);
+			END;	
 		END SetColor;
+		
+		(* set fill/font color*)
+		PROCEDURE SetFillColor*(fillColor:LONGINT);
+		BEGIN
+			IF fillColor#SELF.fillColor THEN
+				SetColor^(fillColor);
+				gfxFillColor:=ColorToGfxColor(fillColor);
+				Gfx.SetFillColor(gfxContext, gfxFillColor);
+			END;	
+		END SetFillColor;
 		
 		PROCEDURE ColorToGfxColor(color:LONGINT):Gfx.Color;
 			VAR gfxcolor:Gfx.Color;
@@ -62,28 +84,24 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 			color:=LONGINT (((HUGEINT(gfxColor.r*100H)+gfxColor.g)*100+gfxColor.b)*100+gfxColor.a)
 		END GfxColorToColor;
 		
-		PROCEDURE StartDraw(font: WMGraphics.Font; fcol, bcol, width, dashLength: LONGINT);
-		VAR gfxcolor: Gfx.Color; on, off: ARRAY 1 OF REAL;
+		PROCEDURE SetFont*(f: WMGraphics.Font);
 		BEGIN
-			SetColor(fcol);
-			Gfx.SetStrokeColor(gfxContext,ColorToGfxColor(fcol));	
-			Gfx.SetFillColor(gfxContext, ColorToGfxColor(bcol));
-			
-			SetLineWidth(width);
-
-			IF  (SELF.font=NIL) OR (SELF.font.name# font.name) THEN
-				SetFont(font);
-				Gfx.SetFontName(gfxContext, font.name, SHORT(font.size));
-			END;
-			IF dashLength > 0 THEN
-				on[0] := dashLength; off[0] := dashLength;
-				Gfx.SetDashPattern(gfxContext, on, off, 1, 0);
-			END
-		END StartDraw;
+			SetFont^(f);
+			Gfx.SetFontName(gfxContext, font.name, SHORT(font.size));
+		END SetFont;
 		
-		PROCEDURE Line(x0, y0, x1, y1 : LONGINT; color : WMGraphics.Color; mode : LONGINT); (*this is a heavy duty procedure that can be called millions of times in time-varying or scrolled graphs - optimize*)
+		PROCEDURE DrawString*(x, y: LONGINT; CONST text : ARRAY OF CHAR);
 		BEGIN
-			(* to do use line color, not fontcolor here*)
+			ASSERT(font#NIL);
+			Gfx.DrawStringAt(gfxContext, x, y, text);
+		END DrawString;
+		
+	
+		PROCEDURE Line*(x0, y0, x1, y1 : LONGINT; lineColor : WMGraphics.Color; mode : LONGINT); (*this is a heavy duty procedure that can be called millions of times in time-varying or scrolled graphs - optimize*)
+		BEGIN
+			IF lineColor#SELF.color THEN
+				SELF.color:=lineColor; gfxStrokeColor:=ColorToGfxColor(lineColor); Gfx.SetStrokeColor(gfxContext,gfxStrokeColor);
+			END;
 			Gfx.DrawLine(gfxContext, x0, x0, x1, y1, {Gfx.Stroke}); (*may be refined by plotting to upper/lower boundary*)
 				(* Performance issue: Gfx.DrawLine expects REAL coordinates;	inside of Gfx a  coordinate transformation and conversion from REAL to Integer pixel position will happen again *)
 		END Line;
@@ -105,7 +123,7 @@ BEGIN
 END GenCanvas;
 
 PROCEDURE Test*; (* will be removed *)
-VAR w:WMWindowManager.BufferWindow; c: Canvas;
+VAR w:WMWindowManager.BufferWindow; c: Canvas; t,x,y,x0,y0:REAL;
 BEGIN
 	NEW(w, 300,400, FALSE);
 	NEW(c, w.img);
@@ -118,10 +136,11 @@ BEGIN
 	
 	c.SetPixel (50,30, WMGraphics.White, WMGraphics.ModeCopy);
 	
+	c.SetFillColor(WMGraphics.Yellow);
 	c.DrawString(60,40,"Hello World");
 	
+	c.SetColor(WMGraphics.Black);
 	c.SetLineWidth(3);
-	c.SetColor(WMGraphics.Yellow);
 	c.Circle(150,200, 100);
 	
 	WMWindowManager.DefaultAddWindow(w);
