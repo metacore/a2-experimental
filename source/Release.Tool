@@ -597,6 +597,7 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 
 	WMGraphics.Mod
 
+
 	TextUtilities.Mod bluebottle.xsl	# Text Utilities
 
 	Types.Mod
@@ -1080,6 +1081,7 @@ PACKAGE GuiApplications ARCHIVE "GuiApplications.zip" SOURCE "GuiApplicationsSrc
 
 	GfxMatrix.Mod GfxImages.Mod GfxPaths.Mod GfxRegions.Mod 	# Gfx (eos)
 	GfxFonts.Mod Gfx.Mod GfxRaster.Mod GfxBuffer.Mod
+	WMGraphicsGfx.Mod
 
 	CSS2Properties.Mod XMLComponents.Mod XMLStyle.Mod XMLLoader.Mod
 
@@ -1104,7 +1106,9 @@ PACKAGE Fun ARCHIVE "Fun.zip" SOURCE "FunSrc.zip" DESCRIPTION "Games, Demos and 
 	Bimso.Mod
 
 	# Demos
-	WMScribble.Mod WMGraphicsDemo.Mod SortDemo.Mod
+	WMScribble.Mod 
+	#WMGraphicsDemo.Mod 
+	SortDemo.Mod
 	Demos.rep
 	FractalDemo.Mod
 	WMBunny.Mod WMBunnyImages.tar
