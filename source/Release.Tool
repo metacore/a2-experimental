@@ -865,6 +865,7 @@ PACKAGE GuiApplicationsMini ARCHIVE "GuiApplicationsMini.zip" SOURCE "GuiApplica
 	WMPinyinIME.Mod PinyinIMETable.txt PinyinIMEPhrases.txt	# Pinyin IME
 	WMRussianIME.Mod											# Russian IME
 	WMUkrainianIME.Mod										# Ukrainian IME
+	WMEthiopicIME.Mod
 	WMUnicodeIME.Mod										# Unicode IME
 	WMInputMethodTool.Mod
 
