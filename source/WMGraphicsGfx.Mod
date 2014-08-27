@@ -9,6 +9,7 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 		gfxStrokeColor: Gfx.Color;
 		gfxFillColor: Gfx.Color;
 		gfxLineWidth: REAL;
+		dashLength: REAL;
 		
 		PROCEDURE &New*(img : Raster.Image);
 		BEGIN
@@ -22,21 +23,19 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 
 		PROCEDURE SetupDrawing;
 		VAR m: GfxMatrix.Matrix; (*c: GfxBuffer.Context;*)
-			(*!X font: WMGraphics.Font;*)(*! delete this and use Canvas.font variable*)
 			on, off: ARRAY 1 OF REAL;
-			VAR dashLength:REAL;
 		BEGIN
 			NEW(gfxContext);
 			GfxBuffer.Init(gfxContext, GetImage());
 			GfxBuffer.SetCompOp(gfxContext, Raster.srcOverDst);
-			(*c := gfxContext(GfxBuffer.Context);*)
 			GfxRaster.ResetClip(gfxContext);
 			GfxRegions.SetToRect(gfxContext.clipReg, SHORT(clipRect.l), SHORT(clipRect.t), SHORT(clipRect.r), SHORT(clipRect.b));
 			GfxMatrix.Init(m,1,0,0,1,dx,dy); (* one to one coordinate system, translated by the component's origin *)
 			Gfx.SetCTM(gfxContext,m);
-			on[0] := dashLength; off[0] := dashLength; Gfx.SetDashPattern(gfxContext, on, off, 1, 0);
-			
-			SetFont(WMGraphics.GetDefaultFont()); 
+			SetDashLength(10);
+			IF dashLength > 0 THEN
+				on[0] := dashLength; off[0] := dashLength; Gfx.SetDashPattern(gfxContext, on, off, 1, 0);
+			END;
 			SetLineWidth(1.0);
 			SetColor(WMGraphics.Blue);
 			SetFillColor(WMGraphics.Red);
@@ -57,6 +56,12 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 				Gfx.SetStrokeColor(gfxContext, gfxStrokeColor);
 			END;	
 		END SetColor;
+		
+		(* set line color*)
+		PROCEDURE SetDashLength*(dl:REAL);
+		BEGIN
+			dashLength:=dl;
+		END SetDashLength;
 		
 		(* set fill/font color*)
 		PROCEDURE SetFillColor*(fillColor:LONGINT);
@@ -84,11 +89,13 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 			color:=LONGINT (((HUGEINT(gfxColor.r*100H)+gfxColor.g)*100+gfxColor.b)*100+gfxColor.a)
 		END GfxColorToColor;
 		
+		(* ????
 		PROCEDURE SetFont*(f: WMGraphics.Font);
 		BEGIN
 			SetFont^(f);
-			Gfx.SetFontName(gfxContext, font.name, SHORT(font.size));
+			Gfx.SetFontName(gfxContext, f.name, SHORT(f.size));
 		END SetFont;
+		*)
 		
 		PROCEDURE DrawString*(x, y: LONGINT; CONST text : ARRAY OF CHAR);
 		BEGIN
