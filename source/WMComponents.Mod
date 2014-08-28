@@ -2121,15 +2121,7 @@ TYPE
 		content : VisualComponent;
 		scaling* : BOOLEAN;
 	
-		(*
-		PROCEDURE SetCanvas*(canvas:Graphics.BufferCanvas; CONST generator: ARRAY OF CHAR);
-		VAR a: a: XML.Attribute; 
-		BEGIN
-			canvas.New(img); SELF.canvas:=canvas;
-		END SetCanvas;
-		*)
 
-	
 		PROCEDURE ToXML*():XML.Content;
 		VAR winx: XML.Element; a: XML.Attribute; string: ARRAY 128 OF CHAR; title:Strings.String;
 		BEGIN {EXCLUSIVE}
@@ -3320,8 +3312,7 @@ BEGIN
 				IF (res = Commands.Ok) THEN
 					GETPROCEDURE(moduleName, procedureName, canvasGen);
 					IF (canvasGen # NIL) THEN
-						canvas:=canvasGen();
-						canvas.New(window.img); window.canvas:=canvas;
+						window.NewCanvas(canvasGen);
 					END;
 				END;
 			END;
