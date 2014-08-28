@@ -502,7 +502,19 @@ TYPE
 			NEW(canvas, img);
 			pointerThreshold := 1; (* invisible pixels are treated as invisble *)
 		END Init;
-
+		(*
+		PROCEDURE SetCanvas*(canvas:Graphics.BufferCanvas);
+		BEGIN
+			canvas.New(img); SELF.canvas:=canvas;
+			IF manager # NIL THEN manager.AddVisibleDirty(SELF, bounds) END
+		END SetCanvas;
+		*)
+		PROCEDURE NewCanvas*(canvasGen:Graphics.CanvasGenerator);
+		BEGIN
+			canvas:=canvasGen(); canvas.New(img); 
+			IF manager # NIL THEN manager.AddVisibleDirty(SELF, bounds) END
+		END NewCanvas;
+		
 		PROCEDURE IsHit(x, y  : LONGINT) : BOOLEAN;
 		VAR w, h : LONGINT; fx, fy : REAL;
 		BEGIN
@@ -584,6 +596,13 @@ TYPE
 			END;
 			NEW(visibleCanvas, img); NEW(canvas, backImg)
 		END ReInit;
+		
+		PROCEDURE NewCanvas*(canvasGen:Graphics.CanvasGenerator);
+		BEGIN
+			canvas:=canvasGen(); canvas.New(backImg); 
+			visibleCanvas:=canvasGen(); visibleCanvas.New(img);
+			IF manager # NIL THEN manager.AddVisibleDirty(SELF, bounds) END
+		END NewCanvas;
 
 		PROCEDURE Draw*(canvas : Graphics.Canvas; w, h, q : LONGINT);
 		BEGIN
