@@ -1,6 +1,6 @@
 MODULE WMGraphicsGfx; (** AUTHOR "Patrick Hunziker"; PURPOSE "use rich Gfx Business logic for WMWindowManager.Canvas"; *)
 
-IMPORT Gfx, GfxBuffer, GfxRaster, GfxMatrix, GfxRegions, Raster, Strings, WMGraphics, WMWindowManager;
+IMPORT Gfx, GfxBuffer, GfxRaster, GfxMatrix, GfxRegions, Raster, Strings, WMGraphics, WMWindowManager, KernelLog;
 	
 TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 	VAR
@@ -45,6 +45,7 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 		BEGIN
 			gfxLineWidth:=w;
 			Gfx.SetLineWidth(gfxContext,w);
+			KernelLog.String("Line width"); KernelLog.Int(ENTIER(w),0); KernelLog.Ln;
 		END SetLineWidth;
 		
 		(* set line color*)
@@ -123,7 +124,7 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 
 	END Canvas;
 
-PROCEDURE GenCanvas*():WMGraphics.Canvas; (* generator procedure *)
+PROCEDURE GenCanvas*():WMGraphics.BufferCanvas; (* generator procedure *)
 VAR c:Canvas; img:Raster.Image;
 BEGIN
 	NEW(c,img); RETURN c (* img is NIL, needs a call of c.New(img) later on *)
@@ -157,4 +158,5 @@ END Test;
 END WMGraphicsGfx.
 
 WMGraphicsGfx.Test ~
+SystemTools.FreeDownTo WMGraphicsGfx ~
 

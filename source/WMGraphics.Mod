@@ -252,6 +252,11 @@ TYPE
 			END
 		END DrawString;
 
+		PROCEDURE SetLineWidth*(w:REAL);
+		BEGIN
+			(* Dummy. But is implemented in WMGraphicsGfx *)
+		END SetLineWidth;
+
 		(** draw a line within the current clipping rectangle *)
 		(** Override for improved speed *)
 		PROCEDURE Line*(x0, y0, x1, y1 : LONGINT; color : Color; mode : LONGINT);
@@ -358,17 +363,19 @@ TYPE
 		PROCEDURE &New*(img : Raster.Image);
 		BEGIN
 			IF img#NIL THEN 
-				SetFont(GetDefaultFont());
-				generator:=Strings.NewString("WMGraphics.GenCanvas");
-				
 				SELF.img := img;
+
+				
 				bounds := MakeRectangle(0, 0, img.width, img.height);
 				SetLimits(MakeRectangle(0, 0, img.width, img.height ));
 				clipRect := bounds;
 				clipMode := { ClipRect };
 				
 				(* filling *)
-				height := img.height; NEW(edges, height)
+				height := img.height; NEW(edges, height);
+				SetFont(GetDefaultFont());
+				generator:=Strings.NewString("WMGraphics.GenCanvas");
+				
 			ELSE (*need to be initialized later*)
 			END;
 		END New;
