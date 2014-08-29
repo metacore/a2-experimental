@@ -19,22 +19,18 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 		END New;
 
 		PROCEDURE SetupDrawing;
-		VAR m: GfxMatrix.Matrix; (*c: GfxBuffer.Context;*)
-			on, off: ARRAY 1 OF REAL;
+		VAR m: GfxMatrix.Matrix; 
 		BEGIN
 			NEW(gfxContext);
 			GfxBuffer.Init(gfxContext, img(*GetImage()*));
-			GfxBuffer.SetCompOp(gfxContext, Raster.srcOverDst);
 			(*
+			GfxBuffer.SetCompOp(gfxContext, Raster.srcOverDst);
 			GfxRaster.ResetClip(gfxContext);
 			GfxRegions.SetToRect(gfxContext.clipReg, SHORT(clipRect.l), SHORT(clipRect.t), SHORT(clipRect.r), SHORT(clipRect.b));
 			GfxMatrix.Init(m,1,0,0,1,dx,dy); (* one to one coordinate system, translated by the component's origin *)
 			Gfx.SetCTM(gfxContext,m);
 			*)
 			SetDashLength(0);
-			IF dashLength > 0 THEN
-				on[0] := dashLength; off[0] := dashLength; Gfx.SetDashPattern(gfxContext, on, off, 1, 0);
-			END;
 			SetLineWidth(1.0);
 			SetColor(WMGraphics.Blue);
 			SetFillColor(WMGraphics.Red);
@@ -58,8 +54,12 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 		
 		(* set line color*)
 		PROCEDURE SetDashLength*(dl:REAL);
+		VAR on,off: ARRAY 1 OF REAL;
 		BEGIN
 			dashLength:=dl;
+			IF dashLength > 0 THEN
+				on[0] := dashLength; off[0] := dashLength; Gfx.SetDashPattern(gfxContext, on, off, 1, 0);
+			END;
 		END SetDashLength;
 		
 		(* set fill/font color*)
@@ -102,13 +102,12 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 			Gfx.DrawStringAt(gfxContext, x, y, text);
 		END DrawString;
 		
-	
 		PROCEDURE Line*(x0, y0, x1, y1 : LONGINT; lineColor : WMGraphics.Color; mode : LONGINT); (*this is a heavy duty procedure that can be called millions of times in time-varying or scrolled graphs - optimize*)
 		BEGIN
 			IF lineColor#SELF.color THEN
 				SELF.color:=lineColor; gfxStrokeColor:=ColorToGfxColor(lineColor); Gfx.SetStrokeColor(gfxContext,gfxStrokeColor);
-			END;
-			Gfx.DrawLine(gfxContext, x0, x0, x1, y1, {Gfx.Stroke}); (*may be refined by plotting to upper/lower boundary*)
+			END; (*! to do: clippling, see WMGraphics.Fill *)
+			Gfx.DrawLine(gfxContext, dx+x0, dy+y0, dx+x1, dy+y1, {Gfx.Stroke}); (*may be refined by plotting to upper/lower boundary*)
 				(* Performance issue: Gfx.DrawLine expects REAL coordinates;	inside of Gfx a  coordinate transformation and conversion from REAL to Integer pixel position will happen again *)
 		END Line;
 
@@ -129,14 +128,15 @@ BEGIN
 END GenCanvas;
 
 PROCEDURE Test*; (* will be removed *)
-VAR w:WMWindowManager.BufferWindow; c: Canvas; t,x,y,x0,y0:REAL;
+VAR w:WMWindowManager.BufferWindow; c: WMGraphics.BufferCanvas; 
 BEGIN
 	NEW(w, 300,400, FALSE);
-	NEW(c, w.img);
-	w.canvas:=c;
+	w.SetCanvasGenerator(GenCanvas);
+	c:=w.canvas;
 	
 	c.Fill(w.bounds, WMGraphics.Red, WMGraphics.ModeCopy);
 	
+	c(Canvas).SetDashLength(10);
 	c.SetLineWidth(1);
 	c.Line(50,50,100,100, WMGraphics.Blue, WMGraphics.ModeCopy);
 	c.SetLineWidth(3);
@@ -144,12 +144,12 @@ BEGIN
 	
 	c.SetPixel (50,30, WMGraphics.White, WMGraphics.ModeCopy);
 	
-	c.SetFillColor(WMGraphics.Yellow);
+	c(Canvas).SetFillColor(WMGraphics.Yellow);
 	c.DrawString(60,40,"Hello World");
 	
 	c.SetColor(WMGraphics.Black);
 	c.SetLineWidth(3);
-	c.Circle(150,200, 100);
+	c(Canvas).Circle(150,200, 100);
 	
 	WMWindowManager.DefaultAddWindow(w);
 	w.Invalidate(w.bounds);

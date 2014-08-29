@@ -515,8 +515,6 @@ TYPE
 		BEGIN
 			canvas.SetLineWidth(width.Get()); 
 			DrawBackground^(canvas);
-			(*RecachePoints; (*? could be moved to PropertyChanged ?*)
-			Normalize;*)
 			IF (nofPoints # LEN(pointArray)) THEN NEW(pointArray, nofPoints); END;
 			p := points; i := 0;
 			WHILE (p # NIL) DO
