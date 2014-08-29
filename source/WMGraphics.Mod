@@ -348,11 +348,11 @@ TYPE
 	FillPosEntry = RECORD pos, next : LONGINT END;
 	FillHeap = POINTER TO ARRAY OF FillPosEntry;
 	FillLineCallBack* = PROCEDURE {DELEGATE} (canvas : Canvas; y, x0, x1 : LONGINT);
-	CanvasGenerator* = PROCEDURE():BufferCanvas;
+	CanvasGenerator* = PROCEDURE(img:Raster.Image):BufferCanvas;
 
 TYPE
 	BufferCanvas* = OBJECT(Canvas)
-	VAR img : Raster.Image;
+	VAR img- : Raster.Image;
 		bounds : Rectangle; (* real limiting img bounds *)
 		(* filling *)
 		fillHeap : FillHeap;
@@ -362,7 +362,6 @@ TYPE
 
 		PROCEDURE &New*(img : Raster.Image);
 		BEGIN
-			IF img#NIL THEN 
 				SELF.img := img;
 
 				
@@ -375,9 +374,6 @@ TYPE
 				height := img.height; NEW(edges, height);
 				SetFont(GetDefaultFont());
 				generator:=Strings.NewString("WMGraphics.GenCanvas");
-				
-			ELSE (*need to be initialized later*)
-			END;
 		END New;
 
 		(* Not thread-safe!!! *)
@@ -734,10 +730,10 @@ BEGIN
 	END
 END DrawStringInRect;
 
-PROCEDURE GenCanvas*():Canvas;
-VAR c:BufferCanvas; img:Raster.Image;
+PROCEDURE GenCanvas*(img:Raster.Image):BufferCanvas;
+VAR c:BufferCanvas;
 BEGIN
-	NEW(c,img); RETURN c (* img is NIL, needs call of c.New(img) later on *)
+	NEW(c,img); RETURN c 
 END GenCanvas;
 
 

@@ -492,6 +492,7 @@ TYPE
 	VAR
 		img* : Graphics.Image;
 		canvas* : Graphics.BufferCanvas;
+		canvasGen-: Graphics.CanvasGenerator;
 		pointerThreshold* : LONGINT;
 
 		PROCEDURE &Init*(w, h : LONGINT; alpha : BOOLEAN);
@@ -499,21 +500,15 @@ TYPE
 			Init^(w, h, alpha);
 			NEW(img);
 			IF alpha THEN Raster.Create(img, w, h, Raster.BGRA8888) ELSE Raster.Create(img, w, h, format) END;
-			NEW(canvas, img);
+			SetCanvasGenerator(Graphics.GenCanvas);
 			pointerThreshold := 1; (* invisible pixels are treated as invisble *)
 		END Init;
-		(*
-		PROCEDURE SetCanvas*(canvas:Graphics.BufferCanvas);
+
+		PROCEDURE SetCanvasGenerator*(canvasGen:Graphics.CanvasGenerator);
 		BEGIN
-			canvas.New(img); SELF.canvas:=canvas;
+			SELF.canvasGen:=canvasGen; canvas:=canvasGen(img); 
 			IF manager # NIL THEN manager.AddVisibleDirty(SELF, bounds) END
-		END SetCanvas;
-		*)
-		PROCEDURE NewCanvas*(canvasGen:Graphics.CanvasGenerator);
-		BEGIN
-			canvas:=canvasGen(); canvas.New(img); 
-			IF manager # NIL THEN manager.AddVisibleDirty(SELF, bounds) END
-		END NewCanvas;
+		END SetCanvasGenerator;
 		
 		PROCEDURE IsHit(x, y  : LONGINT) : BOOLEAN;
 		VAR w, h : LONGINT; fx, fy : REAL;
@@ -579,9 +574,9 @@ TYPE
 
 		PROCEDURE &Init*(w, h: LONGINT; alpha : BOOLEAN);
 		BEGIN
+			NEW(backImg); 
+			IF alpha THEN Raster.Create(backImg, w, h, Raster.BGRA8888) ELSE Raster.Create(backImg, w, h, format) END;
 			Init^(w, h, alpha);
-			NEW(backImg); Raster.Create(backImg, w, h, img.fmt);
-			visibleCanvas := canvas; NEW(canvas, backImg);
 		END Init;
 
 		PROCEDURE ReInit*(w, h : LONGINT);
@@ -594,15 +589,17 @@ TYPE
 				Raster.Create(img, w, h, format);
 				Raster.Create(backImg, w, h, format)
 			END;
-			NEW(visibleCanvas, img); NEW(canvas, backImg)
+			visibleCanvas:=canvasGen(img);
+			canvas:=canvasGen(backImg);
 		END ReInit;
 		
-		PROCEDURE NewCanvas*(canvasGen:Graphics.CanvasGenerator);
+		PROCEDURE SetCanvasGenerator*(canvasGen:Graphics.CanvasGenerator);
 		BEGIN
-			canvas:=canvasGen(); canvas.New(backImg); 
-			visibleCanvas:=canvasGen(); visibleCanvas.New(img);
+			SELF.canvasGen:=canvasGen; 
+			visibleCanvas:=canvasGen(img);
+			canvas:=canvasGen(backImg); 
 			IF manager # NIL THEN manager.AddVisibleDirty(SELF, bounds) END
-		END NewCanvas;
+		END SetCanvasGenerator;
 
 		PROCEDURE Draw*(canvas : Graphics.Canvas; w, h, q : LONGINT);
 		BEGIN

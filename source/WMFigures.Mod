@@ -22,7 +22,7 @@ TYPE
 TYPE
 	Figure* = OBJECT(WMComponents.VisualComponent) 
 	VAR
-		width- : WMProperties.Int32Property;
+		width- : WMProperties.Int32Property; (* in pixels. should rather be real. lineWidth=0 means hairline. *)
 		color-, clHover- : WMProperties.ColorProperty;
 		closed-: WMProperties.BooleanProperty;
 		filled-: WMProperties.BooleanProperty;
@@ -513,6 +513,7 @@ TYPE
 		PROCEDURE DrawBackground*(canvas : WMGraphics.Canvas);
 		VAR p, plast : Point; i : LONGINT; 
 		BEGIN
+			canvas.SetLineWidth(width.Get()); 
 			DrawBackground^(canvas);
 			(*RecachePoints; (*? could be moved to PropertyChanged ?*)
 			Normalize;*)
@@ -526,7 +527,7 @@ TYPE
 			END;
 			IF (Arrow IN state) & (plast#NIL) THEN DrawArrow(canvas, plast.previous, plast) END;
 			IF Filled IN state THEN    canvas.FillPolygonFlat(pointArray^, nofPoints, color.Get(), WMGraphics.ModeSrcOverDst);
-			ELSE					canvas.PolyLine(pointArray^, nofPoints, closed.Get(), color.Get(), WMGraphics.ModeSrcOverDst);
+			ELSE canvas.PolyLine(pointArray^, nofPoints, closed.Get(), color.Get(), WMGraphics.ModeSrcOverDst);
 			END;
 		END DrawBackground;
 	END Line;

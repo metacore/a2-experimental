@@ -13,12 +13,9 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 		
 		PROCEDURE &New*(img : Raster.Image);
 		BEGIN
-			IF img#NIL THEN
-				New^(img);
-				generator:=Strings.NewString("WMGraphicsGfx.GenCanvas");
-				SetupDrawing;	
-			ELSE (* need to call canvas.New(img) later on*)
-			END;
+			New^(img);
+			generator:=Strings.NewString("WMGraphicsGfx.GenCanvas");
+			SetupDrawing;	
 		END New;
 
 		PROCEDURE SetupDrawing;
@@ -26,13 +23,15 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 			on, off: ARRAY 1 OF REAL;
 		BEGIN
 			NEW(gfxContext);
-			GfxBuffer.Init(gfxContext, GetImage());
+			GfxBuffer.Init(gfxContext, img(*GetImage()*));
 			GfxBuffer.SetCompOp(gfxContext, Raster.srcOverDst);
+			(*
 			GfxRaster.ResetClip(gfxContext);
 			GfxRegions.SetToRect(gfxContext.clipReg, SHORT(clipRect.l), SHORT(clipRect.t), SHORT(clipRect.r), SHORT(clipRect.b));
 			GfxMatrix.Init(m,1,0,0,1,dx,dy); (* one to one coordinate system, translated by the component's origin *)
 			Gfx.SetCTM(gfxContext,m);
-			SetDashLength(10);
+			*)
+			SetDashLength(0);
 			IF dashLength > 0 THEN
 				on[0] := dashLength; off[0] := dashLength; Gfx.SetDashPattern(gfxContext, on, off, 1, 0);
 			END;
@@ -45,7 +44,6 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 		BEGIN
 			gfxLineWidth:=w;
 			Gfx.SetLineWidth(gfxContext,w);
-			KernelLog.String("Line width"); KernelLog.Int(ENTIER(w),0); KernelLog.Ln;
 		END SetLineWidth;
 		
 		(* set line color*)
@@ -124,8 +122,8 @@ TYPE Canvas*= OBJECT(WMGraphics.BufferCanvas)
 
 	END Canvas;
 
-PROCEDURE GenCanvas*():WMGraphics.BufferCanvas; (* generator procedure *)
-VAR c:Canvas; img:Raster.Image;
+PROCEDURE GenCanvas*(img:Raster.Image):WMGraphics.BufferCanvas; (* generator procedure *)
+VAR c:Canvas; 
 BEGIN
 	NEW(c,img); RETURN c (* img is NIL, needs a call of c.New(img) later on *)
 END GenCanvas;
@@ -139,8 +137,10 @@ BEGIN
 	
 	c.Fill(w.bounds, WMGraphics.Red, WMGraphics.ModeCopy);
 	
-	c.SetLineWidth(5);
-	c.Line(10,10,100,100, WMGraphics.Blue, WMGraphics.ModeCopy);
+	c.SetLineWidth(1);
+	c.Line(50,50,100,100, WMGraphics.Blue, WMGraphics.ModeCopy);
+	c.SetLineWidth(3);
+	c.Line(50,50,120,110, WMGraphics.Blue, WMGraphics.ModeCopy);
 	
 	c.SetPixel (50,30, WMGraphics.White, WMGraphics.ModeCopy);
 	

@@ -3288,7 +3288,7 @@ END Load;
 
 PROCEDURE FormWindowGen*(xml:XML.Content): WM.Window; 
 VAR winx: XML.Element; formx: XML.Content; window: FormWindow; name, string:Strings.String; canvas:WMGraphics.BufferCanvas;
-	canvasGen: WMGraphics.CanvasGenerator;
+	canvasGenerator: WMGraphics.CanvasGenerator;
 	moduleName, procedureName : Modules.Name;
 	msg : ARRAY 128 OF CHAR;
 	res: LONGINT;
@@ -3310,9 +3310,9 @@ BEGIN
 			IF (string#NIL) THEN
 				Commands.Split(string^, moduleName, procedureName, res, msg);
 				IF (res = Commands.Ok) THEN
-					GETPROCEDURE(moduleName, procedureName, canvasGen);
-					IF (canvasGen # NIL) THEN
-						window.NewCanvas(canvasGen);
+					GETPROCEDURE(moduleName, procedureName, canvasGenerator);
+					IF (canvasGenerator # NIL) THEN
+						window.SetCanvasGenerator(canvasGenerator);
 					END;
 				END;
 			END;
