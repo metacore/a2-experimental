@@ -3330,12 +3330,14 @@ END FormWindowGen;
 
 (* generic loading of any form window using the generator procedure supplied in the XML as 'loader' attribute *)
 PROCEDURE LoadFormWindow*(xml:XML.Content): WM.Window;
-VAR winx: XML.Element; window: WM.Window; formx:XML.Content;
+VAR winx: XML.Element; window: WM.Window; formWindow:FormWindow;
+formx, c:Component;
 	name, string, load:Strings.String;
 	moduleName, procedureName : Modules.Name;
 	msg : ARRAY 128 OF CHAR;
 	res: LONGINT;
 	gen:WindowGenerator;
+	bounds:Rectangles.Rectangle;
 BEGIN
 	IF xml IS XML.Element THEN
 		winx:=xml(XML.Element);
@@ -3348,6 +3350,15 @@ BEGIN
 				IF (gen # NIL) THEN
 					window:=gen(xml);
 				END;
+			END;
+		ELSE (*generate FormWindow from generic Visual Component*)
+			c:=ComponentFromXML(xml(XML.Element));
+			IF (c#NIL) & (c IS VisualComponent) THEN
+				bounds:=c(VisualComponent).bounds.Get();
+				NEW(formWindow, bounds.r-bounds.l, bounds.b-bounds.t, TRUE);
+				formWindow.SetContent(c);
+				(*formWindow.SetTitle(c.GetName());*)
+				window:=formWindow;
 			END;
 		END;
 	END;
@@ -3652,6 +3663,7 @@ BEGIN
 END WMComponents.
 
 WMComponents.Open Test.Cwd ~
+WMComponents.Open Hello4.wm ~
 
 The message sequencer contains a reader writer lock that can be used to block the hierarchy.
 Each message-call from the sequencer posesses the writer lock.

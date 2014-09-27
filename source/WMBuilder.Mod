@@ -1349,7 +1349,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrEditPanel);
-			SetGenerator("WMBuilder.GenEditPanel");
+			(*SetGenerator("WMBuilder.GenEditPanel");*)
 
 			mode := EditMode;
 			SetExtGetPositionOwnerHandler(ExtGetPositionOwnerHandler);
