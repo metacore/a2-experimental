@@ -1349,6 +1349,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrEditPanel);
+			SetGenerator("WMBuilder.GenEditPanel");
 
 			mode := EditMode;
 			SetExtGetPositionOwnerHandler(ExtGetPositionOwnerHandler);
@@ -2813,7 +2814,7 @@ TYPE
 		BEGIN
 			w := windowList.GetActive();
 			IF (w # NIL) THEN
-				res := WMDialogs.QueryString("Open...", filename);
+				res := WMDialogs.QueryString("Save...", filename);
 				IF (res = WMDialogs.ResOk) THEN
 					Store(filename, w, res);
 					IF (res = 0) THEN
@@ -3357,6 +3358,12 @@ BEGIN
 	IF count = 0 THEN window.Load("untitled.wm", ignoreRes); END;
 END Open;
 
+PROCEDURE GenEditPanel*(): XML.Element;
+VAR editPanel: ComponentEditor;
+BEGIN
+	NEW(editPanel); RETURN editPanel;
+END GenEditPanel;
+
 PROCEDURE Restore*(context : WMRestorable.Context);
 VAR w : MainWindow;
 BEGIN
@@ -3425,6 +3432,7 @@ END WMBuilder.
 WMBuilder.Open ~
 
 SystemTools.Free WMBuilder WMInspector WMInspectionComponents ~
+SystemTools.FreeDownTo WMBuilder ~
 
 PC.Compile \s
 	Repositories.Mod WMRepositories.Mod
@@ -3432,3 +3440,5 @@ PC.Compile \s
 	WMInspectionComponents.Mod
 	WMBuilder.Mod
 ~
+
+
