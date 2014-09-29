@@ -1376,7 +1376,7 @@ TYPE
 			NEW(snapgrid);
 
 			NEW(panel);
-			panel.SetName("Standard:Panel");
+			panel.SetName("VisualComponent");
 			panel.alignment.Set(WMComponents.AlignClient);
 			panel.takesFocus.Set(FALSE);
 			AddContent(panel);

@@ -1,4 +1,4 @@
-MODULE WMComponents;	(** AUTHOR "TF"; PURPOSE "Experiments with component concepts"; *)
+MODULE WMComponents;	(** AUTHOR "TF"; PURPOSE "Component Framework based on XML"; *)
 (**
 
 -- 	Events: --
@@ -337,6 +337,15 @@ TYPE
 					END;
 				END;
 			END;
+			
+			enum :=xml.GetAttributes();
+			WHILE enum.HasMoreElements() DO
+				c := enum.GetNext();
+				IF c(XML.Attribute).GetName()^ # "generator" THEN
+					SetAttributeValue(c(XML.Attribute).GetName()^, c(XML.Attribute).GetValue()^);
+				END;
+			END;
+			
 			(*Initialize;*) (* redundant *)
 		END FromXML;
 
@@ -3695,7 +3704,7 @@ BEGIN
 END WMComponents.
 
 WMComponents.Open Test.Cwd ~
-WMComponents.Open Hello4.wm ~
+WMComponents.Open DictEntry.wm ~
 
 The message sequencer contains a reader writer lock that can be used to block the hierarchy.
 Each message-call from the sequencer posesses the writer lock.
