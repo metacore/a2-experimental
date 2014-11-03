@@ -6525,7 +6525,6 @@ Sufficient (but not necessary) conditions:
 		RETURN ApplyBinaryASBOp( ADDRESSOF( right ), ADDRESSOF( left ), LssAXSXLoop );
 	END ">";
 
-(*! PH  to do: more types *)
 	(**** binary max/min operators array x scalar-> array ********************************************************************)
 	
 	PROCEDURE MaxAXSXLoop( ladr, radr, dadr, linc, dinc, len: Address ); 
@@ -6546,14 +6545,7 @@ Sufficient (but not necessary) conditions:
 		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( left ), ADDRESSOF( right ), SIZEOF( Type ), MaxAXSXLoop );
 		RETURN RESULT
 	END "MAX";
-	
-	OPERATOR "MAX"*(left: LONGREAL; CONST right: ARRAY [?] OF LONGREAL): ARRAY [?] OF LONGREAL;
-	TYPE Type = LONGREAL;
-	BEGIN
-		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( right ), ADDRESSOF( left ), SIZEOF( Type ), MaxAXSXLoop );
-		RETURN RESULT
-	END "MAX";
-	
+
 	PROCEDURE MaxARSRLoop( ladr, radr, dadr, linc, dinc, len: Address ); 
 	VAR lval, val: REAL;
 	BEGIN
@@ -6573,12 +6565,6 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "MAX";
 	
-	OPERATOR "MAX"*(left: REAL; CONST right: ARRAY [?] OF REAL): ARRAY [?] OF REAL;
-	TYPE Type = REAL;
-	BEGIN
-		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( right ), ADDRESSOF( left ), SIZEOF( Type ), MaxARSRLoop );
-		RETURN RESULT
-	END "MAX";
 	
 	PROCEDURE MaxALSLLoop( ladr, radr, dadr, linc, dinc, len: Address ); 
 	VAR lval, val: LONGINT;
@@ -6599,12 +6585,6 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "MAX";
 	
-	OPERATOR "MAX"*(left: LONGINT; CONST right: ARRAY [?] OF LONGINT): ARRAY [?] OF LONGINT;
-	TYPE Type = LONGINT;
-	BEGIN
-		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( right ), ADDRESSOF( left ), SIZEOF( Type ), MaxALSLLoop );
-		RETURN RESULT
-	END "MAX";
 
 	PROCEDURE MaxAISILoop( ladr, radr, dadr, linc, dinc, len: Address ); 
 	VAR lval, val: INTEGER;
@@ -6622,13 +6602,6 @@ Sufficient (but not necessary) conditions:
 	TYPE Type = INTEGER;
 	BEGIN
 		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( left ), ADDRESSOF( right ), SIZEOF( Type ), MaxAISILoop );
-		RETURN RESULT
-	END "MAX";
-	
-	OPERATOR "MAX"*(left: INTEGER; CONST right: ARRAY [?] OF INTEGER): ARRAY [?] OF INTEGER;
-	TYPE Type = INTEGER;
-	BEGIN
-		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( right ), ADDRESSOF( left ), SIZEOF( Type ), MaxAISILoop );
 		RETURN RESULT
 	END "MAX";
 
@@ -6651,14 +6624,7 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "MAX";
 	
-	OPERATOR "MAX"*(left: SHORTINT; CONST right: ARRAY [?] OF SHORTINT): ARRAY [?] OF SHORTINT;
-	TYPE Type = SHORTINT;
-	BEGIN
-		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( right ), ADDRESSOF( left ), SIZEOF( Type ), MaxASSSLoop );
-		RETURN RESULT
-	END "MAX";
 
-	
 	PROCEDURE MinAXSXLoop( ladr, radr, dadr, linc, dinc, len: Address ); 
 	VAR lval, val: LONGREAL;
 	BEGIN
@@ -6678,15 +6644,7 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "MIN";
 	
-	OPERATOR "MIN"*(left: LONGREAL; CONST right: ARRAY [?] OF LONGREAL): ARRAY [?] OF LONGREAL;
-	TYPE Type = LONGREAL;
-	VAR val: Type;
-	BEGIN
-		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( right ), ADDRESSOF( left ), SIZEOF( Type ), MinAXSXLoop );
-		RETURN RESULT
-	END "MIN";
-	
-	
+
 	PROCEDURE MinARSRLoop( ladr, radr, dadr, linc, dinc, len: Address ); 
 	VAR lval, val: REAL;
 	BEGIN
@@ -6706,13 +6664,6 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "MIN";
 	
-	OPERATOR "MIN"*(left: REAL; CONST right: ARRAY [?] OF REAL): ARRAY [?] OF REAL;
-	TYPE Type = REAL;
-	BEGIN
-		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( right ), ADDRESSOF( left ), SIZEOF( Type ), MinARSRLoop );
-		RETURN RESULT
-	END "MIN";
-	
 	PROCEDURE MinALSLLoop( ladr, radr, dadr, linc, dinc, len: Address ); 
 	VAR lval, val: LONGINT;
 	BEGIN
@@ -6729,13 +6680,6 @@ Sufficient (but not necessary) conditions:
 	TYPE Type = LONGINT;
 	BEGIN
 		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( left ), ADDRESSOF( right ), SIZEOF( Type ), MinALSLLoop );
-		RETURN RESULT
-	END "MIN";
-	
-	OPERATOR "MIN"*(left: LONGINT; CONST right: ARRAY [?] OF LONGINT): ARRAY [?] OF LONGINT;
-	TYPE Type = LONGINT;
-	BEGIN
-		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( right ), ADDRESSOF( left ), SIZEOF( Type ), MinALSLLoop );
 		RETURN RESULT
 	END "MIN";
 
@@ -6758,13 +6702,6 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "MIN";
 	
-	OPERATOR "MIN"*(left: INTEGER; CONST right: ARRAY [?] OF INTEGER): ARRAY [?] OF INTEGER;
-	TYPE Type = INTEGER;
-	BEGIN
-		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( right ), ADDRESSOF( left ), SIZEOF( Type ), MinAISILoop );
-		RETURN RESULT
-	END "MIN";
-
 	PROCEDURE MinASSSLoop( ladr, radr, dadr, linc, dinc, len: Address ); 
 	VAR lval, val: SHORTINT;
 	BEGIN
@@ -6783,14 +6720,7 @@ Sufficient (but not necessary) conditions:
 		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( left ), ADDRESSOF( right ), SIZEOF( Type ), MinASSSLoop );
 		RETURN RESULT
 	END "MIN";
-	
-	OPERATOR "MIN"*(left: SHORTINT; CONST right: ARRAY [?] OF SHORTINT): ARRAY [?] OF SHORTINT;
-	TYPE Type = SHORTINT;
-	BEGIN
-		ApplyBinaryASAOp( ADDRESSOF( RESULT ), ADDRESSOF( right ), ADDRESSOF( left ), SIZEOF( Type ), MinASSSLoop );
-		RETURN RESULT
-	END "MIN";
-	
+
 	(**** binary max/min operators array x array -> array ********************************************************************)
 
 	PROCEDURE MaxAXAXLoop( ladr, radr, dadr, linc, rinc, dinc, len: Address ); 
@@ -6965,7 +6895,6 @@ Sufficient (but not necessary) conditions:
 		RETURN RESULT
 	END "MIN";
 
-(*! to do: MIN loops END PH *)
 	(**** unary operators array -> scalar ********************************************************************)
 
 	(*** min: array -> scalar ****************************************)
