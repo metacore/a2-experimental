@@ -980,7 +980,7 @@ TYPE
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		VAR
 			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter; type: SyntaxTree.Type; len: LONGINT;
-			modifier: SyntaxTree.Modifier; position,value: LONGINT; isEngine: BOOLEAN; property: SyntaxTree.Property;
+			modifier: SyntaxTree.Modifier; position,value: LONGINT; isEngine: BOOLEAN;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 
@@ -998,19 +998,7 @@ TYPE
 						IF HasFlag(modifier, symbol.name, position) THEN END;
 						symbol := symbol.nextSymbol;
 					END;
-					
-					modifier := x.modifiers;
-					WHILE (modifier # NIL) DO 
-						IF ~modifier.resolved THEN
-							property := SyntaxTree.NewProperty(modifier.position, modifier.identifier);
-							property.SetValue(ConstantExpression(modifier.expression));
-							x.AddProperty(property);
-						END;
-						modifier := modifier.nextModifier;
-					END;
-					
 				ELSE
-					
 					(* no: this should not be allowed on cell net types or check against global scope ...
 					IF HasValue(modifier, Global.NameFrequencyDivider, position,value) THEN
 						IF parameter # NIL THEN Error(position, Diagnostics.Invalid,"forbiddern frequency divider in non-terminal cellnet")
