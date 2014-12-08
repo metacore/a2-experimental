@@ -980,7 +980,7 @@ TYPE
 		PROCEDURE VisitCellType(x: SyntaxTree.CellType);
 		VAR
 			symbol: SyntaxTree.Symbol; isRealtime: BOOLEAN; parameter: SyntaxTree.Parameter; type: SyntaxTree.Type; len: LONGINT;
-			modifier: SyntaxTree.Modifier; position,value: LONGINT; isEngine: BOOLEAN;
+			modifier: SyntaxTree.Modifier; position,value: LONGINT; isEngine: BOOLEAN; property: SyntaxTree.Property;
 		BEGIN
 			IF TypeNeedsResolution(x) THEN
 
@@ -998,7 +998,19 @@ TYPE
 						IF HasFlag(modifier, symbol.name, position) THEN END;
 						symbol := symbol.nextSymbol;
 					END;
+					
+					modifier := x.modifiers;
+					WHILE (modifier # NIL) DO 
+						IF ~modifier.resolved THEN
+							property := SyntaxTree.NewProperty(modifier.position, modifier.identifier);
+							property.SetValue(ConstantExpression(modifier.expression));
+							x.AddProperty(property);
+						END;
+						modifier := modifier.nextModifier;
+					END;
+					
 				ELSE
+					
 					(* no: this should not be allowed on cell net types or check against global scope ...
 					IF HasValue(modifier, Global.NameFrequencyDivider, position,value) THEN
 						IF parameter # NIL THEN Error(position, Diagnostics.Invalid,"forbiddern frequency divider in non-terminal cellnet")
@@ -2199,7 +2211,7 @@ TYPE
 		VAR result: SyntaxTree.Expression; int: HUGEINT; real, imaginary: LONGREAL; set: SET; char: CHAR; string: Scanner.StringType;
 		BEGIN
 			result := expression; type := type.resolved;
-			IF expression IS SyntaxTree.IntegerValue THEN
+			IF (expression IS SyntaxTree.IntegerValue)  THEN
 				int := expression(SyntaxTree.IntegerValue).hvalue;
 				IF (type IS SyntaxTree.IntegerType) OR (type IS SyntaxTree.SizeType) THEN
 					int := Global.ConvertSigned(int,system.SizeOf(type));
@@ -2321,7 +2333,14 @@ TYPE
 			ELSIF expression IS SyntaxTree.MathArrayValue THEN
 				result := MathArrayConversion(position, expression,type);
 			ELSIF expression IS SyntaxTree.EnumerationValue THEN
-				result := expression;
+				int := expression(SyntaxTree.EnumerationValue).value;
+				IF (type IS SyntaxTree.IntegerType) OR (type IS SyntaxTree.SizeType) THEN
+					int := Global.ConvertSigned(int,system.SizeOf(type));
+					result := SyntaxTree.NewIntegerValue(position,int);
+					result.SetType(type);
+				ELSE
+					result := expression;
+				END;
 				(* nothing to be done *)
 			ELSE
 				Error(position,Diagnostics.Invalid,"expression cannot be converted");
@@ -5894,7 +5913,9 @@ TYPE
 						type := typeDeclaration.declaredType.resolved;
 						expressionType := BaseType(expression.type); (* type or base type of math array, if applicable *)
 						IF ((type IS SyntaxTree.NumberType) OR (type IS SyntaxTree.AddressType) OR (type IS SyntaxTree.SizeType)) &
-							((expressionType IS SyntaxTree.NumberType) OR (expressionType IS SyntaxTree.AddressType) OR (expressionType IS SyntaxTree.SizeType)) THEN
+							((expressionType IS SyntaxTree.NumberType) OR (expressionType IS SyntaxTree.AddressType) OR (expressionType IS SyntaxTree.SizeType)
+							OR (expressionType IS SyntaxTree.EnumerationType)
+							) THEN
 							result := NewConversion(designator.position,expression,typeDeclaration.declaredType,left)
 						ELSE
 							Error(left.position,Diagnostics.Invalid,"invalid type in explicit conversion");
@@ -6340,7 +6361,6 @@ TYPE
 				parameter.SetState(SyntaxTree.Resolved);
 			END;
 		END VisitParameter;
-
 
 		(** check and resolve a procedure (with declaration and implementation scope)
 			- check the procedure type
