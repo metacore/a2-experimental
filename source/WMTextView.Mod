@@ -836,7 +836,9 @@ TYPE
 			Initialize^;
 			RecacheProperties;
 			cursor.SetVisible(FALSE);
-			Resized;
+			IF text#NIL THEN (*!??*)
+				Resized;
+			END;
 
 			(* from now on, bidi-formatting can be done *)
 			layout.initialized := TRUE;
@@ -918,15 +920,18 @@ TYPE
 			indicateTabsI := indicateTabs.Get();
 			clBgCurrentLineI := clBgCurrentLine.Get();
 			string := highlighting.Get();
+			
 			IF (string # NIL) THEN
 				highlighter := SyntaxHighlighter.GetHighlighter(string^);
 			ELSE
 				highlighter := NIL;
 			END;
-			SetSyntaxHighlighter(highlighter);
-			UpdateScrollbars;
-			IF ~WMRectangles.IsEqual(oldBorders, bordersI) THEN BordersChanged END;
-			Invalidate;
+			IF text#NIL THEN (*!??*)
+				SetSyntaxHighlighter(highlighter);
+				UpdateScrollbars;
+				IF ~WMRectangles.IsEqual(oldBorders, bordersI) THEN BordersChanged END;
+			END;
+			(*Invalidate;*)(*!??PH*)
 		END RecacheProperties;
 
 		PROCEDURE SetScrollbars*(hScrollbar, vScrollbar : WMStandardComponents.Scrollbar);
@@ -1093,8 +1098,9 @@ TYPE
 			CheckNumberOfLines;
 			ASSERT(((highlighter = NIL) & (state = NIL)) OR ((highlighter # NIL) & (state # NIL)));
 			text.ReleaseRead;
-			Invalidate;
-			Release
+			(*Invalidate;*)(*!??*)
+			Release;
+			(*IF ~initialized THEN Initialize END; *)(*!??*)
 		END SetText;
 
 		PROCEDURE SetSyntaxHighlighter*(highlighter : SyntaxHighlighter.Highlighter);
@@ -2026,9 +2032,17 @@ TYPE
 						ascent := vc.bounds.GetHeight() - style.voff;
 						descent := style.voff;
 						(* Add a Sequencer to the object if none exists *)
+						(*
+						IF (sequencer # NIL) & (vc.sequencer # sequencer) THEN
+							vc.SetSequencer(sequencer);
+							vc.Reset(NIL, NIL); 
+						END;
+						*)
+						
 						IF (vc.sequencer = NIL) OR (vc.sequencer # sequencer) THEN
 							vc.SetSequencer(sequencer);
-							vc.Reset(NIL, NIL);
+							(* vc.Reset(NIL, NIL); *)
+							IF sequencer#NIL THEN vc.Reset(NIL, NIL); END; (*!??*)
 						END;
 					END
 				ELSIF ch = Texts.TabChar THEN
