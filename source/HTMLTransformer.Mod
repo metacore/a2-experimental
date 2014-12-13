@@ -1895,6 +1895,7 @@ TYPE
 		BEGIN
 			Init;
 			SetSequencer(seq);
+
 			SELF.parentTable := parentTable;
 
 			takesFocus.Set(FALSE);
@@ -1994,8 +1995,11 @@ TYPE
 			writer.Update;*)
 
 			NEW(tv);
+			
+			 tv.SetText(text); (*!??  redundant calls to tv.SetText, implying internal updates ...*)
 			tv.onLinkClicked.Add(loadLink);
 			AddContent(tv);
+			
 			tv.alignment.Set(WMComponents.AlignClient);
 			rec.l := parentTable.cellpadding; rec.t := parentTable.cellpadding; rec.r := parentTable.cellpadding; rec.b := parentTable.cellpadding;
 			tv.borders.Set(rec);
@@ -2010,7 +2014,7 @@ TYPE
 				END;
 				item := item.prev;
 			END;
-			tv.SetText(text);
+			(*tv.SetText(text);*)
 			tv.GetMinMaxWidth(minWidth, dummy);
 			(*KernelLog.String("TableCell.New: minWidth of this cell: "); KernelLog.Int(minWidth, 0);*)
 			INC(minWidth, 2 * colspan * parentTable.cellpadding + (colspan - 1) * parentTable.cellspacing);
@@ -2028,6 +2032,8 @@ TYPE
 			tv.GetMinMaxWidth(dummy, maxWidth);
 			(*KernelLog.String(", maxWidth of this cell: "); KernelLog.Int(maxWidth, 0); KernelLog.Ln;*)
 			INC(maxWidth, 2 * colspan * parentTable.cellpadding + (colspan - 1) * parentTable.cellspacing);
+			
+			(*SetSequencer(seq); *)(*!??PH*)
 		END New;
 
 		PROCEDURE SetWidth(width : LONGINT);
