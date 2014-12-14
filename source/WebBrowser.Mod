@@ -428,6 +428,8 @@ SystemTools.Free WebBrowser WebBrowserPanel HTMLParser HTMLScanner HTMLTransform
 WebBrowser.Open ~
 
 WebBrowser.OpenURL http://www.google.com ~
+WebBrowser.OpenURL  http://www.wikipedia.org~
+WebBrowser.OpenURL http://www.wikipedia.org/wiki/man ~
 
 WebBrowser.OpenFile OberonReport.html ~
 
