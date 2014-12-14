@@ -2543,7 +2543,7 @@ BEGIN
 	END;
 END EncodeLinkData;
 
-PROCEDURE Utf82UrlEncodedUtf8(VAR in : ARRAY OF CHAR) : String;
+PROCEDURE Utf82UrlEncodedUtf8*(VAR in : ARRAY OF CHAR) : String;
 VAR
 	i, cnt : LONGINT;
 	output : String;

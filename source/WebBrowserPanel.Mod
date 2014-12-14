@@ -157,6 +157,7 @@ TYPE
 		vc : VisualComponent;
 		url : String;
 		title : String;
+		encodedUrl: ARRAY 1024 OF CHAR;
 
 		PROCEDURE &New*(webPanel : WebPanel);
 		BEGIN
@@ -693,6 +694,7 @@ VAR
 	charset : String;
 	charsetPos : LONGINT;
 BEGIN
+
 	rc := WebBrowserComponents.GetResourceConnection(url);
 	IF rc = NIL THEN
 		IF verbose THEN KernelLog.String("Not found: "); KernelLog.String(url^); KernelLog.Ln; END;
