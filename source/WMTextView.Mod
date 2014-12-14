@@ -840,6 +840,7 @@ TYPE
 
 			(* from now on, bidi-formatting can be done *)
 			layout.initialized := TRUE;
+			(*Initialize^;*)
 		END Initialize;
 
 		PROCEDURE Finalize;
@@ -994,7 +995,7 @@ TYPE
 			Resized;
 			optimize := FALSE;
 			UpdateScrollbars;
-			Invalidate;
+			(*Invalidate;*)
 		END WrapModeChanged;
 
 		PROCEDURE PropertyChanged*(sender, property : ANY);
