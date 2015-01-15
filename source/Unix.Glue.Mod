@@ -18,7 +18,7 @@ VAR
 	(* the first variable ("AA...") gets initialized by the bootfile loader *)
 	AAgetadr	: ADDRESS;	(* address of procedure dlsym *)
 
-	dlsym-		: PROCEDURE {C} ( handle: ADDRESS;  name: ADDRESS; adr: ADDRESS );
+	dlsym-	: PROCEDURE {C} ( handle: ADDRESS;  name: ADDRESS; adr: ADDRESS );
 	dlopen-	: PROCEDURE {C} ( pathname: ADDRESS;  mode: LONGINT ): ADDRESS;
 	dlclose-	: PROCEDURE {C} ( handle: ADDRESS );
 	cout		: PROCEDURE {C} ( c: CHAR );	(* output to Unix stdout *)
