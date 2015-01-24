@@ -2789,6 +2789,8 @@ TYPE
 				END
 			ELSIF (right IS SyntaxTree.SymbolDesignator) & (right(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.TypeDeclaration) THEN
 				Error(right.position,Diagnostics.Invalid,"must not be a type");
+			ELSIF (left IS SyntaxTree.SymbolDesignator) & (left(SyntaxTree.SymbolDesignator).symbol IS SyntaxTree.TypeDeclaration) THEN
+				Error(left.position,Diagnostics.Invalid,"must not be a type");
 			ELSIF operator = Scanner.In THEN (* left IN right *)
 				IF IsIntegerType(leftType) & (rightType IS SyntaxTree.SetType) THEN
 					IF IsIntegerValue(left,il) & IsSetValue(right,sr) THEN
@@ -8221,6 +8223,7 @@ TYPE
 			*)
 			this := this.resolved; to := to.resolved;
 			IF to=SyntaxTree.invalidType THEN result := FALSE
+			ELSIF to=SyntaxTree.typeDeclarationType THEN result := FALSE;
 			ELSIF to = this THEN
 				result := ~(to IS SyntaxTree.ArrayType) OR (to(SyntaxTree.ArrayType).form # SyntaxTree.Open);
 
