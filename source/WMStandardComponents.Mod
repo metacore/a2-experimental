@@ -633,7 +633,17 @@ TYPE
 						ELSIF fh > 32 THEN fh := fh - fh MOD 4
 						ELSIF fh > 12 THEN fh := fh - fh MOD 2
 						END;
+						
+						(* correction loop if scaling does not fit correctly *)
+						REPEAT 
 						font.SetSize(fh);
+							f := GetFont();
+							f.GetStringSize(str^, tw, th);
+							DEC(fh);
+						UNTIL (fh <= 4) OR (tw <= width);
+							
+						
+
 					END;
 				END;
 			END;
