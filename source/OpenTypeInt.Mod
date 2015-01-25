@@ -1203,6 +1203,7 @@ END MDRP;
 PROCEDURE MIRP (VAR c: Context);
 	VAR cvt, p: LONGINT; dcvt, od, cd, dist: F26D6; pt: Points; xy: Coord;
 BEGIN
+	IF LEN(c.stack) <= c.tos THEN RETURN END;
 	cvt := c.stack[c.tos]; DEC(c.tos);
 	p := c.stack[c.tos]; DEC(c.tos);
 	dcvt := CVTValue(cvt, c);
