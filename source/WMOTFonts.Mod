@@ -348,6 +348,7 @@ BEGIN
 	Strings.Append(exactName, ".ttf");
 	f := LoadFont(exactName, fi.size);
 	IF f # NIL THEN
+		COPY(fi.name^, f.name);
 		f.size := fi.size;
 		f.style := fi.style
 	END;
