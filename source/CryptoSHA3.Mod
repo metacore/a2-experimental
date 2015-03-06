@@ -11,35 +11,39 @@ TYPE
 	Hash* = OBJECT (Hashes.Hash)
 		VAR
 			sponge: Sponge.Instance;
-			rate, capacity: LONGINT;
-			dsuffix: LONGINT;
+			capacity: LONGINT;
 			
-		PROCEDURE &Init*;
+		PROCEDURE &Init*;	(* sha3-256 (default) *)
 		BEGIN
 			NEW( sponge );
-			rate := Sponge.DefaultRate; 
-			capacity := Sponge.DefaultCapacity;
-			dsuffix := 7FH;
-			Initialize	(* with default properties *)
+			capacity := 2*256;   
+			Initialize	
 		END Init;
 
 		PROCEDURE Initialize*;
 		BEGIN
-			sponge.Initialize( rate, capacity );
+			IF capacity = 2*224 THEN
+				SetNameAndSize^( "sha3-224", 224 DIV 8 );
+			ELSIF capacity = 2*256 THEN
+				SetNameAndSize^( "sha3-256", 256 DIV 8 );
+			ELSIF capacity = 2*384 THEN
+				SetNameAndSize^( "sha3-384", 384 DIV 8 );
+			ELSIF capacity = 2*512 THEN
+				SetNameAndSize^( "sha3-512", 512 DIV 8 );
+			ELSE
+				HALT( 1000 )
+			END;
+			sponge.Initialize( Sponge.Width - capacity, capacity );
 			initialized := TRUE
 		END Initialize;
 		
-		PROCEDURE InitializeProperties*( rate, capacity, hashBitSize: LONGINT; delimitedSuffix: CHAR );
+		PROCEDURE SetNameAndSize*( CONST name: ARRAY OF CHAR; bytesize: LONGINT );
+		(* valid bytesize values: 28, 32(default), 48, 64 *)
 		BEGIN
-			ASSERT( (rate + capacity = Sponge.Width) & (hashBitSize MOD 8 = 0) );
-			ASSERT( delimitedSuffix # 0X );
-			SetNameAndSize( "sha3", hashBitSize DIV 8 );
-			SELF.rate := rate;  SELF.capacity := capacity;
-			dsuffix := ORD( delimitedSuffix );
-			
-			Initialize;
-		END InitializeProperties;
-
+			capacity := 2*8*bytesize;  Initialize;
+			IF name # "" THEN  SetNameAndSize^( name, bytesize )  END
+		END SetNameAndSize;
+		
 
 		(** data: value to be hashed *)
 		PROCEDURE Update*( CONST data: ARRAY OF CHAR;  pos, len: LONGINT );
@@ -48,29 +52,11 @@ TYPE
 			sponge.Absorb( data, pos, len )
 		END Update;
 		
-		(** data: value to be hashed *)
-		PROCEDURE UpdateBits*( CONST data: ARRAY OF CHAR;  bitLength: LONGINT );
-		VAR lastbits, lb: LONGINT; tdata: ARRAY 4 OF CHAR;
-		BEGIN
-			ASSERT( initialized );
-			sponge.Absorb( data, 0, bitLength DIV 8 );
-			lastbits := bitLength MOD 8;
-			IF lastbits # 0 THEN
-				lb := ORD( data[bitLength DIV 8] );
-				lb := LSH( lb, -(8 - lastbits) ) + LSH( dsuffix, lastbits );
-				IF lb DIV 100H = 0 THEN
-					dsuffix := lb
-				ELSE
-					tdata[0] := CHR( lb MOD 100H );
-					sponge.Absorb( tdata, 0, 1 );
-					dsuffix := lb DIV 100H MOD 100H
-				END
-			END
-		END UpdateBits;
 
 		(** get the hashvalue of length SELF.size *)
 		PROCEDURE GetHash*( VAR buf: ARRAY OF CHAR;  pos: LONGINT );
 		BEGIN
+			sponge.AbsorbLastFewBits( 6X );  (* 1(pad) || 10(sha3) *)
 			sponge.Squeeze( buf, pos, size )
 		END GetHash;
 
@@ -78,14 +64,13 @@ TYPE
 
 
 
+	
 	(** get an instance of SHA-3 *)
 	PROCEDURE NewHash*( ) : Hashes.Hash;
 		VAR h: Hash;
 	BEGIN
 		NEW( h );  RETURN h
 	END NewHash;
-
-
 
 
 
