@@ -14,7 +14,8 @@ TYPE
 	VAR
 		w-: Basic.Writer; mode: LONGINT; singleStatement: BOOLEAN;
 		currentScope: SyntaxTree.Scope; ws: Streams.StringWriter;
-		info: BOOLEAN; case: LONGINT;
+		info: BOOLEAN; case: LONGINT; 
+		useCase: BOOLEAN; (* TRUE to enable case conversion in "Identifier" *)
 
 		alertCount, commentCount: LONGINT;
 
@@ -30,6 +31,19 @@ TYPE
 				result[i] := ch; INC(i);
 			UNTIL ch = 0X;
 		END Small;
+		
+		PROCEDURE Big(CONST name: ARRAY OF CHAR; VAR result: ARRAY OF CHAR);
+		VAR ch: CHAR; i: LONGINT;
+		BEGIN
+			i := 0;
+			REPEAT
+				ch := name[i];
+				IF (ch >= 'a') & (ch <= 'z') THEN
+					ch := CHR(ORD(ch)-ORD('a')+ORD('A'));
+				END;
+				result[i] := ch; INC(i);
+			UNTIL ch = 0X;
+		END Big;
 
 		PROCEDURE Keyword(CONST a: ARRAY OF CHAR);
 		VAR str: ARRAY 64 OF CHAR;
@@ -52,7 +66,11 @@ TYPE
 		PROCEDURE Identifier*(x: SyntaxTree.Identifier);
 		VAR str: Scanner.IdentifierString;
 		BEGIN
-			Basic.GetString(x,str); w.String(str);
+			Basic.GetString(x,str);
+			IF useCase OR (x = Global.SystemName) OR (x = Global.systemName) THEN
+				IF case = Scanner.Lowercase THEN Small(str,str); ELSE Big(str,str); END;
+			END;
+			w.String(str);
 		END Identifier;
 
 		PROCEDURE QualifiedIdentifier*(x: SyntaxTree.QualifiedIdentifier);
@@ -134,7 +152,9 @@ TYPE
 				AlertString("(*unresolved*)");
 			END;
 			IF x.qualifiedIdentifier # NIL THEN
-				QualifiedIdentifier(x.qualifiedIdentifier)
+				useCase := x.resolved IS SyntaxTree.BasicType;
+				QualifiedIdentifier(x.qualifiedIdentifier);
+				useCase := FALSE;
 			ELSE
 				AlertString("NIL (* missing qualified identifier *)");
 			END;
@@ -621,7 +641,9 @@ TYPE
 			IF x.symbol IS SyntaxTree.Operator THEN
 				w.String('"'); Identifier(x.symbol.name); w.String('"');
 			ELSE
-				Identifier(x.symbol.name)
+				useCase := (x.symbol IS SyntaxTree.Builtin) OR ((x.symbol IS SyntaxTree.TypeDeclaration) & (x.symbol(SyntaxTree.TypeDeclaration).declaredType IS SyntaxTree.BasicType));
+				Identifier(x.symbol.name);
+				useCase := FALSE;
 			END;
 			IF info THEN
 				BeginComment;
@@ -648,7 +670,7 @@ TYPE
 		PROCEDURE VisitSelfDesignator(x: SyntaxTree.SelfDesignator);
 		BEGIN
 			ASSERT(x.left = NIL);
-			w.String("SELF");
+			IF case = Scanner.Lowercase THEN w.String("self"); ELSE w.String("SELF"); END;
 			IF info THEN
 				BeginComment;
 				w.String("<SelfDesignator:");
@@ -888,7 +910,7 @@ TYPE
 		END VisitStringValue;
 
 		PROCEDURE VisitNilValue(x: SyntaxTree.NilValue);
-		BEGIN w.String( "NIL" ); IF info THEN BeginComment; Type(x.type); EndComment; END;
+		BEGIN IF case = Scanner.Lowercase THEN w.String( "nil" ); ELSE w.String( "NIL" ); END; IF info THEN BeginComment; Type(x.type); EndComment; END;
 		END VisitNilValue;
 
 		PROCEDURE VisitEnumerationValue(x: SyntaxTree.EnumerationValue);
