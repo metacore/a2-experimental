@@ -15,8 +15,8 @@ CONST
 	nrRounds = 24;  nrLanes = 25;
 	
 TYPE
-	Lane = RECORD low, high: SET END;
-	State = POINTER TO ARRAY nrLanes OF Lane;
+	Lane = RECORD  low, high: SET  END;
+	State = ARRAY nrLanes OF Lane;
 
 VAR 
 	roundConstants: ARRAY nrRounds OF Lane;
@@ -30,7 +30,6 @@ TYPE
 
 		PROCEDURE & Init*;
 		BEGIN
-			NEW( state );
 			Initialize
 		END Init;
 		
@@ -141,11 +140,12 @@ TYPE
 	VAR temp, temp0, temp1: SET;
 	BEGIN
 	        temp0 := in.low;
+	        temp1 := in.high;
 	        temp := (temp0 / LSH(temp0, -1)) * S.VAL(SET, 022222222H);  temp0 := temp0 / temp / LSH(temp, 1);
 	        temp := (temp0 / LSH(temp0, -2)) * S.VAL(SET, 00C0C0C0CH);  temp0 := temp0 / temp / LSH(temp, 2);
 	        temp := (temp0 / LSH(temp0, -4)) * S.VAL(SET, 000F000F0H);  temp0 := temp0 / temp / LSH(temp, 4);
 	        temp := (temp0 / LSH(temp0, -8)) * S.VAL(SET, 00000FF00H);  temp0 := temp0 / temp / LSH(temp, 8);
-	        temp1 := in.high;
+	        
 	        temp := (temp1 / LSH(temp1, -1)) * S.VAL(SET, 022222222H);  temp1 := temp1 / temp / LSH(temp, 1);
 	        temp := (temp1 / LSH(temp1, -2)) * S.VAL(SET, 00C0C0C0CH);  temp1 := temp1 / temp / LSH(temp, 2);
 	        temp := (temp1 / LSH(temp1, -4)) * S.VAL(SET, 000F000F0H);  temp1 := temp1 / temp / LSH(temp, 4);
@@ -178,33 +178,36 @@ TYPE
 
 
 
-	PROCEDURE ROL64( in: Lane; VAR out: Lane; offset: LONGINT );
+	PROCEDURE ROL64( CONST in: Lane; VAR out: Lane; offset: LONGINT );
+	VAR temp: SET;
 	BEGIN
 		IF ODD( offset ) THEN
+			temp := in.low;
 			out.low := ROT( in.high, (offset+1) DIV 2 );
-			out.high := ROT( in.low, (offset-1) DIV 2 )
+			out.high := ROT( temp, (offset-1) DIV 2 )
 		ELSE
 			out.low := ROT( in.low, offset DIV 2 );
 			out.high := ROT( in.high, offset DIV 2 )
 		END
 	END ROL64;
+	
 
-	PROCEDURE Round( a: State; r: LONGINT );
+	PROCEDURE Round( VAR a: State; r: LONGINT );
 	VAR
 		x, y, i, i1, i2: LONGINT;
-		c, d: ARRAY 5 OF Lane;  tempA: ARRAY 25 OF Lane;
+		c, d: ARRAY 5 OF Lane;  
+		tempA: State;  
 	BEGIN
 		(* theta *)
 		FOR x := 0 TO 4 DO
 			c[x].low := {};  c[x].high := {};
-			FOR y := 0 TO 4 DO
-				i := x + 5*y;
-				c[x].low := c[x].low / a[i].low;  
-				c[x].high := c[x].high /a[i].high
+			FOR y := 0 TO 20 BY 5 DO
+				c[x].low := c[x].low / a[x+y].low;  
+				c[x].high := c[x].high / a[x+y].high;	
 			END
 		END;
 		FOR x := 0 TO 4 DO
-			ROL64( c[(x+1)MOD 5], d[x], 1 );
+			ROL64( c[(x+1) MOD 5], d[x], 1 );
 			i := (x + 4) MOD 5;
 			d[x].low := d[x].low / c[i].low;  
 			d[x].high := d[x].high / c[i].high
@@ -213,34 +216,39 @@ TYPE
 			FOR y := 0 TO 4 DO
 				i := x + 5*y;
 				a[i].low := a[i].low / d[x].low;  
-				a[i].high := a[i].high / d[x].high
+				a[i].high := a[i].high / d[x].high	
 			END
 		END;
 		(* rho *)
 		FOR x := 0 TO 4 DO
 			FOR y := 0 TO 4 DO
 				i := x + 5*y;
-				ROL64( a[i], a[i], rhoOffsets[i] )
+				ROL64( a[i], a[i], rhoOffsets[i] );	
 			END
 		END;
 		(* pi *)
-		FOR i := 0 TO 24 DO  tempA[i] := a[i]  END;
+		tempA := a;
 		FOR x := 0 TO 4 DO
 			FOR y := 0 TO 4 DO
 				a[y + 5*((2*x + 3*y) MOD 5)] := tempA[x + 5*y]
 			END
 		END;
 		(* chi *)
-		FOR y := 0 TO 4 DO
-			FOR x := 0 TO 4 DO
-				i := x + 5*y;  i1 := (x+1) MOD 5 + 5*y;  i2 := (x+2) MOD 5 + 5*y;
+		FOR y := 0 TO 20 BY 5 DO
+			FOR x := 0 TO 2 DO
+				i := x + y;  i1 := x + 1 + y;  i2 := x + 2 + y;
 				c[x].low := a[i].low / ((-a[i1].low) * a[i2].low);
 				c[x].high := a[i].high / ((-a[i1].high) * a[i2].high);
 			END;
+			i := 3 + y;  i1 := 4 + y;  i2 := 0 + y;
+			c[3].low := a[i].low / ((-a[i1].low) * a[i2].low);
+			c[3].high := a[i].high / ((-a[i1].high) * a[i2].high);
+			i := 4 + y;  i1 := 0 + y;  i2 := 1 + y;
+			c[4].low := a[i].low / ((-a[i1].low) * a[i2].low);
+			c[4].high := a[i].high / ((-a[i1].high) * a[i2].high);
 			FOR x := 0 TO 4 DO
-				i := x + 5*y;
-				a[i].low := c[x].low;  
-				a[i].high := c[x].high
+				a[x+y].low := c[x].low;  
+				a[x+y].high := c[x].high; 
 			END
 		END;
 		(* iota *)
@@ -265,7 +273,7 @@ TYPE
 			FOR j := 0 TO 6 DO
 	       		bit := ASH( 1, j ) - 1; 
 	 			IF LFSR86540( LFSRstate ) THEN
-	      				IF bit < 32 THEN  INCL( lane.low, bit )  ELSE  INCL( lane.high, bit - 32 )  END
+	      			IF bit < 32 THEN  INCL( lane.low, bit )  ELSE  INCL( lane.high, bit - 32 )  END
 	   			END
 	  		END;
 	   		ToBitInterleaving( lane, roundConstants[i] );
@@ -294,7 +302,7 @@ TYPE
 		result := 0 IN LFSR;
 		IF 7 IN LFSR THEN
 			(* Primitive polynomial over GF(2): x^8+x^6+x^5+x^4+1 *)
-			LFSR := LSH( LFSR, 1) / {0, 4..6} (* 71H *);
+			LFSR := LSH( LFSR, 1) / S.VAL( SET, 71H );
 		ELSE
 			LFSR := LSH( LFSR, 1 )
 		END;
