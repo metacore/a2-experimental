@@ -145,20 +145,15 @@ VAR
 
 
 	PROCEDURE InitTables;
-	VAR i, max: INTEGER;
+	CONST
+		letters = 26;  digits = 10;
+	VAR 
+		i, j: INTEGER;
 	BEGIN
-		max := ORD("Z") - ORD("A");
-		FOR i := 0 TO max DO
-			etab[i] := CHR( i + ORD("A") )
-		END;
-		INC(max);
-		FOR i := max TO max + ORD("z") - ORD("a") DO
-			etab[i] := CHR( i - max + ORD("a") )
-		END;
-		max := max + ORD("z") - ORD("a") + 1;
-		FOR i := max TO max + ORD("9") - ORD("0") DO
-			etab[i] := CHR( i - max + ORD("0") )
-		END;
+		j := 0;
+		FOR i := 0 TO letters - 1 DO  etab[j] := CHR( i + ORD("A") );  INC( j )  END;
+		FOR i := 0 TO letters - 1 DO  etab[j] := CHR( i + ORD("a") );  INC( j )  END;
+		FOR i := 0 TO digits - 1 DO  etab[j] := CHR( i + ORD("0") );  INC( j )  END;
 		etab[62] := "+";
 		etab[63] := "/";
 		FOR i := 0 TO 127 DO  dtab[i] := -1  END;
