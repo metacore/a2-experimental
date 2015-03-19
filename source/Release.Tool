@@ -682,6 +682,8 @@ PACKAGE ApplicationsMini ARCHIVE "ApplicationsMini.zip" SOURCE "ApplicationsMini
 	CryptoCAST.Mod 
 	CryptoHMAC.Mod CryptoIDEA.Mod
 	CryptoRSA.Mod
+	
+	Checksum.Mod	# MD5, SHA1 and SHA3 checksum generator
 END
 
 PACKAGE Applications ARCHIVE "Applications.zip" SOURCE "ApplicationsSrc.zip" DESCRIPTION "Applications"
