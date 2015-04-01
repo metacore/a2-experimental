@@ -2448,7 +2448,7 @@ PROCEDURE GetModuleInfo(
 				COPY(mi.context, context);
 				GetImport(in, import, context, diagnostics, error);
 				IF ~error THEN
-					IF (import = "SYSTEM") THEN
+					IF (import = "SYSTEM") OR (import = "system") THEN
 						INCL(mi.flags, ImportsSystem);
 					ELSIF (mi.nofImports < LEN(mi.imports)) THEN
 						CreateContext(import, context);
