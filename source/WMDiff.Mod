@@ -80,7 +80,9 @@ TYPE
 			label.textColor.Set(WMGraphics.Black);
 			label.fillColor.Set(BgColor);
 
-			NEW(filenameEdit); filenameEdit.alignment.Set(WMComponents.AlignClient);
+			NEW(filenameEdit);
+			filenameEdit.alignment.Set(WMComponents.AlignClient);
+			filenameEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			filenameEdit.multiLine.Set(FALSE);
 			filenameEdit.fillColor.Set(LONGINT(0FFFFFFFFH));
 			filenameEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
