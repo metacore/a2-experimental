@@ -275,6 +275,7 @@ TYPE
 			toolbar.AddContent(label);
 
 			NEW(timeEdit); timeEdit.alignment.Set(WMComponents.AlignLeft); timeEdit.bounds.SetWidth(40);
+			timeEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			timeEdit.multiLine.Set(FALSE);
 			timeEdit.tv.showBorder.Set(TRUE);
 			Strings.IntToStr(DefaultTime, timeStr);
@@ -290,6 +291,7 @@ TYPE
 			toolbar.AddContent(label);
 
 			NEW(typeEdit); typeEdit.alignment.Set(WMComponents.AlignLeft); typeEdit.bounds.SetWidth(40);
+			typeEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			typeEdit.multiLine.Set(FALSE);
 			typeEdit.tv.showBorder.Set(TRUE);
 			Strings.IntToStr(HierarchicalProfiler.Hierarchical, timeStr);
@@ -301,6 +303,7 @@ TYPE
 			toolbar.AddContent(label);
 
 			NEW(infoEdit); infoEdit.alignment.Set(WMComponents.AlignLeft); infoEdit.bounds.SetWidth(40);
+			infoEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			infoEdit.multiLine.Set(FALSE);
 			infoEdit.tv.showBorder.Set(TRUE);
 			Strings.IntToStr(0, timeStr);
@@ -342,6 +345,7 @@ TYPE
 
 			NEW(filterCountEdit); filterCountEdit.alignment.Set(WMComponents.AlignRight); filterCountEdit.bounds.SetWidth(40);
 			filterCountEdit.multiLine.Set(FALSE);
+			filterCountEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			filterCountEdit.tv.showBorder.Set(TRUE);
 			filterCountEdit.SetAsString("0");
 			filterbar.AddContent(filterCountEdit);
@@ -351,6 +355,7 @@ TYPE
 			filterbar.AddContent(label);
 
 			NEW(filterMaskEdit); filterMaskEdit.alignment.Set(WMComponents.AlignClient);
+			filterMaskEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			filterMaskEdit.multiLine.Set(FALSE);
 			filterMaskEdit.tv.showBorder.Set(TRUE);
 			filterMaskEdit.SetAsString("*");
