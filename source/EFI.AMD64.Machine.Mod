@@ -2298,6 +2298,30 @@ PROCEDURE Is32BitAddress*(adr: ADDRESS): BOOLEAN;
 BEGIN RETURN SYSTEM.VAL (Address32, adr) = adr;
 END Is32BitAddress;
 
+(**
+ * Flush Data Cache for the specified virtual address range. If len is negative, flushes the whole cache.
+ * This is used on some architecture to interact with DMA hardware (e.g. Ethernet and USB. It can be
+ * left empty on Intel architecture.
+ *)
+PROCEDURE FlushDCacheRange * (adr: ADDRESS; len: LONGINT);
+END FlushDCacheRange;
+
+(**
+ * Invalidate Data Cache for the specified virtual address range. If len is negative, flushes the whole cache.
+ * This is used on some architecture to interact with DMA hardware (e.g. Ethernet and USB. It can be
+ * left empty on Intel architecture.
+ *)
+PROCEDURE InvalidateDCacheRange * (adr: ADDRESS; len: LONGINT);
+END InvalidateDCacheRange;
+
+(**
+ * Invalidate Instruction Cache for the specified virtual address range. If len is negative, flushes the whole cache.
+ * This is used on some architecture to interact with DMA hardware (e.g. Ethernet and USB. It can be
+ * left empty on Intel architecture.
+ *)
+PROCEDURE InvalidateICacheRange * (adr: ADDRESS; len: LONGINT);
+END InvalidateICacheRange;
+
 (* Unexpected - Default interrupt handler *)
 PROCEDURE Unexpected(VAR state: State);
 VAR int: HUGEINT; isr, irr: CHAR;
