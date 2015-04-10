@@ -122,6 +122,7 @@ TYPE
 			label.caption.SetAOC(" Host: "); label.textColor.Set(0000000FFH); topToolbar.AddContent(label);
 
 			NEW(address); address.bounds.SetWidth(150); address.alignment.Set(WMComponents.AlignLeft);
+			address.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			address.multiLine.Set(FALSE); address.fillColor.Set(LONGINT(0FFFFFFFFH)); address.tv.showBorder.Set(TRUE);
 			address.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			address.onEnter.Add(ConnectHandler);
@@ -132,6 +133,7 @@ TYPE
 			label.caption.SetAOC(" Port: "); label.textColor.Set(0000000FFH); topToolbar.AddContent(label);
 
 			NEW(port); port.bounds.SetWidth(50); port.alignment.Set(WMComponents.AlignLeft);
+			port.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			port.multiLine.Set(FALSE); port.fillColor.Set(LONGINT(0FFFFFFFFH)); port.tv.showBorder.Set(TRUE);
 			port.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); port.SetAsString("21");
 			topToolbar.AddContent(port);
@@ -172,6 +174,7 @@ TYPE
 			label.caption.SetAOC(" Command: "); label.textColor.Set(0000000FFH); pnl.AddContent(label);
 
 			NEW(cmd); cmd.alignment.Set(WMComponents.AlignClient);
+			cmd.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			cmd.multiLine.Set(FALSE); cmd.fillColor.Set(LONGINT(0FFFFFFFFH)); cmd.tv.showBorder.Set(TRUE);
 			cmd.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			cmd.onEnter.Add(CommandHandler);
@@ -364,6 +367,7 @@ TYPE
 			NEW(label); label.bounds.SetWidth(40); label.alignment.Set(WMComponents.AlignLeft);
 			label.caption.SetAOC(" Path: "); panel.AddContent(label); label.textColor.Set(0000000FFH);
 			NEW(pathEdit); pathEdit.alignment.Set(WMComponents.AlignClient);
+			pathEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			panel.AddContent(pathEdit); pathEdit.fillColor.Set(LONGINT(0EEEEEEFFH));
 			pathEdit.onEnter.Add(PathChanged); pathEdit.SetAsString("/");
 			pathEdit.multiLine.Set(FALSE); pathEdit.tv.defaultTextBgColor.Set(pathEdit.fillColor.Get());
@@ -371,6 +375,7 @@ TYPE
 
 			NEW(prefixSearch, FileListPrefixSearchProt, NIL, NIL); properties.Add(prefixSearch);
 			NEW(filterEdit); filterEdit.alignment.Set(WMComponents.AlignTop);
+			filterEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			filterEdit.bounds.SetHeight(25); AddContent(filterEdit);
 			filterEdit.text.onTextChanged.Add(TextChanged);
 			filterEdit.multiLine.Set(FALSE);
