@@ -588,6 +588,7 @@ TYPE
 			toolbar.AddContent(loadBtn);
 
 			NEW(filenameEditor); filenameEditor.alignment.Set(WMComponents.AlignClient);
+			filenameEditor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			filenameEditor.multiLine.Set(FALSE);
 			filenameEditor.tv.showBorder.Set(TRUE);
 			toolbar.AddContent(filenameEditor);
