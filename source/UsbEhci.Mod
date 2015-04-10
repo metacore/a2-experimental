@@ -73,41 +73,41 @@ CONST
 	HcCapPortroute = 0CH;
 
 	(* Host Controller Operational Registers *)
-	HcUsbCmd = 00H;
-	HcUsbSts = 04H;
-	HcUsbIntr = 08H;
-	HcFrIndex = 0CH;
-	HcCtrlDsSegment = 10H;
-	HcPeriodicListBase = 14H;
-	HcAsyncListAddr = 18H;
-	HcConfigFlag = 40H;
-	HcPortSc = 44H;
+	HcUsbCmd * = 00H;
+	HcUsbSts * = 04H;
+	HcUsbIntr * = 08H;
+	HcFrIndex * = 0CH;
+	HcCtrlDsSegment * = 10H;
+	HcPeriodicListBase * = 14H;
+	HcAsyncListAddr * = 18H;
+	HcConfigFlag * = 40H;
+	HcPortSc * = 44H;
 
 	(* HcUsbCmd register fields *)
-	CmdInterruptThreshold = {16..23};
-	CmdAsyncSchedParkMode = {11};
-	CmdAsyncSchedParkCount = {8..9};
-	CmdLightHcReset = {7}; (* Note: optional *)
-	CmdAsyncAdvDoorbell = {6};
-	CmdAsyncSchedEnable = {5};
-	CmdPeriodicSchedEnable = {4};
-	CmdFrameListSize = {2..3};
-	CmdHcReset = {1};
-	CmdRunStop = {0};
-	CmdReserved = {10} + {12..15} + {24..31};
+	CmdInterruptThreshold * = {16..23};
+	CmdAsyncSchedParkMode * = {11};
+	CmdAsyncSchedParkCount * = {8..9};
+	CmdLightHcReset * = {7}; (* Note: optional *)
+	CmdAsyncAdvDoorbell * = {6};
+	CmdAsyncSchedEnable * = {5};
+	CmdPeriodicSchedEnable * = {4};
+	CmdFrameListSize * = {2 .. 3};
+	CmdHcReset * = {1};
+	CmdRunStop * = {0};
+	CmdReserved * = {10} + {12..15} + {24..31};
 
 	(* HcUsbSts register fields *)
-	StsAsyncSchedule = {15};
-	StsPeriodicSchedule = {14};
-	StsReclamation = {13};
-	StsHcHalted = {12};
+	StsAsyncSchedule * = {15};
+	StsPeriodicSchedule * = {14};
+	StsReclamation * = {13};
+	StsHcHalted * = {12};
 	(* HcUsbSts & HcUsbIntr common fields *)
- 	StsAsyncAdvance= {5};
-	StsHostSystemError = {4};
-	StsFrameListRollover = {3};
-	StsPortChange = {2};
-	StsUsbError = {1};
-	StsUsbInterrupt = {0};
+ 	StsAsyncAdvance * = {5};
+	StsHostSystemError * = {4};
+	StsFrameListRollover * = {3};
+	StsPortChange * = {2};
+	StsUsbError * = {1};
+	StsUsbInterrupt * = {0};
 
 	(* Port Status & Control register, EHCIspec p. 26-30 *)
 	PscWakeOnOvercurrent = {22};
@@ -116,7 +116,7 @@ CONST
 	PscTestControl = {16..19};
 	PscIndicatorControl = {14..15};
 	PscPortOwner = {13};
-	PscPortPower = {12};
+	PscPortPower * = {12};
 	PscLineStatus = {10..11};
 	PscPortReset = {8};
 	PscSuspend = {7};
@@ -271,7 +271,7 @@ TYPE
 
 	EnhancedHostController * = OBJECT (UsbHcdi.Hcd)
 	VAR
-		framelist : UsbHcdi.AlignedMemSpace;
+		framelist *: UsbHcdi.AlignedMemSpace;
 
 		pwcr * : LONGINT; (* Port Wake Capability Register; Not implemented by device if pwcr = 0 *)
 
@@ -312,10 +312,10 @@ TYPE
 
 		(* The Asynchronous Advance Doorbell interrupt is always enabled by this driver. Since the interrupt handler will
 		clear the bit that were set when it was invoked, it sets hcHandshake to TRUE, so its sticky *)
-		hcHandshake : BOOLEAN;
+		hcHandshake * : BOOLEAN;
 
 		(* Set of all currently enabled interrupts *)
-		interruptsEnabled : SET;
+		interruptsEnabled * : SET;
 
 		(** Enable power for the specified port *)
 		PROCEDURE EnablePortPower*(port : LONGINT);
@@ -634,7 +634,7 @@ TYPE
 					(* If the asynchronous schedule is enabled, exactly one queue head MUST have the H-bit set. *)
 					dword := SYSTEM.VAL(SET, SYSTEM.GET32(pipe.qh + QhEpCapabilities1)) + QhHeadOfReclamation;
 					SYSTEM.PUT32(pipe.qh + QhEpCapabilities1, dword);
-					Machine.FlushDCacheRange(pipe.qh, QhExtBufferPointer4);
+					Machine.FlushDCacheRange(pipe.qh, sizeQh);
 
 					(* Insert the queue head into the schedule list and activate the asynchronous schedule *)
 					SYSTEM.PUT32(iobase + HcAsyncListAddr, pipe.qh); FlushPCI;
@@ -644,6 +644,7 @@ TYPE
 					adr := asyncListAddr;
 					dword := SYSTEM.VAL(SET, SYSTEM.GET32(adr + QhHorizontalLinkPointer));
 					SYSTEM.PUT32(pipe.qh + QhHorizontalLinkPointer, dword);
+					Machine.FlushDCacheRange(pipe.qh, sizeQh);
 
 					(* Insert the newly created queue head into the asynchronous schedule list. *)
 					dword := SYSTEM.VAL(SET, pipe.qh) * {5..31} + {1}  - {2}  - QhTerminate;
@@ -653,6 +654,8 @@ TYPE
 				adr := SYSTEM.GET32(pipe.queue + QhHorizontalLinkPointer);
 				SYSTEM.PUT32(pipe.qh + QhHorizontalLinkPointer, adr);
 				SYSTEM.PUT32(pipe.queue + QhHorizontalLinkPointer, pipe.qh + SYSTEM.VAL(LONGINT, {1} - {2}));
+				Machine.FlushDCacheRange(pipe.qh, sizeQh);
+				Machine.FlushDCacheRange(pipe.queue, sizeQh);
 				(* Enable the periodic list if necessary *)
 				dword := SYSTEM.VAL(SET, SYSTEM.GET32(iobase + HcUsbSts));
 				IF dword * StsPeriodicSchedule = {} THEN
@@ -662,7 +665,7 @@ TYPE
 				END;
 			END;
 			IF Debug.Trace & Debug.traceQueuing THEN Show("Inserted QH at "); KernelLog.Address(pipe.qh); KernelLog.Ln; END;
-			Machine.FlushDCacheRange(pipe.qh, QhExtBufferPointer4);
+			Machine.FlushDCacheRange(pipe.qh, sizeQh);
 			RETURN TRUE;
 		END InsertQH;
 
@@ -707,15 +710,15 @@ TYPE
 		 BEGIN (* Caller must hold obj lock *)
 			prev := SYSTEM.GET32(iobase + HcAsyncListAddr);
 			ASSERT((prev # 0) & (SYSTEM.VAL(SET, prev) * {0..4} = {}));
-			Machine.InvalidateDCacheRange(prev, QhExtBufferPointer4);
+			Machine.InvalidateDCacheRange(prev, sizeQh);
 			prev := SYSTEM.GET32(prev + QhHorizontalLinkPointer);
 			ASSERT((SYSTEM.VAL(SET, prev) * {1} # {}) & (SYSTEM.VAL(SET, prev) * QhTerminate = {})); (* Pointer references queue head *)
 			prev := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, prev) * {5..31});
-			Machine.InvalidateDCacheRange(prev, QhExtBufferPointer4);
+			Machine.InvalidateDCacheRange(prev, sizeQh);
 			cur := SYSTEM.GET32(prev + QhHorizontalLinkPointer);
 			ASSERT((SYSTEM.VAL(SET, cur) * {1} # {}) & (SYSTEM.VAL(SET, cur) * QhTerminate  =  {})); (* Pointer references queue head *)
 			cur := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, cur) * {5..31});
-			Machine.InvalidateDCacheRange(cur, QhExtBufferPointer4);
+			Machine.InvalidateDCacheRange(cur, sizeQh);
 
 			(* prev is the address of the queue head that points to the queue head with the address cur *)
 			IF cur = prev THEN (* Only one queue head in the list *)
@@ -740,7 +743,7 @@ TYPE
 					cur := SYSTEM.VAL(LONGINT, dword * {5..31});
 					IF cur = pipe.qh THEN (* QH found *) EXIT; END;
 					IF cur = start THEN (* list completely searched but QH not found *) EXIT; END;
-					Machine.InvalidateDCacheRange(cur, QhExtBufferPointer4);
+					Machine.InvalidateDCacheRange(cur, sizeQh);
 				END;
 
 				IF cur = pipe.qh THEN (* Found the queue head. prev is pointing to it *)
@@ -753,7 +756,7 @@ TYPE
 					(* Remove QH from asynchronous list and inforam host controller *)
 					dword := SYSTEM.VAL(SET, SYSTEM.GET32(cur + QhHorizontalLinkPointer));
 					SYSTEM.PUT32(prev + QhHorizontalLinkPointer, dword);
-					Machine.FlushDCacheRange(prev, QhExtBufferPointer4);
+					Machine.FlushDCacheRange(prev, sizeQh);
 				ELSIF Debug.Level >= Debug.Warnings THEN Show("Failed to remove QH from asynchronous list: QH not found."); KernelLog.Ln;
 				END;
 				(* Before we may free the pipe ressources, we have to make sure that the HC has no cached references to the structure 	*)
@@ -794,12 +797,12 @@ TYPE
 			IF pipe.queue = 0 THEN RETURN; END;
 			cur := pipe.queue;
 			LOOP
-				Machine.InvalidateDCacheRange(cur, QhExtBufferPointer4);
+				Machine.InvalidateDCacheRange(cur, sizeQh);
 				next := SYSTEM.VAL(SET, SYSTEM.GET32(cur + QhHorizontalLinkPointer));
 				IF next * {5..31} = SYSTEM.VAL(SET, pipe.qh) * {5..31} THEN (* found *)
 					temp := SYSTEM.GET32(pipe.qh + QhHorizontalLinkPointer);
 					SYSTEM.PUT32(cur + QhHorizontalLinkPointer, temp);
-					Machine.FlushDCacheRange(cur, QhExtBufferPointer4);
+					Machine.FlushDCacheRange(cur, sizeQh);
 					IF Debug.Trace & Debug.traceQueuing THEN KernelLog.String("UsbEhci: Deleted Interrupt Pipe QH."); KernelLog.Ln; END;
 					NEW(timer); timer.Sleep(10); (* HC has still access to QH, wait > 1ms *)
 					EXIT;
@@ -861,7 +864,8 @@ TYPE
 			END;
 
 			SYSTEM.PUT32(pipe.qh + QhNextQtdPointer, qtd);
-			Machine.FlushDCacheRange(pipe.qh, QhExtBufferPointer4);
+			Machine.FlushDCacheRange(pipe.qh, sizeQh);
+			Machine.FlushDCacheRange(qtd, sizeQtd);
 			IF SYSTEM.VAL(SET, SYSTEM.GET32(iobase + HcUsbSts)) * StsAsyncSchedule = {} THEN
 				dword := SYSTEM.VAL(SET, SYSTEM.GET32(iobase + HcUsbCmd));
 				IF dword * CmdAsyncSchedEnable = {} THEN
@@ -886,7 +890,7 @@ TYPE
 			qtd := pipe.firstTD; ASSERT(pipe.lastTD >= pipe.firstTD); (* Consistency check *)
 			AssertAlignment(qtd, alignQtd);
 			WHILE qtd <= pipe.lastTD DO
-				Machine.InvalidateDCacheRange(qtd, QtdExtBufferPtr4);
+				Machine.InvalidateDCacheRange(qtd, sizeQtd);
 				AssertAlignment(qtd, alignQtd);
 				dword := SYSTEM.VAL(SET, SYSTEM.GET32(qtd + QtdToken));
 				SYSTEM.PUT32(qtd + QtdToken, dword - TdActive);
@@ -895,10 +899,10 @@ TYPE
 
 			(* we should wait until the transaction overlay is also inactive *)
 			Kernel.SetTimer(mtimer, 2000);
-			Machine.InvalidateDCacheRange(pipe.qh, QhExtBufferPointer4);
+			Machine.InvalidateDCacheRange(pipe.qh, sizeQh);
 			dword := SYSTEM.VAL(SET, SYSTEM.GET32(pipe.qh + QhQtdToken));
 			WHILE ~Kernel.Expired(mtimer) & (dword  * TdActive # {}) DO
-				Machine.InvalidateDCacheRange(pipe.qh, QhExtBufferPointer4);
+				Machine.InvalidateDCacheRange(pipe.qh, sizeQh);
 				dword := SYSTEM.VAL(SET, SYSTEM.GET32(pipe.qh + QhQtdToken));
 				Objects.Yield;
 			END;
@@ -908,7 +912,7 @@ TYPE
 
 			NEW(timer); timer.Sleep(10); (* > 1ms - the HC could update the QhQtdToken field *)
 			SYSTEM.PUT32(pipe.qh + QhQtdToken, 0);
-			Machine.FlushDCacheRange(pipe.qh, QhExtBufferPointer4);
+			Machine.FlushDCacheRange(pipe.qh, sizeQh);
 			timer.Sleep(2); (* > 1ms *)
 			IF SYSTEM.VAL(SET, SYSTEM.GET32(pipe.qh + QhQtdToken)) * TdActive # {} THEN
 				IF Debug.Level >= Debug.Errors THEN Show("Failed to unlink TDs from pipe:"); KernelLog.Ln;  pipe.Show(TRUE); KernelLog.Ln; END;
@@ -919,7 +923,7 @@ TYPE
 			SYSTEM.PUT32(pipe.qh + QhAltNextQtdPointer, QhTerminate);
 			SYSTEM.PUT32(pipe.qh + QhCurrentQtdPointer, 0); (* Bits 0-4 are reserved *)
 			SYSTEM.PUT32(pipe.qh + QhQtdToken, 0);
-			Machine.FlushDCacheRange(pipe.qh, QhExtBufferPointer4);
+			Machine.FlushDCacheRange(pipe.qh, sizeQh);
 			pipe.firstTD := 0; pipe.lastTD := 0;
 		END UnlinkTDsInternal;
 
@@ -931,7 +935,7 @@ TYPE
 		PROCEDURE ClearHalt(pipe : UsbHcdi.Pipe);
 		VAR dword : SET;
 		BEGIN
-			Machine.InvalidateDCacheRange(pipe.qh, QhExtBufferPointer4);
+			Machine.InvalidateDCacheRange(pipe.qh, sizeQh);
 			dword := SYSTEM.VAL(SET, SYSTEM.GET32(pipe.qh + QhQtdToken));
 			IF dword * TdHalted # {} THEN
 				SYSTEM.PUT32(pipe.qh + QhCurrentQtdPointer, 0);
@@ -951,7 +955,7 @@ TYPE
 					SYSTEM.PUT32(pipe.qh + QhExtBufferPointer3, 0);
 					SYSTEM.PUT32(pipe.qh + QhExtBufferPointer4, 0);
 				END;
-				Machine.FlushDCacheRange(pipe.qh, QhExtBufferPointer4)
+				Machine.FlushDCacheRange(pipe.qh, sizeQh)
 			ELSIF Debug.Level >= Debug.Warnings THEN Show("Tried to clear a non-halted pipe."); KernelLog.Ln;
 			END;
 		END ClearHalt;
@@ -1031,7 +1035,7 @@ TYPE
 				SYSTEM.PUT32(qtd + QtdExtBufferPtr3, 0);
 				SYSTEM.PUT32(qtd + QtdExtBufferPtr4, 0);
 			END;
-			Machine.FlushDCacheRange(qtd, QtdExtBufferPtr4);
+			Machine.FlushDCacheRange(qtd, sizeQtd);
 
 			(* Setup phase always starts with dataToggle = FALSE, so now it must be TRUE *)
 			pipe.dataToggle := TRUE;
@@ -1043,7 +1047,7 @@ TYPE
 				END;
 			END;
 
-			Machine.FlushDCacheRange(qtd, QtdExtBufferPtr4);
+			Machine.FlushDCacheRange(qtd, sizeQtd);
 			qtd := qtd + sizeQtd;
 			AssertAlignment(qtd, alignQtd);
 			IF qtd + sizeQtd - 1 > ADDRESSOF(pipe.tdBuffer[pipe.tdBufferLen-1]) THEN
@@ -1085,14 +1089,15 @@ TYPE
 
 			Machine.FlushDCacheRange(ADDRESSOF(msg[0]), LEN(msg));
 			Machine.FlushDCacheRange(ADDRESSOF(buffer[0]), bufferLen);
-			Machine.FlushDCacheRange(qtd, QtdExtBufferPtr4);
+			Machine.FlushDCacheRange(qtd, sizeQtd);
 			pipe.lastTD := qtd;
 		END ScheduleControl;
 
 		PROCEDURE Schedule*(pipe : UsbHcdi.Pipe; bufferLen, offset: LONGINT; VAR buffer: Usbdi.Buffer);
 		VAR dword : SET;
 		BEGIN
-			 SYSTEM.PUT32(pipe.qh + QhCurrentQtdPointer, 0);
+			Machine.FlushDCacheRange(ADDRESSOF(buffer[offset]), bufferLen);
+			SYSTEM.PUT32(pipe.qh + QhCurrentQtdPointer, 0);
 (*			pipe.firstTD := pipe.tdBase;
 			ASSERT(pipe.firstTD = pipe.qh + alignQh); 
 *)
@@ -1112,7 +1117,6 @@ TYPE
 				dword := dword + QtdIoc;
 				SYSTEM.PUT32(pipe.lastTD + QtdToken, dword);
 			END;
-			(*Machine.FlushDCacheRange(pipe.qh, QhExtBufferPointer4);*)
 		END Schedule;
 
 		PROCEDURE CreateTDList(pipe : UsbHcdi.Pipe; direction, len, ofs : LONGINT; VAR buffer : Usbdi.Buffer; firstTD : LONGINT; VAR lastTD : Machine.Address32; tdToggle : BOOLEAN) : BOOLEAN;
@@ -1225,11 +1229,10 @@ TYPE
 				END;
 
 				SYSTEM.PUT32(qtd + QtdToken, dword);
-				Machine.FlushDCacheRange(qtd, QtdExtBufferPtr4);
+				Machine.FlushDCacheRange(qtd, sizeQtd);
 			END;
 
 			lastTD := qtd;
-			(*Machine.FlushDCacheRange(ADDRESSOF(buffer[0]), len);*)
 			RETURN TRUE;
 		END CreateTDList;
 
@@ -1283,14 +1286,14 @@ TYPE
 		BEGIN
 			FlushPCI;
 			(* First look up active bit in the QH tranfer overlay *)
-			Machine.InvalidateDCacheRange(pipe.qh, QhExtBufferPointer4);
+			Machine.InvalidateDCacheRange(pipe.qh, sizeQh);
 			s := SYSTEM.VAL(SET, SYSTEM.GET32(pipe.qh + QhQtdToken));
 			IF s * TdActive # {}  THEN  (* The HC hasn't yet executed the transaction *) RETURN; END;
 
 			errors := UsbHcdi.NoErrors; loop := 0; restLen := 0; qtd := pipe.firstTD;
 			LOOP
 				AssertAlignment(qtd, alignQtd);
-				Machine.InvalidateDCacheRange(qtd, QtdExtBufferPtr4);
+				Machine.InvalidateDCacheRange(qtd, sizeQtd);
 
 				(* evaluate condition codes (CC)*)
 				s := SYSTEM.VAL(SET, SYSTEM.GET32(qtd + QtdToken)) * QtdStatus - TdPingState - TdSplitTransactionState;
@@ -1352,7 +1355,7 @@ TYPE
 				END;
 			END;
 
-			Machine.InvalidateDCacheRange(pipe.qh, QhExtBufferPointer4);
+			Machine.InvalidateDCacheRange(pipe.qh, sizeQh);
 			s := SYSTEM.VAL(SET, SYSTEM.GET32(pipe.qh + QhQtdToken));
 			IF s * TdHalted # {} THEN
 				ClearHalt(pipe);
@@ -1361,7 +1364,7 @@ TYPE
 			IF (pipe.type = UsbHcdi.PipeBulk) OR (pipe.type = UsbHcdi.PipeInterrupt) THEN
 				(* If we received an ACK, do the toggle *)
 				IF (pipe.status = Usbdi.Ok) OR (pipe.status = Usbdi.ShortPacket) THEN
-					Machine.InvalidateDCacheRange(pipe.lastTD, QtdExtBufferPtr4);
+					Machine.InvalidateDCacheRange(pipe.lastTD, sizeQtd);
 					s := SYSTEM.VAL(SET, SYSTEM.GET32(pipe.lastTD + QtdToken));
 					IF s * QtdDataToggle # {} THEN  pipe.dataToggle := TRUE; ELSE pipe.dataToggle := FALSE;  END;
 				END;
@@ -1369,7 +1372,7 @@ TYPE
 		END UpdatePipeStatus;
 
 		(* Reset the host controller. Note: This will NOT assert reset on the USB downstream ports. *)
-		PROCEDURE HardwareReset() : BOOLEAN;
+		PROCEDURE HardwareReset * () : BOOLEAN;
 		CONST MaxWaits = 1000; (* Timeout in milliseconds the HC must have completed the reset command *)
 		VAR dword : SET; i : LONGINT;
 		BEGIN
@@ -1475,7 +1478,7 @@ TYPE
 					INC(k); j := j DIV 2;
 				END;
 				framelist.data[framelist.base + i] := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, interruptQh[k]) + {1});
-			Machine.FlushDCacheRange(ADDRESSOF(framelist.data[framelist.base]), 4096);
+				Machine.FlushDCacheRange(ADDRESSOF(framelist.data[framelist.base]), 4096);
 			END;
 			RETURN TRUE;
 		END InitFrameList;
@@ -1611,6 +1614,7 @@ TYPE
 
 			(* Set interrupt threshold *)
 			dword := SYSTEM.VAL(SET, SYSTEM.GET32(iobase + HcUsbCmd));
+			dword := dword - {16 .. 23};
 			IF ((HcInterruptThreshold#01H) & (HcInterruptThreshold#02H) & (HcInterruptThreshold#04H) & (HcInterruptThreshold#08H)
 			    & (HcInterruptThreshold#10H) & (HcInterruptThreshold#20H) & (HcInterruptThreshold#40H)) THEN
 				(* Wrong parameter value... use default *)
@@ -1632,7 +1636,7 @@ TYPE
 		END Init;
 
 		(* PCI writes may be posted. A read forces posted writes to be flushed before the read transaction is proceeded. *)
-		PROCEDURE FlushPCI;
+		PROCEDURE FlushPCI *;
 		VAR ignore : LONGINT;
 		BEGIN
 			ignore := SYSTEM.GET32(iobase + HcUsbSts);
@@ -1659,7 +1663,7 @@ TYPE
 		 * - route all ports to the EHCI controller
 		 * - power on all ports of the root hub
 	  	 *)
-		PROCEDURE Start():BOOLEAN;
+		PROCEDURE Start * ():BOOLEAN;
 		VAR dword : SET;
 		TYPE 
 			IRQPoller = OBJECT (* support polling i/o IRQ -- for testing *)
@@ -1689,6 +1693,9 @@ TYPE
 				Objects.InstallHandler(InterruptHandler, Machine.IRQ0+irq);
 			END;
 
+			(* Clear interrupts *)
+			SYSTEM.PUT32(iobase + HcUsbSts, 0);
+			
 			(* Enable all interrupts except the frame list rollover interrupt *)
 			dword := SYSTEM.VAL(SET, SYSTEM.GET32(iobase + HcUsbIntr));
 			interruptsEnabled := dword + {0..5}  - StsFrameListRollover;
@@ -1891,7 +1898,7 @@ TYPE
 			END;
 		END Diag;
 
-		PROCEDURE Show(txt : ARRAY OF CHAR);
+		PROCEDURE Show * (txt : ARRAY OF CHAR);
 		BEGIN
 			KernelLog.String("UsbEhci: "); KernelLog.String(name); KernelLog.String(" ("); KernelLog.String(desc); KernelLog.String("): ");
 			KernelLog.String(txt);
@@ -2181,7 +2188,7 @@ BEGIN
 END ShowItd;
 *)
 
-PROCEDURE ShowInterrupts(s : SET);
+PROCEDURE ShowInterrupts * (s : SET);
 BEGIN
 	IF Debug.Trace THEN
  	IF s * StsAsyncAdvance # {} THEN KernelLog.String("[AsyncAdvance]"); END;
