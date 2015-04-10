@@ -472,6 +472,7 @@ TYPE
 			panel.AddContent(storeBtn);
 
 			NEW(filenameEdit); filenameEdit.alignment.Set(WMComponents.AlignClient);
+			filenameEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			filenameEdit.multiLine.Set(FALSE);
 			filenameEdit.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1)); filenameEdit.tv.showBorder.Set(TRUE);
 			filenameEdit.fillColor.Set(WMGraphics.White);
@@ -547,6 +548,7 @@ VAR editor : WMEditors.Editor;
 BEGIN
 	NEW(editor); editor.bounds.SetWidth(width); editor.alignment.Set(WMComponents.AlignLeft);
 	editor.multiLine.Set(FALSE);
+	editor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 	editor.SetAsString(caption);
 	editor.onEnter.Add(onEnter);
 	editor.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1)); editor.tv.showBorder.Set(TRUE);
