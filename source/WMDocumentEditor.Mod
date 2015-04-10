@@ -335,6 +335,7 @@ TYPE
 
 				NEW(filenameEdit);
 				filenameEdit.alignment.Set(WMComponents.AlignClient);
+				filenameEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 				filenameEdit.multiLine.Set(FALSE);
 				filenameEdit.tv.showBorder.Set(TRUE);
 				filenameEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
