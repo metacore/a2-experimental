@@ -76,6 +76,7 @@ TYPE
 			topToolbar.AddContent(go);
 
 			NEW(urlEdit); urlEdit.alignment.Set(WMComponents.AlignClient);
+			urlEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			urlEdit.multiLine.Set(FALSE); urlEdit.bounds.SetWidth(500);
 			topToolbar.AddContent(urlEdit); urlEdit.fillColor.Set(0FFFFFFFFH);
 			urlEdit.tv.showBorder.Set(TRUE);
