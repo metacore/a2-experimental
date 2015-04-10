@@ -89,7 +89,7 @@ Partitions.SetConfig VDISK0#0
 	RamFS="RAMVolumes.New DiskFS.NewFS"
 	AosFS="DiskVolumes.New DiskFS.NewFS"
 	Boot1="Keyboard.Install;MousePS2.Install"
-	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
+	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhciPCI.Install;UsbUhci.Install;UsbOhci.Install"
 	Boot3="WindowManager.Install"
 	Boot4="Loopback.Install;Ethernet3Com90x.Install;RTL8139.Install;Intel8255x.Install;AM79C970.Install"
 	Boot5="Autostart.Run"
@@ -143,7 +143,7 @@ Partitions.SetConfig VDISK0#0
 	RamFS="RAMVolumes.New DiskFS.NewFS"
 	AosFS="DiskVolumes.New DiskFS.NewFS"
 	Boot1="Keyboard.Install;MousePS2.Install"
-	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
+	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhciPCI.Install;UsbUhci.Install;UsbOhci.Install"
 	Boot3="WindowManager.Install"
 	Boot5="Autostart.Run"
 	Boot="DisplayLinear.Install"
@@ -196,7 +196,7 @@ Partitions.SetConfig VDISK0#1
 	Boot="DisplayLinear.Install"
 	AosFS="DiskVolumes.New DiskFS.NewFS"
 	Boot1="Keyboard.Install;MousePS2.Install"
-	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
+	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhciPCI.Install;UsbUhci.Install;UsbOhci.Install"
 	Boot3="WindowManager.Install"
 	Boot5="Autostart.Run"
 	Init="144"
@@ -249,7 +249,7 @@ Partitions.SetConfig VDISK0#1
 	BootVol1="AOS AosFS IDE0#1"
 	AosFS="DiskVolumes.New DiskFS.NewFS"
 	Boot1="Keyboard.Install;MousePS2.Install"
-	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
+	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhciPCI.Install;UsbUhci.Install;UsbOhci.Install"
 	Boot3="WindowManager.Install"
 	Boot5="Autostart.Run"
 	Boot="DisplayLinear.Install"
@@ -275,7 +275,7 @@ Release.Build --path="../Test/" --build --zip --xml A2 ~
 
 SystemTools.DoCommands
 
-Compiler.Compile  -b=AMD --objectFileExtension=.Obx --symbolFileExtension=.Obx --destPath=../Test/ BiosFreePCI.Mod  ~
+Compiler.Compile  -b=AMD --objectFileExtension=.Obx --symbolFileExtension=.Obx --destPath=../Test/ BiosFreePCI.Mod UsbEhci.Mod UsbEhciPCI.Mod  ~
 
 PCAAMD64.Assemble OBLUnreal.Asm ~
 PartitionsLib.SetBootLoaderFile OBLUnreal.Bin ~
@@ -289,7 +289,7 @@ VirtualDisks.Create ../Test/A2HDD.img 320000 512 ~
 VirtualDisks.Install -b=512 VDISK0 ../Test/A2HDD.img ~
 
 Linker.Link \P../Test/ \.Obx ../Test/USB.Bin 0100000H 100000H Kernel Traps
-	UsbHubDriver UsbEhci UsbStorageBoot
+	UsbHubDriver UsbEhci UsbEhciPCI UsbStorageBoot
 	DiskVolumes DiskFS Loader BootConsole ~
 
 Partitions.WriteMBR VDISK0#0 OBEMBR.Bin ~
@@ -322,7 +322,7 @@ Partitions.SetConfig VDISK0#1
 	Init="118"
 	Boot="DisplayLinear.Install"
 	Boot1="Keyboard.Install;MousePS2.Install"
-	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhci.Install;UsbUhci.Install;UsbOhci.Install"
+	Boot2="DriverDatabase.Enable;UsbHubDriver.Install;UsbEhciPCI.Install;UsbUhci.Install;UsbOhci.Install"
 	Boot3="WindowManager.Install"
 	Boot4="Autostart.Run"
 	~
@@ -337,13 +337,13 @@ use this to test machine with autoreboot
 	Boot5="Reboot.Do 10000 reboot"
 	
 
-WinDisks.Install "PhysicalDrive2" RW ~
+WinDisks.Install E: RW ~
 
 ~
 *** CAUTION: check that drive is not a local drive !!!! ***
 SystemTools.DoCommands
-Partitions.FileToPartition PhysicalDrive2#0 ../Test/A2HDD.img 0 160000  ~
-WinDisks.Uninstall "PhysicalDrive2" ~
+Partitions.FileToPartition PhysicalDrive1#0 ../Test/A2HDD.img 0 160000  ~
+WinDisks.Uninstall "PhysicalDrive1" ~
 ~
 
 

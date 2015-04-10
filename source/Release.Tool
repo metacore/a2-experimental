@@ -455,7 +455,7 @@ PACKAGE Drivers ARCHIVE "Drivers.zip" SOURCE "DriversSrc.zip" DESCRIPTION "Devic
 		# USB core
 		UsbDebug.Mod
 		Usbdi.Mod UsbHcdi.Mod
-		UsbUhci.Mod UsbOhci.Mod UsbEhci.Mod
+		UsbUhci.Mod UsbOhci.Mod UsbEhci.Mod UsbEhciPCI.Mod
 		UsbDriverLoader.Mod UsbUtilities.Mod Usb.Mod UsbHubDriver.Mod
 
 		# USB mass storage class driver

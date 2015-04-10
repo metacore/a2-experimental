@@ -524,7 +524,7 @@ TYPE
 				pipe := NIL; RETURN;
 			END;
 			(* Allocate the TD buffers  *)
-			pipe.tdBufferLen := (TDsPerPipe+1) * 16;
+			pipe.tdBufferLen := (TDsPerPipe+1)* 16 + 128;
 			NEW(pipe.tdBuffer, pipe.tdBufferLen);
 			IF Debug.StrongChecks THEN
 				testaddr := Machine.PhysicalAdr(ADDRESSOF(pipe.tdBuffer[0]), pipe.tdBufferLen);
@@ -534,7 +534,8 @@ TYPE
 				END;
 			END;
 			(* TD's must be 32byte aligned for EHCI, 16byte aligned for UHCI & OHCI data structures*)
-			pipe.qh := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, ADDRESSOF(pipe.tdBuffer[0]) + 31) * {5..31});
+			(* currently max qh size is below 128 bytes for EHCI, so a queue head will not cross page boundaries *)
+			pipe.qh := Align(ADDRESS OF pipe.tdBuffer[0], 128);
 			pipe.tdBase := pipe.qh + 32;
 			ASSERT((pipe.qh >= ADDRESSOF(pipe.tdBuffer[0])) & (pipe.tdBase <= ADDRESSOF(pipe.tdBuffer[pipe.tdBufferLen-1])));
 			IF ~InsertQH(pipe) THEN
@@ -654,10 +655,11 @@ TYPE
 			pipe.maxPacketSize := 8; (* will be reset to 64 for EHCI HCs by hub driver *)
 			pipe.maxRetries := 3; pipe.timeout := 5000;
 			(* okay, now we allocate the TD buffers  *)
-			pipe.tdBufferLen := (TDsDefaultPipe + 2) * 16;
+			pipe.tdBufferLen := (TDsDefaultPipe+1) * 16 + 128; (* max alignment of 128 bytes *)
 			NEW(pipe.tdBuffer, pipe.tdBufferLen);
 			(* TD's must be 32byte aligned for EHCI data structures, 16byte for UHCI & OHCI data structures *)
-			pipe.qh := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, ADDRESSOF(pipe.tdBuffer[0]) + 31) * {5..31});
+			(* currently max qh size is below 128 bytes for EHCI, so a queue head will not cross page boundaries *)
+			pipe.qh := Align(ADDRESS OF pipe.tdBuffer[0], 128);
 			pipe.tdBase := pipe.qh + 32;
 			IF Debug.StrongChecks THEN
 				ASSERT(pipe.tdBase >= ADDRESSOF(pipe.tdBuffer[0]));
@@ -1295,6 +1297,11 @@ BEGIN
 	END;
 END Copy;
 
+PROCEDURE Align*(address: ADDRESS; size: LONGINT): ADDRESS;
+BEGIN
+	RETURN address + (-address) MOD size;
+END Align;
+
 (**
  * Returns an AlignMemSpace with: memspace.data[memspace.base] is the first, <alignment>-aligned element of an
  * array of LONGINTs of the size <size>;  parameters in bytes; alignmet has to be a power of two
@@ -1304,7 +1311,7 @@ VAR memspace : AlignedMemSpace; base, adr: ADDRESS;  len: SIZE;
 BEGIN
 	ASSERT(alignment >= 4);
 	NEW(memspace);
-	len := (size + 2* alignment) DIV 4;
+	len := (size +  alignment) DIV 4;
 	NEW(memspace.data, len ); (* so we will definitly find a <alignment>-aligned memory space of the size <size> *)
 
 	adr := ADDRESS OF memspace.data[0];
