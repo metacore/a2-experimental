@@ -8,23 +8,30 @@ IMPORT
 	Log := KernelLog, Clock, Kernel, Machine;
 	
 CONST
-	N = 140;  ElemSize = 5;
+	N = 120;  ElemSize = 5;
 	MaxConcurrentSorters = 5;	(* assuming we have 6 processor cores *)
+	WindowSize = N*ElemSize;
+	
+TYPE	
+	SortData = POINTER TO ARRAY N OF LONGINT;
 
-TYPE
-	SDW* =  OBJECT (WM.BufferWindow)
-	CONST
-		WindowSize = N*ElemSize;
+	ArrayView* =  OBJECT (WM.BufferWindow)		
 	VAR
+		cw: ControlWindow;
 		white, grey, col1, yellow: Raster.Pixel;
+		data: SortData;
+		
+		sortname: ARRAY 32 OF CHAR;
 		random: Random.Generator;
-
-		running:BOOLEAN;
+		delay: LONGINT;
+		concSorters: LONGINT;
+		nofcomps, nofswaps: LONGINT; 
 		
 		
-		PROCEDURE &New*;
+		PROCEDURE &New( win: ControlWindow );
 		VAR d, t: LONGINT;
 		BEGIN
+			cw := win;
 			Init( WindowSize, WindowSize, FALSE );
 			manager := WM.GetDefaultManager();
 			manager.Add( 40, 250, SELF, {WM.FlagFrame, WM.FlagClose, WM.FlagNoResizing} );
@@ -37,37 +44,36 @@ TYPE
 			NEW( random );  Clock.Get( t, d );  random.InitSeed( t );
 			delay := 16;
 			
-			Order;
-			running := FALSE
+			NEW( data );  OrderData;
 		END New;
 		
 		
 		PROCEDURE Handle( VAR x: WMMessages.Message );
-			BEGIN
-				IF x.msgType = WMMessages.MsgClose THEN  w.Close  END;
-				Handle^( x )
-			END Handle;
-		
-		PROCEDURE Start;
 		BEGIN
-			nofcomps := 0;  nofswaps := 0;  running := TRUE
-		END Start;
+			IF x.msgType = WMMessages.MsgClose THEN  cw.Close  ELSE  Handle^( x )  END
+		END Handle;
 		
-		PROCEDURE Finish( CONST name: ARRAY OF CHAR );
+		
+		PROCEDURE InitSort;
 		BEGIN
-			Log.String( name ); Log.String( ": " ); 
-			Log.Int( nofcomps, 1 ); Log.String( " compares, " );
-			Log.Int( nofswaps, 1 ); Log.String( " swaps, " );
+			nofcomps := 0;  nofswaps := 0
+		END InitSort;
+		
+		PROCEDURE FinishSort;
+		BEGIN
+			Log.String( sortname );  Log.String( ": " ); 
+			Log.Int( nofcomps, 1 );  Log.String( " compares, " );
+			Log.Int( nofswaps, 1 );  Log.String( " swaps, " );
 			Log.Ln;
-			running := FALSE
-		END Finish;
+		END FinishSort;
+		
 		
 		PROCEDURE DrawElement( n: LONGINT );
 		VAR mode: Raster.Mode;
 			x, y, len: LONGINT;
 		BEGIN
 			len := data[n];
-			x := ElemSize*n;  y := WindowSize - 1 - (ElemSize*len);
+			x := ElemSize*n;  y := WindowSize - 1 - ElemSize*len;
 			Raster.InitMode( mode, Raster.srcCopy );
 			IF len < N THEN  Raster.Fill( img, x, 0, x+ElemSize, y, white, mode )  END;
 			Raster.Fill( img, x, y+1, x+ElemSize, y+ElemSize+1, col1, mode );
@@ -84,7 +90,7 @@ TYPE
 			x, y, len: LONGINT;
 		BEGIN
 			len := data[n];
-			x := ElemSize*n;  y := WindowSize - 1 - (ElemSize*len);
+			x := ElemSize*n;  y := WindowSize - 1 - ElemSize*len;
 			Raster.InitMode( mode, Raster.srcCopy );
 			IF len > 1 THEN  
 				Raster.Fill( img, x+1, y+ElemSize+1, x+ElemSize-1, WindowSize, yellow, mode )  
@@ -96,7 +102,7 @@ TYPE
 			x, y, len: LONGINT;
 		BEGIN
 			len := data[n];
-			x := ElemSize*n;  y := WindowSize - 1 - (ElemSize*len);
+			x := ElemSize*n;  y := WindowSize - 1 - ElemSize*len;
 			Raster.InitMode( mode, Raster.srcCopy );
 			IF len > 1 THEN  
 				Raster.Fill( img, x+1, y+ElemSize+1, x+ElemSize-1, WindowSize, grey, mode )  
@@ -121,21 +127,21 @@ TYPE
 		END Randomize;
 		
 		
-		PROCEDURE Order;
+		PROCEDURE OrderData;
 		VAR i: LONGINT;
 		BEGIN
 			FOR i := 0 TO N-1 DO  data[i] := i + 1;  DrawElement( i )  END;
 			Update
-		END Order;
+		END OrderData;
 		
-		PROCEDURE RevOrder;
+		PROCEDURE RevOrderData;
 		VAR i: LONGINT;
 		BEGIN
 			FOR i := 0 TO N-1 DO  data[i] := N - i;  DrawElement( i )  END;
 			Update
-		END RevOrder;
+		END RevOrderData;
 		
-		PROCEDURE BadOrder;
+		PROCEDURE BadOrder;	(* worst case for quicksort *)
 		VAR i, m: LONGINT;
 		BEGIN
 			m := (N - 1) DIV 2;
@@ -147,7 +153,29 @@ TYPE
 			Update
 		END BadOrder;
 		
+		PROCEDURE Swap( i, j: LONGINT );
+		VAR tmp: LONGINT;  t: Kernel.Timer;
+		BEGIN
+			IF i # j THEN
+				tmp := data[i];  data[i] := data[j];  data[j] := tmp;
+				DrawElement( i );  DrawElement( j );
+				Update;
+				IF delay # 0 THEN  NEW( t );  t.Sleep( delay )  END; 
+				Machine.AtomicInc( nofswaps )
+			END
+		END Swap;
 		
+		PROCEDURE Less( i, j: LONGINT ): BOOLEAN;
+		VAR t: Kernel.Timer;
+		BEGIN
+			IF delay # 0 THEN
+				Highlight( i );  Highlight( j );  Update;  
+				NEW( t );  t.Sleep( delay); 
+				Clear( i ); Clear( j );  Update;
+			END;
+			Machine.AtomicInc( nofcomps );
+			RETURN data[i] < data[j];
+		END Less;
 		
 		PROCEDURE DecSpeed;
 		BEGIN
@@ -161,9 +189,11 @@ TYPE
 			Log.String( "delay: " ); Log.Int( delay, 1 );  Log.Ln
 		END IncSpeed;
 		
+		
 		PROCEDURE BubbleSort;
 		VAR i, n, swaps: LONGINT; 
 		BEGIN
+			sortname := "BubbleSort";
 			n := N - 2;
 			REPEAT
 				swaps := 0;  
@@ -179,6 +209,7 @@ TYPE
 		PROCEDURE SelectSort;
 		VAR i, j, min: LONGINT;
 		BEGIN
+			sortname := "SelectSort";
 			FOR i := 0 TO N-1 DO
 				min := i;  j := i + 1;
 				FOR j := i+1 TO N-1 DO
@@ -193,6 +224,7 @@ TYPE
 		PROCEDURE ShellSort;
 		VAR i, j, h: LONGINT;
 		BEGIN
+			sortname := "ShellSort";
 			i := 4;  h := 1;
 			WHILE i < N DO  i := i*2;  h := h*2 + 1  END;
 			WHILE h # 0 DO
@@ -210,20 +242,46 @@ TYPE
 				
 		PROCEDURE QuickSort;
 		BEGIN
-			SeqQuick( 0, N-1 );
+			sortname := "QuickSort";
+			Quick( 0, N-1, FALSE );
 		END QuickSort;
 		
-		
+	
 		PROCEDURE ConcQuickSort;
 		VAR t: Kernel.Timer;
 		BEGIN
-			activeSorters := 0; concSorters := 0;
-			ConcQuick( 0, N-1 );
-			NEW(t);
-			WHILE (activeSorters > 0) OR (concSorters > 0) DO  t.Sleep( 50 )  END
+			sortname := "QuickSort";
+			concSorters := 0;
+			Quick( 0, N-1, TRUE );
+			(* now wait until all concurrent activities have finished *)
+			NEW( t );  WHILE concSorters > 0 DO  t.Sleep( 50 )  END
 		END ConcQuickSort;
 		
-		
+		PROCEDURE Quick( lo, hi: LONGINT; conc: BOOLEAN );
+		VAR i, j, m: LONGINT;
+			concurrentSorter: ConcurrentQuick;
+		BEGIN
+			IF lo < hi THEN
+				i := lo;  j := hi;  m := (lo + hi) DIV 2;
+				REPEAT
+					WHILE Less( i, m ) DO  INC( i )  END;
+					WHILE Less( m, j ) DO  DEC( j )  END;
+					IF i <= j THEN
+						IF m = i THEN  m := j
+						ELSIF m = j THEN  m := i
+						END;
+						Swap( i, j );  INC( i );  DEC( j )
+					END
+				UNTIL i > j;
+				IF conc & (concSorters < MaxConcurrentSorters) THEN  
+					NEW( concurrentSorter, SELF, lo, j );  Quick( i, hi, conc )
+				ELSE
+					Quick( lo, j, conc );  Quick( i, hi, conc )
+				END
+			END;
+		END Quick;
+	
+	
 		PROCEDURE HeapSort;
 		VAR l, r: LONGINT;
 		
@@ -240,6 +298,7 @@ TYPE
 			END Sift;
 			
 		BEGIN
+			sortname := "HeapSort";
 			r := N;  l := N DIV 2;
 			WHILE l > 0 DO  DEC( l );  Sift( l, r )  END;
 			WHILE r > 0 DO  DEC( r );  Swap( 0, r );  Sift( 0, r )  END;
@@ -294,6 +353,7 @@ TYPE
 			END semiTrinkle;  
 
 		BEGIN 
+			sortname := "SmoothSort";
 			q := 1;  r := 0;  p := 1;  b := 1;  c := 1;  
 			WHILE q # N DO  
 				IF p MOD 8 = 3 (* p = ... 011 *) THEN  
@@ -317,46 +377,76 @@ TYPE
 			END;  
 		END SmoothSort;  
 		
-		
-	END SDW;
+	END ArrayView;
 	
 	
 	
-	SortProcedure = PROCEDURE{DELEGATE};
+	ConcurrentQuick = OBJECT
+	VAR 
+		lo, hi: LONGINT;  
+		av: ArrayView;
+			
+		PROCEDURE &Init ( sdw: ArrayView;  low, high: LONGINT );
+		BEGIN
+			av := sdw;
+			lo := low; hi := high; 
+		END Init;
+				
+	BEGIN {ACTIVE}
+		Machine.AtomicInc( av.concSorters );
+		av.Quick( lo, hi, TRUE );
+		Machine.AtomicDec( av.concSorters )
+	END ConcurrentQuick;	
 	
-	SortActivity = OBJECT
+	
+	SortProcedure = PROCEDURE {DELEGATE};
+	
+	Sorter = OBJECT
 	VAR
-		sorter: SortProcedure;
-		sorterName: ARRAY 64 OF CHAR;
+		sort: SortProcedure;
+		av: ArrayView;
+		running, terminated: BOOLEAN;
 		
+		PROCEDURE &Init( win: ArrayView );
+		BEGIN
+			sort := NIL;  av := win;  
+			running := FALSE;  terminated := FALSE
+		END Init;
 				
-		PROCEDURE Start( CONST name: ARRAY OF CHAR;  proc: SortProcedure );
-		BEGIN{EXCLUSIVE}
-			COPY( name, sorterName );
-			sorter := proc
+		PROCEDURE Start( proc: SortProcedure );
+		BEGIN
+			IF ~running THEN
+				BEGIN {EXCLUSIVE}  sort := proc  END
+			END
 		END Start;
-				
-		PROCEDURE Do;
-		BEGIN{EXCLUSIVE}
-			AWAIT( sorter # NIL );
-			sdw.Start;
-			sorter;
-			sdw.Finish( sorterName );
-			sorter := NIL
-		END Do;
-				
-	BEGIN{ACTIVE}
-		LOOP
-			Do
+		
+		PROCEDURE Terminate;
+		BEGIN {EXCLUSIVE}
+			terminated := TRUE
+		END Terminate;
+					
+	BEGIN {ACTIVE}
+		BEGIN {EXCLUSIVE}
+			REPEAT
+				AWAIT( (sort # NIL) OR terminated );
+				IF ~terminated THEN
+					running := TRUE;
+					av.InitSort;  sort;  av.FinishSort;
+					running := FALSE;
+				END;
+				sort := NIL
+			UNTIL terminated
 		END
-	END SortActivity;
+	END Sorter;
 	
-	Window = OBJECT( WMComponents.FormWindow )
+	
+	ControlWindow = OBJECT( WMComponents.FormWindow )
 		VAR
 			toolbar: WMStandardComponents.Panel;
 			button : WMStandardComponents.Button;
 			
-			sort: SortActivity;
+			av: ArrayView;
+			sorter: Sorter;
 			
 
 			PROCEDURE &New;
@@ -367,15 +457,19 @@ TYPE
 				SetContent( vc );
 				SetTitle( WM.NewString( "Sort Demo" ) );
 				WM.DefaultAddWindow( SELF );
-				NEW( sdw );
-				NEW( sort )
+				NEW( av, SELF );
+				NEW( sorter, av )
 			END New;
 			
 			PROCEDURE Handle( VAR x: WMMessages.Message );
 			BEGIN
-				IF x.msgType = WMMessages.MsgClose THEN  sdw.Close  END;
-				Handle^(x)
+				IF x.msgType = WMMessages.MsgClose THEN  Close  ELSE  Handle^( x )  END
 			END Handle;
+			
+			PROCEDURE Close;
+			BEGIN
+				sorter.Terminate;  av.Close;  Close^
+			END Close;
 
 
 			PROCEDURE CreateForm( ): WMComponents.VisualComponent;
@@ -441,8 +535,8 @@ TYPE
 				NEW( button );
 					button.bounds.SetWidth( 80 );
 					button.alignment.Set( WMComponents.AlignLeft );
-					button.caption.SetAOC( " rand 500 " );
-					button.onClick.Add( Rand500 );
+					button.caption.SetAOC( " rand 200 " );
+					button.onClick.Add( Rand200 );
 				toolbar.AddContent( button );
 				
 				panel.AddContent( toolbar );	
@@ -549,240 +643,113 @@ TYPE
 				
 				panel.AddContent( toolbar );
 				
-
 				RETURN panel
 			END CreateForm;
 			
 			PROCEDURE Order( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN  sdw.Order  END
+				IF ~ sorter.running THEN  av.OrderData  END
 			END Order;
 			
 			PROCEDURE RevOrder( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN  sdw.RevOrder  END
+				IF ~ sorter.running THEN  av.RevOrderData  END
 			END RevOrder;
 			
 			PROCEDURE BadOrder( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN  sdw.BadOrder  END
+				IF ~ sorter.running THEN  av.BadOrder  END
 			END BadOrder;
 			
 			
 			PROCEDURE Rand10( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN  sdw.Randomize( 10 )  END
+				IF ~ sorter.running THEN  av.Randomize( 10 )  END
 			END Rand10;
 			
 			PROCEDURE Rand100( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN  sdw.Randomize( 100 )  END
+				IF ~ sorter.running THEN  av.Randomize( 100 )  END
 			END Rand100;
 			
-			PROCEDURE Rand500( sender, data: ANY );
+			PROCEDURE Rand200( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN  sdw.Randomize( 500 )  END
-			END Rand500;
+				IF ~ sorter.running THEN  av.Randomize( 200 )  END
+			END Rand200;
 			
 			
 			PROCEDURE IncSpeed( sender, data: ANY );
 			BEGIN
-				sdw.IncSpeed
+				av.IncSpeed
 			END IncSpeed;
 			
 			PROCEDURE DecSpeed( sender, data: ANY );
 			BEGIN
-				sdw.DecSpeed
+				av.DecSpeed
 			END DecSpeed;
+			
+		
 			
 			PROCEDURE StartBubbleSort( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN
-					sort.Start( "BubbleSort", sdw.BubbleSort )
-				END
+				sorter.Start( av.BubbleSort )
 			END StartBubbleSort;
 				
 			
 			PROCEDURE StartSelectSort( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN
-					sort.Start( "SelectSort", sdw.SelectSort )
-				END
+				sorter.Start( av.SelectSort )
 			END StartSelectSort;
 				
 			
 			PROCEDURE StartShellSort( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN
-					sort.Start( "ShellSort", sdw.ShellSort )
-				END
+				sorter.Start( av.ShellSort )
 			END StartShellSort;
 				
 					
 			PROCEDURE StartQuickSort( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN
-					sort.Start( "QuickSort", sdw.QuickSort )
-				END
+				sorter.Start( av.QuickSort )
 			END StartQuickSort;
 			
 			
 			PROCEDURE StartConcQuickSort( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN
-					sort.Start( "QuickSort", sdw.ConcQuickSort )
-				END
+				sorter.Start( av.ConcQuickSort )
 			END StartConcQuickSort;
 			
 			
 			PROCEDURE StartHeapSort( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN
-					sort.Start( "HeapSort", sdw.HeapSort )
-				END
+				sorter.Start( av.HeapSort )
 			END StartHeapSort;
 				
 			
 			PROCEDURE StartSmoothSort( sender, data: ANY );
 			BEGIN
-				IF ~ sdw.running THEN
-					sort.Start( "SmoothSort", sdw.SmoothSort )
-				END
+				sorter.Start( av.SmoothSort )
 			END StartSmoothSort;
 				
-				
-	END Window;
+	END ControlWindow;
 
-
-	ConcurrentSorter = OBJECT
-		VAR lo, hi, i, j, m: LONGINT;  
-			concurrentSorter: ConcurrentSorter;
-			
-			PROCEDURE &Init (low, high: LONGINT );
-			BEGIN
-				lo := low; hi := high; 
-			END Init;
-					
-		BEGIN {ACTIVE}
-			IF lo < hi THEN
-				i := lo;  j := hi;  m := (lo + hi) DIV 2;  
-				REPEAT
-					WHILE Less( i, m ) DO  INC( i )  END;
-					WHILE Less( m, j ) DO  DEC( j )  END;
-					IF i <= j THEN
-						IF m = i THEN  m := j
-						ELSIF m = j THEN  m := i
-						END;
-						Swap( i, j );  INC( i );  DEC( j )
-					END
-				UNTIL i > j;
-				IF concSorters < MaxConcurrentSorters THEN  
-					Machine.AtomicInc( concSorters );
-					NEW( concurrentSorter, lo, j );  ConcQuick( i, hi )
-				ELSE
-					ConcQuick( lo, j );  ConcQuick( i, hi )
-				END
-			END;
-			Machine.AtomicDec( concSorters )
-		END ConcurrentSorter;	
-		
+	
 		
 VAR
-	w: Window;
-	sdw: SDW;
-	data: ARRAY N OF LONGINT;  (* sort array *)
-	delay: LONGINT;
-	activeSorters, concSorters: LONGINT;
-	
-	
-	nofcomps, nofswaps: LONGINT; 
-	
-	PROCEDURE Swap( i, j: LONGINT );
-	VAR tmp: LONGINT;  t: Kernel.Timer;
-	BEGIN
-		IF i # j THEN
-			tmp := data[i];  data[i] := data[j];  data[j] := tmp;
-			sdw.DrawElement( i );
-			sdw.DrawElement( j );
-			sdw.Update;
-			IF delay # 0 THEN NEW(t); t.Sleep( delay)  END; 
-			Machine.AtomicInc( nofswaps )
-		END
-	END Swap;
-	
-	PROCEDURE Less( i, j: LONGINT ): BOOLEAN;
-	VAR t: Kernel.Timer;
-	BEGIN
-		IF delay # 0 THEN
-			sdw.Highlight( i );  sdw.Highlight( j );  sdw.Update;  
-			NEW(t);
-			t.Sleep( delay); 
-			sdw.Clear( i ); sdw.Clear( j );  sdw.Update;
-		END;
-		Machine.AtomicInc( nofcomps );
-		RETURN data[i] < data[j];
-	END Less;
-	
-	PROCEDURE ConcQuick( lo, hi: LONGINT );
-	VAR i, j, m: LONGINT;
-		concurrentSorter: ConcurrentSorter;
-	BEGIN
-		Machine.AtomicInc( activeSorters );
-		IF lo < hi THEN
-			i := lo;  j := hi;  m := (lo + hi) DIV 2;
-			REPEAT
-				WHILE Less( i, m ) DO  INC( i )  END;
-				WHILE Less( m, j ) DO  DEC( j )  END;
-				IF i <= j THEN
-					IF m = i THEN  m := j
-					ELSIF m = j THEN  m := i
-					END;
-					Swap( i, j );  INC( i );  DEC( j )
-				END
-			UNTIL i > j;
-			IF concSorters < MaxConcurrentSorters THEN  
-				Machine.AtomicInc( concSorters );
-				NEW( concurrentSorter, lo, j );  ConcQuick( i, hi )
-			ELSE
-				ConcQuick( lo, j );  ConcQuick( i, hi )
-			END
-		END;
-		Machine.AtomicDec( activeSorters );
-	END ConcQuick;
-	
-	PROCEDURE SeqQuick( lo, hi: LONGINT );
-	VAR i, j, m: LONGINT;
-	BEGIN
-		IF lo < hi THEN
-			i := lo;  j := hi;  m := (lo + hi) DIV 2;
-			REPEAT
-				WHILE Less( i, m ) DO  INC( i )  END;
-				WHILE Less( m, j ) DO  DEC( j )  END;
-				IF i <= j THEN
-					IF m = i THEN  m := j
-					ELSIF m = j THEN  m := i
-					END;
-					Swap( i, j );  INC( i );  DEC( j )
-				END
-			UNTIL i > j;
-			SeqQuick( lo, j );  SeqQuick( i, hi ) 
-		END
-	END SeqQuick;
-	
+	w: ControlWindow;
+
 	PROCEDURE Open*;
 	BEGIN
-		IF w # NIL THEN  sdw.Close;  w.Close; w := NIL  END;
+		IF w # NIL THEN  w.Close  END;
 		NEW( w )
 	END Open;
 
 
 END SortDemo.
 
+----------------------------------------------------
 
+		SortDemo.Open
 
-
-
-SortDemo.Open
-
-SystemTools.Free SortDemo ~
+		SystemTools.Free SortDemo ~
 
