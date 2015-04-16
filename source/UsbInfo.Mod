@@ -295,26 +295,34 @@ BEGIN
 	END;
 END ShowDeviceChain;
 
-(** Prints information about current usb tree *)
-PROCEDURE Show*(context : Commands.Context);
+PROCEDURE DoShow*(out : Streams.Writer; details: BOOLEAN);
 VAR
 	i : LONGINT;
-	details : BOOLEAN; pstr : ARRAY 10 OF CHAR;
 	rootHubs : Usb.RootHubArray;
 BEGIN
-	context.arg.SkipWhitespace; context.arg.String(pstr);
-	IF Strings.Match("details", pstr) THEN details := TRUE; END;
-	context.out.String("Usb: Topology and device information: "); context.out.Ln;
+	out.String("Usb: Topology and device information: "); out.Ln;
 	Usb.GetRootHubs(rootHubs);
 	BEGIN {EXCLUSIVE}
 		IF rootHubs # NIL THEN
 			FOR i := 0 TO LEN(rootHubs)-1 DO
-				ShowDeviceChain(rootHubs[i], 0, details, context.out);
+				ShowDeviceChain(rootHubs[i], 0, details, out);
 				rootHubs[i] := NIL;
 			END;
-		ELSE context.out.String("No USB host controllers found."); context.out.Ln;
+		ELSE out.String("No USB host controllers found."); out.Ln;
 		END;
 	END;
+END DoShow;
+
+
+(** Prints information about current usb tree *)
+PROCEDURE Show*(context : Commands.Context);
+VAR
+	details : BOOLEAN;
+	pstr : ARRAY 10 OF CHAR;
+BEGIN
+	context.arg.SkipWhitespace; context.arg.String(pstr);
+	details :=  Strings.Match("details", pstr);
+	DoShow(context.out, details);
 END Show;
 
 (** Shows all registered drivers and their instances *)
