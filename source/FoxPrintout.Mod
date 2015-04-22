@@ -152,7 +152,9 @@ TYPE
 				AlertString("(*unresolved*)");
 			END;
 			IF x.qualifiedIdentifier # NIL THEN
-				useCase := x.resolved IS SyntaxTree.BasicType;
+				(* Problem: how to distinguish betwteen type aliases, e.g. Status = LONGINT and actual use of LONGINT?
+					This tries to use scope level: if the type is declared in the global scope, it should be a basic type use. *)
+				useCase := (x.resolved IS SyntaxTree.BasicType) & (x.scope.Level() = 0);
 				QualifiedIdentifier(x.qualifiedIdentifier);
 				useCase := FALSE;
 			ELSE
