@@ -1,6 +1,6 @@
 MODULE StaticLinker;	(* AUTHOR "negelef"; PURPOSE "Static Object File Linker"; *)
 
-IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile, BitSets, Strings, Streams;
+IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile, BitSets, Strings, Streams, FoxBasic, D:=Debugging, Basic:=FoxBasic;
 
 TYPE
 	ExportName = ARRAY 128 OF CHAR;
@@ -111,7 +111,9 @@ TYPE
 		relocInfo: RelocationInfo;
 
 	PROCEDURE & InitArrangement* (displacement: GenericLinker.Address);
-	BEGIN SELF.displacement := displacement; maxUnitSize := 1; NEW (bits, 0); exportInfo := NIL; NEW(relocInfo);
+	BEGIN
+		
+	 SELF.displacement := displacement; maxUnitSize := 1; NEW (bits, 0); exportInfo := NIL; NEW(relocInfo);
 	END InitArrangement;
 
 	PROCEDURE Allocate* (CONST section: ObjectFile.Section): GenericLinker.Address;
@@ -128,6 +130,8 @@ TYPE
 		IF bits.GetSize () < section.bits.GetSize () + address THEN
 			bits.Resize (address + section.bits.GetSize ());
 		END;
+		(*dest pos is for some reason negative*)
+		ASSERT(address>=0);
 		BitSets.CopyBits (section.bits, 0, bits, address, section.bits.GetSize ());
 
 		IF exportInfo # NIL THEN
@@ -207,8 +211,10 @@ BEGIN
 	END;
 END WriteBinaryFile;
 
-PROCEDURE WriteTRMFile (arrangement: Arrangement; writer: Files.Writer; bitsPerLine, lines: LONGINT);
-VAR i,j,size,end: LONGINT;
+
+
+PROCEDURE WriteTRMFile (arrangement: Arrangement; writer: Files.Writer; bitsPerLine, lines:LONGINT);
+VAR i,j,size,end,nonZeroInLeadingNibble,leadingzeros: LONGINT;
 	PROCEDURE GetBits(pos: LONGINT): LONGINT;
 	BEGIN
 		IF pos >= size THEN RETURN 0
@@ -216,11 +222,28 @@ VAR i,j,size,end: LONGINT;
 		ELSE RETURN arrangement.bits.GetBits(pos,4)
 		END;
 	END GetBits;
+	PROCEDURE GetFirstNibble(pos: LONGINT): LONGINT;
+	BEGIN
+		RETURN arrangement.bits.GetBits(pos,nonZeroInLeadingNibble);
+	END GetFirstNibble;
 BEGIN
-	ASSERT (bitsPerLine MOD 4 = 0);
+(*allow line size not divisible by 4 by padding the line to a multiple of 4 bits with leading zeros*)	
 	size := arrangement.bits.GetSize();
+	
 	end := (size-1) DIV bitsPerLine + 1;
+	
+	D.String("bits per line: ");D.Int(bitsPerLine,0);
+	D.String("  number of bits: ");D.Int(size,0);
+	D.String("  number of words: ");D.Int(end,0);D.Ln;
+	
+	nonZeroInLeadingNibble:=bitsPerLine MOD 4;
 	FOR i := 0 TO end-1 DO
+		(*be aware we are writing msb first here*)
+		(*padded first nibble*)
+		IF nonZeroInLeadingNibble > 0 THEN
+			writer.Char(ObjectFile.NibbleToCharacter(GetFirstNibble(i*bitsPerLine+bitsPerLine-nonZeroInLeadingNibble) ) ) ; 
+		END;
+		(*rest of the instruction word*)
 		FOR j := bitsPerLine DIV 4 -1 TO 0 BY -1 DO
 			writer.Char(ObjectFile.NibbleToCharacter(GetBits(i*bitsPerLine+j*4)));
 		END;
@@ -229,17 +252,18 @@ BEGIN
 	IF end > 0 THEN (* allow at least one block, if size = 0 *)
 		lines := (((end-1) DIV lines)+1)*lines; (* round up to next multiple of lines *)
 	END;
-
 	FOR i := end TO lines -1 DO
-		FOR j := bitsPerLine DIV 4 -1 TO 0 BY -1 DO
+		FOR j:=1 TO bitsPerLine DIV 4 BY 1 DO
 			writer.Char('f');
 		END;
+		
 		writer.Ln;
 	END;
 END WriteTRMFile;
 
 PROCEDURE WriteTRMCodeFile* (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
-BEGIN WriteTRMFile (arrangement, writer, 36,512);
+BEGIN 
+	WriteTRMFile (arrangement, writer, arrangement.maxUnitSize,1024);
 END WriteTRMCodeFile;
 
 PROCEDURE WriteTRMDataFile* (linker: GenericLinker.Linker; arrangement: Arrangement; writer: Files.Writer);
