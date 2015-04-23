@@ -1840,13 +1840,16 @@ TYPE
 				IF i > 0 THEN
 					y := (ty + layout.lines[i - 1].ascent)
 				ELSE
-					y := (ty + 10)
+					f := GetFont();
+					y := (ty + f.GetHeight());
 				END;
 				x := bordersI.l + x0 - leftShiftI;
 				text.ReleaseRead;
 				RETURN TRUE
 			ELSIF (pos = 0) & (firstLineI = 0) THEN
-				x := bordersI.l + x0 - leftShiftI; f := GetFont();  y := f.GetAscent();
+				x := bordersI.l + x0 - leftShiftI;
+				f := GetFont();
+				y := f.GetHeight();
 				CheckParagraphBegin(i, y);
 				text.ReleaseRead;
 				RETURN TRUE
