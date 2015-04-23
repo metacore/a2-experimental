@@ -21,6 +21,7 @@ TYPE
 		findSectionOffset-: LONGINT;
 		capabilities-: SET;
 		oberon07-: BOOLEAN;
+		instructionWidth -: LONGINT;
 
 		(* constructor *)
 		PROCEDURE & InitBackend *;
@@ -32,6 +33,7 @@ TYPE
 			error := FALSE;
 			findSectionName := "";
 			findSectionOffset := 0;
+			instructionWidth := -1;
 		END InitBackend;
 
 		PROCEDURE SetOberon07*;
@@ -47,6 +49,13 @@ TYPE
 		BEGIN
 			SELF.capabilities := capabilities;
 		END SetCapabilities;
+
+
+		PROCEDURE SetInstructionWidth* (instructionWidth: LONGINT);
+		BEGIN
+			SELF.instructionWidth := instructionWidth;
+			(*TRACE(instructionWidth);*)
+		END SetInstructionWidth;
 
 		PROCEDURE ResetError*;
 		BEGIN error := FALSE

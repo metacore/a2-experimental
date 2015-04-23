@@ -33,15 +33,21 @@ CONST
 	StringSafe* = "SAFE";
 	StringRealtime* = "REALTIME";
 	StringDynamic* = "DYNAMIC";
-
+	
+	StringInstructionWidth*="InstructionWidth";
 	StringDataMemorySize*= "DataMemorySize";
 	StringCodeMemorySize*= "CodeMemorySize";
 	StringChannelWidth*= "ChannelWidth";
 	StringChannelDepth*= "ChannelDepth";
 	StringChannelModule*= "Channels";
 
+	StringBaseMem*= "BaseMem";
+	StringBaseDiv*= "BaseDiv";
+
 	StringVector*="Vector";
 	StringFloatingPoint*="FloatingPoint";
+	StringNoMul*="NoMul";
+	StringNonBlockingIO*="HasNonBlockingIO";
 	StringFrequencyDivider*="FrequencyDivider";
 	StringEngine*="Engine";
 	StringTRM*="TRM";
@@ -124,6 +130,8 @@ endFox*= IncMul+1;
 	FloatingPointCapability*= 1;
 	EngineCapability*= 2;
 	TRMSCapability*= 3;
+	NoMulCapability*=4;
+	NonBlockingIOCapability*=5;
 CONST    
     (* LYNX extensions *)
 
@@ -186,7 +194,7 @@ VAR
 	A2Name-,OberonName-,ArrayBaseName-,RecordBodyName-,ModuleBodyName-,
 	NameWinAPI-,NameC-,NameUntraced-,NameDelegate-,NameInterrupt-, NamePcOffset-, NameNoPAF-,NameEntry-, NameExit-, NameFixed-,NameAligned-,NameStackAligned-,
 	NameExclusive-,NameActive-,NamePriority-,NameSafe-,NameRealtime-, NameDynamic-, NameDataMemorySize-, NameCodeMemorySize-
-	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-, NameVector-, NameFloatingPoint-, NameTRM-, NameTRMS-, NameEngine-, NameFinal-, NameAbstract-,
+	, NameChannelWidth-, NameChannelDepth-, NameChannelModule-, NameVector-, NameFloatingPoint-, NameNoMul-,NameNonBlockingIO-, NameTRM-, NameTRMS-, NameEngine-, NameFinal-, NameAbstract-,
 	NameFrequencyDivider-, NameRegister-,NameNoReturn-,NameUnsafe-,NameDisposable-,NameUnchecked-: SyntaxTree.Identifier;
 
 	identifiers: ARRAY 2 OF ARRAY end OF SyntaxTree.Identifier;
@@ -1530,6 +1538,8 @@ TYPE
 		NameChannelModule := SyntaxTree.NewIdentifier(StringChannelModule);
 		NameVector := SyntaxTree.NewIdentifier(StringVector);
 		NameFloatingPoint := SyntaxTree.NewIdentifier(StringFloatingPoint);
+		NameNoMul:= SyntaxTree.NewIdentifier(StringNoMul);
+		NameNonBlockingIO:=SyntaxTree.NewIdentifier(StringNonBlockingIO);
 		NameTRM := SyntaxTree.NewIdentifier(StringTRM);
 		NameTRMS := SyntaxTree.NewIdentifier(StringTRMS);
 		NameEngine := SyntaxTree.NewIdentifier(StringEngine);

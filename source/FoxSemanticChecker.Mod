@@ -991,6 +991,8 @@ TYPE
 					IF HasFlag(modifier, Global.NameEngine, position) THEN isEngine := TRUE ELSE isEngine := FALSE END;
 					IF HasFlag(modifier, Global.NameVector,position) THEN END;
 					IF HasFlag(modifier, Global.NameFloatingPoint, position) THEN END;
+					IF HasFlag(modifier, Global.NameNoMul,position) THEN END;
+					IF HasFlag(modifier, Global.NameNonBlockingIO,position) THEN END;
 					IF HasFlag(modifier, Global.NameTRM, position) THEN END;
 					IF HasFlag(modifier, Global.NameTRMS, position) THEN END;
 					symbol := system.activeCellsCapabilities;
