@@ -46,7 +46,7 @@ VAR
 		IF v.type = 15 THEN
 			w.Char(22X);
 			LOOP
-				IF (v.n = 0) (*OR (~CheckHeapAddress(v.adr))*) THEN EXIT END;
+				IF (v.n = 0) OR (~CheckHeapAddress(v.adr)) THEN EXIT END;
 				SYSTEM.GET(v.adr, ch);
 				INC(v.adr);
 				IF (ch < " ") OR (ch > "~") THEN EXIT END;
@@ -496,58 +496,60 @@ VAR
 		address: ADDRESS; pos0: LONGINT;
 	BEGIN
 		pos0 := w.Pos();
-		CASE type OF
-		1, 3:  (* BYTE, CHAR *)
-				SYSTEM.GET( adr, ch );
-				IF (ch > " ") & (ch <= "~") THEN w.Char( ch ); ELSE w.Hex( ORD( ch ), -2 );  w.Char( "X" ) END;
-		| 2:    (* BOOLEAN *)
-				SYSTEM.GET( adr, ch );
-				IF ch = 0X THEN w.String( "FALSE" )
-				ELSIF ch = 1X THEN w.String( "TRUE" )
-				ELSE w.Int( ORD( ch ), 1 );
-				END;
-		| 4:    (* SHORTINT *)
-				SYSTEM.GET( adr, sval );
-				w.Int( sval, 1 );
-				IF sval > 0H THEN w.String(" ("); w.Hex(sval, -2); w.String("H)") END;
-		| 5:    (* INTEGER *)
-				SYSTEM.GET( adr, ival );
-				w.Int( ival, 1 );
-				IF ival > 0H THEN w.String(" (");w.Hex(ival,-4);w.Char("H");w.String(")"); END;
-		| 6:    (* LONGINT *)
-				SYSTEM.GET( adr, lval );
-				w.Int( lval, 1 );
-				IF lval > 0H THEN w.String( " (" );  w.Hex( lval,-8 );  w.String( "H)" );  END;
-		| 7:     (* REAL *)
-				SYSTEM.GET(adr,rval); SYSTEM.GET(adr,lval);
-				w.Float(rval,15);
-				IF lval > 0H THEN w.String(" ("); w.Hex(lval,-8);w.Char( "H" ); w.String(")"); END;
-		| 8:      (* LONGREAL *)
-				SYSTEM.GET(adr,xval);SYSTEM.GET(adr,hval);
-				w.Float(xval,15);
-				IF hval > 0H THEN  w.String( " (" );  w.Hex(hval,-16);  w.String( "H)" );  END;
-		| 13,29: (* POINTER *)
-				SYSTEM.GET( adr, address ); w.Address( address );  w.String( "H" );
-				(* output type information, if available: *)
-				w.String(" (");
-				(* do a check if the address is in the heap range *)
-				IF CheckHeapAddress(address) THEN
-					SYSTEM.GET(address + Heaps.TypeDescOffset, address);
-					WriteType(w,address);
-				ELSE w.String("NIL");
-				END;
-				w.String(")");
-		| 16:   (* HUGEINT *)
-				SYSTEM.GET( adr , hval );
-				w.Hex(hval,1);
-				IF hval < 0 THEN w.String( "H (" ); w.Hex(hval,-16); w.String(")") END;
-		| 9:    (* SET *)
-				SYSTEM.GET( adr, lval );
-				w.Set( SYSTEM.VAL( SET, lval ) );
-		| 22:  (* RECORD *)
-				w.String( "Rec@" );  w.Hex( tdadr, -8 );  w.Char( "H" );
-		| 14:  (* PROC *)
-				SYSTEM.GET( adr, lval );  WriteProc( w, lval );
+		IF (adr # 0) OR (type = 22) THEN
+			CASE type OF
+			1, 3:  (* BYTE, CHAR *)
+					SYSTEM.GET( adr, ch );
+					IF (ch > " ") & (ch <= "~") THEN w.Char( ch ); ELSE w.Hex( ORD( ch ), -2 );  w.Char( "X" ) END;
+			| 2:    (* BOOLEAN *)
+					SYSTEM.GET( adr, ch );
+					IF ch = 0X THEN w.String( "FALSE" )
+					ELSIF ch = 1X THEN w.String( "TRUE" )
+					ELSE w.Int( ORD( ch ), 1 );
+					END;
+			| 4:    (* SHORTINT *)
+					SYSTEM.GET( adr, sval );
+					w.Int( sval, 1 );
+					IF sval > 0H THEN w.String(" ("); w.Hex(sval, -2); w.String("H)") END;
+			| 5:    (* INTEGER *)
+					SYSTEM.GET( adr, ival );
+					w.Int( ival, 1 );
+					IF ival > 0H THEN w.String(" (");w.Hex(ival,-4);w.Char("H");w.String(")"); END;
+			| 6:    (* LONGINT *)
+					SYSTEM.GET( adr, lval );
+					w.Int( lval, 1 );
+					IF lval > 0H THEN w.String( " (" );  w.Hex( lval,-8 );  w.String( "H)" );  END;
+			| 7:     (* REAL *)
+					SYSTEM.GET(adr,rval); SYSTEM.GET(adr,lval);
+					w.Float(rval,15);
+					IF lval > 0H THEN w.String(" ("); w.Hex(lval,-8);w.Char( "H" ); w.String(")"); END;
+			| 8:      (* LONGREAL *)
+					SYSTEM.GET(adr,xval);SYSTEM.GET(adr,hval);
+					w.Float(xval,15);
+					IF hval > 0H THEN  w.String( " (" );  w.Hex(hval,-16);  w.String( "H)" );  END;
+			| 13,29: (* POINTER *)
+					SYSTEM.GET( adr, address ); w.Address( address );  w.String( "H" );
+					(* output type information, if available: *)
+					w.String(" (");
+					(* do a check if the address is in the heap range *)
+					IF CheckHeapAddress(address) THEN
+						SYSTEM.GET(address + Heaps.TypeDescOffset, address);
+						WriteType(w,address);
+					ELSE w.String("NIL");
+					END;
+					w.String(")");
+			| 16:   (* HUGEINT *)
+					SYSTEM.GET( adr , hval );
+					w.Hex(hval,1);
+					IF hval < 0 THEN w.String( "H (" ); w.Hex(hval,-16); w.String(")") END;
+			| 9:    (* SET *)
+					SYSTEM.GET( adr, lval );
+					w.Set( SYSTEM.VAL( SET, lval ) );
+			| 22:  (* RECORD *)
+					w.String( "Rec@" );  w.Hex( tdadr, -8 );  w.Char( "H" );
+			| 14:  (* PROC *)
+					SYSTEM.GET( adr, lval );  WriteProc( w, lval );
+			END;
 		END;
 		INC(col,w.Pos()-pos0);
 	END WriteSimpleVar;
