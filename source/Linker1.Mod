@@ -139,8 +139,9 @@ END ReadString8;
 PROCEDURE AllocateModule(m: Modules.Module; h: ObjHeader);
 CONST
 	LenOfs = 3 * AddressSize;	(* offset of dimension 0 in array header *)
-
-VAR dataSize: SIZE;
+	
+VAR dataSize: SIZE; any: ANY;
+	offset: ADDRESS;
 
 	PROCEDURE NewSysArray(VAR ptr: ANY; elements, elemSize: SIZE);
 	VAR adr: ADDRESS;
@@ -176,6 +177,19 @@ BEGIN
 	NewSysArray(SYSTEM.VAL(ANY, m.refs), h.refSize, 1);
 	NewSysArray(SYSTEM.VAL(ANY, m.exTable), h.exTableLen, SIZEOF(Modules.ExceptionTableEntry));
 
+	(* the following code can be used in order to force a certain heapsize / alignment for debugging kernel issues
+	IF m.name = "BootConsole" THEN 
+		Heaps.NewSys(any, 0);	
+	
+		offset := SYSTEM.VAL(ADDRESS, any) - SYSTEM.VAL(ADDRESS, Heaps.heap); 
+		offset := offset - 0EBE00H;
+		offset := 4096 - offset;
+		TRACE(offset);
+		Heaps.NewSys(any,offset -32); 
+		
+	END;
+	*)
+	
 	m.sb := ADDRESSOF(m.data[0]) + dataSize	(* constants positive, data negative *)
 END AllocateModule;
 
@@ -890,4 +904,4 @@ END Linker1.
 20.05.98	pjm	Started
 *)
 
-SystemTools.Free Linker1 Linker0 ~
+SystemTools.FreeDownTo  Linker1 Linker0 ~

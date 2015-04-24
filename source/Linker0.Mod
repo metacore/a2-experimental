@@ -247,7 +247,7 @@ VAR
 	numProcs: LONGINT;			(* number of entries in procOffsets *)
 	ptrOffsets {UNTRACED}: PtrTable;			(* global table containing pointer offsets of procedures *)
 	numPtrs: LONGINT;				(* number of entries in ptrOffsets *)
-	heap: ANY;
+	heap-: ANY;
 	memBlock {UNTRACED}: MemoryBlock;
 	beginMemBlockAdr, endMemBlockAdr: ADDRESS;	(* block boundaries of linker heap (including memory block descriptor) *)
 	beginAdr, freeAdr, baseAdr (* fof 071201 *) : ADDRESS;
