@@ -1841,16 +1841,21 @@ TYPE
 					y := (ty + layout.lines[i - 1].ascent)
 				ELSE
 					f := GetFont();
-					y := (ty + f.GetHeight());
+					y := (ty + f.GetAscent());
 				END;
 				x := bordersI.l + x0 - leftShiftI;
 				text.ReleaseRead;
 				RETURN TRUE
 			ELSIF (pos = 0) & (firstLineI = 0) THEN
+				ty := bordersI.t;
+				IF layout.GetNofLines() > 0 THEN
+					y := (ty + layout.lines[0].ascent);
+				ELSE
+					f := GetFont();
+					y := ty+f.GetAscent();
+				END;
+				CheckParagraphBegin(0, y);
 				x := bordersI.l + x0 - leftShiftI;
-				f := GetFont();
-				y := f.GetHeight();
-				CheckParagraphBegin(i, y);
 				text.ReleaseRead;
 				RETURN TRUE
 			ELSE
