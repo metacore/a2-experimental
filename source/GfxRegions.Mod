@@ -230,40 +230,52 @@ MODULE GfxRegions; (** portable *)	(* eos  *)
 		END
 	END CalcRect;
 
-	(* sort region data points in ascending y and x order *)
-	PROCEDURE SortRange (data: RegionData; lo, hi: LONGINT);
-		CONST limit = 8;
-		VAR i, x, j, t: LONGINT;
+	(* quick sort with limited recursion guarantee *)
+	PROCEDURE SafeQuickSort(VAR data: ARRAY OF LONGINT; lo, hi: LONGINT);
+	CONST limit = 8;
+	VAR i, x, j, t, shortLo, shortHi, longLo, longHi: LONGINT;
 	BEGIN
-		IF hi - lo < limit THEN	(* use straight insertion for less than limit entries... *)
-			i := lo + 1;
-			WHILE i <= hi DO
-				x := data[i];
-				j := i;
-				WHILE (j > lo) & (x < data[j - 1]) DO
-					data[j] := data[j - 1];
-					DEC(j)
+		WHILE (hi > lo) DO
+			IF hi - lo < limit THEN	(* use straight insertion for less than limit entries... *)
+				i := lo + 1;
+				WHILE i <= hi DO
+					x := data[i];
+					j := i;
+					WHILE (j > lo) & (x < data[j - 1]) DO
+						data[j] := data[j - 1];
+						DEC(j)
+					END;
+					data[j] := x;
+					INC(i)
 				END;
-				data[j] := x;
-				INC(i)
+				hi := lo; (* termination! *)
+			ELSE
+				i := lo; j := hi;
+				x := data[(lo + hi) DIV 2];
+				REPEAT
+					WHILE data[i] < x DO INC(i) END;
+					WHILE data[j] > x DO DEC(j) END;
+					IF i <= j THEN
+						t := data[i]; data[i] := data[j]; data[j] := t;
+						INC(i); DEC(j)
+					END
+				UNTIL i > j;
+				IF (j - lo) < (hi - i) THEN (* generalized interval [lo,j] is smaller than interval [hi, i] *)
+					shortLo := lo; shortHi := j;
+					longLo := i; longHi := hi;
+				ELSE
+					longLo := lo; longHi := j;
+					shortLo := i; shortHi := hi;
+				END;
+				IF (shortLo < shortHi) THEN 
+					SafeQuickSort(data, shortLo, shortHi);
+				END;
+				(* now: tail recursion, call of: SortRange(data, longLo, longHi) *)
+				lo := longLo; hi := longHi;
 			END
-
-		ELSE	(* ...otherwise partition and recurse *)
-			i := lo; j := hi;
-			x := data[(lo + hi) DIV 2];
-			REPEAT
-				WHILE data[i] < x DO INC(i) END;
-				WHILE data[j] > x DO DEC(j) END;
-				IF i <= j THEN
-					t := data[i]; data[i] := data[j]; data[j] := t;
-					INC(i); DEC(j)
-				END
-			UNTIL i > j;
-			IF lo < j THEN SortRange(data, lo, j) END;
-			IF i < hi THEN SortRange(data, i, hi) END
-		END
-	END SortRange;
-
+		END;
+	END SafeQuickSort;
+	
 	(*	haven't needed this in a long time but better keep my fingers crossed
 	PROCEDURE Show* (data: RegionData; points: LONGINT);
 		VAR n: LONGINT; y, x, dir, v: INTEGER;
@@ -433,7 +445,7 @@ MODULE GfxRegions; (** portable *)	(* eos  *)
 	BEGIN
 		IF ~reg.valid THEN
 			data := reg.data;
-			SortRange(data, 0, reg.points - 1);
+			SafeQuickSort(data^,0,reg.points-1);
 			points := reg.points;
 			rn := FirstSlice; wn := FirstSlice;	(* read and write position *)
 			Decode(data[rn], u, v, dir);
