@@ -122,7 +122,7 @@ TYPE
 	CapYieldCallback* = PROCEDURE {WINAPI} (hWnd : HWND) : User32.LResult;
 
 VAR
-	CapCreateCaptureWindow-: PROCEDURE {WINAPI} (VARlpszWindowName: ARRAY OF CHAR;
+	CapCreateCaptureWindow-: PROCEDURE {WINAPI} (CONST lpszWindowName: ARRAY OF CHAR;
 		dwStyle, x, y, nWidth, nHeight : LONGINT;
 		ParentWin : HWND;
 		nId : LONGINT): HWND;
