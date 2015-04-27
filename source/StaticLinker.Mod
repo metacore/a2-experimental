@@ -1,6 +1,6 @@
 MODULE StaticLinker;	(* AUTHOR "negelef"; PURPOSE "Static Object File Linker"; *)
 
-IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile, BitSets, Strings, Streams, FoxBasic, D:=Debugging, Basic:=FoxBasic;
+IMPORT Commands, Options, Diagnostics, Files, GenericLinker, ObjectFile, BitSets, Strings, Streams, D:=Debugging;
 
 TYPE
 	ExportName = ARRAY 128 OF CHAR;
