@@ -928,11 +928,14 @@ VAR
 		t: LONGINT;
 	BEGIN
 		t := cInfo.reader.Net16();
-		ASSERT(t > 0);
-		(* length := SHORT(t); *)
-		DEC(t,2);
-		cInfo.reader.SkipBytes(t);
-		RETURN TRUE;
+		(*ASSERT(t > 0);*)
+		IF t<=0 THEN RETURN FALSE
+		ELSE
+			(* length := SHORT(t); *)
+			DEC(t,2);
+			cInfo.reader.SkipBytes(t);
+			RETURN TRUE;
+		END;
 	END skipVariable;
 
 	(* Auf InputFile bis zum naechsten Marker weiterlesen *)
